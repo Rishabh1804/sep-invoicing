@@ -953,6 +953,112 @@ input, select, textarea, button { font-family: inherit; font-size: var(--fs-base
 .dark .inv-autocomplete-list { background: var(--surface); border-color: var(--border); }
 .dark .inv-autocomplete-item:active { background: var(--surface-2); }
 
+/* ===== ITEMS MASTER (Phase 6) ===== */
+.inv-subview-toggle {
+  display: flex; gap: var(--sp-4); margin-bottom: var(--sp-12);
+  background: var(--surface-2); border-radius: var(--r-md);
+  padding: var(--sp-4);
+}
+.inv-subview-btn {
+  flex: 1; padding: var(--sp-8) var(--sp-12); border: none;
+  border-radius: var(--r-sm); font-size: var(--fs-sm);
+  font-weight: 600; cursor: pointer; min-height: 44px;
+  background: transparent; color: var(--text-3);
+  transition: all var(--anim-fast);
+}
+.inv-subview-active {
+  background: var(--surface); color: var(--text-1);
+  box-shadow: var(--shadow-sm);
+}
+.dark .inv-subview-toggle { background: var(--surface-2); }
+.dark .inv-subview-active { background: var(--surface); color: var(--text-1); }
+
+.inv-items-toolbar { margin-bottom: var(--sp-12); }
+.inv-items-toolbar-row {
+  display: flex; align-items: center; gap: var(--sp-8);
+  margin-top: var(--sp-8); flex-wrap: wrap;
+}
+.inv-items-count {
+  font-size: var(--fs-sm); font-weight: 600; color: var(--text-3);
+  font-family: var(--ff-mono);
+}
+.inv-items-sort {
+  min-width: 80px; max-width: 100px;
+  padding: var(--sp-6) var(--sp-8);
+  font-size: var(--fs-sm); min-height: 36px;
+}
+.inv-item-card {
+  padding: var(--sp-12) var(--sp-16);
+  border-bottom: 1px solid var(--border);
+  cursor: pointer; min-height: 52px;
+  transition: background var(--anim-fast);
+}
+.inv-item-card:active { background: var(--surface-2); }
+.inv-item-card:last-child { border-bottom: none; }
+.inv-item-card-top {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: var(--sp-4);
+}
+.inv-item-card-bottom {
+  display: flex; justify-content: space-between; align-items: center;
+}
+.inv-item-pn {
+  font-size: var(--fs-sm); font-weight: 600; color: var(--text-1);
+  word-break: break-all;
+}
+.inv-item-desc {
+  font-size: var(--fs-xs); color: var(--text-2);
+  word-break: break-word; flex: 1; min-width: 0;
+}
+.inv-item-rate {
+  font-size: var(--fs-sm); white-space: nowrap; margin-left: var(--sp-8);
+}
+.inv-item-unit { flex-shrink: 0; }
+.inv-item-weight-row {
+  margin-top: var(--sp-4);
+}
+.inv-weight-badge {
+  display: inline-block; padding: var(--sp-2) var(--sp-6);
+  background: var(--prod-bg); color: var(--prod-text);
+  border-radius: var(--r-sm); font-size: var(--fs-2xs); font-weight: 600;
+  font-family: var(--ff-mono);
+}
+
+/* Merge tool */
+.inv-merge-group {
+  background: var(--surface); border-radius: var(--r-xl);
+  padding: var(--card-padding); box-shadow: var(--shadow-sm);
+  margin-bottom: var(--sp-12);
+}
+.inv-merge-group-header {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: var(--sp-8);
+}
+.inv-merge-radio-row {
+  display: flex; align-items: flex-start; gap: var(--sp-8);
+  padding: var(--sp-8) 0; border-bottom: 1px solid var(--border);
+  min-height: 44px; cursor: pointer;
+}
+.inv-merge-radio-row:last-of-type { border-bottom: none; }
+.inv-merge-radio {
+  margin-top: var(--sp-4); flex-shrink: 0;
+  accent-color: var(--accent);
+}
+.inv-merge-item-info { font-size: var(--fs-sm); }
+.inv-merge-item-desc { font-size: var(--fs-xs); margin-top: var(--sp-2); }
+.inv-merge-warn {
+  font-size: var(--fs-xs); color: var(--warning-text);
+  background: var(--warning-bg); padding: var(--sp-6) var(--sp-10);
+  border-radius: var(--r-sm); margin-top: var(--sp-8);
+}
+.inv-merge-preview {
+  padding: var(--sp-8) 0;
+}
+.inv-merge-btn { flex-shrink: 0; }
+
+.dark .inv-merge-group { background: var(--surface); }
+.dark .inv-merge-warn { background: var(--warning-bg); color: var(--warning-text); }
+.dark .inv-weight-badge { background: var(--prod-bg); color: var(--prod-text); }
 </style>
 </head>
 <body>
@@ -1015,11 +1121,8 @@ input, select, textarea, button { font-family: inherit; font-size: var(--fs-base
 </div>
 
 <div id="pageClients" class="inv-page">
-  <div class="inv-search-wrap">
-    <svg class="inv-search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
-    <input type="text" class="inv-search-input" id="clientSearch" placeholder="Search clients" autocomplete="off">
-  </div>
-  <div id="clientList"></div>
+  <div id="clientsPageContent"></div>
+  <button class="inv-fab inv-hidden" id="clientsItemsFab" data-action="invAddItem" aria-label="Add Item">+</button>
 </div>
 
 <div id="pageStats" class="inv-page">
@@ -1425,7 +1528,7 @@ function switchTab(tabId) {
     }
     if (isDirty) { renderRegisterList(); _tabDirty.register = false; }
   } else if (tabId === 'pageClients') {
-    renderClientList();
+    renderClientsPage();
   } else if (tabId === 'pageIM') {
     // Cancel any in-progress challan form
     if (_challanForm) cancelAddChallan();
@@ -1660,6 +1763,620 @@ function closeTopOverlay() {
   }
 }
 
+/* ===== ITEMS MASTER (Phase 6) ===== */
+
+/* --- Subview state --- */
+var _itemsRendered = 0;
+var _itemsSearchTimer = null;
+var _itemsSorted = [];
+var _mergeBackupWarned = false;
+var ITEMS_BATCH = 50;
+
+function getItemsSubView() {
+  return regFilter.clientsSubView || 'clients';
+}
+
+function setItemsSubView(view) {
+  regFilter.clientsSubView = view;
+  saveRegFilter();
+}
+
+function getItemsSort() {
+  return regFilter.itemsSort || 'alpha';
+}
+
+function getItemsSearch() {
+  return regFilter.itemsSearch || '';
+}
+
+function getItemsFilter() {
+  return regFilter.itemsFilter || 'all';
+}
+
+/* --- Clients page dispatcher --- */
+function renderClientsPage() {
+  var container = document.getElementById('clientsPageContent');
+  if (!container) return;
+  var subView = getItemsSubView();
+  var fab = document.getElementById('clientsItemsFab');
+
+  if (subView === 'items') {
+    container.innerHTML = _buildItemsSubViewHtml();
+    if (fab) fab.classList.remove('inv-hidden');
+    _bindItemsSearch();
+    _itemsRendered = 0;
+    _renderItemsList();
+  } else {
+    container.innerHTML = _buildClientsSubViewHtml();
+    if (fab) fab.classList.add('inv-hidden');
+    renderClientList('');
+  }
+}
+
+function _buildClientsSubViewHtml() {
+  return _buildSubViewToggle('clients') +
+    '<div class="inv-search-wrap">' +
+    '<svg class="inv-search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>' +
+    '<input type="text" class="inv-search-input" id="clientSearch" placeholder="Search clients" autocomplete="off">' +
+    '</div>' +
+    '<div id="clientList"></div>';
+}
+
+function _buildItemsSubViewHtml() {
+  var search = getItemsSearch();
+  var sort = getItemsSort();
+  var filter = getItemsFilter();
+  var noWeightCount = S.items.filter(function(it) { return it.stdWeightKg == null; }).length;
+
+  var html = _buildSubViewToggle('items');
+
+  // Toolbar
+  html += '<div class="inv-items-toolbar">' +
+    '<div class="inv-search-wrap inv-search-no-mb">' +
+    '<svg class="inv-search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>' +
+    '<input type="text" class="inv-search-input" id="itemsSearch" placeholder="Search items" value="' + escHtml(search) + '" autocomplete="off">' +
+    '</div>' +
+    '<div class="inv-items-toolbar-row">' +
+    '<span class="inv-items-count" id="itemsCount">' + S.items.length + ' items</span>' +
+    '<select class="inv-form-select inv-items-sort" id="itemsSort" data-action="invItemsSort">' +
+    '<option value="alpha"' + (sort === 'alpha' ? ' selected' : '') + '>A-Z</option>' +
+    '<option value="unit"' + (sort === 'unit' ? ' selected' : '') + '>Unit</option>' +
+    '<option value="rate"' + (sort === 'rate' ? ' selected' : '') + '>Rate</option>' +
+    '</select>' +
+    '</div>' +
+    '<div class="inv-items-toolbar-row">' +
+    '<button class="inv-btn inv-btn-ghost inv-btn-sm' + (filter === 'no-weight' ? ' inv-chip-active' : '') + '" data-action="invFilterNoWeight">No weight (' + noWeightCount + ')</button>' +
+    '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invCalcWeights">Calc Weights</button>' +
+    '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invOpenMergeTool">Merge</button>' +
+    '</div>' +
+    '</div>';
+
+  // List container
+  html += '<div id="itemsList"></div>';
+  html += '<div id="itemsLoadMore"></div>';
+
+  return html;
+}
+
+function _buildSubViewToggle(active) {
+  return '<div class="inv-subview-toggle">' +
+    '<button class="inv-subview-btn' + (active === 'clients' ? ' inv-subview-active' : '') + '" data-action="invSwitchSubView" data-view="clients">Clients</button>' +
+    '<button class="inv-subview-btn' + (active === 'items' ? ' inv-subview-active' : '') + '" data-action="invSwitchSubView" data-view="items">Items</button>' +
+    '</div>';
+}
+
+function _bindItemsSearch() {
+  var el = document.getElementById('itemsSearch');
+  if (!el) return;
+  el.addEventListener('input', function() {
+    regFilter.itemsSearch = el.value;
+    saveRegFilter();
+    clearTimeout(_itemsSearchTimer);
+    _itemsSearchTimer = setTimeout(function() {
+      _itemsRendered = 0;
+      _renderItemsList();
+    }, 300);
+  });
+}
+
+/* --- Sort & filter items --- */
+function _getSortedFilteredItems() {
+  var search = getItemsSearch().toLowerCase();
+  var sort = getItemsSort();
+  var filter = getItemsFilter();
+
+  var list = S.items.slice();
+
+  // Filter
+  if (filter === 'no-weight') {
+    list = list.filter(function(it) { return it.stdWeightKg == null; });
+  }
+
+  // Search
+  if (search.length > 0) {
+    list = list.filter(function(it) {
+      return (it.partNumber || '').toLowerCase().indexOf(search) >= 0 ||
+             (it.desc || '').toLowerCase().indexOf(search) >= 0;
+    });
+  }
+
+  // Sort
+  if (sort === 'alpha') {
+    list.sort(function(a, b) { return (a.partNumber || '').localeCompare(b.partNumber || ''); });
+  } else if (sort === 'unit') {
+    list.sort(function(a, b) {
+      if (a.unit !== b.unit) return (a.unit || '').localeCompare(b.unit || '');
+      return (a.partNumber || '').localeCompare(b.partNumber || '');
+    });
+  } else if (sort === 'rate') {
+    list.sort(function(a, b) { return (b.rate || 0) - (a.rate || 0); });
+  }
+
+  return list;
+}
+
+function _renderItemsList() {
+  var listEl = document.getElementById('itemsList');
+  var moreEl = document.getElementById('itemsLoadMore');
+  var countEl = document.getElementById('itemsCount');
+  if (!listEl) return;
+
+  _itemsSorted = _getSortedFilteredItems();
+  var total = _itemsSorted.length;
+  var search = getItemsSearch();
+
+  if (countEl) countEl.textContent = total + ' item' + (total !== 1 ? 's' : '');
+
+  if (total === 0) {
+    listEl.innerHTML = '<div class="inv-empty-state">No items found</div>';
+    if (moreEl) moreEl.innerHTML = '';
+    return;
+  }
+
+  // For search results, render up to 100; otherwise batch
+  var limit = search.length > 0 ? Math.min(total, 100) : Math.min(total, _itemsRendered + ITEMS_BATCH);
+  if (_itemsRendered === 0) limit = Math.min(total, ITEMS_BATCH);
+
+  var html = '<div class="inv-card-list">';
+  for (var i = 0; i < limit; i++) {
+    var it = _itemsSorted[i];
+    var rateStr = (it.rate != null && it.rate > 0) ? formatCurrency(it.rate) : '';
+    var noRate = !it.rate || it.rate === 0;
+    var weightStr = it.stdWeightKg != null ? formatNum(it.stdWeightKg, 3) + ' kg' : '';
+
+    html += '<div class="inv-item-card" data-action="invEditItem" data-id="' + it.id + '">' +
+      '<div class="inv-item-card-top">' +
+      '<span class="inv-item-pn inv-mono">' + escHtml(it.partNumber) + '</span>' +
+      '<span class="inv-item-unit inv-client-badge inv-badge-mode">' + escHtml(it.unit) + '</span>' +
+      '</div>' +
+      '<div class="inv-item-card-bottom">' +
+      '<span class="inv-item-desc">' + escHtml(it.desc || '') + '</span>' +
+      '<span class="inv-item-rate inv-mono' + (noRate ? ' inv-text-muted' : ' inv-text-cost') + '">' +
+      (noRate ? 'No rate' : rateStr) + '</span>' +
+      '</div>' +
+      (weightStr ? '<div class="inv-item-weight-row"><span class="inv-weight-badge">' + escHtml(weightStr) + '</span></div>' : '') +
+      '</div>';
+  }
+  html += '</div>';
+
+  listEl.innerHTML = html;
+  _itemsRendered = limit;
+
+  // Load more button
+  if (moreEl) {
+    if (limit < total && search.length === 0) {
+      moreEl.innerHTML = '<div class="inv-btn-bar inv-btn-bar-center">' +
+        '<button class="inv-btn inv-btn-ghost" data-action="invLoadMoreItems">Load more (' + (total - limit) + ' remaining)</button></div>';
+    } else {
+      moreEl.innerHTML = '';
+    }
+  }
+}
+
+/* --- Add/Edit Item Overlay --- */
+function openItemEdit(itemId) {
+  var item = S.items.find(function(it) { return it.id === itemId; });
+  if (!item) return;
+  _showItemOverlay(item, false);
+}
+
+function openItemAdd() {
+  _showItemOverlay(null, true);
+}
+
+function _showItemOverlay(item, isAdd) {
+  var title = isAdd ? 'Add Item' : 'Edit Item';
+  var pn = item ? item.partNumber : '';
+  var desc = item ? item.desc : '';
+  var hsn = item ? (item.hsn || '998873') : '998873';
+  var unit = item ? item.unit : 'KG';
+  var rate = item ? (item.rate || 0) : 0;
+  var stdW = (item && item.stdWeightKg != null) ? item.stdWeightKg : '';
+  var itemId = item ? item.id : 0;
+
+  // Reference count for delete warning
+  var invRefs = 0;
+  var imRefs = 0;
+  if (item) {
+    (S.invoices || []).forEach(function(inv) {
+      inv.items.forEach(function(li) {
+        if (li.partNumber === item.partNumber) invRefs++;
+      });
+    });
+    (S.incomingMaterial || []).forEach(function(im) {
+      im.items.forEach(function(li) {
+        if (li.partNumber === item.partNumber) imRefs++;
+      });
+    });
+  }
+  var refCount = invRefs + imRefs;
+
+  var scrim = document.createElement('div');
+  scrim.className = 'inv-overlay-scrim';
+  scrim.innerHTML = '<div class="inv-overlay-card">' +
+    '<div class="inv-overlay-header"><span class="inv-overlay-title">' + escHtml(title) + '</span>' +
+    '<button class="inv-overlay-close" data-action="invCloseOverlay">&times;</button></div>' +
+    '<div class="inv-form-group"><label class="inv-form-label">Part Number</label>' +
+    '<input class="inv-form-input inv-mono" id="itemEditPN" value="' + escHtml(pn) + '"></div>' +
+    '<div class="inv-form-group"><label class="inv-form-label">Description</label>' +
+    '<input class="inv-form-input" id="itemEditDesc" value="' + escHtml(desc) + '"></div>' +
+    '<div class="inv-form-row">' +
+    '<div class="inv-form-group"><label class="inv-form-label">HSN Code</label>' +
+    '<input class="inv-form-input inv-mono" id="itemEditHSN" value="' + escHtml(hsn) + '"></div>' +
+    '<div class="inv-form-group"><label class="inv-form-label">Unit</label>' +
+    '<select class="inv-form-select" id="itemEditUnit">' +
+    '<option value="KG"' + (unit === 'KG' ? ' selected' : '') + '>KG</option>' +
+    '<option value="NOS"' + (unit === 'NOS' ? ' selected' : '') + '>NOS</option></select></div></div>' +
+    '<div class="inv-form-row">' +
+    '<div class="inv-form-group"><label class="inv-form-label">Default Rate</label>' +
+    '<input type="number" class="inv-form-input inv-mono" id="itemEditRate" value="' + rate + '" step="0.01" min="0"></div>' +
+    '<div class="inv-form-group"><label class="inv-form-label">Std Weight (kg)</label>' +
+    '<input type="number" class="inv-form-input inv-mono" id="itemEditWeight" value="' + stdW + '" step="0.001" min="0" placeholder="Optional"></div></div>' +
+    (refCount > 0 ? '<div class="inv-text-muted inv-storage-text">Referenced in ' + invRefs + ' invoice line' + (invRefs !== 1 ? 's' : '') + ', ' + imRefs + ' challan line' + (imRefs !== 1 ? 's' : '') + '</div>' : '') +
+    '<div class="inv-btn-bar">' +
+    (!isAdd ? '<button class="inv-btn inv-btn-danger inv-btn-sm" data-action="invDeleteItem" data-id="' + itemId + '">Delete</button>' : '') +
+    '<button class="inv-btn inv-btn-ghost" data-action="invCloseOverlay">Cancel</button>' +
+    '<button class="inv-btn inv-btn-primary" data-action="invSaveItem" data-id="' + itemId + '" data-mode="' + (isAdd ? 'add' : 'edit') + '">Save</button></div></div>';
+
+  scrim.addEventListener('click', function(e) {
+    if (e.target === scrim) { scrim.remove(); document.body.style.overflow = ''; popFocus(); }
+  });
+  pushFocus();
+  document.body.appendChild(scrim);
+  document.body.style.overflow = 'hidden';
+  focusFirstInteractive(scrim.querySelector('.inv-overlay-card'));
+}
+
+function saveItem(itemId, mode) {
+  var pn = document.getElementById('itemEditPN').value.trim();
+  if (!pn) { showToast('Part number is required', 'error'); return; }
+
+  var desc = document.getElementById('itemEditDesc').value.trim();
+  var hsn = document.getElementById('itemEditHSN').value.trim() || '998873';
+  var unit = document.getElementById('itemEditUnit').value;
+  var rate = parseFloat(document.getElementById('itemEditRate').value) || 0;
+  var wVal = document.getElementById('itemEditWeight').value.trim();
+  var stdW = wVal !== '' ? parseFloat(wVal) : null;
+  if (stdW !== null && (isNaN(stdW) || stdW < 0)) stdW = null;
+
+  if (mode === 'add') {
+    var maxId = S.items.reduce(function(mx, it) { return Math.max(mx, it.id); }, 0);
+    S.items.push({
+      id: maxId + 1,
+      partNumber: pn,
+      desc: desc,
+      hsn: hsn,
+      unit: unit,
+      rate: rate,
+      stdWeightKg: stdW
+    });
+    showToast('Item added: ' + pn);
+  } else {
+    var item = S.items.find(function(it) { return it.id === itemId; });
+    if (!item) return;
+    item.partNumber = pn;
+    item.desc = desc;
+    item.hsn = hsn;
+    item.unit = unit;
+    item.rate = rate;
+    item.stdWeightKg = stdW;
+    showToast('Item updated');
+  }
+
+  saveState();
+  closeOverlay();
+  _itemsRendered = 0;
+  _renderItemsList();
+}
+
+function deleteItem(itemId) {
+  var item = S.items.find(function(it) { return it.id === itemId; });
+  if (!item) return;
+
+  var invRefs = 0;
+  var imRefs = 0;
+  (S.invoices || []).forEach(function(inv) {
+    inv.items.forEach(function(li) {
+      if (li.partNumber === item.partNumber) invRefs++;
+    });
+  });
+  (S.incomingMaterial || []).forEach(function(im) {
+    im.items.forEach(function(li) {
+      if (li.partNumber === item.partNumber) imRefs++;
+    });
+  });
+
+  var msg = 'Delete ' + item.partNumber + '?';
+  if (invRefs + imRefs > 0) {
+    msg += '\n\nReferenced in ' + invRefs + ' invoice line' + (invRefs !== 1 ? 's' : '') +
+      ' and ' + imRefs + ' challan line' + (imRefs !== 1 ? 's' : '') +
+      '. Historical references will be kept as-is.';
+  }
+  if (!confirm(msg)) return;
+
+  var idx = S.items.indexOf(item);
+  if (idx > -1) S.items.splice(idx, 1);
+  saveState();
+  closeOverlay();
+  _itemsRendered = 0;
+  _renderItemsList();
+  showToast('Item deleted');
+}
+
+/* --- Merge Duplicates Tool --- */
+function openMergeTool() {
+  if (!_mergeBackupWarned) {
+    _mergeBackupWarned = true;
+    showToast('Back up your data before merging. Settings \u2192 Export Data.', 'warning');
+  }
+
+  var groups = findDuplicateGroups(S.items);
+
+  var scrim = document.createElement('div');
+  scrim.className = 'inv-overlay-scrim';
+  var html = '<div class="inv-overlay-card">' +
+    '<div class="inv-overlay-header"><span class="inv-overlay-title">Merge Duplicates</span>' +
+    '<button class="inv-overlay-close" data-action="invCloseOverlay">&times;</button></div>';
+
+  if (groups.length === 0) {
+    html += '<div class="inv-empty-state">No duplicate groups found</div>';
+  } else {
+    html += '<div class="inv-text-muted inv-storage-text inv-mb-16">' + groups.length + ' candidate group' + (groups.length !== 1 ? 's' : '') + ' found. Select the primary item in each group, then merge.</div>';
+    groups.forEach(function(group, gi) {
+      html += '<div class="inv-merge-group" id="mergeGroup' + gi + '">' +
+        '<div class="inv-merge-group-header">' +
+        '<span class="inv-card-title">Group ' + (gi + 1) + ' \u2014 ' + group.items.length + ' items</span>' +
+        '<button class="inv-btn inv-btn-primary inv-btn-sm inv-merge-btn" data-action="invMergeGroup" data-group="' + gi + '">Merge</button>' +
+        '</div>';
+      group.items.forEach(function(it, ii) {
+        html += '<label class="inv-merge-radio-row">' +
+          '<input type="radio" name="mergePrimary' + gi + '" value="' + it.id + '"' + (ii === 0 ? ' checked' : '') + ' class="inv-merge-radio">' +
+          '<div class="inv-merge-item-info">' +
+          '<span class="inv-mono">' + escHtml(it.partNumber) + '</span> ' +
+          '<span class="inv-client-badge inv-badge-mode">' + escHtml(it.unit) + '</span> ' +
+          '<span class="inv-mono' + (it.rate > 0 ? ' inv-text-cost' : ' inv-text-muted') + '">' +
+          (it.rate > 0 ? formatCurrency(it.rate) : 'No rate') + '</span>' +
+          '</div>' +
+          '<div class="inv-merge-item-desc inv-text-muted">' + escHtml(it.desc || '') + '</div>' +
+          '</label>';
+      });
+      if (group._warn) {
+        html += '<div class="inv-merge-warn">Review: descriptions differ within this group</div>';
+      }
+      html += '</div>';
+    });
+  }
+
+  html += '<div class="inv-btn-bar"><button class="inv-btn inv-btn-ghost" data-action="invCloseOverlay">Close</button></div></div>';
+  scrim.innerHTML = html;
+  scrim.addEventListener('click', function(e) {
+    if (e.target === scrim) { scrim.remove(); document.body.style.overflow = ''; popFocus(); }
+  });
+
+  scrim._mergeGroups = groups;
+
+  pushFocus();
+  document.body.appendChild(scrim);
+  document.body.style.overflow = 'hidden';
+  focusFirstInteractive(scrim.querySelector('.inv-overlay-card'));
+}
+
+function findDuplicateGroups(items) {
+  var groups = [];
+  var used = {};
+
+  var coreMap = {};
+  items.forEach(function(it) {
+    var core = _extractNumericCore(it.partNumber);
+    if (!core || core.replace(/\s/g, '').length < 4) return;
+    if (!coreMap[core]) coreMap[core] = [];
+    coreMap[core].push(it);
+  });
+
+  Object.keys(coreMap).forEach(function(core) {
+    if (coreMap[core].length < 2) return;
+    var ids = coreMap[core].map(function(it) { return it.id; }).sort().join(',');
+    if (used[ids]) return;
+    used[ids] = true;
+
+    var descs = {};
+    coreMap[core].forEach(function(it) {
+      var d = (it.desc || '').toUpperCase().trim();
+      if (d && d !== (it.partNumber || '').toUpperCase().trim()) {
+        descs[d] = true;
+      }
+    });
+
+    groups.push({ items: coreMap[core], _warn: Object.keys(descs).length > 1 });
+  });
+
+  groups.sort(function(a, b) {
+    if (a._warn !== b._warn) return a._warn ? 1 : -1;
+    return b.items.length - a.items.length;
+  });
+
+  return groups;
+}
+
+function _extractNumericCore(partNumber) {
+  if (!partNumber) return '';
+  var digits = partNumber.match(/\d+/g);
+  if (!digits) return '';
+  return digits.join(' ');
+}
+
+function mergeGroup(groupIdx) {
+  var scrim = document.querySelector('.inv-overlay-scrim');
+  if (!scrim || !scrim._mergeGroups) return;
+  var group = scrim._mergeGroups[groupIdx];
+  if (!group) return;
+
+  var radios = document.querySelectorAll('input[name="mergePrimary' + groupIdx + '"]');
+  var primaryId = null;
+  radios.forEach(function(r) { if (r.checked) primaryId = parseInt(r.value); });
+  if (primaryId == null) return;
+
+  var primary = group.items.find(function(it) { return it.id === primaryId; });
+  if (!primary) return;
+  var secondaries = group.items.filter(function(it) { return it.id !== primaryId; });
+  if (secondaries.length === 0) return;
+
+  var secondaryPNs = secondaries.map(function(it) { return it.partNumber; });
+
+  var invCount = 0;
+  var imCount = 0;
+  (S.invoices || []).forEach(function(inv) {
+    var affected = false;
+    inv.items.forEach(function(li) {
+      if (secondaryPNs.indexOf(li.partNumber) >= 0) affected = true;
+    });
+    if (affected) invCount++;
+  });
+  (S.incomingMaterial || []).forEach(function(im) {
+    var affected = false;
+    im.items.forEach(function(li) {
+      if (secondaryPNs.indexOf(li.partNumber) >= 0) affected = true;
+    });
+    if (affected) imCount++;
+  });
+
+  var groupEl = document.getElementById('mergeGroup' + groupIdx);
+  if (!groupEl) return;
+
+  groupEl.innerHTML = '<div class="inv-merge-preview">' +
+    '<div class="inv-card-title">Merge into: ' + escHtml(primary.partNumber) + '</div>' +
+    '<div class="inv-text-muted inv-storage-text inv-mb-8">Will remove: ' + secondaries.length + ' duplicate item' + (secondaries.length !== 1 ? 's' : '') + '</div>' +
+    '<div class="inv-text-muted inv-storage-text inv-mb-16">Will update: ' + invCount + ' invoice' + (invCount !== 1 ? 's' : '') + ', ' + imCount + ' challan' + (imCount !== 1 ? 's' : '') + '</div>' +
+    '<div class="inv-btn-bar">' +
+    '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invMergeCancelPreview" data-group="' + groupIdx + '">Cancel</button>' +
+    '<button class="inv-btn inv-btn-primary inv-btn-sm" data-action="invMergeConfirm" data-group="' + groupIdx + '" data-primary="' + primaryId + '">Confirm Merge</button>' +
+    '</div></div>';
+}
+
+function confirmMerge(groupIdx, primaryId) {
+  var scrim = document.querySelector('.inv-overlay-scrim');
+  if (!scrim || !scrim._mergeGroups) return;
+  var group = scrim._mergeGroups[groupIdx];
+  if (!group) return;
+
+  var primary = group.items.find(function(it) { return it.id === primaryId; });
+  if (!primary) return;
+  var secondaries = group.items.filter(function(it) { return it.id !== primaryId; });
+  var secondaryPNs = secondaries.map(function(it) { return it.partNumber; });
+
+  var invUpdated = 0;
+  (S.invoices || []).forEach(function(inv) {
+    inv.items.forEach(function(li) {
+      if (secondaryPNs.indexOf(li.partNumber) >= 0) {
+        li.partNumber = primary.partNumber;
+        li.desc = primary.desc;
+        invUpdated++;
+      }
+    });
+  });
+
+  var imUpdated = 0;
+  (S.incomingMaterial || []).forEach(function(im) {
+    im.items.forEach(function(li) {
+      if (secondaryPNs.indexOf(li.partNumber) >= 0) {
+        li.partNumber = primary.partNumber;
+        li.desc = primary.desc;
+        imUpdated++;
+      }
+    });
+  });
+
+  secondaries.forEach(function(sec) {
+    var idx = S.items.indexOf(sec);
+    if (idx > -1) S.items.splice(idx, 1);
+  });
+
+  saveState();
+
+  var groupEl = document.getElementById('mergeGroup' + groupIdx);
+  if (groupEl) groupEl.remove();
+  scrim._mergeGroups[groupIdx] = null;
+
+  showToast('Merged ' + (secondaries.length + 1) + ' \u2192 1. Updated ' + invUpdated + ' invoice line' + (invUpdated !== 1 ? 's' : '') + ', ' + imUpdated + ' challan line' + (imUpdated !== 1 ? 's' : '') + '.');
+}
+
+function cancelMergePreview(groupIdx) {
+  closeOverlay();
+  openMergeTool();
+}
+
+/* --- Weight Calculator --- */
+function calculateStdWeights() {
+  var calculated = 0;
+  var highVariance = 0;
+
+  S.items.forEach(function(item) {
+    if (item.stdWeightKg != null) return;
+
+    var pairs = [];
+
+    (S.invoices || []).forEach(function(inv) {
+      inv.items.forEach(function(li) {
+        if (li.partNumber === item.partNumber && li.unit === 'KG' && li.nosQty > 0 && li.qty > 0) {
+          pairs.push({ kg: li.qty, nos: li.nosQty });
+        }
+      });
+    });
+
+    (S.incomingMaterial || []).forEach(function(im) {
+      im.items.forEach(function(li) {
+        if (li.partNumber === item.partNumber && li.unit === 'KG' && li.nosQty > 0 && li.qty > 0) {
+          pairs.push({ kg: li.qty, nos: li.nosQty });
+        }
+      });
+    });
+
+    if (pairs.length === 0) return;
+
+    var weights = pairs.map(function(p) { return p.kg / p.nos; });
+    var avg = weights.reduce(function(s, w) { return s + w; }, 0) / weights.length;
+
+    if (weights.length > 1) {
+      var variance = weights.reduce(function(s, w) { return s + Math.pow(w - avg, 2); }, 0) / weights.length;
+      var cv = (Math.sqrt(variance) / avg) * 100;
+      if (cv > 20) highVariance++;
+    }
+
+    item.stdWeightKg = gstRound(avg * 1000) / 1000;
+    calculated++;
+  });
+
+  if (calculated > 0) {
+    saveState();
+    _itemsRendered = 0;
+    _renderItemsList();
+  }
+
+  var msg = 'Calculated weights for ' + calculated + ' item' + (calculated !== 1 ? 's' : '') + ' from invoice/challan history';
+  if (highVariance > 0) msg += '. ' + highVariance + ' with high variance (>20% CV)';
+  if (calculated === 0) msg = 'No items with calculable weights found. Need invoice/challan data with both KG qty and NOS count.';
+  showToast(msg, calculated > 0 ? 'success' : 'warning');
+}
 /* ===== CREATE INVOICE ===== */
 let invoiceForm = {
   clientId: null, date: localDateStr(), items: [],
@@ -4040,6 +4757,31 @@ document.addEventListener('click', function(e) {
       if (akEl) akEl.type = akEl.type === 'password' ? 'text' : 'password';
       break;
     }
+    // Phase 6: Items Master
+    case 'invSwitchSubView': setItemsSubView(btn.dataset.view); renderClientsPage(); break;
+    case 'invEditItem': openItemEdit(parseInt(btn.dataset.id)); break;
+    case 'invAddItem': openItemAdd(); break;
+    case 'invSaveItem': saveItem(parseInt(btn.dataset.id), btn.dataset.mode); break;
+    case 'invDeleteItem': deleteItem(parseInt(btn.dataset.id)); break;
+    case 'invOpenMergeTool': openMergeTool(); break;
+    case 'invMergeGroup': mergeGroup(parseInt(btn.dataset.group)); break;
+    case 'invMergeConfirm': confirmMerge(parseInt(btn.dataset.group), parseInt(btn.dataset.primary)); break;
+    case 'invMergeCancelPreview': cancelMergePreview(parseInt(btn.dataset.group)); break;
+    case 'invCalcWeights': calculateStdWeights(); break;
+    case 'invFilterNoWeight': {
+      var curFilter = getItemsFilter();
+      regFilter.itemsFilter = curFilter === 'no-weight' ? 'all' : 'no-weight';
+      saveRegFilter();
+      _itemsRendered = 0;
+      renderClientsPage();
+      break;
+    }
+    case 'invLoadMoreItems': _renderItemsList(); break;
+    case 'invItemsSort': {
+      var sortEl = document.getElementById('itemsSort');
+      if (sortEl) { regFilter.itemsSort = sortEl.value; saveRegFilter(); _itemsRendered = 0; _renderItemsList(); }
+      break;
+    }
   }
 });
 
@@ -4133,6 +4875,13 @@ document.addEventListener('change', function(e) {
     if (icf) _imFilter.clientId = icf.value;
     if (isf) _imFilter.status = isf.value;
     renderIMList();
+  }
+  // Phase 6: Items sort
+  if (e.target.id === 'itemsSort') {
+    regFilter.itemsSort = e.target.value;
+    saveRegFilter();
+    _itemsRendered = 0;
+    _renderItemsList();
   }
   // Phase 5: History filter change
   if (e.target.id === 'historyClientFilter') {

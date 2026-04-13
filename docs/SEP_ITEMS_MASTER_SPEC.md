@@ -1,7 +1,7 @@
 # SEP Invoicing — Items Master Spec
-**Version:** 1.0 · **Date:** 13 April 2026
+**Version:** 1.1 · **Date:** 13 April 2026
 **Scope:** Items Master sub-view on Clients tab + Merge Duplicates tool
-**Status:** Draft — awaiting review
+**Status:** Built — Phase 6 integrated into split architecture
 
 ---
 
@@ -27,8 +27,10 @@ The Clients tab header gains a segmented toggle:
 - Toggle state persists in view prefs (`sep_inv_view_prefs.clientsSubView: 'clients' | 'items'`)
 - Tab icon and tab bar position unchanged — still the Clients tab
 
-### Why not a separate tab
-7 tabs at 375px already uses ~53px per tab. An 8th drops to ~47px and labels would need truncating. The segmented toggle avoids this while keeping items contextually near clients.
+### Subview Dispatch (8-pass fix #1)
+`switchTab('pageClients')` calls `renderClientsPage()` which checks `clientsSubView` pref and renders either the client search + list or the items toolbar + list into `#clientsPageContent`.
+
+The static `#clientSearch` input was moved from body.html into the dynamic renderer to avoid visibility conflicts between sub-views.
 
 ---
 
@@ -37,30 +39,33 @@ The Clients tab header gains a segmented toggle:
 ### 3.1 Toolbar
 - Search input (debounced 300ms, searches partNumber + desc)
 - Item count badge: "857 items" (updates on filter)
-- "Merge Duplicates" button (opens merge tool)
-- Sort: Alphabetical (partNumber) | by Unit | by Rate (high→low)
+- "Merge" button (opens merge tool)
+- "Calc Weights" button (runs stdWeightKg calculator)
+- Sort: `<select>` dropdown — Alphabetical (partNumber) | by Unit | by Rate (high→low)
+- "No weight" filter toggle (shows count, acts as chip toggle)
 
 ### 3.2 Item List
-Scrollable list of item cards. Each card shows:
+Scrollable list of item cards in `inv-card-list` container. Each card shows:
 
 ```
 ┌─────────────────────────────────────┐
-│ 5069 4370 0108              KG  ✎  │
+│ 5069 4370 0108              KG      │
 │ BRACKET                   ₹13.00   │
+│ [0.102 kg]                          │  ← only if stdWeightKg set
 └─────────────────────────────────────┘
 ```
 
-- Line 1: partNumber (left), unit badge (right), edit icon (far right)
+- Line 1: partNumber (left, mono), unit badge (right)
 - Line 2: description (left), default rate (right, mono font)
 - Rate = 0 items show "No rate" in text-3 color
 - Tap card → opens Edit overlay
-- Edit icon (✎) → same Edit overlay
+- Weight badge shown if stdWeightKg is set (prod domain color)
 
 ### 3.3 Add Item
-FAB (same position as existing FAB) shows "+" when Items sub-view is active. Opens Add overlay.
+FAB (`#clientsItemsFab`) shown when Items sub-view is active, hidden when Clients sub-view is active. Opens Add overlay.
 
-### 3.4 Pagination / Virtual Scroll
-857 items can't all render at once. Render in batches of 50, with "Load more" button at bottom (same pattern as Invoice Register if applicable). Search results render all matches (capped at 100).
+### 3.4 Pagination
+Render in batches of 50 (`ITEMS_BATCH`), with "Load more" button at bottom. Search results render all matches (capped at 100). `_itemsRendered` counter tracks current render offset, reset on search/sort/filter changes.
 
 ---
 
@@ -80,209 +85,112 @@ Standard `inv-overlay-scrim` → `inv-overlay-card` pattern.
 | Std Weight (kg) | number, step 0.001 | ≥ 0, optional | For nos_to_weight conversion. Null = not set. |
 
 ### Actions
-- **Save**: validates, updates `S.items`, calls `saveState()`, closes overlay, shows toast
-- **Delete**: confirm dialog with reference count → "This item is referenced in 5 invoices and 2 challans. Delete anyway?" → removes from `S.items`, `saveState()`. References in existing invoices/challans are NOT updated (partNumber strings remain for historical accuracy — the item just won't appear in autocomplete anymore).
+- **Save**: validates, updates `S.items`, calls `saveState()`, closes overlay, shows toast, re-renders list
+- **Delete**: confirm dialog with reference count → "This item is referenced in N invoice lines and M challan lines. Historical references will be kept as-is." → removes from `S.items`, `saveState()`.
 - **Cancel**: closes overlay
 
 ### Add Mode
-Same overlay, empty fields. On save:
-- Generate `id`: `Math.max(...S.items.map(i => i.id)) + 1`
-- Push to `S.items`
-- `saveState()`
+Same overlay, empty fields. On save: `id = Math.max(...S.items.map(i => i.id)) + 1`, push to `S.items`, `saveState()`.
 
 ---
 
 ## 5. Merge Duplicates Tool
 
 ### 5.1 Entry
-"Merge Duplicates" button in Items toolbar → opens full-screen overlay (not a small card — needs space for comparison).
+"Merge" button in Items toolbar → opens overlay. First open per session shows backup warning toast.
 
 ### 5.2 Fuzzy Matching Algorithm
 
-Run on all `S.items`, produce candidate groups:
-
-```javascript
-function findDuplicateGroups(items) {
-  // Step 1: Extract numeric core
-  // "BRACKET 5069 4370 0108" → "5069 4370 0108"
-  // "5069 4370 0108" → "5069 4370 0108"
-  // Match if numeric cores are identical AND >= 4 digits total
-
-  // Step 2: Exact partNumber match (case-insensitive, trimmed)
-  // These are definite duplicates
-
-  // Step 3: Containment check
-  // If item A's partNumber contains item B's partNumber (after trim)
-  // AND the contained portion is >= 4 chars
-  // → candidate group
-
-  // Step 4: Filter out false positives
-  // If items in a group have DIFFERENT descriptions that are both
-  // substantive (not just the partNumber restated), flag as "review carefully"
-  // e.g., "8201 PACKING PLATE" vs "BRACKET 8201" → different parts, not duplicates
-}
-```
+`findDuplicateGroups(items)`:
+1. Extract numeric core from each partNumber (all digit sequences joined with space)
+2. Require total digits >= 4 to avoid false positives on short numbers
+3. Group items with identical numeric cores
+4. Flag groups where descriptions differ substantively (descriptions that aren't just the partNumber restated)
+5. Sort: exact matches first, warned groups last, then by group size descending
 
 ### 5.3 Merge UI
+List of candidate groups. Each group has radio buttons to select primary item, plus a "Merge" button. Warning badge shown if descriptions differ.
 
-List of candidate groups, each rendered as:
-
-```
-┌─────────────────────────────────────┐
-│ Group 1 — 3 items         [Merge]  │
-│ ○ ASSY BRACKET 0146    KG  ₹0.00  │
-│ ○ ASSY BRACKET 0146    KG  ₹0.00  │
-│ ○ ASSY BRACKET 0146    KG  ₹0.00  │
-│                                     │
-│ ⚠ Review: different descriptions   │  ← only if flagged
-└─────────────────────────────────────┘
-```
-
-- Radio buttons (○) to select the **primary** item (the one that survives)
-- First item pre-selected as primary
-- "Merge" button per group
-- Warning badge if descriptions differ significantly
-- Groups sorted: exact duplicates first, then fuzzy matches
-
-### 5.4 Merge Action
-
-When user taps "Merge" on a group, a **preview step** shows first:
-
-**Preview panel (replaces the group card temporarily):**
-```
-┌─────────────────────────────────────┐
-│ Merge into: ASSY BRACKET 0146      │
-│                                     │
-│ Will remove: 2 duplicate items      │
-│ Will update: 5 invoices, 2 challans │
-│                                     │
-│       [Cancel]  [Confirm Merge]     │
-└─────────────────────────────────────┘
-```
-
-The preview scans `S.invoices` and `S.incomingMaterial` for references to the secondary items' partNumbers and shows exact counts.
-
-**On confirm:**
-
-1. **Primary** item keeps its id, partNumber, desc, unit, rate, stdWeightKg
-2. **Secondary** items' partNumbers are collected
-3. Scan `S.invoices` — any line item referencing a secondary's partNumber gets updated to primary's partNumber
-4. Scan `S.incomingMaterial` — same update for challan line items
-5. Remove secondary items from `S.items`
-6. `saveState()`
-7. Toast: "Merged 3 → 1. Updated 5 invoices, 2 challans."
-8. Remove the group from the merge view
+### 5.4 Merge Action — Two-step
+1. **Preview**: replaces group card with preview showing affected invoice/challan counts
+2. **Confirm**: updates all references in `S.invoices` and `S.incomingMaterial`, removes secondary items, saves state, removes group from view
 
 ### 5.5 Safety
-
 - No auto-merge. Every merge is user-initiated per group.
-- Confirm dialog before each merge: "Merge 2 items into [PRIMARY PART NUMBER]? This will update references in existing invoices and challans."
-- Merge is not undoable (data backup recommended before bulk merge). Show warning on first merge tool open: "Back up your data before merging. Settings → Export Data."
+- Preview step before each merge shows exact impact.
+- Merge is not undoable — backup warning on first tool open.
 
 ---
 
 ## 6. stdWeightKg Auto-Calculation
 
-### 6.1 Concept
-Back-calculate standard weight per piece from existing invoice and challan data wherever both KG weight and NOS count exist for the same item. From current data: 26 items calculable, 831 need manual clarification.
+### 6.1 Logic
+Back-calculate standard weight per piece from existing invoice and challan data wherever both KG weight and NOS count exist for the same partNumber.
 
-### 6.2 Calculation Logic
+`calculateStdWeights()`:
+- For each item where `stdWeightKg` is null
+- Collect all (qty_kg, nos_count) pairs from invoices and challans where `unit=KG` and `nosQty > 0`
+- `stdWeightKg = average(qty_kg / nos_count)`, rounded to 3 decimal places via `gstRound(avg * 1000) / 1000`
+- Flag if coefficient of variation > 20% (high variance across batches)
+- Never overwrites manual entries (only fills null values)
 
-```javascript
-function calculateStdWeights(items, invoices, incomingMaterial) {
-  // For each item, collect all (qty_kg, nos_count) pairs from:
-  //   - Invoice line items where unit=KG and nosQty > 0
-  //   - IM challan items where unit=KG and nosQty > 0
+### 6.2 Entry Point
+"Calc Weights" button in Items toolbar. Shows summary toast with count + variance warnings.
 
-  // stdWeightKg = average(qty_kg / nos_count) across all records
-  // Only set if >= 1 data point exists
-  // Flag as low-confidence if coefficient of variation > 20%
-  //   (indicates inconsistent weights across batches)
-}
-```
-
-### 6.3 Entry Point
-Button in Items toolbar: "Calculate Weights" — runs calculation, shows summary:
-- "Calculated weights for 26 items from invoice/challan history"
-- Items with new weights are highlighted in the list
-- Items with high variance flagged with ⚠
-
-### 6.4 Needs Clarification List
-Items without calculable weight are accessible via a filter toggle: "No weight (831)" badge in toolbar. Tapping it filters the list to items where `stdWeightKg` is null. This list shrinks automatically as more invoices/challans with NOS tracking are created over time.
-
-### 6.5 Manual Override
-`stdWeightKg` set via the Edit overlay always takes precedence. Auto-calculation only fills null values — never overwrites manual entries.
+### 6.3 No Weight Filter
+"No weight (N)" chip-toggle in toolbar. Filters list to items where `stdWeightKg` is null. Count decreases automatically as weights are calculated or manually set.
 
 ---
 
 ## 7. Data Model Changes
 
-### S.items[] — existing shape, no changes needed
+### S.items[] — no structural changes
 ```
 { id, partNumber, desc, hsn, unit, rate, stdWeightKg }
 ```
+`stdWeightKg` already exists (currently null for all items).
 
-`stdWeightKg` already exists (currently null for all items). Edit overlay exposes it. Auto-calculation populates it.
-
-### View prefs addition
+### View prefs additions (stored in `sep_inv_view_prefs` alongside register filters)
 ```
-sep_inv_view_prefs.clientsSubView: 'clients' | 'items'  // default: 'clients'
-sep_inv_view_prefs.itemsSort: 'alpha' | 'unit' | 'rate'  // default: 'alpha'
-sep_inv_view_prefs.itemsSearch: ''
-sep_inv_view_prefs.itemsFilter: 'all' | 'no-weight'      // default: 'all'
+clientsSubView: 'clients' | 'items'    // default: 'clients'
+itemsSort: 'alpha' | 'unit' | 'rate'   // default: 'alpha'
+itemsSearch: ''
+itemsFilter: 'all' | 'no-weight'       // default: 'all'
 ```
 
 ---
 
-## 8. Autocomplete Impact
+## 8. Section Placement (Split Architecture)
 
-`searchParts(query)` currently searches all `S.items`. No change to this function. When items are merged or deleted, autocomplete automatically reflects the cleaner list since it reads from `S.items`.
-
-Future phase (client-scoped items) will add a `clientId` filter to `searchParts`.
-
----
-
-## 9. Section Placement
-
-| New Code | Section | Phase Tag |
-|----------|---------|-----------|
-| CSS: item cards, merge tool | After `/* ===== PART AUTOCOMPLETE ===== */` | Phase 6 |
-| JS: Items Master rendering | After the Part Autocomplete section | Phase 6 — Items Master |
-| JS: Merge Duplicates tool | After Items Master | Phase 6 — Merge Tool |
-| JS: stdWeightKg calculator | After Merge Tool | Phase 6 — Weight Calculator |
-| Event delegation cases | In existing delegation switch | Phase 6 |
+| New Code | File | Phase Tag |
+|----------|------|-----------|
+| CSS: item cards, merge tool, weight badges | `split/styles.css` (appended) | Phase 6 |
+| JS: Items Master (all features) | `split/items.js` | Phase 6 |
+| JS: Event delegation cases | `split/events.js` (added) | Phase 6 |
+| JS: switchTab dispatch | `split/tabs.js` (modified) | Phase 6 |
+| HTML: pageClients restructured | `split/body.html` (modified) | Phase 6 |
 
 ### New CSS classes (all `inv-` prefixed)
-`inv-items-toolbar`, `inv-items-search`, `inv-items-count`, `inv-item-card`, `inv-item-pn`, `inv-item-desc`, `inv-item-unit`, `inv-item-rate`, `inv-item-weight`, `inv-merge-group`, `inv-merge-radio`, `inv-merge-warn`, `inv-merge-btn`, `inv-merge-preview`, `inv-subview-toggle`, `inv-subview-active`, `inv-weight-badge`, `inv-no-weight-filter`
+`inv-subview-toggle`, `inv-subview-btn`, `inv-subview-active`, `inv-items-toolbar`, `inv-items-toolbar-row`, `inv-items-count`, `inv-items-sort`, `inv-item-card`, `inv-item-card-top`, `inv-item-card-bottom`, `inv-item-pn`, `inv-item-desc`, `inv-item-unit`, `inv-item-rate`, `inv-item-weight-row`, `inv-weight-badge`, `inv-merge-group`, `inv-merge-group-header`, `inv-merge-radio-row`, `inv-merge-radio`, `inv-merge-item-info`, `inv-merge-item-desc`, `inv-merge-warn`, `inv-merge-preview`, `inv-merge-btn`
 
 ### New data-actions
-`invSwitchSubView`, `invEditItem`, `invDeleteItem`, `invSaveItem`, `invOpenMergeTool`, `invMergeGroup`, `invMergeConfirm`, `invSelectMergePrimary`, `invItemsSort`, `invLoadMoreItems`, `invCalcWeights`, `invFilterNoWeight`
+`invSwitchSubView`, `invEditItem`, `invAddItem`, `invSaveItem`, `invDeleteItem`, `invOpenMergeTool`, `invMergeGroup`, `invMergeConfirm`, `invMergeCancelPreview`, `invCalcWeights`, `invFilterNoWeight`, `invLoadMoreItems`, `invItemsSort`
 
 ---
 
-## 10. Estimated Scope
+## 9. 8-Pass Review Changes (v1.0 → v1.1)
 
-| Component | Lines (est) |
-|-----------|-------------|
-| CSS: item cards + merge tool + weight badges | ~90 |
-| JS: Items Master view (list, search, sort, pagination) | ~120 |
-| JS: Add/Edit/Delete overlay + reference counting | ~120 |
-| JS: Merge tool (fuzzy matching + preview + merge action) | ~180 |
-| JS: stdWeightKg calculator + needs-clarification filter | ~80 |
-| JS: Subview toggle + view prefs | ~25 |
-| JS: Event delegation wiring | ~35 |
-| **Total** | **~650 lines** |
-
----
-
-## 11. Open Questions — Resolved
-
-| # | Question | Resolution |
-|---|----------|------------|
-| 1 | Delete behavior for referenced items | Warn with reference count, allow deletion. Historical references kept as-is. |
-| 2 | stdWeightKg source | Auto-calculate from invoice/challan history (KG qty ÷ NOS qty). 26 items calculable now. Manual override via edit. Uncalculable items go to "needs clarification" filter. |
-| 3 | Merge preview | Preview shows affected invoice/challan counts before confirmation. Two-step: preview → confirm. |
+| Pass | Issue | Resolution |
+|------|-------|------------|
+| 3 (Integration) | `switchTab` called `renderClientList()` directly — no subview dispatch | Added `renderClientsPage()` dispatcher |
+| 3 (Integration) | Static `#clientSearch` visible when Items subview active | Moved to dynamic render in `_buildClientsSubViewHtml()` |
+| 3 (Integration) | FAB placement unspecified | Added `#clientsItemsFab` to body.html, toggled by subview |
+| 5 (Drift) | Sort UI type unspecified | Used `<select>` dropdown matching Register/IM toolbar pattern |
+| 5 (Drift) | Load more pattern inconsistent | Implemented batch rendering with `_itemsRendered` counter |
+| 6 (Builder) | Merge overlay size | Standard `inv-overlay-card` with existing max-height |
+| 6 (Builder) | Backup warning tracking | Session variable `_mergeBackupWarned` |
+| 6 (Builder) | Numeric core extraction | Extract all digit sequences, join with space, require >= 4 total digits |
 
 ---
 
-*Spec ready for 8-pass review.*
+*Spec updated after 8-pass review and build completion.*

@@ -1,0 +1,124 @@
+</head>
+<body>
+
+<!-- HEADER -->
+<header class="inv-header">
+  <span class="inv-header-title">SEP Invoicing</span>
+  <button class="inv-header-btn" data-action="invOpenSettings" aria-label="Settings">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg>
+  </button>
+</header>
+
+<!-- PAGES -->
+<div id="pageHome" class="inv-page inv-page-active">
+  <div class="inv-card inv-card-hero">
+    <div class="inv-card-header"><span class="inv-card-title">Month to Date</span></div>
+    <div class="inv-flex-between inv-mb-8">
+      <div>
+        <div class="inv-text-muted inv-stat-label">Invoices</div>
+        <div id="mtdCount" class="inv-display inv-stat-value">0</div>
+      </div>
+      <div class="inv-text-right">
+        <div class="inv-text-muted inv-stat-label">Revenue</div>
+        <div id="mtdRevenue" class="inv-display inv-stat-value">&#8377;0</div>
+      </div>
+    </div>
+  </div>
+  <div class="inv-btn-bar inv-btn-bar-center">
+    <button class="inv-btn inv-btn-primary" data-action="invCreateNew">New Invoice</button>
+  </div>
+  <div id="homeUnbilledCard"></div>
+  <div class="inv-card">
+    <div class="inv-card-header"><span class="inv-card-title">Recent Invoices</span></div>
+    <div id="recentInvoices" class="inv-empty-state">No invoices yet</div>
+  </div>
+</div>
+
+<div id="pageCreate" class="inv-page">
+  <div id="createFormArea"></div>
+</div>
+
+<div id="pageIM" class="inv-page">
+  <div id="imToolbar"></div>
+  <div id="imAddForm"></div>
+  <div id="imList"></div>
+  <div id="imSelBar"></div>
+  <div class="inv-scan-bar" id="imFabBar">
+    <button class="inv-fab-scan" data-action="invScanChallan" aria-label="Scan Challan">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>
+    </button>
+    <button class="inv-fab" id="imFab" data-action="invShowAddChallan" aria-label="Add Challan">+</button>
+  </div>
+  <input type="file" id="scanFileInput" accept="image/*" class="inv-hidden">
+  <div id="scanProcessing"></div>
+</div>
+
+<div id="pageRegister" class="inv-page">
+  <div id="regToolbar"></div>
+  <div id="regList"></div>
+</div>
+
+<div id="pageClients" class="inv-page">
+  <div id="clientsPageContent"></div>
+  <button class="inv-fab inv-hidden" id="clientsItemsFab" data-action="invAddItem" aria-label="Add Item">+</button>
+</div>
+
+<div id="pageStats" class="inv-page">
+  <div id="statsContent"></div>
+</div>
+
+<div id="pageHistory" class="inv-page">
+  <div id="historyToolbar"></div>
+  <div id="historyList"></div>
+</div>
+
+<!-- TABS -->
+<nav class="inv-tabs">
+  <button class="inv-tab inv-tab-active" data-action="invSwitchTab" data-tab="pageHome">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg>
+    Home
+  </button>
+  <button class="inv-tab" data-action="invSwitchTab" data-tab="pageCreate">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
+    Create
+  </button>
+  <button class="inv-tab" data-action="invSwitchTab" data-tab="pageIM">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/></svg>
+    IM
+  </button>
+  <button class="inv-tab" data-action="invSwitchTab" data-tab="pageRegister">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+    Register
+  </button>
+  <button class="inv-tab" data-action="invSwitchTab" data-tab="pageClients">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
+    Clients
+  </button>
+  <button class="inv-tab" data-action="invSwitchTab" data-tab="pageStats">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 20V10"/><path d="M12 20V4"/><path d="M6 20v-6"/></svg>
+    Stats
+  </button>
+  <button class="inv-tab" data-action="invSwitchTab" data-tab="pageHistory">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+    History
+  </button>
+</nav>
+
+<!-- SETTINGS OVERLAY (hidden) -->
+<div id="settingsOverlay" class="inv-hidden"></div>
+
+<!-- PRINT VIEW (hidden, full-page) -->
+<div id="invPrintView" class="inv-print-view">
+  <div class="inv-print-toolbar">
+    <button class="inv-print-toolbar-btn" data-action="invClosePrint">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+      Back
+    </button>
+    <button class="inv-print-toolbar-btn" data-action="invPrint">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+      Print
+    </button>
+  </div>
+  <div class="inv-print-body" id="invPrintBody"></div>
+</div>
+

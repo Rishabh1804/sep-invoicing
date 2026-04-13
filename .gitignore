@@ -1,0 +1,16 @@
+# Business data — never commit
+*.json
+!package.json
+
+# Backups
+*-backup-*
+*-export-*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor
+*.swp
+*.swo
+*~

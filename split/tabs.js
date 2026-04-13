@@ -29,6 +29,10 @@ function switchTab(tabId) {
     if (t.dataset.tab === tabId) t.classList.add('inv-tab-active');
   });
 
+  // Step 5b: Persist active tab for refresh recovery (Phase 6b)
+  regFilter.activeTab = tabId;
+  saveRegFilter();
+
   // Step 6: Check dirty flag and re-render if needed
   const tabKey = tabId === 'pageHome' ? 'home' : tabId === 'pageRegister' ? 'register' : null;
   const isDirty = tabKey ? _tabDirty[tabKey] : true;

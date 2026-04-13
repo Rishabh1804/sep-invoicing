@@ -661,13 +661,10 @@ input, select, textarea, button { font-family: inherit; font-size: var(--fs-base
 }
 .inv-reg-search:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 2px rgba(180,90,55,0.15); }
 .inv-reg-row {
-  display: flex; flex-direction: column; gap: var(--sp-4);
-  padding: var(--sp-12) var(--sp-16);
+  display: flex; align-items: stretch;
   border-bottom: 1px solid var(--border);
-  cursor: pointer; min-height: 52px;
   transition: background var(--anim-fast);
 }
-.inv-reg-row:active { background: var(--surface-2); }
 .inv-reg-row:last-child { border-bottom: none; }
 .inv-reg-row-cancelled { opacity: 0.5; }
 .inv-reg-row-top {
@@ -1059,6 +1056,58 @@ input, select, textarea, button { font-family: inherit; font-size: var(--fs-base
 .dark .inv-merge-group { background: var(--surface); }
 .dark .inv-merge-warn { background: var(--warning-bg); color: var(--warning-text); }
 .dark .inv-weight-badge { background: var(--prod-bg); color: var(--prod-text); }
+
+/* ===== ITEMS MASTER — Phase 6b (Usage + Batch) ===== */
+.inv-item-badges-row {
+  display: flex; gap: var(--sp-4); margin-top: var(--sp-4); flex-wrap: wrap;
+}
+.inv-usage-badge {
+  display: inline-block; padding: var(--sp-2) var(--sp-6);
+  background: var(--attend-bg); color: var(--attend-text);
+  border-radius: var(--r-sm); font-size: var(--fs-2xs); font-weight: 600;
+  font-family: var(--ff-mono);
+}
+.inv-usage-zero {
+  background: var(--danger-bg); color: var(--danger-text);
+}
+.inv-item-selected {
+  background: var(--prod-bg);
+}
+.inv-item-check-wrap {
+  display: flex; align-items: center; justify-content: center;
+  min-width: 28px; flex-shrink: 0; cursor: pointer;
+}
+.inv-items-sel-actions {
+  display: flex; gap: var(--sp-6);
+}
+.dark .inv-usage-badge { background: var(--attend-bg); color: var(--attend-text); }
+.dark .inv-usage-zero { background: var(--danger-bg); color: var(--danger-text); }
+.dark .inv-item-selected { background: var(--prod-bg); }
+
+/* ===== REGISTER — Phase 6b (Bulk Select + Sort) ===== */
+.inv-reg-actions-row {
+  display: flex; gap: var(--sp-8); margin-top: var(--sp-8);
+}
+.inv-reg-check-wrap {
+  display: flex; align-items: center; justify-content: center;
+  min-width: 44px; flex-shrink: 0; cursor: pointer;
+  border-bottom: 1px solid var(--border);
+}
+.inv-reg-row-content {
+  flex: 1; min-width: 0; display: flex; flex-direction: column;
+  gap: var(--sp-4); padding: var(--sp-12) var(--sp-16);
+  border-bottom: 1px solid var(--border);
+  cursor: pointer; min-height: 52px;
+  transition: background var(--anim-fast);
+}
+.inv-reg-row-content:active { background: var(--surface-2); }
+.inv-reg-row-selected { background: var(--prod-bg); }
+.dark .inv-reg-row-selected { background: var(--prod-bg); }
+.inv-sel-clear-btn {
+  background: transparent; color: #fff;
+  border-color: rgba(255,255,255,0.4);
+}
+.inv-sel-clear-btn:active { background: rgba(255,255,255,0.15); }
 </style>
 </head>
 <body>
@@ -1118,6 +1167,7 @@ input, select, textarea, button { font-family: inherit; font-size: var(--fs-base
 <div id="pageRegister" class="inv-page">
   <div id="regToolbar"></div>
   <div id="regList"></div>
+  <div id="regSelBar"></div>
 </div>
 
 <div id="pageClients" class="inv-page">
@@ -1515,6 +1565,10 @@ function switchTab(tabId) {
     if (t.dataset.tab === tabId) t.classList.add('inv-tab-active');
   });
 
+  // Step 5b: Persist active tab for refresh recovery (Phase 6b)
+  regFilter.activeTab = tabId;
+  saveRegFilter();
+
   // Step 6: Check dirty flag and re-render if needed
   const tabKey = tabId === 'pageHome' ? 'home' : tabId === 'pageRegister' ? 'register' : null;
   const isDirty = tabKey ? _tabDirty[tabKey] : true;
@@ -1770,6 +1824,8 @@ var _itemsRendered = 0;
 var _itemsSearchTimer = null;
 var _itemsSorted = [];
 var _mergeBackupWarned = false;
+var _itemsSelected = {};
+var _itemsUsageCache = null;
 var ITEMS_BATCH = 50;
 
 function getItemsSubView() {
@@ -1827,6 +1883,8 @@ function _buildItemsSubViewHtml() {
   var sort = getItemsSort();
   var filter = getItemsFilter();
   var noWeightCount = S.items.filter(function(it) { return it.stdWeightKg == null; }).length;
+  var cache = _buildUsageCache();
+  var unusedCount = S.items.filter(function(it) { return !cache[it.partNumber]; }).length;
 
   var html = _buildSubViewToggle('items');
 
@@ -1842,10 +1900,15 @@ function _buildItemsSubViewHtml() {
     '<option value="alpha"' + (sort === 'alpha' ? ' selected' : '') + '>A-Z</option>' +
     '<option value="unit"' + (sort === 'unit' ? ' selected' : '') + '>Unit</option>' +
     '<option value="rate"' + (sort === 'rate' ? ' selected' : '') + '>Rate</option>' +
+    '<option value="usage"' + (sort === 'usage' ? ' selected' : '') + '>Usage</option>' +
     '</select>' +
     '</div>' +
     '<div class="inv-items-toolbar-row">' +
     '<button class="inv-btn inv-btn-ghost inv-btn-sm' + (filter === 'no-weight' ? ' inv-chip-active' : '') + '" data-action="invFilterNoWeight">No weight (' + noWeightCount + ')</button>' +
+    '<button class="inv-btn inv-btn-ghost inv-btn-sm' + (filter === 'unused' ? ' inv-chip-active' : '') + '" data-action="invFilterUnused">Unused (' + unusedCount + ')</button>' +
+    '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invSelectAllUnused">Select unused</button>' +
+    '</div>' +
+    '<div class="inv-items-toolbar-row">' +
     '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invCalcWeights">Calc Weights</button>' +
     '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invOpenMergeTool">Merge</button>' +
     '</div>' +
@@ -1854,6 +1917,7 @@ function _buildItemsSubViewHtml() {
   // List container
   html += '<div id="itemsList"></div>';
   html += '<div id="itemsLoadMore"></div>';
+  html += '<div id="itemsSelBar"></div>';
 
   return html;
 }
@@ -1890,6 +1954,9 @@ function _getSortedFilteredItems() {
   // Filter
   if (filter === 'no-weight') {
     list = list.filter(function(it) { return it.stdWeightKg == null; });
+  } else if (filter === 'unused') {
+    var cache = _buildUsageCache();
+    list = list.filter(function(it) { return !cache[it.partNumber]; });
   }
 
   // Search
@@ -1910,6 +1977,8 @@ function _getSortedFilteredItems() {
     });
   } else if (sort === 'rate') {
     list.sort(function(a, b) { return (b.rate || 0) - (a.rate || 0); });
+  } else if (sort === 'usage') {
+    list.sort(function(a, b) { return _getUsageScore(b.partNumber) - _getUsageScore(a.partNumber); });
   }
 
   return list;
@@ -1943,9 +2012,13 @@ function _renderItemsList() {
     var rateStr = (it.rate != null && it.rate > 0) ? formatCurrency(it.rate) : '';
     var noRate = !it.rate || it.rate === 0;
     var weightStr = it.stdWeightKg != null ? formatNum(it.stdWeightKg, 3) + ' kg' : '';
+    var usageCount = _getUsageCount(it.partNumber);
+    var isSelected = !!_itemsSelected[it.id];
 
-    html += '<div class="inv-item-card" data-action="invEditItem" data-id="' + it.id + '">' +
+    html += '<div class="inv-item-card' + (isSelected ? ' inv-item-selected' : '') + '" data-action="invEditItem" data-id="' + it.id + '">' +
       '<div class="inv-item-card-top">' +
+      '<label class="inv-item-check-wrap" data-action="invToggleItemSelect" data-id="' + it.id + '">' +
+      '<input type="checkbox"' + (isSelected ? ' checked' : '') + ' class="inv-im-check"></label>' +
       '<span class="inv-item-pn inv-mono">' + escHtml(it.partNumber) + '</span>' +
       '<span class="inv-item-unit inv-client-badge inv-badge-mode">' + escHtml(it.unit) + '</span>' +
       '</div>' +
@@ -1954,13 +2027,20 @@ function _renderItemsList() {
       '<span class="inv-item-rate inv-mono' + (noRate ? ' inv-text-muted' : ' inv-text-cost') + '">' +
       (noRate ? 'No rate' : rateStr) + '</span>' +
       '</div>' +
-      (weightStr ? '<div class="inv-item-weight-row"><span class="inv-weight-badge">' + escHtml(weightStr) + '</span></div>' : '') +
+      '<div class="inv-item-badges-row">' +
+      (weightStr ? '<span class="inv-weight-badge">' + escHtml(weightStr) + '</span>' : '') +
+      (usageCount > 0 ? '<span class="inv-usage-badge">' + usageCount + ' ref' + (usageCount !== 1 ? 's' : '') + '</span>' :
+        '<span class="inv-usage-badge inv-usage-zero">Unused</span>') +
+      '</div>' +
       '</div>';
   }
   html += '</div>';
 
   listEl.innerHTML = html;
   _itemsRendered = limit;
+
+  // Selection bar
+  _renderItemsSelectionBar();
 
   // Load more button
   if (moreEl) {
@@ -2376,6 +2456,116 @@ function calculateStdWeights() {
   if (highVariance > 0) msg += '. ' + highVariance + ' with high variance (>20% CV)';
   if (calculated === 0) msg = 'No items with calculable weights found. Need invoice/challan data with both KG qty and NOS count.';
   showToast(msg, calculated > 0 ? 'success' : 'warning');
+}
+
+/* --- Usage Scoring (Phase 6b) --- */
+function _buildUsageCache() {
+  if (_itemsUsageCache) return _itemsUsageCache;
+  var cache = {};
+  var now = Date.now();
+  var thirtyDaysMs = 30 * 86400000;
+
+  (S.invoices || []).forEach(function(inv) {
+    var recent = inv.createdAt && (now - inv.createdAt) < thirtyDaysMs;
+    (inv.items || []).forEach(function(li) {
+      var pn = li.partNumber;
+      if (!pn) return;
+      if (!cache[pn]) cache[pn] = { total: 0, recent: 0 };
+      cache[pn].total++;
+      if (recent) cache[pn].recent++;
+    });
+  });
+
+  (S.incomingMaterial || []).forEach(function(im) {
+    var recent = im.createdAt && (now - im.createdAt) < thirtyDaysMs;
+    (im.items || []).forEach(function(li) {
+      var pn = li.partNumber;
+      if (!pn) return;
+      if (!cache[pn]) cache[pn] = { total: 0, recent: 0 };
+      cache[pn].total++;
+      if (recent) cache[pn].recent++;
+    });
+  });
+
+  _itemsUsageCache = cache;
+  return cache;
+}
+
+function _getUsageScore(partNumber) {
+  var cache = _buildUsageCache();
+  var entry = cache[partNumber];
+  if (!entry) return 0;
+  return entry.total + (entry.recent * 2);
+}
+
+function _getUsageCount(partNumber) {
+  var cache = _buildUsageCache();
+  var entry = cache[partNumber];
+  return entry ? entry.total : 0;
+}
+
+function _invalidateUsageCache() {
+  _itemsUsageCache = null;
+}
+
+/* --- Batch Select/Delete --- */
+function toggleItemSelect(itemId) {
+  _itemsSelected[itemId] = !_itemsSelected[itemId];
+  if (!_itemsSelected[itemId]) delete _itemsSelected[itemId];
+  _renderItemsSelectionBar();
+  // Toggle visual on card
+  var card = document.querySelector('.inv-item-card[data-id="' + itemId + '"]');
+  if (card) card.classList.toggle('inv-item-selected', !!_itemsSelected[itemId]);
+}
+
+function selectAllUnused() {
+  _itemsSelected = {};
+  var cache = _buildUsageCache();
+  S.items.forEach(function(it) {
+    if (!cache[it.partNumber]) _itemsSelected[it.id] = true;
+  });
+  _itemsRendered = 0;
+  _renderItemsList();
+  _renderItemsSelectionBar();
+  var count = Object.keys(_itemsSelected).length;
+  showToast(count + ' unused item' + (count !== 1 ? 's' : '') + ' selected');
+}
+
+function clearItemSelection() {
+  _itemsSelected = {};
+  _itemsRendered = 0;
+  _renderItemsList();
+  _renderItemsSelectionBar();
+}
+
+function batchDeleteItems() {
+  var ids = Object.keys(_itemsSelected).filter(function(k) { return _itemsSelected[k]; }).map(Number);
+  if (ids.length === 0) return;
+  if (!confirm('Delete ' + ids.length + ' item' + (ids.length !== 1 ? 's' : '') + '? Historical invoice/challan references will be kept.')) return;
+  S.items = S.items.filter(function(it) { return ids.indexOf(it.id) < 0; });
+  _itemsSelected = {};
+  _invalidateUsageCache();
+  saveState();
+  _itemsRendered = 0;
+  _renderItemsList();
+  _renderItemsSelectionBar();
+  showToast(ids.length + ' item' + (ids.length !== 1 ? 's' : '') + ' deleted');
+}
+
+function _renderItemsSelectionBar() {
+  var count = Object.keys(_itemsSelected).filter(function(k) { return _itemsSelected[k]; }).length;
+  var bar = document.getElementById('itemsSelBar');
+  if (!bar) return;
+  if (count === 0) {
+    bar.innerHTML = '';
+    return;
+  }
+  bar.innerHTML = '<div class="inv-im-sel-bar">' +
+    '<span class="inv-im-sel-count">' + count + ' selected</span>' +
+    '<div class="inv-items-sel-actions">' +
+    '<button class="inv-btn inv-btn-ghost inv-btn-sm inv-sel-clear-btn" data-action="invClearItemSelection">Clear</button>' +
+    '<button class="inv-im-sel-btn" data-action="invBatchDeleteItems">Delete</button>' +
+    '</div></div>';
 }
 /* ===== CREATE INVOICE ===== */
 let invoiceForm = {
@@ -2859,6 +3049,8 @@ function viewInvoice(invId) {
 }
 
 /* ===== INVOICE REGISTER ===== */
+var _regSelected = {};
+var _regSelectMode = false;
 
 function getFilteredInvoices() {
   let list = [...S.invoices];
@@ -2883,13 +3075,20 @@ function getFilteredInvoices() {
       list = list.filter(i => i.status === 'active' && getInvState(i) === regFilter.state);
     }
   }
-  list.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+  var sortDir = regFilter.regSortDir || 'desc';
+  if (sortDir === 'asc') {
+    list.sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+  } else {
+    list.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+  }
   return list;
 }
 
 function renderRegisterToolbar() {
   const area = document.getElementById('regToolbar');
   if (!area) return;
+
+  var sortDir = regFilter.regSortDir || 'desc';
 
   // Build unique client list for filter dropdown
   const clientIds = [...new Set(S.invoices.map(i => i.clientId))];
@@ -2913,7 +3112,16 @@ function renderRegisterToolbar() {
     '<option value="delivered"' + (regFilter.state === 'delivered' ? ' selected' : '') + '>Delivered</option>' +
     '<option value="filed"' + (regFilter.state === 'filed' ? ' selected' : '') + '>Filed</option>' +
     '<option value="cancelled"' + (regFilter.state === 'cancelled' ? ' selected' : '') + '>Cancelled</option></select></div>' +
-    '</div></div>';
+    '</div>' +
+    '<div class="inv-reg-actions-row">' +
+    '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invRegToggleSort">' +
+    (sortDir === 'asc' ? 'Oldest first' : 'Newest first') +
+    '</button>' +
+    '<button class="inv-btn inv-btn-ghost inv-btn-sm' + (_regSelectMode ? ' inv-chip-active' : '') + '" data-action="invRegToggleSelect">' +
+    (_regSelectMode ? 'Cancel select' : 'Select') +
+    '</button>' +
+    '</div>' +
+    '</div>';
 
   area.innerHTML = html;
 
@@ -2952,7 +3160,11 @@ function renderRegisterList() {
     html += '<div class="inv-card-list">';
     filtered.forEach(inv => {
       const cancelled = inv.status === 'cancelled';
-      html += '<div class="inv-reg-row' + (cancelled ? ' inv-reg-row-cancelled' : '') + '" data-action="invViewInvoiceDetail" data-id="' + escHtml(inv.id) + '">' +
+      var isSelected = !!_regSelected[inv.id];
+      html += '<div class="inv-reg-row' + (cancelled ? ' inv-reg-row-cancelled' : '') + (isSelected ? ' inv-reg-row-selected' : '') + '">' +
+        (_regSelectMode && !cancelled ? '<label class="inv-reg-check-wrap" data-action="invRegToggleInv" data-id="' + escHtml(inv.id) + '">' +
+        '<input type="checkbox"' + (isSelected ? ' checked' : '') + ' class="inv-im-check"></label>' : '') +
+        '<div class="inv-reg-row-content" data-action="invViewInvoiceDetail" data-id="' + escHtml(inv.id) + '">' +
         '<div class="inv-reg-row-top">' +
         '<div class="inv-reg-status-row">' +
         '<span class="inv-reg-invnum">' + escHtml(inv.displayNumber) + '</span> ' +
@@ -2962,7 +3174,8 @@ function renderRegisterList() {
         '<span class="inv-reg-taxable">Taxable: ' + formatCurrency(inv.taxableValue) + '</span></div></div>' +
         '<div class="inv-reg-row-bottom">' +
         '<span class="inv-reg-client">' + escHtml(inv.clientName) + '</span>' +
-        '<span class="inv-reg-date">' + formatDate(inv.date) + '</span></div></div>';
+        '<span class="inv-reg-date">' + formatDate(inv.date) + '</span></div>' +
+        '</div></div>';
     });
     html += '</div>';
   }
@@ -2979,6 +3192,95 @@ function renderRegisterList() {
 
 /* Backward-compat: renderRegister calls both */
 function renderRegister() {
+  _regToolbarRendered = false;
+  renderRegisterToolbar();
+  _regToolbarRendered = true;
+  renderRegisterList();
+}
+
+/* --- Register bulk selection (Phase 6b) --- */
+function toggleRegSelectMode() {
+  _regSelectMode = !_regSelectMode;
+  _regSelected = {};
+  _regToolbarRendered = false;
+  renderRegisterToolbar();
+  _regToolbarRendered = true;
+  renderRegisterList();
+  _renderRegSelBar();
+}
+
+function toggleRegInv(invId) {
+  _regSelected[invId] = !_regSelected[invId];
+  if (!_regSelected[invId]) delete _regSelected[invId];
+  renderRegisterList();
+  _renderRegSelBar();
+}
+
+function _renderRegSelBar() {
+  var bar = document.getElementById('regSelBar');
+  if (!bar) return;
+  var ids = Object.keys(_regSelected).filter(function(k) { return _regSelected[k]; });
+  if (ids.length === 0 || !_regSelectMode) { bar.innerHTML = ''; return; }
+
+  // Determine what state transitions are available
+  var canDispatch = 0;
+  var canDeliver = 0;
+  var canFile = 0;
+  ids.forEach(function(id) {
+    var inv = S.invoices.find(function(i) { return i.id === id; });
+    if (!inv || inv.status !== 'active') return;
+    var st = getInvState(inv);
+    if (st === 'created') canDispatch++;
+    if (st === 'dispatched') canDeliver++;
+    if (st === 'delivered') canFile++;
+  });
+
+  var btns = '';
+  if (canDispatch > 0) btns += '<button class="inv-im-sel-btn" data-action="invRegBulkState" data-state="dispatched">Dispatch (' + canDispatch + ')</button>';
+  if (canDeliver > 0) btns += '<button class="inv-im-sel-btn" data-action="invRegBulkState" data-state="delivered">Deliver (' + canDeliver + ')</button>';
+  if (canFile > 0) btns += '<button class="inv-im-sel-btn" data-action="invRegBulkState" data-state="filed">File (' + canFile + ')</button>';
+
+  bar.innerHTML = '<div class="inv-im-sel-bar">' +
+    '<span class="inv-im-sel-count">' + ids.length + ' selected</span>' +
+    '<div class="inv-items-sel-actions">' + btns + '</div></div>';
+}
+
+function regBulkSetState(targetState) {
+  var ids = Object.keys(_regSelected).filter(function(k) { return _regSelected[k]; });
+  var now = Date.now();
+  var updated = 0;
+
+  var stateOrder = { created: 0, dispatched: 1, delivered: 2, filed: 3 };
+  var targetIdx = stateOrder[targetState];
+  if (targetIdx == null) return;
+
+  ids.forEach(function(id) {
+    var inv = S.invoices.find(function(i) { return i.id === id; });
+    if (!inv || inv.status !== 'active') return;
+    var curState = getInvState(inv);
+    var curIdx = stateOrder[curState];
+    // Only advance by one step
+    if (curIdx != null && curIdx + 1 === targetIdx) {
+      inv.invoiceState = targetState;
+      if (targetState === 'dispatched') inv.dispatchedAt = now;
+      else if (targetState === 'delivered') inv.deliveredAt = now;
+      else if (targetState === 'filed') inv.filedAt = now;
+      updated++;
+    }
+  });
+
+  if (updated > 0) {
+    saveState();
+    _regSelected = {};
+    renderRegisterList();
+    _renderRegSelBar();
+    showToast(updated + ' invoice' + (updated !== 1 ? 's' : '') + ' marked as ' + INV_STATE_LABELS[targetState]);
+  }
+}
+
+function toggleRegSortDir() {
+  regFilter.regSortDir = (regFilter.regSortDir || 'desc') === 'desc' ? 'asc' : 'desc';
+  saveRegFilter();
   _regToolbarRendered = false;
   renderRegisterToolbar();
   _regToolbarRendered = true;
@@ -3902,11 +4204,16 @@ function showPrintPreview(invId) {
   document.getElementById('invPrintBody').innerHTML = fullHtml;
   document.getElementById('invPrintView').classList.add('inv-print-view-active');
   document.body.style.overflow = 'hidden';
+  // Set page title for PDF filename (Phase 6b)
+  document._savedTitle = document.title;
+  document.title = (inv.displayNumber || 'Invoice') + ' - ' + (inv.clientName || 'SEP');
 }
 
 function closePrintPreview() {
   document.getElementById('invPrintView').classList.remove('inv-print-view-active');
   document.body.style.overflow = '';
+  // Restore page title
+  if (document._savedTitle) { document.title = document._savedTitle; document._savedTitle = null; }
 }
 
 /* ===== STATS (Phase 5 — Analytics) ===== */
@@ -4776,12 +5083,29 @@ document.addEventListener('click', function(e) {
       renderClientsPage();
       break;
     }
+    case 'invFilterUnused': {
+      var curFilter2 = getItemsFilter();
+      regFilter.itemsFilter = curFilter2 === 'unused' ? 'all' : 'unused';
+      saveRegFilter();
+      _itemsRendered = 0;
+      renderClientsPage();
+      break;
+    }
+    case 'invSelectAllUnused': selectAllUnused(); break;
+    case 'invToggleItemSelect': e.stopPropagation(); toggleItemSelect(parseInt(btn.dataset.id)); break;
+    case 'invClearItemSelection': clearItemSelection(); break;
+    case 'invBatchDeleteItems': batchDeleteItems(); break;
     case 'invLoadMoreItems': _renderItemsList(); break;
     case 'invItemsSort': {
       var sortEl = document.getElementById('itemsSort');
       if (sortEl) { regFilter.itemsSort = sortEl.value; saveRegFilter(); _itemsRendered = 0; _renderItemsList(); }
       break;
     }
+    // Phase 6b: Register bulk operations
+    case 'invRegToggleSort': toggleRegSortDir(); break;
+    case 'invRegToggleSelect': toggleRegSelectMode(); break;
+    case 'invRegToggleInv': e.stopPropagation(); toggleRegInv(btn.dataset.id); break;
+    case 'invRegBulkState': regBulkSetState(btn.dataset.state); break;
   }
 });
 
@@ -5212,7 +5536,23 @@ if (!S._scanSeed1) {
   }
 })();
 
-renderHome();
+/* Phase 6b: Remove Belrise trading items (rate > 25) — one-time cleanup */
+if (!S._rateCleanup1) {
+  var before = S.items.length;
+  S.items = S.items.filter(function(it) { return (it.rate || 0) <= 25; });
+  var removed = before - S.items.length;
+  if (removed > 0) console.log('Rate cleanup: removed ' + removed + ' items with rate > 25 (Belrise trading remnants)');
+  S._rateCleanup1 = true;
+  saveJSON(STORAGE_KEY, S);
+}
+
+/* Phase 6b: Restore active tab on refresh */
+var _savedTab = regFilter.activeTab || 'pageHome';
+if (_savedTab !== 'pageHome' && document.getElementById(_savedTab)) {
+  switchTab(_savedTab);
+} else {
+  renderHome();
+}
 
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('sw.js').catch(() => {});

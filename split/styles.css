@@ -648,13 +648,10 @@ input, select, textarea, button { font-family: inherit; font-size: var(--fs-base
 }
 .inv-reg-search:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 2px rgba(180,90,55,0.15); }
 .inv-reg-row {
-  display: flex; flex-direction: column; gap: var(--sp-4);
-  padding: var(--sp-12) var(--sp-16);
+  display: flex; align-items: stretch;
   border-bottom: 1px solid var(--border);
-  cursor: pointer; min-height: 52px;
   transition: background var(--anim-fast);
 }
-.inv-reg-row:active { background: var(--surface-2); }
 .inv-reg-row:last-child { border-bottom: none; }
 .inv-reg-row-cancelled { opacity: 0.5; }
 .inv-reg-row-top {
@@ -1046,3 +1043,55 @@ input, select, textarea, button { font-family: inherit; font-size: var(--fs-base
 .dark .inv-merge-group { background: var(--surface); }
 .dark .inv-merge-warn { background: var(--warning-bg); color: var(--warning-text); }
 .dark .inv-weight-badge { background: var(--prod-bg); color: var(--prod-text); }
+
+/* ===== ITEMS MASTER — Phase 6b (Usage + Batch) ===== */
+.inv-item-badges-row {
+  display: flex; gap: var(--sp-4); margin-top: var(--sp-4); flex-wrap: wrap;
+}
+.inv-usage-badge {
+  display: inline-block; padding: var(--sp-2) var(--sp-6);
+  background: var(--attend-bg); color: var(--attend-text);
+  border-radius: var(--r-sm); font-size: var(--fs-2xs); font-weight: 600;
+  font-family: var(--ff-mono);
+}
+.inv-usage-zero {
+  background: var(--danger-bg); color: var(--danger-text);
+}
+.inv-item-selected {
+  background: var(--prod-bg);
+}
+.inv-item-check-wrap {
+  display: flex; align-items: center; justify-content: center;
+  min-width: 28px; flex-shrink: 0; cursor: pointer;
+}
+.inv-items-sel-actions {
+  display: flex; gap: var(--sp-6);
+}
+.dark .inv-usage-badge { background: var(--attend-bg); color: var(--attend-text); }
+.dark .inv-usage-zero { background: var(--danger-bg); color: var(--danger-text); }
+.dark .inv-item-selected { background: var(--prod-bg); }
+
+/* ===== REGISTER — Phase 6b (Bulk Select + Sort) ===== */
+.inv-reg-actions-row {
+  display: flex; gap: var(--sp-8); margin-top: var(--sp-8);
+}
+.inv-reg-check-wrap {
+  display: flex; align-items: center; justify-content: center;
+  min-width: 44px; flex-shrink: 0; cursor: pointer;
+  border-bottom: 1px solid var(--border);
+}
+.inv-reg-row-content {
+  flex: 1; min-width: 0; display: flex; flex-direction: column;
+  gap: var(--sp-4); padding: var(--sp-12) var(--sp-16);
+  border-bottom: 1px solid var(--border);
+  cursor: pointer; min-height: 52px;
+  transition: background var(--anim-fast);
+}
+.inv-reg-row-content:active { background: var(--surface-2); }
+.inv-reg-row-selected { background: var(--prod-bg); }
+.dark .inv-reg-row-selected { background: var(--prod-bg); }
+.inv-sel-clear-btn {
+  background: transparent; color: #fff;
+  border-color: rgba(255,255,255,0.4);
+}
+.inv-sel-clear-btn:active { background: rgba(255,255,255,0.15); }

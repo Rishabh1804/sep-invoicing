@@ -38,6 +38,8 @@ function viewInvoice(invId) {
 }
 
 /* ===== INVOICE REGISTER ===== */
+var _regSelected = {};
+var _regSelectMode = false;
 
 function getFilteredInvoices() {
   let list = [...S.invoices];
@@ -62,13 +64,20 @@ function getFilteredInvoices() {
       list = list.filter(i => i.status === 'active' && getInvState(i) === regFilter.state);
     }
   }
-  list.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+  var sortDir = regFilter.regSortDir || 'desc';
+  if (sortDir === 'asc') {
+    list.sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+  } else {
+    list.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+  }
   return list;
 }
 
 function renderRegisterToolbar() {
   const area = document.getElementById('regToolbar');
   if (!area) return;
+
+  var sortDir = regFilter.regSortDir || 'desc';
 
   // Build unique client list for filter dropdown
   const clientIds = [...new Set(S.invoices.map(i => i.clientId))];
@@ -92,7 +101,16 @@ function renderRegisterToolbar() {
     '<option value="delivered"' + (regFilter.state === 'delivered' ? ' selected' : '') + '>Delivered</option>' +
     '<option value="filed"' + (regFilter.state === 'filed' ? ' selected' : '') + '>Filed</option>' +
     '<option value="cancelled"' + (regFilter.state === 'cancelled' ? ' selected' : '') + '>Cancelled</option></select></div>' +
-    '</div></div>';
+    '</div>' +
+    '<div class="inv-reg-actions-row">' +
+    '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invRegToggleSort">' +
+    (sortDir === 'asc' ? 'Oldest first' : 'Newest first') +
+    '</button>' +
+    '<button class="inv-btn inv-btn-ghost inv-btn-sm' + (_regSelectMode ? ' inv-chip-active' : '') + '" data-action="invRegToggleSelect">' +
+    (_regSelectMode ? 'Cancel select' : 'Select') +
+    '</button>' +
+    '</div>' +
+    '</div>';
 
   area.innerHTML = html;
 
@@ -131,7 +149,11 @@ function renderRegisterList() {
     html += '<div class="inv-card-list">';
     filtered.forEach(inv => {
       const cancelled = inv.status === 'cancelled';
-      html += '<div class="inv-reg-row' + (cancelled ? ' inv-reg-row-cancelled' : '') + '" data-action="invViewInvoiceDetail" data-id="' + escHtml(inv.id) + '">' +
+      var isSelected = !!_regSelected[inv.id];
+      html += '<div class="inv-reg-row' + (cancelled ? ' inv-reg-row-cancelled' : '') + (isSelected ? ' inv-reg-row-selected' : '') + '">' +
+        (_regSelectMode && !cancelled ? '<label class="inv-reg-check-wrap" data-action="invRegToggleInv" data-id="' + escHtml(inv.id) + '">' +
+        '<input type="checkbox"' + (isSelected ? ' checked' : '') + ' class="inv-im-check"></label>' : '') +
+        '<div class="inv-reg-row-content" data-action="invViewInvoiceDetail" data-id="' + escHtml(inv.id) + '">' +
         '<div class="inv-reg-row-top">' +
         '<div class="inv-reg-status-row">' +
         '<span class="inv-reg-invnum">' + escHtml(inv.displayNumber) + '</span> ' +
@@ -141,7 +163,8 @@ function renderRegisterList() {
         '<span class="inv-reg-taxable">Taxable: ' + formatCurrency(inv.taxableValue) + '</span></div></div>' +
         '<div class="inv-reg-row-bottom">' +
         '<span class="inv-reg-client">' + escHtml(inv.clientName) + '</span>' +
-        '<span class="inv-reg-date">' + formatDate(inv.date) + '</span></div></div>';
+        '<span class="inv-reg-date">' + formatDate(inv.date) + '</span></div>' +
+        '</div></div>';
     });
     html += '</div>';
   }
@@ -158,6 +181,95 @@ function renderRegisterList() {
 
 /* Backward-compat: renderRegister calls both */
 function renderRegister() {
+  _regToolbarRendered = false;
+  renderRegisterToolbar();
+  _regToolbarRendered = true;
+  renderRegisterList();
+}
+
+/* --- Register bulk selection (Phase 6b) --- */
+function toggleRegSelectMode() {
+  _regSelectMode = !_regSelectMode;
+  _regSelected = {};
+  _regToolbarRendered = false;
+  renderRegisterToolbar();
+  _regToolbarRendered = true;
+  renderRegisterList();
+  _renderRegSelBar();
+}
+
+function toggleRegInv(invId) {
+  _regSelected[invId] = !_regSelected[invId];
+  if (!_regSelected[invId]) delete _regSelected[invId];
+  renderRegisterList();
+  _renderRegSelBar();
+}
+
+function _renderRegSelBar() {
+  var bar = document.getElementById('regSelBar');
+  if (!bar) return;
+  var ids = Object.keys(_regSelected).filter(function(k) { return _regSelected[k]; });
+  if (ids.length === 0 || !_regSelectMode) { bar.innerHTML = ''; return; }
+
+  // Determine what state transitions are available
+  var canDispatch = 0;
+  var canDeliver = 0;
+  var canFile = 0;
+  ids.forEach(function(id) {
+    var inv = S.invoices.find(function(i) { return i.id === id; });
+    if (!inv || inv.status !== 'active') return;
+    var st = getInvState(inv);
+    if (st === 'created') canDispatch++;
+    if (st === 'dispatched') canDeliver++;
+    if (st === 'delivered') canFile++;
+  });
+
+  var btns = '';
+  if (canDispatch > 0) btns += '<button class="inv-im-sel-btn" data-action="invRegBulkState" data-state="dispatched">Dispatch (' + canDispatch + ')</button>';
+  if (canDeliver > 0) btns += '<button class="inv-im-sel-btn" data-action="invRegBulkState" data-state="delivered">Deliver (' + canDeliver + ')</button>';
+  if (canFile > 0) btns += '<button class="inv-im-sel-btn" data-action="invRegBulkState" data-state="filed">File (' + canFile + ')</button>';
+
+  bar.innerHTML = '<div class="inv-im-sel-bar">' +
+    '<span class="inv-im-sel-count">' + ids.length + ' selected</span>' +
+    '<div class="inv-items-sel-actions">' + btns + '</div></div>';
+}
+
+function regBulkSetState(targetState) {
+  var ids = Object.keys(_regSelected).filter(function(k) { return _regSelected[k]; });
+  var now = Date.now();
+  var updated = 0;
+
+  var stateOrder = { created: 0, dispatched: 1, delivered: 2, filed: 3 };
+  var targetIdx = stateOrder[targetState];
+  if (targetIdx == null) return;
+
+  ids.forEach(function(id) {
+    var inv = S.invoices.find(function(i) { return i.id === id; });
+    if (!inv || inv.status !== 'active') return;
+    var curState = getInvState(inv);
+    var curIdx = stateOrder[curState];
+    // Only advance by one step
+    if (curIdx != null && curIdx + 1 === targetIdx) {
+      inv.invoiceState = targetState;
+      if (targetState === 'dispatched') inv.dispatchedAt = now;
+      else if (targetState === 'delivered') inv.deliveredAt = now;
+      else if (targetState === 'filed') inv.filedAt = now;
+      updated++;
+    }
+  });
+
+  if (updated > 0) {
+    saveState();
+    _regSelected = {};
+    renderRegisterList();
+    _renderRegSelBar();
+    showToast(updated + ' invoice' + (updated !== 1 ? 's' : '') + ' marked as ' + INV_STATE_LABELS[targetState]);
+  }
+}
+
+function toggleRegSortDir() {
+  regFilter.regSortDir = (regFilter.regSortDir || 'desc') === 'desc' ? 'asc' : 'desc';
+  saveRegFilter();
   _regToolbarRendered = false;
   renderRegisterToolbar();
   _regToolbarRendered = true;

@@ -210,10 +210,15 @@ function showPrintPreview(invId) {
   document.getElementById('invPrintBody').innerHTML = fullHtml;
   document.getElementById('invPrintView').classList.add('inv-print-view-active');
   document.body.style.overflow = 'hidden';
+  // Set page title for PDF filename (Phase 6b)
+  document._savedTitle = document.title;
+  document.title = (inv.displayNumber || 'Invoice') + ' - ' + (inv.clientName || 'SEP');
 }
 
 function closePrintPreview() {
   document.getElementById('invPrintView').classList.remove('inv-print-view-active');
   document.body.style.overflow = '';
+  // Restore page title
+  if (document._savedTitle) { document.title = document._savedTitle; document._savedTitle = null; }
 }
 

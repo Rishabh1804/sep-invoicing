@@ -80,7 +80,23 @@ if (!S._scanSeed1) {
   }
 })();
 
-renderHome();
+/* Phase 6b: Remove Belrise trading items (rate > 25) — one-time cleanup */
+if (!S._rateCleanup1) {
+  var before = S.items.length;
+  S.items = S.items.filter(function(it) { return (it.rate || 0) <= 25; });
+  var removed = before - S.items.length;
+  if (removed > 0) console.log('Rate cleanup: removed ' + removed + ' items with rate > 25 (Belrise trading remnants)');
+  S._rateCleanup1 = true;
+  saveJSON(STORAGE_KEY, S);
+}
+
+/* Phase 6b: Restore active tab on refresh */
+var _savedTab = regFilter.activeTab || 'pageHome';
+if (_savedTab !== 'pageHome' && document.getElementById(_savedTab)) {
+  switchTab(_savedTab);
+} else {
+  renderHome();
+}
 
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('sw.js').catch(() => {});

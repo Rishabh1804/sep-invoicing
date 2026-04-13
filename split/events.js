@@ -147,12 +147,29 @@ document.addEventListener('click', function(e) {
       renderClientsPage();
       break;
     }
+    case 'invFilterUnused': {
+      var curFilter2 = getItemsFilter();
+      regFilter.itemsFilter = curFilter2 === 'unused' ? 'all' : 'unused';
+      saveRegFilter();
+      _itemsRendered = 0;
+      renderClientsPage();
+      break;
+    }
+    case 'invSelectAllUnused': selectAllUnused(); break;
+    case 'invToggleItemSelect': e.stopPropagation(); toggleItemSelect(parseInt(btn.dataset.id)); break;
+    case 'invClearItemSelection': clearItemSelection(); break;
+    case 'invBatchDeleteItems': batchDeleteItems(); break;
     case 'invLoadMoreItems': _renderItemsList(); break;
     case 'invItemsSort': {
       var sortEl = document.getElementById('itemsSort');
       if (sortEl) { regFilter.itemsSort = sortEl.value; saveRegFilter(); _itemsRendered = 0; _renderItemsList(); }
       break;
     }
+    // Phase 6b: Register bulk operations
+    case 'invRegToggleSort': toggleRegSortDir(); break;
+    case 'invRegToggleSelect': toggleRegSelectMode(); break;
+    case 'invRegToggleInv': e.stopPropagation(); toggleRegInv(btn.dataset.id); break;
+    case 'invRegBulkState': regBulkSetState(btn.dataset.state); break;
   }
 });
 

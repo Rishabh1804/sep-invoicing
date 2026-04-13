@@ -5,6 +5,8 @@ var _itemsRendered = 0;
 var _itemsSearchTimer = null;
 var _itemsSorted = [];
 var _mergeBackupWarned = false;
+var _itemsSelected = {};
+var _itemsUsageCache = null;
 var ITEMS_BATCH = 50;
 
 function getItemsSubView() {
@@ -62,6 +64,8 @@ function _buildItemsSubViewHtml() {
   var sort = getItemsSort();
   var filter = getItemsFilter();
   var noWeightCount = S.items.filter(function(it) { return it.stdWeightKg == null; }).length;
+  var cache = _buildUsageCache();
+  var unusedCount = S.items.filter(function(it) { return !cache[it.partNumber]; }).length;
 
   var html = _buildSubViewToggle('items');
 
@@ -77,10 +81,15 @@ function _buildItemsSubViewHtml() {
     '<option value="alpha"' + (sort === 'alpha' ? ' selected' : '') + '>A-Z</option>' +
     '<option value="unit"' + (sort === 'unit' ? ' selected' : '') + '>Unit</option>' +
     '<option value="rate"' + (sort === 'rate' ? ' selected' : '') + '>Rate</option>' +
+    '<option value="usage"' + (sort === 'usage' ? ' selected' : '') + '>Usage</option>' +
     '</select>' +
     '</div>' +
     '<div class="inv-items-toolbar-row">' +
     '<button class="inv-btn inv-btn-ghost inv-btn-sm' + (filter === 'no-weight' ? ' inv-chip-active' : '') + '" data-action="invFilterNoWeight">No weight (' + noWeightCount + ')</button>' +
+    '<button class="inv-btn inv-btn-ghost inv-btn-sm' + (filter === 'unused' ? ' inv-chip-active' : '') + '" data-action="invFilterUnused">Unused (' + unusedCount + ')</button>' +
+    '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invSelectAllUnused">Select unused</button>' +
+    '</div>' +
+    '<div class="inv-items-toolbar-row">' +
     '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invCalcWeights">Calc Weights</button>' +
     '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invOpenMergeTool">Merge</button>' +
     '</div>' +
@@ -89,6 +98,7 @@ function _buildItemsSubViewHtml() {
   // List container
   html += '<div id="itemsList"></div>';
   html += '<div id="itemsLoadMore"></div>';
+  html += '<div id="itemsSelBar"></div>';
 
   return html;
 }
@@ -125,6 +135,9 @@ function _getSortedFilteredItems() {
   // Filter
   if (filter === 'no-weight') {
     list = list.filter(function(it) { return it.stdWeightKg == null; });
+  } else if (filter === 'unused') {
+    var cache = _buildUsageCache();
+    list = list.filter(function(it) { return !cache[it.partNumber]; });
   }
 
   // Search
@@ -145,6 +158,8 @@ function _getSortedFilteredItems() {
     });
   } else if (sort === 'rate') {
     list.sort(function(a, b) { return (b.rate || 0) - (a.rate || 0); });
+  } else if (sort === 'usage') {
+    list.sort(function(a, b) { return _getUsageScore(b.partNumber) - _getUsageScore(a.partNumber); });
   }
 
   return list;
@@ -178,9 +193,13 @@ function _renderItemsList() {
     var rateStr = (it.rate != null && it.rate > 0) ? formatCurrency(it.rate) : '';
     var noRate = !it.rate || it.rate === 0;
     var weightStr = it.stdWeightKg != null ? formatNum(it.stdWeightKg, 3) + ' kg' : '';
+    var usageCount = _getUsageCount(it.partNumber);
+    var isSelected = !!_itemsSelected[it.id];
 
-    html += '<div class="inv-item-card" data-action="invEditItem" data-id="' + it.id + '">' +
+    html += '<div class="inv-item-card' + (isSelected ? ' inv-item-selected' : '') + '" data-action="invEditItem" data-id="' + it.id + '">' +
       '<div class="inv-item-card-top">' +
+      '<label class="inv-item-check-wrap" data-action="invToggleItemSelect" data-id="' + it.id + '">' +
+      '<input type="checkbox"' + (isSelected ? ' checked' : '') + ' class="inv-im-check"></label>' +
       '<span class="inv-item-pn inv-mono">' + escHtml(it.partNumber) + '</span>' +
       '<span class="inv-item-unit inv-client-badge inv-badge-mode">' + escHtml(it.unit) + '</span>' +
       '</div>' +
@@ -189,13 +208,20 @@ function _renderItemsList() {
       '<span class="inv-item-rate inv-mono' + (noRate ? ' inv-text-muted' : ' inv-text-cost') + '">' +
       (noRate ? 'No rate' : rateStr) + '</span>' +
       '</div>' +
-      (weightStr ? '<div class="inv-item-weight-row"><span class="inv-weight-badge">' + escHtml(weightStr) + '</span></div>' : '') +
+      '<div class="inv-item-badges-row">' +
+      (weightStr ? '<span class="inv-weight-badge">' + escHtml(weightStr) + '</span>' : '') +
+      (usageCount > 0 ? '<span class="inv-usage-badge">' + usageCount + ' ref' + (usageCount !== 1 ? 's' : '') + '</span>' :
+        '<span class="inv-usage-badge inv-usage-zero">Unused</span>') +
+      '</div>' +
       '</div>';
   }
   html += '</div>';
 
   listEl.innerHTML = html;
   _itemsRendered = limit;
+
+  // Selection bar
+  _renderItemsSelectionBar();
 
   // Load more button
   if (moreEl) {
@@ -611,4 +637,114 @@ function calculateStdWeights() {
   if (highVariance > 0) msg += '. ' + highVariance + ' with high variance (>20% CV)';
   if (calculated === 0) msg = 'No items with calculable weights found. Need invoice/challan data with both KG qty and NOS count.';
   showToast(msg, calculated > 0 ? 'success' : 'warning');
+}
+
+/* --- Usage Scoring (Phase 6b) --- */
+function _buildUsageCache() {
+  if (_itemsUsageCache) return _itemsUsageCache;
+  var cache = {};
+  var now = Date.now();
+  var thirtyDaysMs = 30 * 86400000;
+
+  (S.invoices || []).forEach(function(inv) {
+    var recent = inv.createdAt && (now - inv.createdAt) < thirtyDaysMs;
+    (inv.items || []).forEach(function(li) {
+      var pn = li.partNumber;
+      if (!pn) return;
+      if (!cache[pn]) cache[pn] = { total: 0, recent: 0 };
+      cache[pn].total++;
+      if (recent) cache[pn].recent++;
+    });
+  });
+
+  (S.incomingMaterial || []).forEach(function(im) {
+    var recent = im.createdAt && (now - im.createdAt) < thirtyDaysMs;
+    (im.items || []).forEach(function(li) {
+      var pn = li.partNumber;
+      if (!pn) return;
+      if (!cache[pn]) cache[pn] = { total: 0, recent: 0 };
+      cache[pn].total++;
+      if (recent) cache[pn].recent++;
+    });
+  });
+
+  _itemsUsageCache = cache;
+  return cache;
+}
+
+function _getUsageScore(partNumber) {
+  var cache = _buildUsageCache();
+  var entry = cache[partNumber];
+  if (!entry) return 0;
+  return entry.total + (entry.recent * 2);
+}
+
+function _getUsageCount(partNumber) {
+  var cache = _buildUsageCache();
+  var entry = cache[partNumber];
+  return entry ? entry.total : 0;
+}
+
+function _invalidateUsageCache() {
+  _itemsUsageCache = null;
+}
+
+/* --- Batch Select/Delete --- */
+function toggleItemSelect(itemId) {
+  _itemsSelected[itemId] = !_itemsSelected[itemId];
+  if (!_itemsSelected[itemId]) delete _itemsSelected[itemId];
+  _renderItemsSelectionBar();
+  // Toggle visual on card
+  var card = document.querySelector('.inv-item-card[data-id="' + itemId + '"]');
+  if (card) card.classList.toggle('inv-item-selected', !!_itemsSelected[itemId]);
+}
+
+function selectAllUnused() {
+  _itemsSelected = {};
+  var cache = _buildUsageCache();
+  S.items.forEach(function(it) {
+    if (!cache[it.partNumber]) _itemsSelected[it.id] = true;
+  });
+  _itemsRendered = 0;
+  _renderItemsList();
+  _renderItemsSelectionBar();
+  var count = Object.keys(_itemsSelected).length;
+  showToast(count + ' unused item' + (count !== 1 ? 's' : '') + ' selected');
+}
+
+function clearItemSelection() {
+  _itemsSelected = {};
+  _itemsRendered = 0;
+  _renderItemsList();
+  _renderItemsSelectionBar();
+}
+
+function batchDeleteItems() {
+  var ids = Object.keys(_itemsSelected).filter(function(k) { return _itemsSelected[k]; }).map(Number);
+  if (ids.length === 0) return;
+  if (!confirm('Delete ' + ids.length + ' item' + (ids.length !== 1 ? 's' : '') + '? Historical invoice/challan references will be kept.')) return;
+  S.items = S.items.filter(function(it) { return ids.indexOf(it.id) < 0; });
+  _itemsSelected = {};
+  _invalidateUsageCache();
+  saveState();
+  _itemsRendered = 0;
+  _renderItemsList();
+  _renderItemsSelectionBar();
+  showToast(ids.length + ' item' + (ids.length !== 1 ? 's' : '') + ' deleted');
+}
+
+function _renderItemsSelectionBar() {
+  var count = Object.keys(_itemsSelected).filter(function(k) { return _itemsSelected[k]; }).length;
+  var bar = document.getElementById('itemsSelBar');
+  if (!bar) return;
+  if (count === 0) {
+    bar.innerHTML = '';
+    return;
+  }
+  bar.innerHTML = '<div class="inv-im-sel-bar">' +
+    '<span class="inv-im-sel-count">' + count + ' selected</span>' +
+    '<div class="inv-items-sel-actions">' +
+    '<button class="inv-btn inv-btn-ghost inv-btn-sm inv-sel-clear-btn" data-action="invClearItemSelection">Clear</button>' +
+    '<button class="inv-im-sel-btn" data-action="invBatchDeleteItems">Delete</button>' +
+    '</div></div>';
 }

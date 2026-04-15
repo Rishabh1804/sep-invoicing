@@ -492,8 +492,9 @@ input, select, textarea, button { font-family: inherit; font-size: var(--fs-base
 @page { margin: 0; }
 @media print {
   body { max-width: none; padding: 0; margin: 0; background: #fff; }
+  body.inv-desktop { margin-left: 0; }
   .inv-header, .inv-tabs, .inv-fab, .inv-toast, .inv-page,
-  .inv-overlay-scrim, .inv-print-toolbar, #imSelBar, .inv-scan-bar { display: none !important; }
+  .inv-overlay-scrim, .inv-print-toolbar, #imSelBar, .inv-scan-bar, .inv-sidebar { display: none !important; }
   .inv-print-view { position: static; display: block !important; overflow: visible; }
   .inv-print-body { padding: 0; }
   .inv-print-invoice { border: none; max-width: none; padding: 10mm 12mm 8mm 12mm; }
@@ -556,6 +557,146 @@ input, select, textarea, button { font-family: inherit; font-size: var(--fs-base
 .inv-history-meta { font-family: var(--ff-mono); font-size: var(--fs-2xs); color: var(--text-3); margin-top: var(--sp-2); }
 .dark .inv-stats-val { color: var(--cost-text); }
 .dark .inv-stats-metric-value { color: var(--cost-text); }
+
+/* Phase 7: Dashboard grid */
+.inv-stats-grid {
+  display: grid; grid-template-columns: 1fr; gap: var(--sp-16);
+}
+@media (min-width: 480px) {
+  .inv-stats-grid { grid-template-columns: 1fr 1fr; }
+}
+.inv-stats-card-full { grid-column: 1 / -1; }
+.inv-stats-states-row { display: flex; gap: var(--sp-8); flex-wrap: wrap; }
+.inv-stats-row-tap { cursor: pointer; }
+.inv-stats-row-tap:active { background: var(--surface-2); }
+
+/* Phase 7: Period chips */
+.inv-stats-chips {
+  display: flex; gap: var(--sp-8); padding: var(--sp-8) 0 var(--sp-16) 0;
+  overflow-x: auto; -webkit-overflow-scrolling: touch;
+}
+.inv-chip {
+  padding: var(--sp-6) var(--sp-16); border-radius: var(--r-full);
+  border: 1px solid var(--border); background: var(--surface);
+  color: var(--text-2); font-size: var(--fs-sm); font-weight: 600;
+  cursor: pointer; white-space: nowrap;
+  transition: all var(--anim-fast) ease;
+}
+.inv-chip-active { background: var(--accent); color: #fff; border-color: var(--accent); }
+.dark .inv-chip { border-color: var(--border); background: var(--surface-2); }
+.dark .inv-chip-active { background: var(--accent-dark); border-color: var(--accent-dark); }
+
+/* Phase 7: SVG charts */
+.inv-svg-chart { width: 100%; height: auto; display: block; }
+.inv-svg-bar { fill: var(--accent); transition: fill var(--anim-fast); }
+.dark .inv-svg-bar { fill: var(--accent-dark); }
+.inv-svg-bar-group { cursor: pointer; }
+.inv-svg-bar-group:active .inv-svg-bar { fill: var(--cost); }
+.inv-svg-bar-label { font-size: 11px; fill: var(--text-1); font-family: var(--ff-base); }
+.inv-svg-bar-amount { font-size: 10px; fill: var(--text-3); font-family: var(--ff-mono); }
+.inv-svg-grid { stroke: var(--border); stroke-width: 0.5; }
+.inv-svg-grid-label { font-size: 9px; fill: var(--text-3); font-family: var(--ff-mono); }
+.inv-svg-line { fill: none; stroke: var(--accent); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.inv-svg-area { fill: var(--cost-bg); opacity: 0.5; }
+.inv-svg-dot { fill: var(--accent); stroke: var(--surface); stroke-width: 2; }
+.inv-svg-axis-label { font-size: 9px; fill: var(--text-3); font-family: var(--ff-mono); }
+.dark .inv-svg-bar-label { fill: var(--text-1); }
+.dark .inv-svg-bar-amount { fill: var(--text-3); }
+.dark .inv-svg-area { opacity: 0.3; }
+.dark .inv-svg-line { stroke: var(--accent-dark); }
+.dark .inv-svg-dot { fill: var(--accent-dark); stroke: var(--surface); }
+
+/* Phase 7: Top items table */
+.inv-stats-table { display: flex; flex-direction: column; }
+.inv-stats-table-header {
+  display: flex; gap: var(--sp-4); padding: var(--sp-6) 0;
+  border-bottom: 2px solid var(--border); font-size: var(--fs-xs);
+  font-weight: 700; color: var(--text-3); text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.inv-stats-table-row {
+  display: flex; gap: var(--sp-4); padding: var(--sp-8) 0;
+  border-bottom: 1px solid var(--border); align-items: flex-start;
+}
+.inv-stats-table-row:last-child { border-bottom: none; }
+.inv-stats-table-cell { font-size: var(--fs-sm); }
+.inv-stats-table-rank { min-width: 20px; color: var(--text-3); font-weight: 700; }
+.inv-stats-table-part { flex: 1; min-width: 0; word-break: break-word; color: var(--text-1); }
+.inv-stats-table-qty { min-width: 60px; text-align: right; color: var(--text-2); }
+.inv-stats-table-amt { min-width: 80px; text-align: right; color: var(--cost-text); }
+.inv-text-xs { font-size: var(--fs-xs); }
+.inv-p-8 { padding: var(--sp-8) 0; }
+.inv-mt-16 { margin-top: var(--sp-16); }
+
+/* Phase 7: Flippable card overlay */
+.inv-flip-container { overflow: visible; }
+.inv-flip-inner { position: relative; }
+.inv-flip-front, .inv-flip-back { background: var(--surface); }
+.inv-flip-back { display: none; }
+.inv-flip-back.inv-flip-visible { display: block; }
+.inv-flip-front.inv-flip-hidden { display: none; }
+.inv-flip-out { animation: invFlipOut 0.25s ease-in forwards; }
+.inv-flip-in { animation: invFlipIn 0.25s ease-out forwards; }
+@keyframes invFlipOut {
+  0% { transform: perspective(1200px) rotateY(0deg); opacity: 1; }
+  100% { transform: perspective(1200px) rotateY(90deg); opacity: 0; }
+}
+@keyframes invFlipIn {
+  0% { transform: perspective(1200px) rotateY(-90deg); opacity: 0; }
+  100% { transform: perspective(1200px) rotateY(0deg); opacity: 1; }
+}
+.inv-flip-period-label {
+  font-size: var(--fs-xs); font-weight: 700; color: var(--accent);
+  text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: var(--sp-12);
+}
+.dark .inv-flip-period-label { color: var(--accent-dark); }
+.inv-flip-kpis {
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: var(--sp-12); margin-bottom: var(--sp-16);
+}
+.inv-flip-kpi {
+  text-align: center; padding: var(--sp-12);
+  background: var(--surface-2); border-radius: var(--r-lg);
+}
+.inv-flip-kpi-label {
+  display: block; font-size: var(--fs-xs); color: var(--text-3);
+  text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: var(--sp-4);
+}
+.inv-flip-kpi-value {
+  display: block; font-family: var(--ff-display); font-size: var(--fs-lg);
+  font-weight: 700; color: var(--cost-text);
+}
+.inv-flip-states { display: flex; gap: var(--sp-8); flex-wrap: wrap; margin-bottom: var(--sp-16); }
+.inv-flip-meta { font-size: var(--fs-sm); color: var(--text-3); margin-bottom: var(--sp-16); }
+.inv-flip-section-title {
+  font-size: var(--fs-sm); font-weight: 700; color: var(--text-3);
+  text-transform: uppercase; letter-spacing: 0.05em;
+  margin: var(--sp-16) 0 var(--sp-8) 0;
+}
+.inv-flip-section-title:first-child { margin-top: 0; }
+.inv-flip-row {
+  display: flex; gap: var(--sp-8); align-items: center;
+  padding: var(--sp-6) 0; border-bottom: 1px solid var(--border);
+  font-size: var(--fs-sm); flex-wrap: wrap;
+}
+.inv-flip-row:last-child { border-bottom: none; }
+.inv-flip-actions {
+  display: flex; flex-direction: column; gap: var(--sp-8);
+  margin-top: var(--sp-20); padding-top: var(--sp-16);
+  border-top: 1px solid var(--border);
+}
+
+/* Phase 7: History improvements */
+.inv-history-filters { display: flex; gap: var(--sp-8); flex-wrap: wrap; }
+.inv-history-date { flex: 1; min-width: 120px; max-width: 160px; }
+.inv-history-day-header {
+  font-size: var(--fs-sm); font-weight: 700; color: var(--text-3);
+  padding: var(--sp-12) 0 var(--sp-4) 0;
+  border-bottom: 1px solid var(--border); margin-top: var(--sp-8);
+}
+.inv-history-day-header:first-child { margin-top: 0; }
+.inv-history-item[data-action] { cursor: pointer; }
+.inv-history-item[data-action]:active { background: var(--surface-2); }
 .inv-settings-title {
   font-size: var(--fs-sm); font-weight: 700; text-transform: uppercase;
   letter-spacing: 0.08em; color: var(--text-3);
@@ -1108,6 +1249,348 @@ input, select, textarea, button { font-family: inherit; font-size: var(--fs-base
   border-color: rgba(255,255,255,0.4);
 }
 .inv-sel-clear-btn:active { background: rgba(255,255,255,0.15); }
+
+/* ===== PHASE 8A: DESKTOP LAYOUT FOUNDATION ===== */
+
+/* --- Sidebar (hidden by default) --- */
+.inv-sidebar { display: none; }
+
+body.inv-desktop .inv-sidebar {
+  display: flex; flex-direction: column;
+  position: fixed; left: 0; top: 0; bottom: 0;
+  width: 64px; background: var(--surface);
+  border-right: 1px solid var(--border);
+  z-index: 100; transition: width 200ms ease;
+  overflow: hidden;
+}
+body.inv-desktop .inv-sidebar:hover { width: 240px; }
+.inv-sidebar.inv-sidebar-expanded { width: 240px; }
+.inv-sidebar.inv-sidebar-expanded .inv-sidebar-label { opacity: 1; }
+
+.inv-sidebar-inner {
+  display: flex; flex-direction: column;
+  height: 100%; padding: var(--sp-8) 0;
+}
+
+.inv-sidebar-item {
+  display: flex; align-items: center; gap: var(--sp-12);
+  padding: var(--sp-12) var(--sp-20);
+  min-height: 48px; color: var(--text-2); cursor: pointer;
+  border: none; background: none; white-space: nowrap;
+  font-family: var(--ff-base); font-size: var(--fs-base); font-weight: 500;
+  text-align: left; width: 100%;
+}
+.inv-sidebar-item svg { flex-shrink: 0; width: 24px; height: 24px; }
+.inv-sidebar-label { opacity: 0; transition: opacity 150ms ease; }
+body.inv-desktop .inv-sidebar:hover .inv-sidebar-label { opacity: 1; }
+.inv-sidebar-active { color: var(--accent); background: var(--surface-2); }
+.inv-sidebar-spacer { flex: 1; }
+
+/* Dark mode sidebar */
+.dark .inv-sidebar { background: var(--surface); border-right-color: var(--border); }
+.dark .inv-sidebar-active { background: var(--surface-2); color: var(--accent); }
+
+/* --- Desktop: Body offset --- */
+body.inv-desktop { max-width: none; padding-bottom: 0; margin-left: 64px; }
+
+/* --- Desktop: Hide bottom tabs --- */
+body.inv-desktop .inv-tabs { display: none; }
+
+/* --- Desktop: FAB repositioned (no tab-h offset) --- */
+body.inv-desktop .inv-fab { bottom: var(--sp-16); }
+body.inv-desktop .inv-scan-bar { bottom: var(--sp-16); }
+
+/* --- Desktop: IM selection bar (no tab-h offset) --- */
+body.inv-desktop .inv-im-sel-bar { bottom: var(--sp-8); }
+
+/* --- Desktop: Toast max-width fix --- */
+body.inv-desktop .inv-toast { max-width: 480px; }
+
+/* --- Desktop: Overlay as centered modal --- */
+body.inv-desktop .inv-overlay-scrim {
+  align-items: center;
+  padding: var(--sp-16);
+}
+body.inv-desktop .inv-overlay-card {
+  border-radius: var(--r-xl);
+  width: min(90vw, 560px);
+  max-height: 85vh;
+  animation: inv-scaleIn var(--anim-normal) ease;
+}
+@keyframes inv-scaleIn {
+  0% { transform: scale(0.95); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+/* ===== MASTER-DETAIL LAYOUT (Phase 8B) ===== */
+body.inv-desktop .inv-master-detail {
+  display: flex;
+  flex-direction: row;
+  height: calc(100vh - var(--header-h));
+  overflow: hidden;
+}
+body.inv-desktop .inv-master {
+  flex-shrink: 0;
+  width: 40%;
+  overflow-y: auto;
+  border-right: 1px solid var(--border);
+}
+body.inv-desktop .inv-detail {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--sp-16);
+}
+body.inv-desktop .inv-drag-handle {
+  width: 4px;
+  cursor: col-resize;
+  background: var(--border);
+  flex-shrink: 0;
+  transition: background var(--anim-fast);
+}
+body.inv-desktop .inv-drag-handle:hover {
+  background: var(--accent);
+}
+body.inv-desktop .inv-detail-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: var(--text-3);
+}
+body.inv-desktop .inv-detail-empty-icon {
+  margin-bottom: var(--sp-12);
+  color: var(--text-3);
+}
+body.inv-desktop .inv-detail-empty-text {
+  font-size: var(--fs-base);
+  color: var(--text-3);
+}
+
+/* --- Dark mode: master-detail (Phase 8B) --- */
+.dark .inv-master { border-right-color: var(--border); }
+.dark .inv-drag-handle { background: var(--border); }
+.dark .inv-drag-handle:hover { background: var(--accent); }
+.dark .inv-detail-empty { color: var(--text-3); }
+.dark .inv-detail-empty-icon { color: var(--text-3); }
+.dark .inv-detail-empty-text { color: var(--text-3); }
+
+/* ===== DESKTOP TABLE (Phase 8C) ===== */
+body.inv-desktop .inv-desktop-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--fs-sm);
+}
+body.inv-desktop .inv-desktop-table thead {
+  background: var(--surface);
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+.inv-th {
+  padding: var(--sp-8) var(--sp-12);
+  text-align: left;
+  font-weight: 600;
+  font-size: var(--fs-xs);
+  color: var(--text-2);
+  border-bottom: 2px solid var(--border);
+  white-space: nowrap;
+  user-select: none;
+}
+.inv-th-sortable { cursor: pointer; }
+.inv-th-sortable:hover { color: var(--accent); }
+.inv-th-amount { text-align: right; }
+.inv-sort-arrow {
+  margin-left: var(--sp-4);
+  font-size: var(--fs-2xs);
+}
+.inv-tr {
+  border-bottom: 1px solid var(--border);
+  transition: background var(--anim-fast);
+}
+body.inv-desktop .inv-tr:hover { background: var(--surface-2); }
+.inv-tr-active { background: var(--neutral-bg); }
+.inv-tr-cancelled { opacity: 0.6; }
+.inv-td {
+  padding: var(--sp-8) var(--sp-12);
+  vertical-align: middle;
+  cursor: pointer;
+}
+.inv-td-check {
+  width: 40px;
+  text-align: center;
+  cursor: default;
+}
+.inv-td-num {
+  width: 60px;
+  font-family: var(--ff-mono);
+}
+.inv-td-date {
+  width: 100px;
+  font-family: var(--ff-mono);
+}
+.inv-td-amount {
+  width: 110px;
+  font-family: var(--ff-mono);
+  text-align: right;
+}
+.inv-td-state { width: 90px; }
+
+/* Desktop-only toolbar overrides (Phase 8C) */
+body.inv-desktop [data-action="invRegToggleSort"],
+body.inv-desktop [data-action="invRegToggleSelect"] { display: none; }
+
+/* Selection bar desktop positioning (Phase 8C) */
+body.inv-desktop #regSelBar {
+  position: sticky;
+  bottom: 0;
+  border-top: 1px solid var(--border);
+  background: var(--surface);
+  z-index: 10;
+}
+
+/* --- Dark mode: desktop table (Phase 8C) --- */
+.dark .inv-desktop-table thead { background: var(--surface); }
+.dark .inv-th { color: var(--text-2); border-bottom-color: var(--border); }
+.dark .inv-th-sortable:hover { color: var(--accent); }
+.dark .inv-tr { border-bottom-color: var(--border); }
+.dark .inv-tr:hover { background: var(--surface-2); }
+.dark .inv-tr-active { background: var(--neutral-bg); }
+.dark .inv-td { color: var(--text-1); }
+.dark #regSelBar { background: var(--surface); border-top-color: var(--border); }
+
+/* ===== IM DESKTOP TABLE (Phase 8D) ===== */
+.inv-td-challan {
+  width: 100px;
+  font-family: var(--ff-mono);
+}
+.inv-td-items {
+  width: 60px;
+  text-align: center;
+}
+.inv-td-status {
+  width: 80px;
+}
+
+/* IM selection bar desktop positioning (Phase 8D) */
+body.inv-desktop #imSelBar {
+  position: sticky;
+  bottom: 0;
+  border-top: 1px solid var(--border);
+  background: var(--surface);
+  z-index: 10;
+}
+
+/* --- Dark mode: IM desktop (Phase 8D) --- */
+.dark #imSelBar { background: var(--surface); border-top-color: var(--border); }
+
+/* ===== CLIENTS/ITEMS DESKTOP (Phase 8E) ===== */
+
+/* Desktop toggle above wrapper */
+#clientsDesktopToggle {
+  margin-bottom: var(--sp-8);
+}
+
+/* Clients master panel narrower (0.35 ratio) */
+body.inv-desktop .inv-master-clients {
+  width: 35%;
+}
+
+/* Active state: client cards */
+.inv-client-item-active {
+  background: var(--neutral-bg);
+}
+.inv-client-item-active:active {
+  background: var(--neutral-bg);
+}
+
+/* Active state: item cards */
+.inv-item-card-active {
+  background: var(--neutral-bg);
+}
+.inv-item-card-active:active {
+  background: var(--neutral-bg);
+}
+
+/* FAB hidden on desktop */
+body.inv-desktop #clientsItemsFab {
+  display: none;
+}
+
+/* Client detail header */
+.inv-detail-client-header {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-8);
+  flex-wrap: wrap;
+}
+.inv-detail-client-name {
+  font-family: var(--ff-display);
+  font-size: var(--fs-xl);
+  color: var(--text-1);
+}
+.inv-badge-active {
+  color: var(--attend-text);
+  background: var(--attend-bg);
+  font-size: var(--fs-xs);
+  padding: var(--sp-2) var(--sp-8);
+  border-radius: var(--r-full);
+}
+
+/* Rate history rows */
+.inv-detail-rate-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-12);
+  padding: var(--sp-4) 0;
+}
+.inv-detail-rate-current {
+  background: var(--attend-bg);
+  padding: var(--sp-4) var(--sp-8);
+  border-radius: var(--r-sm);
+  margin: var(--sp-2) 0;
+}
+
+/* Invoice rows in client detail */
+.inv-detail-invoice-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-12);
+  padding: var(--sp-6) var(--sp-4);
+  cursor: pointer;
+  border-radius: var(--r-sm);
+  transition: background var(--anim-fast) ease;
+}
+.inv-detail-invoice-row:hover {
+  background: var(--surface-2);
+}
+
+/* Items selection bar desktop positioning (Phase 8E) */
+body.inv-desktop #itemsSelBar {
+  position: sticky;
+  bottom: 0;
+  border-top: 1px solid var(--border);
+  background: var(--surface);
+  z-index: 10;
+}
+
+/* --- Dark mode: Clients/Items desktop (Phase 8E) --- */
+.dark .inv-client-item-active { background: var(--neutral-bg); }
+.dark .inv-item-card-active { background: var(--neutral-bg); }
+.dark .inv-detail-client-name { color: var(--text-1); }
+.dark .inv-badge-active { color: var(--attend-text); background: var(--attend-bg); }
+.dark .inv-detail-rate-current { background: var(--attend-bg); }
+.dark .inv-detail-invoice-row:hover { background: var(--surface-2); }
+.dark #itemsSelBar { background: var(--surface); border-top-color: var(--border); }
+
+/* --- Tablet: Wider cards, no max-width cap --- */
+@media (min-width: 768px) {
+  body { max-width: none; }
+  .inv-tabs { max-width: none; }
+  .inv-card { padding: var(--sp-20); }
+  .inv-page { padding: var(--sp-20) var(--sp-32); }
+  .inv-toast { max-width: 480px; }
+}
 </style>
 </head>
 <body>
@@ -1176,7 +1659,8 @@ input, select, textarea, button { font-family: inherit; font-size: var(--fs-base
 </div>
 
 <div id="pageStats" class="inv-page">
-  <div id="statsContent"></div>
+  <div id="statsToolbar"></div>
+  <div id="statsContent" class="inv-stats-grid"></div>
 </div>
 
 <div id="pageHistory" class="inv-page">
@@ -1295,12 +1779,19 @@ if (!S.invoices) S.invoices = [];
 if (!S.incomingMaterial) S.incomingMaterial = [];
 if (!S.partWeights) S.partWeights = {};
 
+/* ===== LAYOUT MODE (Phase 8A) ===== */
+var _isDesktop = false;
+var _isTablet = false;
+var _pendingModeSwitch = false;
+var _dragState = null;
+
 /* ===== ARCHITECTURAL GLOBALS (Phase 3) ===== */
 let _tabDirty = { home: true, register: true };
 let _tabScroll = {};
 let _navReturnTab = null;
 let _regToolbarRendered = false;
 let _regSearchTimer = null;
+var _preselectedClientId = null;
 const VIEW_PREFS_KEY = 'sep_inv_view_prefs';
 const API_KEY_KEY = 'sep_inv_gemini_key';
 
@@ -1466,6 +1957,7 @@ function advanceInvoiceState(invId) {
   else if (nextState === 'filed') inv.filedAt = now;
   saveState();
   closeOverlay();
+  _renderRegView();
   showToast(inv.displayNumber + ' marked as ' + INV_STATE_LABELS[nextState]);
 }
 
@@ -1485,7 +1977,7 @@ function bulkMarkFiled() {
     inv.filedAt = now;
   });
   saveState();
-  renderRegisterList();
+  _renderRegView();
   showToast(eligible.length + ' invoice' + (eligible.length > 1 ? 's' : '') + ' marked as filed');
 }
 
@@ -1553,6 +2045,8 @@ function switchTab(tabId) {
   // Step 3: Deactivate all tabs and pages
   document.querySelectorAll('.inv-page').forEach(p => p.classList.remove('inv-page-active'));
   document.querySelectorAll('.inv-tab').forEach(t => t.classList.remove('inv-tab-active'));
+  // Phase 8A: Deactivate sidebar items
+  document.querySelectorAll('.inv-sidebar-item').forEach(s => s.classList.remove('inv-sidebar-active'));
 
   // Step 4: Read and clear _navReturnTab
   const returnTab = _navReturnTab;
@@ -1563,6 +2057,10 @@ function switchTab(tabId) {
   if (page) page.classList.add('inv-page-active');
   document.querySelectorAll('.inv-tab').forEach(t => {
     if (t.dataset.tab === tabId) t.classList.add('inv-tab-active');
+  });
+  // Phase 8A: Activate sidebar item
+  document.querySelectorAll('.inv-sidebar-item').forEach(s => {
+    if (s.dataset.tab === tabId) s.classList.add('inv-sidebar-active');
   });
 
   // Step 5b: Persist active tab for refresh recovery (Phase 6b)
@@ -1576,21 +2074,30 @@ function switchTab(tabId) {
   if (tabId === 'pageHome') {
     if (isDirty) { renderHome(); _tabDirty.home = false; }
   } else if (tabId === 'pageRegister') {
-    if (!_regToolbarRendered) {
-      renderRegisterToolbar();
-      _regToolbarRendered = true;
+    if (_isDesktop) {
+      renderRegisterTable();
+      _tabDirty.register = false;
+    } else {
+      if (!_regToolbarRendered) {
+        renderRegisterToolbar();
+        _regToolbarRendered = true;
+      }
+      if (isDirty) { renderRegisterList(); _tabDirty.register = false; }
     }
-    if (isDirty) { renderRegisterList(); _tabDirty.register = false; }
   } else if (tabId === 'pageClients') {
     renderClientsPage();
   } else if (tabId === 'pageIM') {
     // Cancel any in-progress challan form
     if (_challanForm) cancelAddChallan();
-    if (!_imToolbarRendered) {
-      renderIMToolbar();
-      _imToolbarRendered = true;
+    if (_isDesktop) {
+      renderIMTable();
+    } else {
+      if (!_imToolbarRendered) {
+        renderIMToolbar();
+        _imToolbarRendered = true;
+      }
+      renderIMList();
     }
-    renderIMList();
   } else if (tabId === 'pageCreate') {
     if (!document.getElementById('createFormArea').innerHTML) initCreateForm();
   } else if (tabId === 'pageStats') {
@@ -1698,6 +2205,8 @@ function renderHome() {
 }
 
 /* ===== CLIENT MASTER ===== */
+var _clientsActiveId = null;
+
 function renderClientList(filter='') {
   const q = filter.toLowerCase();
   const sorted = [...S.clients].sort((a,b) => {
@@ -1711,7 +2220,9 @@ function renderClientList(filter='') {
     const sortedRates = (c.rates || []).slice().sort((a,b) => b.effectiveFrom.localeCompare(a.effectiveFrom));
     const rateInfo = sortedRates.length > 0 ? sortedRates[0] : null;
     const rateStr = rateInfo ? '\u20B9' + rateInfo.ratePerKg + '/kg' : 'No rate';
-    return '<div class="inv-client-item' + (c.isActive ? '' : ' inv-client-inactive') + '" data-action="invEditClient" data-id="' + c.id + '">' +
+    var cardAction = _isDesktop ? 'invSelectClientRow' : 'invEditClient';
+    var activeClass = (_isDesktop && _clientsActiveId === c.id) ? ' inv-client-item-active' : '';
+    return '<div class="inv-client-item' + (c.isActive ? '' : ' inv-client-inactive') + activeClass + '" data-action="' + cardAction + '" data-id="' + c.id + '">' +
       '<div class="inv-client-content"><div class="inv-client-name">' + escHtml(c.name) + '</div>' +
       '<div class="inv-client-meta">' + escHtml(c.gstin || 'No GSTIN') + '</div>' +
       '<div class="inv-client-badges">' +
@@ -1722,6 +2233,16 @@ function renderClientList(filter='') {
       '</div></div>' +
       '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg></div>';
   }).join('');
+
+  // Desktop detail validation: active client filtered out → clear detail
+  if (_isDesktop && _clientsActiveId) {
+    var stillVisible = filtered.find(function(c) { return c.id === _clientsActiveId; });
+    if (!stillVisible) {
+      _clientsActiveId = null;
+      var detail = document.getElementById('clientsDetail');
+      if (detail) detail.innerHTML = _renderDetailEmpty();
+    }
+  }
 }
 
 /* Client edit overlay */
@@ -1781,6 +2302,10 @@ function saveClientEdit(clientId) {
   saveState();
   closeOverlay();
   renderClientList(document.getElementById('clientSearch').value);
+  // Phase 8E: Refresh detail panel if active client was edited
+  if (_isDesktop && _clientsActiveId === clientId) {
+    _renderClientDetail(clientId, true);
+  }
   showToast('Client saved');
 }
 
@@ -1795,7 +2320,12 @@ function addClientRate(clientId) {
   saveState();
   showToast('Rate added');
   closeOverlay();
-  openClientEdit(clientId);
+  // Phase 8E: On desktop, refresh detail panel instead of reopening overlay
+  if (_isDesktop && _clientsActiveId === clientId) {
+    _renderClientDetail(clientId, false);
+  } else {
+    openClientEdit(clientId);
+  }
 }
 
 function closeOverlay() {
@@ -1804,6 +2334,11 @@ function closeOverlay() {
   document.body.style.overflow = '';
   // Pop focus stack for each closed overlay
   for (var i = 0; i < count; i++) popFocus();
+  // Phase 8A: Drain deferred mode switch
+  if (_pendingModeSwitch) {
+    _pendingModeSwitch = false;
+    updateLayoutMode();
+  }
 }
 
 function closeTopOverlay() {
@@ -1817,6 +2352,124 @@ function closeTopOverlay() {
   }
 }
 
+/* ===== CLIENT DETAIL PANEL (Phase 8E) ===== */
+function _renderClientDetail(clientId, skipMasterRefresh) {
+  var c = S.clients.find(function(x) { return x.id === clientId; });
+  if (!c) {
+    _clientsActiveId = null;
+    var detail = document.getElementById('clientsDetail');
+    if (detail) detail.innerHTML = _renderDetailEmpty();
+    if (!skipMasterRefresh) {
+      var searchEl = document.getElementById('clientSearch');
+      renderClientList(searchEl ? searchEl.value : '');
+    }
+    return;
+  }
+
+  _clientsActiveId = clientId;
+
+  var html = '';
+
+  // Header
+  html += '<div class="inv-detail-section">' +
+    '<div class="inv-detail-client-header">' +
+    '<span class="inv-detail-client-name">' + escHtml(c.name) + '</span>' +
+    '<span class="inv-client-badge ' + (c.isActive ? 'inv-badge-active' : 'inv-badge-inactive') + '">' +
+    (c.isActive ? 'Active' : 'Inactive') + '</span></div></div>';
+
+  // Info section
+  html += '<div class="inv-detail-section">';
+  if (c.gstin) {
+    html += '<div class="inv-detail-label">GSTIN</div>' +
+      '<div class="inv-detail-value-mono">' + escHtml(c.gstin) + '</div>';
+  }
+  if (c.state || c.stateCode) {
+    html += '<div class="inv-detail-label">State</div>' +
+      '<div class="inv-detail-value">' + escHtml(c.state || '') +
+      (c.stateCode ? ' <span class="inv-detail-value-mono">(' + escHtml(c.stateCode) + ')</span>' : '') + '</div>';
+  }
+  var address = [c.add1, c.add2, c.add3].filter(function(a) { return a; });
+  if (address.length > 0) {
+    html += '<div class="inv-detail-label">Address</div>' +
+      '<div class="inv-detail-value">' + address.map(function(a) { return escHtml(a); }).join('<br>') + '</div>';
+  }
+  html += '<div class="inv-detail-label">Billing Mode</div>' +
+    '<div class="inv-detail-value">' + escHtml(c.billingMode) + '</div>';
+  html += '<div class="inv-detail-label">GST Type</div>' +
+    '<div class="inv-detail-value">' + escHtml(c.gstType === 'inter' ? 'Inter-state (IGST)' : 'Intra-state (CGST+SGST)') + '</div>';
+  if (c.notes) {
+    html += '<div class="inv-detail-label">Notes</div>' +
+      '<div class="inv-detail-value">' + escHtml(c.notes) + '</div>';
+  }
+  html += '</div>';
+
+  // Rate History
+  var sortedRates = (c.rates || []).slice().sort(function(a, b) {
+    return b.effectiveFrom.localeCompare(a.effectiveFrom);
+  });
+  if (sortedRates.length > 0) {
+    var today = localDateStr();
+    var currentRate = sortedRates.find(function(r) { return r.effectiveFrom <= today; });
+    html += '<div class="inv-detail-section">' +
+      '<div class="inv-detail-label">Rate History</div>';
+    sortedRates.forEach(function(r) {
+      var isCurrent = currentRate && r.effectiveFrom === currentRate.effectiveFrom;
+      html += '<div class="inv-detail-rate-row' + (isCurrent ? ' inv-detail-rate-current' : '') + '">' +
+        '<span class="inv-detail-value-mono">' + formatCurrency(r.ratePerKg) + '/kg</span>' +
+        '<span class="inv-detail-value-mono inv-text-muted">' + escHtml(r.effectiveFrom) + '</span>' +
+        (isCurrent ? '<span class="inv-client-badge inv-badge-active">Current</span>' : '') +
+        '</div>';
+    });
+    html += '</div>';
+  }
+
+  // Item Rate Overrides
+  if (c.itemRates && c.itemRates.length > 0) {
+    html += '<div class="inv-detail-section">' +
+      '<div class="inv-detail-label">Item Rate Overrides</div>';
+    c.itemRates.forEach(function(ir) {
+      html += '<div class="inv-detail-rate-row">' +
+        '<span class="inv-detail-value-mono">' + escHtml(ir.partPattern) + '</span>' +
+        '<span class="inv-detail-value-mono">' + formatCurrency(ir.rate) + '/' + escHtml(ir.unit || 'kg') + '</span>' +
+        (ir.label ? '<span class="inv-text-muted">' + escHtml(ir.label) + '</span>' : '') +
+        '</div>';
+    });
+    html += '</div>';
+  }
+
+  // Recent Invoices
+  var clientInvoices = (S.invoices || []).filter(function(i) { return i.clientId === c.id; })
+    .sort(function(a, b) { return (b.date || '').localeCompare(a.date || ''); })
+    .slice(0, 5);
+  if (clientInvoices.length > 0) {
+    html += '<div class="inv-detail-section">' +
+      '<div class="inv-detail-label">Recent Invoices</div>';
+    clientInvoices.forEach(function(inv) {
+      html += '<div class="inv-detail-invoice-row" data-action="invViewInvoiceDetail" data-id="' + escHtml(inv.id) + '">' +
+        '<span class="inv-detail-value-mono">' + escHtml(inv.displayNumber) + '</span>' +
+        '<span class="inv-detail-value-mono inv-text-muted">' + formatDate(inv.date) + '</span>' +
+        '<span class="inv-detail-value-mono inv-text-cost">' + formatCurrency(inv.grandTotal) + '</span>' +
+        '</div>';
+    });
+    html += '</div>';
+  }
+
+  // Action buttons
+  html += '<div class="inv-detail-actions">' +
+    '<button class="inv-btn inv-btn-primary" data-action="invEditClient" data-id="' + c.id + '">Edit</button>' +
+    '<button class="inv-btn inv-btn-ghost" data-action="invStatsJumpRegister" data-client-id="' + c.id + '">View in Register</button>' +
+    '</div>';
+
+  var detailEl = document.getElementById('clientsDetail');
+  if (detailEl) detailEl.innerHTML = html;
+
+  // Update master to show active card highlight
+  if (!skipMasterRefresh) {
+    var searchEl = document.getElementById('clientSearch');
+    renderClientList(searchEl ? searchEl.value : '');
+  }
+}
+
 /* ===== ITEMS MASTER (Phase 6) ===== */
 
 /* --- Subview state --- */
@@ -1827,6 +2480,7 @@ var _mergeBackupWarned = false;
 var _itemsSelected = {};
 var _itemsUsageCache = null;
 var ITEMS_BATCH = 50;
+var _itemsActiveId = null;
 
 function getItemsSubView() {
   return regFilter.clientsSubView || 'clients';
@@ -1856,6 +2510,13 @@ function renderClientsPage() {
   var subView = getItemsSubView();
   var fab = document.getElementById('clientsItemsFab');
 
+  // Phase 8E: Desktop master-detail
+  if (_isDesktop) {
+    _renderClientsDesktop(subView);
+    if (fab) fab.classList.add('inv-hidden');
+    return;
+  }
+
   if (subView === 'items') {
     container.innerHTML = _buildItemsSubViewHtml();
     if (fab) fab.classList.remove('inv-hidden');
@@ -1869,8 +2530,8 @@ function renderClientsPage() {
   }
 }
 
-function _buildClientsSubViewHtml() {
-  return _buildSubViewToggle('clients') +
+function _buildClientsSubViewHtml(includeToggle) {
+  return (includeToggle !== false ? _buildSubViewToggle('clients') : '') +
     '<div class="inv-search-wrap">' +
     '<svg class="inv-search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>' +
     '<input type="text" class="inv-search-input" id="clientSearch" placeholder="Search clients" autocomplete="off">' +
@@ -1878,7 +2539,7 @@ function _buildClientsSubViewHtml() {
     '<div id="clientList"></div>';
 }
 
-function _buildItemsSubViewHtml() {
+function _buildItemsSubViewHtml(includeToggle) {
   var search = getItemsSearch();
   var sort = getItemsSort();
   var filter = getItemsFilter();
@@ -1886,7 +2547,7 @@ function _buildItemsSubViewHtml() {
   var cache = _buildUsageCache();
   var unusedCount = S.items.filter(function(it) { return !cache[it.partNumber]; }).length;
 
-  var html = _buildSubViewToggle('items');
+  var html = (includeToggle !== false ? _buildSubViewToggle('items') : '');
 
   // Toolbar
   html += '<div class="inv-items-toolbar">' +
@@ -1927,6 +2588,159 @@ function _buildSubViewToggle(active) {
     '<button class="inv-subview-btn' + (active === 'clients' ? ' inv-subview-active' : '') + '" data-action="invSwitchSubView" data-view="clients">Clients</button>' +
     '<button class="inv-subview-btn' + (active === 'items' ? ' inv-subview-active' : '') + '" data-action="invSwitchSubView" data-view="items">Items</button>' +
     '</div>';
+}
+
+/* ===== CLIENTS/ITEMS DESKTOP MASTER-DETAIL (Phase 8E) ===== */
+function _renderClientsDesktop(subView) {
+  var container = document.getElementById('clientsPageContent');
+  if (!container) return;
+
+  var wrapper = document.getElementById('clientsMasterDetail');
+  var toggleEl = document.getElementById('clientsDesktopToggle');
+
+  if (!wrapper) {
+    // First render — build full wrapper with toggle above
+    container.innerHTML =
+      '<div id="clientsDesktopToggle">' + _buildSubViewToggle(subView) + '</div>' +
+      '<div class="inv-master-detail" id="clientsMasterDetail">' +
+        '<div class="inv-master inv-master-clients" id="clientsMaster"></div>' +
+        '<div class="inv-drag-handle" id="clientsDragHandle"></div>' +
+        '<div class="inv-detail" id="clientsDetail">' + _renderDetailEmpty() + '</div>' +
+      '</div>';
+    _initDragHandle('clientsDragHandle', 'clientsMaster', 'clientsDetail', 'pageClients');
+    _restorePanelWidth('clientsMaster', 'pageClients');
+  } else {
+    // Re-render — update toggle and master content only
+    if (toggleEl) toggleEl.innerHTML = _buildSubViewToggle(subView);
+  }
+
+  var master = document.getElementById('clientsMaster');
+  if (!master) return;
+
+  // Detect sub-view switch: clear detail and both active IDs
+  var prevSubView = master.dataset.subView;
+  if (prevSubView && prevSubView !== subView) {
+    _clientsActiveId = null;
+    _itemsActiveId = null;
+    var detail = document.getElementById('clientsDetail');
+    if (detail) detail.innerHTML = _renderDetailEmpty();
+  }
+  master.dataset.subView = subView;
+
+  if (subView === 'clients') {
+    master.innerHTML = _buildClientsSubViewHtml(false);
+    renderClientList('');
+    _itemsActiveId = null;
+  } else {
+    master.innerHTML = _buildItemsSubViewHtml(false);
+    _bindItemsSearch();
+    _itemsRendered = 0;
+    _renderItemsList();
+    _clientsActiveId = null;
+  }
+
+  // Detail validation
+  if (subView === 'clients' && _clientsActiveId) {
+    var cStill = S.clients.find(function(c) { return c.id === _clientsActiveId; });
+    if (!cStill) {
+      _clientsActiveId = null;
+      var d1 = document.getElementById('clientsDetail');
+      if (d1) d1.innerHTML = _renderDetailEmpty();
+    } else {
+      _renderClientDetail(_clientsActiveId, true);
+    }
+  } else if (subView === 'items' && _itemsActiveId) {
+    var iStill = S.items.find(function(it) { return it.id === _itemsActiveId; });
+    if (!iStill) {
+      _itemsActiveId = null;
+      var d2 = document.getElementById('clientsDetail');
+      if (d2) d2.innerHTML = _renderDetailEmpty();
+    } else {
+      _renderItemDetail(_itemsActiveId, true);
+    }
+  }
+}
+
+/* Item detail panel (Phase 8E) */
+function _renderItemDetail(itemId, skipMasterRefresh) {
+  var item = S.items.find(function(it) { return it.id === itemId; });
+  if (!item) {
+    _itemsActiveId = null;
+    var detail = document.getElementById('clientsDetail');
+    if (detail) detail.innerHTML = _renderDetailEmpty();
+    if (!skipMasterRefresh) {
+      _itemsRendered = 0;
+      _renderItemsList();
+    }
+    return;
+  }
+
+  _itemsActiveId = itemId;
+
+  var html = '';
+
+  // Header
+  html += '<div class="inv-detail-section">' +
+    '<div class="inv-detail-client-name inv-detail-value-mono">' + escHtml(item.partNumber) + '</div></div>';
+
+  // Info section
+  html += '<div class="inv-detail-section">';
+  if (item.desc) {
+    html += '<div class="inv-detail-label">Description</div>' +
+      '<div class="inv-detail-value">' + escHtml(item.desc) + '</div>';
+  }
+  html += '<div class="inv-detail-label">HSN Code</div>' +
+    '<div class="inv-detail-value-mono">' + escHtml(item.hsn || '998873') + '</div>';
+  html += '<div class="inv-detail-label">Unit</div>' +
+    '<div class="inv-detail-value">' + escHtml(item.unit || 'KG') + '</div>';
+  html += '<div class="inv-detail-label">Default Rate</div>' +
+    '<div class="inv-detail-value-mono">' + (item.rate ? formatCurrency(item.rate) : 'No rate') + '</div>';
+  if (item.stdWeightKg != null) {
+    html += '<div class="inv-detail-label">Standard Weight</div>' +
+      '<div class="inv-detail-value-mono">' + formatNum(item.stdWeightKg, 3) + ' kg</div>';
+  }
+  html += '</div>';
+
+  // Usage stats
+  var cache = _buildUsageCache();
+  var usage = cache[item.partNumber];
+  html += '<div class="inv-detail-section">' +
+    '<div class="inv-detail-label">Usage</div>';
+  if (usage) {
+    var invLines = 0;
+    var imLines = 0;
+    (S.invoices || []).forEach(function(inv) {
+      inv.items.forEach(function(li) {
+        if (li.partNumber === item.partNumber) invLines++;
+      });
+    });
+    (S.incomingMaterial || []).forEach(function(im) {
+      im.items.forEach(function(li) {
+        if (li.partNumber === item.partNumber) imLines++;
+      });
+    });
+    html += '<div class="inv-detail-value">' + usage.total + ' total references (' + usage.recent + ' in last 30 days)</div>' +
+      '<div class="inv-detail-value inv-text-muted">' + invLines + ' invoice line' + (invLines !== 1 ? 's' : '') +
+      ', ' + imLines + ' challan line' + (imLines !== 1 ? 's' : '') + '</div>';
+  } else {
+    html += '<div class="inv-detail-value inv-text-muted">Unused</div>';
+  }
+  html += '</div>';
+
+  // Action buttons
+  html += '<div class="inv-detail-actions">' +
+    '<button class="inv-btn inv-btn-primary" data-action="invEditItem" data-id="' + item.id + '">Edit</button>' +
+    '<button class="inv-btn inv-btn-danger" data-action="invDeleteItem" data-id="' + item.id + '">Delete</button>' +
+    '</div>';
+
+  var detailEl = document.getElementById('clientsDetail');
+  if (detailEl) detailEl.innerHTML = html;
+
+  // Update master to show active card highlight
+  if (!skipMasterRefresh) {
+    _itemsRendered = 0;
+    _renderItemsList();
+  }
 }
 
 function _bindItemsSearch() {
@@ -2014,8 +2828,10 @@ function _renderItemsList() {
     var weightStr = it.stdWeightKg != null ? formatNum(it.stdWeightKg, 3) + ' kg' : '';
     var usageCount = _getUsageCount(it.partNumber);
     var isSelected = !!_itemsSelected[it.id];
+    var itemAction = _isDesktop ? 'invSelectItemRow' : 'invEditItem';
+    var itemActiveClass = (_isDesktop && _itemsActiveId === it.id) ? ' inv-item-card-active' : '';
 
-    html += '<div class="inv-item-card' + (isSelected ? ' inv-item-selected' : '') + '" data-action="invEditItem" data-id="' + it.id + '">' +
+    html += '<div class="inv-item-card' + (isSelected ? ' inv-item-selected' : '') + itemActiveClass + '" data-action="' + itemAction + '" data-id="' + it.id + '">' +
       '<div class="inv-item-card-top">' +
       '<label class="inv-item-check-wrap" data-action="invToggleItemSelect" data-id="' + it.id + '">' +
       '<input type="checkbox"' + (isSelected ? ' checked' : '') + ' class="inv-im-check"></label>' +
@@ -2049,6 +2865,16 @@ function _renderItemsList() {
         '<button class="inv-btn inv-btn-ghost" data-action="invLoadMoreItems">Load more (' + (total - limit) + ' remaining)</button></div>';
     } else {
       moreEl.innerHTML = '';
+    }
+  }
+
+  // Phase 8E: Desktop detail validation — active item filtered out → clear detail
+  if (_isDesktop && _itemsActiveId) {
+    var stillVisible = _itemsSorted.find(function(it) { return it.id === _itemsActiveId; });
+    if (!stillVisible) {
+      _itemsActiveId = null;
+      var detail = document.getElementById('clientsDetail');
+      if (detail) detail.innerHTML = _renderDetailEmpty();
     }
   }
 }
@@ -2167,6 +2993,10 @@ function saveItem(itemId, mode) {
   closeOverlay();
   _itemsRendered = 0;
   _renderItemsList();
+  // Phase 8E: Refresh detail panel if active item was edited
+  if (_isDesktop && _itemsActiveId === itemId) {
+    _renderItemDetail(itemId, true);
+  }
 }
 
 function deleteItem(itemId) {
@@ -2198,6 +3028,12 @@ function deleteItem(itemId) {
   if (idx > -1) S.items.splice(idx, 1);
   saveState();
   closeOverlay();
+  // Phase 8E: Clear detail panel if active item was deleted
+  if (_isDesktop && _itemsActiveId === itemId) {
+    _itemsActiveId = null;
+    var detail = document.getElementById('clientsDetail');
+    if (detail) detail.innerHTML = _renderDetailEmpty();
+  }
   _itemsRendered = 0;
   _renderItemsList();
   showToast('Item deleted');
@@ -2577,6 +3413,12 @@ let invoiceForm = {
 
 function initCreateForm() {
   invoiceForm = {clientId:null, date:localDateStr(), items:[], poNumber:'',poDate:localDateStr(),challanNo:'',challanDate:localDateStr(),despatchDate:localDateStr(),transport:'',eWayBill:'',remarks:'',editingId:null};
+  // Phase 7: Pre-select client from Stats drill-down
+  if (_preselectedClientId) {
+    var pc = S.clients.find(function(c) { return c.id === parseInt(_preselectedClientId); });
+    if (pc) invoiceForm.clientId = pc.id;
+    _preselectedClientId = null;
+  }
   renderCreateForm();
 }
 
@@ -3051,6 +3893,13 @@ function viewInvoice(invId) {
 /* ===== INVOICE REGISTER ===== */
 var _regSelected = {};
 var _regSelectMode = false;
+var _regActiveInvId = null;
+
+/* Unified sort accessor (Phase 8C) */
+function getRegSortConfig() {
+  if (_isDesktop && regFilter.desktopSort) return regFilter.desktopSort;
+  return { col: 'date', dir: regFilter.regSortDir || 'desc' };
+}
 
 function getFilteredInvoices() {
   let list = [...S.invoices];
@@ -3075,11 +3924,35 @@ function getFilteredInvoices() {
       list = list.filter(i => i.status === 'active' && getInvState(i) === regFilter.state);
     }
   }
-  var sortDir = regFilter.regSortDir || 'desc';
-  if (sortDir === 'asc') {
-    list.sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+
+  /* Desktop: multi-column sort via getRegSortConfig().
+     Mobile: preserve existing createdAt sort (no behavioral change). */
+  if (_isDesktop) {
+    var sc = getRegSortConfig();
+    var dir = sc.dir === 'asc' ? 1 : -1;
+    list.sort(function(a, b) {
+      var va, vb;
+      switch (sc.col) {
+        case 'client': va = (a.clientName || '').toLowerCase(); vb = (b.clientName || '').toLowerCase(); return va < vb ? -dir : va > vb ? dir : 0;
+        case 'date': va = a.date || ''; vb = b.date || ''; return va < vb ? -dir : va > vb ? dir : 0;
+        case 'taxable': return dir * ((a.taxableValue || 0) - (b.taxableValue || 0));
+        case 'total': return dir * ((a.grandTotal || 0) - (b.grandTotal || 0));
+        case 'state': {
+          var so = { created: 0, dispatched: 1, delivered: 2, filed: 3 };
+          va = a.status === 'cancelled' ? -1 : (so[getInvState(a)] || 0);
+          vb = b.status === 'cancelled' ? -1 : (so[getInvState(b)] || 0);
+          return dir * (va - vb);
+        }
+        default: va = a.date || ''; vb = b.date || ''; return va < vb ? -dir : va > vb ? dir : 0;
+      }
+    });
   } else {
-    list.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+    var sortDir = regFilter.regSortDir || 'desc';
+    if (sortDir === 'asc') {
+      list.sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+    } else {
+      list.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+    }
   }
   return list;
 }
@@ -3132,7 +4005,7 @@ function renderRegisterToolbar() {
       regFilter.search = this.value;
       saveRegFilter();
       clearTimeout(_regSearchTimer);
-      _regSearchTimer = setTimeout(function() { renderRegisterList(); }, 200);
+      _regSearchTimer = setTimeout(function() { _renderRegView(); }, 200);
     });
   }
 }
@@ -3190,12 +4063,304 @@ function renderRegisterList() {
   area.innerHTML = html;
 }
 
+/* ===== SHARED DESKTOP UTILITIES (Phase 8B) ===== */
+function _renderDetailEmpty() {
+  return '<div class="inv-detail-empty">' +
+    '<svg class="inv-detail-empty-icon" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">' +
+    '<path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>' +
+    '<div class="inv-detail-empty-text">Select an item to view details</div></div>';
+}
+
+function _restorePanelWidth(masterId, tabKey) {
+  var widths = regFilter.desktopPanelWidths;
+  if (!widths || !widths[tabKey]) return;
+  var master = document.getElementById(masterId);
+  if (master) master.style.width = (widths[tabKey] * 100) + '%';
+}
+
+function _initDragHandle(handleId, masterId, detailId, tabKey) {
+  var handle = document.getElementById(handleId);
+  if (!handle || handle.dataset.dragInit) return;
+  handle.dataset.dragInit = 'true';
+
+  function onStart(e) {
+    e.preventDefault();
+    var container = handle.parentElement;
+    var startX = e.clientX || e.touches[0].clientX;
+    _dragState = {
+      startX: startX,
+      containerW: container.offsetWidth,
+      masterStart: document.getElementById(masterId).offsetWidth,
+      masterId: masterId, tabKey: tabKey
+    };
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+  }
+
+  handle.addEventListener('mousedown', onStart);
+  handle.addEventListener('touchstart', onStart, { passive: false });
+}
+
+/* ===== REGISTER DESKTOP TABLE (Phase 8C) ===== */
+function _buildRegisterTableHtml() {
+  var filtered = getFilteredInvoices();
+  var activeFiltered = filtered.filter(function(i) { return i.status === 'active'; });
+  var activeCount = activeFiltered.length;
+  var activeRevenue = gstRound(activeFiltered.reduce(function(s, i) { return s + (i.taxableValue || 0); }, 0));
+
+  var html = '<div class="inv-reg-summary">' +
+    '<span class="inv-reg-summary-label">' + activeCount + ' active invoice' + (activeCount !== 1 ? 's' : '') + '</span>' +
+    '<span class="inv-reg-summary-value">Taxable: ' + formatCurrency(activeRevenue) + '</span></div>';
+
+  if (filtered.length === 0) {
+    html += '<div class="inv-empty-state">No invoices found</div>';
+    return html;
+  }
+
+  var sc = getRegSortConfig();
+
+  html += '<table class="inv-desktop-table"><thead><tr>';
+  html += '<th class="inv-th inv-td-check"></th>';
+  html += '<th class="inv-th inv-td-num">#</th>';
+
+  var cols = [
+    { key: 'client', label: 'Client', cls: '' },
+    { key: 'date', label: 'Date', cls: 'inv-td-date' },
+    { key: 'taxable', label: 'Taxable', cls: 'inv-td-amount inv-th-amount' },
+    { key: 'total', label: 'Total', cls: 'inv-td-amount inv-th-amount' },
+    { key: 'state', label: 'State', cls: 'inv-td-state' }
+  ];
+  cols.forEach(function(c) {
+    html += '<th class="inv-th inv-th-sortable' + (c.cls ? ' ' + c.cls : '') + '" data-action="invDesktopSort" data-col="' + c.key + '">' +
+      c.label + (sc.col === c.key ? '<span class="inv-sort-arrow">' + (sc.dir === 'asc' ? '\u25B2' : '\u25BC') + '</span>' : '') +
+      '</th>';
+  });
+  html += '</tr></thead><tbody>';
+
+  filtered.forEach(function(inv) {
+    var cancelled = inv.status === 'cancelled';
+    var isActive = _regActiveInvId === inv.id;
+    var isSelected = !!_regSelected[inv.id];
+    html += '<tr class="inv-tr' + (isActive ? ' inv-tr-active' : '') + (cancelled ? ' inv-tr-cancelled' : '') + '" data-id="' + escHtml(inv.id) + '">';
+    html += '<td class="inv-td inv-td-check"><input type="checkbox" data-action="invRegToggleInv" data-id="' + escHtml(inv.id) + '"' + (isSelected ? ' checked' : '') + '></td>';
+    html += '<td class="inv-td inv-td-num" data-action="invSelectRegRow" data-id="' + escHtml(inv.id) + '">' + escHtml(inv.displayNumber) + '</td>';
+    html += '<td class="inv-td" data-action="invSelectRegRow" data-id="' + escHtml(inv.id) + '">' + escHtml(inv.clientName) + '</td>';
+    html += '<td class="inv-td inv-td-date" data-action="invSelectRegRow" data-id="' + escHtml(inv.id) + '">' + formatDate(inv.date) + '</td>';
+    html += '<td class="inv-td inv-td-amount" data-action="invSelectRegRow" data-id="' + escHtml(inv.id) + '">' + formatCurrency(inv.taxableValue) + '</td>';
+    html += '<td class="inv-td inv-td-amount" data-action="invSelectRegRow" data-id="' + escHtml(inv.id) + '">' + formatCurrency(inv.grandTotal) + '</td>';
+    html += '<td class="inv-td inv-td-state" data-action="invSelectRegRow" data-id="' + escHtml(inv.id) + '">' + getStateBadgeHtml(inv) + '</td>';
+    html += '</tr>';
+  });
+
+  html += '</tbody></table>';
+
+  html += '<div class="inv-reg-export-bar">' +
+    '<button class="inv-btn inv-btn-ghost" data-action="invExportSales">Sales Register CSV</button>' +
+    '<button class="inv-btn inv-btn-ghost" data-action="invExportGstr1">GSTR1 CSV</button></div>' +
+    '<div class="inv-reg-export-bar">' +
+    '<button class="inv-btn inv-btn-ghost" data-action="invBulkMarkFiled">Bulk Mark Filed</button></div>';
+
+  return html;
+}
+
+/* Render invoice detail inline in #regDetail (Phase 8C) */
+function _renderRegDetail(invId, skipMasterRefresh) {
+  var inv = S.invoices.find(function(i) { return i.id === invId; });
+  if (!inv) {
+    _regActiveInvId = null;
+    var detail = document.getElementById('regDetail');
+    if (detail) detail.innerHTML = _renderDetailEmpty();
+    if (!skipMasterRefresh) {
+      var master = document.getElementById('regMaster');
+      if (master) master.innerHTML = _buildRegisterTableHtml();
+    }
+    return;
+  }
+
+  _regActiveInvId = invId;
+  var d = formatInvoiceData(inv);
+
+  var html = '';
+
+  // Cancelled warning
+  if (d.cancelled) {
+    html += '<div class="inv-confirm-warn">This invoice was cancelled on ' +
+      escHtml(d.cancelledAt || 'unknown date') +
+      '. It cannot be edited.</div>';
+  }
+
+  // Header info
+  html += '<div class="inv-detail-section">' +
+    '<div class="inv-form-row">' +
+    '<div><div class="inv-detail-label">Invoice No</div><div class="inv-detail-value-mono">' + escHtml(d.invoiceNumber) + '</div></div>' +
+    '<div><div class="inv-detail-label">Date</div><div class="inv-detail-value-mono">' + escHtml(d.date) + '</div></div></div></div>';
+
+  html += '<div class="inv-detail-section">' +
+    '<div class="inv-detail-label">Client</div>' +
+    '<div class="inv-detail-value">' + escHtml(d.clientName) + '</div>' +
+    '<div class="inv-detail-value-mono inv-text-muted inv-detail-gstin">' + escHtml(d.clientGSTIN) + '</div></div>';
+
+  // Lifecycle state timeline
+  if (!d.cancelled) {
+    var curState = getInvState(inv);
+    var curIdx = INV_STATES.indexOf(curState);
+    html += '<div class="inv-detail-section inv-state-timeline">' +
+      '<div class="inv-detail-label">Status</div>';
+    var stateData = [
+      { key: 'created', label: 'Created', ts: inv.createdAt },
+      { key: 'dispatched', label: 'Dispatched', ts: inv.dispatchedAt },
+      { key: 'delivered', label: 'Delivered', ts: inv.deliveredAt },
+      { key: 'filed', label: 'Filed', ts: inv.filedAt }
+    ];
+    stateData.forEach(function(sd, si) {
+      var done = si <= curIdx;
+      var isCurrent = si === curIdx;
+      html += '<div class="inv-state-step">' +
+        '<span class="inv-state-dot' + (done ? (isCurrent ? ' inv-state-dot-current' : ' inv-state-dot-done') : '') + '"></span>' +
+        '<span class="inv-state-step-label">' + escHtml(sd.label) + '</span>' +
+        (sd.ts ? '<span class="inv-state-step-date">' + formatTimestamp(sd.ts) + '</span>' : '') +
+        '</div>';
+    });
+    // Advance button
+    if (curIdx < INV_STATES.length - 1) {
+      var nextLabel = INV_STATE_LABELS[INV_STATES[curIdx + 1]];
+      html += '<div class="inv-btn-bar inv-mb-8"><button class="inv-btn inv-btn-primary inv-btn-sm" data-action="invAdvanceState" data-id="' + escHtml(inv.id) + '">Mark ' + escHtml(nextLabel) + '</button></div>';
+    }
+    html += '</div>';
+  }
+
+  // Line items table
+  html += '<div class="inv-detail-section">' +
+    '<div class="inv-detail-label">Line Items</div>' +
+    '<div class="inv-detail-items-wrap"><table class="inv-detail-items-table"><thead><tr>' +
+    '<th>Part</th><th>Qty</th><th>Unit</th><th>Rate</th><th>Amount</th></tr></thead><tbody>';
+  d.items.forEach(function(item) {
+    html += '<tr>' +
+      '<td>' + escHtml(item.desc) + '</td>' +
+      '<td class="inv-mono">' + escHtml(item.qty) + (item.nosQtyRaw && item.nosQtyRaw > 0 ? ' <span class="inv-text-muted">(' + escHtml(item.nosQtyRaw) + ' NOS)</span>' : '') + '</td>' +
+      '<td>' + escHtml(item.unit) + '</td>' +
+      '<td class="inv-mono">' + escHtml(item.rate) + '</td>' +
+      '<td class="inv-mono">' + escHtml(item.amount) + '</td></tr>';
+  });
+  html += '</tbody></table></div></div>';
+
+  // Totals
+  html += '<div class="inv-detail-section"><div class="inv-totals">' +
+    '<div class="inv-total-row"><span class="inv-total-label">Taxable Value</span><span class="inv-total-value">' + escHtml(d.taxableValue) + '</span></div>';
+  if (d.gstType === 'intra') {
+    html += '<div class="inv-total-row"><span class="inv-total-label">CGST @ ' + d.cgstPer + '%</span><span class="inv-total-value">' + escHtml(d.cgstAmt) + '</span></div>' +
+      '<div class="inv-total-row"><span class="inv-total-label">SGST @ ' + d.sgstPer + '%</span><span class="inv-total-value">' + escHtml(d.sgstAmt) + '</span></div>';
+  } else {
+    html += '<div class="inv-total-row"><span class="inv-total-label">IGST @ ' + d.igstPer + '%</span><span class="inv-total-value">' + escHtml(d.igstAmt) + '</span></div>';
+  }
+  html += '<div class="inv-total-row inv-total-row-grand"><span class="inv-total-label">Grand Total</span>' +
+    '<span class="inv-total-grand">' + escHtml(d.grandTotal) + '</span></div></div></div>';
+
+  // Optional fields
+  var optFields = [
+    ['Challan No', d.challanNo], ['Challan Date', d.challanDate],
+    ['Remarks', d.remarks]
+  ].filter(function(f) { return f[1]; });
+  if (optFields.length > 0) {
+    html += '<div class="inv-detail-section">';
+    optFields.forEach(function(f) {
+      html += '<div class="inv-detail-label">' + escHtml(f[0]) + '</div>' +
+        '<div class="inv-detail-value">' + escHtml(f[1]) + '</div>';
+    });
+    html += '</div>';
+  }
+
+  // Action buttons
+  html += '<div class="inv-detail-actions">';
+  if (!d.cancelled) {
+    html += '<button class="inv-btn inv-btn-primary" data-action="invEditInvoice" data-id="' + escHtml(inv.id) + '">Edit</button>';
+    html += '<button class="inv-btn inv-btn-ghost" data-action="invPreviewInvoice" data-id="' + escHtml(inv.id) + '">Preview</button>';
+    html += '<button class="inv-btn inv-btn-ghost" data-action="invCancelInvoice" data-id="' + escHtml(inv.id) + '">Cancel Invoice</button>';
+  } else {
+    html += '<button class="inv-btn inv-btn-ghost" data-action="invPreviewInvoice" data-id="' + escHtml(inv.id) + '">Preview</button>';
+  }
+  html += '<button class="inv-btn inv-btn-danger" data-action="invDeleteInvoice" data-id="' + escHtml(inv.id) + '">Delete</button>';
+  html += '</div>';
+
+  var detailEl = document.getElementById('regDetail');
+  if (detailEl) detailEl.innerHTML = html;
+
+  // Update master to show active row highlight
+  if (!skipMasterRefresh) {
+    var masterEl = document.getElementById('regMaster');
+    if (masterEl) masterEl.innerHTML = _buildRegisterTableHtml();
+  }
+}
+
+function renderRegisterTable() {
+  var area = document.getElementById('regList');
+  if (!area) return;
+
+  if (!_regToolbarRendered) {
+    renderRegisterToolbar();
+    _regToolbarRendered = true;
+  }
+
+  var wrapper = document.getElementById('regMasterDetail');
+  if (!wrapper) {
+    // First render — build wrapper, init drag, restore width
+    area.innerHTML =
+      '<div class="inv-master-detail" id="regMasterDetail">' +
+        '<div class="inv-master" id="regMaster"></div>' +
+        '<div class="inv-drag-handle" id="regDragHandle"></div>' +
+        '<div class="inv-detail" id="regDetail">' + _renderDetailEmpty() + '</div>' +
+      '</div>';
+    _initDragHandle('regDragHandle', 'regMaster', 'regDetail', 'pageRegister');
+    _restorePanelWidth('regMaster', 'pageRegister');
+  }
+
+  // Re-render master content
+  var master = document.getElementById('regMaster');
+  if (!master) return;
+  master.innerHTML = _buildRegisterTableHtml();
+
+  // Detail panel validation: keep detail in sync with data changes
+  if (_regActiveInvId) {
+    var stillExists = S.invoices.find(function(i) { return i.id === _regActiveInvId; });
+    if (!stillExists) {
+      // Deleted — clear detail
+      _regActiveInvId = null;
+      var detail = document.getElementById('regDetail');
+      if (detail) detail.innerHTML = _renderDetailEmpty();
+    } else {
+      // Check if active invoice is still in filtered set
+      var filtered = getFilteredInvoices();
+      var inFiltered = filtered.find(function(i) { return i.id === _regActiveInvId; });
+      if (!inFiltered) {
+        // Filtered out — clear detail
+        _regActiveInvId = null;
+        var detail2 = document.getElementById('regDetail');
+        if (detail2) detail2.innerHTML = _renderDetailEmpty();
+      } else {
+        // Still visible — refresh detail content (skip master since we just rendered it)
+        _renderRegDetail(_regActiveInvId, true);
+      }
+    }
+  }
+
+  _renderRegSelBar();
+}
+
+/* View dispatcher (Phase 8B) */
+function _renderRegView() {
+  _isDesktop ? renderRegisterTable() : renderRegisterList();
+}
+
 /* Backward-compat: renderRegister calls both */
 function renderRegister() {
+  if (_isDesktop) {
+    renderRegisterTable();
+    return;
+  }
   _regToolbarRendered = false;
   renderRegisterToolbar();
   _regToolbarRendered = true;
-  renderRegisterList();
+  _renderRegView();
 }
 
 /* --- Register bulk selection (Phase 6b) --- */
@@ -3205,14 +4370,14 @@ function toggleRegSelectMode() {
   _regToolbarRendered = false;
   renderRegisterToolbar();
   _regToolbarRendered = true;
-  renderRegisterList();
+  _renderRegView();
   _renderRegSelBar();
 }
 
 function toggleRegInv(invId) {
   _regSelected[invId] = !_regSelected[invId];
   if (!_regSelected[invId]) delete _regSelected[invId];
-  renderRegisterList();
+  _renderRegView();
   _renderRegSelBar();
 }
 
@@ -3220,7 +4385,7 @@ function _renderRegSelBar() {
   var bar = document.getElementById('regSelBar');
   if (!bar) return;
   var ids = Object.keys(_regSelected).filter(function(k) { return _regSelected[k]; });
-  if (ids.length === 0 || !_regSelectMode) { bar.innerHTML = ''; return; }
+  if (ids.length === 0 || (!_isDesktop && !_regSelectMode)) { bar.innerHTML = ''; return; }
 
   // Determine what state transitions are available
   var canDispatch = 0;
@@ -3272,7 +4437,7 @@ function regBulkSetState(targetState) {
   if (updated > 0) {
     saveState();
     _regSelected = {};
-    renderRegisterList();
+    _renderRegView();
     _renderRegSelBar();
     showToast(updated + ' invoice' + (updated !== 1 ? 's' : '') + ' marked as ' + INV_STATE_LABELS[targetState]);
   }
@@ -3284,7 +4449,7 @@ function toggleRegSortDir() {
   _regToolbarRendered = false;
   renderRegisterToolbar();
   _regToolbarRendered = true;
-  renderRegisterList();
+  _renderRegView();
 }
 
 /* Invoice detail overlay (Read intent) — consumes formatInvoiceData (Phase 5 refactor) */
@@ -3688,6 +4853,13 @@ let _imExpanded = {};
 let _imSelected = {}; // keyed by item id: true/false
 let _imFilter = { clientId: '', status: '' }; // '' = all
 let _imToolbarRendered = false;
+var _imActiveChallanId = null;
+
+/* Unified IM sort accessor (Phase 8D) */
+function getIMSortConfig() {
+  if (_isDesktop && _imFilter.desktopSort) return _imFilter.desktopSort;
+  return null; // mobile uses inline sort logic, not config-driven
+}
 
 function getIMStatus(im) {
   const total = im.items.length;
@@ -3706,13 +4878,48 @@ function getFilteredIM() {
   if (_imFilter.status) {
     list = list.filter(im => getIMStatus(im) === _imFilter.status);
   }
-  // Sort: pending first, then by date desc
-  list.sort((a, b) => {
-    const sa = getIMStatus(a) === 'invoiced' ? 1 : 0;
-    const sb = getIMStatus(b) === 'invoiced' ? 1 : 0;
-    if (sa !== sb) return sa - sb;
-    return (b.challanDate || '').localeCompare(a.challanDate || '') || (b.createdAt || 0) - (a.createdAt || 0);
-  });
+  // Sort: desktop uses multi-column, mobile uses pending-first + date desc
+  if (_isDesktop) {
+    var sc = getIMSortConfig();
+    if (sc) {
+      var dir = sc.dir === 'asc' ? 1 : -1;
+      list.sort(function(a, b) {
+        var va, vb;
+        switch (sc.col) {
+          case 'client': va = (a.clientName || '').toLowerCase(); vb = (b.clientName || '').toLowerCase(); return va < vb ? -dir : va > vb ? dir : 0;
+          case 'date': va = a.challanDate || ''; vb = b.challanDate || ''; return va < vb ? -dir : va > vb ? dir : 0;
+          case 'items': return dir * (a.items.length - b.items.length);
+          case 'amount': {
+            var ta = a.items.reduce(function(s, it) { return s + (it.amount || 0); }, 0);
+            var tb = b.items.reduce(function(s, it) { return s + (it.amount || 0); }, 0);
+            return dir * (ta - tb);
+          }
+          case 'status': {
+            var so = { pending: 0, partial: 1, invoiced: 2 };
+            va = so[getIMStatus(a)] || 0;
+            vb = so[getIMStatus(b)] || 0;
+            return dir * (va - vb);
+          }
+          default: va = a.challanDate || ''; vb = b.challanDate || ''; return va < vb ? -dir : va > vb ? dir : 0;
+        }
+      });
+    } else {
+      // Desktop with no explicit sort: same as mobile default
+      list.sort(function(a, b) {
+        var sa = getIMStatus(a) === 'invoiced' ? 1 : 0;
+        var sb = getIMStatus(b) === 'invoiced' ? 1 : 0;
+        if (sa !== sb) return sa - sb;
+        return (b.challanDate || '').localeCompare(a.challanDate || '') || (b.createdAt || 0) - (a.createdAt || 0);
+      });
+    }
+  } else {
+    list.sort(function(a, b) {
+      var sa = getIMStatus(a) === 'invoiced' ? 1 : 0;
+      var sb = getIMStatus(b) === 'invoiced' ? 1 : 0;
+      if (sa !== sb) return sa - sb;
+      return (b.challanDate || '').localeCompare(a.challanDate || '') || (b.createdAt || 0) - (a.createdAt || 0);
+    });
+  }
   return list;
 }
 
@@ -3844,15 +5051,259 @@ function renderIMSelBar() {
     (multiClient ? 'Multi-client' : 'Create Invoice') + '</button></div>';
 }
 
+/* ===== IM DESKTOP TABLE (Phase 8D) ===== */
+
+function _buildIMTableHtml() {
+  var filtered = getFilteredIM();
+  var pendingCount = filtered.filter(function(im) { return getIMStatus(im) !== 'invoiced'; }).length;
+
+  var html = '<div class="inv-im-summary">' +
+    '<span class="inv-reg-summary-label">' + filtered.length + ' challan' + (filtered.length !== 1 ? 's' : '') +
+    ' (' + pendingCount + ' pending)</span></div>';
+
+  if (filtered.length === 0) {
+    html += '<div class="inv-empty-state">No incoming material found</div>';
+    return html;
+  }
+
+  var sc = getIMSortConfig();
+
+  html += '<table class="inv-desktop-table"><thead><tr>';
+  html += '<th class="inv-th inv-td-check"></th>';
+  html += '<th class="inv-th inv-td-challan">Challan</th>';
+
+  var cols = [
+    { key: 'client', label: 'Client', cls: '' },
+    { key: 'date', label: 'Date', cls: 'inv-td-date' },
+    { key: 'items', label: 'Items', cls: 'inv-td-items' },
+    { key: 'amount', label: 'Amount', cls: 'inv-td-amount inv-th-amount' },
+    { key: 'status', label: 'Status', cls: 'inv-td-status' }
+  ];
+  cols.forEach(function(c) {
+    html += '<th class="inv-th inv-th-sortable' + (c.cls ? ' ' + c.cls : '') + '" data-action="invDesktopIMSort" data-col="' + c.key + '">' +
+      c.label + (sc && sc.col === c.key ? '<span class="inv-sort-arrow">' + (sc.dir === 'asc' ? '\u25B2' : '\u25BC') + '</span>' : '') +
+      '</th>';
+  });
+  html += '</tr></thead><tbody>';
+
+  filtered.forEach(function(im) {
+    var status = getIMStatus(im);
+    var isActive = _imActiveChallanId === im.id;
+    var challanTotal = im.items.reduce(function(s, it) { return s + (it.amount || 0); }, 0);
+    var pendingItems = im.items.filter(function(it) { return !it.invoiced; });
+    var allPendingChecked = pendingItems.length > 0 && pendingItems.every(function(it) { return _imSelected[it.id]; });
+
+    html += '<tr class="inv-tr' + (isActive ? ' inv-tr-active' : '') + '" data-id="' + escHtml(im.id) + '">';
+
+    // Checkbox cell
+    if (status !== 'invoiced') {
+      html += '<td class="inv-td inv-td-check"><input type="checkbox" data-action="invCheckIMChallan" data-id="' + escHtml(im.id) + '"' + (allPendingChecked ? ' checked' : '') + '></td>';
+    } else {
+      html += '<td class="inv-td inv-td-check"></td>';
+    }
+
+    // Challan number (monospace)
+    html += '<td class="inv-td inv-td-challan" data-action="invSelectIMRow" data-id="' + escHtml(im.id) + '">' +
+      (im.challanNo ? escHtml(im.challanNo) : '\u2014') + '</td>';
+
+    // Content cells — all get invSelectIMRow
+    html += '<td class="inv-td" data-action="invSelectIMRow" data-id="' + escHtml(im.id) + '">' + escHtml(im.clientName) + '</td>';
+    html += '<td class="inv-td inv-td-date" data-action="invSelectIMRow" data-id="' + escHtml(im.id) + '">' + formatDate(im.challanDate) + '</td>';
+    html += '<td class="inv-td inv-td-items" data-action="invSelectIMRow" data-id="' + escHtml(im.id) + '">' + im.items.length + '</td>';
+    html += '<td class="inv-td inv-td-amount" data-action="invSelectIMRow" data-id="' + escHtml(im.id) + '">' + formatCurrency(challanTotal) + '</td>';
+
+    // Status badge (inline, no helper function)
+    html += '<td class="inv-td inv-td-status" data-action="invSelectIMRow" data-id="' + escHtml(im.id) + '">' +
+      '<span class="inv-im-status inv-im-status-' + status + '">' + status + '</span></td>';
+
+    html += '</tr>';
+  });
+
+  html += '</tbody></table>';
+
+  // IM FAB bar (Add Challan + Scan buttons visible on desktop too)
+  html += '<div class="inv-im-fab-bar" id="imFabBarDesktop">' +
+    '<button class="inv-btn inv-btn-primary" data-action="invShowAddChallan">Add Challan</button>' +
+    '<button class="inv-btn inv-btn-ghost" data-action="invScanChallan">Scan</button></div>';
+
+  return html;
+}
+
+/* Render challan detail inline in #imDetail (Phase 8D) */
+function _renderIMDetail(challanId, skipMasterRefresh) {
+  var im = (S.incomingMaterial || []).find(function(m) { return m.id === challanId; });
+  if (!im) {
+    _imActiveChallanId = null;
+    var detail = document.getElementById('imDetail');
+    if (detail) detail.innerHTML = _renderDetailEmpty();
+    if (!skipMasterRefresh) {
+      var master = document.getElementById('imMaster');
+      if (master) master.innerHTML = _buildIMTableHtml();
+    }
+    return;
+  }
+
+  _imActiveChallanId = challanId;
+  var status = getIMStatus(im);
+  var challanTotal = im.items.reduce(function(s, it) { return s + (it.amount || 0); }, 0);
+  var invoicedItemCount = im.items.filter(function(it) { return it.invoiced; }).length;
+
+  var html = '';
+
+  // Header: challan number + date
+  html += '<div class="inv-detail-section">' +
+    '<div class="inv-form-row">' +
+    '<div><div class="inv-detail-label">Challan No</div><div class="inv-detail-value-mono">' +
+    (im.challanNo ? escHtml(im.challanNo) : '\u2014') + '</div></div>' +
+    '<div><div class="inv-detail-label">Date</div><div class="inv-detail-value-mono">' + formatDate(im.challanDate) + '</div></div></div></div>';
+
+  // Client name
+  html += '<div class="inv-detail-section">' +
+    '<div class="inv-detail-label">Client</div>' +
+    '<div class="inv-detail-value">' + escHtml(im.clientName) + '</div></div>';
+
+  // Vehicle number (if present)
+  if (im.vehicleNo) {
+    html += '<div class="inv-detail-section">' +
+      '<div class="inv-detail-label">Vehicle</div>' +
+      '<div class="inv-detail-value">' + escHtml(im.vehicleNo) + '</div></div>';
+  }
+
+  // Status indicator
+  html += '<div class="inv-detail-section">' +
+    '<div class="inv-detail-label">Status</div>' +
+    '<span class="inv-im-status inv-im-status-' + status + '">' + status + '</span></div>';
+
+  // Line items with item-level checkboxes
+  html += '<div class="inv-detail-section">' +
+    '<div class="inv-detail-label">Items (' + im.items.length + ')</div>';
+  im.items.forEach(function(it) {
+    var itemInvoiced = it.invoiced;
+    var invBadgeHtml = '';
+    if (itemInvoiced) {
+      var linkedInv = it.invoiceId ? S.invoices.find(function(iv) { return iv.id === it.invoiceId; }) : null;
+      if (linkedInv) {
+        var shortNum = linkedInv.invoiceNumber || linkedInv.displayNumber;
+        invBadgeHtml = '<span class="inv-im-status inv-im-status-invoiced inv-mono" title="' + escHtml(linkedInv.displayNumber) + '">INV ' + escHtml(shortNum) + '</span>';
+      } else {
+        invBadgeHtml = '<span class="inv-im-status inv-im-status-orphan" title="Invoice deleted">INV (missing)</span>';
+      }
+    }
+    html += '<div class="inv-im-item' + (itemInvoiced ? ' inv-im-item-invoiced' : '') + '">' +
+      (!itemInvoiced ? '<input type="checkbox" class="inv-im-check" data-action="invCheckIMItem" data-item-id="' + escHtml(it.id) + '"' + (_imSelected[it.id] ? ' checked' : '') + '>' :
+      invBadgeHtml) +
+      '<div class="inv-im-item-info">' +
+      '<div class="inv-im-item-desc">' + escHtml(it.desc || it.partNumber) + '</div>' +
+      '<div class="inv-im-item-detail">' + escHtml(it.qty) + ' ' + escHtml(it.unit) +
+      (it.nosQty && it.nosQty > 0 ? ' (' + escHtml(it.nosQty) + ' NOS)' : '') +
+      ' @ ' + escHtml(formatNum(it.rate)) + '/' + escHtml(it.unit) + '</div></div>' +
+      '<span class="inv-im-item-amount">' + formatCurrency(it.amount) + '</span></div>';
+  });
+  html += '</div>';
+
+  // Total amount
+  html += '<div class="inv-detail-section"><div class="inv-totals">' +
+    '<div class="inv-total-row inv-total-row-grand"><span class="inv-total-label">Total</span>' +
+    '<span class="inv-total-grand">' + formatCurrency(challanTotal) + '</span></div></div></div>';
+
+  // Action buttons
+  if (invoicedItemCount === 0) {
+    // Zero items invoiced: Edit + Delete
+    html += '<div class="inv-detail-actions">' +
+      '<button class="inv-btn inv-btn-primary" data-action="invEditChallan" data-id="' + escHtml(im.id) + '">Edit</button>' +
+      '<button class="inv-btn inv-btn-danger" data-action="invDeleteChallan" data-id="' + escHtml(im.id) + '">Delete</button></div>';
+  } else if (status !== 'invoiced') {
+    // Partially invoiced: disabled edit with guard
+    html += '<div class="inv-detail-actions">' +
+      '<button class="inv-btn inv-btn-ghost inv-btn-disabled" data-action="invEditChallanGuard" data-count="' + invoicedItemCount + '">Edit</button></div>';
+  }
+  // Fully invoiced: no action buttons (read-only)
+
+  // Notes
+  if (im.notes) {
+    html += '<div class="inv-detail-section">' +
+      '<div class="inv-detail-label">Notes</div>' +
+      '<div class="inv-detail-value">' + escHtml(im.notes) + '</div></div>';
+  }
+
+  var detailEl = document.getElementById('imDetail');
+  if (detailEl) detailEl.innerHTML = html;
+
+  // Update master to show active row highlight
+  if (!skipMasterRefresh) {
+    var masterEl = document.getElementById('imMaster');
+    if (masterEl) masterEl.innerHTML = _buildIMTableHtml();
+  }
+}
+
+function renderIMTable() {
+  var area = document.getElementById('imList');
+  if (!area) return;
+
+  if (!_imToolbarRendered) {
+    renderIMToolbar();
+    _imToolbarRendered = true;
+  }
+
+  var wrapper = document.getElementById('imMasterDetail');
+  if (!wrapper) {
+    // First render — build wrapper, init drag, restore width
+    area.innerHTML =
+      '<div class="inv-master-detail" id="imMasterDetail">' +
+        '<div class="inv-master" id="imMaster"></div>' +
+        '<div class="inv-drag-handle" id="imDragHandle"></div>' +
+        '<div class="inv-detail" id="imDetail">' + _renderDetailEmpty() + '</div>' +
+      '</div>';
+    _initDragHandle('imDragHandle', 'imMaster', 'imDetail', 'pageIM');
+    _restorePanelWidth('imMaster', 'pageIM');
+  }
+
+  // Re-render master content
+  var master = document.getElementById('imMaster');
+  if (!master) return;
+  master.innerHTML = _buildIMTableHtml();
+
+  // Detail panel validation: keep detail in sync with data changes
+  if (_imActiveChallanId) {
+    var stillExists = (S.incomingMaterial || []).find(function(m) { return m.id === _imActiveChallanId; });
+    if (!stillExists) {
+      // Deleted — clear detail
+      _imActiveChallanId = null;
+      var detail = document.getElementById('imDetail');
+      if (detail) detail.innerHTML = _renderDetailEmpty();
+    } else {
+      // Check if active challan is still in filtered set
+      var filtered = getFilteredIM();
+      var inFiltered = filtered.find(function(m) { return m.id === _imActiveChallanId; });
+      if (!inFiltered) {
+        // Filtered out — clear detail
+        _imActiveChallanId = null;
+        var detail2 = document.getElementById('imDetail');
+        if (detail2) detail2.innerHTML = _renderDetailEmpty();
+      } else {
+        // Still visible — refresh detail content (skip master since we just rendered it)
+        _renderIMDetail(_imActiveChallanId, true);
+      }
+    }
+  }
+
+  renderIMSelBar();
+}
+
+/* View dispatcher (Phase 8B) */
+function _renderIMView() {
+  _isDesktop ? renderIMTable() : renderIMList();
+}
+
 function toggleIMExpand(imId) {
   _imExpanded[imId] = !_imExpanded[imId];
-  renderIMList();
+  _renderIMView();
 }
 
 function toggleIMItem(itemId) {
   _imSelected[itemId] = !_imSelected[itemId];
   if (!_imSelected[itemId]) delete _imSelected[itemId];
-  renderIMList();
+  _renderIMView();
 }
 
 function toggleIMChallan(imId) {
@@ -3867,7 +5318,7 @@ function toggleIMChallan(imId) {
       _imSelected[it.id] = true;
     }
   });
-  renderIMList();
+  _renderIMView();
 }
 
 function createInvoiceFromIM() {
@@ -4216,156 +5667,394 @@ function closePrintPreview() {
   if (document._savedTitle) { document.title = document._savedTitle; document._savedTitle = null; }
 }
 
-/* ===== STATS (Phase 5 — Analytics) ===== */
+/* ===== STATS (Phase 7 — Analytics Rework) ===== */
+var _statsPeriod = 'mtd';
+
+function filterByPeriod(invoices, period) {
+  if (period === 'all') return invoices;
+  var now = new Date();
+  var y = now.getFullYear(), m = now.getMonth();
+  var startDate;
+  if (period === 'mtd') {
+    startDate = new Date(y, m, 1);
+  } else if (period === 'qtd') {
+    var qStart = m - (m % 3);
+    startDate = new Date(y, qStart, 1);
+  } else if (period === 'ytd') {
+    startDate = m >= 3 ? new Date(y, 3, 1) : new Date(y - 1, 3, 1);
+  }
+  var startTs = startDate.getTime();
+  return invoices.filter(function(inv) {
+    return (inv.createdAt || 0) >= startTs;
+  });
+}
+
+function buildMonthlyRevenue(invoices) {
+  var byMonth = {};
+  invoices.forEach(function(inv) {
+    if (!inv.date) return;
+    var ym = inv.date.substring(0, 7);
+    if (!byMonth[ym]) byMonth[ym] = 0;
+    byMonth[ym] += (inv.taxableValue || 0);
+  });
+  var months = Object.keys(byMonth).sort();
+  var last12 = months.slice(-12);
+  var labels = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  return last12.map(function(ym) {
+    var parts = ym.split('-');
+    return { label: labels[parseInt(parts[1]) - 1] + ' ' + parts[0].slice(2), value: byMonth[ym] };
+  });
+}
+
+function buildTopItems(invoices) {
+  var byPart = {};
+  invoices.forEach(function(inv) {
+    (inv.items || []).forEach(function(it) {
+      var key = it.partNumber || it.desc || 'Unknown';
+      if (!byPart[key]) byPart[key] = { part: key, desc: it.desc || '', qty: 0, amount: 0 };
+      byPart[key].qty += (it.qty || 0);
+      byPart[key].amount += (it.amount || 0);
+    });
+  });
+  return Object.values(byPart).sort(function(a, b) { return b.qty - a.qty; }).slice(0, 10);
+}
+
+function renderRevenueBarSvg(ranked, maxVal) {
+  if (ranked.length === 0) return '<div class="inv-text-muted">No client data</div>';
+  var barH = 28, gap = 8, padTop = 4, padBot = 4;
+  var totalH = padTop + ranked.length * (barH + gap) - gap + padBot;
+  var svg = '<svg class="inv-svg-chart" viewBox="0 0 400 ' + totalH + '" preserveAspectRatio="xMinYMin meet">';
+  ranked.forEach(function(r, i) {
+    var y = padTop + i * (barH + gap);
+    var w = maxVal > 0 ? (r.total / maxVal) * 200 : 0;
+    svg += '<g class="inv-svg-bar-group" data-action="invStatsClientDrill" data-client-id="' + r.clientId + '">';
+    svg += '<rect x="0" y="' + y + '" width="' + Math.max(w, 2) + '" height="' + barH + '" rx="3" class="inv-svg-bar"/>';
+    svg += '<text x="' + (Math.max(w, 2) + 6) + '" y="' + (y + 12) + '" class="inv-svg-bar-label">' + escHtml(r.name) + '</text>';
+    svg += '<text x="' + (Math.max(w, 2) + 6) + '" y="' + (y + 24) + '" class="inv-svg-bar-amount">' + formatCurrency(r.total) + '</text>';
+    svg += '</g>';
+  });
+  svg += '</svg>';
+  return svg;
+}
+
+function renderTrendSvg(monthlyData) {
+  if (monthlyData.length < 2) return '<div class="inv-text-muted">Need 2+ months of data for trend</div>';
+  var W = 400, H = 160, padL = 10, padR = 40, padT = 20, padB = 30;
+  var chartW = W - padL - padR, chartH = H - padT - padB;
+  var maxVal = Math.max.apply(null, monthlyData.map(function(d) { return d.value; }));
+  if (maxVal === 0) maxVal = 1;
+  var points = monthlyData.map(function(d, i) {
+    var x = padL + (i / (monthlyData.length - 1)) * chartW;
+    var y = padT + chartH - (d.value / maxVal) * chartH;
+    return { x: x, y: y, label: d.label, value: d.value };
+  });
+  var polyline = points.map(function(p) { return p.x + ',' + p.y; }).join(' ');
+  var areaPath = 'M' + points[0].x + ',' + (padT + chartH) +
+    ' L' + points.map(function(p) { return p.x + ',' + p.y; }).join(' L') +
+    ' L' + points[points.length - 1].x + ',' + (padT + chartH) + ' Z';
+
+  var svg = '<svg class="inv-svg-chart" viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="xMidYMid meet">';
+  for (var g = 0; g <= 3; g++) {
+    var gy = padT + (g / 3) * chartH;
+    var gVal = maxVal - (g / 3) * maxVal;
+    svg += '<line x1="' + padL + '" y1="' + gy + '" x2="' + (W - padR) + '" y2="' + gy + '" class="inv-svg-grid"/>';
+    svg += '<text x="' + (W - padR + 4) + '" y="' + (gy + 4) + '" class="inv-svg-grid-label">' + (gVal >= 100000 ? formatNum(gVal / 100000, 1) + 'L' : formatNum(gVal / 1000, 0) + 'K') + '</text>';
+  }
+  svg += '<path d="' + areaPath + '" class="inv-svg-area"/>';
+  svg += '<polyline points="' + polyline + '" class="inv-svg-line"/>';
+  points.forEach(function(p) {
+    svg += '<circle cx="' + p.x + '" cy="' + p.y + '" r="3.5" class="inv-svg-dot"/>';
+    svg += '<text x="' + p.x + '" y="' + (padT + chartH + 16) + '" text-anchor="middle" class="inv-svg-axis-label">' + p.label + '</text>';
+  });
+  svg += '</svg>';
+  return svg;
+}
+
 function renderStats() {
+  var toolbar = document.getElementById('statsToolbar');
   var area = document.getElementById('statsContent');
   if (!area) return;
-  var activeInvs = S.invoices.filter(function(i) { return i.status === 'active'; });
-  var now = new Date();
-  var ym = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
-  var mtdInvs = activeInvs.filter(function(i) { return i.date && i.date.startsWith(ym); });
 
+  // Period chips
+  if (toolbar) {
+    var chips = ['mtd', 'qtd', 'ytd', 'all'];
+    var chipLabels = { mtd: 'MTD', qtd: 'QTD', ytd: 'YTD', all: 'All' };
+    var chipHtml = '<div class="inv-stats-chips">';
+    chips.forEach(function(p) {
+      chipHtml += '<button class="inv-chip' + (_statsPeriod === p ? ' inv-chip-active' : '') +
+        '" data-action="invStatsPeriod" data-period="' + p + '">' + chipLabels[p] + '</button>';
+    });
+    chipHtml += '</div>';
+    toolbar.innerHTML = chipHtml;
+  }
+
+  var activeInvs = S.invoices.filter(function(i) { return i.status === 'active'; });
+  var filtered = filterByPeriod(activeInvs, _statsPeriod);
   var html = '';
 
-  // Revenue overview
-  var totalRev = activeInvs.reduce(function(s, i) { return s + (i.taxableValue || 0); }, 0);
-  var mtdRev = mtdInvs.reduce(function(s, i) { return s + (i.taxableValue || 0); }, 0);
+  // Card 1: Revenue Overview
+  var totalRev = filtered.reduce(function(s, i) { return s + (i.taxableValue || 0); }, 0);
+  var totalGrand = filtered.reduce(function(s, i) { return s + (i.grandTotal || 0); }, 0);
+  var allTimeRev = activeInvs.reduce(function(s, i) { return s + (i.taxableValue || 0); }, 0);
+  var pctOfAll = allTimeRev > 0 ? Math.round(totalRev / allTimeRev * 100) : 0;
   html += '<div class="inv-stats-card">' +
     '<div class="inv-stats-title">Revenue Overview</div>' +
-    '<div class="inv-stats-metric"><span class="inv-stats-metric-label">All Time Taxable</span>' +
+    '<div class="inv-stats-metric"><span class="inv-stats-metric-label">Taxable Revenue</span>' +
     '<span class="inv-stats-metric-value">' + formatCurrency(totalRev) + '</span></div>' +
-    '<div class="inv-stats-metric"><span class="inv-stats-metric-label">MTD Taxable</span>' +
-    '<span class="inv-stats-metric-value">' + formatCurrency(mtdRev) + '</span></div>' +
-    '<div class="inv-stats-metric"><span class="inv-stats-metric-label">Total Invoices</span>' +
-    '<span class="inv-stats-metric-sub">' + activeInvs.length + ' active, ' + (S.invoices.length - activeInvs.length) + ' cancelled</span></div></div>';
+    '<div class="inv-stats-metric"><span class="inv-stats-metric-label">Grand Total (incl. GST)</span>' +
+    '<span class="inv-stats-metric-sub">' + formatCurrency(totalGrand) + '</span></div>' +
+    '<div class="inv-stats-metric"><span class="inv-stats-metric-label">Invoices</span>' +
+    '<span class="inv-stats-metric-sub">' + filtered.length + (_statsPeriod !== 'all' ? ' (' + pctOfAll + '% of all-time)' : '') + '</span></div></div>';
 
-  // Revenue by client (ranked)
+  // Card 2: Invoice States
+  var stateCount = { created: 0, dispatched: 0, delivered: 0, filed: 0 };
+  filtered.forEach(function(inv) {
+    var s = getInvState(inv);
+    if (stateCount[s] != null) stateCount[s]++;
+  });
+  html += '<div class="inv-stats-card">' +
+    '<div class="inv-stats-title">Invoice States</div>' +
+    '<div class="inv-stats-states-row">' +
+    '<span class="inv-state-badge inv-state-created">' + stateCount.created + ' Created</span>' +
+    '<span class="inv-state-badge inv-state-dispatched">' + stateCount.dispatched + ' Dispatched</span>' +
+    '<span class="inv-state-badge inv-state-delivered">' + stateCount.delivered + ' Delivered</span>' +
+    '<span class="inv-state-badge inv-state-filed">' + stateCount.filed + ' Filed</span>' +
+    '</div></div>';
+
+  // Card 3: Revenue by Client — SVG bar chart (full-width)
   var clientRev = {};
-  activeInvs.forEach(function(inv) {
+  filtered.forEach(function(inv) {
     var key = inv.clientId;
-    if (!clientRev[key]) clientRev[key] = { name: inv.clientName, total: 0, count: 0 };
+    if (!clientRev[key]) clientRev[key] = { clientId: key, name: inv.clientName, total: 0, count: 0 };
     clientRev[key].total += (inv.taxableValue || 0);
     clientRev[key].count++;
   });
   var ranked = Object.values(clientRev).sort(function(a, b) { return b.total - a.total; });
-  if (ranked.length > 0) {
-    html += '<div class="inv-stats-card"><div class="inv-stats-title">Revenue by Client</div>';
-    ranked.forEach(function(r, idx) {
-      var pct = totalRev > 0 ? Math.round(r.total / totalRev * 100) : 0;
-      html += '<div class="inv-stats-row">' +
-        '<span class="inv-stats-rank">' + (idx + 1) + '</span>' +
-        '<span class="inv-stats-name">' + escHtml(r.name) + ' <span class="inv-text-muted">(' + r.count + ')</span></span>' +
-        '<span class="inv-stats-val">' + formatCurrency(r.total) + ' <span class="inv-text-muted">' + pct + '%</span></span></div>';
-    });
-    html += '</div>';
-  }
+  var maxClientRev = ranked.length > 0 ? ranked[0].total : 0;
+  html += '<div class="inv-stats-card inv-stats-card-full">' +
+    '<div class="inv-stats-title">Revenue by Client</div>' +
+    renderRevenueBarSvg(ranked, maxClientRev) + '</div>';
 
-  // Pending revenue by client (unbilled IM)
+  // Card 4: Pending Revenue (always current, not period-filtered)
   var pendingByClient = {};
   (S.incomingMaterial || []).forEach(function(im) {
     im.items.forEach(function(it) {
       if (!it.invoiced) {
         var key = im.clientId;
-        if (!pendingByClient[key]) pendingByClient[key] = { name: im.clientName, total: 0, items: 0 };
+        if (!pendingByClient[key]) pendingByClient[key] = { clientId: key, name: im.clientName, total: 0, items: 0 };
         pendingByClient[key].total += (it.amount || 0);
         pendingByClient[key].items++;
       }
     });
   });
   var pendingRanked = Object.values(pendingByClient).sort(function(a, b) { return b.total - a.total; });
-  if (pendingRanked.length > 0) {
-    var totalPending = pendingRanked.reduce(function(s, r) { return s + r.total; }, 0);
-    html += '<div class="inv-stats-card"><div class="inv-stats-title">Pending Revenue (Unbilled IM)</div>' +
-      '<div class="inv-stats-metric"><span class="inv-stats-metric-label">Total Unbilled</span>' +
-      '<span class="inv-stats-metric-value">' + formatCurrency(totalPending) + '</span></div>';
-    pendingRanked.forEach(function(r) {
-      html += '<div class="inv-stats-row">' +
-        '<span class="inv-stats-name">' + escHtml(r.name) + ' <span class="inv-text-muted">(' + r.items + ' items)</span></span>' +
-        '<span class="inv-stats-val">' + formatCurrency(r.total) + '</span></div>';
-    });
-    html += '</div>';
+  var totalPending = pendingRanked.reduce(function(s, r) { return s + r.total; }, 0);
+  html += '<div class="inv-stats-card">' +
+    '<div class="inv-stats-title">Pending Revenue</div>' +
+    '<div class="inv-stats-metric"><span class="inv-stats-metric-label">Total Unbilled</span>' +
+    '<span class="inv-stats-metric-value">' + formatCurrency(totalPending) + '</span></div>';
+  pendingRanked.forEach(function(r) {
+    html += '<div class="inv-stats-row inv-stats-row-tap" data-action="invStatsClientDrill" data-client-id="' + r.clientId + '">' +
+      '<span class="inv-stats-name">' + escHtml(r.name) + ' <span class="inv-text-muted">(' + r.items + ' items)</span></span>' +
+      '<span class="inv-stats-val">' + formatCurrency(r.total) + '</span></div>';
+  });
+  if (pendingRanked.length === 0) {
+    html += '<div class="inv-text-muted inv-p-8">All material invoiced</div>';
   }
+  html += '</div>';
 
-  // Dispatch cycle (avg days between states)
-  var dispatchDays = [];
-  var deliveryDays = [];
-  var fullCycleDays = [];
-  activeInvs.forEach(function(inv) {
-    if (inv.createdAt && inv.dispatchedAt) {
-      dispatchDays.push((inv.dispatchedAt - inv.createdAt) / 86400000);
-    }
-    if (inv.dispatchedAt && inv.deliveredAt) {
-      deliveryDays.push((inv.deliveredAt - inv.dispatchedAt) / 86400000);
-    }
-    if (inv.createdAt && inv.deliveredAt) {
-      fullCycleDays.push((inv.deliveredAt - inv.createdAt) / 86400000);
-    }
+  // Card 5: Monthly Trend (full-width, always all-time)
+  var monthlyData = buildMonthlyRevenue(activeInvs);
+  html += '<div class="inv-stats-card inv-stats-card-full">' +
+    '<div class="inv-stats-title">Monthly Revenue Trend</div>' +
+    renderTrendSvg(monthlyData) + '</div>';
+
+  // Card 6: Dispatch Cycle
+  var dispatchDays = [], deliveryDays = [], fullCycleDays = [];
+  filtered.forEach(function(inv) {
+    if (inv.createdAt && inv.dispatchedAt) dispatchDays.push((inv.dispatchedAt - inv.createdAt) / 86400000);
+    if (inv.dispatchedAt && inv.deliveredAt) deliveryDays.push((inv.deliveredAt - inv.dispatchedAt) / 86400000);
+    if (inv.createdAt && inv.deliveredAt) fullCycleDays.push((inv.deliveredAt - inv.createdAt) / 86400000);
   });
   function avg(arr) { return arr.length > 0 ? (arr.reduce(function(a, b) { return a + b; }, 0) / arr.length) : null; }
   var avgDispatch = avg(dispatchDays);
   var avgDelivery = avg(deliveryDays);
   var avgFull = avg(fullCycleDays);
   if (avgDispatch !== null || avgDelivery !== null) {
-    html += '<div class="inv-stats-card"><div class="inv-stats-title">Dispatch Cycle</div>';
+    html += '<div class="inv-stats-card">' +
+      '<div class="inv-stats-title">Dispatch Cycle</div>';
     if (avgDispatch !== null) {
       html += '<div class="inv-stats-metric"><span class="inv-stats-metric-label">Created to Dispatched</span>' +
-        '<span class="inv-stats-metric-sub">' + formatNum(avgDispatch, 1) + ' days avg (' + dispatchDays.length + ' invoices)</span></div>';
+        '<span class="inv-stats-metric-sub">' + formatNum(avgDispatch, 1) + ' days avg (' + dispatchDays.length + ')</span></div>';
     }
     if (avgDelivery !== null) {
       html += '<div class="inv-stats-metric"><span class="inv-stats-metric-label">Dispatched to Delivered</span>' +
-        '<span class="inv-stats-metric-sub">' + formatNum(avgDelivery, 1) + ' days avg (' + deliveryDays.length + ' invoices)</span></div>';
+        '<span class="inv-stats-metric-sub">' + formatNum(avgDelivery, 1) + ' days avg (' + deliveryDays.length + ')</span></div>';
     }
     if (avgFull !== null) {
-      html += '<div class="inv-stats-metric"><span class="inv-stats-metric-label">Full Cycle (Create to Deliver)</span>' +
-        '<span class="inv-stats-metric-sub">' + formatNum(avgFull, 1) + ' days avg (' + fullCycleDays.length + ' invoices)</span></div>';
+      html += '<div class="inv-stats-metric"><span class="inv-stats-metric-label">Full Cycle</span>' +
+        '<span class="inv-stats-metric-sub">' + formatNum(avgFull, 1) + ' days avg (' + fullCycleDays.length + ')</span></div>';
     }
     html += '</div>';
   }
 
-  // Client billing frequency (challans per client)
-  var challanByClient = {};
-  (S.incomingMaterial || []).forEach(function(im) {
-    var key = im.clientId;
-    if (!challanByClient[key]) challanByClient[key] = { name: im.clientName, count: 0, totalAmt: 0 };
-    challanByClient[key].count++;
-    challanByClient[key].totalAmt += im.items.reduce(function(s, it) { return s + (it.amount || 0); }, 0);
-  });
-  var challanRanked = Object.values(challanByClient).sort(function(a, b) { return b.count - a.count; });
-  if (challanRanked.length > 0) {
-    html += '<div class="inv-stats-card"><div class="inv-stats-title">Challans by Client</div>';
-    challanRanked.forEach(function(r) {
-      html += '<div class="inv-stats-row">' +
-        '<span class="inv-stats-name">' + escHtml(r.name) + '</span>' +
-        '<span class="inv-stats-val">' + r.count + ' challans &middot; ' + formatCurrency(r.totalAmt) + '</span></div>';
+  // Card 7: Top Items by Volume (full-width)
+  var topItems = buildTopItems(filtered);
+  if (topItems.length > 0) {
+    html += '<div class="inv-stats-card inv-stats-card-full">' +
+      '<div class="inv-stats-title">Top Items by Volume</div>' +
+      '<div class="inv-stats-table"><div class="inv-stats-table-header">' +
+      '<span class="inv-stats-table-cell inv-stats-table-rank">#</span>' +
+      '<span class="inv-stats-table-cell inv-stats-table-part">Part</span>' +
+      '<span class="inv-stats-table-cell inv-stats-table-qty">Qty</span>' +
+      '<span class="inv-stats-table-cell inv-stats-table-amt">Amount</span></div>';
+    topItems.forEach(function(it, idx) {
+      html += '<div class="inv-stats-table-row">' +
+        '<span class="inv-stats-table-cell inv-stats-table-rank">' + (idx + 1) + '</span>' +
+        '<span class="inv-stats-table-cell inv-stats-table-part">' + escHtml(it.part) +
+        (it.desc && it.desc !== it.part ? '<br><span class="inv-text-muted inv-text-xs">' + escHtml(it.desc) + '</span>' : '') + '</span>' +
+        '<span class="inv-stats-table-cell inv-stats-table-qty inv-mono">' + formatNum(it.qty, 2) + '</span>' +
+        '<span class="inv-stats-table-cell inv-stats-table-amt inv-mono">' + formatCurrency(it.amount) + '</span></div>';
     });
-    html += '</div>';
+    html += '</div></div>';
   }
-
-  // Invoice state summary
-  var stateCount = { created: 0, dispatched: 0, delivered: 0, filed: 0 };
-  activeInvs.forEach(function(inv) {
-    var s = getInvState(inv);
-    if (stateCount[s] != null) stateCount[s]++;
-  });
-  html += '<div class="inv-stats-card"><div class="inv-stats-title">Invoice States</div>' +
-    '<div class="inv-stats-row"><span class="inv-stats-name">Created</span><span class="inv-state-badge inv-state-created">' + stateCount.created + '</span></div>' +
-    '<div class="inv-stats-row"><span class="inv-stats-name">Dispatched</span><span class="inv-state-badge inv-state-dispatched">' + stateCount.dispatched + '</span></div>' +
-    '<div class="inv-stats-row"><span class="inv-stats-name">Delivered</span><span class="inv-state-badge inv-state-delivered">' + stateCount.delivered + '</span></div>' +
-    '<div class="inv-stats-row"><span class="inv-stats-name">Filed</span><span class="inv-state-badge inv-state-filed">' + stateCount.filed + '</span></div></div>';
 
   if (html === '') html = '<div class="inv-empty-state">No data yet. Create invoices and log incoming material to see analytics.</div>';
   area.innerHTML = html;
 }
 
-/* ===== HISTORY (Phase 5 — Activity Log) ===== */
+/* ===== CLIENT DRILL-DOWN OVERLAY (Flippable Card) ===== */
+function openClientDrillOverlay(clientId) {
+  clientId = parseInt(clientId);
+  var client = S.clients.find(function(c) { return c.id === clientId; });
+  if (!client) { showToast('Client not found', 'warning'); return; }
+
+  var activeInvs = S.invoices.filter(function(i) { return i.status === 'active'; });
+  var filtered = filterByPeriod(activeInvs, _statsPeriod);
+  var clientInvs = filtered.filter(function(i) { return i.clientId === clientId; });
+  var totalRev = clientInvs.reduce(function(s, i) { return s + (i.taxableValue || 0); }, 0);
+  var allRev = filtered.reduce(function(s, i) { return s + (i.taxableValue || 0); }, 0);
+  var pct = allRev > 0 ? Math.round(totalRev / allRev * 100) : 0;
+
+  var pendingAmt = 0, pendingItems = 0;
+  (S.incomingMaterial || []).forEach(function(im) {
+    if (im.clientId !== clientId) return;
+    im.items.forEach(function(it) {
+      if (!it.invoiced) { pendingAmt += (it.amount || 0); pendingItems++; }
+    });
+  });
+
+  var stateCounts = { created: 0, dispatched: 0, delivered: 0, filed: 0 };
+  clientInvs.forEach(function(inv) {
+    var s = getInvState(inv);
+    if (stateCounts[s] != null) stateCounts[s]++;
+  });
+
+  var rateInfo = '';
+  if (client.billingMode === 'perKg') {
+    var r = getLineItemRate(client, localDateStr());
+    rateInfo = 'Per Kg \u00b7 ' + formatCurrency(r.ratePerKg || r.rate || 0) + '/kg';
+  } else if (client.billingMode === 'perPiece') {
+    rateInfo = 'Per Piece';
+  } else {
+    rateInfo = client.billingMode || 'Standard';
+  }
+
+  var recentInvs = S.invoices
+    .filter(function(i) { return i.clientId === clientId && i.status === 'active'; })
+    .sort(function(a, b) { return (b.createdAt || 0) - (a.createdAt || 0); })
+    .slice(0, 5);
+  var recentHtml = '';
+  if (recentInvs.length === 0) {
+    recentHtml = '<div class="inv-text-muted">No invoices</div>';
+  } else {
+    recentInvs.forEach(function(inv) {
+      recentHtml += '<div class="inv-flip-row">' +
+        '<span class="inv-mono">' + escHtml(inv.displayNumber) + '</span>' +
+        '<span class="inv-text-muted">' + formatDate(inv.date) + '</span>' +
+        '<span class="inv-mono inv-text-cost">' + formatCurrency(inv.grandTotal) + '</span>' +
+        getStateBadgeHtml(inv) + '</div>';
+    });
+  }
+
+  var pendingChallans = (S.incomingMaterial || []).filter(function(im) {
+    if (im.clientId !== clientId) return false;
+    return im.items.some(function(it) { return !it.invoiced; });
+  });
+  var challanHtml = '';
+  if (pendingChallans.length === 0) {
+    challanHtml = '<div class="inv-text-muted">No pending challans</div>';
+  } else {
+    pendingChallans.forEach(function(im) {
+      var pItems = im.items.filter(function(it) { return !it.invoiced; });
+      var pAmt = pItems.reduce(function(s, it) { return s + (it.amount || 0); }, 0);
+      challanHtml += '<div class="inv-flip-row">' +
+        '<span>' + (im.challanNo ? 'Ch. ' + escHtml(im.challanNo) : 'No number') + '</span>' +
+        '<span class="inv-text-muted">' + formatDate(im.challanDate) + '</span>' +
+        '<span class="inv-text-muted">' + pItems.length + ' items</span>' +
+        '<span class="inv-mono">' + formatCurrency(pAmt) + '</span></div>';
+    });
+  }
+
+  var periodLabels = { mtd: 'MTD', qtd: 'QTD', ytd: 'YTD', all: 'All Time' };
+  var periodLabel = periodLabels[_statsPeriod] || 'All';
+
+  pushFocus();
+  document.body.style.overflow = 'hidden';
+  var scrim = document.createElement('div');
+  scrim.className = 'inv-overlay-scrim';
+  scrim.innerHTML = '<div class="inv-overlay-card inv-flip-container">' +
+    '<div class="inv-flip-inner">' +
+    '<div class="inv-flip-front">' +
+    '<div class="inv-overlay-header"><span class="inv-overlay-title">' + escHtml(client.name) + '</span>' +
+    '<button class="inv-overlay-close" data-action="invCloseOverlay">&times;</button></div>' +
+    '<div class="inv-flip-period-label">' + escHtml(periodLabel) + '</div>' +
+    '<div class="inv-flip-kpis">' +
+    '<div class="inv-flip-kpi"><span class="inv-flip-kpi-label">Revenue</span><span class="inv-flip-kpi-value">' + formatCurrency(totalRev) + '</span></div>' +
+    '<div class="inv-flip-kpi"><span class="inv-flip-kpi-label">Invoices</span><span class="inv-flip-kpi-value">' + clientInvs.length + '</span></div>' +
+    '<div class="inv-flip-kpi"><span class="inv-flip-kpi-label">Share</span><span class="inv-flip-kpi-value">' + pct + '%</span></div>' +
+    '<div class="inv-flip-kpi"><span class="inv-flip-kpi-label">Unbilled</span><span class="inv-flip-kpi-value">' + formatCurrency(pendingAmt) + '</span></div>' +
+    '</div>' +
+    '<div class="inv-flip-states">' +
+    '<span class="inv-state-badge inv-state-created">' + stateCounts.created + ' Created</span>' +
+    '<span class="inv-state-badge inv-state-dispatched">' + stateCounts.dispatched + ' Dispatched</span>' +
+    '<span class="inv-state-badge inv-state-delivered">' + stateCounts.delivered + ' Delivered</span>' +
+    '<span class="inv-state-badge inv-state-filed">' + stateCounts.filed + ' Filed</span>' +
+    '</div>' +
+    '<div class="inv-flip-meta">' + escHtml(rateInfo) + '</div>' +
+    '<button class="inv-btn inv-btn-ghost inv-btn-block" data-action="invFlipCard">' +
+    '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 1l4 4-4 4"/><path d="M3 11V9a4 4 0 014-4h14"/><path d="M7 23l-4-4 4-4"/><path d="M21 13v2a4 4 0 01-4 4H3"/></svg>' +
+    ' Details &amp; Actions</button>' +
+    '</div>' +
+    '<div class="inv-flip-back">' +
+    '<div class="inv-overlay-header"><span class="inv-overlay-title">' + escHtml(client.name) + '</span><div>' +
+    '<button class="inv-overlay-close" data-action="invFlipCard" aria-label="Flip back">' +
+    '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 1l4 4-4 4"/><path d="M3 11V9a4 4 0 014-4h14"/><path d="M7 23l-4-4 4-4"/><path d="M21 13v2a4 4 0 01-4 4H3"/></svg>' +
+    '</button>' +
+    '<button class="inv-overlay-close" data-action="invCloseOverlay">&times;</button></div></div>' +
+    '<div class="inv-flip-section-title">Recent Invoices</div>' + recentHtml +
+    '<div class="inv-flip-section-title">Pending Challans</div>' + challanHtml +
+    '<div class="inv-flip-actions">' +
+    '<button class="inv-btn inv-btn-primary" data-action="invStatsCreateInvoice" data-client-id="' + clientId + '">Create Invoice</button>' +
+    '<button class="inv-btn inv-btn-ghost" data-action="invStatsJumpRegister" data-client-id="' + clientId + '">View in Register</button>' +
+    '<button class="inv-btn inv-btn-ghost" data-action="invStatsJumpIM" data-client-id="' + clientId + '">View in IM</button>' +
+    '</div></div>' +
+    '</div></div>';
+  document.body.appendChild(scrim);
+  focusFirstInteractive(scrim);
+}
+
+/* ===== HISTORY (Phase 7 — Activity Log Rework) ===== */
 var _historyClientFilter = '';
+var _historyDateFrom = '';
+var _historyDateTo = '';
+var _historyShowCount = 50;
 
 function renderHistory() {
   var toolbar = document.getElementById('historyToolbar');
   var area = document.getElementById('historyList');
   if (!area) return;
 
-  // Toolbar: client filter
   if (toolbar) {
     var clientIds = new Set();
     S.invoices.forEach(function(i) { clientIds.add(i.clientId); });
@@ -4375,65 +6064,81 @@ function renderHistory() {
       var c = S.clients.find(function(x) { return x.id === cid; });
       if (c) clientOpts += '<option value="' + cid + '"' + (_historyClientFilter == cid ? ' selected' : '') + '>' + escHtml(c.name) + '</option>';
     });
-    toolbar.innerHTML = '<div class="inv-im-toolbar"><div class="inv-form-group"><select class="inv-form-select" id="historyClientFilter" data-action="invFilterHistory">' +
-      '<option value="">All Clients</option>' + clientOpts + '</select></div></div>';
+    toolbar.innerHTML = '<div class="inv-im-toolbar"><div class="inv-history-filters">' +
+      '<select class="inv-form-select" id="historyClientFilter">' +
+      '<option value="">All Clients</option>' + clientOpts + '</select>' +
+      '<input type="date" class="inv-form-input inv-history-date" id="historyDateFrom" value="' + escHtml(_historyDateFrom) + '">' +
+      '<input type="date" class="inv-form-input inv-history-date" id="historyDateTo" value="' + escHtml(_historyDateTo) + '">' +
+      '</div></div>';
   }
 
-  // Build timeline events from all sources
   var events = [];
 
-  // Invoices
   S.invoices.forEach(function(inv) {
     if (_historyClientFilter && inv.clientId != _historyClientFilter) return;
-    events.push({ ts: inv.createdAt, type: 'invoice', text: 'Invoice ' + (inv.displayNumber || '') + ' created for ' + (inv.clientName || ''), amount: inv.grandTotal, dot: 'invoice' });
-    if (inv.dispatchedAt) events.push({ ts: inv.dispatchedAt, type: 'state', text: (inv.displayNumber || '') + ' dispatched', dot: 'state' });
-    if (inv.deliveredAt) events.push({ ts: inv.deliveredAt, type: 'state', text: (inv.displayNumber || '') + ' delivered (signed copy received)', dot: 'state' });
-    if (inv.filedAt) events.push({ ts: inv.filedAt, type: 'state', text: (inv.displayNumber || '') + ' marked as filed in GSTR1', dot: 'state' });
-    if (inv.status === 'cancelled' && inv.cancelledAt) events.push({ ts: inv.cancelledAt, type: 'cancel', text: (inv.displayNumber || '') + ' cancelled', dot: 'cancel' });
-    if (inv.updatedAt && inv.updatedAt !== inv.createdAt) events.push({ ts: inv.updatedAt, type: 'state', text: (inv.displayNumber || '') + ' edited', dot: 'state' });
+    events.push({ ts: inv.createdAt, type: 'invoice', sourceId: inv.id, text: 'Invoice ' + (inv.displayNumber || '') + ' created for ' + (inv.clientName || ''), amount: inv.grandTotal, dot: 'invoice' });
+    if (inv.dispatchedAt) events.push({ ts: inv.dispatchedAt, type: 'state', sourceId: inv.id, text: (inv.displayNumber || '') + ' dispatched', dot: 'state' });
+    if (inv.deliveredAt) events.push({ ts: inv.deliveredAt, type: 'state', sourceId: inv.id, text: (inv.displayNumber || '') + ' delivered (signed copy received)', dot: 'state' });
+    if (inv.filedAt) events.push({ ts: inv.filedAt, type: 'state', sourceId: inv.id, text: (inv.displayNumber || '') + ' marked as filed in GSTR1', dot: 'state' });
+    if (inv.status === 'cancelled' && inv.cancelledAt) events.push({ ts: inv.cancelledAt, type: 'cancel', sourceId: inv.id, text: (inv.displayNumber || '') + ' cancelled', dot: 'cancel' });
+    if (inv.updatedAt && inv.updatedAt !== inv.createdAt) events.push({ ts: inv.updatedAt, type: 'state', sourceId: inv.id, text: (inv.displayNumber || '') + ' edited', dot: 'state' });
   });
 
-  // Challans
   (S.incomingMaterial || []).forEach(function(im) {
     if (_historyClientFilter && im.clientId != _historyClientFilter) return;
     var challanAmt = im.items.reduce(function(s, it) { return s + (it.amount || 0); }, 0);
     events.push({
-      ts: im.createdAt,
-      type: 'challan',
+      ts: im.createdAt, type: 'challan', sourceId: im.id,
       text: 'Challan' + (im.challanNo ? ' ' + im.challanNo : '') + ' received from ' + (im.clientName || '') + ' (' + im.items.length + ' item' + (im.items.length > 1 ? 's' : '') + ')',
-      amount: challanAmt,
-      dot: 'challan'
+      amount: challanAmt, dot: 'challan'
     });
   });
 
-  // Sort by timestamp descending
+  if (_historyDateFrom) {
+    var fromTs = new Date(_historyDateFrom + 'T00:00:00').getTime();
+    if (!isNaN(fromTs)) events = events.filter(function(ev) { return (ev.ts || 0) >= fromTs; });
+  }
+  if (_historyDateTo) {
+    var toTs = new Date(_historyDateTo + 'T23:59:59').getTime();
+    if (!isNaN(toTs)) events = events.filter(function(ev) { return (ev.ts || 0) <= toTs; });
+  }
+
   events.sort(function(a, b) { return (b.ts || 0) - (a.ts || 0); });
 
   if (events.length === 0) {
-    area.innerHTML = '<div class="inv-empty-state">No activity yet</div>';
+    area.innerHTML = '<div class="inv-empty-state">No activity found</div>';
     return;
   }
 
   var html = '<div class="inv-stats-card">' +
     '<div class="inv-stats-title">Activity Log (' + events.length + ' events)</div>';
-  // Cap at 100 for performance
-  var shown = events.slice(0, 100);
+
+  var shown = events.slice(0, _historyShowCount);
+  var currentDay = '';
   shown.forEach(function(ev) {
-    html += '<div class="inv-history-item">' +
+    var dayStr = ev.ts ? formatTimestamp(ev.ts).split(',')[0] : 'Unknown date';
+    if (dayStr !== currentDay) {
+      currentDay = dayStr;
+      html += '<div class="inv-history-day-header">' + escHtml(dayStr) + '</div>';
+    }
+    var action = ev.type === 'challan' ? 'invHistoryJumpChallan' : 'invHistoryJumpInvoice';
+    html += '<div class="inv-history-item" data-action="' + action + '" data-id="' + escHtml(ev.sourceId) + '">' +
       '<div class="inv-history-dot inv-history-dot-' + ev.dot + '"></div>' +
       '<div class="inv-history-body">' +
       '<div class="inv-history-text">' + escHtml(ev.text) +
-      (ev.amount ? ' &middot; ' + formatCurrency(ev.amount) : '') + '</div>' +
+      (ev.amount ? ' \u00b7 ' + formatCurrency(ev.amount) : '') + '</div>' +
       '<div class="inv-history-meta">' + (ev.ts ? formatTimestamp(ev.ts) : '') + '</div>' +
       '</div></div>';
   });
-  if (events.length > 100) {
-    html += '<div class="inv-text-muted inv-text-center">Showing 100 of ' + events.length + ' events</div>';
+
+  if (events.length > _historyShowCount) {
+    var remaining = events.length - _historyShowCount;
+    html += '<button class="inv-btn inv-btn-ghost inv-btn-block inv-mt-16" data-action="invHistoryLoadMore">' +
+      'Show more (' + remaining + ' remaining)</button>';
   }
   html += '</div>';
   area.innerHTML = html;
 }
-
 /* ===== IM ADD CHALLAN FORM (Phase 4 — Tier 1) ===== */
 var _challanForm = null;
 
@@ -4660,7 +6365,7 @@ function saveChallan() {
     _imToolbarRendered = false;
     renderIMToolbar();
     _imToolbarRendered = true;
-    renderIMList();
+    _renderIMView();
     showToast('Challan updated (' + existing.items.length + ' item' + (existing.items.length > 1 ? 's' : '') + ')');
     return;
   }
@@ -4703,13 +6408,18 @@ function saveChallan() {
   _imToolbarRendered = false;
   renderIMToolbar();
   _imToolbarRendered = true;
-  renderIMList();
+  _renderIMView();
   showToast('Challan saved (' + entry.items.length + ' item' + (entry.items.length > 1 ? 's' : '') + ')');
 }
 
 function cancelAddChallan() {
   _challanForm = null;
   cancelAddChallanUI();
+  // Phase 8A: Drain deferred mode switch
+  if (_pendingModeSwitch) {
+    _pendingModeSwitch = false;
+    updateLayoutMode();
+  }
 }
 
 function cancelAddChallanUI() {
@@ -4741,12 +6451,13 @@ function deleteChallan(imId) {
   if (idx > -1) S.incomingMaterial.splice(idx, 1);
   // Clean up expanded/selected state
   delete _imExpanded[imId];
+  if (_imActiveChallanId === imId) _imActiveChallanId = null;
   im.items.forEach(function(it) { delete _imSelected[it.id]; });
   saveState();
   _imToolbarRendered = false;
   renderIMToolbar();
   _imToolbarRendered = true;
-  renderIMList();
+  _renderIMView();
   showToast('Challan deleted');
 }
 
@@ -4992,7 +6703,7 @@ document.addEventListener('click', function(e) {
       if (mf) regFilter.month = mf.value;
       if (sf) regFilter.state = sf.value;
       saveRegFilter();
-      renderRegisterList();
+      _renderRegView();
       break;
     }
     case 'invToggleIM': toggleIMExpand(btn.dataset.id); break;
@@ -5004,7 +6715,7 @@ document.addEventListener('click', function(e) {
       const isf = document.getElementById('imStatusFilter');
       if (icf) _imFilter.clientId = icf.value;
       if (isf) _imFilter.status = isf.value;
-      renderIMList();
+      _renderIMView();
       break;
     }
     // Phase 4: Print preview
@@ -5050,13 +6761,85 @@ document.addEventListener('click', function(e) {
     // Phase 5: Invoice lifecycle states
     case 'invAdvanceState': advanceInvoiceState(btn.dataset.id); break;
     case 'invBulkMarkFiled': bulkMarkFiled(); break;
-    // Phase 5: History filter
-    case 'invFilterHistory': {
-      var hcf = document.getElementById('historyClientFilter');
-      if (hcf) _historyClientFilter = hcf.value;
-      renderHistory();
+    // Phase 7: Stats period chips
+    case 'invStatsPeriod': _statsPeriod = btn.dataset.period; renderStats(); break;
+    // Phase 7: Client drill-down overlay
+    case 'invStatsClientDrill': openClientDrillOverlay(btn.dataset.clientId); break;
+    // Phase 7: Flippable card
+    case 'invFlipCard': {
+      var inner = document.querySelector('.inv-flip-inner');
+      if (!inner) break;
+      var front = inner.querySelector('.inv-flip-front');
+      var back = inner.querySelector('.inv-flip-back');
+      if (!front || !back) break;
+      var showingFront = !front.classList.contains('inv-flip-hidden');
+      var outFace = showingFront ? front : back;
+      var inFace = showingFront ? back : front;
+      outFace.classList.add('inv-flip-out');
+      setTimeout(function() {
+        outFace.classList.remove('inv-flip-out');
+        outFace.classList.add('inv-flip-hidden');
+        outFace.classList.remove('inv-flip-visible');
+        inFace.classList.remove('inv-flip-hidden');
+        inFace.classList.add('inv-flip-visible', 'inv-flip-in');
+        setTimeout(function() { inFace.classList.remove('inv-flip-in'); }, 250);
+      }, 250);
       break;
     }
+    // Phase 7: Stats actions
+    case 'invStatsCreateInvoice': {
+      closeOverlay();
+      _preselectedClientId = btn.dataset.clientId;
+      switchTab('pageCreate');
+      break;
+    }
+    case 'invStatsJumpRegister': {
+      closeOverlay();
+      regFilter.clientId = btn.dataset.clientId;
+      regFilter.search = '';
+      regFilter.state = '';
+      saveRegFilter();
+      _tabDirty.register = true;
+      _regToolbarRendered = false;
+      switchTab('pageRegister');
+      break;
+    }
+    case 'invStatsJumpIM': {
+      closeOverlay();
+      _imFilter.clientId = btn.dataset.clientId;
+      _imToolbarRendered = false;
+      switchTab('pageIM');
+      break;
+    }
+    // Phase 7: History navigation
+    case 'invHistoryJumpInvoice': {
+      var inv = S.invoices.find(function(i) { return i.id === btn.dataset.id; });
+      if (!inv) { showToast('Invoice not found', 'warning'); break; }
+      regFilter.clientId = '';
+      regFilter.search = inv.displayNumber || '';
+      regFilter.state = '';
+      saveRegFilter();
+      _tabDirty.register = true;
+      _regToolbarRendered = false;
+      switchTab('pageRegister');
+      break;
+    }
+    case 'invHistoryJumpChallan': {
+      var imId = btn.dataset.id;
+      var im = (S.incomingMaterial || []).find(function(c) { return c.id === imId; });
+      if (!im) { showToast('Challan not found', 'warning'); break; }
+      _imFilter.clientId = String(im.clientId);
+      _imToolbarRendered = false;
+      switchTab('pageIM');
+      setTimeout(function() {
+        var hdr = document.querySelector('[data-action="invToggleIM"][data-id="' + imId + '"]');
+        var card = hdr ? hdr.closest('.inv-im-challan') : null;
+        if (card) card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }, 100);
+      break;
+    }
+    // Phase 7: History load more
+    case 'invHistoryLoadMore': _historyShowCount += 50; renderHistory(); break;
     // Phase 4: Challan Scanner
     case 'invScanChallan': scanChallan(); break;
     case 'invToggleApiKey': {
@@ -5101,11 +6884,39 @@ document.addEventListener('click', function(e) {
       if (sortEl) { regFilter.itemsSort = sortEl.value; saveRegFilter(); _itemsRendered = 0; _renderItemsList(); }
       break;
     }
+    // Phase 8E: Clients/Items desktop row selection
+    case 'invSelectClientRow': _renderClientDetail(parseInt(btn.dataset.id)); break;
+    case 'invSelectItemRow': _renderItemDetail(parseInt(btn.dataset.id)); break;
     // Phase 6b: Register bulk operations
     case 'invRegToggleSort': toggleRegSortDir(); break;
     case 'invRegToggleSelect': toggleRegSelectMode(); break;
     case 'invRegToggleInv': e.stopPropagation(); toggleRegInv(btn.dataset.id); break;
     case 'invRegBulkState': regBulkSetState(btn.dataset.state); break;
+    // Phase 8C: Desktop table interactions
+    case 'invSelectRegRow': _renderRegDetail(btn.dataset.id); break;
+    case 'invDesktopSort': {
+      if (!regFilter.desktopSort) regFilter.desktopSort = { col: 'date', dir: 'desc' };
+      if (regFilter.desktopSort.col === btn.dataset.col) {
+        regFilter.desktopSort.dir = regFilter.desktopSort.dir === 'desc' ? 'asc' : 'desc';
+      } else {
+        regFilter.desktopSort = { col: btn.dataset.col, dir: 'desc' };
+      }
+      saveRegFilter();
+      _renderRegView();
+      break;
+    }
+    // Phase 8D: IM desktop table interactions
+    case 'invSelectIMRow': _renderIMDetail(btn.dataset.id); break;
+    case 'invDesktopIMSort': {
+      if (!_imFilter.desktopSort) _imFilter.desktopSort = { col: 'date', dir: 'desc' };
+      if (_imFilter.desktopSort.col === btn.dataset.col) {
+        _imFilter.desktopSort.dir = _imFilter.desktopSort.dir === 'desc' ? 'asc' : 'desc';
+      } else {
+        _imFilter.desktopSort = { col: btn.dataset.col, dir: 'desc' };
+      }
+      _renderIMView();
+      break;
+    }
   }
 });
 
@@ -5190,7 +7001,7 @@ document.addEventListener('change', function(e) {
     if (mf) regFilter.month = mf.value;
     if (sf) regFilter.state = sf.value;
     saveRegFilter();
-    renderRegisterList();
+    _renderRegView();
   }
   // IM filters
   if (e.target.id === 'imClientFilter' || e.target.id === 'imStatusFilter') {
@@ -5198,7 +7009,7 @@ document.addEventListener('change', function(e) {
     const isf = document.getElementById('imStatusFilter');
     if (icf) _imFilter.clientId = icf.value;
     if (isf) _imFilter.status = isf.value;
-    renderIMList();
+    _renderIMView();
   }
   // Phase 6: Items sort
   if (e.target.id === 'itemsSort') {
@@ -5207,9 +7018,20 @@ document.addEventListener('change', function(e) {
     _itemsRendered = 0;
     _renderItemsList();
   }
-  // Phase 5: History filter change
+  // Phase 7: History filter changes (client + date range)
   if (e.target.id === 'historyClientFilter') {
     _historyClientFilter = e.target.value;
+    _historyShowCount = 50;
+    renderHistory();
+  }
+  if (e.target.id === 'historyDateFrom') {
+    _historyDateFrom = e.target.value;
+    _historyShowCount = 50;
+    renderHistory();
+  }
+  if (e.target.id === 'historyDateTo') {
+    _historyDateTo = e.target.value;
+    _historyShowCount = 50;
     renderHistory();
   }
   // Phase 4: IM challan line unit change
@@ -5546,12 +7368,150 @@ if (!S._rateCleanup1) {
   saveJSON(STORAGE_KEY, S);
 }
 
+/* ===== LAYOUT MODE (Phase 8A) ===== */
+var _resizeTimer = null;
+
+function updateLayoutMode() {
+  var w = window.innerWidth;
+  var newDesktop = w >= 1024;
+  var newTablet = w >= 768 && w < 1024;
+
+  // No mode change — just update tablet class
+  if (newDesktop === _isDesktop) {
+    _isTablet = newTablet;
+    document.body.classList.toggle('inv-tablet', _isTablet);
+    return;
+  }
+
+  // Mode change — defer if overlay or form is active
+  if (document.querySelector('.inv-overlay-scrim') || _challanForm) {
+    _pendingModeSwitch = true;
+    return;
+  }
+
+  _applyModeSwitch(newDesktop, newTablet);
+}
+
+function _applyModeSwitch(newDesktop, newTablet) {
+  _isDesktop = newDesktop;
+  _isTablet = newTablet;
+  document.body.classList.toggle('inv-desktop', _isDesktop);
+  document.body.classList.toggle('inv-tablet', _isTablet);
+  _regToolbarRendered = false;
+  _imToolbarRendered = false;
+  renderSidebar();
+  switchTab(regFilter.activeTab || 'pageHome');
+}
+
+function renderSidebar() {
+  var existing = document.getElementById('invSidebar');
+  if (existing) existing.remove();
+  if (!_isDesktop) return;
+
+  var tabs = [
+    { id: 'pageHome', label: 'Home', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg>' },
+    { id: 'pageCreate', label: 'Create', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>' },
+    { id: 'pageIM', label: 'IM', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/></svg>' },
+    { id: 'pageRegister', label: 'Register', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>' },
+    { id: 'pageClients', label: 'Clients', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>' },
+    { id: 'pageStats', label: 'Stats', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 20V10"/><path d="M12 20V4"/><path d="M6 20v-6"/></svg>' },
+    { id: 'pageHistory', label: 'History', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>' }
+  ];
+
+  var activeTab = regFilter.activeTab || 'pageHome';
+  var html = '<div class="inv-sidebar-inner">';
+  tabs.forEach(function(t) {
+    var cls = 'inv-sidebar-item' + (t.id === activeTab ? ' inv-sidebar-active' : '');
+    html += '<button class="' + cls + '" data-action="invSwitchTab" data-tab="' + t.id + '">' +
+      t.icon + '<span class="inv-sidebar-label">' + escHtml(t.label) + '</span></button>';
+  });
+  html += '<div class="inv-sidebar-spacer"></div>';
+  html += '<button class="inv-sidebar-item" data-action="invOpenSettings">' +
+    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg>' +
+    '<span class="inv-sidebar-label">Settings</span></button>';
+  html += '</div>';
+
+  var sidebar = document.createElement('nav');
+  sidebar.className = 'inv-sidebar';
+  sidebar.id = 'invSidebar';
+  sidebar.innerHTML = html;
+  document.body.insertBefore(sidebar, document.body.firstChild);
+
+  // Touch-desktop fallback
+  sidebar.addEventListener('click', function(e) {
+    if (e.target.closest('[data-action]')) {
+      // Nav click — collapse after navigation on touch devices
+      if (!window.matchMedia('(hover: hover)').matches) {
+        sidebar.classList.remove('inv-sidebar-expanded');
+      }
+      return;
+    }
+    // Background tap — toggle expand/collapse
+    if (!window.matchMedia('(hover: hover)').matches) {
+      sidebar.classList.toggle('inv-sidebar-expanded');
+    }
+  });
+}
+
+// One-time outside-tap handler for sidebar collapse
+document.addEventListener('click', function(e) {
+  var sb = document.getElementById('invSidebar');
+  if (sb && !sb.contains(e.target)) {
+    sb.classList.remove('inv-sidebar-expanded');
+  }
+});
+
+/* ===== GLOBAL DRAG HANDLERS (Phase 8B) ===== */
+function _onDragMove(clientX) {
+  if (!_dragState) return;
+  var dx = clientX - _dragState.startX;
+  var newW = _dragState.masterStart + dx;
+  var minMaster = 280, minDetail = 320;
+  var maxMaster = _dragState.containerW - minDetail;
+  newW = Math.max(minMaster, Math.min(maxMaster, newW));
+  document.getElementById(_dragState.masterId).style.width = (newW / _dragState.containerW * 100) + '%';
+}
+
+function _onDragEnd() {
+  if (!_dragState) return;
+  var master = document.getElementById(_dragState.masterId);
+  var ratio = master.offsetWidth / master.parentElement.offsetWidth;
+  if (!regFilter.desktopPanelWidths) regFilter.desktopPanelWidths = {};
+  regFilter.desktopPanelWidths[_dragState.tabKey] = ratio;
+  saveRegFilter();
+  document.body.style.cursor = '';
+  document.body.style.userSelect = '';
+  _dragState = null;
+}
+
+document.addEventListener('mousemove', function(e) { _onDragMove(e.clientX); });
+document.addEventListener('mouseup', _onDragEnd);
+document.addEventListener('touchmove', function(e) {
+  if (!_dragState) return;
+  e.preventDefault();
+  _onDragMove(e.touches[0].clientX);
+}, { passive: false });
+document.addEventListener('touchend', _onDragEnd);
+
+// Debounced ResizeObserver
+new ResizeObserver(function() {
+  clearTimeout(_resizeTimer);
+  _resizeTimer = setTimeout(updateLayoutMode, 150);
+}).observe(document.documentElement);
+
+// Initial layout detection (no debounce)
+updateLayoutMode();
+
 /* Phase 6b: Restore active tab on refresh */
-var _savedTab = regFilter.activeTab || 'pageHome';
-if (_savedTab !== 'pageHome' && document.getElementById(_savedTab)) {
-  switchTab(_savedTab);
-} else {
-  renderHome();
+// If updateLayoutMode triggered _applyModeSwitch, it already called switchTab.
+// Only do manual restore if we're still on mobile (no mode switch happened).
+if (!_isDesktop) {
+  var _savedTab = regFilter.activeTab || 'pageHome';
+  if (_savedTab !== 'pageHome' && document.getElementById(_savedTab)) {
+    switchTab(_savedTab);
+  } else {
+    renderHome();
+  }
 }
 
 if ('serviceWorker' in navigator) {

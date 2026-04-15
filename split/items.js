@@ -8,6 +8,7 @@ var _mergeBackupWarned = false;
 var _itemsSelected = {};
 var _itemsUsageCache = null;
 var ITEMS_BATCH = 50;
+var _itemsActiveId = null;
 
 function getItemsSubView() {
   return regFilter.clientsSubView || 'clients';
@@ -37,6 +38,13 @@ function renderClientsPage() {
   var subView = getItemsSubView();
   var fab = document.getElementById('clientsItemsFab');
 
+  // Phase 8E: Desktop master-detail
+  if (_isDesktop) {
+    _renderClientsDesktop(subView);
+    if (fab) fab.classList.add('inv-hidden');
+    return;
+  }
+
   if (subView === 'items') {
     container.innerHTML = _buildItemsSubViewHtml();
     if (fab) fab.classList.remove('inv-hidden');
@@ -50,8 +58,8 @@ function renderClientsPage() {
   }
 }
 
-function _buildClientsSubViewHtml() {
-  return _buildSubViewToggle('clients') +
+function _buildClientsSubViewHtml(includeToggle) {
+  return (includeToggle !== false ? _buildSubViewToggle('clients') : '') +
     '<div class="inv-search-wrap">' +
     '<svg class="inv-search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>' +
     '<input type="text" class="inv-search-input" id="clientSearch" placeholder="Search clients" autocomplete="off">' +
@@ -59,7 +67,7 @@ function _buildClientsSubViewHtml() {
     '<div id="clientList"></div>';
 }
 
-function _buildItemsSubViewHtml() {
+function _buildItemsSubViewHtml(includeToggle) {
   var search = getItemsSearch();
   var sort = getItemsSort();
   var filter = getItemsFilter();
@@ -67,7 +75,7 @@ function _buildItemsSubViewHtml() {
   var cache = _buildUsageCache();
   var unusedCount = S.items.filter(function(it) { return !cache[it.partNumber]; }).length;
 
-  var html = _buildSubViewToggle('items');
+  var html = (includeToggle !== false ? _buildSubViewToggle('items') : '');
 
   // Toolbar
   html += '<div class="inv-items-toolbar">' +
@@ -108,6 +116,159 @@ function _buildSubViewToggle(active) {
     '<button class="inv-subview-btn' + (active === 'clients' ? ' inv-subview-active' : '') + '" data-action="invSwitchSubView" data-view="clients">Clients</button>' +
     '<button class="inv-subview-btn' + (active === 'items' ? ' inv-subview-active' : '') + '" data-action="invSwitchSubView" data-view="items">Items</button>' +
     '</div>';
+}
+
+/* ===== CLIENTS/ITEMS DESKTOP MASTER-DETAIL (Phase 8E) ===== */
+function _renderClientsDesktop(subView) {
+  var container = document.getElementById('clientsPageContent');
+  if (!container) return;
+
+  var wrapper = document.getElementById('clientsMasterDetail');
+  var toggleEl = document.getElementById('clientsDesktopToggle');
+
+  if (!wrapper) {
+    // First render — build full wrapper with toggle above
+    container.innerHTML =
+      '<div id="clientsDesktopToggle">' + _buildSubViewToggle(subView) + '</div>' +
+      '<div class="inv-master-detail" id="clientsMasterDetail">' +
+        '<div class="inv-master inv-master-clients" id="clientsMaster"></div>' +
+        '<div class="inv-drag-handle" id="clientsDragHandle"></div>' +
+        '<div class="inv-detail" id="clientsDetail">' + _renderDetailEmpty() + '</div>' +
+      '</div>';
+    _initDragHandle('clientsDragHandle', 'clientsMaster', 'clientsDetail', 'pageClients');
+    _restorePanelWidth('clientsMaster', 'pageClients');
+  } else {
+    // Re-render — update toggle and master content only
+    if (toggleEl) toggleEl.innerHTML = _buildSubViewToggle(subView);
+  }
+
+  var master = document.getElementById('clientsMaster');
+  if (!master) return;
+
+  // Detect sub-view switch: clear detail and both active IDs
+  var prevSubView = master.dataset.subView;
+  if (prevSubView && prevSubView !== subView) {
+    _clientsActiveId = null;
+    _itemsActiveId = null;
+    var detail = document.getElementById('clientsDetail');
+    if (detail) detail.innerHTML = _renderDetailEmpty();
+  }
+  master.dataset.subView = subView;
+
+  if (subView === 'clients') {
+    master.innerHTML = _buildClientsSubViewHtml(false);
+    renderClientList('');
+    _itemsActiveId = null;
+  } else {
+    master.innerHTML = _buildItemsSubViewHtml(false);
+    _bindItemsSearch();
+    _itemsRendered = 0;
+    _renderItemsList();
+    _clientsActiveId = null;
+  }
+
+  // Detail validation
+  if (subView === 'clients' && _clientsActiveId) {
+    var cStill = S.clients.find(function(c) { return c.id === _clientsActiveId; });
+    if (!cStill) {
+      _clientsActiveId = null;
+      var d1 = document.getElementById('clientsDetail');
+      if (d1) d1.innerHTML = _renderDetailEmpty();
+    } else {
+      _renderClientDetail(_clientsActiveId, true);
+    }
+  } else if (subView === 'items' && _itemsActiveId) {
+    var iStill = S.items.find(function(it) { return it.id === _itemsActiveId; });
+    if (!iStill) {
+      _itemsActiveId = null;
+      var d2 = document.getElementById('clientsDetail');
+      if (d2) d2.innerHTML = _renderDetailEmpty();
+    } else {
+      _renderItemDetail(_itemsActiveId, true);
+    }
+  }
+}
+
+/* Item detail panel (Phase 8E) */
+function _renderItemDetail(itemId, skipMasterRefresh) {
+  var item = S.items.find(function(it) { return it.id === itemId; });
+  if (!item) {
+    _itemsActiveId = null;
+    var detail = document.getElementById('clientsDetail');
+    if (detail) detail.innerHTML = _renderDetailEmpty();
+    if (!skipMasterRefresh) {
+      _itemsRendered = 0;
+      _renderItemsList();
+    }
+    return;
+  }
+
+  _itemsActiveId = itemId;
+
+  var html = '';
+
+  // Header
+  html += '<div class="inv-detail-section">' +
+    '<div class="inv-detail-client-name inv-detail-value-mono">' + escHtml(item.partNumber) + '</div></div>';
+
+  // Info section
+  html += '<div class="inv-detail-section">';
+  if (item.desc) {
+    html += '<div class="inv-detail-label">Description</div>' +
+      '<div class="inv-detail-value">' + escHtml(item.desc) + '</div>';
+  }
+  html += '<div class="inv-detail-label">HSN Code</div>' +
+    '<div class="inv-detail-value-mono">' + escHtml(item.hsn || '998873') + '</div>';
+  html += '<div class="inv-detail-label">Unit</div>' +
+    '<div class="inv-detail-value">' + escHtml(item.unit || 'KG') + '</div>';
+  html += '<div class="inv-detail-label">Default Rate</div>' +
+    '<div class="inv-detail-value-mono">' + (item.rate ? formatCurrency(item.rate) : 'No rate') + '</div>';
+  if (item.stdWeightKg != null) {
+    html += '<div class="inv-detail-label">Standard Weight</div>' +
+      '<div class="inv-detail-value-mono">' + formatNum(item.stdWeightKg, 3) + ' kg</div>';
+  }
+  html += '</div>';
+
+  // Usage stats
+  var cache = _buildUsageCache();
+  var usage = cache[item.partNumber];
+  html += '<div class="inv-detail-section">' +
+    '<div class="inv-detail-label">Usage</div>';
+  if (usage) {
+    var invLines = 0;
+    var imLines = 0;
+    (S.invoices || []).forEach(function(inv) {
+      inv.items.forEach(function(li) {
+        if (li.partNumber === item.partNumber) invLines++;
+      });
+    });
+    (S.incomingMaterial || []).forEach(function(im) {
+      im.items.forEach(function(li) {
+        if (li.partNumber === item.partNumber) imLines++;
+      });
+    });
+    html += '<div class="inv-detail-value">' + usage.total + ' total references (' + usage.recent + ' in last 30 days)</div>' +
+      '<div class="inv-detail-value inv-text-muted">' + invLines + ' invoice line' + (invLines !== 1 ? 's' : '') +
+      ', ' + imLines + ' challan line' + (imLines !== 1 ? 's' : '') + '</div>';
+  } else {
+    html += '<div class="inv-detail-value inv-text-muted">Unused</div>';
+  }
+  html += '</div>';
+
+  // Action buttons
+  html += '<div class="inv-detail-actions">' +
+    '<button class="inv-btn inv-btn-primary" data-action="invEditItem" data-id="' + item.id + '">Edit</button>' +
+    '<button class="inv-btn inv-btn-danger" data-action="invDeleteItem" data-id="' + item.id + '">Delete</button>' +
+    '</div>';
+
+  var detailEl = document.getElementById('clientsDetail');
+  if (detailEl) detailEl.innerHTML = html;
+
+  // Update master to show active card highlight
+  if (!skipMasterRefresh) {
+    _itemsRendered = 0;
+    _renderItemsList();
+  }
 }
 
 function _bindItemsSearch() {
@@ -195,8 +356,10 @@ function _renderItemsList() {
     var weightStr = it.stdWeightKg != null ? formatNum(it.stdWeightKg, 3) + ' kg' : '';
     var usageCount = _getUsageCount(it.partNumber);
     var isSelected = !!_itemsSelected[it.id];
+    var itemAction = _isDesktop ? 'invSelectItemRow' : 'invEditItem';
+    var itemActiveClass = (_isDesktop && _itemsActiveId === it.id) ? ' inv-item-card-active' : '';
 
-    html += '<div class="inv-item-card' + (isSelected ? ' inv-item-selected' : '') + '" data-action="invEditItem" data-id="' + it.id + '">' +
+    html += '<div class="inv-item-card' + (isSelected ? ' inv-item-selected' : '') + itemActiveClass + '" data-action="' + itemAction + '" data-id="' + it.id + '">' +
       '<div class="inv-item-card-top">' +
       '<label class="inv-item-check-wrap" data-action="invToggleItemSelect" data-id="' + it.id + '">' +
       '<input type="checkbox"' + (isSelected ? ' checked' : '') + ' class="inv-im-check"></label>' +
@@ -230,6 +393,16 @@ function _renderItemsList() {
         '<button class="inv-btn inv-btn-ghost" data-action="invLoadMoreItems">Load more (' + (total - limit) + ' remaining)</button></div>';
     } else {
       moreEl.innerHTML = '';
+    }
+  }
+
+  // Phase 8E: Desktop detail validation — active item filtered out → clear detail
+  if (_isDesktop && _itemsActiveId) {
+    var stillVisible = _itemsSorted.find(function(it) { return it.id === _itemsActiveId; });
+    if (!stillVisible) {
+      _itemsActiveId = null;
+      var detail = document.getElementById('clientsDetail');
+      if (detail) detail.innerHTML = _renderDetailEmpty();
     }
   }
 }
@@ -348,6 +521,10 @@ function saveItem(itemId, mode) {
   closeOverlay();
   _itemsRendered = 0;
   _renderItemsList();
+  // Phase 8E: Refresh detail panel if active item was edited
+  if (_isDesktop && _itemsActiveId === itemId) {
+    _renderItemDetail(itemId, true);
+  }
 }
 
 function deleteItem(itemId) {
@@ -379,6 +556,12 @@ function deleteItem(itemId) {
   if (idx > -1) S.items.splice(idx, 1);
   saveState();
   closeOverlay();
+  // Phase 8E: Clear detail panel if active item was deleted
+  if (_isDesktop && _itemsActiveId === itemId) {
+    _itemsActiveId = null;
+    var detail = document.getElementById('clientsDetail');
+    if (detail) detail.innerHTML = _renderDetailEmpty();
+  }
   _itemsRendered = 0;
   _renderItemsList();
   showToast('Item deleted');

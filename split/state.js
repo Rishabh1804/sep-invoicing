@@ -31,12 +31,19 @@ if (!S.invoices) S.invoices = [];
 if (!S.incomingMaterial) S.incomingMaterial = [];
 if (!S.partWeights) S.partWeights = {};
 
+/* ===== LAYOUT MODE (Phase 8A) ===== */
+var _isDesktop = false;
+var _isTablet = false;
+var _pendingModeSwitch = false;
+var _dragState = null;
+
 /* ===== ARCHITECTURAL GLOBALS (Phase 3) ===== */
 let _tabDirty = { home: true, register: true };
 let _tabScroll = {};
 let _navReturnTab = null;
 let _regToolbarRendered = false;
 let _regSearchTimer = null;
+var _preselectedClientId = null;
 const VIEW_PREFS_KEY = 'sep_inv_view_prefs';
 const API_KEY_KEY = 'sep_inv_gemini_key';
 
@@ -202,6 +209,7 @@ function advanceInvoiceState(invId) {
   else if (nextState === 'filed') inv.filedAt = now;
   saveState();
   closeOverlay();
+  _renderRegView();
   showToast(inv.displayNumber + ' marked as ' + INV_STATE_LABELS[nextState]);
 }
 
@@ -221,7 +229,7 @@ function bulkMarkFiled() {
     inv.filedAt = now;
   });
   saveState();
-  renderRegisterList();
+  _renderRegView();
   showToast(eligible.length + ' invoice' + (eligible.length > 1 ? 's' : '') + ' marked as filed');
 }
 

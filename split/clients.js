@@ -1,4 +1,6 @@
 /* ===== CLIENT MASTER ===== */
+var _clientsActiveId = null;
+
 function renderClientList(filter='') {
   const q = filter.toLowerCase();
   const sorted = [...S.clients].sort((a,b) => {
@@ -12,7 +14,9 @@ function renderClientList(filter='') {
     const sortedRates = (c.rates || []).slice().sort((a,b) => b.effectiveFrom.localeCompare(a.effectiveFrom));
     const rateInfo = sortedRates.length > 0 ? sortedRates[0] : null;
     const rateStr = rateInfo ? '\u20B9' + rateInfo.ratePerKg + '/kg' : 'No rate';
-    return '<div class="inv-client-item' + (c.isActive ? '' : ' inv-client-inactive') + '" data-action="invEditClient" data-id="' + c.id + '">' +
+    var cardAction = _isDesktop ? 'invSelectClientRow' : 'invEditClient';
+    var activeClass = (_isDesktop && _clientsActiveId === c.id) ? ' inv-client-item-active' : '';
+    return '<div class="inv-client-item' + (c.isActive ? '' : ' inv-client-inactive') + activeClass + '" data-action="' + cardAction + '" data-id="' + c.id + '">' +
       '<div class="inv-client-content"><div class="inv-client-name">' + escHtml(c.name) + '</div>' +
       '<div class="inv-client-meta">' + escHtml(c.gstin || 'No GSTIN') + '</div>' +
       '<div class="inv-client-badges">' +
@@ -23,6 +27,16 @@ function renderClientList(filter='') {
       '</div></div>' +
       '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg></div>';
   }).join('');
+
+  // Desktop detail validation: active client filtered out → clear detail
+  if (_isDesktop && _clientsActiveId) {
+    var stillVisible = filtered.find(function(c) { return c.id === _clientsActiveId; });
+    if (!stillVisible) {
+      _clientsActiveId = null;
+      var detail = document.getElementById('clientsDetail');
+      if (detail) detail.innerHTML = _renderDetailEmpty();
+    }
+  }
 }
 
 /* Client edit overlay */
@@ -82,6 +96,10 @@ function saveClientEdit(clientId) {
   saveState();
   closeOverlay();
   renderClientList(document.getElementById('clientSearch').value);
+  // Phase 8E: Refresh detail panel if active client was edited
+  if (_isDesktop && _clientsActiveId === clientId) {
+    _renderClientDetail(clientId, true);
+  }
   showToast('Client saved');
 }
 
@@ -96,7 +114,12 @@ function addClientRate(clientId) {
   saveState();
   showToast('Rate added');
   closeOverlay();
-  openClientEdit(clientId);
+  // Phase 8E: On desktop, refresh detail panel instead of reopening overlay
+  if (_isDesktop && _clientsActiveId === clientId) {
+    _renderClientDetail(clientId, false);
+  } else {
+    openClientEdit(clientId);
+  }
 }
 
 function closeOverlay() {
@@ -105,6 +128,11 @@ function closeOverlay() {
   document.body.style.overflow = '';
   // Pop focus stack for each closed overlay
   for (var i = 0; i < count; i++) popFocus();
+  // Phase 8A: Drain deferred mode switch
+  if (_pendingModeSwitch) {
+    _pendingModeSwitch = false;
+    updateLayoutMode();
+  }
 }
 
 function closeTopOverlay() {
@@ -115,6 +143,124 @@ function closeTopOverlay() {
       document.body.style.overflow = '';
     }
     popFocus();
+  }
+}
+
+/* ===== CLIENT DETAIL PANEL (Phase 8E) ===== */
+function _renderClientDetail(clientId, skipMasterRefresh) {
+  var c = S.clients.find(function(x) { return x.id === clientId; });
+  if (!c) {
+    _clientsActiveId = null;
+    var detail = document.getElementById('clientsDetail');
+    if (detail) detail.innerHTML = _renderDetailEmpty();
+    if (!skipMasterRefresh) {
+      var searchEl = document.getElementById('clientSearch');
+      renderClientList(searchEl ? searchEl.value : '');
+    }
+    return;
+  }
+
+  _clientsActiveId = clientId;
+
+  var html = '';
+
+  // Header
+  html += '<div class="inv-detail-section">' +
+    '<div class="inv-detail-client-header">' +
+    '<span class="inv-detail-client-name">' + escHtml(c.name) + '</span>' +
+    '<span class="inv-client-badge ' + (c.isActive ? 'inv-badge-active' : 'inv-badge-inactive') + '">' +
+    (c.isActive ? 'Active' : 'Inactive') + '</span></div></div>';
+
+  // Info section
+  html += '<div class="inv-detail-section">';
+  if (c.gstin) {
+    html += '<div class="inv-detail-label">GSTIN</div>' +
+      '<div class="inv-detail-value-mono">' + escHtml(c.gstin) + '</div>';
+  }
+  if (c.state || c.stateCode) {
+    html += '<div class="inv-detail-label">State</div>' +
+      '<div class="inv-detail-value">' + escHtml(c.state || '') +
+      (c.stateCode ? ' <span class="inv-detail-value-mono">(' + escHtml(c.stateCode) + ')</span>' : '') + '</div>';
+  }
+  var address = [c.add1, c.add2, c.add3].filter(function(a) { return a; });
+  if (address.length > 0) {
+    html += '<div class="inv-detail-label">Address</div>' +
+      '<div class="inv-detail-value">' + address.map(function(a) { return escHtml(a); }).join('<br>') + '</div>';
+  }
+  html += '<div class="inv-detail-label">Billing Mode</div>' +
+    '<div class="inv-detail-value">' + escHtml(c.billingMode) + '</div>';
+  html += '<div class="inv-detail-label">GST Type</div>' +
+    '<div class="inv-detail-value">' + escHtml(c.gstType === 'inter' ? 'Inter-state (IGST)' : 'Intra-state (CGST+SGST)') + '</div>';
+  if (c.notes) {
+    html += '<div class="inv-detail-label">Notes</div>' +
+      '<div class="inv-detail-value">' + escHtml(c.notes) + '</div>';
+  }
+  html += '</div>';
+
+  // Rate History
+  var sortedRates = (c.rates || []).slice().sort(function(a, b) {
+    return b.effectiveFrom.localeCompare(a.effectiveFrom);
+  });
+  if (sortedRates.length > 0) {
+    var today = localDateStr();
+    var currentRate = sortedRates.find(function(r) { return r.effectiveFrom <= today; });
+    html += '<div class="inv-detail-section">' +
+      '<div class="inv-detail-label">Rate History</div>';
+    sortedRates.forEach(function(r) {
+      var isCurrent = currentRate && r.effectiveFrom === currentRate.effectiveFrom;
+      html += '<div class="inv-detail-rate-row' + (isCurrent ? ' inv-detail-rate-current' : '') + '">' +
+        '<span class="inv-detail-value-mono">' + formatCurrency(r.ratePerKg) + '/kg</span>' +
+        '<span class="inv-detail-value-mono inv-text-muted">' + escHtml(r.effectiveFrom) + '</span>' +
+        (isCurrent ? '<span class="inv-client-badge inv-badge-active">Current</span>' : '') +
+        '</div>';
+    });
+    html += '</div>';
+  }
+
+  // Item Rate Overrides
+  if (c.itemRates && c.itemRates.length > 0) {
+    html += '<div class="inv-detail-section">' +
+      '<div class="inv-detail-label">Item Rate Overrides</div>';
+    c.itemRates.forEach(function(ir) {
+      html += '<div class="inv-detail-rate-row">' +
+        '<span class="inv-detail-value-mono">' + escHtml(ir.partPattern) + '</span>' +
+        '<span class="inv-detail-value-mono">' + formatCurrency(ir.rate) + '/' + escHtml(ir.unit || 'kg') + '</span>' +
+        (ir.label ? '<span class="inv-text-muted">' + escHtml(ir.label) + '</span>' : '') +
+        '</div>';
+    });
+    html += '</div>';
+  }
+
+  // Recent Invoices
+  var clientInvoices = (S.invoices || []).filter(function(i) { return i.clientId === c.id; })
+    .sort(function(a, b) { return (b.date || '').localeCompare(a.date || ''); })
+    .slice(0, 5);
+  if (clientInvoices.length > 0) {
+    html += '<div class="inv-detail-section">' +
+      '<div class="inv-detail-label">Recent Invoices</div>';
+    clientInvoices.forEach(function(inv) {
+      html += '<div class="inv-detail-invoice-row" data-action="invViewInvoiceDetail" data-id="' + escHtml(inv.id) + '">' +
+        '<span class="inv-detail-value-mono">' + escHtml(inv.displayNumber) + '</span>' +
+        '<span class="inv-detail-value-mono inv-text-muted">' + formatDate(inv.date) + '</span>' +
+        '<span class="inv-detail-value-mono inv-text-cost">' + formatCurrency(inv.grandTotal) + '</span>' +
+        '</div>';
+    });
+    html += '</div>';
+  }
+
+  // Action buttons
+  html += '<div class="inv-detail-actions">' +
+    '<button class="inv-btn inv-btn-primary" data-action="invEditClient" data-id="' + c.id + '">Edit</button>' +
+    '<button class="inv-btn inv-btn-ghost" data-action="invStatsJumpRegister" data-client-id="' + c.id + '">View in Register</button>' +
+    '</div>';
+
+  var detailEl = document.getElementById('clientsDetail');
+  if (detailEl) detailEl.innerHTML = html;
+
+  // Update master to show active card highlight
+  if (!skipMasterRefresh) {
+    var searchEl = document.getElementById('clientSearch');
+    renderClientList(searchEl ? searchEl.value : '');
   }
 }
 

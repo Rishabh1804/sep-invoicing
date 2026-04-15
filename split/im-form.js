@@ -224,7 +224,7 @@ function saveChallan() {
     _imToolbarRendered = false;
     renderIMToolbar();
     _imToolbarRendered = true;
-    renderIMList();
+    _renderIMView();
     showToast('Challan updated (' + existing.items.length + ' item' + (existing.items.length > 1 ? 's' : '') + ')');
     return;
   }
@@ -267,13 +267,18 @@ function saveChallan() {
   _imToolbarRendered = false;
   renderIMToolbar();
   _imToolbarRendered = true;
-  renderIMList();
+  _renderIMView();
   showToast('Challan saved (' + entry.items.length + ' item' + (entry.items.length > 1 ? 's' : '') + ')');
 }
 
 function cancelAddChallan() {
   _challanForm = null;
   cancelAddChallanUI();
+  // Phase 8A: Drain deferred mode switch
+  if (_pendingModeSwitch) {
+    _pendingModeSwitch = false;
+    updateLayoutMode();
+  }
 }
 
 function cancelAddChallanUI() {
@@ -305,12 +310,13 @@ function deleteChallan(imId) {
   if (idx > -1) S.incomingMaterial.splice(idx, 1);
   // Clean up expanded/selected state
   delete _imExpanded[imId];
+  if (_imActiveChallanId === imId) _imActiveChallanId = null;
   im.items.forEach(function(it) { delete _imSelected[it.id]; });
   saveState();
   _imToolbarRendered = false;
   renderIMToolbar();
   _imToolbarRendered = true;
-  renderIMList();
+  _renderIMView();
   showToast('Challan deleted');
 }
 

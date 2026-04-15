@@ -40,6 +40,13 @@ function viewInvoice(invId) {
 /* ===== INVOICE REGISTER ===== */
 var _regSelected = {};
 var _regSelectMode = false;
+var _regActiveInvId = null;
+
+/* Unified sort accessor (Phase 8C) */
+function getRegSortConfig() {
+  if (_isDesktop && regFilter.desktopSort) return regFilter.desktopSort;
+  return { col: 'date', dir: regFilter.regSortDir || 'desc' };
+}
 
 function getFilteredInvoices() {
   let list = [...S.invoices];
@@ -64,11 +71,35 @@ function getFilteredInvoices() {
       list = list.filter(i => i.status === 'active' && getInvState(i) === regFilter.state);
     }
   }
-  var sortDir = regFilter.regSortDir || 'desc';
-  if (sortDir === 'asc') {
-    list.sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+
+  /* Desktop: multi-column sort via getRegSortConfig().
+     Mobile: preserve existing createdAt sort (no behavioral change). */
+  if (_isDesktop) {
+    var sc = getRegSortConfig();
+    var dir = sc.dir === 'asc' ? 1 : -1;
+    list.sort(function(a, b) {
+      var va, vb;
+      switch (sc.col) {
+        case 'client': va = (a.clientName || '').toLowerCase(); vb = (b.clientName || '').toLowerCase(); return va < vb ? -dir : va > vb ? dir : 0;
+        case 'date': va = a.date || ''; vb = b.date || ''; return va < vb ? -dir : va > vb ? dir : 0;
+        case 'taxable': return dir * ((a.taxableValue || 0) - (b.taxableValue || 0));
+        case 'total': return dir * ((a.grandTotal || 0) - (b.grandTotal || 0));
+        case 'state': {
+          var so = { created: 0, dispatched: 1, delivered: 2, filed: 3 };
+          va = a.status === 'cancelled' ? -1 : (so[getInvState(a)] || 0);
+          vb = b.status === 'cancelled' ? -1 : (so[getInvState(b)] || 0);
+          return dir * (va - vb);
+        }
+        default: va = a.date || ''; vb = b.date || ''; return va < vb ? -dir : va > vb ? dir : 0;
+      }
+    });
   } else {
-    list.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+    var sortDir = regFilter.regSortDir || 'desc';
+    if (sortDir === 'asc') {
+      list.sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+    } else {
+      list.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+    }
   }
   return list;
 }
@@ -121,7 +152,7 @@ function renderRegisterToolbar() {
       regFilter.search = this.value;
       saveRegFilter();
       clearTimeout(_regSearchTimer);
-      _regSearchTimer = setTimeout(function() { renderRegisterList(); }, 200);
+      _regSearchTimer = setTimeout(function() { _renderRegView(); }, 200);
     });
   }
 }
@@ -179,12 +210,304 @@ function renderRegisterList() {
   area.innerHTML = html;
 }
 
+/* ===== SHARED DESKTOP UTILITIES (Phase 8B) ===== */
+function _renderDetailEmpty() {
+  return '<div class="inv-detail-empty">' +
+    '<svg class="inv-detail-empty-icon" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">' +
+    '<path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>' +
+    '<div class="inv-detail-empty-text">Select an item to view details</div></div>';
+}
+
+function _restorePanelWidth(masterId, tabKey) {
+  var widths = regFilter.desktopPanelWidths;
+  if (!widths || !widths[tabKey]) return;
+  var master = document.getElementById(masterId);
+  if (master) master.style.width = (widths[tabKey] * 100) + '%';
+}
+
+function _initDragHandle(handleId, masterId, detailId, tabKey) {
+  var handle = document.getElementById(handleId);
+  if (!handle || handle.dataset.dragInit) return;
+  handle.dataset.dragInit = 'true';
+
+  function onStart(e) {
+    e.preventDefault();
+    var container = handle.parentElement;
+    var startX = e.clientX || e.touches[0].clientX;
+    _dragState = {
+      startX: startX,
+      containerW: container.offsetWidth,
+      masterStart: document.getElementById(masterId).offsetWidth,
+      masterId: masterId, tabKey: tabKey
+    };
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+  }
+
+  handle.addEventListener('mousedown', onStart);
+  handle.addEventListener('touchstart', onStart, { passive: false });
+}
+
+/* ===== REGISTER DESKTOP TABLE (Phase 8C) ===== */
+function _buildRegisterTableHtml() {
+  var filtered = getFilteredInvoices();
+  var activeFiltered = filtered.filter(function(i) { return i.status === 'active'; });
+  var activeCount = activeFiltered.length;
+  var activeRevenue = gstRound(activeFiltered.reduce(function(s, i) { return s + (i.taxableValue || 0); }, 0));
+
+  var html = '<div class="inv-reg-summary">' +
+    '<span class="inv-reg-summary-label">' + activeCount + ' active invoice' + (activeCount !== 1 ? 's' : '') + '</span>' +
+    '<span class="inv-reg-summary-value">Taxable: ' + formatCurrency(activeRevenue) + '</span></div>';
+
+  if (filtered.length === 0) {
+    html += '<div class="inv-empty-state">No invoices found</div>';
+    return html;
+  }
+
+  var sc = getRegSortConfig();
+
+  html += '<table class="inv-desktop-table"><thead><tr>';
+  html += '<th class="inv-th inv-td-check"></th>';
+  html += '<th class="inv-th inv-td-num">#</th>';
+
+  var cols = [
+    { key: 'client', label: 'Client', cls: '' },
+    { key: 'date', label: 'Date', cls: 'inv-td-date' },
+    { key: 'taxable', label: 'Taxable', cls: 'inv-td-amount inv-th-amount' },
+    { key: 'total', label: 'Total', cls: 'inv-td-amount inv-th-amount' },
+    { key: 'state', label: 'State', cls: 'inv-td-state' }
+  ];
+  cols.forEach(function(c) {
+    html += '<th class="inv-th inv-th-sortable' + (c.cls ? ' ' + c.cls : '') + '" data-action="invDesktopSort" data-col="' + c.key + '">' +
+      c.label + (sc.col === c.key ? '<span class="inv-sort-arrow">' + (sc.dir === 'asc' ? '\u25B2' : '\u25BC') + '</span>' : '') +
+      '</th>';
+  });
+  html += '</tr></thead><tbody>';
+
+  filtered.forEach(function(inv) {
+    var cancelled = inv.status === 'cancelled';
+    var isActive = _regActiveInvId === inv.id;
+    var isSelected = !!_regSelected[inv.id];
+    html += '<tr class="inv-tr' + (isActive ? ' inv-tr-active' : '') + (cancelled ? ' inv-tr-cancelled' : '') + '" data-id="' + escHtml(inv.id) + '">';
+    html += '<td class="inv-td inv-td-check"><input type="checkbox" data-action="invRegToggleInv" data-id="' + escHtml(inv.id) + '"' + (isSelected ? ' checked' : '') + '></td>';
+    html += '<td class="inv-td inv-td-num" data-action="invSelectRegRow" data-id="' + escHtml(inv.id) + '">' + escHtml(inv.displayNumber) + '</td>';
+    html += '<td class="inv-td" data-action="invSelectRegRow" data-id="' + escHtml(inv.id) + '">' + escHtml(inv.clientName) + '</td>';
+    html += '<td class="inv-td inv-td-date" data-action="invSelectRegRow" data-id="' + escHtml(inv.id) + '">' + formatDate(inv.date) + '</td>';
+    html += '<td class="inv-td inv-td-amount" data-action="invSelectRegRow" data-id="' + escHtml(inv.id) + '">' + formatCurrency(inv.taxableValue) + '</td>';
+    html += '<td class="inv-td inv-td-amount" data-action="invSelectRegRow" data-id="' + escHtml(inv.id) + '">' + formatCurrency(inv.grandTotal) + '</td>';
+    html += '<td class="inv-td inv-td-state" data-action="invSelectRegRow" data-id="' + escHtml(inv.id) + '">' + getStateBadgeHtml(inv) + '</td>';
+    html += '</tr>';
+  });
+
+  html += '</tbody></table>';
+
+  html += '<div class="inv-reg-export-bar">' +
+    '<button class="inv-btn inv-btn-ghost" data-action="invExportSales">Sales Register CSV</button>' +
+    '<button class="inv-btn inv-btn-ghost" data-action="invExportGstr1">GSTR1 CSV</button></div>' +
+    '<div class="inv-reg-export-bar">' +
+    '<button class="inv-btn inv-btn-ghost" data-action="invBulkMarkFiled">Bulk Mark Filed</button></div>';
+
+  return html;
+}
+
+/* Render invoice detail inline in #regDetail (Phase 8C) */
+function _renderRegDetail(invId, skipMasterRefresh) {
+  var inv = S.invoices.find(function(i) { return i.id === invId; });
+  if (!inv) {
+    _regActiveInvId = null;
+    var detail = document.getElementById('regDetail');
+    if (detail) detail.innerHTML = _renderDetailEmpty();
+    if (!skipMasterRefresh) {
+      var master = document.getElementById('regMaster');
+      if (master) master.innerHTML = _buildRegisterTableHtml();
+    }
+    return;
+  }
+
+  _regActiveInvId = invId;
+  var d = formatInvoiceData(inv);
+
+  var html = '';
+
+  // Cancelled warning
+  if (d.cancelled) {
+    html += '<div class="inv-confirm-warn">This invoice was cancelled on ' +
+      escHtml(d.cancelledAt || 'unknown date') +
+      '. It cannot be edited.</div>';
+  }
+
+  // Header info
+  html += '<div class="inv-detail-section">' +
+    '<div class="inv-form-row">' +
+    '<div><div class="inv-detail-label">Invoice No</div><div class="inv-detail-value-mono">' + escHtml(d.invoiceNumber) + '</div></div>' +
+    '<div><div class="inv-detail-label">Date</div><div class="inv-detail-value-mono">' + escHtml(d.date) + '</div></div></div></div>';
+
+  html += '<div class="inv-detail-section">' +
+    '<div class="inv-detail-label">Client</div>' +
+    '<div class="inv-detail-value">' + escHtml(d.clientName) + '</div>' +
+    '<div class="inv-detail-value-mono inv-text-muted inv-detail-gstin">' + escHtml(d.clientGSTIN) + '</div></div>';
+
+  // Lifecycle state timeline
+  if (!d.cancelled) {
+    var curState = getInvState(inv);
+    var curIdx = INV_STATES.indexOf(curState);
+    html += '<div class="inv-detail-section inv-state-timeline">' +
+      '<div class="inv-detail-label">Status</div>';
+    var stateData = [
+      { key: 'created', label: 'Created', ts: inv.createdAt },
+      { key: 'dispatched', label: 'Dispatched', ts: inv.dispatchedAt },
+      { key: 'delivered', label: 'Delivered', ts: inv.deliveredAt },
+      { key: 'filed', label: 'Filed', ts: inv.filedAt }
+    ];
+    stateData.forEach(function(sd, si) {
+      var done = si <= curIdx;
+      var isCurrent = si === curIdx;
+      html += '<div class="inv-state-step">' +
+        '<span class="inv-state-dot' + (done ? (isCurrent ? ' inv-state-dot-current' : ' inv-state-dot-done') : '') + '"></span>' +
+        '<span class="inv-state-step-label">' + escHtml(sd.label) + '</span>' +
+        (sd.ts ? '<span class="inv-state-step-date">' + formatTimestamp(sd.ts) + '</span>' : '') +
+        '</div>';
+    });
+    // Advance button
+    if (curIdx < INV_STATES.length - 1) {
+      var nextLabel = INV_STATE_LABELS[INV_STATES[curIdx + 1]];
+      html += '<div class="inv-btn-bar inv-mb-8"><button class="inv-btn inv-btn-primary inv-btn-sm" data-action="invAdvanceState" data-id="' + escHtml(inv.id) + '">Mark ' + escHtml(nextLabel) + '</button></div>';
+    }
+    html += '</div>';
+  }
+
+  // Line items table
+  html += '<div class="inv-detail-section">' +
+    '<div class="inv-detail-label">Line Items</div>' +
+    '<div class="inv-detail-items-wrap"><table class="inv-detail-items-table"><thead><tr>' +
+    '<th>Part</th><th>Qty</th><th>Unit</th><th>Rate</th><th>Amount</th></tr></thead><tbody>';
+  d.items.forEach(function(item) {
+    html += '<tr>' +
+      '<td>' + escHtml(item.desc) + '</td>' +
+      '<td class="inv-mono">' + escHtml(item.qty) + (item.nosQtyRaw && item.nosQtyRaw > 0 ? ' <span class="inv-text-muted">(' + escHtml(item.nosQtyRaw) + ' NOS)</span>' : '') + '</td>' +
+      '<td>' + escHtml(item.unit) + '</td>' +
+      '<td class="inv-mono">' + escHtml(item.rate) + '</td>' +
+      '<td class="inv-mono">' + escHtml(item.amount) + '</td></tr>';
+  });
+  html += '</tbody></table></div></div>';
+
+  // Totals
+  html += '<div class="inv-detail-section"><div class="inv-totals">' +
+    '<div class="inv-total-row"><span class="inv-total-label">Taxable Value</span><span class="inv-total-value">' + escHtml(d.taxableValue) + '</span></div>';
+  if (d.gstType === 'intra') {
+    html += '<div class="inv-total-row"><span class="inv-total-label">CGST @ ' + d.cgstPer + '%</span><span class="inv-total-value">' + escHtml(d.cgstAmt) + '</span></div>' +
+      '<div class="inv-total-row"><span class="inv-total-label">SGST @ ' + d.sgstPer + '%</span><span class="inv-total-value">' + escHtml(d.sgstAmt) + '</span></div>';
+  } else {
+    html += '<div class="inv-total-row"><span class="inv-total-label">IGST @ ' + d.igstPer + '%</span><span class="inv-total-value">' + escHtml(d.igstAmt) + '</span></div>';
+  }
+  html += '<div class="inv-total-row inv-total-row-grand"><span class="inv-total-label">Grand Total</span>' +
+    '<span class="inv-total-grand">' + escHtml(d.grandTotal) + '</span></div></div></div>';
+
+  // Optional fields
+  var optFields = [
+    ['Challan No', d.challanNo], ['Challan Date', d.challanDate],
+    ['Remarks', d.remarks]
+  ].filter(function(f) { return f[1]; });
+  if (optFields.length > 0) {
+    html += '<div class="inv-detail-section">';
+    optFields.forEach(function(f) {
+      html += '<div class="inv-detail-label">' + escHtml(f[0]) + '</div>' +
+        '<div class="inv-detail-value">' + escHtml(f[1]) + '</div>';
+    });
+    html += '</div>';
+  }
+
+  // Action buttons
+  html += '<div class="inv-detail-actions">';
+  if (!d.cancelled) {
+    html += '<button class="inv-btn inv-btn-primary" data-action="invEditInvoice" data-id="' + escHtml(inv.id) + '">Edit</button>';
+    html += '<button class="inv-btn inv-btn-ghost" data-action="invPreviewInvoice" data-id="' + escHtml(inv.id) + '">Preview</button>';
+    html += '<button class="inv-btn inv-btn-ghost" data-action="invCancelInvoice" data-id="' + escHtml(inv.id) + '">Cancel Invoice</button>';
+  } else {
+    html += '<button class="inv-btn inv-btn-ghost" data-action="invPreviewInvoice" data-id="' + escHtml(inv.id) + '">Preview</button>';
+  }
+  html += '<button class="inv-btn inv-btn-danger" data-action="invDeleteInvoice" data-id="' + escHtml(inv.id) + '">Delete</button>';
+  html += '</div>';
+
+  var detailEl = document.getElementById('regDetail');
+  if (detailEl) detailEl.innerHTML = html;
+
+  // Update master to show active row highlight
+  if (!skipMasterRefresh) {
+    var masterEl = document.getElementById('regMaster');
+    if (masterEl) masterEl.innerHTML = _buildRegisterTableHtml();
+  }
+}
+
+function renderRegisterTable() {
+  var area = document.getElementById('regList');
+  if (!area) return;
+
+  if (!_regToolbarRendered) {
+    renderRegisterToolbar();
+    _regToolbarRendered = true;
+  }
+
+  var wrapper = document.getElementById('regMasterDetail');
+  if (!wrapper) {
+    // First render — build wrapper, init drag, restore width
+    area.innerHTML =
+      '<div class="inv-master-detail" id="regMasterDetail">' +
+        '<div class="inv-master" id="regMaster"></div>' +
+        '<div class="inv-drag-handle" id="regDragHandle"></div>' +
+        '<div class="inv-detail" id="regDetail">' + _renderDetailEmpty() + '</div>' +
+      '</div>';
+    _initDragHandle('regDragHandle', 'regMaster', 'regDetail', 'pageRegister');
+    _restorePanelWidth('regMaster', 'pageRegister');
+  }
+
+  // Re-render master content
+  var master = document.getElementById('regMaster');
+  if (!master) return;
+  master.innerHTML = _buildRegisterTableHtml();
+
+  // Detail panel validation: keep detail in sync with data changes
+  if (_regActiveInvId) {
+    var stillExists = S.invoices.find(function(i) { return i.id === _regActiveInvId; });
+    if (!stillExists) {
+      // Deleted — clear detail
+      _regActiveInvId = null;
+      var detail = document.getElementById('regDetail');
+      if (detail) detail.innerHTML = _renderDetailEmpty();
+    } else {
+      // Check if active invoice is still in filtered set
+      var filtered = getFilteredInvoices();
+      var inFiltered = filtered.find(function(i) { return i.id === _regActiveInvId; });
+      if (!inFiltered) {
+        // Filtered out — clear detail
+        _regActiveInvId = null;
+        var detail2 = document.getElementById('regDetail');
+        if (detail2) detail2.innerHTML = _renderDetailEmpty();
+      } else {
+        // Still visible — refresh detail content (skip master since we just rendered it)
+        _renderRegDetail(_regActiveInvId, true);
+      }
+    }
+  }
+
+  _renderRegSelBar();
+}
+
+/* View dispatcher (Phase 8B) */
+function _renderRegView() {
+  _isDesktop ? renderRegisterTable() : renderRegisterList();
+}
+
 /* Backward-compat: renderRegister calls both */
 function renderRegister() {
+  if (_isDesktop) {
+    renderRegisterTable();
+    return;
+  }
   _regToolbarRendered = false;
   renderRegisterToolbar();
   _regToolbarRendered = true;
-  renderRegisterList();
+  _renderRegView();
 }
 
 /* --- Register bulk selection (Phase 6b) --- */
@@ -194,14 +517,14 @@ function toggleRegSelectMode() {
   _regToolbarRendered = false;
   renderRegisterToolbar();
   _regToolbarRendered = true;
-  renderRegisterList();
+  _renderRegView();
   _renderRegSelBar();
 }
 
 function toggleRegInv(invId) {
   _regSelected[invId] = !_regSelected[invId];
   if (!_regSelected[invId]) delete _regSelected[invId];
-  renderRegisterList();
+  _renderRegView();
   _renderRegSelBar();
 }
 
@@ -209,7 +532,7 @@ function _renderRegSelBar() {
   var bar = document.getElementById('regSelBar');
   if (!bar) return;
   var ids = Object.keys(_regSelected).filter(function(k) { return _regSelected[k]; });
-  if (ids.length === 0 || !_regSelectMode) { bar.innerHTML = ''; return; }
+  if (ids.length === 0 || (!_isDesktop && !_regSelectMode)) { bar.innerHTML = ''; return; }
 
   // Determine what state transitions are available
   var canDispatch = 0;
@@ -261,7 +584,7 @@ function regBulkSetState(targetState) {
   if (updated > 0) {
     saveState();
     _regSelected = {};
-    renderRegisterList();
+    _renderRegView();
     _renderRegSelBar();
     showToast(updated + ' invoice' + (updated !== 1 ? 's' : '') + ' marked as ' + INV_STATE_LABELS[targetState]);
   }
@@ -273,7 +596,7 @@ function toggleRegSortDir() {
   _regToolbarRendered = false;
   renderRegisterToolbar();
   _regToolbarRendered = true;
-  renderRegisterList();
+  _renderRegView();
 }
 
 /* Invoice detail overlay (Read intent) — consumes formatInvoiceData (Phase 5 refactor) */

@@ -17,6 +17,8 @@ function switchTab(tabId) {
   // Step 3: Deactivate all tabs and pages
   document.querySelectorAll('.inv-page').forEach(p => p.classList.remove('inv-page-active'));
   document.querySelectorAll('.inv-tab').forEach(t => t.classList.remove('inv-tab-active'));
+  // Phase 8A: Deactivate sidebar items
+  document.querySelectorAll('.inv-sidebar-item').forEach(s => s.classList.remove('inv-sidebar-active'));
 
   // Step 4: Read and clear _navReturnTab
   const returnTab = _navReturnTab;
@@ -27,6 +29,10 @@ function switchTab(tabId) {
   if (page) page.classList.add('inv-page-active');
   document.querySelectorAll('.inv-tab').forEach(t => {
     if (t.dataset.tab === tabId) t.classList.add('inv-tab-active');
+  });
+  // Phase 8A: Activate sidebar item
+  document.querySelectorAll('.inv-sidebar-item').forEach(s => {
+    if (s.dataset.tab === tabId) s.classList.add('inv-sidebar-active');
   });
 
   // Step 5b: Persist active tab for refresh recovery (Phase 6b)
@@ -40,21 +46,30 @@ function switchTab(tabId) {
   if (tabId === 'pageHome') {
     if (isDirty) { renderHome(); _tabDirty.home = false; }
   } else if (tabId === 'pageRegister') {
-    if (!_regToolbarRendered) {
-      renderRegisterToolbar();
-      _regToolbarRendered = true;
+    if (_isDesktop) {
+      renderRegisterTable();
+      _tabDirty.register = false;
+    } else {
+      if (!_regToolbarRendered) {
+        renderRegisterToolbar();
+        _regToolbarRendered = true;
+      }
+      if (isDirty) { renderRegisterList(); _tabDirty.register = false; }
     }
-    if (isDirty) { renderRegisterList(); _tabDirty.register = false; }
   } else if (tabId === 'pageClients') {
     renderClientsPage();
   } else if (tabId === 'pageIM') {
     // Cancel any in-progress challan form
     if (_challanForm) cancelAddChallan();
-    if (!_imToolbarRendered) {
-      renderIMToolbar();
-      _imToolbarRendered = true;
+    if (_isDesktop) {
+      renderIMTable();
+    } else {
+      if (!_imToolbarRendered) {
+        renderIMToolbar();
+        _imToolbarRendered = true;
+      }
+      renderIMList();
     }
-    renderIMList();
   } else if (tabId === 'pageCreate') {
     if (!document.getElementById('createFormArea').innerHTML) initCreateForm();
   } else if (tabId === 'pageStats') {

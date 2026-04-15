@@ -56,7 +56,7 @@ document.addEventListener('click', function(e) {
       if (mf) regFilter.month = mf.value;
       if (sf) regFilter.state = sf.value;
       saveRegFilter();
-      renderRegisterList();
+      _renderRegView();
       break;
     }
     case 'invToggleIM': toggleIMExpand(btn.dataset.id); break;
@@ -68,7 +68,7 @@ document.addEventListener('click', function(e) {
       const isf = document.getElementById('imStatusFilter');
       if (icf) _imFilter.clientId = icf.value;
       if (isf) _imFilter.status = isf.value;
-      renderIMList();
+      _renderIMView();
       break;
     }
     // Phase 4: Print preview
@@ -114,13 +114,85 @@ document.addEventListener('click', function(e) {
     // Phase 5: Invoice lifecycle states
     case 'invAdvanceState': advanceInvoiceState(btn.dataset.id); break;
     case 'invBulkMarkFiled': bulkMarkFiled(); break;
-    // Phase 5: History filter
-    case 'invFilterHistory': {
-      var hcf = document.getElementById('historyClientFilter');
-      if (hcf) _historyClientFilter = hcf.value;
-      renderHistory();
+    // Phase 7: Stats period chips
+    case 'invStatsPeriod': _statsPeriod = btn.dataset.period; renderStats(); break;
+    // Phase 7: Client drill-down overlay
+    case 'invStatsClientDrill': openClientDrillOverlay(btn.dataset.clientId); break;
+    // Phase 7: Flippable card
+    case 'invFlipCard': {
+      var inner = document.querySelector('.inv-flip-inner');
+      if (!inner) break;
+      var front = inner.querySelector('.inv-flip-front');
+      var back = inner.querySelector('.inv-flip-back');
+      if (!front || !back) break;
+      var showingFront = !front.classList.contains('inv-flip-hidden');
+      var outFace = showingFront ? front : back;
+      var inFace = showingFront ? back : front;
+      outFace.classList.add('inv-flip-out');
+      setTimeout(function() {
+        outFace.classList.remove('inv-flip-out');
+        outFace.classList.add('inv-flip-hidden');
+        outFace.classList.remove('inv-flip-visible');
+        inFace.classList.remove('inv-flip-hidden');
+        inFace.classList.add('inv-flip-visible', 'inv-flip-in');
+        setTimeout(function() { inFace.classList.remove('inv-flip-in'); }, 250);
+      }, 250);
       break;
     }
+    // Phase 7: Stats actions
+    case 'invStatsCreateInvoice': {
+      closeOverlay();
+      _preselectedClientId = btn.dataset.clientId;
+      switchTab('pageCreate');
+      break;
+    }
+    case 'invStatsJumpRegister': {
+      closeOverlay();
+      regFilter.clientId = btn.dataset.clientId;
+      regFilter.search = '';
+      regFilter.state = '';
+      saveRegFilter();
+      _tabDirty.register = true;
+      _regToolbarRendered = false;
+      switchTab('pageRegister');
+      break;
+    }
+    case 'invStatsJumpIM': {
+      closeOverlay();
+      _imFilter.clientId = btn.dataset.clientId;
+      _imToolbarRendered = false;
+      switchTab('pageIM');
+      break;
+    }
+    // Phase 7: History navigation
+    case 'invHistoryJumpInvoice': {
+      var inv = S.invoices.find(function(i) { return i.id === btn.dataset.id; });
+      if (!inv) { showToast('Invoice not found', 'warning'); break; }
+      regFilter.clientId = '';
+      regFilter.search = inv.displayNumber || '';
+      regFilter.state = '';
+      saveRegFilter();
+      _tabDirty.register = true;
+      _regToolbarRendered = false;
+      switchTab('pageRegister');
+      break;
+    }
+    case 'invHistoryJumpChallan': {
+      var imId = btn.dataset.id;
+      var im = (S.incomingMaterial || []).find(function(c) { return c.id === imId; });
+      if (!im) { showToast('Challan not found', 'warning'); break; }
+      _imFilter.clientId = String(im.clientId);
+      _imToolbarRendered = false;
+      switchTab('pageIM');
+      setTimeout(function() {
+        var hdr = document.querySelector('[data-action="invToggleIM"][data-id="' + imId + '"]');
+        var card = hdr ? hdr.closest('.inv-im-challan') : null;
+        if (card) card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }, 100);
+      break;
+    }
+    // Phase 7: History load more
+    case 'invHistoryLoadMore': _historyShowCount += 50; renderHistory(); break;
     // Phase 4: Challan Scanner
     case 'invScanChallan': scanChallan(); break;
     case 'invToggleApiKey': {
@@ -165,11 +237,39 @@ document.addEventListener('click', function(e) {
       if (sortEl) { regFilter.itemsSort = sortEl.value; saveRegFilter(); _itemsRendered = 0; _renderItemsList(); }
       break;
     }
+    // Phase 8E: Clients/Items desktop row selection
+    case 'invSelectClientRow': _renderClientDetail(parseInt(btn.dataset.id)); break;
+    case 'invSelectItemRow': _renderItemDetail(parseInt(btn.dataset.id)); break;
     // Phase 6b: Register bulk operations
     case 'invRegToggleSort': toggleRegSortDir(); break;
     case 'invRegToggleSelect': toggleRegSelectMode(); break;
     case 'invRegToggleInv': e.stopPropagation(); toggleRegInv(btn.dataset.id); break;
     case 'invRegBulkState': regBulkSetState(btn.dataset.state); break;
+    // Phase 8C: Desktop table interactions
+    case 'invSelectRegRow': _renderRegDetail(btn.dataset.id); break;
+    case 'invDesktopSort': {
+      if (!regFilter.desktopSort) regFilter.desktopSort = { col: 'date', dir: 'desc' };
+      if (regFilter.desktopSort.col === btn.dataset.col) {
+        regFilter.desktopSort.dir = regFilter.desktopSort.dir === 'desc' ? 'asc' : 'desc';
+      } else {
+        regFilter.desktopSort = { col: btn.dataset.col, dir: 'desc' };
+      }
+      saveRegFilter();
+      _renderRegView();
+      break;
+    }
+    // Phase 8D: IM desktop table interactions
+    case 'invSelectIMRow': _renderIMDetail(btn.dataset.id); break;
+    case 'invDesktopIMSort': {
+      if (!_imFilter.desktopSort) _imFilter.desktopSort = { col: 'date', dir: 'desc' };
+      if (_imFilter.desktopSort.col === btn.dataset.col) {
+        _imFilter.desktopSort.dir = _imFilter.desktopSort.dir === 'desc' ? 'asc' : 'desc';
+      } else {
+        _imFilter.desktopSort = { col: btn.dataset.col, dir: 'desc' };
+      }
+      _renderIMView();
+      break;
+    }
   }
 });
 
@@ -254,7 +354,7 @@ document.addEventListener('change', function(e) {
     if (mf) regFilter.month = mf.value;
     if (sf) regFilter.state = sf.value;
     saveRegFilter();
-    renderRegisterList();
+    _renderRegView();
   }
   // IM filters
   if (e.target.id === 'imClientFilter' || e.target.id === 'imStatusFilter') {
@@ -262,7 +362,7 @@ document.addEventListener('change', function(e) {
     const isf = document.getElementById('imStatusFilter');
     if (icf) _imFilter.clientId = icf.value;
     if (isf) _imFilter.status = isf.value;
-    renderIMList();
+    _renderIMView();
   }
   // Phase 6: Items sort
   if (e.target.id === 'itemsSort') {
@@ -271,9 +371,20 @@ document.addEventListener('change', function(e) {
     _itemsRendered = 0;
     _renderItemsList();
   }
-  // Phase 5: History filter change
+  // Phase 7: History filter changes (client + date range)
   if (e.target.id === 'historyClientFilter') {
     _historyClientFilter = e.target.value;
+    _historyShowCount = 50;
+    renderHistory();
+  }
+  if (e.target.id === 'historyDateFrom') {
+    _historyDateFrom = e.target.value;
+    _historyShowCount = 50;
+    renderHistory();
+  }
+  if (e.target.id === 'historyDateTo') {
+    _historyDateTo = e.target.value;
+    _historyShowCount = 50;
     renderHistory();
   }
   // Phase 4: IM challan line unit change

@@ -90,12 +90,150 @@ if (!S._rateCleanup1) {
   saveJSON(STORAGE_KEY, S);
 }
 
+/* ===== LAYOUT MODE (Phase 8A) ===== */
+var _resizeTimer = null;
+
+function updateLayoutMode() {
+  var w = window.innerWidth;
+  var newDesktop = w >= 1024;
+  var newTablet = w >= 768 && w < 1024;
+
+  // No mode change — just update tablet class
+  if (newDesktop === _isDesktop) {
+    _isTablet = newTablet;
+    document.body.classList.toggle('inv-tablet', _isTablet);
+    return;
+  }
+
+  // Mode change — defer if overlay or form is active
+  if (document.querySelector('.inv-overlay-scrim') || _challanForm) {
+    _pendingModeSwitch = true;
+    return;
+  }
+
+  _applyModeSwitch(newDesktop, newTablet);
+}
+
+function _applyModeSwitch(newDesktop, newTablet) {
+  _isDesktop = newDesktop;
+  _isTablet = newTablet;
+  document.body.classList.toggle('inv-desktop', _isDesktop);
+  document.body.classList.toggle('inv-tablet', _isTablet);
+  _regToolbarRendered = false;
+  _imToolbarRendered = false;
+  renderSidebar();
+  switchTab(regFilter.activeTab || 'pageHome');
+}
+
+function renderSidebar() {
+  var existing = document.getElementById('invSidebar');
+  if (existing) existing.remove();
+  if (!_isDesktop) return;
+
+  var tabs = [
+    { id: 'pageHome', label: 'Home', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg>' },
+    { id: 'pageCreate', label: 'Create', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>' },
+    { id: 'pageIM', label: 'IM', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/></svg>' },
+    { id: 'pageRegister', label: 'Register', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>' },
+    { id: 'pageClients', label: 'Clients', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>' },
+    { id: 'pageStats', label: 'Stats', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 20V10"/><path d="M12 20V4"/><path d="M6 20v-6"/></svg>' },
+    { id: 'pageHistory', label: 'History', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>' }
+  ];
+
+  var activeTab = regFilter.activeTab || 'pageHome';
+  var html = '<div class="inv-sidebar-inner">';
+  tabs.forEach(function(t) {
+    var cls = 'inv-sidebar-item' + (t.id === activeTab ? ' inv-sidebar-active' : '');
+    html += '<button class="' + cls + '" data-action="invSwitchTab" data-tab="' + t.id + '">' +
+      t.icon + '<span class="inv-sidebar-label">' + escHtml(t.label) + '</span></button>';
+  });
+  html += '<div class="inv-sidebar-spacer"></div>';
+  html += '<button class="inv-sidebar-item" data-action="invOpenSettings">' +
+    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg>' +
+    '<span class="inv-sidebar-label">Settings</span></button>';
+  html += '</div>';
+
+  var sidebar = document.createElement('nav');
+  sidebar.className = 'inv-sidebar';
+  sidebar.id = 'invSidebar';
+  sidebar.innerHTML = html;
+  document.body.insertBefore(sidebar, document.body.firstChild);
+
+  // Touch-desktop fallback
+  sidebar.addEventListener('click', function(e) {
+    if (e.target.closest('[data-action]')) {
+      // Nav click — collapse after navigation on touch devices
+      if (!window.matchMedia('(hover: hover)').matches) {
+        sidebar.classList.remove('inv-sidebar-expanded');
+      }
+      return;
+    }
+    // Background tap — toggle expand/collapse
+    if (!window.matchMedia('(hover: hover)').matches) {
+      sidebar.classList.toggle('inv-sidebar-expanded');
+    }
+  });
+}
+
+// One-time outside-tap handler for sidebar collapse
+document.addEventListener('click', function(e) {
+  var sb = document.getElementById('invSidebar');
+  if (sb && !sb.contains(e.target)) {
+    sb.classList.remove('inv-sidebar-expanded');
+  }
+});
+
+/* ===== GLOBAL DRAG HANDLERS (Phase 8B) ===== */
+function _onDragMove(clientX) {
+  if (!_dragState) return;
+  var dx = clientX - _dragState.startX;
+  var newW = _dragState.masterStart + dx;
+  var minMaster = 280, minDetail = 320;
+  var maxMaster = _dragState.containerW - minDetail;
+  newW = Math.max(minMaster, Math.min(maxMaster, newW));
+  document.getElementById(_dragState.masterId).style.width = (newW / _dragState.containerW * 100) + '%';
+}
+
+function _onDragEnd() {
+  if (!_dragState) return;
+  var master = document.getElementById(_dragState.masterId);
+  var ratio = master.offsetWidth / master.parentElement.offsetWidth;
+  if (!regFilter.desktopPanelWidths) regFilter.desktopPanelWidths = {};
+  regFilter.desktopPanelWidths[_dragState.tabKey] = ratio;
+  saveRegFilter();
+  document.body.style.cursor = '';
+  document.body.style.userSelect = '';
+  _dragState = null;
+}
+
+document.addEventListener('mousemove', function(e) { _onDragMove(e.clientX); });
+document.addEventListener('mouseup', _onDragEnd);
+document.addEventListener('touchmove', function(e) {
+  if (!_dragState) return;
+  e.preventDefault();
+  _onDragMove(e.touches[0].clientX);
+}, { passive: false });
+document.addEventListener('touchend', _onDragEnd);
+
+// Debounced ResizeObserver
+new ResizeObserver(function() {
+  clearTimeout(_resizeTimer);
+  _resizeTimer = setTimeout(updateLayoutMode, 150);
+}).observe(document.documentElement);
+
+// Initial layout detection (no debounce)
+updateLayoutMode();
+
 /* Phase 6b: Restore active tab on refresh */
-var _savedTab = regFilter.activeTab || 'pageHome';
-if (_savedTab !== 'pageHome' && document.getElementById(_savedTab)) {
-  switchTab(_savedTab);
-} else {
-  renderHome();
+// If updateLayoutMode triggered _applyModeSwitch, it already called switchTab.
+// Only do manual restore if we're still on mobile (no mode switch happened).
+if (!_isDesktop) {
+  var _savedTab = regFilter.activeTab || 'pageHome';
+  if (_savedTab !== 'pageHome' && document.getElementById(_savedTab)) {
+    switchTab(_savedTab);
+  } else {
+    renderHome();
+  }
 }
 
 if ('serviceWorker' in navigator) {

@@ -8,6 +8,12 @@ let invoiceForm = {
 
 function initCreateForm() {
   invoiceForm = {clientId:null, date:localDateStr(), items:[], poNumber:'',poDate:localDateStr(),challanNo:'',challanDate:localDateStr(),despatchDate:localDateStr(),transport:'',eWayBill:'',remarks:'',editingId:null};
+  // Phase 7: Pre-select client from Stats drill-down
+  if (_preselectedClientId) {
+    var pc = S.clients.find(function(c) { return c.id === parseInt(_preselectedClientId); });
+    if (pc) invoiceForm.clientId = pc.id;
+    _preselectedClientId = null;
+  }
   renderCreateForm();
 }
 

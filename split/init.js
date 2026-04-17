@@ -90,6 +90,12 @@ if (!S._rateCleanup1) {
   saveJSON(STORAGE_KEY, S);
 }
 
+/* Phase 9: Default cost per KG for margin dashboard (IL-4) — idempotent */
+if (S.defaultCostPerKg === undefined) {
+  S.defaultCostPerKg = 5.46;
+  saveJSON(STORAGE_KEY, S);
+}
+
 /* ===== LAYOUT MODE (Phase 8A) ===== */
 var _resizeTimer = null;
 

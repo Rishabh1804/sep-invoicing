@@ -22,6 +22,11 @@ function openSettings() {
     '<div class="inv-text-muted inv-prefix-preview">Preview: ' + escHtml(S.invPrefix) + String(S.invNextNum).padStart(5,'0') + '</div>' +
     '<div class="inv-form-group"><label class="inv-form-label">Next Number</label><input type="number" class="inv-form-input inv-mono" id="setNextNum" value="' + S.invNextNum + '"></div></div>' +
 
+    '<div class="inv-settings-section"><div class="inv-settings-title">Cost of Goods</div>' +
+    '<div class="inv-form-group"><label class="inv-form-label">Default cost per KG (&#8377;)</label>' +
+    '<input type="number" step="0.01" class="inv-form-input inv-mono" id="setDefaultCost" value="' + (S.defaultCostPerKg || 5.46) + '"></div>' +
+    '<div class="inv-text-muted inv-storage-text">Used by margin dashboard to compute per-item profitability.</div></div>' +
+
     '<div class="inv-settings-section"><div class="inv-settings-title">Part Weights (NOS to KG)</div>' +
     '<div id="setPWList">' + renderPartWeightsList() + '</div>' +
     '<div class="inv-form-row inv-mb-8"><div class="inv-form-group"><label class="inv-form-label">Part Number</label><input class="inv-form-input inv-mono" id="setPWPart" placeholder="HINGE PIN"></div>' +
@@ -59,6 +64,8 @@ function saveSettings() {
   S.bankDetails = document.getElementById('setBank').value.trim();
   S.invPrefix = document.getElementById('setPrefix').value.trim();
   S.invNextNum = parseInt(document.getElementById('setNextNum').value) || S.invNextNum;
+  var costEl = document.getElementById('setDefaultCost');
+  if (costEl) { var parsedCost = parseFloat(costEl.value); if (!isNaN(parsedCost) && parsedCost > 0) S.defaultCostPerKg = parsedCost; }
   var apiKeyEl = document.getElementById('setApiKey');
   if (apiKeyEl) setApiKey(apiKeyEl.value.trim());
   saveState();

@@ -12,7 +12,8 @@ function getDefaultState() {
     items: ITEMS_MASTER.map(i => ({id:i.id,partNumber:i.p,desc:i.d,hsn:i.h,unit:i.u,rate:i.r,stdWeightKg:null})),
     partWeights: {},
     incomingMaterial: [],
-    invoices: []
+    invoices: [],
+    defaultCostPerKg: 5.46
   };
 }
 

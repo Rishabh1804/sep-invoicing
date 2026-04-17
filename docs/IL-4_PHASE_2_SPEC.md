@@ -1,13 +1,15 @@
 # IL-4 Phase 2 — Margin Dashboard (Spec)
 
-**Status:** Draft v0.2 — post-Cipher review (all blockers resolved)
+**Status:** v0.3 — **APPROVED, build-ready**
 **Author:** Solara (The Strategist)
 **Reviewer:** Cipher (The Codewright)
+**Approved by:** Rishabh Jain (Architect) — all 5 open questions resolved.
 **Branch:** `claude/introduction-pIyfV`
 **Depends on:** IL-4 Phase 1 (commit `505a689`) — `S.defaultCostPerKg` plumbed (init.js:93-96 idempotent seed to 5.46).
 **Target repo:** SEP Invoicing (7.1K LOC, below 30K Governor threshold)
 
 ### Revision log
+- **v0.3 (Architect sign-off):** All 5 §13 questions resolved with Solara's defaults (20% green cutoff, M3 trigger `< 10`, inclusive unknowns, baseline-edit logging deferred to Phase 3, by-line worst-lines). Spec is locked.
 - **v0.2 (post-Cipher):** Fixed 5 blockers + 2 strong recommends + 1 cosmetic. Margin KPI moved to flip-card back-face (HIGH #1). Baseline-null short-circuit lifted to card level (HIGH #2). `invOpenInvoice` → `invViewInvoiceDetail` (HIGH #4, verified events.js:42, invoice-ops.js:603). Back-face Margin Breakdown tap behaviour defined (HIGH #5). `_tabDirty.stats` key added — state.js:42 now listed as touched (MEDIUM #6). M2 secondary sort by marginPct (MEDIUM #9). `.inv-svg-bar-margin-pos/-neg` (MEDIUM #10). §7 wording fixed (LOW #11).
 - **v0.1:** Initial draft.
 
@@ -480,17 +482,17 @@ Cards M1 / M2 / M3 and the flip-card KPI consume these functions. No calc in the
 
 ---
 
-## 13. Open Questions (for the Architect)
+## 13. Decisions (resolved by the Architect)
 
-1. **Margin % thresholds for colour bands.** Spec uses `<0 = red, 0–20 = amber, ≥20 = green`. Is 20% the right cutoff for "healthy"? Operating margin is ~31% per Memory.md — should the thin band be 0–25%?
+1. **Margin % colour bands — LOCKED as `<0 red · 0–20% amber · ≥20% green`.** Keeping 20% as the "healthy" threshold. Rationale: 31% operating-margin anchor from Memory.md is blended; per-invoice variance makes a 25% floor too aggressive and invites goalpost drift.
 
-2. **Card M3 trigger threshold.** Spec shows M3 only when any line has margin% < 10. Should it be `< 0` (bleeding only) or `< 15` (thin-or-worse)?
+2. **Card M3 trigger — LOCKED at `margin% < 10`.** Captures bleeders and near-bleeders. `< 0` misses the SSS-Mehta-adjacent clients drifting toward underwater; `< 15` produces noise.
 
-3. **Unknowns policy in client M2.** Current choice: include client even if all lines are unknown, show `—` and flag footer. Alternative: hide clients with 100% unknown lines from ranking entirely. Architect's call.
+3. **Unknowns in M2 — LOCKED inclusive.** Clients with 100% unknown-cost lines stay in the ranking with `—` and unknown tag, plus footer count. Honesty beats tidiness — surfacing unknowns drives weight registration in Items Master.
 
-4. **Settings baseline edit during active period.** Should changing `defaultCostPerKg` trigger a one-line activity log entry in History? (Phase 3 candidate if yes.)
+4. **Baseline-edit logging — DEFERRED to Phase 3.** `defaultCostPerKg` changes do not emit a History entry in Phase 2. Revisit as part of the cost-override work.
 
-5. **Worst-lines card — group by part or by line?** Currently by line (same part on two invoices shows twice). Aggregating by part is IL-5 territory.
+5. **Worst-lines aggregation — LOCKED by-line.** Same part on two invoices shows twice. Part-level aggregation is IL-5 territory.
 
 ---
 
@@ -501,11 +503,11 @@ Cards M1 / M2 / M3 and the flip-card KPI consume these functions. No calc in the
 | Draft v0.1 | Solara | complete |
 | Spec review | Cipher | complete — APPROVE WITH FIXES |
 | Draft v0.2 (blockers resolved) | Solara | complete |
-| Architect approval | Rishabh Jain | pending |
-| Build | Solara | pending |
+| Architect approval | Rishabh Jain | complete — v0.3 locked |
+| Build | Solara | next |
 | Post-build QA | Cipher | pending |
 | Deploy & handoff doc | Solara | pending |
 
 ---
 
-*End of IL-4 Phase 2 spec v0.2. Awaiting Architect approval before build.*
+*End of IL-4 Phase 2 spec v0.3. Locked and build-ready.*

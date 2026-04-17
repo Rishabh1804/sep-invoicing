@@ -50,11 +50,3 @@ self.addEventListener('fetch', e => {
     caches.match(req).then(cached => cached || fetch(req))
   );
 });
-
-v25 violated Canon 0034 by pre-caching HTML and cloning every navigation
-response into the cache. v26: network-only navigate handler, removed HTML
-from pre-cache, added Gemini API bypass, bumped CACHE_NAME to force old-cache
-eviction. No offline cold-start (accepted per canon); in-memory app still
-works offline once loaded.
-
-Closes ledger I-1, I-2.

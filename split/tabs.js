@@ -40,7 +40,7 @@ function switchTab(tabId) {
   saveRegFilter();
 
   // Step 6: Check dirty flag and re-render if needed
-  const tabKey = tabId === 'pageHome' ? 'home' : tabId === 'pageRegister' ? 'register' : null;
+  const tabKey = tabId === 'pageHome' ? 'home' : tabId === 'pageRegister' ? 'register' : tabId === 'pageStats' ? 'stats' : null;
   const isDirty = tabKey ? _tabDirty[tabKey] : true;
 
   if (tabId === 'pageHome') {
@@ -73,7 +73,7 @@ function switchTab(tabId) {
   } else if (tabId === 'pageCreate') {
     if (!document.getElementById('createFormArea').innerHTML) initCreateForm();
   } else if (tabId === 'pageStats') {
-    renderStats();
+    if (isDirty) { renderStats(); _tabDirty.stats = false; }
   } else if (tabId === 'pageHistory') {
     renderHistory();
   }

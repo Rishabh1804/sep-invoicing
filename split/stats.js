@@ -1,6 +1,222 @@
 /* ===== STATS (Phase 7 — Analytics Rework) ===== */
 var _statsPeriod = 'mtd';
 
+/* ===== MARGIN ENGINE (IL-4 Phase 2) ===== */
+function getDefaultCostPerKg() {
+  var v = parseFloat(S.defaultCostPerKg);
+  return isNaN(v) || v <= 0 ? null : v;
+}
+
+function computeLineCost(line, baseline) {
+  if (!line) return { costKg: 0, cost: 0, known: false };
+  var qty = Number(line.qty) || 0;
+  var costKg = 0, known = true;
+  if (line.unit === 'KG') {
+    costKg = qty;
+  } else if (line.unit === 'NOS') {
+    var pwKey = (line.partNumber || '').toUpperCase();
+    var pw = S.partWeights[pwKey];
+    if (pw && pw > 0) { costKg = qty * pw; }
+    else { known = false; }
+  } else {
+    known = false;
+  }
+  return { costKg: costKg, cost: gstRound(costKg * baseline), known: known };
+}
+
+function computeInvoiceMargin(inv) {
+  var baseline = getDefaultCostPerKg();
+  if (baseline == null) return null;
+  var lines = (inv.items || []).map(function(it) {
+    var c = computeLineCost(it, baseline);
+    var amt = Number(it.amount) || 0;
+    var margin = gstRound(amt - c.cost);
+    var pct = amt > 0 ? (margin / amt) * 100 : null;
+    return { line: it, costKg: c.costKg, cost: c.cost, margin: margin, pct: pct, known: c.known };
+  });
+  var costTotal = gstRound(lines.reduce(function(s, l) { return s + l.cost; }, 0));
+  var marginTotal = gstRound((inv.taxableValue || 0) - costTotal);
+  var base = inv.taxableValue || 0;
+  var marginPct = base > 0 ? (marginTotal / base) * 100 : null;
+  var unknowns = lines.filter(function(l) { return !l.known; });
+  return { costTotal: costTotal, marginTotal: marginTotal, marginPct: marginPct, lines: lines, unknowns: unknowns };
+}
+
+function marginClass(pct) {
+  if (pct == null) return 'inv-margin-unknown';
+  if (pct < 0) return 'inv-margin-negative';
+  if (pct < 20) return 'inv-margin-thin';
+  return 'inv-margin-positive';
+}
+
+function formatMarginPct(pct) {
+  if (pct == null) return '—';
+  return (pct >= 0 ? '' : '') + formatNum(pct, 1) + '%';
+}
+
+function buildPeriodMargin(invoices) {
+  var baseline = getDefaultCostPerKg();
+  if (baseline == null) return null;
+  var costTotal = 0, marginTotal = 0, revTotal = 0, unknownLines = 0, unknownInvoices = 0;
+  invoices.forEach(function(inv) {
+    var m = computeInvoiceMargin(inv);
+    if (!m) return;
+    costTotal += m.costTotal;
+    marginTotal += m.marginTotal;
+    revTotal += (inv.taxableValue || 0);
+    unknownLines += m.unknowns.length;
+    if (m.unknowns.length > 0) unknownInvoices++;
+  });
+  costTotal = gstRound(costTotal);
+  marginTotal = gstRound(marginTotal);
+  var marginPct = revTotal > 0 ? (marginTotal / revTotal) * 100 : null;
+  return { costTotal: costTotal, marginTotal: marginTotal, marginPct: marginPct, revTotal: revTotal, unknownLines: unknownLines, unknownInvoices: unknownInvoices };
+}
+
+function buildClientMargin(invoices) {
+  var baseline = getDefaultCostPerKg();
+  if (baseline == null) return [];
+  var byClient = {};
+  invoices.forEach(function(inv) {
+    var m = computeInvoiceMargin(inv);
+    if (!m) return;
+    var key = inv.clientId;
+    if (!byClient[key]) byClient[key] = { clientId: key, name: inv.clientName, rev: 0, cost: 0, margin: 0, unknowns: 0 };
+    byClient[key].rev += (inv.taxableValue || 0);
+    byClient[key].cost += m.costTotal;
+    byClient[key].margin += m.marginTotal;
+    byClient[key].unknowns += m.unknowns.length;
+  });
+  var arr = Object.keys(byClient).map(function(k) {
+    var r = byClient[k];
+    r.rev = gstRound(r.rev);
+    r.cost = gstRound(r.cost);
+    r.margin = gstRound(r.margin);
+    r.pct = r.rev > 0 ? (r.margin / r.rev) * 100 : null;
+    return r;
+  });
+  // Primary: negatives first (sorted by pct ascending). Secondary: positives by margin desc.
+  var negs = arr.filter(function(r) { return r.pct != null && r.pct < 0; })
+                .sort(function(a, b) { return (a.pct || 0) - (b.pct || 0); });
+  var poss = arr.filter(function(r) { return r.pct == null || r.pct >= 0; })
+                .sort(function(a, b) { return (b.margin || 0) - (a.margin || 0); });
+  return negs.concat(poss);
+}
+
+function buildWorstLines(invoices) {
+  var baseline = getDefaultCostPerKg();
+  if (baseline == null) return [];
+  var rows = [];
+  invoices.forEach(function(inv) {
+    var m = computeInvoiceMargin(inv);
+    if (!m) return;
+    m.lines.forEach(function(l) {
+      if (!l.known) return;
+      if (l.pct == null) return;
+      if (l.pct >= 10) return;
+      rows.push({
+        invId: inv.id, displayNumber: inv.displayNumber, date: inv.date, clientName: inv.clientName,
+        partNumber: l.line.partNumber || l.line.desc || '—',
+        qty: l.line.qty, rate: l.line.rate, unit: l.line.unit,
+        amount: l.line.amount, cost: l.cost, margin: l.margin, pct: l.pct
+      });
+    });
+  });
+  return rows.sort(function(a, b) { return (a.pct || 0) - (b.pct || 0); }).slice(0, 10);
+}
+
+function renderMarginBarSvg(ranked, maxAbs) {
+  if (ranked.length === 0) return '<div class="inv-text-muted">No margin data</div>';
+  var barH = 28, gap = 8, padTop = 4, padBot = 4;
+  var centerX = 200; // zero axis at x=200 of viewBox 400
+  var halfW = 180;   // max bar half-width
+  var totalH = padTop + ranked.length * (barH + gap) - gap + padBot;
+  var svg = '<svg class="inv-svg-chart" viewBox="0 0 400 ' + totalH + '" preserveAspectRatio="xMinYMin meet">';
+  svg += '<line x1="' + centerX + '" y1="' + padTop + '" x2="' + centerX + '" y2="' + (totalH - padBot) + '" class="inv-svg-axis-zero"/>';
+  ranked.forEach(function(r, i) {
+    var y = padTop + i * (barH + gap);
+    var w = (maxAbs > 0 && r.margin != null) ? Math.min(Math.abs(r.margin) / maxAbs, 1) * halfW : 0;
+    var neg = (r.margin || 0) < 0;
+    var barX = neg ? (centerX - w) : centerX;
+    var barClass = neg ? 'inv-svg-bar-margin-neg' : 'inv-svg-bar-margin-pos';
+    var labelX = neg ? (centerX - w - 6) : (centerX + w + 6);
+    var labelAnchor = neg ? 'end' : 'start';
+    var labelClass = neg ? 'inv-margin-bar-label-neg' : 'inv-margin-bar-label-pos';
+    var marginStr = (r.margin != null) ? formatCurrency(r.margin) : '—';
+    var pctStr = (r.pct != null) ? ' (' + formatNum(r.pct, 1) + '%)' : ' (unknown)';
+    svg += '<g class="inv-svg-bar-group" data-action="invStatsClientDrill" data-client-id="' + r.clientId + '">';
+    svg += '<rect x="' + barX + '" y="' + y + '" width="' + Math.max(w, 2) + '" height="' + barH + '" rx="3" class="' + barClass + '"/>';
+    svg += '<text x="' + labelX + '" y="' + (y + 12) + '" text-anchor="' + labelAnchor + '" class="' + labelClass + ' inv-svg-bar-label">' + escHtml(r.name) + '</text>';
+    svg += '<text x="' + labelX + '" y="' + (y + 24) + '" text-anchor="' + labelAnchor + '" class="inv-margin-bar-pct">' + marginStr + pctStr + '</text>';
+    svg += '</g>';
+  });
+  svg += '</svg>';
+  return svg;
+}
+
+function renderMarginBlock(filtered) {
+  var baseline = getDefaultCostPerKg();
+  if (baseline == null) {
+    return '<div class="inv-stats-card"><div class="inv-stats-title">Margin Overview</div>' +
+      '<div class="inv-stats-margin-empty">Set default cost per KG in Settings to enable margin analysis.</div></div>';
+  }
+  var html = '';
+  var period = buildPeriodMargin(filtered);
+  if (!period || filtered.length === 0) {
+    html += '<div class="inv-stats-card"><div class="inv-stats-title">Margin Overview</div>' +
+      '<div class="inv-text-muted">No data in period</div></div>';
+    return html;
+  }
+  var pctClass = marginClass(period.marginPct);
+  html += '<div class="inv-stats-card">' +
+    '<div class="inv-stats-title">Margin Overview</div>' +
+    '<div class="inv-stats-metric"><span class="inv-stats-metric-label">Gross Margin</span>' +
+    '<span class="inv-stats-metric-value ' + pctClass + '">' + formatCurrency(period.marginTotal) + '</span></div>' +
+    '<div class="inv-stats-metric"><span class="inv-stats-metric-label">Margin %</span>' +
+    '<span class="inv-stats-metric-sub ' + pctClass + '">' + formatMarginPct(period.marginPct) + '</span></div>' +
+    '<div class="inv-stats-metric"><span class="inv-stats-metric-label">Cost of Goods</span>' +
+    '<span class="inv-stats-metric-sub">' + formatCurrency(period.costTotal) + '</span></div>' +
+    '<div class="inv-margin-baseline">Baseline: ' + formatCurrency(baseline) + '/kg</div>' +
+    '</div>';
+
+  var ranked = buildClientMargin(filtered);
+  var maxAbs = ranked.reduce(function(m, r) { return Math.max(m, Math.abs(r.margin || 0)); }, 0);
+  if (ranked.length > 0) {
+    html += '<div class="inv-stats-card inv-stats-card-full">' +
+      '<div class="inv-stats-title">Margin by Client</div>' +
+      renderMarginBarSvg(ranked, maxAbs);
+    if (period.unknownLines > 0) {
+      html += '<div class="inv-margin-unknowns-footer">' +
+        '<span>' + period.unknownLines + ' line' + (period.unknownLines > 1 ? 's' : '') + ' missing part weights</span>' +
+        '<button data-action="invMarginFixWeights">Fix in Items</button>' +
+        '</div>';
+    }
+    html += '</div>';
+  }
+
+  var worst = buildWorstLines(filtered);
+  if (worst.length > 0) {
+    html += '<div class="inv-stats-card inv-stats-card-full">' +
+      '<div class="inv-stats-title">Loss-Making Lines</div>' +
+      '<div class="inv-stats-table"><div class="inv-stats-table-header">' +
+      '<span class="inv-stats-table-cell inv-stats-table-rank">#</span>' +
+      '<span class="inv-stats-table-cell inv-stats-table-part">Invoice / Part</span>' +
+      '<span class="inv-stats-table-cell inv-stats-table-qty">Qty</span>' +
+      '<span class="inv-stats-table-cell inv-stats-table-amt">Margin %</span></div>';
+    worst.forEach(function(w, idx) {
+      var cls = marginClass(w.pct);
+      html += '<div class="inv-stats-table-row" data-action="invViewInvoiceDetail" data-id="' + escHtml(w.invId) + '">' +
+        '<span class="inv-stats-table-cell inv-stats-table-rank">' + (idx + 1) + '</span>' +
+        '<span class="inv-stats-table-cell inv-stats-table-part">' + escHtml(w.displayNumber || '') +
+        '<br><span class="inv-text-muted inv-text-xs">' + escHtml(w.clientName || '') + ' · ' + escHtml(w.partNumber) + '</span></span>' +
+        '<span class="inv-stats-table-cell inv-stats-table-qty inv-mono">' + formatNum(w.qty, 2) + '</span>' +
+        '<span class="inv-stats-table-cell inv-stats-table-amt inv-mono ' + cls + '">' + formatMarginPct(w.pct) + '</span></div>';
+    });
+    html += '</div></div>';
+  }
+  return html;
+}
+
 function filterByPeriod(invoices, period) {
   if (period === 'all') return invoices;
   var now = new Date();
@@ -136,6 +352,9 @@ function renderStats() {
     '<span class="inv-stats-metric-sub">' + formatCurrency(totalGrand) + '</span></div>' +
     '<div class="inv-stats-metric"><span class="inv-stats-metric-label">Invoices</span>' +
     '<span class="inv-stats-metric-sub">' + filtered.length + (_statsPeriod !== 'all' ? ' (' + pctOfAll + '% of all-time)' : '') + '</span></div></div>';
+
+  // Margin block (IL-4 Phase 2): M1 Overview + M2 by-Client + M3 Loss-Making Lines
+  html += renderMarginBlock(filtered);
 
   // Card 2: Invoice States
   var stateCount = { created: 0, dispatched: 0, delivered: 0, filed: 0 };
@@ -291,6 +510,52 @@ function openClientDrillOverlay(clientId) {
     rateInfo = client.billingMode || 'Standard';
   }
 
+  // IL-4 Phase 2: Margin Breakdown (back-face)
+  var marginHtml = '';
+  var baseline = getDefaultCostPerKg();
+  if (baseline == null) {
+    marginHtml = '<div class="inv-stats-margin-empty">Set default cost per KG in Settings to enable margin analysis.</div>';
+  } else {
+    var cMarginTotal = 0, cCost = 0, cUnknowns = 0, cWorst = [];
+    clientInvs.forEach(function(inv) {
+      var m = computeInvoiceMargin(inv);
+      if (!m) return;
+      cMarginTotal += m.marginTotal;
+      cCost += m.costTotal;
+      cUnknowns += m.unknowns.length;
+      m.lines.forEach(function(l) {
+        if (!l.known || l.pct == null || l.pct >= 10) return;
+        cWorst.push({ invId: inv.id, displayNumber: inv.displayNumber, partNumber: l.line.partNumber || l.line.desc || '—', pct: l.pct });
+      });
+    });
+    cMarginTotal = gstRound(cMarginTotal);
+    cCost = gstRound(cCost);
+    var cPct = totalRev > 0 ? (cMarginTotal / totalRev) * 100 : null;
+    var cCls = marginClass(cPct);
+    marginHtml = '<div class="inv-flip-margin-summary">' +
+      '<span class="inv-flip-kpi-label">Gross Margin</span>' +
+      '<span class="inv-flip-kpi-value ' + cCls + '">' + formatCurrency(cMarginTotal) + ' (' + formatMarginPct(cPct) + ')</span>' +
+      '<span class="inv-flip-kpi-label">Cost of Goods</span>' +
+      '<span class="inv-flip-kpi-value">' + formatCurrency(cCost) + '</span>' +
+      '</div>';
+    if (cWorst.length === 0 && cUnknowns > 0) {
+      marginHtml += '<div class="inv-margin-unknowns-footer">' +
+        '<span>' + cUnknowns + ' line' + (cUnknowns > 1 ? 's' : '') + ' missing part weights</span>' +
+        '<button data-action="invMarginFixWeights">Fix in Items</button></div>';
+    } else if (cWorst.length > 0) {
+      cWorst.sort(function(a, b) { return a.pct - b.pct; });
+      marginHtml += '<div class="inv-flip-margin-worst">';
+      cWorst.slice(0, 3).forEach(function(w) {
+        marginHtml += '<div class="inv-flip-row-tap" data-action="invViewInvoiceDetail" data-id="' + escHtml(w.invId) + '">' +
+          '<span class="inv-mono">' + escHtml(w.displayNumber || '') + '</span>' +
+          '<span>' + escHtml(w.partNumber) + '</span>' +
+          '<span class="inv-mono ' + marginClass(w.pct) + '">' + formatMarginPct(w.pct) + '</span>' +
+          '</div>';
+      });
+      marginHtml += '</div>';
+    }
+  }
+
   var recentInvs = S.invoices
     .filter(function(i) { return i.clientId === clientId && i.status === 'active'; })
     .sort(function(a, b) { return (b.createdAt || 0) - (a.createdAt || 0); })
@@ -363,6 +628,7 @@ function openClientDrillOverlay(clientId) {
     '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 1l4 4-4 4"/><path d="M3 11V9a4 4 0 014-4h14"/><path d="M7 23l-4-4 4-4"/><path d="M21 13v2a4 4 0 01-4 4H3"/></svg>' +
     '</button>' +
     '<button class="inv-overlay-close" data-action="invCloseOverlay">&times;</button></div></div>' +
+    '<div class="inv-flip-section-title">Margin Breakdown</div>' + marginHtml +
     '<div class="inv-flip-section-title">Recent Invoices</div>' + recentHtml +
     '<div class="inv-flip-section-title">Pending Challans</div>' + challanHtml +
     '<div class="inv-flip-actions">' +

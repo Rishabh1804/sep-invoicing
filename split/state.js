@@ -39,7 +39,7 @@ var _pendingModeSwitch = false;
 var _dragState = null;
 
 /* ===== ARCHITECTURAL GLOBALS (Phase 3) ===== */
-let _tabDirty = { home: true, register: true };
+let _tabDirty = { home: true, register: true, stats: true };
 let _tabScroll = {};
 let _navReturnTab = null;
 let _regToolbarRendered = false;
@@ -92,6 +92,7 @@ function saveState() {
   saveJSON(STORAGE_KEY, S);
   _tabDirty.home = true;
   _tabDirty.register = true;
+  _tabDirty.stats = true;
 }
 
 function saveRegFilter() {

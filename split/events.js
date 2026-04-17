@@ -116,6 +116,7 @@ document.addEventListener('click', function(e) {
     case 'invBulkMarkFiled': bulkMarkFiled(); break;
     // Phase 7: Stats period chips
     case 'invStatsPeriod': _statsPeriod = btn.dataset.period; renderStats(); break;
+    case 'invMarginFixWeights': closeOverlay(); setItemsSubView('items'); switchTab('pageClients'); break;
     // Phase 7: Client drill-down overlay
     case 'invStatsClientDrill': openClientDrillOverlay(btn.dataset.clientId); break;
     // Phase 7: Flippable card

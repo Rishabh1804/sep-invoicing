@@ -4,7 +4,7 @@
 // - Static assets (manifest, icons, Google Fonts CSS) are cached for offline PWA install.
 // - Gemini API calls (scanner) are network-only, never cached.
 
-const CACHE_NAME = 'sep-inv-v26';
+const CACHE_NAME = 'sep-inv-v27';
 const STATIC_ASSETS = [
   './manifest.json',
   './icon-192.png',

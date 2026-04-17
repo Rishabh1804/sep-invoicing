@@ -1,10 +1,15 @@
 # IL-4 Phase 2 — Margin Dashboard (Spec)
 
-**Status:** Draft v0.1 — pre-Cipher review
+**Status:** Draft v0.2 — post-Cipher review (all blockers resolved)
 **Author:** Solara (The Strategist)
+**Reviewer:** Cipher (The Codewright)
 **Branch:** `claude/introduction-pIyfV`
-**Depends on:** IL-4 Phase 1 (commit `505a689`) — `S.defaultCostPerKg` plumbed.
+**Depends on:** IL-4 Phase 1 (commit `505a689`) — `S.defaultCostPerKg` plumbed (init.js:93-96 idempotent seed to 5.46).
 **Target repo:** SEP Invoicing (7.1K LOC, below 30K Governor threshold)
+
+### Revision log
+- **v0.2 (post-Cipher):** Fixed 5 blockers + 2 strong recommends + 1 cosmetic. Margin KPI moved to flip-card back-face (HIGH #1). Baseline-null short-circuit lifted to card level (HIGH #2). `invOpenInvoice` → `invViewInvoiceDetail` (HIGH #4, verified events.js:42, invoice-ops.js:603). Back-face Margin Breakdown tap behaviour defined (HIGH #5). `_tabDirty.stats` key added — state.js:42 now listed as touched (MEDIUM #6). M2 secondary sort by marginPct (MEDIUM #9). `.inv-svg-bar-margin-pos/-neg` (MEDIUM #10). §7 wording fixed (LOW #11).
+- **v0.1:** Initial draft.
 
 ---
 
@@ -131,10 +136,11 @@ Group by `inv.clientId`, same reducers as §4.4. Sort by `marginTotal` ascending
 
 ### 4.6 Guards
 
-- `S.defaultCostPerKg` missing or ≤ 0 → render empty state in margin cards: "Set default cost per KG in Settings to enable margin analysis." No crash.
+- **Baseline-null short-circuit (card level, not line level).** In `renderStats()`, before computing M1/M2/M3, check `getDefaultCostPerKg() == null`. If null: render a single empty-state card ("Set default cost per KG in Settings to enable margin analysis.") in the margin block and **skip M2 and M3 entirely**. Do not call `computeInvoiceMargin` on any invoice in this state. Rationale (Cipher HIGH #2): if line-level compute returns `known=false` when baseline is missing, M3 ("skip unknowns") would disappear silently rather than displaying its empty state.
 - Cancelled invoices (`inv.status === 'cancelled'`) → excluded at the `activeInvs` filter, identical to existing stats cards.
 - Empty `inv.items` → zero cost, zero margin, skip in ranking.
 - All-unknown invoice (every line missing part weight) → shown with `costTotal = 0` **and a warning badge** rather than falsely-positive margin.
+- **Input normalisation.** All `line.qty` reads in the calc engine use `Number(line.qty) || 0` (Cipher HIGH #3). Upstream `recalcLineItem` (create.js:188-205) is the canonical normaliser; this is a belt-and-braces defence.
 
 ---
 
@@ -179,7 +185,10 @@ Inserted **between existing Card 1 (Revenue Overview) and Card 2 (Invoice States
   - Bars are bipolar (negative = red bar extending left from zero axis; positive = green extending right).
   - Value label format is `₹X (Y%)`, not `₹X`.
   - Tap target delegates to existing `invStatsClientDrill` — margin view lives inside the client flip card (§5.2).
-- Sort: negatives first (worst margin at top), then positives descending.
+- **Sort (Cipher MEDIUM #9):** Two-key sort to avoid absolute-rupees skewing per-client ranking.
+  - Primary: negatives first (clients with `marginTotal < 0`), ordered by `marginPct` ascending (most-negative % first — surfaces rate-problems over volume-problems).
+  - Secondary: positives, ordered by `marginTotal` descending (biggest profit contributors).
+  - Display every row with both `₹X` (absolute) and `(Y%)` (pct) — both numbers are always on screen.
 - Footer row counts invoices with unknown costs and links to Items Master (reuse `switchTab('items')`).
 
 #### Card M3 — Worst Lines (full-width, table; conditional)
@@ -197,24 +206,40 @@ Shown only when at least one line has `_marginPct < 10` in the filtered period. 
 ```
 
 - Reuse `.inv-stats-table` shell (stats.js:237-250).
-- Row is tappable → `data-action="invOpenInvoice"` with `data-inv-id="<id>"` (reuse existing handler from events.js).
+- Row is tappable → `data-action="invViewInvoiceDetail"` with `data-id="<id>"` (handler at events.js:42 routing to `openInvoiceDetail` at invoice-ops.js:603 — verified, not invented).
 - Skip cancelled invoices (already enforced upstream).
 - Skip lines where `_costKnown === false` (would produce a misleading "100% margin"). Unknowns are surfaced in M2 footer only.
 
-### 5.2 Client drill flip card — add Margin KPI
+### 5.2 Client drill flip card — Margin on the back-face
 
-In `openClientDrillOverlay()` (stats.js:258-376), add a fifth KPI tile to the `inv-flip-kpis` row:
+The **front** face of the flip card already carries four KPI tiles — Revenue, Invoices, Share, Unbilled (stats.js:343-348). A fifth tile risks narrow-width overflow (Cipher HIGH #1). Phase 2 does **not** add a front tile.
+
+Instead, the **back** face (stats.js:361-372) grows a new "Margin Breakdown" section above "Recent Invoices":
 
 ```html
-<div class="inv-flip-kpi">
-  <span class="inv-flip-kpi-label">Margin</span>
+<div class="inv-flip-section-title">Margin Breakdown</div>
+<div class="inv-flip-margin-summary">
+  <span class="inv-flip-kpi-label">Gross Margin</span>
   <span class="inv-flip-kpi-value inv-margin-<sign>">₹X (Y%)</span>
+  <span class="inv-flip-kpi-label">Cost of Goods</span>
+  <span class="inv-flip-kpi-value">₹Z</span>
+</div>
+
+<!-- Top-3 worst lines for this client in period -->
+<div class="inv-flip-margin-worst">
+  <div class="inv-flip-row inv-flip-row-tap" data-action="invViewInvoiceDetail" data-id="<invId>">
+    <span class="inv-mono">SEP/…/00042</span>
+    <span>HINGE PIN</span>
+    <span class="inv-mono inv-margin-negative">-1.1%</span>
+  </div>
+  …
 </div>
 ```
 
-- Same period filter that already governs the card.
-- Colour class selected by sign (positive / thin / negative).
-- Zero new interactions on this surface — it's read-only context.
+- Same period filter governs this section.
+- Rows are **interactive**: tap opens the invoice detail via the existing `invViewInvoiceDetail` handler (events.js:42, verified). This resolves Cipher HIGH #5 — the new surface is not inert.
+- Colour class selected by sign (positive / thin / negative / unknown) via `marginClass(pct)`.
+- If the client has zero known-cost lines in period, render "No cost data — set part weights in Items Master" with a tap that fires `invMarginFixWeights`.
 
 ### 5.3 Settings — no change to UI
 
@@ -228,10 +253,12 @@ Home stays a flow summary. Margin lives in Stats, which is the analytic surface.
 
 | Surface | Action | Handler |
 |---------|--------|---------|
-| Margin bar (Card M2) | Tap → open client flip card | existing `invStatsClientDrill` |
-| Unknowns footer (M2) | Tap → switch to Items tab | new `invMarginFixWeights` |
-| Worst line row (M3) | Tap → open invoice detail | existing `invOpenInvoice` |
-| Settings change `defaultCostPerKg` | Save → `_tabDirty.stats = true`, next Stats render recomputes | piggyback on existing `saveState()` |
+| Margin bar (Card M2) | Tap → open client flip card | existing `invStatsClientDrill` (stats.js:258) |
+| Unknowns footer (M2) | Tap → switch to Items tab | **new** `invMarginFixWeights` |
+| Worst line row (M3) | Tap → open invoice detail | existing `invViewInvoiceDetail` (events.js:42) |
+| Flip-card worst-line row | Tap → open invoice detail | existing `invViewInvoiceDetail` |
+| Flip-card "no cost data" CTA | Tap → Items tab | `invMarginFixWeights` |
+| Settings change `defaultCostPerKg` | Save → `_tabDirty.stats = true` | requires adding `stats` key to `_tabDirty` init (state.js:42) and to `saveState()` (state.js:93-95), and a stats branch in `switchTab` dirty-check (tabs.js:44-47) |
 
 ---
 
@@ -266,9 +293,9 @@ Map to existing domain swatches:
 .inv-margin-negative  { color: var(--inv-margin-negative); font-weight: 600; }
 .inv-margin-unknown   { color: var(--inv-margin-unknown); font-style: italic; }
 
-.inv-svg-bar-negative { fill: var(--inv-margin-negative); }
-.inv-svg-bar-positive { fill: var(--inv-margin-positive); }
-.inv-svg-axis-zero    { stroke: var(--inv-text-muted); stroke-width: 1; }
+.inv-svg-bar-margin-neg { fill: var(--inv-margin-negative); }
+.inv-svg-bar-margin-pos { fill: var(--inv-margin-positive); }
+.inv-svg-axis-zero      { stroke: var(--inv-text-muted); stroke-width: 1; }
 
 .inv-margin-baseline  { font-size: var(--inv-text-xs); color: var(--inv-text-muted); }
 .inv-margin-unknowns-footer { margin-top: var(--inv-space-8); padding-top: var(--inv-space-8); border-top: 1px solid var(--inv-border); }
@@ -285,7 +312,7 @@ Every new token has a `.dark :root { --inv-margin-*: <dark variant>; }` entry. D
 | Case | Behaviour |
 |------|-----------|
 | `S.defaultCostPerKg` falsy or ≤ 0 | Margin block hidden; toast in Settings only if user clears the field. |
-| Client with 100% NOS lines, no part weights set | M2 shows client with `—` and `(unknown)`; M1 aggregate excludes them from margin% denominator? **No** — include them with zero cost; warn in M2 footer. Conservative: under-reports cost, never over-reports margin. |
+| Client with 100% NOS lines, no part weights set | M2 row renders with `—` margin and `(unknown)` tag. Aggregation rule (per §4.3): unknown lines contribute `cost = 0` to `costTotal`, while their revenue remains in `taxableValue`. Consequence: fleet-wide margin % is **over-reported** (revenue is counted, cost is not). This is acceptable because we never fabricate a fake cost that would invent a fake negative margin — surface honesty beats numeric optimism. M2 footer shows the unknown-line count and a "Fix in Items" tap to register the missing weights. |
 | Invoice with mixed KG + NOS-unknown lines | Invoice-level margin computed on known lines only; unknowns listed in M2 footer count. |
 | Period with zero invoices | Card M1 shows "No data in period"; M2/M3 hidden. |
 | Cancelled invoice | Excluded (matches existing stats behaviour). |
@@ -361,7 +388,7 @@ A build is Phase-2-complete when all of these are demonstrable in the deployed P
 |----|--------------------------|
 | HR-1 | All layout via `.inv-stats-card` / `.inv-stats-metric` / `.inv-flip-kpi` — existing classes. New classes listed in §6.2. |
 | HR-2 | New actions: `invMarginFixWeights`. Registered in events.js delegation table. |
-| HR-3 | All new classes: `inv-margin-positive`, `inv-margin-thin`, `inv-margin-negative`, `inv-margin-unknown`, `inv-svg-bar-negative`, `inv-svg-bar-positive`, `inv-svg-axis-zero`, `inv-margin-baseline`, `inv-margin-unknowns-footer`. |
+| HR-3 | All new classes: `inv-margin-positive`, `inv-margin-thin`, `inv-margin-negative`, `inv-margin-unknown`, `inv-svg-bar-margin-pos`, `inv-svg-bar-margin-neg`, `inv-svg-axis-zero`, `inv-margin-baseline`, `inv-margin-unknowns-footer`, `inv-flip-margin-summary`, `inv-flip-margin-worst`, `inv-flip-row-tap`. |
 | HR-4 | SVG-only for chart glyphs (reusing existing SVG patterns). |
 | HR-5 | Part names and client names piped through `escHtml()` — same pattern as stats.js:63,189,245. |
 | HR-6 | Only new tokens; no raw values. Dark-mode token pairs mandatory. |
@@ -374,15 +401,19 @@ A build is Phase-2-complete when all of these are demonstrable in the deployed P
 
 | File | Change | Est. LOC |
 |------|--------|----------|
-| `split/stats.js` | New calc functions + 3 card renderers + flip-card KPI | +200 |
-| `split/styles.css` | 4 new margin tokens (light + dark) + ~10 new classes | +60 |
+| `split/stats.js` | Calc engine + 3 card renderers + flip back-face margin section + SVG margin-bar | +300 |
+| `split/styles.css` | 4 new margin tokens (light + dark) + 12 new classes | +70 |
+| `split/state.js` | Add `stats: true` to `_tabDirty` init (line 42) and to `saveState()` (lines 93-95) | +2 |
+| `split/tabs.js` | Add stats branch to dirty-check in `switchTab` (line 44-47) | +3 |
 | `split/events.js` | `invMarginFixWeights` action handler | +6 |
-| `docs/IL-4_PHASE_2_SPEC.md` | This doc | +380 |
+| `docs/IL-4_PHASE_2_SPEC.md` | This doc | +475 |
 | `docs/HANDOFF_PHASE6.md` → Phase 9 | Append Phase 2 summary | +30 |
 
-**No changes** to: state.js, data.js, init.js, create.js, invoice-ops.js, clients.js, items.js, im.js, im-form.js, print.js, exports.js, autocomplete.js, scanner.js, swipe.js, seed.js, tabs.js, head.html, body.html, data.js.
+**Line estimate revised upward** (Cipher MEDIUM #7): M2 SVG fork + flip back-face margin breakdown + empty-state branches realistically land in the +280 to +320 range for stats.js.
 
-**No state schema change. No migration.** (Enforced by the "no snapshot" scope decision.)
+**No changes** to: data.js, init.js, create.js, invoice-ops.js, clients.js, items.js, im.js, im-form.js, print.js, exports.js, autocomplete.js, scanner.js, swipe.js, seed.js, head.html, body.html.
+
+**No state schema change. No invoice migration.** The only state-shape addition is the `_tabDirty.stats` runtime flag (non-persisted, resets each session). The `defaultCostPerKg` field is already persisted from Phase 1.
 
 ---
 
@@ -396,18 +427,19 @@ function getDefaultCostPerKg() {
   return isNaN(v) || v <= 0 ? null : v;
 }
 
-function computeLineCost(line) {
-  // returns { costKg, cost, known }
+// PRECONDITION: caller guarantees getDefaultCostPerKg() != null before invoking.
+// If the baseline is unset, the caller must render the empty state at card level
+// and not invoke this function (Cipher HIGH #2).
+function computeLineCost(line, baseline) {
   if (!line) return { costKg: 0, cost: 0, known: false };
-  var baseline = getDefaultCostPerKg();
-  if (baseline == null) return { costKg: 0, cost: 0, known: false };
+  var qty = Number(line.qty) || 0;
   var costKg = 0, known = true;
   if (line.unit === 'KG') {
-    costKg = line.qty || 0;
+    costKg = qty;
   } else if (line.unit === 'NOS') {
     var pwKey = (line.partNumber || '').toUpperCase();
     var pw = S.partWeights[pwKey];
-    if (pw && pw > 0) { costKg = (line.qty || 0) * pw; }
+    if (pw && pw > 0) { costKg = qty * pw; }
     else { known = false; }
   } else {
     known = false;
@@ -415,12 +447,15 @@ function computeLineCost(line) {
   return { costKg: costKg, cost: gstRound(costKg * baseline), known: known };
 }
 
+// Returns null when baseline is not set (Cipher HIGH #2).
+// Callers MUST check for null and render the empty-state card instead.
 function computeInvoiceMargin(inv) {
-  // returns { costTotal, marginTotal, marginPct, lines, unknowns }
+  var baseline = getDefaultCostPerKg();
+  if (baseline == null) return null;
   var lines = (inv.items || []).map(function(it) {
-    var c = computeLineCost(it);
+    var c = computeLineCost(it, baseline);
     var cost = c.cost;
-    var amt = it.amount || 0;
+    var amt = Number(it.amount) || 0;
     var margin = gstRound(amt - cost);
     var pct = amt > 0 ? (margin / amt) * 100 : null;
     return { line: it, costKg: c.costKg, cost: cost, margin: margin, pct: pct, known: c.known };
@@ -463,8 +498,9 @@ Cards M1 / M2 / M3 and the flip-card KPI consume these functions. No calc in the
 
 | Stage | Role | Status |
 |-------|------|--------|
-| Draft | Solara | ✔ v0.1 |
-| Spec review | Cipher | pending |
+| Draft v0.1 | Solara | complete |
+| Spec review | Cipher | complete — APPROVE WITH FIXES |
+| Draft v0.2 (blockers resolved) | Solara | complete |
 | Architect approval | Rishabh Jain | pending |
 | Build | Solara | pending |
 | Post-build QA | Cipher | pending |
@@ -472,4 +508,4 @@ Cards M1 / M2 / M3 and the flip-card KPI consume these functions. No calc in the
 
 ---
 
-*End of IL-4 Phase 2 spec draft v0.1. Awaiting Cipher review before build.*
+*End of IL-4 Phase 2 spec v0.2. Awaiting Architect approval before build.*

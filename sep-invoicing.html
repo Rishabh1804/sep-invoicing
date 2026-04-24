@@ -3524,7 +3524,7 @@ function renderCreateForm() {
   html += '<div class="inv-btn-bar inv-save-bar">' +
     '<button class="inv-btn inv-btn-ghost" data-action="invResetForm">Clear</button>' +
     '<button class="inv-btn inv-btn-primary" id="invSaveBtn" data-action="invSaveInvoice"' + (errors.length > 0 ? ' disabled' : '') + '>' +
-    (invoiceForm.editingId ? 'Update Invoice' : 'Save Invoice') + '</button></div>';
+    (invoiceForm.editingId ? 'Update Invoice' : 'Create Invoice') + '</button></div>';
 
   area.innerHTML = html;
 

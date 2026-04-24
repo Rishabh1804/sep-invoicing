@@ -1,0 +1,12 @@
+{
+  "name": "sep-invoicing",
+  "version": "0.0.0",
+  "private": true,
+  "description": "SEP Invoicing — split-file PWA. This package.json exists to host Playwright e2e tests only.",
+  "scripts": {
+    "test:e2e": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.59.1"
+  }
+}

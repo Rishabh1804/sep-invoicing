@@ -5004,7 +5004,7 @@ function renderIMList() {
           '<div class="inv-im-item-desc">' + escHtml(it.desc || it.partNumber) + '</div>' +
           '<div class="inv-im-item-detail">' + escHtml(it.qty) + ' ' + escHtml(it.unit) +
           (it.nosQty && it.nosQty > 0 ? ' (' + escHtml(it.nosQty) + ' NOS)' : '') +
-          ' @ ' + escHtml(formatNum(it.rate)) + '/' + escHtml(it.unit) + '</div></div>' +
+          ' @ ' + formatCurrency(it.rate) + '/' + escHtml(it.unit) + '</div></div>' +
           '<span class="inv-im-item-amount">' + formatCurrency(it.amount) + '</span></div>';
       });
       // Delete + Edit buttons (only if zero items invoiced)
@@ -5204,7 +5204,7 @@ function _renderIMDetail(challanId, skipMasterRefresh) {
       '<div class="inv-im-item-desc">' + escHtml(it.desc || it.partNumber) + '</div>' +
       '<div class="inv-im-item-detail">' + escHtml(it.qty) + ' ' + escHtml(it.unit) +
       (it.nosQty && it.nosQty > 0 ? ' (' + escHtml(it.nosQty) + ' NOS)' : '') +
-      ' @ ' + escHtml(formatNum(it.rate)) + '/' + escHtml(it.unit) + '</div></div>' +
+      ' @ ' + formatCurrency(it.rate) + '/' + escHtml(it.unit) + '</div></div>' +
       '<span class="inv-im-item-amount">' + formatCurrency(it.amount) + '</span></div>';
   });
   html += '</div>';

@@ -51,7 +51,10 @@ function buildTopItems(invoices) {
 }
 
 function renderRevenueBarSvg(ranked, maxVal) {
-  if (ranked.length === 0) return '<div class="inv-text-muted">No client data</div>';
+  if (ranked.length === 0) return '<div class="inv-empty-state">' +
+    'No revenue in this period' +
+    '<div class="inv-mt-16"><button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invCreateNew">Create an invoice</button></div>' +
+    '</div>';
   var barH = 28, gap = 8, padTop = 4, padBot = 4;
   var totalH = padTop + ranked.length * (barH + gap) - gap + padBot;
   var svg = '<svg class="inv-svg-chart" viewBox="0 0 400 ' + totalH + '" preserveAspectRatio="xMinYMin meet">';

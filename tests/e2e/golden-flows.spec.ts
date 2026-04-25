@@ -73,8 +73,15 @@ test.describe('Golden flows — smoke coverage for inv-1-2', () => {
     await loadAppWithState(page, state);
     await switchTab(page, 'pageStats');
 
-    // Stats tab renders without errors when invoices exist; content area is populated.
-    await expect(page.locator('#statsContent')).toBeVisible();
+    const content = page.locator('#statsContent');
+    await expect(content).toBeVisible();
+
+    // Deepened per Cipher advisory on PR #3: assert actual numbers, not just visibility.
+    // Revenue Overview renders grandTotal (306.8) and taxableValue (260) via formatCurrency.
+    await expect(content).toContainText('₹306.80');
+    await expect(content).toContainText('₹260.00');
+    // Revenue by Client renders the seeded client name in its SVG bar label.
+    await expect(content).toContainText('TEST CLIENT KG');
   });
 
 });

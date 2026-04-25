@@ -738,6 +738,11 @@ input, select, textarea, button { font-family: inherit; font-size: var(--fs-base
   text-align: center; padding: var(--sp-32) var(--sp-16);
   color: var(--text-3); font-size: var(--fs-base);
 }
+.inv-empty-state-icon {
+  width: var(--sp-32); height: var(--sp-32);
+  margin: 0 auto var(--sp-8); display: block;
+  opacity: 0.6;
+}
 .inv-stat-label { font-size: var(--fs-xs); }
 .inv-stat-value { font-size: var(--fs-2xl); color: var(--cost); }
 .inv-text-right { text-align: right; }

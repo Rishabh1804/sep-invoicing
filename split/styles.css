@@ -133,6 +133,7 @@ input, select, textarea, button { font-family: inherit; font-size: var(--fs-base
 }
 .inv-form-input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 2px rgba(180,90,55,0.15); }
 .inv-form-input[readonly] { background: var(--surface-2); color: var(--text-2); cursor: default; }
+.inv-form-input-readonly { font-style: italic; }
 .dark .inv-form-input[readonly] { background: var(--surface-3); }
 .inv-form-row { display: flex; gap: var(--sp-8); }
 .inv-form-row > * { flex: 1; }

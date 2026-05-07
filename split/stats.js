@@ -55,25 +55,29 @@ function renderRevenueBarSvg(ranked, maxVal) {
     'No revenue in this period' +
     '<div class="inv-mt-16"><button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invCreateNew">Create an invoice</button></div>' +
     '</div>';
-  var barH = 28, gap = 8, padTop = 4, padBot = 4;
-  var totalH = padTop + ranked.length * (barH + gap) - gap + padBot;
-  var svg = '<svg class="inv-svg-chart" viewBox="0 0 400 ' + totalH + '" preserveAspectRatio="xMinYMin meet">';
-  ranked.forEach(function(r, i) {
-    var y = padTop + i * (barH + gap);
-    var w = maxVal > 0 ? (r.total / maxVal) * 200 : 0;
-    svg += '<g class="inv-svg-bar-group" data-action="invStatsClientDrill" data-client-id="' + r.clientId + '">';
-    svg += '<rect x="0" y="' + y + '" width="' + Math.max(w, 2) + '" height="' + barH + '" rx="3" class="inv-svg-bar"/>';
-    svg += '<text x="' + (Math.max(w, 2) + 6) + '" y="' + (y + 12) + '" class="inv-svg-bar-label">' + escHtml(r.name) + '</text>';
-    svg += '<text x="' + (Math.max(w, 2) + 6) + '" y="' + (y + 24) + '" class="inv-svg-bar-amount">' + formatCurrency(r.total) + '</text>';
-    svg += '</g>';
+  var html = '<div class="inv-revbar-list">';
+  ranked.forEach(function(r) {
+    var pct = maxVal > 0 ? (r.total / maxVal) * 100 : 0;
+    var fillW = Math.max(pct, 0.5);
+    html += '<div class="inv-revbar-row" data-action="invStatsClientDrill" data-client-id="' + r.clientId + '">' +
+      '<div class="inv-revbar-track">' +
+        '<svg class="inv-revbar-svg" viewBox="0 0 100 28" preserveAspectRatio="none" aria-hidden="true">' +
+          '<rect width="' + fillW + '" height="28" rx="3" class="inv-revbar-fill"/>' +
+        '</svg>' +
+      '</div>' +
+      '<div class="inv-revbar-meta">' +
+        '<div class="inv-revbar-name">' + escHtml(r.name) + '</div>' +
+        '<div class="inv-revbar-amount">' + formatCurrency(r.total) + '</div>' +
+      '</div>' +
+    '</div>';
   });
-  svg += '</svg>';
-  return svg;
+  html += '</div>';
+  return html;
 }
 
 function renderTrendSvg(monthlyData) {
   if (monthlyData.length < 2) return '<div class="inv-text-muted">Need 2+ months of data for trend</div>';
-  var W = 400, H = 160, padL = 10, padR = 40, padT = 20, padB = 30;
+  var W = 400, H = 160, padL = 30, padR = 40, padT = 20, padB = 30;
   var chartW = W - padL - padR, chartH = H - padT - padB;
   var maxVal = Math.max.apply(null, monthlyData.map(function(d) { return d.value; }));
   if (maxVal === 0) maxVal = 1;

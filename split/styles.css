@@ -579,6 +579,28 @@ input, select, textarea, button { font-family: inherit; font-size: var(--fs-base
 .inv-svg-bar { fill: var(--accent); transition: fill var(--anim-fast); }
 .dark .inv-svg-bar { fill: var(--accent-dark); }
 .inv-svg-bar-group { cursor: pointer; }
+
+/* Revenue-by-client bar rows (HTML+SVG hybrid; HTML labels wrap, SVG fill encodes value) */
+.inv-revbar-list { display: flex; flex-direction: column; gap: var(--sp-8); }
+.inv-revbar-row {
+  display: flex; align-items: center; gap: var(--sp-12);
+  padding: var(--sp-4) 0; cursor: pointer;
+  transition: background var(--anim-fast);
+}
+.inv-revbar-row:active { background: var(--surface-2); }
+.inv-revbar-track { flex: 0 0 40%; min-width: 0; }
+.inv-revbar-svg { width: 100%; height: 28px; display: block; }
+.inv-revbar-fill { fill: var(--accent); }
+.inv-revbar-meta { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--sp-2); }
+.inv-revbar-name {
+  font-size: var(--fs-sm); font-weight: 600; color: var(--text-1);
+  word-break: break-word; line-height: 1.25;
+}
+.inv-revbar-amount {
+  font-family: var(--ff-mono); font-size: var(--fs-2xs);
+  color: var(--text-3); white-space: nowrap;
+}
+.dark .inv-revbar-fill { fill: var(--accent-dark); }
 .inv-svg-bar-group:active .inv-svg-bar { fill: var(--cost); }
 .inv-svg-bar-label { font-size: 11px; fill: var(--text-1); font-family: var(--ff-base); }
 .inv-svg-bar-amount { font-size: 10px; fill: var(--text-3); font-family: var(--ff-mono); }
@@ -1284,7 +1306,15 @@ body.inv-desktop .inv-sidebar:hover .inv-sidebar-label { opacity: 1; }
 .dark .inv-sidebar-active { background: var(--surface-2); color: var(--accent); }
 
 /* --- Desktop: Body offset --- */
-body.inv-desktop { max-width: none; padding-bottom: 0; margin-left: 64px; }
+body.inv-desktop {
+  max-width: none; padding-bottom: 0; margin-left: 64px;
+  transition: margin-left var(--anim-normal) ease;
+}
+/* Body follows sidenav width so header + content shift instead of being covered */
+body.inv-desktop:has(.inv-sidebar:hover),
+body.inv-desktop:has(.inv-sidebar.inv-sidebar-expanded) {
+  margin-left: 240px;
+}
 
 /* --- Desktop: Hide bottom tabs --- */
 body.inv-desktop .inv-tabs { display: none; }

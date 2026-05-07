@@ -1,0 +1,137 @@
+{
+  "_doc": "Immutable shop-level data for SOMA test certificates. Field values transcribed verbatim from the TML-approved 04/02/26 certificate (5181_3240_4202.pdf). Original-document typos are preserved (e.g. 'Cynide', 'Brightner', 'Importer Coverage', 'Peef off', 'Ruse', 'final gating', 'Ginca', 'Rodiprind') because this format is approved by Tata Motors QA and any literal alteration requires QA-TML re-approval per the disclaimer.",
+  "company": {
+    "name": "SOMA ELECTRO PRODUCTS",
+    "headerAddress": "8-B, 1st Phase, Industrial Area, Adityapur, Jamshedpur – 832 109",
+    "phone": "8271063224",
+    "mobile": "9386780003",
+    "email": "soma_electro123@rediffmail.com",
+    "footerAddress": "B-8, (1st Phase) Industrial Area, Adityapur, Jamshedpur – 832109",
+    "gstin": "20AAFFS4718J2ZD",
+    "footerAttribution": "for SOMA ELECTRO PRODUCTS"
+  },
+  "title": "TEST CERTIFICATE (ZN PLATING)",
+  "fixed": {
+    "jobDescription": "ZN : Plating with Fezn8A / 8B / 8C / 8CIIY",
+    "processReg": "As Per JAQADPT02 of TATA MOTORS LTD",
+    "qualifiedByTML": "Yes",
+    "qualifiedByTataSteelLtd": "Yes",
+    "category": "Sheet Metal / HR",
+    "netWt": "0.000"
+  },
+  "section1": {
+    "heading": "Description of Zinc Chemicals Used",
+    "subHeading": "(Please click the Appropriate Column & Attach relevent Gl As per IS : 277-2018)",
+    "supplierA": "GTZ India Ltd.",
+    "supplierB": "M/s Graur & Well",
+    "rows": [
+      {
+        "sl": "01",
+        "process": "Soak Greasing",
+        "supplierAChemicals": "Unisole NE / Super Soak",
+        "supplierAObs": "OK",
+        "supplierBChemicals": "Steelex K - 20",
+        "supplierBObs": "OK"
+      },
+      {
+        "sl": "02",
+        "process": "Derusting",
+        "supplierAChemicals": "i) HCL Commercial Grade or<br>ii) Sulphuric Acid Commercial Grade",
+        "supplierAObs": "OK",
+        "supplierBChemicals": "i) HCL Commercial Grade or<br>ii) Sulphuric Acid Commercial Grade",
+        "supplierBObs": "OK"
+      },
+      {
+        "sl": "03",
+        "process": "Anodic Electrolytic Cleaning",
+        "supplierAChemicals": "Cleaner SE-11 / Uniclean 266",
+        "supplierAObs": "OK",
+        "supplierBChemicals": "Ginbond 812",
+        "supplierBObs": "OK"
+      },
+      {
+        "sl": "04",
+        "process": "Cynide / Acid Dip",
+        "supplierAChemicals": "Sodium Cyanide/Hydrochloric Acid",
+        "supplierAObs": "OK",
+        "supplierBChemicals": "Sodium Cyanide/Hydrochloric Acid",
+        "supplierBObs": "OK"
+      },
+      {
+        "sl": "05",
+        "process": "Zinc Plating Bath I<br><span class=\"tc-sub\">Cynide based Zinc Bath</span>",
+        "supplierAChemicals": "Zinc Metal (99.99 % Pure)<br>Zintek Salt - 501<br>Duo - 555 / Unicol - A Purifier",
+        "supplierAObs": "",
+        "supplierBChemicals": "Zinc Metal (99.99 % Pure)<br>Zinc Brite 16 Salt / Zinc Brite 17 Salt<br>Zinc Brite 16 Brightner / Zinc Brite",
+        "supplierBObs": ""
+      },
+      {
+        "sl": "06",
+        "process": "Zinc Plating Bath II<br><span class=\"tc-sub\">Acid based Zinc / Chloride Bath and or Barrel</span>",
+        "supplierAChemicals": "Acid Zinc Salt No. 1 (A)<br>Acid Zinc Salt No.2 (B)<br>Zylite MR Additive (M)<br>Zylite MR Brightner (B)",
+        "supplierAObs": "",
+        "supplierBChemicals": "47 Brightner / Monical Purifier<br>Zinthe Brite 937A, Zinthe Brite 937 BR,<br>Zinthe Brite ZN 21M / 75M, Zn 21R/75 R",
+        "supplierBObs": ""
+      },
+      {
+        "sl": "07",
+        "process": "Neutralisation",
+        "supplierAChemicals": "Nitric Acid Dip",
+        "supplierAObs": "OK",
+        "supplierBChemicals": "Nitric Acid Dip",
+        "supplierBObs": "OK"
+      },
+      {
+        "sl": "08",
+        "process": "Passivation",
+        "supplierAChemicals": "Unimax OG 40 / Rodiprind (OGP)",
+        "supplierAObs": "OK",
+        "supplierBChemicals": "Ginca Fix Olive 952 / 952 M",
+        "supplierBObs": "OK"
+      }
+    ]
+  },
+  "section2": {
+    "heading": "Product Inspection",
+    "rows": [
+      {
+        "sl": "01",
+        "criticalParameter": "Plating Thickness <span class=\"tc-sub\">(Check as per sampling plan given at the end)</span>",
+        "observation": "10-12",
+        "specification": "TRIYELLOW",
+        "equipment": "DIGITAL ELCO METER"
+      }
+    ]
+  },
+  "section3": {
+    "heading": "FINAL COATING (100% Testing)",
+    "rows": [
+      {
+        "sl": "01",
+        "criticalParameter": "Passivation Colour <span class=\"tc-sub\">(Master Sample)</span>",
+        "observation": "OK",
+        "specification": "Dark Smooth Olive Green / Blues (Silver) / Golden Yellow / Trivalent Yellow / Trivalent Blues",
+        "percentDefective": "NIL",
+        "equipment": "Digital Elco Meter"
+      },
+      {
+        "sl": "02",
+        "criticalParameter": "Visual Appearance <span class=\"tc-sub\">(Wrt Master Sample)</span>",
+        "observation": "OK",
+        "specification": "OK without any surface defect / Ruse / Damage / Importer Coverage / Peef off",
+        "percentDefective": "",
+        "equipment": ""
+      }
+    ]
+  },
+  "notes": [
+    "a) The Critical Parameters stated in the Final gating is checked 100% and only OK materials are to be despatched to the Customer.",
+    "b) All the Information provided above are accurate and Auditable.",
+    "c) Sampling Plan : Lot is defined at the No. of Components Zn Plated in one Bath-Rack/Barrel"
+  ],
+  "samplingTable": [
+    ["Up to 10", "100%", "21 to 50",  "20%", "100 & Above", "5%"],
+    ["11 to 20", "50%",  "51 to 100", "10%", "",            ""]
+  ],
+  "disclaimer": "Note : No alterations are permissible to the format without written approval of QA - TML."
+}

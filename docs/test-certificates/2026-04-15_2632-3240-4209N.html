@@ -14,17 +14,17 @@ body {
 .tc-header { display: flex; align-items: center; gap: 5mm; padding-bottom: 1mm; }
 .tc-logo {
   font-family: 'Georgia', 'Times New Roman', serif;
-  font-size: 24pt; font-weight: 700; color: #b34a2a;
+  font-size: 24pt; font-weight: 700; color: #2e7d4f;
   letter-spacing: 1px; line-height: 1; flex: 0 0 auto;
+  padding: 2mm 4mm; border: 2pt solid #2e7d4f; border-radius: 50%;
 }
-.tc-letterhead { flex: 1; text-align: center; line-height: 1.2; }
-.tc-company { font-family: 'Georgia', serif; font-size: 13pt; font-weight: 700; }
-.tc-addr { font-size: 7.5pt; }
-.tc-contact { font-size: 7.5pt; }
+.tc-letterhead { flex: 1; text-align: center; line-height: 1.25; }
+.tc-company { font-family: 'Georgia', serif; font-size: 13pt; font-weight: 700; font-style: italic; }
+.tc-addr, .tc-contact { font-size: 7.5pt; }
 .tc-title {
   text-align: center; font-weight: 700; font-size: 10pt;
   border-top: 1pt solid #000; border-bottom: 1pt solid #000;
-  padding: 1mm 0; margin: 1.5mm 0 1.5mm 0; letter-spacing: 0.5px;
+  padding: 1mm 0; margin: 1.5mm 0; letter-spacing: 0.5px;
 }
 .tc-meta-row {
   display: flex; justify-content: space-between;
@@ -33,23 +33,26 @@ body {
 table.tc-grid { width: 100%; border-collapse: collapse; }
 table.tc-grid th, table.tc-grid td {
   border: 0.5pt solid #000; padding: 0.6mm 1.2mm;
-  vertical-align: top; font-size: 7.8pt; line-height: 1.2;
+  vertical-align: top; font-size: 7.6pt; line-height: 1.2;
 }
-table.tc-grid th { background: #ececec; text-align: left; font-weight: 700; }
+table.tc-grid th {
+  background: #ececec; text-align: left; font-weight: 700;
+}
+table.tc-grid th .supplier-sub { font-weight: 700; display: block; font-size: 7.6pt; }
 .tc-customer td { font-size: 7.8pt; }
 .tc-customer .label { font-weight: 700; width: 14%; }
 .tc-customer .value { width: 36%; }
 .tc-section {
   background: #ececec; font-weight: 700; font-size: 8pt;
   padding: 0.8mm 2mm; border: 0.5pt solid #000;
-  border-top: 0.5pt solid #000; margin-top: 1.5mm;
+  margin-top: 1.5mm;
 }
-.tc-section span.tc-sub-rule { font-weight: 400; font-size: 7pt; }
+.tc-section .tc-sub-rule { font-weight: 400; font-size: 7pt; }
 table.tc-grid.tc-no-top { border-top: 0; }
 .tc-cell-c { text-align: center; }
 .tc-sub { font-size: 7pt; font-style: italic; color: #333; }
 .tc-notes { margin: 1.5mm 0 1mm 0; font-size: 7.5pt; line-height: 1.3; padding: 0 1mm; }
-.tc-notes ol { padding-left: 5mm; margin: 0; }
+.tc-notes div { margin-bottom: 0.4mm; }
 .tc-disclaimer {
   margin-top: 1mm; font-size: 7.5pt; font-style: italic; padding: 0 1mm;
 }
@@ -62,6 +65,7 @@ table.tc-grid.tc-no-top { border-top: 0; }
 .tc-footer .tc-sig {
   text-align: right; font-weight: 700; padding-bottom: 0.5mm;
 }
+.tc-footer .tc-sig .tc-attribution { font-weight: 400; font-style: italic; display: block; margin-bottom: 6mm; }
 </style>
 </head>
 <body>
@@ -70,8 +74,8 @@ table.tc-grid.tc-no-top { border-top: 0; }
   <div class="tc-logo">soma</div>
   <div class="tc-letterhead">
     <div class="tc-company">SOMA ELECTRO PRODUCTS</div>
-    <div class="tc-addr">B-8, 1st Phase, Industrial Area, Adityapur, Jamshedpur &ndash; 832 109</div>
-    <div class="tc-contact">Phone: 8210063228 &nbsp;&nbsp; Email: rkjain12@rediffmail.com</div>
+    <div class="tc-addr">8-B, 1st Phase, Industrial Area, Adityapur, Jamshedpur – 832 109</div>
+    <div class="tc-contact">Phone : 8271063224 &nbsp; Mobile : 9386780003 &nbsp; E-Mail : soma_electro123@rediffmail.com</div>
   </div>
 </div>
 
@@ -92,26 +96,32 @@ table.tc-grid.tc-no-top { border-top: 0; }
   <tr>
     <td class="label">Address</td>
     <td class="value">A-4, Road No. 2, Industrial Estate,<br>ADITYAPUR, JAMSHEDPUR-832109</td>
-    <td class="label">Purchase Order Ref.</td>
+    <td class="label">Purchase Order Ref :</td>
     <td class="value">&ndash;</td>
   </tr>
   <tr>
     <td class="label">Job Description</td>
-    <td class="value">ZN : Plating with Fe/Zn8/KA / R8 / RC / RCBJY</td>
+    <td class="value">ZN : Plating with Fezn8A / 8B / 8C / 8CIIY</td>
     <td class="label">Challan No. Ref.</td>
     <td class="value">94</td>
   </tr>
   <tr>
     <td class="label">Process Reg.</td>
-    <td class="value">As Per JAQADJF8JZ of TATA MOTORS LTD</td>
+    <td class="value">As Per JAQADPT02 of TATA MOTORS LTD</td>
     <td class="label">Challan Date</td>
     <td class="value">15-04-2026</td>
   </tr>
   <tr>
+    <td class="label">Process Qualified by TML</td>
+    <td class="value">Yes</td>
+    <td class="label">Quantity</td>
+    <td class="value">20.000</td>
+  </tr>
+  <tr>
+    <td class="label">Process Qualified By Tata Steel Ltd.</td>
+    <td class="value">Yes</td>
     <td class="label">Part No.</td>
     <td class="value"><strong>2632 3240 4209N</strong></td>
-    <td class="label">Qty</td>
-    <td class="value">20.000</td>
   </tr>
   <tr>
     <td class="label">Net Wt.</td>
@@ -119,101 +129,73 @@ table.tc-grid.tc-no-top { border-top: 0; }
     <td class="label">Category</td>
     <td class="value">Sheet Metal / HR</td>
   </tr>
-  <tr>
-    <td class="label">Process Qualified by TML</td>
-    <td class="value">Yes</td>
-    <td class="label">Process Qualified by Tata Steel Ltd.</td>
-    <td class="value">Yes</td>
-  </tr>
 </table>
 
 <div class="tc-section">
-  01.&nbsp;&nbsp;Inspection of the Chemicals Used
-  <span class="tc-sub-rule">(Please tick the Appropriate Column &amp; Attach Relevant doc as per IS:&nbsp;277-2018)</span>
+  Description of Zinc Chemicals Used
+  <span class="tc-sub-rule">(Please click the Appropriate Column & Attach relevent Gl As per IS : 277-2018)</span>
 </div>
 <table class="tc-grid tc-no-top">
   <thead>
     <tr>
-      <th style="width:6%">Sl.&nbsp;No.</th>
-      <th style="width:24%">Process Sequence</th>
-      <th style="width:8%" class="tc-cell-c">Obs.</th>
-      <th style="width:30%">Chemical Used (SOMA)</th>
-      <th style="width:8%" class="tc-cell-c">Obs.</th>
-      <th style="width:24%">Specification (Approved)</th>
+      <th style="width:5%">Sl. No.</th>
+      <th style="width:21%">Process Sequence</th>
+      <th style="width:30%">Chemical Name<span class="supplier-sub">GTZ India Ltd.</span></th>
+      <th style="width:7%" class="tc-cell-c">Observation</th>
+      <th style="width:30%">Chemical Name<span class="supplier-sub">M/s Graur & Well</span></th>
+      <th style="width:7%" class="tc-cell-c">Observation</th>
     </tr>
   </thead>
   <tbody>
-    <tr><td class="tc-cell-c">01</td><td>Soak Greasing</td><td class="tc-cell-c">OK</td><td>Unisole NL / Super Soak</td><td class="tc-cell-c">OK</td><td>Steeles K&nbsp;&ndash;&nbsp;20</td></tr>
-    <tr><td class="tc-cell-c">02</td><td>Derusting</td><td class="tc-cell-c">OK</td><td>i)&nbsp;HCL Commercial Grade or<br>ii)&nbsp;Sulphuric Acid Commercial Grade</td><td class="tc-cell-c">OK</td><td>i)&nbsp;HCL Commercial Grade or<br>ii)&nbsp;Sulphuric Acid Commercial Grade</td></tr>
-    <tr><td class="tc-cell-c">03</td><td>Anodic Electrolytic Cleaning</td><td class="tc-cell-c">OK</td><td>Cleaner SE-11 / Unicleaner 266</td><td class="tc-cell-c">OK</td><td>Ginhood R12</td></tr>
-    <tr><td class="tc-cell-c">04</td><td>Cyanide / Acid Dip</td><td class="tc-cell-c">OK</td><td>Sodium Cyanide / Hydrochloric Acid</td><td class="tc-cell-c">OK</td><td>Sodium Cyanide / Hydrochloric Acid</td></tr>
-    <tr><td class="tc-cell-c">05</td><td>Zinc Plating Bath&nbsp;I<br><span class="tc-sub">Cyanide based Zinc Bath</span></td><td class="tc-cell-c">&mdash;</td><td>Zinc Metal (99.99% Pure)<br>Zintek Salt &ndash; S01<br>Bho () &ndash; 555 / Unicol &ndash; A Purifier</td><td class="tc-cell-c">&mdash;</td><td>Zinc Metal (99.99% Pure)<br>Zintek Salt &ndash; 7T Salt /<br>Zintek Adddtv ZN&nbsp;21M /</td></tr>
-    <tr><td class="tc-cell-c">06</td><td>Zinc Plating Bath&nbsp;II<br><span class="tc-sub">Acid based Zinc / Chloride Bath and or Barrel</span></td><td class="tc-cell-c">&mdash;</td><td>Acid Zinc Salt No.&nbsp;1 (A)<br>Acid Zinc Salt No. (B)<br>Zylite MR Additive (M)<br>Zylite MB Brightener (B)</td><td class="tc-cell-c">&mdash;</td><td>47 Brightener / Monocyl Purifier<br>Zinthe Brite NTX, Zinthe BNS<br>Zinthe Brite ZN&nbsp;21M / TMI, Zin Z1R/J1R</td></tr>
-    <tr><td class="tc-cell-c">07</td><td>Neutralisation</td><td class="tc-cell-c">OK</td><td>Nitric Acid Dip</td><td class="tc-cell-c">OK</td><td>Nitric Acid Dip</td></tr>
-    <tr><td class="tc-cell-c">08</td><td>Passivation</td><td class="tc-cell-c">OK</td><td>Unimax OG 40 / Redgeprod (OGP)</td><td class="tc-cell-c">OK</td><td>Ginzia Fix Olive 952 / 952&nbsp;M</td></tr>
+    <tr><td class="tc-cell-c">01</td><td>Soak Greasing</td><td>Unisole NE / Super Soak</td><td class="tc-cell-c">OK</td><td>Steelex K - 20</td><td class="tc-cell-c">OK</td></tr>
+    <tr><td class="tc-cell-c">02</td><td>Derusting</td><td>i) HCL Commercial Grade or<br>ii) Sulphuric Acid Commercial Grade</td><td class="tc-cell-c">OK</td><td>i) HCL Commercial Grade or<br>ii) Sulphuric Acid Commercial Grade</td><td class="tc-cell-c">OK</td></tr>
+    <tr><td class="tc-cell-c">03</td><td>Anodic Electrolytic Cleaning</td><td>Cleaner SE-11 / Uniclean 266</td><td class="tc-cell-c">OK</td><td>Ginbond 812</td><td class="tc-cell-c">OK</td></tr>
+    <tr><td class="tc-cell-c">04</td><td>Cynide / Acid Dip</td><td>Sodium Cyanide/Hydrochloric Acid</td><td class="tc-cell-c">OK</td><td>Sodium Cyanide/Hydrochloric Acid</td><td class="tc-cell-c">OK</td></tr>
+    <tr><td class="tc-cell-c">05</td><td>Zinc Plating Bath I<br><span class="tc-sub">Cynide based Zinc Bath</span></td><td>Zinc Metal (99.99 % Pure)<br>Zintek Salt - 501<br>Duo - 555 / Unicol - A Purifier</td><td class="tc-cell-c"></td><td>Zinc Metal (99.99 % Pure)<br>Zinc Brite 16 Salt / Zinc Brite 17 Salt<br>Zinc Brite 16 Brightner / Zinc Brite</td><td class="tc-cell-c"></td></tr>
+    <tr><td class="tc-cell-c">06</td><td>Zinc Plating Bath II<br><span class="tc-sub">Acid based Zinc / Chloride Bath and or Barrel</span></td><td>Acid Zinc Salt No. 1 (A)<br>Acid Zinc Salt No.2 (B)<br>Zylite MR Additive (M)<br>Zylite MR Brightner (B)</td><td class="tc-cell-c"></td><td>47 Brightner / Monical Purifier<br>Zinthe Brite 937A, Zinthe Brite 937 BR,<br>Zinthe Brite ZN 21M / 75M, Zn 21R/75 R</td><td class="tc-cell-c"></td></tr>
+    <tr><td class="tc-cell-c">07</td><td>Neutralisation</td><td>Nitric Acid Dip</td><td class="tc-cell-c">OK</td><td>Nitric Acid Dip</td><td class="tc-cell-c">OK</td></tr>
+    <tr><td class="tc-cell-c">08</td><td>Passivation</td><td>Unimax OG 40 / Rodiprind (OGP)</td><td class="tc-cell-c">OK</td><td>Ginca Fix Olive 952 / 952 M</td><td class="tc-cell-c">OK</td></tr>
   </tbody>
 </table>
 
-<div class="tc-section">02.&nbsp;&nbsp;Product Inspection</div>
+<div class="tc-section">Product Inspection</div>
 <table class="tc-grid tc-no-top">
   <thead>
     <tr>
-      <th style="width:6%">Sl.&nbsp;No.</th>
-      <th style="width:32%">Critical Parameters</th>
+      <th style="width:5%">Sl. No.</th>
+      <th style="width:30%">Critical Parameters</th>
       <th style="width:18%" class="tc-cell-c">Observation (Min &amp; Max)</th>
       <th style="width:18%" class="tc-cell-c">Specification</th>
-      <th style="width:26%">Equipment / Gauge Used</th>
+      <th style="width:29%">Equipment / Gauge Used</th>
     </tr>
   </thead>
   <tbody>
-    <tr>
-      <td class="tc-cell-c">01</td>
-      <td>Plating Thickness <span class="tc-sub">(Check as per sampling plan given at the end)</span></td>
-      <td class="tc-cell-c">10&ndash;12</td>
-      <td class="tc-cell-c">TRIYELLOW</td>
-      <td>DIGITAL ELCO METER</td>
-    </tr>
+    <tr><td class="tc-cell-c">01</td><td>Plating Thickness <span class="tc-sub">(Check as per sampling plan given at the end)</span></td><td class="tc-cell-c">10-12</td><td class="tc-cell-c">TRIYELLOW</td><td>DIGITAL ELCO METER</td></tr>
   </tbody>
 </table>
 
-<div class="tc-section">03.&nbsp;&nbsp;FINAL COATING (100% Testing)</div>
+<div class="tc-section">FINAL COATING (100% Testing)</div>
 <table class="tc-grid tc-no-top">
   <thead>
     <tr>
-      <th style="width:6%">Sl.&nbsp;No.</th>
-      <th style="width:24%">Critical Parameters</th>
-      <th style="width:8%" class="tc-cell-c">Obs.</th>
-      <th style="width:34%">Specification</th>
+      <th style="width:5%">Sl. No.</th>
+      <th style="width:22%">Critical Parameter</th>
+      <th style="width:8%" class="tc-cell-c">Observation</th>
+      <th style="width:36%">Specification</th>
       <th style="width:8%" class="tc-cell-c">% Defective</th>
-      <th style="width:20%">Equipment / Gauge Used</th>
+      <th style="width:21%">Equipment / Gauge Used</th>
     </tr>
   </thead>
   <tbody>
-    <tr>
-      <td class="tc-cell-c">01</td>
-      <td>Passivation Colour <span class="tc-sub">(Master Sample)</span></td>
-      <td class="tc-cell-c">OK</td>
-      <td>Dark Smooth Olive Green / Olive (Silver / Golden Yellow), Trivalent Yellow / Trivalent Black</td>
-      <td class="tc-cell-c">NIL</td>
-      <td>Digital Elcon Meter</td>
-    </tr>
-    <tr>
-      <td class="tc-cell-c">02</td>
-      <td>Visual Appearance <span class="tc-sub">(Master Sample)</span></td>
-      <td class="tc-cell-c">OK</td>
-      <td>OK without any surface defect &mdash; Burrs / Damage / Improper Coverage / Peel-off</td>
-      <td class="tc-cell-c">NIL</td>
-      <td>&mdash;</td>
-    </tr>
+    <tr><td class="tc-cell-c">01</td><td>Passivation Colour <span class="tc-sub">(Master Sample)</span></td><td class="tc-cell-c">OK</td><td>Dark Smooth Olive Green / Blues (Silver) / Golden Yellow / Trivalent Yellow / Trivalent Blues</td><td class="tc-cell-c">NIL</td><td>Digital Elco Meter</td></tr>
+    <tr><td class="tc-cell-c">02</td><td>Visual Appearance <span class="tc-sub">(Wrt Master Sample)</span></td><td class="tc-cell-c">OK</td><td>OK without any surface defect / Ruse / Damage / Importer Coverage / Peef off</td><td class="tc-cell-c"></td><td></td></tr>
   </tbody>
 </table>
 
 <div class="tc-notes">
-  <ol>
-    <li>The Critical Parameters stated in the Final Coating are checked 100% and only OK materials are despatched to the customer.</li>
-    <li>All the information provided above is accepted unconditionally.</li>
-    <li>Sampling Plan: List is defined at the bottom &mdash; components Zn-plated in one Bath-Rack / Barrel.</li>
-  </ol>
+  <div>a) The Critical Parameters stated in the Final gating is checked 100% and only OK materials are to be despatched to the Customer.</div>
+  <div>b) All the Information provided above are accurate and Auditable.</div>
+  <div>c) Sampling Plan : Lot is defined at the No. of Components Zn Plated in one Bath-Rack/Barrel</div>
 </div>
 
 <table class="tc-grid">
@@ -225,22 +207,23 @@ table.tc-grid.tc-no-top { border-top: 0; }
     </tr>
   </thead>
   <tbody>
-    <tr><td class="tc-cell-c">Up to 10</td><td class="tc-cell-c">100%</td><td class="tc-cell-c">21 to 50</td><td class="tc-cell-c">20%</td><td class="tc-cell-c">100 &amp; Above</td><td class="tc-cell-c">5%</td></tr>
+    <tr><td class="tc-cell-c">Up to 10</td><td class="tc-cell-c">100%</td><td class="tc-cell-c">21 to 50</td><td class="tc-cell-c">20%</td><td class="tc-cell-c">100 & Above</td><td class="tc-cell-c">5%</td></tr>
     <tr><td class="tc-cell-c">11 to 20</td><td class="tc-cell-c">50%</td><td class="tc-cell-c">51 to 100</td><td class="tc-cell-c">10%</td><td class="tc-cell-c"></td><td class="tc-cell-c"></td></tr>
   </tbody>
 </table>
 
-<div class="tc-disclaimer">
-  Note: No alterations are permissible in the format without written approval of QA &mdash; TML.
-</div>
+<div class="tc-disclaimer">Note : No alterations are permissible to the format without written approval of QA - TML.</div>
 
 <div class="tc-footer">
   <div class="tc-addr-block">
     <strong>SOMA ELECTRO PRODUCTS</strong><br>
-    B-8, (1st Phase) Industrial Area, Adityapur, Jamshedpur &ndash; 831001<br>
-    GSTIN: 20AB DPJ 4731 B2ZD
+    B-8, (1st Phase) Industrial Area, Adityapur, Jamshedpur – 832109<br>
+    GSTIN : 20AAFFS4718J2ZD
   </div>
-  <div class="tc-sig">Authorised Signatory</div>
+  <div class="tc-sig">
+    <span class="tc-attribution">for SOMA ELECTRO PRODUCTS</span>
+    Authorised Signatory
+  </div>
 </div>
 
 </body>

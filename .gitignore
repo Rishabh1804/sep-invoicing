@@ -1,6 +1,11 @@
 # Business data — never commit
 *.json
 !package.json
+# Test certificate reference data — process specs and per-issue records.
+# Not transactional/financial data; consumed by the cert generator and (later)
+# the SEP app cert-issue feature. Whitelisted explicitly.
+!docs/test-certificates/cert-shop-data.json
+!docs/test-certificates/cert-issues.json
 
 # Backups
 *-backup-*

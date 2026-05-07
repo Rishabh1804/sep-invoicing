@@ -1,0 +1,20 @@
+[
+  {
+    "_doc": "One entry per issued certificate batch. A batch is a single dispatch (one Invoice + one Challan) covering one or more parts. Each part produces one cert page.",
+    "issueDate": "15/04/26",
+    "challanDate": "15-04-2026",
+    "challanNo": "94",
+    "invoiceNo": "137",
+    "purchaseOrderRef": "",
+    "customer": {
+      "name": "SSSMehta Industries Ltd.",
+      "address": "A-4, Road No. 2, Industrial Estate,<br>ADITYAPUR, JAMSHEDPUR-832109"
+    },
+    "parts": [
+      { "partNo": "5081 3240 4207N", "qty": "20.000" },
+      { "partNo": "5069 3240 4202N", "qty": "20.000" },
+      { "partNo": "2632 3240 4209N", "qty": "20.000" },
+      { "partNo": "2082 3240 4202",  "qty": "40.000" }
+    ]
+  }
+]

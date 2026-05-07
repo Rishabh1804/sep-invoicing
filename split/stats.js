@@ -1,5 +1,6 @@
 /* ===== STATS (Phase 7 — Analytics Rework) ===== */
 var _statsPeriod = 'mtd';
+var _statsTrendGran = 'month';
 
 function filterByPeriod(invoices, period) {
   if (period === 'all') return invoices;
@@ -20,21 +21,48 @@ function filterByPeriod(invoices, period) {
   });
 }
 
-function buildMonthlyRevenue(invoices) {
-  var byMonth = {};
+var TREND_MONTH_LABELS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+// ISO 8601 week (Mon..Sun, week 1 contains Jan 4). Returns YYYY-Www.
+function isoWeekKey(yyyymmdd) {
+  var d = new Date(yyyymmdd + 'T00:00:00');
+  if (isNaN(d)) return yyyymmdd;
+  var dayNum = (d.getDay() + 6) % 7;
+  d.setDate(d.getDate() - dayNum + 3);
+  var firstThursday = new Date(d.getFullYear(), 0, 4);
+  var firstDayNum = (firstThursday.getDay() + 6) % 7;
+  firstThursday.setDate(firstThursday.getDate() - firstDayNum + 3);
+  var wk = 1 + Math.round((d - firstThursday) / 604800000);
+  return d.getFullYear() + '-W' + (wk < 10 ? '0' + wk : '' + wk);
+}
+
+function buildTrendData(invoices, gran) {
+  var by = {};
   invoices.forEach(function(inv) {
     if (!inv.date) return;
-    var ym = inv.date.substring(0, 7);
-    if (!byMonth[ym]) byMonth[ym] = 0;
-    byMonth[ym] += (inv.taxableValue || 0);
+    var key;
+    if (gran === 'day')      key = inv.date;                  // YYYY-MM-DD
+    else if (gran === 'week') key = isoWeekKey(inv.date);     // YYYY-Www
+    else                      key = inv.date.substring(0, 7); // YYYY-MM
+    if (!by[key]) by[key] = 0;
+    by[key] += (inv.taxableValue || 0);
   });
-  var months = Object.keys(byMonth).sort();
-  var last12 = months.slice(-12);
-  var labels = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-  return last12.map(function(ym) {
-    var parts = ym.split('-');
-    return { label: labels[parseInt(parts[1]) - 1] + ' ' + parts[0].slice(2), value: byMonth[ym] };
-  });
+  // Cap series length per granularity for readability + perf.
+  var cap = gran === 'day' ? 90 : gran === 'week' ? 26 : 12;
+  var keys = Object.keys(by).sort().slice(-cap);
+  return keys.map(function(k) { return { label: formatTrendLabel(k, gran), value: by[k] }; });
+}
+
+function formatTrendLabel(key, gran) {
+  if (gran === 'day') {
+    var p = key.split('-');
+    return parseInt(p[2], 10) + ' ' + TREND_MONTH_LABELS[parseInt(p[1], 10) - 1];
+  }
+  if (gran === 'week') {
+    return 'W' + key.slice(-2) + ' ' + key.slice(2, 4);
+  }
+  var pp = key.split('-');
+  return TREND_MONTH_LABELS[parseInt(pp[1], 10) - 1] + ' ' + pp[0].slice(2);
 }
 
 function buildTopItems(invoices) {
@@ -75,8 +103,11 @@ function renderRevenueBarSvg(ranked, maxVal) {
   return html;
 }
 
-function renderTrendSvg(monthlyData) {
-  if (monthlyData.length < 2) return '<div class="inv-text-muted">Need 2+ months of data for trend</div>';
+function renderTrendSvg(monthlyData, gran) {
+  if (monthlyData.length < 2) {
+    var unit = gran === 'day' ? 'days' : gran === 'week' ? 'weeks' : 'months';
+    return '<div class="inv-text-muted">Need 2+ ' + unit + ' of data for trend</div>';
+  }
   var W = 400, H = 160, padL = 30, padR = 40, padT = 20, padB = 30;
   var chartW = W - padL - padR, chartH = H - padT - padB;
   var maxVal = Math.max.apply(null, monthlyData.map(function(d) { return d.value; }));
@@ -104,10 +135,15 @@ function renderTrendSvg(monthlyData) {
   // omitted because preserveAspectRatio="none" would render circles as ellipses.
   // Endpoint markers use vector-effect="non-scaling-size" via small absolute size.
   points.forEach(function(p, i) {
-    if (i === 0 || i === points.length - 1) {
+    var isEnd = i === 0 || i === points.length - 1;
+    if (isEnd) {
       svg += '<circle cx="' + p.x + '" cy="' + p.y + '" r="3.5" class="inv-svg-dot" vector-effect="non-scaling-stroke"/>';
+      // Only label endpoints (first + last). With granularity=day there can be
+      // up to 90 buckets; rendering every label is unreadable. Endpoints alone
+      // give the viewer enough context (start vs current state).
+      var anchor = i === 0 ? 'start' : 'end';
+      svg += '<text x="' + p.x + '" y="' + (padT + chartH + 16) + '" text-anchor="' + anchor + '" class="inv-svg-axis-label">' + p.label + '</text>';
     }
-    svg += '<text x="' + p.x + '" y="' + (padT + chartH + 16) + '" text-anchor="middle" class="inv-svg-axis-label">' + p.label + '</text>';
   });
   svg += '</svg>';
   return svg;
@@ -206,11 +242,22 @@ function renderStats() {
   }
   html += '</div>';
 
-  // Card 5: Monthly Trend (full-width, always all-time)
-  var monthlyData = buildMonthlyRevenue(activeInvs);
+  // Card 5: Revenue Trend (full-width, always all-time, granularity-toggleable)
+  var trendData = buildTrendData(activeInvs, _statsTrendGran);
+  var granChips = ['day', 'week', 'month'];
+  var granLabels = { day: 'Day', week: 'Week', month: 'Month' };
+  var granHtml = '<div class="inv-stats-chips inv-stats-chips-sm">';
+  granChips.forEach(function(g) {
+    granHtml += '<button class="inv-chip' + (_statsTrendGran === g ? ' inv-chip-active' : '') +
+      '" data-action="invStatsTrendGran" data-gran="' + g + '">' + granLabels[g] + '</button>';
+  });
+  granHtml += '</div>';
   html += '<div class="inv-stats-card inv-stats-card-full">' +
-    '<div class="inv-stats-title">Monthly Revenue Trend</div>' +
-    renderTrendSvg(monthlyData) + '</div>';
+    '<div class="inv-stats-trend-header">' +
+      '<div class="inv-stats-title">Revenue Trend</div>' +
+      granHtml +
+    '</div>' +
+    renderTrendSvg(trendData, _statsTrendGran) + '</div>';
 
   // Card 6: Dispatch Cycle
   var dispatchDays = [], deliveryDays = [], fullCycleDays = [];

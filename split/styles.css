@@ -574,6 +574,19 @@ input, select, textarea, button { font-family: inherit; font-size: var(--fs-base
 .dark .inv-chip { border-color: var(--border); background: var(--surface-2); }
 .dark .inv-chip-active { background: var(--accent-dark); border-color: var(--accent-dark); }
 
+/* P9: Compact chip variant for in-card toolbars (e.g. trend granularity) */
+.inv-stats-chips-sm { padding: 0; gap: var(--sp-4); flex: 0 0 auto; }
+.inv-stats-chips-sm .inv-chip {
+  padding: var(--sp-2) var(--sp-10); font-size: var(--fs-xs);
+}
+
+/* P9: Trend card header — title left, granularity chips right */
+.inv-stats-trend-header {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: var(--sp-12); margin-bottom: var(--sp-8); flex-wrap: wrap;
+}
+.inv-stats-trend-header .inv-stats-title { margin: 0; }
+
 /* Phase 7: SVG charts */
 .inv-svg-chart { width: 100%; height: auto; display: block; }
 

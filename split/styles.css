@@ -2,7 +2,7 @@
 :root {
   --ff-base: 'Inter', sans-serif;
   --ff-display: 'Fraunces', serif;
-  --ff-mono: 'JetBrains Mono', monospace;
+  --ff-mono: 'IBM Plex Mono', ui-monospace, 'Cascadia Mono', 'Roboto Mono', monospace;
 
   --fs-2xs: 0.5625rem; --fs-xs: 0.625rem; --fs-sm: 0.75rem;
   --fs-base: 0.875rem; --fs-md: 1rem; --fs-lg: 1.25rem;
@@ -54,7 +54,7 @@
 
 /* ===== RESET ===== */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-html { font-family: var(--ff-base); font-size: 16px; background: var(--bg); color: var(--text-1); -webkit-tap-highlight-color: transparent; }
+html { font-family: var(--ff-base); font-size: 16px; background: var(--bg); color: var(--text-1); -webkit-tap-highlight-color: transparent; font-variant-numeric: slashed-zero tabular-nums lining-nums; }
 body { max-width: var(--max-w); margin: 0 auto; min-height: 100vh; background: var(--bg); padding-bottom: calc(var(--tab-h) + var(--sp-16)); }
 input, select, textarea, button { font-family: inherit; font-size: var(--fs-base); }
 

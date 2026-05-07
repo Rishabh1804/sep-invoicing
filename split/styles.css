@@ -576,6 +576,15 @@ input, select, textarea, button { font-family: inherit; font-size: var(--fs-base
 
 /* Phase 7: SVG charts */
 .inv-svg-chart { width: 100%; height: auto; display: block; }
+
+/* Trend chart — height-capped so it doesn't dominate the dashboard.
+   preserveAspectRatio="none" on the SVG lets it stretch into this fixed box. */
+.inv-trend-svg {
+  width: 100%; height: 140px; display: block;
+}
+@media (min-width: 768px) {
+  .inv-trend-svg { height: 160px; }
+}
 .inv-svg-bar { fill: var(--accent); transition: fill var(--anim-fast); }
 .dark .inv-svg-bar { fill: var(--accent-dark); }
 .inv-svg-bar-group { cursor: pointer; }

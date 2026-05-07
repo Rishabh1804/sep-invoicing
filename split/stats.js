@@ -91,7 +91,7 @@ function renderTrendSvg(monthlyData) {
     ' L' + points.map(function(p) { return p.x + ',' + p.y; }).join(' L') +
     ' L' + points[points.length - 1].x + ',' + (padT + chartH) + ' Z';
 
-  var svg = '<svg class="inv-svg-chart" viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="xMidYMid meet">';
+  var svg = '<svg class="inv-trend-svg" viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="none">';
   for (var g = 0; g <= 3; g++) {
     var gy = padT + (g / 3) * chartH;
     var gVal = maxVal - (g / 3) * maxVal;
@@ -99,9 +99,14 @@ function renderTrendSvg(monthlyData) {
     svg += '<text x="' + (W - padR + 4) + '" y="' + (gy + 4) + '" class="inv-svg-grid-label">' + (gVal >= 100000 ? formatNum(gVal / 100000, 1) + 'L' : formatNum(gVal / 1000, 0) + 'K') + '</text>';
   }
   svg += '<path d="' + areaPath + '" class="inv-svg-area"/>';
-  svg += '<polyline points="' + polyline + '" class="inv-svg-line"/>';
-  points.forEach(function(p) {
-    svg += '<circle cx="' + p.x + '" cy="' + p.y + '" r="3.5" class="inv-svg-dot"/>';
+  svg += '<polyline points="' + polyline + '" class="inv-svg-line" vector-effect="non-scaling-stroke"/>';
+  // Endpoint markers only (first + last) — sparkline aesthetic; intermediate dots
+  // omitted because preserveAspectRatio="none" would render circles as ellipses.
+  // Endpoint markers use vector-effect="non-scaling-size" via small absolute size.
+  points.forEach(function(p, i) {
+    if (i === 0 || i === points.length - 1) {
+      svg += '<circle cx="' + p.x + '" cy="' + p.y + '" r="3.5" class="inv-svg-dot" vector-effect="non-scaling-stroke"/>';
+    }
     svg += '<text x="' + p.x + '" y="' + (padT + chartH + 16) + '" text-anchor="middle" class="inv-svg-axis-label">' + p.label + '</text>';
   });
   svg += '</svg>';

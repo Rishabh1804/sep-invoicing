@@ -1162,6 +1162,7 @@ input, select, textarea, button { font-family: inherit; font-size: var(--fs-base
   padding: var(--sp-6) var(--sp-8);
   font-size: var(--fs-sm); min-height: 36px;
 }
+.inv-toolbar-add { margin-left: auto; flex-shrink: 0; }
 .inv-item-card {
   padding: var(--sp-12) var(--sp-16);
   border-bottom: 1px solid var(--border);

@@ -25,7 +25,8 @@ document.addEventListener('click', function(e) {
     case 'invCloseOverlay': closeOverlay(); break;
     case 'invCloseConfirm': closeTopOverlay(); break;
     case 'invEditClient': openClientEdit(parseInt(btn.dataset.id)); break;
-    case 'invSaveClient': saveClientEdit(parseInt(btn.dataset.client)); break;
+    case 'invAddClient': openClientAdd(); break;
+    case 'invSaveClient': saveClientEdit(parseInt(btn.dataset.client), btn.dataset.mode); break;
     case 'invAddRate': addClientRate(parseInt(btn.dataset.client)); break;
     case 'invSelectClient': selectClient(parseInt(btn.dataset.id)); break;
     case 'invClearClient': captureOptionalFields(); invoiceForm.clientId = null; renderCreateForm(); break;

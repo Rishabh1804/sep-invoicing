@@ -36,33 +36,48 @@ function renderClientsPage() {
   var container = document.getElementById('clientsPageContent');
   if (!container) return;
   var subView = getItemsSubView();
-  var fab = document.getElementById('clientsItemsFab');
 
-  // Phase 8E: Desktop master-detail
+  // Phase 8E: Desktop master-detail — toolbar buttons carry Add, FAB stays hidden
   if (_isDesktop) {
+    _updateClientsFab(subView, false);
     _renderClientsDesktop(subView);
-    if (fab) fab.classList.add('inv-hidden');
     return;
   }
 
+  _updateClientsFab(subView, true);
+
   if (subView === 'items') {
     container.innerHTML = _buildItemsSubViewHtml();
-    if (fab) fab.classList.remove('inv-hidden');
     _bindItemsSearch();
     _itemsRendered = 0;
     _renderItemsList();
   } else {
     container.innerHTML = _buildClientsSubViewHtml();
-    if (fab) fab.classList.add('inv-hidden');
     renderClientList('');
   }
 }
 
+/* FAB is shared by both sub-views — retarget it at whichever one is showing */
+function _updateClientsFab(subView, visible) {
+  var fab = document.getElementById('clientsItemsFab');
+  if (!fab) return;
+  var isItems = subView === 'items';
+  fab.dataset.action = isItems ? 'invAddItem' : 'invAddClient';
+  fab.setAttribute('aria-label', isItems ? 'Add Item' : 'Add Client');
+  fab.classList.toggle('inv-hidden', !visible);
+}
+
 function _buildClientsSubViewHtml(includeToggle) {
   return (includeToggle !== false ? _buildSubViewToggle('clients') : '') +
-    '<div class="inv-search-wrap">' +
+    '<div class="inv-items-toolbar">' +
+    '<div class="inv-search-wrap inv-search-no-mb">' +
     '<svg class="inv-search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>' +
     '<input type="text" class="inv-search-input" id="clientSearch" placeholder="Search clients" autocomplete="off">' +
+    '</div>' +
+    '<div class="inv-items-toolbar-row">' +
+    '<span class="inv-items-count" id="clientsCount">' + S.clients.length + ' clients</span>' +
+    '<button class="inv-btn inv-btn-primary inv-btn-sm inv-toolbar-add" data-action="invAddClient">Add Client</button>' +
+    '</div>' +
     '</div>' +
     '<div id="clientList"></div>';
 }
@@ -91,6 +106,7 @@ function _buildItemsSubViewHtml(includeToggle) {
     '<option value="rate"' + (sort === 'rate' ? ' selected' : '') + '>Rate</option>' +
     '<option value="usage"' + (sort === 'usage' ? ' selected' : '') + '>Usage</option>' +
     '</select>' +
+    '<button class="inv-btn inv-btn-primary inv-btn-sm inv-toolbar-add" data-action="invAddItem">Add Item</button>' +
     '</div>' +
     '<div class="inv-items-toolbar-row">' +
     '<button class="inv-btn inv-btn-ghost inv-btn-sm' + (filter === 'no-weight' ? ' inv-chip-active' : '') + '" data-action="invFilterNoWeight">No weight (' + noWeightCount + ')</button>' +
@@ -494,6 +510,8 @@ function saveItem(itemId, mode) {
   if (stdW !== null && (isNaN(stdW) || stdW < 0)) stdW = null;
 
   if (mode === 'add') {
+    var dup = S.items.find(function(it) { return (it.partNumber || '').trim().toLowerCase() === pn.toLowerCase(); });
+    if (dup) { showToast('Part number already exists: ' + dup.partNumber, 'error'); return; }
     var maxId = S.items.reduce(function(mx, it) { return Math.max(mx, it.id); }, 0);
     S.items.push({
       id: maxId + 1,

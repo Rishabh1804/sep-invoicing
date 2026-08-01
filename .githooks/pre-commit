@@ -1,0 +1,27 @@
+#!/bin/sh
+# SEP Invoicing — pre-commit hook
+#
+# sep-invoicing.html and index.html are build artefacts of split/. Committing
+# them stale is the failure this hook exists to prevent (see f29b35a,
+# "reconcile index.html drift"). CI enforces the same invariant, but only
+# after a push — this catches it before the commit exists.
+#
+# Enable once per clone:
+#   git config core.hooksPath .githooks
+
+set -e
+
+ROOT="$(git rev-parse --show-toplevel)"
+
+# Build from the working tree, so the working tree must match what's staged.
+# Otherwise the artefacts would embed unstaged edits the commit doesn't carry.
+if ! git diff --quiet -- "$ROOT/split/"; then
+  echo "pre-commit: split/ has unstaged changes." >&2
+  echo "  The rebuilt HTML would include edits this commit does not carry." >&2
+  echo "  Stage them (git add split/) or stash them, then commit again." >&2
+  exit 1
+fi
+
+bash "$ROOT/split/build.sh"
+
+git add "$ROOT/sep-invoicing.html" "$ROOT/index.html"

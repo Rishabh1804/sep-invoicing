@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { emptyState, loadAppWithState, switchTab } from './fixtures';
+import { emptyState, loadAppWithState, switchTab, todayIso, recentTs } from './fixtures';
 
 test.describe('Golden flows — smoke coverage for inv-1-2', () => {
 
@@ -23,7 +23,7 @@ test.describe('Golden flows — smoke coverage for inv-1-2', () => {
       id: 'INV-TEST-1',
       invoiceNumber: '00001',
       displayNumber: 'SEP/TEST-00001',
-      date: '2026-04-10',
+      date: todayIso(),
       status: 'active',
       invoiceState: 'created',
       dispatchedAt: null, deliveredAt: null, filedAt: null,
@@ -36,7 +36,7 @@ test.describe('Golden flows — smoke coverage for inv-1-2', () => {
       taxableValue: 130, cgstPer: 9, cgstAmt: 11.7, sgstPer: 9, sgstAmt: 11.7, igstPer: 0, igstAmt: 0,
       grandTotal: 153.4, amountInWords: 'Rupees One Hundred Fifty Three and Forty Paise Only',
       challanNo: '', challanDate: '', poNumber: '', poDate: '', despatchDate: '', transport: '', remarks: '',
-      createdAt: Date.now(),
+      createdAt: recentTs(),
     }];
 
     await loadAppWithState(page, state);
@@ -54,10 +54,10 @@ test.describe('Golden flows — smoke coverage for inv-1-2', () => {
       id: 'INV-TEST-2',
       invoiceNumber: '00002',
       displayNumber: 'SEP/TEST-00002',
-      date: '2026-04-11',
+      date: todayIso(),
       status: 'active',
       invoiceState: 'delivered',
-      dispatchedAt: Date.now() - 86400000, deliveredAt: Date.now(), filedAt: null,
+      dispatchedAt: recentTs(86400000), deliveredAt: recentTs(), filedAt: null,
       clientId: 1,
       clientName: 'TEST CLIENT KG',
       clientGSTIN: '',
@@ -67,7 +67,7 @@ test.describe('Golden flows — smoke coverage for inv-1-2', () => {
       taxableValue: 260, cgstPer: 9, cgstAmt: 23.4, sgstPer: 9, sgstAmt: 23.4, igstPer: 0, igstAmt: 0,
       grandTotal: 306.8, amountInWords: '',
       challanNo: '', challanDate: '', poNumber: '', poDate: '', despatchDate: '', transport: '', remarks: '',
-      createdAt: Date.now() - 172800000,
+      createdAt: recentTs(172800000),
     }];
 
     await loadAppWithState(page, state);

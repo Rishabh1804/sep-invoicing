@@ -34,6 +34,33 @@ export const emptyState = (): SepState => ({
   _scanSeed1: true,
 });
 
+/**
+ * Today as YYYY-MM-DD, local time.
+ *
+ * Seeded invoices must carry a current-period date or they are filtered out of
+ * the views under test: the Register filters on `regFilter.month`, which
+ * defaults to the current month, and Stats defaults to `mtd`. A hardcoded date
+ * makes a test pass only during the month it was written.
+ */
+export function todayIso(): string {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+}
+
+/**
+ * A timestamp guaranteed to sit inside the current month-to-date window.
+ *
+ * `filterByPeriod(…, 'mtd')` compares `createdAt` against midnight on the 1st,
+ * so an offset like `Date.now() - 2 days` silently falls out of range on the
+ * 1st and 2nd of every month. Clamps to the start of the month rather than
+ * walking backwards past it.
+ */
+export function recentTs(msAgo = 0): number {
+  const now = new Date();
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
+  return Math.max(now.getTime() - msAgo, monthStart);
+}
+
 export async function loadAppWithState(page: Page, state: SepState): Promise<void> {
   await page.addInitScript(
     ([key, value]) => { localStorage.setItem(key as string, value as string); },

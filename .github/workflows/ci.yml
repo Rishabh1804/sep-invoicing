@@ -1,0 +1,82 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  # Superseded PR pushes are worth cancelling; commits on main are not — each
+  # one should keep its own recorded result.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+# Neither job does anything but read the tree.
+permissions:
+  contents: read
+
+jobs:
+  build-sync:
+    name: Build output in sync with split/
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      # AGENTS.md rule 1: never edit the built output directly, never bypass
+      # build.sh. This job is what makes that rule enforceable — it rebuilds
+      # from split/ and fails if the committed artefacts have drifted.
+      - name: Rebuild from split/ modules
+        run: bash split/build.sh > "$RUNNER_TEMP/sep-invoicing.html"
+
+      - name: sep-invoicing.html matches split/ sources
+        run: |
+          if ! diff -u sep-invoicing.html "$RUNNER_TEMP/sep-invoicing.html"; then
+            echo "::error file=sep-invoicing.html::Built output is stale. Run: cd split && bash build.sh > ../sep-invoicing.html && cp ../sep-invoicing.html ../index.html"
+            exit 1
+          fi
+
+      - name: index.html matches sep-invoicing.html
+        run: |
+          if ! diff -u index.html sep-invoicing.html; then
+            echo "::error file=index.html::index.html has drifted from sep-invoicing.html. Run: cp sep-invoicing.html index.html"
+            exit 1
+          fi
+
+  e2e:
+    name: Playwright e2e
+    runs-on: ubuntu-latest
+    # The suite runs in well under a minute; this is a hang backstop, not a
+    # budget. Without it a wedged browser would burn the 6h job default.
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # Only Chromium — both Playwright projects (mobile-chromium via the Pixel 5
+      # descriptor, desktop-chromium) run on it.
+      - name: Install Chromium
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Run e2e suite
+        run: pnpm exec playwright test
+
+      - name: Upload traces on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-traces
+          path: test-results/
+          retention-days: 7
+          if-no-files-found: ignore

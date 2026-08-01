@@ -11,7 +11,7 @@ import { emptyState, loadAppWithState, switchTab, type SepState } from './fixtur
 // change what gets billed to the largest client in the book.
 
 type Item = {
-  id: number; partNumber: string; desc: string;
+  id: number; partNumber: string; desc: string; gauge?: string;
   hsn: string; unit: string; rate: number; stdWeightKg: number | null;
 };
 
@@ -67,9 +67,11 @@ test.describe('P7: Items Master redundant-row migration', () => {
 
     const items = await itemsAfterLoad(page);
     expect(items).toHaveLength(2);
-    // Both gauges keep their own rate — this is the billing-critical case.
+    // Both gauges keep their own rate — this is the case that must never merge.
     expect(items.map((i) => i.rate).sort()).toEqual([3.67, 4.24]);
-    expect(items.map((i) => i.desc).sort()).toEqual(['35X6', '40X6']);
+    // The gauge migration has lifted "35X6"/"40X6" out of desc into its field.
+    expect(items.map((i) => i.gauge).sort()).toEqual(['35X6', '40X6']);
+    expect(items.map((i) => i.desc)).toEqual(['', '']);
   });
 
   // Rates stay under 25 here on purpose: the pre-existing `_rateCleanup1`
@@ -96,6 +98,55 @@ test.describe('P7: Items Master redundant-row migration', () => {
 
     const items = await itemsAfterLoad(page);
     expect(items).toHaveLength(2);
+  });
+
+  test('lifts a bare gauge out of the description into its own field', async ({ page }) => {
+    await loadAppWithState(page, stateWithItems([
+      item(1, 'CLAMP 133X83 (NT)', '40X6', 'NOS', 4.24),
+    ]));
+    await switchTab(page, 'pageClients');
+
+    const items = await itemsAfterLoad(page);
+    expect(items[0].gauge).toBe('40X6');
+    expect(items[0].desc).toBe('');
+  });
+
+  test('does NOT treat a description that repeats the part number as a gauge', async ({ page }) => {
+    await loadAppWithState(page, stateWithItems([
+      item(1, '82X81', '82X81'),          // part number describes itself
+      item(2, '150X68X3', '150X68X3'),    // three dimensions — a size, not a gauge
+    ]));
+    await switchTab(page, 'pageClients');
+
+    const items = await itemsAfterLoad(page);
+    expect(items.find((i) => i.partNumber === '82X81')?.gauge).toBeFalsy();
+    expect(items.find((i) => i.partNumber === '150X68X3')?.gauge).toBeFalsy();
+  });
+
+  test('reassigns duplicate item ids so every row stays reachable', async ({ page }) => {
+    await loadAppWithState(page, stateWithItems([
+      { ...item(4586, 'CLAMP 45X86(BOX)', '25X6', 'NOS', 1.53) },
+      { ...item(4586, 'BOX CLAMP 45X86', 'BOX CLAMP 45X86', 'NOS', 0) },
+    ]));
+    await switchTab(page, 'pageClients');
+
+    const items = await itemsAfterLoad(page);
+    expect(items).toHaveLength(2);
+    expect(new Set(items.map((i) => i.id)).size).toBe(2);
+    // Both rows survive with their own identity.
+    expect(items.map((i) => i.partNumber).sort()).toEqual(['BOX CLAMP 45X86', 'CLAMP 45X86(BOX)']);
+  });
+
+  test('gauge is part of identity — same part, same rate, different gauge survives', async ({ page }) => {
+    await loadAppWithState(page, stateWithItems([
+      { ...item(1, 'CLAMP TEST', '', 'NOS', 2.5), gauge: '30X6' },
+      { ...item(2, 'CLAMP TEST', '', 'NOS', 2.5), gauge: '35X6' },
+    ]));
+    await switchTab(page, 'pageClients');
+
+    const items = await itemsAfterLoad(page);
+    expect(items).toHaveLength(2);
+    expect(items.map((i) => i.gauge).sort()).toEqual(['30X6', '35X6']);
   });
 
   test('is idempotent — a second load removes nothing further', async ({ page }) => {

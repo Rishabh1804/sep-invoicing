@@ -1193,6 +1193,13 @@ input, select, textarea, button { font-family: inherit; font-size: var(--fs-base
 .inv-item-weight-row {
   margin-top: var(--sp-4);
 }
+.inv-gauge-badge {
+  display: inline-block; padding: var(--sp-2) var(--sp-6);
+  background: var(--surface-2); color: var(--text-2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm); font-size: var(--fs-2xs); font-weight: 600;
+  font-family: var(--ff-mono);
+}
 .inv-weight-badge {
   display: inline-block; padding: var(--sp-2) var(--sp-6);
   background: var(--prod-bg); color: var(--prod-text);
@@ -1235,6 +1242,7 @@ input, select, textarea, button { font-family: inherit; font-size: var(--fs-base
 .dark .inv-merge-group { background: var(--surface); }
 .dark .inv-merge-warn { background: var(--warning-bg); color: var(--warning-text); }
 .dark .inv-weight-badge { background: var(--prod-bg); color: var(--prod-text); }
+.dark .inv-gauge-badge { background: var(--surface-2); color: var(--text-2); }
 
 /* ===== ITEMS MASTER — Phase 6b (Usage + Batch) ===== */
 .inv-item-badges-row {

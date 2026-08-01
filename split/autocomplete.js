@@ -6,7 +6,8 @@ function searchParts(query) {
   for (let i = 0; i < S.items.length && matches.length < 8; i++) {
     const item = S.items[i];
     if ((item.partNumber || '').toLowerCase().includes(q) ||
-        (item.desc || '').toLowerCase().includes(q)) {
+        (item.desc || '').toLowerCase().includes(q) ||
+        (item.gauge || '').toLowerCase().includes(q)) {
       matches.push(item);
     }
   }
@@ -22,10 +23,13 @@ function showPartAutocomplete(idx, query) {
     return;
   }
   acEl.classList.remove('inv-hidden');
+  // The gauge is shown as its own badge: several clamp part numbers exist in
+  // more than one gauge, and it is the only thing telling those rows apart.
   acEl.innerHTML = matches.map(m =>
     '<div class="inv-autocomplete-item" data-action="invSelectPart" data-idx="' + idx + '" data-part-id="' + m.id + '">' +
     '<span class="inv-autocomplete-part">' + escHtml(m.partNumber) + '</span>' +
-    '<span class="inv-autocomplete-desc">' + escHtml(m.desc) + '</span></div>'
+    (m.gauge ? '<span class="inv-gauge-badge">' + escHtml(m.gauge) + '</span>' : '') +
+    '<span class="inv-autocomplete-desc">' + escHtml(m.desc || '') + '</span></div>'
   ).join('');
 }
 
@@ -39,7 +43,11 @@ function selectPartForLine(idx, partId) {
   const item = invoiceForm.items[idx];
   if (!item) return;
   item.partNumber = part.partNumber;
-  item.desc = part.desc;
+  // Fold the gauge back into the printed line description. For clamp rows the
+  // description is empty and the gauge alone becomes the line text, which is
+  // exactly what these lines printed before the gauge got its own field.
+  item.desc = part.desc && part.gauge ? part.desc + ' (' + part.gauge + ')'
+            : (part.desc || part.gauge || '');
   item.hsn = part.hsn || '998873';
   item.unit = part.unit || 'KG';
 

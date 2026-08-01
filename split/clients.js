@@ -107,7 +107,7 @@ function _showClientOverlay(client, isAdd) {
 function _readClientForm(excludeId) {
   const name = document.getElementById('ceditName').value.trim();
   if (!name) { showToast('Client name is required', 'error'); return null; }
-  const dup = S.clients.find(x => x.id !== excludeId && x.name.trim().toLowerCase() === name.toLowerCase());
+  const dup = S.clients.find(x => x.id !== excludeId && (x.name || '').trim().toLowerCase() === name.toLowerCase());
   if (dup) { showToast('Client already exists: ' + dup.name, 'error'); return null; }
 
   const gstin = document.getElementById('ceditGstin').value.trim().toUpperCase();
@@ -170,10 +170,13 @@ function addClient() {
   S.clients.push(c);
   saveState();
   closeOverlay();
+  // Clear the filter so the new client is never rendered out of view
   const searchEl = document.getElementById('clientSearch');
   if (searchEl) searchEl.value = '';
-  renderClientList('');
-  if (_isDesktop) _renderClientDetail(c.id, true);
+  // Desktop: let the detail render refresh the master so the new row gets its
+  // active highlight — _clientsActiveId is only set inside _renderClientDetail
+  if (_isDesktop) _renderClientDetail(c.id, false);
+  else renderClientList('');
   showToast('Client added: ' + c.name);
 }
 

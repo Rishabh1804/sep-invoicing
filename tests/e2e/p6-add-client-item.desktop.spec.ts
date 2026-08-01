@@ -24,6 +24,22 @@ test.describe('P6 desktop: add entry points survive the master-detail layout', (
     await expect(page.locator('.inv-overlay-title')).toHaveText('Add Client');
   });
 
+  test('a newly added client lands selected in the detail panel', async ({ page }) => {
+    await loadAppWithState(page, emptyState());
+    await switchTab(page, 'pageClients');
+    await page.locator('[data-action="invSwitchSubView"][data-view="clients"]').first().click();
+
+    await page.locator('.inv-toolbar-add[data-action="invAddClient"]').click();
+    await page.locator('#ceditName').fill('DESKTOP NEW CLIENT');
+    await page.locator('[data-action="invSaveClient"][data-mode="add"]').click();
+
+    // Detail panel shows the new client...
+    await expect(page.locator('#clientsDetail')).toContainText('DESKTOP NEW CLIENT');
+    // ...and the master row carries the active highlight, which only happens if
+    // the master is re-rendered *after* _clientsActiveId is set.
+    await expect(page.locator('.inv-client-item-active')).toContainText('DESKTOP NEW CLIENT');
+  });
+
   test('Items sub-view exposes a visible Add Item button', async ({ page }) => {
     await loadAppWithState(page, emptyState());
     await switchTab(page, 'pageClients');

@@ -510,7 +510,7 @@ function saveItem(itemId, mode) {
   if (stdW !== null && (isNaN(stdW) || stdW < 0)) stdW = null;
 
   if (mode === 'add') {
-    var dup = S.items.find(function(it) { return it.partNumber.trim().toLowerCase() === pn.toLowerCase(); });
+    var dup = S.items.find(function(it) { return (it.partNumber || '').trim().toLowerCase() === pn.toLowerCase(); });
     if (dup) { showToast('Part number already exists: ' + dup.partNumber, 'error'); return; }
     var maxId = S.items.reduce(function(mx, it) { return Math.max(mx, it.id); }, 0);
     S.items.push({

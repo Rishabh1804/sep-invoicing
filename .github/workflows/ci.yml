@@ -7,12 +7,19 @@ on:
 
 concurrency:
   group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  # Superseded PR pushes are worth cancelling; commits on main are not — each
+  # one should keep its own recorded result.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+# Neither job does anything but read the tree.
+permissions:
+  contents: read
 
 jobs:
   build-sync:
     name: Build output in sync with split/
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
 
@@ -39,6 +46,9 @@ jobs:
   e2e:
     name: Playwright e2e
     runs-on: ubuntu-latest
+    # The suite runs in well under a minute; this is a hang backstop, not a
+    # budget. Without it a wedged browser would burn the 6h job default.
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
 

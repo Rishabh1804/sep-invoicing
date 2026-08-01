@@ -80,6 +80,69 @@ if (!S._scanSeed1) {
   }
 })();
 
+/* Collapse redundant Items Master rows. Idempotent — no version flag needed.
+
+   A row is redundant ONLY when another row matches it on partNumber, unit,
+   rate AND stdWeightKg, and at most one distinct informative description
+   exists in the group ("informative" = non-empty and not just a copy of the
+   part number). The discarded row then carries no information the kept row
+   lacks, so this cannot lose data.
+
+   Deliberately conservative: rows sharing a part number but differing in rate
+   or unit are LEFT ALONE. For the clamp lines that difference is the steel
+   gauge — CLAMP 133X83 (NT) is 35X6 at 3.67 and 40X6 at 4.24, and SSSMehta
+   challans bill the 40X6 rate. Collapsing those would corrupt billing, not
+   tidy it. Use the Merge tool for judgement calls. */
+(function() {
+  var items = S.items || [];
+  var groups = {};
+  var order = [];
+
+  function keyOf(it) {
+    return [
+      String(it.partNumber || '').trim().toLowerCase(),
+      it.unit || '',
+      it.rate == null ? 0 : it.rate,
+      it.stdWeightKg == null ? '' : it.stdWeightKg
+    ].join(' ');
+  }
+
+  function informative(it) {
+    var d = String(it.desc || '').trim();
+    return d !== '' && d.toLowerCase() !== String(it.partNumber || '').trim().toLowerCase();
+  }
+
+  items.forEach(function(it) {
+    var k = keyOf(it);
+    if (!groups[k]) { groups[k] = []; order.push(k); }
+    groups[k].push(it);
+  });
+
+  var kept = [];
+  order.forEach(function(k) {
+    var group = groups[k];
+    if (group.length < 2) { kept.push(group[0]); return; }
+    var descs = {};
+    group.forEach(function(it) {
+      if (informative(it)) descs[String(it.desc).trim().toLowerCase()] = true;
+    });
+    // Conflicting real descriptions — not safely mergeable, keep every row.
+    if (Object.keys(descs).length > 1) { kept.push.apply(kept, group); return; }
+    var winner = null;
+    for (var i = 0; i < group.length; i++) {
+      if (informative(group[i])) { winner = group[i]; break; }
+    }
+    kept.push(winner || group[0]);
+  });
+
+  if (kept.length !== items.length) {
+    var removed = items.length - kept.length;
+    S.items = kept;
+    saveJSON(STORAGE_KEY, S);
+    console.log('Items Master: collapsed ' + removed + ' redundant row' + (removed !== 1 ? 's' : ''));
+  }
+})();
+
 /* Phase 6b: Remove Belrise trading items (rate > 25) — one-time cleanup */
 if (!S._rateCleanup1) {
   var before = S.items.length;

@@ -36,10 +36,12 @@ cd split && bash build.sh
 cd split && bash build.sh > sproutlab.html
 cp sproutlab.html ../index.html && cp sproutlab.html ../sproutlab.html
 
-# SEP Invoicing (stdout redirect + manual copy)
-cd split && bash build.sh > ../sep-invoicing.html
-cp ../sep-invoicing.html ../index.html
+# SEP Invoicing (self-copying)
+bash split/build.sh
 ```
+
+SEP Invoicing additionally ships a pre-commit hook that runs the build and stages the
+result. Enable once per clone with `git config core.hooksPath .githooks`.
 
 ## Code Conventions
 
@@ -57,7 +59,7 @@ cp ../sep-invoicing.html ../index.html
 3. `mv` (not `cp`) files to `~/storage/shared/<repo>/split/`
 4. Build via build.sh
 5. Preview in browser
-6. Sync index.html
+6. Sync index.html (SproutLab only — Codex and SEP Invoicing build.sh do this themselves)
 7. Git add, commit, push
 
 ## Persona System

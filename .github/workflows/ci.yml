@@ -24,22 +24,16 @@ jobs:
       - uses: actions/checkout@v4
 
       # AGENTS.md rule 1: never edit the built output directly, never bypass
-      # build.sh. This job is what makes that rule enforceable — it rebuilds
-      # from split/ and fails if the committed artefacts have drifted.
+      # build.sh. This job is what makes that rule enforceable — it runs the
+      # same command a developer runs and fails if anything changes, so the
+      # check can't drift from the build it is checking.
       - name: Rebuild from split/ modules
-        run: bash split/build.sh > "$RUNNER_TEMP/sep-invoicing.html"
+        run: bash split/build.sh
 
-      - name: sep-invoicing.html matches split/ sources
+      - name: Committed HTML matches split/ sources
         run: |
-          if ! diff -u sep-invoicing.html "$RUNNER_TEMP/sep-invoicing.html"; then
-            echo "::error file=sep-invoicing.html::Built output is stale. Run: cd split && bash build.sh > ../sep-invoicing.html && cp ../sep-invoicing.html ../index.html"
-            exit 1
-          fi
-
-      - name: index.html matches sep-invoicing.html
-        run: |
-          if ! diff -u index.html sep-invoicing.html; then
-            echo "::error file=index.html::index.html has drifted from sep-invoicing.html. Run: cp sep-invoicing.html index.html"
+          if ! git diff --exit-code -- sep-invoicing.html index.html; then
+            echo "::error::Built output is stale. Run 'bash split/build.sh' and commit the result. Enabling the pre-commit hook (git config core.hooksPath .githooks) does this automatically."
             exit 1
           fi
 

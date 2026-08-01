@@ -53,17 +53,27 @@ split/
 ### Build
 
 ```bash
-cd ~/storage/shared/sep-invoicing/split
-bash build.sh > ../sep-invoicing.html
-cp ../sep-invoicing.html ../index.html
+cd ~/storage/shared/sep-invoicing
+bash split/build.sh
 git add -A && git commit -m "description" && git --no-pager push
 ```
+
+`build.sh` writes `sep-invoicing.html` and syncs `index.html` itself. Never edit either by hand.
+
+**One-time per clone** — makes the rebuild automatic on every commit:
+
+```bash
+git config core.hooksPath .githooks
+```
+
+The pre-commit hook rebuilds and stages both artefacts, so a commit can't carry stale
+output. CI (`build-sync`) enforces the same invariant as a backstop.
 
 ### Deploy from ZIP
 ```bash
 cd ~/storage/shared/sep-invoicing
 unzip -o ~/storage/downloads/<zip>
-cp sep-invoicing.html index.html
+bash split/build.sh   # rebuild from split/ — a ZIP's prebuilt HTML may not match
 git add -A && git commit -m "..." && git --no-pager push
 ```
 

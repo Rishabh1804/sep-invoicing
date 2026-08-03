@@ -3634,24 +3634,33 @@ function _partRevenueMap() {
   return rev;
 }
 
-/* True when a part has at least one piece-billed line whose client prices off
-   a rate per kg, so its weight can be recovered from the pricing itself. */
-function _hasDerivableRate(item) {
-  var found = false;
+/* partNumber -> [weight, ...] recovered from piece pricing, in ONE pass.
+
+   Deliberately not a per-item scan. With ~700 invoices and ~160 items that
+   shape cost ~350,000 getLineItemRate() calls, each filtering and sorting a
+   client's rate ladder — enough to stall the phone this runs on. Walking the
+   book once, with the client resolved per invoice rather than per line, does
+   the same work in a few hundred. */
+function _buildDerivedWeightMap() {
+  var map = {};
   (S.invoices || []).forEach(function(inv) {
-    if (found || inv.status === 'cancelled') return;
+    if (inv.status === 'cancelled') return;
+    var client = S.clients.find(function(c) { return c.id === inv.clientId; });
+    if (!client || client.billingMode !== 'piece') return;
+    var date = inv.date || localDateStr();
+
     (inv.items || []).forEach(function(li) {
-      if (found) return;
-      if (li.partNumber !== item.partNumber) return;
+      if (!li.partNumber) return;
       if ((li.unit || '').toUpperCase() !== 'NOS' || !(li.rate > 0)) return;
-      var client = S.clients.find(function(c) { return c.id === inv.clientId; });
-      if (!client || client.billingMode !== 'piece') return;
-      var rateInfo = getLineItemRate(client, inv.date || localDateStr(), li.partNumber);
+      var rateInfo = getLineItemRate(client, date, li.partNumber);
+      // An override is a negotiated per-piece figure with no weight basis;
+      // inverting it would invent a number rather than recover one.
       if (rateInfo._override || !(rateInfo.ratePerKg > 0)) return;
-      found = true;
+      if (!map[li.partNumber]) map[li.partNumber] = [];
+      map[li.partNumber].push(li.rate / rateInfo.ratePerKg);
     });
   });
-  return found;
+  return map;
 }
 
 /* Break-even weight in kg: above this, the piece rate does not cover cost.
@@ -3676,7 +3685,8 @@ function openWeightEntry() {
     return (revMap[b.partNumber] || 0) - (revMap[a.partNumber] || 0);
   });
 
-  var derivable = missing.filter(_hasDerivableRate).length;
+  var weightMap = _buildDerivedWeightMap();
+  var derivable = missing.filter(function(it) { return !!weightMap[it.partNumber]; }).length;
 
   var html = '<div class="inv-overlay-card">' +
     '<div class="inv-overlay-header"><span class="inv-overlay-title">Enter Weights</span>' +
@@ -3811,31 +3821,13 @@ function saveWeights() {
 function deriveWeightsFromRates() {
   var derived = 0;
   var highVariance = 0;
-  var skippedOverride = 0;
+  var weightMap = _buildDerivedWeightMap();
 
   (S.items || []).forEach(function(item) {
     if (item.stdWeightKg != null) return;
 
-    var weights = [];
-    (S.invoices || []).forEach(function(inv) {
-      if (inv.status === 'cancelled') return;
-      (inv.items || []).forEach(function(li) {
-        if (li.partNumber !== item.partNumber) return;
-        if ((li.unit || '').toUpperCase() !== 'NOS') return;
-        if (!(li.rate > 0)) return;
-
-        var client = S.clients.find(function(c) { return c.id === inv.clientId; });
-        if (!client || client.billingMode !== 'piece') return;
-
-        var rateInfo = getLineItemRate(client, inv.date || localDateStr(), li.partNumber);
-        if (rateInfo._override) { skippedOverride++; return; }
-        if (!(rateInfo.ratePerKg > 0)) return;
-
-        weights.push(li.rate / rateInfo.ratePerKg);
-      });
-    });
-
-    if (weights.length === 0) return;
+    var weights = weightMap[item.partNumber];
+    if (!weights || weights.length === 0) return;
 
     var avg = weights.reduce(function(s, w) { return s + w; }, 0) / weights.length;
     if (weights.length > 1) {

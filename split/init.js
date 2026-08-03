@@ -80,6 +80,123 @@ if (!S._scanSeed1) {
   }
 })();
 
+/* Lift a bare gauge out of the description into its own field. Idempotent.
+
+   166 catalogue rows used `desc` to hold nothing but a steel strip size —
+   "40X6", "25X6" — which is a specification, not a description. It is also
+   the only thing distinguishing several clamp rows that share a part number,
+   so it needs to be a field the app can see rather than free text.
+
+   The rule is deliberately narrow: exactly two dimensions, and the text must
+   not simply repeat the part number (part "82X81" describes itself and is not
+   a gauge). Three-dimension values like "150X68X3" are sizes, not gauges, and
+   are left alone. */
+(function() {
+  var GAUGE_RE = /^\s*\d+\s*[Xx]\s*\d+\s*$/;
+  var moved = 0;
+  (S.items || []).forEach(function(it) {
+    if (it.gauge) return;
+    var d = String(it.desc || '').trim();
+    if (!GAUGE_RE.test(d)) return;
+    if (d.toLowerCase() === String(it.partNumber || '').trim().toLowerCase()) return;
+    it.gauge = d.toUpperCase();
+    it.desc = '';
+    moved++;
+  });
+  if (moved > 0) {
+    saveJSON(STORAGE_KEY, S);
+    console.log('Items Master: moved ' + moved + ' gauge value(s) out of the description field');
+  }
+})();
+
+/* Repair duplicate item ids. Idempotent.
+
+   The seed shipped id 4586 on two different rows (CLAMP 45X86(BOX) and
+   BOX CLAMP 45X86). Every lookup — openItemEdit, _renderItemDetail,
+   selectPartForLine — resolves by id through .find(), so the second row was
+   unreachable and picking it in autocomplete silently selected the first. */
+(function() {
+  var seen = {};
+  var maxId = (S.items || []).reduce(function(mx, it) { return Math.max(mx, it.id || 0); }, 0);
+  var repaired = 0;
+  (S.items || []).forEach(function(it) {
+    if (it.id == null || seen[it.id]) {
+      it.id = ++maxId;
+      repaired++;
+    }
+    seen[it.id] = true;
+  });
+  if (repaired > 0) {
+    saveJSON(STORAGE_KEY, S);
+    console.log('Items Master: reassigned ' + repaired + ' duplicate item id(s)');
+  }
+})();
+
+/* Collapse redundant Items Master rows. Idempotent — no version flag needed.
+
+   A row is redundant ONLY when another row matches it on partNumber, gauge,
+   unit, rate AND stdWeightKg, and at most one distinct informative
+   description exists in the group ("informative" = non-empty and not just a
+   copy of the part number). The discarded row then carries no information the
+   kept row lacks, so this cannot lose data.
+
+   Deliberately conservative: rows sharing a part number but differing in
+   gauge, rate or unit are LEFT ALONE. CLAMP 133X83 (NT) exists as 35X6 at
+   3.67 and 40X6 at 4.24. Nothing prices off these rows — invoice and challan
+   lines both resolve rate through getLineItemRate() against the client ladder
+   — so merging them would misprice nothing today, but it would erase the only
+   record of which gauge costs what. Use the Merge tool for judgement calls. */
+(function() {
+  var items = S.items || [];
+  var groups = {};
+  var order = [];
+
+  function keyOf(it) {
+    return [
+      String(it.partNumber || '').trim().toLowerCase(),
+      String(it.gauge || '').trim().toUpperCase(),
+      it.unit || '',
+      it.rate == null ? 0 : it.rate,
+      it.stdWeightKg == null ? '' : it.stdWeightKg
+    ].join('\u0000');
+  }
+
+  function informative(it) {
+    var d = String(it.desc || '').trim();
+    return d !== '' && d.toLowerCase() !== String(it.partNumber || '').trim().toLowerCase();
+  }
+
+  items.forEach(function(it) {
+    var k = keyOf(it);
+    if (!groups[k]) { groups[k] = []; order.push(k); }
+    groups[k].push(it);
+  });
+
+  var kept = [];
+  order.forEach(function(k) {
+    var group = groups[k];
+    if (group.length < 2) { kept.push(group[0]); return; }
+    var descs = {};
+    group.forEach(function(it) {
+      if (informative(it)) descs[String(it.desc).trim().toLowerCase()] = true;
+    });
+    // Conflicting real descriptions — not safely mergeable, keep every row.
+    if (Object.keys(descs).length > 1) { kept.push.apply(kept, group); return; }
+    var winner = null;
+    for (var i = 0; i < group.length; i++) {
+      if (informative(group[i])) { winner = group[i]; break; }
+    }
+    kept.push(winner || group[0]);
+  });
+
+  if (kept.length !== items.length) {
+    var removed = items.length - kept.length;
+    S.items = kept;
+    saveJSON(STORAGE_KEY, S);
+    console.log('Items Master: collapsed ' + removed + ' redundant row' + (removed !== 1 ? 's' : ''));
+  }
+})();
+
 /* Phase 6b: Remove Belrise trading items (rate > 25) — one-time cleanup */
 if (!S._rateCleanup1) {
   var before = S.items.length;

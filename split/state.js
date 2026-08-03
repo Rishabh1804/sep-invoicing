@@ -9,7 +9,7 @@ function getDefaultState() {
     invPrefix: "SEP/2026-27/",
     invNextNum: 1,
     clients: SEED_CLIENTS,
-    items: ITEMS_MASTER.map(i => ({id:i.id,partNumber:i.p,desc:i.d,hsn:i.h,unit:i.u,rate:i.r,stdWeightKg:null})),
+    items: ITEMS_MASTER.map(i => ({id:i.id,partNumber:i.p,desc:i.d,gauge:i.g||'',hsn:i.h,unit:i.u,rate:i.r,stdWeightKg:null})),
     partWeights: {},
     incomingMaterial: [],
     invoices: [],

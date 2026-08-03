@@ -233,6 +233,10 @@ function _renderItemDetail(itemId, skipMasterRefresh) {
     html += '<div class="inv-detail-label">Description</div>' +
       '<div class="inv-detail-value">' + escHtml(item.desc) + '</div>';
   }
+  if (item.gauge) {
+    html += '<div class="inv-detail-label">Gauge / Spec</div>' +
+      '<div class="inv-detail-value-mono">' + escHtml(item.gauge) + '</div>';
+  }
   html += '<div class="inv-detail-label">HSN Code</div>' +
     '<div class="inv-detail-value-mono">' + escHtml(item.hsn || '998873') + '</div>';
   html += '<div class="inv-detail-label">Unit</div>' +
@@ -388,6 +392,7 @@ function _renderItemsList() {
       (noRate ? 'No rate' : rateStr) + '</span>' +
       '</div>' +
       '<div class="inv-item-badges-row">' +
+      (it.gauge ? '<span class="inv-gauge-badge">' + escHtml(it.gauge) + '</span>' : '') +
       (weightStr ? '<span class="inv-weight-badge">' + escHtml(weightStr) + '</span>' : '') +
       (usageCount > 0 ? '<span class="inv-usage-badge">' + usageCount + ' ref' + (usageCount !== 1 ? 's' : '') + '</span>' :
         '<span class="inv-usage-badge inv-usage-zero">Unused</span>') +
@@ -438,6 +443,7 @@ function _showItemOverlay(item, isAdd) {
   var title = isAdd ? 'Add Item' : 'Edit Item';
   var pn = item ? item.partNumber : '';
   var desc = item ? item.desc : '';
+  var gauge = item ? (item.gauge || '') : '';
   var hsn = item ? (item.hsn || '998873') : '998873';
   var unit = item ? item.unit : 'KG';
   var rate = item ? (item.rate || 0) : 0;
@@ -470,6 +476,8 @@ function _showItemOverlay(item, isAdd) {
     '<input class="inv-form-input inv-mono" id="itemEditPN" value="' + escHtml(pn) + '"></div>' +
     '<div class="inv-form-group"><label class="inv-form-label">Description</label>' +
     '<input class="inv-form-input" id="itemEditDesc" value="' + escHtml(desc) + '"></div>' +
+    '<div class="inv-form-group"><label class="inv-form-label">Gauge / Spec</label>' +
+    '<input class="inv-form-input inv-mono" id="itemEditGauge" value="' + escHtml(gauge) + '" placeholder="e.g. 40X6"></div>' +
     '<div class="inv-form-row">' +
     '<div class="inv-form-group"><label class="inv-form-label">HSN Code</label>' +
     '<input class="inv-form-input inv-mono" id="itemEditHSN" value="' + escHtml(hsn) + '"></div>' +
@@ -502,6 +510,7 @@ function saveItem(itemId, mode) {
   if (!pn) { showToast('Part number is required', 'error'); return; }
 
   var desc = document.getElementById('itemEditDesc').value.trim();
+  var gauge = document.getElementById('itemEditGauge').value.trim().toUpperCase();
   var hsn = document.getElementById('itemEditHSN').value.trim() || '998873';
   var unit = document.getElementById('itemEditUnit').value;
   var rate = parseFloat(document.getElementById('itemEditRate').value) || 0;
@@ -510,13 +519,22 @@ function saveItem(itemId, mode) {
   if (stdW !== null && (isNaN(stdW) || stdW < 0)) stdW = null;
 
   if (mode === 'add') {
-    var dup = S.items.find(function(it) { return (it.partNumber || '').trim().toLowerCase() === pn.toLowerCase(); });
-    if (dup) { showToast('Part number already exists: ' + dup.partNumber, 'error'); return; }
+    // A part number may legitimately repeat across gauges — the clamp lines
+    // carry the same number in 30X6, 35X6 and 40X6. Identity is part + gauge.
+    var dup = S.items.find(function(it) {
+      return (it.partNumber || '').trim().toLowerCase() === pn.toLowerCase() &&
+             (it.gauge || '').trim().toUpperCase() === gauge;
+    });
+    if (dup) {
+      showToast('Already exists: ' + dup.partNumber + (dup.gauge ? ' (' + dup.gauge + ')' : ''), 'error');
+      return;
+    }
     var maxId = S.items.reduce(function(mx, it) { return Math.max(mx, it.id); }, 0);
     S.items.push({
       id: maxId + 1,
       partNumber: pn,
       desc: desc,
+      gauge: gauge,
       hsn: hsn,
       unit: unit,
       rate: rate,
@@ -528,6 +546,7 @@ function saveItem(itemId, mode) {
     if (!item) return;
     item.partNumber = pn;
     item.desc = desc;
+    item.gauge = gauge;
     item.hsn = hsn;
     item.unit = unit;
     item.rate = rate;

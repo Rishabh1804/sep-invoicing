@@ -115,6 +115,7 @@ function _buildItemsSubViewHtml(includeToggle) {
     '</div>' +
     '<div class="inv-items-toolbar-row">' +
     '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invCalcWeights">Calc Weights</button>' +
+    '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invOpenWeightEntry">Enter Weights (' + noWeightCount + ')</button>' +
     '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invOpenMergeTool">Merge</button>' +
     '</div>' +
     '</div>';
@@ -807,6 +808,158 @@ function cancelMergePreview(groupIdx) {
 }
 
 /* --- Weight Calculator --- */
+/* ===== BULK WEIGHT ENTRY =====
+
+   Calc Weights derives a weight from lines billed in KG that also carry a
+   piece count. Piece-billed work has no such line, so for those parts it can
+   derive nothing — and without a weight there is no rupees-per-kg, which means
+   no margin figure for the piece-billed side of the book at all.
+
+   This screen closes that gap by hand. It orders the gaps by the revenue
+   riding on them, and shows the break-even weight beside each input: at the
+   configured cost per kg, a piece heavier than rate/cost is being processed
+   at a loss. Typing a weight prices the part immediately, so the entry pass
+   doubles as a margin review. */
+
+function _partRevenueMap() {
+  var rev = {};
+  (S.invoices || []).forEach(function(inv) {
+    if (inv.status === 'cancelled') return;
+    (inv.items || []).forEach(function(li) {
+      if (!li.partNumber) return;
+      rev[li.partNumber] = (rev[li.partNumber] || 0) + (li.amount || 0);
+    });
+  });
+  return rev;
+}
+
+/* Break-even weight in kg: above this, the piece rate does not cover cost.
+   Only meaningful for per-piece rates — a KG rate is already rupees per kg. */
+function _breakEvenKg(item, cost) {
+  if (!cost || cost <= 0) return null;
+  if ((item.unit || '').toUpperCase() !== 'NOS') return null;
+  if (!item.rate || item.rate <= 0) return null;
+  return item.rate / cost;
+}
+
+function openWeightEntry() {
+  var missing = (S.items || []).filter(function(it) { return it.stdWeightKg == null; });
+  if (missing.length === 0) {
+    showToast('Every item already has a standard weight');
+    return;
+  }
+
+  var cost = S.defaultCostPerKg || 0;
+  var revMap = _partRevenueMap();
+  missing.sort(function(a, b) {
+    return (revMap[b.partNumber] || 0) - (revMap[a.partNumber] || 0);
+  });
+
+  var html = '<div class="inv-overlay-card">' +
+    '<div class="inv-overlay-header"><span class="inv-overlay-title">Enter Weights</span>' +
+    '<button class="inv-overlay-close" data-action="invCloseOverlay">&times;</button></div>' +
+    '<div class="inv-text-muted inv-storage-text inv-mb-8">' +
+    missing.length + ' item' + (missing.length !== 1 ? 's' : '') + ' without a weight, heaviest revenue first. ' +
+    (cost > 0
+      ? 'Break-even is shown against a cost of ' + formatCurrency(cost) + '/kg.'
+      : 'Set a cost per kg in Settings to see break-even weights.') +
+    '</div>';
+
+  html += '<div class="inv-weight-list">';
+  missing.forEach(function(it) {
+    var be = _breakEvenKg(it, cost);
+    var revenue = revMap[it.partNumber] || 0;
+    html += '<div class="inv-weight-row">' +
+      '<div class="inv-weight-row-head">' +
+      '<span class="inv-item-pn inv-mono">' + escHtml(it.partNumber) + '</span>' +
+      (it.gauge ? '<span class="inv-gauge-badge">' + escHtml(it.gauge) + '</span>' : '') +
+      '<span class="inv-client-badge inv-badge-mode">' + escHtml(it.unit || 'KG') + '</span>' +
+      '</div>' +
+      '<div class="inv-weight-row-meta">' +
+      '<span class="inv-mono">' + (it.rate ? formatCurrency(it.rate) + '/' + escHtml(it.unit || 'KG') : 'No rate') + '</span>' +
+      (revenue > 0 ? '<span class="inv-text-muted inv-mono">' + formatCurrency(revenue) + ' billed</span>' : '') +
+      (be != null ? '<span class="inv-weight-breakeven">break-even ' + formatNum(be, 3) + ' kg</span>' : '') +
+      '</div>' +
+      '<div class="inv-weight-row-entry">' +
+      '<input type="number" class="inv-form-input inv-mono inv-weight-input" ' +
+      'data-action="invWeightInput" data-id="' + it.id + '" ' +
+      'data-rate="' + (it.rate || 0) + '" data-unit="' + escHtml(it.unit || 'KG') + '" ' +
+      'step="0.001" min="0" placeholder="kg per piece">' +
+      '<span class="inv-weight-verdict" id="invWeightVerdict' + it.id + '"></span>' +
+      '</div>' +
+      '</div>';
+  });
+  html += '</div>';
+
+  html += '<div class="inv-btn-bar">' +
+    '<button class="inv-btn inv-btn-ghost" data-action="invCloseOverlay">Cancel</button>' +
+    '<button class="inv-btn inv-btn-primary" data-action="invSaveWeights">Save Weights</button></div></div>';
+
+  var scrim = document.createElement('div');
+  scrim.className = 'inv-overlay-scrim';
+  scrim.innerHTML = html;
+  scrim.addEventListener('click', function(e) {
+    if (e.target === scrim) { scrim.remove(); document.body.style.overflow = ''; popFocus(); }
+  });
+  pushFocus();
+  document.body.appendChild(scrim);
+  document.body.style.overflow = 'hidden';
+  focusFirstInteractive(scrim.querySelector('.inv-overlay-card'));
+}
+
+/* Live pricing as a weight is typed. */
+function updateWeightVerdict(input) {
+  var el = document.getElementById('invWeightVerdict' + input.dataset.id);
+  if (!el) return;
+  var cost = S.defaultCostPerKg || 0;
+  var rate = parseFloat(input.dataset.rate) || 0;
+  var kg = parseFloat(input.value);
+
+  el.classList.remove('inv-weight-ok', 'inv-weight-bad');
+  if (!input.value.trim() || isNaN(kg) || kg <= 0) { el.textContent = ''; return; }
+  if (rate <= 0 || cost <= 0 || (input.dataset.unit || '').toUpperCase() !== 'NOS') {
+    el.textContent = '';
+    return;
+  }
+
+  var perKg = gstRound(rate / kg);
+  el.textContent = formatCurrency(perKg) + '/kg';
+  el.classList.add(perKg >= cost ? 'inv-weight-ok' : 'inv-weight-bad');
+}
+
+function saveWeights() {
+  var inputs = document.querySelectorAll('.inv-weight-input');
+  var saved = 0;
+  var invalid = 0;
+
+  inputs.forEach(function(input) {
+    var raw = input.value.trim();
+    if (raw === '') return;
+    var kg = parseFloat(raw);
+    if (isNaN(kg) || kg <= 0) { invalid++; return; }
+    var item = S.items.find(function(it) { return it.id === parseInt(input.dataset.id); });
+    if (!item) return;
+    item.stdWeightKg = kg;
+    saved++;
+  });
+
+  if (invalid > 0 && saved === 0) {
+    showToast('Enter weights greater than zero', 'error');
+    return;
+  }
+  if (saved === 0) {
+    showToast('No weights entered', 'error');
+    return;
+  }
+
+  saveState();
+  closeOverlay();
+  _itemsRendered = 0;
+  renderClientsPage();
+  showToast('Saved ' + saved + ' weight' + (saved !== 1 ? 's' : '') +
+    (invalid > 0 ? ' (' + invalid + ' skipped)' : ''));
+}
+
 function calculateStdWeights() {
   var calculated = 0;
   var highVariance = 0;

@@ -1200,6 +1200,39 @@ input, select, textarea, button { font-family: inherit; font-size: var(--fs-base
   border-radius: var(--r-sm); font-size: var(--fs-2xs); font-weight: 600;
   font-family: var(--ff-mono);
 }
+
+/* ===== BULK WEIGHT ENTRY ===== */
+.inv-weight-list { margin-bottom: var(--sp-16); }
+.inv-weight-row {
+  padding: var(--sp-12) 0;
+  border-bottom: 1px solid var(--border);
+}
+.inv-weight-row:last-child { border-bottom: none; }
+.inv-weight-row-head {
+  display: flex; align-items: center; gap: var(--sp-6);
+  flex-wrap: wrap; margin-bottom: var(--sp-4);
+}
+.inv-weight-row-meta {
+  display: flex; align-items: center; gap: var(--sp-8);
+  flex-wrap: wrap; margin-bottom: var(--sp-8);
+  font-size: var(--fs-xs);
+}
+.inv-weight-breakeven {
+  font-family: var(--ff-mono); font-weight: 600;
+  color: var(--text-2);
+}
+.inv-weight-row-entry {
+  display: flex; align-items: center; gap: var(--sp-8);
+}
+.inv-weight-input { flex: 1; min-width: 0; }
+.inv-weight-verdict {
+  font-family: var(--ff-mono); font-size: var(--fs-sm); font-weight: 700;
+  min-width: 88px; text-align: right; flex-shrink: 0;
+}
+.inv-weight-ok { color: var(--attend-text); }
+.inv-weight-bad { color: var(--cost-text); }
+.dark .inv-weight-ok { color: var(--attend-text); }
+.dark .inv-weight-bad { color: var(--cost-text); }
 .inv-weight-badge {
   display: inline-block; padding: var(--sp-2) var(--sp-6);
   background: var(--prod-bg); color: var(--prod-text);

@@ -203,6 +203,12 @@ document.addEventListener('click', function(e) {
       if (akEl) akEl.type = akEl.type === 'password' ? 'text' : 'password';
       break;
     }
+    case 'invToggleMetalsKey': {
+      var mkEl = document.getElementById('setMetalsKey');
+      if (mkEl) mkEl.type = mkEl.type === 'password' ? 'text' : 'password';
+      break;
+    }
+    case 'invRefreshZinc': refreshZincRate(); break;
     // Phase 6: Items Master
     case 'invSwitchSubView': setItemsSubView(btn.dataset.view); renderClientsPage(); break;
     case 'invEditItem': openItemEdit(parseInt(btn.dataset.id)); break;

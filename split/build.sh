@@ -24,6 +24,7 @@ OUT="$ROOT/sep-invoicing.html"
   cat \
     "$DIR/data.js" \
     "$DIR/state.js" \
+    "$DIR/zinc.js" \
     "$DIR/tabs.js" \
     "$DIR/clients.js" \
     "$DIR/items.js" \

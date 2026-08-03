@@ -19,7 +19,7 @@ Workforce management and invoicing PWA for **Soma Electro Products**, a zinc ele
 
 ## Architecture
 
-Split-file PWA. 22 modules, ~7,100 lines total.
+Split-file PWA. 23 modules, ~7,500 lines total.
 
 ```
 split/
@@ -29,6 +29,7 @@ split/
 ├── body.html          ← HTML body, tabs, print view (126 lines)
 ├── data.js            ← ITEMS_MASTER + SEED_CLIENTS (27 lines)
 ├── state.js           ← State mgmt, utilities, escHtml, gstRound (280 lines)
+├── zinc.js            ← Zinc market rate: store, display, metals.dev refresh (135 lines)
 ├── tabs.js            ← switchTab (9-step protocol) + renderHome (178 lines)
 ├── clients.js         ← Client Master CRUD + overlay (125 lines)
 ├── items.js           ← Items Master: subview, CRUD, merge, weights (750 lines)
@@ -48,7 +49,7 @@ split/
 └── init.js            ← Migrations + app bootstrap (241 lines)
 ```
 
-**Concat order defined in build.sh.** Dependencies: data → state → tabs → clients → items → create → settings → invoice-ops → exports → im → autocomplete → print → stats → im-form → scanner → events → swipe → seed → init.
+**Concat order defined in build.sh.** Dependencies: data → state → zinc → tabs → clients → items → create → settings → invoice-ops → exports → im → autocomplete → print → stats → im-form → scanner → events → swipe → seed → init.
 
 ### Build
 
@@ -108,20 +109,39 @@ git add -A && git commit -m "..." && git --no-pager push
 **Critical concept:** IM (Incoming Material) is the billing spine. GC (Gate Challan) is the logistics spine. They are **parallel, not sequential**. One IM can spawn multiple partial GC records.
 
 ### Key Business Data
-- **SSS Mehta:** ~40% of revenue, identified as loss-making at ₹5.40/kg vs ₹5.46/kg cost. Optimal anchor: ₹5.70–5.80/kg.
-- **Chemicals:** ~30% of revenue
-- **Staff:** ~31% of revenue
-- **Operating margin:** ~31%
+Rebuilt from owner-supplied cost inputs against Apr–Jul 2026 actuals (~79,850 kg/month).
+Supersedes the earlier ₹5.46/kg cost and ~31% operating margin, both of which were stale.
+
+| | ₹/kg | Share of cost |
+|---|---|---|
+| Labour (contract + permanent) | 3.55 | 42% |
+| Zinc (~425 kg/mo at MCX + ₹15) | 2.21 | 26% |
+| Chemicals | 1.57 | 18% |
+| Power | 0.81 | 10% |
+| Consumables, water/ETP, maintenance | 0.42 | 4% |
+| **Full cost** | **8.55** | |
+
+- **Blended realisation:** ₹8.45/kg → roughly −₹0.09/kg, about break-even.
+- **SSS Mehta:** 39% of revenue but **61% of tonnage** at ₹5.40/kg. −₹1.53L/month at full cost.
+  Whether to exit or reprice turns on contract labour: fixed → it still contributes
+  ₹0.53/kg; volume-scaling → it loses ₹1.64/kg. Confirm before acting.
+- **Capacity:** ~2 t per 8-hour shift; running ~77% of a two-shift month, ~24 t/month spare.
+  Filling that at ₹13/kg is worth more than the SSS Mehta question either way.
+
+### Items Master
+Part number registry with weights, gauge, descriptions, and merge capability.
+Weights for piece-billed clients are recoverable as pieceRate ÷ client ratePerKg —
+note that such a weight prices back at exactly that rate, so it measures tonnage, not margin.
 
 ### Client Master
 21 clients with rate lookup, billing mode assignment, and contact info.
 
-### Items Master
-Part number registry with weights, descriptions, and merge capability.
-
 ## Persistence
 
 localStorage only. Key: `sep_invoicing_state`. No backend, no GitHub sync. Manual backup/restore via JSON export/import in Settings.
+
+API keys live in their own localStorage entries (`sep_inv_gemini_key`, `sep_inv_metals_key`),
+never on the state object, so an exported backup can never carry a credential.
 
 @import docs/SEP_INVOICING_DESIGN_PRINCIPLES.md
 @import docs/ARCHITECTURE.md

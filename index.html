@@ -1214,6 +1214,12 @@ input, select, textarea, button { font-family: inherit; font-size: var(--fs-base
   font-family: var(--ff-mono);
 }
 
+/* ===== ZINC RATE CARD ===== */
+.inv-zinc-breakdown { font-size: var(--fs-sm); color: var(--text-2); }
+.inv-zinc-meta { font-size: var(--fs-xs); color: var(--text-3); }
+.inv-zinc-stale { color: var(--warning-text); font-weight: 600; }
+.dark .inv-zinc-stale { color: var(--warning-text); }
+
 /* ===== BULK WEIGHT ENTRY ===== */
 .inv-weight-list { margin-bottom: var(--sp-16); }
 .inv-weight-row {
@@ -1722,6 +1728,7 @@ body.inv-desktop #itemsSelBar {
     <button class="inv-btn inv-btn-primary" data-action="invCreateNew">New Invoice</button>
   </div>
   <div id="homeUnbilledCard"></div>
+  <div id="homeZincCard"></div>
   <div class="inv-card">
     <div class="inv-card-header"><span class="inv-card-title">Recent Invoices</span></div>
     <div id="recentInvoices" class="inv-empty-state">No invoices yet</div>
@@ -1895,6 +1902,7 @@ let _regSearchTimer = null;
 var _preselectedClientId = null;
 const VIEW_PREFS_KEY = 'sep_inv_view_prefs';
 const API_KEY_KEY = 'sep_inv_gemini_key';
+const METALS_KEY_KEY = 'sep_inv_metals_key';
 
 /* Phase 5: Focus stack (DP v0.2 Section 8 + Section 16) */
 let _focusStack = [];
@@ -1921,6 +1929,11 @@ function focusFirstInteractive(container) {
 
 function getApiKey() { try { return localStorage.getItem(API_KEY_KEY) || ''; } catch(e) { return ''; } }
 function setApiKey(key) { try { localStorage.setItem(API_KEY_KEY, key); } catch(e) {} }
+
+/* Kept in localStorage rather than on S, so an exported backup never carries
+   a credential. Same handling as the Gemini key above. */
+function getMetalsKey() { try { return localStorage.getItem(METALS_KEY_KEY) || ''; } catch(e) { return ''; } }
+function setMetalsKey(key) { try { localStorage.setItem(METALS_KEY_KEY, key); } catch(e) {} }
 
 // Phase 3: Reset invNextNum if no invoices exist
 if (S.invoices.length === 0) {
@@ -2127,6 +2140,135 @@ function getLineItemRate(client, invoiceDate, partNumber) {
   return {ratePerKg: 0, ratePerPiece: null, effectiveFrom: '2026-04-01'};
 }
 
+/* ===== ZINC MARKET RATE =====
+
+   Zinc is the largest bought-in input on the floor — ~26% of cost at ~425 kg
+   a month. It is bought at the MCX rate plus a fixed supplier premium, so the
+   landed rate moves with the market and a stale figure quietly distorts every
+   cost-per-kg number downstream.
+
+   The rate lives on S so it travels with export/import. The API key does not —
+   it goes to localStorage under its own key, the same as the Gemini key the
+   challan scanner uses, so a backup JSON never carries a credential. */
+
+var ZINC_STALE_DAYS = 7;
+
+function getZinc() {
+  if (!S.zinc) S.zinc = { ratePerKg: null, premiumPerKg: 15, updatedAt: null, source: '' };
+  if (S.zinc.premiumPerKg == null) S.zinc.premiumPerKg = 15;
+  return S.zinc;
+}
+
+/* What a kilo actually costs landed: market rate plus the supplier premium. */
+function zincLandedRate() {
+  var z = getZinc();
+  if (z.ratePerKg == null) return null;
+  return gstRound(z.ratePerKg + (z.premiumPerKg || 0));
+}
+
+function zincAgeDays() {
+  var z = getZinc();
+  if (!z.updatedAt) return null;
+  return Math.floor((Date.now() - z.updatedAt) / 86400000);
+}
+
+function renderZincCard() {
+  var el = document.getElementById('homeZincCard');
+  if (!el) return;
+  var z = getZinc();
+  var landed = zincLandedRate();
+
+  if (landed == null) {
+    el.innerHTML = '<div class="inv-card"><div class="inv-card-header">' +
+      '<span class="inv-card-title">Zinc</span></div>' +
+      '<div class="inv-text-muted inv-storage-text">No rate recorded. Set it in Settings, ' +
+      'or add a metals.dev API key there to pull it from the market.</div></div>';
+    return;
+  }
+
+  var age = zincAgeDays();
+  var stale = age == null || age > ZINC_STALE_DAYS;
+  var ageText = age == null ? 'never updated'
+    : age === 0 ? 'updated today'
+    : 'updated ' + age + ' day' + (age !== 1 ? 's' : '') + ' ago';
+
+  el.innerHTML = '<div class="inv-card"><div class="inv-card-header">' +
+    '<span class="inv-card-title">Zinc</span>' +
+    '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invRefreshZinc">Refresh</button>' +
+    '</div>' +
+    '<div class="inv-flex-between inv-mb-8">' +
+    '<div><div class="inv-text-muted inv-stat-label">Landed per kg</div>' +
+    '<div class="inv-display inv-stat-value">' + formatCurrency(landed) + '</div></div>' +
+    '<div class="inv-text-right"><div class="inv-text-muted inv-stat-label">Market + premium</div>' +
+    '<div class="inv-mono inv-zinc-breakdown">' + formatCurrency(z.ratePerKg) +
+    ' + ' + formatCurrency(z.premiumPerKg || 0) + '</div></div></div>' +
+    '<div class="inv-zinc-meta' + (stale ? ' inv-zinc-stale' : '') + '">' +
+    escHtml(ageText) + (z.source ? ' · ' + escHtml(z.source) : '') +
+    (stale ? ' · may be out of date' : '') + '</div></div>';
+}
+
+/* Pull the live rate. Deliberately forgiving about the response shape: the
+   payload is read for a zinc figure in several plausible places, and if none
+   of them hold one the actual keys returned are surfaced rather than a bare
+   failure, so the path can be corrected without guesswork. */
+function refreshZincRate() {
+  var key = getMetalsKey();
+  if (!key) {
+    showToast('Add a metals.dev API key in Settings first', 'error');
+    return;
+  }
+
+  showToast('Fetching zinc rate…');
+  fetch('https://api.metals.dev/v1/latest?api_key=' + encodeURIComponent(key) +
+        '&currency=INR&unit=kg')
+    .then(function(res) { return res.json(); })
+    .then(function(json) {
+      if (!json || json.status === 'failure') {
+        showToast('metals.dev: ' + ((json && json.error_message) || 'request failed'), 'error');
+        return;
+      }
+      var rate = _extractZincRate(json);
+      if (rate == null) {
+        showToast('No zinc rate in response. Returned: ' + _describeShape(json), 'error');
+        return;
+      }
+      var z = getZinc();
+      z.ratePerKg = gstRound(rate);
+      z.updatedAt = Date.now();
+      z.source = 'metals.dev';
+      saveState();
+      renderZincCard();
+      showToast('Zinc ' + formatCurrency(zincLandedRate()) + '/kg landed');
+    })
+    .catch(function(err) {
+      showToast('Could not reach metals.dev: ' + (err && err.message ? err.message : 'network error'), 'error');
+    });
+}
+
+function _extractZincRate(json) {
+  var buckets = [json.metals, json.rates, json.data, json];
+  var names = ['zinc', 'Zinc', 'ZINC', 'lme_zinc', 'mcx_zinc'];
+  for (var b = 0; b < buckets.length; b++) {
+    var bucket = buckets[b];
+    if (!bucket || typeof bucket !== 'object') continue;
+    for (var n = 0; n < names.length; n++) {
+      var v = bucket[names[n]];
+      if (typeof v === 'number' && isFinite(v) && v > 0) return v;
+      if (v && typeof v === 'object' && typeof v.price === 'number' && v.price > 0) return v.price;
+    }
+  }
+  return null;
+}
+
+function _describeShape(json) {
+  try {
+    var top = Object.keys(json).join(', ');
+    if (json.metals && typeof json.metals === 'object') {
+      return top + ' | metals: ' + Object.keys(json.metals).slice(0, 12).join(', ');
+    }
+    return top;
+  } catch (e) { return 'unreadable response'; }
+}
 /* ===== TAB SWITCHING (DP v0.2 9-step) ===== */
 function switchTab(tabId) {
   // Step 1: Dismiss toasts and close overlays
@@ -2237,6 +2379,8 @@ function renderHome() {
   const active = S.invoices.filter(i => i.status === 'active' && i.date && i.date.startsWith(ym));
   document.getElementById('mtdCount').textContent = active.length;
   document.getElementById('mtdRevenue').innerHTML = formatCurrency(active.reduce((s,i) => s + (i.taxableValue || 0), 0));
+
+  renderZincCard();
 
   // Phase 5: Unbilled IM summary card
   var unbilledEl = document.getElementById('homeUnbilledCard');
@@ -4210,6 +4354,17 @@ function openSettings() {
     '<input type="number" step="0.01" class="inv-form-input inv-mono" id="setDefaultCost" value="' + (S.defaultCostPerKg || 5.46) + '"></div>' +
     '<div class="inv-text-muted inv-storage-text">Used by margin dashboard to compute per-item profitability.</div></div>' +
 
+    '<div class="inv-settings-section"><div class="inv-settings-title">Zinc Rate</div>' +
+    '<div class="inv-form-row"><div class="inv-form-group"><label class="inv-form-label">Market rate (&#8377;/kg)</label>' +
+    '<input type="number" step="0.01" class="inv-form-input inv-mono" id="setZincRate" value="' + (getZinc().ratePerKg == null ? '' : getZinc().ratePerKg) + '" placeholder="400.00"></div>' +
+    '<div class="inv-form-group"><label class="inv-form-label">Supplier premium (&#8377;/kg)</label>' +
+    '<input type="number" step="0.01" class="inv-form-input inv-mono" id="setZincPremium" value="' + (getZinc().premiumPerKg || 0) + '"></div></div>' +
+    '<div class="inv-form-group"><label class="inv-form-label">metals.dev API Key</label>' +
+    '<div class="inv-api-key-wrap"><input class="inv-form-input inv-mono" id="setMetalsKey" type="password" value="' + escHtml(getMetalsKey()) + '" placeholder="Paste key" autocomplete="off">' +
+    '<button class="inv-api-key-toggle" data-action="invToggleMetalsKey" type="button">' +
+    '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button></div>' +
+    '<div class="inv-text-muted inv-storage-text">Free tier at metals.dev covers a daily refresh. Key stays on device and is never included in an export. Leave blank to keep entering the rate by hand.</div></div></div>' +
+
     '<div class="inv-settings-section"><div class="inv-settings-title">Part Weights (NOS to KG)</div>' +
     '<div id="setPWList">' + renderPartWeightsList() + '</div>' +
     '<div class="inv-form-row inv-mb-8"><div class="inv-form-group"><label class="inv-form-label">Part Number</label><input class="inv-form-input inv-mono" id="setPWPart" placeholder="HINGE PIN"></div>' +
@@ -4251,8 +4406,37 @@ function saveSettings() {
   if (costEl) { var parsedCost = parseFloat(costEl.value); if (!isNaN(parsedCost) && parsedCost > 0) S.defaultCostPerKg = parsedCost; }
   var apiKeyEl = document.getElementById('setApiKey');
   if (apiKeyEl) setApiKey(apiKeyEl.value.trim());
+  var metalsKeyEl = document.getElementById('setMetalsKey');
+  if (metalsKeyEl) setMetalsKey(metalsKeyEl.value.trim());
+
+  var z = getZinc();
+  var zRateEl = document.getElementById('setZincRate');
+  if (zRateEl) {
+    var raw = zRateEl.value.trim();
+    if (raw === '') {
+      z.ratePerKg = null;
+      z.updatedAt = null;
+      z.source = '';
+    } else {
+      var parsedZinc = parseFloat(raw);
+      // Only stamp the date when the figure actually moved, so an unrelated
+      // settings save cannot make a stale rate look freshly checked.
+      if (!isNaN(parsedZinc) && parsedZinc > 0 && parsedZinc !== z.ratePerKg) {
+        z.ratePerKg = gstRound(parsedZinc);
+        z.updatedAt = Date.now();
+        z.source = 'manual';
+      }
+    }
+  }
+  var zPremEl = document.getElementById('setZincPremium');
+  if (zPremEl) {
+    var parsedPrem = parseFloat(zPremEl.value);
+    if (!isNaN(parsedPrem) && parsedPrem >= 0) z.premiumPerKg = gstRound(parsedPrem);
+  }
+
   saveState();
   closeOverlay();
+  renderZincCard();
   showToast('Settings saved');
 }
 
@@ -7399,6 +7583,12 @@ document.addEventListener('click', function(e) {
       if (akEl) akEl.type = akEl.type === 'password' ? 'text' : 'password';
       break;
     }
+    case 'invToggleMetalsKey': {
+      var mkEl = document.getElementById('setMetalsKey');
+      if (mkEl) mkEl.type = mkEl.type === 'password' ? 'text' : 'password';
+      break;
+    }
+    case 'invRefreshZinc': refreshZincRate(); break;
     // Phase 6: Items Master
     case 'invSwitchSubView': setItemsSubView(btn.dataset.view); renderClientsPage(); break;
     case 'invEditItem': openItemEdit(parseInt(btn.dataset.id)); break;

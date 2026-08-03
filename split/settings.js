@@ -27,6 +27,17 @@ function openSettings() {
     '<input type="number" step="0.01" class="inv-form-input inv-mono" id="setDefaultCost" value="' + (S.defaultCostPerKg || 5.46) + '"></div>' +
     '<div class="inv-text-muted inv-storage-text">Used by margin dashboard to compute per-item profitability.</div></div>' +
 
+    '<div class="inv-settings-section"><div class="inv-settings-title">Zinc Rate</div>' +
+    '<div class="inv-form-row"><div class="inv-form-group"><label class="inv-form-label">Market rate (&#8377;/kg)</label>' +
+    '<input type="number" step="0.01" class="inv-form-input inv-mono" id="setZincRate" value="' + (getZinc().ratePerKg == null ? '' : getZinc().ratePerKg) + '" placeholder="400.00"></div>' +
+    '<div class="inv-form-group"><label class="inv-form-label">Supplier premium (&#8377;/kg)</label>' +
+    '<input type="number" step="0.01" class="inv-form-input inv-mono" id="setZincPremium" value="' + (getZinc().premiumPerKg || 0) + '"></div></div>' +
+    '<div class="inv-form-group"><label class="inv-form-label">metals.dev API Key</label>' +
+    '<div class="inv-api-key-wrap"><input class="inv-form-input inv-mono" id="setMetalsKey" type="password" value="' + escHtml(getMetalsKey()) + '" placeholder="Paste key" autocomplete="off">' +
+    '<button class="inv-api-key-toggle" data-action="invToggleMetalsKey" type="button">' +
+    '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button></div>' +
+    '<div class="inv-text-muted inv-storage-text">Free tier at metals.dev covers a daily refresh. Key stays on device and is never included in an export. Leave blank to keep entering the rate by hand.</div></div></div>' +
+
     '<div class="inv-settings-section"><div class="inv-settings-title">Part Weights (NOS to KG)</div>' +
     '<div id="setPWList">' + renderPartWeightsList() + '</div>' +
     '<div class="inv-form-row inv-mb-8"><div class="inv-form-group"><label class="inv-form-label">Part Number</label><input class="inv-form-input inv-mono" id="setPWPart" placeholder="HINGE PIN"></div>' +
@@ -68,8 +79,37 @@ function saveSettings() {
   if (costEl) { var parsedCost = parseFloat(costEl.value); if (!isNaN(parsedCost) && parsedCost > 0) S.defaultCostPerKg = parsedCost; }
   var apiKeyEl = document.getElementById('setApiKey');
   if (apiKeyEl) setApiKey(apiKeyEl.value.trim());
+  var metalsKeyEl = document.getElementById('setMetalsKey');
+  if (metalsKeyEl) setMetalsKey(metalsKeyEl.value.trim());
+
+  var z = getZinc();
+  var zRateEl = document.getElementById('setZincRate');
+  if (zRateEl) {
+    var raw = zRateEl.value.trim();
+    if (raw === '') {
+      z.ratePerKg = null;
+      z.updatedAt = null;
+      z.source = '';
+    } else {
+      var parsedZinc = parseFloat(raw);
+      // Only stamp the date when the figure actually moved, so an unrelated
+      // settings save cannot make a stale rate look freshly checked.
+      if (!isNaN(parsedZinc) && parsedZinc > 0 && parsedZinc !== z.ratePerKg) {
+        z.ratePerKg = gstRound(parsedZinc);
+        z.updatedAt = Date.now();
+        z.source = 'manual';
+      }
+    }
+  }
+  var zPremEl = document.getElementById('setZincPremium');
+  if (zPremEl) {
+    var parsedPrem = parseFloat(zPremEl.value);
+    if (!isNaN(parsedPrem) && parsedPrem >= 0) z.premiumPerKg = gstRound(parsedPrem);
+  }
+
   saveState();
   closeOverlay();
+  renderZincCard();
   showToast('Settings saved');
 }
 

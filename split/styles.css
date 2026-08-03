@@ -1201,6 +1201,12 @@ input, select, textarea, button { font-family: inherit; font-size: var(--fs-base
   font-family: var(--ff-mono);
 }
 
+/* ===== ZINC RATE CARD ===== */
+.inv-zinc-breakdown { font-size: var(--fs-sm); color: var(--text-2); }
+.inv-zinc-meta { font-size: var(--fs-xs); color: var(--text-3); }
+.inv-zinc-stale { color: var(--warning-text); font-weight: 600; }
+.dark .inv-zinc-stale { color: var(--warning-text); }
+
 /* ===== BULK WEIGHT ENTRY ===== */
 .inv-weight-list { margin-bottom: var(--sp-16); }
 .inv-weight-row {

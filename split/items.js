@@ -833,6 +833,26 @@ function _partRevenueMap() {
   return rev;
 }
 
+/* True when a part has at least one piece-billed line whose client prices off
+   a rate per kg, so its weight can be recovered from the pricing itself. */
+function _hasDerivableRate(item) {
+  var found = false;
+  (S.invoices || []).forEach(function(inv) {
+    if (found || inv.status === 'cancelled') return;
+    (inv.items || []).forEach(function(li) {
+      if (found) return;
+      if (li.partNumber !== item.partNumber) return;
+      if ((li.unit || '').toUpperCase() !== 'NOS' || !(li.rate > 0)) return;
+      var client = S.clients.find(function(c) { return c.id === inv.clientId; });
+      if (!client || client.billingMode !== 'piece') return;
+      var rateInfo = getLineItemRate(client, inv.date || localDateStr(), li.partNumber);
+      if (rateInfo._override || !(rateInfo.ratePerKg > 0)) return;
+      found = true;
+    });
+  });
+  return found;
+}
+
 /* Break-even weight in kg: above this, the piece rate does not cover cost.
    Only meaningful for per-piece rates — a KG rate is already rupees per kg. */
 function _breakEvenKg(item, cost) {
@@ -855,6 +875,8 @@ function openWeightEntry() {
     return (revMap[b.partNumber] || 0) - (revMap[a.partNumber] || 0);
   });
 
+  var derivable = missing.filter(_hasDerivableRate).length;
+
   var html = '<div class="inv-overlay-card">' +
     '<div class="inv-overlay-header"><span class="inv-overlay-title">Enter Weights</span>' +
     '<button class="inv-overlay-close" data-action="invCloseOverlay">&times;</button></div>' +
@@ -863,7 +885,14 @@ function openWeightEntry() {
     (cost > 0
       ? 'Break-even is shown against a cost of ' + formatCurrency(cost) + '/kg.'
       : 'Set a cost per kg in Settings to see break-even weights.') +
-    '</div>';
+    '</div>' +
+    (derivable > 0
+      ? '<div class="inv-text-muted inv-storage-text inv-mb-16">' +
+        derivable + ' of these are billed per piece off a rate per kg, so the weight is ' +
+        'recoverable from the pricing itself — no weighing needed. Note that a weight ' +
+        'derived this way prices back at exactly that rate, so it measures tonnage, not margin.' +
+        '</div>'
+      : '');
 
   html += '<div class="inv-weight-list">';
   missing.forEach(function(it) {
@@ -893,6 +922,9 @@ function openWeightEntry() {
 
   html += '<div class="inv-btn-bar">' +
     '<button class="inv-btn inv-btn-ghost" data-action="invCloseOverlay">Cancel</button>' +
+    (derivable > 0
+      ? '<button class="inv-btn inv-btn-ghost" data-action="invDeriveWeights">Derive ' + derivable + ' from rates</button>'
+      : '') +
     '<button class="inv-btn inv-btn-primary" data-action="invSaveWeights">Save Weights</button></div></div>';
 
   var scrim = document.createElement('div');
@@ -958,6 +990,74 @@ function saveWeights() {
   renderClientsPage();
   showToast('Saved ' + saved + ' weight' + (saved !== 1 ? 's' : '') +
     (invalid > 0 ? ' (' + invalid + ' skipped)' : ''));
+}
+
+/* Derive weights by inverting the client's own pricing.
+
+   Where a client bills per piece off a rate per kg, the piece rate WAS the
+   weight times that rate — so weight = pieceRate / ratePerKg recovers it
+   exactly. Corroborated against strip gauge: clamps carried in two gauges
+   imply the same developed strip length to within ~1%, which only happens if
+   the rates were built this way.
+
+   Restricted to billingMode 'piece' with no itemRates override. An override is
+   a negotiated per-piece figure with no stated weight basis, so inverting it
+   would invent a number.
+
+   Note what this cannot do: a weight defined as rate/ratePerKg prices back at
+   exactly ratePerKg, so these weights say nothing about which parts are more
+   profitable. Their value is tonnage — what the plant actually processed. */
+function deriveWeightsFromRates() {
+  var derived = 0;
+  var highVariance = 0;
+  var skippedOverride = 0;
+
+  (S.items || []).forEach(function(item) {
+    if (item.stdWeightKg != null) return;
+
+    var weights = [];
+    (S.invoices || []).forEach(function(inv) {
+      if (inv.status === 'cancelled') return;
+      (inv.items || []).forEach(function(li) {
+        if (li.partNumber !== item.partNumber) return;
+        if ((li.unit || '').toUpperCase() !== 'NOS') return;
+        if (!(li.rate > 0)) return;
+
+        var client = S.clients.find(function(c) { return c.id === inv.clientId; });
+        if (!client || client.billingMode !== 'piece') return;
+
+        var rateInfo = getLineItemRate(client, inv.date || localDateStr(), li.partNumber);
+        if (rateInfo._override) { skippedOverride++; return; }
+        if (!(rateInfo.ratePerKg > 0)) return;
+
+        weights.push(li.rate / rateInfo.ratePerKg);
+      });
+    });
+
+    if (weights.length === 0) return;
+
+    var avg = weights.reduce(function(s, w) { return s + w; }, 0) / weights.length;
+    if (weights.length > 1) {
+      var variance = weights.reduce(function(s, w) { return s + Math.pow(w - avg, 2); }, 0) / weights.length;
+      if ((Math.sqrt(variance) / avg) * 100 > 20) highVariance++;
+    }
+
+    item.stdWeightKg = Math.round(avg * 10000) / 10000;
+    derived++;
+  });
+
+  if (derived === 0) {
+    showToast('No piece-billed lines to derive weights from', 'error');
+    return;
+  }
+
+  saveState();
+  closeOverlay();
+  _itemsRendered = 0;
+  renderClientsPage();
+  showToast('Derived ' + derived + ' weight' + (derived !== 1 ? 's' : '') +
+    (highVariance > 0 ? ' (' + highVariance + ' with inconsistent rates)' : ''),
+    highVariance > 0 ? 'warning' : 'success');
 }
 
 function calculateStdWeights() {

@@ -130,6 +130,74 @@ test.describe('P8: bulk weight entry', () => {
     expect(items[0].stdWeightKg).toBeNull();
   });
 
+  test('derives weight by inverting the client rate, matching the manual figure', async ({ page }) => {
+    const state = stateWith([item(1, 'C-CLAMP 66X42 (UT)', 'NOS', 0.95, null, '30X6')]);
+    // Piece-billed client on a 5.40/kg ladder — the SSSMehta shape.
+    state.clients = [{
+      id: 1, name: 'PIECE CLIENT', billingMode: 'piece', gstType: 'intra', gstin: '', address: '',
+      rates: [{ ratePerKg: 5.4, ratePerPiece: null, effectiveFrom: '2026-04-01' }], itemRates: [],
+    } as never];
+    state.invoices = [{
+      id: 'INV-1', invoiceNumber: '00001', displayNumber: 'SEP/TEST-00001',
+      date: '2026-06-10', status: 'active', invoiceState: 'created',
+      clientId: 1, clientName: 'PIECE CLIENT',
+      items: [{ partNumber: 'C-CLAMP 66X42 (UT)', desc: '', hsn: '998873', unit: 'NOS', qty: 100, rate: 0.95, amount: 95 }],
+      taxableValue: 95, grandTotal: 112.1, createdAt: 1,
+    }];
+    await loadAppWithState(page, state);
+    await openEntry(page);
+
+    await page.locator('[data-action="invDeriveWeights"]').click();
+    await expect(page.locator('.inv-overlay-scrim')).toHaveCount(0);
+
+    const items = await page.evaluate(() => {
+      const raw = localStorage.getItem('sep_invoicing_state') || '{}';
+      return (JSON.parse(raw) as { items: Item[] }).items;
+    });
+    // 0.95 / 5.40 = 0.175925..., stored to 4 dp.
+    expect(items[0].stdWeightKg).toBeCloseTo(0.1759, 4);
+  });
+
+  test('NEGATIVE: does not derive from a per-piece override, which has no weight basis', async ({ page }) => {
+    const state = stateWith([item(1, 'L-BRACKET', 'NOS', 1.25)]);
+    state.clients = [{
+      id: 1, name: 'OVERRIDE CLIENT', billingMode: 'piece', gstType: 'intra', gstin: '', address: '',
+      rates: [{ ratePerKg: 5.4, ratePerPiece: null, effectiveFrom: '2026-04-01' }],
+      itemRates: [{ partPattern: 'L-BRACKET', rate: 1.25, unit: 'piece', label: 'negotiated' }],
+    } as never];
+    state.invoices = [{
+      id: 'INV-1', invoiceNumber: '00001', displayNumber: 'SEP/TEST-00001',
+      date: '2026-06-10', status: 'active', invoiceState: 'created',
+      clientId: 1, clientName: 'OVERRIDE CLIENT',
+      items: [{ partNumber: 'L-BRACKET', desc: '', hsn: '998873', unit: 'NOS', qty: 10, rate: 1.25, amount: 12.5 }],
+      taxableValue: 12.5, grandTotal: 14.75, createdAt: 1,
+    }];
+    await loadAppWithState(page, state);
+    await openEntry(page);
+
+    // Nothing is derivable, so the button is not offered at all.
+    await expect(page.locator('[data-action="invDeriveWeights"]')).toHaveCount(0);
+  });
+
+  test('NEGATIVE: does not derive for a kg-billed client', async ({ page }) => {
+    const state = stateWith([item(1, 'BRACKET', 'NOS', 2.0)]);
+    state.clients = [{
+      id: 1, name: 'WEIGHT CLIENT', billingMode: 'weight', gstType: 'intra', gstin: '', address: '',
+      rates: [{ ratePerKg: 13, ratePerPiece: null, effectiveFrom: '2026-04-01' }], itemRates: [],
+    } as never];
+    state.invoices = [{
+      id: 'INV-1', invoiceNumber: '00001', displayNumber: 'SEP/TEST-00001',
+      date: '2026-06-10', status: 'active', invoiceState: 'created',
+      clientId: 1, clientName: 'WEIGHT CLIENT',
+      items: [{ partNumber: 'BRACKET', desc: '', hsn: '998873', unit: 'NOS', qty: 10, rate: 2, amount: 20 }],
+      taxableValue: 20, grandTotal: 23.6, createdAt: 1,
+    }];
+    await loadAppWithState(page, state);
+    await openEntry(page);
+
+    await expect(page.locator('[data-action="invDeriveWeights"]')).toHaveCount(0);
+  });
+
   test('orders the gaps by revenue at risk, not by part number', async ({ page }) => {
     const state = stateWith([
       item(1, 'LOW VALUE', 'NOS', 1.0),

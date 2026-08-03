@@ -216,6 +216,7 @@ document.addEventListener('click', function(e) {
     case 'invCalcWeights': calculateStdWeights(); break;
     case 'invOpenWeightEntry': openWeightEntry(); break;
     case 'invSaveWeights': saveWeights(); break;
+    case 'invDeriveWeights': deriveWeightsFromRates(); break;
     case 'invFilterNoWeight': {
       var curFilter = getItemsFilter();
       regFilter.itemsFilter = curFilter === 'no-weight' ? 'all' : 'no-weight';

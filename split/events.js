@@ -203,6 +203,12 @@ document.addEventListener('click', function(e) {
       if (akEl) akEl.type = akEl.type === 'password' ? 'text' : 'password';
       break;
     }
+    case 'invToggleMetalsKey': {
+      var mkEl = document.getElementById('setMetalsKey');
+      if (mkEl) mkEl.type = mkEl.type === 'password' ? 'text' : 'password';
+      break;
+    }
+    case 'invRefreshZinc': refreshZincRate(); break;
     // Phase 6: Items Master
     case 'invSwitchSubView': setItemsSubView(btn.dataset.view); renderClientsPage(); break;
     case 'invEditItem': openItemEdit(parseInt(btn.dataset.id)); break;
@@ -214,6 +220,9 @@ document.addEventListener('click', function(e) {
     case 'invMergeConfirm': confirmMerge(parseInt(btn.dataset.group), parseInt(btn.dataset.primary)); break;
     case 'invMergeCancelPreview': cancelMergePreview(parseInt(btn.dataset.group)); break;
     case 'invCalcWeights': calculateStdWeights(); break;
+    case 'invOpenWeightEntry': openWeightEntry(); break;
+    case 'invSaveWeights': saveWeights(); break;
+    case 'invDeriveWeights': deriveWeightsFromRates(); break;
     case 'invFilterNoWeight': {
       var curFilter = getItemsFilter();
       regFilter.itemsFilter = curFilter === 'no-weight' ? 'all' : 'no-weight';
@@ -411,6 +420,10 @@ document.addEventListener('change', function(e) {
 document.addEventListener('input', function(e) {
   if (e.target.id === 'clientSearch') {
     renderClientList(e.target.value);
+  }
+  // Bulk weight entry: price the part as soon as a weight is typed
+  if (e.target.dataset.action === 'invWeightInput') {
+    updateWeightVerdict(e.target);
   }
   // Part name editing + autocomplete
   if (e.target.dataset.action === 'invEditLinePart') {

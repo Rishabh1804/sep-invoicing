@@ -47,6 +47,7 @@ let _regSearchTimer = null;
 var _preselectedClientId = null;
 const VIEW_PREFS_KEY = 'sep_inv_view_prefs';
 const API_KEY_KEY = 'sep_inv_gemini_key';
+const METALS_KEY_KEY = 'sep_inv_metals_key';
 
 /* Phase 5: Focus stack (DP v0.2 Section 8 + Section 16) */
 let _focusStack = [];
@@ -73,6 +74,11 @@ function focusFirstInteractive(container) {
 
 function getApiKey() { try { return localStorage.getItem(API_KEY_KEY) || ''; } catch(e) { return ''; } }
 function setApiKey(key) { try { localStorage.setItem(API_KEY_KEY, key); } catch(e) {} }
+
+/* Kept in localStorage rather than on S, so an exported backup never carries
+   a credential. Same handling as the Gemini key above. */
+function getMetalsKey() { try { return localStorage.getItem(METALS_KEY_KEY) || ''; } catch(e) { return ''; } }
+function setMetalsKey(key) { try { localStorage.setItem(METALS_KEY_KEY, key); } catch(e) {} }
 
 // Phase 3: Reset invNextNum if no invoices exist
 if (S.invoices.length === 0) {

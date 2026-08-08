@@ -31,6 +31,7 @@ OUT="$ROOT/sep-invoicing.html"
     "$DIR/create.js" \
     "$DIR/settings.js" \
     "$DIR/invoice-ops.js" \
+    "$DIR/number-audit.js" \
     "$DIR/exports.js" \
     "$DIR/im.js" \
     "$DIR/autocomplete.js" \

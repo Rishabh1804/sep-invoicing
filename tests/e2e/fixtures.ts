@@ -3,6 +3,7 @@ import { Page } from '@playwright/test';
 export const STORAGE_KEY = 'sep_invoicing_state';
 
 export type SepState = {
+  company?: Record<string, string>;
   clients: Array<{ id: number; name: string; billingMode?: string; gstType?: string; gstin?: string; address?: string }>;
   items: unknown[];
   partWeights: Record<string, unknown>;
@@ -20,6 +21,14 @@ export type SepState = {
 };
 
 export const emptyState = (): SepState => ({
+  // loadAppWithState replaces the whole state object, so anything the app reads
+  // unguarded has to be present. `formatInvoiceData` dereferences S.company.name
+  // directly — without this, opening any invoice detail throws before it renders.
+  company: {
+    name: 'SOMA ELECTRO PRODUCTS', add1: 'Test Address', add2: 'Jamshedpur', add3: '',
+    phone: '', mobile: '', email: '', gstin: '20AAPFS4718J2Z0',
+    state: 'JHARKHAND', stateCode: '20',
+  },
   clients: [
     { id: 1, name: 'TEST CLIENT KG', billingMode: 'kg', gstType: 'intra', gstin: '', address: '' },
   ],

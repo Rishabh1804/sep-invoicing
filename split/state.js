@@ -13,6 +13,7 @@ function getDefaultState() {
     partWeights: {},
     incomingMaterial: [],
     invoices: [],
+    voidedNumbers: [],
     defaultCostPerKg: 5.46
   };
 }
@@ -31,6 +32,7 @@ if (!S) { S = getDefaultState(); saveJSON(STORAGE_KEY, S); }
 if (!S.invoices) S.invoices = [];
 if (!S.incomingMaterial) S.incomingMaterial = [];
 if (!S.partWeights) S.partWeights = {};
+if (!S.voidedNumbers) S.voidedNumbers = [];
 
 /* ===== LAYOUT MODE (Phase 8A) ===== */
 var _isDesktop = false;
@@ -80,8 +82,10 @@ function setApiKey(key) { try { localStorage.setItem(API_KEY_KEY, key); } catch(
 function getMetalsKey() { try { return localStorage.getItem(METALS_KEY_KEY) || ''; } catch(e) { return ''; } }
 function setMetalsKey(key) { try { localStorage.setItem(METALS_KEY_KEY, key); } catch(e) {} }
 
-// Phase 3: Reset invNextNum if no invoices exist
-if (S.invoices.length === 0) {
+// Phase 3: Reset invNextNum if no invoices exist.
+// A reserved number in the void ledger still holds its slot — the document
+// left the building, so the number is spent even though no invoice remains.
+if (S.invoices.length === 0 && !S.voidedNumbers.some(function(v) { return v.reserved; })) {
   S.invNextNum = 1;
   saveJSON(STORAGE_KEY, S);
 }

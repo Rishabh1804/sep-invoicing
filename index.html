@@ -1131,6 +1131,54 @@ input, select, textarea, button { font-family: inherit; font-size: var(--fs-base
   font-family: var(--ff-mono); font-size: var(--fs-sm); color: var(--text-1);
 }
 .inv-dupe-row-detail { font-size: var(--fs-xs); color: var(--text-3); }
+
+/* ===== INVOICE NUMBER LEDGER ===== */
+.inv-form-hint {
+  font-size: var(--fs-xs); color: var(--text-3);
+  margin-top: var(--sp-4);
+}
+.inv-numaudit-count {
+  display: inline-block; margin-left: var(--sp-6);
+  padding: 0 var(--sp-6); border-radius: var(--r-full);
+  background: var(--danger-bg); color: var(--danger-text);
+  font-size: var(--fs-xs); font-weight: 600;
+}
+.inv-numaudit-note {
+  font-size: var(--fs-sm); color: var(--text-2);
+  margin-bottom: var(--sp-12);
+}
+.inv-numaudit-tally {
+  display: flex; flex-wrap: wrap; gap: var(--sp-6);
+  margin-bottom: var(--sp-16);
+}
+.inv-numaudit-section {
+  font-size: var(--fs-sm); font-weight: 600; color: var(--text-2);
+  margin: var(--sp-16) 0 var(--sp-8);
+}
+.inv-numaudit-scroll { max-height: 45vh; overflow-y: auto; }
+.inv-numaudit-row {
+  display: flex; align-items: center; gap: var(--sp-8);
+  padding: var(--sp-8) 0; border-top: 1px solid var(--border);
+}
+.inv-numaudit-num {
+  font-family: var(--ff-mono); font-size: var(--fs-sm);
+  color: var(--text-1); white-space: nowrap; flex-shrink: 0;
+}
+.inv-numaudit-detail {
+  flex: 1; min-width: 0; font-size: var(--fs-xs); color: var(--text-3);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.inv-numaudit-kind {
+  display: inline-block; padding: var(--sp-2) var(--sp-8);
+  border-radius: var(--r-full); font-size: var(--fs-2xs);
+  font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;
+  white-space: nowrap; flex-shrink: 0;
+}
+.inv-numaudit-active { background: var(--attend-bg); color: var(--attend-text); }
+.inv-numaudit-cancelled { background: var(--neutral-bg); color: var(--neutral-text); }
+.inv-numaudit-voided { background: var(--prod-bg); color: var(--prod-text); }
+.inv-numaudit-reissued { background: var(--warning-bg); color: var(--warning-text); }
+.inv-numaudit-unaccounted { background: var(--danger-bg); color: var(--danger-text); }
 .inv-im-sel-bar {
   position: fixed; bottom: calc(var(--tab-h) + var(--sp-8));
   left: 50%; transform: translateX(-50%);
@@ -1919,6 +1967,7 @@ function getDefaultState() {
     partWeights: {},
     incomingMaterial: [],
     invoices: [],
+    voidedNumbers: [],
     defaultCostPerKg: 5.46
   };
 }
@@ -1937,6 +1986,7 @@ if (!S) { S = getDefaultState(); saveJSON(STORAGE_KEY, S); }
 if (!S.invoices) S.invoices = [];
 if (!S.incomingMaterial) S.incomingMaterial = [];
 if (!S.partWeights) S.partWeights = {};
+if (!S.voidedNumbers) S.voidedNumbers = [];
 
 /* ===== LAYOUT MODE (Phase 8A) ===== */
 var _isDesktop = false;
@@ -1986,8 +2036,10 @@ function setApiKey(key) { try { localStorage.setItem(API_KEY_KEY, key); } catch(
 function getMetalsKey() { try { return localStorage.getItem(METALS_KEY_KEY) || ''; } catch(e) { return ''; } }
 function setMetalsKey(key) { try { localStorage.setItem(METALS_KEY_KEY, key); } catch(e) {} }
 
-// Phase 3: Reset invNextNum if no invoices exist
-if (S.invoices.length === 0) {
+// Phase 3: Reset invNextNum if no invoices exist.
+// A reserved number in the void ledger still holds its slot — the document
+// left the building, so the number is spent even though no invoice remains.
+if (S.invoices.length === 0 && !S.voidedNumbers.some(function(v) { return v.reserved; })) {
   S.invNextNum = 1;
   saveJSON(STORAGE_KEY, S);
 }
@@ -4671,6 +4723,7 @@ function renderRegisterToolbar() {
   if (!area) return;
 
   var sortDir = regFilter.regSortDir || 'desc';
+  var unaccounted = unaccountedNumberCount();
 
   // Build unique client list for filter dropdown
   const clientIds = [...new Set(S.invoices.map(i => i.clientId))];
@@ -4701,6 +4754,9 @@ function renderRegisterToolbar() {
     '</button>' +
     '<button class="inv-btn inv-btn-ghost inv-btn-sm' + (_regSelectMode ? ' inv-chip-active' : '') + '" data-action="invRegToggleSelect">' +
     (_regSelectMode ? 'Cancel select' : 'Select') +
+    '</button>' +
+    '<button class="inv-btn inv-btn-ghost inv-btn-sm" id="regNumberAudit" data-action="invShowNumberAudit">Number audit' +
+    (unaccounted > 0 ? '<span class="inv-numaudit-count">' + unaccounted + '</span>' : '') +
     '</button>' +
     '</div>' +
     '</div>';
@@ -5407,18 +5463,28 @@ function deleteInvoice(invId) {
   const scrim = document.createElement('div');
   scrim.className = 'inv-overlay-scrim';
 
+  // The lifecycle state is harder evidence than the date heuristic: once an
+  // invoice is dispatched the customer holds a document bearing that number,
+  // and deleting it here does not retract it there.
+  const issued = getInvState(inv) !== 'created';
+
   let warnHtml = '';
   let bodyText = '';
   let btnClass = '';
 
-  if (pastDeadline) {
-    // Tier 3: past filing deadline
+  if (issued) {
+    warnHtml = '<div class="inv-confirm-warn">This invoice was ' + escHtml(INV_STATE_LABELS[getInvState(inv)].toLowerCase()) +
+      '. The customer may hold a copy and claim credit against this number, which deleting it here does not retract' +
+      (pastDeadline ? ', and it may already sit in a filed return' : '') +
+      '. A credit note is usually the right instrument. The number stays spent either way.</div>';
+    bodyText = 'Permanently delete invoice <strong>' + escHtml(inv.displayNumber) + '</strong>? This cannot be undone.';
+    btnClass = 'inv-btn-danger';
+  } else if (pastDeadline) {
     warnHtml = '<div class="inv-confirm-warn">This invoice may have been included in a filed GST return. Cancelling (not deleting) is recommended.</div>';
     bodyText = 'Permanently delete invoice <strong>' + escHtml(inv.displayNumber) + '</strong>? This cannot be undone.';
     btnClass = 'inv-btn-danger';
   } else {
-    // Tier 2: before filing deadline
-    bodyText = 'Delete invoice <strong>' + escHtml(inv.displayNumber) + '</strong>? This number will be available for reuse.';
+    bodyText = 'Delete invoice <strong>' + escHtml(inv.displayNumber) + '</strong>? It never left the building, so this number returns to the series.';
     btnClass = 'inv-btn-primary';
   }
 
@@ -5427,6 +5493,9 @@ function deleteInvoice(invId) {
     '<button class="inv-overlay-close" data-action="invCloseConfirm">&times;</button></div>' +
     warnHtml +
     '<div class="inv-confirm-body">' + bodyText + '</div>' +
+    '<div class="inv-form-group"><label class="inv-form-label">Why is it going?</label>' +
+    '<input class="inv-form-input" id="invDeleteReason" placeholder="e.g. duplicate of 00657" autocomplete="off">' +
+    '<div class="inv-form-hint">Kept against the number in the register. Without it a deleted number is indistinguishable from one never issued.</div></div>' +
     '<div class="inv-btn-bar"><button class="inv-btn inv-btn-ghost" data-action="invCloseConfirm">Keep</button>' +
     '<button class="inv-btn ' + btnClass + '" data-action="invConfirmDelete" data-id="' + escHtml(inv.id) + '">Delete</button></div></div>';
   // Act overlay: scrim tap does nothing (DP 5.2)
@@ -5439,7 +5508,21 @@ function deleteInvoice(invId) {
 function confirmDeleteInvoice(invId) {
   const inv = S.invoices.find(i => i.id === invId);
   if (!inv) return;
+
+  const reasonEl = document.getElementById('invDeleteReason');
+  const reason = reasonEl ? reasonEl.value.trim() : '';
+  if (!reason) {
+    showToast('Say why it is going — the number outlives the invoice', 'error');
+    if (reasonEl) reasonEl.focus();
+    return;
+  }
+
   const dispNum = inv.displayNumber;
+  // A number the customer has seen is spent; one still in `created` returns to
+  // the series. Recorded before the invoice is spliced out.
+  const reserved = getInvState(inv) !== 'created';
+  recordVoidedNumber(inv, reason, reserved);
+
   // Unlink IM items (item-level, not entry-level)
   if (inv.linkedIMIds && inv.linkedIMIds.length > 0) {
     inv.linkedIMIds.forEach(imId => {
@@ -5455,23 +5538,327 @@ function confirmDeleteInvoice(invId) {
   const idx = S.invoices.indexOf(inv);
   if (idx > -1) S.invoices.splice(idx, 1);
 
-  // Recycle invoice number: recalculate invNextNum
-  if (S.invoices.length === 0) {
-    S.invNextNum = 1;
-  } else {
-    const maxNum = S.invoices.reduce(function(max, inv) {
-      const n = parseInt(inv.invoiceNumber);
-      return n > max ? n : max;
-    }, 0);
-    S.invNextNum = maxNum + 1;
-  }
+  // Recycle the number only if nothing holds it — live invoices and reserved
+  // voids both count, so invNextNum can no longer walk back over an issued one.
+  recomputeNextInvoiceNumber();
 
   saveState();
   closeOverlay();
   renderRegister();
-  showToast('Invoice ' + dispNum + ' deleted');
+  showToast('Invoice ' + dispNum + (reserved ? ' deleted — number stays spent' : ' deleted'));
 }
 
+/* ===== INVOICE NUMBER LEDGER ===== */
+
+/*
+ * Deleting an invoice used to remove the record outright, which made a
+ * deliberately voided number indistinguishable from one never issued. On
+ * 4 Aug inv 00666 was deleted for exactly the right reason — a duplicate of
+ * inv 00657 — and the app immediately lost the reason along with the record.
+ * Five earlier numbers are worse: cancelled and filed in GSTR-1 at zero, but
+ * absent here, so the filing and the app disagree and every review re-raises
+ * them.
+ *
+ * So a deletion now leaves a tombstone in S.voidedNumbers carrying the number,
+ * the reason and what the invoice was, and the register can walk the whole
+ * serial sequence and say of every number: live, cancelled, voided with a
+ * reason, or unaccounted for. Unaccounted is the only state that needs work,
+ * and a historical gap can be explained in place without inventing an invoice
+ * to hang the explanation on.
+ *
+ * `reserved` is the distinction that matters for numbering. An invoice still
+ * in `created` state never left the building, so its number is free to reuse —
+ * that is the ordinary typo-and-redo flow. Once it is dispatched, delivered or
+ * filed, the customer holds a document bearing that number: the number is
+ * spent, invNextNum must never walk back over it, and rule 46's consecutive
+ * series keeps a hole that this ledger explains.
+ */
+
+function getVoidedNumbers() {
+  if (!S.voidedNumbers) S.voidedNumbers = [];
+  return S.voidedNumbers;
+}
+
+function invNumInt(n) {
+  var v = parseInt(n, 10);
+  return isNaN(v) ? null : v;
+}
+
+function padInvNum(num) {
+  return String(num).padStart(5, '0');
+}
+
+function displayForNumber(num) {
+  return (S.invPrefix || '') + padInvNum(num);
+}
+
+/* invNextNum may only advance. Live invoices and reserved voids both hold slots. */
+function recomputeNextInvoiceNumber() {
+  var maxLive = S.invoices.reduce(function(max, inv) {
+    var n = invNumInt(inv.invoiceNumber);
+    return n != null && n > max ? n : max;
+  }, 0);
+  var maxHeld = getVoidedNumbers().reduce(function(max, v) {
+    var n = invNumInt(v.invoiceNumber);
+    return v.reserved && n != null && n > max ? n : max;
+  }, 0);
+  S.invNextNum = Math.max(maxLive, maxHeld) + 1;
+}
+
+/* ===== SEQUENCE ANALYSIS ===== */
+
+/*
+ * Bounds are drawn from evidence, not from 1. A user who starts a series at
+ * 500 has not skipped 499 numbers, and reporting them as gaps would bury the
+ * real ones. The top extends to invNextNum - 1: numbers handed out and then
+ * lost are exactly what this is looking for.
+ */
+function analyseInvoiceNumbers() {
+  var byNum = {};
+  var voidByNum = {};
+  var known = [];
+
+  S.invoices.forEach(function(inv) {
+    var n = invNumInt(inv.invoiceNumber);
+    if (n == null) return;
+    byNum[n] = inv;
+    known.push(n);
+  });
+  getVoidedNumbers().forEach(function(v) {
+    var n = invNumInt(v.invoiceNumber);
+    if (n == null) return;
+    voidByNum[n] = v;
+    known.push(n);
+  });
+
+  var out = { entries: [], unaccounted: [], counts: { active: 0, cancelled: 0, voided: 0, reissued: 0, unaccounted: 0 }, from: null, to: null };
+  if (known.length === 0) return out;
+
+  var lo = Math.min.apply(null, known);
+  var hi = Math.max.apply(null, known);
+  var next = invNumInt(S.invNextNum);
+  if (next != null && next - 1 > hi) hi = next - 1;
+
+  for (var n = lo; n <= hi; n++) {
+    var inv = byNum[n] || null;
+    var voided = voidByNum[n] || null;
+    var kind;
+    if (inv && voided) kind = 'reissued';
+    else if (inv) kind = inv.status === 'cancelled' ? 'cancelled' : 'active';
+    else if (voided) kind = 'voided';
+    else kind = 'unaccounted';
+
+    out.counts[kind]++;
+    var entry = { num: n, display: inv ? inv.displayNumber : displayForNumber(n), kind: kind, inv: inv, voided: voided };
+    out.entries.push(entry);
+    if (kind === 'unaccounted') out.unaccounted.push(entry);
+  }
+
+  out.from = lo;
+  out.to = hi;
+  return out;
+}
+
+function unaccountedNumberCount() {
+  return analyseInvoiceNumbers().unaccounted.length;
+}
+
+/* ===== VOID LEDGER WRITES ===== */
+
+/* Called from confirmDeleteInvoice, after the invoice has been read but before
+   it is spliced out. Returns the record so the caller can report on it. */
+function recordVoidedNumber(inv, reason, reserved) {
+  var rec = {
+    invoiceNumber: inv.invoiceNumber,
+    displayNumber: inv.displayNumber,
+    date: inv.date || '',
+    clientId: inv.clientId != null ? inv.clientId : null,
+    clientName: inv.clientName || '',
+    taxableValue: inv.taxableValue || 0,
+    grandTotal: inv.grandTotal || 0,
+    lastState: getInvState(inv),
+    wasCancelled: inv.status === 'cancelled',
+    reason: reason,
+    reserved: !!reserved,
+    source: 'deleted',
+    voidedAt: Date.now()
+  };
+  getVoidedNumbers().push(rec);
+  return rec;
+}
+
+/* ===== ACCOUNT FOR A HISTORICAL GAP ===== */
+
+var _accountForNum = null;
+
+function openAccountForNumber(num) {
+  var n = invNumInt(num);
+  if (n == null) return;
+  _accountForNum = n;
+
+  var scrim = document.createElement('div');
+  scrim.className = 'inv-overlay-scrim';
+  scrim.innerHTML = '<div class="inv-overlay-card">' +
+    '<div class="inv-overlay-header"><span class="inv-overlay-title">Account for ' + escHtml(displayForNumber(n)) + '</span>' +
+    '<button class="inv-overlay-close" data-action="invCloseConfirm">&times;</button></div>' +
+    '<div class="inv-confirm-body">This number is missing from the register. Record what happened to it — a cancelled invoice filed at zero, a spoiled number, one deleted before this ledger existed. No invoice is created.</div>' +
+    '<div class="inv-form-group"><label class="inv-form-label">What happened to this number</label>' +
+    '<input class="inv-form-input" id="invGapReason" placeholder="e.g. cancelled, filed in GSTR-1 at zero" autocomplete="off"></div>' +
+    '<div class="inv-form-row">' +
+    '<div class="inv-form-group"><label class="inv-form-label">Date (optional)</label>' +
+    '<input type="date" class="inv-form-input inv-mono" id="invGapDate"></div>' +
+    '<div class="inv-form-group"><label class="inv-form-label">Customer (optional)</label>' +
+    '<input class="inv-form-input" id="invGapClient" autocomplete="off"></div></div>' +
+    '<div class="inv-btn-bar">' +
+    '<button class="inv-btn inv-btn-ghost" data-action="invCloseConfirm">Cancel</button>' +
+    '<button class="inv-btn inv-btn-primary" data-action="invSaveGapReason">Record</button></div></div>';
+  pushFocus();
+  document.body.appendChild(scrim);
+  document.body.style.overflow = 'hidden';
+  focusFirstInteractive(scrim.querySelector('.inv-overlay-card'));
+}
+
+function saveGapReason() {
+  if (_accountForNum == null) return;
+  var reasonEl = document.getElementById('invGapReason');
+  var reason = reasonEl ? reasonEl.value.trim() : '';
+  if (!reason) { showToast('Say what happened to this number', 'error'); return; }
+
+  var dateEl = document.getElementById('invGapDate');
+  var clientEl = document.getElementById('invGapClient');
+  var n = _accountForNum;
+
+  getVoidedNumbers().push({
+    invoiceNumber: padInvNum(n),
+    displayNumber: displayForNumber(n),
+    date: (dateEl && dateEl.value) || '',
+    clientId: null,
+    clientName: (clientEl && clientEl.value.trim()) || '',
+    taxableValue: 0,
+    grandTotal: 0,
+    lastState: 'unknown',
+    wasCancelled: false,
+    reason: reason,
+    // A number old enough to be a gap was issued. It is spent either way.
+    reserved: true,
+    source: 'reconciled',
+    voidedAt: Date.now()
+  });
+  recomputeNextInvoiceNumber();
+  saveState();
+  _accountForNum = null;
+
+  closeOverlay();
+  _regToolbarRendered = false;
+  renderRegisterToolbar();
+  _regToolbarRendered = true;
+  _renderRegView();
+  showNumberAudit();
+  showToast(displayForNumber(n) + ' accounted for');
+}
+
+/* ===== AUDIT OVERLAY ===== */
+
+var NUM_AUDIT_LABELS = {
+  active: 'Live', cancelled: 'Cancelled', voided: 'Voided',
+  reissued: 'Reissued', unaccounted: 'Unaccounted'
+};
+
+function _numAuditRowHtml(entry) {
+  var detail;
+  if (entry.kind === 'unaccounted') {
+    detail = 'Nothing recorded against this number';
+  } else if (entry.voided) {
+    detail = escHtml(entry.voided.reason) +
+      (entry.voided.clientName ? ' &middot; ' + escHtml(entry.voided.clientName) : '') +
+      (entry.voided.date ? ' &middot; ' + escHtml(formatDate(entry.voided.date)) : '');
+  } else {
+    detail = escHtml(entry.inv.clientName || '') +
+      (entry.inv.date ? ' &middot; ' + escHtml(formatDate(entry.inv.date)) : '') +
+      ' &middot; ' + formatCurrency(entry.inv.taxableValue || 0);
+  }
+
+  return '<div class="inv-numaudit-row">' +
+    '<span class="inv-numaudit-num">' + escHtml(entry.display) + '</span>' +
+    '<span class="inv-numaudit-detail">' + detail + '</span>' +
+    '<span class="inv-numaudit-kind inv-numaudit-' + entry.kind + '">' + NUM_AUDIT_LABELS[entry.kind] + '</span>' +
+    (entry.kind === 'unaccounted'
+      ? '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invAccountForNumber" data-num="' + entry.num + '">Account for</button>'
+      : '') +
+    '</div>';
+}
+
+function showNumberAudit() {
+  var a = analyseInvoiceNumbers();
+
+  var scrim = document.createElement('div');
+  scrim.className = 'inv-overlay-scrim';
+
+  var html = '<div class="inv-overlay-card">' +
+    '<div class="inv-overlay-header"><span class="inv-overlay-title">Number Audit</span>' +
+    '<button class="inv-overlay-close" data-action="invCloseOverlay">&times;</button></div>';
+
+  if (a.entries.length === 0) {
+    html += '<div class="inv-empty-state">No invoice numbers issued yet.</div>';
+  } else {
+    html += '<div class="inv-numaudit-note">Serial ' + escHtml(padInvNum(a.from)) + ' to ' +
+      escHtml(padInvNum(a.to)) + ', every number accounted for or not. Rule 46 wants a consecutive series; a gap is fine, an <em>unexplained</em> gap is not.</div>';
+
+    html += '<div class="inv-numaudit-tally">' +
+      '<span class="inv-numaudit-kind inv-numaudit-active">' + a.counts.active + ' live</span>' +
+      '<span class="inv-numaudit-kind inv-numaudit-cancelled">' + a.counts.cancelled + ' cancelled</span>' +
+      '<span class="inv-numaudit-kind inv-numaudit-voided">' + a.counts.voided + ' voided</span>' +
+      (a.counts.reissued > 0 ? '<span class="inv-numaudit-kind inv-numaudit-reissued">' + a.counts.reissued + ' reissued</span>' : '') +
+      '<span class="inv-numaudit-kind inv-numaudit-unaccounted">' + a.counts.unaccounted + ' unaccounted</span></div>';
+
+    if (a.unaccounted.length > 0) {
+      html += '<div class="inv-numaudit-section">Unaccounted (' + a.unaccounted.length + ')</div>' +
+        '<div class="inv-numaudit-scroll">' +
+        a.unaccounted.map(_numAuditRowHtml).join('') + '</div>';
+    }
+
+    var explained = a.entries.filter(function(e) { return e.kind === 'voided' || e.kind === 'reissued'; });
+    if (explained.length > 0) {
+      html += '<div class="inv-numaudit-section">Voided, with a reason (' + explained.length + ')</div>' +
+        '<div class="inv-numaudit-scroll">' +
+        explained.map(_numAuditRowHtml).join('') + '</div>';
+    }
+
+    if (a.unaccounted.length === 0 && explained.length === 0) {
+      html += '<div class="inv-empty-state">Unbroken series. No gaps to explain.</div>';
+    }
+  }
+
+  html += '<div class="inv-btn-bar"><button class="inv-btn inv-btn-primary" data-action="invCloseOverlay">Close</button></div></div>';
+
+  scrim.innerHTML = html;
+  pushFocus();
+  document.body.appendChild(scrim);
+  document.body.style.overflow = 'hidden';
+  focusFirstInteractive(scrim.querySelector('.inv-overlay-card'));
+}
+
+/* ===== EXPORT ROWS ===== */
+
+/*
+ * Reserved voids belong in the returns at zero — that is how SEP already files
+ * them, and it is the disagreement between the app and the filing that made
+ * these numbers look missing in the first place. Never-issued numbers are not
+ * included: they were recycled, so a live invoice occupies the slot.
+ */
+function getVoidedForExport() {
+  return getVoidedNumbers().filter(function(v) {
+    if (!v.reserved) return false;
+    if (regFilter.clientId && v.clientId !== parseInt(regFilter.clientId)) return false;
+    if (regFilter.month && !(v.date || '').startsWith(regFilter.month)) return false;
+    if (regFilter.search) {
+      var q = regFilter.search.toLowerCase();
+      if ((v.displayNumber || '').toLowerCase().indexOf(q) < 0 &&
+          (v.clientName || '').toLowerCase().indexOf(q) < 0) return false;
+    }
+    return true;
+  }).sort(function(a, b) { return (invNumInt(a.invoiceNumber) || 0) - (invNumInt(b.invoiceNumber) || 0); });
+}
 /* ===== GST EXPORT ===== */
 function csvEscape(val) {
   const s = String(val == null ? '' : val);
@@ -5520,9 +5907,21 @@ function exportSalesCSV() {
       cancelled ? 0 : (inv.grandTotal || 0)
     ]);
   });
+  // Voided numbers ride along at zero. The number was issued, so the series
+  // has to show it; the reason travels in the customer column so the internal
+  // register explains its own gaps.
+  const voided = getVoidedForExport();
+  voided.forEach(v => {
+    rows.push([
+      v.displayNumber,
+      formatDateExport(v.date),
+      (v.clientName ? v.clientName + ' — ' : '') + 'VOID: ' + v.reason,
+      0, 0, 0, 0, 0, 0, 0, 0
+    ]);
+  });
   const prefix = regFilter.month || 'all';
   downloadCSV('SEP-Sales-Register-' + prefix + '.csv', rows);
-  showToast('Sales Register exported (' + invoices.length + ' rows)');
+  showToast('Sales Register exported (' + (invoices.length + voided.length) + ' rows)');
 }
 
 function exportGSTR1CSV() {
@@ -5552,9 +5951,19 @@ function exportGSTR1CSV() {
       0
     ]);
   });
+  // Same treatment as a cancelled invoice, which this export already carries at
+  // zero: the number is declared, the value is not. Without these rows the
+  // return shows a hole the app cannot explain.
+  const voided = getVoidedForExport();
+  voided.forEach(v => {
+    rows.push([
+      '', v.displayNumber, formatDateExport(v.date), 0,
+      '20-Jharkhand', 'N', 'Regular', '', 0, 0, 0, 0, 0, 0
+    ]);
+  });
   const prefix = regFilter.month || 'all';
   downloadCSV('SEP-GSTR1-' + prefix + '.csv', rows);
-  showToast('GSTR1 exported (' + invoices.length + ' rows)');
+  showToast('GSTR1 exported (' + (invoices.length + voided.length) + ' rows)');
 }
 
 /* ===== INCOMING MATERIAL (Phase 3) ===== */
@@ -7858,6 +8267,10 @@ document.addEventListener('click', function(e) {
     // Phase 5: IM Edit Challan
     case 'invEditChallan': editChallan(btn.dataset.id); break;
     case 'invEditChallanGuard': showToast('Cannot edit: ' + btn.dataset.count + ' item' + (parseInt(btn.dataset.count) > 1 ? 's' : '') + ' already invoiced', 'warning'); break;
+    // Invoice number ledger
+    case 'invShowNumberAudit': showNumberAudit(); break;
+    case 'invAccountForNumber': openAccountForNumber(btn.dataset.num); break;
+    case 'invSaveGapReason': saveGapReason(); break;
     // IM duplicate guard
     case 'invRunDupeScan': runIMDuplicateScan(); break;
     case 'invDupeSaveAnyway': acceptChallanDuplicates(); break;

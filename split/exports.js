@@ -46,9 +46,21 @@ function exportSalesCSV() {
       cancelled ? 0 : (inv.grandTotal || 0)
     ]);
   });
+  // Voided numbers ride along at zero. The number was issued, so the series
+  // has to show it; the reason travels in the customer column so the internal
+  // register explains its own gaps.
+  const voided = getVoidedForExport();
+  voided.forEach(v => {
+    rows.push([
+      v.displayNumber,
+      formatDateExport(v.date),
+      (v.clientName ? v.clientName + ' — ' : '') + 'VOID: ' + v.reason,
+      0, 0, 0, 0, 0, 0, 0, 0
+    ]);
+  });
   const prefix = regFilter.month || 'all';
   downloadCSV('SEP-Sales-Register-' + prefix + '.csv', rows);
-  showToast('Sales Register exported (' + invoices.length + ' rows)');
+  showToast('Sales Register exported (' + (invoices.length + voided.length) + ' rows)');
 }
 
 function exportGSTR1CSV() {
@@ -78,8 +90,18 @@ function exportGSTR1CSV() {
       0
     ]);
   });
+  // Same treatment as a cancelled invoice, which this export already carries at
+  // zero: the number is declared, the value is not. Without these rows the
+  // return shows a hole the app cannot explain.
+  const voided = getVoidedForExport();
+  voided.forEach(v => {
+    rows.push([
+      '', v.displayNumber, formatDateExport(v.date), 0,
+      '20-Jharkhand', 'N', 'Regular', '', 0, 0, 0, 0, 0, 0
+    ]);
+  });
   const prefix = regFilter.month || 'all';
   downloadCSV('SEP-GSTR1-' + prefix + '.csv', rows);
-  showToast('GSTR1 exported (' + invoices.length + ' rows)');
+  showToast('GSTR1 exported (' + (invoices.length + voided.length) + ' rows)');
 }
 

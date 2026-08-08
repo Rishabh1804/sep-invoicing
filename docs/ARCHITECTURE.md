@@ -34,6 +34,7 @@ split/
 ├── print.js              ← formatInvoiceData + print preview/print
 ├── stats.js              ← Stats dashboard + History activity log
 ├── im-form.js            ← IM add/edit/delete challan form
+├── im-dupe.js            ← IM duplicate guard: fingerprint, pre-save warning, scan
 ├── scanner.js            ← Challan scanner (Gemini AI vision)
 ├── events.js             ← Event delegation + change/input/keydown handlers
 ├── swipe.js              ← Swipe navigation between tabs

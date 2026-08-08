@@ -37,6 +37,7 @@ OUT="$ROOT/sep-invoicing.html"
     "$DIR/print.js" \
     "$DIR/stats.js" \
     "$DIR/im-form.js" \
+    "$DIR/im-dupe.js" \
     "$DIR/scanner.js" \
     "$DIR/events.js" \
     "$DIR/swipe.js" \

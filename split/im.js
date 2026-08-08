@@ -82,6 +82,8 @@ function renderIMToolbar() {
     return c ? '<option value="' + cid + '"' + (_imFilter.clientId == cid ? ' selected' : '') + '>' + escHtml(c.name) + '</option>' : '';
   }).join('');
 
+  const dupeCount = imDuplicateGroupCount();
+
   area.innerHTML = '<div class="inv-im-toolbar">' +
     '<div class="inv-form-group"><select class="inv-form-select" id="imClientFilter" data-action="invFilterIM">' +
     '<option value="">All Clients</option>' + clientOpts + '</select></div>' +
@@ -89,7 +91,10 @@ function renderIMToolbar() {
     '<option value=""' + (!_imFilter.status ? ' selected' : '') + '>All Status</option>' +
     '<option value="pending"' + (_imFilter.status === 'pending' ? ' selected' : '') + '>Pending</option>' +
     '<option value="partial"' + (_imFilter.status === 'partial' ? ' selected' : '') + '>Partial</option>' +
-    '<option value="invoiced"' + (_imFilter.status === 'invoiced' ? ' selected' : '') + '>Invoiced</option></select></div></div>';
+    '<option value="invoiced"' + (_imFilter.status === 'invoiced' ? ' selected' : '') + '>Invoiced</option></select></div>' +
+    '<button class="inv-btn inv-btn-ghost inv-im-dupe-btn" id="imDupeCheck" data-action="invRunDupeScan">Duplicate check' +
+    (dupeCount > 0 ? '<span class="inv-im-dupe-count">' + dupeCount + '</span>' : '') +
+    '</button></div>';
 }
 
 function renderIMList() {

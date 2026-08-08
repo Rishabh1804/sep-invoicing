@@ -109,6 +109,7 @@ function renderRegisterToolbar() {
   if (!area) return;
 
   var sortDir = regFilter.regSortDir || 'desc';
+  var unaccounted = unaccountedNumberCount();
 
   // Build unique client list for filter dropdown
   const clientIds = [...new Set(S.invoices.map(i => i.clientId))];
@@ -139,6 +140,9 @@ function renderRegisterToolbar() {
     '</button>' +
     '<button class="inv-btn inv-btn-ghost inv-btn-sm' + (_regSelectMode ? ' inv-chip-active' : '') + '" data-action="invRegToggleSelect">' +
     (_regSelectMode ? 'Cancel select' : 'Select') +
+    '</button>' +
+    '<button class="inv-btn inv-btn-ghost inv-btn-sm" id="regNumberAudit" data-action="invShowNumberAudit">Number audit' +
+    (unaccounted > 0 ? '<span class="inv-numaudit-count">' + unaccounted + '</span>' : '') +
     '</button>' +
     '</div>' +
     '</div>';
@@ -845,18 +849,28 @@ function deleteInvoice(invId) {
   const scrim = document.createElement('div');
   scrim.className = 'inv-overlay-scrim';
 
+  // The lifecycle state is harder evidence than the date heuristic: once an
+  // invoice is dispatched the customer holds a document bearing that number,
+  // and deleting it here does not retract it there.
+  const issued = getInvState(inv) !== 'created';
+
   let warnHtml = '';
   let bodyText = '';
   let btnClass = '';
 
-  if (pastDeadline) {
-    // Tier 3: past filing deadline
+  if (issued) {
+    warnHtml = '<div class="inv-confirm-warn">This invoice was ' + escHtml(INV_STATE_LABELS[getInvState(inv)].toLowerCase()) +
+      '. The customer may hold a copy and claim credit against this number, which deleting it here does not retract' +
+      (pastDeadline ? ', and it may already sit in a filed return' : '') +
+      '. A credit note is usually the right instrument. The number stays spent either way.</div>';
+    bodyText = 'Permanently delete invoice <strong>' + escHtml(inv.displayNumber) + '</strong>? This cannot be undone.';
+    btnClass = 'inv-btn-danger';
+  } else if (pastDeadline) {
     warnHtml = '<div class="inv-confirm-warn">This invoice may have been included in a filed GST return. Cancelling (not deleting) is recommended.</div>';
     bodyText = 'Permanently delete invoice <strong>' + escHtml(inv.displayNumber) + '</strong>? This cannot be undone.';
     btnClass = 'inv-btn-danger';
   } else {
-    // Tier 2: before filing deadline
-    bodyText = 'Delete invoice <strong>' + escHtml(inv.displayNumber) + '</strong>? This number will be available for reuse.';
+    bodyText = 'Delete invoice <strong>' + escHtml(inv.displayNumber) + '</strong>? It never left the building, so this number returns to the series.';
     btnClass = 'inv-btn-primary';
   }
 
@@ -865,6 +879,9 @@ function deleteInvoice(invId) {
     '<button class="inv-overlay-close" data-action="invCloseConfirm">&times;</button></div>' +
     warnHtml +
     '<div class="inv-confirm-body">' + bodyText + '</div>' +
+    '<div class="inv-form-group"><label class="inv-form-label">Why is it going?</label>' +
+    '<input class="inv-form-input" id="invDeleteReason" placeholder="e.g. duplicate of 00657" autocomplete="off">' +
+    '<div class="inv-form-hint">Kept against the number in the register. Without it a deleted number is indistinguishable from one never issued.</div></div>' +
     '<div class="inv-btn-bar"><button class="inv-btn inv-btn-ghost" data-action="invCloseConfirm">Keep</button>' +
     '<button class="inv-btn ' + btnClass + '" data-action="invConfirmDelete" data-id="' + escHtml(inv.id) + '">Delete</button></div></div>';
   // Act overlay: scrim tap does nothing (DP 5.2)
@@ -877,7 +894,21 @@ function deleteInvoice(invId) {
 function confirmDeleteInvoice(invId) {
   const inv = S.invoices.find(i => i.id === invId);
   if (!inv) return;
+
+  const reasonEl = document.getElementById('invDeleteReason');
+  const reason = reasonEl ? reasonEl.value.trim() : '';
+  if (!reason) {
+    showToast('Say why it is going — the number outlives the invoice', 'error');
+    if (reasonEl) reasonEl.focus();
+    return;
+  }
+
   const dispNum = inv.displayNumber;
+  // A number the customer has seen is spent; one still in `created` returns to
+  // the series. Recorded before the invoice is spliced out.
+  const reserved = getInvState(inv) !== 'created';
+  recordVoidedNumber(inv, reason, reserved);
+
   // Unlink IM items (item-level, not entry-level)
   if (inv.linkedIMIds && inv.linkedIMIds.length > 0) {
     inv.linkedIMIds.forEach(imId => {
@@ -893,20 +924,13 @@ function confirmDeleteInvoice(invId) {
   const idx = S.invoices.indexOf(inv);
   if (idx > -1) S.invoices.splice(idx, 1);
 
-  // Recycle invoice number: recalculate invNextNum
-  if (S.invoices.length === 0) {
-    S.invNextNum = 1;
-  } else {
-    const maxNum = S.invoices.reduce(function(max, inv) {
-      const n = parseInt(inv.invoiceNumber);
-      return n > max ? n : max;
-    }, 0);
-    S.invNextNum = maxNum + 1;
-  }
+  // Recycle the number only if nothing holds it — live invoices and reserved
+  // voids both count, so invNextNum can no longer walk back over an issued one.
+  recomputeNextInvoiceNumber();
 
   saveState();
   closeOverlay();
   renderRegister();
-  showToast('Invoice ' + dispNum + ' deleted');
+  showToast('Invoice ' + dispNum + (reserved ? ' deleted — number stays spent' : ' deleted'));
 }
 

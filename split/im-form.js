@@ -189,7 +189,18 @@ function saveChallan() {
   var client = S.clients.find(function(c) { return c.id === _challanForm.clientId; });
   if (!client) return;
 
+  // Duplicate guard: warn once, then let the operator decide. Covers both entry
+  // paths — the scanner fills this same form and comes through here.
+  if (!_challanForm._dupeAcked) {
+    var dupes = findChallanDuplicates(_challanForm, _challanForm._editingId || null);
+    if (dupes.any) { showChallanDuplicateWarning(dupes); return; }
+  }
+
   var now = Date.now();
+  // Stamped so a later audit can tell an accepted duplicate from an unseen one.
+  var dupeAck = _challanForm._dupeAcked
+    ? { at: now, matchedIds: _challanForm._dupeMatchedIds || [] }
+    : null;
 
   if (_challanForm._editingId) {
     // Phase 5: Edit mode — update existing entry
@@ -202,6 +213,7 @@ function saveChallan() {
     existing.vehicleNo = _challanForm.vehicleNo;
     existing.receivedDate = _challanForm.challanDate || localDateStr();
     existing.notes = _challanForm.notes || '';
+    if (dupeAck) existing.dupeAck = dupeAck;
     existing.items = _challanForm.items.map(function(item, idx) {
       return {
         id: existing.id + '-' + idx,
@@ -255,7 +267,8 @@ function saveChallan() {
     }),
     receivedDate: _challanForm.challanDate || localDateStr(),
     notes: '',
-    createdAt: now
+    createdAt: now,
+    dupeAck: dupeAck
   };
 
   S.incomingMaterial.push(entry);

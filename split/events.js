@@ -112,6 +112,14 @@ document.addEventListener('click', function(e) {
     // Phase 5: IM Edit Challan
     case 'invEditChallan': editChallan(btn.dataset.id); break;
     case 'invEditChallanGuard': showToast('Cannot edit: ' + btn.dataset.count + ' item' + (parseInt(btn.dataset.count) > 1 ? 's' : '') + ' already invoiced', 'warning'); break;
+    // Invoice number ledger
+    case 'invShowNumberAudit': showNumberAudit(); break;
+    case 'invAccountForNumber': openAccountForNumber(btn.dataset.num); break;
+    case 'invSaveGapReason': saveGapReason(); break;
+    // IM duplicate guard
+    case 'invRunDupeScan': runIMDuplicateScan(); break;
+    case 'invDupeSaveAnyway': acceptChallanDuplicates(); break;
+    case 'invDupeLocate': imLocateChallan(btn.dataset.id); break;
     // Phase 5: Invoice lifecycle states
     case 'invAdvanceState': advanceInvoiceState(btn.dataset.id); break;
     case 'invBulkMarkFiled': bulkMarkFiled(); break;

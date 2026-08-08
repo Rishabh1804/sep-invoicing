@@ -19,7 +19,7 @@ Workforce management and invoicing PWA for **Soma Electro Products**, a zinc ele
 
 ## Architecture
 
-Split-file PWA. 23 modules, ~7,500 lines total.
+Split-file PWA. 25 modules, ~8,100 lines total.
 
 ```
 split/
@@ -35,13 +35,15 @@ split/
 ├── items.js           ← Items Master: subview, CRUD, merge, weights (750 lines)
 ├── create.js          ← Invoice creation form, 3 billing modes (303 lines)
 ├── settings.js        ← Settings overlay + import/export (145 lines)
-├── invoice-ops.js     ← Invoice detail, edit, cancel, delete, register (912 lines)
-├── exports.js         ← Sales CSV + GSTR1 CSV exports (85 lines)
+├── invoice-ops.js     ← Invoice detail, edit, cancel, delete, register (925 lines)
+├── number-audit.js    ← Void ledger + serial-sequence audit + gap reconcile (270 lines)
+├── exports.js         ← Sales CSV + GSTR1 CSV exports (105 lines)
 ├── im.js              ← Incoming Material list + selection (530 lines)
 ├── autocomplete.js    ← Part number autocomplete (65 lines)
 ├── print.js           ← formatInvoiceData + print preview (224 lines)
 ├── stats.js           ← Stats dashboard + History activity log (472 lines)
-├── im-form.js         ← IM add/edit/delete challan form (360 lines)
+├── im-form.js         ← IM add/edit/delete challan form (373 lines)
+├── im-dupe.js         ← IM duplicate guard: fingerprint + pre-save warn + scan (305 lines)
 ├── scanner.js         ← Challan scanner (Gemini AI vision) (146 lines)
 ├── events.js          ← Event delegation + input handlers (582 lines)
 ├── swipe.js           ← Swipe navigation (38 lines)
@@ -49,7 +51,7 @@ split/
 └── init.js            ← Migrations + app bootstrap (241 lines)
 ```
 
-**Concat order defined in build.sh.** Dependencies: data → state → zinc → tabs → clients → items → create → settings → invoice-ops → exports → im → autocomplete → print → stats → im-form → scanner → events → swipe → seed → init.
+**Concat order defined in build.sh.** Dependencies: data → state → zinc → tabs → clients → items → create → settings → invoice-ops → number-audit → exports → im → autocomplete → print → stats → im-form → im-dupe → scanner → events → swipe → seed → init.
 
 ### Build
 
@@ -108,6 +110,19 @@ git add -A && git commit -m "..." && git --no-pager push
 ### Billing Spine vs Logistics Spine
 **Critical concept:** IM (Incoming Material) is the billing spine. GC (Gate Challan) is the logistics spine. They are **parallel, not sequential**. One IM can spawn multiple partial GC records.
 
+### Duplicate receipts
+Seven duplicate IM events went into FY27 unchallenged — 973.75 kg + 826 NOS of phantom
+receipts, four of which reached customer invoices (₹8,040.02 taxable, ₹1,170.18 output tax).
+The guard in `im-dupe.js` fingerprints on **`(client, challanDate, line-quantity multiset)`** —
+content, not identifiers, because the two hardest cases defeat an identifier key: one copy of
+Dorabji ch 146 carried a blank `challanNo`, and Dilip ch 47 carried the same 282.70 kg under an
+aliased part number. A blank `challanNo` warns in its own right.
+
+**Warn, never block.** Split challans against one consignment (702/703) are legitimate. The
+operator's override is stamped on the entry as `dupeAck`, so an audit can distinguish an
+accepted duplicate from one nobody was shown. Duplicate records are never auto-deleted — they
+are the evidence of the pattern.
+
 ### Key Business Data
 Rebuilt from owner-supplied cost inputs against Apr–Jul 2026 actuals (~79,850 kg/month).
 Supersedes the earlier ₹5.46/kg cost and ~31% operating margin, both of which were stale.
@@ -127,6 +142,23 @@ Supersedes the earlier ₹5.46/kg cost and ~31% operating margin, both of which 
   ₹0.53/kg; volume-scaling → it loses ₹1.64/kg. Confirm before acting.
 - **Capacity:** ~2 t per 8-hour shift; running ~77% of a two-shift month, ~24 t/month spare.
   Filling that at ₹13/kg is worth more than the SSS Mehta question either way.
+
+### Invoice numbers outlive invoices
+A deleted invoice used to vanish outright, leaving a number gap indistinguishable from one
+never issued — the exact ambiguity that made inv 00666's correct deletion unreadable, and that
+leaves five cancelled-and-filed-at-zero numbers present in GSTR-1 and absent here.
+
+Deletion now writes a tombstone to **`S.voidedNumbers`** carrying the number, a **required**
+reason, and what the invoice was. The register's **Number audit** walks the whole serial range
+and classifies every number: live / cancelled / voided-with-reason / reissued / **unaccounted**.
+A historical gap is explained in place — no invoice is invented to hang the explanation on.
+
+**`reserved` decides the numbering.** An invoice still in `created` state never left the
+building, so its number returns to the series (the ordinary typo-and-redo flow). Once
+`dispatched`, `delivered` or `filed`, the customer holds a document bearing that number:
+it is spent, `invNextNum` may never walk back over it, and the hole in rule 46's consecutive
+series is what the ledger exists to explain. Reserved voids export at ₹0 in both CSVs — the
+same treatment cancelled invoices already get, and what makes the app agree with the filing.
 
 ### Items Master
 Part number registry with weights, gauge, descriptions, and merge capability.

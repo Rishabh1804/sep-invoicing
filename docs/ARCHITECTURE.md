@@ -28,12 +28,14 @@ split/
 ├── create.js             ← Invoice creation form
 ├── settings.js           ← Settings overlay + import/export
 ├── invoice-ops.js        ← Invoice detail, edit, cancel, delete, register
+├── number-audit.js       ← Void ledger + serial-sequence audit + gap reconciliation
 ├── exports.js            ← Sales CSV + GSTR1 CSV exports
 ├── im.js                 ← Incoming Material list + selection
 ├── autocomplete.js       ← Part number autocomplete for line items
 ├── print.js              ← formatInvoiceData + print preview/print
 ├── stats.js              ← Stats dashboard + History activity log
 ├── im-form.js            ← IM add/edit/delete challan form
+├── im-dupe.js            ← IM duplicate guard: fingerprint, pre-save warning, scan
 ├── scanner.js            ← Challan scanner (Gemini AI vision)
 ├── events.js             ← Event delegation + change/input/keydown handlers
 ├── swipe.js              ← Swipe navigation between tabs

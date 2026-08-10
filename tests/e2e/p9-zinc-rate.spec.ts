@@ -37,9 +37,40 @@ test.describe('P9: zinc market rate', () => {
     await expect(page.locator('.inv-zinc-stale')).toContainText('may be out of date');
   });
 
-  test('prompts for setup when no rate is recorded', async ({ page }) => {
+  test('prompts for setup when no rate is recorded and no key is set', async ({ page }) => {
     await loadAppWithState(page, stateWithZinc(null));
     await expect(page.locator('#homeZincCard')).toContainText('No rate recorded');
+    // Nothing to press yet — a refresh would only report the missing key.
+    await expect(page.locator('[data-action="invRefreshZinc"]')).toHaveCount(0);
+  });
+
+  test('with a key but no rate, offers Refresh instead of asking for the key again', async ({ page }) => {
+    await loadAppWithState(page, stateWithZinc(null));
+    await page.evaluate((k) => localStorage.setItem(k, 'TEST-KEY'), METALS_KEY);
+    await page.reload();
+    await page.waitForSelector('nav.inv-tabs', { state: 'attached' });
+
+    const card = page.locator('#homeZincCard');
+    await expect(card).toContainText('Tap Refresh');
+    await expect(card).not.toContainText('add a metals.dev API key');
+    await expect(page.locator('[data-action="invRefreshZinc"]')).toBeVisible();
+  });
+
+  test('that Refresh actually populates an empty card', async ({ page }) => {
+    await loadAppWithState(page, stateWithZinc(null));
+    await page.evaluate((k) => localStorage.setItem(k, 'TEST-KEY'), METALS_KEY);
+    await page.reload();
+    await page.waitForSelector('nav.inv-tabs', { state: 'attached' });
+
+    await page.route('**/api.metals.dev/**', (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ status: 'success', metals: { zinc: 387.1 } }),
+      }));
+
+    await page.locator('[data-action="invRefreshZinc"]').click();
+    await expect(page.locator('#homeZincCard')).toContainText('₹402.10');
   });
 
   test('refresh without a key tells you to add one rather than failing silently', async ({ page }) => {

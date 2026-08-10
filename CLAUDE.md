@@ -56,29 +56,26 @@ split/
 ### Build
 
 ```bash
-cd ~/storage/shared/sep-invoicing
 bash split/build.sh
-git add -A && git commit -m "description" && git --no-pager push
+git add -A && git commit -m "description" && git push
 ```
 
 `build.sh` writes `sep-invoicing.html` and syncs `index.html` itself. Never edit either by hand.
 
-**One-time per clone** — makes the rebuild automatic on every commit:
+The pre-commit hook in `.githooks/` rebuilds and stages both artefacts, so a commit
+can't carry stale output. Sessions clone fresh, so `.claude/hooks/session-start.sh`
+arms it (`git config core.hooksPath .githooks`) and installs the test dependencies on
+every session start — nothing to set up by hand. CI (`build-sync`) is the backstop.
+
+### Tests
 
 ```bash
-git config core.hooksPath .githooks
+pnpm exec playwright test          # full suite, both layouts
 ```
 
-The pre-commit hook rebuilds and stages both artefacts, so a commit can't carry stale
-output. CI (`build-sync`) enforces the same invariant as a backstop.
-
-### Deploy from ZIP
-```bash
-cd ~/storage/shared/sep-invoicing
-unzip -o ~/storage/downloads/<zip>
-bash split/build.sh   # rebuild from split/ — a ZIP's prebuilt HTML may not match
-git add -A && git commit -m "..." && git --no-pager push
-```
+Some sandboxes ship a Chromium build Playwright does not expect and block downloading
+the matching one. The session hook detects that and sets `PW_CHROMIUM_PATH`, which
+`playwright.config.ts` reads; unset everywhere else.
 
 ## Hard Rules (HR-1 through HR-8)
 

@@ -96,6 +96,27 @@ test.describe('P9: zinc market rate', () => {
     await expect(page.locator('#homeZincCard')).toContainText('₹402.10');
     await expect(page.locator('#homeZincCard')).toContainText('updated today');
     await expect(page.locator('#homeZincCard')).toContainText('metals.dev');
+    // Provenance is shown, so a wrong exchange is visible rather than silent.
+    await expect(page.locator('#homeZincCard')).toContainText('metals.zinc');
+  });
+
+  test('prefers an MCX figure over LME when both are offered', async ({ page }) => {
+    await loadAppWithState(page, stateWithZinc(400, 15, Date.now()));
+    await page.evaluate((k) => localStorage.setItem(k, 'TEST-KEY'), METALS_KEY);
+
+    await page.route('**/api.metals.dev/**', (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        // LME runs ~16% below MCX; picking the wrong one understates the
+        // largest bought-in input by that much.
+        body: JSON.stringify({ status: 'success', metals: { lme_zinc: 338.16, mcx_zinc: 392.0 } }),
+      }));
+
+    await page.locator('[data-action="invRefreshZinc"]').click();
+    // 392.00 + 15 = 407.00 landed, and the field is named on the card.
+    await expect(page.locator('#homeZincCard')).toContainText('407.00');
+    await expect(page.locator('#homeZincCard')).toContainText('mcx_zinc');
   });
 
   test('surfaces the response keys when zinc is absent, instead of a bare failure', async ({ page }) => {

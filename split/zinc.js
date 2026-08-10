@@ -37,10 +37,19 @@ function renderZincCard() {
   var landed = zincLandedRate();
 
   if (landed == null) {
+    // Adding the key does not fetch anything by itself, so the empty state has
+    // to carry the Refresh button too. Without it, setting a key left the card
+    // still asking for a key and no way to act on it.
+    var hasKey = !!getMetalsKey();
     el.innerHTML = '<div class="inv-card"><div class="inv-card-header">' +
-      '<span class="inv-card-title">Zinc</span></div>' +
-      '<div class="inv-text-muted inv-storage-text">No rate recorded. Set it in Settings, ' +
-      'or add a metals.dev API key there to pull it from the market.</div></div>';
+      '<span class="inv-card-title">Zinc</span>' +
+      (hasKey ? '<button class="inv-btn inv-btn-primary inv-btn-sm" data-action="invRefreshZinc">Refresh</button>' : '') +
+      '</div>' +
+      '<div class="inv-text-muted inv-storage-text">' +
+      (hasKey
+        ? 'No rate recorded yet. Tap Refresh to pull the current market rate, or enter it by hand in Settings.'
+        : 'No rate recorded. Set it in Settings, or add a metals.dev API key there to pull it from the market.') +
+      '</div></div>';
     return;
   }
 

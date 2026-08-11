@@ -24,8 +24,8 @@ function openSettings() {
 
     '<div class="inv-settings-section"><div class="inv-settings-title">Cost of Goods</div>' +
     '<div class="inv-form-group"><label class="inv-form-label">Default cost per KG (&#8377;)</label>' +
-    '<input type="number" step="0.01" class="inv-form-input inv-mono" id="setDefaultCost" value="' + (S.defaultCostPerKg || 5.46) + '"></div>' +
-    '<div class="inv-text-muted inv-storage-text">Used by margin dashboard to compute per-item profitability.</div></div>' +
+    '<input type="number" step="0.01" class="inv-form-input inv-mono" id="setDefaultCost" value="' + (S.defaultCostPerKg || 8.55) + '"></div>' +
+    '<div class="inv-text-muted inv-storage-text">Full cost, not just materials. Everything in Stats measures against it &mdash; realisation, margin, and which clients are priced below cost. The Apr&ndash;Jul 2026 rebuild put it at &#8377;8.55/kg.</div></div>' +
 
     '<div class="inv-settings-section"><div class="inv-settings-title">Zinc Rate</div>' +
     '<div class="inv-form-row"><div class="inv-form-group"><label class="inv-form-label">Market rate (&#8377;/kg)</label>' +
@@ -53,6 +53,8 @@ function openSettings() {
     '<button class="inv-api-key-toggle" data-action="invToggleApiKey" type="button">' +
     '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button></div>' +
     '<div class="inv-text-muted inv-storage-text">Free from aistudio.google.com (Google account only, no card). Key stays on device.</div></div></div>' +
+
+    renderGhSyncSettings() +
 
     '<div class="inv-settings-section"><div class="inv-settings-title">Data</div>' +
     '<div class="inv-form-row"><button class="inv-btn inv-btn-ghost inv-btn-block" data-action="invExportData">Export JSON</button>' +
@@ -118,9 +120,12 @@ function saveSettings() {
     if (!isNaN(parsedUplift) && parsedUplift >= 0) z.upliftPct = parsedUplift;
   }
 
+  saveGhSyncSettings();
+
   saveState();
   closeOverlay();
   renderZincCard();
+  ghRenderCard();
   showToast('Settings saved');
 }
 

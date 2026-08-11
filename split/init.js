@@ -209,7 +209,7 @@ if (!S._rateCleanup1) {
 
 /* Phase 9: Default cost per KG for margin dashboard (IL-4) — idempotent */
 if (S.defaultCostPerKg === undefined) {
-  S.defaultCostPerKg = 5.46;
+  S.defaultCostPerKg = 8.55;
   saveJSON(STORAGE_KEY, S);
 }
 
@@ -344,6 +344,22 @@ new ResizeObserver(function() {
   _resizeTimer = setTimeout(updateLayoutMode, 150);
 }).observe(document.documentElement);
 
+/* Manifest app shortcuts land here as ?tab=<pageId>[&new=1]. Writing the target
+   into regFilter before the first layout pass means both the desktop and the
+   mobile restore paths pick it up without a second switchTab, and the query is
+   stripped so a later refresh returns to the ordinary saved tab. */
+var _launchNew = false;
+(function() {
+  var params;
+  try { params = new URLSearchParams(window.location.search); } catch (e) { return; }
+  var wanted = params.get('tab');
+  if (!wanted || !document.getElementById(wanted)) return;
+  regFilter.activeTab = wanted;
+  saveRegFilter();
+  _launchNew = params.get('new') === '1';
+  try { history.replaceState(null, '', window.location.pathname); } catch (e) {}
+})();
+
 // Initial layout detection (no debounce)
 updateLayoutMode();
 
@@ -357,6 +373,12 @@ if (!_isDesktop) {
   } else {
     renderHome();
   }
+}
+
+/* The "Add Challan" app shortcut opens the form, not just the tab. Runs after
+   the tab restore above so the IM view exists to render into. */
+if (_launchNew && regFilter.activeTab === 'pageIM' && !_isDesktop) {
+  showAddChallanForm();
 }
 
 if ('serviceWorker' in navigator) {

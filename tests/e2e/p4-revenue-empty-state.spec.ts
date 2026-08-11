@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { emptyState, loadAppWithState, switchTab } from './fixtures';
+import { emptyState, loadAppWithState, switchTab, todayIso } from './fixtures';
 
 // P4 assertion: "Revenue by Client" empty-state is upgraded from a terse muted-text
 // ("No client data") to an actionable empty-state (copy + "Create an invoice" CTA).
@@ -44,7 +44,11 @@ test.describe('P4: Revenue by Client empty-state', () => {
       id: 'INV-P4-REG',
       invoiceNumber: '00010',
       displayNumber: 'SEP/TEST-00010',
-      date: '2026-04-15',
+      // Stats now scopes a period by the invoice DATE rather than by createdAt —
+      // the date on the document is the one GSTR-1 reports it under. This
+      // fixture's hardcoded 2026-04-15 passed only because the old filter read
+      // createdAt, so it has to carry a current date like the others.
+      date: todayIso(),
       status: 'active',
       invoiceState: 'created',
       dispatchedAt: null, deliveredAt: null, filedAt: null,

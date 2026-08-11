@@ -14,7 +14,11 @@ function getDefaultState() {
     incomingMaterial: [],
     invoices: [],
     voidedNumbers: [],
-    defaultCostPerKg: 5.46
+    // Full cost per kg, rebuilt from owner-supplied inputs against Apr–Jul 2026
+    // actuals. The old 5.46 predated that rebuild and flattered every margin
+    // figure by roughly a rupee a kilo. Only ever the default for a fresh
+    // install — an existing configured value is never overwritten.
+    defaultCostPerKg: 8.55
   };
 }
 
@@ -102,6 +106,9 @@ function saveState() {
   saveJSON(STORAGE_KEY, S);
   _tabDirty.home = true;
   _tabDirty.register = true;
+  // Opt-in GitHub backup. Debounced inside, so this fires far more often than
+  // it pushes. Guarded because state.js loads before github-sync.js.
+  if (typeof ghNotifyChange === 'function') ghNotifyChange();
 }
 
 function saveRegFilter() {

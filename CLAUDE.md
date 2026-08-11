@@ -19,7 +19,7 @@ Workforce management and invoicing PWA for **Soma Electro Products**, a zinc ele
 
 ## Architecture
 
-Split-file PWA. 25 modules, ~8,100 lines total.
+Split-file PWA. 26 modules, ~8,900 lines total.
 
 ```
 split/
@@ -35,6 +35,7 @@ split/
 ├── items.js           ← Items Master: subview, CRUD, merge, weights (750 lines)
 ├── create.js          ← Invoice creation form, 3 billing modes (303 lines)
 ├── settings.js        ← Settings overlay + import/export (145 lines)
+├── github-sync.js     ← GitHub Contents API push/pull, SHA conflict guard (330 lines)
 ├── invoice-ops.js     ← Invoice detail, edit, cancel, delete, register (925 lines)
 ├── number-audit.js    ← Void ledger + serial-sequence audit + gap reconcile (270 lines)
 ├── exports.js         ← Sales CSV + GSTR1 CSV exports (105 lines)
@@ -51,7 +52,7 @@ split/
 └── init.js            ← Migrations + app bootstrap (241 lines)
 ```
 
-**Concat order defined in build.sh.** Dependencies: data → state → zinc → tabs → clients → items → create → settings → invoice-ops → number-audit → exports → im → autocomplete → print → stats → im-form → im-dupe → scanner → events → swipe → seed → init.
+**Concat order defined in build.sh.** Dependencies: data → state → zinc → tabs → clients → items → create → settings → github-sync → invoice-ops → number-audit → exports → im → autocomplete → print → stats → im-form → im-dupe → scanner → events → swipe → seed → init.
 
 ### Build
 
@@ -167,6 +168,38 @@ it is spent, `invNextNum` may never walk back over it, and the hole in rule 46's
 series is what the ledger exists to explain. Reserved voids export at ₹0 in both CSVs — the
 same treatment cancelled invoices already get, and what makes the app agree with the filing.
 
+### What Stats measures
+Revenue alone cannot tell a good month from a loss-making one here: the same ₹1L of billing
+is healthy at 8 tonnes and ruinous at 20. So every headline figure is carried next to the
+tonnage that produced it, and **realisation (₹/kg) is the primary number**, not a derived one.
+
+Tonnage comes from KG lines directly and from NOS lines via `partWeights` or the Items Master
+`stdWeightKg`. Where a part has no weight on file the line cannot be counted, so the card
+states its **coverage** in place — an uncovered line understates tonnage and therefore
+*overstates* realisation, and a figure that is known to be incomplete says so rather than
+passing as complete.
+
+**Realisation by client is ranked worst-priced first.** That ordering is the point: the
+largest account and the worst-priced one can be the same row, which is exactly the SSS Mehta
+shape (39% of revenue, 61% of tonnage, ₹5.40/kg against ₹8.55 cost). Periods are measured on
+the **invoice date**, not on when the record was typed — that is the date on the document and
+the date GSTR-1 reports it under.
+
+### History is the audit trail
+It was missing the two event kinds an audit goes looking for. A deleted invoice writes a
+tombstone to `S.voidedNumbers` with a required reason, and an accepted duplicate challan
+stamps `dupeAck` — neither appeared in the log. Both are now first-class events, and a void
+renders as non-tappable because the invoice it names no longer exists to open.
+
+### Keyboard entry
+Challan entry is fully keyboard-operable. The suggestion lists (part autocomplete, client
+search) take arrow keys and Enter, and a lone match commits without arrowing first. The form
+re-renders by replacing `innerHTML`, so **every control carries a `data-k` key and focus is
+captured and restored across the re-render** — that focus drop, not the dropdowns, was what
+really ended the keyboard path mid-entry. `Alt+N` adds a line, `Ctrl+Enter` saves, and buttons
+marked `data-kbd-ring` join the Enter-to-next-field chain (a line's remove `×` deliberately
+does not).
+
 ### Items Master
 Part number registry with weights, gauge, descriptions, and merge capability.
 Weights for piece-billed clients are recoverable as pieceRate ÷ client ratePerKg —
@@ -177,10 +210,39 @@ note that such a weight prices back at exactly that rate, so it measures tonnage
 
 ## Persistence
 
-localStorage only. Key: `sep_invoicing_state`. No backend, no GitHub sync. Manual backup/restore via JSON export/import in Settings.
+localStorage is the system of record. Key: `sep_invoicing_state`. No backend and no
+server-side account; manual backup/restore via JSON export/import in Settings.
 
-API keys live in their own localStorage entries (`sep_inv_gemini_key`, `sep_inv_metals_key`),
-never on the state object, so an exported backup can never carry a credential.
+**GitHub sync** is an optional second copy, not a backend. It pushes the whole state as one
+JSON file to a repo through the Contents API and pulls it back on another device. It is
+deliberately last-writer-wins — the state is a single document with no per-record clocks, so
+any merge would be a reconciliation the app cannot verify — but no overwrite is ever blind.
+Each device remembers the blob SHA it last exchanged, and if the server's SHA has moved since,
+the operator is told whose copy and when before anything is replaced. Auto-push is opt-in,
+debounced ~45 s, and pauses itself the moment it sees a copy it did not write.
+
+Credentials live in their own localStorage entries (`sep_inv_gemini_key`, `sep_inv_metals_key`,
+`sep_inv_github_token`), never on the state object, so an exported backup can never carry one.
+The sync config (`sep_inv_github_sync`) is kept off `S` for the same class of reason: a file
+SHA and a device id describe this device's relationship to the remote, and restoring someone
+else's backup must not hand this device their sync position.
+
+## Offline
+
+Canon 0034 says service workers never cache HTML. That rule exists to prevent the unbreakable
+update loop — a stale shell served forever to a device that stops asking the network.
+
+`sw.js` now keeps that guarantee by a different mechanism rather than by abstention.
+Navigations are **network-first**: an online device always renders what the server just sent,
+and the cached shell is reached only after the network has actually failed. The loop cannot
+form, because the cache is never *preferred* while the network answers. What it buys back is
+the thing the canon cost: every byte of business data is local, yet the app could not be
+opened at all without signal.
+
+Static assets are cache-first and revalidated behind the response. The install step keeps
+same-origin assets atomic but lets the cross-origin font CSS fail on its own — it used to sit
+in the same `addAll()`, so one CDN hiccup rejected the install and the worker never activated.
+Gemini, metals.dev and api.github.com are never intercepted.
 
 @import docs/SEP_INVOICING_DESIGN_PRINCIPLES.md
 @import docs/ARCHITECTURE.md

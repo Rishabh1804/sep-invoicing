@@ -3,9 +3,14 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="description" content="Workforce management, incoming material tracking and GST invoicing for Soma Electro Products.">
+<meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="SEP Inv">
 <meta name="theme-color" content="#b45a37">
 <link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png" type="image/png">
 <link rel="apple-touch-icon" href="icon-192.png">
 <title>SEP Invoicing</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -570,6 +575,105 @@ input, select, textarea, button { font-family: inherit; font-size: var(--fs-base
 .inv-stats-states-row { display: flex; gap: var(--sp-8); flex-wrap: wrap; }
 .inv-stats-row-tap { cursor: pointer; }
 .inv-stats-row-tap:active { background: var(--surface-2); }
+
+/* ===== KPI BAND ===== */
+.inv-stats-title-sub {
+  margin-left: var(--sp-8); font-weight: 500; text-transform: none;
+  letter-spacing: 0; color: var(--text-3); font-size: var(--fs-xs);
+}
+.inv-kpi-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-12);
+}
+@media (min-width: 700px) {
+  .inv-kpi-grid { grid-template-columns: repeat(4, 1fr); }
+}
+.inv-kpi {
+  display: flex; flex-direction: column; gap: var(--sp-2);
+  padding: var(--sp-10); background: var(--surface-2);
+  border-radius: var(--r-md); min-width: 0;
+}
+.inv-kpi-label {
+  font-size: var(--fs-2xs); text-transform: uppercase; letter-spacing: 0.06em;
+  color: var(--text-3); font-weight: 600;
+}
+.inv-kpi-value {
+  font-family: var(--ff-display); font-size: var(--fs-lg); color: var(--cost);
+  word-break: break-word;
+}
+.inv-kpi-sub { font-size: var(--fs-2xs); color: var(--text-3); }
+.inv-kpi-delta {
+  align-self: flex-start; margin-top: var(--sp-4);
+  padding: var(--sp-2) var(--sp-6); border-radius: var(--r-sm);
+  font-family: var(--ff-mono); font-size: var(--fs-2xs); font-weight: 600;
+}
+.inv-kpi-delta-up { background: var(--attend-bg); color: var(--attend-text); }
+.inv-kpi-delta-down { background: var(--danger-bg); color: var(--danger-text); }
+.inv-kpi-delta-flat { background: var(--surface-3); color: var(--text-3); }
+.dark .inv-kpi { background: var(--surface-3); }
+.dark .inv-kpi-value { color: var(--cost-text); }
+.dark .inv-kpi-delta-flat { background: var(--surface-2); }
+
+/* ===== CAVEATS AND ALERTS =====
+   A number that is known to be incomplete says so next to itself, rather
+   than passing as complete. */
+.inv-stats-caveat {
+  margin-top: var(--sp-12); padding: var(--sp-8) var(--sp-10);
+  background: var(--surface-2); border-left: var(--sp-4) solid var(--border-2);
+  border-radius: var(--r-sm); font-size: var(--fs-xs);
+  color: var(--text-2); line-height: 1.5;
+}
+.inv-stats-alert {
+  margin-top: var(--sp-12); padding: var(--sp-8) var(--sp-10);
+  background: var(--danger-bg); border-left: var(--sp-4) solid var(--danger);
+  border-radius: var(--r-sm); font-size: var(--fs-xs);
+  color: var(--danger-text); line-height: 1.5; font-weight: 500;
+}
+.dark .inv-stats-caveat { background: var(--surface-3); border-left-color: var(--border-2); }
+.inv-stats-val-warn { color: var(--warning-text); }
+.inv-stats-val-danger { color: var(--danger-text); }
+
+/* ===== UNBILLED AGEING ===== */
+.inv-age-row {
+  display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-8);
+  margin: var(--sp-12) 0;
+}
+@media (min-width: 700px) {
+  .inv-age-row { grid-template-columns: repeat(4, 1fr); }
+}
+.inv-age-bucket {
+  padding: var(--sp-8); background: var(--surface-2);
+  border-radius: var(--r-md); min-width: 0;
+}
+.inv-age-bucket-warn { background: var(--warning-bg); }
+.inv-age-label { font-size: var(--fs-2xs); color: var(--text-3); font-weight: 600; }
+.inv-age-value {
+  font-family: var(--ff-mono); font-size: var(--fs-sm);
+  font-weight: 600; color: var(--text-1); margin-top: var(--sp-2);
+}
+.inv-age-share { font-size: var(--fs-2xs); color: var(--text-3); }
+.dark .inv-age-bucket { background: var(--surface-3); }
+.dark .inv-age-bucket-warn { background: var(--warning-bg); }
+
+/* ===== HISTORY EVENT ICONS =====
+   Replaces the bare colour dot: an audit log has to be readable by kind, and
+   colour alone does not carry that for everyone. */
+.inv-history-icon {
+  width: var(--sp-32); height: var(--sp-32); border-radius: var(--r-full);
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0; background: var(--surface-2); color: var(--text-2);
+}
+.inv-history-icon-svg { width: var(--sp-16); height: var(--sp-16); }
+.inv-history-icon-invoice { background: var(--cost-bg); color: var(--cost-text); }
+.inv-history-icon-challan { background: var(--neutral-bg); color: var(--neutral-text); }
+.inv-history-icon-state { background: var(--attend-bg); color: var(--attend-text); }
+.inv-history-icon-cancel { background: var(--danger-bg); color: var(--danger-text); }
+.inv-history-icon-void { background: var(--danger-bg); color: var(--danger-text); }
+.inv-history-icon-dupe { background: var(--warning-bg); color: var(--warning-text); }
+.inv-history-item-static { cursor: default; }
+.inv-history-summary {
+  font-family: var(--ff-mono); font-size: var(--fs-xs);
+  color: var(--text-3); margin-bottom: var(--sp-8);
+}
 
 /* Phase 7: Period chips */
 .inv-stats-chips {
@@ -1240,6 +1344,73 @@ input, select, textarea, button { font-family: inherit; font-size: var(--fs-base
 .dark .inv-autocomplete-list { background: var(--surface); border-color: var(--border); }
 .dark .inv-autocomplete-item:active { background: var(--surface-2); }
 
+/* ===== SUGGESTION KEYBOARD CURSOR =====
+   The row the arrow keys have landed on. Carries a left rule as well as a
+   tint so the position is readable without relying on colour alone. */
+.inv-ac-active {
+  background: var(--surface-2);
+  box-shadow: inset var(--sp-4) 0 0 var(--accent);
+}
+.dark .inv-ac-active {
+  background: var(--surface-3);
+  box-shadow: inset var(--sp-4) 0 0 var(--accent-dark);
+}
+
+/* ===== KEYBOARD HINT STRIP ===== */
+.inv-kbd-hint {
+  display: flex; flex-wrap: wrap; gap: var(--sp-4) var(--sp-12);
+  padding: var(--sp-8) var(--sp-12); margin-bottom: var(--sp-12);
+  background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  font-size: var(--fs-xs); color: var(--text-3);
+}
+.inv-kbd-hint-item { display: inline-flex; align-items: center; gap: var(--sp-4); }
+.inv-kbd {
+  font-family: var(--ff-mono); font-size: var(--fs-2xs);
+  padding: var(--sp-2) var(--sp-4);
+  background: var(--surface); border: 1px solid var(--border-2);
+  border-radius: var(--r-sm); color: var(--text-2);
+}
+.dark .inv-kbd-hint { background: var(--surface-3); border-color: var(--border); }
+.dark .inv-kbd { background: var(--surface-2); border-color: var(--border-2); }
+
+/* ===== KEYBOARD FOCUS VISIBILITY =====
+   Buttons and selects had no focus style at all, so a keyboard user could not
+   see where they were. :focus-visible keeps pointer users unaffected. */
+.inv-btn:focus-visible,
+.inv-fab:focus-visible,
+.inv-fab-scan:focus-visible,
+.inv-chip:focus-visible,
+.inv-tab:focus-visible,
+.inv-header-btn:focus-visible,
+.inv-line-remove:focus-visible,
+.inv-overlay-close:focus-visible,
+.inv-form-select:focus-visible,
+.inv-search-input:focus-visible,
+.inv-search-item:focus-visible,
+.inv-autocomplete-item:focus-visible {
+  outline: var(--sp-2) solid var(--accent);
+  outline-offset: var(--sp-2);
+}
+.dark .inv-btn:focus-visible,
+.dark .inv-fab:focus-visible,
+.dark .inv-fab-scan:focus-visible,
+.dark .inv-chip:focus-visible,
+.dark .inv-tab:focus-visible,
+.dark .inv-header-btn:focus-visible,
+.dark .inv-line-remove:focus-visible,
+.dark .inv-overlay-close:focus-visible,
+.dark .inv-form-select:focus-visible,
+.dark .inv-search-input:focus-visible,
+.dark .inv-search-item:focus-visible,
+.dark .inv-autocomplete-item:focus-visible {
+  outline-color: var(--cost-text);
+}
+/* The header sits on --accent, so an accent-coloured ring would vanish into it.
+   #fff matches the header's own foreground, as used above. */
+.inv-header-btn:focus-visible,
+.dark .inv-header-btn:focus-visible { outline-color: #fff; }
+
 /* ===== ITEMS MASTER (Phase 6) ===== */
 .inv-subview-toggle {
   display: flex; gap: var(--sp-4); margin-bottom: var(--sp-12);
@@ -1318,6 +1489,39 @@ input, select, textarea, button { font-family: inherit; font-size: var(--fs-base
 .inv-zinc-meta { font-size: var(--fs-xs); color: var(--text-3); }
 .inv-zinc-stale { color: var(--warning-text); font-weight: 600; }
 .dark .inv-zinc-stale { color: var(--warning-text); }
+
+/* ===== GITHUB SYNC ===== */
+.inv-sync-card { padding: var(--card-padding-sm) var(--card-padding); }
+.inv-sync-meta { display: flex; flex-direction: column; gap: var(--sp-2); min-width: 0; }
+.inv-sync-label {
+  display: flex; align-items: center; gap: var(--sp-6);
+  font-size: var(--fs-sm); font-weight: 600; color: var(--text-1);
+}
+.inv-sync-stale {
+  padding: var(--sp-2) var(--sp-6); border-radius: var(--r-sm);
+  background: var(--warning-bg); color: var(--warning-text);
+  font-size: var(--fs-2xs); font-weight: 600; text-transform: uppercase;
+}
+.inv-sync-repo {
+  font-size: var(--fs-xs); color: var(--text-2);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.inv-sync-time { font-size: var(--fs-xs); color: var(--text-3); }
+.inv-sync-status {
+  margin-top: var(--sp-8); padding: var(--sp-8) var(--sp-10);
+  background: var(--surface-2); border-radius: var(--r-sm);
+  font-size: var(--fs-xs); color: var(--text-2); line-height: 1.5;
+}
+.dark .inv-sync-status { background: var(--surface-3); }
+
+/* ===== CHECKBOX ROW ===== */
+.inv-check-row {
+  display: flex; align-items: center; gap: var(--sp-8);
+  min-height: 44px; cursor: pointer;
+  font-size: var(--fs-base); color: var(--text-1);
+}
+.inv-check { width: var(--sp-16); height: var(--sp-16); accent-color: var(--accent); flex-shrink: 0; }
+.dark .inv-check { accent-color: var(--accent-dark); }
 
 /* ===== BULK WEIGHT ENTRY ===== */
 .inv-weight-list { margin-bottom: var(--sp-16); }
@@ -1827,6 +2031,7 @@ body.inv-desktop #itemsSelBar {
     <button class="inv-btn inv-btn-primary" data-action="invCreateNew">New Invoice</button>
   </div>
   <div id="homeUnbilledCard"></div>
+  <div id="homeSyncCard"></div>
   <div id="homeZincCard"></div>
   <div class="inv-card">
     <div class="inv-card-header"><span class="inv-card-title">Recent Invoices</span></div>
@@ -1968,7 +2173,11 @@ function getDefaultState() {
     incomingMaterial: [],
     invoices: [],
     voidedNumbers: [],
-    defaultCostPerKg: 5.46
+    // Full cost per kg, rebuilt from owner-supplied inputs against Apr–Jul 2026
+    // actuals. The old 5.46 predated that rebuild and flattered every margin
+    // figure by roughly a rupee a kilo. Only ever the default for a fresh
+    // install — an existing configured value is never overwritten.
+    defaultCostPerKg: 8.55
   };
 }
 
@@ -2056,6 +2265,9 @@ function saveState() {
   saveJSON(STORAGE_KEY, S);
   _tabDirty.home = true;
   _tabDirty.register = true;
+  // Opt-in GitHub backup. Debounced inside, so this fires far more often than
+  // it pushes. Guarded because state.js loads before github-sync.js.
+  if (typeof ghNotifyChange === 'function') ghNotifyChange();
 }
 
 function saveRegFilter() {
@@ -2554,6 +2766,7 @@ function renderHome() {
   document.getElementById('mtdRevenue').innerHTML = formatCurrency(active.reduce((s,i) => s + (i.taxableValue || 0), 0));
 
   renderZincCard();
+  ghRenderCard();
 
   // Phase 5: Unbilled IM summary card
   var unbilledEl = document.getElementById('homeUnbilledCard');
@@ -4222,8 +4435,9 @@ function renderCreateForm() {
   } else {
     html += '<div class="inv-search-wrap inv-search-no-mb">' +
       '<svg class="inv-search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>' +
-      '<input type="text" class="inv-search-input" id="invClientSearch" placeholder="Search client" autocomplete="off">' +
-      '<div id="invClientResults" class="inv-hidden"></div></div>';
+      '<input type="text" class="inv-search-input" id="invClientSearch" placeholder="Search client" autocomplete="off"' +
+      ' role="combobox" aria-expanded="false" aria-autocomplete="list" aria-controls="invClientResults">' +
+      '<div id="invClientResults" class="inv-search-results inv-hidden" role="listbox"></div></div>';
   }
   html += '</div>';
 
@@ -4242,8 +4456,9 @@ function renderCreateForm() {
       '<button class="inv-line-remove" data-action="invRemoveLineItem" data-idx="' + idx + '">&times;</button></div>' +
       '<div class="inv-form-group"><label class="inv-form-label">Part / Description</label>' +
       '<div class="inv-autocomplete-wrap">' +
-      '<input class="inv-form-input" value="' + escHtml(item.desc || item.partNumber) + '" data-action="invEditLinePart" data-idx="' + idx + '" placeholder="Part name or number" autocomplete="off">' +
-      '<div class="inv-autocomplete-list inv-hidden" id="invPartAC' + idx + '"></div></div></div>' +
+      '<input class="inv-form-input" value="' + escHtml(item.desc || item.partNumber) + '" data-action="invEditLinePart" data-idx="' + idx + '" placeholder="Part name or number" autocomplete="off"' +
+      ' role="combobox" aria-expanded="false" aria-autocomplete="list" aria-controls="invPartAC' + idx + '">' +
+      '<div class="inv-autocomplete-list inv-hidden" id="invPartAC' + idx + '" role="listbox"></div></div></div>' +
       '<div class="inv-form-row">' +
       '<div class="inv-form-group"><label class="inv-form-label">Qty</label>' +
       '<input type="number" class="inv-form-input inv-mono" value="' + (item.qty||'') + '" data-field="qty" data-idx="' + idx + '" data-action="invUpdateLine" step="any" min="0"></div>' +
@@ -4316,14 +4531,21 @@ function renderCreateForm() {
   if (cs) {
     cs.addEventListener('input', () => {
       const q = cs.value.toLowerCase();
-      if (q.length < 1) { document.getElementById('invClientResults').classList.add('inv-hidden'); return; }
-      const matches = S.clients.filter(c => c.isActive && (c.name.toLowerCase().includes(q) || (c.gstin||'').includes(q))).slice(0, 8);
       const res = document.getElementById('invClientResults');
-      res.classList.remove('inv-hidden');
+      const matches = q.length < 1 ? [] :
+        S.clients.filter(c => c.isActive && (c.name.toLowerCase().includes(q) || (c.gstin||'').includes(q))).slice(0, 8);
+      acReset();
+      if (matches.length === 0) {
+        res.className = 'inv-search-results inv-hidden';
+        res.innerHTML = '';
+        cs.setAttribute('aria-expanded', 'false');
+        return;
+      }
       res.className = 'inv-search-results';
-      res.innerHTML = matches.map(c => '<div class="inv-search-item" data-action="invSelectClient" data-id="' + c.id + '">' +
+      res.innerHTML = matches.map((c, i) => '<div class="inv-search-item" role="option" id="invClientOpt' + i + '" data-action="invSelectClient" data-id="' + c.id + '">' +
         '<div><div class="inv-client-name">' + escHtml(c.name) + '</div>' +
         '<div class="inv-client-meta">' + escHtml(c.gstin || '') + '</div></div></div>').join('');
+      cs.setAttribute('aria-expanded', 'true');
     });
     setTimeout(() => cs.focus(), 100);
   }
@@ -4516,8 +4738,8 @@ function openSettings() {
 
     '<div class="inv-settings-section"><div class="inv-settings-title">Cost of Goods</div>' +
     '<div class="inv-form-group"><label class="inv-form-label">Default cost per KG (&#8377;)</label>' +
-    '<input type="number" step="0.01" class="inv-form-input inv-mono" id="setDefaultCost" value="' + (S.defaultCostPerKg || 5.46) + '"></div>' +
-    '<div class="inv-text-muted inv-storage-text">Used by margin dashboard to compute per-item profitability.</div></div>' +
+    '<input type="number" step="0.01" class="inv-form-input inv-mono" id="setDefaultCost" value="' + (S.defaultCostPerKg || 8.55) + '"></div>' +
+    '<div class="inv-text-muted inv-storage-text">Full cost, not just materials. Everything in Stats measures against it &mdash; realisation, margin, and which clients are priced below cost. The Apr&ndash;Jul 2026 rebuild put it at &#8377;8.55/kg.</div></div>' +
 
     '<div class="inv-settings-section"><div class="inv-settings-title">Zinc Rate</div>' +
     '<div class="inv-form-row"><div class="inv-form-group"><label class="inv-form-label">Market rate (&#8377;/kg)</label>' +
@@ -4545,6 +4767,8 @@ function openSettings() {
     '<button class="inv-api-key-toggle" data-action="invToggleApiKey" type="button">' +
     '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button></div>' +
     '<div class="inv-text-muted inv-storage-text">Free from aistudio.google.com (Google account only, no card). Key stays on device.</div></div></div>' +
+
+    renderGhSyncSettings() +
 
     '<div class="inv-settings-section"><div class="inv-settings-title">Data</div>' +
     '<div class="inv-form-row"><button class="inv-btn inv-btn-ghost inv-btn-block" data-action="invExportData">Export JSON</button>' +
@@ -4610,9 +4834,12 @@ function saveSettings() {
     if (!isNaN(parsedUplift) && parsedUplift >= 0) z.upliftPct = parsedUplift;
   }
 
+  saveGhSyncSettings();
+
   saveState();
   closeOverlay();
   renderZincCard();
+  ghRenderCard();
   showToast('Settings saved');
 }
 
@@ -4693,6 +4920,455 @@ function importData() {
   inp.click();
 }
 
+/* ===== GITHUB SYNC =====
+   Backup and cross-device transfer for a localStorage-only app. Pushes the
+   whole state object to one JSON file in a GitHub repo through the Contents
+   API, and pulls it back on another device.
+
+   Two things this deliberately is not. It is not a merge: the state is a
+   single document with no per-record clocks, so anything other than
+   last-writer-wins would be inventing a reconciliation it cannot verify. And
+   it is not silent: every overwrite in either direction is confirmed, because
+   the thing being overwritten is a GST filing record.
+
+   What it does guarantee is that no overwrite happens blind. Each device
+   remembers the blob SHA it last exchanged; if the SHA on the server has moved
+   since, another device wrote in between and the operator is told whose and
+   when before anything is replaced. */
+
+const GH_SYNC_KEY = 'sep_inv_github_sync';
+const GH_TOKEN_KEY = 'sep_inv_github_token';
+const GH_SCHEMA = 1;
+
+/* The token lives in its own localStorage entry, never on S — same rule the
+   Gemini and metals.dev keys follow, so an exported backup can never carry a
+   credential. The rest of the config is kept off S too: a file SHA and a
+   device id describe *this* device's relationship to the remote, and restoring
+   someone else's backup must not hand this device their sync position. */
+function getGhToken() { try { return localStorage.getItem(GH_TOKEN_KEY) || ''; } catch (e) { return ''; } }
+function setGhToken(t) { try { localStorage.setItem(GH_TOKEN_KEY, t); } catch (e) {} }
+
+function getGhConfig() {
+  var c = loadJSON(GH_SYNC_KEY, null) || {};
+  if (!c.deviceId) {
+    c.deviceId = 'dev-' + Math.random().toString(36).slice(2, 8);
+    saveJSON(GH_SYNC_KEY, c);
+  }
+  return {
+    owner: c.owner || '',
+    repo: c.repo || '',
+    branch: c.branch || 'main',
+    path: c.path || 'sep-invoicing-data.json',
+    deviceId: c.deviceId,
+    deviceName: c.deviceName || '',
+    sha: c.sha || null,
+    lastPushAt: c.lastPushAt || null,
+    lastPullAt: c.lastPullAt || null,
+    autoPush: !!c.autoPush
+  };
+}
+
+function setGhConfig(cfg) { saveJSON(GH_SYNC_KEY, cfg); }
+
+function ghIsConfigured() {
+  var c = getGhConfig();
+  return !!(c.owner && c.repo && c.path && getGhToken());
+}
+
+function ghLastSyncAt() {
+  var c = getGhConfig();
+  return Math.max(c.lastPushAt || 0, c.lastPullAt || 0) || null;
+}
+
+/* ===== ENCODING =====
+   The Contents API carries base64. btoa() only handles Latin-1, and client
+   names and notes are not — so the string goes through TextEncoder first.
+   The byte array is walked in chunks because String.fromCharCode.apply blows
+   the call stack on a large state file. */
+function ghEncode(str) {
+  var bytes = new TextEncoder().encode(str);
+  var bin = '';
+  var chunk = 0x8000;
+  for (var i = 0; i < bytes.length; i += chunk) {
+    bin += String.fromCharCode.apply(null, bytes.subarray(i, i + chunk));
+  }
+  return btoa(bin);
+}
+
+function ghDecode(b64) {
+  var bin = atob(String(b64).replace(/\s/g, ''));
+  var bytes = new Uint8Array(bin.length);
+  for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return new TextDecoder().decode(bytes);
+}
+
+function ghContentsUrl(cfg) {
+  return 'https://api.github.com/repos/' +
+    encodeURIComponent(cfg.owner) + '/' + encodeURIComponent(cfg.repo) +
+    '/contents/' + cfg.path.split('/').filter(Boolean).map(encodeURIComponent).join('/');
+}
+
+/* One place where an HTTP status becomes something an operator can act on.
+   "404" on this endpoint almost never means what it says — a fine-grained
+   token without Contents access gets a 404, not a 403. */
+function ghErrorMessage(status, body) {
+  var detail = body && body.message ? body.message : '';
+  if (status === 401) return 'GitHub rejected the token. Check it has not expired.';
+  if (status === 403) return 'GitHub refused the request (rate limit, or the token lacks Contents write). ' + detail;
+  if (status === 404) return 'Not found — check owner, repo and branch, and that the token grants Contents access to this repo.';
+  if (status === 409) return 'The file changed on GitHub while this push was in flight. Pull first, or push again.';
+  if (status === 422) return 'GitHub rejected the file contents. ' + detail;
+  return 'GitHub error ' + status + (detail ? ': ' + detail : '');
+}
+
+async function ghRequest(url, options) {
+  var token = getGhToken();
+  var opts = options || {};
+  var res;
+  try {
+    res = await fetch(url, {
+      method: opts.method || 'GET',
+      headers: {
+        'Authorization': 'Bearer ' + token,
+        'Accept': 'application/vnd.github+json',
+        'X-GitHub-Api-Version': '2022-11-28',
+        'Content-Type': 'application/json'
+      },
+      body: opts.body ? JSON.stringify(opts.body) : undefined
+    });
+  } catch (err) {
+    // fetch only rejects on a transport failure, which offline is.
+    throw new Error('No connection to GitHub. The data is safe on this device — sync when you are back online.');
+  }
+  var payload = null;
+  try { payload = await res.json(); } catch (e) { payload = null; }
+  if (!res.ok) {
+    var e2 = new Error(ghErrorMessage(res.status, payload));
+    e2.status = res.status;
+    throw e2;
+  }
+  return payload;
+}
+
+/* Reads the remote file. Returns null when it does not exist yet, which is
+   the ordinary first-push case and not an error. */
+async function ghGetRemote(cfg) {
+  var url = ghContentsUrl(cfg) + '?ref=' + encodeURIComponent(cfg.branch);
+  try {
+    var data = await ghRequest(url);
+    var envelope = null;
+    if (data && data.content) {
+      try { envelope = JSON.parse(ghDecode(data.content)); } catch (e) { envelope = null; }
+    }
+    return { sha: data ? data.sha : null, envelope: envelope };
+  } catch (err) {
+    if (err.status === 404) return null;
+    throw err;
+  }
+}
+
+function ghBuildEnvelope(cfg) {
+  return {
+    app: 'sep-invoicing',
+    schema: GH_SCHEMA,
+    savedAt: Date.now(),
+    device: cfg.deviceName || cfg.deviceId,
+    deviceId: cfg.deviceId,
+    counts: {
+      invoices: (S.invoices || []).length,
+      challans: (S.incomingMaterial || []).length,
+      clients: (S.clients || []).length,
+      items: (S.items || []).length
+    },
+    state: S
+  };
+}
+
+function ghDescribeEnvelope(env) {
+  if (!env) return 'an unreadable file';
+  var c = env.counts || {};
+  var who = env.device ? ' from ' + env.device : '';
+  var when = env.savedAt ? ' on ' + formatTimestamp(env.savedAt) : '';
+  return (c.invoices != null ? c.invoices + ' invoices, ' + c.challans + ' challans' : 'a backup') + who + when;
+}
+
+/* ===== PUSH ===== */
+async function ghPush(opts) {
+  var silent = opts && opts.silent;
+  var cfg = getGhConfig();
+  if (!ghIsConfigured()) {
+    if (!silent) showToast('Set the GitHub repo and token in Settings first', 'error');
+    return false;
+  }
+
+  ghSetBusy(true, 'Pushing');
+  try {
+    var remote = await ghGetRemote(cfg);
+
+    // The SHA moved since this device last exchanged: someone else wrote.
+    // Never resolve that quietly — the operator is the only one who knows
+    // which copy is the real one.
+    if (remote && remote.sha && remote.sha !== cfg.sha) {
+      if (silent) {
+        ghSetBusy(false);
+        ghSetStatus('Auto-push paused: GitHub has a newer copy (' + ghDescribeEnvelope(remote.envelope) + '). Push or pull by hand.');
+        return false;
+      }
+      var ok = confirm('GitHub already holds a copy this device has not seen — ' +
+        ghDescribeEnvelope(remote.envelope) + '.\n\nPushing replaces it with this device\'s data. Continue?');
+      if (!ok) { ghSetBusy(false); ghSetStatus('Push cancelled.'); return false; }
+    }
+
+    var envelope = ghBuildEnvelope(cfg);
+    var body = {
+      message: 'SEP Invoicing backup — ' + envelope.counts.invoices + ' invoices, ' +
+        envelope.counts.challans + ' challans (' + envelope.device + ')',
+      content: ghEncode(JSON.stringify(envelope, null, 2)),
+      branch: cfg.branch
+    };
+    if (remote && remote.sha) body.sha = remote.sha;
+
+    var result = await ghRequest(ghContentsUrl(cfg), { method: 'PUT', body: body });
+    cfg.sha = result && result.content ? result.content.sha : null;
+    cfg.lastPushAt = Date.now();
+    setGhConfig(cfg);
+    ghSetBusy(false);
+    ghSetStatus('Pushed ' + formatTimestamp(cfg.lastPushAt) + '.');
+    ghRenderCard();
+    if (!silent) showToast('Pushed to GitHub');
+    return true;
+  } catch (err) {
+    ghSetBusy(false);
+    ghSetStatus(err.message);
+    if (!silent) showToast(err.message, 'error');
+    return false;
+  }
+}
+
+/* ===== PULL ===== */
+async function ghPull() {
+  var cfg = getGhConfig();
+  if (!ghIsConfigured()) { showToast('Set the GitHub repo and token in Settings first', 'error'); return false; }
+
+  ghSetBusy(true, 'Pulling');
+  try {
+    var remote = await ghGetRemote(cfg);
+    if (!remote) {
+      ghSetBusy(false);
+      ghSetStatus('No backup file at that path yet — push once to create it.');
+      showToast('Nothing to pull yet', 'warning');
+      return false;
+    }
+    var env = remote.envelope;
+    if (!env || env.app !== 'sep-invoicing' || !env.state || !env.state.company || !env.state.clients) {
+      ghSetBusy(false);
+      ghSetStatus('That file is not a SEP Invoicing backup.');
+      showToast('That file is not a SEP Invoicing backup', 'error');
+      return false;
+    }
+    if (env.schema > GH_SCHEMA) {
+      ghSetBusy(false);
+      ghSetStatus('That backup was written by a newer version of the app.');
+      showToast('Backup is from a newer app version', 'error');
+      return false;
+    }
+
+    var mine = (S.invoices || []).length + ' invoices, ' + (S.incomingMaterial || []).length + ' challans';
+    if (!confirm('Replace ALL data on this device with ' + ghDescribeEnvelope(env) + '?\n\n' +
+        'This device currently holds ' + mine + '. That is discarded.')) {
+      ghSetBusy(false);
+      ghSetStatus('Pull cancelled.');
+      return false;
+    }
+
+    S = env.state;
+    // Same repairs the loader applies, so a backup written before a field
+    // existed cannot land the app in a broken state.
+    if (!S.invoices) S.invoices = [];
+    if (!S.incomingMaterial) S.incomingMaterial = [];
+    if (!S.partWeights) S.partWeights = {};
+    if (!S.voidedNumbers) S.voidedNumbers = [];
+    saveState();
+
+    cfg.sha = remote.sha;
+    cfg.lastPullAt = Date.now();
+    setGhConfig(cfg);
+
+    ghSetBusy(false);
+    ghSetStatus('Pulled ' + formatTimestamp(cfg.lastPullAt) + '.');
+    closeOverlay();
+    _tabDirty.home = true;
+    _tabDirty.register = true;
+    _regToolbarRendered = false;
+    _imToolbarRendered = false;
+    switchTab('pageHome');
+    showToast('Pulled from GitHub');
+    return true;
+  } catch (err) {
+    ghSetBusy(false);
+    ghSetStatus(err.message);
+    showToast(err.message, 'error');
+    return false;
+  }
+}
+
+/* ===== AUTO-PUSH =====
+   Opt-in, debounced, and never during a burst of edits. saveState() fires on
+   every keystroke-driven recalculation, so pushing per save would be both
+   useless and rate-limited. */
+var _ghPushTimer = null;
+var _ghAutoBackoff = false;
+const GH_AUTOPUSH_DELAY = 45000;
+
+function ghNotifyChange() {
+  var cfg = getGhConfig();
+  if (!cfg.autoPush || !ghIsConfigured() || _ghAutoBackoff) return;
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) return;
+  clearTimeout(_ghPushTimer);
+  _ghPushTimer = setTimeout(function() {
+    ghPush({ silent: true }).then(function(ok) {
+      // One failure stops the timer re-arming forever in the background;
+      // a manual push clears it.
+      if (!ok) _ghAutoBackoff = true;
+    });
+  }, GH_AUTOPUSH_DELAY);
+}
+
+/* ===== STATUS SURFACE ===== */
+var _ghStatusText = '';
+var _ghBusy = false;
+
+function ghSetStatus(text) {
+  _ghStatusText = text || '';
+  var el = document.getElementById('ghSyncStatus');
+  if (el) el.textContent = _ghStatusText;
+  ghRenderCard();
+}
+
+function ghSetBusy(busy, label) {
+  _ghBusy = busy;
+  if (busy) _ghAutoBackoff = false;
+  var el = document.getElementById('ghSyncStatus');
+  if (el && busy) el.textContent = (label || 'Working') + '…';
+  ['ghPushBtn', 'ghPullBtn'].forEach(function(id) {
+    var b = document.getElementById(id);
+    if (b) b.disabled = busy;
+  });
+}
+
+function ghRelTime(ts) {
+  if (!ts) return 'never';
+  var mins = Math.floor((Date.now() - ts) / 60000);
+  if (mins < 1) return 'just now';
+  if (mins < 60) return mins + ' min ago';
+  var hrs = Math.floor(mins / 60);
+  if (hrs < 24) return hrs + ' h ago';
+  var days = Math.floor(hrs / 24);
+  return days + ' day' + (days > 1 ? 's' : '') + ' ago';
+}
+
+/* Home card. A backup whose state you cannot see is a backup you will not
+   trust, so the last sync time sits on the first screen rather than three
+   taps into Settings. */
+function ghRenderCard() {
+  var host = document.getElementById('homeSyncCard');
+  if (!host) return;
+  if (!ghIsConfigured()) { host.innerHTML = ''; return; }
+
+  var cfg = getGhConfig();
+  var last = ghLastSyncAt();
+  // Anything past a working day without a push is worth flagging on a device
+  // whose only other copy is the localStorage it is sitting in.
+  var stale = !last || (Date.now() - last) > 86400000;
+
+  host.innerHTML = '<div class="inv-card inv-sync-card">' +
+    '<div class="inv-flex-between">' +
+      '<div class="inv-sync-meta">' +
+        '<div class="inv-sync-label">GitHub backup' +
+          (stale ? '<span class="inv-sync-stale">stale</span>' : '') + '</div>' +
+        '<div class="inv-sync-repo inv-mono">' + escHtml(cfg.owner + '/' + cfg.repo) + '</div>' +
+        '<div class="inv-sync-time">Last synced ' + escHtml(ghRelTime(last)) + '</div>' +
+      '</div>' +
+      '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invGhPush"' + (_ghBusy ? ' disabled' : '') + '>' +
+        (_ghBusy ? 'Syncing…' : 'Back up now') + '</button>' +
+    '</div></div>';
+}
+
+/* ===== SETTINGS SECTION ===== */
+function renderGhSyncSettings() {
+  var cfg = getGhConfig();
+  var last = ghLastSyncAt();
+  return '<div class="inv-settings-section"><div class="inv-settings-title">GitHub Sync</div>' +
+    '<div class="inv-form-row">' +
+      '<div class="inv-form-group"><label class="inv-form-label" for="setGhOwner">Owner</label>' +
+      '<input class="inv-form-input inv-mono" id="setGhOwner" value="' + escHtml(cfg.owner) + '" placeholder="rishabh1804" autocomplete="off"></div>' +
+      '<div class="inv-form-group"><label class="inv-form-label" for="setGhRepo">Repo</label>' +
+      '<input class="inv-form-input inv-mono" id="setGhRepo" value="' + escHtml(cfg.repo) + '" placeholder="sep-invoicing-data" autocomplete="off"></div>' +
+    '</div>' +
+    '<div class="inv-form-row">' +
+      '<div class="inv-form-group"><label class="inv-form-label" for="setGhBranch">Branch</label>' +
+      '<input class="inv-form-input inv-mono" id="setGhBranch" value="' + escHtml(cfg.branch) + '" placeholder="main" autocomplete="off"></div>' +
+      '<div class="inv-form-group"><label class="inv-form-label" for="setGhPath">File path</label>' +
+      '<input class="inv-form-input inv-mono" id="setGhPath" value="' + escHtml(cfg.path) + '" placeholder="sep-invoicing-data.json" autocomplete="off"></div>' +
+    '</div>' +
+    '<div class="inv-form-group"><label class="inv-form-label" for="setGhDevice">This device</label>' +
+    '<input class="inv-form-input" id="setGhDevice" value="' + escHtml(cfg.deviceName) + '" placeholder="Office desktop" autocomplete="off">' +
+    '<div class="inv-text-muted inv-storage-text">Named in the commit message, so the history says which device wrote each backup.</div></div>' +
+
+    '<div class="inv-form-group"><label class="inv-form-label" for="setGhToken">Personal access token</label>' +
+    '<div class="inv-api-key-wrap"><input class="inv-form-input inv-mono" id="setGhToken" type="password" value="' + escHtml(getGhToken()) + '" placeholder="github_pat_..." autocomplete="off">' +
+    '<button class="inv-api-key-toggle" data-action="invToggleGhToken" type="button" aria-label="Show token">' +
+    '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button></div>' +
+    '<div class="inv-text-muted inv-storage-text">A fine-grained token with <strong>Contents: Read and write</strong> on one private repo is enough — nothing wider. It stays on this device and is never written into a JSON export. Anyone with access to this device can read it, so use a private repo and revoke the token if the device is lost.</div></div>' +
+
+    '<label class="inv-check-row" for="setGhAuto">' +
+    '<input type="checkbox" id="setGhAuto" class="inv-check"' + (cfg.autoPush ? ' checked' : '') + '>' +
+    '<span>Back up automatically after changes</span></label>' +
+    '<div class="inv-text-muted inv-storage-text inv-mb-8">Pushes about a minute after the last edit. Paused automatically if GitHub holds a copy this device has not seen.</div>' +
+
+    '<div class="inv-form-row">' +
+      '<button class="inv-btn inv-btn-ghost inv-btn-block" id="ghPushBtn" data-action="invGhPush">Push to GitHub</button>' +
+      '<button class="inv-btn inv-btn-ghost inv-btn-block" id="ghPullBtn" data-action="invGhPull">Pull from GitHub</button>' +
+    '</div>' +
+    '<div class="inv-sync-status" id="ghSyncStatus">' +
+      escHtml(_ghStatusText || (last ? 'Last synced ' + ghRelTime(last) + '.' : 'Not synced yet.')) +
+    '</div></div>';
+}
+
+/* Called from saveSettings() — the config has to land before a push is
+   attempted, or the first push after setup goes to the previous repo. */
+function saveGhSyncSettings() {
+  var cfg = getGhConfig();
+  var owner = document.getElementById('setGhOwner');
+  var repo = document.getElementById('setGhRepo');
+  var branch = document.getElementById('setGhBranch');
+  var path = document.getElementById('setGhPath');
+  var device = document.getElementById('setGhDevice');
+  var token = document.getElementById('setGhToken');
+  var auto = document.getElementById('setGhAuto');
+  if (!owner) return;
+
+  var nextOwner = owner.value.trim();
+  var nextRepo = repo ? repo.value.trim() : cfg.repo;
+  var nextPath = path ? path.value.trim() : cfg.path;
+  var nextBranch = branch ? branch.value.trim() : cfg.branch;
+
+  // Pointing at a different file makes the remembered SHA meaningless, and a
+  // stale SHA would let the next push overwrite a file it never read.
+  if (nextOwner !== cfg.owner || nextRepo !== cfg.repo || nextPath !== cfg.path || nextBranch !== cfg.branch) {
+    cfg.sha = null;
+  }
+
+  cfg.owner = nextOwner;
+  cfg.repo = nextRepo;
+  cfg.path = nextPath || 'sep-invoicing-data.json';
+  cfg.branch = nextBranch || 'main';
+  if (device) cfg.deviceName = device.value.trim();
+  if (auto) cfg.autoPush = !!auto.checked;
+  setGhConfig(cfg);
+  if (token) setGhToken(token.value.trim());
+  _ghAutoBackoff = false;
+}
 /* ===== VIEW/EDIT INVOICE ===== */
 function viewInvoice(invId) {
   const inv = S.invoices.find(i => i.id === invId);
@@ -6598,27 +7274,123 @@ function searchParts(query) {
   return matches;
 }
 
-function showPartAutocomplete(idx, query) {
-  const acEl = document.getElementById('invPartAC' + idx);
-  if (!acEl) return;
-  const matches = searchParts(query);
-  if (matches.length === 0) {
-    acEl.classList.add('inv-hidden');
-    return;
-  }
-  acEl.classList.remove('inv-hidden');
+/* Render the suggestion rows for one part input. Shared by the invoice form
+   and the challan form, which differ only in the action and element ids. */
+function renderPartOptions(acEl, matches, action, idx, idPrefix) {
   // The gauge is shown as its own badge: several clamp part numbers exist in
   // more than one gauge, and it is the only thing telling those rows apart.
-  acEl.innerHTML = matches.map(m =>
-    '<div class="inv-autocomplete-item" data-action="invSelectPart" data-idx="' + idx + '" data-part-id="' + m.id + '">' +
+  acEl.innerHTML = matches.map((m, i) =>
+    '<div class="inv-autocomplete-item" role="option" id="' + idPrefix + idx + '_' + i + '"' +
+    ' data-action="' + action + '" data-idx="' + idx + '" data-part-id="' + m.id + '">' +
     '<span class="inv-autocomplete-part">' + escHtml(m.partNumber) + '</span>' +
     (m.gauge ? '<span class="inv-gauge-badge">' + escHtml(m.gauge) + '</span>' : '') +
     '<span class="inv-autocomplete-desc">' + escHtml(m.desc || '') + '</span></div>'
   ).join('');
 }
 
+function showPartAutocomplete(idx, query) {
+  const acEl = document.getElementById('invPartAC' + idx);
+  if (!acEl) return;
+  const input = document.querySelector('[data-action="invEditLinePart"][data-idx="' + idx + '"]');
+  const matches = searchParts(query);
+  acReset();
+  if (matches.length === 0) {
+    acEl.classList.add('inv-hidden');
+    if (input) input.setAttribute('aria-expanded', 'false');
+    return;
+  }
+  acEl.classList.remove('inv-hidden');
+  renderPartOptions(acEl, matches, 'invSelectPart', idx, 'invPartOpt');
+  if (input) input.setAttribute('aria-expanded', 'true');
+}
+
+/* Same, for the IM challan form. */
+function showChallanPartAutocomplete(idx, query) {
+  const acEl = document.getElementById('imPartAC' + idx);
+  if (!acEl) return;
+  const input = document.querySelector('[data-action="invEditChallanPart"][data-idx="' + idx + '"]');
+  const matches = searchParts(query);
+  acReset();
+  if (matches.length === 0) {
+    acEl.classList.add('inv-hidden');
+    if (input) input.setAttribute('aria-expanded', 'false');
+    return;
+  }
+  acEl.classList.remove('inv-hidden');
+  renderPartOptions(acEl, matches, 'invSelectChallanPart', idx, 'imPartOpt');
+  if (input) input.setAttribute('aria-expanded', 'true');
+}
+
 function dismissAllAutocomplete() {
   document.querySelectorAll('.inv-autocomplete-list').forEach(el => el.classList.add('inv-hidden'));
+  document.querySelectorAll('[role="combobox"]').forEach(el => el.setAttribute('aria-expanded', 'false'));
+  acReset();
+}
+
+/* ===== SUGGESTION LIST KEYBOARD NAVIGATION =====
+   Both suggestion surfaces — the part autocomplete and the client search —
+   were pointer-only: the list rendered, and the only way into it was a click.
+   Only one list can be open at a time, so a single cursor covers both. It is
+   held as an index rather than an element reference because the list is
+   rebuilt on every keystroke. */
+var _acCursor = -1;
+
+function acReset() { _acCursor = -1; }
+
+/* The open suggestion list belonging to an input, or null. */
+function acListFor(input) {
+  if (!input || !input.closest) return null;
+  const wrap = input.closest('.inv-autocomplete-wrap');
+  if (wrap) {
+    const list = wrap.querySelector('.inv-autocomplete-list');
+    return list && !list.classList.contains('inv-hidden') ? list : null;
+  }
+  const searchWrap = input.closest('.inv-search-wrap');
+  if (searchWrap) {
+    const results = searchWrap.querySelector('.inv-search-results');
+    return results && !results.classList.contains('inv-hidden') ? results : null;
+  }
+  return null;
+}
+
+function acOptions(list) {
+  if (!list) return [];
+  return Array.prototype.slice.call(list.querySelectorAll('.inv-autocomplete-item, .inv-search-item'));
+}
+
+/* Move the highlight, wrapping at both ends. */
+function acMoveCursor(list, delta) {
+  const opts = acOptions(list);
+  if (opts.length === 0) { _acCursor = -1; return; }
+  let next = _acCursor + delta;
+  if (next < 0) next = opts.length - 1;
+  if (next >= opts.length) next = 0;
+  _acCursor = next;
+  opts.forEach((opt, i) => {
+    if (i === next) {
+      opt.classList.add('inv-ac-active');
+      opt.setAttribute('aria-selected', 'true');
+    } else {
+      opt.classList.remove('inv-ac-active');
+      opt.removeAttribute('aria-selected');
+    }
+  });
+  const active = opts[next];
+  if (active) {
+    if (active.scrollIntoView) active.scrollIntoView({ block: 'nearest' });
+    const input = list.closest('.inv-autocomplete-wrap, .inv-search-wrap');
+    const combo = input ? input.querySelector('[role="combobox"]') : null;
+    if (combo && active.id) combo.setAttribute('aria-activedescendant', active.id);
+  }
+}
+
+/* The option Enter should commit: the highlighted one, or a lone match —
+   a single suggestion is unambiguous, so requiring an arrow press first
+   would just be an extra keystroke. */
+function acPendingOption(list) {
+  const opts = acOptions(list);
+  if (_acCursor >= 0 && opts[_acCursor]) return opts[_acCursor];
+  return opts.length === 1 ? opts[0] : null;
 }
 
 function selectPartForLine(idx, partId) {
@@ -6879,27 +7651,165 @@ function closePrintPreview() {
   if (document._savedTitle) { document.title = document._savedTitle; document._savedTitle = null; }
 }
 
-/* ===== STATS (Phase 7 — Analytics Rework) ===== */
+/* ===== STATS (Phase 7 — Analytics Rework) =====
+ *
+ * This is a job-work business priced in rupees per kilogram. Revenue on its
+ * own says almost nothing here: the same ₹1L of billing is a good month at
+ * 8 tonnes and a loss-making one at 20. So every headline figure is carried
+ * alongside the tonnage that produced it, and the ratio between them —
+ * realisation, ₹/kg — is treated as the primary number rather than a
+ * derived one.
+ *
+ * Against a full cost of ₹8.55/kg (Settings → Cost of Goods) and a blended
+ * realisation near ₹8.45, the gap between a profitable client and a
+ * loss-making one is under two rupees a kilo. Nothing in this dashboard used
+ * to show it. The client realisation table does.
+ */
+
 var _statsPeriod = 'mtd';
 var _statsTrendGran = 'month';
 
-function filterByPeriod(invoices, period) {
-  if (period === 'all') return invoices;
-  var now = new Date();
-  var y = now.getFullYear(), m = now.getMonth();
-  var startDate;
-  if (period === 'mtd') {
-    startDate = new Date(y, m, 1);
-  } else if (period === 'qtd') {
-    var qStart = m - (m % 3);
-    startDate = new Date(y, qStart, 1);
-  } else if (period === 'ytd') {
-    startDate = m >= 3 ? new Date(y, 3, 1) : new Date(y - 1, 3, 1);
+/* ===== PERIOD MATH =====
+ * Periods are measured on the invoice DATE, not on when the record happened to
+ * be typed. An invoice dated 31 July and entered on 2 August belongs to July —
+ * that is the date on the document, the date GSTR-1 reports it under, and the
+ * date the customer will quote back. createdAt is the fallback only for rows
+ * that somehow carry no date at all.
+ */
+function invPeriodTs(inv) {
+  if (inv && inv.date) {
+    var p = inv.date.split('-');
+    // Timezone-safe construction: never new Date("YYYY-MM-DD").
+    if (p.length === 3) return new Date(parseInt(p[0], 10), parseInt(p[1], 10) - 1, parseInt(p[2], 10)).getTime();
   }
-  var startTs = startDate.getTime();
+  return (inv && inv.createdAt) || 0;
+}
+
+/* Same day-of-month in a target month, clamped to that month's last day.
+   Without the clamp, "the 31st, one month back" from 31 March silently
+   becomes 3 March and the comparison period is wrong by three days. */
+function dayInMonth(year, monthIdx, day) {
+  var lastDay = new Date(year, monthIdx + 1, 0).getDate();
+  return new Date(year, monthIdx, Math.min(day, lastDay), 23, 59, 59, 999);
+}
+
+/* Range for a period, offset periods back. offset 0 is the current period,
+   1 the comparable stretch of the previous month / quarter / financial year. */
+function periodRange(period, offset) {
+  if (period === 'all') return null;
+  var now = new Date();
+  var y = now.getFullYear(), m = now.getMonth(), d = now.getDate();
+  offset = offset || 0;
+
+  if (period === 'mtd') {
+    return {
+      start: new Date(y, m - offset, 1).getTime(),
+      end: dayInMonth(y, m - offset, d).getTime()
+    };
+  }
+  if (period === 'qtd') {
+    var qStart = m - (m % 3);
+    var monthsIn = m - qStart;
+    return {
+      start: new Date(y, qStart - offset * 3, 1).getTime(),
+      end: dayInMonth(y, qStart - offset * 3 + monthsIn, d).getTime()
+    };
+  }
+  if (period === 'ytd') {
+    // Indian financial year: 1 April to 31 March.
+    var fyStart = m >= 3 ? y : y - 1;
+    return {
+      start: new Date(fyStart - offset, 3, 1).getTime(),
+      end: dayInMonth(y - offset, m, d).getTime()
+    };
+  }
+  return null;
+}
+
+function filterByPeriod(invoices, period, offset) {
+  var range = periodRange(period, offset);
+  if (!range) return offset ? [] : invoices;
   return invoices.filter(function(inv) {
-    return (inv.createdAt || 0) >= startTs;
+    var ts = invPeriodTs(inv);
+    return ts >= range.start && ts <= range.end;
   });
+}
+
+var PERIOD_LABELS = { mtd: 'MTD', qtd: 'QTD', ytd: 'YTD', all: 'All Time' };
+var PERIOD_PRIOR_LABELS = {
+  mtd: 'same days last month',
+  qtd: 'same stretch last quarter',
+  ytd: 'same stretch last year',
+  all: ''
+};
+
+/* ===== TONNAGE =====
+ * Weight for one line, with an explicit flag for whether it is actually known.
+ * KG lines carry it directly. NOS lines need a per-piece weight: partWeights is
+ * the operator-entered table that the nos_to_weight billing mode already prices
+ * against, and the Items Master stdWeightKg is the fallback.
+ *
+ * Some of those master weights were recovered as pieceRate ÷ ratePerKg. Such a
+ * weight prices back at exactly that rate, so it can never rank a part by
+ * margin — but it measures tonnage correctly, and tonnage is the only thing it
+ * is used for here.
+ */
+function lineWeightKg(item) {
+  if (!item) return { kg: 0, known: false };
+  var qty = item.qty || 0;
+  if ((item.unit || 'KG') === 'KG') return { kg: qty, known: qty > 0 };
+
+  var key = (item.partNumber || '').toUpperCase();
+  var per = (S.partWeights && S.partWeights[key] != null) ? S.partWeights[key] : null;
+  if (per == null) {
+    var master = (S.items || []).find(function(it) {
+      return (it.partNumber || '').toUpperCase() === key;
+    });
+    if (master && master.stdWeightKg != null) per = master.stdWeightKg;
+  }
+  if (per == null || !(per > 0)) return { kg: 0, known: false };
+  return { kg: qty * per, known: true };
+}
+
+/* Aggregate tonnage, carrying the share of lines it could actually be
+   established for. A tonnage figure quoted without its coverage is a figure
+   that quietly understates itself whenever a part has no weight on file. */
+function weighLines(rows) {
+  var kg = 0, lines = 0, known = 0;
+  rows.forEach(function(row) {
+    (row.items || []).forEach(function(it) {
+      lines++;
+      var w = lineWeightKg(it);
+      if (w.known) { known++; kg += w.kg; }
+    });
+  });
+  return { kg: kg, lines: lines, known: known, coverage: lines > 0 ? known / lines : 1 };
+}
+
+function sumTaxable(invoices) {
+  return invoices.reduce(function(s, i) { return s + (i.taxableValue || 0); }, 0);
+}
+
+/* ===== DELTA CHIPS ===== */
+function deltaHtml(cur, prev) {
+  // A percentage against no prior activity is noise dressed as a signal.
+  if (prev == null || !isFinite(prev) || prev === 0) {
+    return '<span class="inv-kpi-delta inv-kpi-delta-flat">no prior period</span>';
+  }
+  var pct = ((cur - prev) / Math.abs(prev)) * 100;
+  var rising = pct > 0.5, falling = pct < -0.5;
+  var cls = rising ? 'inv-kpi-delta-up' : falling ? 'inv-kpi-delta-down' : 'inv-kpi-delta-flat';
+  var arrow = rising ? '&uarr;' : falling ? '&darr;' : '';
+  return '<span class="inv-kpi-delta ' + cls + '">' + arrow +
+    (rising || falling ? ' ' + formatNum(Math.abs(pct), 1) + '%' : 'level') + '</span>';
+}
+
+function kpiTile(label, value, sub, delta) {
+  return '<div class="inv-kpi">' +
+    '<div class="inv-kpi-label">' + escHtml(label) + '</div>' +
+    '<div class="inv-kpi-value">' + value + '</div>' +
+    (sub ? '<div class="inv-kpi-sub">' + sub + '</div>' : '') +
+    (delta || '') + '</div>';
 }
 
 var TREND_MONTH_LABELS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
@@ -6951,12 +7861,37 @@ function buildTopItems(invoices) {
   invoices.forEach(function(inv) {
     (inv.items || []).forEach(function(it) {
       var key = it.partNumber || it.desc || 'Unknown';
-      if (!byPart[key]) byPart[key] = { part: key, desc: it.desc || '', qty: 0, amount: 0 };
+      if (!byPart[key]) byPart[key] = { part: key, desc: it.desc || '', qty: 0, amount: 0, kg: 0, kgKnown: true };
       byPart[key].qty += (it.qty || 0);
       byPart[key].amount += (it.amount || 0);
+      var w = lineWeightKg(it);
+      if (w.known) byPart[key].kg += w.kg; else byPart[key].kgKnown = false;
     });
   });
-  return Object.values(byPart).sort(function(a, b) { return b.qty - a.qty; }).slice(0, 10);
+  return Object.values(byPart).sort(function(a, b) { return b.amount - a.amount; }).slice(0, 10);
+}
+
+/* Per-client revenue, tonnage and realisation for a period. The table this
+   feeds is the reason the rework happened: a client can be near the top by
+   revenue and still be sold below cost, and only ₹/kg shows it. */
+function buildClientRollup(invoices) {
+  var by = {};
+  invoices.forEach(function(inv) {
+    var key = inv.clientId;
+    if (!by[key]) {
+      by[key] = { clientId: key, name: inv.clientName, total: 0, count: 0, kg: 0, kgKnown: true };
+    }
+    by[key].total += (inv.taxableValue || 0);
+    by[key].count++;
+    (inv.items || []).forEach(function(it) {
+      var w = lineWeightKg(it);
+      if (w.known) by[key].kg += w.kg; else by[key].kgKnown = false;
+    });
+  });
+  return Object.values(by).map(function(r) {
+    r.realisation = r.kg > 0 ? r.total / r.kg : null;
+    return r;
+  }).sort(function(a, b) { return b.total - a.total; });
 }
 
 function renderRevenueBarSvg(ranked, maxVal) {
@@ -7050,23 +7985,81 @@ function renderStats() {
 
   var activeInvs = S.invoices.filter(function(i) { return i.status === 'active'; });
   var filtered = filterByPeriod(activeInvs, _statsPeriod);
+  var prior = filterByPeriod(activeInvs, _statsPeriod, 1);
   var html = '';
 
-  // Card 1: Revenue Overview
-  var totalRev = filtered.reduce(function(s, i) { return s + (i.taxableValue || 0); }, 0);
+  var totalRev = sumTaxable(filtered);
   var totalGrand = filtered.reduce(function(s, i) { return s + (i.grandTotal || 0); }, 0);
-  var allTimeRev = activeInvs.reduce(function(s, i) { return s + (i.taxableValue || 0); }, 0);
-  var pctOfAll = allTimeRev > 0 ? Math.round(totalRev / allTimeRev * 100) : 0;
-  html += '<div class="inv-stats-card">' +
-    '<div class="inv-stats-title">Revenue Overview</div>' +
-    '<div class="inv-stats-metric"><span class="inv-stats-metric-label">Taxable Revenue</span>' +
-    '<span class="inv-stats-metric-value">' + formatCurrency(totalRev) + '</span></div>' +
-    '<div class="inv-stats-metric"><span class="inv-stats-metric-label">Grand Total (incl. GST)</span>' +
-    '<span class="inv-stats-metric-sub">' + formatCurrency(totalGrand) + '</span></div>' +
-    '<div class="inv-stats-metric"><span class="inv-stats-metric-label">Invoices</span>' +
-    '<span class="inv-stats-metric-sub">' + filtered.length + (_statsPeriod !== 'all' ? ' (' + pctOfAll + '% of all-time)' : '') + '</span></div></div>';
+  var priorRev = sumTaxable(prior);
+  var tonnage = weighLines(filtered);
+  var priorTonnage = weighLines(prior);
+  var costPerKg = S.defaultCostPerKg || 0;
 
-  // Card 2: Invoice States
+  var realisation = tonnage.kg > 0 ? totalRev / tonnage.kg : null;
+  var priorRealisation = priorTonnage.kg > 0 ? priorRev / priorTonnage.kg : null;
+  var contribution = (realisation != null && costPerKg > 0) ? realisation - costPerKg : null;
+  var grossMargin = (contribution != null) ? contribution * tonnage.kg : null;
+
+  /* ===== Card 1: the four numbers that decide the month ===== */
+  var comparable = _statsPeriod !== 'all' && prior.length > 0;
+  html += '<div class="inv-stats-card inv-stats-card-full">' +
+    '<div class="inv-stats-title">' + escHtml(PERIOD_LABELS[_statsPeriod] || '') + ' Performance' +
+    (comparable ? '<span class="inv-stats-title-sub">vs ' + escHtml(PERIOD_PRIOR_LABELS[_statsPeriod]) + '</span>' : '') +
+    '</div><div class="inv-kpi-grid">' +
+    kpiTile('Taxable Revenue', formatCurrency(totalRev),
+      filtered.length + ' invoice' + (filtered.length === 1 ? '' : 's') +
+        ' · ' + formatCurrency(totalGrand) + ' incl. GST',
+      comparable ? deltaHtml(totalRev, priorRev) : '') +
+    kpiTile('Tonnage', formatNum(tonnage.kg / 1000, 2) + ' t',
+      formatNum(tonnage.kg, 0) + ' kg',
+      comparable ? deltaHtml(tonnage.kg, priorTonnage.kg) : '') +
+    kpiTile('Realisation', realisation != null ? formatCurrency(realisation) + '/kg' : '&mdash;',
+      costPerKg > 0 ? 'cost ' + formatCurrency(costPerKg) + '/kg' : 'set a cost in Settings',
+      (comparable && realisation != null && priorRealisation != null) ? deltaHtml(realisation, priorRealisation) : '') +
+    kpiTile('Gross Margin', grossMargin != null ? formatCurrency(grossMargin) : '&mdash;',
+      contribution != null ? formatCurrency(contribution) + '/kg contribution' : 'needs tonnage and cost',
+      '') +
+    '</div>';
+
+  // Tonnage is only ever as good as the weights behind it. Say so, in place,
+  // rather than letting an understated figure pass as complete.
+  if (tonnage.lines > 0 && tonnage.coverage < 1) {
+    var missing = tonnage.lines - tonnage.known;
+    html += '<div class="inv-stats-caveat">Tonnage covers ' + Math.round(tonnage.coverage * 100) + '% of lines &mdash; ' +
+      missing + ' line' + (missing === 1 ? '' : 's') + ' priced in NOS with no weight on file, so the real tonnage is higher ' +
+      'and realisation is overstated. Fill weights in Items Master to close the gap.</div>';
+  }
+  if (contribution != null && contribution < 0) {
+    html += '<div class="inv-stats-alert">Realisation is ' + formatCurrency(Math.abs(contribution)) +
+      '/kg below full cost. At this tonnage that is ' + formatCurrency(Math.abs(grossMargin)) + ' of loss for the period.</div>';
+  }
+  html += '</div>';
+
+  /* ===== Card 2: GST position ===== */
+  var cgst = 0, sgst = 0, igst = 0, unfiledTax = 0, unfiledCount = 0;
+  filtered.forEach(function(inv) {
+    cgst += (inv.cgstAmt || 0);
+    sgst += (inv.sgstAmt || 0);
+    igst += (inv.igstAmt || 0);
+    if (getInvState(inv) !== 'filed') {
+      unfiledTax += (inv.cgstAmt || 0) + (inv.sgstAmt || 0) + (inv.igstAmt || 0);
+      unfiledCount++;
+    }
+  });
+  var outputTax = gstRound(cgst + sgst + igst);
+  html += '<div class="inv-stats-card">' +
+    '<div class="inv-stats-title">Output Tax</div>' +
+    '<div class="inv-stats-metric"><span class="inv-stats-metric-label">Total Output Tax</span>' +
+    '<span class="inv-stats-metric-value">' + formatCurrency(outputTax) + '</span></div>' +
+    (cgst > 0 ? '<div class="inv-stats-row"><span class="inv-stats-name">CGST + SGST @ 9% each</span>' +
+      '<span class="inv-stats-val">' + formatCurrency(gstRound(cgst + sgst)) + '</span></div>' : '') +
+    (igst > 0 ? '<div class="inv-stats-row"><span class="inv-stats-name">IGST @ 18%</span>' +
+      '<span class="inv-stats-val">' + formatCurrency(igst) + '</span></div>' : '') +
+    '<div class="inv-stats-row"><span class="inv-stats-name">Not yet marked filed</span>' +
+    '<span class="inv-stats-val' + (unfiledCount > 0 ? ' inv-stats-val-warn' : '') + '">' +
+    formatCurrency(unfiledTax) + ' (' + unfiledCount + ')</span></div></div>';
+
+  /* ===== Card 3: Invoice states ===== */
   var stateCount = { created: 0, dispatched: 0, delivered: 0, filed: 0 };
   filtered.forEach(function(inv) {
     var s = getInvState(inv);
@@ -7081,49 +8074,144 @@ function renderStats() {
     '<span class="inv-state-badge inv-state-filed">' + stateCount.filed + ' Filed</span>' +
     '</div></div>';
 
-  // Card 3: Revenue by Client — SVG bar chart (full-width)
-  var clientRev = {};
-  filtered.forEach(function(inv) {
-    var key = inv.clientId;
-    if (!clientRev[key]) clientRev[key] = { clientId: key, name: inv.clientName, total: 0, count: 0 };
-    clientRev[key].total += (inv.taxableValue || 0);
-    clientRev[key].count++;
-  });
-  var ranked = Object.values(clientRev).sort(function(a, b) { return b.total - a.total; });
+  /* ===== Card 4: Revenue by client (bar chart) ===== */
+  var ranked = buildClientRollup(filtered);
   var maxClientRev = ranked.length > 0 ? ranked[0].total : 0;
   html += '<div class="inv-stats-card inv-stats-card-full">' +
     '<div class="inv-stats-title">Revenue by Client</div>' +
     renderRevenueBarSvg(ranked, maxClientRev) + '</div>';
 
-  // Card 4: Pending Revenue (always current, not period-filtered)
-  var pendingByClient = {};
-  (S.incomingMaterial || []).forEach(function(im) {
-    im.items.forEach(function(it) {
-      if (!it.invoiced) {
-        var key = im.clientId;
-        if (!pendingByClient[key]) pendingByClient[key] = { clientId: key, name: im.clientName, total: 0, items: 0 };
-        pendingByClient[key].total += (it.amount || 0);
-        pendingByClient[key].items++;
+  /* ===== Card 5: Realisation by client =====
+     Ranked by ₹/kg rather than by revenue, because that ordering is the whole
+     point: the biggest account and the worst-priced one can be the same row. */
+  if (ranked.length > 0 && tonnage.kg > 0) {
+    var byRealisation = ranked.filter(function(r) { return r.realisation != null; })
+      .sort(function(a, b) { return a.realisation - b.realisation; });
+    if (byRealisation.length > 0) {
+      html += '<div class="inv-stats-card inv-stats-card-full">' +
+        '<div class="inv-stats-title">Realisation by Client' +
+        '<span class="inv-stats-title-sub">worst priced first</span></div>' +
+        '<div class="inv-stats-table"><div class="inv-stats-table-header">' +
+        '<span class="inv-stats-table-cell inv-stats-table-part">Client</span>' +
+        '<span class="inv-stats-table-cell inv-stats-table-qty">Tonnes</span>' +
+        '<span class="inv-stats-table-cell inv-stats-table-qty">&#8377;/kg</span>' +
+        '<span class="inv-stats-table-cell inv-stats-table-amt">Revenue</span></div>';
+      byRealisation.forEach(function(r) {
+        var below = costPerKg > 0 && r.realisation < costPerKg;
+        html += '<div class="inv-stats-table-row inv-stats-row-tap" data-action="invStatsClientDrill" data-client-id="' + r.clientId + '">' +
+          '<span class="inv-stats-table-cell inv-stats-table-part">' + escHtml(r.name) +
+          (r.kgKnown ? '' : '<br><span class="inv-text-muted inv-text-xs">partial weights</span>') + '</span>' +
+          '<span class="inv-stats-table-cell inv-stats-table-qty inv-mono">' + formatNum(r.kg / 1000, 2) + '</span>' +
+          '<span class="inv-stats-table-cell inv-stats-table-qty inv-mono' + (below ? ' inv-stats-val-danger' : '') + '">' +
+          formatNum(r.realisation, 2) + '</span>' +
+          '<span class="inv-stats-table-cell inv-stats-table-amt inv-mono">' + formatCurrency(r.total) + '</span></div>';
+      });
+      html += '</div>';
+      if (costPerKg > 0) {
+        var belowCost = byRealisation.filter(function(r) { return r.realisation < costPerKg; });
+        if (belowCost.length > 0) {
+          var lossKg = belowCost.reduce(function(s, r) { return s + r.kg; }, 0);
+          var lossAmt = belowCost.reduce(function(s, r) { return s + (costPerKg - r.realisation) * r.kg; }, 0);
+          html += '<div class="inv-stats-caveat">' + belowCost.length + ' client' + (belowCost.length === 1 ? '' : 's') +
+            ' priced below the ' + formatCurrency(costPerKg) + '/kg full cost, carrying ' +
+            formatNum(lossKg / 1000, 2) + ' t and ' + formatCurrency(lossAmt) + ' of the period\'s shortfall. ' +
+            'Whether that is worth exiting depends on how much of the cost base is actually variable.</div>';
+        }
       }
-    });
+      html += '</div>';
+    }
+  }
+
+  /* ===== Card 6: Concentration ===== */
+  if (ranked.length > 1 && totalRev > 0) {
+    var top = ranked[0];
+    var top3Rev = ranked.slice(0, 3).reduce(function(s, r) { return s + r.total; }, 0);
+    var topKgShare = tonnage.kg > 0 ? (top.kg / tonnage.kg) * 100 : null;
+    var topRevShare = (top.total / totalRev) * 100;
+    html += '<div class="inv-stats-card">' +
+      '<div class="inv-stats-title">Concentration</div>' +
+      '<div class="inv-stats-row"><span class="inv-stats-name">Largest client</span>' +
+      '<span class="inv-stats-val">' + escHtml(top.name) + '</span></div>' +
+      '<div class="inv-stats-row"><span class="inv-stats-name">Share of revenue</span>' +
+      '<span class="inv-stats-val">' + formatNum(topRevShare, 0) + '%</span></div>' +
+      (topKgShare != null ? '<div class="inv-stats-row"><span class="inv-stats-name">Share of tonnage</span>' +
+        '<span class="inv-stats-val' + (topKgShare - topRevShare > 10 ? ' inv-stats-val-warn' : '') + '">' +
+        formatNum(topKgShare, 0) + '%</span></div>' : '') +
+      '<div class="inv-stats-row"><span class="inv-stats-name">Top 3 share</span>' +
+      '<span class="inv-stats-val">' + formatNum((top3Rev / totalRev) * 100, 0) + '%</span></div>';
+    if (topKgShare != null && topKgShare - topRevShare > 10) {
+      html += '<div class="inv-stats-caveat">' + escHtml(top.name) + ' takes a larger share of the plant than of the revenue &mdash; ' +
+        'capacity is going somewhere it is not being paid for at the average rate.</div>';
+    }
+    html += '</div>';
+  }
+
+  /* ===== Card 7: Unbilled, by age =====
+     Not period-filtered: unbilled material is a live position, not a
+     historical one. The ageing is the part that was missing — a challan
+     sitting unbilled for six weeks is a different problem from one received
+     yesterday, and the old card showed them as the same number. */
+  var pendingByClient = {};
+  var ageBuckets = [
+    { label: '0&ndash;7 days', max: 7, total: 0, items: 0 },
+    { label: '8&ndash;15 days', max: 15, total: 0, items: 0 },
+    { label: '16&ndash;30 days', max: 30, total: 0, items: 0 },
+    { label: 'Over 30 days', max: Infinity, total: 0, items: 0 }
+  ];
+  var todayTs = new Date().setHours(23, 59, 59, 999);
+  (S.incomingMaterial || []).forEach(function(im) {
+    var pending = (im.items || []).filter(function(it) { return !it.invoiced; });
+    if (pending.length === 0) return;
+    var amt = pending.reduce(function(s, it) { return s + (it.amount || 0); }, 0);
+
+    var key = im.clientId;
+    if (!pendingByClient[key]) pendingByClient[key] = { clientId: key, name: im.clientName, total: 0, items: 0, oldest: null };
+    pendingByClient[key].total += amt;
+    pendingByClient[key].items += pending.length;
+
+    var refTs = invPeriodTs({ date: im.challanDate, createdAt: im.createdAt });
+    var ageDays = refTs ? Math.max(0, Math.floor((todayTs - refTs) / 86400000)) : 0;
+    if (pendingByClient[key].oldest == null || ageDays > pendingByClient[key].oldest) {
+      pendingByClient[key].oldest = ageDays;
+    }
+    for (var b = 0; b < ageBuckets.length; b++) {
+      if (ageDays <= ageBuckets[b].max) {
+        ageBuckets[b].total += amt;
+        ageBuckets[b].items += pending.length;
+        break;
+      }
+    }
   });
   var pendingRanked = Object.values(pendingByClient).sort(function(a, b) { return b.total - a.total; });
   var totalPending = pendingRanked.reduce(function(s, r) { return s + r.total; }, 0);
-  html += '<div class="inv-stats-card">' +
-    '<div class="inv-stats-title">Pending Revenue</div>' +
+
+  html += '<div class="inv-stats-card inv-stats-card-full">' +
+    '<div class="inv-stats-title">Unbilled Material<span class="inv-stats-title-sub">current, not period-filtered</span></div>' +
     '<div class="inv-stats-metric"><span class="inv-stats-metric-label">Total Unbilled</span>' +
     '<span class="inv-stats-metric-value">' + formatCurrency(totalPending) + '</span></div>';
-  pendingRanked.forEach(function(r) {
-    html += '<div class="inv-stats-row inv-stats-row-tap" data-action="invStatsClientDrill" data-client-id="' + r.clientId + '">' +
-      '<span class="inv-stats-name">' + escHtml(r.name) + ' <span class="inv-text-muted">(' + r.items + ' items)</span></span>' +
-      '<span class="inv-stats-val">' + formatCurrency(r.total) + '</span></div>';
-  });
-  if (pendingRanked.length === 0) {
+  if (totalPending > 0) {
+    html += '<div class="inv-age-row">';
+    ageBuckets.forEach(function(b) {
+      var share = totalPending > 0 ? (b.total / totalPending) * 100 : 0;
+      html += '<div class="inv-age-bucket' + (b.max === Infinity && b.total > 0 ? ' inv-age-bucket-warn' : '') + '">' +
+        '<div class="inv-age-label">' + b.label + '</div>' +
+        '<div class="inv-age-value">' + formatCurrency(b.total) + '</div>' +
+        '<div class="inv-age-share">' + formatNum(share, 0) + '% &middot; ' + b.items + ' items</div></div>';
+    });
+    html += '</div>';
+    pendingRanked.forEach(function(r) {
+      html += '<div class="inv-stats-row inv-stats-row-tap" data-action="invStatsClientDrill" data-client-id="' + r.clientId + '">' +
+        '<span class="inv-stats-name">' + escHtml(r.name) +
+        ' <span class="inv-text-muted">(' + r.items + ' items' +
+        (r.oldest != null ? ', oldest ' + r.oldest + 'd' : '') + ')</span></span>' +
+        '<span class="inv-stats-val">' + formatCurrency(r.total) + '</span></div>';
+    });
+  } else {
     html += '<div class="inv-text-muted inv-p-8">All material invoiced</div>';
   }
   html += '</div>';
 
-  // Card 5: Revenue Trend (full-width, always all-time, granularity-toggleable)
+  /* ===== Card 8: Revenue trend ===== */
   var trendData = buildTrendData(activeInvs, _statsTrendGran);
   var granChips = ['day', 'week', 'month'];
   var granLabels = { day: 'Day', week: 'Week', month: 'Month' };
@@ -7140,7 +8228,7 @@ function renderStats() {
     '</div>' +
     renderTrendSvg(trendData, _statsTrendGran) + '</div>';
 
-  // Card 6: Dispatch Cycle
+  /* ===== Card 9: Dispatch cycle ===== */
   var dispatchDays = [], deliveryDays = [], fullCycleDays = [];
   filtered.forEach(function(inv) {
     if (inv.createdAt && inv.dispatchedAt) dispatchDays.push((inv.dispatchedAt - inv.createdAt) / 86400000);
@@ -7169,22 +8257,24 @@ function renderStats() {
     html += '</div>';
   }
 
-  // Card 7: Top Items by Volume (full-width)
+  /* ===== Card 10: Top items ===== */
   var topItems = buildTopItems(filtered);
   if (topItems.length > 0) {
     html += '<div class="inv-stats-card inv-stats-card-full">' +
-      '<div class="inv-stats-title">Top Items by Volume</div>' +
+      '<div class="inv-stats-title">Top Items by Value</div>' +
       '<div class="inv-stats-table"><div class="inv-stats-table-header">' +
       '<span class="inv-stats-table-cell inv-stats-table-rank">#</span>' +
       '<span class="inv-stats-table-cell inv-stats-table-part">Part</span>' +
-      '<span class="inv-stats-table-cell inv-stats-table-qty">Qty</span>' +
+      '<span class="inv-stats-table-cell inv-stats-table-qty">&#8377;/kg</span>' +
       '<span class="inv-stats-table-cell inv-stats-table-amt">Amount</span></div>';
     topItems.forEach(function(it, idx) {
+      var perKg = (it.kgKnown && it.kg > 0) ? it.amount / it.kg : null;
       html += '<div class="inv-stats-table-row">' +
         '<span class="inv-stats-table-cell inv-stats-table-rank">' + (idx + 1) + '</span>' +
         '<span class="inv-stats-table-cell inv-stats-table-part">' + escHtml(it.part) +
         (it.desc && it.desc !== it.part ? '<br><span class="inv-text-muted inv-text-xs">' + escHtml(it.desc) + '</span>' : '') + '</span>' +
-        '<span class="inv-stats-table-cell inv-stats-table-qty inv-mono">' + formatNum(it.qty, 2) + '</span>' +
+        '<span class="inv-stats-table-cell inv-stats-table-qty inv-mono">' +
+        (perKg != null ? formatNum(perKg, 2) : '&mdash;') + '</span>' +
         '<span class="inv-stats-table-cell inv-stats-table-amt inv-mono">' + formatCurrency(it.amount) + '</span></div>';
     });
     html += '</div></div>';
@@ -7203,9 +8293,15 @@ function openClientDrillOverlay(clientId) {
   var activeInvs = S.invoices.filter(function(i) { return i.status === 'active'; });
   var filtered = filterByPeriod(activeInvs, _statsPeriod);
   var clientInvs = filtered.filter(function(i) { return i.clientId === clientId; });
-  var totalRev = clientInvs.reduce(function(s, i) { return s + (i.taxableValue || 0); }, 0);
-  var allRev = filtered.reduce(function(s, i) { return s + (i.taxableValue || 0); }, 0);
+  var totalRev = sumTaxable(clientInvs);
+  var allRev = sumTaxable(filtered);
   var pct = allRev > 0 ? Math.round(totalRev / allRev * 100) : 0;
+
+  // The per-kg figure the Stats table ranks on, repeated here so the drill-down
+  // answers the question that made someone tap the row.
+  var clientTonnage = weighLines(clientInvs);
+  var realisation = clientTonnage.kg > 0 ? totalRev / clientTonnage.kg : null;
+  var costPerKg = S.defaultCostPerKg || 0;
 
   var pendingAmt = 0, pendingItems = 0;
   (S.incomingMaterial || []).forEach(function(im) {
@@ -7267,8 +8363,7 @@ function openClientDrillOverlay(clientId) {
     });
   }
 
-  var periodLabels = { mtd: 'MTD', qtd: 'QTD', ytd: 'YTD', all: 'All Time' };
-  var periodLabel = periodLabels[_statsPeriod] || 'All';
+  var periodLabel = PERIOD_LABELS[_statsPeriod] || 'All';
 
   pushFocus();
   document.body.style.overflow = 'hidden';
@@ -7282,8 +8377,12 @@ function openClientDrillOverlay(clientId) {
     '<div class="inv-flip-period-label">' + escHtml(periodLabel) + '</div>' +
     '<div class="inv-flip-kpis">' +
     '<div class="inv-flip-kpi"><span class="inv-flip-kpi-label">Revenue</span><span class="inv-flip-kpi-value">' + formatCurrency(totalRev) + '</span></div>' +
-    '<div class="inv-flip-kpi"><span class="inv-flip-kpi-label">Invoices</span><span class="inv-flip-kpi-value">' + clientInvs.length + '</span></div>' +
+    '<div class="inv-flip-kpi"><span class="inv-flip-kpi-label">Tonnage</span><span class="inv-flip-kpi-value">' + formatNum(clientTonnage.kg / 1000, 2) + ' t</span></div>' +
+    '<div class="inv-flip-kpi"><span class="inv-flip-kpi-label">&#8377;/kg</span><span class="inv-flip-kpi-value' +
+      (realisation != null && costPerKg > 0 && realisation < costPerKg ? ' inv-stats-val-danger' : '') + '">' +
+      (realisation != null ? formatNum(realisation, 2) : '&mdash;') + '</span></div>' +
     '<div class="inv-flip-kpi"><span class="inv-flip-kpi-label">Share</span><span class="inv-flip-kpi-value">' + pct + '%</span></div>' +
+    '<div class="inv-flip-kpi"><span class="inv-flip-kpi-label">Invoices</span><span class="inv-flip-kpi-value">' + clientInvs.length + '</span></div>' +
     '<div class="inv-flip-kpi"><span class="inv-flip-kpi-label">Unbilled</span><span class="inv-flip-kpi-value">' + formatCurrency(pendingAmt) + '</span></div>' +
     '</div>' +
     '<div class="inv-flip-states">' +
@@ -7315,11 +8414,133 @@ function openClientDrillOverlay(clientId) {
   focusFirstInteractive(scrim);
 }
 
-/* ===== HISTORY (Phase 7 — Activity Log Rework) ===== */
+/* ===== HISTORY (Phase 7 — Activity Log Rework) =====
+ *
+ * This is the audit trail, and it was missing the events an audit exists to
+ * find. A deleted invoice writes a tombstone to S.voidedNumbers carrying a
+ * required reason — none of it appeared here. An accepted duplicate challan
+ * stamps dupeAck on the entry — that did not appear either. Both are now
+ * first-class events, because "what happened to invoice 00666" is exactly the
+ * question this tab should answer.
+ */
 var _historyClientFilter = '';
 var _historyDateFrom = '';
 var _historyDateTo = '';
 var _historyShowCount = 50;
+var _historyType = 'all';
+var _historySearch = '';
+var _historySearchTimer = null;
+
+var HISTORY_TYPES = [
+  { key: 'all', label: 'All' },
+  { key: 'invoice', label: 'Invoices' },
+  { key: 'challan', label: 'Challans' },
+  { key: 'state', label: 'Status' },
+  { key: 'audit', label: 'Audit' }
+];
+
+// Inline SVG per event type (HR-4: no emoji).
+var HISTORY_ICONS = {
+  invoice: '<path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/>',
+  challan: '<path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/>',
+  state: '<polyline points="20 6 9 17 4 12"/>',
+  cancel: '<circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>',
+  void: '<path d="M3 6h18"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6"/><path d="M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2"/>',
+  dupe: '<rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/>'
+};
+
+function historyIcon(kind) {
+  var path = HISTORY_ICONS[kind] || HISTORY_ICONS.state;
+  return '<svg class="inv-history-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">' + path + '</svg>';
+}
+
+/* Every event the app can account for, newest first. Kept as one function so
+   the CSV export and the rendered list can never drift apart. */
+function buildHistoryEvents() {
+  var events = [];
+
+  S.invoices.forEach(function(inv) {
+    if (_historyClientFilter && inv.clientId != _historyClientFilter) return;
+    events.push({ ts: inv.createdAt, type: 'invoice', kind: 'invoice', sourceId: inv.id, jump: 'invoice',
+      text: 'Invoice ' + (inv.displayNumber || '') + ' created for ' + (inv.clientName || ''), amount: inv.grandTotal });
+    if (inv.dispatchedAt) events.push({ ts: inv.dispatchedAt, type: 'state', kind: 'state', sourceId: inv.id, jump: 'invoice',
+      text: (inv.displayNumber || '') + ' dispatched' });
+    if (inv.deliveredAt) events.push({ ts: inv.deliveredAt, type: 'state', kind: 'state', sourceId: inv.id, jump: 'invoice',
+      text: (inv.displayNumber || '') + ' delivered (signed copy received)' });
+    if (inv.filedAt) events.push({ ts: inv.filedAt, type: 'state', kind: 'state', sourceId: inv.id, jump: 'invoice',
+      text: (inv.displayNumber || '') + ' marked as filed in GSTR1' });
+    if (inv.status === 'cancelled' && inv.cancelledAt) events.push({ ts: inv.cancelledAt, type: 'audit', kind: 'cancel', sourceId: inv.id, jump: 'invoice',
+      text: (inv.displayNumber || '') + ' cancelled' });
+    if (inv.updatedAt && inv.updatedAt !== inv.createdAt) events.push({ ts: inv.updatedAt, type: 'state', kind: 'state', sourceId: inv.id, jump: 'invoice',
+      text: (inv.displayNumber || '') + ' edited' });
+  });
+
+  (S.incomingMaterial || []).forEach(function(im) {
+    if (_historyClientFilter && im.clientId != _historyClientFilter) return;
+    var challanAmt = (im.items || []).reduce(function(s, it) { return s + (it.amount || 0); }, 0);
+    events.push({
+      ts: im.createdAt, type: 'challan', kind: 'challan', sourceId: im.id, jump: 'challan',
+      text: 'Challan' + (im.challanNo ? ' ' + im.challanNo : '') + ' received from ' + (im.clientName || '') +
+        ' (' + (im.items || []).length + ' item' + ((im.items || []).length > 1 ? 's' : '') + ')',
+      amount: challanAmt
+    });
+    // An accepted duplicate is a decision somebody made, and the whole point of
+    // stamping dupeAck was so an audit could tell it from one nobody was shown.
+    if (im.dupeAck && im.dupeAck.at) {
+      events.push({
+        ts: im.dupeAck.at, type: 'audit', kind: 'dupe', sourceId: im.id, jump: 'challan',
+        text: 'Duplicate warning accepted for challan' + (im.challanNo ? ' ' + im.challanNo : '') +
+          ' (' + (im.clientName || '') + ') — matched ' + ((im.dupeAck.matchedIds || []).length || 'other') + ' existing entr' +
+          (((im.dupeAck.matchedIds || []).length === 1) ? 'y' : 'ies')
+      });
+    }
+  });
+
+  // Deleted invoices. The record is gone; the number and the reason are not.
+  (S.voidedNumbers || []).forEach(function(v) {
+    if (_historyClientFilter && v.clientId != _historyClientFilter) return;
+    var label = v.displayNumber || v.invoiceNumber || '';
+    var what = v.source === 'reconciled' ? 'Number ' + label + ' accounted for'
+      : 'Invoice ' + label + ' deleted';
+    events.push({
+      ts: v.voidedAt, type: 'audit', kind: 'void', sourceId: null, jump: null,
+      text: what + (v.clientName ? ' (' + v.clientName + ')' : '') +
+        ' — ' + (v.reason || 'no reason recorded') +
+        (v.reserved ? ' [number stays spent]' : ' [number returned to series]'),
+      amount: v.grandTotal || 0
+    });
+  });
+
+  return events;
+}
+
+/* The filters applied once, so the rendered list and the CSV export can never
+   disagree about what "the log" currently means. */
+function filteredHistoryEvents() {
+  var events = buildHistoryEvents();
+
+  if (_historyType !== 'all') {
+    events = events.filter(function(ev) { return ev.type === _historyType; });
+  }
+  if (_historySearch) {
+    var needle = _historySearch.toLowerCase();
+    events = events.filter(function(ev) { return (ev.text || '').toLowerCase().indexOf(needle) !== -1; });
+  }
+  if (_historyDateFrom) {
+    var fp = _historyDateFrom.split('-');
+    // Timezone-safe: never new Date("YYYY-MM-DD").
+    var fromTs = fp.length === 3 ? new Date(+fp[0], +fp[1] - 1, +fp[2]).getTime() : NaN;
+    if (!isNaN(fromTs)) events = events.filter(function(ev) { return (ev.ts || 0) >= fromTs; });
+  }
+  if (_historyDateTo) {
+    var tp = _historyDateTo.split('-');
+    var toTs = tp.length === 3 ? new Date(+tp[0], +tp[1] - 1, +tp[2], 23, 59, 59, 999).getTime() : NaN;
+    if (!isNaN(toTs)) events = events.filter(function(ev) { return (ev.ts || 0) <= toTs; });
+  }
+
+  events.sort(function(a, b) { return (b.ts || 0) - (a.ts || 0); });
+  return events;
+}
 
 function renderHistory() {
   var toolbar = document.getElementById('historyToolbar');
@@ -7335,54 +8556,38 @@ function renderHistory() {
       var c = S.clients.find(function(x) { return x.id === cid; });
       if (c) clientOpts += '<option value="' + cid + '"' + (_historyClientFilter == cid ? ' selected' : '') + '>' + escHtml(c.name) + '</option>';
     });
-    toolbar.innerHTML = '<div class="inv-im-toolbar"><div class="inv-history-filters">' +
-      '<select class="inv-form-select" id="historyClientFilter">' +
-      '<option value="">All Clients</option>' + clientOpts + '</select>' +
-      '<input type="date" class="inv-form-input inv-history-date" id="historyDateFrom" value="' + escHtml(_historyDateFrom) + '">' +
-      '<input type="date" class="inv-form-input inv-history-date" id="historyDateTo" value="' + escHtml(_historyDateTo) + '">' +
-      '</div></div>';
-  }
-
-  var events = [];
-
-  S.invoices.forEach(function(inv) {
-    if (_historyClientFilter && inv.clientId != _historyClientFilter) return;
-    events.push({ ts: inv.createdAt, type: 'invoice', sourceId: inv.id, text: 'Invoice ' + (inv.displayNumber || '') + ' created for ' + (inv.clientName || ''), amount: inv.grandTotal, dot: 'invoice' });
-    if (inv.dispatchedAt) events.push({ ts: inv.dispatchedAt, type: 'state', sourceId: inv.id, text: (inv.displayNumber || '') + ' dispatched', dot: 'state' });
-    if (inv.deliveredAt) events.push({ ts: inv.deliveredAt, type: 'state', sourceId: inv.id, text: (inv.displayNumber || '') + ' delivered (signed copy received)', dot: 'state' });
-    if (inv.filedAt) events.push({ ts: inv.filedAt, type: 'state', sourceId: inv.id, text: (inv.displayNumber || '') + ' marked as filed in GSTR1', dot: 'state' });
-    if (inv.status === 'cancelled' && inv.cancelledAt) events.push({ ts: inv.cancelledAt, type: 'cancel', sourceId: inv.id, text: (inv.displayNumber || '') + ' cancelled', dot: 'cancel' });
-    if (inv.updatedAt && inv.updatedAt !== inv.createdAt) events.push({ ts: inv.updatedAt, type: 'state', sourceId: inv.id, text: (inv.displayNumber || '') + ' edited', dot: 'state' });
-  });
-
-  (S.incomingMaterial || []).forEach(function(im) {
-    if (_historyClientFilter && im.clientId != _historyClientFilter) return;
-    var challanAmt = im.items.reduce(function(s, it) { return s + (it.amount || 0); }, 0);
-    events.push({
-      ts: im.createdAt, type: 'challan', sourceId: im.id,
-      text: 'Challan' + (im.challanNo ? ' ' + im.challanNo : '') + ' received from ' + (im.clientName || '') + ' (' + im.items.length + ' item' + (im.items.length > 1 ? 's' : '') + ')',
-      amount: challanAmt, dot: 'challan'
+    var typeChips = '<div class="inv-stats-chips inv-stats-chips-sm">';
+    HISTORY_TYPES.forEach(function(t) {
+      typeChips += '<button class="inv-chip' + (_historyType === t.key ? ' inv-chip-active' : '') +
+        '" data-action="invHistoryType" data-type="' + t.key + '">' + t.label + '</button>';
     });
-  });
+    typeChips += '</div>';
 
-  if (_historyDateFrom) {
-    var fromTs = new Date(_historyDateFrom + 'T00:00:00').getTime();
-    if (!isNaN(fromTs)) events = events.filter(function(ev) { return (ev.ts || 0) >= fromTs; });
-  }
-  if (_historyDateTo) {
-    var toTs = new Date(_historyDateTo + 'T23:59:59').getTime();
-    if (!isNaN(toTs)) events = events.filter(function(ev) { return (ev.ts || 0) <= toTs; });
+    toolbar.innerHTML = '<div class="inv-im-toolbar">' + typeChips +
+      '<div class="inv-history-filters">' +
+      '<select class="inv-form-select" id="historyClientFilter" aria-label="Filter by client">' +
+      '<option value="">All Clients</option>' + clientOpts + '</select>' +
+      '<input type="date" class="inv-form-input inv-history-date" id="historyDateFrom" value="' + escHtml(_historyDateFrom) + '" aria-label="From date">' +
+      '<input type="date" class="inv-form-input inv-history-date" id="historyDateTo" value="' + escHtml(_historyDateTo) + '" aria-label="To date">' +
+      '</div>' +
+      '<input type="search" class="inv-form-input inv-mb-8" id="historySearch" value="' + escHtml(_historySearch) + '" placeholder="Search invoice or challan number" autocomplete="off">' +
+      '</div>';
   }
 
-  events.sort(function(a, b) { return (b.ts || 0) - (a.ts || 0); });
+  var events = filteredHistoryEvents();
 
   if (events.length === 0) {
     area.innerHTML = '<div class="inv-empty-state">No activity found</div>';
     return;
   }
 
+  var totalValue = events.reduce(function(s, ev) { return s + (ev.amount || 0); }, 0);
   var html = '<div class="inv-stats-card">' +
-    '<div class="inv-stats-title">Activity Log (' + events.length + ' events)</div>';
+    '<div class="inv-flex-between inv-mb-8">' +
+    '<div class="inv-stats-title">Activity Log (' + events.length + ')</div>' +
+    '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invHistoryExport">Export CSV</button>' +
+    '</div>' +
+    (totalValue > 0 ? '<div class="inv-history-summary">' + formatCurrency(totalValue) + ' across the events shown</div>' : '');
 
   var shown = events.slice(0, _historyShowCount);
   var currentDay = '';
@@ -7392,9 +8597,13 @@ function renderHistory() {
       currentDay = dayStr;
       html += '<div class="inv-history-day-header">' + escHtml(dayStr) + '</div>';
     }
-    var action = ev.type === 'challan' ? 'invHistoryJumpChallan' : 'invHistoryJumpInvoice';
-    html += '<div class="inv-history-item" data-action="' + action + '" data-id="' + escHtml(ev.sourceId) + '">' +
-      '<div class="inv-history-dot inv-history-dot-' + ev.dot + '"></div>' +
+    // A void has no record left to jump to — the invoice is gone. Rendering it
+    // as a tappable row would promise a destination that does not exist.
+    var action = ev.jump === 'challan' ? 'invHistoryJumpChallan'
+      : ev.jump === 'invoice' ? 'invHistoryJumpInvoice' : '';
+    html += '<div class="inv-history-item' + (action ? '' : ' inv-history-item-static') + '"' +
+      (action ? ' data-action="' + action + '" data-id="' + escHtml(ev.sourceId) + '"' : '') + '>' +
+      '<div class="inv-history-icon inv-history-icon-' + ev.kind + '">' + historyIcon(ev.kind) + '</div>' +
       '<div class="inv-history-body">' +
       '<div class="inv-history-text">' + escHtml(ev.text) +
       (ev.amount ? ' \u00b7 ' + formatCurrency(ev.amount) : '') + '</div>' +
@@ -7410,8 +8619,71 @@ function renderHistory() {
   html += '</div>';
   area.innerHTML = html;
 }
+
+/* Exports exactly what the current filters show, so a query someone reasoned
+   about on screen is the query that leaves the app. */
+function exportHistoryCSV() {
+  var events = filteredHistoryEvents();
+  if (events.length === 0) { showToast('Nothing to export', 'warning'); return; }
+
+  function cell(v) {
+    var s = v == null ? '' : String(v);
+    return '"' + s.replace(/"/g, '""') + '"';
+  }
+  var rows = [['Timestamp', 'Type', 'Event', 'Amount'].join(',')];
+  events.forEach(function(ev) {
+    rows.push([
+      cell(ev.ts ? formatTimestamp(ev.ts) : ''),
+      cell(ev.kind),
+      cell(ev.text),
+      cell(ev.amount ? formatNum(ev.amount, 2) : '')
+    ].join(','));
+  });
+
+  var blob = new Blob([rows.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'sep-activity-log-' + localDateStr() + '.csv';
+  a.click();
+  showToast('Exported ' + events.length + ' events');
+}
 /* ===== IM ADD CHALLAN FORM (Phase 4 — Tier 1) ===== */
 var _challanForm = null;
+
+/* Where focus should land after the next render.
+   The form re-renders by replacing innerHTML, so every structural change —
+   adding a line, changing the unit, picking a client — dropped focus to <body>
+   and ended the keyboard path. Callers that know where focus belongs set this;
+   everything else is restored to wherever it was. Each control carries a
+   data-k key that survives the re-render, since the elements themselves do not. */
+var _challanFocusNext = null;
+
+function _challanCaptureFocus() {
+  var el = document.activeElement;
+  if (!el || !el.dataset || !el.dataset.k) return null;
+  var area = document.getElementById('imAddForm');
+  if (!area || !area.contains(el)) return null;
+  var sel = null;
+  // Only text-ish inputs expose a caret; number inputs report null here.
+  try { sel = el.selectionStart; } catch (e) { sel = null; }
+  return { k: el.dataset.k, sel: sel };
+}
+
+function _challanRestoreFocus(target) {
+  if (!target) return false;
+  var area = document.getElementById('imAddForm');
+  if (!area) return false;
+  var el = area.querySelector('[data-k="' + target.k + '"]');
+  if (!el) return false;
+  try {
+    el.focus();
+    // setSelectionRange throws on number inputs, so the caret restore is
+    // attempted separately from the focus that matters.
+    if (target.sel != null && el.setSelectionRange) el.setSelectionRange(target.sel, target.sel);
+    else if (el.select) el.select();
+  } catch (e) {}
+  return true;
+}
 
 function showAddChallanForm() {
   _challanForm = {
@@ -7429,33 +8701,44 @@ function renderAddChallanForm() {
 
   var client = _challanForm.clientId ? S.clients.find(function(c) { return c.id === _challanForm.clientId; }) : null;
 
+  // An explicit request from the caller wins over wherever focus happens to be.
+  var focusTarget = _challanFocusNext || _challanCaptureFocus();
+  _challanFocusNext = null;
+
   var html = '<div class="inv-im-form inv-im-form-active">' +
-    '<div class="inv-im-form-header"><span class="inv-im-form-title">' + (_challanForm._editingId ? 'Edit Challan' : 'Add Challan') + '</span></div>';
+    '<div class="inv-im-form-header"><span class="inv-im-form-title">' + (_challanForm._editingId ? 'Edit Challan' : 'Add Challan') + '</span></div>' +
+    '<div class="inv-kbd-hint">' +
+      '<span class="inv-kbd-hint-item"><kbd class="inv-kbd">Enter</kbd> next field</span>' +
+      '<span class="inv-kbd-hint-item"><kbd class="inv-kbd">&uarr;</kbd><kbd class="inv-kbd">&darr;</kbd> pick suggestion</span>' +
+      '<span class="inv-kbd-hint-item"><kbd class="inv-kbd">Alt</kbd>+<kbd class="inv-kbd">N</kbd> add line</span>' +
+      '<span class="inv-kbd-hint-item"><kbd class="inv-kbd">Ctrl</kbd>+<kbd class="inv-kbd">Enter</kbd> save</span>' +
+    '</div>';
 
   // Client selector
   html += '<div class="inv-card"><div class="inv-card-header"><span class="inv-card-title">Challan Details</span></div>';
-  html += '<div class="inv-form-group"><label class="inv-form-label">Client</label>';
+  html += '<div class="inv-form-group"><label class="inv-form-label" for="imChallanClientSearch">Client</label>';
   if (client) {
     html += '<div class="inv-flex-between inv-selected-client">' +
       '<div><div class="inv-client-name">' + escHtml(client.name) + '</div>' +
       '<div class="inv-client-meta">' + escHtml(client.gstin || 'No GSTIN') + '</div></div>' +
-      '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invClearChallanClient">Change</button></div>';
+      '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-k="client-change" data-action="invClearChallanClient">Change</button></div>';
   } else {
     html += '<div class="inv-search-wrap inv-search-no-mb">' +
       '<svg class="inv-search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>' +
-      '<input type="text" class="inv-search-input" id="imChallanClientSearch" placeholder="Search client" autocomplete="off">' +
-      '<div id="imChallanClientResults" class="inv-hidden"></div></div>';
+      '<input type="text" class="inv-search-input" id="imChallanClientSearch" data-k="client-search" placeholder="Search client" autocomplete="off"' +
+      ' role="combobox" aria-expanded="false" aria-autocomplete="list" aria-controls="imChallanClientResults">' +
+      '<div id="imChallanClientResults" class="inv-search-results inv-hidden" role="listbox"></div></div>';
   }
   html += '</div>';
 
   // Challan fields
   html += '<div class="inv-form-row">' +
-    '<div class="inv-form-group"><label class="inv-form-label">Challan No</label>' +
-    '<input class="inv-form-input inv-mono" id="imChallanNo" value="' + escHtml(_challanForm.challanNo) + '"></div>' +
-    '<div class="inv-form-group"><label class="inv-form-label">Challan Date</label>' +
-    '<input type="date" class="inv-form-input inv-mono" id="imChallanDate" value="' + escHtml(_challanForm.challanDate) + '"></div></div>' +
-    '<div class="inv-form-group"><label class="inv-form-label">Vehicle No</label>' +
-    '<input class="inv-form-input" id="imVehicleNo" value="' + escHtml(_challanForm.vehicleNo) + '" list="imVehicleList" autocomplete="off">' +
+    '<div class="inv-form-group"><label class="inv-form-label" for="imChallanNo">Challan No</label>' +
+    '<input class="inv-form-input inv-mono" id="imChallanNo" data-k="challanNo" value="' + escHtml(_challanForm.challanNo) + '"></div>' +
+    '<div class="inv-form-group"><label class="inv-form-label" for="imChallanDate">Challan Date</label>' +
+    '<input type="date" class="inv-form-input inv-mono" id="imChallanDate" data-k="challanDate" value="' + escHtml(_challanForm.challanDate) + '"></div></div>' +
+    '<div class="inv-form-group"><label class="inv-form-label" for="imVehicleNo">Vehicle No</label>' +
+    '<input class="inv-form-input" id="imVehicleNo" data-k="vehicleNo" value="' + escHtml(_challanForm.vehicleNo) + '" list="imVehicleList" autocomplete="off">' +
     '<datalist id="imVehicleList">' + getVehicleSuggestions(_challanForm.clientId) + '</datalist></div></div>';
 
   // Line items
@@ -7466,35 +8749,39 @@ function renderAddChallanForm() {
     var amtDisplay = (item.amount != null && !isNaN(item.amount) && item.amount !== 0) ? formatNum(item.amount) : '';
 
     html += '<div class="inv-line-item">' +
-      '<div class="inv-line-header"><span class="inv-line-num">Item ' + (idx + 1) + '</span>' +
-      '<button class="inv-line-remove" data-action="invRemoveChallanLine" data-idx="' + idx + '">&times;</button></div>' +
-      '<div class="inv-form-group"><label class="inv-form-label">Part / Description</label>' +
+      '<div class="inv-line-header"><span class="inv-line-num" id="imLineLbl' + idx + '">Item ' + (idx + 1) + '</span>' +
+      '<button class="inv-line-remove" data-k="remove-' + idx + '" data-action="invRemoveChallanLine" data-idx="' + idx + '" aria-label="Remove item ' + (idx + 1) + '">&times;</button></div>' +
+      '<div class="inv-form-group"><label class="inv-form-label" for="imPart' + idx + '">Part / Description</label>' +
       '<div class="inv-autocomplete-wrap">' +
-      '<input class="inv-form-input" value="' + escHtml(item.desc || item.partNumber) + '" data-action="invEditChallanPart" data-idx="' + idx + '" placeholder="Part name or number" autocomplete="off">' +
-      '<div class="inv-autocomplete-list inv-hidden" id="imPartAC' + idx + '"></div></div></div>' +
+      '<input class="inv-form-input" id="imPart' + idx + '" data-k="part-' + idx + '" value="' + escHtml(item.desc || item.partNumber) + '" data-action="invEditChallanPart" data-idx="' + idx + '" placeholder="Part name or number" autocomplete="off"' +
+      ' role="combobox" aria-expanded="false" aria-autocomplete="list" aria-controls="imPartAC' + idx + '">' +
+      '<div class="inv-autocomplete-list inv-hidden" id="imPartAC' + idx + '" role="listbox"></div></div></div>' +
       '<div class="inv-form-row">' +
-      '<div class="inv-form-group"><label class="inv-form-label">Qty (Weight)</label>' +
-      '<input type="number" class="inv-form-input inv-mono" value="' + (item.qty || '') + '" data-field="qty" data-idx="' + idx + '" data-action="invUpdateChallanLine" step="any" min="0"></div>' +
-      '<div class="inv-form-group"><label class="inv-form-label">Unit</label>' +
-      '<select class="inv-form-select" data-field="unit" data-idx="' + idx + '" data-action="invUpdateChallanLine">' +
+      '<div class="inv-form-group"><label class="inv-form-label" for="imQty' + idx + '">Qty (Weight)</label>' +
+      '<input type="number" class="inv-form-input inv-mono" id="imQty' + idx + '" data-k="qty-' + idx + '" value="' + (item.qty || '') + '" data-field="qty" data-idx="' + idx + '" data-action="invUpdateChallanLine" step="any" min="0"></div>' +
+      '<div class="inv-form-group"><label class="inv-form-label" for="imUnit' + idx + '">Unit</label>' +
+      '<select class="inv-form-select" id="imUnit' + idx + '" data-k="unit-' + idx + '" data-field="unit" data-idx="' + idx + '" data-action="invUpdateChallanLine">' +
       '<option value="KG"' + (item.unit === 'KG' ? ' selected' : '') + '>KG</option>' +
       '<option value="NOS"' + (item.unit === 'NOS' ? ' selected' : '') + '>NOS</option></select></div>' +
-      '<div class="inv-form-group"><label class="inv-form-label">NOS Qty</label>' +
-      '<input type="number" class="inv-form-input inv-mono" value="' + (item.nosQty || '') + '" data-field="nosQty" data-idx="' + idx + '" data-action="invUpdateChallanLine" step="1" min="0" placeholder="Pcs"></div></div>' +
+      '<div class="inv-form-group"><label class="inv-form-label" for="imNos' + idx + '">NOS Qty</label>' +
+      '<input type="number" class="inv-form-input inv-mono" id="imNos' + idx + '" data-k="nos-' + idx + '" value="' + (item.nosQty || '') + '" data-field="nosQty" data-idx="' + idx + '" data-action="invUpdateChallanLine" step="1" min="0" placeholder="Pcs"></div></div>' +
       '<div class="inv-form-row">' +
-      '<div class="inv-form-group"><label class="inv-form-label">Rate</label>' +
-      '<input type="number" class="inv-form-input inv-mono" value="' + rateDisplay + '" data-field="rate" data-idx="' + idx + '" data-action="invUpdateChallanLine" step="any" min="0"' +
+      '<div class="inv-form-group"><label class="inv-form-label" for="imRate' + idx + '">Rate</label>' +
+      '<input type="number" class="inv-form-input inv-mono" id="imRate' + idx + '" data-k="rate-' + idx + '" value="' + rateDisplay + '" data-field="rate" data-idx="' + idx + '" data-action="invUpdateChallanLine" step="any" min="0"' +
       (isPieceNOS ? ' readonly' : '') + '></div>' +
-      '<div class="inv-form-group"><label class="inv-form-label">Amount</label>' +
-      '<input type="number" class="inv-form-input inv-mono" value="' + amtDisplay + '" data-field="amount" data-idx="' + idx + '" data-action="invUpdateChallanLine" step="any" min="0"' +
+      '<div class="inv-form-group"><label class="inv-form-label" for="imAmt' + idx + '">Amount</label>' +
+      '<input type="number" class="inv-form-input inv-mono" id="imAmt' + idx + '" data-k="amount-' + idx + '" value="' + amtDisplay + '" data-field="amount" data-idx="' + idx + '" data-action="invUpdateChallanLine" step="any" min="0"' +
       (isPieceNOS ? '' : ' readonly') + '></div></div></div>';
   });
-  html += '<button class="inv-btn inv-btn-ghost inv-btn-block" data-action="invAddChallanLine">+ Add Line Item</button></div>';
+  // data-kbd-ring puts these two in the Enter-to-next-field chain, so the last
+  // field of the last line steps onto "Add Line Item" instead of dead-ending.
+  // The per-line remove buttons are deliberately left out of that chain.
+  html += '<button class="inv-btn inv-btn-ghost inv-btn-block" data-k="addline" data-kbd-ring data-action="invAddChallanLine">+ Add Line Item</button></div>';
 
   // Save/Cancel
   html += '<div class="inv-btn-bar inv-save-bar">' +
-    '<button class="inv-btn inv-btn-ghost" data-action="invCancelChallan">Cancel</button>' +
-    '<button class="inv-btn inv-btn-primary" data-action="invSaveChallan">' + (_challanForm._editingId ? 'Update Challan' : 'Save Challan') + '</button></div></div>';
+    '<button class="inv-btn inv-btn-ghost" data-k="cancel" data-action="invCancelChallan">Cancel</button>' +
+    '<button class="inv-btn inv-btn-primary" data-k="save" data-kbd-ring data-action="invSaveChallan">' + (_challanForm._editingId ? 'Update Challan' : 'Save Challan') + '</button></div></div>';
 
   area.innerHTML = html;
 
@@ -7511,23 +8798,39 @@ function renderAddChallanForm() {
   // Bind client search
   var cs = document.getElementById('imChallanClientSearch');
   if (cs) {
-    cs.addEventListener('input', function() {
-      var q = cs.value.toLowerCase();
-      if (q.length < 1) { document.getElementById('imChallanClientResults').classList.add('inv-hidden'); return; }
-      var matches = S.clients.filter(function(c) {
-        return c.isActive && (c.name.toLowerCase().includes(q) || (c.gstin || '').includes(q));
-      }).slice(0, 8);
-      var res = document.getElementById('imChallanClientResults');
-      res.classList.remove('inv-hidden');
-      res.className = 'inv-search-results';
-      res.innerHTML = matches.map(function(c) {
-        return '<div class="inv-search-item" data-action="invSelectChallanClient" data-id="' + c.id + '">' +
-          '<div><div class="inv-client-name">' + escHtml(c.name) + '</div>' +
-          '<div class="inv-client-meta">' + escHtml(c.gstin || '') + '</div></div></div>';
-      }).join('');
-    });
+    cs.addEventListener('input', function() { renderChallanClientResults(cs.value); });
+  }
+
+  // Focus last, so nothing above can steal it back. Auto-focusing the client
+  // search is only right on a fresh open — restoring beats it every other time.
+  if (!_challanRestoreFocus(focusTarget) && cs) {
     setTimeout(function() { cs.focus(); }, 100);
   }
+}
+
+function renderChallanClientResults(query) {
+  var res = document.getElementById('imChallanClientResults');
+  var input = document.getElementById('imChallanClientSearch');
+  if (!res) return;
+  var q = (query || '').trim().toLowerCase();
+  var matches = q.length < 1 ? [] : S.clients.filter(function(c) {
+    return c.isActive && (c.name.toLowerCase().includes(q) || (c.gstin || '').includes(q));
+  }).slice(0, 8);
+
+  acReset();
+  if (matches.length === 0) {
+    res.className = 'inv-search-results inv-hidden';
+    res.innerHTML = '';
+    if (input) input.setAttribute('aria-expanded', 'false');
+    return;
+  }
+  res.className = 'inv-search-results';
+  res.innerHTML = matches.map(function(c, i) {
+    return '<div class="inv-search-item" role="option" id="imClientOpt' + i + '" data-action="invSelectChallanClient" data-id="' + c.id + '">' +
+      '<div><div class="inv-client-name">' + escHtml(c.name) + '</div>' +
+      '<div class="inv-client-meta">' + escHtml(c.gstin || '') + '</div></div></div>';
+  }).join('');
+  if (input) input.setAttribute('aria-expanded', 'true');
 }
 
 function captureChallanFields() {
@@ -7544,6 +8847,8 @@ function selectChallanClient(clientId) {
   if (!_challanForm) return;
   captureChallanFields();
   _challanForm.clientId = clientId;
+  // Picking the client is the first step; Challan No is the next thing typed.
+  _challanFocusNext = { k: 'challanNo', sel: null };
   var client = S.clients.find(function(c) { return c.id === clientId; });
   // Auto-fill rate on existing items
   if (client) {
@@ -7582,6 +8887,7 @@ function addChallanLine() {
     item.rate = rateInfo.ratePerKg || 0;
   }
   _challanForm.items.push(item);
+  _challanFocusNext = { k: 'part-' + (_challanForm.items.length - 1), sel: null };
   renderAddChallanForm();
 }
 
@@ -7589,6 +8895,14 @@ function removeChallanLine(idx) {
   if (!_challanForm) return;
   captureChallanFields();
   _challanForm.items.splice(idx, 1);
+  // Land on the line that slid into this slot, or the one above it if the
+  // removed line was last. With no lines left there is nothing to focus but
+  // the button that makes one.
+  if (_challanForm.items.length === 0) {
+    _challanFocusNext = { k: 'addline', sel: null };
+  } else {
+    _challanFocusNext = { k: 'part-' + Math.min(idx, _challanForm.items.length - 1), sel: null };
+  }
   renderAddChallanForm();
 }
 
@@ -8340,6 +9654,8 @@ document.addEventListener('click', function(e) {
       }
       dismissAllAutocomplete();
       captureChallanFields();
+      // The part is settled; weight is what gets typed next.
+      _challanFocusNext = { k: 'qty-' + pidx, sel: null };
       renderAddChallanForm();
       break;
     }
@@ -8440,6 +9756,8 @@ document.addEventListener('click', function(e) {
     }
     // Phase 7: History load more
     case 'invHistoryLoadMore': _historyShowCount += 50; renderHistory(); break;
+    case 'invHistoryType': _historyType = btn.dataset.type; _historyShowCount = 50; renderHistory(); break;
+    case 'invHistoryExport': exportHistoryCSV(); break;
     // Phase 4: Challan Scanner
     case 'invScanChallan': scanChallan(); break;
     case 'invToggleApiKey': {
@@ -8453,6 +9771,14 @@ document.addEventListener('click', function(e) {
       break;
     }
     case 'invRefreshZinc': refreshZincRate(); break;
+    // GitHub sync
+    case 'invGhPush': ghPush(); break;
+    case 'invGhPull': ghPull(); break;
+    case 'invToggleGhToken': {
+      var gtEl = document.getElementById('setGhToken');
+      if (gtEl) gtEl.type = gtEl.type === 'password' ? 'text' : 'password';
+      break;
+    }
     // Phase 6: Items Master
     case 'invSwitchSubView': setItemsSubView(btn.dataset.view); renderClientsPage(); break;
     case 'invEditItem': openItemEdit(parseInt(btn.dataset.id)); break;
@@ -8665,6 +9991,25 @@ document.addEventListener('input', function(e) {
   if (e.target.id === 'clientSearch') {
     renderClientList(e.target.value);
   }
+  // History search. Debounced so a long log is not rebuilt per keystroke, and
+  // focus is restored because renderHistory replaces the input it lives in.
+  if (e.target.id === 'historySearch') {
+    _historySearch = e.target.value.trim();
+    clearTimeout(_historySearchTimer);
+    _historySearchTimer = setTimeout(function() {
+      var caret = null;
+      var el = document.getElementById('historySearch');
+      if (el) { try { caret = el.selectionStart; } catch (err) { caret = null; } }
+      _historyShowCount = 50;
+      renderHistory();
+      var restored = document.getElementById('historySearch');
+      if (restored) {
+        restored.focus();
+        if (caret != null && restored.setSelectionRange) restored.setSelectionRange(caret, caret);
+      }
+    }, 250);
+    return;
+  }
   // Bulk weight entry: price the part as soon as a weight is typed
   if (e.target.dataset.action === 'invWeightInput') {
     updateWeightVerdict(e.target);
@@ -8714,19 +10059,7 @@ document.addEventListener('input', function(e) {
       citem.desc = e.target.value;
       citem.partNumber = e.target.value;
       // Show part autocomplete
-      var acEl = document.getElementById('imPartAC' + cidx);
-      if (acEl) {
-        var matches = searchParts(e.target.value);
-        if (matches.length === 0) { acEl.classList.add('inv-hidden'); }
-        else {
-          acEl.classList.remove('inv-hidden');
-          acEl.innerHTML = matches.map(function(m) {
-            return '<div class="inv-autocomplete-item" data-action="invSelectChallanPart" data-idx="' + cidx + '" data-part-id="' + m.id + '">' +
-              '<span class="inv-autocomplete-part">' + escHtml(m.partNumber) + '</span>' +
-              '<span class="inv-autocomplete-desc">' + escHtml(m.desc) + '</span></div>';
-          }).join('');
-        }
-      }
+      showChallanPartAutocomplete(cidx, e.target.value);
       // Auto-fill rate from client rate card
       var cclient = _challanForm.clientId ? S.clients.find(function(c) { return c.id === _challanForm.clientId; }) : null;
       if (cclient && cclient.itemRates && cclient.itemRates.length > 0) {
@@ -8805,33 +10138,71 @@ document.addEventListener('input', function(e) {
   }
 });
 
-/* ESC key dismisses autocomplete, Enter moves to next field */
+/* Keyboard: suggestion lists, Enter-to-next-field, and challan form shortcuts */
 document.addEventListener('keydown', function(e) {
+  // 1. An open suggestion list owns the arrow keys and Enter. Without this the
+  //    list could only be committed with a pointer — Enter used to return
+  //    early here and do nothing at all, which is what stranded the keyboard.
+  var openList = e.target.tagName === 'INPUT' ? acListFor(e.target) : null;
+  if (openList) {
+    if (e.key === 'ArrowDown') { e.preventDefault(); acMoveCursor(openList, 1); return; }
+    if (e.key === 'ArrowUp') { e.preventDefault(); acMoveCursor(openList, -1); return; }
+    // Ctrl/Cmd+Enter is "save the challan" and must not be swallowed as a
+    // suggestion pick just because a list happens to be open.
+    if (e.key === 'Enter' && !e.ctrlKey && !e.metaKey) {
+      var pending = acPendingOption(openList);
+      if (pending) {
+        e.preventDefault();
+        acReset();
+        // Routed through the same click delegate the pointer path uses, so
+        // there is exactly one selection code path to keep correct.
+        pending.click();
+        return;
+      }
+    }
+  }
+
   if (e.key === 'Escape') {
     dismissAllAutocomplete();
     var searchRes = document.getElementById('invClientResults');
     if (searchRes) searchRes.classList.add('inv-hidden');
     var imSearchRes = document.getElementById('imChallanClientResults');
     if (imSearchRes) imSearchRes.classList.add('inv-hidden');
+    return;
   }
-  // Enter key: move to next focusable field (skip readonly, skip buttons unless submit)
-  if (e.key === 'Enter' && (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT')) {
-    // Don't interfere with autocomplete selection
-    if (e.target.closest('.inv-autocomplete-wrap')) {
-      var acList = e.target.closest('.inv-autocomplete-wrap').querySelector('.inv-autocomplete-list');
-      if (acList && !acList.classList.contains('inv-hidden')) return;
+
+  // 2. Challan form shortcuts, scoped to the form so they cannot fire elsewhere.
+  var challanArea = document.getElementById('imAddForm');
+  if (_challanForm && challanArea && challanArea.contains(e.target)) {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+      e.preventDefault();
+      saveChallan();
+      return;
     }
+    if (e.altKey && (e.key === 'n' || e.key === 'N')) {
+      e.preventDefault();
+      captureChallanFields();
+      addChallanLine();
+      return;
+    }
+  }
+
+  // 3. Enter moves to the next field. Buttons carrying data-kbd-ring join the
+  //    chain so the last field of a form steps onto its primary action rather
+  //    than dead-ending; unmarked buttons (a line's remove ×) stay out of it,
+  //    where a stray Enter would be destructive.
+  if (e.key === 'Enter' && (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT')) {
     e.preventDefault();
-    // Find all focusable fields in the current page/form
     var container = e.target.closest('.inv-page-active, .inv-im-form-active, .inv-overlay-card');
     if (!container) container = document.body;
-    var focusable = Array.from(container.querySelectorAll('input:not([readonly]):not([type="hidden"]):not(.inv-hidden), select:not(.inv-hidden), textarea:not(.inv-hidden)'));
+    var focusable = Array.from(container.querySelectorAll(
+      'input:not([readonly]):not([type="hidden"]):not(.inv-hidden), select:not(.inv-hidden), textarea:not(.inv-hidden), [data-kbd-ring]'
+    ));
     var curIdx = focusable.indexOf(e.target);
     if (curIdx >= 0 && curIdx < focusable.length - 1) {
-      focusable[curIdx + 1].focus();
-      if (focusable[curIdx + 1].type === 'number' || focusable[curIdx + 1].type === 'text') {
-        focusable[curIdx + 1].select();
-      }
+      var next = focusable[curIdx + 1];
+      next.focus();
+      if (next.type === 'number' || next.type === 'text') next.select();
     }
   }
 });
@@ -9100,7 +10471,7 @@ if (!S._rateCleanup1) {
 
 /* Phase 9: Default cost per KG for margin dashboard (IL-4) — idempotent */
 if (S.defaultCostPerKg === undefined) {
-  S.defaultCostPerKg = 5.46;
+  S.defaultCostPerKg = 8.55;
   saveJSON(STORAGE_KEY, S);
 }
 
@@ -9235,6 +10606,22 @@ new ResizeObserver(function() {
   _resizeTimer = setTimeout(updateLayoutMode, 150);
 }).observe(document.documentElement);
 
+/* Manifest app shortcuts land here as ?tab=<pageId>[&new=1]. Writing the target
+   into regFilter before the first layout pass means both the desktop and the
+   mobile restore paths pick it up without a second switchTab, and the query is
+   stripped so a later refresh returns to the ordinary saved tab. */
+var _launchNew = false;
+(function() {
+  var params;
+  try { params = new URLSearchParams(window.location.search); } catch (e) { return; }
+  var wanted = params.get('tab');
+  if (!wanted || !document.getElementById(wanted)) return;
+  regFilter.activeTab = wanted;
+  saveRegFilter();
+  _launchNew = params.get('new') === '1';
+  try { history.replaceState(null, '', window.location.pathname); } catch (e) {}
+})();
+
 // Initial layout detection (no debounce)
 updateLayoutMode();
 
@@ -9248,6 +10635,12 @@ if (!_isDesktop) {
   } else {
     renderHome();
   }
+}
+
+/* The "Add Challan" app shortcut opens the form, not just the tab. Runs after
+   the tab restore above so the IM view exists to render into. */
+if (_launchNew && regFilter.activeTab === 'pageIM' && !_isDesktop) {
+  showAddChallanForm();
 }
 
 if ('serviceWorker' in navigator) {

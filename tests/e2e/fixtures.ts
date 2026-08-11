@@ -9,6 +9,7 @@ export type SepState = {
   partWeights: Record<string, unknown>;
   incomingMaterial: unknown[];
   invoices: unknown[];
+  voidedNumbers?: unknown[];
   defaultCostPerKg?: number;
   invPrefix?: string;
   invNextNum?: number;

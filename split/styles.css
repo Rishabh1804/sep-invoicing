@@ -558,6 +558,105 @@ input, select, textarea, button { font-family: inherit; font-size: var(--fs-base
 .inv-stats-row-tap { cursor: pointer; }
 .inv-stats-row-tap:active { background: var(--surface-2); }
 
+/* ===== KPI BAND ===== */
+.inv-stats-title-sub {
+  margin-left: var(--sp-8); font-weight: 500; text-transform: none;
+  letter-spacing: 0; color: var(--text-3); font-size: var(--fs-xs);
+}
+.inv-kpi-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-12);
+}
+@media (min-width: 700px) {
+  .inv-kpi-grid { grid-template-columns: repeat(4, 1fr); }
+}
+.inv-kpi {
+  display: flex; flex-direction: column; gap: var(--sp-2);
+  padding: var(--sp-10); background: var(--surface-2);
+  border-radius: var(--r-md); min-width: 0;
+}
+.inv-kpi-label {
+  font-size: var(--fs-2xs); text-transform: uppercase; letter-spacing: 0.06em;
+  color: var(--text-3); font-weight: 600;
+}
+.inv-kpi-value {
+  font-family: var(--ff-display); font-size: var(--fs-lg); color: var(--cost);
+  word-break: break-word;
+}
+.inv-kpi-sub { font-size: var(--fs-2xs); color: var(--text-3); }
+.inv-kpi-delta {
+  align-self: flex-start; margin-top: var(--sp-4);
+  padding: var(--sp-2) var(--sp-6); border-radius: var(--r-sm);
+  font-family: var(--ff-mono); font-size: var(--fs-2xs); font-weight: 600;
+}
+.inv-kpi-delta-up { background: var(--attend-bg); color: var(--attend-text); }
+.inv-kpi-delta-down { background: var(--danger-bg); color: var(--danger-text); }
+.inv-kpi-delta-flat { background: var(--surface-3); color: var(--text-3); }
+.dark .inv-kpi { background: var(--surface-3); }
+.dark .inv-kpi-value { color: var(--cost-text); }
+.dark .inv-kpi-delta-flat { background: var(--surface-2); }
+
+/* ===== CAVEATS AND ALERTS =====
+   A number that is known to be incomplete says so next to itself, rather
+   than passing as complete. */
+.inv-stats-caveat {
+  margin-top: var(--sp-12); padding: var(--sp-8) var(--sp-10);
+  background: var(--surface-2); border-left: var(--sp-4) solid var(--border-2);
+  border-radius: var(--r-sm); font-size: var(--fs-xs);
+  color: var(--text-2); line-height: 1.5;
+}
+.inv-stats-alert {
+  margin-top: var(--sp-12); padding: var(--sp-8) var(--sp-10);
+  background: var(--danger-bg); border-left: var(--sp-4) solid var(--danger);
+  border-radius: var(--r-sm); font-size: var(--fs-xs);
+  color: var(--danger-text); line-height: 1.5; font-weight: 500;
+}
+.dark .inv-stats-caveat { background: var(--surface-3); border-left-color: var(--border-2); }
+.inv-stats-val-warn { color: var(--warning-text); }
+.inv-stats-val-danger { color: var(--danger-text); }
+
+/* ===== UNBILLED AGEING ===== */
+.inv-age-row {
+  display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-8);
+  margin: var(--sp-12) 0;
+}
+@media (min-width: 700px) {
+  .inv-age-row { grid-template-columns: repeat(4, 1fr); }
+}
+.inv-age-bucket {
+  padding: var(--sp-8); background: var(--surface-2);
+  border-radius: var(--r-md); min-width: 0;
+}
+.inv-age-bucket-warn { background: var(--warning-bg); }
+.inv-age-label { font-size: var(--fs-2xs); color: var(--text-3); font-weight: 600; }
+.inv-age-value {
+  font-family: var(--ff-mono); font-size: var(--fs-sm);
+  font-weight: 600; color: var(--text-1); margin-top: var(--sp-2);
+}
+.inv-age-share { font-size: var(--fs-2xs); color: var(--text-3); }
+.dark .inv-age-bucket { background: var(--surface-3); }
+.dark .inv-age-bucket-warn { background: var(--warning-bg); }
+
+/* ===== HISTORY EVENT ICONS =====
+   Replaces the bare colour dot: an audit log has to be readable by kind, and
+   colour alone does not carry that for everyone. */
+.inv-history-icon {
+  width: var(--sp-32); height: var(--sp-32); border-radius: var(--r-full);
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0; background: var(--surface-2); color: var(--text-2);
+}
+.inv-history-icon-svg { width: var(--sp-16); height: var(--sp-16); }
+.inv-history-icon-invoice { background: var(--cost-bg); color: var(--cost-text); }
+.inv-history-icon-challan { background: var(--neutral-bg); color: var(--neutral-text); }
+.inv-history-icon-state { background: var(--attend-bg); color: var(--attend-text); }
+.inv-history-icon-cancel { background: var(--danger-bg); color: var(--danger-text); }
+.inv-history-icon-void { background: var(--danger-bg); color: var(--danger-text); }
+.inv-history-icon-dupe { background: var(--warning-bg); color: var(--warning-text); }
+.inv-history-item-static { cursor: default; }
+.inv-history-summary {
+  font-family: var(--ff-mono); font-size: var(--fs-xs);
+  color: var(--text-3); margin-bottom: var(--sp-8);
+}
+
 /* Phase 7: Period chips */
 .inv-stats-chips {
   display: flex; gap: var(--sp-8); padding: var(--sp-8) 0 var(--sp-16) 0;
@@ -1227,6 +1326,73 @@ input, select, textarea, button { font-family: inherit; font-size: var(--fs-base
 .dark .inv-autocomplete-list { background: var(--surface); border-color: var(--border); }
 .dark .inv-autocomplete-item:active { background: var(--surface-2); }
 
+/* ===== SUGGESTION KEYBOARD CURSOR =====
+   The row the arrow keys have landed on. Carries a left rule as well as a
+   tint so the position is readable without relying on colour alone. */
+.inv-ac-active {
+  background: var(--surface-2);
+  box-shadow: inset var(--sp-4) 0 0 var(--accent);
+}
+.dark .inv-ac-active {
+  background: var(--surface-3);
+  box-shadow: inset var(--sp-4) 0 0 var(--accent-dark);
+}
+
+/* ===== KEYBOARD HINT STRIP ===== */
+.inv-kbd-hint {
+  display: flex; flex-wrap: wrap; gap: var(--sp-4) var(--sp-12);
+  padding: var(--sp-8) var(--sp-12); margin-bottom: var(--sp-12);
+  background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  font-size: var(--fs-xs); color: var(--text-3);
+}
+.inv-kbd-hint-item { display: inline-flex; align-items: center; gap: var(--sp-4); }
+.inv-kbd {
+  font-family: var(--ff-mono); font-size: var(--fs-2xs);
+  padding: var(--sp-2) var(--sp-4);
+  background: var(--surface); border: 1px solid var(--border-2);
+  border-radius: var(--r-sm); color: var(--text-2);
+}
+.dark .inv-kbd-hint { background: var(--surface-3); border-color: var(--border); }
+.dark .inv-kbd { background: var(--surface-2); border-color: var(--border-2); }
+
+/* ===== KEYBOARD FOCUS VISIBILITY =====
+   Buttons and selects had no focus style at all, so a keyboard user could not
+   see where they were. :focus-visible keeps pointer users unaffected. */
+.inv-btn:focus-visible,
+.inv-fab:focus-visible,
+.inv-fab-scan:focus-visible,
+.inv-chip:focus-visible,
+.inv-tab:focus-visible,
+.inv-header-btn:focus-visible,
+.inv-line-remove:focus-visible,
+.inv-overlay-close:focus-visible,
+.inv-form-select:focus-visible,
+.inv-search-input:focus-visible,
+.inv-search-item:focus-visible,
+.inv-autocomplete-item:focus-visible {
+  outline: var(--sp-2) solid var(--accent);
+  outline-offset: var(--sp-2);
+}
+.dark .inv-btn:focus-visible,
+.dark .inv-fab:focus-visible,
+.dark .inv-fab-scan:focus-visible,
+.dark .inv-chip:focus-visible,
+.dark .inv-tab:focus-visible,
+.dark .inv-header-btn:focus-visible,
+.dark .inv-line-remove:focus-visible,
+.dark .inv-overlay-close:focus-visible,
+.dark .inv-form-select:focus-visible,
+.dark .inv-search-input:focus-visible,
+.dark .inv-search-item:focus-visible,
+.dark .inv-autocomplete-item:focus-visible {
+  outline-color: var(--cost-text);
+}
+/* The header sits on --accent, so an accent-coloured ring would vanish into it.
+   #fff matches the header's own foreground, as used above. */
+.inv-header-btn:focus-visible,
+.dark .inv-header-btn:focus-visible { outline-color: #fff; }
+
 /* ===== ITEMS MASTER (Phase 6) ===== */
 .inv-subview-toggle {
   display: flex; gap: var(--sp-4); margin-bottom: var(--sp-12);
@@ -1305,6 +1471,39 @@ input, select, textarea, button { font-family: inherit; font-size: var(--fs-base
 .inv-zinc-meta { font-size: var(--fs-xs); color: var(--text-3); }
 .inv-zinc-stale { color: var(--warning-text); font-weight: 600; }
 .dark .inv-zinc-stale { color: var(--warning-text); }
+
+/* ===== GITHUB SYNC ===== */
+.inv-sync-card { padding: var(--card-padding-sm) var(--card-padding); }
+.inv-sync-meta { display: flex; flex-direction: column; gap: var(--sp-2); min-width: 0; }
+.inv-sync-label {
+  display: flex; align-items: center; gap: var(--sp-6);
+  font-size: var(--fs-sm); font-weight: 600; color: var(--text-1);
+}
+.inv-sync-stale {
+  padding: var(--sp-2) var(--sp-6); border-radius: var(--r-sm);
+  background: var(--warning-bg); color: var(--warning-text);
+  font-size: var(--fs-2xs); font-weight: 600; text-transform: uppercase;
+}
+.inv-sync-repo {
+  font-size: var(--fs-xs); color: var(--text-2);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.inv-sync-time { font-size: var(--fs-xs); color: var(--text-3); }
+.inv-sync-status {
+  margin-top: var(--sp-8); padding: var(--sp-8) var(--sp-10);
+  background: var(--surface-2); border-radius: var(--r-sm);
+  font-size: var(--fs-xs); color: var(--text-2); line-height: 1.5;
+}
+.dark .inv-sync-status { background: var(--surface-3); }
+
+/* ===== CHECKBOX ROW ===== */
+.inv-check-row {
+  display: flex; align-items: center; gap: var(--sp-8);
+  min-height: 44px; cursor: pointer;
+  font-size: var(--fs-base); color: var(--text-1);
+}
+.inv-check { width: var(--sp-16); height: var(--sp-16); accent-color: var(--accent); flex-shrink: 0; }
+.dark .inv-check { accent-color: var(--accent-dark); }
 
 /* ===== BULK WEIGHT ENTRY ===== */
 .inv-weight-list { margin-bottom: var(--sp-16); }

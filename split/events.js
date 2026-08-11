@@ -104,6 +104,8 @@ document.addEventListener('click', function(e) {
       }
       dismissAllAutocomplete();
       captureChallanFields();
+      // The part is settled; weight is what gets typed next.
+      _challanFocusNext = { k: 'qty-' + pidx, sel: null };
       renderAddChallanForm();
       break;
     }
@@ -204,6 +206,8 @@ document.addEventListener('click', function(e) {
     }
     // Phase 7: History load more
     case 'invHistoryLoadMore': _historyShowCount += 50; renderHistory(); break;
+    case 'invHistoryType': _historyType = btn.dataset.type; _historyShowCount = 50; renderHistory(); break;
+    case 'invHistoryExport': exportHistoryCSV(); break;
     // Phase 4: Challan Scanner
     case 'invScanChallan': scanChallan(); break;
     case 'invToggleApiKey': {
@@ -217,6 +221,14 @@ document.addEventListener('click', function(e) {
       break;
     }
     case 'invRefreshZinc': refreshZincRate(); break;
+    // GitHub sync
+    case 'invGhPush': ghPush(); break;
+    case 'invGhPull': ghPull(); break;
+    case 'invToggleGhToken': {
+      var gtEl = document.getElementById('setGhToken');
+      if (gtEl) gtEl.type = gtEl.type === 'password' ? 'text' : 'password';
+      break;
+    }
     // Phase 6: Items Master
     case 'invSwitchSubView': setItemsSubView(btn.dataset.view); renderClientsPage(); break;
     case 'invEditItem': openItemEdit(parseInt(btn.dataset.id)); break;
@@ -429,6 +441,25 @@ document.addEventListener('input', function(e) {
   if (e.target.id === 'clientSearch') {
     renderClientList(e.target.value);
   }
+  // History search. Debounced so a long log is not rebuilt per keystroke, and
+  // focus is restored because renderHistory replaces the input it lives in.
+  if (e.target.id === 'historySearch') {
+    _historySearch = e.target.value.trim();
+    clearTimeout(_historySearchTimer);
+    _historySearchTimer = setTimeout(function() {
+      var caret = null;
+      var el = document.getElementById('historySearch');
+      if (el) { try { caret = el.selectionStart; } catch (err) { caret = null; } }
+      _historyShowCount = 50;
+      renderHistory();
+      var restored = document.getElementById('historySearch');
+      if (restored) {
+        restored.focus();
+        if (caret != null && restored.setSelectionRange) restored.setSelectionRange(caret, caret);
+      }
+    }, 250);
+    return;
+  }
   // Bulk weight entry: price the part as soon as a weight is typed
   if (e.target.dataset.action === 'invWeightInput') {
     updateWeightVerdict(e.target);
@@ -478,19 +509,7 @@ document.addEventListener('input', function(e) {
       citem.desc = e.target.value;
       citem.partNumber = e.target.value;
       // Show part autocomplete
-      var acEl = document.getElementById('imPartAC' + cidx);
-      if (acEl) {
-        var matches = searchParts(e.target.value);
-        if (matches.length === 0) { acEl.classList.add('inv-hidden'); }
-        else {
-          acEl.classList.remove('inv-hidden');
-          acEl.innerHTML = matches.map(function(m) {
-            return '<div class="inv-autocomplete-item" data-action="invSelectChallanPart" data-idx="' + cidx + '" data-part-id="' + m.id + '">' +
-              '<span class="inv-autocomplete-part">' + escHtml(m.partNumber) + '</span>' +
-              '<span class="inv-autocomplete-desc">' + escHtml(m.desc) + '</span></div>';
-          }).join('');
-        }
-      }
+      showChallanPartAutocomplete(cidx, e.target.value);
       // Auto-fill rate from client rate card
       var cclient = _challanForm.clientId ? S.clients.find(function(c) { return c.id === _challanForm.clientId; }) : null;
       if (cclient && cclient.itemRates && cclient.itemRates.length > 0) {
@@ -569,33 +588,71 @@ document.addEventListener('input', function(e) {
   }
 });
 
-/* ESC key dismisses autocomplete, Enter moves to next field */
+/* Keyboard: suggestion lists, Enter-to-next-field, and challan form shortcuts */
 document.addEventListener('keydown', function(e) {
+  // 1. An open suggestion list owns the arrow keys and Enter. Without this the
+  //    list could only be committed with a pointer — Enter used to return
+  //    early here and do nothing at all, which is what stranded the keyboard.
+  var openList = e.target.tagName === 'INPUT' ? acListFor(e.target) : null;
+  if (openList) {
+    if (e.key === 'ArrowDown') { e.preventDefault(); acMoveCursor(openList, 1); return; }
+    if (e.key === 'ArrowUp') { e.preventDefault(); acMoveCursor(openList, -1); return; }
+    // Ctrl/Cmd+Enter is "save the challan" and must not be swallowed as a
+    // suggestion pick just because a list happens to be open.
+    if (e.key === 'Enter' && !e.ctrlKey && !e.metaKey) {
+      var pending = acPendingOption(openList);
+      if (pending) {
+        e.preventDefault();
+        acReset();
+        // Routed through the same click delegate the pointer path uses, so
+        // there is exactly one selection code path to keep correct.
+        pending.click();
+        return;
+      }
+    }
+  }
+
   if (e.key === 'Escape') {
     dismissAllAutocomplete();
     var searchRes = document.getElementById('invClientResults');
     if (searchRes) searchRes.classList.add('inv-hidden');
     var imSearchRes = document.getElementById('imChallanClientResults');
     if (imSearchRes) imSearchRes.classList.add('inv-hidden');
+    return;
   }
-  // Enter key: move to next focusable field (skip readonly, skip buttons unless submit)
-  if (e.key === 'Enter' && (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT')) {
-    // Don't interfere with autocomplete selection
-    if (e.target.closest('.inv-autocomplete-wrap')) {
-      var acList = e.target.closest('.inv-autocomplete-wrap').querySelector('.inv-autocomplete-list');
-      if (acList && !acList.classList.contains('inv-hidden')) return;
+
+  // 2. Challan form shortcuts, scoped to the form so they cannot fire elsewhere.
+  var challanArea = document.getElementById('imAddForm');
+  if (_challanForm && challanArea && challanArea.contains(e.target)) {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+      e.preventDefault();
+      saveChallan();
+      return;
     }
+    if (e.altKey && (e.key === 'n' || e.key === 'N')) {
+      e.preventDefault();
+      captureChallanFields();
+      addChallanLine();
+      return;
+    }
+  }
+
+  // 3. Enter moves to the next field. Buttons carrying data-kbd-ring join the
+  //    chain so the last field of a form steps onto its primary action rather
+  //    than dead-ending; unmarked buttons (a line's remove ×) stay out of it,
+  //    where a stray Enter would be destructive.
+  if (e.key === 'Enter' && (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT')) {
     e.preventDefault();
-    // Find all focusable fields in the current page/form
     var container = e.target.closest('.inv-page-active, .inv-im-form-active, .inv-overlay-card');
     if (!container) container = document.body;
-    var focusable = Array.from(container.querySelectorAll('input:not([readonly]):not([type="hidden"]):not(.inv-hidden), select:not(.inv-hidden), textarea:not(.inv-hidden)'));
+    var focusable = Array.from(container.querySelectorAll(
+      'input:not([readonly]):not([type="hidden"]):not(.inv-hidden), select:not(.inv-hidden), textarea:not(.inv-hidden), [data-kbd-ring]'
+    ));
     var curIdx = focusable.indexOf(e.target);
     if (curIdx >= 0 && curIdx < focusable.length - 1) {
-      focusable[curIdx + 1].focus();
-      if (focusable[curIdx + 1].type === 'number' || focusable[curIdx + 1].type === 'text') {
-        focusable[curIdx + 1].select();
-      }
+      var next = focusable[curIdx + 1];
+      next.focus();
+      if (next.type === 'number' || next.type === 'text') next.select();
     }
   }
 });

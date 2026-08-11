@@ -33,8 +33,9 @@ function renderCreateForm() {
   } else {
     html += '<div class="inv-search-wrap inv-search-no-mb">' +
       '<svg class="inv-search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>' +
-      '<input type="text" class="inv-search-input" id="invClientSearch" placeholder="Search client" autocomplete="off">' +
-      '<div id="invClientResults" class="inv-hidden"></div></div>';
+      '<input type="text" class="inv-search-input" id="invClientSearch" placeholder="Search client" autocomplete="off"' +
+      ' role="combobox" aria-expanded="false" aria-autocomplete="list" aria-controls="invClientResults">' +
+      '<div id="invClientResults" class="inv-search-results inv-hidden" role="listbox"></div></div>';
   }
   html += '</div>';
 
@@ -53,8 +54,9 @@ function renderCreateForm() {
       '<button class="inv-line-remove" data-action="invRemoveLineItem" data-idx="' + idx + '">&times;</button></div>' +
       '<div class="inv-form-group"><label class="inv-form-label">Part / Description</label>' +
       '<div class="inv-autocomplete-wrap">' +
-      '<input class="inv-form-input" value="' + escHtml(item.desc || item.partNumber) + '" data-action="invEditLinePart" data-idx="' + idx + '" placeholder="Part name or number" autocomplete="off">' +
-      '<div class="inv-autocomplete-list inv-hidden" id="invPartAC' + idx + '"></div></div></div>' +
+      '<input class="inv-form-input" value="' + escHtml(item.desc || item.partNumber) + '" data-action="invEditLinePart" data-idx="' + idx + '" placeholder="Part name or number" autocomplete="off"' +
+      ' role="combobox" aria-expanded="false" aria-autocomplete="list" aria-controls="invPartAC' + idx + '">' +
+      '<div class="inv-autocomplete-list inv-hidden" id="invPartAC' + idx + '" role="listbox"></div></div></div>' +
       '<div class="inv-form-row">' +
       '<div class="inv-form-group"><label class="inv-form-label">Qty</label>' +
       '<input type="number" class="inv-form-input inv-mono" value="' + (item.qty||'') + '" data-field="qty" data-idx="' + idx + '" data-action="invUpdateLine" step="any" min="0"></div>' +
@@ -127,14 +129,21 @@ function renderCreateForm() {
   if (cs) {
     cs.addEventListener('input', () => {
       const q = cs.value.toLowerCase();
-      if (q.length < 1) { document.getElementById('invClientResults').classList.add('inv-hidden'); return; }
-      const matches = S.clients.filter(c => c.isActive && (c.name.toLowerCase().includes(q) || (c.gstin||'').includes(q))).slice(0, 8);
       const res = document.getElementById('invClientResults');
-      res.classList.remove('inv-hidden');
+      const matches = q.length < 1 ? [] :
+        S.clients.filter(c => c.isActive && (c.name.toLowerCase().includes(q) || (c.gstin||'').includes(q))).slice(0, 8);
+      acReset();
+      if (matches.length === 0) {
+        res.className = 'inv-search-results inv-hidden';
+        res.innerHTML = '';
+        cs.setAttribute('aria-expanded', 'false');
+        return;
+      }
       res.className = 'inv-search-results';
-      res.innerHTML = matches.map(c => '<div class="inv-search-item" data-action="invSelectClient" data-id="' + c.id + '">' +
+      res.innerHTML = matches.map((c, i) => '<div class="inv-search-item" role="option" id="invClientOpt' + i + '" data-action="invSelectClient" data-id="' + c.id + '">' +
         '<div><div class="inv-client-name">' + escHtml(c.name) + '</div>' +
         '<div class="inv-client-meta">' + escHtml(c.gstin || '') + '</div></div></div>').join('');
+      cs.setAttribute('aria-expanded', 'true');
     });
     setTimeout(() => cs.focus(), 100);
   }

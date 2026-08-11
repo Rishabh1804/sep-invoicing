@@ -112,8 +112,78 @@ test.describe('Stats — tonnage and realisation', () => {
     await switchTab(page, 'pageStats');
 
     const caveat = page.locator('.inv-stats-caveat').first();
-    await expect(caveat).toContainText('Tonnage covers');
+    // Stated in revenue terms: one unweighed line worth ₹10L matters more than
+    // fifty worth ₹500, and it is the revenue ratio that governs how far the
+    // realisation figure can be trusted.
+    await expect(caveat).toContainText('cover 99% of revenue');
     await expect(caveat).toContainText('no weight on file');
+    await expect(caveat).toContainText('reads better than the real blend');
+  });
+
+  /* Regression, found by rendering the live backup.
+   *
+   * Realisation divided TOTAL revenue by weighed-only tonnage — numerator over
+   * every line, denominator over a subset — which inflates the answer by
+   * exactly 1 / (revenue coverage). On real data that read ₹21.23/kg where the
+   * matched figure was ₹13.00. The lines without weights are not a random
+   * sample: they are the piece-billed work, i.e. the low-realisation end. */
+  test('realisation divides revenue and tonnage over the same lines', async ({ page }) => {
+    const state = pricedState();
+    // Same two weighed clients, plus a large unweighed NOS line. Tonnage cannot
+    // include it, so its revenue must not be in the numerator either.
+    (state.invoices as Array<Record<string, unknown>>).push({
+      ...invoice({ id: '00003', clientId: 1, clientName: 'GOOD RATE CLIENT', qty: 1, rate: 1 }),
+      items: [{ partNumber: 'NO WEIGHT PIN', desc: 'NO WEIGHT PIN', hsn: '998873', unit: 'NOS', qty: 1000, rate: 20, amount: 20000, nosQty: 1000 }],
+      taxableValue: 20000,
+    });
+    await loadAppWithState(page, state);
+    await switchTab(page, 'pageStats');
+
+    const band = page.locator('.inv-kpi-grid').first();
+    // Tonnage is unchanged at 3.00 t, so realisation must stay 7.93 — not leap
+    // to (23,800 + 20,000) / 3000 = 14.60.
+    await expect(band).toContainText('3.00 t');
+    await expect(band).toContainText('7.93');
+    await expect(band).not.toContainText('14.60');
+  });
+
+  test('a client whose weights are mostly missing is listed, not ranked', async ({ page }) => {
+    const state = pricedState();
+    // Below-cost client billed almost entirely on parts with no weight.
+    (state.invoices as Array<Record<string, unknown>>)[1] = {
+      ...invoice({ id: '00002', clientId: 2, clientName: 'BELOW COST CLIENT', qty: 1, rate: 1 }),
+      items: [{ partNumber: 'NO WEIGHT PIN', desc: 'NO WEIGHT PIN', hsn: '998873', unit: 'NOS', qty: 5000, rate: 2, amount: 10000, nosQty: 5000 }],
+      taxableValue: 10000,
+    };
+    await loadAppWithState(page, state);
+    await switchTab(page, 'pageStats');
+
+    const table = page.locator('.inv-stats-card', { hasText: 'Realisation by Client' });
+    const partialRow = table.locator('.inv-stats-row-partial');
+    await expect(partialRow).toHaveCount(1);
+    await expect(partialRow).toContainText('BELOW COST CLIENT');
+    // Shown as unestablished, never as a per-kg number drawn from a sliver.
+    await expect(partialRow).toContainText('n/a');
+    await expect(table).toContainText('cannot be priced per kg');
+  });
+
+  test('tonnage share is withheld when the largest client has no weights', async ({ page }) => {
+    const state = pricedState();
+    // Make the unweighed client the largest by revenue.
+    (state.invoices as Array<Record<string, unknown>>)[1] = {
+      ...invoice({ id: '00002', clientId: 2, clientName: 'BELOW COST CLIENT', qty: 1, rate: 1 }),
+      items: [{ partNumber: 'NO WEIGHT PIN', desc: 'NO WEIGHT PIN', hsn: '998873', unit: 'NOS', qty: 5000, rate: 20, amount: 100000, nosQty: 5000 }],
+      taxableValue: 100000,
+    };
+    await loadAppWithState(page, state);
+    await switchTab(page, 'pageStats');
+
+    const card = page.locator('.inv-stats-card', { hasText: 'Concentration' });
+    await expect(card).toContainText('BELOW COST CLIENT');
+    // Its measured tonnage is ~0, so a share would read as "small" when the
+    // truth is "unknown". That inversion is the trap.
+    await expect(card).toContainText('not measurable');
+    await expect(card).toContainText('unknown, not small');
   });
 
   test('reports output tax and what is still unfiled', async ({ page }) => {

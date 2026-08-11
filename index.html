@@ -631,6 +631,10 @@ input, select, textarea, button { font-family: inherit; font-size: var(--fs-base
 .dark .inv-stats-caveat { background: var(--surface-3); border-left-color: var(--border-2); }
 .inv-stats-val-warn { color: var(--warning-text); }
 .inv-stats-val-danger { color: var(--danger-text); }
+/* A figure that could not be established, held visibly apart from one that
+   was established and happens to be bad. */
+.inv-stats-val-unknown { color: var(--text-3); font-style: italic; }
+.inv-stats-row-partial { opacity: 0.75; }
 
 /* ===== UNBILLED AGEING ===== */
 .inv-age-row {
@@ -7771,20 +7775,40 @@ function lineWeightKg(item) {
   return { kg: qty * per, known: true };
 }
 
-/* Aggregate tonnage, carrying the share of lines it could actually be
-   established for. A tonnage figure quoted without its coverage is a figure
-   that quietly understates itself whenever a part has no weight on file. */
+/* Aggregate tonnage, carrying both the revenue it covers and the revenue it
+   does not.
+
+   Realisation must divide revenue by tonnage over THE SAME LINES. Dividing
+   total revenue by weighed-only tonnage inflates the answer by exactly
+   1 / (revenue coverage) — on live data that turned ₹13.00/kg into ₹21.23/kg,
+   because the lines with no weight are not a random sample. They are the
+   piece-billed work, which is the whole low-realisation end of the book. */
 function weighLines(rows) {
-  var kg = 0, lines = 0, known = 0;
+  var kg = 0, lines = 0, known = 0, revKnown = 0, revUnknown = 0;
   rows.forEach(function(row) {
     (row.items || []).forEach(function(it) {
       lines++;
+      var amt = it.amount || 0;
       var w = lineWeightKg(it);
-      if (w.known) { known++; kg += w.kg; }
+      if (w.known) { known++; kg += w.kg; revKnown += amt; }
+      else { revUnknown += amt; }
     });
   });
-  return { kg: kg, lines: lines, known: known, coverage: lines > 0 ? known / lines : 1 };
+  var revTotal = revKnown + revUnknown;
+  return {
+    kg: kg, lines: lines, known: known,
+    revKnown: revKnown, revUnknown: revUnknown,
+    // Coverage by revenue, not by line count: one unweighed line worth ₹10L
+    // matters more than fifty worth ₹500, and it is the ratio that governs
+    // how far the realisation figure can be trusted.
+    coverage: revTotal > 0 ? revKnown / revTotal : 1,
+    lineCoverage: lines > 0 ? known / lines : 1
+  };
 }
+
+/* Below this, a per-kg figure is drawn from too little of the client's book to
+   sit in a ranked column beside a fully weighed one. */
+var REALISATION_MIN_COVERAGE = 0.9;
 
 function sumTaxable(invoices) {
   return invoices.reduce(function(s, i) { return s + (i.taxableValue || 0); }, 0);
@@ -7879,17 +7903,23 @@ function buildClientRollup(invoices) {
   invoices.forEach(function(inv) {
     var key = inv.clientId;
     if (!by[key]) {
-      by[key] = { clientId: key, name: inv.clientName, total: 0, count: 0, kg: 0, kgKnown: true };
+      by[key] = { clientId: key, name: inv.clientName, total: 0, count: 0, kg: 0, revKnown: 0, revUnknown: 0 };
     }
     by[key].total += (inv.taxableValue || 0);
     by[key].count++;
     (inv.items || []).forEach(function(it) {
+      var amt = it.amount || 0;
       var w = lineWeightKg(it);
-      if (w.known) by[key].kg += w.kg; else by[key].kgKnown = false;
+      if (w.known) { by[key].kg += w.kg; by[key].revKnown += amt; }
+      else { by[key].revUnknown += amt; }
     });
   });
   return Object.values(by).map(function(r) {
-    r.realisation = r.kg > 0 ? r.total / r.kg : null;
+    var lineRev = r.revKnown + r.revUnknown;
+    r.coverage = lineRev > 0 ? r.revKnown / lineRev : 1;
+    // Matched subset, same rule as the blended figure.
+    r.realisation = r.kg > 0 ? r.revKnown / r.kg : null;
+    r.comparable = r.realisation != null && r.coverage >= REALISATION_MIN_COVERAGE;
     return r;
   }).sort(function(a, b) { return b.total - a.total; });
 }
@@ -7995,8 +8025,9 @@ function renderStats() {
   var priorTonnage = weighLines(prior);
   var costPerKg = S.defaultCostPerKg || 0;
 
-  var realisation = tonnage.kg > 0 ? totalRev / tonnage.kg : null;
-  var priorRealisation = priorTonnage.kg > 0 ? priorRev / priorTonnage.kg : null;
+  // Revenue on weighed lines over the tonnage of those same lines.
+  var realisation = tonnage.kg > 0 ? tonnage.revKnown / tonnage.kg : null;
+  var priorRealisation = priorTonnage.kg > 0 ? priorTonnage.revKnown / priorTonnage.kg : null;
   var contribution = (realisation != null && costPerKg > 0) ? realisation - costPerKg : null;
   var grossMargin = (contribution != null) ? contribution * tonnage.kg : null;
 
@@ -8021,13 +8052,18 @@ function renderStats() {
       '') +
     '</div>';
 
-  // Tonnage is only ever as good as the weights behind it. Say so, in place,
-  // rather than letting an understated figure pass as complete.
-  if (tonnage.lines > 0 && tonnage.coverage < 1) {
+  // Tonnage is only ever as good as the weights behind it — and the lines that
+  // lack weights are not a random sample, they are the piece-billed work. Say
+  // so in place, in revenue terms, rather than letting a partial figure pass.
+  if (tonnage.lines > 0 && tonnage.coverage < 0.999) {
     var missing = tonnage.lines - tonnage.known;
-    html += '<div class="inv-stats-caveat">Tonnage covers ' + Math.round(tonnage.coverage * 100) + '% of lines &mdash; ' +
-      missing + ' line' + (missing === 1 ? '' : 's') + ' priced in NOS with no weight on file, so the real tonnage is higher ' +
-      'and realisation is overstated. Fill weights in Items Master to close the gap.</div>';
+    html += '<div class="inv-stats-caveat">Tonnage and realisation cover <strong>' +
+      Math.round(tonnage.coverage * 100) + '% of revenue</strong> &mdash; ' +
+      missing + ' line' + (missing === 1 ? ' worth ' : 's worth ') + formatCurrency(tonnage.revUnknown) +
+      (missing === 1 ? ' is' : ' are') + ' priced in NOS with no weight on file, and excluded from both figures. ' +
+      'That exclusion is not neutral: unweighed lines are typically piece-billed work, which is ' +
+      'the low-realisation end of the book, so the rate above reads better than the real blend. ' +
+      'Items Master &rarr; Derive weights from rates closes it.</div>';
   }
   if (contribution != null && contribution < 0) {
     html += '<div class="inv-stats-alert">Realisation is ' + formatCurrency(Math.abs(contribution)) +
@@ -8085,9 +8121,16 @@ function renderStats() {
      Ranked by ₹/kg rather than by revenue, because that ordering is the whole
      point: the biggest account and the worst-priced one can be the same row. */
   if (ranked.length > 0 && tonnage.kg > 0) {
-    var byRealisation = ranked.filter(function(r) { return r.realisation != null; })
+    // Comparable rows rank; the rest are listed below them rather than
+    // interleaved. A ₹/kg drawn from 4% of a client's book is not the same
+    // kind of number as one drawn from all of it, and sorting them together
+    // would present it as if it were.
+    var comparable = ranked.filter(function(r) { return r.comparable; })
       .sort(function(a, b) { return a.realisation - b.realisation; });
-    if (byRealisation.length > 0) {
+    var partial = ranked.filter(function(r) { return !r.comparable; })
+      .sort(function(a, b) { return b.total - a.total; });
+
+    if (comparable.length > 0 || partial.length > 0) {
       html += '<div class="inv-stats-card inv-stats-card-full">' +
         '<div class="inv-stats-title">Realisation by Client' +
         '<span class="inv-stats-title-sub">worst priced first</span></div>' +
@@ -8096,19 +8139,40 @@ function renderStats() {
         '<span class="inv-stats-table-cell inv-stats-table-qty">Tonnes</span>' +
         '<span class="inv-stats-table-cell inv-stats-table-qty">&#8377;/kg</span>' +
         '<span class="inv-stats-table-cell inv-stats-table-amt">Revenue</span></div>';
-      byRealisation.forEach(function(r) {
+
+      comparable.forEach(function(r) {
         var below = costPerKg > 0 && r.realisation < costPerKg;
         html += '<div class="inv-stats-table-row inv-stats-row-tap" data-action="invStatsClientDrill" data-client-id="' + r.clientId + '">' +
-          '<span class="inv-stats-table-cell inv-stats-table-part">' + escHtml(r.name) +
-          (r.kgKnown ? '' : '<br><span class="inv-text-muted inv-text-xs">partial weights</span>') + '</span>' +
+          '<span class="inv-stats-table-cell inv-stats-table-part">' + escHtml(r.name) + '</span>' +
           '<span class="inv-stats-table-cell inv-stats-table-qty inv-mono">' + formatNum(r.kg / 1000, 2) + '</span>' +
           '<span class="inv-stats-table-cell inv-stats-table-qty inv-mono' + (below ? ' inv-stats-val-danger' : '') + '">' +
           formatNum(r.realisation, 2) + '</span>' +
           '<span class="inv-stats-table-cell inv-stats-table-amt inv-mono">' + formatCurrency(r.total) + '</span></div>';
       });
+
+      partial.forEach(function(r) {
+        html += '<div class="inv-stats-table-row inv-stats-row-tap inv-stats-row-partial" data-action="invStatsClientDrill" data-client-id="' + r.clientId + '">' +
+          '<span class="inv-stats-table-cell inv-stats-table-part">' + escHtml(r.name) +
+          '<br><span class="inv-text-muted inv-text-xs">weights on ' + Math.round(r.coverage * 100) + '% of revenue</span></span>' +
+          '<span class="inv-stats-table-cell inv-stats-table-qty inv-mono">' +
+          (r.kg > 0 ? formatNum(r.kg / 1000, 2) : '&mdash;') + '</span>' +
+          '<span class="inv-stats-table-cell inv-stats-table-qty inv-mono inv-stats-val-unknown">n/a</span>' +
+          '<span class="inv-stats-table-cell inv-stats-table-amt inv-mono">' + formatCurrency(r.total) + '</span></div>';
+      });
       html += '</div>';
+
+      if (partial.length > 0) {
+        var partialRev = partial.reduce(function(s, r) { return s + r.total; }, 0);
+        var partialShare = totalRev > 0 ? (partialRev / totalRev) * 100 : 0;
+        html += '<div class="inv-stats-alert">' + partial.length + ' client' + (partial.length === 1 ? '' : 's') +
+          ' cannot be priced per kg &mdash; ' + formatCurrency(partialRev) + ', ' + formatNum(partialShare, 0) +
+          '% of revenue, billed on parts with no weight on file. These are the accounts most likely to be ' +
+          'underpriced, and they are the ones this table cannot yet rank. ' +
+          'Items Master &rarr; Derive weights from rates fills them in.</div>';
+      }
+
       if (costPerKg > 0) {
-        var belowCost = byRealisation.filter(function(r) { return r.realisation < costPerKg; });
+        var belowCost = comparable.filter(function(r) { return r.realisation < costPerKg; });
         if (belowCost.length > 0) {
           var lossKg = belowCost.reduce(function(s, r) { return s + r.kg; }, 0);
           var lossAmt = belowCost.reduce(function(s, r) { return s + (costPerKg - r.realisation) * r.kg; }, 0);
@@ -8126,7 +8190,13 @@ function renderStats() {
   if (ranked.length > 1 && totalRev > 0) {
     var top = ranked[0];
     var top3Rev = ranked.slice(0, 3).reduce(function(s, r) { return s + r.total; }, 0);
-    var topKgShare = tonnage.kg > 0 ? (top.kg / tonnage.kg) * 100 : null;
+    // Share of tonnage is only meaningful if the client's own tonnage is
+    // actually measured. Where it is not, the ratio inverts: a client with no
+    // weights contributes almost nothing to the measured denominator and reads
+    // as a small share of the plant when it may be the largest user of it.
+    // Printing 3% for an account that is plausibly 60% would be worse than
+    // printing nothing.
+    var topKgShare = (tonnage.kg > 0 && top.comparable) ? (top.kg / tonnage.kg) * 100 : null;
     var topRevShare = (top.total / totalRev) * 100;
     html += '<div class="inv-stats-card">' +
       '<div class="inv-stats-title">Concentration</div>' +
@@ -8134,14 +8204,20 @@ function renderStats() {
       '<span class="inv-stats-val">' + escHtml(top.name) + '</span></div>' +
       '<div class="inv-stats-row"><span class="inv-stats-name">Share of revenue</span>' +
       '<span class="inv-stats-val">' + formatNum(topRevShare, 0) + '%</span></div>' +
-      (topKgShare != null ? '<div class="inv-stats-row"><span class="inv-stats-name">Share of tonnage</span>' +
-        '<span class="inv-stats-val' + (topKgShare - topRevShare > 10 ? ' inv-stats-val-warn' : '') + '">' +
-        formatNum(topKgShare, 0) + '%</span></div>' : '') +
+      '<div class="inv-stats-row"><span class="inv-stats-name">Share of tonnage</span>' +
+      (topKgShare != null
+        ? '<span class="inv-stats-val' + (topKgShare - topRevShare > 10 ? ' inv-stats-val-warn' : '') + '">' +
+          formatNum(topKgShare, 0) + '%</span>'
+        : '<span class="inv-stats-val inv-stats-val-unknown">not measurable</span>') + '</div>' +
       '<div class="inv-stats-row"><span class="inv-stats-name">Top 3 share</span>' +
       '<span class="inv-stats-val">' + formatNum((top3Rev / totalRev) * 100, 0) + '%</span></div>';
     if (topKgShare != null && topKgShare - topRevShare > 10) {
       html += '<div class="inv-stats-caveat">' + escHtml(top.name) + ' takes a larger share of the plant than of the revenue &mdash; ' +
         'capacity is going somewhere it is not being paid for at the average rate.</div>';
+    } else if (topKgShare == null) {
+      html += '<div class="inv-stats-caveat">' + escHtml(top.name) + ' is the largest account by revenue, and how much of the ' +
+        'plant it uses cannot be established &mdash; its parts have no weights on file. Until they do, the tonnage ' +
+        'share of the single biggest user of capacity is unknown, not small.</div>';
     }
     html += '</div>';
   }
@@ -8300,7 +8376,9 @@ function openClientDrillOverlay(clientId) {
   // The per-kg figure the Stats table ranks on, repeated here so the drill-down
   // answers the question that made someone tap the row.
   var clientTonnage = weighLines(clientInvs);
-  var realisation = clientTonnage.kg > 0 ? totalRev / clientTonnage.kg : null;
+  // Matched subset, same rule as the table this drill-down was opened from.
+  var realisation = (clientTonnage.kg > 0 && clientTonnage.coverage >= REALISATION_MIN_COVERAGE)
+    ? clientTonnage.revKnown / clientTonnage.kg : null;
   var costPerKg = S.defaultCostPerKg || 0;
 
   var pendingAmt = 0, pendingItems = 0;

@@ -613,6 +613,10 @@ input, select, textarea, button { font-family: inherit; font-size: var(--fs-base
 .dark .inv-stats-caveat { background: var(--surface-3); border-left-color: var(--border-2); }
 .inv-stats-val-warn { color: var(--warning-text); }
 .inv-stats-val-danger { color: var(--danger-text); }
+/* A figure that could not be established, held visibly apart from one that
+   was established and happens to be bad. */
+.inv-stats-val-unknown { color: var(--text-3); font-style: italic; }
+.inv-stats-row-partial { opacity: 0.75; }
 
 /* ===== UNBILLED AGEING ===== */
 .inv-age-row {

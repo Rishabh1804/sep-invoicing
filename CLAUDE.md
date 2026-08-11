@@ -140,6 +140,16 @@ Supersedes the earlier ₹5.46/kg cost and ~31% operating margin, both of which 
 - **Capacity:** ~2 t per 8-hour shift; running ~77% of a two-shift month, ~24 t/month spare.
   Filling that at ₹13/kg is worth more than the SSS Mehta question either way.
 
+### Zinc pricing
+metals.dev publishes no MCX base metal — its MCX coverage is precious metals only, and
+`zinc` / `lme_zinc` are the same LME figure. LME sits below MCX by basic customs duty plus
+freight and local premium: ~10.5% when calibrated (LME ₹355.11 against MCX ~₹392).
+
+So a fetched rate is LME and MCX is **derived** from it by a recalibratable uplift, with the
+whole chain shown on the card. A rate typed into Settings is taken as MCX itself and is never
+uplifted. Nothing is labelled MCX without saying it was estimated — at ~425 kg/month a 10%
+error in zinc is ₹0.22/kg of an ₹8.55 cost.
+
 ### Invoice numbers outlive invoices
 A deleted invoice used to vanish outright, leaving a number gap indistinguishable from one
 never issued — the exact ambiguity that made inv 00666's correct deletion unreadable, and that

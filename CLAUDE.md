@@ -56,29 +56,26 @@ split/
 ### Build
 
 ```bash
-cd ~/storage/shared/sep-invoicing
 bash split/build.sh
-git add -A && git commit -m "description" && git --no-pager push
+git add -A && git commit -m "description" && git push
 ```
 
 `build.sh` writes `sep-invoicing.html` and syncs `index.html` itself. Never edit either by hand.
 
-**One-time per clone** — makes the rebuild automatic on every commit:
+The pre-commit hook in `.githooks/` rebuilds and stages both artefacts, so a commit
+can't carry stale output. Sessions clone fresh, so `.claude/hooks/session-start.sh`
+arms it (`git config core.hooksPath .githooks`) and installs the test dependencies on
+every session start — nothing to set up by hand. CI (`build-sync`) is the backstop.
+
+### Tests
 
 ```bash
-git config core.hooksPath .githooks
+pnpm exec playwright test          # full suite, both layouts
 ```
 
-The pre-commit hook rebuilds and stages both artefacts, so a commit can't carry stale
-output. CI (`build-sync`) enforces the same invariant as a backstop.
-
-### Deploy from ZIP
-```bash
-cd ~/storage/shared/sep-invoicing
-unzip -o ~/storage/downloads/<zip>
-bash split/build.sh   # rebuild from split/ — a ZIP's prebuilt HTML may not match
-git add -A && git commit -m "..." && git --no-pager push
-```
+Some sandboxes ship a Chromium build Playwright does not expect and block downloading
+the matching one. The session hook detects that and sets `PW_CHROMIUM_PATH`, which
+`playwright.config.ts` reads; unset everywhere else.
 
 ## Hard Rules (HR-1 through HR-8)
 
@@ -142,6 +139,16 @@ Supersedes the earlier ₹5.46/kg cost and ~31% operating margin, both of which 
   ₹0.53/kg; volume-scaling → it loses ₹1.64/kg. Confirm before acting.
 - **Capacity:** ~2 t per 8-hour shift; running ~77% of a two-shift month, ~24 t/month spare.
   Filling that at ₹13/kg is worth more than the SSS Mehta question either way.
+
+### Zinc pricing
+metals.dev publishes no MCX base metal — its MCX coverage is precious metals only, and
+`zinc` / `lme_zinc` are the same LME figure. LME sits below MCX by basic customs duty plus
+freight and local premium: ~10.5% when calibrated (LME ₹355.11 against MCX ~₹392).
+
+So a fetched rate is LME and MCX is **derived** from it by a recalibratable uplift, with the
+whole chain shown on the card. A rate typed into Settings is taken as MCX itself and is never
+uplifted. Nothing is labelled MCX without saying it was estimated — at ~425 kg/month a 10%
+error in zinc is ₹0.22/kg of an ₹8.55 cost.
 
 ### Invoice numbers outlive invoices
 A deleted invoice used to vanish outright, leaving a number gap indistinguishable from one

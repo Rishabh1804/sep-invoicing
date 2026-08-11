@@ -7,7 +7,12 @@
 
 ## Project Overview
 
-Three PWA projects sharing a common architectural pattern: split-file HTML concatenation, localStorage persistence, GitHub Pages deployment. All built by a solo developer on Termux (Android) using AI-assisted sessions.
+Three PWA projects sharing a common architectural pattern: split-file HTML concatenation, localStorage persistence, GitHub Pages deployment. Built by a solo developer using AI-assisted sessions.
+
+**Working environment differs by project.** SEP Invoicing is developed in Claude Code, which
+clones fresh per session — its setup is automated by `.claude/hooks/session-start.sh`, and the
+Termux conventions below (rule 6, and the File Transfer Protocol) do not apply to it. Codex and
+SproutLab remain on Termux unless noted otherwise.
 
 | Project | Lines | Modules | Persona | Domain |
 |---------|-------|---------|---------|--------|
@@ -22,7 +27,7 @@ Three PWA projects sharing a common architectural pattern: split-file HTML conca
 3. **escHtml() at all render boundaries.** Any user-supplied or imported string passes through escHtml() before innerHTML.
 4. **Service workers never cache HTML.** Cache only static assets. (Prevents unbreakable update loops on mobile.)
 5. **Timezone-safe dates.** Always `new Date(y, m-1, d)`, never `new Date("YYYY-MM-DD")`.
-6. **git --no-pager** for all git commands (Termux terminal width constraint).
+6. **git --no-pager** for all git commands on Termux (terminal width constraint). Not needed in Claude Code.
 7. **Spec before build.** Complex features use the 8-pass SPEC_ITERATION_PROCESS. The spec is build-ready when the builder never makes an undocumented decision.
 8. **QA until cosmetic.** Post-build multi-round QA. Continue until only cosmetic bugs remain.
 
@@ -52,7 +57,7 @@ result. Enable once per clone with `git config core.hooksPath .githooks`.
 - **Icon systems:** `cx(name)` in Codex, `zi(name)` in SproutLab, inline SVG in SEP
 - **Currency:** `Math.floor` in SproutLab, `gstRound()` (Math.round * 100 / 100) in SEP. Never `toFixed()`.
 
-## File Transfer Protocol
+## File Transfer Protocol (Termux projects)
 
 1. AI generates updated module files
 2. Download to `~/storage/downloads/`

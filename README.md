@@ -10,25 +10,22 @@ Split-file PWA: 21 modules in `split/` directory, concatenated via `build.sh` in
 
 See `docs/ARCHITECTURE.md` for the full module map and concat order.
 
-## Termux Deploy Commands
+## Build and Deploy
 
 ```bash
-# Navigate to repo
-cd ~/storage/downloads/sep-invoicing
+bash split/build.sh                      # writes sep-invoicing.html, syncs index.html
+git add -A && git commit -m "..." && git push
+```
 
-# If updating from a zip:
-unzip -o ~/storage/downloads/sep-invoicing-phase6b.zip
+`build.sh` produces both artefacts itself — never edit `sep-invoicing.html` or
+`index.html` by hand. A pre-commit hook rebuilds and stages them, and CI's
+`build-sync` job fails any PR whose committed output has drifted from `split/`.
 
-# Rebuild from split modules (optional — zip includes pre-built html)
-cd split
-bash build.sh > ../sep-invoicing.html
-cd ..
+Claude Code sessions clone fresh, so `.claude/hooks/session-start.sh` arms that hook
+and installs the test dependencies at session start; there is nothing to configure.
 
-# Deploy
-cp sep-invoicing.html index.html
-git add -A
-git commit -m "Phase 6b: usage scoring, register bulk ops, tab persistence"
-git push
+```bash
+pnpm exec playwright test                # e2e suite, mobile + desktop layouts
 ```
 
 ## Codex Snippet Import

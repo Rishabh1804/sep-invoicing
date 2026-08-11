@@ -6,6 +6,10 @@
 # the SEP app cert-issue feature. Whitelisted explicitly.
 !docs/test-certificates/cert-shop-data.json
 !docs/test-certificates/cert-issues.json
+# Claude Code session config — tooling, not business data. Without this
+# exception the *.json rule above silently drops it and the SessionStart hook
+# is never registered, leaving the script in the repo doing nothing.
+!.claude/settings.json
 
 # Backups
 *-backup-*

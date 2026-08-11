@@ -32,6 +32,9 @@ function openSettings() {
     '<input type="number" step="0.01" class="inv-form-input inv-mono" id="setZincRate" value="' + (getZinc().ratePerKg == null ? '' : getZinc().ratePerKg) + '" placeholder="400.00"></div>' +
     '<div class="inv-form-group"><label class="inv-form-label">Supplier premium (&#8377;/kg)</label>' +
     '<input type="number" step="0.01" class="inv-form-input inv-mono" id="setZincPremium" value="' + (getZinc().premiumPerKg || 0) + '"></div></div>' +
+    '<div class="inv-form-group"><label class="inv-form-label">LME &rarr; MCX uplift (%)</label>' +
+    '<input type="number" step="0.1" min="0" class="inv-form-input inv-mono" id="setZincUplift" value="' + getZinc().upliftPct + '"></div>' +
+    '<div class="inv-text-muted inv-storage-text inv-mb-8">metals.dev publishes no MCX base metal, so a fetched rate is LME and is uplifted by this to estimate MCX. Recalibrate it whenever you see a real MCX quote: uplift = (MCX &divide; LME &minus; 1) &times; 100. A rate typed above is taken as MCX already and is not uplifted.</div>' +
     '<div class="inv-form-group"><label class="inv-form-label">metals.dev API Key</label>' +
     '<div class="inv-api-key-wrap"><input class="inv-form-input inv-mono" id="setMetalsKey" type="password" value="' + escHtml(getMetalsKey()) + '" placeholder="Paste key" autocomplete="off">' +
     '<button class="inv-api-key-toggle" data-action="invToggleMetalsKey" type="button">' +
@@ -98,6 +101,9 @@ function saveSettings() {
         z.ratePerKg = gstRound(parsedZinc);
         z.updatedAt = Date.now();
         z.source = 'manual';
+        // A figure typed here is the MCX rate itself, so it must not also be
+        // uplifted — that would compound an estimate onto a known number.
+        z.basis = 'manual';
       }
     }
   }
@@ -105,6 +111,11 @@ function saveSettings() {
   if (zPremEl) {
     var parsedPrem = parseFloat(zPremEl.value);
     if (!isNaN(parsedPrem) && parsedPrem >= 0) z.premiumPerKg = gstRound(parsedPrem);
+  }
+  var zUpliftEl = document.getElementById('setZincUplift');
+  if (zUpliftEl) {
+    var parsedUplift = parseFloat(zUpliftEl.value);
+    if (!isNaN(parsedUplift) && parsedUplift >= 0) z.upliftPct = parsedUplift;
   }
 
   saveState();

@@ -10,9 +10,12 @@ import { emptyState, loadAppWithState, switchTab, type SepState } from './fixtur
 
 const METALS_KEY = 'sep_inv_metals_key';
 
-function stateWithZinc(ratePerKg: number | null, premiumPerKg = 15, updatedAt: number | null = null): SepState {
+function stateWithZinc(
+  ratePerKg: number | null, premiumPerKg = 15, updatedAt: number | null = null,
+  basis: 'manual' | 'lme' | 'mcx' = 'manual', upliftPct = 10.5,
+): SepState {
   const state = emptyState() as SepState & { zinc?: unknown };
-  state.zinc = { ratePerKg, premiumPerKg, updatedAt, source: ratePerKg == null ? '' : 'manual' };
+  state.zinc = { ratePerKg, premiumPerKg, upliftPct, basis, updatedAt, source: ratePerKg == null ? '' : 'manual' };
   return state as SepState;
 }
 
@@ -70,7 +73,8 @@ test.describe('P9: zinc market rate', () => {
       }));
 
     await page.locator('[data-action="invRefreshZinc"]').click();
-    await expect(page.locator('#homeZincCard')).toContainText('₹402.10');
+    // 387.10 LME + 10.5% = 427.75 MCX est., + 15 premium = 442.75 landed.
+    await expect(page.locator('#homeZincCard')).toContainText('442.75');
   });
 
   test('refresh without a key tells you to add one rather than failing silently', async ({ page }) => {
@@ -92,10 +96,55 @@ test.describe('P9: zinc market rate', () => {
 
     await page.locator('[data-action="invRefreshZinc"]').click();
 
-    // 387.10 market + 15 premium = 402.10 landed
-    await expect(page.locator('#homeZincCard')).toContainText('₹402.10');
+    // metals.dev carries no MCX base metal, so this is LME and gets uplifted:
+    // 387.10 + 10.5% = 427.75 MCX est., + 15 premium = 442.75 landed.
+    await expect(page.locator('#homeZincCard')).toContainText('442.75');
     await expect(page.locator('#homeZincCard')).toContainText('updated today');
     await expect(page.locator('#homeZincCard')).toContainText('metals.dev');
+    // The derivation is spelled out, so an estimate never reads as a quote,
+    // and the matched field is named — here the bare `zinc` alias, since this
+    // fixture carries no explicit lme_zinc.
+    await expect(page.locator('#homeZincCard')).toContainText('MCX est.');
+    await expect(page.locator('#homeZincCard')).toContainText('metals.zinc');
+  });
+
+  test('prefers an MCX figure over LME when both are offered', async ({ page }) => {
+    await loadAppWithState(page, stateWithZinc(400, 15, Date.now()));
+    await page.evaluate((k) => localStorage.setItem(k, 'TEST-KEY'), METALS_KEY);
+
+    await page.route('**/api.metals.dev/**', (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        // LME runs ~10.5% below MCX once duty and freight are counted; picking
+        // the wrong one understates the largest bought-in input by that much.
+        body: JSON.stringify({ status: 'success', metals: { lme_zinc: 355.11, mcx_zinc: 392.0 } }),
+      }));
+
+    await page.locator('[data-action="invRefreshZinc"]').click();
+    // A genuine MCX figure is the Indian price already: no uplift, so
+    // 392.00 + 15 = 407.00 landed, and no "est." qualifier.
+    await expect(page.locator('#homeZincCard')).toContainText('407.00');
+    await expect(page.locator('#homeZincCard')).toContainText('mcx_zinc');
+    await expect(page.locator('#homeZincCard')).not.toContainText('MCX est.');
+  });
+
+  test('a hand-entered rate is treated as MCX and is never uplifted', async ({ page }) => {
+    // basis 'manual' with the real MCX quote the operator read off the market.
+    await loadAppWithState(page, stateWithZinc(392, 15, Date.now(), 'manual'));
+    const card = page.locator('#homeZincCard');
+    await expect(card).toContainText('407.00');   // 392 + 15, uplift not applied
+    await expect(card).not.toContainText('MCX est.');
+  });
+
+  test('an LME-basis rate shows its full derivation rather than a bare number', async ({ page }) => {
+    await loadAppWithState(page, stateWithZinc(355.11, 15, Date.now(), 'lme', 10.5));
+    const card = page.locator('#homeZincCard');
+    // 355.11 + 10.5% = 392.40 MCX est., + 15 = 407.40 landed.
+    await expect(card).toContainText('407.40');
+    await expect(card).toContainText('LME ₹355.11');
+    await expect(card).toContainText('10.5%');
+    await expect(card).toContainText('MCX est.');
   });
 
   test('surfaces the response keys when zinc is absent, instead of a bare failure', async ({ page }) => {

@@ -101,7 +101,7 @@ var PERIOD_PRIOR_LABELS = {
  * margin — but it measures tonnage correctly, and tonnage is the only thing it
  * is used for here.
  */
-function lineWeightKg(item) {
+function lineWeightKg(item, client, dateStr) {
   if (!item) return { kg: 0, known: false };
   var qty = item.qty || 0;
   if ((item.unit || 'KG') === 'KG') return { kg: qty, known: qty > 0 };
@@ -114,8 +114,34 @@ function lineWeightKg(item) {
     });
     if (master && master.stdWeightKg != null) per = master.stdWeightKg;
   }
-  if (per == null || !(per > 0)) return { kg: 0, known: false };
-  return { kg: qty * per, known: true };
+  if (per != null && per > 0) return { kg: qty * per, known: true };
+
+  /* Piece-billed line with nothing in the catalogue: the weight is on the line
+     itself and needs no registry at all. The piece rate WAS weight x ratePerKg,
+     so the line's own amount / ratePerKg is its weight.
+
+     This is not a nicety. 127 of SSSMehta's lines name parts with no Items
+     Master row whatsoever — 17% of that client's revenue — and going through
+     the registry left every one of them uncounted. Their part numbers also
+     vary in spelling between invoices ("Clamp 165x83" against
+     "CLAMP 165X83(40X6)"), so registry matching would stay fragile even if
+     the rows existed. Reading the line direct sidesteps both. */
+  if (client && client.billingMode === 'piece' && (item.amount || 0) > 0) {
+    var rateInfo = getLineItemRate(client, dateStr || localDateStr(), item.partNumber);
+    // An itemRates override is a negotiated per-piece figure with no weight
+    // basis; inverting it would invent a number rather than recover one.
+    if (!rateInfo._override && rateInfo.ratePerKg > 0) {
+      return { kg: (item.amount || 0) / rateInfo.ratePerKg, known: true };
+    }
+  }
+  return { kg: 0, known: false };
+}
+
+/* Client for an invoice or challan row, cached per call site by the callers
+   that loop. Returns null when the row names a client that no longer exists. */
+function rowClient(row) {
+  if (!row || row.clientId == null) return null;
+  return S.clients.find(function(c) { return c.id === row.clientId; }) || null;
 }
 
 /* Aggregate tonnage, carrying both the revenue it covers and the revenue it
@@ -129,10 +155,11 @@ function lineWeightKg(item) {
 function weighLines(rows) {
   var kg = 0, lines = 0, known = 0, revKnown = 0, revUnknown = 0;
   rows.forEach(function(row) {
+    var client = rowClient(row);
     (row.items || []).forEach(function(it) {
       lines++;
       var amt = it.amount || 0;
-      var w = lineWeightKg(it);
+      var w = lineWeightKg(it, client, row.date || row.challanDate);
       if (w.known) { known++; kg += w.kg; revKnown += amt; }
       else { revUnknown += amt; }
     });
@@ -226,12 +253,13 @@ function formatTrendLabel(key, gran) {
 function buildTopItems(invoices) {
   var byPart = {};
   invoices.forEach(function(inv) {
+    var client = rowClient(inv);
     (inv.items || []).forEach(function(it) {
       var key = it.partNumber || it.desc || 'Unknown';
       if (!byPart[key]) byPart[key] = { part: key, desc: it.desc || '', qty: 0, amount: 0, kg: 0, kgKnown: true };
       byPart[key].qty += (it.qty || 0);
       byPart[key].amount += (it.amount || 0);
-      var w = lineWeightKg(it);
+      var w = lineWeightKg(it, client, inv.date);
       if (w.known) byPart[key].kg += w.kg; else byPart[key].kgKnown = false;
     });
   });
@@ -250,9 +278,10 @@ function buildClientRollup(invoices) {
     }
     by[key].total += (inv.taxableValue || 0);
     by[key].count++;
+    var client = rowClient(inv);
     (inv.items || []).forEach(function(it) {
       var amt = it.amount || 0;
-      var w = lineWeightKg(it);
+      var w = lineWeightKg(it, client, inv.date);
       if (w.known) { by[key].kg += w.kg; by[key].revKnown += amt; }
       else { by[key].revUnknown += amt; }
     });

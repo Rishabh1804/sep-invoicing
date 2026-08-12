@@ -14,6 +14,21 @@ function searchParts(query) {
   return matches;
 }
 
+/* The printed line description for a catalogue part.
+   Folds the gauge back in, because the gauge is what tells two rows of the same
+   part apart and the line text is the only place a reader of the document sees
+   it. Four clamp families exist in two gauges at different rates — CLAMP 165X83
+   (NT) at 35X6 and 40X6, and three more — so a line reading just "Clamp 165x83"
+   does not say which one was plated, on the invoice or afterwards.
+   Shared by the invoice and challan paths: the challan path used to assign
+   part.desc raw and drop the gauge, and since IM is the billing spine that
+   omission flowed straight through to the invoice. */
+function partLineDesc(part) {
+  if (!part) return '';
+  return part.desc && part.gauge ? part.desc + ' (' + part.gauge + ')'
+       : (part.desc || part.gauge || '');
+}
+
 /* Render the suggestion rows for one part input. Shared by the invoice form
    and the challan form, which differ only in the action and element ids. */
 function renderPartOptions(acEl, matches, action, idx, idPrefix) {
@@ -139,11 +154,7 @@ function selectPartForLine(idx, partId) {
   const item = invoiceForm.items[idx];
   if (!item) return;
   item.partNumber = part.partNumber;
-  // Fold the gauge back into the printed line description. For clamp rows the
-  // description is empty and the gauge alone becomes the line text, which is
-  // exactly what these lines printed before the gauge got its own field.
-  item.desc = part.desc && part.gauge ? part.desc + ' (' + part.gauge + ')'
-            : (part.desc || part.gauge || '');
+  item.desc = partLineDesc(part);
   item.hsn = part.hsn || '998873';
   item.unit = part.unit || 'KG';
 

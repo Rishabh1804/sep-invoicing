@@ -92,7 +92,10 @@ document.addEventListener('click', function(e) {
       const cItem = _challanForm.items[pidx];
       if (!cItem) break;
       cItem.partNumber = part.partNumber;
-      cItem.desc = part.desc;
+      // Same folding as the invoice path: the gauge is what tells two rows of
+      // the same clamp apart, and dropping it here carried the ambiguity into
+      // every invoice raised off the challan.
+      cItem.desc = partLineDesc(part);
       cItem.hsn = part.hsn || '998873';
       cItem.unit = part.unit || 'KG';
       const cClient = _challanForm.clientId ? S.clients.find(function(c) { return c.id === _challanForm.clientId; }) : null;

@@ -148,14 +148,15 @@ Supersedes the earlier ₹5.46/kg cost and ~31% operating margin, both of which 
   Filling that at ₹13/kg is worth more than the SSS Mehta question either way.
 
 **The app now corroborates this model from the invoice data, independently.** Once weights are
-derived (below), Stats measures blended realisation at **₹8.74/kg against the modelled ₹8.45**,
-and SSS Mehta at **57% of tonnage against the modelled 61%**, on 39% of revenue. Nothing in
+derived (below), Stats measures blended realisation at **₹8.42/kg against the modelled ₹8.45**,
+contribution at **−₹0.13/kg against a modelled −₹0.09**, and SSS Mehta at **62% of tonnage
+against the modelled 61%**, on 39% of revenue. Nothing in
 that calculation knew the cost model; it is arithmetic over 769 invoices. Two routes to the
 same shape is the strongest evidence the model is right that this repo has.
 
-One figure does *not* corroborate: SSS Mehta's ₹5.38/kg. Its weights were recovered as
-pieceRate ÷ ratePerKg, so they price back at ₹5.40 by construction. That number is the
-contract rate restated, not a measurement of it.
+SSS Mehta's own ₹5.39/kg is the one figure that is not independent confirmation — its weights
+invert its contract rate, so that number is ₹5.40 restated. Its **tonnage** is real, and that
+is what the corroboration above rests on.
 
 ### Zinc pricing
 metals.dev publishes no MCX base metal — its MCX coverage is precious metals only, and
@@ -189,8 +190,13 @@ Revenue alone cannot tell a good month from a loss-making one here: the same ₹
 is healthy at 8 tonnes and ruinous at 20. So every headline figure is carried next to the
 tonnage that produced it, and **realisation (₹/kg) is the primary number**, not a derived one.
 
-Tonnage comes from KG lines directly and from NOS lines via `partWeights` or the Items Master
-`stdWeightKg`.
+Tonnage comes from KG lines directly, and from NOS lines by three routes in order:
+`partWeights`, the Items Master `stdWeightKg`, and — for a **piece-billed** client — the line's
+own `amount ÷ ratePerKg`. That last route matters more than it sounds: 127 of SSSMehta's lines
+name parts with no Items Master row at all, 17% of that client's revenue, and routing weight
+through the registry left every one uncounted. Their part numbers also vary in spelling between
+invoices (`Clamp 165x83` against `CLAMP 165X83(40X6)`), so registry matching would stay fragile
+even if the rows existed. Reading the line direct sidesteps both.
 
 **Realisation divides revenue by tonnage over the same lines.** Dividing *total* revenue by
 *weighed-only* tonnage inflates the answer by exactly `1 / coverage` — it read ₹21.23/kg on
@@ -248,8 +254,20 @@ revenue and the one account the figures existed to examine was the one they coul
 The pass fills 72 of the 90 and takes coverage to 94%; the 18 it leaves are KG-billed, whose
 quantity is already kilograms.
 
-Note again what such a weight is: defined as `pieceRate ÷ ratePerKg` it prices back at exactly
-that rate, so it measures **tonnage, not margin**.
+Note what such a weight is: defined as `pieceRate ÷ ratePerKg` it prices back at exactly that
+rate. The weight itself is exact — the rate card was built as weight × rate — and the tonnage
+it yields is real. What it cannot do is *independently* re-establish the ₹/kg, because that
+was the input. For a piece-billed client, realisation always equals the contract rate; that is
+arithmetic, not a finding. The value of these weights is **tonnage and capacity share**.
+
+**Gauge is part of a part's identity.** Four clamp families exist in two gauges at different
+rates — `CLAMP 165X83 (NT)` at 35X6 and 40X6, plus `105X83 (NT)`, `133X83 (NT)` and
+`124X77 (UT)` — so two rows can share a part number and be different weights. Two consequences:
+the printed line description folds the gauge in via `partLineDesc()` on **both** the invoice and
+challan paths (the challan path used to drop it, and since IM is the billing spine that omission
+flowed into every invoice raised off the challan); and weight derivation **skips** any part
+number held by more than one gauge rather than averaging them into a figure right for neither.
+Skipping costs no tonnage — the line-level route above still weighs those lines correctly.
 
 ### Client Master
 22 clients with rate lookup, billing mode assignment, and contact info. Billing modes in live

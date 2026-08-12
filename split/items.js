@@ -1025,13 +1025,33 @@ function saveWeights() {
 function applyDerivedWeights() {
   var derived = 0;
   var highVariance = 0;
+  var ambiguous = 0;
   var weightMap = _buildDerivedWeightMap();
+
+  /* Part numbers held by more than one catalogue row at different gauges.
+     Four clamp families are like this — CLAMP 165X83 (NT) exists at 35X6 and
+     40X6, and priced differently, so they are different weights. An invoice
+     line carries no gauge field, only the part number, so a derived weight
+     cannot be attributed to one of them: averaging would hand both rows a
+     figure that is right for neither. They are left for manual entry.
+
+     This costs no tonnage. Stats derives a piece-billed line's weight from the
+     line's own amount, which is correct whichever gauge it was. What is
+     withheld is only the catalogue's per-part figure. */
+  var gaugesFor = {};
+  (S.items || []).forEach(function(it) {
+    var key = it.partNumber;
+    if (!gaugesFor[key]) gaugesFor[key] = {};
+    gaugesFor[key][it.gauge || ''] = true;
+  });
 
   (S.items || []).forEach(function(item) {
     if (item.stdWeightKg != null) return;
 
     var weights = weightMap[item.partNumber];
     if (!weights || weights.length === 0) return;
+
+    if (Object.keys(gaugesFor[item.partNumber] || {}).length > 1) { ambiguous++; return; }
 
     var avg = weights.reduce(function(s, w) { return s + w; }, 0) / weights.length;
     if (weights.length > 1) {
@@ -1043,7 +1063,8 @@ function applyDerivedWeights() {
     derived++;
   });
 
-  return { derived: derived, highVariance: highVariance, sources: Object.keys(weightMap).length };
+  return { derived: derived, highVariance: highVariance, ambiguous: ambiguous,
+           sources: Object.keys(weightMap).length };
 }
 
 function deriveWeightsFromRates() {
@@ -1060,9 +1081,12 @@ function deriveWeightsFromRates() {
   closeOverlay();
   _itemsRendered = 0;
   renderClientsPage();
+  var notes = [];
+  if (highVariance > 0) notes.push(highVariance + ' with inconsistent rates');
+  if (result.ambiguous > 0) notes.push(result.ambiguous + ' skipped: same part in two gauges');
   showToast('Derived ' + derived + ' weight' + (derived !== 1 ? 's' : '') +
-    (highVariance > 0 ? ' (' + highVariance + ' with inconsistent rates)' : ''),
-    highVariance > 0 ? 'warning' : 'success');
+    (notes.length ? ' (' + notes.join(', ') + ')' : ''),
+    notes.length ? 'warning' : 'success');
 }
 
 function calculateStdWeights() {

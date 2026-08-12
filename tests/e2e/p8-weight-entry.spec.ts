@@ -132,6 +132,11 @@ test.describe('P8: bulk weight entry', () => {
 
   test('derives weight by inverting the client rate, matching the manual figure', async ({ page }) => {
     const state = stateWith([item(1, 'C-CLAMP 66X42 (UT)', 'NOS', 0.95, null, '30X6')]);
+    // init.js now runs this same derivation once at bootstrap, which would
+    // otherwise fill the weight before the button under test is ever clicked.
+    // Marking the bootstrap pass done models the case the button still exists
+    // for: an item added to the catalogue after that pass has run.
+    (state as unknown as Record<string, unknown>)._deriveWeights1 = true;
     // Piece-billed client on a 5.40/kg ladder — the SSSMehta shape.
     state.clients = [{
       id: 1, name: 'PIECE CLIENT', billingMode: 'piece', gstType: 'intra', gstin: '', address: '',

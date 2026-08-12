@@ -1017,7 +1017,12 @@ function saveWeights() {
    Note what this cannot do: a weight defined as rate/ratePerKg prices back at
    exactly ratePerKg, so these weights say nothing about which parts are more
    profitable. Their value is tonnage — what the plant actually processed. */
-function deriveWeightsFromRates() {
+/* The derivation itself, with no UI attached, so the Items Master button and
+   the bootstrap migration in init.js run exactly the same code rather than two
+   implementations that can drift. Fills only empty weights — a weight already
+   on file, whether typed or previously derived, is never overwritten.
+   Returns what it did; persisting is the caller's business. */
+function applyDerivedWeights() {
   var derived = 0;
   var highVariance = 0;
   var weightMap = _buildDerivedWeightMap();
@@ -1037,6 +1042,14 @@ function deriveWeightsFromRates() {
     item.stdWeightKg = Math.round(avg * 10000) / 10000;
     derived++;
   });
+
+  return { derived: derived, highVariance: highVariance, sources: Object.keys(weightMap).length };
+}
+
+function deriveWeightsFromRates() {
+  var result = applyDerivedWeights();
+  var derived = result.derived;
+  var highVariance = result.highVariance;
 
   if (derived === 0) {
     showToast('No piece-billed lines to derive weights from', 'error');

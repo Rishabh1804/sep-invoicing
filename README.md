@@ -6,7 +6,7 @@ Single-file HTML PWA for Soma Electro Products — zinc electroplating job-work 
 
 ## Architecture
 
-Split-file PWA: 21 modules in `split/` directory, concatenated via `build.sh` into a single `sep-invoicing.html`. Deploy copy is `index.html`.
+Split-file PWA: 26 modules in `split/` directory, concatenated via `build.sh` into a single `sep-invoicing.html`. Deploy copy is `index.html`.
 
 See `docs/ARCHITECTURE.md` for the full module map and concat order.
 
@@ -97,4 +97,16 @@ See `docs/SEP_INVOICING_DESIGN_PRINCIPLES.md` for the 8 hard rules, domain color
 
 ## Data
 
-All state in `localStorage` key `sep_invoicing_state`. No backend. Manual backup/restore via Settings → Export/Import JSON.
+All state in `localStorage` key `sep_invoicing_state`. No backend. Manual backup/restore via
+Settings → Export/Import JSON.
+
+**GitHub sync** (Settings → GitHub Sync) is an optional second copy, not a backend: it pushes
+the whole state as one JSON file to a repo via the Contents API and pulls it back on another
+device. Last-writer-wins by design, but never blind — each device remembers the blob SHA it
+last exchanged and warns before replacing a copy it did not write. Use a fine-grained token
+with **Contents: Read and write** on one private repo. Credentials live in their own
+localStorage entries and are never included in a JSON export.
+
+**Offline:** the app opens without a network once it has been loaded online at least once.
+Navigations are network-first, so an online device always renders fresh HTML and the cached
+shell is reached only when the network has actually failed.

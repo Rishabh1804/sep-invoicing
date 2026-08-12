@@ -209,8 +209,42 @@ if (!S._rateCleanup1) {
 
 /* Phase 9: Default cost per KG for margin dashboard (IL-4) — idempotent */
 if (S.defaultCostPerKg === undefined) {
-  S.defaultCostPerKg = 5.46;
+  S.defaultCostPerKg = 8.55;
   saveJSON(STORAGE_KEY, S);
+}
+
+/* Derive standard weights from piece pricing — one-time, idempotent.
+
+   Stats measures this business in rupees per kilogram, and a line whose part
+   has no weight cannot be counted at all. On live data 90 of 168 catalogue rows
+   had no weight, and the gap was not random: it was almost entirely the
+   piece-billed work, which is the low-realisation end of the book. So tonnage
+   covered 61% of revenue and realisation was computed over the well-priced
+   remainder — the one account the figures existed to examine was the one they
+   could not see. Leaving that behind a button nobody had pressed made the
+   dashboard quietly wrong rather than visibly incomplete.
+
+   Where a client bills per piece off a rate per kg, weight = pieceRate /
+   ratePerKg recovers the weight exactly. It fills only empty weights and never
+   touches billing: rates resolve through getLineItemRate() against the client
+   ladder, and stdWeightKg is read by Stats and Items Master alone. The
+   nos_to_weight billing path reads S.partWeights, which this does not write.
+
+   Note what such a weight is and is not. Defined as rate/ratePerKg it prices
+   back at exactly ratePerKg, so it measures tonnage, not margin.
+
+   The flag is only set once there was something to derive from, so a device
+   that loads empty and imports a backup afterwards still gets its pass. */
+if (!S._deriveWeights1) {
+  var _dw = applyDerivedWeights();
+  if (_dw.sources > 0) {
+    S._deriveWeights1 = true;
+    saveJSON(STORAGE_KEY, S);
+    if (_dw.derived > 0) {
+      console.log('Weights: derived ' + _dw.derived + ' from piece rates' +
+        (_dw.highVariance > 0 ? ' (' + _dw.highVariance + ' with inconsistent rates)' : ''));
+    }
+  }
 }
 
 /* ===== LAYOUT MODE (Phase 8A) ===== */
@@ -344,6 +378,22 @@ new ResizeObserver(function() {
   _resizeTimer = setTimeout(updateLayoutMode, 150);
 }).observe(document.documentElement);
 
+/* Manifest app shortcuts land here as ?tab=<pageId>[&new=1]. Writing the target
+   into regFilter before the first layout pass means both the desktop and the
+   mobile restore paths pick it up without a second switchTab, and the query is
+   stripped so a later refresh returns to the ordinary saved tab. */
+var _launchNew = false;
+(function() {
+  var params;
+  try { params = new URLSearchParams(window.location.search); } catch (e) { return; }
+  var wanted = params.get('tab');
+  if (!wanted || !document.getElementById(wanted)) return;
+  regFilter.activeTab = wanted;
+  saveRegFilter();
+  _launchNew = params.get('new') === '1';
+  try { history.replaceState(null, '', window.location.pathname); } catch (e) {}
+})();
+
 // Initial layout detection (no debounce)
 updateLayoutMode();
 
@@ -357,6 +407,12 @@ if (!_isDesktop) {
   } else {
     renderHome();
   }
+}
+
+/* The "Add Challan" app shortcut opens the form, not just the tab. Runs after
+   the tab restore above so the IM view exists to render into. */
+if (_launchNew && regFilter.activeTab === 'pageIM' && !_isDesktop) {
+  showAddChallanForm();
 }
 
 if ('serviceWorker' in navigator) {

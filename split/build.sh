@@ -30,6 +30,7 @@ OUT="$ROOT/sep-invoicing.html"
     "$DIR/items.js" \
     "$DIR/create.js" \
     "$DIR/settings.js" \
+    "$DIR/github-sync.js" \
     "$DIR/invoice-ops.js" \
     "$DIR/number-audit.js" \
     "$DIR/exports.js" \

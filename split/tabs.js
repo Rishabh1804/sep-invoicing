@@ -110,6 +110,7 @@ function renderHome() {
   document.getElementById('mtdRevenue').innerHTML = formatCurrency(active.reduce((s,i) => s + (i.taxableValue || 0), 0));
 
   renderZincCard();
+  ghRenderCard();
 
   // Phase 5: Unbilled IM summary card
   var unbilledEl = document.getElementById('homeUnbilledCard');

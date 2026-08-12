@@ -18,23 +18,25 @@ git add -A && git commit -m "description" && git push
 split/
 ├── build.sh              ← Concatenation script
 ├── head.html             ← DOCTYPE, meta, font links (12 lines)
-├── styles.css            ← All CSS (~1,048 lines)
+├── styles.css            ← All CSS (~1,600 lines)
 ├── body.html             ← HTML body, tabs, print view (~125 lines)
 ├── data.js               ← ITEMS_MASTER + SEED_CLIENTS (embedded data)
 ├── state.js              ← State mgmt, utilities, lifecycle states, rate lookup
+├── zinc.js               ← Zinc market rate: store, display, metals.dev refresh
 ├── tabs.js               ← switchTab (9-step protocol) + renderHome
 ├── clients.js            ← Client Master CRUD + overlay
 ├── items.js              ← Items Master Phase 6 (subview, CRUD, merge, weights)
 ├── create.js             ← Invoice creation form
 ├── settings.js           ← Settings overlay + import/export
+├── github-sync.js        ← GitHub Contents API push/pull, SHA conflict guard
 ├── invoice-ops.js        ← Invoice detail, edit, cancel, delete, register
 ├── number-audit.js       ← Void ledger + serial-sequence audit + gap reconciliation
 ├── exports.js            ← Sales CSV + GSTR1 CSV exports
 ├── im.js                 ← Incoming Material list + selection
-├── autocomplete.js       ← Part number autocomplete for line items
+├── autocomplete.js       ← Part autocomplete + shared suggestion keyboard cursor
 ├── print.js              ← formatInvoiceData + print preview/print
-├── stats.js              ← Stats dashboard + History activity log
-├── im-form.js            ← IM add/edit/delete challan form
+├── stats.js              ← Stats (tonnage, realisation, margin) + History audit log
+├── im-form.js            ← IM challan form + focus survival across re-renders
 ├── im-dupe.js            ← IM duplicate guard: fingerprint, pre-save warning, scan
 ├── scanner.js            ← Challan scanner (Gemini AI vision)
 ├── events.js             ← Event delegation + change/input/keydown handlers

@@ -126,3 +126,81 @@ test('derived weights make the client measurable in Stats without changing billi
   expect(inv.taxableValue).toBe(324);
   expect(inv.items[0].rate).toBe(2.7);
 });
+
+/*
+ * Part identity: gauge, and lines with no catalogue row at all.
+ *
+ * Four clamp families exist in two gauges at different rates — CLAMP 165X83
+ * (NT) at 35X6 and 40X6, and three more. The gauge is what tells those rows
+ * apart, so a line reading just "Clamp 165x83" does not say which was plated.
+ */
+
+test('a piece-billed line with no catalogue row is still weighed', async ({ page }) => {
+  const state = pieceState();
+  // The part is on the invoice but absent from Items Master — the shape of 127
+  // of SSSMehta's lines, 17% of that client's revenue. Routing weight through
+  // the registry left every one of them uncounted; the line's own amount
+  // divided by the client's rate per kg is all that is needed.
+  (state.invoices as Array<Record<string, unknown>>)[0] = {
+    ...(state.invoices as Array<Record<string, unknown>>)[0],
+    items: [{ partNumber: 'CLAMP NOT IN MASTER', desc: 'CLAMP NOT IN MASTER', hsn: '998873', unit: 'NOS', qty: 200, rate: 2.7, amount: 540, nosQty: 200 }],
+    taxableValue: 540,
+  };
+  state.items = [];
+  await loadAppWithState(page, state);
+  await switchTab(page, 'pageStats');
+
+  // 540 / 5.40 = 100 kg, and realisation is the contract rate.
+  const band = page.locator('.inv-kpi-grid').first();
+  await expect(band).toContainText('0.10 t');
+  await expect(band).toContainText('5.40');
+  // Fully covered, so no shortfall caveat.
+  await expect(page.locator('.inv-stats-caveat').filter({ hasText: 'no weight on file' })).toHaveCount(0);
+});
+
+test('the same part in two gauges is left for manual entry, never averaged', async ({ page }) => {
+  const state = pieceState();
+  // One part number, two catalogue rows, different gauges and rates — so two
+  // different weights. An invoice line carries no gauge field, so a derived
+  // figure cannot be attributed to either row.
+  state.items = [
+    { id: 1, partNumber: 'CLAMP 165X83 (NT)', desc: 'CLAMP', gauge: '35X6', hsn: '998873', unit: 'NOS', rate: 4.27, stdWeightKg: null },
+    { id: 2, partNumber: 'CLAMP 165X83 (NT)', desc: 'CLAMP', gauge: '40X6', hsn: '998873', unit: 'NOS', rate: 4.89, stdWeightKg: null },
+  ];
+  (state.invoices as Array<Record<string, unknown>>)[0] = {
+    ...(state.invoices as Array<Record<string, unknown>>)[0],
+    items: [{ partNumber: 'CLAMP 165X83 (NT)', desc: 'CLAMP', hsn: '998873', unit: 'NOS', qty: 100, rate: 4.89, amount: 489, nosQty: 100 }],
+    taxableValue: 489,
+  };
+  await loadAppWithState(page, state);
+
+  const items = await readItems(page);
+  expect(items.every((i: { stdWeightKg: number | null }) => i.stdWeightKg === null)).toBe(true);
+
+  // Withholding the catalogue figure costs no tonnage: the line is still
+  // weighed from its own amount. 489 / 5.40 = 90.56 kg.
+  await switchTab(page, 'pageStats');
+  await expect(page.locator('.inv-kpi-grid').first()).toContainText('0.09 t');
+});
+
+test('picking a part on a challan keeps the gauge in the line description', async ({ page }) => {
+  const state = pieceState();
+  state.clients = state.clients.map((c) => ({ ...c, isActive: true })) as SepState['clients'];
+  state.items = [
+    { id: 1, partNumber: 'CLAMP 165X83 (NT)', desc: 'CLAMP', gauge: '40X6', hsn: '998873', unit: 'NOS', rate: 4.89, stdWeightKg: null },
+  ];
+  await loadAppWithState(page, state);
+  await switchTab(page, 'pageIM');
+  await page.locator('[data-action="invShowAddChallan"]').first().click();
+  await page.locator('#imChallanClientSearch').fill('PIECE');
+  await page.keyboard.press('Enter');
+
+  await page.locator('#imPart0').fill('165X83');
+  await page.keyboard.press('ArrowDown');
+  await page.keyboard.press('Enter');
+
+  // The challan path used to assign part.desc raw. IM is the billing spine, so
+  // dropping the gauge here carried the ambiguity into every invoice raised
+  // off the challan.
+  await expect(page.locator('#imPart0')).toHaveValue('CLAMP (40X6)');
+});

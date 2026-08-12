@@ -19,37 +19,37 @@ Workforce management and invoicing PWA for **Soma Electro Products**, a zinc ele
 
 ## Architecture
 
-Split-file PWA. 26 modules, ~8,900 lines total.
+Split-file PWA. 26 modules, ~10,800 lines total.
 
 ```
 split/
-├── build.sh           ← stdout to ../sep-invoicing.html
-├── head.html          ← DOCTYPE, meta, font links (12 lines)
-├── styles.css         ← All CSS with inv- prefix (1,481 lines)
-├── body.html          ← HTML body, tabs, print view (126 lines)
+├── build.sh           ← writes ../sep-invoicing.html, syncs ../index.html
+├── head.html          ← DOCTYPE, meta, font links (17 lines)
+├── styles.css         ← All CSS with inv- prefix (1,988 lines)
+├── body.html          ← HTML body, tabs, print view (128 lines)
 ├── data.js            ← ITEMS_MASTER + SEED_CLIENTS (27 lines)
-├── state.js           ← State mgmt, utilities, escHtml, gstRound (280 lines)
-├── zinc.js            ← Zinc market rate: store, display, metals.dev refresh (135 lines)
-├── tabs.js            ← switchTab (9-step protocol) + renderHome (178 lines)
-├── clients.js         ← Client Master CRUD + overlay (125 lines)
-├── items.js           ← Items Master: subview, CRUD, merge, weights (750 lines)
-├── create.js          ← Invoice creation form, 3 billing modes (303 lines)
-├── settings.js        ← Settings overlay + import/export (145 lines)
-├── github-sync.js     ← GitHub Contents API push/pull, SHA conflict guard (330 lines)
-├── invoice-ops.js     ← Invoice detail, edit, cancel, delete, register (925 lines)
-├── number-audit.js    ← Void ledger + serial-sequence audit + gap reconcile (270 lines)
-├── exports.js         ← Sales CSV + GSTR1 CSV exports (105 lines)
-├── im.js              ← Incoming Material list + selection (530 lines)
-├── autocomplete.js    ← Part number autocomplete (65 lines)
+├── state.js           ← State mgmt, utilities, escHtml, gstRound (298 lines)
+├── zinc.js            ← Zinc market rate: store, display, metals.dev refresh (199 lines)
+├── tabs.js            ← switchTab (9-step protocol) + renderHome (188 lines)
+├── clients.js         ← Client Master CRUD + overlay (343 lines)
+├── items.js           ← Items Master: subview, CRUD, merge, weights (1,228 lines)
+├── create.js          ← Invoice creation form, 3 billing modes (312 lines)
+├── settings.js        ← Settings overlay + import/export (208 lines)
+├── github-sync.js     ← GitHub Contents API push/pull, SHA conflict guard (449 lines)
+├── invoice-ops.js     ← Invoice detail, edit, cancel, delete, register (936 lines)
+├── number-audit.js    ← Void ledger + serial-sequence audit + gap reconcile (311 lines)
+├── exports.js         ← Sales CSV + GSTR1 CSV exports (107 lines)
+├── im.js              ← Incoming Material list + selection (535 lines)
+├── autocomplete.js    ← Part number autocomplete (169 lines)
 ├── print.js           ← formatInvoiceData + print preview (224 lines)
-├── stats.js           ← Stats dashboard + History activity log (472 lines)
-├── im-form.js         ← IM add/edit/delete challan form (373 lines)
+├── stats.js           ← Stats dashboard + History activity log (1,070 lines)
+├── im-form.js         ← IM add/edit/delete challan form (450 lines)
 ├── im-dupe.js         ← IM duplicate guard: fingerprint + pre-save warn + scan (305 lines)
 ├── scanner.js         ← Challan scanner (Gemini AI vision) (146 lines)
-├── events.js          ← Event delegation + input handlers (582 lines)
+├── events.js          ← Event delegation + input handlers (666 lines)
 ├── swipe.js           ← Swipe navigation (38 lines)
 ├── seed.js            ← Seed IM data, one-time (8 lines)
-└── init.js            ← Migrations + app bootstrap (241 lines)
+└── init.js            ← Migrations + app bootstrap (420 lines)
 ```
 
 **Concat order defined in build.sh.** Dependencies: data → state → zinc → tabs → clients → items → create → settings → github-sync → invoice-ops → number-audit → exports → im → autocomplete → print → stats → im-form → im-dupe → scanner → events → swipe → seed → init.
@@ -71,12 +71,18 @@ every session start — nothing to set up by hand. CI (`build-sync`) is the back
 ### Tests
 
 ```bash
-pnpm exec playwright test          # full suite, both layouts
+pnpm exec playwright test          # 113 tests, both layouts
 ```
 
 Some sandboxes ship a Chromium build Playwright does not expect and block downloading
 the matching one. The session hook detects that and sets `PW_CHROMIUM_PATH`, which
-`playwright.config.ts` reads; unset everywhere else.
+`playwright.config.ts` reads; unset everywhere else. The suite finishes in under a minute
+on a CI runner and takes ~13 minutes in a constrained sandbox — don't read a slow local
+run as a hang.
+
+**Fixtures carry `todayIso()` / `recentTs()`, never hardcoded dates.** Three tests have now
+been found passing only because of when they were written or what they happened not to
+filter on; a literal date in a fixture is a time bomb, not a constant.
 
 ## Hard Rules (HR-1 through HR-8)
 
@@ -84,7 +90,7 @@ the matching one. The session hook detects that and sets `PW_CHROMIUM_PATH`, whi
 |----|------|
 | HR-1 | No inline styles. CSS classes + design tokens. |
 | HR-2 | No inline onclick. data-action delegation only. |
-| HR-3 | inv- CSS prefix on every class. 263+ classes follow this. |
+| HR-3 | inv- CSS prefix on every class. 486 classes follow this. |
 | HR-4 | No emojis. Inline SVGs in HTML template. |
 | HR-5 | escHtml() on all user-data innerHTML. |
 | HR-6 | CSS design tokens only. No raw px/rem/hex/timing. |
@@ -141,6 +147,16 @@ Supersedes the earlier ₹5.46/kg cost and ~31% operating margin, both of which 
 - **Capacity:** ~2 t per 8-hour shift; running ~77% of a two-shift month, ~24 t/month spare.
   Filling that at ₹13/kg is worth more than the SSS Mehta question either way.
 
+**The app now corroborates this model from the invoice data, independently.** Once weights are
+derived (below), Stats measures blended realisation at **₹8.74/kg against the modelled ₹8.45**,
+and SSS Mehta at **57% of tonnage against the modelled 61%**, on 39% of revenue. Nothing in
+that calculation knew the cost model; it is arithmetic over 769 invoices. Two routes to the
+same shape is the strongest evidence the model is right that this repo has.
+
+One figure does *not* corroborate: SSS Mehta's ₹5.38/kg. Its weights were recovered as
+pieceRate ÷ ratePerKg, so they price back at ₹5.40 by construction. That number is the
+contract rate restated, not a measurement of it.
+
 ### Zinc pricing
 metals.dev publishes no MCX base metal — its MCX coverage is precious metals only, and
 `zinc` / `lme_zinc` are the same LME figure. LME sits below MCX by basic customs duty plus
@@ -174,10 +190,24 @@ is healthy at 8 tonnes and ruinous at 20. So every headline figure is carried ne
 tonnage that produced it, and **realisation (₹/kg) is the primary number**, not a derived one.
 
 Tonnage comes from KG lines directly and from NOS lines via `partWeights` or the Items Master
-`stdWeightKg`. Where a part has no weight on file the line cannot be counted, so the card
-states its **coverage** in place — an uncovered line understates tonnage and therefore
-*overstates* realisation, and a figure that is known to be incomplete says so rather than
-passing as complete.
+`stdWeightKg`.
+
+**Realisation divides revenue by tonnage over the same lines.** Dividing *total* revenue by
+*weighed-only* tonnage inflates the answer by exactly `1 / coverage` — it read ₹21.23/kg on
+live data where the matched figure was ₹13.00. Numerator and denominator must always be the
+same subset, blended and per client alike.
+
+**Coverage is stated in revenue terms, not line count.** One unweighed line worth ₹10L matters
+more than fifty worth ₹500. And the exclusion is never neutral: unweighed lines are the
+piece-billed work, which is the low-realisation end, so a partial figure always reads *better*
+than the real blend. The card says so in place rather than letting it pass as complete.
+
+**A client under 90% coverage is listed but not ranked** — shown as `n/a` with its coverage,
+under a banner naming the revenue that cannot be priced. A ₹/kg drawn from 2% of a book is not
+the same kind of number as one drawn from all of it, and sorting them together asserts that
+it is. Concentration withholds tonnage share for such a client for the sharper version of the
+same trap: an account with no weights barely enters the measured denominator and reads as a
+*small* user of the plant when it is plausibly the largest. "Unknown, not small."
 
 **Realisation by client is ranked worst-priced first.** That ordering is the point: the
 largest account and the worst-priced one can be the same row, which is exactly the SSS Mehta
@@ -202,11 +232,28 @@ does not).
 
 ### Items Master
 Part number registry with weights, gauge, descriptions, and merge capability.
-Weights for piece-billed clients are recoverable as pieceRate ÷ client ratePerKg —
-note that such a weight prices back at exactly that rate, so it measures tonnage, not margin.
+
+**Weights derive themselves at bootstrap.** Where a client bills per piece off a rate per kg,
+`weight = pieceRate ÷ ratePerKg` recovers it exactly, and `init.js` runs that once via
+`applyDerivedWeights()`. It fills only empty weights, is idempotent, and never touches billing:
+rates resolve through `getLineItemRate()` against the client ladder, `stdWeightKg` is read by
+Stats and Items Master alone, and the `nos_to_weight` path reads `S.partWeights`, which this
+does not write. The `_deriveWeights1` flag is only set once there *was* something to derive
+from, so a device that loads empty and imports a backup later still gets its pass. The Items
+Master button remains for items added after that pass and shares the same function.
+
+Leaving this behind a button nobody had pressed is what made the dashboard quietly wrong: 90
+of 168 rows had no weight, almost entirely the piece-billed parts, so tonnage covered 61% of
+revenue and the one account the figures existed to examine was the one they could not see.
+The pass fills 72 of the 90 and takes coverage to 94%; the 18 it leaves are KG-billed, whose
+quantity is already kilograms.
+
+Note again what such a weight is: defined as `pieceRate ÷ ratePerKg` it prices back at exactly
+that rate, so it measures **tonnage, not margin**.
 
 ### Client Master
-21 clients with rate lookup, billing mode assignment, and contact info.
+22 clients with rate lookup, billing mode assignment, and contact info. Billing modes in live
+data: 20 `weight`, 1 `piece` (SSS Mehta), 1 `nos_to_weight`.
 
 ## Persistence
 

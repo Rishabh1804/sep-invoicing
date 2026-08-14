@@ -426,6 +426,7 @@ function _renderRegDetail(invId, skipMasterRefresh) {
   if (!d.cancelled) {
     html += '<button class="inv-btn inv-btn-primary" data-action="invEditInvoice" data-id="' + escHtml(inv.id) + '">Edit</button>';
     html += '<button class="inv-btn inv-btn-ghost" data-action="invPreviewInvoice" data-id="' + escHtml(inv.id) + '">Preview</button>';
+    html += '<button class="inv-btn inv-btn-ghost" data-action="invQualityCert" data-id="' + escHtml(inv.id) + '">Quality Cert</button>';
     html += '<button class="inv-btn inv-btn-ghost" data-action="invCancelInvoice" data-id="' + escHtml(inv.id) + '">Cancel Invoice</button>';
   } else {
     html += '<button class="inv-btn inv-btn-ghost" data-action="invPreviewInvoice" data-id="' + escHtml(inv.id) + '">Preview</button>';
@@ -532,10 +533,16 @@ function toggleRegInv(invId) {
   _renderRegSelBar();
 }
 
+/* The register's current selection, in one place — three call sites used to
+   re-derive it and a fourth would have made four. */
+function _regSelectedIds() {
+  return Object.keys(_regSelected).filter(function(k) { return _regSelected[k]; });
+}
+
 function _renderRegSelBar() {
   var bar = document.getElementById('regSelBar');
   if (!bar) return;
-  var ids = Object.keys(_regSelected).filter(function(k) { return _regSelected[k]; });
+  var ids = _regSelectedIds();
   if (ids.length === 0 || (!_isDesktop && !_regSelectMode)) { bar.innerHTML = ''; return; }
 
   // Determine what state transitions are available
@@ -551,10 +558,15 @@ function _renderRegSelBar() {
     if (st === 'delivered') canFile++;
   });
 
+  // Certificates go out with the dispatch, so the count is of what can actually
+  // be certified — a cancelled invoice in the selection is not offered.
+  var canCert = qcEligibleCount(ids);
+
   var btns = '';
   if (canDispatch > 0) btns += '<button class="inv-im-sel-btn" data-action="invRegBulkState" data-state="dispatched">Dispatch (' + canDispatch + ')</button>';
   if (canDeliver > 0) btns += '<button class="inv-im-sel-btn" data-action="invRegBulkState" data-state="delivered">Deliver (' + canDeliver + ')</button>';
   if (canFile > 0) btns += '<button class="inv-im-sel-btn" data-action="invRegBulkState" data-state="filed">File (' + canFile + ')</button>';
+  if (canCert > 0) btns += '<button class="inv-im-sel-btn" data-action="invRegQualityCerts">Quality certs (' + canCert + ')</button>';
 
   bar.innerHTML = '<div class="inv-im-sel-bar">' +
     '<span class="inv-im-sel-count">' + ids.length + ' selected</span>' +
@@ -562,7 +574,7 @@ function _renderRegSelBar() {
 }
 
 function regBulkSetState(targetState) {
-  var ids = Object.keys(_regSelected).filter(function(k) { return _regSelected[k]; });
+  var ids = _regSelectedIds();
   var now = Date.now();
   var updated = 0;
 
@@ -731,6 +743,7 @@ function openInvoiceDetail(invId) {
   if (!d.cancelled) {
     html += '<button class="inv-btn inv-btn-primary" data-action="invEditInvoice" data-id="' + escHtml(inv.id) + '">Edit</button>';
     html += '<button class="inv-btn inv-btn-ghost" data-action="invPreviewInvoice" data-id="' + escHtml(inv.id) + '">Preview</button>';
+    html += '<button class="inv-btn inv-btn-ghost" data-action="invQualityCert" data-id="' + escHtml(inv.id) + '">Quality Cert</button>';
     html += '<button class="inv-btn inv-btn-ghost" data-action="invCancelInvoice" data-id="' + escHtml(inv.id) + '">Cancel Invoice</button>';
   } else {
     html += '<button class="inv-btn inv-btn-ghost" data-action="invPreviewInvoice" data-id="' + escHtml(inv.id) + '">Preview</button>';

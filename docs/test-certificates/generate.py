@@ -2,6 +2,13 @@
 """
 Generates per-part Test Certificate (ZN Plating) HTML files for SOMA Electro Products.
 
+SUPERSEDED — the app generates these itself now (split/quality-cert.js, Register →
+Quality Cert). Kept as the provenance of the format: the JSON here and the rendered
+PDFs are what the app's QC_SHOP_DATA was transcribed from, and they are the evidence
+that the text matches the TML-approved 04/02/26 reference. Do not resume issuing
+certificates from this script — it has no access to the invoice register, so nothing
+it prints is tied to a document the customer holds.
+
 Source of truth (so the SEP Invoicing app can consume the same data later):
 - cert-shop-data.json  : immutable shop-level data (company, processes, chemicals,
                          specs). Field values transcribed verbatim from the

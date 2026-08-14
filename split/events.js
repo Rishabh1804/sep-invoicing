@@ -76,6 +76,9 @@ document.addEventListener('click', function(e) {
     case 'invPreviewInvoice': closeOverlay(); showPrintPreview(btn.dataset.id); break;
     case 'invClosePrint': closePrintPreview(); break;
     case 'invPrint': window.print(); break;
+    // Quality certificate — one page per invoice line, single or bulk
+    case 'invQualityCert': closeOverlay(); showQualityCertificates([btn.dataset.id]); break;
+    case 'invRegQualityCerts': showQualityCertificates(_regSelectedIds()); break;
     // Phase 4: IM Add Challan
     case 'invShowAddChallan': showAddChallanForm(); break;
     case 'invSaveChallan': saveChallan(); break;

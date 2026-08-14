@@ -35,6 +35,7 @@ split/
 ├── im.js                 ← Incoming Material list + selection
 ├── autocomplete.js       ← Part autocomplete + shared suggestion keyboard cursor
 ├── print.js              ← formatInvoiceData + print preview/print
+├── quality-cert.js       ← Test Certificate (ZN Plating): TML-approved format, per-line certs
 ├── stats.js              ← Stats (tonnage, realisation, margin) + History audit log
 ├── im-form.js            ← IM challan form + focus survival across re-renders
 ├── im-dupe.js            ← IM duplicate guard: fingerprint, pre-save warning, scan

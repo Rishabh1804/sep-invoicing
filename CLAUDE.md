@@ -19,13 +19,13 @@ Workforce management and invoicing PWA for **Soma Electro Products**, a zinc ele
 
 ## Architecture
 
-Split-file PWA. 26 modules, ~10,800 lines total.
+Split-file PWA. 27 modules, ~11,750 lines total.
 
 ```
 split/
 ├── build.sh           ← writes ../sep-invoicing.html, syncs ../index.html
 ├── head.html          ← DOCTYPE, meta, font links (17 lines)
-├── styles.css         ← All CSS with inv- prefix (1,988 lines)
+├── styles.css         ← All CSS with inv- prefix (2,131 lines)
 ├── body.html          ← HTML body, tabs, print view (128 lines)
 ├── data.js            ← ITEMS_MASTER + SEED_CLIENTS (27 lines)
 ├── state.js           ← State mgmt, utilities, escHtml, gstRound (298 lines)
@@ -36,23 +36,24 @@ split/
 ├── create.js          ← Invoice creation form, 3 billing modes (312 lines)
 ├── settings.js        ← Settings overlay + import/export (208 lines)
 ├── github-sync.js     ← GitHub Contents API push/pull, SHA conflict guard (449 lines)
-├── invoice-ops.js     ← Invoice detail, edit, cancel, delete, register (936 lines)
+├── invoice-ops.js     ← Invoice detail, edit, cancel, delete, register (949 lines)
 ├── number-audit.js    ← Void ledger + serial-sequence audit + gap reconcile (311 lines)
 ├── exports.js         ← Sales CSV + GSTR1 CSV exports (107 lines)
 ├── im.js              ← Incoming Material list + selection (535 lines)
 ├── autocomplete.js    ← Part number autocomplete (169 lines)
 ├── print.js           ← formatInvoiceData + print preview (224 lines)
+├── quality-cert.js    ← Test Certificate (ZN Plating): approved format + per-line certs (380 lines)
 ├── stats.js           ← Stats dashboard + History activity log (1,070 lines)
 ├── im-form.js         ← IM add/edit/delete challan form (450 lines)
 ├── im-dupe.js         ← IM duplicate guard: fingerprint + pre-save warn + scan (305 lines)
 ├── scanner.js         ← Challan scanner (Gemini AI vision) (146 lines)
-├── events.js          ← Event delegation + input handlers (666 lines)
+├── events.js          ← Event delegation + input handlers (672 lines)
 ├── swipe.js           ← Swipe navigation (38 lines)
 ├── seed.js            ← Seed IM data, one-time (8 lines)
 └── init.js            ← Migrations + app bootstrap (420 lines)
 ```
 
-**Concat order defined in build.sh.** Dependencies: data → state → zinc → tabs → clients → items → create → settings → github-sync → invoice-ops → number-audit → exports → im → autocomplete → print → stats → im-form → im-dupe → scanner → events → swipe → seed → init.
+**Concat order defined in build.sh.** Dependencies: data → state → zinc → tabs → clients → items → create → settings → github-sync → invoice-ops → number-audit → exports → im → autocomplete → print → quality-cert → stats → im-form → im-dupe → scanner → events → swipe → seed → init.
 
 ### Build
 
@@ -71,7 +72,7 @@ every session start — nothing to set up by hand. CI (`build-sync`) is the back
 ### Tests
 
 ```bash
-pnpm exec playwright test          # 113 tests, both layouts
+pnpm exec playwright test          # 122 tests, both layouts
 ```
 
 Some sandboxes ship a Chromium build Playwright does not expect and block downloading
@@ -97,7 +98,9 @@ filter on; a literal date in a fixture is a time bomb, not a constant.
 | HR-7 | Dark mode coverage on every new element. `.dark` class on `:root`. |
 | HR-8 | gstRound() for all currency. `Math.round(val * 100) / 100`. Never Math.floor for financials. GST rules require proper rounding. |
 
-**Known HR-6 exceptions (do not expand):** 44px min touch targets (WCAG), 20px SVG icons, print CSS raw colors.
+**Known HR-6 exceptions (do not expand):** 44px min touch targets (WCAG), 20px SVG icons, print CSS
+raw colors, and the quality certificate's A4 measurements (mm/pt), which are declared once in the
+`.inv-qc-page` token block and read as `var()` by every rule after it.
 
 ## Design System
 
@@ -184,6 +187,40 @@ building, so its number returns to the series (the ordinary typo-and-redo flow).
 it is spent, `invNextNum` may never walk back over it, and the hole in rule 46's consecutive
 series is what the ledger exists to explain. Reserved voids export at ₹0 in both CSVs — the
 same treatment cancelled invoices already get, and what makes the app agree with the filing.
+
+### Quality certificates
+The Test Certificate (ZN Plating) is issued **per part per dispatch**, not per invoice — the
+customer files it against the part they inspect — so an invoice covering three part numbers is
+three certificates. Generated from the register: per invoice from its detail, or in bulk from a
+selection.
+
+The format is approved by Tata Motors QA and says so on its own face: *"No alterations are
+permissible to the format without written approval of QA - TML."* So `QC_SHOP_DATA` reproduces the
+04/02/26 reference **verbatim, typos included** — `Cynide`, `Brightner`, `Ruse`, `Peef off`,
+`Importer Coverage`, `final gating`, `Ginca`, `Rodiprind`. Correcting the spelling would invalidate
+the approval that makes the document worth issuing. It is a constant and not part of `S` for the
+same reason an imported backup must not be able to rewrite it.
+
+Company identity is the one exception: name, address, contacts and GSTIN are read from `S.company`,
+so the certificate and the tax invoice can never disagree about who issued them. The prototype in
+`docs/test-certificates/` froze a second copy and they had already drifted — it carries GSTIN
+`20AAFFS4718J2ZD` where the invoice files under `20AAPFS4718J2Z0`, and both cannot be right.
+
+**The certificate reference is derived, not counted:** `QC/<displayNumber>/<line no>`. Regenerating
+a certificate must yield the number it had the first time, and a derived reference cannot gap,
+cannot be voided, and needs no ledger of its own — the whole apparatus that `S.voidedNumbers` exists
+to provide for invoice numbers is unnecessary here because the number *is* a pointer to the invoice
+line it certifies. Nothing is written to state when one is printed.
+
+**A cancelled invoice certifies nothing** and is refused: those goods were never billed, and the
+number appears in GSTR-1 at zero. A bulk run states what it skipped rather than quietly printing
+fewer pages — a certificate missing from a stack of forty is not noticed until the customer asks.
+
+**Net Wt. is left blank (`0.000`), as on the approved reference.** The app knows every KG-billed
+line's weight exactly and derives most piece-billed ones, but the field is ambiguous on the original
+— per piece or per consignment — and a wrong figure on a certified document is worse than an empty
+one. **Open with the owner;** the data is ready either way. The observations (`10-12` thickness,
+`TRIYELLOW`) are likewise the reference's constants, not per-batch measurements.
 
 ### What Stats measures
 Revenue alone cannot tell a good month from a loss-making one here: the same ₹1L of billing

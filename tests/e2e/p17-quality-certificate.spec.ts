@@ -117,6 +117,48 @@ test('P17: quantity states its unit — 40 KG and 40 NOS are different consignme
   await expect(page.locator('.inv-qc-page').first()).toContainText('40.000 NOS');
 });
 
+/*
+ * Net Wt. — the kilograms of this part in this dispatch. Filled only from a
+ * weight the invoice was itself priced on, never from one inferred backwards
+ * out of the rate card.
+ */
+test('P17: a KG line states its net weight, because its quantity is kilograms', async ({ page }) => {
+  const kg: Line[] = [{ partNumber: '5069 3240 4202N', unit: 'KG', qty: 282.7, rate: 5.4, amount: 1526.58 }];
+  await loadAppWithState(page, stateWith([invoice(1, kg)]));
+  await certifyOne(page, 'INV-1');
+
+  const cert = page.locator('.inv-qc-page').first();
+  await expect(cert).toContainText('282.700 KG');
+  // Quantity and Net Wt. read alike on weight-billed work — that is what
+  // being billed by the kilo means, not a duplicated cell.
+  await expect(cert.locator('.inv-qc-value').filter({ hasText: /^282\.700$/ })).toHaveCount(1);
+});
+
+test('P17: a nos_to_weight line states the kilograms it was priced on', async ({ page }) => {
+  const state = stateWith([invoice(1, [{ partNumber: 'BRACKET A', unit: 'NOS', qty: 200, rate: 13, amount: 650 }])]);
+  state.clients = [{ id: 1, name: 'TEST CLIENT KG', billingMode: 'nos_to_weight', gstType: 'intra', gstin: '', address: '' }];
+  // The same figure recalcLineItem() multiplies by to price the line.
+  state.partWeights = { 'BRACKET A': 0.25 };
+  await loadAppWithState(page, state);
+  await certifyOne(page, 'INV-1');
+
+  // 200 NOS dispatched, 50.000 kg of them.
+  const cert = page.locator('.inv-qc-page').first();
+  await expect(cert).toContainText('200.000 NOS');
+  await expect(cert).toContainText('50.000');
+});
+
+test('P17: a piece-billed line leaves net weight blank rather than inverting the rate card', async ({ page }) => {
+  const state = stateWith([invoice(1, [{ partNumber: 'CLAMP 105X83', unit: 'NOS', qty: 40, rate: 2.5, amount: 100 }])]);
+  state.clients = [{ id: 1, name: 'TEST CLIENT KG', billingMode: 'piece', gstType: 'intra', gstin: '', address: '' }];
+  await loadAppWithState(page, state);
+  await certifyOne(page, 'INV-1');
+
+  // The only weight available for this part would be pieceRate ÷ ratePerKg —
+  // the rate card read backwards, handed to the customer who set the rate.
+  await expect(page.locator('.inv-qc-page').first()).toContainText('0.000');
+});
+
 test('P17: the reference number is derived, so it is the same every time', async ({ page }) => {
   await loadAppWithState(page, stateWith([invoice(7, TWO_LINES)]));
   await certifyOne(page, 'INV-7');

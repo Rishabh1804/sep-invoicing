@@ -72,7 +72,7 @@ every session start — nothing to set up by hand. CI (`build-sync`) is the back
 ### Tests
 
 ```bash
-pnpm exec playwright test          # 125 tests, both layouts
+pnpm exec playwright test          # 128 tests, both layouts
 ```
 
 Some sandboxes ship a Chromium build Playwright does not expect and block downloading
@@ -216,11 +216,22 @@ line it certifies. Nothing is written to state when one is printed.
 number appears in GSTR-1 at zero. A bulk run states what it skipped rather than quietly printing
 fewer pages — a certificate missing from a stack of forty is not noticed until the customer asks.
 
-**Net Wt. is left blank (`0.000`), as on the approved reference.** The app knows every KG-billed
-line's weight exactly and derives most piece-billed ones, but the field is ambiguous on the original
-— per piece or per consignment — and a wrong figure on a certified document is worse than an empty
-one. **Open with the owner;** the data is ready either way. The observations (`10-12` thickness,
-`TRIYELLOW`) are likewise the reference's constants, not per-batch measurements.
+**Net Wt. is per consignment** — the kilograms of that part in that dispatch, scoped to the line the
+certificate covers, not the whole invoice. (Settled with the owner Aug 2026; the approved reference
+left it at `0.000` and never said whether it meant per piece or per consignment.) It is filled only
+from a weight the invoice was itself **priced on**: a KG line's quantity is already kilograms, and a
+`nos_to_weight` line's kilograms are `qty × S.partWeights[part]` — the same arithmetic
+`recalcLineItem()` ran to produce the amount.
+
+**A piece-billed line keeps the blank.** The only weight available for it is the Items Master
+`stdWeightKg`, defined as `pieceRate ÷ ratePerKg` — exact for tonnage and capacity share, but it is
+the rate card read backwards, and the customer being handed the certificate is the one who set that
+rate. Quantity and Net Wt. reading alike on a KG line is correct, not a duplicated cell: that is
+what being billed by the kilo means, and the form carries both fields because piece-billed parts
+make them differ.
+
+The observations (`10-12` thickness, `TRIYELLOW`) are still the reference's constants, not per-batch
+measurements.
 
 ### What Stats measures
 Revenue alone cannot tell a good month from a loss-making one here: the same ₹1L of billing

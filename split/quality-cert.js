@@ -28,7 +28,8 @@ var QC_SHOP_DATA = {
     qualifiedByTML: 'Yes',
     qualifiedByTataSteelLtd: 'Yes',
     category: 'Sheet Metal / HR',
-    // Blank on the approved reference. Left blank here too — see qcNetWeight().
+    // The reference's blank. Only reached now for a line with no measured
+    // weight behind it — see qcNetWeight().
     netWt: '0.000'
   },
   section1: {
@@ -108,12 +109,34 @@ function qcCertNumber(inv, lineIdx) {
     String(lineIdx + 1).padStart(2, '0');
 }
 
-/* Net Wt. is blank (0.000) on the approved reference and stays blank here.
-   The app knows the weight of every KG-billed line exactly and derives one for
-   most piece-billed lines, but the field is ambiguous on the original — per
-   piece or per consignment — and a wrong figure on a certified document is
-   worse than an empty one. Open with the owner; the data is ready either way. */
-function qcNetWeight() {
+/* Net Wt. is the kilograms of this part in this dispatch — per consignment, not
+   per piece (settled with the owner; the approved reference left it at 0.000 and
+   never said which). It sits beside Quantity in the same table, so it is scoped
+   to the same line the certificate certifies, not to the whole invoice.
+
+   Only ever a weight the invoice itself was priced on. Three cases:  */
+function qcNetWeight(inv, item) {
+  // 1. A KG line's quantity IS kilograms — the same figure that was billed.
+  //    Quantity and Net Wt. reading alike is correct on weight-billed work; the
+  //    form carries both fields because piece-billed parts make them differ.
+  if ((item.unit || 'KG') === 'KG') return formatNum(item.qty, 3);
+
+  var client = S.clients.find(function(c) { return c.id === inv.clientId; });
+
+  // 2. A nos_to_weight line stores NOS, but the kilograms it was priced on are
+  //    qty × the operator-entered figure in S.partWeights — the very arithmetic
+  //    recalcLineItem() ran to produce the amount. Same measured fact, stored
+  //    differently, so it certifies on the same footing as case 1. Absent that
+  //    entry there is nothing measured to state, and it falls through.
+  if (client && client.billingMode === 'nos_to_weight') {
+    var w = (S.partWeights || {})[(item.partNumber || '').toUpperCase()] || 0;
+    if (w > 0) return formatNum((item.qty || 0) * w, 3);
+  }
+
+  // 3. Piece-billed lines carry no measured weight. The Items Master figure for
+  //    them is pieceRate ÷ ratePerKg — exact for tonnage and capacity share, but
+  //    it is the rate card read backwards, and the customer who set that rate is
+  //    the one being handed the certificate. Left blank rather than manufactured.
   return QC_SHOP_DATA.fixed.netWt;
 }
 
@@ -153,7 +176,7 @@ function qcCertsForInvoice(inv) {
       partNo: partNo,
       partDesc: partDesc,
       quantity: qcQuantity(item),
-      netWt: qcNetWeight()
+      netWt: qcNetWeight(inv, item)
     };
   });
 }

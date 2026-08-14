@@ -6,7 +6,7 @@ Single-file HTML PWA for Soma Electro Products — zinc electroplating job-work 
 
 ## Architecture
 
-Split-file PWA: 26 modules in `split/` directory, concatenated via `build.sh` into a single `sep-invoicing.html`. Deploy copy is `index.html`.
+Split-file PWA: 27 modules in `split/` directory, concatenated via `build.sh` into a single `sep-invoicing.html`. Deploy copy is `index.html`.
 
 See `docs/ARCHITECTURE.md` for the full module map and concat order.
 
@@ -106,6 +106,14 @@ device. Last-writer-wins by design, but never blind — each device remembers th
 last exchanged and warns before replacing a copy it did not write. Use a fine-grained token
 with **Contents: Read and write** on one private repo. Credentials live in their own
 localStorage entries and are never included in a JSON export.
+
+## Quality certificates
+
+Register → open an invoice → **Quality Cert**, or tick several invoices and use **Quality certs**
+on the selection bar. One printable A4 Test Certificate (ZN Plating) per invoice line, since the
+customer files it against the part. Print or save to PDF from the same toolbar the invoice preview
+uses. The format reproduces the Tata Motors QA-approved reference exactly and must not be edited
+without QA-TML approval — see the Quality certificates section of `CLAUDE.md`.
 
 **Offline:** the app opens without a network once it has been loaded online at least once.
 Navigations are network-first, so an online device always renders fresh HTML and the cached

@@ -418,6 +418,156 @@ input, select, textarea, button { font-family: inherit; font-size: var(--fs-base
   margin-top: var(--sp-8); border-top: 1px solid #ccc;
 }
 
+/* ===== QUALITY CERTIFICATE (Test Certificate — ZN Plating) ===== */
+/* A physical A4 document whose layout is approved by Tata Motors QA, so its
+   measurements are in mm/pt — the documented HR-6 print exception. They are
+   declared once, in the token block below, and every rule after it reads a
+   var(); nothing physical is sprinkled through the rules.
+   The same measurements drive the screen preview, so the sheet on screen IS
+   the sheet that prints — no second set of screen sizes that could drift out
+   of agreement with the output. The preview pans sideways on a narrow phone
+   rather than reflowing into columns too thin to hold their headings.
+   The sheet is deliberately theme-invariant — a certificate is black on white
+   in either mode, so HR-7 is met by pinning the colours, not by omitting them. */
+/* Run notice — screen only, never part of the document. Uses the app's theme
+   tokens rather than the sheet's pinned ink, because it is app chrome. */
+.inv-qc-notice {
+  max-width: var(--max-w); margin: 0 auto var(--sp-12) auto;
+  padding: var(--sp-8) var(--sp-12); border-radius: var(--r-md);
+  font-size: var(--fs-sm); font-weight: 600;
+  background: var(--surface-2); color: var(--text-2);
+  border: 1px solid var(--border);
+}
+.inv-qc-notice-warn {
+  background: var(--warning-bg); color: var(--warning-text);
+  border-color: var(--warning);
+}
+.inv-qc-sheets { overflow-x: auto; }
+.inv-qc-page {
+  --qc-ink: #000;
+  --qc-ink-soft: #333;
+  --qc-paper: #fff;
+  --qc-rule: #000;
+  --qc-band: #ececec;
+  --qc-brand: #2e7d4f;
+  --qc-fs-body: 7.6pt;
+  --qc-fs-title: 10pt;
+  --qc-fs-company: 13pt;
+  --qc-fs-logo: 24pt;
+  --qc-cell-pad: 0.6mm 1.2mm;
+  --qc-page-pad: 5mm 8mm;
+  --qc-gap: 5mm;
+  --qc-rule-w: 0.5pt;
+  --qc-logo-rule-w: 2pt;
+  --qc-sig-gap: 6mm;
+  /* A4 (210mm) less the 8mm side margins the sheet carries itself, because
+     `@page` margin is 0 app-wide. */
+  --qc-sheet-w: 194mm;
+
+  background: var(--qc-paper); color: var(--qc-ink);
+  font-family: var(--ff-base); font-size: var(--qc-fs-body);
+  line-height: 1.25;
+  width: var(--qc-sheet-w); margin: 0 auto var(--sp-16) auto;
+  padding: var(--qc-page-pad);
+  border: 1px solid var(--border);
+}
+.inv-qc-page-break { page-break-after: always; }
+
+.inv-qc-header {
+  display: flex; align-items: center; gap: var(--qc-gap);
+  padding-bottom: var(--sp-4);
+}
+.inv-qc-logo {
+  font-family: var(--ff-display);
+  font-size: var(--qc-fs-logo); font-weight: 700; color: var(--qc-brand);
+  letter-spacing: 0.04em; line-height: 1; flex: 0 0 auto;
+  padding: var(--sp-4) var(--sp-10);
+  border: var(--qc-logo-rule-w) solid var(--qc-brand); border-radius: 50%;
+}
+.inv-qc-letterhead { flex: 1; text-align: center; line-height: 1.25; }
+.inv-qc-company {
+  font-family: var(--ff-display); font-size: var(--qc-fs-company);
+  font-weight: 700; font-style: italic;
+}
+.inv-qc-addr, .inv-qc-contact { font-size: var(--qc-fs-body); }
+.inv-qc-title {
+  text-align: center; font-weight: 700; font-size: var(--qc-fs-title);
+  border-top: var(--qc-rule-w) solid var(--qc-rule);
+  border-bottom: var(--qc-rule-w) solid var(--qc-rule);
+  padding: var(--sp-2) 0; margin: var(--sp-4) 0; letter-spacing: 0.04em;
+}
+.inv-qc-meta-row {
+  display: flex; justify-content: space-between;
+  font-size: var(--qc-fs-body); padding: 0 var(--sp-2) var(--sp-4) var(--sp-2);
+  font-family: var(--ff-mono);
+}
+
+table.inv-qc-grid { width: 100%; border-collapse: collapse; table-layout: fixed; }
+table.inv-qc-grid th, table.inv-qc-grid td {
+  border: var(--qc-rule-w) solid var(--qc-rule); padding: var(--qc-cell-pad);
+  vertical-align: top; font-size: var(--qc-fs-body); line-height: 1.2;
+  overflow-wrap: break-word;
+}
+table.inv-qc-grid th {
+  background: var(--qc-band); text-align: left; font-weight: 700;
+}
+table.inv-qc-grid.inv-qc-no-top { border-top: 0; }
+.inv-qc-supplier-sub { font-weight: 700; display: block; }
+.inv-qc-customer .inv-qc-label { font-weight: 700; width: 14%; }
+.inv-qc-customer .inv-qc-value { width: 36%; }
+.inv-qc-part-desc { display: block; }
+.inv-qc-c { text-align: center; }
+.inv-qc-sub { font-size: var(--qc-fs-body); font-style: italic; color: var(--qc-ink-soft); }
+.inv-qc-section {
+  background: var(--qc-band); font-weight: 700; font-size: var(--qc-fs-body);
+  padding: var(--sp-2) var(--sp-8);
+  border: var(--qc-rule-w) solid var(--qc-rule);
+  margin-top: var(--sp-6);
+}
+.inv-qc-section .inv-qc-sub-rule { font-weight: 400; }
+
+/* Column proportions per table. Widths live here rather than on the cells:
+   HR-1 leaves no inline style attribute to hang them on. */
+.inv-qc-chem th:nth-child(1) { width: 5%; }
+.inv-qc-chem th:nth-child(2) { width: 21%; }
+.inv-qc-chem th:nth-child(3) { width: 30%; }
+.inv-qc-chem th:nth-child(4) { width: 7%; }
+.inv-qc-chem th:nth-child(5) { width: 30%; }
+.inv-qc-chem th:nth-child(6) { width: 7%; }
+.inv-qc-inspect th:nth-child(1) { width: 5%; }
+.inv-qc-inspect th:nth-child(2) { width: 30%; }
+.inv-qc-inspect th:nth-child(3) { width: 18%; }
+.inv-qc-inspect th:nth-child(4) { width: 18%; }
+.inv-qc-inspect th:nth-child(5) { width: 29%; }
+.inv-qc-final th:nth-child(1) { width: 5%; }
+.inv-qc-final th:nth-child(2) { width: 22%; }
+.inv-qc-final th:nth-child(3) { width: 8%; }
+.inv-qc-final th:nth-child(4) { width: 36%; }
+.inv-qc-final th:nth-child(5) { width: 8%; }
+.inv-qc-final th:nth-child(6) { width: 21%; }
+
+.inv-qc-notes {
+  margin: var(--sp-6) 0 var(--sp-4) 0;
+  font-size: var(--qc-fs-body); line-height: 1.3; padding: 0 var(--sp-2);
+}
+.inv-qc-notes div { margin-bottom: var(--sp-2); }
+.inv-qc-disclaimer {
+  margin-top: var(--sp-4); font-size: var(--qc-fs-body);
+  font-style: italic; padding: 0 var(--sp-2);
+}
+.inv-qc-footer {
+  display: flex; justify-content: space-between; align-items: flex-end;
+  margin-top: var(--sp-10); padding-top: var(--sp-6);
+  border-top: var(--qc-rule-w) solid var(--qc-rule);
+  font-size: var(--qc-fs-body); page-break-inside: avoid;
+}
+.inv-qc-footer .inv-qc-addr-block { line-height: 1.3; }
+.inv-qc-footer .inv-qc-sig { text-align: right; font-weight: 700; }
+.inv-qc-footer .inv-qc-attribution {
+  font-weight: 400; font-style: italic; display: block;
+  margin-bottom: var(--qc-sig-gap);
+}
+
 /* ===== IM ADD CHALLAN FORM ===== */
 .inv-im-form { display: none; }
 .inv-im-form-active { display: block; }
@@ -496,6 +646,14 @@ input, select, textarea, button { font-family: inherit; font-size: var(--fs-base
   .inv-pi-info-grid .inv-pi-val { text-transform: uppercase; }
   .inv-pi-table td:nth-child(2) { text-transform: uppercase; }
   .inv-pi-footer-left { text-transform: uppercase; }
+
+  /* Quality certificate. Measurements are already the A4 ones — only the
+     screen affordances come off: the preview's frame, its centring gutter,
+     and the pan container, which would otherwise clip pages 2..n. */
+  .inv-qc-notice { display: none !important; }
+  .inv-qc-sheets { overflow: visible; }
+  .inv-qc-page { border: none; margin: 0; width: auto; }
+  .inv-qc-title { border-width: 1pt; }
 }
 
 /* ===== SETTINGS ===== */

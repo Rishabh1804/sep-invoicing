@@ -202,9 +202,14 @@ the approval that makes the document worth issuing. It is a constant and not par
 same reason an imported backup must not be able to rewrite it.
 
 Company identity is the one exception: name, address, contacts and GSTIN are read from `S.company`,
-so the certificate and the tax invoice can never disagree about who issued them. The prototype in
-`docs/test-certificates/` froze a second copy and they had already drifted — it carries GSTIN
-`20AAFFS4718J2ZD` where the invoice files under `20AAPFS4718J2Z0`, and both cannot be right.
+so the certificate and the tax invoice can never disagree about who issued them. **Never freeze a
+second copy into a document template** — the prototype in `docs/test-certificates/` did, and it had
+already drifted: it carried GSTIN `20AAFFS4718J2ZD` where the invoice files under
+`20AAPFS4718J2Z0`. The owner confirmed (14 Aug 2026) that `20AAPFS4718J2Z0` is correct and the
+certificate copy was a transcription typo. The JSON is corrected; the four certificates rendered
+from it on 15 Apr 2026 still carry the wrong number, and any copy that reached SSS Mehta bears it.
+That error is distinct from the preserved original-document typos — those are approved format text,
+a GSTIN is a fact about the taxpayer.
 
 **The certificate reference is derived, not counted:** `QC/<displayNumber>/<line no>`. Regenerating
 a certificate must yield the number it had the first time, and a derived reference cannot gap,

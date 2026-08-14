@@ -1,5 +1,7 @@
 {
-  "_doc": "Immutable shop-level data for SOMA test certificates. Field values transcribed verbatim from the TML-approved 04/02/26 certificate (5181_3240_4202.pdf). Original-document typos are preserved (e.g. 'Cynide', 'Brightner', 'Importer Coverage', 'Peef off', 'Ruse', 'final gating', 'Ginca', 'Rodiprind') because this format is approved by Tata Motors QA and any literal alteration requires QA-TML re-approval per the disclaimer.",
+  "_doc": "SUPERSEDED — the app carries this data now (split/quality-cert.js). Kept as the provenance of the format. Immutable shop-level data for SOMA test certificates. Field values transcribed verbatim from the TML-approved 04/02/26 certificate (5181_3240_4202.pdf). Original-document typos are preserved (e.g. 'Cynide', 'Brightner', 'Importer Coverage', 'Peef off', 'Ruse', 'final gating', 'Ginca', 'Rodiprind') because this format is approved by Tata Motors QA and any literal alteration requires QA-TML re-approval per the disclaimer.",
+  "_gstinCorrection": "The gstin below read '20AAFFS4718J2ZD' until 14 Aug 2026 — a transcription error, confirmed by the owner, not one of the preserved original-document typos. The preservation rule covers the approved format text; a GSTIN is a fact about the taxpayer and a wrong one is simply wrong. Corrected to the number the tax invoice files under. The app does not read this file — it takes company identity from S.company, so the two documents cannot disagree — but the four rendered certificates in this folder were produced before the correction and still show the wrong number.",
+  "_companyIdentityIsNotHere": "Do not re-freeze company name, address, contacts or GSTIN into a certificate template. That is exactly how this file drifted away from the invoice. S.company is the single source.",
   "company": {
     "name": "SOMA ELECTRO PRODUCTS",
     "headerAddress": "8-B, 1st Phase, Industrial Area, Adityapur, Jamshedpur – 832 109",
@@ -7,7 +9,7 @@
     "mobile": "9386780003",
     "email": "soma_electro123@rediffmail.com",
     "footerAddress": "B-8, (1st Phase) Industrial Area, Adityapur, Jamshedpur – 832109",
-    "gstin": "20AAFFS4718J2ZD",
+    "gstin": "20AAPFS4718J2Z0",
     "footerAttribution": "for SOMA ELECTRO PRODUCTS"
   },
   "title": "TEST CERTIFICATE (ZN PLATING)",

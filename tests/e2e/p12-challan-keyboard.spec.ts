@@ -65,7 +65,9 @@ test.describe('IM challan form — keyboard navigation', () => {
     await page.keyboard.press('Enter');
 
     await page.locator('#imPart0').fill('CLAMP');
-    await expect(page.locator('#imPartAC0 .inv-autocomplete-item')).toHaveCount(2);
+    // The list also ends with a "create this part" action row, so suggestions
+    // are counted apart from it.
+    await expect(page.locator('#imPartAC0 .inv-autocomplete-item:not(.inv-ac-add)')).toHaveCount(2);
 
     // Second match, reached by keyboard only.
     await page.keyboard.press('ArrowDown');
@@ -87,9 +89,14 @@ test.describe('IM challan form — keyboard navigation', () => {
     await page.keyboard.press('Enter');
 
     await page.locator('#imPart0').fill('CLAMP');
-    // Up from nothing selected lands on the last option.
+    // Up from nothing selected lands on the last option. Since the list gained
+    // a trailing "create this part" row that is a genuine option — one the
+    // keyboard has to be able to reach — the last option is now that row. Every
+    // option sits in one ring; there is no second class the wrap skips over.
     await page.keyboard.press('ArrowUp');
-    await expect(page.locator('#imPartAC0 .inv-autocomplete-item').nth(1)).toHaveClass(/inv-ac-active/);
+    await expect(page.locator('#imPartAC0 .inv-autocomplete-item').last()).toHaveClass(/inv-ac-active/);
+    await expect(page.locator('#imPartAC0 .inv-ac-add')).toHaveClass(/inv-ac-active/);
+    // And down from there wraps back to the first suggestion.
     await page.keyboard.press('ArrowDown');
     await expect(page.locator('#imPartAC0 .inv-autocomplete-item').nth(0)).toHaveClass(/inv-ac-active/);
   });

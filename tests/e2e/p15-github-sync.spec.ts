@@ -127,18 +127,27 @@ test.describe('GitHub sync — push', () => {
     });
     await loadAppWithState(page, emptyState());
 
+    // Each step waits for its own dialog rather than arming a handler and
+    // hoping it fires before the next one is armed. Neither assertion after
+    // the first click depends on the dialog having appeared — #homeSyncCard is
+    // already on screen and putCount is trivially 0 — so a dialog arriving
+    // late was caught by both handlers, and the second one found it already
+    // dismissed. That is what "Cannot accept dialog which is already handled"
+    // meant when this went red on CI.
+
     // Decline: nothing is written.
-    page.once('dialog', (d) => {
-      expect(d.message()).toContain('has not seen');
-      d.dismiss();
-    });
+    const declinePrompt = page.waitForEvent('dialog');
     await page.locator('[data-action="invGhPush"]').first().click();
+    const decline = await declinePrompt;
+    expect(decline.message()).toContain('has not seen');
+    await decline.dismiss();
     await expect(page.locator('#homeSyncCard')).toBeVisible();
     expect(putCount).toBe(0);
 
     // Accept: the push carries the remote's current sha, not the stale one.
-    page.once('dialog', (d) => d.accept());
+    const acceptPrompt = page.waitForEvent('dialog');
     await page.locator('[data-action="invGhPush"]').first().click();
+    await (await acceptPrompt).accept();
     await expect(page.locator('.inv-toast')).toContainText('Pushed to GitHub');
     expect(putCount).toBe(1);
   });

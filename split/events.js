@@ -91,34 +91,13 @@ document.addEventListener('click', function(e) {
     case 'invRemoveChallanLine': captureChallanFields(); removeChallanLine(parseInt(btn.dataset.idx)); break;
     case 'invSelectChallanClient': selectChallanClient(parseInt(btn.dataset.id)); break;
     case 'invClearChallanClient': if (_challanForm) { captureChallanFields(); _challanForm.clientId = null; renderAddChallanForm(); } break;
-    case 'invSelectChallanPart': {
-      if (!_challanForm) break;
-      const pidx = parseInt(btn.dataset.idx);
-      const part = S.items.find(function(p) { return p.id === parseInt(btn.dataset.partId); });
-      if (!part) break;
-      const cItem = _challanForm.items[pidx];
-      if (!cItem) break;
-      cItem.partNumber = part.partNumber;
-      // Same folding as the invoice path: the gauge is what tells two rows of
-      // the same clamp apart, and dropping it here carried the ambiguity into
-      // every invoice raised off the challan.
-      cItem.desc = partLineDesc(part);
-      cItem.hsn = part.hsn || '998873';
-      cItem.unit = part.unit || 'KG';
-      const cClient = _challanForm.clientId ? S.clients.find(function(c) { return c.id === _challanForm.clientId; }) : null;
-      if (cClient) {
-        const cRateInfo = getLineItemRate(cClient, _challanForm.challanDate || localDateStr(), cItem.partNumber);
-        if (cRateInfo._override) { cItem.rate = cRateInfo.rate; }
-        else { cItem.rate = cRateInfo.ratePerKg || 0; }
-        recalcChallanLine(cItem, cClient);
-      }
-      dismissAllAutocomplete();
-      captureChallanFields();
-      // The part is settled; weight is what gets typed next.
-      _challanFocusNext = { k: 'qty-' + pidx, sel: null };
-      renderAddChallanForm();
+    case 'invSelectChallanPart':
+      selectChallanPartForLine(parseInt(btn.dataset.idx), parseInt(btn.dataset.partId));
       break;
-    }
+    // Create a missing part without leaving the line being typed
+    case 'invAddItemInline':
+      openInlineItemAdd(btn.dataset.kind, parseInt(btn.dataset.idx), btn.dataset.q || '');
+      break;
     // Phase 4: IM Delete Challan
     case 'invDeleteChallan': deleteChallan(btn.dataset.id); break;
     // Phase 5: IM Edit Challan

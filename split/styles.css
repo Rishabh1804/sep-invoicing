@@ -1598,8 +1598,20 @@ table.inv-qc-grid.inv-qc-no-top { border-top: 0; }
   font-size: var(--fs-sm); color: var(--text-1);
   word-break: break-word;
 }
+/* The create-a-part row. Tinted and ruled off so it reads as an action rather
+   than as one more suggestion to pick from — it is always last, and choosing it
+   opens a form instead of filling the line. */
+.inv-ac-add {
+  flex-direction: row; align-items: center; gap: var(--sp-8);
+  background: var(--surface-2); border-top: 1px solid var(--border);
+  color: var(--accent);
+}
+.inv-ac-add .inv-autocomplete-part { color: var(--accent); font-family: var(--ff-base); font-weight: 600; }
+.inv-ac-add .inv-autocomplete-desc { font-size: var(--fs-xs); color: var(--text-3); }
+.inv-ac-add-icon { flex: 0 0 auto; }
 .dark .inv-autocomplete-list { background: var(--surface); border-color: var(--border); }
 .dark .inv-autocomplete-item:active { background: var(--surface-2); }
+.dark .inv-ac-add { background: var(--surface-3); }
 
 /* ===== SUGGESTION KEYBOARD CURSOR =====
    The row the arrow keys have landed on. Carries a left rule as well as a

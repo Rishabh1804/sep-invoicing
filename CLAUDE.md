@@ -19,7 +19,7 @@ Workforce management and invoicing PWA for **Soma Electro Products**, a zinc ele
 
 ## Architecture
 
-Split-file PWA. 28 modules, ~12,840 lines total.
+Split-file PWA. 28 modules, ~12,900 lines total.
 
 ```
 split/
@@ -32,7 +32,7 @@ split/
 ├── zinc.js            ← Zinc market rate: store, display, metals.dev refresh (199 lines)
 ├── tabs.js            ← switchTab (9-step protocol) + renderHome (188 lines)
 ├── clients.js         ← Client Master CRUD + overlay (343 lines)
-├── items.js           ← Items Master: subview, CRUD, merge, weights (1,228 lines)
+├── items.js           ← Items Master: subview, CRUD, merge, weights (1,262 lines)
 ├── create.js          ← Invoice creation form, 3 billing modes (312 lines)
 ├── settings.js        ← Settings overlay + import/export (208 lines)
 ├── github-sync.js     ← GitHub Contents API push/pull, SHA conflict guard (449 lines)
@@ -40,7 +40,7 @@ split/
 ├── number-audit.js    ← Void ledger + serial-sequence audit + gap reconcile (311 lines)
 ├── exports.js         ← Sales CSV + GSTR1 CSV exports (107 lines)
 ├── im.js              ← Incoming Material list + selection (535 lines)
-├── autocomplete.js    ← Part number autocomplete (169 lines)
+├── autocomplete.js    ← Part autocomplete + inline item creation (270 lines)
 ├── print.js           ← formatInvoiceData + print preview (224 lines)
 ├── quality-cert.js    ← Test Certificate (ZN Plating): approved format + per-line certs (380 lines)
 ├── credit-note.js     ← Credit notes: batch discount, own series, CDNR export (557 lines)
@@ -48,7 +48,7 @@ split/
 ├── im-form.js         ← IM add/edit/delete challan form (450 lines)
 ├── im-dupe.js         ← IM duplicate guard: fingerprint + pre-save warn + scan (305 lines)
 ├── scanner.js         ← Challan scanner (Gemini AI vision) (146 lines)
-├── events.js          ← Event delegation + input handlers (672 lines)
+├── events.js          ← Event delegation + input handlers (667 lines)
 ├── swipe.js           ← Swipe navigation (38 lines)
 ├── seed.js            ← Seed IM data, one-time (8 lines)
 └── init.js            ← Migrations + app bootstrap (420 lines)
@@ -73,7 +73,7 @@ every session start — nothing to set up by hand. CI (`build-sync`) is the back
 ### Tests
 
 ```bash
-pnpm exec playwright test          # 146 tests, both layouts
+pnpm exec playwright test          # 156 tests, both layouts
 ```
 
 Some sandboxes ship a Chromium build Playwright does not expect and block downloading
@@ -322,6 +322,17 @@ does not).
 
 ### Items Master
 Part number registry with weights, gauge, descriptions, and merge capability.
+
+**A missing part is created from the line being typed.** The autocomplete's last row offers to add
+what was typed, prefilled, and drops the new part straight back into the line — the round trip to
+the Items tab lost the in-progress form, which is why parts went unregistered. It is offered even
+when there are matches, because a new gauge of an existing clamp matches the part number and is
+still a different part.
+
+That row is present on almost every list, which is what made the keyboard contract the thing to
+protect: one real suggestion plus the add row is two options, and `acPendingOption()` would have
+stopped committing a lone match on Enter. It filters the add row out of that shortcut. An unaimed
+Enter therefore still means "on to the quantity" — creating a part takes a click or an arrow.
 
 **Weights derive themselves at bootstrap.** Where a client bills per piece off a rate per kg,
 `weight = pieceRate ÷ ratePerKg` recovers it exactly, and `init.js` runs that once via

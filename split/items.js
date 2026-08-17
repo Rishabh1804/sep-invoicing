@@ -433,10 +433,14 @@ function _renderItemsList() {
 function openItemEdit(itemId) {
   var item = S.items.find(function(it) { return it.id === itemId; });
   if (!item) return;
+  _inlineItemReturn = null;
   _showItemOverlay(item, false);
 }
 
 function openItemAdd() {
+  // Any abandoned inline add is dropped here, so a cancelled one can never
+  // redirect an ordinary add raised later from this tab.
+  _inlineItemReturn = null;
   _showItemOverlay(null, true);
 }
 
@@ -531,7 +535,7 @@ function saveItem(itemId, mode) {
       return;
     }
     var maxId = S.items.reduce(function(mx, it) { return Math.max(mx, it.id); }, 0);
-    S.items.push({
+    var added = {
       id: maxId + 1,
       partNumber: pn,
       desc: desc,
@@ -540,8 +544,14 @@ function saveItem(itemId, mode) {
       unit: unit,
       rate: rate,
       stdWeightKg: stdW
-    });
+    };
+    S.items.push(added);
     showToast('Item added: ' + pn);
+    // Raised from a line being typed rather than from the Items tab: save, then
+    // put the new part straight into that line. Returning the operator to the
+    // Items list here is what made the round trip necessary in the first place.
+    saveState();
+    if (finishInlineItemAdd(added)) return;
   } else {
     var item = S.items.find(function(it) { return it.id === itemId; });
     if (!item) return;

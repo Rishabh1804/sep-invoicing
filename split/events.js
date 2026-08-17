@@ -124,6 +124,8 @@ document.addEventListener('click', function(e) {
     case 'invStatsTrendType': _statsTrendType = btn.dataset.type; renderStats(); break;
     case 'invStatsClientChart': _statsClientChart = btn.dataset.chart; renderStats(); break;
     case 'invStatsTopBy': _statsTopBy = btn.dataset.by; renderStats(); break;
+    // Client performance sub-view
+    case 'invPerfSeries': _cpSeries = btn.dataset.series; renderClientsPage(); break;
     // Phase 7: Client drill-down overlay
     case 'invStatsClientDrill': openClientDrillOverlay(btn.dataset.clientId); break;
     // Phase 7: Flippable card
@@ -385,6 +387,12 @@ document.addEventListener('change', function(e) {
     if (icf) _imFilter.clientId = icf.value;
     if (isf) _imFilter.status = isf.value;
     _renderIMView();
+  }
+  // Client performance: which account is under the lens
+  if (e.target.id === 'cpClientSelect') {
+    setPerfClientId(e.target.value);
+    renderClientsPage();
+    return;
   }
   // Phase 6: Items sort
   if (e.target.id === 'itemsSort') {

@@ -37,6 +37,16 @@ function renderClientsPage() {
   if (!container) return;
   var subView = getItemsSubView();
 
+  // Performance is one client's analysis, not a list with a detail panel, so it
+  // renders full width in both layouts and skips the master-detail wrapper.
+  if (subView === 'performance') {
+    _updateClientsFab(subView, false);
+    container.innerHTML = '<div id="clientsDesktopToggle">' + _buildSubViewToggle('performance') + '</div>' +
+      '<div id="clientPerfArea"></div>';
+    renderClientPerformance(document.getElementById('clientPerfArea'));
+    return;
+  }
+
   // Phase 8E: Desktop master-detail — toolbar buttons carry Add, FAB stays hidden
   if (_isDesktop) {
     _updateClientsFab(subView, false);
@@ -132,6 +142,7 @@ function _buildSubViewToggle(active) {
   return '<div class="inv-subview-toggle">' +
     '<button class="inv-subview-btn' + (active === 'clients' ? ' inv-subview-active' : '') + '" data-action="invSwitchSubView" data-view="clients">Clients</button>' +
     '<button class="inv-subview-btn' + (active === 'items' ? ' inv-subview-active' : '') + '" data-action="invSwitchSubView" data-view="items">Items</button>' +
+    '<button class="inv-subview-btn' + (active === 'performance' ? ' inv-subview-active' : '') + '" data-action="invSwitchSubView" data-view="performance">Performance</button>' +
     '</div>';
 }
 

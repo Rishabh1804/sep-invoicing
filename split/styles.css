@@ -675,6 +675,50 @@ table.inv-qc-grid.inv-qc-no-top { border-top: 0; }
 .inv-cn-sig-co { font-weight: 700; }
 .inv-cn-sig-line { margin-top: 10mm; font-weight: 700; }
 
+/* ===== CLIENT PERFORMANCE ===== */
+.inv-cp-toolbar { margin-bottom: var(--sp-12); }
+.inv-cp-toolbar .inv-form-group { margin-bottom: 0; }
+.inv-cp-group { margin-top: var(--sp-16); }
+.inv-cp-group-title {
+  font-size: var(--fs-sm); font-weight: 700; color: var(--text-1);
+  padding-bottom: var(--sp-4); border-bottom: 1px solid var(--border);
+  margin-bottom: var(--sp-8);
+}
+/* Stopped is the only one of the four that is a question, so it is the only
+   one that carries a colour. */
+.inv-cp-group-stopped { color: var(--danger-text); border-bottom-color: var(--danger); }
+.inv-cp-group-new { color: var(--attend-text); }
+.inv-cp-group-steady { color: var(--text-2); }
+.inv-cp-group-note {
+  font-size: var(--fs-xs); color: var(--text-3);
+  margin-bottom: var(--sp-8); line-height: 1.4;
+}
+.inv-cp-mat {
+  padding: var(--sp-8) 0; border-bottom: 1px solid var(--border);
+}
+.inv-cp-mat:last-child { border-bottom: none; }
+.inv-cp-mat-head { display: flex; align-items: baseline; gap: var(--sp-8); }
+.inv-cp-mat-name {
+  flex: 1; min-width: 0; font-size: var(--fs-sm); font-weight: 600;
+  color: var(--text-1); word-break: break-word;
+}
+.inv-cp-mat-rev { font-size: var(--fs-xs); color: var(--text-2); white-space: nowrap; }
+.inv-cp-mat-unbilled { color: var(--text-3); font-family: var(--ff-base); font-style: italic; }
+.inv-cp-mat-meta {
+  font-size: var(--fs-2xs); color: var(--text-3);
+  font-family: var(--ff-mono); margin-top: var(--sp-2);
+}
+.inv-cp-mat-flag {
+  font-size: var(--fs-xs); color: var(--danger-text);
+  background: var(--danger-bg); border-radius: var(--r-sm);
+  padding: var(--sp-2) var(--sp-6); margin-top: var(--sp-4); display: inline-block;
+}
+.inv-cp-mat-note {
+  font-size: var(--fs-xs); color: var(--warning-text);
+  background: var(--warning-bg); border-radius: var(--r-sm);
+  padding: var(--sp-4) var(--sp-6); margin-top: var(--sp-4); line-height: 1.4;
+}
+
 /* ===== IM ADD CHALLAN FORM ===== */
 .inv-im-form { display: none; }
 .inv-im-form-active { display: block; }

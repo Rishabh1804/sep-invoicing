@@ -52,6 +52,35 @@ export const emptyState = (): SepState => ({
  * defaults to the current month, and Stats defaults to `mtd`. A hardcoded date
  * makes a test pass only during the month it was written.
  */
+/**
+ * A placeholder challan that keeps `seed.js` from filling the fixture.
+ *
+ * `seed.js` seeds 50 demo challans whenever `S.incomingMaterial` is empty —
+ * there is no one-time flag on it, only the emptiness test. So a state with
+ * `incomingMaterial: []` does not stay empty, and any spec that asserts on
+ * challan-derived data without setting its own gets 50 rows for client 1 that
+ * it never asked for. Same shape of trap as a hardcoded date: the fixture is
+ * not what it appears to be.
+ *
+ * The entry belongs to a client id no spec uses, so views scoped to a client
+ * never show it.
+ */
+export const SEED_BLOCKER_CLIENT_ID = 9999;
+
+export function noSeedIM(): unknown[] {
+  return [{
+    id: 'IM-SEED-BLOCK',
+    challanNo: '',
+    challanDate: todayIso(),
+    clientId: SEED_BLOCKER_CLIENT_ID,
+    clientName: 'UNUSED',
+    items: [],
+    receivedDate: todayIso(),
+    notes: '',
+    createdAt: 0,
+  }];
+}
+
 export function todayIso(): string {
   const now = new Date();
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;

@@ -19,7 +19,7 @@ Workforce management and invoicing PWA for **Soma Electro Products**, a zinc ele
 
 ## Architecture
 
-Split-file PWA. 29 modules, ~13,150 lines total.
+Split-file PWA. 30 modules, ~13,500 lines total.
 
 ```
 split/
@@ -45,7 +45,8 @@ split/
 ├── quality-cert.js    ← Test Certificate (ZN Plating): approved format + per-line certs (380 lines)
 ├── credit-note.js     ← Credit notes: batch discount, own series, CDNR export (557 lines)
 ├── charts.js          ← Reusable SVG charts: line, bar, pie, ranked bars (243 lines)
-├── stats.js           ← Stats dashboard + History activity log (1,070 lines)
+├── stats.js           ← Stats dashboard + History activity log (1,195 lines)
+├── client-perf.js     ← Client performance: month on month + material cadence (314 lines)
 ├── im-form.js         ← IM add/edit/delete challan form (450 lines)
 ├── im-dupe.js         ← IM duplicate guard: fingerprint + pre-save warn + scan (305 lines)
 ├── scanner.js         ← Challan scanner (Gemini AI vision) (146 lines)
@@ -55,7 +56,7 @@ split/
 └── init.js            ← Migrations + app bootstrap (420 lines)
 ```
 
-**Concat order defined in build.sh.** Dependencies: data → state → zinc → tabs → clients → items → create → settings → github-sync → invoice-ops → number-audit → exports → im → autocomplete → print → quality-cert → credit-note → charts → stats → im-form → im-dupe → scanner → events → swipe → seed → init.
+**Concat order defined in build.sh.** Dependencies: data → state → zinc → tabs → clients → items → create → settings → github-sync → invoice-ops → number-audit → exports → im → autocomplete → print → quality-cert → credit-note → charts → stats → client-perf → im-form → im-dupe → scanner → events → swipe → seed → init.
 
 ### Build
 
@@ -74,7 +75,7 @@ every session start — nothing to set up by hand. CI (`build-sync`) is the back
 ### Tests
 
 ```bash
-pnpm exec playwright test          # 165 tests, both layouts
+pnpm exec playwright test          # 174 tests, both layouts
 ```
 
 Some sandboxes ship a Chromium build Playwright does not expect and block downloading
@@ -82,6 +83,11 @@ the matching one. The session hook detects that and sets `PW_CHROMIUM_PATH`, whi
 `playwright.config.ts` reads; unset everywhere else. The suite finishes in under a minute
 on a CI runner and takes ~13 minutes in a constrained sandbox — don't read a slow local
 run as a hang.
+
+**`emptyState()` is not empty.** `seed.js` fills `incomingMaterial` with 50 demo challans whenever
+it is an empty array — there is no one-time flag, only the emptiness test — so any spec asserting on
+challan-derived data without supplying its own silently measures the seed. `noSeedIM()` in the
+fixtures blocks it.
 
 **Fixtures carry `todayIso()` / `recentTs()`, never hardcoded dates.** Three tests have now
 been found passing only because of when they were written or what they happened not to
@@ -269,6 +275,28 @@ against footer "SOMA ELECTRO PRODUCTS". Identity is read from `S.company`, never
 ₹5.40 — and Stats reads invoices only, so every SSS Mehta figure above is overstated by 2%
 until credit notes are netted off. Not yet done; the contribution arithmetic in Key Business
 Data has not been restated.
+
+### Client performance
+Clients tab → **Performance**. One account at a time: month on month as revenue, tonnage or ₹/kg,
+and every part it handles sorted into **stopped / new / steady / one-off**.
+
+Stopped is the reason the view exists. A part that disappears raises no error, empties no queue and
+never appears as a loss — it appears as a slightly smaller month, twice, and then it is normal.
+
+**Cadence is measured against each part's own rhythm, not a fixed cut-off.** A part is overdue when
+the gap since its last appearance exceeds `max(typicalGap × 1.75, typicalGap + 21 days)`, where
+`typicalGap` is the median of its own intervals. A fixed "absent two months" rule would call every
+quarterly part dead; the 21-day floor stops a part shipping twice a week being flagged after nine.
+
+**Both spines feed it.** Invoices are the complete record, but material arrives before it is billed,
+so a part received last week and not yet invoiced would read as overdue on the billing record alone.
+The union answers "when did we last handle this part" — and a part that only ever arrived shows
+*challan only* rather than ₹0.00, which would read as worthless work rather than unbilled work.
+
+**A rename is flagged, not reported as lost business.** Part numbers vary in spelling between
+documents (`Clamp 165x83` against `CLAMP 165X83(40X6)`), which would surface one stopped part and
+one new one. Stopped/new pairs sharing a six-character stem are marked as possibly the same part —
+reporting a rename as lost work would discredit every other row on the card.
 
 ### What the charts show
 The trend was one line drawn with `preserveAspectRatio="none"` — a 400×160 drawing smeared across

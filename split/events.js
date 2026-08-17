@@ -118,6 +118,12 @@ document.addEventListener('click', function(e) {
     case 'invStatsPeriod': _statsPeriod = btn.dataset.period; renderStats(); break;
     // P9: Trend granularity chips (day/week/month)
     case 'invStatsTrendGran': _statsTrendGran = btn.dataset.gran; renderStats(); break;
+    // Chart controls: what the trend plots, how it is drawn, and how the
+    // composition and top-item cards are ranked
+    case 'invStatsTrendSeries': _statsTrendSeries = btn.dataset.series; renderStats(); break;
+    case 'invStatsTrendType': _statsTrendType = btn.dataset.type; renderStats(); break;
+    case 'invStatsClientChart': _statsClientChart = btn.dataset.chart; renderStats(); break;
+    case 'invStatsTopBy': _statsTopBy = btn.dataset.by; renderStats(); break;
     // Phase 7: Client drill-down overlay
     case 'invStatsClientDrill': openClientDrillOverlay(btn.dataset.clientId); break;
     // Phase 7: Flippable card

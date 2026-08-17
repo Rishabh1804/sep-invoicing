@@ -19,7 +19,7 @@ Workforce management and invoicing PWA for **Soma Electro Products**, a zinc ele
 
 ## Architecture
 
-Split-file PWA. 28 modules, ~12,900 lines total.
+Split-file PWA. 29 modules, ~13,150 lines total.
 
 ```
 split/
@@ -44,6 +44,7 @@ split/
 ├── print.js           ← formatInvoiceData + print preview (224 lines)
 ├── quality-cert.js    ← Test Certificate (ZN Plating): approved format + per-line certs (380 lines)
 ├── credit-note.js     ← Credit notes: batch discount, own series, CDNR export (557 lines)
+├── charts.js          ← Reusable SVG charts: line, bar, pie, ranked bars (243 lines)
 ├── stats.js           ← Stats dashboard + History activity log (1,070 lines)
 ├── im-form.js         ← IM add/edit/delete challan form (450 lines)
 ├── im-dupe.js         ← IM duplicate guard: fingerprint + pre-save warn + scan (305 lines)
@@ -54,7 +55,7 @@ split/
 └── init.js            ← Migrations + app bootstrap (420 lines)
 ```
 
-**Concat order defined in build.sh.** Dependencies: data → state → zinc → tabs → clients → items → create → settings → github-sync → invoice-ops → number-audit → exports → im → autocomplete → print → quality-cert → credit-note → stats → im-form → im-dupe → scanner → events → swipe → seed → init.
+**Concat order defined in build.sh.** Dependencies: data → state → zinc → tabs → clients → items → create → settings → github-sync → invoice-ops → number-audit → exports → im → autocomplete → print → quality-cert → credit-note → charts → stats → im-form → im-dupe → scanner → events → swipe → seed → init.
 
 ### Build
 
@@ -73,7 +74,7 @@ every session start — nothing to set up by hand. CI (`build-sync`) is the back
 ### Tests
 
 ```bash
-pnpm exec playwright test          # 156 tests, both layouts
+pnpm exec playwright test          # 165 tests, both layouts
 ```
 
 Some sandboxes ship a Chromium build Playwright does not expect and block downloading
@@ -268,6 +269,30 @@ against footer "SOMA ELECTRO PRODUCTS". Identity is read from `S.company`, never
 ₹5.40 — and Stats reads invoices only, so every SSS Mehta figure above is overstated by 2%
 until credit notes are netted off. Not yet done; the contribution arithmetic in Key Business
 Data has not been restated.
+
+### What the charts show
+The trend was one line drawn with `preserveAspectRatio="none"` — a 400×160 drawing smeared across
+whatever width it got, markers rendered as ellipses, and only the two endpoints labelled. `charts.js`
+draws at natural aspect and is sized by CSS, so one code path serves a 393px phone and a 1280px
+desktop, and every datum carries a `<title>` with its exact figure.
+
+**Three series, because they answer different questions.** Revenue answers "did we bill more";
+tonnage answers "did we plate more"; **incoming material leads both** — it is dated by challan, not
+by invoice, so a dip there surfaces in revenue only weeks later. Line or bar for any of them.
+
+**Composition gets a share shape** as well as a ranked one. Past the eighth client the tail folds
+into one named wedge rather than slivers nobody can aim at — the fold is labelled so the tail is
+visibly a tail.
+
+**Top Items ranks by value, tonnage or ₹/kg, and those are three different top-tens.** Ranking by
+money alone is the ranking this repo's own thesis calls insufficient: the parts filling the plant
+are not the parts paying for it. The weight rankings admit only parts whose weight is known and
+**say how many they dropped** — those are the piece-billed end, so a ranking that hides them reads
+better than the truth.
+
+On the ₹/kg view the bar is measured against full cost with a mark at the cost line, because from a
+zero baseline a 5.40–14.50 range is a row of near-identical bars. Green clears cost, red does not:
+the app's accent is itself a terracotta, so accent-against-danger was a distinction nobody could see.
 
 ### What Stats measures
 Revenue alone cannot tell a good month from a loss-making one here: the same ₹1L of billing

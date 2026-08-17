@@ -57,6 +57,13 @@
   --tab-h: 52px; --header-h: 48px; --max-w: 520px;
   --section-gap: var(--sp-16); --card-padding: var(--sp-16);
   --card-padding-sm: var(--sp-12);
+
+  /* Chart series palette. Eight hues drawn from the domain colours so a pie
+     reads as part of this app, plus a muted ninth for the folded "others"
+     wedge — the tail should look like a tail, not like a ninth client. */
+  --chart-1: #b45a37; --chart-2: #2e75b6; --chart-3: #177a36; --chart-4: #8a6b08;
+  --chart-5: #8b6c4a; --chart-6: #6b4c8a; --chart-7: #b5583a; --chart-8: #2f7d7d;
+  --chart-other: #9a958c;
 }
 
 /* Dark mode tokens */
@@ -68,6 +75,11 @@
   --danger-bg: #3a1a18; --warning-bg: #3a3018; --neutral-bg: #2a2518;
   --attend-text: #6cd88a; --cost-text: #e8a888; --prod-text: #88b8e8;
   --danger-text: #e89090; --warning-text: #d4b848; --neutral-text: #c8b898;
+  /* Lifted for contrast against the dark surface; the light values go muddy
+     on #242320 and adjacent wedges stop being tellable apart. */
+  --chart-1: #e8a888; --chart-2: #88b8e8; --chart-3: #6cd88a; --chart-4: #d4b848;
+  --chart-5: #c8b898; --chart-6: #b79ae0; --chart-7: #e89090; --chart-8: #7fd0d0;
+  --chart-other: #6e6a63;
 }
 
 /* ===== RESET ===== */
@@ -1014,6 +1026,94 @@ table.inv-qc-grid.inv-qc-no-top { border-top: 0; }
 .dark .inv-svg-area { opacity: 0.3; }
 .dark .inv-svg-line { stroke: var(--accent-dark); }
 .dark .inv-svg-dot { fill: var(--accent-dark); stroke: var(--surface); }
+
+/* ===== CHARTS =====
+   Drawn at their natural aspect and sized by CSS, so a circle is a circle on a
+   phone and on a desktop. The old trend chart stretched a 400x160 drawing with
+   preserveAspectRatio="none", which is why it could only ever be a bare line —
+   markers came out as ellipses and text skewed. */
+.inv-chart-svg {
+  width: 100%; height: auto; display: block;
+  max-height: 240px; margin: 0 auto;
+}
+@media (min-width: 768px) {
+  /* Desktop gets a taller frame: the same series, more room between
+     gridlines, and labels that stop colliding. */
+  .inv-chart-svg { max-height: 320px; }
+}
+.inv-chart-bar { fill: var(--accent); }
+.dark .inv-chart-bar { fill: var(--accent-dark); }
+.inv-chart-empty {
+  color: var(--text-3); font-size: var(--fs-sm);
+  padding: var(--sp-16); text-align: center;
+}
+.inv-stats-note {
+  font-size: var(--fs-xs); color: var(--text-3);
+  margin-top: var(--sp-8); line-height: 1.4;
+}
+
+/* Composition. Eight series colours drawn from the domain palette, plus a
+   ninth for the folded "others" wedge so the tail is visibly a tail. */
+.inv-chart-pie-wrap {
+  display: flex; flex-wrap: wrap; gap: var(--sp-16);
+  align-items: center; justify-content: center;
+}
+.inv-chart-pie-svg { width: 180px; height: 180px; flex: 0 0 auto; }
+@media (min-width: 768px) {
+  .inv-chart-pie-svg { width: 220px; height: 220px; }
+}
+.inv-chart-hole { fill: var(--surface); }
+.inv-chart-legend { flex: 1 1 220px; min-width: 0; display: flex; flex-direction: column; gap: var(--sp-4); }
+.inv-chart-legend-row {
+  display: flex; align-items: center; gap: var(--sp-8);
+  font-size: var(--fs-xs); min-height: 24px; cursor: pointer;
+}
+.inv-chart-legend-row:active { background: var(--surface-2); }
+.inv-chart-swatch { width: 10px; height: 10px; border-radius: var(--r-sm); flex: 0 0 auto; }
+.inv-chart-legend-label {
+  flex: 1; min-width: 0; color: var(--text-1);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.inv-chart-legend-val { color: var(--text-2); white-space: nowrap; }
+.inv-chart-legend-pct { color: var(--text-3); white-space: nowrap; min-width: 44px; text-align: right; }
+
+.inv-chart-c0 { fill: var(--chart-1); }
+.inv-chart-c1 { fill: var(--chart-2); }
+.inv-chart-c2 { fill: var(--chart-3); }
+.inv-chart-c3 { fill: var(--chart-4); }
+.inv-chart-c4 { fill: var(--chart-5); }
+.inv-chart-c5 { fill: var(--chart-6); }
+.inv-chart-c6 { fill: var(--chart-7); }
+.inv-chart-c7 { fill: var(--chart-8); }
+.inv-chart-cx { fill: var(--chart-other); }
+.inv-chart-swatch.inv-chart-c0 { background: var(--chart-1); }
+.inv-chart-swatch.inv-chart-c1 { background: var(--chart-2); }
+.inv-chart-swatch.inv-chart-c2 { background: var(--chart-3); }
+.inv-chart-swatch.inv-chart-c3 { background: var(--chart-4); }
+.inv-chart-swatch.inv-chart-c4 { background: var(--chart-5); }
+.inv-chart-swatch.inv-chart-c5 { background: var(--chart-6); }
+.inv-chart-swatch.inv-chart-c6 { background: var(--chart-7); }
+.inv-chart-swatch.inv-chart-c7 { background: var(--chart-8); }
+.inv-chart-swatch.inv-chart-cx { background: var(--chart-other); }
+
+/* Ranked horizontal bars — for "top N by X", where reading the names matters
+   more than the profile of the series. */
+.inv-chart-ranked { display: flex; flex-direction: column; gap: var(--sp-10); }
+.inv-chart-ranked-row { display: flex; flex-direction: column; gap: var(--sp-2); }
+.inv-chart-ranked-head { display: flex; align-items: baseline; gap: var(--sp-8); }
+.inv-chart-ranked-label {
+  flex: 1; min-width: 0; font-size: var(--fs-sm); font-weight: 600;
+  color: var(--text-1); word-break: break-word; line-height: 1.25;
+}
+.inv-chart-ranked-val { font-size: var(--fs-xs); color: var(--text-2); white-space: nowrap; }
+.inv-chart-ranked-track { width: 100%; }
+.inv-chart-ranked-svg { width: 100%; height: 8px; display: block; }
+.inv-chart-ranked-fill { fill: var(--accent); }
+.dark .inv-chart-ranked-fill { fill: var(--accent-dark); }
+.inv-chart-ranked-fill-danger { fill: var(--danger); }
+.inv-chart-ranked-fill-good { fill: var(--attend); }
+.inv-chart-ranked-mark { fill: var(--text-1); opacity: 0.55; }
+.inv-chart-ranked-sub { font-size: var(--fs-2xs); color: var(--text-3); font-family: var(--ff-mono); }
 
 /* Phase 7: Top items table */
 .inv-stats-table { display: flex; flex-direction: column; }
@@ -9241,6 +9341,249 @@ function exportCreditNotesCSV() {
   downloadCSV('SEP-Credit-Notes_' + exportScopeLabel() + '.csv', rows);
   showToast('Credit notes exported (' + notes.length + ')');
 }
+/* ===== CHARTS =====
+ *
+ * Reusable SVG chart renderers. Pulled out of stats.js because the trend chart
+ * there was one function that could draw exactly one thing: a line, stretched
+ * with preserveAspectRatio="none" so circles rendered as ellipses and a wide
+ * desktop got the same 400×160 drawing smeared across it. Only the two
+ * endpoints were labelled and no point carried its value, so the shape was
+ * readable and the numbers were not.
+ *
+ * Everything here draws into a square-ish viewBox at its natural aspect and is
+ * sized by CSS, so the same series is legible on a 393px phone and a 1280px
+ * desktop without a second code path.
+ */
+
+var CHART_SERIES_MAX = 8;
+
+/* A round number at or above the data's peak, so the gridline labels read
+   1.5L rather than 1,47,382.19. */
+function chartNiceMax(v) {
+  if (!(v > 0)) return 1;
+  var mag = Math.pow(10, Math.floor(Math.log10(v)));
+  var n = v / mag;
+  var step = n <= 1 ? 1 : n <= 2 ? 2 : n <= 2.5 ? 2.5 : n <= 5 ? 5 : 10;
+  return step * mag;
+}
+
+/* Axis and tooltip formatting per unit. Rupees get lakh/thousand shortening
+   because a job-work month runs to seven figures and the axis is 40px wide. */
+function chartShort(v, unit) {
+  if (unit === 'kg') {
+    return Math.abs(v) >= 1000 ? formatNum(v / 1000, 1) + 't' : formatNum(v, 0) + 'kg';
+  }
+  if (unit === 'count') return formatNum(v, 0);
+  if (Math.abs(v) >= 100000) return '₹' + formatNum(v / 100000, 1) + 'L';
+  if (Math.abs(v) >= 1000) return '₹' + formatNum(v / 1000, 0) + 'K';
+  return '₹' + formatNum(v, 0);
+}
+
+function chartFull(v, unit) {
+  if (unit === 'kg') return formatNum(v, 0) + ' kg';
+  if (unit === 'count') return formatNum(v, 0);
+  return formatCurrency(v);
+}
+
+/* How many x labels fit without overlapping, given the width the chart gets. */
+function _chartLabelStride(n, maxLabels) {
+  return Math.max(1, Math.ceil(n / (maxLabels || 6)));
+}
+
+function _chartEmpty(msg) {
+  return '<div class="inv-chart-empty">' + escHtml(msg) + '</div>';
+}
+
+/* ===== TIME SERIES =====
+   data: [{label, value}]. Line and bar share the frame — gridlines, axis
+   labels, and a <title> on every datum so a tap or hover gives the exact
+   figure the shape only approximates. */
+function _chartFrame(data, unit, W, H, pad) {
+  var maxVal = chartNiceMax(Math.max.apply(null, data.map(function(d) { return d.value; }).concat([0])));
+  var chartW = W - pad.l - pad.r;
+  var chartH = H - pad.t - pad.b;
+  var svg = '';
+  for (var g = 0; g <= 4; g++) {
+    var gy = pad.t + (g / 4) * chartH;
+    var gVal = maxVal - (g / 4) * maxVal;
+    svg += '<line x1="' + pad.l + '" y1="' + gy + '" x2="' + (W - pad.r) + '" y2="' + gy + '" class="inv-svg-grid"/>';
+    svg += '<text x="' + (pad.l - 4) + '" y="' + (gy + 3) + '" text-anchor="end" class="inv-svg-grid-label">' +
+      escHtml(chartShort(gVal, unit)) + '</text>';
+  }
+  return { svg: svg, maxVal: maxVal, chartW: chartW, chartH: chartH };
+}
+
+function chartLine(data, opts) {
+  opts = opts || {};
+  var unit = opts.unit || 'money';
+  if (!data || data.length === 0) return _chartEmpty(opts.emptyText || 'No data in this period');
+  if (data.length < 2) return _chartEmpty('Need at least two points to show a trend');
+
+  var W = 480, H = 220, pad = { l: 46, r: 12, t: 14, b: 30 };
+  var f = _chartFrame(data, unit, W, H, pad);
+  var points = data.map(function(d, i) {
+    return {
+      x: pad.l + (i / (data.length - 1)) * f.chartW,
+      y: pad.t + f.chartH - (f.maxVal > 0 ? (d.value / f.maxVal) : 0) * f.chartH,
+      d: d
+    };
+  });
+
+  var line = points.map(function(p) { return p.x + ',' + p.y; }).join(' ');
+  var area = 'M' + points[0].x + ',' + (pad.t + f.chartH) + ' L' + line.split(' ').join(' L') +
+    ' L' + points[points.length - 1].x + ',' + (pad.t + f.chartH) + ' Z';
+
+  // Aspect is preserved, so a circle is a circle at any width.
+  var svg = '<svg class="inv-chart-svg" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="' +
+    escHtml(opts.ariaLabel || 'Trend') + '">' + f.svg;
+  svg += '<path d="' + area + '" class="inv-svg-area"/>';
+  svg += '<polyline points="' + line + '" class="inv-svg-line"/>';
+
+  var stride = _chartLabelStride(data.length, opts.maxLabels);
+  points.forEach(function(p, i) {
+    // Every point carries its value; the marker is what the pointer aims at.
+    svg += '<circle cx="' + p.x + '" cy="' + p.y + '" r="3" class="inv-svg-dot">' +
+      '<title>' + escHtml(p.d.label + ': ' + chartFull(p.d.value, unit)) + '</title></circle>';
+    if (i % stride === 0 || i === points.length - 1) {
+      svg += '<text x="' + p.x + '" y="' + (pad.t + f.chartH + 14) + '" text-anchor="middle" class="inv-svg-axis-label">' +
+        escHtml(p.d.label) + '</text>';
+    }
+  });
+  svg += '</svg>';
+  return svg;
+}
+
+function chartBars(data, opts) {
+  opts = opts || {};
+  var unit = opts.unit || 'money';
+  if (!data || data.length === 0) return _chartEmpty(opts.emptyText || 'No data in this period');
+
+  var W = 480, H = 220, pad = { l: 46, r: 12, t: 14, b: 30 };
+  var f = _chartFrame(data, unit, W, H, pad);
+  var slot = f.chartW / data.length;
+  var barW = Math.max(slot * 0.62, 1);
+
+  var svg = '<svg class="inv-chart-svg" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="' +
+    escHtml(opts.ariaLabel || 'Trend') + '">' + f.svg;
+
+  var stride = _chartLabelStride(data.length, opts.maxLabels);
+  data.forEach(function(d, i) {
+    var h = f.maxVal > 0 ? (d.value / f.maxVal) * f.chartH : 0;
+    var x = pad.l + i * slot + (slot - barW) / 2;
+    var y = pad.t + f.chartH - h;
+    svg += '<rect x="' + x + '" y="' + y + '" width="' + barW + '" height="' + Math.max(h, 0) +
+      '" rx="1.5" class="inv-chart-bar">' +
+      '<title>' + escHtml(d.label + ': ' + chartFull(d.value, unit)) + '</title></rect>';
+    if (i % stride === 0 || i === data.length - 1) {
+      svg += '<text x="' + (x + barW / 2) + '" y="' + (pad.t + f.chartH + 14) +
+        '" text-anchor="middle" class="inv-svg-axis-label">' + escHtml(d.label) + '</text>';
+    }
+  });
+  svg += '</svg>';
+  return svg;
+}
+
+/* ===== COMPOSITION =====
+   slices: [{label, value, clientId?}]. Anything past the eighth is folded into
+   one "Others" wedge rather than drawn as a sliver nobody can read or aim at —
+   and the fold is named, so the chart never implies the tail does not exist. */
+function chartPie(slices, opts) {
+  opts = opts || {};
+  var unit = opts.unit || 'money';
+  var rows = (slices || []).filter(function(s) { return s.value > 0; })
+    .sort(function(a, b) { return b.value - a.value; });
+  if (rows.length === 0) return _chartEmpty(opts.emptyText || 'No data in this period');
+
+  var shown = rows.slice(0, CHART_SERIES_MAX);
+  var rest = rows.slice(CHART_SERIES_MAX);
+  if (rest.length > 0) {
+    shown.push({
+      label: rest.length + ' others',
+      value: rest.reduce(function(s, r) { return s + r.value; }, 0),
+      _others: true
+    });
+  }
+  var total = shown.reduce(function(s, r) { return s + r.value; }, 0);
+  if (!(total > 0)) return _chartEmpty(opts.emptyText || 'No data in this period');
+
+  var R = 100, CX = 105, CY = 105, inner = opts.donut === false ? 0 : 56;
+  var svg = '<svg class="inv-chart-pie-svg" viewBox="0 0 210 210" role="img" aria-label="' +
+    escHtml(opts.ariaLabel || 'Composition') + '">';
+
+  var angle = -Math.PI / 2;
+  shown.forEach(function(s, i) {
+    var frac = s.value / total;
+    var sweep = frac * Math.PI * 2;
+    var end = angle + sweep;
+    var cls = 'inv-chart-c' + (s._others ? 'x' : (i % CHART_SERIES_MAX));
+    // A single slice covering everything cannot be drawn as an arc — the start
+    // and end points coincide and the path collapses to nothing.
+    if (frac >= 0.9999) {
+      svg += '<circle cx="' + CX + '" cy="' + CY + '" r="' + R + '" class="' + cls + '">' +
+        '<title>' + escHtml(s.label + ': ' + chartFull(s.value, unit) + ' (100%)') + '</title></circle>';
+    } else {
+      var x1 = CX + R * Math.cos(angle), y1 = CY + R * Math.sin(angle);
+      var x2 = CX + R * Math.cos(end), y2 = CY + R * Math.sin(end);
+      var large = sweep > Math.PI ? 1 : 0;
+      svg += '<path d="M' + CX + ',' + CY + ' L' + x1 + ',' + y1 +
+        ' A' + R + ',' + R + ' 0 ' + large + ' 1 ' + x2 + ',' + y2 + ' Z" class="' + cls + '">' +
+        '<title>' + escHtml(s.label + ': ' + chartFull(s.value, unit) +
+          ' (' + formatNum(frac * 100, 1) + '%)') + '</title></path>';
+    }
+    angle = end;
+  });
+  if (inner > 0) svg += '<circle cx="' + CX + '" cy="' + CY + '" r="' + inner + '" class="inv-chart-hole"/>';
+  svg += '</svg>';
+
+  var legend = '<div class="inv-chart-legend">';
+  shown.forEach(function(s, i) {
+    var cls = 'inv-chart-c' + (s._others ? 'x' : (i % CHART_SERIES_MAX));
+    var tap = (!s._others && s.clientId != null)
+      ? ' data-action="invStatsClientDrill" data-client-id="' + escHtml(s.clientId) + '"' : '';
+    legend += '<div class="inv-chart-legend-row"' + tap + '>' +
+      '<span class="inv-chart-swatch ' + cls + '"></span>' +
+      '<span class="inv-chart-legend-label">' + escHtml(s.label) + '</span>' +
+      '<span class="inv-chart-legend-val inv-mono">' + escHtml(chartShort(s.value, unit)) + '</span>' +
+      '<span class="inv-chart-legend-pct inv-mono">' + formatNum(s.value / total * 100, 1) + '%</span></div>';
+  });
+  legend += '</div>';
+
+  return '<div class="inv-chart-pie-wrap">' + svg + legend + '</div>';
+}
+
+/* Horizontal ranked bars — the shape that suits "top N by X", where the labels
+   are names rather than dates and reading them matters more than the profile. */
+function chartRankedBars(rows, opts) {
+  opts = opts || {};
+  var unit = opts.unit || 'money';
+  if (!rows || rows.length === 0) return _chartEmpty(opts.emptyText || 'No data in this period');
+  var max = Math.max.apply(null, rows.map(function(r) { return r.value; }).concat([0]));
+
+  var html = '<div class="inv-chart-ranked">';
+  rows.forEach(function(r) {
+    var pct = max > 0 ? Math.max((r.value / max) * 100, 0.5) : 0;
+    var tap = r.action ? ' data-action="' + escHtml(r.action) + '" data-client-id="' + escHtml(r.clientId != null ? r.clientId : '') + '"' : '';
+    html += '<div class="inv-chart-ranked-row"' + tap + '>' +
+      '<div class="inv-chart-ranked-head">' +
+      '<span class="inv-chart-ranked-label">' + escHtml(r.label) + '</span>' +
+      '<span class="inv-chart-ranked-val inv-mono">' + escHtml(r.display || chartFull(r.value, unit)) + '</span></div>' +
+      '<div class="inv-chart-ranked-track">' +
+      '<svg class="inv-chart-ranked-svg" viewBox="0 0 100 8" preserveAspectRatio="none" aria-hidden="true">' +
+      '<rect width="' + pct + '" height="8" rx="2" class="inv-chart-ranked-fill' +
+      (r.tone ? ' inv-chart-ranked-fill-' + r.tone : '') + '"/>' +
+      // A threshold line turns a bar chart of a narrow range into an answer.
+      // Rates run 5.40 to 14.50 here: from a zero baseline every bar is
+      // roughly half-length and the differences are invisible, but where each
+      // one sits against cost is the entire question.
+      (r.markPct != null ? '<rect x="' + Math.max(Math.min(r.markPct, 100), 0) +
+        '" y="-1" width="0.6" height="10" class="inv-chart-ranked-mark"/>' : '') +
+      '</svg></div>' +
+      (r.sub ? '<div class="inv-chart-ranked-sub">' + escHtml(r.sub) + '</div>' : '') +
+      '</div>';
+  });
+  html += '</div>';
+  return html;
+}
 /* ===== STATS (Phase 7 — Analytics Rework) =====
  *
  * This is a job-work business priced in rupees per kilogram. Revenue on its
@@ -9258,6 +9601,19 @@ function exportCreditNotesCSV() {
 
 var _statsPeriod = 'mtd';
 var _statsTrendGran = 'month';
+/* What the trend plots, and how. Revenue alone answers "did we bill more";
+   tonnage answers "did we plate more"; incoming material answers "is work
+   still arriving" — which leads the other two and is the one that warns. */
+var _statsTrendSeries = 'revenue';
+var _statsTrendType = 'line';
+/* Composition is a share question, so it gets a share shape as well as a
+   ranked one — the pie says "how much of the plant is this account". */
+var _statsClientChart = 'bar';
+/* Top items ranked by money, by weight, or by price. The card used to rank by
+   money alone, which is the one ranking this business's own thesis says is
+   insufficient: the same revenue is a good month at 8 tonnes and a bad one at
+   20, and the parts filling the plant are not the parts paying for it. */
+var _statsTopBy = 'value';
 
 /* ===== PERIOD MATH =====
  * Periods are measured on the invoice DATE, not on when the record happened to
@@ -9441,6 +9797,18 @@ function deltaHtml(cur, prev) {
     (rising || falling ? ' ' + formatNum(Math.abs(pct), 1) + '%' : 'level') + '</span>';
 }
 
+/* A row of toggle chips. Four cards needed the same markup, and the trend card
+   needed two rows of it. */
+function statsChipRow(action, dataKey, labels, current) {
+  var html = '<div class="inv-stats-chips inv-stats-chips-sm">';
+  Object.keys(labels).forEach(function(k) {
+    html += '<button class="inv-chip' + (current === k ? ' inv-chip-active' : '') +
+      '" data-action="' + action + '" data-' + dataKey + '="' + escHtml(k) + '">' +
+      escHtml(labels[k]) + '</button>';
+  });
+  return html + '</div>';
+}
+
 function kpiTile(label, value, sub, delta) {
   return '<div class="inv-kpi">' +
     '<div class="inv-kpi-label">' + escHtml(label) + '</div>' +
@@ -9464,23 +9832,6 @@ function isoWeekKey(yyyymmdd) {
   return d.getFullYear() + '-W' + (wk < 10 ? '0' + wk : '' + wk);
 }
 
-function buildTrendData(invoices, gran) {
-  var by = {};
-  invoices.forEach(function(inv) {
-    if (!inv.date) return;
-    var key;
-    if (gran === 'day')      key = inv.date;                  // YYYY-MM-DD
-    else if (gran === 'week') key = isoWeekKey(inv.date);     // YYYY-Www
-    else                      key = inv.date.substring(0, 7); // YYYY-MM
-    if (!by[key]) by[key] = 0;
-    by[key] += (inv.taxableValue || 0);
-  });
-  // Cap series length per granularity for readability + perf.
-  var cap = gran === 'day' ? 90 : gran === 'week' ? 26 : 12;
-  var keys = Object.keys(by).sort().slice(-cap);
-  return keys.map(function(k) { return { label: formatTrendLabel(k, gran), value: by[k] }; });
-}
-
 function formatTrendLabel(key, gran) {
   if (gran === 'day') {
     var p = key.split('-');
@@ -9493,7 +9844,64 @@ function formatTrendLabel(key, gran) {
   return TREND_MONTH_LABELS[parseInt(pp[1], 10) - 1] + ' ' + pp[0].slice(2);
 }
 
-function buildTopItems(invoices) {
+/* Trend buckets for one series. Revenue and tonnage come off the invoices;
+   incoming material comes off the challans, which is a different spine and a
+   different date — the challan date, not the invoice date. */
+function buildTrendSeries(gran, series) {
+  var by = {};
+  function bucket(dateStr) {
+    if (gran === 'day') return dateStr;
+    if (gran === 'week') return isoWeekKey(dateStr);
+    return dateStr.substring(0, 7);
+  }
+
+  if (series === 'im') {
+    (S.incomingMaterial || []).forEach(function(im) {
+      var d = im.challanDate || im.receivedDate;
+      if (!d) return;
+      var client = S.clients.find(function(c) { return c.id === im.clientId; }) || null;
+      var kg = 0;
+      (im.items || []).forEach(function(it) {
+        var w = lineWeightKg(it, client, d);
+        if (w.known) kg += w.kg;
+      });
+      var k = bucket(d);
+      by[k] = (by[k] || 0) + kg;
+    });
+  } else {
+    S.invoices.filter(function(i) { return i.status === 'active'; }).forEach(function(inv) {
+      if (!inv.date) return;
+      var k = bucket(inv.date);
+      if (series === 'tonnage') {
+        var client = rowClient(inv);
+        var kg = 0;
+        (inv.items || []).forEach(function(it) {
+          var w = lineWeightKg(it, client, inv.date);
+          if (w.known) kg += w.kg;
+        });
+        by[k] = (by[k] || 0) + kg;
+      } else {
+        by[k] = (by[k] || 0) + (inv.taxableValue || 0);
+      }
+    });
+  }
+
+  // Cap series length per granularity for readability + perf.
+  var cap = gran === 'day' ? 90 : gran === 'week' ? 26 : 12;
+  var keys = Object.keys(by).sort().slice(-cap);
+  return keys.map(function(k) { return { label: formatTrendLabel(k, gran), value: by[k] }; });
+}
+
+var TREND_SERIES_UNIT = { revenue: 'money', tonnage: 'kg', im: 'kg' };
+
+/* Ranked parts. `by` decides the ordering, and it is not cosmetic: ranking by
+   value answers "what earns", by tonnage "what fills the plant", and by ₹/kg
+   "what is priced worst". Those are three different top-tens.
+
+   The ₹/kg ranking admits only rows whose weight is actually known — a rate
+   computed from a partial weight is not a rate — and says how many it dropped
+   rather than silently ranking fewer parts. */
+function buildTopItems(invoices, by) {
   var byPart = {};
   invoices.forEach(function(inv) {
     var client = rowClient(inv);
@@ -9506,7 +9914,28 @@ function buildTopItems(invoices) {
       if (w.known) byPart[key].kg += w.kg; else byPart[key].kgKnown = false;
     });
   });
-  return Object.values(byPart).sort(function(a, b) { return b.amount - a.amount; }).slice(0, 10);
+
+  var all = Object.values(byPart);
+  all.forEach(function(r) {
+    r.perKg = (r.kgKnown && r.kg > 0) ? r.amount / r.kg : null;
+  });
+
+  var eligible = all;
+  var dropped = 0;
+  if (by === 'tonnage' || by === 'rate') {
+    eligible = all.filter(function(r) { return r.kgKnown && r.kg > 0; });
+    dropped = all.length - eligible.length;
+  }
+
+  var sorted = eligible.slice().sort(function(a, b) {
+    if (by === 'tonnage') return b.kg - a.kg;
+    // Worst-priced first, matching how clients are ranked: the interesting end
+    // of a price ranking is the bottom.
+    if (by === 'rate') return a.perKg - b.perKg;
+    return b.amount - a.amount;
+  });
+
+  return { rows: sorted.slice(0, 10), dropped: dropped, total: all.length };
 }
 
 /* Per-client revenue, tonnage and realisation for a period. The table this
@@ -9562,52 +9991,6 @@ function renderRevenueBarSvg(ranked, maxVal) {
   });
   html += '</div>';
   return html;
-}
-
-function renderTrendSvg(monthlyData, gran) {
-  if (monthlyData.length < 2) {
-    var unit = gran === 'day' ? 'days' : gran === 'week' ? 'weeks' : 'months';
-    return '<div class="inv-text-muted">Need 2+ ' + unit + ' of data for trend</div>';
-  }
-  var W = 400, H = 160, padL = 30, padR = 40, padT = 20, padB = 30;
-  var chartW = W - padL - padR, chartH = H - padT - padB;
-  var maxVal = Math.max.apply(null, monthlyData.map(function(d) { return d.value; }));
-  if (maxVal === 0) maxVal = 1;
-  var points = monthlyData.map(function(d, i) {
-    var x = padL + (i / (monthlyData.length - 1)) * chartW;
-    var y = padT + chartH - (d.value / maxVal) * chartH;
-    return { x: x, y: y, label: d.label, value: d.value };
-  });
-  var polyline = points.map(function(p) { return p.x + ',' + p.y; }).join(' ');
-  var areaPath = 'M' + points[0].x + ',' + (padT + chartH) +
-    ' L' + points.map(function(p) { return p.x + ',' + p.y; }).join(' L') +
-    ' L' + points[points.length - 1].x + ',' + (padT + chartH) + ' Z';
-
-  var svg = '<svg class="inv-trend-svg" viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="none">';
-  for (var g = 0; g <= 3; g++) {
-    var gy = padT + (g / 3) * chartH;
-    var gVal = maxVal - (g / 3) * maxVal;
-    svg += '<line x1="' + padL + '" y1="' + gy + '" x2="' + (W - padR) + '" y2="' + gy + '" class="inv-svg-grid"/>';
-    svg += '<text x="' + (W - padR + 4) + '" y="' + (gy + 4) + '" class="inv-svg-grid-label">' + (gVal >= 100000 ? formatNum(gVal / 100000, 1) + 'L' : formatNum(gVal / 1000, 0) + 'K') + '</text>';
-  }
-  svg += '<path d="' + areaPath + '" class="inv-svg-area"/>';
-  svg += '<polyline points="' + polyline + '" class="inv-svg-line" vector-effect="non-scaling-stroke"/>';
-  // Endpoint markers only (first + last) — sparkline aesthetic; intermediate dots
-  // omitted because preserveAspectRatio="none" would render circles as ellipses.
-  // Endpoint markers use vector-effect="non-scaling-size" via small absolute size.
-  points.forEach(function(p, i) {
-    var isEnd = i === 0 || i === points.length - 1;
-    if (isEnd) {
-      svg += '<circle cx="' + p.x + '" cy="' + p.y + '" r="3.5" class="inv-svg-dot" vector-effect="non-scaling-stroke"/>';
-      // Only label endpoints (first + last). With granularity=day there can be
-      // up to 90 buckets; rendering every label is unreadable. Endpoints alone
-      // give the viewer enough context (start vs current state).
-      var anchor = i === 0 ? 'start' : 'end';
-      svg += '<text x="' + p.x + '" y="' + (padT + chartH + 16) + '" text-anchor="' + anchor + '" class="inv-svg-axis-label">' + p.label + '</text>';
-    }
-  });
-  svg += '</svg>';
-  return svg;
 }
 
 function renderStats() {
@@ -9725,12 +10108,19 @@ function renderStats() {
     '<span class="inv-state-badge inv-state-filed">' + stateCount.filed + ' Filed</span>' +
     '</div></div>';
 
-  /* ===== Card 4: Revenue by client (bar chart) ===== */
+  /* ===== Card 4: Revenue by client — ranked bars or share ===== */
   var ranked = buildClientRollup(filtered);
   var maxClientRev = ranked.length > 0 ? ranked[0].total : 0;
   html += '<div class="inv-stats-card inv-stats-card-full">' +
+    '<div class="inv-stats-trend-header">' +
     '<div class="inv-stats-title">Revenue by Client</div>' +
-    renderRevenueBarSvg(ranked, maxClientRev) + '</div>';
+    statsChipRow('invStatsClientChart', 'chart', { bar: 'Ranked', pie: 'Share' }, _statsClientChart) +
+    '</div>' +
+    (_statsClientChart === 'pie'
+      ? chartPie(ranked.map(function(r) { return { label: r.name, value: r.total, clientId: r.clientId }; }),
+          { unit: 'money', ariaLabel: 'Revenue share by client' })
+      : renderRevenueBarSvg(ranked, maxClientRev)) +
+    '</div>';
 
   /* ===== Card 5: Realisation by client =====
      Ranked by ₹/kg rather than by revenue, because that ordering is the whole
@@ -9902,22 +10292,36 @@ function renderStats() {
   }
   html += '</div>';
 
-  /* ===== Card 8: Revenue trend ===== */
-  var trendData = buildTrendData(activeInvs, _statsTrendGran);
-  var granChips = ['day', 'week', 'month'];
-  var granLabels = { day: 'Day', week: 'Week', month: 'Month' };
-  var granHtml = '<div class="inv-stats-chips inv-stats-chips-sm">';
-  granChips.forEach(function(g) {
-    granHtml += '<button class="inv-chip' + (_statsTrendGran === g ? ' inv-chip-active' : '') +
-      '" data-action="invStatsTrendGran" data-gran="' + g + '">' + granLabels[g] + '</button>';
-  });
-  granHtml += '</div>';
+  /* ===== Card 8: Trend — revenue, tonnage, or material arriving ===== */
+  var trendData = buildTrendSeries(_statsTrendGran, _statsTrendSeries);
+  var trendUnit = TREND_SERIES_UNIT[_statsTrendSeries] || 'money';
+  var trendTitles = {
+    revenue: 'Revenue Trend',
+    tonnage: 'Tonnage Trend',
+    im: 'Incoming Material Trend'
+  };
   html += '<div class="inv-stats-card inv-stats-card-full">' +
     '<div class="inv-stats-trend-header">' +
-      '<div class="inv-stats-title">Revenue Trend</div>' +
-      granHtml +
+      '<div class="inv-stats-title">' + escHtml(trendTitles[_statsTrendSeries]) +
+      (_statsTrendSeries === 'im'
+        ? '<span class="inv-stats-title-sub">by challan date</span>'
+        : '<span class="inv-stats-title-sub">by invoice date</span>') + '</div>' +
+      statsChipRow('invStatsTrendSeries', 'series',
+        { revenue: '₹', tonnage: 'Tonnes', im: 'IM' }, _statsTrendSeries) +
     '</div>' +
-    renderTrendSvg(trendData, _statsTrendGran) + '</div>';
+    '<div class="inv-stats-trend-header">' +
+      statsChipRow('invStatsTrendGran', 'gran', { day: 'Day', week: 'Week', month: 'Month' }, _statsTrendGran) +
+      statsChipRow('invStatsTrendType', 'type', { line: 'Line', bar: 'Bar' }, _statsTrendType) +
+    '</div>' +
+    (_statsTrendType === 'bar'
+      ? chartBars(trendData, { unit: trendUnit, ariaLabel: trendTitles[_statsTrendSeries] })
+      : chartLine(trendData, { unit: trendUnit, ariaLabel: trendTitles[_statsTrendSeries] })) +
+    // Incoming material is the leading indicator: it is what has arrived and
+    // not yet been billed, so a fall here shows up in revenue weeks later.
+    (_statsTrendSeries === 'im'
+      ? '<div class="inv-stats-note">Weighed challan lines only. What arrives here bills later, so a dip shows in revenue after a lag.</div>'
+      : '') +
+    '</div>';
 
   /* ===== Card 9: Dispatch cycle ===== */
   var dispatchDays = [], deliveryDays = [], fullCycleDays = [];
@@ -9948,27 +10352,62 @@ function renderStats() {
     html += '</div>';
   }
 
-  /* ===== Card 10: Top items ===== */
-  var topItems = buildTopItems(filtered);
-  if (topItems.length > 0) {
+  /* ===== Card 10: Top items — by value, tonnage, or price ===== */
+  var top = buildTopItems(filtered, _statsTopBy);
+  if (top.total > 0) {
+    var topTitles = { value: 'Top Items by Value', tonnage: 'Top Items by Tonnage', rate: 'Worst Priced Items' };
+    var topUnits = { value: 'money', tonnage: 'kg', rate: 'money' };
     html += '<div class="inv-stats-card inv-stats-card-full">' +
-      '<div class="inv-stats-title">Top Items by Value</div>' +
-      '<div class="inv-stats-table"><div class="inv-stats-table-header">' +
-      '<span class="inv-stats-table-cell inv-stats-table-rank">#</span>' +
-      '<span class="inv-stats-table-cell inv-stats-table-part">Part</span>' +
-      '<span class="inv-stats-table-cell inv-stats-table-qty">&#8377;/kg</span>' +
-      '<span class="inv-stats-table-cell inv-stats-table-amt">Amount</span></div>';
-    topItems.forEach(function(it, idx) {
-      var perKg = (it.kgKnown && it.kg > 0) ? it.amount / it.kg : null;
-      html += '<div class="inv-stats-table-row">' +
-        '<span class="inv-stats-table-cell inv-stats-table-rank">' + (idx + 1) + '</span>' +
-        '<span class="inv-stats-table-cell inv-stats-table-part">' + escHtml(it.part) +
-        (it.desc && it.desc !== it.part ? '<br><span class="inv-text-muted inv-text-xs">' + escHtml(it.desc) + '</span>' : '') + '</span>' +
-        '<span class="inv-stats-table-cell inv-stats-table-qty inv-mono">' +
-        (perKg != null ? formatNum(perKg, 2) : '&mdash;') + '</span>' +
-        '<span class="inv-stats-table-cell inv-stats-table-amt inv-mono">' + formatCurrency(it.amount) + '</span></div>';
-    });
-    html += '</div></div>';
+      '<div class="inv-stats-trend-header">' +
+      '<div class="inv-stats-title">' + escHtml(topTitles[_statsTopBy]) +
+      (_statsTopBy === 'rate' ? '<span class="inv-stats-title-sub">worst first</span>' : '') + '</div>' +
+      statsChipRow('invStatsTopBy', 'by', { value: '₹', tonnage: 'Tonnes', rate: '₹/kg' }, _statsTopBy) +
+      '</div>';
+
+    if (top.rows.length === 0) {
+      html += '<div class="inv-text-muted inv-p-8">No part in this period has a known weight.</div>';
+    } else {
+      // On the price ranking the bar is measured against cost, not against the
+      // best-priced part: a mark at full cost, and anything short of it in the
+      // danger colour. Which parts are sold below cost is the question.
+      var rateMax = _statsTopBy === 'rate'
+        ? Math.max.apply(null, top.rows.map(function(r) { return r.perKg; }).concat([costPerKg]))
+        : 0;
+      html += chartRankedBars(top.rows.map(function(r) {
+        var value = _statsTopBy === 'tonnage' ? r.kg : _statsTopBy === 'rate' ? r.perKg : r.amount;
+        var display = _statsTopBy === 'tonnage' ? formatNum(r.kg, 0) + ' kg'
+          : _statsTopBy === 'rate' ? formatCurrency(r.perKg) + '/kg'
+          : formatCurrency(r.amount);
+        // Two-tone rather than one-tone-plus-danger: the app's accent is itself
+        // a terracotta, so a danger-red bar beside an accent bar was a
+        // distinction nobody could see. Green covers cost, red does not.
+        var tone = (_statsTopBy === 'rate' && costPerKg > 0)
+          ? (r.perKg < costPerKg ? 'danger' : 'good') : null;
+        var markPct = (_statsTopBy === 'rate' && costPerKg > 0 && rateMax > 0)
+          ? (costPerKg / rateMax) * 100 : null;
+        // Every row carries the other two figures, so switching the ranking
+        // is a change of order rather than a change of what can be seen.
+        var sub = formatCurrency(r.amount) +
+          (r.kgKnown && r.kg > 0 ? ' · ' + formatNum(r.kg, 0) + ' kg · ' + formatCurrency(r.perKg) + '/kg' : ' · weight unknown');
+        return {
+          label: r.part + (r.desc && r.desc !== r.part ? ' — ' + r.desc : ''),
+          value: value, display: display, sub: sub, tone: tone, markPct: markPct
+        };
+      }), { unit: topUnits[_statsTopBy] });
+      if (_statsTopBy === 'rate' && costPerKg > 0) {
+        html += '<div class="inv-stats-note">Mark is full cost, ' + formatCurrency(costPerKg) +
+          '/kg. Bars short of it are plated below what they cost to plate.</div>';
+      }
+    }
+
+    // The excluded parts are named, not dropped quietly. They are the
+    // piece-billed end, so a weight-based ranking that hides them reads better
+    // than the truth — the same trap the realisation cards already guard.
+    if (top.dropped > 0) {
+      html += '<div class="inv-stats-note">' + top.dropped + ' of ' + top.total +
+        ' part' + (top.total !== 1 ? 's' : '') + ' left out: no known weight, so they cannot be ranked this way.</div>';
+    }
+    html += '</div>';
   }
 
   if (html === '') html = '<div class="inv-empty-state">No data yet. Create invoices and log incoming material to see analytics.</div>';
@@ -11361,6 +11800,12 @@ document.addEventListener('click', function(e) {
     case 'invStatsPeriod': _statsPeriod = btn.dataset.period; renderStats(); break;
     // P9: Trend granularity chips (day/week/month)
     case 'invStatsTrendGran': _statsTrendGran = btn.dataset.gran; renderStats(); break;
+    // Chart controls: what the trend plots, how it is drawn, and how the
+    // composition and top-item cards are ranked
+    case 'invStatsTrendSeries': _statsTrendSeries = btn.dataset.series; renderStats(); break;
+    case 'invStatsTrendType': _statsTrendType = btn.dataset.type; renderStats(); break;
+    case 'invStatsClientChart': _statsClientChart = btn.dataset.chart; renderStats(); break;
+    case 'invStatsTopBy': _statsTopBy = btn.dataset.by; renderStats(); break;
     // Phase 7: Client drill-down overlay
     case 'invStatsClientDrill': openClientDrillOverlay(btn.dataset.clientId); break;
     // Phase 7: Flippable card

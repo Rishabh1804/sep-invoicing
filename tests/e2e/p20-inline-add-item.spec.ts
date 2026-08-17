@@ -33,13 +33,24 @@ const CLAMP = {
   hsn: '998873', unit: 'KG', rate: 13, stdWeightKg: null,
 };
 
-/** Start a challan and type into its first part field. */
+/**
+ * Start a challan and type into its first part field.
+ *
+ * A freshly opened challan form focuses the client search on a 100ms timer —
+ * deliberately, so nothing above can steal it back. Typing into the part field
+ * inside that window is something no human does on a form that has only just
+ * appeared, but a test gets there in single-digit milliseconds, and the focus
+ * landing mid-interaction dismissed the suggestion list and lost the entry.
+ * Waiting for that focus first makes the sequence the one a person performs.
+ */
 async function typeChallanPart(page: Page, text: string) {
   await switchTab(page, 'pageIM');
   await page.locator('[data-action="invShowAddChallan"]').click();
+  await expect(page.locator('#imChallanClientSearch')).toBeFocused();
   const part = page.locator('[data-action="invEditChallanPart"][data-idx="0"]');
   await part.waitFor();
   await part.fill(text);
+  await expect(part).toHaveValue(text);
   return part;
 }
 

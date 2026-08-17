@@ -14,6 +14,10 @@ function getDefaultState() {
     incomingMaterial: [],
     invoices: [],
     voidedNumbers: [],
+    // Credit notes run their own series (CN/005/26-27), separate from the
+    // invoice series, because they are a separate document under GST.
+    creditNotes: [],
+    cnNextNum: 1,
     // Full cost per kg, rebuilt from owner-supplied inputs against Apr–Jul 2026
     // actuals. The old 5.46 predated that rebuild and flattered every margin
     // figure by roughly a rupee a kilo. Only ever the default for a fresh
@@ -37,6 +41,8 @@ if (!S.invoices) S.invoices = [];
 if (!S.incomingMaterial) S.incomingMaterial = [];
 if (!S.partWeights) S.partWeights = {};
 if (!S.voidedNumbers) S.voidedNumbers = [];
+if (!S.creditNotes) S.creditNotes = [];
+if (!S.cnNextNum) S.cnNextNum = 1;
 
 /* ===== LAYOUT MODE (Phase 8A) ===== */
 var _isDesktop = false;

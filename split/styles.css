@@ -568,6 +568,101 @@ table.inv-qc-grid.inv-qc-no-top { border-top: 0; }
   margin-bottom: var(--qc-sig-gap);
 }
 
+/* ===== CREDIT NOTE DOCUMENT ===== */
+/* Same approach as the certificate sheet: one set of measurements for screen
+   and print so the preview is the page, and the ink is pinned black-on-white
+   because a tax document is not themed (HR-7 met by pinning, not omitting).
+   Physical units are the documented HR-6 print exception and are declared once,
+   here, with every rule below reading a var(). */
+.inv-cn-doc {
+  --cn-ink: #000;
+  --cn-paper: #fff;
+  --cn-rule: #000;
+  --cn-band: #ececec;
+  --cn-fs: 8.5pt;
+  --cn-fs-sm: 7.5pt;
+  --cn-fs-name: 11pt;
+  --cn-pad: 1mm 1.5mm;
+  --cn-page-pad: 6mm;
+  --cn-rule-w: 0.5pt;
+  --cn-sheet-w: 194mm;
+
+  background: var(--cn-paper); color: var(--cn-ink);
+  font-family: var(--ff-base); font-size: var(--cn-fs); line-height: 1.3;
+  width: var(--cn-sheet-w); margin: 0 auto var(--sp-16) auto;
+  padding: var(--cn-page-pad);
+  border: 1px solid var(--border);
+}
+.inv-cn-top, .inv-cn-parties, .inv-cn-words-row, .inv-cn-foot {
+  display: flex; border: var(--cn-rule-w) solid var(--cn-rule);
+}
+.inv-cn-top { border-bottom: 0; }
+.inv-cn-seller { flex: 1; padding: var(--cn-pad); }
+.inv-cn-seller-name { font-weight: 700; font-size: var(--cn-fs-name); }
+.inv-cn-meta { flex: 1; border-collapse: collapse; border-left: var(--cn-rule-w) solid var(--cn-rule); }
+.inv-cn-meta td { padding: var(--cn-pad); border-bottom: var(--cn-rule-w) solid var(--cn-rule); }
+.inv-cn-meta-l { width: 40%; }
+.inv-cn-meta-v { font-family: var(--ff-mono); }
+.inv-cn-parties { border-bottom: 0; }
+.inv-cn-party { flex: 1; padding: var(--cn-pad); }
+.inv-cn-party + .inv-cn-party { border-left: var(--cn-rule-w) solid var(--cn-rule); }
+.inv-cn-party-title { font-weight: 700; }
+.inv-cn-party-name { font-weight: 700; }
+.inv-cn-band {
+  background: var(--cn-band); font-weight: 700; text-align: center;
+  padding: var(--cn-pad); border: var(--cn-rule-w) solid var(--cn-rule); border-bottom: 0;
+}
+.inv-cn-table, .inv-cn-totals, .inv-cn-taxsum {
+  width: 100%; border-collapse: collapse;
+}
+.inv-cn-table th, .inv-cn-table td,
+.inv-cn-totals td, .inv-cn-taxsum th, .inv-cn-taxsum td {
+  border: var(--cn-rule-w) solid var(--cn-rule); padding: var(--cn-pad);
+}
+.inv-cn-table th, .inv-cn-taxsum th { background: var(--cn-band); font-weight: 700; text-align: center; }
+/* The totals stack sits directly under the line table, so its value column has
+   to be the same width as Amount or the document reads as two ruled grids that
+   do not line up. */
+.inv-cn-table { table-layout: fixed; }
+.inv-cn-table th:nth-child(1) { width: 6%; }
+.inv-cn-table th:nth-child(2) { width: 34%; }
+.inv-cn-table th:nth-child(3) { width: 9%; }
+.inv-cn-table th:nth-child(4) { width: 13%; }
+.inv-cn-table th:nth-child(5) { width: 8%; }
+.inv-cn-table th:nth-child(6) { width: 10%; }
+.inv-cn-table th:nth-child(7) { width: 20%; }
+.inv-cn-totals { border-top: 0; table-layout: fixed; }
+.inv-cn-totals td:first-child { width: 80%; }
+.inv-cn-totals td:last-child { width: 20%; }
+.inv-cn-tot-l { text-align: right; font-weight: 700; }
+.inv-cn-grand td { font-weight: 700; }
+.inv-cn-c { text-align: center; }
+.inv-cn-num { text-align: right; font-family: var(--ff-mono); }
+.inv-cn-words-row { border-top: 0; }
+.inv-cn-words-box { flex: 1; padding: var(--cn-pad); }
+.inv-cn-words-title { font-weight: 700; }
+.inv-cn-pan { margin-top: var(--sp-6); }
+.inv-cn-taxsum { flex: 1; border-left: var(--cn-rule-w) solid var(--cn-rule); }
+.inv-cn-taxwords {
+  border: var(--cn-rule-w) solid var(--cn-rule); border-top: 0;
+  padding: var(--cn-pad);
+}
+.inv-cn-annex {
+  border: var(--cn-rule-w) solid var(--cn-rule); border-top: 0;
+  padding: var(--cn-pad); font-size: var(--cn-fs-sm);
+}
+.inv-cn-annex-title { font-weight: 700; }
+.inv-cn-annex-list { font-family: var(--ff-mono); overflow-wrap: break-word; }
+.inv-cn-foot { border-top: 0; }
+.inv-cn-foot-left { flex: 1; padding: var(--cn-pad); }
+.inv-cn-foot-right {
+  flex: 1; padding: var(--cn-pad); text-align: center;
+  border-left: var(--cn-rule-w) solid var(--cn-rule);
+}
+.inv-cn-eoe { text-align: right; }
+.inv-cn-sig-co { font-weight: 700; }
+.inv-cn-sig-line { margin-top: 10mm; font-weight: 700; }
+
 /* ===== IM ADD CHALLAN FORM ===== */
 .inv-im-form { display: none; }
 .inv-im-form-active { display: block; }
@@ -654,6 +749,9 @@ table.inv-qc-grid.inv-qc-no-top { border-top: 0; }
   .inv-qc-sheets { overflow: visible; }
   .inv-qc-page { border: none; margin: 0; width: auto; }
   .inv-qc-title { border-width: 1pt; }
+  /* Credit note: measurements are already the printed ones, so only the
+     screen frame and centring gutter come off. */
+  .inv-cn-doc { border: none; margin: 0; width: auto; }
 }
 
 /* ===== SETTINGS ===== */
@@ -1007,6 +1105,7 @@ table.inv-qc-grid.inv-qc-no-top { border-top: 0; }
 .inv-text-center { text-align: center; }
 .inv-mb-8 { margin-bottom: var(--sp-8); }
 .inv-mb-16 { margin-bottom: var(--sp-16); }
+.inv-mt-8 { margin-top: var(--sp-8); }
 
 /* Phase 5: Home dashboard unbilled card */
 .inv-card-unbilled {

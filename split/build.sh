@@ -38,6 +38,7 @@ OUT="$ROOT/sep-invoicing.html"
     "$DIR/autocomplete.js" \
     "$DIR/print.js" \
     "$DIR/quality-cert.js" \
+    "$DIR/credit-note.js" \
     "$DIR/stats.js" \
     "$DIR/im-form.js" \
     "$DIR/im-dupe.js" \

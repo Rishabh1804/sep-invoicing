@@ -57,6 +57,13 @@ document.addEventListener('click', function(e) {
       break;
     }
     case 'invRegSelectAll': toggleRegSelectAll(); break;
+    // Credit notes
+    case 'invRegCreditNote': openCreditNoteForm(_regSelectedIds()); break;
+    case 'invCnSave': saveCreditNote(); break;
+    case 'invCnList': renderCreditNoteList(); break;
+    case 'invCnPreview': closeOverlay(); showCreditNotePreview(btn.dataset.id); break;
+    case 'invCnCancel': e.stopPropagation(); cancelCreditNote(btn.dataset.id); break;
+    case 'invExportCreditNotes': exportCreditNotesCSV(); break;
     case 'invToggleIM': toggleIMExpand(btn.dataset.id); break;
     case 'invCheckIMItem': toggleIMItem(btn.dataset.itemId); break;
     case 'invCheckIMChallan': toggleIMChallan(btn.dataset.id); break;
@@ -456,6 +463,23 @@ document.addEventListener('input', function(e) {
         if (caret != null && restored.setSelectionRange) restored.setSelectionRange(caret, caret);
       }
     }, 250);
+    return;
+  }
+  // Credit note form: the totals restate as the discount is typed, so the
+  // figure being committed is the one on screen. Focus is preserved because
+  // the caret position is restored across the re-render.
+  if (e.target.dataset.action === 'invCnInput') {
+    var cnId = e.target.id, cnCaret = null;
+    try { cnCaret = e.target.selectionStart; } catch (err) { cnCaret = null; }
+    captureCnForm();
+    renderCreditNoteForm();
+    var back = document.getElementById(cnId);
+    if (back) {
+      back.focus();
+      if (cnCaret != null && back.setSelectionRange) {
+        try { back.setSelectionRange(cnCaret, cnCaret); } catch (err) {}
+      }
+    }
     return;
   }
   // Bulk weight entry: price the part as soon as a weight is typed

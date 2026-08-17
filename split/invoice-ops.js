@@ -185,6 +185,7 @@ function renderRegisterToolbar() {
   var selectable = regSelectableInvoices();
   var selectableCount = selectable.length;
   var allSelected = selectableCount > 0 && selectable.every(function(i) { return _regSelected[i.id]; });
+  var cnCount = (S.creditNotes || []).filter(function(c) { return c.status !== 'cancelled'; }).length;
 
   // Build unique client list for filter dropdown
   const clientIds = [...new Set(S.invoices.map(i => i.clientId))];
@@ -231,6 +232,9 @@ function renderRegisterToolbar() {
       ? '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invRegSelectAll">' +
         (allSelected ? 'Clear selection' : 'Select all (' + selectableCount + ')') + '</button>'
       : '') +
+    '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invCnList">Credit notes' +
+    (cnCount > 0 ? '<span class="inv-numaudit-count">' + cnCount + '</span>' : '') +
+    '</button>' +
     '<button class="inv-btn inv-btn-ghost inv-btn-sm" id="regNumberAudit" data-action="invShowNumberAudit">Number audit' +
     (unaccounted > 0 ? '<span class="inv-numaudit-count">' + unaccounted + '</span>' : '') +
     '</button>' +
@@ -657,6 +661,13 @@ function _renderRegSelBar() {
   if (canDeliver > 0) btns += '<button class="inv-im-sel-btn" data-action="invRegBulkState" data-state="delivered">Deliver (' + canDeliver + ')</button>';
   if (canFile > 0) btns += '<button class="inv-im-sel-btn" data-action="invRegBulkState" data-state="filed">File (' + canFile + ')</button>';
   if (canCert > 0) btns += '<button class="inv-im-sel-btn" data-action="invRegQualityCerts">Quality certs (' + canCert + ')</button>';
+  // Offered whenever there is anything active in the selection. If the batch is
+  // unusable — two customers in it, say — the click explains why rather than
+  // the button silently not being there.
+  if (ids.some(function(id) {
+    var inv = S.invoices.find(function(i) { return i.id === id; });
+    return inv && inv.status !== 'cancelled';
+  })) btns += '<button class="inv-im-sel-btn" data-action="invRegCreditNote">Credit note</button>';
 
   bar.innerHTML = '<div class="inv-im-sel-bar">' +
     '<span class="inv-im-sel-count">' + ids.length + ' selected</span>' +

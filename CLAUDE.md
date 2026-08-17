@@ -19,7 +19,7 @@ Workforce management and invoicing PWA for **Soma Electro Products**, a zinc ele
 
 ## Architecture
 
-Split-file PWA. 27 modules, ~11,750 lines total.
+Split-file PWA. 28 modules, ~12,840 lines total.
 
 ```
 split/
@@ -43,6 +43,7 @@ split/
 ├── autocomplete.js    ← Part number autocomplete (169 lines)
 ├── print.js           ← formatInvoiceData + print preview (224 lines)
 ├── quality-cert.js    ← Test Certificate (ZN Plating): approved format + per-line certs (380 lines)
+├── credit-note.js     ← Credit notes: batch discount, own series, CDNR export (557 lines)
 ├── stats.js           ← Stats dashboard + History activity log (1,070 lines)
 ├── im-form.js         ← IM add/edit/delete challan form (450 lines)
 ├── im-dupe.js         ← IM duplicate guard: fingerprint + pre-save warn + scan (305 lines)
@@ -53,7 +54,7 @@ split/
 └── init.js            ← Migrations + app bootstrap (420 lines)
 ```
 
-**Concat order defined in build.sh.** Dependencies: data → state → zinc → tabs → clients → items → create → settings → github-sync → invoice-ops → number-audit → exports → im → autocomplete → print → quality-cert → stats → im-form → im-dupe → scanner → events → swipe → seed → init.
+**Concat order defined in build.sh.** Dependencies: data → state → zinc → tabs → clients → items → create → settings → github-sync → invoice-ops → number-audit → exports → im → autocomplete → print → quality-cert → credit-note → stats → im-form → im-dupe → scanner → events → swipe → seed → init.
 
 ### Build
 
@@ -72,7 +73,7 @@ every session start — nothing to set up by hand. CI (`build-sync`) is the back
 ### Tests
 
 ```bash
-pnpm exec playwright test          # 128 tests, both layouts
+pnpm exec playwright test          # 146 tests, both layouts
 ```
 
 Some sandboxes ship a Chromium build Playwright does not expect and block downloading
@@ -99,8 +100,9 @@ filter on; a literal date in a fixture is a time bomb, not a constant.
 | HR-8 | gstRound() for all currency. `Math.round(val * 100) / 100`. Never Math.floor for financials. GST rules require proper rounding. |
 
 **Known HR-6 exceptions (do not expand):** 44px min touch targets (WCAG), 20px SVG icons, print CSS
-raw colors, and the quality certificate's A4 measurements (mm/pt), which are declared once in the
-`.inv-qc-page` token block and read as `var()` by every rule after it.
+raw colors, and the printed documents' physical measurements (mm/pt) — the quality certificate's
+and the credit note's — each declared once in a token block (`.inv-qc-page`, `.inv-cn-doc`) and read
+as `var()` by every rule after it.
 
 ## Design System
 
@@ -237,6 +239,35 @@ make them differ.
 
 The observations (`10-12` thickness, `TRIYELLOW`) are still the reference's constants, not per-batch
 measurements.
+
+### Credit notes
+SSS Mehta hold a **standing 2% discount on any payment batch spanning 7 days or more** — bought
+to smooth cash flow, temporary but in force. Each such batch ships as two documents: the sales
+register for the range, and a credit note for 2% of it. So **the batch is the unit, not the
+invoice**, which is why the 04/08/26 reference credits ₹5,902.12 against ~₹2.95L of taxable.
+
+Raised from a register selection, which is what makes select-all and the date-range filter part
+of the same workflow: tick the batch, export its register, raise the note off the same set. One
+customer only. A batch under 7 days **warns and does not block** — split batches are the
+operator's call.
+
+**The discount is computed on value; the quantity is derived from it.** 1092.98 × 5.40 = 5902.09
+against the 5902.12 printed — three paise of disagreement only happen if the rupees came first.
+
+Own series, `CN/<3-digit>/<FY short>`, formatted off `S.invPrefix`. A credit note number is
+**issued**, so it may never be reused — but it needs no void ledger, because a credit note is
+**cancelled, never deleted**, which is the correct GST treatment anyway. The number stays in the
+series carrying its own explanation and exports at zero. Its own CSV, too: credit notes go to
+GSTR-1 table 9B (CDNR), whose columns are not the B2B ones.
+
+The reference had four defects the app does not reproduce — see `docs/credit-notes/README.md`.
+The headline one is the same identity drift the certificate had: header "SOMA ELECTRO PRODUCT"
+against footer "SOMA ELECTRO PRODUCTS". Identity is read from `S.company`, never frozen.
+
+**This changes the SSS Mehta numbers.** At a standing 2%, their realisation is ~₹5.29/kg, not
+₹5.40 — and Stats reads invoices only, so every SSS Mehta figure above is overstated by 2%
+until credit notes are netted off. Not yet done; the contribution arithmetic in Key Business
+Data has not been restated.
 
 ### What Stats measures
 Revenue alone cannot tell a good month from a loss-making one here: the same ₹1L of billing

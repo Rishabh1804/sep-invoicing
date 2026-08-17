@@ -49,17 +49,14 @@ document.addEventListener('click', function(e) {
     case 'invExportSales': exportSalesCSV(); break;
     case 'invExportGstr1': exportGSTR1CSV(); break;
     case 'invSelectPart': selectPartForLine(parseInt(btn.dataset.idx), parseInt(btn.dataset.partId)); break;
-    case 'invFilterRegister': {
-      const cf = document.getElementById('regClientFilter');
-      const mf = document.getElementById('regMonthFilter');
-      const sf = document.getElementById('regStateFilter');
-      if (cf) regFilter.clientId = cf.value;
-      if (mf) regFilter.month = mf.value;
-      if (sf) regFilter.state = sf.value;
+    case 'invFilterRegister': captureRegFilters(btn.id); break;
+    case 'invRegClearRange': {
+      regFilter.dateFrom = ''; regFilter.dateTo = '';
       saveRegFilter();
-      _renderRegView();
+      captureRegFilters();
       break;
     }
+    case 'invRegSelectAll': toggleRegSelectAll(); break;
     case 'invToggleIM': toggleIMExpand(btn.dataset.id); break;
     case 'invCheckIMItem': toggleIMItem(btn.dataset.itemId); break;
     case 'invCheckIMChallan': toggleIMChallan(btn.dataset.id); break;
@@ -383,16 +380,11 @@ document.addEventListener('change', function(e) {
   if (e.target.id === 'invDate') {
     invoiceForm.date = e.target.value;
   }
-  // Register filters
-  if (e.target.id === 'regClientFilter' || e.target.id === 'regMonthFilter' || e.target.id === 'regStateFilter') {
-    const cf = document.getElementById('regClientFilter');
-    const mf = document.getElementById('regMonthFilter');
-    const sf = document.getElementById('regStateFilter');
-    if (cf) regFilter.clientId = cf.value;
-    if (mf) regFilter.month = mf.value;
-    if (sf) regFilter.state = sf.value;
-    saveRegFilter();
-    _renderRegView();
+  // Register filters — one capture path, so a new filter control cannot end up
+  // wired to the click delegate and not to this one.
+  if (e.target.id === 'regClientFilter' || e.target.id === 'regMonthFilter' ||
+      e.target.id === 'regStateFilter' || e.target.id === 'regDateFrom' || e.target.id === 'regDateTo') {
+    captureRegFilters(e.target.id);
   }
   // IM filters
   if (e.target.id === 'imClientFilter' || e.target.id === 'imStatusFilter') {

@@ -1092,6 +1092,20 @@ table.inv-qc-grid.inv-qc-no-top { border-top: 0; }
 }
 .inv-reg-filters > * { flex: 1; min-width: 0; }
 .inv-reg-filters .inv-form-group { margin-bottom: 0; }
+/* Explicit date range, for an export that does not line up with a month. */
+.inv-reg-range { display: flex; gap: var(--sp-8); flex-wrap: wrap; align-items: flex-end; }
+/* Capped so the pair stays a compact control on a wide desktop toolbar rather
+   than stretching edge to edge, while still filling a 393px phone. */
+.inv-reg-range-field {
+  flex: 1; min-width: 0; max-width: 240px;
+  display: flex; flex-direction: column; gap: var(--sp-2);
+}
+.inv-reg-range-label { font-size: var(--fs-xs); color: var(--text-3); font-weight: 600; }
+.inv-reg-scope-note {
+  font-size: var(--fs-xs); color: var(--warning-text);
+  background: var(--warning-bg); border: 1px solid var(--warning);
+  border-radius: var(--r-sm); padding: var(--sp-4) var(--sp-8);
+}
 .inv-reg-search {
   width: 100%; padding: var(--sp-10) var(--sp-12) var(--sp-10) var(--sp-32);
   border: 1px solid var(--border); border-radius: var(--r-md);
@@ -1773,6 +1787,9 @@ table.inv-qc-grid.inv-qc-no-top { border-top: 0; }
 /* ===== REGISTER — Phase 6b (Bulk Select + Sort) ===== */
 .inv-reg-actions-row {
   display: flex; gap: var(--sp-8); margin-top: var(--sp-8);
+  /* Wraps rather than squeezing: with select-all present this row carries four
+     buttons, and at 393px they were compressing their labels onto two lines. */
+  flex-wrap: wrap;
 }
 .inv-reg-check-wrap {
   display: flex; align-items: center; justify-content: center;

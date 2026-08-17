@@ -1110,6 +1110,20 @@ table.inv-qc-grid.inv-qc-no-top { border-top: 0; }
 }
 .inv-reg-filters > * { flex: 1; min-width: 0; }
 .inv-reg-filters .inv-form-group { margin-bottom: 0; }
+/* Explicit date range, for an export that does not line up with a month. */
+.inv-reg-range { display: flex; gap: var(--sp-8); flex-wrap: wrap; align-items: flex-end; }
+/* Capped so the pair stays a compact control on a wide desktop toolbar rather
+   than stretching edge to edge, while still filling a 393px phone. */
+.inv-reg-range-field {
+  flex: 1; min-width: 0; max-width: 240px;
+  display: flex; flex-direction: column; gap: var(--sp-2);
+}
+.inv-reg-range-label { font-size: var(--fs-xs); color: var(--text-3); font-weight: 600; }
+.inv-reg-scope-note {
+  font-size: var(--fs-xs); color: var(--warning-text);
+  background: var(--warning-bg); border: 1px solid var(--warning);
+  border-radius: var(--r-sm); padding: var(--sp-4) var(--sp-8);
+}
 .inv-reg-search {
   width: 100%; padding: var(--sp-10) var(--sp-12) var(--sp-10) var(--sp-32);
   border: 1px solid var(--border); border-radius: var(--r-md);
@@ -1791,6 +1805,9 @@ table.inv-qc-grid.inv-qc-no-top { border-top: 0; }
 /* ===== REGISTER — Phase 6b (Bulk Select + Sort) ===== */
 .inv-reg-actions-row {
   display: flex; gap: var(--sp-8); margin-top: var(--sp-8);
+  /* Wraps rather than squeezing: with select-all present this row carries four
+     buttons, and at 393px they were compressing their labels onto two lines. */
+  flex-wrap: wrap;
 }
 .inv-reg-check-wrap {
   display: flex; align-items: center; justify-content: center;
@@ -5624,7 +5641,17 @@ function getFilteredInvoices() {
     const cid = parseInt(regFilter.clientId);
     list = list.filter(i => i.clientId === cid);
   }
-  if (regFilter.month) {
+  // A date range and a month are alternatives, never layered — whichever the
+  // operator set last wins and the other is cleared, so there is no precedence
+  // rule to remember. ISO dates compare lexically, so no parsing is needed.
+  if (regFilter.dateFrom || regFilter.dateTo) {
+    list = list.filter(function(i) {
+      if (!i.date) return false;
+      if (regFilter.dateFrom && i.date < regFilter.dateFrom) return false;
+      if (regFilter.dateTo && i.date > regFilter.dateTo) return false;
+      return true;
+    });
+  } else if (regFilter.month) {
     list = list.filter(i => i.date && i.date.startsWith(regFilter.month));
   }
   if (regFilter.search) {
@@ -5674,12 +5701,77 @@ function getFilteredInvoices() {
   return list;
 }
 
+/* Read every register filter control into regFilter, in one place.
+   Two event paths reached these fields with the same block of code copied into
+   both, so a new filter had to be added twice or it silently did nothing on one
+   of them. */
+function captureRegFilters(changedId) {
+  var cf = document.getElementById('regClientFilter');
+  var mf = document.getElementById('regMonthFilter');
+  var sf = document.getElementById('regStateFilter');
+  var df = document.getElementById('regDateFrom');
+  var dt = document.getElementById('regDateTo');
+  if (cf) regFilter.clientId = cf.value;
+  if (sf) regFilter.state = sf.value;
+  if (mf) regFilter.month = mf.value;
+  if (df) regFilter.dateFrom = df.value;
+  if (dt) regFilter.dateTo = dt.value;
+
+  // Month and range are alternatives. Setting one clears the other rather than
+  // leaving both populated and one of them quietly ignored.
+  if (changedId === 'regMonthFilter' && regFilter.month) {
+    regFilter.dateFrom = ''; regFilter.dateTo = '';
+  } else if ((changedId === 'regDateFrom' || changedId === 'regDateTo') &&
+             (regFilter.dateFrom || regFilter.dateTo)) {
+    regFilter.month = '';
+  }
+
+  // A selection made under one filter must not survive into another. The rows
+  // become invisible but stay selected, and every bulk action still acts on
+  // them — file, dispatch, certificates alike. Harmless while selecting meant
+  // one tap per row; a hazard now that one tap selects the whole page.
+  _regSelected = {};
+
+  saveRegFilter();
+  _regToolbarRendered = false;
+  renderRegisterToolbar();
+  _regToolbarRendered = true;
+  _renderRegView();
+  _renderRegSelBar();
+}
+
+/* Invoices in the current filter that a bulk action can actually act on.
+   Cancelled ones are excluded: every bulk path already refuses them — state
+   transitions skip them and certificates are declined — and on mobile their
+   row renders no checkbox at all, so selecting one would be unclearable. */
+function regSelectableInvoices() {
+  return getFilteredInvoices().filter(function(i) { return i.status !== 'cancelled'; });
+}
+
+function toggleRegSelectAll() {
+  var selectable = regSelectableInvoices();
+  var allOn = selectable.length > 0 && selectable.every(function(i) { return _regSelected[i.id]; });
+  _regSelected = {};
+  if (!allOn) selectable.forEach(function(i) { _regSelected[i.id] = true; });
+  _renderRegView();
+  _renderRegSelBar();
+  _regToolbarRendered = false;
+  renderRegisterToolbar();
+  _regToolbarRendered = true;
+  showToast(allOn ? 'Selection cleared'
+    : selectable.length + ' invoice' + (selectable.length !== 1 ? 's' : '') + ' selected');
+}
+
 function renderRegisterToolbar() {
   const area = document.getElementById('regToolbar');
   if (!area) return;
 
   var sortDir = regFilter.regSortDir || 'desc';
   var unaccounted = unaccountedNumberCount();
+  var rangeActive = !!(regFilter.dateFrom || regFilter.dateTo);
+  var selectable = regSelectableInvoices();
+  var selectableCount = selectable.length;
+  var allSelected = selectableCount > 0 && selectable.every(function(i) { return _regSelected[i.id]; });
 
   // Build unique client list for filter dropdown
   const clientIds = [...new Set(S.invoices.map(i => i.clientId))];
@@ -5695,7 +5787,7 @@ function renderRegisterToolbar() {
     '<div class="inv-reg-filters">' +
     '<div class="inv-form-group"><select class="inv-form-select" id="regClientFilter" data-action="invFilterRegister">' +
     '<option value="">All Clients</option>' + clientOpts + '</select></div>' +
-    '<div class="inv-form-group"><input type="month" class="inv-form-input inv-mono" id="regMonthFilter" value="' + escHtml(regFilter.month) + '" data-action="invFilterRegister"></div>' +
+    '<div class="inv-form-group"><input type="month" class="inv-form-input inv-mono" id="regMonthFilter" value="' + escHtml(regFilter.month || '') + '" data-action="invFilterRegister" aria-label="Filter by month"></div>' +
     '<div class="inv-form-group"><select class="inv-form-select" id="regStateFilter" data-action="invFilterRegister">' +
     '<option value=""' + (!regFilter.state ? ' selected' : '') + '>All States</option>' +
     '<option value="created"' + (regFilter.state === 'created' ? ' selected' : '') + '>Created</option>' +
@@ -5704,6 +5796,15 @@ function renderRegisterToolbar() {
     '<option value="filed"' + (regFilter.state === 'filed' ? ' selected' : '') + '>Filed</option>' +
     '<option value="cancelled"' + (regFilter.state === 'cancelled' ? ' selected' : '') + '>Cancelled</option></select></div>' +
     '</div>' +
+    // Explicit range, for an export that does not line up with a calendar month.
+    '<div class="inv-reg-range">' +
+    '<label class="inv-reg-range-field"><span class="inv-reg-range-label">From</span>' +
+    '<input type="date" class="inv-form-input inv-mono" id="regDateFrom" value="' + escHtml(regFilter.dateFrom || '') + '" data-action="invFilterRegister"></label>' +
+    '<label class="inv-reg-range-field"><span class="inv-reg-range-label">To</span>' +
+    '<input type="date" class="inv-form-input inv-mono" id="regDateTo" value="' + escHtml(regFilter.dateTo || '') + '" data-action="invFilterRegister"></label>' +
+    (rangeActive ? '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invRegClearRange">Clear range</button>' : '') +
+    '</div>' +
+    (rangeActive ? '<div class="inv-reg-scope-note">Range in use — the month filter is ignored while it is set.</div>' : '') +
     '<div class="inv-reg-actions-row">' +
     '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invRegToggleSort">' +
     (sortDir === 'asc' ? 'Oldest first' : 'Newest first') +
@@ -5711,6 +5812,12 @@ function renderRegisterToolbar() {
     '<button class="inv-btn inv-btn-ghost inv-btn-sm' + (_regSelectMode ? ' inv-chip-active' : '') + '" data-action="invRegToggleSelect">' +
     (_regSelectMode ? 'Cancel select' : 'Select') +
     '</button>' +
+    // Desktop always shows checkboxes; mobile only inside select mode, so the
+    // control follows wherever ticking is actually possible.
+    ((_isDesktop || _regSelectMode) && selectableCount > 0
+      ? '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invRegSelectAll">' +
+        (allSelected ? 'Clear selection' : 'Select all (' + selectableCount + ')') + '</button>'
+      : '') +
     '<button class="inv-btn inv-btn-ghost inv-btn-sm" id="regNumberAudit" data-action="invShowNumberAudit">Number audit' +
     (unaccounted > 0 ? '<span class="inv-numaudit-count">' + unaccounted + '</span>' : '') +
     '</button>' +
@@ -6846,6 +6953,52 @@ function downloadCSV(filename, rows) {
   a.click();
 }
 
+/* Rows in serial order, voided numbers sitting in their own slot.
+   Both exports used to take getFilteredInvoices() order, which on mobile is
+   createdAt descending — so the register filed to the accountant came out in
+   reverse typing order — and then appended the voids in a block at the end. A
+   register is read by serial: that is the order rule 46's consecutive series is
+   kept in, and it is the order a gap is spotted in. The on-screen sort is a
+   browsing preference and deliberately does not reach the file. */
+function _exportRowsInSerialOrder(invoices, voided, invRow, voidRow) {
+  var rows = invoices.map(function(inv) {
+    return { num: invNumInt(inv.invoiceNumber), build: function() { return invRow(inv); } };
+  }).concat(voided.map(function(v) {
+    return { num: invNumInt(v.invoiceNumber), build: function() { return voidRow(v); } };
+  }));
+  rows.sort(function(a, b) {
+    if (a.num == null) return 1;
+    if (b.num == null) return -1;
+    return a.num - b.num;
+  });
+  return rows.map(function(r) { return r.build(); });
+}
+
+/* Filenames say what the file actually contains. `SEP-Sales-Register-all.csv`
+   twice in a downloads folder, from two different client filters, is a filing
+   accident waiting to happen. */
+function _exportSlug(s) {
+  return String(s || '').replace(/[^A-Za-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40);
+}
+
+function exportScopeLabel() {
+  var parts = [];
+  if (regFilter.dateFrom || regFilter.dateTo) {
+    parts.push((regFilter.dateFrom || 'start') + '_to_' + (regFilter.dateTo || localDateStr()));
+  } else if (regFilter.month) {
+    parts.push(regFilter.month);
+  } else {
+    parts.push('all-dates');
+  }
+  if (regFilter.clientId) {
+    var c = S.clients.find(function(x) { return x.id === parseInt(regFilter.clientId); });
+    if (c) parts.push(_exportSlug(c.name));
+  }
+  if (regFilter.state) parts.push(_exportSlug(regFilter.state));
+  if (regFilter.search) parts.push('search-' + _exportSlug(regFilter.search));
+  return parts.join('_');
+}
+
 function getPlaceOfSupply(inv) {
   const code = (inv.clientAddress && inv.clientAddress.stateCode) || '20';
   const stateMap = { '20': 'Jharkhand', '27': 'Maharashtra' };
@@ -6858,38 +7011,43 @@ function exportSalesCSV() {
   // Phase 5: Metadata row above column headers
   var exportDate = formatDateExport(localDateStr());
   var metaRow = ['SOMA ELECTRO PRODUCTS | GSTIN: ' + (S.company.gstin || '20AAPFS4718J2Z0') + ' | Export Date: ' + exportDate];
-  const header = ['Inv. No.', 'Date', 'Customer', 'Taxable Value', 'CGST%', 'CGST Amt', 'SGST%', 'SGST Amt', 'IGST%', 'IGST Amt', 'Invoice Amount'];
-  const rows = [metaRow, header];
-  invoices.forEach(inv => {
-    const cancelled = inv.status === 'cancelled';
-    rows.push([
-      inv.displayNumber,
-      formatDateExport(inv.date),
-      inv.clientName,
-      cancelled ? 0 : inv.taxableValue,
-      cancelled ? 0 : (inv.cgstPer || 0),
-      cancelled ? 0 : (inv.cgstAmt || 0),
-      cancelled ? 0 : (inv.sgstPer || 0),
-      cancelled ? 0 : (inv.sgstAmt || 0),
-      cancelled ? 0 : (inv.igstPer || 0),
-      cancelled ? 0 : (inv.igstAmt || 0),
-      cancelled ? 0 : (inv.grandTotal || 0)
-    ]);
-  });
+  var scope = exportScopeLabel();
+  metaRow.push('Scope: ' + scope);
+  const header = ['Inv. No.', 'Date', 'Customer', 'Status', 'Taxable Value', 'CGST%', 'CGST Amt', 'SGST%', 'SGST Amt', 'IGST%', 'IGST Amt', 'Invoice Amount'];
   // Voided numbers ride along at zero. The number was issued, so the series
   // has to show it; the reason travels in the customer column so the internal
   // register explains its own gaps.
   const voided = getVoidedForExport();
-  voided.forEach(v => {
-    rows.push([
-      v.displayNumber,
-      formatDateExport(v.date),
-      (v.clientName ? v.clientName + ' — ' : '') + 'VOID: ' + v.reason,
-      0, 0, 0, 0, 0, 0, 0, 0
-    ]);
-  });
-  const prefix = regFilter.month || 'all';
-  downloadCSV('SEP-Sales-Register-' + prefix + '.csv', rows);
+  const rows = [metaRow, header].concat(_exportRowsInSerialOrder(
+    invoices, voided,
+    function(inv) {
+      const cancelled = inv.status === 'cancelled';
+      return [
+        inv.displayNumber,
+        formatDateExport(inv.date),
+        inv.clientName,
+        cancelled ? 'Cancelled' : INV_STATE_LABELS[getInvState(inv)] || 'Created',
+        cancelled ? 0 : inv.taxableValue,
+        cancelled ? 0 : (inv.cgstPer || 0),
+        cancelled ? 0 : (inv.cgstAmt || 0),
+        cancelled ? 0 : (inv.sgstPer || 0),
+        cancelled ? 0 : (inv.sgstAmt || 0),
+        cancelled ? 0 : (inv.igstPer || 0),
+        cancelled ? 0 : (inv.igstAmt || 0),
+        cancelled ? 0 : (inv.grandTotal || 0)
+      ];
+    },
+    function(v) {
+      return [
+        v.displayNumber,
+        formatDateExport(v.date),
+        (v.clientName ? v.clientName + ' — ' : '') + 'VOID: ' + v.reason,
+        'Voided',
+        0, 0, 0, 0, 0, 0, 0, 0
+      ];
+    }
+  ));
+  downloadCSV('SEP-Sales-Register_' + scope + '.csv', rows);
   showToast('Sales Register exported (' + (invoices.length + voided.length) + ' rows)');
 }
 
@@ -6898,40 +7056,41 @@ function exportGSTR1CSV() {
   // Phase 5: Metadata row above column headers
   var exportDate = formatDateExport(localDateStr());
   var metaRow = ['SOMA ELECTRO PRODUCTS | GSTIN: ' + (S.company.gstin || '20AAPFS4718J2Z0') + ' | Export Date: ' + exportDate];
+  var scope = exportScopeLabel();
+  metaRow.push('Scope: ' + scope);
   const header = ['GSTIN/UIN of Recipient', 'Invoice Number', 'Invoice Date', 'Invoice Value', 'Place of Supply', 'Reverse Charge', 'Invoice Type', 'E-Commerce GSTIN', 'Rate', 'Taxable Value', 'CGST Amount', 'SGST Amount', 'IGST Amount', 'Cess Amount'];
-  const rows = [metaRow, header];
-  invoices.forEach(inv => {
-    const cancelled = inv.status === 'cancelled';
-    const gstRate = cancelled ? 0 : ((inv.cgstPer || 0) + (inv.sgstPer || 0) + (inv.igstPer || 0));
-    rows.push([
-      inv.clientGSTIN || '',
-      inv.displayNumber,
-      formatDateExport(inv.date),
-      cancelled ? 0 : (inv.grandTotal || 0),
-      getPlaceOfSupply(inv),
-      'N',
-      'Regular',
-      '',
-      gstRate,
-      cancelled ? 0 : (inv.taxableValue || 0),
-      cancelled ? 0 : (inv.cgstAmt || 0),
-      cancelled ? 0 : (inv.sgstAmt || 0),
-      cancelled ? 0 : (inv.igstAmt || 0),
-      0
-    ]);
-  });
   // Same treatment as a cancelled invoice, which this export already carries at
   // zero: the number is declared, the value is not. Without these rows the
   // return shows a hole the app cannot explain.
   const voided = getVoidedForExport();
-  voided.forEach(v => {
-    rows.push([
-      '', v.displayNumber, formatDateExport(v.date), 0,
-      '20-Jharkhand', 'N', 'Regular', '', 0, 0, 0, 0, 0, 0
-    ]);
-  });
-  const prefix = regFilter.month || 'all';
-  downloadCSV('SEP-GSTR1-' + prefix + '.csv', rows);
+  const rows = [metaRow, header].concat(_exportRowsInSerialOrder(
+    invoices, voided,
+    function(inv) {
+      const cancelled = inv.status === 'cancelled';
+      const gstRate = cancelled ? 0 : ((inv.cgstPer || 0) + (inv.sgstPer || 0) + (inv.igstPer || 0));
+      return [
+        inv.clientGSTIN || '',
+        inv.displayNumber,
+        formatDateExport(inv.date),
+        cancelled ? 0 : (inv.grandTotal || 0),
+        getPlaceOfSupply(inv),
+        'N',
+        'Regular',
+        '',
+        gstRate,
+        cancelled ? 0 : (inv.taxableValue || 0),
+        cancelled ? 0 : (inv.cgstAmt || 0),
+        cancelled ? 0 : (inv.sgstAmt || 0),
+        cancelled ? 0 : (inv.igstAmt || 0),
+        0
+      ];
+    },
+    function(v) {
+      return ['', v.displayNumber, formatDateExport(v.date), 0,
+        '20-Jharkhand', 'N', 'Regular', '', 0, 0, 0, 0, 0, 0];
+    }
+  ));
+  downloadCSV('SEP-GSTR1_' + scope + '.csv', rows);
   showToast('GSTR1 exported (' + (invoices.length + voided.length) + ' rows)');
 }
 
@@ -10348,17 +10507,14 @@ document.addEventListener('click', function(e) {
     case 'invExportSales': exportSalesCSV(); break;
     case 'invExportGstr1': exportGSTR1CSV(); break;
     case 'invSelectPart': selectPartForLine(parseInt(btn.dataset.idx), parseInt(btn.dataset.partId)); break;
-    case 'invFilterRegister': {
-      const cf = document.getElementById('regClientFilter');
-      const mf = document.getElementById('regMonthFilter');
-      const sf = document.getElementById('regStateFilter');
-      if (cf) regFilter.clientId = cf.value;
-      if (mf) regFilter.month = mf.value;
-      if (sf) regFilter.state = sf.value;
+    case 'invFilterRegister': captureRegFilters(btn.id); break;
+    case 'invRegClearRange': {
+      regFilter.dateFrom = ''; regFilter.dateTo = '';
       saveRegFilter();
-      _renderRegView();
+      captureRegFilters();
       break;
     }
+    case 'invRegSelectAll': toggleRegSelectAll(); break;
     case 'invToggleIM': toggleIMExpand(btn.dataset.id); break;
     case 'invCheckIMItem': toggleIMItem(btn.dataset.itemId); break;
     case 'invCheckIMChallan': toggleIMChallan(btn.dataset.id); break;
@@ -10682,16 +10838,11 @@ document.addEventListener('change', function(e) {
   if (e.target.id === 'invDate') {
     invoiceForm.date = e.target.value;
   }
-  // Register filters
-  if (e.target.id === 'regClientFilter' || e.target.id === 'regMonthFilter' || e.target.id === 'regStateFilter') {
-    const cf = document.getElementById('regClientFilter');
-    const mf = document.getElementById('regMonthFilter');
-    const sf = document.getElementById('regStateFilter');
-    if (cf) regFilter.clientId = cf.value;
-    if (mf) regFilter.month = mf.value;
-    if (sf) regFilter.state = sf.value;
-    saveRegFilter();
-    _renderRegView();
+  // Register filters — one capture path, so a new filter control cannot end up
+  // wired to the click delegate and not to this one.
+  if (e.target.id === 'regClientFilter' || e.target.id === 'regMonthFilter' ||
+      e.target.id === 'regStateFilter' || e.target.id === 'regDateFrom' || e.target.id === 'regDateTo') {
+    captureRegFilters(e.target.id);
   }
   // IM filters
   if (e.target.id === 'imClientFilter' || e.target.id === 'imStatusFilter') {

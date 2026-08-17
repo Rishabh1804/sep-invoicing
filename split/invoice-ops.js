@@ -54,7 +54,17 @@ function getFilteredInvoices() {
     const cid = parseInt(regFilter.clientId);
     list = list.filter(i => i.clientId === cid);
   }
-  if (regFilter.month) {
+  // A date range and a month are alternatives, never layered — whichever the
+  // operator set last wins and the other is cleared, so there is no precedence
+  // rule to remember. ISO dates compare lexically, so no parsing is needed.
+  if (regFilter.dateFrom || regFilter.dateTo) {
+    list = list.filter(function(i) {
+      if (!i.date) return false;
+      if (regFilter.dateFrom && i.date < regFilter.dateFrom) return false;
+      if (regFilter.dateTo && i.date > regFilter.dateTo) return false;
+      return true;
+    });
+  } else if (regFilter.month) {
     list = list.filter(i => i.date && i.date.startsWith(regFilter.month));
   }
   if (regFilter.search) {
@@ -104,12 +114,77 @@ function getFilteredInvoices() {
   return list;
 }
 
+/* Read every register filter control into regFilter, in one place.
+   Two event paths reached these fields with the same block of code copied into
+   both, so a new filter had to be added twice or it silently did nothing on one
+   of them. */
+function captureRegFilters(changedId) {
+  var cf = document.getElementById('regClientFilter');
+  var mf = document.getElementById('regMonthFilter');
+  var sf = document.getElementById('regStateFilter');
+  var df = document.getElementById('regDateFrom');
+  var dt = document.getElementById('regDateTo');
+  if (cf) regFilter.clientId = cf.value;
+  if (sf) regFilter.state = sf.value;
+  if (mf) regFilter.month = mf.value;
+  if (df) regFilter.dateFrom = df.value;
+  if (dt) regFilter.dateTo = dt.value;
+
+  // Month and range are alternatives. Setting one clears the other rather than
+  // leaving both populated and one of them quietly ignored.
+  if (changedId === 'regMonthFilter' && regFilter.month) {
+    regFilter.dateFrom = ''; regFilter.dateTo = '';
+  } else if ((changedId === 'regDateFrom' || changedId === 'regDateTo') &&
+             (regFilter.dateFrom || regFilter.dateTo)) {
+    regFilter.month = '';
+  }
+
+  // A selection made under one filter must not survive into another. The rows
+  // become invisible but stay selected, and every bulk action still acts on
+  // them — file, dispatch, certificates alike. Harmless while selecting meant
+  // one tap per row; a hazard now that one tap selects the whole page.
+  _regSelected = {};
+
+  saveRegFilter();
+  _regToolbarRendered = false;
+  renderRegisterToolbar();
+  _regToolbarRendered = true;
+  _renderRegView();
+  _renderRegSelBar();
+}
+
+/* Invoices in the current filter that a bulk action can actually act on.
+   Cancelled ones are excluded: every bulk path already refuses them — state
+   transitions skip them and certificates are declined — and on mobile their
+   row renders no checkbox at all, so selecting one would be unclearable. */
+function regSelectableInvoices() {
+  return getFilteredInvoices().filter(function(i) { return i.status !== 'cancelled'; });
+}
+
+function toggleRegSelectAll() {
+  var selectable = regSelectableInvoices();
+  var allOn = selectable.length > 0 && selectable.every(function(i) { return _regSelected[i.id]; });
+  _regSelected = {};
+  if (!allOn) selectable.forEach(function(i) { _regSelected[i.id] = true; });
+  _renderRegView();
+  _renderRegSelBar();
+  _regToolbarRendered = false;
+  renderRegisterToolbar();
+  _regToolbarRendered = true;
+  showToast(allOn ? 'Selection cleared'
+    : selectable.length + ' invoice' + (selectable.length !== 1 ? 's' : '') + ' selected');
+}
+
 function renderRegisterToolbar() {
   const area = document.getElementById('regToolbar');
   if (!area) return;
 
   var sortDir = regFilter.regSortDir || 'desc';
   var unaccounted = unaccountedNumberCount();
+  var rangeActive = !!(regFilter.dateFrom || regFilter.dateTo);
+  var selectable = regSelectableInvoices();
+  var selectableCount = selectable.length;
+  var allSelected = selectableCount > 0 && selectable.every(function(i) { return _regSelected[i.id]; });
 
   // Build unique client list for filter dropdown
   const clientIds = [...new Set(S.invoices.map(i => i.clientId))];
@@ -125,7 +200,7 @@ function renderRegisterToolbar() {
     '<div class="inv-reg-filters">' +
     '<div class="inv-form-group"><select class="inv-form-select" id="regClientFilter" data-action="invFilterRegister">' +
     '<option value="">All Clients</option>' + clientOpts + '</select></div>' +
-    '<div class="inv-form-group"><input type="month" class="inv-form-input inv-mono" id="regMonthFilter" value="' + escHtml(regFilter.month) + '" data-action="invFilterRegister"></div>' +
+    '<div class="inv-form-group"><input type="month" class="inv-form-input inv-mono" id="regMonthFilter" value="' + escHtml(regFilter.month || '') + '" data-action="invFilterRegister" aria-label="Filter by month"></div>' +
     '<div class="inv-form-group"><select class="inv-form-select" id="regStateFilter" data-action="invFilterRegister">' +
     '<option value=""' + (!regFilter.state ? ' selected' : '') + '>All States</option>' +
     '<option value="created"' + (regFilter.state === 'created' ? ' selected' : '') + '>Created</option>' +
@@ -134,6 +209,15 @@ function renderRegisterToolbar() {
     '<option value="filed"' + (regFilter.state === 'filed' ? ' selected' : '') + '>Filed</option>' +
     '<option value="cancelled"' + (regFilter.state === 'cancelled' ? ' selected' : '') + '>Cancelled</option></select></div>' +
     '</div>' +
+    // Explicit range, for an export that does not line up with a calendar month.
+    '<div class="inv-reg-range">' +
+    '<label class="inv-reg-range-field"><span class="inv-reg-range-label">From</span>' +
+    '<input type="date" class="inv-form-input inv-mono" id="regDateFrom" value="' + escHtml(regFilter.dateFrom || '') + '" data-action="invFilterRegister"></label>' +
+    '<label class="inv-reg-range-field"><span class="inv-reg-range-label">To</span>' +
+    '<input type="date" class="inv-form-input inv-mono" id="regDateTo" value="' + escHtml(regFilter.dateTo || '') + '" data-action="invFilterRegister"></label>' +
+    (rangeActive ? '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invRegClearRange">Clear range</button>' : '') +
+    '</div>' +
+    (rangeActive ? '<div class="inv-reg-scope-note">Range in use — the month filter is ignored while it is set.</div>' : '') +
     '<div class="inv-reg-actions-row">' +
     '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invRegToggleSort">' +
     (sortDir === 'asc' ? 'Oldest first' : 'Newest first') +
@@ -141,6 +225,12 @@ function renderRegisterToolbar() {
     '<button class="inv-btn inv-btn-ghost inv-btn-sm' + (_regSelectMode ? ' inv-chip-active' : '') + '" data-action="invRegToggleSelect">' +
     (_regSelectMode ? 'Cancel select' : 'Select') +
     '</button>' +
+    // Desktop always shows checkboxes; mobile only inside select mode, so the
+    // control follows wherever ticking is actually possible.
+    ((_isDesktop || _regSelectMode) && selectableCount > 0
+      ? '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invRegSelectAll">' +
+        (allSelected ? 'Clear selection' : 'Select all (' + selectableCount + ')') + '</button>'
+      : '') +
     '<button class="inv-btn inv-btn-ghost inv-btn-sm" id="regNumberAudit" data-action="invShowNumberAudit">Number audit' +
     (unaccounted > 0 ? '<span class="inv-numaudit-count">' + unaccounted + '</span>' : '') +
     '</button>' +

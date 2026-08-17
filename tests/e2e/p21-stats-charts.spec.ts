@@ -138,9 +138,15 @@ test('P21: every point carries its own value, not just the endpoints', async ({ 
   await loadAppWithState(page, s);
   await openStats(page);
 
+  // Every marker carries a title, not just the two endpoints the old chart
+  // labelled. The count follows the series — which now includes the quiet
+  // months between January and today, each as an explicit zero.
+  const series = await page.evaluate(() => (window as any).buildTrendSeries('month', 'revenue'));
   const titles = await page.locator('.inv-chart-svg circle.inv-svg-dot title').allTextContents();
-  expect(titles).toHaveLength(3);
+  expect(titles).toHaveLength(series.length);
+  expect(titles.length).toBeGreaterThan(3);
   expect(titles.join(' ')).toContain('₹3,000.00');
+  expect(titles.join(' ')).toContain('₹4,000.00');
 });
 
 test('P21: revenue by client can be read as a share, with a legend', async ({ page }) => {
@@ -232,4 +238,22 @@ test('P21: parts plated below cost are marked against the cost line', async ({ p
   await expect(page.locator('.inv-chart-ranked-fill-danger')).toHaveCount(1);
   await expect(page.locator('.inv-chart-ranked-fill-good')).toHaveCount(1);
   await expect(page.locator('.inv-stats-note', { hasText: 'Mark is full cost' })).toContainText('₹8.55');
+});
+
+test('P21: a period with no work is a zero, not a gap the chart closes over', async ({ page }) => {
+  const s = statsState();
+  // January and May, nothing between. Rendering these as two adjacent bars
+  // reads as continuous work and hides the three-month hole entirely.
+  s.invoices = [
+    invoice(1, { date: '2026-01-15', taxableValue: 5000 }),
+    invoice(2, { date: '2026-05-15', taxableValue: 4000 }),
+  ];
+  await loadAppWithState(page, s);
+  await openStats(page);
+
+  const series = await page.evaluate(() => (window as any).buildTrendSeries('month', 'revenue'));
+  expect(series).toHaveLength(5);
+  expect(series.map((d: { value: number }) => d.value)).toEqual([5000, 0, 0, 0, 4000]);
+  expect(series[0].label).toContain('Jan');
+  expect(series[4].label).toContain('May');
 });

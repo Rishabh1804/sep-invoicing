@@ -201,3 +201,35 @@ test('P18: the filename states the scope it was taken under', async ({ page }) =
   // And the scope travels inside the file as well as on it.
   expect(csv.rows[0].join(' ')).toContain('Scope: ');
 });
+
+test('P18: clicking a filter control does not rebuild it out from under the pointer', async ({ page }) => {
+  await loadAppWithState(page, stateWith([invoice(1), invoice(2)]));
+  await switchTab(page, 'pageRegister');
+
+  // Mark the live elements. If a click rebuilds the toolbar, the marked nodes
+  // are discarded with it — which is what shut the client dropdown the instant
+  // it was opened, because the toolbar re-render replaced the <select> the
+  // native popup was hanging off.
+  await page.evaluate(() => {
+    ['regClientFilter', 'regStateFilter', 'regMonthFilter', 'regDateFrom', 'regDateTo']
+      .forEach((id) => { const el = document.getElementById(id); if (el) el.dataset.probe = 'live'; });
+  });
+
+  for (const id of ['regClientFilter', 'regStateFilter', 'regDateFrom']) {
+    await page.locator(`#${id}`).click();
+    const survived = await page.evaluate(
+      (elId) => document.getElementById(elId)?.dataset.probe === 'live', id);
+    expect(survived, `${id} was replaced by a click`).toBe(true);
+  }
+});
+
+test('P18: choosing a client still filters — the change path is the one that acts', async ({ page }) => {
+  const s = stateWith([invoice(1), invoice(2, { clientId: 2, clientName: 'OTHER CLIENT' })]);
+  (s.clients as unknown[]).push({ id: 2, name: 'OTHER CLIENT', billingMode: 'weight', gstType: 'intra', gstin: '', address: '' } as never);
+  await loadAppWithState(page, s);
+  await switchTab(page, 'pageRegister');
+
+  await page.locator('#regClientFilter').selectOption('2');
+  await expect(page.locator('#regList')).toContainText('SEP/TEST-00002');
+  await expect(page.locator('#regList')).not.toContainText('SEP/TEST-00001');
+});

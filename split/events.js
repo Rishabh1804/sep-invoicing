@@ -49,7 +49,6 @@ document.addEventListener('click', function(e) {
     case 'invExportSales': exportSalesCSV(); break;
     case 'invExportGstr1': exportGSTR1CSV(); break;
     case 'invSelectPart': selectPartForLine(parseInt(btn.dataset.idx), parseInt(btn.dataset.partId)); break;
-    case 'invFilterRegister': captureRegFilters(btn.id); break;
     case 'invRegClearRange': {
       regFilter.dateFrom = ''; regFilter.dateTo = '';
       saveRegFilter();
@@ -68,14 +67,7 @@ document.addEventListener('click', function(e) {
     case 'invCheckIMItem': toggleIMItem(btn.dataset.itemId); break;
     case 'invCheckIMChallan': toggleIMChallan(btn.dataset.id); break;
     case 'invCreateFromIM': createInvoiceFromIM(); break;
-    case 'invFilterIM': {
-      const icf = document.getElementById('imClientFilter');
-      const isf = document.getElementById('imStatusFilter');
-      if (icf) _imFilter.clientId = icf.value;
-      if (isf) _imFilter.status = isf.value;
-      _renderIMView();
-      break;
-    }
+    case 'invFilterIM': captureIMFilters(); break;
     // Phase 4: Print preview
     case 'invPreviewInvoice': closeOverlay(); showPrintPreview(btn.dataset.id); break;
     case 'invClosePrint': closePrintPreview(); break;
@@ -382,11 +374,7 @@ document.addEventListener('change', function(e) {
   }
   // IM filters
   if (e.target.id === 'imClientFilter' || e.target.id === 'imStatusFilter') {
-    const icf = document.getElementById('imClientFilter');
-    const isf = document.getElementById('imStatusFilter');
-    if (icf) _imFilter.clientId = icf.value;
-    if (isf) _imFilter.status = isf.value;
-    _renderIMView();
+    captureIMFilters();
   }
   // Client performance: which account is under the lens
   if (e.target.id === 'cpClientSelect') {
@@ -462,9 +450,13 @@ document.addEventListener('input', function(e) {
   // figure being committed is the one on screen. Focus is preserved because
   // the caret position is restored across the re-render.
   if (e.target.dataset.action === 'invCnInput') {
+    captureCnForm();
+    // Only the discount moves the totals. The date and the vehicle number do
+    // not, and re-rendering for them replaced the control being used — which
+    // on a date input means tearing the native picker out mid-choice.
+    if (e.target.id !== 'cnPct') return;
     var cnId = e.target.id, cnCaret = null;
     try { cnCaret = e.target.selectionStart; } catch (err) { cnCaret = null; }
-    captureCnForm();
     renderCreditNoteForm();
     var back = document.getElementById(cnId);
     if (back) {

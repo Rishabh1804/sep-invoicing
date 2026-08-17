@@ -1,7 +1,7 @@
 # Memory.md
 **Scope:** Persistent institutional knowledge across all repos
 **Owner:** The Consul (cross-repo overseer)
-**Updated:** 12 August 2026
+**Updated:** 14 August 2026
 
 ---
 
@@ -43,11 +43,20 @@ CA by background. Business Manager at Soma Electro Products (zinc electroplating
 - **Aug 2026 (PR #20):** challan entry made fully keyboard-operable; offline layer
   (installable manifest + network-first shell); GitHub sync (Contents API, SHA-guarded);
   Stats/History rebuilt around realisation ₹/kg with weights deriving at bootstrap
-- 26 modules, ~10,800 lines. 113 e2e tests gate every PR
+- **14 Aug 2026 (PR #22):** Test Certificate (ZN Plating) generates from the register —
+  one A4 page per part per dispatch, single or bulk, into the existing print view. Closes
+  the prototype in `docs/test-certificates/`, whose generator could not see the register,
+  so nothing it printed was tied to a document the customer held
+- 27 modules, ~11,750 lines. 128 e2e tests gate every PR
 - Development moved off Termux to Claude Code (clones fresh; `.claude/hooks/session-start.sh`
   arms the pre-commit hook and installs test deps)
-- **Open with the owner:** does contract labour scale with volume? It decides the SSS Mehta
-  response and nothing about that account should move before it is answered
+- **Open with the owner:**
+  - does contract labour scale with volume? It decides the SSS Mehta response and nothing
+    about that account should move before it is answered
+  - do the four certificates rendered 15 Apr 2026 need reissuing to SSS Mehta? They carry
+    the superseded GSTIN (below). Left in place as the record of what was sent
+  - piece-billed lines print Net Wt. blank. Filling them means weighing the parts into
+    `partWeights`, not promoting the rate-derived `stdWeightKg`
 
 ### BusinessAI Simulation (Queued)
 - Multi-entity business spanning trading, industry, logistics
@@ -63,6 +72,19 @@ CA by background. Business Manager at Soma Electro Products (zinc electroplating
 | 0034 | global | SWs never cache HTML — prevents chicken-and-egg loop. **Amended in SEP, Aug 2026 — see below** |
 | HR-1→12 | sproutlab | 12 hard rules, originated in SproutLab, inform all repos |
 | Billing vs Logistics | sep | IM (billing spine) and GC (logistics spine) are parallel, not sequential |
+| Derived vs issued numbers | sep | A number that *is* a pointer needs no ledger; a number that is *issued* does |
+
+#### Derived vs issued numbers (Aug 2026)
+SEP built a whole apparatus for invoice numbers — tombstones, required reasons, a
+reserved/recycled rule, a gap audit — because an issued number outlives its record and a hole
+in the series has to be explainable. The quality certificate looked like the same problem and
+is not: its reference is `QC/<invoice display number>/<line no>`, **derived** from the thing it
+certifies. It regenerates identically, cannot gap, cannot be voided, and needs nothing written
+to state when one prints.
+
+The test to apply before building a numbering system: **is the number a fact, or a pointer?**
+A pointer is reconstructible from what it points at, so the ledger is redundant. Only a number
+that was independently issued — that exists because someone allocated it — needs the apparatus.
 
 #### Canon 0034 — amended in SEP, unresolved globally
 An offline layer cannot be built while abstaining from the app shell, so SEP now honours the
@@ -94,6 +116,29 @@ decision. Do not silently propagate the SEP pattern to another repo without sett
 - **Hardcoded dates in test fixtures are time bombs.** Three found across two SEP sessions,
   each passing only because of when it was written or what it happened not to filter on.
   Use `todayIso()` / `recentTs()`-style helpers everywhere.
+- **For anything whose purpose is to be seen, assert that it is visible — not that it exists.**
+  SEP's certificate run reported its exclusions ("skipped 1 cancelled") through `showToast`,
+  and the toast sits at `z-index: 300` under a print view at `500`. It was never visible to
+  anyone. The e2e spec passed regardless, because `toContainText` reads the DOM, not the
+  pixels — the assertion confirmed the message had been *composed*, which was never in doubt.
+  Use `toBeVisible()`, and be suspicious of any green test on a reporting path. The fix was
+  also the better design: an exclusion belongs in place and persistent, not in a notification
+  that expires in three seconds — the same rule the Stats coverage cards already follow.
+- **A generated document reads identity from one source; it never carries its own copy.**
+  SEP's certificate prototype froze company name, address and GSTIN into its template, and by
+  the time the app absorbed it the copy had drifted: GSTIN `20AAFFS4718J2ZD` against the
+  `20AAPFS4718J2Z0` every invoice files under. Two documents from one business disagreed about
+  who issued them, and nothing could detect it because neither read the other. Certificates now
+  read `S.company`. Corollary for **externally approved artefacts**: verbatim preservation is
+  bound to what the approval covers. SEP keeps the TML-approved format's typos (`Cynide`,
+  `Peef off`) because QA-TML approval binds that text — but a GSTIN is a fact about the
+  taxpayer, not format text, and a wrong one is simply wrong. Know which you are looking at
+  before deciding whether it may be corrected.
+- **A print preview should carry one set of measurements, not two.** SEP's certificate uses the
+  A4 mm/pt figures on screen as well and pans sideways on a narrow phone, so the preview *is*
+  the page that prints. The reflowing alternative looked tidier at 393px and broke table
+  headings into `Ob ser vati on` — but the real cost was two sets of sizes free to drift apart,
+  where the screen stops predicting the output.
 
 ## Companion Registry (Quick Reference)
 

@@ -39,6 +39,13 @@
   --tab-h: 52px; --header-h: 48px; --max-w: 520px;
   --section-gap: var(--sp-16); --card-padding: var(--sp-16);
   --card-padding-sm: var(--sp-12);
+
+  /* Chart series palette. Eight hues drawn from the domain colours so a pie
+     reads as part of this app, plus a muted ninth for the folded "others"
+     wedge — the tail should look like a tail, not like a ninth client. */
+  --chart-1: #b45a37; --chart-2: #2e75b6; --chart-3: #177a36; --chart-4: #8a6b08;
+  --chart-5: #8b6c4a; --chart-6: #6b4c8a; --chart-7: #b5583a; --chart-8: #2f7d7d;
+  --chart-other: #9a958c;
 }
 
 /* Dark mode tokens */
@@ -50,6 +57,11 @@
   --danger-bg: #3a1a18; --warning-bg: #3a3018; --neutral-bg: #2a2518;
   --attend-text: #6cd88a; --cost-text: #e8a888; --prod-text: #88b8e8;
   --danger-text: #e89090; --warning-text: #d4b848; --neutral-text: #c8b898;
+  /* Lifted for contrast against the dark surface; the light values go muddy
+     on #242320 and adjacent wedges stop being tellable apart. */
+  --chart-1: #e8a888; --chart-2: #88b8e8; --chart-3: #6cd88a; --chart-4: #d4b848;
+  --chart-5: #c8b898; --chart-6: #b79ae0; --chart-7: #e89090; --chart-8: #7fd0d0;
+  --chart-other: #6e6a63;
 }
 
 /* ===== RESET ===== */
@@ -568,6 +580,145 @@ table.inv-qc-grid.inv-qc-no-top { border-top: 0; }
   margin-bottom: var(--qc-sig-gap);
 }
 
+/* ===== CREDIT NOTE DOCUMENT ===== */
+/* Same approach as the certificate sheet: one set of measurements for screen
+   and print so the preview is the page, and the ink is pinned black-on-white
+   because a tax document is not themed (HR-7 met by pinning, not omitting).
+   Physical units are the documented HR-6 print exception and are declared once,
+   here, with every rule below reading a var(). */
+.inv-cn-doc {
+  --cn-ink: #000;
+  --cn-paper: #fff;
+  --cn-rule: #000;
+  --cn-band: #ececec;
+  --cn-fs: 8.5pt;
+  --cn-fs-sm: 7.5pt;
+  --cn-fs-name: 11pt;
+  --cn-pad: 1mm 1.5mm;
+  --cn-page-pad: 6mm;
+  --cn-rule-w: 0.5pt;
+  --cn-sheet-w: 194mm;
+
+  background: var(--cn-paper); color: var(--cn-ink);
+  font-family: var(--ff-base); font-size: var(--cn-fs); line-height: 1.3;
+  width: var(--cn-sheet-w); margin: 0 auto var(--sp-16) auto;
+  padding: var(--cn-page-pad);
+  border: 1px solid var(--border);
+}
+.inv-cn-top, .inv-cn-parties, .inv-cn-words-row, .inv-cn-foot {
+  display: flex; border: var(--cn-rule-w) solid var(--cn-rule);
+}
+.inv-cn-top { border-bottom: 0; }
+.inv-cn-seller { flex: 1; padding: var(--cn-pad); }
+.inv-cn-seller-name { font-weight: 700; font-size: var(--cn-fs-name); }
+.inv-cn-meta { flex: 1; border-collapse: collapse; border-left: var(--cn-rule-w) solid var(--cn-rule); }
+.inv-cn-meta td { padding: var(--cn-pad); border-bottom: var(--cn-rule-w) solid var(--cn-rule); }
+.inv-cn-meta-l { width: 40%; }
+.inv-cn-meta-v { font-family: var(--ff-mono); }
+.inv-cn-parties { border-bottom: 0; }
+.inv-cn-party { flex: 1; padding: var(--cn-pad); }
+.inv-cn-party + .inv-cn-party { border-left: var(--cn-rule-w) solid var(--cn-rule); }
+.inv-cn-party-title { font-weight: 700; }
+.inv-cn-party-name { font-weight: 700; }
+.inv-cn-band {
+  background: var(--cn-band); font-weight: 700; text-align: center;
+  padding: var(--cn-pad); border: var(--cn-rule-w) solid var(--cn-rule); border-bottom: 0;
+}
+.inv-cn-table, .inv-cn-totals, .inv-cn-taxsum {
+  width: 100%; border-collapse: collapse;
+}
+.inv-cn-table th, .inv-cn-table td,
+.inv-cn-totals td, .inv-cn-taxsum th, .inv-cn-taxsum td {
+  border: var(--cn-rule-w) solid var(--cn-rule); padding: var(--cn-pad);
+}
+.inv-cn-table th, .inv-cn-taxsum th { background: var(--cn-band); font-weight: 700; text-align: center; }
+/* The totals stack sits directly under the line table, so its value column has
+   to be the same width as Amount or the document reads as two ruled grids that
+   do not line up. */
+.inv-cn-table { table-layout: fixed; }
+.inv-cn-table th:nth-child(1) { width: 6%; }
+.inv-cn-table th:nth-child(2) { width: 34%; }
+.inv-cn-table th:nth-child(3) { width: 9%; }
+.inv-cn-table th:nth-child(4) { width: 13%; }
+.inv-cn-table th:nth-child(5) { width: 8%; }
+.inv-cn-table th:nth-child(6) { width: 10%; }
+.inv-cn-table th:nth-child(7) { width: 20%; }
+.inv-cn-totals { border-top: 0; table-layout: fixed; }
+.inv-cn-totals td:first-child { width: 80%; }
+.inv-cn-totals td:last-child { width: 20%; }
+.inv-cn-tot-l { text-align: right; font-weight: 700; }
+.inv-cn-grand td { font-weight: 700; }
+.inv-cn-c { text-align: center; }
+.inv-cn-num { text-align: right; font-family: var(--ff-mono); }
+.inv-cn-words-row { border-top: 0; }
+.inv-cn-words-box { flex: 1; padding: var(--cn-pad); }
+.inv-cn-words-title { font-weight: 700; }
+.inv-cn-pan { margin-top: var(--sp-6); }
+.inv-cn-taxsum { flex: 1; border-left: var(--cn-rule-w) solid var(--cn-rule); }
+.inv-cn-taxwords {
+  border: var(--cn-rule-w) solid var(--cn-rule); border-top: 0;
+  padding: var(--cn-pad);
+}
+.inv-cn-annex {
+  border: var(--cn-rule-w) solid var(--cn-rule); border-top: 0;
+  padding: var(--cn-pad); font-size: var(--cn-fs-sm);
+}
+.inv-cn-annex-title { font-weight: 700; }
+.inv-cn-annex-list { font-family: var(--ff-mono); overflow-wrap: break-word; }
+.inv-cn-foot { border-top: 0; }
+.inv-cn-foot-left { flex: 1; padding: var(--cn-pad); }
+.inv-cn-foot-right {
+  flex: 1; padding: var(--cn-pad); text-align: center;
+  border-left: var(--cn-rule-w) solid var(--cn-rule);
+}
+.inv-cn-eoe { text-align: right; }
+.inv-cn-sig-co { font-weight: 700; }
+.inv-cn-sig-line { margin-top: 10mm; font-weight: 700; }
+
+/* ===== CLIENT PERFORMANCE ===== */
+.inv-cp-toolbar { margin-bottom: var(--sp-12); }
+.inv-cp-toolbar .inv-form-group { margin-bottom: 0; }
+.inv-cp-group { margin-top: var(--sp-16); }
+.inv-cp-group-title {
+  font-size: var(--fs-sm); font-weight: 700; color: var(--text-1);
+  padding-bottom: var(--sp-4); border-bottom: 1px solid var(--border);
+  margin-bottom: var(--sp-8);
+}
+/* Stopped is the only one of the four that is a question, so it is the only
+   one that carries a colour. */
+.inv-cp-group-stopped { color: var(--danger-text); border-bottom-color: var(--danger); }
+.inv-cp-group-new { color: var(--attend-text); }
+.inv-cp-group-steady { color: var(--text-2); }
+.inv-cp-group-note {
+  font-size: var(--fs-xs); color: var(--text-3);
+  margin-bottom: var(--sp-8); line-height: 1.4;
+}
+.inv-cp-mat {
+  padding: var(--sp-8) 0; border-bottom: 1px solid var(--border);
+}
+.inv-cp-mat:last-child { border-bottom: none; }
+.inv-cp-mat-head { display: flex; align-items: baseline; gap: var(--sp-8); }
+.inv-cp-mat-name {
+  flex: 1; min-width: 0; font-size: var(--fs-sm); font-weight: 600;
+  color: var(--text-1); word-break: break-word;
+}
+.inv-cp-mat-rev { font-size: var(--fs-xs); color: var(--text-2); white-space: nowrap; }
+.inv-cp-mat-unbilled { color: var(--text-3); font-family: var(--ff-base); font-style: italic; }
+.inv-cp-mat-meta {
+  font-size: var(--fs-2xs); color: var(--text-3);
+  font-family: var(--ff-mono); margin-top: var(--sp-2);
+}
+.inv-cp-mat-flag {
+  font-size: var(--fs-xs); color: var(--danger-text);
+  background: var(--danger-bg); border-radius: var(--r-sm);
+  padding: var(--sp-2) var(--sp-6); margin-top: var(--sp-4); display: inline-block;
+}
+.inv-cp-mat-note {
+  font-size: var(--fs-xs); color: var(--warning-text);
+  background: var(--warning-bg); border-radius: var(--r-sm);
+  padding: var(--sp-4) var(--sp-6); margin-top: var(--sp-4); line-height: 1.4;
+}
+
 /* ===== IM ADD CHALLAN FORM ===== */
 .inv-im-form { display: none; }
 .inv-im-form-active { display: block; }
@@ -654,6 +805,9 @@ table.inv-qc-grid.inv-qc-no-top { border-top: 0; }
   .inv-qc-sheets { overflow: visible; }
   .inv-qc-page { border: none; margin: 0; width: auto; }
   .inv-qc-title { border-width: 1pt; }
+  /* Credit note: measurements are already the printed ones, so only the
+     screen frame and centring gutter come off. */
+  .inv-cn-doc { border: none; margin: 0; width: auto; }
 }
 
 /* ===== SETTINGS ===== */
@@ -899,6 +1053,94 @@ table.inv-qc-grid.inv-qc-no-top { border-top: 0; }
 .dark .inv-svg-line { stroke: var(--accent-dark); }
 .dark .inv-svg-dot { fill: var(--accent-dark); stroke: var(--surface); }
 
+/* ===== CHARTS =====
+   Drawn at their natural aspect and sized by CSS, so a circle is a circle on a
+   phone and on a desktop. The old trend chart stretched a 400x160 drawing with
+   preserveAspectRatio="none", which is why it could only ever be a bare line —
+   markers came out as ellipses and text skewed. */
+.inv-chart-svg {
+  width: 100%; height: auto; display: block;
+  max-height: 240px; margin: 0 auto;
+}
+@media (min-width: 768px) {
+  /* Desktop gets a taller frame: the same series, more room between
+     gridlines, and labels that stop colliding. */
+  .inv-chart-svg { max-height: 320px; }
+}
+.inv-chart-bar { fill: var(--accent); }
+.dark .inv-chart-bar { fill: var(--accent-dark); }
+.inv-chart-empty {
+  color: var(--text-3); font-size: var(--fs-sm);
+  padding: var(--sp-16); text-align: center;
+}
+.inv-stats-note {
+  font-size: var(--fs-xs); color: var(--text-3);
+  margin-top: var(--sp-8); line-height: 1.4;
+}
+
+/* Composition. Eight series colours drawn from the domain palette, plus a
+   ninth for the folded "others" wedge so the tail is visibly a tail. */
+.inv-chart-pie-wrap {
+  display: flex; flex-wrap: wrap; gap: var(--sp-16);
+  align-items: center; justify-content: center;
+}
+.inv-chart-pie-svg { width: 180px; height: 180px; flex: 0 0 auto; }
+@media (min-width: 768px) {
+  .inv-chart-pie-svg { width: 220px; height: 220px; }
+}
+.inv-chart-hole { fill: var(--surface); }
+.inv-chart-legend { flex: 1 1 220px; min-width: 0; display: flex; flex-direction: column; gap: var(--sp-4); }
+.inv-chart-legend-row {
+  display: flex; align-items: center; gap: var(--sp-8);
+  font-size: var(--fs-xs); min-height: 24px; cursor: pointer;
+}
+.inv-chart-legend-row:active { background: var(--surface-2); }
+.inv-chart-swatch { width: 10px; height: 10px; border-radius: var(--r-sm); flex: 0 0 auto; }
+.inv-chart-legend-label {
+  flex: 1; min-width: 0; color: var(--text-1);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.inv-chart-legend-val { color: var(--text-2); white-space: nowrap; }
+.inv-chart-legend-pct { color: var(--text-3); white-space: nowrap; min-width: 44px; text-align: right; }
+
+.inv-chart-c0 { fill: var(--chart-1); }
+.inv-chart-c1 { fill: var(--chart-2); }
+.inv-chart-c2 { fill: var(--chart-3); }
+.inv-chart-c3 { fill: var(--chart-4); }
+.inv-chart-c4 { fill: var(--chart-5); }
+.inv-chart-c5 { fill: var(--chart-6); }
+.inv-chart-c6 { fill: var(--chart-7); }
+.inv-chart-c7 { fill: var(--chart-8); }
+.inv-chart-cx { fill: var(--chart-other); }
+.inv-chart-swatch.inv-chart-c0 { background: var(--chart-1); }
+.inv-chart-swatch.inv-chart-c1 { background: var(--chart-2); }
+.inv-chart-swatch.inv-chart-c2 { background: var(--chart-3); }
+.inv-chart-swatch.inv-chart-c3 { background: var(--chart-4); }
+.inv-chart-swatch.inv-chart-c4 { background: var(--chart-5); }
+.inv-chart-swatch.inv-chart-c5 { background: var(--chart-6); }
+.inv-chart-swatch.inv-chart-c6 { background: var(--chart-7); }
+.inv-chart-swatch.inv-chart-c7 { background: var(--chart-8); }
+.inv-chart-swatch.inv-chart-cx { background: var(--chart-other); }
+
+/* Ranked horizontal bars — for "top N by X", where reading the names matters
+   more than the profile of the series. */
+.inv-chart-ranked { display: flex; flex-direction: column; gap: var(--sp-10); }
+.inv-chart-ranked-row { display: flex; flex-direction: column; gap: var(--sp-2); }
+.inv-chart-ranked-head { display: flex; align-items: baseline; gap: var(--sp-8); }
+.inv-chart-ranked-label {
+  flex: 1; min-width: 0; font-size: var(--fs-sm); font-weight: 600;
+  color: var(--text-1); word-break: break-word; line-height: 1.25;
+}
+.inv-chart-ranked-val { font-size: var(--fs-xs); color: var(--text-2); white-space: nowrap; }
+.inv-chart-ranked-track { width: 100%; }
+.inv-chart-ranked-svg { width: 100%; height: 8px; display: block; }
+.inv-chart-ranked-fill { fill: var(--accent); }
+.dark .inv-chart-ranked-fill { fill: var(--accent-dark); }
+.inv-chart-ranked-fill-danger { fill: var(--danger); }
+.inv-chart-ranked-fill-good { fill: var(--attend); }
+.inv-chart-ranked-mark { fill: var(--text-1); opacity: 0.55; }
+.inv-chart-ranked-sub { font-size: var(--fs-2xs); color: var(--text-3); font-family: var(--ff-mono); }
+
 /* Phase 7: Top items table */
 .inv-stats-table { display: flex; flex-direction: column; }
 .inv-stats-table-header {
@@ -1007,6 +1249,7 @@ table.inv-qc-grid.inv-qc-no-top { border-top: 0; }
 .inv-text-center { text-align: center; }
 .inv-mb-8 { margin-bottom: var(--sp-8); }
 .inv-mb-16 { margin-bottom: var(--sp-16); }
+.inv-mt-8 { margin-top: var(--sp-8); }
 
 /* Phase 5: Home dashboard unbilled card */
 .inv-card-unbilled {
@@ -1092,6 +1335,20 @@ table.inv-qc-grid.inv-qc-no-top { border-top: 0; }
 }
 .inv-reg-filters > * { flex: 1; min-width: 0; }
 .inv-reg-filters .inv-form-group { margin-bottom: 0; }
+/* Explicit date range, for an export that does not line up with a month. */
+.inv-reg-range { display: flex; gap: var(--sp-8); flex-wrap: wrap; align-items: flex-end; }
+/* Capped so the pair stays a compact control on a wide desktop toolbar rather
+   than stretching edge to edge, while still filling a 393px phone. */
+.inv-reg-range-field {
+  flex: 1; min-width: 0; max-width: 240px;
+  display: flex; flex-direction: column; gap: var(--sp-2);
+}
+.inv-reg-range-label { font-size: var(--fs-xs); color: var(--text-3); font-weight: 600; }
+.inv-reg-scope-note {
+  font-size: var(--fs-xs); color: var(--warning-text);
+  background: var(--warning-bg); border: 1px solid var(--warning);
+  border-radius: var(--r-sm); padding: var(--sp-4) var(--sp-8);
+}
 .inv-reg-search {
   width: 100%; padding: var(--sp-10) var(--sp-12) var(--sp-10) var(--sp-32);
   border: 1px solid var(--border); border-radius: var(--r-md);
@@ -1485,8 +1742,20 @@ table.inv-qc-grid.inv-qc-no-top { border-top: 0; }
   font-size: var(--fs-sm); color: var(--text-1);
   word-break: break-word;
 }
+/* The create-a-part row. Tinted and ruled off so it reads as an action rather
+   than as one more suggestion to pick from — it is always last, and choosing it
+   opens a form instead of filling the line. */
+.inv-ac-add {
+  flex-direction: row; align-items: center; gap: var(--sp-8);
+  background: var(--surface-2); border-top: 1px solid var(--border);
+  color: var(--accent);
+}
+.inv-ac-add .inv-autocomplete-part { color: var(--accent); font-family: var(--ff-base); font-weight: 600; }
+.inv-ac-add .inv-autocomplete-desc { font-size: var(--fs-xs); color: var(--text-3); }
+.inv-ac-add-icon { flex: 0 0 auto; }
 .dark .inv-autocomplete-list { background: var(--surface); border-color: var(--border); }
 .dark .inv-autocomplete-item:active { background: var(--surface-2); }
+.dark .inv-ac-add { background: var(--surface-3); }
 
 /* ===== SUGGESTION KEYBOARD CURSOR =====
    The row the arrow keys have landed on. Carries a left rule as well as a
@@ -1773,6 +2042,9 @@ table.inv-qc-grid.inv-qc-no-top { border-top: 0; }
 /* ===== REGISTER — Phase 6b (Bulk Select + Sort) ===== */
 .inv-reg-actions-row {
   display: flex; gap: var(--sp-8); margin-top: var(--sp-8);
+  /* Wraps rather than squeezing: with select-all present this row carries four
+     buttons, and at 393px they were compressing their labels onto two lines. */
+  flex-wrap: wrap;
 }
 .inv-reg-check-wrap {
   display: flex; align-items: center; justify-content: center;

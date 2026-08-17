@@ -15,6 +15,19 @@
 
 var _statsPeriod = 'mtd';
 var _statsTrendGran = 'month';
+/* What the trend plots, and how. Revenue alone answers "did we bill more";
+   tonnage answers "did we plate more"; incoming material answers "is work
+   still arriving" — which leads the other two and is the one that warns. */
+var _statsTrendSeries = 'revenue';
+var _statsTrendType = 'line';
+/* Composition is a share question, so it gets a share shape as well as a
+   ranked one — the pie says "how much of the plant is this account". */
+var _statsClientChart = 'bar';
+/* Top items ranked by money, by weight, or by price. The card used to rank by
+   money alone, which is the one ranking this business's own thesis says is
+   insufficient: the same revenue is a good month at 8 tonnes and a bad one at
+   20, and the parts filling the plant are not the parts paying for it. */
+var _statsTopBy = 'value';
 
 /* ===== PERIOD MATH =====
  * Periods are measured on the invoice DATE, not on when the record happened to
@@ -198,6 +211,18 @@ function deltaHtml(cur, prev) {
     (rising || falling ? ' ' + formatNum(Math.abs(pct), 1) + '%' : 'level') + '</span>';
 }
 
+/* A row of toggle chips. Four cards needed the same markup, and the trend card
+   needed two rows of it. */
+function statsChipRow(action, dataKey, labels, current) {
+  var html = '<div class="inv-stats-chips inv-stats-chips-sm">';
+  Object.keys(labels).forEach(function(k) {
+    html += '<button class="inv-chip' + (current === k ? ' inv-chip-active' : '') +
+      '" data-action="' + action + '" data-' + dataKey + '="' + escHtml(k) + '">' +
+      escHtml(labels[k]) + '</button>';
+  });
+  return html + '</div>';
+}
+
 function kpiTile(label, value, sub, delta) {
   return '<div class="inv-kpi">' +
     '<div class="inv-kpi-label">' + escHtml(label) + '</div>' +
@@ -221,23 +246,6 @@ function isoWeekKey(yyyymmdd) {
   return d.getFullYear() + '-W' + (wk < 10 ? '0' + wk : '' + wk);
 }
 
-function buildTrendData(invoices, gran) {
-  var by = {};
-  invoices.forEach(function(inv) {
-    if (!inv.date) return;
-    var key;
-    if (gran === 'day')      key = inv.date;                  // YYYY-MM-DD
-    else if (gran === 'week') key = isoWeekKey(inv.date);     // YYYY-Www
-    else                      key = inv.date.substring(0, 7); // YYYY-MM
-    if (!by[key]) by[key] = 0;
-    by[key] += (inv.taxableValue || 0);
-  });
-  // Cap series length per granularity for readability + perf.
-  var cap = gran === 'day' ? 90 : gran === 'week' ? 26 : 12;
-  var keys = Object.keys(by).sort().slice(-cap);
-  return keys.map(function(k) { return { label: formatTrendLabel(k, gran), value: by[k] }; });
-}
-
 function formatTrendLabel(key, gran) {
   if (gran === 'day') {
     var p = key.split('-');
@@ -250,7 +258,64 @@ function formatTrendLabel(key, gran) {
   return TREND_MONTH_LABELS[parseInt(pp[1], 10) - 1] + ' ' + pp[0].slice(2);
 }
 
-function buildTopItems(invoices) {
+/* Trend buckets for one series. Revenue and tonnage come off the invoices;
+   incoming material comes off the challans, which is a different spine and a
+   different date — the challan date, not the invoice date. */
+function buildTrendSeries(gran, series) {
+  var by = {};
+  function bucket(dateStr) {
+    if (gran === 'day') return dateStr;
+    if (gran === 'week') return isoWeekKey(dateStr);
+    return dateStr.substring(0, 7);
+  }
+
+  if (series === 'im') {
+    (S.incomingMaterial || []).forEach(function(im) {
+      var d = im.challanDate || im.receivedDate;
+      if (!d) return;
+      var client = S.clients.find(function(c) { return c.id === im.clientId; }) || null;
+      var kg = 0;
+      (im.items || []).forEach(function(it) {
+        var w = lineWeightKg(it, client, d);
+        if (w.known) kg += w.kg;
+      });
+      var k = bucket(d);
+      by[k] = (by[k] || 0) + kg;
+    });
+  } else {
+    S.invoices.filter(function(i) { return i.status === 'active'; }).forEach(function(inv) {
+      if (!inv.date) return;
+      var k = bucket(inv.date);
+      if (series === 'tonnage') {
+        var client = rowClient(inv);
+        var kg = 0;
+        (inv.items || []).forEach(function(it) {
+          var w = lineWeightKg(it, client, inv.date);
+          if (w.known) kg += w.kg;
+        });
+        by[k] = (by[k] || 0) + kg;
+      } else {
+        by[k] = (by[k] || 0) + (inv.taxableValue || 0);
+      }
+    });
+  }
+
+  // Cap series length per granularity for readability + perf.
+  var cap = gran === 'day' ? 90 : gran === 'week' ? 26 : 12;
+  var keys = Object.keys(by).sort().slice(-cap);
+  return keys.map(function(k) { return { label: formatTrendLabel(k, gran), value: by[k] }; });
+}
+
+var TREND_SERIES_UNIT = { revenue: 'money', tonnage: 'kg', im: 'kg' };
+
+/* Ranked parts. `by` decides the ordering, and it is not cosmetic: ranking by
+   value answers "what earns", by tonnage "what fills the plant", and by ₹/kg
+   "what is priced worst". Those are three different top-tens.
+
+   The ₹/kg ranking admits only rows whose weight is actually known — a rate
+   computed from a partial weight is not a rate — and says how many it dropped
+   rather than silently ranking fewer parts. */
+function buildTopItems(invoices, by) {
   var byPart = {};
   invoices.forEach(function(inv) {
     var client = rowClient(inv);
@@ -263,7 +328,28 @@ function buildTopItems(invoices) {
       if (w.known) byPart[key].kg += w.kg; else byPart[key].kgKnown = false;
     });
   });
-  return Object.values(byPart).sort(function(a, b) { return b.amount - a.amount; }).slice(0, 10);
+
+  var all = Object.values(byPart);
+  all.forEach(function(r) {
+    r.perKg = (r.kgKnown && r.kg > 0) ? r.amount / r.kg : null;
+  });
+
+  var eligible = all;
+  var dropped = 0;
+  if (by === 'tonnage' || by === 'rate') {
+    eligible = all.filter(function(r) { return r.kgKnown && r.kg > 0; });
+    dropped = all.length - eligible.length;
+  }
+
+  var sorted = eligible.slice().sort(function(a, b) {
+    if (by === 'tonnage') return b.kg - a.kg;
+    // Worst-priced first, matching how clients are ranked: the interesting end
+    // of a price ranking is the bottom.
+    if (by === 'rate') return a.perKg - b.perKg;
+    return b.amount - a.amount;
+  });
+
+  return { rows: sorted.slice(0, 10), dropped: dropped, total: all.length };
 }
 
 /* Per-client revenue, tonnage and realisation for a period. The table this
@@ -319,52 +405,6 @@ function renderRevenueBarSvg(ranked, maxVal) {
   });
   html += '</div>';
   return html;
-}
-
-function renderTrendSvg(monthlyData, gran) {
-  if (monthlyData.length < 2) {
-    var unit = gran === 'day' ? 'days' : gran === 'week' ? 'weeks' : 'months';
-    return '<div class="inv-text-muted">Need 2+ ' + unit + ' of data for trend</div>';
-  }
-  var W = 400, H = 160, padL = 30, padR = 40, padT = 20, padB = 30;
-  var chartW = W - padL - padR, chartH = H - padT - padB;
-  var maxVal = Math.max.apply(null, monthlyData.map(function(d) { return d.value; }));
-  if (maxVal === 0) maxVal = 1;
-  var points = monthlyData.map(function(d, i) {
-    var x = padL + (i / (monthlyData.length - 1)) * chartW;
-    var y = padT + chartH - (d.value / maxVal) * chartH;
-    return { x: x, y: y, label: d.label, value: d.value };
-  });
-  var polyline = points.map(function(p) { return p.x + ',' + p.y; }).join(' ');
-  var areaPath = 'M' + points[0].x + ',' + (padT + chartH) +
-    ' L' + points.map(function(p) { return p.x + ',' + p.y; }).join(' L') +
-    ' L' + points[points.length - 1].x + ',' + (padT + chartH) + ' Z';
-
-  var svg = '<svg class="inv-trend-svg" viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="none">';
-  for (var g = 0; g <= 3; g++) {
-    var gy = padT + (g / 3) * chartH;
-    var gVal = maxVal - (g / 3) * maxVal;
-    svg += '<line x1="' + padL + '" y1="' + gy + '" x2="' + (W - padR) + '" y2="' + gy + '" class="inv-svg-grid"/>';
-    svg += '<text x="' + (W - padR + 4) + '" y="' + (gy + 4) + '" class="inv-svg-grid-label">' + (gVal >= 100000 ? formatNum(gVal / 100000, 1) + 'L' : formatNum(gVal / 1000, 0) + 'K') + '</text>';
-  }
-  svg += '<path d="' + areaPath + '" class="inv-svg-area"/>';
-  svg += '<polyline points="' + polyline + '" class="inv-svg-line" vector-effect="non-scaling-stroke"/>';
-  // Endpoint markers only (first + last) — sparkline aesthetic; intermediate dots
-  // omitted because preserveAspectRatio="none" would render circles as ellipses.
-  // Endpoint markers use vector-effect="non-scaling-size" via small absolute size.
-  points.forEach(function(p, i) {
-    var isEnd = i === 0 || i === points.length - 1;
-    if (isEnd) {
-      svg += '<circle cx="' + p.x + '" cy="' + p.y + '" r="3.5" class="inv-svg-dot" vector-effect="non-scaling-stroke"/>';
-      // Only label endpoints (first + last). With granularity=day there can be
-      // up to 90 buckets; rendering every label is unreadable. Endpoints alone
-      // give the viewer enough context (start vs current state).
-      var anchor = i === 0 ? 'start' : 'end';
-      svg += '<text x="' + p.x + '" y="' + (padT + chartH + 16) + '" text-anchor="' + anchor + '" class="inv-svg-axis-label">' + p.label + '</text>';
-    }
-  });
-  svg += '</svg>';
-  return svg;
 }
 
 function renderStats() {
@@ -482,12 +522,19 @@ function renderStats() {
     '<span class="inv-state-badge inv-state-filed">' + stateCount.filed + ' Filed</span>' +
     '</div></div>';
 
-  /* ===== Card 4: Revenue by client (bar chart) ===== */
+  /* ===== Card 4: Revenue by client — ranked bars or share ===== */
   var ranked = buildClientRollup(filtered);
   var maxClientRev = ranked.length > 0 ? ranked[0].total : 0;
   html += '<div class="inv-stats-card inv-stats-card-full">' +
+    '<div class="inv-stats-trend-header">' +
     '<div class="inv-stats-title">Revenue by Client</div>' +
-    renderRevenueBarSvg(ranked, maxClientRev) + '</div>';
+    statsChipRow('invStatsClientChart', 'chart', { bar: 'Ranked', pie: 'Share' }, _statsClientChart) +
+    '</div>' +
+    (_statsClientChart === 'pie'
+      ? chartPie(ranked.map(function(r) { return { label: r.name, value: r.total, clientId: r.clientId }; }),
+          { unit: 'money', ariaLabel: 'Revenue share by client' })
+      : renderRevenueBarSvg(ranked, maxClientRev)) +
+    '</div>';
 
   /* ===== Card 5: Realisation by client =====
      Ranked by ₹/kg rather than by revenue, because that ordering is the whole
@@ -659,22 +706,36 @@ function renderStats() {
   }
   html += '</div>';
 
-  /* ===== Card 8: Revenue trend ===== */
-  var trendData = buildTrendData(activeInvs, _statsTrendGran);
-  var granChips = ['day', 'week', 'month'];
-  var granLabels = { day: 'Day', week: 'Week', month: 'Month' };
-  var granHtml = '<div class="inv-stats-chips inv-stats-chips-sm">';
-  granChips.forEach(function(g) {
-    granHtml += '<button class="inv-chip' + (_statsTrendGran === g ? ' inv-chip-active' : '') +
-      '" data-action="invStatsTrendGran" data-gran="' + g + '">' + granLabels[g] + '</button>';
-  });
-  granHtml += '</div>';
+  /* ===== Card 8: Trend — revenue, tonnage, or material arriving ===== */
+  var trendData = buildTrendSeries(_statsTrendGran, _statsTrendSeries);
+  var trendUnit = TREND_SERIES_UNIT[_statsTrendSeries] || 'money';
+  var trendTitles = {
+    revenue: 'Revenue Trend',
+    tonnage: 'Tonnage Trend',
+    im: 'Incoming Material Trend'
+  };
   html += '<div class="inv-stats-card inv-stats-card-full">' +
     '<div class="inv-stats-trend-header">' +
-      '<div class="inv-stats-title">Revenue Trend</div>' +
-      granHtml +
+      '<div class="inv-stats-title">' + escHtml(trendTitles[_statsTrendSeries]) +
+      (_statsTrendSeries === 'im'
+        ? '<span class="inv-stats-title-sub">by challan date</span>'
+        : '<span class="inv-stats-title-sub">by invoice date</span>') + '</div>' +
+      statsChipRow('invStatsTrendSeries', 'series',
+        { revenue: '₹', tonnage: 'Tonnes', im: 'IM' }, _statsTrendSeries) +
     '</div>' +
-    renderTrendSvg(trendData, _statsTrendGran) + '</div>';
+    '<div class="inv-stats-trend-header">' +
+      statsChipRow('invStatsTrendGran', 'gran', { day: 'Day', week: 'Week', month: 'Month' }, _statsTrendGran) +
+      statsChipRow('invStatsTrendType', 'type', { line: 'Line', bar: 'Bar' }, _statsTrendType) +
+    '</div>' +
+    (_statsTrendType === 'bar'
+      ? chartBars(trendData, { unit: trendUnit, ariaLabel: trendTitles[_statsTrendSeries] })
+      : chartLine(trendData, { unit: trendUnit, ariaLabel: trendTitles[_statsTrendSeries] })) +
+    // Incoming material is the leading indicator: it is what has arrived and
+    // not yet been billed, so a fall here shows up in revenue weeks later.
+    (_statsTrendSeries === 'im'
+      ? '<div class="inv-stats-note">Weighed challan lines only. What arrives here bills later, so a dip shows in revenue after a lag.</div>'
+      : '') +
+    '</div>';
 
   /* ===== Card 9: Dispatch cycle ===== */
   var dispatchDays = [], deliveryDays = [], fullCycleDays = [];
@@ -705,27 +766,62 @@ function renderStats() {
     html += '</div>';
   }
 
-  /* ===== Card 10: Top items ===== */
-  var topItems = buildTopItems(filtered);
-  if (topItems.length > 0) {
+  /* ===== Card 10: Top items — by value, tonnage, or price ===== */
+  var top = buildTopItems(filtered, _statsTopBy);
+  if (top.total > 0) {
+    var topTitles = { value: 'Top Items by Value', tonnage: 'Top Items by Tonnage', rate: 'Worst Priced Items' };
+    var topUnits = { value: 'money', tonnage: 'kg', rate: 'money' };
     html += '<div class="inv-stats-card inv-stats-card-full">' +
-      '<div class="inv-stats-title">Top Items by Value</div>' +
-      '<div class="inv-stats-table"><div class="inv-stats-table-header">' +
-      '<span class="inv-stats-table-cell inv-stats-table-rank">#</span>' +
-      '<span class="inv-stats-table-cell inv-stats-table-part">Part</span>' +
-      '<span class="inv-stats-table-cell inv-stats-table-qty">&#8377;/kg</span>' +
-      '<span class="inv-stats-table-cell inv-stats-table-amt">Amount</span></div>';
-    topItems.forEach(function(it, idx) {
-      var perKg = (it.kgKnown && it.kg > 0) ? it.amount / it.kg : null;
-      html += '<div class="inv-stats-table-row">' +
-        '<span class="inv-stats-table-cell inv-stats-table-rank">' + (idx + 1) + '</span>' +
-        '<span class="inv-stats-table-cell inv-stats-table-part">' + escHtml(it.part) +
-        (it.desc && it.desc !== it.part ? '<br><span class="inv-text-muted inv-text-xs">' + escHtml(it.desc) + '</span>' : '') + '</span>' +
-        '<span class="inv-stats-table-cell inv-stats-table-qty inv-mono">' +
-        (perKg != null ? formatNum(perKg, 2) : '&mdash;') + '</span>' +
-        '<span class="inv-stats-table-cell inv-stats-table-amt inv-mono">' + formatCurrency(it.amount) + '</span></div>';
-    });
-    html += '</div></div>';
+      '<div class="inv-stats-trend-header">' +
+      '<div class="inv-stats-title">' + escHtml(topTitles[_statsTopBy]) +
+      (_statsTopBy === 'rate' ? '<span class="inv-stats-title-sub">worst first</span>' : '') + '</div>' +
+      statsChipRow('invStatsTopBy', 'by', { value: '₹', tonnage: 'Tonnes', rate: '₹/kg' }, _statsTopBy) +
+      '</div>';
+
+    if (top.rows.length === 0) {
+      html += '<div class="inv-text-muted inv-p-8">No part in this period has a known weight.</div>';
+    } else {
+      // On the price ranking the bar is measured against cost, not against the
+      // best-priced part: a mark at full cost, and anything short of it in the
+      // danger colour. Which parts are sold below cost is the question.
+      var rateMax = _statsTopBy === 'rate'
+        ? Math.max.apply(null, top.rows.map(function(r) { return r.perKg; }).concat([costPerKg]))
+        : 0;
+      html += chartRankedBars(top.rows.map(function(r) {
+        var value = _statsTopBy === 'tonnage' ? r.kg : _statsTopBy === 'rate' ? r.perKg : r.amount;
+        var display = _statsTopBy === 'tonnage' ? formatNum(r.kg, 0) + ' kg'
+          : _statsTopBy === 'rate' ? formatCurrency(r.perKg) + '/kg'
+          : formatCurrency(r.amount);
+        // Two-tone rather than one-tone-plus-danger: the app's accent is itself
+        // a terracotta, so a danger-red bar beside an accent bar was a
+        // distinction nobody could see. Green covers cost, red does not.
+        var tone = (_statsTopBy === 'rate' && costPerKg > 0)
+          ? (r.perKg < costPerKg ? 'danger' : 'good') : null;
+        var markPct = (_statsTopBy === 'rate' && costPerKg > 0 && rateMax > 0)
+          ? (costPerKg / rateMax) * 100 : null;
+        // Every row carries the other two figures, so switching the ranking
+        // is a change of order rather than a change of what can be seen.
+        var sub = formatCurrency(r.amount) +
+          (r.kgKnown && r.kg > 0 ? ' · ' + formatNum(r.kg, 0) + ' kg · ' + formatCurrency(r.perKg) + '/kg' : ' · weight unknown');
+        return {
+          label: r.part + (r.desc && r.desc !== r.part ? ' — ' + r.desc : ''),
+          value: value, display: display, sub: sub, tone: tone, markPct: markPct
+        };
+      }), { unit: topUnits[_statsTopBy] });
+      if (_statsTopBy === 'rate' && costPerKg > 0) {
+        html += '<div class="inv-stats-note">Mark is full cost, ' + formatCurrency(costPerKg) +
+          '/kg. Bars short of it are plated below what they cost to plate.</div>';
+      }
+    }
+
+    // The excluded parts are named, not dropped quietly. They are the
+    // piece-billed end, so a weight-based ranking that hides them reads better
+    // than the truth — the same trap the realisation cards already guard.
+    if (top.dropped > 0) {
+      html += '<div class="inv-stats-note">' + top.dropped + ' of ' + top.total +
+        ' part' + (top.total !== 1 ? 's' : '') + ' left out: no known weight, so they cannot be ranked this way.</div>';
+    }
+    html += '</div>';
   }
 
   if (html === '') html = '<div class="inv-empty-state">No data yet. Create invoices and log incoming material to see analytics.</div>';

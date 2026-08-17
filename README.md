@@ -6,7 +6,7 @@ Single-file HTML PWA for Soma Electro Products — zinc electroplating job-work 
 
 ## Architecture
 
-Split-file PWA: 27 modules in `split/` directory, concatenated via `build.sh` into a single `sep-invoicing.html`. Deploy copy is `index.html`.
+Split-file PWA: 30 modules in `split/` directory, concatenated via `build.sh` into a single `sep-invoicing.html`. Deploy copy is `index.html`.
 
 See `docs/ARCHITECTURE.md` for the full module map and concat order.
 
@@ -114,6 +114,27 @@ on the selection bar. One printable A4 Test Certificate (ZN Plating) per invoice
 customer files it against the part. Print or save to PDF from the same toolbar the invoice preview
 uses. The format reproduces the Tata Motors QA-approved reference exactly and must not be edited
 without QA-TML approval — see the Quality certificates section of `CLAUDE.md`.
+
+## Credit notes
+
+Register → tick the batch of invoices → **Credit note** on the selection bar. Defaults to SSS
+Mehta's standing 2% batch discount; the rate is editable and the totals restate as you type. The
+batch is the unit, so the note names every invoice it credits. One customer per note; a batch
+spanning under 7 days warns but is not blocked.
+
+**Credit notes** in the register toolbar lists them, previews any one for print, and exports the
+CDNR CSV. A credit note is cancelled, never deleted — see `docs/credit-notes/README.md` for the
+reference document and what the app does differently.
+
+## Client performance
+
+Clients → **Performance**. One account at a time: month on month as revenue, tonnage or ₹/kg, and
+every part it handles sorted into **stopped / new / steady / one-off**.
+
+Stopped is the one that matters — a part that disappears never shows up as a loss, just as a
+slightly smaller month. Cadence is measured against each part's own rhythm, so a quarterly part is
+not called dead in month two, and both invoices and challans feed it so unbilled arrivals are not
+read as silence.
 
 **Offline:** the app opens without a network once it has been loaded online at least once.
 Navigations are network-first, so an online device always renders fresh HTML and the cached

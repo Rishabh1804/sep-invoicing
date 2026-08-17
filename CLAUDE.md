@@ -19,7 +19,7 @@ Workforce management and invoicing PWA for **Soma Electro Products**, a zinc ele
 
 ## Architecture
 
-Split-file PWA. 27 modules, ~11,750 lines total.
+Split-file PWA. 30 modules, ~13,500 lines total.
 
 ```
 split/
@@ -32,7 +32,7 @@ split/
 ├── zinc.js            ← Zinc market rate: store, display, metals.dev refresh (199 lines)
 ├── tabs.js            ← switchTab (9-step protocol) + renderHome (188 lines)
 ├── clients.js         ← Client Master CRUD + overlay (343 lines)
-├── items.js           ← Items Master: subview, CRUD, merge, weights (1,228 lines)
+├── items.js           ← Items Master: subview, CRUD, merge, weights (1,262 lines)
 ├── create.js          ← Invoice creation form, 3 billing modes (312 lines)
 ├── settings.js        ← Settings overlay + import/export (208 lines)
 ├── github-sync.js     ← GitHub Contents API push/pull, SHA conflict guard (449 lines)
@@ -40,20 +40,23 @@ split/
 ├── number-audit.js    ← Void ledger + serial-sequence audit + gap reconcile (311 lines)
 ├── exports.js         ← Sales CSV + GSTR1 CSV exports (107 lines)
 ├── im.js              ← Incoming Material list + selection (535 lines)
-├── autocomplete.js    ← Part number autocomplete (169 lines)
+├── autocomplete.js    ← Part autocomplete + inline item creation (270 lines)
 ├── print.js           ← formatInvoiceData + print preview (224 lines)
 ├── quality-cert.js    ← Test Certificate (ZN Plating): approved format + per-line certs (380 lines)
-├── stats.js           ← Stats dashboard + History activity log (1,070 lines)
+├── credit-note.js     ← Credit notes: batch discount, own series, CDNR export (557 lines)
+├── charts.js          ← Reusable SVG charts: line, bar, pie, ranked bars (243 lines)
+├── stats.js           ← Stats dashboard + History activity log (1,195 lines)
+├── client-perf.js     ← Client performance: month on month + material cadence (314 lines)
 ├── im-form.js         ← IM add/edit/delete challan form (450 lines)
 ├── im-dupe.js         ← IM duplicate guard: fingerprint + pre-save warn + scan (305 lines)
 ├── scanner.js         ← Challan scanner (Gemini AI vision) (146 lines)
-├── events.js          ← Event delegation + input handlers (672 lines)
+├── events.js          ← Event delegation + input handlers (667 lines)
 ├── swipe.js           ← Swipe navigation (38 lines)
 ├── seed.js            ← Seed IM data, one-time (8 lines)
 └── init.js            ← Migrations + app bootstrap (420 lines)
 ```
 
-**Concat order defined in build.sh.** Dependencies: data → state → zinc → tabs → clients → items → create → settings → github-sync → invoice-ops → number-audit → exports → im → autocomplete → print → quality-cert → stats → im-form → im-dupe → scanner → events → swipe → seed → init.
+**Concat order defined in build.sh.** Dependencies: data → state → zinc → tabs → clients → items → create → settings → github-sync → invoice-ops → number-audit → exports → im → autocomplete → print → quality-cert → credit-note → charts → stats → client-perf → im-form → im-dupe → scanner → events → swipe → seed → init.
 
 ### Build
 
@@ -72,7 +75,7 @@ every session start — nothing to set up by hand. CI (`build-sync`) is the back
 ### Tests
 
 ```bash
-pnpm exec playwright test          # 128 tests, both layouts
+pnpm exec playwright test          # 174 tests, both layouts
 ```
 
 Some sandboxes ship a Chromium build Playwright does not expect and block downloading
@@ -80,6 +83,11 @@ the matching one. The session hook detects that and sets `PW_CHROMIUM_PATH`, whi
 `playwright.config.ts` reads; unset everywhere else. The suite finishes in under a minute
 on a CI runner and takes ~13 minutes in a constrained sandbox — don't read a slow local
 run as a hang.
+
+**`emptyState()` is not empty.** `seed.js` fills `incomingMaterial` with 50 demo challans whenever
+it is an empty array — there is no one-time flag, only the emptiness test — so any spec asserting on
+challan-derived data without supplying its own silently measures the seed. `noSeedIM()` in the
+fixtures blocks it.
 
 **Fixtures carry `todayIso()` / `recentTs()`, never hardcoded dates.** Three tests have now
 been found passing only because of when they were written or what they happened not to
@@ -99,8 +107,9 @@ filter on; a literal date in a fixture is a time bomb, not a constant.
 | HR-8 | gstRound() for all currency. `Math.round(val * 100) / 100`. Never Math.floor for financials. GST rules require proper rounding. |
 
 **Known HR-6 exceptions (do not expand):** 44px min touch targets (WCAG), 20px SVG icons, print CSS
-raw colors, and the quality certificate's A4 measurements (mm/pt), which are declared once in the
-`.inv-qc-page` token block and read as `var()` by every rule after it.
+raw colors, and the printed documents' physical measurements (mm/pt) — the quality certificate's
+and the credit note's — each declared once in a token block (`.inv-qc-page`, `.inv-cn-doc`) and read
+as `var()` by every rule after it.
 
 ## Design System
 
@@ -238,6 +247,81 @@ make them differ.
 The observations (`10-12` thickness, `TRIYELLOW`) are still the reference's constants, not per-batch
 measurements.
 
+### Credit notes
+SSS Mehta hold a **standing 2% discount on any payment batch spanning 7 days or more** — bought
+to smooth cash flow, temporary but in force. Each such batch ships as two documents: the sales
+register for the range, and a credit note for 2% of it. So **the batch is the unit, not the
+invoice**, which is why the 04/08/26 reference credits ₹5,902.12 against ~₹2.95L of taxable.
+
+Raised from a register selection, which is what makes select-all and the date-range filter part
+of the same workflow: tick the batch, export its register, raise the note off the same set. One
+customer only. A batch under 7 days **warns and does not block** — split batches are the
+operator's call.
+
+**The discount is computed on value; the quantity is derived from it.** 1092.98 × 5.40 = 5902.09
+against the 5902.12 printed — three paise of disagreement only happen if the rupees came first.
+
+Own series, `CN/<3-digit>/<FY short>`, formatted off `S.invPrefix`. A credit note number is
+**issued**, so it may never be reused — but it needs no void ledger, because a credit note is
+**cancelled, never deleted**, which is the correct GST treatment anyway. The number stays in the
+series carrying its own explanation and exports at zero. Its own CSV, too: credit notes go to
+GSTR-1 table 9B (CDNR), whose columns are not the B2B ones.
+
+The reference had four defects the app does not reproduce — see `docs/credit-notes/README.md`.
+The headline one is the same identity drift the certificate had: header "SOMA ELECTRO PRODUCT"
+against footer "SOMA ELECTRO PRODUCTS". Identity is read from `S.company`, never frozen.
+
+**This changes the SSS Mehta numbers.** At a standing 2%, their realisation is ~₹5.29/kg, not
+₹5.40 — and Stats reads invoices only, so every SSS Mehta figure above is overstated by 2%
+until credit notes are netted off. Not yet done; the contribution arithmetic in Key Business
+Data has not been restated.
+
+### Client performance
+Clients tab → **Performance**. One account at a time: month on month as revenue, tonnage or ₹/kg,
+and every part it handles sorted into **stopped / new / steady / one-off**.
+
+Stopped is the reason the view exists. A part that disappears raises no error, empties no queue and
+never appears as a loss — it appears as a slightly smaller month, twice, and then it is normal.
+
+**Cadence is measured against each part's own rhythm, not a fixed cut-off.** A part is overdue when
+the gap since its last appearance exceeds `max(typicalGap × 1.75, typicalGap + 21 days)`, where
+`typicalGap` is the median of its own intervals. A fixed "absent two months" rule would call every
+quarterly part dead; the 21-day floor stops a part shipping twice a week being flagged after nine.
+
+**Both spines feed it.** Invoices are the complete record, but material arrives before it is billed,
+so a part received last week and not yet invoiced would read as overdue on the billing record alone.
+The union answers "when did we last handle this part" — and a part that only ever arrived shows
+*challan only* rather than ₹0.00, which would read as worthless work rather than unbilled work.
+
+**A rename is flagged, not reported as lost business.** Part numbers vary in spelling between
+documents (`Clamp 165x83` against `CLAMP 165X83(40X6)`), which would surface one stopped part and
+one new one. Stopped/new pairs sharing a six-character stem are marked as possibly the same part —
+reporting a rename as lost work would discredit every other row on the card.
+
+### What the charts show
+The trend was one line drawn with `preserveAspectRatio="none"` — a 400×160 drawing smeared across
+whatever width it got, markers rendered as ellipses, and only the two endpoints labelled. `charts.js`
+draws at natural aspect and is sized by CSS, so one code path serves a 393px phone and a 1280px
+desktop, and every datum carries a `<title>` with its exact figure.
+
+**Three series, because they answer different questions.** Revenue answers "did we bill more";
+tonnage answers "did we plate more"; **incoming material leads both** — it is dated by challan, not
+by invoice, so a dip there surfaces in revenue only weeks later. Line or bar for any of them.
+
+**Composition gets a share shape** as well as a ranked one. Past the eighth client the tail folds
+into one named wedge rather than slivers nobody can aim at — the fold is labelled so the tail is
+visibly a tail.
+
+**Top Items ranks by value, tonnage or ₹/kg, and those are three different top-tens.** Ranking by
+money alone is the ranking this repo's own thesis calls insufficient: the parts filling the plant
+are not the parts paying for it. The weight rankings admit only parts whose weight is known and
+**say how many they dropped** — those are the piece-billed end, so a ranking that hides them reads
+better than the truth.
+
+On the ₹/kg view the bar is measured against full cost with a mark at the cost line, because from a
+zero baseline a 5.40–14.50 range is a row of near-identical bars. Green clears cost, red does not:
+the app's accent is itself a terracotta, so accent-against-danger was a distinction nobody could see.
+
 ### What Stats measures
 Revenue alone cannot tell a good month from a loss-making one here: the same ₹1L of billing
 is healthy at 8 tonnes and ruinous at 20. So every headline figure is carried next to the
@@ -291,6 +375,17 @@ does not).
 
 ### Items Master
 Part number registry with weights, gauge, descriptions, and merge capability.
+
+**A missing part is created from the line being typed.** The autocomplete's last row offers to add
+what was typed, prefilled, and drops the new part straight back into the line — the round trip to
+the Items tab lost the in-progress form, which is why parts went unregistered. It is offered even
+when there are matches, because a new gauge of an existing clamp matches the part number and is
+still a different part.
+
+That row is present on almost every list, which is what made the keyboard contract the thing to
+protect: one real suggestion plus the add row is two options, and `acPendingOption()` would have
+stopped committing a lone match on Enter. It filters the add row out of that shortcut. An unaimed
+Enter therefore still means "on to the quantity" — creating a part takes a click or an arrow.
 
 **Weights derive themselves at bootstrap.** Where a client bills per piece off a rate per kg,
 `weight = pieceRate ÷ ratePerKg` recovers it exactly, and `init.js` runs that once via

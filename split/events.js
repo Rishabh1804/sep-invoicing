@@ -49,17 +49,21 @@ document.addEventListener('click', function(e) {
     case 'invExportSales': exportSalesCSV(); break;
     case 'invExportGstr1': exportGSTR1CSV(); break;
     case 'invSelectPart': selectPartForLine(parseInt(btn.dataset.idx), parseInt(btn.dataset.partId)); break;
-    case 'invFilterRegister': {
-      const cf = document.getElementById('regClientFilter');
-      const mf = document.getElementById('regMonthFilter');
-      const sf = document.getElementById('regStateFilter');
-      if (cf) regFilter.clientId = cf.value;
-      if (mf) regFilter.month = mf.value;
-      if (sf) regFilter.state = sf.value;
+    case 'invFilterRegister': captureRegFilters(btn.id); break;
+    case 'invRegClearRange': {
+      regFilter.dateFrom = ''; regFilter.dateTo = '';
       saveRegFilter();
-      _renderRegView();
+      captureRegFilters();
       break;
     }
+    case 'invRegSelectAll': toggleRegSelectAll(); break;
+    // Credit notes
+    case 'invRegCreditNote': openCreditNoteForm(_regSelectedIds()); break;
+    case 'invCnSave': saveCreditNote(); break;
+    case 'invCnList': renderCreditNoteList(); break;
+    case 'invCnPreview': closeOverlay(); showCreditNotePreview(btn.dataset.id); break;
+    case 'invCnCancel': e.stopPropagation(); cancelCreditNote(btn.dataset.id); break;
+    case 'invExportCreditNotes': exportCreditNotesCSV(); break;
     case 'invToggleIM': toggleIMExpand(btn.dataset.id); break;
     case 'invCheckIMItem': toggleIMItem(btn.dataset.itemId); break;
     case 'invCheckIMChallan': toggleIMChallan(btn.dataset.id); break;
@@ -87,34 +91,13 @@ document.addEventListener('click', function(e) {
     case 'invRemoveChallanLine': captureChallanFields(); removeChallanLine(parseInt(btn.dataset.idx)); break;
     case 'invSelectChallanClient': selectChallanClient(parseInt(btn.dataset.id)); break;
     case 'invClearChallanClient': if (_challanForm) { captureChallanFields(); _challanForm.clientId = null; renderAddChallanForm(); } break;
-    case 'invSelectChallanPart': {
-      if (!_challanForm) break;
-      const pidx = parseInt(btn.dataset.idx);
-      const part = S.items.find(function(p) { return p.id === parseInt(btn.dataset.partId); });
-      if (!part) break;
-      const cItem = _challanForm.items[pidx];
-      if (!cItem) break;
-      cItem.partNumber = part.partNumber;
-      // Same folding as the invoice path: the gauge is what tells two rows of
-      // the same clamp apart, and dropping it here carried the ambiguity into
-      // every invoice raised off the challan.
-      cItem.desc = partLineDesc(part);
-      cItem.hsn = part.hsn || '998873';
-      cItem.unit = part.unit || 'KG';
-      const cClient = _challanForm.clientId ? S.clients.find(function(c) { return c.id === _challanForm.clientId; }) : null;
-      if (cClient) {
-        const cRateInfo = getLineItemRate(cClient, _challanForm.challanDate || localDateStr(), cItem.partNumber);
-        if (cRateInfo._override) { cItem.rate = cRateInfo.rate; }
-        else { cItem.rate = cRateInfo.ratePerKg || 0; }
-        recalcChallanLine(cItem, cClient);
-      }
-      dismissAllAutocomplete();
-      captureChallanFields();
-      // The part is settled; weight is what gets typed next.
-      _challanFocusNext = { k: 'qty-' + pidx, sel: null };
-      renderAddChallanForm();
+    case 'invSelectChallanPart':
+      selectChallanPartForLine(parseInt(btn.dataset.idx), parseInt(btn.dataset.partId));
       break;
-    }
+    // Create a missing part without leaving the line being typed
+    case 'invAddItemInline':
+      openInlineItemAdd(btn.dataset.kind, parseInt(btn.dataset.idx), btn.dataset.q || '');
+      break;
     // Phase 4: IM Delete Challan
     case 'invDeleteChallan': deleteChallan(btn.dataset.id); break;
     // Phase 5: IM Edit Challan
@@ -135,6 +118,14 @@ document.addEventListener('click', function(e) {
     case 'invStatsPeriod': _statsPeriod = btn.dataset.period; renderStats(); break;
     // P9: Trend granularity chips (day/week/month)
     case 'invStatsTrendGran': _statsTrendGran = btn.dataset.gran; renderStats(); break;
+    // Chart controls: what the trend plots, how it is drawn, and how the
+    // composition and top-item cards are ranked
+    case 'invStatsTrendSeries': _statsTrendSeries = btn.dataset.series; renderStats(); break;
+    case 'invStatsTrendType': _statsTrendType = btn.dataset.type; renderStats(); break;
+    case 'invStatsClientChart': _statsClientChart = btn.dataset.chart; renderStats(); break;
+    case 'invStatsTopBy': _statsTopBy = btn.dataset.by; renderStats(); break;
+    // Client performance sub-view
+    case 'invPerfSeries': _cpSeries = btn.dataset.series; renderClientsPage(); break;
     // Phase 7: Client drill-down overlay
     case 'invStatsClientDrill': openClientDrillOverlay(btn.dataset.clientId); break;
     // Phase 7: Flippable card
@@ -383,16 +374,11 @@ document.addEventListener('change', function(e) {
   if (e.target.id === 'invDate') {
     invoiceForm.date = e.target.value;
   }
-  // Register filters
-  if (e.target.id === 'regClientFilter' || e.target.id === 'regMonthFilter' || e.target.id === 'regStateFilter') {
-    const cf = document.getElementById('regClientFilter');
-    const mf = document.getElementById('regMonthFilter');
-    const sf = document.getElementById('regStateFilter');
-    if (cf) regFilter.clientId = cf.value;
-    if (mf) regFilter.month = mf.value;
-    if (sf) regFilter.state = sf.value;
-    saveRegFilter();
-    _renderRegView();
+  // Register filters — one capture path, so a new filter control cannot end up
+  // wired to the click delegate and not to this one.
+  if (e.target.id === 'regClientFilter' || e.target.id === 'regMonthFilter' ||
+      e.target.id === 'regStateFilter' || e.target.id === 'regDateFrom' || e.target.id === 'regDateTo') {
+    captureRegFilters(e.target.id);
   }
   // IM filters
   if (e.target.id === 'imClientFilter' || e.target.id === 'imStatusFilter') {
@@ -401,6 +387,12 @@ document.addEventListener('change', function(e) {
     if (icf) _imFilter.clientId = icf.value;
     if (isf) _imFilter.status = isf.value;
     _renderIMView();
+  }
+  // Client performance: which account is under the lens
+  if (e.target.id === 'cpClientSelect') {
+    setPerfClientId(e.target.value);
+    renderClientsPage();
+    return;
   }
   // Phase 6: Items sort
   if (e.target.id === 'itemsSort') {
@@ -464,6 +456,23 @@ document.addEventListener('input', function(e) {
         if (caret != null && restored.setSelectionRange) restored.setSelectionRange(caret, caret);
       }
     }, 250);
+    return;
+  }
+  // Credit note form: the totals restate as the discount is typed, so the
+  // figure being committed is the one on screen. Focus is preserved because
+  // the caret position is restored across the re-render.
+  if (e.target.dataset.action === 'invCnInput') {
+    var cnId = e.target.id, cnCaret = null;
+    try { cnCaret = e.target.selectionStart; } catch (err) { cnCaret = null; }
+    captureCnForm();
+    renderCreditNoteForm();
+    var back = document.getElementById(cnId);
+    if (back) {
+      back.focus();
+      if (cnCaret != null && back.setSelectionRange) {
+        try { back.setSelectionRange(cnCaret, cnCaret); } catch (err) {}
+      }
+    }
     return;
   }
   // Bulk weight entry: price the part as soon as a weight is typed

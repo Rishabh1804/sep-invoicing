@@ -36,7 +36,10 @@ split/
 ├── autocomplete.js       ← Part autocomplete + shared suggestion keyboard cursor
 ├── print.js              ← formatInvoiceData + print preview/print
 ├── quality-cert.js       ← Test Certificate (ZN Plating): TML-approved format, per-line certs
+├── credit-note.js        ← Credit notes: batch discount, own CN series, CDNR export
+├── charts.js             ← Reusable SVG charts: line, bar, pie, ranked bars
 ├── stats.js              ← Stats (tonnage, realisation, margin) + History audit log
+├── client-perf.js        ← Client performance: month on month + material cadence
 ├── im-form.js            ← IM challan form + focus survival across re-renders
 ├── im-dupe.js            ← IM duplicate guard: fingerprint, pre-save warning, scan
 ├── scanner.js            ← Challan scanner (Gemini AI vision)

@@ -57,6 +57,13 @@
   --tab-h: 52px; --header-h: 48px; --max-w: 520px;
   --section-gap: var(--sp-16); --card-padding: var(--sp-16);
   --card-padding-sm: var(--sp-12);
+
+  /* Chart series palette. Eight hues drawn from the domain colours so a pie
+     reads as part of this app, plus a muted ninth for the folded "others"
+     wedge — the tail should look like a tail, not like a ninth client. */
+  --chart-1: #b45a37; --chart-2: #2e75b6; --chart-3: #177a36; --chart-4: #8a6b08;
+  --chart-5: #8b6c4a; --chart-6: #6b4c8a; --chart-7: #b5583a; --chart-8: #2f7d7d;
+  --chart-other: #9a958c;
 }
 
 /* Dark mode tokens */
@@ -68,6 +75,11 @@
   --danger-bg: #3a1a18; --warning-bg: #3a3018; --neutral-bg: #2a2518;
   --attend-text: #6cd88a; --cost-text: #e8a888; --prod-text: #88b8e8;
   --danger-text: #e89090; --warning-text: #d4b848; --neutral-text: #c8b898;
+  /* Lifted for contrast against the dark surface; the light values go muddy
+     on #242320 and adjacent wedges stop being tellable apart. */
+  --chart-1: #e8a888; --chart-2: #88b8e8; --chart-3: #6cd88a; --chart-4: #d4b848;
+  --chart-5: #c8b898; --chart-6: #b79ae0; --chart-7: #e89090; --chart-8: #7fd0d0;
+  --chart-other: #6e6a63;
 }
 
 /* ===== RESET ===== */
@@ -586,6 +598,145 @@ table.inv-qc-grid.inv-qc-no-top { border-top: 0; }
   margin-bottom: var(--qc-sig-gap);
 }
 
+/* ===== CREDIT NOTE DOCUMENT ===== */
+/* Same approach as the certificate sheet: one set of measurements for screen
+   and print so the preview is the page, and the ink is pinned black-on-white
+   because a tax document is not themed (HR-7 met by pinning, not omitting).
+   Physical units are the documented HR-6 print exception and are declared once,
+   here, with every rule below reading a var(). */
+.inv-cn-doc {
+  --cn-ink: #000;
+  --cn-paper: #fff;
+  --cn-rule: #000;
+  --cn-band: #ececec;
+  --cn-fs: 8.5pt;
+  --cn-fs-sm: 7.5pt;
+  --cn-fs-name: 11pt;
+  --cn-pad: 1mm 1.5mm;
+  --cn-page-pad: 6mm;
+  --cn-rule-w: 0.5pt;
+  --cn-sheet-w: 194mm;
+
+  background: var(--cn-paper); color: var(--cn-ink);
+  font-family: var(--ff-base); font-size: var(--cn-fs); line-height: 1.3;
+  width: var(--cn-sheet-w); margin: 0 auto var(--sp-16) auto;
+  padding: var(--cn-page-pad);
+  border: 1px solid var(--border);
+}
+.inv-cn-top, .inv-cn-parties, .inv-cn-words-row, .inv-cn-foot {
+  display: flex; border: var(--cn-rule-w) solid var(--cn-rule);
+}
+.inv-cn-top { border-bottom: 0; }
+.inv-cn-seller { flex: 1; padding: var(--cn-pad); }
+.inv-cn-seller-name { font-weight: 700; font-size: var(--cn-fs-name); }
+.inv-cn-meta { flex: 1; border-collapse: collapse; border-left: var(--cn-rule-w) solid var(--cn-rule); }
+.inv-cn-meta td { padding: var(--cn-pad); border-bottom: var(--cn-rule-w) solid var(--cn-rule); }
+.inv-cn-meta-l { width: 40%; }
+.inv-cn-meta-v { font-family: var(--ff-mono); }
+.inv-cn-parties { border-bottom: 0; }
+.inv-cn-party { flex: 1; padding: var(--cn-pad); }
+.inv-cn-party + .inv-cn-party { border-left: var(--cn-rule-w) solid var(--cn-rule); }
+.inv-cn-party-title { font-weight: 700; }
+.inv-cn-party-name { font-weight: 700; }
+.inv-cn-band {
+  background: var(--cn-band); font-weight: 700; text-align: center;
+  padding: var(--cn-pad); border: var(--cn-rule-w) solid var(--cn-rule); border-bottom: 0;
+}
+.inv-cn-table, .inv-cn-totals, .inv-cn-taxsum {
+  width: 100%; border-collapse: collapse;
+}
+.inv-cn-table th, .inv-cn-table td,
+.inv-cn-totals td, .inv-cn-taxsum th, .inv-cn-taxsum td {
+  border: var(--cn-rule-w) solid var(--cn-rule); padding: var(--cn-pad);
+}
+.inv-cn-table th, .inv-cn-taxsum th { background: var(--cn-band); font-weight: 700; text-align: center; }
+/* The totals stack sits directly under the line table, so its value column has
+   to be the same width as Amount or the document reads as two ruled grids that
+   do not line up. */
+.inv-cn-table { table-layout: fixed; }
+.inv-cn-table th:nth-child(1) { width: 6%; }
+.inv-cn-table th:nth-child(2) { width: 34%; }
+.inv-cn-table th:nth-child(3) { width: 9%; }
+.inv-cn-table th:nth-child(4) { width: 13%; }
+.inv-cn-table th:nth-child(5) { width: 8%; }
+.inv-cn-table th:nth-child(6) { width: 10%; }
+.inv-cn-table th:nth-child(7) { width: 20%; }
+.inv-cn-totals { border-top: 0; table-layout: fixed; }
+.inv-cn-totals td:first-child { width: 80%; }
+.inv-cn-totals td:last-child { width: 20%; }
+.inv-cn-tot-l { text-align: right; font-weight: 700; }
+.inv-cn-grand td { font-weight: 700; }
+.inv-cn-c { text-align: center; }
+.inv-cn-num { text-align: right; font-family: var(--ff-mono); }
+.inv-cn-words-row { border-top: 0; }
+.inv-cn-words-box { flex: 1; padding: var(--cn-pad); }
+.inv-cn-words-title { font-weight: 700; }
+.inv-cn-pan { margin-top: var(--sp-6); }
+.inv-cn-taxsum { flex: 1; border-left: var(--cn-rule-w) solid var(--cn-rule); }
+.inv-cn-taxwords {
+  border: var(--cn-rule-w) solid var(--cn-rule); border-top: 0;
+  padding: var(--cn-pad);
+}
+.inv-cn-annex {
+  border: var(--cn-rule-w) solid var(--cn-rule); border-top: 0;
+  padding: var(--cn-pad); font-size: var(--cn-fs-sm);
+}
+.inv-cn-annex-title { font-weight: 700; }
+.inv-cn-annex-list { font-family: var(--ff-mono); overflow-wrap: break-word; }
+.inv-cn-foot { border-top: 0; }
+.inv-cn-foot-left { flex: 1; padding: var(--cn-pad); }
+.inv-cn-foot-right {
+  flex: 1; padding: var(--cn-pad); text-align: center;
+  border-left: var(--cn-rule-w) solid var(--cn-rule);
+}
+.inv-cn-eoe { text-align: right; }
+.inv-cn-sig-co { font-weight: 700; }
+.inv-cn-sig-line { margin-top: 10mm; font-weight: 700; }
+
+/* ===== CLIENT PERFORMANCE ===== */
+.inv-cp-toolbar { margin-bottom: var(--sp-12); }
+.inv-cp-toolbar .inv-form-group { margin-bottom: 0; }
+.inv-cp-group { margin-top: var(--sp-16); }
+.inv-cp-group-title {
+  font-size: var(--fs-sm); font-weight: 700; color: var(--text-1);
+  padding-bottom: var(--sp-4); border-bottom: 1px solid var(--border);
+  margin-bottom: var(--sp-8);
+}
+/* Stopped is the only one of the four that is a question, so it is the only
+   one that carries a colour. */
+.inv-cp-group-stopped { color: var(--danger-text); border-bottom-color: var(--danger); }
+.inv-cp-group-new { color: var(--attend-text); }
+.inv-cp-group-steady { color: var(--text-2); }
+.inv-cp-group-note {
+  font-size: var(--fs-xs); color: var(--text-3);
+  margin-bottom: var(--sp-8); line-height: 1.4;
+}
+.inv-cp-mat {
+  padding: var(--sp-8) 0; border-bottom: 1px solid var(--border);
+}
+.inv-cp-mat:last-child { border-bottom: none; }
+.inv-cp-mat-head { display: flex; align-items: baseline; gap: var(--sp-8); }
+.inv-cp-mat-name {
+  flex: 1; min-width: 0; font-size: var(--fs-sm); font-weight: 600;
+  color: var(--text-1); word-break: break-word;
+}
+.inv-cp-mat-rev { font-size: var(--fs-xs); color: var(--text-2); white-space: nowrap; }
+.inv-cp-mat-unbilled { color: var(--text-3); font-family: var(--ff-base); font-style: italic; }
+.inv-cp-mat-meta {
+  font-size: var(--fs-2xs); color: var(--text-3);
+  font-family: var(--ff-mono); margin-top: var(--sp-2);
+}
+.inv-cp-mat-flag {
+  font-size: var(--fs-xs); color: var(--danger-text);
+  background: var(--danger-bg); border-radius: var(--r-sm);
+  padding: var(--sp-2) var(--sp-6); margin-top: var(--sp-4); display: inline-block;
+}
+.inv-cp-mat-note {
+  font-size: var(--fs-xs); color: var(--warning-text);
+  background: var(--warning-bg); border-radius: var(--r-sm);
+  padding: var(--sp-4) var(--sp-6); margin-top: var(--sp-4); line-height: 1.4;
+}
+
 /* ===== IM ADD CHALLAN FORM ===== */
 .inv-im-form { display: none; }
 .inv-im-form-active { display: block; }
@@ -672,6 +823,9 @@ table.inv-qc-grid.inv-qc-no-top { border-top: 0; }
   .inv-qc-sheets { overflow: visible; }
   .inv-qc-page { border: none; margin: 0; width: auto; }
   .inv-qc-title { border-width: 1pt; }
+  /* Credit note: measurements are already the printed ones, so only the
+     screen frame and centring gutter come off. */
+  .inv-cn-doc { border: none; margin: 0; width: auto; }
 }
 
 /* ===== SETTINGS ===== */
@@ -917,6 +1071,94 @@ table.inv-qc-grid.inv-qc-no-top { border-top: 0; }
 .dark .inv-svg-line { stroke: var(--accent-dark); }
 .dark .inv-svg-dot { fill: var(--accent-dark); stroke: var(--surface); }
 
+/* ===== CHARTS =====
+   Drawn at their natural aspect and sized by CSS, so a circle is a circle on a
+   phone and on a desktop. The old trend chart stretched a 400x160 drawing with
+   preserveAspectRatio="none", which is why it could only ever be a bare line —
+   markers came out as ellipses and text skewed. */
+.inv-chart-svg {
+  width: 100%; height: auto; display: block;
+  max-height: 240px; margin: 0 auto;
+}
+@media (min-width: 768px) {
+  /* Desktop gets a taller frame: the same series, more room between
+     gridlines, and labels that stop colliding. */
+  .inv-chart-svg { max-height: 320px; }
+}
+.inv-chart-bar { fill: var(--accent); }
+.dark .inv-chart-bar { fill: var(--accent-dark); }
+.inv-chart-empty {
+  color: var(--text-3); font-size: var(--fs-sm);
+  padding: var(--sp-16); text-align: center;
+}
+.inv-stats-note {
+  font-size: var(--fs-xs); color: var(--text-3);
+  margin-top: var(--sp-8); line-height: 1.4;
+}
+
+/* Composition. Eight series colours drawn from the domain palette, plus a
+   ninth for the folded "others" wedge so the tail is visibly a tail. */
+.inv-chart-pie-wrap {
+  display: flex; flex-wrap: wrap; gap: var(--sp-16);
+  align-items: center; justify-content: center;
+}
+.inv-chart-pie-svg { width: 180px; height: 180px; flex: 0 0 auto; }
+@media (min-width: 768px) {
+  .inv-chart-pie-svg { width: 220px; height: 220px; }
+}
+.inv-chart-hole { fill: var(--surface); }
+.inv-chart-legend { flex: 1 1 220px; min-width: 0; display: flex; flex-direction: column; gap: var(--sp-4); }
+.inv-chart-legend-row {
+  display: flex; align-items: center; gap: var(--sp-8);
+  font-size: var(--fs-xs); min-height: 24px; cursor: pointer;
+}
+.inv-chart-legend-row:active { background: var(--surface-2); }
+.inv-chart-swatch { width: 10px; height: 10px; border-radius: var(--r-sm); flex: 0 0 auto; }
+.inv-chart-legend-label {
+  flex: 1; min-width: 0; color: var(--text-1);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.inv-chart-legend-val { color: var(--text-2); white-space: nowrap; }
+.inv-chart-legend-pct { color: var(--text-3); white-space: nowrap; min-width: 44px; text-align: right; }
+
+.inv-chart-c0 { fill: var(--chart-1); }
+.inv-chart-c1 { fill: var(--chart-2); }
+.inv-chart-c2 { fill: var(--chart-3); }
+.inv-chart-c3 { fill: var(--chart-4); }
+.inv-chart-c4 { fill: var(--chart-5); }
+.inv-chart-c5 { fill: var(--chart-6); }
+.inv-chart-c6 { fill: var(--chart-7); }
+.inv-chart-c7 { fill: var(--chart-8); }
+.inv-chart-cx { fill: var(--chart-other); }
+.inv-chart-swatch.inv-chart-c0 { background: var(--chart-1); }
+.inv-chart-swatch.inv-chart-c1 { background: var(--chart-2); }
+.inv-chart-swatch.inv-chart-c2 { background: var(--chart-3); }
+.inv-chart-swatch.inv-chart-c3 { background: var(--chart-4); }
+.inv-chart-swatch.inv-chart-c4 { background: var(--chart-5); }
+.inv-chart-swatch.inv-chart-c5 { background: var(--chart-6); }
+.inv-chart-swatch.inv-chart-c6 { background: var(--chart-7); }
+.inv-chart-swatch.inv-chart-c7 { background: var(--chart-8); }
+.inv-chart-swatch.inv-chart-cx { background: var(--chart-other); }
+
+/* Ranked horizontal bars — for "top N by X", where reading the names matters
+   more than the profile of the series. */
+.inv-chart-ranked { display: flex; flex-direction: column; gap: var(--sp-10); }
+.inv-chart-ranked-row { display: flex; flex-direction: column; gap: var(--sp-2); }
+.inv-chart-ranked-head { display: flex; align-items: baseline; gap: var(--sp-8); }
+.inv-chart-ranked-label {
+  flex: 1; min-width: 0; font-size: var(--fs-sm); font-weight: 600;
+  color: var(--text-1); word-break: break-word; line-height: 1.25;
+}
+.inv-chart-ranked-val { font-size: var(--fs-xs); color: var(--text-2); white-space: nowrap; }
+.inv-chart-ranked-track { width: 100%; }
+.inv-chart-ranked-svg { width: 100%; height: 8px; display: block; }
+.inv-chart-ranked-fill { fill: var(--accent); }
+.dark .inv-chart-ranked-fill { fill: var(--accent-dark); }
+.inv-chart-ranked-fill-danger { fill: var(--danger); }
+.inv-chart-ranked-fill-good { fill: var(--attend); }
+.inv-chart-ranked-mark { fill: var(--text-1); opacity: 0.55; }
+.inv-chart-ranked-sub { font-size: var(--fs-2xs); color: var(--text-3); font-family: var(--ff-mono); }
+
 /* Phase 7: Top items table */
 .inv-stats-table { display: flex; flex-direction: column; }
 .inv-stats-table-header {
@@ -1025,6 +1267,7 @@ table.inv-qc-grid.inv-qc-no-top { border-top: 0; }
 .inv-text-center { text-align: center; }
 .inv-mb-8 { margin-bottom: var(--sp-8); }
 .inv-mb-16 { margin-bottom: var(--sp-16); }
+.inv-mt-8 { margin-top: var(--sp-8); }
 
 /* Phase 5: Home dashboard unbilled card */
 .inv-card-unbilled {
@@ -1110,6 +1353,20 @@ table.inv-qc-grid.inv-qc-no-top { border-top: 0; }
 }
 .inv-reg-filters > * { flex: 1; min-width: 0; }
 .inv-reg-filters .inv-form-group { margin-bottom: 0; }
+/* Explicit date range, for an export that does not line up with a month. */
+.inv-reg-range { display: flex; gap: var(--sp-8); flex-wrap: wrap; align-items: flex-end; }
+/* Capped so the pair stays a compact control on a wide desktop toolbar rather
+   than stretching edge to edge, while still filling a 393px phone. */
+.inv-reg-range-field {
+  flex: 1; min-width: 0; max-width: 240px;
+  display: flex; flex-direction: column; gap: var(--sp-2);
+}
+.inv-reg-range-label { font-size: var(--fs-xs); color: var(--text-3); font-weight: 600; }
+.inv-reg-scope-note {
+  font-size: var(--fs-xs); color: var(--warning-text);
+  background: var(--warning-bg); border: 1px solid var(--warning);
+  border-radius: var(--r-sm); padding: var(--sp-4) var(--sp-8);
+}
 .inv-reg-search {
   width: 100%; padding: var(--sp-10) var(--sp-12) var(--sp-10) var(--sp-32);
   border: 1px solid var(--border); border-radius: var(--r-md);
@@ -1503,8 +1760,20 @@ table.inv-qc-grid.inv-qc-no-top { border-top: 0; }
   font-size: var(--fs-sm); color: var(--text-1);
   word-break: break-word;
 }
+/* The create-a-part row. Tinted and ruled off so it reads as an action rather
+   than as one more suggestion to pick from — it is always last, and choosing it
+   opens a form instead of filling the line. */
+.inv-ac-add {
+  flex-direction: row; align-items: center; gap: var(--sp-8);
+  background: var(--surface-2); border-top: 1px solid var(--border);
+  color: var(--accent);
+}
+.inv-ac-add .inv-autocomplete-part { color: var(--accent); font-family: var(--ff-base); font-weight: 600; }
+.inv-ac-add .inv-autocomplete-desc { font-size: var(--fs-xs); color: var(--text-3); }
+.inv-ac-add-icon { flex: 0 0 auto; }
 .dark .inv-autocomplete-list { background: var(--surface); border-color: var(--border); }
 .dark .inv-autocomplete-item:active { background: var(--surface-2); }
+.dark .inv-ac-add { background: var(--surface-3); }
 
 /* ===== SUGGESTION KEYBOARD CURSOR =====
    The row the arrow keys have landed on. Carries a left rule as well as a
@@ -1791,6 +2060,9 @@ table.inv-qc-grid.inv-qc-no-top { border-top: 0; }
 /* ===== REGISTER — Phase 6b (Bulk Select + Sort) ===== */
 .inv-reg-actions-row {
   display: flex; gap: var(--sp-8); margin-top: var(--sp-8);
+  /* Wraps rather than squeezing: with select-all present this row carries four
+     buttons, and at 393px they were compressing their labels onto two lines. */
+  flex-wrap: wrap;
 }
 .inv-reg-check-wrap {
   display: flex; align-items: center; justify-content: center;
@@ -2335,6 +2607,10 @@ function getDefaultState() {
     incomingMaterial: [],
     invoices: [],
     voidedNumbers: [],
+    // Credit notes run their own series (CN/005/26-27), separate from the
+    // invoice series, because they are a separate document under GST.
+    creditNotes: [],
+    cnNextNum: 1,
     // Full cost per kg, rebuilt from owner-supplied inputs against Apr–Jul 2026
     // actuals. The old 5.46 predated that rebuild and flattered every margin
     // figure by roughly a rupee a kilo. Only ever the default for a fresh
@@ -2358,6 +2634,8 @@ if (!S.invoices) S.invoices = [];
 if (!S.incomingMaterial) S.incomingMaterial = [];
 if (!S.partWeights) S.partWeights = {};
 if (!S.voidedNumbers) S.voidedNumbers = [];
+if (!S.creditNotes) S.creditNotes = [];
+if (!S.cnNextNum) S.cnNextNum = 1;
 
 /* ===== LAYOUT MODE (Phase 8A) ===== */
 var _isDesktop = false;
@@ -3386,6 +3664,16 @@ function renderClientsPage() {
   if (!container) return;
   var subView = getItemsSubView();
 
+  // Performance is one client's analysis, not a list with a detail panel, so it
+  // renders full width in both layouts and skips the master-detail wrapper.
+  if (subView === 'performance') {
+    _updateClientsFab(subView, false);
+    container.innerHTML = '<div id="clientsDesktopToggle">' + _buildSubViewToggle('performance') + '</div>' +
+      '<div id="clientPerfArea"></div>';
+    renderClientPerformance(document.getElementById('clientPerfArea'));
+    return;
+  }
+
   // Phase 8E: Desktop master-detail — toolbar buttons carry Add, FAB stays hidden
   if (_isDesktop) {
     _updateClientsFab(subView, false);
@@ -3481,6 +3769,7 @@ function _buildSubViewToggle(active) {
   return '<div class="inv-subview-toggle">' +
     '<button class="inv-subview-btn' + (active === 'clients' ? ' inv-subview-active' : '') + '" data-action="invSwitchSubView" data-view="clients">Clients</button>' +
     '<button class="inv-subview-btn' + (active === 'items' ? ' inv-subview-active' : '') + '" data-action="invSwitchSubView" data-view="items">Items</button>' +
+    '<button class="inv-subview-btn' + (active === 'performance' ? ' inv-subview-active' : '') + '" data-action="invSwitchSubView" data-view="performance">Performance</button>' +
     '</div>';
 }
 
@@ -3782,10 +4071,14 @@ function _renderItemsList() {
 function openItemEdit(itemId) {
   var item = S.items.find(function(it) { return it.id === itemId; });
   if (!item) return;
+  _inlineItemReturn = null;
   _showItemOverlay(item, false);
 }
 
 function openItemAdd() {
+  // Any abandoned inline add is dropped here, so a cancelled one can never
+  // redirect an ordinary add raised later from this tab.
+  _inlineItemReturn = null;
   _showItemOverlay(null, true);
 }
 
@@ -3880,7 +4173,7 @@ function saveItem(itemId, mode) {
       return;
     }
     var maxId = S.items.reduce(function(mx, it) { return Math.max(mx, it.id); }, 0);
-    S.items.push({
+    var added = {
       id: maxId + 1,
       partNumber: pn,
       desc: desc,
@@ -3889,8 +4182,14 @@ function saveItem(itemId, mode) {
       unit: unit,
       rate: rate,
       stdWeightKg: stdW
-    });
+    };
+    S.items.push(added);
     showToast('Item added: ' + pn);
+    // Raised from a line being typed rather than from the Items tab: save, then
+    // put the new part straight into that line. Returning the operator to the
+    // Items list here is what made the round trip necessary in the first place.
+    saveState();
+    if (finishInlineItemAdd(added)) return;
   } else {
     var item = S.items.find(function(it) { return it.id === itemId; });
     if (!item) return;
@@ -5624,7 +5923,17 @@ function getFilteredInvoices() {
     const cid = parseInt(regFilter.clientId);
     list = list.filter(i => i.clientId === cid);
   }
-  if (regFilter.month) {
+  // A date range and a month are alternatives, never layered — whichever the
+  // operator set last wins and the other is cleared, so there is no precedence
+  // rule to remember. ISO dates compare lexically, so no parsing is needed.
+  if (regFilter.dateFrom || regFilter.dateTo) {
+    list = list.filter(function(i) {
+      if (!i.date) return false;
+      if (regFilter.dateFrom && i.date < regFilter.dateFrom) return false;
+      if (regFilter.dateTo && i.date > regFilter.dateTo) return false;
+      return true;
+    });
+  } else if (regFilter.month) {
     list = list.filter(i => i.date && i.date.startsWith(regFilter.month));
   }
   if (regFilter.search) {
@@ -5674,12 +5983,78 @@ function getFilteredInvoices() {
   return list;
 }
 
+/* Read every register filter control into regFilter, in one place.
+   Two event paths reached these fields with the same block of code copied into
+   both, so a new filter had to be added twice or it silently did nothing on one
+   of them. */
+function captureRegFilters(changedId) {
+  var cf = document.getElementById('regClientFilter');
+  var mf = document.getElementById('regMonthFilter');
+  var sf = document.getElementById('regStateFilter');
+  var df = document.getElementById('regDateFrom');
+  var dt = document.getElementById('regDateTo');
+  if (cf) regFilter.clientId = cf.value;
+  if (sf) regFilter.state = sf.value;
+  if (mf) regFilter.month = mf.value;
+  if (df) regFilter.dateFrom = df.value;
+  if (dt) regFilter.dateTo = dt.value;
+
+  // Month and range are alternatives. Setting one clears the other rather than
+  // leaving both populated and one of them quietly ignored.
+  if (changedId === 'regMonthFilter' && regFilter.month) {
+    regFilter.dateFrom = ''; regFilter.dateTo = '';
+  } else if ((changedId === 'regDateFrom' || changedId === 'regDateTo') &&
+             (regFilter.dateFrom || regFilter.dateTo)) {
+    regFilter.month = '';
+  }
+
+  // A selection made under one filter must not survive into another. The rows
+  // become invisible but stay selected, and every bulk action still acts on
+  // them — file, dispatch, certificates alike. Harmless while selecting meant
+  // one tap per row; a hazard now that one tap selects the whole page.
+  _regSelected = {};
+
+  saveRegFilter();
+  _regToolbarRendered = false;
+  renderRegisterToolbar();
+  _regToolbarRendered = true;
+  _renderRegView();
+  _renderRegSelBar();
+}
+
+/* Invoices in the current filter that a bulk action can actually act on.
+   Cancelled ones are excluded: every bulk path already refuses them — state
+   transitions skip them and certificates are declined — and on mobile their
+   row renders no checkbox at all, so selecting one would be unclearable. */
+function regSelectableInvoices() {
+  return getFilteredInvoices().filter(function(i) { return i.status !== 'cancelled'; });
+}
+
+function toggleRegSelectAll() {
+  var selectable = regSelectableInvoices();
+  var allOn = selectable.length > 0 && selectable.every(function(i) { return _regSelected[i.id]; });
+  _regSelected = {};
+  if (!allOn) selectable.forEach(function(i) { _regSelected[i.id] = true; });
+  _renderRegView();
+  _renderRegSelBar();
+  _regToolbarRendered = false;
+  renderRegisterToolbar();
+  _regToolbarRendered = true;
+  showToast(allOn ? 'Selection cleared'
+    : selectable.length + ' invoice' + (selectable.length !== 1 ? 's' : '') + ' selected');
+}
+
 function renderRegisterToolbar() {
   const area = document.getElementById('regToolbar');
   if (!area) return;
 
   var sortDir = regFilter.regSortDir || 'desc';
   var unaccounted = unaccountedNumberCount();
+  var rangeActive = !!(regFilter.dateFrom || regFilter.dateTo);
+  var selectable = regSelectableInvoices();
+  var selectableCount = selectable.length;
+  var allSelected = selectableCount > 0 && selectable.every(function(i) { return _regSelected[i.id]; });
+  var cnCount = (S.creditNotes || []).filter(function(c) { return c.status !== 'cancelled'; }).length;
 
   // Build unique client list for filter dropdown
   const clientIds = [...new Set(S.invoices.map(i => i.clientId))];
@@ -5695,7 +6070,7 @@ function renderRegisterToolbar() {
     '<div class="inv-reg-filters">' +
     '<div class="inv-form-group"><select class="inv-form-select" id="regClientFilter" data-action="invFilterRegister">' +
     '<option value="">All Clients</option>' + clientOpts + '</select></div>' +
-    '<div class="inv-form-group"><input type="month" class="inv-form-input inv-mono" id="regMonthFilter" value="' + escHtml(regFilter.month) + '" data-action="invFilterRegister"></div>' +
+    '<div class="inv-form-group"><input type="month" class="inv-form-input inv-mono" id="regMonthFilter" value="' + escHtml(regFilter.month || '') + '" data-action="invFilterRegister" aria-label="Filter by month"></div>' +
     '<div class="inv-form-group"><select class="inv-form-select" id="regStateFilter" data-action="invFilterRegister">' +
     '<option value=""' + (!regFilter.state ? ' selected' : '') + '>All States</option>' +
     '<option value="created"' + (regFilter.state === 'created' ? ' selected' : '') + '>Created</option>' +
@@ -5704,12 +6079,30 @@ function renderRegisterToolbar() {
     '<option value="filed"' + (regFilter.state === 'filed' ? ' selected' : '') + '>Filed</option>' +
     '<option value="cancelled"' + (regFilter.state === 'cancelled' ? ' selected' : '') + '>Cancelled</option></select></div>' +
     '</div>' +
+    // Explicit range, for an export that does not line up with a calendar month.
+    '<div class="inv-reg-range">' +
+    '<label class="inv-reg-range-field"><span class="inv-reg-range-label">From</span>' +
+    '<input type="date" class="inv-form-input inv-mono" id="regDateFrom" value="' + escHtml(regFilter.dateFrom || '') + '" data-action="invFilterRegister"></label>' +
+    '<label class="inv-reg-range-field"><span class="inv-reg-range-label">To</span>' +
+    '<input type="date" class="inv-form-input inv-mono" id="regDateTo" value="' + escHtml(regFilter.dateTo || '') + '" data-action="invFilterRegister"></label>' +
+    (rangeActive ? '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invRegClearRange">Clear range</button>' : '') +
+    '</div>' +
+    (rangeActive ? '<div class="inv-reg-scope-note">Range in use — the month filter is ignored while it is set.</div>' : '') +
     '<div class="inv-reg-actions-row">' +
     '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invRegToggleSort">' +
     (sortDir === 'asc' ? 'Oldest first' : 'Newest first') +
     '</button>' +
     '<button class="inv-btn inv-btn-ghost inv-btn-sm' + (_regSelectMode ? ' inv-chip-active' : '') + '" data-action="invRegToggleSelect">' +
     (_regSelectMode ? 'Cancel select' : 'Select') +
+    '</button>' +
+    // Desktop always shows checkboxes; mobile only inside select mode, so the
+    // control follows wherever ticking is actually possible.
+    ((_isDesktop || _regSelectMode) && selectableCount > 0
+      ? '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invRegSelectAll">' +
+        (allSelected ? 'Clear selection' : 'Select all (' + selectableCount + ')') + '</button>'
+      : '') +
+    '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invCnList">Credit notes' +
+    (cnCount > 0 ? '<span class="inv-numaudit-count">' + cnCount + '</span>' : '') +
     '</button>' +
     '<button class="inv-btn inv-btn-ghost inv-btn-sm" id="regNumberAudit" data-action="invShowNumberAudit">Number audit' +
     (unaccounted > 0 ? '<span class="inv-numaudit-count">' + unaccounted + '</span>' : '') +
@@ -6137,6 +6530,13 @@ function _renderRegSelBar() {
   if (canDeliver > 0) btns += '<button class="inv-im-sel-btn" data-action="invRegBulkState" data-state="delivered">Deliver (' + canDeliver + ')</button>';
   if (canFile > 0) btns += '<button class="inv-im-sel-btn" data-action="invRegBulkState" data-state="filed">File (' + canFile + ')</button>';
   if (canCert > 0) btns += '<button class="inv-im-sel-btn" data-action="invRegQualityCerts">Quality certs (' + canCert + ')</button>';
+  // Offered whenever there is anything active in the selection. If the batch is
+  // unusable — two customers in it, say — the click explains why rather than
+  // the button silently not being there.
+  if (ids.some(function(id) {
+    var inv = S.invoices.find(function(i) { return i.id === id; });
+    return inv && inv.status !== 'cancelled';
+  })) btns += '<button class="inv-im-sel-btn" data-action="invRegCreditNote">Credit note</button>';
 
   bar.innerHTML = '<div class="inv-im-sel-bar">' +
     '<span class="inv-im-sel-count">' + ids.length + ' selected</span>' +
@@ -6846,6 +7246,52 @@ function downloadCSV(filename, rows) {
   a.click();
 }
 
+/* Rows in serial order, voided numbers sitting in their own slot.
+   Both exports used to take getFilteredInvoices() order, which on mobile is
+   createdAt descending — so the register filed to the accountant came out in
+   reverse typing order — and then appended the voids in a block at the end. A
+   register is read by serial: that is the order rule 46's consecutive series is
+   kept in, and it is the order a gap is spotted in. The on-screen sort is a
+   browsing preference and deliberately does not reach the file. */
+function _exportRowsInSerialOrder(invoices, voided, invRow, voidRow) {
+  var rows = invoices.map(function(inv) {
+    return { num: invNumInt(inv.invoiceNumber), build: function() { return invRow(inv); } };
+  }).concat(voided.map(function(v) {
+    return { num: invNumInt(v.invoiceNumber), build: function() { return voidRow(v); } };
+  }));
+  rows.sort(function(a, b) {
+    if (a.num == null) return 1;
+    if (b.num == null) return -1;
+    return a.num - b.num;
+  });
+  return rows.map(function(r) { return r.build(); });
+}
+
+/* Filenames say what the file actually contains. `SEP-Sales-Register-all.csv`
+   twice in a downloads folder, from two different client filters, is a filing
+   accident waiting to happen. */
+function _exportSlug(s) {
+  return String(s || '').replace(/[^A-Za-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40);
+}
+
+function exportScopeLabel() {
+  var parts = [];
+  if (regFilter.dateFrom || regFilter.dateTo) {
+    parts.push((regFilter.dateFrom || 'start') + '_to_' + (regFilter.dateTo || localDateStr()));
+  } else if (regFilter.month) {
+    parts.push(regFilter.month);
+  } else {
+    parts.push('all-dates');
+  }
+  if (regFilter.clientId) {
+    var c = S.clients.find(function(x) { return x.id === parseInt(regFilter.clientId); });
+    if (c) parts.push(_exportSlug(c.name));
+  }
+  if (regFilter.state) parts.push(_exportSlug(regFilter.state));
+  if (regFilter.search) parts.push('search-' + _exportSlug(regFilter.search));
+  return parts.join('_');
+}
+
 function getPlaceOfSupply(inv) {
   const code = (inv.clientAddress && inv.clientAddress.stateCode) || '20';
   const stateMap = { '20': 'Jharkhand', '27': 'Maharashtra' };
@@ -6858,38 +7304,43 @@ function exportSalesCSV() {
   // Phase 5: Metadata row above column headers
   var exportDate = formatDateExport(localDateStr());
   var metaRow = ['SOMA ELECTRO PRODUCTS | GSTIN: ' + (S.company.gstin || '20AAPFS4718J2Z0') + ' | Export Date: ' + exportDate];
-  const header = ['Inv. No.', 'Date', 'Customer', 'Taxable Value', 'CGST%', 'CGST Amt', 'SGST%', 'SGST Amt', 'IGST%', 'IGST Amt', 'Invoice Amount'];
-  const rows = [metaRow, header];
-  invoices.forEach(inv => {
-    const cancelled = inv.status === 'cancelled';
-    rows.push([
-      inv.displayNumber,
-      formatDateExport(inv.date),
-      inv.clientName,
-      cancelled ? 0 : inv.taxableValue,
-      cancelled ? 0 : (inv.cgstPer || 0),
-      cancelled ? 0 : (inv.cgstAmt || 0),
-      cancelled ? 0 : (inv.sgstPer || 0),
-      cancelled ? 0 : (inv.sgstAmt || 0),
-      cancelled ? 0 : (inv.igstPer || 0),
-      cancelled ? 0 : (inv.igstAmt || 0),
-      cancelled ? 0 : (inv.grandTotal || 0)
-    ]);
-  });
+  var scope = exportScopeLabel();
+  metaRow.push('Scope: ' + scope);
+  const header = ['Inv. No.', 'Date', 'Customer', 'Status', 'Taxable Value', 'CGST%', 'CGST Amt', 'SGST%', 'SGST Amt', 'IGST%', 'IGST Amt', 'Invoice Amount'];
   // Voided numbers ride along at zero. The number was issued, so the series
   // has to show it; the reason travels in the customer column so the internal
   // register explains its own gaps.
   const voided = getVoidedForExport();
-  voided.forEach(v => {
-    rows.push([
-      v.displayNumber,
-      formatDateExport(v.date),
-      (v.clientName ? v.clientName + ' — ' : '') + 'VOID: ' + v.reason,
-      0, 0, 0, 0, 0, 0, 0, 0
-    ]);
-  });
-  const prefix = regFilter.month || 'all';
-  downloadCSV('SEP-Sales-Register-' + prefix + '.csv', rows);
+  const rows = [metaRow, header].concat(_exportRowsInSerialOrder(
+    invoices, voided,
+    function(inv) {
+      const cancelled = inv.status === 'cancelled';
+      return [
+        inv.displayNumber,
+        formatDateExport(inv.date),
+        inv.clientName,
+        cancelled ? 'Cancelled' : INV_STATE_LABELS[getInvState(inv)] || 'Created',
+        cancelled ? 0 : inv.taxableValue,
+        cancelled ? 0 : (inv.cgstPer || 0),
+        cancelled ? 0 : (inv.cgstAmt || 0),
+        cancelled ? 0 : (inv.sgstPer || 0),
+        cancelled ? 0 : (inv.sgstAmt || 0),
+        cancelled ? 0 : (inv.igstPer || 0),
+        cancelled ? 0 : (inv.igstAmt || 0),
+        cancelled ? 0 : (inv.grandTotal || 0)
+      ];
+    },
+    function(v) {
+      return [
+        v.displayNumber,
+        formatDateExport(v.date),
+        (v.clientName ? v.clientName + ' — ' : '') + 'VOID: ' + v.reason,
+        'Voided',
+        0, 0, 0, 0, 0, 0, 0, 0
+      ];
+    }
+  ));
+  downloadCSV('SEP-Sales-Register_' + scope + '.csv', rows);
   showToast('Sales Register exported (' + (invoices.length + voided.length) + ' rows)');
 }
 
@@ -6898,40 +7349,41 @@ function exportGSTR1CSV() {
   // Phase 5: Metadata row above column headers
   var exportDate = formatDateExport(localDateStr());
   var metaRow = ['SOMA ELECTRO PRODUCTS | GSTIN: ' + (S.company.gstin || '20AAPFS4718J2Z0') + ' | Export Date: ' + exportDate];
+  var scope = exportScopeLabel();
+  metaRow.push('Scope: ' + scope);
   const header = ['GSTIN/UIN of Recipient', 'Invoice Number', 'Invoice Date', 'Invoice Value', 'Place of Supply', 'Reverse Charge', 'Invoice Type', 'E-Commerce GSTIN', 'Rate', 'Taxable Value', 'CGST Amount', 'SGST Amount', 'IGST Amount', 'Cess Amount'];
-  const rows = [metaRow, header];
-  invoices.forEach(inv => {
-    const cancelled = inv.status === 'cancelled';
-    const gstRate = cancelled ? 0 : ((inv.cgstPer || 0) + (inv.sgstPer || 0) + (inv.igstPer || 0));
-    rows.push([
-      inv.clientGSTIN || '',
-      inv.displayNumber,
-      formatDateExport(inv.date),
-      cancelled ? 0 : (inv.grandTotal || 0),
-      getPlaceOfSupply(inv),
-      'N',
-      'Regular',
-      '',
-      gstRate,
-      cancelled ? 0 : (inv.taxableValue || 0),
-      cancelled ? 0 : (inv.cgstAmt || 0),
-      cancelled ? 0 : (inv.sgstAmt || 0),
-      cancelled ? 0 : (inv.igstAmt || 0),
-      0
-    ]);
-  });
   // Same treatment as a cancelled invoice, which this export already carries at
   // zero: the number is declared, the value is not. Without these rows the
   // return shows a hole the app cannot explain.
   const voided = getVoidedForExport();
-  voided.forEach(v => {
-    rows.push([
-      '', v.displayNumber, formatDateExport(v.date), 0,
-      '20-Jharkhand', 'N', 'Regular', '', 0, 0, 0, 0, 0, 0
-    ]);
-  });
-  const prefix = regFilter.month || 'all';
-  downloadCSV('SEP-GSTR1-' + prefix + '.csv', rows);
+  const rows = [metaRow, header].concat(_exportRowsInSerialOrder(
+    invoices, voided,
+    function(inv) {
+      const cancelled = inv.status === 'cancelled';
+      const gstRate = cancelled ? 0 : ((inv.cgstPer || 0) + (inv.sgstPer || 0) + (inv.igstPer || 0));
+      return [
+        inv.clientGSTIN || '',
+        inv.displayNumber,
+        formatDateExport(inv.date),
+        cancelled ? 0 : (inv.grandTotal || 0),
+        getPlaceOfSupply(inv),
+        'N',
+        'Regular',
+        '',
+        gstRate,
+        cancelled ? 0 : (inv.taxableValue || 0),
+        cancelled ? 0 : (inv.cgstAmt || 0),
+        cancelled ? 0 : (inv.sgstAmt || 0),
+        cancelled ? 0 : (inv.igstAmt || 0),
+        0
+      ];
+    },
+    function(v) {
+      return ['', v.displayNumber, formatDateExport(v.date), 0,
+        '20-Jharkhand', 'N', 'Regular', '', 0, 0, 0, 0, 0, 0];
+    }
+  ));
+  downloadCSV('SEP-GSTR1_' + scope + '.csv', rows);
   showToast('GSTR1 exported (' + (invoices.length + voided.length) + ' rows)');
 }
 
@@ -7501,51 +7953,72 @@ function partLineDesc(part) {
        : (part.desc || part.gauge || '');
 }
 
+/* A part not yet in the master used to end data entry: the dropdown simply
+   vanished, and the only way forward was to leave for the Items tab, add it,
+   and come back to a form that no longer held what had been typed. The last
+   row of the list now offers to create it in place. */
+var AC_MIN_NEW = 2;
+
+function renderAddPartOption(idx, idPrefix, query, kind) {
+  return '<div class="inv-autocomplete-item inv-ac-add" role="option" id="' + idPrefix + idx + '_new"' +
+    ' data-ac-new="1" data-action="invAddItemInline" data-kind="' + kind + '"' +
+    ' data-idx="' + idx + '" data-q="' + escHtml(query) + '">' +
+    '<svg class="inv-ac-add-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">' +
+    '<line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>' +
+    '<span class="inv-autocomplete-part">Add &ldquo;' + escHtml(query) + '&rdquo;</span>' +
+    '<span class="inv-autocomplete-desc">new item in the master</span></div>';
+}
+
 /* Render the suggestion rows for one part input. Shared by the invoice form
    and the challan form, which differ only in the action and element ids. */
-function renderPartOptions(acEl, matches, action, idx, idPrefix) {
+function renderPartOptions(acEl, matches, action, idx, idPrefix, query, kind) {
   // The gauge is shown as its own badge: several clamp part numbers exist in
   // more than one gauge, and it is the only thing telling those rows apart.
-  acEl.innerHTML = matches.map((m, i) =>
+  var html = matches.map((m, i) =>
     '<div class="inv-autocomplete-item" role="option" id="' + idPrefix + idx + '_' + i + '"' +
     ' data-action="' + action + '" data-idx="' + idx + '" data-part-id="' + m.id + '">' +
     '<span class="inv-autocomplete-part">' + escHtml(m.partNumber) + '</span>' +
     (m.gauge ? '<span class="inv-gauge-badge">' + escHtml(m.gauge) + '</span>' : '') +
     '<span class="inv-autocomplete-desc">' + escHtml(m.desc || '') + '</span></div>'
   ).join('');
+  // Offered even when there are matches: a new gauge of an existing clamp
+  // matches the part number but is a different part, and that is precisely the
+  // case where the registry needs a row it does not have.
+  if (query && query.length >= AC_MIN_NEW) html += renderAddPartOption(idx, idPrefix, query, kind);
+  acEl.innerHTML = html;
 }
 
-function showPartAutocomplete(idx, query) {
-  const acEl = document.getElementById('invPartAC' + idx);
+/* The list now stays open on zero matches, because that is exactly the moment
+   the operator needs to create the part. It closes only when there is neither
+   a match nor enough typed to name a new one. */
+function _showPartAC(acElId, inputSel, idx, query, action, idPrefix, kind) {
+  const acEl = document.getElementById(acElId);
   if (!acEl) return;
-  const input = document.querySelector('[data-action="invEditLinePart"][data-idx="' + idx + '"]');
+  const input = document.querySelector(inputSel);
   const matches = searchParts(query);
+  const q = (query || '').trim();
   acReset();
-  if (matches.length === 0) {
+  if (matches.length === 0 && q.length < AC_MIN_NEW) {
     acEl.classList.add('inv-hidden');
     if (input) input.setAttribute('aria-expanded', 'false');
     return;
   }
   acEl.classList.remove('inv-hidden');
-  renderPartOptions(acEl, matches, 'invSelectPart', idx, 'invPartOpt');
+  renderPartOptions(acEl, matches, action, idx, idPrefix, q, kind);
   if (input) input.setAttribute('aria-expanded', 'true');
+}
+
+function showPartAutocomplete(idx, query) {
+  _showPartAC('invPartAC' + idx,
+    '[data-action="invEditLinePart"][data-idx="' + idx + '"]',
+    idx, query, 'invSelectPart', 'invPartOpt', 'invoice');
 }
 
 /* Same, for the IM challan form. */
 function showChallanPartAutocomplete(idx, query) {
-  const acEl = document.getElementById('imPartAC' + idx);
-  if (!acEl) return;
-  const input = document.querySelector('[data-action="invEditChallanPart"][data-idx="' + idx + '"]');
-  const matches = searchParts(query);
-  acReset();
-  if (matches.length === 0) {
-    acEl.classList.add('inv-hidden');
-    if (input) input.setAttribute('aria-expanded', 'false');
-    return;
-  }
-  acEl.classList.remove('inv-hidden');
-  renderPartOptions(acEl, matches, 'invSelectChallanPart', idx, 'imPartOpt');
-  if (input) input.setAttribute('aria-expanded', 'true');
+  _showPartAC('imPartAC' + idx,
+    '[data-action="invEditChallanPart"][data-idx="' + idx + '"]',
+    idx, query, 'invSelectChallanPart', 'imPartOpt', 'challan');
 }
 
 function dismissAllAutocomplete() {
@@ -7617,7 +8090,13 @@ function acMoveCursor(list, delta) {
 function acPendingOption(list) {
   const opts = acOptions(list);
   if (_acCursor >= 0 && opts[_acCursor]) return opts[_acCursor];
-  return opts.length === 1 ? opts[0] : null;
+  // The "add new" row is present on almost every list, so counting it would
+  // have quietly ended the lone-match shortcut — one real suggestion plus the
+  // add row is two options, and Enter would have stopped committing. It is
+  // also never what an unaimed Enter should do: typing a part and pressing
+  // Enter means "on to the quantity", not "open a dialog".
+  const real = opts.filter(o => !o.dataset.acNew);
+  return real.length === 1 ? real[0] : null;
 }
 
 function selectPartForLine(idx, partId) {
@@ -7650,6 +8129,69 @@ function selectPartForLine(idx, partId) {
   renderCreateForm();
 }
 
+
+/* Commit a catalogue part into a challan line. Lifted out of the event switch
+   so the inline add can reach the same code the dropdown does — two ways to
+   choose a part, one place that knows what choosing one means. */
+function selectChallanPartForLine(idx, partId) {
+  if (!_challanForm) return;
+  const part = S.items.find(p => p.id === partId);
+  if (!part) return;
+  const cItem = _challanForm.items[idx];
+  if (!cItem) return;
+
+  cItem.partNumber = part.partNumber;
+  // Same folding as the invoice path: the gauge is what tells two rows of the
+  // same clamp apart, and dropping it here carried the ambiguity into every
+  // invoice raised off the challan.
+  cItem.desc = partLineDesc(part);
+  cItem.hsn = part.hsn || '998873';
+  cItem.unit = part.unit || 'KG';
+
+  const cClient = _challanForm.clientId ? S.clients.find(c => c.id === _challanForm.clientId) : null;
+  if (cClient) {
+    const cRateInfo = getLineItemRate(cClient, _challanForm.challanDate || localDateStr(), cItem.partNumber);
+    cItem.rate = cRateInfo._override ? cRateInfo.rate : (cRateInfo.ratePerKg || 0);
+    recalcChallanLine(cItem, cClient);
+  }
+
+  dismissAllAutocomplete();
+  captureChallanFields();
+  // The part is settled; weight is what gets typed next.
+  _challanFocusNext = { k: 'qty-' + idx, sel: null };
+  renderAddChallanForm();
+}
+
+/* ===== INLINE ITEM CREATION ===== */
+/* Where to return once the item exists. Held here rather than threaded through
+   the overlay because the overlay is shared with the Items tab, which has no
+   line to return to. Cleared whenever that tab opens the same form, so a
+   cancelled inline add can never redirect a later ordinary one. */
+var _inlineItemReturn = null;
+
+function openInlineItemAdd(kind, idx, query) {
+  dismissAllAutocomplete();
+  _inlineItemReturn = { kind: kind, idx: idx };
+  // Prefilled from what was typed, so the operator is confirming rather than
+  // retyping. Description mirrors the part number — the common shape in this
+  // registry — and stays editable.
+  _showItemOverlay({
+    id: 0, partNumber: query, desc: query, gauge: '',
+    hsn: '998873', unit: 'KG', rate: 0, stdWeightKg: null
+  }, true);
+}
+
+/* Called by saveItem once the row exists. Returns true when it handled the
+   return, so the Items tab refresh is skipped. */
+function finishInlineItemAdd(newItem) {
+  if (!_inlineItemReturn || !newItem) return false;
+  const ret = _inlineItemReturn;
+  _inlineItemReturn = null;
+  closeOverlay();
+  if (ret.kind === 'challan') selectChallanPartForLine(ret.idx, newItem.id);
+  else selectPartForLine(ret.idx, newItem.id);
+  return true;
+}
 /* ===== SHARED RENDER LAYER (Phase 4 — Tier 2) ===== */
 function formatInvoiceData(inv) {
   const client = S.clients.find(c => c.id === inv.clientId);
@@ -8297,6 +8839,806 @@ function qcEligibleCount(invIds) {
     return inv && inv.status !== 'cancelled' && (inv.items || []).length > 0;
   }).length;
 }
+/* ===== CREDIT NOTES ===== */
+/*
+ * SSS Mehta hold a standing 2% discount on any payment batch spanning seven
+ * days or more — a price paid for smoother cash flow, temporary but in force.
+ * Each such batch ships as two documents: the sales register for the range, and
+ * a credit note for 2% of it. So the **batch is the unit, not the invoice**,
+ * which is why the 04/08/26 reference credits ₹5,902.12 against roughly ₹2.95L
+ * of taxable — about a month of invoices, not the single one it names.
+ *
+ * That makes the register selection the natural input: tick the batch, export
+ * its register, raise the credit note off the same set.
+ *
+ * The discount is computed on **value**, and the quantity is derived from it.
+ * The reference proves the direction: 1092.98 × 5.40 = 5902.09, but it shows
+ * 5902.12. Three paise of disagreement only happen if the rupees came first.
+ *
+ * Deviations from the reference, all deliberate — unlike the quality
+ * certificate, no external approval binds this format:
+ *   - "Amount Chargeable (in words)" states the Total. The reference printed
+ *     the sub-total there, so the words disagreed with the figure beside them.
+ *   - The tax-in-words line states total tax, not one of the two components.
+ *   - Company identity comes from S.company, so the header and footer cannot
+ *     disagree the way the reference's "SOMA ELECTRO PRODUCT" / "8-B, 1ST
+ *     PHASE" did with its own footer.
+ *   - The document names the batch it credits rather than one invoice of it.
+ *     A consolidated credit note is legal, but it should say what it covers.
+ */
+
+var CN_DEFAULT_PCT = 2;
+var CN_BATCH_MIN_DAYS = 7;
+var CN_PARTICULARS = 'JOB WORK ( ELECTRO PLATING )';
+
+/* Financial year tail of the credit note series, read off the invoice prefix so
+   the two documents always agree on the year: 'SEP/2026-27/' → '26-27'. */
+function cnFyShort() {
+  var m = String(S.invPrefix || '').match(/(\d{4})\s*-\s*(\d{2,4})/);
+  if (!m) return '';
+  var y2 = m[2].length === 4 ? m[2].slice(2) : m[2];
+  return m[1].slice(2) + '-' + y2;
+}
+
+function cnPadNum(n) { return String(n).padStart(3, '0'); }
+
+function cnDisplayNumber(num) {
+  var fy = cnFyShort();
+  return 'CN/' + cnPadNum(num) + (fy ? '/' + fy : '');
+}
+
+function getCreditNotes() {
+  if (!S.creditNotes) S.creditNotes = [];
+  return S.creditNotes;
+}
+
+/* A credit note number is issued — the customer holds a document bearing it —
+   so by the same rule that governs invoice numbers it may never be reused.
+   It needs no separate void ledger, though: a credit note is cancelled, never
+   deleted, which is the correct GST treatment anyway. The number stays in the
+   series carrying its own explanation, and exports declare it at zero. */
+function recomputeNextCnNumber() {
+  var highest = 0;
+  getCreditNotes().forEach(function(cn) {
+    var n = parseInt(cn.cnNumber, 10);
+    if (!isNaN(n) && n > highest) highest = n;
+  });
+  if (!S.cnNextNum || S.cnNextNum <= highest) S.cnNextNum = highest + 1;
+  return S.cnNextNum;
+}
+
+/* Whole days between the earliest and latest invoice date in the batch. */
+function cnBatchSpanDays(invoices) {
+  var dates = invoices.map(function(i) { return i.date; }).filter(Boolean).sort();
+  if (dates.length === 0) return 0;
+  var a = new Date(dates[0] + 'T00:00:00');
+  var b = new Date(dates[dates.length - 1] + 'T00:00:00');
+  return Math.round((b - a) / 86400000) + 1;
+}
+
+/* Validate a selection as the base for one credit note, and say precisely what
+   is wrong when it is not. Returning the reason rather than hiding the button
+   is the difference between "you cannot" and "you cannot, because". */
+function cnValidateSelection(invIds) {
+  var invoices = (invIds || [])
+    .map(function(id) { return S.invoices.find(function(i) { return i.id === id; }); })
+    .filter(Boolean);
+
+  var active = invoices.filter(function(i) { return i.status !== 'cancelled'; });
+  var cancelled = invoices.length - active.length;
+
+  if (active.length === 0) {
+    return { ok: false, reason: 'Select the invoices this credit note covers', invoices: [] };
+  }
+
+  var clientIds = {};
+  active.forEach(function(i) { clientIds[i.clientId] = true; });
+  var names = Object.keys(clientIds);
+  if (names.length > 1) {
+    return {
+      ok: false,
+      reason: 'A credit note is addressed to one customer — the selection spans ' + names.length,
+      invoices: []
+    };
+  }
+
+  active.sort(function(a, b) { return String(a.date).localeCompare(String(b.date)); });
+  return {
+    ok: true,
+    invoices: active,
+    cancelledSkipped: cancelled,
+    client: S.clients.find(function(c) { return c.id === active[0].clientId; }) || null,
+    spanDays: cnBatchSpanDays(active)
+  };
+}
+
+/* Compute the credit from the batch. Value first, quantity derived — the order
+   the reference document was itself produced in. */
+function cnCompute(invoices, client, pct, rate) {
+  var batchTaxable = gstRound(invoices.reduce(function(s, i) { return s + (i.taxableValue || 0); }, 0));
+  var taxable = gstRound(batchTaxable * (pct || 0) / 100);
+
+  var gstType = (client && client.gstType) || 'intra';
+  var cgstPer = gstType === 'intra' ? 9 : 0;
+  var sgstPer = gstType === 'intra' ? 9 : 0;
+  var igstPer = gstType === 'inter' ? 18 : 0;
+  var cgstAmt = gstRound(taxable * cgstPer / 100);
+  var sgstAmt = gstRound(taxable * sgstPer / 100);
+  var igstAmt = gstRound(taxable * igstPer / 100);
+  var grandTotal = gstRound(taxable + cgstAmt + sgstAmt + igstAmt);
+
+  // Quantity exists to make the document readable as a job-work credit; it is
+  // the kilograms the credited rupees correspond to at the contract rate, not a
+  // separately measured figure. Zero rate would make it meaningless, so it is
+  // left blank rather than dividing by zero.
+  var qty = rate > 0 ? gstRound(taxable / rate) : 0;
+
+  return {
+    batchTaxable: batchTaxable,
+    taxable: taxable,
+    gstType: gstType,
+    cgstPer: cgstPer, cgstAmt: cgstAmt,
+    sgstPer: sgstPer, sgstAmt: sgstAmt,
+    igstPer: igstPer, igstAmt: igstAmt,
+    grandTotal: grandTotal,
+    rate: rate, qty: qty
+  };
+}
+
+/* The rate the batch was billed at, for the derived quantity. Read from the
+   client ladder at the batch's own date, not today's — a rate change between
+   the batch and the credit note must not silently restate the quantity. */
+function cnBatchRate(client, invoices) {
+  if (!client) return 0;
+  var onDate = invoices.length ? invoices[invoices.length - 1].date : localDateStr();
+  var info = getLineItemRate(client, onDate, '');
+  return info.ratePerKg || 0;
+}
+
+/* ===== FORM ===== */
+var _cnForm = null;
+
+function openCreditNoteForm(invIds) {
+  var v = cnValidateSelection(invIds);
+  if (!v.ok) { showToast(v.reason, 'error'); return; }
+
+  var rate = cnBatchRate(v.client, v.invoices);
+  _cnForm = {
+    invoiceIds: v.invoices.map(function(i) { return i.id; }),
+    clientId: v.client ? v.client.id : null,
+    pct: CN_DEFAULT_PCT,
+    date: localDateStr(),
+    vehicleNo: '',
+    rate: rate,
+    spanDays: v.spanDays,
+    cancelledSkipped: v.cancelledSkipped
+  };
+  renderCreditNoteForm();
+}
+
+function renderCreditNoteForm() {
+  if (!_cnForm) return;
+  var invoices = _cnForm.invoiceIds
+    .map(function(id) { return S.invoices.find(function(i) { return i.id === id; }); })
+    .filter(Boolean);
+  var client = S.clients.find(function(c) { return c.id === _cnForm.clientId; });
+  var c = cnCompute(invoices, client, _cnForm.pct, _cnForm.rate);
+  var from = invoices[0] ? invoices[0].date : '';
+  var to = invoices[invoices.length - 1] ? invoices[invoices.length - 1].date : '';
+
+  var html = '<div class="inv-overlay-card">' +
+    '<div class="inv-overlay-header"><span class="inv-overlay-title">Raise Credit Note</span>' +
+    '<button class="inv-overlay-close" data-action="invCloseOverlay" aria-label="Close">&times;</button></div>';
+
+  html += '<div class="inv-detail-section">' +
+    '<div class="inv-detail-label">Customer</div>' +
+    '<div class="inv-detail-value">' + escHtml(client ? client.name : '') + '</div>' +
+    '<div class="inv-detail-label inv-mt-8">Batch</div>' +
+    '<div class="inv-detail-value">' + invoices.length + ' invoice' + (invoices.length !== 1 ? 's' : '') +
+    ', ' + escHtml(formatDate(from)) + ' &ndash; ' + escHtml(formatDate(to)) +
+    ' <span class="inv-text-muted">(' + _cnForm.spanDays + ' day' + (_cnForm.spanDays !== 1 ? 's' : '') + ')</span></div>' +
+    '</div>';
+
+  // The discount is for batches of a week or more. Split batches are the
+  // operator's call, so this warns and does not block.
+  if (_cnForm.spanDays < CN_BATCH_MIN_DAYS) {
+    html += '<div class="inv-confirm-warn">This batch spans ' + _cnForm.spanDays + ' day' +
+      (_cnForm.spanDays !== 1 ? 's' : '') + '. The standing discount is for batches of ' +
+      CN_BATCH_MIN_DAYS + ' days or more — raise it anyway only if you mean to.</div>';
+  }
+  if (_cnForm.cancelledSkipped > 0) {
+    html += '<div class="inv-confirm-warn">' + _cnForm.cancelledSkipped +
+      ' cancelled invoice' + (_cnForm.cancelledSkipped !== 1 ? 's were' : ' was') +
+      ' left out of the base — those goods were never billed.</div>';
+  }
+
+  html += '<div class="inv-form-row">' +
+    '<div class="inv-form-group"><label class="inv-form-label">Discount %</label>' +
+    '<input type="number" step="0.01" min="0" max="100" class="inv-form-input inv-mono" id="cnPct" value="' + escHtml(_cnForm.pct) + '" data-action="invCnInput"></div>' +
+    '<div class="inv-form-group"><label class="inv-form-label">Credit note date</label>' +
+    '<input type="date" class="inv-form-input inv-mono" id="cnDate" value="' + escHtml(_cnForm.date) + '" data-action="invCnInput"></div></div>';
+
+  html += '<div class="inv-form-group"><label class="inv-form-label">Vehicle No. (optional)</label>' +
+    '<input type="text" class="inv-form-input" id="cnVehicle" value="' + escHtml(_cnForm.vehicleNo) + '" data-action="invCnInput" autocomplete="off"></div>';
+
+  html += '<div class="inv-totals">' +
+    '<div class="inv-total-row"><span class="inv-total-label">Batch taxable</span><span class="inv-total-value">' + formatCurrency(c.batchTaxable) + '</span></div>' +
+    '<div class="inv-total-row"><span class="inv-total-label">Credit @ ' + escHtml(_cnForm.pct) + '%</span><span class="inv-total-value">' + formatCurrency(c.taxable) + '</span></div>';
+  if (c.gstType === 'intra') {
+    html += '<div class="inv-total-row"><span class="inv-total-label">CGST @ ' + c.cgstPer + '%</span><span class="inv-total-value">' + formatCurrency(c.cgstAmt) + '</span></div>' +
+      '<div class="inv-total-row"><span class="inv-total-label">SGST @ ' + c.sgstPer + '%</span><span class="inv-total-value">' + formatCurrency(c.sgstAmt) + '</span></div>';
+  } else {
+    html += '<div class="inv-total-row"><span class="inv-total-label">IGST @ ' + c.igstPer + '%</span><span class="inv-total-value">' + formatCurrency(c.igstAmt) + '</span></div>';
+  }
+  html += '<div class="inv-total-row inv-total-row-grand"><span class="inv-total-label">Total credit</span>' +
+    '<span class="inv-total-grand">' + formatCurrency(c.grandTotal) + '</span></div></div>';
+
+  html += '<div class="inv-form-hint">Shown on the note as ' + formatNum(c.qty, 2) + ' KG at &#8377;' +
+    formatNum(c.rate, 2) + '/KG &mdash; the kilograms these rupees represent at the batch rate, derived from the value.</div>';
+
+  html += '<div class="inv-btn-bar">' +
+    '<button class="inv-btn inv-btn-ghost" data-action="invCloseOverlay">Cancel</button>' +
+    '<button class="inv-btn inv-btn-primary" data-action="invCnSave">Raise ' + escHtml(cnDisplayNumber(recomputeNextCnNumber())) + '</button></div></div>';
+
+  var existing = document.querySelector('.inv-overlay-scrim');
+  if (existing) {
+    existing.innerHTML = html;
+  } else {
+    var scrim = document.createElement('div');
+    scrim.className = 'inv-overlay-scrim';
+    scrim.innerHTML = html;
+    pushFocus();
+    document.body.appendChild(scrim);
+    document.body.style.overflow = 'hidden';
+    focusFirstInteractive(scrim.querySelector('.inv-overlay-card'));
+  }
+}
+
+function captureCnForm() {
+  if (!_cnForm) return;
+  var p = document.getElementById('cnPct');
+  var d = document.getElementById('cnDate');
+  var v = document.getElementById('cnVehicle');
+  if (p) _cnForm.pct = parseFloat(p.value) || 0;
+  if (d) _cnForm.date = d.value;
+  if (v) _cnForm.vehicleNo = v.value;
+}
+
+function saveCreditNote() {
+  if (!_cnForm) return;
+  captureCnForm();
+  if (!(_cnForm.pct > 0)) { showToast('Discount must be more than zero', 'error'); return; }
+  if (!_cnForm.date) { showToast('A credit note needs a date', 'error'); return; }
+
+  var invoices = _cnForm.invoiceIds
+    .map(function(id) { return S.invoices.find(function(i) { return i.id === id; }); })
+    .filter(Boolean);
+  if (invoices.length === 0) { showToast('Those invoices are no longer in the register', 'error'); return; }
+
+  var client = S.clients.find(function(c) { return c.id === _cnForm.clientId; });
+  var c = cnCompute(invoices, client, _cnForm.pct, _cnForm.rate);
+  var num = recomputeNextCnNumber();
+  var addr = invoices[0].clientAddress || {};
+
+  var cn = {
+    id: 'CN-' + Date.now(),
+    cnNumber: cnPadNum(num),
+    displayNumber: cnDisplayNumber(num),
+    date: _cnForm.date,
+    clientId: _cnForm.clientId,
+    clientName: invoices[0].clientName,
+    clientGSTIN: invoices[0].clientGSTIN || (client && client.gstin) || '',
+    clientAddress: { add1: addr.add1 || '', add2: addr.add2 || '', add3: addr.add3 || '', state: addr.state || '', stateCode: addr.stateCode || '' },
+    // The batch, recorded both by id and by number. Numbers are snapshotted so
+    // the note still says what it credited after an invoice is deleted — the
+    // customer's copy does not lose its reference when ours does.
+    invoiceIds: invoices.map(function(i) { return i.id; }),
+    invoiceNumbers: invoices.map(function(i) { return i.displayNumber; }),
+    periodFrom: invoices[0].date,
+    periodTo: invoices[invoices.length - 1].date,
+    spanDays: cnBatchSpanDays(invoices),
+    discountPct: _cnForm.pct,
+    batchTaxable: c.batchTaxable,
+    reason: 'Standing ' + _cnForm.pct + '% batch discount',
+    particulars: CN_PARTICULARS,
+    unit: 'KG', rate: c.rate, qty: c.qty,
+    gstType: c.gstType,
+    taxableValue: c.taxable,
+    cgstPer: c.cgstPer, cgstAmt: c.cgstAmt,
+    sgstPer: c.sgstPer, sgstAmt: c.sgstAmt,
+    igstPer: c.igstPer, igstAmt: c.igstAmt,
+    grandTotal: c.grandTotal,
+    amountInWords: numberToWords(c.grandTotal),
+    taxInWords: numberToWords(gstRound(c.cgstAmt + c.sgstAmt + c.igstAmt)),
+    vehicleNo: _cnForm.vehicleNo,
+    status: 'active',
+    createdAt: Date.now(),
+    updatedAt: Date.now()
+  };
+
+  getCreditNotes().push(cn);
+  S.cnNextNum = num + 1;
+  saveState();
+  _cnForm = null;
+  closeOverlay();
+  _regSelected = {};
+  _renderRegView();
+  _renderRegSelBar();
+  showToast(cn.displayNumber + ' raised — ' + formatCurrency(cn.grandTotal));
+  showCreditNotePreview(cn.id);
+}
+
+/* Cancelled, never deleted: the customer holds a document bearing the number
+   and a credit note is reversed by cancelling it, not by making it vanish. */
+function cancelCreditNote(cnId) {
+  var cn = getCreditNotes().find(function(x) { return x.id === cnId; });
+  if (!cn || cn.status === 'cancelled') return;
+  cn.status = 'cancelled';
+  cn.cancelledAt = Date.now();
+  cn.updatedAt = Date.now();
+  saveState();
+  closeOverlay();
+  renderCreditNoteList();
+  showToast(cn.displayNumber + ' cancelled — the number stays in the series');
+}
+
+/* ===== PRINTED DOCUMENT ===== */
+function buildCreditNoteHtml(cn) {
+  var co = S.company || {};
+  var a = cn.clientAddress || {};
+  var addrHtml = [a.add1, a.add2, a.add3].filter(Boolean).map(escHtml).join('<br>');
+  var partyHtml = '<div class="inv-cn-party-name">' + escHtml(cn.clientName) + '</div>' +
+    (addrHtml ? '<div>' + addrHtml + '</div>' : '') +
+    '<div>GST # ' + escHtml(cn.clientGSTIN || 'N/A') + '</div>';
+
+  var html = '<div class="inv-cn-doc">';
+
+  // Identity block. Company details come from S.company so the header and the
+  // footer are the same fact, not two transcriptions of it.
+  html += '<div class="inv-cn-top">' +
+    '<div class="inv-cn-seller">' +
+    '<div class="inv-cn-seller-name">' + escHtml(co.name || '') + '</div>' +
+    '<div>' + [co.add1, co.add2, co.add3].filter(Boolean).map(escHtml).join('<br>') + '</div>' +
+    '<div>State Code : ' + escHtml(co.stateCode || '') + '</div>' +
+    '<div>GSTIN : ' + escHtml(co.gstin || '') + '</div></div>' +
+    '<table class="inv-cn-meta">' +
+    '<tr><td class="inv-cn-meta-l">Credit note No</td><td class="inv-cn-meta-v"><strong>' + escHtml(cn.displayNumber) + '</strong></td></tr>' +
+    '<tr><td class="inv-cn-meta-l">Credit note Date</td><td class="inv-cn-meta-v">' + escHtml(formatDateExport(cn.date)) + '</td></tr>' +
+    // Names the batch it credits. A consolidated credit note is legal, but a
+    // document that credits forty invoices while naming one is not auditable.
+    '<tr><td class="inv-cn-meta-l">Against Invoices</td><td class="inv-cn-meta-v">' +
+    escHtml(cnInvoiceRangeLabel(cn)) + '</td></tr>' +
+    '<tr><td class="inv-cn-meta-l">Period</td><td class="inv-cn-meta-v">' +
+    escHtml(formatDateExport(cn.periodFrom)) + ' &ndash; ' + escHtml(formatDateExport(cn.periodTo)) + '</td></tr>' +
+    '<tr><td class="inv-cn-meta-l">Reason</td><td class="inv-cn-meta-v">' + escHtml(cn.reason || '') + '</td></tr>' +
+    '</table></div>';
+
+  html += '<div class="inv-cn-parties">' +
+    '<div class="inv-cn-party"><div class="inv-cn-party-title">Buyer Billing Address :</div>' + partyHtml + '</div>' +
+    '<div class="inv-cn-party"><div class="inv-cn-party-title">Buyer Shipping Address :</div>' + partyHtml + '</div></div>';
+
+  html += '<div class="inv-cn-band">PRODUCTS SUPPLIED</div>';
+  var gstRate = (cn.cgstPer || 0) + (cn.sgstPer || 0) + (cn.igstPer || 0);
+  html += '<table class="inv-cn-table"><thead><tr>' +
+    '<th>Sl. No.</th><th>PARTICULARS</th><th>GST Rate</th><th>Quantity</th>' +
+    '<th>UOM</th><th>Rate</th><th>Amount</th></tr></thead><tbody>' +
+    '<tr><td class="inv-cn-c">1</td><td>' + escHtml(cn.particulars || CN_PARTICULARS) + '</td>' +
+    '<td class="inv-cn-c">' + gstRate + '%</td>' +
+    '<td class="inv-cn-num">' + formatNum(cn.qty, 2) + '</td>' +
+    '<td class="inv-cn-c">' + escHtml(cn.unit || 'KG') + '</td>' +
+    '<td class="inv-cn-num">' + formatNum(cn.rate, 2) + '</td>' +
+    '<td class="inv-cn-num">' + formatNum(cn.taxableValue, 2) + '</td></tr>' +
+    '</tbody></table>';
+
+  html += '<table class="inv-cn-totals">' +
+    '<tr><td class="inv-cn-tot-l">SUB TOTAL</td><td class="inv-cn-num">' + formatNum(cn.taxableValue, 2) + '</td></tr>';
+  if (cn.gstType === 'intra') {
+    html += '<tr><td class="inv-cn-tot-l">SGST</td><td class="inv-cn-num">' + formatNum(cn.sgstAmt, 2) + '</td></tr>' +
+      '<tr><td class="inv-cn-tot-l">CGST</td><td class="inv-cn-num">' + formatNum(cn.cgstAmt, 2) + '</td></tr>';
+  } else {
+    html += '<tr><td class="inv-cn-tot-l">IGST</td><td class="inv-cn-num">' + formatNum(cn.igstAmt, 2) + '</td></tr>';
+  }
+  html += '<tr class="inv-cn-grand"><td class="inv-cn-tot-l">Total</td><td class="inv-cn-num">' + formatNum(cn.grandTotal, 2) + '</td></tr></table>';
+
+  // The reference printed the sub-total in this box while the figure beside it
+  // was the total. Stated as the total here, which is what is chargeable.
+  html += '<div class="inv-cn-words-row">' +
+    '<div class="inv-cn-words-box"><div class="inv-cn-words-title">Amount Chargeable (in words)</div>' +
+    '<div>' + escHtml(cn.amountInWords || numberToWords(cn.grandTotal)) + '</div>' +
+    '<div class="inv-cn-pan">Company PAN No. &nbsp; ' + escHtml(cnPanFromGstin(co.gstin)) + '</div></div>' +
+    '<table class="inv-cn-taxsum"><tr><th>Taxable Value</th>' +
+    (cn.gstType === 'intra' ? '<th colspan="2">CGST</th><th colspan="2">SGST</th>' : '<th colspan="2">IGST</th>') +
+    '</tr><tr><th></th>' + (cn.gstType === 'intra' ? '<th>Rate</th><th>Amount</th><th>Rate</th><th>Amount</th>' : '<th>Rate</th><th>Amount</th>') + '</tr>' +
+    '<tr><td class="inv-cn-num">' + formatNum(cn.taxableValue, 2) + '</td>' +
+    (cn.gstType === 'intra'
+      ? '<td class="inv-cn-c">' + cn.cgstPer + '%</td><td class="inv-cn-num">' + formatNum(cn.cgstAmt, 2) + '</td>' +
+        '<td class="inv-cn-c">' + cn.sgstPer + '%</td><td class="inv-cn-num">' + formatNum(cn.sgstAmt, 2) + '</td>'
+      : '<td class="inv-cn-c">' + cn.igstPer + '%</td><td class="inv-cn-num">' + formatNum(cn.igstAmt, 2) + '</td>') +
+    '</tr></table></div>';
+
+  // Total tax, not one of its two halves — the reference printed only CGST here.
+  html += '<div class="inv-cn-taxwords">Tax Amount (in words) : ' +
+    escHtml(cn.taxInWords || numberToWords(gstRound((cn.cgstAmt || 0) + (cn.sgstAmt || 0) + (cn.igstAmt || 0)))) + '</div>';
+
+  // The invoices this credits, in full. The whole point of the document.
+  html += '<div class="inv-cn-annex"><div class="inv-cn-annex-title">Invoices credited (' +
+    (cn.invoiceNumbers || []).length + ') &mdash; batch taxable ' + formatNum(cn.batchTaxable, 2) +
+    ' at ' + escHtml(cn.discountPct) + '%</div>' +
+    '<div class="inv-cn-annex-list">' + (cn.invoiceNumbers || []).map(escHtml).join(', ') + '</div></div>';
+
+  html += '<div class="inv-cn-foot">' +
+    '<div class="inv-cn-foot-left">' +
+    '<div><strong>N.B:</strong> The chemicals other than I.P/B.P chemicals are sold</div>' +
+    '<div>Vehicle No. : ' + escHtml(cn.vehicleNo || '') + '</div>' +
+    '<div>Date &amp; Time : ' + escHtml(formatDateExport(cn.date)) + '</div></div>' +
+    '<div class="inv-cn-foot-right"><div class="inv-cn-eoe">E. &amp; O. E.</div>' +
+    '<div class="inv-cn-sig-co">' + escHtml(co.name || '') + '</div>' +
+    '<div>' + [co.add1, co.add2].filter(Boolean).map(escHtml).join('<br>') + '</div>' +
+    '<div>GSTIN : ' + escHtml(co.gstin || '') + '</div>' +
+    '<div class="inv-cn-sig-line">Authorised Signatory</div></div></div>';
+
+  html += '</div>';
+  return html;
+}
+
+/* First–last when the batch is contiguous in the series, an explicit list when
+   it is short, and a count either way. */
+function cnInvoiceRangeLabel(cn) {
+  var nums = cn.invoiceNumbers || [];
+  if (nums.length === 0) return '—';
+  if (nums.length === 1) return nums[0];
+  if (nums.length <= 3) return nums.join(', ');
+  return nums[0] + ' – ' + nums[nums.length - 1] + ' (' + nums.length + ' invoices)';
+}
+
+/* PAN sits inside the GSTIN: 2 state digits, then the 10-character PAN. */
+function cnPanFromGstin(gstin) {
+  var g = String(gstin || '');
+  return g.length >= 12 ? g.slice(2, 12) : '';
+}
+
+function showCreditNotePreview(cnId) {
+  var cn = getCreditNotes().find(function(x) { return x.id === cnId; });
+  if (!cn) return;
+  var body = document.getElementById('invPrintBody');
+  if (!body) return;
+  var banner = cn.status === 'cancelled'
+    ? '<div class="inv-qc-notice inv-qc-notice-warn">' + escHtml(cn.displayNumber) + ' was cancelled. The number stays in the series.</div>'
+    : '';
+  body.innerHTML = banner + buildCreditNoteHtml(cn);
+  document.getElementById('invPrintView').classList.add('inv-print-view-active');
+  document.body.style.overflow = 'hidden';
+  document._savedTitle = document.title;
+  document.title = cn.displayNumber.replace(/\//g, '-') + ' - ' + (cn.clientName || 'SEP');
+}
+
+/* ===== LIST ===== */
+function renderCreditNoteList() {
+  var notes = getCreditNotes().slice().sort(function(a, b) {
+    return (parseInt(b.cnNumber, 10) || 0) - (parseInt(a.cnNumber, 10) || 0);
+  });
+
+  var html = '<div class="inv-overlay-card">' +
+    '<div class="inv-overlay-header"><span class="inv-overlay-title">Credit Notes</span>' +
+    '<button class="inv-overlay-close" data-action="invCloseOverlay" aria-label="Close">&times;</button></div>';
+
+  if (notes.length === 0) {
+    html += '<div class="inv-empty-state">No credit notes yet. Select a batch of invoices in the register to raise one.</div>';
+  } else {
+    html += '<div class="inv-card-list">';
+    notes.forEach(function(cn) {
+      var cancelled = cn.status === 'cancelled';
+      html += '<div class="inv-reg-row' + (cancelled ? ' inv-reg-row-cancelled' : '') + '">' +
+        '<div class="inv-reg-row-content" data-action="invCnPreview" data-id="' + escHtml(cn.id) + '">' +
+        '<div class="inv-reg-row-top"><div class="inv-reg-status-row">' +
+        '<span class="inv-reg-invnum">' + escHtml(cn.displayNumber) + '</span>' +
+        (cancelled ? ' <span class="inv-cancelled-badge">Cancelled</span>' : '') + '</div>' +
+        '<div class="inv-reg-amounts"><span class="inv-reg-total">' + formatCurrency(cn.grandTotal) + '</span>' +
+        '<span class="inv-reg-taxable">Taxable: ' + formatCurrency(cn.taxableValue) + '</span></div></div>' +
+        '<div class="inv-reg-row-bottom"><span class="inv-reg-client">' + escHtml(cn.clientName) + '</span>' +
+        '<span class="inv-reg-date">' + escHtml(formatDate(cn.date)) + '</span></div>' +
+        '<div class="inv-reg-row-bottom"><span class="inv-text-muted inv-text-xs">' +
+        escHtml(cn.discountPct) + '% of ' + formatCurrency(cn.batchTaxable) + ' over ' +
+        (cn.invoiceNumbers || []).length + ' invoice' + ((cn.invoiceNumbers || []).length !== 1 ? 's' : '') +
+        '</span></div></div>' +
+        (cancelled ? '' : '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invCnCancel" data-id="' + escHtml(cn.id) + '">Cancel</button>') +
+        '</div>';
+    });
+    html += '</div>';
+    html += '<div class="inv-btn-bar"><button class="inv-btn inv-btn-ghost" data-action="invExportCreditNotes">Credit Notes CSV</button></div>';
+  }
+  html += '</div>';
+
+  var existing = document.querySelector('.inv-overlay-scrim');
+  if (existing) {
+    existing.innerHTML = html;
+  } else {
+    var scrim = document.createElement('div');
+    scrim.className = 'inv-overlay-scrim';
+    scrim.innerHTML = html;
+    scrim.addEventListener('click', function(e) { if (e.target === scrim) { scrim.remove(); document.body.style.overflow = ''; popFocus(); } });
+    pushFocus();
+    document.body.appendChild(scrim);
+    document.body.style.overflow = 'hidden';
+    focusFirstInteractive(scrim.querySelector('.inv-overlay-card'));
+  }
+}
+
+/* ===== EXPORT =====
+   Its own file rather than rows inside the GSTR1 sheet: credit notes go to
+   table 9B (CDNR), whose columns are not the B2B ones, and mixing the two
+   shapes into one flat sheet would corrupt both. A cancelled note is declared
+   at zero, the same treatment a cancelled invoice already gets. */
+function exportCreditNotesCSV() {
+  var notes = getCreditNotes().slice().sort(function(a, b) {
+    return (parseInt(a.cnNumber, 10) || 0) - (parseInt(b.cnNumber, 10) || 0);
+  });
+  if (notes.length === 0) { showToast('No credit notes to export', 'warning'); return; }
+
+  var metaRow = ['SOMA ELECTRO PRODUCTS | GSTIN: ' + (S.company.gstin || '') +
+    ' | Export Date: ' + formatDateExport(localDateStr())];
+  var header = ['GSTIN/UIN of Recipient', 'Receiver Name', 'Note Number', 'Note Date', 'Note Type',
+    'Place Of Supply', 'Note Value', 'Rate', 'Taxable Value', 'CGST Amount', 'SGST Amount',
+    'IGST Amount', 'Cess Amount', 'Against Invoices', 'Period From', 'Period To', 'Discount %', 'Batch Taxable', 'Status'];
+  var rows = [metaRow, header];
+  notes.forEach(function(cn) {
+    var z = cn.status === 'cancelled';
+    var rate = (cn.cgstPer || 0) + (cn.sgstPer || 0) + (cn.igstPer || 0);
+    rows.push([
+      cn.clientGSTIN || '', cn.clientName, cn.displayNumber, formatDateExport(cn.date), 'C',
+      ((cn.clientAddress && cn.clientAddress.stateCode) || '20') + '-' + ((cn.clientAddress && cn.clientAddress.state) || 'Jharkhand'),
+      z ? 0 : (cn.grandTotal || 0), z ? 0 : rate, z ? 0 : (cn.taxableValue || 0),
+      z ? 0 : (cn.cgstAmt || 0), z ? 0 : (cn.sgstAmt || 0), z ? 0 : (cn.igstAmt || 0), 0,
+      (cn.invoiceNumbers || []).join(' '), formatDateExport(cn.periodFrom), formatDateExport(cn.periodTo),
+      cn.discountPct, cn.batchTaxable, z ? 'Cancelled' : 'Active'
+    ]);
+  });
+  downloadCSV('SEP-Credit-Notes_' + exportScopeLabel() + '.csv', rows);
+  showToast('Credit notes exported (' + notes.length + ')');
+}
+/* ===== CHARTS =====
+ *
+ * Reusable SVG chart renderers. Pulled out of stats.js because the trend chart
+ * there was one function that could draw exactly one thing: a line, stretched
+ * with preserveAspectRatio="none" so circles rendered as ellipses and a wide
+ * desktop got the same 400×160 drawing smeared across it. Only the two
+ * endpoints were labelled and no point carried its value, so the shape was
+ * readable and the numbers were not.
+ *
+ * Everything here draws into a square-ish viewBox at its natural aspect and is
+ * sized by CSS, so the same series is legible on a 393px phone and a 1280px
+ * desktop without a second code path.
+ */
+
+var CHART_SERIES_MAX = 8;
+
+/* A round number at or above the data's peak, so the gridline labels read
+   1.5L rather than 1,47,382.19. */
+function chartNiceMax(v) {
+  if (!(v > 0)) return 1;
+  var mag = Math.pow(10, Math.floor(Math.log10(v)));
+  var n = v / mag;
+  var step = n <= 1 ? 1 : n <= 2 ? 2 : n <= 2.5 ? 2.5 : n <= 5 ? 5 : 10;
+  return step * mag;
+}
+
+/* Axis and tooltip formatting per unit. Rupees get lakh/thousand shortening
+   because a job-work month runs to seven figures and the axis is 40px wide. */
+function chartShort(v, unit) {
+  if (unit === 'kg') {
+    return Math.abs(v) >= 1000 ? formatNum(v / 1000, 1) + 't' : formatNum(v, 0) + 'kg';
+  }
+  if (unit === 'count') return formatNum(v, 0);
+  if (Math.abs(v) >= 100000) return '₹' + formatNum(v / 100000, 1) + 'L';
+  if (Math.abs(v) >= 1000) return '₹' + formatNum(v / 1000, 0) + 'K';
+  return '₹' + formatNum(v, 0);
+}
+
+function chartFull(v, unit) {
+  if (unit === 'kg') return formatNum(v, 0) + ' kg';
+  if (unit === 'count') return formatNum(v, 0);
+  return formatCurrency(v);
+}
+
+/* How many x labels fit without overlapping, given the width the chart gets. */
+function _chartLabelStride(n, maxLabels) {
+  return Math.max(1, Math.ceil(n / (maxLabels || 6)));
+}
+
+function _chartEmpty(msg) {
+  return '<div class="inv-chart-empty">' + escHtml(msg) + '</div>';
+}
+
+/* ===== TIME SERIES =====
+   data: [{label, value}]. Line and bar share the frame — gridlines, axis
+   labels, and a <title> on every datum so a tap or hover gives the exact
+   figure the shape only approximates. */
+function _chartFrame(data, unit, W, H, pad) {
+  var maxVal = chartNiceMax(Math.max.apply(null, data.map(function(d) { return d.value; }).concat([0])));
+  var chartW = W - pad.l - pad.r;
+  var chartH = H - pad.t - pad.b;
+  var svg = '';
+  for (var g = 0; g <= 4; g++) {
+    var gy = pad.t + (g / 4) * chartH;
+    var gVal = maxVal - (g / 4) * maxVal;
+    svg += '<line x1="' + pad.l + '" y1="' + gy + '" x2="' + (W - pad.r) + '" y2="' + gy + '" class="inv-svg-grid"/>';
+    svg += '<text x="' + (pad.l - 4) + '" y="' + (gy + 3) + '" text-anchor="end" class="inv-svg-grid-label">' +
+      escHtml(chartShort(gVal, unit)) + '</text>';
+  }
+  return { svg: svg, maxVal: maxVal, chartW: chartW, chartH: chartH };
+}
+
+function chartLine(data, opts) {
+  opts = opts || {};
+  var unit = opts.unit || 'money';
+  if (!data || data.length === 0) return _chartEmpty(opts.emptyText || 'No data in this period');
+  if (data.length < 2) return _chartEmpty('Need at least two points to show a trend');
+
+  var W = 480, H = 220, pad = { l: 46, r: 12, t: 14, b: 30 };
+  var f = _chartFrame(data, unit, W, H, pad);
+  var points = data.map(function(d, i) {
+    return {
+      x: pad.l + (i / (data.length - 1)) * f.chartW,
+      y: pad.t + f.chartH - (f.maxVal > 0 ? (d.value / f.maxVal) : 0) * f.chartH,
+      d: d
+    };
+  });
+
+  var line = points.map(function(p) { return p.x + ',' + p.y; }).join(' ');
+  var area = 'M' + points[0].x + ',' + (pad.t + f.chartH) + ' L' + line.split(' ').join(' L') +
+    ' L' + points[points.length - 1].x + ',' + (pad.t + f.chartH) + ' Z';
+
+  // Aspect is preserved, so a circle is a circle at any width.
+  var svg = '<svg class="inv-chart-svg" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="' +
+    escHtml(opts.ariaLabel || 'Trend') + '">' + f.svg;
+  svg += '<path d="' + area + '" class="inv-svg-area"/>';
+  svg += '<polyline points="' + line + '" class="inv-svg-line"/>';
+
+  var stride = _chartLabelStride(data.length, opts.maxLabels);
+  points.forEach(function(p, i) {
+    // Every point carries its value; the marker is what the pointer aims at.
+    svg += '<circle cx="' + p.x + '" cy="' + p.y + '" r="3" class="inv-svg-dot">' +
+      '<title>' + escHtml(p.d.label + ': ' + chartFull(p.d.value, unit)) + '</title></circle>';
+    if (i % stride === 0 || i === points.length - 1) {
+      svg += '<text x="' + p.x + '" y="' + (pad.t + f.chartH + 14) + '" text-anchor="middle" class="inv-svg-axis-label">' +
+        escHtml(p.d.label) + '</text>';
+    }
+  });
+  svg += '</svg>';
+  return svg;
+}
+
+function chartBars(data, opts) {
+  opts = opts || {};
+  var unit = opts.unit || 'money';
+  if (!data || data.length === 0) return _chartEmpty(opts.emptyText || 'No data in this period');
+
+  var W = 480, H = 220, pad = { l: 46, r: 12, t: 14, b: 30 };
+  var f = _chartFrame(data, unit, W, H, pad);
+  var slot = f.chartW / data.length;
+  var barW = Math.max(slot * 0.62, 1);
+
+  var svg = '<svg class="inv-chart-svg" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="' +
+    escHtml(opts.ariaLabel || 'Trend') + '">' + f.svg;
+
+  var stride = _chartLabelStride(data.length, opts.maxLabels);
+  data.forEach(function(d, i) {
+    var h = f.maxVal > 0 ? (d.value / f.maxVal) * f.chartH : 0;
+    var x = pad.l + i * slot + (slot - barW) / 2;
+    var y = pad.t + f.chartH - h;
+    svg += '<rect x="' + x + '" y="' + y + '" width="' + barW + '" height="' + Math.max(h, 0) +
+      '" rx="1.5" class="inv-chart-bar">' +
+      '<title>' + escHtml(d.label + ': ' + chartFull(d.value, unit)) + '</title></rect>';
+    if (i % stride === 0 || i === data.length - 1) {
+      svg += '<text x="' + (x + barW / 2) + '" y="' + (pad.t + f.chartH + 14) +
+        '" text-anchor="middle" class="inv-svg-axis-label">' + escHtml(d.label) + '</text>';
+    }
+  });
+  svg += '</svg>';
+  return svg;
+}
+
+/* ===== COMPOSITION =====
+   slices: [{label, value, clientId?}]. Anything past the eighth is folded into
+   one "Others" wedge rather than drawn as a sliver nobody can read or aim at —
+   and the fold is named, so the chart never implies the tail does not exist. */
+function chartPie(slices, opts) {
+  opts = opts || {};
+  var unit = opts.unit || 'money';
+  var rows = (slices || []).filter(function(s) { return s.value > 0; })
+    .sort(function(a, b) { return b.value - a.value; });
+  if (rows.length === 0) return _chartEmpty(opts.emptyText || 'No data in this period');
+
+  var shown = rows.slice(0, CHART_SERIES_MAX);
+  var rest = rows.slice(CHART_SERIES_MAX);
+  if (rest.length > 0) {
+    shown.push({
+      label: rest.length + ' others',
+      value: rest.reduce(function(s, r) { return s + r.value; }, 0),
+      _others: true
+    });
+  }
+  var total = shown.reduce(function(s, r) { return s + r.value; }, 0);
+  if (!(total > 0)) return _chartEmpty(opts.emptyText || 'No data in this period');
+
+  var R = 100, CX = 105, CY = 105, inner = opts.donut === false ? 0 : 56;
+  var svg = '<svg class="inv-chart-pie-svg" viewBox="0 0 210 210" role="img" aria-label="' +
+    escHtml(opts.ariaLabel || 'Composition') + '">';
+
+  var angle = -Math.PI / 2;
+  shown.forEach(function(s, i) {
+    var frac = s.value / total;
+    var sweep = frac * Math.PI * 2;
+    var end = angle + sweep;
+    var cls = 'inv-chart-c' + (s._others ? 'x' : (i % CHART_SERIES_MAX));
+    // A single slice covering everything cannot be drawn as an arc — the start
+    // and end points coincide and the path collapses to nothing.
+    if (frac >= 0.9999) {
+      svg += '<circle cx="' + CX + '" cy="' + CY + '" r="' + R + '" class="' + cls + '">' +
+        '<title>' + escHtml(s.label + ': ' + chartFull(s.value, unit) + ' (100%)') + '</title></circle>';
+    } else {
+      var x1 = CX + R * Math.cos(angle), y1 = CY + R * Math.sin(angle);
+      var x2 = CX + R * Math.cos(end), y2 = CY + R * Math.sin(end);
+      var large = sweep > Math.PI ? 1 : 0;
+      svg += '<path d="M' + CX + ',' + CY + ' L' + x1 + ',' + y1 +
+        ' A' + R + ',' + R + ' 0 ' + large + ' 1 ' + x2 + ',' + y2 + ' Z" class="' + cls + '">' +
+        '<title>' + escHtml(s.label + ': ' + chartFull(s.value, unit) +
+          ' (' + formatNum(frac * 100, 1) + '%)') + '</title></path>';
+    }
+    angle = end;
+  });
+  if (inner > 0) svg += '<circle cx="' + CX + '" cy="' + CY + '" r="' + inner + '" class="inv-chart-hole"/>';
+  svg += '</svg>';
+
+  var legend = '<div class="inv-chart-legend">';
+  shown.forEach(function(s, i) {
+    var cls = 'inv-chart-c' + (s._others ? 'x' : (i % CHART_SERIES_MAX));
+    var tap = (!s._others && s.clientId != null)
+      ? ' data-action="invStatsClientDrill" data-client-id="' + escHtml(s.clientId) + '"' : '';
+    legend += '<div class="inv-chart-legend-row"' + tap + '>' +
+      '<span class="inv-chart-swatch ' + cls + '"></span>' +
+      '<span class="inv-chart-legend-label">' + escHtml(s.label) + '</span>' +
+      '<span class="inv-chart-legend-val inv-mono">' + escHtml(chartShort(s.value, unit)) + '</span>' +
+      '<span class="inv-chart-legend-pct inv-mono">' + formatNum(s.value / total * 100, 1) + '%</span></div>';
+  });
+  legend += '</div>';
+
+  return '<div class="inv-chart-pie-wrap">' + svg + legend + '</div>';
+}
+
+/* Horizontal ranked bars — the shape that suits "top N by X", where the labels
+   are names rather than dates and reading them matters more than the profile. */
+function chartRankedBars(rows, opts) {
+  opts = opts || {};
+  var unit = opts.unit || 'money';
+  if (!rows || rows.length === 0) return _chartEmpty(opts.emptyText || 'No data in this period');
+  var max = Math.max.apply(null, rows.map(function(r) { return r.value; }).concat([0]));
+
+  var html = '<div class="inv-chart-ranked">';
+  rows.forEach(function(r) {
+    var pct = max > 0 ? Math.max((r.value / max) * 100, 0.5) : 0;
+    var tap = r.action ? ' data-action="' + escHtml(r.action) + '" data-client-id="' + escHtml(r.clientId != null ? r.clientId : '') + '"' : '';
+    html += '<div class="inv-chart-ranked-row"' + tap + '>' +
+      '<div class="inv-chart-ranked-head">' +
+      '<span class="inv-chart-ranked-label">' + escHtml(r.label) + '</span>' +
+      '<span class="inv-chart-ranked-val inv-mono">' + escHtml(r.display || chartFull(r.value, unit)) + '</span></div>' +
+      '<div class="inv-chart-ranked-track">' +
+      '<svg class="inv-chart-ranked-svg" viewBox="0 0 100 8" preserveAspectRatio="none" aria-hidden="true">' +
+      '<rect width="' + pct + '" height="8" rx="2" class="inv-chart-ranked-fill' +
+      (r.tone ? ' inv-chart-ranked-fill-' + r.tone : '') + '"/>' +
+      // A threshold line turns a bar chart of a narrow range into an answer.
+      // Rates run 5.40 to 14.50 here: from a zero baseline every bar is
+      // roughly half-length and the differences are invisible, but where each
+      // one sits against cost is the entire question.
+      (r.markPct != null ? '<rect x="' + Math.max(Math.min(r.markPct, 100), 0) +
+        '" y="-1" width="0.6" height="10" class="inv-chart-ranked-mark"/>' : '') +
+      '</svg></div>' +
+      (r.sub ? '<div class="inv-chart-ranked-sub">' + escHtml(r.sub) + '</div>' : '') +
+      '</div>';
+  });
+  html += '</div>';
+  return html;
+}
 /* ===== STATS (Phase 7 — Analytics Rework) =====
  *
  * This is a job-work business priced in rupees per kilogram. Revenue on its
@@ -8314,6 +9656,19 @@ function qcEligibleCount(invIds) {
 
 var _statsPeriod = 'mtd';
 var _statsTrendGran = 'month';
+/* What the trend plots, and how. Revenue alone answers "did we bill more";
+   tonnage answers "did we plate more"; incoming material answers "is work
+   still arriving" — which leads the other two and is the one that warns. */
+var _statsTrendSeries = 'revenue';
+var _statsTrendType = 'line';
+/* Composition is a share question, so it gets a share shape as well as a
+   ranked one — the pie says "how much of the plant is this account". */
+var _statsClientChart = 'bar';
+/* Top items ranked by money, by weight, or by price. The card used to rank by
+   money alone, which is the one ranking this business's own thesis says is
+   insufficient: the same revenue is a good month at 8 tonnes and a bad one at
+   20, and the parts filling the plant are not the parts paying for it. */
+var _statsTopBy = 'value';
 
 /* ===== PERIOD MATH =====
  * Periods are measured on the invoice DATE, not on when the record happened to
@@ -8497,6 +9852,18 @@ function deltaHtml(cur, prev) {
     (rising || falling ? ' ' + formatNum(Math.abs(pct), 1) + '%' : 'level') + '</span>';
 }
 
+/* A row of toggle chips. Four cards needed the same markup, and the trend card
+   needed two rows of it. */
+function statsChipRow(action, dataKey, labels, current) {
+  var html = '<div class="inv-stats-chips inv-stats-chips-sm">';
+  Object.keys(labels).forEach(function(k) {
+    html += '<button class="inv-chip' + (current === k ? ' inv-chip-active' : '') +
+      '" data-action="' + action + '" data-' + dataKey + '="' + escHtml(k) + '">' +
+      escHtml(labels[k]) + '</button>';
+  });
+  return html + '</div>';
+}
+
 function kpiTile(label, value, sub, delta) {
   return '<div class="inv-kpi">' +
     '<div class="inv-kpi-label">' + escHtml(label) + '</div>' +
@@ -8520,23 +9887,6 @@ function isoWeekKey(yyyymmdd) {
   return d.getFullYear() + '-W' + (wk < 10 ? '0' + wk : '' + wk);
 }
 
-function buildTrendData(invoices, gran) {
-  var by = {};
-  invoices.forEach(function(inv) {
-    if (!inv.date) return;
-    var key;
-    if (gran === 'day')      key = inv.date;                  // YYYY-MM-DD
-    else if (gran === 'week') key = isoWeekKey(inv.date);     // YYYY-Www
-    else                      key = inv.date.substring(0, 7); // YYYY-MM
-    if (!by[key]) by[key] = 0;
-    by[key] += (inv.taxableValue || 0);
-  });
-  // Cap series length per granularity for readability + perf.
-  var cap = gran === 'day' ? 90 : gran === 'week' ? 26 : 12;
-  var keys = Object.keys(by).sort().slice(-cap);
-  return keys.map(function(k) { return { label: formatTrendLabel(k, gran), value: by[k] }; });
-}
-
 function formatTrendLabel(key, gran) {
   if (gran === 'day') {
     var p = key.split('-');
@@ -8549,7 +9899,64 @@ function formatTrendLabel(key, gran) {
   return TREND_MONTH_LABELS[parseInt(pp[1], 10) - 1] + ' ' + pp[0].slice(2);
 }
 
-function buildTopItems(invoices) {
+/* Trend buckets for one series. Revenue and tonnage come off the invoices;
+   incoming material comes off the challans, which is a different spine and a
+   different date — the challan date, not the invoice date. */
+function buildTrendSeries(gran, series) {
+  var by = {};
+  function bucket(dateStr) {
+    if (gran === 'day') return dateStr;
+    if (gran === 'week') return isoWeekKey(dateStr);
+    return dateStr.substring(0, 7);
+  }
+
+  if (series === 'im') {
+    (S.incomingMaterial || []).forEach(function(im) {
+      var d = im.challanDate || im.receivedDate;
+      if (!d) return;
+      var client = S.clients.find(function(c) { return c.id === im.clientId; }) || null;
+      var kg = 0;
+      (im.items || []).forEach(function(it) {
+        var w = lineWeightKg(it, client, d);
+        if (w.known) kg += w.kg;
+      });
+      var k = bucket(d);
+      by[k] = (by[k] || 0) + kg;
+    });
+  } else {
+    S.invoices.filter(function(i) { return i.status === 'active'; }).forEach(function(inv) {
+      if (!inv.date) return;
+      var k = bucket(inv.date);
+      if (series === 'tonnage') {
+        var client = rowClient(inv);
+        var kg = 0;
+        (inv.items || []).forEach(function(it) {
+          var w = lineWeightKg(it, client, inv.date);
+          if (w.known) kg += w.kg;
+        });
+        by[k] = (by[k] || 0) + kg;
+      } else {
+        by[k] = (by[k] || 0) + (inv.taxableValue || 0);
+      }
+    });
+  }
+
+  // Cap series length per granularity for readability + perf.
+  var cap = gran === 'day' ? 90 : gran === 'week' ? 26 : 12;
+  var keys = Object.keys(by).sort().slice(-cap);
+  return keys.map(function(k) { return { label: formatTrendLabel(k, gran), value: by[k] }; });
+}
+
+var TREND_SERIES_UNIT = { revenue: 'money', tonnage: 'kg', im: 'kg' };
+
+/* Ranked parts. `by` decides the ordering, and it is not cosmetic: ranking by
+   value answers "what earns", by tonnage "what fills the plant", and by ₹/kg
+   "what is priced worst". Those are three different top-tens.
+
+   The ₹/kg ranking admits only rows whose weight is actually known — a rate
+   computed from a partial weight is not a rate — and says how many it dropped
+   rather than silently ranking fewer parts. */
+function buildTopItems(invoices, by) {
   var byPart = {};
   invoices.forEach(function(inv) {
     var client = rowClient(inv);
@@ -8562,7 +9969,28 @@ function buildTopItems(invoices) {
       if (w.known) byPart[key].kg += w.kg; else byPart[key].kgKnown = false;
     });
   });
-  return Object.values(byPart).sort(function(a, b) { return b.amount - a.amount; }).slice(0, 10);
+
+  var all = Object.values(byPart);
+  all.forEach(function(r) {
+    r.perKg = (r.kgKnown && r.kg > 0) ? r.amount / r.kg : null;
+  });
+
+  var eligible = all;
+  var dropped = 0;
+  if (by === 'tonnage' || by === 'rate') {
+    eligible = all.filter(function(r) { return r.kgKnown && r.kg > 0; });
+    dropped = all.length - eligible.length;
+  }
+
+  var sorted = eligible.slice().sort(function(a, b) {
+    if (by === 'tonnage') return b.kg - a.kg;
+    // Worst-priced first, matching how clients are ranked: the interesting end
+    // of a price ranking is the bottom.
+    if (by === 'rate') return a.perKg - b.perKg;
+    return b.amount - a.amount;
+  });
+
+  return { rows: sorted.slice(0, 10), dropped: dropped, total: all.length };
 }
 
 /* Per-client revenue, tonnage and realisation for a period. The table this
@@ -8618,52 +10046,6 @@ function renderRevenueBarSvg(ranked, maxVal) {
   });
   html += '</div>';
   return html;
-}
-
-function renderTrendSvg(monthlyData, gran) {
-  if (monthlyData.length < 2) {
-    var unit = gran === 'day' ? 'days' : gran === 'week' ? 'weeks' : 'months';
-    return '<div class="inv-text-muted">Need 2+ ' + unit + ' of data for trend</div>';
-  }
-  var W = 400, H = 160, padL = 30, padR = 40, padT = 20, padB = 30;
-  var chartW = W - padL - padR, chartH = H - padT - padB;
-  var maxVal = Math.max.apply(null, monthlyData.map(function(d) { return d.value; }));
-  if (maxVal === 0) maxVal = 1;
-  var points = monthlyData.map(function(d, i) {
-    var x = padL + (i / (monthlyData.length - 1)) * chartW;
-    var y = padT + chartH - (d.value / maxVal) * chartH;
-    return { x: x, y: y, label: d.label, value: d.value };
-  });
-  var polyline = points.map(function(p) { return p.x + ',' + p.y; }).join(' ');
-  var areaPath = 'M' + points[0].x + ',' + (padT + chartH) +
-    ' L' + points.map(function(p) { return p.x + ',' + p.y; }).join(' L') +
-    ' L' + points[points.length - 1].x + ',' + (padT + chartH) + ' Z';
-
-  var svg = '<svg class="inv-trend-svg" viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="none">';
-  for (var g = 0; g <= 3; g++) {
-    var gy = padT + (g / 3) * chartH;
-    var gVal = maxVal - (g / 3) * maxVal;
-    svg += '<line x1="' + padL + '" y1="' + gy + '" x2="' + (W - padR) + '" y2="' + gy + '" class="inv-svg-grid"/>';
-    svg += '<text x="' + (W - padR + 4) + '" y="' + (gy + 4) + '" class="inv-svg-grid-label">' + (gVal >= 100000 ? formatNum(gVal / 100000, 1) + 'L' : formatNum(gVal / 1000, 0) + 'K') + '</text>';
-  }
-  svg += '<path d="' + areaPath + '" class="inv-svg-area"/>';
-  svg += '<polyline points="' + polyline + '" class="inv-svg-line" vector-effect="non-scaling-stroke"/>';
-  // Endpoint markers only (first + last) — sparkline aesthetic; intermediate dots
-  // omitted because preserveAspectRatio="none" would render circles as ellipses.
-  // Endpoint markers use vector-effect="non-scaling-size" via small absolute size.
-  points.forEach(function(p, i) {
-    var isEnd = i === 0 || i === points.length - 1;
-    if (isEnd) {
-      svg += '<circle cx="' + p.x + '" cy="' + p.y + '" r="3.5" class="inv-svg-dot" vector-effect="non-scaling-stroke"/>';
-      // Only label endpoints (first + last). With granularity=day there can be
-      // up to 90 buckets; rendering every label is unreadable. Endpoints alone
-      // give the viewer enough context (start vs current state).
-      var anchor = i === 0 ? 'start' : 'end';
-      svg += '<text x="' + p.x + '" y="' + (padT + chartH + 16) + '" text-anchor="' + anchor + '" class="inv-svg-axis-label">' + p.label + '</text>';
-    }
-  });
-  svg += '</svg>';
-  return svg;
 }
 
 function renderStats() {
@@ -8781,12 +10163,19 @@ function renderStats() {
     '<span class="inv-state-badge inv-state-filed">' + stateCount.filed + ' Filed</span>' +
     '</div></div>';
 
-  /* ===== Card 4: Revenue by client (bar chart) ===== */
+  /* ===== Card 4: Revenue by client — ranked bars or share ===== */
   var ranked = buildClientRollup(filtered);
   var maxClientRev = ranked.length > 0 ? ranked[0].total : 0;
   html += '<div class="inv-stats-card inv-stats-card-full">' +
+    '<div class="inv-stats-trend-header">' +
     '<div class="inv-stats-title">Revenue by Client</div>' +
-    renderRevenueBarSvg(ranked, maxClientRev) + '</div>';
+    statsChipRow('invStatsClientChart', 'chart', { bar: 'Ranked', pie: 'Share' }, _statsClientChart) +
+    '</div>' +
+    (_statsClientChart === 'pie'
+      ? chartPie(ranked.map(function(r) { return { label: r.name, value: r.total, clientId: r.clientId }; }),
+          { unit: 'money', ariaLabel: 'Revenue share by client' })
+      : renderRevenueBarSvg(ranked, maxClientRev)) +
+    '</div>';
 
   /* ===== Card 5: Realisation by client =====
      Ranked by ₹/kg rather than by revenue, because that ordering is the whole
@@ -8958,22 +10347,36 @@ function renderStats() {
   }
   html += '</div>';
 
-  /* ===== Card 8: Revenue trend ===== */
-  var trendData = buildTrendData(activeInvs, _statsTrendGran);
-  var granChips = ['day', 'week', 'month'];
-  var granLabels = { day: 'Day', week: 'Week', month: 'Month' };
-  var granHtml = '<div class="inv-stats-chips inv-stats-chips-sm">';
-  granChips.forEach(function(g) {
-    granHtml += '<button class="inv-chip' + (_statsTrendGran === g ? ' inv-chip-active' : '') +
-      '" data-action="invStatsTrendGran" data-gran="' + g + '">' + granLabels[g] + '</button>';
-  });
-  granHtml += '</div>';
+  /* ===== Card 8: Trend — revenue, tonnage, or material arriving ===== */
+  var trendData = buildTrendSeries(_statsTrendGran, _statsTrendSeries);
+  var trendUnit = TREND_SERIES_UNIT[_statsTrendSeries] || 'money';
+  var trendTitles = {
+    revenue: 'Revenue Trend',
+    tonnage: 'Tonnage Trend',
+    im: 'Incoming Material Trend'
+  };
   html += '<div class="inv-stats-card inv-stats-card-full">' +
     '<div class="inv-stats-trend-header">' +
-      '<div class="inv-stats-title">Revenue Trend</div>' +
-      granHtml +
+      '<div class="inv-stats-title">' + escHtml(trendTitles[_statsTrendSeries]) +
+      (_statsTrendSeries === 'im'
+        ? '<span class="inv-stats-title-sub">by challan date</span>'
+        : '<span class="inv-stats-title-sub">by invoice date</span>') + '</div>' +
+      statsChipRow('invStatsTrendSeries', 'series',
+        { revenue: '₹', tonnage: 'Tonnes', im: 'IM' }, _statsTrendSeries) +
     '</div>' +
-    renderTrendSvg(trendData, _statsTrendGran) + '</div>';
+    '<div class="inv-stats-trend-header">' +
+      statsChipRow('invStatsTrendGran', 'gran', { day: 'Day', week: 'Week', month: 'Month' }, _statsTrendGran) +
+      statsChipRow('invStatsTrendType', 'type', { line: 'Line', bar: 'Bar' }, _statsTrendType) +
+    '</div>' +
+    (_statsTrendType === 'bar'
+      ? chartBars(trendData, { unit: trendUnit, ariaLabel: trendTitles[_statsTrendSeries] })
+      : chartLine(trendData, { unit: trendUnit, ariaLabel: trendTitles[_statsTrendSeries] })) +
+    // Incoming material is the leading indicator: it is what has arrived and
+    // not yet been billed, so a fall here shows up in revenue weeks later.
+    (_statsTrendSeries === 'im'
+      ? '<div class="inv-stats-note">Weighed challan lines only. What arrives here bills later, so a dip shows in revenue after a lag.</div>'
+      : '') +
+    '</div>';
 
   /* ===== Card 9: Dispatch cycle ===== */
   var dispatchDays = [], deliveryDays = [], fullCycleDays = [];
@@ -9004,27 +10407,62 @@ function renderStats() {
     html += '</div>';
   }
 
-  /* ===== Card 10: Top items ===== */
-  var topItems = buildTopItems(filtered);
-  if (topItems.length > 0) {
+  /* ===== Card 10: Top items — by value, tonnage, or price ===== */
+  var top = buildTopItems(filtered, _statsTopBy);
+  if (top.total > 0) {
+    var topTitles = { value: 'Top Items by Value', tonnage: 'Top Items by Tonnage', rate: 'Worst Priced Items' };
+    var topUnits = { value: 'money', tonnage: 'kg', rate: 'money' };
     html += '<div class="inv-stats-card inv-stats-card-full">' +
-      '<div class="inv-stats-title">Top Items by Value</div>' +
-      '<div class="inv-stats-table"><div class="inv-stats-table-header">' +
-      '<span class="inv-stats-table-cell inv-stats-table-rank">#</span>' +
-      '<span class="inv-stats-table-cell inv-stats-table-part">Part</span>' +
-      '<span class="inv-stats-table-cell inv-stats-table-qty">&#8377;/kg</span>' +
-      '<span class="inv-stats-table-cell inv-stats-table-amt">Amount</span></div>';
-    topItems.forEach(function(it, idx) {
-      var perKg = (it.kgKnown && it.kg > 0) ? it.amount / it.kg : null;
-      html += '<div class="inv-stats-table-row">' +
-        '<span class="inv-stats-table-cell inv-stats-table-rank">' + (idx + 1) + '</span>' +
-        '<span class="inv-stats-table-cell inv-stats-table-part">' + escHtml(it.part) +
-        (it.desc && it.desc !== it.part ? '<br><span class="inv-text-muted inv-text-xs">' + escHtml(it.desc) + '</span>' : '') + '</span>' +
-        '<span class="inv-stats-table-cell inv-stats-table-qty inv-mono">' +
-        (perKg != null ? formatNum(perKg, 2) : '&mdash;') + '</span>' +
-        '<span class="inv-stats-table-cell inv-stats-table-amt inv-mono">' + formatCurrency(it.amount) + '</span></div>';
-    });
-    html += '</div></div>';
+      '<div class="inv-stats-trend-header">' +
+      '<div class="inv-stats-title">' + escHtml(topTitles[_statsTopBy]) +
+      (_statsTopBy === 'rate' ? '<span class="inv-stats-title-sub">worst first</span>' : '') + '</div>' +
+      statsChipRow('invStatsTopBy', 'by', { value: '₹', tonnage: 'Tonnes', rate: '₹/kg' }, _statsTopBy) +
+      '</div>';
+
+    if (top.rows.length === 0) {
+      html += '<div class="inv-text-muted inv-p-8">No part in this period has a known weight.</div>';
+    } else {
+      // On the price ranking the bar is measured against cost, not against the
+      // best-priced part: a mark at full cost, and anything short of it in the
+      // danger colour. Which parts are sold below cost is the question.
+      var rateMax = _statsTopBy === 'rate'
+        ? Math.max.apply(null, top.rows.map(function(r) { return r.perKg; }).concat([costPerKg]))
+        : 0;
+      html += chartRankedBars(top.rows.map(function(r) {
+        var value = _statsTopBy === 'tonnage' ? r.kg : _statsTopBy === 'rate' ? r.perKg : r.amount;
+        var display = _statsTopBy === 'tonnage' ? formatNum(r.kg, 0) + ' kg'
+          : _statsTopBy === 'rate' ? formatCurrency(r.perKg) + '/kg'
+          : formatCurrency(r.amount);
+        // Two-tone rather than one-tone-plus-danger: the app's accent is itself
+        // a terracotta, so a danger-red bar beside an accent bar was a
+        // distinction nobody could see. Green covers cost, red does not.
+        var tone = (_statsTopBy === 'rate' && costPerKg > 0)
+          ? (r.perKg < costPerKg ? 'danger' : 'good') : null;
+        var markPct = (_statsTopBy === 'rate' && costPerKg > 0 && rateMax > 0)
+          ? (costPerKg / rateMax) * 100 : null;
+        // Every row carries the other two figures, so switching the ranking
+        // is a change of order rather than a change of what can be seen.
+        var sub = formatCurrency(r.amount) +
+          (r.kgKnown && r.kg > 0 ? ' · ' + formatNum(r.kg, 0) + ' kg · ' + formatCurrency(r.perKg) + '/kg' : ' · weight unknown');
+        return {
+          label: r.part + (r.desc && r.desc !== r.part ? ' — ' + r.desc : ''),
+          value: value, display: display, sub: sub, tone: tone, markPct: markPct
+        };
+      }), { unit: topUnits[_statsTopBy] });
+      if (_statsTopBy === 'rate' && costPerKg > 0) {
+        html += '<div class="inv-stats-note">Mark is full cost, ' + formatCurrency(costPerKg) +
+          '/kg. Bars short of it are plated below what they cost to plate.</div>';
+      }
+    }
+
+    // The excluded parts are named, not dropped quietly. They are the
+    // piece-billed end, so a weight-based ranking that hides them reads better
+    // than the truth — the same trap the realisation cards already guard.
+    if (top.dropped > 0) {
+      html += '<div class="inv-stats-note">' + top.dropped + ' of ' + top.total +
+        ' part' + (top.total !== 1 ? 's' : '') + ' left out: no known weight, so they cannot be ranked this way.</div>';
+    }
+    html += '</div>';
   }
 
   if (html === '') html = '<div class="inv-empty-state">No data yet. Create invoices and log incoming material to see analytics.</div>';
@@ -9395,6 +10833,320 @@ function exportHistoryCSV() {
   a.download = 'sep-activity-log-' + localDateStr() + '.csv';
   a.click();
   showToast('Exported ' + events.length + ' events');
+}
+/* ===== CLIENT PERFORMANCE =====
+ *
+ * Month on month for one account, and — the part that earns its place — what
+ * has quietly stopped arriving. A part that disappears does not raise an
+ * error, does not empty a queue and does not show up as a loss. It shows up as
+ * a slightly smaller month, twice, and then it is normal. This view names it.
+ *
+ * Cadence is read from BOTH spines: invoice lines and challan lines. Invoices
+ * are the complete record, but material arrives before it is billed, so a part
+ * received last week and not yet invoiced would read as overdue on the billing
+ * record alone. Taking the union means "when did we last handle this part for
+ * this client", which is the question.
+ */
+
+var CP_LOOKBACK_MONTHS = 12;
+var _cpSeries = 'revenue';
+var CP_NEW_DAYS = 60;
+
+function getPerfClientId() {
+  var v = regFilter.perfClientId;
+  return v ? parseInt(v, 10) : null;
+}
+
+function setPerfClientId(id) {
+  regFilter.perfClientId = id == null ? '' : String(id);
+  saveRegFilter();
+}
+
+/* Part identity for cadence purposes. Part numbers are typed by hand and vary
+   between documents — "Clamp 165x83" against "CLAMP 165X83(40X6)" — so the
+   key is case- and punctuation-insensitive. It cannot merge everything a human
+   would; see cpFindRenames() for what is done about the rest. */
+function cpNormPart(s) {
+  return String(s || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+}
+
+function cpDaysBetween(aIso, bIso) {
+  var a = new Date(aIso + 'T00:00:00'), b = new Date(bIso + 'T00:00:00');
+  return Math.round((b - a) / 86400000);
+}
+
+function cpMedian(nums) {
+  if (nums.length === 0) return 0;
+  var s = nums.slice().sort(function(a, b) { return a - b; });
+  var m = Math.floor(s.length / 2);
+  return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
+}
+
+/* Every part this client has handled, with the dates it appeared on either
+   spine, the weight and the revenue it carried. */
+function cpBuildHistory(clientId) {
+  var byPart = {};
+  var client = S.clients.find(function(c) { return c.id === clientId; }) || null;
+
+  function touch(rawPart, dateStr) {
+    if (!dateStr) return null;
+    var key = cpNormPart(rawPart);
+    if (!key) return null;
+    if (!byPart[key]) {
+      byPart[key] = { key: key, name: rawPart, dates: {}, kg: 0, revenue: 0, invoiced: 0, received: 0 };
+    }
+    byPart[key].dates[dateStr] = true;
+    // Keep the longest spelling seen: it is the one carrying the gauge.
+    if (String(rawPart).length > String(byPart[key].name).length) byPart[key].name = rawPart;
+    return byPart[key];
+  }
+
+  S.invoices.filter(function(i) { return i.status === 'active' && i.clientId === clientId; })
+    .forEach(function(inv) {
+      (inv.items || []).forEach(function(it) {
+        var e = touch(it.partNumber || it.desc, inv.date);
+        if (!e) return;
+        e.revenue += (it.amount || 0);
+        e.invoiced++;
+        var w = lineWeightKg(it, client, inv.date);
+        if (w.known) e.kg += w.kg;
+      });
+    });
+
+  (S.incomingMaterial || []).filter(function(im) { return im.clientId === clientId; })
+    .forEach(function(im) {
+      var d = im.challanDate || im.receivedDate;
+      (im.items || []).forEach(function(it) {
+        var e = touch(it.partNumber || it.desc, d);
+        if (e) e.received++;
+      });
+    });
+
+  return Object.values(byPart).map(function(e) {
+    e.dateList = Object.keys(e.dates).sort();
+    return e;
+  });
+}
+
+/* Steady, new, stopped or one-off — measured against the part's own rhythm.
+   A fixed "absent for two months" rule would call every quarterly part dead,
+   so the test is whether the current gap is long FOR THIS PART. */
+function cpClassify(entry, todayIso) {
+  var d = entry.dateList;
+  var first = d[0], last = d[d.length - 1];
+  var sinceLast = cpDaysBetween(last, todayIso);
+  var age = cpDaysBetween(first, todayIso);
+
+  var gaps = [];
+  for (var i = 1; i < d.length; i++) gaps.push(cpDaysBetween(d[i - 1], d[i]));
+  var typical = cpMedian(gaps);
+
+  var out = {
+    part: entry.name, key: entry.key, kg: entry.kg, revenue: entry.revenue,
+    invoiced: entry.invoiced, received: entry.received,
+    times: d.length, firstSeen: first, lastSeen: last,
+    sinceLast: sinceLast, typicalGap: typical
+  };
+
+  if (age <= CP_NEW_DAYS && d.length <= 3) { out.state = 'new'; return out; }
+  if (d.length === 1) {
+    out.state = sinceLast <= CP_NEW_DAYS ? 'new' : 'oneoff';
+    return out;
+  }
+  // Overdue by its own standard: well past the gap it usually keeps. The floor
+  // of three weeks stops a part that ships twice a week being called stopped
+  // after nine days.
+  var threshold = Math.max(typical * 1.75, typical + 21);
+  out.overdueBy = sinceLast - Math.round(typical);
+  out.state = sinceLast > threshold ? 'stopped' : 'steady';
+  return out;
+}
+
+/* A part renamed rather than dropped shows up as one stopped and one new, and
+   reporting a rename as lost business would discredit every other row. Part
+   numbers here are known to vary in spelling between documents, so pairs that
+   share a long prefix are flagged as possibly the same part. */
+function cpFindRenames(stopped, fresh) {
+  var pairs = {};
+  stopped.forEach(function(s) {
+    fresh.forEach(function(n) {
+      var a = s.key, b = n.key;
+      var len = Math.min(a.length, b.length);
+      var i = 0;
+      while (i < len && a[i] === b[i]) i++;
+      if (i >= 6) pairs[s.key] = n.part;
+    });
+  });
+  return pairs;
+}
+
+/* Revenue, tonnage and realisation by month for one client. */
+function cpMonthly(clientId, months) {
+  var by = {};
+  var client = S.clients.find(function(c) { return c.id === clientId; }) || null;
+  S.invoices.filter(function(i) { return i.status === 'active' && i.clientId === clientId && i.date; })
+    .forEach(function(inv) {
+      var k = inv.date.substring(0, 7);
+      if (!by[k]) by[k] = { month: k, revenue: 0, kg: 0, count: 0, revKnown: 0 };
+      by[k].revenue += (inv.taxableValue || 0);
+      by[k].count++;
+      (inv.items || []).forEach(function(it) {
+        var w = lineWeightKg(it, client, inv.date);
+        if (w.known) { by[k].kg += w.kg; by[k].revKnown += (it.amount || 0); }
+      });
+    });
+  return Object.keys(by).sort().slice(-(months || CP_LOOKBACK_MONTHS)).map(function(k) {
+    var r = by[k];
+    r.realisation = r.kg > 0 ? r.revKnown / r.kg : null;
+    r.label = formatTrendLabel(k, 'month');
+    return r;
+  });
+}
+
+/* ===== VIEW ===== */
+function _cpMaterialRows(list, renames) {
+  return list.map(function(m) {
+    var meta = m.times + '× · last ' + formatDate(m.lastSeen) +
+      (m.typicalGap > 0 ? ' · usually every ' + Math.round(m.typicalGap) + 'd' : '') +
+      (m.kg > 0 ? ' · ' + formatNum(m.kg, 0) + ' kg' : '');
+    var rename = renames && renames[m.key];
+    return '<div class="inv-cp-mat">' +
+      '<div class="inv-cp-mat-head">' +
+      '<span class="inv-cp-mat-name">' + escHtml(m.part) + '</span>' +
+      // A part that only ever arrived on a challan has no revenue yet. Printing
+      // Rs 0.00 for it reads as worthless work rather than unbilled work.
+      '<span class="inv-cp-mat-rev inv-mono">' +
+      (m.invoiced > 0 ? formatCurrency(m.revenue) : '<span class="inv-cp-mat-unbilled">challan only</span>') +
+      '</span></div>' +
+      '<div class="inv-cp-mat-meta">' + escHtml(meta) + '</div>' +
+      (m.state === 'stopped'
+        ? '<div class="inv-cp-mat-flag">' + m.sinceLast + ' days since the last one' +
+          (m.overdueBy > 0 ? ', about ' + m.overdueBy + ' overdue' : '') + '</div>'
+        : '') +
+      (rename ? '<div class="inv-cp-mat-note">Possibly renamed to &ldquo;' + escHtml(rename) +
+        '&rdquo; — the spellings share a stem, so this may not be lost work.</div>' : '') +
+      '</div>';
+  }).join('');
+}
+
+function renderClientPerformance(container) {
+  if (!container) return;
+  var clients = S.clients.slice().sort(function(a, b) { return String(a.name).localeCompare(String(b.name)); });
+  var clientId = getPerfClientId();
+  if (clientId == null && clients.length > 0) {
+    // Default to the account with the most revenue — the one worth watching.
+    var byRev = {};
+    S.invoices.forEach(function(i) {
+      if (i.status !== 'active') return;
+      byRev[i.clientId] = (byRev[i.clientId] || 0) + (i.taxableValue || 0);
+    });
+    var best = Object.keys(byRev).sort(function(a, b) { return byRev[b] - byRev[a]; })[0];
+    clientId = best != null ? parseInt(best, 10) : clients[0].id;
+  }
+
+  var html = '<div class="inv-cp-toolbar">' +
+    '<div class="inv-form-group"><label class="inv-form-label">Client</label>' +
+    '<select class="inv-form-select" id="cpClientSelect" data-action="invPerfClient">' +
+    clients.map(function(c) {
+      return '<option value="' + c.id + '"' + (c.id === clientId ? ' selected' : '') + '>' + escHtml(c.name) + '</option>';
+    }).join('') + '</select></div></div>';
+
+  if (clientId == null) {
+    container.innerHTML = html + '<div class="inv-empty-state">No clients yet</div>';
+    return;
+  }
+
+  var monthly = cpMonthly(clientId, CP_LOOKBACK_MONTHS);
+  var today = localDateStr();
+  var history = cpBuildHistory(clientId);
+  var classified = history.map(function(e) { return cpClassify(e, today); });
+
+  var stopped = classified.filter(function(m) { return m.state === 'stopped'; })
+    .sort(function(a, b) { return b.revenue - a.revenue; });
+  var fresh = classified.filter(function(m) { return m.state === 'new'; })
+    .sort(function(a, b) { return b.revenue - a.revenue; });
+  var steady = classified.filter(function(m) { return m.state === 'steady'; })
+    .sort(function(a, b) { return b.revenue - a.revenue; });
+  var oneoff = classified.filter(function(m) { return m.state === 'oneoff'; })
+    .sort(function(a, b) { return b.revenue - a.revenue; });
+  var renames = cpFindRenames(stopped, fresh);
+
+  if (monthly.length === 0 && classified.length === 0) {
+    container.innerHTML = html + '<div class="inv-empty-state">Nothing recorded for this client yet</div>';
+    return;
+  }
+
+  // Month on month.
+  var last = monthly[monthly.length - 1];
+  var prev = monthly.length > 1 ? monthly[monthly.length - 2] : null;
+  html += '<div class="inv-stats-card inv-stats-card-full">' +
+    '<div class="inv-stats-trend-header">' +
+    '<div class="inv-stats-title">Month on Month' +
+    '<span class="inv-stats-title-sub">last ' + monthly.length + ' month' + (monthly.length !== 1 ? 's' : '') + '</span></div>' +
+    statsChipRow('invPerfSeries', 'series', { revenue: '₹', tonnage: 'Tonnes', rate: '₹/kg' }, _cpSeries) +
+    '</div>';
+
+  var series = monthly.map(function(r) {
+    return {
+      label: r.label,
+      value: _cpSeries === 'tonnage' ? r.kg : _cpSeries === 'rate' ? (r.realisation || 0) : r.revenue
+    };
+  });
+  html += chartBars(series, {
+    unit: _cpSeries === 'tonnage' ? 'kg' : 'money',
+    ariaLabel: 'Month on month'
+  });
+
+  if (last) {
+    html += '<div class="inv-kpi-grid inv-mt-8">' +
+      kpiTile('Latest month', formatCurrency(last.revenue),
+        last.count + ' invoice' + (last.count !== 1 ? 's' : ''),
+        prev ? deltaHtml(last.revenue, prev.revenue) : '') +
+      kpiTile('Tonnage', formatNum(last.kg / 1000, 2) + ' t', formatNum(last.kg, 0) + ' kg',
+        prev ? deltaHtml(last.kg, prev.kg) : '') +
+      kpiTile('Realisation', last.realisation != null ? formatCurrency(last.realisation) + '/kg' : '&mdash;',
+        (S.defaultCostPerKg > 0 ? 'cost ' + formatCurrency(S.defaultCostPerKg) + '/kg' : ''),
+        (prev && prev.realisation != null && last.realisation != null) ? deltaHtml(last.realisation, prev.realisation) : '') +
+      '</div>';
+  }
+  html += '</div>';
+
+  // Stopped first. It is the only one of the four that is a question.
+  html += '<div class="inv-stats-card inv-stats-card-full">' +
+    '<div class="inv-stats-title">Materials' +
+    '<span class="inv-stats-title-sub">cadence across invoices and challans</span></div>';
+
+  html += '<div class="inv-cp-group">' +
+    '<div class="inv-cp-group-title inv-cp-group-stopped">Stopped (' + stopped.length + ')</div>' +
+    (stopped.length === 0
+      ? '<div class="inv-text-muted inv-p-8">Nothing has fallen out of its rhythm.</div>'
+      : '<div class="inv-cp-group-note">Overdue against the gap each part usually keeps, not a fixed cut-off — a quarterly part is not called stopped in month two.</div>' +
+        _cpMaterialRows(stopped, renames)) +
+    '</div>';
+
+  html += '<div class="inv-cp-group">' +
+    '<div class="inv-cp-group-title inv-cp-group-new">New (' + fresh.length + ')</div>' +
+    (fresh.length === 0
+      ? '<div class="inv-text-muted inv-p-8">Nothing new in the last ' + CP_NEW_DAYS + ' days.</div>'
+      : _cpMaterialRows(fresh, null)) +
+    '</div>';
+
+  html += '<div class="inv-cp-group">' +
+    '<div class="inv-cp-group-title inv-cp-group-steady">Steady (' + steady.length + ')</div>' +
+    (steady.length === 0
+      ? '<div class="inv-text-muted inv-p-8">No part is running to a regular cadence.</div>'
+      : _cpMaterialRows(steady, null)) +
+    '</div>';
+
+  if (oneoff.length > 0) {
+    html += '<div class="inv-cp-group">' +
+      '<div class="inv-cp-group-title">One-off (' + oneoff.length + ')</div>' +
+      '<div class="inv-cp-group-note">Handled once and long ago. Never had a cadence to fall out of.</div>' +
+      _cpMaterialRows(oneoff, null) + '</div>';
+  }
+
+  html += '</div>';
+  container.innerHTML = html;
 }
 /* ===== IM ADD CHALLAN FORM (Phase 4 — Tier 1) ===== */
 var _challanForm = null;
@@ -10348,17 +12100,21 @@ document.addEventListener('click', function(e) {
     case 'invExportSales': exportSalesCSV(); break;
     case 'invExportGstr1': exportGSTR1CSV(); break;
     case 'invSelectPart': selectPartForLine(parseInt(btn.dataset.idx), parseInt(btn.dataset.partId)); break;
-    case 'invFilterRegister': {
-      const cf = document.getElementById('regClientFilter');
-      const mf = document.getElementById('regMonthFilter');
-      const sf = document.getElementById('regStateFilter');
-      if (cf) regFilter.clientId = cf.value;
-      if (mf) regFilter.month = mf.value;
-      if (sf) regFilter.state = sf.value;
+    case 'invFilterRegister': captureRegFilters(btn.id); break;
+    case 'invRegClearRange': {
+      regFilter.dateFrom = ''; regFilter.dateTo = '';
       saveRegFilter();
-      _renderRegView();
+      captureRegFilters();
       break;
     }
+    case 'invRegSelectAll': toggleRegSelectAll(); break;
+    // Credit notes
+    case 'invRegCreditNote': openCreditNoteForm(_regSelectedIds()); break;
+    case 'invCnSave': saveCreditNote(); break;
+    case 'invCnList': renderCreditNoteList(); break;
+    case 'invCnPreview': closeOverlay(); showCreditNotePreview(btn.dataset.id); break;
+    case 'invCnCancel': e.stopPropagation(); cancelCreditNote(btn.dataset.id); break;
+    case 'invExportCreditNotes': exportCreditNotesCSV(); break;
     case 'invToggleIM': toggleIMExpand(btn.dataset.id); break;
     case 'invCheckIMItem': toggleIMItem(btn.dataset.itemId); break;
     case 'invCheckIMChallan': toggleIMChallan(btn.dataset.id); break;
@@ -10386,34 +12142,13 @@ document.addEventListener('click', function(e) {
     case 'invRemoveChallanLine': captureChallanFields(); removeChallanLine(parseInt(btn.dataset.idx)); break;
     case 'invSelectChallanClient': selectChallanClient(parseInt(btn.dataset.id)); break;
     case 'invClearChallanClient': if (_challanForm) { captureChallanFields(); _challanForm.clientId = null; renderAddChallanForm(); } break;
-    case 'invSelectChallanPart': {
-      if (!_challanForm) break;
-      const pidx = parseInt(btn.dataset.idx);
-      const part = S.items.find(function(p) { return p.id === parseInt(btn.dataset.partId); });
-      if (!part) break;
-      const cItem = _challanForm.items[pidx];
-      if (!cItem) break;
-      cItem.partNumber = part.partNumber;
-      // Same folding as the invoice path: the gauge is what tells two rows of
-      // the same clamp apart, and dropping it here carried the ambiguity into
-      // every invoice raised off the challan.
-      cItem.desc = partLineDesc(part);
-      cItem.hsn = part.hsn || '998873';
-      cItem.unit = part.unit || 'KG';
-      const cClient = _challanForm.clientId ? S.clients.find(function(c) { return c.id === _challanForm.clientId; }) : null;
-      if (cClient) {
-        const cRateInfo = getLineItemRate(cClient, _challanForm.challanDate || localDateStr(), cItem.partNumber);
-        if (cRateInfo._override) { cItem.rate = cRateInfo.rate; }
-        else { cItem.rate = cRateInfo.ratePerKg || 0; }
-        recalcChallanLine(cItem, cClient);
-      }
-      dismissAllAutocomplete();
-      captureChallanFields();
-      // The part is settled; weight is what gets typed next.
-      _challanFocusNext = { k: 'qty-' + pidx, sel: null };
-      renderAddChallanForm();
+    case 'invSelectChallanPart':
+      selectChallanPartForLine(parseInt(btn.dataset.idx), parseInt(btn.dataset.partId));
       break;
-    }
+    // Create a missing part without leaving the line being typed
+    case 'invAddItemInline':
+      openInlineItemAdd(btn.dataset.kind, parseInt(btn.dataset.idx), btn.dataset.q || '');
+      break;
     // Phase 4: IM Delete Challan
     case 'invDeleteChallan': deleteChallan(btn.dataset.id); break;
     // Phase 5: IM Edit Challan
@@ -10434,6 +12169,14 @@ document.addEventListener('click', function(e) {
     case 'invStatsPeriod': _statsPeriod = btn.dataset.period; renderStats(); break;
     // P9: Trend granularity chips (day/week/month)
     case 'invStatsTrendGran': _statsTrendGran = btn.dataset.gran; renderStats(); break;
+    // Chart controls: what the trend plots, how it is drawn, and how the
+    // composition and top-item cards are ranked
+    case 'invStatsTrendSeries': _statsTrendSeries = btn.dataset.series; renderStats(); break;
+    case 'invStatsTrendType': _statsTrendType = btn.dataset.type; renderStats(); break;
+    case 'invStatsClientChart': _statsClientChart = btn.dataset.chart; renderStats(); break;
+    case 'invStatsTopBy': _statsTopBy = btn.dataset.by; renderStats(); break;
+    // Client performance sub-view
+    case 'invPerfSeries': _cpSeries = btn.dataset.series; renderClientsPage(); break;
     // Phase 7: Client drill-down overlay
     case 'invStatsClientDrill': openClientDrillOverlay(btn.dataset.clientId); break;
     // Phase 7: Flippable card
@@ -10682,16 +12425,11 @@ document.addEventListener('change', function(e) {
   if (e.target.id === 'invDate') {
     invoiceForm.date = e.target.value;
   }
-  // Register filters
-  if (e.target.id === 'regClientFilter' || e.target.id === 'regMonthFilter' || e.target.id === 'regStateFilter') {
-    const cf = document.getElementById('regClientFilter');
-    const mf = document.getElementById('regMonthFilter');
-    const sf = document.getElementById('regStateFilter');
-    if (cf) regFilter.clientId = cf.value;
-    if (mf) regFilter.month = mf.value;
-    if (sf) regFilter.state = sf.value;
-    saveRegFilter();
-    _renderRegView();
+  // Register filters — one capture path, so a new filter control cannot end up
+  // wired to the click delegate and not to this one.
+  if (e.target.id === 'regClientFilter' || e.target.id === 'regMonthFilter' ||
+      e.target.id === 'regStateFilter' || e.target.id === 'regDateFrom' || e.target.id === 'regDateTo') {
+    captureRegFilters(e.target.id);
   }
   // IM filters
   if (e.target.id === 'imClientFilter' || e.target.id === 'imStatusFilter') {
@@ -10700,6 +12438,12 @@ document.addEventListener('change', function(e) {
     if (icf) _imFilter.clientId = icf.value;
     if (isf) _imFilter.status = isf.value;
     _renderIMView();
+  }
+  // Client performance: which account is under the lens
+  if (e.target.id === 'cpClientSelect') {
+    setPerfClientId(e.target.value);
+    renderClientsPage();
+    return;
   }
   // Phase 6: Items sort
   if (e.target.id === 'itemsSort') {
@@ -10763,6 +12507,23 @@ document.addEventListener('input', function(e) {
         if (caret != null && restored.setSelectionRange) restored.setSelectionRange(caret, caret);
       }
     }, 250);
+    return;
+  }
+  // Credit note form: the totals restate as the discount is typed, so the
+  // figure being committed is the one on screen. Focus is preserved because
+  // the caret position is restored across the re-render.
+  if (e.target.dataset.action === 'invCnInput') {
+    var cnId = e.target.id, cnCaret = null;
+    try { cnCaret = e.target.selectionStart; } catch (err) { cnCaret = null; }
+    captureCnForm();
+    renderCreditNoteForm();
+    var back = document.getElementById(cnId);
+    if (back) {
+      back.focus();
+      if (cnCaret != null && back.setSelectionRange) {
+        try { back.setSelectionRange(cnCaret, cnCaret); } catch (err) {}
+      }
+    }
     return;
   }
   // Bulk weight entry: price the part as soon as a weight is typed

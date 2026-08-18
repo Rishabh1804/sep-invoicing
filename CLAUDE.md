@@ -25,7 +25,7 @@ Split-file PWA. 30 modules, ~13,500 lines total.
 split/
 ├── build.sh           ← writes ../sep-invoicing.html, syncs ../index.html
 ├── head.html          ← DOCTYPE, meta, font links (17 lines)
-├── styles.css         ← All CSS with inv- prefix (2,131 lines)
+├── styles.css         ← All CSS with inv- prefix (2,427 lines)
 ├── body.html          ← HTML body, tabs, print view (128 lines)
 ├── data.js            ← ITEMS_MASTER + SEED_CLIENTS (27 lines)
 ├── state.js           ← State mgmt, utilities, escHtml, gstRound (298 lines)
@@ -43,10 +43,10 @@ split/
 ├── autocomplete.js    ← Part autocomplete + inline item creation (270 lines)
 ├── print.js           ← formatInvoiceData + print preview (224 lines)
 ├── quality-cert.js    ← Test Certificate (ZN Plating): approved format + per-line certs (380 lines)
-├── credit-note.js     ← Credit notes: batch discount, own series, CDNR export (557 lines)
+├── credit-note.js     ← Credit notes: batch discount, own series, CDNR export, netting (659 lines)
 ├── charts.js          ← Reusable SVG charts: line, bar, pie, ranked bars (243 lines)
-├── stats.js           ← Stats dashboard + History activity log (1,195 lines)
-├── client-perf.js     ← Client performance: month on month + material cadence (314 lines)
+├── stats.js           ← Stats dashboard + History activity log (1,290 lines)
+├── client-perf.js     ← Client performance: month on month + material cadence (337 lines)
 ├── im-form.js         ← IM add/edit/delete challan form (450 lines)
 ├── im-dupe.js         ← IM duplicate guard: fingerprint + pre-save warn + scan (305 lines)
 ├── scanner.js         ← Challan scanner (Gemini AI vision) (146 lines)
@@ -75,7 +75,7 @@ every session start — nothing to set up by hand. CI (`build-sync`) is the back
 ### Tests
 
 ```bash
-pnpm exec playwright test          # 184 tests, both layouts
+pnpm exec playwright test          # 194 tests, both layouts
 ```
 
 Some sandboxes ship a Chromium build Playwright does not expect and block downloading
@@ -163,23 +163,39 @@ Supersedes the earlier ₹5.46/kg cost and ~31% operating margin, both of which 
 | Consumables, water/ETP, maintenance | 0.42 | 4% |
 | **Full cost** | **8.55** | |
 
-- **Blended realisation:** ₹8.45/kg → roughly −₹0.09/kg, about break-even.
-- **SSS Mehta:** 39% of revenue but **61% of tonnage** at ₹5.40/kg. −₹1.53L/month at full cost.
-  Whether to exit or reprice turns on contract labour: fixed → it still contributes
-  ₹0.53/kg; volume-scaling → it loses ₹1.64/kg. Confirm before acting.
-- **Capacity:** ~2 t per 8-hour shift; running ~77% of a two-shift month, ~24 t/month spare.
-  Filling that at ₹13/kg is worth more than the SSS Mehta question either way.
+All realisation figures below are **net of the SSS Mehta credit notes** (see Credit notes).
+The 2% is not a rounding detail: it is ₹5,261/month, and because it lands on 61% of the
+tonnage it moves the *blended* rate by ₹0.066/kg — most of the distance between "about
+break-even" and "losing money every month".
 
-**The app now corroborates this model from the invoice data, independently.** Once weights are
-derived (below), Stats measures blended realisation at **₹8.42/kg against the modelled ₹8.45**,
-contribution at **−₹0.13/kg against a modelled −₹0.09**, and SSS Mehta at **62% of tonnage
-against the modelled 61%**, on 39% of revenue. Nothing in
-that calculation knew the cost model; it is arithmetic over 769 invoices. Two routes to the
-same shape is the strongest evidence the model is right that this repo has.
+- **Blended realisation:** ₹8.38/kg net → **−₹0.17/kg**, about ₹0.13L/month of loss.
+  Gross of the discount it is ₹8.45 and −₹0.09, which is where this line used to sit.
+- **SSS Mehta:** 39% of revenue but **61% of tonnage** at **₹5.29/kg** net of the standing
+  2% (₹5.40 on the invoices). **−₹1.59L/month** at full cost, ₹5,261 of which is the
+  discount itself. Whether to exit or reprice still turns on contract labour: fixed → it
+  contributes **₹0.42/kg** (₹0.21L/month); volume-scaling → it loses **₹1.75/kg**
+  (−₹0.85L/month). Confirm before acting.
+- **Capacity:** ~2 t per 8-hour shift; running ~77% of a two-shift month, ~24 t/month spare.
+  Filling that at ₹13/kg is worth ~₹1.07L/month of contribution — more than the SSS Mehta
+  question either way, and the netting widens that gap rather than closing it.
+
+**The app corroborates this model from the invoice data, independently.** Once weights are
+derived (below), Stats measures blended realisation at **₹8.42/kg** and contribution at
+**−₹0.13/kg**, with SSS Mehta at **62% of tonnage against the modelled 61%**, on 39% of
+revenue. Nothing in that calculation knew the cost model; it is arithmetic over 769
+invoices. Two routes to the same shape is the strongest evidence the model is right that
+this repo has.
+
+**Those app figures are still gross, and that is not a defect — it is the data.** Stats now
+nets credit notes, but it can only net the ones it holds, and CN/001–005 were issued by hand
+before the app existed. Enter them and the measured blend should fall to about **₹8.35**
+against the modelled ₹8.38. Until then the gap between the app and the model *is* the
+un-entered discount, which makes it a check rather than a discrepancy — if entering the five
+notes moves the figure by materially more or less than ₹0.07/kg, one of the two is wrong.
 
 SSS Mehta's own ₹5.39/kg is the one figure that is not independent confirmation — its weights
-invert its contract rate, so that number is ₹5.40 restated. Its **tonnage** is real, and that
-is what the corroboration above rests on.
+invert its contract rate, so that number is ₹5.40 restated, and netted it will simply restate
+₹5.29. Its **tonnage** is real, and that is what the corroboration above rests on.
 
 ### Zinc pricing
 metals.dev publishes no MCX base metal — its MCX coverage is precious metals only, and
@@ -282,10 +298,34 @@ The reference had four defects the app does not reproduce — see `docs/credit-n
 The headline one is the same identity drift the certificate had: header "SOMA ELECTRO PRODUCT"
 against footer "SOMA ELECTRO PRODUCTS". Identity is read from `S.company`, never frozen.
 
-**This changes the SSS Mehta numbers.** At a standing 2%, their realisation is ~₹5.29/kg, not
-₹5.40 — and Stats reads invoices only, so every SSS Mehta figure above is overstated by 2%
-until credit notes are netted off. Not yet done; the contribution arithmetic in Key Business
-Data has not been restated.
+**This changes the SSS Mehta numbers, and the netting is now done.** Every money figure in
+Stats and Client Performance reads net of credit notes; Key Business Data above is restated
+on the same basis (₹5.29/kg, blended ₹8.38, contribution −₹0.17).
+
+Two rules govern how a note is applied, and both are load-bearing:
+
+- **The credit belongs to the invoices it credits, not to the date it was raised.** The
+  reference note is dated 4 August against a July batch. Booking it in August would net one
+  period's revenue against another period's tonnage — the exact numerator/denominator error
+  the realisation figure was rebuilt to avoid. It is allocated back over `invoiceIds`
+  pro-rata, so a batch straddling a period boundary splits where its invoices fall.
+- **It never touches tonnage.** The plating happened; only the price changed. Netting value
+  against unchanged weight is the entire mechanism — reduce both and the rate does not move.
+
+Allocation is per **line**, via a per-invoice factor, because a flat percentage of a batch is
+a flat percentage of every line in it. That is what keeps Top Items, the per-client table and
+the headline reading the same book. It nets the GST correctly for free: the note's own tax is
+18% of the credit for the same reason the invoice's is 18% of the invoice, and a credit note
+goes to GSTR-1 table 9B and does reduce the liability.
+
+A cancelled note credits nothing — it exports at zero and it nets at zero, which are the same
+statement. Credit naming an invoice that no longer exists is **reported, not absorbed**: the
+customer still paid that much less, so silently dropping it overstates earnings by exactly
+that amount, and it is the deletion that wants looking at.
+
+**What it cannot net is what was never entered.** CN/001–005 were raised by hand before the
+app existed, so the live figures remain gross until they are keyed in — see Key Business Data
+for the size of the gap that leaves.
 
 ### Client performance
 Clients tab → **Performance**. One account at a time: month on month as revenue, tonnage or ₹/kg,
@@ -346,6 +386,14 @@ through the registry left every one uncounted. Their part numbers also vary in s
 invoices (`Clamp 165x83` against `CLAMP 165X83(40X6)`), so registry matching would stay fragile
 even if the rows existed. Reading the line direct sidesteps both.
 
+**Revenue is net of credit notes; tonnage is not.** A discount changes the price, not the
+plating, so the credit comes off the numerator alone — which is precisely what makes ₹/kg
+fall. Take it off both and the rate does not move, and the netting achieves nothing. Every
+money figure on the dashboard nets: headline revenue, the trend line, per-client realisation,
+Top Items, the drill-down and the output tax (a credit note is GSTR-1 table 9B, and it does
+reduce the liability). The reduction is stated on the card, because a rate 2% off the rate
+card with nothing saying why reads as a bug in the rate card.
+
 **Realisation divides revenue by tonnage over the same lines.** Dividing *total* revenue by
 *weighed-only* tonnage inflates the answer by exactly `1 / coverage` — it read ₹21.23/kg on
 live data where the matched figure was ₹13.00. Numerator and denominator must always be the
@@ -365,7 +413,7 @@ same trap: an account with no weights barely enters the measured denominator and
 
 **Realisation by client is ranked worst-priced first.** That ordering is the point: the
 largest account and the worst-priced one can be the same row, which is exactly the SSS Mehta
-shape (39% of revenue, 61% of tonnage, ₹5.40/kg against ₹8.55 cost). Periods are measured on
+shape (39% of revenue, 61% of tonnage, ₹5.29/kg net against ₹8.55 cost). Periods are measured on
 the **invoice date**, not on when the record was typed — that is the date on the document and
 the date GSTR-1 reports it under.
 

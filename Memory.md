@@ -56,7 +56,11 @@ CA by background. Business Manager at Soma Electro Products (zinc electroplating
   Three were self-inflicted by PR #24 the same day, including register filter dropdowns that
   closed the instant they were opened, and a credit note series that restarted at 001 over
   CN/001–005 already issued by hand
-- 30 modules, ~13,500 lines. 185 e2e tests gate every PR
+- **18 Aug 2026 (PR #27):** credit notes netted off realisation, and the SSS Mehta
+  arithmetic restated on that basis — ₹5.29/kg not ₹5.40, blended ₹8.38 not ₹8.45,
+  contribution −₹0.17/kg not −₹0.09. The account's monthly shortfall at full cost is
+  ₹1.59L, and neither contract-labour scenario survives unchanged
+- 30 modules, ~13,500 lines. 194 e2e tests gate every PR
 - Development moved off Termux to Claude Code (clones fresh; `.claude/hooks/session-start.sh`
   arms the pre-commit hook and installs test deps)
 - **Open with the owner:**
@@ -66,6 +70,9 @@ CA by background. Business Manager at Soma Electro Products (zinc electroplating
     the superseded GSTIN (below). Left in place as the record of what was sent
   - piece-billed lines print Net Wt. blank. Filling them means weighing the parts into
     `partWeights`, not promoting the rate-derived `stdWeightKg`
+  - CN/001–005 were issued by hand before the app existed and are not in the data, so
+    the live dashboard still reads gross. Entering them should move blended realisation
+    by about ₹0.07/kg; materially more or less means the cost model or the app is wrong
 
 ### BusinessAI Simulation (Queued)
 - Multi-entity business spanning trading, industry, logistics
@@ -122,6 +129,16 @@ decision. Do not silently propagate the SEP pattern to another repo without sett
   same subset; coverage stated in the unit that matters (revenue, not row count); anything
   below the confidence threshold listed but **not ranked**; and a share withheld as
   "unknown" rather than shown as small when its denominator is unmeasured.
+- **An adjustment attaches to what it adjusts, not to when it was written.** SEP's credit
+  notes are dated weeks after the batch they credit, and booking them on their own date
+  would have netted one period's revenue against another period's tonnage — the same
+  numerator/denominator error the realisation figure was rebuilt to avoid, arriving by a
+  new route. They are allocated back over the invoices they name, so a batch straddling a
+  period boundary splits where its invoices fall. The companion rule is what the adjustment
+  must *not* touch: a discount changes the price, not the work done, so it comes off value
+  and never off tonnage. Net both and the ratio does not move, which would have made the
+  whole exercise a no-op that looked like a fix. Before netting anything into a ratio, ask
+  which side of it the adjustment actually belongs on.
 - **Hardcoded dates in test fixtures are time bombs.** Three found across two SEP sessions,
   each passing only because of when it was written or what it happened not to filter on.
   Use `todayIso()` / `recentTs()`-style helpers everywhere.

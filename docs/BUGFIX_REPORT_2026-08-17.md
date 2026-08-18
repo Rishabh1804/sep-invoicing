@@ -239,3 +239,20 @@ Neither is a defect; both are decisions the owner holds.
    half-corrected.
 2. **The four 15 Apr quality certificates** carry the superseded GSTIN. Whether they need
    reissuing to SSS Mehta is a customer call, not a code one.
+
+---
+
+## Addendum — 18 August 2026
+
+Item 1 above is closed. Credit notes now net off every money figure in Stats and Client
+Performance, allocated back to the invoices each note credits rather than booked on the note's
+own date, and never taken off tonnage. `CLAUDE.md`'s Key Business Data is restated on that
+basis: SSS Mehta at ₹5.29/kg, blended realisation ₹8.38, contribution −₹0.17/kg. Pinned by
+nine specs in `p24-credit-note-netting.spec.ts`; seven of them fail against the code as it
+stood when this report was written, and the two that pass are the controls.
+
+One thing the netting does not fix, because it is data rather than code: CN/001–005 were
+raised by hand before the app existed, so the live figures stay gross until those five notes
+are entered. The size of that gap is recorded in `CLAUDE.md` as a check on both numbers.
+
+Item 2 remains the owner's call.

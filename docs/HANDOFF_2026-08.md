@@ -88,10 +88,15 @@ consumables.
 ### The decision that is still open
 Labour is 42% of cost, and how it behaves decides the SSSMehta response entirely:
 
-| | Variable cost | SSSMehta at ₹5.40/kg |
-|---|---|---|
-| Contract crew stays regardless | ₹4.87/kg | **+₹25,766/month** — dropping it makes things worse |
-| Contract crew scales with volume | ₹7.04/kg | **−₹80,123/month** — dropping it makes things better |
+| | Variable cost | SSSMehta at ₹5.40/kg | Net of the 2% (₹5.29/kg) |
+|---|---|---|---|
+| Contract crew stays regardless | ₹4.87/kg | **+₹25,766/month** — dropping it makes things worse | **+₹20,555/month** |
+| Contract crew scales with volume | ₹7.04/kg | **−₹80,123/month** — dropping it makes things better | **−₹85,142/month** |
+
+The fourth column was added 18 Aug 2026, when credit notes were netted off realisation. The
+standing 2% discount is ₹5,261/month, and it moves both scenarios by exactly that — it does
+not change which way the decision goes, only how much it is worth. The question below is
+unchanged and still unanswered.
 
 **The question: does the ₹40k/week contract labour bill fall if SSSMehta's volume goes
 away?** Nothing about that account should be acted on before this is answered.

@@ -1205,6 +1205,11 @@ table.inv-qc-grid.inv-qc-no-top { border-top: 0; }
   display: block; font-family: var(--ff-display); font-size: var(--fs-lg);
   font-weight: 700; color: var(--cost-text);
 }
+/* Why a headline figure is smaller than the invoices behind it. Stated on the
+   tile rather than in a footnote — an unexplained net is read as an error. */
+.inv-flip-kpi-note {
+  display: block; font-size: var(--fs-xs); color: var(--text-3); margin-top: var(--sp-4);
+}
 .inv-flip-states { display: flex; gap: var(--sp-8); flex-wrap: wrap; margin-bottom: var(--sp-16); }
 .inv-flip-meta { font-size: var(--fs-sm); color: var(--text-3); margin-bottom: var(--sp-16); }
 .inv-flip-section-title {

@@ -164,14 +164,21 @@ function rowClient(row) {
    total revenue by weighed-only tonnage inflates the answer by exactly
    1 / (revenue coverage) — on live data that turned ₹13.00/kg into ₹21.23/kg,
    because the lines with no weight are not a random sample. They are the
-   piece-billed work, which is the whole low-realisation end of the book. */
-function weighLines(rows) {
-  var kg = 0, lines = 0, known = 0, revKnown = 0, revUnknown = 0;
+   piece-billed work, which is the whole low-realisation end of the book.
+
+   Pass `credits` (from cnCreditByInvoice) to read revenue net of credit notes.
+   The weights are untouched by it — see the netting notes in credit-note.js:
+   the plating happened, only the price changed, and that asymmetry is the
+   whole reason the rate moves. */
+function weighLines(rows, credits) {
+  var kg = 0, lines = 0, known = 0, revKnown = 0, revUnknown = 0, credit = 0;
   rows.forEach(function(row) {
     var client = rowClient(row);
+    var f = cnNetFactor(row, credits);
+    if (credits) credit += (credits[row.id] || 0);
     (row.items || []).forEach(function(it) {
       lines++;
-      var amt = it.amount || 0;
+      var amt = (it.amount || 0) * f;
       var w = lineWeightKg(it, client, row.date || row.challanDate);
       if (w.known) { known++; kg += w.kg; revKnown += amt; }
       else { revUnknown += amt; }
@@ -180,7 +187,7 @@ function weighLines(rows) {
   var revTotal = revKnown + revUnknown;
   return {
     kg: kg, lines: lines, known: known,
-    revKnown: revKnown, revUnknown: revUnknown,
+    revKnown: revKnown, revUnknown: revUnknown, credit: credit,
     // Coverage by revenue, not by line count: one unweighed line worth ₹10L
     // matters more than fifty worth ₹500, and it is the ratio that governs
     // how far the realisation figure can be trusted.
@@ -193,8 +200,11 @@ function weighLines(rows) {
    sit in a ranked column beside a fully weighed one. */
 var REALISATION_MIN_COVERAGE = 0.9;
 
-function sumTaxable(invoices) {
-  return invoices.reduce(function(s, i) { return s + (i.taxableValue || 0); }, 0);
+/* Taxable value, net of credit notes when a credit map is supplied. */
+function sumTaxable(invoices, credits) {
+  return invoices.reduce(function(s, i) {
+    return s + (i.taxableValue || 0) * cnNetFactor(i, credits);
+  }, 0);
 }
 
 /* ===== DELTA CHIPS ===== */
@@ -288,6 +298,9 @@ function periodKeysBetween(minIso, maxIso, gran) {
    different date — the challan date, not the invoice date. */
 function buildTrendSeries(gran, series) {
   var by = {};
+  // Revenue is plotted net of credit notes, so the trend line and the headline
+  // figure above it cannot disagree about what a month earned.
+  var credits = cnCreditByInvoice();
   var minDate = null, maxDate = null;
   function bucket(dateStr) {
     if (!minDate || dateStr < minDate) minDate = dateStr;
@@ -323,7 +336,7 @@ function buildTrendSeries(gran, series) {
         });
         by[k] = (by[k] || 0) + kg;
       } else {
-        by[k] = (by[k] || 0) + (inv.taxableValue || 0);
+        by[k] = (by[k] || 0) + (inv.taxableValue || 0) * cnNetFactor(inv, credits);
       }
     });
   }
@@ -344,15 +357,20 @@ var TREND_SERIES_UNIT = { revenue: 'money', tonnage: 'kg', im: 'kg' };
    The ₹/kg ranking admits only rows whose weight is actually known — a rate
    computed from a partial weight is not a rate — and says how many it dropped
    rather than silently ranking fewer parts. */
-function buildTopItems(invoices, by) {
+function buildTopItems(invoices, by, credits) {
   var byPart = {};
   invoices.forEach(function(inv) {
     var client = rowClient(inv);
+    // A batch discount is not attributable to one part, but it IS a flat
+    // percentage of every line in the batch, so each line carries its share.
+    // Without this the ₹/kg ranking would price the discounted account's parts
+    // 2% above what they earn, which is the end of the ranking that matters.
+    var f = cnNetFactor(inv, credits);
     (inv.items || []).forEach(function(it) {
       var key = it.partNumber || it.desc || 'Unknown';
       if (!byPart[key]) byPart[key] = { part: key, desc: it.desc || '', qty: 0, amount: 0, kg: 0, kgKnown: true };
       byPart[key].qty += (it.qty || 0);
-      byPart[key].amount += (it.amount || 0);
+      byPart[key].amount += (it.amount || 0) * f;
       var w = lineWeightKg(it, client, inv.date);
       if (w.known) byPart[key].kg += w.kg; else byPart[key].kgKnown = false;
     });
@@ -384,18 +402,20 @@ function buildTopItems(invoices, by) {
 /* Per-client revenue, tonnage and realisation for a period. The table this
    feeds is the reason the rework happened: a client can be near the top by
    revenue and still be sold below cost, and only ₹/kg shows it. */
-function buildClientRollup(invoices) {
+function buildClientRollup(invoices, credits) {
   var by = {};
   invoices.forEach(function(inv) {
     var key = inv.clientId;
     if (!by[key]) {
-      by[key] = { clientId: key, name: inv.clientName, total: 0, count: 0, kg: 0, revKnown: 0, revUnknown: 0 };
+      by[key] = { clientId: key, name: inv.clientName, total: 0, count: 0, kg: 0, revKnown: 0, revUnknown: 0, credit: 0 };
     }
-    by[key].total += (inv.taxableValue || 0);
+    var f = cnNetFactor(inv, credits);
+    by[key].total += (inv.taxableValue || 0) * f;
+    if (credits) by[key].credit += (credits[inv.id] || 0);
     by[key].count++;
     var client = rowClient(inv);
     (inv.items || []).forEach(function(it) {
-      var amt = it.amount || 0;
+      var amt = (it.amount || 0) * f;
       var w = lineWeightKg(it, client, inv.date);
       if (w.known) { by[key].kg += w.kg; by[key].revKnown += amt; }
       else { by[key].revUnknown += amt; }
@@ -459,11 +479,20 @@ function renderStats() {
   var prior = filterByPeriod(activeInvs, _statsPeriod, 1);
   var html = '';
 
-  var totalRev = sumTaxable(filtered);
-  var totalGrand = filtered.reduce(function(s, i) { return s + (i.grandTotal || 0); }, 0);
-  var priorRev = sumTaxable(prior);
-  var tonnage = weighLines(filtered);
-  var priorTonnage = weighLines(prior);
+  /* Every money figure below is net of credit notes, allocated back to the
+     invoices each note credits. Read the netting notes in credit-note.js
+     before changing this: the allocation is by invoice, not by the note's own
+     date, and it deliberately leaves tonnage alone. */
+  var credits = cnCreditByInvoice();
+  var totalRev = sumTaxable(filtered, credits);
+  var grossRev = sumTaxable(filtered);
+  var creditApplied = cnCreditOn(filtered, credits);
+  var totalGrand = filtered.reduce(function(s, i) {
+    return s + (i.grandTotal || 0) * cnNetFactor(i, credits);
+  }, 0);
+  var priorRev = sumTaxable(prior, credits);
+  var tonnage = weighLines(filtered, credits);
+  var priorTonnage = weighLines(prior, credits);
   var costPerKg = S.defaultCostPerKg || 0;
 
   // Revenue on weighed lines over the tonnage of those same lines.
@@ -480,7 +509,8 @@ function renderStats() {
     '</div><div class="inv-kpi-grid">' +
     kpiTile('Taxable Revenue', formatCurrency(totalRev),
       filtered.length + ' invoice' + (filtered.length === 1 ? '' : 's') +
-        ' · ' + formatCurrency(totalGrand) + ' incl. GST',
+        ' · ' + formatCurrency(totalGrand) + ' incl. GST' +
+        (creditApplied > 0 ? ' · net of ' + formatCurrency(creditApplied) + ' credited' : ''),
       comparable ? deltaHtml(totalRev, priorRev) : '') +
     kpiTile('Tonnage', formatNum(tonnage.kg / 1000, 2) + ' t',
       formatNum(tonnage.kg, 0) + ' kg',
@@ -506,6 +536,23 @@ function renderStats() {
       'the low-realisation end of the book, so the rate above reads better than the real blend. ' +
       'Items Master &rarr; Derive weights from rates closes it.</div>';
   }
+  /* Say the netting is happening, in place. A ₹/kg that silently differs from
+     the rate card by 2% invites the reader to conclude the rate card is wrong. */
+  if (creditApplied > 0) {
+    var creditPct = grossRev > 0 ? (creditApplied / grossRev) * 100 : 0;
+    html += '<div class="inv-stats-caveat">Net of <strong>' + formatCurrency(creditApplied) +
+      '</strong> of credit notes &mdash; ' + formatNum(creditPct, 1) + '% of the ' +
+      formatCurrency(grossRev) + ' invoiced. Each note is booked against the invoices it ' +
+      'credits, not the date it was raised, so a batch straddling the period boundary splits. ' +
+      'Tonnage is untouched: the plating happened, only the price changed, which is what ' +
+      'brings the rate down.</div>';
+  }
+  var unallocated = cnUnallocated(credits);
+  if (unallocated > 0) {
+    html += '<div class="inv-stats-alert">' + formatCurrency(unallocated) + ' of credit notes ' +
+      'names invoices that no longer exist, so it is netted off nothing. The customer still ' +
+      'paid that much less. Check the number audit for what was deleted.</div>';
+  }
   if (contribution != null && contribution < 0) {
     html += '<div class="inv-stats-alert">Realisation is ' + formatCurrency(Math.abs(contribution)) +
       '/kg below full cost. At this tonnage that is ' + formatCurrency(Math.abs(grossMargin)) + ' of loss for the period.</div>';
@@ -513,13 +560,20 @@ function renderStats() {
   html += '</div>';
 
   /* ===== Card 2: GST position ===== */
-  var cgst = 0, sgst = 0, igst = 0, unfiledTax = 0, unfiledCount = 0;
+  /* Net of credit notes here too, and for a stronger reason than consistency:
+     a credit note goes to GSTR-1 table 9B and reduces the liability. The same
+     per-invoice factor does it — the note's own GST is 18% of the credit for
+     exactly the reason the invoice's is 18% of the invoice. */
+  var cgst = 0, sgst = 0, igst = 0, unfiledTax = 0, unfiledCount = 0, creditTax = 0;
   filtered.forEach(function(inv) {
-    cgst += (inv.cgstAmt || 0);
-    sgst += (inv.sgstAmt || 0);
-    igst += (inv.igstAmt || 0);
+    var f = cnNetFactor(inv, credits);
+    var tax = (inv.cgstAmt || 0) + (inv.sgstAmt || 0) + (inv.igstAmt || 0);
+    cgst += (inv.cgstAmt || 0) * f;
+    sgst += (inv.sgstAmt || 0) * f;
+    igst += (inv.igstAmt || 0) * f;
+    creditTax += tax * (1 - f);
     if (getInvState(inv) !== 'filed') {
-      unfiledTax += (inv.cgstAmt || 0) + (inv.sgstAmt || 0) + (inv.igstAmt || 0);
+      unfiledTax += tax * f;
       unfiledCount++;
     }
   });
@@ -532,6 +586,8 @@ function renderStats() {
       '<span class="inv-stats-val">' + formatCurrency(gstRound(cgst + sgst)) + '</span></div>' : '') +
     (igst > 0 ? '<div class="inv-stats-row"><span class="inv-stats-name">IGST @ 18%</span>' +
       '<span class="inv-stats-val">' + formatCurrency(igst) + '</span></div>' : '') +
+    (creditTax > 0 ? '<div class="inv-stats-row"><span class="inv-stats-name">Less credit notes (9B)</span>' +
+      '<span class="inv-stats-val">&minus;' + formatCurrency(creditTax) + '</span></div>' : '') +
     '<div class="inv-stats-row"><span class="inv-stats-name">Not yet marked filed</span>' +
     '<span class="inv-stats-val' + (unfiledCount > 0 ? ' inv-stats-val-warn' : '') + '">' +
     formatCurrency(unfiledTax) + ' (' + unfiledCount + ')</span></div></div>';
@@ -552,7 +608,7 @@ function renderStats() {
     '</div></div>';
 
   /* ===== Card 4: Revenue by client — ranked bars or share ===== */
-  var ranked = buildClientRollup(filtered);
+  var ranked = buildClientRollup(filtered, credits);
   var maxClientRev = ranked.length > 0 ? ranked[0].total : 0;
   html += '<div class="inv-stats-card inv-stats-card-full">' +
     '<div class="inv-stats-trend-header">' +
@@ -590,8 +646,13 @@ function renderStats() {
 
       comparable.forEach(function(r) {
         var below = costPerKg > 0 && r.realisation < costPerKg;
+        // Where a discount is in force, say so on the row. Otherwise the ₹/kg
+        // reads as a rate nobody agreed and the contract rate looks wrong.
+        var disc = r.credit > 0
+          ? '<br><span class="inv-text-muted inv-text-xs">net of ' + formatCurrency(r.credit) + ' credited</span>'
+          : '';
         html += '<div class="inv-stats-table-row inv-stats-row-tap" data-action="invStatsClientDrill" data-client-id="' + r.clientId + '">' +
-          '<span class="inv-stats-table-cell inv-stats-table-part">' + escHtml(r.name) + '</span>' +
+          '<span class="inv-stats-table-cell inv-stats-table-part">' + escHtml(r.name) + disc + '</span>' +
           '<span class="inv-stats-table-cell inv-stats-table-qty inv-mono">' + formatNum(r.kg / 1000, 2) + '</span>' +
           '<span class="inv-stats-table-cell inv-stats-table-qty inv-mono' + (below ? ' inv-stats-val-danger' : '') + '">' +
           formatNum(r.realisation, 2) + '</span>' +
@@ -796,7 +857,7 @@ function renderStats() {
   }
 
   /* ===== Card 10: Top items — by value, tonnage, or price ===== */
-  var top = buildTopItems(filtered, _statsTopBy);
+  var top = buildTopItems(filtered, _statsTopBy, credits);
   if (top.total > 0) {
     var topTitles = { value: 'Top Items by Value', tonnage: 'Top Items by Tonnage', rate: 'Worst Priced Items' };
     var topUnits = { value: 'money', tonnage: 'kg', rate: 'money' };
@@ -866,13 +927,17 @@ function openClientDrillOverlay(clientId) {
   var activeInvs = S.invoices.filter(function(i) { return i.status === 'active'; });
   var filtered = filterByPeriod(activeInvs, _statsPeriod);
   var clientInvs = filtered.filter(function(i) { return i.clientId === clientId; });
-  var totalRev = sumTaxable(clientInvs);
-  var allRev = sumTaxable(filtered);
+  // Same netting as the table this was opened from — a drill-down that
+  // disagreed with the row it came out of would be worse than no drill-down.
+  var credits = cnCreditByInvoice();
+  var totalRev = sumTaxable(clientInvs, credits);
+  var allRev = sumTaxable(filtered, credits);
+  var clientCredit = cnCreditOn(clientInvs, credits);
   var pct = allRev > 0 ? Math.round(totalRev / allRev * 100) : 0;
 
   // The per-kg figure the Stats table ranks on, repeated here so the drill-down
   // answers the question that made someone tap the row.
-  var clientTonnage = weighLines(clientInvs);
+  var clientTonnage = weighLines(clientInvs, credits);
   // Matched subset, same rule as the table this drill-down was opened from.
   var realisation = (clientTonnage.kg > 0 && clientTonnage.coverage >= REALISATION_MIN_COVERAGE)
     ? clientTonnage.revKnown / clientTonnage.kg : null;
@@ -951,7 +1016,8 @@ function openClientDrillOverlay(clientId) {
     '<button class="inv-overlay-close" data-action="invCloseOverlay">&times;</button></div>' +
     '<div class="inv-flip-period-label">' + escHtml(periodLabel) + '</div>' +
     '<div class="inv-flip-kpis">' +
-    '<div class="inv-flip-kpi"><span class="inv-flip-kpi-label">Revenue</span><span class="inv-flip-kpi-value">' + formatCurrency(totalRev) + '</span></div>' +
+    '<div class="inv-flip-kpi"><span class="inv-flip-kpi-label">Revenue</span><span class="inv-flip-kpi-value">' + formatCurrency(totalRev) + '</span>' +
+      (clientCredit > 0 ? '<span class="inv-flip-kpi-note">net of ' + formatCurrency(clientCredit) + ' credited</span>' : '') + '</div>' +
     '<div class="inv-flip-kpi"><span class="inv-flip-kpi-label">Tonnage</span><span class="inv-flip-kpi-value">' + formatNum(clientTonnage.kg / 1000, 2) + ' t</span></div>' +
     '<div class="inv-flip-kpi"><span class="inv-flip-kpi-label">&#8377;/kg</span><span class="inv-flip-kpi-value' +
       (realisation != null && costPerKg > 0 && realisation < costPerKg ? ' inv-stats-val-danger' : '') + '">' +

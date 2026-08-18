@@ -51,6 +51,9 @@ function cpMedian(nums) {
 function cpBuildHistory(clientId) {
   var byPart = {};
   var client = S.clients.find(function(c) { return c.id === clientId; }) || null;
+  // Per-part revenue is netted too, so the material rows sum toward the month
+  // on month above them rather than 2% past it.
+  var credits = cnCreditByInvoice();
 
   function touch(rawPart, dateStr) {
     if (!dateStr) return null;
@@ -67,10 +70,11 @@ function cpBuildHistory(clientId) {
 
   S.invoices.filter(function(i) { return i.status === 'active' && i.clientId === clientId; })
     .forEach(function(inv) {
+      var f = cnNetFactor(inv, credits);
       (inv.items || []).forEach(function(it) {
         var e = touch(it.partNumber || it.desc, inv.date);
         if (!e) return;
-        e.revenue += (it.amount || 0);
+        e.revenue += (it.amount || 0) * f;
         e.invoiced++;
         var w = lineWeightKg(it, client, inv.date);
         if (w.known) e.kg += w.kg;
@@ -144,22 +148,31 @@ function cpFindRenames(stopped, fresh) {
   return pairs;
 }
 
-/* Revenue, tonnage and realisation by month for one client. */
+/* Revenue, tonnage and realisation by month for one client.
+
+   Net of credit notes, on the same terms as Stats: allocated to the invoices
+   each note credits so it lands in their month, and never taken off the
+   weight. A client on a standing discount would otherwise show one ₹/kg here
+   and another on the dashboard, and this is the view someone opens to ask why
+   an account's rate is moving. */
 function cpMonthly(clientId, months) {
   var by = {};
   var minDate = null, maxDate = null;
   var client = S.clients.find(function(c) { return c.id === clientId; }) || null;
+  var credits = cnCreditByInvoice();
   S.invoices.filter(function(i) { return i.status === 'active' && i.clientId === clientId && i.date; })
     .forEach(function(inv) {
       if (!minDate || inv.date < minDate) minDate = inv.date;
       if (!maxDate || inv.date > maxDate) maxDate = inv.date;
       var k = inv.date.substring(0, 7);
-      if (!by[k]) by[k] = { month: k, revenue: 0, kg: 0, count: 0, revKnown: 0 };
-      by[k].revenue += (inv.taxableValue || 0);
+      if (!by[k]) by[k] = { month: k, revenue: 0, kg: 0, count: 0, revKnown: 0, credit: 0 };
+      var f = cnNetFactor(inv, credits);
+      by[k].revenue += (inv.taxableValue || 0) * f;
+      by[k].credit += (credits[inv.id] || 0);
       by[k].count++;
       (inv.items || []).forEach(function(it) {
         var w = lineWeightKg(it, client, inv.date);
-        if (w.known) { by[k].kg += w.kg; by[k].revKnown += (it.amount || 0); }
+        if (w.known) { by[k].kg += w.kg; by[k].revKnown += (it.amount || 0) * f; }
       });
     });
   if (!minDate) return [];
@@ -168,7 +181,7 @@ function cpMonthly(clientId, months) {
   return periodKeysBetween(minDate, maxDate, 'month')
     .slice(-(months || CP_LOOKBACK_MONTHS))
     .map(function(k) {
-      var r = by[k] || { month: k, revenue: 0, kg: 0, count: 0, revKnown: 0 };
+      var r = by[k] || { month: k, revenue: 0, kg: 0, count: 0, revKnown: 0, credit: 0 };
       r.realisation = r.kg > 0 ? r.revKnown / r.kg : null;
       r.label = formatTrendLabel(k, 'month');
       return r;
@@ -208,9 +221,10 @@ function renderClientPerformance(container) {
   if (clientId == null && clients.length > 0) {
     // Default to the account with the most revenue — the one worth watching.
     var byRev = {};
+    var defCredits = cnCreditByInvoice();
     S.invoices.forEach(function(i) {
       if (i.status !== 'active') return;
-      byRev[i.clientId] = (byRev[i.clientId] || 0) + (i.taxableValue || 0);
+      byRev[i.clientId] = (byRev[i.clientId] || 0) + (i.taxableValue || 0) * cnNetFactor(i, defCredits);
     });
     var best = Object.keys(byRev).sort(function(a, b) { return byRev[b] - byRev[a]; })[0];
     clientId = best != null ? parseInt(best, 10) : clients[0].id;
@@ -272,7 +286,8 @@ function renderClientPerformance(container) {
   if (last) {
     html += '<div class="inv-kpi-grid inv-mt-8">' +
       kpiTile('Latest month', formatCurrency(last.revenue),
-        last.count + ' invoice' + (last.count !== 1 ? 's' : ''),
+        last.count + ' invoice' + (last.count !== 1 ? 's' : '') +
+          (last.credit > 0 ? ' · net of ' + formatCurrency(last.credit) + ' credited' : ''),
         prev ? deltaHtml(last.revenue, prev.revenue) : '') +
       kpiTile('Tonnage', formatNum(last.kg / 1000, 2) + ' t', formatNum(last.kg, 0) + ' kg',
         prev ? deltaHtml(last.kg, prev.kg) : '') +

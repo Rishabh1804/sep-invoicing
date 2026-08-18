@@ -66,6 +66,98 @@ function recomputeNextCnNumber() {
   return S.cnNextNum;
 }
 
+/* ===== NETTING =====
+ *
+ * A credit note reduces what a batch of invoices actually earned, so any
+ * measure of realisation reading invoices alone reads high. For SSS Mehta the
+ * standing 2% is the entire distance between the ₹5.40/kg the register shows
+ * and the ₹5.29 the account is really worth — and that account is the one the
+ * whole dashboard exists to examine.
+ *
+ * Two rules decide how the credit is applied, and both are load-bearing.
+ *
+ * **The credit belongs to the invoices it credits, not to the date it was
+ * raised.** The reference note is dated 4 August against a July batch. Booking
+ * it in August would net one period's revenue against another period's
+ * tonnage, which is precisely the numerator-and-denominator error the ₹/kg
+ * figure was rebuilt to avoid. So it is allocated back over `invoiceIds`, and
+ * it lands in whatever period those invoices sit in. A batch straddling a
+ * period boundary splits, each part falling where its invoices fall.
+ *
+ * **It never touches tonnage.** The plating happened; only the price changed.
+ * Netting value against unchanged weight is exactly what makes ₹/kg fall —
+ * reducing both would leave the rate where it started and net nothing at all.
+ */
+
+/* Credit in rupees of taxable value, by invoice id. */
+function cnCreditByInvoice() {
+  var map = {};
+  (S.creditNotes || []).forEach(function(cn) {
+    // A cancelled note credits nothing — it exports at zero and it nets at
+    // zero, which are the same statement.
+    if (cn.status === 'cancelled') return;
+    var amt = cn.taxableValue || 0;
+    if (amt <= 0) return;
+
+    /* Shared out by each invoice's own taxable value, which is how the note
+       was computed in the first place: a flat percentage of the batch.
+
+       Nothing is rounded here. These shares are summed long before anything is
+       displayed, and gstRound on each one would drift the total off the figure
+       printed on the note itself. */
+    var parts = [], total = 0;
+    (cn.invoiceIds || []).forEach(function(id) {
+      var inv = S.invoices.find(function(i) { return i.id === id; });
+      if (!inv || inv.status !== 'active') return;
+      var t = inv.taxableValue || 0;
+      if (t <= 0) return;
+      parts.push({ id: id, t: t });
+      total += t;
+    });
+    if (total <= 0) return;
+    parts.forEach(function(p) { map[p.id] = (map[p.id] || 0) + amt * (p.t / total); });
+  });
+  return map;
+}
+
+/* The fraction of an invoice's value that survives the credit notes raised
+   against it.
+
+   Applied per LINE, not per invoice total: a flat percentage of a batch is a
+   flat percentage of every line in it, and only a line-level factor keeps Top
+   Items and the per-client realisation reading the same book as the headline.
+   Because the factor is uniform, it nets the invoice's tax correctly too — the
+   note's own GST is 18% of the credit for the same reason the invoice's is. */
+function cnNetFactor(inv, credits) {
+  if (!inv || !credits) return 1;
+  var c = credits[inv.id] || 0;
+  var t = inv.taxableValue || 0;
+  if (c <= 0 || t <= 0) return 1;
+  return Math.max(0, 1 - c / t);
+}
+
+/* Credit actually landing on a set of invoices — what to state was deducted. */
+function cnCreditOn(invoices, credits) {
+  if (!credits) return 0;
+  return invoices.reduce(function(s, i) { return s + (credits[i.id] || 0); }, 0);
+}
+
+/* Credit on active notes that reached no invoice at all, because every invoice
+   the note names has since been deleted or cancelled.
+
+   Reported rather than absorbed. Such a note still reduced what the customer
+   paid, so a dashboard that quietly drops it overstates earnings by exactly
+   that amount — and the deletion, not the discount, is what needs looking at. */
+function cnUnallocated(credits) {
+  var allocated = 0;
+  Object.keys(credits || {}).forEach(function(k) { allocated += credits[k]; });
+  var issued = 0;
+  (S.creditNotes || []).forEach(function(cn) {
+    if (cn.status !== 'cancelled') issued += (cn.taxableValue || 0);
+  });
+  return Math.max(0, issued - allocated);
+}
+
 /* Whole days between the earliest and latest invoice date in the batch. */
 function cnBatchSpanDays(invoices) {
   var dates = invoices.map(function(i) { return i.date; }).filter(Boolean).sort();

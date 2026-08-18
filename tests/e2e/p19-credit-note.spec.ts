@@ -119,13 +119,42 @@ test('P19: the series is its own, formatted off the invoice prefix', async ({ pa
   await loadForBatch(page, mehtaState([invoice(1, { date: daysAgoIso(10) })]));
   await openCnForm(page);
   // Named on the button before it is raised, so the number is never a surprise.
-  await expect(page.locator('[data-action="invCnSave"]')).toContainText('CN/001/26-27');
+  // 006, not 001: CN/001–005 of this year were issued by hand before the app.
+  await expect(page.locator('[data-action="invCnSave"]')).toContainText('CN/006/26-27');
   await page.locator('[data-action="invCnSave"]').click();
   await page.locator('.inv-cn-doc').waitFor();
 
   const s = await stored(page);
-  expect(s.creditNotes[0].displayNumber).toBe('CN/001/26-27');
-  expect(s.cnNextNum).toBe(2);
+  expect(s.creditNotes[0].displayNumber).toBe('CN/006/26-27');
+  expect(s.cnNextNum).toBe(7);
+});
+
+test('P19: the series does not restart at 001 over numbers issued by hand', async ({ page }) => {
+  const st = mehtaState([invoice(1, { date: daysAgoIso(10) })]);
+  // A device that has never raised one in the app still must not hand out a
+  // number the customer already holds on paper.
+  await loadForBatch(page, st);
+
+  const before = await stored(page);
+  expect(before.cnNextNum).toBe(6);
+  expect(before._cnSeriesStart1).toBe(true);
+});
+
+test('P19: the series start never walks over a note the app already issued', async ({ page }) => {
+  const st = mehtaState([invoice(1, { date: daysAgoIso(10) })]);
+  // Already at 009 with one raised — the migration must not drag it back to 6.
+  (st as unknown as { creditNotes: unknown[]; cnNextNum: number }).creditNotes = [{
+    id: 'CN-x', cnNumber: '008', displayNumber: 'CN/008/26-27', date: todayIso(),
+    clientId: 1, clientName: 'SSSMEHTA INDUSTRIES LTD.', invoiceIds: [], invoiceNumbers: [],
+    discountPct: 2, batchTaxable: 0, taxableValue: 0, grandTotal: 0, status: 'active',
+    gstType: 'intra', cgstPer: 9, cgstAmt: 0, sgstPer: 9, sgstAmt: 0, igstPer: 0, igstAmt: 0,
+    createdAt: recentTs(),
+  }];
+  (st as unknown as { cnNextNum: number }).cnNextNum = 9;
+  await loadForBatch(page, st);
+
+  const s = await stored(page);
+  expect(s.cnNextNum).toBe(9);
 });
 
 test('P19: the note names the batch it credits, not one invoice of it', async ({ page }) => {
@@ -223,8 +252,8 @@ test('P19: a credit note is cancelled, never deleted — the number stays spent'
   const s = await stored(page);
   expect(s.creditNotes).toHaveLength(1);
   expect(s.creditNotes[0].status).toBe('cancelled');
-  // The customer holds a document bearing CN/001. The next one is CN/002.
-  expect(s.cnNextNum).toBe(2);
+  // The customer holds a document bearing CN/006. The next one is CN/007.
+  expect(s.cnNextNum).toBe(7);
 });
 
 test('P19: the document reads company identity from state, not a frozen copy', async ({ page }) => {
@@ -258,4 +287,51 @@ test('P19: words state the total, and the tax words state all of the tax', async
   await expect(doc.locator('.inv-cn-words-box')).toContainText('Six Thousand Nine Hundred Sixty Four');
   // And all the tax, not one of its two halves: 1062.38, not 531.19.
   await expect(doc.locator('.inv-cn-taxwords')).toContainText('One Thousand Sixty Two');
+});
+
+test('P19: typing in the form does not tear out the control being used', async ({ page }) => {
+  await loadForBatch(page, mehtaState([invoice(1, { date: daysAgoIso(10) })]));
+  await openCnForm(page);
+
+  // Only the discount moves the totals. Re-rendering for the others replaced
+  // the control mid-interaction — on a date input that means pulling the native
+  // picker out from under the pointer.
+  await page.evaluate(() => {
+    ['cnDate', 'cnVehicle'].forEach((id) => {
+      const el = document.getElementById(id);
+      if (el) el.dataset.probe = 'live';
+    });
+  });
+
+  await page.locator('#cnVehicle').fill('JH05DR2505');
+  await page.locator('#cnDate').fill(new Date().toISOString().slice(0, 10));
+
+  expect(await page.evaluate(() => document.getElementById('cnDate')?.dataset.probe)).toBe('live');
+  expect(await page.evaluate(() => document.getElementById('cnVehicle')?.dataset.probe)).toBe('live');
+  // The values still reach the saved note.
+  await page.locator('[data-action="invCnSave"]').click();
+  const s = await stored(page);
+  expect(s.creditNotes[0].vehicleNo).toBe('JH05DR2505');
+});
+
+test('P19: the export is named for the notes it holds, not the register filter', async ({ page }) => {
+  await loadForBatch(page, mehtaState([invoice(1, { date: daysAgoIso(10) })]));
+  await openCnForm(page);
+  await page.locator('[data-action="invCnSave"]').click();
+  await page.locator('[data-action="invClosePrint"]').click();
+
+  await page.evaluate(() => {
+    (window as any).__csv = null;
+    (window as any).downloadCSV = (filename: string, rows: unknown[][]) => {
+      (window as any).__csv = { filename, rows };
+    };
+  });
+  await page.locator('[data-action="invCnList"]').click();
+  await page.locator('[data-action="invExportCreditNotes"]').click();
+
+  const csv = await page.evaluate(() => (window as any).__csv as { filename: string });
+  // It borrowed the register's scope label, so a file holding every credit note
+  // came out stamped with whatever month the register happened to be showing.
+  const today = new Date().toISOString().slice(0, 10);
+  expect(csv.filename).toBe(`SEP-Credit-Notes_${today}.csv`);
 });

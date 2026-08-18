@@ -552,6 +552,16 @@ function exportCreditNotesCSV() {
       cn.discountPct, cn.batchTaxable, z ? 'Cancelled' : 'Active'
     ]);
   });
-  downloadCSV('SEP-Credit-Notes_' + exportScopeLabel() + '.csv', rows);
+  // Named for what the file holds, not for the register's filters. It borrowed
+  // exportScopeLabel(), so a file containing every credit note came out stamped
+  // with whatever month the register happened to be showing.
+  // From the dates themselves, not from the ends of a list ordered by number:
+  // the two orderings usually agree, but a back-dated note would misname the
+  // file with no way of noticing.
+  var dates = notes.map(function(c) { return c.date; }).filter(Boolean).sort();
+  var span = dates.length === 0 ? 'all'
+    : dates[0] === dates[dates.length - 1] ? dates[0]
+    : dates[0] + '_to_' + dates[dates.length - 1];
+  downloadCSV('SEP-Credit-Notes_' + span + '.csv', rows);
   showToast('Credit notes exported (' + notes.length + ')');
 }

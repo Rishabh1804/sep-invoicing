@@ -203,3 +203,25 @@ test('P22: month on month can be read as revenue, tonnage or realisation', async
   // Realisation is the contract rate for a weight-billed client.
   await expect(page.locator('.inv-kpi', { hasText: 'Realisation' })).toContainText('5.40');
 });
+
+test('P22: a quiet month is kept — the silence is the finding', async ({ page }) => {
+  // Billed, then three months of nothing, then billed again. Dropping the empty
+  // months renders an unbroken run of bars for an account that went dark.
+  const invoices = [
+    invoice('P', 150),
+    invoice('P', 15),
+  ];
+  await loadAppWithState(page, perfState(invoices));
+  await openPerf(page);
+
+  const months = await page.evaluate(() => {
+    const id = Number((document.getElementById('cpClientSelect') as HTMLSelectElement).value);
+    return (window as any).cpMonthly(id, 12).map((m: { revenue: number }) => m.revenue);
+  });
+  // Five or six buckets depending on where today falls, but the middle ones
+  // must be zeros rather than absent.
+  expect(months.length).toBeGreaterThanOrEqual(5);
+  expect(months.filter((v: number) => v === 0).length).toBeGreaterThanOrEqual(3);
+  expect(months[0]).toBeGreaterThan(0);
+  expect(months[months.length - 1]).toBeGreaterThan(0);
+});

@@ -455,6 +455,19 @@ function toggleIMExpand(imId) {
   _renderIMView();
 }
 
+/* Read the IM filters, and drop the selection they hide.
+   Rows filtered off the screen stayed ticked, and Create Invoice From IM acts
+   on the whole selection — so material the operator could no longer see went
+   onto the invoice. Same shape as the register's, and the same fix. */
+function captureIMFilters() {
+  var icf = document.getElementById('imClientFilter');
+  var isf = document.getElementById('imStatusFilter');
+  if (icf) _imFilter.clientId = icf.value;
+  if (isf) _imFilter.status = isf.value;
+  _imSelected = {};
+  _renderIMView();
+}
+
 function toggleIMItem(itemId) {
   _imSelected[itemId] = !_imSelected[itemId];
   if (!_imSelected[itemId]) delete _imSelected[itemId];
@@ -483,16 +496,34 @@ function createInvoiceFromIM() {
   // Collect selected items and determine client
   const selectedItems = [];
   const linkedIMIds = new Set();
+  const clientIds = new Set();
   let clientId = null;
   (S.incomingMaterial || []).forEach(im => {
     im.items.forEach(it => {
       if (_imSelected[it.id]) {
         selectedItems.push({ ...it, _imId: im.id, _challanNo: im.challanNo, _challanDate: im.challanDate, _vehicleNo: im.vehicleNo });
         linkedIMIds.add(im.id);
+        clientIds.add(im.clientId);
         clientId = im.clientId;
       }
     });
   });
+
+  /* An invoice is addressed to one customer. This used to take whichever
+     challan happened to come last in the array — the loop above simply
+     overwrote clientId — so a selection spanning two clients produced one
+     invoice carrying both clients' material, billed to one of them and priced
+     off that one's rate card. Reachable without any filter at all: the IM list
+     defaults to All Clients, so two challans from two customers sit next to
+     each other and both can be ticked. */
+  if (clientIds.size > 1) {
+    var names = Array.from(clientIds).map(function(cid) {
+      var c = S.clients.find(function(x) { return x.id === cid; });
+      return c ? c.name : ('client ' + cid);
+    });
+    showToast('One invoice, one customer — this selection spans ' + names.join(' and '), 'error');
+    return;
+  }
 
   if (!clientId) return;
   const client = S.clients.find(c => c.id === clientId);

@@ -117,7 +117,13 @@ function getFilteredInvoices() {
 /* Read every register filter control into regFilter, in one place.
    Two event paths reached these fields with the same block of code copied into
    both, so a new filter had to be added twice or it silently did nothing on one
-   of them. */
+   of them.
+
+   Driven by `change` only. These controls used to carry a data-action as well,
+   which meant the click that OPENS a <select> ran this — and this re-renders
+   the toolbar, replacing the element the dropdown was hanging off, so the list
+   shut before an option could be picked. A select speaks through change; a
+   click on one is not a choice. */
 function captureRegFilters(changedId) {
   var cf = document.getElementById('regClientFilter');
   var mf = document.getElementById('regMonthFilter');
@@ -146,9 +152,17 @@ function captureRegFilters(changedId) {
   _regSelected = {};
 
   saveRegFilter();
+  // The toolbar has to be rebuilt — the range's clear button, the scope note
+  // and the select-all count all depend on the filters — but rebuilding it
+  // throws away the control the operator is standing on, so focus is put back.
+  var focusId = document.activeElement && document.activeElement.id;
   _regToolbarRendered = false;
   renderRegisterToolbar();
   _regToolbarRendered = true;
+  if (focusId) {
+    var back = document.getElementById(focusId);
+    if (back) { try { back.focus(); } catch (err) {} }
+  }
   _renderRegView();
   _renderRegSelBar();
 }
@@ -199,10 +213,10 @@ function renderRegisterToolbar() {
     '<svg class="inv-search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>' +
     '<input type="text" class="inv-reg-search" id="regSearch" placeholder="Search invoice or client" value="' + escHtml(regFilter.search) + '" autocomplete="off"></div>' +
     '<div class="inv-reg-filters">' +
-    '<div class="inv-form-group"><select class="inv-form-select" id="regClientFilter" data-action="invFilterRegister">' +
+    '<div class="inv-form-group"><select class="inv-form-select" id="regClientFilter" aria-label="Filter by client">' +
     '<option value="">All Clients</option>' + clientOpts + '</select></div>' +
-    '<div class="inv-form-group"><input type="month" class="inv-form-input inv-mono" id="regMonthFilter" value="' + escHtml(regFilter.month || '') + '" data-action="invFilterRegister" aria-label="Filter by month"></div>' +
-    '<div class="inv-form-group"><select class="inv-form-select" id="regStateFilter" data-action="invFilterRegister">' +
+    '<div class="inv-form-group"><input type="month" class="inv-form-input inv-mono" id="regMonthFilter" value="' + escHtml(regFilter.month || '') + '" aria-label="Filter by month"></div>' +
+    '<div class="inv-form-group"><select class="inv-form-select" id="regStateFilter" aria-label="Filter by state">' +
     '<option value=""' + (!regFilter.state ? ' selected' : '') + '>All States</option>' +
     '<option value="created"' + (regFilter.state === 'created' ? ' selected' : '') + '>Created</option>' +
     '<option value="dispatched"' + (regFilter.state === 'dispatched' ? ' selected' : '') + '>Dispatched</option>' +
@@ -213,9 +227,9 @@ function renderRegisterToolbar() {
     // Explicit range, for an export that does not line up with a calendar month.
     '<div class="inv-reg-range">' +
     '<label class="inv-reg-range-field"><span class="inv-reg-range-label">From</span>' +
-    '<input type="date" class="inv-form-input inv-mono" id="regDateFrom" value="' + escHtml(regFilter.dateFrom || '') + '" data-action="invFilterRegister"></label>' +
+    '<input type="date" class="inv-form-input inv-mono" id="regDateFrom" value="' + escHtml(regFilter.dateFrom || '') + '"></label>' +
     '<label class="inv-reg-range-field"><span class="inv-reg-range-label">To</span>' +
-    '<input type="date" class="inv-form-input inv-mono" id="regDateTo" value="' + escHtml(regFilter.dateTo || '') + '" data-action="invFilterRegister"></label>' +
+    '<input type="date" class="inv-form-input inv-mono" id="regDateTo" value="' + escHtml(regFilter.dateTo || '') + '"></label>' +
     (rangeActive ? '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invRegClearRange">Clear range</button>' : '') +
     '</div>' +
     (rangeActive ? '<div class="inv-reg-scope-note">Range in use — the month filter is ignored while it is set.</div>' : '') +
@@ -249,8 +263,12 @@ function renderRegisterToolbar() {
     searchEl.addEventListener('input', function() {
       regFilter.search = this.value;
       saveRegFilter();
+      // Search is a filter like any other, and was the one that kept its
+      // selection: narrowing the search left earlier rows ticked but off
+      // screen, and every bulk action still reached them.
+      _regSelected = {};
       clearTimeout(_regSearchTimer);
-      _regSearchTimer = setTimeout(function() { _renderRegView(); }, 200);
+      _regSearchTimer = setTimeout(function() { _renderRegView(); _renderRegSelBar(); }, 200);
     });
   }
 }

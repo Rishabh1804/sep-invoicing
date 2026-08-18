@@ -561,8 +561,12 @@ function saveItem(itemId, mode) {
     // Raised from a line being typed rather than from the Items tab: save, then
     // put the new part straight into that line. Returning the operator to the
     // Items list here is what made the round trip necessary in the first place.
-    saveState();
-    if (finishInlineItemAdd(added)) return;
+    // Only this branch saves early — the shared tail below covers every other
+    // path, and saving in both fired the sync debounce twice for one edit.
+    if (_inlineItemReturn) {
+      saveState();
+      if (finishInlineItemAdd(added)) return;
+    }
   } else {
     var item = S.items.find(function(it) { return it.id === itemId; });
     if (!item) return;

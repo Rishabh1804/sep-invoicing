@@ -247,6 +247,23 @@ if (!S._deriveWeights1) {
   }
 }
 
+/* The credit note series did not start in this app. CN/001 to CN/005 of
+   2026-27 were raised by hand before it existed — the 04/08/26 reference is
+   CN/005 — so the first one issued here is 006, not 001. Restarting the series
+   at 001 would put a number the customer already holds on a second document.
+
+   Runs once, and only while the app has issued none of its own, so it can
+   never walk over a real number. Settings → Credit Note Series carries it
+   afterwards, for the next financial year or a correction. */
+var CN_SERIES_START = 6;
+if (!S._cnSeriesStart1) {
+  if ((S.creditNotes || []).length === 0 && (!S.cnNextNum || S.cnNextNum < CN_SERIES_START)) {
+    S.cnNextNum = CN_SERIES_START;
+  }
+  S._cnSeriesStart1 = true;
+  saveJSON(STORAGE_KEY, S);
+}
+
 /* ===== LAYOUT MODE (Phase 8A) ===== */
 var _resizeTimer = null;
 

@@ -17,7 +17,9 @@ function getDefaultState() {
     // Credit notes run their own series (CN/005/26-27), separate from the
     // invoice series, because they are a separate document under GST.
     creditNotes: [],
-    cnNextNum: 1,
+    // Starts at 6: CN/001–005 of 2026-27 were issued by hand before the app
+    // existed. See the _cnSeriesStart1 migration in init.js.
+    cnNextNum: 6,
     // Full cost per kg, rebuilt from owner-supplied inputs against Apr–Jul 2026
     // actuals. The old 5.46 predated that rebuild and flattered every margin
     // figure by roughly a rupee a kilo. Only ever the default for a fresh
@@ -42,6 +44,8 @@ if (!S.incomingMaterial) S.incomingMaterial = [];
 if (!S.partWeights) S.partWeights = {};
 if (!S.voidedNumbers) S.voidedNumbers = [];
 if (!S.creditNotes) S.creditNotes = [];
+// Existence guard only — init.js's _cnSeriesStart1 migration lifts a series
+// that has never issued anything to where it actually starts.
 if (!S.cnNextNum) S.cnNextNum = 1;
 
 /* ===== LAYOUT MODE (Phase 8A) ===== */

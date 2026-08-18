@@ -258,12 +258,40 @@ function formatTrendLabel(key, gran) {
   return TREND_MONTH_LABELS[parseInt(pp[1], 10) - 1] + ' ' + pp[0].slice(2);
 }
 
+/* Every period key between two dates, in order, including the ones with no
+   data. Walking days and bucketing each is the one loop that works for all
+   three granularities — incrementing an ISO week key by hand does not.
+
+   Filling the gaps matters more than it sounds. A client who billed in January,
+   stopped for three months and came back in May used to render as two adjacent
+   bars, reading as continuous work. The empty months ARE the signal, and a
+   chart that omits them hides the exact collapse it is being consulted about. */
+function periodKeysBetween(minIso, maxIso, gran) {
+  var keys = [], seen = {};
+  var d = new Date(minIso + 'T00:00:00');
+  var end = new Date(maxIso + 'T00:00:00');
+  if (isNaN(d) || isNaN(end)) return keys;
+  // Hard stop: a corrupt date can otherwise spin this for ever.
+  var guard = 0;
+  while (d <= end && guard++ < 4000) {
+    var iso = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') +
+      '-' + String(d.getDate()).padStart(2, '0');
+    var k = gran === 'day' ? iso : gran === 'week' ? isoWeekKey(iso) : iso.substring(0, 7);
+    if (!seen[k]) { seen[k] = true; keys.push(k); }
+    d.setDate(d.getDate() + 1);
+  }
+  return keys;
+}
+
 /* Trend buckets for one series. Revenue and tonnage come off the invoices;
    incoming material comes off the challans, which is a different spine and a
    different date — the challan date, not the invoice date. */
 function buildTrendSeries(gran, series) {
   var by = {};
+  var minDate = null, maxDate = null;
   function bucket(dateStr) {
+    if (!minDate || dateStr < minDate) minDate = dateStr;
+    if (!maxDate || dateStr > maxDate) maxDate = dateStr;
     if (gran === 'day') return dateStr;
     if (gran === 'week') return isoWeekKey(dateStr);
     return dateStr.substring(0, 7);
@@ -302,8 +330,9 @@ function buildTrendSeries(gran, series) {
 
   // Cap series length per granularity for readability + perf.
   var cap = gran === 'day' ? 90 : gran === 'week' ? 26 : 12;
-  var keys = Object.keys(by).sort().slice(-cap);
-  return keys.map(function(k) { return { label: formatTrendLabel(k, gran), value: by[k] }; });
+  if (!minDate) return [];
+  var keys = periodKeysBetween(minDate, maxDate, gran).slice(-cap);
+  return keys.map(function(k) { return { label: formatTrendLabel(k, gran), value: by[k] || 0 }; });
 }
 
 var TREND_SERIES_UNIT = { revenue: 'money', tonnage: 'kg', im: 'kg' };

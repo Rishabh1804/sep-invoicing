@@ -75,7 +75,7 @@ every session start — nothing to set up by hand. CI (`build-sync`) is the back
 ### Tests
 
 ```bash
-pnpm exec playwright test          # 174 tests, both layouts
+pnpm exec playwright test          # 184 tests, both layouts
 ```
 
 Some sandboxes ship a Chromium build Playwright does not expect and block downloading
@@ -83,6 +83,17 @@ the matching one. The session hook detects that and sets `PW_CHROMIUM_PATH`, whi
 `playwright.config.ts` reads; unset everywhere else. The suite finishes in under a minute
 on a CI runner and takes ~13 minutes in a constrained sandbox — don't read a slow local
 run as a hang.
+
+**A `<select>` speaks through `change`, never `click`.** Giving a filter control a
+`data-action` meant the click that *opens* it ran the handler — and if that handler
+re-renders the toolbar, the element the native popup hangs off is replaced and the list
+shuts before anything can be picked. Same for an `<input type="date">` on `input`: only
+re-render for the field that actually changes what is displayed.
+
+**A selection must not outlive the filter that hid it.** Register and IM both had rows that
+stayed ticked after they left the screen, with every bulk action still reaching them.
+`captureRegFilters()` and `captureIMFilters()` clear it; the register search binds its own
+listener and has to do it too.
 
 **`emptyState()` is not empty.** `seed.js` fills `incomingMaterial` with 50 demo challans whenever
 it is an empty array — there is no one-time flag, only the emptiness test — so any spec asserting on

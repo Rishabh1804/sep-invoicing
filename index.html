@@ -1110,9 +1110,13 @@ table.inv-qc-grid.inv-qc-no-top { border-top: 0; }
 .inv-chart-legend { flex: 1 1 220px; min-width: 0; display: flex; flex-direction: column; gap: var(--sp-4); }
 .inv-chart-legend-row {
   display: flex; align-items: center; gap: var(--sp-8);
-  font-size: var(--fs-xs); min-height: 24px; cursor: pointer;
+  font-size: var(--fs-xs); min-height: 24px;
 }
-.inv-chart-legend-row:active { background: var(--surface-2); }
+/* Only the rows that drill through look tappable. The folded "others" wedge
+   has no single client behind it, so offering a pointer on it promised
+   something that never happened. */
+.inv-chart-legend-row[data-action] { cursor: pointer; }
+.inv-chart-legend-row[data-action]:active { background: var(--surface-2); }
 .inv-chart-swatch { width: 10px; height: 10px; border-radius: var(--r-sm); flex: 0 0 auto; }
 .inv-chart-legend-label {
   flex: 1; min-width: 0; color: var(--text-1);
@@ -2610,7 +2614,9 @@ function getDefaultState() {
     // Credit notes run their own series (CN/005/26-27), separate from the
     // invoice series, because they are a separate document under GST.
     creditNotes: [],
-    cnNextNum: 1,
+    // Starts at 6: CN/001–005 of 2026-27 were issued by hand before the app
+    // existed. See the _cnSeriesStart1 migration in init.js.
+    cnNextNum: 6,
     // Full cost per kg, rebuilt from owner-supplied inputs against Apr–Jul 2026
     // actuals. The old 5.46 predated that rebuild and flattered every margin
     // figure by roughly a rupee a kilo. Only ever the default for a fresh
@@ -2635,6 +2641,8 @@ if (!S.incomingMaterial) S.incomingMaterial = [];
 if (!S.partWeights) S.partWeights = {};
 if (!S.voidedNumbers) S.voidedNumbers = [];
 if (!S.creditNotes) S.creditNotes = [];
+// Existence guard only — init.js's _cnSeriesStart1 migration lifts a series
+// that has never issued anything to where it actually starts.
 if (!S.cnNextNum) S.cnNextNum = 1;
 
 /* ===== LAYOUT MODE (Phase 8A) ===== */
@@ -4188,8 +4196,12 @@ function saveItem(itemId, mode) {
     // Raised from a line being typed rather than from the Items tab: save, then
     // put the new part straight into that line. Returning the operator to the
     // Items list here is what made the round trip necessary in the first place.
-    saveState();
-    if (finishInlineItemAdd(added)) return;
+    // Only this branch saves early — the shared tail below covers every other
+    // path, and saving in both fired the sync debounce twice for one edit.
+    if (_inlineItemReturn) {
+      saveState();
+      if (finishInlineItemAdd(added)) return;
+    }
   } else {
     var item = S.items.find(function(it) { return it.id === itemId; });
     if (!item) return;
@@ -5234,6 +5246,11 @@ function openSettings() {
     '<div class="inv-text-muted inv-prefix-preview">Preview: ' + escHtml(S.invPrefix) + String(S.invNextNum).padStart(5,'0') + '</div>' +
     '<div class="inv-form-group"><label class="inv-form-label">Next Number</label><input type="number" class="inv-form-input inv-mono" id="setNextNum" value="' + S.invNextNum + '"></div></div>' +
 
+    '<div class="inv-settings-section"><div class="inv-settings-title">Credit Note Series</div>' +
+    '<div class="inv-text-muted inv-prefix-preview">Preview: ' + escHtml(cnDisplayNumber(S.cnNextNum || 1)) + '</div>' +
+    '<div class="inv-form-group"><label class="inv-form-label">Next Number</label><input type="number" min="1" class="inv-form-input inv-mono" id="setCnNextNum" value="' + (S.cnNextNum || 1) + '"></div>' +
+    '<div class="inv-text-muted inv-storage-text">Credit notes run their own series, formatted off the invoice prefix\u2019s financial year. Notes raised before the app existed are not in here, so set this to the number after the last one issued by hand &mdash; the series must not restart.</div></div>' +
+
     '<div class="inv-settings-section"><div class="inv-settings-title">Cost of Goods</div>' +
     '<div class="inv-form-group"><label class="inv-form-label">Default cost per KG (&#8377;)</label>' +
     '<input type="number" step="0.01" class="inv-form-input inv-mono" id="setDefaultCost" value="' + (S.defaultCostPerKg || 8.55) + '"></div>' +
@@ -5292,6 +5309,23 @@ function saveSettings() {
   S.bankDetails = document.getElementById('setBank').value.trim();
   S.invPrefix = document.getElementById('setPrefix').value.trim();
   S.invNextNum = parseInt(document.getElementById('setNextNum').value) || S.invNextNum;
+  var cnNextEl = document.getElementById('setCnNextNum');
+  if (cnNextEl) {
+    var cnNext = parseInt(cnNextEl.value, 10);
+    // Never below a number already issued from the app: a credit note number
+    // the customer holds may not be handed out twice.
+    var issued = (S.creditNotes || []).reduce(function(mx, c) {
+      var n = parseInt(c.cnNumber, 10);
+      return isNaN(n) ? mx : Math.max(mx, n);
+    }, 0);
+    if (!isNaN(cnNext) && cnNext > 0) {
+      if (cnNext <= issued) {
+        showToast('Next credit note must be above ' + cnPadNum(issued) + ' — that one is issued', 'error');
+      } else {
+        S.cnNextNum = cnNext;
+      }
+    }
+  }
   var costEl = document.getElementById('setDefaultCost');
   if (costEl) { var parsedCost = parseFloat(costEl.value); if (!isNaN(parsedCost) && parsedCost > 0) S.defaultCostPerKg = parsedCost; }
   var apiKeyEl = document.getElementById('setApiKey');
@@ -5986,7 +6020,13 @@ function getFilteredInvoices() {
 /* Read every register filter control into regFilter, in one place.
    Two event paths reached these fields with the same block of code copied into
    both, so a new filter had to be added twice or it silently did nothing on one
-   of them. */
+   of them.
+
+   Driven by `change` only. These controls used to carry a data-action as well,
+   which meant the click that OPENS a <select> ran this — and this re-renders
+   the toolbar, replacing the element the dropdown was hanging off, so the list
+   shut before an option could be picked. A select speaks through change; a
+   click on one is not a choice. */
 function captureRegFilters(changedId) {
   var cf = document.getElementById('regClientFilter');
   var mf = document.getElementById('regMonthFilter');
@@ -6015,9 +6055,17 @@ function captureRegFilters(changedId) {
   _regSelected = {};
 
   saveRegFilter();
+  // The toolbar has to be rebuilt — the range's clear button, the scope note
+  // and the select-all count all depend on the filters — but rebuilding it
+  // throws away the control the operator is standing on, so focus is put back.
+  var focusId = document.activeElement && document.activeElement.id;
   _regToolbarRendered = false;
   renderRegisterToolbar();
   _regToolbarRendered = true;
+  if (focusId) {
+    var back = document.getElementById(focusId);
+    if (back) { try { back.focus(); } catch (err) {} }
+  }
   _renderRegView();
   _renderRegSelBar();
 }
@@ -6068,10 +6116,10 @@ function renderRegisterToolbar() {
     '<svg class="inv-search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>' +
     '<input type="text" class="inv-reg-search" id="regSearch" placeholder="Search invoice or client" value="' + escHtml(regFilter.search) + '" autocomplete="off"></div>' +
     '<div class="inv-reg-filters">' +
-    '<div class="inv-form-group"><select class="inv-form-select" id="regClientFilter" data-action="invFilterRegister">' +
+    '<div class="inv-form-group"><select class="inv-form-select" id="regClientFilter" aria-label="Filter by client">' +
     '<option value="">All Clients</option>' + clientOpts + '</select></div>' +
-    '<div class="inv-form-group"><input type="month" class="inv-form-input inv-mono" id="regMonthFilter" value="' + escHtml(regFilter.month || '') + '" data-action="invFilterRegister" aria-label="Filter by month"></div>' +
-    '<div class="inv-form-group"><select class="inv-form-select" id="regStateFilter" data-action="invFilterRegister">' +
+    '<div class="inv-form-group"><input type="month" class="inv-form-input inv-mono" id="regMonthFilter" value="' + escHtml(regFilter.month || '') + '" aria-label="Filter by month"></div>' +
+    '<div class="inv-form-group"><select class="inv-form-select" id="regStateFilter" aria-label="Filter by state">' +
     '<option value=""' + (!regFilter.state ? ' selected' : '') + '>All States</option>' +
     '<option value="created"' + (regFilter.state === 'created' ? ' selected' : '') + '>Created</option>' +
     '<option value="dispatched"' + (regFilter.state === 'dispatched' ? ' selected' : '') + '>Dispatched</option>' +
@@ -6082,9 +6130,9 @@ function renderRegisterToolbar() {
     // Explicit range, for an export that does not line up with a calendar month.
     '<div class="inv-reg-range">' +
     '<label class="inv-reg-range-field"><span class="inv-reg-range-label">From</span>' +
-    '<input type="date" class="inv-form-input inv-mono" id="regDateFrom" value="' + escHtml(regFilter.dateFrom || '') + '" data-action="invFilterRegister"></label>' +
+    '<input type="date" class="inv-form-input inv-mono" id="regDateFrom" value="' + escHtml(regFilter.dateFrom || '') + '"></label>' +
     '<label class="inv-reg-range-field"><span class="inv-reg-range-label">To</span>' +
-    '<input type="date" class="inv-form-input inv-mono" id="regDateTo" value="' + escHtml(regFilter.dateTo || '') + '" data-action="invFilterRegister"></label>' +
+    '<input type="date" class="inv-form-input inv-mono" id="regDateTo" value="' + escHtml(regFilter.dateTo || '') + '"></label>' +
     (rangeActive ? '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invRegClearRange">Clear range</button>' : '') +
     '</div>' +
     (rangeActive ? '<div class="inv-reg-scope-note">Range in use — the month filter is ignored while it is set.</div>' : '') +
@@ -6118,8 +6166,12 @@ function renderRegisterToolbar() {
     searchEl.addEventListener('input', function() {
       regFilter.search = this.value;
       saveRegFilter();
+      // Search is a filter like any other, and was the one that kept its
+      // selection: narrowing the search left earlier rows ticked but off
+      // screen, and every bulk action still reached them.
+      _regSelected = {};
       clearTimeout(_regSearchTimer);
-      _regSearchTimer = setTimeout(function() { _renderRegView(); }, 200);
+      _regSearchTimer = setTimeout(function() { _renderRegView(); _renderRegSelBar(); }, 200);
     });
   }
 }
@@ -7844,6 +7896,19 @@ function toggleIMExpand(imId) {
   _renderIMView();
 }
 
+/* Read the IM filters, and drop the selection they hide.
+   Rows filtered off the screen stayed ticked, and Create Invoice From IM acts
+   on the whole selection — so material the operator could no longer see went
+   onto the invoice. Same shape as the register's, and the same fix. */
+function captureIMFilters() {
+  var icf = document.getElementById('imClientFilter');
+  var isf = document.getElementById('imStatusFilter');
+  if (icf) _imFilter.clientId = icf.value;
+  if (isf) _imFilter.status = isf.value;
+  _imSelected = {};
+  _renderIMView();
+}
+
 function toggleIMItem(itemId) {
   _imSelected[itemId] = !_imSelected[itemId];
   if (!_imSelected[itemId]) delete _imSelected[itemId];
@@ -7872,16 +7937,34 @@ function createInvoiceFromIM() {
   // Collect selected items and determine client
   const selectedItems = [];
   const linkedIMIds = new Set();
+  const clientIds = new Set();
   let clientId = null;
   (S.incomingMaterial || []).forEach(im => {
     im.items.forEach(it => {
       if (_imSelected[it.id]) {
         selectedItems.push({ ...it, _imId: im.id, _challanNo: im.challanNo, _challanDate: im.challanDate, _vehicleNo: im.vehicleNo });
         linkedIMIds.add(im.id);
+        clientIds.add(im.clientId);
         clientId = im.clientId;
       }
     });
   });
+
+  /* An invoice is addressed to one customer. This used to take whichever
+     challan happened to come last in the array — the loop above simply
+     overwrote clientId — so a selection spanning two clients produced one
+     invoice carrying both clients' material, billed to one of them and priced
+     off that one's rate card. Reachable without any filter at all: the IM list
+     defaults to All Clients, so two challans from two customers sit next to
+     each other and both can be ticked. */
+  if (clientIds.size > 1) {
+    var names = Array.from(clientIds).map(function(cid) {
+      var c = S.clients.find(function(x) { return x.id === cid; });
+      return c ? c.name : ('client ' + cid);
+    });
+    showToast('One invoice, one customer — this selection spans ' + names.join(' and '), 'error');
+    return;
+  }
 
   if (!clientId) return;
   const client = S.clients.find(c => c.id === clientId);
@@ -9393,7 +9476,17 @@ function exportCreditNotesCSV() {
       cn.discountPct, cn.batchTaxable, z ? 'Cancelled' : 'Active'
     ]);
   });
-  downloadCSV('SEP-Credit-Notes_' + exportScopeLabel() + '.csv', rows);
+  // Named for what the file holds, not for the register's filters. It borrowed
+  // exportScopeLabel(), so a file containing every credit note came out stamped
+  // with whatever month the register happened to be showing.
+  // From the dates themselves, not from the ends of a list ordered by number:
+  // the two orderings usually agree, but a back-dated note would misname the
+  // file with no way of noticing.
+  var dates = notes.map(function(c) { return c.date; }).filter(Boolean).sort();
+  var span = dates.length === 0 ? 'all'
+    : dates[0] === dates[dates.length - 1] ? dates[0]
+    : dates[0] + '_to_' + dates[dates.length - 1];
+  downloadCSV('SEP-Credit-Notes_' + span + '.csv', rows);
   showToast('Credit notes exported (' + notes.length + ')');
 }
 /* ===== CHARTS =====
@@ -9899,12 +9992,40 @@ function formatTrendLabel(key, gran) {
   return TREND_MONTH_LABELS[parseInt(pp[1], 10) - 1] + ' ' + pp[0].slice(2);
 }
 
+/* Every period key between two dates, in order, including the ones with no
+   data. Walking days and bucketing each is the one loop that works for all
+   three granularities — incrementing an ISO week key by hand does not.
+
+   Filling the gaps matters more than it sounds. A client who billed in January,
+   stopped for three months and came back in May used to render as two adjacent
+   bars, reading as continuous work. The empty months ARE the signal, and a
+   chart that omits them hides the exact collapse it is being consulted about. */
+function periodKeysBetween(minIso, maxIso, gran) {
+  var keys = [], seen = {};
+  var d = new Date(minIso + 'T00:00:00');
+  var end = new Date(maxIso + 'T00:00:00');
+  if (isNaN(d) || isNaN(end)) return keys;
+  // Hard stop: a corrupt date can otherwise spin this for ever.
+  var guard = 0;
+  while (d <= end && guard++ < 4000) {
+    var iso = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') +
+      '-' + String(d.getDate()).padStart(2, '0');
+    var k = gran === 'day' ? iso : gran === 'week' ? isoWeekKey(iso) : iso.substring(0, 7);
+    if (!seen[k]) { seen[k] = true; keys.push(k); }
+    d.setDate(d.getDate() + 1);
+  }
+  return keys;
+}
+
 /* Trend buckets for one series. Revenue and tonnage come off the invoices;
    incoming material comes off the challans, which is a different spine and a
    different date — the challan date, not the invoice date. */
 function buildTrendSeries(gran, series) {
   var by = {};
+  var minDate = null, maxDate = null;
   function bucket(dateStr) {
+    if (!minDate || dateStr < minDate) minDate = dateStr;
+    if (!maxDate || dateStr > maxDate) maxDate = dateStr;
     if (gran === 'day') return dateStr;
     if (gran === 'week') return isoWeekKey(dateStr);
     return dateStr.substring(0, 7);
@@ -9943,8 +10064,9 @@ function buildTrendSeries(gran, series) {
 
   // Cap series length per granularity for readability + perf.
   var cap = gran === 'day' ? 90 : gran === 'week' ? 26 : 12;
-  var keys = Object.keys(by).sort().slice(-cap);
-  return keys.map(function(k) { return { label: formatTrendLabel(k, gran), value: by[k] }; });
+  if (!minDate) return [];
+  var keys = periodKeysBetween(minDate, maxDate, gran).slice(-cap);
+  return keys.map(function(k) { return { label: formatTrendLabel(k, gran), value: by[k] || 0 }; });
 }
 
 var TREND_SERIES_UNIT = { revenue: 'money', tonnage: 'kg', im: 'kg' };
@@ -10983,9 +11105,12 @@ function cpFindRenames(stopped, fresh) {
 /* Revenue, tonnage and realisation by month for one client. */
 function cpMonthly(clientId, months) {
   var by = {};
+  var minDate = null, maxDate = null;
   var client = S.clients.find(function(c) { return c.id === clientId; }) || null;
   S.invoices.filter(function(i) { return i.status === 'active' && i.clientId === clientId && i.date; })
     .forEach(function(inv) {
+      if (!minDate || inv.date < minDate) minDate = inv.date;
+      if (!maxDate || inv.date > maxDate) maxDate = inv.date;
       var k = inv.date.substring(0, 7);
       if (!by[k]) by[k] = { month: k, revenue: 0, kg: 0, count: 0, revKnown: 0 };
       by[k].revenue += (inv.taxableValue || 0);
@@ -10995,12 +11120,17 @@ function cpMonthly(clientId, months) {
         if (w.known) { by[k].kg += w.kg; by[k].revKnown += (it.amount || 0); }
       });
     });
-  return Object.keys(by).sort().slice(-(months || CP_LOOKBACK_MONTHS)).map(function(k) {
-    var r = by[k];
-    r.realisation = r.kg > 0 ? r.revKnown / r.kg : null;
-    r.label = formatTrendLabel(k, 'month');
-    return r;
-  });
+  if (!minDate) return [];
+  // Months with nothing in them are kept. A client who went quiet for a quarter
+  // must not render as an unbroken run of bars — that silence is the finding.
+  return periodKeysBetween(minDate, maxDate, 'month')
+    .slice(-(months || CP_LOOKBACK_MONTHS))
+    .map(function(k) {
+      var r = by[k] || { month: k, revenue: 0, kg: 0, count: 0, revKnown: 0 };
+      r.realisation = r.kg > 0 ? r.revKnown / r.kg : null;
+      r.label = formatTrendLabel(k, 'month');
+      return r;
+    });
 }
 
 /* ===== VIEW ===== */
@@ -11046,7 +11176,7 @@ function renderClientPerformance(container) {
 
   var html = '<div class="inv-cp-toolbar">' +
     '<div class="inv-form-group"><label class="inv-form-label">Client</label>' +
-    '<select class="inv-form-select" id="cpClientSelect" data-action="invPerfClient">' +
+    '<select class="inv-form-select" id="cpClientSelect" aria-label="Client">' +
     clients.map(function(c) {
       return '<option value="' + c.id + '"' + (c.id === clientId ? ' selected' : '') + '>' + escHtml(c.name) + '</option>';
     }).join('') + '</select></div></div>';
@@ -12100,7 +12230,6 @@ document.addEventListener('click', function(e) {
     case 'invExportSales': exportSalesCSV(); break;
     case 'invExportGstr1': exportGSTR1CSV(); break;
     case 'invSelectPart': selectPartForLine(parseInt(btn.dataset.idx), parseInt(btn.dataset.partId)); break;
-    case 'invFilterRegister': captureRegFilters(btn.id); break;
     case 'invRegClearRange': {
       regFilter.dateFrom = ''; regFilter.dateTo = '';
       saveRegFilter();
@@ -12119,14 +12248,7 @@ document.addEventListener('click', function(e) {
     case 'invCheckIMItem': toggleIMItem(btn.dataset.itemId); break;
     case 'invCheckIMChallan': toggleIMChallan(btn.dataset.id); break;
     case 'invCreateFromIM': createInvoiceFromIM(); break;
-    case 'invFilterIM': {
-      const icf = document.getElementById('imClientFilter');
-      const isf = document.getElementById('imStatusFilter');
-      if (icf) _imFilter.clientId = icf.value;
-      if (isf) _imFilter.status = isf.value;
-      _renderIMView();
-      break;
-    }
+    case 'invFilterIM': captureIMFilters(); break;
     // Phase 4: Print preview
     case 'invPreviewInvoice': closeOverlay(); showPrintPreview(btn.dataset.id); break;
     case 'invClosePrint': closePrintPreview(); break;
@@ -12433,11 +12555,7 @@ document.addEventListener('change', function(e) {
   }
   // IM filters
   if (e.target.id === 'imClientFilter' || e.target.id === 'imStatusFilter') {
-    const icf = document.getElementById('imClientFilter');
-    const isf = document.getElementById('imStatusFilter');
-    if (icf) _imFilter.clientId = icf.value;
-    if (isf) _imFilter.status = isf.value;
-    _renderIMView();
+    captureIMFilters();
   }
   // Client performance: which account is under the lens
   if (e.target.id === 'cpClientSelect') {
@@ -12513,9 +12631,13 @@ document.addEventListener('input', function(e) {
   // figure being committed is the one on screen. Focus is preserved because
   // the caret position is restored across the re-render.
   if (e.target.dataset.action === 'invCnInput') {
+    captureCnForm();
+    // Only the discount moves the totals. The date and the vehicle number do
+    // not, and re-rendering for them replaced the control being used — which
+    // on a date input means tearing the native picker out mid-choice.
+    if (e.target.id !== 'cnPct') return;
     var cnId = e.target.id, cnCaret = null;
     try { cnCaret = e.target.selectionStart; } catch (err) { cnCaret = null; }
-    captureCnForm();
     renderCreditNoteForm();
     var back = document.getElementById(cnId);
     if (back) {
@@ -13023,6 +13145,23 @@ if (!S._deriveWeights1) {
         (_dw.highVariance > 0 ? ' (' + _dw.highVariance + ' with inconsistent rates)' : ''));
     }
   }
+}
+
+/* The credit note series did not start in this app. CN/001 to CN/005 of
+   2026-27 were raised by hand before it existed — the 04/08/26 reference is
+   CN/005 — so the first one issued here is 006, not 001. Restarting the series
+   at 001 would put a number the customer already holds on a second document.
+
+   Runs once, and only while the app has issued none of its own, so it can
+   never walk over a real number. Settings → Credit Note Series carries it
+   afterwards, for the next financial year or a correction. */
+var CN_SERIES_START = 6;
+if (!S._cnSeriesStart1) {
+  if ((S.creditNotes || []).length === 0 && (!S.cnNextNum || S.cnNextNum < CN_SERIES_START)) {
+    S.cnNextNum = CN_SERIES_START;
+  }
+  S._cnSeriesStart1 = true;
+  saveJSON(STORAGE_KEY, S);
 }
 
 /* ===== LAYOUT MODE (Phase 8A) ===== */

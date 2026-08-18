@@ -22,6 +22,11 @@ function openSettings() {
     '<div class="inv-text-muted inv-prefix-preview">Preview: ' + escHtml(S.invPrefix) + String(S.invNextNum).padStart(5,'0') + '</div>' +
     '<div class="inv-form-group"><label class="inv-form-label">Next Number</label><input type="number" class="inv-form-input inv-mono" id="setNextNum" value="' + S.invNextNum + '"></div></div>' +
 
+    '<div class="inv-settings-section"><div class="inv-settings-title">Credit Note Series</div>' +
+    '<div class="inv-text-muted inv-prefix-preview">Preview: ' + escHtml(cnDisplayNumber(S.cnNextNum || 1)) + '</div>' +
+    '<div class="inv-form-group"><label class="inv-form-label">Next Number</label><input type="number" min="1" class="inv-form-input inv-mono" id="setCnNextNum" value="' + (S.cnNextNum || 1) + '"></div>' +
+    '<div class="inv-text-muted inv-storage-text">Credit notes run their own series, formatted off the invoice prefix\u2019s financial year. Notes raised before the app existed are not in here, so set this to the number after the last one issued by hand &mdash; the series must not restart.</div></div>' +
+
     '<div class="inv-settings-section"><div class="inv-settings-title">Cost of Goods</div>' +
     '<div class="inv-form-group"><label class="inv-form-label">Default cost per KG (&#8377;)</label>' +
     '<input type="number" step="0.01" class="inv-form-input inv-mono" id="setDefaultCost" value="' + (S.defaultCostPerKg || 8.55) + '"></div>' +
@@ -80,6 +85,23 @@ function saveSettings() {
   S.bankDetails = document.getElementById('setBank').value.trim();
   S.invPrefix = document.getElementById('setPrefix').value.trim();
   S.invNextNum = parseInt(document.getElementById('setNextNum').value) || S.invNextNum;
+  var cnNextEl = document.getElementById('setCnNextNum');
+  if (cnNextEl) {
+    var cnNext = parseInt(cnNextEl.value, 10);
+    // Never below a number already issued from the app: a credit note number
+    // the customer holds may not be handed out twice.
+    var issued = (S.creditNotes || []).reduce(function(mx, c) {
+      var n = parseInt(c.cnNumber, 10);
+      return isNaN(n) ? mx : Math.max(mx, n);
+    }, 0);
+    if (!isNaN(cnNext) && cnNext > 0) {
+      if (cnNext <= issued) {
+        showToast('Next credit note must be above ' + cnPadNum(issued) + ' — that one is issued', 'error');
+      } else {
+        S.cnNextNum = cnNext;
+      }
+    }
+  }
   var costEl = document.getElementById('setDefaultCost');
   if (costEl) { var parsedCost = parseFloat(costEl.value); if (!isNaN(parsedCost) && parsedCost > 0) S.defaultCostPerKg = parsedCost; }
   var apiKeyEl = document.getElementById('setApiKey');

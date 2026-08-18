@@ -147,9 +147,12 @@ function cpFindRenames(stopped, fresh) {
 /* Revenue, tonnage and realisation by month for one client. */
 function cpMonthly(clientId, months) {
   var by = {};
+  var minDate = null, maxDate = null;
   var client = S.clients.find(function(c) { return c.id === clientId; }) || null;
   S.invoices.filter(function(i) { return i.status === 'active' && i.clientId === clientId && i.date; })
     .forEach(function(inv) {
+      if (!minDate || inv.date < minDate) minDate = inv.date;
+      if (!maxDate || inv.date > maxDate) maxDate = inv.date;
       var k = inv.date.substring(0, 7);
       if (!by[k]) by[k] = { month: k, revenue: 0, kg: 0, count: 0, revKnown: 0 };
       by[k].revenue += (inv.taxableValue || 0);
@@ -159,12 +162,17 @@ function cpMonthly(clientId, months) {
         if (w.known) { by[k].kg += w.kg; by[k].revKnown += (it.amount || 0); }
       });
     });
-  return Object.keys(by).sort().slice(-(months || CP_LOOKBACK_MONTHS)).map(function(k) {
-    var r = by[k];
-    r.realisation = r.kg > 0 ? r.revKnown / r.kg : null;
-    r.label = formatTrendLabel(k, 'month');
-    return r;
-  });
+  if (!minDate) return [];
+  // Months with nothing in them are kept. A client who went quiet for a quarter
+  // must not render as an unbroken run of bars — that silence is the finding.
+  return periodKeysBetween(minDate, maxDate, 'month')
+    .slice(-(months || CP_LOOKBACK_MONTHS))
+    .map(function(k) {
+      var r = by[k] || { month: k, revenue: 0, kg: 0, count: 0, revKnown: 0 };
+      r.realisation = r.kg > 0 ? r.revKnown / r.kg : null;
+      r.label = formatTrendLabel(k, 'month');
+      return r;
+    });
 }
 
 /* ===== VIEW ===== */
@@ -210,7 +218,7 @@ function renderClientPerformance(container) {
 
   var html = '<div class="inv-cp-toolbar">' +
     '<div class="inv-form-group"><label class="inv-form-label">Client</label>' +
-    '<select class="inv-form-select" id="cpClientSelect" data-action="invPerfClient">' +
+    '<select class="inv-form-select" id="cpClientSelect" aria-label="Client">' +
     clients.map(function(c) {
       return '<option value="' + c.id + '"' + (c.id === clientId ? ' selected' : '') + '>' + escHtml(c.name) + '</option>';
     }).join('') + '</select></div></div>';

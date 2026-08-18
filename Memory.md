@@ -1,7 +1,7 @@
 # Memory.md
 **Scope:** Persistent institutional knowledge across all repos
 **Owner:** The Consul (cross-repo overseer)
-**Updated:** 14 August 2026
+**Updated:** 18 August 2026
 
 ---
 
@@ -47,7 +47,16 @@ CA by background. Business Manager at Soma Electro Products (zinc electroplating
   one A4 page per part per dispatch, single or bulk, into the existing print view. Closes
   the prototype in `docs/test-certificates/`, whose generator could not see the register,
   so nothing it printed was tied to a document the customer held
-- 27 modules, ~11,750 lines. 128 e2e tests gate every PR
+- **17 Aug 2026 (PR #24):** the owner's eight-item list — register select-all, date-range
+  exports and serial-order CSVs; credit notes (SSS Mehta's standing 2% batch discount, own
+  CN series, CDNR export); inline item creation during entry; a rewritten chart layer with
+  revenue/tonnage/incoming-material trends; Top Items rankable by value, tonnage or ₹/kg;
+  and a Client Performance view that names materials which have quietly stopped arriving
+- **17 Aug 2026 (PR #25):** bug sweep, eight findings — `docs/BUGFIX_REPORT_2026-08-17.md`.
+  Three were self-inflicted by PR #24 the same day, including register filter dropdowns that
+  closed the instant they were opened, and a credit note series that restarted at 001 over
+  CN/001–005 already issued by hand
+- 30 modules, ~13,500 lines. 185 e2e tests gate every PR
 - Development moved off Termux to Claude Code (clones fresh; `.claude/hooks/session-start.sh`
   arms the pre-commit hook and installs test deps)
 - **Open with the owner:**
@@ -139,6 +148,34 @@ decision. Do not silently propagate the SEP pattern to another repo without sett
   the page that prints. The reflowing alternative looked tidier at 393px and broke table
   headings into `Ob ser vati on` — but the real cost was two sets of sizes free to drift apart,
   where the screen stops predicting the output.
+- **A bug is not reported until it has been reproduced.** A code path is a hypothesis; the
+  failing spec is the evidence. In SEP's Aug 2026 sweep a finding was called serious and
+  reachable on the strength of reading one function — `createInvoiceFromIM()` assigns
+  `clientId` inside its collect loop, so a mixed selection takes the last challan's client.
+  The selection bar already rendered that button `disabled` for exactly that case. The test
+  written twenty minutes later found out, by failing to click a disabled button.
+
+  The reasoning error was directional: the trace ran **backward** from the bad line ("can the
+  data reach this state?") and never **forward** from the entry point ("what invokes this, and
+  is it invokable in that state?"). One grep for the call site was the whole check, and it was
+  run after reporting instead of before. So: a finding names its call sites and their guards,
+  and the red test comes before the claim. If the spec cannot be made to fail, there is no bug
+  to report yet.
+
+  Weigh the prior by house style. In a codebase that layers its defences — SEP guards with a
+  `disabled` attribute, a `multiClient` precheck, warn-not-block on duplicates, `reserved` on
+  deletion — an unguarded function is *weak* evidence, because the guard is usually one layer up.
+- **Three labels, not one severity scale.** *Defect*: reproduced, a spec fails without the fix.
+  *Latent*: the path exists but something else guards it, and it would bite if that guard moved.
+  *Hardening*: the invariant is real but lives in the wrong layer. Being made to choose at
+  report time is what surfaces missing evidence, because "defect" is a claim that has to be
+  backed. Carry it into the write-up: **every finding names the spec that pins it**, and a row
+  that cannot name one is a row not yet verified. In SEP's bug report the single finding without
+  a spec name is the single finding that was overstated — the format made it visible.
+
+  The cost is real and worth paying: this discipline makes a review slower and quieter, not
+  better at finding bugs. It buys credibility instead. Seven sound findings lose their weight
+  if the eighth is overstated.
 
 ## Companion Registry (Quick Reference)
 

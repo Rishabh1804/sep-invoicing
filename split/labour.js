@@ -38,6 +38,7 @@ function labourCfg() {
     restCreditMinDays: c.restCreditMinDays != null ? c.restCreditMinDays : 6,
     extraRate: c.extraRate || 0,
     modelPerKg: c.modelPerKg || 0,
+    extraHoursPerHead: c.extraHoursPerHead != null ? c.extraHoursPerHead : 8,
     gateFull: c.gateFull != null ? c.gateFull : 0.9,
     gateHalf: c.gateHalf != null ? c.gateHalf : 0.8
   };

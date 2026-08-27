@@ -19,13 +19,13 @@ Workforce management and invoicing PWA for **Soma Electro Products**, a zinc ele
 
 ## Architecture
 
-Split-file PWA. 33 modules, ~15,500 lines total.
+Split-file PWA. 33 modules, ~15,750 lines total.
 
 ```
 split/
 ├── build.sh           ← writes ../sep-invoicing.html, syncs ../index.html
 ├── head.html          ← DOCTYPE, meta, font links (17 lines)
-├── styles.css         ← All CSS with inv- prefix (2,700 lines)
+├── styles.css         ← All CSS with inv- prefix (2,708 lines)
 ├── body.html          ← HTML body, tabs, print view (137 lines)
 ├── data.js            ← ITEMS_MASTER + SEED_CLIENTS (27 lines)
 ├── state.js           ← State mgmt, utilities, escHtml, gstRound (324 lines)
@@ -47,7 +47,7 @@ split/
 ├── charts.js          ← Reusable SVG charts: line, bar, pie, ranked bars (243 lines)
 ├── staff.js           ← Roster + attendance + roster import: day, week, extra hours (901 lines)
 ├── labour.js          ← Labour: three pay tiers, fixed/variable, by area, ₹/kg (448 lines)
-├── areas.js           ← Areas: staffing vs complement + the extra cross-check (316 lines)
+├── areas.js           ← Areas: staffing vs norms + the extra reconciled (500 lines)
 ├── stats.js           ← Stats dashboard + History activity log (1,195 lines)
 ├── client-perf.js     ← Client performance: month on month + material cadence (314 lines)
 ├── im-form.js         ← IM add/edit/delete challan form (450 lines)
@@ -78,7 +78,7 @@ every session start — nothing to set up by hand. CI (`build-sync`) is the back
 ### Tests
 
 ```bash
-pnpm exec playwright test          # 220 tests, both layouts
+pnpm exec playwright test          # 229 tests, both layouts
 ```
 
 Some sandboxes ship a Chromium build Playwright does not expect and block downloading
@@ -301,21 +301,39 @@ Heads are counted from the day's marks, so a worker lent to another area counts 
 actually stood; and marks on `flex` are reported as a named shortfall rather than distributed,
 because a floating hand is a fact about the day and not a gap to fill by guesswork.
 
-**The extra is the reason the view exists.** `EXTRA n HOURS` is booked to an area block with
-nobody named against it, which makes it the one part of the wage bill nothing in the record
-corroborates. Two instruments:
+**The areas are the shop's own, and the split is not cosmetic.** The staffing norms are defined
+on these exact units — **VAT A1 4 · VAT A2 4 · Barrel 3 · Barrel pickling 2 · Pickling A1+A2 3**,
+sixteen on the floor at full house — and pickling is two sub-areas that the daily relay already
+divides. A single flat `pickling` can carry neither norm, so it can carry neither shortfall, so
+the extra cannot be checked against it. **Colour is not an area**: it is the passivation step
+inside VAT A1, and giving it one was this module's own invention.
 
-- **Extra booked where nobody was marked.** The two halves of the record contradict each other,
-  and the card names the area and the date so the sheet can be checked. It is a flag on the
-  *paperwork*: hours booked to the wrong area, an area assignment nobody typed, and hours never
-  worked all look identical from here. The card says which it found and refuses to say which
-  happened — and when every booking is manned it says the check **passed**, because a test that
-  only ever speaks up when it fails teaches the reader to stop trusting its silence.
-- **Extra hours per head-day** — the area's extra divided by its worker-days, read against the
-  hours those same people already logged. Explicitly a **plausibility test, not an allocation**:
-  nothing in the wage arithmetic touches it, and the extra stays unattributed there. Naming that
-  distinction in the copy is what stops the diagnostic quietly becoming the allocation the whole
-  module refuses to make.
+**The extra is a prediction, not a mystery.** The rule the floor is run to: a hand missing from
+an area running at full tilt is covered by the crew who are there, and **8 hours are booked to
+that area for it**. So expected extra is `Σ max(0, norm − heads) × 8` per sub-area per day, and
+the card sets it against what was actually booked.
+
+- **A norm only binds an area that ran.** A line nobody stood on is idle, not short of its whole
+  complement — otherwise a day running one area of five predicts more coverage than the plant
+  could absorb. Idle area-days are excluded and the exclusion is **reported**, because it is an
+  assumption doing real work.
+- **The gap is read in both directions, and they mean different things.** More booked than the
+  shortfall explains is the case the rule forbids. Less is not an error at all: the rule binds
+  an area at full tilt, and nothing here measures per-area output, so the expected figure is an
+  **upper bound** rather than a target.
+- **Three disagreements are kept apart** — booked at or above complement, booked where nobody
+  was marked, and booked but not the predicted amount — with the area and the date on each.
+  They are flags on the *paperwork*: hours booked to the wrong area, an assignment nobody typed,
+  and hours never worked all look identical from here. When every booking answers a real
+  shortfall the card says the check **passed**, because a test that only speaks up on failure
+  teaches the reader to stop trusting its silence.
+
+**Coverage is absorbed pro-rata, and that makes it attributable.** The same ruling that defines
+the extra says the short area's present crew absorb it between them, which the app ranks per
+worker. It is an **availability measure, not a wage**: payment is pooled — one line on the slip,
+paid out on the floor — so nothing here is added to anyone's pay and the labour card still counts
+the extra exactly once, unattributed. Attributable for measurement, pooled for payment; the two
+are different questions and conflating them is what the earlier version of this module got wrong.
 
 ### Client performance
 Clients tab → **Performance**. One account at a time: month on month as revenue, tonnage or ₹/kg,

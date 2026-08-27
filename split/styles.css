@@ -2698,3 +2698,11 @@ body.inv-desktop .inv-att-extra-row { max-width: calc(var(--sp-32) * 15); }
 .dark .inv-area-stat-value { color: var(--text-1); }
 .dark .inv-area-cost { color: var(--cost-text); }
 .dark .inv-area-flag { background: var(--danger-bg); color: var(--danger-text); }
+.inv-area-gap-over { background: var(--danger-bg); }
+.inv-area-gap-under { background: var(--warning-bg); }
+.inv-area-flag-warn { background: var(--warning-bg); color: var(--warning-text); }
+.inv-area-stat-vs { font-size: var(--fs-sm); font-weight: 500; color: var(--text-3); }
+.inv-area-absorb-days { font-weight: 400; color: var(--text-3); }
+.dark .inv-area-gap-over { background: var(--danger-bg); }
+.dark .inv-area-gap-under { background: var(--warning-bg); }
+.dark .inv-area-flag-warn { background: var(--warning-bg); color: var(--warning-text); }

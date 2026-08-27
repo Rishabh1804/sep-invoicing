@@ -157,10 +157,17 @@ an area block with nobody named against them. They are counted in the bill and r
 own row, never spread across the men present.
 
 **Staff → Areas** reads the same store by place. Average heads per area against a complement you
-set (editable in place, with the area's own median beside it), and a cross-check on the extra:
-hours booked to an area that had nobody marked in it are flagged with the area and the date, and
-each area's extra-per-head-day is shown against the hours those people already logged. Both are
-flags on the paperwork — the view says where to look and on which day, not what happened.
+set, and — the reason the view exists — the extra reconciled against it.
+
+The rule: a hand missing from an area running at full tilt is covered by the crew who are there,
+and 8 hours are booked to that area for it. So expected extra is `Σ (norm − heads) × 8` per
+sub-area per day, set against what was booked. A norm only binds an area that ran (an idle line
+is not short of its whole complement, and the exclusion is reported). Booking more than the
+shortfall explains is flagged with the area and the date; booking less is not called an error,
+because nothing here measures per-area output and the expected figure is an upper bound.
+
+Coverage is then attributed **pro-rata** to the crew who carried it — an availability measure,
+not a wage: the payout is pooled, so nothing is added to anyone's pay.
 
 Variable labour is also broken down **by area** — ranked by cost, since the area that pulls the
 overtime is the expensive one. Permanent payroll is excluded from that split and the card says

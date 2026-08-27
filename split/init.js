@@ -242,6 +242,57 @@ if (!S._staffComp1) {
   if (_sc > 0) console.log('Staff: migrated ' + _sc + ' worker' + (_sc === 1 ? '' : 's') + ' to the tiered comp model');
 }
 
+/* Area ids realigned to the shop's own staffing units.
+
+   The first cut had one flat `pickling` and a `colour` area. Neither survives
+   contact with the norms the floor is actually run to: pickling is two
+   sub-areas with separate complements (barrel-side 2, VAT-side 3) that the
+   daily relay already divides, and colour is the passivation step inside VAT
+   A1 rather than a place with its own crew.
+
+   Marks, home areas, extra-hour bookings and complements all carry an area id,
+   so all four are re-pointed here. Idempotent via the flag; the aliases are
+   read from staff.js so there is one table, not two. */
+if (!S._staffAreas2) {
+  var _ar = 0;
+  var _alias = function(id) { return STAFF_AREA_ALIASES[id] || null; };
+
+  (S.staff || []).forEach(function(w) {
+    var to = _alias(w.area);
+    if (to) { w.area = to; _ar++; }
+  });
+  Object.keys(S.attendance || {}).forEach(function(iso) {
+    var rec = S.attendance[iso];
+    if (!rec) return;
+    Object.keys(rec.marks || {}).forEach(function(id) {
+      var to = _alias(rec.marks[id].area);
+      if (to) { rec.marks[id].area = to; _ar++; }
+    });
+    (rec.extra || []).forEach(function(x) {
+      var to = _alias(x.area);
+      if (to) { x.area = to; _ar++; }
+    });
+  });
+  if (S.areaTargets) {
+    Object.keys(S.areaTargets).forEach(function(id) {
+      var to = _alias(id);
+      if (!to) return;
+      // A complement already set on the destination wins: it was set against
+      // the new structure and is the more considered number.
+      if (!(S.areaTargets[to] > 0)) S.areaTargets[to] = S.areaTargets[id];
+      delete S.areaTargets[id];
+      _ar++;
+    });
+  }
+
+  S._staffAreas2 = true;
+  saveJSON(STORAGE_KEY, S);
+  if (_ar > 0) {
+    console.log('Areas: re-pointed ' + _ar + ' reference' + (_ar === 1 ? '' : 's') +
+      ' — any that meant Barrel pickling rather than Pickling A1+A2 need moving by hand');
+  }
+}
+
 /* Phase 9: Default cost per KG for margin dashboard (IL-4) — idempotent */
 if (S.defaultCostPerKg === undefined) {
   S.defaultCostPerKg = 8.55;

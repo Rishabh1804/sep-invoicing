@@ -12,16 +12,34 @@
    repo is public; the structure (areas, comp classes, the wage arithmetic) is
    code, the people are not. */
 
+/* The areas are the shop's own, and the split is not cosmetic: the staffing
+   norms are defined on these exact units — VAT A1 4 · VAT A2 4 · Barrel 3 ·
+   Barrel pickling 2 · A1+A2 pickling 3, sixteen on the floor at full house —
+   and pickling is two sub-areas that Shyam's daily relay already divides. A
+   single flat `pickling` cannot carry either norm, so it cannot carry either
+   shortfall, so the extra could not be checked against it.
+
+   Colour is deliberately absent. It is the passivation/chromating **step**
+   inside VAT A1, not a place with a crew of its own, and giving it an area was
+   the module's own invention rather than anything the shop recognises. */
 var STAFF_AREAS = [
-  { id: 'vat-a1',   label: 'VAT A1',   floor: true },
-  { id: 'vat-a2',   label: 'VAT A2',   floor: true },
-  { id: 'barrel',   label: 'Barrel',   floor: true },
-  { id: 'pickling', label: 'Pickling', floor: true },
-  { id: 'colour',   label: 'Colour',   floor: true },
-  { id: 'flex',     label: 'Flex',     floor: true },
-  { id: 'office',   label: 'Office',   floor: false },
-  { id: 'gate',     label: 'Gate',     floor: false }
+  { id: 'vat-a1',          label: 'VAT A1',          floor: true },
+  { id: 'vat-a2',          label: 'VAT A2',          floor: true },
+  { id: 'barrel',          label: 'Barrel',          floor: true },
+  { id: 'pickling-barrel', label: 'Barrel pickling', floor: true },
+  { id: 'pickling-vat',    label: 'Pickling A1+A2',  floor: true },
+  { id: 'flex',            label: 'Flex',            floor: true },
+  { id: 'office',          label: 'Office',          floor: false },
+  { id: 'gate',            label: 'Gate',            floor: false }
 ];
+
+/* Retired ids and where they go. `pickling` was ambiguous between the two
+   sub-areas; it lands on the VAT side because that is the one Shyam's format
+   labels plainly as "Pickling", the barrel side always carrying the "Barrel"
+   qualifier. A mark that meant the other one is a mark to re-point by hand,
+   and there is no way to tell them apart after the fact — so the migration
+   logs how many it moved rather than pretending the choice was free. */
+var STAFF_AREA_ALIASES = { pickling: 'pickling-vat', colour: 'vat-a1' };
 
 /* ===== COMP CLASSES =====
 
@@ -821,7 +839,8 @@ function importRoster() {
       saveState();
       renderAttendance();
       showToast(res.added + ' added, ' + res.updated + ' updated' +
-        (res.skipped ? ', ' + res.skipped + ' skipped' : ''));
+        (res.skipped ? ', ' + res.skipped + ' skipped' : '') +
+        (res.targets ? ' · ' + res.targets + ' complement' + (res.targets === 1 ? '' : 's') + ' set' : ''));
     };
     reader.readAsText(f);
     inp.value = '';
@@ -867,16 +886,32 @@ function applyRosterImport(data) {
     }
   });
 
+  // The area complements travel with the roster too. They are the same
+  // decision — who stands where, and how many of them there should be — and the
+  // extra-hours check is dead without them, so shipping them apart would mean
+  // the file that sets up the tab leaves its main instrument switched off.
+  var targets = 0;
+  if (data && data.areaTargets && typeof data.areaTargets === 'object') {
+    if (!S.areaTargets) S.areaTargets = {};
+    Object.keys(data.areaTargets).forEach(function(k) {
+      var id = STAFF_AREA_ALIASES[k] || k;
+      if (!STAFF_AREAS.some(function(a) { return a.id === id; })) return;
+      var v = Number(data.areaTargets[k]);
+      if (!isNaN(v) && v > 0) { S.areaTargets[id] = v; targets++; }
+    });
+  }
+
   // The labour config may travel with the roster — the rates and the rules that
   // price them were settled together and drift apart if they arrive separately.
   if (data && data.labour && typeof data.labour === 'object') {
     if (!S.labour) S.labour = {};
-    ['otMult', 'restCreditMinDays', 'extraRate', 'modelPerKg', 'gateFull', 'gateHalf'].forEach(function(k) {
+    ['otMult', 'restCreditMinDays', 'extraRate', 'modelPerKg', 'gateFull', 'gateHalf',
+     'extraHoursPerHead'].forEach(function(k) {
       var v = Number(data.labour[k]);
       if (data.labour[k] != null && !isNaN(v) && v >= 0) S.labour[k] = v;
     });
   }
-  return { added: added, updated: updated, skipped: skipped };
+  return { added: added, updated: updated, skipped: skipped, targets: targets };
 }
 
 /* Deletion is refused while attendance names the worker. Removing the row would

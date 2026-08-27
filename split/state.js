@@ -37,7 +37,7 @@ function getDefaultState() {
     // attendance gate on its rest days. restCreditMinDays is the daily tier's
     // own weekly gate. The hourly pool needs none of them — every hour at one
     // rate. extraRate prices the area-booked "extra hours", which carry no name.
-    labour: { otMult: 1.1, restCreditMinDays: 6, extraRate: 47.5, modelPerKg: 3.55, gateFull: 0.9, gateHalf: 0.8 },
+    labour: { otMult: 1.1, restCreditMinDays: 6, extraRate: 47.5, modelPerKg: 3.55, gateFull: 0.9, gateHalf: 0.8, extraHoursPerHead: 8 },
     // Full cost per kg, rebuilt from owner-supplied inputs against Apr–Jul 2026
     // actuals. The old 5.46 predated that rebuild and flattered every margin
     // figure by roughly a rupee a kilo. Only ever the default for a fresh
@@ -65,7 +65,7 @@ if (!S.creditNotes) S.creditNotes = [];
 if (!S.staff) S.staff = [];
 if (!S.attendance) S.attendance = {};
 if (!S.areaTargets) S.areaTargets = {};
-if (!S.labour) S.labour = { otMult: 1.1, restCreditMinDays: 6, extraRate: 47.5, modelPerKg: 3.55, gateFull: 0.9, gateHalf: 0.8 };
+if (!S.labour) S.labour = { otMult: 1.1, restCreditMinDays: 6, extraRate: 47.5, modelPerKg: 3.55, gateFull: 0.9, gateHalf: 0.8, extraHoursPerHead: 8 };
 // Existence guard only — init.js's _cnSeriesStart1 migration lifts a series
 // that has never issued anything to where it actually starts.
 if (!S.cnNextNum) S.cnNextNum = 1;

@@ -37,11 +37,15 @@ function openSettings() {
     '<input type="number" step="0.01" min="1" class="inv-form-input inv-mono" id="setOtMult" value="' + ((S.labour && S.labour.otMult) != null ? S.labour.otMult : 1.1) + '"></div>' +
     '<div class="inv-form-group"><label class="inv-form-label">Extra-hour rate (&#8377;/h)</label>' +
     '<input type="number" step="0.01" min="0" class="inv-form-input inv-mono" id="setExtraRate" value="' + ((S.labour && S.labour.extraRate) || 0) + '"></div></div>' +
-    '<div class="inv-form-row"><div class="inv-form-group"><label class="inv-form-label">Rest credit at (days/week)</label>' +
+    '<div class="inv-form-row"><div class="inv-form-group"><label class="inv-form-label">Daily rest credit at (days/week)</label>' +
     '<input type="number" step="1" min="0" max="7" class="inv-form-input inv-mono" id="setRestMin" value="' + ((S.labour && S.labour.restCreditMinDays) != null ? S.labour.restCreditMinDays : 6) + '"></div>' +
     '<div class="inv-form-group"><label class="inv-form-label">Modelled labour (&#8377;/kg)</label>' +
     '<input type="number" step="0.01" min="0" class="inv-form-input inv-mono" id="setLabModel" value="' + ((S.labour && S.labour.modelPerKg) || 0) + '"></div></div>' +
-    '<div class="inv-text-muted inv-storage-text">The wage arithmetic behind the Staff tab: (days worked + rest credit) &times; day rate, plus OT hours at this multiplier, plus the area-booked extra hours at the contract tier. Set rest credit to 0 to switch it off. The modelled &#8377;/kg is what the measured figure is reported against &mdash; the Apr&ndash;Jul 2026 rebuild put labour at &#8377;3.55 of an &#8377;8.55 cost.</div></div>' +
+    '<div class="inv-form-row"><div class="inv-form-group"><label class="inv-form-label">Rest gate &mdash; full at (%)</label>' +
+    '<input type="number" step="1" min="0" max="100" class="inv-form-input inv-mono" id="setGateFull" value="' + Math.round(((S.labour && S.labour.gateFull) != null ? S.labour.gateFull : 0.9) * 100) + '"></div>' +
+    '<div class="inv-form-group"><label class="inv-form-label">Rest gate &mdash; half at (%)</label>' +
+    '<input type="number" step="1" min="0" max="100" class="inv-form-input inv-mono" id="setGateHalf" value="' + Math.round(((S.labour && S.labour.gateHalf) != null ? S.labour.gateHalf : 0.8) * 100) + '"></div></div>' +
+    '<div class="inv-text-muted inv-storage-text">The wage arithmetic behind the Staff tab, and it differs by tier. <strong>Monthly</strong>: day rate &times; days worked, plus the range&#8217;s rest days scaled by the attendance gate above (at or over the first figure pays them all, over the second pays half, below pays none), plus OT at day rate &divide; 8 &times; this multiplier. <strong>Hourly</strong>: every hour at one flat rate &mdash; no day rate, no multiplier. <strong>Daily</strong>: day rate &times; days, OT at the multiplier, with its own weekly rest credit. The extra-hour rate prices the area-booked hours that carry no name. The modelled &#8377;/kg is what the measured figure is reported against &mdash; the Apr&ndash;Jul 2026 rebuild put labour at &#8377;3.55 of an &#8377;8.55 cost.</div></div>' +
 
     '<div class="inv-settings-section"><div class="inv-settings-title">Zinc Rate</div>' +
     '<div class="inv-form-row"><div class="inv-form-group"><label class="inv-form-label">Market rate (&#8377;/kg)</label>' +
@@ -124,6 +128,15 @@ function saveSettings() {
   if (restMinEl) { var pr = parseInt(restMinEl.value, 10); if (!isNaN(pr) && pr >= 0) S.labour.restCreditMinDays = pr; }
   var labModelEl = document.getElementById('setLabModel');
   if (labModelEl) { var pl = parseFloat(labModelEl.value); if (!isNaN(pl) && pl >= 0) S.labour.modelPerKg = pl; }
+  var gateFullEl = document.getElementById('setGateFull');
+  if (gateFullEl) { var gf = parseFloat(gateFullEl.value); if (!isNaN(gf) && gf >= 0 && gf <= 100) S.labour.gateFull = gf / 100; }
+  var gateHalfEl = document.getElementById('setGateHalf');
+  if (gateHalfEl) { var gh = parseFloat(gateHalfEl.value); if (!isNaN(gh) && gh >= 0 && gh <= 100) S.labour.gateHalf = gh / 100; }
+  // A half threshold above the full one would make the middle band unreachable
+  // and the gate silently binary. Swap rather than refuse: the intent is plain.
+  if (S.labour.gateHalf > S.labour.gateFull) {
+    var swap = S.labour.gateHalf; S.labour.gateHalf = S.labour.gateFull; S.labour.gateFull = swap;
+  }
   var apiKeyEl = document.getElementById('setApiKey');
   if (apiKeyEl) setApiKey(apiKeyEl.value.trim());
   var metalsKeyEl = document.getElementById('setMetalsKey');

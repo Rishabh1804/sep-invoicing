@@ -19,13 +19,13 @@ Workforce management and invoicing PWA for **Soma Electro Products**, a zinc ele
 
 ## Architecture
 
-Split-file PWA. 32 modules, ~14,750 lines total.
+Split-file PWA. 32 modules, ~15,100 lines total.
 
 ```
 split/
 ├── build.sh           ← writes ../sep-invoicing.html, syncs ../index.html
 ├── head.html          ← DOCTYPE, meta, font links (17 lines)
-├── styles.css         ← All CSS with inv- prefix (2,630 lines)
+├── styles.css         ← All CSS with inv- prefix (2,633 lines)
 ├── body.html          ← HTML body, tabs, print view (137 lines)
 ├── data.js            ← ITEMS_MASTER + SEED_CLIENTS (27 lines)
 ├── state.js           ← State mgmt, utilities, escHtml, gstRound (324 lines)
@@ -45,8 +45,8 @@ split/
 ├── quality-cert.js    ← Test Certificate (ZN Plating): approved format + per-line certs (380 lines)
 ├── credit-note.js     ← Credit notes: batch discount, own series, CDNR export (557 lines)
 ├── charts.js          ← Reusable SVG charts: line, bar, pie, ranked bars (243 lines)
-├── staff.js           ← Roster master + attendance: day, week grid, extra hours (717 lines)
-├── labour.js          ← Labour cost model: fixed/variable split, by area, ₹/kg (382 lines)
+├── staff.js           ← Roster + attendance + roster import: day, week, extra hours (901 lines)
+├── labour.js          ← Labour: three pay tiers, fixed/variable, by area, ₹/kg (448 lines)
 ├── stats.js           ← Stats dashboard + History activity log (1,195 lines)
 ├── client-perf.js     ← Client performance: month on month + material cadence (314 lines)
 ├── im-form.js         ← IM add/edit/delete challan form (450 lines)
@@ -77,7 +77,7 @@ every session start — nothing to set up by hand. CI (`build-sync`) is the back
 ### Tests
 
 ```bash
-pnpm exec playwright test          # 201 tests, both layouts
+pnpm exec playwright test          # 209 tests, both layouts
 ```
 
 Some sandboxes ship a Chromium build Playwright does not expect and block downloading
@@ -442,14 +442,48 @@ extra" stands for**. They are the same question wearing different clothes — wh
 is fixed and which of it scales with tonnage — and nothing could answer it because nothing
 measured it.
 
-**Three views over one store.** Day is for entry (present / half / absent, area, OT hours per
-worker). Week is a Mon–Sat grid whose cells cycle, for fixing what the day view got wrong, with
-the `15/20` headcount row the daily relay already speaks in. Roster is the master: comp class,
+**Three views over one store.** Day is for entry (present / half / absent, area, and hours).
+Week is a Mon–Sat grid whose cells cycle, for fixing what the day view got wrong, with the
+`15/20` headcount row the daily relay already speaks in. Roster is the master: comp class,
 rates, home area, and whether the worker is on the plant floor.
 
-**The roster ships empty.** Names and wages are payroll data and this repo is public. Structure
-— the eight areas, the comp classes, the wage arithmetic — is code; the people are entered once
-on the device. That is a deliberate departure from `SEED_CLIENTS`, which does carry real names.
+**Three comp classes, because the shop pays three ways** — and the first cut of this module got
+two of them wrong by shipping a single `contract` class.
+
+| | Paid | Rest days | Overtime |
+|---|---|---|---|
+| `monthly` | ₹/day × days worked | the range's rest days × the attendance gate | day rate ÷ 8 × 1.1 |
+| `hourly` | every hour at one flat rate | — | none: the fourteenth hour is paid like the first |
+| `daily` | ₹/day × days worked | one day per full week | hour rate × the multiplier |
+
+The salaried tier is `monthly` and **is not a flat salary**: the payout slips are written in
+₹/day, and a flat monthly divided by calendar days neither matches them nor moves when somebody
+is absent. The weekly pool is `hourly` and has **no day concept at all** — charging it a day
+rate and then paying overtime at ×1.1 invents a boundary the slip does not have and overpays
+the overtime by a tenth. `daily` is the generic middle; no SEP tier is on it, and it is what
+the retired `contract` class was.
+
+**The gate is the one place a monthly worker's pay moves with their own attendance.** Rest days
+are paid, scaled three ways: at or above 90% attendance all of them, above 80% half, below that
+none. Exact over a calendar month, which is the period it was written for; over a shorter range
+it judges each rest day on that range alone, and the card says so.
+
+**The model reproduces a real payout slip.** One W32 week's hourly pool foots to ₹27,549 across
+ten hands and 580 hours at ₹47.50; the spec feeds the same hours through and lands on
+₹27,550.00, the rupee being the slip's own three half-rupee roundings taken down. A model that
+cannot reproduce a document somebody was paid against is not one to price a decision with.
+
+**The roster ships empty, and it has its own door.** Names and wages are payroll data, this repo
+is public, and its built page is served to anyone — so making the repo private would not hide a
+seeded roster either. Structure (the eight areas, the comp classes, the wage arithmetic) is
+code; the people arrive through **Staff → Roster → Import**, which **merges by name** and touches
+nothing else on `S`. Settings → Import cannot serve: it replaces the whole state, so a roster
+file through that door takes every invoice with it. Merging on the *name* rather than the id is
+what keeps a worker's existing attendance marks attached, because two devices that typed the
+same person gave them different ids.
+
+That is a deliberate departure from `SEED_CLIENTS`, which does carry real names: a client name
+is on every invoice that leaves the building, a worker's day rate is not.
 
 **Four states, not three.** Unmarked is not absent. A row nobody has reached costs nothing; an
 absence costs a day's wage and has to be said. The same distinction one level up is what the
@@ -465,25 +499,26 @@ are **never spread across the men present** — a per-worker cost invented that 
 and it would answer the fixed-versus-variable question by accident, in whichever direction the
 blend happened to fall.
 
-**Fixed and variable are kept apart everywhere.** Fixed is the permanent payroll, which accrues
-by calendar day whether or not anyone typed the day. Variable is contract days, rest credit, OT
-and extra. That split is not decoration: the SSS Mehta decision turns on it — at fixed labour
+**Fixed and variable are kept apart everywhere.** Fixed is the monthly tier — its days and its
+gated rest days together. It moves with that crew's attendance but not with tonnage, which is
+the distinction the split exists to draw. Variable is the hourly pool, the daily tier, OT and
+extra. That split is not decoration: the SSS Mehta decision turns on it — at fixed labour
 that account still contributes ₹0.53/kg, at volume-scaling labour it loses ₹1.64/kg — and one
 blended labour number silently picks a side.
 
-**The wage arithmetic** is the ratified rule: `(days worked + rest credit) × ₹/day + OT × 1.1`,
-rest credit gated on a full week. Half a day counts half. Every constant (multiplier, gate,
-extra-hour rate, and the modelled ₹/kg the measurement is reported against) lives in Settings.
+Every constant — multiplier, both gate thresholds, the daily tier's weekly rest credit, the
+extra-hour rate, and the modelled ₹/kg the measurement is reported against — lives in Settings.
 
 **Variable labour is broken down by area** — contract days, rest credit, OT and the extra,
 placed by the area each was worked in, ranked by cost rather than by days because an area that
 pulls the overtime is the expensive one. That is the *allocation* half of the open question.
-Permanent payroll is deliberately absent from it: a monthly salary cannot be attributed to a
-day, let alone to the area that day was worked in, and splitting it by home area would print an
-allocation nobody measured.
+The monthly tier's day pay and rest days are deliberately absent: that crew is the standing one
+and its cost does not follow the area it happened to stand in. Its **overtime is** in there —
+an overtime hour was worked somewhere specific and was paid for being worked.
 
-**An incomplete range reads low, never neutral** — permanent salary accrues over days nobody
-typed and contract wages do not — so the card states coverage in place, every time, complete or
+**An incomplete range reads low, never neutral** — every tier is paid for days and hours actually
+recorded, and the monthly tier reads low *twice*, because a day nobody typed also depresses the
+attendance its rest-day gate is judged on — so the card states coverage in place, every time, complete or
 not, and withholds ₹/kg below 90% of working days. It withholds under a fortnight too, but for
 a different reason: not enough of either side to divide. The lag between plating and billing
 cannot be gated away at any length, only stated, so a range under two months carries that

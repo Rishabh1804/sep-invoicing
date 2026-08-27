@@ -2460,6 +2460,7 @@ body.inv-desktop #itemsSelBar {
 .inv-att-pill-a { background: var(--danger-bg); color: var(--danger-text); }
 .inv-att-pill-u { background: var(--surface-2); color: var(--text-3); }
 .inv-att-pill-ot { background: var(--prod-bg); color: var(--prod-text); }
+.inv-att-pill-hr { background: var(--attend-bg); color: var(--attend-text); }
 .inv-att-pill-x { background: var(--neutral-bg); color: var(--neutral-text); }
 
 .inv-att-row {
@@ -2616,6 +2617,8 @@ body.inv-desktop #itemsSelBar {
   outline: var(--sp-2) solid var(--accent);
   outline-offset: var(--sp-2);
 }
+
+.inv-att-roster-actions { display: flex; gap: var(--sp-6); }
 
 .inv-lab-area-title {
   margin-top: var(--sp-16); margin-bottom: var(--sp-8);

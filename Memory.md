@@ -60,7 +60,12 @@ CA by background. Business Manager at Soma Electro Products (zinc electroplating
   Turns ₹3.55/kg from a typed assumption into a measurement split fixed against variable, and
   answers "what is the extra" in the model: hours booked to an **area block** with no name
   against them, counted in the bill and never spread across the men present
-- 32 modules, ~14,750 lines. 201 e2e tests gate every PR
+- **27 Aug 2026 (second session):** the comp model rebuilt against the payout slips. Three
+  tiers, not two — the salaried tier is ₹/day with a three-layer attendance gate on its rest
+  days, and the weekly pool is a flat ₹/hr with no day rate and no multiplier. One spec
+  reproduces a real weekly slip to the rupee. Roster arrives through its own merge-by-name
+  import, never seeded into this public repo
+- 32 modules, ~15,100 lines. 209 e2e tests gate every PR
 - Development moved off Termux to Claude Code (clones fresh; `.claude/hooks/session-start.sh`
   arms the pre-commit hook and installs test deps)
 - **Open with the owner:**
@@ -180,6 +185,25 @@ decision. Do not silently propagate the SEP pattern to another repo without sett
   The cost is real and worth paying: this discipline makes a review slower and quieter, not
   better at finding bugs. It buys credibility instead. Seven sound findings lose their weight
   if the eighth is overstated.
+
+- **A summary of a rule is not the rule. Read the instrument it was summarised from.** SEP's
+  labour model was built from the ratified sentence `(days worked + rest credit) × ₹/day + OT ×
+  1.1`, quoted accurately in the codex. That sentence governs one of three pay mechanics. The
+  weekly pool is paid a flat rate for every hour with no day boundary and no multiplier; the
+  salaried tier is ₹/day, not the flat monthly the first model assumed. Both were visible in the
+  payout slips and in neither summary. The rule was true; taking it as complete was the error.
+- **A model is not right until it reproduces a document somebody was paid against.** The fix
+  came with a spec that feeds one real week's hours through and lands on the slip's own total to
+  the rupee — the remaining rupee being that slip's roundings. It is the same discipline as "a
+  bug is not reported until it has been reproduced", pointed forwards: the failing spec proves a
+  defect, the reconciling spec proves a model. The earlier model would not have come close, and
+  nothing in the code would have said so.
+- **Publishing is a property of the artefact, not the repository.** SEP Invoicing builds to a
+  single HTML file served by GitHub Pages, so everything seeded into the bundle — the client
+  rate card, and any roster put there — is world-readable whatever the repo's visibility, and
+  Pages sites stay public even from a private repo. Making a repo private hides the docs and the
+  history; it does not hide what the build serves. Ask what the artefact publishes before asking
+  what the repository does.
 
 ## Companion Registry (Quick Reference)
 

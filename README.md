@@ -133,8 +133,18 @@ worker, the area they worked, their own OT hours), **Week** for a Mon–Sat grid
 on tap, and **Roster** for the master — comp class, rates, home area, and whether the worker is
 on the plant floor.
 
-The roster starts empty: names and wages are payroll data and this repo is public, so they are
-entered once on the device. Note that both the JSON export and GitHub sync then carry payroll.
+The roster starts empty and has its own door. Names and wages are payroll data, this repo is
+public, and its built page is served to anyone — so a seeded roster would be public whatever the
+repo's visibility. Load one through **Staff → Roster → Import**: it merges by name and touches
+nothing else. (Settings → Import replaces the whole state, so a roster file through *that* door
+would take your invoices with it.) Note that both the JSON export and GitHub sync then carry
+payroll.
+
+**Three comp classes, because the shop pays three ways.** `monthly` is ₹/day × days worked plus
+the range's rest days scaled by an attendance gate (all of them at 90%+, half above 80%, none
+below), with overtime at day rate ÷ 8 × the multiplier. `hourly` pays every hour at one flat
+rate — no day rate, no multiplier. `daily` is the generic middle: days at a day rate, overtime
+at the multiplier, one rest day per full week.
 
 Every view carries a **labour breakdown**, and Stats carries one for the period. Labour is 42% of
 this business's cost and was previously a single number typed into Settings; this measures it from

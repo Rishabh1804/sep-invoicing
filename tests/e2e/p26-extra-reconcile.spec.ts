@@ -61,9 +61,12 @@ const extraCard = (page: Page) => page.locator('.inv-lab-card', { hasText: 'The 
 /* ===== THE RECONCILIATION ===== */
 
 test('reproduces the recorded shortfall decode: three areas short one hand each', async ({ page }) => {
-  // The case the rule was ruled on. A1 3/4, A2 3/4, Barrel 3/3, Barrel
-  // pickling 2/2, Pickling A1+A2 2/3 — three sub-areas short one hand apiece,
-  // 3 x 8 = 24 man-hours at Rs47.50 = Rs1,140, and 24 h booked.
+  // The case the rule was ruled on. The recorded decode lists four rows —
+  // A1 3/4, A2 3/4, Barrel pickling 2/2 (at norm), Pickling A1+A2 2/3 — three
+  // short one hand apiece, 3 x 8 = 24 man-hours at Rs47.50 = Rs1,140, against
+  // 24 h booked. Barrel is staffed to its norm here so the barrel block nets to
+  // no shortfall, which is what lets the four-row decode and this five-area
+  // fixture agree.
   const staff = [
     ...crew('vat-a1', 3, 10), ...crew('vat-a2', 3, 20), ...crew('barrel', 3, 30),
     ...crew('pickling-barrel', 2, 40), ...crew('pickling-vat', 2, 50),
@@ -171,10 +174,11 @@ test('with no complement anywhere the extra is counted but explicitly not checke
 });
 
 test('a line nobody stood on is idle, not short of its whole complement', async ({ page }) => {
-  // One area of five running. Counting the four idle lines as short would
-  // predict 13 missing hands and 104 hours of coverage on a day the plant
-  // plainly did not work them.
-  const staff = crew('barrel', 3, 10);
+  // The barrel block fully crewed (3 + 2 = its combined norm of five) and
+  // nothing else running or booked. Counting the three idle units as short
+  // would predict eleven missing hands and 88 hours of coverage on a day the
+  // plant plainly did not work them.
+  const staff = [...crew('barrel', 3, 10), ...crew('pickling-barrel', 2, 20)];
   const [d1] = weekDays();
   await loadAppWithState(page, state(staff, {
     [d1]: { marks: marksFor(staff), extra: [], note: '' },
@@ -182,10 +186,10 @@ test('a line nobody stood on is idle, not short of its whole complement', async 
   await openAreas(page);
   const card = extraCard(page);
   await expect(card).toContainText('0.0 h');
-  await expect(card).not.toContainText('104');
+  await expect(card).not.toContainText('88');
   // The exclusion is reported rather than silent.
   await expect(card).toContainText('idle and not counted');
-  await expect(card).toContainText('4 area-days');
+  await expect(card).toContainText('3 unit-days');
 });
 
 test('the roster import carries the complements, so the check arrives switched on', async ({ page }) => {
@@ -211,6 +215,84 @@ test('the roster import carries the complements, so the check arrives switched o
   await page.locator('[data-action="invAttView"][data-view="areas"]').click();
   await expect(extraCard(page)).toContainText('exactly as predicted');
   await expect(page.locator('.inv-area-row', { hasText: 'Pickling A1+A2' })).toContainText('3');
+});
+
+test('a unit with no heads but hours booked to it is fully short, not idle', async ({ page }) => {
+  // The recorded shape: a zero-head `Pickling A1/A2` row carrying EXTRA 24
+  // HOURS against a norm of three — 8 x 3, exact. Judging it idle would drop it
+  // from the expected side while keeping it on the booked side, and the card
+  // would cry surplus on a day the shop reconciles to the hour.
+  const staff = [...crew('barrel', 3, 10), ...crew('pickling-barrel', 2, 20)];
+  const [d1] = weekDays();
+  await loadAppWithState(page, state(staff, {
+    [d1]: { marks: marksFor(staff), extra: [{ area: 'pickling-vat', hours: 24 }], note: '' },
+  }));
+  await openAreas(page);
+  const card = extraCard(page);
+  // Pickling A1+A2 short its whole norm of three, covered by 8 x 3; the barrel
+  // block at its complement of five contributes nothing either way.
+  await expect(card).toContainText('exactly as predicted');
+  await expect(card).not.toContainText('More was booked');
+});
+
+test('barrel and barrel pickling reconcile as one unit of five', async ({ page }) => {
+  // Both hands typed onto the barrel side off a merged relay row. Read apart,
+  // barrel is 2/3 short one (8 h expected) and barrel pickling is idle — a
+  // sixteen-hour false surplus against the 24 the shop booked. Read as one
+  // block of five it is short three, which is 24.
+  const staff = crew('barrel', 2, 10);
+  const [d1] = weekDays();
+  await loadAppWithState(page, state(staff, {
+    [d1]: { marks: marksFor(staff), extra: [{ area: 'barrel', hours: 24 }], note: '' },
+  }, { barrel: 3, 'pickling-barrel': 2 }));
+  await openAreas(page);
+  const card = extraCard(page);
+  await expect(card).toContainText('exactly as predicted');
+  await expect(card).not.toContainText('More was booked');
+});
+
+test('a block credit is counted but never reconciled against a shortfall', async ({ page }) => {
+  // `EXTRA 3 HOURS` in the 6 AM block states the slot's PER-HAND credit, not
+  // three pooled hours, so it answers no shortfall and must not move the gap.
+  const staff = crew('barrel', 3, 10);
+  const [d1] = weekDays();
+  await loadAppWithState(page, state(staff, {
+    [d1]: { marks: marksFor(staff), extra: [{ area: 'barrel', hours: 3, kind: 'block' }], note: '' },
+  }, { barrel: 3 }));   // barrel alone carries a norm, so the block is 3 of 3
+  await openAreas(page);
+  const card = extraCard(page);
+  await expect(card).toContainText('Block credits, not reconciled');
+  await expect(card).not.toContainText('Booked at or above complement');
+  await expect(card).not.toContainText('More was booked');
+});
+
+test('the recorded counter-cases surface as a quantity mismatch, not as silence', async ({ page }) => {
+  // W27 Mon 29 Jun and W28 Fri 10 Jul: VAT A1 at 2 of 4, tagged 8 where the
+  // per-hand rule predicts 16. The owner's rule stands; these days are real and
+  // the card has to show them rather than smooth them away.
+  const staff = crew('vat-a1', 2, 10);
+  const [d1] = weekDays();
+  await loadAppWithState(page, state(staff, {
+    [d1]: { marks: marksFor(staff), extra: [{ area: 'vat-a1', hours: 8 }], note: '' },
+  }, { 'vat-a1': 4 }));
+  await openAreas(page);
+  const card = extraCard(page);
+  await expect(card).toContainText('Booked, but not the predicted amount');
+  await expect(card.locator('.inv-area-flag-warn').first()).toContainText('8.0 h against 16.0 h');
+});
+
+test('absorption past a shift is marked as a question, not ranked as a measurement', async ({ page }) => {
+  // 24 coverage hours over two present hands is twelve each on top of a full
+  // shift. Nobody stood that; the likelier reading is brought-in casual labour.
+  const staff = crew('barrel', 2, 10);
+  const [d1] = weekDays();
+  await loadAppWithState(page, state(staff, {
+    [d1]: { marks: marksFor(staff), extra: [{ area: 'barrel', hours: 24 }], note: '' },
+  }));
+  await openAreas(page);
+  const card = page.locator('.inv-card', { hasText: 'Coverage absorbed' });
+  await expect(card.locator('.inv-area-absorb-flag').first()).toBeVisible();
+  await expect(card).toContainText('brought-in');
 });
 
 /* ===== THE AREA REALIGNMENT ===== */

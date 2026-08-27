@@ -19,6 +19,26 @@
 
 var _areaSpan = 1;   // weeks
 
+/* `EXTRA n HOURS` is two instruments wearing one name, and the ruling that set
+   the norms said so on the same day: under a general-shift area row it is
+   pooled coverage man-hours, but in the 6 AM block it states the slot's
+   PER-HAND overtime credit — "5 hands × 3 hr = 15 OT hr", not three hours.
+   Evening blocks run the same way.
+
+   Only coverage answers a shortfall, so only coverage is reconciled against
+   one. A block credit is still real, still paid and still in the bill; it is
+   simply not an answer to the question this card asks, and folding it in would
+   push the gap around for reasons that have nothing to do with staffing.
+
+   Untagged records default to coverage: that is what every entry made before
+   this field existed meant, and what the area rows on the sheet mean. */
+var EXTRA_KINDS = [
+  { id: 'coverage', label: 'Area coverage', hint: 'pooled hours answering a shortfall — reconciled against the norm' },
+  { id: 'block',    label: 'Block credit',  hint: 'a shift block\u2019s per-hand credit (6 AM, evening) — counted, not reconciled' }
+];
+
+function extraIsCoverage(x) { return !x || !x.kind || x.kind === 'coverage'; }
+
 function areaTarget(areaId) {
   var t = (S.areaTargets || {})[areaId];
   return t > 0 ? t : null;
@@ -56,11 +76,12 @@ function areaStats(fromIso, toIso) {
     byId[a.id] = {
       id: a.id, label: a.label, floor: a.floor,
       headDays: 0, dayTierDays: 0, hours: 0, otHours: 0, extraHours: 0,
-      cost: 0, headsPerDay: [], recordedDays: 0, unmanned: [], busiest: null,
-      shortHeads: 0, expectedExtra: 0, idleDays: 0, days: []
+      cost: 0, headsPerDay: [], recordedDays: 0, unmanned: [],
+      coverageHours: 0, blockHours: 0, days: []
     };
   });
 
+  var units = {};
   var totalRecorded = 0;
 
   dates.forEach(function(iso) {
@@ -97,46 +118,78 @@ function areaStats(fromIso, toIso) {
       }
     });
 
-    STAFF_AREAS.forEach(function(x) {
-      var a = byId[x.id];
-      var heads = headsToday[x.id] || 0;
-      a.headsPerDay.push(heads);
-      if (heads) a.recordedDays++;
-
-      // The norm-gap model, which is the rule the floor is actually run to:
-      // a hand missing from an area at full tilt is covered by the crew who
-      // are there, and eight hours are booked to the area for it.
-      //
-      // A norm only binds an area that RAN that day. A line nobody stood on is
-      // not short by its whole complement — it was not running, so there was no
-      // production to cover and nothing to book. The recorded decode says this
-      // outright on the day A2 did not plate: "every staffed sub-area at full
-      // norm → 0 EXTRA man-hr (no A2 plating, so no A2 norm to fill)". Without
-      // this the expected figure counts every idle line as a full shortfall and
-      // reads wildly high — a day running one area of five would predict more
-      // coverage than the whole plant could absorb.
-      var norm = areaTarget(x.id);
-      var running = heads > 0;
-      var short = (norm != null && running) ? Math.max(0, norm - heads) : 0;
-      a.shortHeads += short;
-      a.expectedExtra += short * cfg.extraHoursPerHead;
-      if (norm != null && !running) a.idleDays++;
-      a.days.push({ iso: iso, heads: heads, norm: norm, running: running, short: short, booked: 0 });
-    });
-
+    // Bookings are tallied BEFORE the shortfall is judged, because whether an
+    // area was idle or fully short turns on whether anything was booked to it.
+    // `coverage` is the only kind that answers a shortfall; a block credit is
+    // a different instrument and is counted in the bill but not reconciled.
+    var bookedToday = {}, coverToday = {};
     extras.forEach(function(x) {
       var h = x.hours || 0;
       if (h <= 0) return;
       var a = byId[x.area] || byId.flex;
       a.extraHours += h;
       a.cost += h * cfg.extraRate;
-      // Extra booked to an area nobody was marked in. Not proof the hours are
-      // wrong — the assignment may simply never have been typed — but the two
-      // records disagree, and that is worth a name and a date.
+      bookedToday[a.id] = (bookedToday[a.id] || 0) + h;
+      if (extraIsCoverage(x)) {
+        a.coverageHours += h;
+        coverToday[a.id] = (coverToday[a.id] || 0) + h;
+      } else {
+        a.blockHours += h;
+      }
       if (!headsToday[a.id]) a.unmanned.push({ iso: iso, hours: h });
-      var today = a.days[a.days.length - 1];
-      if (today && today.iso === iso) today.booked += h;
-      if (!a.busiest || h > a.busiest.hours) a.busiest = { iso: iso, hours: h, heads: headsToday[a.id] || 0 };
+    });
+
+    STAFF_AREAS.forEach(function(x) {
+      var a = byId[x.id];
+      var heads = headsToday[x.id] || 0;
+      a.headsPerDay.push(heads);
+      if (heads) a.recordedDays++;
+      a.days.push({ iso: iso, heads: heads, booked: coverToday[x.id] || 0, all: bookedToday[x.id] || 0 });
+    });
+
+    // The norm-gap model, reconciled per UNIT rather than per area: barrel and
+    // barrel pickling are one block on the sheet and one shortfall in the
+    // decode, whatever they are for staffing.
+    var unitSeen = {};
+    STAFF_AREAS.forEach(function(x) {
+      var unit = areaUnitOf(x.id);
+      if (unitSeen[unit]) return;
+      unitSeen[unit] = true;
+      var members = STAFF_AREAS.filter(function(y) { return areaUnitOf(y.id) === unit; });
+
+      var norm = 0, hasNorm = false, heads = 0, booked = 0;
+      members.forEach(function(y) {
+        var t = areaTarget(y.id);
+        if (t != null) { norm += t; hasNorm = true; }
+        heads += headsToday[y.id] || 0;
+        booked += coverToday[y.id] || 0;
+      });
+      if (!hasNorm) return;
+
+      // A norm binds a unit that RAN. A line nobody stood on and nobody booked
+      // to is idle, not short of its whole complement — the recorded decode
+      // says so on the day A2 did not plate: "no A2 plating, so no A2 norm to
+      // fill". Without that, a day running one area of five predicts more
+      // coverage than the plant could absorb.
+      //
+      // But a unit with no heads AND hours booked to it is the opposite case,
+      // and the record is equally plain: a zero-head pickling row carrying
+      // `EXTRA 24 HOURS` against a norm of three is 8 × 3 exactly — the shop
+      // treated it as fully short and fully covered. Judging that one idle
+      // would drop it from the expected side while keeping it on the booked
+      // side, and the card would report a surplus on a day that balances to
+      // the hour. Numerator and denominator, same population.
+      var idle = heads === 0 && booked === 0;
+      var short = idle ? 0 : Math.max(0, norm - heads);
+      var u = units[unit] || (units[unit] = {
+        id: unit, label: areaUnitLabel(unit), members: members.map(function(y) { return y.id; }),
+        norm: norm, shortHeads: 0, expectedExtra: 0, booked: 0, idleDays: 0, days: []
+      });
+      u.shortHeads += short;
+      u.expectedExtra += short * cfg.extraHoursPerHead;
+      u.booked += booked;
+      if (idle) u.idleDays++;
+      u.days.push({ iso: iso, heads: heads, norm: norm, idle: idle, short: short, booked: booked });
     });
   });
 
@@ -147,6 +200,7 @@ function areaStats(fromIso, toIso) {
     a.target = areaTarget(a.id);
     a.variance = a.target != null ? a.avgHeads - a.target : null;
     a.paidHours = a.hours + a.otHours;
+    a.unit = areaUnitOf(a.id);
     // The one diagnostic on the extra. It is NOT an allocation — the app never
     // spreads extra across the men present, and this number is not written
     // anywhere near a wage. It is the plausibility test: how many hours each
@@ -156,31 +210,41 @@ function areaStats(fromIso, toIso) {
     a.extraShare = (a.paidHours + a.extraHours) > 0 ? a.extraHours / (a.paidHours + a.extraHours) : 0;
     a.cost = gstRound(a.cost);
     a.unmannedHours = a.unmanned.reduce(function(s, u) { return s + u.hours; }, 0);
-    a.expectedExtra = gstRound(a.expectedExtra);
-    a.extraGap = a.extraHours - a.expectedExtra;
-    // Three kinds of disagreement, kept apart because they mean different
-    // things. Booked while the area was at or above its complement is the one
-    // the rule forbids outright. Short with nothing booked is the opposite
-    // omission. A mismatch on a day that was short both ways is a quantity
-    // question, not a principle one.
-    a.bookedAtNorm = a.days.filter(function(d) { return d.norm != null && d.short === 0 && d.booked > 0; });
-    a.shortUnbooked = a.days.filter(function(d) { return d.running && d.short > 0 && d.booked === 0; });
-    a.mismatched = a.days.filter(function(d) {
-      return d.short > 0 && d.booked > 0 && Math.abs(d.booked - d.short * cfg.extraHoursPerHead) > 0.001;
-    });
     return a;
   });
 
-  var withNorm = rows.filter(function(a) { return a.target != null; });
+  // The three disagreements, judged per unit for the same reason the shortfall
+  // is: booked at or above complement is the case the rule forbids, short with
+  // nothing booked is the opposite omission, and a quantity that is neither is
+  // a question about the number rather than about the principle.
+  var unitRows = Object.keys(units).map(function(k) {
+    var u = units[k];
+    u.expectedExtra = gstRound(u.expectedExtra);
+    u.booked = gstRound(u.booked);
+    u.bookedAtNorm = u.days.filter(function(d) { return !d.idle && d.short === 0 && d.booked > 0; });
+    u.shortUnbooked = u.days.filter(function(d) { return !d.idle && d.short > 0 && d.booked === 0; });
+    u.mismatched = u.days.filter(function(d) {
+      return d.short > 0 && d.booked > 0 && Math.abs(d.booked - d.short * cfg.extraHoursPerHead) > 0.001;
+    });
+    return u;
+  });
+
+  var blockHours = gstRound(rows.reduce(function(s, a) { return s + a.blockHours; }, 0));
   return {
     rows: rows,
+    units: unitRows,
     recordedDays: totalRecorded,
     rangeDays: dates.length,
-    normed: withNorm.length,
-    expectedExtra: gstRound(withNorm.reduce(function(s, a) { return s + a.expectedExtra; }, 0)),
+    normed: unitRows.length,
+    // Expected and booked are summed over the SAME population — the normed
+    // units, coverage bookings only. A block credit and an un-normed area are
+    // both excluded from both sides, and both are reported separately.
+    expectedExtra: gstRound(unitRows.reduce(function(s, u) { return s + u.expectedExtra; }, 0)),
+    bookedInNormed: gstRound(unitRows.reduce(function(s, u) { return s + u.booked; }, 0)),
     bookedExtra: gstRound(rows.reduce(function(s, a) { return s + a.extraHours; }, 0)),
-    bookedInNormed: gstRound(withNorm.reduce(function(s, a) { return s + a.extraHours; }, 0)),
-    absorption: _absorption(dates, roster)
+    blockHours: blockHours,
+    idleDays: unitRows.reduce(function(s, u) { return s + u.idleDays; }, 0),
+    absorption: _absorption(dates, roster, cfg)
   };
 }
 
@@ -195,7 +259,7 @@ function areaStats(fromIso, toIso) {
    arithmetic would invent a per-worker cost the payout never had. What it is
    good for is the thing it was asked for: availability. A worker whose area is
    short around them, week after week, is absorbing the shortfall. */
-function _absorption(dates, roster) {
+function _absorption(dates, roster, cfg) {
   var by = {};
   dates.forEach(function(iso) {
     var rec = (S.attendance || {})[iso];
@@ -221,8 +285,18 @@ function _absorption(dates, roster) {
       });
     });
   });
-  return Object.keys(by).map(function(k) { return by[k]; })
-    .sort(function(a, b) { return b.hours - a.hours; });
+  // A recorded case the pro-rata reading cannot carry: 24 coverage hours against
+  // two present hands is twelve each on top of a full shift, which nobody stood.
+  // Where the arithmetic exceeds what a body could absorb, the likelier reading
+  // is brought-in casual labour — a different payee entirely — so the row says
+  // so instead of ranking a number nobody worked.
+  var ceiling = (cfg && cfg.extraHoursPerHead) || 8;
+  return Object.keys(by).map(function(k) {
+    var e = by[k];
+    e.perDay = e.days > 0 ? e.hours / e.days : 0;
+    e.implausible = e.perDay > ceiling;
+    return e;
+  }).sort(function(a, b) { return b.hours - a.hours; });
 }
 
 /* ===== VIEW ===== */
@@ -312,13 +386,13 @@ function _areaExtraCard(stats) {
     '<span class="inv-card-title">The extra, checked</span>' +
     '<span class="inv-lab-total inv-mono">' + formatNum(totalExtra, 1) + ' h</span></div>';
 
-  if (totalExtra === 0 && stats.expectedExtra === 0) {
+  if (totalExtra === 0 && stats.expectedExtra === 0 && stats.blockHours === 0) {
     // Nothing to reconcile — but say WHY nothing was expected, because on a
     // day with lines standing idle that is an assumption doing real work.
-    var idleQuiet = stats.rows.reduce(function(s2, a) { return s2 + a.idleDays; }, 0);
+    var idleQuiet = stats.idleDays;
     return html + '<div class="inv-empty-state inv-empty-state-sm">No extra hours booked, and every area ' +
       'that ran was at its complement' +
-      (idleQuiet > 0 ? ' &mdash; ' + idleQuiet + ' area-day' + (idleQuiet === 1 ? '' : 's') +
+      (idleQuiet > 0 ? ' &mdash; ' + idleQuiet + ' unit-day' + (idleQuiet === 1 ? '' : 's') +
         ' were idle and not counted' : '') + '</div></div>';
   }
 
@@ -361,14 +435,14 @@ function _areaExtraCard(stats) {
 
   // Three disagreements, kept apart because they mean different things.
   var atNorm = [], unbooked = [], mism = [];
-  stats.rows.forEach(function(a) {
-    a.bookedAtNorm.forEach(function(d) { atNorm.push({ a: a, d: d }); });
-    a.shortUnbooked.forEach(function(d) { unbooked.push({ a: a, d: d }); });
-    a.mismatched.forEach(function(d) { mism.push({ a: a, d: d }); });
+  (stats.units || []).forEach(function(u) {
+    u.bookedAtNorm.forEach(function(d) { atNorm.push({ a: u, d: d }); });
+    u.shortUnbooked.forEach(function(d) { unbooked.push({ a: u, d: d }); });
+    u.mismatched.forEach(function(d) { mism.push({ a: u, d: d }); });
   });
 
   if (atNorm.length > 0) {
-    html += _labRow('Booked at or above complement', atNorm.length + ' area-day' + (atNorm.length === 1 ? '' : 's'),
+    html += _labRow('Booked at or above complement', atNorm.length + ' unit-day' + (atNorm.length === 1 ? '' : 's'),
       'the rule predicts nothing here');
     html += _areaFlagList(atNorm, function(f) {
       return formatNum(f.d.booked, 1) + ' h on ' + f.d.heads + '/' + f.d.norm;
@@ -379,20 +453,23 @@ function _areaExtraCard(stats) {
       'across ' + unmannedDays + ' area-day' + (unmannedDays === 1 ? '' : 's'));
   }
   if (mism.length > 0) {
-    html += _labRow('Booked, but not the predicted amount', mism.length + ' area-day' + (mism.length === 1 ? '' : 's'),
+    html += _labRow('Booked, but not the predicted amount', mism.length + ' unit-day' + (mism.length === 1 ? '' : 's'),
       'short, and covered by a different number of hours');
     html += _areaFlagList(mism, function(f) {
       return formatNum(f.d.booked, 1) + ' h against ' + formatNum(f.d.short * cfg.extraHoursPerHead, 1) + ' h';
     }, 'inv-area-flag inv-area-flag-warn');
   }
   if (unbooked.length > 0) {
-    html += _labRow('Short, nothing booked', unbooked.length + ' area-day' + (unbooked.length === 1 ? '' : 's'),
+    html += _labRow('Short, nothing booked', unbooked.length + ' unit-day' + (unbooked.length === 1 ? '' : 's'),
       'a light day, or a tag nobody wrote');
   }
-  var idle = stats.rows.reduce(function(s2, a) { return s2 + a.idleDays; }, 0);
-  if (idle > 0) {
-    html += _labRow('Not running, not counted', idle + ' area-day' + (idle === 1 ? '' : 's'),
-      'a line nobody stood on is idle, not short of its whole complement');
+  if (stats.idleDays > 0) {
+    html += _labRow('Not running, not counted', stats.idleDays + ' unit-day' + (stats.idleDays === 1 ? '' : 's'),
+      'nobody stood on it and nothing was booked to it');
+  }
+  if (stats.blockHours > 0) {
+    html += _labRow('Block credits, not reconciled', formatNum(stats.blockHours, 1) + ' h',
+      'a shift block\u2019s per-hand credit answers no shortfall');
   }
 
   if (atNorm.length === 0 && unmannedDays === 0 && mism.length === 0 && stats.normed > 0) {
@@ -439,11 +516,22 @@ function _areaAbsorptionCard(stats) {
     'between them &mdash; so it is attributable to people even though it is paid as one pooled line. ' +
     'This is an <strong>availability measure, not a wage</strong>: nothing here is added to anyone&rsquo;s pay, ' +
     'and the labour card still counts the extra exactly once, unattributed.</div>';
+  var flagged = 0;
   rows.slice(0, 12).forEach(function(r) {
-    html += '<div class="inv-stats-row"><span class="inv-stats-name">' + escHtml(r.name) + '</span>' +
+    if (r.implausible) flagged++;
+    html += '<div class="inv-stats-row"><span class="inv-stats-name">' + escHtml(r.name) +
+      (r.implausible ? '<span class="inv-area-absorb-flag">more than a shift</span>' : '') + '</span>' +
       '<span class="inv-stats-val">' + formatNum(r.hours, 1) + ' h' +
-      '<span class="inv-area-absorb-days"> · ' + r.days + ' day' + (r.days === 1 ? '' : 's') + '</span></span></div>';
+      '<span class="inv-area-absorb-days"> · ' + formatNum(r.perDay, 1) + ' h/day over ' + r.days +
+      ' day' + (r.days === 1 ? '' : 's') + '</span></span></div>';
   });
+  if (flagged > 0) {
+    html += '<div class="inv-stats-caveat">Marked rows absorb more in a day than a body could stand on top of ' +
+      'their own shift. The pro-rata reading has a recorded breaking point &mdash; twenty-four coverage hours ' +
+      'against two present hands is twelve each &mdash; and past it the likelier reading is <strong>brought-in ' +
+      'casual labour</strong>, a different payee on a different ledger line. Treat those rows as a question, ' +
+      'not a measurement.</div>';
+  }
   return html + '</div>';
 }
 
@@ -476,8 +564,8 @@ function _areaRow(a) {
     '<div class="inv-area-stat"><span class="inv-area-stat-value inv-mono">' + formatNum(a.medianHeads, 1) + '</span>' +
     '<span class="inv-area-stat-label">median</span></div>' +
     '<div class="inv-area-stat"><span class="inv-area-stat-value inv-mono">' + formatNum(a.extraHours, 1) +
-    (a.target != null ? '<span class="inv-area-stat-vs">/' + formatNum(a.expectedExtra, 0) + '</span>' : '') + '</span>' +
-    '<span class="inv-area-stat-label">' + (a.target != null ? 'extra h booked/exp' : 'extra h') + '</span></div>' +
+    (a.blockHours > 0 ? '<span class="inv-area-stat-vs">' + formatNum(a.blockHours, 0) + ' blk</span>' : '') + '</span>' +
+    '<span class="inv-area-stat-label">extra h</span></div>' +
     '<div class="inv-area-stat"><span class="inv-area-stat-value inv-mono">' +
     (a.impliedPerHead != null ? formatNum(a.impliedPerHead, 1) : '&mdash;') + '</span>' +
     '<span class="inv-area-stat-label">extra /head-day</span></div>' +

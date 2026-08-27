@@ -2706,3 +2706,15 @@ body.inv-desktop .inv-att-extra-row { max-width: calc(var(--sp-32) * 15); }
 .dark .inv-area-gap-over { background: var(--danger-bg); }
 .dark .inv-area-gap-under { background: var(--warning-bg); }
 .dark .inv-area-flag-warn { background: var(--warning-bg); color: var(--warning-text); }
+.inv-att-extra-kind {
+  display: flex; align-items: center; gap: var(--sp-8);
+  padding-bottom: var(--sp-8); margin-top: calc(-1 * var(--sp-4));
+}
+.inv-att-extra-kind select { flex: 0 0 auto; }
+.inv-att-extra-hint { font-size: var(--fs-2xs); color: var(--text-3); min-width: 0; }
+.inv-area-absorb-flag {
+  margin-left: var(--sp-6); font-size: var(--fs-2xs); font-weight: 700;
+  padding: 0 var(--sp-6); border-radius: var(--r-sm);
+  background: var(--warning-bg); color: var(--warning-text);
+}
+.dark .inv-area-absorb-flag { background: var(--warning-bg); color: var(--warning-text); }

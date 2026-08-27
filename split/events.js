@@ -412,6 +412,11 @@ document.addEventListener('change', function(e) {
     renderAttendance();
     return;
   }
+  if (e.target.hasAttribute && e.target.hasAttribute('data-att-extra-kind')) {
+    setAttExtraKind(parseInt(e.target.dataset.idx, 10), e.target.value);
+    renderAttendance();
+    return;
+  }
   if (e.target.hasAttribute && e.target.hasAttribute('data-att-ot')) {
     setAttOt(parseInt(e.target.dataset.id, 10), e.target.value);
     renderAttendance();

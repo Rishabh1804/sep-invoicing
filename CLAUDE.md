@@ -19,13 +19,13 @@ Workforce management and invoicing PWA for **Soma Electro Products**, a zinc ele
 
 ## Architecture
 
-Split-file PWA. 33 modules, ~15,750 lines total.
+Split-file PWA. 33 modules, ~15,950 lines total.
 
 ```
 split/
 ├── build.sh           ← writes ../sep-invoicing.html, syncs ../index.html
 ├── head.html          ← DOCTYPE, meta, font links (17 lines)
-├── styles.css         ← All CSS with inv- prefix (2,708 lines)
+├── styles.css         ← All CSS with inv- prefix (2,720 lines)
 ├── body.html          ← HTML body, tabs, print view (137 lines)
 ├── data.js            ← ITEMS_MASTER + SEED_CLIENTS (27 lines)
 ├── state.js           ← State mgmt, utilities, escHtml, gstRound (324 lines)
@@ -45,9 +45,9 @@ split/
 ├── quality-cert.js    ← Test Certificate (ZN Plating): approved format + per-line certs (380 lines)
 ├── credit-note.js     ← Credit notes: batch discount, own series, CDNR export (557 lines)
 ├── charts.js          ← Reusable SVG charts: line, bar, pie, ranked bars (243 lines)
-├── staff.js           ← Roster + attendance + roster import: day, week, extra hours (901 lines)
+├── staff.js           ← Roster + attendance + roster import: day, week, extra hours (1,013 lines)
 ├── labour.js          ← Labour: three pay tiers, fixed/variable, by area, ₹/kg (448 lines)
-├── areas.js           ← Areas: staffing vs norms + the extra reconciled (500 lines)
+├── areas.js           ← Areas: staffing vs norms + the extra reconciled (588 lines)
 ├── stats.js           ← Stats dashboard + History activity log (1,195 lines)
 ├── client-perf.js     ← Client performance: month on month + material cadence (314 lines)
 ├── im-form.js         ← IM add/edit/delete challan form (450 lines)
@@ -78,7 +78,7 @@ every session start — nothing to set up by hand. CI (`build-sync`) is the back
 ### Tests
 
 ```bash
-pnpm exec playwright test          # 229 tests, both layouts
+pnpm exec playwright test          # 234 tests, both layouts
 ```
 
 Some sandboxes ship a Chromium build Playwright does not expect and block downloading
@@ -303,20 +303,41 @@ because a floating hand is a fact about the day and not a gap to fill by guesswo
 
 **The areas are the shop's own, and the split is not cosmetic.** The staffing norms are defined
 on these exact units — **VAT A1 4 · VAT A2 4 · Barrel 3 · Barrel pickling 2 · Pickling A1+A2 3**,
-sixteen on the floor at full house — and pickling is two sub-areas that the daily relay already
+sixteen on the floor at full house, ruled 11 Jun 2026 and re-confirmed by the owner 27 Aug — and pickling is two sub-areas that the daily relay already
 divides. A single flat `pickling` can carry neither norm, so it can carry neither shortfall, so
-the extra cannot be checked against it. **Colour is not an area**: it is the passivation step
-inside VAT A1, and giving it one was this module's own invention.
+the extra cannot be checked against it. **Colour is not an area**: it is the *dedicated
+passivation hand* inside VAT A1's complement of four. The step itself is not A1's — A2's operators
+passivate their own work and the barrel route passivates too — what is A1-specific is that a hand
+is set aside for it. Giving it an area of its own was this module's invention; the shop's own
+register codes those hands `A1`.
 
-**The extra is a prediction, not a mystery.** The rule the floor is run to: a hand missing from
-an area running at full tilt is covered by the crew who are there, and **8 hours are booked to
-that area for it**. So expected extra is `Σ max(0, norm − heads) × 8` per sub-area per day, and
-the card sets it against what was actually booked.
+**The extra is a prediction, not a mystery.** A hand missing from an area running at full tilt is
+covered by the crew who are there, and **8 hours are booked to that area for it**. So expected
+extra is `Σ max(0, norm − heads) × 8` per unit per day, set against what was actually booked.
 
-- **A norm only binds an area that ran.** A line nobody stood on is idle, not short of its whole
-  complement — otherwise a day running one area of five predicts more coverage than the plant
-  could absorb. Idle area-days are excluded and the exclusion is **reported**, because it is an
-  assumption doing real work.
+**Be exact about which part of that is ruled.** The 11 Jun ruling fixes two things: the label sits
+under the *short sub-area*, and its worked example — A1 3/4, A2 3/4, pickling 2/3 → 24 h. Every gap
+in that example is **one**, so it cannot distinguish 8-per-missing-hand from 8-per-short-area. The
+per-hand scaling is the **owner's, confirmed 27 Aug 2026**; before that it was a working hypothesis
+whose author labelled it as one. Two recorded days contradict it — **W27 Mon 29 Jun** and **W28 Fri
+10 Jul**, both VAT A1 at 2 of 4, both tagged 8 where per-hand predicts 16 — and the pattern in the
+failures is legible: every one is a two-hand VAT line tagged a single shift. The app follows the
+owner's rule and surfaces those days as *booked but not the predicted amount* rather than
+smoothing them away. `extraHoursPerHead` is in Settings because the question is not closed.
+
+- **Barrel and Barrel pickling are one unit for the arithmetic.** The relay writes them as one row
+  about as often as two, and every recorded decode reconciles them against a combined norm of five.
+  Split, a day with both hands on the barrel side predicts 8 hours against the 24 the shop booked
+  and reports a surplus on a day that balances exactly. Where both are staffed the two readings
+  agree, so the pairing only ever bites where it must.
+- **A norm binds a unit that ran, and a unit nobody stood on but hours were booked to *ran*.** A
+  line with no heads and no booking is idle, not short of its whole complement — otherwise a day
+  running one area of five predicts more coverage than the plant could absorb. But a zero-head
+  pickling row carrying `EXTRA 24 HOURS` against a norm of three is 8 × 3 exactly: the shop treated
+  it as fully short and fully covered. Judging that idle would drop it from the expected side while
+  keeping it on the booked side, and the card would cry surplus on a day that reconciles to the
+  hour. **Numerator and denominator, same population** — the rule this repo already lives by.
+  Genuinely idle unit-days are excluded and the exclusion is **reported**.
 - **The gap is read in both directions, and they mean different things.** More booked than the
   shortfall explains is the case the rule forbids. Less is not an error at all: the rule binds
   an area at full tilt, and nothing here measures per-area output, so the expected figure is an
@@ -328,12 +349,27 @@ the card sets it against what was actually booked.
   shortfall the card says the check **passed**, because a test that only speaks up on failure
   teaches the reader to stop trusting its silence.
 
-**Coverage is absorbed pro-rata, and that makes it attributable.** The same ruling that defines
-the extra says the short area's present crew absorb it between them, which the app ranks per
-worker. It is an **availability measure, not a wage**: payment is pooled — one line on the slip,
-paid out on the floor — so nothing here is added to anyone's pay and the labour card still counts
-the extra exactly once, unattributed. Attributable for measurement, pooled for payment; the two
-are different questions and conflating them is what the earlier version of this module got wrong.
+**`EXTRA n HOURS` is two instruments wearing one name**, and the same 11 Jun ruling said so: under
+a general-shift area row it is pooled coverage, but in the 6 AM or evening block it states the
+slot's **per-hand** credit — five hands at three hours is fifteen, not three. Only coverage answers
+a shortfall, so only coverage is reconciled against one; a block credit is counted in the bill and
+reported apart. The entry row carries the distinction because an operator copying the sheet cannot
+otherwise see it.
+
+**Coverage is absorbed pro-rata, and that makes it attributable.** The 11 Jun ruling says the short
+area's present crew absorb it between them, which the app ranks per worker. It is an **availability
+measure, not a wage**: payment is pooled — one line on the slip, paid out on the floor — so nothing
+here is added to anyone's pay and the labour card still counts the extra exactly once, unattributed.
+Attributable for measurement, pooled for payment; the two are different questions and conflating
+them is what the earlier version of this module got wrong.
+
+**Two things about that are still open, and the app says so rather than implying otherwise.**
+The pro-rata reading has a recorded breaking point — 24 coverage hours against two present hands is
+twelve each on top of a full shift, which nobody stood, and the likelier reading there is
+brought-in casual labour on a different ledger line; rows past that ceiling are marked as a question
+rather than ranked as a measurement. And **T-CY is open**: the payee behind the pooled line has
+never been identified, with ₹13,109 disbursed across W28–W30 against it. "Payment is pooled" is the
+ruling; who receives it is not settled.
 
 ### Client performance
 Clients tab → **Performance**. One account at a time: month on month as revenue, tonnage or ₹/kg,
@@ -510,8 +546,8 @@ the overtime by a tenth. `daily` is the generic middle; no SEP tier is on it, an
 the retired `contract` class was.
 
 **The gate is the one place a monthly worker's pay moves with their own attendance.** Rest days
-are paid, scaled three ways: at or above 90% attendance all of them, above 80% half, below that
-none. Exact over a calendar month, which is the period it was written for; over a shorter range
+are paid, scaled three ways: at or above 90% attendance all of them, at or above 80% half, below
+that none. Exact over a calendar month, which is the period it was written for; over a shorter range
 it judges each rest day on that range alone, and the card says so.
 
 **The model reproduces a real payout slip.** One W32 week's hourly pool foots to ₹27,549 across

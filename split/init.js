@@ -288,8 +288,15 @@ if (!S._staffAreas2) {
   S._staffAreas2 = true;
   saveJSON(STORAGE_KEY, S);
   if (_ar > 0) {
+    // Both aliases are ambiguous and both are disclosed. `pickling` cannot be
+    // told apart from the barrel side after the fact; and while `colour` sits
+    // inside VAT A1 on every recent grid, the May 2026 relay carried a colour
+    // hand inside VAT A2 and a standalone colour row on four days, so a mark
+    // from that era can land on the wrong line too. Naming one and not the
+    // other would make the quieter case look settled.
     console.log('Areas: re-pointed ' + _ar + ' reference' + (_ar === 1 ? '' : 's') +
-      ' — any that meant Barrel pickling rather than Pickling A1+A2 need moving by hand');
+      ' — check by hand any that meant Barrel pickling rather than Pickling A1+A2, ' +
+      'and any colour mark from before Jun 2026, which may have belonged to VAT A2');
   }
 }
 

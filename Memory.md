@@ -72,7 +72,7 @@ CA by background. Business Manager at Soma Electro Products (zinc electroplating
   (4/4/3/2/3, sixteen at full house) and the extra turned from a mystery into a prediction —
   `(norm − heads) × 8` per sub-area per day, checked against what was booked, with pro-rata
   absorption ranked per worker. Reproduces the 11 Jun ruling's own worked example to the rupee
-- 33 modules, ~15,750 lines. 229 e2e tests gate every PR
+- 33 modules, ~15,950 lines. 234 e2e tests gate every PR
 - Development moved off Termux to Claude Code (clones fresh; `.claude/hooks/session-start.sh`
   arms the pre-commit hook and installs test deps)
 - **Open with the owner:**
@@ -240,6 +240,22 @@ decision. Do not silently propagate the SEP pattern to another repo without sett
   from a logged quantity into `(norm − heads) × 8` is what made every downstream flag possible —
   over-booking, booking on a full area, quantity mismatches — none of which existed while the
   hours were merely counted.
+
+- **Numerator and denominator over the same population — and the rule bites hardest where you
+  added an exclusion.** SEP's extra-hours card excluded idle area-days from the *expected* side and
+  kept their bookings on the *booked* side, so the gap went positive and the card accused the floor
+  on the exact days the shop's own decode balances to the hour. The repo already carried this rule,
+  written for realisation, and the module broke it in the one place it mattered. **Every exclusion
+  you add to one side of a ratio is a question about the other side.**
+- **A worked example with no variance cannot settle a formula.** The ruling that fixed SEP's
+  staffing norms carried an example where every shortfall was one hand, so it could not distinguish
+  8-per-missing-hand from 8-per-short-area — and the app's own reproducing spec inherited exactly
+  that blindness, verifying against the one case that cannot discriminate. Before claiming a spec
+  proves a rule, ask which competing rule it would also pass.
+- **Two Governors reading the same diff from different jurisdictions found the same blocker from
+  opposite ends** — one via the wage arithmetic, one via the plant record. That is the argument for
+  the parallel audit rather than a single reviewer: the convergence is what made it certain, and
+  neither would have been dismissable alone.
 
 ## Companion Registry (Quick Reference)
 

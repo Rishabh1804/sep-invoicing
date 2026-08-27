@@ -68,6 +68,7 @@ document.addEventListener('click', function(e) {
     case 'invAttAddExtra': attAddExtra(); break;
     case 'invAttRemoveExtra': attRemoveExtra(parseInt(btn.dataset.idx, 10)); break;
     case 'invAttAddWorker': openWorkerAdd(); break;
+    case 'invAttImportRoster': importRoster(); break;
     case 'invAttEditWorker': openWorkerEdit(parseInt(btn.dataset.id, 10)); break;
     case 'invAttSaveWorker': saveWorker(parseInt(btn.dataset.id, 10), btn.dataset.mode); break;
     case 'invAttDeleteWorker': deleteWorker(parseInt(btn.dataset.id, 10)); break;
@@ -415,6 +416,11 @@ document.addEventListener('change', function(e) {
     renderAttendance();
     return;
   }
+  if (e.target.hasAttribute && e.target.hasAttribute('data-att-hours')) {
+    setAttHours(parseInt(e.target.dataset.id, 10), e.target.value);
+    renderAttendance();
+    return;
+  }
   if (e.target.hasAttribute && e.target.hasAttribute('data-att-extra-hours')) {
     setAttExtraHours(parseInt(e.target.dataset.idx, 10), e.target.value);
     renderAttendance();
@@ -476,6 +482,10 @@ document.addEventListener('input', function(e) {
   // path in challan entry, and a number input is the same trap.
   if (e.target.hasAttribute && e.target.hasAttribute('data-att-ot')) {
     setAttOt(parseInt(e.target.dataset.id, 10), e.target.value);
+    return;
+  }
+  if (e.target.hasAttribute && e.target.hasAttribute('data-att-hours')) {
+    setAttHours(parseInt(e.target.dataset.id, 10), e.target.value);
     return;
   }
   if (e.target.hasAttribute && e.target.hasAttribute('data-att-extra-hours')) {

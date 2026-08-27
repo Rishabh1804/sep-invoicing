@@ -207,6 +207,41 @@ if (!S._rateCleanup1) {
   saveJSON(STORAGE_KEY, S);
 }
 
+/* Comp classes rebuilt against the two pay mechanics the shop actually runs.
+
+   The first cut of the Staff tab shipped `permanent` (a flat monthly, accrued
+   by calendar day) and `contract` (days at a day rate, OT at a multiplier).
+   Neither matched a payout slip: the salaried tier is paid ₹/day × days with
+   its rest days gated on attendance, and the weekly pool is paid a flat rate
+   for every hour with no day boundary and no multiplier at all.
+
+   `permanent` becomes `monthly`, and where such a worker carried only a flat
+   salary it is divided by 30 to recover the day rate the slips are written in.
+   That is an approximation and it is the only lossy step here — but the tier
+   was never *paid* off a flat monthly, so the flat figure was the approximation
+   in the first place. `contract` becomes `daily`, which is the same arithmetic
+   under a name that no longer claims to describe this shop's contract pool.
+
+   Idempotent, and a no-op on the overwhelmingly likely case: the roster ships
+   empty, so most devices have nothing to migrate. */
+if (!S._staffComp1) {
+  var _sc = 0;
+  (S.staff || []).forEach(function(w) {
+    if (w.comp === 'permanent') {
+      w.comp = 'monthly';
+      if (!(w.dayRate > 0) && w.monthly > 0) w.dayRate = gstRound(w.monthly / 30);
+      _sc++;
+    } else if (w.comp === 'contract') {
+      w.comp = 'daily';
+      _sc++;
+    }
+    delete w.monthly;
+  });
+  S._staffComp1 = true;
+  saveJSON(STORAGE_KEY, S);
+  if (_sc > 0) console.log('Staff: migrated ' + _sc + ' worker' + (_sc === 1 ? '' : 's') + ' to the tiered comp model');
+}
+
 /* Phase 9: Default cost per KG for margin dashboard (IL-4) — idempotent */
 if (S.defaultCostPerKg === undefined) {
   S.defaultCostPerKg = 8.55;

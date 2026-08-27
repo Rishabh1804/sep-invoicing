@@ -37,8 +37,26 @@ function labourCfg() {
     otMult: c.otMult != null ? c.otMult : 1.1,
     restCreditMinDays: c.restCreditMinDays != null ? c.restCreditMinDays : 6,
     extraRate: c.extraRate || 0,
-    modelPerKg: c.modelPerKg || 0
+    modelPerKg: c.modelPerKg || 0,
+    gateFull: c.gateFull != null ? c.gateFull : 0.9,
+    gateHalf: c.gateHalf != null ? c.gateHalf : 0.8
   };
+}
+
+/* The three-layer rest-day gate on the monthly tier.
+
+   Rest days are paid, but the entitlement is scaled by attendance: at or above
+   the full threshold the whole of it, above the half threshold half of it, and
+   below that none. It is the one place a monthly worker's pay moves with their
+   own attendance, which is why the tier is called monthly and not fixed.
+
+   Exact over a calendar month, which is the period it was written for. Over a
+   shorter range it is an approximation of a monthly rule and the card says so —
+   a week with one Sunday gets that Sunday judged on that week's attendance. */
+function restGate(attendance, cfg) {
+  if (attendance >= cfg.gateFull) return 1;
+  if (attendance >= cfg.gateHalf) return 0.5;
+  return 0;
 }
 
 /* Is this area on the plant floor? An unknown area is treated as floor: the
@@ -57,49 +75,41 @@ function labourForRange(fromIso, toIso) {
 
   var out = {
     from: fromIso, to: toIso, rangeDays: dates.length,
-    permanent: 0, permanentFloor: 0,
-    contract: 0, contractFloor: 0,
-    rest: 0, ot: 0, otFloor: 0, extra: 0, extraFloor: 0,
-    otHours: 0, extraHours: 0, contractDays: 0,
+    monthlyDays: 0, monthlyDaysWorked: 0,
+    rest: 0, restDaysCredited: 0, restDaysInRange: 0,
+    pool: 0, poolHours: 0,
+    daily: 0, dailyDays: 0, dailyRest: 0,
+    ot: 0, otHours: 0, extra: 0, extraHours: 0,
+    floorCost: 0,
     daysRecorded: 0, workingDays: 0, sundaysRecorded: 0,
     rosterSize: roster.length, ratelessWorkers: [], byArea: {}
   };
 
-  // Variable labour, by the area it was worked in. Permanent payroll is
-  // deliberately absent: a monthly salary is not attributable to a day, let
-  // alone to the area that day was worked in, and splitting it by home area
-  // would put a number on the page that looks like an allocation and is not.
+  // Variable labour, by the area it was worked in. The monthly tier's day pay
+  // is deliberately absent: see _labAreaRows.
   function bumpArea(areaId, cost, days, hours) {
     var a = out.byArea[areaId] || (out.byArea[areaId] = { cost: 0, days: 0, hours: 0 });
     a.cost += cost; a.days += days; a.hours += hours;
   }
+  function bumpFloor(w, areaId, cost) {
+    if (w.onFloor !== false && _areaIsFloor(areaId)) out.floorCost += cost;
+  }
 
-  // Permanent salary accrues by calendar day, so a month boundary inside the
-  // range prorates correctly against each month's own length.
-  var perms = roster.filter(function(w) { return w.comp === 'permanent'; });
-  dates.forEach(function(iso) {
-    var d = attParseIso(iso);
-    var dim = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
-    perms.forEach(function(w) {
-      var share = (w.monthly || 0) / dim;
-      out.permanent += share;
-      if (w.onFloor !== false) out.permanentFloor += share;
-    });
-  });
-
-  // Days worked per contract worker per week, for the rest-credit gate.
+  // Per-worker tallies, because both gates below are judged over the range
+  // rather than per day: the monthly tier's rest credit needs the attendance
+  // percentage, the daily tier's needs a week's day count.
+  var monthlyDaysBy = {};
   var weekDaysWorked = {};
 
   dates.forEach(function(iso) {
     var dow = attParseIso(iso).getDay();
-    if (dow !== 0) out.workingDays++;
+    if (dow === 0) out.restDaysInRange++; else out.workingDays++;
 
     var rec = (S.attendance || {})[iso];
     if (!rec) return;
     var marks = rec.marks || {};
     var marked = Object.keys(marks).length;
-    var extras = (rec.extra || []).length;
-    if (marked === 0 && extras === 0) return;
+    if (marked === 0 && (rec.extra || []).length === 0) return;
     if (marked > 0) {
       if (dow === 0) out.sundaysRecorded++; else out.daysRecorded++;
     }
@@ -109,30 +119,46 @@ function labourForRange(fromIso, toIso) {
       var m = marks[w.id];
       if (!m || !m.st) return;
       var dayVal = ATT_DAY_VALUE[m.st] || 0;
-      var floor = w.onFloor !== false && _areaIsFloor(m.area || w.area);
-
       var areaId = m.area || w.area || 'flex';
-      if (w.comp === 'contract') {
-        var wage = dayVal * (w.dayRate || 0);
-        out.contract += wage;
-        out.contractDays += dayVal;
-        if (floor) out.contractFloor += wage;
-        bumpArea(areaId, wage, dayVal, 0);
-        var key = w.id + '|' + wk;
-        weekDaysWorked[key] = (weekDaysWorked[key] || 0) + dayVal;
+
+      if (w.comp === 'hourly') {
+        // No day rate exists for this tier and no multiplier applies: the
+        // fourteenth hour is paid exactly like the first.
+        var hrs = m.hours || 0;
+        if (hrs > 0) {
+          var pay = hrs * (w.hourRate || 0);
+          out.pool += pay;
+          out.poolHours += hrs;
+          bumpArea(areaId, pay, 0, hrs);
+          bumpFloor(w, areaId, pay);
+          if (!(w.hourRate > 0) && out.ratelessWorkers.indexOf(w.name) < 0) out.ratelessWorkers.push(w.name);
+        }
+        return;
       }
+
+      // Monthly and daily both pay by the day; only the rest-day rule differs.
+      var wage = dayVal * (w.dayRate || 0);
+      if (w.comp === 'monthly') {
+        out.monthlyDays += wage;
+        out.monthlyDaysWorked += dayVal;
+        monthlyDaysBy[w.id] = (monthlyDaysBy[w.id] || 0) + dayVal;
+      } else {
+        out.daily += wage;
+        out.dailyDays += dayVal;
+        weekDaysWorked[w.id + '|' + wk] = (weekDaysWorked[w.id + '|' + wk] || 0) + dayVal;
+        bumpArea(areaId, wage, dayVal, 0);
+      }
+      bumpFloor(w, areaId, wage);
 
       var oth = m.ot || 0;
       if (oth > 0) {
-        // A permanent worker's overtime is paid at their own hour rate when one
-        // is set. Where it is not, the hours are still recorded and reported —
-        // they just cannot be priced, and the card says how many.
-        var otPay = oth * (w.hourRate || 0) * cfg.otMult;
+        var rate = workerOtRate(w);
+        var otPay = oth * rate * cfg.otMult;
         out.otHours += oth;
         out.ot += otPay;
-        if (floor) out.otFloor += otPay;
         bumpArea(areaId, otPay, 0, oth);
-        if (!(w.hourRate > 0) && out.ratelessWorkers.indexOf(w.name) < 0) out.ratelessWorkers.push(w.name);
+        bumpFloor(w, areaId, otPay);
+        if (!(rate > 0) && out.ratelessWorkers.indexOf(w.name) < 0) out.ratelessWorkers.push(w.name);
       }
     });
 
@@ -142,42 +168,56 @@ function labourForRange(fromIso, toIso) {
       var pay = h * cfg.extraRate;
       out.extraHours += h;
       out.extra += pay;
-      if (_areaIsFloor(x.area)) out.extraFloor += pay;
+      if (_areaIsFloor(x.area)) out.floorCost += pay;
       bumpArea(x.area || 'flex', pay, 0, h);
     });
   });
 
-  // Rest credit: one paid day for a contract week that reached the gate. It is
-  // measured on days *inside this range*, so a period that cuts a week in half
-  // under-credits that boundary week — stated on the card rather than papered
-  // over by reading days the period does not cover.
+  // Monthly tier rest days: the month's rest days scaled by each worker's own
+  // attendance through the three-layer gate.
+  if (out.restDaysInRange > 0) {
+    roster.forEach(function(w) {
+      if (w.comp !== 'monthly') return;
+      var worked = monthlyDaysBy[w.id] || 0;
+      var att = out.workingDays > 0 ? worked / out.workingDays : 0;
+      var g = restGate(att, cfg);
+      if (g <= 0) return;
+      var credited = out.restDaysInRange * g;
+      var pay = credited * (w.dayRate || 0);
+      out.rest += pay;
+      out.restDaysCredited += credited;
+      if (w.onFloor !== false) out.floorCost += pay;
+    });
+  }
+
+  // Daily tier rest credit: one further paid day for a week that reached the
+  // gate. Measured on days inside this range, so a range cutting a week in half
+  // under-credits that week — stated on the card rather than papered over.
   if (cfg.restCreditMinDays > 0) {
     Object.keys(weekDaysWorked).forEach(function(key) {
       if (weekDaysWorked[key] < cfg.restCreditMinDays) return;
       var w = staffById(parseInt(key.split('|')[0], 10));
       if (!w) return;
-      out.rest += (w.dayRate || 0);
-      if (w.onFloor !== false) out.contractFloor += (w.dayRate || 0);
-      bumpArea(w.area || 'flex', (w.dayRate || 0), 1, 0);
+      var pay = (w.dayRate || 0);
+      out.dailyRest += pay;
+      if (w.onFloor !== false) out.floorCost += pay;
+      bumpArea(w.area || 'flex', pay, 1, 0);
     });
   }
 
-  out.permanent = gstRound(out.permanent);
-  out.permanentFloor = gstRound(out.permanentFloor);
-  out.contract = gstRound(out.contract);
-  out.contractFloor = gstRound(out.contractFloor);
-  out.rest = gstRound(out.rest);
-  out.ot = gstRound(out.ot);
-  out.otFloor = gstRound(out.otFloor);
-  out.extra = gstRound(out.extra);
-  out.extraFloor = gstRound(out.extraFloor);
-
-  out.fixed = out.permanent;
-  out.variable = gstRound(out.contract + out.rest + out.ot + out.extra);
-  out.total = gstRound(out.fixed + out.variable);
-  out.floor = gstRound(out.permanentFloor + out.contractFloor + out.otFloor + out.extraFloor);
-  out.offFloor = gstRound(out.total - out.floor);
+  ['monthlyDays', 'rest', 'pool', 'daily', 'dailyRest', 'ot', 'extra', 'floorCost'].forEach(function(k) {
+    out[k] = gstRound(out[k]);
+  });
   Object.keys(out.byArea).forEach(function(k) { out.byArea[k].cost = gstRound(out.byArea[k].cost); });
+
+  // Fixed is the standing crew — the monthly tier, days and gated rest days
+  // together. It moves with their attendance but not with tonnage, which is the
+  // distinction the split exists to draw.
+  out.fixed = gstRound(out.monthlyDays + out.rest);
+  out.variable = gstRound(out.pool + out.daily + out.dailyRest + out.ot + out.extra);
+  out.total = gstRound(out.fixed + out.variable);
+  out.floor = out.floorCost;
+  out.offFloor = gstRound(out.total - out.floor);
   out.coverage = out.workingDays > 0 ? Math.min(1, out.daysRecorded / out.workingDays) : 0;
   return out;
 }
@@ -257,10 +297,11 @@ function _labAreaRows(lab) {
 
   return '<div class="inv-lab-area-title">Variable labour by area</div>' +
     chartRankedBars(rows, { unit: 'money' }) +
-    '<div class="inv-stats-note">Contract days, rest credit, overtime and extra hours, placed by the ' +
-    'area each was worked in. <strong>Permanent payroll is not in here</strong> &mdash; a monthly salary ' +
-    'cannot be attributed to a day, let alone to the area that day was worked in, and splitting it by ' +
-    'home area would print an allocation nobody measured.</div>';
+    '<div class="inv-stats-note">Hourly pool, daily tier, overtime and extra hours, placed by the area each ' +
+    'was worked in. <strong>The monthly tier&rsquo;s day pay and rest days are not in here</strong> &mdash; that ' +
+    'crew is the standing one and its cost does not follow the area it happened to stand in, so splitting it ' +
+    'would print an allocation nobody measured. Their overtime <em>is</em> in here, because an overtime hour ' +
+    'was worked somewhere specific and was paid for being worked.</div>';
 }
 
 /* The breakdown card. Used by the Attendance tab for a day or a week (cash
@@ -280,15 +321,36 @@ function renderLabourCard(fromIso, toIso, title, tonnage, extraClass) {
   html += '<div class="inv-lab-split">' +
     '<div class="inv-lab-half inv-lab-fixed"><div class="inv-lab-half-label">Fixed</div>' +
     '<div class="inv-lab-half-value inv-mono">' + formatCurrency(lab.fixed) + '</div>' +
-    '<div class="inv-lab-half-sub">permanent payroll</div></div>' +
+    '<div class="inv-lab-half-sub">monthly tier, days and rest</div></div>' +
     '<div class="inv-lab-half inv-lab-variable"><div class="inv-lab-half-label">Variable</div>' +
     '<div class="inv-lab-half-value inv-mono">' + formatCurrency(lab.variable) + '</div>' +
-    '<div class="inv-lab-half-sub">contract, OT and extra</div></div></div>';
+    '<div class="inv-lab-half-sub">hourly, daily, OT and extra</div></div></div>';
 
-  html += _labRow('Permanent', formatCurrency(lab.permanent), 'accrued over ' + lab.rangeDays + ' day' + (lab.rangeDays === 1 ? '' : 's'));
-  html += _labRow('Contract days', formatCurrency(lab.contract), formatNum(lab.contractDays, 1) + ' day' + (lab.contractDays === 1 ? '' : 's') + ' worked');
-  if (lab.rest > 0) html += _labRow('Rest credit', formatCurrency(lab.rest), 'full weeks at ' + cfg.restCreditMinDays + '+ days');
-  html += _labRow('Overtime (named)', formatCurrency(lab.ot), formatNum(lab.otHours, 1) + ' h at &times;' + formatNum(cfg.otMult, 2));
+  // One row per tier that actually has something in it. A tier nobody is on
+  // renders nothing rather than a zero: a zero reads as a measurement.
+  if (lab.monthlyDays > 0 || lab.monthlyDaysWorked > 0) {
+    html += _labRow('Monthly tier &mdash; days', formatCurrency(lab.monthlyDays),
+      formatNum(lab.monthlyDaysWorked, 1) + ' day' + (lab.monthlyDaysWorked === 1 ? '' : 's') + ' worked at day rate');
+  }
+  if (lab.rest > 0 || lab.restDaysInRange > 0) {
+    html += _labRow('Rest days credited', formatCurrency(lab.rest),
+      formatNum(lab.restDaysCredited, 1) + ' of ' + lab.restDaysInRange + ' &times; roster, gated at ' +
+      Math.round(cfg.gateFull * 100) + '% / ' + Math.round(cfg.gateHalf * 100) + '%');
+  }
+  if (lab.pool > 0 || lab.poolHours > 0) {
+    html += _labRow('Hourly pool', formatCurrency(lab.pool),
+      formatNum(lab.poolHours, 1) + ' h, flat rate &mdash; no multiplier');
+  }
+  if (lab.daily > 0 || lab.dailyDays > 0) {
+    html += _labRow('Daily tier', formatCurrency(lab.daily),
+      formatNum(lab.dailyDays, 1) + ' day' + (lab.dailyDays === 1 ? '' : 's') + ' worked');
+  }
+  if (lab.dailyRest > 0) {
+    html += _labRow('Daily rest credit', formatCurrency(lab.dailyRest),
+      'full weeks at ' + cfg.restCreditMinDays + '+ days');
+  }
+  html += _labRow('Overtime (named)', formatCurrency(lab.ot),
+    formatNum(lab.otHours, 1) + ' h at &times;' + formatNum(cfg.otMult, 2) + ', monthly tier at day rate &divide; 8');
   html += _labRow('Extra (unattributed)', formatCurrency(lab.extra), formatNum(lab.extraHours, 1) + ' h at ' + formatCurrency(cfg.extraRate) + '/h');
   html += _labRow('On the floor', formatCurrency(lab.floor),
     lab.offFloor > 0 ? formatCurrency(lab.offFloor) + ' off floor (gate, office)' : 'all of it');
@@ -332,16 +394,20 @@ function renderLabourCard(fromIso, toIso, title, tonnage, extraClass) {
     ' working days</strong> in this range (' + covPct + '%)' +
     (lab.sundaysRecorded > 0 ? ', plus ' + lab.sundaysRecorded + ' Sunday' + (lab.sundaysRecorded === 1 ? '' : 's') : '') + '. ' +
     (lab.coverage < 0.999
-      ? 'Permanent salary accrues across the whole range; contract wages, OT and extra are counted only for days ' +
-        'actually typed. So an incomplete range reads <strong>low</strong>, never neutral.'
+      ? 'Every tier is paid for days and hours actually recorded, so an incomplete range reads <strong>low</strong>, ' +
+        'never neutral &mdash; and the monthly tier reads low <em>twice</em>, because a day nobody typed also ' +
+        'depresses the attendance its rest-day gate is judged on.'
       : 'Every working day in the range is on file.') +
-    (lab.rangeDays > 7 ? ' Rest credit is gated on days inside this range, so a range cutting a week in half under-credits that week.' : '') +
+    (lab.restDaysInRange > 0 && lab.rangeDays < 28
+      ? ' The rest-day gate is a monthly rule; over a range shorter than a month it judges each rest day on this range&rsquo;s attendance alone.'
+      : '') +
+    (lab.dailyRest > 0 && lab.rangeDays > 7 ? ' Daily rest credit is gated on days inside this range, so a range cutting a week in half under-credits that week.' : '') +
     '</div>';
 
   if (lab.ratelessWorkers.length > 0) {
-    html += '<div class="inv-stats-caveat">Overtime hours are recorded for <strong>' +
-      escHtml(lab.ratelessWorkers.join(', ')) + '</strong> with no hour rate on the roster, so those hours ' +
-      'are counted in the hours above and priced at zero. Set the rate in Roster to bring them into the bill.</div>';
+    html += '<div class="inv-stats-caveat">Hours are recorded for <strong>' +
+      escHtml(lab.ratelessWorkers.join(', ')) + '</strong> with no rate to price them at, so those hours ' +
+      'are counted in the totals above and paid at zero. Set the rate in Roster to bring them into the bill.</div>';
   }
 
   // The allocation answer sits last: it is a breakdown of a figure the reader

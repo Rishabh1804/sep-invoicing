@@ -23,10 +23,49 @@ var STAFF_AREAS = [
   { id: 'gate',     label: 'Gate',     floor: false }
 ];
 
+/* ===== COMP CLASSES =====
+
+   Three, because the shop pays three different ways and a single "contract"
+   class got two of them wrong.
+
+   `monthly` is the salaried tier — but it is not a flat salary. It is
+   `₹/day × days worked`, plus the month's rest days scaled by an attendance
+   gate, plus overtime at `₹/day ÷ 8 × 1.1`. That is the ratified rule, and a
+   flat monthly divided by calendar days (what the first cut of this module
+   did) neither matches the payout slips nor moves when somebody is absent.
+
+   `hourly` is the weekly pool, and it has **no day concept at all**: every
+   hour is paid at one flat rate, the fourteenth as the first. Charging it a
+   day rate and then paying overtime at ×1.1 — again, the first cut — invents
+   a day boundary the slip does not have and overpays the overtime by a tenth.
+
+   `daily` is the generic middle: days at a day rate, overtime at a multiplier.
+   No SEP tier is on it today; it is kept because it is the shape most job-work
+   contracts take, and because it is what the earlier `contract` class was. */
+var COMP_CLASSES = [
+  { id: 'monthly', label: 'Monthly', short: 'M', tone: 'perm',
+    hint: 'day rate × days worked, rest days gated on attendance, OT at rate ÷ 8' },
+  { id: 'hourly', label: 'Hourly', short: 'H', tone: 'cw',
+    hint: 'every hour at one flat rate — no day rate, no overtime multiplier' },
+  { id: 'daily', label: 'Daily', short: 'D', tone: 'cw',
+    hint: 'day rate × days worked, OT hours at the multiplier' }
+];
+
+function compClass(id) {
+  return COMP_CLASSES.find(function(c) { return c.id === id; }) || COMP_CLASSES[2];
+}
+
+/* The hourly pool is paid for hours, so hours are what its row captures. Every
+   other tier counts days and captures overtime on top. */
+function compIsHourly(w) { return w && w.comp === 'hourly'; }
+
 /* Present / Half day / Absent. A worker with no mark on a recorded day is
    *unmarked*, which is a fourth state and not the same as absent: it is the
    state of a row nobody has reached yet, and it costs nothing rather than
-   costing a day's wage. Absent has to be said. */
+   costing a day's wage. Absent has to be said.
+
+   Half a day is meaningless for an hourly worker — the hours already carry that
+   granularity — so their row offers Present and Absent only. */
 var ATT_STATES = ['P', 'H', 'A'];
 var ATT_STATE_LABELS = { P: 'Present', H: 'Half day', A: 'Absent' };
 var ATT_DAY_VALUE = { P: 1, H: 0.5, A: 0 };
@@ -122,7 +161,7 @@ function staffById(id) {
    shop does — the four area leads are the rows an absence matters most on. */
 function staffActive() {
   return (S.staff || []).filter(function(w) { return w.active !== false; }).sort(function(a, b) {
-    if (a.comp !== b.comp) return a.comp === 'permanent' ? -1 : 1;
+    if (a.comp !== b.comp) return a.comp === 'monthly' ? -1 : 1;
     return (a.name || '').localeCompare(b.name || '');
   });
 }
@@ -228,14 +267,15 @@ function _attDayView() {
   var roster = staffActive();
   var total = roster.length;
 
-  var present = 0, half = 0, absent = 0, unmarked = 0, otHours = 0;
+  var present = 0, half = 0, absent = 0, unmarked = 0, otHours = 0, poolHours = 0;
   roster.forEach(function(w) {
     var m = rec ? rec.marks[w.id] : null;
     if (!m) { unmarked++; return; }
     if (m.st === 'P') present++;
     else if (m.st === 'H') half++;
     else absent++;
-    otHours += (m.ot || 0);
+    if (compIsHourly(w)) poolHours += (m.hours || 0);
+    else otHours += (m.ot || 0);
   });
   var extraHours = rec ? rec.extra.reduce(function(s, x) { return s + (x.hours || 0); }, 0) : 0;
   var onSite = present + half;
@@ -261,9 +301,12 @@ function _attDayView() {
     '<span class="inv-att-pill inv-att-pill-a">' + absent + ' absent</span>' +
     (unmarked > 0 ? '<span class="inv-att-pill inv-att-pill-u">' + unmarked + ' unmarked</span>' : '') +
     '</div>' +
-    (otHours > 0 || extraHours > 0
-      ? '<div class="inv-att-summary"><span class="inv-att-pill inv-att-pill-ot">' + formatNum(otHours, 1) + ' h OT named</span>' +
-        '<span class="inv-att-pill inv-att-pill-x">' + formatNum(extraHours, 1) + ' h extra</span></div>'
+    (poolHours > 0 || otHours > 0 || extraHours > 0
+      ? '<div class="inv-att-summary">' +
+        (poolHours > 0 ? '<span class="inv-att-pill inv-att-pill-hr">' + formatNum(poolHours, 1) + ' h pool</span>' : '') +
+        (otHours > 0 ? '<span class="inv-att-pill inv-att-pill-ot">' + formatNum(otHours, 1) + ' h OT named</span>' : '') +
+        (extraHours > 0 ? '<span class="inv-att-pill inv-att-pill-x">' + formatNum(extraHours, 1) + ' h extra</span>' : '') +
+        '</div>'
       : '') +
     '</div>';
 
@@ -273,26 +316,34 @@ function _attDayView() {
     var m = rec ? rec.marks[w.id] : null;
     var st = m ? m.st : '';
     var wArea = m && m.area ? m.area : (w.area || 'flex');
+    var cls = compClass(w.comp);
+    var hourly = compIsHourly(w);
+    // Half a day is not a state an hourly worker can be in: the hours say it.
+    var states = hourly ? ['P', 'A'] : ATT_STATES;
+    var live = st && st !== 'A';
     html += '<div class="inv-att-row">' +
       '<div class="inv-att-who"><span class="inv-att-name">' + escHtml(w.name) + '</span>' +
-      '<span class="inv-att-badge inv-att-badge-' + (w.comp === 'permanent' ? 'perm' : 'cw') + '">' +
-      (w.comp === 'permanent' ? 'Permanent' : 'Contract') + '</span></div>' +
+      '<span class="inv-att-badge inv-att-badge-' + cls.tone + '">' + escHtml(cls.label) + '</span></div>' +
       '<div class="inv-att-controls">' +
       '<div class="inv-att-seg" role="group" aria-label="Attendance for ' + escHtml(w.name) + '">' +
-      ATT_STATES.map(function(s) {
-        return '<button class="inv-att-seg-btn inv-att-seg-' + s.toLowerCase() +
-          (st === s ? ' inv-att-seg-on' : '') + '" data-action="invAttSet" data-id="' + w.id +
-          '" data-st="' + s + '" aria-pressed="' + (st === s) + '" title="' + ATT_STATE_LABELS[s] + '">' + s + '</button>';
+      states.map(function(x) {
+        return '<button class="inv-att-seg-btn inv-att-seg-' + x.toLowerCase() +
+          (st === x ? ' inv-att-seg-on' : '') + '" data-action="invAttSet" data-id="' + w.id +
+          '" data-st="' + x + '" aria-pressed="' + (st === x) + '" title="' + ATT_STATE_LABELS[x] + '">' + x + '</button>';
       }).join('') +
       '</div>' +
       '<select class="inv-form-select inv-att-area" data-att-area data-id="' + w.id + '" aria-label="Area for ' + escHtml(w.name) + '"' +
-      (st && st !== 'A' ? '' : ' disabled') + '>' + attAreaOptions(wArea) + '</select>' +
-      // Deliberately not inv-mono: in the mono face the placeholder "OT" reads
-      // as the number zero followed by a T, in a field whose whole content is
-      // otherwise numbers.
-      '<input type="number" class="inv-form-input inv-att-ot" data-att-ot data-id="' + w.id +
-      '" step="0.5" min="0" placeholder="OT" value="' + (m && m.ot ? m.ot : '') + '"' +
-      (st && st !== 'A' ? '' : ' disabled') + ' aria-label="OT hours for ' + escHtml(w.name) + '">' +
+      (live ? '' : ' disabled') + '>' + attAreaOptions(wArea) + '</select>' +
+      // Deliberately not inv-mono: in the mono face the placeholders "OT" and
+      // "h" sit in a field whose whole content is otherwise numbers, and the
+      // mono O is indistinguishable from a zero.
+      (hourly
+        ? '<input type="number" class="inv-form-input inv-att-ot" data-att-hours data-id="' + w.id +
+          '" step="0.5" min="0" placeholder="hrs" value="' + (m && m.hours ? m.hours : '') + '"' +
+          (live ? '' : ' disabled') + ' aria-label="Hours worked by ' + escHtml(w.name) + '">'
+        : '<input type="number" class="inv-form-input inv-att-ot" data-att-ot data-id="' + w.id +
+          '" step="0.5" min="0" placeholder="OT" value="' + (m && m.ot ? m.ot : '') + '"' +
+          (live ? '' : ' disabled') + ' aria-label="OT hours for ' + escHtml(w.name) + '">') +
       '</div></div>';
   });
   html += '</div>';
@@ -370,16 +421,22 @@ function _attWeekView() {
     }).join('') + '</tr></thead><tbody>';
 
   roster.forEach(function(w) {
+    var cls = compClass(w.comp);
+    var hourly = compIsHourly(w);
     html += '<tr><th class="inv-att-grid-name"><span class="inv-att-grid-worker">' + escHtml(w.name) + '</span>' +
-      '<span class="inv-att-grid-comp inv-att-badge-' + (w.comp === 'permanent' ? 'perm' : 'cw') + '">' +
-      (w.comp === 'permanent' ? 'P' : 'C') + '</span></th>';
+      '<span class="inv-att-grid-comp inv-att-badge-' + cls.tone + '" title="' + escHtml(cls.label) + '">' +
+      cls.short + '</span></th>';
     days.forEach(function(d) {
       var m = attMark(d, w.id);
       var st = m ? m.st : '';
+      // The corner figure is the hours that decide this worker's pay: the whole
+      // day for the hourly pool, the overtime on top for everyone else.
+      var badge = m ? (hourly ? (m.hours || 0) : (m.ot || 0)) : 0;
       html += '<td class="inv-att-grid-cell"><button class="inv-att-cell inv-att-cell-' +
         (st ? st.toLowerCase() : 'u') + '" data-action="invAttCycle" data-id="' + w.id + '" data-date="' + d +
-        '" aria-label="' + escHtml(w.name) + ' ' + attDayName(d) + ' ' + (st ? ATT_STATE_LABELS[st] : 'unmarked') + '">' +
-        (st || '·') + (m && m.ot ? '<span class="inv-att-cell-ot">' + formatNum(m.ot, 0) + '</span>' : '') +
+        '" aria-label="' + escHtml(w.name) + ' ' + attDayName(d) + ' ' + (st ? ATT_STATE_LABELS[st] : 'unmarked') +
+        (badge ? ', ' + formatNum(badge, 1) + ' hours' : '') + '">' +
+        (st || '·') + (badge ? '<span class="inv-att-cell-ot">' + formatNum(badge, 0) + '</span>' : '') +
         '</button></td>';
     });
     html += '</tr>';
@@ -412,7 +469,9 @@ function _attRosterView() {
 
   var html = '<div class="inv-card"><div class="inv-card-header">' +
     '<span class="inv-card-title">Roster</span>' +
-    '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invAttAddWorker">Add worker</button></div>' +
+    '<span class="inv-att-roster-actions">' +
+    '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invAttImportRoster">Import</button>' +
+    '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invAttAddWorker">Add worker</button></span></div>' +
     '<div class="inv-stats-note">' + activeCount + ' active of ' + all.length + ' on file. ' +
     'The denominator on every headcount above is this number.</div>';
 
@@ -422,16 +481,13 @@ function _attRosterView() {
   }
 
   all.forEach(function(w) {
-    var rate = w.comp === 'permanent'
-      ? formatCurrency(w.monthly || 0) + '/month'
-      : formatCurrency(w.dayRate || 0) + '/day · ' + formatCurrency(w.hourRate || 0) + '/h';
+    var cls = compClass(w.comp);
     html += '<div class="inv-client-item' + (w.active === false ? ' inv-client-inactive' : '') +
       '" data-action="invAttEditWorker" data-id="' + w.id + '">' +
       '<div class="inv-client-content"><div class="inv-client-name">' + escHtml(w.name) + '</div>' +
-      '<div class="inv-client-meta inv-mono">' + escHtml(rate) + '</div>' +
+      '<div class="inv-client-meta inv-mono">' + escHtml(workerRateLabel(w)) + '</div>' +
       '<div class="inv-client-badges">' +
-      '<span class="inv-att-badge inv-att-badge-' + (w.comp === 'permanent' ? 'perm' : 'cw') + '">' +
-      (w.comp === 'permanent' ? 'Permanent' : 'Contract') + '</span>' +
+      '<span class="inv-att-badge inv-att-badge-' + cls.tone + '">' + escHtml(cls.label) + '</span>' +
       '<span class="inv-client-badge inv-badge-mode">' + escHtml(areaLabel(w.area)) + '</span>' +
       (w.onFloor === false ? '<span class="inv-client-badge inv-badge-rate">Off floor</span>' : '') +
       (w.active === false ? '<span class="inv-client-badge inv-badge-inactive">Inactive</span>' : '') +
@@ -439,6 +495,27 @@ function _attRosterView() {
       '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg></div>';
   });
   return html + '</div>';
+}
+
+/* The hourly rate a worker's overtime is paid at.
+
+   For the monthly tier it is derived — `₹/day ÷ 8` — which is what makes the
+   rate card's own OT column fall out of the day rate rather than being a second
+   number to keep in step with it. An explicit `hourRate` still overrides, for a
+   worker whose overtime was negotiated apart from their day. */
+function workerOtRate(w) {
+  if (!w) return 0;
+  if (w.hourRate > 0) return w.hourRate;
+  if (w.comp === 'monthly') return (w.dayRate || 0) / 8;
+  return 0;
+}
+
+function workerRateLabel(w) {
+  var cls = compClass(w.comp);
+  if (cls.id === 'hourly') return formatCurrency(w.hourRate || 0) + '/h, every hour';
+  var ot = workerOtRate(w);
+  return formatCurrency(w.dayRate || 0) + '/day · OT ' + formatCurrency(ot) + '/h' +
+    (cls.id === 'monthly' && !(w.hourRate > 0) ? ' (derived)' : '');
 }
 
 /* ===== ACTIONS ===== */
@@ -484,9 +561,11 @@ function attSetState(iso, staffId, st) {
   if (!st) {
     delete rec.marks[staffId];
   } else {
-    var m = rec.marks[staffId] || { ot: 0, area: w.area || 'flex' };
+    var m = rec.marks[staffId] || { ot: 0, hours: 0, area: w.area || 'flex' };
     m.st = st;
-    if (st === 'A') m.ot = 0;
+    // Absent pays nothing and worked nothing: hours that nobody was here for
+    // are not hours, in either tier.
+    if (st === 'A') { m.ot = 0; m.hours = 0; }
     rec.marks[staffId] = m;
   }
   _attPrune(iso);
@@ -502,7 +581,9 @@ function setAttState(staffId, st) {
 /* Week grid cycle: unmarked → P → H → A → unmarked. */
 function cycleAttState(staffId, iso) {
   var cur = attMark(iso, staffId);
-  var order = ['', 'P', 'H', 'A'];
+  // No half day in the hourly cycle — the hours field carries that granularity,
+  // and a state the pay model cannot price should not be reachable by tapping.
+  var order = compIsHourly(staffById(staffId)) ? ['', 'P', 'A'] : ['', 'P', 'H', 'A'];
   var idx = order.indexOf(cur ? cur.st : '');
   attSetState(iso, staffId, order[(idx + 1) % order.length]);
   renderAttendance();
@@ -512,6 +593,15 @@ function setAttOt(staffId, hours) {
   var m = attMark(_attDate, staffId);
   if (!m) return;                       // OT without a presence mark is not a fact
   m.ot = Math.max(0, Number(hours) || 0);
+  saveState();
+}
+
+/* Hours worked, for the hourly pool. Same guard as OT: hours without a
+   presence mark are not a fact about the day. */
+function setAttHours(staffId, hours) {
+  var m = attMark(_attDate, staffId);
+  if (!m) return;
+  m.hours = Math.max(0, Number(hours) || 0);
   saveState();
 }
 
@@ -529,7 +619,7 @@ function attAllPresent() {
   var n = 0;
   staffActive().forEach(function(w) {
     if (!rec.marks[w.id]) {
-      rec.marks[w.id] = { st: 'P', ot: 0, area: w.area || 'flex' };
+      rec.marks[w.id] = { st: 'P', ot: 0, hours: 0, area: w.area || 'flex' };
       n++;
     }
   });
@@ -583,8 +673,8 @@ function _attPrune(iso) {
 /* ===== ROSTER CRUD ===== */
 function _blankWorker() {
   return {
-    id: 0, name: '', comp: 'contract', monthly: 0, dayRate: 0,
-    hourRate: (S.labour && S.labour.extraRate) || 47.5,
+    id: 0, name: '', comp: 'hourly', dayRate: 0,
+    hourRate: (S.labour && S.labour.extraRate) || 0,
     area: 'flex', onFloor: true, active: true, note: ''
   };
 }
@@ -609,18 +699,22 @@ function _showWorkerOverlay(worker, isAdd) {
     '<input class="inv-form-input" id="wedName" value="' + escHtml(w.name) + '"></div>' +
     '<div class="inv-form-row"><div class="inv-form-group"><label class="inv-form-label" for="wedComp">Comp class</label>' +
     '<select class="inv-form-select" id="wedComp">' +
-    '<option value="contract"' + (w.comp === 'contract' ? ' selected' : '') + '>Contract</option>' +
-    '<option value="permanent"' + (w.comp === 'permanent' ? ' selected' : '') + '>Permanent</option></select></div>' +
+    COMP_CLASSES.map(function(c) {
+      return '<option value="' + c.id + '"' + (w.comp === c.id ? ' selected' : '') + '>' + escHtml(c.label) + '</option>';
+    }).join('') + '</select></div>' +
     '<div class="inv-form-group"><label class="inv-form-label" for="wedArea">Area</label>' +
     '<select class="inv-form-select" id="wedArea">' + attAreaOptions(w.area) + '</select></div></div>' +
-    '<div class="inv-form-group"><label class="inv-form-label" for="wedMonthly">Monthly salary (permanent)</label>' +
-    '<input class="inv-form-input inv-mono" id="wedMonthly" type="number" step="1" min="0" value="' + (w.monthly || 0) + '"></div>' +
-    '<div class="inv-form-row"><div class="inv-form-group"><label class="inv-form-label" for="wedDay">Day rate (contract)</label>' +
+    '<div class="inv-stats-note">' + COMP_CLASSES.map(function(c) {
+      return '<strong>' + escHtml(c.label) + '</strong> &mdash; ' + escHtml(c.hint) + '.';
+    }).join(' ') + '</div>' +
+    '<div class="inv-form-row"><div class="inv-form-group"><label class="inv-form-label" for="wedDay">Day rate</label>' +
     '<input class="inv-form-input inv-mono" id="wedDay" type="number" step="0.01" min="0" value="' + (w.dayRate || 0) + '"></div>' +
-    '<div class="inv-form-group"><label class="inv-form-label" for="wedHour">Hour rate (OT)</label>' +
+    '<div class="inv-form-group"><label class="inv-form-label" for="wedHour">Hour rate</label>' +
     '<input class="inv-form-input inv-mono" id="wedHour" type="number" step="0.01" min="0" value="' + (w.hourRate || 0) + '"></div></div>' +
-    '<div class="inv-stats-note">A permanent salary accrues whether or not the day was typed. Contract wages are ' +
-    'counted only for days actually recorded, which is why the labour card states its coverage.</div>' +
+    '<div class="inv-stats-note">The hourly tier uses the hour rate alone. The monthly and daily tiers use the day ' +
+    'rate; leave their hour rate at zero and a monthly worker&rsquo;s overtime derives as <span class="inv-mono">day rate ÷ 8</span>, ' +
+    'which is how the rate card&rsquo;s own OT column is built. Wages are counted only for days actually recorded, ' +
+    'which is why the labour card states its coverage.</div>' +
     '<div class="inv-flex-between inv-mb-8"><label class="inv-checkbox-label">' +
     '<input type="checkbox" id="wedFloor"' + (w.onFloor !== false ? ' checked' : '') + '> On the plant floor</label></div>' +
     '<div class="inv-stats-note">Clear this for the gate and the office. Their wage is still labour and still in the ' +
@@ -662,7 +756,6 @@ function saveWorker(id, mode) {
   var fields = {
     name: name,
     comp: comp,
-    monthly: Math.max(0, parseFloat(document.getElementById('wedMonthly').value) || 0),
     dayRate: Math.max(0, parseFloat(document.getElementById('wedDay').value) || 0),
     hourRate: Math.max(0, parseFloat(document.getElementById('wedHour').value) || 0),
     area: document.getElementById('wedArea').value,
@@ -672,8 +765,10 @@ function saveWorker(id, mode) {
 
   // A rate of zero is not refused — a worker can be on the roster before the
   // rate is settled — but the labour card would then be quietly short, so it
-  // is said once here rather than discovered as a low ₹/kg later.
-  var rateMissing = comp === 'permanent' ? fields.monthly <= 0 : fields.dayRate <= 0;
+  // is said once here rather than discovered as a low ₹/kg later. Which rate
+  // has to be present depends on the tier: the hourly pool has no day rate at
+  // all, and refusing one for want of it would be a rule about the wrong number.
+  var rateMissing = comp === 'hourly' ? fields.hourRate <= 0 : fields.dayRate <= 0;
 
   if (mode === 'add') {
     var nextId = (S.staff || []).reduce(function(m, x) { return Math.max(m, x.id || 0); }, 0) + 1;
@@ -692,6 +787,95 @@ function saveWorker(id, mode) {
     ? name + ' saved without a rate — labour cost will read short until it is set'
     : (mode === 'add' ? name + ' added' : name + ' saved'),
     rateMissing ? 'warning' : 'success');
+}
+
+/* ===== ROSTER IMPORT =====
+
+   Settings → Import replaces the whole state, which is the right behaviour for
+   a backup and the wrong one for a roster: loading a payroll file through it
+   would take every invoice with it. So the roster gets its own door.
+
+   It **merges by name** and never touches anything else on `S`. A name already
+   on the roster has its rates and area updated in place, which keeps the
+   worker's id — and therefore every attendance mark already recorded against
+   them — intact. That is the whole reason the merge key is the name rather
+   than the id: two devices that typed the same person will have given them
+   different ids, and matching on id would silently duplicate the roster.
+
+   Payroll is deliberately not seeded into this repo, which is public and whose
+   built page is served to anyone. This is the path that keeps it off both. */
+function importRoster() {
+  var inp = document.getElementById('rosterFileInput');
+  if (!inp) return;
+  inp.onchange = function(e) {
+    var f = e.target.files[0];
+    if (!f) return;
+    var reader = new FileReader();
+    reader.onload = function(ev) {
+      var data;
+      try { data = JSON.parse(ev.target.result); }
+      catch (err) { showToast('Not valid JSON: ' + err.message, 'error'); return; }
+      var res = applyRosterImport(data);
+      if (res.error) { showToast(res.error, 'error'); return; }
+      saveState();
+      renderAttendance();
+      showToast(res.added + ' added, ' + res.updated + ' updated' +
+        (res.skipped ? ', ' + res.skipped + ' skipped' : ''));
+    };
+    reader.readAsText(f);
+    inp.value = '';
+  };
+  inp.click();
+}
+
+/* The merge itself, split out so it can be tested without a file picker. */
+function applyRosterImport(data) {
+  var rows = data && Array.isArray(data.staff) ? data.staff
+    : (Array.isArray(data) ? data : null);
+  if (!rows) return { error: 'No staff array in that file' };
+
+  var added = 0, updated = 0, skipped = 0;
+  if (!S.staff) S.staff = [];
+  var nextId = S.staff.reduce(function(m, x) { return Math.max(m, x.id || 0); }, 0);
+
+  rows.forEach(function(row) {
+    var name = String((row && row.name) || '').trim();
+    if (!name) { skipped++; return; }
+    var comp = compClass(row.comp).id;
+    var fields = {
+      comp: comp,
+      dayRate: Math.max(0, Number(row.dayRate) || 0),
+      hourRate: Math.max(0, Number(row.hourRate) || 0),
+      area: STAFF_AREAS.some(function(a) { return a.id === row.area; }) ? row.area : 'flex',
+      onFloor: row.onFloor !== false,
+      active: row.active !== false
+    };
+    var existing = S.staff.find(function(x) {
+      return (x.name || '').trim().toLowerCase() === name.toLowerCase();
+    });
+    if (existing) {
+      Object.keys(fields).forEach(function(k) { existing[k] = fields[k]; });
+      existing.name = name;
+      updated++;
+    } else {
+      fields.id = ++nextId;
+      fields.name = name;
+      fields.note = '';
+      S.staff.push(fields);
+      added++;
+    }
+  });
+
+  // The labour config may travel with the roster — the rates and the rules that
+  // price them were settled together and drift apart if they arrive separately.
+  if (data && data.labour && typeof data.labour === 'object') {
+    if (!S.labour) S.labour = {};
+    ['otMult', 'restCreditMinDays', 'extraRate', 'modelPerKg', 'gateFull', 'gateHalf'].forEach(function(k) {
+      var v = Number(data.labour[k]);
+      if (data.labour[k] != null && !isNaN(v) && v >= 0) S.labour[k] = v;
+    });
+  }
+  return { added: added, updated: updated, skipped: skipped };
 }
 
 /* Deletion is refused while attendance names the worker. Removing the row would

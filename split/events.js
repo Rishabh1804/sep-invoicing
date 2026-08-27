@@ -58,6 +58,7 @@ document.addEventListener('click', function(e) {
     case 'invRegSelectAll': toggleRegSelectAll(); break;
     // Staff & attendance
     case 'invAttView': attSetView(btn.dataset.view); break;
+    case 'invAreaSpan': setAreaSpan(btn.dataset.span); break;
     case 'invAttStep': attStepDay(parseInt(btn.dataset.step, 10)); break;
     case 'invAttToday': attGoToday(); break;
     case 'invAttWeekStep': attStepWeek(parseInt(btn.dataset.step, 10)); break;
@@ -421,6 +422,11 @@ document.addEventListener('change', function(e) {
     renderAttendance();
     return;
   }
+  if (e.target.hasAttribute && e.target.hasAttribute('data-area-target')) {
+    setAreaTarget(e.target.dataset.area, e.target.value);
+    renderAttendance();
+    return;
+  }
   if (e.target.hasAttribute && e.target.hasAttribute('data-att-extra-hours')) {
     setAttExtraHours(parseInt(e.target.dataset.idx, 10), e.target.value);
     renderAttendance();
@@ -486,6 +492,10 @@ document.addEventListener('input', function(e) {
   }
   if (e.target.hasAttribute && e.target.hasAttribute('data-att-hours')) {
     setAttHours(parseInt(e.target.dataset.id, 10), e.target.value);
+    return;
+  }
+  if (e.target.hasAttribute && e.target.hasAttribute('data-area-target')) {
+    setAreaTarget(e.target.dataset.area, e.target.value);
     return;
   }
   if (e.target.hasAttribute && e.target.hasAttribute('data-att-extra-hours')) {

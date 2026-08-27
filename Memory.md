@@ -65,7 +65,10 @@ CA by background. Business Manager at Soma Electro Products (zinc electroplating
   days, and the weekly pool is a flat ₹/hr with no day rate and no multiplier. One spec
   reproduces a real weekly slip to the rupee. Roster arrives through its own merge-by-name
   import, never seeded into this public repo
-- 32 modules, ~15,100 lines. 209 e2e tests gate every PR
+- **27 Aug 2026 (Areas):** the floor by work area — staffing against an owner-set complement,
+  and a cross-check on the extra hours. On the two latest slips the extra is 27–28% of paid
+  contract hours (₹18,382.50 across a fortnight) with nobody named against it
+- 33 modules, ~15,500 lines. 220 e2e tests gate every PR
 - Development moved off Termux to Claude Code (clones fresh; `.claude/hooks/session-start.sh`
   arms the pre-commit hook and installs test deps)
 - **Open with the owner:**
@@ -204,6 +207,19 @@ decision. Do not silently propagate the SEP pattern to another repo without sett
   Pages sites stay public even from a private repo. Making a repo private hides the docs and the
   history; it does not hide what the build serves. Ask what the artefact publishes before asking
   what the repository does.
+
+- **A test that only speaks when it fails teaches people to distrust its silence.** SEP's
+  extra-hours cross-check reports *"every hour was booked to an area that had somebody marked in
+  it — the check passes"* on a clean range, not just the flags on a dirty one. Otherwise a quiet
+  card is indistinguishable from a card that never ran.
+- **Name the difference between a diagnostic and an allocation, in the copy, or the diagnostic
+  becomes the allocation.** The same module that refuses to spread unattributed hours across the
+  workers present computes exactly that ratio as a plausibility test. The only thing keeping the
+  two apart is a sentence saying which is which — so the sentence is load-bearing, not decoration.
+- **An anomaly in the record is not an anomaly in the world.** Hours booked to the wrong area, an
+  assignment nobody typed, and hours never worked are indistinguishable from inside the data. Say
+  which contradiction was found and refuse to say what caused it; the value is knowing where to
+  look and on which day.
 
 ## Companion Registry (Quick Reference)
 

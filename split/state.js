@@ -24,6 +24,10 @@ function getDefaultState() {
     // this repo is public, so the owner enters them once on the device. Areas
     // and comp classes are structure, not data, and live in staff.js.
     staff: [],
+    // Expected heads per work area. Empty by default: a complement nobody set
+    // is not a complement of zero, and the Areas view says so rather than
+    // reporting every area as overstaffed on day one.
+    areaTargets: {},
     // Attendance, keyed by ISO date. One entry per day the plant was recorded;
     // a day with no key is a day nobody typed, which is not the same fact as a
     // day nobody worked — labour coverage is stated on that distinction.
@@ -60,6 +64,7 @@ if (!S.voidedNumbers) S.voidedNumbers = [];
 if (!S.creditNotes) S.creditNotes = [];
 if (!S.staff) S.staff = [];
 if (!S.attendance) S.attendance = {};
+if (!S.areaTargets) S.areaTargets = {};
 if (!S.labour) S.labour = { otMult: 1.1, restCreditMinDays: 6, extraRate: 47.5, modelPerKg: 3.55, gateFull: 0.9, gateHalf: 0.8 };
 // Existence guard only — init.js's _cnSeriesStart1 migration lifts a series
 // that has never issued anything to where it actually starts.

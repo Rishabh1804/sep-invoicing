@@ -156,6 +156,12 @@ turns on exactly that split.
 an area block with nobody named against them. They are counted in the bill and reported on their
 own row, never spread across the men present.
 
+**Staff → Areas** reads the same store by place. Average heads per area against a complement you
+set (editable in place, with the area's own median beside it), and a cross-check on the extra:
+hours booked to an area that had nobody marked in it are flagged with the area and the date, and
+each area's extra-per-head-day is shown against the hours those people already logged. Both are
+flags on the paperwork — the view says where to look and on which day, not what happened.
+
 Variable labour is also broken down **by area** — ranked by cost, since the area that pulls the
 overtime is the expensive one. Permanent payroll is excluded from that split and the card says
 why: a monthly salary is not attributable to a day, let alone to the area it was worked in.

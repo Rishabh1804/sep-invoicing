@@ -42,6 +42,7 @@ OUT="$ROOT/sep-invoicing.html"
     "$DIR/charts.js" \
     "$DIR/staff.js" \
     "$DIR/labour.js" \
+    "$DIR/areas.js" \
     "$DIR/stats.js" \
     "$DIR/client-perf.js" \
     "$DIR/im-form.js" \

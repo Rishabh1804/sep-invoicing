@@ -40,6 +40,7 @@ split/
 ├── charts.js             ← Reusable SVG charts: line, bar, pie, ranked bars
 ├── staff.js              ← Roster master + attendance + roster import: day, week grid, extra hours
 ├── labour.js             ← Labour cost model: three pay tiers, fixed/variable, ₹/kg with gates
+├── areas.js              ← Areas: staffing vs complement, and the extra-hours cross-check
 ├── stats.js              ← Stats (tonnage, realisation, margin) + History audit log
 ├── client-perf.js        ← Client performance: month on month + material cadence
 ├── im-form.js            ← IM challan form + focus survival across re-renders

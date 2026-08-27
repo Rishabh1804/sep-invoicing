@@ -114,23 +114,29 @@ test('setting a complement in place moves the variance', async ({ page }) => {
 
 /* ===== THE EXTRA ===== */
 
-test('extra booked where nobody was marked is flagged, with the area and the date', async ({ page }) => {
+test('a unit nobody was marked on is read as fully short, and said so in place', async ({ page }) => {
   const [d1, d2, d3] = weekDays();
+  // Barrel norm 2, A2 norm 1. The barrel booking has somebody under it; the two
+  // A2 bookings do not, so A2 is read as fully short — its whole complement of
+  // one — on both days. That reading is only available where a norm exists,
+  // which is why it is judged inside the norm loop and not per area.
   await loadAppWithState(page, areaState({
-    [d1]: { marks: { [HAND.id]: { st: 'P', hours: 8, ot: 0, area: 'barrel' } }, extra: [{ area: 'barrel', hours: 6 }], note: '' },
+    [d1]: { marks: { [HAND.id]: { st: 'P', hours: 8, ot: 0, area: 'barrel' } }, extra: [{ area: 'barrel', hours: 8 }], note: '' },
     [d2]: { marks: { [HAND.id]: { st: 'P', hours: 8, ot: 0, area: 'barrel' } }, extra: [{ area: 'vat-a2', hours: 12 }], note: '' },
     [d3]: { marks: { [HAND.id]: { st: 'P', hours: 8, ot: 0, area: 'barrel' } }, extra: [{ area: 'vat-a2', hours: 8 }], note: '' },
-  }));
+  }, { barrel: 2, 'vat-a2': 1 }));
   await openAreas(page);
 
   const card = page.locator('.inv-lab-card', { hasText: 'The extra, checked' });
   await expect(card).toBeVisible();
-  // The barrel booking has somebody under it; the two A2 bookings do not.
-  await expect(card).toContainText('Booked where nobody was marked');
+  await expect(card).toContainText('Read as fully short');
   await expect(card).toContainText('20.0 h');
-  await expect(card).toContainText('across 2 area-days');
-  // The flag is on the paperwork, and the card must not claim more than that.
-  await expect(card).toContainText('all look identical');
+  await expect(card).toContainText('across 2 unit-days');
+  await expect(card).toContainText('fully short and fully covered');
+  // d3 books exactly the 8 x 1 that reading predicts; d2's 12 does not, and the
+  // quantity — not the missing marks — is what the card holds against it.
+  await expect(card).toContainText('Booked, but not the predicted amount');
+  await expect(card).toContainText('12.0 h against 8.0 h');
 });
 
 test('a range where every booking answers a real shortfall says the check passed', async ({ page }) => {

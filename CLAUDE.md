@@ -28,14 +28,14 @@ split/
 ├── styles.css         ← All CSS with inv- prefix (2,720 lines)
 ├── body.html          ← HTML body, tabs, print view (137 lines)
 ├── data.js            ← ITEMS_MASTER + SEED_CLIENTS (27 lines)
-├── state.js           ← State mgmt, utilities, escHtml, gstRound (324 lines)
+├── state.js           ← State mgmt, utilities, escHtml, gstRound (330 lines)
 ├── zinc.js            ← Zinc market rate: store, display, metals.dev refresh (199 lines)
 ├── tabs.js            ← switchTab (9-step protocol) + renderHome (188 lines)
 ├── clients.js         ← Client Master CRUD + overlay (343 lines)
 ├── items.js           ← Items Master: subview, CRUD, merge, weights (1,262 lines)
 ├── create.js          ← Invoice creation form, 3 billing modes (312 lines)
-├── settings.js        ← Settings overlay + import/export (250 lines)
-├── github-sync.js     ← GitHub Contents API push/pull, SHA conflict guard (449 lines)
+├── settings.js        ← Settings overlay + import/export (267 lines)
+├── github-sync.js     ← GitHub Contents API push/pull, SHA conflict guard (454 lines)
 ├── invoice-ops.js     ← Invoice detail, edit, cancel, delete, register (949 lines)
 ├── number-audit.js    ← Void ledger + serial-sequence audit + gap reconcile (311 lines)
 ├── exports.js         ← Sales CSV + GSTR1 CSV exports (107 lines)
@@ -46,17 +46,17 @@ split/
 ├── credit-note.js     ← Credit notes: batch discount, own series, CDNR export (557 lines)
 ├── charts.js          ← Reusable SVG charts: line, bar, pie, ranked bars (243 lines)
 ├── staff.js           ← Roster + attendance + roster import: day, week, extra hours (1,013 lines)
-├── labour.js          ← Labour: three pay tiers, fixed/variable, by area, ₹/kg (448 lines)
+├── labour.js          ← Labour: three pay tiers, fixed/variable, by area, ₹/kg (449 lines)
 ├── areas.js           ← Areas: staffing vs norms + the extra reconciled (588 lines)
 ├── stats.js           ← Stats dashboard + History activity log (1,195 lines)
 ├── client-perf.js     ← Client performance: month on month + material cadence (314 lines)
 ├── im-form.js         ← IM add/edit/delete challan form (450 lines)
 ├── im-dupe.js         ← IM duplicate guard: fingerprint + pre-save warn + scan (305 lines)
 ├── scanner.js         ← Challan scanner (Gemini AI vision) (146 lines)
-├── events.js          ← Event delegation + input handlers (728 lines)
+├── events.js          ← Event delegation + input handlers (753 lines)
 ├── swipe.js           ← Swipe navigation (38 lines)
 ├── seed.js            ← Seed IM data, one-time (8 lines)
-└── init.js            ← Migrations + app bootstrap (420 lines)
+└── init.js            ← Migrations + app bootstrap (531 lines)
 ```
 
 **Concat order defined in build.sh.** Dependencies: data → state → zinc → tabs → clients → items → create → settings → github-sync → invoice-ops → number-audit → exports → im → autocomplete → print → quality-cert → credit-note → charts → staff → labour → areas → stats → client-perf → im-form → im-dupe → scanner → events → swipe → seed → init.
@@ -320,10 +320,15 @@ under the *short sub-area*, and its worked example — A1 3/4, A2 3/4, pickling 
 in that example is **one**, so it cannot distinguish 8-per-missing-hand from 8-per-short-area. The
 per-hand scaling is the **owner's, confirmed 27 Aug 2026**; before that it was a working hypothesis
 whose author labelled it as one. Two recorded days contradict it — **W27 Mon 29 Jun** and **W28 Fri
-10 Jul**, both VAT A1 at 2 of 4, both tagged 8 where per-hand predicts 16 — and the pattern in the
-failures is legible: every one is a two-hand VAT line tagged a single shift. The app follows the
-owner's rule and surfaces those days as *booked but not the predicted amount* rather than
-smoothing them away. `extraHoursPerHead` is in Settings because the question is not closed.
+10 Jul**, both VAT A1 at 2 of 4, both tagged 8 where per-hand predicts 16. Instrument:
+`grep -rnoE "EXTRA[^|)]{0,30}(short [0-9])" attendance/*.md` over soma-internal returns **four**
+annotated pairings — W26:18 (short 2 → 16 h), W26:58 (short 1 → 8), W27:17 (short 2 → 8), W27:19
+(short 1 → 8) — so **two of the four**, on that instrument, are the counter-cases, and both are a
+two-hand VAT line tagged a single shift. W27 offers its own reading of one of them: `2026-W27.md`
+decodes that 8 h as *"2 named hands (Lakhi, Lal) + 8 hr casual"* — a per-area decode rather than a
+mis-scaled per-hand one, which ties it to the open T-CY question of who the pooled line pays. The
+app follows the owner's rule and surfaces those days as *booked but not the predicted amount*
+rather than smoothing them away. `extraHoursPerHead` is in Settings because the question is not closed.
 
 - **Barrel and Barrel pickling are one unit for the arithmetic.** The relay writes them as one row
   about as often as two, and every recorded decode reconciles them against a combined norm of five.

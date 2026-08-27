@@ -70,7 +70,7 @@ CA by background. Business Manager at Soma Electro Products (zinc electroplating
   contract hours (₹18,382.50 across a fortnight) with nobody named against it
 - **27 Aug 2026 (extra reconciled):** the areas realigned to the shop's own staffing norms
   (4/4/3/2/3, sixteen at full house) and the extra turned from a mystery into a prediction —
-  `(norm − heads) × 8` per sub-area per day, checked against what was booked, with pro-rata
+  `(norm − heads) × 8` per unit per day, checked against what was booked, with pro-rata
   absorption ranked per worker. Reproduces the 11 Jun ruling's own worked example to the rupee
 - 33 modules, ~15,950 lines. 234 e2e tests gate every PR
 - Development moved off Termux to Claude Code (clones fresh; `.claude/hooks/session-start.sh`

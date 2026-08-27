@@ -76,7 +76,7 @@ function areaStats(fromIso, toIso) {
     byId[a.id] = {
       id: a.id, label: a.label, floor: a.floor,
       headDays: 0, dayTierDays: 0, hours: 0, otHours: 0, extraHours: 0,
-      cost: 0, headsPerDay: [], recordedDays: 0, unmanned: [],
+      cost: 0, headsPerDay: [], recordedDays: 0,
       coverageHours: 0, blockHours: 0, days: []
     };
   });
@@ -136,7 +136,6 @@ function areaStats(fromIso, toIso) {
       } else {
         a.blockHours += h;
       }
-      if (!headsToday[a.id]) a.unmanned.push({ iso: iso, hours: h });
     });
 
     STAFF_AREAS.forEach(function(x) {
@@ -181,15 +180,24 @@ function areaStats(fromIso, toIso) {
       // the hour. Numerator and denominator, same population.
       var idle = heads === 0 && booked === 0;
       var short = idle ? 0 : Math.max(0, norm - heads);
+      // Judged per unit and on coverage only, for the same reason the shortfall
+      // is. A merged `Barrel & pickling` row types the hours on the side the
+      // heads are not, and per area that reads as an unmanned booking on a unit
+      // that was fully staffed. `booked` here is coverage; a block credit is
+      // not reconciled at all, so it cannot be an unmanned coverage booking.
+      var unmanned = heads === 0 && booked > 0;
       var u = units[unit] || (units[unit] = {
         id: unit, label: areaUnitLabel(unit), members: members.map(function(y) { return y.id; }),
-        norm: norm, shortHeads: 0, expectedExtra: 0, booked: 0, idleDays: 0, days: []
+        norm: norm, shortHeads: 0, expectedExtra: 0, booked: 0, idleDays: 0,
+        unmannedDays: 0, unmannedHours: 0, days: []
       });
       u.shortHeads += short;
       u.expectedExtra += short * cfg.extraHoursPerHead;
       u.booked += booked;
       if (idle) u.idleDays++;
-      u.days.push({ iso: iso, heads: heads, norm: norm, idle: idle, short: short, booked: booked });
+      if (unmanned) { u.unmannedDays++; u.unmannedHours += booked; }
+      u.days.push({ iso: iso, heads: heads, norm: norm, idle: idle, short: short,
+                    booked: booked, unmanned: unmanned });
     });
   });
 
@@ -209,7 +217,6 @@ function areaStats(fromIso, toIso) {
     a.impliedPerHead = a.headDays > 0 ? a.extraHours / a.headDays : null;
     a.extraShare = (a.paidHours + a.extraHours) > 0 ? a.extraHours / (a.paidHours + a.extraHours) : 0;
     a.cost = gstRound(a.cost);
-    a.unmannedHours = a.unmanned.reduce(function(s, u) { return s + u.hours; }, 0);
     return a;
   });
 
@@ -221,6 +228,7 @@ function areaStats(fromIso, toIso) {
     var u = units[k];
     u.expectedExtra = gstRound(u.expectedExtra);
     u.booked = gstRound(u.booked);
+    u.unmannedHours = gstRound(u.unmannedHours);
     u.bookedAtNorm = u.days.filter(function(d) { return !d.idle && d.short === 0 && d.booked > 0; });
     u.shortUnbooked = u.days.filter(function(d) { return !d.idle && d.short > 0 && d.booked === 0; });
     u.mismatched = u.days.filter(function(d) {
@@ -275,6 +283,10 @@ function _absorption(dates, roster, cfg) {
     (rec.extra || []).forEach(function(x) {
       var h = x.hours || 0;
       if (h <= 0) return;
+      // Only coverage is absorbed. A block credit is already stated per hand —
+      // five hands at three hours is fifteen — so dividing it by the crew would
+      // understate it by 1/n, and it answers no shortfall for anyone to absorb.
+      if (!extraIsCoverage(x)) return;
       var crew = present[x.area] || [];
       if (crew.length === 0) return;      // nobody to absorb it; the flag covers that
       var each = h / crew.length;
@@ -363,11 +375,21 @@ function _attAreasView() {
 
 /* The extra, examined. This is the card the view was asked for.
 
-   The rule is `8 × (norm − heads)` per sub-area, per day: a hand missing from
-   an area running at full tilt is covered by the crew who are there, and eight
+   The rule is `8 × (norm − heads)` per UNIT, per day: a hand missing from an
+   area running at full tilt is covered by the crew who are there, and eight
    hours are booked to the area for it. So the extra is not an unexplained
    line — it is a *prediction*, and a prediction can be checked against what was
    actually booked.
+
+   Be exact about which half of that is ruled. The 11 Jun ruling fixes the label
+   under the short sub-area and gives a worked example — A1 3/4, A2 3/4, pickling
+   2/3 → 24 h — in which every gap is ONE, so it cannot distinguish 8-per-missing
+   -hand from 8-per-short-area. The per-hand scaling is the **owner's, confirmed
+   27 Aug 2026**. Two recorded days contradict it: W27 Mon 29 Jun and W28 Fri
+   10 Jul, both VAT A1 at 2 of 4, both tagged 8 where per-hand predicts 16. The
+   app follows the owner's rule and surfaces those as *booked but not the
+   predicted amount* rather than smoothing them away. `extraHoursPerHead` is in
+   Settings because the question is not closed.
 
    The one thing this cannot do is judge capacity. The rule holds when the area
    is running at full tilt; an area that was short *and* running light needs no
@@ -379,8 +401,8 @@ function _areaExtraCard(stats) {
   var cfg = labourCfg();
   var totalExtra = stats.bookedExtra;
   var totalPaid = stats.rows.reduce(function(s, a) { return s + a.paidHours; }, 0);
-  var unmannedH = stats.rows.reduce(function(s, a) { return s + a.unmannedHours; }, 0);
-  var unmannedDays = stats.rows.reduce(function(s, a) { return s + a.unmanned.length; }, 0);
+  var unmannedH = stats.units.reduce(function(s, u) { return s + u.unmannedHours; }, 0);
+  var unmannedDays = stats.units.reduce(function(s, u) { return s + u.unmannedDays; }, 0);
 
   var html = '<div class="inv-card inv-lab-card"><div class="inv-card-header">' +
     '<span class="inv-card-title">The extra, checked</span>' +
@@ -449,8 +471,9 @@ function _areaExtraCard(stats) {
     }, 'inv-area-flag');
   }
   if (unmannedDays > 0) {
-    html += _labRow('Booked where nobody was marked', formatNum(unmannedH, 1) + ' h',
-      'across ' + unmannedDays + ' area-day' + (unmannedDays === 1 ? '' : 's'));
+    html += _labRow('Read as fully short', formatNum(unmannedH, 1) + ' h',
+      'across ' + unmannedDays + ' unit-day' + (unmannedDays === 1 ? '' : 's') +
+      ' nobody was marked on');
   }
   if (mism.length > 0) {
     html += _labRow('Booked, but not the predicted amount', mism.length + ' unit-day' + (mism.length === 1 ? '' : 's'),
@@ -467,15 +490,27 @@ function _areaExtraCard(stats) {
     html += _labRow('Not running, not counted', stats.idleDays + ' unit-day' + (stats.idleDays === 1 ? '' : 's'),
       'nobody stood on it and nothing was booked to it');
   }
+  if (unmannedDays > 0) {
+    html += '<div class="inv-stats-note">A unit nobody was marked on that still carries hours is ' +
+      'read as <strong>fully short and fully covered</strong> &mdash; a zero-head pickling row against ' +
+      'a norm of three booking 24 hours is 8 &times; 3 exactly. It counts on both sides of the check ' +
+      'rather than neither, so it does not fail it. What it does say is that the marks for that day ' +
+      'were never typed.</div>';
+  }
   if (stats.blockHours > 0) {
     html += _labRow('Block credits, not reconciled', formatNum(stats.blockHours, 1) + ' h',
       'a shift block\u2019s per-hand credit answers no shortfall');
   }
 
-  if (atNorm.length === 0 && unmannedDays === 0 && mism.length === 0 && stats.normed > 0) {
+  // `unmannedDays` is deliberately NOT a gate. A unit nobody was marked on that
+  // carries a booking is read as fully short and fully covered — the ruling this
+  // card follows — so it can and does reconcile to the hour. Holding it against
+  // the check would mean the canonical case could never pass. It is reported
+  // above because the marks were not typed, which is worth knowing on its own.
+  if (atNorm.length === 0 && mism.length === 0 && stats.normed > 0) {
     html += '<div class="inv-stats-note">Every booking in this range sits on an area that was short by ' +
       'exactly the hands the hours pay for. That is the whole cross-check the record supports, and it passes.</div>';
-  } else if (atNorm.length > 0 || unmannedDays > 0) {
+  } else if (atNorm.length > 0) {
     html += '<div class="inv-stats-caveat">These are flags on the <strong>paperwork</strong>. Hours booked to ' +
       'the wrong area, an area assignment nobody typed, and hours that were never worked all look identical ' +
       'from here, and so does a day the relay simply recorded loosely. What the card gives you is the area and ' +
@@ -547,6 +582,13 @@ function _areaRow(a) {
     else { tone = ' inv-area-ok'; badge = 'at complement'; }
   }
 
+  // NOTE on the basis. This figure is what was PAID FOR WORK DONE IN THIS AREA:
+  // every tier's day or hour pay, its OT, and the extra booked here. It is not
+  // the labour card's variable-by-area figure and must not be read as one —
+  // that one deliberately omits the monthly tier's day pay (the standing crew's
+  // cost does not follow the area it happened to stand in) and includes the
+  // daily tier's rest credit (which is not worked in any area). Two questions,
+  // two bases; the label below says which this is.
   var bits = [];
   if (a.dayTierDays > 0) bits.push(formatNum(a.dayTierDays, 1) + ' day-tier day' + (a.dayTierDays === 1 ? '' : 's'));
   if (a.hours > 0) bits.push(formatNum(a.hours, 1) + ' pool h');
@@ -573,7 +615,9 @@ function _areaRow(a) {
     '<div class="inv-area-foot">' +
     '<span class="inv-area-detail">' + (bits.length ? escHtml(bits.join(' · ')) : 'nothing recorded') +
     (a.extraShare > 0 ? ' · extra is ' + formatNum(a.extraShare * 100, 0) + '% of its hours' : '') + '</span>' +
-    '<span class="inv-area-cost inv-mono">' + formatCurrency(a.cost) + '</span>' +
+    '<span class="inv-area-cost inv-mono" title="All tiers, work done here: day and hour pay, OT, ' +
+    'and the extra booked to this area. Not the labour card\u2019s variable-by-area figure.">' +
+    formatCurrency(a.cost) + '<span class="inv-area-cost-basis">worked here</span></span>' +
     '</div>' +
     '<div class="inv-area-target"><label class="inv-area-target-label" for="areaTgt-' + a.id + '">Complement</label>' +
     '<input type="number" class="inv-form-input inv-mono inv-area-target-input" id="areaTgt-' + a.id +

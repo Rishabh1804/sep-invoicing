@@ -247,8 +247,11 @@ if (!S._staffComp1) {
    The first cut had one flat `pickling` and a `colour` area. Neither survives
    contact with the norms the floor is actually run to: pickling is two
    sub-areas with separate complements (barrel-side 2, VAT-side 3) that the
-   daily relay already divides, and colour is the passivation step inside VAT
-   A1 rather than a place with its own crew.
+   daily relay already divides, and colour is the dedicated passivation HAND
+   inside VAT A1's complement of four rather than a place with its own crew.
+   The step itself is not A1's — A2 passivates its own work and so does the
+   barrel route — which is why the marks re-point to A1 but the claim behind
+   them is about the post, not the process.
 
    Marks, home areas, extra-hour bookings and complements all carry an area id,
    so all four are re-pointed here. Idempotent via the flag; the aliases are

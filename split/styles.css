@@ -2675,6 +2675,14 @@ body.inv-desktop .inv-att-extra-row { max-width: calc(var(--sp-32) * 15); }
 }
 .inv-area-detail { min-width: 0; }
 .inv-area-cost { font-weight: 600; color: var(--cost-text); white-space: nowrap; }
+.inv-area-cost-basis {
+  display: block; font-size: var(--fs-2xs); font-weight: 500; color: var(--text-3);
+  text-transform: uppercase; letter-spacing: 0.04em; text-align: right;
+}
+/* Dark mode for this block is carried by the tokens (--cost-text, --text-3,
+   --danger-bg, --warning-bg all flip under .dark), so there are deliberately
+   no `.dark .inv-area-*` restatements here. Nine such rules existed and were
+   byte-identical no-ops. */
 .inv-area-target {
   display: flex; align-items: center; gap: var(--sp-8); margin-top: var(--sp-8);
 }
@@ -2693,19 +2701,11 @@ body.inv-desktop .inv-att-extra-row { max-width: calc(var(--sp-32) * 15); }
 .inv-area-flag-hours { font-weight: 700; white-space: nowrap; }
 .inv-area-flag-more { background: none; color: var(--text-3); }
 
-.dark .inv-area-badge { background: var(--surface-2); color: var(--text-2); }
-.dark .inv-area-badge-none { background: none; color: var(--text-3); }
-.dark .inv-area-stat-value { color: var(--text-1); }
-.dark .inv-area-cost { color: var(--cost-text); }
-.dark .inv-area-flag { background: var(--danger-bg); color: var(--danger-text); }
 .inv-area-gap-over { background: var(--danger-bg); }
 .inv-area-gap-under { background: var(--warning-bg); }
 .inv-area-flag-warn { background: var(--warning-bg); color: var(--warning-text); }
 .inv-area-stat-vs { font-size: var(--fs-sm); font-weight: 500; color: var(--text-3); }
 .inv-area-absorb-days { font-weight: 400; color: var(--text-3); }
-.dark .inv-area-gap-over { background: var(--danger-bg); }
-.dark .inv-area-gap-under { background: var(--warning-bg); }
-.dark .inv-area-flag-warn { background: var(--warning-bg); color: var(--warning-text); }
 .inv-att-extra-kind {
   display: flex; align-items: center; gap: var(--sp-8);
   padding-bottom: var(--sp-8); margin-top: calc(-1 * var(--sp-4));
@@ -2717,4 +2717,3 @@ body.inv-desktop .inv-att-extra-row { max-width: calc(var(--sp-32) * 15); }
   padding: 0 var(--sp-6); border-radius: var(--r-sm);
   background: var(--warning-bg); color: var(--warning-text);
 }
-.dark .inv-area-absorb-flag { background: var(--warning-bg); color: var(--warning-text); }

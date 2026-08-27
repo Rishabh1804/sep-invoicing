@@ -7,7 +7,7 @@ import { emptyState, loadAppWithState, noSeedIM, switchTab } from './fixtures';
  * The rule the floor is run to: a hand missing from an area running at full
  * tilt is covered by the crew who are there, and eight hours are booked to the
  * area for it. That makes the extra a *prediction* — `8 × (norm − heads)` per
- * sub-area per day — and a prediction can be checked.
+ * unit per day — and a prediction can be checked.
  *
  * The headline spec reproduces a documented ruling to the rupee. The rest pin
  * the ways the record can disagree with the rule, which mean different things
@@ -233,6 +233,13 @@ test('a unit with no heads but hours booked to it is fully short, not idle', asy
   // block at its complement of five contributes nothing either way.
   await expect(card).toContainText('exactly as predicted');
   await expect(card).not.toContainText('More was booked');
+  // The day nobody was marked on is REPORTED — the marks were never typed, and
+  // that is worth knowing — but it is not one of the three disagreements, so it
+  // does not hold the check open. Before this it did, and the canonical case
+  // could therefore never pass its own cross-check.
+  await expect(card).toContainText('Read as fully short');
+  await expect(card).toContainText('fully short and fully covered');
+  await expect(card).not.toContainText('flags on the');
 });
 
 test('barrel and barrel pickling reconcile as one unit of five', async ({ page }) => {
@@ -293,6 +300,38 @@ test('absorption past a shift is marked as a question, not ranked as a measureme
   const card = page.locator('.inv-card', { hasText: 'Coverage absorbed' });
   await expect(card.locator('.inv-area-absorb-flag').first()).toBeVisible();
   await expect(card).toContainText('brought-in');
+});
+
+test('hours typed on the side the heads are not is not an unmanned booking', async ({ page }) => {
+  // The relay writes `Barrel & pickling` as one row about as often as two, so a
+  // fully-staffed block routinely carries its heads on one id and its hours on
+  // the other. Judged per area that reads as "booked where nobody was marked";
+  // judged per unit — which is how the shortfall is judged — it is a unit at
+  // its complement of five, and the rule predicts nothing.
+  const staff = [...crew('barrel', 3, 10), ...crew('pickling-barrel', 2, 20)];
+  const [d1] = weekDays();
+  await loadAppWithState(page, state(staff, {
+    [d1]: { marks: marksFor(staff), extra: [{ area: 'pickling-barrel', hours: 8 }], note: '' },
+  }, { 'barrel': 3, 'pickling-barrel': 2 }));
+  await openAreas(page);
+  const card = extraCard(page);
+  await expect(card).not.toContainText('Read as fully short');
+  await expect(card).toContainText('Booked at or above complement');
+});
+
+test('a block credit is neither reconciled against a shortfall nor absorbed', async ({ page }) => {
+  // `EXTRA n HOURS` in a 6 AM or evening block states the slot's PER-HAND
+  // credit, so dividing it across the crew understates it by 1/n — and it
+  // answers no shortfall for anyone to absorb in the first place.
+  const staff = crew('barrel', 3, 10);
+  const [d1] = weekDays();
+  await loadAppWithState(page, state(staff, {
+    [d1]: { marks: marksFor(staff), extra: [{ area: 'barrel', hours: 3, kind: 'block' }], note: '' },
+  }, { barrel: 3 }));
+  await openAreas(page);
+  await expect(extraCard(page)).toContainText('Block credits, not reconciled');
+  // Not ranked as coverage, and so never reaching the implausibility ceiling.
+  await expect(page.locator('.inv-card', { hasText: 'Coverage absorbed' })).toHaveCount(0);
 });
 
 /* ===== THE AREA REALIGNMENT ===== */

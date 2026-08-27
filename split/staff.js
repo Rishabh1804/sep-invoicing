@@ -19,9 +19,12 @@
    single flat `pickling` cannot carry either norm, so it cannot carry either
    shortfall, so the extra could not be checked against it.
 
-   Colour is deliberately absent. It is the passivation/chromating **step**
-   inside VAT A1, not a place with a crew of its own, and giving it an area was
-   the module's own invention rather than anything the shop recognises. */
+   Colour is deliberately absent, but be exact about why. The passivation step
+   is NOT A1's — A2's operators passivate their own work and the barrel route
+   passivates too. What is A1-specific is that a **hand is set aside for it**,
+   inside its complement of four. So colour is a dedicated post, not a place
+   with a crew of its own; giving it an area was the module's own invention,
+   and the shop's own register codes those hands `A1`. */
 var STAFF_AREAS = [
   { id: 'vat-a1',          label: 'VAT A1',          floor: true },
   { id: 'vat-a2',          label: 'VAT A2',          floor: true },
@@ -858,7 +861,6 @@ function saveWorker(id, mode) {
     var nextId = S.staff.reduce(function(m, x) { return Math.max(m, x.id || 0); }, 0) + 1;
     fields.id = nextId;
     fields.note = '';
-    if (!S.staff) S.staff = [];
     S.staff.push(fields);
   } else {
     var w = staffById(id);

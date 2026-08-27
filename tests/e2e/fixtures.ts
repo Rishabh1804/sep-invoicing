@@ -10,6 +10,9 @@ export type SepState = {
   incomingMaterial: unknown[];
   invoices: unknown[];
   voidedNumbers?: unknown[];
+  staff?: unknown[];
+  attendance?: Record<string, unknown>;
+  labour?: { otMult?: number; restCreditMinDays?: number; extraRate?: number; modelPerKg?: number };
   defaultCostPerKg?: number;
   invPrefix?: string;
   invNextNum?: number;
@@ -79,6 +82,27 @@ export function noSeedIM(): unknown[] {
     notes: '',
     createdAt: 0,
   }];
+}
+
+/**
+ * The last `count` working days (Mon–Sat), newest first, ending today or the
+ * most recent working day before it.
+ *
+ * Labour coverage is measured as recorded working days over working days in
+ * range, so a fixture that seeds Sundays or that skips a Tuesday does not read
+ * as 100% covered — and the ₹/kg it is testing is then withheld for a reason
+ * the spec never asked about. Same class of trap as a hardcoded date.
+ */
+export function workingDaysBack(count: number): string[] {
+  const out: string[] = [];
+  const d = new Date();
+  while (out.length < count) {
+    if (d.getDay() !== 0) {
+      out.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`);
+    }
+    d.setDate(d.getDate() - 1);
+  }
+  return out;
 }
 
 export function todayIso(): string {

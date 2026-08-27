@@ -32,6 +32,17 @@ function openSettings() {
     '<input type="number" step="0.01" class="inv-form-input inv-mono" id="setDefaultCost" value="' + (S.defaultCostPerKg || 8.55) + '"></div>' +
     '<div class="inv-text-muted inv-storage-text">Full cost, not just materials. Everything in Stats measures against it &mdash; realisation, margin, and which clients are priced below cost. The Apr&ndash;Jul 2026 rebuild put it at &#8377;8.55/kg.</div></div>' +
 
+    '<div class="inv-settings-section"><div class="inv-settings-title">Labour</div>' +
+    '<div class="inv-form-row"><div class="inv-form-group"><label class="inv-form-label">OT multiplier</label>' +
+    '<input type="number" step="0.01" min="1" class="inv-form-input inv-mono" id="setOtMult" value="' + ((S.labour && S.labour.otMult) != null ? S.labour.otMult : 1.1) + '"></div>' +
+    '<div class="inv-form-group"><label class="inv-form-label">Extra-hour rate (&#8377;/h)</label>' +
+    '<input type="number" step="0.01" min="0" class="inv-form-input inv-mono" id="setExtraRate" value="' + ((S.labour && S.labour.extraRate) || 0) + '"></div></div>' +
+    '<div class="inv-form-row"><div class="inv-form-group"><label class="inv-form-label">Rest credit at (days/week)</label>' +
+    '<input type="number" step="1" min="0" max="7" class="inv-form-input inv-mono" id="setRestMin" value="' + ((S.labour && S.labour.restCreditMinDays) != null ? S.labour.restCreditMinDays : 6) + '"></div>' +
+    '<div class="inv-form-group"><label class="inv-form-label">Modelled labour (&#8377;/kg)</label>' +
+    '<input type="number" step="0.01" min="0" class="inv-form-input inv-mono" id="setLabModel" value="' + ((S.labour && S.labour.modelPerKg) || 0) + '"></div></div>' +
+    '<div class="inv-text-muted inv-storage-text">The wage arithmetic behind the Staff tab: (days worked + rest credit) &times; day rate, plus OT hours at this multiplier, plus the area-booked extra hours at the contract tier. Set rest credit to 0 to switch it off. The modelled &#8377;/kg is what the measured figure is reported against &mdash; the Apr&ndash;Jul 2026 rebuild put labour at &#8377;3.55 of an &#8377;8.55 cost.</div></div>' +
+
     '<div class="inv-settings-section"><div class="inv-settings-title">Zinc Rate</div>' +
     '<div class="inv-form-row"><div class="inv-form-group"><label class="inv-form-label">Market rate (&#8377;/kg)</label>' +
     '<input type="number" step="0.01" class="inv-form-input inv-mono" id="setZincRate" value="' + (getZinc().ratePerKg == null ? '' : getZinc().ratePerKg) + '" placeholder="400.00"></div>' +
@@ -104,6 +115,15 @@ function saveSettings() {
   }
   var costEl = document.getElementById('setDefaultCost');
   if (costEl) { var parsedCost = parseFloat(costEl.value); if (!isNaN(parsedCost) && parsedCost > 0) S.defaultCostPerKg = parsedCost; }
+  if (!S.labour) S.labour = {};
+  var otMultEl = document.getElementById('setOtMult');
+  if (otMultEl) { var pm = parseFloat(otMultEl.value); if (!isNaN(pm) && pm >= 0) S.labour.otMult = pm; }
+  var extraRateEl = document.getElementById('setExtraRate');
+  if (extraRateEl) { var pe = parseFloat(extraRateEl.value); if (!isNaN(pe) && pe >= 0) S.labour.extraRate = pe; }
+  var restMinEl = document.getElementById('setRestMin');
+  if (restMinEl) { var pr = parseInt(restMinEl.value, 10); if (!isNaN(pr) && pr >= 0) S.labour.restCreditMinDays = pr; }
+  var labModelEl = document.getElementById('setLabModel');
+  if (labModelEl) { var pl = parseFloat(labModelEl.value); if (!isNaN(pl) && pl >= 0) S.labour.modelPerKg = pl; }
   var apiKeyEl = document.getElementById('setApiKey');
   if (apiKeyEl) setApiKey(apiKeyEl.value.trim());
   var metalsKeyEl = document.getElementById('setMetalsKey');

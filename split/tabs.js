@@ -72,6 +72,8 @@ function switchTab(tabId) {
     }
   } else if (tabId === 'pageCreate') {
     if (!document.getElementById('createFormArea').innerHTML) initCreateForm();
+  } else if (tabId === 'pageStaff') {
+    renderAttendance();
   } else if (tabId === 'pageStats') {
     renderStats();
   } else if (tabId === 'pageHistory') {

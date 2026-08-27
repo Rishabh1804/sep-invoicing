@@ -1,7 +1,7 @@
 /* ===== SWIPE NAVIGATION ===== */
 (function() {
   var _swipeX = 0, _swipeY = 0;
-  var TAB_ORDER = ['pageHome','pageCreate','pageIM','pageRegister','pageClients','pageStats','pageHistory'];
+  var TAB_ORDER = ['pageHome','pageCreate','pageIM','pageRegister','pageClients','pageStaff','pageStats','pageHistory'];
 
   document.addEventListener('touchstart', function(e) {
     _swipeX = e.touches[0].clientX;

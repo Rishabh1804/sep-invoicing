@@ -40,6 +40,8 @@ OUT="$ROOT/sep-invoicing.html"
     "$DIR/quality-cert.js" \
     "$DIR/credit-note.js" \
     "$DIR/charts.js" \
+    "$DIR/staff.js" \
+    "$DIR/labour.js" \
     "$DIR/stats.js" \
     "$DIR/client-perf.js" \
     "$DIR/im-form.js" \

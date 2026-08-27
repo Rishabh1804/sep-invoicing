@@ -56,7 +56,11 @@ CA by background. Business Manager at Soma Electro Products (zinc electroplating
   Three were self-inflicted by PR #24 the same day, including register filter dropdowns that
   closed the instant they were opened, and a credit note series that restarted at 001 over
   CN/001–005 already issued by hand
-- 30 modules, ~13,500 lines. 185 e2e tests gate every PR
+- **27 Aug 2026:** Staff tab — roster master, day/week attendance, and the labour breakdown.
+  Turns ₹3.55/kg from a typed assumption into a measurement split fixed against variable, and
+  answers "what is the extra" in the model: hours booked to an **area block** with no name
+  against them, counted in the bill and never spread across the men present
+- 32 modules, ~14,750 lines. 201 e2e tests gate every PR
 - Development moved off Termux to Claude Code (clones fresh; `.claude/hooks/session-start.sh`
   arms the pre-commit hook and installs test deps)
 - **Open with the owner:**

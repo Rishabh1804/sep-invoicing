@@ -6,7 +6,7 @@ Single-file HTML PWA for Soma Electro Products — zinc electroplating job-work 
 
 ## Architecture
 
-Split-file PWA: 30 modules in `split/` directory, concatenated via `build.sh` into a single `sep-invoicing.html`. Deploy copy is `index.html`.
+Split-file PWA: 32 modules in `split/` directory, concatenated via `build.sh` into a single `sep-invoicing.html`. Deploy copy is `index.html`.
 
 See `docs/ARCHITECTURE.md` for the full module map and concat order.
 
@@ -125,6 +125,34 @@ spanning under 7 days warns but is not blocked.
 **Credit notes** in the register toolbar lists them, previews any one for print, and exports the
 CDNR CSV. A credit note is cancelled, never deleted — see `docs/credit-notes/README.md` for the
 reference document and what the app does differently.
+
+## Staff, attendance and labour
+
+**Staff** tab. Three views over one store: **Day** to mark the day (present / half / absent per
+worker, the area they worked, their own OT hours), **Week** for a Mon–Sat grid whose cells cycle
+on tap, and **Roster** for the master — comp class, rates, home area, and whether the worker is
+on the plant floor.
+
+The roster starts empty: names and wages are payroll data and this repo is public, so they are
+entered once on the device. Note that both the JSON export and GitHub sync then carry payroll.
+
+Every view carries a **labour breakdown**, and Stats carries one for the period. Labour is 42% of
+this business's cost and was previously a single number typed into Settings; this measures it from
+the marks, and keeps **fixed** (permanent payroll, which accrues whether or not the day was typed)
+apart from **variable** (contract days, rest credit, OT and extra) — because the SSS Mehta decision
+turns on exactly that split.
+
+**"The extra"** is the `EXTRA n HOURS` line on the daily sheet: paid contract-tier hours booked to
+an area block with nobody named against them. They are counted in the bill and reported on their
+own row, never spread across the men present.
+
+Variable labour is also broken down **by area** — ranked by cost, since the area that pulls the
+overtime is the expensive one. Permanent payroll is excluded from that split and the card says
+why: a monthly salary is not attributable to a day, let alone to the area it was worked in.
+
+Wage arithmetic and the ₹/kg the measurement is reported against live in Settings → Labour. A ₹/kg
+is withheld below 90% of working days recorded, and under a fortnight — an incomplete range reads
+low, never neutral, and the card says which it is.
 
 ## Client performance
 

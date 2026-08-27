@@ -19,22 +19,22 @@ Workforce management and invoicing PWA for **Soma Electro Products**, a zinc ele
 
 ## Architecture
 
-Split-file PWA. 30 modules, ~13,500 lines total.
+Split-file PWA. 32 modules, ~14,750 lines total.
 
 ```
 split/
 ├── build.sh           ← writes ../sep-invoicing.html, syncs ../index.html
 ├── head.html          ← DOCTYPE, meta, font links (17 lines)
-├── styles.css         ← All CSS with inv- prefix (2,131 lines)
-├── body.html          ← HTML body, tabs, print view (128 lines)
+├── styles.css         ← All CSS with inv- prefix (2,630 lines)
+├── body.html          ← HTML body, tabs, print view (137 lines)
 ├── data.js            ← ITEMS_MASTER + SEED_CLIENTS (27 lines)
-├── state.js           ← State mgmt, utilities, escHtml, gstRound (298 lines)
+├── state.js           ← State mgmt, utilities, escHtml, gstRound (324 lines)
 ├── zinc.js            ← Zinc market rate: store, display, metals.dev refresh (199 lines)
 ├── tabs.js            ← switchTab (9-step protocol) + renderHome (188 lines)
 ├── clients.js         ← Client Master CRUD + overlay (343 lines)
 ├── items.js           ← Items Master: subview, CRUD, merge, weights (1,262 lines)
 ├── create.js          ← Invoice creation form, 3 billing modes (312 lines)
-├── settings.js        ← Settings overlay + import/export (208 lines)
+├── settings.js        ← Settings overlay + import/export (250 lines)
 ├── github-sync.js     ← GitHub Contents API push/pull, SHA conflict guard (449 lines)
 ├── invoice-ops.js     ← Invoice detail, edit, cancel, delete, register (949 lines)
 ├── number-audit.js    ← Void ledger + serial-sequence audit + gap reconcile (311 lines)
@@ -45,18 +45,20 @@ split/
 ├── quality-cert.js    ← Test Certificate (ZN Plating): approved format + per-line certs (380 lines)
 ├── credit-note.js     ← Credit notes: batch discount, own series, CDNR export (557 lines)
 ├── charts.js          ← Reusable SVG charts: line, bar, pie, ranked bars (243 lines)
+├── staff.js           ← Roster master + attendance: day, week grid, extra hours (717 lines)
+├── labour.js          ← Labour cost model: fixed/variable split, by area, ₹/kg (382 lines)
 ├── stats.js           ← Stats dashboard + History activity log (1,195 lines)
 ├── client-perf.js     ← Client performance: month on month + material cadence (314 lines)
 ├── im-form.js         ← IM add/edit/delete challan form (450 lines)
 ├── im-dupe.js         ← IM duplicate guard: fingerprint + pre-save warn + scan (305 lines)
 ├── scanner.js         ← Challan scanner (Gemini AI vision) (146 lines)
-├── events.js          ← Event delegation + input handlers (667 lines)
+├── events.js          ← Event delegation + input handlers (728 lines)
 ├── swipe.js           ← Swipe navigation (38 lines)
 ├── seed.js            ← Seed IM data, one-time (8 lines)
 └── init.js            ← Migrations + app bootstrap (420 lines)
 ```
 
-**Concat order defined in build.sh.** Dependencies: data → state → zinc → tabs → clients → items → create → settings → github-sync → invoice-ops → number-audit → exports → im → autocomplete → print → quality-cert → credit-note → charts → stats → client-perf → im-form → im-dupe → scanner → events → swipe → seed → init.
+**Concat order defined in build.sh.** Dependencies: data → state → zinc → tabs → clients → items → create → settings → github-sync → invoice-ops → number-audit → exports → im → autocomplete → print → quality-cert → credit-note → charts → staff → labour → stats → client-perf → im-form → im-dupe → scanner → events → swipe → seed → init.
 
 ### Build
 
@@ -75,7 +77,7 @@ every session start — nothing to set up by hand. CI (`build-sync`) is the back
 ### Tests
 
 ```bash
-pnpm exec playwright test          # 184 tests, both layouts
+pnpm exec playwright test          # 201 tests, both layouts
 ```
 
 Some sandboxes ship a Chromium build Playwright does not expect and block downloading
@@ -431,6 +433,68 @@ Skipping costs no tonnage — the line-level route above still weighs those line
 ### Client Master
 22 clients with rate lookup, billing mode assignment, and contact info. Billing modes in live
 data: 20 `weight`, 1 `piece` (SSS Mehta), 1 `nos_to_weight`.
+
+### Labour and attendance
+The Staff tab. Labour is ₹3.55/kg of an ₹8.55 cost and 42% of it — the largest line in the
+business — and until this it was one number typed into Settings and checked against nothing.
+Two questions had sat open across three handoffs: **how staff is allocated**, and **what "the
+extra" stands for**. They are the same question wearing different clothes — which of this bill
+is fixed and which of it scales with tonnage — and nothing could answer it because nothing
+measured it.
+
+**Three views over one store.** Day is for entry (present / half / absent, area, OT hours per
+worker). Week is a Mon–Sat grid whose cells cycle, for fixing what the day view got wrong, with
+the `15/20` headcount row the daily relay already speaks in. Roster is the master: comp class,
+rates, home area, and whether the worker is on the plant floor.
+
+**The roster ships empty.** Names and wages are payroll data and this repo is public. Structure
+— the eight areas, the comp classes, the wage arithmetic — is code; the people are entered once
+on the device. That is a deliberate departure from `SEED_CLIENTS`, which does carry real names.
+
+**Four states, not three.** Unmarked is not absent. A row nobody has reached costs nothing; an
+absence costs a day's wage and has to be said. The same distinction one level up is what the
+coverage figure is for: a day with no attendance key is a day nobody typed, which is not a day
+nobody worked.
+
+**What "the extra" is.** Shyam's daily sheet books hours two ways. Named men carry their own
+out-time — that is OT, per worker, at their hour rate × 1.1. But every day also carries lines
+like `EXTRA 16 HOURS` written against an **area block**, with nobody attached. They are real
+paid contract-tier hours and the payout sheet settles them. So they are recorded as exactly
+that: hours booked to an area, unattributed, counted in the bill and reported separately. They
+are **never spread across the men present** — a per-worker cost invented that way reads precise,
+and it would answer the fixed-versus-variable question by accident, in whichever direction the
+blend happened to fall.
+
+**Fixed and variable are kept apart everywhere.** Fixed is the permanent payroll, which accrues
+by calendar day whether or not anyone typed the day. Variable is contract days, rest credit, OT
+and extra. That split is not decoration: the SSS Mehta decision turns on it — at fixed labour
+that account still contributes ₹0.53/kg, at volume-scaling labour it loses ₹1.64/kg — and one
+blended labour number silently picks a side.
+
+**The wage arithmetic** is the ratified rule: `(days worked + rest credit) × ₹/day + OT × 1.1`,
+rest credit gated on a full week. Half a day counts half. Every constant (multiplier, gate,
+extra-hour rate, and the modelled ₹/kg the measurement is reported against) lives in Settings.
+
+**Variable labour is broken down by area** — contract days, rest credit, OT and the extra,
+placed by the area each was worked in, ranked by cost rather than by days because an area that
+pulls the overtime is the expensive one. That is the *allocation* half of the open question.
+Permanent payroll is deliberately absent from it: a monthly salary cannot be attributed to a
+day, let alone to the area that day was worked in, and splitting it by home area would print an
+allocation nobody measured.
+
+**An incomplete range reads low, never neutral** — permanent salary accrues over days nobody
+typed and contract wages do not — so the card states coverage in place, every time, complete or
+not, and withholds ₹/kg below 90% of working days. It withholds under a fortnight too, but for
+a different reason: not enough of either side to divide. The lag between plating and billing
+cannot be gated away at any length, only stated, so a range under two months carries that
+caveat next to the figure. And a ₹/kg computed over partial tonnage coverage reads **high**
+here — the opposite direction from realisation, because tonnage is the denominator — which the
+card says rather than leaving the reader to work out.
+
+**Deletion is refused while attendance names the worker.** Removing the row would not remove
+the marks, it would orphan them: every past week's labour would quietly drop that wage and no
+figure would say why. Clearing Active keeps the history and takes them out of today's
+denominator, which is what "left" means here.
 
 ## Persistence
 

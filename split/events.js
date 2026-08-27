@@ -56,6 +56,21 @@ document.addEventListener('click', function(e) {
       break;
     }
     case 'invRegSelectAll': toggleRegSelectAll(); break;
+    // Staff & attendance
+    case 'invAttView': attSetView(btn.dataset.view); break;
+    case 'invAttStep': attStepDay(parseInt(btn.dataset.step, 10)); break;
+    case 'invAttToday': attGoToday(); break;
+    case 'invAttWeekStep': attStepWeek(parseInt(btn.dataset.step, 10)); break;
+    case 'invAttThisWeek': attThisWeek(); break;
+    case 'invAttSet': setAttState(parseInt(btn.dataset.id, 10), btn.dataset.st); break;
+    case 'invAttCycle': cycleAttState(parseInt(btn.dataset.id, 10), btn.dataset.date); break;
+    case 'invAttAllPresent': attAllPresent(); break;
+    case 'invAttAddExtra': attAddExtra(); break;
+    case 'invAttRemoveExtra': attRemoveExtra(parseInt(btn.dataset.idx, 10)); break;
+    case 'invAttAddWorker': openWorkerAdd(); break;
+    case 'invAttEditWorker': openWorkerEdit(parseInt(btn.dataset.id, 10)); break;
+    case 'invAttSaveWorker': saveWorker(parseInt(btn.dataset.id, 10), btn.dataset.mode); break;
+    case 'invAttDeleteWorker': deleteWorker(parseInt(btn.dataset.id, 10)); break;
     // Credit notes
     case 'invRegCreditNote': openCreditNoteForm(_regSelectedIds()); break;
     case 'invCnSave': saveCreditNote(); break;
@@ -376,6 +391,35 @@ document.addEventListener('change', function(e) {
   if (e.target.id === 'imClientFilter' || e.target.id === 'imStatusFilter') {
     captureIMFilters();
   }
+  // Attendance. A <select> speaks through change, never click — and the date
+  // input re-renders because the date is what the whole view is showing.
+  if (e.target.id === 'attDate') {
+    attSetDate(e.target.value);
+    return;
+  }
+  // Area decides whether those hours are plating cost or overhead, so the
+  // breakdown below has to move with it. Safe on `change` — the native picker
+  // has already closed by the time this fires; it is `click` that would shut it.
+  if (e.target.hasAttribute && e.target.hasAttribute('data-att-area')) {
+    setAttArea(parseInt(e.target.dataset.id, 10), e.target.value);
+    renderAttendance();
+    return;
+  }
+  if (e.target.hasAttribute && e.target.hasAttribute('data-att-extra-area')) {
+    setAttExtraArea(parseInt(e.target.dataset.idx, 10), e.target.value);
+    renderAttendance();
+    return;
+  }
+  if (e.target.hasAttribute && e.target.hasAttribute('data-att-ot')) {
+    setAttOt(parseInt(e.target.dataset.id, 10), e.target.value);
+    renderAttendance();
+    return;
+  }
+  if (e.target.hasAttribute && e.target.hasAttribute('data-att-extra-hours')) {
+    setAttExtraHours(parseInt(e.target.dataset.idx, 10), e.target.value);
+    renderAttendance();
+    return;
+  }
   // Client performance: which account is under the lens
   if (e.target.id === 'cpClientSelect') {
     setPerfClientId(e.target.value);
@@ -426,6 +470,17 @@ document.addEventListener('change', function(e) {
 document.addEventListener('input', function(e) {
   if (e.target.id === 'clientSearch') {
     renderClientList(e.target.value);
+  }
+  // Attendance hours. Written on every keystroke so nothing is lost, but never
+  // re-rendered here: replacing the field mid-entry is what ended the keyboard
+  // path in challan entry, and a number input is the same trap.
+  if (e.target.hasAttribute && e.target.hasAttribute('data-att-ot')) {
+    setAttOt(parseInt(e.target.dataset.id, 10), e.target.value);
+    return;
+  }
+  if (e.target.hasAttribute && e.target.hasAttribute('data-att-extra-hours')) {
+    setAttExtraHours(parseInt(e.target.dataset.idx, 10), e.target.value);
+    return;
   }
   // History search. Debounced so a long log is not rebuilt per keystroke, and
   // focus is restored because renderHistory replaces the input it lives in.

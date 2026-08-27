@@ -2438,6 +2438,214 @@ body.inv-desktop #itemsSelBar {
   .inv-page { padding: var(--sp-20) var(--sp-32); }
   .inv-toast { max-width: 480px; }
 }
+
+/* ===== STAFF & ATTENDANCE ===== */
+.inv-empty-state-sm { padding: var(--sp-20) var(--sp-8); font-size: var(--fs-sm); }
+
+.inv-att-nav {
+  display: flex; align-items: center; gap: var(--sp-8);
+  margin-bottom: var(--sp-16);
+}
+.inv-att-nav-btn {
+  min-width: 44px; min-height: 44px; display: flex; align-items: center;
+  justify-content: center; background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--r-md); color: var(--text-2); cursor: pointer;
+  transition: background var(--anim-fast);
+}
+.inv-att-nav-btn:active { background: var(--surface-2); }
+.inv-att-nav-label {
+  flex: 1; min-width: 0; display: flex; flex-direction: column;
+  align-items: center; gap: var(--sp-2);
+}
+.inv-att-date { text-align: center; padding: var(--sp-6) var(--sp-8); }
+.inv-att-nav-day { font-size: var(--fs-xs); color: var(--text-3); }
+.inv-att-week-num {
+  font-family: var(--ff-display); font-size: var(--fs-lg); color: var(--text-1);
+}
+
+.inv-att-count { display: flex; align-items: baseline; gap: var(--sp-6); }
+.inv-att-count-value { font-size: var(--fs-3xl); color: var(--attend); }
+.inv-att-count-of { font-family: var(--ff-mono); font-size: var(--fs-md); color: var(--text-3); }
+.inv-att-summary {
+  display: flex; flex-wrap: wrap; gap: var(--sp-6); margin-top: var(--sp-8);
+}
+.inv-att-pill {
+  font-size: var(--fs-xs); font-weight: 600; padding: var(--sp-2) var(--sp-8);
+  border-radius: var(--r-full); white-space: nowrap;
+}
+.inv-att-pill-p { background: var(--attend-bg); color: var(--attend-text); }
+.inv-att-pill-h { background: var(--warning-bg); color: var(--warning-text); }
+.inv-att-pill-a { background: var(--danger-bg); color: var(--danger-text); }
+.inv-att-pill-u { background: var(--surface-2); color: var(--text-3); }
+.inv-att-pill-ot { background: var(--prod-bg); color: var(--prod-text); }
+.inv-att-pill-x { background: var(--neutral-bg); color: var(--neutral-text); }
+
+.inv-att-row {
+  display: flex; flex-direction: column; gap: var(--sp-6);
+  padding: var(--sp-10) 0; border-bottom: 1px solid var(--border);
+}
+.inv-att-row:last-child { border-bottom: none; }
+.inv-att-who { display: flex; align-items: center; gap: var(--sp-8); min-width: 0; }
+.inv-att-name {
+  font-size: var(--fs-base); font-weight: 600; color: var(--text-1);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.inv-att-badge {
+  font-size: var(--fs-2xs); font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.04em; padding: var(--sp-2) var(--sp-6);
+  border-radius: var(--r-sm); flex-shrink: 0;
+}
+.inv-att-badge-perm { background: var(--prod-bg); color: var(--prod-text); }
+.inv-att-badge-cw { background: var(--attend-bg); color: var(--attend-text); }
+.inv-att-controls { display: flex; align-items: center; gap: var(--sp-6); }
+.inv-att-seg { display: flex; gap: var(--sp-2); flex-shrink: 0; }
+.inv-att-seg-btn {
+  min-width: 44px; min-height: 44px; border: 1px solid var(--border);
+  background: var(--surface); color: var(--text-3); font-weight: 700;
+  border-radius: var(--r-md); cursor: pointer;
+  transition: background var(--anim-fast), color var(--anim-fast);
+}
+.inv-att-seg-btn:active { background: var(--surface-2); }
+.inv-att-seg-p.inv-att-seg-on { background: var(--attend); border-color: var(--attend); color: #fff; }
+.inv-att-seg-h.inv-att-seg-on { background: var(--warning); border-color: var(--warning); color: #fff; }
+.inv-att-seg-a.inv-att-seg-on { background: var(--danger); border-color: var(--danger); color: #fff; }
+.inv-att-area { flex: 1; min-width: 0; padding: var(--sp-6) var(--sp-8); }
+.inv-att-ot { width: calc(var(--sp-32) + var(--sp-24)); flex-shrink: 0; text-align: center; padding: var(--sp-6) var(--sp-4); }
+.inv-att-area:disabled, .inv-att-ot:disabled { opacity: 0.45; }
+
+.inv-att-extra-row {
+  display: flex; align-items: center; gap: var(--sp-8);
+  padding: var(--sp-6) 0; border-bottom: 1px solid var(--border);
+}
+.inv-att-extra-row:last-child { border-bottom: none; }
+.inv-att-extra-row select { flex: 1; min-width: 0; }
+.inv-att-extra-row input { width: calc(var(--sp-32) + var(--sp-24)); flex-shrink: 0; text-align: center; }
+.inv-att-extra-del {
+  min-width: 44px; min-height: 44px; background: none; border: none;
+  color: var(--danger); font-size: var(--fs-lg); cursor: pointer; flex-shrink: 0;
+}
+
+/* Week grid. Scrolls sideways rather than reflowing: six days and a name column
+   do not fit a 393px phone, and a grid that wraps stops being a grid. */
+.inv-att-grid-wrap { overflow-x: auto; margin: 0 calc(-1 * var(--sp-4)); }
+.inv-att-grid { border-collapse: collapse; width: 100%; font-size: var(--fs-sm); }
+.inv-att-grid th, .inv-att-grid td { padding: var(--sp-2); }
+.inv-att-grid-name {
+  text-align: left; font-weight: 600; color: var(--text-1);
+  position: sticky; left: 0; background: var(--surface); z-index: 1;
+  white-space: nowrap; padding-right: var(--sp-8);
+}
+.inv-att-grid-worker {
+  display: inline-block; max-width: calc(var(--sp-32) * 2.5); overflow: hidden;
+  text-overflow: ellipsis; white-space: nowrap; vertical-align: middle;
+}
+@media (min-width: 380px) { .inv-att-grid-worker { max-width: none; } }
+.inv-att-grid-comp {
+  display: inline-block; margin-left: var(--sp-4); font-size: var(--fs-2xs);
+  font-weight: 700; padding: 0 var(--sp-4); border-radius: var(--r-sm);
+  vertical-align: middle;
+}
+.inv-att-grid-day {
+  font-size: var(--fs-2xs); font-weight: 600; text-transform: uppercase;
+  color: var(--text-3); text-align: center; letter-spacing: 0.04em;
+}
+.inv-att-grid-today { color: var(--accent); }
+.inv-att-grid-date { display: block; font-family: var(--ff-mono); font-size: var(--fs-xs); }
+.inv-att-grid-cell { text-align: center; }
+.inv-att-cell {
+  position: relative; min-width: 44px; min-height: 44px; width: 100%;
+  border: 1px solid var(--border); border-radius: var(--r-sm);
+  background: var(--surface); color: var(--text-3); font-weight: 700;
+  cursor: pointer; transition: background var(--anim-fast);
+}
+.inv-att-cell-p { background: var(--attend-bg); color: var(--attend-text); border-color: var(--attend-bg); }
+.inv-att-cell-h { background: var(--warning-bg); color: var(--warning-text); border-color: var(--warning-bg); }
+.inv-att-cell-a { background: var(--danger-bg); color: var(--danger-text); border-color: var(--danger-bg); }
+.inv-att-cell-u { background: var(--surface-3); }
+.inv-att-cell-ot {
+  position: absolute; top: var(--sp-2); right: var(--sp-2);
+  font-size: var(--fs-2xs); font-weight: 700; color: var(--prod-text);
+}
+.inv-att-grid-foot {
+  font-family: var(--ff-mono); font-weight: 700; color: var(--text-1);
+  padding-top: var(--sp-8);
+}
+.inv-att-grid-of { font-weight: 400; color: var(--text-3); }
+
+/* ===== LABOUR BREAKDOWN ===== */
+.inv-lab-total { font-family: var(--ff-mono); font-weight: 700; color: var(--cost-text); }
+.inv-lab-split {
+  display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-8);
+  margin-bottom: var(--sp-12);
+}
+.inv-lab-half { padding: var(--sp-10); border-radius: var(--r-md); }
+.inv-lab-fixed { background: var(--prod-bg); }
+.inv-lab-variable { background: var(--attend-bg); }
+.inv-lab-half-label {
+  font-size: var(--fs-2xs); font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.06em; color: var(--text-2);
+}
+.inv-lab-half-value {
+  font-family: var(--ff-display); font-size: var(--fs-lg); color: var(--text-1);
+}
+.inv-lab-half-sub { font-size: var(--fs-2xs); color: var(--text-2); }
+.inv-lab-row {
+  display: flex; justify-content: space-between; align-items: baseline;
+  gap: var(--sp-8); padding: var(--sp-6) 0; border-bottom: 1px solid var(--border);
+  font-size: var(--fs-sm);
+}
+.inv-lab-row:last-of-type { border-bottom: none; }
+.inv-lab-label { color: var(--text-1); min-width: 0; }
+.inv-lab-sub { display: block; font-size: var(--fs-2xs); color: var(--text-3); }
+.inv-lab-value { font-weight: 600; color: var(--cost-text); white-space: nowrap; }
+.inv-lab-perkg {
+  display: flex; flex-direction: column; align-items: center; gap: var(--sp-2);
+  padding: var(--sp-12); margin-top: var(--sp-12);
+  background: var(--cost-bg); border-radius: var(--r-md); text-align: center;
+}
+.inv-lab-perkg-value { font-family: var(--ff-display); font-size: var(--fs-2xl); color: var(--cost); }
+.inv-lab-perkg-label {
+  font-size: var(--fs-2xs); font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.06em; color: var(--text-2);
+}
+.inv-lab-perkg-model { font-size: var(--fs-xs); color: var(--text-2); }
+.inv-lab-perkg-none { background: var(--surface-2); }
+.inv-lab-perkg-none .inv-lab-perkg-value { color: var(--text-3); }
+
+/* Dark mode. Every surface above that is not already a token pair. */
+.dark .inv-att-nav-btn { background: var(--surface); border-color: var(--border); }
+.dark .inv-att-seg-btn { background: var(--surface); border-color: var(--border); }
+.dark .inv-att-count-value { color: var(--attend-text); }
+.dark .inv-att-grid-name { background: var(--surface); }
+.dark .inv-att-cell { background: var(--surface); border-color: var(--border); }
+.dark .inv-att-cell-u { background: var(--surface-3); }
+.dark .inv-att-cell-p { background: var(--attend-bg); color: var(--attend-text); border-color: var(--attend-bg); }
+.dark .inv-att-cell-h { background: var(--warning-bg); color: var(--warning-text); border-color: var(--warning-bg); }
+.dark .inv-att-cell-a { background: var(--danger-bg); color: var(--danger-text); border-color: var(--danger-bg); }
+.dark .inv-lab-total, .dark .inv-lab-value { color: var(--cost-text); }
+.dark .inv-lab-perkg-value { color: var(--cost-text); }
+.dark .inv-lab-half-value { color: var(--text-1); }
+
+/* Focus rings, matching the ones the tabs and chips already carry. */
+.inv-att-seg-btn:focus-visible,
+.inv-att-cell:focus-visible,
+.inv-att-nav-btn:focus-visible,
+.inv-att-extra-del:focus-visible {
+  outline: var(--sp-2) solid var(--accent);
+  outline-offset: var(--sp-2);
+}
+
+.inv-lab-area-title {
+  margin-top: var(--sp-16); margin-bottom: var(--sp-8);
+  font-size: var(--fs-2xs); font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.06em; color: var(--text-3);
+}
+
+/* Desktop: the controls are sized for a thumb, not for a 1280px row. Left to
+   stretch they put a hand's width of empty select between the name and the
+   hours. */
+body.inv-desktop .inv-att-controls { max-width: calc(var(--sp-32) * 15); }
+body.inv-desktop .inv-att-extra-row { max-width: calc(var(--sp-32) * 15); }
 </style>
 </head>
 <body>
@@ -2507,6 +2715,11 @@ body.inv-desktop #itemsSelBar {
   <button class="inv-fab inv-hidden" id="clientsItemsFab" data-action="invAddClient" aria-label="Add Client">+</button>
 </div>
 
+<div id="pageStaff" class="inv-page">
+  <div id="attToolbar"></div>
+  <div id="attContent"></div>
+</div>
+
 <div id="pageStats" class="inv-page">
   <div id="statsToolbar"></div>
   <div id="statsContent" class="inv-stats-grid"></div>
@@ -2538,6 +2751,10 @@ body.inv-desktop #itemsSelBar {
   <button class="inv-tab" data-action="invSwitchTab" data-tab="pageClients">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
     Clients
+  </button>
+  <button class="inv-tab" data-action="invSwitchTab" data-tab="pageStaff">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><polyline points="17 11 19 13 23 9"/></svg>
+    Staff
   </button>
   <button class="inv-tab" data-action="invSwitchTab" data-tab="pageStats">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 20V10"/><path d="M12 20V4"/><path d="M6 20v-6"/></svg>
@@ -2617,6 +2834,19 @@ function getDefaultState() {
     // Starts at 6: CN/001–005 of 2026-27 were issued by hand before the app
     // existed. See the _cnSeriesStart1 migration in init.js.
     cnNextNum: 6,
+    // Workforce. The roster ships empty: names and wages are payroll data and
+    // this repo is public, so the owner enters them once on the device. Areas
+    // and comp classes are structure, not data, and live in staff.js.
+    staff: [],
+    // Attendance, keyed by ISO date. One entry per day the plant was recorded;
+    // a day with no key is a day nobody typed, which is not the same fact as a
+    // day nobody worked — labour coverage is stated on that distinction.
+    attendance: {},
+    // Wage arithmetic. The multiplier and the rest credit are the ratified
+    // rules: (days worked + rest credit) × ₹/day + OT × 1.1, rest credit gated
+    // on a full week. extraRate prices the area-booked "extra hours", which
+    // are contract-tier and carry no name.
+    labour: { otMult: 1.1, restCreditMinDays: 6, extraRate: 47.5, modelPerKg: 3.55 },
     // Full cost per kg, rebuilt from owner-supplied inputs against Apr–Jul 2026
     // actuals. The old 5.46 predated that rebuild and flattered every margin
     // figure by roughly a rupee a kilo. Only ever the default for a fresh
@@ -2641,6 +2871,9 @@ if (!S.incomingMaterial) S.incomingMaterial = [];
 if (!S.partWeights) S.partWeights = {};
 if (!S.voidedNumbers) S.voidedNumbers = [];
 if (!S.creditNotes) S.creditNotes = [];
+if (!S.staff) S.staff = [];
+if (!S.attendance) S.attendance = {};
+if (!S.labour) S.labour = { otMult: 1.1, restCreditMinDays: 6, extraRate: 47.5, modelPerKg: 3.55 };
 // Existence guard only — init.js's _cnSeriesStart1 migration lifts a series
 // that has never issued anything to where it actually starts.
 if (!S.cnNextNum) S.cnNextNum = 1;
@@ -3176,6 +3409,8 @@ function switchTab(tabId) {
     }
   } else if (tabId === 'pageCreate') {
     if (!document.getElementById('createFormArea').innerHTML) initCreateForm();
+  } else if (tabId === 'pageStaff') {
+    renderAttendance();
   } else if (tabId === 'pageStats') {
     renderStats();
   } else if (tabId === 'pageHistory') {
@@ -5256,6 +5491,17 @@ function openSettings() {
     '<input type="number" step="0.01" class="inv-form-input inv-mono" id="setDefaultCost" value="' + (S.defaultCostPerKg || 8.55) + '"></div>' +
     '<div class="inv-text-muted inv-storage-text">Full cost, not just materials. Everything in Stats measures against it &mdash; realisation, margin, and which clients are priced below cost. The Apr&ndash;Jul 2026 rebuild put it at &#8377;8.55/kg.</div></div>' +
 
+    '<div class="inv-settings-section"><div class="inv-settings-title">Labour</div>' +
+    '<div class="inv-form-row"><div class="inv-form-group"><label class="inv-form-label">OT multiplier</label>' +
+    '<input type="number" step="0.01" min="1" class="inv-form-input inv-mono" id="setOtMult" value="' + ((S.labour && S.labour.otMult) != null ? S.labour.otMult : 1.1) + '"></div>' +
+    '<div class="inv-form-group"><label class="inv-form-label">Extra-hour rate (&#8377;/h)</label>' +
+    '<input type="number" step="0.01" min="0" class="inv-form-input inv-mono" id="setExtraRate" value="' + ((S.labour && S.labour.extraRate) || 0) + '"></div></div>' +
+    '<div class="inv-form-row"><div class="inv-form-group"><label class="inv-form-label">Rest credit at (days/week)</label>' +
+    '<input type="number" step="1" min="0" max="7" class="inv-form-input inv-mono" id="setRestMin" value="' + ((S.labour && S.labour.restCreditMinDays) != null ? S.labour.restCreditMinDays : 6) + '"></div>' +
+    '<div class="inv-form-group"><label class="inv-form-label">Modelled labour (&#8377;/kg)</label>' +
+    '<input type="number" step="0.01" min="0" class="inv-form-input inv-mono" id="setLabModel" value="' + ((S.labour && S.labour.modelPerKg) || 0) + '"></div></div>' +
+    '<div class="inv-text-muted inv-storage-text">The wage arithmetic behind the Staff tab: (days worked + rest credit) &times; day rate, plus OT hours at this multiplier, plus the area-booked extra hours at the contract tier. Set rest credit to 0 to switch it off. The modelled &#8377;/kg is what the measured figure is reported against &mdash; the Apr&ndash;Jul 2026 rebuild put labour at &#8377;3.55 of an &#8377;8.55 cost.</div></div>' +
+
     '<div class="inv-settings-section"><div class="inv-settings-title">Zinc Rate</div>' +
     '<div class="inv-form-row"><div class="inv-form-group"><label class="inv-form-label">Market rate (&#8377;/kg)</label>' +
     '<input type="number" step="0.01" class="inv-form-input inv-mono" id="setZincRate" value="' + (getZinc().ratePerKg == null ? '' : getZinc().ratePerKg) + '" placeholder="400.00"></div>' +
@@ -5328,6 +5574,15 @@ function saveSettings() {
   }
   var costEl = document.getElementById('setDefaultCost');
   if (costEl) { var parsedCost = parseFloat(costEl.value); if (!isNaN(parsedCost) && parsedCost > 0) S.defaultCostPerKg = parsedCost; }
+  if (!S.labour) S.labour = {};
+  var otMultEl = document.getElementById('setOtMult');
+  if (otMultEl) { var pm = parseFloat(otMultEl.value); if (!isNaN(pm) && pm >= 0) S.labour.otMult = pm; }
+  var extraRateEl = document.getElementById('setExtraRate');
+  if (extraRateEl) { var pe = parseFloat(extraRateEl.value); if (!isNaN(pe) && pe >= 0) S.labour.extraRate = pe; }
+  var restMinEl = document.getElementById('setRestMin');
+  if (restMinEl) { var pr = parseInt(restMinEl.value, 10); if (!isNaN(pr) && pr >= 0) S.labour.restCreditMinDays = pr; }
+  var labModelEl = document.getElementById('setLabModel');
+  if (labModelEl) { var pl = parseFloat(labModelEl.value); if (!isNaN(pl) && pl >= 0) S.labour.modelPerKg = pl; }
   var apiKeyEl = document.getElementById('setApiKey');
   if (apiKeyEl) setApiKey(apiKeyEl.value.trim());
   var metalsKeyEl = document.getElementById('setMetalsKey');
@@ -9732,6 +9987,1105 @@ function chartRankedBars(rows, opts) {
   html += '</div>';
   return html;
 }
+/* ===== STAFF & ATTENDANCE =====
+
+   Labour is the largest line in this business — ₹3.55/kg of an ₹8.55 cost, 42%
+   of it — and until now it was one number typed into Settings. This tab is what
+   turns it into a measurement: who was on the floor, on which day, in which
+   area, and for how many hours beyond the shift.
+
+   Three views over the same store. Day is for entry, Week is for the shape of
+   a week and for fixing what the day view got wrong, Roster is the master.
+
+   The roster ships empty on purpose. Names and wages are payroll data and this
+   repo is public; the structure (areas, comp classes, the wage arithmetic) is
+   code, the people are not. */
+
+var STAFF_AREAS = [
+  { id: 'vat-a1',   label: 'VAT A1',   floor: true },
+  { id: 'vat-a2',   label: 'VAT A2',   floor: true },
+  { id: 'barrel',   label: 'Barrel',   floor: true },
+  { id: 'pickling', label: 'Pickling', floor: true },
+  { id: 'colour',   label: 'Colour',   floor: true },
+  { id: 'flex',     label: 'Flex',     floor: true },
+  { id: 'office',   label: 'Office',   floor: false },
+  { id: 'gate',     label: 'Gate',     floor: false }
+];
+
+/* Present / Half day / Absent. A worker with no mark on a recorded day is
+   *unmarked*, which is a fourth state and not the same as absent: it is the
+   state of a row nobody has reached yet, and it costs nothing rather than
+   costing a day's wage. Absent has to be said. */
+var ATT_STATES = ['P', 'H', 'A'];
+var ATT_STATE_LABELS = { P: 'Present', H: 'Half day', A: 'Absent' };
+var ATT_DAY_VALUE = { P: 1, H: 0.5, A: 0 };
+
+var _attView = 'day';
+var _attDate = null;      // ISO date the Day view is showing
+var _attWeekStart = null; // ISO Monday the Week view is showing
+
+/* ===== DATE HELPERS =====
+   All local-time. `new Date('2026-08-27')` parses as UTC and lands on the
+   previous evening east of Greenwich, which would silently shift every week
+   boundary by a day here. */
+function attParseIso(iso) {
+  var p = String(iso || '').split('-');
+  return new Date(Number(p[0]), Number(p[1]) - 1, Number(p[2]));
+}
+
+function attIso(d) {
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') +
+    '-' + String(d.getDate()).padStart(2, '0');
+}
+
+function attAddDays(iso, n) {
+  var d = attParseIso(iso);
+  d.setDate(d.getDate() + n);
+  return attIso(d);
+}
+
+/* Monday of the week containing iso. The plant runs Mon–Sat. */
+function attWeekStartOf(iso) {
+  var d = attParseIso(iso);
+  var dow = d.getDay();            // 0 = Sunday
+  var back = dow === 0 ? 6 : dow - 1;
+  d.setDate(d.getDate() - back);
+  return attIso(d);
+}
+
+/* ISO-8601 week number, so a week here is the same week soma-internal's
+   attendance files are named after (`2026-W33.md`). */
+function attWeekNumber(iso) {
+  var d = attParseIso(iso);
+  d.setDate(d.getDate() + 4 - (d.getDay() || 7));
+  var yearStart = new Date(d.getFullYear(), 0, 1);
+  return Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+}
+
+function attDayName(iso) {
+  return ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][attParseIso(iso).getDay()];
+}
+
+/* Mon–Sat of a week. Sunday is worked here only as overtime, and an OT Sunday
+   is recorded on its own date through the Day view rather than being given a
+   permanent column that is empty fifty weeks a year. */
+function attWeekDays(weekStartIso) {
+  var out = [];
+  for (var i = 0; i < 6; i++) out.push(attAddDays(weekStartIso, i));
+  return out;
+}
+
+/* Every ISO date from `from` to `to` inclusive. */
+function attDatesInRange(fromIso, toIso) {
+  var out = [], cur = fromIso;
+  if (!fromIso || !toIso || fromIso > toIso) return out;
+  var guard = 0;
+  while (cur <= toIso && guard++ < 4000) { out.push(cur); cur = attAddDays(cur, 1); }
+  return out;
+}
+
+/* ===== STORE ===== */
+function attDay(iso, create) {
+  if (!S.attendance) S.attendance = {};
+  var rec = S.attendance[iso];
+  if (!rec && create) {
+    rec = { marks: {}, extra: [], note: '' };
+    S.attendance[iso] = rec;
+  }
+  if (rec && !rec.marks) rec.marks = {};
+  if (rec && !rec.extra) rec.extra = [];
+  return rec || null;
+}
+
+function attMark(iso, staffId) {
+  var rec = attDay(iso, false);
+  if (!rec) return null;
+  return rec.marks[staffId] || null;
+}
+
+function staffById(id) {
+  return (S.staff || []).find(function(w) { return w.id === id; });
+}
+
+/* Active roster, leads and permanents first so the week grid reads the way the
+   shop does — the four area leads are the rows an absence matters most on. */
+function staffActive() {
+  return (S.staff || []).filter(function(w) { return w.active !== false; }).sort(function(a, b) {
+    if (a.comp !== b.comp) return a.comp === 'permanent' ? -1 : 1;
+    return (a.name || '').localeCompare(b.name || '');
+  });
+}
+
+function areaLabel(id) {
+  var a = STAFF_AREAS.find(function(x) { return x.id === id; });
+  return a ? a.label : (id || '—');
+}
+
+function attAreaOptions(sel) {
+  return STAFF_AREAS.map(function(a) {
+    return '<option value="' + a.id + '"' + (a.id === sel ? ' selected' : '') + '>' + escHtml(a.label) + '</option>';
+  }).join('');
+}
+
+/* ===== FOCUS ACROSS RE-RENDER =====
+
+   Every action here replaces `innerHTML`, and marking a day is a run of twenty
+   taps down a list. Without this the focus ring lands back on the body after
+   each one and a keyboard user restarts the tab order from the top — the same
+   failure that ended the keyboard path mid-challan, in a place it would be hit
+   twenty times a day rather than once.
+
+   The controls already carry the attributes that identify them, so the selector
+   is rebuilt from those rather than adding a parallel key. Values are ids,
+   ISO dates and literal action names — nothing that needs escaping. */
+var ATT_FOCUS_ATTRS = ['data-action', 'data-id', 'data-st', 'data-date', 'data-idx'];
+var ATT_FOCUS_FLAGS = ['data-att-area', 'data-att-ot', 'data-att-extra-area', 'data-att-extra-hours'];
+
+function _attFocusSelector() {
+  var page = document.getElementById('pageStaff');
+  var el = document.activeElement;
+  if (!page || !el || el === document.body || !page.contains(el)) return null;
+  if (el.id) return '#' + el.id;
+  var parts = [];
+  ATT_FOCUS_ATTRS.forEach(function(a) {
+    if (el.getAttribute(a) != null) parts.push('[' + a + '="' + el.getAttribute(a) + '"]');
+  });
+  ATT_FOCUS_FLAGS.forEach(function(a) {
+    if (el.getAttribute(a) != null) parts.push('[' + a + ']');
+  });
+  return parts.length ? parts.join('') : null;
+}
+
+function _attRestoreFocus(sel) {
+  if (!sel) return;
+  var page = document.getElementById('pageStaff');
+  if (!page) return;
+  var el;
+  try { el = page.querySelector(sel); } catch (e) { return; }
+  if (!el) return;
+  try { el.focus({ preventScroll: true }); } catch (e) { try { el.focus(); } catch (e2) {} }
+}
+
+/* ===== TAB RENDER ===== */
+function renderAttendance() {
+  if (!_attDate) _attDate = localDateStr();
+  if (!_attWeekStart) _attWeekStart = attWeekStartOf(_attDate);
+
+  var focusSel = _attFocusSelector();
+
+  var toolbar = document.getElementById('attToolbar');
+  if (toolbar) {
+    var views = [['day', 'Day'], ['week', 'Week'], ['roster', 'Roster']];
+    toolbar.innerHTML = '<div class="inv-stats-chips">' + views.map(function(v) {
+      return '<button class="inv-chip' + (_attView === v[0] ? ' inv-chip-active' : '') +
+        '" data-action="invAttView" data-view="' + v[0] + '">' + v[1] + '</button>';
+    }).join('') + '</div>';
+  }
+
+  var area = document.getElementById('attContent');
+  if (!area) return;
+
+  if ((S.staff || []).length === 0 && _attView !== 'roster') {
+    area.innerHTML = _attEmptyRoster();
+    _attRestoreFocus(focusSel);
+    return;
+  }
+
+  if (_attView === 'roster') area.innerHTML = _attRosterView();
+  else if (_attView === 'week') area.innerHTML = _attWeekView();
+  else area.innerHTML = _attDayView();
+
+  _attRestoreFocus(focusSel);
+}
+
+function _attEmptyRoster() {
+  return '<div class="inv-card"><div class="inv-empty-state">' +
+    '<svg class="inv-empty-state-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">' +
+    '<path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/>' +
+    '<polyline points="17 11 19 13 23 9"/></svg>' +
+    '<div class="inv-mt-16">No one on the roster yet</div>' +
+    '<div class="inv-stats-note">Attendance and the labour breakdown both read the roster. ' +
+    'Add each worker once with their comp class and rate; the wage arithmetic follows from there.</div>' +
+    '<div class="inv-mt-16"><button class="inv-btn inv-btn-primary" data-action="invAttAddWorker">Add the first worker</button></div>' +
+    '</div></div>';
+}
+
+/* ===== DAY VIEW ===== */
+function _attDayView() {
+  var iso = _attDate;
+  var rec = attDay(iso, false);
+  var roster = staffActive();
+  var total = roster.length;
+
+  var present = 0, half = 0, absent = 0, unmarked = 0, otHours = 0;
+  roster.forEach(function(w) {
+    var m = rec ? rec.marks[w.id] : null;
+    if (!m) { unmarked++; return; }
+    if (m.st === 'P') present++;
+    else if (m.st === 'H') half++;
+    else absent++;
+    otHours += (m.ot || 0);
+  });
+  var extraHours = rec ? rec.extra.reduce(function(s, x) { return s + (x.hours || 0); }, 0) : 0;
+  var onSite = present + half;
+
+  var html = '<div class="inv-att-nav">' +
+    '<button class="inv-att-nav-btn" data-action="invAttStep" data-step="-1" aria-label="Previous day">' +
+    '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg></button>' +
+    '<div class="inv-att-nav-label"><input type="date" class="inv-form-input inv-mono inv-att-date" id="attDate" value="' + escHtml(iso) + '">' +
+    '<span class="inv-att-nav-day">' + attDayName(iso) + '</span></div>' +
+    '<button class="inv-att-nav-btn" data-action="invAttStep" data-step="1" aria-label="Next day">' +
+    '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg></button>' +
+    '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invAttToday">Today</button>' +
+    '</div>';
+
+  html += '<div class="inv-card inv-card-hero"><div class="inv-card-header">' +
+    '<span class="inv-card-title">On site</span>' +
+    '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invAttAllPresent">All present</button></div>' +
+    '<div class="inv-att-count"><span class="inv-display inv-att-count-value">' + onSite + '</span>' +
+    '<span class="inv-att-count-of">/ ' + total + '</span></div>' +
+    '<div class="inv-att-summary">' +
+    '<span class="inv-att-pill inv-att-pill-p">' + present + ' present</span>' +
+    '<span class="inv-att-pill inv-att-pill-h">' + half + ' half</span>' +
+    '<span class="inv-att-pill inv-att-pill-a">' + absent + ' absent</span>' +
+    (unmarked > 0 ? '<span class="inv-att-pill inv-att-pill-u">' + unmarked + ' unmarked</span>' : '') +
+    '</div>' +
+    (otHours > 0 || extraHours > 0
+      ? '<div class="inv-att-summary"><span class="inv-att-pill inv-att-pill-ot">' + formatNum(otHours, 1) + ' h OT named</span>' +
+        '<span class="inv-att-pill inv-att-pill-x">' + formatNum(extraHours, 1) + ' h extra</span></div>'
+      : '') +
+    '</div>';
+
+  // The rows. One line per worker: who, where, what state, and OT hours.
+  html += '<div class="inv-card"><div class="inv-card-header"><span class="inv-card-title">Mark the day</span></div>';
+  roster.forEach(function(w) {
+    var m = rec ? rec.marks[w.id] : null;
+    var st = m ? m.st : '';
+    var wArea = m && m.area ? m.area : (w.area || 'flex');
+    html += '<div class="inv-att-row">' +
+      '<div class="inv-att-who"><span class="inv-att-name">' + escHtml(w.name) + '</span>' +
+      '<span class="inv-att-badge inv-att-badge-' + (w.comp === 'permanent' ? 'perm' : 'cw') + '">' +
+      (w.comp === 'permanent' ? 'Permanent' : 'Contract') + '</span></div>' +
+      '<div class="inv-att-controls">' +
+      '<div class="inv-att-seg" role="group" aria-label="Attendance for ' + escHtml(w.name) + '">' +
+      ATT_STATES.map(function(s) {
+        return '<button class="inv-att-seg-btn inv-att-seg-' + s.toLowerCase() +
+          (st === s ? ' inv-att-seg-on' : '') + '" data-action="invAttSet" data-id="' + w.id +
+          '" data-st="' + s + '" aria-pressed="' + (st === s) + '" title="' + ATT_STATE_LABELS[s] + '">' + s + '</button>';
+      }).join('') +
+      '</div>' +
+      '<select class="inv-form-select inv-att-area" data-att-area data-id="' + w.id + '" aria-label="Area for ' + escHtml(w.name) + '"' +
+      (st && st !== 'A' ? '' : ' disabled') + '>' + attAreaOptions(wArea) + '</select>' +
+      // Deliberately not inv-mono: in the mono face the placeholder "OT" reads
+      // as the number zero followed by a T, in a field whose whole content is
+      // otherwise numbers.
+      '<input type="number" class="inv-form-input inv-att-ot" data-att-ot data-id="' + w.id +
+      '" step="0.5" min="0" placeholder="OT" value="' + (m && m.ot ? m.ot : '') + '"' +
+      (st && st !== 'A' ? '' : ' disabled') + ' aria-label="OT hours for ' + escHtml(w.name) + '">' +
+      '</div></div>';
+  });
+  html += '</div>';
+
+  html += _attExtraCard(iso, rec);
+  html += renderLabourCard(iso, iso, 'Day cost');
+  return html;
+}
+
+/* ===== EXTRA HOURS =====
+   What "the extra" is, and why it has no name against it.
+
+   Shyam's daily relay books hours in two different ways. Named men carry their
+   own out-time, and those hours are OT on the row above. But every day also
+   carries lines like `EXTRA 16 HOURS` written against an *area block* — the
+   barrel line, the 6 AM VAT slot — with no person attached. They are real paid
+   hours at the contract tier, and the payout sheet settles them.
+
+   So they are recorded as what they are: hours booked to an area, unattributed.
+   Spreading them across the men present would produce a per-worker cost that
+   reads precise and is invented, and the one question this tab exists to answer
+   is which labour is fixed and which scales — a question that spreading would
+   silently answer for us. The labour card counts them in the bill and reports
+   them separately as unattributed. */
+function _attExtraCard(iso, rec) {
+  var rows = rec ? rec.extra : [];
+  var html = '<div class="inv-card"><div class="inv-card-header">' +
+    '<span class="inv-card-title">Extra hours</span>' +
+    '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invAttAddExtra">Add</button></div>' +
+    '<div class="inv-stats-note">Hours booked to an area block rather than to a named worker &mdash; ' +
+    'the <span class="inv-mono">EXTRA n HOURS</span> lines on the daily sheet. Priced at the contract tier ' +
+    '(' + formatCurrency((S.labour && S.labour.extraRate) || 0) + '/h) and counted in the bill, but never ' +
+    'spread across the men present: they are paid hours nobody is named for, and the labour card says so.</div>';
+  if (rows.length === 0) {
+    html += '<div class="inv-empty-state inv-empty-state-sm">None booked for this day</div>';
+  } else {
+    rows.forEach(function(x, i) {
+      html += '<div class="inv-att-extra-row">' +
+        '<select class="inv-form-select" data-att-extra-area data-idx="' + i + '" aria-label="Area for extra hours">' +
+        attAreaOptions(x.area) + '</select>' +
+        '<input type="number" class="inv-form-input inv-mono" data-att-extra-hours data-idx="' + i +
+        '" step="0.5" min="0" value="' + (x.hours || 0) + '" aria-label="Extra hours">' +
+        '<button class="inv-att-extra-del" data-action="invAttRemoveExtra" data-idx="' + i + '" aria-label="Remove">&times;</button>' +
+        '</div>';
+    });
+  }
+  return html + '</div>';
+}
+
+/* ===== WEEK VIEW ===== */
+function _attWeekView() {
+  var days = attWeekDays(_attWeekStart);
+  var roster = staffActive();
+  var last = days[days.length - 1];
+
+  var html = '<div class="inv-att-nav">' +
+    '<button class="inv-att-nav-btn" data-action="invAttWeekStep" data-step="-1" aria-label="Previous week">' +
+    '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg></button>' +
+    '<div class="inv-att-nav-label"><span class="inv-att-week-num">Week ' + attWeekNumber(_attWeekStart) + '</span>' +
+    '<span class="inv-att-nav-day">' + formatDate(_attWeekStart) + ' &ndash; ' + formatDate(last) + '</span></div>' +
+    '<button class="inv-att-nav-btn" data-action="invAttWeekStep" data-step="1" aria-label="Next week">' +
+    '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg></button>' +
+    '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invAttThisWeek">This week</button>' +
+    '</div>';
+
+  html += '<div class="inv-card"><div class="inv-card-header"><span class="inv-card-title">Week grid</span></div>' +
+    '<div class="inv-stats-note">Tap a cell to cycle it: present, half day, absent, then back to unmarked. ' +
+    'An unmarked cell is a day nobody typed &mdash; which is not the same fact as a day nobody worked, ' +
+    'and the labour figures below keep the two apart.</div>' +
+    '<div class="inv-att-grid-wrap"><table class="inv-att-grid">' +
+    '<thead><tr><th class="inv-att-grid-name">Worker</th>' +
+    days.map(function(d) {
+      return '<th class="inv-att-grid-day' + (d === localDateStr() ? ' inv-att-grid-today' : '') + '">' +
+        attDayName(d) + '<span class="inv-att-grid-date">' + attParseIso(d).getDate() + '</span></th>';
+    }).join('') + '</tr></thead><tbody>';
+
+  roster.forEach(function(w) {
+    html += '<tr><th class="inv-att-grid-name"><span class="inv-att-grid-worker">' + escHtml(w.name) + '</span>' +
+      '<span class="inv-att-grid-comp inv-att-badge-' + (w.comp === 'permanent' ? 'perm' : 'cw') + '">' +
+      (w.comp === 'permanent' ? 'P' : 'C') + '</span></th>';
+    days.forEach(function(d) {
+      var m = attMark(d, w.id);
+      var st = m ? m.st : '';
+      html += '<td class="inv-att-grid-cell"><button class="inv-att-cell inv-att-cell-' +
+        (st ? st.toLowerCase() : 'u') + '" data-action="invAttCycle" data-id="' + w.id + '" data-date="' + d +
+        '" aria-label="' + escHtml(w.name) + ' ' + attDayName(d) + ' ' + (st ? ATT_STATE_LABELS[st] : 'unmarked') + '">' +
+        (st || '·') + (m && m.ot ? '<span class="inv-att-cell-ot">' + formatNum(m.ot, 0) + '</span>' : '') +
+        '</button></td>';
+    });
+    html += '</tr>';
+  });
+
+  html += '</tbody><tfoot><tr><th class="inv-att-grid-name">On site</th>' +
+    days.map(function(d) {
+      var rec = attDay(d, false);
+      if (!rec) return '<td class="inv-att-grid-cell inv-att-grid-foot">&mdash;</td>';
+      var n = 0;
+      roster.forEach(function(w) {
+        var m = rec.marks[w.id];
+        if (m && (m.st === 'P' || m.st === 'H')) n++;
+      });
+      return '<td class="inv-att-grid-cell inv-att-grid-foot">' + n + '<span class="inv-att-grid-of">/' + roster.length + '</span></td>';
+    }).join('') + '</tr></tfoot></table></div></div>';
+
+  html += renderLabourCard(_attWeekStart, attAddDays(_attWeekStart, 6), 'Week cost');
+  return html;
+}
+
+/* ===== ROSTER VIEW ===== */
+function _attRosterView() {
+  var all = (S.staff || []).slice().sort(function(a, b) {
+    if ((a.active !== false) !== (b.active !== false)) return a.active !== false ? -1 : 1;
+    if (a.comp !== b.comp) return a.comp === 'permanent' ? -1 : 1;
+    return (a.name || '').localeCompare(b.name || '');
+  });
+  var activeCount = all.filter(function(w) { return w.active !== false; }).length;
+
+  var html = '<div class="inv-card"><div class="inv-card-header">' +
+    '<span class="inv-card-title">Roster</span>' +
+    '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invAttAddWorker">Add worker</button></div>' +
+    '<div class="inv-stats-note">' + activeCount + ' active of ' + all.length + ' on file. ' +
+    'The denominator on every headcount above is this number.</div>';
+
+  if (all.length === 0) {
+    html += '<div class="inv-empty-state inv-empty-state-sm">Nobody on file yet</div></div>';
+    return html;
+  }
+
+  all.forEach(function(w) {
+    var rate = w.comp === 'permanent'
+      ? formatCurrency(w.monthly || 0) + '/month'
+      : formatCurrency(w.dayRate || 0) + '/day · ' + formatCurrency(w.hourRate || 0) + '/h';
+    html += '<div class="inv-client-item' + (w.active === false ? ' inv-client-inactive' : '') +
+      '" data-action="invAttEditWorker" data-id="' + w.id + '">' +
+      '<div class="inv-client-content"><div class="inv-client-name">' + escHtml(w.name) + '</div>' +
+      '<div class="inv-client-meta inv-mono">' + escHtml(rate) + '</div>' +
+      '<div class="inv-client-badges">' +
+      '<span class="inv-att-badge inv-att-badge-' + (w.comp === 'permanent' ? 'perm' : 'cw') + '">' +
+      (w.comp === 'permanent' ? 'Permanent' : 'Contract') + '</span>' +
+      '<span class="inv-client-badge inv-badge-mode">' + escHtml(areaLabel(w.area)) + '</span>' +
+      (w.onFloor === false ? '<span class="inv-client-badge inv-badge-rate">Off floor</span>' : '') +
+      (w.active === false ? '<span class="inv-client-badge inv-badge-inactive">Inactive</span>' : '') +
+      '</div></div>' +
+      '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg></div>';
+  });
+  return html + '</div>';
+}
+
+/* ===== ACTIONS ===== */
+function attSetView(view) {
+  _attView = view;
+  renderAttendance();
+}
+
+function attStepDay(n) {
+  _attDate = attAddDays(_attDate || localDateStr(), n);
+  renderAttendance();
+}
+
+function attGoToday() {
+  _attDate = localDateStr();
+  _attWeekStart = attWeekStartOf(_attDate);
+  renderAttendance();
+}
+
+function attStepWeek(n) {
+  _attWeekStart = attAddDays(_attWeekStart || attWeekStartOf(localDateStr()), n * 7);
+  renderAttendance();
+}
+
+function attThisWeek() {
+  _attWeekStart = attWeekStartOf(localDateStr());
+  renderAttendance();
+}
+
+function attSetDate(iso) {
+  if (!iso) return;
+  _attDate = iso;
+  _attWeekStart = attWeekStartOf(iso);
+  renderAttendance();
+}
+
+/* Writes one mark. `st` of '' clears the row back to unmarked, and a cleared
+   row takes its OT with it — hours nobody was present for are not hours. */
+function attSetState(iso, staffId, st) {
+  var w = staffById(staffId);
+  if (!w) return;
+  var rec = attDay(iso, true);
+  if (!st) {
+    delete rec.marks[staffId];
+  } else {
+    var m = rec.marks[staffId] || { ot: 0, area: w.area || 'flex' };
+    m.st = st;
+    if (st === 'A') m.ot = 0;
+    rec.marks[staffId] = m;
+  }
+  _attPrune(iso);
+  saveState();
+}
+
+function setAttState(staffId, st) {
+  var cur = attMark(_attDate, staffId);
+  attSetState(_attDate, staffId, (cur && cur.st === st) ? '' : st);
+  renderAttendance();
+}
+
+/* Week grid cycle: unmarked → P → H → A → unmarked. */
+function cycleAttState(staffId, iso) {
+  var cur = attMark(iso, staffId);
+  var order = ['', 'P', 'H', 'A'];
+  var idx = order.indexOf(cur ? cur.st : '');
+  attSetState(iso, staffId, order[(idx + 1) % order.length]);
+  renderAttendance();
+}
+
+function setAttOt(staffId, hours) {
+  var m = attMark(_attDate, staffId);
+  if (!m) return;                       // OT without a presence mark is not a fact
+  m.ot = Math.max(0, Number(hours) || 0);
+  saveState();
+}
+
+function setAttArea(staffId, areaId) {
+  var m = attMark(_attDate, staffId);
+  if (!m) return;
+  m.area = areaId;
+  saveState();
+}
+
+/* Marks every unmarked worker present. It never overwrites a mark already
+   made — the absences are the part that was typed deliberately. */
+function attAllPresent() {
+  var rec = attDay(_attDate, true);
+  var n = 0;
+  staffActive().forEach(function(w) {
+    if (!rec.marks[w.id]) {
+      rec.marks[w.id] = { st: 'P', ot: 0, area: w.area || 'flex' };
+      n++;
+    }
+  });
+  _attPrune(_attDate);
+  saveState();
+  renderAttendance();
+  showToast(n === 0 ? 'Every worker already marked' : n + ' marked present');
+}
+
+function attAddExtra() {
+  var rec = attDay(_attDate, true);
+  rec.extra.push({ area: 'barrel', hours: 0 });
+  saveState();
+  renderAttendance();
+}
+
+function attRemoveExtra(idx) {
+  var rec = attDay(_attDate, false);
+  if (!rec) return;
+  rec.extra.splice(idx, 1);
+  _attPrune(_attDate);
+  saveState();
+  renderAttendance();
+}
+
+function setAttExtraArea(idx, areaId) {
+  var rec = attDay(_attDate, false);
+  if (!rec || !rec.extra[idx]) return;
+  rec.extra[idx].area = areaId;
+  saveState();
+}
+
+function setAttExtraHours(idx, hours) {
+  var rec = attDay(_attDate, false);
+  if (!rec || !rec.extra[idx]) return;
+  rec.extra[idx].hours = Math.max(0, Number(hours) || 0);
+  saveState();
+}
+
+/* A day emptied of every mark is deleted rather than left as `{}`. The presence
+   of a key is what "this day was recorded" means to the coverage figure, and an
+   empty husk would claim a recording that never happened. */
+function _attPrune(iso) {
+  var rec = S.attendance[iso];
+  if (!rec) return;
+  if (Object.keys(rec.marks).length === 0 && rec.extra.length === 0 && !rec.note) {
+    delete S.attendance[iso];
+  }
+}
+
+/* ===== ROSTER CRUD ===== */
+function _blankWorker() {
+  return {
+    id: 0, name: '', comp: 'contract', monthly: 0, dayRate: 0,
+    hourRate: (S.labour && S.labour.extraRate) || 47.5,
+    area: 'flex', onFloor: true, active: true, note: ''
+  };
+}
+
+function openWorkerAdd() { _showWorkerOverlay(null, true); }
+
+function openWorkerEdit(id) {
+  var w = staffById(id);
+  if (!w) return;
+  _showWorkerOverlay(w, false);
+}
+
+function _showWorkerOverlay(worker, isAdd) {
+  var w = worker || _blankWorker();
+  var marks = worker ? _attMarkCount(w.id) : 0;
+  var scrim = document.createElement('div');
+  scrim.className = 'inv-overlay-scrim';
+  scrim.innerHTML = '<div class="inv-overlay-card">' +
+    '<div class="inv-overlay-header"><span class="inv-overlay-title">' + (isAdd ? 'Add Worker' : 'Edit Worker') + '</span>' +
+    '<button class="inv-overlay-close" data-action="invCloseOverlay">&times;</button></div>' +
+    '<div class="inv-form-group"><label class="inv-form-label" for="wedName">Name</label>' +
+    '<input class="inv-form-input" id="wedName" value="' + escHtml(w.name) + '"></div>' +
+    '<div class="inv-form-row"><div class="inv-form-group"><label class="inv-form-label" for="wedComp">Comp class</label>' +
+    '<select class="inv-form-select" id="wedComp">' +
+    '<option value="contract"' + (w.comp === 'contract' ? ' selected' : '') + '>Contract</option>' +
+    '<option value="permanent"' + (w.comp === 'permanent' ? ' selected' : '') + '>Permanent</option></select></div>' +
+    '<div class="inv-form-group"><label class="inv-form-label" for="wedArea">Area</label>' +
+    '<select class="inv-form-select" id="wedArea">' + attAreaOptions(w.area) + '</select></div></div>' +
+    '<div class="inv-form-group"><label class="inv-form-label" for="wedMonthly">Monthly salary (permanent)</label>' +
+    '<input class="inv-form-input inv-mono" id="wedMonthly" type="number" step="1" min="0" value="' + (w.monthly || 0) + '"></div>' +
+    '<div class="inv-form-row"><div class="inv-form-group"><label class="inv-form-label" for="wedDay">Day rate (contract)</label>' +
+    '<input class="inv-form-input inv-mono" id="wedDay" type="number" step="0.01" min="0" value="' + (w.dayRate || 0) + '"></div>' +
+    '<div class="inv-form-group"><label class="inv-form-label" for="wedHour">Hour rate (OT)</label>' +
+    '<input class="inv-form-input inv-mono" id="wedHour" type="number" step="0.01" min="0" value="' + (w.hourRate || 0) + '"></div></div>' +
+    '<div class="inv-stats-note">A permanent salary accrues whether or not the day was typed. Contract wages are ' +
+    'counted only for days actually recorded, which is why the labour card states its coverage.</div>' +
+    '<div class="inv-flex-between inv-mb-8"><label class="inv-checkbox-label">' +
+    '<input type="checkbox" id="wedFloor"' + (w.onFloor !== false ? ' checked' : '') + '> On the plant floor</label></div>' +
+    '<div class="inv-stats-note">Clear this for the gate and the office. Their wage is still labour and still in the ' +
+    'bill; it is simply not plating cost, and the breakdown splits it out.</div>' +
+    '<div class="inv-flex-between inv-mb-16"><label class="inv-checkbox-label">' +
+    '<input type="checkbox" id="wedActive"' + (w.active !== false ? ' checked' : '') + '> Active</label></div>' +
+    (isAdd ? '' : '<button class="inv-btn inv-btn-danger inv-btn-sm inv-mb-16" data-action="invAttDeleteWorker" data-id="' + w.id + '">Delete worker' +
+      (marks > 0 ? ' (' + marks + ' day' + (marks === 1 ? '' : 's') + ' recorded)' : '') + '</button>') +
+    '<div class="inv-btn-bar"><button class="inv-btn inv-btn-ghost" data-action="invCloseOverlay">Cancel</button>' +
+    '<button class="inv-btn inv-btn-primary" data-action="invAttSaveWorker" data-id="' + w.id +
+    '" data-mode="' + (isAdd ? 'add' : 'edit') + '">' + (isAdd ? 'Add Worker' : 'Save') + '</button></div></div>';
+  scrim.addEventListener('click', function(e) {
+    if (e.target === scrim) { scrim.remove(); document.body.style.overflow = ''; popFocus(); }
+  });
+  pushFocus();
+  document.body.appendChild(scrim);
+  document.body.style.overflow = 'hidden';
+  focusFirstInteractive(scrim.querySelector('.inv-overlay-card'));
+}
+
+function _attMarkCount(staffId) {
+  var n = 0;
+  Object.keys(S.attendance || {}).forEach(function(iso) {
+    var rec = S.attendance[iso];
+    if (rec && rec.marks && rec.marks[staffId]) n++;
+  });
+  return n;
+}
+
+function saveWorker(id, mode) {
+  var name = document.getElementById('wedName').value.trim();
+  if (!name) { showToast('Worker name is required', 'error'); return; }
+  var comp = document.getElementById('wedComp').value;
+  var dup = (S.staff || []).find(function(x) {
+    return x.id !== id && (x.name || '').trim().toLowerCase() === name.toLowerCase();
+  });
+  if (dup) { showToast('Already on the roster: ' + dup.name, 'error'); return; }
+
+  var fields = {
+    name: name,
+    comp: comp,
+    monthly: Math.max(0, parseFloat(document.getElementById('wedMonthly').value) || 0),
+    dayRate: Math.max(0, parseFloat(document.getElementById('wedDay').value) || 0),
+    hourRate: Math.max(0, parseFloat(document.getElementById('wedHour').value) || 0),
+    area: document.getElementById('wedArea').value,
+    onFloor: document.getElementById('wedFloor').checked,
+    active: document.getElementById('wedActive').checked
+  };
+
+  // A rate of zero is not refused — a worker can be on the roster before the
+  // rate is settled — but the labour card would then be quietly short, so it
+  // is said once here rather than discovered as a low ₹/kg later.
+  var rateMissing = comp === 'permanent' ? fields.monthly <= 0 : fields.dayRate <= 0;
+
+  if (mode === 'add') {
+    var nextId = (S.staff || []).reduce(function(m, x) { return Math.max(m, x.id || 0); }, 0) + 1;
+    fields.id = nextId;
+    fields.note = '';
+    S.staff.push(fields);
+  } else {
+    var w = staffById(id);
+    if (!w) return;
+    Object.keys(fields).forEach(function(k) { w[k] = fields[k]; });
+  }
+  saveState();
+  closeOverlay();
+  renderAttendance();
+  showToast(rateMissing
+    ? name + ' saved without a rate — labour cost will read short until it is set'
+    : (mode === 'add' ? name + ' added' : name + ' saved'),
+    rateMissing ? 'warning' : 'success');
+}
+
+/* Deletion is refused while attendance names the worker. Removing the row would
+   not remove the marks, it would orphan them: every past week's labour would
+   silently drop that person's wage and no figure would say why. Deactivating
+   keeps the history intact and takes them out of today's denominator, which is
+   what "left" actually means here. */
+function deleteWorker(id) {
+  var w = staffById(id);
+  if (!w) return;
+  var marks = _attMarkCount(id);
+  if (marks > 0) {
+    showToast('Cannot delete: ' + w.name + ' is on ' + marks + ' recorded day' +
+      (marks === 1 ? '' : 's') + '. Clear Active instead.', 'error');
+    return;
+  }
+  if (!confirm('Delete ' + w.name + ' from the roster?')) return;
+  S.staff = S.staff.filter(function(x) { return x.id !== id; });
+  saveState();
+  closeOverlay();
+  renderAttendance();
+  showToast(w.name + ' removed');
+}
+/* ===== LABOUR COST =====
+
+   Labour was one number: ₹3.55/kg, 42% of an ₹8.55 cost, entered by hand and
+   never checked against anything. Two questions were left open by the last
+   two handoffs — how staff is allocated, and what "the extra" stands for —
+   and both are the same question in different clothes: which of this bill is
+   fixed and which of it scales with tonnage. Nothing could answer it because
+   nothing measured it.
+
+   This does the arithmetic from the attendance store:
+
+     permanent   monthly salary, accrued by calendar day. Fixed. It is owed
+                 whether or not anyone typed the day, so it is prorated across
+                 the period rather than counted per recorded day.
+     contract    days worked × day rate, half a day counting half. Variable.
+     rest credit one further paid day for a contract worker whose week is full
+                 — the ratified rule, gated rather than automatic.
+     OT          named overtime hours × hour rate × multiplier (1.1).
+     extra       area-booked hours nobody is named for, at the contract tier.
+
+   Two figures are then kept apart everywhere they appear. **Fixed** is the
+   permanent payroll: it does not move when tonnage moves, which is exactly why
+   the SSS Mehta question turns on it — at fixed labour that account still
+   contributes ₹0.53/kg, at volume-scaling labour it loses ₹1.64/kg. **Variable**
+   is contract, OT and extra together. Reporting one labour number would answer
+   that question by accident, in whichever direction the blend happened to fall.
+
+   And what is not known is never averaged away. A day nobody typed is not a day
+   nobody worked; permanent salary still accrues over it and contract wages do
+   not, so a period recorded in part reads *low*, never neutral. The card states
+   its coverage and withholds ₹/kg below 90% rather than printing a figure that
+   flatters the plant. */
+
+function labourCfg() {
+  var c = S.labour || {};
+  return {
+    otMult: c.otMult != null ? c.otMult : 1.1,
+    restCreditMinDays: c.restCreditMinDays != null ? c.restCreditMinDays : 6,
+    extraRate: c.extraRate || 0,
+    modelPerKg: c.modelPerKg || 0
+  };
+}
+
+/* Is this area on the plant floor? An unknown area is treated as floor: the
+   plating cost reading slightly high is the safe direction of an unknown. */
+function _areaIsFloor(areaId) {
+  var a = STAFF_AREAS.find(function(x) { return x.id === areaId; });
+  return a ? a.floor : true;
+}
+
+/* The whole model, over an inclusive ISO date range. Pure: reads S, writes
+   nothing, and every figure it returns is traceable to a recorded mark. */
+function labourForRange(fromIso, toIso) {
+  var cfg = labourCfg();
+  var dates = attDatesInRange(fromIso, toIso);
+  var roster = (S.staff || []).filter(function(w) { return w.active !== false; });
+
+  var out = {
+    from: fromIso, to: toIso, rangeDays: dates.length,
+    permanent: 0, permanentFloor: 0,
+    contract: 0, contractFloor: 0,
+    rest: 0, ot: 0, otFloor: 0, extra: 0, extraFloor: 0,
+    otHours: 0, extraHours: 0, contractDays: 0,
+    daysRecorded: 0, workingDays: 0, sundaysRecorded: 0,
+    rosterSize: roster.length, ratelessWorkers: [], byArea: {}
+  };
+
+  // Variable labour, by the area it was worked in. Permanent payroll is
+  // deliberately absent: a monthly salary is not attributable to a day, let
+  // alone to the area that day was worked in, and splitting it by home area
+  // would put a number on the page that looks like an allocation and is not.
+  function bumpArea(areaId, cost, days, hours) {
+    var a = out.byArea[areaId] || (out.byArea[areaId] = { cost: 0, days: 0, hours: 0 });
+    a.cost += cost; a.days += days; a.hours += hours;
+  }
+
+  // Permanent salary accrues by calendar day, so a month boundary inside the
+  // range prorates correctly against each month's own length.
+  var perms = roster.filter(function(w) { return w.comp === 'permanent'; });
+  dates.forEach(function(iso) {
+    var d = attParseIso(iso);
+    var dim = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+    perms.forEach(function(w) {
+      var share = (w.monthly || 0) / dim;
+      out.permanent += share;
+      if (w.onFloor !== false) out.permanentFloor += share;
+    });
+  });
+
+  // Days worked per contract worker per week, for the rest-credit gate.
+  var weekDaysWorked = {};
+
+  dates.forEach(function(iso) {
+    var dow = attParseIso(iso).getDay();
+    if (dow !== 0) out.workingDays++;
+
+    var rec = (S.attendance || {})[iso];
+    if (!rec) return;
+    var marks = rec.marks || {};
+    var marked = Object.keys(marks).length;
+    var extras = (rec.extra || []).length;
+    if (marked === 0 && extras === 0) return;
+    if (marked > 0) {
+      if (dow === 0) out.sundaysRecorded++; else out.daysRecorded++;
+    }
+
+    var wk = attWeekStartOf(iso);
+    roster.forEach(function(w) {
+      var m = marks[w.id];
+      if (!m || !m.st) return;
+      var dayVal = ATT_DAY_VALUE[m.st] || 0;
+      var floor = w.onFloor !== false && _areaIsFloor(m.area || w.area);
+
+      var areaId = m.area || w.area || 'flex';
+      if (w.comp === 'contract') {
+        var wage = dayVal * (w.dayRate || 0);
+        out.contract += wage;
+        out.contractDays += dayVal;
+        if (floor) out.contractFloor += wage;
+        bumpArea(areaId, wage, dayVal, 0);
+        var key = w.id + '|' + wk;
+        weekDaysWorked[key] = (weekDaysWorked[key] || 0) + dayVal;
+      }
+
+      var oth = m.ot || 0;
+      if (oth > 0) {
+        // A permanent worker's overtime is paid at their own hour rate when one
+        // is set. Where it is not, the hours are still recorded and reported —
+        // they just cannot be priced, and the card says how many.
+        var otPay = oth * (w.hourRate || 0) * cfg.otMult;
+        out.otHours += oth;
+        out.ot += otPay;
+        if (floor) out.otFloor += otPay;
+        bumpArea(areaId, otPay, 0, oth);
+        if (!(w.hourRate > 0) && out.ratelessWorkers.indexOf(w.name) < 0) out.ratelessWorkers.push(w.name);
+      }
+    });
+
+    (rec.extra || []).forEach(function(x) {
+      var h = x.hours || 0;
+      if (h <= 0) return;
+      var pay = h * cfg.extraRate;
+      out.extraHours += h;
+      out.extra += pay;
+      if (_areaIsFloor(x.area)) out.extraFloor += pay;
+      bumpArea(x.area || 'flex', pay, 0, h);
+    });
+  });
+
+  // Rest credit: one paid day for a contract week that reached the gate. It is
+  // measured on days *inside this range*, so a period that cuts a week in half
+  // under-credits that boundary week — stated on the card rather than papered
+  // over by reading days the period does not cover.
+  if (cfg.restCreditMinDays > 0) {
+    Object.keys(weekDaysWorked).forEach(function(key) {
+      if (weekDaysWorked[key] < cfg.restCreditMinDays) return;
+      var w = staffById(parseInt(key.split('|')[0], 10));
+      if (!w) return;
+      out.rest += (w.dayRate || 0);
+      if (w.onFloor !== false) out.contractFloor += (w.dayRate || 0);
+      bumpArea(w.area || 'flex', (w.dayRate || 0), 1, 0);
+    });
+  }
+
+  out.permanent = gstRound(out.permanent);
+  out.permanentFloor = gstRound(out.permanentFloor);
+  out.contract = gstRound(out.contract);
+  out.contractFloor = gstRound(out.contractFloor);
+  out.rest = gstRound(out.rest);
+  out.ot = gstRound(out.ot);
+  out.otFloor = gstRound(out.otFloor);
+  out.extra = gstRound(out.extra);
+  out.extraFloor = gstRound(out.extraFloor);
+
+  out.fixed = out.permanent;
+  out.variable = gstRound(out.contract + out.rest + out.ot + out.extra);
+  out.total = gstRound(out.fixed + out.variable);
+  out.floor = gstRound(out.permanentFloor + out.contractFloor + out.otFloor + out.extraFloor);
+  out.offFloor = gstRound(out.total - out.floor);
+  Object.keys(out.byArea).forEach(function(k) { out.byArea[k].cost = gstRound(out.byArea[k].cost); });
+  out.coverage = out.workingDays > 0 ? Math.min(1, out.daysRecorded / out.workingDays) : 0;
+  return out;
+}
+
+/* The one place that decides whether a ₹/kg may be printed at all.
+
+   Two gates, and they fail for different reasons. Coverage below 90% means the
+   numerator is short — the same 90% bar the client realisation table already
+   uses, for the same reason: a figure drawn from a fraction of the book is not
+   the same kind of number as one drawn from all of it.
+
+   The day floor is about sample size, not about the lag. The lag is real at
+   every length — tonnage here is *billed* tonnage and material is plated weeks
+   before it is invoiced — so it cannot be gated away, only stated, and it is
+   stated below wherever the range is short enough for it to dominate. Under a
+   fortnight there is not enough of either side to divide. */
+var LABOUR_PERKG_MIN_DAYS = 14;
+var LABOUR_PERKG_LAG_DAYS = 60;
+var LABOUR_PERKG_MIN_COVERAGE = 0.9;
+
+function labourPerKgVerdict(lab, tonnageKg) {
+  if (lab.total <= 0) return { ok: false, why: 'no labour recorded in this period' };
+  if (!(tonnageKg > 0)) return { ok: false, why: 'no weighed tonnage in this period' };
+  if (lab.rangeDays < LABOUR_PERKG_MIN_DAYS) {
+    return { ok: false, why: 'a range under a fortnight is too short to divide &mdash; ' +
+      'billing lags plating, so these invoices are not this period\u2019s output' };
+  }
+  if (lab.coverage < LABOUR_PERKG_MIN_COVERAGE) {
+    return { ok: false, why: 'only ' + lab.daysRecorded + ' of ' + lab.workingDays +
+      ' working days are recorded, so the contract side of the bill is short' };
+  }
+  return { ok: true, perKg: lab.total / tonnageKg };
+}
+
+function _labRow(label, value, sub) {
+  return '<div class="inv-lab-row"><span class="inv-lab-label">' + label +
+    (sub ? '<span class="inv-lab-sub">' + sub + '</span>' : '') + '</span>' +
+    '<span class="inv-lab-value inv-mono">' + value + '</span></div>';
+}
+
+/* Where the variable hours went.
+
+   This is the second half of the question the handoffs left open — not just how
+   much labour, but how it is allocated. It ranks by cost rather than by days,
+   because an area that pulls the overtime is a more expensive area than one
+   that merely has bodies in it, and days alone would hide that.
+
+   Drawn with `chartRankedBars` rather than a bar of its own: the app already
+   has one ranked-bar shape and Top Items is the view a reader arrives from.
+
+   Permanent payroll is not in here and the caption says so. A monthly salary
+   cannot be attributed to a day, let alone to the area that day was worked in;
+   splitting it by home area would print an allocation that nobody measured. */
+function _labAreaRows(lab) {
+  var keys = Object.keys(lab.byArea).filter(function(k) { return lab.byArea[k].cost > 0; });
+  if (keys.length === 0) return '';
+  keys.sort(function(a, b) { return lab.byArea[b].cost - lab.byArea[a].cost; });
+  var total = keys.reduce(function(sum, k) { return sum + lab.byArea[k].cost; }, 0);
+
+  var rows = keys.map(function(k) {
+    var a = lab.byArea[k];
+    var bits = [];
+    if (a.days > 0) bits.push(formatNum(a.days, 1) + ' day' + (a.days === 1 ? '' : 's'));
+    if (a.hours > 0) bits.push(formatNum(a.hours, 1) + ' h');
+    if (total > 0) bits.push(formatNum((a.cost / total) * 100, 0) + '% of variable');
+    return {
+      label: areaLabel(k),
+      value: a.cost,
+      display: formatCurrency(a.cost),
+      sub: bits.join(' \u00B7 '),
+      // Off-floor areas are shaded apart: their wage is real and in the bill,
+      // but it is overhead rather than plating cost, and a reader scanning for
+      // where the plant's money goes should not have to remember which is which.
+      tone: _areaIsFloor(k) ? '' : 'danger'
+    };
+  });
+
+  return '<div class="inv-lab-area-title">Variable labour by area</div>' +
+    chartRankedBars(rows, { unit: 'money' }) +
+    '<div class="inv-stats-note">Contract days, rest credit, overtime and extra hours, placed by the ' +
+    'area each was worked in. <strong>Permanent payroll is not in here</strong> &mdash; a monthly salary ' +
+    'cannot be attributed to a day, let alone to the area that day was worked in, and splitting it by ' +
+    'home area would print an allocation nobody measured.</div>';
+}
+
+/* The breakdown card. Used by the Attendance tab for a day or a week (cash
+   only) and by Stats for the period (cash and ₹/kg). */
+function renderLabourCard(fromIso, toIso, title, tonnage, extraClass) {
+  var lab = labourForRange(fromIso, toIso);
+  var cfg = labourCfg();
+  var html = '<div class="inv-card inv-lab-card' + (extraClass ? ' ' + extraClass : '') +
+    '"><div class="inv-card-header">' +
+    '<span class="inv-card-title">' + escHtml(title || 'Labour') + '</span>' +
+    '<span class="inv-lab-total inv-mono">' + formatCurrency(lab.total) + '</span></div>';
+
+  if (lab.rosterSize === 0) {
+    return html + '<div class="inv-empty-state inv-empty-state-sm">Nobody on the roster</div></div>';
+  }
+
+  html += '<div class="inv-lab-split">' +
+    '<div class="inv-lab-half inv-lab-fixed"><div class="inv-lab-half-label">Fixed</div>' +
+    '<div class="inv-lab-half-value inv-mono">' + formatCurrency(lab.fixed) + '</div>' +
+    '<div class="inv-lab-half-sub">permanent payroll</div></div>' +
+    '<div class="inv-lab-half inv-lab-variable"><div class="inv-lab-half-label">Variable</div>' +
+    '<div class="inv-lab-half-value inv-mono">' + formatCurrency(lab.variable) + '</div>' +
+    '<div class="inv-lab-half-sub">contract, OT and extra</div></div></div>';
+
+  html += _labRow('Permanent', formatCurrency(lab.permanent), 'accrued over ' + lab.rangeDays + ' day' + (lab.rangeDays === 1 ? '' : 's'));
+  html += _labRow('Contract days', formatCurrency(lab.contract), formatNum(lab.contractDays, 1) + ' day' + (lab.contractDays === 1 ? '' : 's') + ' worked');
+  if (lab.rest > 0) html += _labRow('Rest credit', formatCurrency(lab.rest), 'full weeks at ' + cfg.restCreditMinDays + '+ days');
+  html += _labRow('Overtime (named)', formatCurrency(lab.ot), formatNum(lab.otHours, 1) + ' h at &times;' + formatNum(cfg.otMult, 2));
+  html += _labRow('Extra (unattributed)', formatCurrency(lab.extra), formatNum(lab.extraHours, 1) + ' h at ' + formatCurrency(cfg.extraRate) + '/h');
+  html += _labRow('On the floor', formatCurrency(lab.floor),
+    lab.offFloor > 0 ? formatCurrency(lab.offFloor) + ' off floor (gate, office)' : 'all of it');
+
+  if (tonnage) {
+    var verdict = labourPerKgVerdict(lab, tonnage.kg);
+    if (verdict.ok) {
+      var gap = cfg.modelPerKg > 0 ? verdict.perKg - cfg.modelPerKg : null;
+      html += '<div class="inv-lab-perkg"><span class="inv-lab-perkg-value inv-mono">' +
+        formatCurrency(verdict.perKg) + '/kg</span><span class="inv-lab-perkg-label">measured labour</span>' +
+        (gap != null
+          ? '<span class="inv-lab-perkg-model">against ' + formatCurrency(cfg.modelPerKg) +
+            '/kg modelled &mdash; ' + (Math.abs(gap) < 0.005 ? 'the same figure'
+              : formatCurrency(Math.abs(gap)) + '/kg ' + (gap > 0 ? 'higher' : 'lower')) + '</span>'
+          : '') +
+        '</div>';
+      if (lab.rangeDays < LABOUR_PERKG_LAG_DAYS) {
+        html += '<div class="inv-stats-caveat">Read that as an order of magnitude, not a rate. The labour is ' +
+          'this period&rsquo;s; the tonnage under it is what was <strong>billed</strong> in this period, and ' +
+          'material is plated weeks before it is invoiced. Over a quarter or a year the two line up; over ' +
+          'a month they measure partly different work.</div>';
+      }
+      if (tonnage.coverage < 0.999) {
+        html += '<div class="inv-stats-caveat">That ₹/kg divides the whole labour bill by tonnage covering <strong>' +
+          Math.round(tonnage.coverage * 100) + '% of revenue</strong>. The unweighed lines are the piece-billed work, ' +
+          'so the real denominator is larger and the true labour cost per kilo is <strong>lower</strong> than this. ' +
+          'Items Master &rarr; Derive weights from rates closes it.</div>';
+      }
+    } else {
+      html += '<div class="inv-lab-perkg inv-lab-perkg-none"><span class="inv-lab-perkg-value">&mdash;</span>' +
+        '<span class="inv-lab-perkg-label">₹/kg withheld</span>' +
+        '<span class="inv-lab-perkg-model">' + verdict.why + '</span></div>';
+    }
+  }
+
+  // Coverage, always, in the same place whether it is complete or not. A card
+  // that only mentions its gaps when it has them teaches the reader to stop
+  // looking for the line.
+  var covPct = Math.round(lab.coverage * 100);
+  html += '<div class="inv-stats-note">Recorded <strong>' + lab.daysRecorded + ' of ' + lab.workingDays +
+    ' working days</strong> in this range (' + covPct + '%)' +
+    (lab.sundaysRecorded > 0 ? ', plus ' + lab.sundaysRecorded + ' Sunday' + (lab.sundaysRecorded === 1 ? '' : 's') : '') + '. ' +
+    (lab.coverage < 0.999
+      ? 'Permanent salary accrues across the whole range; contract wages, OT and extra are counted only for days ' +
+        'actually typed. So an incomplete range reads <strong>low</strong>, never neutral.'
+      : 'Every working day in the range is on file.') +
+    (lab.rangeDays > 7 ? ' Rest credit is gated on days inside this range, so a range cutting a week in half under-credits that week.' : '') +
+    '</div>';
+
+  if (lab.ratelessWorkers.length > 0) {
+    html += '<div class="inv-stats-caveat">Overtime hours are recorded for <strong>' +
+      escHtml(lab.ratelessWorkers.join(', ')) + '</strong> with no hour rate on the roster, so those hours ' +
+      'are counted in the hours above and priced at zero. Set the rate in Roster to bring them into the bill.</div>';
+  }
+
+  // The allocation answer sits last: it is a breakdown of a figure the reader
+  // has already been given, and in Stats the ₹/kg is the headline that must not
+  // be pushed below a chart.
+  html += _labAreaRows(lab);
+
+  if (lab.extra > 0) {
+    var share = lab.total > 0 ? (lab.extra / lab.total) * 100 : 0;
+    html += '<div class="inv-stats-note"><strong>' + formatNum(share, 1) + '% of this bill</strong> is extra hours ' +
+      'booked to an area rather than to a person. That is what &ldquo;the extra&rdquo; on the daily sheet is: ' +
+      'real paid contract hours with no name against them. They are not spread across the men present, because ' +
+      'a per-worker cost invented that way would answer the fixed-versus-variable question by accident.</div>';
+  }
+
+  return html + '</div>';
+}
+
+/* ===== STATS INTEGRATION =====
+   Converts a Stats period into the ISO range the labour model works in. For
+   'all', the range is the attendance store's own span — there is nothing to
+   measure outside it. */
+function labourRangeForPeriod(period) {
+  var range = periodRange(period, 0);
+  if (range) {
+    return { from: attIso(new Date(range.start)), to: attIso(new Date(range.end)) };
+  }
+  var keys = Object.keys(S.attendance || {}).sort();
+  if (keys.length === 0) return null;
+  return { from: keys[0], to: keys[keys.length - 1] };
+}
+
+function renderLabourStatsCard(period, tonnage) {
+  if ((S.staff || []).length === 0) return '';
+  var r = labourRangeForPeriod(period);
+  if (!r) return '';
+  return renderLabourCard(r.from, r.to, (PERIOD_LABELS[period] || '') + ' Labour', tonnage, 'inv-stats-card-full');
+}
 /* ===== STATS (Phase 7 — Analytics Rework) =====
  *
  * This is a job-work business priced in rupees per kilogram. Revenue on its
@@ -10245,6 +11599,14 @@ function renderStats() {
       '/kg below full cost. At this tonnage that is ' + formatCurrency(Math.abs(grossMargin)) + ' of loss for the period.</div>';
   }
   html += '</div>';
+
+  /* ===== Card 1b: Labour =====
+     Placed directly under the headline four, because realisation only means
+     something against a cost, and labour is 42% of that cost — the single line
+     the app can now measure rather than assume. Silent until a roster exists;
+     an empty card teaching the reader that labour is zero would be worse than
+     no card at all. */
+  html += renderLabourStatsCard(_statsPeriod, tonnage);
 
   /* ===== Card 2: GST position ===== */
   var cgst = 0, sgst = 0, igst = 0, unfiledTax = 0, unfiledCount = 0;
@@ -12237,6 +13599,21 @@ document.addEventListener('click', function(e) {
       break;
     }
     case 'invRegSelectAll': toggleRegSelectAll(); break;
+    // Staff & attendance
+    case 'invAttView': attSetView(btn.dataset.view); break;
+    case 'invAttStep': attStepDay(parseInt(btn.dataset.step, 10)); break;
+    case 'invAttToday': attGoToday(); break;
+    case 'invAttWeekStep': attStepWeek(parseInt(btn.dataset.step, 10)); break;
+    case 'invAttThisWeek': attThisWeek(); break;
+    case 'invAttSet': setAttState(parseInt(btn.dataset.id, 10), btn.dataset.st); break;
+    case 'invAttCycle': cycleAttState(parseInt(btn.dataset.id, 10), btn.dataset.date); break;
+    case 'invAttAllPresent': attAllPresent(); break;
+    case 'invAttAddExtra': attAddExtra(); break;
+    case 'invAttRemoveExtra': attRemoveExtra(parseInt(btn.dataset.idx, 10)); break;
+    case 'invAttAddWorker': openWorkerAdd(); break;
+    case 'invAttEditWorker': openWorkerEdit(parseInt(btn.dataset.id, 10)); break;
+    case 'invAttSaveWorker': saveWorker(parseInt(btn.dataset.id, 10), btn.dataset.mode); break;
+    case 'invAttDeleteWorker': deleteWorker(parseInt(btn.dataset.id, 10)); break;
     // Credit notes
     case 'invRegCreditNote': openCreditNoteForm(_regSelectedIds()); break;
     case 'invCnSave': saveCreditNote(); break;
@@ -12557,6 +13934,35 @@ document.addEventListener('change', function(e) {
   if (e.target.id === 'imClientFilter' || e.target.id === 'imStatusFilter') {
     captureIMFilters();
   }
+  // Attendance. A <select> speaks through change, never click — and the date
+  // input re-renders because the date is what the whole view is showing.
+  if (e.target.id === 'attDate') {
+    attSetDate(e.target.value);
+    return;
+  }
+  // Area decides whether those hours are plating cost or overhead, so the
+  // breakdown below has to move with it. Safe on `change` — the native picker
+  // has already closed by the time this fires; it is `click` that would shut it.
+  if (e.target.hasAttribute && e.target.hasAttribute('data-att-area')) {
+    setAttArea(parseInt(e.target.dataset.id, 10), e.target.value);
+    renderAttendance();
+    return;
+  }
+  if (e.target.hasAttribute && e.target.hasAttribute('data-att-extra-area')) {
+    setAttExtraArea(parseInt(e.target.dataset.idx, 10), e.target.value);
+    renderAttendance();
+    return;
+  }
+  if (e.target.hasAttribute && e.target.hasAttribute('data-att-ot')) {
+    setAttOt(parseInt(e.target.dataset.id, 10), e.target.value);
+    renderAttendance();
+    return;
+  }
+  if (e.target.hasAttribute && e.target.hasAttribute('data-att-extra-hours')) {
+    setAttExtraHours(parseInt(e.target.dataset.idx, 10), e.target.value);
+    renderAttendance();
+    return;
+  }
   // Client performance: which account is under the lens
   if (e.target.id === 'cpClientSelect') {
     setPerfClientId(e.target.value);
@@ -12607,6 +14013,17 @@ document.addEventListener('change', function(e) {
 document.addEventListener('input', function(e) {
   if (e.target.id === 'clientSearch') {
     renderClientList(e.target.value);
+  }
+  // Attendance hours. Written on every keystroke so nothing is lost, but never
+  // re-rendered here: replacing the field mid-entry is what ended the keyboard
+  // path in challan entry, and a number input is the same trap.
+  if (e.target.hasAttribute && e.target.hasAttribute('data-att-ot')) {
+    setAttOt(parseInt(e.target.dataset.id, 10), e.target.value);
+    return;
+  }
+  if (e.target.hasAttribute && e.target.hasAttribute('data-att-extra-hours')) {
+    setAttExtraHours(parseInt(e.target.dataset.idx, 10), e.target.value);
+    return;
   }
   // History search. Debounced so a long log is not rebuilt per keystroke, and
   // focus is restored because renderHistory replaces the input it lives in.
@@ -12855,7 +14272,7 @@ document.addEventListener('focusout', function(e) {
 /* ===== SWIPE NAVIGATION ===== */
 (function() {
   var _swipeX = 0, _swipeY = 0;
-  var TAB_ORDER = ['pageHome','pageCreate','pageIM','pageRegister','pageClients','pageStats','pageHistory'];
+  var TAB_ORDER = ['pageHome','pageCreate','pageIM','pageRegister','pageClients','pageStaff','pageStats','pageHistory'];
 
   document.addEventListener('touchstart', function(e) {
     _swipeX = e.touches[0].clientX;
@@ -13210,6 +14627,7 @@ function renderSidebar() {
     { id: 'pageIM', label: 'IM', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/></svg>' },
     { id: 'pageRegister', label: 'Register', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>' },
     { id: 'pageClients', label: 'Clients', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>' },
+    { id: 'pageStaff', label: 'Staff', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><polyline points="17 11 19 13 23 9"/></svg>' },
     { id: 'pageStats', label: 'Stats', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 20V10"/><path d="M12 20V4"/><path d="M6 20v-6"/></svg>' },
     { id: 'pageHistory', label: 'History', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>' }
   ];

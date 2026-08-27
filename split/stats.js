@@ -512,6 +512,14 @@ function renderStats() {
   }
   html += '</div>';
 
+  /* ===== Card 1b: Labour =====
+     Placed directly under the headline four, because realisation only means
+     something against a cost, and labour is 42% of that cost — the single line
+     the app can now measure rather than assume. Silent until a roster exists;
+     an empty card teaching the reader that labour is zero would be worse than
+     no card at all. */
+  html += renderLabourStatsCard(_statsPeriod, tonnage);
+
   /* ===== Card 2: GST position ===== */
   var cgst = 0, sgst = 0, igst = 0, unfiledTax = 0, unfiledCount = 0;
   filtered.forEach(function(inv) {

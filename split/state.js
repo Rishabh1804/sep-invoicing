@@ -20,6 +20,19 @@ function getDefaultState() {
     // Starts at 6: CN/001–005 of 2026-27 were issued by hand before the app
     // existed. See the _cnSeriesStart1 migration in init.js.
     cnNextNum: 6,
+    // Workforce. The roster ships empty: names and wages are payroll data and
+    // this repo is public, so the owner enters them once on the device. Areas
+    // and comp classes are structure, not data, and live in staff.js.
+    staff: [],
+    // Attendance, keyed by ISO date. One entry per day the plant was recorded;
+    // a day with no key is a day nobody typed, which is not the same fact as a
+    // day nobody worked — labour coverage is stated on that distinction.
+    attendance: {},
+    // Wage arithmetic. The multiplier and the rest credit are the ratified
+    // rules: (days worked + rest credit) × ₹/day + OT × 1.1, rest credit gated
+    // on a full week. extraRate prices the area-booked "extra hours", which
+    // are contract-tier and carry no name.
+    labour: { otMult: 1.1, restCreditMinDays: 6, extraRate: 47.5, modelPerKg: 3.55 },
     // Full cost per kg, rebuilt from owner-supplied inputs against Apr–Jul 2026
     // actuals. The old 5.46 predated that rebuild and flattered every margin
     // figure by roughly a rupee a kilo. Only ever the default for a fresh
@@ -44,6 +57,9 @@ if (!S.incomingMaterial) S.incomingMaterial = [];
 if (!S.partWeights) S.partWeights = {};
 if (!S.voidedNumbers) S.voidedNumbers = [];
 if (!S.creditNotes) S.creditNotes = [];
+if (!S.staff) S.staff = [];
+if (!S.attendance) S.attendance = {};
+if (!S.labour) S.labour = { otMult: 1.1, restCreditMinDays: 6, extraRate: 47.5, modelPerKg: 3.55 };
 // Existence guard only — init.js's _cnSeriesStart1 migration lifts a series
 // that has never issued anything to where it actually starts.
 if (!S.cnNextNum) S.cnNextNum = 1;

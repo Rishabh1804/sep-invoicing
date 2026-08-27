@@ -38,6 +38,8 @@ split/
 ├── quality-cert.js       ← Test Certificate (ZN Plating): TML-approved format, per-line certs
 ├── credit-note.js        ← Credit notes: batch discount, own CN series, CDNR export
 ├── charts.js             ← Reusable SVG charts: line, bar, pie, ranked bars
+├── staff.js              ← Roster master + attendance: day, week grid, area-booked extra hours
+├── labour.js             ← Labour cost model: fixed/variable split, ₹/kg with coverage gates
 ├── stats.js              ← Stats (tonnage, realisation, margin) + History audit log
 ├── client-perf.js        ← Client performance: month on month + material cadence
 ├── im-form.js            ← IM challan form + focus survival across re-renders

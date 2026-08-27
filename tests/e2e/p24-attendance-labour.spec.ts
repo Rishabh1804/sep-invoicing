@@ -20,7 +20,7 @@ const POOL = { id: 2, name: 'POOL HAND', comp: 'hourly', dayRate: 0, hourRate: 4
 /** Monthly tier, off the plant floor. */
 const GUARD = { id: 3, name: 'GATE GUARD', comp: 'monthly', dayRate: 300, hourRate: 0, area: 'gate', onFloor: false, active: true };
 /** On the roster before the rate was settled — the card has to say so. */
-const NORATE = { id: 4, name: 'UNRATED HAND', comp: 'hourly', dayRate: 0, hourRate: 0, area: 'pickling', onFloor: true, active: true };
+const NORATE = { id: 4, name: 'UNRATED HAND', comp: 'hourly', dayRate: 0, hourRate: 0, area: 'pickling-vat', onFloor: true, active: true };
 
 function staffState(extra: Record<string, unknown> = {}) {
   return {
@@ -234,7 +234,7 @@ test('extra hours are counted in the bill and reported as unattributed', async (
 test('hours for a worker with no rate are counted and named as unpriced', async ({ page }) => {
   const day = todayIso();
   await loadAppWithState(page, staffState({
-    attendance: { [day]: { marks: { [NORATE.id]: { st: 'P', hours: 3, ot: 0, area: 'pickling' } }, extra: [], note: '' } },
+    attendance: { [day]: { marks: { [NORATE.id]: { st: 'P', hours: 3, ot: 0, area: 'pickling-vat' } }, extra: [], note: '' } },
   }));
   await openStaff(page);
   await expect(page.locator('.inv-lab-card .inv-stats-caveat')).toBeVisible();
@@ -260,7 +260,7 @@ test('variable labour is broken down by the area it was worked in', async ({ pag
       [day]: {
         marks: {
           [POOL.id]: { st: 'P', hours: 10, ot: 0, area: 'barrel' },     // 475.00
-          [LEAD.id]: { st: 'P', ot: 2, hours: 0, area: 'pickling' },    // OT 137.50
+          [LEAD.id]: { st: 'P', ot: 2, hours: 0, area: 'pickling-vat' },   // OT 137.50
         },
         extra: [{ area: 'vat-a1', hours: 4 }],                          // 190.00
         note: '',
@@ -271,7 +271,7 @@ test('variable labour is broken down by the area it was worked in', async ({ pag
 
   const ranked = page.locator('.inv-lab-card .inv-chart-ranked');
   await expect(ranked).toBeVisible();
-  await expect(ranked.locator('.inv-chart-ranked-label')).toHaveText(['Barrel', 'VAT A1', 'Pickling']);
+  await expect(ranked.locator('.inv-chart-ranked-label')).toHaveText(['Barrel', 'VAT A1', 'Pickling A1+A2']);
   // The monthly tier's day pay is excluded and the card has to say so, or the
   // shares read as a full allocation of the labour bill.
   await expect(page.locator('.inv-lab-card')).toContainText('day pay and rest days are not in here');
@@ -319,12 +319,13 @@ test('a roster import merges by name, keeps attendance, and leaves invoices alon
     applyRosterImport: (d: unknown) => { added: number; updated: number; skipped: number };
   }).applyRosterImport({
     staff: [
-      { name: 'pool hand', comp: 'hourly', hourRate: 60, area: 'pickling' },  // case-insensitive match
+      { name: 'pool hand', comp: 'hourly', hourRate: 60, area: 'pickling-vat' },  // case-insensitive match
       { name: 'BRAND NEW', comp: 'monthly', dayRate: 420, area: 'vat-a2' },
       { name: '   ' },                                                        // no name → skipped
     ],
   }));
-  expect(result).toEqual({ added: 1, updated: 1, skipped: 1 });
+  // `targets` counts area complements set; this file carries none.
+  expect(result).toEqual({ added: 1, updated: 1, skipped: 1, targets: 0 });
 
   // `S` is declared with `let`, so it is a global binding and not a property of
   // `window` — the persisted copy is the readable one, and reading it proves
@@ -348,7 +349,7 @@ test('a roster import merges by name, keeps attendance, and leaves invoices alon
   // survives. Matching on id instead would have duplicated the row.
   expect(after.pool?.id).toBe(POOL.id);
   expect(after.pool?.hourRate).toBe(60);
-  expect(after.pool?.area).toBe('pickling');
+  expect(after.pool?.area).toBe('pickling-vat');
   expect(after.markedIds).toContain(String(POOL.id));
   expect(after.names).toContain('BRAND NEW');
   // The whole point of a roster-scoped door: Settings → Import would have

@@ -81,11 +81,31 @@ function extraAreas(x) {
 /* The complement a block row is judged against.
 
    Units first, so barrel and barrel pickling stay the single unit of five they
-   already are everywhere else. Then the pickling fold: a VAT line running in a
-   block pulls VAT-side pickling hands with it, and the shop does not tag them
-   separately unless they are separately staffed. One VAT line needs 2 of the 3;
-   both need all 3. If any row in the SAME block names a VAT-pickling area, it
-   is carrying its own norm and nothing folds. (Owner, 28 Aug 2026.) */
+   already are everywhere else. Then the pickling fold.
+
+   A VAT line running in a block pulls VAT-side pickling hands with it, and the
+   shop does not tag them separately unless they are separately staffed. The
+   ceiling is the ruling's: **both VAT lines at full tilt is 4 + 4 + 3, never
+   4 + 4 + 4** (owner, 28 Aug 2026). So the fold is computed for the BLOCK and
+   capped at the 3 that exist — 2 where one VAT line runs, 3 where both do —
+   and then shared across the block's VAT-covering rows in proportion to the
+   lines each covers.
+
+   Doing it per row instead would make the answer depend on how the relay
+   happened to write the sheet: one row over A1+A2 would fold 3, two rows of
+   one line each would fold 2+2, and the same day would reconcile to 11 or to
+   12 according to nothing but the tagging. The block total is invariant here,
+   which is the property that matters. A fractional norm is the visible
+   signature of a block the relay split where pickling did not.
+
+   If any row in the same block names a VAT-pickling area it is carrying its
+   own norm and nothing folds.
+
+   The fold is an UPPER BOUND, like every other figure on this card. It assumes
+   the lines it covers ran at full tilt; a block running at less than that needs
+   fewer pickling hands and would book less. Nothing in this app measures
+   per-area output, so that reduction cannot be derived — which is exactly why
+   booking under the prediction is never reported as an error. */
 function blockNorm(row, blockRows) {
   var areas = extraAreas(row);
   var seen = {}, norm = 0, hasNorm = false;
@@ -101,18 +121,35 @@ function blockNorm(row, blockRows) {
   });
   if (!hasNorm) return null;
 
-  var picklingTagged = (blockRows || []).some(function(r) {
+  var rows = blockRows || [row];
+  var picklingTagged = rows.some(function(r) {
     return extraAreas(r).indexOf('pickling-vat') >= 0;
   });
   if (!picklingTagged) {
-    var vats = areas.filter(function(id) { return id === 'vat-a1' || id === 'vat-a2'; });
-    var distinct = {};
-    vats.forEach(function(id) { distinct[id] = true; });
-    var n = Object.keys(distinct).length;
-    if (n === 1) norm += 2;
-    else if (n > 1) norm += 3;
+    var mine = _vatLines(areas);
+    if (mine > 0) {
+      var across = {};
+      rows.forEach(function(r) {
+        extraAreas(r).forEach(function(id) {
+          if (id === 'vat-a1' || id === 'vat-a2') across[id] = true;
+        });
+      });
+      var total = Object.keys(across).length;
+      // 2 for one line, 3 for both — and never more, however many rows the
+      // relay used to say it.
+      var pool = total >= 2 ? 3 : 2;
+      var cap = areaTarget('pickling-vat');
+      if (cap != null && pool > cap) pool = cap;
+      norm += pool * (mine / total);
+    }
   }
   return norm;
+}
+
+function _vatLines(areas) {
+  var d = {};
+  areas.forEach(function(id) { if (id === 'vat-a1' || id === 'vat-a2') d[id] = true; });
+  return Object.keys(d).length;
 }
 
 /* Blocks are keyed by their own times, because two rows at 5 PM are one block

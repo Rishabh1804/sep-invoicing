@@ -134,6 +134,42 @@ test('when pickling carries its own row nothing folds into the VAT rows', async 
   await expect(extraCard(page)).toContainText('exactly');
 });
 
+test('two VAT rows in one block still take three pickling hands, never four', async ({ page }) => {
+  // Owner, 28 Aug 2026: both VAT lines at full tilt is 4 + 4 + 3 — never
+  // 4 + 4 + 4. Folding 2 into each row would assert four pickling hands where
+  // three exist, so the fold is computed for the BLOCK and shared out.
+  const a1 = crew('vat-a1', 4, 10);
+  const a2 = crew('vat-a2', 3, 20);
+  await loadAppWithState(page, state([...a1, ...a2], [
+    { area: 'vat-a1', areas: ['vat-a1'], hours: 14, kind: 'block',
+      from: '17:00', to: '00:00', crew: a1.map((w) => w.id) },
+    { area: 'vat-a2', areas: ['vat-a2'], hours: 14, kind: 'block',
+      from: '17:00', to: '00:00', crew: a2.map((w) => w.id) },
+  ]));
+  await openAreas(page);
+  // Block norm 11 across the pair, 7 hands, short 4, 4 x 7 = 28 — the same
+  // total as W32 (143) writes on ONE row. Per-row folding would give 12,
+  // short 5, and predict 35.
+  await expect(extraCard(page)).toContainText('28.0 h');
+});
+
+test('the prediction does not depend on how the relay split the sheet', async ({ page }) => {
+  // The invariance that makes the fold trustworthy: the same day, tagged as
+  // one row over both VAT lines or as two rows of one line each, must predict
+  // the same total. Otherwise the answer turns on nothing but the tagging.
+  const a1 = crew('vat-a1', 4, 10);
+  const a2 = crew('vat-a2', 3, 20);
+  const both = [...a1, ...a2].map((w) => w.id);
+
+  await loadAppWithState(page, state([...a1, ...a2], [{
+    area: 'vat-a1', areas: ['vat-a1', 'vat-a2'], hours: 28, kind: 'block',
+    from: '17:00', to: '00:00', crew: both,
+  }]));
+  await openAreas(page);
+  await expect(extraCard(page)).toContainText('28.0 h');
+  await expect(extraCard(page)).toContainText('exactly');
+});
+
 /* ===== THE MULTIPLIER IS THE WHOLE DIFFERENCE ===== */
 
 test('the same shortfall books eight on a shift and the block’s own hours on a block', async ({ page }) => {

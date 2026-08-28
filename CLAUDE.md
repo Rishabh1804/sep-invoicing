@@ -47,7 +47,7 @@ split/
 ├── charts.js          ← Reusable SVG charts: line, bar, pie, ranked bars (243 lines)
 ├── staff.js           ← Roster + attendance + roster import: day, week, extra hours (1,013 lines)
 ├── labour.js          ← Labour: three pay tiers, fixed/variable, by area, ₹/kg (449 lines)
-├── areas.js           ← Areas: staffing vs norms + the extra reconciled (824 lines)
+├── areas.js           ← Areas: staffing vs norms + the extra reconciled (861 lines)
 ├── stats.js           ← Stats dashboard + History activity log (1,195 lines)
 ├── client-perf.js     ← Client performance: month on month + material cadence (314 lines)
 ├── im-form.js         ← IM add/edit/delete challan form (450 lines)
@@ -78,7 +78,7 @@ every session start — nothing to set up by hand. CI (`build-sync`) is the back
 ### Tests
 
 ```bash
-pnpm exec playwright test          # 254 tests, both layouts
+pnpm exec playwright test          # 257 tests, both layouts
 ```
 
 Some sandboxes ship a Chromium build Playwright does not expect and block downloading
@@ -383,10 +383,23 @@ reading, not in Shyam's tags.
 Under the shortfall rule the tag is 3 hours of unattributed extra, and the five named hands' own
 overtime is a separate figure carried on their in/out times. Flagged, not acted on.
 
-**The pickling fold.** A VAT line running in a block pulls VAT-side pickling hands with it, and the
-shop does not tag them separately unless they are separately staffed: **one VAT line needs 2 of the
-3, both need all 3**. If any row in the same block names a VAT-pickling area it carries its own norm
-and nothing folds. Barrel needs no fold — barrel and barrel pickling are already one unit of five.
+**The pickling fold, and its ceiling.** A VAT line running in a block pulls VAT-side pickling hands
+with it, and the shop does not tag them separately unless they are separately staffed: **one VAT
+line needs 2 of the 3, both need all 3 — never 4** (owner, 28 Aug 2026). So the fold is computed for
+the **block** and capped at the three hands that exist, then shared across the block's VAT-covering
+rows in proportion to the lines each covers.
+
+Per-row folding would make the answer depend on how the relay happened to write the sheet: one row
+over A1+A2 folds 3, two rows of one line each would fold 2+2, and the same day would reconcile to 11
+or to 12 on nothing but the tagging. **The block total is invariant**, which is the property that
+matters; a fractional norm is the visible signature of a block the relay split where pickling did
+not. If any row in the same block names a VAT-pickling area it carries its own norm and nothing
+folds. Barrel needs no fold — barrel and barrel pickling are already one unit of five.
+
+**The fold is an upper bound, like every other figure on this card.** It assumes the lines it covers
+ran at full tilt; a block running at less than that needs fewer pickling hands and books less.
+Nothing here measures per-area output, so that reduction cannot be derived — which is exactly why
+booking under the prediction is never reported as an error.
 
 **A block needs three things the marks cannot supply, and without any of them it is reported rather
 than reconciled at a guess.** Its **length** comes from its own in/out times (21 is three hands short

@@ -54,21 +54,51 @@ function saveJSON(key, data) {
   try { localStorage.setItem(key, JSON.stringify(data)); } catch(e) { showToast('Storage full! Export data.','error'); }
 }
 
+/* Fill in every container a backup might predate.
+
+   Three code paths replace the whole state — the loader below, ghPull, and
+   Settings → Import — and each used to carry its own copy of this list. The
+   loader's and ghPull's had already drifted apart once (four keys added to one
+   and not the other, which is how a pull could land the app in a broken
+   state), and Settings → Import carried NO repairs at all: a backup written
+   before `staff` existed left it undefined and the Staff tab threw on open.
+
+   So the list lives once, and it is read from `getDefaultState()` rather than
+   restated, because a restated default is a default that will drift. Keys are
+   only ever ADDED — an existing value, including a deliberate empty one, is
+   never overwritten.
+
+   `cnNextNum` is an existence guard only; init.js's `_cnSeriesStart1` lifts a
+   series that has never issued anything to where it actually starts. */
+// Containers hold the user's records, so a missing one is filled EMPTY — the
+// app must never invent business data to repair a shape.
+var STATE_CONTAINERS = ['clients', 'items', 'invoices', 'incomingMaterial', 'partWeights',
+  'voidedNumbers', 'creditNotes', 'staff', 'attendance', 'areaTargets'];
+// Config objects are the opposite: a missing one is filled from the defaults,
+// and so is a missing KEY inside one. `labourCfg()` reads `extraRate || 0`, so
+// a backup predating a constant would silently price the extra at nothing
+// rather than at ₹47.50 — a wrong number, not a visible gap.
+var STATE_CONFIGS = ['labour'];
+
+function ensureStateShape(s) {
+  if (!s) return s;
+  var d = getDefaultState();
+  STATE_CONTAINERS.forEach(function(k) {
+    if (!s[k]) s[k] = Array.isArray(d[k]) ? [] : {};
+  });
+  STATE_CONFIGS.forEach(function(k) {
+    if (!s[k] || typeof s[k] !== 'object') { s[k] = d[k]; return; }
+    Object.keys(d[k]).forEach(function(f) {
+      if (s[k][f] == null) s[k][f] = d[k][f];
+    });
+  });
+  if (!s.cnNextNum) s.cnNextNum = 1;
+  return s;
+}
+
 let S = loadJSON(STORAGE_KEY, null);
 if (!S) { S = getDefaultState(); saveJSON(STORAGE_KEY, S); }
-// Ensure arrays exist
-if (!S.invoices) S.invoices = [];
-if (!S.incomingMaterial) S.incomingMaterial = [];
-if (!S.partWeights) S.partWeights = {};
-if (!S.voidedNumbers) S.voidedNumbers = [];
-if (!S.creditNotes) S.creditNotes = [];
-if (!S.staff) S.staff = [];
-if (!S.attendance) S.attendance = {};
-if (!S.areaTargets) S.areaTargets = {};
-if (!S.labour) S.labour = { otMult: 1.1, restCreditMinDays: 6, extraRate: 47.5, modelPerKg: 3.55, gateFull: 0.9, gateHalf: 0.8, extraHoursPerHead: 8 };
-// Existence guard only — init.js's _cnSeriesStart1 migration lifts a series
-// that has never issued anything to where it actually starts.
-if (!S.cnNextNum) S.cnNextNum = 1;
+ensureStateShape(S);
 
 /* ===== LAYOUT MODE (Phase 8A) ===== */
 var _isDesktop = false;

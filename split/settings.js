@@ -252,6 +252,11 @@ function importData() {
         if (!data.company || !data.clients) throw new Error('Invalid format');
         if (!confirm('Import will replace ALL current data. Continue?')) return;
         S = data;
+        // This path carried NO repairs at all, which was the sharper half of
+        // the same bug: a backup written before `staff` existed left it
+        // undefined and the Staff tab threw the moment it was opened.
+        ensureStateShape(S);
+        migrateState();
         saveState();
         closeOverlay();
         renderHome();

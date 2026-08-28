@@ -260,17 +260,15 @@ async function ghPull() {
     }
 
     S = env.state;
-    // Same repairs the loader applies, so a backup written before a field
-    // existed cannot land the app in a broken state.
-    if (!S.invoices) S.invoices = [];
-    if (!S.incomingMaterial) S.incomingMaterial = [];
-    if (!S.partWeights) S.partWeights = {};
-    if (!S.voidedNumbers) S.voidedNumbers = [];
-    if (!S.creditNotes) S.creditNotes = [];
-    if (!S.staff) S.staff = [];
-    if (!S.attendance) S.attendance = {};
-    if (!S.areaTargets) S.areaTargets = {};
-    if (!S.labour) S.labour = getDefaultState().labour;
+    // The same two passes the loader runs, in the same order: fill the shape a
+    // backup might predate, then migrate the records inside it. The second was
+    // missing, so a pull from a device that had never run the area realignment
+    // kept its retired `pickling` / `colour` ids — which areaStats drops
+    // silently, under-counting heads and inflating every shortfall until the
+    // next reload. A copy that arrives over the wire is exactly as old as one
+    // read off disk, and gets exactly the same treatment.
+    ensureStateShape(S);
+    migrateState();
     saveState();
 
     cfg.sha = remote.sha;

@@ -2958,21 +2958,51 @@ function saveJSON(key, data) {
   try { localStorage.setItem(key, JSON.stringify(data)); } catch(e) { showToast('Storage full! Export data.','error'); }
 }
 
+/* Fill in every container a backup might predate.
+
+   Three code paths replace the whole state — the loader below, ghPull, and
+   Settings → Import — and each used to carry its own copy of this list. The
+   loader's and ghPull's had already drifted apart once (four keys added to one
+   and not the other, which is how a pull could land the app in a broken
+   state), and Settings → Import carried NO repairs at all: a backup written
+   before `staff` existed left it undefined and the Staff tab threw on open.
+
+   So the list lives once, and it is read from `getDefaultState()` rather than
+   restated, because a restated default is a default that will drift. Keys are
+   only ever ADDED — an existing value, including a deliberate empty one, is
+   never overwritten.
+
+   `cnNextNum` is an existence guard only; init.js's `_cnSeriesStart1` lifts a
+   series that has never issued anything to where it actually starts. */
+// Containers hold the user's records, so a missing one is filled EMPTY — the
+// app must never invent business data to repair a shape.
+var STATE_CONTAINERS = ['clients', 'items', 'invoices', 'incomingMaterial', 'partWeights',
+  'voidedNumbers', 'creditNotes', 'staff', 'attendance', 'areaTargets'];
+// Config objects are the opposite: a missing one is filled from the defaults,
+// and so is a missing KEY inside one. `labourCfg()` reads `extraRate || 0`, so
+// a backup predating a constant would silently price the extra at nothing
+// rather than at ₹47.50 — a wrong number, not a visible gap.
+var STATE_CONFIGS = ['labour'];
+
+function ensureStateShape(s) {
+  if (!s) return s;
+  var d = getDefaultState();
+  STATE_CONTAINERS.forEach(function(k) {
+    if (!s[k]) s[k] = Array.isArray(d[k]) ? [] : {};
+  });
+  STATE_CONFIGS.forEach(function(k) {
+    if (!s[k] || typeof s[k] !== 'object') { s[k] = d[k]; return; }
+    Object.keys(d[k]).forEach(function(f) {
+      if (s[k][f] == null) s[k][f] = d[k][f];
+    });
+  });
+  if (!s.cnNextNum) s.cnNextNum = 1;
+  return s;
+}
+
 let S = loadJSON(STORAGE_KEY, null);
 if (!S) { S = getDefaultState(); saveJSON(STORAGE_KEY, S); }
-// Ensure arrays exist
-if (!S.invoices) S.invoices = [];
-if (!S.incomingMaterial) S.incomingMaterial = [];
-if (!S.partWeights) S.partWeights = {};
-if (!S.voidedNumbers) S.voidedNumbers = [];
-if (!S.creditNotes) S.creditNotes = [];
-if (!S.staff) S.staff = [];
-if (!S.attendance) S.attendance = {};
-if (!S.areaTargets) S.areaTargets = {};
-if (!S.labour) S.labour = { otMult: 1.1, restCreditMinDays: 6, extraRate: 47.5, modelPerKg: 3.55, gateFull: 0.9, gateHalf: 0.8, extraHoursPerHead: 8 };
-// Existence guard only — init.js's _cnSeriesStart1 migration lifts a series
-// that has never issued anything to where it actually starts.
-if (!S.cnNextNum) S.cnNextNum = 1;
+ensureStateShape(S);
 
 /* ===== LAYOUT MODE (Phase 8A) ===== */
 var _isDesktop = false;
@@ -5807,6 +5837,11 @@ function importData() {
         if (!data.company || !data.clients) throw new Error('Invalid format');
         if (!confirm('Import will replace ALL current data. Continue?')) return;
         S = data;
+        // This path carried NO repairs at all, which was the sharper half of
+        // the same bug: a backup written before `staff` existed left it
+        // undefined and the Staff tab threw the moment it was opened.
+        ensureStateShape(S);
+        migrateState();
         saveState();
         closeOverlay();
         renderHome();
@@ -6082,17 +6117,15 @@ async function ghPull() {
     }
 
     S = env.state;
-    // Same repairs the loader applies, so a backup written before a field
-    // existed cannot land the app in a broken state.
-    if (!S.invoices) S.invoices = [];
-    if (!S.incomingMaterial) S.incomingMaterial = [];
-    if (!S.partWeights) S.partWeights = {};
-    if (!S.voidedNumbers) S.voidedNumbers = [];
-    if (!S.creditNotes) S.creditNotes = [];
-    if (!S.staff) S.staff = [];
-    if (!S.attendance) S.attendance = {};
-    if (!S.areaTargets) S.areaTargets = {};
-    if (!S.labour) S.labour = getDefaultState().labour;
+    // The same two passes the loader runs, in the same order: fill the shape a
+    // backup might predate, then migrate the records inside it. The second was
+    // missing, so a pull from a device that had never run the area realignment
+    // kept its retired `pickling` / `colour` ids — which areaStats drops
+    // silently, under-counting heads and inflating every shortfall until the
+    // next reload. A copy that arrives over the wire is exactly as old as one
+    // read off disk, and gets exactly the same treatment.
+    ensureStateShape(S);
+    migrateState();
     saveState();
 
     cfg.sha = remote.sha;
@@ -15485,6 +15518,45 @@ if (!S._scanSeed1) {
   saveState();
 }
 
+/* Phase 6b: Remove Belrise trading items (rate > 25) — one-time cleanup.
+
+   Bootstrap-only, and DELIBERATELY not a structural migration: it deletes
+   catalogue rows. The flag on an imported backup describes the device that
+   wrote it, so re-running this against someone else's state would delete rows
+   on the strength of a flag that was never about them. See the banner below. */
+if (!S._rateCleanup1) {
+  var before = S.items.length;
+  S.items = S.items.filter(function(it) { return (it.rate || 0) <= 25; });
+  var removed = before - S.items.length;
+  if (removed > 0) console.log('Rate cleanup: removed ' + removed + ' items with rate > 25 (Belrise trading remnants)');
+  S._rateCleanup1 = true;
+  saveJSON(STORAGE_KEY, S);
+}
+
+/* ===== STRUCTURAL MIGRATIONS =====
+
+   Everything below runs at bootstrap AND again whenever the whole state is
+   REPLACED — a GitHub pull or a Settings → Import. It used not to, and the
+   consequence was silent: a state pulled from a device that had never run the
+   area realignment still carried `pickling` and `colour` marks, which
+   `areaStats` drops on the floor (`if (!a) return;`). Heads under-counted,
+   every shortfall inflated to match, and the Areas card read wrong until the
+   next reload happened to migrate it. Nothing said so.
+
+   What is IN here and what is not is the load-bearing distinction. A
+   structural migration RE-POINTS or REPAIRS records the state already holds,
+   so running it against someone else's backup is exactly as correct as running
+   it against your own, and running it twice is a no-op. A SEED writes new
+   business records, and a one-time data cleanup DELETES them: neither is safe
+   to fire at an imported state, because the incoming flags describe the device
+   that wrote the backup and not the records in it. Re-running `_scanSeed1`
+   against a pull would push seven challans a second time — into the one app in
+   this repo with a whole module devoted to duplicate receipts.
+
+   So the seeds (`_nosQtySeeded`, `_scanSeed1`) and the Belrise rate cleanup
+   (`_rateCleanup1`) stay above this line, bootstrap-only, deliberately. */
+function migrateState() {
+
 /* Phase 5: Migrate existing invoices to lifecycle states */
 (function() {
   var migrated = 0;
@@ -15654,16 +15726,6 @@ if (!S._scanSeed1) {
   }
 })();
 
-/* Phase 6b: Remove Belrise trading items (rate > 25) — one-time cleanup */
-if (!S._rateCleanup1) {
-  var before = S.items.length;
-  S.items = S.items.filter(function(it) { return (it.rate || 0) <= 25; });
-  var removed = before - S.items.length;
-  if (removed > 0) console.log('Rate cleanup: removed ' + removed + ' items with rate > 25 (Belrise trading remnants)');
-  S._rateCleanup1 = true;
-  saveJSON(STORAGE_KEY, S);
-}
-
 /* Comp classes rebuilt against the two pay mechanics the shop actually runs.
 
    The first cut of the Staff tab shipped `permanent` (a flat monthly, accrued
@@ -15816,6 +15878,10 @@ if (!S._cnSeriesStart1) {
   S._cnSeriesStart1 = true;
   saveJSON(STORAGE_KEY, S);
 }
+
+}
+
+migrateState();
 
 /* ===== LAYOUT MODE (Phase 8A) ===== */
 var _resizeTimer = null;

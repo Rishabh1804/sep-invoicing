@@ -28,14 +28,14 @@ split/
 ├── styles.css         ← All CSS with inv- prefix (2,720 lines)
 ├── body.html          ← HTML body, tabs, print view (137 lines)
 ├── data.js            ← ITEMS_MASTER + SEED_CLIENTS (27 lines)
-├── state.js           ← State mgmt, utilities, escHtml, gstRound (330 lines)
+├── state.js           ← State mgmt, utilities, escHtml, gstRound (360 lines)
 ├── zinc.js            ← Zinc market rate: store, display, metals.dev refresh (199 lines)
 ├── tabs.js            ← switchTab (9-step protocol) + renderHome (188 lines)
 ├── clients.js         ← Client Master CRUD + overlay (343 lines)
 ├── items.js           ← Items Master: subview, CRUD, merge, weights (1,262 lines)
 ├── create.js          ← Invoice creation form, 3 billing modes (312 lines)
-├── settings.js        ← Settings overlay + import/export (267 lines)
-├── github-sync.js     ← GitHub Contents API push/pull, SHA conflict guard (454 lines)
+├── settings.js        ← Settings overlay + import/export (272 lines)
+├── github-sync.js     ← GitHub Contents API push/pull, SHA conflict guard (452 lines)
 ├── invoice-ops.js     ← Invoice detail, edit, cancel, delete, register (949 lines)
 ├── number-audit.js    ← Void ledger + serial-sequence audit + gap reconcile (311 lines)
 ├── exports.js         ← Sales CSV + GSTR1 CSV exports (107 lines)
@@ -56,7 +56,7 @@ split/
 ├── events.js          ← Event delegation + input handlers (753 lines)
 ├── swipe.js           ← Swipe navigation (38 lines)
 ├── seed.js            ← Seed IM data, one-time (8 lines)
-└── init.js            ← Migrations + app bootstrap (531 lines)
+└── init.js            ← Migrations + app bootstrap (567 lines)
 ```
 
 **Concat order defined in build.sh.** Dependencies: data → state → zinc → tabs → clients → items → create → settings → github-sync → invoice-ops → number-audit → exports → im → autocomplete → print → quality-cert → credit-note → charts → staff → labour → areas → stats → client-perf → im-form → im-dupe → scanner → events → swipe → seed → init.
@@ -78,7 +78,7 @@ every session start — nothing to set up by hand. CI (`build-sync`) is the back
 ### Tests
 
 ```bash
-pnpm exec playwright test          # 234 tests, both layouts
+pnpm exec playwright test          # 243 tests, both layouts
 ```
 
 Some sandboxes ship a Chromium build Playwright does not expect and block downloading
@@ -630,6 +630,29 @@ any merge would be a reconciliation the app cannot verify — but no overwrite i
 Each device remembers the blob SHA it last exchanged, and if the server's SHA has moved since,
 the operator is told whose copy and when before anything is replaced. Auto-push is opt-in,
 debounced ~45 s, and pauses itself the moment it sees a copy it did not write.
+
+**A state that arrives is as old as one read off disk.** Three paths replace `S` wholesale —
+the loader, a GitHub pull, and Settings → Import — and only the loader ran the migrations. So a
+copy pulled from a device that had never run the area realignment kept its retired `pickling` and
+`colour` ids, which `areaStats` drops on the floor (`if (!a) return;`): heads under-counted, every
+shortfall inflated to match, and nothing on the card said so until some later reload happened to
+fix it. All three paths now run the same two passes — `ensureStateShape()` then `migrateState()`.
+
+**What re-runs and what does not is the load-bearing half.** A structural migration re-points or
+repairs records the state already holds, so running it against someone else's backup is as correct
+as running it against your own, and running it twice is a no-op. A **seed** writes new business
+records and a **cleanup** deletes them, and the flags on an incoming backup describe the device
+that *wrote* it, not the records in it — re-firing `_scanSeed1` on a pull would push seven challans
+a second time, into the one app here with a module devoted to duplicate receipts. Seeds and the
+Belrise rate cleanup stay bootstrap-only, deliberately and in writing.
+
+`ensureStateShape()` is also the one copy of the repair list, read from `getDefaultState()` rather
+than restated. There were three copies: the loader's and ghPull's had already drifted by four keys,
+and **Settings → Import had none at all** — a backup written before `staff` existed left it
+undefined and the Staff tab threw on open. Containers are filled *empty* (the app never invents
+business data to repair a shape); config objects are filled from the defaults, key by key, because
+`labourCfg()` reads `extraRate || 0` and a missing constant would silently price the extra at
+nothing rather than leave a visible gap.
 
 Credentials live in their own localStorage entries (`sep_inv_gemini_key`, `sep_inv_metals_key`,
 `sep_inv_github_token`), never on the state object, so an exported backup can never carry one.

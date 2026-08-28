@@ -251,7 +251,11 @@ function attAreaOptions(sel) {
 var ATT_FOCUS_ATTRS = ['data-action', 'data-id', 'data-st', 'data-date', 'data-idx'];
 var ATT_FOCUS_FLAGS = ['data-att-area', 'data-att-ot', 'data-att-hours',
   'data-att-extra-area', 'data-att-extra-hours', 'data-att-extra-kind',
-  'data-att-block-from', 'data-att-block-to'];
+  'data-att-block-from', 'data-att-block-to',
+  // The chips re-render on every toggle, and without these the restore lands
+  // on the FIRST chip in the row — a keyboard user's second Space would toggle
+  // the wrong area or the wrong worker.
+  'data-area', 'data-worker'];
 
 function _attFocusSelector() {
   var page = document.getElementById('pageStaff');
@@ -439,10 +443,20 @@ function _attDayView() {
    move people (W31 Wed: a hand on barrel pickling all day is in the VAT A1
    evening block). Reading the marks would put the head in the wrong area and
    report a shortfall that never existed. */
+function _attBlockAreaSummary(x) {
+  var ids = (Array.isArray(x.areas) && x.areas.length) ? x.areas : (x.area ? [x.area] : []);
+  if (!ids.length) return 'No area';
+  return ids.map(function(id) {
+    var a = STAFF_AREAS.find(function(y) { return y.id === id; });
+    return a ? a.label : id;
+  }).join(' + ');
+}
+
 function _attBlockFields(x, i, siblings) {
   var areas = (Array.isArray(x.areas) && x.areas.length) ? x.areas : (x.area ? [x.area] : []);
   var crew = Array.isArray(x.crew) ? x.crew : [];
   var hrs = blockLength(x);
+  var span = blockSpan(x);
   var roster = staffActive();
 
   var html = '<div class="inv-att-block">' +
@@ -453,7 +467,13 @@ function _attBlockFields(x, i, siblings) {
     '<label class="inv-att-block-label" for="blkTo-' + i + '">Out</label>' +
     '<input type="time" class="inv-form-input inv-mono" id="blkTo-' + i + '" data-att-block-to data-idx="' + i +
     '" value="' + escHtml(x.to || '') + '" aria-label="Block end time">' +
-    '<span class="inv-att-block-len inv-mono">' + (hrs == null ? '&mdash;' : formatNum(hrs, 1) + ' h') + '</span>' +
+    // Both lengths, whenever they differ: the clock span the operator typed
+    // and the credited length the tag is judged against. Nothing is rounded
+    // behind their back.
+    '<span class="inv-att-block-len inv-mono">' + (hrs == null ? '&mdash;'
+      : (span != null && span !== hrs
+        ? formatNum(span, 1) + ' h &rarr; ' + formatNum(hrs, 1) + ' credited'
+        : formatNum(hrs, 1) + ' h')) + '</span>' +
     '</div>';
 
   // Areas as toggles rather than one select, because a block row genuinely
@@ -487,7 +507,12 @@ function _attBlockFields(x, i, siblings) {
   // The prediction, in place, so the operator sees the check as they type it
   // rather than having to leave for the Areas view to find out.
   var norm = blockNorm({ areas: areas }, [{ areas: areas }].concat(siblings || []));
-  if (hrs != null && norm != null) {
+  // The preview must refuse on exactly the conditions `areaStats` refuses on,
+  // or the two surfaces disagree about the same row. A MISSING crew key is not
+  // a crew of zero: zero heads is a real reading (the shop books a fully-short
+  // line that way), but nobody having typed the crew is not.
+  var hasCrew = Array.isArray(x.crew);
+  if (hrs != null && norm != null && hasCrew) {
     var short = Math.max(0, norm - crew.length);
     var expect = gstRound(short * hrs);
     var booked = x.hours || 0;
@@ -497,8 +522,12 @@ function _attBlockFields(x, i, siblings) {
       '<strong>' + formatNum(expect, 1) + ' h</strong>' +
       (ok ? ' &mdash; matches' : ' &middot; booked ' + formatNum(booked, 1)) + '</div>';
   } else {
-    html += '<div class="inv-att-block-check">Needs in/out times, at least one area with a ' +
-      'complement, and its crew before it can be checked.</div>';
+    var missing = [];
+    if (hrs == null) missing.push('in/out times');
+    if (norm == null) missing.push('an area with a complement');
+    if (!hasCrew) missing.push('its crew');
+    html += '<div class="inv-att-block-check">Not checkable yet &mdash; needs ' +
+      escHtml(missing.join(', ')) + '. The hours still count in the bill.</div>';
   }
 
   return html + '</div>';
@@ -523,8 +552,15 @@ function _attExtraCard(iso, rec) {
     rows.forEach(function(x, i) {
       var kind = x.kind || 'coverage';
       html += '<div class="inv-att-extra-row">' +
-        '<select class="inv-form-select" data-att-extra-area data-idx="' + i + '" aria-label="Area for extra hours">' +
-        attAreaOptions(x.area) + '</select>' +
+        // A block row's areas are the chips below; showing the single-area
+        // select as well would let the operator set an area the reconciler
+        // never reads, and the hours would bucket somewhere the check does
+        // not look.
+        (kind === 'block'
+          ? '<span class="inv-att-extra-areas-label">' +
+            escHtml(_attBlockAreaSummary(x)) + '</span>'
+          : '<select class="inv-form-select" data-att-extra-area data-idx="' + i + '" aria-label="Area for extra hours">' +
+            attAreaOptions(x.area) + '</select>') +
         '<input type="number" class="inv-form-input inv-mono" data-att-extra-hours data-idx="' + i +
         '" step="0.5" min="0" value="' + (x.hours || 0) + '" aria-label="Extra hours">' +
         '<button class="inv-att-extra-del" data-action="invAttRemoveExtra" data-idx="' + i + '" aria-label="Remove">&times;</button>' +
@@ -943,11 +979,23 @@ function _showWorkerOverlay(worker, isAdd) {
   focusFirstInteractive(scrim.querySelector('.inv-overlay-card'));
 }
 
+/* Days on which the attendance record names this worker.
+
+   Block crews count. A hand who only ever appears on OT block rows has no
+   mark, and deleting them would orphan those ids: `areaStats` still counts the
+   crew length as heads while `_absorption` can no longer resolve the name, so
+   the block's shortfall and its ranking would silently disagree. The guard
+   exists to stop exactly that, and it has to look everywhere the id is used. */
 function _attMarkCount(staffId) {
   var n = 0;
   Object.keys(S.attendance || {}).forEach(function(iso) {
     var rec = S.attendance[iso];
-    if (rec && rec.marks && rec.marks[staffId]) n++;
+    if (!rec) return;
+    if (rec.marks && rec.marks[staffId]) { n++; return; }
+    var onBlock = (rec.extra || []).some(function(x) {
+      return Array.isArray(x.crew) && x.crew.indexOf(Number(staffId)) >= 0;
+    });
+    if (onBlock) n++;
   });
   return n;
 }

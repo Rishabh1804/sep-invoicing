@@ -28,7 +28,10 @@ var _areaSpan = 1;   // weeks
    This REPLACES the earlier reading, which took a block tag as the slot's
    per-hand credit ("5 hands x 3 hr = 15 OT hr") and therefore reconciled it
    against nothing. That reading fails every recorded block tag; the norm-gap
-   reading matches all eight, including the one the codex had written off as
+   reading matches every tag in the swept population (13 blocks / 18 rows,
+   W24+W31+W32+W33; W18-W23 and W25-W30 unswept) but for two named exceptions
+   -- W31 Mon 27 Jul and W33 Tue 11 Aug, both disclosed in CLAUDE.md. It
+   includes the one the codex had written off as
    unreadable — `soma-internal/attendance/2026-W31.md:150` calls the Tue-28
    evening tag "internally inconsistent (group 1: 3x7=21; group 2: 2x7=14!=21)".
    Group 2 is barrel+pickling, a unit of five, two hands present: short three,
@@ -48,17 +51,44 @@ var EXTRA_KINDS = [
 function extraIsCoverage(x) { return !x || !x.kind || x.kind === 'coverage'; }
 function extraIsBlock(x) { return !!x && x.kind === 'block'; }
 
-/* A block's length, from its own in and out times. It cannot be derived from
-   the tag: `21` is three hands short of a 7-hour block and also seven short of
-   a 3-hour one, so deriving it would make the check vacuous by construction.
-   Wraps past midnight, because the evening slot habitually runs to 12:00. */
-function blockLength(x) {
+/* A block's length — the CREDITED length, which is not always the clock span.
+
+   The shop credits the 6:00–8:30 morning slot **3 OT hours**, not the 2.5 on
+   the clock: `soma-internal/attendance/2026-W24.md:61` states the convention in
+   those words, and seven recorded morning tags reconcile at 3 while none
+   reconciles at 2.5. Deriving the multiplier from the clock alone flagged every
+   faithfully-entered morning block as "more booked than the shortfall explains"
+   — a false positive on the most frequent block type in the record.
+
+   So the credited length rounds the span UP to the whole hour. Be exact about
+   the evidence: the ONLY convention the corpus states is 2.5 → 3. Rounding up
+   is the general rule this app infers from that one instance, and it is a no-op
+   on every other recorded block (the evening slot is a clean 7, the 6:00–9:00
+   variant a clean 3). A span that is already whole is never moved.
+
+   Two instruments, two lengths, and the app carries both: a NAMED hand's own
+   pay uses the clock (BM, 8 Aug — Sambhu's 6:00–8:30 + 5 PM–12 AM = 9.5 hr),
+   while the unattributed EXTRA credit uses the convention. `blockSpan` is the
+   clock; `blockLength` is what the tag is judged against. The entry row shows
+   both whenever they differ, so nothing is rounded behind the operator's back.
+
+   The span itself cannot be derived from the tag — 21 is three hands short of a
+   7-hour block and also seven short of a 3-hour one — so deriving it would make
+   the check vacuous by construction. It wraps past midnight, because the
+   evening slot habitually runs to 12:00. */
+function blockSpan(x) {
   if (!x || !x.from || !x.to) return null;
   var a = _hhmm(x.from), b = _hhmm(x.to);
   if (a == null || b == null) return null;
   var mins = b - a;
   if (mins <= 0) mins += 24 * 60;
   return gstRound(mins / 60);
+}
+
+function blockLength(x) {
+  var span = blockSpan(x);
+  if (span == null) return null;
+  return Math.ceil(span - 0.0001);
 }
 
 function _hhmm(t) {
@@ -84,32 +114,55 @@ function extraAreas(x) {
    already are everywhere else. Then the pickling fold.
 
    A VAT line running in a block pulls VAT-side pickling hands with it, and the
-   shop does not tag them separately unless they are separately staffed. The
-   ceiling is the ruling's: **both VAT lines at full tilt is 4 + 4 + 3, never
-   4 + 4 + 4** (owner, 28 Aug 2026). So the fold is computed for the BLOCK and
-   capped at the 3 that exist — 2 where one VAT line runs, 3 where both do —
-   and then shared across the block's VAT-covering rows in proportion to the
-   lines each covers.
+   shop writes that as a CO-TAG on the VAT row: `----VAT A1 & pickling`. That is
+   not pickling staffed separately — it is the VAT row saying which hands it
+   covers — so the row folds (2, or 3 for both lines) rather than carrying
+   pickling's own complement of three. Read the other way the flagship recorded
+   row predicts 28 against a tag of 21, and the shop's own shorthand becomes
+   unenterable: barrel is already read this way (`berral & pickling` is one unit
+   of five), and VAT must match it. Owner, 28 Aug 2026.
 
-   Doing it per row instead would make the answer depend on how the relay
-   happened to write the sheet: one row over A1+A2 would fold 3, two rows of
-   one line each would fold 2+2, and the same day would reconcile to 11 or to
-   12 according to nothing but the tagging. The block total is invariant here,
-   which is the property that matters. A fractional norm is the visible
-   signature of a block the relay split where pickling did not.
+   Pickling carries its **own** norm only on a row that names it with **no VAT
+   line** — a standalone `----pickling----` with its own crew. When such a row
+   exists in the block, nothing folds anywhere in that block.
 
-   If any row in the same block names a VAT-pickling area it is carrying its
-   own norm and nothing folds.
+   The ceiling is the ruling's: **both VAT lines at full tilt is 4 + 4 + 3,
+   never 4 + 4 + 4.** So the fold is computed for the BLOCK, capped at the three
+   hands that exist, and shared across the VAT-covering rows in proportion to
+   the lines each covers. Per-row folding would make the answer depend on how
+   the relay happened to write the sheet — one row over A1+A2 folding 3 against
+   two rows of one line each folding 2+2, the same day reconciling to 11 or to
+   12 on nothing but the tagging. Shares divide by the SUM of every row's lines
+   rather than the block's distinct count, so overlapping rows cannot fold past
+   the ceiling either.
+
+   The fold needs a pickling complement to fold: with none set there are no
+   hands to lend, and inventing them would inflate every shortfall.
 
    The fold is an UPPER BOUND, like every other figure on this card. It assumes
-   the lines it covers ran at full tilt; a block running at less than that needs
-   fewer pickling hands and would book less. Nothing in this app measures
-   per-area output, so that reduction cannot be derived — which is exactly why
-   booking under the prediction is never reported as an error. */
+   the lines it covers ran at full tilt; a block running at less needs fewer
+   pickling hands and books less. Nothing here measures per-area output, so that
+   reduction cannot be derived — which is exactly why booking under the
+   prediction is never reported as an error. */
 function blockNorm(row, blockRows) {
   var areas = extraAreas(row);
+  var rows = blockRows || [row];
+
+  // A standalone pickling row anywhere in the block turns the fold off for all
+  // of it; a co-tag does not, and its pickling area is replaced by the fold
+  // rather than counted at its full complement.
+  var picklingOwnRow = rows.some(function(r) {
+    var a = extraAreas(r);
+    return a.indexOf('pickling-vat') >= 0 && _vatLines(a) === 0;
+  });
+  var mine = _vatLines(areas);
+  var coTagged = mine > 0 && areas.indexOf('pickling-vat') >= 0 && !picklingOwnRow;
+  var counted = coTagged
+    ? areas.filter(function(id) { return id !== 'pickling-vat'; })
+    : areas;
+
   var seen = {}, norm = 0, hasNorm = false;
-  areas.forEach(function(id) {
+  counted.forEach(function(id) {
     var unit = areaUnitOf(id);
     if (!unit || seen[unit]) return;
     seen[unit] = true;
@@ -121,27 +174,18 @@ function blockNorm(row, blockRows) {
   });
   if (!hasNorm) return null;
 
-  var rows = blockRows || [row];
-  var picklingTagged = rows.some(function(r) {
-    return extraAreas(r).indexOf('pickling-vat') >= 0;
-  });
-  if (!picklingTagged) {
-    var mine = _vatLines(areas);
-    if (mine > 0) {
-      var across = {};
-      rows.forEach(function(r) {
-        extraAreas(r).forEach(function(id) {
-          if (id === 'vat-a1' || id === 'vat-a2') across[id] = true;
-        });
+  var cap = areaTarget('pickling-vat');
+  if (!picklingOwnRow && cap != null && mine > 0) {
+    var across = {};
+    rows.forEach(function(r) {
+      extraAreas(r).forEach(function(id) {
+        if (id === 'vat-a1' || id === 'vat-a2') across[id] = true;
       });
-      var total = Object.keys(across).length;
-      // 2 for one line, 3 for both — and never more, however many rows the
-      // relay used to say it.
-      var pool = total >= 2 ? 3 : 2;
-      var cap = areaTarget('pickling-vat');
-      if (cap != null && pool > cap) pool = cap;
-      norm += pool * (mine / total);
-    }
+    });
+    var pool = Math.min(Object.keys(across).length >= 2 ? 3 : 2, cap);
+    var claimed = 0;
+    rows.forEach(function(r) { claimed += _vatLines(extraAreas(r)); });
+    if (claimed > 0) norm += pool * (mine / claimed);
   }
   return norm;
 }
@@ -247,18 +291,36 @@ function areaStats(fromIso, toIso) {
     var blockRowsToday = [];
     extras.forEach(function(x) {
       var h = x.hours || 0;
-      if (h <= 0) return;
-      var a = byId[x.area] || byId.flex;
-      a.extraHours += h;
-      a.cost += h * cfg.extraRate;
-      bookedToday[a.id] = (bookedToday[a.id] || 0) + h;
-      if (extraIsCoverage(x)) {
-        a.coverageHours += h;
-        coverToday[a.id] = (coverToday[a.id] || 0) + h;
-      } else {
-        a.blockHours += h;
-        blockRowsToday.push(x);
+      // A row booking NOTHING is still evidence about the block's staffing: a
+      // 6 AM `pickling` line with a crew and no tag beside a tagged `VAT A2`
+      // line is what tells the fold that pickling was separately manned. Drop
+      // it before grouping and the VAT row folds hands that were standing
+      // right there. It contributes its area, never any hours.
+      if (h <= 0) {
+        if (extraIsBlock(x)) blockRowsToday.push(x);
+        return;
       }
+      // A block row may span several areas, and booking the lot to the first
+      // of them would misattribute the per-area extra columns — which are the
+      // allocation half this whole view exists to answer. Split evenly across
+      // the areas the row names; a single-area row is the same arithmetic with
+      // a divisor of one, so the general-shift path is untouched.
+      var ids = extraAreas(x).filter(function(id) { return !!byId[id]; });
+      if (ids.length === 0) ids = ['flex'];
+      var share = h / ids.length;
+      ids.forEach(function(id) {
+        var a = byId[id];
+        a.extraHours += share;
+        a.cost += share * cfg.extraRate;
+        bookedToday[a.id] = (bookedToday[a.id] || 0) + share;
+        if (extraIsCoverage(x)) {
+          a.coverageHours += share;
+          coverToday[a.id] = (coverToday[a.id] || 0) + share;
+        } else {
+          a.blockHours += share;
+        }
+      });
+      if (!extraIsCoverage(x)) blockRowsToday.push(x);
     });
 
     // Blocks reconcile per block, not per unit-day: a 6 AM slot and an evening
@@ -272,6 +334,7 @@ function areaStats(fromIso, toIso) {
     Object.keys(byBlock).forEach(function(k) {
       var rows = byBlock[k];
       rows.forEach(function(x) {
+        if (!(x.hours > 0)) return;   // supplies its area to the fold, books nothing
         var hrs = blockLength(x);
         var norm = blockNorm(x, rows);
         var heads = Array.isArray(x.crew) ? x.crew.length : null;
@@ -421,11 +484,41 @@ function areaStats(fromIso, toIso) {
     blockBooked: gstRound(reconciled.reduce(function(s, b) { return s + b.booked; }, 0)),
     blockReconciled: reconciled.length,
     blockIncomplete: blocks.filter(function(b) { return b.incomplete; }),
-    blockMismatched: reconciled.filter(function(b) {
-      return Math.abs(b.booked - b.expected) > 0.001;
+    // Judged at BLOCK level, not per row. When the relay splits one block over
+    // two rows the hours it writes on each need not match that row's share of
+    // the shortfall — the fold is apportioned, so a 14/14 split against a
+    // 1.5/2.5 shortfall reconciles to 28 exactly and flags nothing. Per-row
+    // judging reported two disagreements on a block that balances to the hour,
+    // which is the same numerator-and-denominator error V-B1 caught once
+    // already. The block is the unit, as the invariance property says.
+    blockMismatched: _blockGroups(reconciled).filter(function(g) {
+      return Math.abs(g.booked - g.expected) > 0.001;
     }),
     absorption: _absorption(dates, roster, cfg)
   };
+}
+
+/* One entry per block, summing the rows the relay wrote for it. */
+function _blockGroups(rows) {
+  var by = {}, order = [];
+  rows.forEach(function(b) {
+    var k = b.iso + '|' + b.key;
+    if (!by[k]) {
+      by[k] = { iso: b.iso, key: b.key, labels: [], expected: 0, booked: 0 };
+      order.push(k);
+    }
+    var g = by[k];
+    if (g.labels.indexOf(b.label) < 0) g.labels.push(b.label);
+    g.expected += b.expected;
+    g.booked += b.booked;
+  });
+  return order.map(function(k) {
+    var g = by[k];
+    g.expected = gstRound(g.expected);
+    g.booked = gstRound(g.booked);
+    g.label = g.labels.join(' + ');
+    return g;
+  });
 }
 
 /* Pro-rata absorption, per worker.
@@ -468,9 +561,14 @@ function _absorption(dates, roster, cfg) {
       if (crew.length === 0) return;      // nobody to absorb it; the flag covers that
       var each = h / crew.length;
       crew.forEach(function(w) {
-        var e = by[w.id] || (by[w.id] = { id: w.id, name: w.name, hours: 0, days: 0 });
+        var e = by[w.id] || (by[w.id] = { id: w.id, name: w.name, hours: 0, days: 0, _seen: {} });
         e.hours += each;
-        e.days++;
+        // Count DATES, not rows. `days` is the denominator of the per-day
+        // ceiling that marks an implausible absorption, and a day carrying
+        // both a general-shift row and a block row would otherwise count
+        // twice — halving the per-day figure and disarming the very guard
+        // that exists to catch fifteen absorbed hours in one day.
+        if (!e._seen[iso]) { e._seen[iso] = true; e.days++; }
       });
     });
   });
@@ -484,6 +582,7 @@ function _absorption(dates, roster, cfg) {
     var e = by[k];
     e.perDay = e.days > 0 ? e.hours / e.days : 0;
     e.implausible = e.perDay > ceiling;
+    delete e._seen;
     return e;
   }).sort(function(a, b) { return b.hours - a.hours; });
 }
@@ -681,7 +780,10 @@ function _areaExtraCard(stats) {
   // card follows — so it can and does reconcile to the hour. Holding it against
   // the check would mean the canonical case could never pass. It is reported
   // above because the marks were not typed, which is worth knowing on its own.
-  if (atNorm.length === 0 && mism.length === 0 && stats.normed > 0) {
+  // The pass note speaks for the WHOLE card, so it must clear the block
+  // disagreements too. Gated on the shift ones alone it rendered "30.0 h
+  // against 14.0 h" and "every booking reconciles exactly" one after the other.
+  if (atNorm.length === 0 && mism.length === 0 && stats.blockMismatched.length === 0 && stats.normed > 0) {
     html += '<div class="inv-stats-note">Every booking in this range sits on an area that was short by ' +
       'exactly the hands the hours pay for. That is the whole cross-check the record supports, and it passes.</div>';
   } else if (atNorm.length > 0) {
@@ -721,7 +823,7 @@ function _areaBlockSection(stats) {
   }
 
   if (stats.blockMismatched.length > 0) {
-    html += _labRow('Booked, but not the predicted amount', stats.blockMismatched.length + ' row' +
+    html += _labRow('Booked, but not the predicted amount', stats.blockMismatched.length + ' block' +
       (stats.blockMismatched.length === 1 ? '' : 's'), 'the block\u2019s shortfall explains a different number');
     html += '<div class="inv-area-flags">';
     stats.blockMismatched.slice(0, 8).forEach(function(b) {

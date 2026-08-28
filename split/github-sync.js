@@ -259,7 +259,6 @@ async function ghPull() {
       return false;
     }
 
-    S = env.state;
     // The same two passes the loader runs, in the same order: fill the shape a
     // backup might predate, then migrate the records inside it. The second was
     // missing, so a pull from a device that had never run the area realignment
@@ -267,8 +266,14 @@ async function ghPull() {
     // silently, under-counting heads and inflating every shortfall until the
     // next reload. A copy that arrives over the wire is exactly as old as one
     // read off disk, and gets exactly the same treatment.
-    ensureStateShape(S);
-    migrateState();
+    try {
+      adoptState(env.state);
+    } catch (e) {
+      ghSetBusy(false);
+      ghSetStatus('That backup could not be read: ' + e.message);
+      showToast('Backup could not be read', 'error');
+      return false;
+    }
     saveState();
 
     cfg.sha = remote.sha;

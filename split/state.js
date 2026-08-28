@@ -96,6 +96,30 @@ function ensureStateShape(s) {
   return s;
 }
 
+/* Adopt a replacement state, or keep the one we have.
+
+   `migrateState()` walks records written by another device, so it can throw on
+   a shape nothing here anticipated — a challan with no `items`, say. Assigning
+   `S` first and migrating after meant a throw left the app running on a
+   half-migrated state that was never saved: the toast said "Invalid file" and
+   the operator carried on, now looking at someone else's half-repaired books.
+
+   So the swap is all-or-nothing. On a throw the previous state is restored and
+   the error is re-raised for the caller to report. Nothing is persisted here —
+   the caller saves once it knows the adoption held. */
+function adoptState(next) {
+  var prev = S;
+  try {
+    S = next;
+    ensureStateShape(S);
+    migrateState();
+  } catch (e) {
+    S = prev;
+    throw e;
+  }
+  return S;
+}
+
 let S = loadJSON(STORAGE_KEY, null);
 if (!S) { S = getDefaultState(); saveJSON(STORAGE_KEY, S); }
 ensureStateShape(S);

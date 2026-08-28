@@ -28,7 +28,7 @@ split/
 ├── styles.css         ← All CSS with inv- prefix (2,720 lines)
 ├── body.html          ← HTML body, tabs, print view (137 lines)
 ├── data.js            ← ITEMS_MASTER + SEED_CLIENTS (27 lines)
-├── state.js           ← State mgmt, utilities, escHtml, gstRound (360 lines)
+├── state.js           ← State mgmt, utilities, escHtml, gstRound (384 lines)
 ├── zinc.js            ← Zinc market rate: store, display, metals.dev refresh (199 lines)
 ├── tabs.js            ← switchTab (9-step protocol) + renderHome (188 lines)
 ├── clients.js         ← Client Master CRUD + overlay (343 lines)
@@ -47,7 +47,7 @@ split/
 ├── charts.js          ← Reusable SVG charts: line, bar, pie, ranked bars (243 lines)
 ├── staff.js           ← Roster + attendance + roster import: day, week, extra hours (1,013 lines)
 ├── labour.js          ← Labour: three pay tiers, fixed/variable, by area, ₹/kg (449 lines)
-├── areas.js           ← Areas: staffing vs norms + the extra reconciled (861 lines)
+├── areas.js           ← Areas: staffing vs norms + the extra reconciled (963 lines)
 ├── stats.js           ← Stats dashboard + History activity log (1,195 lines)
 ├── client-perf.js     ← Client performance: month on month + material cadence (314 lines)
 ├── im-form.js         ← IM add/edit/delete challan form (450 lines)
@@ -360,17 +360,47 @@ only the **multiplier**: a general shift credits a missing hand a full 8, a bloc
 block's own length. So a 5-to-midnight slot short two hands books 14.
 
 This **supersedes** the earlier reading, which took a block tag as the slot's per-hand credit
-("5 hands × 3 hr = 15 OT hr") and therefore reconciled it against nothing. That reading fails every
-recorded block tag; the norm-gap reading reproduces all of them:
+("5 hands × 3 hr = 15 OT hr") and therefore reconciled it against nothing.
+
+**The census, with its instrument, because the earlier version of this table claimed more than it
+had.** Castor swept every relay row under a `Morning OT` / `6:00 AM` / `Evening OT` / midnight-or-8PM
+heading carrying an `EXTRA` tag, across `attendance/2026-W24.md`, `W31`, `W32`, `W33`, plus their
+untagged sibling rows: **13 blocks, 18 tagged rows.** Vulcanus swept the raw relay export
+(`data/raw/relays/2026-08-14-...txt`, 27 Jul – 8 Aug) for rows carrying times, per-area headers,
+named crews and a tag together: **9 blocks, 14 rows.** W18–W23 and W25–W30 were not swept by either;
+"not found there" is not "does not exist".
 
 | Row | Block | Areas · heads | Norm | Short | Predicted | Tag |
 |---|---|---|---|---|---|---|
-| W24 Wed | 6:00–8:30 = 3 h | A1 · 5 | 4+2 = 6 | 1 | 3 | `EXTRA — 3 hours` |
-| W31 Tue g1 | 5PM–12AM = 7 h | A1+pickling · 3 | 4+2 = 6 | 3 | 21 | `Extra 21 hours` |
-| W31 Tue g2 | 7 h | barrel+pickling · 2 | 3+2 = 5 | 3 | 21 | `Extra 21 hours` |
-| W32 Fri | 7 h | A1 · 4 | 4+2 = 6 | 2 | 14 | `EXTRA 14 HOURS` |
-| W32 (143) | 7 h | A1 · 4, A2 · 3 | 4+4+3 = 11 | 4 | 28 | `EXTRA 28 HOURS` |
-| W32 (170) | 7 h | A1·3 / A2·3 / pickling·0 | 4 / 4 / 3 | 1/1/3 | 7 / 7 / 21 | `7` / `7` / `21` |
+| W24 Wed | 6:00–8:30, span 2.5, **credited 3** | **A2** · 5 | 4+2 = 6 | 1 | 3 | `EXTRA — 3 hours` |
+| W31 Tue g1 | 5PM–12AM = 7 h | `A1 & pickling` · 3 | 4 + fold 2 = 6 | 3 | 21 | `Extra 21 hours` |
+| W31 Tue g2 | 7 h | `barrel & pickling` · 2 | 3+2 = 5 | 3 | 21 | `Extra 21 hours` |
+| **Tue 4 Aug** | 7 h | A1 · 4 | 4+2 = 6 | 2 | 14 | `EXTRA 14 HOURS` |
+| W32 Wed-5 eve | 7 h | A1 · 4, A2 · 3 | 4+4+3 = 11 | 4 | 28 | `EXTRA 28 HOURS` |
+| W32 Thu-6 eve | 7 h | A1·3 / A2·3 / pickling·0 | 4 / 4 / 3 | 1/1/3 | 7 / 7 / 21 | `7` / `7` / `21` |
+
+Three corrections the Governors made to this table, each of which had been hiding something:
+**W24 Wed heads VAT A2, not A1** (`2026-W24.md:50`; the norm is unaffected, the label was wrong on
+the row the whole ruling is anchored on). **"W32 Fri" is Tue 4 August** — Fri 7 Aug carries no tag at
+all. And **6:00–8:30 is 2.5 hours, not 3**: writing the credit into the span column is what concealed
+the multiplier blocker below.
+
+**The morning block is credited 3 hours on a 2.5-hour span** (owner, 28 Aug 2026). The convention is
+stated at `2026-W24.md:61` in those words, and seven recorded morning tags reconcile at 3 while none
+reconciles at 2.5. Deriving the multiplier from the clock alone flagged **every faithfully-entered
+morning block** — the shop's most frequent — as *booked more than the shortfall explains*. So the
+credited length rounds the span up to the whole hour; the only convention the corpus states is
+2.5 → 3, and rounding up is this app's inference from that one instance, a no-op on every other
+recorded block. **Two instruments, two lengths:** a named hand's own pay uses the clock (BM, 8 Aug —
+Sambhu's 6:00–8:30 + 5 PM–12 AM = 9.5 hr), the unattributed EXTRA credit uses the convention. The
+entry row shows both whenever they differ.
+
+**Two recorded blocks the rule does not reproduce, named rather than smoothed away** — the same
+courtesy the general-shift side already gets. **W31 Mon 27 Jul, 5–8 PM**: two rows, `VAT A2` 2 hands
+and `VAT A1` 3 hands, each tagged `Extra 3 hours`; predicted 10.5 and 7.5 with the fold, 6 and 3
+without, and **no fold value reconciles both**. And **W33 Tue 11 Aug, 5–8 PM**: A1 3 hands tagged 9,
+A2 2 hands tagged 12 — which reconcile only at a per-row fold of 2 each, i.e. four pickling hands
+across the block, contradicting the ceiling. They are the sole recorded cases that test it.
 
 **It resolves a row the codex had written off.** `soma-internal/attendance/2026-W31.md:150` calls the
 Tue-28 evening tag *"internally inconsistent (group 1: 3×7=21 ✓; group 2: 2×7=14≠21)"* and treats
@@ -384,17 +414,30 @@ Under the shortfall rule the tag is 3 hours of unattributed extra, and the five 
 overtime is a separate figure carried on their in/out times. Flagged, not acted on.
 
 **The pickling fold, and its ceiling.** A VAT line running in a block pulls VAT-side pickling hands
-with it, and the shop does not tag them separately unless they are separately staffed: **one VAT
-line needs 2 of the 3, both need all 3 — never 4** (owner, 28 Aug 2026). So the fold is computed for
-the **block** and capped at the three hands that exist, then shared across the block's VAT-covering
-rows in proportion to the lines each covers.
+with it, and the shop writes that as a **co-tag on the VAT row** — `----VAT A1 & pickling`. That is
+not pickling staffed separately; it is the VAT row saying which hands it covers, so the row **folds**
+rather than carrying pickling's own complement of three. Read the other way the flagship recorded row
+predicts 28 against a tag of 21 and the shop's own shorthand becomes unenterable — and barrel is
+already read this way, so VAT must match it. Pickling carries its own norm only on a row naming it
+with **no VAT line**; when such a row exists, nothing folds anywhere in that block.
+
+The ceiling is the ruling's: **one VAT line needs 2 of the 3, both need all 3 — never 4** (owner,
+28 Aug 2026). The fold is computed for the **block**, capped at the three hands that exist, and
+shared across the VAT-covering rows in proportion to the lines each covers. Shares divide by the sum
+of every row's lines rather than the block's distinct count, so overlapping rows cannot fold past the
+ceiling either. With no pickling complement set, nothing folds — there are no hands to lend, and
+inventing them would inflate every shortfall.
+
+**The gap is judged per block, not per row.** When the relay splits one block over two rows the hours
+it writes on each need not match that row's share of an apportioned fold: 14/14 against a 1.5/2.5
+shortfall reconciles to 28 exactly. Judging rows flagged two disagreements on a block that balances to
+the hour — numerator and denominator, same population, again.
 
 Per-row folding would make the answer depend on how the relay happened to write the sheet: one row
 over A1+A2 folds 3, two rows of one line each would fold 2+2, and the same day would reconcile to 11
 or to 12 on nothing but the tagging. **The block total is invariant**, which is the property that
 matters; a fractional norm is the visible signature of a block the relay split where pickling did
-not. If any row in the same block names a VAT-pickling area it carries its own norm and nothing
-folds. Barrel needs no fold — barrel and barrel pickling are already one unit of five.
+not. Barrel needs no fold — barrel and barrel pickling are already one unit of five.
 
 **The fold is an upper bound, like every other figure on this card.** It assumes the lines it covers
 ran at full tilt; a block running at less than that needs fewer pickling hands and books less.

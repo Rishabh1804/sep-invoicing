@@ -2749,3 +2749,7 @@ body.inv-desktop .inv-att-extra-row { max-width: calc(var(--sp-32) * 15); }
 }
 .inv-att-block-ok { background: var(--attend-bg); color: var(--attend-text); }
 .inv-area-blocks { margin-top: var(--sp-12); }
+.inv-att-extra-areas-label {
+  font-size: var(--fs-xs); font-weight: 600; color: var(--text-2);
+  align-self: center; min-width: 0; overflow: hidden; text-overflow: ellipsis;
+}

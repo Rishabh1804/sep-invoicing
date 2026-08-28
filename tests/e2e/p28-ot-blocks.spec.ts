@@ -58,24 +58,37 @@ function extraCard(page: Page) {
   return page.locator('.inv-lab-card', { hasText: 'The extra, checked' });
 }
 
+/* The BLOCK section, and every block assertion must be scoped to it.
+   Asserting on the whole card is how the 6 AM spec below went green for the
+   wrong reason: `exactly` was satisfied by the general-shift headline reading
+   "Booked 0.0 h — exactly as predicted" (these fixtures supply no marks, so
+   that panel is 0 against 0), while the block's own verdict on the same card
+   read "not the predicted amount". Both Governors caught it independently. */
+function blocks(page: Page) {
+  return page.locator('.inv-area-blocks');
+}
+
 /* ===== THE RECORDED TAGS ===== */
 
-test('reproduces the 6 AM tag the per-hand reading had to reinterpret', async ({ page }) => {
+test('reproduces the 6 AM tag on the credited length, not the clock', async ({ page }) => {
   // soma-internal/attendance/2026-W24.md:61 — five hands in the 6:00–8:30
-  // block on VAT A1, tagged `EXTRA — 3 hours`. The norm-gap reading takes the
-  // tag at face value: A1's 4 plus the 2 VAT-side pickling hands it pulls with
-  // it is 6, five stood, short one, 1 x 3 h = 3. The per-hand reading had to
-  // restate the same tag as 5 x 3 = 15.
+  // block, tagged `EXTRA — 3 hours`, and the same line states the convention:
+  // "6:00–8:30 AM = 3 OT hr". The span is 2.5; the CREDIT is 3.
+  //
+  // Norm 4 + the 2 VAT-side pickling hands the line pulls with it = 6, five
+  // stood, short one, 1 x 3 h = 3 — the tag at face value. On the clock span
+  // it would predict 2.5 and flag the shop's most common block every morning.
   const hands = crew('vat-a1', 5, 10);
   await loadAppWithState(page, state(hands, [{
     area: 'vat-a1', areas: ['vat-a1'], hours: 3, kind: 'block',
     from: '06:00', to: '08:30', crew: hands.map((w) => w.id),
   }]));
   await openAreas(page);
-  const card = extraCard(page);
-  await expect(card).toContainText('OT blocks');
-  await expect(card).toContainText('3.0 h');
-  await expect(card).toContainText('exactly');
+  await expect(blocks(page)).toContainText('3.0 h');
+  await expect(blocks(page)).toContainText('exactly');
+  // The assertion that would have caught this spec passing for the wrong
+  // reason. Without it, `exactly` is satisfied by the 0-vs-0 coverage panel.
+  await expect(blocks(page)).not.toContainText('not the predicted amount');
 });
 
 test('reproduces the tag the codex called internally inconsistent', async ({ page }) => {
@@ -93,10 +106,9 @@ test('reproduces the tag the codex called internally inconsistent', async ({ pag
       from: '17:00', to: '00:00', crew: g2.map((w) => w.id) },
   ]));
   await openAreas(page);
-  const card = extraCard(page);
-  await expect(card).toContainText('42.0 h');   // both rows, both exact
-  await expect(card).toContainText('exactly');
-  await expect(card).not.toContainText('not the predicted amount');
+  await expect(blocks(page)).toContainText('42.0 h');   // both rows, both exact
+  await expect(blocks(page)).toContainText('exactly');
+  await expect(blocks(page)).not.toContainText('not the predicted amount');
 });
 
 test('one tag spanning both VAT lines takes all three pickling hands', async ({ page }) => {
@@ -110,8 +122,9 @@ test('one tag spanning both VAT lines takes all three pickling hands', async ({ 
     from: '17:00', to: '00:00', crew: [...a1, ...a2].map((w) => w.id),
   }]));
   await openAreas(page);
-  await expect(extraCard(page)).toContainText('28.0 h');
-  await expect(extraCard(page)).toContainText('exactly');
+  await expect(blocks(page)).toContainText('28.0 h');
+  await expect(blocks(page)).toContainText('exactly');
+  await expect(blocks(page)).not.toContainText('not the predicted amount');
 });
 
 test('when pickling carries its own row nothing folds into the VAT rows', async ({ page }) => {
@@ -130,8 +143,9 @@ test('when pickling carries its own row nothing folds into the VAT rows', async 
       from: '17:00', to: '00:00', crew: [] },
   ]));
   await openAreas(page);
-  await expect(extraCard(page)).toContainText('35.0 h');
-  await expect(extraCard(page)).toContainText('exactly');
+  await expect(blocks(page)).toContainText('35.0 h');
+  await expect(blocks(page)).toContainText('exactly');
+  await expect(blocks(page)).not.toContainText('not the predicted amount');
 });
 
 test('two VAT rows in one block still take three pickling hands, never four', async ({ page }) => {
@@ -150,7 +164,8 @@ test('two VAT rows in one block still take three pickling hands, never four', as
   // Block norm 11 across the pair, 7 hands, short 4, 4 x 7 = 28 — the same
   // total as W32 (143) writes on ONE row. Per-row folding would give 12,
   // short 5, and predict 35.
-  await expect(extraCard(page)).toContainText('28.0 h');
+  await expect(blocks(page)).toContainText('28.0 h');
+  await expect(blocks(page)).not.toContainText('not the predicted amount');
 });
 
 test('the prediction does not depend on how the relay split the sheet', async ({ page }) => {
@@ -166,8 +181,9 @@ test('the prediction does not depend on how the relay split the sheet', async ({
     from: '17:00', to: '00:00', crew: both,
   }]));
   await openAreas(page);
-  await expect(extraCard(page)).toContainText('28.0 h');
-  await expect(extraCard(page)).toContainText('exactly');
+  await expect(blocks(page)).toContainText('28.0 h');
+  await expect(blocks(page)).toContainText('exactly');
+  await expect(blocks(page)).not.toContainText('not the predicted amount');
 });
 
 /* ===== THE MULTIPLIER IS THE WHOLE DIFFERENCE ===== */
@@ -176,7 +192,10 @@ test('the same shortfall books eight on a shift and the block’s own hours on a
   // One hand short of VAT A1 twice over: once on the general shift, once in a
   // 3-hour morning block. 8 against 3 — same rule, different multiplier.
   const shift = crew('vat-a1', 3, 10);
-  const blockCrew = crew('vat-a2', 3, 20);
+  // Five on A2's block: norm 4 + the 2 pickling hands it pulls = 6, short 1,
+  // x 3 credited = 3. The earlier fixture used three hands and was short THREE
+  // — it only looked right because the assertion was card-wide.
+  const blockCrew = crew('vat-a2', 5, 20);
   await loadAppWithState(page, state([...shift, ...blockCrew], [
     { area: 'vat-a1', hours: 8, kind: 'coverage' },
     { area: 'vat-a2', areas: ['vat-a2'], hours: 3, kind: 'block',
@@ -184,12 +203,12 @@ test('the same shortfall books eight on a shift and the block’s own hours on a
   ], Object.fromEntries([...shift, ...blockCrew].map((w) => [w.id,
     { st: 'P', hours: 8, ot: 0, area: w.area }]))));
   await openAreas(page);
-  const card = extraCard(page);
-  // The shift side: A1 at 3 of 4, short 1, x 8.
-  await expect(card).toContainText('8.0');
+  // The shift side: A1 at 3 of 4, short 1, x 8 — asserted OUTSIDE the block
+  // section so the two cannot satisfy each other's assertions.
+  await expect(extraCard(page)).toContainText('8.0');
   // The block side, reported apart rather than summed into it.
-  await expect(card).toContainText('OT blocks');
-  await expect(card).toContainText('3.0 h');
+  await expect(blocks(page)).toContainText('3.0 h');
+  await expect(blocks(page)).not.toContainText('not the predicted amount');
 });
 
 test('a block past midnight is measured forwards, not backwards', async ({ page }) => {
@@ -202,8 +221,81 @@ test('a block past midnight is measured forwards, not backwards', async ({ page 
   }]));
   await openAreas(page);
   // 2026-W32.md:121 — four hands, norm 6, short 2, 2 x 7 = 14.
-  await expect(extraCard(page)).toContainText('14.0 h');
-  await expect(extraCard(page)).toContainText('exactly');
+  await expect(blocks(page)).toContainText('14.0 h');
+  await expect(blocks(page)).toContainText('exactly');
+  await expect(blocks(page)).not.toContainText('not the predicted amount');
+});
+
+test('a co-tagged `VAT A1 & pickling` row folds, as the sheet writes it', async ({ page }) => {
+  // 2026-W31.md:150's own header is `----VAT A1 & pickling`. Read as pickling
+  // separately staffed it predicts 4+3=7 → 28 against a tag of 21, and the
+  // shop's shorthand becomes unenterable. A co-tag on a VAT row names the
+  // hands that line pulls with it: norm 4 + fold 2 = 6, short 3, 3 x 7 = 21.
+  // Barrel already reads `berral & pickling` this way; VAT now matches.
+  const g1 = crew('vat-a1', 3, 10);
+  await loadAppWithState(page, state(g1, [{
+    area: 'vat-a1', areas: ['vat-a1', 'pickling-vat'], hours: 21, kind: 'block',
+    from: '17:00', to: '00:00', crew: g1.map((w) => w.id),
+  }]));
+  await openAreas(page);
+  await expect(blocks(page)).toContainText('21.0 h');
+  await expect(blocks(page)).not.toContainText('not the predicted amount');
+});
+
+test('a standalone pickling row still turns the fold off for the whole block', async ({ page }) => {
+  // The distinction the co-tag rule turns on: pickling with its OWN crew line
+  // and no VAT line carries its own norm of 3, and nothing folds anywhere in
+  // that block. 2026-W32.md:170 is exactly this shape.
+  const a1 = crew('vat-a1', 3, 10);
+  await loadAppWithState(page, state(a1, [
+    { area: 'vat-a1', areas: ['vat-a1'], hours: 7, kind: 'block',
+      from: '17:00', to: '00:00', crew: a1.map((w) => w.id) },
+    { area: 'pickling-vat', areas: ['pickling-vat'], hours: 21, kind: 'block',
+      from: '17:00', to: '00:00', crew: [] },
+  ]));
+  await openAreas(page);
+  // A1 on a bare 4: short 1, 1 x 7 = 7. Pickling short 3: 21. Total 28.
+  await expect(blocks(page)).toContainText('28.0 h');
+  await expect(blocks(page)).not.toContainText('not the predicted amount');
+});
+
+test('an untagged sibling row still tells the fold pickling was manned', async ({ page }) => {
+  // 2026-W33.md:39 — a tagged VAT A2 line beside an UNTAGGED pickling line with
+  // its own crew. A row booking nothing is still evidence about staffing, so it
+  // must survive the zero-hours filter: dropped, A2 folds hands that were
+  // standing right there and predicts 7.5 against a tag of 3.
+  const a2 = crew('vat-a2', 3, 10);
+  const pick = crew('pickling-vat', 2, 20);
+  await loadAppWithState(page, state([...a2, ...pick], [
+    { area: 'vat-a2', areas: ['vat-a2'], hours: 3, kind: 'block',
+      from: '06:00', to: '08:30', crew: a2.map((w) => w.id) },
+    { area: 'pickling-vat', areas: ['pickling-vat'], hours: 0, kind: 'block',
+      from: '06:00', to: '08:30', crew: pick.map((w) => w.id) },
+  ]));
+  await openAreas(page);
+  // A2 on a bare 4, three stood, short 1, x 3 credited = 3. Exactly the tag.
+  await expect(blocks(page)).toContainText('3.0 h');
+  await expect(blocks(page)).not.toContainText('not the predicted amount');
+});
+
+test('an unset pickling complement folds nothing rather than phantom hands', async ({ page }) => {
+  // areaTargets ships EMPTY, so a partly-normed device is the ordinary state.
+  // With no pickling complement there are no hands to lend; folding 2 anyway
+  // would invent heads and inflate the shortfall on every VAT block.
+  const a1 = crew('vat-a1', 3, 10);
+  await loadAppWithState(page, {
+    ...emptyState(), incomingMaterial: noSeedIM(), labour: LABOUR,
+    areaTargets: { 'vat-a1': 4 },
+    staff: a1,
+    attendance: { [todayIso()]: { marks: {}, note: '', extra: [{
+      area: 'vat-a1', areas: ['vat-a1'], hours: 7, kind: 'block',
+      from: '17:00', to: '00:00', crew: a1.map((w) => w.id),
+    }] } },
+  });
+  await openAreas(page);
+  // Norm 4, not 6: short 1, 1 x 7 = 7.
+  await expect(blocks(page)).toContainText('7.0 h');
+  await expect(blocks(page)).not.toContainText('not the predicted amount');
 });
 
 /* ===== WHAT IT REFUSES TO GUESS ===== */
@@ -218,11 +310,11 @@ test('a block missing its times is reported, never reconciled at a guess', async
     crew: hands.map((w) => w.id),
   }]));
   await openAreas(page);
-  const card = extraCard(page);
-  await expect(card).toContainText('Not checkable');
-  await expect(card).toContainText('21.0 h');
-  // Counted in the bill regardless — it is unverifiable, not unpaid.
-  await expect(card).toContainText('Extra at the contract tier');
+  await expect(blocks(page)).toContainText('Not checkable');
+  await expect(blocks(page)).toContainText('21.0 h');
+  // Counted in the bill regardless — it is unverifiable, not unpaid. That
+  // line lives on the card, not in the block section.
+  await expect(extraCard(page)).toContainText('Extra at the contract tier');
 });
 
 test('a block missing its crew is reported rather than read off the marks', async ({ page }) => {
@@ -235,7 +327,7 @@ test('a block missing its crew is reported rather than read off the marks', asyn
     from: '17:00', to: '00:00',
   }], Object.fromEntries(hands.map((w) => [w.id, { st: 'P', hours: 8, ot: 0, area: 'vat-a1' }]))));
   await openAreas(page);
-  await expect(extraCard(page)).toContainText('Not checkable');
+  await expect(blocks(page)).toContainText('Not checkable');
 });
 
 test('a block whose booking the shortfall does not explain is flagged with its date', async ({ page }) => {
@@ -245,12 +337,41 @@ test('a block whose booking the shortfall does not explain is flagged with its d
     from: '17:00', to: '00:00', crew: hands.map((w) => w.id),
   }]));
   await openAreas(page);
-  const card = extraCard(page);
-  await expect(card).toContainText('not the predicted amount');
-  await expect(card).toContainText('30.0 h against 14.0 h');
+  await expect(blocks(page)).toContainText('not the predicted amount');
+  await expect(blocks(page)).toContainText('30.0 h against 14.0 h');
 });
 
 /* ===== ENTRY ===== */
+
+test('the card does not claim a pass while a block sits mismatched above it', async ({ page }) => {
+  // The pass note speaks for the whole card. Gated on the general-shift
+  // disagreements alone it rendered "30.0 h against 14.0 h" and "every booking
+  // reconciles exactly" one after the other — a surface reporting a pass it
+  // did not measure.
+  const hands = crew('vat-a1', 4, 10);
+  await loadAppWithState(page, state(hands, [{
+    area: 'vat-a1', areas: ['vat-a1'], hours: 30, kind: 'block',
+    from: '17:00', to: '00:00', crew: hands.map((w) => w.id),
+  }]));
+  await openAreas(page);
+  await expect(blocks(page)).toContainText('not the predicted amount');
+  await expect(extraCard(page)).not.toContainText('the whole cross-check');
+});
+
+test('the entry row shows the clock span and the credited length', async ({ page }) => {
+  // 6:00–8:30 is 2.5 on the clock and credited 3. Both are shown, so nothing
+  // is rounded behind the operator's back.
+  const hands = crew('vat-a1', 5, 10);
+  await loadAppWithState(page, state(hands, [{
+    area: 'vat-a1', areas: ['vat-a1'], hours: 3, kind: 'block',
+    from: '06:00', to: '08:30', crew: hands.map((w) => w.id),
+  }]));
+  await switchTab(page, 'pageStaff');
+  const len = page.locator('.inv-att-block-len').first();
+  await expect(len).toContainText('2.5');
+  await expect(len).toContainText('3');
+  await expect(len).toContainText('credited');
+});
 
 test('the entry row shows the block’s own check as it is typed', async ({ page }) => {
   const hands = crew('vat-a1', 5, 10);

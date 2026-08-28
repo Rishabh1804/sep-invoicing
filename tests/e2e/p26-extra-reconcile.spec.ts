@@ -258,17 +258,21 @@ test('barrel and barrel pickling reconcile as one unit of five', async ({ page }
   await expect(card).not.toContainText('More was booked');
 });
 
-test('a block credit is counted but never reconciled against a shortfall', async ({ page }) => {
-  // `EXTRA 3 HOURS` in the 6 AM block states the slot's PER-HAND credit, not
-  // three pooled hours, so it answers no shortfall and must not move the gap.
+test('a block never moves the general-shift gap, whatever else it does', async ({ page }) => {
+  // Superseded 28 Aug 2026: a block IS reconciled now, against its own
+  // shortfall and its own length (see p28). What survives from the earlier
+  // reading is the part that was always right — a block's hours are a separate
+  // question from the general shift's and must never enter its arithmetic.
+  // This row carries neither times nor crew, so it is reported as unchecked
+  // rather than reconciled at a guess; either way the shift gap must not move.
   const staff = crew('barrel', 3, 10);
   const [d1] = weekDays();
   await loadAppWithState(page, state(staff, {
     [d1]: { marks: marksFor(staff), extra: [{ area: 'barrel', hours: 3, kind: 'block' }], note: '' },
-  }, { barrel: 3 }));   // barrel alone carries a norm, so the block is 3 of 3
+  }, { barrel: 3 }));   // barrel alone carries a norm, so the shift is 3 of 3
   await openAreas(page);
   const card = extraCard(page);
-  await expect(card).toContainText('Block credits, not reconciled');
+  await expect(card).toContainText('Not checkable');
   await expect(card).not.toContainText('Booked at or above complement');
   await expect(card).not.toContainText('More was booked');
 });
@@ -319,18 +323,19 @@ test('hours typed on the side the heads are not is not an unmanned booking', asy
   await expect(card).toContainText('Booked at or above complement');
 });
 
-test('a block credit is neither reconciled against a shortfall nor absorbed', async ({ page }) => {
-  // `EXTRA n HOURS` in a 6 AM or evening block states the slot's PER-HAND
-  // credit, so dividing it across the crew understates it by 1/n — and it
-  // answers no shortfall for anyone to absorb in the first place.
+test('a block is absorbed by its own crew, never by the area’s day crew', async ({ page }) => {
+  // Superseded 28 Aug 2026, and the replacement is stronger: a block names the
+  // people who stood the slot, so its absorption is exact rather than inferred.
+  // A block with NO crew therefore has nobody to absorb it — spreading it over
+  // the three hands who worked the general shift would attribute evening hours
+  // to men who had gone home.
   const staff = crew('barrel', 3, 10);
   const [d1] = weekDays();
   await loadAppWithState(page, state(staff, {
     [d1]: { marks: marksFor(staff), extra: [{ area: 'barrel', hours: 3, kind: 'block' }], note: '' },
   }, { barrel: 3 }));
   await openAreas(page);
-  await expect(extraCard(page)).toContainText('Block credits, not reconciled');
-  // Not ranked as coverage, and so never reaching the implausibility ceiling.
+  await expect(extraCard(page)).toContainText('Not checkable');
   await expect(page.locator('.inv-card', { hasText: 'Coverage absorbed' })).toHaveCount(0);
 });
 

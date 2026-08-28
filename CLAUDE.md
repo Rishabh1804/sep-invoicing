@@ -47,13 +47,13 @@ split/
 ├── charts.js          ← Reusable SVG charts: line, bar, pie, ranked bars (243 lines)
 ├── staff.js           ← Roster + attendance + roster import: day, week, extra hours (1,013 lines)
 ├── labour.js          ← Labour: three pay tiers, fixed/variable, by area, ₹/kg (449 lines)
-├── areas.js           ← Areas: staffing vs norms + the extra reconciled (588 lines)
+├── areas.js           ← Areas: staffing vs norms + the extra reconciled (824 lines)
 ├── stats.js           ← Stats dashboard + History activity log (1,195 lines)
 ├── client-perf.js     ← Client performance: month on month + material cadence (314 lines)
 ├── im-form.js         ← IM add/edit/delete challan form (450 lines)
 ├── im-dupe.js         ← IM duplicate guard: fingerprint + pre-save warn + scan (305 lines)
 ├── scanner.js         ← Challan scanner (Gemini AI vision) (146 lines)
-├── events.js          ← Event delegation + input handlers (753 lines)
+├── events.js          ← Event delegation + input handlers (771 lines)
 ├── swipe.js           ← Swipe navigation (38 lines)
 ├── seed.js            ← Seed IM data, one-time (8 lines)
 └── init.js            ← Migrations + app bootstrap (567 lines)
@@ -78,7 +78,7 @@ every session start — nothing to set up by hand. CI (`build-sync`) is the back
 ### Tests
 
 ```bash
-pnpm exec playwright test          # 243 tests, both layouts
+pnpm exec playwright test          # 254 tests, both layouts
 ```
 
 Some sandboxes ship a Chromium build Playwright does not expect and block downloading
@@ -354,12 +354,51 @@ rather than smoothing them away. `extraHoursPerHead` is in Settings because the 
   shortfall the card says the check **passed**, because a test that only speaks up on failure
   teaches the reader to stop trusting its silence.
 
-**`EXTRA n HOURS` is two instruments wearing one name**, and the same 11 Jun ruling said so: under
-a general-shift area row it is pooled coverage, but in the 6 AM or evening block it states the
-slot's **per-hand** credit — five hands at three hours is fifteen, not three. Only coverage answers
-a shortfall, so only coverage is reconciled against one; a block credit is counted in the bill and
-reported apart. The entry row carries the distinction because an operator copying the sheet cannot
-otherwise see it.
+**`EXTRA n HOURS` is ONE instrument, and the owner settled it 28 Aug 2026.** An OT block books the
+extra exactly as a general shift does — against the shortfall in the area that ran. What differs is
+only the **multiplier**: a general shift credits a missing hand a full 8, a block credits it the
+block's own length. So a 5-to-midnight slot short two hands books 14.
+
+This **supersedes** the earlier reading, which took a block tag as the slot's per-hand credit
+("5 hands × 3 hr = 15 OT hr") and therefore reconciled it against nothing. That reading fails every
+recorded block tag; the norm-gap reading reproduces all of them:
+
+| Row | Block | Areas · heads | Norm | Short | Predicted | Tag |
+|---|---|---|---|---|---|---|
+| W24 Wed | 6:00–8:30 = 3 h | A1 · 5 | 4+2 = 6 | 1 | 3 | `EXTRA — 3 hours` |
+| W31 Tue g1 | 5PM–12AM = 7 h | A1+pickling · 3 | 4+2 = 6 | 3 | 21 | `Extra 21 hours` |
+| W31 Tue g2 | 7 h | barrel+pickling · 2 | 3+2 = 5 | 3 | 21 | `Extra 21 hours` |
+| W32 Fri | 7 h | A1 · 4 | 4+2 = 6 | 2 | 14 | `EXTRA 14 HOURS` |
+| W32 (143) | 7 h | A1 · 4, A2 · 3 | 4+4+3 = 11 | 4 | 28 | `EXTRA 28 HOURS` |
+| W32 (170) | 7 h | A1·3 / A2·3 / pickling·0 | 4 / 4 / 3 | 1/1/3 | 7 / 7 / 21 | `7` / `7` / `21` |
+
+**It resolves a row the codex had written off.** `soma-internal/attendance/2026-W31.md:150` calls the
+Tue-28 evening tag *"internally inconsistent (group 1: 3×7=21 ✓; group 2: 2×7=14≠21)"* and treats
+that asymmetry as evidence the tags are not a pay instrument. Group 2 is barrel+pickling, a unit of
+five, two hands present: short three, 3 × 7 = 21, exactly as tagged. The inconsistency was in the
+reading, not in Shyam's tags.
+
+**It also contradicts a booked payout, which is soma-internal's to settle, not this app's.**
+`attendance/2026-W24.md:61` prices that 6 AM slot at 15 OT hr / ₹751.50 on the per-hand reading.
+Under the shortfall rule the tag is 3 hours of unattributed extra, and the five named hands' own
+overtime is a separate figure carried on their in/out times. Flagged, not acted on.
+
+**The pickling fold.** A VAT line running in a block pulls VAT-side pickling hands with it, and the
+shop does not tag them separately unless they are separately staffed: **one VAT line needs 2 of the
+3, both need all 3**. If any row in the same block names a VAT-pickling area it carries its own norm
+and nothing folds. Barrel needs no fold — barrel and barrel pickling are already one unit of five.
+
+**A block needs three things the marks cannot supply, and without any of them it is reported rather
+than reconciled at a guess.** Its **length** comes from its own in/out times (21 is three hands short
+of a 7-hour block and also seven short of a 3-hour one, so deriving the length from the tag would
+make the check vacuous by construction); its **complement** from the areas it covers; and its **head
+count** from its **named crew** — the marks record where a worker stood on the *general* shift, and
+the blocks routinely move people (W31 Wed: a hand on barrel pickling all day is in the VAT A1
+evening block), so reading the marks would put the head in the wrong area and invent a shortfall.
+Unreconcilable hours are still counted in the bill: unverifiable is not unpaid.
+
+Block absorption is **exact rather than inferred**, because the row names the crew who stood the
+slot.
 
 **Coverage is absorbed pro-rata, and that makes it attributable.** The 11 Jun ruling says the short
 area's present crew absorb it between them, which the app ranks per worker. It is an **availability

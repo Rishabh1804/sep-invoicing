@@ -2717,3 +2717,35 @@ body.inv-desktop .inv-att-extra-row { max-width: calc(var(--sp-32) * 15); }
   padding: 0 var(--sp-6); border-radius: var(--r-sm);
   background: var(--warning-bg); color: var(--warning-text);
 }
+
+/* OT block entry: times, area and crew toggles, and the check in place. */
+.inv-att-block {
+  display: flex; flex-direction: column; gap: var(--sp-8);
+  padding: var(--sp-8); margin-bottom: var(--sp-8);
+  background: var(--surface-2); border-radius: var(--r-sm);
+}
+.inv-att-block-times { display: flex; align-items: center; gap: var(--sp-8); flex-wrap: wrap; }
+.inv-att-block-times input { flex: 0 1 auto; min-width: 0; }
+.inv-att-block-label {
+  font-size: var(--fs-2xs); color: var(--text-3);
+  text-transform: uppercase; letter-spacing: 0.04em;
+}
+.inv-att-block-len { font-weight: 700; color: var(--text-2); margin-left: auto; white-space: nowrap; }
+.inv-att-block-areas, .inv-att-block-names { display: flex; flex-wrap: wrap; gap: var(--sp-4); }
+.inv-att-chip {
+  min-height: 44px; padding: var(--sp-4) var(--sp-8);
+  font-size: var(--fs-2xs); font-weight: 600;
+  background: var(--surface-1); color: var(--text-2);
+  border: 1px solid var(--border-1); border-radius: var(--r-sm);
+}
+.inv-att-chip-on { background: var(--attend-bg); color: var(--attend-text); border-color: var(--attend); }
+.inv-att-block-crew { display: flex; align-items: baseline; gap: var(--sp-8); }
+.inv-att-block-count { font-weight: 700; color: var(--text-1); }
+.inv-att-block-empty { font-size: var(--fs-2xs); color: var(--text-3); }
+.inv-att-block-check {
+  font-size: var(--fs-2xs); color: var(--text-2);
+  padding: var(--sp-4) var(--sp-8); border-radius: var(--r-sm);
+  background: var(--warning-bg);
+}
+.inv-att-block-ok { background: var(--attend-bg); color: var(--attend-text); }
+.inv-area-blocks { margin-top: var(--sp-12); }

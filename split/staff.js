@@ -250,7 +250,8 @@ function attAreaOptions(sel) {
    ISO dates and literal action names — nothing that needs escaping. */
 var ATT_FOCUS_ATTRS = ['data-action', 'data-id', 'data-st', 'data-date', 'data-idx'];
 var ATT_FOCUS_FLAGS = ['data-att-area', 'data-att-ot', 'data-att-hours',
-  'data-att-extra-area', 'data-att-extra-hours', 'data-att-extra-kind'];
+  'data-att-extra-area', 'data-att-extra-hours', 'data-att-extra-kind',
+  'data-att-block-from', 'data-att-block-to'];
 
 function _attFocusSelector() {
   var page = document.getElementById('pageStaff');
@@ -430,6 +431,79 @@ function _attDayView() {
    is which labour is fixed and which scales — a question that spreading would
    silently answer for us. The labour card counts them in the bill and reports
    them separately as unattributed. */
+/* The three things a block row needs and a general-shift row does not.
+
+   In and out give the multiplier; the areas give the complement; the crew
+   gives the head count. None can be inferred from the marks — the marks say
+   where a worker stood on the GENERAL shift, and the recorded blocks routinely
+   move people (W31 Wed: a hand on barrel pickling all day is in the VAT A1
+   evening block). Reading the marks would put the head in the wrong area and
+   report a shortfall that never existed. */
+function _attBlockFields(x, i, siblings) {
+  var areas = (Array.isArray(x.areas) && x.areas.length) ? x.areas : (x.area ? [x.area] : []);
+  var crew = Array.isArray(x.crew) ? x.crew : [];
+  var hrs = blockLength(x);
+  var roster = staffActive();
+
+  var html = '<div class="inv-att-block">' +
+    '<div class="inv-att-block-times">' +
+    '<label class="inv-att-block-label" for="blkFrom-' + i + '">In</label>' +
+    '<input type="time" class="inv-form-input inv-mono" id="blkFrom-' + i + '" data-att-block-from data-idx="' + i +
+    '" value="' + escHtml(x.from || '') + '" aria-label="Block start time">' +
+    '<label class="inv-att-block-label" for="blkTo-' + i + '">Out</label>' +
+    '<input type="time" class="inv-form-input inv-mono" id="blkTo-' + i + '" data-att-block-to data-idx="' + i +
+    '" value="' + escHtml(x.to || '') + '" aria-label="Block end time">' +
+    '<span class="inv-att-block-len inv-mono">' + (hrs == null ? '&mdash;' : formatNum(hrs, 1) + ' h') + '</span>' +
+    '</div>';
+
+  // Areas as toggles rather than one select, because a block row genuinely
+  // spans several: the relay writes one tag over A1 and A2 together about as
+  // often as one each, and the complement differs between the two readings.
+  html += '<div class="inv-att-block-areas">';
+  STAFF_AREAS.filter(function(a) { return a.floor && a.id !== 'flex'; }).forEach(function(a) {
+    var on = areas.indexOf(a.id) >= 0;
+    html += '<button class="inv-att-chip' + (on ? ' inv-att-chip-on' : '') + '" data-action="invAttBlockArea" ' +
+      'data-idx="' + i + '" data-area="' + escHtml(a.id) + '" aria-pressed="' + (on ? 'true' : 'false') + '">' +
+      escHtml(a.label) + '</button>';
+  });
+  html += '</div>';
+
+  html += '<div class="inv-att-block-crew">' +
+    '<span class="inv-att-block-label">On the block</span>' +
+    '<span class="inv-att-block-count inv-mono">' + crew.length + '</span></div>' +
+    '<div class="inv-att-block-names">';
+  if (roster.length === 0) {
+    html += '<span class="inv-att-block-empty">No roster yet &mdash; import one on the Roster view</span>';
+  } else {
+    roster.forEach(function(w) {
+      var on = crew.indexOf(w.id) >= 0;
+      html += '<button class="inv-att-chip' + (on ? ' inv-att-chip-on' : '') + '" data-action="invAttBlockCrew" ' +
+        'data-idx="' + i + '" data-worker="' + w.id + '" aria-pressed="' + (on ? 'true' : 'false') + '">' +
+        escHtml(w.name) + '</button>';
+    });
+  }
+  html += '</div>';
+
+  // The prediction, in place, so the operator sees the check as they type it
+  // rather than having to leave for the Areas view to find out.
+  var norm = blockNorm({ areas: areas }, [{ areas: areas }].concat(siblings || []));
+  if (hrs != null && norm != null) {
+    var short = Math.max(0, norm - crew.length);
+    var expect = gstRound(short * hrs);
+    var booked = x.hours || 0;
+    var ok = Math.abs(booked - expect) <= 0.001;
+    html += '<div class="inv-att-block-check' + (ok ? ' inv-att-block-ok' : '') + '">' +
+      crew.length + ' of ' + norm + ' &middot; short ' + short + ' &times; ' + formatNum(hrs, 1) + ' h = ' +
+      '<strong>' + formatNum(expect, 1) + ' h</strong>' +
+      (ok ? ' &mdash; matches' : ' &middot; booked ' + formatNum(booked, 1)) + '</div>';
+  } else {
+    html += '<div class="inv-att-block-check">Needs in/out times, at least one area with a ' +
+      'complement, and its crew before it can be checked.</div>';
+  }
+
+  return html + '</div>';
+}
+
 function _attExtraCard(iso, rec) {
   var rows = rec ? rec.extra : [];
   var html = '<div class="inv-card"><div class="inv-card-header">' +
@@ -438,11 +512,11 @@ function _attExtraCard(iso, rec) {
     '<div class="inv-stats-note">Hours booked to an area block rather than to a named worker &mdash; ' +
     'the <span class="inv-mono">EXTRA n HOURS</span> lines on the daily sheet. Priced at the contract tier ' +
     '(' + formatCurrency((S.labour && S.labour.extraRate) || 0) + '/h) and counted in the bill. ' +
-    '<strong>The kind matters</strong>: under a general-shift area row the number is pooled coverage and is ' +
-    'reconciled against that area&rsquo;s shortfall, but in a <span class="inv-mono">6 AM</span> or evening ' +
-    'block it states the slot&rsquo;s <em>per-hand</em> credit &mdash; five hands at three hours is fifteen, ' +
-    'not three &mdash; and answers no shortfall. Mark it as a block credit and it is counted without being ' +
-    'reconciled.</div>';
+    'Both kinds are checked against the shortfall in the area that ran; they differ only in the ' +
+    '<strong>multiplier</strong>. A general shift credits a missing hand a full eight hours. An ' +
+    '<strong>OT block</strong> credits it the block&rsquo;s own length, so it needs its in and out ' +
+    'times and its crew &mdash; the day&rsquo;s marks supply neither, because a hand on one area ' +
+    'all day turns up in another area&rsquo;s evening block.</div>';
   if (rows.length === 0) {
     html += '<div class="inv-empty-state inv-empty-state-sm">None booked for this day</div>';
   } else {
@@ -462,6 +536,14 @@ function _attExtraCard(iso, rec) {
         }).join('') + '</select>' +
         '<span class="inv-att-extra-hint">' + escHtml((EXTRA_KINDS.find(function(k) { return k.id === kind; }) || EXTRA_KINDS[0]).hint) + '</span>' +
         '</div>';
+      // Siblings matter: the pickling fold depends on whether ANOTHER row in
+      // the same block tags pickling, so the preview must see them or it will
+      // disagree with the Areas card over the same day.
+      if (kind === 'block') {
+        html += _attBlockFields(x, i, rows.filter(function(r) {
+          return r !== x && r.kind === 'block' && blockKey(r) === blockKey(x);
+        }));
+      }
     });
   }
   return html + '</div>';
@@ -735,6 +817,46 @@ function setAttExtraKind(idx, kind) {
   var rec = attDay(_attDate, false);
   if (!rec || !rec.extra[idx]) return;
   rec.extra[idx].kind = EXTRA_KINDS.some(function(k) { return k.id === kind; }) ? kind : 'coverage';
+  saveState();
+}
+
+function setAttBlockTime(idx, which, value) {
+  var rec = attDay(_attDate, false);
+  if (!rec || !rec.extra[idx]) return;
+  rec.extra[idx][which === 'to' ? 'to' : 'from'] = String(value || '');
+  saveState();
+}
+
+/* Areas and crew are toggles, so both setters flip membership rather than
+   replacing a value. `areas` is written even for a single pick, because the
+   reconciler reads it first and falls back to `area` only for rows that
+   predate this field. */
+function toggleAttBlockArea(idx, areaId) {
+  var rec = attDay(_attDate, false);
+  if (!rec || !rec.extra[idx]) return;
+  if (!STAFF_AREAS.some(function(a) { return a.id === areaId; })) return;
+  var x = rec.extra[idx];
+  var list = (Array.isArray(x.areas) && x.areas.length) ? x.areas.slice() : (x.area ? [x.area] : []);
+  var at = list.indexOf(areaId);
+  if (at >= 0) list.splice(at, 1); else list.push(areaId);
+  x.areas = list;
+  // Keep `area` pointing at something real: it is what the per-area hour and
+  // cost tallies bucket on, and a row that lost its last area would otherwise
+  // keep booking against whichever one it used to name.
+  x.area = list.length ? list[0] : 'flex';
+  saveState();
+}
+
+function toggleAttBlockCrew(idx, workerId) {
+  var rec = attDay(_attDate, false);
+  if (!rec || !rec.extra[idx]) return;
+  var id = Number(workerId);
+  if (!staffById(id)) return;
+  var x = rec.extra[idx];
+  var list = Array.isArray(x.crew) ? x.crew.slice() : [];
+  var at = list.indexOf(id);
+  if (at >= 0) list.splice(at, 1); else list.push(id);
+  x.crew = list;
   saveState();
 }
 

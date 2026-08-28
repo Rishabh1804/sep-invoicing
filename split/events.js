@@ -68,6 +68,14 @@ document.addEventListener('click', function(e) {
     case 'invAttAllPresent': attAllPresent(); break;
     case 'invAttAddExtra': attAddExtra(); break;
     case 'invAttRemoveExtra': attRemoveExtra(parseInt(btn.dataset.idx, 10)); break;
+    case 'invAttBlockArea':
+      toggleAttBlockArea(parseInt(btn.dataset.idx, 10), btn.dataset.area);
+      renderAttendance();
+      break;
+    case 'invAttBlockCrew':
+      toggleAttBlockCrew(parseInt(btn.dataset.idx, 10), btn.dataset.worker);
+      renderAttendance();
+      break;
     case 'invAttAddWorker': openWorkerAdd(); break;
     case 'invAttImportRoster': importRoster(); break;
     case 'invAttEditWorker': openWorkerEdit(parseInt(btn.dataset.id, 10)); break;
@@ -414,6 +422,16 @@ document.addEventListener('change', function(e) {
   }
   if (e.target.hasAttribute && e.target.hasAttribute('data-att-extra-kind')) {
     setAttExtraKind(parseInt(e.target.dataset.idx, 10), e.target.value);
+    renderAttendance();
+    return;
+  }
+  if (e.target.hasAttribute && e.target.hasAttribute('data-att-block-from')) {
+    setAttBlockTime(parseInt(e.target.dataset.idx, 10), 'from', e.target.value);
+    renderAttendance();
+    return;
+  }
+  if (e.target.hasAttribute && e.target.hasAttribute('data-att-block-to')) {
+    setAttBlockTime(parseInt(e.target.dataset.idx, 10), 'to', e.target.value);
     renderAttendance();
     return;
   }

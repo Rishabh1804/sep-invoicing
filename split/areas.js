@@ -19,25 +19,105 @@
 
 var _areaSpan = 1;   // weeks
 
-/* `EXTRA n HOURS` is two instruments wearing one name, and the ruling that set
-   the norms said so on the same day: under a general-shift area row it is
-   pooled coverage man-hours, but in the 6 AM block it states the slot's
-   PER-HAND overtime credit — "5 hands × 3 hr = 15 OT hr", not three hours.
-   Evening blocks run the same way.
+/* `EXTRA n HOURS` is ONE instrument, and the owner settled it (28 Aug 2026):
+   an OT block books the extra exactly as a general shift does — against the
+   shortfall in the area that ran. What differs is only the multiplier. A
+   general shift credits a missing hand a full 8; a block credits it the
+   block's own length, so a 5-to-midnight slot short two hands books 14.
 
-   Only coverage answers a shortfall, so only coverage is reconciled against
-   one. A block credit is still real, still paid and still in the bill; it is
-   simply not an answer to the question this card asks, and folding it in would
-   push the gap around for reasons that have nothing to do with staffing.
+   This REPLACES the earlier reading, which took a block tag as the slot's
+   per-hand credit ("5 hands x 3 hr = 15 OT hr") and therefore reconciled it
+   against nothing. That reading fails every recorded block tag; the norm-gap
+   reading matches all eight, including the one the codex had written off as
+   unreadable — `soma-internal/attendance/2026-W31.md:150` calls the Tue-28
+   evening tag "internally inconsistent (group 1: 3x7=21; group 2: 2x7=14!=21)".
+   Group 2 is barrel+pickling, a unit of five, two hands present: short three,
+   3 x 7 = 21, exactly as tagged. Nothing was inconsistent but the reading.
 
-   Untagged records default to coverage: that is what every entry made before
-   this field existed meant, and what the area rows on the sheet mean. */
+   The named hands' own overtime is a separate quantity and always was — it is
+   on their in/out times, per worker, at their rate x the multiplier. The block
+   tag is the unattributed remainder, same as the general-shift one.
+
+   Untagged records default to the general shift: that is what every entry made
+   before this field existed meant, and what the area rows on the sheet mean. */
 var EXTRA_KINDS = [
-  { id: 'coverage', label: 'Area coverage', hint: 'pooled hours answering a shortfall — reconciled against the norm' },
-  { id: 'block',    label: 'Block credit',  hint: 'a shift block\u2019s per-hand credit (6 AM, evening) — counted, not reconciled' }
+  { id: 'coverage', label: 'General shift', hint: 'a missing hand is covered for a full shift \u2014 8 h each' },
+  { id: 'block',    label: 'OT block',      hint: '6 AM or evening \u2014 same rule, credited the block\u2019s own hours' }
 ];
 
 function extraIsCoverage(x) { return !x || !x.kind || x.kind === 'coverage'; }
+function extraIsBlock(x) { return !!x && x.kind === 'block'; }
+
+/* A block's length, from its own in and out times. It cannot be derived from
+   the tag: `21` is three hands short of a 7-hour block and also seven short of
+   a 3-hour one, so deriving it would make the check vacuous by construction.
+   Wraps past midnight, because the evening slot habitually runs to 12:00. */
+function blockLength(x) {
+  if (!x || !x.from || !x.to) return null;
+  var a = _hhmm(x.from), b = _hhmm(x.to);
+  if (a == null || b == null) return null;
+  var mins = b - a;
+  if (mins <= 0) mins += 24 * 60;
+  return gstRound(mins / 60);
+}
+
+function _hhmm(t) {
+  var m = /^\s*(\d{1,2}):(\d{2})\s*$/.exec(String(t || ''));
+  if (!m) return null;
+  var h = +m[1], mi = +m[2];
+  if (h > 23 || mi > 59) return null;
+  return h * 60 + mi;
+}
+
+/* The areas a row covers. Block rows may span several — the relay writes one
+   tag over A1 and A2 together about as often as one each, and the two readings
+   are NOT the same number: separately they are 4 and 4 with pickling on its own
+   row, together they are 4 + 4 + 3. */
+function extraAreas(x) {
+  if (x && Array.isArray(x.areas) && x.areas.length) return x.areas.slice();
+  return x && x.area ? [x.area] : [];
+}
+
+/* The complement a block row is judged against.
+
+   Units first, so barrel and barrel pickling stay the single unit of five they
+   already are everywhere else. Then the pickling fold: a VAT line running in a
+   block pulls VAT-side pickling hands with it, and the shop does not tag them
+   separately unless they are separately staffed. One VAT line needs 2 of the 3;
+   both need all 3. If any row in the SAME block names a VAT-pickling area, it
+   is carrying its own norm and nothing folds. (Owner, 28 Aug 2026.) */
+function blockNorm(row, blockRows) {
+  var areas = extraAreas(row);
+  var seen = {}, norm = 0, hasNorm = false;
+  areas.forEach(function(id) {
+    var unit = areaUnitOf(id);
+    if (!unit || seen[unit]) return;
+    seen[unit] = true;
+    STAFF_AREAS.forEach(function(y) {
+      if (areaUnitOf(y.id) !== unit) return;
+      var t = areaTarget(y.id);
+      if (t != null) { norm += t; hasNorm = true; }
+    });
+  });
+  if (!hasNorm) return null;
+
+  var picklingTagged = (blockRows || []).some(function(r) {
+    return extraAreas(r).indexOf('pickling-vat') >= 0;
+  });
+  if (!picklingTagged) {
+    var vats = areas.filter(function(id) { return id === 'vat-a1' || id === 'vat-a2'; });
+    var distinct = {};
+    vats.forEach(function(id) { distinct[id] = true; });
+    var n = Object.keys(distinct).length;
+    if (n === 1) norm += 2;
+    else if (n > 1) norm += 3;
+  }
+  return norm;
+}
+
+/* Blocks are keyed by their own times, because two rows at 5 PM are one block
+   and a 6 AM row beside them is a different one. */
+function blockKey(x) { return (x && x.from ? x.from : '?') + '-' + (x && x.to ? x.to : '?'); }
 
 function areaTarget(areaId) {
   var t = (S.areaTargets || {})[areaId];
@@ -82,6 +162,7 @@ function areaStats(fromIso, toIso) {
   });
 
   var units = {};
+  var blocks = [];
   var totalRecorded = 0;
 
   dates.forEach(function(iso) {
@@ -120,9 +201,13 @@ function areaStats(fromIso, toIso) {
 
     // Bookings are tallied BEFORE the shortfall is judged, because whether an
     // area was idle or fully short turns on whether anything was booked to it.
-    // `coverage` is the only kind that answers a shortfall; a block credit is
-    // a different instrument and is counted in the bill but not reconciled.
+    // Both kinds are reconciled now; they differ only in the multiplier and in
+    // where their heads come from — a general-shift row reads the day's marks,
+    // a block row reads its own named crew, because the two are not the same
+    // people (a hand on barrel-pickling all day turns up in the A1 evening
+    // block, and the marks cannot say so).
     var bookedToday = {}, coverToday = {};
+    var blockRowsToday = [];
     extras.forEach(function(x) {
       var h = x.hours || 0;
       if (h <= 0) return;
@@ -135,7 +220,46 @@ function areaStats(fromIso, toIso) {
         coverToday[a.id] = (coverToday[a.id] || 0) + h;
       } else {
         a.blockHours += h;
+        blockRowsToday.push(x);
       }
+    });
+
+    // Blocks reconcile per block, not per unit-day: a 6 AM slot and an evening
+    // slot on the same date are two different questions with two different
+    // crews, and summing them would answer neither.
+    var byBlock = {};
+    blockRowsToday.forEach(function(x) {
+      var k = blockKey(x);
+      (byBlock[k] || (byBlock[k] = [])).push(x);
+    });
+    Object.keys(byBlock).forEach(function(k) {
+      var rows = byBlock[k];
+      rows.forEach(function(x) {
+        var hrs = blockLength(x);
+        var norm = blockNorm(x, rows);
+        var heads = Array.isArray(x.crew) ? x.crew.length : null;
+        var booked = x.hours || 0;
+        var areas = extraAreas(x);
+        var label = areas.map(function(id) {
+          var a = byId[id];
+          return a ? a.label : id;
+        }).join(' + ') || 'Unassigned';
+
+        // An incomplete row is REPORTED, never reconciled at a guess. Without
+        // the times there is no multiplier; without a crew there is no head
+        // count; without a complement there is nothing to be short of. Any of
+        // the three missing and the hours still count in the bill — they are
+        // simply not evidence about staffing.
+        if (hrs == null || norm == null || heads == null) {
+          blocks.push({ iso: iso, key: k, label: label, booked: booked,
+            hours: hrs, norm: norm, heads: heads, expected: null, incomplete: true });
+          return;
+        }
+        var short = Math.max(0, norm - heads);
+        blocks.push({ iso: iso, key: k, label: label, booked: booked,
+          hours: hrs, norm: norm, heads: heads,
+          expected: gstRound(short * hrs), short: short, incomplete: false });
+      });
     });
 
     STAFF_AREAS.forEach(function(x) {
@@ -238,6 +362,7 @@ function areaStats(fromIso, toIso) {
   });
 
   var blockHours = gstRound(rows.reduce(function(s, a) { return s + a.blockHours; }, 0));
+  var reconciled = blocks.filter(function(b) { return !b.incomplete; });
   return {
     rows: rows,
     units: unitRows,
@@ -252,6 +377,16 @@ function areaStats(fromIso, toIso) {
     bookedExtra: gstRound(rows.reduce(function(s, a) { return s + a.extraHours; }, 0)),
     blockHours: blockHours,
     idleDays: unitRows.reduce(function(s, u) { return s + u.idleDays; }, 0),
+    // Blocks: the same three figures over the reconcilable ones only, so the
+    // incomplete rows never quietly enter a denominator they cannot answer.
+    blocks: blocks,
+    blockExpected: gstRound(reconciled.reduce(function(s, b) { return s + b.expected; }, 0)),
+    blockBooked: gstRound(reconciled.reduce(function(s, b) { return s + b.booked; }, 0)),
+    blockReconciled: reconciled.length,
+    blockIncomplete: blocks.filter(function(b) { return b.incomplete; }),
+    blockMismatched: reconciled.filter(function(b) {
+      return Math.abs(b.booked - b.expected) > 0.001;
+    }),
     absorption: _absorption(dates, roster, cfg)
   };
 }
@@ -283,11 +418,16 @@ function _absorption(dates, roster, cfg) {
     (rec.extra || []).forEach(function(x) {
       var h = x.hours || 0;
       if (h <= 0) return;
-      // Only coverage is absorbed. A block credit is already stated per hand —
-      // five hands at three hours is fifteen — so dividing it by the crew would
-      // understate it by 1/n, and it answers no shortfall for anyone to absorb.
-      if (!extraIsCoverage(x)) return;
-      var crew = present[x.area] || [];
+      // A block row names its own crew, which makes its absorption exact rather
+      // than inferred — those are the people who were actually on the slot. A
+      // general-shift row has no names, so its crew is the area's marks.
+      var crew;
+      if (extraIsBlock(x)) {
+        var ids = Array.isArray(x.crew) ? x.crew : [];
+        crew = roster.filter(function(w) { return ids.indexOf(w.id) >= 0; });
+      } else {
+        crew = present[x.area] || [];
+      }
       if (crew.length === 0) return;      // nobody to absorb it; the flag covers that
       var each = h / crew.length;
       crew.forEach(function(w) {
@@ -497,10 +637,7 @@ function _areaExtraCard(stats) {
       'rather than neither, so it does not fail it. What it does say is that the marks for that day ' +
       'were never typed.</div>';
   }
-  if (stats.blockHours > 0) {
-    html += _labRow('Block credits, not reconciled', formatNum(stats.blockHours, 1) + ' h',
-      'a shift block\u2019s per-hand credit answers no shortfall');
-  }
+  if (stats.blockHours > 0) html += _areaBlockSection(stats);
 
   // `unmannedDays` is deliberately NOT a gate. A unit nobody was marked on that
   // carries a booking is read as fully short and fully covered — the ruling this
@@ -521,6 +658,61 @@ function _areaExtraCard(stats) {
     'hours divided by its worker-days &mdash; the hours each body standing there carried beyond their own ' +
     'recorded time. Under the norm-gap rule that absorption is real and pro-rata, which is what the ' +
     'card below it ranks; it stays out of the wage arithmetic because the payout is pooled, not per-worker.</div>';
+
+  return html + '</div>';
+}
+
+/* OT blocks, reconciled on their own terms.
+
+   Same rule as the general shift, different multiplier: a missing hand is
+   credited the block's own length rather than a full 8. Kept in its own
+   section rather than summed into the shift figures, because the two answer
+   different questions — a plant short-handed all day and a plant short-handed
+   for a 3-hour morning slot are not the same finding, and one total would
+   report neither. */
+function _areaBlockSection(stats) {
+  var html = '<div class="inv-area-blocks"><div class="inv-stats-note"><strong>OT blocks</strong> ' +
+    'book the extra the same way a general shift does &mdash; against the shortfall in the area ' +
+    'that ran &mdash; credited the block&rsquo;s own hours rather than a full eight. The named ' +
+    'hands&rsquo; own overtime is a separate figure and is not in here.</div>';
+
+  if (stats.blockReconciled > 0) {
+    html += _labRow('Expected across the blocks', formatNum(stats.blockExpected, 1) + ' h',
+      'shortfall &times; each block\u2019s own length');
+    html += _labRow('Booked', formatNum(stats.blockBooked, 1) + ' h',
+      'across ' + stats.blockReconciled + ' block row' + (stats.blockReconciled === 1 ? '' : 's'));
+  }
+
+  if (stats.blockMismatched.length > 0) {
+    html += _labRow('Booked, but not the predicted amount', stats.blockMismatched.length + ' row' +
+      (stats.blockMismatched.length === 1 ? '' : 's'), 'the block\u2019s shortfall explains a different number');
+    html += '<div class="inv-area-flags">';
+    stats.blockMismatched.slice(0, 8).forEach(function(b) {
+      html += '<div class="inv-area-flag inv-area-flag-warn">' +
+        '<span class="inv-area-flag-area">' + escHtml(b.label) + '</span>' +
+        '<span class="inv-area-flag-date">' + formatDate(b.iso) + '</span>' +
+        '<span class="inv-area-flag-hours inv-mono">' + formatNum(b.booked, 1) + ' h against ' +
+        formatNum(b.expected, 1) + ' h</span></div>';
+    });
+    html += '</div>';
+  } else if (stats.blockReconciled > 0) {
+    html += '<div class="inv-stats-note">Every block row sits on a shortfall that explains its ' +
+      'hours exactly. That is the whole cross-check the record supports, and it passes.</div>';
+  }
+
+  // Never reconciled at a guess, and never silently dropped either.
+  if (stats.blockIncomplete.length > 0) {
+    var ih = stats.blockIncomplete.reduce(function(s, b) { return s + b.booked; }, 0);
+    html += _labRow('Not checkable', formatNum(ih, 1) + ' h',
+      stats.blockIncomplete.length + ' row' + (stats.blockIncomplete.length === 1 ? '' : 's') +
+      ' missing times, crew or a complement');
+    html += '<div class="inv-stats-caveat">A block is checked against <strong>its own length ' +
+      '&times; its own shortfall</strong>, so it needs all three: the in and out times give the ' +
+      'multiplier, the named crew gives the head count (the day&rsquo;s marks cannot &mdash; a hand ' +
+      'on one area all day turns up in another area&rsquo;s evening block), and the areas it covers ' +
+      'give the complement. These hours are still counted in the bill; they are simply not ' +
+      'evidence about staffing.</div>';
+  }
 
   return html + '</div>';
 }

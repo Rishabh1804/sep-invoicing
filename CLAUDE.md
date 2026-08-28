@@ -28,7 +28,7 @@ split/
 ├── styles.css         ← All CSS with inv- prefix (2,720 lines)
 ├── body.html          ← HTML body, tabs, print view (137 lines)
 ├── data.js            ← ITEMS_MASTER + SEED_CLIENTS (27 lines)
-├── state.js           ← State mgmt, utilities, escHtml, gstRound (384 lines)
+├── state.js           ← State mgmt, utilities, escHtml, gstRound (391 lines)
 ├── zinc.js            ← Zinc market rate: store, display, metals.dev refresh (199 lines)
 ├── tabs.js            ← switchTab (9-step protocol) + renderHome (188 lines)
 ├── clients.js         ← Client Master CRUD + overlay (343 lines)
@@ -47,13 +47,13 @@ split/
 ├── charts.js          ← Reusable SVG charts: line, bar, pie, ranked bars (243 lines)
 ├── staff.js           ← Roster + attendance + roster import: day, week, extra hours (1,013 lines)
 ├── labour.js          ← Labour: three pay tiers, fixed/variable, by area, ₹/kg (449 lines)
-├── areas.js           ← Areas: staffing vs norms + the extra reconciled (963 lines)
+├── areas.js           ← Areas: staffing vs norms + the extra reconciled (1135 lines)
 ├── stats.js           ← Stats dashboard + History activity log (1,195 lines)
 ├── client-perf.js     ← Client performance: month on month + material cadence (314 lines)
 ├── im-form.js         ← IM add/edit/delete challan form (450 lines)
 ├── im-dupe.js         ← IM duplicate guard: fingerprint + pre-save warn + scan (305 lines)
 ├── scanner.js         ← Challan scanner (Gemini AI vision) (146 lines)
-├── events.js          ← Event delegation + input handlers (771 lines)
+├── events.js          ← Event delegation + input handlers (774 lines)
 ├── swipe.js           ← Swipe navigation (38 lines)
 ├── seed.js            ← Seed IM data, one-time (8 lines)
 └── init.js            ← Migrations + app bootstrap (567 lines)
@@ -78,7 +78,7 @@ every session start — nothing to set up by hand. CI (`build-sync`) is the back
 ### Tests
 
 ```bash
-pnpm exec playwright test          # 257 tests, both layouts
+pnpm exec playwright test          # 348 tests, both layouts
 ```
 
 Some sandboxes ship a Chromium build Playwright does not expect and block downloading
@@ -394,6 +394,20 @@ credited length rounds the span up to the whole hour; the only convention the co
 recorded block. **Two instruments, two lengths:** a named hand's own pay uses the clock (BM, 8 Aug —
 Sambhu's 6:00–8:30 + 5 PM–12 AM = 9.5 hr), the unattributed EXTRA credit uses the convention. The
 entry row shows both whenever they differ.
+
+**A named exception is a RECORD, not a footnote.** A disagreement this card raises is a question;
+once a human has examined it and can say why, it becomes an entry in `S.extraExceptions` carrying a
+**required** reason — the same treatment `S.voidedNumbers` gives a number gap and `dupeAck` gives an
+accepted duplicate receipt, and for the same purpose: an audit must be able to tell an exception
+somebody examined from one nobody was shown. Explained exceptions are counted and listed apart from
+open disagreements, so the card distinguishes *"nobody has looked at this"* from *"this was looked at
+and here is what the record shows"*.
+
+**An acknowledgement is granted against specific figures, never as a blanket silence.** The record
+stores the expected and booked hours it was written about. If the data later moves — a crew
+corrected, a tag retyped — the note no longer describes what is there: it is reported as **stale**
+and the disagreement surfaces again, rather than an old explanation quietly covering a new problem.
+That is the guard the sync SHA gives a blind overwrite, applied to reasoning instead of data.
 
 **Two recorded blocks the rule does not reproduce, named rather than smoothed away** — the same
 courtesy the general-shift side already gets. **W31 Mon 27 Jul, 5–8 PM**: two rows, `VAT A2` 2 hands

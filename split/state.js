@@ -20,6 +20,13 @@ function getDefaultState() {
     // Starts at 6: CN/001–005 of 2026-27 were issued by hand before the app
     // existed. See the _cnSeriesStart1 migration in init.js.
     cnNextNum: 6,
+    // Reconciliation exceptions. A disagreement the extra-check raised and a
+    // human then examined becomes a RECORD carrying a required reason — the
+    // same treatment `voidedNumbers` gives a number gap and `dupeAck` gives an
+    // accepted duplicate. Two recorded blocks already need it (W31 Mon 27 Jul,
+    // W33 Tue 11 Aug): the rule does not reproduce them, and that has to be
+    // precedent in the system rather than a line in a document.
+    extraExceptions: [],
     // Workforce. The roster ships empty: names and wages are payroll data and
     // this repo is public, so the owner enters them once on the device. Areas
     // and comp classes are structure, not data, and live in staff.js.
@@ -73,7 +80,7 @@ function saveJSON(key, data) {
 // Containers hold the user's records, so a missing one is filled EMPTY — the
 // app must never invent business data to repair a shape.
 var STATE_CONTAINERS = ['clients', 'items', 'invoices', 'incomingMaterial', 'partWeights',
-  'voidedNumbers', 'creditNotes', 'staff', 'attendance', 'areaTargets'];
+  'voidedNumbers', 'creditNotes', 'extraExceptions', 'staff', 'attendance', 'areaTargets'];
 // Config objects are the opposite: a missing one is filled from the defaults,
 // and so is a missing KEY inside one. `labourCfg()` reads `extraRate || 0`, so
 // a backup predating a constant would silently price the extra at nothing

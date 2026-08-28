@@ -341,6 +341,105 @@ test('a block whose booking the shortfall does not explain is flagged with its d
   await expect(blocks(page)).toContainText('30.0 h against 14.0 h');
 });
 
+/* ===== THE EXCEPTION LEDGER =====
+
+   A disagreement the rule cannot explain is a question; once examined it
+   becomes a RECORD carrying a required reason — the treatment `voidedNumbers`
+   gives a number gap and `dupeAck` an accepted duplicate. Two recorded blocks
+   need it: W31 Mon 27 Jul and W33 Tue 11 Aug. */
+
+async function explain(page: Page, reason: string) {
+  await page.locator('[data-action="invAreaExplain"]').first().click();
+  await page.locator('#areaExReason').fill(reason);
+  await page.locator('[data-action="invAreaExplainSave"]').click();
+}
+
+function mismatchedState() {
+  const hands = crew('vat-a1', 4, 10);
+  return state(hands, [{
+    area: 'vat-a1', areas: ['vat-a1'], hours: 30, kind: 'block',
+    from: '17:00', to: '00:00', crew: hands.map((w) => w.id),
+  }]);
+}
+
+test('an examined disagreement becomes a record with its reason on it', async ({ page }) => {
+  await loadAppWithState(page, mismatchedState());
+  await openAreas(page);
+  await expect(blocks(page)).toContainText('not the predicted amount');
+
+  await explain(page, 'no fold value reconciles both rows of this block');
+  await expect(page.locator('.inv-toast')).toContainText('Exception recorded');
+
+  // It moves from accusation to precedent, and carries the reason in place.
+  await expect(blocks(page)).toContainText('Explained exceptions');
+  await expect(blocks(page)).toContainText('no fold value reconciles both rows');
+  await expect(blocks(page)).not.toContainText('not the predicted amount');
+
+  const ex = await page.evaluate(() =>
+    JSON.parse(localStorage.getItem('sep_invoicing_state')!).extraExceptions);
+  expect(ex).toHaveLength(1);
+  expect(ex[0].reason).toBe('no fold value reconciles both rows of this block');
+  // The figures it was granted against are stored WITH it — that is what makes
+  // the staleness check below possible.
+  expect(ex[0].booked).toBe(30);
+  expect(ex[0].expected).toBe(14);
+});
+
+test('an exception with no reason is refused', async ({ page }) => {
+  // Required, for the reason the void ledger's is: an exception with no
+  // explanation cannot be told from one nobody was shown.
+  await loadAppWithState(page, mismatchedState());
+  await openAreas(page);
+  await page.locator('[data-action="invAreaExplain"]').first().click();
+  await page.locator('[data-action="invAreaExplainSave"]').click();
+
+  await expect(page.locator('.inv-toast')).toContainText('A reason is required');
+  const ex = await page.evaluate(() =>
+    JSON.parse(localStorage.getItem('sep_invoicing_state')!).extraExceptions);
+  expect(ex).toEqual([]);
+});
+
+test('an explanation that no longer matches the figures does not silence them', async ({ page }) => {
+  // The guard that stops an old note covering a new problem. An exception is
+  // granted against specific numbers; if the data moves, the note no longer
+  // describes what is there and the disagreement must surface again.
+  await loadAppWithState(page, mismatchedState());
+  await openAreas(page);
+  await explain(page, 'brought-in casual labour, different ledger line');
+  await expect(blocks(page)).toContainText('Explained exceptions');
+
+  // The tag is retyped: 30 becomes 40. Same block, same day, different number.
+  // Edited on the live state and re-rendered rather than through a reload —
+  // `loadAppWithState` seeds via addInitScript, so a navigation would put the
+  // original fixture back and quietly test nothing.
+  // Driven through the app's own setter rather than by rewriting storage: `S`
+  // is `let`-scoped and not on `window`, and a reload would re-seed the
+  // fixture (loadAppWithState uses addInitScript), quietly testing nothing.
+  await page.evaluate(() => {
+    const w = window as unknown as {
+      setAttExtraHours: (i: number, h: number) => void; renderAttendance: () => void;
+    };
+    w.setAttExtraHours(0, 40);
+    w.renderAttendance();
+  });
+
+  await expect(blocks(page)).toContainText('Explanation no longer matches');
+  await expect(blocks(page)).toContainText('not the predicted amount');
+  await expect(blocks(page)).not.toContainText('Explained exceptions');
+});
+
+test('a recorded exception can be reopened', async ({ page }) => {
+  await loadAppWithState(page, mismatchedState());
+  await openAreas(page);
+  await explain(page, 'checked against the sheet — the tag is right');
+  await page.locator('[data-action="invAreaUnexplain"]').first().click();
+
+  await expect(blocks(page)).toContainText('not the predicted amount');
+  const ex = await page.evaluate(() =>
+    JSON.parse(localStorage.getItem('sep_invoicing_state')!).extraExceptions);
+  expect(ex).toEqual([]);
+});
+
 /* ===== ENTRY ===== */
 
 test('the card does not claim a pass while a block sits mismatched above it', async ({ page }) => {

@@ -2771,6 +2771,19 @@ body.inv-desktop .inv-att-extra-row { max-width: calc(var(--sp-32) * 15); }
   font-size: var(--fs-xs); font-weight: 600; color: var(--text-2);
   align-self: center; min-width: 0; overflow: hidden; text-overflow: ellipsis;
 }
+
+/* Explained exceptions: precedent, not accusation. */
+.inv-area-flag-ack { background: var(--surface-2); color: var(--text-2); }
+.inv-area-flag-reason {
+  flex-basis: 100%; font-size: var(--fs-2xs); color: var(--text-3);
+  font-weight: 500; min-width: 0;
+}
+.inv-area-flag-explain {
+  min-height: 44px; padding: 0 var(--sp-8); margin-left: auto;
+  font-size: var(--fs-2xs); font-weight: 700;
+  background: none; color: inherit; border: 1px solid currentColor;
+  border-radius: var(--r-sm); opacity: 0.75;
+}
 </style>
 </head>
 <body>
@@ -2960,6 +2973,13 @@ function getDefaultState() {
     // Starts at 6: CN/001–005 of 2026-27 were issued by hand before the app
     // existed. See the _cnSeriesStart1 migration in init.js.
     cnNextNum: 6,
+    // Reconciliation exceptions. A disagreement the extra-check raised and a
+    // human then examined becomes a RECORD carrying a required reason — the
+    // same treatment `voidedNumbers` gives a number gap and `dupeAck` gives an
+    // accepted duplicate. Two recorded blocks already need it (W31 Mon 27 Jul,
+    // W33 Tue 11 Aug): the rule does not reproduce them, and that has to be
+    // precedent in the system rather than a line in a document.
+    extraExceptions: [],
     // Workforce. The roster ships empty: names and wages are payroll data and
     // this repo is public, so the owner enters them once on the device. Areas
     // and comp classes are structure, not data, and live in staff.js.
@@ -3013,7 +3033,7 @@ function saveJSON(key, data) {
 // Containers hold the user's records, so a missing one is filled EMPTY — the
 // app must never invent business data to repair a shape.
 var STATE_CONTAINERS = ['clients', 'items', 'invoices', 'incomingMaterial', 'partWeights',
-  'voidedNumbers', 'creditNotes', 'staff', 'attendance', 'areaTargets'];
+  'voidedNumbers', 'creditNotes', 'extraExceptions', 'staff', 'attendance', 'areaTargets'];
 // Config objects are the opposite: a missing one is filled from the defaults,
 // and so is a missing KEY inside one. `labourCfg()` reads `extraRate || 0`, so
 // a backup predating a constant would silently price the extra at nothing
@@ -12034,6 +12054,88 @@ function _vatLines(areas) {
   return Object.keys(d).length;
 }
 
+/* ===== THE EXCEPTION LEDGER =====
+
+   A disagreement this card raises is a question. Once a human has looked at it
+   and can say why, it stops being a question and becomes a **record** — the
+   same treatment `S.voidedNumbers` gives a number gap and `dupeAck` gives an
+   accepted duplicate receipt. Two recorded blocks need this already: W31 Mon
+   27 Jul, where no fold value reconciles both rows, and W33 Tue 11 Aug, which
+   reconciles only at four pickling hands against a ceiling of three. Those are
+   the cases that test the rule, and they must be precedent inside the system
+   rather than a paragraph in a document nobody queries.
+
+   The reason is REQUIRED, for the reason the void ledger's is: an exception
+   with no explanation is indistinguishable from one nobody was shown.
+
+   An acknowledgement is of a SPECIFIC disagreement, not a blanket silence. It
+   stores the figures it was granted against, and if the underlying data moves
+   — a crew corrected, a tag retyped — the record no longer describes what is
+   there. It is then reported as **stale** and the disagreement surfaces again,
+   rather than an old note quietly suppressing a new problem. That is the same
+   guard the sync SHA gives a blind overwrite. */
+function extraExceptions() {
+  if (!S.extraExceptions) S.extraExceptions = [];
+  return S.extraExceptions;
+}
+
+function exceptionKey(d) {
+  return [d.iso, d.scope, d.key, d.kind].join('|');
+}
+
+function recordExtraException(d, reason) {
+  var r = String(reason || '').trim();
+  if (!r) return null;
+  var rec = {
+    iso: d.iso, scope: d.scope, key: d.key, kind: d.kind,
+    label: d.label || '',
+    // The figures this was granted against. Their disagreement IS the thing
+    // being explained, so an exception that no longer matches them explains
+    // nothing.
+    expected: d.expected == null ? null : gstRound(d.expected),
+    booked: d.booked == null ? null : gstRound(d.booked),
+    reason: r,
+    at: Date.now()
+  };
+  var list = extraExceptions();
+  var at = -1;
+  list.forEach(function(x, i) { if (exceptionKey(x) === exceptionKey(rec)) at = i; });
+  if (at >= 0) list[at] = rec; else list.push(rec);
+  saveState();
+  return rec;
+}
+
+function removeExtraException(key) {
+  var list = extraExceptions();
+  for (var i = list.length - 1; i >= 0; i--) {
+    if (exceptionKey(list[i]) === key) list.splice(i, 1);
+  }
+  saveState();
+}
+
+/* Split computed disagreements into the ones already explained and the ones
+   still open. `stale` is neither: it is an explanation that has come adrift
+   from the figures it was written about, which is worth saying out loud. */
+function _partitionExceptions(found) {
+  var byKey = {};
+  extraExceptions().forEach(function(x) { byKey[exceptionKey(x)] = x; });
+  var open = [], acked = [], stale = [];
+  found.forEach(function(d) {
+    var x = byKey[exceptionKey(d)];
+    if (!x) { open.push(d); return; }
+    var same = _near(x.expected, d.expected) && _near(x.booked, d.booked);
+    if (same) acked.push({ d: d, x: x });
+    else { stale.push({ d: d, x: x }); open.push(d); }
+  });
+  return { open: open, acked: acked, stale: stale };
+}
+
+function _near(a, b) {
+  if (a == null && b == null) return true;
+  if (a == null || b == null) return false;
+  return Math.abs(a - b) <= 0.001;
+}
+
 /* Blocks are keyed by their own times, because two rows at 5 PM are one block
    and a 6 AM row beside them is a different one. */
 function blockKey(x) { return (x && x.from ? x.from : '?') + '-' + (x && x.to ? x.to : '?'); }
@@ -12331,6 +12433,9 @@ function areaStats(fromIso, toIso) {
     // already. The block is the unit, as the invariance property says.
     blockMismatched: _blockGroups(reconciled).filter(function(g) {
       return Math.abs(g.booked - g.expected) > 0.001;
+    }).map(function(g) {
+      g.scope = 'block'; g.kind = 'mismatched';
+      return g;
     }),
     absorption: _absorption(dates, roster, cfg)
   };
@@ -12423,6 +12528,58 @@ function _absorption(dates, roster, cfg) {
     delete e._seen;
     return e;
   }).sort(function(a, b) { return b.hours - a.hours; });
+}
+
+/* Ask for the reason. Required, and refused empty — an exception with no
+   explanation is indistinguishable from one nobody was shown, which is the
+   whole failure the void ledger exists to prevent. */
+var _exPending = null;
+
+function openAreaExplain(payload) {
+  var d;
+  try { d = JSON.parse(decodeURIComponent(payload)); } catch (e) { return; }
+  _exPending = d;
+  var scrim = document.createElement('div');
+  scrim.className = 'inv-overlay-scrim';
+  scrim.innerHTML = '<div class="inv-overlay-card">' +
+    '<div class="inv-overlay-header"><span class="inv-overlay-title">Explain this exception</span>' +
+    '<button class="inv-overlay-close" data-action="invCloseOverlay">&times;</button></div>' +
+    '<div class="inv-stats-note">' + escHtml(d.label) + ' &middot; ' + formatDate(d.iso) + ' &mdash; ' +
+    'booked <span class="inv-mono">' + formatNum(d.booked, 1) + ' h</span> against a predicted ' +
+    '<span class="inv-mono">' + formatNum(d.expected, 1) + ' h</span>. Say what the record shows, ' +
+    'so the next reader inherits the finding rather than the puzzle.</div>' +
+    '<div class="inv-form-group"><label class="inv-form-label" for="areaExReason">Reason</label>' +
+    '<textarea class="inv-form-input" id="areaExReason" rows="3" ' +
+    'placeholder="e.g. no fold value reconciles both rows of this block"></textarea></div>' +
+    '<div class="inv-btn-bar">' +
+    '<button class="inv-btn inv-btn-ghost" data-action="invCloseOverlay">Cancel</button>' +
+    '<button class="inv-btn inv-btn-primary" data-action="invAreaExplainSave">Record it</button>' +
+    '</div></div>';
+  document.body.appendChild(scrim);
+  var ta = document.getElementById('areaExReason');
+  if (ta) ta.focus();
+}
+
+function saveAreaExplain() {
+  if (!_exPending) return;
+  var el = document.getElementById('areaExReason');
+  var reason = el ? el.value.trim() : '';
+  if (!reason) {
+    showToast('A reason is required', 'error');
+    if (el) el.focus();
+    return;
+  }
+  recordExtraException(_exPending, reason);
+  _exPending = null;
+  closeOverlay();
+  renderAttendance();
+  showToast('Exception recorded');
+}
+
+function reopenAreaExplain(key) {
+  removeExtraException(decodeURIComponent(key));
+  renderAttendance();
+  showToast('Exception reopened');
 }
 
 /* ===== VIEW ===== */
@@ -12660,21 +12817,56 @@ function _areaBlockSection(stats) {
       'across ' + stats.blockReconciled + ' block row' + (stats.blockReconciled === 1 ? '' : 's'));
   }
 
-  if (stats.blockMismatched.length > 0) {
-    html += _labRow('Booked, but not the predicted amount', stats.blockMismatched.length + ' block' +
-      (stats.blockMismatched.length === 1 ? '' : 's'), 'the block\u2019s shortfall explains a different number');
+  var part = _partitionExceptions(stats.blockMismatched);
+  if (part.open.length > 0) {
+    html += _labRow('Booked, but not the predicted amount', part.open.length + ' block' +
+      (part.open.length === 1 ? '' : 's'), 'the block\u2019s shortfall explains a different number');
     html += '<div class="inv-area-flags">';
-    stats.blockMismatched.slice(0, 8).forEach(function(b) {
+    part.open.slice(0, 8).forEach(function(b) {
       html += '<div class="inv-area-flag inv-area-flag-warn">' +
         '<span class="inv-area-flag-area">' + escHtml(b.label) + '</span>' +
         '<span class="inv-area-flag-date">' + formatDate(b.iso) + '</span>' +
         '<span class="inv-area-flag-hours inv-mono">' + formatNum(b.booked, 1) + ' h against ' +
-        formatNum(b.expected, 1) + ' h</span></div>';
+        formatNum(b.expected, 1) + ' h</span>' +
+        '<button class="inv-area-flag-explain" data-action="invAreaExplain" ' +
+        'data-ex="' + encodeURIComponent(JSON.stringify({
+          iso: b.iso, scope: b.scope, key: b.key, kind: b.kind,
+          label: b.label, expected: b.expected, booked: b.booked
+        })) + '">Explain</button></div>';
     });
     html += '</div>';
-  } else if (stats.blockReconciled > 0) {
+  } else if (stats.blockReconciled > 0 && part.acked.length === 0) {
     html += '<div class="inv-stats-note">Every block row sits on a shortfall that explains its ' +
       'hours exactly. That is the whole cross-check the record supports, and it passes.</div>';
+  }
+
+  if (part.stale.length > 0) {
+    html += _labRow('Explanation no longer matches', part.stale.length + ' block' +
+      (part.stale.length === 1 ? '' : 's'), 'the figures moved since it was written');
+    html += '<div class="inv-stats-caveat">An exception is granted against the numbers it was ' +
+      'written about. These have changed since &mdash; a crew corrected, a tag retyped &mdash; so ' +
+      'the note no longer describes what is here and the disagreement is listed again above. ' +
+      'Explain it afresh rather than letting an old note quietly cover a new problem.</div>';
+  }
+
+  if (part.acked.length > 0) {
+    html += _labRow('Explained exceptions', part.acked.length + ' block' +
+      (part.acked.length === 1 ? '' : 's'), 'examined, and the reason is on the record');
+    html += '<div class="inv-area-flags">';
+    part.acked.slice(0, 8).forEach(function(a) {
+      html += '<div class="inv-area-flag inv-area-flag-ack">' +
+        '<span class="inv-area-flag-area">' + escHtml(a.x.label || a.d.label) + '</span>' +
+        '<span class="inv-area-flag-date">' + formatDate(a.d.iso) + '</span>' +
+        '<span class="inv-area-flag-hours inv-mono">' + formatNum(a.d.booked, 1) + ' h against ' +
+        formatNum(a.d.expected, 1) + ' h</span>' +
+        '<span class="inv-area-flag-reason">' + escHtml(a.x.reason) + '</span>' +
+        '<button class="inv-area-flag-explain" data-action="invAreaUnexplain" ' +
+        'data-key="' + encodeURIComponent(exceptionKey(a.x)) + '">Reopen</button></div>';
+    });
+    html += '</div>';
+    html += '<div class="inv-stats-note">These are the cases the rule does <strong>not</strong> ' +
+      'reproduce, kept as records rather than smoothed away. A rule whose exceptions are named is ' +
+      'one you can trust the rest of; a rule with none is one nobody has tested.</div>';
   }
 
   // Never reconciled at a guess, and never silently dropped either.
@@ -15324,6 +15516,9 @@ document.addEventListener('click', function(e) {
     case 'invAttAllPresent': attAllPresent(); break;
     case 'invAttAddExtra': attAddExtra(); break;
     case 'invAttRemoveExtra': attRemoveExtra(parseInt(btn.dataset.idx, 10)); break;
+    case 'invAreaExplain': openAreaExplain(btn.dataset.ex); break;
+    case 'invAreaExplainSave': saveAreaExplain(); break;
+    case 'invAreaUnexplain': reopenAreaExplain(btn.dataset.key); break;
     case 'invAttBlockArea':
       toggleAttBlockArea(parseInt(btn.dataset.idx, 10), btn.dataset.area);
       renderAttendance();

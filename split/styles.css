@@ -2753,3 +2753,16 @@ body.inv-desktop .inv-att-extra-row { max-width: calc(var(--sp-32) * 15); }
   font-size: var(--fs-xs); font-weight: 600; color: var(--text-2);
   align-self: center; min-width: 0; overflow: hidden; text-overflow: ellipsis;
 }
+
+/* Explained exceptions: precedent, not accusation. */
+.inv-area-flag-ack { background: var(--surface-2); color: var(--text-2); }
+.inv-area-flag-reason {
+  flex-basis: 100%; font-size: var(--fs-2xs); color: var(--text-3);
+  font-weight: 500; min-width: 0;
+}
+.inv-area-flag-explain {
+  min-height: 44px; padding: 0 var(--sp-8); margin-left: auto;
+  font-size: var(--fs-2xs); font-weight: 700;
+  background: none; color: inherit; border: 1px solid currentColor;
+  border-radius: var(--r-sm); opacity: 0.75;
+}

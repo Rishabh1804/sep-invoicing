@@ -68,6 +68,9 @@ document.addEventListener('click', function(e) {
     case 'invAttAllPresent': attAllPresent(); break;
     case 'invAttAddExtra': attAddExtra(); break;
     case 'invAttRemoveExtra': attRemoveExtra(parseInt(btn.dataset.idx, 10)); break;
+    case 'invAreaExplain': openAreaExplain(btn.dataset.ex); break;
+    case 'invAreaExplainSave': saveAreaExplain(); break;
+    case 'invAreaUnexplain': reopenAreaExplain(btn.dataset.key); break;
     case 'invAttBlockArea':
       toggleAttBlockArea(parseInt(btn.dataset.idx, 10), btn.dataset.area);
       renderAttendance();

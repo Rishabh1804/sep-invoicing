@@ -1268,7 +1268,13 @@ function importedExtra(x, byName) {
     var areas = (Array.isArray(x.areas) ? x.areas : [])
       .map(function(a) { return STAFF_AREA_ALIASES[a] || a; })
       .filter(function(a) { return STAFF_AREAS.some(function(s2) { return s2.id === a; }); });
-    if (areas.length === 0) return null;
+    // A block naming NO area is kept, not dropped. The shop writes some evening
+    // blocks purely as out-times (`Out | Sarat 10 PM · Sambhu 12 AM · EXTRA 13
+    // hours`), which states the hours without saying which line ran. Those are
+    // real booked hours: dropping them takes them out of the bill, and
+    // unverifiable is not unpaid. The reconciler already has the right answer
+    // for a block missing one of its three inputs -- it reports Not checkable.
+    // The cost buckets to `flex`, which is what an unattributed hand is.
     // The crew is carried by NAME for the same reason the marks are, and an
     // unmatched name is dropped rather than guessed at -- a block reconciled
     // against the wrong head count invents a shortfall that never happened.
@@ -1281,7 +1287,7 @@ function importedExtra(x, byName) {
       kind: 'block', areas: areas, crew: crew, hours: hours,
       from: _hhmm(x.from) == null ? '' : String(x.from),
       to: _hhmm(x.to) == null ? '' : String(x.to),
-      area: areas[0]
+      area: areas[0] || 'flex'
     };
   }
 

@@ -146,6 +146,26 @@ test.describe('P29: attendance through the roster door', () => {
 });
 
 test.describe('P29: the floor in the activity log', () => {
+  test('a block naming NO area is kept, not dropped — the hours are still paid',
+    async ({ page }) => {
+      await loadAppWithState(page, { ...emptyState(), incomingMaterial: noSeedIM() });
+      await seedFloor(page, {
+        '2026-05-04': {
+          marks: [{ name: 'Test Monthly', st: 'P', area: 'vat-a2' }],
+          // The shop writes some evening blocks purely as out-times, which
+          // states the hours without saying which line ran. Dropping the row
+          // would take real booked hours out of the bill.
+          extra: [{ kind: 'block', areas: [], crew: [], from: '17:00', to: '00:00', hours: 13 }],
+        },
+      });
+      const block = (await stored(page)).attendance['2026-05-04'].extra[0];
+      expect(block.kind).toBe('block');
+      expect(block.areas).toEqual([]);
+      expect(block.hours).toBe(13);
+      // Unattributed cost buckets to flex, which is what an unplaced hand is.
+      expect(block.area).toBe('flex');
+    });
+
   test('an attendance day is dated by the day it describes, and says so', async ({ page }) => {
     await loadAppWithState(page, { ...emptyState(), incomingMaterial: noSeedIM() });
     await seedFloor(page, {

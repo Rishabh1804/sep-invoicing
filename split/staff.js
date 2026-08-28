@@ -248,14 +248,17 @@ function attAreaOptions(sel) {
    The controls already carry the attributes that identify them, so the selector
    is rebuilt from those rather than adding a parallel key. Values are ids,
    ISO dates and literal action names — nothing that needs escaping. */
-var ATT_FOCUS_ATTRS = ['data-action', 'data-id', 'data-st', 'data-date', 'data-idx'];
+// Attributes matched BY VALUE. A chip's identity is which area or worker it
+// names, so `data-area` / `data-worker` belong here and not among the
+// presence-only flags below: `[data-area]` alone matches every chip in the
+// row, and the restore then lands on the first one — precisely the failure it
+// was added to prevent. Presence is enough for a field occurring once per row;
+// it is never enough for a list.
+var ATT_FOCUS_ATTRS = ['data-action', 'data-id', 'data-st', 'data-date', 'data-idx',
+  'data-area', 'data-worker'];
 var ATT_FOCUS_FLAGS = ['data-att-area', 'data-att-ot', 'data-att-hours',
   'data-att-extra-area', 'data-att-extra-hours', 'data-att-extra-kind',
-  'data-att-block-from', 'data-att-block-to',
-  // The chips re-render on every toggle, and without these the restore lands
-  // on the FIRST chip in the row — a keyboard user's second Space would toggle
-  // the wrong area or the wrong worker.
-  'data-area', 'data-worker'];
+  'data-att-block-from', 'data-att-block-to'];
 
 function _attFocusSelector() {
   var page = document.getElementById('pageStaff');
@@ -852,7 +855,16 @@ function setAttExtraArea(idx, areaId) {
 function setAttExtraKind(idx, kind) {
   var rec = attDay(_attDate, false);
   if (!rec || !rec.extra[idx]) return;
-  rec.extra[idx].kind = EXTRA_KINDS.some(function(k) { return k.id === kind; }) ? kind : 'coverage';
+  var x = rec.extra[idx];
+  x.kind = EXTRA_KINDS.some(function(k) { return k.id === kind; }) ? kind : 'coverage';
+  // Flipping back to a general shift must CLEAR the block-only fields. Left
+  // behind, `areas[]` still splits the row's hours across areas the UI no
+  // longer shows (the select renders `x.area` alone) while `_absorption`'s
+  // coverage branch absorbs against `x.area` only — hours over two areas,
+  // absorbed by one area's crew. Numerator and denominator, again.
+  if (x.kind === 'coverage') {
+    delete x.areas; delete x.crew; delete x.from; delete x.to;
+  }
   saveState();
 }
 

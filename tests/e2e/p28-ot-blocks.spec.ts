@@ -9,9 +9,16 @@ import { emptyState, loadAppWithState, noSeedIM, switchTab, todayIso } from './f
  * the block's OWN length rather than a full eight.
  *
  * This replaces the earlier per-hand reading, and the corpus is what settles
- * it: the norm-gap reading reproduces every recorded block tag, including the
- * one `soma-internal/attendance/2026-W31.md:150` calls "internally
- * inconsistent". Each headline spec below reproduces one of those tags.
+ * it — but state the population, not a superlative. Over the swept blocks in
+ * W24/W31/W32/W33 the norm-gap reading reproduces every tag but TWO, and both
+ * are named in CLAUDE.md rather than smoothed away: W31 Mon 27 Jul, where no
+ * fold value reconciles both rows, and W33 Tue 11 Aug, which reconciles only
+ * at four pickling hands against a ceiling of three. The per-hand reading it
+ * replaces is not uniformly wrong either — it reproduces individual rows,
+ * including one of those two exceptions.
+ *
+ * Each headline spec below reproduces one recorded tag, including the one
+ * `soma-internal/attendance/2026-W31.md:150` calls "internally inconsistent".
  *
  * A block needs three things the marks cannot give it: its length (from its
  * own in/out times), its complement (from the areas it covers) and its head

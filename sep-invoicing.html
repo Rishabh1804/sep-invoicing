@@ -2753,8 +2753,8 @@ body.inv-desktop .inv-att-extra-row { max-width: calc(var(--sp-32) * 15); }
 .inv-att-chip {
   min-height: 44px; padding: var(--sp-4) var(--sp-8);
   font-size: var(--fs-2xs); font-weight: 600;
-  background: var(--surface-1); color: var(--text-2);
-  border: 1px solid var(--border-1); border-radius: var(--r-sm);
+  background: var(--surface); color: var(--text-2);
+  border: 1px solid var(--border); border-radius: var(--r-sm);
 }
 .inv-att-chip-on { background: var(--attend-bg); color: var(--attend-text); border-color: var(--attend); }
 .inv-att-block-crew { display: flex; align-items: baseline; gap: var(--sp-8); }
@@ -3068,13 +3068,25 @@ function ensureStateShape(s) {
    the error is re-raised for the caller to report. Nothing is persisted here —
    the caller saves once it knows the adoption held. */
 function adoptState(next) {
-  var prev = S;
+  var prev = S, prevRaw = null;
+  // The rollback has to cover STORAGE, not just memory. `migrateState()`
+  // persists as it runs — seven `saveJSON(STORAGE_KEY, S)` calls inside it —
+  // and every one of them fires while `S` is already the incoming state. So a
+  // throw partway through had written a half-migrated foreign state to disk
+  // before the old `S = prev` restored memory: the toast said "Invalid file",
+  // the operator carried on, and the NEXT RELOAD opened someone else's books.
+  // Restoring memory alone was not all-or-nothing; it only looked like it
+  // until the page was reloaded.
+  try { prevRaw = localStorage.getItem(STORAGE_KEY); } catch (e) { prevRaw = null; }
   try {
     S = next;
     ensureStateShape(S);
     migrateState();
   } catch (e) {
     S = prev;
+    try {
+      if (prevRaw != null) localStorage.setItem(STORAGE_KEY, prevRaw);
+    } catch (e2) { /* storage refused the rollback; memory is still correct */ }
     throw e;
   }
   return S;
@@ -10472,14 +10484,17 @@ function attAreaOptions(sel) {
    The controls already carry the attributes that identify them, so the selector
    is rebuilt from those rather than adding a parallel key. Values are ids,
    ISO dates and literal action names — nothing that needs escaping. */
-var ATT_FOCUS_ATTRS = ['data-action', 'data-id', 'data-st', 'data-date', 'data-idx'];
+// Attributes matched BY VALUE. A chip's identity is which area or worker it
+// names, so `data-area` / `data-worker` belong here and not among the
+// presence-only flags below: `[data-area]` alone matches every chip in the
+// row, and the restore then lands on the first one — precisely the failure it
+// was added to prevent. Presence is enough for a field occurring once per row;
+// it is never enough for a list.
+var ATT_FOCUS_ATTRS = ['data-action', 'data-id', 'data-st', 'data-date', 'data-idx',
+  'data-area', 'data-worker'];
 var ATT_FOCUS_FLAGS = ['data-att-area', 'data-att-ot', 'data-att-hours',
   'data-att-extra-area', 'data-att-extra-hours', 'data-att-extra-kind',
-  'data-att-block-from', 'data-att-block-to',
-  // The chips re-render on every toggle, and without these the restore lands
-  // on the FIRST chip in the row — a keyboard user's second Space would toggle
-  // the wrong area or the wrong worker.
-  'data-area', 'data-worker'];
+  'data-att-block-from', 'data-att-block-to'];
 
 function _attFocusSelector() {
   var page = document.getElementById('pageStaff');
@@ -11076,7 +11091,16 @@ function setAttExtraArea(idx, areaId) {
 function setAttExtraKind(idx, kind) {
   var rec = attDay(_attDate, false);
   if (!rec || !rec.extra[idx]) return;
-  rec.extra[idx].kind = EXTRA_KINDS.some(function(k) { return k.id === kind; }) ? kind : 'coverage';
+  var x = rec.extra[idx];
+  x.kind = EXTRA_KINDS.some(function(k) { return k.id === kind; }) ? kind : 'coverage';
+  // Flipping back to a general shift must CLEAR the block-only fields. Left
+  // behind, `areas[]` still splits the row's hours across areas the UI no
+  // longer shows (the select renders `x.area` alone) while `_absorption`'s
+  // coverage branch absorbs against `x.area` only — hours over two areas,
+  // absorbed by one area's crew. Numerator and denominator, again.
+  if (x.kind === 'coverage') {
+    delete x.areas; delete x.crew; delete x.from; delete x.to;
+  }
   saveState();
 }
 
@@ -11885,8 +11909,13 @@ var _areaSpan = 1;   // weeks
 
    This REPLACES the earlier reading, which took a block tag as the slot's
    per-hand credit ("5 hands x 3 hr = 15 OT hr") and therefore reconciled it
-   against nothing. That reading fails every recorded block tag; the norm-gap
-   reading matches every tag in the swept population (13 blocks / 18 rows,
+   against nothing. That reading cannot reproduce that population — though it does
+   reproduce individual rows, and one of the two named exceptions is a row
+   where the superseded reading is the one that works (W33 Tue 11, A1: three
+   hands x 3 h = 9 = the tag). "Fails every tag" was an unmeasured superlative
+   in the same sentence whose other half names its instrument.
+
+   The norm-gap reading matches every tag in the swept population (13 blocks / 18 rows,
    W24+W31+W32+W33; W18-W23 and W25-W30 unswept) but for two named exceptions
    -- W31 Mon 27 Jul and W33 Tue 11 Aug, both disclosed in CLAUDE.md. It
    includes the one the codex had written off as
@@ -11939,7 +11968,12 @@ function blockSpan(x) {
   var a = _hhmm(x.from), b = _hhmm(x.to);
   if (a == null || b == null) return null;
   var mins = b - a;
-  if (mins <= 0) mins += 24 * 60;
+  // A block cannot be zero-length, and a mis-typed identical pair must not
+  // become a 24-hour multiplier: it would over-predict by 8x and the excess
+  // lands in "less booked than the shortfall allows", which is never reported
+  // as an error. Refuse it instead, so the row says "Not checkable".
+  if (mins === 0) return null;
+  if (mins < 0) mins += 24 * 60;
   return gstRound(mins / 60);
 }
 

@@ -191,6 +191,43 @@ test('a partial labour config is completed, not left to price the extra at zero'
   expect(s.labour.otMult).toBe(1.1);
 });
 
+test('a migration that throws leaves storage as it was, not half-migrated', async ({ page }) => {
+  // The rollback has to cover STORAGE, not just memory. `migrateState()`
+  // persists as it runs — seven saveJSON calls — and every one fires while S
+  // is already the incoming state. So a throw partway through wrote a
+  // half-migrated FOREIGN state to disk while memory was restored: the toast
+  // said "Invalid file", the operator carried on, and the next reload opened
+  // someone else's books. Claimed all-or-nothing in three comments and tested
+  // in none of them until Cipher said so.
+  await loadAppWithState(page, emptyState());
+  const before = await readState(page);
+
+  // `_staffAreas2` reads `rec.marks[id].area` with no null guard, so a null
+  // mark throws inside the migration — the code's own threat model, not a
+  // contrived one.
+  const poisoned = emptyState() as Record<string, unknown>;
+  poisoned.clients = [{ id: 9, name: 'FOREIGN', billingMode: 'kg', gstType: 'intra', isActive: true }];
+  poisoned.attendance = { [todayIso()]: { marks: { 3: null }, extra: [], note: '' } };
+  delete poisoned._staffAreas2;
+
+  await page.locator('[data-action="invOpenSettings"]').first().click();
+  page.once('dialog', (d) => d.accept());
+  await page.evaluate((data) => {
+    (window as unknown as { importData: () => void }).importData();
+    const inp = document.getElementById('importFileInput') as HTMLInputElement;
+    const dt = new DataTransfer();
+    dt.items.add(new File([JSON.stringify(data)], 'bad.json', { type: 'application/json' }));
+    inp.files = dt.files;
+    inp.dispatchEvent(new Event('change'));
+  }, poisoned);
+
+  // Whatever the app reports, what is ON DISK must be what was there before —
+  // the foreign client must not survive in storage to be loaded next time.
+  const after = await readState(page);
+  expect(JSON.stringify(after.clients)).toBe(JSON.stringify(before.clients));
+  expect(JSON.stringify(after.clients)).not.toContain('FOREIGN');
+});
+
 /* ===== WHAT MUST NOT RE-RUN ===== */
 
 test('a pull does not re-fire the seeds against someone else’s records', async ({ page }) => {

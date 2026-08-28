@@ -362,10 +362,21 @@ block's own length. So a 5-to-midnight slot short two hands books 14.
 This **supersedes** the earlier reading, which took a block tag as the slot's per-hand credit
 ("5 hands × 3 hr = 15 OT hr") and therefore reconciled it against nothing.
 
+**Be exact about what the per-hand reading fails at.** It cannot reproduce the *population*; it is
+not true that it fails every row. It reproduces `W31:154` group 1 (3 hands × 7 h = 21, and that
+file's own line calls it `3×7=21 ✓`) and `W33:63` A1 (3 × 3 = 9). That matters rather than being a
+quibble: **one of the two named exceptions below is a row where the superseded reading is the one
+that works.** An earlier version of this section claimed it "fails every recorded block tag" — an
+unmeasured superlative sitting in the same sentence whose other half names its instrument.
+
 **The census, with its instrument, because the earlier version of this table claimed more than it
 had.** Castor swept every relay row under a `Morning OT` / `6:00 AM` / `Evening OT` / midnight-or-8PM
 heading carrying an `EXTRA` tag, across `attendance/2026-W24.md`, `W31`, `W32`, `W33`, plus their
-untagged sibling rows: **13 blocks, 18 tagged rows.** Vulcanus swept the raw relay export
+untagged sibling rows: **13 blocks, 18 tagged rows.** Cipher re-counted the same four files and
+found **17 blocks, 23 rows** — the two instruments disagree, and the gap is not resolved here: if
+Castor's heading key excluded W33's `Out`-headed rows it also excluded `:63`, which is one of the
+two named exceptions and therefore cannot have been outside the population. **Treat 17/23 as the
+floor and the disagreement as open.** Vulcanus swept the raw relay export
 (`data/raw/relays/2026-08-14-...txt`, 27 Jul – 8 Aug) for rows carrying times, per-area headers,
 named crews and a tag together: **9 blocks, 14 rows.** W18–W23 and W25–W30 were not swept by either;
 "not found there" is not "does not exist".

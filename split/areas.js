@@ -27,8 +27,13 @@ var _areaSpan = 1;   // weeks
 
    This REPLACES the earlier reading, which took a block tag as the slot's
    per-hand credit ("5 hands x 3 hr = 15 OT hr") and therefore reconciled it
-   against nothing. That reading fails every recorded block tag; the norm-gap
-   reading matches every tag in the swept population (13 blocks / 18 rows,
+   against nothing. That reading cannot reproduce that population — though it does
+   reproduce individual rows, and one of the two named exceptions is a row
+   where the superseded reading is the one that works (W33 Tue 11, A1: three
+   hands x 3 h = 9 = the tag). "Fails every tag" was an unmeasured superlative
+   in the same sentence whose other half names its instrument.
+
+   The norm-gap reading matches every tag in the swept population (13 blocks / 18 rows,
    W24+W31+W32+W33; W18-W23 and W25-W30 unswept) but for two named exceptions
    -- W31 Mon 27 Jul and W33 Tue 11 Aug, both disclosed in CLAUDE.md. It
    includes the one the codex had written off as
@@ -81,7 +86,12 @@ function blockSpan(x) {
   var a = _hhmm(x.from), b = _hhmm(x.to);
   if (a == null || b == null) return null;
   var mins = b - a;
-  if (mins <= 0) mins += 24 * 60;
+  // A block cannot be zero-length, and a mis-typed identical pair must not
+  // become a 24-hour multiplier: it would over-predict by 8x and the excess
+  // lands in "less booked than the shortfall allows", which is never reported
+  // as an error. Refuse it instead, so the row says "Not checkable".
+  if (mins === 0) return null;
+  if (mins < 0) mins += 24 * 60;
   return gstRound(mins / 60);
 }
 

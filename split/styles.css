@@ -2735,8 +2735,8 @@ body.inv-desktop .inv-att-extra-row { max-width: calc(var(--sp-32) * 15); }
 .inv-att-chip {
   min-height: 44px; padding: var(--sp-4) var(--sp-8);
   font-size: var(--fs-2xs); font-weight: 600;
-  background: var(--surface-1); color: var(--text-2);
-  border: 1px solid var(--border-1); border-radius: var(--r-sm);
+  background: var(--surface); color: var(--text-2);
+  border: 1px solid var(--border); border-radius: var(--r-sm);
 }
 .inv-att-chip-on { background: var(--attend-bg); color: var(--attend-text); border-color: var(--attend); }
 .inv-att-block-crew { display: flex; align-items: baseline; gap: var(--sp-8); }

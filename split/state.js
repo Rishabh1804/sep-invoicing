@@ -115,13 +115,25 @@ function ensureStateShape(s) {
    the error is re-raised for the caller to report. Nothing is persisted here —
    the caller saves once it knows the adoption held. */
 function adoptState(next) {
-  var prev = S;
+  var prev = S, prevRaw = null;
+  // The rollback has to cover STORAGE, not just memory. `migrateState()`
+  // persists as it runs — seven `saveJSON(STORAGE_KEY, S)` calls inside it —
+  // and every one of them fires while `S` is already the incoming state. So a
+  // throw partway through had written a half-migrated foreign state to disk
+  // before the old `S = prev` restored memory: the toast said "Invalid file",
+  // the operator carried on, and the NEXT RELOAD opened someone else's books.
+  // Restoring memory alone was not all-or-nothing; it only looked like it
+  // until the page was reloaded.
+  try { prevRaw = localStorage.getItem(STORAGE_KEY); } catch (e) { prevRaw = null; }
   try {
     S = next;
     ensureStateShape(S);
     migrateState();
   } catch (e) {
     S = prev;
+    try {
+      if (prevRaw != null) localStorage.setItem(STORAGE_KEY, prevRaw);
+    } catch (e2) { /* storage refused the rollback; memory is still correct */ }
     throw e;
   }
   return S;

@@ -584,6 +584,27 @@ tombstone to `S.voidedNumbers` with a required reason, and an accepted duplicate
 stamps `dupeAck` — neither appeared in the log. Both are now first-class events, and a void
 renders as non-tappable because the invoice it names no longer exists to open.
 
+**The floor is in it too, and that puts TWO CLOCKS in one list.** An invoice event is dated by
+**when it was recorded** — every one carries a real `createdAt`. An attendance day has no such
+stamp: the store is keyed by the date it describes and nothing writes down when somebody typed
+it. So a floor row is dated by **the day it is about**, which is the date on the sheet and the
+same convention Stats already uses for periods. That is a different question from "when did this
+get entered", so **every floor row says `floor day` in place** and the CSV carries a `Dated by`
+column. Unlabelled, the two read as one timeline and nothing on screen would say otherwise.
+
+The exception ledger is the one staff event with a genuine record-time, so it keeps it and reads
+`recorded` — and it is dated the day somebody explained the disagreement, not the day the
+disagreement happened.
+
+**A client filter excludes the floor.** A client filter is a question about one account; the shop's
+Tuesday is not about an account, and listing it under one asserts a connection that does not exist.
+
+Booked extra is **one row per entry, not a day total** — a reader who wants to know what was booked
+needs the where. A block row states which of its three inputs is missing (`no crew recorded`,
+`no times recorded`) rather than leaving them to open the Areas card to find out why it never
+reconciles. **Roster changes are absent on purpose**: staff rows carry no timestamp, so dating them
+would mean inventing one.
+
 ### Keyboard entry
 Challan entry is fully keyboard-operable. The suggestion lists (part autocomplete, client
 search) take arrow keys and Enter, and a lone match commits without arrowing first. The form
@@ -691,6 +712,52 @@ same person gave them different ids.
 
 That is a deliberate departure from `SEED_CLIENTS`, which does carry real names: a client name
 is on every invoice that leaves the building, a worker's day rate is not.
+
+**The days a roster worked come through the same door**, for the same reason the area complements
+do: a roster with no history has nothing for the Areas card to check, and a history with no roster
+has nobody to attach itself to. Three rules, each of them the difference between seeding a history
+and corrupting one.
+
+- **Marks name a WORKER, never an id** — the same reason the roster merges by name, one level down.
+  An id in a file attaches a day's marks to whoever holds that number on *this* device. Attendance
+  is therefore applied **last**, against the roster the same import just merged.
+- **A name not on the roster is dropped and COUNTED, never created.** Inventing the worker would put
+  a row with no comp class and no rate on the roster, and the labour figure would then read short
+  with nothing on screen saying why. A reported drop is a question somebody can answer; an invented
+  worker is a wrong number nobody sees.
+- **A day already recorded is KEPT, never overwritten.** Seeding must not be able to destroy entry
+  somebody actually did, and a re-import that changed nothing says so rather than looking like it
+  worked.
+
+### What the seeded history actually says about the extra
+64 days, 2 May – 8 Aug 2026, 785 marks and 55 general-shift bookings, read off
+`soma-internal/attendance/2026-W*.md`. It is the first time the rule has been tested against more
+than a handful of hand-picked rows, and **it does not settle the question the owner ruled on.**
+
+On the **33 booked unit-days that carry a shortfall**, 8 reconcile at both readings because they are
+short by exactly one, where per-hand and per-area give the same 8. That leaves **25 that can tell the
+two apart: per-hand 10, per-area 6, and 9 that reconcile at neither.** Per-hand leads and does not
+sweep. That is materially more evidence than the two counter-cases named above — and it is not a
+refutation, because the owner's ruling is the owner's to make and the plurality is his way.
+
+**Read the 9 carefully rather than as a third rule.** The seed takes heads from the slot rows, so a
+day whose sheet omitted a hand reads short, which inflates the expected side and pushes a genuinely
+per-hand booking into "neither". The gap is the same shape at range level: **expected 1,912 h against
+538 h booked** over the twelve weeks to 23 Aug. An expected figure 3.5× the booked one is far more
+likely to be under-recorded heads than a shop that books a fifth of what it owes, which is exactly
+why the card reports under-booking as *not an error* and calls the expected figure an upper bound.
+
+**Three things the seed does NOT carry, because the sheets do not.** Per-worker **hours** and **OT**
+for the hourly pool — those live on the payout slips, weekly and per worker, and splitting a week
+across its days would invent a distribution nobody wrote down; they land as 0 and the labour card
+reports its coverage. And **block crews before 27 July**, because the relay writes those blocks as
+prose with no names: they import with an empty crew and the reconciler reports them as *Not
+checkable*, with the hours still counted in the bill. Unverifiable is not unpaid.
+
+⚠ **The extractor is a THIRD instrument and it disagrees with the other two.** It finds **8 blocks**
+where Castor's sweep found 13 and Cipher's found 17 over the same files, because it only matches a
+bold `Morning OT` / `Evening OT` / `6:00 AM block` heading carrying an `EXTRA` tag on one line. Read
+8 as what this parser sees, not as the corpus. The census disagreement above stands open.
 
 **Four states, not three.** Unmarked is not absent. A row nobody has reached costs nothing; an
 absence costs a day's wage and has to be said. The same distinction one level up is what the

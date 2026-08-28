@@ -967,6 +967,14 @@ table.inv-qc-grid.inv-qc-no-top { border-top: 0; }
 .inv-history-icon-cancel { background: var(--danger-bg); color: var(--danger-text); }
 .inv-history-icon-void { background: var(--danger-bg); color: var(--danger-text); }
 .inv-history-icon-dupe { background: var(--warning-bg); color: var(--warning-text); }
+/* The floor. Attendance takes the attend domain because that is literally what
+   it is; booked extra hours take prod; an examined exception takes warning,
+   the same domain an accepted duplicate receipt already uses -- both are a
+   disagreement somebody looked at and signed off. All three pairs carry a
+   .dark override in the token block above (HR-7). */
+.inv-history-icon-shift { background: var(--attend-bg); color: var(--attend-text); }
+.inv-history-icon-extra { background: var(--prod-bg); color: var(--prod-text); }
+.inv-history-icon-except { background: var(--warning-bg); color: var(--warning-text); }
 .inv-history-item-static { cursor: default; }
 .inv-history-summary {
   font-family: var(--ff-mono); font-size: var(--fs-xs);

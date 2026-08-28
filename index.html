@@ -985,6 +985,14 @@ table.inv-qc-grid.inv-qc-no-top { border-top: 0; }
 .inv-history-icon-cancel { background: var(--danger-bg); color: var(--danger-text); }
 .inv-history-icon-void { background: var(--danger-bg); color: var(--danger-text); }
 .inv-history-icon-dupe { background: var(--warning-bg); color: var(--warning-text); }
+/* The floor. Attendance takes the attend domain because that is literally what
+   it is; booked extra hours take prod; an examined exception takes warning,
+   the same domain an accepted duplicate receipt already uses -- both are a
+   disagreement somebody looked at and signed off. All three pairs carry a
+   .dark override in the token block above (HR-7). */
+.inv-history-icon-shift { background: var(--attend-bg); color: var(--attend-text); }
+.inv-history-icon-extra { background: var(--prod-bg); color: var(--prod-text); }
+.inv-history-icon-except { background: var(--warning-bg); color: var(--warning-text); }
 .inv-history-item-static { cursor: default; }
 .inv-history-summary {
   font-family: var(--ff-mono); font-size: var(--fs-xs);
@@ -11324,9 +11332,16 @@ function importRoster() {
       if (res.error) { showToast(res.error, 'error'); return; }
       saveState();
       renderAttendance();
+      // Every count the merge dropped something on is stated. A silent import
+      // that skipped half a file reads exactly like one that worked.
       showToast(res.added + ' added, ' + res.updated + ' updated' +
         (res.skipped ? ', ' + res.skipped + ' skipped' : '') +
-        (res.targets ? ' · ' + res.targets + ' complement' + (res.targets === 1 ? '' : 's') + ' set' : ''));
+        (res.targets ? ' · ' + res.targets + ' complement' + (res.targets === 1 ? '' : 's') + ' set' : '') +
+        (res.days ? ' · ' + res.days + ' day' + (res.days === 1 ? '' : 's') + ' of attendance' : '') +
+        (res.daysKept ? ' (' + res.daysKept + ' already recorded, kept)' : '') +
+        (res.marksDropped ? ' · ' + res.marksDropped + ' mark' +
+          (res.marksDropped === 1 ? '' : 's') + ' for names not on the roster' : ''),
+        res.marksDropped ? 'warning' : 'success');
     };
     reader.readAsText(f);
     inp.value = '';
@@ -11407,7 +11422,116 @@ function applyRosterImport(data) {
       if (data.labour[k] != null && !isNaN(v) && v >= 0) S.labour[k] = v;
     });
   }
-  return { added: added, updated: updated, skipped: skipped, targets: targets };
+  var att = applyAttendanceImport(data);
+
+  return { added: added, updated: updated, skipped: skipped, targets: targets,
+           days: att.days, daysKept: att.daysKept, marksDropped: att.marksDropped };
+}
+
+/* ===== ATTENDANCE THROUGH THE SAME DOOR =====
+
+   The roster and the days it worked are one decision, and they arrive together
+   for the same reason the area complements do: a roster with no history has
+   nothing for the Areas card to check, and a history with no roster has nobody
+   to attach itself to. Settings -> Import still cannot serve, because it
+   replaces the whole state and would take every invoice with it.
+
+   Three rules, and each of them is the difference between seeding a history and
+   corrupting one.
+
+   **Marks name a WORKER, never an id.** Ids are per-device -- two devices that
+   typed the same person gave them different numbers -- so an id in a file would
+   attach a day's marks to whoever happens to hold that number here. The name is
+   resolved against the roster this import just merged, which is why attendance
+   is applied last.
+
+   **A name that is not on the roster is dropped and COUNTED, never created.**
+   Creating a worker from an attendance file would put a row with no comp class
+   and no rate on the roster, and the labour figure would then read short with
+   nothing on screen saying why. A reported drop is a question the operator can
+   answer; an invented worker is a wrong number nobody sees.
+
+   **A day that already exists is KEPT, never overwritten.** Seeding must not be
+   able to destroy entry somebody actually did. The count is reported so a
+   re-import that did nothing says so rather than looking like it worked. */
+function applyAttendanceImport(data) {
+  var out = { days: 0, daysKept: 0, marksDropped: 0 };
+  var src = data && data.attendance;
+  if (!src || typeof src !== 'object' || Array.isArray(src)) return out;
+
+  if (!S.attendance) S.attendance = {};
+
+  // One name->id table for the whole import rather than a scan per mark.
+  var byName = {};
+  (S.staff || []).forEach(function(w) {
+    byName[String(w.name || '').trim().toLowerCase()] = w.id;
+  });
+
+  Object.keys(src).forEach(function(iso) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(iso)) return;
+    if (S.attendance[iso]) { out.daysKept++; return; }
+
+    var day = src[iso] || {};
+    var rec = { marks: {}, extra: [], note: String(day.note || '') };
+
+    (Array.isArray(day.marks) ? day.marks : []).forEach(function(m) {
+      var id = byName[String((m && m.name) || '').trim().toLowerCase()];
+      if (id == null) { out.marksDropped++; return; }
+      var area = STAFF_AREA_ALIASES[m.area] || m.area;
+      rec.marks[id] = {
+        st: ATT_STATES.indexOf(m.st) !== -1 ? m.st : 'P',
+        ot: Math.max(0, Number(m.ot) || 0),
+        hours: Math.max(0, Number(m.hours) || 0),
+        area: STAFF_AREAS.some(function(a) { return a.id === area; }) ? area : 'flex'
+      };
+    });
+
+    (Array.isArray(day.extra) ? day.extra : []).forEach(function(x) {
+      var e = importedExtra(x, byName);
+      if (e) rec.extra.push(e);
+    });
+
+    S.attendance[iso] = rec;
+    out.days++;
+  });
+
+  return out;
+}
+
+/* One booked-hours row, read defensively. A block keeps its own shape -- areas,
+   crew and times -- because the reconciler needs all three and reports the row
+   as "Not checkable" when any is missing. That refusal is the point: a block
+   whose crew was never written down is honestly unverifiable, and the hours are
+   still counted in the bill, because unverifiable is not unpaid. */
+function importedExtra(x, byName) {
+  if (!x || typeof x !== 'object') return null;
+  var hours = Math.max(0, Number(x.hours) || 0);
+  var kind = EXTRA_KINDS.some(function(k) { return k.id === x.kind; }) ? x.kind : 'coverage';
+
+  if (kind === 'block') {
+    var areas = (Array.isArray(x.areas) ? x.areas : [])
+      .map(function(a) { return STAFF_AREA_ALIASES[a] || a; })
+      .filter(function(a) { return STAFF_AREAS.some(function(s2) { return s2.id === a; }); });
+    if (areas.length === 0) return null;
+    // The crew is carried by NAME for the same reason the marks are, and an
+    // unmatched name is dropped rather than guessed at -- a block reconciled
+    // against the wrong head count invents a shortfall that never happened.
+    var crew = [];
+    (Array.isArray(x.crew) ? x.crew : []).forEach(function(n) {
+      var id = byName[String(n || '').trim().toLowerCase()];
+      if (id != null && crew.indexOf(id) === -1) crew.push(id);
+    });
+    return {
+      kind: 'block', areas: areas, crew: crew, hours: hours,
+      from: _hhmm(x.from) == null ? '' : String(x.from),
+      to: _hhmm(x.to) == null ? '' : String(x.to),
+      area: areas[0]
+    };
+  }
+
+  var area = STAFF_AREA_ALIASES[x.area] || x.area;
+  if (!STAFF_AREAS.some(function(a) { return a.id === area; })) return null;
+  return { kind: 'coverage', area: area, hours: hours };
 }
 
 /* Deletion is refused while attendance names the worker. Removing the row would
@@ -14046,6 +14170,7 @@ var HISTORY_TYPES = [
   { key: 'invoice', label: 'Invoices' },
   { key: 'challan', label: 'Challans' },
   { key: 'state', label: 'Status' },
+  { key: 'floor', label: 'Floor' },
   { key: 'audit', label: 'Audit' }
 ];
 
@@ -14056,7 +14181,10 @@ var HISTORY_ICONS = {
   state: '<polyline points="20 6 9 17 4 12"/>',
   cancel: '<circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>',
   void: '<path d="M3 6h18"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6"/><path d="M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2"/>',
-  dupe: '<rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/>'
+  dupe: '<rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/>',
+  shift: '<path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/>',
+  extra: '<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>',
+  except: '<path d="M12 9v4"/><path d="M12 17h.01"/><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>'
 };
 
 function historyIcon(kind) {
@@ -14121,7 +14249,128 @@ function buildHistoryEvents() {
     });
   });
 
+  pushFloorEvents(events);
+
   return events;
+}
+
+/* ===== THE FLOOR =====
+
+   Two clocks meet in this log and conflating them would be the whole mistake.
+   An invoice event is dated by **when it was recorded**; every one of them
+   carries a real `createdAt`. A day on the floor has no such stamp -- the
+   attendance store is keyed by the date it describes and nothing writes down
+   when somebody typed it -- so a floor event is dated by **the day it is
+   about**.
+
+   That is the honest reading rather than a workaround: it is the date on the
+   sheet, and it is the same convention Stats already uses for periods, which
+   are measured on the invoice date and not on when the record was typed. But
+   it is a different question from "when did this get entered", so every floor
+   row says `floor day` in place. A reader must never have to guess which clock
+   a row is on.
+
+   The exception ledger is the one staff event with a genuine record-time
+   (`recordExtraException` stamps `at`), so it keeps it and says `recorded`.
+
+   Floor events carry no client, so a client filter excludes them: showing the
+   shop's Tuesday under "SSS Mehta" would assert a connection that does not
+   exist. */
+function floorTs(iso) {
+  var p = String(iso || '').split('-');
+  if (p.length !== 3) return 0;
+  // Midday local, never new Date("YYYY-MM-DD") -- that parses as UTC and can
+  // land the row on the previous day west of Greenwich.
+  return new Date(+p[0], +p[1] - 1, +p[2], 12, 0, 0, 0).getTime();
+}
+
+function pushFloorEvents(events) {
+  // A client filter is a question about one account. The floor has no account.
+  if (_historyClientFilter) return;
+
+  var areaLabel = {};
+  (typeof STAFF_AREAS !== 'undefined' ? STAFF_AREAS : []).forEach(function(a) {
+    areaLabel[a.id] = a.label;
+  });
+  function labelFor(id) { return areaLabel[id] || id || 'unassigned'; }
+
+  Object.keys(S.attendance || {}).forEach(function(iso) {
+    var rec = (S.attendance || {})[iso] || {};
+    var ts = floorTs(iso);
+    var marks = rec.marks || {};
+    var ids = Object.keys(marks);
+
+    if (ids.length > 0) {
+      var present = 0, half = 0, absent = 0, ot = 0;
+      var areas = {};
+      ids.forEach(function(id) {
+        var m = marks[id] || {};
+        if (m.st === 'P') present++;
+        else if (m.st === 'H') half++;
+        else if (m.st === 'A') absent++;
+        ot += Number(m.ot) || 0;
+        if (m.st === 'P' || m.st === 'H') areas[m.area] = (areas[m.area] || 0) + 1;
+      });
+      // Ranked by heads, because the question a reader brings to this row is
+      // "where was everybody", not "list the areas alphabetically".
+      var where = Object.keys(areas)
+        .sort(function(a, b) { return areas[b] - areas[a]; })
+        .map(function(a) { return labelFor(a) + ' ' + areas[a]; })
+        .join(' \u00b7 ');
+      events.push({
+        ts: ts, type: 'floor', kind: 'shift', sourceId: null, jump: null, clock: 'floor',
+        text: 'Attendance recorded \u2014 ' + present + ' present' +
+          (half ? ', ' + half + ' half' : '') +
+          (absent ? ', ' + absent + ' absent' : '') +
+          (ot ? ', ' + formatNum(ot, 1) + ' h OT' : '') +
+          (where ? ' \u2014 ' + where : '')
+      });
+    }
+
+    // The extra is the line the whole Areas card exists to check, so each entry
+    // is its own row rather than a day total: a reader who wants to know what
+    // was booked, where, needs the where.
+    (rec.extra || []).forEach(function(x) {
+      var hrs = Number(x.hours) || 0;
+      if (typeof extraIsBlock === 'function' && extraIsBlock(x)) {
+        var covered = (x.areas || []).map(labelFor).join(' + ') || labelFor(x.area);
+        var span = (x.from && x.to) ? x.from + '\u2013' + x.to : '';
+        var crew = (x.crew || []).length;
+        events.push({
+          ts: ts, type: 'floor', kind: 'extra', sourceId: null, jump: null, clock: 'floor',
+          text: 'OT block \u2014 ' + formatNum(hrs, 1) + ' h booked to ' + covered +
+            (span ? ' (' + span + ')' : '') +
+            // Say which of the three inputs is missing, in the row, rather than
+            // leaving the reader to open the Areas card to find out why a block
+            // never turns up in the reconciliation.
+            (crew ? ', crew of ' + crew : ', no crew recorded') +
+            (span ? '' : ', no times recorded')
+        });
+      } else {
+        events.push({
+          ts: ts, type: 'floor', kind: 'extra', sourceId: null, jump: null, clock: 'floor',
+          text: 'Extra hours \u2014 ' + formatNum(hrs, 1) + ' h booked to ' +
+            labelFor(x.area) + ' (general shift)'
+        });
+      }
+    });
+  });
+
+  /* An examined disagreement, on the voidedNumbers / dupeAck precedent: an
+     audit must be able to tell an exception somebody looked at from one nobody
+     was shown. This one has a real record-time, so it is on the recorded clock
+     and says so. */
+  (S.extraExceptions || []).forEach(function(x) {
+    events.push({
+      ts: x.at || floorTs(x.iso), type: 'audit', kind: 'except', sourceId: null, jump: null,
+      clock: x.at ? 'recorded' : 'floor',
+      text: 'Extra-hours exception explained \u2014 ' + (x.label || x.key || '') +
+        ' on ' + formatDate(x.iso) +
+        (x.expected == null ? '' : ' (expected ' + formatNum(x.expected, 1) + ' h, booked ' +
+          formatNum(x.booked || 0, 1) + ' h)') +
+        ' \u2014 ' + (x.reason || 'no reason recorded')
+    });
+  });
 }
 
 /* The filters applied once, so the rendered list and the CSV export can never
@@ -14217,7 +14466,11 @@ function renderHistory() {
       '<div class="inv-history-body">' +
       '<div class="inv-history-text">' + escHtml(ev.text) +
       (ev.amount ? ' \u00b7 ' + formatCurrency(ev.amount) : '') + '</div>' +
-      '<div class="inv-history-meta">' + (ev.ts ? formatTimestamp(ev.ts) : '') + '</div>' +
+      // Which clock this row is on. A floor day is dated by the day it
+      // describes; everything else by when it was recorded. Unlabelled, the two
+      // read as one timeline and a reader cannot tell them apart.
+      '<div class="inv-history-meta">' + (ev.ts ? formatTimestamp(ev.ts) : '') +
+      (ev.clock === 'floor' ? ' \u00b7 floor day' : '') + '</div>' +
       '</div></div>';
   });
 
@@ -14240,10 +14493,13 @@ function exportHistoryCSV() {
     var s = v == null ? '' : String(v);
     return '"' + s.replace(/"/g, '""') + '"';
   }
-  var rows = [['Timestamp', 'Type', 'Event', 'Amount'].join(',')];
+  var rows = [['Timestamp', 'Dated by', 'Type', 'Event', 'Amount'].join(',')];
   events.forEach(function(ev) {
     rows.push([
       cell(ev.ts ? formatTimestamp(ev.ts) : ''),
+      // The same distinction the row carries. A CSV that dropped it would let
+      // somebody sort two clocks into one column and reason off the result.
+      cell(ev.clock === 'floor' ? 'floor day' : 'recorded'),
       cell(ev.kind),
       cell(ev.text),
       cell(ev.amount ? formatNum(ev.amount, 2) : '')

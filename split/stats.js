@@ -1019,6 +1019,7 @@ var HISTORY_TYPES = [
   { key: 'invoice', label: 'Invoices' },
   { key: 'challan', label: 'Challans' },
   { key: 'state', label: 'Status' },
+  { key: 'floor', label: 'Floor' },
   { key: 'audit', label: 'Audit' }
 ];
 
@@ -1029,7 +1030,10 @@ var HISTORY_ICONS = {
   state: '<polyline points="20 6 9 17 4 12"/>',
   cancel: '<circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>',
   void: '<path d="M3 6h18"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6"/><path d="M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2"/>',
-  dupe: '<rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/>'
+  dupe: '<rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/>',
+  shift: '<path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/>',
+  extra: '<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>',
+  except: '<path d="M12 9v4"/><path d="M12 17h.01"/><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>'
 };
 
 function historyIcon(kind) {
@@ -1094,7 +1098,128 @@ function buildHistoryEvents() {
     });
   });
 
+  pushFloorEvents(events);
+
   return events;
+}
+
+/* ===== THE FLOOR =====
+
+   Two clocks meet in this log and conflating them would be the whole mistake.
+   An invoice event is dated by **when it was recorded**; every one of them
+   carries a real `createdAt`. A day on the floor has no such stamp -- the
+   attendance store is keyed by the date it describes and nothing writes down
+   when somebody typed it -- so a floor event is dated by **the day it is
+   about**.
+
+   That is the honest reading rather than a workaround: it is the date on the
+   sheet, and it is the same convention Stats already uses for periods, which
+   are measured on the invoice date and not on when the record was typed. But
+   it is a different question from "when did this get entered", so every floor
+   row says `floor day` in place. A reader must never have to guess which clock
+   a row is on.
+
+   The exception ledger is the one staff event with a genuine record-time
+   (`recordExtraException` stamps `at`), so it keeps it and says `recorded`.
+
+   Floor events carry no client, so a client filter excludes them: showing the
+   shop's Tuesday under "SSS Mehta" would assert a connection that does not
+   exist. */
+function floorTs(iso) {
+  var p = String(iso || '').split('-');
+  if (p.length !== 3) return 0;
+  // Midday local, never new Date("YYYY-MM-DD") -- that parses as UTC and can
+  // land the row on the previous day west of Greenwich.
+  return new Date(+p[0], +p[1] - 1, +p[2], 12, 0, 0, 0).getTime();
+}
+
+function pushFloorEvents(events) {
+  // A client filter is a question about one account. The floor has no account.
+  if (_historyClientFilter) return;
+
+  var areaLabel = {};
+  (typeof STAFF_AREAS !== 'undefined' ? STAFF_AREAS : []).forEach(function(a) {
+    areaLabel[a.id] = a.label;
+  });
+  function labelFor(id) { return areaLabel[id] || id || 'unassigned'; }
+
+  Object.keys(S.attendance || {}).forEach(function(iso) {
+    var rec = (S.attendance || {})[iso] || {};
+    var ts = floorTs(iso);
+    var marks = rec.marks || {};
+    var ids = Object.keys(marks);
+
+    if (ids.length > 0) {
+      var present = 0, half = 0, absent = 0, ot = 0;
+      var areas = {};
+      ids.forEach(function(id) {
+        var m = marks[id] || {};
+        if (m.st === 'P') present++;
+        else if (m.st === 'H') half++;
+        else if (m.st === 'A') absent++;
+        ot += Number(m.ot) || 0;
+        if (m.st === 'P' || m.st === 'H') areas[m.area] = (areas[m.area] || 0) + 1;
+      });
+      // Ranked by heads, because the question a reader brings to this row is
+      // "where was everybody", not "list the areas alphabetically".
+      var where = Object.keys(areas)
+        .sort(function(a, b) { return areas[b] - areas[a]; })
+        .map(function(a) { return labelFor(a) + ' ' + areas[a]; })
+        .join(' \u00b7 ');
+      events.push({
+        ts: ts, type: 'floor', kind: 'shift', sourceId: null, jump: null, clock: 'floor',
+        text: 'Attendance recorded \u2014 ' + present + ' present' +
+          (half ? ', ' + half + ' half' : '') +
+          (absent ? ', ' + absent + ' absent' : '') +
+          (ot ? ', ' + formatNum(ot, 1) + ' h OT' : '') +
+          (where ? ' \u2014 ' + where : '')
+      });
+    }
+
+    // The extra is the line the whole Areas card exists to check, so each entry
+    // is its own row rather than a day total: a reader who wants to know what
+    // was booked, where, needs the where.
+    (rec.extra || []).forEach(function(x) {
+      var hrs = Number(x.hours) || 0;
+      if (typeof extraIsBlock === 'function' && extraIsBlock(x)) {
+        var covered = (x.areas || []).map(labelFor).join(' + ') || labelFor(x.area);
+        var span = (x.from && x.to) ? x.from + '\u2013' + x.to : '';
+        var crew = (x.crew || []).length;
+        events.push({
+          ts: ts, type: 'floor', kind: 'extra', sourceId: null, jump: null, clock: 'floor',
+          text: 'OT block \u2014 ' + formatNum(hrs, 1) + ' h booked to ' + covered +
+            (span ? ' (' + span + ')' : '') +
+            // Say which of the three inputs is missing, in the row, rather than
+            // leaving the reader to open the Areas card to find out why a block
+            // never turns up in the reconciliation.
+            (crew ? ', crew of ' + crew : ', no crew recorded') +
+            (span ? '' : ', no times recorded')
+        });
+      } else {
+        events.push({
+          ts: ts, type: 'floor', kind: 'extra', sourceId: null, jump: null, clock: 'floor',
+          text: 'Extra hours \u2014 ' + formatNum(hrs, 1) + ' h booked to ' +
+            labelFor(x.area) + ' (general shift)'
+        });
+      }
+    });
+  });
+
+  /* An examined disagreement, on the voidedNumbers / dupeAck precedent: an
+     audit must be able to tell an exception somebody looked at from one nobody
+     was shown. This one has a real record-time, so it is on the recorded clock
+     and says so. */
+  (S.extraExceptions || []).forEach(function(x) {
+    events.push({
+      ts: x.at || floorTs(x.iso), type: 'audit', kind: 'except', sourceId: null, jump: null,
+      clock: x.at ? 'recorded' : 'floor',
+      text: 'Extra-hours exception explained \u2014 ' + (x.label || x.key || '') +
+        ' on ' + formatDate(x.iso) +
+        (x.expected == null ? '' : ' (expected ' + formatNum(x.expected, 1) + ' h, booked ' +
+          formatNum(x.booked || 0, 1) + ' h)') +
+        ' \u2014 ' + (x.reason || 'no reason recorded')
+    });
+  });
 }
 
 /* The filters applied once, so the rendered list and the CSV export can never
@@ -1190,7 +1315,11 @@ function renderHistory() {
       '<div class="inv-history-body">' +
       '<div class="inv-history-text">' + escHtml(ev.text) +
       (ev.amount ? ' \u00b7 ' + formatCurrency(ev.amount) : '') + '</div>' +
-      '<div class="inv-history-meta">' + (ev.ts ? formatTimestamp(ev.ts) : '') + '</div>' +
+      // Which clock this row is on. A floor day is dated by the day it
+      // describes; everything else by when it was recorded. Unlabelled, the two
+      // read as one timeline and a reader cannot tell them apart.
+      '<div class="inv-history-meta">' + (ev.ts ? formatTimestamp(ev.ts) : '') +
+      (ev.clock === 'floor' ? ' \u00b7 floor day' : '') + '</div>' +
       '</div></div>';
   });
 
@@ -1213,10 +1342,13 @@ function exportHistoryCSV() {
     var s = v == null ? '' : String(v);
     return '"' + s.replace(/"/g, '""') + '"';
   }
-  var rows = [['Timestamp', 'Type', 'Event', 'Amount'].join(',')];
+  var rows = [['Timestamp', 'Dated by', 'Type', 'Event', 'Amount'].join(',')];
   events.forEach(function(ev) {
     rows.push([
       cell(ev.ts ? formatTimestamp(ev.ts) : ''),
+      // The same distinction the row carries. A CSV that dropped it would let
+      // somebody sort two clocks into one column and reason off the result.
+      cell(ev.clock === 'floor' ? 'floor day' : 'recorded'),
       cell(ev.kind),
       cell(ev.text),
       cell(ev.amount ? formatNum(ev.amount, 2) : '')

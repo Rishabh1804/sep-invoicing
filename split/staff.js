@@ -1088,9 +1088,16 @@ function importRoster() {
       if (res.error) { showToast(res.error, 'error'); return; }
       saveState();
       renderAttendance();
+      // Every count the merge dropped something on is stated. A silent import
+      // that skipped half a file reads exactly like one that worked.
       showToast(res.added + ' added, ' + res.updated + ' updated' +
         (res.skipped ? ', ' + res.skipped + ' skipped' : '') +
-        (res.targets ? ' · ' + res.targets + ' complement' + (res.targets === 1 ? '' : 's') + ' set' : ''));
+        (res.targets ? ' · ' + res.targets + ' complement' + (res.targets === 1 ? '' : 's') + ' set' : '') +
+        (res.days ? ' · ' + res.days + ' day' + (res.days === 1 ? '' : 's') + ' of attendance' : '') +
+        (res.daysKept ? ' (' + res.daysKept + ' already recorded, kept)' : '') +
+        (res.marksDropped ? ' · ' + res.marksDropped + ' mark' +
+          (res.marksDropped === 1 ? '' : 's') + ' for names not on the roster' : ''),
+        res.marksDropped ? 'warning' : 'success');
     };
     reader.readAsText(f);
     inp.value = '';
@@ -1171,7 +1178,116 @@ function applyRosterImport(data) {
       if (data.labour[k] != null && !isNaN(v) && v >= 0) S.labour[k] = v;
     });
   }
-  return { added: added, updated: updated, skipped: skipped, targets: targets };
+  var att = applyAttendanceImport(data);
+
+  return { added: added, updated: updated, skipped: skipped, targets: targets,
+           days: att.days, daysKept: att.daysKept, marksDropped: att.marksDropped };
+}
+
+/* ===== ATTENDANCE THROUGH THE SAME DOOR =====
+
+   The roster and the days it worked are one decision, and they arrive together
+   for the same reason the area complements do: a roster with no history has
+   nothing for the Areas card to check, and a history with no roster has nobody
+   to attach itself to. Settings -> Import still cannot serve, because it
+   replaces the whole state and would take every invoice with it.
+
+   Three rules, and each of them is the difference between seeding a history and
+   corrupting one.
+
+   **Marks name a WORKER, never an id.** Ids are per-device -- two devices that
+   typed the same person gave them different numbers -- so an id in a file would
+   attach a day's marks to whoever happens to hold that number here. The name is
+   resolved against the roster this import just merged, which is why attendance
+   is applied last.
+
+   **A name that is not on the roster is dropped and COUNTED, never created.**
+   Creating a worker from an attendance file would put a row with no comp class
+   and no rate on the roster, and the labour figure would then read short with
+   nothing on screen saying why. A reported drop is a question the operator can
+   answer; an invented worker is a wrong number nobody sees.
+
+   **A day that already exists is KEPT, never overwritten.** Seeding must not be
+   able to destroy entry somebody actually did. The count is reported so a
+   re-import that did nothing says so rather than looking like it worked. */
+function applyAttendanceImport(data) {
+  var out = { days: 0, daysKept: 0, marksDropped: 0 };
+  var src = data && data.attendance;
+  if (!src || typeof src !== 'object' || Array.isArray(src)) return out;
+
+  if (!S.attendance) S.attendance = {};
+
+  // One name->id table for the whole import rather than a scan per mark.
+  var byName = {};
+  (S.staff || []).forEach(function(w) {
+    byName[String(w.name || '').trim().toLowerCase()] = w.id;
+  });
+
+  Object.keys(src).forEach(function(iso) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(iso)) return;
+    if (S.attendance[iso]) { out.daysKept++; return; }
+
+    var day = src[iso] || {};
+    var rec = { marks: {}, extra: [], note: String(day.note || '') };
+
+    (Array.isArray(day.marks) ? day.marks : []).forEach(function(m) {
+      var id = byName[String((m && m.name) || '').trim().toLowerCase()];
+      if (id == null) { out.marksDropped++; return; }
+      var area = STAFF_AREA_ALIASES[m.area] || m.area;
+      rec.marks[id] = {
+        st: ATT_STATES.indexOf(m.st) !== -1 ? m.st : 'P',
+        ot: Math.max(0, Number(m.ot) || 0),
+        hours: Math.max(0, Number(m.hours) || 0),
+        area: STAFF_AREAS.some(function(a) { return a.id === area; }) ? area : 'flex'
+      };
+    });
+
+    (Array.isArray(day.extra) ? day.extra : []).forEach(function(x) {
+      var e = importedExtra(x, byName);
+      if (e) rec.extra.push(e);
+    });
+
+    S.attendance[iso] = rec;
+    out.days++;
+  });
+
+  return out;
+}
+
+/* One booked-hours row, read defensively. A block keeps its own shape -- areas,
+   crew and times -- because the reconciler needs all three and reports the row
+   as "Not checkable" when any is missing. That refusal is the point: a block
+   whose crew was never written down is honestly unverifiable, and the hours are
+   still counted in the bill, because unverifiable is not unpaid. */
+function importedExtra(x, byName) {
+  if (!x || typeof x !== 'object') return null;
+  var hours = Math.max(0, Number(x.hours) || 0);
+  var kind = EXTRA_KINDS.some(function(k) { return k.id === x.kind; }) ? x.kind : 'coverage';
+
+  if (kind === 'block') {
+    var areas = (Array.isArray(x.areas) ? x.areas : [])
+      .map(function(a) { return STAFF_AREA_ALIASES[a] || a; })
+      .filter(function(a) { return STAFF_AREAS.some(function(s2) { return s2.id === a; }); });
+    if (areas.length === 0) return null;
+    // The crew is carried by NAME for the same reason the marks are, and an
+    // unmatched name is dropped rather than guessed at -- a block reconciled
+    // against the wrong head count invents a shortfall that never happened.
+    var crew = [];
+    (Array.isArray(x.crew) ? x.crew : []).forEach(function(n) {
+      var id = byName[String(n || '').trim().toLowerCase()];
+      if (id != null && crew.indexOf(id) === -1) crew.push(id);
+    });
+    return {
+      kind: 'block', areas: areas, crew: crew, hours: hours,
+      from: _hhmm(x.from) == null ? '' : String(x.from),
+      to: _hhmm(x.to) == null ? '' : String(x.to),
+      area: areas[0]
+    };
+  }
+
+  var area = STAFF_AREA_ALIASES[x.area] || x.area;
+  if (!STAFF_AREAS.some(function(a) { return a.id === area; })) return null;
+  return { kind: 'coverage', area: area, hours: hours };
 }
 
 /* Deletion is refused while attendance names the worker. Removing the row would

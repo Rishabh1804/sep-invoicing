@@ -747,12 +747,45 @@ per-hand booking into "neither". The gap is the same shape at range level: **exp
 likely to be under-recorded heads than a shop that books a fifth of what it owes, which is exactly
 why the card reports under-booking as *not an error* and calls the expected figure an upper bound.
 
-**Three things the seed does NOT carry, because the sheets do not.** Per-worker **hours** and **OT**
-for the hourly pool — those live on the payout slips, weekly and per worker, and splitting a week
-across its days would invent a distribution nobody wrote down; they land as 0 and the labour card
-reports its coverage. And **block crews before 27 July**, because the relay writes those blocks as
-prose with no names: they import with an empty crew and the reconciler reports them as *Not
-checkable*, with the hours still counted in the bill. Unverifiable is not unpaid.
+**Hours are recorded, and an earlier version of this section said they were not.** The claim was
+*"the sheets record where a hand stood, not how long"* — false on three counts, and the correction
+matters because it was used to justify seeding `hours: 0` across the board. The corpus states hours
+in two places and states **absences** in a third:
+
+- **`2026-W33.md` carries a worker × day HOURS MATRIX** — ten hands, six days, **36 legs**, every
+  cell tied to the payout slip leg-for-leg by that file's own audit.
+- **The payout slips W28–W33 carry per-day HOUR STRINGS** (`18+14+18+14+11+5`). The terms are the
+  days that worker was present, in order.
+- **`2026-W18`–`W22` carry PRESENCE MATRICES** (`✓ / ✗ / ✓+OT`) holding the **explicit absences** the
+  slot rows never did. Four states, not three — and the first seed emitted only `P`, collapsing
+  *absent* into *unmarked*, which is the exact distinction the labour card exists to keep.
+
+**The join is what makes an hour string safe rather than a guess.** A string is assigned only when it
+has **exactly as many terms as the attendance sheets have present days** for that worker that week.
+On W32 — the one week where both instruments exist — **8 of 9 strings match exactly**. Where the
+counts disagree the string is **refused and counted**, never stretched to fit: a mis-aligned string
+puts a fourteen-hour day on the wrong date and reads as a real record.
+
+**The convention W33 recovered from its own ties:** paid hours are the **clock span floored to the
+whole hour** (8:30 AM → 12 AM = 15½ pays 15; 6 AM → 12 AM pays 18), with **no lunch deduction on a
+6 AM start**. Note this is *floored*, where the unattributed EXTRA credit **rounds a 2.5-hour morning
+block up to 3** — two instruments, two roundings, and neither is the other's error.
+
+**What the seed actually recovers, with its instrument.** 37 worker-days of hours and 47 explicit
+absences, against 774 marks — **4.8% hours coverage**. Small, and the reason is worth stating: the
+two rich instruments sit mostly on days the extractor never captured, because `W19`, `W20`, `W23` and
+`W33` write their day structure differently from the `## Mon 4 May 2026` shape it matches. W33's 36
+hours cells and 94 of the 142 absences land outside the seeded range entirely. **That is an
+extraction gap, not a recording gap** — the distinction the earlier claim got wrong.
+
+**What genuinely is not recoverable: a weekly total with no per-day breakdown.** Those weeks are not
+distributed across their days, because *there* splitting really would invent a distribution nobody
+wrote down. They keep 0 and are counted. That is the claim the original sentence should have been
+limited to.
+
+**And block crews before 27 July**, because the relay writes those blocks as prose with no names:
+they import with an empty crew and the reconciler reports them as *Not checkable*, with the hours
+still counted in the bill. Unverifiable is not unpaid.
 
 ⚠ **The extractor is a THIRD instrument and it disagrees with the other two.** It finds **8 blocks**
 where Castor's sweep found 13 and Cipher's found 17 over the same files, because it only matches a

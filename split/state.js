@@ -20,6 +20,15 @@ function getDefaultState() {
     // Starts at 6: CN/001–005 of 2026-27 were issued by hand before the app
     // existed. See the _cnSeriesStart1 migration in init.js.
     cnNextNum: 6,
+    // Reconciliation exceptions. A disagreement the extra-check raised and a
+    // human then examined becomes a RECORD carrying a required reason — the
+    // same treatment `voidedNumbers` gives a number gap and `dupeAck` gives an
+    // accepted duplicate. One recorded block already needs it (W33 Tue 11
+    // Aug): the rule does not reproduce it, and that has to be precedent in
+    // the system rather than a line in a document. (W31 Mon 27 Jul was named
+    // here too, and is struck — tagged in the raw relay, under-booked, and
+    // under-booking is never an error.)
+    extraExceptions: [],
     // Workforce. The roster ships empty: names and wages are payroll data and
     // this repo is public, so the owner enters them once on the device. Areas
     // and comp classes are structure, not data, and live in staff.js.
@@ -54,21 +63,87 @@ function saveJSON(key, data) {
   try { localStorage.setItem(key, JSON.stringify(data)); } catch(e) { showToast('Storage full! Export data.','error'); }
 }
 
+/* Fill in every container a backup might predate.
+
+   Three code paths replace the whole state — the loader below, ghPull, and
+   Settings → Import — and each used to carry its own copy of this list. The
+   loader's and ghPull's had already drifted apart once (four keys added to one
+   and not the other, which is how a pull could land the app in a broken
+   state), and Settings → Import carried NO repairs at all: a backup written
+   before `staff` existed left it undefined and the Staff tab threw on open.
+
+   So the list lives once, and it is read from `getDefaultState()` rather than
+   restated, because a restated default is a default that will drift. Keys are
+   only ever ADDED — an existing value, including a deliberate empty one, is
+   never overwritten.
+
+   `cnNextNum` is an existence guard only; init.js's `_cnSeriesStart1` lifts a
+   series that has never issued anything to where it actually starts. */
+// Containers hold the user's records, so a missing one is filled EMPTY — the
+// app must never invent business data to repair a shape.
+var STATE_CONTAINERS = ['clients', 'items', 'invoices', 'incomingMaterial', 'partWeights',
+  'voidedNumbers', 'creditNotes', 'extraExceptions', 'staff', 'attendance', 'areaTargets'];
+// Config objects are the opposite: a missing one is filled from the defaults,
+// and so is a missing KEY inside one. `labourCfg()` reads `extraRate || 0`, so
+// a backup predating a constant would silently price the extra at nothing
+// rather than at ₹47.50 — a wrong number, not a visible gap.
+var STATE_CONFIGS = ['labour'];
+
+function ensureStateShape(s) {
+  if (!s) return s;
+  var d = getDefaultState();
+  STATE_CONTAINERS.forEach(function(k) {
+    if (!s[k]) s[k] = Array.isArray(d[k]) ? [] : {};
+  });
+  STATE_CONFIGS.forEach(function(k) {
+    if (!s[k] || typeof s[k] !== 'object') { s[k] = d[k]; return; }
+    Object.keys(d[k]).forEach(function(f) {
+      if (s[k][f] == null) s[k][f] = d[k][f];
+    });
+  });
+  if (!s.cnNextNum) s.cnNextNum = 1;
+  return s;
+}
+
+/* Adopt a replacement state, or keep the one we have.
+
+   `migrateState()` walks records written by another device, so it can throw on
+   a shape nothing here anticipated — a challan with no `items`, say. Assigning
+   `S` first and migrating after meant a throw left the app running on a
+   half-migrated state that was never saved: the toast said "Invalid file" and
+   the operator carried on, now looking at someone else's half-repaired books.
+
+   So the swap is all-or-nothing. On a throw the previous state is restored and
+   the error is re-raised for the caller to report. Nothing is persisted here —
+   the caller saves once it knows the adoption held. */
+function adoptState(next) {
+  var prev = S, prevRaw = null;
+  // The rollback has to cover STORAGE, not just memory. `migrateState()`
+  // persists as it runs — seven `saveJSON(STORAGE_KEY, S)` calls inside it —
+  // and every one of them fires while `S` is already the incoming state. So a
+  // throw partway through had written a half-migrated foreign state to disk
+  // before the old `S = prev` restored memory: the toast said "Invalid file",
+  // the operator carried on, and the NEXT RELOAD opened someone else's books.
+  // Restoring memory alone was not all-or-nothing; it only looked like it
+  // until the page was reloaded.
+  try { prevRaw = localStorage.getItem(STORAGE_KEY); } catch (e) { prevRaw = null; }
+  try {
+    S = next;
+    ensureStateShape(S);
+    migrateState();
+  } catch (e) {
+    S = prev;
+    try {
+      if (prevRaw != null) localStorage.setItem(STORAGE_KEY, prevRaw);
+    } catch (e2) { /* storage refused the rollback; memory is still correct */ }
+    throw e;
+  }
+  return S;
+}
+
 let S = loadJSON(STORAGE_KEY, null);
 if (!S) { S = getDefaultState(); saveJSON(STORAGE_KEY, S); }
-// Ensure arrays exist
-if (!S.invoices) S.invoices = [];
-if (!S.incomingMaterial) S.incomingMaterial = [];
-if (!S.partWeights) S.partWeights = {};
-if (!S.voidedNumbers) S.voidedNumbers = [];
-if (!S.creditNotes) S.creditNotes = [];
-if (!S.staff) S.staff = [];
-if (!S.attendance) S.attendance = {};
-if (!S.areaTargets) S.areaTargets = {};
-if (!S.labour) S.labour = { otMult: 1.1, restCreditMinDays: 6, extraRate: 47.5, modelPerKg: 3.55, gateFull: 0.9, gateHalf: 0.8, extraHoursPerHead: 8 };
-// Existence guard only — init.js's _cnSeriesStart1 migration lifts a series
-// that has never issued anything to where it actually starts.
-if (!S.cnNextNum) S.cnNextNum = 1;
+ensureStateShape(S);
 
 /* ===== LAYOUT MODE (Phase 8A) ===== */
 var _isDesktop = false;

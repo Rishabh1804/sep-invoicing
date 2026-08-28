@@ -28,6 +28,45 @@ if (!S._scanSeed1) {
   saveState();
 }
 
+/* Phase 6b: Remove Belrise trading items (rate > 25) — one-time cleanup.
+
+   Bootstrap-only, and DELIBERATELY not a structural migration: it deletes
+   catalogue rows. The flag on an imported backup describes the device that
+   wrote it, so re-running this against someone else's state would delete rows
+   on the strength of a flag that was never about them. See the banner below. */
+if (!S._rateCleanup1) {
+  var before = S.items.length;
+  S.items = S.items.filter(function(it) { return (it.rate || 0) <= 25; });
+  var removed = before - S.items.length;
+  if (removed > 0) console.log('Rate cleanup: removed ' + removed + ' items with rate > 25 (Belrise trading remnants)');
+  S._rateCleanup1 = true;
+  saveJSON(STORAGE_KEY, S);
+}
+
+/* ===== STRUCTURAL MIGRATIONS =====
+
+   Everything below runs at bootstrap AND again whenever the whole state is
+   REPLACED — a GitHub pull or a Settings → Import. It used not to, and the
+   consequence was silent: a state pulled from a device that had never run the
+   area realignment still carried `pickling` and `colour` marks, which
+   `areaStats` drops on the floor (`if (!a) return;`). Heads under-counted,
+   every shortfall inflated to match, and the Areas card read wrong until the
+   next reload happened to migrate it. Nothing said so.
+
+   What is IN here and what is not is the load-bearing distinction. A
+   structural migration RE-POINTS or REPAIRS records the state already holds,
+   so running it against someone else's backup is exactly as correct as running
+   it against your own, and running it twice is a no-op. A SEED writes new
+   business records, and a one-time data cleanup DELETES them: neither is safe
+   to fire at an imported state, because the incoming flags describe the device
+   that wrote the backup and not the records in it. Re-running `_scanSeed1`
+   against a pull would push seven challans a second time — into the one app in
+   this repo with a whole module devoted to duplicate receipts.
+
+   So the seeds (`_nosQtySeeded`, `_scanSeed1`) and the Belrise rate cleanup
+   (`_rateCleanup1`) stay above this line, bootstrap-only, deliberately. */
+function migrateState() {
+
 /* Phase 5: Migrate existing invoices to lifecycle states */
 (function() {
   var migrated = 0;
@@ -197,16 +236,6 @@ if (!S._scanSeed1) {
   }
 })();
 
-/* Phase 6b: Remove Belrise trading items (rate > 25) — one-time cleanup */
-if (!S._rateCleanup1) {
-  var before = S.items.length;
-  S.items = S.items.filter(function(it) { return (it.rate || 0) <= 25; });
-  var removed = before - S.items.length;
-  if (removed > 0) console.log('Rate cleanup: removed ' + removed + ' items with rate > 25 (Belrise trading remnants)');
-  S._rateCleanup1 = true;
-  saveJSON(STORAGE_KEY, S);
-}
-
 /* Comp classes rebuilt against the two pay mechanics the shop actually runs.
 
    The first cut of the Staff tab shipped `permanent` (a flat monthly, accrued
@@ -359,6 +388,10 @@ if (!S._cnSeriesStart1) {
   S._cnSeriesStart1 = true;
   saveJSON(STORAGE_KEY, S);
 }
+
+}
+
+migrateState();
 
 /* ===== LAYOUT MODE (Phase 8A) ===== */
 var _resizeTimer = null;

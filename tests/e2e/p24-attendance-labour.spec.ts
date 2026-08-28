@@ -316,7 +316,7 @@ test('a roster import merges by name, keeps attendance, and leaves invoices alon
   await openStaff(page);
 
   const result = await page.evaluate(() => (window as unknown as {
-    applyRosterImport: (d: unknown) => { added: number; updated: number; skipped: number };
+    applyRosterImport: (d: unknown) => Record<string, number>;
   }).applyRosterImport({
     staff: [
       { name: 'pool hand', comp: 'hourly', hourRate: 60, area: 'pickling-vat' },  // case-insensitive match
@@ -324,8 +324,15 @@ test('a roster import merges by name, keeps attendance, and leaves invoices alon
       { name: '   ' },                                                        // no name → skipped
     ],
   }));
-  // `targets` counts area complements set; this file carries none.
-  expect(result).toEqual({ added: 1, updated: 1, skipped: 1, targets: 0 });
+  // `targets` counts area complements set; this file carries none. The three
+  // attendance counters are reported on every import, zero included: an import
+  // that carried no days has to say so rather than leaving the caller to guess
+  // whether the key is missing because nothing arrived or because nothing landed.
+  expect(result).toEqual({
+    added: 1, updated: 1, skipped: 1, targets: 0,
+    days: 0, daysKept: 0, daysDropped: 0, marksDropped: 0,
+    extrasDropped: 0, crewsUnresolved: 0,
+  });
 
   // `S` is declared with `let`, so it is a global binding and not a property of
   // `window` — the persisted copy is the readable one, and reading it proves

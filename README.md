@@ -169,9 +169,11 @@ the sheet itself does. Booking more than the shortfall explains is flagged with 
 date; booking less is not called an error, because nothing here measures per-area output and the
 expected figure is an upper bound.
 
-`EXTRA n HOURS` means two different things on the sheet — pooled coverage under an area row, but a
-**per-hand** credit in a 6 AM or evening block — so each entry carries its kind, and only coverage
-is reconciled.
+`EXTRA n HOURS` is one instrument (owner, 28 Aug 2026). An OT block books the extra the same way a
+general shift does — against the shortfall in the area that ran — credited the **block's own length**
+rather than a full eight. A block row therefore carries its in/out times, the areas it covers and its
+named crew: the marks record where a worker stood on the *general* shift, and the blocks move people.
+Any of the three missing and the row is reported rather than reconciled at a guess.
 
 Coverage is then attributed **pro-rata** to the crew who carried it — an availability measure,
 not a wage: the payout is pooled, so nothing is added to anyone's pay.

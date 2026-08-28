@@ -730,8 +730,8 @@ and corrupting one.
   worked.
 
 ### What the seeded history actually says about the extra
-64 days, 2 May – 8 Aug 2026, 785 marks and 55 general-shift bookings, read off
-`soma-internal/attendance/2026-W*.md`. It is the first time the rule has been tested against more
+**91 days, 2 May – 15 Aug 2026, 1,244 marks, 202 explicit absences and 67 general-shift bookings**,
+read off `soma-internal/attendance/2026-W*.md`. It is the first time the rule has been tested against more
 than a handful of hand-picked rows, and **it does not settle the question the owner ruled on.**
 
 On the **33 booked unit-days that carry a shortfall**, 8 reconcile at both readings because they are
@@ -771,12 +771,32 @@ whole hour** (8:30 AM → 12 AM = 15½ pays 15; 6 AM → 12 AM pays 18), with **
 6 AM start**. Note this is *floored*, where the unattributed EXTRA credit **rounds a 2.5-hour morning
 block up to 3** — two instruments, two roundings, and neither is the other's error.
 
-**What the seed actually recovers, with its instrument.** 37 worker-days of hours and 47 explicit
-absences, against 774 marks — **4.8% hours coverage**. Small, and the reason is worth stating: the
-two rich instruments sit mostly on days the extractor never captured, because `W19`, `W20`, `W23` and
-`W33` write their day structure differently from the `## Mon 4 May 2026` shape it matches. W33's 36
-hours cells and 94 of the 142 absences land outside the seeded range entirely. **That is an
-extraction gap, not a recording gap** — the distinction the earlier claim got wrong.
+**The extraction gap is now closed, and it was most of the shortfall.** An earlier version of this
+section reported 4.8% hours coverage over 64 days and named the cause: `W19`, `W20`, `W31` and `W33`
+write their day structure differently from the `## Mon 4 May 2026` shape the extractor matched. Four
+shapes were missing, and each cost real days:
+
+| Shape | Example | Cost |
+|---|---|---|
+| `###` day headings | `### Mon 10 August 2026 (W33 Day 1)` | W33 entirely — 6 days, 12 EXTRA tags, the whole hours matrix |
+| abbreviated month, no year | `### Thu 30 Jul` | four of W31's six days |
+| bullet slot rows | `- **VAT-A1**: Rupa · Sarat · Bhanu` | W28 entirely — 6 days, 44 rows |
+| no day headings at all | W19 / W20 carry only a worker × day matrix | 12 days, 231 marks |
+
+**64 → 91 days · 774 → 1,244 marks · 37 → 169 worker-days of hours · 40 → 202 explicit absences.**
+Hours coverage **4.8% → 13.6%**.
+
+**And the 13.6% is the wrong denominator to judge it by.** Hours exist per week only where the shop
+recorded them, and where it did, coverage is high: **W28 60% · W29 64% · W32 35% · W33 36%**, against
+zero for W18–W27 and W31. The W32/W33 figure is near-complete for the population that *has* hours —
+the hourly pool is about half the roster, and the nine monthly-tier hands never appear on an hourly
+slip because they are paid by day rate, not by the hour.
+
+**Three instruments, and one of them is a stated span rather than a per-worker figure.** W33's matrix
+and the W28–W33 payout strings are per-worker records. The third is the day's own
+`In 8:30 / out 5:00`, stated on 10 days — converted under W33's own floor rule (8.5 → 8) and applied
+only to a present hand with no per-worker figure of its own, because a slip knows that this hand
+stayed to midnight and the span only knows when the shift was.
 
 **What genuinely is not recoverable: a weekly total with no per-day breakdown.** Those weeks are not
 distributed across their days, because *there* splitting really would invent a distribution nobody
@@ -787,10 +807,12 @@ limited to.
 they import with an empty crew and the reconciler reports them as *Not checkable*, with the hours
 still counted in the bill. Unverifiable is not unpaid.
 
-⚠ **The extractor is a THIRD instrument and it disagrees with the other two.** It finds **8 blocks**
-where Castor's sweep found 13 and Cipher's found 17 over the same files, because it only matches a
-bold `Morning OT` / `Evening OT` / `6:00 AM block` heading carrying an `EXTRA` tag on one line. Read
-8 as what this parser sees, not as the corpus. The census disagreement above stands open.
+⚠ **The extractor is a THIRD instrument and it still disagrees with the other two on BLOCKS.** It
+finds **8 blocks** where Castor's sweep found 13 and Cipher's found 17 over the same files, because
+it only matches a bold `Morning OT` / `Evening OT` / `6:00 AM block` heading carrying an `EXTRA` tag
+on one line. Teaching it four day shapes fixed the *day* coverage and left the *block* heading key
+untouched. Read 8 as what this parser sees, not as the corpus. The census disagreement above stands
+open.
 
 **Four states, not three.** Unmarked is not absent. A row nobody has reached costs nothing; an
 absence costs a day's wage and has to be said. The same distinction one level up is what the

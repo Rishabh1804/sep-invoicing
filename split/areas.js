@@ -429,7 +429,19 @@ function areaStats(fromIso, toIso) {
         if (!(x.hours > 0)) return;   // supplies its area to the fold, books nothing
         var hrs = blockLength(x);
         var norm = blockNorm(x, rows);
-        var heads = Array.isArray(x.crew) ? x.crew.length : null;
+        // An empty crew means two different things, and the record itself
+        // tells them apart. A crew-less row BESIDE named sibling rows is the
+        // relay stating nobody stood that line — W32 Thu-6's pickling rows
+        // reconcile only at heads 0 (evening: 3 short × 7 = 21 exactly as
+        // tagged; morning: 3 × 3 = 9) — the same reading V-B1 gave a zero-head
+        // general-shift area with a booking. A block with no crew named on ANY
+        // row is unrecorded: reading that as 0 invented a full-complement
+        // shortfall on every imported crew-less block and drained the
+        // Not-checkable line.
+        var heads = Array.isArray(x.crew) && x.crew.length > 0 ? x.crew.length : null;
+        if (heads == null && rows.some(function(r) {
+          return r !== x && Array.isArray(r.crew) && r.crew.length > 0;
+        })) heads = 0;
         var booked = x.hours || 0;
         var areas = extraAreas(x);
         var label = areas.map(function(id) {

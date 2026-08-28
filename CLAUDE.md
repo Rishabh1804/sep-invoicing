@@ -425,20 +425,28 @@ courtesy the general-shift side already gets. **W33 Tue 11 Aug, 5–8 PM**: A1 3
 hands tagged 12, which reconcile only at a per-row fold of 2 each — four pickling hands across the
 block, contradicting the ceiling.
 
-🔴 **The SECOND named exception is WITHDRAWN: it was a misreading of the source.** This section said
-**W31 Mon 27 Jul, 5–8 PM** carried two rows *"each tagged `Extra 3 hours`"*. **`Extra 3 hours`
-appears ZERO times in `2026-W31.md`.** What the file actually says at that slot is
-*"**Evening OT 5:00–8:00 PM** — Sambhu · Naren (VAT-A2) + Rakesh · Sripati · Birsa (VAT-A1) —
-**3 + 3 man-hr**"*. That is not an `EXTRA` tag at all: it is the **superseded per-hand man-hour
-notation**, which is precisely the instrument the 28 Aug ruling replaced. An untagged block is not
-evidence about a tag convention, so it never belonged in the ceiling test.
+🔴 **The SECOND named exception is STRUCK from the ceiling test — but the ground has moved TWICE,
+and both moves are on the record.** This section first said **W31 Mon 27 Jul, 5–8 PM** carried two
+rows *"each tagged `Extra 3 hours`"*, then withdrew that as a fabricated quotation
+(`grep -ci "extra 3 hour" attendance/2026-W31.md` → 0; the weekly says **3 + 3 man-hr**) and called
+the block **untagged**. 🔴 **The withdrawal was itself the mixed-instrument error (Vulcanus V-3):
+the RAW RELAY carries the literal tags** — `Extra----3 hours` (VAT A2) and `Extra---3 hours`
+(VAT A1), in both the `2026-07-28` and `2026-08-14` exports at :9989/:9994 — **and the weekly
+transcribed them into man-hr notation.** An absence was measured on a transcription of the record
+and published as a fact about the record.
 
-⭐⭐ **The lesson is this repo's own rule turned on its author: name the instrument before quoting a
-figure.** The quoted tag was never swept for; it was reconstructed from what the arithmetic needed.
-Instrument: `grep -ci "extra 3 hour" attendance/2026-W31.md` → **0**.
+**The block is tagged, and it still is not a counter-case.** Booked 3 + 3 = 6 against a per-hand
+prediction of ~18 is an **under-booking**, which the rule treats as *not an error* — an upper bound,
+never a target. And the payout corroborates the strike from the other side (Castor): the slip's
+pooled EXTRA leg for Mon 27 is **41 = 9 + 32**, excluding the evening 6 entirely
+(`operations/payouts/2026-W31-payout-2026-08-01.md:70`).
 
-**So the ceiling now rests on ONE recorded case, not two** — a weaker basis than this file previously
-claimed, and the honest statement of it.
+⭐⭐ **The compound lesson: name the instrument AND its provenance.** The first error quoted a tag
+nobody swept for; the second swept the wrong surface and called the null a fact about the world.
+*A quotation with no instrument reads as evidence somebody checked; a null on a transcription reads
+as a null on the record. Both were published here.*
+
+**The ceiling still rests on ONE recorded case** — `W33:63` — for the corrected reason above.
 
 **It resolves a row the codex had written off.** `soma-internal/attendance/2026-W31.md:150` calls the
 Tue-28 evening tag *"internally inconsistent (group 1: 3×7=21 ✓; group 2: 2×7=14≠21)"* and treats
@@ -743,23 +751,26 @@ and corrupting one.
   worked.
 
 ### What the seeded history actually says about the extra
-**91 days, 2 May – 15 Aug 2026, 1,327 marks, 203 explicit absences, 102 general-shift bookings and
-27 OT blocks**,
-read off `soma-internal/attendance/2026-W*.md`. It is the first time the rule has been tested against more
-than a handful of hand-picked rows, and **it does not settle the question the owner ruled on.**
+**93 days, 2 May – 15 Aug 2026, 1,509 marks, 261 explicit absences, 105 general-shift bookings and
+36 OT blocks (26 fully checkable, 8 of them re-sourced from the raw relay)**, read off
+`soma-internal/attendance/2026-W*.md` plus `operations/payouts/` and, for W31's blocks,
+`data/raw/relays/`. It is the first time the rule has been tested against more than a handful of
+hand-picked rows, and **it does not settle the question the owner ruled on.**
 
-On the **33 booked unit-days that carry a shortfall**, 8 reconcile at both readings because they are
-short by exactly one, where per-hand and per-area give the same 8. That leaves **25 that can tell the
-two apart: per-hand 10, per-area 6, and 9 that reconcile at neither.** Per-hand leads and does not
-sweep. That is materially more evidence than the two counter-cases named above — and it is not a
-refutation, because the owner's ruling is the owner's to make and the plurality is his way.
+On the **65 booked unit-days that carry a shortfall**, 36 are short by exactly one, where per-hand
+and per-area both predict 8. That leaves **29 that can tell the two apart: per-hand 11, per-area 7,
+and 11 that reconcile at neither.** Per-hand leads and does not sweep — the same shape the smaller
+corpus showed, now on twice the evidence. It is not a refutation, because the owner's ruling is the
+owner's to make and the plurality is his way.
 
-**Read the 9 carefully rather than as a third rule.** The seed takes heads from the slot rows, so a
-day whose sheet omitted a hand reads short, which inflates the expected side and pushes a genuinely
-per-hand booking into "neither". The gap is the same shape at range level: **expected 1,912 h against
-538 h booked** over the twelve weeks to 23 Aug. An expected figure 3.5× the booked one is far more
-likely to be under-recorded heads than a shop that books a fifth of what it owes, which is exactly
-why the card reports under-booking as *not an error* and calls the expected figure an upper bound.
+**The range-level gap was a parser artifact, and the corrected corpus nearly reconciles.** An
+earlier version reported *expected 1,912 h against 538 h booked* — a 3.5× gap read as
+under-recorded heads. Most of that gap was tags the extractor could not see (the `| EXTRA |`
+column, the prose day-grids, W31's blocks). On the corrected corpus the same instrument
+(`Σ max(0, norm − heads) × 8` per unit-day that ran, barrel + barrel pickling as one unit of five,
+idle unit-days excluded and counted: 68) reads **expected 1,800 h against 1,563 h booked — 1.2×**.
+The shop books close to what the rule predicts; the expected figure stays an upper bound and
+under-booking stays *not an error*.
 
 **Hours are recorded, and an earlier version of this section said they were not.** The claim was
 *"the sheets record where a hand stood, not how long"* — false on three counts, and the correction
@@ -776,7 +787,9 @@ in two places and states **absences** in a third:
 
 **The join is what makes an hour string safe rather than a guess.** A string is assigned only when it
 has **exactly as many terms as the attendance sheets have present days** for that worker that week.
-On W32 — the one week where both instruments exist — **8 of 9 strings match exactly**. Where the
+On W32 — one of the two weeks where both instruments exist (W33 is the other) — **9 of 9 strings
+now match** *(the ninth was Champai, refused only because her ⭐-decorated rows defeated the name
+regex)*. Where the
 counts disagree the string is **refused and counted**, never stretched to fit: a mis-aligned string
 puts a fourteen-hour day on the wrong date and reads as a real record.
 
@@ -796,31 +809,41 @@ shapes were missing, and each cost real days:
 | abbreviated month, no year | `### Thu 30 Jul` | four of W31's six days |
 | bullet slot rows | `- **VAT-A1**: Rupa · Sarat · Bhanu` | W28 entirely — 6 days, 44 rows |
 | no day headings at all | W19 / W20 carry only a worker × day matrix | 12 days, 231 marks |
+| **two days in ONE heading** | `## Wed 29 + Thu 30 Jul` | both days VANISHED — ~32 marks, 8 absences, two EXTRA 8s — while a mangled fragment seeded a **phantom block on the wrong day** (Castor blocker; the code comment claiming "the first wins" described code that did not exist) |
+| **inline group labels** | `A1: Sambhu`, `*A2* Sarat`, `— Sarat ·` | the FIRST HAND of every prose block row dropped — Sarat from the worked example, Sambhu from the 28-h flagship, and the wrong crew on `W33:63`, the surviving exception itself |
+| **`·`-separated positional hour strings** | `14 · 18 · 18 · 18 · 14 · 11` under a day-named header | all of W31's per-day hours read as zero |
+| **decorated names** | `⭐ **Champai (8:30 AM)**` | Champai absent from four weeks of office rows — six paid days with no presence mark |
 
-**64 → 91 days · 774 → 1,327 marks · 37 → 193 worker-days of hours · 40 → 203 explicit absences ·
-55 → 102 general-shift bookings · 8 → 27 blocks**, of which **14 are fully checkable** against 4.
-Hours coverage **4.8% → 14.5%**.
+**64 → 93 days · 774 → 1,509 marks · 37 → 285 worker-days of hours · 40 → 261 explicit absences ·
+55 → 105 general-shift bookings · 8 → 36 blocks**, of which **26 are fully checkable** against 4.
 
-**And the 13.6% is the wrong denominator to judge it by.** Hours exist per week only where the shop
-recorded them, and where it did, coverage is high: **W28 60% · W29 64% · W32 35% · W33 36%**, against
-zero for W18–W27 and W31. The W32/W33 figure is near-complete for the population that *has* hours —
-the hourly pool is about half the roster, and the nine monthly-tier hands never appear on an hourly
-slip because they are paid by day rate, not by the hour.
+**Hours exist per week only where the shop recorded them, and there coverage is real:** **W28 63% ·
+W29 51% · W30 26% · W31 45% · W32 36% · W33 34%**, against zero for W18–W27. *(An earlier version
+said "zero for W18–W27 **and W31**" — W31's per-day hours sat on disk the whole time, in the payout
+table's `·`-separated POSITIONAL strings (`14 · 18 · 18 · 18 · 14 · 11` under a header naming the
+days, `—` for absent) and again at `2026-W31.md:203` — two surfaces, both unread for want of a
+separator. A zero was published as a fact about the shop that was a fact about the parser, for the
+second time in one file.)* The monthly tier never appears on an hourly slip because it is paid by
+day rate; its span-credited hours are display-only and price nothing (Castor, claim 5).
 
-**Three instruments, and one of them is a stated span rather than a per-worker figure.** W33's matrix
-and the W28–W33 payout strings are per-worker records. The third is the day's own
-`In 8:30 / out 5:00`, stated on 10 days — converted under W33's own floor rule (8.5 → 8) and applied
-only to a present hand with no per-worker figure of its own, because a slip knows that this hand
-stayed to midnight and the span only knows when the shift was.
+**Four instruments now, each stated rather than joined where the sheet allows it.** W33's worker ×
+day matrix and W31's positional payout strings are **date-stated** — no join needed. The
+`+`-separated strings (three shapes: indexed, index-less, `N×M`) are **joined** only when the term
+count equals that worker-week's present days, refused and counted otherwise. And the day's own
+`In 8:30 / out 5:00` (10 days) credits a present hand under W33's floor rule only when no per-worker
+figure exists. *(Also corrected: "the payout slips W28–W33 carry per-day hour strings" — **W28 and
+W29 carry weekly totals only**; per-day strings exist on W30–W33.)*
 
 **What genuinely is not recoverable: a weekly total with no per-day breakdown.** Those weeks are not
 distributed across their days, because *there* splitting really would invent a distribution nobody
 wrote down. They keep 0 and are counted. That is the claim the original sentence should have been
 limited to.
 
-**And block crews before 27 July**, because the relay writes those blocks as prose with no names:
-they import with an empty crew and the reconciler reports them as *Not checkable*, with the hours
-still counted in the bill. Unverifiable is not unpaid.
+**And SOME block crews before 27 July**, where the relay writes the block as prose with no names:
+those import with an empty crew and the reconciler reports them as *Not checkable*, with the hours
+still counted in the bill. Unverifiable is not unpaid. *(The blanket version of this claim was
+overbroad — W24's morning block names its crew in a `| Worker | Area |` table under the heading,
+and it now imports with all five.)*
 
 ### The block census, adjudicated
 
@@ -831,18 +854,29 @@ what a block **is** rather than how it is written — a slot outside the 8:30–
 carrying its own tag — finds four surface forms, all real: the table row, the prose line, the `###`
 heading (W24's only block, which is why that file counted zero), and the `Out` row.
 
-**Result over W24/W31/W32/W33: 15 distinct blocks, 19 tagged rows** — between Castor's 13/18 and
-Cipher's 17/23, and it settles the part that was actually contested.
+**Result over W24/W31/W32/W33, weekly files only, corrected instrument: 14 distinct blocks,
+19 tagged rows** *(an earlier 15/19 counted a phantom — Wed 29's general-shift `EXTRA 8 HOURS`
+mangled into a Tue-28 morning block by the unparsed combined heading; Castor caught it)*. **Adding
+the tags the weeklies transcribed away** — W31's Mon-27 morning `Extra 9 hours`, Mon-27 evening
+`Extra---3 hours` ×2 and Tue-28 morning `Extra---3hours`, all literal in the raw relay —
+**gives 17 blocks / 23 rows: exactly Cipher's count. The census disagreement RESOLVES.**
 
-- ✅ **Cipher is right about the `Out` rows, and the argument holds.** Castor's key excluded them;
-  they are 4 of W33's rows. `:63` is an `Out` row **and** the surviving named exception, so it cannot
-  be outside the population the ruling is tested against. Castor's 13 undercounts.
-- ⚠ **The residual gap is a POPULATION question nobody stated: does an UNTAGGED block count?** This
-  instrument counts tagged blocks only. W31 alone carries at least four recorded blocks with no tag —
-  Mon 27's evening OT, Wed 29 and Thu 30's morning OT, and the Tue 28 midnight block the file itself
-  flags as *"No EXTRA tag on this block"*. Include them and the count passes 17; exclude them and it
-  is 15. **The three sweeps disagree because they counted different populations, and none of them
-  said which.** That is the finding, not a tie-break.
+- ✅ **Cipher was right twice.** The `Out` rows are tagged blocks (Castor's key excluded them — 4 of
+  W33's rows, `:63` among them, and `:63` is the surviving named exception, so it cannot sit outside
+  the population). And the man-hr lines Cipher counted as tags ARE tags — in the raw relay, which is
+  the primary source the weekly was transcribing.
+- ⚠ **The three sweeps disagreed because they counted different corpora, and none said which**:
+  Castor the weeklies minus the `Out` shape (13/18), this extractor the weeklies keyed on heading
+  style (8, then 14/19 corrected), Cipher the population as the raw records it (17/23). The
+  instrument note that matters: **a census of the shop's tags must be run on the shop's own
+  messages; the weekly is a fair copy, and fair copies normalise exactly the marks being counted.**
+- **Genuinely untagged blocks remain real and outside the tagged census** — Wed 29's and Thu 30's
+  morning OT, and **Thu 30's** midnight block, which the file flags at `2026-W31.md:88` as *"No
+  EXTRA tag on this block"* *(an earlier version attributed that flag to Tue 28's midnight block —
+  Tue 28's IS the tagged flagship; the flag two lines below it belongs to Thu 30)*. They import as
+  worked slots with crew and times and book nothing, which is what the ruling predicts for a slot
+  that ran at complement (Thu 30: 4 + fold 2 = 6 present → short 0 → predicted 0 — *the rule
+  working, not an anomaly*).
 
 **A block naming no area is now KEPT rather than dropped.** Two census rows state hours purely as
 out-times without naming a line. Dropping them took real booked hours out of the bill; they import

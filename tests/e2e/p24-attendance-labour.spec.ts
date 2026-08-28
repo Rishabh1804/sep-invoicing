@@ -330,7 +330,8 @@ test('a roster import merges by name, keeps attendance, and leaves invoices alon
   // whether the key is missing because nothing arrived or because nothing landed.
   expect(result).toEqual({
     added: 1, updated: 1, skipped: 1, targets: 0,
-    days: 0, daysKept: 0, marksDropped: 0,
+    days: 0, daysKept: 0, daysDropped: 0, marksDropped: 0,
+    extrasDropped: 0, crewsUnresolved: 0,
   });
 
   // `S` is declared with `let`, so it is a global binding and not a property of

@@ -11340,8 +11340,15 @@ function importRoster() {
         (res.days ? ' · ' + res.days + ' day' + (res.days === 1 ? '' : 's') + ' of attendance' : '') +
         (res.daysKept ? ' (' + res.daysKept + ' already recorded, kept)' : '') +
         (res.marksDropped ? ' · ' + res.marksDropped + ' mark' +
-          (res.marksDropped === 1 ? '' : 's') + ' for names not on the roster' : ''),
-        res.marksDropped ? 'warning' : 'success');
+          (res.marksDropped === 1 ? '' : 's') + ' for names not on the roster' : '') +
+        (res.extrasDropped ? ' · ' + res.extrasDropped + ' booked-hours entr' +
+          (res.extrasDropped === 1 ? 'y' : 'ies') + ' not recognised' : '') +
+        (res.crewsUnresolved ? ' · ' + res.crewsUnresolved + ' block crew' +
+          (res.crewsUnresolved === 1 ? '' : 's') + ' with unknown names, kept as not checkable' : '') +
+        (res.daysDropped ? ' · ' + res.daysDropped + ' day' +
+          (res.daysDropped === 1 ? '' : 's') + ' with unreadable dates' : ''),
+        (res.marksDropped || res.extrasDropped || res.crewsUnresolved || res.daysDropped)
+          ? 'warning' : 'success');
     };
     reader.readAsText(f);
     inp.value = '';
@@ -11425,7 +11432,9 @@ function applyRosterImport(data) {
   var att = applyAttendanceImport(data);
 
   return { added: added, updated: updated, skipped: skipped, targets: targets,
-           days: att.days, daysKept: att.daysKept, marksDropped: att.marksDropped };
+           days: att.days, daysKept: att.daysKept, daysDropped: att.daysDropped,
+           marksDropped: att.marksDropped, extrasDropped: att.extrasDropped,
+           crewsUnresolved: att.crewsUnresolved };
 }
 
 /* ===== ATTENDANCE THROUGH THE SAME DOOR =====
@@ -11455,7 +11464,8 @@ function applyRosterImport(data) {
    able to destroy entry somebody actually did. The count is reported so a
    re-import that did nothing says so rather than looking like it worked. */
 function applyAttendanceImport(data) {
-  var out = { days: 0, daysKept: 0, marksDropped: 0 };
+  var out = { days: 0, daysKept: 0, daysDropped: 0, marksDropped: 0,
+              extrasDropped: 0, crewsUnresolved: 0 };
   var src = data && data.attendance;
   if (!src || typeof src !== 'object' || Array.isArray(src)) return out;
 
@@ -11468,7 +11478,7 @@ function applyAttendanceImport(data) {
   });
 
   Object.keys(src).forEach(function(iso) {
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(iso)) return;
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(iso)) { out.daysDropped++; return; }
     if (S.attendance[iso]) { out.daysKept++; return; }
 
     var day = src[iso] || {};
@@ -11477,18 +11487,30 @@ function applyAttendanceImport(data) {
     (Array.isArray(day.marks) ? day.marks : []).forEach(function(m) {
       var id = byName[String((m && m.name) || '').trim().toLowerCase()];
       if (id == null) { out.marksDropped++; return; }
+      // The state is normalised before it is judged, and an unrecognised one is
+      // DROPPED AND COUNTED, never coerced: the old fallback turned a mistyped
+      // absence ('a', ' A') into a paid present day — the exact absent/present
+      // distinction this store exists to keep, silently inverted.
+      var st = String(m.st == null ? 'P' : m.st).trim().toUpperCase() || 'P';
+      if (ATT_STATES.indexOf(st) === -1) { out.marksDropped++; return; }
       var area = STAFF_AREA_ALIASES[m.area] || m.area;
       rec.marks[id] = {
-        st: ATT_STATES.indexOf(m.st) !== -1 ? m.st : 'P',
-        ot: Math.max(0, Number(m.ot) || 0),
-        hours: Math.max(0, Number(m.hours) || 0),
+        st: st,
+        // Absent pays nothing and worked nothing — the same invariant the entry
+        // UI enforces when a worker is marked absent. This route is the only
+        // other writer, so it holds the line too.
+        ot: st === 'A' ? 0 : Math.max(0, Number(m.ot) || 0),
+        hours: st === 'A' ? 0 : Math.max(0, Number(m.hours) || 0),
         area: STAFF_AREAS.some(function(a) { return a.id === area; }) ? area : 'flex'
       };
     });
 
     (Array.isArray(day.extra) ? day.extra : []).forEach(function(x) {
-      var e = importedExtra(x, byName);
-      if (e) rec.extra.push(e);
+      var e = importedExtra(x, byName, out);
+      // A refused row is COUNTED, never silently dropped — booked hours leaving
+      // the bill with nothing on screen saying why is the failure the marks
+      // side already refuses, applied to money instead of people.
+      if (e) rec.extra.push(e); else out.extrasDropped++;
     });
 
     S.attendance[iso] = rec;
@@ -11503,7 +11525,7 @@ function applyAttendanceImport(data) {
    as "Not checkable" when any is missing. That refusal is the point: a block
    whose crew was never written down is honestly unverifiable, and the hours are
    still counted in the bill, because unverifiable is not unpaid. */
-function importedExtra(x, byName) {
+function importedExtra(x, byName, counters) {
   if (!x || typeof x !== 'object') return null;
   var hours = Math.max(0, Number(x.hours) || 0);
   var kind = EXTRA_KINDS.some(function(k) { return k.id === x.kind; }) ? x.kind : 'coverage';
@@ -11519,14 +11541,23 @@ function importedExtra(x, byName) {
     // unverifiable is not unpaid. The reconciler already has the right answer
     // for a block missing one of its three inputs -- it reports Not checkable.
     // The cost buckets to `flex`, which is what an unattributed hand is.
-    // The crew is carried by NAME for the same reason the marks are, and an
-    // unmatched name is dropped rather than guessed at -- a block reconciled
-    // against the wrong head count invents a shortfall that never happened.
+    // The crew is carried by NAME for the same reason the marks are. And a
+    // PARTIALLY resolved crew is worse than none: dropping one unmatched name
+    // leaves a head count that reads as real and is simply wrong — the
+    // reconciler would derive a shortfall from it. So one unresolvable name
+    // makes the whole crew unrecorded (the row reports Not checkable), and the
+    // event is counted so the operator can see which record to repair.
     var crew = [];
+    var unresolved = false;
     (Array.isArray(x.crew) ? x.crew : []).forEach(function(n) {
       var id = byName[String(n || '').trim().toLowerCase()];
-      if (id != null && crew.indexOf(id) === -1) crew.push(id);
+      if (id == null) { unresolved = true; return; }
+      if (crew.indexOf(id) === -1) crew.push(id);
     });
+    if (unresolved) {
+      crew = [];
+      if (counters) counters.crewsUnresolved++;
+    }
     return {
       kind: 'block', areas: areas, crew: crew, hours: hours,
       from: _hhmm(x.from) == null ? '' : String(x.from),
@@ -12441,7 +12472,19 @@ function areaStats(fromIso, toIso) {
         if (!(x.hours > 0)) return;   // supplies its area to the fold, books nothing
         var hrs = blockLength(x);
         var norm = blockNorm(x, rows);
-        var heads = Array.isArray(x.crew) ? x.crew.length : null;
+        // An empty crew means two different things, and the record itself
+        // tells them apart. A crew-less row BESIDE named sibling rows is the
+        // relay stating nobody stood that line — W32 Thu-6's pickling rows
+        // reconcile only at heads 0 (evening: 3 short × 7 = 21 exactly as
+        // tagged; morning: 3 × 3 = 9) — the same reading V-B1 gave a zero-head
+        // general-shift area with a booking. A block with no crew named on ANY
+        // row is unrecorded: reading that as 0 invented a full-complement
+        // shortfall on every imported crew-less block and drained the
+        // Not-checkable line.
+        var heads = Array.isArray(x.crew) && x.crew.length > 0 ? x.crew.length : null;
+        if (heads == null && rows.some(function(r) {
+          return r !== x && Array.isArray(r.crew) && r.crew.length > 0;
+        })) heads = 0;
         var booked = x.hours || 0;
         var areas = extraAreas(x);
         var label = areas.map(function(id) {
@@ -14475,8 +14518,13 @@ function renderHistory() {
       // Which clock this row is on. A floor day is dated by the day it
       // describes; everything else by when it was recorded. Unlabelled, the two
       // read as one timeline and a reader cannot tell them apart.
-      '<div class="inv-history-meta">' + (ev.ts ? formatTimestamp(ev.ts) : '') +
-      (ev.clock === 'floor' ? ' \u00b7 floor day' : '') + '</div>' +
+      // A floor row shows the DATE ALONE: its midday timestamp exists only to
+      // sort it among recorded events, and rendering the '12:00' would invent
+      // an entry time on exactly the rows the two-clock labelling keeps honest.
+      '<div class="inv-history-meta">' +
+      (ev.clock === 'floor'
+        ? (ev.ts ? formatTimestamp(ev.ts).split(',')[0] : '') + ' \u00b7 floor day'
+        : (ev.ts ? formatTimestamp(ev.ts) : '')) + '</div>' +
       '</div></div>';
   });
 
@@ -14502,7 +14550,11 @@ function exportHistoryCSV() {
   var rows = [['Timestamp', 'Dated by', 'Type', 'Event', 'Amount'].join(',')];
   events.forEach(function(ev) {
     rows.push([
-      cell(ev.ts ? formatTimestamp(ev.ts) : ''),
+      // A floor row's cell is the date alone, for the same reason the rendered
+      // row's is: the midday anchor is a sort key, not a recorded time.
+      cell(ev.ts
+        ? (ev.clock === 'floor' ? formatTimestamp(ev.ts).split(',')[0] : formatTimestamp(ev.ts))
+        : ''),
       // The same distinction the row carries. A CSV that dropped it would let
       // somebody sort two clocks into one column and reason off the result.
       cell(ev.clock === 'floor' ? 'floor day' : 'recorded'),

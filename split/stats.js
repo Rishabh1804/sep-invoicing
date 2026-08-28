@@ -1318,8 +1318,13 @@ function renderHistory() {
       // Which clock this row is on. A floor day is dated by the day it
       // describes; everything else by when it was recorded. Unlabelled, the two
       // read as one timeline and a reader cannot tell them apart.
-      '<div class="inv-history-meta">' + (ev.ts ? formatTimestamp(ev.ts) : '') +
-      (ev.clock === 'floor' ? ' \u00b7 floor day' : '') + '</div>' +
+      // A floor row shows the DATE ALONE: its midday timestamp exists only to
+      // sort it among recorded events, and rendering the '12:00' would invent
+      // an entry time on exactly the rows the two-clock labelling keeps honest.
+      '<div class="inv-history-meta">' +
+      (ev.clock === 'floor'
+        ? (ev.ts ? formatTimestamp(ev.ts).split(',')[0] : '') + ' \u00b7 floor day'
+        : (ev.ts ? formatTimestamp(ev.ts) : '')) + '</div>' +
       '</div></div>';
   });
 
@@ -1345,7 +1350,11 @@ function exportHistoryCSV() {
   var rows = [['Timestamp', 'Dated by', 'Type', 'Event', 'Amount'].join(',')];
   events.forEach(function(ev) {
     rows.push([
-      cell(ev.ts ? formatTimestamp(ev.ts) : ''),
+      // A floor row's cell is the date alone, for the same reason the rendered
+      // row's is: the midday anchor is a sort key, not a recorded time.
+      cell(ev.ts
+        ? (ev.clock === 'floor' ? formatTimestamp(ev.ts).split(',')[0] : formatTimestamp(ev.ts))
+        : ''),
       // The same distinction the row carries. A CSV that dropped it would let
       // somebody sort two clocks into one column and reason off the result.
       cell(ev.clock === 'floor' ? 'floor day' : 'recorded'),

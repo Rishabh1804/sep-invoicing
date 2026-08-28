@@ -142,6 +142,76 @@ test.describe('P29: attendance through the roster door', () => {
       expect(block.kind).toBe('block');
       expect(block.crew).toEqual([]);
       expect(block.hours).toBe(21);
+
+      // The claim in the title is about the RECONCILER, so the reconciler is
+      // what gets asserted: an empty crew is "no crew recorded", never a head
+      // count of zero — read as zero it invents a full-complement shortfall
+      // and books the hours as evidence about staffing.
+      await page.locator('[data-action="invAttView"][data-view="areas"]').first().click();
+      // Walk the Areas card back to the seeded week.
+      for (let i = 0; i < 20; i++) {
+        const txt = await page.locator('#attContent').innerText();
+        if (!txt.includes('No attendance recorded')) break;
+        await page.locator('[data-action="invAttWeekStep"][data-step="-1"]').click();
+      }
+      const card = page.locator('#attContent');
+      await expect(card).toContainText('Not checkable');
+      await expect(card).toContainText('21.0 h');
+    });
+
+  test('a mistyped absence never imports as a paid present day', async ({ page }) => {
+    await loadAppWithState(page, { ...emptyState(), incomingMaterial: noSeedIM() });
+    await importFile(page, {
+      staff: ROSTER,
+      attendance: {
+        '2026-05-04': {
+          marks: [
+            { name: 'Test Monthly', st: ' a ', ot: 2, hours: 3 },   // padded lowercase absence
+            { name: 'Test Hourly', st: 'X', area: 'vat-a1' },        // unrecognised state
+          ],
+          extra: [],
+        },
+      },
+    });
+    // The unrecognised state is dropped and counted, never coerced to present.
+    await expect(page.locator('.inv-toast')).toContainText('1 mark for names not on the roster');
+    const day = (await stored(page)).attendance['2026-05-04'];
+    const ids = Object.keys(day.marks);
+    expect(ids.length).toBe(1);
+    const m = day.marks[ids[0]];
+    // Normalised to a real absence — and absent pays nothing and worked
+    // nothing, so the stray ot/hours are zeroed, the same invariant the entry
+    // UI enforces.
+    expect(m.st).toBe('A');
+    expect(m.ot).toBe(0);
+    expect(m.hours).toBe(0);
+  });
+
+  test('a dropped booked-hours entry and a partially-resolved crew are COUNTED',
+    async ({ page }) => {
+      await loadAppWithState(page, { ...emptyState(), incomingMaterial: noSeedIM() });
+      await importFile(page, {
+        staff: ROSTER,
+        attendance: {
+          '2026-05-04': {
+            marks: [{ name: 'Test Monthly', st: 'P', area: 'vat-a2' }],
+            extra: [
+              { kind: 'coverage', area: 'cantee', hours: 8 },   // typo'd area
+              // One unknown crew name makes the whole head count unreliable —
+              // dropping just that name would leave a SMALLER count that reads
+              // as real, and the reconciler would derive a shortfall from it.
+              { kind: 'block', areas: ['vat-a1'], crew: ['Test Second', 'Nobody Here'],
+                from: '17:00', to: '00:00', hours: 21 },
+            ],
+          },
+        },
+      });
+      const toast = page.locator('.inv-toast');
+      await expect(toast).toContainText('1 booked-hours entry not recognised');
+      await expect(toast).toContainText('1 block crew with unknown names, kept as not checkable');
+      const day = (await stored(page)).attendance['2026-05-04'];
+      expect(day.extra.length).toBe(1);
+      expect(day.extra[0].crew).toEqual([]);
     });
 });
 
@@ -188,6 +258,10 @@ test.describe('P29: the floor in the activity log', () => {
     // The clock label is the whole point: two clocks in one list, told apart.
     await expect(shift).toContainText('floor day');
     await expect(shift).toContainText('4 May 2026');
+    // Nothing recorded an entry time, so none is shown: the midday anchor is a
+    // sort key, and rendering it would put a plausible-looking '12:00' on
+    // exactly the rows the two-clock labelling exists to keep honest.
+    await expect(shift).not.toContainText('12:00');
   });
 
   test('each booked extra is its own row, naming where it went', async ({ page }) => {

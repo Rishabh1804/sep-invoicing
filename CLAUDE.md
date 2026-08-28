@@ -502,20 +502,23 @@ Unreconcilable hours are still counted in the bill: unverifiable is not unpaid.
 Block absorption is **exact rather than inferred**, because the row names the crew who stood the
 slot.
 
-**Coverage is absorbed pro-rata, and that makes it attributable.** The 11 Jun ruling says the short
-area's present crew absorb it between them, which the app ranks per worker. It is an **availability
-measure, not a wage**: payment is pooled — one line on the slip, paid out on the floor — so nothing
-here is added to anyone's pay and the labour card still counts the extra exactly once, unattributed.
-Attributable for measurement, pooled for payment; the two are different questions and conflating
-them is what the earlier version of this module got wrong.
+**The extra is PAID pro-rata to the short area's present crew — ruled by the owner, 28 Aug 2026,
+and it closes T-CY.** The 11 Jun ruling said the short area's present crew absorb the coverage
+between them; the 28 Aug ruling settles that this attribution **is the payment**: the pool's payee
+is the crew itself, pro-rata. The money **stays under the EXTRA line** — one pooled figure on the
+slip, **disbursed by Shyam on the floor** — and the card's per-worker shares are the split he
+disburses it by. Nothing enters the per-worker wage arithmetic and the labour card still counts the
+extra exactly once; an earlier version of this section called the spread *"an availability measure,
+not a wage"* and warned against conflating measurement with payment — right until the ruling, wrong
+after it.
 
-**Two things about that are still open, and the app says so rather than implying otherwise.**
-The pro-rata reading has a recorded breaking point — 24 coverage hours against two present hands is
-twelve each on top of a full shift, which nobody stood, and the likelier reading there is
-brought-in casual labour on a different ledger line; rows past that ceiling are marked as a question
-rather than ranked as a measurement. And **T-CY is open**: the payee behind the pooled line has
-never been identified, with ₹13,109 disbursed across W28–W30 against it. "Payment is pooled" is the
-ruling; who receives it is not settled.
+**What the ruling does not repeal is arithmetic, and two residues stay flagged.** 24 coverage hours
+against two present hands is twelve each on top of a full shift — under the ruling that is money
+those two *received*, so an over-ceiling row is a pay figure to check against the record, not a
+different payee. And a row with **nobody to pay** — a zero-head area carrying a booking, or a pooled
+weekly leg with no daily breakdown — has no pro-rata recipient at all: the W28–W33 decomposition
+attributes **₹30,827.50 of the ₹38,237 to 18 named hands** and leaves **160 h (₹7,600) in four such
+rows**, named in soma-internal → T-FA.
 
 ### Client performance
 Clients tab → **Performance**. One account at a time: month on month as revenue, tonnage or ₹/kg,
@@ -900,11 +903,11 @@ nobody worked.
 **What "the extra" is.** Shyam's daily sheet books hours two ways. Named men carry their own
 out-time — that is OT, per worker, at their hour rate × 1.1. But every day also carries lines
 like `EXTRA 16 HOURS` written against an **area block**, with nobody attached. They are real
-paid contract-tier hours and the payout sheet settles them. So they are recorded as exactly
-that: hours booked to an area, unattributed, counted in the bill and reported separately. They
-are **never spread across the men present** — a per-worker cost invented that way reads precise,
-and it would answer the fixed-versus-variable question by accident, in whichever direction the
-blend happened to fall.
+paid contract-tier hours and the payout sheet settles them. In the **bill** they stay exactly
+that: hours booked to an area, under the EXTRA line, counted once — the fixed-versus-variable
+split never depends on how they are shared out. Who *receives* them is ruled (28 Aug 2026):
+the short area's present crew, pro-rata, disbursed by Shyam on the floor — the card computes
+that split; the cost accounting does not move.
 
 **Fixed and variable are kept apart everywhere.** Fixed is the monthly tier — its days and its
 gated rest days together. It moves with that crew's attendance but not with tonnage, which is

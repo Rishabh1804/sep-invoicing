@@ -12696,11 +12696,15 @@ function _blockGroups(rows) {
    coverage is absorbed collectively by the short area's present crew, pro-rata,
    which makes the hours attributable from the relay format with no new logging.
 
-   It is computed here and it is deliberately **not** money. Payment is pooled —
-   one line on the slip, paid out on the floor — so spreading it into the wage
-   arithmetic would invent a per-worker cost the payout never had. What it is
-   good for is the thing it was asked for: availability. A worker whose area is
-   short around them, week after week, is absorbing the shortfall. */
+   And the owner ruled (28 Aug 2026) that this attribution IS the payment: the
+   extra is GIVEN pro-rata to the workers of the area where the shortage
+   occurred. The money stays UNDER THE EXTRA LINE — one pooled figure that
+   Shyam disburses on the floor — and the shares below are the split he
+   disburses it by: what each hand receives, not merely a measure of who was
+   leaned on, and never a line in the per-worker wage arithmetic. An earlier
+   version of this comment called the spread "deliberately not money"; that
+   caution was right until the ruling and wrong after it. The labour card's
+   totals are untouched: the bill counts the extra exactly once. */
 function _absorption(dates, roster, cfg) {
   var by = {};
   dates.forEach(function(iso) {
@@ -12727,7 +12731,7 @@ function _absorption(dates, roster, cfg) {
       } else {
         crew = present[x.area] || [];
       }
-      if (crew.length === 0) return;      // nobody to absorb it; the flag covers that
+      if (crew.length === 0) return;      // nobody to PAY it to; the flag covers that
       var each = h / crew.length;
       crew.forEach(function(w) {
         var e = by[w.id] || (by[w.id] = { id: w.id, name: w.name, hours: 0, days: 0, _seen: {} });
@@ -12741,11 +12745,11 @@ function _absorption(dates, roster, cfg) {
       });
     });
   });
-  // A recorded case the pro-rata reading cannot carry: 24 coverage hours against
-  // two present hands is twelve each on top of a full shift, which nobody stood.
-  // Where the arithmetic exceeds what a body could absorb, the likelier reading
-  // is brought-in casual labour — a different payee entirely — so the row says
-  // so instead of ranking a number nobody worked.
+  // The ruling names the payee, but it does not repeal arithmetic: 24 coverage
+  // hours against two present hands is twelve each on top of a full shift.
+  // Under the ruling that is money those two RECEIVED, so an over-ceiling row
+  // is no longer "probably a different payee" — it is a pay figure that needs
+  // checking against the record, and the flag says exactly that.
   var ceiling = (cfg && cfg.extraHoursPerHead) || 8;
   return Object.keys(by).map(function(k) {
     var e = by[k];
@@ -13130,29 +13134,31 @@ function _areaFlagList(flags, detail, cls) {
 function _areaAbsorptionCard(stats) {
   var rows = stats.absorption;
   if (!rows || rows.length === 0) return '';
+  var cfg = labourCfg();
   var total = rows.reduce(function(s, r) { return s + r.hours; }, 0);
   var html = '<div class="inv-card"><div class="inv-card-header">' +
-    '<span class="inv-card-title">Coverage absorbed, pro-rata</span>' +
-    '<span class="inv-lab-total inv-mono">' + formatNum(total, 1) + ' h</span></div>' +
-    '<div class="inv-stats-note">The extra is booked to an area, and the area&rsquo;s present crew absorb it ' +
-    'between them &mdash; so it is attributable to people even though it is paid as one pooled line. ' +
-    'This is an <strong>availability measure, not a wage</strong>: nothing here is added to anyone&rsquo;s pay, ' +
-    'and the labour card still counts the extra exactly once, unattributed.</div>';
+    '<span class="inv-card-title">The extra, paid pro-rata</span>' +
+    '<span class="inv-lab-total inv-mono">' + formatCurrency(gstRound(total * cfg.extraRate)) + '</span></div>' +
+    '<div class="inv-stats-note">The extra is booked to an area, and <strong>the area&rsquo;s present crew ' +
+    'receive it pro-rata</strong> (owner, 28 Aug 2026). It stays under the <strong>EXTRA</strong> line of the ' +
+    'bill &mdash; one pooled figure, <strong>disbursed by Shyam on the floor</strong> &mdash; and these shares ' +
+    'are the split he disburses it by. Nothing here enters the per-worker wage arithmetic; the bill counts the ' +
+    'extra exactly once, and this card says who it reaches.</div>';
   var flagged = 0;
   rows.slice(0, 12).forEach(function(r) {
     if (r.implausible) flagged++;
     html += '<div class="inv-stats-row"><span class="inv-stats-name">' + escHtml(r.name) +
       (r.implausible ? '<span class="inv-area-absorb-flag">more than a shift</span>' : '') + '</span>' +
-      '<span class="inv-stats-val">' + formatNum(r.hours, 1) + ' h' +
-      '<span class="inv-area-absorb-days"> · ' + formatNum(r.perDay, 1) + ' h/day over ' + r.days +
+      '<span class="inv-stats-val">' + formatCurrency(gstRound(r.hours * cfg.extraRate)) +
+      '<span class="inv-area-absorb-days"> · ' + formatNum(r.hours, 1) + ' h · ' +
+      formatNum(r.perDay, 1) + ' h/day over ' + r.days +
       ' day' + (r.days === 1 ? '' : 's') + '</span></span></div>';
   });
   if (flagged > 0) {
-    html += '<div class="inv-stats-caveat">Marked rows absorb more in a day than a body could stand on top of ' +
-      'their own shift. The pro-rata reading has a recorded breaking point &mdash; twenty-four coverage hours ' +
-      'against two present hands is twelve each &mdash; and past it the likelier reading is <strong>brought-in ' +
-      'casual labour</strong>, a different payee on a different ledger line. Treat those rows as a question, ' +
-      'not a measurement.</div>';
+    html += '<div class="inv-stats-caveat">Marked rows are paid more in a day than a body could stand on top ' +
+      'of their own shift &mdash; twenty-four coverage hours against two present hands is twelve each. The ' +
+      'ruling names the payee; it does not repeal arithmetic. Check those rows against the record before ' +
+      'reading them as settled pay.</div>';
   }
   return html + '</div>';
 }

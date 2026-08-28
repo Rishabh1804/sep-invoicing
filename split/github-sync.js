@@ -266,6 +266,11 @@ async function ghPull() {
     if (!S.incomingMaterial) S.incomingMaterial = [];
     if (!S.partWeights) S.partWeights = {};
     if (!S.voidedNumbers) S.voidedNumbers = [];
+    if (!S.creditNotes) S.creditNotes = [];
+    if (!S.staff) S.staff = [];
+    if (!S.attendance) S.attendance = {};
+    if (!S.areaTargets) S.areaTargets = {};
+    if (!S.labour) S.labour = getDefaultState().labour;
     saveState();
 
     cfg.sha = remote.sha;

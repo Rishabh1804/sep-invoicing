@@ -65,7 +65,14 @@ CA by background. Business Manager at Soma Electro Products (zinc electroplating
   days, and the weekly pool is a flat ₹/hr with no day rate and no multiplier. One spec
   reproduces a real weekly slip to the rupee. Roster arrives through its own merge-by-name
   import, never seeded into this public repo
-- 32 modules, ~15,100 lines. 209 e2e tests gate every PR
+- **27 Aug 2026 (Areas):** the floor by work area — staffing against an owner-set complement,
+  and a cross-check on the extra hours. On the two latest slips the extra is 27–28% of paid
+  contract hours (₹18,382.50 across a fortnight) with nobody named against it
+- **27 Aug 2026 (extra reconciled):** the areas realigned to the shop's own staffing norms
+  (4/4/3/2/3, sixteen at full house) and the extra turned from a mystery into a prediction —
+  `(norm − heads) × 8` per unit per day, checked against what was booked, with pro-rata
+  absorption ranked per worker. Reproduces the 11 Jun ruling's own worked example to the rupee
+- 33 modules, ~15,950 lines. 234 e2e tests gate every PR
 - Development moved off Termux to Claude Code (clones fresh; `.claude/hooks/session-start.sh`
   arms the pre-commit hook and installs test deps)
 - **Open with the owner:**
@@ -204,6 +211,51 @@ decision. Do not silently propagate the SEP pattern to another repo without sett
   Pages sites stay public even from a private repo. Making a repo private hides the docs and the
   history; it does not hide what the build serves. Ask what the artefact publishes before asking
   what the repository does.
+
+- **A test that only speaks when it fails teaches people to distrust its silence.** SEP's
+  extra-hours cross-check reports *"every hour was booked to an area that had somebody marked in
+  it — the check passes"* on a clean range, not just the flags on a dirty one. Otherwise a quiet
+  card is indistinguishable from a card that never ran.
+- **Name the difference between a diagnostic and an allocation, in the copy, or the diagnostic
+  becomes the allocation.** The same module that refuses to spread unattributed hours across the
+  workers present computes exactly that ratio as a plausibility test. The only thing keeping the
+  two apart is a sentence saying which is which — so the sentence is load-bearing, not decoration.
+- **An anomaly in the record is not an anomaly in the world.** Hours booked to the wrong area, an
+  assignment nobody typed, and hours never worked are indistinguishable from inside the data. Say
+  which contradiction was found and refuse to say what caused it; the value is knowing where to
+  look and on which day.
+
+- **The instrument is not always where the money is.** SEP's extra-hours rule was searched for
+  in the payout slips and the roster — the obvious places for a wage question — and it lives in
+  the *attendance* files, because it is a staffing rule that happens to have a price. Twice now
+  on the same feature a correct-sounding principle was built on a summary while the ruling sat
+  one directory across. Before designing around an absence, ask which record would hold the thing
+  if it existed, not which record is about the same topic.
+- **"Cannot be attributed" and "is not attributed" are different claims.** The extra is paid as a
+  single pooled line, which is a fact about the payout; it is absorbed pro-rata by the short
+  area's crew, which is a fact about the work. Refusing to spread it into wages stayed right;
+  concluding it was therefore unknowable was wrong, and cost the productivity measure the codex
+  had explicitly asked for. Separate what the money does from what the world does.
+- **A model that predicts can be checked; a model that only records cannot.** Turning the extra
+  from a logged quantity into `(norm − heads) × 8` is what made every downstream flag possible —
+  over-booking, booking on a full area, quantity mismatches — none of which existed while the
+  hours were merely counted.
+
+- **Numerator and denominator over the same population — and the rule bites hardest where you
+  added an exclusion.** SEP's extra-hours card excluded idle area-days from the *expected* side and
+  kept their bookings on the *booked* side, so the gap went positive and the card accused the floor
+  on the exact days the shop's own decode balances to the hour. The repo already carried this rule,
+  written for realisation, and the module broke it in the one place it mattered. **Every exclusion
+  you add to one side of a ratio is a question about the other side.**
+- **A worked example with no variance cannot settle a formula.** The ruling that fixed SEP's
+  staffing norms carried an example where every shortfall was one hand, so it could not distinguish
+  8-per-missing-hand from 8-per-short-area — and the app's own reproducing spec inherited exactly
+  that blindness, verifying against the one case that cannot discriminate. Before claiming a spec
+  proves a rule, ask which competing rule it would also pass.
+- **Two Governors reading the same diff from different jurisdictions found the same blocker from
+  opposite ends** — one via the wage arithmetic, one via the plant record. That is the argument for
+  the parallel audit rather than a single reviewer: the convergence is what made it certain, and
+  neither would have been dismissable alone.
 
 ## Companion Registry (Quick Reference)
 

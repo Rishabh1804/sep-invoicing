@@ -12,16 +12,74 @@
    repo is public; the structure (areas, comp classes, the wage arithmetic) is
    code, the people are not. */
 
+/* The areas are the shop's own, and the split is not cosmetic: the staffing
+   norms are defined on these exact units — VAT A1 4 · VAT A2 4 · Barrel 3 ·
+   Barrel pickling 2 · A1+A2 pickling 3, sixteen on the floor at full house —
+   and pickling is two sub-areas that Shyam's daily relay already divides. A
+   single flat `pickling` cannot carry either norm, so it cannot carry either
+   shortfall, so the extra could not be checked against it.
+
+   Colour is deliberately absent, but be exact about why. The passivation step
+   is NOT A1's — A2's operators passivate their own work and the barrel route
+   passivates too. What is A1-specific is that a **hand is set aside for it**,
+   inside its complement of four. So colour is a dedicated post, not a place
+   with a crew of its own; giving it an area was the module's own invention,
+   and the shop's own register codes those hands `A1`. */
 var STAFF_AREAS = [
-  { id: 'vat-a1',   label: 'VAT A1',   floor: true },
-  { id: 'vat-a2',   label: 'VAT A2',   floor: true },
-  { id: 'barrel',   label: 'Barrel',   floor: true },
-  { id: 'pickling', label: 'Pickling', floor: true },
-  { id: 'colour',   label: 'Colour',   floor: true },
-  { id: 'flex',     label: 'Flex',     floor: true },
-  { id: 'office',   label: 'Office',   floor: false },
-  { id: 'gate',     label: 'Gate',     floor: false }
+  { id: 'vat-a1',          label: 'VAT A1',          floor: true },
+  { id: 'vat-a2',          label: 'VAT A2',          floor: true },
+  { id: 'barrel',          label: 'Barrel',          floor: true,  unit: 'barrel-block' },
+  { id: 'pickling-barrel', label: 'Barrel pickling', floor: true,  unit: 'barrel-block' },
+  { id: 'pickling-vat',    label: 'Pickling A1+A2',  floor: true },
+  { id: 'flex',            label: 'Flex',            floor: true },
+  { id: 'office',          label: 'Office',          floor: false },
+  { id: 'gate',            label: 'Gate',            floor: false }
 ];
+
+/* Barrel and Barrel pickling are two areas for staffing and one block for the
+   shortfall arithmetic.
+
+   The relay writes them as one row about as often as it writes them as two —
+   `Barrel & pickling | Shyam · Sunil · Suklal · EXTRA 16 HOURS` — and every
+   shortfall decode in the record reconciles them together against a combined
+   norm of five, never against three and two read apart. Split for the
+   reconciliation, a day with both hands on the barrel side reads barrel 2/3
+   short 1 and barrel-pickling idle, predicts 8 hours against the 24 the shop
+   actually booked, and reports a sixteen-hour surplus on a day whose own decode
+   balances exactly.
+
+   Where both sub-areas are staffed the combined norm and the separate norms
+   give the same answer, so the pairing costs nothing there and is only ever
+   load-bearing on the low-headcount days — which are the days the extra is
+   largest. Reporting stays per area; only the shortfall is reconciled per unit.
+
+   `UNIT_LABELS` names a unit where it differs from its areas, so a flag can say
+   which thing it is talking about. */
+var AREA_UNIT_LABELS = { 'barrel-block': 'Barrel & pickling' };
+
+function areaUnitOf(areaId) {
+  var a = STAFF_AREAS.find(function(x) { return x.id === areaId; });
+  return (a && a.unit) || areaId;
+}
+
+function areaUnitLabel(unitId) {
+  if (AREA_UNIT_LABELS[unitId]) return AREA_UNIT_LABELS[unitId];
+  return areaLabel(unitId);
+}
+
+/* Retired ids and where they go. `pickling` was ambiguous between the two
+   sub-areas; it lands on the VAT side because that is the one Shyam's format
+   labels plainly as "Pickling", the barrel side always carrying the "Barrel"
+   qualifier. A mark that meant the other one is a mark to re-point by hand,
+   and there is no way to tell them apart after the fact — so the migration
+   logs how many it moved rather than pretending the choice was free. */
+var STAFF_AREA_ALIASES = { pickling: 'pickling-vat', colour: 'vat-a1' };
+
+/* Retired comp ids, for the same reason and read by the same paths. A legacy
+   `permanent` row must land on `monthly`, not on the picker's `daily` fallback:
+   the difference is a rest-day gate, an OT denominator, and which side of the
+   fixed/variable split the wage falls on. */
+var STAFF_COMP_ALIASES = { permanent: 'monthly', contract: 'daily' };
 
 /* ===== COMP CLASSES =====
 
@@ -161,7 +219,9 @@ function staffById(id) {
    shop does — the four area leads are the rows an absence matters most on. */
 function staffActive() {
   return (S.staff || []).filter(function(w) { return w.active !== false; }).sort(function(a, b) {
-    if (a.comp !== b.comp) return a.comp === 'monthly' ? -1 : 1;
+    var ai = COMP_CLASSES.findIndex(function(c) { return c.id === a.comp; });
+    var bi = COMP_CLASSES.findIndex(function(c) { return c.id === b.comp; });
+    if (ai !== bi) return ai - bi;
     return (a.name || '').localeCompare(b.name || '');
   });
 }
@@ -189,7 +249,8 @@ function attAreaOptions(sel) {
    is rebuilt from those rather than adding a parallel key. Values are ids,
    ISO dates and literal action names — nothing that needs escaping. */
 var ATT_FOCUS_ATTRS = ['data-action', 'data-id', 'data-st', 'data-date', 'data-idx'];
-var ATT_FOCUS_FLAGS = ['data-att-area', 'data-att-ot', 'data-att-extra-area', 'data-att-extra-hours'];
+var ATT_FOCUS_FLAGS = ['data-att-area', 'data-att-ot', 'data-att-hours',
+  'data-att-extra-area', 'data-att-extra-hours', 'data-att-extra-kind'];
 
 function _attFocusSelector() {
   var page = document.getElementById('pageStaff');
@@ -225,7 +286,7 @@ function renderAttendance() {
 
   var toolbar = document.getElementById('attToolbar');
   if (toolbar) {
-    var views = [['day', 'Day'], ['week', 'Week'], ['roster', 'Roster']];
+    var views = [['day', 'Day'], ['week', 'Week'], ['areas', 'Areas'], ['roster', 'Roster']];
     toolbar.innerHTML = '<div class="inv-stats-chips">' + views.map(function(v) {
       return '<button class="inv-chip' + (_attView === v[0] ? ' inv-chip-active' : '') +
         '" data-action="invAttView" data-view="' + v[0] + '">' + v[1] + '</button>';
@@ -242,6 +303,7 @@ function renderAttendance() {
   }
 
   if (_attView === 'roster') area.innerHTML = _attRosterView();
+  else if (_attView === 'areas') area.innerHTML = _attAreasView();
   else if (_attView === 'week') area.innerHTML = _attWeekView();
   else area.innerHTML = _attDayView();
 
@@ -375,18 +437,30 @@ function _attExtraCard(iso, rec) {
     '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invAttAddExtra">Add</button></div>' +
     '<div class="inv-stats-note">Hours booked to an area block rather than to a named worker &mdash; ' +
     'the <span class="inv-mono">EXTRA n HOURS</span> lines on the daily sheet. Priced at the contract tier ' +
-    '(' + formatCurrency((S.labour && S.labour.extraRate) || 0) + '/h) and counted in the bill, but never ' +
-    'spread across the men present: they are paid hours nobody is named for, and the labour card says so.</div>';
+    '(' + formatCurrency((S.labour && S.labour.extraRate) || 0) + '/h) and counted in the bill. ' +
+    '<strong>The kind matters</strong>: under a general-shift area row the number is pooled coverage and is ' +
+    'reconciled against that area&rsquo;s shortfall, but in a <span class="inv-mono">6 AM</span> or evening ' +
+    'block it states the slot&rsquo;s <em>per-hand</em> credit &mdash; five hands at three hours is fifteen, ' +
+    'not three &mdash; and answers no shortfall. Mark it as a block credit and it is counted without being ' +
+    'reconciled.</div>';
   if (rows.length === 0) {
     html += '<div class="inv-empty-state inv-empty-state-sm">None booked for this day</div>';
   } else {
     rows.forEach(function(x, i) {
+      var kind = x.kind || 'coverage';
       html += '<div class="inv-att-extra-row">' +
         '<select class="inv-form-select" data-att-extra-area data-idx="' + i + '" aria-label="Area for extra hours">' +
         attAreaOptions(x.area) + '</select>' +
         '<input type="number" class="inv-form-input inv-mono" data-att-extra-hours data-idx="' + i +
         '" step="0.5" min="0" value="' + (x.hours || 0) + '" aria-label="Extra hours">' +
         '<button class="inv-att-extra-del" data-action="invAttRemoveExtra" data-idx="' + i + '" aria-label="Remove">&times;</button>' +
+        '</div>' +
+        '<div class="inv-att-extra-kind">' +
+        '<select class="inv-form-select" data-att-extra-kind data-idx="' + i + '" aria-label="Kind of extra hours">' +
+        EXTRA_KINDS.map(function(k) {
+          return '<option value="' + k.id + '"' + (kind === k.id ? ' selected' : '') + '>' + escHtml(k.label) + '</option>';
+        }).join('') + '</select>' +
+        '<span class="inv-att-extra-hint">' + escHtml((EXTRA_KINDS.find(function(k) { return k.id === kind; }) || EXTRA_KINDS[0]).hint) + '</span>' +
         '</div>';
     });
   }
@@ -462,7 +536,12 @@ function _attWeekView() {
 function _attRosterView() {
   var all = (S.staff || []).slice().sort(function(a, b) {
     if ((a.active !== false) !== (b.active !== false)) return a.active !== false ? -1 : 1;
-    if (a.comp !== b.comp) return a.comp === 'permanent' ? -1 : 1;
+    // Order by tier, then by name. Comparing against a single id was both
+    // asymmetric (two non-monthly classes never fell through to the name) and
+    // written against a comp id that no longer exists.
+    var ai = COMP_CLASSES.findIndex(function(c) { return c.id === a.comp; });
+    var bi = COMP_CLASSES.findIndex(function(c) { return c.id === b.comp; });
+    if (ai !== bi) return ai - bi;
     return (a.name || '').localeCompare(b.name || '');
   });
   var activeCount = all.filter(function(w) { return w.active !== false; }).length;
@@ -631,7 +710,7 @@ function attAllPresent() {
 
 function attAddExtra() {
   var rec = attDay(_attDate, true);
-  rec.extra.push({ area: 'barrel', hours: 0 });
+  rec.extra.push({ area: 'barrel', hours: 0, kind: 'coverage' });
   saveState();
   renderAttendance();
 }
@@ -649,6 +728,13 @@ function setAttExtraArea(idx, areaId) {
   var rec = attDay(_attDate, false);
   if (!rec || !rec.extra[idx]) return;
   rec.extra[idx].area = areaId;
+  saveState();
+}
+
+function setAttExtraKind(idx, kind) {
+  var rec = attDay(_attDate, false);
+  if (!rec || !rec.extra[idx]) return;
+  rec.extra[idx].kind = EXTRA_KINDS.some(function(k) { return k.id === kind; }) ? kind : 'coverage';
   saveState();
 }
 
@@ -771,7 +857,8 @@ function saveWorker(id, mode) {
   var rateMissing = comp === 'hourly' ? fields.hourRate <= 0 : fields.dayRate <= 0;
 
   if (mode === 'add') {
-    var nextId = (S.staff || []).reduce(function(m, x) { return Math.max(m, x.id || 0); }, 0) + 1;
+    if (!S.staff) S.staff = [];
+    var nextId = S.staff.reduce(function(m, x) { return Math.max(m, x.id || 0); }, 0) + 1;
     fields.id = nextId;
     fields.note = '';
     S.staff.push(fields);
@@ -820,7 +907,8 @@ function importRoster() {
       saveState();
       renderAttendance();
       showToast(res.added + ' added, ' + res.updated + ' updated' +
-        (res.skipped ? ', ' + res.skipped + ' skipped' : ''));
+        (res.skipped ? ', ' + res.skipped + ' skipped' : '') +
+        (res.targets ? ' · ' + res.targets + ' complement' + (res.targets === 1 ? '' : 's') + ' set' : ''));
     };
     reader.readAsText(f);
     inp.value = '';
@@ -841,12 +929,22 @@ function applyRosterImport(data) {
   rows.forEach(function(row) {
     var name = String((row && row.name) || '').trim();
     if (!name) { skipped++; return; }
-    var comp = compClass(row.comp).id;
+    // A retired id in a file is the same id the migration re-points, so it is
+    // read through the same table — otherwise a roster written against the old
+    // structure silently drops those workers onto Flex while their complement
+    // lands on the sub-area they meant.
+    var rowArea = STAFF_AREA_ALIASES[row.area] || row.area;
+    // `compClass()` falls back to `daily` for an unknown id, which is the right
+    // default for a picker and the wrong one here: a legacy `permanent` row
+    // would import onto a tier with no rest-day gate and the wrong OT rate, and
+    // the comp migration has already run and cannot repair it. Retired ids are
+    // translated; anything else unrecognised takes the fallback.
+    var comp = compClass(STAFF_COMP_ALIASES[row.comp] || row.comp).id;
     var fields = {
       comp: comp,
       dayRate: Math.max(0, Number(row.dayRate) || 0),
       hourRate: Math.max(0, Number(row.hourRate) || 0),
-      area: STAFF_AREAS.some(function(a) { return a.id === row.area; }) ? row.area : 'flex',
+      area: STAFF_AREAS.some(function(a) { return a.id === rowArea; }) ? rowArea : 'flex',
       onFloor: row.onFloor !== false,
       active: row.active !== false
     };
@@ -866,16 +964,32 @@ function applyRosterImport(data) {
     }
   });
 
+  // The area complements travel with the roster too. They are the same
+  // decision — who stands where, and how many of them there should be — and the
+  // extra-hours check is dead without them, so shipping them apart would mean
+  // the file that sets up the tab leaves its main instrument switched off.
+  var targets = 0;
+  if (data && data.areaTargets && typeof data.areaTargets === 'object') {
+    if (!S.areaTargets) S.areaTargets = {};
+    Object.keys(data.areaTargets).forEach(function(k) {
+      var id = STAFF_AREA_ALIASES[k] || k;
+      if (!STAFF_AREAS.some(function(a) { return a.id === id; })) return;
+      var v = Number(data.areaTargets[k]);
+      if (!isNaN(v) && v > 0) { S.areaTargets[id] = v; targets++; }
+    });
+  }
+
   // The labour config may travel with the roster — the rates and the rules that
   // price them were settled together and drift apart if they arrive separately.
   if (data && data.labour && typeof data.labour === 'object') {
     if (!S.labour) S.labour = {};
-    ['otMult', 'restCreditMinDays', 'extraRate', 'modelPerKg', 'gateFull', 'gateHalf'].forEach(function(k) {
+    ['otMult', 'restCreditMinDays', 'extraRate', 'modelPerKg', 'gateFull', 'gateHalf',
+     'extraHoursPerHead'].forEach(function(k) {
       var v = Number(data.labour[k]);
       if (data.labour[k] != null && !isNaN(v) && v >= 0) S.labour[k] = v;
     });
   }
-  return { added: added, updated: updated, skipped: skipped };
+  return { added: added, updated: updated, skipped: skipped, targets: targets };
 }
 
 /* Deletion is refused while attendance names the worker. Removing the row would

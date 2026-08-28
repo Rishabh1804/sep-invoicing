@@ -242,6 +242,67 @@ if (!S._staffComp1) {
   if (_sc > 0) console.log('Staff: migrated ' + _sc + ' worker' + (_sc === 1 ? '' : 's') + ' to the tiered comp model');
 }
 
+/* Area ids realigned to the shop's own staffing units.
+
+   The first cut had one flat `pickling` and a `colour` area. Neither survives
+   contact with the norms the floor is actually run to: pickling is two
+   sub-areas with separate complements (barrel-side 2, VAT-side 3) that the
+   daily relay already divides, and colour is the dedicated passivation HAND
+   inside VAT A1's complement of four rather than a place with its own crew.
+   The step itself is not A1's — A2 passivates its own work and so does the
+   barrel route — which is why the marks re-point to A1 but the claim behind
+   them is about the post, not the process.
+
+   Marks, home areas, extra-hour bookings and complements all carry an area id,
+   so all four are re-pointed here. Idempotent via the flag; the aliases are
+   read from staff.js so there is one table, not two. */
+if (!S._staffAreas2) {
+  var _ar = 0;
+  var _alias = function(id) { return STAFF_AREA_ALIASES[id] || null; };
+
+  (S.staff || []).forEach(function(w) {
+    var to = _alias(w.area);
+    if (to) { w.area = to; _ar++; }
+  });
+  Object.keys(S.attendance || {}).forEach(function(iso) {
+    var rec = S.attendance[iso];
+    if (!rec) return;
+    Object.keys(rec.marks || {}).forEach(function(id) {
+      var to = _alias(rec.marks[id].area);
+      if (to) { rec.marks[id].area = to; _ar++; }
+    });
+    (rec.extra || []).forEach(function(x) {
+      var to = _alias(x.area);
+      if (to) { x.area = to; _ar++; }
+    });
+  });
+  if (S.areaTargets) {
+    Object.keys(S.areaTargets).forEach(function(id) {
+      var to = _alias(id);
+      if (!to) return;
+      // A complement already set on the destination wins: it was set against
+      // the new structure and is the more considered number.
+      if (!(S.areaTargets[to] > 0)) S.areaTargets[to] = S.areaTargets[id];
+      delete S.areaTargets[id];
+      _ar++;
+    });
+  }
+
+  S._staffAreas2 = true;
+  saveJSON(STORAGE_KEY, S);
+  if (_ar > 0) {
+    // Both aliases are ambiguous and both are disclosed. `pickling` cannot be
+    // told apart from the barrel side after the fact; and while `colour` sits
+    // inside VAT A1 on every recent grid, the May 2026 relay carried a colour
+    // hand inside VAT A2 and a standalone colour row on four days, so a mark
+    // from that era can land on the wrong line too. Naming one and not the
+    // other would make the quieter case look settled.
+    console.log('Areas: re-pointed ' + _ar + ' reference' + (_ar === 1 ? '' : 's') +
+      ' — check by hand any that meant Barrel pickling rather than Pickling A1+A2, ' +
+      'and any colour mark from before Jun 2026, which may have belonged to VAT A2');
+  }
+}
+
 /* Phase 9: Default cost per KG for margin dashboard (IL-4) — idempotent */
 if (S.defaultCostPerKg === undefined) {
   S.defaultCostPerKg = 8.55;

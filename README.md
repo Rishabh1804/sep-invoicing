@@ -141,7 +141,7 @@ would take your invoices with it.) Note that both the JSON export and GitHub syn
 payroll.
 
 **Three comp classes, because the shop pays three ways.** `monthly` is ₹/day × days worked plus
-the range's rest days scaled by an attendance gate (all of them at 90%+, half above 80%, none
+the range's rest days scaled by an attendance gate (all of them at 90%+, half at 80%+, none
 below), with overtime at day rate ÷ 8 × the multiplier. `hourly` pays every hour at one flat
 rate — no day rate, no multiplier. `daily` is the generic middle: days at a day rate, overtime
 at the multiplier, one rest day per full week.
@@ -155,6 +155,26 @@ turns on exactly that split.
 **"The extra"** is the `EXTRA n HOURS` line on the daily sheet: paid contract-tier hours booked to
 an area block with nobody named against them. They are counted in the bill and reported on their
 own row, never spread across the men present.
+
+**Staff → Areas** reads the same store by place. Average heads per area against a complement you
+set, and — the reason the view exists — the extra reconciled against it.
+
+The rule: a hand missing from an area running at full tilt is covered by the crew who are there,
+and 8 hours are booked to that area for it. So expected extra is `Σ (norm − heads) × 8` per unit
+per day, set against what was booked. Barrel and Barrel pickling reconcile as one unit of five,
+because the sheet writes them as one row about as often as two. A norm binds a unit that ran — a
+line with no heads *and* no booking is idle rather than short of its whole complement, and the
+exclusion is reported; a line with no heads but hours booked to it is fully short, which is what
+the sheet itself does. Booking more than the shortfall explains is flagged with the unit and the
+date; booking less is not called an error, because nothing here measures per-area output and the
+expected figure is an upper bound.
+
+`EXTRA n HOURS` means two different things on the sheet — pooled coverage under an area row, but a
+**per-hand** credit in a 6 AM or evening block — so each entry carries its kind, and only coverage
+is reconciled.
+
+Coverage is then attributed **pro-rata** to the crew who carried it — an availability measure,
+not a wage: the payout is pooled, so nothing is added to anyone's pay.
 
 Variable labour is also broken down **by area** — ranked by cost, since the area that pulls the
 overtime is the expensive one. Permanent payroll is excluded from that split and the card says

@@ -107,7 +107,7 @@ test('the same day attributes the coverage pro-rata to the crews who carried it'
   }));
   await openAreas(page);
 
-  const card = page.locator('.inv-card', { hasText: 'Coverage absorbed' });
+  const card = page.locator('.inv-card', { hasText: 'The extra, paid pro-rata' });
   await expect(card).toBeVisible();
   // 8 h over the two-hand pickling crew is 4.0 each; over the three-hand VAT
   // crews it is 2.7. The barrel-pickling pair were at norm and carry nothing,
@@ -115,8 +115,11 @@ test('the same day attributes the coverage pro-rata to the crews who carried it'
   await expect(card).toContainText('4.0 h');
   await expect(card).toContainText('2.7 h');
   await expect(card).not.toContainText('PICKLING-BARREL');
-  // And it must say, in place, that this is not money.
-  await expect(card).toContainText('availability measure, not a wage');
+  // The shares ARE money now (owner, 28 Aug 2026): 4.0 h at the default
+  // 47.50 contract rate is a priced share — but it stays under the EXTRA
+  // line, disbursed by Shyam on the floor, never a per-worker wage line.
+  await expect(card).toContainText('₹190.00');
+  await expect(card).toContainText('disbursed by Shyam on the floor');
 });
 
 test('more booked than the shortfall explains is called out as a surplus', async ({ page }) => {
@@ -292,18 +295,20 @@ test('the recorded counter-cases surface as a quantity mismatch, not as silence'
   await expect(card.locator('.inv-area-flag-warn').first()).toContainText('8.0 h against 16.0 h');
 });
 
-test('absorption past a shift is marked as a question, not ranked as a measurement', async ({ page }) => {
+test('a share past a shift is flagged as pay to check, not settled', async ({ page }) => {
   // 24 coverage hours over two present hands is twelve each on top of a full
-  // shift. Nobody stood that; the likelier reading is brought-in casual labour.
+  // shift. The 28-Aug ruling names the payee — the crew received it — but it
+  // does not repeal arithmetic: the row is flagged for checking against the
+  // record rather than read as settled pay.
   const staff = crew('barrel', 2, 10);
   const [d1] = weekDays();
   await loadAppWithState(page, state(staff, {
     [d1]: { marks: marksFor(staff), extra: [{ area: 'barrel', hours: 24 }], note: '' },
   }));
   await openAreas(page);
-  const card = page.locator('.inv-card', { hasText: 'Coverage absorbed' });
+  const card = page.locator('.inv-card', { hasText: 'The extra, paid pro-rata' });
   await expect(card.locator('.inv-area-absorb-flag').first()).toBeVisible();
-  await expect(card).toContainText('brought-in');
+  await expect(card).toContainText('does not repeal arithmetic');
 });
 
 test('hours typed on the side the heads are not is not an unmanned booking', async ({ page }) => {
@@ -336,7 +341,7 @@ test('a block is absorbed by its own crew, never by the area’s day crew', asyn
   }, { barrel: 3 }));
   await openAreas(page);
   await expect(extraCard(page)).toContainText('Not checkable');
-  await expect(page.locator('.inv-card', { hasText: 'Coverage absorbed' })).toHaveCount(0);
+  await expect(page.locator('.inv-card', { hasText: 'The extra, paid pro-rata' })).toHaveCount(0);
 });
 
 /* ===== THE AREA REALIGNMENT ===== */

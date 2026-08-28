@@ -752,7 +752,8 @@ and corrupting one.
 
 ### What the seeded history actually says about the extra
 **93 days, 2 May – 15 Aug 2026, 1,509 marks, 261 explicit absences, 105 general-shift bookings and
-36 OT blocks (26 fully checkable, 8 of them re-sourced from the raw relay)**, read off
+36 OT block rows (8 re-sourced from the raw relay; 26 of the 36 carry all three inputs — times,
+resolvable heads, areas — and of the 32 that book hours the reconciler passes 23)**, read off
 `soma-internal/attendance/2026-W*.md` plus `operations/payouts/` and, for W31's blocks,
 `data/raw/relays/`. It is the first time the rule has been tested against more than a handful of
 hand-picked rows, and **it does not settle the question the owner ruled on.**
@@ -815,7 +816,10 @@ shapes were missing, and each cost real days:
 | **decorated names** | `⭐ **Champai (8:30 AM)**` | Champai absent from four weeks of office rows — six paid days with no presence mark |
 
 **64 → 93 days · 774 → 1,509 marks · 37 → 285 worker-days of hours · 40 → 261 explicit absences ·
-55 → 105 general-shift bookings · 8 → 36 blocks**, of which **26 are fully checkable** against 4.
+55 → 105 general-shift bookings · 8 → 36 block rows**, of which **26 carry all three inputs** (times,
+resolvable heads, areas — the instrument counts every row, the four zero-hour fold-suppliers
+included; **the reconciler itself judges the 32 booked rows and passes 23**, which is the figure the
+on-screen card shows) against 4.
 
 **Hours exist per week only where the shop recorded them, and there coverage is real:** **W28 63% ·
 W29 51% · W30 26% · W31 45% · W32 36% · W33 34%**, against zero for W18–W27. *(An earlier version

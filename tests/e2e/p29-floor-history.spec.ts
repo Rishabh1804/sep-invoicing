@@ -213,6 +213,48 @@ test.describe('P29: attendance through the roster door', () => {
       expect(day.extra.length).toBe(1);
       expect(day.extra[0].crew).toEqual([]);
     });
+
+  test('an unresolved crew is never promoted to heads 0 by a named sibling row',
+    async ({ page }) => {
+      await loadAppWithState(page, { ...emptyState(), incomingMaterial: noSeedIM() });
+      await importFile(page, {
+        staff: ROSTER,
+        areaTargets: { 'vat-a1': 4, 'vat-a2': 4, barrel: 3, 'pickling-barrel': 2, 'pickling-vat': 3 },
+        attendance: {
+          '2026-05-04': {
+            marks: [{ name: 'Test Monthly', st: 'P', area: 'vat-a2' }],
+            extra: [
+              // Two rows of ONE block. The first crew resolves; the second was
+              // RECORDED and failed to match. An explicitly-empty crew beside a
+              // named sibling reads as "nobody stood it" (heads 0) — but an
+              // unresolved crew is a head count that exists and is unknown, and
+              // promoting it would publish a full-complement shortfall from a
+              // record the import toast just promised was kept Not checkable.
+              { kind: 'block', areas: ['vat-a2'], crew: ['Test Monthly'],
+                from: '17:00', to: '00:00', hours: 21 },
+              { kind: 'block', areas: ['vat-a1'], crew: ['Ghost Hand'],
+                from: '17:00', to: '00:00', hours: 21 },
+            ],
+          },
+        },
+      });
+      const day = (await stored(page)).attendance['2026-05-04'];
+      const unresolved = day.extra.find((x: any) => x.areas[0] === 'vat-a1');
+      expect(unresolved.crew).toEqual([]);
+      expect(unresolved.crewUnknown).toBe(true);
+
+      await page.locator('[data-action="invAttView"][data-view="areas"]').first().click();
+      for (let i = 0; i < 20; i++) {
+        const txt = await page.locator('#attContent').innerText();
+        if (!txt.includes('No attendance recorded')) break;
+        await page.locator('[data-action="invAttWeekStep"][data-step="-1"]').click();
+      }
+      const card = page.locator('#attContent');
+      // The unresolved row is in the Not-checkable bill, and no disagreement is
+      // manufactured from an invented full-complement shortfall on VAT A1.
+      await expect(card).toContainText('Not checkable');
+      await expect(card).not.toContainText('booked more than');
+    });
 });
 
 test.describe('P29: the floor in the activity log', () => {

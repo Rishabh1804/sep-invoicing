@@ -23,9 +23,11 @@ function getDefaultState() {
     // Reconciliation exceptions. A disagreement the extra-check raised and a
     // human then examined becomes a RECORD carrying a required reason — the
     // same treatment `voidedNumbers` gives a number gap and `dupeAck` gives an
-    // accepted duplicate. Two recorded blocks already need it (W31 Mon 27 Jul,
-    // W33 Tue 11 Aug): the rule does not reproduce them, and that has to be
-    // precedent in the system rather than a line in a document.
+    // accepted duplicate. One recorded block already needs it (W33 Tue 11
+    // Aug): the rule does not reproduce it, and that has to be precedent in
+    // the system rather than a line in a document. (W31 Mon 27 Jul was named
+    // here too, and is struck — tagged in the raw relay, under-booked, and
+    // under-booking is never an error.)
     extraExceptions: [],
     // Workforce. The roster ships empty: names and wages are payroll data and
     // this repo is public, so the owner enters them once on the device. Areas

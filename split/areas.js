@@ -28,14 +28,18 @@ var _areaSpan = 1;   // weeks
    This REPLACES the earlier reading, which took a block tag as the slot's
    per-hand credit ("5 hands x 3 hr = 15 OT hr") and therefore reconciled it
    against nothing. That reading cannot reproduce that population — though it does
-   reproduce individual rows, and one of the two named exceptions is a row
+   reproduce individual rows, and the surviving named exception is a row
    where the superseded reading is the one that works (W33 Tue 11, A1: three
    hands x 3 h = 9 = the tag). "Fails every tag" was an unmeasured superlative
    in the same sentence whose other half names its instrument.
 
-   The norm-gap reading matches every tag in the swept population (13 blocks / 18 rows,
-   W24+W31+W32+W33; W18-W23 and W25-W30 unswept) but for two named exceptions
-   -- W31 Mon 27 Jul and W33 Tue 11 Aug, both disclosed in CLAUDE.md. It
+   The norm-gap reading matches every tag in the swept population (17 blocks /
+   23 rows over W24+W31+W32+W33, once the tags the weekly transcribed into
+   man-hr notation are restored from the raw relay; W18-W23 and W25-W30
+   unswept) but for ONE named exception -- W33 Tue 11 Aug, disclosed in
+   CLAUDE.md. W31 Mon 27 Jul was named beside it and is struck: tagged in the
+   raw, under-booked against the prediction, and under-booking is an upper
+   bound, never an error. It
    includes the one the codex had written off as
    unreadable — `soma-internal/attendance/2026-W31.md:150` calls the Tue-28
    evening tag "internally inconsistent (group 1: 3x7=21; group 2: 2x7=14!=21)".
@@ -439,7 +443,12 @@ function areaStats(fromIso, toIso) {
         // shortfall on every imported crew-less block and drained the
         // Not-checkable line.
         var heads = Array.isArray(x.crew) && x.crew.length > 0 ? x.crew.length : null;
-        if (heads == null && rows.some(function(r) {
+        // ... unless the import marked the crew UNRESOLVED: recorded names that
+        // failed to match the roster are a head count that exists and is
+        // unknown, never a statement of nobody. Promoting it would publish a
+        // full-complement shortfall from a record the toast just said was kept
+        // as Not checkable (Cipher, Edict V).
+        if (heads == null && !x.crewUnknown && rows.some(function(r) {
           return r !== x && Array.isArray(r.crew) && r.crew.length > 0;
         })) heads = 0;
         var booked = x.hours || 0;

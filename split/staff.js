@@ -1314,12 +1314,20 @@ function importedExtra(x, byName, counters) {
       crew = [];
       if (counters) counters.crewsUnresolved++;
     }
-    return {
+    // The marker is what keeps the toast's promise. An empty crew BESIDE named
+    // sibling rows normally reads as "the relay stated nobody stood this line"
+    // (heads 0, the W32 Thu-6 reading) — but an UNRESOLVED crew was recorded
+    // and merely failed to match, so promoting it to zero would publish a
+    // full-complement shortfall from a record that exists. Marked, the
+    // reconciler keeps it Not checkable, exactly as reported on import.
+    var row = {
       kind: 'block', areas: areas, crew: crew, hours: hours,
       from: _hhmm(x.from) == null ? '' : String(x.from),
       to: _hhmm(x.to) == null ? '' : String(x.to),
       area: areas[0] || 'flex'
     };
+    if (unresolved) row.crewUnknown = true;
+    return row;
   }
 
   var area = STAFF_AREA_ALIASES[x.area] || x.area;

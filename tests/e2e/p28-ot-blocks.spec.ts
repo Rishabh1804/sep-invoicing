@@ -10,12 +10,14 @@ import { emptyState, loadAppWithState, noSeedIM, switchTab, todayIso } from './f
  *
  * This replaces the earlier per-hand reading, and the corpus is what settles
  * it — but state the population, not a superlative. Over the swept blocks in
- * W24/W31/W32/W33 the norm-gap reading reproduces every tag but TWO, and both
- * are named in CLAUDE.md rather than smoothed away: W31 Mon 27 Jul, where no
- * fold value reconciles both rows, and W33 Tue 11 Aug, which reconciles only
- * at four pickling hands against a ceiling of three. The per-hand reading it
+ * W24/W31/W32/W33 (17 blocks / 23 rows once the raw relay's tags are
+ * restored) the norm-gap reading reproduces every tag but ONE, named in
+ * CLAUDE.md rather than smoothed away: W33 Tue 11 Aug, which reconciles only
+ * at four pickling hands against a ceiling of three. (W31 Mon 27 Jul was
+ * named beside it and is struck — tagged in the raw, under-booked, and
+ * under-booking is an upper bound, never an error.) The per-hand reading it
  * replaces is not uniformly wrong either — it reproduces individual rows,
- * including one of those two exceptions.
+ * including that surviving exception.
  *
  * Each headline spec below reproduces one recorded tag, including the one
  * `soma-internal/attendance/2026-W31.md:150` calls "internally inconsistent".
@@ -352,8 +354,8 @@ test('a block whose booking the shortfall does not explain is flagged with its d
 
    A disagreement the rule cannot explain is a question; once examined it
    becomes a RECORD carrying a required reason — the treatment `voidedNumbers`
-   gives a number gap and `dupeAck` an accepted duplicate. Two recorded blocks
-   need it: W31 Mon 27 Jul and W33 Tue 11 Aug. */
+   gives a number gap and `dupeAck` an accepted duplicate. One recorded block
+   needs it: W33 Tue 11 Aug. */
 
 async function explain(page: Page, reason: string) {
   await page.locator('[data-action="invAreaExplain"]').first().click();

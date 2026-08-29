@@ -285,10 +285,47 @@ The reference had four defects the app does not reproduce — see `docs/credit-n
 The headline one is the same identity drift the certificate had: header "SOMA ELECTRO PRODUCT"
 against footer "SOMA ELECTRO PRODUCTS". Identity is read from `S.company`, never frozen.
 
-**This changes the SSS Mehta numbers.** At a standing 2%, their realisation is ~₹5.29/kg, not
-₹5.40 — and Stats reads invoices only, so every SSS Mehta figure above is overstated by 2%
-until credit notes are netted off. Not yet done; the contribution arithmetic in Key Business
-Data has not been restated.
+**This changes the SSS Mehta numbers — and ₹5.29 is RIGHT.** At a standing 2%, their realisation
+is **~₹5.29/kg, not ₹5.40** — Stats reads invoices only, so every SSS Mehta figure above is
+overstated by 2% on the periods the discount covers, until credit notes are netted off.
+
+🔧 **NETTED 29 Aug 2026, and the original figure survives the test.** Measured against
+`analysis/sep-invoicing-backup-2026-08-29.json` in the sister repo. **The notes are SEQUENTIAL
+PERIOD BATCHES, and each is exactly 2% of its own period** — BM: *"CN/007 is up until 804 challan
+for SSS Mehta, not till today."*
+
+| Period | Mehta taxable | × 2% | Note | |
+|---|---:|---:|---|---|
+| June 2026 | ₹1,87,464.52 | ₹3,749.29 | **CN/004** | ✅ exact |
+| July 2026 | ₹2,95,105.83 | ₹5,902.12 | **CN/005** | ✅ exact |
+| 3–18 Aug (to inv 00804) | ₹1,90,379.43 | ₹3,807.59 | **CN/007** | ✅ exact |
+| | **₹6,72,949.78** | **₹13,459.00** | | ✅ **2.0000%** |
+
+**The scheme is applied in full on every period it covers. Realisation on the scheme period is
+₹5.292/kg.** The nine invoices after 00804 are the **next note, pending ≈₹2,182.99** — not a
+shortfall. ⚠ **April–May carry NO REBATE NOTE ON THE REGISTER — a null, not a ruling** *(Cipher H-3)*: ~~April–May predate the scheme (CN/004 is its first note)~~. **CN/004 established the SERIAL FORMAT** (`CN/NNN/26-27`), not the scheme's start; BM ruled **CN/002 and CN/003** out as *"credit notes, not rebates"*; **CN/001 has never been ruled on.** **₹9,841.57 (2% of ₹4,92,078.45) turns on this premise** — a BM question, not a derivation.
+
+⚠ **An intermediate pass on 29 Aug published *"₹5.29 is wrong … effective 1.0563% … ₹5.3430/kg"*
+— WITHDRAWN. It divided credits from a scheme beginning in June by a book including pre-scheme
+April and May: numerator and denominator, different populations.** The rule this repo already
+lives by, broken while applying it elsewhere.
+
+🔴 **What DOES survive, and it is a control gap: CN/004 and CN/005 were never entered into the
+app.** Instrument: both numbers, their reference invoices `000443` / `000716`, and all four of
+their rupee figures, swept as literal strings over the whole backup — **zero hits for all eight.**
+**₹10,821.75 gross of issued credit notes sits outside `S.creditNotes`, and therefore outside this
+app's own CDNR export.** A netting taken from the array alone sees only CN/007 and reads 0.299%.
+**The register that caught it is `soma-internal/operations/credit-notes/README.md` — the app's
+array is not the register.**
+
+**CN/006 is cancelled**, superseded by CN/007 twenty-six seconds later (`cancelledAt`
+1787222938914 against `createdAt` 1787222964835), both naming the same 14 invoices. Cancelled
+rather than deleted, exporting at zero — the treatment this app implements, working as designed.
+
+⚠ **The contribution arithmetic in Key Business Data is still not restated** at ₹5.292/kg.
+⚠ **And the ₹/kg is arithmetic, not evidence**: Mehta is piece-billed, its derived weights invert
+its own contract rate, so realisation equals that rate by construction. **The tonnage is real; the
+₹/kg is not independent.**
 
 ### The floor, by area
 Staff tab → **Areas**. The same attendance store read by place instead of by person, because two

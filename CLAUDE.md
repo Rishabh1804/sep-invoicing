@@ -303,7 +303,7 @@ for SSS Mehta, not till today."*
 
 **The scheme is applied in full on every period it covers. Realisation on the scheme period is
 ₹5.292/kg.** The nine invoices after 00804 are the **next note, pending ≈₹2,182.99** — not a
-shortfall. April–May predate the scheme (CN/004 is its first note).
+shortfall. ⚠ **April–May carry NO REBATE NOTE ON THE REGISTER — a null, not a ruling** *(Cipher H-3)*: ~~April–May predate the scheme (CN/004 is its first note)~~. **CN/004 established the SERIAL FORMAT** (`CN/NNN/26-27`), not the scheme's start; BM ruled **CN/002 and CN/003** out as *"credit notes, not rebates"*; **CN/001 has never been ruled on.** **₹9,841.57 (2% of ₹4,92,078.45) turns on this premise** — a BM question, not a derivation.
 
 ⚠ **An intermediate pass on 29 Aug published *"₹5.29 is wrong … effective 1.0563% … ₹5.3430/kg"*
 — WITHDRAWN. It divided credits from a scheme beginning in June by a book including pre-scheme

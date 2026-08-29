@@ -754,7 +754,7 @@ and corrupting one.
   worked.
 
 ### What the seeded history actually says about the extra
-**93 days, 2 May – 15 Aug 2026, 1,509 marks, 261 explicit absences, 105 general-shift bookings and
+**93 days, 2 May – 15 Aug 2026, 1,483 marks, 261 explicit absences, 90 general-shift bookings and
 36 OT block rows (8 re-sourced from the raw relay; 26 of the 36 carry all three inputs — times,
 resolvable heads, areas — and of the 32 that book hours the reconciler passes 23)**, read off
 `soma-internal/attendance/2026-W*.md` plus `operations/payouts/` and, for W31's blocks,
@@ -770,11 +770,16 @@ owner's to make and the plurality is his way.
 **The range-level gap was a parser artifact, and the corrected corpus nearly reconciles.** An
 earlier version reported *expected 1,912 h against 538 h booked* — a 3.5× gap read as
 under-recorded heads. Most of that gap was tags the extractor could not see (the `| EXTRA |`
-column, the prose day-grids, W31's blocks). On the corrected corpus the same instrument
-(`Σ max(0, norm − heads) × 8` per unit-day that ran, barrel + barrel pickling as one unit of five,
-idle unit-days excluded and counted: 68) reads **expected 1,800 h against 1,563 h booked — 1.2×**.
-The shop books close to what the rule predicts; the expected figure stays an upper bound and
-under-booking stays *not an error*.
+column, the prose day-grids, W31's blocks). ⚠ **This figure has now moved THREE times, and each generation called itself corrected, so all
+three are stated with their defect:** **3.5×** (the parser could not see whole tag notations — the
+expected side was honest, the booked side starved) → **1.2×** (the parser was now INVENTING
+bookings — a weekly-total row seeded as a 106-hour Sunday, and thirteen Week-% matrix cells read
+as 50–100 h bookings, all landing on the booked side) → **2.16×: expected 1,880 h against 872 h
+booked**, on the phantom-free corpus (same instrument: `Σ max(0, norm − heads) × 8` per unit-day
+that ran, barrel + barrel pickling one unit of five, idle unit-days excluded and counted: 70).
+The shop books well under the upper bound at range level; under-booking stays *not an error*, and
+a figure that flattered the model twice for two opposite parser reasons is why the instrument is
+named every time.
 
 **Hours are recorded, and an earlier version of this section said they were not.** The claim was
 *"the sheets record where a hand stood, not how long"* — false on three counts, and the correction
@@ -818,8 +823,8 @@ shapes were missing, and each cost real days:
 | **`·`-separated positional hour strings** | `14 · 18 · 18 · 18 · 14 · 11` under a day-named header | all of W31's per-day hours read as zero |
 | **decorated names** | `⭐ **Champai (8:30 AM)**` | Champai absent from four weeks of office rows — six paid days with no presence mark |
 
-**64 → 93 days · 774 → 1,509 marks · 37 → 285 worker-days of hours · 40 → 261 explicit absences ·
-55 → 105 general-shift bookings · 8 → 36 block rows**, of which **26 carry all three inputs** (times,
+**64 → 93 days · 774 → 1,483 marks · 37 → 285 worker-days of hours · 40 → 261 explicit absences ·
+55 → 90 general-shift bookings · 8 → 36 block rows**, of which **26 carry all three inputs** (times,
 resolvable heads, areas — the instrument counts every row, the four zero-hour fold-suppliers
 included; **the reconciler itself judges the 32 booked rows and passes 23**, which is the figure the
 on-screen card shows) against 4.

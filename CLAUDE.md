@@ -285,10 +285,32 @@ The reference had four defects the app does not reproduce — see `docs/credit-n
 The headline one is the same identity drift the certificate had: header "SOMA ELECTRO PRODUCT"
 against footer "SOMA ELECTRO PRODUCTS". Identity is read from `S.company`, never frozen.
 
-**This changes the SSS Mehta numbers.** At a standing 2%, their realisation is ~₹5.29/kg, not
-₹5.40 — and Stats reads invoices only, so every SSS Mehta figure above is overstated by 2%
-until credit notes are netted off. Not yet done; the contribution arithmetic in Key Business
-Data has not been restated.
+**This changes the SSS Mehta numbers — but by FAR LESS than a blanket 2%, and the measured
+figure is ₹5.3430/kg.** ~~At a standing 2%, their realisation is ~₹5.29/kg~~ 🔧 **RESTATED
+29 Aug 2026 against `analysis/sep-invoicing-backup-2026-08-29.json` in the sister repo.**
+
+**The standing 2% has only ever been CREDITED on four batches, not applied to the book.** Live
+Mehta credits total **₹13,459.00 taxable** — CN/004 ₹3,749.29 + CN/005 ₹5,902.12 + CN/007
+₹3,807.59 — against **₹12,74,177.58** of live Mehta invoice taxable across 136 invoices. That is
+an effective **1.0563%**, so realisation is **₹5.3430/kg**, not ₹5.29 and not ₹5.40.
+**CN/006 is excluded: it was cancelled 20 Aug and replaced by CN/007 twenty-six seconds later**
+(`cancelledAt` 1787222938914 against CN/007's `createdAt` 1787222964835), both naming the same
+14 invoices — the correct GST treatment, and it exports at zero.
+
+🔴 **A netting computed from `S.creditNotes` ALONE would read ₹5.3839 and understate the credit
+by 3.5×, because CN/004 and CN/005 were never entered into the app.** Instrument: `CN/004`,
+`CN/005`, their reference invoices `000443` / `000716` and all four of their rupee figures,
+swept as literal strings over the whole backup — **zero hits for every one of the eight.**
+**₹10,821.75 gross of issued credit notes sits outside the app, and therefore outside its own
+CDNR export.** The register that caught it is `soma-internal/operations/credit-notes/README.md`;
+**the app's array is not the register, and this is the first case where the difference cost a
+number.**
+
+⚠ **The contribution arithmetic in Key Business Data is STILL not restated** — at ₹5.343 rather
+than ₹5.40 the SSS Mehta monthly position worsens, and nothing above has been re-derived.
+⚠ **And the ₹/kg is arithmetic, not evidence**: Mehta is piece-billed, its derived weights invert
+its own contract rate, so realisation equals that rate by construction and the netting is a
+scalar on it. **The tonnage is real; the ₹/kg is not independent.**
 
 ### The floor, by area
 Staff tab → **Areas**. The same attendance store read by place instead of by person, because two

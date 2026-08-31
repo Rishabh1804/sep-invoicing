@@ -359,55 +359,79 @@ input, select, textarea, button { font-family: inherit; font-size: var(--fs-base
 .inv-print-toolbar-btn:active { opacity: 0.7; }
 .inv-print-body { padding: var(--sp-8); }
 .inv-print-invoice {
+  /* The invoice's own type scale, in points, declared once and read as var()
+     by every rule below — the same treatment .inv-qc-page and .inv-cn-doc get,
+     and the documented HR-6 print exception. It was the one printed document
+     still borrowing the app's UI --fs-* tokens, which meant its type could not
+     be set without moving the whole interface, and the interface could not be
+     scaled without silently resizing a GST document.
+     The values below are the exact equivalents of the rem tokens they replace
+     (6.75pt == 0.5625rem at a 16px root), so the scale itself changed nothing;
+     the deliberate size decisions are marked. */
+  --pi-fs-xs: 6.75pt;
+  --pi-fs-sm: 7.5pt;
+  --pi-fs-md: 9pt;
+  --pi-fs-lg: 12pt;
+  --pi-fs-xl: 18pt;
+  /* Reference fields — invoice number, challan number and dates, and the
+     customer being billed. Raised to 9pt because 6.75pt is below what reads
+     across a desk, and these are the fields a recipient looks for first. */
+  --pi-fs-ref: 9pt;
+
   background: #fff; color: #000; padding: var(--sp-16);
-  font-family: var(--ff-base); font-size: var(--fs-sm);
+  font-family: var(--ff-base); font-size: var(--pi-fs-md);
   max-width: var(--max-w); margin: 0 auto;
   border: 1px solid var(--border);
 }
 /* Print invoice structure */
-.inv-pi-title { font-size: var(--fs-md); font-weight: 700; text-align: center; text-decoration: underline; font-style: italic; margin-bottom: var(--sp-4); }
+.inv-pi-title { font-size: var(--pi-fs-lg); font-weight: 700; text-align: center; text-decoration: underline; font-style: italic; margin-bottom: var(--sp-4); }
 .inv-pi-header { text-align: center; margin-bottom: var(--sp-4); }
-.inv-pi-company { font-size: var(--fs-xl); font-weight: 700; text-transform: uppercase; }
-.inv-pi-address { font-size: var(--fs-2xs); color: #333; margin-top: 1px; }
-.inv-pi-tagline { font-size: var(--fs-2xs); font-weight: 600; margin-top: var(--sp-2); }
-.inv-pi-gstin-row { display: flex; justify-content: space-between; font-size: var(--fs-xs); font-family: var(--ff-mono); font-weight: 600; border-top: 1px solid #000; border-bottom: 1px solid #000; padding: var(--sp-2) 0; margin-top: var(--sp-4); }
+.inv-pi-company { font-size: var(--pi-fs-xl); font-weight: 700; text-transform: uppercase; }
+.inv-pi-address { font-size: var(--pi-fs-xs); color: #333; margin-top: 1px; }
+.inv-pi-tagline { font-size: var(--pi-fs-xs); font-weight: 600; margin-top: var(--sp-2); }
+.inv-pi-gstin-row { display: flex; justify-content: space-between; font-size: var(--pi-fs-sm); font-family: var(--ff-mono); font-weight: 600; border-top: 1px solid #000; border-bottom: 1px solid #000; padding: var(--sp-2) 0; margin-top: var(--sp-4); }
 /* Info grid — 2-column rows for invoice meta */
-.inv-pi-info-grid { border: 1px solid #000; border-collapse: collapse; width: 100%; font-size: var(--fs-2xs); margin-bottom: 0; }
+.inv-pi-info-grid { border: 1px solid #000; border-collapse: collapse; width: 100%; font-size: var(--pi-fs-sm); margin-bottom: 0; }
 .inv-pi-info-grid td { border: 1px solid #000; padding: var(--sp-2) var(--sp-6); }
 .inv-pi-info-grid .inv-pi-lbl { font-weight: 600; white-space: nowrap; }
-.inv-pi-info-grid .inv-pi-val { font-family: var(--ff-mono); }
+/* The reference numbers themselves. `nowrap` is load-bearing, not polish: at
+   this size the row has no slack, and an invoice number broken across two
+   lines ("SEP/2026-" / "27/00812") is worse than a small one. */
+.inv-pi-info-grid .inv-pi-val {
+  font-size: var(--pi-fs-ref); font-weight: 600; white-space: nowrap;
+}
 /* Bill To / Ship To */
-.inv-pi-parties { display: flex; border: 1px solid #000; border-top: none; font-size: var(--fs-2xs); }
+.inv-pi-parties { display: flex; border: 1px solid #000; border-top: none; font-size: var(--pi-fs-xs); }
 .inv-pi-party { flex: 1; padding: var(--sp-4) var(--sp-6); }
 .inv-pi-party + .inv-pi-party { border-left: 1px solid #000; }
 .inv-pi-party-title { font-weight: 700; margin-bottom: var(--sp-2); }
-.inv-pi-party-name { font-weight: 700; font-size: var(--fs-xs); }
-.inv-pi-party-gstin { font-family: var(--ff-mono); font-size: var(--fs-2xs); margin-top: var(--sp-2); }
-.inv-pi-party-state { font-size: var(--fs-2xs); }
-.inv-pi-disclaimer { font-size: var(--fs-2xs); text-align: center; padding: var(--sp-2); border: 1px solid #000; border-top: none; font-style: italic; }
+.inv-pi-party-name { font-weight: 700; font-size: var(--pi-fs-ref); }
+.inv-pi-party-gstin { font-family: var(--ff-mono); font-size: var(--pi-fs-xs); margin-top: var(--sp-2); }
+.inv-pi-party-state { font-size: var(--pi-fs-xs); }
+.inv-pi-disclaimer { font-size: var(--pi-fs-xs); text-align: center; padding: var(--sp-2); border: 1px solid #000; border-top: none; font-style: italic; }
 /* Line items table */
-.inv-pi-table { width: 100%; border-collapse: collapse; font-size: var(--fs-xs); }
+.inv-pi-table { width: 100%; border-collapse: collapse; font-size: var(--pi-fs-sm); }
 .inv-pi-table th, .inv-pi-table td { border: 1px solid #000; padding: var(--sp-4) var(--sp-6); }
-.inv-pi-table th { background: #f0f0f0; font-weight: 600; text-align: center; font-size: var(--fs-2xs); }
+.inv-pi-table th { background: #f0f0f0; font-weight: 600; text-align: center; font-size: var(--pi-fs-xs); }
 .inv-pi-table td { vertical-align: top; text-align: center; }
 .inv-pi-table td:nth-child(2) { text-align: left; }
-.inv-pi-table td:nth-child(3) { text-align: left; font-family: var(--ff-mono); font-size: var(--fs-2xs); white-space: nowrap; }
+.inv-pi-table td:nth-child(3) { text-align: left; font-family: var(--ff-mono); font-size: var(--pi-fs-xs); white-space: nowrap; }
 .inv-pi-table .inv-pi-num { text-align: right; font-family: var(--ff-mono); }
-.inv-pi-nos-sub { font-size: var(--fs-2xs); color: #555; display: block; }
+.inv-pi-nos-sub { font-size: var(--pi-fs-xs); color: #555; display: block; }
 /* Footer area */
-.inv-pi-footer-grid { display: flex; font-size: var(--fs-2xs); border: 1px solid #000; border-top: none; }
+.inv-pi-footer-grid { display: flex; font-size: var(--pi-fs-xs); border: 1px solid #000; border-top: none; }
 .inv-pi-footer-left { flex: 1; padding: var(--sp-4) var(--sp-6); }
 .inv-pi-footer-right { width: 50%; border-left: 1px solid #000; }
 .inv-pi-footer-right table { width: 100%; border-collapse: collapse; }
-.inv-pi-footer-right td { padding: var(--sp-2) var(--sp-6); font-size: var(--fs-2xs); }
+.inv-pi-footer-right td { padding: var(--sp-2) var(--sp-6); font-size: var(--pi-fs-xs); }
 .inv-pi-footer-right .inv-pi-total-label { text-align: right; }
 .inv-pi-footer-right .inv-pi-total-value { text-align: right; font-family: var(--ff-mono); font-weight: 600; }
-.inv-pi-footer-right .inv-pi-grand { font-weight: 700; font-size: var(--fs-sm); border-top: 2px solid #000; }
-.inv-pi-words { font-size: var(--fs-2xs); font-style: italic; color: #333; padding: var(--sp-2) var(--sp-6); }
-.inv-pi-bank { font-size: var(--fs-2xs); white-space: pre-line; padding: var(--sp-4) var(--sp-6); border: 1px solid #000; border-top: none; }
+.inv-pi-footer-right .inv-pi-grand { font-weight: 700; font-size: var(--pi-fs-md); border-top: 2px solid #000; }
+.inv-pi-words { font-size: var(--pi-fs-xs); font-style: italic; color: #333; padding: var(--sp-2) var(--sp-6); }
+.inv-pi-bank { font-size: var(--pi-fs-xs); white-space: pre-line; padding: var(--sp-4) var(--sp-6); border: 1px solid #000; border-top: none; }
 .inv-pi-bank-label { font-weight: 700; margin-bottom: var(--sp-2); }
 /* Signature block */
-.inv-pi-sig-grid { display: flex; border: 1px solid #000; border-top: none; font-size: var(--fs-2xs); min-height: 80px; }
+.inv-pi-sig-grid { display: flex; border: 1px solid #000; border-top: none; font-size: var(--pi-fs-xs); min-height: 80px; }
 .inv-pi-sig-left { flex: 1; padding: var(--sp-6); display: flex; flex-direction: column; justify-content: space-between; border-right: 1px solid #000; }
 .inv-pi-sig-mid { flex: 1.5; padding: var(--sp-6); display: flex; flex-direction: column; justify-content: space-between; border-right: 1px solid #000; text-align: center; }
 .inv-pi-sig-right { flex: 1; padding: var(--sp-6); display: flex; flex-direction: column; justify-content: space-between; text-align: right; }
@@ -796,8 +820,19 @@ table.inv-qc-grid.inv-qc-no-top { border-top: 0; }
    behaviour before this rule existed, so it degrades rather than regresses. */
 @page invoice { margin: 10mm 12mm 8mm 12mm; }
 @media print {
+  /* Nothing animates on paper. The desktop body offset carries a 300ms
+     margin-left transition, so a print taken while it is still running
+     captures an intermediate value and the document lands part-shifted —
+     measurably, on the sheet. Stopping motion here removes the whole class
+     of nondeterminism rather than racing it. */
+  *, *::before, *::after { transition: none !important; animation: none !important; }
   body { max-width: none; padding: 0; margin: 0; background: #fff; }
-  body.inv-desktop { margin-left: 0; }
+  /* The desktop sidebar offset. `body.inv-desktop { margin-left: 64px }` is
+     declared later in this sheet at the same specificity, so a plain reset
+     here loses on source order and every printed document came out shifted
+     64px right — asymmetric margins, and 240px when the sidebar was expanded.
+     One more element selector settles it without reaching for !important. */
+  html body.inv-desktop { margin-left: 0; }
   .inv-header, .inv-tabs, .inv-fab, .inv-toast, .inv-page,
   .inv-overlay-scrim, .inv-print-toolbar, #imSelBar, .inv-scan-bar, .inv-sidebar { display: none !important; }
   .inv-print-view { position: static; display: block !important; overflow: visible; }

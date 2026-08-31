@@ -121,10 +121,11 @@ filter on; a literal date in a fixture is a time bomb, not a constant.
 | HR-8 | gstRound() for all currency. `Math.round(val * 100) / 100`. Never Math.floor for financials. GST rules require proper rounding. |
 
 **Known HR-6 exceptions (do not expand):** 44px min touch targets (WCAG), 20px SVG icons, print CSS
-raw colors, and the printed documents' physical measurements (mm/pt) — the quality certificate's,
-the credit note's and the tax invoice's page margins — the first two declared once in a token block
-(`.inv-qc-page`, `.inv-cn-doc`) and read as `var()` by every rule after it, the third stated once in
-`@page invoice`, which is the only place a page margin can be written.
+raw colors, and the printed documents' physical measurements (mm/pt) — all three now declare their
+type and spacing once in a token block (`.inv-qc-page`, `.inv-cn-doc`, `.inv-print-invoice`) and read
+`var()` in every rule after it. The invoice's page margins are the one measurement that cannot live
+in a token block: they are stated once in `@page invoice`, the only place a page margin can be
+written.
 
 ## Design System
 
@@ -292,6 +293,40 @@ because a browser drops an `avoid` it cannot honour.
 caption row carrying `Invoice <number> · <copy label>` lives inside the line-items `<thead>`, which
 is the one box every browser repeats on each printed page — the same reason it is not another fixed
 element. Rows also stop being sliced through the middle.
+
+### The invoice's type is its own
+The invoice was the last printed document borrowing the app's UI `--fs-*` rem tokens — 21 rules of
+them. The certificate and the credit note have always declared their own point scales, and the
+coupling ran both ways and was wrong both ways: the invoice's type could not be set without moving
+the whole interface, and the interface could not be scaled without silently resizing a GST document.
+`--pi-fs-*` on `.inv-print-invoice` closes it. The mapping was exact — 6.75pt *is* 0.5625rem at a
+16px root — so introducing the scale changed nothing, which is what made it safe to do in the same
+change as the sizes below. **The test that matters is the independence one:** tripling the root font
+size must not move the invoice by a pixel, and it asserts the app itself did move, so it cannot pass
+against a stylesheet that has stopped working.
+
+**The reference numbers were 6.75pt monospaced.** Operator feedback named them — invoice number,
+challan number, dates — and the pairing is the worst available for digits: small *and* mono, on
+exactly the fields a recipient hunts for. They are 9pt semi-bold in the normal face now, as is the
+Bill To / Ship To customer name (was 7.5pt). Mono buys column alignment, which a labelled grid does
+not need. **Only the values were raised, not their labels** — at 9pt across the eight-cell row there
+is no horizontal slack left and the invoice number broke mid-token (`SEP/2026-` / `27/00812`), so
+`white-space: nowrap` on the values is load-bearing rather than polish. **Cost: one line item per
+page** — 23 fitted before, 22 after, measured rather than estimated.
+
+### The sidebar offset reached the paper
+`body.inv-desktop { margin-left: 64px }` shifts the interface clear of the desktop sidenav, and the
+print block reset it — at identical specificity, 1,300 lines earlier in the sheet. Source order won,
+so **every document printed from the desktop layout came out displaced 64px right**: 29mm of left
+margin against 12mm of right, and 240px with the sidebar expanded. It reached the certificate and
+the credit note too, not just the invoice. One more element selector settles it; `!important` was
+not needed.
+
+**And the same rule carries a 300ms `margin-left` transition, so a print taken mid-animation lands
+part-shifted** — measured at 64px immediately after switching to print media and 0px after 600ms.
+Motion is stopped outright in print rather than raced. Note where that assertion has to live: the
+transition is declared on `body.inv-desktop`, so on a phone viewport there is nothing to animate and
+the check cannot fail. It sits in the desktop project. A test that cannot fail is not a test.
 
 ### Credit notes
 SSS Mehta hold a **standing 2% discount on any payment batch spanning 7 days or more** — bought

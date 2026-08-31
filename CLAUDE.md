@@ -295,8 +295,8 @@ is the one box every browser repeats on each printed page — the same reason it
 element. Rows also stop being sliced through the middle.
 
 ### The invoice's type is its own
-The invoice was the last printed document borrowing the app's UI `--fs-*` rem tokens — 21 rules of
-them. The certificate and the credit note have always declared their own point scales, and the
+The invoice was the last printed document borrowing the app's UI `--fs-*` rem tokens — **24
+declarations**, on the instrument that counts a rule's whole body rather than only its first line. The certificate and the credit note have always declared their own point scales, and the
 coupling ran both ways and was wrong both ways: the invoice's type could not be set without moving
 the whole interface, and the interface could not be scaled without silently resizing a GST document.
 `--pi-fs-*` on `.inv-print-invoice` closes it. The mapping was exact — 6.75pt *is* 0.5625rem at a
@@ -305,13 +305,27 @@ change as the sizes below. **The test that matters is the independence one:** tr
 size must not move the invoice by a pixel, and it asserts the app itself did move, so it cannot pass
 against a stylesheet that has stopped working.
 
+⚠ **Both the count and that test were wrong first time round, in the same way, and the way is the
+lesson.** The repointing pass rewrote only declarations sitting on the *same line as their selector*,
+so `.inv-pi-copy-label` and `.inv-pi-declaration` — multi-line rules, both printed on the sheet —
+kept the app's tokens. The verifying grep had the identical blind spot, so it reported zero
+remaining and the count came out at 21. And the independence test **sampled four hand-picked
+selectors**, neither of them among them, so it passed against the defect. ⭐⭐ **A claim about a
+document needs a sweep over the document**: the test now walks every element under
+`.inv-print-invoice` and asserts none of their computed sizes move, and it fails against the
+pre-fix stylesheet where the four-selector version passed. *An instrument that cannot see the
+failure is not a check, and using the same flawed instrument to verify a fix it made is how one
+error becomes two.*
+
 **The reference numbers were 6.75pt monospaced.** Operator feedback named them — invoice number,
 challan number, dates — and the pairing is the worst available for digits: small *and* mono, on
 exactly the fields a recipient hunts for. They are 9pt semi-bold in the normal face now, as is the
 Bill To / Ship To customer name (was 7.5pt). Mono buys column alignment, which a labelled grid does
-not need. **Only the values were raised, not their labels** — at 9pt across the eight-cell row there
-is no horizontal slack left and the invoice number broke mid-token (`SEP/2026-` / `27/00812`), so
-`white-space: nowrap` on the values is load-bearing rather than polish. **Cost: one line item per
+not need. **The labels were raised too, but only to 7.5pt from 6.75** — at 9pt across the eight-cell
+row there is no horizontal slack left and the invoice number broke mid-token (`SEP/2026-` /
+`27/00812`), so the labels hold the smaller size and `white-space: nowrap` on the values is
+load-bearing rather than polish. *(An earlier version of this section said "only the values were
+raised, not their labels" — the labels did move, by 0.75pt.)* **Cost: one line item per
 page** — 23 fitted before, 22 after, measured rather than estimated.
 
 ### The sidebar offset reached the paper

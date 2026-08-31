@@ -76,17 +76,18 @@ test('P31: the invoice owns its type scale — the root font size cannot move it
   await loadAppWithState(page, stateWith(8));
   await printPreview(page);
 
-  const sample = () => page.evaluate(() => {
-    const g = (s: string) => getComputedStyle(document.querySelector(s)!).fontSize;
-    return {
-      meta: g('.inv-pi-info-grid .inv-pi-val'),
-      party: g('.inv-pi-party-name'),
-      rows: g('.inv-pi-table'),
-      company: g('.inv-pi-company'),
-    };
-  });
+  /* EVERY element in the sheet, not a hand-picked few. The first version of
+     this test sampled four selectors and passed while two printed elements —
+     the copy label and the quality declaration — were still on the app's rem
+     tokens: the repointing pass had only rewritten declarations sitting on the
+     same line as their selector, and a four-selector sample cannot see what it
+     does not name. The claim is about the document, so the sweep has to be too. */
+  const sample = () => page.evaluate(() =>
+    [...document.querySelectorAll('.inv-print-invoice, .inv-print-invoice *')]
+      .map((el, i) => `${i}:${el.className || el.tagName}=${getComputedStyle(el).fontSize}`));
 
   const before = await sample();
+  expect(before.length).toBeGreaterThan(50); // the sweep found a document, not an empty node
   // Triple the app's root size. Every `--fs-*` token is rem, so the whole
   // interface moves; the invoice must not, because it is in points.
   await page.evaluate(() => { document.documentElement.style.fontSize = '48px'; });

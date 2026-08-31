@@ -72,6 +72,12 @@ function formatInvoiceData(inv) {
 function _buildInvoiceCopyHtml(d, inv, copyLabel) {
   var html = '';
 
+  /* The letterhead through the disclaimer is one visual box — the blocks chain
+     `border-top: none` onto each other to draw it — so it is wrapped and kept
+     whole. Split across a page it opens the box and reads as a second, headless
+     invoice. */
+  html += '<div class="inv-pi-head-block">';
+
   // Copy label
   html += '<div class="inv-pi-copy-label">' + escHtml(copyLabel) + '</div>';
 
@@ -130,8 +136,18 @@ function _buildInvoiceCopyHtml(d, inv, copyLabel) {
   // Disclaimer
   html += '<div class="inv-pi-disclaimer">Please Receive the following Goods after Processing to your entire satisfaction No responsibility after Delivery</div>';
 
-  // Line items table
-  html += '<table class="inv-pi-table"><thead><tr>' +
+  html += '</div>';
+
+  /* Line items table.
+     The caption row sits inside the <thead> on purpose. A tax invoice running
+     to a second page must still say which invoice and which copy the page
+     belongs to, and a <thead> is the only box every browser repeats on each
+     printed page — a `position: fixed` running header prints over the rows
+     instead of reserving room for itself, which is what it was doing here. */
+  html += '<table class="inv-pi-table"><thead>' +
+    '<tr class="inv-pi-caption"><th colspan="8">Invoice ' + escHtml(d.invoiceNumber) +
+    '  \u00b7  ' + escHtml(copyLabel) + '</th></tr>' +
+    '<tr>' +
     '<th>Sl.No.</th><th>Product Description</th><th>Part Number</th><th>HSN/SAC</th><th>Qty</th><th>UOM</th><th>Rate</th><th>Value</th></tr></thead><tbody>';
   d.items.forEach(function(item) {
     var descHtml = escHtml(item.desc);
@@ -150,6 +166,11 @@ function _buildInvoiceCopyHtml(d, inv, copyLabel) {
       '<td class="inv-pi-num">' + escHtml(item.amount) + '</td></tr>';
   });
   html += '</tbody></table>';
+
+  /* Totals, bank, signature and declaration are one block. They were four
+     siblings, two of which avoided breaking individually — which let a page
+     boundary fall between the totals and the signature that attests them. */
+  html += '<div class="inv-pi-tail">';
 
   // Footer: delivery info + totals
   var vehicleNo = inv.transport || '';
@@ -186,6 +207,8 @@ function _buildInvoiceCopyHtml(d, inv, copyLabel) {
 
   // Quality declaration footer
   html += '<div class="inv-pi-declaration">All processed material is inspected before dispatch. Material accepted at the time of delivery shall be deemed to have met quality requirements. Any claim for rework or replating must be accompanied by a written explanation and a delivery challan within 7 days of receipt.</div>';
+
+  html += '</div>';
 
   return html;
 }

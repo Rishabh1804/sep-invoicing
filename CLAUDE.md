@@ -121,9 +121,10 @@ filter on; a literal date in a fixture is a time bomb, not a constant.
 | HR-8 | gstRound() for all currency. `Math.round(val * 100) / 100`. Never Math.floor for financials. GST rules require proper rounding. |
 
 **Known HR-6 exceptions (do not expand):** 44px min touch targets (WCAG), 20px SVG icons, print CSS
-raw colors, and the printed documents' physical measurements (mm/pt) — the quality certificate's
-and the credit note's — each declared once in a token block (`.inv-qc-page`, `.inv-cn-doc`) and read
-as `var()` by every rule after it.
+raw colors, and the printed documents' physical measurements (mm/pt) — the quality certificate's,
+the credit note's and the tax invoice's page margins — the first two declared once in a token block
+(`.inv-qc-page`, `.inv-cn-doc`) and read as `var()` by every rule after it, the third stated once in
+`@page invoice`, which is the only place a page margin can be written.
 
 ## Design System
 
@@ -260,6 +261,37 @@ make them differ.
 
 The observations (`10-12` thickness, `TRIYELLOW`) are still the reference's constants, not per-batch
 measurements.
+
+### A tax invoice that runs past one page
+The printed invoice is three copies, each `page-break-after: always`. An invoice with enough line
+items runs the middle of that flow past a sheet, and four things were wrong when it did.
+
+**Margins belong to the page, not to the block.** They were `padding` on `.inv-print-invoice` while
+`@page` margin was 0 app-wide — and block padding is applied once to the whole flow, so page one got
+a top margin, the last page got a bottom one, and every continuation page began hard against the
+paper edge, well inside what most printers will not put ink on. `@page invoice` gives each page its
+own gutters. It has to be a **named** page: the default must stay at 0, because the certificate and
+the credit note carry their own margins as padding on a 194mm sheet and a page margin would push
+them off A4 — the unnamed rule with a margin measurably does nothing to an invoice now, which is the
+same fact read from the other side. A browser without named-page support falls back to the 0 default,
+which is the behaviour that existed before, so it degrades rather than regresses.
+
+**A running header must reserve its own room.** The quality declaration was `position: fixed` at the
+bottom of every sheet. Fixed takes an element out of flow *without* reserving the band it occupies,
+so on a long invoice the line items printed straight through it. It flows at the end now — one
+declaration per copy, where the rest of the tail is.
+
+**The letterhead and the tail are each one box.** The head blocks chain `border-top: none` onto each
+other to draw a single frame, so a break inside it opens the frame and page two reads as a second,
+headless invoice. The tail was four siblings of which two avoided breaking *individually* — which
+left the page free to break between the totals and the signature attesting them. Both are wrapped
+and kept whole; the inner `avoid`s stay as the fallback for a tail that ever outgrows a page,
+because a browser drops an `avoid` it cannot honour.
+
+**A continuation page has to say which invoice it is.** The letterhead is on page one only. The
+caption row carrying `Invoice <number> · <copy label>` lives inside the line-items `<thead>`, which
+is the one box every browser repeats on each printed page — the same reason it is not another fixed
+element. Rows also stop being sliced through the middle.
 
 ### Credit notes
 SSS Mehta hold a **standing 2% discount on any payment batch spanning 7 days or more** — bought

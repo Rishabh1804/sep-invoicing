@@ -433,6 +433,13 @@ input, select, textarea, button { font-family: inherit; font-size: var(--fs-base
 .inv-pi-sig-company { font-weight: 700; }
 .inv-pi-sig-bottom { margin-top: var(--sp-24); }
 
+/* Repeating caption row. Carries the invoice's identity onto every printed
+   page of a long line-items table; on screen it reads as the table's caption. */
+.inv-pi-table .inv-pi-caption th {
+  background: #fff; text-align: left; font-weight: 700;
+  letter-spacing: 0.06em; padding: var(--sp-4) var(--sp-6);
+}
+
 /* Copy label + page break for multi-copy print */
 .inv-pi-copy-label {
   font-size: var(--fs-xs); font-weight: 700; text-align: right;
@@ -797,6 +804,15 @@ table.inv-qc-grid.inv-qc-no-top { border-top: 0; }
 
 /* Print CSS */
 @page { margin: 0; }
+/* Tax invoice pages carry real page margins, so an invoice whose line items
+   run past one page gets the same gutters on page two as on page one. It has
+   to be a NAMED page: the default above must stay at 0, because the quality
+   certificate and the credit note carry their own margins as padding on a
+   194mm sheet and a page margin would push them off A4. Physical units are the
+   documented HR-6 print exception; these are the invoice's, declared once.
+   A browser without named-page support falls back to the 0 default — the
+   behaviour before this rule existed, so it degrades rather than regresses. */
+@page invoice { margin: 10mm 12mm 8mm 12mm; }
 @media print {
   body { max-width: none; padding: 0; margin: 0; background: #fff; }
   body.inv-desktop { margin-left: 0; }
@@ -804,14 +820,30 @@ table.inv-qc-grid.inv-qc-no-top { border-top: 0; }
   .inv-overlay-scrim, .inv-print-toolbar, #imSelBar, .inv-scan-bar, .inv-sidebar { display: none !important; }
   .inv-print-view { position: static; display: block !important; overflow: visible; }
   .inv-print-body { padding: 0; }
-  .inv-print-invoice { border: none; max-width: none; padding: 10mm 12mm 8mm 12mm; }
+  /* Margins come from `@page invoice`, not from padding on this block: block
+     padding is applied once to the whole flow, so on a multi-page invoice only
+     page one got a top margin and only the last page got a bottom one. Every
+     continuation page started hard against the paper edge. */
+  .inv-print-invoice { page: invoice; border: none; max-width: none; padding: 0; }
   .inv-pi-table th, .inv-pi-table td { border-color: #000; }
+
+  /* Where the page may break, and where it may not.
+     The letterhead box and the totals/signature box each stay whole; a row is
+     never sliced through the middle; the <thead> repeats so continuation pages
+     keep both the column headings and the invoice's identity. */
+  .inv-pi-head-block { page-break-inside: avoid; break-inside: avoid; }
+  .inv-pi-tail { page-break-inside: avoid; break-inside: avoid; }
+  .inv-pi-table thead { display: table-header-group; }
+  .inv-pi-table tr { page-break-inside: avoid; break-inside: avoid; }
+  /* Redundant while the tail holds, and deliberately kept: a browser drops an
+     `avoid` it cannot honour, so if the tail ever outgrows a page these are
+     what stop the totals and the signature being sliced individually. */
   .inv-pi-sig-grid { page-break-inside: avoid; }
   .inv-pi-footer-grid { page-break-inside: avoid; }
-  .inv-pi-declaration {
-    position: fixed; bottom: 8mm; left: 12mm; right: 12mm;
-    border-top: 1px solid #999; margin-top: 0;
-  }
+  /* Flows with the tail rather than sitting `position: fixed` at the bottom of
+     every sheet: fixed took it out of flow without reserving the band, so on a
+     long invoice the line items printed straight through it. */
+  .inv-pi-declaration { border-top: 1px solid #999; }
   .inv-pi-info-grid .inv-pi-val { text-transform: uppercase; }
   .inv-pi-table td:nth-child(2) { text-transform: uppercase; }
   .inv-pi-footer-left { text-transform: uppercase; }
@@ -8861,6 +8893,12 @@ function formatInvoiceData(inv) {
 function _buildInvoiceCopyHtml(d, inv, copyLabel) {
   var html = '';
 
+  /* The letterhead through the disclaimer is one visual box — the blocks chain
+     `border-top: none` onto each other to draw it — so it is wrapped and kept
+     whole. Split across a page it opens the box and reads as a second, headless
+     invoice. */
+  html += '<div class="inv-pi-head-block">';
+
   // Copy label
   html += '<div class="inv-pi-copy-label">' + escHtml(copyLabel) + '</div>';
 
@@ -8919,8 +8957,18 @@ function _buildInvoiceCopyHtml(d, inv, copyLabel) {
   // Disclaimer
   html += '<div class="inv-pi-disclaimer">Please Receive the following Goods after Processing to your entire satisfaction No responsibility after Delivery</div>';
 
-  // Line items table
-  html += '<table class="inv-pi-table"><thead><tr>' +
+  html += '</div>';
+
+  /* Line items table.
+     The caption row sits inside the <thead> on purpose. A tax invoice running
+     to a second page must still say which invoice and which copy the page
+     belongs to, and a <thead> is the only box every browser repeats on each
+     printed page — a `position: fixed` running header prints over the rows
+     instead of reserving room for itself, which is what it was doing here. */
+  html += '<table class="inv-pi-table"><thead>' +
+    '<tr class="inv-pi-caption"><th colspan="8">Invoice ' + escHtml(d.invoiceNumber) +
+    '  \u00b7  ' + escHtml(copyLabel) + '</th></tr>' +
+    '<tr>' +
     '<th>Sl.No.</th><th>Product Description</th><th>Part Number</th><th>HSN/SAC</th><th>Qty</th><th>UOM</th><th>Rate</th><th>Value</th></tr></thead><tbody>';
   d.items.forEach(function(item) {
     var descHtml = escHtml(item.desc);
@@ -8939,6 +8987,11 @@ function _buildInvoiceCopyHtml(d, inv, copyLabel) {
       '<td class="inv-pi-num">' + escHtml(item.amount) + '</td></tr>';
   });
   html += '</tbody></table>';
+
+  /* Totals, bank, signature and declaration are one block. They were four
+     siblings, two of which avoided breaking individually — which let a page
+     boundary fall between the totals and the signature that attests them. */
+  html += '<div class="inv-pi-tail">';
 
   // Footer: delivery info + totals
   var vehicleNo = inv.transport || '';
@@ -8975,6 +9028,8 @@ function _buildInvoiceCopyHtml(d, inv, copyLabel) {
 
   // Quality declaration footer
   html += '<div class="inv-pi-declaration">All processed material is inspected before dispatch. Material accepted at the time of delivery shall be deemed to have met quality requirements. Any claim for rework or replating must be accompanied by a written explanation and a delivery challan within 7 days of receipt.</div>';
+
+  html += '</div>';
 
   return html;
 }

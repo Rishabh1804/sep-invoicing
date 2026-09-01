@@ -121,11 +121,10 @@ filter on; a literal date in a fixture is a time bomb, not a constant.
 | HR-8 | gstRound() for all currency. `Math.round(val * 100) / 100`. Never Math.floor for financials. GST rules require proper rounding. |
 
 **Known HR-6 exceptions (do not expand):** 44px min touch targets (WCAG), 20px SVG icons, print CSS
-raw colors, and the printed documents' physical measurements (mm/pt) — all three now declare their
-type and spacing once in a token block (`.inv-qc-page`, `.inv-cn-doc`, `.inv-print-invoice`) and read
-`var()` in every rule after it. The invoice's page margins are the one measurement that cannot live
-in a token block: they are stated once in `@page invoice`, the only place a page margin can be
-written.
+raw colors, and the printed documents' physical measurements (mm/pt) — all three declare their type
+and spacing once in a token block (`.inv-qc-page`, `.inv-cn-doc`, `.inv-print-invoice`) and read
+`var()` in every rule after it. **No `@page` rule anywhere may carry a non-zero margin** — see the
+tax-invoice section below for what a margin box costs; a spec asserts it.
 
 ## Design System
 
@@ -267,15 +266,31 @@ measurements.
 The printed invoice is three copies, each `page-break-after: always`. An invoice with enough line
 items runs the middle of that flow past a sheet, and four things were wrong when it did.
 
-**Margins belong to the page, not to the block.** They were `padding` on `.inv-print-invoice` while
-`@page` margin was 0 app-wide — and block padding is applied once to the whole flow, so page one got
-a top margin, the last page got a bottom one, and every continuation page began hard against the
-paper edge, well inside what most printers will not put ink on. `@page invoice` gives each page its
-own gutters. It has to be a **named** page: the default must stay at 0, because the certificate and
-the credit note carry their own margins as padding on a 194mm sheet and a page margin would push
-them off A4 — the unnamed rule with a margin measurably does nothing to an invoice now, which is the
-same fact read from the other side. A browser without named-page support falls back to the 0 default,
-which is the behaviour that existed before, so it degrades rather than regresses.
+🔴 **Margins on the page were tried and WITHDRAWN — `@page` margin stays 0, and the reason is
+load-bearing.** The gutters are `padding` on `.inv-print-invoice`, which is applied once to the whole
+flow: page one gets a top margin, the last page a bottom one, and **every continuation page begins
+hard against the paper edge.** That is a real defect and a named `@page invoice { margin: … }` does
+fix it — measured, 12 pages at 10mm against 15 at 45mm on a 120-line invoice, correctly scoped away
+from the certificate and the credit note.
+
+**It cost far more than it bought, and the cost only shows in production.** A margin box is the one
+place a browser can draw *its own* header and footer, and Chrome omits them when there is no room —
+`@page { margin: 0 }` app-wide is what has always bought that silence. Handing it 10mm handed it the
+room: invoice **00866** came back from the floor with every sheet stamped `9/1/26, 2:47 PM` and the
+document title, **and a trailing blank seventh page** on three two-page copies. Chrome 151, Skia/PDF,
+the ordinary Save-as-PDF path.
+
+⭐⭐ **The lesson is about the instrument, again.** `page.pdf()` over CDP never draws browser
+headers and never reproduced the blank page across 16–34 line items on Chromium 141 — so the whole
+change was measured, tested and merged by a harness that is structurally blind to the defect it
+introduced. **The evidence that settled it was not a reproduction at all: the operator had neither
+symptom before the change and both after, on an unchanged browser and dialog.** A print bug lives in
+the print dialog, and nothing that bypasses the dialog can see it.
+
+**The continuation-page gutter is therefore an OPEN limitation, not a solved problem.** Closing it
+needs a technique that reserves the band *in flow* — a repeating `<tfoot>` spacer — never a page
+margin. Note the trap in the obvious version: the line-items `<thead>` repeats only on pages the
+table itself spans, and the tail routinely lands alone on a page the table never reaches.
 
 **A running header must reserve its own room.** The quality declaration was `position: fixed` at the
 bottom of every sheet. Fixed takes an element out of flow *without* reserving the band it occupies,

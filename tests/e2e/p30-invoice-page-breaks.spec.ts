@@ -8,8 +8,13 @@ import { emptyState, loadAppWithState, switchTab, todayIso, recentTs, SepState }
  * document has to survive that. Four things were wrong when it did:
  *
  *  - Margins lived in `padding` on the invoice block while `@page` margin was
- *    0. Block padding is applied once to the whole flow, so page two began
- *    hard against the paper edge.
+ *    0, so page two began hard against the paper edge. A named `@page invoice`
+ *    with real margins fixed that and cost far more than it bought: a margin
+ *    box is where the browser draws its own header and footer, so every sheet
+ *    came out stamped with the date and the document title, and a long invoice
+ *    grew a trailing blank page. The page margin is back to 0 and the gutters
+ *    are padding again; the continuation-page gutter is a known limitation
+ *    that needs an in-flow technique, not a page margin.
  *  - The declaration was `position: fixed` at the bottom of every sheet. Fixed
  *    takes it out of flow without reserving the band, so the rows printed
  *    through it.
@@ -148,21 +153,39 @@ test('P30: a line item is never sliced across the page boundary', async ({ page 
   expect(await printStyle(page, '.inv-pi-table thead', 'display')).toBe('table-header-group');
 });
 
-test('P30: margins come from the page, not from padding on the flow', async ({ page }) => {
+test('P30: no page margin, so the browser cannot stamp its own header on the sheet', async ({ page }) => {
   await loadAppWithState(page, stateWith([invoice(1, LONG)]));
   await previewOne(page, 'INV-1');
 
   await page.emulateMedia({ media: 'print' });
   const sheet = page.locator('.inv-print-invoice').first();
 
-  // Padding on the block is applied once to the whole flow — page two would
-  // start at the paper edge. `@page invoice` gives every page the gutter.
+  /* The invoice must NOT sit on a named page with margins. A margin box is
+     the only place a browser can draw its own header and footer, and Chrome
+     omits them when there is none — which is what `@page { margin: 0 }` has
+     always bought this app. Reported from production on Chrome 151: every
+     sheet stamped with the date and the document title, plus a trailing blank
+     page. The gutters are padding on the block instead. */
+  expect(await sheet.evaluate((el) => getComputedStyle(el).page)).toBe('auto');
   const padding = await sheet.evaluate((el) => {
     const cs = getComputedStyle(el);
     return [cs.paddingTop, cs.paddingRight, cs.paddingBottom, cs.paddingLeft];
   });
-  expect(padding).toEqual(['0px', '0px', '0px', '0px']);
-  expect(await sheet.evaluate((el) => getComputedStyle(el).page)).toBe('invoice');
+  expect(padding).not.toEqual(['0px', '0px', '0px', '0px']);
+
+  // And no stylesheet in the app may declare a non-zero page margin.
+  const pageMargins = await page.evaluate(() => {
+    const out: string[] = [];
+    for (const sheet of document.styleSheets) {
+      try {
+        for (const r of sheet.cssRules) {
+          if (r.constructor.name === 'CSSPageRule' && /margin/.test(r.cssText)) out.push(r.cssText);
+        }
+      } catch { /* cross-origin sheet */ }
+    }
+    return out;
+  });
+  for (const rule of pageMargins) expect(rule).toMatch(/margin:\s*0/);
 
   // The declaration flows with the tail. Fixed took it out of flow without
   // reserving the band, so rows printed through it.

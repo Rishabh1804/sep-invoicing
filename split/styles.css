@@ -810,15 +810,20 @@ table.inv-qc-grid.inv-qc-no-top { border-top: 0; }
 
 /* Print CSS */
 @page { margin: 0; }
-/* Tax invoice pages carry real page margins, so an invoice whose line items
-   run past one page gets the same gutters on page two as on page one. It has
-   to be a NAMED page: the default above must stay at 0, because the quality
-   certificate and the credit note carry their own margins as padding on a
-   194mm sheet and a page margin would push them off A4. Physical units are the
-   documented HR-6 print exception; these are the invoice's, declared once.
-   A browser without named-page support falls back to the 0 default — the
-   behaviour before this rule existed, so it degrades rather than regresses. */
-@page invoice { margin: 10mm 12mm 8mm 12mm; }
+/* There is deliberately NO page margin here, on any named page.
+   A margin box is where the browser draws its own header and footer — date,
+   document title, URL, page numbers — and Chrome omits them entirely when
+   there is no room. `@page { margin: 0 }` app-wide is what has always bought
+   that, and a named `@page invoice` with real margins gave the room back:
+   every sheet came out stamped `9/1/26, 2:47 PM` and the document title, and
+   a long invoice grew a trailing blank page. Reported from production on
+   Chrome 151 against invoice 00866, seven pages for three two-page copies.
+   The invoice's own gutters are padding on `.inv-print-invoice` below.
+   Horizontal padding applies on every page; vertical padding applies once to
+   the whole flow, so a continuation page still starts near the paper edge —
+   a known limitation, and the lesser of the two evils. Solving it needs a
+   technique that reserves the band in flow (a repeating table footer), not a
+   page margin. */
 @media print {
   /* Nothing animates on paper. The desktop body offset carries a 300ms
      margin-left transition, so a print taken while it is still running
@@ -837,11 +842,7 @@ table.inv-qc-grid.inv-qc-no-top { border-top: 0; }
   .inv-overlay-scrim, .inv-print-toolbar, #imSelBar, .inv-scan-bar, .inv-sidebar { display: none !important; }
   .inv-print-view { position: static; display: block !important; overflow: visible; }
   .inv-print-body { padding: 0; }
-  /* Margins come from `@page invoice`, not from padding on this block: block
-     padding is applied once to the whole flow, so on a multi-page invoice only
-     page one got a top margin and only the last page got a bottom one. Every
-     continuation page started hard against the paper edge. */
-  .inv-print-invoice { page: invoice; border: none; max-width: none; padding: 0; }
+  .inv-print-invoice { border: none; max-width: none; padding: 10mm 12mm 8mm 12mm; }
   .inv-pi-table th, .inv-pi-table td { border-color: #000; }
 
   /* Where the page may break, and where it may not.

@@ -153,7 +153,7 @@ test('P31: the meta grid fits the sheet however many challans an invoice cites',
   await page.setViewportSize({ width: 794, height: 1123 });
   await printPreview(page);
 
-  const fit = await page.evaluate(() => {
+  const measure = () => page.evaluate(() => {
     const sheet = document.querySelector('.inv-print-invoice') as HTMLElement;
     const grid = sheet.querySelector('.inv-pi-info-grid') as HTMLElement;
     const cs = getComputedStyle(sheet);
@@ -161,12 +161,28 @@ test('P31: the meta grid fits the sheet however many challans an invoice cites',
     return {
       printable: Math.round(printable),
       grid: Math.round(grid.getBoundingClientRect().width),
-      worstCellOverflow: Math.max(...[...grid.querySelectorAll('td')]
-        .map((td) => td.scrollWidth - td.clientWidth)),
+      // The widest a row wants to be. `width: 100%` hides an overflow in the
+      // element box, so the sum of the cells' own content widths is what
+      // actually says whether the row fits.
+      rowMin: Math.round(Math.max(...[...grid.querySelectorAll('tr')].map((tr) =>
+        [...tr.children].reduce((n, td) => n + (td as HTMLElement).scrollWidth, 0)))),
     };
   });
-  expect(fit.grid).toBeLessThanOrEqual(fit.printable);
-  expect(fit.worstCellOverflow).toBeLessThanOrEqual(0);
+
+  const asShipped = await measure();
+  expect(asShipped.rowMin).toBeLessThanOrEqual(asShipped.printable);
+
+  /* And again in a DELIBERATELY WIDE face. This assertion is the point of the
+     test: the first run measures whatever fonts the machine happens to have,
+     which is why CI (no webfonts, different fallback) read 729px where a
+     developer box read 703px — the same stylesheet, judged by two different
+     rulers. The app also lets the webfont CSS fail rather than block the
+     service worker install, so the fallback is a real print path.
+     Nailing the face down makes the check mean the same thing everywhere.
+     Pre-fix this reports ~786px against 703px. */
+  await page.addStyleTag({ content: '.inv-print-invoice{--ff-base:"DejaVu Sans",sans-serif}' });
+  const wideFace = await measure();
+  expect(wideFace.rowMin).toBeLessThanOrEqual(wideFace.printable);
 
   // The list wraps; the atomic values do not. A break between "834," and
   // "835," reads correctly, a break inside a date does not.

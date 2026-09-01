@@ -411,7 +411,13 @@ input, select, textarea, button { font-family: inherit; font-size: var(--fs-base
 /* Info grid — 2-column rows for invoice meta */
 .inv-pi-info-grid { border: 1px solid #000; border-collapse: collapse; width: 100%; font-size: var(--pi-fs-sm); margin-bottom: 0; }
 .inv-pi-info-grid td { border: 1px solid #000; padding: var(--sp-2) var(--sp-6); }
-.inv-pi-info-grid .inv-pi-lbl { font-weight: 600; white-space: nowrap; }
+/* Labels wrap. They are English phrases — "Your Challan. No." over two lines
+   is ordinary on a form — and holding them on one line made the row's minimum
+   width depend on the font's metrics: 6px of headroom with Inter, 83px of
+   OVERFLOW under a wider fallback face. The app deliberately lets the webfont
+   CSS fail rather than block the service worker install, so the fallback is a
+   real print path, not a test artifact. Only the values below are atomic. */
+.inv-pi-info-grid .inv-pi-lbl { font-weight: 600; }
 /* The reference numbers themselves. `nowrap` keeps an invoice number from
    breaking mid-token ("SEP/2026-" / "27/00812"), which is worth having on the
    ATOMIC values — a number or a date is one thing and reads as one thing. */

@@ -348,16 +348,32 @@ shrink does not wrap, it overflows**. Invoice **00866** cited four challan numbe
 836`) and the grid ran clean off the paper: measured **752px of content into 703px of page**, a right
 margin of **−0.2mm**, every cell simultaneously at its 4.5pt padding minimum. Eight challans is 805px.
 
-**The split is by what the value IS, not by how long it happens to be.** The challan number and the
+**The split is by what the text IS, not by how long it happens to be.** The challan number and the
 P.O. number are lists or free text and carry `.inv-pi-val-wrap`; a break between `834,` and `835,`
-reads correctly. The invoice number and the dates stay atomic — a date broken across two lines does
-not. With the two variable-length fields free to wrap, the row's minimum drops under the page and the
-table fits at any challan count; the cell simply grows taller.
+reads correctly. **The labels wrap too** — they are English phrases, and "Your Challan. No." over two
+lines is ordinary on a form. Only the invoice number and the dates stay atomic, because a date broken
+across two lines does not read as a date.
+
+⚠ **Letting the values wrap was NOT enough, and CI is what said so.** It left **6px of headroom under
+Inter** — and the runner, which has no webfonts and a different fallback face, measured 729px against
+the same 703px page. Same stylesheet, two different rulers. Forced into a deliberately wide face the
+pre-fix row wants **786px**: an overflow of 83px that no amount of value-wrapping absorbs, because the
+labels were holding the row open. **And the fallback is a real print path, not a test artifact** —
+`sw.js` deliberately lets the cross-origin font CSS fail rather than block the install, so an offline
+device prints in whatever face it has. With the labels free to wrap the row fits under both faces at
+any challan count.
+
+⭐⭐ **A layout assertion measured in whatever font the machine happens to have is not a measurement,
+it is a coincidence.** The spec now pins the face itself — it asserts the fit once as shipped and
+again under a forced wide stack — so it means the same thing on a laptop, on CI, and on the shop's
+Windows box. Each half of the fix is load-bearing and the test catches each alone: 774px with the
+labels held, 713px with the values held.
 
 ⚠ **The test had to move to a sheet-width viewport to see it at all.** The suite's phone project is
 393px wide, where the grid never comes near its limit, so an overflow that only exists at 186mm was
-invisible to every check in the file. It now sets a 794px viewport and asserts the grid against the
-sheet's own printable width — it reports 854px against 703px on the pre-fix stylesheet. **Cost: one line item per
+invisible to every check in the file. It sets a 794px viewport and measures the **sum of a row's cell
+content widths** against the sheet's printable width — `width: 100%` hides the overflow in the
+element box, so the box's own width can never report it. **Cost: one line item per
 page** — 23 fitted before, 22 after, measured rather than estimated.
 
 ### The sidebar offset reached the paper

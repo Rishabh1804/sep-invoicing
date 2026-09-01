@@ -108,11 +108,11 @@ function _buildInvoiceCopyHtml(d, inv, copyLabel) {
   html += '<table class="inv-pi-info-grid"><tr>' +
     '<td class="inv-pi-lbl">Invoice Number</td><td class="inv-pi-val">' + escHtml(d.invoiceNumber) + '</td>' +
     '<td class="inv-pi-lbl">Inv Dt.</td><td class="inv-pi-val">' + escHtml(d.date) + '</td>' +
-    '<td class="inv-pi-lbl">Your Challan. No.</td><td class="inv-pi-val">' + escHtml(d.challanNo || '') + '</td>' +
+    '<td class="inv-pi-lbl">Your Challan. No.</td><td class="inv-pi-val inv-pi-val-wrap">' + escHtml(d.challanNo || '') + '</td>' +
     '<td class="inv-pi-lbl">Your Challan Dt.</td><td class="inv-pi-val">' + escHtml(d.challanDate || '') + '</td></tr>';
   var poNumber = inv.poNumber || '';
   var despatchDate = inv.despatchDate ? formatDate(inv.despatchDate) : '';
-  html += '<tr><td class="inv-pi-lbl">Your P.O.No.</td><td class="inv-pi-val">' + escHtml(poNumber) + '</td>' +
+  html += '<tr><td class="inv-pi-lbl">Your P.O.No.</td><td class="inv-pi-val inv-pi-val-wrap">' + escHtml(poNumber) + '</td>' +
     '<td class="inv-pi-lbl">Despatch Dt</td><td class="inv-pi-val">' + escHtml(despatchDate) + '</td>' +
     '<td colspan="4"></td></tr></table>';
 

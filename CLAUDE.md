@@ -338,9 +338,26 @@ exactly the fields a recipient hunts for. They are 9pt semi-bold in the normal f
 Bill To / Ship To customer name (was 7.5pt). Mono buys column alignment, which a labelled grid does
 not need. **The labels were raised too, but only to 7.5pt from 6.75** — at 9pt across the eight-cell
 row there is no horizontal slack left and the invoice number broke mid-token (`SEP/2026-` /
-`27/00812`), so the labels hold the smaller size and `white-space: nowrap` on the values is
-load-bearing rather than polish. *(An earlier version of this section said "only the values were
-raised, not their labels" — the labels did move, by 0.75pt.)* **Cost: one line item per
+`27/00812`), so the labels hold the smaller size. *(An earlier version of this section said "only the
+values were raised, not their labels" — the labels did move, by 0.75pt.)*
+
+🔴 **`nowrap` on EVERY value then overflowed the sheet, and the mechanism is worth keeping.** A
+table's minimum width is the sum of its cells' minimum widths, and `nowrap` makes a cell's minimum
+its whole content. At 9pt the eight-cell row's minimum exceeded the page — and **a table that cannot
+shrink does not wrap, it overflows**. Invoice **00866** cited four challan numbers (`834, 835, 838,
+836`) and the grid ran clean off the paper: measured **752px of content into 703px of page**, a right
+margin of **−0.2mm**, every cell simultaneously at its 4.5pt padding minimum. Eight challans is 805px.
+
+**The split is by what the value IS, not by how long it happens to be.** The challan number and the
+P.O. number are lists or free text and carry `.inv-pi-val-wrap`; a break between `834,` and `835,`
+reads correctly. The invoice number and the dates stay atomic — a date broken across two lines does
+not. With the two variable-length fields free to wrap, the row's minimum drops under the page and the
+table fits at any challan count; the cell simply grows taller.
+
+⚠ **The test had to move to a sheet-width viewport to see it at all.** The suite's phone project is
+393px wide, where the grid never comes near its limit, so an overflow that only exists at 186mm was
+invisible to every check in the file. It now sets a 794px viewport and asserts the grid against the
+sheet's own printable width — it reports 854px against 703px on the pre-fix stylesheet. **Cost: one line item per
 page** — 23 fitted before, 22 after, measured rather than estimated.
 
 ### The sidebar offset reached the paper

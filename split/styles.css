@@ -394,12 +394,21 @@ input, select, textarea, button { font-family: inherit; font-size: var(--fs-base
 .inv-pi-info-grid { border: 1px solid #000; border-collapse: collapse; width: 100%; font-size: var(--pi-fs-sm); margin-bottom: 0; }
 .inv-pi-info-grid td { border: 1px solid #000; padding: var(--sp-2) var(--sp-6); }
 .inv-pi-info-grid .inv-pi-lbl { font-weight: 600; white-space: nowrap; }
-/* The reference numbers themselves. `nowrap` is load-bearing, not polish: at
-   this size the row has no slack, and an invoice number broken across two
-   lines ("SEP/2026-" / "27/00812") is worse than a small one. */
+/* The reference numbers themselves. `nowrap` keeps an invoice number from
+   breaking mid-token ("SEP/2026-" / "27/00812"), which is worth having on the
+   ATOMIC values — a number or a date is one thing and reads as one thing. */
 .inv-pi-info-grid .inv-pi-val {
   font-size: var(--pi-fs-ref); font-weight: 600; white-space: nowrap;
 }
+/* But `nowrap` on every value made the row's MINIMUM width larger than the
+   sheet, and a table that cannot shrink does not wrap — it overflows. Invoice
+   00866 carried four challan numbers and the grid ran to the paper edge with
+   no right margin at all: 752px of content into 703px of page.
+   The challan number and the P.O. number are the two variable-length fields,
+   and both are lists or free text — a break between "834," and "835," reads
+   correctly, where a break inside a date does not. They wrap; the dates and
+   the invoice number stay atomic. */
+.inv-pi-info-grid .inv-pi-val-wrap { white-space: normal; }
 /* Bill To / Ship To */
 .inv-pi-parties { display: flex; border: 1px solid #000; border-top: none; font-size: var(--pi-fs-xs); }
 .inv-pi-party { flex: 1; padding: var(--sp-4) var(--sp-6); }

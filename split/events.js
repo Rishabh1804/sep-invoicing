@@ -84,6 +84,7 @@ document.addEventListener('click', function(e) {
     case 'invAttEditWorker': openWorkerEdit(parseInt(btn.dataset.id, 10)); break;
     case 'invAttSaveWorker': saveWorker(parseInt(btn.dataset.id, 10), btn.dataset.mode); break;
     case 'invAttDeleteWorker': deleteWorker(parseInt(btn.dataset.id, 10)); break;
+    case 'invAttMergeWorker': mergeWorkerInto(parseInt(btn.dataset.id, 10)); break;
     // Credit notes
     case 'invRegCreditNote': openCreditNoteForm(_regSelectedIds()); break;
     case 'invCnSave': saveCreditNote(); break;

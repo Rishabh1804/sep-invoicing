@@ -1169,6 +1169,21 @@ table.inv-qc-grid.inv-qc-no-top { border-top: 0; }
   margin-top: var(--sp-8); line-height: 1.4;
 }
 
+/* A short list of bare facts inside an overlay — the dates a merge could not
+   decide between. No bullets: these are data, not prose, and the marker reads
+   as decoration next to a monospaced date. Colours come from the same tokens
+   the rest of the card uses, so dark mode is covered by the token swap. */
+.inv-list-plain {
+  list-style: none; margin: var(--sp-8) 0; padding: 0;
+  max-height: 40vh; overflow-y: auto;
+  border: 1px solid var(--border); border-radius: var(--r-sm);
+}
+.inv-list-plain li {
+  padding: var(--sp-6) var(--sp-12); font-size: var(--fs-sm); color: var(--text-1);
+  border-bottom: 1px solid var(--border);
+}
+.inv-list-plain li:last-child { border-bottom: none; }
+
 /* Composition. Eight series colours drawn from the domain palette, plus a
    ninth for the folded "others" wedge so the tail is visibly a tail. */
 .inv-chart-pie-wrap {

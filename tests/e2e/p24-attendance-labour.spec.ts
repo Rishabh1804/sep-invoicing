@@ -330,6 +330,7 @@ test('a roster import merges by name, keeps attendance, and leaves invoices alon
   // whether the key is missing because nothing arrived or because nothing landed.
   expect(result).toEqual({
     added: 1, updated: 1, skipped: 1, targets: 0,
+    aliased: 0, collapsed: 0, aliasConflicts: 0, dupesOnRoster: 0,
     days: 0, daysKept: 0, daysDropped: 0, marksDropped: 0,
     extrasDropped: 0, crewsUnresolved: 0,
   });
@@ -362,6 +363,198 @@ test('a roster import merges by name, keeps attendance, and leaves invoices alon
   // The whole point of a roster-scoped door: Settings → Import would have
   // replaced this invoice with nothing.
   expect(after.invoices).toBe(1);
+});
+
+/* ===== ONE PERSON, MANY SPELLINGS =====
+
+   The bug this closes, reported off a live import: the shop writes "Shyam"
+   where the roster carries "Shyam Bera", so a name-matched merge read them as
+   two people and paid both. The alias map is the fix at the door; the merge is
+   the fix for the rows that already landed. */
+
+test('an alias in the file matches an existing worker instead of adding a second row', async ({ page }) => {
+  const [day, other] = workingDaysBack(2);
+  await loadAppWithState(page, staffState({
+    attendance: {
+      [day]: {
+        marks: { [POOL.id]: { st: 'P', hours: 8, ot: 0, area: 'barrel' } },
+        extra: [], note: '',
+      },
+    },
+  }));
+  await openStaff(page);
+
+  const result = await page.evaluate(([iso]) => (window as unknown as {
+    applyRosterImport: (d: unknown) => Record<string, number>;
+  }).applyRosterImport({
+    // The file speaks the shop's short form; the roster carries the full name.
+    staff: [{ name: 'Pool', comp: 'hourly', hourRate: 60, area: 'barrel' }],
+    aliases: { 'POOL HAND': ['Pool', 'pool h.'] },
+    attendance: {
+      [iso]: {
+        // A mark and a block crew, both under the short form: an unbridged
+        // alias would drop the mark AND make the block Not checkable.
+        marks: [{ name: 'pool h.', st: 'P', hours: 8, area: 'barrel' }],
+        extra: [{ kind: 'block', areas: ['barrel'], crew: ['Pool'], hours: 6, from: '17:00', to: '23:00' }],
+        note: '',
+      },
+    },
+  }), [other]);
+
+  expect(result.added).toBe(0);
+  expect(result.updated).toBe(1);
+  expect(result.aliased).toBe(1);
+  expect(result.marksDropped).toBe(0);
+  expect(result.crewsUnresolved).toBe(0);
+
+  // `S` is a `let` binding, not a property of `window`, so the persisted copy is
+  // the readable one — and reading it proves the write reached storage.
+  await page.evaluate(() => (window as unknown as { saveState: () => void }).saveState());
+  const after = await page.evaluate(([a, b]) => {
+    const st = JSON.parse(localStorage.getItem('sep_invoicing_state') || '{}') as {
+      staff: Array<{ id: number; name: string; hourRate: number }>;
+      attendance: Record<string, { marks: Record<string, unknown>; extra: Array<{ crew: number[] }> }>;
+    };
+    return {
+      names: st.staff.map((x) => x.name).sort(),
+      rate: st.staff.find((x) => x.id === 2)?.hourRate,
+      markedIds: Object.keys(st.attendance[b].marks),
+      crew: st.attendance[b].extra[0].crew,
+      keptDay: Object.keys(st.attendance[a].marks),
+    };
+  }, [day, other]);
+
+  // One row, not two — and it keeps the name the operator typed. An alias match
+  // says the spellings are the same person, not that theirs is the wrong one.
+  expect(after.names).toEqual(['AREA LEAD', 'GATE GUARD', 'POOL HAND', 'UNRATED HAND']);
+  expect(after.rate).toBe(60);
+  expect(after.markedIds).toEqual([String(POOL.id)]);
+  expect(after.crew).toEqual([POOL.id]);
+  expect(after.keptDay).toEqual([String(POOL.id)]);
+});
+
+test('an import onto an already-duplicated roster reports it rather than collapsing it', async ({ page }) => {
+  const [day] = workingDaysBack(1);
+  await loadAppWithState(page, staffState({
+    // Both rows already on the roster — the state a first import without aliases
+    // leaves behind, which is the one this fix cannot undo at the door.
+    staff: [LEAD, POOL, GUARD, NORATE,
+      { id: 9, name: 'Pool', comp: 'hourly', dayRate: 0, hourRate: 47.5, area: 'barrel', onFloor: true, active: true }],
+    attendance: {
+      [day]: { marks: { 9: { st: 'P', hours: 8, ot: 0, area: 'barrel' } }, extra: [], note: '' },
+    },
+  }));
+  await openStaff(page);
+
+  const res = await page.evaluate(() => (window as unknown as {
+    applyRosterImport: (d: unknown) => Record<string, number>;
+  }).applyRosterImport({
+    staff: [{ name: 'POOL HAND', comp: 'hourly', hourRate: 47.5, area: 'barrel' }],
+    aliases: { 'POOL HAND': ['Pool'] },
+  }));
+
+  expect(res.dupesOnRoster).toBe(1);
+  expect(res.added).toBe(0);
+
+  // Collapsing here would destroy days without showing which ones both rows were
+  // marked on. Both rows survive; the merge on the overlay is where it is fixed.
+  await page.evaluate(() => (window as unknown as { saveState: () => void }).saveState());
+  const names = await page.evaluate(() => (JSON.parse(localStorage.getItem('sep_invoicing_state') || '{}')
+    .staff as Array<{ name: string }>).map((w) => w.name).sort());
+  expect(names).toContain('Pool');
+  expect(names).toContain('POOL HAND');
+});
+
+test('an alias claiming two workers is refused rather than merging them', async ({ page }) => {
+  await loadAppWithState(page, staffState());
+  await openStaff(page);
+  const result = await page.evaluate(() => (window as unknown as {
+    applyRosterImport: (d: unknown) => Record<string, number>;
+  }).applyRosterImport({
+    staff: [{ name: 'AREA LEAD', comp: 'monthly', dayRate: 500, area: 'vat-a1' }],
+    // 'GATE GUARD' is somebody's canonical name; claiming it as an alias of the
+    // lead would join two people, which is the one error worse than splitting one.
+    aliases: { 'AREA LEAD': ['GATE GUARD'], 'GATE GUARD': [] },
+  }));
+  expect(result.aliasConflicts).toBe(1);
+  expect(result.added).toBe(0);
+  await page.evaluate(() => (window as unknown as { saveState: () => void }).saveState());
+  const names = await page.evaluate(() => (JSON.parse(localStorage.getItem('sep_invoicing_state') || '{}')
+    .staff as Array<{ name: string }>).map((w) => w.name).sort());
+  expect(names).toEqual(['AREA LEAD', 'GATE GUARD', 'POOL HAND', 'UNRATED HAND']);
+});
+
+test('a duplicate already on the roster is merged, and the days both rows carry are reported', async ({ page }) => {
+  const [dayBoth, dayOnly] = workingDaysBack(2);
+  await loadAppWithState(page, staffState({
+    staff: [LEAD, POOL, GUARD, NORATE,
+      { id: 9, name: 'Pool', comp: 'hourly', dayRate: 0, hourRate: 47.5, area: 'barrel', onFloor: true, active: true }],
+    attendance: {
+      // The double count itself: one day marked on BOTH rows.
+      [dayBoth]: {
+        marks: {
+          [POOL.id]: { st: 'A', hours: 0, ot: 0, area: 'barrel' },
+          9: { st: 'P', hours: 8, ot: 0, area: 'barrel' },
+        },
+        extra: [], note: '',
+      },
+      [dayOnly]: {
+        marks: { 9: { st: 'P', hours: 7, ot: 0, area: 'barrel' } },
+        extra: [{ kind: 'block', areas: ['barrel'], crew: [9], hours: 6, from: '17:00', to: '23:00', area: 'barrel' }],
+        note: '',
+      },
+    },
+  }));
+  await openStaff(page);
+
+  const res = await page.evaluate(() => (window as unknown as {
+    mergeWorkers: (a: number, b: number) => Record<string, unknown>;
+  }).mergeWorkers(9, 2));
+
+  expect(res.moved).toBe(1);
+  expect(res.crews).toBe(1);
+  expect(res.collided).toBe(1);
+  expect(res.collisionDays).toEqual([dayBoth]);
+
+  await page.evaluate(() => (window as unknown as { saveState: () => void }).saveState());
+  const after = await page.evaluate(([a, b]) => {
+    const st = JSON.parse(localStorage.getItem('sep_invoicing_state') || '{}') as {
+      staff: Array<{ id: number; name: string }>;
+      attendance: Record<string, { marks: Record<string, { st: string; hours: number }>; extra: Array<{ crew: number[] }> }>;
+    };
+    return {
+      names: st.staff.map((x) => x.name).sort(),
+      both: st.attendance[a].marks,
+      only: st.attendance[b].marks,
+      crew: st.attendance[b].extra[0].crew,
+    };
+  }, [dayBoth, dayOnly]);
+
+  // The row that was open is the one that disappears; the survivor's id is what
+  // every mark and every block crew now names.
+  expect(after.names).toEqual(['AREA LEAD', 'GATE GUARD', 'POOL HAND', 'UNRATED HAND']);
+  expect(Object.keys(after.only)).toEqual([String(POOL.id)]);
+  expect(after.crew).toEqual([POOL.id]);
+  // On the collided day the richer mark wins: absent pays nothing and worked
+  // nothing, so it never beats a day somebody was present for.
+  expect(Object.keys(after.both)).toEqual([String(POOL.id)]);
+  expect(after.both[String(POOL.id)].st).toBe('P');
+  expect(after.both[String(POOL.id)].hours).toBe(8);
+});
+
+test('the merge control is on the worker overlay and names the row that disappears', async ({ page }) => {
+  await loadAppWithState(page, staffState());
+  await openStaff(page);
+  await page.locator('[data-action="invAttView"][data-view="roster"]').click();
+  await page.locator(`[data-action="invAttEditWorker"][data-id="${POOL.id}"]`).first().click();
+
+  const card = page.locator('.inv-overlay-card');
+  await expect(card).toContainText('Merge this worker into');
+  await expect(card).toContainText('POOL HAND');
+  // Every other worker is offerable; the open row is not, because merging
+  // somebody into themselves is not a thing that can be meant.
+  const opts = await page.locator('#wedMergeInto option').allTextContents();
+  expect(opts).toEqual(['Select a worker…', 'AREA LEAD', 'GATE GUARD', 'UNRATED HAND']);
 });
 
 test('a file with no staff array is refused rather than half-applied', async ({ page }) => {

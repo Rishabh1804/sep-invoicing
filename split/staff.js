@@ -1186,7 +1186,7 @@ function importRoster() {
    and silently renaming a roster from a file is the overwrite the rest of this
    module refuses. Only a pure re-casing of the same string is normalised. */
 function buildNameAliases(aliases) {
-  var out = { key: {}, spellings: {}, conflicts: 0 };
+  var out = { key: {}, spellings: {}, refused: {}, conflicts: 0 };
   if (!aliases || typeof aliases !== 'object' || Array.isArray(aliases)) return out;
   var norm = function(v) { return String(v == null ? '' : v).trim().toLowerCase(); };
 
@@ -1206,7 +1206,24 @@ function buildNameAliases(aliases) {
     (Array.isArray(v) ? v : [v]).forEach(function(alt) {
       var a = norm(alt);
       if (!a || a === k) return;
-      if (out.key[a]) { if (out.key[a] !== k) out.conflicts++; return; }
+      if (out.key[a]) {
+        if (out.key[a] === k) return;                     // listed twice in one group
+        // Claimed by two groups. REFUSED means bound to NEITHER — an earlier
+        // version merely counted it and left the first claimant's binding
+        // standing, so the "refusal" resolved the name by `Object.keys` order.
+        // That is the guess the rule exists to forbid: merging two people is
+        // the one error worse than splitting one, and picking by file order is
+        // not a decision anybody made.
+        var prev = out.key[a];
+        delete out.key[a];
+        if (out.spellings[prev]) {
+          out.spellings[prev] = out.spellings[prev].filter(function(x) { return x !== a; });
+        }
+        out.conflicts++;
+        out.refused[a] = true;                            // never re-bindable this run
+        return;
+      }
+      if (out.refused[a]) { out.conflicts++; return; }    // a third claimant changes nothing
       out.key[a] = k;
       out.spellings[k].push(a);
     });
@@ -1546,12 +1563,20 @@ function mergeWorkers(fromId, intoId) {
            collisionDays: collisionDays.sort(), fromName: from.name, intoName: into.name };
 }
 
-/* Which of two marks for one day says more. Absent pays nothing and worked
-   nothing, so any recorded presence outranks it; between two present marks the
-   longer day wins, and overtime breaks a tie. */
+/* Which of two marks for one day says more.
+
+   The state ranks FIRST, on `ATT_DAY_VALUE` — the same table `labourForRange`
+   and `areaStats` price a day with, so the merge cannot prefer a mark the wage
+   arithmetic then values lower. An earlier version demoted only `A`, which left
+   a HALF DAY tying with a full present one: both default to `hours: 0` (the
+   seed's default and the day view's), so the tie fell through to the `false`
+   branch and the half day was KEPT. That understates the bill, in the merge
+   whose whole purpose is repairing a wage understatement.
+
+   Hours break a tie within one state, and overtime breaks that. */
 function _markRicherThan(a, b) {
-  var aAbs = (a.st || 'P') === 'A', bAbs = (b.st || 'P') === 'A';
-  if (aAbs !== bAbs) return bAbs;
+  var av = ATT_DAY_VALUE[a.st || 'P'] || 0, bv = ATT_DAY_VALUE[b.st || 'P'] || 0;
+  if (av !== bv) return av > bv;
   if ((a.hours || 0) !== (b.hours || 0)) return (a.hours || 0) > (b.hours || 0);
   return (a.ot || 0) > (b.ot || 0);
 }

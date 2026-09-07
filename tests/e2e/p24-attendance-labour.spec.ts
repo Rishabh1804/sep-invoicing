@@ -484,6 +484,72 @@ test('an alias claiming two workers is refused rather than merging them', async 
   expect(names).toEqual(['AREA LEAD', 'GATE GUARD', 'POOL HAND', 'UNRATED HAND']);
 });
 
+test('a spelling claimed by two workers binds to neither, whoever the file lists first', async ({ page }) => {
+  await loadAppWithState(page, staffState());
+  await openStaff(page);
+  // The contested string is NOT anybody's canonical name — the case an earlier
+  // version got wrong. It counted the conflict and left the first claimant's
+  // binding standing, so "refused" resolved the name by object-key order.
+  const res = await page.evaluate(() => {
+    const w = window as unknown as {
+      buildNameAliases: (a: unknown) => { key: Record<string, string>; conflicts: number };
+      aliasKey: (n: string, al: unknown) => string;
+    };
+    const al = w.buildNameAliases({ 'AREA LEAD': ['shared'], 'POOL HAND': ['shared'] });
+    return { conflicts: al.conflicts, bound: al.key['shared'] ?? null, resolves: w.aliasKey('shared', al) };
+  });
+  expect(res.conflicts).toBe(1);
+  // Bound to neither, so the name resolves only to itself.
+  expect(res.bound).toBeNull();
+  expect(res.resolves).toBe('shared');
+
+  // Order must not change the answer: the same map with the groups swapped.
+  const swapped = await page.evaluate(() => {
+    const w = window as unknown as {
+      buildNameAliases: (a: unknown) => { key: Record<string, string>; conflicts: number };
+    };
+    const al = w.buildNameAliases({ 'POOL HAND': ['shared'], 'AREA LEAD': ['shared'] });
+    return { conflicts: al.conflicts, bound: al.key['shared'] ?? null };
+  });
+  expect(swapped).toEqual(res.bound === null ? { conflicts: 1, bound: null } : swapped);
+  expect(swapped.bound).toBeNull();
+});
+
+test('a merge keeps the fuller day: present beats half, and half beats absent', async ({ page }) => {
+  const [d1, d2, d3] = workingDaysBack(3);
+  await loadAppWithState(page, staffState({
+    staff: [LEAD, POOL, GUARD, NORATE,
+      { id: 9, name: 'Lead', comp: 'monthly', dayRate: 500, hourRate: 0, area: 'vat-a1', onFloor: true, active: true }],
+    attendance: {
+      // Both marks default to hours 0 — the seed's default and the day view's —
+      // so the state is the only thing that can separate them. An earlier
+      // version demoted only 'A', so P and H tied here and the HALF DAY was
+      // kept, understating the bill in the merge meant to repair one.
+      [d1]: { marks: { [LEAD.id]: { st: 'H', hours: 0, ot: 0, area: 'vat-a1' },
+                       9: { st: 'P', hours: 0, ot: 0, area: 'vat-a1' } }, extra: [], note: '' },
+      [d2]: { marks: { [LEAD.id]: { st: 'A', hours: 0, ot: 0, area: 'vat-a1' },
+                       9: { st: 'H', hours: 0, ot: 0, area: 'vat-a1' } }, extra: [], note: '' },
+      [d3]: { marks: { [LEAD.id]: { st: 'P', hours: 0, ot: 0, area: 'vat-a1' },
+                       9: { st: 'A', hours: 0, ot: 0, area: 'vat-a1' } }, extra: [], note: '' },
+    },
+  }));
+  await openStaff(page);
+  const res = await page.evaluate(() => (window as unknown as {
+    mergeWorkers: (a: number, b: number) => Record<string, unknown>;
+  }).mergeWorkers(9, 1));
+  expect(res.collided).toBe(3);
+
+  await page.evaluate(() => (window as unknown as { saveState: () => void }).saveState());
+  const states = await page.evaluate(([a, b, c]) => {
+    const st = JSON.parse(localStorage.getItem('sep_invoicing_state') || '{}') as {
+      attendance: Record<string, { marks: Record<string, { st: string }> }>;
+    };
+    return [st.attendance[a].marks['1'].st, st.attendance[b].marks['1'].st, st.attendance[c].marks['1'].st];
+  }, [d1, d2, d3]);
+  // P over H, H over A, and P survives when it was already the survivor's.
+  expect(states).toEqual(['P', 'H', 'P']);
+});
+
 test('a duplicate already on the roster is merged, and the days both rows carry are reported', async ({ page }) => {
   const [dayBoth, dayOnly] = workingDaysBack(2);
   await loadAppWithState(page, staffState({

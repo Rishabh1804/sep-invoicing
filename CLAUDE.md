@@ -491,7 +491,7 @@ whose author labelled it as one. Two recorded days contradict it — **W27 Mon 2
 annotated pairings — W26:18 (short 2 → 16 h), W26:58 (short 1 → 8), W27:17 (short 2 → 8), W27:19
 (short 1 → 8) — so **two of the four**, on that instrument, are the counter-cases, and both are a
 two-hand VAT line tagged a single shift. W27 offers its own reading of one of them: `2026-W27.md`
-decodes that 8 h as *"2 named hands (Lakhi, Lal) + 8 hr casual"* — a per-area decode rather than a
+decodes that 8 h as *"2 named hands + 8 hr casual"* — a per-area decode rather than a
 mis-scaled per-hand one, which ties it to the open T-CY question of who the pooled line pays. The
 app follows the owner's rule and surfaces those days as *booked but not the predicted amount*
 rather than smoothing them away. `extraHoursPerHead` is in Settings because the question is not closed.
@@ -569,7 +569,7 @@ morning block** — the shop's most frequent — as *booked more than the shortf
 credited length rounds the span up to the whole hour; the only convention the corpus states is
 2.5 → 3, and rounding up is this app's inference from that one instance, a no-op on every other
 recorded block. **Two instruments, two lengths:** a named hand's own pay uses the clock (BM, 8 Aug —
-Sambhu's 6:00–8:30 + 5 PM–12 AM = 9.5 hr), the unattributed EXTRA credit uses the convention. The
+a named hand's 6:00–8:30 + 5 PM–12 AM = 9.5 hr), the unattributed EXTRA credit uses the convention. The
 entry row shows both whenever they differ.
 
 **A named exception is a RECORD, not a footnote.** A disagreement this card raises is a question;
@@ -618,7 +618,7 @@ as a null on the record. Both were published here.*
 Tue-28 evening tag *"internally inconsistent (group 1: 3×7=21 ✓; group 2: 2×7=14≠21)"* and treats
 that asymmetry as evidence the tags are not a pay instrument. Group 2 is barrel+pickling, a unit of
 five, two hands present: short three, 3 × 7 = 21, exactly as tagged. The inconsistency was in the
-reading, not in Shyam's tags.
+reading, not in the tags.
 
 **It also contradicts a booked payout, which is soma-internal's to settle, not this app's.**
 `attendance/2026-W24.md:61` prices that 6 AM slot at 15 OT hr / ₹751.50 on the per-hand reading.
@@ -672,7 +672,7 @@ slot.
 and it closes T-CY.** The 11 Jun ruling said the short area's present crew absorb the coverage
 between them; the 28 Aug ruling settles that this attribution **is the payment**: the pool's payee
 is the crew itself, pro-rata. The money **stays under the EXTRA line** — one pooled figure on the
-slip, **disbursed by Shyam on the floor** — and the card's per-worker shares are the split he
+slip, **disbursed by the supervisor on the floor** — and the card's per-worker shares are the split he
 disburses it by. Nothing enters the per-worker wage arithmetic and the labour card still counts the
 extra exactly once; an earlier version of this section called the spread *"an availability measure,
 not a wage"* and warned against conflating measurement with payment — right until the ruling, wrong
@@ -963,7 +963,7 @@ in two places and states **absences** in a third:
 **The join is what makes an hour string safe rather than a guess.** A string is assigned only when it
 has **exactly as many terms as the attendance sheets have present days** for that worker that week.
 On W32 — one of the two weeks where both instruments exist (W33 is the other) — **9 of 9 strings
-now match** *(the ninth was Champai, refused only because her ⭐-decorated rows defeated the name
+now match** *(the ninth was refused only because that worker's ⭐-decorated rows defeated the name
 regex)*. Where the
 counts disagree the string is **refused and counted**, never stretched to fit: a mis-aligned string
 puts a fourteen-hour day on the wrong date and reads as a real record.
@@ -982,12 +982,12 @@ shapes were missing, and each cost real days:
 |---|---|---|
 | `###` day headings | `### Mon 10 August 2026 (W33 Day 1)` | W33 entirely — 6 days, 12 EXTRA tags, the whole hours matrix |
 | abbreviated month, no year | `### Thu 30 Jul` | four of W31's six days |
-| bullet slot rows | `- **VAT-A1**: Rupa · Sarat · Bhanu` | W28 entirely — 6 days, 44 rows |
+| bullet slot rows | `- **VAT-A1**: <name> · <name> · <name>` | W28 entirely — 6 days, 44 rows |
 | no day headings at all | W19 / W20 carry only a worker × day matrix | 12 days, 231 marks |
 | **two days in ONE heading** | `## Wed 29 + Thu 30 Jul` | both days VANISHED — ~32 marks, 8 absences, two EXTRA 8s — while a mangled fragment seeded a **phantom block on the wrong day** (Castor blocker; the code comment claiming "the first wins" described code that did not exist) |
-| **inline group labels** | `A1: Sambhu`, `*A2* Sarat`, `— Sarat ·` | the FIRST HAND of every prose block row dropped — Sarat from the worked example, Sambhu from the 28-h flagship, and the wrong crew on `W33:63`, the surviving exception itself |
+| **inline group labels** | `A1: <name>`, `*A2* <name>`, `— <name> ·` | the FIRST HAND of every prose block row dropped — one from the worked example, one from the 28-h flagship, and the wrong crew on `W33:63`, the surviving exception itself |
 | **`·`-separated positional hour strings** | `14 · 18 · 18 · 18 · 14 · 11` under a day-named header | all of W31's per-day hours read as zero |
-| **decorated names** | `⭐ **Champai (8:30 AM)**` | Champai absent from four weeks of office rows — six paid days with no presence mark |
+| **decorated names** | `⭐ **<name> (8:30 AM)**` | that hand absent from four weeks of office rows — six paid days with no presence mark |
 
 **64 → 93 days · 774 → 1,483 marks · 37 → 285 worker-days of hours · 40 → 261 explicit absences ·
 55 → 90 general-shift bookings · 8 → 36 block rows**, of which **26 carry all three inputs** (times,
@@ -1071,13 +1071,13 @@ absence costs a day's wage and has to be said. The same distinction one level up
 coverage figure is for: a day with no attendance key is a day nobody typed, which is not a day
 nobody worked.
 
-**What "the extra" is.** Shyam's daily sheet books hours two ways. Named men carry their own
+**What "the extra" is.** The daily sheet books hours two ways. Named men carry their own
 out-time — that is OT, per worker, at their hour rate × 1.1. But every day also carries lines
 like `EXTRA 16 HOURS` written against an **area block**, with nobody attached. They are real
 paid contract-tier hours and the payout sheet settles them. In the **bill** they stay exactly
 that: hours booked to an area, under the EXTRA line, counted once — the fixed-versus-variable
 split never depends on how they are shared out. Who *receives* them is ruled (28 Aug 2026):
-the short area's present crew, pro-rata, disbursed by Shyam on the floor — the card computes
+the short area's present crew, pro-rata, disbursed by the supervisor on the floor — the card computes
 that split; the cost accounting does not move.
 
 **Fixed and variable are kept apart everywhere.** Fixed is the monthly tier — its days and its

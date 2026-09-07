@@ -117,9 +117,9 @@ test('the same day attributes the coverage pro-rata to the crews who carried it'
   await expect(card).not.toContainText('PICKLING-BARREL');
   // The shares ARE money now (owner, 28 Aug 2026): 4.0 h at the default
   // 47.50 contract rate is a priced share — but it stays under the EXTRA
-  // line, disbursed by Shyam on the floor, never a per-worker wage line.
+  // line, disbursed by the supervisor on the floor, never a per-worker wage line.
   await expect(card).toContainText('₹190.00');
-  await expect(card).toContainText('disbursed by Shyam on the floor');
+  await expect(card).toContainText('disbursed by the supervisor on the floor');
 });
 
 test('more booked than the shortfall explains is called out as a surplus', async ({ page }) => {

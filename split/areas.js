@@ -76,7 +76,7 @@ function extraIsBlock(x) { return !!x && x.kind === 'block'; }
    variant a clean 3). A span that is already whole is never moved.
 
    Two instruments, two lengths, and the app carries both: a NAMED hand's own
-   pay uses the clock (BM, 8 Aug — Sambhu's 6:00–8:30 + 5 PM–12 AM = 9.5 hr),
+   pay uses the clock (BM, 8 Aug — a named hand's 6:00–8:30 + 5 PM–12 AM = 9.5 hr),
    while the unattributed EXTRA credit uses the convention. `blockSpan` is the
    clock; `blockLength` is what the tag is judged against. The entry row shows
    both whenever they differ, so nothing is rounded behind the operator's back.
@@ -646,7 +646,7 @@ function _blockGroups(rows) {
    And the owner ruled (28 Aug 2026) that this attribution IS the payment: the
    extra is GIVEN pro-rata to the workers of the area where the shortage
    occurred. The money stays UNDER THE EXTRA LINE — one pooled figure that
-   Shyam disburses on the floor — and the shares below are the split he
+   the supervisor disburses on the floor — and the shares below are the split he
    disburses it by: what each hand receives, not merely a measure of who was
    leaned on, and never a line in the per-worker wage arithmetic. An earlier
    version of this comment called the spread "deliberately not money"; that
@@ -1088,7 +1088,7 @@ function _areaAbsorptionCard(stats) {
     '<span class="inv-lab-total inv-mono">' + formatCurrency(gstRound(total * cfg.extraRate)) + '</span></div>' +
     '<div class="inv-stats-note">The extra is booked to an area, and <strong>the area&rsquo;s present crew ' +
     'receive it pro-rata</strong> (owner, 28 Aug 2026). It stays under the <strong>EXTRA</strong> line of the ' +
-    'bill &mdash; one pooled figure, <strong>disbursed by Shyam on the floor</strong> &mdash; and these shares ' +
+    'bill &mdash; one pooled figure, <strong>disbursed by the supervisor on the floor</strong> &mdash; and these shares ' +
     'are the split he disburses it by. Nothing here enters the per-worker wage arithmetic; the bill counts the ' +
     'extra exactly once, and this card says who it reaches.</div>';
   var flagged = 0;

@@ -15,7 +15,7 @@
 /* The areas are the shop's own, and the split is not cosmetic: the staffing
    norms are defined on these exact units — VAT A1 4 · VAT A2 4 · Barrel 3 ·
    Barrel pickling 2 · A1+A2 pickling 3, sixteen on the floor at full house —
-   and pickling is two sub-areas that Shyam's daily relay already divides. A
+   and pickling is two sub-areas that the daily relay already divides. A
    single flat `pickling` cannot carry either norm, so it cannot carry either
    shortfall, so the extra could not be checked against it.
 
@@ -40,7 +40,7 @@ var STAFF_AREAS = [
    shortfall arithmetic.
 
    The relay writes them as one row about as often as it writes them as two —
-   `Barrel & pickling | Shyam · Sunil · Suklal · EXTRA 16 HOURS` — and every
+   `Barrel & pickling | <three hands> | EXTRA 16 HOURS` — and every
    shortfall decode in the record reconciles them together against a combined
    norm of five, never against three and two read apart. Split for the
    reconciliation, a day with both hands on the barrel side reads barrel 2/3
@@ -68,7 +68,7 @@ function areaUnitLabel(unitId) {
 }
 
 /* Retired ids and where they go. `pickling` was ambiguous between the two
-   sub-areas; it lands on the VAT side because that is the one Shyam's format
+   sub-areas; it lands on the VAT side because that is the one the relay's format
    labels plainly as "Pickling", the barrel side always carrying the "Barrel"
    qualifier. A mark that meant the other one is a mark to re-point by hand,
    and there is no way to tell them apart after the fact — so the migration
@@ -426,7 +426,7 @@ function _attDayView() {
 /* ===== EXTRA HOURS =====
    What "the extra" is, and why it has no name against it.
 
-   Shyam's daily relay books hours in two different ways. Named men carry their
+   The daily relay books hours in two different ways. Named men carry their
    own out-time, and those hours are OT on the row above. But every day also
    carries lines like `EXTRA 16 HOURS` written against an *area block* — the
    barrel line, the 6 AM VAT slot — with no person attached. They are real paid
@@ -1291,7 +1291,7 @@ function importedExtra(x, byName, counters) {
       .map(function(a) { return STAFF_AREA_ALIASES[a] || a; })
       .filter(function(a) { return STAFF_AREAS.some(function(s2) { return s2.id === a; }); });
     // A block naming NO area is kept, not dropped. The shop writes some evening
-    // blocks purely as out-times (`Out | Sarat 10 PM · Sambhu 12 AM · EXTRA 13
+    // blocks purely as out-times (`Out | <hand> 10 PM · <hand> 12 AM · EXTRA 13
     // hours`), which states the hours without saying which line ran. Those are
     // real booked hours: dropping them takes them out of the bill, and
     // unverifiable is not unpaid. The reconciler already has the right answer

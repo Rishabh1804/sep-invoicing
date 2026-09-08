@@ -207,15 +207,15 @@ test.describe('storage diagnostics', () => {
 
   test('the report lists every localStorage key on the origin by size, so a sister app spending the pool is visible', async ({ page }) => {
     await loadAppWithState(page, stateWithInvoice());
-    // Another GitHub Pages project under the same account lands on the same
-    // origin, and therefore inside the same localStorage quota.
-    await page.evaluate(async () => localStorage.setItem('adaptea_state', 'x'.repeat(300 * 1024)));
+    // Another GitHub Pages project under the same account (SproutLab) lands
+    // on the same origin, and therefore inside the same localStorage quota.
+    await page.evaluate(async () => localStorage.setItem('sproutlab_state', 'x'.repeat(300 * 1024)));
     await page.evaluate(async () => (window as any).saveState());
     await page.locator('[data-action="invOpenSettings"]').first().click();
     await page.locator('[data-action="invRunDiagnostics"]').click();
     const report = page.locator('.inv-diag-report');
     await expect(report).toContainText('one pool for every app served from this origin');
-    await expect(report).toContainText('adaptea_state: 300K chars');
+    await expect(report).toContainText('sproutlab_state: 300K chars');
     // The state itself is no longer in that pool.
     await expect(report).not.toContainText(/sep_invoicing_state: \d+K chars/);
     // Names only: a credential key is listed by size, its value never printed.

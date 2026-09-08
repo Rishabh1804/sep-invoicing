@@ -8,7 +8,7 @@
 ## The Architect
 
 **Rishabh Jain**, age 33, based in Jharkhand, India.
-CA by background. Business Manager at Soma Electro Products (zinc electroplating). Creative Head for AdapTea (green tea brand). Solo PWA developer.
+CA by background. Business Manager at Soma Electro Products (zinc electroplating). Solo PWA developer.
 
 ### Personal
 - Has a young daughter whose development is tracked in SproutLab.

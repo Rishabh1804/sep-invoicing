@@ -47,6 +47,7 @@ document.addEventListener('click', function(e) {
     case 'invDeleteInvoice': deleteInvoice(btn.dataset.id); break;
     case 'invConfirmDelete': confirmDeleteInvoice(btn.dataset.id); break;
     case 'invExportSales': exportSalesCSV(); break;
+    case 'invPrintSalesRegister': showSalesRegisterPreview(); break;
     case 'invExportGstr1': exportGSTR1CSV(); break;
     case 'invSelectPart': selectPartForLine(parseInt(btn.dataset.idx), parseInt(btn.dataset.partId)); break;
     case 'invRegClearRange': {

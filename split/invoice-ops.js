@@ -319,6 +319,7 @@ function renderRegisterList() {
   // Export + bulk actions
   html += '<div class="inv-reg-export-bar">' +
     '<button class="inv-btn inv-btn-ghost" data-action="invExportSales">Sales Register CSV</button>' +
+    '<button class="inv-btn inv-btn-ghost" data-action="invPrintSalesRegister">Sales Register PDF</button>' +
     '<button class="inv-btn inv-btn-ghost" data-action="invExportGstr1">GSTR1 CSV</button></div>' +
     '<div class="inv-reg-export-bar">' +
     '<button class="inv-btn inv-btn-ghost" data-action="invBulkMarkFiled">Bulk Mark Filed</button></div>';
@@ -419,6 +420,7 @@ function _buildRegisterTableHtml() {
 
   html += '<div class="inv-reg-export-bar">' +
     '<button class="inv-btn inv-btn-ghost" data-action="invExportSales">Sales Register CSV</button>' +
+    '<button class="inv-btn inv-btn-ghost" data-action="invPrintSalesRegister">Sales Register PDF</button>' +
     '<button class="inv-btn inv-btn-ghost" data-action="invExportGstr1">GSTR1 CSV</button></div>' +
     '<div class="inv-reg-export-bar">' +
     '<button class="inv-btn inv-btn-ghost" data-action="invBulkMarkFiled">Bulk Mark Filed</button></div>';

@@ -279,6 +279,15 @@ function saveCreditNote() {
   var num = recomputeNextCnNumber();
   var addr = invoices[0].clientAddress || {};
 
+  // The note names ONE invoice, and it has to be big enough to carry the credit.
+  // WARN, never block: a batch of small invoices is the operator's problem to
+  // solve (split the batch, or raise against a later one), and refusing outright
+  // would leave them with a discount they owe and no document to issue it on.
+  var against = cnPickAgainstInvoice(invoices, c.taxable, null);
+  if (!against && !confirm('No invoice in this batch is as large as the credit (\u20b9' +
+      formatNum(c.taxable, 2) + ' taxable).\n\nThe note will print without an invoice ' +
+      'reference. Raise it anyway?')) return;
+
   var cn = {
     id: 'CN-' + Date.now(),
     cnNumber: cnPadNum(num),
@@ -293,6 +302,10 @@ function saveCreditNote() {
     // customer's copy does not lose its reference when ours does.
     invoiceIds: invoices.map(function(i) { return i.id; }),
     invoiceNumbers: invoices.map(function(i) { return i.displayNumber; }),
+    // The single invoice the note is taken against, stamped so the number on the
+    // customer's copy cannot move if the register later changes.
+    againstInvoice: (against && against.displayNumber) || '',
+    againstInvoiceId: (against && against.id) || '',
     periodFrom: invoices[0].date,
     periodTo: invoices[invoices.length - 1].date,
     spanDays: cnBatchSpanDays(invoices),
@@ -363,10 +376,11 @@ function buildCreditNoteHtml(cn) {
     '<table class="inv-cn-meta">' +
     '<tr><td class="inv-cn-meta-l">Credit note No</td><td class="inv-cn-meta-v"><strong>' + escHtml(cn.displayNumber) + '</strong></td></tr>' +
     '<tr><td class="inv-cn-meta-l">Credit note Date</td><td class="inv-cn-meta-v">' + escHtml(formatDateExport(cn.date)) + '</td></tr>' +
-    // Names the batch it credits. A consolidated credit note is legal, but a
-    // document that credits forty invoices while naming one is not auditable.
-    '<tr><td class="inv-cn-meta-l">Against Invoices</td><td class="inv-cn-meta-v">' +
-    escHtml(cnInvoiceRangeLabel(cn)) + '</td></tr>' +
+    // ONE invoice number, at the customer's request — the invoice the credit is
+    // taken against. The batch it was COMPUTED from is still stated in full on
+    // the annex below, which is what keeps a consolidated note auditable.
+    '<tr><td class="inv-cn-meta-l">Against Invoice</td><td class="inv-cn-meta-v"><strong>' +
+    escHtml(cnAgainstInvoiceLabel(cn)) + '</strong></td></tr>' +
     '<tr><td class="inv-cn-meta-l">Period</td><td class="inv-cn-meta-v">' +
     escHtml(formatDateExport(cn.periodFrom)) + ' &ndash; ' + escHtml(formatDateExport(cn.periodTo)) + '</td></tr>' +
     '<tr><td class="inv-cn-meta-l">Reason</td><td class="inv-cn-meta-v">' + escHtml(cn.reason || '') + '</td></tr>' +
@@ -419,9 +433,13 @@ function buildCreditNoteHtml(cn) {
   html += '<div class="inv-cn-taxwords">Tax Amount (in words) : ' +
     escHtml(cn.taxInWords || numberToWords(gstRound((cn.cgstAmt || 0) + (cn.sgstAmt || 0) + (cn.igstAmt || 0)))) + '</div>';
 
-  // The invoices this credits, in full. The whole point of the document.
-  html += '<div class="inv-cn-annex"><div class="inv-cn-annex-title">Invoices credited (' +
-    (cn.invoiceNumbers || []).length + ') &mdash; batch taxable ' + formatNum(cn.batchTaxable, 2) +
+  // The batch the discount was COMPUTED on, in full. Since the note is now
+  // attributed to a single invoice above, this list is no longer a second
+  // reference that would contradict it — it is the working, and it stays,
+  // because a consolidated 2% that cannot be checked against the turnover it
+  // was taken on is not auditable.
+  html += '<div class="inv-cn-annex"><div class="inv-cn-annex-title">Computed on (' +
+    (cn.invoiceNumbers || []).length + ' invoices) &mdash; batch taxable ' + formatNum(cn.batchTaxable, 2) +
     ' at ' + escHtml(cn.discountPct) + '%</div>' +
     '<div class="inv-cn-annex-list">' + (cn.invoiceNumbers || []).map(escHtml).join(', ') + '</div></div>';
 
@@ -440,14 +458,84 @@ function buildCreditNoteHtml(cn) {
   return html;
 }
 
-/* First–last when the batch is contiguous in the series, an explicit list when
-   it is short, and a count either way. */
-function cnInvoiceRangeLabel(cn) {
+/* ===== THE NOTE NAMES ONE INVOICE, NOT THE RANGE =====
+
+   The customer asked for a single invoice number on the face of the document
+   rather than `00745 – 00804 (14 invoices)`. That is a change to what the note
+   is ATTRIBUTED to, not to how it is computed: the discount is still 2% of the
+   whole batch, and the batch is still recorded in full on the annex and in
+   `invoiceNumbers`.
+
+   **The chosen invoice must be able to absorb the credit.** A credit note
+   reduces the value of the invoice it names, so naming one smaller than the
+   note would produce a negative invoice — the reason this picks on value rather
+   than taking the first or the last of the batch.
+
+   The pick is the LARGEST qualifying invoice by taxable value, tie-broken by the
+   highest number. Largest for the most headroom; deterministic because a note
+   regenerated tomorrow must name the invoice it named today — the same property
+   the certificate reference has, and for the same reason. */
+function cnPickAgainstInvoice(invoices, cnTaxable, exceptCnId) {
+  var need = Number(cnTaxable) || 0;
+  var ok = (invoices || []).filter(function(i) {
+    return cnInvoiceHeadroom(i, exceptCnId) >= need;
+  });
+  if (!ok.length) return null;
+  ok.sort(function(a, b) {
+    var d = (Number(b.taxableValue) || 0) - (Number(a.taxableValue) || 0);
+    if (d) return d;
+    return (invNumInt(b.invoiceNumber) || 0) - (invNumInt(a.invoiceNumber) || 0);
+  });
+  return ok[0];
+}
+
+/* What is left of an invoice after the credit notes ALREADY taken against it.
+
+   The rule above — the invoice must be able to absorb the credit — breaks on the
+   second note if each is judged against the invoice's full value: two notes of
+   ₹3,800 both fit inside ₹5,000 separately and not together. So the test is on
+   what remains.
+
+   CANCELLED notes consume nothing: they export at zero and credit nothing, which
+   is the whole point of cancelling rather than deleting one. `exceptCnId` lets a
+   note being re-picked ignore its own existing claim. */
+function cnInvoiceHeadroom(inv, exceptCnId) {
+  var taken = 0;
+  (S.creditNotes || []).forEach(function(cn) {
+    if (cn.status === 'cancelled') return;
+    if (exceptCnId && cn.id === exceptCnId) return;
+    if (cn.againstInvoiceId ? cn.againstInvoiceId === inv.id
+                            : cn.againstInvoice === inv.displayNumber) {
+      taken += Number(cn.taxableValue) || 0;
+    }
+  });
+  return (Number(inv.taxableValue) || 0) - taken;
+}
+
+/* What the document prints in the "Against Invoice" box.
+
+   Stamped at creation, so the number on the customer's copy cannot move if the
+   register later changes. Notes raised before this existed carry no stamp, so
+   the pick is recomputed from the batch — same function, same rule, so a
+   reprint of CN/007 names what it would have named had the rule always been
+   there. If the register no longer holds those invoices there is nothing to
+   recompute from, and the label says so rather than inventing a number. */
+function cnAgainstInvoiceLabel(cn) {
+  if (cn.againstInvoice) return cn.againstInvoice;
+  var derived = cnDeriveAgainstInvoice(cn);
+  if (derived) return derived.displayNumber;
   var nums = cn.invoiceNumbers || [];
-  if (nums.length === 0) return '—';
-  if (nums.length === 1) return nums[0];
-  if (nums.length <= 3) return nums.join(', ');
-  return nums[0] + ' – ' + nums[nums.length - 1] + ' (' + nums.length + ' invoices)';
+  return nums.length ? '— (' + nums.length + ' invoices, none recomputable)' : '—';
+}
+
+/* Recompute the pick for a note that predates the stamp. */
+function cnDeriveAgainstInvoice(cn) {
+  var ids = cn.invoiceIds || [];
+  var invoices = ids
+    .map(function(id) { return (S.invoices || []).find(function(i) { return i.id === id; }); })
+    .filter(Boolean);
+  if (!invoices.length) return null;
+  return cnPickAgainstInvoice(invoices, cn.taxableValue, cn.id);
 }
 
 /* PAN sits inside the GSTIN: 2 state digits, then the 10-character PAN. */
@@ -548,7 +636,7 @@ function exportCreditNotesCSV() {
       ((cn.clientAddress && cn.clientAddress.stateCode) || '20') + '-' + ((cn.clientAddress && cn.clientAddress.state) || 'Jharkhand'),
       z ? 0 : (cn.grandTotal || 0), z ? 0 : rate, z ? 0 : (cn.taxableValue || 0),
       z ? 0 : (cn.cgstAmt || 0), z ? 0 : (cn.sgstAmt || 0), z ? 0 : (cn.igstAmt || 0), 0,
-      (cn.invoiceNumbers || []).join(' '), formatDateExport(cn.periodFrom), formatDateExport(cn.periodTo),
+      cnAgainstInvoiceLabel(cn), formatDateExport(cn.periodFrom), formatDateExport(cn.periodTo),
       cn.discountPct, cn.batchTaxable, z ? 'Cancelled' : 'Active'
     ]);
   });

@@ -157,25 +157,101 @@ test('P19: the series start never walks over a note the app already issued', asy
   expect(s.cnNextNum).toBe(9);
 });
 
-test('P19: the note names the batch it credits, not one invoice of it', async ({ page }) => {
+/* The customer asked for ONE invoice number on the face of the note rather than
+   the range it used to print. That changes what the note is ATTRIBUTED to, not
+   how it is computed — the discount is still 2% of the whole batch, and the
+   batch is still on the annex as the working. */
+test('P19: the note names ONE invoice, and states the batch it was computed on', async ({ page }) => {
   await loadForBatch(page, mehtaState([
-    invoice(1, { date: daysAgoIso(20) }),
-    invoice(2, { date: daysAgoIso(14) }),
-    invoice(3, { date: daysAgoIso(8) }),
-    invoice(4, { date: daysAgoIso(2) }),
+    invoice(1, { date: daysAgoIso(20), taxableValue: 1000 }),
+    invoice(2, { date: daysAgoIso(14), taxableValue: 9000 }),   // largest → the pick
+    invoice(3, { date: daysAgoIso(8), taxableValue: 1000 }),
+    invoice(4, { date: daysAgoIso(2), taxableValue: 1000 }),
   ]));
   await openCnForm(page);
   await page.locator('[data-action="invCnSave"]').click();
 
   const doc = page.locator('.inv-cn-doc');
-  await expect(doc).toContainText('SEP/TEST-00001 – SEP/TEST-00004 (4 invoices)');
-  // And in full, because a document crediting four invoices while naming one
-  // is not auditable.
-  await expect(doc.locator('.inv-cn-annex-list')).toContainText('SEP/TEST-00002');
+  // One number, and it is the invoice with the most headroom — not the first,
+  // not the last, and not a range.
+  await expect(doc).toContainText('Against Invoice');
+  await expect(doc).toContainText('SEP/TEST-00002');
+  await expect(doc).not.toContainText('SEP/TEST-00001 – SEP/TEST-00004');
+
+  // The batch survives as the WORKING. A consolidated 2% that cannot be checked
+  // against the turnover it was taken on is not auditable.
+  await expect(doc.locator('.inv-cn-annex-title')).toContainText('Computed on (4 invoices)');
   await expect(doc.locator('.inv-cn-annex-list')).toContainText('SEP/TEST-00003');
 
   const s = await stored(page);
   expect(s.creditNotes[0].invoiceNumbers).toHaveLength(4);
+  // Stamped, so the number on the customer's copy cannot move later.
+  expect(s.creditNotes[0].againstInvoice).toBe('SEP/TEST-00002');
+});
+
+test('P19: the named invoice must be able to absorb the credit, net of notes already on it', async ({ page }) => {
+  // The test is on what REMAINS of an invoice, not on its full value: two notes
+  // of 4,000 both fit inside 9,000 separately and not together.
+  const st = mehtaState([
+    invoice(1, { date: daysAgoIso(20), taxableValue: 1000 }),
+    invoice(2, { date: daysAgoIso(14), taxableValue: 9000 }),
+  ]);
+  (st as SepState & { creditNotes: unknown[] }).creditNotes = [
+    { id: 'CN-a', displayNumber: 'CN/001/26-27', status: 'active',
+      againstInvoiceId: 'INV-2', taxableValue: 8900 },
+    // A CANCELLED note consumes nothing — it exports at zero and credits
+    // nothing, which is the whole reason a note is cancelled and not deleted.
+    { id: 'CN-b', displayNumber: 'CN/002/26-27', status: 'cancelled',
+      againstInvoiceId: 'INV-2', taxableValue: 5000 },
+  ];
+  await loadForBatch(page, st);
+
+  const r = await page.evaluate(() => {
+    const w = window as unknown as {
+      cnInvoiceHeadroom: (i: unknown, e?: string) => number;
+      cnPickAgainstInvoice: (inv: unknown[], t: number, e?: string | null) => { displayNumber: string } | null;
+    };
+    const big = { id: 'INV-2', displayNumber: 'SEP/TEST-00002', taxableValue: 9000 };
+    const small = { id: 'INV-1', displayNumber: 'SEP/TEST-00001', taxableValue: 1000 };
+    return {
+      headroom: w.cnInvoiceHeadroom(big),
+      // 100 left on the big one, so a 200 credit has to fall to the small one.
+      pick200: (w.cnPickAgainstInvoice([small, big], 200, null) || { displayNumber: null }).displayNumber,
+      // Nothing can carry 5,000.
+      pick5000: w.cnPickAgainstInvoice([small, big], 5000, null),
+      // Ignoring its own claim, the big one is whole again.
+      ownClaim: w.cnInvoiceHeadroom(big, 'CN-a'),
+    };
+  });
+  expect(r.headroom).toBe(100);
+  expect(r.pick200).toBe('SEP/TEST-00001');
+  expect(r.pick5000).toBeNull();
+  expect(r.ownClaim).toBe(9000);
+});
+
+test('P19: a note raised before the rule names one invoice when reprinted', async ({ page }) => {
+  // The retroactive half: CN/007 and its siblings carry no stamp, so the pick is
+  // recomputed from the batch by the same function — a reprint names what a note
+  // raised today would name.
+  const st = mehtaState([
+    invoice(1, { date: daysAgoIso(20), taxableValue: 1000 }),
+    invoice(2, { date: daysAgoIso(14), taxableValue: 9000 }),
+  ]);
+  (st as SepState & { creditNotes: unknown[] }).creditNotes = [{
+    id: 'CN-old', cnNumber: '007', displayNumber: 'CN/007/26-27', date: todayIso(),
+    status: 'active', clientId: 1, clientName: 'SSSMEHTA INDUSTRIES LTD.',
+    invoiceIds: ['INV-1', 'INV-2'],
+    invoiceNumbers: ['SEP/TEST-00001', 'SEP/TEST-00002'],
+    taxableValue: 200, grandTotal: 236, batchTaxable: 10000, discountPct: 2,
+    // no againstInvoice — this is the pre-rule shape
+  }];
+  await loadForBatch(page, st);
+
+  const stamped = await stored(page);
+  // The migration stamps it on load, so a pull or an import cannot revert it to
+  // a range the moment somebody syncs from another device.
+  expect(stamped.creditNotes[0].againstInvoice).toBe('SEP/TEST-00002');
+  expect(stamped.creditNotes[0].againstInvoiceId).toBe('INV-2');
 });
 
 test('P19: a batch under a week warns but is not blocked', async ({ page }) => {

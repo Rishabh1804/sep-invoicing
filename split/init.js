@@ -380,6 +380,42 @@ if (!S._deriveWeights1) {
    Runs once, and only while the app has issued none of its own, so it can
    never walk over a real number. Settings → Credit Note Series carries it
    afterwards, for the next financial year or a correction. */
+/* ===== A CREDIT NOTE NAMES ONE INVOICE, RETROSPECTIVELY TOO =====
+
+   The note used to print the batch as a range. The customer asked for a single
+   invoice number, and the ones already issued have to say the same thing when
+   they are reprinted — a document reissued under a new rule must not read
+   differently from the copy the customer holds unless somebody decided it
+   should, and here somebody did.
+
+   This is a STRUCTURAL migration, not a seed: it re-points records the state
+   already holds, writes no business data, and is idempotent — so it is inside
+   `migrateState()` and runs on a GitHub pull and a Settings import as well as
+   on the loader, which is what stops a note stamped here reverting to a range
+   the moment somebody syncs from another device.
+
+   It stamps ONLY what `cnPickAgainstInvoice` would choose today, so a note
+   reprinted after this migration names exactly what a note raised after it
+   would. Where the batch's invoices are no longer in the register there is
+   nothing to compute from and the note is left unstamped — the label falls back
+   and says so rather than inventing a number. */
+(function() {
+  var stamped = 0, unresolvable = 0;
+  (S.creditNotes || []).forEach(function(cn) {
+    if (cn.againstInvoice) return;
+    var against = typeof cnDeriveAgainstInvoice === 'function' ? cnDeriveAgainstInvoice(cn) : null;
+    if (!against) { if ((cn.invoiceIds || []).length) unresolvable++; return; }
+    cn.againstInvoice = against.displayNumber;
+    cn.againstInvoiceId = against.id;
+    stamped++;
+  });
+  if (stamped || unresolvable) {
+    saveJSON(STORAGE_KEY, S);
+    console.log('[migrate] credit notes: ' + stamped + ' stamped with an against-invoice' +
+      (unresolvable ? ', ' + unresolvable + ' unresolvable (batch no longer in the register)' : ''));
+  }
+})();
+
 var CN_SERIES_START = 6;
 if (!S._cnSeriesStart1) {
   if ((S.creditNotes || []).length === 0 && (!S.cnNextNum || S.cnNextNum < CN_SERIES_START)) {

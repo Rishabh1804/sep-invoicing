@@ -283,7 +283,7 @@ function saveCreditNote() {
   // WARN, never block: a batch of small invoices is the operator's problem to
   // solve (split the batch, or raise against a later one), and refusing outright
   // would leave them with a discount they owe and no document to issue it on.
-  var against = cnPickAgainstInvoice(invoices, c.taxable, null);
+  var against = cnPickAgainstInvoice(invoices, c.taxable, null, c.gstType);
   if (!against && !confirm('No invoice in this batch is as large as the credit (\u20b9' +
       formatNum(c.taxable, 2) + ' taxable).\n\nThe note will print without an invoice ' +
       'reference. Raise it anyway?')) return;
@@ -302,10 +302,16 @@ function saveCreditNote() {
     // customer's copy does not lose its reference when ours does.
     invoiceIds: invoices.map(function(i) { return i.id; }),
     invoiceNumbers: invoices.map(function(i) { return i.displayNumber; }),
+    // Rule 53(1A)(g) wants the serial number AND the date of each corresponding
+    // invoice. Dates are snapshotted for the same reason the numbers are: a
+    // deleted invoice must not strip a statutory particular off a document the
+    // customer already holds.
+    invoiceDates: invoices.map(function(i) { return i.date || ''; }),
     // The single invoice the note is taken against, stamped so the number on the
     // customer's copy cannot move if the register later changes.
     againstInvoice: (against && against.displayNumber) || '',
     againstInvoiceId: (against && against.id) || '',
+    againstInvoiceDate: (against && against.date) || '',
     periodFrom: invoices[0].date,
     periodTo: invoices[invoices.length - 1].date,
     spanDays: cnBatchSpanDays(invoices),
@@ -380,7 +386,9 @@ function buildCreditNoteHtml(cn) {
     // taken against. The batch it was COMPUTED from is still stated in full on
     // the annex below, which is what keeps a consolidated note auditable.
     '<tr><td class="inv-cn-meta-l">Against Invoice</td><td class="inv-cn-meta-v"><strong>' +
-    escHtml(cnAgainstInvoiceLabel(cn)) + '</strong></td></tr>' +
+    escHtml(cnAgainstInvoiceLabel(cn)) + '</strong>' +
+    (cnAgainstInvoiceDate(cn) ? ' <span class="inv-cn-meta-sub">dated ' +
+      escHtml(formatDateExport(cnAgainstInvoiceDate(cn))) + '</span>' : '') + '</td></tr>' +
     '<tr><td class="inv-cn-meta-l">Period</td><td class="inv-cn-meta-v">' +
     escHtml(formatDateExport(cn.periodFrom)) + ' &ndash; ' + escHtml(formatDateExport(cn.periodTo)) + '</td></tr>' +
     '<tr><td class="inv-cn-meta-l">Reason</td><td class="inv-cn-meta-v">' + escHtml(cn.reason || '') + '</td></tr>' +
@@ -438,10 +446,18 @@ function buildCreditNoteHtml(cn) {
   // reference that would contradict it — it is the working, and it stays,
   // because a consolidated 2% that cannot be checked against the turnover it
   // was taken on is not auditable.
-  html += '<div class="inv-cn-annex"><div class="inv-cn-annex-title">Computed on (' +
-    (cn.invoiceNumbers || []).length + ' invoices) &mdash; batch taxable ' + formatNum(cn.batchTaxable, 2) +
+  // ⚠ THE CAPTION IS THE COMPLIANCE SENTENCE, not decoration. s.15(3)(b) allows a
+  // post-supply discount to reduce taxable value only where it is SPECIFICALLY
+  // LINKED to the relevant invoices, and naming all fourteen is how this note
+  // satisfies that limb — the register records it as CN/006's substantive
+  // improvement over CN/005. An intermediate version of this line read "Computed
+  // on (N invoices)", which asserts an arithmetic basis and drops the linkage
+  // claim. Both readings now, because the document needs both.
+  html += '<div class="inv-cn-annex"><div class="inv-cn-annex-title">Invoices credited (' +
+    (cn.invoiceNumbers || []).length + ') &mdash; the discount is computed on this batch, taxable ' +
+    formatNum(cn.batchTaxable, 2) +
     ' at ' + escHtml(cn.discountPct) + '%</div>' +
-    '<div class="inv-cn-annex-list">' + (cn.invoiceNumbers || []).map(escHtml).join(', ') + '</div></div>';
+    '<div class="inv-cn-annex-list">' + cnAnnexEntries(cn).map(escHtml).join(' \u00b7 ') + '</div></div>';
 
   html += '<div class="inv-cn-foot">' +
     '<div class="inv-cn-foot-left">' +
@@ -466,22 +482,58 @@ function buildCreditNoteHtml(cn) {
    whole batch, and the batch is still recorded in full on the annex and in
    `invoiceNumbers`.
 
-   **The chosen invoice must be able to absorb the credit.** A credit note
-   reduces the value of the invoice it names, so naming one smaller than the
-   note would produce a negative invoice — the reason this picks on value rather
-   than taking the first or the last of the batch.
+   **The chosen invoice must be able to absorb the credit** — the reason this
+   picks on value rather than taking the first or the last of the batch.
+
+   ⚠ Be exact about WHERE the negative would appear, because an earlier version
+   of this comment was not. Since the September-2020 de-linking, GSTR-1 table 9B
+   is keyed on the note alone and nothing in the return nets a credit note against
+   a named invoice — so the defect is not "a negative invoice" in our own filing.
+   It lands on the RECIPIENT: a credit exceeding the invoice it is taken against
+   drives their ledger for that supply below zero and asks them to reverse more
+   input tax credit than they ever took. The rule is right; the reason is theirs,
+   not ours.
 
    The pick is the LARGEST qualifying invoice by taxable value, tie-broken by the
-   highest number. Largest for the most headroom; deterministic because a note
-   regenerated tomorrow must name the invoice it named today — the same property
-   the certificate reference has, and for the same reason. */
-function cnPickAgainstInvoice(invoices, cnTaxable, exceptCnId) {
+   highest number. Largest for the most headroom, and it is the rule least able
+   to hit the "too small" trap the register already records against `000718`.
+
+   ⚠ THE PICK IS NOT INVARIANT, and an earlier version of this comment claimed it
+   was "the same property the certificate reference has". It is not. `QC/<num>/<line>`
+   is STRUCTURALLY derived and cannot move; this reads a MUTABLE money field, and
+   those fields do move — CN/006's stored `batchTaxable` already disagrees with the
+   sum of its own invoices by ₹81.00. On live data the margin between first and
+   second place is ₹640.58, so a correction of that size flips the answer.
+
+   THAT is why the result is STAMPED on the note at creation (`againstInvoice`).
+   The stamp is what makes a reprint stable; the rule alone never was. Recomputation
+   exists only for notes raised before the stamp did. */
+function cnPickAgainstInvoice(invoices, cnTaxable, exceptCnId, gstType) {
   var need = Number(cnTaxable) || 0;
+  // A CANCELLED invoice certifies nothing and credits nothing — it exports at
+  // zero and appears in GSTR-1 at zero, so naming one would attribute a credit
+  // to a supply that was never billed. The same rule the quality certificate
+  // already enforces. The creation path never sees one (`cnValidateSelection`
+  // hands over active invoices only); the RETROACTIVE path maps raw
+  // `invoiceIds`, so the guard has to live here, where both paths meet.
   var ok = (invoices || []).filter(function(i) {
+    if (!i || i.status === 'cancelled') return false;
     return cnInvoiceHeadroom(i, exceptCnId) >= need;
   });
   if (!ok.length) return null;
+  // TAX HEAD FIRST, then size. `cnCompute` reads gstType from the CLIENT while
+  // every invoice carries its own, so a client flipped to `inter` after a batch
+  // was billed `intra` would produce an IGST note naming a CGST/SGST invoice —
+  // two documents disagreeing about which head the tax sits under. A PREFERENCE
+  // rather than a filter: where nothing matches, a note with a reference on the
+  // wrong head still beats a note with no reference at all, and the mismatch is
+  // then visible on the face instead of diffuse across fourteen numbers.
   ok.sort(function(a, b) {
+    if (gstType) {
+      var am = (a.gstType || 'intra') === gstType ? 0 : 1;
+      var bm = (b.gstType || 'intra') === gstType ? 0 : 1;
+      if (am !== bm) return am - bm;
+    }
     var d = (Number(b.taxableValue) || 0) - (Number(a.taxableValue) || 0);
     if (d) return d;
     return (invNumInt(b.invoiceNumber) || 0) - (invNumInt(a.invoiceNumber) || 0);
@@ -518,14 +570,116 @@ function cnInvoiceHeadroom(inv, exceptCnId) {
    register later changes. Notes raised before this existed carry no stamp, so
    the pick is recomputed from the batch — same function, same rule, so a
    reprint of CN/007 names what it would have named had the rule always been
-   there. If the register no longer holds those invoices there is nothing to
-   recompute from, and the label says so rather than inventing a number. */
+   there.
+
+   ⚠ TWO DIFFERENT FAILURES, and an earlier version reported both as the same
+   one ("batch no longer in the register"). They need different words because
+   only one of them is actionable: a batch that is GONE is a data problem
+   nobody on this screen can fix, while a batch that is PRESENT but whose every
+   invoice is smaller than the credit is the operator's own call — split the
+   batch, or raise the note against a later invoice. Telling them the invoices
+   vanished when the invoices are sitting there hides the one fix available. */
 function cnAgainstInvoiceLabel(cn) {
   if (cn.againstInvoice) return cn.againstInvoice;
   var derived = cnDeriveAgainstInvoice(cn);
   if (derived) return derived.displayNumber;
   var nums = cn.invoiceNumbers || [];
-  return nums.length ? '— (' + nums.length + ' invoices, none recomputable)' : '—';
+  if (!nums.length) return '—';
+  var present = (cn.invoiceIds || []).filter(function(id) {
+    return (S.invoices || []).some(function(i) { return i.id === id && i.status !== 'cancelled'; });
+  }).length;
+  return present
+    ? '— (none of the ' + present + ' large enough)'
+    : '— (' + nums.length + ' invoice' + (nums.length !== 1 ? 's' : '') + ' no longer in the register)';
+}
+
+/* SET THE REFERENCE BY HAND, because the rule cannot reproduce every issued note.
+
+   The rule picks the LARGEST qualifying invoice. BM's stated convention is looser
+   — "use any invoice that has at least that much amount billed" — so largest is a
+   conforming subset, not the only right answer, and the notes already issued on
+   paper did not all use it. Measured against the 7 Sep backup: CN/005's recorded
+   reference `000716` IS the largest qualifying invoice and the rule reproduces it
+   exactly; CN/004's `000443` qualifies (₹11,087.61 against a ₹3,749.29 credit) but
+   is NOT the largest — the rule would print `000571`.
+
+   CN/004 and CN/005 are the ₹10,821.75 of issued notes still outside this app. If
+   they are ever back-entered, the app must be able to carry the number on the
+   customer's copy rather than the one the rule prefers: a document already in
+   somebody's hands is the fact, and a rule is not. So the field is settable, and
+   what is typed must still pass the same headroom test the rule applies — the
+   arithmetic reason for the test does not care who chose the invoice. */
+function cnSetAgainstInvoice(id) {
+  var cn = getCreditNotes().find(function(c) { return c.id === id; });
+  if (!cn) return;
+  if (cn.status === 'cancelled') { showToast('That credit note is cancelled', 'error'); return; }
+  var current = cnAgainstInvoiceLabel(cn);
+  var typed = prompt('Invoice this credit note is taken against.\n\nMust be one of the ' +
+    (cn.invoiceNumbers || []).length + ' in the batch and large enough to carry \u20b9' +
+    formatNum(cn.taxableValue, 2) + ' taxable.\n\nBatch: ' +
+    (cn.invoiceNumbers || []).join(', '), cn.againstInvoice || (current.indexOf('\u2014') === 0 ? '' : current));
+  if (typed === null) return;
+  var want = String(typed).trim();
+  if (!want) {
+    delete cn.againstInvoice; delete cn.againstInvoiceId; delete cn.againstInvoiceDate;
+    saveState(); showToast('Reference cleared \u2014 the rule will choose again', 'success');
+    renderCreditNoteList(); return;
+  }
+  // It must be IN THE BATCH. A reference outside the invoices the discount was
+  // computed on would break the s.15(3)(b) linkage the annex exists to evidence.
+  var idx = (cn.invoiceNumbers || []).indexOf(want);
+  if (idx === -1) { showToast(want + ' is not in this batch', 'error'); return; }
+  var inv = (S.invoices || []).find(function(i) { return i.displayNumber === want; });
+  if (!inv) { showToast(want + ' is no longer in the register', 'error'); return; }
+  if (inv.status === 'cancelled') { showToast(want + ' is cancelled \u2014 it credits nothing', 'error'); return; }
+  if (cnInvoiceHeadroom(inv, cn.id) < (Number(cn.taxableValue) || 0)) {
+    showToast(want + ' is not large enough to carry this credit', 'error'); return;
+  }
+  cn.againstInvoice = inv.displayNumber;
+  cn.againstInvoiceId = inv.id;
+  cn.againstInvoiceDate = inv.date || '';
+  saveState();
+  showToast('Now taken against ' + inv.displayNumber, 'success');
+  renderCreditNoteList();
+}
+
+/* The DATE of the invoice named on the face. Stamped at creation; for a note
+   that predates the stamp it is recovered from the register, and where the
+   invoice is gone the date is simply absent rather than guessed. */
+function cnAgainstInvoiceDate(cn) {
+  if (cn.againstInvoiceDate) return cn.againstInvoiceDate;
+  if (cn.againstInvoiceId || cn.againstInvoice) {
+    var inv = (S.invoices || []).find(function(i) {
+      return cn.againstInvoiceId ? i.id === cn.againstInvoiceId
+                                 : i.displayNumber === cn.againstInvoice;
+    });
+    if (inv) return inv.date || '';
+    return '';
+  }
+  var d = cnDeriveAgainstInvoice(cn);
+  return (d && d.date) || '';
+}
+
+/* The annex entries, each as `number (date)` where the date is known.
+
+   Dates come from the note's own snapshot; a note raised before the snapshot
+   existed falls back to the register, and an entry whose invoice has since been
+   deleted prints the number alone. A missing date is left missing — inventing
+   one would put a false statutory particular on a GST document. */
+function cnAnnexEntries(cn) {
+  var nums = cn.invoiceNumbers || [];
+  var dates = cn.invoiceDates || [];
+  var ids = cn.invoiceIds || [];
+  return nums.map(function(num, idx) {
+    var d = dates[idx];
+    if (!d) {
+      var inv = (S.invoices || []).find(function(i) {
+        return ids[idx] ? i.id === ids[idx] : i.displayNumber === num;
+      });
+      d = inv && inv.date;
+    }
+    return d ? num + ' (' + formatDateExport(d) + ')' : num;
+  });
 }
 
 /* Recompute the pick for a note that predates the stamp. */
@@ -533,9 +687,9 @@ function cnDeriveAgainstInvoice(cn) {
   var ids = cn.invoiceIds || [];
   var invoices = ids
     .map(function(id) { return (S.invoices || []).find(function(i) { return i.id === id; }); })
-    .filter(Boolean);
+    .filter(function(i) { return i && i.status !== 'cancelled'; });
   if (!invoices.length) return null;
-  return cnPickAgainstInvoice(invoices, cn.taxableValue, cn.id);
+  return cnPickAgainstInvoice(invoices, cn.taxableValue, cn.id, cn.gstType);
 }
 
 /* PAN sits inside the GSTIN: 2 state digits, then the 10-character PAN. */
@@ -587,8 +741,14 @@ function renderCreditNoteList() {
         '<div class="inv-reg-row-bottom"><span class="inv-text-muted inv-text-xs">' +
         escHtml(cn.discountPct) + '% of ' + formatCurrency(cn.batchTaxable) + ' over ' +
         (cn.invoiceNumbers || []).length + ' invoice' + ((cn.invoiceNumbers || []).length !== 1 ? 's' : '') +
-        '</span></div></div>' +
-        (cancelled ? '' : '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invCnCancel" data-id="' + escHtml(cn.id) + '">Cancel</button>') +
+        '</span></div>' +
+        // The customer identifies this note by ONE invoice number now, so that
+        // number belongs on the row rather than behind a preview.
+        '<div class="inv-reg-row-bottom"><span class="inv-text-muted inv-text-xs">Against ' +
+        escHtml(cnAgainstInvoiceLabel(cn)) + '</span></div></div>' +
+        (cancelled ? '' :
+          '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invCnSetAgainst" data-id="' + escHtml(cn.id) + '">Reference</button>' +
+          '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invCnCancel" data-id="' + escHtml(cn.id) + '">Cancel</button>') +
         '</div>';
     });
     html += '</div>';
@@ -626,7 +786,7 @@ function exportCreditNotesCSV() {
     ' | Export Date: ' + formatDateExport(localDateStr())];
   var header = ['GSTIN/UIN of Recipient', 'Receiver Name', 'Note Number', 'Note Date', 'Note Type',
     'Place Of Supply', 'Note Value', 'Rate', 'Taxable Value', 'CGST Amount', 'SGST Amount',
-    'IGST Amount', 'Cess Amount', 'Against Invoices', 'Period From', 'Period To', 'Discount %', 'Batch Taxable', 'Status'];
+    'IGST Amount', 'Cess Amount', 'Against Invoice', 'Against Invoice Date', 'Period From', 'Period To', 'Discount %', 'Batch Taxable', 'Status'];
   var rows = [metaRow, header];
   notes.forEach(function(cn) {
     var z = cn.status === 'cancelled';
@@ -636,7 +796,16 @@ function exportCreditNotesCSV() {
       ((cn.clientAddress && cn.clientAddress.stateCode) || '20') + '-' + ((cn.clientAddress && cn.clientAddress.state) || 'Jharkhand'),
       z ? 0 : (cn.grandTotal || 0), z ? 0 : rate, z ? 0 : (cn.taxableValue || 0),
       z ? 0 : (cn.cgstAmt || 0), z ? 0 : (cn.sgstAmt || 0), z ? 0 : (cn.igstAmt || 0), 0,
-      cnAgainstInvoiceLabel(cn), formatDateExport(cn.periodFrom), formatDateExport(cn.periodTo),
+      // ⚠ RAW, never the screen label. `cnAgainstInvoiceLabel` can emit prose
+      // ("— (2 invoices, none recomputable)") and this is a working paper a
+      // human pastes toward a GSTR-1 working: an em-dash and a sentence in a
+      // number column is worse than an empty cell. Empty means "no reference
+      // stamped", which is the truth. N.B. `Against Invoice` is NOT a 9B column
+      // — since the Sept-2020 de-linking, table 9B is keyed on the note alone —
+      // so this and the four columns after it are SEP's own working fields.
+      cn.againstInvoice || (cnDeriveAgainstInvoice(cn) || {}).displayNumber || '',
+      cnAgainstInvoiceDate(cn) ? formatDateExport(cnAgainstInvoiceDate(cn)) : '',
+      formatDateExport(cn.periodFrom), formatDateExport(cn.periodTo),
       cn.discountPct, cn.batchTaxable, z ? 'Cancelled' : 'Active'
     ]);
   });

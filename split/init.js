@@ -380,6 +380,15 @@ if (!S._deriveWeights1) {
    Runs once, and only while the app has issued none of its own, so it can
    never walk over a real number. Settings → Credit Note Series carries it
    afterwards, for the next financial year or a correction. */
+var CN_SERIES_START = 6;
+if (!S._cnSeriesStart1) {
+  if ((S.creditNotes || []).length === 0 && (!S.cnNextNum || S.cnNextNum < CN_SERIES_START)) {
+    S.cnNextNum = CN_SERIES_START;
+  }
+  S._cnSeriesStart1 = true;
+  saveJSON(STORAGE_KEY, S);
+}
+
 /* ===== A CREDIT NOTE NAMES ONE INVOICE, RETROSPECTIVELY TOO =====
 
    The note used to print the batch as a range. The customer asked for a single
@@ -400,30 +409,38 @@ if (!S._deriveWeights1) {
    nothing to compute from and the note is left unstamped — the label falls back
    and says so rather than inventing a number. */
 (function() {
-  var stamped = 0, unresolvable = 0;
+  var stamped = 0, tooSmall = 0, gone = 0;
   (S.creditNotes || []).forEach(function(cn) {
     if (cn.againstInvoice) return;
     var against = typeof cnDeriveAgainstInvoice === 'function' ? cnDeriveAgainstInvoice(cn) : null;
-    if (!against) { if ((cn.invoiceIds || []).length) unresolvable++; return; }
+    if (!against) {
+      var ids = cn.invoiceIds || [];
+      if (!ids.length) return;
+      // The two failures are different questions and get counted apart — see
+      // cnAgainstInvoiceLabel(). A batch sitting in the register whose every
+      // invoice is too small is the operator's call; a batch that is gone is not.
+      var present = ids.filter(function(id) {
+        return (S.invoices || []).some(function(i) { return i.id === id && i.status !== 'cancelled'; });
+      }).length;
+      if (present) tooSmall++; else gone++;
+      return;
+    }
     cn.againstInvoice = against.displayNumber;
     cn.againstInvoiceId = against.id;
+    cn.againstInvoiceDate = against.date || '';
     stamped++;
   });
-  if (stamped || unresolvable) {
-    saveJSON(STORAGE_KEY, S);
+  // ⚠ WRITE ONLY IF SOMETHING CHANGED. Keying the save on the failure counts too
+  // meant a note that can never be stamped rewrote the whole state on every
+  // single boot, for no change.
+  if (stamped) saveJSON(STORAGE_KEY, S);
+  if (stamped || tooSmall || gone) {
     console.log('[migrate] credit notes: ' + stamped + ' stamped with an against-invoice' +
-      (unresolvable ? ', ' + unresolvable + ' unresolvable (batch no longer in the register)' : ''));
+      (tooSmall ? ', ' + tooSmall + ' with no invoice large enough' : '') +
+      (gone ? ', ' + gone + ' whose batch is no longer in the register' : ''));
   }
 })();
 
-var CN_SERIES_START = 6;
-if (!S._cnSeriesStart1) {
-  if ((S.creditNotes || []).length === 0 && (!S.cnNextNum || S.cnNextNum < CN_SERIES_START)) {
-    S.cnNextNum = CN_SERIES_START;
-  }
-  S._cnSeriesStart1 = true;
-  saveJSON(STORAGE_KEY, S);
-}
 
 }
 

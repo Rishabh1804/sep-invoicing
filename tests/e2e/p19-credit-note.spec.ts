@@ -178,15 +178,31 @@ test('P19: the note names ONE invoice, and states the batch it was computed on',
   await expect(doc).toContainText('SEP/TEST-00002');
   await expect(doc).not.toContainText('SEP/TEST-00001 – SEP/TEST-00004');
 
-  // The batch survives as the WORKING. A consolidated 2% that cannot be checked
-  // against the turnover it was taken on is not auditable.
-  await expect(doc.locator('.inv-cn-annex-title')).toContainText('Computed on (4 invoices)');
+  // Rule 53(1A)(g) wants the serial number AND the date of the corresponding
+  // invoice. The number alone is not the particular.
+  await expect(doc.locator('.inv-cn-meta-sub')).toContainText('dated');
+
+  // The batch survives as the WORKING — and the caption has to keep CLAIMING the
+  // linkage, not merely describe the arithmetic. s.15(3)(b) lets a post-supply
+  // discount reduce taxable value only where it is specifically linked to the
+  // relevant invoices, and naming all four is how this note satisfies that limb.
+  // "Computed on (N invoices)" asserts a basis and drops the linkage; it was
+  // shipped once and withdrawn (Iuno I-2).
+  await expect(doc.locator('.inv-cn-annex-title')).toContainText('Invoices credited (4)');
+  await expect(doc.locator('.inv-cn-annex-title')).toContainText('computed on this batch');
   await expect(doc.locator('.inv-cn-annex-list')).toContainText('SEP/TEST-00003');
+  // Every annex entry carries its own date, for the same statutory reason.
+  const annex = await doc.locator('.inv-cn-annex-list').innerText();
+  expect((annex.match(/SEP\/TEST-\d{5} \(\d{2}\/\d{2}\/\d{4}\)/g) || [])).toHaveLength(4);
 
   const s = await stored(page);
   expect(s.creditNotes[0].invoiceNumbers).toHaveLength(4);
   // Stamped, so the number on the customer's copy cannot move later.
   expect(s.creditNotes[0].againstInvoice).toBe('SEP/TEST-00002');
+  // The date is stamped too — a deleted invoice must not strip a statutory
+  // particular off a document the customer already holds.
+  expect(s.creditNotes[0].againstInvoiceDate).toBeTruthy();
+  expect(s.creditNotes[0].invoiceDates).toHaveLength(4);
 });
 
 test('P19: the named invoice must be able to absorb the credit, net of notes already on it', async ({ page }) => {
@@ -410,4 +426,153 @@ test('P19: the export is named for the notes it holds, not the register filter',
   // came out stamped with whatever month the register happened to be showing.
   const today = new Date().toISOString().slice(0, 10);
   expect(csv.filename).toBe(`SEP-Credit-Notes_${today}.csv`);
+});
+
+test('P19: a cancelled invoice is never named — it credits nothing', async ({ page }) => {
+  // The creation path never offers one: cnValidateSelection hands over active
+  // invoices only. The RETROACTIVE path maps raw invoiceIds, so a cancelled
+  // invoice sits there with its full taxableValue intact and would otherwise be
+  // the largest qualifying candidate. Naming it would attribute a credit to a
+  // supply that was never billed and appears in GSTR-1 at zero — the same rule
+  // the quality certificate already enforces (Iuno I-3).
+  const st = mehtaState([
+    invoice(1, { date: daysAgoIso(20), taxableValue: 1000 }),
+    invoice(2, { date: daysAgoIso(14), taxableValue: 9000, status: 'cancelled' }),
+  ]);
+  await loadForBatch(page, st);
+
+  const r = await page.evaluate(() => {
+    const w = window as unknown as {
+      cnPickAgainstInvoice: (inv: unknown[], t: number, e?: string | null) => { displayNumber: string } | null;
+    };
+    const live = { id: 'INV-1', displayNumber: 'SEP/TEST-00001', taxableValue: 1000, status: 'active' };
+    const dead = { id: 'INV-2', displayNumber: 'SEP/TEST-00002', taxableValue: 9000, status: 'cancelled' };
+    return {
+      // The cancelled one is larger and would win on value alone.
+      pick: (w.cnPickAgainstInvoice([live, dead], 500, null) || { displayNumber: null }).displayNumber,
+      // And when it is the ONLY candidate, the answer is none — not itself.
+      pickOnlyDead: w.cnPickAgainstInvoice([dead], 500, null),
+    };
+  });
+  expect(r.pick).toBe('SEP/TEST-00001');
+  expect(r.pickOnlyDead).toBeNull();
+});
+
+test('P19: a batch that is present but too small says so, not that it vanished', async ({ page }) => {
+  // Two different failures that an earlier version reported with one message.
+  // Only one of them is actionable: a batch sitting in the register whose every
+  // invoice is smaller than the credit is the operator's call (split it, or
+  // raise against a later invoice), while a batch that is GONE is not. Telling
+  // them the invoices vanished when the invoices are on screen hides the one
+  // fix available (Iuno I-5).
+  const st = mehtaState([
+    invoice(1, { date: daysAgoIso(20), taxableValue: 1000 }),
+    invoice(2, { date: daysAgoIso(14), taxableValue: 1000 }),
+  ]);
+  (st as SepState & { creditNotes: unknown[] }).creditNotes = [
+    { id: 'CN-small', displayNumber: 'CN/006/26-27', status: 'active',
+      invoiceIds: ['INV-1', 'INV-2'],
+      invoiceNumbers: ['SEP/TEST-00001', 'SEP/TEST-00002'], taxableValue: 5000 },
+    { id: 'CN-gone', displayNumber: 'CN/007/26-27', status: 'active',
+      invoiceIds: ['INV-99'], invoiceNumbers: ['SEP/TEST-00099'], taxableValue: 100 },
+  ];
+  await loadForBatch(page, st);
+
+  const r = await page.evaluate(() => {
+    const w = window as unknown as { cnAgainstInvoiceLabel: (cn: unknown) => string };
+    // N.B. `S` is declared with `let` in state.js — a lexical binding, never a
+    // window property — so an evaluate() cannot read it. The app's own functions
+    // close over it, so the notes are passed in instead.
+    return {
+      small: w.cnAgainstInvoiceLabel({ id: 'CN-small', invoiceIds: ['INV-1', 'INV-2'],
+        invoiceNumbers: ['SEP/TEST-00001', 'SEP/TEST-00002'], taxableValue: 5000 }),
+      gone: w.cnAgainstInvoiceLabel({ id: 'CN-gone', invoiceIds: ['INV-99'],
+        invoiceNumbers: ['SEP/TEST-00099'], taxableValue: 100 }),
+    };
+  });
+  expect(r.small).toContain('none of the 2 large enough');
+  expect(r.small).not.toContain('no longer in the register');
+  expect(r.gone).toContain('no longer in the register');
+  // And it does not say "1 invoices".
+  expect(r.gone).not.toContain('1 invoices');
+});
+
+test('P19: the reference can be set by hand, and the headroom rule still binds', async ({ page }) => {
+  // The rule picks the LARGEST qualifying invoice. BM's stated convention is
+  // looser — "any invoice that has at least that much amount billed" — and the
+  // notes already issued on paper did not all use largest: measured on the live
+  // 7 Sep backup, CN/005's recorded reference IS the largest and the rule
+  // reproduces it, while CN/004's 000443 qualifies but is not the largest. If
+  // those notes are ever back-entered, the app has to be able to carry the
+  // number on the customer's copy. A document in somebody's hands is the fact;
+  // a rule is not (Iuno, Q6).
+  const st = mehtaState([
+    invoice(1, { date: daysAgoIso(20), taxableValue: 5000 }),
+    invoice(2, { date: daysAgoIso(14), taxableValue: 9000 }),   // largest → the rule's pick
+    invoice(3, { date: daysAgoIso(2), taxableValue: 100 }),     // too small to carry it
+  ]);
+  await loadForBatch(page, st);
+  await openCnForm(page);
+  await page.locator('[data-action="invCnSave"]').click();
+  expect((await stored(page)).creditNotes[0].againstInvoice).toBe('SEP/TEST-00002');
+
+  const id = (await stored(page)).creditNotes[0].id;
+  // `S` is a `let` binding and unreachable from evaluate(); the setter calls
+  // saveState(), so each step is read back out of localStorage instead.
+  const setTo = async (typed: string) => {
+    await page.evaluate(([cnId, t]) => {
+      (window as unknown as { prompt: unknown }).prompt = () => t;
+      (window as unknown as { cnSetAgainstInvoice: (i: string) => void }).cnSetAgainstInvoice(cnId);
+    }, [id, typed]);
+    return (await stored(page)).creditNotes[0];
+  };
+
+  // A qualifying invoice that is NOT the rule's pick is accepted.
+  const chosen = await setTo('SEP/TEST-00001');
+  expect(chosen.againstInvoice).toBe('SEP/TEST-00001');
+  expect(chosen.againstInvoiceDate).toBeTruthy();
+
+  // One too small to carry the credit is refused — the arithmetic reason for the
+  // headroom test does not care who chose the invoice.
+  expect((await setTo('SEP/TEST-00003')).againstInvoice).toBe('SEP/TEST-00001');
+
+  // One outside the batch is refused: it would break the s.15(3)(b) linkage the
+  // annex exists to evidence.
+  expect((await setTo('SEP/TEST-00404')).againstInvoice).toBe('SEP/TEST-00001');
+
+  // Cleared, and the rule is free to choose again.
+  expect((await setTo('')).againstInvoice).toBeUndefined();
+});
+
+test('P19: the reference is on the same tax head as the note', async ({ page }) => {
+  // cnCompute reads gstType from the CLIENT; every invoice carries its own. A
+  // client flipped to `inter` after a batch was billed `intra` would otherwise
+  // produce an IGST note naming a CGST/SGST invoice — two documents disagreeing
+  // about which head the tax sits under (Iuno, Q1). Live data is clean today;
+  // this is the guard, not a reproduction.
+  await loadForBatch(page, mehtaState([invoice(1, { date: daysAgoIso(20), taxableValue: 1000 })]));
+
+  const r = await page.evaluate(() => {
+    const w = window as unknown as {
+      cnPickAgainstInvoice: (i: unknown[], t: number, e: string | null, g?: string) =>
+        { displayNumber: string } | null;
+    };
+    const bigIntra = { id: 'A', displayNumber: 'SEP/TEST-00001', taxableValue: 9000, gstType: 'intra' };
+    const smallInter = { id: 'B', displayNumber: 'SEP/TEST-00002', taxableValue: 5000, gstType: 'inter' };
+    return {
+      // Head beats size: the smaller inter invoice wins for an inter note.
+      inter: (w.cnPickAgainstInvoice([bigIntra, smallInter], 100, null, 'inter') || { displayNumber: null }).displayNumber,
+      intra: (w.cnPickAgainstInvoice([bigIntra, smallInter], 100, null, 'intra') || { displayNumber: null }).displayNumber,
+      // A PREFERENCE, not a filter: with nothing on the right head, a reference
+      // on the wrong one still beats no reference at all, and the mismatch is
+      // then visible on the face rather than diffuse across the batch.
+      noMatch: (w.cnPickAgainstInvoice([bigIntra], 100, null, 'inter') || { displayNumber: null }).displayNumber,
+      // Unchanged when the caller states no head.
+      unstated: (w.cnPickAgainstInvoice([bigIntra, smallInter], 100, null) || { displayNumber: null }).displayNumber,
+    };
+  });
+  expect(r.inter).toBe('SEP/TEST-00002');
+  expect(r.intra).toBe('SEP/TEST-00001');
+  expect(r.noMatch).toBe('SEP/TEST-00001');
+  expect(r.unstated).toBe('SEP/TEST-00001');
 });

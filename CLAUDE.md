@@ -38,7 +38,7 @@ split/
 ├── github-sync.js     ← GitHub Contents API push/pull, SHA conflict guard (452 lines)
 ├── invoice-ops.js     ← Invoice detail, edit, cancel, delete, register (949 lines)
 ├── number-audit.js    ← Void ledger + serial-sequence audit + gap reconcile (311 lines)
-├── exports.js         ← Sales CSV + GSTR1 CSV exports (107 lines)
+├── exports.js         ← Sales CSV + GSTR1 CSV + printed sales register (291 lines)
 ├── im.js              ← Incoming Material list + selection (535 lines)
 ├── autocomplete.js    ← Part autocomplete + inline item creation (270 lines)
 ├── print.js           ← formatInvoiceData + print preview (224 lines)
@@ -429,7 +429,30 @@ never named against: it credits nothing, the same reading that keeps a cancelled
 named and a cancelled *note* from consuming headroom.
 
 Raised from a register selection, which is what makes select-all and the date-range filter part
-of the same workflow: tick the batch, export its register, raise the note off the same set. One
+of the same workflow: tick the batch, export its register, raise the note off the same set.
+
+**The register that goes with it is a DOCUMENT, not just a CSV.** A batch ships as two things and
+only one of them was printable: the CSV is a working paper for the accountant, and a spreadsheet is
+not what you send a customer alongside a GST document. Register → **Sales Register PDF** prints the
+same register through the same print view every other document here uses — no PDF library, because
+adding one to render a single table would be a second rendering path for a job the browser already
+does.
+
+⚠ **Its scope is SELECTION-FIRST and is stated on its own face.** A credit note is raised from a
+ticked batch, and the register filter alone cannot express *"these fourteen"* — so a selection, when
+there is one, is what the document covers. **The CSV is filter-only and unchanged**, so the two can
+legitimately disagree; the document names its scope in its meta block precisely so nobody has to
+guess which one they are holding.
+
+🔴 **A register spanning two customers WARNS before it goes out.** This document exists to be handed
+to one customer, and `cnValidateSelection` already refuses a credit-note batch spanning two — but the
+register is also an internal filing artifact, so the multi-customer case cannot simply be blocked.
+Sending it would disclose one customer's invoices to another. Warn, never block: the banner names
+the count and says what to do, and filing it stays available.
+
+Cancelled and voided numbers print at zero on the same rule the CSV uses — the number was issued, so
+the series shows it — and are excluded from the total. A selection-scoped register carries no voids,
+because a selection cannot tick a number that is gone. One
 customer only. A batch under 7 days **warns and does not block** — split batches are the
 operator's call.
 

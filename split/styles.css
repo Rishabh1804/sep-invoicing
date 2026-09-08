@@ -2878,3 +2878,61 @@ body.inv-desktop .inv-att-extra-row { max-width: calc(var(--sp-32) * 15); }
   background: none; color: inherit; border: 1px solid currentColor;
   border-radius: var(--r-sm); opacity: 0.75;
 }
+
+/* ===== SALES REGISTER (printed) =====
+   Its own point scale, like the certificate and the credit note and for the
+   documented reason: a printed GST document must not resize because somebody
+   changed the interface, and the interface must not be un-scalable because a
+   document borrowed its tokens. Nothing here reads --fs-*.
+   The mm/pt measurements are the known HR-6 exception for printed documents —
+   declared once in this block, read as var() in every rule after it. */
+.inv-sr-doc {
+  --sr-ink: #000;
+  --sr-paper: #fff;
+  --sr-rule: #000;
+  --sr-band: #ececec;
+  --sr-muted: #555;
+  --sr-fs: 8pt;
+  --sr-fs-sm: 7pt;
+  --sr-fs-title: 13pt;
+  --sr-fs-co: 11pt;
+  --sr-pad: 1mm 1.5mm;
+  --sr-page-pad: 6mm;
+  --sr-rule-w: 0.5pt;
+  --sr-sheet-w: 194mm;
+
+  background: var(--sr-paper); color: var(--sr-ink);
+  font-family: var(--ff-base); font-size: var(--sr-fs); line-height: 1.3;
+  width: var(--sr-sheet-w); margin: 0 auto var(--sp-16) auto;
+  padding: var(--sr-page-pad);
+  border: 1px solid var(--border);
+}
+.inv-sr-head { text-align: center; margin-bottom: var(--sp-8); }
+.inv-sr-co { font-weight: 700; font-size: var(--sr-fs-co); }
+.inv-sr-title {
+  text-align: center; font-weight: 700; font-size: var(--sr-fs-title);
+  letter-spacing: 0.5pt; margin-bottom: var(--sp-8);
+}
+.inv-sr-meta { width: 100%; border-collapse: collapse; margin-bottom: var(--sp-8); }
+.inv-sr-meta td { padding: var(--sr-pad); font-size: var(--sr-fs-sm); }
+.inv-sr-meta-l { font-weight: 700; width: 12%; }
+.inv-sr-table { width: 100%; border-collapse: collapse; }
+.inv-sr-table th, .inv-sr-table td {
+  border: var(--sr-rule-w) solid var(--sr-rule);
+  padding: var(--sr-pad);
+  /* Names and void reasons are free text and must wrap rather than hold the
+     row open — a table's minimum width is the sum of its cells' minimums, and
+     a table that cannot shrink does not wrap, it overflows the sheet. */
+  overflow-wrap: break-word;
+}
+.inv-sr-table th { background: var(--sr-band); font-weight: 700; font-size: var(--sr-fs-sm); }
+/* The header repeats on every printed page — the one box a browser reliably
+   repeats, which is why a multi-page register still says which column is which. */
+.inv-sr-table thead { display: table-header-group; }
+.inv-sr-table tr { break-inside: avoid; page-break-inside: avoid; }
+.inv-sr-amt { text-align: right; white-space: nowrap; }
+.inv-sr-num, .inv-sr-date { white-space: nowrap; }
+.inv-sr-void { color: var(--sr-muted); }
+.inv-sr-tot-l { font-weight: 700; text-align: right; }
+.inv-sr-table tfoot td { font-weight: 700; background: var(--sr-band); }
+.inv-sr-foot { margin-top: var(--sp-8); font-size: var(--sr-fs-sm); color: var(--sr-muted); }

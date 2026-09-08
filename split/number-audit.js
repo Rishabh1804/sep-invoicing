@@ -300,7 +300,16 @@ function getVoidedForExport() {
   return getVoidedNumbers().filter(function(v) {
     if (!v.reserved) return false;
     if (regFilter.clientId && v.clientId !== parseInt(regFilter.clientId)) return false;
-    if (regFilter.month && !(v.date || '').startsWith(regFilter.month)) return false;
+    // A DATE RANGE scopes voids exactly as it scopes invoices. This honoured
+    // `month` and not `dateFrom`/`dateTo`, so a range-scoped register carried
+    // voids from outside its own range -- and the range is precisely how a
+    // credit-note batch is expressed ("03/08 to 18/08"). Mirrors
+    // getFilteredInvoices(): range and month are alternatives, never layered.
+    if (regFilter.dateFrom || regFilter.dateTo) {
+      if (!v.date) return false;
+      if (regFilter.dateFrom && v.date < regFilter.dateFrom) return false;
+      if (regFilter.dateTo && v.date > regFilter.dateTo) return false;
+    } else if (regFilter.month && !(v.date || '').startsWith(regFilter.month)) return false;
     if (regFilter.search) {
       var q = regFilter.search.toLowerCase();
       if ((v.displayNumber || '').toLowerCase().indexOf(q) < 0 &&

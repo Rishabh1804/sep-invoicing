@@ -90,6 +90,8 @@ document.addEventListener('click', function(e) {
     case 'invCnSave': saveCreditNote(); break;
     case 'invCnList': renderCreditNoteList(); break;
     case 'invCnPreview': closeOverlay(); showCreditNotePreview(btn.dataset.id); break;
+    case 'invCnSetAgainst': e.stopPropagation(); cnSetAgainstInvoice(btn.dataset.id); break;
+    case 'invCnPickAgainst': e.stopPropagation(); cnPickAgainst(btn.dataset.id, parseInt(btn.dataset.idx, 10)); break;
     case 'invCnCancel': e.stopPropagation(); cancelCreditNote(btn.dataset.id); break;
     case 'invExportCreditNotes': exportCreditNotesCSV(); break;
     case 'invToggleIM': toggleIMExpand(btn.dataset.id); break;

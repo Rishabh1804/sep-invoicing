@@ -389,6 +389,75 @@ if (!S._cnSeriesStart1) {
   saveJSON(STORAGE_KEY, S);
 }
 
+/* ===== A CREDIT NOTE NAMES ONE INVOICE, RETROSPECTIVELY TOO =====
+
+   The note used to print the batch as a range. The customer asked for a single
+   invoice number, and the ones already issued have to say the same thing when
+   they are reprinted — a document reissued under a new rule must not read
+   differently from the copy the customer holds unless somebody decided it
+   should, and here somebody did.
+
+   This is a STRUCTURAL migration, not a seed: it re-points records the state
+   already holds, writes no business data, and is idempotent — so it is inside
+   `migrateState()` and runs on a GitHub pull and a Settings import as well as
+   on the loader, which is what stops a note stamped here reverting to a range
+   the moment somebody syncs from another device.
+
+   It stamps ONLY what `cnPickAgainstInvoice` would choose today, so a note
+   reprinted after this migration names exactly what a note raised after it
+   would. Where the batch's invoices are no longer in the register there is
+   nothing to compute from and the note is left unstamped — the label falls back
+   and says so rather than inventing a number. */
+(function() {
+  var stamped = 0, tooSmall = 0, gone = 0;
+  (S.creditNotes || []).forEach(function(cn) {
+    // A CANCELLED note credits nothing and exports at zero, so it has no credit
+    // to attribute — the same reading that stops a cancelled INVOICE being named
+    // and stops a cancelled NOTE consuming headroom. It also has to be skipped
+    // for the two halves to agree: cnSetAgainstInvoice refuses a cancelled note,
+    // so stamping one here would write a reference the operator cannot correct.
+    if (cn.status === 'cancelled') return;
+    if (cn.againstInvoice) {
+      // Backfill only. A note stamped before the date was carried would never
+      // get one, and the whole stated reason for snapshotting it — that a
+      // deleted invoice must not strip a statutory particular off the
+      // customer's copy — would silently not apply to it.
+      if (!cn.againstInvoiceDate && cn.againstInvoiceId) {
+        var held = (S.invoices || []).find(function(i) { return i.id === cn.againstInvoiceId; });
+        if (held && held.date) { cn.againstInvoiceDate = held.date; stamped++; }
+      }
+      return;
+    }
+    var against = typeof cnDeriveAgainstInvoice === 'function' ? cnDeriveAgainstInvoice(cn) : null;
+    if (!against) {
+      var ids = cn.invoiceIds || [];
+      if (!ids.length) return;
+      // The two failures are different questions and get counted apart — see
+      // cnAgainstInvoiceLabel(). A batch sitting in the register whose every
+      // invoice is too small is the operator's call; a batch that is gone is not.
+      var present = ids.filter(function(id) {
+        return (S.invoices || []).some(function(i) { return i.id === id && i.status !== 'cancelled'; });
+      }).length;
+      if (present) tooSmall++; else gone++;
+      return;
+    }
+    cn.againstInvoice = against.displayNumber;
+    cn.againstInvoiceId = against.id;
+    cn.againstInvoiceDate = against.date || '';
+    stamped++;
+  });
+  // ⚠ WRITE ONLY IF SOMETHING CHANGED. Keying the save on the failure counts too
+  // meant a note that can never be stamped rewrote the whole state on every
+  // single boot, for no change.
+  if (stamped) saveJSON(STORAGE_KEY, S);
+  if (stamped || tooSmall || gone) {
+    console.log('[migrate] credit notes: ' + stamped + ' stamped with an against-invoice' +
+      (tooSmall ? ', ' + tooSmall + ' with no invoice large enough' : '') +
+      (gone ? ', ' + gone + ' whose batch is no longer in the register' : ''));
+  }
+})();
+
+
 }
 
 migrateState();

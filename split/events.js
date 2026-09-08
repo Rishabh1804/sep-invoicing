@@ -39,6 +39,7 @@ document.addEventListener('click', function(e) {
     case 'invExportData': exportData(); break;
     case 'invImportData': importData(); break;
     case 'invCheckUpdate': checkForUpdateManually(); break;
+    case 'invRunDiagnostics': runStorageDiagnostics(); break;
     case 'invReloadForUpdate': window.location.reload(); break;
     case 'invDismissUpdate': dismissUpdateBanner(); break;
     case 'invAddPartWeight': addPartWeight(); break;

@@ -15,7 +15,7 @@
 <title>SEP Invoicing</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-<meta name="app-build" content="22c58051">
+<meta name="app-build" content="da61d10b">
 <style>
 /* ===== DESIGN TOKENS ===== */
 :root {
@@ -350,7 +350,7 @@ input, select, textarea, button { font-family: inherit; font-size: var(--fs-base
    the toast does but below it in the stack — a toast fired while the banner is
    up still reads. Colours are tokens, so the dark theme is covered by .dark
    swapping them; nothing here is a raw value. */
-.inv-update-bar {
+.inv-update-bar, .inv-storage-bar {
   position: fixed; top: calc(var(--header-h) + var(--sp-8));
   left: 50%; transform: translateX(-50%);
   display: flex; align-items: center; gap: var(--sp-12); flex-wrap: wrap;
@@ -361,7 +361,16 @@ input, select, textarea, button { font-family: inherit; font-size: var(--fs-base
   box-shadow: var(--shadow-md); font-size: var(--fs-sm); z-index: 290;
   animation: inv-fadeIn var(--anim-fast) ease;
 }
+/* A failed save outranks a pending update: danger border, and above it in
+   the stack when both are up. Removed by the next save that lands. */
+.inv-storage-bar { border-color: var(--danger); z-index: 295; }
 .inv-update-text { flex: 1 1 12rem; line-height: 1.4; }
+.inv-diag-report {
+  font-family: var(--ff-mono); font-size: var(--fs-2xs); line-height: 1.5;
+  white-space: pre-wrap; word-break: break-word; user-select: text;
+  background: var(--surface-2); color: var(--text-1); border: 1px solid var(--border);
+  border-radius: var(--r-sm); padding: var(--sp-8); margin: var(--sp-8) 0 0;
+}
 .inv-update-actions { display: flex; gap: var(--sp-8); margin-left: auto; }
 .inv-update-btn { min-height: 44px; }
 .inv-link-btn {
@@ -904,7 +913,7 @@ table.inv-qc-grid.inv-qc-no-top { border-top: 0; }
      64px right — asymmetric margins, and 240px when the sidebar was expanded.
      One more element selector settles it without reaching for !important. */
   html body.inv-desktop { margin-left: 0; }
-  .inv-header, .inv-tabs, .inv-fab, .inv-toast, .inv-update-bar, .inv-page,
+  .inv-header, .inv-tabs, .inv-fab, .inv-toast, .inv-update-bar, .inv-storage-bar, .inv-page,
   .inv-overlay-scrim, .inv-print-toolbar, #imSelBar, .inv-scan-bar, .inv-sidebar { display: none !important; }
   .inv-print-view { position: static; display: block !important; overflow: visible; }
   .inv-print-body { padding: 0; }
@@ -3205,12 +3214,81 @@ function getDefaultState() {
   };
 }
 
+/* ===== STORAGE HEALTH =====
+   A phone held a 12 Aug copy for four weeks while every import since reported
+   "Data imported" — the save wrapped the browser call in a catch that said
+   "Storage full!" for ANY error, the import's own success toast then replaced
+   that toast in the same tick, and nothing read the value back to see whether
+   the browser had actually kept it. Three silences stacked. So: every write
+   is verified by reading it back, the outcome of the last one is kept for
+   Settings to show, the error carries the browser's own name for it, and a
+   failed state save raises a banner that stays until a save succeeds. */
+var _storageHealth = { lastSaveOk: null, lastSaveAt: 0, lastSaveChars: 0, lastError: '', readError: '' };
+
+function describeStorageError(e) {
+  if (!e) return 'Error';
+  var name = e.name || 'Error';
+  return e.message ? name + ': ' + e.message : name;
+}
+
 function loadJSON(key, fallback) {
   try { const d = localStorage.getItem(key); return d ? JSON.parse(d) : fallback; }
-  catch(e) { return fallback; }
+  catch(e) {
+    if (key === STORAGE_KEY) _storageHealth.readError = describeStorageError(e);
+    return fallback;
+  }
 }
+
+// Returns true only when the value is on disk and reads back whole. A browser
+// that discards a write without throwing looks identical to one that kept it,
+// which is why the read-back is not optional.
 function saveJSON(key, data) {
-  try { localStorage.setItem(key, JSON.stringify(data)); } catch(e) { showToast('Storage full! Export data.','error'); }
+  var str;
+  try { str = JSON.stringify(data); }
+  catch (e) { return noteSaveFailure(key, describeStorageError(e)); }
+  try {
+    localStorage.setItem(key, str);
+    var back = localStorage.getItem(key);
+    if (back === null || back.length !== str.length) {
+      return noteSaveFailure(key, 'write not persisted (read back ' +
+        (back === null ? 'nothing' : back.length + ' of ' + str.length + ' chars') + ')');
+    }
+  } catch (e) { return noteSaveFailure(key, describeStorageError(e)); }
+  if (key === STORAGE_KEY) {
+    _storageHealth.lastSaveOk = true;
+    _storageHealth.lastSaveAt = Date.now();
+    _storageHealth.lastSaveChars = str.length;
+    _storageHealth.lastError = '';
+    hideStorageBanner();
+  }
+  return true;
+}
+
+function noteSaveFailure(key, why) {
+  if (key === STORAGE_KEY) {
+    _storageHealth.lastSaveOk = false;
+    _storageHealth.lastSaveAt = Date.now();
+    _storageHealth.lastError = why;
+    showStorageBanner('This browser did not keep the last save (' + why + '). ' +
+      'Anything entered now is in memory only and will be lost on reload. Export a backup.');
+  } else {
+    showToast('Could not save ' + key + ' (' + why + ')', 'error');
+  }
+  return false;
+}
+
+function showStorageBanner(msg) {
+  hideStorageBanner();
+  var bar = document.createElement('div');
+  bar.className = 'inv-storage-bar';
+  bar.setAttribute('role', 'alert');
+  bar.innerHTML = '<span class="inv-update-text">' + escHtml(msg) + '</span>' +
+    '<span class="inv-update-actions">' +
+    '<button class="inv-btn inv-btn-primary inv-update-btn" data-action="invExportData">Export JSON</button></span>';
+  document.body.appendChild(bar);
+}
+function hideStorageBanner() {
+  document.querySelectorAll('.inv-storage-bar').forEach(function(b) { b.remove(); });
 }
 
 /* Fill in every container a backup might predate.
@@ -3360,12 +3438,13 @@ if (!regFilter) {
 if (!regFilter.state) regFilter.state = regFilter.state || '';
 
 function saveState() {
-  saveJSON(STORAGE_KEY, S);
+  var ok = saveJSON(STORAGE_KEY, S);
   _tabDirty.home = true;
   _tabDirty.register = true;
   // Opt-in GitHub backup. Debounced inside, so this fires far more often than
   // it pushes. Guarded because state.js loads before github-sync.js.
   if (typeof ghNotifyChange === 'function') ghNotifyChange();
+  return ok;
 }
 
 function saveRegFilter() {
@@ -5958,9 +6037,12 @@ function openSettings() {
     '<div class="inv-form-row"><button class="inv-btn inv-btn-ghost inv-btn-block" data-action="invExportData">Export JSON</button>' +
     '<button class="inv-btn inv-btn-ghost inv-btn-block" data-action="invImportData">Import JSON</button></div>' +
     '<input type="file" id="importFileInput" accept=".json" class="inv-hidden">' +
-    '<div class="inv-storage-wrap"><div class="inv-text-muted inv-storage-text">Storage: ' + estimateStorage() + '</div>' +
+    '<div class="inv-storage-wrap"><div class="inv-text-muted inv-storage-text">Storage: ' + estimateStorage() + ' in memory &middot; ' + renderDiskSummary() + '</div>' +
+    '<div class="inv-text-muted inv-storage-text">Last save: <span class="inv-save-status">' + renderLastSave() + '</span></div>' +
     '<div class="inv-text-muted inv-storage-text">Build <span class="inv-build-id">' + escHtml(APP_BUILD) + '</span> &middot; ' +
-    '<button type="button" class="inv-link-btn" data-action="invCheckUpdate">Check for a newer version</button></div></div></div>' +
+    '<button type="button" class="inv-link-btn" data-action="invCheckUpdate">Check for a newer version</button> &middot; ' +
+    '<button type="button" class="inv-link-btn" data-action="invRunDiagnostics">Run storage diagnostics</button></div>' +
+    '<div id="storageDiagOut"></div></div></div>' +
 
     '<div class="inv-btn-bar"><button class="inv-btn inv-btn-ghost" data-action="invCloseOverlay">Cancel</button>' +
     '<button class="inv-btn inv-btn-primary" data-action="invSaveSettings">Save</button></div></div>';
@@ -6066,6 +6148,133 @@ function saveSettings() {
   showToast('Settings saved');
 }
 
+/* ===== STORAGE DIAGNOSTICS =====
+   The questions a lost import raises, answered from the device itself rather
+   than guessed at from a laptop: what is on disk right now, when was it
+   written, did the last save land, and how much more will this browser take.
+   The report is plain text so it can be pasted into a message as-is. */
+function readDiskState() {
+  try {
+    var raw = localStorage.getItem(STORAGE_KEY);
+    if (raw == null) return { chars: 0, raw: null };
+    return { chars: raw.length, raw: raw };
+  } catch (e) { return { chars: -1, error: describeStorageError(e) }; }
+}
+
+function renderDiskSummary() {
+  var d = readDiskState();
+  if (d.chars < 0) return 'on disk: unreadable (' + escHtml(d.error) + ')';
+  if (d.chars === 0) return 'on disk: nothing';
+  var mem = 0;
+  try { mem = JSON.stringify(S).length; } catch (e) {}
+  return 'on disk: ' + fmtChars(d.chars) + (mem && mem !== d.chars ? ' (differs from memory)' : ' (matches memory)');
+}
+
+function renderLastSave() {
+  var h = _storageHealth;
+  if (h.lastSaveOk === null) return 'nothing saved since this page opened';
+  var when = new Date(h.lastSaveAt).toLocaleTimeString();
+  if (h.lastSaveOk) return 'ok at ' + when + ', ' + fmtChars(h.lastSaveChars);
+  return 'FAILED at ' + when + ' \u2014 ' + escHtml(h.lastError);
+}
+
+function fmtChars(n) {
+  if (n >= 1048576) return (n / 1048576).toFixed(2) + 'M chars';
+  return Math.round(n / 1024) + 'K chars';
+}
+
+// The newest thing a copy of the state knows about: the latest invoice date
+// and the latest record timestamp. "It reset to 12 Aug" becomes a figure.
+function newestIn(state) {
+  var out = { invoiceDate: '', recordedAt: 0, invoices: 0, challans: 0 };
+  if (!state) return out;
+  (state.invoices || []).forEach(function(inv) {
+    out.invoices++;
+    if (inv.date && inv.date > out.invoiceDate) out.invoiceDate = inv.date;
+    if (inv.createdAt > out.recordedAt) out.recordedAt = inv.createdAt;
+  });
+  (state.incomingMaterial || []).forEach(function(im) {
+    out.challans++;
+    if (im.createdAt > out.recordedAt) out.recordedAt = im.createdAt;
+  });
+  return out;
+}
+
+// How much MORE the browser will store alongside the current state. Each
+// probe is written to a scratch key, read back, and removed. The answer is
+// headroom rather than the browser's absolute ceiling, which is the figure
+// that decides whether the next save will land.
+function probeStorageHeadroom() {
+  var sizes = [131072, 262144, 524288, 1048576, 2097152, 4194304];
+  var key = 'sep_inv_probe';
+  var maxOk = 0, failedAt = 0, error = '';
+  for (var i = 0; i < sizes.length; i++) {
+    var val = new Array(sizes[i] + 1).join('x');
+    try {
+      localStorage.setItem(key, val);
+      var back = localStorage.getItem(key);
+      if (!back || back.length !== val.length) { failedAt = sizes[i]; error = 'write not persisted'; break; }
+      maxOk = sizes[i];
+    } catch (e) { failedAt = sizes[i]; error = describeStorageError(e); break; }
+  }
+  try { localStorage.removeItem(key); } catch (e) {}
+  return { maxOk: maxOk, failedAt: failedAt, error: error };
+}
+
+function buildDiagnosticsReport() {
+  var lines = [];
+  var disk = readDiskState();
+  var memNewest = newestIn(S);
+  var diskNewest = null, diskParseError = '';
+  if (disk.raw) {
+    try { diskNewest = newestIn(JSON.parse(disk.raw)); } catch (e) { diskParseError = describeStorageError(e); }
+  }
+  var standalone = false;
+  try { standalone = window.matchMedia('(display-mode: standalone)').matches; } catch (e) {}
+  var swState = 'unsupported';
+  if ('serviceWorker' in navigator) swState = navigator.serviceWorker.controller ? 'controlling' : 'none';
+  var probe = probeStorageHeadroom();
+  var mem = 0;
+  try { mem = JSON.stringify(S).length; } catch (e) {}
+
+  lines.push('SEP Invoicing storage diagnostics');
+  lines.push('Build: ' + APP_BUILD);
+  lines.push('Time: ' + new Date().toString());
+  lines.push('Browser: ' + navigator.userAgent);
+  lines.push('Display: ' + (standalone ? 'installed app' : 'browser tab') + ' · worker ' + swState);
+  lines.push('URL: ' + location.href);
+  lines.push('');
+  lines.push('In memory: ' + fmtChars(mem) + ' · ' + memNewest.invoices + ' invoices, ' + memNewest.challans + ' challans');
+  lines.push('  newest invoice date ' + (memNewest.invoiceDate || 'none') + ', last record ' + (memNewest.recordedAt ? new Date(memNewest.recordedAt).toISOString() : 'none'));
+  if (disk.chars < 0) lines.push('On disk: UNREADABLE (' + disk.error + ')');
+  else if (disk.chars === 0) lines.push('On disk: nothing stored');
+  else {
+    lines.push('On disk: ' + fmtChars(disk.chars) + (disk.chars === mem ? ' · matches memory' : ' · DIFFERS from memory'));
+    if (diskNewest) lines.push('  newest invoice date ' + (diskNewest.invoiceDate || 'none') + ', last record ' + (diskNewest.recordedAt ? new Date(diskNewest.recordedAt).toISOString() : 'none') + ' · ' + diskNewest.invoices + ' invoices, ' + diskNewest.challans + ' challans');
+    if (diskParseError) lines.push('  stored copy does not parse: ' + diskParseError);
+  }
+  lines.push('Last save: ' + renderLastSave().replace(/<[^>]+>/g, ''));
+  if (_storageHealth.readError) lines.push('Read error at load: ' + _storageHealth.readError);
+  lines.push('Headroom: accepted an extra ' + fmtChars(probe.maxOk) + (probe.failedAt ? ', refused ' + fmtChars(probe.failedAt) + ' (' + probe.error + ')' : ', every probe accepted'));
+  return lines.join('\n');
+}
+
+function runStorageDiagnostics() {
+  var out = document.getElementById('storageDiagOut');
+  var report = buildDiagnosticsReport();
+  if (out) {
+    out.innerHTML = '<pre class="inv-diag-report">' + escHtml(report) + '</pre>' +
+      '<div class="inv-text-muted inv-storage-text">Copied to the clipboard where the browser allows it; otherwise select the text above.</div>';
+  }
+  var status = document.querySelector('.inv-save-status');
+  if (status) status.innerHTML = renderLastSave();
+  try {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(report).then(function() { showToast('Diagnostics copied'); }, function() {});
+    }
+  } catch (e) {}
+}
+
 function estimateStorage() {
   try {
     const s = JSON.stringify(S).length;
@@ -6134,10 +6343,14 @@ function importData() {
         // undefined and the Staff tab threw the moment it was opened.
         // All-or-nothing: a migration that throws restores what was here.
         adoptState(data);
-        saveState();
+        // The success toast used to fire regardless, on top of — and therefore
+        // instead of — the storage failure toast. A copy that only reached
+        // memory is not imported, and the operator has to hear that.
+        var saved = saveState();
         closeOverlay();
         renderHome();
-        showToast('Data imported');
+        if (saved) showToast('Data imported');
+        else showToast('NOT saved: the browser refused to store it (' + _storageHealth.lastError + '). The data is in memory only and will be lost on reload.', 'error');
       } catch(err) {
         showToast('Invalid file: ' + err.message, 'error');
       }
@@ -16853,6 +17066,7 @@ document.addEventListener('click', function(e) {
     case 'invExportData': exportData(); break;
     case 'invImportData': importData(); break;
     case 'invCheckUpdate': checkForUpdateManually(); break;
+    case 'invRunDiagnostics': runStorageDiagnostics(); break;
     case 'invReloadForUpdate': window.location.reload(); break;
     case 'invDismissUpdate': dismissUpdateBanner(); break;
     case 'invAddPartWeight': addPartWeight(); break;
@@ -18274,6 +18488,14 @@ if (_launchNew && regFilter.activeTab === 'pageIM' && !_isDesktop) {
 
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('sw.js').catch(() => {});
+}
+
+/* A read that threw at load fell through to a fresh default state and said
+   nothing. It is the one storage failure the operator most needs to hear
+   about, because everything they enter on top of it is going nowhere. */
+if (_storageHealth.readError) {
+  showStorageBanner('This browser refused to read stored data (' + _storageHealth.readError +
+    '). Nothing entered here will be kept. Check the site data settings for this app.');
 }
 
 /* ===== BUILD IDENTITY + UPDATE CHECK =====

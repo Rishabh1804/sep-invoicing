@@ -943,6 +943,33 @@ function openWorkerEdit(id) {
   _showWorkerOverlay(w, false);
 }
 
+/* The same person entered twice. The roster import merges on the NAME, so a
+   spelling the importer has never seen lands as a second active row — and both
+   rows are then paid. Deletion cannot fix it: it is refused for anyone carrying
+   marks, and rightly, because the marks would be orphaned rather than removed.
+   So the overlay offers the merge instead, on the row that is about to vanish.
+
+   Offered even when this worker has no marks of their own: an empty duplicate
+   still doubles the headcount an area is judged against. */
+function _mergeControl(w) {
+  var others = (S.staff || []).filter(function(x) { return x.id !== w.id; });
+  if (!others.length) return '';
+  others.sort(function(a, b) { return (a.name || '').localeCompare(b.name || ''); });
+  return '<div class="inv-form-group"><label class="inv-form-label" for="wedMergeInto">' +
+    'Merge this worker into</label>' +
+    '<select class="inv-form-select" id="wedMergeInto"><option value="">Select a worker&hellip;</option>' +
+    others.map(function(x) {
+      return '<option value="' + x.id + '">' + escHtml(x.name) + '</option>';
+    }).join('') + '</select></div>' +
+    '<div class="inv-stats-note">Use this when one person was entered twice under two ' +
+    'spellings. <strong>' + escHtml(w.name) + '</strong> is the row that disappears &mdash; their days ' +
+    'and block crews move to the worker chosen here, so open whichever of the two carries ' +
+    'the name you want to keep. A day both rows were marked on is a day that was paid twice; ' +
+    'the merge collapses it to the fuller mark and tells you the dates.</div>' +
+    '<button class="inv-btn inv-btn-ghost inv-btn-sm inv-mb-16" data-action="invAttMergeWorker" ' +
+    'data-id="' + w.id + '">Merge worker</button>';
+}
+
 function _showWorkerOverlay(worker, isAdd) {
   var w = worker || _blankWorker();
   var marks = worker ? _attMarkCount(w.id) : 0;
@@ -977,6 +1004,7 @@ function _showWorkerOverlay(worker, isAdd) {
     'bill; it is simply not plating cost, and the breakdown splits it out.</div>' +
     '<div class="inv-flex-between inv-mb-16"><label class="inv-checkbox-label">' +
     '<input type="checkbox" id="wedActive"' + (w.active !== false ? ' checked' : '') + '> Active</label></div>' +
+    (isAdd ? '' : _mergeControl(w)) +
     (isAdd ? '' : '<button class="inv-btn inv-btn-danger inv-btn-sm inv-mb-16" data-action="invAttDeleteWorker" data-id="' + w.id + '">Delete worker' +
       (marks > 0 ? ' (' + marks + ' day' + (marks === 1 ? '' : 's') + ' recorded)' : '') + '</button>') +
     '<div class="inv-btn-bar"><button class="inv-btn inv-btn-ghost" data-action="invCloseOverlay">Cancel</button>' +
@@ -1092,6 +1120,14 @@ function importRoster() {
       // that skipped half a file reads exactly like one that worked.
       showToast(res.added + ' added, ' + res.updated + ' updated' +
         (res.skipped ? ', ' + res.skipped + ' skipped' : '') +
+        (res.aliased ? ' · ' + res.aliased + ' matched an existing worker under another spelling' : '') +
+        (res.collapsed ? ' · ' + res.collapsed + ' row' + (res.collapsed === 1 ? '' : 's') +
+          ' in the file were the same worker' : '') +
+        (res.dupesOnRoster ? ' · ' + res.dupesOnRoster + ' worker' +
+          (res.dupesOnRoster === 1 ? ' is' : 's are') + ' already on the roster twice under ' +
+          'different spellings — merge from the worker\u2019s Edit screen' : '') +
+        (res.aliasConflicts ? ' · ' + res.aliasConflicts + ' alias' +
+          (res.aliasConflicts === 1 ? '' : 'es') + ' refused for naming two workers' : '') +
         (res.targets ? ' · ' + res.targets + ' complement' + (res.targets === 1 ? '' : 's') + ' set' : '') +
         (res.days ? ' · ' + res.days + ' day' + (res.days === 1 ? '' : 's') + ' of attendance' : '') +
         (res.daysKept ? ' (' + res.daysKept + ' already recorded, kept)' : '') +
@@ -1103,13 +1139,104 @@ function importRoster() {
           (res.crewsUnresolved === 1 ? '' : 's') + ' with unknown names, kept as not checkable' : '') +
         (res.daysDropped ? ' · ' + res.daysDropped + ' day' +
           (res.daysDropped === 1 ? '' : 's') + ' with unreadable dates' : ''),
-        (res.marksDropped || res.extrasDropped || res.crewsUnresolved || res.daysDropped)
-          ? 'warning' : 'success');
+        (res.marksDropped || res.extrasDropped || res.crewsUnresolved || res.daysDropped ||
+         res.aliasConflicts || res.dupesOnRoster) ? 'warning' : 'success');
     };
     reader.readAsText(f);
     inp.value = '';
   };
   inp.click();
+}
+
+/* ===== ONE PERSON, MANY SPELLINGS =====
+
+   The roster merges on the NAME, which is the right key — ids are per-device,
+   and two devices that typed the same person gave them different numbers. What
+   the name cannot do on its own is recognise a spelling it has never seen. The
+   shop writes "Shyam" where the roster carries "Shyam Bera", and a bare
+   case-insensitive equality reads those as two people.
+
+   What that costs is worth stating exactly, because the obvious answer is the
+   wrong one. It is NOT a double payment: the two rows carry different days, so
+   no day is marked twice and no area's heads are doubled. What it does is split
+   one person's attendance in half, which drops BOTH rows under the monthly
+   rest-day gate — so the bill reads LOW, and the roster somebody writes a cash
+   slip from carries the same name twice. Measured on one real device: four
+   duplicated hands and a labour figure understated by five figures.
+
+   Deletion cannot undo it either — it is refused for anyone carrying marks, and
+   rightly so, because the marks would be orphaned rather than removed.
+
+   So the import file may carry an `aliases` map, canonical name -> the other
+   spellings, and every name on both sides is resolved through it before
+   anything is matched. The map is the shop's own alias register travelling with
+   the roster, for exactly the reason the area complements travel with it: they
+   are one decision, and the file that sets the tab up leaves an instrument
+   switched off if it arrives without them.
+
+   Two rules, and both are about not making the problem worse.
+
+   **An alias that would join two canonical names is REFUSED and counted.**
+   Merging two people is the one error worse than splitting one, because the
+   split is visible on the roster and the join is not. A file claiming both is
+   wrong, and choosing which of the two a spelling belongs to would be a guess.
+
+   **A matched row keeps the name the OPERATOR typed.** An alias match says the
+   two spellings are the same person; it does not say theirs is the wrong one,
+   and silently renaming a roster from a file is the overwrite the rest of this
+   module refuses. Only a pure re-casing of the same string is normalised. */
+function buildNameAliases(aliases) {
+  var out = { key: {}, spellings: {}, refused: {}, conflicts: 0 };
+  if (!aliases || typeof aliases !== 'object' || Array.isArray(aliases)) return out;
+  var norm = function(v) { return String(v == null ? '' : v).trim().toLowerCase(); };
+
+  // Canonicals first, so an alias can never claim a name that is somebody's
+  // canonical spelling regardless of the order the file happens to list them.
+  Object.keys(aliases).forEach(function(canon) {
+    var k = norm(canon);
+    if (!k) return;
+    out.key[k] = k;
+    out.spellings[k] = [k];
+  });
+
+  Object.keys(aliases).forEach(function(canon) {
+    var k = norm(canon);
+    if (!k) return;
+    var v = aliases[canon];
+    (Array.isArray(v) ? v : [v]).forEach(function(alt) {
+      var a = norm(alt);
+      if (!a || a === k) return;
+      if (out.key[a]) {
+        if (out.key[a] === k) return;                     // listed twice in one group
+        // Claimed by two groups. REFUSED means bound to NEITHER — an earlier
+        // version merely counted it and left the first claimant's binding
+        // standing, so the "refusal" resolved the name by `Object.keys` order.
+        // That is the guess the rule exists to forbid: merging two people is
+        // the one error worse than splitting one, and picking by file order is
+        // not a decision anybody made.
+        var prev = out.key[a];
+        delete out.key[a];
+        if (out.spellings[prev]) {
+          out.spellings[prev] = out.spellings[prev].filter(function(x) { return x !== a; });
+        }
+        out.conflicts++;
+        out.refused[a] = true;                            // never re-bindable this run
+        return;
+      }
+      if (out.refused[a]) { out.conflicts++; return; }    // a third claimant changes nothing
+      out.key[a] = k;
+      out.spellings[k].push(a);
+    });
+  });
+  return out;
+}
+
+/* The group a name belongs to, or the name itself when it belongs to none.
+   Falling back to the name keeps this a strict widening of the old rule: a file
+   carrying no aliases resolves exactly as before. */
+function aliasKey(name, al) {
+  var n = String(name == null ? '' : name).trim().toLowerCase();
+  return (al && al.key[n]) || n;
 }
 
 /* The merge itself, split out so it can be tested without a file picker. */
@@ -1118,7 +1245,9 @@ function applyRosterImport(data) {
     : (Array.isArray(data) ? data : null);
   if (!rows) return { error: 'No staff array in that file' };
 
-  var added = 0, updated = 0, skipped = 0;
+  var added = 0, updated = 0, skipped = 0, aliased = 0, collapsed = 0, onRoster = 0;
+  var al = buildNameAliases(data && data.aliases);
+  var touched = [];
   if (!S.staff) S.staff = [];
   var nextId = S.staff.reduce(function(m, x) { return Math.max(m, x.id || 0); }, 0);
 
@@ -1144,12 +1273,31 @@ function applyRosterImport(data) {
       onFloor: row.onFloor !== false,
       active: row.active !== false
     };
-    var existing = S.staff.find(function(x) {
-      return (x.name || '').trim().toLowerCase() === name.toLowerCase();
-    });
+    var key = aliasKey(name, al);
+    var group = S.staff.filter(function(x) { return aliasKey(x.name, al) === key; });
+    var existing = group[0];
+    // The roster ALREADY holding two rows for one person is the state this map
+    // is meant to have prevented, and an import cannot repair it: collapsing
+    // them here would destroy days without showing the operator which ones both
+    // rows were marked on. So it is COUNTED and named, and the merge on the
+    // worker overlay is where it gets fixed.
+    // Counted ONCE per group, not once per file row that lands on it: two rows
+    // resolving to the same pair would otherwise report four duplicates where
+    // there is one.
+    if (group.length > 1 && touched.indexOf(existing.id) === -1) {
+      onRoster += group.length - 1;
+    }
     if (existing) {
       Object.keys(fields).forEach(function(k) { existing[k] = fields[k]; });
-      existing.name = name;
+      if ((existing.name || '').trim().toLowerCase() === name.toLowerCase()) {
+        existing.name = name; // a re-casing of the same string, not a rename
+      } else {
+        aliased++;
+      }
+      // Two rows in the FILE resolving to one worker is the duplicate arriving
+      // pre-collapsed. Counted, because the second row's fields have just
+      // overwritten the first's and the operator should know which won.
+      if (touched.indexOf(existing.id) !== -1) collapsed++; else touched.push(existing.id);
       updated++;
     } else {
       fields.id = ++nextId;
@@ -1185,9 +1333,11 @@ function applyRosterImport(data) {
       if (data.labour[k] != null && !isNaN(v) && v >= 0) S.labour[k] = v;
     });
   }
-  var att = applyAttendanceImport(data);
+  var att = applyAttendanceImport(data, al);
 
   return { added: added, updated: updated, skipped: skipped, targets: targets,
+           aliased: aliased, collapsed: collapsed, aliasConflicts: al.conflicts,
+           dupesOnRoster: onRoster,
            days: att.days, daysKept: att.daysKept, daysDropped: att.daysDropped,
            marksDropped: att.marksDropped, extrasDropped: att.extrasDropped,
            crewsUnresolved: att.crewsUnresolved };
@@ -1219,7 +1369,8 @@ function applyRosterImport(data) {
    **A day that already exists is KEPT, never overwritten.** Seeding must not be
    able to destroy entry somebody actually did. The count is reported so a
    re-import that did nothing says so rather than looking like it worked. */
-function applyAttendanceImport(data) {
+function applyAttendanceImport(data, al) {
+  al = al || buildNameAliases(data && data.aliases);
   var out = { days: 0, daysKept: 0, daysDropped: 0, marksDropped: 0,
               extrasDropped: 0, crewsUnresolved: 0 };
   var src = data && data.attendance;
@@ -1227,10 +1378,19 @@ function applyAttendanceImport(data) {
 
   if (!S.attendance) S.attendance = {};
 
-  // One name->id table for the whole import rather than a scan per mark.
+  // One name->id table for the whole import rather than a scan per mark. Every
+  // spelling in a worker's alias group is registered against that worker, so a
+  // mark or a block crew naming any of them resolves — and `importedExtra` gets
+  // it for free, which matters: a crew name that failed to match makes the whole
+  // row Not checkable, so an unbridged alias would take real booked hours out
+  // of the reconciler as well as out of the wage.
   var byName = {};
   (S.staff || []).forEach(function(w) {
-    byName[String(w.name || '').trim().toLowerCase()] = w.id;
+    var n = String(w.name || '').trim().toLowerCase();
+    byName[n] = w.id;
+    ((al.spellings[aliasKey(n, al)]) || []).forEach(function(sp) {
+      if (byName[sp] == null) byName[sp] = w.id;
+    });
   });
 
   Object.keys(src).forEach(function(iso) {
@@ -1333,6 +1493,156 @@ function importedExtra(x, byName, counters) {
   var area = STAFF_AREA_ALIASES[x.area] || x.area;
   if (!STAFF_AREAS.some(function(a) { return a.id === area; })) return null;
   return { kind: 'coverage', area: area, hours: hours };
+}
+
+/* ===== MERGING TWO ROWS THAT ARE ONE PERSON =====
+
+   The roster merges by NAME, and the app has no alias table: `Shyam` and
+   `Shyam Bera` are two strings, so they become two rows, both active, both
+   carrying a rate — and the labour card pays both. That is not a display
+   nuisance, it is a wage error, and it is the one an import is most likely to
+   create, because a file written against the floor's short names meets a
+   roster typed from the bank's full ones.
+
+   Deleting the wrong one is refused (it would orphan that row's marks) and
+   deactivating it is wrong too (the days it holds are real and would drop out
+   of the bill). What is actually needed is a MERGE: one row survives, and every
+   mark and every block crew that named the other now names the survivor.
+
+   A worker id appears in exactly two places, and this walks both:
+     - `S.attendance[iso].marks[id]`      the day's mark
+     - `S.attendance[iso].extra[].crew[]` an OT block's named crew
+
+   **A day both rows are marked on is the double-count itself**, so it is not
+   silently resolved. The richer mark wins — present beats absent, and among
+   present the one carrying more hours — and the count is REPORTED, because the
+   number of collided days is the number of days that were paid twice, and the
+   operator is the only one who can decide whether that reached a payout. */
+function mergeWorkers(fromId, intoId) {
+  var from = staffById(fromId), into = staffById(intoId);
+  if (!from || !into) return { error: 'Worker not found' };
+  if (fromId === intoId) return { error: 'A worker cannot be merged into themselves' };
+
+  var moved = 0, collided = 0, crews = 0, collisionDays = [];
+
+  Object.keys(S.attendance || {}).forEach(function(iso) {
+    var rec = S.attendance[iso];
+    if (!rec) return;
+
+    var marks = rec.marks || {};
+    var a = marks[fromId], b = marks[intoId];
+    if (a) {
+      if (!b) {
+        marks[intoId] = a;
+        moved++;
+      } else {
+        // Both rows marked on one day: the survivor keeps whichever mark says
+        // more. `A` pays nothing and records nothing, so it never beats a day
+        // somebody was present for.
+        if (_markRicherThan(a, b)) marks[intoId] = a;
+        collided++;
+        collisionDays.push(iso);
+      }
+      delete marks[fromId];
+    }
+
+    (rec.extra || []).forEach(function(x) {
+      if (!Array.isArray(x.crew)) return;
+      var i = x.crew.indexOf(fromId);
+      if (i === -1) return;
+      x.crew.splice(i, 1);
+      if (x.crew.indexOf(intoId) === -1) x.crew.push(intoId); // dedupe: one head, not two
+      crews++;
+    });
+  });
+
+  var idx = (S.staff || []).findIndex(function(w) { return w.id === fromId; });
+  if (idx !== -1) S.staff.splice(idx, 1);
+
+  return { moved: moved, collided: collided, crews: crews,
+           collisionDays: collisionDays.sort(), fromName: from.name, intoName: into.name };
+}
+
+/* Which of two marks for one day says more.
+
+   The state ranks FIRST, on `ATT_DAY_VALUE` — the same table `labourForRange`
+   and `areaStats` price a day with, so the merge cannot prefer a mark the wage
+   arithmetic then values lower. An earlier version demoted only `A`, which left
+   a HALF DAY tying with a full present one: both default to `hours: 0` (the
+   seed's default and the day view's), so the tie fell through to the `false`
+   branch and the half day was KEPT. That understates the bill, in the merge
+   whose whole purpose is repairing a wage understatement.
+
+   Hours break a tie within one state, and overtime breaks that. */
+function _markRicherThan(a, b) {
+  var av = ATT_DAY_VALUE[a.st || 'P'] || 0, bv = ATT_DAY_VALUE[b.st || 'P'] || 0;
+  if (av !== bv) return av > bv;
+  if ((a.hours || 0) !== (b.hours || 0)) return (a.hours || 0) > (b.hours || 0);
+  return (a.ot || 0) > (b.ot || 0);
+}
+
+/* The merge, from the worker-edit overlay. The row you have OPEN is the one
+   that disappears, so choosing which of the two to open is how the operator
+   picks which name survives — the app does not decide that for them. */
+function mergeWorkerInto(fromId) {
+  var sel = document.getElementById('wedMergeInto');
+  if (!sel || !sel.value) return;
+  var intoId = parseInt(sel.value, 10);
+  var from = staffById(fromId), into = staffById(intoId);
+  if (!from || !into) return;
+  if (!confirm('Merge "' + from.name + '" into "' + into.name + '"?\n\n' +
+      '"' + from.name + '" is removed. Every day and every block crew that named ' +
+      'them will name "' + into.name + '" instead. This cannot be undone.')) return;
+
+  var res = mergeWorkers(fromId, intoId);
+  if (res.error) { showToast(res.error, 'error'); return; }
+  saveState();
+  closeOverlay();
+  renderAttendance();
+  showToast('Merged into ' + res.intoName + ' \u2014 ' + res.moved + ' day' +
+    (res.moved === 1 ? '' : 's') + ' moved' +
+    (res.crews ? ', ' + res.crews + ' block crew' + (res.crews === 1 ? '' : 's') + ' re-pointed' : ''),
+    res.collided ? 'warning' : 'success');
+
+  /* The collided days do not fit in a toast, and they are the half that costs
+     money: each one was marked on both rows, so each one was entered twice.
+     The dates go on a card the operator can read at their own pace. */
+  if (res.collided) showCollisionReport(res);
+}
+
+/* What the merge could not decide for the operator, listed rather than counted.
+
+   A day marked on BOTH rows is the only place a duplicate roster row actually
+   doubles anything — the marks are keyed by worker id, so one row per day is
+   the ordinary case and costs nothing. These are the exceptions, and the app
+   cannot tell whether the double entry reached a payout. Naming the dates is
+   the whole point; a count would say there is a problem without saying where. */
+function showCollisionReport(res) {
+  var scrim = document.createElement('div');
+  scrim.className = 'inv-overlay-scrim';
+  scrim.innerHTML = '<div class="inv-overlay-card">' +
+    '<div class="inv-overlay-header"><span class="inv-overlay-title">Days marked on both rows</span>' +
+    '<button class="inv-overlay-close" data-action="invCloseOverlay">&times;</button></div>' +
+    '<div class="inv-stats-note">' + res.collided + ' day' + (res.collided === 1 ? '' : 's') +
+    ' had a mark on <strong>' + escHtml(res.fromName) + '</strong> and on <strong>' +
+    escHtml(res.intoName) + '</strong>. Each has been collapsed to the fuller mark &mdash; a ' +
+    'recorded day beats an absence, and the longer day wins between two present marks. ' +
+    'Every other day moved across untouched.</div>' +
+    '<ul class="inv-list-plain inv-mono">' +
+    res.collisionDays.map(function(d) { return '<li>' + escHtml(d) + '</li>'; }).join('') +
+    '</ul>' +
+    '<div class="inv-stats-note">Those days were entered twice before this merge. ' +
+    'Check them against the payout for that week &mdash; the app cannot tell whether the ' +
+    'double entry reached one.</div>' +
+    '<div class="inv-btn-bar"><button class="inv-btn inv-btn-primary" ' +
+    'data-action="invCloseOverlay">Done</button></div></div>';
+  scrim.addEventListener('click', function(e) {
+    if (e.target === scrim) { scrim.remove(); document.body.style.overflow = ''; popFocus(); }
+  });
+  pushFocus();
+  document.body.appendChild(scrim);
+  document.body.style.overflow = 'hidden';
+  focusFirstInteractive(scrim.querySelector('.inv-overlay-card'));
 }
 
 /* Deletion is refused while attendance names the worker. Removing the row would

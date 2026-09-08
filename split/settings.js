@@ -82,7 +82,9 @@ function openSettings() {
     '<div class="inv-form-row"><button class="inv-btn inv-btn-ghost inv-btn-block" data-action="invExportData">Export JSON</button>' +
     '<button class="inv-btn inv-btn-ghost inv-btn-block" data-action="invImportData">Import JSON</button></div>' +
     '<input type="file" id="importFileInput" accept=".json" class="inv-hidden">' +
-    '<div class="inv-storage-wrap"><div class="inv-text-muted inv-storage-text">Storage: ' + estimateStorage() + '</div></div></div>' +
+    '<div class="inv-storage-wrap"><div class="inv-text-muted inv-storage-text">Storage: ' + estimateStorage() + '</div>' +
+    '<div class="inv-text-muted inv-storage-text">Build <span class="inv-build-id">' + escHtml(APP_BUILD) + '</span> &middot; ' +
+    '<button type="button" class="inv-link-btn" data-action="invCheckUpdate">Check for a newer version</button></div></div></div>' +
 
     '<div class="inv-btn-bar"><button class="inv-btn inv-btn-ghost" data-action="invCloseOverlay">Cancel</button>' +
     '<button class="inv-btn inv-btn-primary" data-action="invSaveSettings">Save</button></div></div>';

@@ -24,6 +24,8 @@ Thumbs.db
 *.swo
 *~
 !manifest.json
+# Build stamp written by split/build.sh — an artefact, not data.
+!version.json
 
 # Playwright e2e (arming directive 2026-04-24)
 node_modules/

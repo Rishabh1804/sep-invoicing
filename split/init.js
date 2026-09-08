@@ -634,3 +634,75 @@ if (_launchNew && regFilter.activeTab === 'pageIM' && !_isDesktop) {
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('sw.js').catch(() => {});
 }
+
+/* ===== BUILD IDENTITY + UPDATE CHECK =====
+   The worker is network-first, so a fresh OPEN always gets the newest build —
+   but an installed app resumed from the recents screen never navigates, and
+   nothing told an open page that a build had shipped. It could run one build
+   for weeks. build.sh stamps the document and writes the same stamp to
+   version.json; the page re-reads that file whenever it comes back into view
+   and offers a reload when the two disagree. Offers, never forces: a reload
+   discards a half-typed challan, and that is the operator's call. */
+var APP_BUILD = (function() {
+  var m = document.querySelector('meta[name="app-build"]');
+  return (m && m.getAttribute('content')) || 'dev';
+})();
+var UPDATE_CHECK_GAP_MS = 5 * 60 * 1000;
+var _updateCheckedAt = 0;
+var _updateDismissed = null;
+
+// Resolves to 'newer' (banner shown), 'current', or 'unknown' (offline, or an
+// unbuilt copy that carries no stamp). The three are kept apart so a manual
+// check cannot report "up to date" on a device that simply had no signal.
+function checkForUpdate(force) {
+  if (APP_BUILD === 'dev') return Promise.resolve('unknown');
+  var now = Date.now();
+  if (!force && now - _updateCheckedAt < UPDATE_CHECK_GAP_MS) return Promise.resolve('current');
+  _updateCheckedAt = now;
+  return fetch('version.json', { cache: 'no-store' })
+    .then(function(r) { return r.ok ? r.json() : null; })
+    .then(function(v) {
+      var build = v && typeof v.build === 'string' ? v.build : '';
+      if (!build) return 'unknown';
+      if (build === APP_BUILD) return 'current';
+      if (force || build !== _updateDismissed) showUpdateBanner(build);
+      return 'newer';
+    })
+    .catch(function() { return 'unknown'; });
+}
+
+function showUpdateBanner(build) {
+  var existing = document.querySelector('.inv-update-bar');
+  if (existing) existing.remove();
+  var bar = document.createElement('div');
+  bar.className = 'inv-update-bar';
+  bar.setAttribute('role', 'status');
+  bar.dataset.build = build;
+  bar.innerHTML =
+    '<span class="inv-update-text">A newer version is available. Reload to update &mdash; ' +
+    'finish anything half-typed first.</span>' +
+    '<span class="inv-update-actions">' +
+    '<button class="inv-btn inv-btn-ghost inv-update-btn" data-action="invDismissUpdate">Later</button>' +
+    '<button class="inv-btn inv-btn-primary inv-update-btn" data-action="invReloadForUpdate">Reload</button>' +
+    '</span>';
+  document.body.appendChild(bar);
+}
+
+function dismissUpdateBanner() {
+  var bar = document.querySelector('.inv-update-bar');
+  if (!bar) return;
+  _updateDismissed = bar.dataset.build || null;
+  bar.remove();
+}
+
+function checkForUpdateManually() {
+  checkForUpdate(true).then(function(result) {
+    if (result === 'current') showToast('You are on the latest version (build ' + APP_BUILD + ')');
+    else if (result === 'unknown') showToast('Could not reach the server to check', 'warning');
+  });
+}
+
+document.addEventListener('visibilitychange', function() {
+  if (document.visibilityState === 'visible') checkForUpdate(false);
+});
+checkForUpdate(false);

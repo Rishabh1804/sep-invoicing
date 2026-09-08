@@ -8,7 +8,7 @@ set -euo pipefail
 cd "${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel)}"
 
 # 1. Arm the pre-commit hook.
-#    sep-invoicing.html and index.html are build artefacts of split/. The hook
+#    sep-invoicing.html, index.html and version.json are build artefacts of split/. The hook
 #    rebuilds and stages them so a commit cannot carry stale output. Git will
 #    not enable a repository's own hooks on clone — that would be arbitrary
 #    code execution on `git clone` — so every fresh clone must opt in.

@@ -16,9 +16,29 @@
 // - Static assets: cache-first, revalidated in the background.
 // - Gemini (scanner), metals.dev (zinc) and GitHub (sync) are network-only.
 
-const CACHE_NAME = 'sep-inv-v28';
-const SHELL_CACHE = 'sep-inv-shell-v28';
+const CACHE_NAME = 'sep-inv-v29';
+
+// The shell cache is deliberately NOT versioned. It holds one entry, and every
+// online navigation overwrites it with whatever the server just sent, so a
+// version suffix bought nothing — and it cost the offline copy on every bump:
+// the navigation that triggers a worker update is served by the OLD worker,
+// which stores the page under the old name; the new worker then activates,
+// deletes every cache not on its keep list, and its own shell cache is empty
+// until the next online open. A device that went offline in that window got
+// the "never loaded online" page, which was also untrue.
+const SHELL_CACHE = 'sep-inv-shell';
 const KEEP_CACHES = [CACHE_NAME, SHELL_CACHE];
+
+// Older workers (up to v28) wrote the shell under this prefix. Their entry is
+// carried across on activate before the cache is dropped, so the one upgrade
+// that crosses the rename does not lose the offline copy either.
+const LEGACY_SHELL_PREFIX = 'sep-inv-shell-v';
+
+// The app polls this to learn a newer build shipped (see init.js). It is
+// fetched with cache: 'no-store' and must reach the network: through the
+// cache-first asset path the app would read its own stale copy forever and
+// never see the update it is asking about.
+const UPDATE_MANIFEST = '/version.json';
 
 // Every navigation, whatever its query string, maps to this one shell entry.
 const SHELL_KEY = './';
@@ -83,12 +103,29 @@ self.addEventListener('install', function(e) {
 self.addEventListener('activate', function(e) {
   e.waitUntil((async function() {
     const keys = await caches.keys();
+    await migrateLegacyShell(keys);
     await Promise.all(keys.map(function(k) {
       return KEEP_CACHES.indexOf(k) === -1 ? caches.delete(k) : null;
     }));
     await self.clients.claim();
   })());
 });
+
+// Copy the last-known-good shell out of a versioned cache written by an older
+// worker, but only when the unversioned cache is still empty — a copy already
+// written by this worker is newer than anything a retired one left behind.
+async function migrateLegacyShell(keys) {
+  const shell = await caches.open(SHELL_CACHE);
+  if (await shell.match(SHELL_KEY)) return;
+  const legacy = keys.filter(function(k) { return k.indexOf(LEGACY_SHELL_PREFIX) === 0; }).sort();
+  for (let i = legacy.length - 1; i >= 0; i--) {
+    try {
+      const old = await caches.open(legacy[i]);
+      const copy = await old.match(SHELL_KEY);
+      if (copy) { await shell.put(SHELL_KEY, copy); return; }
+    } catch (err) { /* a damaged cache is not worth failing activation over */ }
+  }
+}
 
 self.addEventListener('fetch', function(e) {
   const req = e.request;
@@ -100,6 +137,9 @@ self.addEventListener('fetch', function(e) {
 
   // Browsers do not cache non-GET and neither do we.
   if (req.method !== 'GET') return;
+
+  // The update poll goes straight to the network, never through the cache.
+  if (url.origin === self.location.origin && url.pathname.endsWith(UPDATE_MANIFEST)) return;
 
   if (req.mode === 'navigate') {
     e.respondWith(navigationResponse(req));

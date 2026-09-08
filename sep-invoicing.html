@@ -15,6 +15,7 @@
 <title>SEP Invoicing</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<meta name="app-build" content="22c58051">
 <style>
 /* ===== DESIGN TOKENS ===== */
 :root {
@@ -343,6 +344,32 @@ input, select, textarea, button { font-family: inherit; font-size: var(--fs-base
 .inv-toast-success { background: var(--attend); color: #fff; }
 .inv-toast-warning { background: var(--warning-bg); color: var(--warning-text); border: 1px solid var(--warning); }
 .inv-toast-error { background: var(--danger); color: #fff; }
+
+/* ===== UPDATE BANNER =====
+   Persistent until answered, unlike a toast, so it sits under the header where
+   the toast does but below it in the stack — a toast fired while the banner is
+   up still reads. Colours are tokens, so the dark theme is covered by .dark
+   swapping them; nothing here is a raw value. */
+.inv-update-bar {
+  position: fixed; top: calc(var(--header-h) + var(--sp-8));
+  left: 50%; transform: translateX(-50%);
+  display: flex; align-items: center; gap: var(--sp-12); flex-wrap: wrap;
+  width: calc(100% - var(--sp-24)); max-width: calc(var(--max-w) - var(--sp-32));
+  padding: var(--sp-10) var(--sp-12);
+  background: var(--surface); color: var(--text-1);
+  border: 1px solid var(--accent); border-radius: var(--r-md);
+  box-shadow: var(--shadow-md); font-size: var(--fs-sm); z-index: 290;
+  animation: inv-fadeIn var(--anim-fast) ease;
+}
+.inv-update-text { flex: 1 1 12rem; line-height: 1.4; }
+.inv-update-actions { display: flex; gap: var(--sp-8); margin-left: auto; }
+.inv-update-btn { min-height: 44px; }
+.inv-link-btn {
+  background: none; border: none; padding: 0; margin: 0;
+  color: var(--accent); font: inherit; text-decoration: underline; cursor: pointer;
+  min-height: 44px; min-width: 44px;
+}
+.inv-link-btn:hover { color: var(--accent-dark); }
 
 /* ===== PREVIEW ===== */
 .inv-preview-container {
@@ -877,7 +904,7 @@ table.inv-qc-grid.inv-qc-no-top { border-top: 0; }
      64px right — asymmetric margins, and 240px when the sidebar was expanded.
      One more element selector settles it without reaching for !important. */
   html body.inv-desktop { margin-left: 0; }
-  .inv-header, .inv-tabs, .inv-fab, .inv-toast, .inv-page,
+  .inv-header, .inv-tabs, .inv-fab, .inv-toast, .inv-update-bar, .inv-page,
   .inv-overlay-scrim, .inv-print-toolbar, #imSelBar, .inv-scan-bar, .inv-sidebar { display: none !important; }
   .inv-print-view { position: static; display: block !important; overflow: visible; }
   .inv-print-body { padding: 0; }
@@ -5931,7 +5958,9 @@ function openSettings() {
     '<div class="inv-form-row"><button class="inv-btn inv-btn-ghost inv-btn-block" data-action="invExportData">Export JSON</button>' +
     '<button class="inv-btn inv-btn-ghost inv-btn-block" data-action="invImportData">Import JSON</button></div>' +
     '<input type="file" id="importFileInput" accept=".json" class="inv-hidden">' +
-    '<div class="inv-storage-wrap"><div class="inv-text-muted inv-storage-text">Storage: ' + estimateStorage() + '</div></div></div>' +
+    '<div class="inv-storage-wrap"><div class="inv-text-muted inv-storage-text">Storage: ' + estimateStorage() + '</div>' +
+    '<div class="inv-text-muted inv-storage-text">Build <span class="inv-build-id">' + escHtml(APP_BUILD) + '</span> &middot; ' +
+    '<button type="button" class="inv-link-btn" data-action="invCheckUpdate">Check for a newer version</button></div></div></div>' +
 
     '<div class="inv-btn-bar"><button class="inv-btn inv-btn-ghost" data-action="invCloseOverlay">Cancel</button>' +
     '<button class="inv-btn inv-btn-primary" data-action="invSaveSettings">Save</button></div></div>';
@@ -16823,6 +16852,9 @@ document.addEventListener('click', function(e) {
     case 'invSaveSettings': saveSettings(); break;
     case 'invExportData': exportData(); break;
     case 'invImportData': importData(); break;
+    case 'invCheckUpdate': checkForUpdateManually(); break;
+    case 'invReloadForUpdate': window.location.reload(); break;
+    case 'invDismissUpdate': dismissUpdateBanner(); break;
     case 'invAddPartWeight': addPartWeight(); break;
     case 'invDeletePartWeight': deletePartWeight(btn.dataset.part); break;
     case 'invViewInvoiceDetail': openInvoiceDetail(btn.dataset.id); break;
@@ -18243,6 +18275,78 @@ if (_launchNew && regFilter.activeTab === 'pageIM' && !_isDesktop) {
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('sw.js').catch(() => {});
 }
+
+/* ===== BUILD IDENTITY + UPDATE CHECK =====
+   The worker is network-first, so a fresh OPEN always gets the newest build —
+   but an installed app resumed from the recents screen never navigates, and
+   nothing told an open page that a build had shipped. It could run one build
+   for weeks. build.sh stamps the document and writes the same stamp to
+   version.json; the page re-reads that file whenever it comes back into view
+   and offers a reload when the two disagree. Offers, never forces: a reload
+   discards a half-typed challan, and that is the operator's call. */
+var APP_BUILD = (function() {
+  var m = document.querySelector('meta[name="app-build"]');
+  return (m && m.getAttribute('content')) || 'dev';
+})();
+var UPDATE_CHECK_GAP_MS = 5 * 60 * 1000;
+var _updateCheckedAt = 0;
+var _updateDismissed = null;
+
+// Resolves to 'newer' (banner shown), 'current', or 'unknown' (offline, or an
+// unbuilt copy that carries no stamp). The three are kept apart so a manual
+// check cannot report "up to date" on a device that simply had no signal.
+function checkForUpdate(force) {
+  if (APP_BUILD === 'dev') return Promise.resolve('unknown');
+  var now = Date.now();
+  if (!force && now - _updateCheckedAt < UPDATE_CHECK_GAP_MS) return Promise.resolve('current');
+  _updateCheckedAt = now;
+  return fetch('version.json', { cache: 'no-store' })
+    .then(function(r) { return r.ok ? r.json() : null; })
+    .then(function(v) {
+      var build = v && typeof v.build === 'string' ? v.build : '';
+      if (!build) return 'unknown';
+      if (build === APP_BUILD) return 'current';
+      if (force || build !== _updateDismissed) showUpdateBanner(build);
+      return 'newer';
+    })
+    .catch(function() { return 'unknown'; });
+}
+
+function showUpdateBanner(build) {
+  var existing = document.querySelector('.inv-update-bar');
+  if (existing) existing.remove();
+  var bar = document.createElement('div');
+  bar.className = 'inv-update-bar';
+  bar.setAttribute('role', 'status');
+  bar.dataset.build = build;
+  bar.innerHTML =
+    '<span class="inv-update-text">A newer version is available. Reload to update &mdash; ' +
+    'finish anything half-typed first.</span>' +
+    '<span class="inv-update-actions">' +
+    '<button class="inv-btn inv-btn-ghost inv-update-btn" data-action="invDismissUpdate">Later</button>' +
+    '<button class="inv-btn inv-btn-primary inv-update-btn" data-action="invReloadForUpdate">Reload</button>' +
+    '</span>';
+  document.body.appendChild(bar);
+}
+
+function dismissUpdateBanner() {
+  var bar = document.querySelector('.inv-update-bar');
+  if (!bar) return;
+  _updateDismissed = bar.dataset.build || null;
+  bar.remove();
+}
+
+function checkForUpdateManually() {
+  checkForUpdate(true).then(function(result) {
+    if (result === 'current') showToast('You are on the latest version (build ' + APP_BUILD + ')');
+    else if (result === 'unknown') showToast('Could not reach the server to check', 'warning');
+  });
+}
+
+document.addEventListener('visibilitychange', function() {
+  if (document.visibilityState === 'visible') checkForUpdate(false);
+});
+checkForUpdate(false);
 </script>
 </body>
 </html>

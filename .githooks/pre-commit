@@ -1,7 +1,7 @@
 #!/bin/sh
 # SEP Invoicing — pre-commit hook
 #
-# sep-invoicing.html and index.html are build artefacts of split/. Committing
+# sep-invoicing.html, index.html and version.json are build artefacts of split/. Committing
 # them stale is the failure this hook exists to prevent (see f29b35a,
 # "reconcile index.html drift"). CI enforces the same invariant, but only
 # after a push — this catches it before the commit exists.
@@ -24,4 +24,4 @@ fi
 
 bash "$ROOT/split/build.sh"
 
-git add "$ROOT/sep-invoicing.html" "$ROOT/index.html"
+git add "$ROOT/sep-invoicing.html" "$ROOT/index.html" "$ROOT/version.json"

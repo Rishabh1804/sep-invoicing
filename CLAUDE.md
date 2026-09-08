@@ -23,7 +23,7 @@ Split-file PWA. 33 modules, ~15,950 lines total.
 
 ```
 split/
-├── build.sh           ← writes ../sep-invoicing.html, syncs ../index.html
+├── build.sh           ← writes ../sep-invoicing.html, syncs ../index.html, stamps ../version.json
 ├── head.html          ← DOCTYPE, meta, font links (17 lines)
 ├── styles.css         ← All CSS with inv- prefix (2,720 lines)
 ├── body.html          ← HTML body, tabs, print view (137 lines)
@@ -68,9 +68,16 @@ bash split/build.sh
 git add -A && git commit -m "description" && git push
 ```
 
-`build.sh` writes `sep-invoicing.html` and syncs `index.html` itself. Never edit either by hand.
+`build.sh` writes `sep-invoicing.html`, syncs `index.html`, and writes `version.json`. Never
+edit any of the three by hand.
 
-The pre-commit hook in `.githooks/` rebuilds and stages both artefacts, so a commit
+**The build is stamped, and the stamp is a hash of `split/`, not a git SHA or a clock.** The
+pre-commit hook builds before the commit exists (HEAD would be the parent), and CI rebuilds and
+diffs the output, so a stamp that is not a pure function of the sources fails `build-sync` on
+every commit. The same eight hex characters go into the document as `<meta name="app-build">`
+and into `version.json`; Settings shows it, so a bug report can name the build it was seen on.
+
+The pre-commit hook in `.githooks/` rebuilds and stages all three artefacts, so a commit
 can't carry stale output. Sessions clone fresh, so `.claude/hooks/session-start.sh`
 arms it (`git config core.hooksPath .githooks`) and installs the test dependencies on
 every session start — nothing to set up by hand. CI (`build-sync`) is the backstop.
@@ -78,7 +85,7 @@ every session start — nothing to set up by hand. CI (`build-sync`) is the back
 ### Tests
 
 ```bash
-pnpm exec playwright test          # 267 tests, both layouts
+pnpm exec playwright test          # 323 tests, both layouts
 ```
 
 Some sandboxes ship a Chromium build Playwright does not expect and block downloading
@@ -1225,6 +1232,30 @@ Static assets are cache-first and revalidated behind the response. The install s
 same-origin assets atomic but lets the cross-origin font CSS fail on its own — it used to sit
 in the same `addAll()`, so one CDN hiccup rejected the install and the worker never activated.
 Gemini, metals.dev and api.github.com are never intercepted.
+
+**The shell cache is not versioned, and a worker bump used to delete the only offline copy.**
+The navigation that triggers a worker update is served by the *old* worker, which stored the
+page under the old versioned name; the new worker then activated, deleted every cache not on
+its keep list, and its own shell cache stayed empty until the next online open. A device that
+went offline in that window got the "never loaded online" page, which was also untrue. The
+shell cache holds one entry that every online navigation overwrites, so the version suffix
+bought nothing. `sep-inv-shell` now outlives the worker that wrote it, and the one upgrade
+that crosses the rename copies the legacy `sep-inv-shell-v*` entry across before dropping it.
+`CACHE_NAME` keeps its suffix — that cache is rebuilt at install anyway.
+
+**An open app is told when a build ships; it is never reloaded for it.** Network-first makes
+every fresh open current, but an installed app resumed from recents never navigates, so nothing
+told an open page that a build had shipped — it could run one build for weeks with no way to
+say which. The page re-reads `version.json` (`cache: 'no-store'`; the worker steps aside for
+that one path, or it would read its own stale copy forever) whenever it comes back into view,
+throttled to once in five minutes, and raises a banner when the stamp differs from its own.
+The banner offers a reload and says to finish anything half-typed first: a reload discards an
+in-progress challan, and that is the operator's call. *Later* silences that build only; the
+next one asks again. The manual check in Settings keeps *could not reach the server* apart from
+*up to date*, so an offline device is never told it is current.
+
+Note what the stamp is and is not: it identifies the **document**, so a change to `sw.js` alone
+does not move it — the worker updates through the browser's own byte-compare, as before.
 
 @import docs/SEP_INVOICING_DESIGN_PRINCIPLES.md
 @import docs/ARCHITECTURE.md

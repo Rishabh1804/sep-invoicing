@@ -32,7 +32,7 @@ jobs:
 
       - name: Committed HTML matches split/ sources
         run: |
-          if ! git diff --exit-code -- sep-invoicing.html index.html; then
+          if ! git diff --exit-code -- sep-invoicing.html index.html version.json; then
             echo "::error::Built output is stale. Run 'bash split/build.sh' and commit the result. Enabling the pre-commit hook (git config core.hooksPath .githooks) does this automatically."
             exit 1
           fi

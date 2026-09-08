@@ -326,6 +326,32 @@ input, select, textarea, button { font-family: inherit; font-size: var(--fs-base
 .inv-toast-warning { background: var(--warning-bg); color: var(--warning-text); border: 1px solid var(--warning); }
 .inv-toast-error { background: var(--danger); color: #fff; }
 
+/* ===== UPDATE BANNER =====
+   Persistent until answered, unlike a toast, so it sits under the header where
+   the toast does but below it in the stack — a toast fired while the banner is
+   up still reads. Colours are tokens, so the dark theme is covered by .dark
+   swapping them; nothing here is a raw value. */
+.inv-update-bar {
+  position: fixed; top: calc(var(--header-h) + var(--sp-8));
+  left: 50%; transform: translateX(-50%);
+  display: flex; align-items: center; gap: var(--sp-12); flex-wrap: wrap;
+  width: calc(100% - var(--sp-24)); max-width: calc(var(--max-w) - var(--sp-32));
+  padding: var(--sp-10) var(--sp-12);
+  background: var(--surface); color: var(--text-1);
+  border: 1px solid var(--accent); border-radius: var(--r-md);
+  box-shadow: var(--shadow-md); font-size: var(--fs-sm); z-index: 290;
+  animation: inv-fadeIn var(--anim-fast) ease;
+}
+.inv-update-text { flex: 1 1 12rem; line-height: 1.4; }
+.inv-update-actions { display: flex; gap: var(--sp-8); margin-left: auto; }
+.inv-update-btn { min-height: 44px; }
+.inv-link-btn {
+  background: none; border: none; padding: 0; margin: 0;
+  color: var(--accent); font: inherit; text-decoration: underline; cursor: pointer;
+  min-height: 44px; min-width: 44px;
+}
+.inv-link-btn:hover { color: var(--accent-dark); }
+
 /* ===== PREVIEW ===== */
 .inv-preview-container {
   background: #fff; padding: var(--sp-16); border: 1px solid var(--border);
@@ -859,7 +885,7 @@ table.inv-qc-grid.inv-qc-no-top { border-top: 0; }
      64px right — asymmetric margins, and 240px when the sidebar was expanded.
      One more element selector settles it without reaching for !important. */
   html body.inv-desktop { margin-left: 0; }
-  .inv-header, .inv-tabs, .inv-fab, .inv-toast, .inv-page,
+  .inv-header, .inv-tabs, .inv-fab, .inv-toast, .inv-update-bar, .inv-page,
   .inv-overlay-scrim, .inv-print-toolbar, #imSelBar, .inv-scan-bar, .inv-sidebar { display: none !important; }
   .inv-print-view { position: static; display: block !important; overflow: visible; }
   .inv-print-body { padding: 0; }

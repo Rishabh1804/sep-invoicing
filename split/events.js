@@ -38,6 +38,9 @@ document.addEventListener('click', function(e) {
     case 'invSaveSettings': saveSettings(); break;
     case 'invExportData': exportData(); break;
     case 'invImportData': importData(); break;
+    case 'invCheckUpdate': checkForUpdateManually(); break;
+    case 'invReloadForUpdate': window.location.reload(); break;
+    case 'invDismissUpdate': dismissUpdateBanner(); break;
     case 'invAddPartWeight': addPartWeight(); break;
     case 'invDeletePartWeight': deletePartWeight(btn.dataset.part); break;
     case 'invViewInvoiceDetail': openInvoiceDetail(btn.dataset.id); break;

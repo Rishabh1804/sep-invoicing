@@ -517,31 +517,65 @@ test('P19: the reference can be set by hand, and the headroom rule still binds',
   expect((await stored(page)).creditNotes[0].againstInvoice).toBe('SEP/TEST-00002');
 
   const id = (await stored(page)).creditNotes[0].id;
-  // `S` is a `let` binding and unreachable from evaluate(); the setter calls
-  // saveState(), so each step is read back out of localStorage instead.
-  const setTo = async (typed: string) => {
-    await page.evaluate(([cnId, t]) => {
-      (window as unknown as { prompt: unknown }).prompt = () => t;
-      (window as unknown as { cnSetAgainstInvoice: (i: string) => void }).cnSetAgainstInvoice(cnId);
-    }, [id, typed]);
+  // A PICK-LIST, not a text box: the valid set is the batch, and the numbers are
+  // 17 characters an operator would otherwise retype exactly on a shop phone.
+  const pick = async (idx: number) => {
+    await page.evaluate(([cnId, i]) => {
+      (window as unknown as { cnPickAgainst: (c: string, n: number) => void })
+        .cnPickAgainst(cnId as string, i as number);
+    }, [id, idx] as [string, number]);
     return (await stored(page)).creditNotes[0];
   };
 
-  // A qualifying invoice that is NOT the rule's pick is accepted.
-  const chosen = await setTo('SEP/TEST-00001');
+  // A qualifying invoice that is NOT the rule's pick is accepted (index 0 =
+  // SEP/TEST-00001 at 5,000).
+  const chosen = await pick(0);
   expect(chosen.againstInvoice).toBe('SEP/TEST-00001');
   expect(chosen.againstInvoiceDate).toBeTruthy();
 
-  // One too small to carry the credit is refused — the arithmetic reason for the
-  // headroom test does not care who chose the invoice.
-  expect((await setTo('SEP/TEST-00003')).againstInvoice).toBe('SEP/TEST-00001');
-
-  // One outside the batch is refused: it would break the s.15(3)(b) linkage the
-  // annex exists to evidence.
-  expect((await setTo('SEP/TEST-00404')).againstInvoice).toBe('SEP/TEST-00001');
+  // One too small to carry the credit is refused — the headroom test binds
+  // whoever chose the invoice.
+  expect((await pick(2)).againstInvoice).toBe('SEP/TEST-00001');
 
   // Cleared, and the rule is free to choose again.
-  expect((await setTo('')).againstInvoice).toBeUndefined();
+  expect((await pick(-1)).againstInvoice).toBeUndefined();
+
+  // The overlay offers exactly the batch — an invoice outside it is not
+  // representable, which is the point of a pick-list over free text.
+  await page.evaluate((cnId) => {
+    (window as unknown as { cnSetAgainstInvoice: (c: string) => void }).cnSetAgainstInvoice(cnId);
+  }, id);
+  const offered = await page.locator('.inv-overlay-scrim .inv-reg-invnum').allInnerTexts();
+  expect(offered.sort()).toEqual(['SEP/TEST-00001', 'SEP/TEST-00002', 'SEP/TEST-00003']);
+  // And the one that cannot carry the credit is shown as unpickable, with why.
+  await expect(page.locator('.inv-overlay-scrim .inv-reg-row-cancelled')).toContainText('SEP/TEST-00003');
+});
+
+test('P19: a cancelled note is neither stamped nor editable', async ({ page }) => {
+  // A cancelled note credits nothing and exports at zero, so it has no credit to
+  // attribute. The migration must skip it and the setter must refuse it — if the
+  // two disagree, the machine writes a reference the operator cannot correct
+  // (Cipher C-5). Measured on BM's own state: CN/006 is cancelled.
+  const st = mehtaState([
+    invoice(1, { date: daysAgoIso(20), taxableValue: 9000 }),
+    invoice(2, { date: daysAgoIso(2), taxableValue: 9000 }),
+  ]);
+  (st as SepState & { creditNotes: unknown[] }).creditNotes = [
+    { id: 'CN-x', displayNumber: 'CN/006/26-27', status: 'cancelled',
+      invoiceIds: ['INV-1', 'INV-2'],
+      invoiceNumbers: ['SEP/TEST-00001', 'SEP/TEST-00002'], taxableValue: 100 },
+  ];
+  await loadForBatch(page, st);
+
+  // The migration ran at boot and left it alone.
+  expect((await stored(page)).creditNotes[0].againstInvoice).toBeUndefined();
+
+  // And the setter refuses it rather than opening a picker over it.
+  await page.evaluate(() => {
+    (window as unknown as { cnSetAgainstInvoice: (c: string) => void }).cnSetAgainstInvoice('CN-x');
+  });
+  await expect(page.locator('.inv-overlay-scrim')).toHaveCount(0);
+  expect((await stored(page)).creditNotes[0].againstInvoice).toBeUndefined();
 });
 
 test('P19: the reference is on the same tax head as the note', async ({ page }) => {

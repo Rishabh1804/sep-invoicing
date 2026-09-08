@@ -411,7 +411,23 @@ if (!S._cnSeriesStart1) {
 (function() {
   var stamped = 0, tooSmall = 0, gone = 0;
   (S.creditNotes || []).forEach(function(cn) {
-    if (cn.againstInvoice) return;
+    // A CANCELLED note credits nothing and exports at zero, so it has no credit
+    // to attribute — the same reading that stops a cancelled INVOICE being named
+    // and stops a cancelled NOTE consuming headroom. It also has to be skipped
+    // for the two halves to agree: cnSetAgainstInvoice refuses a cancelled note,
+    // so stamping one here would write a reference the operator cannot correct.
+    if (cn.status === 'cancelled') return;
+    if (cn.againstInvoice) {
+      // Backfill only. A note stamped before the date was carried would never
+      // get one, and the whole stated reason for snapshotting it — that a
+      // deleted invoice must not strip a statutory particular off the
+      // customer's copy — would silently not apply to it.
+      if (!cn.againstInvoiceDate && cn.againstInvoiceId) {
+        var held = (S.invoices || []).find(function(i) { return i.id === cn.againstInvoiceId; });
+        if (held && held.date) { cn.againstInvoiceDate = held.date; stamped++; }
+      }
+      return;
+    }
     var against = typeof cnDeriveAgainstInvoice === 'function' ? cnDeriveAgainstInvoice(cn) : null;
     if (!against) {
       var ids = cn.invoiceIds || [];

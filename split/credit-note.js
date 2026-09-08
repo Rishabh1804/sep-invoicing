@@ -612,28 +612,88 @@ function cnAgainstInvoiceLabel(cn) {
 function cnSetAgainstInvoice(id) {
   var cn = getCreditNotes().find(function(c) { return c.id === id; });
   if (!cn) return;
+  // A cancelled note credits nothing, so it has nothing to attribute — the same
+  // reading that keeps a cancelled INVOICE from being named and a cancelled NOTE
+  // from consuming headroom. The migration skips them for this reason too, so
+  // the two agree rather than one writing what the other forbids correcting.
   if (cn.status === 'cancelled') { showToast('That credit note is cancelled', 'error'); return; }
-  var current = cnAgainstInvoiceLabel(cn);
-  var typed = prompt('Invoice this credit note is taken against.\n\nMust be one of the ' +
-    (cn.invoiceNumbers || []).length + ' in the batch and large enough to carry \u20b9' +
-    formatNum(cn.taxableValue, 2) + ' taxable.\n\nBatch: ' +
-    (cn.invoiceNumbers || []).join(', '), cn.againstInvoice || (current.indexOf('\u2014') === 0 ? '' : current));
-  if (typed === null) return;
-  var want = String(typed).trim();
-  if (!want) {
+
+  // A PICK-LIST, not a text box. The valid set is the batch — enumerable, small,
+  // and already in hand — and the numbers are 17 characters with slashes that an
+  // operator would otherwise retype exactly on a shop-floor phone. It also keeps
+  // the control inside the design system: a native dialog carries no inv- class,
+  // no dark mode and no 44px target.
+  var need = Number(cn.taxableValue) || 0;
+  var rows = (cn.invoiceNumbers || []).map(function(num, idx) {
+    // By INDEX, not by re-finding on the number: invoiceIds/invoiceNumbers/
+    // invoiceDates are parallel, and this app has a first-class `reissued`
+    // number class, so a number can resolve to an invoice that is not the one
+    // the note credited.
+    var invId = (cn.invoiceIds || [])[idx];
+    var inv = (S.invoices || []).find(function(i) { return i.id === invId; });
+    return { num: num, idx: idx, inv: inv };
+  });
+
+  var html = '<div class="inv-overlay-card">' +
+    '<div class="inv-overlay-header"><span class="inv-overlay-title">Against invoice &mdash; ' +
+    escHtml(cn.displayNumber) + '</span>' +
+    '<button class="inv-overlay-close" data-action="invCloseOverlay" aria-label="Close">&times;</button></div>' +
+    '<div class="inv-empty-state">Pick the invoice this credit note is taken against. It must carry ' +
+    formatCurrency(need) + ' taxable.</div><div class="inv-card-list">';
+
+  rows.forEach(function(r) {
+    var why = '';
+    if (!r.inv) why = 'no longer in the register';
+    else if (r.inv.status === 'cancelled') why = 'cancelled — credits nothing';
+    else if (cnInvoiceHeadroom(r.inv, cn.id) < need) why = 'only ' + formatCurrency(cnInvoiceHeadroom(r.inv, cn.id)) + ' left';
+    var chosen = cn.againstInvoice === r.num;
+    html += '<div class="inv-reg-row' + (why ? ' inv-reg-row-cancelled' : '') + '">' +
+      (why ? '<div class="inv-reg-row-content">' :
+        '<div class="inv-reg-row-content" data-action="invCnPickAgainst" data-id="' + escHtml(cn.id) +
+        '" data-idx="' + r.idx + '">') +
+      '<div class="inv-reg-row-top"><div class="inv-reg-status-row">' +
+      '<span class="inv-reg-invnum">' + escHtml(r.num) + '</span>' +
+      (chosen ? ' <span class="inv-cancelled-badge">Current</span>' : '') + '</div>' +
+      '<div class="inv-reg-amounts"><span class="inv-reg-taxable">' +
+      (r.inv ? 'Taxable: ' + formatCurrency(r.inv.taxableValue) : '&mdash;') + '</span></div></div>' +
+      (why ? '<div class="inv-reg-row-bottom"><span class="inv-text-muted inv-text-xs">' +
+        escHtml(why) + '</span></div>' : '') +
+      '</div></div>';
+  });
+
+  html += '</div><div class="inv-btn-bar">' +
+    '<button class="inv-btn inv-btn-ghost" data-action="invCnPickAgainst" data-id="' + escHtml(cn.id) +
+    '" data-idx="-1">Clear &mdash; let the rule choose</button></div></div>';
+
+  var existing = document.querySelector('.inv-overlay-scrim');
+  if (existing) { existing.innerHTML = html; return; }
+  var scrim = document.createElement('div');
+  scrim.className = 'inv-overlay-scrim';
+  scrim.innerHTML = html;
+  scrim.addEventListener('click', function(e) { if (e.target === scrim) { scrim.remove(); document.body.style.overflow = ''; popFocus(); } });
+  pushFocus();
+  document.body.appendChild(scrim);
+  document.body.style.overflow = 'hidden';
+  focusFirstInteractive(scrim.querySelector('.inv-overlay-card'));
+}
+
+/* Commit the pick. The headroom test binds whoever chose the invoice — the
+   arithmetic reason for it does not care whether the rule or the operator did. */
+function cnPickAgainst(id, idx) {
+  var cn = getCreditNotes().find(function(c) { return c.id === id; });
+  if (!cn || cn.status === 'cancelled') return;
+  if (idx < 0) {
     delete cn.againstInvoice; delete cn.againstInvoiceId; delete cn.againstInvoiceDate;
-    saveState(); showToast('Reference cleared \u2014 the rule will choose again', 'success');
+    saveState();
+    showToast('Reference cleared \u2014 the rule will choose again', 'success');
     renderCreditNoteList(); return;
   }
-  // It must be IN THE BATCH. A reference outside the invoices the discount was
-  // computed on would break the s.15(3)(b) linkage the annex exists to evidence.
-  var idx = (cn.invoiceNumbers || []).indexOf(want);
-  if (idx === -1) { showToast(want + ' is not in this batch', 'error'); return; }
-  var inv = (S.invoices || []).find(function(i) { return i.displayNumber === want; });
-  if (!inv) { showToast(want + ' is no longer in the register', 'error'); return; }
-  if (inv.status === 'cancelled') { showToast(want + ' is cancelled \u2014 it credits nothing', 'error'); return; }
+  var invId = (cn.invoiceIds || [])[idx];
+  var inv = (S.invoices || []).find(function(i) { return i.id === invId; });
+  if (!inv) { showToast('That invoice is no longer in the register', 'error'); return; }
+  if (inv.status === 'cancelled') { showToast(inv.displayNumber + ' is cancelled \u2014 it credits nothing', 'error'); return; }
   if (cnInvoiceHeadroom(inv, cn.id) < (Number(cn.taxableValue) || 0)) {
-    showToast(want + ' is not large enough to carry this credit', 'error'); return;
+    showToast(inv.displayNumber + ' is not large enough to carry this credit', 'error'); return;
   }
   cn.againstInvoice = inv.displayNumber;
   cn.againstInvoiceId = inv.id;
@@ -802,7 +862,8 @@ function exportCreditNotesCSV() {
       // number column is worse than an empty cell. Empty means "no reference
       // stamped", which is the truth. N.B. `Against Invoice` is NOT a 9B column
       // — since the Sept-2020 de-linking, table 9B is keyed on the note alone —
-      // so this and the four columns after it are SEP's own working fields.
+      // so this and the FIVE columns after it (date, period from, period to,
+      // discount %, batch taxable) are SEP's own working fields.
       cn.againstInvoice || (cnDeriveAgainstInvoice(cn) || {}).displayNumber || '',
       cnAgainstInvoiceDate(cn) ? formatDateExport(cnAgainstInvoiceDate(cn)) : '',
       formatDateExport(cn.periodFrom), formatDateExport(cn.periodTo),

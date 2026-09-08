@@ -402,7 +402,12 @@ settles how far it reaches — **they asked for it against CN/007, a note they a
 copy of.** So the note names **one invoice** and the batch survives in full on the annex, which is
 where the s.15(3)(b) linkage limb actually lives: a post-supply discount reduces taxable value only
 where it is specifically linked to the relevant invoices, so the annex caption has to keep *claiming*
-that linkage rather than merely describing the arithmetic. Rule 53(1A)(g) wants the serial number
+that linkage rather than merely describing the arithmetic. ✅ **The invoice DATE beside its number
+is a CLIENT REQUIREMENT, confirmed by the owner 8 Sep 2026** — SSS Mehta need it, which settles the
+question on its own and independently of the statute. It also happens to be what rule 53(1A)(g)
+requires, but note the order of the reasoning: **the requirement is the customer's, and the citation
+is this repo's unverified reading** (asserted here, never checked with the filing CA). A document
+prints the date because the person receiving it needs it. Rule 53(1A)(g) wants the serial number
 **and the date** of the corresponding invoice, so both are printed, and both are snapshotted onto the
 note — a deleted invoice must not strip a statutory particular off a document somebody holds.
 

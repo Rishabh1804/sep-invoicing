@@ -393,8 +393,35 @@ the check cannot fail. It sits in the desktop project. A test that cannot fail i
 ### Credit notes
 SSS Mehta hold a **standing 2% discount on any payment batch spanning 7 days or more** — bought
 to smooth cash flow, temporary but in force. Each such batch ships as two documents: the sales
-register for the range, and a credit note for 2% of it. So **the batch is the unit, not the
-invoice**, which is why the 04/08/26 reference credits ₹5,902.12 against ~₹2.95L of taxable.
+register for the range, and a credit note for 2% of it. So **the batch is the unit of COMPUTATION,
+not the invoice**, which is why the 04/08/26 reference credits ₹5,902.12 against ~₹2.95L of taxable.
+
+**But the batch is not what the note is ATTRIBUTED to, and that is the customer's own call.** SSS
+Mehta asked for a single invoice number on the face rather than a range, and — this is the part that
+settles how far it reaches — **they asked for it against CN/007, a note they already held a printed
+copy of.** So the note names **one invoice** and the batch survives in full on the annex, which is
+where the s.15(3)(b) linkage limb actually lives: a post-supply discount reduces taxable value only
+where it is specifically linked to the relevant invoices, so the annex caption has to keep *claiming*
+that linkage rather than merely describing the arithmetic. Rule 53(1A)(g) wants the serial number
+**and the date** of the corresponding invoice, so both are printed, and both are snapshotted onto the
+note — a deleted invoice must not strip a statutory particular off a document somebody holds.
+
+**The pick is a DEFAULT, never an authority, and two real notes prove why.** The app chooses the
+largest invoice with enough headroom, net of notes already taken against it. Measured against
+`sep-invoicing-backup-2026-09-07.json`: **CN/005's recorded reference `000716` IS that invoice** —
+the rule reproduces a real issued document unaided. **CN/004's `000443` is not** — it qualifies
+comfortably but ranks fourth of twenty, and BM confirmed (8 Sep 2026) it is the number on the
+customer's copy. BM's own convention is looser than the rule: *"use any invoice that has at least
+that much amount billed"*. So the reference is **operator-settable from a pick-list over the batch**,
+bound by the same headroom test — a document in somebody's hands is a fact, and a rule is not.
+
+⚠ **And the pick is NOT invariant, unlike the certificate reference it was once compared to.**
+`QC/<number>/<line>` is structurally derived and cannot move; this reads a **mutable money field**,
+and those move — CN/006's stored `batchTaxable` already disagrees with the sum of its own invoices by
+₹81.00, and the margin between first and second place on live data is ₹640.58. What makes a reprint
+stable is the **stamp** written at creation, not the rule. A cancelled note is never stamped and
+never named against: it credits nothing, the same reading that keeps a cancelled *invoice* from being
+named and a cancelled *note* from consuming headroom.
 
 Raised from a register selection, which is what makes select-all and the date-range filter part
 of the same workflow: tick the batch, export its register, raise the note off the same set. One

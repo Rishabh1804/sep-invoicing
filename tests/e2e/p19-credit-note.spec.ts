@@ -610,3 +610,54 @@ test('P19: the reference is on the same tax head as the note', async ({ page }) 
   expect(r.noMatch).toBe('SEP/TEST-00001');
   expect(r.unstated).toBe('SEP/TEST-00001');
 });
+
+test('P19: the annex fits the sheet however many invoices a batch names', async ({ page }) => {
+  /* Adding a date to every entry grew the live CN/007 annex from 264 to 459
+     characters — 1.74x — on a printed GST document, and NOTHING in this file
+     measured the credit note's sheet fit (Cipher C-12). That is the shape of
+     this repo's most expensive print regression: invoice 00866 ran 752px of
+     content into a 703px page, measured only after it came back from the
+     floor, because the harness was structurally blind to it.
+
+     The overflow MECHANISM is absent here — .inv-cn-annex-list carries
+     overflow-wrap: break-word and no .inv-cn-* rule sets nowrap — so this is a
+     guard, not a reproduction. It exists so the next thing added to the annex
+     cannot silently run off the paper. */
+  const many = Array.from({ length: 30 }, (_, i) =>
+    invoice(i + 1, { date: daysAgoIso(30 - i), taxableValue: 9000 }));
+  await loadForBatch(page, mehtaState(many));
+  await openCnForm(page);
+  await page.locator('[data-action="invCnSave"]').click();
+
+  // A4 at 96dpi. The project's phone viewport is far narrower than a sheet, so
+  // an overflow that only exists at print width is invisible to every other
+  // check in this file.
+  await page.setViewportSize({ width: 794, height: 1123 });
+
+  const measure = () => page.evaluate(() => {
+    const doc = document.querySelector('.inv-cn-doc') as HTMLElement;
+    const cs = getComputedStyle(doc);
+    const printable = doc.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+    // scrollWidth, not the box width: `width: 100%` hides an overflow inside
+    // the element's own box, so the box can never report it.
+    const widest = Math.max(...[...doc.querySelectorAll('*')]
+      .map((el) => (el as HTMLElement).scrollWidth));
+    return { printable: Math.round(printable), widest: Math.round(widest) };
+  });
+
+  const asShipped = await measure();
+  expect(asShipped.widest).toBeLessThanOrEqual(asShipped.printable);
+
+  /* And again in a deliberately wide face — the assertion that makes this mean
+     the same thing on a laptop, on CI (no webfonts, different fallback) and on
+     the shop's Windows box. sw.js lets the webfont CSS fail rather than block
+     the install, so the fallback is a real print path, not a test artifact. */
+  await page.addStyleTag({ content: '.inv-cn-doc{--ff-base:"DejaVu Sans",sans-serif}' });
+  const wideFace = await measure();
+  expect(wideFace.widest).toBeLessThanOrEqual(wideFace.printable);
+
+  // 30 dated entries are actually on the sheet — the guard must be measuring a
+  // loaded annex, not an empty one.
+  const annex = await page.locator('.inv-cn-annex-list').innerText();
+  expect((annex.match(/\(\d{2}\/\d{2}\/\d{4}\)/g) || [])).toHaveLength(30);
+});

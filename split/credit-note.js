@@ -302,6 +302,10 @@ function saveCreditNote() {
     // customer's copy does not lose its reference when ours does.
     invoiceIds: invoices.map(function(i) { return i.id; }),
     invoiceNumbers: invoices.map(function(i) { return i.displayNumber; }),
+    // The DATE is a client requirement — SSS Mehta need it (owner, 8 Sep 2026) —
+    // and that alone settles it. It is also what rule 53(1A)(g) appears to
+    // require, but that citation is this repo's own reading and was never
+    // checked with the filing CA, so it is the second reason and not the first.
     // Rule 53(1A)(g) wants the serial number AND the date of each corresponding
     // invoice. Dates are snapshotted for the same reason the numbers are: a
     // deleted invoice must not strip a statutory particular off a document the

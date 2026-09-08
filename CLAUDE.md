@@ -1225,6 +1225,10 @@ session — `persistState()` returns false, the boot banner says so and stays �
 default book on top of an unreadable copy turns *unreadable* into *lost*. The read-error banner
 and the save-failure banner are different kinds; a save that lands clears only the latter.
 
+✅ **Confirmed on the affected phone, 8 Sep 2026 (owner):** on build `05407536`, the import that had
+failed since 12 Aug landed, and the data survived a reload. Same device, same Chrome 152, same file —
+the only change was the store.
+
 **GitHub sync** is an optional second copy, not a backend. It pushes the whole state as one
 JSON file to a repo through the Contents API and pulls it back on another device. It is
 deliberately last-writer-wins — the state is a single document with no per-record clocks, so

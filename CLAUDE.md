@@ -28,13 +28,13 @@ split/
 ├── styles.css         ← All CSS with inv- prefix (2,720 lines)
 ├── body.html          ← HTML body, tabs, print view (137 lines)
 ├── data.js            ← ITEMS_MASTER + SEED_CLIENTS (27 lines)
-├── state.js           ← State mgmt, verified saves, escHtml, gstRound (464 lines)
+├── state.js           ← IndexedDB store, verified coalesced saves, escHtml, gstRound (677 lines)
 ├── zinc.js            ← Zinc market rate: store, display, metals.dev refresh (199 lines)
 ├── tabs.js            ← switchTab (9-step protocol) + renderHome (188 lines)
 ├── clients.js         ← Client Master CRUD + overlay (343 lines)
 ├── items.js           ← Items Master: subview, CRUD, merge, weights (1,262 lines)
 ├── create.js          ← Invoice creation form, 3 billing modes (312 lines)
-├── settings.js        ← Settings overlay + import/export + storage diagnostics (392 lines)
+├── settings.js        ← Settings overlay + import/export + storage diagnostics (457 lines)
 ├── github-sync.js     ← GitHub Contents API push/pull, SHA conflict guard (452 lines)
 ├── invoice-ops.js     ← Invoice detail, edit, cancel, delete, register (949 lines)
 ├── number-audit.js    ← Void ledger + serial-sequence audit + gap reconcile (311 lines)
@@ -55,7 +55,7 @@ split/
 ├── scanner.js         ← Challan scanner (Gemini AI vision) (146 lines)
 ├── events.js          ← Event delegation + input handlers (774 lines)
 ├── swipe.js           ← Swipe navigation (38 lines)
-├── seed.js            ← Seed IM data, one-time (8 lines)
+├── seed.js            ← seedIncomingMaterial(), called from boot (10 lines)
 └── init.js            ← Migrations + app bootstrap (567 lines)
 ```
 
@@ -85,7 +85,7 @@ every session start — nothing to set up by hand. CI (`build-sync`) is the back
 ### Tests
 
 ```bash
-pnpm exec playwright test          # 330 tests, both layouts
+pnpm exec playwright test          # 333 tests, both layouts
 ```
 
 Some sandboxes ship a Chromium build Playwright does not expect and block downloading
@@ -104,6 +104,13 @@ re-render for the field that actually changes what is displayed.
 stayed ticked after they left the screen, with every bulk action still reaching them.
 `captureRegFilters()` and `captureIMFilters()` clear it; the register search binds its own
 listener and has to do it too.
+
+**Fixtures seed the LEGACY key and wait for `body.inv-booted`.** `loadAppWithState` writes
+`sep_invoicing_state` to localStorage from an init script; the app migrates it into IndexedDB at
+boot, so every spec also exercises that migration. The init script re-runs on each navigation but a
+populated store wins, so a reload keeps what the test changed. A second call on the same page
+deletes the database first. Read what a reload would load with `readStoredState(page)`, never from
+localStorage — the state is not there any more.
 
 **`emptyState()` is not empty.** `seed.js` fills `incomingMaterial` with 50 demo challans whenever
 it is an empty array — there is no one-time flag, only the emptiness test — so any spec asserting on
@@ -1176,8 +1183,47 @@ denominator, which is what "left" means here.
 
 ## Persistence
 
-localStorage is the system of record. Key: `sep_invoicing_state`. No backend and no
-server-side account; manual backup/restore via JSON export/import in Settings.
+**IndexedDB is the system of record** — database `sep-invoicing`, store `state`, one entry
+`current` holding the whole state as a JSON string. No backend and no server-side account;
+manual backup/restore via JSON export/import in Settings. localStorage keeps only the small
+per-device entries (credentials, sync position, view prefs).
+
+🔴 **Why it moved: localStorage quota is per ORIGIN, and every GitHub Pages project under this
+account is served from `rishabh1804.github.io`.** A phone running Chrome 152 refused 128K more
+characters beside a 1.67M state, on an engine measured to take 5.1M in a single value — because
+the sister PWAs' data held the rest of the pool. Nothing this app could do to its own key would
+fix that. IndexedDB has its own quota, sized from the disk, not shared through a 5M-character
+keyhole. **Two consequences of the move are load-bearing:**
+
+- **The load is asynchronous, so the bootstrap is.** `let S = null` until `loadState()` resolves;
+  `bootState()` assigns it, then `bootApp()` in init.js runs everything that always ran at load
+  (state.js's series reset, seed.js, the bootstrap seeds, `migrateState()`, layout, tab restore)
+  in the same order, and adds **`inv-booted` to `<body>`**. Until then the shell is visible and
+  inert (`pointer-events: none`). **Nothing between state.js and the end of init.js may read `S`
+  at load time** — the seeds are functions now for exactly that reason. Tests wait on
+  `body.inv-booted`, never on `nav.inv-tabs`, which is static HTML and proves nothing.
+- **IndexedDB can be evicted under storage pressure; localStorage could not.** The app asks for
+  persistent storage after its first verified write (`navigator.storage.persist()`); Chrome grants
+  it silently to an installed app or an engaged site. The diagnostics report says whether it was.
+
+**A save is still ONE JSON string, written whole and READ BACK.** Writes are coalesced and
+serialised: a call while a write is queued shares it, a call while one is in flight queues
+exactly one more, and the state is serialised when the write *starts* — so the last write always
+carries the latest `S`. That is what makes `adoptState()`'s rollback sound on an async store:
+after `S = prev` the queued write is `prev`, whatever a half-migrated write in flight carried.
+`saveState()` returns a `Promise<boolean>` that resolves once the copy is verified on disk; the
+import waits on it before saying *imported*.
+
+**The legacy localStorage copy is migrated on the first boot that finds the store empty, and
+REMOVED once a verified write has landed** — that removal is what hands the shared pool back to
+the other two apps. A populated store wins over the legacy key thereafter, so a stale copy left
+in localStorage by an old build cannot roll the books back. A browser with no IndexedDB (or one
+that refuses to open it) falls back to the localStorage path, verified the same way.
+
+**A copy that exists but would not read is never written over.** The store is read-only for that
+session — `persistState()` returns false, the boot banner says so and stays — because seeding a
+default book on top of an unreadable copy turns *unreadable* into *lost*. The read-error banner
+and the save-failure banner are different kinds; a save that lands clears only the latter.
 
 **GitHub sync** is an optional second copy, not a backend. It pushes the whole state as one
 JSON file to a repo through the Contents API and pulls it back on another device. It is
@@ -1210,25 +1256,31 @@ business data to repair a shape); config objects are filled from the defaults, k
 `labourCfg()` reads `extraRate || 0` and a missing constant would silently price the extra at
 nothing rather than leave a visible gap.
 
-**A save is verified by reading it back, and a save that did not land is said so.** A phone held a
-12 Aug copy of the books for four weeks while every import since reported *Data imported*. Three
-silences stacked: the save caught every browser error as "Storage full!", the import's own success
-toast replaced that toast in the same tick, and nothing read the value back to see whether the
-browser had kept it. Now `saveJSON()` returns whether the value is on disk and reads back whole, the
-error carries the browser's own name for it (`QuotaExceededError`, `SecurityError`, or *write not
-persisted* for a browser that drops a write without throwing), a failed state save raises a banner
-that stays until a save succeeds, the import refuses to say *imported* when the copy only reached
-memory, and a read that threw at load is reported rather than silently replaced with an empty book.
+**A save that did not land is said so.** A phone held a 12 Aug copy of the books for four weeks
+while every import since reported *Data imported*. Three silences stacked: the save caught every
+browser error as "Storage full!", the import's own success toast replaced that toast in the same
+tick, and nothing read the value back to see whether the browser had kept it. Now the error carries
+the browser's own name for it (`QuotaExceededError`, `SecurityError`, or *write not persisted* for a
+store that drops a write without throwing), a failed state save raises a banner that stays until a
+save succeeds, and the import refuses to say *imported* when the copy only reached memory.
 
 **Settings → Run storage diagnostics** answers the questions a lost import raises from the device
-itself: what is on disk and when its newest record was written, whether it matches memory, whether
-the last save landed, and how much more the browser will accept beside the current state (probed
-with scratch writes that are read back and removed). The report is plain text and is copied to the
-clipboard, so "it reset to 12 Aug" becomes a figure somebody can paste.
+itself: which store is in use and what it loaded from, the origin's quota usage and whether
+persistent storage was granted, what is on disk and when its newest record was written, whether it
+matches memory, whether the last save landed, whether the legacy localStorage copy is still
+occupying the shared pool, every localStorage key on the origin by size (names only, never values),
+and how much more localStorage the origin will take (probed with scratch writes that are read back
+and removed — that pool is the sister apps' now, and the figure says whether they are next). The
+report is plain text and is copied to the clipboard, so "it reset to 12 Aug" becomes a figure
+somebody can paste. **It found this cause where two rounds of reasoning had not.**
 
-⚠ **The phone that lost the import was under quota** — 2.1M chars against Chromium's ~5M per origin,
-measured by filling it. So *storage full* was the wrong first diagnosis and the instrument, not the
-guess, is what the next report rests on.
+⚠ **Two wrong diagnoses preceded the right one, and both were reasoned rather than measured.** First
+*storage full* on this app's own 2.1M — under Chromium's ~5M ceiling, so withdrawn. Then *a
+smaller-quota browser* — the report named Chrome. The origin's total was the figure neither guess
+looked at, because nothing in this app's own key could have shown it. The instrument found it; the
+reasoning did not. The move to IndexedDB above is the consequence. The sister apps still share the
+localStorage pool with each other; a separate origin per project (a custom domain, or an
+organisation account per project) is the no-code answer for them.
 
 Credentials live in their own localStorage entries (`sep_inv_gemini_key`, `sep_inv_metals_key`,
 `sep_inv_github_token`), never on the state object, so an exported backup can never carry one.

@@ -186,7 +186,7 @@ test.describe('GitHub sync — pull', () => {
     await page.locator('#ghPullBtn').click();
 
     await expect(page.locator('.inv-toast')).toContainText('Pulled from GitHub');
-    const clients = await page.evaluate(() => JSON.parse(localStorage.getItem('sep_invoicing_state')!).clients);
+    const clients = await page.evaluate(async () => JSON.parse((await (window as any).readPersistedStateRaw())!).clients);
     expect(clients[0].name).toBe('PULLED CLIENT');
   });
 
@@ -220,12 +220,12 @@ test.describe('GitHub sync — configuration', () => {
     await page.locator('[data-action="invSaveSettings"]').click();
     await expect(page.locator('.inv-toast')).toContainText('Settings saved');
 
-    const cfg = await page.evaluate((k) => JSON.parse(localStorage.getItem(k)!), SYNC_KEY);
+    const cfg = await page.evaluate(async (k) => JSON.parse(localStorage.getItem(k)!), SYNC_KEY);
     expect(cfg.owner).toBe('testowner');
     expect(cfg.repo).toBe('testrepo');
 
     // Credentials live in their own key, never on the state object.
-    const stateRaw = await page.evaluate(() => localStorage.getItem('sep_invoicing_state')!);
+    const stateRaw = await page.evaluate(async () => (await (window as any).readPersistedStateRaw())!);
     expect(stateRaw).not.toContain('github_pat_SECRETVALUE');
 
     // And the JSON export is the artifact that actually leaves the device.
@@ -262,7 +262,7 @@ test.describe('GitHub sync — configuration', () => {
 
     // A sha from the old file would let the next push overwrite a file this
     // device has never read.
-    const cfg = await page.evaluate((k) => JSON.parse(localStorage.getItem(k)!), SYNC_KEY);
+    const cfg = await page.evaluate(async (k) => JSON.parse(localStorage.getItem(k)!), SYNC_KEY);
     expect(cfg.sha).toBeNull();
   });
 });

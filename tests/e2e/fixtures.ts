@@ -124,13 +124,39 @@ export function recentTs(msAgo = 0): number {
   return Math.max(now.getTime() - msAgo, monthStart);
 }
 
+/* The app boots asynchronously — the store is IndexedDB — and adds
+   `inv-booted` to <body> once S exists and the first render is done. Nothing
+   that touches state may run before this. */
+export async function waitForBoot(page: Page): Promise<void> {
+  await page.waitForSelector('body.inv-booted', { state: 'attached' });
+}
+
+/* Seeds through the LEGACY localStorage key, which the app migrates into
+   IndexedDB on a boot that finds the new store empty — so every spec also
+   exercises that migration. The init script re-runs on each navigation, but a
+   populated store wins over the legacy key, so a reload keeps whatever the test
+   changed rather than restoring the fixture. A second call on the same page
+   clears the store first so the new fixture is the one that loads. */
 export async function loadAppWithState(page: Page, state: SepState): Promise<void> {
+  if (!page.url().startsWith('about:')) {
+    await page.evaluate(() => new Promise<void>(resolve => {
+      try {
+        const q = indexedDB.deleteDatabase('sep-invoicing');
+        q.onsuccess = q.onerror = q.onblocked = () => resolve();
+      } catch { resolve(); }
+    }));
+  }
   await page.addInitScript(
     ([key, value]) => { localStorage.setItem(key as string, value as string); },
     [STORAGE_KEY, JSON.stringify(state)] as const,
   );
   await page.goto('/');
-  await page.waitForSelector('nav.inv-tabs', { state: 'attached' });
+  await waitForBoot(page);
+}
+
+/* The state as the store holds it — what a reload would load. */
+export async function readStoredState(page: Page): Promise<any> {
+  return page.evaluate(async () => JSON.parse((await (window as any).readPersistedStateRaw()) || '{}'));
 }
 
 export async function switchTab(page: Page, tabId: string): Promise<void> {

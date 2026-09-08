@@ -88,7 +88,7 @@ async function openCnForm(page: Page) {
 }
 
 async function stored(page: Page) {
-  return page.evaluate(() => JSON.parse(localStorage.getItem('sep_invoicing_state') || '{}'));
+  return page.evaluate(async () => JSON.parse((await (window as any).readPersistedStateRaw()) || '{}'));
 }
 
 test('P19: reproduces the reference document arithmetic', async ({ page }) => {
@@ -222,7 +222,7 @@ test('P19: the named invoice must be able to absorb the credit, net of notes alr
   ];
   await loadForBatch(page, st);
 
-  const r = await page.evaluate(() => {
+  const r = await page.evaluate(async () => {
     const w = window as unknown as {
       cnInvoiceHeadroom: (i: unknown, e?: string) => number;
       cnPickAgainstInvoice: (inv: unknown[], t: number, e?: string | null) => { displayNumber: string } | null;
@@ -388,7 +388,7 @@ test('P19: typing in the form does not tear out the control being used', async (
   // Only the discount moves the totals. Re-rendering for the others replaced
   // the control mid-interaction — on a date input that means pulling the native
   // picker out from under the pointer.
-  await page.evaluate(() => {
+  await page.evaluate(async () => {
     ['cnDate', 'cnVehicle'].forEach((id) => {
       const el = document.getElementById(id);
       if (el) el.dataset.probe = 'live';
@@ -398,8 +398,8 @@ test('P19: typing in the form does not tear out the control being used', async (
   await page.locator('#cnVehicle').fill('JH05DR2505');
   await page.locator('#cnDate').fill(new Date().toISOString().slice(0, 10));
 
-  expect(await page.evaluate(() => document.getElementById('cnDate')?.dataset.probe)).toBe('live');
-  expect(await page.evaluate(() => document.getElementById('cnVehicle')?.dataset.probe)).toBe('live');
+  expect(await page.evaluate(async () => document.getElementById('cnDate')?.dataset.probe)).toBe('live');
+  expect(await page.evaluate(async () => document.getElementById('cnVehicle')?.dataset.probe)).toBe('live');
   // The values still reach the saved note.
   await page.locator('[data-action="invCnSave"]').click();
   const s = await stored(page);
@@ -412,7 +412,7 @@ test('P19: the export is named for the notes it holds, not the register filter',
   await page.locator('[data-action="invCnSave"]').click();
   await page.locator('[data-action="invClosePrint"]').click();
 
-  await page.evaluate(() => {
+  await page.evaluate(async () => {
     (window as any).__csv = null;
     (window as any).downloadCSV = (filename: string, rows: unknown[][]) => {
       (window as any).__csv = { filename, rows };
@@ -421,7 +421,7 @@ test('P19: the export is named for the notes it holds, not the register filter',
   await page.locator('[data-action="invCnList"]').click();
   await page.locator('[data-action="invExportCreditNotes"]').click();
 
-  const csv = await page.evaluate(() => (window as any).__csv as { filename: string });
+  const csv = await page.evaluate(async () => (window as any).__csv as { filename: string });
   // It borrowed the register's scope label, so a file holding every credit note
   // came out stamped with whatever month the register happened to be showing.
   const today = new Date().toISOString().slice(0, 10);
@@ -441,7 +441,7 @@ test('P19: a cancelled invoice is never named — it credits nothing', async ({ 
   ]);
   await loadForBatch(page, st);
 
-  const r = await page.evaluate(() => {
+  const r = await page.evaluate(async () => {
     const w = window as unknown as {
       cnPickAgainstInvoice: (inv: unknown[], t: number, e?: string | null) => { displayNumber: string } | null;
     };
@@ -478,7 +478,7 @@ test('P19: a batch that is present but too small says so, not that it vanished',
   ];
   await loadForBatch(page, st);
 
-  const r = await page.evaluate(() => {
+  const r = await page.evaluate(async () => {
     const w = window as unknown as { cnAgainstInvoiceLabel: (cn: unknown) => string };
     // N.B. `S` is declared with `let` in state.js — a lexical binding, never a
     // window property — so an evaluate() cannot read it. The app's own functions
@@ -520,7 +520,7 @@ test('P19: the reference can be set by hand, and the headroom rule still binds',
   // A PICK-LIST, not a text box: the valid set is the batch, and the numbers are
   // 17 characters an operator would otherwise retype exactly on a shop phone.
   const pick = async (idx: number) => {
-    await page.evaluate(([cnId, i]) => {
+    await page.evaluate(async ([cnId, i]) => {
       (window as unknown as { cnPickAgainst: (c: string, n: number) => void })
         .cnPickAgainst(cnId as string, i as number);
     }, [id, idx] as [string, number]);
@@ -542,7 +542,7 @@ test('P19: the reference can be set by hand, and the headroom rule still binds',
 
   // The overlay offers exactly the batch — an invoice outside it is not
   // representable, which is the point of a pick-list over free text.
-  await page.evaluate((cnId) => {
+  await page.evaluate(async (cnId) => {
     (window as unknown as { cnSetAgainstInvoice: (c: string) => void }).cnSetAgainstInvoice(cnId);
   }, id);
   const offered = await page.locator('.inv-overlay-scrim .inv-reg-invnum').allInnerTexts();
@@ -571,7 +571,7 @@ test('P19: a cancelled note is neither stamped nor editable', async ({ page }) =
   expect((await stored(page)).creditNotes[0].againstInvoice).toBeUndefined();
 
   // And the setter refuses it rather than opening a picker over it.
-  await page.evaluate(() => {
+  await page.evaluate(async () => {
     (window as unknown as { cnSetAgainstInvoice: (c: string) => void }).cnSetAgainstInvoice('CN-x');
   });
   await expect(page.locator('.inv-overlay-scrim')).toHaveCount(0);
@@ -586,7 +586,7 @@ test('P19: the reference is on the same tax head as the note', async ({ page }) 
   // this is the guard, not a reproduction.
   await loadForBatch(page, mehtaState([invoice(1, { date: daysAgoIso(20), taxableValue: 1000 })]));
 
-  const r = await page.evaluate(() => {
+  const r = await page.evaluate(async () => {
     const w = window as unknown as {
       cnPickAgainstInvoice: (i: unknown[], t: number, e: string | null, g?: string) =>
         { displayNumber: string } | null;
@@ -634,7 +634,7 @@ test('P19: the annex fits the sheet however many invoices a batch names', async 
   // check in this file.
   await page.setViewportSize({ width: 794, height: 1123 });
 
-  const measure = () => page.evaluate(() => {
+  const measure = () => page.evaluate(async () => {
     const doc = document.querySelector('.inv-cn-doc') as HTMLElement;
     const cs = getComputedStyle(doc);
     const printable = doc.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);

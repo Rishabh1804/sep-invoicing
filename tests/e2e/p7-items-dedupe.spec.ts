@@ -25,8 +25,8 @@ function stateWithItems(items: Item[]): SepState {
 }
 
 async function itemsAfterLoad(page: import('@playwright/test').Page): Promise<Item[]> {
-  return page.evaluate(() => {
-    const raw = localStorage.getItem('sep_invoicing_state') || '{}';
+  return page.evaluate(async () => {
+    const raw = (await (window as any).readPersistedStateRaw()) || '{}';
     return (JSON.parse(raw) as { items: Item[] }).items;
   }) as Promise<Item[]>;
 }
@@ -160,7 +160,7 @@ test.describe('P7: Items Master redundant-row migration', () => {
     const first = await itemsAfterLoad(page);
 
     await page.reload();
-    await page.waitForSelector('nav.inv-tabs', { state: 'attached' });
+    await page.waitForSelector('body.inv-booted', { state: 'attached' });
     const second = await itemsAfterLoad(page);
 
     expect(second).toHaveLength(first.length);

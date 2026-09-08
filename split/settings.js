@@ -82,7 +82,7 @@ function openSettings() {
     '<div class="inv-form-row"><button class="inv-btn inv-btn-ghost inv-btn-block" data-action="invExportData">Export JSON</button>' +
     '<button class="inv-btn inv-btn-ghost inv-btn-block" data-action="invImportData">Import JSON</button></div>' +
     '<input type="file" id="importFileInput" accept=".json" class="inv-hidden">' +
-    '<div class="inv-storage-wrap"><div class="inv-text-muted inv-storage-text">Storage: ' + estimateStorage() + ' in memory &middot; ' + renderDiskSummary() + '</div>' +
+    '<div class="inv-storage-wrap"><div class="inv-text-muted inv-storage-text">Storage: ' + estimateStorage() + ' in memory &middot; <span class="inv-disk-summary">on disk: checking&hellip;</span></div>' +
     '<div class="inv-text-muted inv-storage-text">Last save: <span class="inv-save-status">' + renderLastSave() + '</span></div>' +
     '<div class="inv-text-muted inv-storage-text">Build <span class="inv-build-id">' + escHtml(APP_BUILD) + '</span> &middot; ' +
     '<button type="button" class="inv-link-btn" data-action="invCheckUpdate">Check for a newer version</button> &middot; ' +
@@ -96,6 +96,7 @@ function openSettings() {
   document.body.appendChild(scrim);
   document.body.style.overflow = 'hidden';
   focusFirstInteractive(scrim.querySelector('.inv-overlay-card'));
+  refreshDiskSummary();
 }
 
 function saveSettings() {
@@ -199,20 +200,27 @@ function saveSettings() {
    written, did the last save land, and how much more will this browser take.
    The report is plain text so it can be pasted into a message as-is. */
 function readDiskState() {
-  try {
-    var raw = localStorage.getItem(STORAGE_KEY);
+  return readPersistedStateRaw().then(function(raw) {
     if (raw == null) return { chars: 0, raw: null };
     return { chars: raw.length, raw: raw };
-  } catch (e) { return { chars: -1, error: describeStorageError(e) }; }
+  }, function(e) {
+    return { chars: -1, error: describeStorageError(e) };
+  });
 }
 
-function renderDiskSummary() {
-  var d = readDiskState();
+function renderDiskSummary(d) {
   if (d.chars < 0) return 'on disk: unreadable (' + escHtml(d.error) + ')';
   if (d.chars === 0) return 'on disk: nothing';
   var mem = 0;
   try { mem = JSON.stringify(S).length; } catch (e) {}
   return 'on disk: ' + fmtChars(d.chars) + (mem && mem !== d.chars ? ' (differs from memory)' : ' (matches memory)');
+}
+
+function refreshDiskSummary() {
+  readDiskState().then(function(d) {
+    var el = document.querySelector('.inv-disk-summary');
+    if (el) el.innerHTML = renderDiskSummary(d);
+  });
 }
 
 function renderLastSave() {
@@ -226,6 +234,11 @@ function renderLastSave() {
 function fmtChars(n) {
   if (n >= 1048576) return (n / 1048576).toFixed(2) + 'M chars';
   return Math.round(n / 1024) + 'K chars';
+}
+function fmtBytes(n) {
+  if (n >= 1073741824) return (n / 1073741824).toFixed(2) + ' GB';
+  if (n >= 1048576) return (n / 1048576).toFixed(1) + ' MB';
+  return Math.round(n / 1024) + ' KB';
 }
 
 // The newest thing a copy of the state knows about: the latest invoice date
@@ -245,10 +258,10 @@ function newestIn(state) {
   return out;
 }
 
-// How much MORE the browser will store alongside the current state. Each
-// probe is written to a scratch key, read back, and removed. The answer is
-// headroom rather than the browser's absolute ceiling, which is the figure
-// that decides whether the next save will land.
+// How much MORE localStorage the origin will take. The state no longer lives
+// there, so this is the pool the sister apps draw on — the figure that
+// explained the phone, and the one that says whether they are next. Each probe
+// is written to a scratch key, read back, and removed.
 function probeStorageHeadroom() {
   var sizes = [131072, 262144, 524288, 1048576, 2097152, 4194304];
   var key = 'sep_inv_probe';
@@ -267,57 +280,93 @@ function probeStorageHeadroom() {
 }
 
 function buildDiagnosticsReport() {
-  var lines = [];
-  var disk = readDiskState();
-  var memNewest = newestIn(S);
-  var diskNewest = null, diskParseError = '';
-  if (disk.raw) {
-    try { diskNewest = newestIn(JSON.parse(disk.raw)); } catch (e) { diskParseError = describeStorageError(e); }
-  }
-  var standalone = false;
-  try { standalone = window.matchMedia('(display-mode: standalone)').matches; } catch (e) {}
-  var swState = 'unsupported';
-  if ('serviceWorker' in navigator) swState = navigator.serviceWorker.controller ? 'controlling' : 'none';
-  var probe = probeStorageHeadroom();
-  var mem = 0;
-  try { mem = JSON.stringify(S).length; } catch (e) {}
+  var estimate = Promise.resolve(null);
+  var persisted = Promise.resolve(null);
+  try {
+    if (navigator.storage && navigator.storage.estimate) estimate = navigator.storage.estimate().then(null, function() { return null; });
+    if (navigator.storage && navigator.storage.persisted) persisted = navigator.storage.persisted().then(null, function() { return null; });
+  } catch (e) {}
+  return Promise.all([readDiskState(), estimate, persisted]).then(function(results) {
+    var disk = results[0], est = results[1], isPersisted = results[2];
+    var lines = [];
+    var memNewest = newestIn(S);
+    var diskNewest = null, diskParseError = '';
+    if (disk.raw) {
+      try { diskNewest = newestIn(JSON.parse(disk.raw)); } catch (e) { diskParseError = describeStorageError(e); }
+    }
+    var standalone = false;
+    try { standalone = window.matchMedia('(display-mode: standalone)').matches; } catch (e) {}
+    var swState = 'unsupported';
+    if ('serviceWorker' in navigator) swState = navigator.serviceWorker.controller ? 'controlling' : 'none';
+    var mem = 0;
+    try { mem = JSON.stringify(S).length; } catch (e) {}
 
-  lines.push('SEP Invoicing storage diagnostics');
-  lines.push('Build: ' + APP_BUILD);
-  lines.push('Time: ' + new Date().toString());
-  lines.push('Browser: ' + navigator.userAgent);
-  lines.push('Display: ' + (standalone ? 'installed app' : 'browser tab') + ' · worker ' + swState);
-  lines.push('URL: ' + location.href);
-  lines.push('');
-  lines.push('In memory: ' + fmtChars(mem) + ' · ' + memNewest.invoices + ' invoices, ' + memNewest.challans + ' challans');
-  lines.push('  newest invoice date ' + (memNewest.invoiceDate || 'none') + ', last record ' + (memNewest.recordedAt ? new Date(memNewest.recordedAt).toISOString() : 'none'));
-  if (disk.chars < 0) lines.push('On disk: UNREADABLE (' + disk.error + ')');
-  else if (disk.chars === 0) lines.push('On disk: nothing stored');
-  else {
-    lines.push('On disk: ' + fmtChars(disk.chars) + (disk.chars === mem ? ' · matches memory' : ' · DIFFERS from memory'));
-    if (diskNewest) lines.push('  newest invoice date ' + (diskNewest.invoiceDate || 'none') + ', last record ' + (diskNewest.recordedAt ? new Date(diskNewest.recordedAt).toISOString() : 'none') + ' · ' + diskNewest.invoices + ' invoices, ' + diskNewest.challans + ' challans');
-    if (diskParseError) lines.push('  stored copy does not parse: ' + diskParseError);
-  }
-  lines.push('Last save: ' + renderLastSave().replace(/<[^>]+>/g, ''));
-  if (_storageHealth.readError) lines.push('Read error at load: ' + _storageHealth.readError);
-  lines.push('Headroom: accepted an extra ' + fmtChars(probe.maxOk) + (probe.failedAt ? ', refused ' + fmtChars(probe.failedAt) + ' (' + probe.error + ')' : ', every probe accepted'));
-  return lines.join('\n');
+    // Every localStorage key on the origin, by size — names only, never
+    // values. That pool is shared by every GitHub Pages project under the
+    // account, which is why the state no longer lives in it.
+    var keys = [], originTotal = 0, legacyChars = -1;
+    try {
+      for (var i = 0; i < localStorage.length; i++) {
+        var k = localStorage.key(i);
+        var v = localStorage.getItem(k);
+        var n = k.length + (v ? v.length : 0);
+        keys.push({ key: k, chars: n });
+        originTotal += n;
+        if (k === STORAGE_KEY) legacyChars = v ? v.length : 0;
+      }
+    } catch (e) {}
+    keys.sort(function(a, b) { return b.chars - a.chars; });
+    var probe = probeStorageHeadroom();
+
+    lines.push('SEP Invoicing storage diagnostics');
+    lines.push('Build: ' + APP_BUILD);
+    lines.push('Time: ' + new Date().toString());
+    lines.push('Browser: ' + navigator.userAgent);
+    lines.push('Display: ' + (standalone ? 'installed app' : 'browser tab') + ' \u00b7 worker ' + swState);
+    lines.push('URL: ' + location.href);
+    lines.push('');
+    lines.push('Store: ' + (_storeMode === 'idb' ? 'IndexedDB ' + IDB_NAME + '/' + IDB_STORE + ' (verified writes)' : 'localStorage (IndexedDB unavailable in this browser)') +
+      ' \u00b7 loaded from ' + _loadedFrom);
+    if (est) lines.push('Quota: using ' + fmtBytes(est.usage || 0) + ' of ' + fmtBytes(est.quota || 0) + ' available to this origin' +
+      (isPersisted === null ? '' : ' \u00b7 persistent storage ' + (isPersisted ? 'granted' : 'not granted, best-effort')));
+    else lines.push('Quota: navigator.storage.estimate unsupported');
+    lines.push('In memory: ' + fmtChars(mem) + ' \u00b7 ' + memNewest.invoices + ' invoices, ' + memNewest.challans + ' challans');
+    lines.push('  newest invoice date ' + (memNewest.invoiceDate || 'none') + ', last record ' + (memNewest.recordedAt ? new Date(memNewest.recordedAt).toISOString() : 'none'));
+    if (disk.chars < 0) lines.push('On disk: UNREADABLE (' + disk.error + ')');
+    else if (disk.chars === 0) lines.push('On disk: nothing stored');
+    else {
+      lines.push('On disk: ' + fmtChars(disk.chars) + (disk.chars === mem ? ' \u00b7 matches memory' : ' \u00b7 DIFFERS from memory'));
+      if (diskNewest) lines.push('  newest invoice date ' + (diskNewest.invoiceDate || 'none') + ', last record ' + (diskNewest.recordedAt ? new Date(diskNewest.recordedAt).toISOString() : 'none') + ' \u00b7 ' + diskNewest.invoices + ' invoices, ' + diskNewest.challans + ' challans');
+      if (diskParseError) lines.push('  stored copy does not parse: ' + diskParseError);
+    }
+    lines.push('Last save: ' + renderLastSave().replace(/<[^>]+>/g, ''));
+    if (_storageHealth.readError) lines.push('Read error at load: ' + _storageHealth.readError);
+    lines.push('Legacy localStorage copy: ' + (legacyChars < 0 ? 'removed' : 'still present, ' + fmtChars(legacyChars) + ' (removed after the next verified save)'));
+    lines.push('localStorage on ' + location.origin + ': ' + fmtChars(originTotal) + ' across ' + keys.length + ' key' + (keys.length === 1 ? '' : 's') +
+      ' (one pool for every app served from this origin)');
+    keys.forEach(function(entry) { lines.push('  ' + entry.key + ': ' + fmtChars(entry.chars)); });
+    lines.push('localStorage headroom: accepted an extra ' + fmtChars(probe.maxOk) + (probe.failedAt ? ', refused ' + fmtChars(probe.failedAt) + ' (' + probe.error + ')' : ', every probe accepted'));
+    return lines.join('\n');
+  });
 }
 
 function runStorageDiagnostics() {
   var out = document.getElementById('storageDiagOut');
-  var report = buildDiagnosticsReport();
-  if (out) {
-    out.innerHTML = '<pre class="inv-diag-report">' + escHtml(report) + '</pre>' +
-      '<div class="inv-text-muted inv-storage-text">Copied to the clipboard where the browser allows it; otherwise select the text above.</div>';
-  }
-  var status = document.querySelector('.inv-save-status');
-  if (status) status.innerHTML = renderLastSave();
-  try {
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(report).then(function() { showToast('Diagnostics copied'); }, function() {});
+  if (out) out.innerHTML = '<div class="inv-text-muted inv-storage-text">Reading the store&hellip;</div>';
+  buildDiagnosticsReport().then(function(report) {
+    if (out) {
+      out.innerHTML = '<pre class="inv-diag-report">' + escHtml(report) + '</pre>' +
+        '<div class="inv-text-muted inv-storage-text">Copied to the clipboard where the browser allows it; otherwise select the text above.</div>';
     }
-  } catch (e) {}
+    var status = document.querySelector('.inv-save-status');
+    if (status) status.innerHTML = renderLastSave();
+    refreshDiskSummary();
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(report).then(function() { showToast('Diagnostics copied'); }, function() {});
+      }
+    } catch (e) {}
+  });
 }
 
 function estimateStorage() {
@@ -391,11 +440,12 @@ function importData() {
         // The success toast used to fire regardless, on top of — and therefore
         // instead of — the storage failure toast. A copy that only reached
         // memory is not imported, and the operator has to hear that.
-        var saved = saveState();
         closeOverlay();
         renderHome();
-        if (saved) showToast('Data imported');
-        else showToast('NOT saved: the browser refused to store it (' + _storageHealth.lastError + '). The data is in memory only and will be lost on reload.', 'error');
+        saveState().then(function(saved) {
+          if (saved) showToast('Data imported');
+          else showToast('NOT saved: the browser refused to store it (' + _storageHealth.lastError + '). The data is in memory only and will be lost on reload.', 'error');
+        });
       } catch(err) {
         showToast('Invalid file: ' + err.message, 'error');
       }

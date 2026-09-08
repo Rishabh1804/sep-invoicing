@@ -90,8 +90,8 @@ test.describe('P8: bulk weight entry', () => {
 
     await expect(page.locator('.inv-overlay-scrim')).toHaveCount(0);
 
-    const items = await page.evaluate(() => {
-      const raw = localStorage.getItem('sep_invoicing_state') || '{}';
+    const items = await page.evaluate(async () => {
+      const raw = (await (window as any).readPersistedStateRaw()) || '{}';
       return (JSON.parse(raw) as { items: Item[] }).items;
     });
     expect(items.find((i) => i.partNumber === 'PART A')?.stdWeightKg).toBe(0.651);
@@ -123,8 +123,8 @@ test.describe('P8: bulk weight entry', () => {
 
     // Overlay stays open, nothing stored.
     await expect(page.locator('.inv-overlay-card')).toBeVisible();
-    const items = await page.evaluate(() => {
-      const raw = localStorage.getItem('sep_invoicing_state') || '{}';
+    const items = await page.evaluate(async () => {
+      const raw = (await (window as any).readPersistedStateRaw()) || '{}';
       return (JSON.parse(raw) as { items: Item[] }).items;
     });
     expect(items[0].stdWeightKg).toBeNull();
@@ -155,8 +155,8 @@ test.describe('P8: bulk weight entry', () => {
     await page.locator('[data-action="invDeriveWeights"]').click();
     await expect(page.locator('.inv-overlay-scrim')).toHaveCount(0);
 
-    const items = await page.evaluate(() => {
-      const raw = localStorage.getItem('sep_invoicing_state') || '{}';
+    const items = await page.evaluate(async () => {
+      const raw = (await (window as any).readPersistedStateRaw()) || '{}';
       return (JSON.parse(raw) as { items: Item[] }).items;
     });
     // 0.95 / 5.40 = 0.175925..., stored to 4 dp.

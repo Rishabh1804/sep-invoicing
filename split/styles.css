@@ -326,6 +326,10 @@ input, select, textarea, button { font-family: inherit; font-size: var(--fs-base
 .inv-toast-warning { background: var(--warning-bg); color: var(--warning-text); border: 1px solid var(--warning); }
 .inv-toast-error { background: var(--danger); color: #fff; }
 
+/* Until the store has loaded, the shell is visible but takes no input: every
+   handler reads S, and there is none yet. Boot adds the class. */
+body:not(.inv-booted) { pointer-events: none; }
+
 /* ===== UPDATE BANNER =====
    Persistent until answered, unlike a toast, so it sits under the header where
    the toast does but below it in the stack — a toast fired while the banner is

@@ -77,7 +77,7 @@ test.describe('PWA manifest', () => {
       ['sep_invoicing_state', JSON.stringify(emptyState())] as const,
     );
     await page.goto('/?tab=pageStats');
-    await page.waitForSelector('nav.inv-tabs', { state: 'attached' });
+    await page.waitForSelector('body.inv-booted', { state: 'attached' });
     await expect(page.locator('#pageStats')).toHaveClass(/inv-page-active/);
     // The query is consumed, so a later refresh is an ordinary load.
     expect(new URL(page.url()).search).toBe('');
@@ -224,7 +224,7 @@ test.describe('build stamp and update check', () => {
       page.waitForEvent('load'),
       page.locator('[data-action="invReloadForUpdate"]').click(),
     ]);
-    await page.waitForSelector('nav.inv-tabs', { state: 'attached' });
+    await page.waitForSelector('body.inv-booted', { state: 'attached' });
   });
 
   test('coming back into view re-checks', async ({ page }) => {

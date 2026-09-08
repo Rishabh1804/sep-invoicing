@@ -44,7 +44,7 @@ function stateWith(nums: number[], nextNum: number, over: Record<number, Record<
 }
 
 async function stored(page: Page) {
-  return page.evaluate(() => JSON.parse(localStorage.getItem('sep_invoicing_state') || '{}'));
+  return page.evaluate(async () => JSON.parse((await (window as any).readPersistedStateRaw()) || '{}'));
 }
 
 /** Open the register, open one invoice's detail, and press Delete. */
@@ -186,7 +186,7 @@ test('P11: a reserved void exports at zero; a recycled one does not', async ({ p
   await loadAppWithState(page, state);
   await switchTab(page, 'pageRegister');
 
-  const forExport = await page.evaluate(() => (window as any).getVoidedForExport().map((v: any) => v.invoiceNumber));
+  const forExport = await page.evaluate(async () => (window as any).getVoidedForExport().map((v: any) => v.invoiceNumber));
   // The issued number is declared; the recycled one is not — a live invoice
   // will occupy that slot instead.
   expect(forExport).toEqual(['00002']);

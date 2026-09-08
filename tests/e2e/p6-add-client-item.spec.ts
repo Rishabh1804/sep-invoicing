@@ -46,8 +46,8 @@ test.describe('P6: explicit add entry points for clients and items', () => {
     await expect(page.locator('#clientList')).toContainText('NEW PLATING CO');
 
     // Persisted with the opening rate attached to the rate history.
-    const saved = await page.evaluate(() => {
-      const raw = localStorage.getItem('sep_invoicing_state') || '{}';
+    const saved = await page.evaluate(async () => {
+      const raw = (await (window as any).readPersistedStateRaw()) || '{}';
       const s = JSON.parse(raw) as { clients: Array<{ name: string; mobile?: string; rates?: Array<{ ratePerKg: number }> }> };
       return s.clients.find((c) => c.name === 'NEW PLATING CO');
     });
@@ -66,8 +66,8 @@ test.describe('P6: explicit add entry points for clients and items', () => {
 
     // Overlay stays open, nothing added.
     await expect(page.locator('.inv-overlay-card')).toBeVisible();
-    const count = await page.evaluate(() => {
-      const raw = localStorage.getItem('sep_invoicing_state') || '{}';
+    const count = await page.evaluate(async () => {
+      const raw = (await (window as any).readPersistedStateRaw()) || '{}';
       return (JSON.parse(raw) as { clients: unknown[] }).clients.length;
     });
     expect(count).toBe(1);
@@ -111,8 +111,8 @@ test.describe('P6: explicit add entry points for clients and items', () => {
     await page.locator('[data-action="invSaveItem"][data-mode="add"]').click();
 
     await expect(page.locator('.inv-overlay-card')).toBeVisible();
-    const count = await page.evaluate(() => {
-      const raw = localStorage.getItem('sep_invoicing_state') || '{}';
+    const count = await page.evaluate(async () => {
+      const raw = (await (window as any).readPersistedStateRaw()) || '{}';
       return (JSON.parse(raw) as { items: unknown[] }).items.length;
     });
     expect(count).toBe(1);

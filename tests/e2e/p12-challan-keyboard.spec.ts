@@ -170,7 +170,7 @@ test.describe('IM challan form — keyboard navigation', () => {
     await page.locator('#imUnit0').focus();
     await page.locator('#imUnit0').selectOption('NOS');
 
-    const inForm = await page.evaluate(() => {
+    const inForm = await page.evaluate(async () => {
       const area = document.getElementById('imAddForm');
       return !!(area && document.activeElement && area.contains(document.activeElement));
     });
@@ -192,8 +192,8 @@ test.describe('IM challan form — keyboard navigation', () => {
     await expect(page.locator('.inv-toast')).toContainText('Challan saved');
     // seed.js fills an empty incomingMaterial with 50 demo challans, so the
     // assertion is on the row this test created, not on the total.
-    const saved = await page.evaluate(() => {
-      const raw = localStorage.getItem('sep_invoicing_state');
+    const saved = await page.evaluate(async () => {
+      const raw = (await (window as any).readPersistedStateRaw());
       const all = raw ? JSON.parse(raw).incomingMaterial : [];
       return all.filter((im: { challanNo: string }) => im.challanNo === 'KB-1');
     });

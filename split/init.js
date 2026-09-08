@@ -1,5 +1,10 @@
 /* ===== INIT ===== */
 
+/* ===== BOOTSTRAP SEEDS AND CLEANUPS =====
+   One-time writes of business records, keyed on flags the state carries.
+   Bootstrap-only by design (see CLAUDE.md, Persistence): a pull or an import
+   never re-fires them. Runs from bootApp() once S exists. */
+function runBootstrapSeeds() {
 /* Phase 4: Seed NOS qty on Dorabji + Highco IM items (one-time migration) */
 if (S.incomingMaterial && S.incomingMaterial.length > 0 && !S._nosQtySeeded) {
   var nosMap = {"IMI-0001-0":198,"IMI-0001-1":172,"IMI-0002-0":395,"IMI-0002-1":30,"IMI-0002-2":100,"IMI-0003-0":196,"IMI-0004-0":475,"IMI-0004-1":200,"IMI-0005-0":444,"IMI-0005-1":100,"IMI-0005-2":100,"IMI-0006-0":215,"IMI-0007-0":290,"IMI-0008-0":388,"IMI-0008-1":76,"IMI-0008-2":100,"IMI-0009-0":1464,"IMI-0010-0":294,"IMI-0010-1":200,"IMI-0011-0":178,"IMI-0012-0":200,"IMI-0013-0":100,"IMI-0014-0":280,"IMI-0014-1":150,"IMI-0015-0":602,"IMI-0015-1":50,"IMI-0016-0":246,"IMI-0016-1":510,"IMI-0016-2":108,"IMI-0017-0":270,"IMI-0018-0":157,"IMI-0019-0":70,"IMI-0019-1":148,"IMI-0050-0":80};
@@ -41,6 +46,8 @@ if (!S._rateCleanup1) {
   if (removed > 0) console.log('Rate cleanup: removed ' + removed + ' items with rate > 25 (Belrise trading remnants)');
   S._rateCleanup1 = true;
   saveJSON(STORAGE_KEY, S);
+}
+
 }
 
 /* ===== STRUCTURAL MIGRATIONS =====
@@ -460,12 +467,11 @@ if (!S._cnSeriesStart1) {
 
 }
 
-migrateState();
-
 /* ===== LAYOUT MODE (Phase 8A) ===== */
 var _resizeTimer = null;
 
 function updateLayoutMode() {
+  if (!S) return; // a resize before boot has nothing to lay out yet
   var w = window.innerWidth;
   var newDesktop = w >= 1024;
   var newTablet = w >= 768 && w < 1024;
@@ -610,37 +616,53 @@ var _launchNew = false;
   try { history.replaceState(null, '', window.location.pathname); } catch (e) {}
 })();
 
-// Initial layout detection (no debounce)
-updateLayoutMode();
-
-/* Phase 6b: Restore active tab on refresh */
-// If updateLayoutMode triggered _applyModeSwitch, it already called switchTab.
-// Only do manual restore if we're still on mobile (no mode switch happened).
-if (!_isDesktop) {
-  var _savedTab = regFilter.activeTab || 'pageHome';
-  if (_savedTab !== 'pageHome' && document.getElementById(_savedTab)) {
-    switchTab(_savedTab);
-  } else {
-    renderHome();
-  }
-}
-
-/* The "Add Challan" app shortcut opens the form, not just the tab. Runs after
-   the tab restore above so the IM view exists to render into. */
-if (_launchNew && regFilter.activeTab === 'pageIM' && !_isDesktop) {
-  showAddChallanForm();
-}
-
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('sw.js').catch(() => {});
 }
 
-/* A read that threw at load fell through to a fresh default state and said
-   nothing. It is the one storage failure the operator most needs to hear
-   about, because everything they enter on top of it is going nowhere. */
-if (_storageHealth.readError) {
-  showStorageBanner('This browser refused to read stored data (' + _storageHealth.readError +
-    '). Nothing entered here will be kept. Check the site data settings for this app.');
+/* ===== BOOT =====
+   Everything that needs S, in the order it always ran: state.js's own reset,
+   seed.js, the bootstrap seeds, the structural migrations, then layout and
+   the tab restore. The load is asynchronous now that the store is IndexedDB,
+   so this runs from loadState().then(...) at the end of the file, and
+   `body.inv-booted` is the signal that it has. Until then the shell is
+   visible but inert. */
+function bootApp() {
+  seedIncomingMaterial();
+  runBootstrapSeeds();
+  migrateState();
+
+  // Initial layout detection (no debounce)
+  updateLayoutMode();
+
+  /* Phase 6b: Restore active tab on refresh */
+  // If updateLayoutMode triggered _applyModeSwitch, it already called switchTab.
+  // Only do manual restore if we're still on mobile (no mode switch happened).
+  if (!_isDesktop) {
+    var _savedTab = regFilter.activeTab || 'pageHome';
+    if (_savedTab !== 'pageHome' && document.getElementById(_savedTab)) {
+      switchTab(_savedTab);
+    } else {
+      renderHome();
+    }
+  }
+
+  /* The "Add Challan" app shortcut opens the form, not just the tab. Runs after
+     the tab restore above so the IM view exists to render into. */
+  if (_launchNew && regFilter.activeTab === 'pageIM' && !_isDesktop) {
+    showAddChallanForm();
+  }
+
+  /* A read that threw at load used to fall through to a fresh default state
+     and say nothing. It is the one storage failure the operator most needs to
+     hear about: the store is read-only for this session (persistState refuses
+     to write over a copy it could not open), so nothing entered here is kept. */
+  if (_storageHealth.readError) {
+    showStorageBanner('This browser could not read the stored copy (' + _storageHealth.readError +
+      '). Nothing is written on this device until it can, so that copy is not lost \u2014 but nothing entered here is kept either.', 'read');
+  }
+
+  document.body.classList.add('inv-booted');
 }
 
 /* ===== BUILD IDENTITY + UPDATE CHECK =====
@@ -714,3 +736,8 @@ document.addEventListener('visibilitychange', function() {
   if (document.visibilityState === 'visible') checkForUpdate(false);
 });
 checkForUpdate(false);
+
+loadState().then(function(loaded) {
+  bootState(loaded);
+  bootApp();
+});

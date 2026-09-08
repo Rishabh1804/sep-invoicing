@@ -69,7 +69,7 @@ async function typeInvoicePart(page: Page, text: string) {
 }
 
 async function storedItems(page: Page) {
-  return page.evaluate(() => JSON.parse(localStorage.getItem('sep_invoicing_state') || '{}').items);
+  return page.evaluate(async () => JSON.parse((await (window as any).readPersistedStateRaw()) || '{}').items);
 }
 
 test('P20: a part with no match offers to be created instead of the list vanishing', async ({ page }) => {

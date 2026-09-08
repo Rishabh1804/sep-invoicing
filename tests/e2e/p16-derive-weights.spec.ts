@@ -16,12 +16,12 @@ async function loadOnce(page: Page, state: SepState): Promise<void> {
     ['sep_invoicing_state', JSON.stringify(state)] as const,
   );
   await page.goto('/');
-  await page.waitForSelector('nav.inv-tabs', { state: 'attached' });
+  await page.waitForSelector('body.inv-booted', { state: 'attached' });
 }
 
 async function reload(page: Page): Promise<void> {
   await page.reload();
-  await page.waitForSelector('nav.inv-tabs', { state: 'attached' });
+  await page.waitForSelector('body.inv-booted', { state: 'attached' });
 }
 
 /*
@@ -61,7 +61,7 @@ function pieceState(): SepState {
 }
 
 const readItems = (page: import('@playwright/test').Page) =>
-  page.evaluate(() => JSON.parse(localStorage.getItem('sep_invoicing_state')!).items);
+  page.evaluate(async () => JSON.parse((await (window as any).readPersistedStateRaw())!).items);
 
 test('derives a missing weight from the client piece rate on load', async ({ page }) => {
   await loadAppWithState(page, pieceState());
@@ -78,10 +78,10 @@ test('never overwrites a weight already on file', async ({ page }) => {
 
 test('is idempotent across reloads and does not re-derive a cleared weight', async ({ page }) => {
   await loadOnce(page, pieceState());
-  await page.evaluate(() => {
-    const s = JSON.parse(localStorage.getItem('sep_invoicing_state')!);
+  await page.evaluate(async () => {
+    const s = JSON.parse((await (window as any).readPersistedStateRaw())!);
     s.items.find((i: { partNumber: string }) => i.partNumber === 'CLAMP A').stdWeightKg = null;
-    localStorage.setItem('sep_invoicing_state', JSON.stringify(s));
+    await (window as any).writePersistedStateRaw(JSON.stringify(s));
   });
   await reload(page);
 
@@ -97,10 +97,10 @@ test('a device that loads empty still derives after data arrives', async ({ page
   const bare = emptyState();
   bare.items = [{ id: 1, partNumber: 'CLAMP A', desc: 'CLAMP A', gauge: '', hsn: '998873', unit: 'NOS', rate: 2.7, stdWeightKg: null }];
   await loadOnce(page, bare);
-  expect(await page.evaluate(() => JSON.parse(localStorage.getItem('sep_invoicing_state')!)._deriveWeights1)).toBeFalsy();
+  expect(await page.evaluate(async () => JSON.parse((await (window as any).readPersistedStateRaw())!)._deriveWeights1)).toBeFalsy();
 
   // Stands in for an import or a GitHub pull landing real data later.
-  await page.evaluate((s) => localStorage.setItem('sep_invoicing_state', s as string), JSON.stringify(pieceState()));
+  await page.evaluate(async (s) => (window as any).writePersistedStateRaw(s as string), JSON.stringify(pieceState()));
   await reload(page);
 
   const items = await readItems(page);
@@ -122,7 +122,7 @@ test('derived weights make the client measurable in Stats without changing billi
   await expect(table.locator('.inv-stats-row-partial')).toHaveCount(0);
 
   // The invoice's own money is untouched — stdWeightKg feeds Stats, never rates.
-  const inv = await page.evaluate(() => JSON.parse(localStorage.getItem('sep_invoicing_state')!).invoices[0]);
+  const inv = await page.evaluate(async () => JSON.parse((await (window as any).readPersistedStateRaw())!).invoices[0]);
   expect(inv.taxableValue).toBe(324);
   expect(inv.items[0].rate).toBe(2.7);
 });

@@ -315,7 +315,7 @@ test('a roster import merges by name, keeps attendance, and leaves invoices alon
   }));
   await openStaff(page);
 
-  const result = await page.evaluate(() => (window as unknown as {
+  const result = await page.evaluate(async () => (window as unknown as {
     applyRosterImport: (d: unknown) => Record<string, number>;
   }).applyRosterImport({
     staff: [
@@ -338,9 +338,9 @@ test('a roster import merges by name, keeps attendance, and leaves invoices alon
   // `S` is declared with `let`, so it is a global binding and not a property of
   // `window` — the persisted copy is the readable one, and reading it proves
   // the write reached storage rather than only the in-memory object.
-  await page.evaluate(() => (window as unknown as { saveState: () => void }).saveState());
-  const after = await page.evaluate(() => {
-    const st = JSON.parse(localStorage.getItem('sep_invoicing_state') || '{}') as {
+  await page.evaluate(async () => (window as unknown as { saveState: () => void }).saveState());
+  const after = await page.evaluate(async () => {
+    const st = JSON.parse((await (window as any).readPersistedStateRaw()) || '{}') as {
       staff: Array<{ id: number; name: string; hourRate: number; area: string }>;
       invoices: unknown[];
       attendance: Record<string, { marks: Record<string, unknown> }>;
@@ -384,7 +384,7 @@ test('an alias in the file matches an existing worker instead of adding a second
   }));
   await openStaff(page);
 
-  const result = await page.evaluate(([iso]) => (window as unknown as {
+  const result = await page.evaluate(async ([iso]) => (window as unknown as {
     applyRosterImport: (d: unknown) => Record<string, number>;
   }).applyRosterImport({
     // The file speaks the shop's short form; the roster carries the full name.
@@ -409,9 +409,9 @@ test('an alias in the file matches an existing worker instead of adding a second
 
   // `S` is a `let` binding, not a property of `window`, so the persisted copy is
   // the readable one — and reading it proves the write reached storage.
-  await page.evaluate(() => (window as unknown as { saveState: () => void }).saveState());
-  const after = await page.evaluate(([a, b]) => {
-    const st = JSON.parse(localStorage.getItem('sep_invoicing_state') || '{}') as {
+  await page.evaluate(async () => (window as unknown as { saveState: () => void }).saveState());
+  const after = await page.evaluate(async ([a, b]) => {
+    const st = JSON.parse((await (window as any).readPersistedStateRaw()) || '{}') as {
       staff: Array<{ id: number; name: string; hourRate: number }>;
       attendance: Record<string, { marks: Record<string, unknown>; extra: Array<{ crew: number[] }> }>;
     };
@@ -446,7 +446,7 @@ test('an import onto an already-duplicated roster reports it rather than collaps
   }));
   await openStaff(page);
 
-  const res = await page.evaluate(() => (window as unknown as {
+  const res = await page.evaluate(async () => (window as unknown as {
     applyRosterImport: (d: unknown) => Record<string, number>;
   }).applyRosterImport({
     staff: [{ name: 'POOL HAND', comp: 'hourly', hourRate: 47.5, area: 'barrel' }],
@@ -458,8 +458,8 @@ test('an import onto an already-duplicated roster reports it rather than collaps
 
   // Collapsing here would destroy days without showing which ones both rows were
   // marked on. Both rows survive; the merge on the overlay is where it is fixed.
-  await page.evaluate(() => (window as unknown as { saveState: () => void }).saveState());
-  const names = await page.evaluate(() => (JSON.parse(localStorage.getItem('sep_invoicing_state') || '{}')
+  await page.evaluate(async () => (window as unknown as { saveState: () => void }).saveState());
+  const names = await page.evaluate(async () => (JSON.parse((await (window as any).readPersistedStateRaw()) || '{}')
     .staff as Array<{ name: string }>).map((w) => w.name).sort());
   expect(names).toContain('Pool');
   expect(names).toContain('POOL HAND');
@@ -468,7 +468,7 @@ test('an import onto an already-duplicated roster reports it rather than collaps
 test('an alias claiming two workers is refused rather than merging them', async ({ page }) => {
   await loadAppWithState(page, staffState());
   await openStaff(page);
-  const result = await page.evaluate(() => (window as unknown as {
+  const result = await page.evaluate(async () => (window as unknown as {
     applyRosterImport: (d: unknown) => Record<string, number>;
   }).applyRosterImport({
     staff: [{ name: 'AREA LEAD', comp: 'monthly', dayRate: 500, area: 'vat-a1' }],
@@ -478,8 +478,8 @@ test('an alias claiming two workers is refused rather than merging them', async 
   }));
   expect(result.aliasConflicts).toBe(1);
   expect(result.added).toBe(0);
-  await page.evaluate(() => (window as unknown as { saveState: () => void }).saveState());
-  const names = await page.evaluate(() => (JSON.parse(localStorage.getItem('sep_invoicing_state') || '{}')
+  await page.evaluate(async () => (window as unknown as { saveState: () => void }).saveState());
+  const names = await page.evaluate(async () => (JSON.parse((await (window as any).readPersistedStateRaw()) || '{}')
     .staff as Array<{ name: string }>).map((w) => w.name).sort());
   expect(names).toEqual(['AREA LEAD', 'GATE GUARD', 'POOL HAND', 'UNRATED HAND']);
 });
@@ -490,7 +490,7 @@ test('a spelling claimed by two workers binds to neither, whoever the file lists
   // The contested string is NOT anybody's canonical name — the case an earlier
   // version got wrong. It counted the conflict and left the first claimant's
   // binding standing, so "refused" resolved the name by object-key order.
-  const res = await page.evaluate(() => {
+  const res = await page.evaluate(async () => {
     const w = window as unknown as {
       buildNameAliases: (a: unknown) => { key: Record<string, string>; conflicts: number };
       aliasKey: (n: string, al: unknown) => string;
@@ -504,7 +504,7 @@ test('a spelling claimed by two workers binds to neither, whoever the file lists
   expect(res.resolves).toBe('shared');
 
   // Order must not change the answer: the same map with the groups swapped.
-  const swapped = await page.evaluate(() => {
+  const swapped = await page.evaluate(async () => {
     const w = window as unknown as {
       buildNameAliases: (a: unknown) => { key: Record<string, string>; conflicts: number };
     };
@@ -534,14 +534,14 @@ test('a merge keeps the fuller day: present beats half, and half beats absent', 
     },
   }));
   await openStaff(page);
-  const res = await page.evaluate(() => (window as unknown as {
+  const res = await page.evaluate(async () => (window as unknown as {
     mergeWorkers: (a: number, b: number) => Record<string, unknown>;
   }).mergeWorkers(9, 1));
   expect(res.collided).toBe(3);
 
-  await page.evaluate(() => (window as unknown as { saveState: () => void }).saveState());
-  const states = await page.evaluate(([a, b, c]) => {
-    const st = JSON.parse(localStorage.getItem('sep_invoicing_state') || '{}') as {
+  await page.evaluate(async () => (window as unknown as { saveState: () => void }).saveState());
+  const states = await page.evaluate(async ([a, b, c]) => {
+    const st = JSON.parse((await (window as any).readPersistedStateRaw()) || '{}') as {
       attendance: Record<string, { marks: Record<string, { st: string }> }>;
     };
     return [st.attendance[a].marks['1'].st, st.attendance[b].marks['1'].st, st.attendance[c].marks['1'].st];
@@ -573,7 +573,7 @@ test('a duplicate already on the roster is merged, and the days both rows carry 
   }));
   await openStaff(page);
 
-  const res = await page.evaluate(() => (window as unknown as {
+  const res = await page.evaluate(async () => (window as unknown as {
     mergeWorkers: (a: number, b: number) => Record<string, unknown>;
   }).mergeWorkers(9, 2));
 
@@ -582,9 +582,9 @@ test('a duplicate already on the roster is merged, and the days both rows carry 
   expect(res.collided).toBe(1);
   expect(res.collisionDays).toEqual([dayBoth]);
 
-  await page.evaluate(() => (window as unknown as { saveState: () => void }).saveState());
-  const after = await page.evaluate(([a, b]) => {
-    const st = JSON.parse(localStorage.getItem('sep_invoicing_state') || '{}') as {
+  await page.evaluate(async () => (window as unknown as { saveState: () => void }).saveState());
+  const after = await page.evaluate(async ([a, b]) => {
+    const st = JSON.parse((await (window as any).readPersistedStateRaw()) || '{}') as {
       staff: Array<{ id: number; name: string }>;
       attendance: Record<string, { marks: Record<string, { st: string; hours: number }>; extra: Array<{ crew: number[] }> }>;
     };
@@ -626,7 +626,7 @@ test('the merge control is on the worker overlay and names the row that disappea
 test('a file with no staff array is refused rather than half-applied', async ({ page }) => {
   await loadAppWithState(page, staffState());
   await openStaff(page);
-  const res = await page.evaluate(() => (window as unknown as {
+  const res = await page.evaluate(async () => (window as unknown as {
     applyRosterImport: (d: unknown) => { error?: string };
   }).applyRosterImport({ clients: [] }));
   expect(res.error).toContain('No staff array');

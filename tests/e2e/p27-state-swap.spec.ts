@@ -67,7 +67,7 @@ async function pull(page: Page, state: Record<string, unknown>) {
 }
 
 function readState(page: Page) {
-  return page.evaluate(() => JSON.parse(localStorage.getItem('sep_invoicing_state')!));
+  return page.evaluate(async () => JSON.parse((await (window as any).readPersistedStateRaw())!));
 }
 
 /* A state as a device that never ran the area realignment would have written
@@ -153,7 +153,7 @@ test('importing a backup written before the roster existed does not break the St
   // through it — so the test walks the same path the operator does.
   await page.locator('[data-action="invOpenSettings"]').first().click();
   page.once('dialog', (d) => d.accept());
-  await page.evaluate((data) => {
+  await page.evaluate(async (data) => {
     // Arm importData's own onchange handler, then hand it a real File, so what
     // is exercised is the handler rather than a re-implementation of it.
     (window as unknown as { importData: () => void }).importData();
@@ -212,7 +212,7 @@ test('a migration that throws leaves storage as it was, not half-migrated', asyn
 
   await page.locator('[data-action="invOpenSettings"]').first().click();
   page.once('dialog', (d) => d.accept());
-  await page.evaluate((data) => {
+  await page.evaluate(async (data) => {
     (window as unknown as { importData: () => void }).importData();
     const inp = document.getElementById('importFileInput') as HTMLInputElement;
     const dt = new DataTransfer();
@@ -271,7 +271,7 @@ test('migrating an already-migrated state changes nothing', async ({ page }) => 
   // The migrations are guarded by flags the first pass set, so a second run
   // over the same state must be a no-op. Run it directly rather than pulling
   // twice, so what is under test is the function and not the sync plumbing.
-  await page.evaluate(() => (window as unknown as { migrateState: () => void }).migrateState());
+  await page.evaluate(async () => (window as unknown as { migrateState: () => void }).migrateState());
   const second = await readState(page);
   expect(second).toEqual(first);
 });

@@ -384,8 +384,8 @@ test('an examined disagreement becomes a record with its reason on it', async ({
   await expect(blocks(page)).toContainText('no fold value reconciles both rows');
   await expect(blocks(page)).not.toContainText('not the predicted amount');
 
-  const ex = await page.evaluate(() =>
-    JSON.parse(localStorage.getItem('sep_invoicing_state')!).extraExceptions);
+  const ex = await page.evaluate(async () =>
+    JSON.parse((await (window as any).readPersistedStateRaw())!).extraExceptions);
   expect(ex).toHaveLength(1);
   expect(ex[0].reason).toBe('no fold value reconciles both rows of this block');
   // The figures it was granted against are stored WITH it — that is what makes
@@ -403,8 +403,8 @@ test('an exception with no reason is refused', async ({ page }) => {
   await page.locator('[data-action="invAreaExplainSave"]').click();
 
   await expect(page.locator('.inv-toast')).toContainText('A reason is required');
-  const ex = await page.evaluate(() =>
-    JSON.parse(localStorage.getItem('sep_invoicing_state')!).extraExceptions);
+  const ex = await page.evaluate(async () =>
+    JSON.parse((await (window as any).readPersistedStateRaw())!).extraExceptions);
   expect(ex).toEqual([]);
 });
 
@@ -424,7 +424,7 @@ test('an explanation that no longer matches the figures does not silence them', 
   // Driven through the app's own setter rather than by rewriting storage: `S`
   // is `let`-scoped and not on `window`, and a reload would re-seed the
   // fixture (loadAppWithState uses addInitScript), quietly testing nothing.
-  await page.evaluate(() => {
+  await page.evaluate(async () => {
     const w = window as unknown as {
       setAttExtraHours: (i: number, h: number) => void; renderAttendance: () => void;
     };
@@ -444,8 +444,8 @@ test('a recorded exception can be reopened', async ({ page }) => {
   await page.locator('[data-action="invAreaUnexplain"]').first().click();
 
   await expect(blocks(page)).toContainText('not the predicted amount');
-  const ex = await page.evaluate(() =>
-    JSON.parse(localStorage.getItem('sep_invoicing_state')!).extraExceptions);
+  const ex = await page.evaluate(async () =>
+    JSON.parse((await (window as any).readPersistedStateRaw())!).extraExceptions);
   expect(ex).toEqual([]);
 });
 
@@ -525,8 +525,8 @@ test('toggling an area off leaves the row booked somewhere real', async ({ page 
   await switchTab(page, 'pageStaff');
   await page.locator('.inv-att-block-areas .inv-att-chip-on').first().click();
 
-  const x = await page.evaluate((iso) => {
-    const s = JSON.parse(localStorage.getItem('sep_invoicing_state')!);
+  const x = await page.evaluate(async (iso) => {
+    const s = JSON.parse((await (window as any).readPersistedStateRaw())!);
     return s.attendance[iso].extra[0];
   }, todayIso());
   expect(x.areas).toEqual([]);

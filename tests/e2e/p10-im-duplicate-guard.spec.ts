@@ -66,7 +66,7 @@ async function fillChallan(page: Page, challanNo: string, qty: string, partName:
 }
 
 async function storedIM(page: Page) {
-  return page.evaluate(() => JSON.parse(localStorage.getItem('sep_invoicing_state') || '{}').incomingMaterial || []);
+  return page.evaluate(async () => JSON.parse((await (window as any).readPersistedStateRaw()) || '{}').incomingMaterial || []);
 }
 
 test('P10: an aliased part number on identical weights still trips the guard', async ({ page }) => {

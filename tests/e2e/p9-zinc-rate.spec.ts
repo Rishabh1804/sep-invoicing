@@ -49,9 +49,9 @@ test.describe('P9: zinc market rate', () => {
 
   test('with a key but no rate, offers Refresh instead of asking for the key again', async ({ page }) => {
     await loadAppWithState(page, stateWithZinc(null));
-    await page.evaluate((k) => localStorage.setItem(k, 'TEST-KEY'), METALS_KEY);
+    await page.evaluate(async (k) => localStorage.setItem(k, 'TEST-KEY'), METALS_KEY);
     await page.reload();
-    await page.waitForSelector('nav.inv-tabs', { state: 'attached' });
+    await page.waitForSelector('body.inv-booted', { state: 'attached' });
 
     const card = page.locator('#homeZincCard');
     await expect(card).toContainText('Tap Refresh');
@@ -61,9 +61,9 @@ test.describe('P9: zinc market rate', () => {
 
   test('that Refresh actually populates an empty card', async ({ page }) => {
     await loadAppWithState(page, stateWithZinc(null));
-    await page.evaluate((k) => localStorage.setItem(k, 'TEST-KEY'), METALS_KEY);
+    await page.evaluate(async (k) => localStorage.setItem(k, 'TEST-KEY'), METALS_KEY);
     await page.reload();
-    await page.waitForSelector('nav.inv-tabs', { state: 'attached' });
+    await page.waitForSelector('body.inv-booted', { state: 'attached' });
 
     await page.route('**/api.metals.dev/**', (route) =>
       route.fulfill({
@@ -85,7 +85,7 @@ test.describe('P9: zinc market rate', () => {
 
   test('refresh reads the live rate and restamps the date', async ({ page }) => {
     await loadAppWithState(page, stateWithZinc(400, 15, Date.now() - 10 * 86400000));
-    await page.evaluate((k) => localStorage.setItem(k, 'TEST-KEY'), METALS_KEY);
+    await page.evaluate(async (k) => localStorage.setItem(k, 'TEST-KEY'), METALS_KEY);
 
     await page.route('**/api.metals.dev/**', (route) =>
       route.fulfill({
@@ -110,7 +110,7 @@ test.describe('P9: zinc market rate', () => {
 
   test('prefers an MCX figure over LME when both are offered', async ({ page }) => {
     await loadAppWithState(page, stateWithZinc(400, 15, Date.now()));
-    await page.evaluate((k) => localStorage.setItem(k, 'TEST-KEY'), METALS_KEY);
+    await page.evaluate(async (k) => localStorage.setItem(k, 'TEST-KEY'), METALS_KEY);
 
     await page.route('**/api.metals.dev/**', (route) =>
       route.fulfill({
@@ -149,7 +149,7 @@ test.describe('P9: zinc market rate', () => {
 
   test('surfaces the response keys when zinc is absent, instead of a bare failure', async ({ page }) => {
     await loadAppWithState(page, stateWithZinc(400, 15, Date.now()));
-    await page.evaluate((k) => localStorage.setItem(k, 'TEST-KEY'), METALS_KEY);
+    await page.evaluate(async (k) => localStorage.setItem(k, 'TEST-KEY'), METALS_KEY);
 
     await page.route('**/api.metals.dev/**', (route) =>
       route.fulfill({
@@ -165,7 +165,7 @@ test.describe('P9: zinc market rate', () => {
 
   test('relays an API error message rather than swallowing it', async ({ page }) => {
     await loadAppWithState(page, stateWithZinc(400, 15, Date.now()));
-    await page.evaluate((k) => localStorage.setItem(k, 'BAD-KEY'), METALS_KEY);
+    await page.evaluate(async (k) => localStorage.setItem(k, 'BAD-KEY'), METALS_KEY);
 
     await page.route('**/api.metals.dev/**', (route) =>
       route.fulfill({
@@ -180,13 +180,13 @@ test.describe('P9: zinc market rate', () => {
 
   test('SECURITY: the API key is never written into exported state', async ({ page }) => {
     await loadAppWithState(page, stateWithZinc(400, 15, Date.now()));
-    await page.evaluate((k) => localStorage.setItem(k, 'SECRET-KEY-VALUE'), METALS_KEY);
+    await page.evaluate(async (k) => localStorage.setItem(k, 'SECRET-KEY-VALUE'), METALS_KEY);
     await switchTab(page, 'pageClients');
 
-    const stateBlob = await page.evaluate(() => localStorage.getItem('sep_invoicing_state') || '');
+    const stateBlob = await page.evaluate(async () => (await (window as any).readPersistedStateRaw()) || '');
     expect(stateBlob).not.toContain('SECRET-KEY-VALUE');
     // It is still there, just in its own entry.
-    const stored = await page.evaluate((k) => localStorage.getItem(k), METALS_KEY);
+    const stored = await page.evaluate(async (k) => localStorage.getItem(k), METALS_KEY);
     expect(stored).toBe('SECRET-KEY-VALUE');
   });
 

@@ -37,7 +37,7 @@ const TARGETS = { 'vat-a1': 4, 'vat-a2': 4, barrel: 3, 'pickling-barrel': 2, 'pi
    under test is the handler rather than a re-implementation of it. */
 async function importFile(page: Page, payload: unknown) {
   await switchTab(page, 'pageStaff');
-  await page.evaluate((data) => {
+  await page.evaluate(async (data) => {
     (window as unknown as { importRoster: () => void }).importRoster();
     const inp = document.getElementById('rosterFileInput') as HTMLInputElement;
     const dt = new DataTransfer();
@@ -50,7 +50,7 @@ async function importFile(page: Page, payload: unknown) {
 /* State is read back off disk rather than off a global, the same way every
    other spec here does it — and it also proves the import was persisted. */
 function stored(page: Page) {
-  return page.evaluate(() => JSON.parse(localStorage.getItem('sep_invoicing_state')!));
+  return page.evaluate(async () => JSON.parse((await (window as any).readPersistedStateRaw())!));
 }
 
 async function seedFloor(page: Page, attendance: Record<string, unknown>) {
@@ -392,7 +392,7 @@ test.describe('P29: the floor in the activity log', () => {
         '2026-05-04': { marks: [{ name: 'Test Monthly', st: 'P', area: 'vat-a2' }], extra: [] },
       });
       await switchTab(page, 'pageHistory');
-      const csv = await page.evaluate(() => {
+      const csv = await page.evaluate(async () => {
         const rows: string[] = [];
         const orig = URL.createObjectURL;
         (URL as unknown as Record<string, unknown>).createObjectURL = (b: Blob) => {

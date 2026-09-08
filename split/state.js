@@ -55,54 +55,241 @@ function getDefaultState() {
   };
 }
 
-/* ===== STORAGE HEALTH =====
-   A phone held a 12 Aug copy for four weeks while every import since reported
-   "Data imported" — the save wrapped the browser call in a catch that said
-   "Storage full!" for ANY error, the import's own success toast then replaced
-   that toast in the same tick, and nothing read the value back to see whether
-   the browser had actually kept it. Three silences stacked. So: every write
-   is verified by reading it back, the outcome of the last one is kept for
-   Settings to show, the error carries the browser's own name for it, and a
-   failed state save raises a banner that stays until a save succeeds. */
+/* ===== STORAGE LAYER =====
+   IndexedDB is the system of record. localStorage keeps only the small
+   per-device entries — credentials, the sync position, view prefs.
+
+   Why it moved: localStorage quota is per ORIGIN, and every GitHub Pages
+   project under this account is served from rishabh1804.github.io. A phone
+   running Chrome 152 refused 128K more characters beside a 1.67M state on an
+   engine that takes 5.1M in a single value, because the sister apps held the
+   rest of the pool. Nothing this app could do to its own key would fix that.
+   IndexedDB has its own quota, sized from the disk, and it is not shared
+   through a 5M-character keyhole.
+
+   What is kept from the localStorage era, on purpose: the state is still ONE
+   JSON string, written whole and READ BACK after every write. A phone held a
+   12 Aug copy for four weeks while every import since reported "Data
+   imported" — the save caught every browser error as "Storage full!", the
+   import's own success toast replaced that toast in the same tick, and nothing
+   read the value back. Three silences. A store that cannot prove a write
+   landed is not a store.
+
+   The legacy localStorage copy is migrated on the first boot that finds the
+   new store empty, and REMOVED once a verified write has landed in IndexedDB —
+   that removal is what hands the shared pool back to the other two apps. */
+var IDB_NAME = 'sep-invoicing';
+var IDB_STORE = 'state';
+var IDB_KEY = 'current';
+var _idb = null;
+var _idbFailed = false;            // open refused: this browser gets the localStorage path
+var _storeMode = 'unknown';        // 'idb' | 'localStorage', settled by loadState()
+var _loadedFrom = 'none';          // 'idb' | 'legacy' | 'none'
+var _legacyKeyPresent = false;
+var _persistRequested = false;
 var _storageHealth = { lastSaveOk: null, lastSaveAt: 0, lastSaveChars: 0, lastError: '', readError: '' };
 
 function describeStorageError(e) {
   if (!e) return 'Error';
+  if (e.name === 'NotPersisted') return e.message;
   var name = e.name || 'Error';
   return e.message ? name + ': ' + e.message : name;
 }
+function notPersisted(msg) { var e = new Error(msg); e.name = 'NotPersisted'; return e; }
 
-function loadJSON(key, fallback) {
-  try { const d = localStorage.getItem(key); return d ? JSON.parse(d) : fallback; }
-  catch(e) {
-    if (key === STORAGE_KEY) _storageHealth.readError = describeStorageError(e);
-    return fallback;
+function idbOpen() {
+  if (_idb) return Promise.resolve(_idb);
+  if (_idbFailed || typeof indexedDB === 'undefined') { _idbFailed = true; return Promise.resolve(null); }
+  return new Promise(function(resolve) {
+    var req;
+    try { req = indexedDB.open(IDB_NAME, 1); }
+    catch (e) { _idbFailed = true; resolve(null); return; }
+    req.onupgradeneeded = function() { req.result.createObjectStore(IDB_STORE); };
+    req.onsuccess = function() {
+      _idb = req.result;
+      // Another tab deleting or upgrading the database asks us to let go.
+      _idb.onversionchange = function() { try { _idb.close(); } catch (e) {} _idb = null; };
+      resolve(_idb);
+    };
+    req.onerror = function() { _idbFailed = true; resolve(null); };
+    req.onblocked = function() { _idbFailed = true; resolve(null); };
+  });
+}
+
+function idbGetRaw() {
+  return idbOpen().then(function(db) {
+    if (!db) return null;
+    return new Promise(function(resolve, reject) {
+      try {
+        var tx = db.transaction(IDB_STORE, 'readonly');
+        var req = tx.objectStore(IDB_STORE).get(IDB_KEY);
+        req.onsuccess = function() { resolve(typeof req.result === 'string' ? req.result : null); };
+        req.onerror = function() { reject(req.error); };
+        tx.onabort = function() { reject(tx.error || new Error('read transaction aborted')); };
+      } catch (e) { reject(e); }
+    });
+  });
+}
+
+function idbPutRaw(str) {
+  return idbOpen().then(function(db) {
+    if (!db) throw new DOMException('IndexedDB unavailable', 'InvalidStateError');
+    return new Promise(function(resolve, reject) {
+      try {
+        var tx = db.transaction(IDB_STORE, 'readwrite');
+        var req = tx.objectStore(IDB_STORE).put(str, IDB_KEY);
+        req.onerror = function() { reject(req.error); };
+        tx.oncomplete = function() { resolve(); };
+        tx.onabort = function() { reject(tx.error || req.error || new Error('write transaction aborted')); };
+      } catch (e) { reject(e); }
+    });
+  });
+}
+
+// The small per-device keys stay in localStorage, verified the same way.
+function lsPutVerified(key, str) {
+  localStorage.setItem(key, str);
+  var back = localStorage.getItem(key);
+  if (back === null || back.length !== str.length) {
+    throw notPersisted('write not persisted (read back ' + (back === null ? 'nothing' : back.length + ' of ' + str.length + ' chars') + ')');
   }
 }
 
-// Returns true only when the value is on disk and reads back whole. A browser
-// that discards a write without throwing looks identical to one that kept it,
-// which is why the read-back is not optional.
-function saveJSON(key, data) {
-  var str;
-  try { str = JSON.stringify(data); }
-  catch (e) { return noteSaveFailure(key, describeStorageError(e)); }
-  try {
-    localStorage.setItem(key, str);
-    var back = localStorage.getItem(key);
+// The raw stored state, wherever this browser keeps it. Diagnostics and the
+// test suite read through here rather than knowing which store is in use.
+function readPersistedStateRaw() {
+  if (_storeMode === 'localStorage') {
+    return new Promise(function(resolve, reject) {
+      try { resolve(localStorage.getItem(STORAGE_KEY)); } catch (e) { reject(e); }
+    });
+  }
+  return idbGetRaw();
+}
+
+// Write and read back; resolves only when the stored copy is whole.
+function writePersistedStateRaw(str) {
+  if (_storeMode === 'localStorage') {
+    return new Promise(function(resolve, reject) {
+      try { lsPutVerified(STORAGE_KEY, str); resolve(); } catch (e) { reject(e); }
+    });
+  }
+  return idbPutRaw(str).then(idbGetRaw).then(function(back) {
     if (back === null || back.length !== str.length) {
-      return noteSaveFailure(key, 'write not persisted (read back ' +
-        (back === null ? 'nothing' : back.length + ' of ' + str.length + ' chars') + ')');
+      throw notPersisted('write not persisted (read back ' + (back === null ? 'nothing' : back.length + ' of ' + str.length + ' chars') + ')');
     }
-  } catch (e) { return noteSaveFailure(key, describeStorageError(e)); }
-  if (key === STORAGE_KEY) {
+  });
+}
+
+function legacyRaw() {
+  try {
+    var raw = localStorage.getItem(STORAGE_KEY);
+    _legacyKeyPresent = raw != null;
+    return raw;
+  } catch (e) {
+    _storageHealth.readError = describeStorageError(e);
+    return null;
+  }
+}
+
+// Resolves to the parsed state or null. Sets _storeMode and _loadedFrom.
+function loadState() {
+  return idbGetRaw().then(function(raw) {
+    if (_idbFailed) { _storeMode = 'localStorage'; var lr = legacyRaw(); _loadedFrom = lr != null ? 'legacy' : 'none'; return lr; }
+    _storeMode = 'idb';
+    // Note whether the pre-IndexedDB copy is still occupying the shared pool,
+    // so a verified write can hand that space back.
+    try { _legacyKeyPresent = localStorage.getItem(STORAGE_KEY) != null; } catch (e) {}
+    if (raw != null) { _loadedFrom = 'idb'; return raw; }
+    var legacy = legacyRaw();
+    _loadedFrom = legacy != null ? 'legacy' : 'none';
+    return legacy;
+  }, function(e) {
+    // The store exists but would not read. Nothing is written over it at boot.
+    _storeMode = 'idb';
+    _storageHealth.readError = describeStorageError(e);
+    return null;
+  }).then(function(raw) {
+    if (raw == null) return null;
+    try { return JSON.parse(raw); }
+    catch (e) {
+      _storageHealth.readError = 'stored copy does not parse (' + describeStorageError(e) + ')';
+      return null;
+    }
+  });
+}
+
+/* Writes are coalesced and serialised. A call while a write is queued shares
+   that write; a call while one is in flight queues exactly one more. The
+   state is serialised when the write STARTS, so the last write always carries
+   the latest S — which is what makes adoptState's rollback sound: after
+   `S = prev`, the queued write is prev, whatever a half-migrated write in
+   flight was carrying. */
+var _persistChain = Promise.resolve(true);
+var _persistQueued = null;
+
+function persistState() {
+  // A copy that exists but would not read is never written over: seeding a
+  // default book on top of it would turn an unreadable copy into a lost one.
+  // The boot banner says so; every save this session reports false.
+  if (_storageHealth.readError) {
+    _storageHealth.lastSaveOk = false;
+    _storageHealth.lastSaveAt = Date.now();
+    _storageHealth.lastError = 'not written: the stored copy could not be read (' + _storageHealth.readError + ')';
+    return Promise.resolve(false);
+  }
+  if (_persistQueued) return _persistQueued;
+  var queued = _persistChain.then(function() {
+    _persistQueued = null;
+    return writeStateNow();
+  });
+  _persistQueued = queued;
+  _persistChain = queued.then(null, function() { return false; });
+  return queued;
+}
+
+function writeStateNow() {
+  var str;
+  try { str = JSON.stringify(S); }
+  catch (e) { return Promise.resolve(noteSaveFailure(STORAGE_KEY, describeStorageError(e))); }
+  return writePersistedStateRaw(str).then(function() {
     _storageHealth.lastSaveOk = true;
     _storageHealth.lastSaveAt = Date.now();
     _storageHealth.lastSaveChars = str.length;
     _storageHealth.lastError = '';
     hideStorageBanner();
-  }
-  return true;
+    if (_storeMode === 'idb' && _legacyKeyPresent) {
+      // A verified copy is in the new store: hand the shared pool back.
+      try { localStorage.removeItem(STORAGE_KEY); _legacyKeyPresent = false; } catch (e) {}
+    }
+    requestPersistentStorage();
+    return true;
+  }, function(e) {
+    return noteSaveFailure(STORAGE_KEY, describeStorageError(e));
+  });
+}
+
+// IndexedDB, unlike localStorage, can be evicted under storage pressure unless
+// the origin holds persistent storage. Chrome grants it silently to an
+// installed app or a site with engagement; asking costs nothing.
+function requestPersistentStorage() {
+  if (_persistRequested) return;
+  _persistRequested = true;
+  try {
+    if (navigator.storage && navigator.storage.persist) navigator.storage.persist().then(null, function() {});
+  } catch (e) {}
+}
+
+function loadJSON(key, fallback) {
+  try { const d = localStorage.getItem(key); return d ? JSON.parse(d) : fallback; }
+  catch(e) { return fallback; }
+}
+
+// For STORAGE_KEY: a Promise<boolean> that resolves once the write is verified
+// on disk (data is always S). For the small keys: a boolean, synchronously.
+function saveJSON(key, data) {
+  if (key === STORAGE_KEY) return persistState();
+  try { lsPutVerified(key, JSON.stringify(data)); return true; }
+  catch (e) { return noteSaveFailure(key, describeStorageError(e)); }
 }
 
 function noteSaveFailure(key, why) {
@@ -118,18 +305,23 @@ function noteSaveFailure(key, why) {
   return false;
 }
 
-function showStorageBanner(msg) {
-  hideStorageBanner();
+// kind: 'save' (cleared by the next save that lands) or 'read' (a fact about
+// this load; stays for the session).
+function showStorageBanner(msg, kind) {
+  kind = kind || 'save';
+  hideStorageBanner(kind);
   var bar = document.createElement('div');
   bar.className = 'inv-storage-bar';
+  bar.dataset.kind = kind;
   bar.setAttribute('role', 'alert');
   bar.innerHTML = '<span class="inv-update-text">' + escHtml(msg) + '</span>' +
     '<span class="inv-update-actions">' +
     '<button class="inv-btn inv-btn-primary inv-update-btn" data-action="invExportData">Export JSON</button></span>';
   document.body.appendChild(bar);
 }
-function hideStorageBanner() {
-  document.querySelectorAll('.inv-storage-bar').forEach(function(b) { b.remove(); });
+function hideStorageBanner(kind) {
+  kind = kind || 'save';
+  document.querySelectorAll('.inv-storage-bar').forEach(function(b) { if (b.dataset.kind === kind) b.remove(); });
 }
 
 /* Fill in every container a backup might predate.
@@ -186,33 +378,40 @@ function ensureStateShape(s) {
    the error is re-raised for the caller to report. Nothing is persisted here —
    the caller saves once it knows the adoption held. */
 function adoptState(next) {
-  var prev = S, prevRaw = null;
+  var prev = S;
   // The rollback has to cover STORAGE, not just memory. `migrateState()`
-  // persists as it runs — seven `saveJSON(STORAGE_KEY, S)` calls inside it —
-  // and every one of them fires while `S` is already the incoming state. So a
-  // throw partway through had written a half-migrated foreign state to disk
-  // before the old `S = prev` restored memory: the toast said "Invalid file",
-  // the operator carried on, and the NEXT RELOAD opened someone else's books.
-  // Restoring memory alone was not all-or-nothing; it only looked like it
-  // until the page was reloaded.
-  try { prevRaw = localStorage.getItem(STORAGE_KEY); } catch (e) { prevRaw = null; }
+  // persists as it runs, and every one of those writes fires while `S` is the
+  // incoming state — so a throw partway through used to leave a half-migrated
+  // foreign state on disk with the old one restored in memory: the toast said
+  // "Invalid file", the operator carried on, and the NEXT RELOAD opened someone
+  // else's books. Writes are now serialised and read S when they START, so the
+  // write queued after `S = prev` carries prev and is the last one to land.
   try {
     S = next;
     ensureStateShape(S);
     migrateState();
   } catch (e) {
     S = prev;
-    try {
-      if (prevRaw != null) localStorage.setItem(STORAGE_KEY, prevRaw);
-    } catch (e2) { /* storage refused the rollback; memory is still correct */ }
+    persistState();
     throw e;
   }
   return S;
 }
 
-let S = loadJSON(STORAGE_KEY, null);
-if (!S) { S = getDefaultState(); saveJSON(STORAGE_KEY, S); }
-ensureStateShape(S);
+/* S is assigned by bootState() once loadState() resolves — see the end of
+   init.js. Nothing between here and there may read it at load time. */
+let S = null;
+
+function bootState(loaded) {
+  var stored = loaded != null;
+  S = stored ? loaded : getDefaultState();
+  ensureStateShape(S);
+  resetSeriesIfEmpty();
+  // A fresh device gets its default on disk; a legacy copy is migrated into
+  // the new store. A copy that exists but would not read is never written
+  // over at boot — the banner says so instead.
+  if (_loadedFrom !== 'idb' && !_storageHealth.readError) persistState();
+}
 
 /* ===== LAYOUT MODE (Phase 8A) ===== */
 var _isDesktop = false;
@@ -265,9 +464,11 @@ function setMetalsKey(key) { try { localStorage.setItem(METALS_KEY_KEY, key); } 
 // Phase 3: Reset invNextNum if no invoices exist.
 // A reserved number in the void ledger still holds its slot — the document
 // left the building, so the number is spent even though no invoice remains.
-if (S.invoices.length === 0 && !S.voidedNumbers.some(function(v) { return v.reserved; })) {
-  S.invNextNum = 1;
-  saveJSON(STORAGE_KEY, S);
+function resetSeriesIfEmpty() {
+  if (S.invoices.length === 0 && !S.voidedNumbers.some(function(v) { return v.reserved; })) {
+    S.invNextNum = 1;
+    saveJSON(STORAGE_KEY, S);
+  }
 }
 
 // Phase 3: Load filter persistence
@@ -278,14 +479,15 @@ if (!regFilter) {
 }
 if (!regFilter.state) regFilter.state = regFilter.state || '';
 
+// Returns a Promise<boolean>: true once the write is verified on disk.
 function saveState() {
-  var ok = saveJSON(STORAGE_KEY, S);
+  var landed = persistState();
   _tabDirty.home = true;
   _tabDirty.register = true;
   // Opt-in GitHub backup. Debounced inside, so this fires far more often than
   // it pushes. Guarded because state.js loads before github-sync.js.
   if (typeof ghNotifyChange === 'function') ghNotifyChange();
-  return ok;
+  return landed;
 }
 
 function saveRegFilter() {

@@ -331,7 +331,7 @@ input, select, textarea, button { font-family: inherit; font-size: var(--fs-base
    the toast does but below it in the stack — a toast fired while the banner is
    up still reads. Colours are tokens, so the dark theme is covered by .dark
    swapping them; nothing here is a raw value. */
-.inv-update-bar {
+.inv-update-bar, .inv-storage-bar {
   position: fixed; top: calc(var(--header-h) + var(--sp-8));
   left: 50%; transform: translateX(-50%);
   display: flex; align-items: center; gap: var(--sp-12); flex-wrap: wrap;
@@ -342,7 +342,16 @@ input, select, textarea, button { font-family: inherit; font-size: var(--fs-base
   box-shadow: var(--shadow-md); font-size: var(--fs-sm); z-index: 290;
   animation: inv-fadeIn var(--anim-fast) ease;
 }
+/* A failed save outranks a pending update: danger border, and above it in
+   the stack when both are up. Removed by the next save that lands. */
+.inv-storage-bar { border-color: var(--danger); z-index: 295; }
 .inv-update-text { flex: 1 1 12rem; line-height: 1.4; }
+.inv-diag-report {
+  font-family: var(--ff-mono); font-size: var(--fs-2xs); line-height: 1.5;
+  white-space: pre-wrap; word-break: break-word; user-select: text;
+  background: var(--surface-2); color: var(--text-1); border: 1px solid var(--border);
+  border-radius: var(--r-sm); padding: var(--sp-8); margin: var(--sp-8) 0 0;
+}
 .inv-update-actions { display: flex; gap: var(--sp-8); margin-left: auto; }
 .inv-update-btn { min-height: 44px; }
 .inv-link-btn {
@@ -885,7 +894,7 @@ table.inv-qc-grid.inv-qc-no-top { border-top: 0; }
      64px right — asymmetric margins, and 240px when the sidebar was expanded.
      One more element selector settles it without reaching for !important. */
   html body.inv-desktop { margin-left: 0; }
-  .inv-header, .inv-tabs, .inv-fab, .inv-toast, .inv-update-bar, .inv-page,
+  .inv-header, .inv-tabs, .inv-fab, .inv-toast, .inv-update-bar, .inv-storage-bar, .inv-page,
   .inv-overlay-scrim, .inv-print-toolbar, #imSelBar, .inv-scan-bar, .inv-sidebar { display: none !important; }
   .inv-print-view { position: static; display: block !important; overflow: visible; }
   .inv-print-body { padding: 0; }

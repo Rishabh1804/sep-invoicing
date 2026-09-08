@@ -635,6 +635,14 @@ if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('sw.js').catch(() => {});
 }
 
+/* A read that threw at load fell through to a fresh default state and said
+   nothing. It is the one storage failure the operator most needs to hear
+   about, because everything they enter on top of it is going nowhere. */
+if (_storageHealth.readError) {
+  showStorageBanner('This browser refused to read stored data (' + _storageHealth.readError +
+    '). Nothing entered here will be kept. Check the site data settings for this app.');
+}
+
 /* ===== BUILD IDENTITY + UPDATE CHECK =====
    The worker is network-first, so a fresh OPEN always gets the newest build —
    but an installed app resumed from the recents screen never navigates, and

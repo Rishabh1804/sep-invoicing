@@ -28,13 +28,13 @@ split/
 ├── styles.css         ← All CSS with inv- prefix (2,720 lines)
 ├── body.html          ← HTML body, tabs, print view (137 lines)
 ├── data.js            ← ITEMS_MASTER + SEED_CLIENTS (27 lines)
-├── state.js           ← State mgmt, utilities, escHtml, gstRound (391 lines)
+├── state.js           ← State mgmt, verified saves, escHtml, gstRound (464 lines)
 ├── zinc.js            ← Zinc market rate: store, display, metals.dev refresh (199 lines)
 ├── tabs.js            ← switchTab (9-step protocol) + renderHome (188 lines)
 ├── clients.js         ← Client Master CRUD + overlay (343 lines)
 ├── items.js           ← Items Master: subview, CRUD, merge, weights (1,262 lines)
 ├── create.js          ← Invoice creation form, 3 billing modes (312 lines)
-├── settings.js        ← Settings overlay + import/export (272 lines)
+├── settings.js        ← Settings overlay + import/export + storage diagnostics (392 lines)
 ├── github-sync.js     ← GitHub Contents API push/pull, SHA conflict guard (452 lines)
 ├── invoice-ops.js     ← Invoice detail, edit, cancel, delete, register (949 lines)
 ├── number-audit.js    ← Void ledger + serial-sequence audit + gap reconcile (311 lines)
@@ -85,7 +85,7 @@ every session start — nothing to set up by hand. CI (`build-sync`) is the back
 ### Tests
 
 ```bash
-pnpm exec playwright test          # 323 tests, both layouts
+pnpm exec playwright test          # 330 tests, both layouts
 ```
 
 Some sandboxes ship a Chromium build Playwright does not expect and block downloading
@@ -1209,6 +1209,26 @@ undefined and the Staff tab threw on open. Containers are filled *empty* (the ap
 business data to repair a shape); config objects are filled from the defaults, key by key, because
 `labourCfg()` reads `extraRate || 0` and a missing constant would silently price the extra at
 nothing rather than leave a visible gap.
+
+**A save is verified by reading it back, and a save that did not land is said so.** A phone held a
+12 Aug copy of the books for four weeks while every import since reported *Data imported*. Three
+silences stacked: the save caught every browser error as "Storage full!", the import's own success
+toast replaced that toast in the same tick, and nothing read the value back to see whether the
+browser had kept it. Now `saveJSON()` returns whether the value is on disk and reads back whole, the
+error carries the browser's own name for it (`QuotaExceededError`, `SecurityError`, or *write not
+persisted* for a browser that drops a write without throwing), a failed state save raises a banner
+that stays until a save succeeds, the import refuses to say *imported* when the copy only reached
+memory, and a read that threw at load is reported rather than silently replaced with an empty book.
+
+**Settings → Run storage diagnostics** answers the questions a lost import raises from the device
+itself: what is on disk and when its newest record was written, whether it matches memory, whether
+the last save landed, and how much more the browser will accept beside the current state (probed
+with scratch writes that are read back and removed). The report is plain text and is copied to the
+clipboard, so "it reset to 12 Aug" becomes a figure somebody can paste.
+
+⚠ **The phone that lost the import was under quota** — 2.1M chars against Chromium's ~5M per origin,
+measured by filling it. So *storage full* was the wrong first diagnosis and the instrument, not the
+guess, is what the next report rests on.
 
 Credentials live in their own localStorage entries (`sep_inv_gemini_key`, `sep_inv_metals_key`,
 `sep_inv_github_token`), never on the state object, so an exported backup can never carry one.

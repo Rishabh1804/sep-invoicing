@@ -55,12 +55,81 @@ function getDefaultState() {
   };
 }
 
+/* ===== STORAGE HEALTH =====
+   A phone held a 12 Aug copy for four weeks while every import since reported
+   "Data imported" — the save wrapped the browser call in a catch that said
+   "Storage full!" for ANY error, the import's own success toast then replaced
+   that toast in the same tick, and nothing read the value back to see whether
+   the browser had actually kept it. Three silences stacked. So: every write
+   is verified by reading it back, the outcome of the last one is kept for
+   Settings to show, the error carries the browser's own name for it, and a
+   failed state save raises a banner that stays until a save succeeds. */
+var _storageHealth = { lastSaveOk: null, lastSaveAt: 0, lastSaveChars: 0, lastError: '', readError: '' };
+
+function describeStorageError(e) {
+  if (!e) return 'Error';
+  var name = e.name || 'Error';
+  return e.message ? name + ': ' + e.message : name;
+}
+
 function loadJSON(key, fallback) {
   try { const d = localStorage.getItem(key); return d ? JSON.parse(d) : fallback; }
-  catch(e) { return fallback; }
+  catch(e) {
+    if (key === STORAGE_KEY) _storageHealth.readError = describeStorageError(e);
+    return fallback;
+  }
 }
+
+// Returns true only when the value is on disk and reads back whole. A browser
+// that discards a write without throwing looks identical to one that kept it,
+// which is why the read-back is not optional.
 function saveJSON(key, data) {
-  try { localStorage.setItem(key, JSON.stringify(data)); } catch(e) { showToast('Storage full! Export data.','error'); }
+  var str;
+  try { str = JSON.stringify(data); }
+  catch (e) { return noteSaveFailure(key, describeStorageError(e)); }
+  try {
+    localStorage.setItem(key, str);
+    var back = localStorage.getItem(key);
+    if (back === null || back.length !== str.length) {
+      return noteSaveFailure(key, 'write not persisted (read back ' +
+        (back === null ? 'nothing' : back.length + ' of ' + str.length + ' chars') + ')');
+    }
+  } catch (e) { return noteSaveFailure(key, describeStorageError(e)); }
+  if (key === STORAGE_KEY) {
+    _storageHealth.lastSaveOk = true;
+    _storageHealth.lastSaveAt = Date.now();
+    _storageHealth.lastSaveChars = str.length;
+    _storageHealth.lastError = '';
+    hideStorageBanner();
+  }
+  return true;
+}
+
+function noteSaveFailure(key, why) {
+  if (key === STORAGE_KEY) {
+    _storageHealth.lastSaveOk = false;
+    _storageHealth.lastSaveAt = Date.now();
+    _storageHealth.lastError = why;
+    showStorageBanner('This browser did not keep the last save (' + why + '). ' +
+      'Anything entered now is in memory only and will be lost on reload. Export a backup.');
+  } else {
+    showToast('Could not save ' + key + ' (' + why + ')', 'error');
+  }
+  return false;
+}
+
+function showStorageBanner(msg) {
+  hideStorageBanner();
+  var bar = document.createElement('div');
+  bar.className = 'inv-storage-bar';
+  bar.setAttribute('role', 'alert');
+  bar.innerHTML = '<span class="inv-update-text">' + escHtml(msg) + '</span>' +
+    '<span class="inv-update-actions">' +
+    '<button class="inv-btn inv-btn-primary inv-update-btn" data-action="invExportData">Export JSON</button></span>';
+  document.body.appendChild(bar);
+}
+function hideStorageBanner() {
+  document.querySelectorAll('.inv-storage-bar').forEach(function(b) { b.remove(); });
 }
 
 /* Fill in every container a backup might predate.
@@ -210,12 +279,13 @@ if (!regFilter) {
 if (!regFilter.state) regFilter.state = regFilter.state || '';
 
 function saveState() {
-  saveJSON(STORAGE_KEY, S);
+  var ok = saveJSON(STORAGE_KEY, S);
   _tabDirty.home = true;
   _tabDirty.register = true;
   // Opt-in GitHub backup. Debounced inside, so this fires far more often than
   // it pushes. Guarded because state.js loads before github-sync.js.
   if (typeof ghNotifyChange === 'function') ghNotifyChange();
+  return ok;
 }
 
 function saveRegFilter() {

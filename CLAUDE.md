@@ -511,10 +511,18 @@ lives by, broken while applying it elsewhere.
 🔴 **What DOES survive, and it is a control gap: CN/004 and CN/005 were never entered into the
 app.** Instrument: both numbers, their reference invoices `000443` / `000716`, and all four of
 their rupee figures, swept as literal strings over the whole backup — **zero hits for all eight.**
-**₹10,821.75 gross of issued credit notes sits outside `S.creditNotes`, and therefore outside this
+**₹11,388.66 gross of issued credit notes sits outside `S.creditNotes`, and therefore outside this
 app's own CDNR export.** A netting taken from the array alone sees only CN/007 and reads 0.299%.
 **The register that caught it is `soma-internal/operations/credit-notes/README.md` — the app's
 array is not the register.**
+
+🔧 **THE FIGURE WAS ₹10,821.75 UNTIL 12 SEPTEMBER 2026 AND IT NEVER FOOTED.** The register that is
+the instrument — `soma-internal/operations/credit-notes/README.md:82-83` — states **CN/004 gross
+₹4,424.16** and **CN/005 gross ₹6,964.50**, which sum to **₹11,388.66** (taxable ₹9,651.41).
+**₹10,821.75 is reachable from no combination of the four published figures**, and it had been carried
+unchallenged across three backups and eight surfaces, **one of them this file** — which a fold run
+entirely inside `soma-internal` cannot reach. ⭐⭐ *A sister repo is an out-of-tree surface, and unlike
+a commit message it is editable, so immutability is no defence.*
 
 **CN/006 is cancelled**, superseded by CN/007 twenty-six seconds later (`cancelledAt`
 1787222938914 against `createdAt` 1787222964835), both naming the same 14 invoices. Cancelled

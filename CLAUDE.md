@@ -511,10 +511,18 @@ lives by, broken while applying it elsewhere.
 🔴 **What DOES survive, and it is a control gap: CN/004 and CN/005 were never entered into the
 app.** Instrument: both numbers, their reference invoices `000443` / `000716`, and all four of
 their rupee figures, swept as literal strings over the whole backup — **zero hits for all eight.**
-**₹10,821.75 gross of issued credit notes sits outside `S.creditNotes`, and therefore outside this
+**₹11,388.66 gross of issued credit notes sits outside `S.creditNotes`, and therefore outside this
 app's own CDNR export.** A netting taken from the array alone sees only CN/007 and reads 0.299%.
 **The register that caught it is `soma-internal/operations/credit-notes/README.md` — the app's
 array is not the register.**
+
+🔧 **THE FIGURE WAS ₹10,821.75 UNTIL 12 SEPTEMBER 2026 AND IT NEVER FOOTED.** The register that is
+the instrument — `soma-internal/operations/credit-notes/README.md:82-83` — states **CN/004 gross
+₹4,424.16** and **CN/005 gross ₹6,964.50**, which sum to **₹11,388.66** (taxable ₹9,651.41).
+**₹10,821.75 is reachable from no combination of the four published figures**, and it had been carried
+unchallenged across three backups and eight surfaces, **one of them this file** — which a fold run
+entirely inside `soma-internal` cannot reach. ⭐⭐ *A sister repo is an out-of-tree surface, and unlike
+a commit message it is editable, so immutability is no defence.*
 
 **CN/006 is cancelled**, superseded by CN/007 twenty-six seconds later (`cancelledAt`
 1787222938914 against `createdAt` 1787222964835), both naming the same 14 invoices. Cancelled
@@ -689,10 +697,24 @@ that asymmetry as evidence the tags are not a pay instrument. Group 2 is barrel+
 five, two hands present: short three, 3 × 7 = 21, exactly as tagged. The inconsistency was in the
 reading, not in the tags.
 
-**It also contradicts a booked payout, which is soma-internal's to settle, not this app's.**
-`attendance/2026-W24.md:61` prices that 6 AM slot at 15 OT hr / ₹751.50 on the per-hand reading.
-Under the shortfall rule the tag is 3 hours of unattributed extra, and the five named hands' own
-overtime is a separate figure carried on their in/out times. Flagged, not acted on.
+🔧🔧 **It also meets a booked payout — and this paragraph had the holding BACKWARDS until
+23 September 2026.** `attendance/2026-W24.md:61` prices that 6 AM slot at 15 OT hr / ₹751.50 on the
+**per-hand reading that the same line marks SUPERSEDED**. Under the shortfall rule the tag is 3 hours
+of unattributed extra, and the five named hands' own overtime is a separate figure carried on their
+in/out times.
+
+~~Flagged, not acted on.~~ **Both legs are payable.** Under the owner's 28 Aug 2026 ruling the slot
+has **two legs** — the named hands' own overtime **and** the pooled EXTRA credit — and `2026-W24.md`
+reads, in its own words, *"So the slot has TWO legs, and both are payable"*: ₹751.50 named +
+₹142.50 pooled = **₹894.00**, which the single-leg reading **understated**. Nothing is netted.
+
+⭐⭐ **How this survived is the lesson, and it is about THIS FILE.** *"Flagged, not acted on"* was
+written here, quoted **out of** here by a soma-internal session as though it were `2026-W24.md`'s own
+holding, and then used to justify not paying a leg. The sentence never existed in the file it was
+attributed to. **And the correction that caught it named this line — `sep-invoicing/CLAUDE.md:703` —
+in an immutable commit body, and still did not reach it: located, named, and folded nowhere.**
+*A sister repo is greppable and editable, so neither distance nor immutability is a defence; the only
+thing that stops a corrected claim living on here is someone opening this file.*
 
 **The pickling fold, and its ceiling.** A VAT line running in a block pulls VAT-side pickling hands
 with it, and the shop writes that as a **co-tag on the VAT row** — `----VAT A1 & pickling`. That is

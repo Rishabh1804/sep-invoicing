@@ -49,6 +49,12 @@ function getDefaultState() {
     labour: { otMult: 1.1, restCreditMinDays: 6, extraRate: 47.5, modelPerKg: 3.55, gateFull: 0.9, gateHalf: 0.8, extraHoursPerHead: 8 },
     // Rate matcher thresholds (option E): Check at ≥ pct% off OR ≥ ₹stake on the line.
     rateCheck: { pct: 10, stake: 100, weightTol: 3 },
+    // Chemical stock: lines, the events that move them, and each pasted
+    // message whole. Ships empty — the lines arrive with the first message.
+    stock: { items: [], entries: [], pastes: [] },
+    // Days of cover at which a line turns red / amber, and the cost model's
+    // chemicals figure the measured one is reported against.
+    stockCheck: { redDays: 3, amberDays: 7, chemModel: 1.57 },
     // Full cost per kg, rebuilt from owner-supplied inputs against Apr–Jul 2026
     // actuals. The old 5.46 predated that rebuild and flattered every margin
     // figure by roughly a rupee a kilo. Only ever the default for a fresh
@@ -345,12 +351,12 @@ function hideStorageBanner(kind) {
 // Containers hold the user's records, so a missing one is filled EMPTY — the
 // app must never invent business data to repair a shape.
 var STATE_CONTAINERS = ['clients', 'items', 'invoices', 'incomingMaterial', 'partWeights',
-  'voidedNumbers', 'creditNotes', 'extraExceptions', 'staff', 'attendance', 'areaTargets'];
+  'voidedNumbers', 'creditNotes', 'extraExceptions', 'staff', 'attendance', 'areaTargets', 'stock'];
 // Config objects are the opposite: a missing one is filled from the defaults,
 // and so is a missing KEY inside one. `labourCfg()` reads `extraRate || 0`, so
 // a backup predating a constant would silently price the extra at nothing
 // rather than at ₹47.50 — a wrong number, not a visible gap.
-var STATE_CONFIGS = ['labour', 'rateCheck'];
+var STATE_CONFIGS = ['labour', 'rateCheck', 'stockCheck'];
 
 function ensureStateShape(s) {
   if (!s) return s;
@@ -865,6 +871,7 @@ function lineLabel(item) {
    matcher's job is that nobody bills it without having seen it. A ₹0 line is
    not judged here: it has its own required reason. */
 var RATE_CHECK_DEFAULTS = { pct: 10, stake: 100, weightTol: 3 };
+var STOCK_CHECK_DEFAULTS = { redDays: 3, amberDays: 7, chemModel: 1.57 };
 
 /* The two thresholds, from Settings. Read on every judgement so a change in
    Settings re-colours the next line typed. A missing or nonsensical value falls

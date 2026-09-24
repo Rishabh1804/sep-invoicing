@@ -41,6 +41,15 @@ function openSettings() {
     '<input type="number" step="0.5" min="0.5" class="inv-form-input inv-mono" id="setWtTol" value="' + rateCheckCfg().weightTol + '"></div>' +
     '<div class="inv-text-muted inv-storage-text">A line whose rate, or whose kilograms against pieces &times; the weight per piece, is this far off what is on record, or puts this much money at stake, is marked <strong>Check</strong>. Anything smaller is marked <strong>Differs</strong> with its difference shown. A scale is not exact, so a weight inside the &plusmn; band matches. Nothing here stops an invoice from being saved. Set 24 Sep 2026 at 10%, &#8377;100 and &plusmn;3%.</div></div>' +
 
+    '<div class="inv-settings-section"><div class="inv-settings-title">Stock</div>' +
+    '<div class="inv-form-row"><div class="inv-form-group"><label class="inv-form-label" for="setStkRed">Red at days left or fewer</label>' +
+    '<input type="number" step="1" min="1" class="inv-form-input inv-mono" id="setStkRed" value="' + stockCfg().redDays + '"></div>' +
+    '<div class="inv-form-group"><label class="inv-form-label" for="setStkAmber">Amber at days left or fewer</label>' +
+    '<input type="number" step="1" min="1" class="inv-form-input inv-mono" id="setStkAmber" value="' + stockCfg().amberDays + '"></div></div>' +
+    '<div class="inv-form-group"><label class="inv-form-label" for="setStkModel">Chemicals in the cost model (&#8377;/kg)</label>' +
+    '<input type="number" step="0.01" min="0.01" class="inv-form-input inv-mono" id="setStkModel" value="' + stockCfg().chemModel + '"></div>' +
+    '<div class="inv-text-muted inv-storage-text">Days left is the level over the daily use on record. Stats reports the measured chemicals figure against the model one. Set 24 Sep 2026 at 3 and 7 days.</div></div>' +
+
     '<div class="inv-settings-section"><div class="inv-settings-title">Labour</div>' +
     '<div class="inv-form-row"><div class="inv-form-group"><label class="inv-form-label">OT multiplier</label>' +
     '<input type="number" step="0.01" min="1" class="inv-form-input inv-mono" id="setOtMult" value="' + ((S.labour && S.labour.otMult) != null ? S.labour.otMult : 1.1) + '"></div>' +
@@ -143,6 +152,13 @@ function saveSettings() {
   if (rcStakeEl) { var rs = parseFloat(rcStakeEl.value); if (!isNaN(rs) && rs > 0) S.rateCheck.stake = gstRound(rs); }
   var wtTolEl = document.getElementById('setWtTol');
   if (wtTolEl) { var wt = parseFloat(wtTolEl.value); if (!isNaN(wt) && wt > 0) S.rateCheck.weightTol = wt; }
+  if (!S.stockCheck) S.stockCheck = {};
+  var stkRedEl = document.getElementById('setStkRed');
+  if (stkRedEl) { var sr = parseFloat(stkRedEl.value); if (!isNaN(sr) && sr > 0) S.stockCheck.redDays = sr; }
+  var stkAmberEl = document.getElementById('setStkAmber');
+  if (stkAmberEl) { var sa = parseFloat(stkAmberEl.value); if (!isNaN(sa) && sa > 0) S.stockCheck.amberDays = sa; }
+  var stkModelEl = document.getElementById('setStkModel');
+  if (stkModelEl) { var sm = parseFloat(stkModelEl.value); if (!isNaN(sm) && sm > 0) S.stockCheck.chemModel = sm; }
   if (!S.labour) S.labour = {};
   var otMultEl = document.getElementById('setOtMult');
   if (otMultEl) { var pm = parseFloat(otMultEl.value); if (!isNaN(pm) && pm >= 0) S.labour.otMult = pm; }

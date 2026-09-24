@@ -23,7 +23,7 @@ Workforce management and invoicing PWA for **Soma Electro Products**, a zinc ele
 
 ## Architecture
 
-Split-file PWA. 33 modules, ~15,950 lines total.
+Split-file PWA. 34 modules, ~17,100 lines total.
 
 ```
 split/
@@ -52,6 +52,7 @@ split/
 ├── staff.js           ← Roster + attendance + roster import: day, week, extra hours (1,013 lines)
 ├── labour.js          ← Labour: three pay tiers, fixed/variable, by area, ₹/kg (449 lines)
 ├── areas.js           ← Areas: staffing vs norms + the extra reconciled (1135 lines)
+├── stock.js           ← Stock: WhatsApp message parser, event replay, More sheet, chemicals ₹/kg (1,130 lines)
 ├── stats.js           ← Stats dashboard + History activity log (1,195 lines)
 ├── client-perf.js     ← Client performance: month on month + material cadence (314 lines)
 ├── im-form.js         ← IM add/edit/delete challan form (450 lines)
@@ -63,7 +64,7 @@ split/
 └── init.js            ← Migrations + app bootstrap (567 lines)
 ```
 
-**Concat order defined in build.sh.** Dependencies: data → state → zinc → tabs → clients → items → create → settings → github-sync → invoice-ops → number-audit → exports → im → autocomplete → print → quality-cert → credit-note → charts → staff → labour → areas → stats → client-perf → im-form → im-dupe → scanner → events → swipe → seed → init.
+**Concat order defined in build.sh.** Dependencies: data → state → zinc → tabs → clients → items → create → settings → github-sync → invoice-ops → number-audit → exports → im → autocomplete → print → quality-cert → credit-note → charts → staff → labour → areas → stock → stats → client-perf → im-form → im-dupe → scanner → events → swipe → seed → init.
 
 ### Build
 
@@ -89,7 +90,7 @@ every session start — nothing to set up by hand. CI (`build-sync`) is the back
 ### Tests
 
 ```bash
-pnpm exec playwright test          # 357 tests, both layouts
+pnpm exec playwright test          # 366 tests, both layouts
 ```
 
 Some sandboxes ship a Chromium build Playwright does not expect and block downloading
@@ -1076,6 +1077,52 @@ mandatory essay gets "ok". The history is stamped `replating` **and** `zeroReaso
 register can tell a reason the ruling supplied from one an operator chose. The migration is bounded
 to invoices dated on or before the ruling — a ₹0 line written later by a device on an older build
 reads *No reason recorded* rather than the migration inventing one forever.
+
+### Stock
+More → **Stock**. Chemical stock, **owned by `soma-internal`** (owner, 24 Sep 2026): this tab is a view
+and an input, never the ledger. Everything it captures is copied there at each compile and stays here.
+
+**The record is events, not levels** — `S.stock.entries`: `count` / `received` / `used` / `charged`,
+each with the day it is about, when it was typed (`at`), who sent it (`sentBy`), who typed it (`by`), and
+for a pasted line the text it came from (`raw`, plus the whole message in `S.stock.pastes`). The level is
+**replayed** (`stockReplay`): a count sets it, a delivery adds, a use or charge takes away. A table of
+levels could not have caught what the first real message carried — *nitric acid, `add 60+10=70 … use 30
+… available 70`*: the supervisor's own working says 40.
+
+**The owner pastes the supervisor's WhatsApp message** (`parseStockMessage`, pure, no `S`). Numbered
+lines, wrapped lines, the shop's spellings (`SOLLT`, `ZINK`, `CYNEDE`, `BRIGHTNER` — `stockKey`), and
+three arithmetic shapes: `opening − used = left`, `add received + opening = total − used = left`, and
+`rate × days = used`. Tested on the 22 and 24 Sep messages: all 30 lines read, before any screen existed.
+**Before anything is saved, every line is shown with the text it came from and what was read:**
+
+- 🔴 **Needs you** — the message contradicts itself. Pick *the working*, *the figure written*, or save
+  it **unsettled** (the default: the app never picks for you). Warn, never block.
+- 🟠 **Check** — an assumption or a disagreement with the app: an opening that differs from the app's
+  level, a count **up** with no delivery recorded (65 R, 24 Sep: 6 → 15 L), a line with **no name** read
+  by its **position** in the last message (24 Sep line 14, `70-10=60`), a delivery with no date on a
+  window over two days, a number it could not place.
+- A new name becomes a new line; a known name, or one the operator mapped once, is remembered.
+- The same message twice is refused — every figure would count double.
+
+**Days left = level ÷ daily use**, the use over the last three weeks of record divided by the days it
+covers — Sundays out, the shop's own divisor (16–22 Sep is `6 day`). Under three days of record the
+figure carries a `?`. Red at 3 days or fewer, amber at 7 (Settings → Stock). **A line charged into a
+bath (zinc) is never red at an empty shelf**: the delivery going into the bath is the normal state.
+
+**By hand**: Count / Received / Used / Charged against one list; Received takes a price per unit,
+supplier and bill. A wrong entry is **voided, never deleted** — the export is the record's source, and a
+vanished entry would leave `soma-internal` holding a figure the app no longer explains.
+
+**Export is always whole** (`sep-stock` JSON: lines, entries, messages, build) and import **merges by
+id, never overwrites** — `soma-internal` de-duplicates on the ids at each compile.
+
+**Stats → Chemicals**: what was used × the last price paid ÷ kg plated in the period, against the cost
+model's ₹1.57. A line with no price is **named and left out, never costed at zero** — pricing it at
+nothing would make chemicals look cheaper the less anybody recorded.
+
+**The phone bar is six tabs**: Home, Create, IM, Register, Clients, **More** (Stock, Staff, Stats,
+History). More lights up while one of those is open and carries a red count of lines that are out. The
+test fixture's `switchTab` opens More when the target is behind it.
 
 ### Labour and attendance
 The Staff tab. Labour is ₹3.55/kg of an ₹8.55 cost and 42% of it — the largest line in the

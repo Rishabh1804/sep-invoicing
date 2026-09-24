@@ -20,6 +20,8 @@ document.addEventListener('click', function(e) {
 
   switch(action) {
     case 'invSwitchTab': switchTab(btn.dataset.tab); break;
+    case 'invOpenMore': openMoreSheet(); break;
+    case 'invCloseMore': closeMoreSheet(); break;
     case 'invCreateNew': initCreateForm(); switchTab('pageCreate'); break;
     case 'invOpenSettings': openSettings(); break;
     case 'invCloseOverlay': closeOverlay(); break;
@@ -347,6 +349,8 @@ document.addEventListener('click', function(e) {
       _renderIMView();
       break;
     }
+    default:
+      if (action.indexOf('invStock') === 0) stockAction(action, btn);
   }
 });
 
@@ -400,6 +404,7 @@ function updateTotalsDisplay() {
 }
 
 document.addEventListener('change', function(e) {
+  if (stockOnChange(e.target)) return;
   const el = e.target.closest('[data-action="invUpdateLine"]');
   if (el) {
     const idx = parseInt(el.dataset.idx);
@@ -536,6 +541,7 @@ document.addEventListener('change', function(e) {
 });
 
 document.addEventListener('input', function(e) {
+  if (stockOnInput(e.target)) return;
   if (e.target.id === 'clientSearch') {
     renderClientList(e.target.value);
   }
@@ -768,6 +774,7 @@ document.addEventListener('keydown', function(e) {
   }
 
   if (e.key === 'Escape') {
+    closeMoreSheet();
     dismissAllAutocomplete();
     var searchRes = document.getElementById('invClientResults');
     if (searchRes) searchRes.classList.add('inv-hidden');

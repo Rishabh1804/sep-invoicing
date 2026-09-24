@@ -238,6 +238,9 @@ test.describe('P29: attendance through the roster door', () => {
           },
         },
       });
+      // The import reads its file asynchronously; wait for it to land on disk
+      // rather than racing it (this read failed on CI with the day not yet stored).
+      await expect.poll(async () => (await stored(page)).attendance?.['2026-05-04']?.extra?.length ?? 0).toBe(2);
       const day = (await stored(page)).attendance['2026-05-04'];
       const unresolved = day.extra.find((x: any) => x.areas[0] === 'vat-a1');
       expect(unresolved.crew).toEqual([]);

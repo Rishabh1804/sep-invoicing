@@ -91,6 +91,7 @@ function _showClientOverlay(client, isAdd) {
     '<div class="inv-form-row inv-mb-8"><div class="inv-form-group"><label class="inv-form-label">' + (isAdd ? 'Rate/KG' : 'New Rate/KG') + '</label><input class="inv-form-input inv-mono" id="ceditNewRate" type="number" step="0.01" placeholder="14.25"></div>' +
     '<div class="inv-form-group"><label class="inv-form-label">Effective From</label><input class="inv-form-input inv-mono" id="ceditNewRateDate" type="date" value="' + localDateStr() + '"></div></div>' +
     (isAdd ? '' : '<button class="inv-btn inv-btn-ghost inv-btn-sm inv-mb-16" data-action="invAddRate" data-client="' + c.id + '">Add Rate</button>') +
+    (isAdd ? '' : _pieceRatesEditHtml(c)) +
     '<div class="inv-flex-between inv-mb-16"><label class="inv-checkbox-label">' +
     '<input type="checkbox" id="ceditActive"' + (c.isActive?' checked':'') + '> Active</label></div>' +
     '<div class="inv-btn-bar"><button class="inv-btn inv-btn-ghost" data-action="invCloseOverlay">Cancel</button>' +
@@ -308,6 +309,20 @@ function _renderClientDetail(clientId, skipMasterRefresh) {
     html += '</div>';
   }
 
+  // Piece rates on record
+  if (c.pieceRates && c.pieceRates.length > 0) {
+    html += '<div class="inv-detail-section">' +
+      '<div class="inv-detail-label">Piece Rates</div>';
+    _sortedPieceRates(c).forEach(function(pr) {
+      html += '<div class="inv-detail-rate-row">' +
+        '<span class="inv-detail-value-mono">' + escHtml(pr.partNumber) + (pr.gauge ? ' \u00B7 ' + escHtml(pr.gauge) : '') + '</span>' +
+        '<span class="inv-detail-value-mono">' + formatCurrency(pr.rate) + '/pc</span>' +
+        '<span class="inv-detail-value-mono inv-text-muted">' + escHtml(pr.effectiveFrom || '') + '</span>' +
+        '</div>';
+    });
+    html += '</div>';
+  }
+
   // Recent Invoices
   var clientInvoices = (S.invoices || []).filter(function(i) { return i.clientId === c.id; })
     .sort(function(a, b) { return (b.date || '').localeCompare(a.date || ''); })
@@ -341,3 +356,190 @@ function _renderClientDetail(clientId, skipMasterRefresh) {
   }
 }
 
+
+
+/* ===== PIECE RATE CARD =====
+   The client's per-piece rates, dated and keyed on part + gauge. Read by
+   getPieceRate() in state.js; see the note there for why these are not
+   itemRates overrides. */
+var _pieceFillReport = null;
+
+function _sortedPieceRates(c) {
+  return (c.pieceRates || []).map(function(pr, i) { return Object.assign({ _i: i }, pr); })
+    .sort(function(a, b) {
+      return rateKey(a.partNumber).localeCompare(rateKey(b.partNumber)) ||
+        rateKey(a.gauge).localeCompare(rateKey(b.gauge)) ||
+        String(b.effectiveFrom || '').localeCompare(String(a.effectiveFrom || ''));
+    });
+}
+
+function _pieceRatesEditHtml(c) {
+  // Every client: a weight-billed client can still send a part billed per piece
+  // (Parakh's ROLLER), and the matcher tells the operator to add it here.
+  var html = '<div class="inv-settings-title">Piece Rates</div>';
+  var rows = _sortedPieceRates(c);
+  if (rows.length === 0) {
+    html += '<div class="inv-text-muted inv-piece-empty">No piece rates on record. Fill them from what has been billed, or add one below.</div>';
+  }
+  html += '<div id="ceditPieceRates">';
+  rows.forEach(function(pr) {
+    html += '<div class="inv-rate-row inv-piece-row">' +
+      '<span class="inv-mono">' + escHtml(pr.partNumber) + (pr.gauge ? ' · ' + escHtml(pr.gauge) : '') + '</span>' +
+      '<span class="inv-mono">' + formatCurrency(pr.rate) + '/pc</span>' +
+      '<span class="inv-text-muted inv-mono">' + escHtml(pr.effectiveFrom || '') + '</span>' +
+      '<button class="inv-line-remove" data-action="invRemovePieceRate" data-client="' + c.id + '" data-idx="' + pr._i + '" aria-label="Remove piece rate">&times;</button>' +
+      '</div>';
+  });
+  html += '</div>';
+  if (_pieceFillReport && _pieceFillReport.clientId === c.id) html += _pieceFillReportHtml(_pieceFillReport);
+  html += '<div class="inv-form-row"><div class="inv-form-group"><label class="inv-form-label">Part</label><input class="inv-form-input inv-mono" id="ceditPiecePart" placeholder="CLAMP 165X83 (NT)"></div>' +
+    '<div class="inv-form-group"><label class="inv-form-label">Gauge</label><input class="inv-form-input inv-mono" id="ceditPieceGauge" placeholder="40X6"></div></div>' +
+    '<div class="inv-form-row"><div class="inv-form-group"><label class="inv-form-label">Rate/piece</label><input class="inv-form-input inv-mono" id="ceditPieceRate" type="number" step="0.01" min="0"></div>' +
+    '<div class="inv-form-group"><label class="inv-form-label">Effective From</label><input class="inv-form-input inv-mono" id="ceditPieceDate" type="date" value="' + localDateStr() + '"></div></div>' +
+    '<div class="inv-btn-bar inv-mb-16">' +
+    '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invFillPieceRates" data-client="' + c.id + '">Fill from billing history</button>' +
+    '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invAddPieceRate" data-client="' + c.id + '">Add Piece Rate</button></div>';
+  return html;
+}
+
+function _pieceFillReportHtml(r) {
+  var html = '<div class="inv-piece-report">' +
+    '<div>' + r.added + ' rate' + (r.added === 1 ? '' : 's') + ' added from ' + r.lines + ' billed line' + (r.lines === 1 ? '' : 's') +
+    (r.skippedExisting ? ' · ' + r.skippedExisting + ' part' + (r.skippedExisting === 1 ? '' : 's') + ' already on the card, left alone' : '') + '</div>';
+  if (r.mixed.length) {
+    html += '<div class="inv-piece-report-warn">Left out \u2014 billed at alternating rates, most likely two gauges under one name. Add these by hand, with the gauge:</div><ul class="inv-piece-report-list">';
+    r.mixed.forEach(function(m) {
+      html += '<li class="inv-mono">' + escHtml(m.partNumber) + (m.gauge ? ' \u00B7 ' + escHtml(m.gauge) : '') + ': ' +
+        m.rates.map(function(x) { return formatCurrency(x); }).join(' / ') + '</li>';
+    });
+    html += '</ul>';
+  }
+  if (r.outliers.length) {
+    html += '<div class="inv-piece-report-warn">Left out — a rate billed on one invoice only. Check these against the customer’s rate card:</div><ul class="inv-piece-report-list">';
+    r.outliers.forEach(function(o) {
+      html += '<li class="inv-mono">' + escHtml(o.partNumber) + (o.gauge ? ' · ' + escHtml(o.gauge) : '') + ' at ' + formatCurrency(o.rate) +
+        ' on ' + escHtml(o.invoiceNumber) + ' (' + escHtml(o.date) + ')' +
+        (o.usual != null && o.usual !== o.rate ? '; elsewhere ' + formatCurrency(o.usual) : '; no rate seen twice') + '</li>';
+    });
+    html += '</ul>';
+  }
+  return html + '</div>';
+}
+
+/* Derive a dated piece-rate card from what this client has actually been billed.
+   The billed rate is the evidence the customer accepted; the Items Master is
+   not (see state.js). One rule keeps an error from becoming the card: a rate
+   seen on ONE invoice, where the part has been billed at another rate on two or
+   more, is left out and listed — that is the shape of 00922/00923, where
+   material was misattributed and two brackets swapped rates for a day. A part
+   already on the card is left alone; the operator's entry wins. */
+function pieceRatesFromHistory(client) {
+  var groups = {}, lines = 0;
+  (S.invoices || []).forEach(function(inv) {
+    if (inv.clientId !== client.id || inv.status === 'cancelled') return;
+    (inv.items || []).forEach(function(li) {
+      if (li.unit !== 'NOS' || !(li.rate > 0) || !(li.amount > 0) || !li.partNumber) return;
+      var gauge = lineGauge(li.desc) || lineGauge(li.partNumber);
+      var key = rateKey(li.partNumber) + '|' + rateKey(gauge);
+      if (!groups[key]) groups[key] = { partNumber: li.partNumber, gauge: gauge, hits: [] };
+      groups[key].hits.push({ date: inv.date || '', rate: gstRound(li.rate), inv: inv.invoiceNumber });
+      lines++;
+    });
+  });
+  var have = {};
+  (client.pieceRates || []).forEach(function(pr) { have[rateKey(pr.partNumber) + '|' + rateKey(pr.gauge)] = true; });
+  var add = [], outliers = [], mixed = [], skippedExisting = 0;
+  Object.keys(groups).forEach(function(key) {
+    var grp = groups[key];
+    if (have[key]) { skippedExisting++; return; }
+    var invsByRate = {};
+    grp.hits.forEach(function(h) {
+      (invsByRate[h.rate] = invsByRate[h.rate] || {})[h.inv] = true;
+    });
+    var rates = Object.keys(invsByRate);
+    var established = rates.filter(function(r) { return Object.keys(invsByRate[r]).length >= 2; });
+    var keep = function(rate) { return rates.length === 1 || established.indexOf(String(rate)) >= 0; };
+    if (established.length === 0 && rates.length > 1) {
+      // Every rate seen once: nothing is established, and guessing is how a
+      // swap becomes the card. Report all of them.
+      grp.hits.forEach(function(h) { outliers.push({ partNumber: grp.partNumber, gauge: grp.gauge, rate: h.rate, invoiceNumber: h.inv, date: h.date, usual: null }); });
+      return;
+    }
+    grp.hits.sort(function(a, b) { return a.date.localeCompare(b.date); });
+    // A rate that RETURNS after changing is not a rate history, it is two
+    // products billed under one name — the gauge-less "CLAMP 165X83 (NT)" lines
+    // swing 4.27 / 4.89 / 4.27 on consecutive days because they are 35X6 and
+    // 40X6. A dated card built from that would be wrong on every other line.
+    var seq = [];
+    grp.hits.forEach(function(h) { if (keep(h.rate) && seq[seq.length - 1] !== h.rate) seq.push(h.rate); });
+    if (seq.length !== new Set(seq).size) {
+      mixed.push({ partNumber: grp.partNumber, gauge: grp.gauge, rates: Array.from(new Set(seq)) });
+      return;
+    }
+    var usual = null, bestN = 0;
+    established.forEach(function(r) { var n = Object.keys(invsByRate[r]).length; if (n > bestN) { bestN = n; usual = parseFloat(r); } });
+    var last = null;
+    grp.hits.forEach(function(h) {
+      if (!keep(h.rate)) {
+        outliers.push({ partNumber: grp.partNumber, gauge: grp.gauge, rate: h.rate, invoiceNumber: h.inv, date: h.date, usual: usual });
+        return;
+      }
+      if (last === null || h.rate !== last) {
+        add.push({ partNumber: grp.partNumber, gauge: grp.gauge, rate: h.rate, effectiveFrom: h.date, source: 'history' });
+        last = h.rate;
+      }
+    });
+  });
+  return { add: add, outliers: outliers, mixed: mixed, lines: lines, skippedExisting: skippedExisting };
+}
+
+function fillPieceRatesFromHistory(clientId) {
+  var c = S.clients.find(function(x) { return x.id === clientId; });
+  if (!c) return;
+  var r = pieceRatesFromHistory(c);
+  if (!c.pieceRates) c.pieceRates = [];
+  var now = Date.now();
+  r.add.forEach(function(pr) { pr.addedAt = now; c.pieceRates.push(pr); });
+  if (r.add.length) saveState();
+  _pieceFillReport = { clientId: c.id, added: r.add.length, lines: r.lines,
+    skippedExisting: r.skippedExisting, outliers: r.outliers, mixed: r.mixed };
+  showToast(r.add.length ? r.add.length + ' piece rates added from billing history' : 'No new piece rates to add',
+    (r.outliers.length || r.mixed.length) ? 'warning' : undefined);
+  _reopenClientAfterRateChange(clientId);
+}
+
+function addPieceRate(clientId) {
+  var c = S.clients.find(function(x) { return x.id === clientId; });
+  if (!c) return;
+  var part = (document.getElementById('ceditPiecePart').value || '').trim();
+  var gauge = (document.getElementById('ceditPieceGauge').value || '').trim().toUpperCase();
+  var rate = parseFloat(document.getElementById('ceditPieceRate').value);
+  var date = document.getElementById('ceditPieceDate').value;
+  if (!part) { showToast('Enter the part number', 'error'); return; }
+  if (isNaN(rate) || rate <= 0) { showToast('Enter a rate per piece', 'error'); return; }
+  if (!date) { showToast('Enter the date the rate applies from', 'error'); return; }
+  if (!c.pieceRates) c.pieceRates = [];
+  var dup = c.pieceRates.some(function(pr) {
+    return rateKey(pr.partNumber) === rateKey(part) && rateKey(pr.gauge) === rateKey(gauge) && pr.effectiveFrom === date;
+  });
+  if (dup) { showToast('That part already has a rate from ' + date, 'error'); return; }
+  c.pieceRates.push({ partNumber: part, gauge: gauge, rate: gstRound(rate), effectiveFrom: date, source: 'manual', addedAt: Date.now() });
+  saveState();
+  showToast('Piece rate added');
+  _reopenClientAfterRateChange(clientId);
+}
+
+function removePieceRate(clientId, idx) {
+  var c = S.clients.find(function(x) { return x.id === clientId; });
+  if (!c || !c.pieceRates || !c.pieceRates[idx]) return;
+  c.pieceRates.splice(idx, 1);
+  saveState();
+  showToast('Piece rate removed');
+  _reopenClientAfterRateChange(clientId);
+}
+
+function _reopenClientAfterRateChange(clientId) {
+  closeOverlay();
+  if (_isDesktop && _clientsActiveId === clientId) _renderClientDetail(clientId, false);
+  openClientEdit(clientId);
+}

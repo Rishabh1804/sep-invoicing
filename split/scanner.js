@@ -107,10 +107,35 @@ function _applyScanResult(parsed) {
   if (client) {
     parsed.clientId = client.id;
     parsed.clientName = client.name;
+    // T-HC: the rate comes from the client's own records, never from the rate
+    // frozen into _scanClientMap. That map's figures are only its fallback for
+    // a client the app does not hold — the scanner used to price every KG line
+    // off them, so a rate change or an itemRates override never reached a
+    // scanned challan, and a matcher would read the scanner's lines as wrong
+    // against a correct rate card.
+    var appClient = S.clients.find(function(c) { return c.id === client.id; }) || null;
+    var onDate = parsed.challanDate || localDateStr();
     (parsed.items || []).forEach(function(item) {
-      if (item.unit === 'KG' && client.rate) {
-        item.rate = client.rate;
-        item.amount = gstRound((item.qty || 0) * client.rate);
+      if (!appClient) {
+        if (item.unit === 'KG' && client.rate) {
+          item.rate = client.rate;
+          item.amount = gstRound((item.qty || 0) * client.rate);
+        }
+        return;
+      }
+      var info = getLineItemRate(appClient, onDate, item.partNumber);
+      var piece = item.unit === 'NOS' ? getPieceRate(appClient, onDate, item.partNumber, item.desc) : null;
+      if (info._override) {
+        item.rate = info.rate;
+        item.amount = gstRound((item.qty || 0) * info.rate);
+      } else if (item.unit === 'KG') {
+        item.rate = info.ratePerKg || 0;
+        item.amount = gstRound((item.qty || 0) * item.rate);
+      } else if (piece && piece.rate != null && !(appClient.billingMode === 'piece' && (item.amount || 0) > 0)) {
+        // A piece client's challan states its own amount; that figure is the
+        // passthrough and is kept. The card fills only what the challan left out.
+        item.rate = piece.rate;
+        item.amount = gstRound((item.qty || 0) * piece.rate);
       }
     });
   }

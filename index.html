@@ -15,7 +15,7 @@
 <title>SEP Invoicing</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-<meta name="app-build" content="05407536">
+<meta name="app-build" content="742b65ec">
 <style>
 /* ===== DESIGN TOKENS ===== */
 :root {
@@ -327,6 +327,69 @@ input, select, textarea, button { font-family: inherit; font-size: var(--fs-base
   background: var(--prod-bg); color: var(--prod-text);
   border-radius: var(--r-sm); font-size: var(--fs-2xs); font-weight: 600;
 }
+
+/* A ₹0 line carries its reason: three options and an optional note. */
+.inv-zero-reason {
+  margin-top: var(--sp-8); padding: var(--sp-8);
+  border: 1px solid var(--warning); border-radius: var(--r-md);
+  background: var(--warning-bg);
+}
+.inv-zero-reason-head { display: flex; align-items: center; gap: var(--sp-8); margin-bottom: var(--sp-8); }
+.inv-zero-reason-q { font-size: var(--fs-xs); font-weight: 600; color: var(--warning-text); }
+.inv-zero-reason-opts { display: flex; flex-wrap: wrap; gap: var(--sp-6); margin-bottom: var(--sp-8); }
+.inv-zero-opt {
+  min-height: 44px; padding: var(--sp-6) var(--sp-12);
+  border: 1px solid var(--border); border-radius: var(--r-full);
+  background: var(--surface); color: var(--text-2);
+  font-size: var(--fs-sm); font-weight: 600; cursor: pointer;
+}
+.inv-zero-opt-on { background: var(--warning-text); color: var(--surface); border-color: var(--warning-text); }
+.inv-zero-opt:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.inv-zero-note { width: 100%; }
+.inv-zero-tag { margin-top: var(--sp-4); font-size: var(--fs-2xs); color: var(--text-2); }
+.inv-zero-tag-missing { color: var(--danger); }
+.dark .inv-zero-reason { background: var(--warning-bg); border-color: var(--warning); }
+.dark .inv-zero-opt { background: var(--surface-2); border-color: var(--border); color: var(--text-2); }
+.dark .inv-zero-opt-on { background: var(--warning-text); color: var(--surface); border-color: var(--warning-text); }
+.dark .inv-zero-tag { color: var(--text-2); }
+
+/* Piece-rate card in the client overlay */
+.inv-piece-row { align-items: center; gap: var(--sp-8); }
+.inv-piece-empty { font-size: var(--fs-xs); margin-bottom: var(--sp-8); }
+.inv-piece-report {
+  margin: var(--sp-8) 0; padding: var(--sp-8); border-radius: var(--r-md);
+  background: var(--surface-2); color: var(--text-2); font-size: var(--fs-xs);
+}
+.inv-piece-report-warn { margin-top: var(--sp-6); color: var(--warning-text); font-weight: 600; }
+.inv-piece-report-list { margin: var(--sp-4) 0 0 0; padding-left: var(--sp-16); }
+.dark .inv-piece-report { background: var(--surface-2); color: var(--text-2); }
+.dark .inv-piece-report-warn { color: var(--warning-text); }
+
+/* Rate matcher: the verdict on a line's rate, under the Rate field */
+.inv-rm-note { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-6); margin-top: var(--sp-6); }
+.inv-rm-text { font-size: var(--fs-xs); color: var(--text-2); font-family: var(--ff-mono); }
+.inv-rm-chip {
+  display: inline-flex; align-items: center; padding: var(--sp-2) var(--sp-8);
+  border-radius: var(--r-full); border: 1px solid transparent;
+  font-size: var(--fs-xs); font-weight: 600; white-space: nowrap;
+}
+.inv-rm-match { background: var(--attend-bg); color: var(--attend-text); border-color: var(--attend); }
+.inv-rm-decimal { background: var(--warning-bg); color: var(--warning-text); border-color: var(--warning); }
+.inv-rm-differs { background: var(--neutral-bg); color: var(--neutral-text); border-color: var(--neutral); }
+.inv-rm-check { background: var(--danger-bg); color: var(--danger-text); border-color: var(--danger); }
+.inv-rm-none, .inv-rm-gauge { background: transparent; color: var(--text-3); border-color: var(--border-2); font-weight: 500; }
+.inv-form-input.inv-rm-input-match { border-color: var(--attend); }
+.inv-form-input.inv-rm-input-decimal { border-color: var(--warning); background: var(--warning-bg); }
+.inv-form-input.inv-rm-input-differs { border-color: var(--neutral); }
+.inv-form-input.inv-rm-input-check { border-color: var(--danger); background: var(--danger-bg); }
+.dark .inv-rm-text { color: var(--text-2); }
+.dark .inv-rm-match { background: var(--attend-bg); color: var(--attend-text); }
+.dark .inv-rm-decimal { background: var(--warning-bg); color: var(--warning-text); }
+.dark .inv-rm-differs { background: var(--neutral-bg); color: var(--neutral-text); }
+.dark .inv-rm-check { background: var(--danger-bg); color: var(--danger-text); }
+.dark .inv-rm-none, .dark .inv-rm-gauge { color: var(--text-3); border-color: var(--border-2); }
+.dark .inv-form-input.inv-rm-input-decimal { background: var(--warning-bg); }
+.dark .inv-form-input.inv-rm-input-check { background: var(--danger-bg); }
 
 /* ===== VALIDATION ===== */
 .inv-error { color: var(--danger); font-size: var(--fs-xs); margin-top: var(--sp-4); }
@@ -3210,6 +3273,8 @@ function getDefaultState() {
     // own weekly gate. The hourly pool needs none of them — every hour at one
     // rate. extraRate prices the area-booked "extra hours", which carry no name.
     labour: { otMult: 1.1, restCreditMinDays: 6, extraRate: 47.5, modelPerKg: 3.55, gateFull: 0.9, gateHalf: 0.8, extraHoursPerHead: 8 },
+    // Rate matcher thresholds (option E): Check at ≥ pct% off OR ≥ ₹stake on the line.
+    rateCheck: { pct: 10, stake: 100 },
     // Full cost per kg, rebuilt from owner-supplied inputs against Apr–Jul 2026
     // actuals. The old 5.46 predated that rebuild and flattered every margin
     // figure by roughly a rupee a kilo. Only ever the default for a fresh
@@ -3511,7 +3576,7 @@ var STATE_CONTAINERS = ['clients', 'items', 'invoices', 'incomingMaterial', 'par
 // and so is a missing KEY inside one. `labourCfg()` reads `extraRate || 0`, so
 // a backup predating a constant would silently price the extra at nothing
 // rather than at ₹47.50 — a wrong number, not a visible gap.
-var STATE_CONFIGS = ['labour'];
+var STATE_CONFIGS = ['labour', 'rateCheck'];
 
 function ensureStateShape(s) {
   if (!s) return s;
@@ -3838,6 +3903,202 @@ function getLineItemRate(client, invoiceDate, partNumber) {
   return {ratePerKg: 0, ratePerPiece: null, effectiveFrom: '2026-04-01'};
 }
 
+
+/* ===== PIECE RATES ON RECORD =====
+
+   A piece-billed client's rate card lived nowhere the app could read it. The
+   Items Master carries one `rate` per part with no client and no date, and the
+   2026-09-11 replay found it disagreeing with 185 of SSS Mehta's billed lines —
+   mostly because the customer's rate moved and the master did not (150X88X3:
+   billed 1.67 on every line since April, master 1.64), and in three rows because
+   the ₹/kg figure had been typed into the per-piece field.
+
+   So the rate a piece line is checked against is the CLIENT's, dated, and keyed
+   on part AND gauge: four clamp families (five, counting 154X81) are priced
+   differently at different gauges under one part number, and a gauge-blind key
+   reads a correct 40X6 line as wrong against the 35X6 rate.
+
+   Deliberately NOT an `itemRates` override. An override is a negotiated
+   per-piece figure with no weight basis, and Stats and weight derivation refuse
+   to invert one — putting SSS Mehta's card there would wipe 61% of the plant's
+   tonnage off the dashboard. These rates were built as weight × ₹/kg, and the
+   tonnage paths keep reading the line the way they always have. */
+function rateKey(s) {
+  return String(s == null ? '' : s).toUpperCase().replace(/[^A-Z0-9]/g, '');
+}
+
+/* The strip gauge a line's description states — "CLAMP (40X6)", "35X6" — or ''.
+   Two digits, X, one digit, standing alone: a gauge is the strip section, and
+   the anchoring is what stops "L.C.Pad 150x80x3" (a part size) reading as one. */
+function lineGauge(desc) {
+  var m = /(?:^|[^0-9A-Z])(\d{2})\s*X\s*(\d)(?![0-9X])/i.exec(String(desc || ''));
+  return m ? m[1] + 'X' + m[2] : '';
+}
+
+/* The per-piece rate on record for a line, or null when there is none.
+   `{ambiguous: true}` when the part is priced by gauge and the line does not
+   say which gauge it is — reported, never resolved by picking one. */
+function getPieceRate(client, onDate, partNumber, desc) {
+  var pk = rateKey(partNumber);
+  if (!client || !pk || !client.pieceRates || client.pieceRates.length === 0) return null;
+  var date = onDate || localDateStr();
+  var rows = client.pieceRates.filter(function(r) {
+    return rateKey(r.partNumber) === pk && (!r.effectiveFrom || r.effectiveFrom <= date);
+  });
+  if (rows.length === 0) return null;
+  // The gauge is folded into the line's description (partLineDesc); some part
+  // numbers carry it too ("CLAMP 165X83(40X6)").
+  var lg = lineGauge(desc) || lineGauge(partNumber);
+  var gauged = rows.filter(function(r) { return r.gauge && lg && rateKey(r.gauge) === lg; });
+  var pool = gauged.length ? gauged : rows.filter(function(r) { return !r.gauge; });
+  if (pool.length === 0) return { ambiguous: true, rate: null };
+  var gauges = {};
+  pool.forEach(function(r) { gauges[rateKey(r.gauge)] = true; });
+  if (Object.keys(gauges).length > 1) return { ambiguous: true, rate: null };
+  pool.sort(function(a, b) { return String(b.effectiveFrom || '').localeCompare(String(a.effectiveFrom || '')); });
+  var hit = pool[0];
+  return { rate: hit.rate, effectiveFrom: hit.effectiveFrom || '', gauge: hit.gauge || '' };
+}
+
+/* The one place a line's rate on record is read: override, then the client's
+   piece rate for a NOS line, then the ₹/kg ladder. `unit` says which the figure
+   is — comparing a piece rate against a ₹/kg one is the error the Items Master
+   rows carrying 5.40 made, and a caller must be able to refuse it. */
+function getRateOnRecord(client, onDate, item) {
+  if (!client || !item) return null;
+  var date = onDate || localDateStr();
+  var info = getLineItemRate(client, date, item.partNumber);
+  if (info._override) return { rate: info.rate, unit: 'piece', source: 'override' };
+  if (item.unit === 'NOS') {
+    var pr = getPieceRate(client, date, item.partNumber, item.desc);
+    if (pr && pr.ambiguous) return { rate: null, unit: 'piece', source: 'gauge-ambiguous' };
+    if (pr) return { rate: pr.rate, unit: 'piece', source: 'pieceRate', effectiveFrom: pr.effectiveFrom };
+    // Only a nos_to_weight line with a weight on record is priced per kg. Any
+    // other NOS line carries a per-piece figure, and the ₹/kg ladder is not a
+    // reference for it (Parakh's ROLLER at ₹1.10/pc is not "off" from ₹10/kg).
+    var w = (S.partWeights || {})[(item.partNumber || '').toUpperCase()];
+    if (client.billingMode !== 'nos_to_weight' || !w) return null;
+  }
+  return info.ratePerKg > 0 ? { rate: info.ratePerKg, unit: 'kg', source: 'ladder' } : null;
+}
+
+/* ===== BILLED AT ₹0 =====
+
+   A line billed at nothing is a decision, not an absence of one, and the
+   history carried 25 of them — 1,192.54 kg, ₹16,355.67 at the client's own
+   rate — with nothing on any of them saying why. The owner ruled (24 Sep 2026)
+   that they are replating: work returned for re-plating is not billed twice.
+   From now a ₹0 line carries its reason. The note is recommended, never
+   required — a picker the operator can clear in one tap gets filled in; a
+   mandatory essay gets "ok". */
+var ZERO_REASONS = [
+  { id: 'replating', label: 'Replating' },
+  { id: 'sample', label: 'Sample / trial' },
+  { id: 'other', label: 'Other' }
+];
+
+function zeroReasonLabel(id) {
+  var r = ZERO_REASONS.find(function(x) { return x.id === id; });
+  return r ? r.label : '';
+}
+
+/* A line that is billing something and billing it at ₹0. A blank line still
+   being typed (no quantity) is not one. */
+function isZeroBilledLine(item) {
+  return !!item && (item.qty || 0) > 0 && !((item.amount || 0) > 0);
+}
+
+/* The rate a line is PREFILLED with when its part or client is chosen. A NOS
+   line used to be handed the ₹/kg figure (SSS Mehta's 5.40 against a ₹1.49
+   pad; Samarth's 14.50 against a ₹3 bracket), which is exactly the unit error
+   the replay found typed into the Items Master. */
+function defaultLineRate(client, onDate, item) {
+  var info = getLineItemRate(client, onDate, item.partNumber);
+  if (info._override) return info.rate;
+  if (item.unit === 'NOS') {
+    var pr = getPieceRate(client, onDate, item.partNumber, item.desc);
+    if (pr && pr.rate != null) return pr.rate;
+  }
+  return info.ratePerKg || 0;
+}
+
+/* How a line names its part on screen. `desc` used to win outright, and for a
+   piece client desc is often only the gauge ("40X6") or a word ("CLAMP") — so
+   the invoice detail and the challan list showed which strip, never which part.
+   The part number leads; the description follows when it adds something. */
+function lineLabel(item) {
+  if (!item) return '';
+  var pn = String(item.partNumber || '').trim();
+  var d = String(item.desc || '').trim();
+  if (!pn) return d;
+  if (!d || rateKey(pn).indexOf(rateKey(d)) >= 0) return pn;
+  if (rateKey(d).indexOf(rateKey(pn)) >= 0) return d;
+  return pn + ' · ' + d;
+}
+
+/* ===== RATE MATCHER =====
+
+   Every line's rate against the rate on record (getRateOnRecord). The rule was
+   chosen by the owner (24 Sep 2026, option E) after five candidates were
+   replayed over the 11 Sep backup's 2,835 lines:
+
+     match    — equal to the paisa
+     decimal  — off by a power of ten, within 2% (₹1.49 typed as ₹14.90);
+                checked before any threshold, because it is a typing slip with
+                its own obvious fix
+     check    — ≥ 10% off, OR ≥ ₹100 at stake on this line. The percentage
+                catches a wrong rate whatever the quantity; the rupee floor
+                catches the small slip on a big line (00684: 8% low, ₹119.60
+                short across 920 pieces), which a percentage alone let through
+     differs  — anything less, shown with its difference; nothing that differs
+                goes unmarked (the owner's flat ₹0.50 as first written left 10
+                of the 18 differing lines with no mark at all)
+     none     — nothing on record to compare against; grey, never red
+     gauge    — priced by gauge and the line does not say which
+
+   Warn, never block — the same stance as the duplicate-challan guard. A rate
+   that differs can be right (a renegotiated price not yet on the card); the
+   matcher's job is that nobody bills it without having seen it. A ₹0 line is
+   not judged here: it has its own required reason. */
+var RATE_CHECK_DEFAULTS = { pct: 10, stake: 100 };
+
+/* The two thresholds, from Settings. Read on every judgement so a change in
+   Settings re-colours the next line typed. A missing or nonsensical value falls
+   back to the owner's ruling rather than to 0, which would turn every
+   difference red. */
+function rateCheckCfg() {
+  var c = (S && S.rateCheck) || {};
+  var pct = parseFloat(c.pct), stake = parseFloat(c.stake);
+  return {
+    pct: pct > 0 ? pct : RATE_CHECK_DEFAULTS.pct,
+    stake: stake > 0 ? stake : RATE_CHECK_DEFAULTS.stake
+  };
+}
+
+function rateMatch(client, onDate, item) {
+  if (!client || !item) return null;
+  var qty = item.qty || 0;
+  var rate = item.rate || 0;
+  if (!(qty > 0) || !(rate > 0)) return null;
+  var ref = getRateOnRecord(client, onDate, item);
+  if (!ref) return { status: 'none' };
+  if (ref.rate == null) return { status: 'gauge' };
+  var diff = gstRound(rate - ref.rate);
+  // Quantity in the reference's own unit: a nos_to_weight line priced per kg
+  // stakes the kilograms, not the pieces.
+  var units = qty;
+  if (ref.unit === 'kg' && item.unit === 'NOS') {
+    units = qty * ((S.partWeights || {})[(item.partNumber || '').toUpperCase()] || 0);
+  }
+  var out = { ref: ref.rate, unit: ref.unit, source: ref.source, diff: diff,
+    pct: Math.abs(diff) / ref.rate, stake: gstRound(diff * units) };
+  if (Math.abs(diff) < 0.005) { out.status = 'match'; return out; }
+  var k = Math.round(Math.log10(rate / ref.rate));
+  if (k !== 0 && Math.abs(rate / (ref.rate * Math.pow(10, k)) - 1) < 0.02) { out.status = 'decimal'; return out; }
+  var cfg = rateCheckCfg();
+  out.status = (out.pct >= cfg.pct / 100 - 1e-9 || Math.abs(out.stake) >= cfg.stake - 1e-9) ? 'check' : 'differs';
+  return out;
+}
 /* ===== ZINC MARKET RATE =====
 
    Zinc is the largest bought-in input on the floor — ~26% of cost at ~425 kg
@@ -4320,6 +4581,7 @@ function _showClientOverlay(client, isAdd) {
     '<div class="inv-form-row inv-mb-8"><div class="inv-form-group"><label class="inv-form-label">' + (isAdd ? 'Rate/KG' : 'New Rate/KG') + '</label><input class="inv-form-input inv-mono" id="ceditNewRate" type="number" step="0.01" placeholder="14.25"></div>' +
     '<div class="inv-form-group"><label class="inv-form-label">Effective From</label><input class="inv-form-input inv-mono" id="ceditNewRateDate" type="date" value="' + localDateStr() + '"></div></div>' +
     (isAdd ? '' : '<button class="inv-btn inv-btn-ghost inv-btn-sm inv-mb-16" data-action="invAddRate" data-client="' + c.id + '">Add Rate</button>') +
+    (isAdd ? '' : _pieceRatesEditHtml(c)) +
     '<div class="inv-flex-between inv-mb-16"><label class="inv-checkbox-label">' +
     '<input type="checkbox" id="ceditActive"' + (c.isActive?' checked':'') + '> Active</label></div>' +
     '<div class="inv-btn-bar"><button class="inv-btn inv-btn-ghost" data-action="invCloseOverlay">Cancel</button>' +
@@ -4537,6 +4799,20 @@ function _renderClientDetail(clientId, skipMasterRefresh) {
     html += '</div>';
   }
 
+  // Piece rates on record
+  if (c.pieceRates && c.pieceRates.length > 0) {
+    html += '<div class="inv-detail-section">' +
+      '<div class="inv-detail-label">Piece Rates</div>';
+    _sortedPieceRates(c).forEach(function(pr) {
+      html += '<div class="inv-detail-rate-row">' +
+        '<span class="inv-detail-value-mono">' + escHtml(pr.partNumber) + (pr.gauge ? ' \u00B7 ' + escHtml(pr.gauge) : '') + '</span>' +
+        '<span class="inv-detail-value-mono">' + formatCurrency(pr.rate) + '/pc</span>' +
+        '<span class="inv-detail-value-mono inv-text-muted">' + escHtml(pr.effectiveFrom || '') + '</span>' +
+        '</div>';
+    });
+    html += '</div>';
+  }
+
   // Recent Invoices
   var clientInvoices = (S.invoices || []).filter(function(i) { return i.clientId === c.id; })
     .sort(function(a, b) { return (b.date || '').localeCompare(a.date || ''); })
@@ -4570,6 +4846,193 @@ function _renderClientDetail(clientId, skipMasterRefresh) {
   }
 }
 
+
+
+/* ===== PIECE RATE CARD =====
+   The client's per-piece rates, dated and keyed on part + gauge. Read by
+   getPieceRate() in state.js; see the note there for why these are not
+   itemRates overrides. */
+var _pieceFillReport = null;
+
+function _sortedPieceRates(c) {
+  return (c.pieceRates || []).map(function(pr, i) { return Object.assign({ _i: i }, pr); })
+    .sort(function(a, b) {
+      return rateKey(a.partNumber).localeCompare(rateKey(b.partNumber)) ||
+        rateKey(a.gauge).localeCompare(rateKey(b.gauge)) ||
+        String(b.effectiveFrom || '').localeCompare(String(a.effectiveFrom || ''));
+    });
+}
+
+function _pieceRatesEditHtml(c) {
+  // Every client: a weight-billed client can still send a part billed per piece
+  // (Parakh's ROLLER), and the matcher tells the operator to add it here.
+  var html = '<div class="inv-settings-title">Piece Rates</div>';
+  var rows = _sortedPieceRates(c);
+  if (rows.length === 0) {
+    html += '<div class="inv-text-muted inv-piece-empty">No piece rates on record. Fill them from what has been billed, or add one below.</div>';
+  }
+  html += '<div id="ceditPieceRates">';
+  rows.forEach(function(pr) {
+    html += '<div class="inv-rate-row inv-piece-row">' +
+      '<span class="inv-mono">' + escHtml(pr.partNumber) + (pr.gauge ? ' · ' + escHtml(pr.gauge) : '') + '</span>' +
+      '<span class="inv-mono">' + formatCurrency(pr.rate) + '/pc</span>' +
+      '<span class="inv-text-muted inv-mono">' + escHtml(pr.effectiveFrom || '') + '</span>' +
+      '<button class="inv-line-remove" data-action="invRemovePieceRate" data-client="' + c.id + '" data-idx="' + pr._i + '" aria-label="Remove piece rate">&times;</button>' +
+      '</div>';
+  });
+  html += '</div>';
+  if (_pieceFillReport && _pieceFillReport.clientId === c.id) html += _pieceFillReportHtml(_pieceFillReport);
+  html += '<div class="inv-form-row"><div class="inv-form-group"><label class="inv-form-label">Part</label><input class="inv-form-input inv-mono" id="ceditPiecePart" placeholder="CLAMP 165X83 (NT)"></div>' +
+    '<div class="inv-form-group"><label class="inv-form-label">Gauge</label><input class="inv-form-input inv-mono" id="ceditPieceGauge" placeholder="40X6"></div></div>' +
+    '<div class="inv-form-row"><div class="inv-form-group"><label class="inv-form-label">Rate/piece</label><input class="inv-form-input inv-mono" id="ceditPieceRate" type="number" step="0.01" min="0"></div>' +
+    '<div class="inv-form-group"><label class="inv-form-label">Effective From</label><input class="inv-form-input inv-mono" id="ceditPieceDate" type="date" value="' + localDateStr() + '"></div></div>' +
+    '<div class="inv-btn-bar inv-mb-16">' +
+    '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invFillPieceRates" data-client="' + c.id + '">Fill from billing history</button>' +
+    '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invAddPieceRate" data-client="' + c.id + '">Add Piece Rate</button></div>';
+  return html;
+}
+
+function _pieceFillReportHtml(r) {
+  var html = '<div class="inv-piece-report">' +
+    '<div>' + r.added + ' rate' + (r.added === 1 ? '' : 's') + ' added from ' + r.lines + ' billed line' + (r.lines === 1 ? '' : 's') +
+    (r.skippedExisting ? ' · ' + r.skippedExisting + ' part' + (r.skippedExisting === 1 ? '' : 's') + ' already on the card, left alone' : '') + '</div>';
+  if (r.mixed.length) {
+    html += '<div class="inv-piece-report-warn">Left out \u2014 billed at alternating rates, most likely two gauges under one name. Add these by hand, with the gauge:</div><ul class="inv-piece-report-list">';
+    r.mixed.forEach(function(m) {
+      html += '<li class="inv-mono">' + escHtml(m.partNumber) + (m.gauge ? ' \u00B7 ' + escHtml(m.gauge) : '') + ': ' +
+        m.rates.map(function(x) { return formatCurrency(x); }).join(' / ') + '</li>';
+    });
+    html += '</ul>';
+  }
+  if (r.outliers.length) {
+    html += '<div class="inv-piece-report-warn">Left out — a rate billed on one invoice only. Check these against the customer’s rate card:</div><ul class="inv-piece-report-list">';
+    r.outliers.forEach(function(o) {
+      html += '<li class="inv-mono">' + escHtml(o.partNumber) + (o.gauge ? ' · ' + escHtml(o.gauge) : '') + ' at ' + formatCurrency(o.rate) +
+        ' on ' + escHtml(o.invoiceNumber) + ' (' + escHtml(o.date) + ')' +
+        (o.usual != null && o.usual !== o.rate ? '; elsewhere ' + formatCurrency(o.usual) : '; no rate seen twice') + '</li>';
+    });
+    html += '</ul>';
+  }
+  return html + '</div>';
+}
+
+/* Derive a dated piece-rate card from what this client has actually been billed.
+   The billed rate is the evidence the customer accepted; the Items Master is
+   not (see state.js). One rule keeps an error from becoming the card: a rate
+   seen on ONE invoice, where the part has been billed at another rate on two or
+   more, is left out and listed — that is the shape of 00922/00923, where
+   material was misattributed and two brackets swapped rates for a day. A part
+   already on the card is left alone; the operator's entry wins. */
+function pieceRatesFromHistory(client) {
+  var groups = {}, lines = 0;
+  (S.invoices || []).forEach(function(inv) {
+    if (inv.clientId !== client.id || inv.status === 'cancelled') return;
+    (inv.items || []).forEach(function(li) {
+      if (li.unit !== 'NOS' || !(li.rate > 0) || !(li.amount > 0) || !li.partNumber) return;
+      var gauge = lineGauge(li.desc) || lineGauge(li.partNumber);
+      var key = rateKey(li.partNumber) + '|' + rateKey(gauge);
+      if (!groups[key]) groups[key] = { partNumber: li.partNumber, gauge: gauge, hits: [] };
+      groups[key].hits.push({ date: inv.date || '', rate: gstRound(li.rate), inv: inv.invoiceNumber });
+      lines++;
+    });
+  });
+  var have = {};
+  (client.pieceRates || []).forEach(function(pr) { have[rateKey(pr.partNumber) + '|' + rateKey(pr.gauge)] = true; });
+  var add = [], outliers = [], mixed = [], skippedExisting = 0;
+  Object.keys(groups).forEach(function(key) {
+    var grp = groups[key];
+    if (have[key]) { skippedExisting++; return; }
+    var invsByRate = {};
+    grp.hits.forEach(function(h) {
+      (invsByRate[h.rate] = invsByRate[h.rate] || {})[h.inv] = true;
+    });
+    var rates = Object.keys(invsByRate);
+    var established = rates.filter(function(r) { return Object.keys(invsByRate[r]).length >= 2; });
+    var keep = function(rate) { return rates.length === 1 || established.indexOf(String(rate)) >= 0; };
+    if (established.length === 0 && rates.length > 1) {
+      // Every rate seen once: nothing is established, and guessing is how a
+      // swap becomes the card. Report all of them.
+      grp.hits.forEach(function(h) { outliers.push({ partNumber: grp.partNumber, gauge: grp.gauge, rate: h.rate, invoiceNumber: h.inv, date: h.date, usual: null }); });
+      return;
+    }
+    grp.hits.sort(function(a, b) { return a.date.localeCompare(b.date); });
+    // A rate that RETURNS after changing is not a rate history, it is two
+    // products billed under one name — the gauge-less "CLAMP 165X83 (NT)" lines
+    // swing 4.27 / 4.89 / 4.27 on consecutive days because they are 35X6 and
+    // 40X6. A dated card built from that would be wrong on every other line.
+    var seq = [];
+    grp.hits.forEach(function(h) { if (keep(h.rate) && seq[seq.length - 1] !== h.rate) seq.push(h.rate); });
+    if (seq.length !== new Set(seq).size) {
+      mixed.push({ partNumber: grp.partNumber, gauge: grp.gauge, rates: Array.from(new Set(seq)) });
+      return;
+    }
+    var usual = null, bestN = 0;
+    established.forEach(function(r) { var n = Object.keys(invsByRate[r]).length; if (n > bestN) { bestN = n; usual = parseFloat(r); } });
+    var last = null;
+    grp.hits.forEach(function(h) {
+      if (!keep(h.rate)) {
+        outliers.push({ partNumber: grp.partNumber, gauge: grp.gauge, rate: h.rate, invoiceNumber: h.inv, date: h.date, usual: usual });
+        return;
+      }
+      if (last === null || h.rate !== last) {
+        add.push({ partNumber: grp.partNumber, gauge: grp.gauge, rate: h.rate, effectiveFrom: h.date, source: 'history' });
+        last = h.rate;
+      }
+    });
+  });
+  return { add: add, outliers: outliers, mixed: mixed, lines: lines, skippedExisting: skippedExisting };
+}
+
+function fillPieceRatesFromHistory(clientId) {
+  var c = S.clients.find(function(x) { return x.id === clientId; });
+  if (!c) return;
+  var r = pieceRatesFromHistory(c);
+  if (!c.pieceRates) c.pieceRates = [];
+  var now = Date.now();
+  r.add.forEach(function(pr) { pr.addedAt = now; c.pieceRates.push(pr); });
+  if (r.add.length) saveState();
+  _pieceFillReport = { clientId: c.id, added: r.add.length, lines: r.lines,
+    skippedExisting: r.skippedExisting, outliers: r.outliers, mixed: r.mixed };
+  showToast(r.add.length ? r.add.length + ' piece rates added from billing history' : 'No new piece rates to add',
+    (r.outliers.length || r.mixed.length) ? 'warning' : undefined);
+  _reopenClientAfterRateChange(clientId);
+}
+
+function addPieceRate(clientId) {
+  var c = S.clients.find(function(x) { return x.id === clientId; });
+  if (!c) return;
+  var part = (document.getElementById('ceditPiecePart').value || '').trim();
+  var gauge = (document.getElementById('ceditPieceGauge').value || '').trim().toUpperCase();
+  var rate = parseFloat(document.getElementById('ceditPieceRate').value);
+  var date = document.getElementById('ceditPieceDate').value;
+  if (!part) { showToast('Enter the part number', 'error'); return; }
+  if (isNaN(rate) || rate <= 0) { showToast('Enter a rate per piece', 'error'); return; }
+  if (!date) { showToast('Enter the date the rate applies from', 'error'); return; }
+  if (!c.pieceRates) c.pieceRates = [];
+  var dup = c.pieceRates.some(function(pr) {
+    return rateKey(pr.partNumber) === rateKey(part) && rateKey(pr.gauge) === rateKey(gauge) && pr.effectiveFrom === date;
+  });
+  if (dup) { showToast('That part already has a rate from ' + date, 'error'); return; }
+  c.pieceRates.push({ partNumber: part, gauge: gauge, rate: gstRound(rate), effectiveFrom: date, source: 'manual', addedAt: Date.now() });
+  saveState();
+  showToast('Piece rate added');
+  _reopenClientAfterRateChange(clientId);
+}
+
+function removePieceRate(clientId, idx) {
+  var c = S.clients.find(function(x) { return x.id === clientId; });
+  if (!c || !c.pieceRates || !c.pieceRates[idx]) return;
+  c.pieceRates.splice(idx, 1);
+  saveState();
+  showToast('Piece rate removed');
+  _reopenClientAfterRateChange(clientId);
+}
+
+function _reopenClientAfterRateChange(clientId) {
+  closeOverlay();
+  if (_isDesktop && _clientsActiveId === clientId) _renderClientDetail(clientId, false);
+  openClientEdit(clientId);
+}
 /* ===== ITEMS MASTER (Phase 6) ===== */
 
 /* --- Subview state --- */
@@ -5898,6 +6361,7 @@ function renderCreateForm() {
     const isPieceNOS = client && client.billingMode==='piece' && item.unit==='NOS';
     const rateDisplay = (item.rate != null && !isNaN(item.rate) && item.rate !== 0) ? formatNum(item.rate) : (item.qty > 0 && isPieceNOS ? '\u2014' : (item.rate === 0 && item.qty > 0 ? '0.00' : ''));
     const amtDisplay = (item.amount != null && !isNaN(item.amount) && item.amount !== 0) ? formatNum(item.amount) : (item.amount === 0 && item.qty > 0 ? '0.00' : '');
+    const rm = client ? rateMatch(client, invoiceForm.date, item) : null;
     html += '<div class="inv-line-item">' +
       '<div class="inv-line-header"><span class="inv-line-num">Item ' + (idx + 1) + '</span>' +
       '<button class="inv-line-remove" data-action="invRemoveLineItem" data-idx="' + idx + '">&times;</button></div>' +
@@ -5915,13 +6379,14 @@ function renderCreateForm() {
       '<option value="NOS"' + (item.unit==='NOS'?' selected':'') + '>NOS</option></select></div></div>' +
       '<div class="inv-form-row">' +
       '<div class="inv-form-group"><label class="inv-form-label">Rate</label>' +
-      '<input type="number" class="inv-form-input inv-mono' + (client && client.billingMode==='piece' && item.unit==='NOS' ? ' inv-form-input-readonly' : '') + '" value="' + rateDisplay + '" data-field="rate" data-idx="' + idx + '" data-action="invUpdateLine" step="any" min="0"' +
+      '<input type="number" class="inv-form-input inv-mono' + (client && client.billingMode==='piece' && item.unit==='NOS' ? ' inv-form-input-readonly' : '') + rateMatchInputClass(rm) + '" value="' + rateDisplay + '" data-field="rate" data-idx="' + idx + '" data-action="invUpdateLine" step="any" min="0"' +
       (client && client.billingMode==='piece' && item.unit==='NOS' ? ' readonly title="Rate is set from this client&#39;s piece-mode profile"' : '') + '></div>' +
       '<div class="inv-form-group"><label class="inv-form-label">Amount</label>' +
       '<input type="number" class="inv-form-input inv-mono" value="' + amtDisplay + '" data-field="amount" data-idx="' + idx + '" data-action="invUpdateLine" step="any" min="0"' +
       (client && client.billingMode==='piece' && item.unit==='NOS' ? '' : ' readonly') + '></div></div>' +
-      (item.rate === 0 ? '<span class="inv-zero-badge">\u20B90</span> ' : '') +
       (item._override ? '<span class="inv-override-badge">' + escHtml(item._label || 'Override') + '</span> ' : '') +
+      '<div id="invRateMatch' + idx + '">' + rateMatchNote(rm) + '</div>' +
+      '<div id="invZeroReason' + idx + '">' + zeroReasonHtml(item, idx) + '</div>' +
       '</div>';
   });
   html += '<button class="inv-btn inv-btn-ghost inv-btn-block" data-action="invAddLineItem">+ Add Line Item</button></div>';
@@ -5998,6 +6463,47 @@ function renderCreateForm() {
   }
 }
 
+/* The reason block under a line billed at ₹0. Re-rendered on its own when the
+   line moves in or out of ₹0, so the field being typed in keeps focus. */
+function zeroReasonHtml(item, idx) {
+  if (!isZeroBilledLine(item)) return '';
+  var html = '<div class="inv-zero-reason">' +
+    '<div class="inv-zero-reason-head"><span class="inv-zero-badge">\u20B90</span>' +
+    '<span class="inv-zero-reason-q">Why is this line not billed?</span></div>' +
+    '<div class="inv-zero-reason-opts" role="radiogroup" aria-label="Reason for billing at zero">';
+  ZERO_REASONS.forEach(function(r) {
+    var on = item.zeroReason === r.id;
+    html += '<button type="button" class="inv-zero-opt' + (on ? ' inv-zero-opt-on' : '') + '" role="radio" aria-checked="' + on + '"' +
+      ' data-action="invZeroReason" data-idx="' + idx + '" data-reason="' + r.id + '">' + escHtml(r.label) + '</button>';
+  });
+  html += '</div>' +
+    '<input class="inv-form-input inv-zero-note" data-action="invZeroNote" data-idx="' + idx + '" data-k="zeronote-' + idx + '"' +
+    ' value="' + escHtml(item.zeroNote || '') + '" placeholder="' + (item.zeroReason === 'other' ? 'What was it? (recommended)' : 'Note (optional)') + '"' +
+    ' aria-label="Note on why this line is not billed">' +
+    '</div>';
+  return html;
+}
+
+/* What a saved line carries about being billed at ₹0 — nothing at all when it
+   is billed, so a line priced later does not keep a stale reason. */
+function zeroReasonFields(item) {
+  if (!isZeroBilledLine(item) || !item.zeroReason) return {};
+  var out = { zeroReason: item.zeroReason };
+  var note = (item.zeroNote || '').trim();
+  if (note) out.zeroNote = note;
+  if (item.zeroReasonBackfilled) out.zeroReasonBackfilled = item.zeroReasonBackfilled;
+  return out;
+}
+
+function refreshZeroReason(idx) {
+  var box = document.getElementById('invZeroReason' + idx);
+  var item = invoiceForm.items[idx];
+  if (!box || !item) return;
+  var want = isZeroBilledLine(item);
+  var has = !!box.firstChild;
+  if (want !== has) box.innerHTML = zeroReasonHtml(item, idx);
+}
+
 function validateInvoice() {
   const errors = [];
   if (!invoiceForm.clientId) errors.push('Select a client');
@@ -6006,6 +6512,7 @@ function validateInvoice() {
   invoiceForm.items.forEach((item, i) => {
     if (item.qty < 0) errors.push('Line ' + (i+1) + ': Quantity cannot be negative');
     if (item.amount < 0) errors.push('Line ' + (i+1) + ': Amount cannot be negative');
+    if (isZeroBilledLine(item) && !item.zeroReason) errors.push('Line ' + (i+1) + ': billed at \u20B90 \u2014 pick a reason');
   });
   return errors;
 }
@@ -6023,7 +6530,7 @@ function selectClient(id) {
         item._override = true;
         item._label = rateInfo._label;
       } else {
-        item.rate = rateInfo.ratePerKg || 0;
+        item.rate = defaultLineRate(client, invoiceForm.date, item);
       }
       recalcLineItem(item, client);
     });
@@ -6053,8 +6560,18 @@ function recalcLineItem(item, client) {
     // Don't auto-calc amount for NOS piece mode
   } else if (client.billingMode === 'nos_to_weight' && item.unit === 'NOS') {
     const pwKey = (item.partNumber || '').toUpperCase();
-    const w = (item.qty || 0) * (S.partWeights[pwKey] || 0);
     const rateInfo = getLineItemRate(client, invoiceForm.date, item.partNumber);
+    // A part with no weight on record cannot be converted; it is billed per
+    // piece off the client's card (Samarth's brackets), or an override. Before
+    // this the line priced itself at weight 0 × ₹/kg = ₹0.
+    const perPiece = rateInfo._override ? {rate: rateInfo.rate}
+      : (S.partWeights[pwKey] ? null : getPieceRate(client, invoiceForm.date, item.partNumber, item.desc));
+    if (perPiece && perPiece.rate != null) {
+      item.rate = perPiece.rate;
+      item.amount = gstRound((item.qty || 0) * item.rate);
+      return;
+    }
+    const w = (item.qty || 0) * (S.partWeights[pwKey] || 0);
     item.rate = rateInfo.ratePerKg || 0;
     item.amount = gstRound(w * item.rate);
   } else {
@@ -6098,7 +6615,7 @@ function saveInvoice() {
       date: invoiceForm.date, clientId: client.id, clientName: client.name,
       clientGSTIN: client.gstin, clientAddress: {add1:client.add1,add2:client.add2,add3:client.add3,state:client.state,stateCode:client.stateCode},
       gstType: client.gstType,
-      items: invoiceForm.items.map(i => ({partNumber:i.partNumber,desc:i.desc,hsn:i.hsn||'998873',unit:i.unit,qty:i.qty,rate:i.rate,amount:i.amount,nosQty:i.nosQty||null})),
+      items: invoiceForm.items.map(i => ({partNumber:i.partNumber,desc:i.desc,hsn:i.hsn||'998873',unit:i.unit,qty:i.qty,rate:i.rate,amount:i.amount,nosQty:i.nosQty||null,...zeroReasonFields(i)})),
       taxableValue: taxable, cgstPer, cgstAmt, sgstPer, sgstAmt, igstPer, igstAmt,
       grandTotal: grand, amountInWords: numberToWords(grand),
       challanNo: invoiceForm.challanNo, challanDate: invoiceForm.challanDate,
@@ -6125,7 +6642,7 @@ function saveInvoice() {
       clientGSTIN: client.gstin,
       clientAddress: {add1:client.add1,add2:client.add2,add3:client.add3,state:client.state,stateCode:client.stateCode},
       gstType: client.gstType,
-      items: invoiceForm.items.map(i => ({partNumber:i.partNumber,desc:i.desc,hsn:i.hsn||'998873',unit:i.unit,qty:i.qty,rate:i.rate,amount:i.amount,nosQty:i.nosQty||null})),
+      items: invoiceForm.items.map(i => ({partNumber:i.partNumber,desc:i.desc,hsn:i.hsn||'998873',unit:i.unit,qty:i.qty,rate:i.rate,amount:i.amount,nosQty:i.nosQty||null,...zeroReasonFields(i)})),
       taxableValue: taxable, cgstPer, cgstAmt, sgstPer, sgstAmt, igstPer, igstAmt,
       grandTotal: grand, amountInWords: numberToWords(grand),
       poNumber: invoiceForm.poNumber, poDate: invoiceForm.poDate, challanNo: invoiceForm.challanNo, challanDate: invoiceForm.challanDate,
@@ -6159,6 +6676,51 @@ function saveInvoice() {
   switchTab(returnDest);
 }
 
+
+/* The matcher's note under a line's rate, and the class its Rate field takes.
+   One renderer for the invoice form, the challan form and the invoice detail,
+   so the three can never describe the same line differently. */
+var RM_LABELS = { match: 'Matches', decimal: '×10 slip', differs: 'Differs', check: 'Check',
+  none: 'No rate on record', gauge: 'Gauge not stated' };
+
+function rateMatchNote(m, compact) {
+  if (!m) return '';
+  var per = m.unit === 'kg' ? '/kg' : '/pc';
+  var chip = '<span class="inv-rm-chip inv-rm-' + m.status + '">' + RM_LABELS[m.status] + '</span>';
+  var text = '';
+  if (m.status === 'match') text = compact ? '' : formatCurrency(m.ref) + per + ' on record';
+  else if (m.status === 'decimal') text = 'On record ' + formatCurrency(m.ref) + per + ' — a power of ten away. Did you mean ' + formatCurrency(m.ref) + '?';
+  else if (m.status === 'differs' || m.status === 'check') {
+    var sign = function(n) { return (n > 0 ? '+' : '−') + formatCurrency(Math.abs(n)); };
+    text = 'On record ' + formatCurrency(m.ref) + per + ' · ' + sign(m.diff) + ' (' + (m.pct * 100).toFixed(1) + '%)' +
+      ' · ' + sign(m.stake) + ' on this line';
+  } else if (m.status === 'none') text = compact ? '' : 'Add it to the client’s piece rates to check this line';
+  else if (m.status === 'gauge') text = compact ? '' : 'This part is priced by gauge — put the gauge in the description';
+  return '<div class="inv-rm-note">' + chip + (text ? '<span class="inv-rm-text">' + escHtml(text) + '</span>' : '') + '</div>';
+}
+
+function rateMatchInputClass(m) {
+  return m ? ' inv-rm-input-' + m.status : '';
+}
+
+/* Re-judge one line in place: the note and the Rate field's class. Called from
+   the input handlers, which deliberately do not re-render the whole form. */
+function refreshRateMatch(boxId, inputEl, client, onDate, item) {
+  var m = rateMatch(client, onDate, item);
+  var box = document.getElementById(boxId);
+  if (box) box.innerHTML = rateMatchNote(m);
+  if (inputEl) {
+    inputEl.className = inputEl.className.replace(/\s*inv-rm-input-\w+/g, '') + rateMatchInputClass(m);
+  }
+}
+
+function refreshInvoiceLineMatch(idx) {
+  var item = invoiceForm.items[idx];
+  var client = invoiceForm.clientId ? S.clients.find(function(c) { return c.id === invoiceForm.clientId; }) : null;
+  if (!item || !client) return;
+  refreshRateMatch('invRateMatch' + idx, document.querySelector('[data-action="invUpdateLine"][data-field="rate"][data-idx="' + idx + '"]'),
+    client, invoiceForm.date, item);
+}
 /* ===== SETTINGS ===== */
 function openSettings() {
   const scrim = document.createElement('div');
@@ -6192,6 +6754,13 @@ function openSettings() {
     '<div class="inv-form-group"><label class="inv-form-label">Default cost per KG (&#8377;)</label>' +
     '<input type="number" step="0.01" class="inv-form-input inv-mono" id="setDefaultCost" value="' + (S.defaultCostPerKg || 8.55) + '"></div>' +
     '<div class="inv-text-muted inv-storage-text">Full cost, not just materials. Everything in Stats measures against it &mdash; realisation, margin, and which clients are priced below cost. The Apr&ndash;Jul 2026 rebuild put it at &#8377;8.55/kg.</div></div>' +
+
+    '<div class="inv-settings-section"><div class="inv-settings-title">Rate Check</div>' +
+    '<div class="inv-form-row"><div class="inv-form-group"><label class="inv-form-label" for="setRcPct">Check at % off the rate</label>' +
+    '<input type="number" step="0.5" min="0.5" class="inv-form-input inv-mono" id="setRcPct" value="' + rateCheckCfg().pct + '"></div>' +
+    '<div class="inv-form-group"><label class="inv-form-label" for="setRcStake">or at &#8377; on the line</label>' +
+    '<input type="number" step="1" min="1" class="inv-form-input inv-mono" id="setRcStake" value="' + rateCheckCfg().stake + '"></div></div>' +
+    '<div class="inv-text-muted inv-storage-text">A line whose rate is this far off the rate on record, or puts this much money at stake, is marked <strong>Check</strong>. Anything smaller is marked <strong>Differs</strong> with its difference shown. Neither stops an invoice from being saved. Set 24 Sep 2026 at 10% or &#8377;100.</div></div>' +
 
     '<div class="inv-settings-section"><div class="inv-settings-title">Labour</div>' +
     '<div class="inv-form-row"><div class="inv-form-group"><label class="inv-form-label">OT multiplier</label>' +
@@ -6288,6 +6857,11 @@ function saveSettings() {
   }
   var costEl = document.getElementById('setDefaultCost');
   if (costEl) { var parsedCost = parseFloat(costEl.value); if (!isNaN(parsedCost) && parsedCost > 0) S.defaultCostPerKg = parsedCost; }
+  if (!S.rateCheck) S.rateCheck = {};
+  var rcPctEl = document.getElementById('setRcPct');
+  if (rcPctEl) { var rp = parseFloat(rcPctEl.value); if (!isNaN(rp) && rp > 0) S.rateCheck.pct = rp; }
+  var rcStakeEl = document.getElementById('setRcStake');
+  if (rcStakeEl) { var rs = parseFloat(rcStakeEl.value); if (!isNaN(rs) && rs > 0) S.rateCheck.stake = gstRound(rs); }
   if (!S.labour) S.labour = {};
   var otMultEl = document.getElementById('setOtMult');
   if (otMultEl) { var pm = parseFloat(otMultEl.value); if (!isNaN(pm) && pm >= 0) S.labour.otMult = pm; }
@@ -7144,9 +7718,13 @@ function getFilteredInvoices() {
   }
   if (regFilter.search) {
     const q = regFilter.search.toLowerCase();
+    // Challan numbers too: an invoice is found by the challan it billed as
+    // often as by its own number, and matching only the invoice number made a
+    // challan search land on whichever invoice's digits happened to contain it.
     list = list.filter(i =>
       (i.displayNumber || '').toLowerCase().includes(q) ||
-      (i.clientName || '').toLowerCase().includes(q)
+      (i.clientName || '').toLowerCase().includes(q) ||
+      regChallanMatch(i.challanNo, q)
     );
   }
   if (regFilter.state) {
@@ -7286,7 +7864,7 @@ function renderRegisterToolbar() {
   let html = '<div class="inv-reg-toolbar">' +
     '<div class="inv-search-wrap inv-search-no-mb">' +
     '<svg class="inv-search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>' +
-    '<input type="text" class="inv-reg-search" id="regSearch" placeholder="Search invoice or client" value="' + escHtml(regFilter.search) + '" autocomplete="off"></div>' +
+    '<input type="text" class="inv-reg-search" id="regSearch" placeholder="Search invoice, client or challan" value="' + escHtml(regFilter.search) + '" autocomplete="off"></div>' +
     '<div class="inv-reg-filters">' +
     '<div class="inv-form-group"><select class="inv-form-select" id="regClientFilter" aria-label="Filter by client">' +
     '<option value="">All Clients</option>' + clientOpts + '</select></div>' +
@@ -7346,6 +7924,18 @@ function renderRegisterToolbar() {
       _regSearchTimer = setTimeout(function() { _renderRegView(); _renderRegSelBar(); }, 200);
     });
   }
+}
+
+/* A challan field is a list ("834, 835, 838"). A number in the search matches
+   a whole challan number, never a fragment of one — "83" must not find 834. */
+function regChallanMatch(challanNo, q) {
+  q = String(q || '').trim();
+  var list = String(challanNo || '').toLowerCase().split(/[,;\/&\s]+/).filter(Boolean);
+  if (/^\d+$/.test(q)) {
+    var n = String(parseInt(q, 10));
+    return list.some(function(c) { return c.replace(/^0+/, '') === n; });
+  }
+  return list.some(function(c) { return c.indexOf(q) >= 0; });
 }
 
 function renderRegisterList() {
@@ -7574,9 +8164,9 @@ function _renderRegDetail(invId, skipMasterRefresh) {
     '<div class="inv-detail-label">Line Items</div>' +
     '<div class="inv-detail-items-wrap"><table class="inv-detail-items-table"><thead><tr>' +
     '<th>Part</th><th>Qty</th><th>Unit</th><th>Rate</th><th>Amount</th></tr></thead><tbody>';
-  d.items.forEach(function(item) {
+  d.items.forEach(function(item, li) {
     html += '<tr>' +
-      '<td>' + escHtml(item.desc) + '</td>' +
+      '<td>' + escHtml(lineLabel((inv.items || [])[li] || item)) + zeroReasonTag((inv.items || [])[li]) + detailRateMatch(inv, (inv.items || [])[li]) + '</td>' +
       '<td class="inv-mono">' + escHtml(item.qty) + (item.nosQtyRaw && item.nosQtyRaw > 0 ? ' <span class="inv-text-muted">(' + escHtml(item.nosQtyRaw) + ' NOS)</span>' : '') + '</td>' +
       '<td>' + escHtml(item.unit) + '</td>' +
       '<td class="inv-mono">' + escHtml(item.rate) + '</td>' +
@@ -7873,9 +8463,9 @@ function openInvoiceDetail(invId) {
     '<div class="inv-detail-label">Line Items</div>' +
     '<div class="inv-detail-items-wrap"><table class="inv-detail-items-table"><thead><tr>' +
     '<th>Part</th><th>Qty</th><th>Unit</th><th>Rate</th><th>Amount</th></tr></thead><tbody>';
-  d.items.forEach(function(item) {
+  d.items.forEach(function(item, li) {
     html += '<tr>' +
-      '<td>' + escHtml(item.desc) + '</td>' +
+      '<td>' + escHtml(lineLabel((inv.items || [])[li] || item)) + zeroReasonTag((inv.items || [])[li]) + detailRateMatch(inv, (inv.items || [])[li]) + '</td>' +
       '<td class="inv-mono">' + escHtml(item.qty) + (item.nosQtyRaw && item.nosQtyRaw > 0 ? ' <span class="inv-text-muted">(' + escHtml(item.nosQtyRaw) + ' NOS)</span>' : '') + '</td>' +
       '<td>' + escHtml(item.unit) + '</td>' +
       '<td class="inv-mono">' + escHtml(item.rate) + '</td>' +
@@ -7958,6 +8548,29 @@ function openInvoiceDetail(invId) {
 }
 
 /* Edit invoice — loads into Create Invoice in edit mode */
+/* A ₹0 line says why, where the invoice is read. A backfilled reason says it
+   came from the owner's ruling rather than from whoever raised the invoice. */
+function zeroReasonTag(raw) {
+  if (!raw || !isZeroBilledLine(raw)) return '';
+  var text = raw.zeroReason ? zeroReasonLabel(raw.zeroReason) || raw.zeroReason : 'No reason recorded';
+  if (raw.zeroNote) text += ' \u2014 ' + raw.zeroNote;
+  if (raw.zeroReasonBackfilled) text += ' (backfilled: owner ruling ' + raw.zeroReasonBackfilled + ')';
+  return '<div class="inv-zero-tag' + (raw.zeroReason ? '' : ' inv-zero-tag-missing') + '">' +
+    '<span class="inv-zero-badge">\u20B90</span> ' + escHtml(text) + '</div>';
+}
+
+/* The matcher on a saved invoice: only what needs a second look. A matching
+   line says nothing here — the register is read, not typed into, and a column
+   of green would bury the one line that is not. A cancelled invoice bills
+   nothing, so it is not judged. */
+function detailRateMatch(inv, raw) {
+  if (!inv || !raw || inv.status === 'cancelled') return '';
+  var client = S.clients.find(function(c) { return c.id === inv.clientId; });
+  var m = client ? rateMatch(client, inv.date, raw) : null;
+  if (!m || m.status === 'match' || m.status === 'none') return '';
+  return rateMatchNote(m, true);
+}
+
 function editInvoice(invId) {
   const inv = S.invoices.find(i => i.id === invId);
   if (!inv) return;
@@ -8908,7 +9521,7 @@ function renderIMList() {
           (!itemInvoiced ? '<input type="checkbox" class="inv-im-check" data-action="invCheckIMItem" data-item-id="' + escHtml(it.id) + '"' + (_imSelected[it.id] ? ' checked' : '') + '>' :
           invBadgeHtml) +
           '<div class="inv-im-item-info">' +
-          '<div class="inv-im-item-desc">' + escHtml(it.desc || it.partNumber) + '</div>' +
+          '<div class="inv-im-item-desc">' + escHtml(lineLabel(it)) + '</div>' +
           '<div class="inv-im-item-detail">' + escHtml(it.qty) + ' ' + escHtml(it.unit) +
           (it.nosQty && it.nosQty > 0 ? ' (' + escHtml(it.nosQty) + ' NOS)' : '') +
           ' @ ' + formatCurrency(it.rate) + '/' + escHtml(it.unit) + '</div></div>' +
@@ -9108,7 +9721,7 @@ function _renderIMDetail(challanId, skipMasterRefresh) {
       (!itemInvoiced ? '<input type="checkbox" class="inv-im-check" data-action="invCheckIMItem" data-item-id="' + escHtml(it.id) + '"' + (_imSelected[it.id] ? ' checked' : '') + '>' :
       invBadgeHtml) +
       '<div class="inv-im-item-info">' +
-      '<div class="inv-im-item-desc">' + escHtml(it.desc || it.partNumber) + '</div>' +
+      '<div class="inv-im-item-desc">' + escHtml(lineLabel(it)) + '</div>' +
       '<div class="inv-im-item-detail">' + escHtml(it.qty) + ' ' + escHtml(it.unit) +
       (it.nosQty && it.nosQty > 0 ? ' (' + escHtml(it.nosQty) + ' NOS)' : '') +
       ' @ ' + formatCurrency(it.rate) + '/' + escHtml(it.unit) + '</div></div>' +
@@ -9519,7 +10132,7 @@ function selectPartForLine(idx, partId) {
       item._override = true;
       item._label = rateInfo._label;
     } else {
-      item.rate = rateInfo.ratePerKg || 0;
+      item.rate = defaultLineRate(client, invoiceForm.date, item);
       item._override = false;
       item._label = '';
     }
@@ -9552,8 +10165,7 @@ function selectChallanPartForLine(idx, partId) {
 
   const cClient = _challanForm.clientId ? S.clients.find(c => c.id === _challanForm.clientId) : null;
   if (cClient) {
-    const cRateInfo = getLineItemRate(cClient, _challanForm.challanDate || localDateStr(), cItem.partNumber);
-    cItem.rate = cRateInfo._override ? cRateInfo.rate : (cRateInfo.ratePerKg || 0);
+    cItem.rate = defaultLineRate(cClient, _challanForm.challanDate || localDateStr(), cItem);
     recalcChallanLine(cItem, cClient);
   }
 
@@ -16481,6 +17093,7 @@ function renderAddChallanForm() {
     var rateDisplay = (item.rate != null && !isNaN(item.rate) && item.rate !== 0) ? formatNum(item.rate) : '';
     var amtDisplay = (item.amount != null && !isNaN(item.amount) && item.amount !== 0) ? formatNum(item.amount) : '';
 
+    var rm = client ? rateMatch(client, _challanForm.challanDate || localDateStr(), item) : null;
     html += '<div class="inv-line-item">' +
       '<div class="inv-line-header"><span class="inv-line-num" id="imLineLbl' + idx + '">Item ' + (idx + 1) + '</span>' +
       '<button class="inv-line-remove" data-k="remove-' + idx + '" data-action="invRemoveChallanLine" data-idx="' + idx + '" aria-label="Remove item ' + (idx + 1) + '">&times;</button></div>' +
@@ -16500,11 +17113,12 @@ function renderAddChallanForm() {
       '<input type="number" class="inv-form-input inv-mono" id="imNos' + idx + '" data-k="nos-' + idx + '" value="' + (item.nosQty || '') + '" data-field="nosQty" data-idx="' + idx + '" data-action="invUpdateChallanLine" step="1" min="0" placeholder="Pcs"></div></div>' +
       '<div class="inv-form-row">' +
       '<div class="inv-form-group"><label class="inv-form-label" for="imRate' + idx + '">Rate</label>' +
-      '<input type="number" class="inv-form-input inv-mono" id="imRate' + idx + '" data-k="rate-' + idx + '" value="' + rateDisplay + '" data-field="rate" data-idx="' + idx + '" data-action="invUpdateChallanLine" step="any" min="0"' +
+      '<input type="number" class="inv-form-input inv-mono' + rateMatchInputClass(rm) + '" id="imRate' + idx + '" data-k="rate-' + idx + '" value="' + rateDisplay + '" data-field="rate" data-idx="' + idx + '" data-action="invUpdateChallanLine" step="any" min="0"' +
       (isPieceNOS ? ' readonly' : '') + '></div>' +
       '<div class="inv-form-group"><label class="inv-form-label" for="imAmt' + idx + '">Amount</label>' +
       '<input type="number" class="inv-form-input inv-mono" id="imAmt' + idx + '" data-k="amount-' + idx + '" value="' + amtDisplay + '" data-field="amount" data-idx="' + idx + '" data-action="invUpdateChallanLine" step="any" min="0"' +
-      (isPieceNOS ? '' : ' readonly') + '></div></div></div>';
+      (isPieceNOS ? '' : ' readonly') + '></div></div>' +
+      '<div id="imRateMatch' + idx + '">' + rateMatchNote(rm) + '</div></div>';
   });
   // data-kbd-ring puts these two in the Enter-to-next-field chain, so the last
   // field of the last line steps onto "Add Line Item" instead of dead-ending.
@@ -16586,12 +17200,7 @@ function selectChallanClient(clientId) {
   // Auto-fill rate on existing items
   if (client) {
     _challanForm.items.forEach(function(item) {
-      var rateInfo = getLineItemRate(client, _challanForm.challanDate || localDateStr(), item.partNumber);
-      if (rateInfo._override) {
-        item.rate = rateInfo.rate;
-      } else {
-        item.rate = rateInfo.ratePerKg || 0;
-      }
+      item.rate = defaultLineRate(client, _challanForm.challanDate || localDateStr(), item);
       recalcChallanLine(item, client);
     });
   }
@@ -16830,6 +17439,15 @@ function editChallan(imId) {
   showToast('Editing challan' + (im.challanNo ? ' ' + im.challanNo : ''), 'warning');
 }
 
+
+function refreshChallanLineMatch(idx) {
+  if (!_challanForm) return;
+  var item = _challanForm.items[idx];
+  var client = _challanForm.clientId ? S.clients.find(function(c) { return c.id === _challanForm.clientId; }) : null;
+  if (!item || !client) return;
+  refreshRateMatch('imRateMatch' + idx, document.getElementById('imRate' + idx), client,
+    _challanForm.challanDate || localDateStr(), item);
+}
 /* ===== IM DUPLICATE GUARD ===== */
 
 /*
@@ -17244,10 +17862,35 @@ function _applyScanResult(parsed) {
   if (client) {
     parsed.clientId = client.id;
     parsed.clientName = client.name;
+    // T-HC: the rate comes from the client's own records, never from the rate
+    // frozen into _scanClientMap. That map's figures are only its fallback for
+    // a client the app does not hold — the scanner used to price every KG line
+    // off them, so a rate change or an itemRates override never reached a
+    // scanned challan, and a matcher would read the scanner's lines as wrong
+    // against a correct rate card.
+    var appClient = S.clients.find(function(c) { return c.id === client.id; }) || null;
+    var onDate = parsed.challanDate || localDateStr();
     (parsed.items || []).forEach(function(item) {
-      if (item.unit === 'KG' && client.rate) {
-        item.rate = client.rate;
-        item.amount = gstRound((item.qty || 0) * client.rate);
+      if (!appClient) {
+        if (item.unit === 'KG' && client.rate) {
+          item.rate = client.rate;
+          item.amount = gstRound((item.qty || 0) * client.rate);
+        }
+        return;
+      }
+      var info = getLineItemRate(appClient, onDate, item.partNumber);
+      var piece = item.unit === 'NOS' ? getPieceRate(appClient, onDate, item.partNumber, item.desc) : null;
+      if (info._override) {
+        item.rate = info.rate;
+        item.amount = gstRound((item.qty || 0) * info.rate);
+      } else if (item.unit === 'KG') {
+        item.rate = info.ratePerKg || 0;
+        item.amount = gstRound((item.qty || 0) * item.rate);
+      } else if (piece && piece.rate != null && !(appClient.billingMode === 'piece' && (item.amount || 0) > 0)) {
+        // A piece client's challan states its own amount; that figure is the
+        // passthrough and is kept. The card fills only what the challan left out.
+        item.rate = piece.rate;
+        item.amount = gstRound((item.qty || 0) * piece.rate);
       }
     });
   }
@@ -17311,6 +17954,23 @@ document.addEventListener('click', function(e) {
     case 'invAddClient': openClientAdd(); break;
     case 'invSaveClient': saveClientEdit(parseInt(btn.dataset.client), btn.dataset.mode); break;
     case 'invAddRate': addClientRate(parseInt(btn.dataset.client)); break;
+    case 'invAddPieceRate': addPieceRate(parseInt(btn.dataset.client)); break;
+    case 'invRemovePieceRate': removePieceRate(parseInt(btn.dataset.client), parseInt(btn.dataset.idx)); break;
+    case 'invFillPieceRates': fillPieceRatesFromHistory(parseInt(btn.dataset.client)); break;
+    case 'invZeroReason': {
+      var zIdx = parseInt(btn.dataset.idx);
+      var zLine = invoiceForm.items[zIdx];
+      if (!zLine) break;
+      zLine.zeroReason = btn.dataset.reason;
+      // An operator choosing the reason makes it theirs, not the migration's.
+      delete zLine.zeroReasonBackfilled;
+      var zBox = document.getElementById('invZeroReason' + zIdx);
+      if (zBox) zBox.innerHTML = zeroReasonHtml(zLine, zIdx);
+      var zOn = zBox && zBox.querySelector('[data-reason="' + btn.dataset.reason + '"]');
+      if (zOn) zOn.focus();
+      updateTotalsDisplay();
+      break;
+    }
     case 'invSelectClient': selectClient(parseInt(btn.dataset.id)); break;
     case 'invClearClient': captureOptionalFields(); invoiceForm.clientId = null; renderCreateForm(); break;
     case 'invAddLineItem': captureOptionalFields(); addLineItem(); break;
@@ -17684,6 +18344,8 @@ document.addEventListener('change', function(e) {
   }
   if (e.target.id === 'invDate') {
     invoiceForm.date = e.target.value;
+    // The rate on record is dated, so a new invoice date can change every verdict.
+    invoiceForm.items.forEach(function(_, i) { refreshInvoiceLineMatch(i); });
   }
   // Register filters — one capture path, so a new filter control cannot end up
   // wired to the click delegate and not to this one.
@@ -17897,6 +18559,7 @@ document.addEventListener('input', function(e) {
           updateTotalsDisplay();
         }
       }
+      refreshInvoiceLineMatch(idx);
     }
     return;
   }
@@ -17922,6 +18585,7 @@ document.addEventListener('input', function(e) {
           if (aI) aI.value = formatNum(citem.amount);
         }
       }
+      refreshChallanLineMatch(cidx);
     }
     return;
   }
@@ -17953,6 +18617,7 @@ document.addEventListener('input', function(e) {
           if (aI2) aI2.value = formatNum(citem2.amount);
         }
       }
+      refreshChallanLineMatch(cidx2);
     }
     return;
   }
@@ -17984,6 +18649,12 @@ document.addEventListener('input', function(e) {
     }
     // Update totals without full DOM replacement
     updateTotalsDisplay();
+    refreshZeroReason(idx);
+    refreshInvoiceLineMatch(idx);
+  }
+  if (e.target.dataset.action === 'invZeroNote') {
+    var zItem = invoiceForm.items[parseInt(e.target.dataset.idx)];
+    if (zItem) zItem.zeroNote = e.target.value;
   }
 });
 
@@ -18574,6 +19245,41 @@ if (!S._cnSeriesStart1) {
     console.log('[migrate] credit notes: ' + stamped + ' stamped with an against-invoice' +
       (tooSmall ? ', ' + tooSmall + ' with no invoice large enough' : '') +
       (gone ? ', ' + gone + ' whose batch is no longer in the register' : ''));
+  }
+})();
+
+/* ===== ₹0 LINES CARRY A REASON, RETROSPECTIVELY TOO =====
+
+   The owner ruled (24 Sep 2026) that the lines billed at ₹0 are replating —
+   work returned to be re-plated, not billed a second time. The history held 25
+   such lines across 14 invoices with nothing on them saying so. They are stamped
+   `replating` AND `zeroReasonBackfilled`, so the register can tell a reason the
+   ruling supplied from one an operator chose, and an operator who later picks a
+   reason on edit replaces the stamp.
+
+   STRUCTURAL and idempotent: it only annotates a line that has no reason yet,
+   writes no amount, and so runs on a pull and an import as well as the loader —
+   a backup from a device that never ran it gets the same annotation.
+
+   ⚠ Bounded to invoices DATED on or before the ruling. The ruling covers the
+   history it was made about; a ₹0 line written after it by a device on an
+   older build has no reason, and the register says "No reason recorded" rather
+   than the migration inventing one forever. A backfilled line that was
+   something else is corrected by picking the reason on edit. */
+(function() {
+  var stamped = 0;
+  (S.invoices || []).forEach(function(inv) {
+    if (!inv.date || inv.date > '2026-09-24') return;
+    (inv.items || []).forEach(function(li) {
+      if (!isZeroBilledLine(li) || li.zeroReason) return;
+      li.zeroReason = 'replating';
+      li.zeroReasonBackfilled = '2026-09-24';
+      stamped++;
+    });
+  });
+  if (stamped) {
+    saveJSON(STORAGE_KEY, S);
+    console.log('[migrate] ' + stamped + ' zero-billed line(s) stamped replating (owner ruling 24 Sep 2026)');
   }
 })();
 

@@ -148,7 +148,7 @@ function renderIMList() {
           (!itemInvoiced ? '<input type="checkbox" class="inv-im-check" data-action="invCheckIMItem" data-item-id="' + escHtml(it.id) + '"' + (_imSelected[it.id] ? ' checked' : '') + '>' :
           invBadgeHtml) +
           '<div class="inv-im-item-info">' +
-          '<div class="inv-im-item-desc">' + escHtml(it.desc || it.partNumber) + '</div>' +
+          '<div class="inv-im-item-desc">' + escHtml(lineLabel(it)) + '</div>' +
           '<div class="inv-im-item-detail">' + escHtml(it.qty) + ' ' + escHtml(it.unit) +
           (it.nosQty && it.nosQty > 0 ? ' (' + escHtml(it.nosQty) + ' NOS)' : '') +
           ' @ ' + formatCurrency(it.rate) + '/' + escHtml(it.unit) + '</div></div>' +
@@ -348,7 +348,7 @@ function _renderIMDetail(challanId, skipMasterRefresh) {
       (!itemInvoiced ? '<input type="checkbox" class="inv-im-check" data-action="invCheckIMItem" data-item-id="' + escHtml(it.id) + '"' + (_imSelected[it.id] ? ' checked' : '') + '>' :
       invBadgeHtml) +
       '<div class="inv-im-item-info">' +
-      '<div class="inv-im-item-desc">' + escHtml(it.desc || it.partNumber) + '</div>' +
+      '<div class="inv-im-item-desc">' + escHtml(lineLabel(it)) + '</div>' +
       '<div class="inv-im-item-detail">' + escHtml(it.qty) + ' ' + escHtml(it.unit) +
       (it.nosQty && it.nosQty > 0 ? ' (' + escHtml(it.nosQty) + ' NOS)' : '') +
       ' @ ' + formatCurrency(it.rate) + '/' + escHtml(it.unit) + '</div></div>' +

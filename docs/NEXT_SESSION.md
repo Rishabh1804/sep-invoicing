@@ -11,6 +11,12 @@ carries **this repo's side** of it: the work queued here, and what this app prod
 
 ### 1. Visual rate matcher
 
+> **Status, 24 Sep 2026 (session B): BUILT.** Reference fixed (per-client dated piece rates, T-HC),
+> ₹0 lines need a reason, and the matcher ships with **option E**, chosen by the owner from five
+> rendered candidates: green exact · yellow ×10 · red ≥ 10% or ≥ ₹100 on the line · neutral
+> "Differs" below that · grey for no rate / gauge not stated. See `CLAUDE.md` § *The rate on record*.
+> The two thresholds are in Settings → Rate Check.
+
 Colour each line's rate against the rate on record:
 
 | Colour | Meaning |
@@ -87,7 +93,7 @@ A to-do list for Soma, the workplace, shown as a widget on the desktop and on th
 
 ### Carried from the codex
 
-- **T-HC** (`soma-internal`): the scanner bypasses `itemRates`. See item 1.
+- **T-HC** (`soma-internal`): the scanner bypasses `itemRates`. **Fixed here 24 Sep 2026** — the compile session should close it in `soma-internal/tasks.md`.
 
 ---
 
@@ -101,4 +107,5 @@ in the PR**, so the compile session knows to re-check.
 | **Produces** the JSON backup → `soma-internal` (**all sensitive data goes there at every compile**) | Settings → Export. The whole state as one JSON file. `soma-internal` stores it as `analysis/sep-invoicing-backup-YYYY-MM-DD.json`. Newest there: **2026-09-11**. |
 | **Consumes** the roster and attendance seed ← `soma-internal` | Staff → Roster → Import. Merges by name, and marks name a worker, never an id (see `CLAUDE.md`). The seed carries the alias map. |
 | **Consumes** findings ← `soma-internal` | Tasks recorded in `soma-internal/tasks.md` whose fix belongs here, currently **T-HC**. |
+| **Backup shape changed, 24 Sep 2026** | A top-level `rateCheck: {pct, stake}` config. Clients gain `pieceRates: [{partNumber, gauge, rate, effectiveFrom, source, addedAt}]`. Invoice lines billed at ₹0 gain `zeroReason` (`replating` / `sample` / `other`), optional `zeroNote`, and `zeroReasonBackfilled` on the 25 historical lines. Anything in `soma-internal` that parses the backup should expect them. |
 | **Will produce** captured stock entries → `soma-internal` (the owner) | Not yet built. Copied at every compile (the app keeps its own copy); the ledger is `soma-internal/operations/chemical-stock-log.md`. See item 2. |

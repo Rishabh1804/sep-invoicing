@@ -464,6 +464,41 @@ if (!S._cnSeriesStart1) {
   }
 })();
 
+/* ===== ₹0 LINES CARRY A REASON, RETROSPECTIVELY TOO =====
+
+   The owner ruled (24 Sep 2026) that the lines billed at ₹0 are replating —
+   work returned to be re-plated, not billed a second time. The history held 25
+   such lines across 14 invoices with nothing on them saying so. They are stamped
+   `replating` AND `zeroReasonBackfilled`, so the register can tell a reason the
+   ruling supplied from one an operator chose, and an operator who later picks a
+   reason on edit replaces the stamp.
+
+   STRUCTURAL and idempotent: it only annotates a line that has no reason yet,
+   writes no amount, and so runs on a pull and an import as well as the loader —
+   a backup from a device that never ran it gets the same annotation.
+
+   ⚠ Bounded to invoices DATED on or before the ruling. The ruling covers the
+   history it was made about; a ₹0 line written after it by a device on an
+   older build has no reason, and the register says "No reason recorded" rather
+   than the migration inventing one forever. A backfilled line that was
+   something else is corrected by picking the reason on edit. */
+(function() {
+  var stamped = 0;
+  (S.invoices || []).forEach(function(inv) {
+    if (!inv.date || inv.date > '2026-09-24') return;
+    (inv.items || []).forEach(function(li) {
+      if (!isZeroBilledLine(li) || li.zeroReason) return;
+      li.zeroReason = 'replating';
+      li.zeroReasonBackfilled = '2026-09-24';
+      stamped++;
+    });
+  });
+  if (stamped) {
+    saveJSON(STORAGE_KEY, S);
+    console.log('[migrate] ' + stamped + ' zero-billed line(s) stamped replating (owner ruling 24 Sep 2026)');
+  }
+})();
+
 
 }
 

@@ -49,6 +49,7 @@ function renderCreateForm() {
     const isPieceNOS = client && client.billingMode==='piece' && item.unit==='NOS';
     const rateDisplay = (item.rate != null && !isNaN(item.rate) && item.rate !== 0) ? formatNum(item.rate) : (item.qty > 0 && isPieceNOS ? '\u2014' : (item.rate === 0 && item.qty > 0 ? '0.00' : ''));
     const amtDisplay = (item.amount != null && !isNaN(item.amount) && item.amount !== 0) ? formatNum(item.amount) : (item.amount === 0 && item.qty > 0 ? '0.00' : '');
+    const rm = client ? rateMatch(client, invoiceForm.date, item) : null;
     html += '<div class="inv-line-item">' +
       '<div class="inv-line-header"><span class="inv-line-num">Item ' + (idx + 1) + '</span>' +
       '<button class="inv-line-remove" data-action="invRemoveLineItem" data-idx="' + idx + '">&times;</button></div>' +
@@ -66,13 +67,14 @@ function renderCreateForm() {
       '<option value="NOS"' + (item.unit==='NOS'?' selected':'') + '>NOS</option></select></div></div>' +
       '<div class="inv-form-row">' +
       '<div class="inv-form-group"><label class="inv-form-label">Rate</label>' +
-      '<input type="number" class="inv-form-input inv-mono' + (client && client.billingMode==='piece' && item.unit==='NOS' ? ' inv-form-input-readonly' : '') + '" value="' + rateDisplay + '" data-field="rate" data-idx="' + idx + '" data-action="invUpdateLine" step="any" min="0"' +
+      '<input type="number" class="inv-form-input inv-mono' + (client && client.billingMode==='piece' && item.unit==='NOS' ? ' inv-form-input-readonly' : '') + rateMatchInputClass(rm) + '" value="' + rateDisplay + '" data-field="rate" data-idx="' + idx + '" data-action="invUpdateLine" step="any" min="0"' +
       (client && client.billingMode==='piece' && item.unit==='NOS' ? ' readonly title="Rate is set from this client&#39;s piece-mode profile"' : '') + '></div>' +
       '<div class="inv-form-group"><label class="inv-form-label">Amount</label>' +
       '<input type="number" class="inv-form-input inv-mono" value="' + amtDisplay + '" data-field="amount" data-idx="' + idx + '" data-action="invUpdateLine" step="any" min="0"' +
       (client && client.billingMode==='piece' && item.unit==='NOS' ? '' : ' readonly') + '></div></div>' +
-      (item.rate === 0 ? '<span class="inv-zero-badge">\u20B90</span> ' : '') +
       (item._override ? '<span class="inv-override-badge">' + escHtml(item._label || 'Override') + '</span> ' : '') +
+      '<div id="invRateMatch' + idx + '">' + rateMatchNote(rm) + '</div>' +
+      '<div id="invZeroReason' + idx + '">' + zeroReasonHtml(item, idx) + '</div>' +
       '</div>';
   });
   html += '<button class="inv-btn inv-btn-ghost inv-btn-block" data-action="invAddLineItem">+ Add Line Item</button></div>';
@@ -149,6 +151,47 @@ function renderCreateForm() {
   }
 }
 
+/* The reason block under a line billed at ₹0. Re-rendered on its own when the
+   line moves in or out of ₹0, so the field being typed in keeps focus. */
+function zeroReasonHtml(item, idx) {
+  if (!isZeroBilledLine(item)) return '';
+  var html = '<div class="inv-zero-reason">' +
+    '<div class="inv-zero-reason-head"><span class="inv-zero-badge">\u20B90</span>' +
+    '<span class="inv-zero-reason-q">Why is this line not billed?</span></div>' +
+    '<div class="inv-zero-reason-opts" role="radiogroup" aria-label="Reason for billing at zero">';
+  ZERO_REASONS.forEach(function(r) {
+    var on = item.zeroReason === r.id;
+    html += '<button type="button" class="inv-zero-opt' + (on ? ' inv-zero-opt-on' : '') + '" role="radio" aria-checked="' + on + '"' +
+      ' data-action="invZeroReason" data-idx="' + idx + '" data-reason="' + r.id + '">' + escHtml(r.label) + '</button>';
+  });
+  html += '</div>' +
+    '<input class="inv-form-input inv-zero-note" data-action="invZeroNote" data-idx="' + idx + '" data-k="zeronote-' + idx + '"' +
+    ' value="' + escHtml(item.zeroNote || '') + '" placeholder="' + (item.zeroReason === 'other' ? 'What was it? (recommended)' : 'Note (optional)') + '"' +
+    ' aria-label="Note on why this line is not billed">' +
+    '</div>';
+  return html;
+}
+
+/* What a saved line carries about being billed at ₹0 — nothing at all when it
+   is billed, so a line priced later does not keep a stale reason. */
+function zeroReasonFields(item) {
+  if (!isZeroBilledLine(item) || !item.zeroReason) return {};
+  var out = { zeroReason: item.zeroReason };
+  var note = (item.zeroNote || '').trim();
+  if (note) out.zeroNote = note;
+  if (item.zeroReasonBackfilled) out.zeroReasonBackfilled = item.zeroReasonBackfilled;
+  return out;
+}
+
+function refreshZeroReason(idx) {
+  var box = document.getElementById('invZeroReason' + idx);
+  var item = invoiceForm.items[idx];
+  if (!box || !item) return;
+  var want = isZeroBilledLine(item);
+  var has = !!box.firstChild;
+  if (want !== has) box.innerHTML = zeroReasonHtml(item, idx);
+}
+
 function validateInvoice() {
   const errors = [];
   if (!invoiceForm.clientId) errors.push('Select a client');
@@ -157,6 +200,7 @@ function validateInvoice() {
   invoiceForm.items.forEach((item, i) => {
     if (item.qty < 0) errors.push('Line ' + (i+1) + ': Quantity cannot be negative');
     if (item.amount < 0) errors.push('Line ' + (i+1) + ': Amount cannot be negative');
+    if (isZeroBilledLine(item) && !item.zeroReason) errors.push('Line ' + (i+1) + ': billed at \u20B90 \u2014 pick a reason');
   });
   return errors;
 }
@@ -174,7 +218,7 @@ function selectClient(id) {
         item._override = true;
         item._label = rateInfo._label;
       } else {
-        item.rate = rateInfo.ratePerKg || 0;
+        item.rate = defaultLineRate(client, invoiceForm.date, item);
       }
       recalcLineItem(item, client);
     });
@@ -204,8 +248,18 @@ function recalcLineItem(item, client) {
     // Don't auto-calc amount for NOS piece mode
   } else if (client.billingMode === 'nos_to_weight' && item.unit === 'NOS') {
     const pwKey = (item.partNumber || '').toUpperCase();
-    const w = (item.qty || 0) * (S.partWeights[pwKey] || 0);
     const rateInfo = getLineItemRate(client, invoiceForm.date, item.partNumber);
+    // A part with no weight on record cannot be converted; it is billed per
+    // piece off the client's card (Samarth's brackets), or an override. Before
+    // this the line priced itself at weight 0 × ₹/kg = ₹0.
+    const perPiece = rateInfo._override ? {rate: rateInfo.rate}
+      : (S.partWeights[pwKey] ? null : getPieceRate(client, invoiceForm.date, item.partNumber, item.desc));
+    if (perPiece && perPiece.rate != null) {
+      item.rate = perPiece.rate;
+      item.amount = gstRound((item.qty || 0) * item.rate);
+      return;
+    }
+    const w = (item.qty || 0) * (S.partWeights[pwKey] || 0);
     item.rate = rateInfo.ratePerKg || 0;
     item.amount = gstRound(w * item.rate);
   } else {
@@ -249,7 +303,7 @@ function saveInvoice() {
       date: invoiceForm.date, clientId: client.id, clientName: client.name,
       clientGSTIN: client.gstin, clientAddress: {add1:client.add1,add2:client.add2,add3:client.add3,state:client.state,stateCode:client.stateCode},
       gstType: client.gstType,
-      items: invoiceForm.items.map(i => ({partNumber:i.partNumber,desc:i.desc,hsn:i.hsn||'998873',unit:i.unit,qty:i.qty,rate:i.rate,amount:i.amount,nosQty:i.nosQty||null})),
+      items: invoiceForm.items.map(i => ({partNumber:i.partNumber,desc:i.desc,hsn:i.hsn||'998873',unit:i.unit,qty:i.qty,rate:i.rate,amount:i.amount,nosQty:i.nosQty||null,...zeroReasonFields(i)})),
       taxableValue: taxable, cgstPer, cgstAmt, sgstPer, sgstAmt, igstPer, igstAmt,
       grandTotal: grand, amountInWords: numberToWords(grand),
       challanNo: invoiceForm.challanNo, challanDate: invoiceForm.challanDate,
@@ -276,7 +330,7 @@ function saveInvoice() {
       clientGSTIN: client.gstin,
       clientAddress: {add1:client.add1,add2:client.add2,add3:client.add3,state:client.state,stateCode:client.stateCode},
       gstType: client.gstType,
-      items: invoiceForm.items.map(i => ({partNumber:i.partNumber,desc:i.desc,hsn:i.hsn||'998873',unit:i.unit,qty:i.qty,rate:i.rate,amount:i.amount,nosQty:i.nosQty||null})),
+      items: invoiceForm.items.map(i => ({partNumber:i.partNumber,desc:i.desc,hsn:i.hsn||'998873',unit:i.unit,qty:i.qty,rate:i.rate,amount:i.amount,nosQty:i.nosQty||null,...zeroReasonFields(i)})),
       taxableValue: taxable, cgstPer, cgstAmt, sgstPer, sgstAmt, igstPer, igstAmt,
       grandTotal: grand, amountInWords: numberToWords(grand),
       poNumber: invoiceForm.poNumber, poDate: invoiceForm.poDate, challanNo: invoiceForm.challanNo, challanDate: invoiceForm.challanDate,
@@ -310,3 +364,48 @@ function saveInvoice() {
   switchTab(returnDest);
 }
 
+
+/* The matcher's note under a line's rate, and the class its Rate field takes.
+   One renderer for the invoice form, the challan form and the invoice detail,
+   so the three can never describe the same line differently. */
+var RM_LABELS = { match: 'Matches', decimal: '×10 slip', differs: 'Differs', check: 'Check',
+  none: 'No rate on record', gauge: 'Gauge not stated' };
+
+function rateMatchNote(m, compact) {
+  if (!m) return '';
+  var per = m.unit === 'kg' ? '/kg' : '/pc';
+  var chip = '<span class="inv-rm-chip inv-rm-' + m.status + '">' + RM_LABELS[m.status] + '</span>';
+  var text = '';
+  if (m.status === 'match') text = compact ? '' : formatCurrency(m.ref) + per + ' on record';
+  else if (m.status === 'decimal') text = 'On record ' + formatCurrency(m.ref) + per + ' — a power of ten away. Did you mean ' + formatCurrency(m.ref) + '?';
+  else if (m.status === 'differs' || m.status === 'check') {
+    var sign = function(n) { return (n > 0 ? '+' : '−') + formatCurrency(Math.abs(n)); };
+    text = 'On record ' + formatCurrency(m.ref) + per + ' · ' + sign(m.diff) + ' (' + (m.pct * 100).toFixed(1) + '%)' +
+      ' · ' + sign(m.stake) + ' on this line';
+  } else if (m.status === 'none') text = compact ? '' : 'Add it to the client’s piece rates to check this line';
+  else if (m.status === 'gauge') text = compact ? '' : 'This part is priced by gauge — put the gauge in the description';
+  return '<div class="inv-rm-note">' + chip + (text ? '<span class="inv-rm-text">' + escHtml(text) + '</span>' : '') + '</div>';
+}
+
+function rateMatchInputClass(m) {
+  return m ? ' inv-rm-input-' + m.status : '';
+}
+
+/* Re-judge one line in place: the note and the Rate field's class. Called from
+   the input handlers, which deliberately do not re-render the whole form. */
+function refreshRateMatch(boxId, inputEl, client, onDate, item) {
+  var m = rateMatch(client, onDate, item);
+  var box = document.getElementById(boxId);
+  if (box) box.innerHTML = rateMatchNote(m);
+  if (inputEl) {
+    inputEl.className = inputEl.className.replace(/\s*inv-rm-input-\w+/g, '') + rateMatchInputClass(m);
+  }
+}
+
+function refreshInvoiceLineMatch(idx) {
+  var item = invoiceForm.items[idx];
+  var client = invoiceForm.clientId ? S.clients.find(function(c) { return c.id === invoiceForm.clientId; }) : null;
+  if (!item || !client) return;
+  refreshRateMatch('invRateMatch' + idx, document.querySelector('[data-action="invUpdateLine"][data-field="rate"][data-idx="' + idx + '"]'),
+    client, invoiceForm.date, item);
+}

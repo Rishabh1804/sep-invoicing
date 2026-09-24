@@ -99,6 +99,7 @@ function renderAddChallanForm() {
     var rateDisplay = (item.rate != null && !isNaN(item.rate) && item.rate !== 0) ? formatNum(item.rate) : '';
     var amtDisplay = (item.amount != null && !isNaN(item.amount) && item.amount !== 0) ? formatNum(item.amount) : '';
 
+    var rm = client ? rateMatch(client, _challanForm.challanDate || localDateStr(), item) : null;
     html += '<div class="inv-line-item">' +
       '<div class="inv-line-header"><span class="inv-line-num" id="imLineLbl' + idx + '">Item ' + (idx + 1) + '</span>' +
       '<button class="inv-line-remove" data-k="remove-' + idx + '" data-action="invRemoveChallanLine" data-idx="' + idx + '" aria-label="Remove item ' + (idx + 1) + '">&times;</button></div>' +
@@ -118,11 +119,12 @@ function renderAddChallanForm() {
       '<input type="number" class="inv-form-input inv-mono" id="imNos' + idx + '" data-k="nos-' + idx + '" value="' + (item.nosQty || '') + '" data-field="nosQty" data-idx="' + idx + '" data-action="invUpdateChallanLine" step="1" min="0" placeholder="Pcs"></div></div>' +
       '<div class="inv-form-row">' +
       '<div class="inv-form-group"><label class="inv-form-label" for="imRate' + idx + '">Rate</label>' +
-      '<input type="number" class="inv-form-input inv-mono" id="imRate' + idx + '" data-k="rate-' + idx + '" value="' + rateDisplay + '" data-field="rate" data-idx="' + idx + '" data-action="invUpdateChallanLine" step="any" min="0"' +
+      '<input type="number" class="inv-form-input inv-mono' + rateMatchInputClass(rm) + '" id="imRate' + idx + '" data-k="rate-' + idx + '" value="' + rateDisplay + '" data-field="rate" data-idx="' + idx + '" data-action="invUpdateChallanLine" step="any" min="0"' +
       (isPieceNOS ? ' readonly' : '') + '></div>' +
       '<div class="inv-form-group"><label class="inv-form-label" for="imAmt' + idx + '">Amount</label>' +
       '<input type="number" class="inv-form-input inv-mono" id="imAmt' + idx + '" data-k="amount-' + idx + '" value="' + amtDisplay + '" data-field="amount" data-idx="' + idx + '" data-action="invUpdateChallanLine" step="any" min="0"' +
-      (isPieceNOS ? '' : ' readonly') + '></div></div></div>';
+      (isPieceNOS ? '' : ' readonly') + '></div></div>' +
+      '<div id="imRateMatch' + idx + '">' + rateMatchNote(rm) + '</div></div>';
   });
   // data-kbd-ring puts these two in the Enter-to-next-field chain, so the last
   // field of the last line steps onto "Add Line Item" instead of dead-ending.
@@ -204,12 +206,7 @@ function selectChallanClient(clientId) {
   // Auto-fill rate on existing items
   if (client) {
     _challanForm.items.forEach(function(item) {
-      var rateInfo = getLineItemRate(client, _challanForm.challanDate || localDateStr(), item.partNumber);
-      if (rateInfo._override) {
-        item.rate = rateInfo.rate;
-      } else {
-        item.rate = rateInfo.ratePerKg || 0;
-      }
+      item.rate = defaultLineRate(client, _challanForm.challanDate || localDateStr(), item);
       recalcChallanLine(item, client);
     });
   }
@@ -448,3 +445,12 @@ function editChallan(imId) {
   showToast('Editing challan' + (im.challanNo ? ' ' + im.challanNo : ''), 'warning');
 }
 
+
+function refreshChallanLineMatch(idx) {
+  if (!_challanForm) return;
+  var item = _challanForm.items[idx];
+  var client = _challanForm.clientId ? S.clients.find(function(c) { return c.id === _challanForm.clientId; }) : null;
+  if (!item || !client) return;
+  refreshRateMatch('imRateMatch' + idx, document.getElementById('imRate' + idx), client,
+    _challanForm.challanDate || localDateStr(), item);
+}

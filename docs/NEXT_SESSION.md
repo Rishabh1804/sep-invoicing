@@ -11,6 +11,14 @@ carries **this repo's side** of it: the work queued here, and what this app prod
 
 ### 1. Visual rate matcher
 
+> **Status, 24 Sep 2026 (session B):** the measurement is done and the **reference is fixed**;
+> the colouring itself is not built yet. See `CLAUDE.md` § *The rate on record* and § *Billed at ₹0*.
+> Settled: zero decimal errors in history; ₹0 lines are replating (owner) and now need a reason;
+> 00922/00923 were a swap (owner); T-HC fixed. **Proposed rule, awaiting build:** green exact ·
+> yellow power-of-ten (±2%) · red ≥ ₹0.50 **or** ≥ 10% · neutral chip with the delta below red ·
+> red "no rate" for ₹0 without a reason · grey "no rate on record" / "gauge not stated". Read
+> `getRateOnRecord()`, not `getLineItemRate()`.
+
 Colour each line's rate against the rate on record:
 
 | Colour | Meaning |
@@ -87,7 +95,7 @@ A to-do list for Soma, the workplace, shown as a widget on the desktop and on th
 
 ### Carried from the codex
 
-- **T-HC** (`soma-internal`): the scanner bypasses `itemRates`. See item 1.
+- **T-HC** (`soma-internal`): the scanner bypasses `itemRates`. **Fixed here 24 Sep 2026** — the compile session should close it in `soma-internal/tasks.md`.
 
 ---
 
@@ -101,4 +109,5 @@ in the PR**, so the compile session knows to re-check.
 | **Produces** the JSON backup → `soma-internal` (**all sensitive data goes there at every compile**) | Settings → Export. The whole state as one JSON file. `soma-internal` stores it as `analysis/sep-invoicing-backup-YYYY-MM-DD.json`. Newest there: **2026-09-11**. |
 | **Consumes** the roster and attendance seed ← `soma-internal` | Staff → Roster → Import. Merges by name, and marks name a worker, never an id (see `CLAUDE.md`). The seed carries the alias map. |
 | **Consumes** findings ← `soma-internal` | Tasks recorded in `soma-internal/tasks.md` whose fix belongs here, currently **T-HC**. |
+| **Backup shape changed, 24 Sep 2026** | Clients gain `pieceRates: [{partNumber, gauge, rate, effectiveFrom, source, addedAt}]`. Invoice lines billed at ₹0 gain `zeroReason` (`replating` / `sample` / `other`), optional `zeroNote`, and `zeroReasonBackfilled` on the 25 historical lines. Anything in `soma-internal` that parses the backup should expect them. |
 | **Will produce** captured stock entries → `soma-internal` (the owner) | Not yet built. Copied at every compile (the app keeps its own copy); the ledger is `soma-internal/operations/chemical-stock-log.md`. See item 2. |

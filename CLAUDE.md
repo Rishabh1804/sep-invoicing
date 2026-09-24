@@ -89,7 +89,7 @@ every session start — nothing to set up by hand. CI (`build-sync`) is the back
 ### Tests
 
 ```bash
-pnpm exec playwright test          # 333 tests, both layouts
+pnpm exec playwright test          # 341 tests, both layouts
 ```
 
 Some sandboxes ship a Chromium build Playwright does not expect and block downloading
@@ -946,6 +946,55 @@ Skipping costs no tonnage — the line-level route above still weighs those line
 ### Client Master
 22 clients with rate lookup, billing mode assignment, and contact info. Billing modes in live
 data: 20 `weight`, 1 `piece` (SSS Mehta), 1 `nos_to_weight`.
+
+### The rate on record
+**Replayed 24 Sep 2026** over `soma-internal/analysis/sep-invoicing-backup-2026-09-11.json` (931
+invoices, 2,835 lines) before any matcher threshold was set. The finding was that the reference
+was wrong far more often than the billing: **zero** decimal errors in the whole history, and most
+of what a matcher would have flagged was reference data.
+
+- **The Items Master is not a rate card.** One `rate` per part, no client, no date. It disagreed
+  with 185 of SSS Mehta's lines, mostly because the customer's rate moved and the master did not
+  (`150X88X3`: 1.67 on every line since April, master 1.64), and in three rows because ₹5.40 — the
+  ₹/kg figure — had been typed into the per-piece field.
+- **So a piece rate is the CLIENT's: `client.pieceRates`, dated, keyed on part AND gauge.**
+  `getPieceRate()` in `state.js`. Part keys ignore case and punctuation (`rateKey`); the gauge is
+  read from the line's description by `lineGauge()` — two digits × one digit, standing alone, so
+  `L.C.Pad 150x80x3` (a part size) never reads as one. A part priced by gauge on a line that does
+  not say which gauge returns `{ambiguous: true}`: reported, never guessed.
+- ⚠ **Deliberately NOT `itemRates`.** An override is a negotiated per-piece figure with no weight
+  basis, and Stats and weight derivation refuse to invert one. Putting SSS Mehta's card there would
+  wipe 61% of the plant's tonnage off the dashboard.
+- **`getRateOnRecord(client, date, item)` is the one place the matcher reads**: override →
+  `pieceRates` for a NOS line → the ₹/kg ladder. It returns the **unit** with the figure, and a NOS
+  line with no piece rate gets **no** reference rather than the ladder — comparing ₹1.10/pc against
+  ₹10/kg is the unit error the master rows made. *(NEXT_SESSION had the order as ladder → itemRates →
+  items master; the code has always been itemRates → ladder, and never read the master.)*
+- **The card is filled from what was billed** — Client → Edit → Piece Rates → *Fill from billing
+  history* — building one dated entry per rate change. Two things are left out and **listed**: a
+  rate seen on **one** invoice where another is established on two or more (the shape of 00922 /
+  00923, where Samarth material was misattributed and two brackets swapped rates for a day — the
+  owner confirmed, 24 Sep 2026), and a rate that **returns** after changing, which is two products
+  under one name (gauge-less `CLAMP 165X83 (NT)` lines swing 4.27 / 4.89 / 4.27). On the real
+  backup, after filling both cards, **2,729 lines match exactly and 18 priced lines differ**.
+- **Prefill uses it too** (`defaultLineRate`). A NOS line used to be handed the ₹/kg figure — 5.40
+  against a ₹1.49 pad — and a Samarth part with no weight priced itself at 0 kg × ₹14.50 = ₹0.
+- **T-HC is fixed.** The scanner priced every KG line off rates frozen into `_scanClientMap`, so a
+  rate change or an override never reached a scanned challan. It now reads the client's records;
+  the frozen figure is only a fallback for a client the app does not hold. A piece client's
+  challan keeps its own amount — that is the passthrough.
+
+### Billed at ₹0
+The history held **25 lines billed at ₹0 — 1,192.54 kg, ₹16,355.67 at the client's own rate —
+across 14 invoices**, mostly General Engineering, with nothing on any of them saying why. **The
+owner ruled (24 Sep 2026) they are replating**: returned work is not billed twice.
+
+A ₹0 line with a quantity now **cannot be saved without a reason** — *Replating / Sample / trial /
+Other*, a tap each. The note is **recommended, never required**: a one-tap picker gets filled in, a
+mandatory essay gets "ok". The history is stamped `replating` **and** `zeroReasonBackfilled`, so the
+register can tell a reason the ruling supplied from one an operator chose. The migration is bounded
+to invoices dated on or before the ruling — a ₹0 line written later by a device on an older build
+reads *No reason recorded* rather than the migration inventing one forever.
 
 ### Labour and attendance
 The Staff tab. Labour is ₹3.55/kg of an ₹8.55 cost and 42% of it — the largest line in the

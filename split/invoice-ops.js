@@ -499,9 +499,9 @@ function _renderRegDetail(invId, skipMasterRefresh) {
     '<div class="inv-detail-label">Line Items</div>' +
     '<div class="inv-detail-items-wrap"><table class="inv-detail-items-table"><thead><tr>' +
     '<th>Part</th><th>Qty</th><th>Unit</th><th>Rate</th><th>Amount</th></tr></thead><tbody>';
-  d.items.forEach(function(item) {
+  d.items.forEach(function(item, li) {
     html += '<tr>' +
-      '<td>' + escHtml(item.desc) + '</td>' +
+      '<td>' + escHtml(item.desc) + zeroReasonTag((inv.items || [])[li]) + '</td>' +
       '<td class="inv-mono">' + escHtml(item.qty) + (item.nosQtyRaw && item.nosQtyRaw > 0 ? ' <span class="inv-text-muted">(' + escHtml(item.nosQtyRaw) + ' NOS)</span>' : '') + '</td>' +
       '<td>' + escHtml(item.unit) + '</td>' +
       '<td class="inv-mono">' + escHtml(item.rate) + '</td>' +
@@ -798,9 +798,9 @@ function openInvoiceDetail(invId) {
     '<div class="inv-detail-label">Line Items</div>' +
     '<div class="inv-detail-items-wrap"><table class="inv-detail-items-table"><thead><tr>' +
     '<th>Part</th><th>Qty</th><th>Unit</th><th>Rate</th><th>Amount</th></tr></thead><tbody>';
-  d.items.forEach(function(item) {
+  d.items.forEach(function(item, li) {
     html += '<tr>' +
-      '<td>' + escHtml(item.desc) + '</td>' +
+      '<td>' + escHtml(item.desc) + zeroReasonTag((inv.items || [])[li]) + '</td>' +
       '<td class="inv-mono">' + escHtml(item.qty) + (item.nosQtyRaw && item.nosQtyRaw > 0 ? ' <span class="inv-text-muted">(' + escHtml(item.nosQtyRaw) + ' NOS)</span>' : '') + '</td>' +
       '<td>' + escHtml(item.unit) + '</td>' +
       '<td class="inv-mono">' + escHtml(item.rate) + '</td>' +
@@ -883,6 +883,17 @@ function openInvoiceDetail(invId) {
 }
 
 /* Edit invoice — loads into Create Invoice in edit mode */
+/* A ₹0 line says why, where the invoice is read. A backfilled reason says it
+   came from the owner's ruling rather than from whoever raised the invoice. */
+function zeroReasonTag(raw) {
+  if (!raw || !isZeroBilledLine(raw)) return '';
+  var text = raw.zeroReason ? zeroReasonLabel(raw.zeroReason) || raw.zeroReason : 'No reason recorded';
+  if (raw.zeroNote) text += ' \u2014 ' + raw.zeroNote;
+  if (raw.zeroReasonBackfilled) text += ' (backfilled: owner ruling ' + raw.zeroReasonBackfilled + ')';
+  return '<div class="inv-zero-tag' + (raw.zeroReason ? '' : ' inv-zero-tag-missing') + '">' +
+    '<span class="inv-zero-badge">\u20B90</span> ' + escHtml(text) + '</div>';
+}
+
 function editInvoice(invId) {
   const inv = S.invoices.find(i => i.id === invId);
   if (!inv) return;

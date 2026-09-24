@@ -675,3 +675,121 @@ function getLineItemRate(client, invoiceDate, partNumber) {
   return {ratePerKg: 0, ratePerPiece: null, effectiveFrom: '2026-04-01'};
 }
 
+
+/* ===== PIECE RATES ON RECORD =====
+
+   A piece-billed client's rate card lived nowhere the app could read it. The
+   Items Master carries one `rate` per part with no client and no date, and the
+   2026-09-11 replay found it disagreeing with 185 of SSS Mehta's billed lines —
+   mostly because the customer's rate moved and the master did not (150X88X3:
+   billed 1.67 on every line since April, master 1.64), and in three rows because
+   the ₹/kg figure had been typed into the per-piece field.
+
+   So the rate a piece line is checked against is the CLIENT's, dated, and keyed
+   on part AND gauge: four clamp families (five, counting 154X81) are priced
+   differently at different gauges under one part number, and a gauge-blind key
+   reads a correct 40X6 line as wrong against the 35X6 rate.
+
+   Deliberately NOT an `itemRates` override. An override is a negotiated
+   per-piece figure with no weight basis, and Stats and weight derivation refuse
+   to invert one — putting SSS Mehta's card there would wipe 61% of the plant's
+   tonnage off the dashboard. These rates were built as weight × ₹/kg, and the
+   tonnage paths keep reading the line the way they always have. */
+function rateKey(s) {
+  return String(s == null ? '' : s).toUpperCase().replace(/[^A-Z0-9]/g, '');
+}
+
+/* The strip gauge a line's description states — "CLAMP (40X6)", "35X6" — or ''.
+   Two digits, X, one digit, standing alone: a gauge is the strip section, and
+   the anchoring is what stops "L.C.Pad 150x80x3" (a part size) reading as one. */
+function lineGauge(desc) {
+  var m = /(?:^|[^0-9A-Z])(\d{2})\s*X\s*(\d)(?![0-9X])/i.exec(String(desc || ''));
+  return m ? m[1] + 'X' + m[2] : '';
+}
+
+/* The per-piece rate on record for a line, or null when there is none.
+   `{ambiguous: true}` when the part is priced by gauge and the line does not
+   say which gauge it is — reported, never resolved by picking one. */
+function getPieceRate(client, onDate, partNumber, desc) {
+  var pk = rateKey(partNumber);
+  if (!client || !pk || !client.pieceRates || client.pieceRates.length === 0) return null;
+  var date = onDate || localDateStr();
+  var rows = client.pieceRates.filter(function(r) {
+    return rateKey(r.partNumber) === pk && (!r.effectiveFrom || r.effectiveFrom <= date);
+  });
+  if (rows.length === 0) return null;
+  // The gauge is folded into the line's description (partLineDesc); some part
+  // numbers carry it too ("CLAMP 165X83(40X6)").
+  var lg = lineGauge(desc) || lineGauge(partNumber);
+  var gauged = rows.filter(function(r) { return r.gauge && lg && rateKey(r.gauge) === lg; });
+  var pool = gauged.length ? gauged : rows.filter(function(r) { return !r.gauge; });
+  if (pool.length === 0) return { ambiguous: true, rate: null };
+  var gauges = {};
+  pool.forEach(function(r) { gauges[rateKey(r.gauge)] = true; });
+  if (Object.keys(gauges).length > 1) return { ambiguous: true, rate: null };
+  pool.sort(function(a, b) { return String(b.effectiveFrom || '').localeCompare(String(a.effectiveFrom || '')); });
+  var hit = pool[0];
+  return { rate: hit.rate, effectiveFrom: hit.effectiveFrom || '', gauge: hit.gauge || '' };
+}
+
+/* The one place a line's rate on record is read: override, then the client's
+   piece rate for a NOS line, then the ₹/kg ladder. `unit` says which the figure
+   is — comparing a piece rate against a ₹/kg one is the error the Items Master
+   rows carrying 5.40 made, and a caller must be able to refuse it. */
+function getRateOnRecord(client, onDate, item) {
+  if (!client || !item) return null;
+  var date = onDate || localDateStr();
+  var info = getLineItemRate(client, date, item.partNumber);
+  if (info._override) return { rate: info.rate, unit: 'piece', source: 'override' };
+  if (item.unit === 'NOS') {
+    var pr = getPieceRate(client, date, item.partNumber, item.desc);
+    if (pr && pr.ambiguous) return { rate: null, unit: 'piece', source: 'gauge-ambiguous' };
+    if (pr) return { rate: pr.rate, unit: 'piece', source: 'pieceRate', effectiveFrom: pr.effectiveFrom };
+    // Only a nos_to_weight line with a weight on record is priced per kg. Any
+    // other NOS line carries a per-piece figure, and the ₹/kg ladder is not a
+    // reference for it (Parakh's ROLLER at ₹1.10/pc is not "off" from ₹10/kg).
+    var w = (S.partWeights || {})[(item.partNumber || '').toUpperCase()];
+    if (client.billingMode !== 'nos_to_weight' || !w) return null;
+  }
+  return info.ratePerKg > 0 ? { rate: info.ratePerKg, unit: 'kg', source: 'ladder' } : null;
+}
+
+/* ===== BILLED AT ₹0 =====
+
+   A line billed at nothing is a decision, not an absence of one, and the
+   history carried 25 of them — 1,192.54 kg, ₹16,355.67 at the client's own
+   rate — with nothing on any of them saying why. The owner ruled (24 Sep 2026)
+   that they are replating: work returned for re-plating is not billed twice.
+   From now a ₹0 line carries its reason. The note is recommended, never
+   required — a picker the operator can clear in one tap gets filled in; a
+   mandatory essay gets "ok". */
+var ZERO_REASONS = [
+  { id: 'replating', label: 'Replating' },
+  { id: 'sample', label: 'Sample / trial' },
+  { id: 'other', label: 'Other' }
+];
+
+function zeroReasonLabel(id) {
+  var r = ZERO_REASONS.find(function(x) { return x.id === id; });
+  return r ? r.label : '';
+}
+
+/* A line that is billing something and billing it at ₹0. A blank line still
+   being typed (no quantity) is not one. */
+function isZeroBilledLine(item) {
+  return !!item && (item.qty || 0) > 0 && !((item.amount || 0) > 0);
+}
+
+/* The rate a line is PREFILLED with when its part or client is chosen. A NOS
+   line used to be handed the ₹/kg figure (SSS Mehta's 5.40 against a ₹1.49
+   pad; Samarth's 14.50 against a ₹3 bracket), which is exactly the unit error
+   the replay found typed into the Items Master. */
+function defaultLineRate(client, onDate, item) {
+  var info = getLineItemRate(client, onDate, item.partNumber);
+  if (info._override) return info.rate;
+  if (item.unit === 'NOS' && client.billingMode !== 'weight') {
+    var pr = getPieceRate(client, onDate, item.partNumber, item.desc);
+    if (pr && pr.rate != null) return pr.rate;
+  }
+  return info.ratePerKg || 0;
+}

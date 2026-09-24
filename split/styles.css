@@ -309,6 +309,43 @@ input, select, textarea, button { font-family: inherit; font-size: var(--fs-base
   border-radius: var(--r-sm); font-size: var(--fs-2xs); font-weight: 600;
 }
 
+/* A ₹0 line carries its reason: three options and an optional note. */
+.inv-zero-reason {
+  margin-top: var(--sp-8); padding: var(--sp-8);
+  border: 1px solid var(--warning); border-radius: var(--r-md);
+  background: var(--warning-bg);
+}
+.inv-zero-reason-head { display: flex; align-items: center; gap: var(--sp-8); margin-bottom: var(--sp-8); }
+.inv-zero-reason-q { font-size: var(--fs-xs); font-weight: 600; color: var(--warning-text); }
+.inv-zero-reason-opts { display: flex; flex-wrap: wrap; gap: var(--sp-6); margin-bottom: var(--sp-8); }
+.inv-zero-opt {
+  min-height: 44px; padding: var(--sp-6) var(--sp-12);
+  border: 1px solid var(--border); border-radius: var(--r-full);
+  background: var(--surface); color: var(--text-2);
+  font-size: var(--fs-sm); font-weight: 600; cursor: pointer;
+}
+.inv-zero-opt-on { background: var(--warning-text); color: var(--surface); border-color: var(--warning-text); }
+.inv-zero-opt:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.inv-zero-note { width: 100%; }
+.inv-zero-tag { margin-top: var(--sp-4); font-size: var(--fs-2xs); color: var(--text-2); }
+.inv-zero-tag-missing { color: var(--danger); }
+.dark .inv-zero-reason { background: var(--warning-bg); border-color: var(--warning); }
+.dark .inv-zero-opt { background: var(--surface-2); border-color: var(--border); color: var(--text-2); }
+.dark .inv-zero-opt-on { background: var(--warning-text); color: var(--surface); border-color: var(--warning-text); }
+.dark .inv-zero-tag { color: var(--text-2); }
+
+/* Piece-rate card in the client overlay */
+.inv-piece-row { align-items: center; gap: var(--sp-8); }
+.inv-piece-empty { font-size: var(--fs-xs); margin-bottom: var(--sp-8); }
+.inv-piece-report {
+  margin: var(--sp-8) 0; padding: var(--sp-8); border-radius: var(--r-md);
+  background: var(--surface-2); color: var(--text-2); font-size: var(--fs-xs);
+}
+.inv-piece-report-warn { margin-top: var(--sp-6); color: var(--warning-text); font-weight: 600; }
+.inv-piece-report-list { margin: var(--sp-4) 0 0 0; padding-left: var(--sp-16); }
+.dark .inv-piece-report { background: var(--surface-2); color: var(--text-2); }
+.dark .inv-piece-report-warn { color: var(--warning-text); }
+
 /* ===== VALIDATION ===== */
 .inv-error { color: var(--danger); font-size: var(--fs-xs); margin-top: var(--sp-4); }
 .inv-form-input-error { border-color: var(--danger); }

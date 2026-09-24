@@ -204,12 +204,7 @@ function selectChallanClient(clientId) {
   // Auto-fill rate on existing items
   if (client) {
     _challanForm.items.forEach(function(item) {
-      var rateInfo = getLineItemRate(client, _challanForm.challanDate || localDateStr(), item.partNumber);
-      if (rateInfo._override) {
-        item.rate = rateInfo.rate;
-      } else {
-        item.rate = rateInfo.ratePerKg || 0;
-      }
+      item.rate = defaultLineRate(client, _challanForm.challanDate || localDateStr(), item);
       recalcChallanLine(item, client);
     });
   }

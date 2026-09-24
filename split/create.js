@@ -71,8 +71,8 @@ function renderCreateForm() {
       '<div class="inv-form-group"><label class="inv-form-label">Amount</label>' +
       '<input type="number" class="inv-form-input inv-mono" value="' + amtDisplay + '" data-field="amount" data-idx="' + idx + '" data-action="invUpdateLine" step="any" min="0"' +
       (client && client.billingMode==='piece' && item.unit==='NOS' ? '' : ' readonly') + '></div></div>' +
-      (item.rate === 0 ? '<span class="inv-zero-badge">\u20B90</span> ' : '') +
       (item._override ? '<span class="inv-override-badge">' + escHtml(item._label || 'Override') + '</span> ' : '') +
+      '<div id="invZeroReason' + idx + '">' + zeroReasonHtml(item, idx) + '</div>' +
       '</div>';
   });
   html += '<button class="inv-btn inv-btn-ghost inv-btn-block" data-action="invAddLineItem">+ Add Line Item</button></div>';
@@ -149,6 +149,47 @@ function renderCreateForm() {
   }
 }
 
+/* The reason block under a line billed at ₹0. Re-rendered on its own when the
+   line moves in or out of ₹0, so the field being typed in keeps focus. */
+function zeroReasonHtml(item, idx) {
+  if (!isZeroBilledLine(item)) return '';
+  var html = '<div class="inv-zero-reason">' +
+    '<div class="inv-zero-reason-head"><span class="inv-zero-badge">\u20B90</span>' +
+    '<span class="inv-zero-reason-q">Why is this line not billed?</span></div>' +
+    '<div class="inv-zero-reason-opts" role="radiogroup" aria-label="Reason for billing at zero">';
+  ZERO_REASONS.forEach(function(r) {
+    var on = item.zeroReason === r.id;
+    html += '<button type="button" class="inv-zero-opt' + (on ? ' inv-zero-opt-on' : '') + '" role="radio" aria-checked="' + on + '"' +
+      ' data-action="invZeroReason" data-idx="' + idx + '" data-reason="' + r.id + '">' + escHtml(r.label) + '</button>';
+  });
+  html += '</div>' +
+    '<input class="inv-form-input inv-zero-note" data-action="invZeroNote" data-idx="' + idx + '" data-k="zeronote-' + idx + '"' +
+    ' value="' + escHtml(item.zeroNote || '') + '" placeholder="' + (item.zeroReason === 'other' ? 'What was it? (recommended)' : 'Note (optional)') + '"' +
+    ' aria-label="Note on why this line is not billed">' +
+    '</div>';
+  return html;
+}
+
+/* What a saved line carries about being billed at ₹0 — nothing at all when it
+   is billed, so a line priced later does not keep a stale reason. */
+function zeroReasonFields(item) {
+  if (!isZeroBilledLine(item) || !item.zeroReason) return {};
+  var out = { zeroReason: item.zeroReason };
+  var note = (item.zeroNote || '').trim();
+  if (note) out.zeroNote = note;
+  if (item.zeroReasonBackfilled) out.zeroReasonBackfilled = item.zeroReasonBackfilled;
+  return out;
+}
+
+function refreshZeroReason(idx) {
+  var box = document.getElementById('invZeroReason' + idx);
+  var item = invoiceForm.items[idx];
+  if (!box || !item) return;
+  var want = isZeroBilledLine(item);
+  var has = !!box.firstChild;
+  if (want !== has) box.innerHTML = zeroReasonHtml(item, idx);
+}
+
 function validateInvoice() {
   const errors = [];
   if (!invoiceForm.clientId) errors.push('Select a client');
@@ -157,6 +198,7 @@ function validateInvoice() {
   invoiceForm.items.forEach((item, i) => {
     if (item.qty < 0) errors.push('Line ' + (i+1) + ': Quantity cannot be negative');
     if (item.amount < 0) errors.push('Line ' + (i+1) + ': Amount cannot be negative');
+    if (isZeroBilledLine(item) && !item.zeroReason) errors.push('Line ' + (i+1) + ': billed at \u20B90 \u2014 pick a reason');
   });
   return errors;
 }
@@ -174,7 +216,7 @@ function selectClient(id) {
         item._override = true;
         item._label = rateInfo._label;
       } else {
-        item.rate = rateInfo.ratePerKg || 0;
+        item.rate = defaultLineRate(client, invoiceForm.date, item);
       }
       recalcLineItem(item, client);
     });
@@ -204,8 +246,18 @@ function recalcLineItem(item, client) {
     // Don't auto-calc amount for NOS piece mode
   } else if (client.billingMode === 'nos_to_weight' && item.unit === 'NOS') {
     const pwKey = (item.partNumber || '').toUpperCase();
-    const w = (item.qty || 0) * (S.partWeights[pwKey] || 0);
     const rateInfo = getLineItemRate(client, invoiceForm.date, item.partNumber);
+    // A part with no weight on record cannot be converted; it is billed per
+    // piece off the client's card (Samarth's brackets), or an override. Before
+    // this the line priced itself at weight 0 × ₹/kg = ₹0.
+    const perPiece = rateInfo._override ? {rate: rateInfo.rate}
+      : (S.partWeights[pwKey] ? null : getPieceRate(client, invoiceForm.date, item.partNumber, item.desc));
+    if (perPiece && perPiece.rate != null) {
+      item.rate = perPiece.rate;
+      item.amount = gstRound((item.qty || 0) * item.rate);
+      return;
+    }
+    const w = (item.qty || 0) * (S.partWeights[pwKey] || 0);
     item.rate = rateInfo.ratePerKg || 0;
     item.amount = gstRound(w * item.rate);
   } else {
@@ -249,7 +301,7 @@ function saveInvoice() {
       date: invoiceForm.date, clientId: client.id, clientName: client.name,
       clientGSTIN: client.gstin, clientAddress: {add1:client.add1,add2:client.add2,add3:client.add3,state:client.state,stateCode:client.stateCode},
       gstType: client.gstType,
-      items: invoiceForm.items.map(i => ({partNumber:i.partNumber,desc:i.desc,hsn:i.hsn||'998873',unit:i.unit,qty:i.qty,rate:i.rate,amount:i.amount,nosQty:i.nosQty||null})),
+      items: invoiceForm.items.map(i => ({partNumber:i.partNumber,desc:i.desc,hsn:i.hsn||'998873',unit:i.unit,qty:i.qty,rate:i.rate,amount:i.amount,nosQty:i.nosQty||null,...zeroReasonFields(i)})),
       taxableValue: taxable, cgstPer, cgstAmt, sgstPer, sgstAmt, igstPer, igstAmt,
       grandTotal: grand, amountInWords: numberToWords(grand),
       challanNo: invoiceForm.challanNo, challanDate: invoiceForm.challanDate,
@@ -276,7 +328,7 @@ function saveInvoice() {
       clientGSTIN: client.gstin,
       clientAddress: {add1:client.add1,add2:client.add2,add3:client.add3,state:client.state,stateCode:client.stateCode},
       gstType: client.gstType,
-      items: invoiceForm.items.map(i => ({partNumber:i.partNumber,desc:i.desc,hsn:i.hsn||'998873',unit:i.unit,qty:i.qty,rate:i.rate,amount:i.amount,nosQty:i.nosQty||null})),
+      items: invoiceForm.items.map(i => ({partNumber:i.partNumber,desc:i.desc,hsn:i.hsn||'998873',unit:i.unit,qty:i.qty,rate:i.rate,amount:i.amount,nosQty:i.nosQty||null,...zeroReasonFields(i)})),
       taxableValue: taxable, cgstPer, cgstAmt, sgstPer, sgstAmt, igstPer, igstAmt,
       grandTotal: grand, amountInWords: numberToWords(grand),
       poNumber: invoiceForm.poNumber, poDate: invoiceForm.poDate, challanNo: invoiceForm.challanNo, challanDate: invoiceForm.challanDate,

@@ -193,7 +193,7 @@ function selectPartForLine(idx, partId) {
       item._override = true;
       item._label = rateInfo._label;
     } else {
-      item.rate = rateInfo.ratePerKg || 0;
+      item.rate = defaultLineRate(client, invoiceForm.date, item);
       item._override = false;
       item._label = '';
     }
@@ -226,8 +226,7 @@ function selectChallanPartForLine(idx, partId) {
 
   const cClient = _challanForm.clientId ? S.clients.find(c => c.id === _challanForm.clientId) : null;
   if (cClient) {
-    const cRateInfo = getLineItemRate(cClient, _challanForm.challanDate || localDateStr(), cItem.partNumber);
-    cItem.rate = cRateInfo._override ? cRateInfo.rate : (cRateInfo.ratePerKg || 0);
+    cItem.rate = defaultLineRate(cClient, _challanForm.challanDate || localDateStr(), cItem);
     recalcChallanLine(cItem, cClient);
   }
 

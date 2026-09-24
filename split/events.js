@@ -28,6 +28,23 @@ document.addEventListener('click', function(e) {
     case 'invAddClient': openClientAdd(); break;
     case 'invSaveClient': saveClientEdit(parseInt(btn.dataset.client), btn.dataset.mode); break;
     case 'invAddRate': addClientRate(parseInt(btn.dataset.client)); break;
+    case 'invAddPieceRate': addPieceRate(parseInt(btn.dataset.client)); break;
+    case 'invRemovePieceRate': removePieceRate(parseInt(btn.dataset.client), parseInt(btn.dataset.idx)); break;
+    case 'invFillPieceRates': fillPieceRatesFromHistory(parseInt(btn.dataset.client)); break;
+    case 'invZeroReason': {
+      var zIdx = parseInt(btn.dataset.idx);
+      var zLine = invoiceForm.items[zIdx];
+      if (!zLine) break;
+      zLine.zeroReason = btn.dataset.reason;
+      // An operator choosing the reason makes it theirs, not the migration's.
+      delete zLine.zeroReasonBackfilled;
+      var zBox = document.getElementById('invZeroReason' + zIdx);
+      if (zBox) zBox.innerHTML = zeroReasonHtml(zLine, zIdx);
+      var zOn = zBox && zBox.querySelector('[data-reason="' + btn.dataset.reason + '"]');
+      if (zOn) zOn.focus();
+      updateTotalsDisplay();
+      break;
+    }
     case 'invSelectClient': selectClient(parseInt(btn.dataset.id)); break;
     case 'invClearClient': captureOptionalFields(); invoiceForm.clientId = null; renderCreateForm(); break;
     case 'invAddLineItem': captureOptionalFields(); addLineItem(); break;
@@ -701,6 +718,11 @@ document.addEventListener('input', function(e) {
     }
     // Update totals without full DOM replacement
     updateTotalsDisplay();
+    refreshZeroReason(idx);
+  }
+  if (e.target.dataset.action === 'invZeroNote') {
+    var zItem = invoiceForm.items[parseInt(e.target.dataset.idx)];
+    if (zItem) zItem.zeroNote = e.target.value;
   }
 });
 

@@ -54,9 +54,7 @@ Android it should be a **collapsible tab. The design is to be discussed at sessi
   likely out on 23 Sep.
 - **Data comes in through an import door, never committed.** This repo is public. It follows the
   same rule as the roster, which ships empty.
-- ⚠ **Ownership is Session D's to rule.** `sep-dashboard` v2.1 already had a stock tab, and
-  `soma-internal` keeps the log. One of the three owns stock; the others read it. Build this tab
-  so it can go either way. Do not settle ownership by building first.
+- ⚖ **Ownership follows the owner's rule of 24 Sep: the latest merge survives, with its reason stated in its PR, unless a repo's merge PR says otherwise.** `soma-internal` keeps the stock log today, and `sep-dashboard` v2.1 already has a stock tab. **If this session's PR is meant to make this app the stock owner, its description must say so and give the reason.** A PR that doesn't say so leaves ownership where it is.
 
 ### 3. To-do widget: desktop and Android (Google Pixel 11 Pro)
 
@@ -103,4 +101,4 @@ in the PR**, so the compile session knows to re-check.
 | **Produces** the JSON backup → `soma-internal` | Settings → Export. The whole state as one JSON file. `soma-internal` stores it as `analysis/sep-invoicing-backup-YYYY-MM-DD.json`. Newest there: **2026-09-11**. |
 | **Consumes** the roster and attendance seed ← `soma-internal` | Staff → Roster → Import. Merges by name, and marks name a worker, never an id (see `CLAUDE.md`). The seed carries the alias map. |
 | **Consumes** findings ← `soma-internal` | Tasks recorded in `soma-internal/tasks.md` whose fix belongs here, currently **T-HC**. |
-| **Will produce** stock positions (if Session D rules this app owns stock) | Not yet built. See item 2. |
+| **Will produce** stock positions, if a merge PR here claims ownership with a reason | Not yet built. See item 2 and the ownership rule under it. |

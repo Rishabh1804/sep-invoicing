@@ -133,14 +133,14 @@ test.describe('P36: rate matcher — option E', () => {
 
     expect(await g(page, judge)).toBe('check');
     const st = await readStoredState(page);
-    expect(st.rateCheck).toEqual({ pct: 5, stake: 100 });
+    expect(st.rateCheck).toEqual({ pct: 5, stake: 100, weightTol: 3 });
   });
 
   test('a backup written before the setting existed gets the ruling, and a zero never turns everything red', async ({ page }) => {
     const s: any = state();
     delete s.rateCheck;
     await loadAppWithState(page, s);
-    expect(await g(page, 'JSON.stringify(S.rateCheck)')).toBe(JSON.stringify({ pct: 10, stake: 100 }));
+    expect(await g(page, 'JSON.stringify(S.rateCheck)')).toBe(JSON.stringify({ pct: 10, stake: 100, weightTol: 3 }));
     await g(page, 'S.rateCheck.pct = 0; S.rateCheck.stake = 0');
     expect(await g(page, `rateMatch(S.clients[0], '2026-08-01', { partNumber: 'P', unit: 'KG', qty: 100, rate: 15 }).status`)).toBe('differs');
   });

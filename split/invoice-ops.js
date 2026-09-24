@@ -917,9 +917,12 @@ function zeroReasonTag(raw) {
 function detailRateMatch(inv, raw) {
   if (!inv || !raw || inv.status === 'cancelled') return '';
   var client = S.clients.find(function(c) { return c.id === inv.clientId; });
+  var out = '';
   var m = client ? rateMatch(client, inv.date, raw) : null;
-  if (!m || m.status === 'match' || m.status === 'none') return '';
-  return rateMatchNote(m, true);
+  if (m && m.status !== 'match' && m.status !== 'none') out += rateMatchNote(m, true);
+  var w = client ? weightMatch(client, inv.date, raw) : null;
+  if (w && w.status !== 'match' && w.status !== 'none') out += weightMatchNote(w, true);
+  return out;
 }
 
 function editInvoice(invId) {

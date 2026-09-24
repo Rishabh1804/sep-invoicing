@@ -74,6 +74,7 @@ function renderCreateForm() {
       (client && client.billingMode==='piece' && item.unit==='NOS' ? '' : ' readonly') + '></div></div>' +
       (item._override ? '<span class="inv-override-badge">' + escHtml(item._label || 'Override') + '</span> ' : '') +
       '<div id="invRateMatch' + idx + '">' + rateMatchNote(rm) + '</div>' +
+      '<div id="invWeightMatch' + idx + '">' + (client ? weightMatchNote(weightMatch(client, invoiceForm.date, item)) : '') + '</div>' +
       '<div id="invZeroReason' + idx + '">' + zeroReasonHtml(item, idx) + '</div>' +
       '</div>';
   });
@@ -408,4 +409,31 @@ function refreshInvoiceLineMatch(idx) {
   if (!item || !client) return;
   refreshRateMatch('invRateMatch' + idx, document.querySelector('[data-action="invUpdateLine"][data-field="rate"][data-idx="' + idx + '"]'),
     client, invoiceForm.date, item);
+  refreshWeightMatch('invWeightMatch' + idx, client, invoiceForm.date, item);
+}
+
+/* The weight verdict under a KG line that carries a piece count. Same chips as
+   the rate, named for the weight so the two can sit on one line unconfused. */
+var WM_LABELS = { match: 'Weight matches', decimal: 'Weight ×10', differs: 'Weight differs',
+  check: 'Check weight', none: 'No weight on record', gauge: 'Gauge not stated' };
+
+function weightMatchNote(m, compact) {
+  if (!m) return '';
+  var kg = function(n) { return (Math.round(n * 100) / 100).toFixed(2) + ' kg'; };
+  var chip = '<span class="inv-rm-chip inv-rm-' + m.status + '">' + WM_LABELS[m.status] + '</span>';
+  var text = '';
+  var basis = m.pcs + ' pcs × ' + m.ref + ' kg/pc = ' + kg(m.expected);
+  if (m.status === 'match') text = compact ? '' : basis;
+  else if (m.status === 'decimal') text = basis + ' — a power of ten away. Check the weight and the piece count.';
+  else if (m.status === 'differs' || m.status === 'check') {
+    text = basis + ' · ' + (m.diff > 0 ? '+' : '−') + kg(Math.abs(m.diff)) + ' (' + (m.pct * 100).toFixed(1) + '%)' +
+      ' · ' + (m.stake > 0 ? '+' : '−') + formatCurrency(Math.abs(m.stake)) + ' on this line';
+  } else if (m.status === 'none') text = compact ? '' : 'Add it to the client’s piece weights to check this line';
+  else if (m.status === 'gauge') text = compact ? '' : 'This part is weighed by gauge — put the gauge in the description';
+  return '<div class="inv-rm-note">' + chip + (text ? '<span class="inv-rm-text">' + escHtml(text) + '</span>' : '') + '</div>';
+}
+
+function refreshWeightMatch(boxId, client, onDate, item) {
+  var box = document.getElementById(boxId);
+  if (box) box.innerHTML = weightMatchNote(weightMatch(client, onDate, item));
 }

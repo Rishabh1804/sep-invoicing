@@ -89,7 +89,7 @@ every session start — nothing to set up by hand. CI (`build-sync`) is the back
 ### Tests
 
 ```bash
-pnpm exec playwright test          # 350 tests, both layouts
+pnpm exec playwright test          # 354 tests, both layouts
 ```
 
 Some sandboxes ship a Chromium build Playwright does not expect and block downloading
@@ -1007,6 +1007,33 @@ line is judged by its own required reason instead. The two thresholds live in **
 Check** (`S.rateCheck`, read by `rateCheckCfg()`), so a config object `ensureStateShape()` fills
 key by key on an old backup. A blank or zero value falls back to the ruling's 10% / ₹100 rather than
 to 0, which would turn every difference red.
+
+**The kilograms are checked too, for a client billed by the kilo whose challans count pieces**
+(owner, 24 Sep 2026: *"for Dorabji and other clients whose rate per kg is done but weight/pc is
+known, do the same mismatch update"*). Dorabji's challan carries a Qty (pieces) column and a Wt.
+column, so a weight per piece on record checks the kilograms the way the rate card checks the rate:
+`weightMatch()` compares a KG line's `qty` against `nosQty × kg/pc`.
+
+- **The weight is the CLIENT's (`client.pieceWeights`), never the Items Master's.** The master has
+  one row per part name and no client: Khetan's `BASE PLATE` weighs ~0.70 kg a piece on every line
+  and the master says 0.053, because General Engineering sends a part of the same name; Pawan's
+  `SPACER MOUNTING` runs at 0.16× its master row. Same lookup as the piece rates (`cardLookup`:
+  part key, gauge, date).
+- **Filled from billing history by the MEDIAN** of kg ÷ pieces, only where the part was weighed on
+  two or more invoices. A part where over a quarter of its lines (and at least two) sit 10%+ from the
+  middle is **two products under one name** — HighCo's `FLANGE NUT` at exactly 0.032 or 0.064 kg,
+  Khurana's `WASHER` at 0.021 or 0.042 — and is listed, never averaged. A ×10 line is a slip, not a
+  second size, and does not count against the part.
+- **Same verdicts and the same Check thresholds as the rate, with a scale's tolerance.** Measured
+  over the 1,068 KG lines carrying a piece count: the median line is 0.4% off its own client's
+  median, three quarters within 2.3%. So a weight within **±3% matches** (Settings → Rate & Weight
+  Check), a power of ten is allowed ±5%, and the stake is the kilograms off × the line's rate. On
+  the backup, after filling every client's card: **793 match, 2 ×10, 28 Check, 88 Differs**, 157
+  with no weight on record.
+- **The two ×10 slips are real money.** **00830** (Dorabji `CLAMP 5079 4920 4205`): 33 pieces billed
+  as 150.274 kg against 0.448 kg/pc — ₹1,761.37 over, or the piece count is short a digit. **00086**
+  (`2525 2015 8202`): 500 pieces billed as 10.4 kg against 0.212 — ₹1,242.80 under. Neither has been
+  ruled on.
 
 **A line names its PART on screen** (`lineLabel`). The invoice detail and the challan list printed
 `desc` alone, and for a piece client `desc` is often only the gauge (`40X6`) or a word (`CLAMP`) —

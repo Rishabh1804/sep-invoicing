@@ -15,7 +15,7 @@
 <title>SEP Invoicing</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-<meta name="app-build" content="742b65ec">
+<meta name="app-build" content="79928b1f">
 <style>
 /* ===== DESIGN TOKENS ===== */
 :root {
@@ -3274,7 +3274,7 @@ function getDefaultState() {
     // rate. extraRate prices the area-booked "extra hours", which carry no name.
     labour: { otMult: 1.1, restCreditMinDays: 6, extraRate: 47.5, modelPerKg: 3.55, gateFull: 0.9, gateHalf: 0.8, extraHoursPerHead: 8 },
     // Rate matcher thresholds (option E): Check at ≥ pct% off OR ≥ ₹stake on the line.
-    rateCheck: { pct: 10, stake: 100 },
+    rateCheck: { pct: 10, stake: 100, weightTol: 3 },
     // Full cost per kg, rebuilt from owner-supplied inputs against Apr–Jul 2026
     // actuals. The old 5.46 predated that rebuild and flattered every margin
     // figure by roughly a rupee a kilo. Only ever the default for a fresh
@@ -3938,11 +3938,14 @@ function lineGauge(desc) {
 /* The per-piece rate on record for a line, or null when there is none.
    `{ambiguous: true}` when the part is priced by gauge and the line does not
    say which gauge it is — reported, never resolved by picking one. */
-function getPieceRate(client, onDate, partNumber, desc) {
+/* One lookup over a client's card — piece rates and piece weights share it:
+   same part key, same gauge rule, same dating. Returns the row, `{ambiguous}`,
+   or null. */
+function cardLookup(list, onDate, partNumber, desc) {
   var pk = rateKey(partNumber);
-  if (!client || !pk || !client.pieceRates || client.pieceRates.length === 0) return null;
+  if (!pk || !list || list.length === 0) return null;
   var date = onDate || localDateStr();
-  var rows = client.pieceRates.filter(function(r) {
+  var rows = list.filter(function(r) {
     return rateKey(r.partNumber) === pk && (!r.effectiveFrom || r.effectiveFrom <= date);
   });
   if (rows.length === 0) return null;
@@ -3951,13 +3954,40 @@ function getPieceRate(client, onDate, partNumber, desc) {
   var lg = lineGauge(desc) || lineGauge(partNumber);
   var gauged = rows.filter(function(r) { return r.gauge && lg && rateKey(r.gauge) === lg; });
   var pool = gauged.length ? gauged : rows.filter(function(r) { return !r.gauge; });
-  if (pool.length === 0) return { ambiguous: true, rate: null };
+  if (pool.length === 0) return { ambiguous: true };
   var gauges = {};
   pool.forEach(function(r) { gauges[rateKey(r.gauge)] = true; });
-  if (Object.keys(gauges).length > 1) return { ambiguous: true, rate: null };
+  if (Object.keys(gauges).length > 1) return { ambiguous: true };
   pool.sort(function(a, b) { return String(b.effectiveFrom || '').localeCompare(String(a.effectiveFrom || '')); });
-  var hit = pool[0];
+  return pool[0];
+}
+
+function getPieceRate(client, onDate, partNumber, desc) {
+  var hit = client ? cardLookup(client.pieceRates, onDate, partNumber, desc) : null;
+  if (!hit) return null;
+  if (hit.ambiguous) return { ambiguous: true, rate: null };
   return { rate: hit.rate, effectiveFrom: hit.effectiveFrom || '', gauge: hit.gauge || '' };
+}
+
+/* ===== WEIGHT PER PIECE ON RECORD =====
+
+   A KG-billed client's challan states pieces AND kilograms (Dorabji's carries
+   both columns), so a weight per piece on record checks the kilograms the way
+   the rate card checks the rate. Replayed over the 11 Sep backup's 1,068 KG
+   lines that carry a piece count: half sit within 0.4% of their own client's
+   median, three quarters within 2.3% — and two are a power of ten out
+   (00830: 33 pcs billed as 150.27 kg against 0.448 kg/pc; 00086: 500 pcs as
+   10.4 kg against 0.212), ₹3,000 between them.
+
+   The CLIENT's figure, never the Items Master's. The master has one row per
+   part name and no client: Khetan's BASE PLATE weighs ~0.70 kg a piece on every
+   line and the master says 0.053, because General Engineering sends a part of
+   the same name. Kept in kilograms to four places — a weight, not currency. */
+function getPieceWeight(client, onDate, partNumber, desc) {
+  var hit = client ? cardLookup(client.pieceWeights, onDate, partNumber, desc) : null;
+  if (!hit) return null;
+  if (hit.ambiguous) return { ambiguous: true, kg: null };
+  return { kg: hit.kgPerPiece, effectiveFrom: hit.effectiveFrom || '', gauge: hit.gauge || '' };
 }
 
 /* The one place a line's rate on record is read: override, then the client's
@@ -4060,7 +4090,7 @@ function lineLabel(item) {
    that differs can be right (a renegotiated price not yet on the card); the
    matcher's job is that nobody bills it without having seen it. A ₹0 line is
    not judged here: it has its own required reason. */
-var RATE_CHECK_DEFAULTS = { pct: 10, stake: 100 };
+var RATE_CHECK_DEFAULTS = { pct: 10, stake: 100, weightTol: 3 };
 
 /* The two thresholds, from Settings. Read on every judgement so a change in
    Settings re-colours the next line typed. A missing or nonsensical value falls
@@ -4068,10 +4098,14 @@ var RATE_CHECK_DEFAULTS = { pct: 10, stake: 100 };
    difference red. */
 function rateCheckCfg() {
   var c = (S && S.rateCheck) || {};
-  var pct = parseFloat(c.pct), stake = parseFloat(c.stake);
+  var pct = parseFloat(c.pct), stake = parseFloat(c.stake), tol = parseFloat(c.weightTol);
   return {
     pct: pct > 0 ? pct : RATE_CHECK_DEFAULTS.pct,
-    stake: stake > 0 ? stake : RATE_CHECK_DEFAULTS.stake
+    stake: stake > 0 ? stake : RATE_CHECK_DEFAULTS.stake,
+    // Weighing is not exact: a weight within this band of pieces × kg/pc
+    // matches. 3% holds three quarters of history's lines (the median line is
+    // 0.4% off) without hiding a real slip.
+    weightTol: tol > 0 ? tol : RATE_CHECK_DEFAULTS.weightTol
   };
 }
 
@@ -4096,6 +4130,31 @@ function rateMatch(client, onDate, item) {
   var k = Math.round(Math.log10(rate / ref.rate));
   if (k !== 0 && Math.abs(rate / (ref.rate * Math.pow(10, k)) - 1) < 0.02) { out.status = 'decimal'; return out; }
   var cfg = rateCheckCfg();
+  out.status = (out.pct >= cfg.pct / 100 - 1e-9 || Math.abs(out.stake) >= cfg.stake - 1e-9) ? 'check' : 'differs';
+  return out;
+}
+
+/* The kilograms on a KG line against pieces × the weight per piece on record.
+   Same verdicts and the same Check thresholds as the rate, with two
+   differences a scale forces: a band of ±weightTol% counts as a match, and a
+   power-of-ten slip is allowed ±5% (a weighed figure is never exact). The
+   stake is the kilograms off × the line's own rate. */
+function weightMatch(client, onDate, item) {
+  if (!client || !item || item.unit !== 'KG') return null;
+  var pcs = item.nosQty || 0, kg = item.qty || 0;
+  if (!(pcs > 0) || !(kg > 0)) return null;
+  var w = getPieceWeight(client, onDate, item.partNumber, item.desc);
+  if (!w) return { status: 'none' };
+  if (w.ambiguous) return { status: 'gauge' };
+  var expected = pcs * w.kg;
+  var ratio = kg / expected;
+  var out = { ref: w.kg, pcs: pcs, expected: Math.round(expected * 1000) / 1000,
+    diff: Math.round((kg - expected) * 1000) / 1000, pct: Math.abs(ratio - 1),
+    stake: gstRound((kg - expected) * (item.rate || 0)) };
+  var cfg = rateCheckCfg();
+  if (out.pct < cfg.weightTol / 100) { out.status = 'match'; return out; }
+  var k = Math.round(Math.log10(ratio));
+  if (k !== 0 && Math.abs(ratio / Math.pow(10, k) - 1) < 0.05) { out.status = 'decimal'; return out; }
   out.status = (out.pct >= cfg.pct / 100 - 1e-9 || Math.abs(out.stake) >= cfg.stake - 1e-9) ? 'check' : 'differs';
   return out;
 }
@@ -4582,6 +4641,7 @@ function _showClientOverlay(client, isAdd) {
     '<div class="inv-form-group"><label class="inv-form-label">Effective From</label><input class="inv-form-input inv-mono" id="ceditNewRateDate" type="date" value="' + localDateStr() + '"></div></div>' +
     (isAdd ? '' : '<button class="inv-btn inv-btn-ghost inv-btn-sm inv-mb-16" data-action="invAddRate" data-client="' + c.id + '">Add Rate</button>') +
     (isAdd ? '' : _pieceRatesEditHtml(c)) +
+    (isAdd ? '' : _pieceWeightsEditHtml(c)) +
     '<div class="inv-flex-between inv-mb-16"><label class="inv-checkbox-label">' +
     '<input type="checkbox" id="ceditActive"' + (c.isActive?' checked':'') + '> Active</label></div>' +
     '<div class="inv-btn-bar"><button class="inv-btn inv-btn-ghost" data-action="invCloseOverlay">Cancel</button>' +
@@ -4813,6 +4873,20 @@ function _renderClientDetail(clientId, skipMasterRefresh) {
     html += '</div>';
   }
 
+  // Piece weights on record
+  if (c.pieceWeights && c.pieceWeights.length > 0) {
+    html += '<div class="inv-detail-section">' +
+      '<div class="inv-detail-label">Piece Weights</div>';
+    _sortedCard(c.pieceWeights).forEach(function(pw) {
+      html += '<div class="inv-detail-rate-row">' +
+        '<span class="inv-detail-value-mono">' + escHtml(pw.partNumber) + (pw.gauge ? ' \u00B7 ' + escHtml(pw.gauge) : '') + '</span>' +
+        '<span class="inv-detail-value-mono">' + escHtml(pw.kgPerPiece) + ' kg/pc</span>' +
+        '<span class="inv-detail-value-mono inv-text-muted">' + escHtml(pw.effectiveFrom || '') + '</span>' +
+        '</div>';
+    });
+    html += '</div>';
+  }
+
   // Recent Invoices
   var clientInvoices = (S.invoices || []).filter(function(i) { return i.clientId === c.id; })
     .sort(function(a, b) { return (b.date || '').localeCompare(a.date || ''); })
@@ -4854,8 +4928,10 @@ function _renderClientDetail(clientId, skipMasterRefresh) {
    itemRates overrides. */
 var _pieceFillReport = null;
 
-function _sortedPieceRates(c) {
-  return (c.pieceRates || []).map(function(pr, i) { return Object.assign({ _i: i }, pr); })
+function _sortedPieceRates(c) { return _sortedCard(c.pieceRates); }
+
+function _sortedCard(list) {
+  return (list || []).map(function(pr, i) { return Object.assign({ _i: i }, pr); })
     .sort(function(a, b) {
       return rateKey(a.partNumber).localeCompare(rateKey(b.partNumber)) ||
         rateKey(a.gauge).localeCompare(rateKey(b.gauge)) ||
@@ -5032,6 +5108,153 @@ function _reopenClientAfterRateChange(clientId) {
   closeOverlay();
   if (_isDesktop && _clientsActiveId === clientId) _renderClientDetail(clientId, false);
   openClientEdit(clientId);
+}
+
+
+/* ===== PIECE WEIGHT CARD =====
+   kg per piece, per client, keyed on part + gauge — read by getPieceWeight()
+   in state.js. Filled from billing history by the MEDIAN of the kg ÷ pieces
+   each KG line recorded: a median is what a scale's own spread cannot move,
+   and one slipped line (00830's ×10) cannot drag it. */
+var _weightFillReport = null;
+
+function _pieceWeightsEditHtml(c) {
+  var html = '<div class="inv-settings-title">Piece Weights</div>';
+  var rows = _sortedCard(c.pieceWeights);
+  if (rows.length === 0) {
+    html += '<div class="inv-text-muted inv-piece-empty">No piece weights on record. For a client billed by the kilo whose challans also count pieces, fill them from what has been billed.</div>';
+  }
+  html += '<div id="ceditPieceWeights">';
+  rows.forEach(function(pw) {
+    html += '<div class="inv-rate-row inv-piece-row">' +
+      '<span class="inv-mono">' + escHtml(pw.partNumber) + (pw.gauge ? ' · ' + escHtml(pw.gauge) : '') + '</span>' +
+      '<span class="inv-mono">' + escHtml(pw.kgPerPiece) + ' kg/pc</span>' +
+      '<span class="inv-text-muted inv-mono">' + escHtml(pw.effectiveFrom || '') + '</span>' +
+      '<button class="inv-line-remove" data-action="invRemovePieceWeight" data-client="' + c.id + '" data-idx="' + pw._i + '" aria-label="Remove piece weight">&times;</button>' +
+      '</div>';
+  });
+  html += '</div>';
+  if (_weightFillReport && _weightFillReport.clientId === c.id) html += _weightFillReportHtml(_weightFillReport);
+  html += '<div class="inv-form-row"><div class="inv-form-group"><label class="inv-form-label" for="ceditWtPart">Part</label><input class="inv-form-input inv-mono" id="ceditWtPart" placeholder="2525 2015 8202"></div>' +
+    '<div class="inv-form-group"><label class="inv-form-label" for="ceditWtGauge">Gauge</label><input class="inv-form-input inv-mono" id="ceditWtGauge" placeholder="(if any)"></div></div>' +
+    '<div class="inv-form-row"><div class="inv-form-group"><label class="inv-form-label" for="ceditWtKg">kg per piece</label><input class="inv-form-input inv-mono" id="ceditWtKg" type="number" step="0.0001" min="0"></div>' +
+    '<div class="inv-form-group"><label class="inv-form-label" for="ceditWtDate">Effective From</label><input class="inv-form-input inv-mono" id="ceditWtDate" type="date" value="' + localDateStr() + '"></div></div>' +
+    '<div class="inv-btn-bar inv-mb-16">' +
+    '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invFillPieceWeights" data-client="' + c.id + '">Fill from billing history</button>' +
+    '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invAddPieceWeight" data-client="' + c.id + '">Add Piece Weight</button></div>';
+  return html;
+}
+
+function _weightFillReportHtml(r) {
+  var html = '<div class="inv-piece-report">' +
+    '<div>' + r.added + ' weight' + (r.added === 1 ? '' : 's') + ' added from ' + r.lines + ' weighed line' + (r.lines === 1 ? '' : 's') +
+    (r.skippedExisting ? ' · ' + r.skippedExisting + ' part' + (r.skippedExisting === 1 ? '' : 's') + ' already on the card, left alone' : '') +
+    (r.single ? ' · ' + r.single + ' part' + (r.single === 1 ? '' : 's') + ' seen on one invoice only, not enough to set a weight' : '') + '</div>';
+  if (r.mixed.length) {
+    html += '<div class="inv-piece-report-warn">Left out — weights spread too far for one part, most likely two sizes under one name. Add these by hand, with the size in the name or gauge:</div><ul class="inv-piece-report-list">';
+    r.mixed.forEach(function(m) {
+      html += '<li class="inv-mono">' + escHtml(m.partNumber) + (m.gauge ? ' · ' + escHtml(m.gauge) : '') + ': ' +
+        m.lines + ' lines, ' + m.far + ' more than 10% from the middle (' + m.median + ' kg/pc)</li>';
+    });
+    html += '</ul>';
+  }
+  return html + '</div>';
+}
+
+function _median(a) {
+  var v = a.slice().sort(function(x, y) { return x - y; });
+  var h = Math.floor(v.length / 2);
+  return v.length % 2 ? v[h] : (v[h - 1] + v[h]) / 2;
+}
+
+/* A weight is set only where the part was weighed on two or more invoices —
+   one weighing is a reading, not a norm. A part where more than a quarter of
+   its lines (and at least two) sit 10%+ from the middle is two products under
+   one name (HighCo's FLANGE NUT at exactly 0.032 or 0.064 kg; Khurana's WASHER
+   at 0.021 or 0.042): listed, never averaged into a figure right for neither.
+   A power-of-ten line is a slip, not a second size, and does not count as far. */
+function pieceWeightsFromHistory(client) {
+  var groups = {}, lines = 0;
+  (S.invoices || []).forEach(function(inv) {
+    if (inv.clientId !== client.id || inv.status === 'cancelled') return;
+    (inv.items || []).forEach(function(li) {
+      if (li.unit !== 'KG' || !(li.nosQty > 0) || !(li.qty > 0) || !li.partNumber) return;
+      var gauge = lineGauge(li.desc) || lineGauge(li.partNumber);
+      var key = rateKey(li.partNumber) + '|' + rateKey(gauge);
+      if (!groups[key]) groups[key] = { partNumber: li.partNumber, gauge: gauge, hits: [], invs: {}, first: inv.date || '' };
+      var gr = groups[key];
+      gr.hits.push(li.qty / li.nosQty);
+      gr.invs[inv.invoiceNumber] = true;
+      if (inv.date && inv.date < gr.first) gr.first = inv.date;
+      lines++;
+    });
+  });
+  var have = {};
+  (client.pieceWeights || []).forEach(function(pw) { have[rateKey(pw.partNumber) + '|' + rateKey(pw.gauge)] = true; });
+  var add = [], mixed = [], single = 0, skippedExisting = 0;
+  Object.keys(groups).forEach(function(key) {
+    var gr = groups[key];
+    if (have[key]) { skippedExisting++; return; }
+    if (Object.keys(gr.invs).length < 2) { single++; return; }
+    var m = _median(gr.hits);
+    var far = gr.hits.filter(function(x) {
+      var r = x / m, k = Math.round(Math.log10(r));
+      if (k !== 0 && Math.abs(r / Math.pow(10, k) - 1) < 0.05) return false;
+      return Math.abs(r - 1) >= 0.10;
+    }).length;
+    var kg = Math.round(m * 10000) / 10000;
+    if (far >= 2 && far / gr.hits.length > 0.25) {
+      mixed.push({ partNumber: gr.partNumber, gauge: gr.gauge, lines: gr.hits.length, far: far, median: kg });
+      return;
+    }
+    add.push({ partNumber: gr.partNumber, gauge: gr.gauge, kgPerPiece: kg, effectiveFrom: gr.first, source: 'history' });
+  });
+  return { add: add, mixed: mixed, single: single, lines: lines, skippedExisting: skippedExisting };
+}
+
+function fillPieceWeightsFromHistory(clientId) {
+  var c = S.clients.find(function(x) { return x.id === clientId; });
+  if (!c) return;
+  var r = pieceWeightsFromHistory(c);
+  if (!c.pieceWeights) c.pieceWeights = [];
+  var now = Date.now();
+  r.add.forEach(function(pw) { pw.addedAt = now; c.pieceWeights.push(pw); });
+  if (r.add.length) saveState();
+  _weightFillReport = { clientId: c.id, added: r.add.length, lines: r.lines, single: r.single,
+    skippedExisting: r.skippedExisting, mixed: r.mixed };
+  showToast(r.add.length ? r.add.length + ' piece weights added from billing history' : 'No new piece weights to add',
+    r.mixed.length ? 'warning' : undefined);
+  _reopenClientAfterRateChange(clientId);
+}
+
+function addPieceWeight(clientId) {
+  var c = S.clients.find(function(x) { return x.id === clientId; });
+  if (!c) return;
+  var part = (document.getElementById('ceditWtPart').value || '').trim();
+  var gauge = (document.getElementById('ceditWtGauge').value || '').trim().toUpperCase();
+  var kg = parseFloat(document.getElementById('ceditWtKg').value);
+  var date = document.getElementById('ceditWtDate').value;
+  if (!part) { showToast('Enter the part number', 'error'); return; }
+  if (isNaN(kg) || kg <= 0) { showToast('Enter the weight of one piece in kg', 'error'); return; }
+  if (!date) { showToast('Enter the date the weight applies from', 'error'); return; }
+  if (!c.pieceWeights) c.pieceWeights = [];
+  var dup = c.pieceWeights.some(function(pw) {
+    return rateKey(pw.partNumber) === rateKey(part) && rateKey(pw.gauge) === rateKey(gauge) && pw.effectiveFrom === date;
+  });
+  if (dup) { showToast('That part already has a weight from ' + date, 'error'); return; }
+  c.pieceWeights.push({ partNumber: part, gauge: gauge, kgPerPiece: Math.round(kg * 10000) / 10000, effectiveFrom: date, source: 'manual', addedAt: Date.now() });
+  saveState();
+  showToast('Piece weight added');
+  _reopenClientAfterRateChange(clientId);
+}
+
+function removePieceWeight(clientId, idx) {
+  var c = S.clients.find(function(x) { return x.id === clientId; });
+  if (!c || !c.pieceWeights || !c.pieceWeights[idx]) return;
+  c.pieceWeights.splice(idx, 1);
+  saveState();
+  showToast('Piece weight removed');
+  _reopenClientAfterRateChange(clientId);
 }
 /* ===== ITEMS MASTER (Phase 6) ===== */
 
@@ -6386,6 +6609,7 @@ function renderCreateForm() {
       (client && client.billingMode==='piece' && item.unit==='NOS' ? '' : ' readonly') + '></div></div>' +
       (item._override ? '<span class="inv-override-badge">' + escHtml(item._label || 'Override') + '</span> ' : '') +
       '<div id="invRateMatch' + idx + '">' + rateMatchNote(rm) + '</div>' +
+      '<div id="invWeightMatch' + idx + '">' + (client ? weightMatchNote(weightMatch(client, invoiceForm.date, item)) : '') + '</div>' +
       '<div id="invZeroReason' + idx + '">' + zeroReasonHtml(item, idx) + '</div>' +
       '</div>';
   });
@@ -6720,6 +6944,33 @@ function refreshInvoiceLineMatch(idx) {
   if (!item || !client) return;
   refreshRateMatch('invRateMatch' + idx, document.querySelector('[data-action="invUpdateLine"][data-field="rate"][data-idx="' + idx + '"]'),
     client, invoiceForm.date, item);
+  refreshWeightMatch('invWeightMatch' + idx, client, invoiceForm.date, item);
+}
+
+/* The weight verdict under a KG line that carries a piece count. Same chips as
+   the rate, named for the weight so the two can sit on one line unconfused. */
+var WM_LABELS = { match: 'Weight matches', decimal: 'Weight ×10', differs: 'Weight differs',
+  check: 'Check weight', none: 'No weight on record', gauge: 'Gauge not stated' };
+
+function weightMatchNote(m, compact) {
+  if (!m) return '';
+  var kg = function(n) { return (Math.round(n * 100) / 100).toFixed(2) + ' kg'; };
+  var chip = '<span class="inv-rm-chip inv-rm-' + m.status + '">' + WM_LABELS[m.status] + '</span>';
+  var text = '';
+  var basis = m.pcs + ' pcs × ' + m.ref + ' kg/pc = ' + kg(m.expected);
+  if (m.status === 'match') text = compact ? '' : basis;
+  else if (m.status === 'decimal') text = basis + ' — a power of ten away. Check the weight and the piece count.';
+  else if (m.status === 'differs' || m.status === 'check') {
+    text = basis + ' · ' + (m.diff > 0 ? '+' : '−') + kg(Math.abs(m.diff)) + ' (' + (m.pct * 100).toFixed(1) + '%)' +
+      ' · ' + (m.stake > 0 ? '+' : '−') + formatCurrency(Math.abs(m.stake)) + ' on this line';
+  } else if (m.status === 'none') text = compact ? '' : 'Add it to the client’s piece weights to check this line';
+  else if (m.status === 'gauge') text = compact ? '' : 'This part is weighed by gauge — put the gauge in the description';
+  return '<div class="inv-rm-note">' + chip + (text ? '<span class="inv-rm-text">' + escHtml(text) + '</span>' : '') + '</div>';
+}
+
+function refreshWeightMatch(boxId, client, onDate, item) {
+  var box = document.getElementById(boxId);
+  if (box) box.innerHTML = weightMatchNote(weightMatch(client, onDate, item));
 }
 /* ===== SETTINGS ===== */
 function openSettings() {
@@ -6755,12 +7006,14 @@ function openSettings() {
     '<input type="number" step="0.01" class="inv-form-input inv-mono" id="setDefaultCost" value="' + (S.defaultCostPerKg || 8.55) + '"></div>' +
     '<div class="inv-text-muted inv-storage-text">Full cost, not just materials. Everything in Stats measures against it &mdash; realisation, margin, and which clients are priced below cost. The Apr&ndash;Jul 2026 rebuild put it at &#8377;8.55/kg.</div></div>' +
 
-    '<div class="inv-settings-section"><div class="inv-settings-title">Rate Check</div>' +
+    '<div class="inv-settings-section"><div class="inv-settings-title">Rate &amp; Weight Check</div>' +
     '<div class="inv-form-row"><div class="inv-form-group"><label class="inv-form-label" for="setRcPct">Check at % off the rate</label>' +
     '<input type="number" step="0.5" min="0.5" class="inv-form-input inv-mono" id="setRcPct" value="' + rateCheckCfg().pct + '"></div>' +
     '<div class="inv-form-group"><label class="inv-form-label" for="setRcStake">or at &#8377; on the line</label>' +
     '<input type="number" step="1" min="1" class="inv-form-input inv-mono" id="setRcStake" value="' + rateCheckCfg().stake + '"></div></div>' +
-    '<div class="inv-text-muted inv-storage-text">A line whose rate is this far off the rate on record, or puts this much money at stake, is marked <strong>Check</strong>. Anything smaller is marked <strong>Differs</strong> with its difference shown. Neither stops an invoice from being saved. Set 24 Sep 2026 at 10% or &#8377;100.</div></div>' +
+    '<div class="inv-form-group"><label class="inv-form-label" for="setWtTol">Weight within &plusmn;% counts as a match</label>' +
+    '<input type="number" step="0.5" min="0.5" class="inv-form-input inv-mono" id="setWtTol" value="' + rateCheckCfg().weightTol + '"></div>' +
+    '<div class="inv-text-muted inv-storage-text">A line whose rate, or whose kilograms against pieces &times; the weight per piece, is this far off what is on record, or puts this much money at stake, is marked <strong>Check</strong>. Anything smaller is marked <strong>Differs</strong> with its difference shown. A scale is not exact, so a weight inside the &plusmn; band matches. Nothing here stops an invoice from being saved. Set 24 Sep 2026 at 10%, &#8377;100 and &plusmn;3%.</div></div>' +
 
     '<div class="inv-settings-section"><div class="inv-settings-title">Labour</div>' +
     '<div class="inv-form-row"><div class="inv-form-group"><label class="inv-form-label">OT multiplier</label>' +
@@ -6862,6 +7115,8 @@ function saveSettings() {
   if (rcPctEl) { var rp = parseFloat(rcPctEl.value); if (!isNaN(rp) && rp > 0) S.rateCheck.pct = rp; }
   var rcStakeEl = document.getElementById('setRcStake');
   if (rcStakeEl) { var rs = parseFloat(rcStakeEl.value); if (!isNaN(rs) && rs > 0) S.rateCheck.stake = gstRound(rs); }
+  var wtTolEl = document.getElementById('setWtTol');
+  if (wtTolEl) { var wt = parseFloat(wtTolEl.value); if (!isNaN(wt) && wt > 0) S.rateCheck.weightTol = wt; }
   if (!S.labour) S.labour = {};
   var otMultEl = document.getElementById('setOtMult');
   if (otMultEl) { var pm = parseFloat(otMultEl.value); if (!isNaN(pm) && pm >= 0) S.labour.otMult = pm; }
@@ -8566,9 +8821,12 @@ function zeroReasonTag(raw) {
 function detailRateMatch(inv, raw) {
   if (!inv || !raw || inv.status === 'cancelled') return '';
   var client = S.clients.find(function(c) { return c.id === inv.clientId; });
+  var out = '';
   var m = client ? rateMatch(client, inv.date, raw) : null;
-  if (!m || m.status === 'match' || m.status === 'none') return '';
-  return rateMatchNote(m, true);
+  if (m && m.status !== 'match' && m.status !== 'none') out += rateMatchNote(m, true);
+  var w = client ? weightMatch(client, inv.date, raw) : null;
+  if (w && w.status !== 'match' && w.status !== 'none') out += weightMatchNote(w, true);
+  return out;
 }
 
 function editInvoice(invId) {
@@ -17111,6 +17369,7 @@ function renderAddChallanForm() {
       '<option value="NOS"' + (item.unit === 'NOS' ? ' selected' : '') + '>NOS</option></select></div>' +
       '<div class="inv-form-group"><label class="inv-form-label" for="imNos' + idx + '">NOS Qty</label>' +
       '<input type="number" class="inv-form-input inv-mono" id="imNos' + idx + '" data-k="nos-' + idx + '" value="' + (item.nosQty || '') + '" data-field="nosQty" data-idx="' + idx + '" data-action="invUpdateChallanLine" step="1" min="0" placeholder="Pcs"></div></div>' +
+      '<div id="imWeightMatch' + idx + '">' + (client ? weightMatchNote(weightMatch(client, _challanForm.challanDate || localDateStr(), item)) : '') + '</div>' +
       '<div class="inv-form-row">' +
       '<div class="inv-form-group"><label class="inv-form-label" for="imRate' + idx + '">Rate</label>' +
       '<input type="number" class="inv-form-input inv-mono' + rateMatchInputClass(rm) + '" id="imRate' + idx + '" data-k="rate-' + idx + '" value="' + rateDisplay + '" data-field="rate" data-idx="' + idx + '" data-action="invUpdateChallanLine" step="any" min="0"' +
@@ -17447,6 +17706,7 @@ function refreshChallanLineMatch(idx) {
   if (!item || !client) return;
   refreshRateMatch('imRateMatch' + idx, document.getElementById('imRate' + idx), client,
     _challanForm.challanDate || localDateStr(), item);
+  refreshWeightMatch('imWeightMatch' + idx, client, _challanForm.challanDate || localDateStr(), item);
 }
 /* ===== IM DUPLICATE GUARD ===== */
 
@@ -17957,6 +18217,9 @@ document.addEventListener('click', function(e) {
     case 'invAddPieceRate': addPieceRate(parseInt(btn.dataset.client)); break;
     case 'invRemovePieceRate': removePieceRate(parseInt(btn.dataset.client), parseInt(btn.dataset.idx)); break;
     case 'invFillPieceRates': fillPieceRatesFromHistory(parseInt(btn.dataset.client)); break;
+    case 'invAddPieceWeight': addPieceWeight(parseInt(btn.dataset.client)); break;
+    case 'invRemovePieceWeight': removePieceWeight(parseInt(btn.dataset.client), parseInt(btn.dataset.idx)); break;
+    case 'invFillPieceWeights': fillPieceWeightsFromHistory(parseInt(btn.dataset.client)); break;
     case 'invZeroReason': {
       var zIdx = parseInt(btn.dataset.idx);
       var zLine = invoiceForm.items[zIdx];
@@ -18598,6 +18861,7 @@ document.addEventListener('input', function(e) {
       // nosQty is integer, others are float
       if (challanLineInput.dataset.field === 'nosQty') {
         citem2.nosQty = parseInt(challanLineInput.value) || null;
+        refreshChallanLineMatch(cidx2);
         return;
       }
       var cclient2 = _challanForm.clientId ? S.clients.find(function(c) { return c.id === _challanForm.clientId; }) : null;

@@ -1071,6 +1071,20 @@ function buildHistoryEvents() {
         ' (' + (im.items || []).length + ' item' + ((im.items || []).length > 1 ? 's' : '') + ')',
       amount: challanAmt
     });
+    // A challan line corrected from an invoice: the challan is the record of the
+    // customer's paper, so a change to it is an audit event and says what moved.
+    (im.items || []).forEach(function(it) {
+      (it.corrections || []).forEach(function(cx) {
+        var names = { partNumber: 'part', desc: 'description', unit: 'unit', qty: 'quantity', nosQty: 'pieces', rate: 'rate', amount: 'amount' };
+        var what = Object.keys(cx.from || {}).filter(function(f) { return f !== 'amount' || Object.keys(cx.from).length === 1; })
+          .map(function(f) { return names[f] + ' ' + (cx.from[f] == null ? '—' : cx.from[f]) + ' \u2192 ' + ((cx.to || it)[f] == null ? '—' : (cx.to || it)[f]); });
+        events.push({
+          ts: cx.at, type: 'audit', kind: 'challan', sourceId: im.id, jump: 'challan',
+          text: 'Challan' + (im.challanNo ? ' ' + im.challanNo : '') + ' corrected from ' + (cx.invoice || 'an invoice') +
+            ': ' + (it.partNumber || '') + ' \u2014 ' + what.join(', ')
+        });
+      });
+    });
     // An accepted duplicate is a decision somebody made, and the whole point of
     // stamping dupeAck was so an audit could tell it from one nobody was shown.
     if (im.dupeAck && im.dupeAck.at) {

@@ -117,6 +117,7 @@ function renderAddChallanForm() {
       '<option value="NOS"' + (item.unit === 'NOS' ? ' selected' : '') + '>NOS</option></select></div>' +
       '<div class="inv-form-group"><label class="inv-form-label" for="imNos' + idx + '">NOS Qty</label>' +
       '<input type="number" class="inv-form-input inv-mono" id="imNos' + idx + '" data-k="nos-' + idx + '" value="' + (item.nosQty || '') + '" data-field="nosQty" data-idx="' + idx + '" data-action="invUpdateChallanLine" step="1" min="0" placeholder="Pcs"></div></div>' +
+      '<div id="imWeightMatch' + idx + '">' + (client ? weightMatchNote(weightMatch(client, _challanForm.challanDate || localDateStr(), item)) : '') + '</div>' +
       '<div class="inv-form-row">' +
       '<div class="inv-form-group"><label class="inv-form-label" for="imRate' + idx + '">Rate</label>' +
       '<input type="number" class="inv-form-input inv-mono' + rateMatchInputClass(rm) + '" id="imRate' + idx + '" data-k="rate-' + idx + '" value="' + rateDisplay + '" data-field="rate" data-idx="' + idx + '" data-action="invUpdateChallanLine" step="any" min="0"' +
@@ -453,4 +454,5 @@ function refreshChallanLineMatch(idx) {
   if (!item || !client) return;
   refreshRateMatch('imRateMatch' + idx, document.getElementById('imRate' + idx), client,
     _challanForm.challanDate || localDateStr(), item);
+  refreshWeightMatch('imWeightMatch' + idx, client, _challanForm.challanDate || localDateStr(), item);
 }

@@ -31,6 +31,9 @@ document.addEventListener('click', function(e) {
     case 'invAddPieceRate': addPieceRate(parseInt(btn.dataset.client)); break;
     case 'invRemovePieceRate': removePieceRate(parseInt(btn.dataset.client), parseInt(btn.dataset.idx)); break;
     case 'invFillPieceRates': fillPieceRatesFromHistory(parseInt(btn.dataset.client)); break;
+    case 'invAddPieceWeight': addPieceWeight(parseInt(btn.dataset.client)); break;
+    case 'invRemovePieceWeight': removePieceWeight(parseInt(btn.dataset.client), parseInt(btn.dataset.idx)); break;
+    case 'invFillPieceWeights': fillPieceWeightsFromHistory(parseInt(btn.dataset.client)); break;
     case 'invZeroReason': {
       var zIdx = parseInt(btn.dataset.idx);
       var zLine = invoiceForm.items[zIdx];
@@ -672,6 +675,7 @@ document.addEventListener('input', function(e) {
       // nosQty is integer, others are float
       if (challanLineInput.dataset.field === 'nosQty') {
         citem2.nosQty = parseInt(challanLineInput.value) || null;
+        refreshChallanLineMatch(cidx2);
         return;
       }
       var cclient2 = _challanForm.clientId ? S.clients.find(function(c) { return c.id === _challanForm.clientId; }) : null;
@@ -693,6 +697,13 @@ document.addEventListener('input', function(e) {
       }
       refreshChallanLineMatch(cidx2);
     }
+    return;
+  }
+  // Piece count on a KG line: prices nothing, but it is what the weight is checked against.
+  const pcsEl = e.target.closest('[data-action="invUpdateLine"][data-field="nosQty"]');
+  if (pcsEl) {
+    const pItem = invoiceForm.items[parseInt(pcsEl.dataset.idx)];
+    if (pItem) { pItem.nosQty = parseInt(pcsEl.value, 10) || null; refreshInvoiceLineMatch(parseInt(pcsEl.dataset.idx)); }
     return;
   }
   // Numeric line item fields — update model + totals only, no full re-render

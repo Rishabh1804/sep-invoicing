@@ -48,7 +48,7 @@ function getDefaultState() {
     // rate. extraRate prices the area-booked "extra hours", which carry no name.
     labour: { otMult: 1.1, restCreditMinDays: 6, extraRate: 47.5, modelPerKg: 3.55, gateFull: 0.9, gateHalf: 0.8, extraHoursPerHead: 8 },
     // Rate matcher thresholds (option E): Check at ≥ pct% off OR ≥ ₹stake on the line.
-    rateCheck: { pct: 10, stake: 100 },
+    rateCheck: { pct: 10, stake: 100, weightTol: 3 },
     // Full cost per kg, rebuilt from owner-supplied inputs against Apr–Jul 2026
     // actuals. The old 5.46 predated that rebuild and flattered every margin
     // figure by roughly a rupee a kilo. Only ever the default for a fresh
@@ -712,11 +712,14 @@ function lineGauge(desc) {
 /* The per-piece rate on record for a line, or null when there is none.
    `{ambiguous: true}` when the part is priced by gauge and the line does not
    say which gauge it is — reported, never resolved by picking one. */
-function getPieceRate(client, onDate, partNumber, desc) {
+/* One lookup over a client's card — piece rates and piece weights share it:
+   same part key, same gauge rule, same dating. Returns the row, `{ambiguous}`,
+   or null. */
+function cardLookup(list, onDate, partNumber, desc) {
   var pk = rateKey(partNumber);
-  if (!client || !pk || !client.pieceRates || client.pieceRates.length === 0) return null;
+  if (!pk || !list || list.length === 0) return null;
   var date = onDate || localDateStr();
-  var rows = client.pieceRates.filter(function(r) {
+  var rows = list.filter(function(r) {
     return rateKey(r.partNumber) === pk && (!r.effectiveFrom || r.effectiveFrom <= date);
   });
   if (rows.length === 0) return null;
@@ -725,13 +728,40 @@ function getPieceRate(client, onDate, partNumber, desc) {
   var lg = lineGauge(desc) || lineGauge(partNumber);
   var gauged = rows.filter(function(r) { return r.gauge && lg && rateKey(r.gauge) === lg; });
   var pool = gauged.length ? gauged : rows.filter(function(r) { return !r.gauge; });
-  if (pool.length === 0) return { ambiguous: true, rate: null };
+  if (pool.length === 0) return { ambiguous: true };
   var gauges = {};
   pool.forEach(function(r) { gauges[rateKey(r.gauge)] = true; });
-  if (Object.keys(gauges).length > 1) return { ambiguous: true, rate: null };
+  if (Object.keys(gauges).length > 1) return { ambiguous: true };
   pool.sort(function(a, b) { return String(b.effectiveFrom || '').localeCompare(String(a.effectiveFrom || '')); });
-  var hit = pool[0];
+  return pool[0];
+}
+
+function getPieceRate(client, onDate, partNumber, desc) {
+  var hit = client ? cardLookup(client.pieceRates, onDate, partNumber, desc) : null;
+  if (!hit) return null;
+  if (hit.ambiguous) return { ambiguous: true, rate: null };
   return { rate: hit.rate, effectiveFrom: hit.effectiveFrom || '', gauge: hit.gauge || '' };
+}
+
+/* ===== WEIGHT PER PIECE ON RECORD =====
+
+   A KG-billed client's challan states pieces AND kilograms (Dorabji's carries
+   both columns), so a weight per piece on record checks the kilograms the way
+   the rate card checks the rate. Replayed over the 11 Sep backup's 1,068 KG
+   lines that carry a piece count: half sit within 0.4% of their own client's
+   median, three quarters within 2.3% — and two are a power of ten out
+   (00830: 33 pcs billed as 150.27 kg against 0.448 kg/pc; 00086: 500 pcs as
+   10.4 kg against 0.212), ₹3,000 between them.
+
+   The CLIENT's figure, never the Items Master's. The master has one row per
+   part name and no client: Khetan's BASE PLATE weighs ~0.70 kg a piece on every
+   line and the master says 0.053, because General Engineering sends a part of
+   the same name. Kept in kilograms to four places — a weight, not currency. */
+function getPieceWeight(client, onDate, partNumber, desc) {
+  var hit = client ? cardLookup(client.pieceWeights, onDate, partNumber, desc) : null;
+  if (!hit) return null;
+  if (hit.ambiguous) return { ambiguous: true, kg: null };
+  return { kg: hit.kgPerPiece, effectiveFrom: hit.effectiveFrom || '', gauge: hit.gauge || '' };
 }
 
 /* The one place a line's rate on record is read: override, then the client's
@@ -834,7 +864,7 @@ function lineLabel(item) {
    that differs can be right (a renegotiated price not yet on the card); the
    matcher's job is that nobody bills it without having seen it. A ₹0 line is
    not judged here: it has its own required reason. */
-var RATE_CHECK_DEFAULTS = { pct: 10, stake: 100 };
+var RATE_CHECK_DEFAULTS = { pct: 10, stake: 100, weightTol: 3 };
 
 /* The two thresholds, from Settings. Read on every judgement so a change in
    Settings re-colours the next line typed. A missing or nonsensical value falls
@@ -842,10 +872,14 @@ var RATE_CHECK_DEFAULTS = { pct: 10, stake: 100 };
    difference red. */
 function rateCheckCfg() {
   var c = (S && S.rateCheck) || {};
-  var pct = parseFloat(c.pct), stake = parseFloat(c.stake);
+  var pct = parseFloat(c.pct), stake = parseFloat(c.stake), tol = parseFloat(c.weightTol);
   return {
     pct: pct > 0 ? pct : RATE_CHECK_DEFAULTS.pct,
-    stake: stake > 0 ? stake : RATE_CHECK_DEFAULTS.stake
+    stake: stake > 0 ? stake : RATE_CHECK_DEFAULTS.stake,
+    // Weighing is not exact: a weight within this band of pieces × kg/pc
+    // matches. 3% holds three quarters of history's lines (the median line is
+    // 0.4% off) without hiding a real slip.
+    weightTol: tol > 0 ? tol : RATE_CHECK_DEFAULTS.weightTol
   };
 }
 
@@ -870,6 +904,31 @@ function rateMatch(client, onDate, item) {
   var k = Math.round(Math.log10(rate / ref.rate));
   if (k !== 0 && Math.abs(rate / (ref.rate * Math.pow(10, k)) - 1) < 0.02) { out.status = 'decimal'; return out; }
   var cfg = rateCheckCfg();
+  out.status = (out.pct >= cfg.pct / 100 - 1e-9 || Math.abs(out.stake) >= cfg.stake - 1e-9) ? 'check' : 'differs';
+  return out;
+}
+
+/* The kilograms on a KG line against pieces × the weight per piece on record.
+   Same verdicts and the same Check thresholds as the rate, with two
+   differences a scale forces: a band of ±weightTol% counts as a match, and a
+   power-of-ten slip is allowed ±5% (a weighed figure is never exact). The
+   stake is the kilograms off × the line's own rate. */
+function weightMatch(client, onDate, item) {
+  if (!client || !item || item.unit !== 'KG') return null;
+  var pcs = item.nosQty || 0, kg = item.qty || 0;
+  if (!(pcs > 0) || !(kg > 0)) return null;
+  var w = getPieceWeight(client, onDate, item.partNumber, item.desc);
+  if (!w) return { status: 'none' };
+  if (w.ambiguous) return { status: 'gauge' };
+  var expected = pcs * w.kg;
+  var ratio = kg / expected;
+  var out = { ref: w.kg, pcs: pcs, expected: Math.round(expected * 1000) / 1000,
+    diff: Math.round((kg - expected) * 1000) / 1000, pct: Math.abs(ratio - 1),
+    stake: gstRound((kg - expected) * (item.rate || 0)) };
+  var cfg = rateCheckCfg();
+  if (out.pct < cfg.weightTol / 100) { out.status = 'match'; return out; }
+  var k = Math.round(Math.log10(ratio));
+  if (k !== 0 && Math.abs(ratio / Math.pow(10, k) - 1) < 0.05) { out.status = 'decimal'; return out; }
   out.status = (out.pct >= cfg.pct / 100 - 1e-9 || Math.abs(out.stake) >= cfg.stake - 1e-9) ? 'check' : 'differs';
   return out;
 }

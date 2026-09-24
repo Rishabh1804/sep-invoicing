@@ -89,7 +89,7 @@ every session start — nothing to set up by hand. CI (`build-sync`) is the back
 ### Tests
 
 ```bash
-pnpm exec playwright test          # 341 tests, both layouts
+pnpm exec playwright test          # 344 tests, both layouts
 ```
 
 Some sandboxes ship a Chromium build Playwright does not expect and block downloading
@@ -983,6 +983,13 @@ of what a matcher would have flagged was reference data.
   rate change or an override never reached a scanned challan. It now reads the client's records;
   the frozen figure is only a fallback for a client the app does not hold. A piece client's
   challan keeps its own amount — that is the passthrough.
+
+**A line names its PART on screen** (`lineLabel`). The invoice detail and the challan list printed
+`desc` alone, and for a piece client `desc` is often only the gauge (`40X6`) or a word (`CLAMP`) —
+the owner searched a challan and could not see which part was on it. The part number leads; the
+description follows when it adds something. The printed invoice is unchanged. **Register search
+reaches challan numbers**, matching a whole number (leading zeros ignored), never a fragment:
+`83` must not find challan 834.
 
 ### Billed at ₹0
 The history held **25 lines billed at ₹0 — 1,192.54 kg, ₹16,355.67 at the client's own rate —

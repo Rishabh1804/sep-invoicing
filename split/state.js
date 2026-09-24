@@ -793,3 +793,17 @@ function defaultLineRate(client, onDate, item) {
   }
   return info.ratePerKg || 0;
 }
+
+/* How a line names its part on screen. `desc` used to win outright, and for a
+   piece client desc is often only the gauge ("40X6") or a word ("CLAMP") — so
+   the invoice detail and the challan list showed which strip, never which part.
+   The part number leads; the description follows when it adds something. */
+function lineLabel(item) {
+  if (!item) return '';
+  var pn = String(item.partNumber || '').trim();
+  var d = String(item.desc || '').trim();
+  if (!pn) return d;
+  if (!d || rateKey(pn).indexOf(rateKey(d)) >= 0) return pn;
+  if (rateKey(d).indexOf(rateKey(pn)) >= 0) return d;
+  return pn + ' · ' + d;
+}

@@ -15,7 +15,7 @@
 <title>SEP Invoicing</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-<meta name="app-build" content="ba919ea4">
+<meta name="app-build" content="7a628fbe">
 <style>
 /* ===== DESIGN TOKENS ===== */
 :root {
@@ -3993,6 +3993,20 @@ function defaultLineRate(client, onDate, item) {
   }
   return info.ratePerKg || 0;
 }
+
+/* How a line names its part on screen. `desc` used to win outright, and for a
+   piece client desc is often only the gauge ("40X6") or a word ("CLAMP") — so
+   the invoice detail and the challan list showed which strip, never which part.
+   The part number leads; the description follows when it adds something. */
+function lineLabel(item) {
+  if (!item) return '';
+  var pn = String(item.partNumber || '').trim();
+  var d = String(item.desc || '').trim();
+  if (!pn) return d;
+  if (!d || rateKey(pn).indexOf(rateKey(d)) >= 0) return pn;
+  if (rateKey(d).indexOf(rateKey(pn)) >= 0) return d;
+  return pn + ' · ' + d;
+}
 /* ===== ZINC MARKET RATE =====
 
    Zinc is the largest bought-in input on the floor — ~26% of cost at ~425 kg
@@ -7553,9 +7567,13 @@ function getFilteredInvoices() {
   }
   if (regFilter.search) {
     const q = regFilter.search.toLowerCase();
+    // Challan numbers too: an invoice is found by the challan it billed as
+    // often as by its own number, and matching only the invoice number made a
+    // challan search land on whichever invoice's digits happened to contain it.
     list = list.filter(i =>
       (i.displayNumber || '').toLowerCase().includes(q) ||
-      (i.clientName || '').toLowerCase().includes(q)
+      (i.clientName || '').toLowerCase().includes(q) ||
+      regChallanMatch(i.challanNo, q)
     );
   }
   if (regFilter.state) {
@@ -7695,7 +7713,7 @@ function renderRegisterToolbar() {
   let html = '<div class="inv-reg-toolbar">' +
     '<div class="inv-search-wrap inv-search-no-mb">' +
     '<svg class="inv-search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>' +
-    '<input type="text" class="inv-reg-search" id="regSearch" placeholder="Search invoice or client" value="' + escHtml(regFilter.search) + '" autocomplete="off"></div>' +
+    '<input type="text" class="inv-reg-search" id="regSearch" placeholder="Search invoice, client or challan" value="' + escHtml(regFilter.search) + '" autocomplete="off"></div>' +
     '<div class="inv-reg-filters">' +
     '<div class="inv-form-group"><select class="inv-form-select" id="regClientFilter" aria-label="Filter by client">' +
     '<option value="">All Clients</option>' + clientOpts + '</select></div>' +
@@ -7755,6 +7773,18 @@ function renderRegisterToolbar() {
       _regSearchTimer = setTimeout(function() { _renderRegView(); _renderRegSelBar(); }, 200);
     });
   }
+}
+
+/* A challan field is a list ("834, 835, 838"). A number in the search matches
+   a whole challan number, never a fragment of one — "83" must not find 834. */
+function regChallanMatch(challanNo, q) {
+  q = String(q || '').trim();
+  var list = String(challanNo || '').toLowerCase().split(/[,;\/&\s]+/).filter(Boolean);
+  if (/^\d+$/.test(q)) {
+    var n = String(parseInt(q, 10));
+    return list.some(function(c) { return c.replace(/^0+/, '') === n; });
+  }
+  return list.some(function(c) { return c.indexOf(q) >= 0; });
 }
 
 function renderRegisterList() {
@@ -7985,7 +8015,7 @@ function _renderRegDetail(invId, skipMasterRefresh) {
     '<th>Part</th><th>Qty</th><th>Unit</th><th>Rate</th><th>Amount</th></tr></thead><tbody>';
   d.items.forEach(function(item, li) {
     html += '<tr>' +
-      '<td>' + escHtml(item.desc) + zeroReasonTag((inv.items || [])[li]) + '</td>' +
+      '<td>' + escHtml(lineLabel((inv.items || [])[li] || item)) + zeroReasonTag((inv.items || [])[li]) + '</td>' +
       '<td class="inv-mono">' + escHtml(item.qty) + (item.nosQtyRaw && item.nosQtyRaw > 0 ? ' <span class="inv-text-muted">(' + escHtml(item.nosQtyRaw) + ' NOS)</span>' : '') + '</td>' +
       '<td>' + escHtml(item.unit) + '</td>' +
       '<td class="inv-mono">' + escHtml(item.rate) + '</td>' +
@@ -8284,7 +8314,7 @@ function openInvoiceDetail(invId) {
     '<th>Part</th><th>Qty</th><th>Unit</th><th>Rate</th><th>Amount</th></tr></thead><tbody>';
   d.items.forEach(function(item, li) {
     html += '<tr>' +
-      '<td>' + escHtml(item.desc) + zeroReasonTag((inv.items || [])[li]) + '</td>' +
+      '<td>' + escHtml(lineLabel((inv.items || [])[li] || item)) + zeroReasonTag((inv.items || [])[li]) + '</td>' +
       '<td class="inv-mono">' + escHtml(item.qty) + (item.nosQtyRaw && item.nosQtyRaw > 0 ? ' <span class="inv-text-muted">(' + escHtml(item.nosQtyRaw) + ' NOS)</span>' : '') + '</td>' +
       '<td>' + escHtml(item.unit) + '</td>' +
       '<td class="inv-mono">' + escHtml(item.rate) + '</td>' +
@@ -9328,7 +9358,7 @@ function renderIMList() {
           (!itemInvoiced ? '<input type="checkbox" class="inv-im-check" data-action="invCheckIMItem" data-item-id="' + escHtml(it.id) + '"' + (_imSelected[it.id] ? ' checked' : '') + '>' :
           invBadgeHtml) +
           '<div class="inv-im-item-info">' +
-          '<div class="inv-im-item-desc">' + escHtml(it.desc || it.partNumber) + '</div>' +
+          '<div class="inv-im-item-desc">' + escHtml(lineLabel(it)) + '</div>' +
           '<div class="inv-im-item-detail">' + escHtml(it.qty) + ' ' + escHtml(it.unit) +
           (it.nosQty && it.nosQty > 0 ? ' (' + escHtml(it.nosQty) + ' NOS)' : '') +
           ' @ ' + formatCurrency(it.rate) + '/' + escHtml(it.unit) + '</div></div>' +
@@ -9528,7 +9558,7 @@ function _renderIMDetail(challanId, skipMasterRefresh) {
       (!itemInvoiced ? '<input type="checkbox" class="inv-im-check" data-action="invCheckIMItem" data-item-id="' + escHtml(it.id) + '"' + (_imSelected[it.id] ? ' checked' : '') + '>' :
       invBadgeHtml) +
       '<div class="inv-im-item-info">' +
-      '<div class="inv-im-item-desc">' + escHtml(it.desc || it.partNumber) + '</div>' +
+      '<div class="inv-im-item-desc">' + escHtml(lineLabel(it)) + '</div>' +
       '<div class="inv-im-item-detail">' + escHtml(it.qty) + ' ' + escHtml(it.unit) +
       (it.nosQty && it.nosQty > 0 ? ' (' + escHtml(it.nosQty) + ' NOS)' : '') +
       ' @ ' + formatCurrency(it.rate) + '/' + escHtml(it.unit) + '</div></div>' +

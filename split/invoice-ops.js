@@ -69,9 +69,13 @@ function getFilteredInvoices() {
   }
   if (regFilter.search) {
     const q = regFilter.search.toLowerCase();
+    // Challan numbers too: an invoice is found by the challan it billed as
+    // often as by its own number, and matching only the invoice number made a
+    // challan search land on whichever invoice's digits happened to contain it.
     list = list.filter(i =>
       (i.displayNumber || '').toLowerCase().includes(q) ||
-      (i.clientName || '').toLowerCase().includes(q)
+      (i.clientName || '').toLowerCase().includes(q) ||
+      regChallanMatch(i.challanNo, q)
     );
   }
   if (regFilter.state) {
@@ -211,7 +215,7 @@ function renderRegisterToolbar() {
   let html = '<div class="inv-reg-toolbar">' +
     '<div class="inv-search-wrap inv-search-no-mb">' +
     '<svg class="inv-search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>' +
-    '<input type="text" class="inv-reg-search" id="regSearch" placeholder="Search invoice or client" value="' + escHtml(regFilter.search) + '" autocomplete="off"></div>' +
+    '<input type="text" class="inv-reg-search" id="regSearch" placeholder="Search invoice, client or challan" value="' + escHtml(regFilter.search) + '" autocomplete="off"></div>' +
     '<div class="inv-reg-filters">' +
     '<div class="inv-form-group"><select class="inv-form-select" id="regClientFilter" aria-label="Filter by client">' +
     '<option value="">All Clients</option>' + clientOpts + '</select></div>' +
@@ -271,6 +275,18 @@ function renderRegisterToolbar() {
       _regSearchTimer = setTimeout(function() { _renderRegView(); _renderRegSelBar(); }, 200);
     });
   }
+}
+
+/* A challan field is a list ("834, 835, 838"). A number in the search matches
+   a whole challan number, never a fragment of one — "83" must not find 834. */
+function regChallanMatch(challanNo, q) {
+  q = String(q || '').trim();
+  var list = String(challanNo || '').toLowerCase().split(/[,;\/&\s]+/).filter(Boolean);
+  if (/^\d+$/.test(q)) {
+    var n = String(parseInt(q, 10));
+    return list.some(function(c) { return c.replace(/^0+/, '') === n; });
+  }
+  return list.some(function(c) { return c.indexOf(q) >= 0; });
 }
 
 function renderRegisterList() {
@@ -501,7 +517,7 @@ function _renderRegDetail(invId, skipMasterRefresh) {
     '<th>Part</th><th>Qty</th><th>Unit</th><th>Rate</th><th>Amount</th></tr></thead><tbody>';
   d.items.forEach(function(item, li) {
     html += '<tr>' +
-      '<td>' + escHtml(item.desc) + zeroReasonTag((inv.items || [])[li]) + '</td>' +
+      '<td>' + escHtml(lineLabel((inv.items || [])[li] || item)) + zeroReasonTag((inv.items || [])[li]) + '</td>' +
       '<td class="inv-mono">' + escHtml(item.qty) + (item.nosQtyRaw && item.nosQtyRaw > 0 ? ' <span class="inv-text-muted">(' + escHtml(item.nosQtyRaw) + ' NOS)</span>' : '') + '</td>' +
       '<td>' + escHtml(item.unit) + '</td>' +
       '<td class="inv-mono">' + escHtml(item.rate) + '</td>' +
@@ -800,7 +816,7 @@ function openInvoiceDetail(invId) {
     '<th>Part</th><th>Qty</th><th>Unit</th><th>Rate</th><th>Amount</th></tr></thead><tbody>';
   d.items.forEach(function(item, li) {
     html += '<tr>' +
-      '<td>' + escHtml(item.desc) + zeroReasonTag((inv.items || [])[li]) + '</td>' +
+      '<td>' + escHtml(lineLabel((inv.items || [])[li] || item)) + zeroReasonTag((inv.items || [])[li]) + '</td>' +
       '<td class="inv-mono">' + escHtml(item.qty) + (item.nosQtyRaw && item.nosQtyRaw > 0 ? ' <span class="inv-text-muted">(' + escHtml(item.nosQtyRaw) + ' NOS)</span>' : '') + '</td>' +
       '<td>' + escHtml(item.unit) + '</td>' +
       '<td class="inv-mono">' + escHtml(item.rate) + '</td>' +

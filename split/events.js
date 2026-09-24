@@ -699,6 +699,13 @@ document.addEventListener('input', function(e) {
     }
     return;
   }
+  // Piece count on a KG line: prices nothing, but it is what the weight is checked against.
+  const pcsEl = e.target.closest('[data-action="invUpdateLine"][data-field="nosQty"]');
+  if (pcsEl) {
+    const pItem = invoiceForm.items[parseInt(pcsEl.dataset.idx)];
+    if (pItem) { pItem.nosQty = parseInt(pcsEl.value, 10) || null; refreshInvoiceLineMatch(parseInt(pcsEl.dataset.idx)); }
+    return;
+  }
   // Numeric line item fields — update model + totals only, no full re-render
   const el = e.target.closest('[data-action="invUpdateLine"]');
   if (el && (el.dataset.field === 'qty' || el.dataset.field === 'rate' || el.dataset.field === 'amount')) {

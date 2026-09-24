@@ -64,7 +64,10 @@ function renderCreateForm() {
       '<div class="inv-form-group"><label class="inv-form-label">Unit</label>' +
       '<select class="inv-form-select" data-field="unit" data-idx="' + idx + '" data-action="invUpdateLine">' +
       '<option value="KG"' + (item.unit==='KG'?' selected':'') + '>KG</option>' +
-      '<option value="NOS"' + (item.unit==='NOS'?' selected':'') + '>NOS</option></select></div></div>' +
+      '<option value="NOS"' + (item.unit==='NOS'?' selected':'') + '>NOS</option></select></div>' +
+      (item.unit === 'KG' ? '<div class="inv-form-group"><label class="inv-form-label">Pcs</label>' +
+        '<input type="number" class="inv-form-input inv-mono" value="' + (item.nosQty || '') + '" data-field="nosQty" data-idx="' + idx + '" data-action="invUpdateLine" step="1" min="0" placeholder="Pieces"></div>' : '') +
+      '</div>' +
       '<div class="inv-form-row">' +
       '<div class="inv-form-group"><label class="inv-form-label">Rate</label>' +
       '<input type="number" class="inv-form-input inv-mono' + (client && client.billingMode==='piece' && item.unit==='NOS' ? ' inv-form-input-readonly' : '') + rateMatchInputClass(rm) + '" value="' + rateDisplay + '" data-field="rate" data-idx="' + idx + '" data-action="invUpdateLine" step="any" min="0"' +
@@ -294,6 +297,10 @@ function saveInvoice() {
   const grand = gstRound(taxable + cgstAmt + sgstAmt + igstAmt);
 
   const now = Date.now();
+  // Shown AFTER the tab switch below: switchTab() clears every toast, so a
+  // confirmation raised before it was wiped the instant it appeared — "Invoice
+  // updated" never reached the screen, and neither would the challan note.
+  let doneToast = null;
 
   if (invoiceForm.editingId) {
     // Update existing
@@ -304,18 +311,18 @@ function saveInvoice() {
       date: invoiceForm.date, clientId: client.id, clientName: client.name,
       clientGSTIN: client.gstin, clientAddress: {add1:client.add1,add2:client.add2,add3:client.add3,state:client.state,stateCode:client.stateCode},
       gstType: client.gstType,
-      items: invoiceForm.items.map(i => ({partNumber:i.partNumber,desc:i.desc,hsn:i.hsn||'998873',unit:i.unit,qty:i.qty,rate:i.rate,amount:i.amount,nosQty:i.nosQty||null,...zeroReasonFields(i)})),
+      items: invoiceForm.items.map(i => ({partNumber:i.partNumber,desc:i.desc,hsn:i.hsn||'998873',unit:i.unit,qty:i.qty,rate:i.rate,amount:i.amount,nosQty:i.nosQty||null,...zeroReasonFields(i),...(i._imItemId ? {imItemId:i._imItemId} : {})})),
       taxableValue: taxable, cgstPer, cgstAmt, sgstPer, sgstAmt, igstPer, igstAmt,
       grandTotal: grand, amountInWords: numberToWords(grand),
       challanNo: invoiceForm.challanNo, challanDate: invoiceForm.challanDate,
       poNumber: invoiceForm.poNumber, poDate: invoiceForm.poDate,
       despatchDate: invoiceForm.despatchDate, transport: invoiceForm.transport, remarks: invoiceForm.remarks, updatedAt: now
     });
-    if (gstTypeChanged) {
-      showToast('Invoice updated — GST type changed, verify tax amounts', 'warning');
-    } else {
-      showToast('Invoice updated');
-    }
+    const synced = backCorrectChallans(inv);
+    const syncNote = synced.lines ? ' — challan ' + synced.challans.join(', ') + ' corrected to match (' + synced.lines + ' line' + (synced.lines === 1 ? '' : 's') + ')' : '';
+    doneToast = gstTypeChanged
+      ? ['Invoice updated — GST type changed, verify tax amounts' + syncNote, 'warning']
+      : ['Invoice updated' + syncNote, synced.lines ? 'warning' : undefined];
   } else {
     // New invoice
     const num = String(S.invNextNum).padStart(5, '0');
@@ -331,7 +338,7 @@ function saveInvoice() {
       clientGSTIN: client.gstin,
       clientAddress: {add1:client.add1,add2:client.add2,add3:client.add3,state:client.state,stateCode:client.stateCode},
       gstType: client.gstType,
-      items: invoiceForm.items.map(i => ({partNumber:i.partNumber,desc:i.desc,hsn:i.hsn||'998873',unit:i.unit,qty:i.qty,rate:i.rate,amount:i.amount,nosQty:i.nosQty||null,...zeroReasonFields(i)})),
+      items: invoiceForm.items.map(i => ({partNumber:i.partNumber,desc:i.desc,hsn:i.hsn||'998873',unit:i.unit,qty:i.qty,rate:i.rate,amount:i.amount,nosQty:i.nosQty||null,...zeroReasonFields(i),...(i._imItemId ? {imItemId:i._imItemId} : {})})),
       taxableValue: taxable, cgstPer, cgstAmt, sgstPer, sgstAmt, igstPer, igstAmt,
       grandTotal: grand, amountInWords: numberToWords(grand),
       poNumber: invoiceForm.poNumber, poDate: invoiceForm.poDate, challanNo: invoiceForm.challanNo, challanDate: invoiceForm.challanDate,
@@ -353,7 +360,7 @@ function saveInvoice() {
       });
     }
 
-    showToast('Invoice ' + inv.displayNumber + ' saved');
+    doneToast = ['Invoice ' + inv.displayNumber + ' saved'];
   }
 
   // Save vehicle number to client for autocomplete
@@ -363,6 +370,7 @@ function saveInvoice() {
   const returnDest = _navReturnTab || 'pageHome';
   initCreateForm();
   switchTab(returnDest);
+  if (doneToast) showToast(doneToast[0], doneToast[1]);
 }
 
 

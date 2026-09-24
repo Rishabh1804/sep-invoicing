@@ -89,7 +89,7 @@ every session start — nothing to set up by hand. CI (`build-sync`) is the back
 ### Tests
 
 ```bash
-pnpm exec playwright test          # 354 tests, both layouts
+pnpm exec playwright test          # 357 tests, both layouts
 ```
 
 Some sandboxes ship a Chromium build Playwright does not expect and block downloading
@@ -1030,10 +1030,30 @@ column, so a weight per piece on record checks the kilograms the way the rate ca
   Check), a power of ten is allowed ±5%, and the stake is the kilograms off × the line's rate. On
   the backup, after filling every client's card: **793 match, 2 ×10, 28 Check, 88 Differs**, 157
   with no weight on record.
-- **The two ×10 slips are real money.** **00830** (Dorabji `CLAMP 5079 4920 4205`): 33 pieces billed
-  as 150.274 kg against 0.448 kg/pc — ₹1,761.37 over, or the piece count is short a digit. **00086**
-  (`2525 2015 8202`): 500 pieces billed as 10.4 kg against 0.212 — ₹1,242.80 under. Neither has been
-  ruled on.
+- **The two ×10 slips were PIECE COUNTS, not weights — ruled by the owner, 24 Sep 2026.** **00830**
+  (Dorabji `CLAMP 5079 4920 4205`): 33 pieces that were **330**; the 150.274 kg billed was right.
+  **00086** (`2525 2015 8202`): 500 pieces that were **50**; the 10.4 kg was right. No money moved.
+  Both were put right on the invoice and **stayed wrong on the challan** — which is the next
+  section.
+
+**An invoice correction reaches its challan.** IM is the billing spine, and a correction made on
+the invoice used to stop there: an invoiced challan line cannot be edited, the invoice form had no
+piece count at all, and an invoice line did not record which challan line it came from. The owner:
+*"back corrections don't happen in the IM — it should, these could have been avoided."*
+
+- **An invoice line carries `imItemId`.** A line saved before that is linked when the invoice is
+  opened for editing (`withChallanLinks`): same invoice, same part, same quantities, each challan
+  line claimed once. A line that matches two challan lines is **left unlinked, never guessed**.
+- **Saving an edited invoice writes its lines back** (`backCorrectChallans`) — part, description,
+  unit, quantity, pieces, rate, amount — and **keeps what they were** on the challan line as
+  `corrections: [{at, invoiceId, invoice, from, to}]`. The challan is the record of the customer's
+  paper; overwriting it without trace would lose what an audit asks. History lists each one:
+  *"Challan 1115 corrected from SEP/…/00830: CLAMP 5079 4920 4205 — pieces 33 → 330"*.
+- **KG lines on the invoice form have a Pcs field** — it prices nothing, but it is what the weight
+  is checked against, and it was the field both slips were in.
+- ⚠ **Every save confirmation had been invisible.** `switchTab()` clears toasts, and `saveInvoice()`
+  raised *"Invoice updated"* / *"Invoice … saved"* just before switching — so neither ever reached the
+  screen. They are raised after the switch now; found because the challan note vanished the same way.
 
 **A line names its PART on screen** (`lineLabel`). The invoice detail and the challan list printed
 `desc` alone, and for a piece client `desc` is often only the gauge (`40X6`) or a word (`CLAMP`) —

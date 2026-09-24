@@ -1,4 +1,70 @@
 /* ===== VIEW/EDIT INVOICE ===== */
+
+/* ===== AN INVOICE CORRECTION REACHES ITS CHALLAN =====
+
+   IM is the billing spine, and a correction made on the invoice used to stop
+   there: an invoiced challan line cannot be edited, and the invoice line did
+   not even record which challan line it came from. So 00830 (33 pieces that
+   were 330) and 00086 (500 that were 50) were put right on the invoice and
+   stayed wrong on the challan (owner, 24 Sep 2026: "back corrections don't
+   happen in the IM — it should").
+
+   An invoice line now carries `imItemId`. A line saved before that is matched
+   to its challan line when the invoice is opened for editing: same invoice,
+   same part, same quantities, each challan line claimed once — and a line that
+   matches ambiguously is left unlinked rather than guessed. */
+var CHALLAN_SYNC_FIELDS = ['partNumber', 'desc', 'unit', 'qty', 'nosQty', 'rate', 'amount'];
+
+function withChallanLinks(inv) {
+  var pool = [];
+  (S.incomingMaterial || []).forEach(function(im) {
+    (im.items || []).forEach(function(it) { if (it.invoiceId === inv.id) pool.push(it); });
+  });
+  var taken = {};
+  (inv.items || []).forEach(function(li) { if (li.imItemId) taken[li.imItemId] = true; });
+  return (inv.items || []).map(function(li) {
+    if (li.imItemId) return Object.assign({}, li, { _imItemId: li.imItemId });
+    var free = pool.filter(function(it) { return !taken[it.id] && rateKey(it.partNumber) === rateKey(li.partNumber); });
+    var exact = free.filter(function(it) { return it.qty === li.qty && (it.nosQty || null) === (li.nosQty || null); });
+    var pick = exact.length === 1 ? exact[0] : (exact.length === 0 && free.length === 1 ? free[0] : null);
+    if (!pick) return Object.assign({}, li);
+    taken[pick.id] = true;
+    return Object.assign({}, li, { _imItemId: pick.id });
+  });
+}
+
+/* Push an edited invoice's lines back onto the challan lines they came from.
+   The old values are KEPT on the challan line as `corrections` — the challan is
+   the record of what the customer's paper said, and overwriting it without
+   trace would lose exactly what an audit asks: what did it say, and who changed
+   it from which invoice. */
+function backCorrectChallans(inv) {
+  var now = Date.now(), lines = 0, touched = {};
+  (inv.items || []).forEach(function(li) {
+    if (!li.imItemId) return;
+    var im = null, it = null;
+    (S.incomingMaterial || []).some(function(m) {
+      var hit = (m.items || []).find(function(x) { return x.id === li.imItemId; });
+      if (hit) { im = m; it = hit; return true; }
+      return false;
+    });
+    if (!it) return;
+    var from = {}, changed = false;
+    CHALLAN_SYNC_FIELDS.forEach(function(f) {
+      var a = it[f] == null ? null : it[f], b = li[f] == null ? null : li[f];
+      if (a !== b) { from[f] = a; changed = true; }
+    });
+    if (!changed) return;
+    var to = {};
+    Object.keys(from).forEach(function(f) { it[f] = to[f] = li[f] == null ? null : li[f]; });
+    if (!it.corrections) it.corrections = [];
+    it.corrections.push({ at: now, invoiceId: inv.id, invoice: inv.displayNumber, from: from, to: to });
+    touched[im.id] = im.challanNo || '(no number)';
+    lines++;
+  });
+  return { lines: lines, challans: Object.keys(touched).map(function(k) { return touched[k]; }) };
+}
+
 function viewInvoice(invId) {
   const inv = S.invoices.find(i => i.id === invId);
   if (!inv) return;
@@ -21,7 +87,7 @@ function viewInvoice(invId) {
   invoiceForm = {
     clientId: inv.clientId,
     date: inv.date,
-    items: inv.items.map(i => ({...i, _override: false, _label: ''})),
+    items: withChallanLinks(inv).map(i => ({...i, _override: false, _label: ''})),
     poNumber: inv.poNumber || '',
     poDate: inv.poDate || localDateStr(),
     challanNo: inv.challanNo || '',
@@ -949,7 +1015,7 @@ function editInvoice(invId) {
   invoiceForm = {
     clientId: inv.clientId,
     date: inv.date,
-    items: inv.items.map(i => ({...i, _override: false, _label: ''})),
+    items: withChallanLinks(inv).map(i => ({...i, _override: false, _label: ''})),
     poNumber: inv.poNumber || '',
     poDate: inv.poDate || localDateStr(),
     challanNo: inv.challanNo || '',

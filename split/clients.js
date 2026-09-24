@@ -374,8 +374,8 @@ function _sortedPieceRates(c) {
 }
 
 function _pieceRatesEditHtml(c) {
-  var relevant = c.billingMode === 'piece' || c.billingMode === 'nos_to_weight' || (c.pieceRates || []).length > 0;
-  if (!relevant) return '';
+  // Every client: a weight-billed client can still send a part billed per piece
+  // (Parakh's ROLLER), and the matcher tells the operator to add it here.
   var html = '<div class="inv-settings-title">Piece Rates</div>';
   var rows = _sortedPieceRates(c);
   if (rows.length === 0) {
@@ -418,7 +418,8 @@ function _pieceFillReportHtml(r) {
     html += '<div class="inv-piece-report-warn">Left out — a rate billed on one invoice only. Check these against the customer’s rate card:</div><ul class="inv-piece-report-list">';
     r.outliers.forEach(function(o) {
       html += '<li class="inv-mono">' + escHtml(o.partNumber) + (o.gauge ? ' · ' + escHtml(o.gauge) : '') + ' at ' + formatCurrency(o.rate) +
-        ' on ' + escHtml(o.invoiceNumber) + ' (' + escHtml(o.date) + '); elsewhere ' + formatCurrency(o.usual) + '</li>';
+        ' on ' + escHtml(o.invoiceNumber) + ' (' + escHtml(o.date) + ')' +
+        (o.usual != null && o.usual !== o.rate ? '; elsewhere ' + formatCurrency(o.usual) : '; no rate seen twice') + '</li>';
     });
     html += '</ul>';
   }
@@ -489,7 +490,6 @@ function pieceRatesFromHistory(client) {
       }
     });
   });
-  outliers.forEach(function(o) { if (o.usual == null) o.usual = o.rate; });
   return { add: add, outliers: outliers, mixed: mixed, lines: lines, skippedExisting: skippedExisting };
 }
 

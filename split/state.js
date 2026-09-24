@@ -789,7 +789,7 @@ function isZeroBilledLine(item) {
 function defaultLineRate(client, onDate, item) {
   var info = getLineItemRate(client, onDate, item.partNumber);
   if (info._override) return info.rate;
-  if (item.unit === 'NOS' && client.billingMode !== 'weight') {
+  if (item.unit === 'NOS') {
     var pr = getPieceRate(client, onDate, item.partNumber, item.desc);
     if (pr && pr.rate != null) return pr.rate;
   }

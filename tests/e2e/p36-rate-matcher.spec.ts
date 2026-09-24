@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
-import { emptyState, loadAppWithState, noSeedIM, recentTs, switchTab, todayIso, type SepState } from './fixtures';
+import { emptyState, loadAppWithState, noSeedIM, readStoredState, recentTs, switchTab, todayIso, type SepState } from './fixtures';
 
 // P36: the rate matcher, option E as chosen by the owner 24 Sep 2026.
 // match · ×10 slip · Check (≥ 10% off OR ≥ ₹100 at stake) · Differs · no rate · gauge.
@@ -117,5 +117,31 @@ test.describe('P36: rate matcher — option E', () => {
     await expect(rows.nth(0).locator('.inv-rm-chip')).toHaveText('Check');
     await expect(rows.nth(0)).toContainText('−₹119.60 on this line');
     await expect(rows.nth(1).locator('.inv-rm-chip')).toHaveCount(0);
+  });
+
+  test('the thresholds are set in Settings and take effect at once', async ({ page }) => {
+    await loadAppWithState(page, state());
+    const judge = `rateMatch(S.clients[0], '2026-08-01', { partNumber: 'P', unit: 'KG', qty: 100, rate: 15 }).status`;
+    // 5.3% off, ₹75 at stake: under the ruling's 10% / ₹100.
+    expect(await g(page, judge)).toBe('differs');
+
+    await page.evaluate(() => (window as any).openSettings());
+    await expect(page.locator('#setRcPct')).toHaveValue('10');
+    await expect(page.locator('#setRcStake')).toHaveValue('100');
+    await page.locator('#setRcPct').fill('5');
+    await page.locator('[data-action="invSaveSettings"]').click();
+
+    expect(await g(page, judge)).toBe('check');
+    const st = await readStoredState(page);
+    expect(st.rateCheck).toEqual({ pct: 5, stake: 100 });
+  });
+
+  test('a backup written before the setting existed gets the ruling, and a zero never turns everything red', async ({ page }) => {
+    const s: any = state();
+    delete s.rateCheck;
+    await loadAppWithState(page, s);
+    expect(await g(page, 'JSON.stringify(S.rateCheck)')).toBe(JSON.stringify({ pct: 10, stake: 100 }));
+    await g(page, 'S.rateCheck.pct = 0; S.rateCheck.stake = 0');
+    expect(await g(page, `rateMatch(S.clients[0], '2026-08-01', { partNumber: 'P', unit: 'KG', qty: 100, rate: 15 }).status`)).toBe('differs');
   });
 });

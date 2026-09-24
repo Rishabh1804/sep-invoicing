@@ -47,6 +47,8 @@ function getDefaultState() {
     // own weekly gate. The hourly pool needs none of them — every hour at one
     // rate. extraRate prices the area-booked "extra hours", which carry no name.
     labour: { otMult: 1.1, restCreditMinDays: 6, extraRate: 47.5, modelPerKg: 3.55, gateFull: 0.9, gateHalf: 0.8, extraHoursPerHead: 8 },
+    // Rate matcher thresholds (option E): Check at ≥ pct% off OR ≥ ₹stake on the line.
+    rateCheck: { pct: 10, stake: 100 },
     // Full cost per kg, rebuilt from owner-supplied inputs against Apr–Jul 2026
     // actuals. The old 5.46 predated that rebuild and flattered every margin
     // figure by roughly a rupee a kilo. Only ever the default for a fresh
@@ -348,7 +350,7 @@ var STATE_CONTAINERS = ['clients', 'items', 'invoices', 'incomingMaterial', 'par
 // and so is a missing KEY inside one. `labourCfg()` reads `extraRate || 0`, so
 // a backup predating a constant would silently price the extra at nothing
 // rather than at ₹47.50 — a wrong number, not a visible gap.
-var STATE_CONFIGS = ['labour'];
+var STATE_CONFIGS = ['labour', 'rateCheck'];
 
 function ensureStateShape(s) {
   if (!s) return s;
@@ -832,8 +834,20 @@ function lineLabel(item) {
    that differs can be right (a renegotiated price not yet on the card); the
    matcher's job is that nobody bills it without having seen it. A ₹0 line is
    not judged here: it has its own required reason. */
-var RATE_CHECK_PCT = 0.10;
-var RATE_CHECK_STAKE = 100;
+var RATE_CHECK_DEFAULTS = { pct: 10, stake: 100 };
+
+/* The two thresholds, from Settings. Read on every judgement so a change in
+   Settings re-colours the next line typed. A missing or nonsensical value falls
+   back to the owner's ruling rather than to 0, which would turn every
+   difference red. */
+function rateCheckCfg() {
+  var c = (S && S.rateCheck) || {};
+  var pct = parseFloat(c.pct), stake = parseFloat(c.stake);
+  return {
+    pct: pct > 0 ? pct : RATE_CHECK_DEFAULTS.pct,
+    stake: stake > 0 ? stake : RATE_CHECK_DEFAULTS.stake
+  };
+}
 
 function rateMatch(client, onDate, item) {
   if (!client || !item) return null;
@@ -855,6 +869,7 @@ function rateMatch(client, onDate, item) {
   if (Math.abs(diff) < 0.005) { out.status = 'match'; return out; }
   var k = Math.round(Math.log10(rate / ref.rate));
   if (k !== 0 && Math.abs(rate / (ref.rate * Math.pow(10, k)) - 1) < 0.02) { out.status = 'decimal'; return out; }
-  out.status = (out.pct >= RATE_CHECK_PCT - 1e-9 || Math.abs(out.stake) >= RATE_CHECK_STAKE - 1e-9) ? 'check' : 'differs';
+  var cfg = rateCheckCfg();
+  out.status = (out.pct >= cfg.pct / 100 - 1e-9 || Math.abs(out.stake) >= cfg.stake - 1e-9) ? 'check' : 'differs';
   return out;
 }

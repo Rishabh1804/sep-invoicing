@@ -89,7 +89,7 @@ every session start — nothing to set up by hand. CI (`build-sync`) is the back
 ### Tests
 
 ```bash
-pnpm exec playwright test          # 348 tests, both layouts
+pnpm exec playwright test          # 350 tests, both layouts
 ```
 
 Some sandboxes ship a Chromium build Playwright does not expect and block downloading
@@ -1003,8 +1003,10 @@ yellow/red gap NEXT_SESSION warned of. On the real backup the rule gives **10 Ch
 **Warn, never block**, like the duplicate-challan guard: a rate can differ and be right. It shows on
 the invoice form and the challan form as the rate is typed (and when the invoice date moves — the
 rate on record is dated), and on the invoice detail only where a line needs a second look; a ₹0
-line is judged by its own required reason instead. The thresholds are `RATE_CHECK_PCT` /
-`RATE_CHECK_STAKE`, not yet in Settings.
+line is judged by its own required reason instead. The two thresholds live in **Settings → Rate
+Check** (`S.rateCheck`, read by `rateCheckCfg()`), so a config object `ensureStateShape()` fills
+key by key on an old backup. A blank or zero value falls back to the ruling's 10% / ₹100 rather than
+to 0, which would turn every difference red.
 
 **A line names its PART on screen** (`lineLabel`). The invoice detail and the challan list printed
 `desc` alone, and for a piece client `desc` is often only the gauge (`40X6`) or a word (`CLAMP`) —

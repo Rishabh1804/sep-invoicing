@@ -32,6 +32,13 @@ function openSettings() {
     '<input type="number" step="0.01" class="inv-form-input inv-mono" id="setDefaultCost" value="' + (S.defaultCostPerKg || 8.55) + '"></div>' +
     '<div class="inv-text-muted inv-storage-text">Full cost, not just materials. Everything in Stats measures against it &mdash; realisation, margin, and which clients are priced below cost. The Apr&ndash;Jul 2026 rebuild put it at &#8377;8.55/kg.</div></div>' +
 
+    '<div class="inv-settings-section"><div class="inv-settings-title">Rate Check</div>' +
+    '<div class="inv-form-row"><div class="inv-form-group"><label class="inv-form-label" for="setRcPct">Check at % off the rate</label>' +
+    '<input type="number" step="0.5" min="0.5" class="inv-form-input inv-mono" id="setRcPct" value="' + rateCheckCfg().pct + '"></div>' +
+    '<div class="inv-form-group"><label class="inv-form-label" for="setRcStake">or at &#8377; on the line</label>' +
+    '<input type="number" step="1" min="1" class="inv-form-input inv-mono" id="setRcStake" value="' + rateCheckCfg().stake + '"></div></div>' +
+    '<div class="inv-text-muted inv-storage-text">A line whose rate is this far off the rate on record, or puts this much money at stake, is marked <strong>Check</strong>. Anything smaller is marked <strong>Differs</strong> with its difference shown. Neither stops an invoice from being saved. Set 24 Sep 2026 at 10% or &#8377;100.</div></div>' +
+
     '<div class="inv-settings-section"><div class="inv-settings-title">Labour</div>' +
     '<div class="inv-form-row"><div class="inv-form-group"><label class="inv-form-label">OT multiplier</label>' +
     '<input type="number" step="0.01" min="1" class="inv-form-input inv-mono" id="setOtMult" value="' + ((S.labour && S.labour.otMult) != null ? S.labour.otMult : 1.1) + '"></div>' +
@@ -127,6 +134,11 @@ function saveSettings() {
   }
   var costEl = document.getElementById('setDefaultCost');
   if (costEl) { var parsedCost = parseFloat(costEl.value); if (!isNaN(parsedCost) && parsedCost > 0) S.defaultCostPerKg = parsedCost; }
+  if (!S.rateCheck) S.rateCheck = {};
+  var rcPctEl = document.getElementById('setRcPct');
+  if (rcPctEl) { var rp = parseFloat(rcPctEl.value); if (!isNaN(rp) && rp > 0) S.rateCheck.pct = rp; }
+  var rcStakeEl = document.getElementById('setRcStake');
+  if (rcStakeEl) { var rs = parseFloat(rcStakeEl.value); if (!isNaN(rs) && rs > 0) S.rateCheck.stake = gstRound(rs); }
   if (!S.labour) S.labour = {};
   var otMultEl = document.getElementById('setOtMult');
   if (otMultEl) { var pm = parseFloat(otMultEl.value); if (!isNaN(pm) && pm >= 0) S.labour.otMult = pm; }

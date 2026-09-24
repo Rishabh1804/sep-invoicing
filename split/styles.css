@@ -3197,6 +3197,7 @@ body.inv-desktop .inv-att-extra-row { max-width: calc(var(--sp-32) * 15); }
 }
 .inv-stk-choice-on { border-color: var(--accent); background: var(--accent); color: var(--surface); }
 .inv-stk-map { margin-top: var(--sp-8); }
+.inv-stk-label-gap { margin-top: var(--sp-8); }
 .inv-stk-foot {
   position: sticky; bottom: calc(var(--tab-h) + var(--sp-8)); display: flex; align-items: center; justify-content: space-between; gap: var(--sp-12);
   margin-top: var(--sp-12); padding: var(--sp-10) var(--sp-12); border: 1px solid var(--border-2); border-radius: var(--r-md);

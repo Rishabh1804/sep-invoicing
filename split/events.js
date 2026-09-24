@@ -803,6 +803,14 @@ document.addEventListener('keydown', function(e) {
   //    chain so the last field of a form steps onto its primary action rather
   //    than dead-ending; unmarked buttons (a line's remove ×) stay out of it,
   //    where a stray Enter would be destructive.
+  // A typed stock line name is committed by Enter (the phone keyboard's Go),
+  // not only on blur: it is the last field on its screen, so the step to the
+  // next field below would go nowhere and nothing would happen.
+  if (e.key === 'Enter' && e.target.hasAttribute && e.target.hasAttribute('data-stock-name')) {
+    e.preventDefault();
+    stockCommitName(e.target, true);
+    return;
+  }
   if (e.key === 'Enter' && (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT')) {
     e.preventDefault();
     var container = e.target.closest('.inv-page-active, .inv-im-form-active, .inv-overlay-card');

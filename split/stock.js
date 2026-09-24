@@ -410,6 +410,11 @@ function resolveStockParse(parsed, choices) {
     // device ever sees has nothing saved yet, so its nameless line must be able
     // to point at a line that only exists once this message is saved.
     var mapKey = mapChoice && mapChoice.indexOf('key:') === 0 ? mapChoice.slice(4) : '';
+    // A name typed by the operator wins over the menu: the 24 Sep message's
+    // line 14 was nitric acid, and nitric is named nowhere else in it, so on a
+    // device that never saw the 22 Sep message no menu could have offered it.
+    var typed = String(choices['name' + idx] || '').trim();
+    if (typed) mapKey = stockKey(typed);
     if (mapKey) {
       var already = stockFindByKey(mapKey);
       if (already) { r.item = already; r.via = 'chosen'; } else { r.via = 'new'; }
@@ -741,7 +746,7 @@ function renderStockReview() {
     });
     // Nothing to pick from on the first message, so a new line needs no picker there.
     if ((r.via === 'new' && st.items.length) || !r.src.key || r.via === 'position' || r.via === 'chosen' || (r.skip && !r.item)) {
-      var sel = rv.choices['map' + r.idx] || (r.item ? r.item.id : (r.src.key ? 'new' : ''));
+      var sel = rv.choices['name' + r.idx] ? '' : (rv.choices['map' + r.idx] || (r.item ? r.item.id : (r.src.key ? 'new' : '')));
       h += '<div class="inv-stk-map"><label class="inv-stk-label" for="stockMap' + r.idx + '">This line is</label>' +
         '<select id="stockMap' + r.idx + '" class="inv-form-input" data-stock-map="' + r.idx + '">' +
         (r.src.key ? '' : '<option value=""' + (sel === '' ? ' selected' : '') + '>Pick a line</option>') +
@@ -757,7 +762,13 @@ function renderStockReview() {
         seen[k] = true;
         h += '<option value="key:' + escHtml(k) + '"' + (sel === 'key:' + k ? ' selected' : '') + '>' + escHtml(stockDisplayName(k)) + ' (new in this message)</option>';
       });
-      h += '</select></div>';
+      h += '</select>';
+      if (!r.src.key) {
+        h += '<label class="inv-stk-label inv-stk-label-gap" for="stockName' + r.idx + '">Or type its name</label>' +
+          '<input id="stockName' + r.idx + '" class="inv-form-input" data-stock-name="' + r.idx + '" value="' +
+          escHtml(rv.choices['name' + r.idx] || '') + '" placeholder="e.g. Nitric acid" autocomplete="off">';
+      }
+      h += '</div>';
     }
     h += '</div>';
   });
@@ -1133,6 +1144,9 @@ function stockOnInput(t) {
   if (t.id === 'stockPasteText') { _stockPasteDraft = t.value; return true; }
   if (t.id === 'stockBy') { setStockBy(t.value.trim()); return true; }
   if (t.id === 'stockSentBy') { if (_stockReview) _stockReview.sentBy = t.value.trim(); return true; }
+  // Held as typed, so Save reads it even if the field never lost focus.
+  var tn = t.getAttribute && t.getAttribute('data-stock-name');
+  if (tn != null && _stockReview) { _stockReview.choices['name' + tn] = t.value.trim(); return true; }
   if (!_stockManual) return false;
   if (t.id === 'stockManSupplier') { _stockManual.supplier = t.value.trim(); return true; }
   if (t.id === 'stockManBill') { _stockManual.billNo = t.value.trim(); return true; }
@@ -1144,9 +1158,26 @@ function stockOnInput(t) {
   return false;
 }
 
+function stockCommitName(t, redraw) {
+  var ni = t.getAttribute('data-stock-name');
+  if (ni == null || !_stockReview) return;
+  _stockReview.choices['name' + ni] = t.value.trim();
+  if (t.value.trim()) delete _stockReview.choices['map' + ni];
+  if (redraw) renderStock();
+}
+
 function stockOnChange(t) {
   var mi = t.getAttribute && t.getAttribute('data-stock-map');
-  if (mi != null && _stockReview) { _stockReview.choices['map' + mi] = t.value; renderStock(); return true; }
+  if (mi != null && _stockReview) {
+    _stockReview.choices['map' + mi] = t.value;
+    delete _stockReview.choices['name' + mi];
+    renderStock(); return true;
+  }
+  // Leaving the field only keeps the name. It must not redraw: the blur that
+  // fires this is usually the tap on Save, and redrawing replaces the button
+  // under the finger, so the tap was lost. Enter redraws (stockCommitName).
+  var ni = t.getAttribute && t.getAttribute('data-stock-name');
+  if (ni != null && _stockReview) { stockCommitName(t, false); return true; }
   if (t.id === 'stockManDate' && _stockManual) { _stockManual.date = t.value; return true; }
   var u = t.getAttribute && t.getAttribute('data-stock-unit');
   if (u) { var it = stockItem(u); if (it) { it.unit = t.value; saveState(); renderStock(); } return true; }

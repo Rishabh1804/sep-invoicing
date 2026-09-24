@@ -90,7 +90,7 @@ every session start — nothing to set up by hand. CI (`build-sync`) is the back
 ### Tests
 
 ```bash
-pnpm exec playwright test          # 367 tests, both layouts
+pnpm exec playwright test          # 369 tests, both layouts
 ```
 
 Some sandboxes ship a Chromium build Playwright does not expect and block downloading
@@ -1104,6 +1104,9 @@ three arithmetic shapes: `opening − used = left`, `add received + opening = to
 - A new name becomes a new line; a known name, or one the operator mapped once, is remembered.
 - A nameless line's picker offers the saved lines **and the lines the same message is adding** — on a
   device's first message nothing is saved yet, and the picker was empty (owner, 24 Sep 2026, line 14).
+  **And it takes a typed name**: 24 Sep's line 14 is the only nitric line and carries no name, so
+  nitric is named nowhere in that message and no menu could offer it. The name is kept as typed and
+  redrawn only on Enter — redrawing on blur replaced the Save button under the tap that caused the blur.
 - The same message twice is refused — every figure would count double.
 
 **Days left = level ÷ daily use**, the use over the last three weeks of record divided by the days it

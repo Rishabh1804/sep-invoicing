@@ -283,6 +283,35 @@ test.describe('P39: stock', () => {
       .toEqual([['count', 70, 'Nitric Acid'], ['used', 10, 'Nitric Acid'], ['count', 60, 'Nitric Acid']]);
   });
 
+  test('a nameless line whose chemical the message names nowhere can be typed in', async ({ page }) => {
+    await loadAppWithState(page, state());
+    await openStock(page);
+    // The 24 Sep shape: line 14 is the only nitric line, and it has no name.
+    await paste(page, `Chemical stock ${dmy(-1)} ${dmy(0)}\n\n1) ZINK NIL 00\n\n2) HCL 360-200=160 LTR\n\n3) 70-10=60 LTR`);
+    const card = page.locator('.inv-stk-pr-red');
+    await expect(card.locator('option')).not.toContainText(['Nitric']);
+    await card.locator('[data-stock-name]').fill('Nitric acid');
+    await card.locator('[data-stock-name]').press('Enter');
+    await expect(page.locator('.inv-stk-pr-red')).toHaveCount(0);
+    await expect(page.locator('.inv-stk-pr').filter({ hasText: '3 · Nitric Acid' })).toContainText('New line: added as Nitric Acid');
+    await page.locator('[data-action="invStockSavePaste"]').click();
+    expect(await g(page, `stockReplay(stockFindByKey('NITRIC ACID').id).level`)).toBe(60);
+    // Next time, the same position is read as nitric without asking.
+    expect(await g(page, `stockFindByKey('NITRIC ACID').lastPos`)).toBe(3);
+  });
+
+  test('a typed name counts even when Save is tapped straight after typing', async ({ page }) => {
+    await loadAppWithState(page, state());
+    await openStock(page);
+    await paste(page, `Chemical stock ${dmy(-1)} ${dmy(0)}\n\n1) ZINK NIL 00\n\n2) 70-10=60 LTR`);
+    await page.locator('[data-stock-name]').fill('Nitric acid');
+    // One tap: leaving the field must not redraw the card and swallow it.
+    await page.locator('[data-action="invStockSavePaste"]').click();
+    await expect(page.locator('[data-action="invStockSavePaste"]')).toHaveCount(0);
+    await expect.poll(() => g(page, `(stockFindByKey('NITRIC ACID') || {}).name || null`)).toBe('Nitric Acid');
+    expect(await g(page, `stockReplay(stockFindByKey('NITRIC ACID').id).level`)).toBe(60);
+  });
+
   test('a message that saved nothing can be pasted again once fixed', async ({ page }) => {
     await loadAppWithState(page, state());
     await openStock(page);

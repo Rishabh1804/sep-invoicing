@@ -318,7 +318,7 @@ function saveInvoice() {
       poNumber: invoiceForm.poNumber, poDate: invoiceForm.poDate,
       despatchDate: invoiceForm.despatchDate, transport: invoiceForm.transport, remarks: invoiceForm.remarks, updatedAt: now
     });
-    const synced = backCorrectChallans(inv);
+    const synced = backCorrectChallans(inv, invoiceForm.items);
     const syncNote = synced.lines ? ' — challan ' + synced.challans.join(', ') + ' corrected to match (' + synced.lines + ' line' + (synced.lines === 1 ? '' : 's') + ')' : '';
     doneToast = gstTypeChanged
       ? ['Invoice updated — GST type changed, verify tax amounts' + syncNote, 'warning']

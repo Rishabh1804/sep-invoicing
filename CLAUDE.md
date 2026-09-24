@@ -1044,8 +1044,11 @@ piece count at all, and an invoice line did not record which challan line it cam
 - **An invoice line carries `imItemId`.** A line saved before that is linked when the invoice is
   opened for editing (`withChallanLinks`): same invoice, same part, same quantities, each challan
   line claimed once. A line that matches two challan lines is **left unlinked, never guessed**.
-- **Saving an edited invoice writes its lines back** (`backCorrectChallans`) — part, description,
-  unit, quantity, pieces, rate, amount — and **keeps what they were** on the challan line as
+- **Saving an edited invoice writes back the fields CHANGED IN THAT EDIT** (`backCorrectChallans`)
+  — of part, description, unit, quantity, pieces, rate, amount — never every field where invoice and
+  challan already disagree: an older invoice routinely differs from its challan for reasons nobody
+  decided that day (the gauge folded into the description, a rate recomputed from the amount), and
+  an untouched save must not rewrite the challan. It **keeps what they were** on the challan line as
   `corrections: [{at, invoiceId, invoice, from, to}]`. The challan is the record of the customer's
   paper; overwriting it without trace would lose what an audit asks. History lists each one:
   *"Challan 1115 corrected from SEP/…/00830: CLAMP 5079 4920 4205 — pieces 33 → 330"*.

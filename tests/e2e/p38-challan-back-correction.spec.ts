@@ -51,12 +51,16 @@ test.describe('P38: an invoice correction reaches its challan', () => {
     expect(JSON.parse(hist as string)).toContain('Challan 1115 corrected from SEP/TEST-00830: CLAMP 5079 4920 4205 — pieces 33 → 330');
   });
 
-  test('an unchanged save writes nothing back', async ({ page }) => {
-    await loadAppWithState(page, state([{ id: 'IM-1115-0', ...line, invoiced: true, invoiceId: 'INV-830' }], [{ ...line }]));
+  test('an unchanged save writes nothing back, even where invoice and challan already differ', async ({ page }) => {
+    // The challan's description and rate differ from the invoice for reasons
+    // nobody decided in this edit; an untouched save must leave them alone.
+    await loadAppWithState(page, state([{ id: 'IM-1115-0', ...line, desc: 'CLAMP 5079', rate: 13.5, invoiced: true, invoiceId: 'INV-830' }], [{ ...line }]));
     await g(page, "editInvoice('INV-830')");
     await page.locator('#invSaveBtn').click();
     const it = (await readStoredState(page)).incomingMaterial[0].items[0];
     expect(it.corrections).toBeUndefined();
+    expect(it.desc).toBe('CLAMP 5079');
+    expect(it.rate).toBe(13.5);
   });
 
   test('a line that matches two challan lines is left unlinked, never guessed', async ({ page }) => {

@@ -23,6 +23,11 @@ function withChallanLinks(inv) {
   var taken = {};
   (inv.items || []).forEach(function(li) { if (li.imItemId) taken[li.imItemId] = true; });
   return (inv.items || []).map(function(li) {
+    // What the line said when the edit began: only a field that moves from
+    // this is a correction to carry back (see backCorrectChallans).
+    var orig = {};
+    CHALLAN_SYNC_FIELDS.forEach(function(f) { orig[f] = li[f] == null ? null : li[f]; });
+    li = Object.assign({}, li, { _orig: orig });
     if (li.imItemId) return Object.assign({}, li, { _imItemId: li.imItemId });
     var free = pool.filter(function(it) { return !taken[it.id] && rateKey(it.partNumber) === rateKey(li.partNumber); });
     var exact = free.filter(function(it) { return it.qty === li.qty && (it.nosQty || null) === (li.nosQty || null); });
@@ -33,26 +38,34 @@ function withChallanLinks(inv) {
   });
 }
 
-/* Push an edited invoice's lines back onto the challan lines they came from.
+/* Push an edit's corrections back onto the challan lines they came from.
+   Only the fields the operator CHANGED in this edit travel — never every field
+   where invoice and challan already disagreed. An older invoice routinely
+   differs from its challan for reasons nobody decided today (the gauge folded
+   into the description, a rate recomputed from the amount), and an untouched
+   save must not rewrite the challan or log corrections nobody made.
    The old values are KEPT on the challan line as `corrections` — the challan is
    the record of what the customer's paper said, and overwriting it without
    trace would lose exactly what an audit asks: what did it say, and who changed
    it from which invoice. */
-function backCorrectChallans(inv) {
+function backCorrectChallans(inv, formItems) {
   var now = Date.now(), lines = 0, touched = {};
-  (inv.items || []).forEach(function(li) {
-    if (!li.imItemId) return;
+  (formItems || []).forEach(function(li) {
+    if (!li._imItemId || !li._orig) return;
     var im = null, it = null;
     (S.incomingMaterial || []).some(function(m) {
-      var hit = (m.items || []).find(function(x) { return x.id === li.imItemId; });
+      var hit = (m.items || []).find(function(x) { return x.id === li._imItemId; });
       if (hit) { im = m; it = hit; return true; }
       return false;
     });
     if (!it) return;
     var from = {}, changed = false;
     CHALLAN_SYNC_FIELDS.forEach(function(f) {
-      var a = it[f] == null ? null : it[f], b = li[f] == null ? null : li[f];
-      if (a !== b) { from[f] = a; changed = true; }
+      var now_ = li[f] == null ? null : li[f];
+      if (now_ === li._orig[f]) return;            // not touched in this edit
+      var was = it[f] == null ? null : it[f];
+      if (was === now_) return;                    // challan already agrees
+      from[f] = was; changed = true;
     });
     if (!changed) return;
     var to = {};

@@ -161,10 +161,10 @@ export async function readStoredState(page: Page): Promise<any> {
 
 export async function switchTab(page: Page, tabId: string): Promise<void> {
   // Layout exposes this action in multiple places (mobile bottom tabs + desktop sidebar + home quick-actions).
-  // Any visible one works; pick the first so the helper is layout-agnostic.
-  await page
-    .locator(`[data-action="invSwitchTab"][data-tab="${tabId}"]`)
-    .first()
-    .click();
+  // Any visible one works; pick the first so the helper is layout-agnostic. On the
+  // phone bar Stock, Staff, Stats and History sit behind More, so open it first.
+  const target = page.locator(`[data-action="invSwitchTab"][data-tab="${tabId}"]:visible`);
+  if ((await target.count()) === 0) await page.locator('.inv-tab-more').click();
+  await target.first().click();
   await page.locator(`#${tabId}.inv-page-active`).waitFor();
 }

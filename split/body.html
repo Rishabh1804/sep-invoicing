@@ -77,6 +77,10 @@
   <div id="statsContent" class="inv-stats-grid"></div>
 </div>
 
+<div id="pageStock" class="inv-page">
+  <div id="stockContent"></div>
+</div>
+
 <div id="pageHistory" class="inv-page">
   <div id="historyToolbar"></div>
   <div id="historyList"></div>
@@ -104,17 +108,10 @@
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
     Clients
   </button>
-  <button class="inv-tab" data-action="invSwitchTab" data-tab="pageStaff">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><polyline points="17 11 19 13 23 9"/></svg>
-    Staff
-  </button>
-  <button class="inv-tab" data-action="invSwitchTab" data-tab="pageStats">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 20V10"/><path d="M12 20V4"/><path d="M6 20v-6"/></svg>
-    Stats
-  </button>
-  <button class="inv-tab" data-action="invSwitchTab" data-tab="pageHistory">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-    History
+  <button class="inv-tab inv-tab-more" data-action="invOpenMore" aria-label="More: Stock, Staff, Stats, History">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
+    More
+    <span id="moreBadge" class="inv-tab-badge inv-hidden"></span>
   </button>
 </nav>
 

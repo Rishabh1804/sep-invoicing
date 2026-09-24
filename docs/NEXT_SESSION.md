@@ -50,8 +50,9 @@ measurement before fixing a number:
 
 ### 2. Stock inventory tab
 
-**New: no stock code exists in the app today** (sweep of `split/` for `stock`, zero files). On
-Android it should be a **collapsible tab. The design is to be discussed at session start.**
+✅ **BUILT 24 Sep 2026** — More → Stock (`split/stock.js`, `CLAUDE.md` § Stock). Designed with the owner
+from a rendered mockup: paste the supervisor's WhatsApp message, or enter by hand; Stats costs chemicals
+from it. Staff, Stats and History moved behind **More** on the phone bar with it.
 
 - **The current record is `soma-internal/operations/chemical-stock-log.md`.** Its latest take
   (Shyam, 22 Sep) lists **15 lines**: zinc, Q558, 16 Salt, 106 Salt, cyanide, Monicol,
@@ -108,4 +109,4 @@ in the PR**, so the compile session knows to re-check.
 | **Consumes** the roster and attendance seed ← `soma-internal` | Staff → Roster → Import. Merges by name, and marks name a worker, never an id (see `CLAUDE.md`). The seed carries the alias map. |
 | **Consumes** findings ← `soma-internal` | Tasks recorded in `soma-internal/tasks.md` whose fix belongs here, currently **T-HC**. |
 | **Backup shape changed, 24 Sep 2026** | A top-level `rateCheck: {pct, stake, weightTol}` config. Clients gain `pieceWeights: [{partNumber, gauge, kgPerPiece, effectiveFrom, source, addedAt}]` (second PR). Invoice lines gain `imItemId`; challan (IM) lines gain `corrections: [{at, invoiceId, invoice, from, to}]` when an invoice edit writes back to them. Clients gain `pieceRates: [{partNumber, gauge, rate, effectiveFrom, source, addedAt}]`. Invoice lines billed at ₹0 gain `zeroReason` (`replating` / `sample` / `other`), optional `zeroNote`, and `zeroReasonBackfilled` on the 25 historical lines. Anything in `soma-internal` that parses the backup should expect them. |
-| **Will produce** captured stock entries → `soma-internal` (the owner) | Not yet built. Copied at every compile (the app keeps its own copy); the ledger is `soma-internal/operations/chemical-stock-log.md`. See item 2. |
+| **Produces** captured stock entries → `soma-internal` (the owner) | **Built 24 Sep 2026.** Stock → Export writes `sep-stock-YYYY-MM-DD.json`: `{format: 'sep-stock', version: 1, exportedAt, build, items, entries, pastes}`. Always the whole record; ids are stable, so the compile de-duplicates on them. Each entry: `{id, itemId, kind: count/received/used/charged, qty, date, from?, days?, rate?, price?, supplier?, billNo?, note?, unsettled?, voided?, at, by, sentBy, source: paste/manual/import, pasteId?, n?, raw?}`. `pastes` hold each message whole. The same data is also in the full backup under `stock`, with `stockCheck: {redDays, amberDays, chemModel}`. The ledger stays `soma-internal/operations/chemical-stock-log.md`. |

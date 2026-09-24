@@ -267,6 +267,22 @@ test.describe('P39: stock', () => {
     await expect(page.locator('.inv-stk-hero-lv')).toContainText('10');
   });
 
+  test('on the very first message, a nameless line can be pointed at a line that message creates', async ({ page }) => {
+    await loadAppWithState(page, state());
+    await openStock(page);
+    await paste(page, MSG1() + `\n\n8) 70-10=60 LTR`);
+    const pick = page.locator('.inv-stk-pr-red').locator('select');
+    // Nothing is saved yet, so the choices are the lines this message adds.
+    await expect(pick.locator('option')).toContainText(['Pick a line', 'Nitric Acid (new in this message)']);
+    await pick.selectOption({ label: 'Nitric Acid (new in this message)' });
+    await expect(page.locator('.inv-stk-pr-red')).toHaveCount(1);   // nitric's own arithmetic still asks
+    await page.locator('[data-action="invStockSavePaste"]').click();
+    const nitric = await g(page, `stockData().items.filter(function(i){ return i.key === 'NITRIC ACID'; }).length`);
+    expect(nitric).toBe(1);
+    expect(await g(page, `stockData().entries.filter(function(e){ return e.n === 8; }).map(function(e){ return [e.kind, e.qty, stockItem(e.itemId).name]; })`))
+      .toEqual([['count', 70, 'Nitric Acid'], ['used', 10, 'Nitric Acid'], ['count', 60, 'Nitric Acid']]);
+  });
+
   test('a message that saved nothing can be pasted again once fixed', async ({ page }) => {
     await loadAppWithState(page, state());
     await openStock(page);

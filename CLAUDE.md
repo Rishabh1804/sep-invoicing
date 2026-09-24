@@ -90,7 +90,7 @@ every session start — nothing to set up by hand. CI (`build-sync`) is the back
 ### Tests
 
 ```bash
-pnpm exec playwright test          # 366 tests, both layouts
+pnpm exec playwright test          # 367 tests, both layouts
 ```
 
 Some sandboxes ship a Chromium build Playwright does not expect and block downloading
@@ -1102,6 +1102,8 @@ three arithmetic shapes: `opening − used = left`, `add received + opening = to
   by its **position** in the last message (24 Sep line 14, `70-10=60`), a delivery with no date on a
   window over two days, a number it could not place.
 - A new name becomes a new line; a known name, or one the operator mapped once, is remembered.
+- A nameless line's picker offers the saved lines **and the lines the same message is adding** — on a
+  device's first message nothing is saved yet, and the picker was empty (owner, 24 Sep 2026, line 14).
 - The same message twice is refused — every figure would count double.
 
 **Days left = level ÷ daily use**, the use over the last three weeks of record divided by the days it

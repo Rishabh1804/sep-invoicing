@@ -15,7 +15,7 @@
 <title>SEP Invoicing</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-<meta name="app-build" content="5a4bf91d">
+<meta name="app-build" content="57e5b5e3">
 <style>
 /* ===== DESIGN TOKENS ===== */
 :root {
@@ -16302,7 +16302,15 @@ function resolveStockParse(parsed, choices) {
     var r = { src: l, idx: idx, item: null, newItem: null, via: null, issues: l.issues.slice(), entries: [], skip: false };
     var mapChoice = choices['map' + idx];
     var byKey = stockFindByKey(l.key);
-    if (mapChoice && mapChoice !== 'new') { r.item = stockItem(mapChoice); r.via = 'chosen'; }
+    // "key:<KEY>" names a line this same message is creating: the first message a
+    // device ever sees has nothing saved yet, so its nameless line must be able
+    // to point at a line that only exists once this message is saved.
+    var mapKey = mapChoice && mapChoice.indexOf('key:') === 0 ? mapChoice.slice(4) : '';
+    if (mapKey) {
+      var already = stockFindByKey(mapKey);
+      if (already) { r.item = already; r.via = 'chosen'; } else { r.via = 'new'; }
+    }
+    else if (mapChoice && mapChoice !== 'new') { r.item = stockItem(mapChoice); r.via = 'chosen'; }
     else if (mapChoice === 'new' && l.key) { r.via = 'new'; }
     else if (byKey) { r.item = byKey; r.via = 'name'; }
     else if (!l.key) {
@@ -16316,7 +16324,8 @@ function resolveStockParse(parsed, choices) {
       }
     } else { r.via = 'new'; }
     if (r.via === 'new') {
-      r.newItem = { name: stockDisplayName(l.key), key: l.key, unit: l.unit || '', basis: stockGuessBasis(l.key) };
+      var nk = mapKey || l.key;
+      r.newItem = { name: stockDisplayName(nk), key: nk, unit: l.unit || '', basis: stockGuessBasis(nk) };
       r.issues.push({ level: 'info', code: 'new', text: 'New line: added as ' + r.newItem.name + (l.unit ? ' (' + l.unit + ')' : ', unit not stated') });
     }
     var item = r.item || r.newItem;
@@ -16627,7 +16636,7 @@ function renderStockReview() {
       }
     });
     // Nothing to pick from on the first message, so a new line needs no picker there.
-    if ((r.via === 'new' && st.items.length) || r.via === 'position' || r.via === 'chosen' || (r.skip && !r.item)) {
+    if ((r.via === 'new' && st.items.length) || !r.src.key || r.via === 'position' || r.via === 'chosen' || (r.skip && !r.item)) {
       var sel = rv.choices['map' + r.idx] || (r.item ? r.item.id : (r.src.key ? 'new' : ''));
       h += '<div class="inv-stk-map"><label class="inv-stk-label" for="stockMap' + r.idx + '">This line is</label>' +
         '<select id="stockMap' + r.idx + '" class="inv-form-input" data-stock-map="' + r.idx + '">' +
@@ -16635,6 +16644,14 @@ function renderStockReview() {
         (r.src.key ? '<option value="new"' + (sel === 'new' ? ' selected' : '') + '>A new line: ' + escHtml(stockDisplayName(r.src.key)) + '</option>' : '');
       st.items.forEach(function(i) {
         h += '<option value="' + escHtml(i.id) + '"' + (sel === i.id ? ' selected' : '') + '>' + escHtml(i.name) + '</option>';
+      });
+      // Lines this message is adding, so the first message can map to them too.
+      var seen = {};
+      res.lines.forEach(function(o) {
+        var k = o.src.key;
+        if (!k || k === r.src.key || seen[k] || stockFindByKey(k)) return;
+        seen[k] = true;
+        h += '<option value="key:' + escHtml(k) + '"' + (sel === 'key:' + k ? ' selected' : '') + '>' + escHtml(stockDisplayName(k)) + ' (new in this message)</option>';
       });
       h += '</select></div>';
     }

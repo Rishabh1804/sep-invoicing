@@ -54,7 +54,7 @@ Android it should be a **collapsible tab. The design is to be discussed at sessi
   likely out on 23 Sep.
 - **Data comes in through an import door, never committed.** This repo is public. It follows the
   same rule as the roster, which ships empty.
-- ⚖ **Ownership follows the owner's rule of 24 Sep: the latest merge survives, with its reason stated in its PR, unless a repo's merge PR says otherwise.** `soma-internal` keeps the stock log today, and `sep-dashboard` v2.1 already has a stock tab. **If this session's PR is meant to make this app the stock owner, its description must say so and give the reason.** A PR that doesn't say so leaves ownership where it is.
+- ⚖ **Stock is owned by `soma-internal`** (owner's ruling, 24 Sep 2026: *"soma-internal will take ownership, that's the private repo where all sensitive data must be transferred when a compile happens"*). **So this tab is a view and an input, not the ledger.** It shows stock and captures entries on the device. Everything it captures is transferred into `soma-internal` at the next compile session. Design the capture so it can be **exported whole**, with dates and who entered it, because that export is the record's source. For this app to take stock over, a later merge PR would have to state so, with a reason.
 
 ### 3. To-do widget: desktop and Android (Google Pixel 11 Pro)
 
@@ -98,7 +98,7 @@ in the PR**, so the compile session knows to re-check.
 
 | Flow | This repo's side |
 |---|---|
-| **Produces** the JSON backup → `soma-internal` | Settings → Export. The whole state as one JSON file. `soma-internal` stores it as `analysis/sep-invoicing-backup-YYYY-MM-DD.json`. Newest there: **2026-09-11**. |
+| **Produces** the JSON backup → `soma-internal` (**all sensitive data goes there at every compile**) | Settings → Export. The whole state as one JSON file. `soma-internal` stores it as `analysis/sep-invoicing-backup-YYYY-MM-DD.json`. Newest there: **2026-09-11**. |
 | **Consumes** the roster and attendance seed ← `soma-internal` | Staff → Roster → Import. Merges by name, and marks name a worker, never an id (see `CLAUDE.md`). The seed carries the alias map. |
 | **Consumes** findings ← `soma-internal` | Tasks recorded in `soma-internal/tasks.md` whose fix belongs here, currently **T-HC**. |
-| **Will produce** stock positions, if a merge PR here claims ownership with a reason | Not yet built. See item 2 and the ownership rule under it. |
+| **Will produce** captured stock entries → `soma-internal` (the owner) | Not yet built. Exported at every compile; the ledger is `soma-internal/operations/chemical-stock-log.md`. See item 2. |

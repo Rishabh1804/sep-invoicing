@@ -346,6 +346,32 @@ input, select, textarea, button { font-family: inherit; font-size: var(--fs-base
 .dark .inv-piece-report { background: var(--surface-2); color: var(--text-2); }
 .dark .inv-piece-report-warn { color: var(--warning-text); }
 
+/* Rate matcher: the verdict on a line's rate, under the Rate field */
+.inv-rm-note { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-6); margin-top: var(--sp-6); }
+.inv-rm-text { font-size: var(--fs-xs); color: var(--text-2); font-family: var(--ff-mono); }
+.inv-rm-chip {
+  display: inline-flex; align-items: center; padding: var(--sp-2) var(--sp-8);
+  border-radius: var(--r-full); border: 1px solid transparent;
+  font-size: var(--fs-xs); font-weight: 600; white-space: nowrap;
+}
+.inv-rm-match { background: var(--attend-bg); color: var(--attend-text); border-color: var(--attend); }
+.inv-rm-decimal { background: var(--warning-bg); color: var(--warning-text); border-color: var(--warning); }
+.inv-rm-differs { background: var(--neutral-bg); color: var(--neutral-text); border-color: var(--neutral); }
+.inv-rm-check { background: var(--danger-bg); color: var(--danger-text); border-color: var(--danger); }
+.inv-rm-none, .inv-rm-gauge { background: transparent; color: var(--text-3); border-color: var(--border-2); font-weight: 500; }
+.inv-form-input.inv-rm-input-match { border-color: var(--attend); }
+.inv-form-input.inv-rm-input-decimal { border-color: var(--warning); background: var(--warning-bg); }
+.inv-form-input.inv-rm-input-differs { border-color: var(--neutral); }
+.inv-form-input.inv-rm-input-check { border-color: var(--danger); background: var(--danger-bg); }
+.dark .inv-rm-text { color: var(--text-2); }
+.dark .inv-rm-match { background: var(--attend-bg); color: var(--attend-text); }
+.dark .inv-rm-decimal { background: var(--warning-bg); color: var(--warning-text); }
+.dark .inv-rm-differs { background: var(--neutral-bg); color: var(--neutral-text); }
+.dark .inv-rm-check { background: var(--danger-bg); color: var(--danger-text); }
+.dark .inv-rm-none, .dark .inv-rm-gauge { color: var(--text-3); border-color: var(--border-2); }
+.dark .inv-form-input.inv-rm-input-decimal { background: var(--warning-bg); }
+.dark .inv-form-input.inv-rm-input-check { background: var(--danger-bg); }
+
 /* ===== VALIDATION ===== */
 .inv-error { color: var(--danger); font-size: var(--fs-xs); margin-top: var(--sp-4); }
 .inv-form-input-error { border-color: var(--danger); }

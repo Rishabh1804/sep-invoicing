@@ -89,7 +89,7 @@ every session start — nothing to set up by hand. CI (`build-sync`) is the back
 ### Tests
 
 ```bash
-pnpm exec playwright test          # 344 tests, both layouts
+pnpm exec playwright test          # 348 tests, both layouts
 ```
 
 Some sandboxes ship a Chromium build Playwright does not expect and block downloading
@@ -983,6 +983,28 @@ of what a matcher would have flagged was reference data.
   rate change or an override never reached a scanned challan. It now reads the client's records;
   the frozen figure is only a fallback for a client the app does not hold. A piece client's
   challan keeps its own amount — that is the passthrough.
+
+**The matcher: option E, chosen by the owner 24 Sep 2026** (`rateMatch()` in `state.js`, one
+renderer `rateMatchNote()` in `create.js`). Five candidate rules were replayed over the 18 differing
+lines and rendered side by side before any was built:
+
+| Verdict | Rule |
+|---|---|
+| **Matches** | equal to the paisa |
+| **×10 slip** | a power of ten away, within 2% — checked before any threshold |
+| **Check** | **≥ 10% off, or ≥ ₹100 at stake on the line** (difference × quantity in the reference's unit — a `nos_to_weight` line stakes kilograms) |
+| **Differs** | anything less, with its difference shown |
+| *No rate on record* / *Gauge not stated* | grey, never red — nothing to compare against |
+
+The percentage catches a wrong rate whatever the quantity; the rupee floor catches the small slip on
+a big line (00684: 8.3% low, ₹119.60 short across 920 pieces), which the percentage alone let
+through. The owner's first-written flat ₹0.50 left 10 of the 18 lines with **no mark at all** — the
+yellow/red gap NEXT_SESSION warned of. On the real backup the rule gives **10 Check, 8 Differs**.
+**Warn, never block**, like the duplicate-challan guard: a rate can differ and be right. It shows on
+the invoice form and the challan form as the rate is typed (and when the invoice date moves — the
+rate on record is dated), and on the invoice detail only where a line needs a second look; a ₹0
+line is judged by its own required reason instead. The thresholds are `RATE_CHECK_PCT` /
+`RATE_CHECK_STAKE`, not yet in Settings.
 
 **A line names its PART on screen** (`lineLabel`). The invoice detail and the challan list printed
 `desc` alone, and for a piece client `desc` is often only the gauge (`40X6`) or a word (`CLAMP`) —

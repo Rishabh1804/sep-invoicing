@@ -15,7 +15,7 @@
 <title>SEP Invoicing</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-<meta name="app-build" content="7a628fbe">
+<meta name="app-build" content="5d6c7bf4">
 <style>
 /* ===== DESIGN TOKENS ===== */
 :root {
@@ -364,6 +364,32 @@ input, select, textarea, button { font-family: inherit; font-size: var(--fs-base
 .inv-piece-report-list { margin: var(--sp-4) 0 0 0; padding-left: var(--sp-16); }
 .dark .inv-piece-report { background: var(--surface-2); color: var(--text-2); }
 .dark .inv-piece-report-warn { color: var(--warning-text); }
+
+/* Rate matcher: the verdict on a line's rate, under the Rate field */
+.inv-rm-note { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-6); margin-top: var(--sp-6); }
+.inv-rm-text { font-size: var(--fs-xs); color: var(--text-2); font-family: var(--ff-mono); }
+.inv-rm-chip {
+  display: inline-flex; align-items: center; padding: var(--sp-2) var(--sp-8);
+  border-radius: var(--r-full); border: 1px solid transparent;
+  font-size: var(--fs-xs); font-weight: 600; white-space: nowrap;
+}
+.inv-rm-match { background: var(--attend-bg); color: var(--attend-text); border-color: var(--attend); }
+.inv-rm-decimal { background: var(--warning-bg); color: var(--warning-text); border-color: var(--warning); }
+.inv-rm-differs { background: var(--neutral-bg); color: var(--neutral-text); border-color: var(--neutral); }
+.inv-rm-check { background: var(--danger-bg); color: var(--danger-text); border-color: var(--danger); }
+.inv-rm-none, .inv-rm-gauge { background: transparent; color: var(--text-3); border-color: var(--border-2); font-weight: 500; }
+.inv-form-input.inv-rm-input-match { border-color: var(--attend); }
+.inv-form-input.inv-rm-input-decimal { border-color: var(--warning); background: var(--warning-bg); }
+.inv-form-input.inv-rm-input-differs { border-color: var(--neutral); }
+.inv-form-input.inv-rm-input-check { border-color: var(--danger); background: var(--danger-bg); }
+.dark .inv-rm-text { color: var(--text-2); }
+.dark .inv-rm-match { background: var(--attend-bg); color: var(--attend-text); }
+.dark .inv-rm-decimal { background: var(--warning-bg); color: var(--warning-text); }
+.dark .inv-rm-differs { background: var(--neutral-bg); color: var(--neutral-text); }
+.dark .inv-rm-check { background: var(--danger-bg); color: var(--danger-text); }
+.dark .inv-rm-none, .dark .inv-rm-gauge { color: var(--text-3); border-color: var(--border-2); }
+.dark .inv-form-input.inv-rm-input-decimal { background: var(--warning-bg); }
+.dark .inv-form-input.inv-rm-input-check { background: var(--danger-bg); }
 
 /* ===== VALIDATION ===== */
 .inv-error { color: var(--danger); font-size: var(--fs-xs); margin-top: var(--sp-4); }
@@ -4007,6 +4033,57 @@ function lineLabel(item) {
   if (rateKey(d).indexOf(rateKey(pn)) >= 0) return d;
   return pn + ' · ' + d;
 }
+
+/* ===== RATE MATCHER =====
+
+   Every line's rate against the rate on record (getRateOnRecord). The rule was
+   chosen by the owner (24 Sep 2026, option E) after five candidates were
+   replayed over the 11 Sep backup's 2,835 lines:
+
+     match    — equal to the paisa
+     decimal  — off by a power of ten, within 2% (₹1.49 typed as ₹14.90);
+                checked before any threshold, because it is a typing slip with
+                its own obvious fix
+     check    — ≥ 10% off, OR ≥ ₹100 at stake on this line. The percentage
+                catches a wrong rate whatever the quantity; the rupee floor
+                catches the small slip on a big line (00684: 8% low, ₹119.60
+                short across 920 pieces), which a percentage alone let through
+     differs  — anything less, shown with its difference; nothing that differs
+                goes unmarked (the owner's flat ₹0.50 as first written left 10
+                of the 18 differing lines with no mark at all)
+     none     — nothing on record to compare against; grey, never red
+     gauge    — priced by gauge and the line does not say which
+
+   Warn, never block — the same stance as the duplicate-challan guard. A rate
+   that differs can be right (a renegotiated price not yet on the card); the
+   matcher's job is that nobody bills it without having seen it. A ₹0 line is
+   not judged here: it has its own required reason. */
+var RATE_CHECK_PCT = 0.10;
+var RATE_CHECK_STAKE = 100;
+
+function rateMatch(client, onDate, item) {
+  if (!client || !item) return null;
+  var qty = item.qty || 0;
+  var rate = item.rate || 0;
+  if (!(qty > 0) || !(rate > 0)) return null;
+  var ref = getRateOnRecord(client, onDate, item);
+  if (!ref) return { status: 'none' };
+  if (ref.rate == null) return { status: 'gauge' };
+  var diff = gstRound(rate - ref.rate);
+  // Quantity in the reference's own unit: a nos_to_weight line priced per kg
+  // stakes the kilograms, not the pieces.
+  var units = qty;
+  if (ref.unit === 'kg' && item.unit === 'NOS') {
+    units = qty * ((S.partWeights || {})[(item.partNumber || '').toUpperCase()] || 0);
+  }
+  var out = { ref: ref.rate, unit: ref.unit, source: ref.source, diff: diff,
+    pct: Math.abs(diff) / ref.rate, stake: gstRound(diff * units) };
+  if (Math.abs(diff) < 0.005) { out.status = 'match'; return out; }
+  var k = Math.round(Math.log10(rate / ref.rate));
+  if (k !== 0 && Math.abs(rate / (ref.rate * Math.pow(10, k)) - 1) < 0.02) { out.status = 'decimal'; return out; }
+  out.status = (out.pct >= RATE_CHECK_PCT - 1e-9 || Math.abs(out.stake) >= RATE_CHECK_STAKE - 1e-9) ? 'check' : 'differs';
+  return out;
+}
 /* ===== ZINC MARKET RATE =====
 
    Zinc is the largest bought-in input on the floor — ~26% of cost at ~425 kg
@@ -6269,6 +6346,7 @@ function renderCreateForm() {
     const isPieceNOS = client && client.billingMode==='piece' && item.unit==='NOS';
     const rateDisplay = (item.rate != null && !isNaN(item.rate) && item.rate !== 0) ? formatNum(item.rate) : (item.qty > 0 && isPieceNOS ? '\u2014' : (item.rate === 0 && item.qty > 0 ? '0.00' : ''));
     const amtDisplay = (item.amount != null && !isNaN(item.amount) && item.amount !== 0) ? formatNum(item.amount) : (item.amount === 0 && item.qty > 0 ? '0.00' : '');
+    const rm = client ? rateMatch(client, invoiceForm.date, item) : null;
     html += '<div class="inv-line-item">' +
       '<div class="inv-line-header"><span class="inv-line-num">Item ' + (idx + 1) + '</span>' +
       '<button class="inv-line-remove" data-action="invRemoveLineItem" data-idx="' + idx + '">&times;</button></div>' +
@@ -6286,12 +6364,13 @@ function renderCreateForm() {
       '<option value="NOS"' + (item.unit==='NOS'?' selected':'') + '>NOS</option></select></div></div>' +
       '<div class="inv-form-row">' +
       '<div class="inv-form-group"><label class="inv-form-label">Rate</label>' +
-      '<input type="number" class="inv-form-input inv-mono' + (client && client.billingMode==='piece' && item.unit==='NOS' ? ' inv-form-input-readonly' : '') + '" value="' + rateDisplay + '" data-field="rate" data-idx="' + idx + '" data-action="invUpdateLine" step="any" min="0"' +
+      '<input type="number" class="inv-form-input inv-mono' + (client && client.billingMode==='piece' && item.unit==='NOS' ? ' inv-form-input-readonly' : '') + rateMatchInputClass(rm) + '" value="' + rateDisplay + '" data-field="rate" data-idx="' + idx + '" data-action="invUpdateLine" step="any" min="0"' +
       (client && client.billingMode==='piece' && item.unit==='NOS' ? ' readonly title="Rate is set from this client&#39;s piece-mode profile"' : '') + '></div>' +
       '<div class="inv-form-group"><label class="inv-form-label">Amount</label>' +
       '<input type="number" class="inv-form-input inv-mono" value="' + amtDisplay + '" data-field="amount" data-idx="' + idx + '" data-action="invUpdateLine" step="any" min="0"' +
       (client && client.billingMode==='piece' && item.unit==='NOS' ? '' : ' readonly') + '></div></div>' +
       (item._override ? '<span class="inv-override-badge">' + escHtml(item._label || 'Override') + '</span> ' : '') +
+      '<div id="invRateMatch' + idx + '">' + rateMatchNote(rm) + '</div>' +
       '<div id="invZeroReason' + idx + '">' + zeroReasonHtml(item, idx) + '</div>' +
       '</div>';
   });
@@ -6582,6 +6661,51 @@ function saveInvoice() {
   switchTab(returnDest);
 }
 
+
+/* The matcher's note under a line's rate, and the class its Rate field takes.
+   One renderer for the invoice form, the challan form and the invoice detail,
+   so the three can never describe the same line differently. */
+var RM_LABELS = { match: 'Matches', decimal: '×10 slip', differs: 'Differs', check: 'Check',
+  none: 'No rate on record', gauge: 'Gauge not stated' };
+
+function rateMatchNote(m, compact) {
+  if (!m) return '';
+  var per = m.unit === 'kg' ? '/kg' : '/pc';
+  var chip = '<span class="inv-rm-chip inv-rm-' + m.status + '">' + RM_LABELS[m.status] + '</span>';
+  var text = '';
+  if (m.status === 'match') text = compact ? '' : formatCurrency(m.ref) + per + ' on record';
+  else if (m.status === 'decimal') text = 'On record ' + formatCurrency(m.ref) + per + ' — a power of ten away. Did you mean ' + formatCurrency(m.ref) + '?';
+  else if (m.status === 'differs' || m.status === 'check') {
+    var sign = function(n) { return (n > 0 ? '+' : '−') + formatCurrency(Math.abs(n)); };
+    text = 'On record ' + formatCurrency(m.ref) + per + ' · ' + sign(m.diff) + ' (' + (m.pct * 100).toFixed(1) + '%)' +
+      ' · ' + sign(m.stake) + ' on this line';
+  } else if (m.status === 'none') text = compact ? '' : 'Add it to the client’s piece rates to check this line';
+  else if (m.status === 'gauge') text = compact ? '' : 'This part is priced by gauge — put the gauge in the description';
+  return '<div class="inv-rm-note">' + chip + (text ? '<span class="inv-rm-text">' + escHtml(text) + '</span>' : '') + '</div>';
+}
+
+function rateMatchInputClass(m) {
+  return m ? ' inv-rm-input-' + m.status : '';
+}
+
+/* Re-judge one line in place: the note and the Rate field's class. Called from
+   the input handlers, which deliberately do not re-render the whole form. */
+function refreshRateMatch(boxId, inputEl, client, onDate, item) {
+  var m = rateMatch(client, onDate, item);
+  var box = document.getElementById(boxId);
+  if (box) box.innerHTML = rateMatchNote(m);
+  if (inputEl) {
+    inputEl.className = inputEl.className.replace(/\s*inv-rm-input-\w+/g, '') + rateMatchInputClass(m);
+  }
+}
+
+function refreshInvoiceLineMatch(idx) {
+  var item = invoiceForm.items[idx];
+  var client = invoiceForm.clientId ? S.clients.find(function(c) { return c.id === invoiceForm.clientId; }) : null;
+  if (!item || !client) return;
+  refreshRateMatch('invRateMatch' + idx, document.querySelector('[data-action="invUpdateLine"][data-field="rate"][data-idx="' + idx + '"]'),
+    client, invoiceForm.date, item);
+}
 /* ===== SETTINGS ===== */
 function openSettings() {
   const scrim = document.createElement('div');
@@ -8015,7 +8139,7 @@ function _renderRegDetail(invId, skipMasterRefresh) {
     '<th>Part</th><th>Qty</th><th>Unit</th><th>Rate</th><th>Amount</th></tr></thead><tbody>';
   d.items.forEach(function(item, li) {
     html += '<tr>' +
-      '<td>' + escHtml(lineLabel((inv.items || [])[li] || item)) + zeroReasonTag((inv.items || [])[li]) + '</td>' +
+      '<td>' + escHtml(lineLabel((inv.items || [])[li] || item)) + zeroReasonTag((inv.items || [])[li]) + detailRateMatch(inv, (inv.items || [])[li]) + '</td>' +
       '<td class="inv-mono">' + escHtml(item.qty) + (item.nosQtyRaw && item.nosQtyRaw > 0 ? ' <span class="inv-text-muted">(' + escHtml(item.nosQtyRaw) + ' NOS)</span>' : '') + '</td>' +
       '<td>' + escHtml(item.unit) + '</td>' +
       '<td class="inv-mono">' + escHtml(item.rate) + '</td>' +
@@ -8314,7 +8438,7 @@ function openInvoiceDetail(invId) {
     '<th>Part</th><th>Qty</th><th>Unit</th><th>Rate</th><th>Amount</th></tr></thead><tbody>';
   d.items.forEach(function(item, li) {
     html += '<tr>' +
-      '<td>' + escHtml(lineLabel((inv.items || [])[li] || item)) + zeroReasonTag((inv.items || [])[li]) + '</td>' +
+      '<td>' + escHtml(lineLabel((inv.items || [])[li] || item)) + zeroReasonTag((inv.items || [])[li]) + detailRateMatch(inv, (inv.items || [])[li]) + '</td>' +
       '<td class="inv-mono">' + escHtml(item.qty) + (item.nosQtyRaw && item.nosQtyRaw > 0 ? ' <span class="inv-text-muted">(' + escHtml(item.nosQtyRaw) + ' NOS)</span>' : '') + '</td>' +
       '<td>' + escHtml(item.unit) + '</td>' +
       '<td class="inv-mono">' + escHtml(item.rate) + '</td>' +
@@ -8406,6 +8530,18 @@ function zeroReasonTag(raw) {
   if (raw.zeroReasonBackfilled) text += ' (backfilled: owner ruling ' + raw.zeroReasonBackfilled + ')';
   return '<div class="inv-zero-tag' + (raw.zeroReason ? '' : ' inv-zero-tag-missing') + '">' +
     '<span class="inv-zero-badge">\u20B90</span> ' + escHtml(text) + '</div>';
+}
+
+/* The matcher on a saved invoice: only what needs a second look. A matching
+   line says nothing here — the register is read, not typed into, and a column
+   of green would bury the one line that is not. A cancelled invoice bills
+   nothing, so it is not judged. */
+function detailRateMatch(inv, raw) {
+  if (!inv || !raw || inv.status === 'cancelled') return '';
+  var client = S.clients.find(function(c) { return c.id === inv.clientId; });
+  var m = client ? rateMatch(client, inv.date, raw) : null;
+  if (!m || m.status === 'match' || m.status === 'none') return '';
+  return rateMatchNote(m, true);
 }
 
 function editInvoice(invId) {
@@ -16930,6 +17066,7 @@ function renderAddChallanForm() {
     var rateDisplay = (item.rate != null && !isNaN(item.rate) && item.rate !== 0) ? formatNum(item.rate) : '';
     var amtDisplay = (item.amount != null && !isNaN(item.amount) && item.amount !== 0) ? formatNum(item.amount) : '';
 
+    var rm = client ? rateMatch(client, _challanForm.challanDate || localDateStr(), item) : null;
     html += '<div class="inv-line-item">' +
       '<div class="inv-line-header"><span class="inv-line-num" id="imLineLbl' + idx + '">Item ' + (idx + 1) + '</span>' +
       '<button class="inv-line-remove" data-k="remove-' + idx + '" data-action="invRemoveChallanLine" data-idx="' + idx + '" aria-label="Remove item ' + (idx + 1) + '">&times;</button></div>' +
@@ -16949,11 +17086,12 @@ function renderAddChallanForm() {
       '<input type="number" class="inv-form-input inv-mono" id="imNos' + idx + '" data-k="nos-' + idx + '" value="' + (item.nosQty || '') + '" data-field="nosQty" data-idx="' + idx + '" data-action="invUpdateChallanLine" step="1" min="0" placeholder="Pcs"></div></div>' +
       '<div class="inv-form-row">' +
       '<div class="inv-form-group"><label class="inv-form-label" for="imRate' + idx + '">Rate</label>' +
-      '<input type="number" class="inv-form-input inv-mono" id="imRate' + idx + '" data-k="rate-' + idx + '" value="' + rateDisplay + '" data-field="rate" data-idx="' + idx + '" data-action="invUpdateChallanLine" step="any" min="0"' +
+      '<input type="number" class="inv-form-input inv-mono' + rateMatchInputClass(rm) + '" id="imRate' + idx + '" data-k="rate-' + idx + '" value="' + rateDisplay + '" data-field="rate" data-idx="' + idx + '" data-action="invUpdateChallanLine" step="any" min="0"' +
       (isPieceNOS ? ' readonly' : '') + '></div>' +
       '<div class="inv-form-group"><label class="inv-form-label" for="imAmt' + idx + '">Amount</label>' +
       '<input type="number" class="inv-form-input inv-mono" id="imAmt' + idx + '" data-k="amount-' + idx + '" value="' + amtDisplay + '" data-field="amount" data-idx="' + idx + '" data-action="invUpdateChallanLine" step="any" min="0"' +
-      (isPieceNOS ? '' : ' readonly') + '></div></div></div>';
+      (isPieceNOS ? '' : ' readonly') + '></div></div>' +
+      '<div id="imRateMatch' + idx + '">' + rateMatchNote(rm) + '</div></div>';
   });
   // data-kbd-ring puts these two in the Enter-to-next-field chain, so the last
   // field of the last line steps onto "Add Line Item" instead of dead-ending.
@@ -17274,6 +17412,15 @@ function editChallan(imId) {
   showToast('Editing challan' + (im.challanNo ? ' ' + im.challanNo : ''), 'warning');
 }
 
+
+function refreshChallanLineMatch(idx) {
+  if (!_challanForm) return;
+  var item = _challanForm.items[idx];
+  var client = _challanForm.clientId ? S.clients.find(function(c) { return c.id === _challanForm.clientId; }) : null;
+  if (!item || !client) return;
+  refreshRateMatch('imRateMatch' + idx, document.getElementById('imRate' + idx), client,
+    _challanForm.challanDate || localDateStr(), item);
+}
 /* ===== IM DUPLICATE GUARD ===== */
 
 /*
@@ -18170,6 +18317,8 @@ document.addEventListener('change', function(e) {
   }
   if (e.target.id === 'invDate') {
     invoiceForm.date = e.target.value;
+    // The rate on record is dated, so a new invoice date can change every verdict.
+    invoiceForm.items.forEach(function(_, i) { refreshInvoiceLineMatch(i); });
   }
   // Register filters — one capture path, so a new filter control cannot end up
   // wired to the click delegate and not to this one.
@@ -18383,6 +18532,7 @@ document.addEventListener('input', function(e) {
           updateTotalsDisplay();
         }
       }
+      refreshInvoiceLineMatch(idx);
     }
     return;
   }
@@ -18408,6 +18558,7 @@ document.addEventListener('input', function(e) {
           if (aI) aI.value = formatNum(citem.amount);
         }
       }
+      refreshChallanLineMatch(cidx);
     }
     return;
   }
@@ -18439,6 +18590,7 @@ document.addEventListener('input', function(e) {
           if (aI2) aI2.value = formatNum(citem2.amount);
         }
       }
+      refreshChallanLineMatch(cidx2);
     }
     return;
   }
@@ -18471,6 +18623,7 @@ document.addEventListener('input', function(e) {
     // Update totals without full DOM replacement
     updateTotalsDisplay();
     refreshZeroReason(idx);
+    refreshInvoiceLineMatch(idx);
   }
   if (e.target.dataset.action === 'invZeroNote') {
     var zItem = invoiceForm.items[parseInt(e.target.dataset.idx)];

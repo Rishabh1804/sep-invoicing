@@ -517,7 +517,7 @@ function _renderRegDetail(invId, skipMasterRefresh) {
     '<th>Part</th><th>Qty</th><th>Unit</th><th>Rate</th><th>Amount</th></tr></thead><tbody>';
   d.items.forEach(function(item, li) {
     html += '<tr>' +
-      '<td>' + escHtml(lineLabel((inv.items || [])[li] || item)) + zeroReasonTag((inv.items || [])[li]) + '</td>' +
+      '<td>' + escHtml(lineLabel((inv.items || [])[li] || item)) + zeroReasonTag((inv.items || [])[li]) + detailRateMatch(inv, (inv.items || [])[li]) + '</td>' +
       '<td class="inv-mono">' + escHtml(item.qty) + (item.nosQtyRaw && item.nosQtyRaw > 0 ? ' <span class="inv-text-muted">(' + escHtml(item.nosQtyRaw) + ' NOS)</span>' : '') + '</td>' +
       '<td>' + escHtml(item.unit) + '</td>' +
       '<td class="inv-mono">' + escHtml(item.rate) + '</td>' +
@@ -816,7 +816,7 @@ function openInvoiceDetail(invId) {
     '<th>Part</th><th>Qty</th><th>Unit</th><th>Rate</th><th>Amount</th></tr></thead><tbody>';
   d.items.forEach(function(item, li) {
     html += '<tr>' +
-      '<td>' + escHtml(lineLabel((inv.items || [])[li] || item)) + zeroReasonTag((inv.items || [])[li]) + '</td>' +
+      '<td>' + escHtml(lineLabel((inv.items || [])[li] || item)) + zeroReasonTag((inv.items || [])[li]) + detailRateMatch(inv, (inv.items || [])[li]) + '</td>' +
       '<td class="inv-mono">' + escHtml(item.qty) + (item.nosQtyRaw && item.nosQtyRaw > 0 ? ' <span class="inv-text-muted">(' + escHtml(item.nosQtyRaw) + ' NOS)</span>' : '') + '</td>' +
       '<td>' + escHtml(item.unit) + '</td>' +
       '<td class="inv-mono">' + escHtml(item.rate) + '</td>' +
@@ -908,6 +908,18 @@ function zeroReasonTag(raw) {
   if (raw.zeroReasonBackfilled) text += ' (backfilled: owner ruling ' + raw.zeroReasonBackfilled + ')';
   return '<div class="inv-zero-tag' + (raw.zeroReason ? '' : ' inv-zero-tag-missing') + '">' +
     '<span class="inv-zero-badge">\u20B90</span> ' + escHtml(text) + '</div>';
+}
+
+/* The matcher on a saved invoice: only what needs a second look. A matching
+   line says nothing here — the register is read, not typed into, and a column
+   of green would bury the one line that is not. A cancelled invoice bills
+   nothing, so it is not judged. */
+function detailRateMatch(inv, raw) {
+  if (!inv || !raw || inv.status === 'cancelled') return '';
+  var client = S.clients.find(function(c) { return c.id === inv.clientId; });
+  var m = client ? rateMatch(client, inv.date, raw) : null;
+  if (!m || m.status === 'match' || m.status === 'none') return '';
+  return rateMatchNote(m, true);
 }
 
 function editInvoice(invId) {

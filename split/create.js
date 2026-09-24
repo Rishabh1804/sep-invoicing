@@ -49,6 +49,7 @@ function renderCreateForm() {
     const isPieceNOS = client && client.billingMode==='piece' && item.unit==='NOS';
     const rateDisplay = (item.rate != null && !isNaN(item.rate) && item.rate !== 0) ? formatNum(item.rate) : (item.qty > 0 && isPieceNOS ? '\u2014' : (item.rate === 0 && item.qty > 0 ? '0.00' : ''));
     const amtDisplay = (item.amount != null && !isNaN(item.amount) && item.amount !== 0) ? formatNum(item.amount) : (item.amount === 0 && item.qty > 0 ? '0.00' : '');
+    const rm = client ? rateMatch(client, invoiceForm.date, item) : null;
     html += '<div class="inv-line-item">' +
       '<div class="inv-line-header"><span class="inv-line-num">Item ' + (idx + 1) + '</span>' +
       '<button class="inv-line-remove" data-action="invRemoveLineItem" data-idx="' + idx + '">&times;</button></div>' +
@@ -66,12 +67,13 @@ function renderCreateForm() {
       '<option value="NOS"' + (item.unit==='NOS'?' selected':'') + '>NOS</option></select></div></div>' +
       '<div class="inv-form-row">' +
       '<div class="inv-form-group"><label class="inv-form-label">Rate</label>' +
-      '<input type="number" class="inv-form-input inv-mono' + (client && client.billingMode==='piece' && item.unit==='NOS' ? ' inv-form-input-readonly' : '') + '" value="' + rateDisplay + '" data-field="rate" data-idx="' + idx + '" data-action="invUpdateLine" step="any" min="0"' +
+      '<input type="number" class="inv-form-input inv-mono' + (client && client.billingMode==='piece' && item.unit==='NOS' ? ' inv-form-input-readonly' : '') + rateMatchInputClass(rm) + '" value="' + rateDisplay + '" data-field="rate" data-idx="' + idx + '" data-action="invUpdateLine" step="any" min="0"' +
       (client && client.billingMode==='piece' && item.unit==='NOS' ? ' readonly title="Rate is set from this client&#39;s piece-mode profile"' : '') + '></div>' +
       '<div class="inv-form-group"><label class="inv-form-label">Amount</label>' +
       '<input type="number" class="inv-form-input inv-mono" value="' + amtDisplay + '" data-field="amount" data-idx="' + idx + '" data-action="invUpdateLine" step="any" min="0"' +
       (client && client.billingMode==='piece' && item.unit==='NOS' ? '' : ' readonly') + '></div></div>' +
       (item._override ? '<span class="inv-override-badge">' + escHtml(item._label || 'Override') + '</span> ' : '') +
+      '<div id="invRateMatch' + idx + '">' + rateMatchNote(rm) + '</div>' +
       '<div id="invZeroReason' + idx + '">' + zeroReasonHtml(item, idx) + '</div>' +
       '</div>';
   });
@@ -362,3 +364,48 @@ function saveInvoice() {
   switchTab(returnDest);
 }
 
+
+/* The matcher's note under a line's rate, and the class its Rate field takes.
+   One renderer for the invoice form, the challan form and the invoice detail,
+   so the three can never describe the same line differently. */
+var RM_LABELS = { match: 'Matches', decimal: '×10 slip', differs: 'Differs', check: 'Check',
+  none: 'No rate on record', gauge: 'Gauge not stated' };
+
+function rateMatchNote(m, compact) {
+  if (!m) return '';
+  var per = m.unit === 'kg' ? '/kg' : '/pc';
+  var chip = '<span class="inv-rm-chip inv-rm-' + m.status + '">' + RM_LABELS[m.status] + '</span>';
+  var text = '';
+  if (m.status === 'match') text = compact ? '' : formatCurrency(m.ref) + per + ' on record';
+  else if (m.status === 'decimal') text = 'On record ' + formatCurrency(m.ref) + per + ' — a power of ten away. Did you mean ' + formatCurrency(m.ref) + '?';
+  else if (m.status === 'differs' || m.status === 'check') {
+    var sign = function(n) { return (n > 0 ? '+' : '−') + formatCurrency(Math.abs(n)); };
+    text = 'On record ' + formatCurrency(m.ref) + per + ' · ' + sign(m.diff) + ' (' + (m.pct * 100).toFixed(1) + '%)' +
+      ' · ' + sign(m.stake) + ' on this line';
+  } else if (m.status === 'none') text = compact ? '' : 'Add it to the client’s piece rates to check this line';
+  else if (m.status === 'gauge') text = compact ? '' : 'This part is priced by gauge — put the gauge in the description';
+  return '<div class="inv-rm-note">' + chip + (text ? '<span class="inv-rm-text">' + escHtml(text) + '</span>' : '') + '</div>';
+}
+
+function rateMatchInputClass(m) {
+  return m ? ' inv-rm-input-' + m.status : '';
+}
+
+/* Re-judge one line in place: the note and the Rate field's class. Called from
+   the input handlers, which deliberately do not re-render the whole form. */
+function refreshRateMatch(boxId, inputEl, client, onDate, item) {
+  var m = rateMatch(client, onDate, item);
+  var box = document.getElementById(boxId);
+  if (box) box.innerHTML = rateMatchNote(m);
+  if (inputEl) {
+    inputEl.className = inputEl.className.replace(/\s*inv-rm-input-\w+/g, '') + rateMatchInputClass(m);
+  }
+}
+
+function refreshInvoiceLineMatch(idx) {
+  var item = invoiceForm.items[idx];
+  var client = invoiceForm.clientId ? S.clients.find(function(c) { return c.id === invoiceForm.clientId; }) : null;
+  if (!item || !client) return;
+  refreshRateMatch('invRateMatch' + idx, document.querySelector('[data-action="invUpdateLine"][data-field="rate"][data-idx="' + idx + '"]'),
+    client, invoiceForm.date, item);
+}

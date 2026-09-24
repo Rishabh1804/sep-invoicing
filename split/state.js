@@ -807,3 +807,54 @@ function lineLabel(item) {
   if (rateKey(d).indexOf(rateKey(pn)) >= 0) return d;
   return pn + ' · ' + d;
 }
+
+/* ===== RATE MATCHER =====
+
+   Every line's rate against the rate on record (getRateOnRecord). The rule was
+   chosen by the owner (24 Sep 2026, option E) after five candidates were
+   replayed over the 11 Sep backup's 2,835 lines:
+
+     match    — equal to the paisa
+     decimal  — off by a power of ten, within 2% (₹1.49 typed as ₹14.90);
+                checked before any threshold, because it is a typing slip with
+                its own obvious fix
+     check    — ≥ 10% off, OR ≥ ₹100 at stake on this line. The percentage
+                catches a wrong rate whatever the quantity; the rupee floor
+                catches the small slip on a big line (00684: 8% low, ₹119.60
+                short across 920 pieces), which a percentage alone let through
+     differs  — anything less, shown with its difference; nothing that differs
+                goes unmarked (the owner's flat ₹0.50 as first written left 10
+                of the 18 differing lines with no mark at all)
+     none     — nothing on record to compare against; grey, never red
+     gauge    — priced by gauge and the line does not say which
+
+   Warn, never block — the same stance as the duplicate-challan guard. A rate
+   that differs can be right (a renegotiated price not yet on the card); the
+   matcher's job is that nobody bills it without having seen it. A ₹0 line is
+   not judged here: it has its own required reason. */
+var RATE_CHECK_PCT = 0.10;
+var RATE_CHECK_STAKE = 100;
+
+function rateMatch(client, onDate, item) {
+  if (!client || !item) return null;
+  var qty = item.qty || 0;
+  var rate = item.rate || 0;
+  if (!(qty > 0) || !(rate > 0)) return null;
+  var ref = getRateOnRecord(client, onDate, item);
+  if (!ref) return { status: 'none' };
+  if (ref.rate == null) return { status: 'gauge' };
+  var diff = gstRound(rate - ref.rate);
+  // Quantity in the reference's own unit: a nos_to_weight line priced per kg
+  // stakes the kilograms, not the pieces.
+  var units = qty;
+  if (ref.unit === 'kg' && item.unit === 'NOS') {
+    units = qty * ((S.partWeights || {})[(item.partNumber || '').toUpperCase()] || 0);
+  }
+  var out = { ref: ref.rate, unit: ref.unit, source: ref.source, diff: diff,
+    pct: Math.abs(diff) / ref.rate, stake: gstRound(diff * units) };
+  if (Math.abs(diff) < 0.005) { out.status = 'match'; return out; }
+  var k = Math.round(Math.log10(rate / ref.rate));
+  if (k !== 0 && Math.abs(rate / (ref.rate * Math.pow(10, k)) - 1) < 0.02) { out.status = 'decimal'; return out; }
+  out.status = (out.pct >= RATE_CHECK_PCT - 1e-9 || Math.abs(out.stake) >= RATE_CHECK_STAKE - 1e-9) ? 'check' : 'differs';
+  return out;
+}

@@ -418,6 +418,8 @@ document.addEventListener('change', function(e) {
   }
   if (e.target.id === 'invDate') {
     invoiceForm.date = e.target.value;
+    // The rate on record is dated, so a new invoice date can change every verdict.
+    invoiceForm.items.forEach(function(_, i) { refreshInvoiceLineMatch(i); });
   }
   // Register filters — one capture path, so a new filter control cannot end up
   // wired to the click delegate and not to this one.
@@ -631,6 +633,7 @@ document.addEventListener('input', function(e) {
           updateTotalsDisplay();
         }
       }
+      refreshInvoiceLineMatch(idx);
     }
     return;
   }
@@ -656,6 +659,7 @@ document.addEventListener('input', function(e) {
           if (aI) aI.value = formatNum(citem.amount);
         }
       }
+      refreshChallanLineMatch(cidx);
     }
     return;
   }
@@ -687,6 +691,7 @@ document.addEventListener('input', function(e) {
           if (aI2) aI2.value = formatNum(citem2.amount);
         }
       }
+      refreshChallanLineMatch(cidx2);
     }
     return;
   }
@@ -719,6 +724,7 @@ document.addEventListener('input', function(e) {
     // Update totals without full DOM replacement
     updateTotalsDisplay();
     refreshZeroReason(idx);
+    refreshInvoiceLineMatch(idx);
   }
   if (e.target.dataset.action === 'invZeroNote') {
     var zItem = invoiceForm.items[parseInt(e.target.dataset.idx)];

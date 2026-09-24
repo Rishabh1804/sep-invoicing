@@ -251,4 +251,37 @@ test.describe('P39: stock', () => {
     const again = await g(page, `JSON.stringify(stockMergeImport(${JSON.stringify(json)}))`);
     expect(JSON.parse(again)).toEqual({ items: 0, entries: 0, pastes: 0 });
   });
+
+  test('a file entry that is not a real figure is dropped, not left to break the screen', async ({ page }) => {
+    await loadAppWithState(page, state());
+    const added = await g(page, `JSON.stringify(stockMergeImport({ format: 'sep-stock', items: [{ id: 'X', name: 'Boric Acid', unit: 'kg' }],
+      entries: [
+        { id: 'ok', itemId: 'X', kind: 'received', qty: 10, price: '<b>12</b>', date: '2026-09-01', at: 1 },
+        { id: 'bad1', itemId: 'X', kind: 'count', qty: 'lots', date: '2026-09-01' },
+        { id: 'bad2', itemId: 'X', kind: 'stolen', qty: 5, date: '2026-09-01' }
+      ], pastes: [] }))`);
+    expect(JSON.parse(added)).toEqual({ items: 1, entries: 1, pastes: 0 });
+    expect(await g(page, `stockData().entries[0].price`)).toBeUndefined();
+    await openStock(page);
+    await page.locator('.inv-stk-row').filter({ hasText: 'Boric Acid' }).click();
+    await expect(page.locator('.inv-stk-hero-lv')).toContainText('10');
+  });
+
+  test('a message that saved nothing can be pasted again once fixed', async ({ page }) => {
+    await loadAppWithState(page, state());
+    await openStock(page);
+    await paste(page, MSG1());
+    await page.locator('[data-action="invStockSavePaste"]').click();
+    // A nameless line with nothing at its position is not saved until picked.
+    const lone = `Chemical stock ${dmy(1)}\n\n9) 12 KG`;
+    await paste(page, lone);
+    await expect(page.locator('.inv-stk-pr-red')).toContainText('No name on this line');
+    await page.locator('[data-action="invStockSavePaste"]').click();
+    await expect(page.locator('.inv-toast')).toContainText('Nothing to save');
+    const zinc = await g(page, `stockFindByKey('ZINC').id`);
+    await page.locator('[data-stock-map="0"]').selectOption(zinc);
+    await expect(page.locator('.inv-stk-banner-red')).toHaveCount(0);
+    await page.locator('[data-action="invStockSavePaste"]').click();
+    expect(await g(page, `stockReplay(stockFindByKey('ZINC').id).level`)).toBe(12);
+  });
 });

@@ -527,8 +527,12 @@ function stockCommitPaste(parsed, res, meta) {
       made++;
     });
   });
-  st.pastes.push({ id: pasteId, at: at, by: meta.by || '', sentBy: meta.sentBy || '', from: res.from, to: res.to,
-    hash: stockHash(parsed.text || ''), text: parsed.text || '' });
+  // A message that saved nothing is not recorded: its fingerprint would refuse
+  // the corrected paste as a duplicate of something that never landed.
+  if (made) {
+    st.pastes.push({ id: pasteId, at: at, by: meta.by || '', sentBy: meta.sentBy || '', from: res.from, to: res.to,
+      hash: stockHash(parsed.text || ''), text: parsed.text || '' });
+  }
   return { entries: made, lines: lines, skipped: skipped };
 }
 
@@ -753,6 +757,7 @@ function stockSavePaste() {
   if (res.dup) { showToast('Already saved — nothing saved twice', 'error'); return; }
   var by = stockBy();
   var out = stockCommitPaste(rv.parsed, res, { sentBy: rv.sentBy, by: by });
+  if (!out.entries) { showToast('Nothing to save: pick a line for each unnamed row', 'error'); return; }
   saveState();
   _stockReview = null; _stockPasteDraft = '';
   stockSetView('list');
@@ -954,7 +959,7 @@ function stockMergeImport(src) {
   if (!Array.isArray(src.items) || !Array.isArray(src.entries)) throw new Error('not a stock file');
   var st = stockData(), idMap = {}, added = { items: 0, entries: 0, pastes: 0 };
   src.items.forEach(function(it) {
-    if (!it || !it.id) return;
+    if (!it || !it.id || typeof it.name !== 'string' || !it.name.trim()) return;
     var mine = stockItem(it.id) || stockFindByKey(it.key || stockKey(it.name));
     if (mine) { idMap[it.id] = mine.id; return; }
     var copy = JSON.parse(JSON.stringify(it));
@@ -963,10 +968,15 @@ function stockMergeImport(src) {
   });
   var have = {};
   st.entries.forEach(function(e) { have[e.id] = true; });
+  var num = function(v) { return typeof v === 'number' && isFinite(v); };
   src.entries.forEach(function(e) {
     if (!e || !e.id || have[e.id] || !idMap[e.itemId]) return;
+    // A file is data from elsewhere: an entry must be a known kind with real
+    // numbers, or it is dropped rather than left to break the screens.
+    if (!STOCK_KIND_LABEL[e.kind] || !num(e.qty) || typeof e.date !== 'string') return;
     var copy = JSON.parse(JSON.stringify(e));
     copy.itemId = idMap[e.itemId];
+    ['price', 'days', 'rate', 'at', 'seq'].forEach(function(k) { if (copy[k] != null && !num(copy[k])) delete copy[k]; });
     st.entries.push(copy); added.entries++;
   });
   (src.pastes || []).forEach(function(p) {

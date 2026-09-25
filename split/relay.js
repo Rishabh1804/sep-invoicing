@@ -105,19 +105,59 @@ function relayHeaderAreas(text) {
   return out;
 }
 
-/* The roster, indexed for the relay: canonical key, every alias the owner has
-   confirmed once, and the first word of a two-word name ("sunil mahto"). */
+/* The roster, indexed for the relay. A name is found three ways, surest first:
+   - EXACT: the roster name (with or without a bracketed respelling,
+     "Sarat Mahato (Mahto)"), a spelling the owner placed once (`relayNames`),
+     or the FIRST WORD of a longer name when no other worker shares it — the
+     roll writes "SARAT" for the roster's "Sarat Mahato".
+   - FOLDED: the shop's spelling drift taken out (doubled letters, SH/S, BH/B,
+     W/V, EE/I), then the consonants alone — SHARAT, BUDHESWER and MAHTO land
+     on Sarat, Buddheswar and Mahato. Read as, flagged, remembered on Save.
+   - One letter off (two on a long name), same first letter, no tie.
+   A key two workers share matches neither: that is asked, never guessed.
+   `roster.skip` holds the spellings the owner said to leave out this paste. */
+function relayNameVariants(name) {
+  var s = String(name || '').trim(), out = [s], firsts = [];
+  var firstOf = function(x) { x = x.trim(); if (x.indexOf(' ') > 0) firsts.push(x.split(/\s+/)[0]); };
+  // "Sarat Mahato (Mahto)": the name without the bracket, and with the bracket
+  // standing in for the word before it; "Lal (Karmu Mahato)": the bracket alone.
+  var base = s.replace(/\s*\([^)]*\)/g, ' ').replace(/\s+/g, ' ').trim();
+  out.push(base);
+  firstOf(base);
+  var m = s.match(/^(.*?)(\S+?)\s*\(([^)]+)\)\s*$/);
+  if (m) out.push(m[1] + m[3]);
+  (s.match(/\(([^)]+)\)/g) || []).forEach(function(b) { b = b.slice(1, -1); out.push(b); firstOf(b); });
+  // "Bhanu - B.P. Sharma": either side of the dash.
+  if (/\s[-–]\s/.test(base)) base.split(/\s+[-–]\s+/).forEach(function(part) { out.push(part); firstOf(part); });
+  return { all: out, firsts: firsts };
+}
+function relayFold(k) {
+  return String(k || '').replace(/EE/g, 'I').replace(/OO/g, 'U').replace(/([A-Z])\1+/g, '$1')
+    .replace(/SH/g, 'S').replace(/([BCDGJKPT])H/g, '$1').replace(/W/g, 'V').replace(/Z/g, 'J').replace(/Y/g, 'I')
+    .replace(/Q/g, 'K').replace(/([A-Z])\1+/g, '$1');
+}
+function relaySkel(k) {
+  var f = relayFold(relayKey(k));
+  return f ? f[0] + f.slice(1).replace(/[AEIOU]/g, '') : '';
+}
 function relayRosterIndex(roster) {
-  var byKey = {}, list = [];
+  var byKey = {}, byFold = {}, bySkel = {}, list = [], firsts = {};
+  var put = function(map, k, w) { if (!k) return; if (!(k in map)) map[k] = w; else if (map[k] && map[k] !== w) map[k] = null; };
   (roster || []).forEach(function(w) {
-    var keys = [w.name].concat(w.relayNames || [], w.aliases || []);
-    keys.forEach(function(n) {
+    var v = relayNameVariants(w.name);
+    v.all.concat(w.relayNames || [], w.aliases || []).forEach(function(n) {
       var k = relayKey(n);
       if (k && !byKey[k]) byKey[k] = w;
     });
+    v.firsts.forEach(function(f) { put(firsts, relayKey(f), w); });
     list.push(w);
   });
-  return { byKey: byKey, list: list };
+  // A first name stands for the worker only when nobody else answers to it.
+  Object.keys(firsts).forEach(function(k) { if (k.length >= 3 && firsts[k] && !(k in byKey)) byKey[k] = firsts[k]; });
+  Object.keys(byKey).forEach(function(k) { put(byFold, relayFold(k), byKey[k]); put(bySkel, relaySkel(k), byKey[k]); });
+  var skip = {};
+  Object.keys((roster && roster.skip) || {}).forEach(function(k) { if (roster.skip[k]) skip[relayKey(k)] = true; });
+  return { byKey: byKey, byFold: byFold, bySkel: bySkel, list: list, skip: skip };
 }
 function relayEdit(a, b) {
   if (Math.abs(a.length - b.length) > 2) return 9;
@@ -130,28 +170,68 @@ function relayEdit(a, b) {
   }
   return prev[b.length];
 }
-/* A name as written → the worker, and how sure. Exact (or a remembered
-   spelling) is sure; one letter off on a name of five or more, same first
-   letter, is READ AS and flagged; anything else is not guessed. */
-function relayMatchName(words, idx) {
-  // Only leading words of letters can be a name: "SHYAM 5 PM" is Shyam at 5.
-  var alpha = 0;
-  while (alpha < words.length && alpha < 3 && /^[A-Za-z.]+$/.test(words[alpha])) alpha++;
-  for (var n = alpha; n >= 1; n--) {
-    var k = relayKey(words.slice(0, n).join(''));
-    if (k && idx.byKey[k]) return { w: idx.byKey[k], used: n, sure: true };
+/* The leading words that can be a name, up to three: letters only ("SHYAM
+   5 PM" is Shyam at 5), and a bracketed respelling of the word before it
+   ("Mahato(mahto)") is part of the name, not the rest of the line. */
+function relayNameWords(words) {
+  var out = [], i = 0;
+  while (i < words.length && out.length < 3) {
+    var w = words[i], m = w.match(/^([A-Za-z.]+)\(([A-Za-z.]+)\)?$/);
+    if (m && relaySkel(m[2]) === relaySkel(m[1])) { out.push({ w: m[1], used: ++i }); continue; }
+    var pm = w.match(/^\(([A-Za-z.]+)\)$/);
+    if (pm && out.length && relaySkel(pm[1]) === relaySkel(out[out.length - 1].w)) { out[out.length - 1].used = ++i; continue; }
+    if (!/^[A-Za-z.]+$/.test(w)) break;
+    out.push({ w: w, used: ++i });
   }
-  var k1 = relayKey(words[0]);
+  return out;
+}
+/* The spelling as written, as the key a placement is remembered under. */
+function relayWrittenKey(words) {
+  return relayKey(relayNameWords(words).map(function(x) { return x.w; }).join(''));
+}
+/* A name as written → the worker, and how sure. Exact (or a remembered
+   spelling, or a first name nobody else has) is sure; a folded spelling or
+   one letter off is READ AS and flagged; anything else is not guessed. */
+function relayMatchName(words, idx, loose) {
+  var nw = relayNameWords(words);
+  if (!nw.length) return null;
+  var key = function(n) { return relayKey(nw.slice(0, n).map(function(x) { return x.w; }).join('')); };
+  var written = key(nw.length);
+  if (idx.skip[written]) return null;
+  var n, k;
+  for (n = nw.length; n >= 1; n--) {
+    k = key(n);
+    if (k && idx.byKey[k]) {
+      // "SARAT MAHTO" for the roster's "Sarat Mahato": the first name found it,
+      // and a following word that is a spelling of the worker's other names is
+      // part of the name, not the rest of the line.
+      var hitW = idx.byKey[k], used = nw[n - 1].used, own = {};
+      relayNameVariants(hitW.name).all.join(' ').split(/[\s().-]+/).forEach(function(x) { var sk = relaySkel(x); if (sk.length >= 2) own[sk] = true; });
+      for (var j = n; j < nw.length && own[relaySkel(nw[j].w)]; j++) used = nw[j].used;
+      return { w: hitW, used: used, sure: true, key: written };
+    }
+  }
+  for (n = nw.length; n >= 1; n--) {
+    k = key(n);
+    if (k.length < 4) continue;
+    var f = idx.byFold[relayFold(k)];
+    if (f) return { w: f, used: nw[n - 1].used, sure: false, key: k };
+    // The consonants alone only on a numbered line, where a name is expected:
+    // a note ("MEHTA CLAMP") must not become a person by its skeleton.
+    var sk = loose ? relaySkel(k) : '';
+    if (sk.length >= 3 && idx.bySkel[sk]) return { w: idx.bySkel[sk], used: nw[n - 1].used, sure: false, key: k };
+  }
+  var k1 = key(1);
   if (k1.length >= 4) {
     var best = null, bestD = 9, tie = false;
-    Object.keys(idx.byKey).forEach(function(key) {
-      if (key[0] !== k1[0]) return;
-      var d = relayEdit(k1, key), lim = k1.length >= 7 ? 2 : 1;
+    Object.keys(idx.byKey).forEach(function(bk) {
+      if (bk[0] !== k1[0]) return;
+      var d = relayEdit(k1, bk), lim = k1.length >= 7 ? 2 : 1;
       if (d > lim) return;
-      if (d < bestD) { best = idx.byKey[key]; bestD = d; tie = false; }
-      else if (d === bestD && idx.byKey[key] !== best) tie = true;
+      if (d < bestD) { best = idx.byKey[bk]; bestD = d; tie = false; }
+      else if (d === bestD && idx.byKey[bk] !== best) tie = true;
     });
-    if (best && !tie) return { w: best, used: 1, sure: false };
+    if (best && !tie) return { w: best, used: nw[0].used, sure: false, key: k1 };
   }
   return null;
 }
@@ -173,7 +253,9 @@ function relaySplit(text) {
     }
     // A roll pasted without its WhatsApp line still opens with its own dated
     // header ("24/09/26/ out time"); that line starts a new message.
-    var rollHead = /^\s*\d{1,2}\/\d{1,2}\/\d{2,4}\/*\s*(in|out)\s*-*\s*time/i.test(line);
+    // A stock message carries the same kind of dated first line ("19/06/26//
+    // camical use"), and pasted after a roll it is a message of its own too.
+    var rollHead = /^\s*\d{1,2}\/\d{1,2}\/\d{2,4}\/*\s*((in|out)\s*-*\s*time|c[ae]mical|chemical)/i.test(line);
     if (!cur || (rollHead && cur.lines.some(function(l) { return l.trim(); }))) {
       cur = { sentBy: cur && rollHead ? cur.sentBy : '', sentOn: null, lines: [] };
       msgs.push(cur);
@@ -234,6 +316,13 @@ function parseRelayRoll(text, roster, sentOn) {
     if (!bare || st.stop) return;
     out.lines.push(ln);
 
+    // The chemical stock written into the same message, under its own heading
+    // and no date ("camical use camical stock"): the roll ends there.
+    if (/^c[ae]mical\s+(use|stock)\b|^chemical\s+(use|stock)\b/i.test(bare)) {
+      st.stop = true; ln.role = 'note'; ln.read = 'The chemical stock starts here; paste it in More → Stock';
+      out.issues.push({ tone: 'info', n: ln.n, text: 'The chemical stock in this message starts here and was not read with the roll. Paste it in More → Stock.' });
+      return;
+    }
     // A date inside the roll: a holiday, or a second day's block ("16/08/26/ Sunday").
     var dd = bare.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})\/?\s*(.*)$/);
     if (dd) {
@@ -329,9 +418,9 @@ function parseRelayRoll(text, roster, sentOn) {
     }
 
     var numbered = bare.match(/^0*(\d{1,2})\s*[)\].]\s*(.*)$/);
-    var body = numbered ? numbered[2].trim() : bare;
+    var body = numbered ? numbered[2].replace(/^[.)\]:\s]+/, '').trim() : bare;
     var words = body.split(/[\s\-–,]+/).filter(Boolean);
-    var hit = words.length && /^[A-Za-z]/.test(words[0]) ? relayMatchName(words, idx) : null;
+    var hit = words.length && /^[A-Za-z]/.test(words[0]) ? relayMatchName(words, idx, !!numbered) : null;
     var isHeaderish = !numbered && !hit && relaySlotOrArea(bare);
 
     if (!hit && !numbered && isHeaderish) {
@@ -385,7 +474,12 @@ function parseRelayRoll(text, roster, sentOn) {
     if (!hit) {
       ln.role = numbered ? 'unknown' : 'note';
       ln.read = numbered ? 'Not on the roster: ' + words.slice(0, 2).join(' ') : 'Note (not a name)';
-      if (numbered) out.issues.push({ tone: 'red', n: ln.n, text: '"' + words.slice(0, 2).join(' ') + '" is not on the roster. Pick who it is, or it is left out.', name: words[0] || '' });
+      if (numbered) {
+        var ukey = relayWrittenKey(words) || relayKey(words[0]);
+        out.issues.push(idx.skip[ukey]
+          ? { tone: 'info', n: ln.n, text: '"' + words.slice(0, 2).join(' ') + '" left out, as you chose.', name: words.slice(0, 2).join(' '), key: ukey }
+          : { tone: 'red', n: ln.n, text: '"' + words.slice(0, 2).join(' ') + '" is not on the roster. Pick who it is, or it is left out.', name: words.slice(0, 2).join(' '), key: ukey });
+      }
       else day(st.iso).notes.push(bare);
       if (numbered) ln.unknown = words[0] || '';
       return;
@@ -396,7 +490,11 @@ function parseRelayRoll(text, roster, sentOn) {
     var rest = words.slice(hit.used).join(' ');
     var p = day(st.iso).people[w.id] || (day(st.iso).people[w.id] = { id: w.id, name: w.name, st: 'P', areas: null, generalArea: null, inExp: null, inSlot: null, outExp: null, outSlot: null, lines: [], readAs: '' });
     p.lines.push(ln.n);
-    if (!hit.sure) { p.readAs = words[0]; out.issues.push({ tone: 'amber', n: ln.n, text: '"' + words[0] + '" read as ' + w.name + '.', name: words[0], id: w.id }); }
+    if (!hit.sure) {
+      var asWritten = words.slice(0, hit.used).join(' ');
+      p.readAs = asWritten;
+      out.issues.push({ tone: 'amber', n: ln.n, text: '"' + asWritten + '" read as ' + w.name + '.', name: asWritten, key: hit.key, id: w.id });
+    }
     var absent = (st.sec && st.sec.absent) || /\babsent\b|^A+\b|\bA$/i.test(rest);
     var tms = relayTimes(rest);
     if (absent) {
@@ -433,7 +531,7 @@ function parseRelayRoll(text, roster, sentOn) {
     }
     ln.role = 'name';
     ln.person = w.id;
-    ln.read = w.name + (absent ? ': absent' : '') + (hit.sure ? '' : ' (read from "' + words[0] + '")');
+    ln.read = w.name + (absent ? ': absent' : '') + (hit.sure ? '' : ' (read from "' + p.readAs + '")');
   });
   return out;
 }
@@ -505,12 +603,44 @@ var _relayDraft = '';
 var _relayView = 'paste';  // 'paste' | 'review'
 var _relayShowLines = false;
 
+/* The roster as the parser sees it, with this paste's choices laid over the
+   remembered spellings: a key placed on one worker is taken off any other, and
+   a key left out is skipped. The picker's value is a string and roster ids are
+   numbers, so ids are always compared as strings. */
 function relayRoster(choices) {
-  var extra = {};
-  Object.keys(choices || {}).forEach(function(k) { if (choices[k]) (extra[choices[k]] = extra[choices[k]] || []).push(k); });
-  return (S.staff || []).filter(function(w) { return w.active !== false; }).map(function(w) {
-    return { id: w.id, name: w.name, comp: w.comp, area: w.area, relayNames: (w.relayNames || []).concat(extra[w.id] || []) };
+  var extra = {}, skip = {};
+  choices = choices || {};
+  Object.keys(choices).forEach(function(k) {
+    if (choices[k]) (extra[String(choices[k])] = extra[String(choices[k])] || []).push(k);
+    else skip[k] = true;
   });
+  var r = (S.staff || []).filter(function(w) { return w.active !== false; }).map(function(w) {
+    return { id: w.id, name: w.name, comp: w.comp, area: w.area,
+      relayNames: (w.relayNames || []).filter(function(n) { return !(relayKey(n) in choices); }).concat(extra[String(w.id)] || []) };
+  });
+  r.skip = skip;
+  return r;
+}
+function relayWorker(id) {
+  if (id == null || id === '') return null;
+  return (S.staff || []).find(function(w) { return String(w.id) === String(id); }) || null;
+}
+/* Remember a spelling on one worker (and on nobody else). An empty id forgets
+   it. Returns true when the roster changed. */
+function relayRemember(key, id) {
+  key = relayKey(key);
+  if (!key) return false;
+  var changed = false, w = relayWorker(id);
+  (S.staff || []).forEach(function(x) {
+    if (x === w || !Array.isArray(x.relayNames)) return;
+    var keep = x.relayNames.filter(function(n) { return relayKey(n) !== key; });
+    if (keep.length !== x.relayNames.length) { x.relayNames = keep; changed = true; }
+  });
+  if (w && relayKey(w.name) !== key && !(w.relayNames || []).some(function(n) { return relayKey(n) === key; })) {
+    w.relayNames = (w.relayNames || []).concat([key]);
+    changed = true;
+  }
+  return changed;
 }
 function relayHash(text) {
   var src = String(text || '').toUpperCase().replace(/\s+/g, ' ').trim(), h = 5381;
@@ -554,7 +684,7 @@ function relayPlan(rv) {
     });
   });
   var out = { days: [], issues: issues, lines: lines, dupes: dupes, counts: { red: 0, amber: 0, people: 0 } };
-  issues.forEach(function(is) { if (is.tone === 'red') out.counts.red++; else out.counts.amber++; });
+  issues.forEach(function(is) { if (is.tone === 'red') out.counts.red++; else if (is.tone === 'amber') out.counts.amber++; });
   Object.keys(days).sort().forEach(function(iso) {
     var t = days[iso], rec = S.attendance && S.attendance[iso];
     var rows = [];
@@ -674,13 +804,16 @@ function relayRenderReview() {
   var askedNames = {};
   plan.issues.forEach(function(is) {
     h += '<div class="inv-stk-issue inv-stk-issue-' + is.tone + '">Line ' + is.n + ': ' + escHtml(is.text) + '</div>';
-    if (is.tone === 'red' && is.name) {
-      var key = relayKey(is.name);
+    // A name not placed, one read as somebody, or one left out: each gets the
+    // picker, so a wrong guess is put right here and remembered from then on.
+    if (is.key && (is.tone === 'red' || is.tone === 'info' || is.id != null)) {
+      var key = is.key;
       if (askedNames[key]) return;
       askedNames[key] = true;
+      var sel = key in rv.choices ? String(rv.choices[key]) : (is.id != null ? String(is.id) : '');
       h += '<div class="inv-stk-map"><label class="inv-stk-label" for="relayMap' + escHtml(key) + '">"' + escHtml(is.name) + '" is</label>' +
         '<select id="relayMap' + escHtml(key) + '" class="inv-form-input" data-relay-map="' + escHtml(key) + '"><option value="">Nobody on the roster (leave out)</option>' +
-        staff.map(function(w) { return '<option value="' + escHtml(w.id) + '"' + (String(rv.choices[key]) === String(w.id) ? ' selected' : '') + '>' + escHtml(w.name) + '</option>'; }).join('') +
+        staff.map(function(w) { return '<option value="' + escHtml(w.id) + '"' + (sel === String(w.id) ? ' selected' : '') + '>' + escHtml(w.name) + '</option>'; }).join('') +
         '</select></div>';
     }
   });
@@ -737,11 +870,11 @@ function relaySave() {
   if (!rv) return;
   var plan = relayPlan(rv);
   if (!plan.days.length) { showToast('Nothing to save', 'error'); return; }
-  // Remember the spellings the owner placed, on the worker, for next time.
-  Object.keys(rv.choices).forEach(function(k) {
-    var w = staffById(rv.choices[k]);
-    if (!w || !k) return;
-    w.relayNames = (w.relayNames || []).filter(function(n) { return relayKey(n) !== k; }).concat([k]);
+  // Placements were remembered as they were made. A spelling READ AS somebody
+  // and saved without correction is the owner's confirmation: remember it too,
+  // so the next roll matches it outright.
+  plan.issues.forEach(function(is) {
+    if (is.tone === 'amber' && is.key && is.id != null && !(is.key in rv.choices)) relayRemember(is.key, is.id);
   });
   var marks = 0, extras = 0;
   plan.days.forEach(function(d) {
@@ -784,7 +917,11 @@ function relayAction(action, btn) {
 }
 function relayOnChange(t) {
   if (!t || !t.hasAttribute || !t.hasAttribute('data-relay-map') || !_relay) return false;
-  _relay.choices[t.getAttribute('data-relay-map')] = t.value;
+  var key = t.getAttribute('data-relay-map');
+  _relay.choices[key] = t.value;
+  // Kept on the worker at once, not only on Save: a placement is a fact about
+  // the name, whether or not this paste is ever saved.
+  if (relayRemember(key, t.value)) saveState();
   renderAttendance();
   return true;
 }

@@ -999,6 +999,9 @@ function _showWorkerOverlay(worker, isAdd) {
     'rate; leave their hour rate at zero and a monthly worker&rsquo;s overtime derives as <span class="inv-mono">day rate ÷ 8</span>, ' +
     'which is how the rate card&rsquo;s own OT column is built. Wages are counted only for days actually recorded, ' +
     'which is why the labour card states its coverage.</div>' +
+    '<div class="inv-form-group"><label class="inv-form-label" for="wedSpell">Other spellings on the WhatsApp roll</label>' +
+    '<input class="inv-form-input" id="wedSpell" value="' + escHtml((w.relayNames || []).join(', ')) + '" placeholder="e.g. SHARAT, SARAT MAHTO"></div>' +
+    '<div class="inv-stats-note">Paste message reads these as this worker. A name you place on the check screen is added here.</div>' +
     '<div class="inv-flex-between inv-mb-8"><label class="inv-checkbox-label">' +
     '<input type="checkbox" id="wedFloor"' + (w.onFloor !== false ? ' checked' : '') + '> On the plant floor</label></div>' +
     '<div class="inv-stats-note">Clear this for the gate and the office. Their wage is still labour and still in the ' +
@@ -1059,6 +1062,15 @@ function saveWorker(id, mode) {
     onFloor: document.getElementById('wedFloor').checked,
     active: document.getElementById('wedActive').checked
   };
+  var spellEl = document.getElementById('wedSpell');
+  if (spellEl) {
+    var seen = {};
+    fields.relayNames = spellEl.value.split(/[,;\n]+/).map(function(x) { return x.trim().toUpperCase(); }).filter(function(x) {
+      var k = relayKey(x);
+      if (!k || seen[k] || k === relayKey(name)) return false;
+      return (seen[k] = true);
+    });
+  }
 
   // A rate of zero is not refused — a worker can be on the roster before the
   // rate is settled — but the labour card would then be quietly short, so it
@@ -1129,6 +1141,7 @@ function importRoster() {
           'different spellings — merge from the worker\u2019s Edit screen' : '') +
         (res.aliasConflicts ? ' · ' + res.aliasConflicts + ' alias' +
           (res.aliasConflicts === 1 ? '' : 'es') + ' refused for naming two workers' : '') +
+        (res.spellings ? ' · ' + res.spellings + ' other spelling' + (res.spellings === 1 ? '' : 's') + ' kept for reading rolls' : '') +
         (res.targets ? ' · ' + res.targets + ' complement' + (res.targets === 1 ? '' : 's') + ' set' : '') +
         (res.days ? ' · ' + res.days + ' day' + (res.days === 1 ? '' : 's') + ' of attendance' : '') +
         (res.daysKept ? ' (' + res.daysKept + ' already recorded, kept)' : '') +
@@ -1334,10 +1347,35 @@ function applyRosterImport(data) {
       if (data.labour[k] != null && !isNaN(v) && v >= 0) S.labour[k] = v;
     });
   }
+  // The alias map is also how the supervisor's roll spells these people, so it
+  // is kept on the worker (`relayNames`) rather than spent on this import: the
+  // Paste message reader then matches "Sharat" and "Budheswer" from the first
+  // roll, instead of asking for every one of them by hand.
+  // A roster typed with full names ("Sarat Mahato") holds none of the file's
+  // short canonicals, so a group with no row by name is found the way the roll
+  // reader finds a name — exactly, or by a first name nobody else has — and
+  // only when every spelling in the group lands on the same one worker.
+  var spellings = 0, rIdx = relayRosterIndex(S.staff);
+  Object.keys(al.spellings).forEach(function(canon) {
+    var group = S.staff.filter(function(x) { return aliasKey(x.name, al) === canon; });
+    if (!group.length) {
+      var hits = [];
+      al.spellings[canon].forEach(function(sp) { var h = rIdx.byKey[relayKey(sp)]; if (h && hits.indexOf(h) < 0) hits.push(h); });
+      group = hits;
+    }
+    if (group.length !== 1) return;                  // nobody, or two rows: not ours to pick
+    var w = group[0];
+    al.spellings[canon].forEach(function(sp) {
+      var k = relayKey(sp);
+      if (!k || k === relayKey(w.name) || (w.relayNames || []).some(function(n) { return relayKey(n) === k; })) return;
+      w.relayNames = (w.relayNames || []).concat([k]);
+      spellings++;
+    });
+  });
   var att = applyAttendanceImport(data, al);
 
   return { added: added, updated: updated, skipped: skipped, targets: targets,
-           aliased: aliased, collapsed: collapsed, aliasConflicts: al.conflicts,
+           aliased: aliased, collapsed: collapsed, aliasConflicts: al.conflicts, spellings: spellings,
            dupesOnRoster: onRoster,
            days: att.days, daysKept: att.daysKept, daysDropped: att.daysDropped,
            marksDropped: att.marksDropped, extrasDropped: att.extrasDropped,
@@ -1555,6 +1593,14 @@ function mergeWorkers(fromId, intoId) {
       if (x.crew.indexOf(intoId) === -1) x.crew.push(intoId); // dedupe: one head, not two
       crews++;
     });
+  });
+
+  // The row going away was a spelling of this person; the roll may still use it.
+  [from.name].concat(from.relayNames || []).forEach(function(n) {
+    var k = relayKey(n);
+    if (k && k !== relayKey(into.name) && !(into.relayNames || []).some(function(x) { return relayKey(x) === k; })) {
+      into.relayNames = (into.relayNames || []).concat([k]);
+    }
   });
 
   var idx = (S.staff || []).findIndex(function(w) { return w.id === fromId; });

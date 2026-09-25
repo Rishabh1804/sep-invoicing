@@ -92,7 +92,7 @@ every session start — nothing to set up by hand. CI (`build-sync`) is the back
 ### Tests
 
 ```bash
-pnpm exec playwright test          # 391 tests, both layouts
+pnpm exec playwright test          # 396 tests, both layouts
 ```
 
 Some sandboxes ship a Chromium build Playwright does not expect and block downloading
@@ -1199,9 +1199,26 @@ parser, as hours over 8 — the wage model's rule.
   mislabel). "pickling VA 1 & berral" is the VAT side's pickling; "berral & pickling" is the barrel
   unit; "VAT A1 & pickling" stays a VAT row (the fold is the reconciler's). The office and the gate
   share a header, and each hand stands at his own post. No line written: Flex.
-- **Names**: exact, or a spelling the owner placed once (kept on the worker as `relayNames`), or one
-  letter off (two on a long name) and flagged *read as*. Anything else is **asked, never guessed** —
-  a numbered line not on the roster is red until placed or left out.
+- **Names**: found three ways, surest first. **Exact** — the roster name, either side of a dash
+  (`Bhanu - B.P. Sharma`), with or without a bracket (`Lal (Karmu Mahato)` answers to KARMU too), a
+  spelling kept on the worker (`relayNames`), or a **first name nobody else has** (the roll writes
+  SARAT for the roster's `Sarat Mahato`; a surname spelt the shop's way after it, MAHTO, stays part
+  of the name). **Folded** — doubled letters, SH/S, BH/B, W/V, EE/I taken out, then on a numbered line
+  the consonants alone (SHAMBHU, BUDHESWR, ROKY). **One letter off** (two on a long name). The last two
+  are flagged *read as* with a picker already on the guess. A key two workers share matches neither;
+  anything else is **asked, never guessed** — a numbered line not on the roster is red until placed
+  or left out.
+- **A spelling is learnt once** (owner, 25 Sep 2026: *"everytime I paste a message I have to go through
+  and manually match them"*). A placement is kept on the worker **the moment it is picked**, and a
+  *read as* the owner saved without correcting is kept on Save. Replayed over the real rolls against the
+  device's own full-name roster: **82 read-as lines on the first pass, 3 after one save** (new
+  spellings), and the scores above unchanged. ⚠ **Placements had never been kept at all**: the picker
+  hands back the id as text and real rosters number their workers, so the save's strict lookup found
+  nobody and dropped every one silently. The spec used text ids (`'W1'`) and could not see it; P43 uses
+  numbers. Staff → Roster → Import keeps the file's `aliases` as spellings too, a merge keeps the
+  retired row's name, and the worker's Edit screen lists them and takes corrections. The chemical stock
+  written under a roll (`camical use camical stock`, no date) ends the roll rather than reading as a
+  dozen unknown names.
 - **A mark entered by hand is kept** and shown as kept; the relay only rewrites marks it wrote
   (`src: 'relay'`, with `inMin`/`outMin`). EXTRA rows already on the day are not added twice. **The
   same roll twice is refused** by fingerprint (`S.relayPastes` keeps each roll whole). A roll with a

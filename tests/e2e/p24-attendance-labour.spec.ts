@@ -330,7 +330,7 @@ test('a roster import merges by name, keeps attendance, and leaves invoices alon
   // whether the key is missing because nothing arrived or because nothing landed.
   expect(result).toEqual({
     added: 1, updated: 1, skipped: 1, targets: 0,
-    aliased: 0, collapsed: 0, aliasConflicts: 0, dupesOnRoster: 0,
+    aliased: 0, collapsed: 0, aliasConflicts: 0, spellings: 0, dupesOnRoster: 0,
     days: 0, daysKept: 0, daysDropped: 0, marksDropped: 0,
     extrasDropped: 0, crewsUnresolved: 0,
   });

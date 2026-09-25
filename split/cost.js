@@ -420,3 +420,120 @@ function costAction(action, btn) {
   }
   return false;
 }
+
+/* ---------- The reorder list ----------
+   Owner, 25 Sep 2026: "add a stock reorder list generator". For every line
+   with a daily use on record: what it will use over the lead time plus the days
+   to cover, less what is on the shelf, rounded up to the pack it is bought in,
+   at the last price paid, grouped by the supplier it last came from. Typed
+   quantities win over the suggestion. Nothing is ordered from here: the list
+   is copied as a message for whoever places the order. */
+var _stockReorder = null;   // { qty: { itemId: typed } }
+var STOCK_REORDER_DEFAULTS = { leadDays: 10, coverDays: 30 };
+function stockReorderCfg() {
+  var c = S.stockCheck || {}, d = STOCK_REORDER_DEFAULTS;
+  return { leadDays: c.leadDays > 0 ? c.leadDays : d.leadDays, coverDays: c.coverDays > 0 ? c.coverDays : d.coverDays };
+}
+/* The pack a line is bought in: the smallest purchase, when every purchase is a
+   whole number of it (30 L cans bought as 30, 60 and 90). */
+function stockPackSize(item) {
+  var q = stockPurchases(item.id).map(function(p) { return p.e.qty; }).filter(function(v) { return v > 0; });
+  if (q.length < 2) return null;
+  var pack = Math.min.apply(null, q);
+  return q.every(function(v) { var r = v / pack; return Math.abs(r - Math.round(r)) < 0.05; }) ? pack : null;
+}
+function stockReorderList() {
+  var cfg = stockReorderCfg(), rows = [], skipped = { enough: 0, norate: [] };
+  stockData().items.filter(function(i) { return i.active !== false; }).forEach(function(it) {
+    var st = stockStatus(it), rate = st.rate && st.rate.rate ? st.rate.rate : null, level = st.level == null ? 0 : Math.max(0, st.level);
+    var typed = _stockReorder && _stockReorder.qty[it.id];
+    if (!rate) {
+      if (st.level != null && st.level <= 0 || typed) rows.push({ item: it, need: null, suggest: null, pack: stockPackSize(it), level: level, rate: null, noRate: true });
+      else skipped.norate.push(it.name);
+      return;
+    }
+    var need = rate * (cfg.leadDays + cfg.coverDays) - level;
+    var pack = stockPackSize(it);
+    var suggest = need > 0 ? (pack ? Math.ceil(need / pack) * pack : Math.ceil(need)) : 0;
+    if (suggest <= 0 && !typed) { skipped.enough++; return; }
+    rows.push({ item: it, need: need, suggest: suggest, pack: pack, level: level, rate: rate, daysLeft: st.daysLeft, tentative: !!(st.rate && st.rate.tentative) });
+  });
+  rows.forEach(function(r) {
+    var typed = _stockReorder && _stockReorder.qty[r.item.id];
+    r.qty = typed != null && typed !== '' ? Math.max(0, parseFloat(typed) || 0) : (r.suggest || 0);
+    var lp = stockPriceAt(r.item.id, '9999-12-31');
+    r.price = lp ? lp.price : null;
+    r.supplier = lp && lp.supplier ? lp.supplier : 'No supplier on record';
+    r.amount = r.price != null ? gstRound(r.qty * r.price) : null;
+  });
+  var groups = {};
+  rows.forEach(function(r) { (groups[r.supplier] = groups[r.supplier] || []).push(r); });
+  var order = Object.keys(groups).sort(function(a, b) { return (a === 'No supplier on record') - (b === 'No supplier on record') || a.localeCompare(b); });
+  var total = rows.reduce(function(s, r) { return s + (r.amount || 0); }, 0);
+  return { cfg: cfg, groups: order.map(function(k) { return { supplier: k, rows: groups[k].sort(function(a, b) { return (a.daysLeft == null ? -1 : a.daysLeft) - (b.daysLeft == null ? -1 : b.daysLeft); }) }; }),
+    total: gstRound(total), unpriced: rows.filter(function(r) { return r.price == null && r.qty > 0; }).length, skipped: skipped };
+}
+function stockReorderText(L) {
+  var lines = ['Order · ' + stockShortDate(localDateStr())];
+  L.groups.forEach(function(g) {
+    var rows = g.rows.filter(function(r) { return r.qty > 0; });
+    if (!rows.length) return;
+    lines.push('', g.supplier + ':');
+    rows.forEach(function(r, i) { lines.push((i + 1) + ') ' + r.item.name + ' ' + stockFmtQty(r.qty) + ' ' + (r.item.unit || '')); });
+  });
+  return lines.join('\n');
+}
+function renderStockReorder() {
+  var L = stockReorderList(), cfg = L.cfg;
+  var h = stockBackBar('Stock', 'Reorder list');
+  h += '<div class="inv-stk-fields"><div class="inv-stk-field"><label class="inv-stk-label" for="stockLeadDays">Lead time (days)</label>' +
+    '<input type="number" min="1" step="1" inputmode="numeric" id="stockLeadDays" class="inv-form-input" value="' + cfg.leadDays + '"></div>' +
+    '<div class="inv-stk-field"><label class="inv-stk-label" for="stockCoverDays">Days to cover after it lands</label>' +
+    '<input type="number" min="1" step="1" inputmode="numeric" id="stockCoverDays" class="inv-form-input" value="' + cfg.coverDays + '"></div></div>' +
+    '<div class="inv-stk-hint">Suggested = daily use × (' + cfg.leadDays + ' + ' + cfg.coverDays + ' days) less what is on the shelf, rounded up to the pack it is bought in. Type a quantity to change it; 0 leaves the line out.</div>';
+  if (!L.groups.length) {
+    h += '<div class="inv-stk-empty">Nothing to order: every line with a daily use covers ' + (cfg.leadDays + cfg.coverDays) + ' days.</div>';
+  }
+  L.groups.forEach(function(g) {
+    var sub = g.rows.reduce(function(s, r) { return s + (r.amount || 0); }, 0);
+    h += '<div class="inv-stk-sec">' + escHtml(g.supplier) + '<span>' + (sub ? escHtml(formatCurrency(gstRound(sub))) : '') + '</span></div><div class="inv-stk-reorder">';
+    g.rows.forEach(function(r) {
+      var unit = r.item.unit || '';
+      var why = r.noRate ? 'out, and no daily use on record: enter a quantity'
+        : stockFmtQty(r.level) + ' ' + unit + ' on hand · ' + stockFmtRate(r.rate) + ' ' + unit + '/day' + (r.daysLeft != null ? ' · ' + stockDaysText(r.daysLeft, false) + ' left' : '') +
+          ' · needs ' + stockFmtQty(Math.max(0, r.need)) + (r.pack ? ' · packs of ' + stockFmtQty(r.pack) : '') + (r.tentative ? ' · rate from under 3 days of record: check' : '');
+      h += '<div class="inv-stk-mrow"><div class="inv-stk-mname">' + escHtml(r.item.name) + '<span>' + escHtml(why) + '</span></div>' +
+        '<input type="number" inputmode="decimal" step="any" min="0" class="inv-stk-in" data-stock-reorder="' + escHtml(r.item.id) + '" value="' + escHtml(stockFmtQty(r.qty)) + '" aria-label="' + escHtml(r.item.name) + ' quantity to order">' +
+        '<span class="inv-stk-munit">' + escHtml(unit) + '</span>' +
+        '<span class="inv-stk-rprice">' + (r.amount != null ? escHtml(formatCurrency(r.amount)) : 'no price') + '</span></div>';
+    });
+    h += '</div>';
+  });
+  if (L.skipped.enough || L.skipped.norate.length) {
+    h += '<div class="inv-stk-hint">' + (L.skipped.enough ? L.skipped.enough + ' line' + (L.skipped.enough === 1 ? ' has' : 's have') + ' enough on hand. ' : '') +
+      (L.skipped.norate.length ? 'No daily use yet, so nothing suggested: ' + escHtml(L.skipped.norate.join(', ')) + '.' : '') + '</div>';
+  }
+  if (L.groups.length) {
+    h += '<div class="inv-stk-foot"><span id="stockReorderTotal">' + escHtml(formatCurrency(L.total)) + ' at the last prices, before GST' + (L.unpriced ? ' · ' + L.unpriced + ' without a price' : '') + '</span>' +
+      '<button class="inv-stk-btn inv-stk-btn-pri" data-action="invStockReorderCopy">Copy as message</button></div>';
+  }
+  return h;
+}
+function stockReorderCopy() {
+  var text = stockReorderText(stockReorderList());
+  var done = function() { showToast('Order copied: paste it into WhatsApp'); };
+  try {
+    if (navigator.clipboard && navigator.clipboard.writeText) { navigator.clipboard.writeText(text).then(done, function() { prompt('Copy the order:', text); }); return; }
+  } catch (e) { /* fall through */ }
+  prompt('Copy the order:', text);
+}
+function stockReorderOnInput(t) {
+  var id = t.getAttribute && t.getAttribute('data-stock-reorder');
+  if (id && _stockReorder) { _stockReorder.qty[id] = t.value; var tot = document.getElementById('stockReorderTotal'); if (tot) { var L = stockReorderList(); tot.textContent = formatCurrency(L.total) + ' at the last prices, before GST' + (L.unpriced ? ' · ' + L.unpriced + ' without a price' : ''); } return true; }
+  if (t.id === 'stockLeadDays' || t.id === 'stockCoverDays') {
+    var v = parseInt(t.value, 10);
+    if (v > 0) { if (!S.stockCheck) S.stockCheck = {}; S.stockCheck[t.id === 'stockLeadDays' ? 'leadDays' : 'coverDays'] = v; saveState(); }
+    return true;
+  }
+  return false;
+}

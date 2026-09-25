@@ -590,6 +590,7 @@ function renderStock() {
   else if (_stockView === 'review' && _stockReview) el.innerHTML = renderStockReview();
   else if (_stockView === 'manual' && _stockManual) el.innerHTML = renderStockManual();
   else if (_stockView === 'item' && stockItem(_stockItemId)) el.innerHTML = renderStockItem(stockItem(_stockItemId));
+  else if (_stockView === 'reorder' && _stockReorder) el.innerHTML = renderStockReorder();
   else { _stockView = 'list'; el.innerHTML = renderStockList(); }
   updateStockBadge();
 }
@@ -610,6 +611,7 @@ function renderStockList() {
     (lastCount ? '<div class="inv-stk-meta">Last count <strong>' + escHtml(stockShortDate(lastCount.date)) + '</strong>' +
       (lastCount.sentBy ? ' &middot; ' + escHtml(lastCount.sentBy) : '') + '</div>' : '') +
     '</div><div class="inv-stk-tools">' +
+    '<button class="inv-stk-tool" data-action="invStockReorder">Reorder list</button>' +
     '<button class="inv-stk-tool" data-action="invStockExport">Export</button>' +
     '<button class="inv-stk-tool" data-action="invStockImport">Import</button>' +
     '<input type="file" accept=".json,application/json" id="stockFileInput" class="inv-hidden"></div></div>' +
@@ -1116,7 +1118,7 @@ function stockAction(action, btn) {
     case 'invStockManual': stockOpenManual(); break;
     case 'invStockBack':
       if (_stockView === 'review') { stockSetView('paste'); break; }
-      _stockReview = null; _stockManual = null; stockSetView('list'); break;
+      _stockReview = null; _stockManual = null; _stockReorder = null; stockSetView('list'); break;
     case 'invStockOpen': _stockItemId = btn.dataset.id; stockSetView('item'); break;
     case 'invStockBal':
       if (_stockReview) { _stockReview.choices['bal' + btn.dataset.i] = btn.dataset.v; renderStock(); }
@@ -1133,6 +1135,8 @@ function stockAction(action, btn) {
     case 'invStockVoid': stockVoid(btn.dataset.id); break;
     case 'invStockExport': stockExport(); break;
     case 'invStockBillOpen': stockBillOpen(btn.dataset.entry || ''); break;
+    case 'invStockReorder': _stockReorder = { qty: {} }; stockSetView('reorder'); break;
+    case 'invStockReorderCopy': stockReorderCopy(); break;
     case 'invStockBillSave': stockBillSave(); break;
     case 'invStockBillCancel': _stockBill = null; renderStock(); break;
     case 'invStockImport': stockImport(); break;
@@ -1147,6 +1151,7 @@ function stockOnInput(t) {
   var tn = t.getAttribute && t.getAttribute('data-stock-name');
   if (tn != null && _stockReview) { _stockReview.choices['name' + tn] = t.value.trim(); return true; }
   if (stockBillOnInput(t)) return true;
+  if (stockReorderOnInput(t)) return true;
   if (!_stockManual) return false;
   if (t.id === 'stockManSupplier') { _stockManual.supplier = t.value.trim(); return true; }
   if (t.id === 'stockManBill') { _stockManual.billNo = t.value.trim(); return true; }
@@ -1180,6 +1185,7 @@ function stockOnChange(t) {
   var ni = t.getAttribute && t.getAttribute('data-stock-name');
   if (ni != null && _stockReview) { stockCommitName(t, false); return true; }
   if (t.id === 'stockManDate' && _stockManual) { _stockManual.date = t.value; return true; }
+  if ((t.id === 'stockLeadDays' || t.id === 'stockCoverDays') && _stockReorder) { stockReorderOnInput(t); renderStock(); return true; }
   var u = t.getAttribute && t.getAttribute('data-stock-unit');
   if (u) { var it = stockItem(u); if (it) { it.unit = t.value; saveState(); renderStock(); } return true; }
   return false;

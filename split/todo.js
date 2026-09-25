@@ -513,6 +513,10 @@ function todoGo(go) {
     case 'audit': switchTab('pageRegister'); showNumberAudit(); break;
     case 'settings': openSettings(); break;
     case 'home': switchTab('pageHome'); break;
+    case 'stats': try { localStorage.setItem(STATS_TAB_KEY, go.tab); } catch (e) { /* per-device */ } switchTab('pageStats'); break;
+    case 'staffRoster': _attView = 'roster'; switchTab('pageStaff'); break;
+    case 'staffPaste': _attView = 'paste'; switchTab('pageStaff'); break;
+    case 'stockList': _stockView = 'list'; switchTab('pageStock'); break;
     case 'client': switchTab('pageClients'); openClientEdit(parseInt(go.id, 10)); break;
     case 'invoice': openInvoiceDetail(go.id); break;
     case 'challan': switchTab('pageIM'); editChallan(go.id); break;

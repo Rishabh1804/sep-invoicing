@@ -883,8 +883,8 @@ function renderStats() {
 
   take('trends');
   if (filtered.length || activeInvs.length) {
-    sec.overview += statsOverviewHtml(_statsPeriod, filtered, tonnage) + statsMonthsHtml();
-    sec.clients = statsMarginHtml(_statsPeriod, filtered, tonnage) + sec.clients;
+    sec.overview = insightsCardHtml() + sec.overview + statsOverviewHtml(_statsPeriod, filtered, tonnage) + paceCardHtml() + statsMonthsHtml();
+    sec.clients = statsMarginHtml(_statsPeriod, filtered, tonnage) + nextChallanCardHtml() + sec.clients;
   }
   html = sec[statsTab()];
   if (html === '') html = '<div class="inv-empty-state">No data yet. Create invoices and log incoming material to see analytics.</div>';

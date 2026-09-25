@@ -111,6 +111,20 @@ function switchTab(tabId) {
 }
 
 /* ===== HOME ===== */
+/* The quick actions: each opens its tab already on the job — the form open,
+   the box focused — rather than on the tab's front page. */
+function homeQuick(go) {
+  if (go === 'challan') { switchTab('pageIM'); showAddChallanForm(); }
+  else if (go === 'stock') { switchTab('pageStock'); stockOpenManual(); }
+  else if (go === 'attendance') { _attView = 'day'; _attDate = localDateStr(); switchTab('pageStaff'); }
+  else if (go === 'paste') relayOpen();
+  else if (go === 'task') {
+    switchTab('pageTodo');
+    var inp = document.getElementById('todoNew');
+    if (inp) inp.focus();
+  }
+}
+
 function renderHome() {
   const now = new Date();
   const ym = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0');

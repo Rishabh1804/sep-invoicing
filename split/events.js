@@ -23,6 +23,7 @@ document.addEventListener('click', function(e) {
     case 'invOpenMore': openMoreSheet(); break;
     case 'invCloseMore': closeMoreSheet(); break;
     case 'invCreateNew': initCreateForm(); switchTab('pageCreate'); break;
+    case 'invHomeQuick': homeQuick(btn.dataset.go); break;
     case 'invOpenSettings': openSettings(); break;
     case 'invCloseOverlay': closeOverlay(); break;
     case 'invCloseConfirm': closeTopOverlay(); break;
@@ -352,6 +353,7 @@ document.addEventListener('click', function(e) {
     default:
       if (action.indexOf('invStock') === 0) stockAction(action, btn);
       else if (action.indexOf('invTodo') === 0) todoAction(action, btn);
+      else if (action.indexOf('invRelay') === 0) relayAction(action, btn);
   }
 });
 
@@ -407,6 +409,7 @@ function updateTotalsDisplay() {
 document.addEventListener('change', function(e) {
   if (stockOnChange(e.target)) return;
   if (todoOnChange(e.target)) return;
+  if (relayOnChange(e.target)) return;
   const el = e.target.closest('[data-action="invUpdateLine"]');
   if (el) {
     const idx = parseInt(el.dataset.idx);
@@ -544,6 +547,7 @@ document.addEventListener('change', function(e) {
 
 document.addEventListener('input', function(e) {
   if (stockOnInput(e.target)) return;
+  if (relayOnInput(e.target)) return;
   if (e.target.id === 'clientSearch') {
     renderClientList(e.target.value);
   }

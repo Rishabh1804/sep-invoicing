@@ -58,6 +58,9 @@ function getDefaultState() {
     // The owner's to-do list: typed tasks (ticked, never deleted) and the
     // snoozes granted to app-raised ones, each against the figures it saw.
     todo: { tasks: [], snoozes: {} },
+    // Every attendance roll pasted in, whole, with a fingerprint so the same
+    // roll twice is refused (it would count every hour twice).
+    relayPastes: [],
     // Which rules may raise a task, and their day thresholds.
     todoCheck: { stock: true, paste: true, cn: true, challan: true, dispatch: true, audit: true,
       backup: true, zinc: false, pasteDays: 2, challanDays: 5, dispatchDays: 2, backupDays: 7 },
@@ -357,7 +360,7 @@ function hideStorageBanner(kind) {
 // Containers hold the user's records, so a missing one is filled EMPTY — the
 // app must never invent business data to repair a shape.
 var STATE_CONTAINERS = ['clients', 'items', 'invoices', 'incomingMaterial', 'partWeights',
-  'voidedNumbers', 'creditNotes', 'extraExceptions', 'staff', 'attendance', 'areaTargets', 'stock', 'todo'];
+  'voidedNumbers', 'creditNotes', 'extraExceptions', 'staff', 'attendance', 'areaTargets', 'stock', 'todo', 'relayPastes'];
 // Config objects are the opposite: a missing one is filled from the defaults,
 // and so is a missing KEY inside one. `labourCfg()` reads `extraRate || 0`, so
 // a backup predating a constant would silently price the extra at nothing

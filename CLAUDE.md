@@ -23,7 +23,7 @@ Workforce management and invoicing PWA for **Soma Electro Products**, a zinc ele
 
 ## Architecture
 
-Split-file PWA. 36 modules, ~23,100 lines total.
+Split-file PWA. 37 modules, ~23,500 lines total.
 
 ```
 split/
@@ -52,6 +52,7 @@ split/
 ├── staff.js           ← Roster + attendance + roster import: day, week, extra hours (1,013 lines)
 ├── labour.js          ← Labour: three pay tiers, fixed/variable, by area, ₹/kg (449 lines)
 ├── areas.js           ← Areas: staffing vs norms + the extra reconciled (1135 lines)
+├── payroll.js         ← Pay: due by worker, payments, weekly payout + forecast, hours by area, Home attendance (394 lines)
 ├── stock.js           ← Stock: WhatsApp message parser, event replay, More sheet, chemicals ₹/kg (1,189 lines)
 ├── todo.js            ← To-do: your tasks + tasks raised from the data, Home card, Windows widget payload (726 lines)
 ├── relay.js           ← Attendance rolls: in/out-time WhatsApp parser, review, merge into the day (795 lines)
@@ -66,7 +67,7 @@ split/
 └── init.js            ← Migrations + app bootstrap (567 lines)
 ```
 
-**Concat order defined in build.sh.** Dependencies: data → state → zinc → tabs → clients → items → create → settings → github-sync → invoice-ops → number-audit → exports → im → autocomplete → print → quality-cert → credit-note → charts → staff → labour → areas → stock → todo → relay → stats → client-perf → im-form → im-dupe → scanner → events → swipe → seed → init.
+**Concat order defined in build.sh.** Dependencies: data → state → zinc → tabs → clients → items → create → settings → github-sync → invoice-ops → number-audit → exports → im → autocomplete → print → quality-cert → credit-note → charts → staff → labour → areas → payroll → stock → todo → relay → stats → client-perf → im-form → im-dupe → scanner → events → swipe → seed → init.
 
 ### Build
 
@@ -92,7 +93,7 @@ every session start — nothing to set up by hand. CI (`build-sync`) is the back
 ### Tests
 
 ```bash
-pnpm exec playwright test          # 396 tests, both layouts
+pnpm exec playwright test          # 401 tests, both layouts
 ```
 
 Some sandboxes ship a Chromium build Playwright does not expect and block downloading
@@ -1234,9 +1235,41 @@ is fixed and which of it scales with tonnage — and nothing could answer it bec
 measured it.
 
 **Three views over one store.** Day is for entry (present / half / absent, area, and hours).
-Week is a Mon–Sat grid whose cells cycle, for fixing what the day view got wrong, with the
+Week is a **Sun–Sat** grid whose cells cycle, for fixing what the day view got wrong, with the
 `15/20` headcount row the daily relay already speaks in. Roster is the master: comp class,
 rates, home area, and whether the worker is on the plant floor.
+
+**The week is the PAY week: Sunday to Saturday, numbered by its Saturday** (owner, 25 Sep 2026).
+The weekly tiers are paid on Saturday and a Sunday worked is paid that coming Saturday, so the
+Sunday opens the week rather than closing it. It used to be a Mon–Sat grid with no Sunday at
+all, which left every Sunday OT day off the one view meant for checking a week. The number is
+the ISO week of the Saturday, which is the week the payout files are named after
+(`2026-W38-payout-2026-09-19`). The daily tier's weekly rest credit is judged on the same week.
+
+### Pay
+Staff → **Pay** (`payroll.js`), for the selected pay week (owner, 25 Sep 2026).
+
+- **Due by worker = earned − paid**, over the worker's own period: the week for the hourly and
+  daily tiers, the calendar month of the week's Saturday for the monthly tier (to today while it
+  runs). Earned is `labourForRange().byWorker`, the labour card's own arithmetic, split per worker.
+  **The EXTRA pool is in no one's due**: it is one line on the slip, disbursed by the supervisor.
+- **Payments and advances** are recorded here (`S.staffPayments: [{id, staffId, date, amount,
+  kind: payment|advance, note, at, voidedAt?, voidReason?}]`). A wrong one is **voided with a
+  reason, never deleted**. A negative due is an advance not yet worked off. Tapping a worker fills
+  the form with what is due.
+- **Weekly payout** = the weekly tiers' earnings + the EXTRA pool. While the week is open it is
+  **predicted at its own pace**: the recorded days as they are, and the unrecorded Mon–Sat days
+  at the week's average per recorded working day. The Sunday is taken out of that average because
+  it is overtime and does not repeat. With nothing recorded yet, the median stands in and says so.
+  **Swing** is measured against the median of the twelve weeks before, leaving out weeks with
+  nothing recorded, because a week nobody typed is not a cheap week. The history lists the twelve
+  weeks, each with what was paid against it.
+- **Hours by area** (Areas view): every tier's hours on each mark, where the worker stood that
+  day, with OT among them and the EXTRA booked to the area. A mark with no hours counts 8 (4 for
+  a half day), and the card says how many were counted that way.
+- **Home → Attendance**: today's on-site count against the active roster, floor heads against
+  the complement, the absentees by name, and the EXTRA booked. If nothing has been typed today,
+  it shows the last day that has, and names it.
 
 **Three comp classes, because the shop pays three ways** — and the first cut of this module got
 two of them wrong by shipping a single `contract` class.

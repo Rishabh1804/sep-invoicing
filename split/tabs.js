@@ -134,6 +134,7 @@ function renderHome() {
 
   renderZincCard();
   renderTodoHomeCard();
+  renderAttHomeCard();
   updateStockBadge();
   ghRenderCard();
 

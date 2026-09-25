@@ -769,7 +769,7 @@ function _attAreasView() {
     '<button class="inv-att-nav-btn" data-action="invAttWeekStep" data-step="-1" aria-label="Earlier">' +
     '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg></button>' +
     '<div class="inv-att-nav-label"><span class="inv-att-week-num">' +
-    (_areaSpan === 1 ? 'Week ' + attWeekNumber(from) : _areaSpan + ' weeks') + '</span>' +
+    (_areaSpan === 1 ? 'Week ' + attPayWeekNumber(from) : _areaSpan + ' weeks') + '</span>' +
     '<span class="inv-att-nav-day">' + formatDate(from) + ' &ndash; ' + formatDate(to) + '</span></div>' +
     '<button class="inv-att-nav-btn" data-action="invAttWeekStep" data-step="1" aria-label="Later">' +
     '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg></button>' +
@@ -787,6 +787,7 @@ function _attAreasView() {
       'No attendance recorded in this range. Mark some days and the floor appears here.</div></div>';
   }
 
+  html += areaHoursCard(from, to);
   html += _areaExtraCard(stats);
 
   // Ranked by the hours the area actually consumed, because that is what

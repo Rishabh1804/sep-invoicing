@@ -2794,6 +2794,25 @@ body.inv-desktop #itemsSelBar {
   font-size: var(--fs-sm);
 }
 .inv-lab-row:last-of-type { border-bottom: none; }
+/* Pay: a due row is a button that fills the payment form. */
+.inv-pay-row {
+  width: 100%; background: none; border: none; border-bottom: 1px solid var(--border);
+  font: inherit; text-align: left; cursor: pointer; min-height: 44px; color: inherit;
+}
+.inv-pay-row:active { background: var(--surface-2); }
+.inv-pay-row:focus-visible { outline: 2px solid var(--accent); outline-offset: calc(var(--sp-2) * -1); }
+.inv-pay-over { color: var(--warning-text); }
+.inv-pay-total { font-weight: 700; }
+.inv-pay-void { opacity: 0.6; text-decoration: line-through; }
+.inv-pay-chart { margin: var(--sp-8) 0; }
+.inv-pay-green { background: var(--attend-bg); }
+.inv-pay-blue { background: var(--prod-bg); }
+.dark .inv-pay-green { background: var(--attend-bg); }
+.dark .inv-pay-blue { background: var(--prod-bg); }
+.inv-att-home { margin-bottom: var(--sp-16); }
+.inv-att-grid-sun { background: var(--surface-2); }
+.dark .inv-pay-row:active, .dark .inv-att-grid-sun { background: var(--surface-2); }
+.dark .inv-pay-over { color: var(--warning-text); }
 .inv-lab-label { color: var(--text-1); min-width: 0; }
 .inv-lab-sub { display: block; font-size: var(--fs-2xs); color: var(--text-3); }
 .inv-lab-value { font-weight: 600; color: var(--cost-text); white-space: nowrap; }

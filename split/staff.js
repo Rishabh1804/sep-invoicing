@@ -130,7 +130,7 @@ var ATT_DAY_VALUE = { P: 1, H: 0.5, A: 0 };
 
 var _attView = 'day';
 var _attDate = null;      // ISO date the Day view is showing
-var _attWeekStart = null; // ISO Monday the Week view is showing
+var _attWeekStart = null; // ISO Sunday the Week view is showing (the pay week)
 
 /* ===== DATE HELPERS =====
    All local-time. `new Date('2026-08-27')` parses as UTC and lands on the
@@ -152,13 +152,18 @@ function attAddDays(iso, n) {
   return attIso(d);
 }
 
-/* Monday of the week containing iso. The plant runs Mon–Sat. */
+/* Sunday of the PAY WEEK containing iso. The plant runs Mon–Sat and pays the
+   weekly tiers on Saturday; a Sunday worked is paid that coming Saturday, so the
+   week runs Sunday to Saturday (owner, 25 Sep 2026). */
 function attWeekStartOf(iso) {
   var d = attParseIso(iso);
-  var dow = d.getDay();            // 0 = Sunday
-  var back = dow === 0 ? 6 : dow - 1;
-  d.setDate(d.getDate() - back);
+  d.setDate(d.getDate() - d.getDay());   // 0 = Sunday
   return attIso(d);
+}
+/* A pay week is numbered by its Saturday, the payout day — the ISO week the
+   payout files are named after (`2026-W38-payout-2026-09-19`). */
+function attPayWeekNumber(weekStartIso) {
+  return attWeekNumber(attAddDays(weekStartIso, 6));
 }
 
 /* ISO-8601 week number, so a week here is the same week soma-internal's
@@ -174,12 +179,12 @@ function attDayName(iso) {
   return ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][attParseIso(iso).getDay()];
 }
 
-/* Mon–Sat of a week. Sunday is worked here only as overtime, and an OT Sunday
-   is recorded on its own date through the Day view rather than being given a
-   permanent column that is empty fifty weeks a year. */
+/* Sun–Sat of a pay week. Sunday is worked only as overtime, but it is paid in
+   this week, so it has its column (owner, 25 Sep 2026: "Week Grid doesn't have
+   sundays"). */
 function attWeekDays(weekStartIso) {
   var out = [];
-  for (var i = 0; i < 6; i++) out.push(attAddDays(weekStartIso, i));
+  for (var i = 0; i < 7; i++) out.push(attAddDays(weekStartIso, i));
   return out;
 }
 
@@ -294,7 +299,7 @@ function renderAttendance() {
 
   var toolbar = document.getElementById('attToolbar');
   if (toolbar) {
-    var views = [['day', 'Day'], ['week', 'Week'], ['areas', 'Areas'], ['roster', 'Roster'], ['paste', 'Paste message']];
+    var views = [['day', 'Day'], ['week', 'Week'], ['pay', 'Pay'], ['areas', 'Areas'], ['roster', 'Roster'], ['paste', 'Paste message']];
     toolbar.innerHTML = '<div class="inv-stats-chips">' + views.map(function(v) {
       return '<button class="inv-chip' + (_attView === v[0] ? ' inv-chip-active' : '') +
         '" data-action="invAttView" data-view="' + v[0] + '">' + v[1] + '</button>';
@@ -313,6 +318,7 @@ function renderAttendance() {
   if (_attView === 'roster') area.innerHTML = _attRosterView();
   else if (_attView === 'paste') area.innerHTML = relayRenderView();
   else if (_attView === 'areas') area.innerHTML = _attAreasView();
+  else if (_attView === 'pay') area.innerHTML = _attPayView();
   else if (_attView === 'week') area.innerHTML = _attWeekView();
   else area.innerHTML = _attDayView();
 
@@ -598,7 +604,7 @@ function _attWeekView() {
   var html = '<div class="inv-att-nav">' +
     '<button class="inv-att-nav-btn" data-action="invAttWeekStep" data-step="-1" aria-label="Previous week">' +
     '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg></button>' +
-    '<div class="inv-att-nav-label"><span class="inv-att-week-num">Week ' + attWeekNumber(_attWeekStart) + '</span>' +
+    '<div class="inv-att-nav-label"><span class="inv-att-week-num">Week ' + attPayWeekNumber(_attWeekStart) + '</span>' +
     '<span class="inv-att-nav-day">' + formatDate(_attWeekStart) + ' &ndash; ' + formatDate(last) + '</span></div>' +
     '<button class="inv-att-nav-btn" data-action="invAttWeekStep" data-step="1" aria-label="Next week">' +
     '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg></button>' +
@@ -612,7 +618,7 @@ function _attWeekView() {
     '<div class="inv-att-grid-wrap"><table class="inv-att-grid">' +
     '<thead><tr><th class="inv-att-grid-name">Worker</th>' +
     days.map(function(d) {
-      return '<th class="inv-att-grid-day' + (d === localDateStr() ? ' inv-att-grid-today' : '') + '">' +
+      return '<th class="inv-att-grid-day' + (d === localDateStr() ? ' inv-att-grid-today' : '') + (attParseIso(d).getDay() === 0 ? ' inv-att-grid-sun' : '') + '">' +
         attDayName(d) + '<span class="inv-att-grid-date">' + attParseIso(d).getDate() + '</span></th>';
     }).join('') + '</tr></thead><tbody>';
 
@@ -628,7 +634,7 @@ function _attWeekView() {
       // The corner figure is the hours that decide this worker's pay: the whole
       // day for the hourly pool, the overtime on top for everyone else.
       var badge = m ? (hourly ? (m.hours || 0) : (m.ot || 0)) : 0;
-      html += '<td class="inv-att-grid-cell"><button class="inv-att-cell inv-att-cell-' +
+      html += '<td class="inv-att-grid-cell' + (attParseIso(d).getDay() === 0 ? ' inv-att-grid-sun' : '') + '"><button class="inv-att-cell inv-att-cell-' +
         (st ? st.toLowerCase() : 'u') + '" data-action="invAttCycle" data-id="' + w.id + '" data-date="' + d +
         '" aria-label="' + escHtml(w.name) + ' ' + attDayName(d) + ' ' + (st ? ATT_STATE_LABELS[st] : 'unmarked') +
         (badge ? ', ' + formatNum(badge, 1) + ' hours' : '') + '">' +

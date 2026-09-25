@@ -120,8 +120,8 @@ function statsMonthsHtml() {
 }
 
 /* ---------- Clients: contribution by client ---------- */
-function statsClientMargins(period, filtered, tonnage) {
-  var r = statsRangeIso(period), c = liveCost(r.from, r.to, tonnage.kg);
+function statsClientMargins(period, filtered, tonnage, range) {
+  var r = range || statsRangeIso(period), c = liveCost(r.from, r.to, tonnage.kg);
   if (!(tonnage.kg > 0) || c.perKg == null) return null;
   var split = statsCostSplit(c);
   var varKg = split.variable / tonnage.kg, fullKg = c.perKg;

@@ -87,10 +87,10 @@ function renderCreateForm() {
   html += '<div class="inv-card"><div class="inv-card-header"><span class="inv-card-title">Optional Details</span></div>' +
     '<div class="inv-form-row"><div class="inv-form-group"><label class="inv-form-label">Challan No</label><input class="inv-form-input" id="invChallanNo" value="' + escHtml(invoiceForm.challanNo) + '"></div>' +
     '<div class="inv-form-group"><label class="inv-form-label">Challan Date</label><input type="date" class="inv-form-input inv-mono" id="invChallanDate" value="' + escHtml(invoiceForm.challanDate) + '"></div></div>' +
-    '<div class="inv-form-row"><div class="inv-form-group"><label class="inv-form-label">PO No</label><input class="inv-form-input" id="invPONumber" value="' + escHtml(invoiceForm.poNumber) + '"></div>' +
+    '<div class="inv-form-row"><div class="inv-form-group"><label class="inv-form-label">PO No</label><input class="inv-form-input" id="invPONumber" value="' + escHtml(invoiceForm.poNumber) + '">' + predHintHtml('po') + '</div>' +
     '<div class="inv-form-group"><label class="inv-form-label">PO Date</label><input type="date" class="inv-form-input inv-mono" id="invPODate" value="' + escHtml(invoiceForm.poDate) + '"></div></div>' +
     '<div class="inv-form-row"><div class="inv-form-group"><label class="inv-form-label">Vehicle No</label><input class="inv-form-input" id="invTransport" value="' + escHtml(invoiceForm.transport) + '" placeholder="JH 05XX 0000" list="invVehicleList" autocomplete="off">' +
-    '<datalist id="invVehicleList">' + getVehicleSuggestions(invoiceForm.clientId) + '</datalist></div>' +
+    '<datalist id="invVehicleList">' + getVehicleSuggestions(invoiceForm.clientId) + '</datalist>' + predHintHtml('ve') + '</div>' +
     '<div class="inv-form-group"><label class="inv-form-label">Despatch Date</label><input type="date" class="inv-form-input inv-mono" id="invDespatchDate" value="' + escHtml(invoiceForm.despatchDate) + '"></div></div>' +
     '<div class="inv-form-group"><label class="inv-form-label">Remarks</label><textarea class="inv-form-input" id="invRemarks" rows="2">' + escHtml(invoiceForm.remarks) + '</textarea></div></div>';
 
@@ -212,6 +212,9 @@ function validateInvoice() {
 function selectClient(id) {
   captureOptionalFields();
   invoiceForm.clientId = id;
+  // PO and vehicle from the client's own history (insights.js): filled only
+  // into an empty field, and only where the history clearly says what it is.
+  predApplyToInvoice();
   const client = S.clients.find(c => c.id === id);
   // Auto-fill rate on existing items
   if (client) {

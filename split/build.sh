@@ -50,6 +50,7 @@ JS_SOURCES=(
     "$DIR/relay.js" \
     "$DIR/stats.js" \
     "$DIR/intel.js" \
+    "$DIR/insights.js" \
     "$DIR/client-perf.js" \
     "$DIR/im-form.js" \
     "$DIR/im-dupe.js" \

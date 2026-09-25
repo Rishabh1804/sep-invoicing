@@ -23,7 +23,7 @@ Workforce management and invoicing PWA for **Soma Electro Products**, a zinc ele
 
 ## Architecture
 
-Split-file PWA. 39 modules, ~24,200 lines total.
+Split-file PWA. 40 modules, ~24,700 lines total.
 
 ```
 split/
@@ -59,6 +59,7 @@ split/
 ├── relay.js           ← Attendance rolls: in/out-time WhatsApp parser, review, merge into the day (795 lines)
 ├── stats.js           ← Stats dashboard + History activity log (1,195 lines)
 ├── intel.js           ← Stats tabs; Overview at the live cost; six months; contribution by client (~230 lines)
+├── insights.js        ← Insights (as To-do rules), predictions, invoice PO/vehicle prefill (~330 lines)
 ├── client-perf.js     ← Client performance: month on month + material cadence (314 lines)
 ├── im-form.js         ← IM add/edit/delete challan form (450 lines)
 ├── im-dupe.js         ← IM duplicate guard: fingerprint + pre-save warn + scan (305 lines)
@@ -69,7 +70,7 @@ split/
 └── init.js            ← Migrations + app bootstrap (567 lines)
 ```
 
-**Concat order defined in build.sh.** Dependencies: data → state → zinc → tabs → clients → items → create → settings → github-sync → invoice-ops → number-audit → exports → im → autocomplete → print → quality-cert → credit-note → charts → staff → labour → areas → payroll → stock → cost → todo → relay → stats → intel → client-perf → im-form → im-dupe → scanner → events → swipe → seed → init.
+**Concat order defined in build.sh.** Dependencies: data → state → zinc → tabs → clients → items → create → settings → github-sync → invoice-ops → number-audit → exports → im → autocomplete → print → quality-cert → credit-note → charts → staff → labour → areas → payroll → stock → cost → todo → relay → stats → intel → insights → client-perf → im-form → im-dupe → scanner → events → swipe → seed → init.
 
 ### Build
 
@@ -95,7 +96,7 @@ every session start — nothing to set up by hand. CI (`build-sync`) is the back
 ### Tests
 
 ```bash
-pnpm exec playwright test          # 409 tests, both layouts
+pnpm exec playwright test          # 413 tests, both layouts
 ```
 
 Some sandboxes ship a Chromium build Playwright does not expect and block downloading
@@ -1194,6 +1195,43 @@ the device. `renderStats()` still draws every card; `take()` files each into its
   the table says: a thin clamp and a heavy bracket cost the same per kg there. On the real book for the
   quarter to 25 Sep: live cost ₹7.31/kg (40% measured) against ₹7.96 realised; SSS Mehta at ₹5.34 net is
   −₹0.87/kg even with labour fixed.
+
+### Insights and predictions
+Parts three and four of the intelligence engine (owner, 25 Sep 2026). `insights.js`.
+
+- **An insight is a To-do rule.** It has the same shape as an app task (tone, figures, what to do, what
+  clears it, a snooze against its figures), so it reaches the To-do list, the Home card and the Windows
+  widget with nothing new, and **Stats → Overview → Insights** lists them all. Each can be switched off in
+  Settings → To-do. There are eight:
+  - **a client gone quiet** — judged against its own rhythm: overdue once its gap passes both 1.75× its
+    median gap and median + 21 days, with 5+ challans and ₹20k+ in three months. Red at 10%+ of the book;
+  - **the month realising below every one of the six before** (after 5 working days), naming whose share
+    moved;
+  - **a client's billing down three full months running** (₹30k+ at the start, 25%+ fall);
+  - **a client realising 5%+ under its own median ₹/kg** (₹0 lines, a changed rate, or the mix);
+  - **a large account (10%+ of tonnage) below its variable cost** last month, at the live cost;
+  - **measured labour 20%+ from the model**, only where 90% of days are recorded;
+  - **last pay week with no attendance**;
+  - **stock lines used in 30 days with no price**.
+- **Predictions**, each saying what it rests on:
+  - **This month at its pace** (Overview): revenue and tonnage per working day so far × the month's
+    working days, a band from how much those days varied, and unbilled challans in hand.
+  - **Next challan expected** (Clients): each client's median gap after its last challan; late past it,
+    quiet past the rule above.
+  - **Invoice PO and vehicle.** On choosing a client for a new invoice, an empty PO field takes the next
+    number **only where the client's POs run in sequence**. Where they rise but skip (a customer numbering
+    across all its suppliers: Dorabji `DA1/01322 → 01333 → 01339`), only the prefix is filled and the hint
+    says so. An empty vehicle field is filled **only where one vehicle carries 60%+** of the client's last
+    30; otherwise the usual ones are offered as chips and nothing is typed.
+
+### Stock reorder list
+More → Stock → **Reorder list** (owner, 25 Sep 2026). For each line with a daily use:
+**use × (lead time + days to cover) − on hand**, rounded up to the **pack it is bought in** (the smallest
+purchase, when every purchase is a whole number of it), priced at the **last price paid** and grouped by
+the **supplier it last came from**. Lead time (10) and cover (30) are set on the list and kept on the
+device's book (`S.stockCheck.leadDays/coverDays`). A rate from under three days of record is flagged
+*check*. Typed quantities win and 0 leaves a line out. Lines with no use yet are listed apart. **Copy as
+message** gives a WhatsApp-ready order by supplier. Nothing is ordered from the app.
 
 ### Home quick actions
 Six buttons under Month to Date, each opening its screen **already on the job**: New invoice, New

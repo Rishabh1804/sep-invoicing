@@ -2805,6 +2805,14 @@ body.inv-desktop #itemsSelBar {
 .inv-pay-total { font-weight: 700; }
 .inv-pay-void { opacity: 0.6; text-decoration: line-through; }
 .inv-pay-chart { margin: var(--sp-8) 0; }
+.inv-stk-rprice { min-width: calc(var(--sp-32) * 2.5); text-align: right; font-family: var(--ff-mono); font-size: var(--fs-sm); color: var(--text-2); }
+.inv-stk-reorder .inv-stk-mname span { display: block; font-size: var(--fs-2xs); font-weight: 400; color: var(--text-3); }
+.dark .inv-stk-rprice { color: var(--text-2); }
+.inv-pred-hint { font-size: var(--fs-2xs); color: var(--prod-text); margin-top: var(--sp-4); }
+.inv-pred-chips { display: flex; flex-wrap: wrap; gap: var(--sp-4); margin-top: var(--sp-4); }
+.inv-pred-chip { font: inherit; font-size: var(--fs-xs); font-family: var(--ff-mono); border: 1px solid var(--border); border-radius: var(--r-md); padding: var(--sp-4) var(--sp-8); background: var(--prod-bg); color: var(--prod-text); cursor: pointer; min-height: 32px; }
+.dark .inv-pred-hint, .dark .inv-pred-chip { color: var(--prod-text); }
+.dark .inv-pred-chip { background: var(--prod-bg); }
 .inv-stats-tabs { display: flex; gap: var(--sp-4); overflow-x: auto; margin-bottom: var(--sp-8); border-bottom: 1px solid var(--border); }
 .inv-stats-tab { flex: 0 0 auto; min-height: 44px; padding: 0 var(--sp-12); background: none; border: none; border-bottom: 2px solid transparent; font: inherit; font-weight: 600; color: var(--text-2); cursor: pointer; }
 .inv-stats-tab-on { color: var(--accent); border-bottom-color: var(--accent); }

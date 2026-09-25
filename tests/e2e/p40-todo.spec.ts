@@ -18,8 +18,13 @@ function iso(offset: number): string {
 }
 
 function base(extra: Partial<SepState> = {}): SepState {
-  // A backup "today" keeps the backup rule quiet unless a test wants it.
-  return { ...emptyState(), incomingMaterial: noSeedIM(), ...extra } as SepState;
+  // A backup "today" keeps the backup rule quiet unless a test wants it. The
+  // insight rules are p48's; they are off here so these counts measure the
+  // to-do mechanics alone.
+  const insightsOff = { insQuiet: false, insRealLow: false, insClientDown: false, insLeak: false, insBelowVar: false,
+    insLabour: false, insAttGap: false, insChemPrice: false };
+  const todoCheck = { ...insightsOff, ...((extra as any).todoCheck || {}) };
+  return { ...emptyState(), incomingMaterial: noSeedIM(), ...extra, todoCheck } as SepState;
 }
 
 async function load(page: Page, state: SepState) {

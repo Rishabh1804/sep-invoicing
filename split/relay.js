@@ -912,7 +912,6 @@ function relayAction(action, btn) {
     case 'invRelayBack': _relayView = 'paste'; renderAttendance(); break;
     case 'invRelaySave': relaySave(); break;
     case 'invRelayLines': _relayShowLines = !_relayShowLines; renderAttendance(); break;
-    case 'invRelayOpen': relayOpen(); break;
   }
 }
 function relayOnChange(t) {

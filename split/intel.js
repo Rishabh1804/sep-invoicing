@@ -103,7 +103,7 @@ function statsMonthsHtml() {
     var real = w.kg > 0 ? w.revKnown / w.kg : null;
     var lab = c.rows.find(function(x) { return x.key === 'labour'; });
     rows.push({ label: d.toLocaleString('en-IN', { month: 'short' }) + (to === today ? ' to date' : ''), real: real, cost: c.perKg, kg: w.kg,
-      contrib: real != null && c.perKg != null ? real - c.perKg : null, labour: lab && w.kg > 0 ? lab.amount / w.kg : null, labSrc: lab ? lab.source : 'none', measured: c.measuredShare });
+      contrib: real != null && c.perKg != null ? real - c.perKg : null, labour: lab && w.kg > 0 ? lab.amount / w.kg : null, labCov: lab ? lab.coverage : 0, measured: c.measuredShare });
   }
   if (!rows.some(function(r) { return r.kg > 0; })) return '';
   var h = '<div class="inv-stats-card inv-stats-card-full" id="statsMonths"><div class="inv-stats-title">Six months<span class="inv-stats-title-sub">each at its own live cost</span></div>' +
@@ -112,7 +112,7 @@ function statsMonthsHtml() {
     h += '<tr><td>' + escHtml(r.label) + '</td><td>' + formatNum(r.kg / 1000, 1) + '</td><td>' + (r.real != null ? formatNum(r.real, 2) : '&mdash;') + '</td><td>' +
       (r.cost != null ? formatNum(r.cost, 2) : '&mdash;') + '</td><td class="' + (r.contrib == null ? '' : r.contrib >= 0 ? 'inv-ov-pos' : 'inv-ov-neg') + '">' +
       (r.contrib != null ? (r.contrib >= 0 ? '+' : '&minus;') + formatNum(Math.abs(r.contrib), 2) : '&mdash;') + '</td><td>' +
-      (r.labour != null && r.labSrc === 'measured' ? formatNum(r.labour, 2) : '&mdash;') + '</td><td>' + Math.round(r.measured * 100) + '%</td></tr>';
+      (r.labour != null && r.labCov >= 0.9 ? formatNum(r.labour, 2) : '&mdash;') + '</td><td>' + Math.round(r.measured * 100) + '%</td></tr>';
   });
   h += '</tbody></table><div class="inv-stats-note">₹ per kg. Labour shows only where the days are recorded (90% or more); a month with less is withheld rather than read low. ' +
     'Measured is the share of that month&rsquo;s cost from the app&rsquo;s own records.</div></div>';

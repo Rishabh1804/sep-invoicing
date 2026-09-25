@@ -90,8 +90,15 @@ var SETTINGS_SECS = {
         _sfg('Next number', 'setNextNum', _sNum('setNextNum', S.invNextNum, 1, 1)));
     },
     save: function() {
-      S.invPrefix = _sVal('setPrefix').trim();
-      S.invNextNum = parseInt(_sVal('setNextNum'), 10) || S.invNextNum;
+      var prefix = _sVal('setPrefix').trim(), next = parseInt(_sVal('setNextNum'), 10);
+      if (isNaN(next) || next < 1) { showToast('Enter the next invoice number', 'error'); return false; }
+      // Never back over a number the customer holds under this prefix: an
+      // issued invoice, or a deleted one whose number was spent. A new
+      // financial year's prefix has none, so it may start again at 1.
+      var used = _settingsHighestIssued(prefix);
+      if (next <= used) { showToast('Next invoice must be above ' + prefix + padInvNum(used) + ' — that number is issued', 'error'); return false; }
+      S.invPrefix = prefix;
+      S.invNextNum = next;
     }
   },
   cn: {
@@ -348,6 +355,17 @@ var SETTINGS_SECS = {
     why: 'Import replaces the whole book with the file. Exporting also counts as a backup for the To-do reminder.'
   }
 };
+
+function _settingsHighestIssued(prefix) {
+  var hi = 0;
+  var take = function(display, num) {
+    var n = invNumInt(num);
+    if (n != null && String(display || '').indexOf(prefix) === 0 && n > hi) hi = n;
+  };
+  S.invoices.forEach(function(inv) { take(inv.displayNumber, inv.invoiceNumber); });
+  getVoidedNumbers().forEach(function(v) { if (v.reserved) take(v.displayNumber, v.invoiceNumber); });
+  return hi;
+}
 
 var _CHEVRON_SVG = '<svg class="inv-set-chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>';
 

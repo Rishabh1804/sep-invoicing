@@ -96,7 +96,7 @@ every session start — nothing to set up by hand. CI (`build-sync`) is the back
 ### Tests
 
 ```bash
-pnpm exec playwright test          # 427 tests, both layouts
+pnpm exec playwright test          # 431 tests, both layouts
 ```
 
 Some sandboxes ship a Chromium build Playwright does not expect and block downloading
@@ -1693,6 +1693,11 @@ card says rather than leaving the reader to work out.
 the marks, it would orphan them: every past week's labour would quietly drop that wage and no
 figure would say why. Clearing Active keeps the history and takes them out of today's
 denominator, which is what "left" means here.
+
+🔧 **That was true of the roster and false of the bill until 25 Sep 2026**: `labourForRange` priced only the
+active roster, so setting a leaver inactive dropped every day they had worked from every past week, month and
+payout median. It prices every worker whose marks fall in the range now; `rosterSize` is still the active count.
+Paid holidays count as rest days in the coverage, not as working days nobody typed.
 
 ## Settings
 Six groups (owner, 25 Sep 2026: *"Too many things all in one place, no markers, no subdivisions"*):

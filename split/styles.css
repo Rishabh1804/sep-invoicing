@@ -3581,3 +3581,6 @@ body.inv-desktop .inv-set-nav {
 body.inv-desktop .inv-set-panes { overflow-y: auto; min-height: 0; padding-right: var(--sp-4); }
 body.inv-desktop .inv-set-group { display: none; }
 body.inv-desktop .inv-set-group-on { display: block; }
+
+/* The desktop challan list's Add / Scan pair, under the table. */
+.inv-im-fab-bar { display: flex; gap: var(--sp-8); justify-content: flex-end; padding: var(--sp-12) 0; }

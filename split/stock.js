@@ -342,11 +342,6 @@ function stockReplay(itemId, beforeDate) {
   });
   return { level: level, rows: rows };
 }
-function stockLastDate(itemId, kinds) {
-  var d = null;
-  stockItemEntries(itemId).forEach(function(e) { if (kinds.indexOf(e.kind) >= 0 && (!d || e.date > d)) d = e.date; });
-  return d;
-}
 /* Daily rate: what was used over the last three weeks of record ÷ the days it
    covers. Fewer than three days is not a rate yet — the mark says so. */
 function stockRate(item) {

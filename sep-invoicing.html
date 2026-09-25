@@ -15,7 +15,7 @@
 <title>SEP Invoicing</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-<meta name="app-build" content="b470cb07">
+<meta name="app-build" content="48f5e8ed">
 <style>
 /* ===== DESIGN TOKENS ===== */
 :root {
@@ -3600,6 +3600,9 @@ body.inv-desktop .inv-set-nav {
 body.inv-desktop .inv-set-panes { overflow-y: auto; min-height: 0; padding-right: var(--sp-4); }
 body.inv-desktop .inv-set-group { display: none; }
 body.inv-desktop .inv-set-group-on { display: block; }
+
+/* The desktop challan list's Add / Scan pair, under the table. */
+.inv-im-fab-bar { display: flex; gap: var(--sp-8); justify-content: flex-end; padding: var(--sp-12) 0; }
 </style>
 </head>
 <body>
@@ -7887,8 +7890,15 @@ var SETTINGS_SECS = {
         _sfg('Next number', 'setNextNum', _sNum('setNextNum', S.invNextNum, 1, 1)));
     },
     save: function() {
-      S.invPrefix = _sVal('setPrefix').trim();
-      S.invNextNum = parseInt(_sVal('setNextNum'), 10) || S.invNextNum;
+      var prefix = _sVal('setPrefix').trim(), next = parseInt(_sVal('setNextNum'), 10);
+      if (isNaN(next) || next < 1) { showToast('Enter the next invoice number', 'error'); return false; }
+      // Never back over a number the customer holds under this prefix: an
+      // issued invoice, or a deleted one whose number was spent. A new
+      // financial year's prefix has none, so it may start again at 1.
+      var used = _settingsHighestIssued(prefix);
+      if (next <= used) { showToast('Next invoice must be above ' + prefix + padInvNum(used) + ' — that number is issued', 'error'); return false; }
+      S.invPrefix = prefix;
+      S.invNextNum = next;
     }
   },
   cn: {
@@ -8145,6 +8155,17 @@ var SETTINGS_SECS = {
     why: 'Import replaces the whole book with the file. Exporting also counts as a backup for the To-do reminder.'
   }
 };
+
+function _settingsHighestIssued(prefix) {
+  var hi = 0;
+  var take = function(display, num) {
+    var n = invNumInt(num);
+    if (n != null && String(display || '').indexOf(prefix) === 0 && n > hi) hi = n;
+  };
+  S.invoices.forEach(function(inv) { take(inv.displayNumber, inv.invoiceNumber); });
+  getVoidedNumbers().forEach(function(v) { if (v.reserved) take(v.displayNumber, v.invoiceNumber); });
+  return hi;
+}
 
 var _CHEVRON_SVG = '<svg class="inv-set-chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>';
 
@@ -9069,44 +9090,6 @@ function backCorrectChallans(inv, formItems) {
     lines++;
   });
   return { lines: lines, challans: Object.keys(touched).map(function(k) { return touched[k]; }) };
-}
-
-function viewInvoice(invId) {
-  const inv = S.invoices.find(i => i.id === invId);
-  if (!inv) return;
-  if (inv.status === 'cancelled') {
-    openInvoiceDetail(invId);
-    return;
-  }
-  // Build toast — include cross-month warning if applicable
-  const now = new Date();
-  const curMonth = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
-  const invMonth = inv.date ? inv.date.substring(0, 7) : '';
-  let editToast = 'Editing ' + inv.displayNumber;
-  if (invMonth && invMonth !== curMonth) {
-    const monthNames = ['','January','February','March','April','May','June','July','August','September','October','November','December'];
-    const parts = invMonth.split('-');
-    const mName = monthNames[parseInt(parts[1])] + ' ' + parts[0];
-    editToast += ' (' + mName + ' — may affect filed returns)';
-  }
-  // Load into edit mode
-  invoiceForm = {
-    clientId: inv.clientId,
-    date: inv.date,
-    items: withChallanLinks(inv).map(i => ({...i, _override: false, _label: ''})),
-    poNumber: inv.poNumber || '',
-    poDate: inv.poDate || localDateStr(),
-    challanNo: inv.challanNo || '',
-    challanDate: inv.challanDate || localDateStr(),
-    despatchDate: inv.despatchDate || localDateStr(),
-    transport: inv.transport || '',
-    eWayBill: inv.eWayBill || '',
-    remarks: inv.remarks || '',
-    editingId: inv.id
-  };
-  renderCreateForm();
-  switchTab('pageCreate');
-  showToast(editToast, 'warning');
 }
 
 /* ===== INVOICE REGISTER ===== */
@@ -15283,7 +15266,11 @@ function _areaIsFloor(areaId) {
 function labourForRange(fromIso, toIso) {
   var cfg = labourCfg();
   var dates = attDatesInRange(fromIso, toIso);
-  var roster = (S.staff || []).filter(function(w) { return w.active !== false; });
+  // Every worker, active or not: a hand who has left still worked the days
+  // their marks record, and pricing only today's roster made every past week
+  // quietly cheaper the day somebody was set inactive. Only a mark costs
+  // anything, so a retired row with no marks in the range adds nothing.
+  var roster = S.staff || [];
 
   var out = {
     from: fromIso, to: toIso, rangeDays: dates.length,
@@ -15294,7 +15281,7 @@ function labourForRange(fromIso, toIso) {
     ot: 0, otHours: 0, extra: 0, extraHours: 0,
     floorCost: 0,
     daysRecorded: 0, workingDays: 0, sundaysRecorded: 0,
-    rosterSize: roster.length, ratelessWorkers: [], byArea: {}, byWorker: {}
+    rosterSize: roster.filter(function(w) { return w.active !== false; }).length, ratelessWorkers: [], byArea: {}, byWorker: {}
   };
 
   // What each worker earned in the range, on the same arithmetic as the totals:
@@ -15337,9 +15324,11 @@ function labourForRange(fromIso, toIso) {
 
   dates.forEach(function(iso) {
     var dow = attParseIso(iso).getDay();
-    if (dow === 0) out.restDaysInRange++; else out.workingDays++;
-    var seg = monthSeg(iso);
     var holiday = dow !== 0 && labourIsHoliday(iso, cfg);
+    // A paid holiday is not a working day: an untyped 15 Aug is not a gap in
+    // the record, and counting it as one held that month under full coverage.
+    if (dow === 0 || holiday) out.restDaysInRange++; else out.workingDays++;
+    var seg = monthSeg(iso);
     if (dow === 0) seg.sundays++; else if (holiday) seg.holidays++; else seg.working++;
 
     var rec = (S.attendance || {})[iso];
@@ -15348,7 +15337,7 @@ function labourForRange(fromIso, toIso) {
     var marked = Object.keys(marks).length;
     if (marked === 0 && (rec.extra || []).length === 0) return;
     if (marked > 0) {
-      if (dow === 0) out.sundaysRecorded++; else out.daysRecorded++;
+      if (dow === 0) out.sundaysRecorded++; else if (!holiday) out.daysRecorded++;
     }
 
     var wk = attWeekStartOf(iso);
@@ -15479,7 +15468,9 @@ function labourForRange(fromIso, toIso) {
   if (cfg.restCreditMinDays > 0) {
     Object.keys(weekDaysWorked).forEach(function(key) {
       if (weekDaysWorked[key] < cfg.restCreditMinDays) return;
-      var w = staffById(parseInt(key.split('|')[0], 10));
+      // Ids are numbers on a device and strings in some imports: match as text.
+      var idPart = key.split('|')[0];
+      var w = roster.find(function(x) { return String(x.id) === idPart; });
       if (!w) return;
       var pay = (w.dayRate || 0);
       out.dailyRest += pay;
@@ -17805,11 +17796,6 @@ function stockReplay(itemId, beforeDate) {
   });
   return { level: level, rows: rows };
 }
-function stockLastDate(itemId, kinds) {
-  var d = null;
-  stockItemEntries(itemId).forEach(function(e) { if (kinds.indexOf(e.kind) >= 0 && (!d || e.date > d)) d = e.date; });
-  return d;
-}
 /* Daily rate: what was used over the last three weeks of record ÷ the days it
    covers. Fewer than three days is not a rate yet — the mark says so. */
 function stockRate(item) {
@@ -18874,7 +18860,7 @@ function liveCost(from, to, kg) {
     ['Daily tier', lab.daily + lab.dailyRest], ['Overtime', lab.ot], ['EXTRA pool', lab.extra]].filter(function(d) { return d[1]; })
     .map(function(d) { return { label: d[0], amount: d[1] }; });
   if (labMissing > 0.001) labDetail.push(fillLine(lm, labMissing, Math.round(labMissing * 100) + '% of working days'));
-  push({ key: 'labour', label: 'Labour', amount: lab.total + (labMissing > 0.001 ? lm * kg * labMissing : 0),
+  push({ key: 'labour', label: 'Labour', coverage: lab.total > 0 ? lab.coverage : 0, amount: lab.total + (labMissing > 0.001 ? lm * kg * labMissing : 0),
     note: lab.total > 0 ? Math.round(lab.coverage * 100) + '% of working days recorded' : 'no attendance recorded: ' + formatCurrency(lm) + '/kg from Settings', detail: labDetail });
 
   // Chemicals and zinc: what the stock record says was used, at the price paid.
@@ -18986,7 +18972,6 @@ function liveCost(from, to, kg) {
   var measured = rows.reduce(function(s, r) { return s + (r.measured > 0 ? r.measured : 0); }, 0);
   return { from: from, to: to, kg: kg, rows: rows, total: total, perKg: per(total), measuredShare: total > 0 ? measured / total : 0 };
 }
-function cfgPerKgAmount(perKg, kg) { return kg > 0 ? perKg * kg : 0; }
 
 var COST_SRC_LABEL = { measured: 'measured', partial: 'part-recorded', rate: 'market rate', model: 'model', none: 'nothing recorded' };
 var _costBillOpen = false;
@@ -20892,7 +20877,6 @@ function relayAction(action, btn) {
     case 'invRelayBack': _relayView = 'paste'; renderAttendance(); break;
     case 'invRelaySave': relaySave(); break;
     case 'invRelayLines': _relayShowLines = !_relayShowLines; renderAttendance(); break;
-    case 'invRelayOpen': relayOpen(); break;
   }
 }
 function relayOnChange(t) {
@@ -22428,7 +22412,7 @@ function statsMonthsHtml() {
     var real = w.kg > 0 ? w.revKnown / w.kg : null;
     var lab = c.rows.find(function(x) { return x.key === 'labour'; });
     rows.push({ label: d.toLocaleString('en-IN', { month: 'short' }) + (to === today ? ' to date' : ''), real: real, cost: c.perKg, kg: w.kg,
-      contrib: real != null && c.perKg != null ? real - c.perKg : null, labour: lab && w.kg > 0 ? lab.amount / w.kg : null, labSrc: lab ? lab.source : 'none', measured: c.measuredShare });
+      contrib: real != null && c.perKg != null ? real - c.perKg : null, labour: lab && w.kg > 0 ? lab.amount / w.kg : null, labCov: lab ? lab.coverage : 0, measured: c.measuredShare });
   }
   if (!rows.some(function(r) { return r.kg > 0; })) return '';
   var h = '<div class="inv-stats-card inv-stats-card-full" id="statsMonths"><div class="inv-stats-title">Six months<span class="inv-stats-title-sub">each at its own live cost</span></div>' +
@@ -22437,7 +22421,7 @@ function statsMonthsHtml() {
     h += '<tr><td>' + escHtml(r.label) + '</td><td>' + formatNum(r.kg / 1000, 1) + '</td><td>' + (r.real != null ? formatNum(r.real, 2) : '&mdash;') + '</td><td>' +
       (r.cost != null ? formatNum(r.cost, 2) : '&mdash;') + '</td><td class="' + (r.contrib == null ? '' : r.contrib >= 0 ? 'inv-ov-pos' : 'inv-ov-neg') + '">' +
       (r.contrib != null ? (r.contrib >= 0 ? '+' : '&minus;') + formatNum(Math.abs(r.contrib), 2) : '&mdash;') + '</td><td>' +
-      (r.labour != null && r.labSrc === 'measured' ? formatNum(r.labour, 2) : '&mdash;') + '</td><td>' + Math.round(r.measured * 100) + '%</td></tr>';
+      (r.labour != null && r.labCov >= 0.9 ? formatNum(r.labour, 2) : '&mdash;') + '</td><td>' + Math.round(r.measured * 100) + '%</td></tr>';
   });
   h += '</tbody></table><div class="inv-stats-note">₹ per kg. Labour shows only where the days are recorded (90% or more); a month with less is withheld rather than read low. ' +
     'Measured is the share of that month&rsquo;s cost from the app&rsquo;s own records.</div></div>';
@@ -24159,7 +24143,6 @@ document.addEventListener('click', function(e) {
     case 'invAddLineItem': captureOptionalFields(); addLineItem(); break;
     case 'invRemoveLineItem': captureOptionalFields(); invoiceForm.items.splice(parseInt(btn.dataset.idx), 1); renderCreateForm(); break;
     case 'invSaveInvoice': saveInvoice(); break;
-    case 'invViewInvoice': viewInvoice(btn.dataset.id); break;
     case 'invResetForm': initCreateForm(); break;
     case 'invSaveSettingsSec': saveSettingsSection(btn.dataset.sec); break;
     case 'invSettingsGroup': settingsShowGroup(btn.dataset.group); break;

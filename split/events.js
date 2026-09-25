@@ -56,7 +56,6 @@ document.addEventListener('click', function(e) {
     case 'invAddLineItem': captureOptionalFields(); addLineItem(); break;
     case 'invRemoveLineItem': captureOptionalFields(); invoiceForm.items.splice(parseInt(btn.dataset.idx), 1); renderCreateForm(); break;
     case 'invSaveInvoice': saveInvoice(); break;
-    case 'invViewInvoice': viewInvoice(btn.dataset.id); break;
     case 'invResetForm': initCreateForm(); break;
     case 'invSaveSettingsSec': saveSettingsSection(btn.dataset.sec); break;
     case 'invSettingsGroup': settingsShowGroup(btn.dataset.group); break;

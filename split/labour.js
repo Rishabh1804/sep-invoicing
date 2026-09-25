@@ -95,7 +95,11 @@ function _areaIsFloor(areaId) {
 function labourForRange(fromIso, toIso) {
   var cfg = labourCfg();
   var dates = attDatesInRange(fromIso, toIso);
-  var roster = (S.staff || []).filter(function(w) { return w.active !== false; });
+  // Every worker, active or not: a hand who has left still worked the days
+  // their marks record, and pricing only today's roster made every past week
+  // quietly cheaper the day somebody was set inactive. Only a mark costs
+  // anything, so a retired row with no marks in the range adds nothing.
+  var roster = S.staff || [];
 
   var out = {
     from: fromIso, to: toIso, rangeDays: dates.length,
@@ -106,7 +110,7 @@ function labourForRange(fromIso, toIso) {
     ot: 0, otHours: 0, extra: 0, extraHours: 0,
     floorCost: 0,
     daysRecorded: 0, workingDays: 0, sundaysRecorded: 0,
-    rosterSize: roster.length, ratelessWorkers: [], byArea: {}, byWorker: {}
+    rosterSize: roster.filter(function(w) { return w.active !== false; }).length, ratelessWorkers: [], byArea: {}, byWorker: {}
   };
 
   // What each worker earned in the range, on the same arithmetic as the totals:
@@ -149,9 +153,11 @@ function labourForRange(fromIso, toIso) {
 
   dates.forEach(function(iso) {
     var dow = attParseIso(iso).getDay();
-    if (dow === 0) out.restDaysInRange++; else out.workingDays++;
-    var seg = monthSeg(iso);
     var holiday = dow !== 0 && labourIsHoliday(iso, cfg);
+    // A paid holiday is not a working day: an untyped 15 Aug is not a gap in
+    // the record, and counting it as one held that month under full coverage.
+    if (dow === 0 || holiday) out.restDaysInRange++; else out.workingDays++;
+    var seg = monthSeg(iso);
     if (dow === 0) seg.sundays++; else if (holiday) seg.holidays++; else seg.working++;
 
     var rec = (S.attendance || {})[iso];
@@ -160,7 +166,7 @@ function labourForRange(fromIso, toIso) {
     var marked = Object.keys(marks).length;
     if (marked === 0 && (rec.extra || []).length === 0) return;
     if (marked > 0) {
-      if (dow === 0) out.sundaysRecorded++; else out.daysRecorded++;
+      if (dow === 0) out.sundaysRecorded++; else if (!holiday) out.daysRecorded++;
     }
 
     var wk = attWeekStartOf(iso);
@@ -291,7 +297,9 @@ function labourForRange(fromIso, toIso) {
   if (cfg.restCreditMinDays > 0) {
     Object.keys(weekDaysWorked).forEach(function(key) {
       if (weekDaysWorked[key] < cfg.restCreditMinDays) return;
-      var w = staffById(parseInt(key.split('|')[0], 10));
+      // Ids are numbers on a device and strings in some imports: match as text.
+      var idPart = key.split('|')[0];
+      var w = roster.find(function(x) { return String(x.id) === idPart; });
       if (!w) return;
       var pay = (w.dayRate || 0);
       out.dailyRest += pay;

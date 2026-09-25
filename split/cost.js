@@ -219,7 +219,7 @@ function liveCost(from, to, kg) {
     ['Daily tier', lab.daily + lab.dailyRest], ['Overtime', lab.ot], ['EXTRA pool', lab.extra]].filter(function(d) { return d[1]; })
     .map(function(d) { return { label: d[0], amount: d[1] }; });
   if (labMissing > 0.001) labDetail.push(fillLine(lm, labMissing, Math.round(labMissing * 100) + '% of working days'));
-  push({ key: 'labour', label: 'Labour', amount: lab.total + (labMissing > 0.001 ? lm * kg * labMissing : 0),
+  push({ key: 'labour', label: 'Labour', coverage: lab.total > 0 ? lab.coverage : 0, amount: lab.total + (labMissing > 0.001 ? lm * kg * labMissing : 0),
     note: lab.total > 0 ? Math.round(lab.coverage * 100) + '% of working days recorded' : 'no attendance recorded: ' + formatCurrency(lm) + '/kg from Settings', detail: labDetail });
 
   // Chemicals and zinc: what the stock record says was used, at the price paid.
@@ -331,7 +331,6 @@ function liveCost(from, to, kg) {
   var measured = rows.reduce(function(s, r) { return s + (r.measured > 0 ? r.measured : 0); }, 0);
   return { from: from, to: to, kg: kg, rows: rows, total: total, perKg: per(total), measuredShare: total > 0 ? measured / total : 0 };
 }
-function cfgPerKgAmount(perKg, kg) { return kg > 0 ? perKg * kg : 0; }
 
 var COST_SRC_LABEL = { measured: 'measured', partial: 'part-recorded', rate: 'market rate', model: 'model', none: 'nothing recorded' };
 var _costBillOpen = false;

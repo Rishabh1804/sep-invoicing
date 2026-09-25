@@ -78,44 +78,6 @@ function backCorrectChallans(inv, formItems) {
   return { lines: lines, challans: Object.keys(touched).map(function(k) { return touched[k]; }) };
 }
 
-function viewInvoice(invId) {
-  const inv = S.invoices.find(i => i.id === invId);
-  if (!inv) return;
-  if (inv.status === 'cancelled') {
-    openInvoiceDetail(invId);
-    return;
-  }
-  // Build toast — include cross-month warning if applicable
-  const now = new Date();
-  const curMonth = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
-  const invMonth = inv.date ? inv.date.substring(0, 7) : '';
-  let editToast = 'Editing ' + inv.displayNumber;
-  if (invMonth && invMonth !== curMonth) {
-    const monthNames = ['','January','February','March','April','May','June','July','August','September','October','November','December'];
-    const parts = invMonth.split('-');
-    const mName = monthNames[parseInt(parts[1])] + ' ' + parts[0];
-    editToast += ' (' + mName + ' — may affect filed returns)';
-  }
-  // Load into edit mode
-  invoiceForm = {
-    clientId: inv.clientId,
-    date: inv.date,
-    items: withChallanLinks(inv).map(i => ({...i, _override: false, _label: ''})),
-    poNumber: inv.poNumber || '',
-    poDate: inv.poDate || localDateStr(),
-    challanNo: inv.challanNo || '',
-    challanDate: inv.challanDate || localDateStr(),
-    despatchDate: inv.despatchDate || localDateStr(),
-    transport: inv.transport || '',
-    eWayBill: inv.eWayBill || '',
-    remarks: inv.remarks || '',
-    editingId: inv.id
-  };
-  renderCreateForm();
-  switchTab('pageCreate');
-  showToast(editToast, 'warning');
-}
-
 /* ===== INVOICE REGISTER ===== */
 var _regSelected = {};
 var _regSelectMode = false;

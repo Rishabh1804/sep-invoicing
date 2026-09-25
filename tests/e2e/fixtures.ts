@@ -175,3 +175,14 @@ export async function switchTab(page: Page, tabId: string): Promise<void> {
   await target.first().click();
   await page.locator(`#${tabId}.inv-page-active`).waitFor();
 }
+
+/** Open Settings the way the operator does and bring one section into view:
+ *  its group chosen (desktop shows one group at a time) and the section unfolded. */
+export async function openSettingsAt(page: Page, sec: string): Promise<void> {
+  await page.locator('[data-action="invOpenSettings"]').first().click();
+  const details = page.locator(`details.inv-set-sec[data-sec="${sec}"]`);
+  const group = await details.evaluate(d => (d.closest('.inv-set-group') as HTMLElement).dataset.group);
+  const nav = page.locator(`[data-action="invSettingsGroup"][data-group="${group}"]`);
+  if (await nav.isVisible()) await nav.click();
+  if (!(await details.evaluate(d => (d as HTMLDetailsElement).open))) await details.locator(':scope > summary').click();
+}

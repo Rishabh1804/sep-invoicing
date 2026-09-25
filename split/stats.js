@@ -7,7 +7,7 @@
  * realisation, ₹/kg — is treated as the primary number rather than a
  * derived one.
  *
- * Against a full cost of ₹8.55/kg (Settings → Cost of Goods) and a blended
+ * Against a full cost of ₹8.55/kg (Settings → Costing → Full cost) and a blended
  * realisation near ₹8.45, the gap between a profitable client and a
  * loss-making one is under two rupees a kilo. Nothing in this dashboard used
  * to show it. The client realisation table does.

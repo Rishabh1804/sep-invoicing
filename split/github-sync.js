@@ -417,11 +417,11 @@ function ghRenderCard() {
 }
 
 /* ===== SETTINGS SECTION ===== */
-function renderGhSyncSettings() {
+/* The GitHub sync section of Settings: the fields only; Settings draws the frame. */
+function renderGhSyncFields() {
   var cfg = getGhConfig();
   var last = ghLastSyncAt();
-  return '<div class="inv-settings-section"><div class="inv-settings-title">GitHub Sync</div>' +
-    '<div class="inv-form-row">' +
+  return '<div class="inv-form-row">' +
       '<div class="inv-form-group"><label class="inv-form-label" for="setGhOwner">Owner</label>' +
       '<input class="inv-form-input inv-mono" id="setGhOwner" value="' + escHtml(cfg.owner) + '" placeholder="rishabh1804" autocomplete="off"></div>' +
       '<div class="inv-form-group"><label class="inv-form-label" for="setGhRepo">Repo</label>' +
@@ -454,10 +454,10 @@ function renderGhSyncSettings() {
     '</div>' +
     '<div class="inv-sync-status" id="ghSyncStatus">' +
       escHtml(_ghStatusText || (last ? 'Last synced ' + ghRelTime(last) + '.' : 'Not synced yet.')) +
-    '</div></div>';
+    '</div>';
 }
 
-/* Called from saveSettings() — the config has to land before a push is
+/* Called when the GitHub sync section is saved — the config has to land before a push is
    attempted, or the first push after setup goes to the previous repo. */
 function saveGhSyncSettings() {
   var cfg = getGhConfig();

@@ -33,12 +33,12 @@ split/
 ├── body.html          ← HTML body, tabs, print view (137 lines)
 ├── data.js            ← ITEMS_MASTER + SEED_CLIENTS (27 lines)
 ├── state.js           ← IndexedDB store, verified coalesced saves, escHtml, gstRound (677 lines)
-├── zinc.js            ← Zinc market rate: store, display, metals.dev refresh (199 lines)
+├── zinc.js            ← Zinc market rate: store, display, metals.dev refresh, uplift from bills (~350 lines)
 ├── tabs.js            ← switchTab (9-step protocol) + renderHome (188 lines)
 ├── clients.js         ← Client Master CRUD + overlay (343 lines)
 ├── items.js           ← Items Master: subview, CRUD, merge, weights (1,262 lines)
 ├── create.js          ← Invoice creation form, 3 billing modes (312 lines)
-├── settings.js        ← Settings overlay + import/export + storage diagnostics (457 lines)
+├── settings.js        ← Settings: six groups, folded sections, per-section save + import/export + storage diagnostics (~640 lines)
 ├── github-sync.js     ← GitHub Contents API push/pull, SHA conflict guard (452 lines)
 ├── invoice-ops.js     ← Invoice detail, edit, cancel, delete, register (949 lines)
 ├── number-audit.js    ← Void ledger + serial-sequence audit + gap reconcile (311 lines)
@@ -96,7 +96,7 @@ every session start — nothing to set up by hand. CI (`build-sync`) is the back
 ### Tests
 
 ```bash
-pnpm exec playwright test          # 418 tests, both layouts
+pnpm exec playwright test          # 427 tests, both layouts
 ```
 
 Some sandboxes ship a Chromium build Playwright does not expect and block downloading
@@ -219,6 +219,18 @@ So a fetched rate is LME and MCX is **derived** from it by a recalibratable upli
 whole chain shown on the card. A rate typed into Settings is taken as MCX itself and is never
 uplifted. Nothing is labelled MCX without saying it was estimated — at ~425 kg/month a 10%
 error in zinc is ₹0.22/kg of an ₹8.55 cost.
+
+**The uplift is measured from the shop's own zinc bills** (owner, 25 Sep 2026: *"I just change the LME - MCX
+uplift % — if that can be derived using data from the internet then that's even better"*, set at 14%). No free
+service publishes MCX zinc (searched: metals.dev, MetalpriceAPI, Metals-API, commodities-API all carry LME
+only), but a zinc bill is priced at MCX + the supplier premium, so **price before GST − premium is the MCX the
+shop actually paid** — a better figure than a market quote, because it is the one the cost is made of.
+Settings → Costing → Zinc rate → **Derive from zinc bills** sets the last six priced bills against LME on
+each bill's date (the last rate on or up to four days before, since LME does not trade at weekends), shows every
+row's arithmetic, and **offers** the median: it fills the field and marks the section unsaved, never applies it.
+LME for a past date comes from `S.zinc.lmeHistory` (every Refresh is kept by day, INR/kg) and, where that is
+empty, from metals.dev's `timeseries` with the same key — converted from whatever currency and unit it answers
+in, and kept, so asking twice costs no request.
 
 ### Invoice numbers outlive invoices
 A deleted invoice used to vanish outright, leaving a number gap indistinguishable from one
@@ -1010,8 +1022,8 @@ yellow/red gap NEXT_SESSION warned of. On the real backup the rule gives **10 Ch
 **Warn, never block**, like the duplicate-challan guard: a rate can differ and be right. It shows on
 the invoice form and the challan form as the rate is typed (and when the invoice date moves — the
 rate on record is dated), and on the invoice detail only where a line needs a second look; a ₹0
-line is judged by its own required reason instead. The two thresholds live in **Settings → Rate
-Check** (`S.rateCheck`, read by `rateCheckCfg()`), so a config object `ensureStateShape()` fills
+line is judged by its own required reason instead. The two thresholds live in **Settings → Checks & alerts
+→ Rate & weight check** (`S.rateCheck`, read by `rateCheckCfg()`), so a config object `ensureStateShape()` fills
 key by key on an old backup. A blank or zero value falls back to the ruling's 10% / ₹100 rather than
 to 0, which would turn every difference red.
 
@@ -1033,8 +1045,8 @@ column, so a weight per piece on record checks the kilograms the way the rate ca
   second size, and does not count against the part.
 - **Same verdicts and the same Check thresholds as the rate, with a scale's tolerance.** Measured
   over the 1,068 KG lines carrying a piece count: the median line is 0.4% off its own client's
-  median, three quarters within 2.3%. So a weight within **±3% matches** (Settings → Rate & Weight
-  Check), a power of ten is allowed ±5%, and the stake is the kilograms off × the line's rate. On
+  median, three quarters within 2.3%. So a weight within **±3% matches** (Settings → Checks & alerts
+  → Rate & weight check), a power of ten is allowed ±5%, and the stake is the kilograms off × the line's rate. On
   the backup, after filling every client's card: **793 match, 2 ×10, 28 Check, 88 Differs**, 157
   with no weight on record.
 - **The two ×10 slips were PIECE COUNTS, not weights — ruled by the owner, 24 Sep 2026.** **00830**
@@ -1117,7 +1129,7 @@ three arithmetic shapes: `opening − used = left`, `add received + opening = to
 
 **Days left = level ÷ daily use**, the use over the last three weeks of record divided by the days it
 covers — Sundays out, the shop's own divisor (16–22 Sep is `6 day`). Under three days of record the
-figure carries a `?`. Red at 3 days or fewer, amber at 7 (Settings → Stock). **A line charged into a
+figure carries a `?`. Red at 3 days or fewer, amber at 7 (Settings → Checks & alerts → Stock alerts). **A line charged into a
 bath (zinc) is never red at an empty shelf**: the delivery going into the bath is the normal state.
 
 **By hand**: Count / Received / Used / Charged against one list; Received takes a price per unit,
@@ -1165,7 +1177,7 @@ the stock (price, usage, cadence, etc.)"*). `cost.js`.
 - **Power and other bills** (`S.costBills`: kind, the month the bill covers, amount, units, note) are entered
   on the card and voided with a reason, never deleted. A bill counts in proportion to the share of its
   month's days that fall in the period. Fallbacks (power ₹0.81/kg, other ₹0.42/kg, zinc 425 kg/month) are
-  in Settings → Live cost fallbacks (`S.costModel`).
+  in Settings → Costing → Live cost fallbacks (`S.costModel`).
 - **Past purchases come from `soma-internal`** through Stock → Import: a `sep-stock` file of `bill` entries
   (and `costBills`), merged by id. The file is built from the private records and never committed here.
 
@@ -1202,7 +1214,7 @@ Parts three and four of the intelligence engine (owner, 25 Sep 2026). `insights.
 - **An insight is a To-do rule.** It has the same shape as an app task (tone, figures, what to do, what
   clears it, a snooze against its figures), so it reaches the To-do list, the Home card and the Windows
   widget with nothing new, and **Stats → Overview → Insights** lists them all. Each can be switched off in
-  Settings → To-do. There are eight:
+  Settings → Checks & alerts → To-do. There are eight:
   - **a client gone quiet** — judged against its own rhythm: overdue once its gap passes both 1.75× its
     median gap and median + 21 days, with 5+ challans and ₹20k+ in three months. Red at 10%+ of the book;
   - **the month realising below every one of the six before** (after 5 working days), naming whose share
@@ -1250,7 +1262,7 @@ is self-contained so it can move to `sep-dashboard` whole.
   working days, a credit-note batch past 7 days since the client's last note, challans unbilled after 5
   days (one task per client), invoices still Created after 2 days (last 30 days only), the number audit
   finding a gap, no backup (export or GitHub push) for 7 days, and — off by default — a stale zinc rate.
-  Each is switchable in Settings → To-do. **App tasks cannot be ticked: they clear themselves** when the
+  Each is switchable in Settings → Checks & alerts → To-do. **App tasks cannot be ticked: they clear themselves** when the
   thing is fixed, and every one shows the figures it was raised on and what clears it.
 - **A snooze is granted against figures (`sig`), never as a blanket silence** — the Areas card's rule
   for an explained exception. "Until the figures change" returns the task the moment they do. `sig` is
@@ -1274,7 +1286,7 @@ the app hands the worker and takes back — the payload, every binding the templ
 launch URLs — and that the manifest, template and worker agree. The Windows side needs one check on
 the owner's PC.
 
-**Settings → To-do → Check Windows widget** says which step is missing. The owner reported
+**Settings → Checks & alerts → To-do → Check Windows widget** says which step is missing. The owner reported
 *"windows widget is not showing"* (25 Sep 2026), and every link in that chain is something only
 the PC can see: Windows, Edge, whether the app is installed rather than open in a tab, the worker,
 whether Edge exposes `self.widgets` (it does not without Developer Mode + WinAppSDK 1.2), whether
@@ -1392,7 +1404,7 @@ two of them wrong by shipping a single `contract` class.
 
 **Monthly overtime is ruled (owner, 25 Sep 2026): *"monthly hands get OT at day rate ÷ 8 × 1.1. Capped at
 68.2"*.** Hours over 8 on a day are overtime. The cap is per hour after the multiplier, so it binds any day
-rate above ₹496 (Shyam's ₹576 would pay ₹79.20 and pays ₹68.20). It is in Settings → Labour (`otCap`), and
+rate above ₹496 (Shyam's ₹576 would pay ₹79.20 and pays ₹68.20). It is in Settings → Labour → Overtime (`otCap`), and
 `workerOtHourPay()` is the one place both the labour card and the Areas cost read it. The hourly and daily
 tiers are not capped by it. ⚠ **This settles a disagreement in the record rather than creating one:** the
 history imported up to 7 Sep carries almost no monthly overtime (July 0 h, August 11 h), while September's
@@ -1401,7 +1413,7 @@ crew earned**, and their labour ₹/kg (₹2.07, ₹2.29) reads low by that over
 
 🔧 **The cap applies from 1 September (owner, 25 Sep 2026: *"Cap applies from September"*).** July and August
 were paid at rate ÷ 8 × 1.1 uncapped — Shyam's August OT at ₹79.20 — so `workerOtHourPay(w, cfg, iso)` caps
-only OT dated on or after `labour.otCapFrom` (`2026-09-01`, Settings → Labour). Called with no date it caps,
+only OT dated on or after `labour.otCapFrom` (`2026-09-01`, Settings → Labour → Overtime). Called with no date it caps,
 which is the rate going forward.
 
 **The monthly tier is BM's model (10 Sep 2026), per calendar month:** `gross = rate × (weekdays worked +
@@ -1681,6 +1693,27 @@ card says rather than leaving the reader to work out.
 the marks, it would orphan them: every past week's labour would quietly drop that wage and no
 figure would say why. Clearing Active keeps the history and takes them out of today's
 denominator, which is what "left" means here.
+
+## Settings
+Six groups (owner, 25 Sep 2026: *"Too many things all in one place, no markers, no subdivisions"*):
+**Business** (company, bank, invoice and credit note series), **Checks & alerts** (rate & weight check, stock
+alerts, To-do), **Costing** (full cost, live-cost fallbacks with the chemicals model, zinc rate), **Labour**
+(overtime, rest days & attendance, the extra, modelled labour), **Connections** (metals.dev, Gemini, GitHub sync)
+and **Data & device** (backup, storage, build). The groups are `SETTINGS_GROUPS`, the sections `SETTINGS_SECS`
+in `settings.js`, each with a `summary()`, `body()`, `why` and `save()`.
+
+- **Every section is folded to one line saying what it is set to** (`10% · ₹100 · ±3%`), so Settings reads
+  at a glance; the ruling behind the figures sits under *How this is used*.
+- **Each section saves on its own** (owner: *separate Saves*). A Save that wrote the whole sheet let an edit
+  to the bank details carry a half-typed labour figure with it. Save is enabled only once the section is
+  edited; an unsaved section is marked on its line and on its group, and closing Settings with one asks,
+  naming it. A refused figure (a credit note number already issued) leaves the section unsaved.
+- **Desktop is two panes**: the groups down the left, one group on the right. The phone stacks the groups.
+  The open group and sections are remembered per device (`sep_inv_settings_ui`), never on `S`.
+- `openSettings(sec)` opens on one section; the To-do backup task opens *Backup, storage & build*. Specs use
+  `openSettingsAt(page, sec)` from the fixtures, which walks the same clicks the operator does.
+- **Part weights (NOS→KG) moved to Items → Part weights**: they price `nos_to_weight` lines, so they are
+  data about parts, not a setting.
 
 ## Persistence
 

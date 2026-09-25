@@ -127,6 +127,7 @@ function _buildItemsSubViewHtml(includeToggle) {
     '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invCalcWeights">Calc Weights</button>' +
     '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invOpenWeightEntry">Enter Weights (' + noWeightCount + ')</button>' +
     '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invOpenMergeTool">Merge</button>' +
+    '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invOpenPartWeights">Part weights (' + Object.keys(S.partWeights || {}).length + ')</button>' +
     '</div>' +
     '</div>';
 
@@ -894,6 +895,72 @@ function _breakEvenKg(item, cost) {
   if ((item.unit || '').toUpperCase() !== 'NOS') return null;
   if (!item.rate || item.rate <= 0) return null;
   return item.rate / cost;
+}
+
+/* ===== PART WEIGHTS (NOS to KG) =====
+   The kilograms a nos_to_weight client's line is priced on: qty × this. It is
+   the one weight that bills, so it lives with the parts rather than in
+   Settings. Distinct from stdWeightKg (read by Stats only) and from a client's
+   own pieceWeights (the weight check). */
+function openPartWeights() {
+  closeOverlay();
+  var scrim = document.createElement('div');
+  scrim.className = 'inv-overlay-scrim';
+  scrim.innerHTML = '<div class="inv-overlay-card">' +
+    '<div class="inv-overlay-header"><span class="inv-overlay-title">Part weights (NOS to KG)</span>' +
+    '<button class="inv-overlay-close" data-action="invCloseOverlay" aria-label="Close">&times;</button></div>' +
+    '<div class="inv-text-muted inv-storage-text inv-mb-8">A client billed by weight off a piece count is priced on pieces &times; this weight. It moves money on the invoice, unlike the standard weight Stats reads.</div>' +
+    '<div id="setPWList">' + renderPartWeightsList() + '</div>' +
+    '<div class="inv-form-row inv-mb-8"><div class="inv-form-group"><label class="inv-form-label" for="setPWPart">Part number</label><input class="inv-form-input inv-mono" id="setPWPart" placeholder="HINGE PIN"></div>' +
+    '<div class="inv-form-group"><label class="inv-form-label" for="setPWWeight">Weight (kg)</label><input type="number" class="inv-form-input inv-mono" id="setPWWeight" step="0.001" placeholder="0.045"></div></div>' +
+    '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invAddPartWeight">Add weight</button></div>';
+  scrim.addEventListener('click', function(e) { if (e.target === scrim) closeOverlay(); });
+  pushFocus();
+  document.body.appendChild(scrim);
+  document.body.style.overflow = 'hidden';
+  focusFirstInteractive(scrim.querySelector('.inv-overlay-card'));
+}
+
+function _partWeightsCount() {
+  var b = document.querySelector('[data-action="invOpenPartWeights"]');
+  if (b) b.textContent = 'Part weights (' + Object.keys(S.partWeights || {}).length + ')';
+}
+
+function renderPartWeightsList() {
+  const entries = Object.entries(S.partWeights || {});
+  if (entries.length === 0) return '<div class="inv-text-muted inv-storage-text">No part weights defined yet</div>';
+  return entries.map(([part, wt]) =>
+    '<div class="inv-rate-row"><span class="inv-mono">' + escHtml(part) + '</span>' +
+    '<span class="inv-flex-between"><span class="inv-mono inv-text-cost">' + escHtml(wt) + ' kg</span>' +
+    '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invDeletePartWeight" data-part="' + escHtml(part) + '">&times;</button></span></div>'
+  ).join('');
+}
+
+function addPartWeight() {
+  const partEl = document.getElementById('setPWPart');
+  const wtEl = document.getElementById('setPWWeight');
+  if (!partEl || !wtEl) return;
+  const part = partEl.value.trim().toUpperCase();
+  const wt = parseFloat(wtEl.value);
+  if (!part || isNaN(wt) || wt <= 0) { showToast('Enter part name and weight', 'error'); return; }
+  S.partWeights[part] = wt;
+  saveState();
+  const list = document.getElementById('setPWList');
+  if (list) list.innerHTML = renderPartWeightsList();
+  partEl.value = '';
+  wtEl.value = '';
+  _partWeightsCount();
+  showToast('Weight added: ' + part + ' = ' + wt + ' kg');
+}
+
+function deletePartWeight(part) {
+  if (!confirm('Delete weight for ' + part + '?')) return;
+  delete S.partWeights[part];
+  saveState();
+  const list = document.getElementById('setPWList');
+  if (list) list.innerHTML = renderPartWeightsList();
+  _partWeightsCount();
+  showToast('Weight removed');
 }
 
 function openWeightEntry() {

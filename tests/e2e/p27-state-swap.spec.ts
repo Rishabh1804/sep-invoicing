@@ -1,5 +1,5 @@
 import { test, expect, Page } from '@playwright/test';
-import { emptyState, loadAppWithState, noSeedIM, switchTab, todayIso } from './fixtures';
+import { emptyState, loadAppWithState, noSeedIM, switchTab, todayIso, openSettingsAt } from './fixtures';
 
 /*
  * Replacing the whole state.
@@ -60,7 +60,7 @@ async function pull(page: Page, state: Record<string, unknown>) {
     });
   });
   await loadAppWithState(page, emptyState());
-  await page.locator('[data-action="invOpenSettings"]').first().click();
+  await openSettingsAt(page, 'sync');
   page.once('dialog', (d) => d.accept());
   await page.locator('#ghPullBtn').click();
   await expect(page.locator('.inv-toast')).toContainText('Pulled from GitHub');
@@ -151,7 +151,7 @@ test('importing a backup written before the roster existed does not break the St
 
   // The file input is rendered by the Settings overlay, and Import is reached
   // through it — so the test walks the same path the operator does.
-  await page.locator('[data-action="invOpenSettings"]').first().click();
+  await openSettingsAt(page, 'data');
   page.once('dialog', (d) => d.accept());
   await page.evaluate(async (data) => {
     // Arm importData's own onchange handler, then hand it a real File, so what
@@ -210,7 +210,7 @@ test('a migration that throws leaves storage as it was, not half-migrated', asyn
   poisoned.attendance = { [todayIso()]: { marks: { 3: null }, extra: [], note: '' } };
   delete poisoned._staffAreas2;
 
-  await page.locator('[data-action="invOpenSettings"]').first().click();
+  await openSettingsAt(page, 'data');
   page.once('dialog', (d) => d.accept());
   await page.evaluate(async (data) => {
     (window as unknown as { importData: () => void }).importData();

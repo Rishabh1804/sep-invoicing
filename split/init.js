@@ -385,7 +385,7 @@ if (!S._deriveWeights1) {
    at 001 would put a number the customer already holds on a second document.
 
    Runs once, and only while the app has issued none of its own, so it can
-   never walk over a real number. Settings → Credit Note Series carries it
+   never walk over a real number. Settings → Business → Credit note series carries it
    afterwards, for the next financial year or a correction. */
 var CN_SERIES_START = 6;
 if (!S._cnSeriesStart1) {

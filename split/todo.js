@@ -208,7 +208,7 @@ var TODO_RULE_FNS = {
       why: 'Export or GitHub push · rule: ' + cfg.backupDays + ' days',
       facts: [['Last backup', last ? formatTimestamp(last) : 'none on this device']],
       clears: 'Clears itself when you export a backup or push to GitHub.',
-      go: { kind: 'settings' }, goLabel: 'Open settings', sig: String(last) }];
+      go: { kind: 'settings', sec: 'data' }, goLabel: 'Open backup', sig: String(last) }];
   },
   zinc: function() {
     var age = zincAgeDays();
@@ -511,7 +511,7 @@ function todoGo(go) {
       switchTab('pageIM');
       break;
     case 'audit': switchTab('pageRegister'); showNumberAudit(); break;
-    case 'settings': openSettings(); break;
+    case 'settings': openSettings(go.sec); break;
     case 'home': switchTab('pageHome'); break;
     case 'stats': try { localStorage.setItem(STATS_TAB_KEY, go.tab); } catch (e) { /* per-device */ } switchTab('pageStats'); break;
     case 'staffRoster': _attView = 'roster'; switchTab('pageStaff'); break;
@@ -535,19 +535,18 @@ function todoGoLink(id) {
 }
 
 /* ---------- Settings ---------- */
-function todoSettingsHtml() {
+/* The To-do section of Settings: the fields only; Settings draws the frame. */
+function todoSettingsFields() {
   var c = todoCfg();
-  return '<div class="inv-settings-section"><div class="inv-settings-title">To-do</div>' +
-    '<div class="inv-text-muted inv-storage-text">What the app raises from your data. Each task clears itself when the thing is fixed.</div>' +
-    TODO_RULES.map(function(r) {
-      return '<label class="inv-checkbox-label inv-td-rule"><input type="checkbox" id="setTodo_' + r[0] + '"' + (c[r[0]] ? ' checked' : '') + '> ' + escHtml(r[1]) + '</label>';
-    }).join('') +
+  return TODO_RULES.map(function(r) {
+    return '<label class="inv-checkbox-label inv-td-rule"><input type="checkbox" id="setTodo_' + r[0] + '"' + (c[r[0]] ? ' checked' : '') + '> ' + escHtml(r[1]) + '</label>';
+  }).join('') +
     '<div class="inv-form-row inv-mt-8"><div class="inv-form-group"><label class="inv-form-label" for="setTodoChallan">Challan unbilled after (days)</label>' +
     '<input type="number" step="1" min="1" class="inv-form-input inv-mono" id="setTodoChallan" value="' + c.challanDays + '"></div>' +
     '<div class="inv-form-group"><label class="inv-form-label" for="setTodoBackup">Backup older than (days)</label>' +
     '<input type="number" step="1" min="1" class="inv-form-input inv-mono" id="setTodoBackup" value="' + c.backupDays + '"></div></div>' +
     '<button class="inv-btn inv-btn-ghost inv-btn-sm inv-mt-8" data-action="invTodoWidgetCheck">Check Windows widget</button>' +
-    '<div id="todoWidgetStatus" class="inv-td-wstatus"></div></div>';
+    '<div id="todoWidgetStatus" class="inv-td-wstatus"></div>';
 }
 
 /* Why the Windows widget is not on the board. Every step is a condition only

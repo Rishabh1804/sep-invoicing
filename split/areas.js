@@ -367,12 +367,12 @@ function areaStats(fromIso, toIso) {
       } else {
         var dayVal = ATT_DAY_VALUE[m.st] || 0;
         a.dayTierDays += dayVal;
-        a.cost += dayVal * (w.dayRate || 0);
+        a.cost += dayVal * workerDayRate(w, iso);
       }
       var oth = m.ot || 0;
       if (oth > 0) {
         a.otHours += oth;
-        a.cost += oth * workerOtHourPay(w, cfg);
+        a.cost += oth * workerOtHourPay(w, cfg, iso);
       }
     });
 

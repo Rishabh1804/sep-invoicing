@@ -46,7 +46,7 @@ function getDefaultState() {
     // attendance gate on its rest days. restCreditMinDays is the daily tier's
     // own weekly gate. The hourly pool needs none of them — every hour at one
     // rate. extraRate prices the area-booked "extra hours", which carry no name.
-    labour: { otMult: 1.1, otCap: 68.2, restCreditMinDays: 6, extraRate: 47.5, modelPerKg: 3.55, gateFull: 0.9, gateHalf: 0.8, extraHoursPerHead: 8 },
+    labour: { otMult: 1.1, otCap: 68.2, otCapFrom: '2026-09-01', holidays: ['01-26', '08-15', '10-02'], restCreditMinDays: 6, extraRate: 47.5, modelPerKg: 3.55, gateFull: 0.9, gateHalf: 0.8, extraHoursPerHead: 8 },
     // Rate matcher thresholds (option E): Check at ≥ pct% off OR ≥ ₹stake on the line.
     rateCheck: { pct: 10, stake: 100, weightTol: 3 },
     // Chemical stock: lines, the events that move them, and each pasted
@@ -65,6 +65,7 @@ function getDefaultState() {
     staffPayments: [],
     // Power and other monthly bills, for the live cost (voided, never deleted).
     costBills: [],
+    payrollPaid: [],
     // Fallbacks the live cost uses only where nothing is recorded yet.
     costModel: { power: 0.81, other: 0.42, zincKgMonth: 425, zincPerKg: 2.21 },
     // Which rules may raise a task, and their day thresholds.
@@ -366,7 +367,7 @@ function hideStorageBanner(kind) {
 // Containers hold the user's records, so a missing one is filled EMPTY — the
 // app must never invent business data to repair a shape.
 var STATE_CONTAINERS = ['clients', 'items', 'invoices', 'incomingMaterial', 'partWeights',
-  'voidedNumbers', 'creditNotes', 'extraExceptions', 'staff', 'attendance', 'areaTargets', 'stock', 'todo', 'relayPastes', 'staffPayments', 'costBills'];
+  'voidedNumbers', 'creditNotes', 'extraExceptions', 'staff', 'attendance', 'areaTargets', 'stock', 'todo', 'relayPastes', 'staffPayments', 'costBills', 'payrollPaid'];
 // Config objects are the opposite: a missing one is filled from the defaults,
 // and so is a missing KEY inside one. `labourCfg()` reads `extraRate || 0`, so
 // a backup predating a constant would silently price the extra at nothing

@@ -117,6 +117,9 @@ function payDue(weekStart) {
     var e = (weekly ? wk : mo).byWorker[w.id] || { total: 0, days: 0, hours: 0, otHours: 0, base: 0, ot: 0, rest: 0 };
     var from = weekly ? weekStart : mFrom, to = weekly ? sat : mTo;
     var paid = payPaidBetween(w.id, from, to);
+    // A closed month on record as paid is settled by the slip: what it paid is
+    // what was earned, so nothing is due on it however the marks read.
+    if (!weekly && e.asPaid) return { w: w, weekly: weekly, earned: e, paid: e.total, due: 0, from: from, to: to, asPaid: true };
     return { w: w, weekly: weekly, earned: e, paid: paid, due: gstRound(e.total - paid), from: from, to: to };
   });
   return { rows: rows, extra: wk.extra, extraHours: wk.extraHours, weekStart: weekStart, sat: sat, mFrom: mFrom, mTo: mTo };
@@ -139,6 +142,7 @@ function _attPayView() {
   html += _payForecastCard(ws);
   html += _payDueCard(ws);
   html += _payHistoryCard(ws);
+  html += _payrollPaidCard();
   return html;
 }
 
@@ -188,7 +192,7 @@ function _payDueCard(ws) {
       g += '<button class="inv-lab-row inv-pay-row" data-action="invPayPick" data-id="' + escHtml(r.w.id) + '" data-due="' + r.due + '">' +
         '<span class="inv-lab-label">' + escHtml(r.w.name) + '<span class="inv-lab-sub">' +
         (bits.length ? bits.join(' · ') + ' · ' : 'nothing recorded · ') + 'earned ' + payMoney(e.total) +
-        (r.paid ? ' &minus; paid ' + payMoney(r.paid) : '') + '</span></span>' +
+        (r.asPaid ? ' · as paid, from the slip' : r.paid ? ' &minus; paid ' + payMoney(r.paid) : '') + '</span></span>' +
         '<span class="inv-lab-value inv-mono' + (r.due < 0 ? ' inv-pay-over' : '') + '">' + payMoney(r.due) + '</span></button>';
     });
     g += '<div class="inv-lab-row inv-pay-total"><span class="inv-lab-label">Total due</span><span class="inv-lab-value inv-mono">' + payMoney(gstRound(tot)) + '</span></div>';
@@ -258,6 +262,153 @@ function _payHistoryCard(ws) {
   return h + '</div>';
 }
 
+/* ===== The monthly payroll AS PAID =====
+
+   Owner, 25 Sep 2026. A closed month of the monthly tier is not a thing to
+   re-derive: somebody was paid against a slip, and the slip is the fact. The
+   attendance model is a prediction of that slip — good enough for the month in
+   progress, and wrong on every closed month whose marks were typed late, typed
+   short, or paid on a rule that has since changed (July and August carry
+   monthly OT the history never recorded: 30 h and 195 h against 0 and 11).
+
+   So `S.payrollPaid` holds one record per closed month: what each hand was paid,
+   split into day pay and OT, with where the figure came from. A month on record
+   REPLACES the model's monthly tier for that month everywhere labour is read —
+   the Pay view, the labour card, the live cost — and the month in progress is
+   still modelled. A record is never edited or deleted: a later import for the
+   same month voids the earlier one with a reason, the ledger rule every record
+   here follows. The file is built privately from the slips and imported; wages
+   never enter this public repo. */
+function payrollPaidRecords() {
+  if (!Array.isArray(S.payrollPaid)) S.payrollPaid = [];
+  return S.payrollPaid;
+}
+function payrollPaidFor(month) {
+  if (!Array.isArray(S.payrollPaid) || !(month < localDateStr().slice(0, 7))) return null;
+  var rec = null;
+  S.payrollPaid.forEach(function(r) {
+    if (r.voidedAt || r.month !== month) return;
+    if (!rec || (r.at || 0) > (rec.at || 0)) rec = r;
+  });
+  if (!rec) return null;
+  var gross = (rec.rows || []).reduce(function(s, r) { return s + (Number(r.dayPay) || 0) + (Number(r.ot) || 0); }, 0);
+  return { rec: rec, rows: rec.rows || [], gross: gstRound(gross), source: rec.source || '' };
+}
+function payrollWorker(row) {
+  var staff = S.staff || [];
+  if (row.staffId != null) {
+    var byId = staff.find(function(w) { return String(w.id) === String(row.staffId); });
+    if (byId) return byId;
+  }
+  var k = relayKey(row.name || '');
+  if (!k) return null;
+  return staff.find(function(w) {
+    return relayKey(w.name) === k || (w.relayNames || []).some(function(n) { return relayKey(n) === k; });
+  }) || null;
+}
+function _payrollFingerprint(m) {
+  return JSON.stringify((m.rows || []).map(function(r) {
+    return [String(r.name || '').toUpperCase(), gstRound(Number(r.dayPay) || 0), gstRound(Number(r.ot) || 0)];
+  }).sort());
+}
+/* Merge an import file. A month already on record with the same figures is
+   skipped; one with different figures supersedes it, and the old record is
+   voided with the reason — never overwritten. */
+function payrollPaidImport(data) {
+  if (!data || data.kind !== 'sep-payroll-paid' || !Array.isArray(data.months)) return { error: 'Not a payroll-as-paid file' };
+  var out = { added: 0, superseded: 0, same: 0, bad: 0 };
+  var now = Date.now();
+  data.months.forEach(function(m, i) {
+    if (!m || !/^\d{4}-\d{2}$/.test(m.month || '') || !Array.isArray(m.rows) || !m.rows.length) { out.bad++; return; }
+    var rows = m.rows.filter(function(r) { return r && String(r.name || '').trim(); }).map(function(r) {
+      return { name: String(r.name).trim(), staffId: r.staffId != null ? r.staffId : null,
+        rate: Number(r.rate) || 0, worked: Number(r.worked) || 0, restDays: Number(r.restDays) || 0,
+        dayPay: gstRound(Number(r.dayPay) || 0), otHours: Number(r.otHours) || 0, ot: gstRound(Number(r.ot) || 0),
+        paid: r.paid != null ? gstRound(Number(r.paid) || 0) : null, note: String(r.note || '') };
+    });
+    var fp = _payrollFingerprint({ rows: rows });
+    var live = payrollPaidRecords().filter(function(r) { return !r.voidedAt && r.month === m.month; });
+    if (live.some(function(r) { return _payrollFingerprint(r) === fp; })) { out.same++; return; }
+    live.forEach(function(r) {
+      r.voidedAt = now;
+      r.voidReason = 'Superseded by an import of ' + formatDate(localDateStr());
+      out.superseded++;
+    });
+    payrollPaidRecords().push({ id: 'PRL-' + now.toString(36) + '-' + i, month: m.month, source: String(m.source || ''),
+      status: m.status === 'computed' ? 'computed' : 'paid', note: String(m.note || ''), rows: rows, at: now + i });
+    out.added++;
+  });
+  return out;
+}
+function payrollImport() {
+  var inp = document.getElementById('payrollFileInput');
+  if (!inp) return;
+  inp.onchange = function(ev) {
+    var f = ev.target.files[0];
+    if (!f) return;
+    var reader = new FileReader();
+    reader.onload = function(e2) {
+      var res;
+      try { res = payrollPaidImport(JSON.parse(e2.target.result)); } catch (err) { res = { error: 'Not a payroll-as-paid file' }; }
+      if (res.error) { showToast(res.error, 'error'); return; }
+      saveState();
+      renderAttendance();
+      var bits = [];
+      if (res.added) bits.push(res.added + ' month' + (res.added === 1 ? '' : 's') + ' recorded');
+      if (res.superseded) bits.push(res.superseded + ' earlier record' + (res.superseded === 1 ? '' : 's') + ' voided');
+      if (res.same) bits.push(res.same + ' already on record');
+      showToast(bits.length ? bits.join(' · ') : 'Nothing in that file');
+    };
+    reader.readAsText(f);
+  };
+  inp.click();
+}
+function payrollVoid(id) {
+  var r = payrollPaidRecords().find(function(x) { return x.id === id; });
+  if (!r || r.voidedAt) return;
+  var reason = prompt('Why is this month’s record void? (kept, not deleted — the month goes back to the attendance model)');
+  if (reason == null) return;
+  reason = reason.trim();
+  if (!reason) { showToast('A void needs a reason', 'error'); return; }
+  r.voidedAt = Date.now();
+  r.voidReason = reason;
+  saveState();
+  renderAttendance();
+  showToast('Record voided');
+}
+function _monthLabel(month) {
+  return attParseIso(month + '-01').toLocaleString('en-IN', { month: 'long', year: 'numeric' });
+}
+function _payrollPaidCard() {
+  var recs = payrollPaidRecords().slice().sort(function(a, b) { return a.month < b.month ? 1 : a.month > b.month ? -1 : (b.at || 0) - (a.at || 0); });
+  var h = '<div class="inv-card inv-pay-card" id="payrollPaid"><div class="inv-card-header"><span class="inv-card-title">Monthly payroll as paid</span>' +
+    '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invPayrollImport">Import</button>' +
+    '<input type="file" accept=".json,application/json" id="payrollFileInput" class="inv-hidden"></div>';
+  if (!recs.length) {
+    h += '<div class="inv-stats-note">No closed month is on record, so every month of the monthly tier is worked out from ' +
+      'the attendance marks. Import the payroll file built from the slips and a closed month is read as it was paid.</div>';
+    return h + '</div>';
+  }
+  recs.forEach(function(r) {
+    var gross = r.rows.reduce(function(s, x) { return s + (Number(x.dayPay) || 0) + (Number(x.ot) || 0); }, 0);
+    var otH = r.rows.reduce(function(s, x) { return s + (Number(x.otHours) || 0); }, 0);
+    var unmatched = r.rows.filter(function(x) { return !payrollWorker(x); }).map(function(x) { return x.name; });
+    h += '<div class="inv-lab-row' + (r.voidedAt ? ' inv-pay-void' : '') + '"><span class="inv-lab-label">' + escHtml(_monthLabel(r.month)) +
+      '<span class="inv-lab-sub">' + r.rows.length + ' hand' + (r.rows.length === 1 ? '' : 's') +
+      (otH ? ' · OT ' + formatNum(otH, 1) + ' h' : '') + (r.status === 'computed' ? ' · computed, not confirmed paid' : ' · as paid') +
+      (r.source ? ' · ' + escHtml(r.source) : '') +
+      (unmatched.length ? ' · not on the roster: ' + escHtml(unmatched.join(', ')) : '') +
+      (r.note ? ' · ' + escHtml(r.note) : '') +
+      (r.voidedAt ? ' · void: ' + escHtml(r.voidReason || '') : '') + '</span></span>' +
+      '<span class="inv-lab-value inv-mono">' + payMoney(gstRound(gross)) +
+      (r.voidedAt ? '' : ' <button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invPayrollVoid" data-id="' + escHtml(r.id) + '">Void</button>') + '</span></div>';
+  });
+  h += '<div class="inv-stats-note">A closed month on record replaces the attendance model for the monthly tier &mdash; ' +
+    'here, on the labour card and in the live cost &mdash; for the hands it names; a monthly hand it does not name is still modelled. ' +
+    'The month in progress is always modelled.</div>';
+  return h + '</div>';
+}
+
 /* ===== Actions ===== */
 function payPick(id, due) {
   var sel = document.getElementById('payWorker'), amt = document.getElementById('payAmount');
@@ -299,6 +450,8 @@ function payAction(action, btn) {
     case 'invPaySave': paySave(); return true;
     case 'invPayVoid': payVoid(btn.dataset.id); return true;
     case 'invPayOpenAtt': homeQuick('attendance'); return true;
+    case 'invPayrollImport': payrollImport(); return true;
+    case 'invPayrollVoid': payrollVoid(btn.dataset.id); return true;
   }
   return false;
 }

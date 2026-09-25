@@ -52,7 +52,7 @@ split/
 ├── staff.js           ← Roster + attendance + roster import: day, week, extra hours (1,013 lines)
 ├── labour.js          ← Labour: three pay tiers, fixed/variable, by area, ₹/kg (449 lines)
 ├── areas.js           ← Areas: staffing vs norms + the extra reconciled (1135 lines)
-├── payroll.js         ← Pay: due by worker, payments, weekly payout + forecast, hours by area, Home attendance (394 lines)
+├── payroll.js         ← Pay: due by worker, payments, weekly payout + forecast, monthly payroll as paid, hours by area, Home attendance (547 lines)
 ├── stock.js           ← Stock: WhatsApp message parser, event replay, More sheet, chemicals ₹/kg (1,189 lines)
 ├── cost.js            ← Prices, bills and patterns per stock line; Stats → Live cost with every source shown (~390 lines)
 ├── todo.js            ← To-do: your tasks + tasks raised from the data, Home card, Windows widget payload (726 lines)
@@ -96,7 +96,7 @@ every session start — nothing to set up by hand. CI (`build-sync`) is the back
 ### Tests
 
 ```bash
-pnpm exec playwright test          # 413 tests, both layouts
+pnpm exec playwright test          # 418 tests, both layouts
 ```
 
 Some sandboxes ship a Chromium build Playwright does not expect and block downloading
@@ -1386,7 +1386,7 @@ two of them wrong by shipping a single `contract` class.
 
 | | Paid | Rest days | Overtime |
 |---|---|---|---|
-| `monthly` | ₹/day × days worked | the range's rest days × the attendance gate | day rate ÷ 8 × 1.1, **capped at ₹68.20/h** |
+| `monthly` | ₹/day × weekdays worked, + one day per Sunday or paid holiday worked | per calendar month: Sundays × the attendance gate, paid holidays in full | weekdays only: day rate ÷ 8 × 1.1, **capped at ₹68.20/h from 1 Sep 2026** |
 | `hourly` | every hour at one flat rate | — | none: the fourteenth hour is paid like the first |
 | `daily` | ₹/day × days worked | one day per full week | hour rate × the multiplier |
 
@@ -1398,6 +1398,51 @@ tiers are not capped by it. ⚠ **This settles a disagreement in the record rath
 history imported up to 7 Sep carries almost no monthly overtime (July 0 h, August 11 h), while September's
 pasted rolls carry 381 h (₹23,340 at the cap). By the ruling, **July and August understate what the monthly
 crew earned**, and their labour ₹/kg (₹2.07, ₹2.29) reads low by that overtime.
+
+🔧 **The cap applies from 1 September (owner, 25 Sep 2026: *"Cap applies from September"*).** July and August
+were paid at rate ÷ 8 × 1.1 uncapped — Shyam's August OT at ₹79.20 — so `workerOtHourPay(w, cfg, iso)` caps
+only OT dated on or after `labour.otCapFrom` (`2026-09-01`, Settings → Labour). Called with no date it caps,
+which is the rate going forward.
+
+**The monthly tier is BM's model (10 Sep 2026), per calendar month:** `gross = rate × (weekdays worked +
+paid holidays + Sundays × gate + Sundays worked) + weekday OT`. It reproduces the ruled August slip's day pay
+to the rupee for 8 of 9 hands off the imported marks; the ninth, the gate hand, is one day short in the marks.
+- **The gate is the ratified 100 / 50 / 0** at 90% and 80%, and attendance is **weekdays worked ÷ the month's
+  working days** — Sundays and paid holidays out of both sides. A festival is not a holiday: 28 Aug (Raksha
+  Bandhan) was ruled an absence.
+- **Paid holidays are always paid** (BM: *"National holiday is always paid"*): `labour.holidays`, the three
+  national holidays as `MM-DD`, or a full date for a one-off. A hand with no day recorded in the month is
+  credited nothing — a month nobody typed is not a month of holidays.
+- **A worked Sunday keeps its gated credit and is paid one day on top** (BM, 10 Sep: *"keep the worked sunday
+  credit"*), and its hours are that day, **never OT as well** — which would pay them twice (the July slip took
+  Sarat's Sunday hours out of OT for exactly that reason). The app reads a worked paid holiday the same way;
+  that one is its own reading, not a ruling.
+- **A contracted monthly wage** (`worker.monthWage`, Staff → Edit): BM, 14 Sep, *"Uday is 9000/month. per day is
+  calculated as per days in that month"* and *"His sundays are not gate sensitive"*, *"Sunday is inside the
+  9000"*. So the day rate is wage ÷ days in the month, the Sundays are credited in full, and a Sunday worked
+  adds nothing. 22 + 1 + 5 = 28 × 9000/31 = ₹8,129.03, the ruled figure. The worker's total is rounded once
+  from the unrounded parts, or 28 days reads a paisa high.
+- Over a range shorter than a month the gate is judged on the part of the month the range covers, as before.
+
+### The monthly payroll AS PAID
+A closed month is not a thing to re-derive: somebody was paid against a slip, and the slip is the fact. The
+model predicts the slip — fine for the month in progress, wrong on a closed month whose marks were typed
+short or paid on a rule since changed (July and August's missing overtime).
+
+`S.payrollPaid: [{id, month, status: paid/computed, source, note, at, rows: [{name, staffId?, rate, worked,
+restDays, dayPay, otHours, ot, paid?, note}], voidedAt?, voidReason?}]`. **For a month before the current one,
+a record REPLACES the model for the hands it names** — on the Pay view (that month's due reads settled, *as
+paid, from the slip*), the labour card and the live cost — pro-rata to the share of the month a range covers.
+A monthly hand the record does not name (paid on a voucher of their own) is still modelled, and a name the
+roster does not hold still costs what it was paid. The month in progress is always modelled.
+
+Staff → Pay → **Monthly payroll as paid → Import** takes a `sep-payroll-paid` file. Names are matched like a
+roll's (`relayKey`, and the worker's spellings), never by id. The same figures twice are skipped; different
+figures for a month **supersede**, and the old record is voided with the reason — never overwritten. Wages
+never enter this public repo: the file is built privately from the slips. **April, May, July and August**
+exist; **June does not** — only its projection is on disk, not the slip it was paid on. August is
+**Revision 5 as paid on 14 Sep** (₹1,01,768.43), not Revision 15's ruled ₹1,02,247.46: the gate hand's row carries
+the ₹479.03 still owed as a note, and Shyam's and Rupa's rows note their crossed bank legs.
 
 The salaried tier is `monthly` and **is not a flat salary**: the payout slips are written in
 ₹/day, and a flat monthly divided by calendar days neither matches them nor moves when somebody

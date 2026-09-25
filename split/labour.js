@@ -31,11 +31,33 @@
    its coverage and withholds ₹/kg below 90% rather than printing a figure that
    flatters the plant. */
 
+/* The cap on monthly-tier OT binds from 1 Sep 2026 (owner, 25 Sep 2026: "Cap
+   applies from September"). July and August were paid at rate ÷ 8 × 1.1
+   uncapped, and a model that capped them would disagree with the slips. */
+var LABOUR_OT_CAP_FROM = '2026-09-01';
+
+/* Paid holidays. BM, 10 Sep 2026: "National holiday is always paid". The three
+   national holidays recur (MM-DD); a one-off is written as a full date. A
+   festival is NOT one of them: 28 Aug (Raksha Bandhan) was ruled an absence. */
+var LABOUR_HOLIDAYS = ['01-26', '08-15', '10-02'];
+
+function labourIsHoliday(iso, cfg) {
+  var h = (cfg || labourCfg()).holidays || [];
+  return h.indexOf(iso) >= 0 || h.indexOf(iso.slice(5)) >= 0;
+}
+
+function labourDaysInMonth(iso) {
+  var d = attParseIso(iso.slice(0, 8) + '01');
+  return new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+}
+
 function labourCfg() {
   var c = S.labour || {};
   return {
     otMult: c.otMult != null ? c.otMult : 1.1,
     otCap: c.otCap != null ? c.otCap : 68.2,
+    otCapFrom: c.otCapFrom != null ? c.otCapFrom : LABOUR_OT_CAP_FROM,
+    holidays: Array.isArray(c.holidays) ? c.holidays : LABOUR_HOLIDAYS.slice(),
     restCreditMinDays: c.restCreditMinDays != null ? c.restCreditMinDays : 6,
     extraRate: c.extraRate || 0,
     modelPerKg: c.modelPerKg || 0,
@@ -111,12 +133,26 @@ function labourForRange(fromIso, toIso) {
   // Per-worker tallies, because both gates below are judged over the range
   // rather than per day: the monthly tier's rest credit needs the attendance
   // percentage, the daily tier's needs a week's day count.
-  var monthlyDaysBy = {};
   var weekDaysWorked = {};
+  // The monthly tier is judged per CALENDAR MONTH, because that is the period
+  // its rule was written for: each month the range touches gets its own count
+  // of Sundays, paid holidays and working days, and each worker their own days.
+  var months = {};
+  function monthSeg(iso) {
+    var k = iso.slice(0, 7);
+    if (months[k]) return months[k];
+    var paid = payrollPaidFor(k), paidIds = {};
+    if (paid) paid.rows.forEach(function(r) { var pw = payrollWorker(r); if (pw) paidIds[pw.id] = true; });
+    return (months[k] = { key: k, sundays: 0, holidays: 0, working: 0, worked: {}, paid: paid, paidIds: paidIds });
+  }
+  out.paidMonths = [];
 
   dates.forEach(function(iso) {
     var dow = attParseIso(iso).getDay();
     if (dow === 0) out.restDaysInRange++; else out.workingDays++;
+    var seg = monthSeg(iso);
+    var holiday = dow !== 0 && labourIsHoliday(iso, cfg);
+    if (dow === 0) seg.sundays++; else if (holiday) seg.holidays++; else seg.working++;
 
     var rec = (S.attendance || {})[iso];
     if (!rec) return;
@@ -150,13 +186,25 @@ function labourForRange(fromIso, toIso) {
         return;
       }
 
-      // Monthly and daily both pay by the day; only the rest-day rule differs.
-      var wage = dayVal * (w.dayRate || 0);
+      // A hand whose month is on record as paid is read from that record, not
+      // re-modelled from the marks: see payrollPaidFor. A monthly hand the
+      // record does not name (paid on a voucher of their own) is still modelled.
+      if (w.comp === 'monthly' && seg.paidIds[w.id]) return;
+
+      // BM's monthly model (10 Sep 2026). A weekday worked is a day and counts
+      // toward the attendance the gate is judged on. A Sunday or a paid holiday
+      // worked is one further day on top of its credit, and its hours are that
+      // day — never OT as well, which would pay them twice. On a contracted
+      // monthly wage the Sundays are inside the wage (BM, 14 Sep: "Sunday is
+      // inside the 9000"), so a Sunday worked adds nothing.
+      var offDay = w.comp === 'monthly' && (dow === 0 || holiday);
+      var fixedWage = w.comp === 'monthly' && w.monthWage > 0;
+      var wage = offDay && fixedWage ? 0 : dayVal * workerDayRate(w, iso);
       bumpWorker(w, 'base', wage, dayVal, m.hours || 0, 0);
       if (w.comp === 'monthly') {
         out.monthlyDays += wage;
         out.monthlyDaysWorked += dayVal;
-        monthlyDaysBy[w.id] = (monthlyDaysBy[w.id] || 0) + dayVal;
+        if (!offDay) seg.worked[w.id] = (seg.worked[w.id] || 0) + dayVal;
       } else {
         out.daily += wage;
         out.dailyDays += dayVal;
@@ -165,10 +213,10 @@ function labourForRange(fromIso, toIso) {
       }
       bumpFloor(w, areaId, wage);
 
-      var oth = m.ot || 0;
+      var oth = offDay ? 0 : (m.ot || 0);
       if (oth > 0) {
-        var rate = workerOtRate(w);
-        var otPay = oth * workerOtHourPay(w, cfg);
+        var rate = workerOtRate(w, iso);
+        var otPay = oth * workerOtHourPay(w, cfg, iso);
         out.otHours += oth;
         out.ot += otPay;
         bumpWorker(w, 'ot', otPay, 0, 0, oth);
@@ -189,23 +237,53 @@ function labourForRange(fromIso, toIso) {
     });
   });
 
-  // Monthly tier rest days: the month's rest days scaled by each worker's own
-  // attendance through the three-layer gate.
-  if (out.restDaysInRange > 0) {
+  // Monthly tier rest credit, per calendar month: the month's Sundays scaled by
+  // each worker's attendance through the gate, plus every paid holiday in full
+  // (BM: "National holiday is always paid"). Attendance is weekdays worked over
+  // the month's working days — Sundays and paid holidays out of both sides. A
+  // contracted monthly wage is not gated (BM, 14 Sep: "His sundays are not gate
+  // sensitive"). A worker with no day recorded in the month is credited
+  // nothing: a month nobody typed is not a month of holidays.
+  Object.keys(months).forEach(function(k) {
+    var seg = months[k];
+    var anyIso = k + '-01';
     roster.forEach(function(w) {
-      if (w.comp !== 'monthly') return;
-      var worked = monthlyDaysBy[w.id] || 0;
-      var att = out.workingDays > 0 ? worked / out.workingDays : 0;
-      var g = restGate(att, cfg);
-      if (g <= 0) return;
-      var credited = out.restDaysInRange * g;
-      var pay = credited * (w.dayRate || 0);
+      if (w.comp !== 'monthly' || seg.paidIds[w.id]) return;
+      var worked = seg.worked[w.id] || 0;
+      if (!(worked > 0)) return;
+      var att = seg.working > 0 ? worked / seg.working : 0;
+      var g = w.monthWage > 0 ? 1 : restGate(att, cfg);
+      var credited = seg.sundays * g + seg.holidays;
+      if (!(credited > 0)) return;
+      var pay = credited * workerDayRate(w, anyIso);
       out.rest += pay;
       out.restDaysCredited += credited;
       bumpWorker(w, 'rest', pay, 0, 0, 0).restDays += credited;
       if (w.onFloor !== false) out.floorCost += pay;
     });
-  }
+  });
+
+  // Months whose monthly payroll is on record as paid: the record replaces the
+  // model, pro-rata to the share of the month this range covers.
+  Object.keys(months).forEach(function(k) {
+    var seg = months[k];
+    if (!seg.paid) return;
+    var share = (seg.sundays + seg.holidays + seg.working) / labourDaysInMonth(k + '-01');
+    out.paidMonths.push({ month: k, share: share, gross: seg.paid.gross, source: seg.paid.source || '' });
+    seg.paid.rows.forEach(function(r) {
+      var w = payrollWorker(r) || { id: 'paid:' + r.name, name: r.name, comp: 'monthly', onFloor: true };
+      var dayPay = (Number(r.dayPay) || 0) * share, ot = (Number(r.ot) || 0) * share;
+      out.monthlyDays += dayPay;
+      out.monthlyDaysWorked += (Number(r.worked) || 0) * share;
+      out.ot += ot;
+      out.otHours += (Number(r.otHours) || 0) * share;
+      var b = bumpWorker(w, 'base', dayPay, (Number(r.worked) || 0) * share, 0, 0);
+      if (ot) bumpWorker(w, 'ot', ot, 0, 0, (Number(r.otHours) || 0) * share);
+      b.asPaid = true;
+      if (ot) bumpArea(w.area || 'flex', ot, 0, (Number(r.otHours) || 0) * share);
+      if (w.onFloor !== false) out.floorCost += dayPay + ot;
+    });
+  });
 
   // Daily tier rest credit: one further paid day for a week that reached the
   // gate. Measured on days inside this range, so a range cutting a week in half
@@ -229,8 +307,11 @@ function labourForRange(fromIso, toIso) {
   Object.keys(out.byArea).forEach(function(k) { out.byArea[k].cost = gstRound(out.byArea[k].cost); });
   Object.keys(out.byWorker).forEach(function(k) {
     var b = out.byWorker[k];
-    ['base', 'ot', 'rest'].forEach(function(f) { b[f] = gstRound(b[f]); });
+    // The total is rounded ONCE, from the unrounded parts: a contracted wage's
+    // 28 days × ₹290.3226 is ₹8,129.03 on the slip, and rounding day pay and
+    // rest credit separately first would make it ₹8,129.04.
     b.total = gstRound(b.base + b.ot + b.rest);
+    ['base', 'ot', 'rest'].forEach(function(f) { b[f] = gstRound(b[f]); });
   });
 
   // Fixed is the standing crew — the monthly tier, days and gated rest days
@@ -353,12 +434,14 @@ function renderLabourCard(fromIso, toIso, title, tonnage, extraClass) {
   // renders nothing rather than a zero: a zero reads as a measurement.
   if (lab.monthlyDays > 0 || lab.monthlyDaysWorked > 0) {
     html += _labRow('Monthly tier &mdash; days', formatCurrency(lab.monthlyDays),
-      formatNum(lab.monthlyDaysWorked, 1) + ' day' + (lab.monthlyDaysWorked === 1 ? '' : 's') + ' worked at day rate');
+      formatNum(lab.monthlyDaysWorked, 1) + ' day' + (lab.monthlyDaysWorked === 1 ? '' : 's') + ' worked at day rate' +
+      ((lab.paidMonths || []).length ? ' &middot; ' + lab.paidMonths.map(function(m) { return escHtml(_monthLabel(m.month)); }).join(', ') +
+        ' as paid, from the slip' : ''));
   }
   if (lab.rest > 0 || lab.restDaysInRange > 0) {
     html += _labRow('Rest days credited', formatCurrency(lab.rest),
-      formatNum(lab.restDaysCredited, 1) + ' of ' + lab.restDaysInRange + ' &times; roster, gated at ' +
-      Math.round(cfg.gateFull * 100) + '% / ' + Math.round(cfg.gateHalf * 100) + '%');
+      formatNum(lab.restDaysCredited, 1) + ' days: Sundays gated at ' +
+      Math.round(cfg.gateFull * 100) + '% / ' + Math.round(cfg.gateHalf * 100) + '% per month, paid holidays in full');
   }
   if (lab.pool > 0 || lab.poolHours > 0) {
     html += _labRow('Hourly pool', formatCurrency(lab.pool),
@@ -373,7 +456,8 @@ function renderLabourCard(fromIso, toIso, title, tonnage, extraClass) {
       'full weeks at ' + cfg.restCreditMinDays + '+ days');
   }
   html += _labRow('Overtime (named)', formatCurrency(lab.ot),
-    formatNum(lab.otHours, 1) + ' h at &times;' + formatNum(cfg.otMult, 2) + ', monthly tier at day rate &divide; 8, capped at ' + formatCurrency(cfg.otCap) + '/h');
+    formatNum(lab.otHours, 1) + ' h at &times;' + formatNum(cfg.otMult, 2) + ', monthly tier at day rate &divide; 8, capped at ' + formatCurrency(cfg.otCap) + '/h' +
+    (cfg.otCapFrom ? ' from ' + escHtml(formatDate(cfg.otCapFrom)) : ''));
   html += _labRow('Extra (unattributed)', formatCurrency(lab.extra), formatNum(lab.extraHours, 1) + ' h at ' + formatCurrency(cfg.extraRate) + '/h');
   html += _labRow('On the floor', formatCurrency(lab.floor),
     lab.offFloor > 0 ? formatCurrency(lab.offFloor) + ' off floor (gate, office)' : 'all of it');

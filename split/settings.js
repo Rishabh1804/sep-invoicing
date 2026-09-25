@@ -70,6 +70,10 @@ function openSettings() {
     '<input type="number" step="0.01" min="0" class="inv-form-input inv-mono" id="setExtraRate" value="' + ((S.labour && S.labour.extraRate) || 0) + '"></div></div>' +
     '<div class="inv-form-group"><label class="inv-form-label" for="setOtCap">Monthly tier OT cap (&#8377;/hour, after the multiplier)</label>' +
     '<input type="number" step="0.01" min="0" class="inv-form-input inv-mono" id="setOtCap" value="' + labourCfg().otCap + '"></div>' +
+    '<div class="inv-form-group"><label class="inv-form-label" for="setOtCapFrom">OT cap applies to OT dated from</label>' +
+    '<input type="date" class="inv-form-input inv-mono" id="setOtCapFrom" value="' + escHtml(labourCfg().otCapFrom || '') + '"></div>' +
+    '<div class="inv-form-group"><label class="inv-form-label" for="setHolidays">Paid holidays (monthly tier; MM-DD every year, or a full date)</label>' +
+    '<input class="inv-form-input inv-mono" id="setHolidays" value="' + escHtml(labourCfg().holidays.join(', ')) + '"></div>' +
     '<div class="inv-form-row"><div class="inv-form-group"><label class="inv-form-label">Daily rest credit at (days/week)</label>' +
     '<input type="number" step="1" min="0" max="7" class="inv-form-input inv-mono" id="setRestMin" value="' + ((S.labour && S.labour.restCreditMinDays) != null ? S.labour.restCreditMinDays : 6) + '"></div>' +
     '<div class="inv-form-group"><label class="inv-form-label">Extra per missing hand (h)</label>' +
@@ -185,6 +189,14 @@ function saveSettings() {
   if (otMultEl) { var pm = parseFloat(otMultEl.value); if (!isNaN(pm) && pm >= 0) S.labour.otMult = pm; }
   var otCapEl = document.getElementById('setOtCap');
   if (otCapEl) { var oc = parseFloat(otCapEl.value); if (!isNaN(oc) && oc >= 0) S.labour.otCap = oc; }
+  var otCapFromEl = document.getElementById('setOtCapFrom');
+  if (otCapFromEl) S.labour.otCapFrom = otCapFromEl.value || '';
+  var holEl = document.getElementById('setHolidays');
+  if (holEl) {
+    S.labour.holidays = holEl.value.split(/[,;\s]+/).map(function(x) { return x.trim(); }).filter(function(x) {
+      return /^(\d{4}-)?\d{2}-\d{2}$/.test(x);
+    });
+  }
   var extraRateEl = document.getElementById('setExtraRate');
   if (extraRateEl) { var pe = parseFloat(extraRateEl.value); if (!isNaN(pe) && pe >= 0) S.labour.extraRate = pe; }
   var restMinEl = document.getElementById('setRestMin');

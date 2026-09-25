@@ -710,20 +710,31 @@ function _attRosterView() {
    rate card's own OT column fall out of the day rate rather than being a second
    number to keep in step with it. An explicit `hourRate` still overrides, for a
    worker whose overtime was negotiated apart from their day. */
-function workerOtRate(w) {
+/* A monthly hand on a contracted MONTHLY wage (BM, 14 Sep 2026: "Uday is
+   9000/month. per day is calculated as per days in that month") has no fixed
+   day rate: it is the wage over the days in the month the day falls in. */
+function workerDayRate(w, iso) {
+  if (!w) return 0;
+  if (w.comp === 'monthly' && w.monthWage > 0) return w.monthWage / labourDaysInMonth(iso || localDateStr());
+  return w.dayRate || 0;
+}
+function workerOtRate(w, iso) {
   if (!w) return 0;
   if (w.hourRate > 0) return w.hourRate;
-  if (w.comp === 'monthly') return (w.dayRate || 0) / 8;
+  if (w.comp === 'monthly') return workerDayRate(w, iso) / 8;
   return 0;
 }
 /* What one overtime hour pays: the OT rate × the multiplier, and for the
    monthly tier CAPPED (owner, 25 Sep 2026: "monthly hands get OT at day rate ÷
    8 × 1.1. Capped at 68.2"). The cap binds a day rate above ₹496 — Shyam's
-   ₹576 would pay ₹79.20 an hour, and pays ₹68.20. */
-function workerOtHourPay(w, cfg) {
+   ₹576 would pay ₹79.20 an hour, and pays ₹68.20 — and only on OT dated on or
+   after `otCapFrom`: the cap applies from September, and July and August were
+   paid uncapped. With no date the cap applies, which is the rate going forward. */
+function workerOtHourPay(w, cfg, iso) {
   cfg = cfg || labourCfg();
-  var pay = workerOtRate(w) * cfg.otMult;
-  if (w && w.comp === 'monthly' && cfg.otCap > 0) pay = Math.min(pay, cfg.otCap);
+  var pay = workerOtRate(w, iso) * cfg.otMult;
+  var capped = !iso || !cfg.otCapFrom || iso >= cfg.otCapFrom;
+  if (w && w.comp === 'monthly' && cfg.otCap > 0 && capped) pay = Math.min(pay, cfg.otCap);
   return pay;
 }
 
@@ -731,6 +742,9 @@ function workerRateLabel(w) {
   var cls = compClass(w.comp);
   if (cls.id === 'hourly') return formatCurrency(w.hourRate || 0) + '/h, every hour';
   var ot = workerOtRate(w);
+  if (cls.id === 'monthly' && w.monthWage > 0) {
+    return formatCurrency(w.monthWage) + '/month · ' + formatCurrency(workerDayRate(w)) + '/day this month · OT ' + formatCurrency(ot) + '/h';
+  }
   return formatCurrency(w.dayRate || 0) + '/day · OT ' + formatCurrency(ot) + '/h' +
     (cls.id === 'monthly' && !(w.hourRate > 0) ? ' (derived)' : '');
 }
@@ -1011,6 +1025,11 @@ function _showWorkerOverlay(worker, isAdd) {
     '<input class="inv-form-input inv-mono" id="wedDay" type="number" step="0.01" min="0" value="' + (w.dayRate || 0) + '"></div>' +
     '<div class="inv-form-group"><label class="inv-form-label" for="wedHour">Hour rate</label>' +
     '<input class="inv-form-input inv-mono" id="wedHour" type="number" step="0.01" min="0" value="' + (w.hourRate || 0) + '"></div></div>' +
+    '<div class="inv-form-group"><label class="inv-form-label" for="wedMonth">Contracted monthly wage (monthly tier only)</label>' +
+    '<input class="inv-form-input inv-mono" id="wedMonth" type="number" step="1" min="0" value="' + (w.monthWage || 0) + '"></div>' +
+    '<div class="inv-stats-note">Leave at zero for a monthly hand paid by the day. A contracted wage is paid as ' +
+    '<span class="inv-mono">wage ÷ days in the month</span> a day, its Sundays are not gated by attendance, and a ' +
+    'Sunday worked adds nothing &mdash; it is inside the wage.</div>' +
     '<div class="inv-stats-note">The hourly tier uses the hour rate alone. The monthly and daily tiers use the day ' +
     'rate; leave their hour rate at zero and a monthly worker&rsquo;s overtime derives as <span class="inv-mono">day rate ÷ 8</span>, ' +
     'which is how the rate card&rsquo;s own OT column is built. Wages are counted only for days actually recorded, ' +
@@ -1074,6 +1093,7 @@ function saveWorker(id, mode) {
     comp: comp,
     dayRate: Math.max(0, parseFloat(document.getElementById('wedDay').value) || 0),
     hourRate: Math.max(0, parseFloat(document.getElementById('wedHour').value) || 0),
+    monthWage: comp === 'monthly' ? Math.max(0, parseFloat((document.getElementById('wedMonth') || {}).value) || 0) : 0,
     area: document.getElementById('wedArea').value,
     onFloor: document.getElementById('wedFloor').checked,
     active: document.getElementById('wedActive').checked
@@ -1093,7 +1113,7 @@ function saveWorker(id, mode) {
   // is said once here rather than discovered as a low ₹/kg later. Which rate
   // has to be present depends on the tier: the hourly pool has no day rate at
   // all, and refusing one for want of it would be a rule about the wrong number.
-  var rateMissing = comp === 'hourly' ? fields.hourRate <= 0 : fields.dayRate <= 0;
+  var rateMissing = comp === 'hourly' ? fields.hourRate <= 0 : (fields.dayRate <= 0 && !(fields.monthWage > 0));
 
   if (mode === 'add') {
     if (!S.staff) S.staff = [];
@@ -1299,6 +1319,7 @@ function applyRosterImport(data) {
       comp: comp,
       dayRate: Math.max(0, Number(row.dayRate) || 0),
       hourRate: Math.max(0, Number(row.hourRate) || 0),
+      monthWage: comp === 'monthly' ? Math.max(0, Number(row.monthWage) || 0) : 0,
       area: STAFF_AREAS.some(function(a) { return a.id === rowArea; }) ? rowArea : 'flex',
       onFloor: row.onFloor !== false,
       active: row.active !== false

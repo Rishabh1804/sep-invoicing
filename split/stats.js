@@ -519,8 +519,9 @@ function renderStats() {
      an empty card teaching the reader that labour is zero would be worse than
      no card at all. */
   html += renderLabourStatsCard(_statsPeriod, tonnage);
-  // Chemicals, measured from the stock record rather than the model's ₹1.57.
-  html += renderChemStatsCard(_statsPeriod, tonnage);
+  // The live cost: every component with its source (cost.js). Chemicals are
+  // in it line by line, so the separate chemicals card is not drawn twice.
+  html += renderLiveCostCard(_statsPeriod, tonnage);
 
   /* ===== Card 2: GST position ===== */
   var cgst = 0, sgst = 0, igst = 0, unfiledTax = 0, unfiledCount = 0;

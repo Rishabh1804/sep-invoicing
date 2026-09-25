@@ -2805,6 +2805,24 @@ body.inv-desktop #itemsSelBar {
 .inv-pay-total { font-weight: 700; }
 .inv-pay-void { opacity: 0.6; text-decoration: line-through; }
 .inv-pay-chart { margin: var(--sp-8) 0; }
+.inv-cost-row > summary { list-style: none; cursor: pointer; }
+.inv-cost-row > summary::-webkit-details-marker { display: none; }
+.inv-cost-note { display: block; font-size: var(--fs-2xs); color: var(--text-3); font-weight: 400; }
+.inv-cost-src { font-size: var(--fs-2xs); font-weight: 700; border-radius: var(--r-sm); padding: 0 var(--sp-4); background: var(--surface-2); color: var(--text-2); }
+.inv-cost-src-measured { background: var(--attend-bg); color: var(--attend-text); }
+.inv-cost-src-partial, .inv-cost-src-rate { background: var(--prod-bg); color: var(--prod-text); }
+.inv-cost-src-model, .inv-cost-src-none { background: var(--warning-bg); color: var(--warning-text); }
+.inv-cost-detail { padding: 0 0 var(--sp-8) var(--sp-12); }
+.inv-cost-dline { display: flex; justify-content: space-between; gap: var(--sp-8); padding: var(--sp-4) 0; font-size: var(--fs-sm); border-bottom: 1px solid var(--border); }
+.inv-cost-bills { margin-top: var(--sp-12); }
+.inv-stk-mhead { min-height: 0; font-size: var(--fs-2xs); color: var(--text-3); font-weight: 700; text-transform: uppercase; }
+.inv-stk-mhead .inv-stk-mname { font-size: var(--fs-2xs); color: var(--text-3); }
+.inv-stk-pattern { margin-bottom: var(--sp-8); }
+.inv-stk-billform { border: 1px solid var(--border); border-radius: var(--r-md); padding: var(--sp-10); margin: var(--sp-8) 0; background: var(--surface); }
+.inv-stk-btn-sm { margin-top: var(--sp-6); }
+.dark .inv-cost-src-measured { background: var(--attend-bg); color: var(--attend-text); }
+.dark .inv-cost-src-model, .dark .inv-cost-src-none { background: var(--warning-bg); color: var(--warning-text); }
+.dark .inv-stk-billform { background: var(--surface); }
 .inv-td-wstatus { margin-top: var(--sp-8); font-size: var(--fs-sm); }
 .inv-td-wverdict { padding: var(--sp-8) var(--sp-10); border-radius: var(--r-md); margin-bottom: var(--sp-6); font-weight: 600; }
 .inv-td-wverdict-ok { background: var(--attend-bg); color: var(--attend-text); }

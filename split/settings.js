@@ -50,6 +50,15 @@ function openSettings() {
     '<input type="number" step="0.01" min="0.01" class="inv-form-input inv-mono" id="setStkModel" value="' + stockCfg().chemModel + '"></div>' +
     '<div class="inv-text-muted inv-storage-text">Days left is the level over the daily use on record. Stats reports the measured chemicals figure against the model one. Set 24 Sep 2026 at 3 and 7 days.</div></div>' +
 
+    '<div class="inv-settings-section"><div class="inv-settings-title">Live cost fallbacks</div>' +
+    '<div class="inv-form-row"><div class="inv-form-group"><label class="inv-form-label" for="setCostPower">Power (&#8377;/kg)</label>' +
+    '<input type="number" step="0.01" min="0.01" class="inv-form-input inv-mono" id="setCostPower" value="' + costModelCfg().power + '"></div>' +
+    '<div class="inv-form-group"><label class="inv-form-label" for="setCostOther">Consumables, ETP (&#8377;/kg)</label>' +
+    '<input type="number" step="0.01" min="0.01" class="inv-form-input inv-mono" id="setCostOther" value="' + costModelCfg().other + '"></div></div>' +
+    '<div class="inv-form-group"><label class="inv-form-label" for="setCostZinc">Zinc used a month, when none is recorded (kg)</label>' +
+    '<input type="number" step="1" min="1" class="inv-form-input inv-mono" id="setCostZinc" value="' + costModelCfg().zincKgMonth + '"></div>' +
+    '<div class="inv-text-muted inv-storage-text">Used by Stats &rarr; Live cost only where nothing is recorded for the period, and marked <em>model</em> there. A bill or a stock entry replaces each one.</div></div>' +
+
     todoSettingsHtml() +
 
     '<div class="inv-settings-section"><div class="inv-settings-title">Labour</div>' +
@@ -159,6 +168,11 @@ function saveSettings() {
   if (stkRedEl) { var sr = parseFloat(stkRedEl.value); if (!isNaN(sr) && sr > 0) S.stockCheck.redDays = sr; }
   var stkAmberEl = document.getElementById('setStkAmber');
   if (stkAmberEl) { var sa = parseFloat(stkAmberEl.value); if (!isNaN(sa) && sa > 0) S.stockCheck.amberDays = sa; }
+  if (!S.costModel || typeof S.costModel !== 'object') S.costModel = {};
+  [['setCostPower', 'power'], ['setCostOther', 'other'], ['setCostZinc', 'zincKgMonth']].forEach(function(p) {
+    var el = document.getElementById(p[0]);
+    if (el) { var v = parseFloat(el.value); if (!isNaN(v) && v > 0) S.costModel[p[1]] = v; }
+  });
   var stkModelEl = document.getElementById('setStkModel');
   if (stkModelEl) { var sm = parseFloat(stkModelEl.value); if (!isNaN(sm) && sm > 0) S.stockCheck.chemModel = sm; }
   todoSettingsSave();

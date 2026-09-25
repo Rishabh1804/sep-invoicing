@@ -354,6 +354,7 @@ document.addEventListener('click', function(e) {
       if (action.indexOf('invStock') === 0) stockAction(action, btn);
       else if (action.indexOf('invTodo') === 0) todoAction(action, btn);
       else if (action.indexOf('invRelay') === 0) relayAction(action, btn);
+      else if (action.indexOf('invPay') === 0) payAction(action, btn);
   }
 });
 

@@ -83,8 +83,19 @@ function labourForRange(fromIso, toIso) {
     ot: 0, otHours: 0, extra: 0, extraHours: 0,
     floorCost: 0,
     daysRecorded: 0, workingDays: 0, sundaysRecorded: 0,
-    rosterSize: roster.length, ratelessWorkers: [], byArea: {}
+    rosterSize: roster.length, ratelessWorkers: [], byArea: {}, byWorker: {}
   };
+
+  // What each worker earned in the range, on the same arithmetic as the totals:
+  // the Pay view reads it to say what is due to whom. EXTRA is not in it — the
+  // pool is disbursed by the supervisor on the floor, one line on the slip.
+  function bumpWorker(w, k, v, days, hours, otHours) {
+    var b = out.byWorker[w.id] || (out.byWorker[w.id] = { id: w.id, name: w.name, comp: w.comp,
+      days: 0, hours: 0, otHours: 0, base: 0, ot: 0, rest: 0, restDays: 0, total: 0 });
+    b[k] += v; b.total += v;
+    b.days += days || 0; b.hours += hours || 0; b.otHours += otHours || 0;
+    return b;
+  }
 
   // Variable labour, by the area it was worked in. The monthly tier's day pay
   // is deliberately absent: see _labAreaRows.
@@ -130,6 +141,7 @@ function labourForRange(fromIso, toIso) {
           var pay = hrs * (w.hourRate || 0);
           out.pool += pay;
           out.poolHours += hrs;
+          bumpWorker(w, 'base', pay, 0, hrs, 0);
           bumpArea(areaId, pay, 0, hrs);
           bumpFloor(w, areaId, pay);
           if (!(w.hourRate > 0) && out.ratelessWorkers.indexOf(w.name) < 0) out.ratelessWorkers.push(w.name);
@@ -139,6 +151,7 @@ function labourForRange(fromIso, toIso) {
 
       // Monthly and daily both pay by the day; only the rest-day rule differs.
       var wage = dayVal * (w.dayRate || 0);
+      bumpWorker(w, 'base', wage, dayVal, m.hours || 0, 0);
       if (w.comp === 'monthly') {
         out.monthlyDays += wage;
         out.monthlyDaysWorked += dayVal;
@@ -157,6 +170,7 @@ function labourForRange(fromIso, toIso) {
         var otPay = oth * rate * cfg.otMult;
         out.otHours += oth;
         out.ot += otPay;
+        bumpWorker(w, 'ot', otPay, 0, 0, oth);
         bumpArea(areaId, otPay, 0, oth);
         bumpFloor(w, areaId, otPay);
         if (!(rate > 0) && out.ratelessWorkers.indexOf(w.name) < 0) out.ratelessWorkers.push(w.name);
@@ -187,6 +201,7 @@ function labourForRange(fromIso, toIso) {
       var pay = credited * (w.dayRate || 0);
       out.rest += pay;
       out.restDaysCredited += credited;
+      bumpWorker(w, 'rest', pay, 0, 0, 0).restDays += credited;
       if (w.onFloor !== false) out.floorCost += pay;
     });
   }
@@ -201,6 +216,7 @@ function labourForRange(fromIso, toIso) {
       if (!w) return;
       var pay = (w.dayRate || 0);
       out.dailyRest += pay;
+      bumpWorker(w, 'rest', pay, 0, 0, 0).restDays += 1;
       if (w.onFloor !== false) out.floorCost += pay;
       bumpArea(w.area || 'flex', pay, 1, 0);
     });
@@ -210,6 +226,11 @@ function labourForRange(fromIso, toIso) {
     out[k] = gstRound(out[k]);
   });
   Object.keys(out.byArea).forEach(function(k) { out.byArea[k].cost = gstRound(out.byArea[k].cost); });
+  Object.keys(out.byWorker).forEach(function(k) {
+    var b = out.byWorker[k];
+    ['base', 'ot', 'rest'].forEach(function(f) { b[f] = gstRound(b[f]); });
+    b.total = gstRound(b.base + b.ot + b.rest);
+  });
 
   // Fixed is the standing crew — the monthly tier, days and gated rest days
   // together. It moves with their attendance but not with tonnage, which is the

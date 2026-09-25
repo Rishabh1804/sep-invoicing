@@ -65,6 +65,14 @@ from it. Staff, Stats and History moved behind **More** on the phone bar with it
 
 ### 3. To-do widget: desktop and Android (Google Pixel 11 Pro)
 
+> **Status, 25 Sep 2026 (session B): BUILT for Windows, inside this app.** Platform checked: Windows
+> 11 takes a PWA widget through Edge's `widgets` manifest member (Adaptive Card; Developer Mode +
+> WinAppSDK to install outside the Store); Chrome on Android has no PWA widget, so the phone needs a
+> native wrapper. The owner chose: just me, own tasks and data-raised tasks labelled, Windows 11, in
+> this app for now, no phone yet. Shipped with Home quick actions and the attendance-roll paste in the
+> same release. See `CLAUDE.md` § *To-do* and § *Attendance rolls from WhatsApp*. **Open:** the Android
+> widget, and moving `S.todo` to `sep-dashboard` when that app is ready.
+
 A to-do list for Soma, the workplace, shown as a widget on the desktop and on the phone.
 
 - ⚠ **Verify the platform constraint before designing.** As understood when this was written, a
@@ -109,4 +117,6 @@ in the PR**, so the compile session knows to re-check.
 | **Consumes** the roster and attendance seed ← `soma-internal` | Staff → Roster → Import. Merges by name, and marks name a worker, never an id (see `CLAUDE.md`). The seed carries the alias map. |
 | **Consumes** findings ← `soma-internal` | Tasks recorded in `soma-internal/tasks.md` whose fix belongs here, currently **T-HC**. |
 | **Backup shape changed, 24 Sep 2026** | A top-level `rateCheck: {pct, stake, weightTol}` config. Clients gain `pieceWeights: [{partNumber, gauge, kgPerPiece, effectiveFrom, source, addedAt}]` (second PR). Invoice lines gain `imItemId`; challan (IM) lines gain `corrections: [{at, invoiceId, invoice, from, to}]` when an invoice edit writes back to them. Clients gain `pieceRates: [{partNumber, gauge, rate, effectiveFrom, source, addedAt}]`. Invoice lines billed at ₹0 gain `zeroReason` (`replating` / `sample` / `other`), optional `zeroNote`, and `zeroReasonBackfilled` on the 25 historical lines. Anything in `soma-internal` that parses the backup should expect them. |
+| **Backup shape changed, 25 Sep 2026** | New top-level `todo: {tasks: [{id, text, due, note, link: {kind, id, label}, createdAt, updatedAt?, doneAt, doneBy?}], snoozes: {key: {sig, until, at}}}`, `todoCheck` (rule switches and day thresholds) and `relayPastes: [{id, at, hash, sentBy, sentOn, kind: in/out, date, text}]`. Attendance marks written from a pasted roll carry `inMin`, `outMin` (minutes from midnight; the next morning is past 1440), `outKnown` and `src: 'relay'`; EXTRA rows from a roll carry `src: 'relay'`. Workers gain `relayNames` (spellings the owner placed once). |
+| **Produces** attendance from the supervisor's rolls → `soma-internal` | **Built 25 Sep 2026.** Staff → Paste message reads the in/out-time rolls into `S.attendance` in the seed's own shape (marks by worker id, `coverage` / `block` EXTRA rows), so the compile reads pasted days exactly as it reads seeded ones. Each roll is kept whole in `relayPastes`. The parser was calibrated against `analysis/sep-attendance-seed-2026-09-{07,12}.json`; if the decode conventions change there, say so here. |
 | **Produces** captured stock entries → `soma-internal` (the owner) | **Built 24 Sep 2026.** Stock → Export writes `sep-stock-YYYY-MM-DD.json`: `{format: 'sep-stock', version: 1, exportedAt, build, items, entries, pastes}`. Always the whole record; ids are stable, so the compile de-duplicates on them. Each entry: `{id, itemId, kind: count/received/used/charged, qty, date, from?, days?, rate?, price?, supplier?, billNo?, note?, unsettled?, voided?, at, by, sentBy, source: paste/manual/import, pasteId?, n?, raw?}`. `pastes` hold each message whole. The same data is also in the full backup under `stock`, with `stockCheck: {redDays, amberDays, chemModel}`. The ledger stays `soma-internal/operations/chemical-stock-log.md`. |

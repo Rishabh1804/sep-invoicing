@@ -23,7 +23,7 @@ Workforce management and invoicing PWA for **Soma Electro Products**, a zinc ele
 
 ## Architecture
 
-Split-file PWA. 34 modules, ~17,100 lines total.
+Split-file PWA. 36 modules, ~23,100 lines total.
 
 ```
 split/
@@ -52,7 +52,9 @@ split/
 ├── staff.js           ← Roster + attendance + roster import: day, week, extra hours (1,013 lines)
 ├── labour.js          ← Labour: three pay tiers, fixed/variable, by area, ₹/kg (449 lines)
 ├── areas.js           ← Areas: staffing vs norms + the extra reconciled (1135 lines)
-├── stock.js           ← Stock: WhatsApp message parser, event replay, More sheet, chemicals ₹/kg (1,130 lines)
+├── stock.js           ← Stock: WhatsApp message parser, event replay, More sheet, chemicals ₹/kg (1,189 lines)
+├── todo.js            ← To-do: your tasks + tasks raised from the data, Home card, Windows widget payload (726 lines)
+├── relay.js           ← Attendance rolls: in/out-time WhatsApp parser, review, merge into the day (795 lines)
 ├── stats.js           ← Stats dashboard + History activity log (1,195 lines)
 ├── client-perf.js     ← Client performance: month on month + material cadence (314 lines)
 ├── im-form.js         ← IM add/edit/delete challan form (450 lines)
@@ -64,7 +66,7 @@ split/
 └── init.js            ← Migrations + app bootstrap (567 lines)
 ```
 
-**Concat order defined in build.sh.** Dependencies: data → state → zinc → tabs → clients → items → create → settings → github-sync → invoice-ops → number-audit → exports → im → autocomplete → print → quality-cert → credit-note → charts → staff → labour → areas → stock → stats → client-perf → im-form → im-dupe → scanner → events → swipe → seed → init.
+**Concat order defined in build.sh.** Dependencies: data → state → zinc → tabs → clients → items → create → settings → github-sync → invoice-ops → number-audit → exports → im → autocomplete → print → quality-cert → credit-note → charts → staff → labour → areas → stock → todo → relay → stats → client-perf → im-form → im-dupe → scanner → events → swipe → seed → init.
 
 ### Build
 
@@ -90,7 +92,7 @@ every session start — nothing to set up by hand. CI (`build-sync`) is the back
 ### Tests
 
 ```bash
-pnpm exec playwright test          # 369 tests, both layouts
+pnpm exec playwright test          # 387 tests, both layouts
 ```
 
 Some sandboxes ship a Chromium build Playwright does not expect and block downloading
@@ -1125,9 +1127,86 @@ id, never overwrites** — `soma-internal` de-duplicates on the ids at each comp
 model's ₹1.57. A line with no price is **named and left out, never costed at zero** — pricing it at
 nothing would make chemicals look cheaper the less anybody recorded.
 
-**The phone bar is six tabs**: Home, Create, IM, Register, Clients, **More** (Stock, Staff, Stats,
-History). More lights up while one of those is open and carries a red count of lines that are out. The
-test fixture's `switchTab` opens More when the target is behind it.
+**The phone bar is six tabs**: Home, Create, IM, Register, Clients, **More** (To-do, Stock, Staff,
+Stats, History). More lights up while one of those is open and carries a red count of **every red row**
+— stock out or under its red line, and your own tasks overdue. The test fixture's `switchTab` opens
+More when the target is behind it.
+
+### Home quick actions
+Six buttons under Month to Date, each opening its screen **already on the job**: New invoice, New
+challan (the form open), Stock entry (the by-hand form), Attendance (today's day), Paste message (the
+one box for WhatsApp rolls — a stock message pasted there is handed to the Stock check), Add task (the
+box focused). Three across on the phone, six on the desktop.
+
+### To-do
+More → **To-do**, a Home card, and a **Windows 11 widget**. The owner's own list (owner, 25 Sep 2026:
+*just me*, *both, labelled*, *Windows 11*, *in SEP Invoicing for now*, *not the phone yet*). `S.todo`
+is self-contained so it can move to `sep-dashboard` whole.
+
+- **Mine** — typed, with an optional due date, note and a link to a client / invoice / challan / stock
+  line. **Ticked, never deleted**: Done keeps them and can reopen one.
+- **App** — raised from the book (`TODO_RULE_FNS`): a stock line red or amber, no stock figure for 2
+  working days, a credit-note batch past 7 days since the client's last note, challans unbilled after 5
+  days (one task per client), invoices still Created after 2 days (last 30 days only), the number audit
+  finding a gap, no backup (export or GitHub push) for 7 days, and — off by default — a stale zinc rate.
+  Each is switchable in Settings → To-do. **App tasks cannot be ticked: they clear themselves** when the
+  thing is fixed, and every one shows the figures it was raised on and what clears it.
+- **A snooze is granted against figures (`sig`), never as a blanket silence** — the Areas card's rule
+  for an explained exception. "Until the figures change" returns the task the moment they do. `sig` is
+  deliberately coarse where a figure moves on its own: a stock line's is its colour, so it does not
+  come back every time a litre is used.
+- One rule failing on an unexpected shape is caught; it must not take the list with it.
+
+**The widget cannot be the app's HTML.** Windows draws an Adaptive Card (`widgets/todo-template.json`)
+from data the service worker hands it. The rows are worked out **by the app** (the app tasks need the
+whole book) and written to a small database of their own, **`sep-invoicing-widget`** (`payload`,
+`queue`) — the worker never reads or writes the book. **Both directions run on open and on close**
+(owner, 25 Sep 2026): the payload is written after a save and whenever the page is hidden or shut; a
+**Done tapped on the card** is queued, dropped from the card at once, and applied when the app is next
+shown (or at once if open, by message). The queue is read and emptied in one transaction, and the
+payload is only written after the queue is applied, so a tick cannot be lost or come back. Tapping a
+row opens `?tab=pageTodo&todo=open:<m|a>:<id>`; Add task opens `&todo=add`.
+
+⚠ **Nothing here can test the widget host.** It exists only in Edge on Windows 11 (setup: Developer
+Mode + WinAppSDK 1.2, install from Edge, Win+W → Add widgets → SEP To-do). The spec tests everything
+the app hands the worker and takes back — the payload, every binding the template uses, the queue, the
+launch URLs — and that the manifest, template and worker agree. The Windows side needs one check on
+the owner's PC.
+
+### Attendance rolls from WhatsApp
+Staff → **Paste message** (or Home → Paste message). The supervisor's **in-time** and **out-time** rolls
+read into the day the Staff tab keeps, with every line shown beside what it was read as **before**
+anything is saved — the stock paste's contract. `parseRelayRoll` is pure (the roster is passed in).
+
+**Calibrated, not guessed.** The rules are the ones the hand decode has used since August, and the
+parser was scored against it: the in/out rolls in `soma-internal/data/raw/relays/` replayed into the
+decoded days of `soma-internal/analysis/sep-attendance-seed-2026-09-{07,12}.json` — **22 days, 434
+marks: state 98.8%, area 92.4%, hours 94.9%, OT 99.1%, EXTRA rows 69 of 79 exact**, identically with and
+without remembered spellings. The harness and the real rolls stay out of this repo (it is public); the
+spec uses made-up names in the shop's shapes. What does not match is judgement the review surfaces:
+barrel versus barrel pickling inside the one unit, and blocks whose crew or times the decoder took
+from context. The older seed (to 7 Sep) wrote a monthly hand's OT as 0; the newer one, and this
+parser, as hours over 8 — the wage model's rule.
+
+- **Hours are the clock span floored** (8:30 → 5:00 is 8, 6:00 → 5:00 is 11); **a monthly or daily
+  hand's OT is hours over 8**; an hourly hand carries none. **The gate stands 7 AM – 7 PM** (BM) and
+  its twelve hours are not OT. A hand the out-time roll does not name leaves at 5 PM; until an out-time
+  roll arrives the review says the day is provisional, and the next roll **updates** those marks.
+- **An EXTRA tag on the 8:30 shift is coverage** booked to that line; on any other slot it is a
+  **block** with the crew named under it and the slot's times. The tag closes its group. On an
+  out-time roll where the group's own times differ, the block is the hands who stayed latest.
+- A slot ahead of the 8:30 shift headed "6:00 pm" is read as the morning, flagged (BM ruled it a
+  mislabel). "pickling VA 1 & berral" is the VAT side's pickling; "berral & pickling" is the barrel
+  unit; "VAT A1 & pickling" stays a VAT row (the fold is the reconciler's). The office and the gate
+  share a header, and each hand stands at his own post. No line written: Flex.
+- **Names**: exact, or a spelling the owner placed once (kept on the worker as `relayNames`), or one
+  letter off (two on a long name) and flagged *read as*. Anything else is **asked, never guessed** —
+  a numbered line not on the roster is red until placed or left out.
+- **A mark entered by hand is kept** and shown as kept; the relay only rewrites marks it wrote
+  (`src: 'relay'`, with `inMin`/`outMin`). EXTRA rows already on the day are not added twice. **The
+  same roll twice is refused** by fingerprint (`S.relayPastes` keeps each roll whole). A roll with a
+  second message pasted on its end stops there and says so.
+
 
 ### Labour and attendance
 The Staff tab. Labour is ₹3.55/kg of an ₹8.55 cost and 42% of it — the largest line in the

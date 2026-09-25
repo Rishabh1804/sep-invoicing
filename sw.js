@@ -16,7 +16,7 @@
 // - Static assets: cache-first, revalidated in the background.
 // - Gemini (scanner), metals.dev (zinc) and GitHub (sync) are network-only.
 
-const CACHE_NAME = 'sep-inv-v29';
+const CACHE_NAME = 'sep-inv-v30';
 
 // The shell cache is deliberately NOT versioned. It holds one entry, and every
 // online navigation overwrites it with whatever the server just sent, so a
@@ -47,7 +47,7 @@ const FONT_CSS = 'https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9.
 
 // Same-origin and always available: if one of these fails the install is a lie,
 // so they stay atomic.
-const CORE_ASSETS = ['./manifest.json', './icon-192.png', './icon-512.png'];
+const CORE_ASSETS = ['./manifest.json', './icon-192.png', './icon-512.png', './widgets/todo-template.json'];
 
 // Cross-origin and allowed to fail. These used to sit in the same addAll() as
 // the core assets, and addAll is all-or-nothing — so a single hiccup reaching
@@ -108,6 +108,7 @@ self.addEventListener('activate', function(e) {
       return KEEP_CACHES.indexOf(k) === -1 ? caches.delete(k) : null;
     }));
     await self.clients.claim();
+    await widgetRender();
   })());
 });
 
@@ -206,3 +207,121 @@ async function revalidate(cache, req) {
     if (fresh && (fresh.ok || fresh.type === 'opaque')) await cache.put(req, fresh.clone());
   } catch (err) { /* offline: the cached copy stands */ }
 }
+
+// ===== THE TO-DO WIDGET (Windows 11 Widgets Board, Edge only) =====
+//
+// Windows draws the card from an Adaptive Card template; this worker hands it
+// the data. The data is a payload the APP computes and writes to a database of
+// its own ('sep-invoicing-widget') — the app-raised tasks come from the whole
+// book, and this worker never reads or writes the book itself.
+//
+// A Done tapped on the card is appended to 'queue' in the same database and the
+// row is dropped from the payload at once; the app applies the queue the next
+// time it is shown (or straight away, if it is open). Everything here is guarded
+// on `self.widgets`, which only Edge on Windows 11 provides.
+const WIDGET_TAG = 'sep-todo';
+const WIDGET_DB = 'sep-invoicing-widget';
+const WIDGET_TEMPLATE = './widgets/todo-template.json';
+
+function widgetDb() {
+  return new Promise(function(resolve) {
+    let req;
+    try { req = indexedDB.open(WIDGET_DB, 1); } catch (err) { resolve(null); return; }
+    req.onupgradeneeded = function() { req.result.createObjectStore('kv'); };
+    req.onsuccess = function() { resolve(req.result); };
+    req.onerror = req.onblocked = function() { resolve(null); };
+  });
+}
+
+function widgetEmptyPayload() {
+  return { open: 0, late: 0, title: 'Open SEP Invoicing once', updated: 'The list fills in from the app',
+    rows: [], empty: true, more: '' };
+}
+
+async function widgetRead() {
+  const db = await widgetDb();
+  if (!db) return widgetEmptyPayload();
+  return new Promise(function(resolve) {
+    const req = db.transaction('kv', 'readonly').objectStore('kv').get('payload');
+    req.onsuccess = function() { db.close(); resolve(req.result || widgetEmptyPayload()); };
+    req.onerror = function() { db.close(); resolve(widgetEmptyPayload()); };
+  });
+}
+
+async function widgetTemplate() {
+  const cached = await caches.match(WIDGET_TEMPLATE);
+  if (cached) return cached.text();
+  return (await fetch(WIDGET_TEMPLATE)).text();
+}
+
+async function widgetRender() {
+  if (!self.widgets) return;
+  try {
+    const w = await self.widgets.getByTag(WIDGET_TAG);
+    if (!w) return;
+    const template = await widgetTemplate();
+    const data = await widgetRead();
+    await self.widgets.updateByTag(WIDGET_TAG, { template: template, data: JSON.stringify(data) });
+  } catch (err) { /* the card keeps its last drawing */ }
+}
+
+// Queue the Done and drop the row in one transaction, so the card redraws at
+// once and the app can never miss the tick.
+async function widgetDone(id) {
+  const db = await widgetDb();
+  if (!db) return;
+  await new Promise(function(resolve) {
+    const tx = db.transaction('kv', 'readwrite');
+    const store = tx.objectStore('kv');
+    const q = store.get('queue');
+    q.onsuccess = function() {
+      const queue = Array.isArray(q.result) ? q.result : [];
+      queue.push({ id: id, at: Date.now() });
+      store.put(queue, 'queue');
+    };
+    const p = store.get('payload');
+    p.onsuccess = function() {
+      const pl = p.result;
+      if (!pl || !Array.isArray(pl.rows)) return;
+      const gone = pl.rows.find(function(r) { return r.mine && r.id === id; });
+      if (!gone) return;
+      pl.rows = pl.rows.filter(function(r) { return r !== gone; });
+      pl.rows.forEach(function(r, i) { r.big = i >= 3; });
+      pl.open = Math.max(0, (pl.open || 0) - 1);
+      if (gone.late) pl.late = Math.max(0, (pl.late || 0) - 1);
+      pl.title = pl.open ? pl.open + ' open' + (pl.late ? ' \u00b7 ' + pl.late + ' late' : '') : 'Nothing due';
+      pl.more = pl.open > 3 ? '+' + (pl.open - 3) + ' more' : '';
+      pl.empty = pl.rows.length === 0;
+      store.put(pl, 'payload');
+    };
+    tx.oncomplete = tx.onerror = tx.onabort = function() { db.close(); resolve(); };
+  });
+  await widgetRender();
+  const open = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+  open.forEach(function(c) { c.postMessage({ type: 'sep-todo-done' }); });
+}
+
+// Open the app on the To-do tab, or bring an open window forward and tell it.
+async function widgetOpen(action) {
+  const open = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+  if (open.length) {
+    try {
+      await open[0].focus();
+      open[0].postMessage({ type: 'sep-todo-open', action: action });
+      return;
+    } catch (err) { /* focus refused: open a window instead */ }
+  }
+  await self.clients.openWindow('./?tab=pageTodo&todo=' + encodeURIComponent(action));
+}
+
+self.addEventListener('widgetinstall', function(e) { e.waitUntil(widgetRender()); });
+self.addEventListener('widgetresume', function(e) { e.waitUntil(widgetRender()); });
+self.addEventListener('widgetclick', function(e) {
+  const action = e.action || '';
+  if (action.indexOf('done:') === 0) e.waitUntil(widgetDone(action.slice(5)));
+  else e.waitUntil(widgetOpen(action || 'open'));
+});
+// The app wrote a fresh payload (on save, and whenever it is hidden or shut).
+self.addEventListener('message', function(e) {
+  if (e.data && e.data.type === 'sep-todo-widget') e.waitUntil(widgetRender());
+});

@@ -50,6 +50,8 @@ function openSettings() {
     '<input type="number" step="0.01" min="0.01" class="inv-form-input inv-mono" id="setStkModel" value="' + stockCfg().chemModel + '"></div>' +
     '<div class="inv-text-muted inv-storage-text">Days left is the level over the daily use on record. Stats reports the measured chemicals figure against the model one. Set 24 Sep 2026 at 3 and 7 days.</div></div>' +
 
+    todoSettingsHtml() +
+
     '<div class="inv-settings-section"><div class="inv-settings-title">Labour</div>' +
     '<div class="inv-form-row"><div class="inv-form-group"><label class="inv-form-label">OT multiplier</label>' +
     '<input type="number" step="0.01" min="1" class="inv-form-input inv-mono" id="setOtMult" value="' + ((S.labour && S.labour.otMult) != null ? S.labour.otMult : 1.1) + '"></div>' +
@@ -159,6 +161,7 @@ function saveSettings() {
   if (stkAmberEl) { var sa = parseFloat(stkAmberEl.value); if (!isNaN(sa) && sa > 0) S.stockCheck.amberDays = sa; }
   var stkModelEl = document.getElementById('setStkModel');
   if (stkModelEl) { var sm = parseFloat(stkModelEl.value); if (!isNaN(sm) && sm > 0) S.stockCheck.chemModel = sm; }
+  todoSettingsSave();
   if (!S.labour) S.labour = {};
   var otMultEl = document.getElementById('setOtMult');
   if (otMultEl) { var pm = parseFloat(otMultEl.value); if (!isNaN(pm) && pm >= 0) S.labour.otMult = pm; }
@@ -450,6 +453,7 @@ function exportData() {
   a.href = URL.createObjectURL(blob);
   a.download = 'sep-invoicing-backup-' + localDateStr() + '.json';
   a.click();
+  todoNoteExport();
   showToast('Data exported');
 }
 

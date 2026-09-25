@@ -15,7 +15,7 @@
 <title>SEP Invoicing</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-<meta name="app-build" content="f46d2c23">
+<meta name="app-build" content="9c1d54a1">
 <style>
 /* ===== DESIGN TOKENS ===== */
 :root {
@@ -52,6 +52,7 @@
   --danger: #c13e34; --danger-bg: #fceae8; --danger-text: #9a2e26;
   --warning: #8a6b08; --warning-bg: #fdf6e0; --warning-text: #6b5206;
   --neutral: #8b6c4a; --neutral-bg: #f5f0e8; --neutral-text: #6b5237;
+  --todo: #6b4c8a; --todo-bg: #f1ecf7; --todo-text: #4f3570;
   --accent: #b45a37; --accent-dark: #8f4529;
   --cw: #1a8a3e; --perm: #2e75b6;
 
@@ -76,6 +77,7 @@
   --danger-bg: #3a1a18; --warning-bg: #3a3018; --neutral-bg: #2a2518;
   --attend-text: #6cd88a; --cost-text: #e8a888; --prod-text: #88b8e8;
   --danger-text: #e89090; --warning-text: #d4b848; --neutral-text: #c8b898;
+  --todo: #b79ae0; --todo-bg: #2a2238; --todo-text: #cdb8f0;
   /* Lifted for contrast against the dark surface; the light values go muddy
      on #242320 and adjacent wedges stop being tellable apart. */
   --chart-1: #e8a888; --chart-2: #88b8e8; --chart-3: #6cd88a; --chart-4: #d4b848;
@@ -3284,6 +3286,165 @@ body.inv-desktop .inv-stk-foot { bottom: var(--sp-8); }
 .dark .inv-stk-tone-ok, .dark .inv-stk-pr-clear { border-left-color: var(--attend-text); }
 .dark .inv-stk-tone-bath { border-left-color: var(--prod-text); }
 .dark .inv-tab-badge { color: var(--text-1); }
+
+/* ===== TO-DO =====
+   App tasks carry a round marker (they clear themselves), your own a tick box.
+   Tone is the left rule, the same language as the Stock list. */
+.inv-td-add { display: flex; gap: var(--sp-8); margin-bottom: var(--sp-12); }
+.inv-td-in {
+  flex: 1; min-width: 0; min-height: 44px; padding: 0 var(--sp-12);
+  border: 1px solid var(--border-2); border-radius: var(--r-md); background: var(--surface); color: var(--text-1);
+  font: inherit; font-size: var(--fs-base);
+}
+.inv-td-in:focus { outline: 2px solid var(--accent); outline-offset: 0; border-color: var(--accent); }
+.inv-td-sec {
+  display: flex; align-items: center; gap: var(--sp-8); margin: var(--sp-16) var(--sp-2) var(--sp-6);
+  font-size: var(--fs-xs); font-weight: 700; color: var(--text-2); text-transform: uppercase; letter-spacing: 0.06em;
+}
+.inv-td-count { font-weight: 500; letter-spacing: 0; text-transform: none; color: var(--text-2); }
+.inv-td-lbl {
+  display: inline-block; flex: none; padding: 0 var(--sp-6); border-radius: var(--r-sm);
+  font-size: var(--fs-xs); font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; line-height: 1.6;
+}
+.inv-td-lbl-app { background: var(--todo-bg); color: var(--todo-text); border: 1px solid var(--todo); }
+.inv-td-lbl-mine { background: var(--neutral-bg); color: var(--neutral-text); border: 1px solid var(--neutral); }
+.inv-td-empty {
+  padding: var(--sp-12); border: 1px dashed var(--border-2); border-radius: var(--r-md);
+  color: var(--text-2); font-size: var(--fs-sm); background: var(--surface);
+}
+.inv-td-row {
+  display: flex; align-items: flex-start; gap: var(--sp-10); width: 100%; min-height: 44px;
+  padding: var(--sp-10) var(--sp-10) var(--sp-10) var(--sp-12); margin-bottom: var(--sp-6);
+  background: var(--surface); border: 1px solid var(--border-2); border-left-width: var(--sp-4); border-radius: var(--r-md);
+  color: var(--text-1); font: inherit; text-align: left;
+}
+button.inv-td-row { cursor: pointer; }
+.inv-td-row:focus-visible, .inv-td-main:focus-visible, .inv-td-box:focus-visible, .inv-td-hrow:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.inv-td-tone-red { border-left-color: var(--danger); }
+.inv-td-tone-amber { border-left-color: var(--warning); }
+.inv-td-tone-info { border-left-color: var(--prod); }
+.inv-td-tone-none { border-left-color: var(--border-2); }
+.inv-td-row-done .inv-td-title { color: var(--text-2); text-decoration: line-through; }
+.inv-td-row-snz { align-items: center; }
+.inv-td-main {
+  display: flex; flex-direction: column; flex: 1; min-width: 0; padding: 0; border: none; background: none;
+  color: inherit; font: inherit; text-align: left; cursor: pointer;
+}
+.inv-td-row-snz .inv-td-main { cursor: default; }
+.inv-td-title { font-size: var(--fs-md); font-weight: 600; line-height: 1.3; overflow-wrap: anywhere; }
+.inv-td-sub { font-size: var(--fs-sm); color: var(--text-2); margin-top: var(--sp-2); }
+.inv-td-why { font-size: var(--fs-xs); color: var(--text-2); margin-top: var(--sp-2); }
+.inv-td-glyph {
+  flex: none; display: inline-flex; align-items: center; justify-content: center; width: var(--sp-20); height: var(--sp-20); margin-top: var(--sp-2);
+  border-radius: var(--r-full); color: var(--surface); font-size: var(--fs-sm); font-weight: 800; line-height: 1;
+}
+.inv-td-glyph-red { background: var(--danger); }
+.inv-td-glyph-amber { background: var(--warning); }
+.inv-td-glyph-info { background: var(--prod); }
+.inv-td-box {
+  flex: none; display: inline-flex; align-items: center; justify-content: center; width: calc(var(--sp-20) + var(--sp-2)); height: calc(var(--sp-20) + var(--sp-2)); margin-top: var(--sp-2);
+  border: 2px solid var(--text-2); border-radius: var(--r-sm); background: var(--surface); color: var(--surface); cursor: pointer; padding: 0;
+  position: relative;
+}
+.inv-td-box::before { content: ''; position: absolute; inset: calc(var(--sp-10) * -1); }
+.inv-td-box svg { width: var(--sp-16); height: var(--sp-16); }
+.inv-td-box-on { background: var(--attend); border-color: var(--attend); }
+.inv-td-side { display: flex; flex-direction: column; align-items: flex-end; gap: var(--sp-4); flex: none; }
+.inv-td-due { font-size: var(--fs-sm); font-weight: 700; color: var(--text-2); white-space: nowrap; }
+.inv-td-due-red { color: var(--danger-text); }
+.inv-td-due-amber { color: var(--warning-text); }
+.inv-td-link {
+  max-width: calc(var(--sp-32) * 5); padding: var(--sp-2) var(--sp-6); border: 1px solid var(--prod); border-radius: var(--r-sm);
+  background: var(--prod-bg); color: var(--prod-text); font: inherit; font-size: var(--fs-xs); font-weight: 700;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer;
+}
+.inv-td-fold {
+  display: flex; justify-content: space-between; align-items: center; width: 100%; min-height: 44px; margin-top: var(--sp-10);
+  padding: 0 var(--sp-12); border: 1px dashed var(--border-2); border-radius: var(--r-md); background: var(--surface-2);
+  color: var(--text-1); font: inherit; font-size: var(--fs-base); font-weight: 600; cursor: pointer;
+}
+.inv-td-fold span:last-child { color: var(--accent); }
+/* Home */
+.inv-td-card .inv-card-header { display: flex; justify-content: space-between; align-items: center; }
+.inv-td-hrow {
+  display: flex; align-items: flex-start; gap: var(--sp-10); width: 100%; min-height: 44px; padding: var(--sp-8) 0;
+  border: none; border-top: 1px solid var(--border); background: none; color: var(--text-1); font: inherit; text-align: left;
+}
+button.inv-td-hrow { cursor: pointer; }
+.inv-td-hrow:first-of-type { border-top: none; }
+.inv-td-hrow .inv-td-title { font-size: var(--fs-base); }
+.inv-td-home-none { font-size: var(--fs-sm); color: var(--text-2); }
+/* Overlays */
+.inv-td-ohead { display: flex; align-items: center; gap: var(--sp-8); margin-bottom: var(--sp-6); }
+.inv-td-otitle { font-family: var(--ff-display); font-size: var(--fs-lg); font-weight: 600; color: var(--text-1); margin-bottom: var(--sp-10); }
+.inv-td-facts { border: 1px solid var(--border-2); border-radius: var(--r-md); overflow: hidden; margin-bottom: var(--sp-10); }
+.inv-td-facts div { display: flex; justify-content: space-between; gap: var(--sp-12); padding: var(--sp-8) var(--sp-10); border-top: 1px solid var(--border); font-size: var(--fs-sm); }
+.inv-td-facts div:first-child { border-top: none; }
+.inv-td-facts span { color: var(--text-2); }
+.inv-td-facts strong { font-family: var(--ff-mono); font-weight: 500; color: var(--text-1); text-align: right; overflow-wrap: anywhere; }
+.inv-td-clears { padding: var(--sp-8) var(--sp-10); margin-bottom: var(--sp-10); border-radius: var(--r-md); background: var(--surface-2); color: var(--text-1); font-size: var(--fs-sm); }
+.inv-td-pills { display: flex; flex-wrap: wrap; gap: var(--sp-6); }
+.inv-td-pill {
+  min-height: calc(var(--sp-32) + var(--sp-4)); padding: 0 var(--sp-12); border: 1px solid var(--border-2); border-radius: var(--r-full);
+  background: var(--surface); color: var(--text-1); font: inherit; font-size: var(--fs-sm); font-weight: 600; cursor: pointer;
+}
+.inv-td-pill:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.inv-td-rule { display: flex; align-items: center; gap: var(--sp-8); min-height: calc(var(--sp-32) + var(--sp-4)); font-size: var(--fs-base); }
+.dark .inv-td-row, .dark .inv-td-in, .dark .inv-td-facts { border-color: var(--border-2); }
+.dark .inv-td-tone-red { border-left-color: var(--danger-text); }
+.dark .inv-td-tone-amber { border-left-color: var(--warning-text); }
+.dark .inv-td-tone-info { border-left-color: var(--prod-text); }
+.dark .inv-td-glyph { color: var(--bg); }
+.dark .inv-td-glyph-red { background: var(--danger-text); }
+.dark .inv-td-glyph-amber { background: var(--warning-text); }
+.dark .inv-td-glyph-info { background: var(--prod-text); }
+.dark .inv-td-box { background: var(--surface); }
+.dark .inv-td-box-on { background: var(--attend-text); border-color: var(--attend-text); color: var(--bg); }
+.dark .inv-td-link { border-color: var(--prod-text); }
+.dark .inv-td-lbl-mine { border-color: var(--neutral-text); }
+
+/* ===== ATTENDANCE PASTE (relay) ===== */
+.inv-rl-sum { grid-template-columns: repeat(3, 1fr); }
+.inv-rl-day { margin-top: var(--sp-16); padding-top: var(--sp-12); border-top: 1px solid var(--border-2); }
+.inv-rl-dayhead { display: flex; flex-direction: column; gap: var(--sp-2); margin-bottom: var(--sp-8); }
+.inv-rl-rows { border: 1px solid var(--border-2); border-radius: var(--r-md); overflow: hidden; background: var(--surface); }
+.inv-rl-row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-8); padding: var(--sp-8) var(--sp-10); border-top: 1px solid var(--border); }
+.inv-rl-row:first-child { border-top: none; }
+.inv-rl-row-A { background: var(--surface-2); }
+.inv-rl-row-main { display: flex; flex-direction: column; flex: 1; min-width: 0; }
+.inv-rl-name { font-size: var(--fs-base); font-weight: 600; color: var(--text-1); }
+.inv-rl-area { font-size: var(--fs-xs); color: var(--text-2); }
+.inv-rl-row-side { display: flex; align-items: center; gap: var(--sp-8); }
+.inv-rl-hrs { font-family: var(--ff-mono); font-size: var(--fs-sm); color: var(--text-1); white-space: nowrap; }
+.inv-rl-was { flex-basis: 100%; font-size: var(--fs-xs); color: var(--text-2); }
+.inv-rl-extra { padding: var(--sp-6) var(--sp-10); margin-bottom: var(--sp-4); border-left: var(--sp-4) solid var(--prod); background: var(--surface); border-radius: var(--r-sm); font-size: var(--fs-sm); color: var(--text-1); }
+.inv-rl-extra-dup { border-left-color: var(--border-2); color: var(--text-2); }
+.inv-rl-lines { margin-top: var(--sp-8); border: 1px solid var(--border-2); border-radius: var(--r-md); background: var(--surface); }
+.inv-rl-line { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-8); padding: var(--sp-4) var(--sp-8); border-top: 1px solid var(--border); font-size: var(--fs-xs); }
+.inv-rl-line:first-child { border-top: none; }
+.inv-rl-raw { font-family: var(--ff-mono); color: var(--text-1); overflow-wrap: anywhere; }
+.inv-rl-read { color: var(--text-2); }
+.inv-rl-line-unknown .inv-rl-read { color: var(--danger-text); font-weight: 600; }
+.inv-rl-line-extra .inv-rl-read { color: var(--prod-text); font-weight: 600; }
+.dark .inv-rl-rows, .dark .inv-rl-lines { border-color: var(--border-2); }
+.dark .inv-rl-extra { border-left-color: var(--prod-text); }
+
+/* ===== HOME QUICK ACTIONS ===== */
+.inv-qa-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--sp-8); margin-bottom: var(--sp-16); }
+.inv-qa {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--sp-4);
+  min-height: calc(var(--sp-32) * 2 + var(--sp-8)); padding: var(--sp-8) var(--sp-4);
+  border: 1px solid var(--border-2); border-radius: var(--r-lg); background: var(--surface); color: var(--text-1);
+  font: inherit; font-size: var(--fs-sm); font-weight: 600; line-height: 1.2; text-align: center; cursor: pointer;
+}
+.inv-qa svg { width: 20px; height: 20px; color: var(--accent); }
+.inv-qa:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.inv-qa:active { transform: scale(0.98); }
+.inv-qa-pri { background: var(--accent); border-color: var(--accent); color: var(--surface); }
+.inv-qa-pri svg { color: var(--surface); }
+.dark .inv-qa-pri { color: var(--text-1); }
+.dark .inv-qa-pri svg { color: var(--text-1); }
+body.inv-desktop .inv-qa-grid { grid-template-columns: repeat(6, 1fr); }
 </style>
 </head>
 <body>
@@ -3311,9 +3472,15 @@ body.inv-desktop .inv-stk-foot { bottom: var(--sp-8); }
       </div>
     </div>
   </div>
-  <div class="inv-btn-bar inv-btn-bar-center">
-    <button class="inv-btn inv-btn-primary" data-action="invCreateNew">New Invoice</button>
+  <div class="inv-qa-grid" role="group" aria-label="Quick actions">
+    <button class="inv-qa inv-qa-pri" data-action="invCreateNew"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg><span>New invoice</span></button>
+    <button class="inv-qa" data-action="invHomeQuick" data-go="challan"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg><span>New challan</span></button>
+    <button class="inv-qa" data-action="invHomeQuick" data-go="stock"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M9 3h6"/><path d="M10 3v6L4.5 19a1.5 1.5 0 001.3 2h12.4a1.5 1.5 0 001.3-2L14 9V3"/><path d="M7 15h10"/></svg><span>Stock entry</span></button>
+    <button class="inv-qa" data-action="invHomeQuick" data-go="attendance"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><polyline points="17 11 19 13 23 9"/></svg><span>Attendance</span></button>
+    <button class="inv-qa" data-action="invHomeQuick" data-go="paste"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z"/></svg><span>Paste message</span></button>
+    <button class="inv-qa" data-action="invHomeQuick" data-go="task"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg><span>Add task</span></button>
   </div>
+  <div id="homeTodoCard"></div>
   <div id="homeUnbilledCard"></div>
   <div id="homeSyncCard"></div>
   <div id="homeZincCard"></div>
@@ -3366,6 +3533,10 @@ body.inv-desktop .inv-stk-foot { bottom: var(--sp-8); }
 
 <div id="pageStock" class="inv-page">
   <div id="stockContent"></div>
+</div>
+
+<div id="pageTodo" class="inv-page">
+  <div id="todoContent"></div>
 </div>
 
 <div id="pageHistory" class="inv-page">
@@ -3505,6 +3676,15 @@ function getDefaultState() {
     // Days of cover at which a line turns red / amber, and the cost model's
     // chemicals figure the measured one is reported against.
     stockCheck: { redDays: 3, amberDays: 7, chemModel: 1.57 },
+    // The owner's to-do list: typed tasks (ticked, never deleted) and the
+    // snoozes granted to app-raised ones, each against the figures it saw.
+    todo: { tasks: [], snoozes: {} },
+    // Every attendance roll pasted in, whole, with a fingerprint so the same
+    // roll twice is refused (it would count every hour twice).
+    relayPastes: [],
+    // Which rules may raise a task, and their day thresholds.
+    todoCheck: { stock: true, paste: true, cn: true, challan: true, dispatch: true, audit: true,
+      backup: true, zinc: false, pasteDays: 2, challanDays: 5, dispatchDays: 2, backupDays: 7 },
     // Full cost per kg, rebuilt from owner-supplied inputs against Apr–Jul 2026
     // actuals. The old 5.46 predated that rebuild and flattered every margin
     // figure by roughly a rupee a kilo. Only ever the default for a fresh
@@ -3801,12 +3981,12 @@ function hideStorageBanner(kind) {
 // Containers hold the user's records, so a missing one is filled EMPTY — the
 // app must never invent business data to repair a shape.
 var STATE_CONTAINERS = ['clients', 'items', 'invoices', 'incomingMaterial', 'partWeights',
-  'voidedNumbers', 'creditNotes', 'extraExceptions', 'staff', 'attendance', 'areaTargets', 'stock'];
+  'voidedNumbers', 'creditNotes', 'extraExceptions', 'staff', 'attendance', 'areaTargets', 'stock', 'todo', 'relayPastes'];
 // Config objects are the opposite: a missing one is filled from the defaults,
 // and so is a missing KEY inside one. `labourCfg()` reads `extraRate || 0`, so
 // a backup predating a constant would silently price the extra at nothing
 // rather than at ₹47.50 — a wrong number, not a visible gap.
-var STATE_CONFIGS = ['labour', 'rateCheck', 'stockCheck'];
+var STATE_CONFIGS = ['labour', 'rateCheck', 'stockCheck', 'todoCheck'];
 
 function ensureStateShape(s) {
   if (!s) return s;
@@ -3945,6 +4125,8 @@ function saveState() {
   // Opt-in GitHub backup. Debounced inside, so this fires far more often than
   // it pushes. Guarded because state.js loads before github-sync.js.
   if (typeof ghNotifyChange === 'function') ghNotifyChange();
+  // The Windows widget reads a payload of its own; refreshed behind the save.
+  if (typeof todoWidgetSchedule === 'function') todoWidgetSchedule();
   return landed;
 }
 
@@ -4621,7 +4803,7 @@ function switchTab(tabId) {
   document.querySelectorAll('.inv-tab').forEach(t => {
     if (t.dataset.tab === tabId) t.classList.add('inv-tab-active');
   });
-  // Stock, Staff, Stats and History live behind More on the phone bar.
+  // To-do, Stock, Staff, Stats and History live behind More on the phone bar.
   document.querySelectorAll('.inv-tab-more').forEach(t => t.classList.toggle('inv-tab-active', MORE_TABS.indexOf(tabId) >= 0));
   // Phase 8A: Activate sidebar item
   document.querySelectorAll('.inv-sidebar-item').forEach(s => {
@@ -4667,6 +4849,8 @@ function switchTab(tabId) {
     if (!document.getElementById('createFormArea').innerHTML) initCreateForm();
   } else if (tabId === 'pageStock') {
     renderStock();
+  } else if (tabId === 'pageTodo') {
+    renderTodo();
   } else if (tabId === 'pageStaff') {
     renderAttendance();
   } else if (tabId === 'pageStats') {
@@ -4699,6 +4883,20 @@ function switchTab(tabId) {
 }
 
 /* ===== HOME ===== */
+/* The quick actions: each opens its tab already on the job — the form open,
+   the box focused — rather than on the tab's front page. */
+function homeQuick(go) {
+  if (go === 'challan') { switchTab('pageIM'); showAddChallanForm(); }
+  else if (go === 'stock') { switchTab('pageStock'); stockOpenManual(); }
+  else if (go === 'attendance') { _attView = 'day'; _attDate = localDateStr(); switchTab('pageStaff'); }
+  else if (go === 'paste') relayOpen();
+  else if (go === 'task') {
+    switchTab('pageTodo');
+    var inp = document.getElementById('todoNew');
+    if (inp) inp.focus();
+  }
+}
+
 function renderHome() {
   const now = new Date();
   const ym = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0');
@@ -4707,6 +4905,7 @@ function renderHome() {
   document.getElementById('mtdRevenue').innerHTML = formatCurrency(active.reduce((s,i) => s + (i.taxableValue || 0), 0));
 
   renderZincCard();
+  renderTodoHomeCard();
   updateStockBadge();
   ghRenderCard();
 
@@ -7269,6 +7468,8 @@ function openSettings() {
     '<input type="number" step="0.01" min="0.01" class="inv-form-input inv-mono" id="setStkModel" value="' + stockCfg().chemModel + '"></div>' +
     '<div class="inv-text-muted inv-storage-text">Days left is the level over the daily use on record. Stats reports the measured chemicals figure against the model one. Set 24 Sep 2026 at 3 and 7 days.</div></div>' +
 
+    todoSettingsHtml() +
+
     '<div class="inv-settings-section"><div class="inv-settings-title">Labour</div>' +
     '<div class="inv-form-row"><div class="inv-form-group"><label class="inv-form-label">OT multiplier</label>' +
     '<input type="number" step="0.01" min="1" class="inv-form-input inv-mono" id="setOtMult" value="' + ((S.labour && S.labour.otMult) != null ? S.labour.otMult : 1.1) + '"></div>' +
@@ -7378,6 +7579,7 @@ function saveSettings() {
   if (stkAmberEl) { var sa = parseFloat(stkAmberEl.value); if (!isNaN(sa) && sa > 0) S.stockCheck.amberDays = sa; }
   var stkModelEl = document.getElementById('setStkModel');
   if (stkModelEl) { var sm = parseFloat(stkModelEl.value); if (!isNaN(sm) && sm > 0) S.stockCheck.chemModel = sm; }
+  todoSettingsSave();
   if (!S.labour) S.labour = {};
   var otMultEl = document.getElementById('setOtMult');
   if (otMultEl) { var pm = parseFloat(otMultEl.value); if (!isNaN(pm) && pm >= 0) S.labour.otMult = pm; }
@@ -7669,6 +7871,7 @@ function exportData() {
   a.href = URL.createObjectURL(blob);
   a.download = 'sep-invoicing-backup-' + localDateStr() + '.json';
   a.click();
+  todoNoteExport();
   showToast('Data exported');
 }
 
@@ -12902,7 +13105,7 @@ function renderAttendance() {
 
   var toolbar = document.getElementById('attToolbar');
   if (toolbar) {
-    var views = [['day', 'Day'], ['week', 'Week'], ['areas', 'Areas'], ['roster', 'Roster']];
+    var views = [['day', 'Day'], ['week', 'Week'], ['areas', 'Areas'], ['roster', 'Roster'], ['paste', 'Paste message']];
     toolbar.innerHTML = '<div class="inv-stats-chips">' + views.map(function(v) {
       return '<button class="inv-chip' + (_attView === v[0] ? ' inv-chip-active' : '') +
         '" data-action="invAttView" data-view="' + v[0] + '">' + v[1] + '</button>';
@@ -12919,6 +13122,7 @@ function renderAttendance() {
   }
 
   if (_attView === 'roster') area.innerHTML = _attRosterView();
+  else if (_attView === 'paste') area.innerHTML = relayRenderView();
   else if (_attView === 'areas') area.innerHTML = _attAreasView();
   else if (_attView === 'week') area.innerHTML = _attWeekView();
   else area.innerHTML = _attDayView();
@@ -16273,7 +16477,8 @@ function stockOutCount() {
 function updateStockBadge() {
   var b = document.getElementById('moreBadge');
   if (!b) return;
-  var n = stockOutCount();
+  // Every red row: stock out or under the red line, and your own tasks overdue.
+  var n = typeof todoRedCount === 'function' ? todoRedCount() : stockOutCount();
   b.textContent = n ? String(n) : '';
   b.classList.toggle('inv-hidden', !n);
 }
@@ -16976,7 +17181,7 @@ function renderChemStatsCard(period, tonnage) {
 }
 
 /* ---------- The More sheet ---------- */
-var MORE_TABS = ['pageStock', 'pageStaff', 'pageStats', 'pageHistory'];
+var MORE_TABS = ['pageTodo', 'pageStock', 'pageStaff', 'pageStats', 'pageHistory'];
 function closeMoreSheet() {
   var el = document.getElementById('moreSheet');
   if (el) el.remove();
@@ -16984,7 +17189,9 @@ function closeMoreSheet() {
 function openMoreSheet() {
   closeMoreSheet();
   var out = stockOutCount();
+  var tdOpen = todoRanked().length, tdLate = todoRedCount();
   var items = [
+    ['pageTodo', 'To-do', tdOpen ? tdOpen + ' open' + (tdLate ? ', ' + tdLate + ' late' : '') : 'Nothing due', '<path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/>'],
     ['pageStock', 'Stock', out ? out + ' out' : 'Chemicals on the shelf', '<path d="M9 3h6"/><path d="M10 3v6L4.5 19a1.5 1.5 0 001.3 2h12.4a1.5 1.5 0 001.3-2L14 9V3"/><path d="M7 15h10"/>'],
     ['pageStaff', 'Staff', 'Attendance, labour, areas', '<path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><polyline points="17 11 19 13 23 9"/>'],
     ['pageStats', 'Stats', 'Realisation, tonnage, cost', '<path d="M18 20V10"/><path d="M12 20V4"/><path d="M6 20v-6"/>'],
@@ -16996,7 +17203,8 @@ function openMoreSheet() {
     h += '<button class="inv-more-item' + (cur === it[0] ? ' inv-more-item-on' : '') + '" data-action="invSwitchTab" data-tab="' + it[0] + '">' +
       '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">' + it[3] + '</svg>' +
       '<span class="inv-more-text"><span class="inv-more-label">' + it[1] + '</span><span class="inv-more-sub">' + escHtml(it[2]) + '</span></span>' +
-      (it[0] === 'pageStock' && out ? '<span class="inv-stk-chip inv-stk-chip-red">' + out + ' out</span>' : '') + '</button>';
+      (it[0] === 'pageStock' && out ? '<span class="inv-stk-chip inv-stk-chip-red">' + out + ' out</span>' : '') +
+      (it[0] === 'pageTodo' && tdLate ? '<span class="inv-stk-chip inv-stk-chip-red">' + tdLate + ' late</span>' : '') + '</button>';
   });
   h += '</div>';
   var scrim = document.createElement('div');
@@ -17079,6 +17287,1527 @@ function stockOnChange(t) {
   var u = t.getAttribute && t.getAttribute('data-stock-unit');
   if (u) { var it = stockItem(u); if (it) { it.unit = t.value; saveState(); renderStock(); } return true; }
   return false;
+}
+/* ===== TO-DO =====
+   More → To-do, a Home card, and a Windows 11 widget. The owner's own list,
+   inside the app for now (owner, 25 Sep 2026); sep-dashboard can take it whole
+   later — S.todo is self-contained.
+
+   Two kinds, always labelled:
+   - MINE: typed by the owner. Ticked, never deleted — a ticked task moves to
+     Done and can be reopened.
+   - APP: raised from the app's own data (stock running out, a credit note due,
+     a challan waiting to be billed…). Never ticked: each one clears itself when
+     the thing is fixed. It can be SNOOZED, but only against the figures it was
+     raised on — `sig` — so a snooze never covers a new problem. The same rule
+     the Areas card applies to an explained exception.
+
+   The widget is drawn by Windows from an Adaptive Card. The service worker
+   renders it from a small payload this module writes to its own IndexedDB
+   ('sep-invoicing-widget'), and a Done tapped on the widget comes back as a
+   queue the app applies. Both directions run on open AND on close: the queue is
+   read when the app is shown, the payload is written when it is hidden. */
+
+var TODO_CHECK_DEFAULTS = { stock: true, paste: true, cn: true, challan: true, dispatch: true, audit: true,
+  backup: true, zinc: false, pasteDays: 2, challanDays: 5, dispatchDays: 2, backupDays: 7 };
+var TODO_RULES = [
+  ['stock', 'A stock line turns red or amber'],
+  ['paste', 'No stock message for a while'],
+  ['cn', 'A credit-note batch reaches 7 days'],
+  ['challan', 'A challan is waiting to be billed'],
+  ['dispatch', 'An invoice is still Created'],
+  ['audit', 'The number audit finds a gap'],
+  ['backup', 'No backup for a while'],
+  ['zinc', 'The zinc rate is stale']
+];
+var TODO_LAST_EXPORT_KEY = 'sep_inv_last_export';
+var TODO_TONE_RANK = { red: 0, amber: 1, info: 2, '': 3 };
+
+var _todoShowDone = false;
+var _todoShowSnoozed = false;
+
+function todoData() {
+  if (!S.todo || typeof S.todo !== 'object' || Array.isArray(S.todo)) S.todo = {};
+  if (!Array.isArray(S.todo.tasks)) S.todo.tasks = [];
+  if (!S.todo.snoozes || typeof S.todo.snoozes !== 'object') S.todo.snoozes = {};
+  return S.todo;
+}
+function todoCfg() {
+  var c = S.todoCheck || {}, d = TODO_CHECK_DEFAULTS, out = {};
+  Object.keys(d).forEach(function(k) {
+    if (typeof d[k] === 'boolean') out[k] = c[k] == null ? d[k] : !!c[k];
+    else { var v = parseFloat(c[k]); out[k] = v > 0 ? v : d[k]; }
+  });
+  return out;
+}
+function todoUid() { return 'TD-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
+function todoToday() { return localDateStr(); }
+function todoDaysBetween(a, b) {
+  return Math.round((new Date(b + 'T00:00:00') - new Date(a + 'T00:00:00')) / 86400000);
+}
+function todoPlural(n, one, many) { return n + ' ' + (n === 1 ? one : (many || one + 's')); }
+
+/* ---------- Mine ---------- */
+function todoMineOpen() {
+  return todoData().tasks.filter(function(t) { return !t.doneAt; });
+}
+function todoMineTone(t) {
+  if (!t.due || t.doneAt) return '';
+  var d = todoDaysBetween(todoToday(), t.due);
+  return d < 0 ? 'red' : d === 0 ? 'amber' : '';
+}
+function todoDueLabel(iso) {
+  if (!iso) return '';
+  var d = todoDaysBetween(todoToday(), iso);
+  if (d === 0) return 'Today';
+  if (d === -1) return 'Yesterday';
+  if (d === 1) return 'Tomorrow';
+  if (d < 0) return todoPlural(-d, 'day') + ' late';
+  return stockShortDate(iso);
+}
+
+/* ---------- App tasks: one function per rule ----------
+   Each returns { key, rule, tone, title, sub, why, facts, clears, go, goLabel, sig }.
+   `sig` is the figures a snooze is granted against; it is deliberately coarse
+   where the figure moves every day on its own (a stock level falls with use —
+   the snooze lasts until the line changes colour, not until it drops a litre). */
+var TODO_RULE_FNS = {
+  stock: function() {
+    var out = [];
+    stockData().items.forEach(function(it) {
+      if (it.active === false || it.basis === 'charge') return;
+      var st = stockStatus(it);
+      if (st.tone !== 'red' && st.tone !== 'amber') return;
+      var unit = it.unit || '';
+      var rate = st.rate && st.rate.rate ? stockFmtRate(st.rate.rate) + ' ' + unit + ' a day' : '';
+      var sub = st.group === 'out' ? 'Out' + (rate ? ' · was using ' + rate : '')
+        : stockFmtQty(st.level) + ' ' + unit + ' left · about ' + todoPlural(Math.max(0, Math.round(st.daysLeft * 10) / 10), 'day');
+      out.push({ key: 'stock:' + it.id, rule: 'stock', tone: st.tone, title: 'Order ' + it.name, sub: sub,
+        why: 'Stock' + (rate && st.group !== 'out' ? ' · uses ' + rate : ''),
+        facts: [['Level', stockFmtQty(st.level) + ' ' + unit], ['Daily use', rate || '—'],
+          ['Days left', st.daysLeft == null ? '—' : String(Math.round(st.daysLeft * 10) / 10)]],
+        clears: 'Clears itself when a delivery or a count lifts the line out of ' + (st.tone === 'red' ? 'red' : 'amber') + '.',
+        go: { kind: 'stock', id: it.id }, goLabel: 'Open the line', sig: st.tone + '|' + st.group });
+    });
+    return out;
+  },
+  paste: function() {
+    var st = stockData();
+    if (!st.items.length) return [];
+    var last = '';
+    st.entries.forEach(function(e) { if (!e.voided && e.date > last) last = e.date; });
+    if (!last) return [];
+    var today = todoToday(), cfg = todoCfg();
+    if (last >= today) return [];
+    var gap = stockWorkingDays(stockIsoAdd(last, 1), today);
+    if (gap < cfg.pasteDays) return [];
+    return [{ key: 'paste', rule: 'paste', tone: gap >= cfg.pasteDays * 2 ? 'amber' : 'info',
+      title: 'Paste the stock message', sub: 'Nothing recorded since ' + stockShortDate(last),
+      why: 'Stock · ' + todoPlural(gap, 'working day') + ' without a figure',
+      facts: [['Last figure', stockShortDate(last)], ['Working days since', String(gap)]],
+      clears: 'Clears itself when a message is pasted or a figure is entered.',
+      go: { kind: 'stockPaste' }, goLabel: 'Paste message', sig: last }];
+  },
+  cn: function() {
+    var out = [];
+    var notes = getCreditNotes().filter(function(c) { return c.status !== 'cancelled'; });
+    var byClient = {};
+    notes.forEach(function(c) {
+      var b = byClient[c.clientId] || (byClient[c.clientId] = { to: '', ids: {}, last: null });
+      if ((c.periodTo || '') > b.to) b.to = c.periodTo || '';
+      (c.invoiceIds || []).forEach(function(id) { b.ids[id] = true; });
+      if (!b.last || (c.createdAt || 0) > (b.last.createdAt || 0)) b.last = c;
+    });
+    Object.keys(byClient).forEach(function(cid) {
+      var b = byClient[cid];
+      var pending = S.invoices.filter(function(i) {
+        return String(i.clientId) === String(cid) && i.status !== 'cancelled' && i.date && i.date > b.to && !b.ids[i.id];
+      }).sort(function(a, c) { return String(a.date).localeCompare(String(c.date)); });
+      if (!pending.length) return;
+      var span = cnBatchSpanDays(pending);
+      if (span < CN_BATCH_MIN_DAYS) return;
+      var pct = b.last.discountPct || CN_DEFAULT_PCT;
+      var taxable = gstRound(pending.reduce(function(s, i) { return s + (i.taxableValue || 0); }, 0));
+      var credit = gstRound(taxable * pct / 100);
+      out.push({ key: 'cn:' + cid, rule: 'cn', tone: 'amber', title: 'Credit note due: ' + (b.last.clientName || pending[0].clientName),
+        sub: todoPlural(pending.length, 'invoice') + ' since ' + b.last.displayNumber + ' · ' + pct + '% ≈ ' + formatCurrency(credit),
+        why: 'Batch spans ' + todoPlural(span, 'day') + ' · rule: ' + CN_BATCH_MIN_DAYS + ' or more',
+        facts: [['Last note', b.last.displayNumber + (b.to ? ' · to ' + formatDate(b.to) : '')], ['Invoices since', String(pending.length)],
+          ['Batch spans', todoPlural(span, 'day')], ['Taxable', formatCurrency(taxable)], [pct + '% credit', formatCurrency(credit)]],
+        clears: 'Clears itself when a credit note covering these invoices is raised.',
+        go: { kind: 'cnBatch', clientId: cid, ids: pending.map(function(i) { return i.id; }), from: pending[0].date, to: pending[pending.length - 1].date },
+        goLabel: 'Open register', sig: pending.length + '|' + pending[pending.length - 1].id + '|' + taxable });
+    });
+    return out;
+  },
+  challan: function() {
+    var today = todoToday(), cfg = todoCfg(), byClient = {};
+    (S.incomingMaterial || []).forEach(function(im) {
+      if (!im.challanDate || !(im.items || []).some(function(it) { return !it.invoiced; })) return;
+      if (todoDaysBetween(im.challanDate, today) < cfg.challanDays) return;
+      (byClient[im.clientId] || (byClient[im.clientId] = [])).push(im);
+    });
+    return Object.keys(byClient).map(function(cid) {
+      var list = byClient[cid].sort(function(a, b) { return String(a.challanDate).localeCompare(String(b.challanDate)); });
+      var oldest = list[0], age = todoDaysBetween(oldest.challanDate, today);
+      var nums = list.map(function(im) { return im.challanNo ? String(im.challanNo) : 'no number'; });
+      return { key: 'challan:' + cid, rule: 'challan', tone: 'info',
+        title: 'Bill ' + (oldest.clientName || 'challans') + ': ' + (list.length === 1 ? 'challan ' + nums[0] : todoPlural(list.length, 'challan')),
+        sub: (list.length === 1 ? 'Received ' : 'Oldest received ') + todoPlural(age, 'day') + ' ago, not invoiced',
+        why: 'Incoming material · rule: ' + cfg.challanDays + ' days',
+        facts: [['Challans', nums.join(', ')], ['Oldest', formatDate(oldest.challanDate)]],
+        clears: 'Clears itself when these challans are invoiced.',
+        go: { kind: 'im', clientId: cid }, goLabel: 'Open challans',
+        sig: list.map(function(im) { return im.id; }).join(',') };
+    });
+  },
+  dispatch: function() {
+    var today = todoToday(), cfg = todoCfg();
+    var list = S.invoices.filter(function(i) {
+      if (i.status === 'cancelled' || getInvState(i) !== 'created' || !i.date) return false;
+      var age = todoDaysBetween(i.date, today);
+      return age >= cfg.dispatchDays && age <= 30;
+    }).sort(function(a, b) { return String(a.date).localeCompare(String(b.date)); });
+    if (!list.length) return [];
+    var nums = list.map(function(i) { return String(i.displayNumber || '').split('/').pop(); });
+    return [{ key: 'dispatch', rule: 'dispatch', tone: 'info',
+      title: list.length === 1 ? 'Mark invoice ' + nums[0] + ' dispatched' : 'Mark ' + list.length + ' invoices dispatched',
+      sub: 'Still Created: ' + nums.slice(0, 4).join(', ') + (nums.length > 4 ? '…' : ''),
+      why: 'Register · rule: ' + cfg.dispatchDays + ' days, last 30 days only',
+      facts: [['Invoices', nums.join(', ')], ['Oldest', formatDate(list[0].date)]],
+      clears: 'Clears itself when these invoices move past Created.',
+      go: { kind: 'regState', state: 'created' }, goLabel: 'Open register', sig: list.map(function(i) { return i.id; }).join(',') }];
+  },
+  audit: function() {
+    var a = analyseInvoiceNumbers(), n = (a.unaccounted || []).length;
+    if (!n) return [];
+    return [{ key: 'audit', rule: 'audit', tone: 'amber', title: 'Number audit: ' + n + ' unaccounted',
+      sub: 'Invoice numbers with no invoice and no reason', why: 'Register · number audit',
+      facts: [['Unaccounted', String(n)]], clears: 'Clears itself when each number is explained or reissued.',
+      go: { kind: 'audit' }, goLabel: 'Open the audit', sig: JSON.stringify(a.unaccounted) }];
+  },
+  backup: function() {
+    var cfg = todoCfg(), last = 0;
+    try { last = parseInt(localStorage.getItem(TODO_LAST_EXPORT_KEY), 10) || 0; } catch (e) { /* per-device only */ }
+    var gh = (typeof getGhConfig === 'function') ? getGhConfig().lastPushAt || 0 : 0;
+    last = Math.max(last, gh);
+    var age = last ? Math.floor((Date.now() - last) / 86400000) : null;
+    if (age != null && age < cfg.backupDays) return [];
+    return [{ key: 'backup', rule: 'backup', tone: 'info', title: 'Back up your data',
+      sub: age == null ? 'No backup recorded on this device' : 'Last backup ' + todoPlural(age, 'day') + ' ago',
+      why: 'Export or GitHub push · rule: ' + cfg.backupDays + ' days',
+      facts: [['Last backup', last ? formatTimestamp(last) : 'none on this device']],
+      clears: 'Clears itself when you export a backup or push to GitHub.',
+      go: { kind: 'settings' }, goLabel: 'Open settings', sig: String(last) }];
+  },
+  zinc: function() {
+    var age = zincAgeDays();
+    if (age == null || age <= ZINC_STALE_DAYS) return [];
+    return [{ key: 'zinc', rule: 'zinc', tone: 'info', title: 'Update the zinc rate', sub: 'Last set ' + todoPlural(age, 'day') + ' ago',
+      why: 'Zinc · rule: ' + ZINC_STALE_DAYS + ' days', facts: [['Age', todoPlural(age, 'day')]],
+      clears: 'Clears itself when the rate is refreshed.', go: { kind: 'home' }, goLabel: 'Open Home', sig: String(getZinc().updatedAt) }];
+  }
+};
+
+function todoAppAll() {
+  var cfg = todoCfg(), out = [];
+  TODO_RULES.forEach(function(r) {
+    if (!cfg[r[0]]) return;
+    // One rule failing on a shape nobody anticipated must not take the list with it.
+    try { out = out.concat(TODO_RULE_FNS[r[0]]() || []); } catch (e) { /* skipped */ }
+  });
+  return out.sort(function(a, b) { return TODO_TONE_RANK[a.tone] - TODO_TONE_RANK[b.tone]; });
+}
+function todoIsSnoozed(t) {
+  var s = todoData().snoozes[t.key];
+  if (!s) return false;
+  if (s.until) return todoToday() < s.until;
+  return s.sig === t.sig;
+}
+function todoApp() { return todoAppAll().filter(function(t) { return !todoIsSnoozed(t); }); }
+
+/* Both kinds in one order, for Home and the widget: red, amber, then the rest;
+   App before Mine within a tone; Mine by due date. */
+function todoRanked() {
+  var rows = todoApp().map(function(t) { return { app: t, tone: t.tone }; });
+  todoMineOpen().forEach(function(t) { rows.push({ mine: t, tone: todoMineTone(t) }); });
+  return rows.sort(function(a, b) {
+    var r = TODO_TONE_RANK[a.tone] - TODO_TONE_RANK[b.tone];
+    if (r) return r;
+    if (!!a.app !== !!b.app) return a.app ? -1 : 1;
+    if (a.mine && b.mine) return (a.mine.due || '9999').localeCompare(b.mine.due || '9999') || (a.mine.createdAt - b.mine.createdAt);
+    return 0;
+  });
+}
+function todoRedCount() {
+  if (!S) return 0;
+  return todoRanked().filter(function(r) { return r.tone === 'red'; }).length;
+}
+
+/* ---------- Screens ---------- */
+function renderTodo() {
+  var el = document.getElementById('todoContent');
+  if (!el) return;
+  var app = todoApp(), mine = todoMineOpen(), td = todoData();
+  var late = todoRanked().filter(function(r) { return r.tone === 'red'; }).length;
+  var h = '<div class="inv-stk-top"><div><div class="inv-stk-h1">To-do</div>' +
+    '<div class="inv-stk-meta"><strong>' + (app.length + mine.length) + '</strong> open' + (late ? ' · <strong>' + late + '</strong> late' : '') + '</div></div></div>';
+  h += '<div class="inv-td-add"><input class="inv-td-in" id="todoNew" data-todo-new placeholder="Add a task…" aria-label="New task" autocomplete="off">' +
+    '<button class="inv-stk-btn inv-stk-btn-pri" data-action="invTodoAdd">Add</button>' +
+    '<button class="inv-stk-btn" data-action="invTodoNew">Details</button></div>';
+
+  h += '<div class="inv-td-sec"><span class="inv-td-lbl inv-td-lbl-app">App</span> From your data <span class="inv-td-count">· ' + app.length + '</span></div>';
+  if (!app.length) h += '<div class="inv-td-empty">Nothing from your data needs you.</div>';
+  app.forEach(function(t) { h += todoAppRowHtml(t); });
+
+  mine.sort(function(a, b) {
+    return TODO_TONE_RANK[todoMineTone(a)] - TODO_TONE_RANK[todoMineTone(b)] ||
+      (a.due || '9999').localeCompare(b.due || '9999') || (a.createdAt - b.createdAt);
+  });
+  h += '<div class="inv-td-sec"><span class="inv-td-lbl inv-td-lbl-mine">Mine</span> <span class="inv-td-count">· ' + mine.length + '</span></div>';
+  if (!mine.length) h += '<div class="inv-td-empty">No tasks of your own. Type one above and press Enter.</div>';
+  mine.forEach(function(t) { h += todoMineRowHtml(t); });
+
+  var done = td.tasks.filter(function(t) { return t.doneAt; }).sort(function(a, b) { return b.doneAt - a.doneAt; });
+  if (done.length) {
+    h += '<button class="inv-td-fold" data-action="invTodoFoldDone" aria-expanded="' + _todoShowDone + '"><span>Done · ' + done.length + '</span><span>' + (_todoShowDone ? 'Hide' : 'Show') + '</span></button>';
+    if (_todoShowDone) done.slice(0, 50).forEach(function(t) { h += todoMineRowHtml(t); });
+  }
+  var snoozed = todoAppAll().filter(todoIsSnoozed);
+  if (snoozed.length) {
+    h += '<button class="inv-td-fold" data-action="invTodoFoldSnoozed" aria-expanded="' + _todoShowSnoozed + '"><span>Snoozed · ' + snoozed.length + '</span><span>' + (_todoShowSnoozed ? 'Hide' : 'Show') + '</span></button>';
+    if (_todoShowSnoozed) snoozed.forEach(function(t) {
+      var s = td.snoozes[t.key];
+      h += '<div class="inv-td-row inv-td-row-snz"><div class="inv-td-main"><span class="inv-td-title">' + escHtml(t.title) + '</span>' +
+        '<span class="inv-td-sub">' + (s.until ? 'Until ' + escHtml(stockShortDate(s.until)) : 'Until the figures change') + '</span></div>' +
+        '<button class="inv-stk-tool" data-action="invTodoWake" data-key="' + escHtml(t.key) + '">Wake</button></div>';
+    });
+  }
+  el.innerHTML = h;
+  updateStockBadge();
+}
+
+function todoGlyph(tone) {
+  return '<span class="inv-td-glyph inv-td-glyph-' + (tone || 'info') + '" aria-hidden="true">' + (tone === 'info' ? 'i' : '!') + '</span>';
+}
+function todoAppRowHtml(t) {
+  return '<button class="inv-td-row inv-td-tone-' + t.tone + '" data-action="invTodoOpenApp" data-key="' + escHtml(t.key) + '">' +
+    todoGlyph(t.tone) + '<span class="inv-td-main"><span class="inv-td-title">' + escHtml(t.title) + '</span>' +
+    '<span class="inv-td-sub">' + escHtml(t.sub) + '</span><span class="inv-td-why">' + escHtml(t.why) + '</span></span></button>';
+}
+function todoLinkLabel(link) {
+  if (!link) return '';
+  var names = { client: 'Client', invoice: 'Invoice', challan: 'Challan', stock: 'Stock' };
+  return (names[link.kind] || '') + ' · ' + (link.label || '');
+}
+function todoMineRowHtml(t) {
+  var tone = todoMineTone(t);
+  return '<div class="inv-td-row inv-td-tone-' + (tone || 'none') + (t.doneAt ? ' inv-td-row-done' : '') + '">' +
+    '<button class="inv-td-box' + (t.doneAt ? ' inv-td-box-on' : '') + '" data-action="invTodoToggle" data-id="' + escHtml(t.id) + '" aria-label="' + (t.doneAt ? 'Reopen' : 'Mark done') + '">' +
+    (t.doneAt ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="5 12 10 17 19 7"/></svg>' : '') + '</button>' +
+    '<button class="inv-td-main" data-action="invTodoEdit" data-id="' + escHtml(t.id) + '"><span class="inv-td-title">' + escHtml(t.text) + '</span>' +
+    (t.note ? '<span class="inv-td-sub">' + escHtml(t.note) + '</span>' : '') +
+    (t.doneAt ? '<span class="inv-td-why">Done ' + escHtml(formatTimestamp(t.doneAt)) + (t.doneBy === 'widget' ? ' from the widget' : '') + '</span>' : '') + '</button>' +
+    '<span class="inv-td-side">' + (t.due && !t.doneAt ? '<span class="inv-td-due inv-td-due-' + (tone || 'none') + '">' + escHtml(todoDueLabel(t.due)) + '</span>' : '') +
+    (t.link ? '<button class="inv-td-link" data-action="invTodoGo" data-id="' + escHtml(t.id) + '">' + escHtml(todoLinkLabel(t.link)) + '</button>' : '') + '</span></div>';
+}
+
+/* Home: the top three, both kinds, labelled. */
+function renderTodoHomeCard() {
+  var el = document.getElementById('homeTodoCard');
+  if (!el) return;
+  var ranked = todoRanked();
+  var h = '<div class="inv-card inv-td-card"><div class="inv-card-header"><span class="inv-card-title">To-do</span>' +
+    '<button class="inv-stk-tool" data-action="invSwitchTab" data-tab="pageTodo">' + (ranked.length ? 'All ' + ranked.length : 'Add a task') + '</button></div>';
+  if (!ranked.length) h += '<div class="inv-td-home-none">Nothing due</div>';
+  ranked.slice(0, 3).forEach(function(r) {
+    if (r.app) {
+      h += '<button class="inv-td-hrow" data-action="invTodoOpenApp" data-key="' + escHtml(r.app.key) + '">' + todoGlyph(r.tone) +
+        '<span class="inv-td-main"><span class="inv-td-title">' + escHtml(r.app.title) + '</span><span class="inv-td-sub">' + escHtml(r.app.sub) + '</span></span>' +
+        '<span class="inv-td-lbl inv-td-lbl-app">App</span></button>';
+    } else {
+      var t = r.mine;
+      h += '<div class="inv-td-hrow"><button class="inv-td-box" data-action="invTodoToggle" data-id="' + escHtml(t.id) + '" aria-label="Mark done"></button>' +
+        '<button class="inv-td-main" data-action="invTodoEdit" data-id="' + escHtml(t.id) + '"><span class="inv-td-title">' + escHtml(t.text) + '</span>' +
+        (t.due ? '<span class="inv-td-sub inv-td-due-' + (r.tone || 'none') + '">' + escHtml(todoDueLabel(t.due)) + '</span>' : '') + '</button>' +
+        '<span class="inv-td-lbl inv-td-lbl-mine">Mine</span></div>';
+    }
+  });
+  el.innerHTML = h + '</div>';
+}
+
+function todoRefreshViews() {
+  var page = document.querySelector('.inv-page-active');
+  if (page && page.id === 'pageTodo') renderTodo();
+  renderTodoHomeCard();
+  updateStockBadge();
+}
+
+/* ---------- Overlays ---------- */
+function todoOverlay(title, body) {
+  closeOverlay();
+  var scrim = document.createElement('div');
+  scrim.className = 'inv-overlay-scrim';
+  scrim.innerHTML = '<div class="inv-overlay-card"><div class="inv-overlay-header"><span class="inv-overlay-title">' + title + '</span>' +
+    '<button class="inv-overlay-close" data-action="invCloseOverlay" aria-label="Close">&times;</button></div>' + body + '</div>';
+  scrim.addEventListener('click', function(e) { if (e.target === scrim) closeOverlay(); });
+  pushFocus();
+  document.body.appendChild(scrim);
+  focusFirstInteractive(scrim.querySelector('.inv-overlay-card'));
+}
+
+function todoOpenApp(key) {
+  var t = todoAppAll().find(function(x) { return x.key === key; });
+  if (!t) { showToast('That has cleared itself'); todoRefreshViews(); return; }
+  var s = todoData().snoozes[key];
+  var h = '<div class="inv-td-ohead"><span class="inv-td-lbl inv-td-lbl-app">App</span><span class="inv-td-why">' + escHtml(t.why) + '</span></div>' +
+    '<div class="inv-td-otitle">' + escHtml(t.title) + '</div>' +
+    '<div class="inv-td-facts">' + t.facts.map(function(f) {
+      return '<div><span>' + escHtml(f[0]) + '</span><strong>' + escHtml(f[1]) + '</strong></div>';
+    }).join('') + '</div>' +
+    '<div class="inv-td-clears">' + escHtml(t.clears) + '</div>' +
+    (s && todoIsSnoozed(t) ? '<div class="inv-td-clears">Snoozed ' + (s.until ? 'until ' + escHtml(stockShortDate(s.until)) : 'until the figures change') + '.</div>' : '') +
+    '<div class="inv-btn-bar"><button class="inv-btn inv-btn-primary" data-action="invTodoGoApp" data-key="' + escHtml(key) + '">' + escHtml(t.goLabel) + '</button></div>' +
+    '<div class="inv-stk-label inv-mt-16">Snooze</div><div class="inv-td-pills">' +
+    '<button class="inv-td-pill" data-action="invTodoSnooze" data-key="' + escHtml(key) + '" data-v="sig">Until the figures change</button>' +
+    '<button class="inv-td-pill" data-action="invTodoSnooze" data-key="' + escHtml(key) + '" data-v="7">1 week</button></div>';
+  todoOverlay('From your data', h);
+}
+
+var TODO_LINK_KINDS = [['', 'Nothing'], ['client', 'Client'], ['invoice', 'Invoice'], ['challan', 'Challan'], ['stock', 'Stock line']];
+function todoLinkOptions(kind, sel) {
+  var opts = [];
+  if (kind === 'client') opts = S.clients.filter(function(c) { return c.isActive !== false; })
+    .sort(function(a, b) { return String(a.name).localeCompare(String(b.name)); }).map(function(c) { return [String(c.id), c.name]; });
+  else if (kind === 'invoice') opts = S.invoices.slice().sort(function(a, b) { return (b.createdAt || 0) - (a.createdAt || 0); }).slice(0, 80)
+    .map(function(i) { return [i.id, String(i.displayNumber || '').split('/').pop() + ' · ' + (i.clientName || '')]; });
+  else if (kind === 'challan') opts = (S.incomingMaterial || []).filter(function(im) { return im.clientId !== 9999 || im.items.length; })
+    .slice().sort(function(a, b) { return String(b.challanDate).localeCompare(String(a.challanDate)); }).slice(0, 80)
+    .map(function(im) { return [im.id, 'Ch ' + (im.challanNo || '—') + ' · ' + (im.clientName || '')]; });
+  else if (kind === 'stock') opts = stockData().items.filter(function(i) { return i.active !== false; }).map(function(i) { return [i.id, i.name]; });
+  if (!kind) return '';
+  return '<option value="">Pick one</option>' + opts.map(function(o) {
+    return '<option value="' + escHtml(o[0]) + '"' + (String(o[0]) === String(sel) ? ' selected' : '') + '>' + escHtml(o[1]) + '</option>';
+  }).join('');
+}
+function todoOpenEdit(id, text) {
+  var t = id ? todoData().tasks.find(function(x) { return x.id === id; }) : null;
+  if (id && !t) return;
+  var v = t || { text: text || '', due: '', note: '', link: null };
+  var kind = v.link ? v.link.kind : '';
+  var h = '<div class="inv-form-group"><label class="inv-form-label" for="todoText">Task</label>' +
+    '<input class="inv-form-input" id="todoText" value="' + escHtml(v.text) + '" autocomplete="off"></div>' +
+    '<div class="inv-form-group"><label class="inv-form-label" for="todoDue">Due</label>' +
+    '<div class="inv-td-pills"><button class="inv-td-pill" data-action="invTodoDue" data-v="0">Today</button>' +
+    '<button class="inv-td-pill" data-action="invTodoDue" data-v="1">Tomorrow</button>' +
+    '<button class="inv-td-pill" data-action="invTodoDue" data-v="">None</button></div>' +
+    '<input type="date" class="inv-form-input inv-mono inv-mt-8" id="todoDue" value="' + escHtml(v.due || '') + '"></div>' +
+    '<div class="inv-form-row"><div class="inv-form-group"><label class="inv-form-label" for="todoLinkKind">Link to</label>' +
+    '<select class="inv-form-select" id="todoLinkKind">' + TODO_LINK_KINDS.map(function(k) {
+      return '<option value="' + k[0] + '"' + (k[0] === kind ? ' selected' : '') + '>' + k[1] + '</option>';
+    }).join('') + '</select></div>' +
+    '<div class="inv-form-group"><label class="inv-form-label" for="todoLinkId">Which</label>' +
+    '<select class="inv-form-select" id="todoLinkId"' + (kind ? '' : ' disabled') + '>' + todoLinkOptions(kind, v.link ? v.link.id : '') + '</select></div></div>' +
+    '<div class="inv-form-group"><label class="inv-form-label" for="todoNote">Note</label>' +
+    '<textarea class="inv-form-input" id="todoNote" rows="2">' + escHtml(v.note || '') + '</textarea></div>' +
+    '<div class="inv-btn-bar">' + (t && !t.doneAt ? '<button class="inv-btn inv-btn-ghost" data-action="invTodoToggle" data-id="' + escHtml(t.id) + '">Mark done</button>' : '') +
+    '<button class="inv-btn inv-btn-primary" data-action="invTodoSave" data-id="' + escHtml(t ? t.id : '') + '">Save</button></div>';
+  todoOverlay(t ? 'Task' : 'New task', h);
+}
+function todoSaveEdit(id) {
+  var text = (document.getElementById('todoText') || {}).value || '';
+  text = text.trim();
+  if (!text) { showToast('A task needs some words', 'error'); return; }
+  var kind = (document.getElementById('todoLinkKind') || {}).value || '';
+  var linkSel = document.getElementById('todoLinkId');
+  var link = null;
+  if (kind && linkSel && linkSel.value) {
+    var opt = linkSel.options[linkSel.selectedIndex];
+    link = { kind: kind, id: linkSel.value, label: opt ? opt.textContent : '' };
+  }
+  var td = todoData();
+  var t = id ? td.tasks.find(function(x) { return x.id === id; }) : null;
+  if (!t) { t = { id: todoUid(), createdAt: Date.now(), doneAt: null }; td.tasks.push(t); }
+  t.text = text;
+  t.due = (document.getElementById('todoDue') || {}).value || '';
+  t.note = ((document.getElementById('todoNote') || {}).value || '').trim();
+  t.link = link;
+  t.updatedAt = Date.now();
+  saveState();
+  closeOverlay();
+  todoRefreshViews();
+  showToast('Saved');
+}
+function todoQuickAdd() {
+  var inp = document.getElementById('todoNew');
+  var text = inp ? inp.value.trim() : '';
+  if (!text) { if (inp) inp.focus(); return; }
+  todoData().tasks.push({ id: todoUid(), text: text, due: '', note: '', link: null, createdAt: Date.now(), doneAt: null });
+  saveState();
+  renderTodo();
+  var again = document.getElementById('todoNew');
+  if (again) again.focus();
+}
+function todoToggle(id, by) {
+  var t = todoData().tasks.find(function(x) { return x.id === id; });
+  if (!t) return;
+  if (t.doneAt) { t.doneAt = null; delete t.doneBy; }
+  else { t.doneAt = Date.now(); t.doneBy = by || 'app'; }
+  saveState();
+  if (document.querySelector('.inv-overlay-scrim')) closeOverlay();
+  todoRefreshViews();
+}
+function todoSnooze(key, v) {
+  var t = todoAppAll().find(function(x) { return x.key === key; });
+  if (!t) return;
+  var td = todoData();
+  // A snooze whose task has cleared describes nothing; drop those while writing.
+  var live = {};
+  todoAppAll().forEach(function(x) { live[x.key] = true; });
+  Object.keys(td.snoozes).forEach(function(k) { if (!live[k]) delete td.snoozes[k]; });
+  td.snoozes[key] = v === 'sig' ? { sig: t.sig, until: '', at: Date.now() } : { sig: t.sig, until: stockIsoAdd(todoToday(), parseInt(v, 10) || 7), at: Date.now() };
+  saveState();
+  closeOverlay();
+  todoRefreshViews();
+  showToast(v === 'sig' ? 'Snoozed until the figures change' : 'Snoozed for a week');
+}
+
+/* ---------- Going to the thing ---------- */
+function todoGo(go) {
+  if (!go) return;
+  closeOverlay();
+  switch (go.kind) {
+    case 'stock': _stockItemId = go.id; _stockView = 'item'; switchTab('pageStock'); break;
+    case 'stockPaste': _stockView = 'paste'; switchTab('pageStock'); break;
+    case 'cnBatch':
+      regFilter.clientId = String(go.clientId); regFilter.month = ''; regFilter.search = ''; regFilter.state = '';
+      regFilter.dateFrom = go.from; regFilter.dateTo = go.to;
+      saveRegFilter();
+      _regSelected = {};
+      go.ids.forEach(function(id) { _regSelected[id] = true; });
+      _regSelectMode = true;
+      _regToolbarRendered = false;
+      _tabDirty.register = true;
+      switchTab('pageRegister');
+      _renderRegSelBar();
+      break;
+    case 'regState':
+      regFilter.clientId = ''; regFilter.month = ''; regFilter.dateFrom = ''; regFilter.dateTo = ''; regFilter.search = ''; regFilter.state = go.state;
+      saveRegFilter(); _regSelected = {}; _regToolbarRendered = false; _tabDirty.register = true;
+      switchTab('pageRegister');
+      break;
+    case 'im':
+      _imFilter.clientId = String(go.clientId); _imFilter.status = 'pending'; _imToolbarRendered = false;
+      switchTab('pageIM');
+      break;
+    case 'audit': switchTab('pageRegister'); showNumberAudit(); break;
+    case 'settings': openSettings(); break;
+    case 'home': switchTab('pageHome'); break;
+    case 'client': switchTab('pageClients'); openClientEdit(parseInt(go.id, 10)); break;
+    case 'invoice': openInvoiceDetail(go.id); break;
+    case 'challan': switchTab('pageIM'); editChallan(go.id); break;
+  }
+}
+function todoGoLink(id) {
+  var t = todoData().tasks.find(function(x) { return x.id === id; });
+  if (!t || !t.link) return;
+  var l = t.link;
+  var exists = l.kind === 'client' ? S.clients.some(function(c) { return String(c.id) === String(l.id); })
+    : l.kind === 'invoice' ? S.invoices.some(function(i) { return i.id === l.id; })
+    : l.kind === 'challan' ? (S.incomingMaterial || []).some(function(im) { return im.id === l.id; })
+    : !!stockItem(l.id);
+  if (!exists) { showToast(todoLinkLabel(l) + ' is no longer in the app', 'warning'); return; }
+  todoGo({ kind: l.kind, id: l.id });
+}
+
+/* ---------- Settings ---------- */
+function todoSettingsHtml() {
+  var c = todoCfg();
+  return '<div class="inv-settings-section"><div class="inv-settings-title">To-do</div>' +
+    '<div class="inv-text-muted inv-storage-text">What the app raises from your data. Each task clears itself when the thing is fixed.</div>' +
+    TODO_RULES.map(function(r) {
+      return '<label class="inv-checkbox-label inv-td-rule"><input type="checkbox" id="setTodo_' + r[0] + '"' + (c[r[0]] ? ' checked' : '') + '> ' + escHtml(r[1]) + '</label>';
+    }).join('') +
+    '<div class="inv-form-row inv-mt-8"><div class="inv-form-group"><label class="inv-form-label" for="setTodoChallan">Challan unbilled after (days)</label>' +
+    '<input type="number" step="1" min="1" class="inv-form-input inv-mono" id="setTodoChallan" value="' + c.challanDays + '"></div>' +
+    '<div class="inv-form-group"><label class="inv-form-label" for="setTodoBackup">Backup older than (days)</label>' +
+    '<input type="number" step="1" min="1" class="inv-form-input inv-mono" id="setTodoBackup" value="' + c.backupDays + '"></div></div></div>';
+}
+function todoSettingsSave() {
+  if (!document.getElementById('setTodo_stock')) return;
+  if (!S.todoCheck || typeof S.todoCheck !== 'object') S.todoCheck = {};
+  TODO_RULES.forEach(function(r) {
+    var el = document.getElementById('setTodo_' + r[0]);
+    if (el) S.todoCheck[r[0]] = !!el.checked;
+  });
+  var ch = parseFloat((document.getElementById('setTodoChallan') || {}).value);
+  if (ch > 0) S.todoCheck.challanDays = ch;
+  var bk = parseFloat((document.getElementById('setTodoBackup') || {}).value);
+  if (bk > 0) S.todoCheck.backupDays = bk;
+}
+function todoNoteExport() {
+  try { localStorage.setItem(TODO_LAST_EXPORT_KEY, String(Date.now())); } catch (e) { /* per-device only */ }
+}
+
+/* ---------- The widget's store ----------
+   Its own database, so the widget never touches the book: the service worker
+   reads 'payload' and appends to 'queue'; only the app writes S. */
+var TODO_WIDGET_DB = 'sep-invoicing-widget';
+var _todoWidgetDb = null;
+function todoWidgetDb() {
+  if (_todoWidgetDb) return Promise.resolve(_todoWidgetDb);
+  if (typeof indexedDB === 'undefined') return Promise.resolve(null);
+  return new Promise(function(resolve) {
+    var req;
+    try { req = indexedDB.open(TODO_WIDGET_DB, 1); } catch (e) { resolve(null); return; }
+    req.onupgradeneeded = function() { req.result.createObjectStore('kv'); };
+    req.onsuccess = function() {
+      _todoWidgetDb = req.result;
+      _todoWidgetDb.onversionchange = function() { try { _todoWidgetDb.close(); } catch (e) {} _todoWidgetDb = null; };
+      resolve(_todoWidgetDb);
+    };
+    req.onerror = req.onblocked = function() { resolve(null); };
+  });
+}
+function todoWidgetPut(key, val) {
+  return todoWidgetDb().then(function(db) {
+    if (!db) return false;
+    return new Promise(function(resolve) {
+      var tx = db.transaction('kv', 'readwrite');
+      tx.objectStore('kv').put(val, key);
+      tx.oncomplete = function() { resolve(true); };
+      tx.onerror = tx.onabort = function() { resolve(false); };
+    });
+  });
+}
+function todoWidgetGet(key) {
+  return todoWidgetDb().then(function(db) {
+    if (!db) return null;
+    return new Promise(function(resolve) {
+      var req = db.transaction('kv', 'readonly').objectStore('kv').get(key);
+      req.onsuccess = function() { resolve(req.result == null ? null : req.result); };
+      req.onerror = function() { resolve(null); };
+    });
+  });
+}
+/* Read the queue and empty it in ONE transaction, so a Done the worker adds
+   between the read and the clear cannot be lost. */
+function todoWidgetTakeQueue() {
+  return todoWidgetDb().then(function(db) {
+    if (!db) return [];
+    return new Promise(function(resolve) {
+      var tx = db.transaction('kv', 'readwrite'), store = tx.objectStore('kv'), got = [];
+      var req = store.get('queue');
+      req.onsuccess = function() { got = Array.isArray(req.result) ? req.result : []; if (got.length) store.put([], 'queue'); };
+      tx.oncomplete = function() { resolve(got); };
+      tx.onerror = tx.onabort = function() { resolve([]); };
+    });
+  });
+}
+function todoApplyWidgetQueue() {
+  if (!S) return Promise.resolve(0);
+  return todoWidgetTakeQueue().then(function(q) {
+    var n = 0;
+    q.forEach(function(e) {
+      var t = todoData().tasks.find(function(x) { return x.id === e.id; });
+      if (t && !t.doneAt) { t.doneAt = e.at || Date.now(); t.doneBy = 'widget'; n++; }
+    });
+    if (n) { saveState(); todoRefreshViews(); }
+    return n;
+  });
+}
+
+/* What the widget shows: at most eight rows, the first three for the medium
+   size; `big` rows only render on the large one. */
+function todoWidgetPayload() {
+  var ranked = todoRanked(), late = ranked.filter(function(r) { return r.tone === 'red'; }).length;
+  var colour = { red: 'Attention', amber: 'Warning' };
+  var rows = ranked.slice(0, 8).map(function(r, i) {
+    var row;
+    if (r.app) row = { rid: 'a:' + r.app.key, id: '', text: r.app.title, sub: r.app.sub, mine: false };
+    else row = { rid: 'm:' + r.mine.id, id: r.mine.id, text: r.mine.text,
+      sub: r.mine.due ? 'due ' + todoDueLabel(r.mine.due).toLowerCase() : (r.mine.note || 'no date'), mine: true };
+    row.color = colour[r.tone] || 'Default';
+    row.weight = colour[r.tone] ? 'Bolder' : 'Default';
+    row.late = r.tone === 'red';
+    row.big = i >= 3;
+    return row;
+  });
+  var d = new Date();
+  return { open: ranked.length, late: late, title: todoWidgetTitle(ranked.length, late),
+    updated: 'Updated ' + d.toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit' }),
+    rows: rows, empty: rows.length === 0, more: ranked.length > 3 ? '+' + (ranked.length - 3) + ' more' : '' };
+}
+function todoWidgetTitle(open, late) {
+  return open ? open + ' open' + (late ? ' · ' + late + ' late' : '') : 'Nothing due';
+}
+var _todoPubTimer = null;
+function todoWidgetSchedule() {
+  clearTimeout(_todoPubTimer);
+  _todoPubTimer = setTimeout(todoWidgetPublish, 1500);
+}
+/* Apply what the widget queued first, so the payload never brings back a task
+   the widget has already ticked. Then write it and ask the worker to redraw. */
+function todoWidgetPublish() {
+  clearTimeout(_todoPubTimer);
+  if (!S) return Promise.resolve(false);
+  return todoApplyWidgetQueue().then(function() {
+    return todoWidgetPut('payload', todoWidgetPayload());
+  }).then(function(ok) {
+    try {
+      if (ok && navigator.serviceWorker && navigator.serviceWorker.controller) {
+        navigator.serviceWorker.controller.postMessage({ type: 'sep-todo-widget' });
+      }
+    } catch (e) { /* no worker: the widget redraws on its next wake */ }
+    return ok;
+  }).catch(function() { return false; });
+}
+
+/* The widget opened the app, or ticked something while it was open. */
+function todoOnWorkerMessage(msg) {
+  if (!msg || !S) return;
+  if (msg.type === 'sep-todo-done') todoApplyWidgetQueue();
+  else if (msg.type === 'sep-todo-open') todoHandleLaunch(msg.action || '');
+}
+function todoHandleLaunch(action) {
+  if (!action) return;
+  todoApplyWidgetQueue();
+  switchTab('pageTodo');
+  if (action === 'add') {
+    var inp = document.getElementById('todoNew');
+    if (inp) inp.focus();
+  } else if (action.indexOf('open:a:') === 0) todoOpenApp(action.slice(7));
+  else if (action.indexOf('open:m:') === 0) todoOpenEdit(action.slice(7));
+}
+
+/* ---------- Actions ---------- */
+function todoAction(action, btn) {
+  switch (action) {
+    case 'invTodoAdd': todoQuickAdd(); break;
+    case 'invTodoNew': todoOpenEdit('', (document.getElementById('todoNew') || {}).value || ''); break;
+    case 'invTodoEdit': todoOpenEdit(btn.dataset.id); break;
+    case 'invTodoSave': todoSaveEdit(btn.dataset.id); break;
+    case 'invTodoToggle': todoToggle(btn.dataset.id); break;
+    case 'invTodoOpenApp': todoOpenApp(btn.dataset.key); break;
+    case 'invTodoGoApp': {
+      var t = todoAppAll().find(function(x) { return x.key === btn.dataset.key; });
+      if (t) todoGo(t.go);
+      break;
+    }
+    case 'invTodoGo': todoGoLink(btn.dataset.id); break;
+    case 'invTodoSnooze': todoSnooze(btn.dataset.key, btn.dataset.v); break;
+    case 'invTodoWake': delete todoData().snoozes[btn.dataset.key]; saveState(); renderTodo(); break;
+    case 'invTodoFoldDone': _todoShowDone = !_todoShowDone; renderTodo(); break;
+    case 'invTodoFoldSnoozed': _todoShowSnoozed = !_todoShowSnoozed; renderTodo(); break;
+    case 'invTodoDue': {
+      var inp = document.getElementById('todoDue');
+      if (inp) inp.value = btn.dataset.v === '' ? '' : stockIsoAdd(todoToday(), parseInt(btn.dataset.v, 10));
+      break;
+    }
+  }
+}
+/* The link picker: only the second select is rebuilt, so the first keeps the
+   popup it is standing on. */
+function todoOnChange(t) {
+  if (!t || t.id !== 'todoLinkKind') return false;
+  var sel = document.getElementById('todoLinkId');
+  if (sel) { sel.innerHTML = todoLinkOptions(t.value, ''); sel.disabled = !t.value; }
+  return true;
+}
+/* ===== ATTENDANCE RELAY: the supervisor's in-time and out-time messages =====
+   Staff → Day → Paste message (and Home → Paste message). The supervisor posts
+   two rolls a day to the WhatsApp group: an IN-TIME roll (who stood where, from
+   which slot, who is absent, and the EXTRA hours booked to each line) and an
+   OUT-TIME roll (who left when: 5 pm, 8 pm, midnight, the night hold). This reads
+   both into the day the Staff tab already keeps, and shows every line with what
+   was read BEFORE anything is saved — the same contract as the stock paste.
+
+   The house rules it applies are the ones the hand decode has used since August
+   (soma-internal/analysis/sep-attendance-seed-*.json), and the parser was
+   calibrated against those decoded days:
+   - hours are the clock span FLOORED to the whole hour (8:30 → 5:00 pays 8;
+     6:00 → 5:00 pays 11), no lunch deduction on a 6 AM start;
+   - a monthly or daily hand's OT is hours over 8; an hourly hand is paid every
+     hour and carries no OT;
+   - the gate keeper stands 7 AM to 7 PM unless the roll says otherwise (BM);
+   - a hand the out-time roll does not name left at 5 PM with the general shift;
+   - an EXTRA tag on the 8:30 shift is coverage booked to that line; on any other
+     slot it is a block, with the crew named under it and the slot's times;
+   - absentees go to Flex (the area a missing hand stood in is nowhere).
+   Nothing here reads `S`: the roster is passed in, so the parser is testable
+   without the app and a replay over the real messages can run in Node. */
+
+var RELAY_WA_RE = /^\s*\[?(\d{1,2})\/(\d{1,2})\/(\d{2,4}),?\s+\d{1,2}:\d{2}(?::\d{2})?\s*(?:[AaPp]\.?[Mm]\.?)?\]?\s*(?:-\s*)?([^:]{1,40}):\s?(.*)$/;
+var RELAY_GENERAL = 510;   // 8:30 AM, the general shift's start
+var RELAY_GENERAL_OUT = 1020;  // 5:00 PM
+var RELAY_GATE = [420, 1140];  // 7 AM – 7 PM, the gate keeper's standing hours
+var RELAY_MORNING = 360;   // 6:00 AM
+
+function relayIso(d, m, y) {
+  d = +d; m = +m; y = +y;
+  if (y < 100) y += 2000;
+  if (!(d >= 1 && d <= 31 && m >= 1 && m <= 12)) return null;
+  return y + '-' + String(m).padStart(2, '0') + '-' + String(d).padStart(2, '0');
+}
+function relayKey(s) { return String(s || '').toUpperCase().replace(/[^A-Z]/g, ''); }
+function relayHhmm(min) {
+  if (min == null) return '';
+  var m = ((min % 1440) + 1440) % 1440;
+  return String(Math.floor(m / 60)).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0');
+}
+function relayClockLabel(min) {
+  if (min == null) return '—';
+  var m = ((min % 1440) + 1440) % 1440, h = Math.floor(m / 60), mm = m % 60;
+  var ap = h >= 12 ? 'PM' : 'AM', h12 = h % 12 || 12;
+  return h12 + (mm ? ':' + String(mm).padStart(2, '0') : '') + ' ' + ap + (min >= 1440 ? ' (next day)' : '');
+}
+
+/* Every time in a fragment, in minutes, with its meridiem if written. "8 :00 pm",
+   "5: PM", "12 am", "6--2 PM", "8:30-5pm", "7:00-7:00PM", "5 PM 6 AM". */
+var RELAY_TIME_RE = /(\d{1,2})\s*(?::\s*(\d{2})?)?\s*(a\.?\s?m\.?|p\.?\s?m\.?)?(?![\d\/])/gi;
+function relayTimes(frag) {
+  var out = [], m;
+  var s = String(frag || '').replace(/\d{1,2}\/\d{1,2}\/\d{2,4}\/?/g, ' ');
+  RELAY_TIME_RE.lastIndex = 0;
+  while ((m = RELAY_TIME_RE.exec(s))) {
+    var h = +m[1], mm = m[2] ? +m[2] : 0;
+    if (h > 12 || mm > 59) continue;
+    var hasColon = /:/.test(m[0]);
+    var ap = m[3] ? (/p/i.test(m[3]) ? 'pm' : 'am') : '';
+    // A bare number is a time only where it cannot be a count: with a colon, or
+    // a meridiem, or as the first half of a range ("6-8 PM", "6--2 PM").
+    var rangeHead = !ap && !hasColon && /^\s*-{1,3}\s*\d/.test(s.slice(m.index + m[0].length));
+    if (!ap && !hasColon && !rangeHead) continue;
+    out.push({ h: h, mm: mm, ap: ap, at: m.index });
+  }
+  // A range's head borrows nothing; a head without a meridiem before a PM tail
+  // is the morning ("6-8 PM" is 6 AM to 8 PM, "8:30-5 PM" is 8:30 to 5).
+  return out.map(function(t) {
+    var min;
+    if (t.ap === 'pm') min = (t.h % 12 + 12) * 60 + t.mm;
+    else if (t.ap === 'am') min = (t.h % 12) * 60 + t.mm;
+    else min = (t.h >= 1 && t.h <= 5 ? t.h + 12 : t.h) * 60 + t.mm;  // bare 5:00 is the evening
+    return { min: min, ap: t.ap, h: t.h };
+  });
+}
+
+/* Which areas a header names. Ordered so the VAT row co-tagged with its
+   pickling hands ("VAT A1 & pickling") stays a VAT row: the pickling fold is
+   the reconciler's to apply, and reading it as the pickling unit would give it
+   a complement of three it never had. */
+function relayHeaderAreas(text) {
+  var k = ' ' + String(text || '').toUpperCase().replace(/[^A-Z0-9&]+/g, ' ') + ' ';
+  var barrel = /\bB[AE]R+[AE]L+\b|\bBERAL\b|\bBARREL\b/.test(k);
+  var pick = /PICK/.test(k);
+  var a1 = /\bA\s?1\b|\bVA\s?1\b/.test(k), a2 = /\bA\s?2\b|\bVA\s?2\b/.test(k);
+  var vat = /\bVAT\b|\bV\s?A\b/.test(k) || a1 || a2;
+  var out = [];
+  // "pickling VA 1 & berral" is the VAT side's pickling that also serves the
+  // barrel; "pickling & berral" is the barrel unit.
+  if (pick && /PICK\w*\s+(VAT|V\s?A)\b/.test(k)) return ['pickling-vat'];
+  if (barrel) return pick ? ['barrel', 'pickling-barrel'] : ['barrel'];
+  if (pick && vat) {
+    var vatFirst = /^\s*(VAT|V\s?A)\b/.test(k) && k.indexOf('PICK') > k.search(/VAT|V\s?A/);
+    if (vatFirst && !(a1 && a2)) return [a2 && !a1 ? 'vat-a2' : 'vat-a1'];
+    return ['pickling-vat'];
+  }
+  if (pick) return ['pickling-vat'];
+  if (a1) out.push('vat-a1');
+  if (a2) out.push('vat-a2');
+  if (!out.length && vat) out.push('vat-a1');
+  if (/OFFICE/.test(k)) out.push('office');
+  if (/GATE/.test(k)) out.push('gate');
+  if (/COLOU?R/.test(k) && !out.length) out.push('vat-a1');
+  return out;
+}
+
+/* The roster, indexed for the relay: canonical key, every alias the owner has
+   confirmed once, and the first word of a two-word name ("sunil mahto"). */
+function relayRosterIndex(roster) {
+  var byKey = {}, list = [];
+  (roster || []).forEach(function(w) {
+    var keys = [w.name].concat(w.relayNames || [], w.aliases || []);
+    keys.forEach(function(n) {
+      var k = relayKey(n);
+      if (k && !byKey[k]) byKey[k] = w;
+    });
+    list.push(w);
+  });
+  return { byKey: byKey, list: list };
+}
+function relayEdit(a, b) {
+  if (Math.abs(a.length - b.length) > 2) return 9;
+  var prev = [], i, j;
+  for (j = 0; j <= b.length; j++) prev[j] = j;
+  for (i = 1; i <= a.length; i++) {
+    var cur = [i];
+    for (j = 1; j <= b.length; j++) cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+    prev = cur;
+  }
+  return prev[b.length];
+}
+/* A name as written → the worker, and how sure. Exact (or a remembered
+   spelling) is sure; one letter off on a name of five or more, same first
+   letter, is READ AS and flagged; anything else is not guessed. */
+function relayMatchName(words, idx) {
+  // Only leading words of letters can be a name: "SHYAM 5 PM" is Shyam at 5.
+  var alpha = 0;
+  while (alpha < words.length && alpha < 3 && /^[A-Za-z.]+$/.test(words[alpha])) alpha++;
+  for (var n = alpha; n >= 1; n--) {
+    var k = relayKey(words.slice(0, n).join(''));
+    if (k && idx.byKey[k]) return { w: idx.byKey[k], used: n, sure: true };
+  }
+  var k1 = relayKey(words[0]);
+  if (k1.length >= 4) {
+    var best = null, bestD = 9, tie = false;
+    Object.keys(idx.byKey).forEach(function(key) {
+      if (key[0] !== k1[0]) return;
+      var d = relayEdit(k1, key), lim = k1.length >= 7 ? 2 : 1;
+      if (d > lim) return;
+      if (d < bestD) { best = idx.byKey[key]; bestD = d; tie = false; }
+      else if (d === bestD && idx.byKey[key] !== best) tie = true;
+    });
+    if (best && !tie) return { w: best, used: 1, sure: false };
+  }
+  return null;
+}
+
+/* Split a paste into WhatsApp messages. A paste of the roll alone (no header)
+   is one message. */
+function relaySplit(text) {
+  var msgs = [], cur = null;
+  String(text || '').replace(/\r/g, '').replace(/‎|‏/g, '').split('\n').forEach(function(line) {
+    var wa = line.match(RELAY_WA_RE);
+    if (wa) {
+      var a = +wa[1], b = +wa[2];
+      // Copied timestamps follow the phone's locale: day-first unless impossible,
+      // and the bracketed iOS export is month-first.
+      var monthFirst = /^\s*\[/.test(line) ? a <= 12 : (a <= 12 && b > 12);
+      cur = { sentBy: wa[4].trim(), sentOn: monthFirst ? relayIso(b, a, wa[3]) : relayIso(a, b, wa[3]), lines: [wa[5]] };
+      msgs.push(cur);
+      return;
+    }
+    // A roll pasted without its WhatsApp line still opens with its own dated
+    // header ("24/09/26/ out time"); that line starts a new message.
+    var rollHead = /^\s*\d{1,2}\/\d{1,2}\/\d{2,4}\/*\s*(in|out)\s*-*\s*time/i.test(line);
+    if (!cur || (rollHead && cur.lines.some(function(l) { return l.trim(); }))) {
+      cur = { sentBy: cur && rollHead ? cur.sentBy : '', sentOn: null, lines: [] };
+      msgs.push(cur);
+    }
+    cur.lines.push(line);
+  });
+  return msgs.map(function(m) { m.text = m.lines.join('\n').replace(/<This message was edited>/gi, '').trim(); delete m.lines; return m; })
+    .filter(function(m) { return m.text && !/^<Media omitted>$|omitted>$/i.test(m.text); });
+}
+
+/* What kind of message this is, from its first lines. */
+function relayKind(text) {
+  var head = String(text || '').split('\n').slice(0, 2).join(' ');
+  if (/c[ae]mical|chemical/i.test(head)) return 'stock';
+  var io = head.match(/\b(in|out)\s*-*\s*time\b/i);
+  if (io && /\d{1,2}\/\d{1,2}\/\d{2,4}/.test(head)) return io[1].toLowerCase();
+  if (io && !/pickling\s*time/i.test(head)) return io[1].toLowerCase();
+  if (/c[ae]mical|chemical|stock/i.test(head)) return 'stock';
+  if (/pickling\s*time/i.test(text)) return 'material';
+  return 'other';
+}
+
+/* One roll → per-day records. Each line keeps what it was read as, so the
+   review can show the message beside the reading. */
+function parseRelayRoll(text, roster, sentOn) {
+  var idx = relayRosterIndex(roster);
+  var lines = String(text || '').split('\n');
+  var out = { kind: relayKind(text), date: null, days: {}, lines: [], issues: [] };
+  var first = lines[0] || '';
+  var dm = first.match(/(\d{1,2})\/(\d{1,2})\/(\d{2,4})/);
+  out.date = dm ? relayIso(dm[1], dm[2], dm[3]) : (sentOn || null);
+  if (!dm) out.issues.push({ tone: 'amber', text: 'The roll carries no date; read as the day it was sent.' });
+  var headTimes = relayTimes(first.replace(/\d{1,2}\/\d{1,2}\/\d{2,4}\/?/, ''));
+  var st = {
+    mode: out.kind,
+    iso: out.date,
+    slot: out.kind === 'out' ? null : { start: headTimes.length && out.kind === 'in' ? headTimes[0].min : null, end: headTimes.length > 1 ? relayOutMin(headTimes[1]) : null, label: '' },
+    sec: null,
+    lastSec: null
+  };
+  if (out.kind === 'out') st.slot = { start: null, end: headTimes.length ? relayOutMin(headTimes[0]) : null, label: '', allOut: /\ball\b/i.test(first) };
+  function day(iso) {
+    if (!out.days[iso]) out.days[iso] = { iso: iso, people: {}, extra: [], notes: [], restOut: null, holiday: '' };
+    return out.days[iso];
+  }
+  if (out.date) day(out.date);
+  if (out.kind === 'out' && st.slot.allOut && st.slot.end != null) day(out.date).restOut = st.slot.end;
+
+  function newSection(areas, extra) {
+    st.sec = { areas: areas, absent: !!(extra && extra.absent), prod: !!(extra && extra.prod), crew: [], crewIds: [], extraLine: null };
+    if (!st.sec.prod) st.lastSec = st.sec;
+  }
+
+  lines.slice(1).forEach(function(raw, i) {
+    var ln = { n: i + 2, raw: raw, role: '', read: '' };
+    var line = raw.trim();
+    var bare = line.replace(/^[\s\-_=*.•]+|[\s\-_=*.•]+$/g, '').trim();
+    if (!bare || st.stop) return;
+    out.lines.push(ln);
+
+    // A date inside the roll: a holiday, or a second day's block ("16/08/26/ Sunday").
+    var dd = bare.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})\/?\s*(.*)$/);
+    if (dd) {
+      var iso2 = relayIso(dd[1], dd[2], dd[3]);
+      if (iso2) {
+        // Another message pasted on the end (the chemical stock, say): stop here.
+        if (/c[ae]mical|chemical|stock|in\s*-*\s*time|out\s*-*\s*time/i.test(dd[4])) {
+          st.stop = true; ln.role = 'note'; ln.read = 'Another message starts here; paste it on its own';
+          out.issues.push({ tone: 'amber', n: ln.n, text: 'A second message starts at this line and was not read with this roll.' });
+          return;
+        }
+        if (/holiday|puja|closed|band/i.test(dd[4])) {
+          day(iso2).holiday = dd[4].trim();
+          ln.role = 'note'; ln.read = 'Holiday on ' + iso2 + ': ' + dd[4].trim();
+        } else {
+          st.iso = iso2; day(iso2);
+          st.slot = { start: null, end: null, label: dd[4].trim() }; st.sec = null;
+          ln.role = 'head'; ln.read = 'Now ' + iso2 + (dd[4] ? ' (' + dd[4].trim() + ')' : '');
+        }
+        return;
+      }
+    }
+
+    // EXTRA hours: booked to the section it sits in.
+    var ex = bare.match(/\bextra\b\W*(\d+(?:\.\d+)?)\s*(?:h|$)/i) || bare.match(/\bextra\b\W*(\d+(?:\.\d+)?)/i);
+    if (ex && !/^\d+\)/.test(bare)) {
+      var hrs = +ex[1];
+      var times = relayTimes(bare.replace(ex[0], ''));
+      if (/evening|night/i.test(bare) && (!st.slot || st.slot.start === RELAY_GENERAL || st.slot.start == null)) {
+        st.slot = { start: RELAY_GENERAL_OUT, end: times.length ? relayOutMin(times[0]) : null, label: 'evening' };
+        newSection([], null);
+      }
+      var sec = st.sec && !st.sec.prod ? st.sec : st.lastSec;
+      var flagged = !!(st.sec && st.sec.prod);
+      if (!sec) { newSection([], null); sec = st.sec; }
+      sec.extraLine = ln;
+      var general = st.slot && st.slot.start === RELAY_GENERAL && st.mode === 'in';
+      var row;
+      if (general && sec.areas.length) {
+        row = { kind: 'coverage', area: sec.areas[0], hours: hrs };
+        ln.read = 'EXTRA ' + hrs + ' h booked to ' + relayAreaName(sec.areas[0]);
+      } else {
+        var from = st.mode === 'out' || (st.slot && st.slot.start >= RELAY_GENERAL_OUT) ? RELAY_GENERAL_OUT : (st.slot && st.slot.start != null ? st.slot.start : RELAY_MORNING);
+        var to = st.mode === 'out' ? (st.slot && st.slot.end) : (st.slot && st.slot.end != null && st.slot.end !== st.slot.start ? st.slot.end : (from === RELAY_MORNING ? RELAY_GENERAL : null));
+        // Barrel and its pickling are one unit to the reconciler; the shop's own
+        // decodes name a morning block there as the pickling side.
+        // A crew that wrote its own out-time ("SAMBHU 6:00 am") ends the block there.
+        // When the group's own times differ, the block is the ones who stayed
+        // latest (the others went home before it started).
+        var crewIds = sec.crewIds.filter(function(id, k) { return sec.crewIds.indexOf(id) === k; });
+        if (st.mode === 'out' && crewIds.length) {
+          var outs = crewIds.map(function(id) { var pp = day(st.iso).people[id]; return pp ? pp.outExp : null; });
+          var known = outs.filter(function(o) { return o != null; });
+          if (known.length === outs.length && known.length) {
+            var latest = Math.max.apply(null, known);
+            to = latest;
+            crewIds = crewIds.filter(function(id, k) { return outs[k] === latest; });
+          }
+        }
+        var crewNames = crewIds.map(function(id) { return day(st.iso).people[id].name; });
+        var bAreas = sec.areas.length === 2 && sec.areas[0] === 'barrel' ? ['pickling-barrel'] : sec.areas.slice();
+        row = { kind: 'block', areas: bAreas, crew: crewNames, hours: hrs, from: relayHhmm(from), to: to == null ? '' : relayHhmm(to) };
+        ln.read = 'EXTRA ' + hrs + ' h, block ' + relayClockLabel(from) + ' – ' + (to == null ? '?' : relayClockLabel(to)) +
+          (row.areas.length ? ', ' + row.areas.map(relayAreaName).join(' + ') : ', no line named') + ', crew ' + (row.crew.length ? row.crew.length : 'not named');
+        if (!row.crew.length) out.issues.push({ tone: 'amber', n: ln.n, text: 'EXTRA ' + hrs + ' h has no crew named under it; it is kept, and reads Not checkable on the Areas card.' });
+      }
+      if (flagged) out.issues.push({ tone: 'amber', n: ln.n, text: 'EXTRA ' + hrs + ' h sits under the production notes; read against the last line above them.' });
+      ln.role = 'extra';
+      day(st.iso).extra.push(row);
+      // The tag closes its group: names after it are the next crew.
+      var keep = sec.areas.slice(), was = sec.slotOnly;
+      newSection(keep, null); st.sec.slotOnly = was; st.sec.headText = '';
+      return;
+    }
+
+    // An in-time roll that ends with its own out-times ("Out time" then names).
+    if (/^out\s*-*\s*time\b/i.test(bare) && !/\d{1,2}\/\d{1,2}/.test(bare)) {
+      var ot2 = relayTimes(bare);
+      st.mode = 'out';
+      st.slot = { start: null, end: ot2.length ? relayOutMin(ot2[0]) : null, label: bare };
+      newSection([], null); st.sec.slotOnly = true;
+      ln.role = 'head'; ln.read = 'Out-times from here';
+      return;
+    }
+
+    // "All out" / "Baki sab 5 pm out": everyone not named leaves at that time.
+    if (/^all\s*(out)?$|baki\s*sab|all\s+out/i.test(bare)) {
+      var at = relayTimes(bare);
+      var t = at.length ? relayOutMin(at[0]) : (st.slot && st.slot.end != null ? st.slot.end : RELAY_GENERAL_OUT);
+      day(st.iso).restOut = t;
+      ln.role = 'rest'; ln.read = 'Everyone not named left at ' + relayClockLabel(t);
+      return;
+    }
+
+    var numbered = bare.match(/^0*(\d{1,2})\s*[)\].]\s*(.*)$/);
+    var body = numbered ? numbered[2].trim() : bare;
+    var words = body.split(/[\s\-–,]+/).filter(Boolean);
+    var hit = words.length && /^[A-Za-z]/.test(words[0]) ? relayMatchName(words, idx) : null;
+    var isHeaderish = !numbered && !hit && relaySlotOrArea(bare);
+
+    if (!hit && !numbered && isHeaderish) {
+      var kindH = isHeaderish;
+      if (kindH.slot) {
+        if (st.mode === 'out') st.slot = { start: null, end: kindH.end != null ? kindH.end : (kindH.single != null ? kindH.single : null), label: bare, rangeStart: kindH.start };
+        else {
+          var sStart = kindH.start;
+          // A slot ahead of the 8:30 shift on an in-time roll is the morning: the
+          // relay has headed it "6:00 pm" before, and BM ruled that a mislabel.
+          if (sStart != null && sStart >= 960 && sStart <= 1200 && !st.sawGeneral && out.kind === 'in' && /8\s*:\s*30/.test(lines.slice(i + 2).join(' '))) {
+            sStart -= 720;
+            out.issues.push({ tone: 'amber', n: ln.n, text: '"' + bare + '" comes before the 8:30 shift, so it is read as ' + relayClockLabel(sStart) + '.' });
+          }
+          if (sStart === RELAY_GENERAL) st.sawGeneral = true;
+          st.slot = { start: sStart, end: kindH.end, label: bare };
+          kindH.start = sStart;
+        }
+        newSection(kindH.areas || [], null);
+        st.sec.slotOnly = !(kindH.areas && kindH.areas.length);
+        ln.role = 'head';
+        ln.read = st.mode === 'out' ? 'Out at ' + relayClockLabel(st.slot.end) + (kindH.start != null && kindH.end != null && kindH.start !== kindH.end ? ' (from ' + relayClockLabel(kindH.start) + ')' : '')
+          : 'Slot from ' + relayClockLabel(kindH.start);
+        if (kindH.areas && kindH.areas.length) ln.read += ', ' + kindH.areas.map(relayAreaName).join(' + ');
+        return;
+      }
+      if (kindH.prod) { newSection([], { prod: true }); ln.role = 'head'; ln.read = 'Production notes'; return; }
+      // Two header lines with nobody between them are one header
+      // ("pickling & berral" over "Vat A1 A 2 pickling").
+      if (st.sec && !st.sec.crew.length && !st.sec.absent && !st.sec.prod && !st.sec.slotOnly && st.sec.headText && !kindH.absent) {
+        var joined = st.sec.headText + ' ' + bare;
+        kindH = { areas: relayHeaderAreas(joined) };
+        bare = joined;
+      }
+      // An area written just after a tag names the block the tag booked
+      // ("EXTRA 9 hour" then "VAT A 1 & pickling").
+      var prevLn = out.lines[out.lines.length - 2];
+      var lastRow = day(st.iso).extra[day(st.iso).extra.length - 1];
+      if (prevLn && prevLn.role === 'extra' && lastRow && lastRow.kind === 'block' && !lastRow.areas.length && (kindH.areas || []).length) {
+        lastRow.areas = kindH.areas.length === 2 && kindH.areas[0] === 'barrel' ? ['pickling-barrel'] : kindH.areas.slice();
+        ln.role = 'head'; ln.read = 'The block above ran on ' + lastRow.areas.map(relayAreaName).join(' + ');
+        return;
+      }
+      newSection(kindH.areas || [], { absent: kindH.absent });
+      st.sec.headText = bare;
+      ln.role = 'head';
+      ln.read = kindH.absent ? 'Absent' : (kindH.areas.length ? kindH.areas.map(relayAreaName).join(' + ') : 'Section');
+      return;
+    }
+
+    if (!hit) {
+      ln.role = numbered ? 'unknown' : 'note';
+      ln.read = numbered ? 'Not on the roster: ' + words.slice(0, 2).join(' ') : 'Note (not a name)';
+      if (numbered) out.issues.push({ tone: 'red', n: ln.n, text: '"' + words.slice(0, 2).join(' ') + '" is not on the roster. Pick who it is, or it is left out.', name: words[0] || '' });
+      else day(st.iso).notes.push(bare);
+      if (numbered) ln.unknown = words[0] || '';
+      return;
+    }
+
+    // A person.
+    var w = hit.w;
+    var rest = words.slice(hit.used).join(' ');
+    var p = day(st.iso).people[w.id] || (day(st.iso).people[w.id] = { id: w.id, name: w.name, st: 'P', areas: null, generalArea: null, inExp: null, inSlot: null, outExp: null, outSlot: null, lines: [], readAs: '' });
+    p.lines.push(ln.n);
+    if (!hit.sure) { p.readAs = words[0]; out.issues.push({ tone: 'amber', n: ln.n, text: '"' + words[0] + '" read as ' + w.name + '.', name: words[0], id: w.id }); }
+    var absent = (st.sec && st.sec.absent) || /\babsent\b|^A+\b|\bA$/i.test(rest);
+    var tms = relayTimes(rest);
+    if (absent) {
+      p.st = 'A';
+    } else {
+      if (!st.sec || st.sec.prod) { newSection(st.sec && st.sec.prod ? [] : [], null); st.sec.slotOnly = true; }
+      st.sec.crew.push(w.name);
+      st.sec.crewIds.push(w.id);
+      var areas = st.sec ? st.sec.areas : [];
+      if (areas.length) {
+        var a = areas.indexOf(w.area) >= 0 ? w.area : areas[0];
+        // The office and the gate share a header ("office & gate keeper"); a
+        // hand whose post is one of them stands at his own.
+        if ((a === 'office' || a === 'gate') && (w.area === 'office' || w.area === 'gate')) a = w.area;
+        if (st.slot && st.slot.start === RELAY_GENERAL) p.generalArea = a;
+        else if (!p.areas) p.areas = a;
+      }
+      // Times written beside the name are the hand's own; a slot's are the
+      // crew's. The gate keeper reads only his own (his hours are standing).
+      if (st.mode === 'out') {
+        if (tms.length >= 2) { p.inExp = relayMin(p.inExp, tms[0].min); p.outExp = relayOutMin(tms[tms.length - 1]); }
+        else if (tms.length === 1) p.outExp = relayOutMin(tms[0]);
+        else if (st.slot && st.slot.end != null) p.outSlot = st.slot.end;
+      } else {
+        var slotIn = st.slot && st.slot.start != null ? st.slot.start : null;
+        if (tms.length >= 2) { p.inExp = relayMin(p.inExp, tms[0].min); p.outExp = relayOutMin(tms[tms.length - 1]); }
+        else if (tms.length === 1) {
+          if (tms[0].ap === 'pm' || tms[0].min >= 720) p.outExp = relayOutMin(tms[0]);
+          else p.inExp = relayMin(p.inExp, tms[0].min);
+        }
+        if (slotIn != null) p.inSlot = relayMin(p.inSlot, slotIn);
+      }
+      p.st = 'P';
+    }
+    ln.role = 'name';
+    ln.person = w.id;
+    ln.read = w.name + (absent ? ': absent' : '') + (hit.sure ? '' : ' (read from "' + words[0] + '")');
+  });
+  return out;
+}
+function relayMin(a, b) { return a == null ? b : b == null ? a : Math.min(a, b); }
+/* An out-time: midnight and the small hours are the next day. */
+function relayOutMin(t) {
+  var m = t.min;
+  if (t.ap === 'am' && t.h === 12) return 1440;
+  if (t.ap === 'pm' && t.h === 12) return 1440;           // "12 pm" on an out roll means midnight
+  if (t.ap === 'am' && m < 720) return m + 1440;         // "6 AM" out: the next morning
+  if (!t.ap && m < 420) return m + 1440;
+  return m;
+}
+function relayAreaName(id) {
+  var a = (typeof STAFF_AREAS !== 'undefined' ? STAFF_AREAS : []).find(function(x) { return x.id === id; });
+  return a ? a.label : id;
+}
+/* A header line: a slot ("----6:00 am---", "morning ot", "general shift",
+   "HOLD NIGHT", "6:00 pm 6:00 am"), an area, absent, or production. */
+function relaySlotOrArea(bare) {
+  var up = bare.toUpperCase();
+  if (/\b(WORK|PRODUCTION)\b/.test(up) && !/\d/.test(up)) return { prod: true };
+  var times = relayTimes(bare);
+  var words = up.replace(/\d{1,2}\s*:?\s*\d{0,2}\s*(AM|PM)?/g, ' ').replace(/[^A-Z&]+/g, ' ').trim().split(/\s+/).filter(Boolean);
+  var slotWords = ['OUT', 'TIME', 'IN', 'AM', 'PM', 'NIGHT', 'HOLD', 'MORNING', 'OT', 'GENERAL', 'GANRAL', 'SHIFT', 'SHIPT', 'EVENING', 'M', 'P', 'A'];
+  var areas = relayHeaderAreas(bare);
+  var absent = /ABSENT/.test(up);
+  if (times.length && !absent) {
+    var start = times[0].min, end = times.length > 1 ? relayOutMin(times[1]) : null;
+    if (words.every(function(w) { return slotWords.indexOf(w) >= 0; }) || areas.length) return { slot: true, start: start, end: end, single: relayOutMin(times[0]), areas: areas };
+  }
+  if (/MORNING/.test(up)) return { slot: true, start: RELAY_MORNING, end: RELAY_GENERAL, areas: areas };
+  if (/G[AE]N[AE]?RAL/.test(up)) return { slot: true, start: RELAY_GENERAL, end: RELAY_GENERAL_OUT, areas: areas };
+  if (/NIGHT/.test(up)) return { slot: true, start: RELAY_GENERAL_OUT, end: 1440 + RELAY_MORNING, areas: areas };
+  if (absent) return { absent: true, areas: [] };
+  if (/\b(MONTHLY|WEEKLY)\b/.test(up) && words.length <= 2) return { areas: [] };
+  if (areas.length) return { areas: areas };
+  return null;
+}
+
+/* The per-person reading → marks the Staff tab keeps. `comp` decides hours
+   versus OT, so the roster is consulted here too. `outKnown` says whether an
+   out-time roll has been read for the day: without one a present hand is
+   provisionally out at 5 PM, and the review says so. */
+function relayPersonMark(p, w, restOut) {
+  if (p.st === 'A') return { st: 'A', ot: 0, hours: 0, area: 'flex', inMin: null, outMin: null };
+  // No line written: a floor hand floats (Flex); the office and the gate are posts.
+  var area = p.generalArea || p.areas || (w && (w.area === 'office' || w.area === 'gate') ? w.area : 'flex');
+  var gate = area === 'gate';
+  var inMin, outMin;
+  if (gate) {
+    inMin = p.inExp != null ? p.inExp : RELAY_GATE[0];
+    outMin = p.outExp != null ? p.outExp : RELAY_GATE[1];
+  } else {
+    inMin = relayMin(p.inExp, p.inSlot);
+    if (inMin == null) inMin = RELAY_GENERAL;
+    outMin = p.outExp != null ? p.outExp : p.outSlot != null ? p.outSlot : (restOut != null ? restOut : RELAY_GENERAL_OUT);
+  }
+  if (outMin <= inMin) outMin += 1440;
+  var hours = Math.max(0, Math.floor((outMin - inMin) / 60));
+  var hourly = w && w.comp === 'hourly';
+  // The gate's twelve hours are its standing shift, not overtime.
+  return { st: 'P', ot: hourly || gate ? 0 : Math.max(0, hours - 8), hours: hours, area: area, inMin: inMin, outMin: outMin };
+}
+
+/* ===== Screens: Staff → Paste message ===== */
+var _relay = null;        // { text, msgs, choices: { KEY: workerId }, plan, other }
+var _relayDraft = '';
+var _relayView = 'paste';  // 'paste' | 'review'
+var _relayShowLines = false;
+
+function relayRoster(choices) {
+  var extra = {};
+  Object.keys(choices || {}).forEach(function(k) { if (choices[k]) (extra[choices[k]] = extra[choices[k]] || []).push(k); });
+  return (S.staff || []).filter(function(w) { return w.active !== false; }).map(function(w) {
+    return { id: w.id, name: w.name, comp: w.comp, area: w.area, relayNames: (w.relayNames || []).concat(extra[w.id] || []) };
+  });
+}
+function relayHash(text) {
+  var src = String(text || '').toUpperCase().replace(/\s+/g, ' ').trim(), h = 5381;
+  for (var i = 0; i < src.length; i++) h = ((h << 5) + h + src.charCodeAt(i)) | 0;
+  return 'r' + (h >>> 0).toString(36) + src.length;
+}
+function relayPastes() {
+  if (!Array.isArray(S.relayPastes)) S.relayPastes = [];
+  return S.relayPastes;
+}
+
+/* Everything the paste would do, worked out without touching S. */
+function relayPlan(rv) {
+  var roster = relayRoster(rv.choices), byId = {};
+  roster.forEach(function(w) { byId[w.id] = w; });
+  var days = {}, issues = [], lines = [], dupes = 0;
+  rv.msgs.forEach(function(m, mi) {
+    var r = parseRelayRoll(m.text, roster, m.sentOn);
+    m.parsed = r;
+    m.dup = relayPastes().find(function(p) { return p.hash === relayHash(m.text); }) || null;
+    if (m.dup) { dupes++; return; }
+    r.issues.forEach(function(is) { is.mi = mi; issues.push(is); });
+    r.lines.forEach(function(l) { l.mi = mi; lines.push(l); });
+    Object.keys(r.days).forEach(function(iso) {
+      var d = r.days[iso];
+      var t = days[iso] || (days[iso] = { iso: iso, people: {}, extra: [], restOut: null, holiday: '', notes: [], kinds: [] });
+      if (t.kinds.indexOf(r.kind) < 0) t.kinds.push(r.kind);
+      Object.keys(d.people).forEach(function(id) {
+        var p = d.people[id], e = t.people[id];
+        if (!e) { t.people[id] = JSON.parse(JSON.stringify(p)); return; }
+        if (p.st === 'P') e.st = 'P';
+        ['inExp', 'inSlot'].forEach(function(k) { if (p[k] != null) e[k] = e[k] == null ? p[k] : Math.min(e[k], p[k]); });
+        ['outExp', 'outSlot'].forEach(function(k) { if (p[k] != null) e[k] = p[k]; });
+        if (p.generalArea) e.generalArea = p.generalArea;
+        if (!e.areas && p.areas) e.areas = p.areas;
+      });
+      if (d.restOut != null) t.restOut = d.restOut;
+      t.extra = t.extra.concat(d.extra);
+      if (d.holiday) t.holiday = d.holiday;
+      t.notes = t.notes.concat(d.notes);
+    });
+  });
+  var out = { days: [], issues: issues, lines: lines, dupes: dupes, counts: { red: 0, amber: 0, people: 0 } };
+  issues.forEach(function(is) { if (is.tone === 'red') out.counts.red++; else out.counts.amber++; });
+  Object.keys(days).sort().forEach(function(iso) {
+    var t = days[iso], rec = S.attendance && S.attendance[iso];
+    var rows = [];
+    Object.keys(t.people).forEach(function(id) {
+      var p = t.people[id], w = byId[id], prev = rec && rec.marks ? rec.marks[id] : null;
+      if (prev && prev.src !== 'relay') { rows.push({ w: w, p: p, prev: prev, next: prev, change: 'kept' }); return; }
+      var q = JSON.parse(JSON.stringify(p));
+      if (prev && prev.st === 'P' && q.st === 'P') {
+        if (prev.inMin != null) q.inExp = relayMin(q.inExp, prev.inMin);
+        if (q.outExp == null && q.outSlot == null && prev.outKnown) q.outExp = prev.outMin;
+        if (!q.generalArea && !q.areas && prev.area) q.areas = prev.area;
+      }
+      var next = relayPersonMark(q, w, t.restOut);
+      next.outKnown = q.outExp != null || q.outSlot != null || t.restOut != null || t.kinds.indexOf('out') >= 0;
+      var same = prev && prev.st === next.st && prev.area === next.area && prev.hours === next.hours && prev.ot === next.ot;
+      rows.push({ w: w, p: p, prev: prev, next: next, change: !prev ? 'new' : same ? 'same' : 'updated' });
+    });
+    // Present hands already on the day that this out-roll left unnamed: out with the shift.
+    rows.sort(function(a, b) {
+      var o = { P: 0, H: 1, A: 2 };
+      return (o[a.next.st] - o[b.next.st]) || String(a.next.area).localeCompare(String(b.next.area)) || String(a.w.name).localeCompare(String(b.w.name));
+    });
+    out.counts.people += rows.length;
+    var extras = t.extra.map(function(x) {
+      var row = x.kind === 'block'
+        ? { kind: 'block', areas: x.areas, crew: x.crew.map(function(n) { var w = roster.find(function(r) { return r.name === n; }); return w ? w.id : null; }).filter(function(v) { return v != null; }),
+            hours: x.hours, from: x.from, to: x.to, area: x.areas[0] || 'flex', src: 'relay' }
+        : { kind: 'coverage', area: x.area, hours: x.hours, src: 'relay' };
+      var dup = rec && (rec.extra || []).some(function(e) { return relayExtraSame(e, row); });
+      return { row: row, dup: !!dup };
+    });
+    var provisional = t.kinds.indexOf('out') < 0 && rows.some(function(r) { return r.next.st === 'P' && r.change !== 'kept'; });
+    out.days.push({ iso: iso, rows: rows, extras: extras, holiday: t.holiday, notes: t.notes, kinds: t.kinds, provisional: provisional });
+  });
+  return out;
+}
+function relayExtraSame(a, b) {
+  if (a.kind !== b.kind || a.hours !== b.hours) return false;
+  if (a.kind === 'coverage') return a.area === b.area;
+  return a.from === b.from && a.to === b.to && (a.crew || []).slice().sort().join() === (b.crew || []).slice().sort().join();
+}
+
+function relayOpen(text) {
+  _relayView = 'paste';
+  if (text != null) _relayDraft = text;
+  _attView = 'paste';
+  var page = document.querySelector('.inv-page-active');
+  if (!page || page.id !== 'pageStaff') switchTab('pageStaff');
+  else renderAttendance();
+  var ta = document.getElementById('relayPasteText');
+  if (ta) ta.focus();
+}
+
+function relayRenderView() {
+  if (_relayView === 'review' && _relay) return relayRenderReview();
+  return '<div class="inv-stk-bar"><div class="inv-stk-h2">Paste a WhatsApp message</div></div>' +
+    '<label class="inv-stk-label" for="relayPasteText">The in-time or out-time roll, as sent (the stock message works here too)</label>' +
+    '<textarea id="relayPasteText" class="inv-stk-paste" spellcheck="false" placeholder="Copy the message in WhatsApp and paste it here. Several at once is fine.">' +
+    escHtml(_relayDraft) + '</textarea>' +
+    '<button class="inv-stk-btn inv-stk-btn-pri inv-stk-btn-block" data-action="invRelayRead">Read message</button>' +
+    '<div class="inv-stk-hint">Nothing is saved until you check what was read. Names are matched to the roster; a name it cannot place is asked about once and remembered.</div>';
+}
+
+function relayRead() {
+  var ta = document.getElementById('relayPasteText');
+  var text = ta ? ta.value : _relayDraft;
+  _relayDraft = text;
+  if (!text.trim()) { showToast('Paste the message first', 'error'); return; }
+  if (!(S.staff || []).length) { showToast('Add the roster first: Staff → Roster', 'error'); return; }
+  var msgs = relaySplit(text);
+  var rolls = [], stock = [], other = [];
+  msgs.forEach(function(m) {
+    var k = relayKind(m.text);
+    if (k === 'in' || k === 'out') rolls.push(m);
+    else if (k === 'stock') stock.push(m);
+    else other.push(m);
+  });
+  if (!rolls.length && stock.length) {
+    // A stock message belongs to Stock's own review.
+    _stockPasteDraft = text;
+    _stockView = 'paste';
+    switchTab('pageStock');
+    stockReadPaste();
+    return;
+  }
+  if (!rolls.length) { showToast('No in-time or out-time roll found in that text', 'error'); return; }
+  _relay = { text: text, msgs: rolls, choices: {}, stock: stock.length, other: other.length };
+  _relayView = 'review';
+  _relayShowLines = false;
+  renderAttendance();
+  window.scrollTo(0, 0);
+}
+
+function relayMarkText(m) {
+  if (m.st === 'A') return 'Absent';
+  if (m.st === 'H') return 'Half day';
+  var t = (m.inMin != null ? relayClockLabel(m.inMin) + ' – ' + relayClockLabel(m.outMin) + ' · ' : '') + m.hours + ' h';
+  return t + (m.ot ? ' · OT ' + m.ot + ' h' : '');
+}
+
+function relayRenderReview() {
+  var rv = _relay, plan = relayPlan(rv);
+  rv.plan = plan;
+  var h = '<div class="inv-stk-bar"><button class="inv-stk-back" data-action="invRelayBack">' +
+    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>Edit text</button>' +
+    '<div class="inv-stk-h2">Check before saving</div></div>';
+  if (plan.dupes) h += '<div class="inv-stk-banner inv-stk-banner-red">' + todoPlural(plan.dupes, 'message was', 'messages were') + ' already saved and ' + (plan.dupes === 1 ? 'is' : 'are') + ' left out: saving again would count every hour twice.</div>';
+  if (rv.stock) h += '<div class="inv-stk-banner">The stock message in this paste was not read here. Paste it in More → Stock.</div>';
+  if (rv.other) h += '<div class="inv-stk-banner">' + todoPlural(rv.other, 'other message') + ' (pickling log, notes) not read.</div>';
+  h += '<div class="inv-stk-sum inv-rl-sum">' +
+    '<div class="inv-stk-tile inv-stk-tile-red"><span class="inv-stk-tile-n">' + plan.counts.red + '</span>Needs you</div>' +
+    '<div class="inv-stk-tile inv-stk-tile-amber"><span class="inv-stk-tile-n">' + plan.counts.amber + '</span>Check</div>' +
+    '<div class="inv-stk-tile"><span class="inv-stk-tile-n">' + plan.counts.people + '</span>People</div></div>';
+
+  // What needs a decision, first.
+  var staff = (S.staff || []).filter(function(w) { return w.active !== false; }).sort(function(a, b) { return String(a.name).localeCompare(String(b.name)); });
+  var askedNames = {};
+  plan.issues.forEach(function(is) {
+    h += '<div class="inv-stk-issue inv-stk-issue-' + is.tone + '">Line ' + is.n + ': ' + escHtml(is.text) + '</div>';
+    if (is.tone === 'red' && is.name) {
+      var key = relayKey(is.name);
+      if (askedNames[key]) return;
+      askedNames[key] = true;
+      h += '<div class="inv-stk-map"><label class="inv-stk-label" for="relayMap' + escHtml(key) + '">"' + escHtml(is.name) + '" is</label>' +
+        '<select id="relayMap' + escHtml(key) + '" class="inv-form-input" data-relay-map="' + escHtml(key) + '"><option value="">Nobody on the roster (leave out)</option>' +
+        staff.map(function(w) { return '<option value="' + escHtml(w.id) + '"' + (String(rv.choices[key]) === String(w.id) ? ' selected' : '') + '>' + escHtml(w.name) + '</option>'; }).join('') +
+        '</select></div>';
+    }
+  });
+
+  plan.days.forEach(function(d) {
+    var rec = S.attendance && S.attendance[d.iso];
+    h += '<div class="inv-rl-day"><div class="inv-rl-dayhead"><span class="inv-stk-h2">' + escHtml(attDayName(d.iso)) + ' ' + escHtml(stockShortDate(d.iso)) + '</span>' +
+      '<span class="inv-stk-meta">' + d.kinds.map(function(k) { return k === 'in' ? 'In-time roll' : 'Out-time roll'; }).join(' + ') +
+      (rec ? ' · day already has entries' : '') + '</span></div>';
+    if (d.holiday) h += '<div class="inv-stk-banner">Holiday: ' + escHtml(d.holiday) + '</div>';
+    if (d.provisional) h += '<div class="inv-stk-issue inv-stk-issue-info">No out-time roll yet: present hands are read as out at 5 PM (the gate at 7 PM). Paste the out-time roll when it comes and the hours update.</div>';
+    h += '<div class="inv-rl-rows">';
+    d.rows.forEach(function(r) {
+      var chip = r.change === 'kept' ? ['Kept', 'amber', 'Entered by hand as ' + relayMarkText(r.prev) + '; left as it is.']
+        : r.change === 'new' ? ['New', 'ok', ''] : r.change === 'updated' ? ['Updated', 'bath', 'Was ' + relayMarkText(r.prev)] : ['Same', '', ''];
+      h += '<div class="inv-rl-row inv-rl-row-' + r.next.st + '"><div class="inv-rl-row-main"><span class="inv-rl-name">' + escHtml(r.w.name) + '</span>' +
+        '<span class="inv-rl-area">' + escHtml(r.next.st === 'A' ? 'Absent' : areaLabel(r.next.area)) + '</span></div>' +
+        '<div class="inv-rl-row-side"><span class="inv-rl-hrs">' + escHtml(r.next.st === 'A' ? '—' : relayMarkText(r.next)) + '</span>' +
+        '<span class="inv-stk-chip' + (chip[1] ? ' inv-stk-chip-' + chip[1] : '') + '">' + chip[0] + '</span></div>' +
+        (chip[2] ? '<div class="inv-rl-was">' + escHtml(chip[2]) + '</div>' : '') + '</div>';
+    });
+    h += '</div>';
+    if (d.extras.length) {
+      h += '<div class="inv-stk-label inv-mt-8">EXTRA hours</div>';
+      d.extras.forEach(function(x) {
+        var e = x.row;
+        var what = e.kind === 'coverage' ? relayAreaName(e.area) + ', general shift'
+          : 'Block ' + relayClockLabel(relayParseHhmm(e.from)) + ' – ' + (e.to ? relayClockLabel(relayParseHhmm(e.to)) : '?') +
+            (e.areas.length ? ', ' + e.areas.map(relayAreaName).join(' + ') : '') + ', crew ' + (e.crew.length ? e.crew.map(function(id) { var w = staffById(id); return w ? w.name : '?'; }).join(', ') : 'not named');
+        h += '<div class="inv-rl-extra' + (x.dup ? ' inv-rl-extra-dup' : '') + '"><strong>' + e.hours + ' h</strong> ' + escHtml(what) + (x.dup ? ' · already on the day, not added again' : '') + '</div>';
+      });
+    }
+    if (d.notes.length) h += '<div class="inv-stk-hint">Also in the roll (kept as the day\'s note): ' + escHtml(d.notes.slice(0, 8).join(' · ')) + (d.notes.length > 8 ? '…' : '') + '</div>';
+    h += '</div>';
+  });
+
+  h += '<button class="inv-td-fold" data-action="invRelayLines" aria-expanded="' + _relayShowLines + '"><span>The message, line by line</span><span>' + (_relayShowLines ? 'Hide' : 'Show') + '</span></button>';
+  if (_relayShowLines) {
+    h += '<div class="inv-rl-lines">' + plan.lines.map(function(l) {
+      return '<div class="inv-rl-line inv-rl-line-' + l.role + '"><span class="inv-rl-raw">' + escHtml(l.raw.trim()) + '</span><span class="inv-rl-read">' + escHtml(l.read) + '</span></div>';
+    }).join('') + '</div>';
+  }
+  var nothing = !plan.days.length;
+  h += '<button class="inv-stk-btn inv-stk-btn-pri inv-stk-btn-block" data-action="invRelaySave"' + (nothing ? ' disabled' : '') + '>Save ' + todoPlural(plan.days.length, 'day') + '</button>';
+  return h;
+}
+function relayParseHhmm(s) {
+  var m = String(s || '').match(/^(\d{1,2}):(\d{2})$/);
+  return m ? +m[1] * 60 + +m[2] : null;
+}
+
+function relaySave() {
+  var rv = _relay;
+  if (!rv) return;
+  var plan = relayPlan(rv);
+  if (!plan.days.length) { showToast('Nothing to save', 'error'); return; }
+  // Remember the spellings the owner placed, on the worker, for next time.
+  Object.keys(rv.choices).forEach(function(k) {
+    var w = staffById(rv.choices[k]);
+    if (!w || !k) return;
+    w.relayNames = (w.relayNames || []).filter(function(n) { return relayKey(n) !== k; }).concat([k]);
+  });
+  var marks = 0, extras = 0;
+  plan.days.forEach(function(d) {
+    var rec = attDay(d.iso, true);
+    d.rows.forEach(function(r) {
+      if (r.change === 'kept' || r.change === 'same') return;
+      var n = r.next;
+      rec.marks[r.w.id] = { st: n.st, ot: n.ot, hours: n.hours, area: n.area, inMin: n.inMin, outMin: n.outMin, outKnown: !!n.outKnown, src: 'relay' };
+      marks++;
+    });
+    d.extras.forEach(function(x) { if (!x.dup) { rec.extra.push(x.row); extras++; } });
+    var add = [];
+    if (d.holiday) add.push('Holiday: ' + d.holiday);
+    if (d.notes.length) add.push(d.notes.join(' · '));
+    add.forEach(function(a) { if (String(rec.note || '').indexOf(a) < 0) rec.note = (rec.note ? rec.note + '\n' : '') + a; });
+  });
+  var at = Date.now();
+  rv.msgs.forEach(function(m) {
+    if (m.dup) return;
+    relayPastes().push({ id: 'RP-' + at.toString(36) + Math.random().toString(36).slice(2, 5), at: at, hash: relayHash(m.text),
+      sentBy: m.sentBy || '', sentOn: m.sentOn || '', kind: m.parsed ? m.parsed.kind : '', date: m.parsed ? m.parsed.date : '', text: m.text });
+  });
+  saveState();
+  var first = plan.days[0].iso;
+  _relay = null; _relayDraft = ''; _relayView = 'paste';
+  _attDate = first; _attView = 'day';
+  renderAttendance();
+  window.scrollTo(0, 0);
+  showToast('Saved ' + todoPlural(plan.days.length, 'day') + ': ' + todoPlural(marks, 'mark') + ', ' + todoPlural(extras, 'EXTRA row'));
+}
+
+function relayAction(action, btn) {
+  switch (action) {
+    case 'invRelayRead': relayRead(); break;
+    case 'invRelayBack': _relayView = 'paste'; renderAttendance(); break;
+    case 'invRelaySave': relaySave(); break;
+    case 'invRelayLines': _relayShowLines = !_relayShowLines; renderAttendance(); break;
+    case 'invRelayOpen': relayOpen(); break;
+  }
+}
+function relayOnChange(t) {
+  if (!t || !t.hasAttribute || !t.hasAttribute('data-relay-map') || !_relay) return false;
+  _relay.choices[t.getAttribute('data-relay-map')] = t.value;
+  renderAttendance();
+  return true;
+}
+function relayOnInput(t) {
+  if (!t || t.id !== 'relayPasteText') return false;
+  _relayDraft = t.value;
+  return true;
 }
 /* ===== STATS (Phase 7 — Analytics Rework) =====
  *
@@ -19750,6 +21479,7 @@ document.addEventListener('click', function(e) {
     case 'invOpenMore': openMoreSheet(); break;
     case 'invCloseMore': closeMoreSheet(); break;
     case 'invCreateNew': initCreateForm(); switchTab('pageCreate'); break;
+    case 'invHomeQuick': homeQuick(btn.dataset.go); break;
     case 'invOpenSettings': openSettings(); break;
     case 'invCloseOverlay': closeOverlay(); break;
     case 'invCloseConfirm': closeTopOverlay(); break;
@@ -20078,6 +21808,8 @@ document.addEventListener('click', function(e) {
     }
     default:
       if (action.indexOf('invStock') === 0) stockAction(action, btn);
+      else if (action.indexOf('invTodo') === 0) todoAction(action, btn);
+      else if (action.indexOf('invRelay') === 0) relayAction(action, btn);
   }
 });
 
@@ -20132,6 +21864,8 @@ function updateTotalsDisplay() {
 
 document.addEventListener('change', function(e) {
   if (stockOnChange(e.target)) return;
+  if (todoOnChange(e.target)) return;
+  if (relayOnChange(e.target)) return;
   const el = e.target.closest('[data-action="invUpdateLine"]');
   if (el) {
     const idx = parseInt(el.dataset.idx);
@@ -20269,6 +22003,7 @@ document.addEventListener('change', function(e) {
 
 document.addEventListener('input', function(e) {
   if (stockOnInput(e.target)) return;
+  if (relayOnInput(e.target)) return;
   if (e.target.id === 'clientSearch') {
     renderClientList(e.target.value);
   }
@@ -20530,6 +22265,12 @@ document.addEventListener('keydown', function(e) {
   //    chain so the last field of a form steps onto its primary action rather
   //    than dead-ending; unmarked buttons (a line's remove ×) stay out of it,
   //    where a stray Enter would be destructive.
+  // Enter in the to-do box adds the task; it is a one-field form.
+  if (e.key === 'Enter' && e.target.hasAttribute && e.target.hasAttribute('data-todo-new')) {
+    e.preventDefault();
+    todoQuickAdd();
+    return;
+  }
   // A typed stock line name is committed by Enter (the phone keyboard's Go),
   // not only on blur: it is the last field on its screen, so the step to the
   // next field below would go nowhere and nothing would happen.
@@ -20564,7 +22305,7 @@ document.addEventListener('focusout', function(e) {
 /* ===== SWIPE NAVIGATION ===== */
 (function() {
   var _swipeX = 0, _swipeY = 0;
-  var TAB_ORDER = ['pageHome','pageCreate','pageIM','pageRegister','pageClients','pageStock','pageStaff','pageStats','pageHistory'];
+  var TAB_ORDER = ['pageHome','pageCreate','pageIM','pageRegister','pageClients','pageTodo','pageStock','pageStaff','pageStats','pageHistory'];
 
   document.addEventListener('touchstart', function(e) {
     _swipeX = e.touches[0].clientX;
@@ -21160,6 +22901,7 @@ function renderSidebar() {
     { id: 'pageIM', label: 'IM', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/></svg>' },
     { id: 'pageRegister', label: 'Register', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>' },
     { id: 'pageClients', label: 'Clients', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>' },
+    { id: 'pageTodo', label: 'To-do', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>' },
     { id: 'pageStock', label: 'Stock', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 3h6"/><path d="M10 3v6L4.5 19a1.5 1.5 0 001.3 2h12.4a1.5 1.5 0 001.3-2L14 9V3"/><path d="M7 15h10"/></svg>' },
     { id: 'pageStaff', label: 'Staff', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><polyline points="17 11 19 13 23 9"/></svg>' },
     { id: 'pageStats', label: 'Stats', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 20V10"/><path d="M12 20V4"/><path d="M6 20v-6"/></svg>' },
@@ -21252,6 +22994,7 @@ new ResizeObserver(function() {
    mobile restore paths pick it up without a second switchTab, and the query is
    stripped so a later refresh returns to the ordinary saved tab. */
 var _launchNew = false;
+var _launchTodo = '';   // the widget's action when it opened the app: 'open', 'add', 'open:m:<id>', 'open:a:<key>'
 (function() {
   var params;
   try { params = new URLSearchParams(window.location.search); } catch (e) { return; }
@@ -21260,6 +23003,7 @@ var _launchNew = false;
   regFilter.activeTab = wanted;
   saveRegFilter();
   _launchNew = params.get('new') === '1';
+  _launchTodo = params.get('todo') || '';
   try { history.replaceState(null, '', window.location.pathname); } catch (e) {}
 })();
 
@@ -21300,6 +23044,12 @@ function bootApp() {
   if (_launchNew && regFilter.activeTab === 'pageIM' && !_isDesktop) {
     showAddChallanForm();
   }
+
+  /* The widget: apply the Done taps it queued while the app was shut, open
+     what it asked for, and hand it a fresh payload. */
+  if (_launchTodo) todoHandleLaunch(_launchTodo);
+  else todoApplyWidgetQueue();
+  todoWidgetPublish();
 
   /* A read that threw at load used to fall through to a fresh default state
      and say nothing. It is the one storage failure the operator most needs to
@@ -21380,9 +23130,20 @@ function checkForUpdateManually() {
   });
 }
 
+/* Both directions, on open and on close: shown, the app takes what the widget
+   queued; hidden or shut, it leaves the widget its latest list. */
 document.addEventListener('visibilitychange', function() {
-  if (document.visibilityState === 'visible') checkForUpdate(false);
+  if (document.visibilityState === 'visible') {
+    checkForUpdate(false);
+    if (S) todoApplyWidgetQueue();
+  } else if (S) {
+    todoWidgetPublish();
+  }
 });
+window.addEventListener('pagehide', function() { if (S) todoWidgetPublish(); });
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.addEventListener('message', function(e) { todoOnWorkerMessage(e.data); });
+}
 checkForUpdate(false);
 
 loadState().then(function(loaded) {

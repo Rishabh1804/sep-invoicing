@@ -376,7 +376,8 @@ function stockOutCount() {
 function updateStockBadge() {
   var b = document.getElementById('moreBadge');
   if (!b) return;
-  var n = stockOutCount();
+  // Every red row: stock out or under the red line, and your own tasks overdue.
+  var n = typeof todoRedCount === 'function' ? todoRedCount() : stockOutCount();
   b.textContent = n ? String(n) : '';
   b.classList.toggle('inv-hidden', !n);
 }
@@ -1079,7 +1080,7 @@ function renderChemStatsCard(period, tonnage) {
 }
 
 /* ---------- The More sheet ---------- */
-var MORE_TABS = ['pageStock', 'pageStaff', 'pageStats', 'pageHistory'];
+var MORE_TABS = ['pageTodo', 'pageStock', 'pageStaff', 'pageStats', 'pageHistory'];
 function closeMoreSheet() {
   var el = document.getElementById('moreSheet');
   if (el) el.remove();
@@ -1087,7 +1088,9 @@ function closeMoreSheet() {
 function openMoreSheet() {
   closeMoreSheet();
   var out = stockOutCount();
+  var tdOpen = todoRanked().length, tdLate = todoRedCount();
   var items = [
+    ['pageTodo', 'To-do', tdOpen ? tdOpen + ' open' + (tdLate ? ', ' + tdLate + ' late' : '') : 'Nothing due', '<path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/>'],
     ['pageStock', 'Stock', out ? out + ' out' : 'Chemicals on the shelf', '<path d="M9 3h6"/><path d="M10 3v6L4.5 19a1.5 1.5 0 001.3 2h12.4a1.5 1.5 0 001.3-2L14 9V3"/><path d="M7 15h10"/>'],
     ['pageStaff', 'Staff', 'Attendance, labour, areas', '<path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><polyline points="17 11 19 13 23 9"/>'],
     ['pageStats', 'Stats', 'Realisation, tonnage, cost', '<path d="M18 20V10"/><path d="M12 20V4"/><path d="M6 20v-6"/>'],
@@ -1099,7 +1102,8 @@ function openMoreSheet() {
     h += '<button class="inv-more-item' + (cur === it[0] ? ' inv-more-item-on' : '') + '" data-action="invSwitchTab" data-tab="' + it[0] + '">' +
       '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">' + it[3] + '</svg>' +
       '<span class="inv-more-text"><span class="inv-more-label">' + it[1] + '</span><span class="inv-more-sub">' + escHtml(it[2]) + '</span></span>' +
-      (it[0] === 'pageStock' && out ? '<span class="inv-stk-chip inv-stk-chip-red">' + out + ' out</span>' : '') + '</button>';
+      (it[0] === 'pageStock' && out ? '<span class="inv-stk-chip inv-stk-chip-red">' + out + ' out</span>' : '') +
+      (it[0] === 'pageTodo' && tdLate ? '<span class="inv-stk-chip inv-stk-chip-red">' + tdLate + ' late</span>' : '') + '</button>';
   });
   h += '</div>';
   var scrim = document.createElement('div');

@@ -31,7 +31,7 @@ function switchTab(tabId) {
   document.querySelectorAll('.inv-tab').forEach(t => {
     if (t.dataset.tab === tabId) t.classList.add('inv-tab-active');
   });
-  // Stock, Staff, Stats and History live behind More on the phone bar.
+  // To-do, Stock, Staff, Stats and History live behind More on the phone bar.
   document.querySelectorAll('.inv-tab-more').forEach(t => t.classList.toggle('inv-tab-active', MORE_TABS.indexOf(tabId) >= 0));
   // Phase 8A: Activate sidebar item
   document.querySelectorAll('.inv-sidebar-item').forEach(s => {
@@ -77,6 +77,8 @@ function switchTab(tabId) {
     if (!document.getElementById('createFormArea').innerHTML) initCreateForm();
   } else if (tabId === 'pageStock') {
     renderStock();
+  } else if (tabId === 'pageTodo') {
+    renderTodo();
   } else if (tabId === 'pageStaff') {
     renderAttendance();
   } else if (tabId === 'pageStats') {
@@ -109,6 +111,20 @@ function switchTab(tabId) {
 }
 
 /* ===== HOME ===== */
+/* The quick actions: each opens its tab already on the job — the form open,
+   the box focused — rather than on the tab's front page. */
+function homeQuick(go) {
+  if (go === 'challan') { switchTab('pageIM'); showAddChallanForm(); }
+  else if (go === 'stock') { switchTab('pageStock'); stockOpenManual(); }
+  else if (go === 'attendance') { _attView = 'day'; _attDate = localDateStr(); switchTab('pageStaff'); }
+  else if (go === 'paste') relayOpen();
+  else if (go === 'task') {
+    switchTab('pageTodo');
+    var inp = document.getElementById('todoNew');
+    if (inp) inp.focus();
+  }
+}
+
 function renderHome() {
   const now = new Date();
   const ym = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0');
@@ -117,6 +133,7 @@ function renderHome() {
   document.getElementById('mtdRevenue').innerHTML = formatCurrency(active.reduce((s,i) => s + (i.taxableValue || 0), 0));
 
   renderZincCard();
+  renderTodoHomeCard();
   updateStockBadge();
   ghRenderCard();
 

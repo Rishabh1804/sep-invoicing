@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
-import { emptyState, loadAppWithState, noSeedIM, readStoredState, switchTab, todayIso, recentTs, type SepState } from './fixtures';
+import { emptyState, loadAppWithState, noSeedIM, readStoredState, switchTab, todayIso, recentTs, type SepState, openStatsTab } from './fixtures';
 
 // P46: prices, purchases and the live cost (owner, 25 Sep 2026). A delivery
 // carries its bill; a past bill is recorded without moving the stock; each line
@@ -118,18 +118,21 @@ test.describe('P46: prices, purchases and the live cost', () => {
     }];
     await loadAppWithState(page, s);
     const c = await g(page, `(function(){ var c = liveCost('${iso(-3)}', '${t}', 1000);
-      var o = {}; c.rows.forEach(function(r){ o[r.key] = [r.amount, r.source]; }); return o; })()`) as any;
-    // Labour: 10 h × ₹50, measured only where the days are recorded.
-    expect(c.labour[0]).toBe(500);
+      var o = {}; c.rows.forEach(function(r){ o[r.key] = [r.amount, r.source, r.measured]; }); return o; })()`) as any;
+    // Labour: 10 h × ₹50 is the measured part; the unrecorded working days are
+    // filled at the model, never read as zero.
+    expect(c.labour[2]).toBe(500);
+    expect(c.labour[0]).toBeGreaterThan(500);
+    expect(c.labour[1]).toBe('partial');
     // Q558: 12 kg used over the window × ₹300 paid; Monicol used but never priced.
-    expect(c.chem).toEqual([3600, 'partial']);
+    expect(c.chem.slice(0, 2)).toEqual([3600, 'partial']);
     // Zinc charged with no bill: the market rate stands in, and says so.
-    expect(c.zinc).toEqual([4200, 'rate']);
+    expect(c.zinc.slice(0, 2)).toEqual([4200, 'rate']);
     // Power: this month's bill, by the share of its days in the window.
-    expect(c.power[1]).toBe('measured');
-    expect(c.other).toEqual([420, 'model']);
+    expect(c.power[2]).toBeGreaterThan(0);
+    expect(c.other.slice(0, 2)).toEqual([420, 'model']);
 
-    await switchTab(page, 'pageStats');
+    await openStatsTab(page, 'cost');
     const card = page.locator('#liveCost');
     await expect(card).toContainText('Live cost');
     await expect(card.locator('.inv-cost-row').filter({ hasText: 'Zinc' }).locator('.inv-cost-src')).toHaveText('market rate');

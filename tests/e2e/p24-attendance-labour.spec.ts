@@ -1,7 +1,6 @@
 import { test, expect, Page } from '@playwright/test';
 import {
-  emptyState, loadAppWithState, noSeedIM, switchTab, todayIso, recentTs, workingDaysBack,
-} from './fixtures';
+  emptyState, loadAppWithState, noSeedIM, switchTab, todayIso, recentTs, workingDaysBack, openStatsTab } from './fixtures';
 
 /**
  * Staff tab + labour breakdown.
@@ -193,7 +192,7 @@ test('full attendance credits the range’s rest days to the monthly tier', asyn
   await loadAppWithState(page, staffState({
     attendance: recordedDays(26, { [LEAD.id]: { st: 'P', ot: 0, hours: 0, area: 'vat-a1' } }),
   }));
-  await switchTab(page, 'pageStats');
+  await openStatsTab(page, 'cost');
   await page.locator('[data-action="invStatsPeriod"][data-period="all"]').click();
 
   const row = page.locator('.inv-lab-row', { hasText: 'Rest days credited' });
@@ -210,7 +209,7 @@ test('attendance below the gate credits no rest days at all', async ({ page }) =
     attendance[d] = { marks: { [LEAD.id]: { st: 'P', ot: 0, hours: 0, area: 'vat-a1' } }, extra: [], note: '' };
   });
   await loadAppWithState(page, staffState({ attendance }));
-  await switchTab(page, 'pageStats');
+  await openStatsTab(page, 'cost');
   await page.locator('[data-action="invStatsPeriod"][data-period="all"]').click();
 
   const row = page.locator('.inv-lab-row', { hasText: 'Rest days credited' });
@@ -661,7 +660,7 @@ test('Stats prints a labour ₹/kg once coverage and range allow, against the mo
       taxableValue: 180000, grandTotal: 212400,
     }],
   }));
-  await switchTab(page, 'pageStats');
+  await openStatsTab(page, 'cost');
   // 'All' spans the attendance store's own dates, which the fixture controls
   // end to end — MTD would depend on what day of the month the suite runs.
   await page.locator('[data-action="invStatsPeriod"][data-period="all"]').click();
@@ -688,7 +687,7 @@ test('Stats withholds labour ₹/kg when the days are not on file, and says whic
       taxableValue: 180000, grandTotal: 212400,
     }],
   }));
-  await switchTab(page, 'pageStats');
+  await openStatsTab(page, 'cost');
   await page.locator('[data-action="invStatsPeriod"][data-period="all"]').click();
 
   const card = page.locator('.inv-lab-card');

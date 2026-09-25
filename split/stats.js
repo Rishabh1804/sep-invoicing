@@ -451,20 +451,30 @@ function renderStats() {
         '" data-action="invStatsPeriod" data-period="' + p + '">' + chipLabels[p] + '</button>';
     });
     chipHtml += '</div>';
-    toolbar.innerHTML = chipHtml;
+    toolbar.innerHTML = statsTabsHtml() + chipHtml;
   }
 
   var activeInvs = S.invoices.filter(function(i) { return i.status === 'active'; });
   var filtered = filterByPeriod(activeInvs, _statsPeriod);
   var prior = filterByPeriod(activeInvs, _statsPeriod, 1);
   var html = '';
+  // Each card lands in one of the grouped tabs (intel.js): what has been drawn
+  // since the last take() moves to that tab, and only the open tab is shown.
+  var sec = { overview: '', clients: '', cost: '', billing: '', trends: '' };
+  function take(key) { sec[key] += html; html = ''; }
 
   var totalRev = sumTaxable(filtered);
   var totalGrand = filtered.reduce(function(s, i) { return s + (i.grandTotal || 0); }, 0);
   var priorRev = sumTaxable(prior);
   var tonnage = weighLines(filtered);
   var priorTonnage = weighLines(prior);
-  var costPerKg = S.defaultCostPerKg || 0;
+  // Every "below cost" on this page is judged against the LIVE cost of the
+  // period (cost.js), so the headline and the Overview cannot disagree. The
+  // typed figure stands only where there is no tonnage to divide by.
+  var liveRange = statsRangeIso(_statsPeriod);
+  var live = tonnage.kg > 0 ? liveCost(liveRange.from, liveRange.to, tonnage.kg) : null;
+  var costPerKg = live && live.perKg > 0 ? live.perKg : (S.defaultCostPerKg || 0);
+  var costLabel = live && live.perKg > 0 ? 'live cost ' : 'cost ';
 
   // Revenue on weighed lines over the tonnage of those same lines.
   var realisation = tonnage.kg > 0 ? tonnage.revKnown / tonnage.kg : null;
@@ -486,7 +496,7 @@ function renderStats() {
       formatNum(tonnage.kg, 0) + ' kg',
       comparable ? deltaHtml(tonnage.kg, priorTonnage.kg) : '') +
     kpiTile('Realisation', realisation != null ? formatCurrency(realisation) + '/kg' : '&mdash;',
-      costPerKg > 0 ? 'cost ' + formatCurrency(costPerKg) + '/kg' : 'set a cost in Settings',
+      costPerKg > 0 ? costLabel + formatCurrency(costPerKg) + '/kg' : 'set a cost in Settings',
       (comparable && realisation != null && priorRealisation != null) ? deltaHtml(realisation, priorRealisation) : '') +
     kpiTile('Gross Margin', grossMargin != null ? formatCurrency(grossMargin) : '&mdash;',
       contribution != null ? formatCurrency(contribution) + '/kg contribution' : 'needs tonnage and cost',
@@ -512,6 +522,7 @@ function renderStats() {
   }
   html += '</div>';
 
+  take('overview');
   /* ===== Card 1b: Labour =====
      Placed directly under the headline four, because realisation only means
      something against a cost, and labour is 42% of that cost — the single line
@@ -523,6 +534,7 @@ function renderStats() {
   // in it line by line, so the separate chemicals card is not drawn twice.
   html += renderLiveCostCard(_statsPeriod, tonnage);
 
+  take('cost');
   /* ===== Card 2: GST position ===== */
   var cgst = 0, sgst = 0, igst = 0, unfiledTax = 0, unfiledCount = 0;
   filtered.forEach(function(inv) {
@@ -562,6 +574,7 @@ function renderStats() {
     '<span class="inv-state-badge inv-state-filed">' + stateCount.filed + ' Filed</span>' +
     '</div></div>';
 
+  take('billing');
   /* ===== Card 4: Revenue by client — ranked bars or share ===== */
   var ranked = buildClientRollup(filtered);
   var maxClientRev = ranked.length > 0 ? ranked[0].total : 0;
@@ -681,6 +694,7 @@ function renderStats() {
     html += '</div>';
   }
 
+  take('clients');
   /* ===== Card 7: Unbilled, by age =====
      Not period-filtered: unbilled material is a live position, not a
      historical one. The ageing is the part that was missing — a challan
@@ -746,6 +760,7 @@ function renderStats() {
   }
   html += '</div>';
 
+  take('billing');
   /* ===== Card 8: Trend — revenue, tonnage, or material arriving ===== */
   var trendData = buildTrendSeries(_statsTrendGran, _statsTrendSeries);
   var trendUnit = TREND_SERIES_UNIT[_statsTrendSeries] || 'money';
@@ -777,6 +792,7 @@ function renderStats() {
       : '') +
     '</div>';
 
+  take('trends');
   /* ===== Card 9: Dispatch cycle ===== */
   var dispatchDays = [], deliveryDays = [], fullCycleDays = [];
   filtered.forEach(function(inv) {
@@ -806,6 +822,7 @@ function renderStats() {
     html += '</div>';
   }
 
+  take('billing');
   /* ===== Card 10: Top items — by value, tonnage, or price ===== */
   var top = buildTopItems(filtered, _statsTopBy);
   if (top.total > 0) {
@@ -864,6 +881,12 @@ function renderStats() {
     html += '</div>';
   }
 
+  take('trends');
+  if (filtered.length || activeInvs.length) {
+    sec.overview += statsOverviewHtml(_statsPeriod, filtered, tonnage) + statsMonthsHtml();
+    sec.clients = statsMarginHtml(_statsPeriod, filtered, tonnage) + sec.clients;
+  }
+  html = sec[statsTab()];
   if (html === '') html = '<div class="inv-empty-state">No data yet. Create invoices and log incoming material to see analytics.</div>';
   area.innerHTML = html;
 }

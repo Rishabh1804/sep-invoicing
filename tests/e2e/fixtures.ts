@@ -159,6 +159,13 @@ export async function readStoredState(page: Page): Promise<any> {
   return page.evaluate(async () => JSON.parse((await (window as any).readPersistedStateRaw()) || '{}'));
 }
 
+/** Stats is grouped into tabs (Overview, Clients, Cost, Billing, Trends): open one. */
+export async function openStatsTab(page: Page, tab: string): Promise<void> {
+  await switchTab(page, 'pageStats');
+  await page.locator(`[data-action="invStatsTab"][data-tab="${tab}"]`).click();
+  await page.locator(`.inv-stats-tab-on[data-tab="${tab}"]`).waitFor();
+}
+
 export async function switchTab(page: Page, tabId: string): Promise<void> {
   // Layout exposes this action in multiple places (mobile bottom tabs + desktop sidebar + home quick-actions).
   // Any visible one works; pick the first so the helper is layout-agnostic. On the

@@ -95,8 +95,16 @@ var SETTINGS_SECS = {
       // Never back over a number the customer holds under this prefix: an
       // issued invoice, or a deleted one whose number was spent. A new
       // financial year's prefix has none, so it may start again at 1.
-      var used = _settingsHighestIssued(prefix);
-      if (next <= used) { showToast('Next invoice must be above ' + prefix + padInvNum(used) + ' — that number is issued', 'error'); return false; }
+      // Below the highest issued is a reissue: allowed only onto a free number
+      // whose invoice was never in a filed return, and said so first. The one
+      // invoice after it takes that number; the series then carries on.
+      var used = invHighestIssued(prefix);
+      if (next <= used) {
+        var chk = invReissueCheck(prefix, next);
+        if (!chk.ok) { showToast(chk.why, 'error'); return false; }
+        if (!confirm('The next invoice will be issued as ' + chk.disp + ', a number used before. After it the series carries on from ' +
+          prefix + padInvNum(used + 1) + '. (Delete → "Delete and reissue" does this in one step.) Continue?')) return false;
+      }
       S.invPrefix = prefix;
       S.invNextNum = next;
     }
@@ -355,17 +363,6 @@ var SETTINGS_SECS = {
     why: 'Import replaces the whole book with the file. Exporting also counts as a backup for the To-do reminder.'
   }
 };
-
-function _settingsHighestIssued(prefix) {
-  var hi = 0;
-  var take = function(display, num) {
-    var n = invNumInt(num);
-    if (n != null && String(display || '').indexOf(prefix) === 0 && n > hi) hi = n;
-  };
-  S.invoices.forEach(function(inv) { take(inv.displayNumber, inv.invoiceNumber); });
-  getVoidedNumbers().forEach(function(v) { if (v.reserved) take(v.displayNumber, v.invoiceNumber); });
-  return hi;
-}
 
 var _CHEVRON_SVG = '<svg class="inv-set-chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>';
 

@@ -55,6 +55,32 @@ function recomputeNextInvoiceNumber() {
   S.invNextNum = Math.max(maxLive, maxHeld) + 1;
 }
 
+/* The highest number the customer holds under a prefix: a live invoice, or a
+   deleted one whose number was spent. A new financial year's prefix has none. */
+function invHighestIssued(prefix) {
+  var hi = 0;
+  var take = function(display, num) {
+    var n = invNumInt(num);
+    if (n != null && String(display || '').indexOf(prefix) === 0 && n > hi) hi = n;
+  };
+  S.invoices.forEach(function(inv) { take(inv.displayNumber, inv.invoiceNumber); });
+  getVoidedNumbers().forEach(function(v) { if (v.reserved) take(v.displayNumber, v.invoiceNumber); });
+  return hi;
+}
+
+/* May this number be issued again? Never over a live invoice, and never once
+   the invoice it belonged to was in a filed return: GSTR-1 already carries it.
+   Before filing, a corrected invoice may take the number back (owner, 25 Sep
+   2026: "If GST has not been filed this should be allowed"). */
+function invReissueCheck(prefix, n) {
+  var disp = prefix + padInvNum(n);
+  var live = S.invoices.find(function(i) { return i.displayNumber === disp; });
+  if (live) return { ok: false, why: disp + ' is held by a live invoice' + (live.clientName ? ' (' + live.clientName + ')' : '') };
+  var filed = getVoidedNumbers().some(function(v) { return v.displayNumber === disp && v.lastState === 'filed'; });
+  if (filed) return { ok: false, why: disp + ' was in a filed return, so it cannot be issued again' };
+  return { ok: true, disp: disp };
+}
+
 /* ===== SEQUENCE ANALYSIS ===== */
 
 /*
@@ -297,8 +323,20 @@ function showNumberAudit() {
  * included: they were recycled, so a live invoice occupies the slot.
  */
 function getVoidedForExport() {
+  // A number reissued to a live invoice is that invoice's now: its deleted
+  // copies are history, not rows. Listing them put 00862 in the GSTR-1 file
+  // three times (two at zero and the live one), and the portal takes each
+  // number once. A number deleted twice and never reissued is listed once.
+  var live = {};
+  S.invoices.forEach(function(i) { live[i.displayNumber] = true; });
+  var latest = {};
+  getVoidedNumbers().forEach(function(v) {
+    if (!v.reserved || live[v.displayNumber]) return;
+    var k = v.displayNumber || v.invoiceNumber;
+    if (!latest[k] || (v.voidedAt || 0) > (latest[k].voidedAt || 0)) latest[k] = v;
+  });
   return getVoidedNumbers().filter(function(v) {
-    if (!v.reserved) return false;
+    if (latest[v.displayNumber || v.invoiceNumber] !== v) return false;
     if (regFilter.clientId && v.clientId !== parseInt(regFilter.clientId)) return false;
     // A DATE RANGE scopes voids exactly as it scopes invoices. This honoured
     // `month` and not `dateFrom`/`dateTo`, so a range-scoped register carried

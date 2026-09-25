@@ -96,7 +96,7 @@ every session start — nothing to set up by hand. CI (`build-sync`) is the back
 ### Tests
 
 ```bash
-pnpm exec playwright test          # 431 tests, both layouts
+pnpm exec playwright test          # 436 tests, both layouts
 ```
 
 Some sandboxes ship a Chromium build Playwright does not expect and block downloading
@@ -248,6 +248,22 @@ building, so its number returns to the series (the ordinary typo-and-redo flow).
 it is spent, `invNextNum` may never walk back over it, and the hole in rule 46's consecutive
 series is what the ledger exists to explain. Reserved voids export at ₹0 in both CSVs — the
 same treatment cancelled invoices already get, and what makes the app agree with the filing.
+
+**A number may be REISSUED before its return is filed** (owner, 25 Sep 2026: *"If GST has not been filed this
+should be allowed"*). The practice had been to delete the invoice, set Settings' next number back to it, create
+the corrected one and set Next forward again: ten live numbers were made that way, 00862 and 00923 twice. Done by
+hand it carried three defects, all closed now:
+- **Delete → "Delete and reissue NNNNN"** does it in one step: the old version is voided with its reason (the
+  record of what the customer was first sent), and the create form opens with the same lines, challan links and
+  number. Offered only while the invoice is not `filed` and not cancelled.
+- **Next is never left on a held number.** Reissuing from Settings used to leave Next one past the reissued
+  number (851 with 993 issued), so the invoice after it would have duplicated 851. After any new invoice, Next is
+  at least the highest issued + 1 (`invHighestIssued`), and a save onto a live invoice's number is refused.
+- **Settings' Next may go back only onto a free number that was never in a filed return** (`invReissueCheck`), and
+  asks first. A live invoice's number or a filed one is refused.
+- **A reissued number exports once, as its live invoice.** Every deleted copy used to export at ₹0 beside it: the
+  August GSTR-1 CSV carried 00862 three times. `getVoidedForExport()` now drops voids a live invoice holds and lists
+  a number deleted more than once a single time. The number audit still shows the history as *reissued*.
 
 ### Quality certificates
 The Test Certificate (ZN Plating) is issued **per part per dispatch**, not per invoice — the

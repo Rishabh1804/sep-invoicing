@@ -3584,3 +3584,11 @@ body.inv-desktop .inv-set-group-on { display: block; }
 
 /* The desktop challan list's Add / Scan pair, under the table. */
 .inv-im-fab-bar { display: flex; gap: var(--sp-8); justify-content: flex-end; padding: var(--sp-12) 0; }
+
+/* Reissuing an invoice under the number it replaces. */
+.inv-reissue-offer { margin-top: var(--sp-12); padding-top: var(--sp-12); border-top: 1px solid var(--border); }
+.inv-reissue-note {
+  margin-bottom: var(--sp-12); padding: var(--sp-8) var(--sp-12); border-radius: var(--r-md);
+  background: var(--warning-bg); color: var(--warning-text); font-size: var(--fs-sm);
+}
+.dark .inv-reissue-note { background: var(--warning-bg); color: var(--warning-text); }

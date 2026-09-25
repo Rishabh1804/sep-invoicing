@@ -15,7 +15,7 @@
 <title>SEP Invoicing</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-<meta name="app-build" content="a3ddd718">
+<meta name="app-build" content="7e676927">
 <style>
 /* ===== DESIGN TOKENS ===== */
 :root {
@@ -3603,6 +3603,14 @@ body.inv-desktop .inv-set-group-on { display: block; }
 
 /* The desktop challan list's Add / Scan pair, under the table. */
 .inv-im-fab-bar { display: flex; gap: var(--sp-8); justify-content: flex-end; padding: var(--sp-12) 0; }
+
+/* Reissuing an invoice under the number it replaces. */
+.inv-reissue-offer { margin-top: var(--sp-12); padding-top: var(--sp-12); border-top: 1px solid var(--border); }
+.inv-reissue-note {
+  margin-bottom: var(--sp-12); padding: var(--sp-8) var(--sp-12); border-radius: var(--r-md);
+  background: var(--warning-bg); color: var(--warning-text); font-size: var(--fs-sm);
+}
+.dark .inv-reissue-note { background: var(--warning-bg); color: var(--warning-text); }
 </style>
 </head>
 <body>
@@ -7376,6 +7384,10 @@ function renderCreateForm() {
   const area = document.getElementById('createFormArea');
 
   let html = '<div class="inv-card"><div class="inv-card-header"><span class="inv-card-title">Invoice Details</span></div>';
+  if (invoiceForm.reissue) {
+    html += '<div class="inv-reissue-note">Reissuing <strong class="inv-mono">' + escHtml(invoiceForm.reissue.displayNumber) +
+      '</strong>: this invoice takes the number back. Withdraw the customer&rsquo;s copy of the old one.</div>';
+  }
 
   // Client selector
   html += '<div class="inv-form-group"><label class="inv-form-label">Client</label>';
@@ -7480,7 +7492,7 @@ function renderCreateForm() {
   html += '<div class="inv-btn-bar inv-save-bar">' +
     '<button class="inv-btn inv-btn-ghost" data-action="invResetForm">Clear</button>' +
     '<button class="inv-btn inv-btn-primary" id="invSaveBtn" data-action="invSaveInvoice"' + (errors.length > 0 ? ' disabled' : '') + '>' +
-    (invoiceForm.editingId ? 'Update Invoice' : 'Create Invoice') + '</button></div>';
+    (invoiceForm.editingId ? 'Update Invoice' : invoiceForm.reissue ? 'Reissue ' + escHtml(invoiceForm.reissue.invoiceNumber) : 'Create Invoice') + '</button></div>';
 
   area.innerHTML = html;
 
@@ -7681,12 +7693,19 @@ function saveInvoice() {
       ? ['Invoice updated — GST type changed, verify tax amounts' + syncNote, 'warning']
       : ['Invoice updated' + syncNote, synced.lines ? 'warning' : undefined];
   } else {
-    // New invoice
-    const num = String(S.invNextNum).padStart(5, '0');
+    // New invoice. A reissue takes back the number it replaces; anything else
+    // takes the next in the series. Either way no live invoice may share it.
+    const reissue = invoiceForm.reissue || null;
+    const num = reissue ? reissue.invoiceNumber : String(S.invNextNum).padStart(5, '0');
+    const disp = reissue ? reissue.displayNumber : S.invPrefix + num;
+    if (S.invoices.some(i => i.displayNumber === disp)) {
+      showToast(disp + ' is already a live invoice — not saved. Check Settings → Business → Invoice series.', 'error');
+      return;
+    }
     const inv = {
       id: 'INV-' + now,
       invoiceNumber: num,
-      displayNumber: S.invPrefix + num,
+      displayNumber: disp,
       date: invoiceForm.date,
       status: 'active',
       invoiceState: 'created',
@@ -7703,7 +7722,11 @@ function saveInvoice() {
       linkedIMIds: invoiceForm._linkedIMIds || [], createdAt: now, updatedAt: now, cancelledAt: null
     };
     S.invoices.push(inv);
-    S.invNextNum++;
+    // Never leave the series pointing at a number already held: a number
+    // reissued from Settings used to leave Next on the one after it (851 when
+    // 993 had been issued), and the invoice after that would have taken 851
+    // a second time.
+    S.invNextNum = Math.max(S.invNextNum + (reissue ? 0 : 1), invHighestIssued(S.invPrefix) + 1);
 
     // Mark IM items as invoiced
     if (invoiceForm._linkedIMItemIds && invoiceForm._linkedIMItemIds.length > 0) {
@@ -7899,8 +7922,16 @@ var SETTINGS_SECS = {
       // Never back over a number the customer holds under this prefix: an
       // issued invoice, or a deleted one whose number was spent. A new
       // financial year's prefix has none, so it may start again at 1.
-      var used = _settingsHighestIssued(prefix);
-      if (next <= used) { showToast('Next invoice must be above ' + prefix + padInvNum(used) + ' — that number is issued', 'error'); return false; }
+      // Below the highest issued is a reissue: allowed only onto a free number
+      // whose invoice was never in a filed return, and said so first. The one
+      // invoice after it takes that number; the series then carries on.
+      var used = invHighestIssued(prefix);
+      if (next <= used) {
+        var chk = invReissueCheck(prefix, next);
+        if (!chk.ok) { showToast(chk.why, 'error'); return false; }
+        if (!confirm('The next invoice will be issued as ' + chk.disp + ', a number used before. After it the series carries on from ' +
+          prefix + padInvNum(used + 1) + '. (Delete → "Delete and reissue" does this in one step.) Continue?')) return false;
+      }
       S.invPrefix = prefix;
       S.invNextNum = next;
     }
@@ -8159,17 +8190,6 @@ var SETTINGS_SECS = {
     why: 'Import replaces the whole book with the file. Exporting also counts as a backup for the To-do reminder.'
   }
 };
-
-function _settingsHighestIssued(prefix) {
-  var hi = 0;
-  var take = function(display, num) {
-    var n = invNumInt(num);
-    if (n != null && String(display || '').indexOf(prefix) === 0 && n > hi) hi = n;
-  };
-  S.invoices.forEach(function(inv) { take(inv.displayNumber, inv.invoiceNumber); });
-  getVoidedNumbers().forEach(function(v) { if (v.reserved) take(v.displayNumber, v.invoiceNumber); });
-  return hi;
-}
 
 var _CHEVRON_SVG = '<svg class="inv-set-chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>';
 
@@ -9984,6 +10004,33 @@ function detailRateMatch(inv, raw) {
   return out;
 }
 
+/* An invoice as the create form holds it: for an edit (editingId) or for a
+   reissue under the same number (reissue), which also re-links the challan
+   lines the delete is about to free. */
+function invoiceFormFrom(inv, extra) {
+  const items = withChallanLinks(inv).map(i => ({...i, _override: false, _label: ''}));
+  const form = {
+    clientId: inv.clientId,
+    date: inv.date,
+    items: items,
+    poNumber: inv.poNumber || '',
+    poDate: inv.poDate || localDateStr(),
+    challanNo: inv.challanNo || '',
+    challanDate: inv.challanDate || localDateStr(),
+    despatchDate: inv.despatchDate || localDateStr(),
+    transport: inv.transport || '',
+    eWayBill: inv.eWayBill || '',
+    remarks: inv.remarks || '',
+    editingId: null
+  };
+  if (extra && extra.reissue) {
+    form._linkedIMIds = (inv.linkedIMIds || []).slice();
+    form._linkedIMItemIds = items.map(i => i._imItemId).filter(Boolean);
+    items.forEach(i => { delete i._orig; });
+  }
+  return Object.assign(form, extra || {});
+}
+
 function editInvoice(invId) {
   const inv = S.invoices.find(i => i.id === invId);
   if (!inv) return;
@@ -10005,20 +10052,7 @@ function editInvoice(invId) {
   }
 
   // Load into form
-  invoiceForm = {
-    clientId: inv.clientId,
-    date: inv.date,
-    items: withChallanLinks(inv).map(i => ({...i, _override: false, _label: ''})),
-    poNumber: inv.poNumber || '',
-    poDate: inv.poDate || localDateStr(),
-    challanNo: inv.challanNo || '',
-    challanDate: inv.challanDate || localDateStr(),
-    despatchDate: inv.despatchDate || localDateStr(),
-    transport: inv.transport || '',
-    eWayBill: inv.eWayBill || '',
-    remarks: inv.remarks || '',
-    editingId: inv.id
-  };
+  invoiceForm = invoiceFormFrom(inv, { editingId: inv.id });
   closeOverlay();
   _navReturnTab = 'pageRegister';
   renderCreateForm();
@@ -10088,6 +10122,7 @@ function deleteInvoice(invId) {
   // invoice is dispatched the customer holds a document bearing that number,
   // and deleting it here does not retract it there.
   const issued = getInvState(inv) !== 'created';
+  const canReissue = inv.status !== 'cancelled' && getInvState(inv) !== 'filed';
 
   let warnHtml = '';
   let bodyText = '';
@@ -10118,7 +10153,13 @@ function deleteInvoice(invId) {
     '<input class="inv-form-input" id="invDeleteReason" placeholder="e.g. duplicate of 00657" autocomplete="off">' +
     '<div class="inv-form-hint">Kept against the number in the register. Without it a deleted number is indistinguishable from one never issued.</div></div>' +
     '<div class="inv-btn-bar"><button class="inv-btn inv-btn-ghost" data-action="invCloseConfirm">Keep</button>' +
-    '<button class="inv-btn ' + btnClass + '" data-action="invConfirmDelete" data-id="' + escHtml(inv.id) + '">Delete</button></div></div>';
+    '<button class="inv-btn ' + btnClass + '" data-action="invConfirmDelete" data-id="' + escHtml(inv.id) + '">Delete</button></div>' +
+    // Before filing, a corrected invoice may take the number back. Filed is
+    // final: GSTR-1 carries the number and only a credit note corrects it.
+    (canReissue
+      ? '<div class="inv-reissue-offer"><button class="inv-btn inv-btn-ghost inv-btn-block" data-action="invConfirmReissue" data-id="' + escHtml(inv.id) + '">Delete and reissue ' + escHtml(inv.invoiceNumber) + '</button>' +
+        '<div class="inv-form-hint">Opens a new invoice with the same lines under this number, for correcting it before the GST return is filed. The old version stays on record against the number.</div></div>'
+      : '') + '</div>';
   // Act overlay: scrim tap does nothing (DP 5.2)
   pushFocus();
   document.body.appendChild(scrim);
@@ -10126,9 +10167,13 @@ function deleteInvoice(invId) {
   focusFirstInteractive(scrim.querySelector('.inv-overlay-card'));
 }
 
-function confirmDeleteInvoice(invId) {
+function confirmDeleteInvoice(invId, reissue) {
   const inv = S.invoices.find(i => i.id === invId);
   if (!inv) return;
+  if (reissue && (inv.status === 'cancelled' || getInvState(inv) === 'filed')) {
+    showToast('A filed invoice cannot be reissued — a credit note corrects it', 'error');
+    return;
+  }
 
   const reasonEl = document.getElementById('invDeleteReason');
   const reason = reasonEl ? reasonEl.value.trim() : '';
@@ -10137,6 +10182,9 @@ function confirmDeleteInvoice(invId) {
     if (reasonEl) reasonEl.focus();
     return;
   }
+
+  // The replacement's form is read BEFORE the delete unlinks the challan lines.
+  const reissueForm = reissue ? invoiceFormFrom(inv, { reissue: { invoiceNumber: inv.invoiceNumber, displayNumber: inv.displayNumber } }) : null;
 
   const dispNum = inv.displayNumber;
   // A number the customer has seen is spent; one still in `created` returns to
@@ -10165,6 +10213,14 @@ function confirmDeleteInvoice(invId) {
 
   saveState();
   closeOverlay();
+  if (reissueForm) {
+    invoiceForm = reissueForm;
+    _navReturnTab = 'pageRegister';
+    renderCreateForm();
+    switchTab('pageCreate');
+    showToast('Reissuing ' + dispNum + ' — correct it and save', 'warning');
+    return;
+  }
   renderRegister();
   showToast('Invoice ' + dispNum + (reserved ? ' deleted — number stays spent' : ' deleted'));
 }
@@ -10224,6 +10280,32 @@ function recomputeNextInvoiceNumber() {
     return v.reserved && n != null && n > max ? n : max;
   }, 0);
   S.invNextNum = Math.max(maxLive, maxHeld) + 1;
+}
+
+/* The highest number the customer holds under a prefix: a live invoice, or a
+   deleted one whose number was spent. A new financial year's prefix has none. */
+function invHighestIssued(prefix) {
+  var hi = 0;
+  var take = function(display, num) {
+    var n = invNumInt(num);
+    if (n != null && String(display || '').indexOf(prefix) === 0 && n > hi) hi = n;
+  };
+  S.invoices.forEach(function(inv) { take(inv.displayNumber, inv.invoiceNumber); });
+  getVoidedNumbers().forEach(function(v) { if (v.reserved) take(v.displayNumber, v.invoiceNumber); });
+  return hi;
+}
+
+/* May this number be issued again? Never over a live invoice, and never once
+   the invoice it belonged to was in a filed return: GSTR-1 already carries it.
+   Before filing, a corrected invoice may take the number back (owner, 25 Sep
+   2026: "If GST has not been filed this should be allowed"). */
+function invReissueCheck(prefix, n) {
+  var disp = prefix + padInvNum(n);
+  var live = S.invoices.find(function(i) { return i.displayNumber === disp; });
+  if (live) return { ok: false, why: disp + ' is held by a live invoice' + (live.clientName ? ' (' + live.clientName + ')' : '') };
+  var filed = getVoidedNumbers().some(function(v) { return v.displayNumber === disp && v.lastState === 'filed'; });
+  if (filed) return { ok: false, why: disp + ' was in a filed return, so it cannot be issued again' };
+  return { ok: true, disp: disp };
 }
 
 /* ===== SEQUENCE ANALYSIS ===== */
@@ -10468,8 +10550,20 @@ function showNumberAudit() {
  * included: they were recycled, so a live invoice occupies the slot.
  */
 function getVoidedForExport() {
+  // A number reissued to a live invoice is that invoice's now: its deleted
+  // copies are history, not rows. Listing them put 00862 in the GSTR-1 file
+  // three times (two at zero and the live one), and the portal takes each
+  // number once. A number deleted twice and never reissued is listed once.
+  var live = {};
+  S.invoices.forEach(function(i) { live[i.displayNumber] = true; });
+  var latest = {};
+  getVoidedNumbers().forEach(function(v) {
+    if (!v.reserved || live[v.displayNumber]) return;
+    var k = v.displayNumber || v.invoiceNumber;
+    if (!latest[k] || (v.voidedAt || 0) > (latest[k].voidedAt || 0)) latest[k] = v;
+  });
   return getVoidedNumbers().filter(function(v) {
-    if (!v.reserved) return false;
+    if (latest[v.displayNumber || v.invoiceNumber] !== v) return false;
     if (regFilter.clientId && v.clientId !== parseInt(regFilter.clientId)) return false;
     // A DATE RANGE scopes voids exactly as it scopes invoices. This honoured
     // `month` and not `dateFrom`/`dateTo`, so a range-scoped register carried
@@ -24167,6 +24261,7 @@ document.addEventListener('click', function(e) {
     case 'invConfirmCancel': confirmCancelInvoice(btn.dataset.id); break;
     case 'invDeleteInvoice': deleteInvoice(btn.dataset.id); break;
     case 'invConfirmDelete': confirmDeleteInvoice(btn.dataset.id); break;
+    case 'invConfirmReissue': confirmDeleteInvoice(btn.dataset.id, true); break;
     case 'invExportSales': exportSalesCSV(); break;
     case 'invPrintSalesRegister': showSalesRegisterPreview(); break;
     case 'invExportGstr1': exportGSTR1CSV(); break;

@@ -129,15 +129,22 @@ test('the week grid cycles a monthly worker through the half day', async ({ page
   }
 });
 
-test('monthly overtime derives from the day rate, at rate ÷ 8 × the multiplier', async ({ page }) => {
+test('monthly overtime derives from the day rate, at rate ÷ 8 × the multiplier, capped at ₹68.20 an hour', async ({ page }) => {
   const day = todayIso();
   await loadAppWithState(page, staffState({
     attendance: { [day]: { marks: { [LEAD.id]: { st: 'P', ot: 4, hours: 0, area: 'vat-a1' } }, extra: [], note: '' } },
   }));
   await openStaff(page);
-  // 4 h x (500/8) x 1.1 = Rs275.00 — the rate card's own OT column, falling out
-  // of the day rate rather than being a second number kept in step by hand.
-  await expect(page.locator('.inv-lab-card')).toContainText('275.00');
+  // 500/8 x 1.1 = Rs68.75 an hour, above the owner's cap (25 Sep 2026: "Capped
+  // at 68.2"), so 4 h pay 4 x 68.20 = Rs272.80.
+  await expect(page.locator('.inv-lab-card')).toContainText('272.80');
+  await expect(page.locator('.inv-lab-card')).toContainText('capped at ₹68.20/h');
+  // Under the cap the formula stands: a Rs400 day rate pays 400/8 x 1.1 = Rs55 an hour.
+  const under = await page.evaluate(() => (0, eval)(`workerOtHourPay({ comp: 'monthly', dayRate: 400 })`));
+  expect(under).toBeCloseTo(55, 6);
+  // The cap is the monthly tier's; the hourly and daily tiers are not capped by it.
+  const daily = await page.evaluate(() => (0, eval)(`workerOtHourPay({ comp: 'daily', hourRate: 80 })`));
+  expect(daily).toBeCloseTo(88, 6);
 });
 
 /* A real week's hourly pool, reproduced.

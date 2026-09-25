@@ -716,6 +716,16 @@ function workerOtRate(w) {
   if (w.comp === 'monthly') return (w.dayRate || 0) / 8;
   return 0;
 }
+/* What one overtime hour pays: the OT rate × the multiplier, and for the
+   monthly tier CAPPED (owner, 25 Sep 2026: "monthly hands get OT at day rate ÷
+   8 × 1.1. Capped at 68.2"). The cap binds a day rate above ₹496 — Shyam's
+   ₹576 would pay ₹79.20 an hour, and pays ₹68.20. */
+function workerOtHourPay(w, cfg) {
+  cfg = cfg || labourCfg();
+  var pay = workerOtRate(w) * cfg.otMult;
+  if (w && w.comp === 'monthly' && cfg.otCap > 0) pay = Math.min(pay, cfg.otCap);
+  return pay;
+}
 
 function workerRateLabel(w) {
   var cls = compClass(w.comp);
@@ -1347,7 +1357,7 @@ function applyRosterImport(data) {
   // price them were settled together and drift apart if they arrive separately.
   if (data && data.labour && typeof data.labour === 'object') {
     if (!S.labour) S.labour = {};
-    ['otMult', 'restCreditMinDays', 'extraRate', 'modelPerKg', 'gateFull', 'gateHalf',
+    ['otMult', 'otCap', 'restCreditMinDays', 'extraRate', 'modelPerKg', 'gateFull', 'gateHalf',
      'extraHoursPerHead'].forEach(function(k) {
       var v = Number(data.labour[k]);
       if (data.labour[k] != null && !isNaN(v) && v >= 0) S.labour[k] = v;

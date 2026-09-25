@@ -372,7 +372,7 @@ function areaStats(fromIso, toIso) {
       var oth = m.ot || 0;
       if (oth > 0) {
         a.otHours += oth;
-        a.cost += oth * workerOtRate(w) * cfg.otMult;
+        a.cost += oth * workerOtHourPay(w, cfg);
       }
     });
 

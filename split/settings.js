@@ -68,6 +68,8 @@ function openSettings() {
     '<input type="number" step="0.01" min="1" class="inv-form-input inv-mono" id="setOtMult" value="' + ((S.labour && S.labour.otMult) != null ? S.labour.otMult : 1.1) + '"></div>' +
     '<div class="inv-form-group"><label class="inv-form-label">Extra-hour rate (&#8377;/h)</label>' +
     '<input type="number" step="0.01" min="0" class="inv-form-input inv-mono" id="setExtraRate" value="' + ((S.labour && S.labour.extraRate) || 0) + '"></div></div>' +
+    '<div class="inv-form-group"><label class="inv-form-label" for="setOtCap">Monthly tier OT cap (&#8377;/hour, after the multiplier)</label>' +
+    '<input type="number" step="0.01" min="0" class="inv-form-input inv-mono" id="setOtCap" value="' + labourCfg().otCap + '"></div>' +
     '<div class="inv-form-row"><div class="inv-form-group"><label class="inv-form-label">Daily rest credit at (days/week)</label>' +
     '<input type="number" step="1" min="0" max="7" class="inv-form-input inv-mono" id="setRestMin" value="' + ((S.labour && S.labour.restCreditMinDays) != null ? S.labour.restCreditMinDays : 6) + '"></div>' +
     '<div class="inv-form-group"><label class="inv-form-label">Extra per missing hand (h)</label>' +
@@ -181,6 +183,8 @@ function saveSettings() {
   if (!S.labour) S.labour = {};
   var otMultEl = document.getElementById('setOtMult');
   if (otMultEl) { var pm = parseFloat(otMultEl.value); if (!isNaN(pm) && pm >= 0) S.labour.otMult = pm; }
+  var otCapEl = document.getElementById('setOtCap');
+  if (otCapEl) { var oc = parseFloat(otCapEl.value); if (!isNaN(oc) && oc >= 0) S.labour.otCap = oc; }
   var extraRateEl = document.getElementById('setExtraRate');
   if (extraRateEl) { var pe = parseFloat(extraRateEl.value); if (!isNaN(pe) && pe >= 0) S.labour.extraRate = pe; }
   var restMinEl = document.getElementById('setRestMin');

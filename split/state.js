@@ -55,6 +55,12 @@ function getDefaultState() {
     // Days of cover at which a line turns red / amber, and the cost model's
     // chemicals figure the measured one is reported against.
     stockCheck: { redDays: 3, amberDays: 7, chemModel: 1.57 },
+    // The owner's to-do list: typed tasks (ticked, never deleted) and the
+    // snoozes granted to app-raised ones, each against the figures it saw.
+    todo: { tasks: [], snoozes: {} },
+    // Which rules may raise a task, and their day thresholds.
+    todoCheck: { stock: true, paste: true, cn: true, challan: true, dispatch: true, audit: true,
+      backup: true, zinc: false, pasteDays: 2, challanDays: 5, dispatchDays: 2, backupDays: 7 },
     // Full cost per kg, rebuilt from owner-supplied inputs against Apr–Jul 2026
     // actuals. The old 5.46 predated that rebuild and flattered every margin
     // figure by roughly a rupee a kilo. Only ever the default for a fresh
@@ -351,12 +357,12 @@ function hideStorageBanner(kind) {
 // Containers hold the user's records, so a missing one is filled EMPTY — the
 // app must never invent business data to repair a shape.
 var STATE_CONTAINERS = ['clients', 'items', 'invoices', 'incomingMaterial', 'partWeights',
-  'voidedNumbers', 'creditNotes', 'extraExceptions', 'staff', 'attendance', 'areaTargets', 'stock'];
+  'voidedNumbers', 'creditNotes', 'extraExceptions', 'staff', 'attendance', 'areaTargets', 'stock', 'todo'];
 // Config objects are the opposite: a missing one is filled from the defaults,
 // and so is a missing KEY inside one. `labourCfg()` reads `extraRate || 0`, so
 // a backup predating a constant would silently price the extra at nothing
 // rather than at ₹47.50 — a wrong number, not a visible gap.
-var STATE_CONFIGS = ['labour', 'rateCheck', 'stockCheck'];
+var STATE_CONFIGS = ['labour', 'rateCheck', 'stockCheck', 'todoCheck'];
 
 function ensureStateShape(s) {
   if (!s) return s;
@@ -495,6 +501,8 @@ function saveState() {
   // Opt-in GitHub backup. Debounced inside, so this fires far more often than
   // it pushes. Guarded because state.js loads before github-sync.js.
   if (typeof ghNotifyChange === 'function') ghNotifyChange();
+  // The Windows widget reads a payload of its own; refreshed behind the save.
+  if (typeof todoWidgetSchedule === 'function') todoWidgetSchedule();
   return landed;
 }
 

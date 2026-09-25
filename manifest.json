@@ -5,20 +5,82 @@
   "start_url": ".",
   "scope": ".",
   "display": "standalone",
-  "display_override": ["standalone", "minimal-ui"],
+  "display_override": [
+    "standalone",
+    "minimal-ui"
+  ],
   "orientation": "portrait-primary",
   "lang": "en-IN",
   "dir": "ltr",
   "background_color": "#faf9f5",
   "theme_color": "#b45a37",
-  "categories": ["business", "finance", "productivity"],
+  "categories": [
+    "business",
+    "finance",
+    "productivity"
+  ],
   "icons": [
-    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
-    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
-    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
   ],
   "shortcuts": [
-    { "name": "New Invoice", "short_name": "Invoice", "url": "./?tab=pageCreate" },
-    { "name": "Add Challan", "short_name": "Challan", "url": "./?tab=pageIM&new=1" }
+    {
+      "name": "New Invoice",
+      "short_name": "Invoice",
+      "url": "./?tab=pageCreate"
+    },
+    {
+      "name": "Add Challan",
+      "short_name": "Challan",
+      "url": "./?tab=pageIM&new=1"
+    },
+    {
+      "name": "To-do",
+      "short_name": "To-do",
+      "url": "./?tab=pageTodo"
+    }
+  ],
+  "widgets": [
+    {
+      "name": "SEP To-do",
+      "short_name": "To-do",
+      "description": "Your SEP to-do list: your own tasks and the ones the app raises from your data, most urgent first.",
+      "tag": "sep-todo",
+      "template": "sep-todo",
+      "ms_ac_template": "widgets/todo-template.json",
+      "type": "application/json",
+      "screenshots": [
+        {
+          "src": "widgets/todo-screenshot.png",
+          "sizes": "600x610",
+          "label": "SEP To-do widget"
+        }
+      ],
+      "icons": [
+        {
+          "src": "icon-192.png",
+          "sizes": "192x192"
+        }
+      ],
+      "auth": false,
+      "update": 900,
+      "multiple": false
+    }
   ]
 }

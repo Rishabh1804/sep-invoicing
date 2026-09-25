@@ -351,6 +351,7 @@ document.addEventListener('click', function(e) {
     }
     default:
       if (action.indexOf('invStock') === 0) stockAction(action, btn);
+      else if (action.indexOf('invTodo') === 0) todoAction(action, btn);
   }
 });
 
@@ -405,6 +406,7 @@ function updateTotalsDisplay() {
 
 document.addEventListener('change', function(e) {
   if (stockOnChange(e.target)) return;
+  if (todoOnChange(e.target)) return;
   const el = e.target.closest('[data-action="invUpdateLine"]');
   if (el) {
     const idx = parseInt(el.dataset.idx);
@@ -803,6 +805,12 @@ document.addEventListener('keydown', function(e) {
   //    chain so the last field of a form steps onto its primary action rather
   //    than dead-ending; unmarked buttons (a line's remove ×) stay out of it,
   //    where a stray Enter would be destructive.
+  // Enter in the to-do box adds the task; it is a one-field form.
+  if (e.key === 'Enter' && e.target.hasAttribute && e.target.hasAttribute('data-todo-new')) {
+    e.preventDefault();
+    todoQuickAdd();
+    return;
+  }
   // A typed stock line name is committed by Enter (the phone keyboard's Go),
   // not only on blur: it is the last field on its screen, so the step to the
   // next field below would go nowhere and nothing would happen.

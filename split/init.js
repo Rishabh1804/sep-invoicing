@@ -549,6 +549,7 @@ function renderSidebar() {
     { id: 'pageIM', label: 'IM', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/></svg>' },
     { id: 'pageRegister', label: 'Register', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>' },
     { id: 'pageClients', label: 'Clients', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>' },
+    { id: 'pageTodo', label: 'To-do', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>' },
     { id: 'pageStock', label: 'Stock', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 3h6"/><path d="M10 3v6L4.5 19a1.5 1.5 0 001.3 2h12.4a1.5 1.5 0 001.3-2L14 9V3"/><path d="M7 15h10"/></svg>' },
     { id: 'pageStaff', label: 'Staff', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><polyline points="17 11 19 13 23 9"/></svg>' },
     { id: 'pageStats', label: 'Stats', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 20V10"/><path d="M12 20V4"/><path d="M6 20v-6"/></svg>' },
@@ -641,6 +642,7 @@ new ResizeObserver(function() {
    mobile restore paths pick it up without a second switchTab, and the query is
    stripped so a later refresh returns to the ordinary saved tab. */
 var _launchNew = false;
+var _launchTodo = '';   // the widget's action when it opened the app: 'open', 'add', 'open:m:<id>', 'open:a:<key>'
 (function() {
   var params;
   try { params = new URLSearchParams(window.location.search); } catch (e) { return; }
@@ -649,6 +651,7 @@ var _launchNew = false;
   regFilter.activeTab = wanted;
   saveRegFilter();
   _launchNew = params.get('new') === '1';
+  _launchTodo = params.get('todo') || '';
   try { history.replaceState(null, '', window.location.pathname); } catch (e) {}
 })();
 
@@ -689,6 +692,12 @@ function bootApp() {
   if (_launchNew && regFilter.activeTab === 'pageIM' && !_isDesktop) {
     showAddChallanForm();
   }
+
+  /* The widget: apply the Done taps it queued while the app was shut, open
+     what it asked for, and hand it a fresh payload. */
+  if (_launchTodo) todoHandleLaunch(_launchTodo);
+  else todoApplyWidgetQueue();
+  todoWidgetPublish();
 
   /* A read that threw at load used to fall through to a fresh default state
      and say nothing. It is the one storage failure the operator most needs to
@@ -769,9 +778,20 @@ function checkForUpdateManually() {
   });
 }
 
+/* Both directions, on open and on close: shown, the app takes what the widget
+   queued; hidden or shut, it leaves the widget its latest list. */
 document.addEventListener('visibilitychange', function() {
-  if (document.visibilityState === 'visible') checkForUpdate(false);
+  if (document.visibilityState === 'visible') {
+    checkForUpdate(false);
+    if (S) todoApplyWidgetQueue();
+  } else if (S) {
+    todoWidgetPublish();
+  }
 });
+window.addEventListener('pagehide', function() { if (S) todoWidgetPublish(); });
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.addEventListener('message', function(e) { todoOnWorkerMessage(e.data); });
+}
 checkForUpdate(false);
 
 loadState().then(function(loaded) {

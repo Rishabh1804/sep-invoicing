@@ -322,7 +322,7 @@ test.describe('GitHub sync — configuration', () => {
     expect(stateRaw).not.toContain('github_pat_SECRETVALUE');
 
     // And the JSON export is the artifact that actually leaves the device.
-    await openSettingsAt(page, 'sync');
+    await openSettingsAt(page, 'data');
     const [download] = await Promise.all([
       page.waitForEvent('download'),
       page.locator('[data-action="invExportData"]').click(),

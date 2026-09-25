@@ -15,7 +15,7 @@
 <title>SEP Invoicing</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-<meta name="app-build" content="48f5e8ed">
+<meta name="app-build" content="a3ddd718">
 <style>
 /* ===== DESIGN TOKENS ===== */
 :root {
@@ -5024,7 +5024,11 @@ function zincDeriveUplift() {
     if (out) out.innerHTML = '<div class="inv-text-muted inv-storage-text">No priced zinc bill on record. Add one under Stock &rarr; Zinc &rarr; Add its bill, or import past purchases.</div>';
     return Promise.resolve(null);
   }
-  var missing = bills.filter(function(b) { return !_zincLmeOn(b.date); });
+  // One lookup per date: two bills on one day (TT/92 and /93 both on 8 Jul)
+  // must not spend two of the free tier's requests on the same answer.
+  var missing = bills.filter(function(b, i) {
+    return !_zincLmeOn(b.date) && bills.findIndex(function(x) { return x.date === b.date; }) === i;
+  });
   var fetching = Promise.resolve();
   var note = '';
   if (missing.length) {

@@ -117,6 +117,7 @@ test.describe('P50: Settings', () => {
       entries: [
         { id: 'b1', itemId: 'Z', kind: 'bill', qty: 500, price: 415, date: '2026-07-10', billDate: '2026-07-10', supplier: 'Alpha', billNo: 'A1', at: 1 },
         { id: 'b2', itemId: 'Z', kind: 'bill', qty: 500, price: 405, date: '2026-08-12', billDate: '2026-08-12', supplier: 'Alpha', billNo: 'A2', at: 2 },
+        { id: 'b2b', itemId: 'Z', kind: 'bill', qty: 200, price: 405, date: '2026-08-12', billDate: '2026-08-12', supplier: 'Alpha', billNo: 'A3', at: 2 },
         { id: 'b3', itemId: 'Z', kind: 'bill', qty: 500, price: 430, date: '2026-09-06', billDate: '2026-09-06', supplier: 'Beta', billNo: 'B1', at: 3 },
       ],
       pastes: [],
@@ -147,7 +148,8 @@ test.describe('P50: Settings', () => {
     await expect(out).toContainText('14.7%');
     await expect(out).toContainText('15.3%');
     await expect(out).toContainText('(04 Sep 2026)');
-    await expect(out).toContainText('Median of 3 bills: 14.7% against 14.0% set');
+    await expect(out).toContainText('Median of 4 bills: 14.7% against 14.0% set');
+    // Two bills on 12 Aug cost one request, not two.
     expect(asked).toEqual(['2026-07-06..2026-07-10', '2026-08-08..2026-08-12']);
 
     // Offered, not applied: the field moves and the section is unsaved.
@@ -161,7 +163,7 @@ test.describe('P50: Settings', () => {
     // What metals.dev answered is kept, so asking again costs nothing.
     expect(z.lmeHistory).toMatchObject({ '2026-07-10': 350, '2026-08-12': 340, '2026-09-04': 360 });
     await page.locator('[data-action="invZincDeriveUplift"]').click();
-    await expect(out).toContainText('Median of 3 bills');
+    await expect(out).toContainText('Median of 4 bills');
     expect(asked).toHaveLength(2);
   });
 });

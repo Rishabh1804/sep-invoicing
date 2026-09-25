@@ -285,7 +285,11 @@ function zincDeriveUplift() {
     if (out) out.innerHTML = '<div class="inv-text-muted inv-storage-text">No priced zinc bill on record. Add one under Stock &rarr; Zinc &rarr; Add its bill, or import past purchases.</div>';
     return Promise.resolve(null);
   }
-  var missing = bills.filter(function(b) { return !_zincLmeOn(b.date); });
+  // One lookup per date: two bills on one day (TT/92 and /93 both on 8 Jul)
+  // must not spend two of the free tier's requests on the same answer.
+  var missing = bills.filter(function(b, i) {
+    return !_zincLmeOn(b.date) && bills.findIndex(function(x) { return x.date === b.date; }) === i;
+  });
   var fetching = Promise.resolve();
   var note = '';
   if (missing.length) {

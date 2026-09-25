@@ -76,6 +76,7 @@ document.addEventListener('click', function(e) {
     case 'invConfirmCancel': confirmCancelInvoice(btn.dataset.id); break;
     case 'invDeleteInvoice': deleteInvoice(btn.dataset.id); break;
     case 'invConfirmDelete': confirmDeleteInvoice(btn.dataset.id); break;
+    case 'invConfirmReissue': confirmDeleteInvoice(btn.dataset.id, true); break;
     case 'invExportSales': exportSalesCSV(); break;
     case 'invPrintSalesRegister': showSalesRegisterPreview(); break;
     case 'invExportGstr1': exportGSTR1CSV(); break;

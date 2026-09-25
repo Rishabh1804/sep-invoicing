@@ -966,6 +966,33 @@ function detailRateMatch(inv, raw) {
   return out;
 }
 
+/* An invoice as the create form holds it: for an edit (editingId) or for a
+   reissue under the same number (reissue), which also re-links the challan
+   lines the delete is about to free. */
+function invoiceFormFrom(inv, extra) {
+  const items = withChallanLinks(inv).map(i => ({...i, _override: false, _label: ''}));
+  const form = {
+    clientId: inv.clientId,
+    date: inv.date,
+    items: items,
+    poNumber: inv.poNumber || '',
+    poDate: inv.poDate || localDateStr(),
+    challanNo: inv.challanNo || '',
+    challanDate: inv.challanDate || localDateStr(),
+    despatchDate: inv.despatchDate || localDateStr(),
+    transport: inv.transport || '',
+    eWayBill: inv.eWayBill || '',
+    remarks: inv.remarks || '',
+    editingId: null
+  };
+  if (extra && extra.reissue) {
+    form._linkedIMIds = (inv.linkedIMIds || []).slice();
+    form._linkedIMItemIds = items.map(i => i._imItemId).filter(Boolean);
+    items.forEach(i => { delete i._orig; });
+  }
+  return Object.assign(form, extra || {});
+}
+
 function editInvoice(invId) {
   const inv = S.invoices.find(i => i.id === invId);
   if (!inv) return;
@@ -987,20 +1014,7 @@ function editInvoice(invId) {
   }
 
   // Load into form
-  invoiceForm = {
-    clientId: inv.clientId,
-    date: inv.date,
-    items: withChallanLinks(inv).map(i => ({...i, _override: false, _label: ''})),
-    poNumber: inv.poNumber || '',
-    poDate: inv.poDate || localDateStr(),
-    challanNo: inv.challanNo || '',
-    challanDate: inv.challanDate || localDateStr(),
-    despatchDate: inv.despatchDate || localDateStr(),
-    transport: inv.transport || '',
-    eWayBill: inv.eWayBill || '',
-    remarks: inv.remarks || '',
-    editingId: inv.id
-  };
+  invoiceForm = invoiceFormFrom(inv, { editingId: inv.id });
   closeOverlay();
   _navReturnTab = 'pageRegister';
   renderCreateForm();
@@ -1070,6 +1084,7 @@ function deleteInvoice(invId) {
   // invoice is dispatched the customer holds a document bearing that number,
   // and deleting it here does not retract it there.
   const issued = getInvState(inv) !== 'created';
+  const canReissue = inv.status !== 'cancelled' && getInvState(inv) !== 'filed';
 
   let warnHtml = '';
   let bodyText = '';
@@ -1100,7 +1115,13 @@ function deleteInvoice(invId) {
     '<input class="inv-form-input" id="invDeleteReason" placeholder="e.g. duplicate of 00657" autocomplete="off">' +
     '<div class="inv-form-hint">Kept against the number in the register. Without it a deleted number is indistinguishable from one never issued.</div></div>' +
     '<div class="inv-btn-bar"><button class="inv-btn inv-btn-ghost" data-action="invCloseConfirm">Keep</button>' +
-    '<button class="inv-btn ' + btnClass + '" data-action="invConfirmDelete" data-id="' + escHtml(inv.id) + '">Delete</button></div></div>';
+    '<button class="inv-btn ' + btnClass + '" data-action="invConfirmDelete" data-id="' + escHtml(inv.id) + '">Delete</button></div>' +
+    // Before filing, a corrected invoice may take the number back. Filed is
+    // final: GSTR-1 carries the number and only a credit note corrects it.
+    (canReissue
+      ? '<div class="inv-reissue-offer"><button class="inv-btn inv-btn-ghost inv-btn-block" data-action="invConfirmReissue" data-id="' + escHtml(inv.id) + '">Delete and reissue ' + escHtml(inv.invoiceNumber) + '</button>' +
+        '<div class="inv-form-hint">Opens a new invoice with the same lines under this number, for correcting it before the GST return is filed. The old version stays on record against the number.</div></div>'
+      : '') + '</div>';
   // Act overlay: scrim tap does nothing (DP 5.2)
   pushFocus();
   document.body.appendChild(scrim);
@@ -1108,9 +1129,13 @@ function deleteInvoice(invId) {
   focusFirstInteractive(scrim.querySelector('.inv-overlay-card'));
 }
 
-function confirmDeleteInvoice(invId) {
+function confirmDeleteInvoice(invId, reissue) {
   const inv = S.invoices.find(i => i.id === invId);
   if (!inv) return;
+  if (reissue && (inv.status === 'cancelled' || getInvState(inv) === 'filed')) {
+    showToast('A filed invoice cannot be reissued — a credit note corrects it', 'error');
+    return;
+  }
 
   const reasonEl = document.getElementById('invDeleteReason');
   const reason = reasonEl ? reasonEl.value.trim() : '';
@@ -1119,6 +1144,9 @@ function confirmDeleteInvoice(invId) {
     if (reasonEl) reasonEl.focus();
     return;
   }
+
+  // The replacement's form is read BEFORE the delete unlinks the challan lines.
+  const reissueForm = reissue ? invoiceFormFrom(inv, { reissue: { invoiceNumber: inv.invoiceNumber, displayNumber: inv.displayNumber } }) : null;
 
   const dispNum = inv.displayNumber;
   // A number the customer has seen is spent; one still in `created` returns to
@@ -1147,6 +1175,14 @@ function confirmDeleteInvoice(invId) {
 
   saveState();
   closeOverlay();
+  if (reissueForm) {
+    invoiceForm = reissueForm;
+    _navReturnTab = 'pageRegister';
+    renderCreateForm();
+    switchTab('pageCreate');
+    showToast('Reissuing ' + dispNum + ' — correct it and save', 'warning');
+    return;
+  }
   renderRegister();
   showToast('Invoice ' + dispNum + (reserved ? ' deleted — number stays spent' : ' deleted'));
 }

@@ -22,6 +22,10 @@ function renderCreateForm() {
   const area = document.getElementById('createFormArea');
 
   let html = '<div class="inv-card"><div class="inv-card-header"><span class="inv-card-title">Invoice Details</span></div>';
+  if (invoiceForm.reissue) {
+    html += '<div class="inv-reissue-note">Reissuing <strong class="inv-mono">' + escHtml(invoiceForm.reissue.displayNumber) +
+      '</strong>: this invoice takes the number back. Withdraw the customer&rsquo;s copy of the old one.</div>';
+  }
 
   // Client selector
   html += '<div class="inv-form-group"><label class="inv-form-label">Client</label>';
@@ -126,7 +130,7 @@ function renderCreateForm() {
   html += '<div class="inv-btn-bar inv-save-bar">' +
     '<button class="inv-btn inv-btn-ghost" data-action="invResetForm">Clear</button>' +
     '<button class="inv-btn inv-btn-primary" id="invSaveBtn" data-action="invSaveInvoice"' + (errors.length > 0 ? ' disabled' : '') + '>' +
-    (invoiceForm.editingId ? 'Update Invoice' : 'Create Invoice') + '</button></div>';
+    (invoiceForm.editingId ? 'Update Invoice' : invoiceForm.reissue ? 'Reissue ' + escHtml(invoiceForm.reissue.invoiceNumber) : 'Create Invoice') + '</button></div>';
 
   area.innerHTML = html;
 
@@ -327,12 +331,19 @@ function saveInvoice() {
       ? ['Invoice updated — GST type changed, verify tax amounts' + syncNote, 'warning']
       : ['Invoice updated' + syncNote, synced.lines ? 'warning' : undefined];
   } else {
-    // New invoice
-    const num = String(S.invNextNum).padStart(5, '0');
+    // New invoice. A reissue takes back the number it replaces; anything else
+    // takes the next in the series. Either way no live invoice may share it.
+    const reissue = invoiceForm.reissue || null;
+    const num = reissue ? reissue.invoiceNumber : String(S.invNextNum).padStart(5, '0');
+    const disp = reissue ? reissue.displayNumber : S.invPrefix + num;
+    if (S.invoices.some(i => i.displayNumber === disp)) {
+      showToast(disp + ' is already a live invoice — not saved. Check Settings → Business → Invoice series.', 'error');
+      return;
+    }
     const inv = {
       id: 'INV-' + now,
       invoiceNumber: num,
-      displayNumber: S.invPrefix + num,
+      displayNumber: disp,
       date: invoiceForm.date,
       status: 'active',
       invoiceState: 'created',
@@ -349,7 +360,11 @@ function saveInvoice() {
       linkedIMIds: invoiceForm._linkedIMIds || [], createdAt: now, updatedAt: now, cancelledAt: null
     };
     S.invoices.push(inv);
-    S.invNextNum++;
+    // Never leave the series pointing at a number already held: a number
+    // reissued from Settings used to leave Next on the one after it (851 when
+    // 993 had been issued), and the invoice after that would have taken 851
+    // a second time.
+    S.invNextNum = Math.max(S.invNextNum + (reissue ? 0 : 1), invHighestIssued(S.invPrefix) + 1);
 
     // Mark IM items as invoiced
     if (invoiceForm._linkedIMItemIds && invoiceForm._linkedIMItemIds.length > 0) {

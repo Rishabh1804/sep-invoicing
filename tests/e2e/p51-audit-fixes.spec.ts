@@ -41,14 +41,14 @@ test.describe('P51: audit fixes', () => {
     expect(row).toBe(1);
   });
 
-  test('Settings will not set the invoice number back over one already issued', async ({ page }) => {
+  test('Settings will not point the series at a live invoice’s number', async ({ page }) => {
     await loadAppWithState(page, { ...emptyState(), incomingMaterial: noSeedIM() } as SepState);
     await g(page, `S.invPrefix = 'SEP/2026-27/'; S.invNextNum = 6; S.invoices.push({ id: 'I5', invoiceNumber: '00005', displayNumber: 'SEP/2026-27/00005', clientId: 1, date: '2026-08-10', status: 'filed', items: [], total: 0 }); saveState()`);
     await openSettingsAt(page, 'invoice');
     const save = page.locator('[data-action="invSaveSettingsSec"][data-sec="invoice"]');
-    await page.locator('#setNextNum').fill('3');
+    await page.locator('#setNextNum').fill('5');
     await save.click();
-    await expect(page.locator('.inv-toast')).toContainText('must be above SEP/2026-27/00005');
+    await expect(page.locator('.inv-toast')).toContainText('SEP/2026-27/00005 is held by a live invoice');
     expect(await g(page, 'S.invNextNum')).toBe(6);
     // A new financial year's prefix has nothing issued under it: 1 is allowed.
     await page.locator('#setPrefix').fill('SEP/2027-28/');

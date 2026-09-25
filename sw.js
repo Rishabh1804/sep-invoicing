@@ -324,4 +324,21 @@ self.addEventListener('widgetclick', function(e) {
 // The app wrote a fresh payload (on save, and whenever it is hidden or shut).
 self.addEventListener('message', function(e) {
   if (e.data && e.data.type === 'sep-todo-widget') e.waitUntil(widgetRender());
+  // Settings → To-do → Check Windows widget: what this worker can see of the
+  // widget host. Only the worker can; the page has no widgets API at all.
+  if (e.data && e.data.type === 'sep-widget-status' && e.source) e.waitUntil(widgetStatus().then(function(st) { e.source.postMessage(st); }));
 });
+async function widgetStatus() {
+  const st = { type: 'sep-widget-status', api: !!self.widgets, defined: false, installable: false, instances: 0, error: '' };
+  if (!self.widgets) return st;
+  try {
+    const w = await self.widgets.getByTag(WIDGET_TAG);
+    if (w) {
+      st.defined = true;
+      st.installable = w.installable !== false;
+      st.instances = (w.instances || []).length;
+      if (st.instances) await widgetRender();
+    }
+  } catch (err) { st.error = String(err && err.message || err); }
+  return st;
+}

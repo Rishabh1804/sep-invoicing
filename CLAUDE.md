@@ -93,7 +93,7 @@ every session start — nothing to set up by hand. CI (`build-sync`) is the back
 ### Tests
 
 ```bash
-pnpm exec playwright test          # 401 tests, both layouts
+pnpm exec playwright test          # 402 tests, both layouts
 ```
 
 Some sandboxes ship a Chromium build Playwright does not expect and block downloading
@@ -1173,6 +1173,15 @@ Mode + WinAppSDK 1.2, install from Edge, Win+W → Add widgets → SEP To-do). T
 the app hands the worker and takes back — the payload, every binding the template uses, the queue, the
 launch URLs — and that the manifest, template and worker agree. The Windows side needs one check on
 the owner's PC.
+
+**Settings → To-do → Check Windows widget** says which step is missing. The owner reported
+*"windows widget is not showing"* (25 Sep 2026), and every link in that chain is something only
+the PC can see: Windows, Edge, whether the app is installed rather than open in a tab, the worker,
+whether Edge exposes `self.widgets` (it does not without Developer Mode + WinAppSDK 1.2), whether
+Edge registered the widget from the manifest (it reads `widgets` at install, so an app installed
+before the widget existed needs reinstalling), and whether it is pinned. The page asks the worker
+(`sep-widget-status`), because only the worker has the widgets API. The check names the **first**
+failing step and what to do, and re-renders the widget if it is already pinned.
 
 ### Attendance rolls from WhatsApp
 Staff → **Paste message** (or Home → Paste message). The supervisor's **in-time** and **out-time** rolls

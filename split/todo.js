@@ -541,7 +541,63 @@ function todoSettingsHtml() {
     '<div class="inv-form-row inv-mt-8"><div class="inv-form-group"><label class="inv-form-label" for="setTodoChallan">Challan unbilled after (days)</label>' +
     '<input type="number" step="1" min="1" class="inv-form-input inv-mono" id="setTodoChallan" value="' + c.challanDays + '"></div>' +
     '<div class="inv-form-group"><label class="inv-form-label" for="setTodoBackup">Backup older than (days)</label>' +
-    '<input type="number" step="1" min="1" class="inv-form-input inv-mono" id="setTodoBackup" value="' + c.backupDays + '"></div></div></div>';
+    '<input type="number" step="1" min="1" class="inv-form-input inv-mono" id="setTodoBackup" value="' + c.backupDays + '"></div></div>' +
+    '<button class="inv-btn inv-btn-ghost inv-btn-sm inv-mt-8" data-action="invTodoWidgetCheck">Check Windows widget</button>' +
+    '<div id="todoWidgetStatus" class="inv-td-wstatus"></div></div>';
+}
+
+/* Why the Windows widget is not on the board. Every step is a condition only
+   this device can see — the browser, the install, and what Edge's widget host
+   told the service worker — so the check runs here and says which step failed
+   and what to do, rather than a list of everything that might be wrong. */
+function todoWidgetEnv() {
+  var ua = navigator.userAgent || '';
+  var brands = (navigator.userAgentData && navigator.userAgentData.brands) || [];
+  var standalone = false;
+  try { standalone = matchMedia('(display-mode: standalone)').matches || matchMedia('(display-mode: window-controls-overlay)').matches; } catch (e) { /* old engine */ }
+  return {
+    edge: /Edg\//.test(ua) || brands.some(function(b) { return /Edge/.test(b.brand); }),
+    windows: /Windows NT/.test(ua) || (navigator.userAgentData && navigator.userAgentData.platform === 'Windows'),
+    installed: standalone,
+    worker: !!(navigator.serviceWorker && navigator.serviceWorker.controller)
+  };
+}
+function todoWidgetVerdict(env, st) {
+  if (!env.windows) return ['bad', 'This is not Windows. The widget lives on the Windows 11 Widgets board; open the app on the PC.'];
+  if (!env.edge) return ['bad', 'This is not Microsoft Edge. Only an app installed from Edge can add a widget: open the site in Edge and install it from there.'];
+  if (!env.installed) return ['bad', 'The app is open in a browser tab, not installed. In Edge: menu (…) → Apps → Install this site as an app, then run this check from the installed app.'];
+  if (!env.worker) return ['bad', 'The offline worker is not running yet. Reload the app once and check again.'];
+  if (!st) return ['bad', 'The worker did not answer. Reload the app and check again.'];
+  if (!st.api) return ['bad', 'Edge is not offering widgets on this PC. Turn on Settings → System → For developers → Developer Mode, install Windows App SDK 1.2, restart the PC, then check again.'];
+  if (!st.defined) return ['bad', 'Edge has not picked up the widget from this app. Uninstall the app (Edge → Apps → Manage apps), install it again from Edge, then check again.'];
+  if (st.error) return ['bad', 'Edge refused the widget: ' + st.error];
+  if (!st.instances) return ['ok', 'Ready. Press Win+W → Add widgets (+) → SEP To-do → Pin.'];
+  return ['ok', 'The widget is on the board (' + st.instances + '), and was refreshed just now.'];
+}
+function todoWidgetCheck() {
+  var box = document.getElementById('todoWidgetStatus');
+  if (!box) return;
+  var env = todoWidgetEnv();
+  var show = function(st) {
+    var v = todoWidgetVerdict(env, st);
+    var line = function(ok, text) { return '<div class="inv-td-wline inv-td-wline-' + (ok ? 'ok' : 'no') + '">' + (ok ? 'Yes: ' : 'No: ') + escHtml(text) + '</div>'; };
+    box.innerHTML = '<div class="inv-td-wverdict inv-td-wverdict-' + v[0] + '">' + escHtml(v[1]) + '</div>' +
+      line(env.windows, 'Windows') + line(env.edge, 'Microsoft Edge') + line(env.installed, 'Installed as an app') +
+      line(env.worker, 'Offline worker running') + line(!!(st && st.api), 'Edge widgets available') +
+      line(!!(st && st.defined), 'Widget registered with Edge') + line(!!(st && st.instances), 'Widget on the board');
+  };
+  if (!env.worker) { show(null); return; }
+  box.textContent = 'Checking…';
+  var done = false;
+  var onMsg = function(e) {
+    if (!e.data || e.data.type !== 'sep-widget-status' || done) return;
+    done = true;
+    navigator.serviceWorker.removeEventListener('message', onMsg);
+    show(e.data);
+  };
+  navigator.serviceWorker.addEventListener('message', onMsg);
+  navigator.serviceWorker.controller.postMessage({ type: 'sep-widget-status' });
+  setTimeout(function() { if (!done) { done = true; navigator.serviceWorker.removeEventListener('message', onMsg); show(null); } }, 3000);
 }
 function todoSettingsSave() {
   if (!document.getElementById('setTodo_stock')) return;
@@ -694,6 +750,7 @@ function todoHandleLaunch(action) {
 function todoAction(action, btn) {
   switch (action) {
     case 'invTodoAdd': todoQuickAdd(); break;
+    case 'invTodoWidgetCheck': todoWidgetCheck(); break;
     case 'invTodoNew': todoOpenEdit('', (document.getElementById('todoNew') || {}).value || ''); break;
     case 'invTodoEdit': todoOpenEdit(btn.dataset.id); break;
     case 'invTodoSave': todoSaveEdit(btn.dataset.id); break;

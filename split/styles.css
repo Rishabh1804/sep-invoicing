@@ -2805,6 +2805,15 @@ body.inv-desktop #itemsSelBar {
 .inv-pay-total { font-weight: 700; }
 .inv-pay-void { opacity: 0.6; text-decoration: line-through; }
 .inv-pay-chart { margin: var(--sp-8) 0; }
+.inv-td-wstatus { margin-top: var(--sp-8); font-size: var(--fs-sm); }
+.inv-td-wverdict { padding: var(--sp-8) var(--sp-10); border-radius: var(--r-md); margin-bottom: var(--sp-6); font-weight: 600; }
+.inv-td-wverdict-ok { background: var(--attend-bg); color: var(--attend-text); }
+.inv-td-wverdict-bad { background: var(--warning-bg); color: var(--warning-text); }
+.inv-td-wline { padding: var(--sp-2) 0; color: var(--text-2); }
+.inv-td-wline-ok { color: var(--attend-text); }
+.inv-td-wline-no { color: var(--text-3); }
+.dark .inv-td-wverdict-ok { background: var(--attend-bg); color: var(--attend-text); }
+.dark .inv-td-wverdict-bad { background: var(--warning-bg); color: var(--warning-text); }
 .inv-pay-green { background: var(--attend-bg); }
 .inv-pay-blue { background: var(--prod-bg); }
 .dark .inv-pay-green { background: var(--attend-bg); }

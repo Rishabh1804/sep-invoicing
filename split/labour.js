@@ -35,6 +35,7 @@ function labourCfg() {
   var c = S.labour || {};
   return {
     otMult: c.otMult != null ? c.otMult : 1.1,
+    otCap: c.otCap != null ? c.otCap : 68.2,
     restCreditMinDays: c.restCreditMinDays != null ? c.restCreditMinDays : 6,
     extraRate: c.extraRate || 0,
     modelPerKg: c.modelPerKg || 0,
@@ -167,7 +168,7 @@ function labourForRange(fromIso, toIso) {
       var oth = m.ot || 0;
       if (oth > 0) {
         var rate = workerOtRate(w);
-        var otPay = oth * rate * cfg.otMult;
+        var otPay = oth * workerOtHourPay(w, cfg);
         out.otHours += oth;
         out.ot += otPay;
         bumpWorker(w, 'ot', otPay, 0, 0, oth);
@@ -372,7 +373,7 @@ function renderLabourCard(fromIso, toIso, title, tonnage, extraClass) {
       'full weeks at ' + cfg.restCreditMinDays + '+ days');
   }
   html += _labRow('Overtime (named)', formatCurrency(lab.ot),
-    formatNum(lab.otHours, 1) + ' h at &times;' + formatNum(cfg.otMult, 2) + ', monthly tier at day rate &divide; 8');
+    formatNum(lab.otHours, 1) + ' h at &times;' + formatNum(cfg.otMult, 2) + ', monthly tier at day rate &divide; 8, capped at ' + formatCurrency(cfg.otCap) + '/h');
   html += _labRow('Extra (unattributed)', formatCurrency(lab.extra), formatNum(lab.extraHours, 1) + ' h at ' + formatCurrency(cfg.extraRate) + '/h');
   html += _labRow('On the floor', formatCurrency(lab.floor),
     lab.offFloor > 0 ? formatCurrency(lab.offFloor) + ' off floor (gate, office)' : 'all of it');

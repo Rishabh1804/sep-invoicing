@@ -1296,7 +1296,8 @@ without remembered spellings. The harness and the real rolls stay out of this re
 spec uses made-up names in the shop's shapes. What does not match is judgement the review surfaces:
 barrel versus barrel pickling inside the one unit, and blocks whose crew or times the decoder took
 from context. The older seed (to 7 Sep) wrote a monthly hand's OT as 0; the newer one, and this
-parser, as hours over 8 — the wage model's rule.
+parser, as hours over 8 — the wage model's rule, confirmed by the owner 25 Sep 2026 (paid at day
+rate ÷ 8 × 1.1, capped at ₹68.20/h), so the older seed understates it.
 
 - **Hours are the clock span floored** (8:30 → 5:00 is 8, 6:00 → 5:00 is 11); **a monthly or daily
   hand's OT is hours over 8**; an hourly hand carries none. **The gate stands 7 AM – 7 PM** (BM) and
@@ -1385,9 +1386,18 @@ two of them wrong by shipping a single `contract` class.
 
 | | Paid | Rest days | Overtime |
 |---|---|---|---|
-| `monthly` | ₹/day × days worked | the range's rest days × the attendance gate | day rate ÷ 8 × 1.1 |
+| `monthly` | ₹/day × days worked | the range's rest days × the attendance gate | day rate ÷ 8 × 1.1, **capped at ₹68.20/h** |
 | `hourly` | every hour at one flat rate | — | none: the fourteenth hour is paid like the first |
 | `daily` | ₹/day × days worked | one day per full week | hour rate × the multiplier |
+
+**Monthly overtime is ruled (owner, 25 Sep 2026): *"monthly hands get OT at day rate ÷ 8 × 1.1. Capped at
+68.2"*.** Hours over 8 on a day are overtime. The cap is per hour after the multiplier, so it binds any day
+rate above ₹496 (Shyam's ₹576 would pay ₹79.20 and pays ₹68.20). It is in Settings → Labour (`otCap`), and
+`workerOtHourPay()` is the one place both the labour card and the Areas cost read it. The hourly and daily
+tiers are not capped by it. ⚠ **This settles a disagreement in the record rather than creating one:** the
+history imported up to 7 Sep carries almost no monthly overtime (July 0 h, August 11 h), while September's
+pasted rolls carry 381 h (₹23,340 at the cap). By the ruling, **July and August understate what the monthly
+crew earned**, and their labour ₹/kg (₹2.07, ₹2.29) reads low by that overtime.
 
 The salaried tier is `monthly` and **is not a flat salary**: the payout slips are written in
 ₹/day, and a flat monthly divided by calendar days neither matches them nor moves when somebody

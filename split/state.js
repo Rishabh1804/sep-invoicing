@@ -46,7 +46,7 @@ function getDefaultState() {
     // attendance gate on its rest days. restCreditMinDays is the daily tier's
     // own weekly gate. The hourly pool needs none of them — every hour at one
     // rate. extraRate prices the area-booked "extra hours", which carry no name.
-    labour: { otMult: 1.1, restCreditMinDays: 6, extraRate: 47.5, modelPerKg: 3.55, gateFull: 0.9, gateHalf: 0.8, extraHoursPerHead: 8 },
+    labour: { otMult: 1.1, otCap: 68.2, restCreditMinDays: 6, extraRate: 47.5, modelPerKg: 3.55, gateFull: 0.9, gateHalf: 0.8, extraHoursPerHead: 8 },
     // Rate matcher thresholds (option E): Check at ≥ pct% off OR ≥ ₹stake on the line.
     rateCheck: { pct: 10, stake: 100, weightTol: 3 },
     // Chemical stock: lines, the events that move them, and each pasted

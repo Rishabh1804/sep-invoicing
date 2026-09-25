@@ -312,7 +312,7 @@ function stockShortDate(iso) {
   var p = iso.split('-');
   return (+p[2]) + ' ' + m[+p[1] - 1];
 }
-var STOCK_KIND_RANK = { count: 3, received: 1, used: 2, charged: 2 };
+var STOCK_KIND_RANK = { count: 3, received: 1, used: 2, charged: 2, bill: 0 };
 function stockSortEntries(list) {
   return list.slice().sort(function(a, b) {
     if (a.date !== b.date) return a.date < b.date ? -1 : 1;
@@ -330,6 +330,9 @@ function stockReplay(itemId, beforeDate) {
   var level = null, rows = [];
   stockItemEntries(itemId).forEach(function(e) {
     if (beforeDate && e.date >= beforeDate) return;
+    // A bill records what was paid, not what arrived: the delivery itself is a
+    // Received entry or shows up in the next count, so a bill never moves stock.
+    if (e.kind === 'bill') return;
     var before = level;
     if (e.kind === 'count') level = e.qty;
     else if (e.kind === 'received') level = (level || 0) + e.qty;
@@ -559,7 +562,7 @@ var _stockItemId = null;
 var _stockVoidArm = null;
 var _stockPasteDraft = '';
 var STOCK_BY_KEY = 'sep_inv_stock_by';
-var STOCK_KIND_LABEL = { count: 'Count', received: 'Received', used: 'Used', charged: 'Charged to bath' };
+var STOCK_KIND_LABEL = { count: 'Count', received: 'Received', used: 'Used', charged: 'Charged to bath', bill: 'Bill' };
 
 function stockBy() { try { return localStorage.getItem(STOCK_BY_KEY) || ''; } catch (e) { return ''; } }
 function setStockBy(v) { try { localStorage.setItem(STOCK_BY_KEY, v); } catch (e) { /* per-device convenience only */ } }
@@ -794,7 +797,7 @@ function stockSavePaste() {
 }
 
 function stockOpenManual() {
-  _stockManual = { mode: 'count', date: localDateStr(), supplier: '', billNo: '', bath: '', vals: {} };
+  _stockManual = { mode: 'count', date: localDateStr(), supplier: '', billNo: '', billDate: '', bath: '', vals: {} };
   stockSetView('manual');
 }
 
@@ -808,17 +811,20 @@ function renderStockManual() {
   h += '</div><div class="inv-stk-fields">' +
     '<div class="inv-stk-field"><label class="inv-stk-label" for="stockManDate">Date</label><input type="date" id="stockManDate" class="inv-form-input" value="' + escHtml(m.date) + '"></div>';
   if (m.mode === 'received') {
-    h += '<div class="inv-stk-field"><label class="inv-stk-label" for="stockManSupplier">Supplier</label><input id="stockManSupplier" class="inv-form-input" value="' + escHtml(m.supplier) + '"></div>' +
-      '<div class="inv-stk-field"><label class="inv-stk-label" for="stockManBill">Bill no.</label><input id="stockManBill" class="inv-form-input" value="' + escHtml(m.billNo) + '"></div>';
+    h += '<div class="inv-stk-field"><label class="inv-stk-label" for="stockManSupplier">Company</label><input id="stockManSupplier" class="inv-form-input" list="stockSupplierList" value="' + escHtml(m.supplier) + '" placeholder="Who billed it"></div>' +
+      '<div class="inv-stk-field"><label class="inv-stk-label" for="stockManBill">Invoice no.</label><input id="stockManBill" class="inv-form-input" value="' + escHtml(m.billNo) + '"></div>' +
+      '<div class="inv-stk-field"><label class="inv-stk-label" for="stockManBillDate">Invoice date</label><input type="date" id="stockManBillDate" class="inv-form-input" value="' + escHtml(m.billDate || m.date) + '"></div>' +
+      stockSupplierDatalist();
   }
   if (m.mode === 'charged') {
     h += '<div class="inv-stk-field"><label class="inv-stk-label" for="stockManBath">Into</label><input id="stockManBath" class="inv-form-input" value="' + escHtml(m.bath) + '" placeholder="VAT A1, Barrel…"></div>';
   }
   h += '<div class="inv-stk-field"><label class="inv-stk-label" for="stockBy">Entered by</label><input id="stockBy" class="inv-form-input" value="' + escHtml(stockBy()) + '"></div></div>';
-  var hints = { count: 'What is on the shelf now. The app compares it with its own level.', received: 'A delivery. The price per unit is what Stats costs chemicals at.',
+  var hints = { count: 'What is on the shelf now. The app compares it with its own level.', received: 'A delivery, with its bill. The price per unit is what the live cost is worked out at.',
     used: 'Drawn from stock. Sets the daily rate.', charged: 'Put into a bath, e.g. zinc or salts.' };
   h += '<div class="inv-stk-hint">' + hints[m.mode] + ' Fill only the lines that changed.</div>';
   h += '<div class="inv-stk-mlist">';
+  if (m.mode === 'received') h += '<div class="inv-stk-mrow inv-stk-mhead"><div class="inv-stk-mname">Line</div><span>Quantity</span><span>&#8377; per unit, before GST</span></div>';
   st.items.filter(function(i) { return i.active !== false; }).forEach(function(i) {
     var v = m.vals[i.id] || {}, lv = stockReplay(i.id).level;
     h += '<div class="inv-stk-mrow"><div class="inv-stk-mname">' + escHtml(i.name) +
@@ -841,7 +847,13 @@ function stockSaveManual() {
   var m = _stockManual;
   if (!m) return;
   if (!m.date) { showToast('Pick a date', 'error'); return; }
-  var st = stockData(), at = Date.now(), by = stockBy(), n = 0, gaps = 0;
+  if (m.mode === 'received') {
+    // A delivery is recorded with its bill: the company, the invoice and its
+    // date are what the price and the purchase pattern are read from.
+    if (!m.supplier) { showToast('Enter the company that billed it', 'error'); return; }
+    if (!m.billNo) { showToast('Enter the invoice number', 'error'); return; }
+  }
+  var st = stockData(), at = Date.now(), by = stockBy(), n = 0, gaps = 0, unpriced = 0;
   Object.keys(m.vals).forEach(function(id) {
     var v = m.vals[id], q = parseFloat(v.qty);
     if (v.qty === '' || v.qty == null || isNaN(q) || q < 0) return;
@@ -849,9 +861,10 @@ function stockSaveManual() {
     var rec = { id: stockUid('SE'), itemId: id, kind: m.mode, qty: q, date: m.date, seq: STOCK_KIND_RANK[m.mode], at: at, source: 'manual', by: by, sentBy: '' };
     if (m.mode === 'received') {
       var pr = parseFloat(v.price);
-      if (v.price !== '' && v.price != null && !isNaN(pr) && pr >= 0) rec.price = pr;
-      if (m.supplier) rec.supplier = m.supplier;
-      if (m.billNo) rec.billNo = m.billNo;
+      if (v.price !== '' && v.price != null && !isNaN(pr) && pr >= 0) rec.price = pr; else unpriced++;
+      rec.supplier = m.supplier;
+      rec.billNo = m.billNo;
+      rec.billDate = m.billDate || m.date;
     }
     if (m.mode === 'used' || m.mode === 'charged') { rec.days = 1; rec.from = m.date; }
     if (m.mode === 'charged' && m.bath) rec.note = m.bath;
@@ -866,7 +879,8 @@ function stockSaveManual() {
   saveState();
   _stockManual = null;
   stockSetView('list');
-  showToast(n + (n === 1 ? ' entry' : ' entries') + ' saved' + (gaps ? ' · ' + gaps + ' count' + (gaps === 1 ? ' differs' : 's differ') + ' from the app' : ''), gaps ? 'warning' : 'success');
+  showToast(n + (n === 1 ? ' entry' : ' entries') + ' saved' + (gaps ? ' · ' + gaps + ' count' + (gaps === 1 ? ' differs' : 's differ') + ' from the app' : '') +
+    (unpriced ? ' · ' + unpriced + ' without a price: add it on the line' : ''), gaps || unpriced ? 'warning' : 'success');
 }
 
 function stockAddLine() {
@@ -882,12 +896,22 @@ function stockAddLine() {
   showToast('Line added: ' + name);
 }
 
+/* Every purchase with a price: a Received entry carrying its bill, or a Bill
+   entered on its own. Dated by the invoice, which is when the price was set. */
+function stockPurchases(itemId) {
+  return stockItemEntries(itemId).filter(function(e) { return (e.kind === 'received' || e.kind === 'bill') && e.price != null; })
+    .map(function(e) { return { e: e, date: e.billDate || e.date }; })
+    // Two bills on one day (a drum from the regular supplier and a bottle bought
+    // locally the same morning): the larger sets the price, so it sorts last.
+    .sort(function(a, b) { return a.date < b.date ? -1 : a.date > b.date ? 1 : ((a.e.qty || 0) - (b.e.qty || 0)) || (a.e.at || 0) - (b.e.at || 0); });
+}
 function stockPriceAt(itemId, date) {
-  var priced = stockItemEntries(itemId).filter(function(e) { return e.kind === 'received' && e.price != null; });
+  var priced = stockPurchases(itemId);
   if (!priced.length) return null;
   var best = null;
-  priced.forEach(function(e) { if (e.date <= date) best = e; });
-  return best || priced[0];
+  priced.forEach(function(p) { if (p.date <= date) best = p; });
+  var hit = (best || priced[0]);
+  return { price: hit.e.price, date: hit.date, supplier: hit.e.supplier || '', billNo: hit.e.billNo || '', entry: hit.e };
 }
 
 function renderStockItem(item) {
@@ -905,7 +929,9 @@ function renderStockItem(item) {
   }
   var lp = stockPriceAt(item.id, '9999-12-31');
   if (lp) h += '<div class="inv-stk-hero-sub">Last paid ' + formatCurrency(lp.price) + '/' + escHtml(unit || 'unit') + ' on ' + escHtml(stockShortDate(lp.date)) + (lp.supplier ? ' &middot; ' + escHtml(lp.supplier) : '') + '</div>';
+  else h += '<div class="inv-stk-hero-sub">No price yet. Add a bill below and the live cost can use this line.</div>';
   h += '</div>';
+  h += stockPatternHtml(item);
 
   h += '<div class="inv-stk-props"><div class="inv-stk-label">How it is used</div><div class="inv-stk-seg">' +
     '<button class="inv-stk-seg-btn' + (item.basis !== 'charge' ? ' inv-stk-seg-on' : '') + '" data-action="invStockBasis" data-v="draw">Drawn daily</button>' +
@@ -927,10 +953,10 @@ function renderStockItem(item) {
     var src = e.source === 'paste' ? 'pasted' + (e.sentBy ? ', sent by ' + e.sentBy : '') : e.source === 'import' ? 'imported' : 'by hand';
     if (e.by) src += ' · entered by ' + e.by;
     var extra = [];
-    if (e.kind === 'received') {
+    if (e.kind === 'received' || e.kind === 'bill') {
       if (e.price != null) extra.push(formatCurrency(e.price) + '/' + (unit || 'unit'));
       if (e.supplier) extra.push(e.supplier);
-      if (e.billNo) extra.push('bill ' + e.billNo);
+      if (e.billNo) extra.push('invoice ' + e.billNo + (e.billDate && e.billDate !== e.date ? ' of ' + stockShortDate(e.billDate) : ''));
     }
     if (e.note) extra.push(e.note);
     var gap = '';
@@ -943,6 +969,7 @@ function renderStockItem(item) {
       (e.unsettled ? '<span class="inv-stk-flag">unsettled</span>' : '') + (e.voided ? '<span class="inv-stk-flag">voided</span>' : '') + '</div>' +
       '<div class="inv-stk-hsub">' + escHtml(when + ' · ' + src) + (extra.length ? '<br>' + escHtml(extra.join(' · ')) : '') + '</div>' + gap +
       (e.raw ? '<details class="inv-stk-src"><summary>Message text</summary><div class="inv-stk-raw">' + escHtml(e.raw) + '</div></details>' : '') +
+      (e.kind === 'received' && e.price == null && !e.voided ? '<button class="inv-stk-btn inv-stk-btn-sm" data-action="invStockBillOpen" data-entry="' + escHtml(e.id) + '">Add its bill</button>' : '') +
       '</div>' +
       (e.voided ? '' : '<button class="inv-stk-void' + (_stockVoidArm === e.id ? ' inv-stk-void-arm' : '') + '" data-action="invStockVoid" data-id="' + escHtml(e.id) + '">' + (_stockVoidArm === e.id ? 'Tap again to void' : 'Void') + '</button>') +
       '</div>';
@@ -1005,8 +1032,17 @@ function stockMergeImport(src) {
     if (!STOCK_KIND_LABEL[e.kind] || !num(e.qty) || typeof e.date !== 'string') return;
     var copy = JSON.parse(JSON.stringify(e));
     copy.itemId = idMap[e.itemId];
-    ['price', 'days', 'rate', 'at', 'seq'].forEach(function(k) { if (copy[k] != null && !num(copy[k])) delete copy[k]; });
+    ['price', 'amount', 'days', 'rate', 'at', 'seq'].forEach(function(k) { if (copy[k] != null && !num(copy[k])) delete copy[k]; });
+    if (copy.billDate != null && !/^\d{4}-\d{2}-\d{2}$/.test(copy.billDate)) delete copy.billDate;
     st.entries.push(copy); added.entries++;
+  });
+  // Power and other bills may travel in the same file (the purchases carried
+  // over from soma-internal do). Merged by id, like everything else here.
+  added.bills = 0;
+  (Array.isArray(src.costBills) ? src.costBills : []).forEach(function(b) {
+    if (!b || !b.id || (b.kind !== 'power' && b.kind !== 'other') || !/^\d{4}-\d{2}$/.test(b.month || '') || !num(b.amount)) return;
+    if (costBills().some(function(x) { return x.id === b.id; })) return;
+    costBills().push(JSON.parse(JSON.stringify(b))); added.bills++;
   });
   (src.pastes || []).forEach(function(p) {
     if (!p || !p.id || st.pastes.some(function(x) { return x.id === p.id; })) return;
@@ -1027,56 +1063,12 @@ function stockImport() {
         var added = stockMergeImport(JSON.parse(e2.target.result));
         saveState();
         renderStock();
-        showToast(added.entries || added.items ? 'Imported ' + added.items + ' lines, ' + added.entries + ' entries' : 'Nothing new in that file');
+        showToast(added.entries || added.items || added.bills ? 'Imported ' + added.items + ' lines, ' + added.entries + ' entries' + (added.bills ? ', ' + added.bills + ' power/other bills' : '') : 'Nothing new in that file');
       } catch (err) { showToast('Not a stock file', 'error'); }
     };
     reader.readAsText(f);
   };
   inp.click();
-}
-
-/* ---------- Stats: chemicals, measured ----------
-   What was used × the last price paid for it ÷ kilograms plated over the same
-   period. A line with no price is left out and NAMED, never costed at zero:
-   silently pricing it at nothing would make chemicals look cheaper the less
-   anybody recorded. */
-function stockChemCost(fromIso, toIso) {
-  var out = { cost: 0, pricedQty: 0, lines: {}, unpriced: {} };
-  stockData().entries.forEach(function(e) {
-    if (e.voided || (e.kind !== 'used' && e.kind !== 'charged')) return;
-    if ((fromIso && e.date < fromIso) || (toIso && e.date > toIso)) return;
-    var item = stockItem(e.itemId);
-    if (!item) return;
-    out.lines[item.id] = item.name;
-    var p = stockPriceAt(item.id, e.date);
-    if (p) out.cost += e.qty * p.price;
-    else out.unpriced[item.id] = item.name;
-  });
-  out.cost = gstRound(out.cost);
-  return out;
-}
-
-function renderChemStatsCard(period, tonnage) {
-  if (!S.stock || !(S.stock.entries || []).length) return '';
-  var range = periodRange(period, 0);
-  var iso = function(ts) { var d = new Date(ts); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
-  var c = stockChemCost(range ? iso(range.start) : null, range ? iso(range.end) : null);
-  var used = Object.keys(c.lines).length, unpriced = Object.keys(c.unpriced);
-  var model = stockCfg().chemModel;
-  var perKg = tonnage && tonnage.kg > 0 && used > unpriced.length ? c.cost / tonnage.kg : null;
-  var h = '<div class="inv-stats-card inv-stats-card-full"><div class="inv-stats-title">' + escHtml(PERIOD_LABELS[period] || '') + ' Chemicals' +
-    '<span class="inv-stats-title-sub">from the stock record</span></div>';
-  if (!used) return h + '<div class="inv-stats-caveat">No chemical use recorded in this period.</div></div>';
-  h += '<div class="inv-stats-row"><span class="inv-stats-name">Used, at the last price paid</span><span class="inv-stats-val">' + formatCurrency(c.cost) + '</span></div>' +
-    '<div class="inv-stats-row"><span class="inv-stats-name">Per kg plated</span><span class="inv-stats-val">' + (perKg != null ? formatCurrency(perKg) + '/kg' : '&mdash;') + '</span></div>' +
-    '<div class="inv-stats-row"><span class="inv-stats-name">Cost model</span><span class="inv-stats-val">' + formatCurrency(model) + '/kg</span></div>';
-  if (unpriced.length) {
-    h += '<div class="inv-stats-caveat">Priced ' + (used - unpriced.length) + ' of ' + used + ' lines used. <strong>No price yet:</strong> ' +
-      unpriced.map(function(id) { return escHtml(c.unpriced[id]); }).join(', ') +
-      '. They are left out, so the figure reads low until a delivery is entered with its price (Stock &rarr; Enter by hand &rarr; Received).</div>';
-  }
-  h += '<div class="inv-stats-caveat">Use is dated by the stock take, tonnage by invoice date. Over a short period the two can be a few days apart.</div></div>';
-  return h;
 }
 
 /* ---------- The More sheet ---------- */
@@ -1140,6 +1132,9 @@ function stockAction(action, btn) {
     }
     case 'invStockVoid': stockVoid(btn.dataset.id); break;
     case 'invStockExport': stockExport(); break;
+    case 'invStockBillOpen': stockBillOpen(btn.dataset.entry || ''); break;
+    case 'invStockBillSave': stockBillSave(); break;
+    case 'invStockBillCancel': _stockBill = null; renderStock(); break;
     case 'invStockImport': stockImport(); break;
   }
 }
@@ -1151,9 +1146,11 @@ function stockOnInput(t) {
   // Held as typed, so Save reads it even if the field never lost focus.
   var tn = t.getAttribute && t.getAttribute('data-stock-name');
   if (tn != null && _stockReview) { _stockReview.choices['name' + tn] = t.value.trim(); return true; }
+  if (stockBillOnInput(t)) return true;
   if (!_stockManual) return false;
   if (t.id === 'stockManSupplier') { _stockManual.supplier = t.value.trim(); return true; }
   if (t.id === 'stockManBill') { _stockManual.billNo = t.value.trim(); return true; }
+  if (t.id === 'stockManBillDate') { _stockManual.billDate = t.value; return true; }
   if (t.id === 'stockManBath') { _stockManual.bath = t.value.trim(); return true; }
   var q = t.getAttribute && t.getAttribute('data-stock-qty');
   if (q) { (_stockManual.vals[q] = _stockManual.vals[q] || {}).qty = t.value; return true; }

@@ -175,6 +175,10 @@ test.describe('P39: stock', () => {
     await page.locator(`[data-stock-qty="${q558}"]`).fill('60');
     await page.locator(`[data-stock-price="${q558}"]`).fill('250');
     await page.locator('#stockManSupplier').fill('Supplier A');
+    // A delivery is saved with its bill: no invoice number, no save.
+    await page.locator('[data-action="invStockSaveManual"]').click();
+    await expect(page.locator('.inv-toast')).toContainText('Enter the invoice number');
+    await page.locator('#stockManBill').fill('SA/101');
     await page.locator('[data-action="invStockSaveManual"]').click();
     await expect(page.locator('.inv-stk-row').filter({ hasText: 'Q558' })).toContainText('60');
 
@@ -196,7 +200,7 @@ test.describe('P39: stock', () => {
     expect(st.entries.filter((e: any) => e.voided)).toHaveLength(1);
   });
 
-  test('Stats costs chemicals from the stock record, and names what has no price', async ({ page }) => {
+  test('Stats → Live cost prices chemicals from the stock record, and names what has no price', async ({ page }) => {
     const s: any = state();
     const t = todayIso();
     s.invoices = [{
@@ -220,11 +224,15 @@ test.describe('P39: stock', () => {
     };
     await loadAppWithState(page, s);
     await switchTab(page, 'pageStats');
-    const card = page.locator('.inv-stats-card').filter({ hasText: 'Chemicals' });
-    await expect(card).toContainText('₹2,000.00');
-    await expect(card).toContainText('₹2.00/kg');
-    await expect(card).toContainText('₹1.57/kg');
-    await expect(card).toContainText('No price yet: Q558');
+    const chem = page.locator('#liveCost .inv-cost-row').filter({ hasText: 'Chemicals' });
+    await expect(chem).toContainText('₹2,000.00');
+    await expect(chem).toContainText('₹2.00/kg');
+    // Q558 was used but never priced: part-recorded, and named in the breakdown.
+    await expect(chem.locator('.inv-cost-src')).toHaveText('part-recorded');
+    await expect(chem).toContainText('1 of 2 lines priced');
+    await chem.locator('summary').click();
+    await expect(chem.locator('.inv-cost-detail')).toContainText('Q558');
+    await expect(chem.locator('.inv-cost-detail')).toContainText('5 kg used, no price');
   });
 
   test('More holds To-do, Stock, Staff, Stats and History, and lights up while one is open', async ({ page }) => {
@@ -252,7 +260,7 @@ test.describe('P39: stock', () => {
     expect(json.pastes).toHaveLength(1);
     expect(json.entries.every((e: any) => e.at && e.date && e.by === 'Owner')).toBe(true);
     const again = await g(page, `JSON.stringify(stockMergeImport(${JSON.stringify(json)}))`);
-    expect(JSON.parse(again)).toEqual({ items: 0, entries: 0, pastes: 0 });
+    expect(JSON.parse(again)).toEqual({ items: 0, entries: 0, pastes: 0, bills: 0 });
   });
 
   test('a file entry that is not a real figure is dropped, not left to break the screen', async ({ page }) => {
@@ -263,7 +271,7 @@ test.describe('P39: stock', () => {
         { id: 'bad1', itemId: 'X', kind: 'count', qty: 'lots', date: '2026-09-01' },
         { id: 'bad2', itemId: 'X', kind: 'stolen', qty: 5, date: '2026-09-01' }
       ], pastes: [] }))`);
-    expect(JSON.parse(added)).toEqual({ items: 1, entries: 1, pastes: 0 });
+    expect(JSON.parse(added)).toEqual({ items: 1, entries: 1, pastes: 0, bills: 0 });
     expect(await g(page, `stockData().entries[0].price`)).toBeUndefined();
     await openStock(page);
     await page.locator('.inv-stk-row').filter({ hasText: 'Boric Acid' }).click();

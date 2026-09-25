@@ -23,7 +23,7 @@ Workforce management and invoicing PWA for **Soma Electro Products**, a zinc ele
 
 ## Architecture
 
-Split-file PWA. 37 modules, ~23,500 lines total.
+Split-file PWA. 38 modules, ~23,900 lines total.
 
 ```
 split/
@@ -54,6 +54,7 @@ split/
 ├── areas.js           ← Areas: staffing vs norms + the extra reconciled (1135 lines)
 ├── payroll.js         ← Pay: due by worker, payments, weekly payout + forecast, hours by area, Home attendance (394 lines)
 ├── stock.js           ← Stock: WhatsApp message parser, event replay, More sheet, chemicals ₹/kg (1,189 lines)
+├── cost.js            ← Prices, bills and patterns per stock line; Stats → Live cost with every source shown (~390 lines)
 ├── todo.js            ← To-do: your tasks + tasks raised from the data, Home card, Windows widget payload (726 lines)
 ├── relay.js           ← Attendance rolls: in/out-time WhatsApp parser, review, merge into the day (795 lines)
 ├── stats.js           ← Stats dashboard + History activity log (1,195 lines)
@@ -67,7 +68,7 @@ split/
 └── init.js            ← Migrations + app bootstrap (567 lines)
 ```
 
-**Concat order defined in build.sh.** Dependencies: data → state → zinc → tabs → clients → items → create → settings → github-sync → invoice-ops → number-audit → exports → im → autocomplete → print → quality-cert → credit-note → charts → staff → labour → areas → payroll → stock → todo → relay → stats → client-perf → im-form → im-dupe → scanner → events → swipe → seed → init.
+**Concat order defined in build.sh.** Dependencies: data → state → zinc → tabs → clients → items → create → settings → github-sync → invoice-ops → number-audit → exports → im → autocomplete → print → quality-cert → credit-note → charts → staff → labour → areas → payroll → stock → cost → todo → relay → stats → client-perf → im-form → im-dupe → scanner → events → swipe → seed → init.
 
 ### Build
 
@@ -93,7 +94,7 @@ every session start — nothing to set up by hand. CI (`build-sync`) is the back
 ### Tests
 
 ```bash
-pnpm exec playwright test          # 402 tests, both layouts
+pnpm exec playwright test          # 406 tests, both layouts
 ```
 
 Some sandboxes ship a Chromium build Playwright does not expect and block downloading
@@ -1124,9 +1125,39 @@ vanished entry would leave `soma-internal` holding a figure the app no longer ex
 **Export is always whole** (`sep-stock` JSON: lines, entries, messages, build) and import **merges by
 id, never overwrites** — `soma-internal` de-duplicates on the ids at each compile.
 
-**Stats → Chemicals**: what was used × the last price paid ÷ kg plated in the period, against the cost
-model's ₹1.57. A line with no price is **named and left out, never costed at zero** — pricing it at
-nothing would make chemicals look cheaper the less anybody recorded.
+**Prices, bills and the live cost** (owner, 25 Sep 2026: *"There is no place to enter a stock's price? When
+entering received stock - also ask for the company, invoice number and date of invoice ... The calculation
+of live cost should be broken down so that every cost is visible and measurable and pattern is recorded of
+the stock (price, usage, cadence, etc.)"*). `cost.js`.
+
+- **A delivery is recorded with its bill.** Received by hand needs the company and the invoice number (its
+  date defaults to the day received), with a labelled ₹-per-unit column (before GST). A delivery that
+  arrived by paste has no bill; **Add its bill** on the entry completes it. A past purchase is a **`bill`
+  entry**, which records what was paid **without moving the level**: the goods are already in a count or a
+  delivery, and adding them again would count them twice. A line with no price says so.
+- **Each line shows its pattern**, read from those records: the last price and its change, the range, each
+  supplier's bills, quantity and spend, how often it is bought (median gap, with a delivery and its own bill
+  counted once), when the next one is due, use per day and over 30 days, and cost per day and per month at
+  the last price. Two bills on one day: the larger sets the price, so a local top-up at a higher rate does
+  not stand in for the drum.
+- **Stats → Live cost** replaces the chemicals card. It lists every component with its ₹ and ₹/kg and tags
+  its **source**:
+  - *measured*: from this app's records;
+  - *part-recorded*: unpriced lines used, or a stock record that starts partway through the period (it
+    says how many days it covers);
+  - *market rate*: zinc charged with no bill yet;
+  - *model*: a Settings fallback, used only where nothing is recorded.
+  Opening a line shows its parts: labour by tier; chemicals line by line as quantity × price, with unpriced
+  lines named; each power or other bill with its share of the month. **What was bought in the period is
+  shown for reference and never used as the figure**, because a purchase is stock on the shelf, not use.
+  Modelled zinc is priced at the last price paid by the end of the period, and only failing that at today's
+  market rate. A period with any part-recorded line carries a *reads LOW* banner.
+- **Power and other bills** (`S.costBills`: kind, the month the bill covers, amount, units, note) are entered
+  on the card and voided with a reason, never deleted. A bill counts in proportion to the share of its
+  month's days that fall in the period. Fallbacks (power ₹0.81/kg, other ₹0.42/kg, zinc 425 kg/month) are
+  in Settings → Live cost fallbacks (`S.costModel`).
+- **Past purchases come from `soma-internal`** through Stock → Import: a `sep-stock` file of `bill` entries
+  (and `costBills`), merged by id. The file is built from the private records and never committed here.
 
 **The phone bar is six tabs**: Home, Create, IM, Register, Clients, **More** (To-do, Stock, Staff,
 Stats, History). More lights up while one of those is open and carries a red count of **every red row**

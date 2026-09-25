@@ -26,6 +26,10 @@ Thumbs.db
 !manifest.json
 # Build stamp written by split/build.sh — an artefact, not data.
 !version.json
+# The Windows widget's Adaptive Card template — code, not data. Without this the
+# *.json rule drops it, and sw.js lists it in the atomic install set, so a
+# missing template would stop the service worker installing at all.
+!widgets/todo-template.json
 
 # Playwright e2e (arming directive 2026-04-24)
 node_modules/

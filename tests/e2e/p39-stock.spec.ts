@@ -128,7 +128,10 @@ test.describe('P39: stock', () => {
     await expect(page.locator('.inv-stk-row').filter({ hasText: 'Q558' })).toContainText('Out');
     await expect(page.locator('.inv-stk-row').filter({ hasText: 'Zinc' })).toContainText('Shelf empty');
     await expect(page.locator('.inv-stk-row').filter({ hasText: 'Brightener' })).toContainText('4 L/day');
-    await expect(page.locator('#moreBadge')).toHaveText('1');
+    // More's badge is every red row: each stock line out or under its red line.
+    const red = await g(page, `stockData().items.filter(function(i){ return stockStatus(i).tone === 'red'; }).map(function(i){ return i.name; })`) as string[];
+    expect(red).toContain('Q558');
+    await expect(page.locator('#moreBadge')).toHaveText(String(red.length));
 
     // The same message twice is caught, and nothing is saved twice.
     await paste(page, MSG1());
@@ -224,11 +227,11 @@ test.describe('P39: stock', () => {
     await expect(card).toContainText('No price yet: Q558');
   });
 
-  test('More holds Stock, Staff, Stats and History, and lights up while one is open', async ({ page }) => {
+  test('More holds To-do, Stock, Staff, Stats and History, and lights up while one is open', async ({ page }) => {
     await loadAppWithState(page, state());
     await expect(page.locator('.inv-tabs .inv-tab')).toHaveCount(6);
     await page.locator('.inv-tab-more').click();
-    await expect(page.locator('.inv-more-item')).toHaveText([/Stock/, /Staff/, /Stats/, /History/]);
+    await expect(page.locator('.inv-more-item')).toHaveText([/To-do/, /Stock/, /Staff/, /Stats/, /History/]);
     await page.locator('.inv-more-item[data-tab="pageStaff"]').click();
     await expect(page.locator('#moreSheet')).toHaveCount(0);
     await expect(page.locator('#pageStaff')).toHaveClass(/inv-page-active/);

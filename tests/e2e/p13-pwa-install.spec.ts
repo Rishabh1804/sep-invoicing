@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { emptyState, loadAppWithState } from './fixtures';
+import { emptyState, loadAppWithState, openSettingsAt } from './fixtures';
 
 /*
  * PWA install and offline contract.
@@ -178,7 +178,7 @@ test.describe('build stamp and update check', () => {
   test('Settings shows the build the device is running', async ({ page, request }) => {
     const build = await servedBuild(request);
     await loadAppWithState(page, emptyState());
-    await page.locator('[data-action="invOpenSettings"]').first().click();
+    await openSettingsAt(page, 'data');
     await expect(page.locator('.inv-build-id')).toHaveText(build);
     await expect(page.locator('[data-action="invCheckUpdate"]')).toHaveCount(1);
   });

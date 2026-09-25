@@ -1,264 +1,477 @@
-/* ===== SETTINGS ===== */
-function openSettings() {
-  const scrim = document.createElement('div');
+/* ===== SETTINGS =====
+   Six groups, and every section folds to one line that says what it is set to,
+   so the whole of Settings reads at a glance and only the section being changed
+   is open. Each section saves on its own: a Save that wrote every field on the
+   sheet meant an edit to the bank details could carry a half-typed labour
+   figure with it. A section with an unsaved edit is marked, on its own line and
+   on its group, and closing Settings with one asks first.
+
+   Phone: the groups stacked, each under its header. Desktop: the groups down
+   the left and one group at a time on the right. Which group and which sections
+   were open is remembered on the device, never on S. */
+
+var SETTINGS_UI_KEY = 'sep_inv_settings_ui';
+
+var SETTINGS_GROUPS = [
+  { key: 'business', label: 'Business', secs: ['company', 'bank', 'invoice', 'cn'] },
+  { key: 'checks', label: 'Checks & alerts', secs: ['rateCheck', 'stockAlerts', 'todo'] },
+  { key: 'costing', label: 'Costing', secs: ['fullCost', 'fallbacks', 'zinc'] },
+  { key: 'labour', label: 'Labour', secs: ['overtime', 'rest', 'extra', 'labModel'] },
+  { key: 'connections', label: 'Connections', secs: ['metalsKey', 'geminiKey', 'sync'] },
+  { key: 'data', label: 'Data & device', secs: ['data'] }
+];
+
+function _setUi() {
+  var u = {};
+  try { u = JSON.parse(localStorage.getItem(SETTINGS_UI_KEY) || '{}') || {}; } catch (e) { /* per-device only */ }
+  var group = SETTINGS_GROUPS.some(function(g) { return g.key === u.group; }) ? u.group : 'business';
+  return { group: group, open: Array.isArray(u.open) ? u.open : [] };
+}
+function _setUiSave(u) {
+  try { localStorage.setItem(SETTINGS_UI_KEY, JSON.stringify(u)); } catch (e) { /* per-device only */ }
+}
+function _settingsGroupOf(sec) {
+  var g = SETTINGS_GROUPS.find(function(x) { return x.secs.indexOf(sec) >= 0; });
+  return g ? g.key : null;
+}
+
+/* ---- field helpers ---- */
+function _sfg(label, id, input) {
+  return '<div class="inv-form-group"><label class="inv-form-label" for="' + id + '">' + label + '</label>' + input + '</div>';
+}
+function _sNum(id, value, step, min, max) {
+  return '<input type="number" step="' + step + '"' + (min != null ? ' min="' + min + '"' : '') + (max != null ? ' max="' + max + '"' : '') +
+    ' class="inv-form-input inv-mono" id="' + id + '" value="' + escHtml(value == null ? '' : value) + '">';
+}
+function _sRow() { return '<div class="inv-form-row">' + Array.prototype.join.call(arguments, '') + '</div>'; }
+var _EYE_SVG = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>';
+function _sKey(id, value, placeholder, action) {
+  return '<div class="inv-api-key-wrap"><input class="inv-form-input inv-mono" id="' + id + '" type="password" value="' + escHtml(value) +
+    '" placeholder="' + placeholder + '" autocomplete="off"><button class="inv-api-key-toggle" data-action="' + action + '" type="button" aria-label="Show key">' + _EYE_SVG + '</button></div>';
+}
+function _sVal(id) { var el = document.getElementById(id); return el ? el.value : null; }
+function _sPos(id) { var v = parseFloat(_sVal(id)); return !isNaN(v) && v > 0 ? v : null; }
+function _sNonNeg(id) { var v = parseFloat(_sVal(id)); return !isNaN(v) && v >= 0 ? v : null; }
+function _sLab(k, dflt) { return (S.labour && S.labour[k]) != null ? S.labour[k] : dflt; }
+function _sRs(v) { return '&#8377;' + escHtml(formatNum(v, 2)); }
+
+/* ---- the sections ----
+   summary() returns HTML (escaped); save() returns false to leave the section
+   unsaved, anything else counts as saved. */
+var SETTINGS_SECS = {
+  company: {
+    title: 'Company',
+    summary: function() { return escHtml(S.company.name || 'Not set') + (S.company.gstin ? ' &middot; <span class="inv-mono">' + escHtml(S.company.gstin) + '</span>' : ''); },
+    body: function() {
+      return _sfg('Name', 'setCompName', '<input class="inv-form-input" id="setCompName" value="' + escHtml(S.company.name) + '">') +
+        _sfg('GSTIN', 'setCompGstin', '<input class="inv-form-input inv-mono" id="setCompGstin" value="' + escHtml(S.company.gstin) + '">') +
+        _sfg('Address 1', 'setCompAdd1', '<input class="inv-form-input" id="setCompAdd1" value="' + escHtml(S.company.add1) + '">') +
+        _sfg('Address 2', 'setCompAdd2', '<input class="inv-form-input" id="setCompAdd2" value="' + escHtml(S.company.add2) + '">') +
+        _sfg('Phone', 'setCompPhone', '<input class="inv-form-input" id="setCompPhone" value="' + escHtml(S.company.phone) + '">');
+    },
+    why: 'Printed on the tax invoice, the credit note and the test certificate. All three read it from here, so they can never disagree about who issued them.',
+    save: function() {
+      ['Name', 'Gstin', 'Add1', 'Add2', 'Phone'].forEach(function(f) {
+        S.company[f.charAt(0).toLowerCase() + f.slice(1)] = _sVal('setComp' + f).trim();
+      });
+    }
+  },
+  bank: {
+    title: 'Bank details',
+    summary: function() { var l = (S.bankDetails || '').split('\n')[0].trim(); return l ? escHtml(l) : 'Not set'; },
+    body: function() { return _sfg('Printed on the invoice', 'setBank', '<textarea class="inv-form-input" id="setBank" rows="3">' + escHtml(S.bankDetails) + '</textarea>'); },
+    save: function() { S.bankDetails = _sVal('setBank').trim(); }
+  },
+  invoice: {
+    title: 'Invoice series',
+    summary: function() { return 'next <span class="inv-mono">' + escHtml(S.invPrefix + String(S.invNextNum).padStart(5, '0')) + '</span>'; },
+    body: function() {
+      return _sRow(_sfg('Prefix', 'setPrefix', '<input class="inv-form-input inv-mono" id="setPrefix" value="' + escHtml(S.invPrefix) + '">'),
+        _sfg('Next number', 'setNextNum', _sNum('setNextNum', S.invNextNum, 1, 1)));
+    },
+    save: function() {
+      S.invPrefix = _sVal('setPrefix').trim();
+      S.invNextNum = parseInt(_sVal('setNextNum'), 10) || S.invNextNum;
+    }
+  },
+  cn: {
+    title: 'Credit note series',
+    summary: function() { return 'next <span class="inv-mono">' + escHtml(cnDisplayNumber(S.cnNextNum || 1)) + '</span>'; },
+    body: function() { return _sfg('Next number', 'setCnNextNum', _sNum('setCnNextNum', S.cnNextNum || 1, 1, 1)); },
+    why: 'Credit notes run their own series, formatted off the invoice prefix’s financial year. Notes raised before the app existed are not in here, so set this to the number after the last one issued by hand &mdash; the series must not restart.',
+    save: function() {
+      var cnNext = parseInt(_sVal('setCnNextNum'), 10);
+      // Never below a number already issued from the app: a credit note number
+      // the customer holds may not be handed out twice.
+      var issued = (S.creditNotes || []).reduce(function(mx, c) {
+        var n = parseInt(c.cnNumber, 10);
+        return isNaN(n) ? mx : Math.max(mx, n);
+      }, 0);
+      if (isNaN(cnNext) || cnNext < 1) { showToast('Enter the next credit note number', 'error'); return false; }
+      if (cnNext <= issued) { showToast('Next credit note must be above ' + cnPadNum(issued) + ' — that one is issued', 'error'); return false; }
+      S.cnNextNum = cnNext;
+    }
+  },
+  rateCheck: {
+    title: 'Rate & weight check',
+    summary: function() { var c = rateCheckCfg(); return escHtml(c.pct + '% · ') + _sRs(c.stake).replace('.00', '') + escHtml(' · ±' + c.weightTol + '%'); },
+    body: function() {
+      var c = rateCheckCfg();
+      return _sRow(_sfg('Check at % off the rate', 'setRcPct', _sNum('setRcPct', c.pct, 0.5, 0.5)),
+        _sfg('or at &#8377; on the line', 'setRcStake', _sNum('setRcStake', c.stake, 1, 1))) +
+        _sfg('Weight within &plusmn;% counts as a match', 'setWtTol', _sNum('setWtTol', c.weightTol, 0.5, 0.5));
+    },
+    why: 'A line whose rate, or whose kilograms against pieces &times; the weight per piece, is this far off what is on record, or puts this much money at stake, is marked <strong>Check</strong>. Anything smaller is marked <strong>Differs</strong> with its difference shown. A scale is not exact, so a weight inside the &plusmn; band matches. Nothing here stops an invoice from being saved. Set 24 Sep 2026 at 10%, &#8377;100 and &plusmn;3%.',
+    save: function() {
+      if (!S.rateCheck) S.rateCheck = {};
+      var p = _sPos('setRcPct'), s = _sPos('setRcStake'), w = _sPos('setWtTol');
+      if (p) S.rateCheck.pct = p;
+      if (s) S.rateCheck.stake = gstRound(s);
+      if (w) S.rateCheck.weightTol = w;
+    }
+  },
+  stockAlerts: {
+    title: 'Stock alerts',
+    summary: function() { var c = stockCfg(); return escHtml('red at ' + c.redDays + ' days left · amber at ' + c.amberDays); },
+    body: function() {
+      var c = stockCfg();
+      return _sRow(_sfg('Red at days left or fewer', 'setStkRed', _sNum('setStkRed', c.redDays, 1, 1)),
+        _sfg('Amber at days left or fewer', 'setStkAmber', _sNum('setStkAmber', c.amberDays, 1, 1)));
+    },
+    why: 'Days left is the level over the daily use on record. Set 24 Sep 2026 at 3 and 7 days.',
+    save: function() {
+      if (!S.stockCheck) S.stockCheck = {};
+      var r = _sPos('setStkRed'), a = _sPos('setStkAmber');
+      if (r) S.stockCheck.redDays = r;
+      if (a) S.stockCheck.amberDays = a;
+    }
+  },
+  todo: {
+    title: 'To-do',
+    summary: function() {
+      var c = todoCfg(), on = TODO_RULES.filter(function(r) { return c[r[0]]; }).length;
+      return escHtml(on + ' of ' + TODO_RULES.length + ' rules on');
+    },
+    body: function() { return todoSettingsFields(); },
+    why: 'What the app raises from your data. Each task clears itself when the thing is fixed.',
+    save: function() { todoSettingsSave(); todoRefreshViews(); }
+  },
+  fullCost: {
+    title: 'Full cost',
+    summary: function() { return _sRs(S.defaultCostPerKg || 8.55) + '/kg'; },
+    body: function() { return _sfg('Default cost per kg (&#8377;)', 'setDefaultCost', _sNum('setDefaultCost', S.defaultCostPerKg || 8.55, 0.01, 0.01)); },
+    why: 'Full cost, not just materials. Stats judges &ldquo;below cost&rdquo; against the period&rsquo;s live cost and uses this only where there is no tonnage to divide by; Items Master reads it for break-even. The Apr&ndash;Jul 2026 rebuild put it at &#8377;8.55/kg.',
+    save: function() { var v = _sPos('setDefaultCost'); if (v) S.defaultCostPerKg = v; }
+  },
+  fallbacks: {
+    title: 'Live cost fallbacks',
+    summary: function() {
+      var c = costModelCfg();
+      return 'power ' + _sRs(c.power) + ' &middot; other ' + _sRs(c.other) + ' &middot; chemicals ' + _sRs(stockCfg().chemModel) + ' /kg';
+    },
+    body: function() {
+      var c = costModelCfg();
+      return _sRow(_sfg('Power (&#8377;/kg)', 'setCostPower', _sNum('setCostPower', c.power, 0.01, 0.01)),
+          _sfg('Consumables, ETP (&#8377;/kg)', 'setCostOther', _sNum('setCostOther', c.other, 0.01, 0.01))) +
+        _sRow(_sfg('Chemicals (&#8377;/kg)', 'setStkModel', _sNum('setStkModel', stockCfg().chemModel, 0.01, 0.01)),
+          _sfg('Zinc (&#8377;/kg), when no zinc price exists', 'setCostZincKg', _sNum('setCostZincKg', c.zincPerKg, 0.01, 0.01))) +
+        _sfg('Zinc used a month, when none is recorded (kg)', 'setCostZinc', _sNum('setCostZinc', c.zincKgMonth, 1, 1));
+    },
+    why: 'Used by Stats &rarr; Live cost only where nothing is recorded for the period, and marked <em>model</em> there. A bill or a stock entry replaces each one. The chemicals figure is also what the measured chemicals cost is reported against.',
+    save: function() {
+      if (!S.costModel || typeof S.costModel !== 'object') S.costModel = {};
+      [['setCostPower', 'power'], ['setCostOther', 'other'], ['setCostZinc', 'zincKgMonth'], ['setCostZincKg', 'zincPerKg']].forEach(function(p) {
+        var v = _sPos(p[0]);
+        if (v) S.costModel[p[1]] = v;
+      });
+      if (!S.stockCheck) S.stockCheck = {};
+      var m = _sPos('setStkModel');
+      if (m) S.stockCheck.chemModel = m;
+    }
+  },
+  zinc: {
+    title: 'Zinc rate',
+    summary: function() {
+      var z = getZinc(), landed = zincLandedRate();
+      var up = 'uplift ' + formatNum(z.upliftPct, 1) + '%';
+      if (landed == null) return escHtml(up + ' · premium ') + _sRs(z.premiumPerKg || 0) + ' &middot; no rate yet';
+      return escHtml(up + ' · ') + _sRs(landed) + '/kg landed';
+    },
+    body: function() {
+      var z = getZinc();
+      return _sRow(_sfg('Market rate (&#8377;/kg)', 'setZincRate', '<input type="number" step="0.01" class="inv-form-input inv-mono" id="setZincRate" value="' + (z.ratePerKg == null ? '' : z.ratePerKg) + '" placeholder="400.00">'),
+          _sfg('Supplier premium (&#8377;/kg)', 'setZincPremium', _sNum('setZincPremium', z.premiumPerKg || 0, 0.01, 0))) +
+        '<div class="inv-text-muted inv-storage-text inv-mb-8">' + (z.basis === 'lme'
+          ? 'LME from ' + escHtml(z.source || 'metals.dev') + ' &mdash; Refresh on the Home zinc card updates it.'
+          : 'Typed by hand, so it is taken as MCX already and not uplifted.') + '</div>' +
+        _sfg('LME &rarr; MCX uplift (%)', 'setZincUplift', _sNum('setZincUplift', z.upliftPct, 0.1, 0)) +
+        '<button type="button" class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invZincDeriveUplift">Derive from zinc bills</button>' +
+        '<div id="zincUpliftOut" class="inv-set-derive"></div>';
+    },
+    why: 'metals.dev publishes no MCX base metal, so a fetched rate is LME and is uplifted by this to estimate MCX: uplift = (MCX &divide; LME &minus; 1) &times; 100. No free service publishes MCX zinc either, so <strong>Derive from zinc bills</strong> measures it from what the shop actually paid: each bill&rsquo;s price before GST, less the supplier premium, against LME on the bill&rsquo;s date (from metals.dev, with the same key). A rate typed above is taken as MCX already and is not uplifted.',
+    save: function() {
+      var z = getZinc();
+      var raw = _sVal('setZincRate').trim();
+      if (raw === '') {
+        z.ratePerKg = null; z.updatedAt = null; z.source = '';
+      } else {
+        var parsed = parseFloat(raw);
+        // Only stamp the date when the figure actually moved, so an unrelated
+        // save cannot make a stale rate look freshly checked.
+        if (!isNaN(parsed) && parsed > 0 && gstRound(parsed) !== z.ratePerKg) {
+          z.ratePerKg = gstRound(parsed);
+          z.updatedAt = Date.now();
+          z.source = 'manual';
+          // A figure typed here is the MCX rate itself, so it must not also be
+          // uplifted — that would compound an estimate onto a known number.
+          z.basis = 'manual';
+        }
+      }
+      var prem = _sNonNeg('setZincPremium');
+      if (prem != null) z.premiumPerKg = gstRound(prem);
+      var up = _sNonNeg('setZincUplift');
+      if (up != null) z.upliftPct = up;
+      renderZincCard();
+    }
+  },
+  overtime: {
+    title: 'Overtime',
+    summary: function() {
+      var c = labourCfg();
+      return escHtml('×' + _sLab('otMult', 1.1) + ' · cap ') + _sRs(c.otCap) + '/h' + (c.otCapFrom ? escHtml(' from ' + formatDate(c.otCapFrom)) : '');
+    },
+    body: function() {
+      var c = labourCfg();
+      return _sRow(_sfg('OT multiplier', 'setOtMult', _sNum('setOtMult', _sLab('otMult', 1.1), 0.01, 1)),
+          _sfg('Monthly tier cap (&#8377;/h, after the multiplier)', 'setOtCap', _sNum('setOtCap', c.otCap, 0.01, 0))) +
+        _sfg('Cap applies to OT dated from', 'setOtCapFrom', '<input type="date" class="inv-form-input inv-mono" id="setOtCapFrom" value="' + escHtml(c.otCapFrom || '') + '">');
+    },
+    why: '<strong>Monthly</strong> OT is weekday hours over 8 at day rate &divide; 8 &times; the multiplier, capped per hour from the date above (owner, 25 Sep 2026: capped at &#8377;68.20 from September; July and August were paid uncapped). A Sunday&rsquo;s hours are that day, never OT. <strong>Daily</strong> OT is at the multiplier, uncapped. <strong>Hourly</strong> hands have no OT: every hour is paid at one rate.',
+    save: function() {
+      if (!S.labour) S.labour = {};
+      var m = _sNonNeg('setOtMult'), cap = _sNonNeg('setOtCap');
+      if (m != null) S.labour.otMult = m;
+      if (cap != null) S.labour.otCap = cap;
+      S.labour.otCapFrom = _sVal('setOtCapFrom') || '';
+    }
+  },
+  rest: {
+    title: 'Rest days & attendance',
+    summary: function() {
+      var c = labourCfg();
+      return escHtml('full at ' + Math.round(_sLab('gateFull', 0.9) * 100) + '% · half at ' + Math.round(_sLab('gateHalf', 0.8) * 100) + '% · ' +
+        c.holidays.length + ' paid holiday' + (c.holidays.length === 1 ? '' : 's'));
+    },
+    body: function() {
+      return _sRow(_sfg('Rest gate &mdash; full at (%)', 'setGateFull', _sNum('setGateFull', Math.round(_sLab('gateFull', 0.9) * 100), 1, 0, 100)),
+          _sfg('Rest gate &mdash; half at (%)', 'setGateHalf', _sNum('setGateHalf', Math.round(_sLab('gateHalf', 0.8) * 100), 1, 0, 100))) +
+        _sfg('Paid holidays (MM-DD every year, or a full date)', 'setHolidays', '<input class="inv-form-input inv-mono" id="setHolidays" value="' + escHtml(labourCfg().holidays.join(', ')) + '">') +
+        _sfg('Daily tier: rest credit at (days worked a week)', 'setRestMin', _sNum('setRestMin', _sLab('restCreditMinDays', 6), 1, 0, 7));
+    },
+    why: 'A monthly hand&rsquo;s Sundays are paid by the gate, judged per calendar month on weekdays worked &divide; the month&rsquo;s working days: at or over the first figure all of them, at or over the second half, below that none. Paid holidays are always paid (BM, 10 Sep 2026). A hand on a contracted monthly wage is not gated. The daily tier earns one rest day a week once it works this many days.',
+    save: function() {
+      if (!S.labour) S.labour = {};
+      var gf = _sNonNeg('setGateFull'), gh = _sNonNeg('setGateHalf'), rm = parseInt(_sVal('setRestMin'), 10);
+      if (gf != null && gf <= 100) S.labour.gateFull = gf / 100;
+      if (gh != null && gh <= 100) S.labour.gateHalf = gh / 100;
+      // A half threshold above the full one would make the middle band unreachable
+      // and the gate silently binary. Swap rather than refuse: the intent is plain.
+      if (S.labour.gateHalf > S.labour.gateFull) {
+        var swap = S.labour.gateHalf; S.labour.gateHalf = S.labour.gateFull; S.labour.gateFull = swap;
+      }
+      if (!isNaN(rm) && rm >= 0) S.labour.restCreditMinDays = rm;
+      S.labour.holidays = _sVal('setHolidays').split(/[,;\s]+/).map(function(x) { return x.trim(); }).filter(function(x) {
+        return /^(\d{4}-)?\d{2}-\d{2}$/.test(x);
+      });
+    }
+  },
+  extra: {
+    title: 'The extra',
+    summary: function() { return _sRs(_sLab('extraRate', 0)) + '/h &middot; ' + escHtml(_sLab('extraHoursPerHead', 8) + ' h per missing hand'); },
+    body: function() {
+      return _sRow(_sfg('Extra-hour rate (&#8377;/h)', 'setExtraRate', _sNum('setExtraRate', _sLab('extraRate', 0), 0.01, 0)),
+        _sfg('Extra per missing hand (h)', 'setExtraPerHead', _sNum('setExtraPerHead', _sLab('extraHoursPerHead', 8), 0.5, 0)));
+    },
+    why: 'The extra-hour rate prices the hours booked to an area with nobody named. <strong>Extra per missing hand</strong> is how many are booked for each hand an area is short of its complement, which is what the Areas view checks the booked hours against.',
+    save: function() {
+      if (!S.labour) S.labour = {};
+      var r = _sNonNeg('setExtraRate'), h = _sNonNeg('setExtraPerHead');
+      if (r != null) S.labour.extraRate = r;
+      if (h != null) S.labour.extraHoursPerHead = h;
+    }
+  },
+  labModel: {
+    title: 'Modelled labour',
+    summary: function() { return _sRs(_sLab('modelPerKg', 0)) + '/kg'; },
+    body: function() { return _sfg('Modelled labour (&#8377;/kg)', 'setLabModel', _sNum('setLabModel', _sLab('modelPerKg', 0), 0.01, 0)); },
+    why: 'What the measured labour figure is reported against. The Apr&ndash;Jul 2026 rebuild put labour at &#8377;3.55 of an &#8377;8.55 cost.',
+    save: function() { var v = _sNonNeg('setLabModel'); if (v != null) { if (!S.labour) S.labour = {}; S.labour.modelPerKg = v; } }
+  },
+  metalsKey: {
+    title: 'metals.dev (zinc rate)',
+    summary: function() { return getMetalsKey() ? 'key saved on this device' : 'no key'; },
+    body: function() { return _sfg('API key', 'setMetalsKey', _sKey('setMetalsKey', getMetalsKey(), 'Paste key', 'invToggleMetalsKey')); },
+    why: 'Free tier at metals.dev covers a daily refresh. The key stays on this device and is never included in an export. Leave it blank to enter the zinc rate by hand.',
+    save: function() { setMetalsKey(_sVal('setMetalsKey').trim()); renderZincCard(); }
+  },
+  geminiKey: {
+    title: 'Challan scanner (Gemini)',
+    summary: function() { return getApiKey() ? 'key saved on this device' : 'no key'; },
+    body: function() { return _sfg('Google Gemini API key', 'setApiKey', _sKey('setApiKey', getApiKey(), 'AIza...', 'invToggleApiKey')); },
+    why: 'Free from aistudio.google.com (Google account only, no card). The key stays on this device.',
+    save: function() { setApiKey(_sVal('setApiKey').trim()); }
+  },
+  sync: {
+    title: 'GitHub sync',
+    summary: function() {
+      var cfg = getGhConfig(), last = ghLastSyncAt();
+      if (!cfg.owner || !cfg.repo) return 'not set up';
+      return '<span class="inv-mono">' + escHtml(cfg.owner + '/' + cfg.repo) + '</span>' + escHtml(last ? ' · synced ' + ghRelTime(last) : ' · not synced yet');
+    },
+    body: function() { return renderGhSyncFields(); },
+    save: function() { saveGhSyncSettings(); ghRenderCard(); }
+  },
+  data: {
+    title: 'Backup, storage & build',
+    summary: function() { return 'export, import &middot; build <span class="inv-mono">' + escHtml(APP_BUILD) + '</span>'; },
+    body: function() {
+      return '<div class="inv-form-row"><button class="inv-btn inv-btn-ghost inv-btn-block" data-action="invExportData">Export JSON</button>' +
+        '<button class="inv-btn inv-btn-ghost inv-btn-block" data-action="invImportData">Import JSON</button></div>' +
+        '<input type="file" id="importFileInput" accept=".json" class="inv-hidden">' +
+        '<div class="inv-storage-wrap"><div class="inv-text-muted inv-storage-text">Storage: ' + estimateStorage() + ' in memory &middot; <span class="inv-disk-summary">on disk: checking&hellip;</span></div>' +
+        '<div class="inv-text-muted inv-storage-text">Last save: <span class="inv-save-status">' + renderLastSave() + '</span></div>' +
+        '<div class="inv-text-muted inv-storage-text">Build <span class="inv-build-id">' + escHtml(APP_BUILD) + '</span> &middot; ' +
+        '<button type="button" class="inv-link-btn" data-action="invCheckUpdate">Check for a newer version</button> &middot; ' +
+        '<button type="button" class="inv-link-btn" data-action="invRunDiagnostics">Run storage diagnostics</button></div>' +
+        '<div id="storageDiagOut"></div></div>';
+    },
+    why: 'Import replaces the whole book with the file. Exporting also counts as a backup for the To-do reminder.'
+  }
+};
+
+var _CHEVRON_SVG = '<svg class="inv-set-chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>';
+
+function _settingsSecHtml(key, open) {
+  var s = SETTINGS_SECS[key];
+  return '<details class="inv-set-sec" data-sec="' + key + '"' + (open ? ' open' : '') + '>' +
+    '<summary class="inv-set-sec-head">' + _CHEVRON_SVG +
+    '<span class="inv-set-sec-text"><span class="inv-set-sec-name">' + escHtml(s.title) + '</span>' +
+    '<span class="inv-set-sec-sum" data-sum="' + key + '">' + s.summary() + '</span></span>' +
+    '<span class="inv-set-dot" aria-label="Unsaved"></span></summary>' +
+    '<div class="inv-set-sec-body">' + s.body() +
+    (s.why ? '<details class="inv-set-why"><summary>How this is used</summary><div class="inv-text-muted inv-storage-text">' + s.why + '</div></details>' : '') +
+    (s.save ? '<div class="inv-set-actions"><button type="button" class="inv-btn inv-btn-primary inv-btn-sm" data-action="invSaveSettingsSec" data-sec="' + key + '" disabled>Save</button></div>' : '') +
+    '</div></details>';
+}
+
+/* Opens Settings; with a section key, on that section, open and in view. */
+function openSettings(target) {
+  var ui = _setUi();
+  var tgtGroup = target && _settingsGroupOf(target);
+  if (tgtGroup) {
+    ui.group = tgtGroup;
+    if (ui.open.indexOf(target) < 0) ui.open.push(target);
+    _setUiSave(ui);
+  }
+  var scrim = document.createElement('div');
   scrim.className = 'inv-overlay-scrim';
   scrim.id = 'settingsScrim';
-  scrim.innerHTML = '<div class="inv-overlay-card">' +
+  scrim.innerHTML = '<div class="inv-overlay-card inv-set-card">' +
     '<div class="inv-overlay-header"><span class="inv-overlay-title">Settings</span>' +
-    '<button class="inv-overlay-close" data-action="invCloseOverlay">&times;</button></div>' +
-
-    '<div class="inv-settings-section"><div class="inv-settings-title">Company</div>' +
-    '<div class="inv-form-group"><label class="inv-form-label">Name</label><input class="inv-form-input" id="setCompName" value="' + escHtml(S.company.name) + '"></div>' +
-    '<div class="inv-form-group"><label class="inv-form-label">GSTIN</label><input class="inv-form-input inv-mono" id="setCompGstin" value="' + escHtml(S.company.gstin) + '"></div>' +
-    '<div class="inv-form-group"><label class="inv-form-label">Address 1</label><input class="inv-form-input" id="setCompAdd1" value="' + escHtml(S.company.add1) + '"></div>' +
-    '<div class="inv-form-group"><label class="inv-form-label">Address 2</label><input class="inv-form-input" id="setCompAdd2" value="' + escHtml(S.company.add2) + '"></div>' +
-    '<div class="inv-form-group"><label class="inv-form-label">Phone</label><input class="inv-form-input" id="setCompPhone" value="' + escHtml(S.company.phone) + '"></div></div>' +
-
-    '<div class="inv-settings-section"><div class="inv-settings-title">Bank Details</div>' +
-    '<div class="inv-form-group"><textarea class="inv-form-input" id="setBank" rows="3">' + escHtml(S.bankDetails) + '</textarea></div></div>' +
-
-    '<div class="inv-settings-section"><div class="inv-settings-title">Invoice Series</div>' +
-    '<div class="inv-form-group"><label class="inv-form-label">Prefix</label><input class="inv-form-input inv-mono" id="setPrefix" value="' + escHtml(S.invPrefix) + '"></div>' +
-    '<div class="inv-text-muted inv-prefix-preview">Preview: ' + escHtml(S.invPrefix) + String(S.invNextNum).padStart(5,'0') + '</div>' +
-    '<div class="inv-form-group"><label class="inv-form-label">Next Number</label><input type="number" class="inv-form-input inv-mono" id="setNextNum" value="' + S.invNextNum + '"></div></div>' +
-
-    '<div class="inv-settings-section"><div class="inv-settings-title">Credit Note Series</div>' +
-    '<div class="inv-text-muted inv-prefix-preview">Preview: ' + escHtml(cnDisplayNumber(S.cnNextNum || 1)) + '</div>' +
-    '<div class="inv-form-group"><label class="inv-form-label">Next Number</label><input type="number" min="1" class="inv-form-input inv-mono" id="setCnNextNum" value="' + (S.cnNextNum || 1) + '"></div>' +
-    '<div class="inv-text-muted inv-storage-text">Credit notes run their own series, formatted off the invoice prefix\u2019s financial year. Notes raised before the app existed are not in here, so set this to the number after the last one issued by hand &mdash; the series must not restart.</div></div>' +
-
-    '<div class="inv-settings-section"><div class="inv-settings-title">Cost of Goods</div>' +
-    '<div class="inv-form-group"><label class="inv-form-label">Default cost per KG (&#8377;)</label>' +
-    '<input type="number" step="0.01" class="inv-form-input inv-mono" id="setDefaultCost" value="' + (S.defaultCostPerKg || 8.55) + '"></div>' +
-    '<div class="inv-text-muted inv-storage-text">Full cost, not just materials. Everything in Stats measures against it &mdash; realisation, margin, and which clients are priced below cost. The Apr&ndash;Jul 2026 rebuild put it at &#8377;8.55/kg.</div></div>' +
-
-    '<div class="inv-settings-section"><div class="inv-settings-title">Rate &amp; Weight Check</div>' +
-    '<div class="inv-form-row"><div class="inv-form-group"><label class="inv-form-label" for="setRcPct">Check at % off the rate</label>' +
-    '<input type="number" step="0.5" min="0.5" class="inv-form-input inv-mono" id="setRcPct" value="' + rateCheckCfg().pct + '"></div>' +
-    '<div class="inv-form-group"><label class="inv-form-label" for="setRcStake">or at &#8377; on the line</label>' +
-    '<input type="number" step="1" min="1" class="inv-form-input inv-mono" id="setRcStake" value="' + rateCheckCfg().stake + '"></div></div>' +
-    '<div class="inv-form-group"><label class="inv-form-label" for="setWtTol">Weight within &plusmn;% counts as a match</label>' +
-    '<input type="number" step="0.5" min="0.5" class="inv-form-input inv-mono" id="setWtTol" value="' + rateCheckCfg().weightTol + '"></div>' +
-    '<div class="inv-text-muted inv-storage-text">A line whose rate, or whose kilograms against pieces &times; the weight per piece, is this far off what is on record, or puts this much money at stake, is marked <strong>Check</strong>. Anything smaller is marked <strong>Differs</strong> with its difference shown. A scale is not exact, so a weight inside the &plusmn; band matches. Nothing here stops an invoice from being saved. Set 24 Sep 2026 at 10%, &#8377;100 and &plusmn;3%.</div></div>' +
-
-    '<div class="inv-settings-section"><div class="inv-settings-title">Stock</div>' +
-    '<div class="inv-form-row"><div class="inv-form-group"><label class="inv-form-label" for="setStkRed">Red at days left or fewer</label>' +
-    '<input type="number" step="1" min="1" class="inv-form-input inv-mono" id="setStkRed" value="' + stockCfg().redDays + '"></div>' +
-    '<div class="inv-form-group"><label class="inv-form-label" for="setStkAmber">Amber at days left or fewer</label>' +
-    '<input type="number" step="1" min="1" class="inv-form-input inv-mono" id="setStkAmber" value="' + stockCfg().amberDays + '"></div></div>' +
-    '<div class="inv-form-group"><label class="inv-form-label" for="setStkModel">Chemicals in the cost model (&#8377;/kg)</label>' +
-    '<input type="number" step="0.01" min="0.01" class="inv-form-input inv-mono" id="setStkModel" value="' + stockCfg().chemModel + '"></div>' +
-    '<div class="inv-text-muted inv-storage-text">Days left is the level over the daily use on record. Stats reports the measured chemicals figure against the model one. Set 24 Sep 2026 at 3 and 7 days.</div></div>' +
-
-    '<div class="inv-settings-section"><div class="inv-settings-title">Live cost fallbacks</div>' +
-    '<div class="inv-form-row"><div class="inv-form-group"><label class="inv-form-label" for="setCostPower">Power (&#8377;/kg)</label>' +
-    '<input type="number" step="0.01" min="0.01" class="inv-form-input inv-mono" id="setCostPower" value="' + costModelCfg().power + '"></div>' +
-    '<div class="inv-form-group"><label class="inv-form-label" for="setCostOther">Consumables, ETP (&#8377;/kg)</label>' +
-    '<input type="number" step="0.01" min="0.01" class="inv-form-input inv-mono" id="setCostOther" value="' + costModelCfg().other + '"></div></div>' +
-    '<div class="inv-form-row"><div class="inv-form-group"><label class="inv-form-label" for="setCostZinc">Zinc used a month, when none is recorded (kg)</label>' +
-    '<input type="number" step="1" min="1" class="inv-form-input inv-mono" id="setCostZinc" value="' + costModelCfg().zincKgMonth + '"></div>' +
-    '<div class="inv-form-group"><label class="inv-form-label" for="setCostZincKg">Zinc (&#8377;/kg), when no zinc price exists</label>' +
-    '<input type="number" step="0.01" min="0.01" class="inv-form-input inv-mono" id="setCostZincKg" value="' + costModelCfg().zincPerKg + '"></div></div>' +
-    '<div class="inv-text-muted inv-storage-text">Used by Stats &rarr; Live cost only where nothing is recorded for the period, and marked <em>model</em> there. A bill or a stock entry replaces each one.</div></div>' +
-
-    todoSettingsHtml() +
-
-    '<div class="inv-settings-section"><div class="inv-settings-title">Labour</div>' +
-    '<div class="inv-form-row"><div class="inv-form-group"><label class="inv-form-label">OT multiplier</label>' +
-    '<input type="number" step="0.01" min="1" class="inv-form-input inv-mono" id="setOtMult" value="' + ((S.labour && S.labour.otMult) != null ? S.labour.otMult : 1.1) + '"></div>' +
-    '<div class="inv-form-group"><label class="inv-form-label">Extra-hour rate (&#8377;/h)</label>' +
-    '<input type="number" step="0.01" min="0" class="inv-form-input inv-mono" id="setExtraRate" value="' + ((S.labour && S.labour.extraRate) || 0) + '"></div></div>' +
-    '<div class="inv-form-group"><label class="inv-form-label" for="setOtCap">Monthly tier OT cap (&#8377;/hour, after the multiplier)</label>' +
-    '<input type="number" step="0.01" min="0" class="inv-form-input inv-mono" id="setOtCap" value="' + labourCfg().otCap + '"></div>' +
-    '<div class="inv-form-group"><label class="inv-form-label" for="setOtCapFrom">OT cap applies to OT dated from</label>' +
-    '<input type="date" class="inv-form-input inv-mono" id="setOtCapFrom" value="' + escHtml(labourCfg().otCapFrom || '') + '"></div>' +
-    '<div class="inv-form-group"><label class="inv-form-label" for="setHolidays">Paid holidays (monthly tier; MM-DD every year, or a full date)</label>' +
-    '<input class="inv-form-input inv-mono" id="setHolidays" value="' + escHtml(labourCfg().holidays.join(', ')) + '"></div>' +
-    '<div class="inv-form-row"><div class="inv-form-group"><label class="inv-form-label">Daily rest credit at (days/week)</label>' +
-    '<input type="number" step="1" min="0" max="7" class="inv-form-input inv-mono" id="setRestMin" value="' + ((S.labour && S.labour.restCreditMinDays) != null ? S.labour.restCreditMinDays : 6) + '"></div>' +
-    '<div class="inv-form-group"><label class="inv-form-label">Extra per missing hand (h)</label>' +
-    '<input type="number" step="0.5" min="0" class="inv-form-input inv-mono" id="setExtraPerHead" value="' + ((S.labour && S.labour.extraHoursPerHead) != null ? S.labour.extraHoursPerHead : 8) + '"></div>' +
-    '<div class="inv-form-group"><label class="inv-form-label">Modelled labour (&#8377;/kg)</label>' +
-    '<input type="number" step="0.01" min="0" class="inv-form-input inv-mono" id="setLabModel" value="' + ((S.labour && S.labour.modelPerKg) || 0) + '"></div></div>' +
-    '<div class="inv-form-row"><div class="inv-form-group"><label class="inv-form-label">Rest gate &mdash; full at (%)</label>' +
-    '<input type="number" step="1" min="0" max="100" class="inv-form-input inv-mono" id="setGateFull" value="' + Math.round(((S.labour && S.labour.gateFull) != null ? S.labour.gateFull : 0.9) * 100) + '"></div>' +
-    '<div class="inv-form-group"><label class="inv-form-label">Rest gate &mdash; half at (%)</label>' +
-    '<input type="number" step="1" min="0" max="100" class="inv-form-input inv-mono" id="setGateHalf" value="' + Math.round(((S.labour && S.labour.gateHalf) != null ? S.labour.gateHalf : 0.8) * 100) + '"></div></div>' +
-    '<div class="inv-text-muted inv-storage-text">The wage arithmetic behind the Staff tab, and it differs by tier. <strong>Monthly</strong>: day rate &times; days worked, plus the range&#8217;s rest days scaled by the attendance gate above (at or over the first figure pays them all, at or over the second pays half, below pays none), plus OT at day rate &divide; 8 &times; this multiplier. <strong>Hourly</strong>: every hour at one flat rate &mdash; no day rate, no multiplier. <strong>Daily</strong>: day rate &times; days, OT at the multiplier, with its own weekly rest credit. The extra-hour rate prices the area-booked hours; <strong>extra per missing hand</strong> is how many are booked to an area for each hand short of its complement, which is what the Areas view checks the booked hours against. The modelled &#8377;/kg is what the measured figure is reported against &mdash; the Apr&ndash;Jul 2026 rebuild put labour at &#8377;3.55 of an &#8377;8.55 cost.</div></div>' +
-
-    '<div class="inv-settings-section"><div class="inv-settings-title">Zinc Rate</div>' +
-    '<div class="inv-form-row"><div class="inv-form-group"><label class="inv-form-label">Market rate (&#8377;/kg)</label>' +
-    '<input type="number" step="0.01" class="inv-form-input inv-mono" id="setZincRate" value="' + (getZinc().ratePerKg == null ? '' : getZinc().ratePerKg) + '" placeholder="400.00"></div>' +
-    '<div class="inv-form-group"><label class="inv-form-label">Supplier premium (&#8377;/kg)</label>' +
-    '<input type="number" step="0.01" class="inv-form-input inv-mono" id="setZincPremium" value="' + (getZinc().premiumPerKg || 0) + '"></div></div>' +
-    '<div class="inv-form-group"><label class="inv-form-label">LME &rarr; MCX uplift (%)</label>' +
-    '<input type="number" step="0.1" min="0" class="inv-form-input inv-mono" id="setZincUplift" value="' + getZinc().upliftPct + '"></div>' +
-    '<div class="inv-text-muted inv-storage-text inv-mb-8">metals.dev publishes no MCX base metal, so a fetched rate is LME and is uplifted by this to estimate MCX. Recalibrate it whenever you see a real MCX quote: uplift = (MCX &divide; LME &minus; 1) &times; 100. A rate typed above is taken as MCX already and is not uplifted.</div>' +
-    '<div class="inv-form-group"><label class="inv-form-label">metals.dev API Key</label>' +
-    '<div class="inv-api-key-wrap"><input class="inv-form-input inv-mono" id="setMetalsKey" type="password" value="' + escHtml(getMetalsKey()) + '" placeholder="Paste key" autocomplete="off">' +
-    '<button class="inv-api-key-toggle" data-action="invToggleMetalsKey" type="button">' +
-    '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button></div>' +
-    '<div class="inv-text-muted inv-storage-text">Free tier at metals.dev covers a daily refresh. Key stays on device and is never included in an export. Leave blank to keep entering the rate by hand.</div></div></div>' +
-
-    '<div class="inv-settings-section"><div class="inv-settings-title">Part Weights (NOS to KG)</div>' +
-    '<div id="setPWList">' + renderPartWeightsList() + '</div>' +
-    '<div class="inv-form-row inv-mb-8"><div class="inv-form-group"><label class="inv-form-label">Part Number</label><input class="inv-form-input inv-mono" id="setPWPart" placeholder="HINGE PIN"></div>' +
-    '<div class="inv-form-group"><label class="inv-form-label">Weight (KG)</label><input type="number" class="inv-form-input inv-mono" id="setPWWeight" step="0.001" placeholder="0.045"></div></div>' +
-    '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invAddPartWeight">Add Weight</button></div>' +
-
-    '<div class="inv-settings-section"><div class="inv-settings-title">Challan Scanner (AI)</div>' +
-    '<div class="inv-form-group"><label class="inv-form-label">Google Gemini API Key</label>' +
-    '<div class="inv-api-key-wrap"><input class="inv-form-input inv-mono" id="setApiKey" type="password" value="' + escHtml(getApiKey()) + '" placeholder="AIza..." autocomplete="off">' +
-    '<button class="inv-api-key-toggle" data-action="invToggleApiKey" type="button">' +
-    '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button></div>' +
-    '<div class="inv-text-muted inv-storage-text">Free from aistudio.google.com (Google account only, no card). Key stays on device.</div></div></div>' +
-
-    renderGhSyncSettings() +
-
-    '<div class="inv-settings-section"><div class="inv-settings-title">Data</div>' +
-    '<div class="inv-form-row"><button class="inv-btn inv-btn-ghost inv-btn-block" data-action="invExportData">Export JSON</button>' +
-    '<button class="inv-btn inv-btn-ghost inv-btn-block" data-action="invImportData">Import JSON</button></div>' +
-    '<input type="file" id="importFileInput" accept=".json" class="inv-hidden">' +
-    '<div class="inv-storage-wrap"><div class="inv-text-muted inv-storage-text">Storage: ' + estimateStorage() + ' in memory &middot; <span class="inv-disk-summary">on disk: checking&hellip;</span></div>' +
-    '<div class="inv-text-muted inv-storage-text">Last save: <span class="inv-save-status">' + renderLastSave() + '</span></div>' +
-    '<div class="inv-text-muted inv-storage-text">Build <span class="inv-build-id">' + escHtml(APP_BUILD) + '</span> &middot; ' +
-    '<button type="button" class="inv-link-btn" data-action="invCheckUpdate">Check for a newer version</button> &middot; ' +
-    '<button type="button" class="inv-link-btn" data-action="invRunDiagnostics">Run storage diagnostics</button></div>' +
-    '<div id="storageDiagOut"></div></div></div>' +
-
-    '<div class="inv-btn-bar"><button class="inv-btn inv-btn-ghost" data-action="invCloseOverlay">Cancel</button>' +
-    '<button class="inv-btn inv-btn-primary" data-action="invSaveSettings">Save</button></div></div>';
-  scrim.addEventListener('click', e => { if (e.target === scrim) { scrim.remove(); document.body.style.overflow = ''; popFocus(); } });
+    '<button class="inv-overlay-close" data-action="invCloseSettings" aria-label="Close settings">&times;</button></div>' +
+    '<div class="inv-set-layout">' +
+    '<nav class="inv-set-nav" aria-label="Settings groups">' + SETTINGS_GROUPS.map(function(g) {
+      return '<button type="button" class="inv-set-nav-btn' + (g.key === ui.group ? ' inv-set-nav-on' : '') + '" data-action="invSettingsGroup" data-group="' + g.key + '">' +
+        '<span>' + escHtml(g.label) + '</span><span class="inv-set-dot" aria-label="Unsaved"></span></button>';
+    }).join('') + '</nav>' +
+    '<div class="inv-set-panes">' + SETTINGS_GROUPS.map(function(g) {
+      return '<section class="inv-set-group' + (g.key === ui.group ? ' inv-set-group-on' : '') + '" data-group="' + g.key + '">' +
+        '<h3 class="inv-set-group-title">' + escHtml(g.label) + '</h3>' +
+        g.secs.map(function(k) { return _settingsSecHtml(k, ui.open.indexOf(k) >= 0); }).join('') + '</section>';
+    }).join('') + '</div></div></div>';
+  scrim.addEventListener('click', function(e) { if (e.target === scrim) closeSettings(); });
+  scrim.addEventListener('input', _settingsOnEdit);
+  scrim.addEventListener('change', _settingsOnEdit);
+  // toggle does not bubble; capture sees every section's.
+  scrim.addEventListener('toggle', function(e) {
+    var d = e.target;
+    if (!d.classList || !d.classList.contains('inv-set-sec')) return;
+    var u = _setUi(), k = d.dataset.sec;
+    u.open = u.open.filter(function(x) { return x !== k; });
+    if (d.open) u.open.push(k);
+    _setUiSave(u);
+  }, true);
   pushFocus();
   document.body.appendChild(scrim);
   document.body.style.overflow = 'hidden';
+  if (target) {
+    var sec = scrim.querySelector('.inv-set-sec[data-sec="' + target + '"]');
+    if (sec && sec.scrollIntoView) sec.scrollIntoView({ block: 'start' });
+  }
   focusFirstInteractive(scrim.querySelector('.inv-overlay-card'));
   refreshDiskSummary();
 }
 
-function saveSettings() {
-  S.company.name = document.getElementById('setCompName').value.trim();
-  S.company.gstin = document.getElementById('setCompGstin').value.trim();
-  S.company.add1 = document.getElementById('setCompAdd1').value.trim();
-  S.company.add2 = document.getElementById('setCompAdd2').value.trim();
-  S.company.phone = document.getElementById('setCompPhone').value.trim();
-  S.bankDetails = document.getElementById('setBank').value.trim();
-  S.invPrefix = document.getElementById('setPrefix').value.trim();
-  S.invNextNum = parseInt(document.getElementById('setNextNum').value) || S.invNextNum;
-  var cnNextEl = document.getElementById('setCnNextNum');
-  if (cnNextEl) {
-    var cnNext = parseInt(cnNextEl.value, 10);
-    // Never below a number already issued from the app: a credit note number
-    // the customer holds may not be handed out twice.
-    var issued = (S.creditNotes || []).reduce(function(mx, c) {
-      var n = parseInt(c.cnNumber, 10);
-      return isNaN(n) ? mx : Math.max(mx, n);
-    }, 0);
-    if (!isNaN(cnNext) && cnNext > 0) {
-      if (cnNext <= issued) {
-        showToast('Next credit note must be above ' + cnPadNum(issued) + ' — that one is issued', 'error');
-      } else {
-        S.cnNextNum = cnNext;
-      }
-    }
-  }
-  var costEl = document.getElementById('setDefaultCost');
-  if (costEl) { var parsedCost = parseFloat(costEl.value); if (!isNaN(parsedCost) && parsedCost > 0) S.defaultCostPerKg = parsedCost; }
-  if (!S.rateCheck) S.rateCheck = {};
-  var rcPctEl = document.getElementById('setRcPct');
-  if (rcPctEl) { var rp = parseFloat(rcPctEl.value); if (!isNaN(rp) && rp > 0) S.rateCheck.pct = rp; }
-  var rcStakeEl = document.getElementById('setRcStake');
-  if (rcStakeEl) { var rs = parseFloat(rcStakeEl.value); if (!isNaN(rs) && rs > 0) S.rateCheck.stake = gstRound(rs); }
-  var wtTolEl = document.getElementById('setWtTol');
-  if (wtTolEl) { var wt = parseFloat(wtTolEl.value); if (!isNaN(wt) && wt > 0) S.rateCheck.weightTol = wt; }
-  if (!S.stockCheck) S.stockCheck = {};
-  var stkRedEl = document.getElementById('setStkRed');
-  if (stkRedEl) { var sr = parseFloat(stkRedEl.value); if (!isNaN(sr) && sr > 0) S.stockCheck.redDays = sr; }
-  var stkAmberEl = document.getElementById('setStkAmber');
-  if (stkAmberEl) { var sa = parseFloat(stkAmberEl.value); if (!isNaN(sa) && sa > 0) S.stockCheck.amberDays = sa; }
-  if (!S.costModel || typeof S.costModel !== 'object') S.costModel = {};
-  [['setCostPower', 'power'], ['setCostOther', 'other'], ['setCostZinc', 'zincKgMonth'], ['setCostZincKg', 'zincPerKg']].forEach(function(p) {
-    var el = document.getElementById(p[0]);
-    if (el) { var v = parseFloat(el.value); if (!isNaN(v) && v > 0) S.costModel[p[1]] = v; }
+function settingsShowGroup(key) {
+  var scrim = document.getElementById('settingsScrim');
+  if (!scrim) return;
+  scrim.querySelectorAll('.inv-set-nav-btn').forEach(function(b) { b.classList.toggle('inv-set-nav-on', b.dataset.group === key); });
+  scrim.querySelectorAll('.inv-set-group').forEach(function(g) { g.classList.toggle('inv-set-group-on', g.dataset.group === key); });
+  var panes = scrim.querySelector('.inv-set-panes');
+  if (panes) panes.scrollTop = 0;
+  var u = _setUi(); u.group = key; _setUiSave(u);
+}
+
+function _settingsOnEdit(e) {
+  var t = e.target;
+  if (!t || !t.closest || t.id === 'importFileInput') return;
+  var d = t.closest('details.inv-set-sec');
+  if (!d || !SETTINGS_SECS[d.dataset.sec] || !SETTINGS_SECS[d.dataset.sec].save) return;
+  d.classList.add('inv-set-dirty');
+  var b = d.querySelector('[data-action="invSaveSettingsSec"]');
+  if (b) b.disabled = false;
+  _settingsNavDots();
+}
+
+function _settingsNavDots() {
+  var scrim = document.getElementById('settingsScrim');
+  if (!scrim) return;
+  scrim.querySelectorAll('.inv-set-nav-btn').forEach(function(b) {
+    var g = scrim.querySelector('.inv-set-group[data-group="' + b.dataset.group + '"]');
+    b.classList.toggle('inv-set-dirty', !!(g && g.querySelector('.inv-set-sec.inv-set-dirty')));
   });
-  var stkModelEl = document.getElementById('setStkModel');
-  if (stkModelEl) { var sm = parseFloat(stkModelEl.value); if (!isNaN(sm) && sm > 0) S.stockCheck.chemModel = sm; }
-  todoSettingsSave();
-  if (!S.labour) S.labour = {};
-  var otMultEl = document.getElementById('setOtMult');
-  if (otMultEl) { var pm = parseFloat(otMultEl.value); if (!isNaN(pm) && pm >= 0) S.labour.otMult = pm; }
-  var otCapEl = document.getElementById('setOtCap');
-  if (otCapEl) { var oc = parseFloat(otCapEl.value); if (!isNaN(oc) && oc >= 0) S.labour.otCap = oc; }
-  var otCapFromEl = document.getElementById('setOtCapFrom');
-  if (otCapFromEl) S.labour.otCapFrom = otCapFromEl.value || '';
-  var holEl = document.getElementById('setHolidays');
-  if (holEl) {
-    S.labour.holidays = holEl.value.split(/[,;\s]+/).map(function(x) { return x.trim(); }).filter(function(x) {
-      return /^(\d{4}-)?\d{2}-\d{2}$/.test(x);
-    });
-  }
-  var extraRateEl = document.getElementById('setExtraRate');
-  if (extraRateEl) { var pe = parseFloat(extraRateEl.value); if (!isNaN(pe) && pe >= 0) S.labour.extraRate = pe; }
-  var restMinEl = document.getElementById('setRestMin');
-  if (restMinEl) { var pr = parseInt(restMinEl.value, 10); if (!isNaN(pr) && pr >= 0) S.labour.restCreditMinDays = pr; }
-  var labModelEl = document.getElementById('setLabModel');
-  if (labModelEl) { var pl = parseFloat(labModelEl.value); if (!isNaN(pl) && pl >= 0) S.labour.modelPerKg = pl; }
-  var extraHeadEl = document.getElementById('setExtraPerHead');
-  if (extraHeadEl) { var ph = parseFloat(extraHeadEl.value); if (!isNaN(ph) && ph >= 0) S.labour.extraHoursPerHead = ph; }
-  var gateFullEl = document.getElementById('setGateFull');
-  if (gateFullEl) { var gf = parseFloat(gateFullEl.value); if (!isNaN(gf) && gf >= 0 && gf <= 100) S.labour.gateFull = gf / 100; }
-  var gateHalfEl = document.getElementById('setGateHalf');
-  if (gateHalfEl) { var gh = parseFloat(gateHalfEl.value); if (!isNaN(gh) && gh >= 0 && gh <= 100) S.labour.gateHalf = gh / 100; }
-  // A half threshold above the full one would make the middle band unreachable
-  // and the gate silently binary. Swap rather than refuse: the intent is plain.
-  if (S.labour.gateHalf > S.labour.gateFull) {
-    var swap = S.labour.gateHalf; S.labour.gateHalf = S.labour.gateFull; S.labour.gateFull = swap;
-  }
-  var apiKeyEl = document.getElementById('setApiKey');
-  if (apiKeyEl) setApiKey(apiKeyEl.value.trim());
-  var metalsKeyEl = document.getElementById('setMetalsKey');
-  if (metalsKeyEl) setMetalsKey(metalsKeyEl.value.trim());
+}
 
-  var z = getZinc();
-  var zRateEl = document.getElementById('setZincRate');
-  if (zRateEl) {
-    var raw = zRateEl.value.trim();
-    if (raw === '') {
-      z.ratePerKg = null;
-      z.updatedAt = null;
-      z.source = '';
-    } else {
-      var parsedZinc = parseFloat(raw);
-      // Only stamp the date when the figure actually moved, so an unrelated
-      // settings save cannot make a stale rate look freshly checked.
-      if (!isNaN(parsedZinc) && parsedZinc > 0 && parsedZinc !== z.ratePerKg) {
-        z.ratePerKg = gstRound(parsedZinc);
-        z.updatedAt = Date.now();
-        z.source = 'manual';
-        // A figure typed here is the MCX rate itself, so it must not also be
-        // uplifted — that would compound an estimate onto a known number.
-        z.basis = 'manual';
-      }
-    }
-  }
-  var zPremEl = document.getElementById('setZincPremium');
-  if (zPremEl) {
-    var parsedPrem = parseFloat(zPremEl.value);
-    if (!isNaN(parsedPrem) && parsedPrem >= 0) z.premiumPerKg = gstRound(parsedPrem);
-  }
-  var zUpliftEl = document.getElementById('setZincUplift');
-  if (zUpliftEl) {
-    var parsedUplift = parseFloat(zUpliftEl.value);
-    if (!isNaN(parsedUplift) && parsedUplift >= 0) z.upliftPct = parsedUplift;
-  }
+function _settingsDirty() {
+  return Array.prototype.map.call(document.querySelectorAll('#settingsScrim .inv-set-sec.inv-set-dirty'), function(d) {
+    return SETTINGS_SECS[d.dataset.sec].title;
+  });
+}
 
-  saveGhSyncSettings();
-
+function saveSettingsSection(key) {
+  var s = SETTINGS_SECS[key];
+  if (!s || !s.save) return;
+  if (s.save() === false) return;
   saveState();
+  var d = document.querySelector('#settingsScrim .inv-set-sec[data-sec="' + key + '"]');
+  if (d) {
+    d.classList.remove('inv-set-dirty');
+    var b = d.querySelector('[data-action="invSaveSettingsSec"]');
+    if (b) b.disabled = true;
+  }
+  _settingsNavDots();
+  // Summaries share config (the zinc line reads the premium and the key), so
+  // all of them are redrawn rather than only the one saved.
+  document.querySelectorAll('#settingsScrim [data-sum]').forEach(function(el) {
+    el.innerHTML = SETTINGS_SECS[el.dataset.sum].summary();
+  });
+  showToast(s.title + ' saved');
+}
+
+function closeSettings() {
+  var dirty = _settingsDirty();
+  if (dirty.length && !confirm('Not saved: ' + dirty.join(', ') + '. Close without saving?')) return;
   closeOverlay();
-  renderZincCard();
-  ghRenderCard();
-  showToast('Settings saved');
 }
 
 /* ===== STORAGE DIAGNOSTICS =====
@@ -442,41 +655,6 @@ function estimateStorage() {
     if (s > 1048576) return (s / 1048576).toFixed(1) + ' MB';
     return (s / 1024).toFixed(0) + ' KB';
   } catch(e) { return 'Unknown'; }
-}
-
-function renderPartWeightsList() {
-  const entries = Object.entries(S.partWeights || {});
-  if (entries.length === 0) return '<div class="inv-text-muted inv-storage-text">No part weights defined yet</div>';
-  return entries.map(([part, wt]) =>
-    '<div class="inv-rate-row"><span class="inv-mono">' + escHtml(part) + '</span>' +
-    '<span class="inv-flex-between"><span class="inv-mono inv-text-cost">' + escHtml(wt) + ' kg</span>' +
-    '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invDeletePartWeight" data-part="' + escHtml(part) + '">&times;</button></span></div>'
-  ).join('');
-}
-
-function addPartWeight() {
-  const partEl = document.getElementById('setPWPart');
-  const wtEl = document.getElementById('setPWWeight');
-  if (!partEl || !wtEl) return;
-  const part = partEl.value.trim().toUpperCase();
-  const wt = parseFloat(wtEl.value);
-  if (!part || isNaN(wt) || wt <= 0) { showToast('Enter part name and weight', 'error'); return; }
-  S.partWeights[part] = wt;
-  saveState();
-  const list = document.getElementById('setPWList');
-  if (list) list.innerHTML = renderPartWeightsList();
-  partEl.value = '';
-  wtEl.value = '';
-  showToast('Weight added: ' + part + ' = ' + wt + ' kg');
-}
-
-function deletePartWeight(part) {
-  if (!confirm('Delete weight for ' + part + '?')) return;
-  delete S.partWeights[part];
-  saveState();
-  const list = document.getElementById('setPWList');
-  if (list) list.innerHTML = renderPartWeightsList();
-  showToast('Weight removed');
 }
 
 function exportData() {

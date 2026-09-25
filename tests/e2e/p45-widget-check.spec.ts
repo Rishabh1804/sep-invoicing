@@ -33,7 +33,7 @@ test('the widget check names the first step that fails, and what to do', async (
   expect(v.pinned).toBe('ok');
 
   // Run for real here: headless Chromium on the test machine is neither Edge nor installed.
-  await page.evaluate(() => (window as any).openSettings());
+  await page.evaluate(() => (window as any).openSettings('todo'));
   await page.locator('[data-action="invTodoWidgetCheck"]').click();
   const box = page.locator('#todoWidgetStatus');
   await expect(box.locator('.inv-td-wverdict-bad')).toBeVisible();

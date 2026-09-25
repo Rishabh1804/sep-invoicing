@@ -1,5 +1,5 @@
 import { test, expect, Page } from '@playwright/test';
-import { emptyState, loadAppWithState, readStoredState, waitForBoot, todayIso, recentTs, STORAGE_KEY } from './fixtures';
+import { emptyState, loadAppWithState, readStoredState, waitForBoot, todayIso, recentTs, STORAGE_KEY, openSettingsAt } from './fixtures';
 
 /*
  * Storage health, on the IndexedDB store.
@@ -74,7 +74,7 @@ test.describe('a save that does not land is said so', () => {
     await breakStateWrites(page, 'throw');
     page.on('dialog', d => d.accept());
 
-    await page.locator('[data-action="invOpenSettings"]').first().click();
+    await openSettingsAt(page, 'data');
     const chooser = page.waitForEvent('filechooser');
     await page.locator('[data-action="invImportData"]').click();
     const incoming = stateWithInvoice();
@@ -103,7 +103,7 @@ test.describe('a save that does not land is said so', () => {
   test('a good import still says so', async ({ page }) => {
     await loadAppWithState(page, emptyState());
     page.on('dialog', d => d.accept());
-    await page.locator('[data-action="invOpenSettings"]').first().click();
+    await openSettingsAt(page, 'data');
     const chooser = page.waitForEvent('filechooser');
     await page.locator('[data-action="invImportData"]').click();
     const incoming = stateWithInvoice();
@@ -170,7 +170,7 @@ test.describe('storage diagnostics', () => {
   test('Settings reports what is on disk and whether the last save landed', async ({ page }) => {
     await loadAppWithState(page, stateWithInvoice());
     await page.evaluate(async () => (window as any).saveState());
-    await page.locator('[data-action="invOpenSettings"]').first().click();
+    await openSettingsAt(page, 'data');
     await expect(page.locator('.inv-disk-summary')).toContainText('matches memory');
     await expect(page.locator('.inv-save-status')).toContainText('ok at');
   });
@@ -178,7 +178,7 @@ test.describe('storage diagnostics', () => {
   test('the report names the store, the quota, the newest record on disk, and the failing error', async ({ page }) => {
     await loadAppWithState(page, stateWithInvoice());
     await page.evaluate(async () => (window as any).saveState());
-    await page.locator('[data-action="invOpenSettings"]').first().click();
+    await openSettingsAt(page, 'data');
     await page.locator('[data-action="invRunDiagnostics"]').click();
 
     const report = page.locator('.inv-diag-report');
@@ -211,7 +211,7 @@ test.describe('storage diagnostics', () => {
     // on the same origin, and therefore inside the same localStorage quota.
     await page.evaluate(async () => localStorage.setItem('sproutlab_state', 'x'.repeat(300 * 1024)));
     await page.evaluate(async () => (window as any).saveState());
-    await page.locator('[data-action="invOpenSettings"]').first().click();
+    await openSettingsAt(page, 'data');
     await page.locator('[data-action="invRunDiagnostics"]').click();
     const report = page.locator('.inv-diag-report');
     await expect(report).toContainText('one pool for every app served from this origin');

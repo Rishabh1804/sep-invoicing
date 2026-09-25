@@ -125,11 +125,11 @@ test.describe('P36: rate matcher — option E', () => {
     // 5.3% off, ₹75 at stake: under the ruling's 10% / ₹100.
     expect(await g(page, judge)).toBe('differs');
 
-    await page.evaluate(() => (window as any).openSettings());
+    await page.evaluate(() => (window as any).openSettings('rateCheck'));
     await expect(page.locator('#setRcPct')).toHaveValue('10');
     await expect(page.locator('#setRcStake')).toHaveValue('100');
     await page.locator('#setRcPct').fill('5');
-    await page.locator('[data-action="invSaveSettings"]').click();
+    await page.locator('[data-action="invSaveSettingsSec"][data-sec="rateCheck"]').click();
 
     expect(await g(page, judge)).toBe('check');
     const st = await readStoredState(page);

@@ -1,5 +1,5 @@
 import { test, expect, Page } from '@playwright/test';
-import { emptyState, loadAppWithState, SepState } from './fixtures';
+import { emptyState, loadAppWithState, SepState, openSettingsAt } from './fixtures';
 import { readFile } from 'node:fs/promises';
 
 /*
@@ -178,7 +178,7 @@ test.describe('GitHub sync — pull', () => {
     });
     await loadAppWithState(page, emptyState());
 
-    await page.locator('[data-action="invOpenSettings"]').first().click();
+    await openSettingsAt(page, 'sync');
     page.once('dialog', (d) => {
       expect(d.message()).toContain('Replace ALL data');
       d.accept();
@@ -210,7 +210,7 @@ test.describe('GitHub sync — pull', () => {
     });
     await loadAppWithState(page, emptyState());
 
-    await page.locator('[data-action="invOpenSettings"]').first().click();
+    await openSettingsAt(page, 'sync');
     page.once('dialog', (d) => { expect(d.message()).toContain('7 invoices'); d.accept(); });
     await page.locator('#ghPullBtn').click();
 
@@ -259,7 +259,7 @@ test.describe('GitHub sync — pull', () => {
       await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ sha: 'bigsha', size: 4292782, encoding: 'none', content: '' }) });
     });
     await loadAppWithState(page, emptyState());
-    await page.locator('[data-action="invOpenSettings"]').first().click();
+    await openSettingsAt(page, 'sync');
     page.once('dialog', (d) => d.accept());
     await page.locator('#ghPullBtn').click();
     await expect(page.locator('.inv-toast')).toContainText('Pulled from GitHub');
@@ -277,7 +277,7 @@ test.describe('GitHub sync — pull', () => {
       });
     });
     await loadAppWithState(page, emptyState());
-    await page.locator('[data-action="invOpenSettings"]').first().click();
+    await openSettingsAt(page, 'sync');
     await page.locator('#ghPullBtn').click();
     await expect(page.locator('.inv-toast')).toContainText('a Settings → Export backup, not a sync file');
     await expect(page.locator('#ghSyncStatus')).toContainText('analysis/sep-invoicing-backup-2026-09-11.json');
@@ -296,7 +296,7 @@ test.describe('GitHub sync — pull', () => {
     });
     await loadAppWithState(page, emptyState());
 
-    await page.locator('[data-action="invOpenSettings"]').first().click();
+    await openSettingsAt(page, 'sync');
     await page.locator('#ghPullBtn').click();
     await expect(page.locator('.inv-toast')).toContainText('not a SEP Invoicing backup');
   });
@@ -305,13 +305,13 @@ test.describe('GitHub sync — pull', () => {
 test.describe('GitHub sync — configuration', () => {
   test('settings round-trip the repo details, and the token stays out of the export', async ({ page }) => {
     await loadAppWithState(page, emptyState());
-    await page.locator('[data-action="invOpenSettings"]').first().click();
+    await openSettingsAt(page, 'sync');
 
     await page.locator('#setGhOwner').fill('testowner');
     await page.locator('#setGhRepo').fill('testrepo');
     await page.locator('#setGhToken').fill('github_pat_SECRETVALUE');
-    await page.locator('[data-action="invSaveSettings"]').click();
-    await expect(page.locator('.inv-toast')).toContainText('Settings saved');
+    await page.locator('[data-action="invSaveSettingsSec"][data-sec="sync"]').click();
+    await expect(page.locator('.inv-toast')).toContainText('GitHub sync saved');
 
     const cfg = await page.evaluate(async (k) => JSON.parse(localStorage.getItem(k)!), SYNC_KEY);
     expect(cfg.owner).toBe('testowner');
@@ -322,7 +322,7 @@ test.describe('GitHub sync — configuration', () => {
     expect(stateRaw).not.toContain('github_pat_SECRETVALUE');
 
     // And the JSON export is the artifact that actually leaves the device.
-    await page.locator('[data-action="invOpenSettings"]').first().click();
+    await openSettingsAt(page, 'data');
     const [download] = await Promise.all([
       page.waitForEvent('download'),
       page.locator('[data-action="invExportData"]').click(),
@@ -335,11 +335,11 @@ test.describe('GitHub sync — configuration', () => {
     await loadAppWithState(page, emptyState());
     await expect(page.locator('#homeSyncCard .inv-sync-card')).toHaveCount(0);
 
-    await page.locator('[data-action="invOpenSettings"]').first().click();
+    await openSettingsAt(page, 'sync');
     await page.locator('#setGhOwner').fill('testowner');
     await page.locator('#setGhRepo').fill('testrepo');
     await page.locator('#setGhToken').fill('github_pat_TESTTOKEN');
-    await page.locator('[data-action="invSaveSettings"]').click();
+    await page.locator('[data-action="invSaveSettingsSec"][data-sec="sync"]').click();
 
     await expect(page.locator('#homeSyncCard .inv-sync-card')).toBeVisible();
     await expect(page.locator('#homeSyncCard')).toContainText('testowner/testrepo');
@@ -349,9 +349,9 @@ test.describe('GitHub sync — configuration', () => {
     await seedSync(page, { sha: 'oldsha' });
     await loadAppWithState(page, emptyState());
 
-    await page.locator('[data-action="invOpenSettings"]').first().click();
+    await openSettingsAt(page, 'sync');
     await page.locator('#setGhRepo').fill('a-different-repo');
-    await page.locator('[data-action="invSaveSettings"]').click();
+    await page.locator('[data-action="invSaveSettingsSec"][data-sec="sync"]').click();
 
     // A sha from the old file would let the next push overwrite a file this
     // device has never read.

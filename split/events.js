@@ -58,7 +58,11 @@ document.addEventListener('click', function(e) {
     case 'invSaveInvoice': saveInvoice(); break;
     case 'invViewInvoice': viewInvoice(btn.dataset.id); break;
     case 'invResetForm': initCreateForm(); break;
-    case 'invSaveSettings': saveSettings(); break;
+    case 'invSaveSettingsSec': saveSettingsSection(btn.dataset.sec); break;
+    case 'invSettingsGroup': settingsShowGroup(btn.dataset.group); break;
+    case 'invCloseSettings': closeSettings(); break;
+    case 'invZincDeriveUplift': zincDeriveUplift(); break;
+    case 'invZincUseUplift': zincUseUplift(btn.dataset.pct); break;
     case 'invExportData': exportData(); break;
     case 'invImportData': importData(); break;
     case 'invCheckUpdate': checkForUpdateManually(); break;
@@ -290,6 +294,7 @@ document.addEventListener('click', function(e) {
     case 'invMergeCancelPreview': cancelMergePreview(parseInt(btn.dataset.group)); break;
     case 'invCalcWeights': calculateStdWeights(); break;
     case 'invOpenWeightEntry': openWeightEntry(); break;
+    case 'invOpenPartWeights': openPartWeights(); break;
     case 'invSaveWeights': saveWeights(); break;
     case 'invDeriveWeights': deriveWeightsFromRates(); break;
     case 'invFilterNoWeight': {

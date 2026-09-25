@@ -238,6 +238,51 @@ test.describe('GitHub sync — pull', () => {
     expect(rawGets).toBe(0);
   });
 
+  // GitHub gives a file's JSON and raw forms the same ETag and marks both
+  // cacheable, so a browser that revalidates can hand the metadata back as the
+  // "raw" file. Sync must always read the live copy (and the live SHA).
+  test('every GitHub request bypasses the browser cache', async ({ page }) => {
+    await seedSync(page);
+    await page.addInitScript(() => {
+      const orig = window.fetch;
+      (window as any).__ghCache = [];
+      window.fetch = function (input: any, init?: any) {
+        if (String(input).includes('api.github.com')) (window as any).__ghCache.push(init && init.cache);
+        return orig.apply(this, arguments as any);
+      } as any;
+    });
+    await page.route(CONTENTS, async (route) => {
+      if ((route.request().headers()['accept'] || '').includes('raw')) {
+        await route.fulfill({ status: 200, contentType: 'application/vnd.github.raw+json', body: JSON.stringify(remoteEnvelope()) });
+        return;
+      }
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ sha: 'bigsha', size: 4292782, encoding: 'none', content: '' }) });
+    });
+    await loadAppWithState(page, emptyState());
+    await page.locator('[data-action="invOpenSettings"]').first().click();
+    page.once('dialog', (d) => d.accept());
+    await page.locator('#ghPullBtn').click();
+    await expect(page.locator('.inv-toast')).toContainText('Pulled from GitHub');
+    const modes = await page.evaluate(() => (window as any).__ghCache);
+    expect(modes.length).toBe(2);
+    expect(modes.every((m: string) => m === 'no-store')).toBe(true);
+  });
+
+  test('a Settings export at the sync path is named as such, with the path', async ({ page }) => {
+    await seedSync(page, { path: 'analysis/sep-invoicing-backup-2026-09-11.json' });
+    await page.route(CONTENTS, async (route) => {
+      await route.fulfill({
+        status: 200, contentType: 'application/json',
+        body: JSON.stringify({ sha: 'x', size: 99, content: Buffer.from(JSON.stringify({ company: {}, clients: [] })).toString('base64') }),
+      });
+    });
+    await loadAppWithState(page, emptyState());
+    await page.locator('[data-action="invOpenSettings"]').first().click();
+    await page.locator('#ghPullBtn').click();
+    await expect(page.locator('.inv-toast')).toContainText('a Settings → Export backup, not a sync file');
+    await expect(page.locator('#ghSyncStatus')).toContainText('analysis/sep-invoicing-backup-2026-09-11.json');
+  });
+
   test('refuses a file that is not a SEP backup', async ({ page }) => {
     await seedSync(page);
     await page.route(CONTENTS, async (route) => {

@@ -92,7 +92,7 @@ every session start — nothing to set up by hand. CI (`build-sync`) is the back
 ### Tests
 
 ```bash
-pnpm exec playwright test          # 389 tests, both layouts
+pnpm exec playwright test          # 391 tests, both layouts
 ```
 
 Some sandboxes ship a Chromium build Playwright does not expect and block downloading
@@ -1530,6 +1530,15 @@ and every pull refused a real 4.3 MB backup as *"not a SEP Invoicing backup"* (o
 `ghGetRemote()` now asks the same endpoint again for the raw file (`application/vnd.github.raw+json`)
 when the content is missing. The push's own conflict check reads only the SHA and downloads the
 other copy only when it has to say whose it is. The ceiling is now GitHub's 100 MB.
+
+**Every GitHub request is `cache: 'no-store'`**, and a refused pull says what arrived. The phone kept
+refusing after that fix while the desktop pulled (owner, 25 Sep 2026). GitHub marks these responses
+cacheable for 60 s and gives a file's JSON and raw forms the **same ETag**, so a browser that
+revalidates one against the other can serve the metadata as the file — *a hypothesis: desktop
+Chromium did not reproduce it.* Sync needs the live SHA regardless, so the cache is bypassed; and the
+error now names the path and what came back (*no content*, *GitHub's description of the file*, *a
+Settings → Export backup, not a sync file*, the JSON's keys), so the next report settles the cause
+instead of restating the symptom.
 
 **A state that arrives is as old as one read off disk.** Three paths replace `S` wholesale —
 the loader, a GitHub pull, and Settings → Import — and only the loader ran the migrations. So a

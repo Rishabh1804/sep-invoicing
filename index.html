@@ -15,7 +15,7 @@
 <title>SEP Invoicing</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-<meta name="app-build" content="499e4bff">
+<meta name="app-build" content="c4d0c5ce">
 <style>
 /* ===== DESIGN TOKENS ===== */
 :root {
@@ -8017,6 +8017,13 @@ async function ghRequest(url, options) {
   try {
     res = await fetch(url, {
       method: opts.method || 'GET',
+      // Never from the browser's HTTP cache. GitHub marks these responses
+      // cacheable for 60 s and gives the JSON and the raw form of a file the
+      // SAME ETag, so a cached metadata response could be revalidated with a 304
+      // and handed back as the "raw" file — a pull on one phone read the file's
+      // metadata and refused it as not a backup while the desktop pulled fine.
+      // Sync also needs the live SHA: a cached one would defeat the conflict check.
+      cache: 'no-store',
       headers: {
         'Authorization': 'Bearer ' + token,
         'Accept': opts.raw ? 'application/vnd.github.raw+json' : 'application/vnd.github+json',
@@ -8061,11 +8068,25 @@ async function ghGetRemote(cfg, opts) {
     if (text) {
       try { envelope = JSON.parse(text); } catch (e) { envelope = null; }
     }
-    return { sha: data ? data.sha : null, envelope: envelope, size: data ? data.size : 0 };
+    return { sha: data ? data.sha : null, envelope: envelope, size: data ? data.size : 0,
+      path: cfg.path, got: ghDescribeText(text, data) };
   } catch (err) {
     if (err.status === 404) return null;
     throw err;
   }
+}
+
+/* What actually arrived, in words, for when it is not a backup — so an error
+   says which file and what was in it rather than only that it was wrong. */
+function ghDescribeText(text, data) {
+  if (!text) return data && data.encoding === 'none' ? 'GitHub sent no content' : 'an empty file';
+  var parsed = null;
+  try { parsed = JSON.parse(text); } catch (e) { return 'not JSON (starts "' + String(text).slice(0, 24) + '")'; }
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return 'JSON, but not an object';
+  if (parsed.app === 'sep-invoicing') return 'a SEP Invoicing backup';
+  if (parsed.type === 'file' && parsed.sha && 'content' in parsed) return 'GitHub\'s description of the file, not the file';
+  if (parsed.company && parsed.clients) return 'a Settings → Export backup, not a sync file';
+  return 'JSON with ' + Object.keys(parsed).slice(0, 4).join(', ');
 }
 
 function ghBuildEnvelope(cfg) {
@@ -8165,8 +8186,9 @@ async function ghPull() {
     var env = remote.envelope;
     if (!env || env.app !== 'sep-invoicing' || !env.state || !env.state.company || !env.state.clients) {
       ghSetBusy(false);
-      ghSetStatus('That file is not a SEP Invoicing backup.');
-      showToast('That file is not a SEP Invoicing backup', 'error');
+      var why = remote.path + ' is not a SEP Invoicing backup: ' + remote.got + ' (' + remote.size + ' bytes).';
+      ghSetStatus(why);
+      showToast('That file is not a SEP Invoicing backup — ' + remote.got, 'error');
       return false;
     }
     if (env.schema > GH_SCHEMA) {

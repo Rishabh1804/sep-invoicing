@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { emptyState, loadAppWithState, switchTab, todayIso, recentTs, SepState } from './fixtures';
+import { emptyState, loadAppWithState, switchTab, todayIso, recentTs, SepState, openStatsTab } from './fixtures';
 
 /*
  * Stats and History rework.
@@ -83,7 +83,7 @@ test.describe('Stats — tonnage and realisation', () => {
 
   test('ranks clients by realisation, worst first, and marks the ones under cost', async ({ page }) => {
     await loadAppWithState(page, pricedState());
-    await switchTab(page, 'pageStats');
+    await openStatsTab(page, 'clients');
 
     const table = page.locator('.inv-stats-card', { hasText: 'Realisation by Client' });
     await expect(table).toBeVisible();
@@ -156,7 +156,7 @@ test.describe('Stats — tonnage and realisation', () => {
       taxableValue: 10000,
     };
     await loadAppWithState(page, state);
-    await switchTab(page, 'pageStats');
+    await openStatsTab(page, 'clients');
 
     const table = page.locator('.inv-stats-card', { hasText: 'Realisation by Client' });
     const partialRow = table.locator('.inv-stats-row-partial');
@@ -176,7 +176,7 @@ test.describe('Stats — tonnage and realisation', () => {
       taxableValue: 100000,
     };
     await loadAppWithState(page, state);
-    await switchTab(page, 'pageStats');
+    await openStatsTab(page, 'clients');
 
     const card = page.locator('.inv-stats-card', { hasText: 'Concentration' });
     await expect(card).toContainText('BELOW COST CLIENT');
@@ -188,7 +188,7 @@ test.describe('Stats — tonnage and realisation', () => {
 
   test('reports output tax and what is still unfiled', async ({ page }) => {
     await loadAppWithState(page, pricedState());
-    await switchTab(page, 'pageStats');
+    await openStatsTab(page, 'billing');
 
     const card = page.locator('.inv-stats-card', { hasText: 'Output Tax' });
     await expect(card).toBeVisible();

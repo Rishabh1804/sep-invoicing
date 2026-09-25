@@ -66,7 +66,7 @@ function getDefaultState() {
     // Power and other monthly bills, for the live cost (voided, never deleted).
     costBills: [],
     // Fallbacks the live cost uses only where nothing is recorded yet.
-    costModel: { power: 0.81, other: 0.42, zincKgMonth: 425 },
+    costModel: { power: 0.81, other: 0.42, zincKgMonth: 425, zincPerKg: 2.21 },
     // Which rules may raise a task, and their day thresholds.
     todoCheck: { stock: true, paste: true, cn: true, challan: true, dispatch: true, audit: true,
       backup: true, zinc: false, pasteDays: 2, challanDays: 5, dispatchDays: 2, backupDays: 7 },

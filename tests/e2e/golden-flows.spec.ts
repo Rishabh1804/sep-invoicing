@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { emptyState, loadAppWithState, switchTab, todayIso, recentTs } from './fixtures';
+import { emptyState, loadAppWithState, switchTab, todayIso, recentTs, openStatsTab } from './fixtures';
 
 test.describe('Golden flows — smoke coverage for inv-1-2', () => {
 
@@ -71,7 +71,7 @@ test.describe('Golden flows — smoke coverage for inv-1-2', () => {
     }];
 
     await loadAppWithState(page, state);
-    await switchTab(page, 'pageStats');
+    await openStatsTab(page, 'overview');
 
     const content = page.locator('#statsContent');
     await expect(content).toBeVisible();
@@ -80,7 +80,8 @@ test.describe('Golden flows — smoke coverage for inv-1-2', () => {
     // Revenue Overview renders grandTotal (306.8) and taxableValue (260) via formatCurrency.
     await expect(content).toContainText('₹306.80');
     await expect(content).toContainText('₹260.00');
-    // Revenue by Client renders the seeded client name in its SVG bar label.
+    // Revenue by Client renders the seeded client name in its SVG bar label (Clients tab).
+    await page.locator('[data-action="invStatsTab"][data-tab="clients"]').click();
     await expect(content).toContainText('TEST CLIENT KG');
   });
 

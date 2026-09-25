@@ -1,5 +1,5 @@
 import { test, expect, Page } from '@playwright/test';
-import { emptyState, loadAppWithState, switchTab, todayIso, recentTs, SepState } from './fixtures';
+import { emptyState, loadAppWithState, switchTab, todayIso, recentTs, SepState, openStatsTab } from './fixtures';
 
 /* loadAppWithState seeds through addInitScript, which re-runs on every
    navigation — so it restores the fixture on reload and would erase anything a
@@ -111,7 +111,7 @@ test('derived weights make the client measurable in Stats without changing billi
   const state = pieceState();
   state.defaultCostPerKg = 8.55;
   await loadAppWithState(page, state);
-  await switchTab(page, 'pageStats');
+  await openStatsTab(page, 'clients');
 
   const table = page.locator('.inv-stats-card', { hasText: 'Realisation by Client' });
   const row = table.locator('.inv-stats-table-row').first();

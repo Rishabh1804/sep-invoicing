@@ -85,6 +85,11 @@ A to-do list for Soma, the workplace, shown as a widget on the desktop and on th
 
 ### 4. Other patches
 
+> **Status, 25 Sep 2026 (session B): intelligence engine parts one and two BUILT.** Default cost per kg is now
+> derived live (Stats → Cost → Live cost, `cost.js`), and real cost per client is Stats → Clients →
+> Contribution by client (`intel.js`). Stats is in five tabs. Open: the insights feed and predictions
+> (parts three and four of the mockup).
+
 - **PO number and despatch vehicle number, predicted.** Start from what the app already has:
   `split/create.js` already saves the vehicle number to the client for autocomplete. A
   per-client frequency model (last used, most used) may carry most of the value before anything

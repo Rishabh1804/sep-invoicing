@@ -55,8 +55,9 @@ function statsState(over: Partial<SepState> = {}): SepState {
 }
 
 /** Stats defaults to MTD; the item cards are period-filtered, so widen first. */
-async function openStats(page: Page) {
+async function openStats(page: Page, tab = 'trends') {
   await switchTab(page, 'pageStats');
+  await page.locator(`[data-action="invStatsTab"][data-tab="${tab}"]`).click();
   await page.locator('[data-action="invStatsPeriod"][data-period="all"]').click();
 }
 
@@ -157,7 +158,7 @@ test('P21: revenue by client can be read as a share, with a legend', async ({ pa
     invoice(2, { clientId: 2, clientName: 'BETA', taxableValue: 2500 }),
   ];
   await loadAppWithState(page, s);
-  await openStats(page);
+  await openStats(page, 'clients');
 
   await page.locator('[data-action="invStatsClientChart"][data-chart="pie"]').click();
   const legend = page.locator('.inv-chart-legend');
@@ -174,7 +175,7 @@ test('P21: the share chart folds a long tail into one named wedge', async ({ pag
   s.invoices = Array.from({ length: 11 }, (_, i) =>
     invoice(i + 1, { clientId: i + 1, clientName: `CLIENT ${i + 1}`, taxableValue: 1000 * (11 - i) }));
   await loadAppWithState(page, s);
-  await openStats(page);
+  await openStats(page, 'clients');
   await page.locator('[data-action="invStatsClientChart"][data-chart="pie"]').click();
 
   // Eight wedges plus the fold — slivers nobody can aim at are not drawn, and
@@ -237,7 +238,9 @@ test('P21: parts plated below cost are marked against the cost line', async ({ p
   // so accent-vs-danger was a distinction nobody could see.
   await expect(page.locator('.inv-chart-ranked-fill-danger')).toHaveCount(1);
   await expect(page.locator('.inv-chart-ranked-fill-good')).toHaveCount(1);
-  await expect(page.locator('.inv-stats-note', { hasText: 'Mark is full cost' })).toContainText('₹8.55');
+  // The mark is the period's live cost: nothing recorded here, so every part is its model figure.
+  const live = await page.evaluate(() => (0, eval)(`(function(){ var r = statsRangeIso(_statsPeriod); return formatCurrency(liveCost(r.from, r.to, weighLines(S.invoices.filter(function(i){ return i.status === 'active'; })).kg).perKg); })()`));
+  await expect(page.locator('.inv-stats-note', { hasText: 'Mark is full cost' })).toContainText(live as string);
 });
 
 test('P21: a period with no work is a zero, not a gap the chart closes over', async ({ page }) => {

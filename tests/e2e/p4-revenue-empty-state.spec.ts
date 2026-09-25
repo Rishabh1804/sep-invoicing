@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { emptyState, loadAppWithState, switchTab, todayIso } from './fixtures';
+import { emptyState, loadAppWithState, switchTab, todayIso, openStatsTab } from './fixtures';
 
 // P4 assertion: "Revenue by Client" empty-state is upgraded from a terse muted-text
 // ("No client data") to an actionable empty-state (copy + "Create an invoice" CTA).
@@ -9,7 +9,7 @@ test.describe('P4: Revenue by Client empty-state', () => {
   test('empty state renders new copy + CTA when no invoices exist', async ({ page }) => {
     // emptyState() seeds a client but zero invoices — the exact trigger for the empty state.
     await loadAppWithState(page, emptyState());
-    await switchTab(page, 'pageStats');
+    await openStatsTab(page, 'clients');
 
     const content = page.locator('#statsContent');
     await expect(content).toBeVisible();
@@ -27,7 +27,7 @@ test.describe('P4: Revenue by Client empty-state', () => {
 
   test('CTA switches to the Create tab (wiring intact)', async ({ page }) => {
     await loadAppWithState(page, emptyState());
-    await switchTab(page, 'pageStats');
+    await openStatsTab(page, 'clients');
 
     const cta = page.locator('#statsContent button[data-action="invCreateNew"]');
     await expect(cta).toBeVisible();

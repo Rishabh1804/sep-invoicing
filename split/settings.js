@@ -55,8 +55,10 @@ function openSettings() {
     '<input type="number" step="0.01" min="0.01" class="inv-form-input inv-mono" id="setCostPower" value="' + costModelCfg().power + '"></div>' +
     '<div class="inv-form-group"><label class="inv-form-label" for="setCostOther">Consumables, ETP (&#8377;/kg)</label>' +
     '<input type="number" step="0.01" min="0.01" class="inv-form-input inv-mono" id="setCostOther" value="' + costModelCfg().other + '"></div></div>' +
-    '<div class="inv-form-group"><label class="inv-form-label" for="setCostZinc">Zinc used a month, when none is recorded (kg)</label>' +
+    '<div class="inv-form-row"><div class="inv-form-group"><label class="inv-form-label" for="setCostZinc">Zinc used a month, when none is recorded (kg)</label>' +
     '<input type="number" step="1" min="1" class="inv-form-input inv-mono" id="setCostZinc" value="' + costModelCfg().zincKgMonth + '"></div>' +
+    '<div class="inv-form-group"><label class="inv-form-label" for="setCostZincKg">Zinc (&#8377;/kg), when no zinc price exists</label>' +
+    '<input type="number" step="0.01" min="0.01" class="inv-form-input inv-mono" id="setCostZincKg" value="' + costModelCfg().zincPerKg + '"></div></div>' +
     '<div class="inv-text-muted inv-storage-text">Used by Stats &rarr; Live cost only where nothing is recorded for the period, and marked <em>model</em> there. A bill or a stock entry replaces each one.</div></div>' +
 
     todoSettingsHtml() +
@@ -169,7 +171,7 @@ function saveSettings() {
   var stkAmberEl = document.getElementById('setStkAmber');
   if (stkAmberEl) { var sa = parseFloat(stkAmberEl.value); if (!isNaN(sa) && sa > 0) S.stockCheck.amberDays = sa; }
   if (!S.costModel || typeof S.costModel !== 'object') S.costModel = {};
-  [['setCostPower', 'power'], ['setCostOther', 'other'], ['setCostZinc', 'zincKgMonth']].forEach(function(p) {
+  [['setCostPower', 'power'], ['setCostOther', 'other'], ['setCostZinc', 'zincKgMonth'], ['setCostZincKg', 'zincPerKg']].forEach(function(p) {
     var el = document.getElementById(p[0]);
     if (el) { var v = parseFloat(el.value); if (!isNaN(v) && v > 0) S.costModel[p[1]] = v; }
   });

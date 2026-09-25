@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
 import { readFileSync } from 'fs';
-import { emptyState, loadAppWithState, noSeedIM, readStoredState, recentTs, switchTab, todayIso, type SepState } from './fixtures';
+import { emptyState, loadAppWithState, noSeedIM, readStoredState, recentTs, switchTab, todayIso, type SepState, openStatsTab } from './fixtures';
 
 // P39: the Stock tab. The supervisor's WhatsApp stock message is pasted in,
 // read line by line, checked against its own arithmetic and the app's level,
@@ -223,16 +223,17 @@ test.describe('P39: stock', () => {
       pastes: [],
     };
     await loadAppWithState(page, s);
-    await switchTab(page, 'pageStats');
+    await openStatsTab(page, 'cost');
     const chem = page.locator('#liveCost .inv-cost-row').filter({ hasText: 'Chemicals' });
     await expect(chem).toContainText('₹2,000.00');
-    await expect(chem).toContainText('₹2.00/kg');
     // Q558 was used but never priced: part-recorded, and named in the breakdown.
     await expect(chem.locator('.inv-cost-src')).toHaveText('part-recorded');
-    await expect(chem).toContainText('1 of 2 lines priced');
+    await expect(chem).toContainText('1 of 2 lines used are priced');
     await chem.locator('summary').click();
     await expect(chem.locator('.inv-cost-detail')).toContainText('Q558');
     await expect(chem.locator('.inv-cost-detail')).toContainText('5 kg used, no price');
+    // The days before the stock record began are filled at the model, and say so.
+    await expect(chem.locator('.inv-cost-detail')).toContainText('Not recorded');
   });
 
   test('More holds To-do, Stock, Staff, Stats and History, and lights up while one is open', async ({ page }) => {

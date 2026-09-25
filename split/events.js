@@ -167,6 +167,7 @@ document.addEventListener('click', function(e) {
     case 'invBulkMarkFiled': bulkMarkFiled(); break;
     // Phase 7: Stats period chips
     case 'invStatsPeriod': _statsPeriod = btn.dataset.period; renderStats(); break;
+    case 'invStatsTab': statsSetTab(btn.dataset.tab); break;
     // P9: Trend granularity chips (day/week/month)
     case 'invStatsTrendGran': _statsTrendGran = btn.dataset.gran; renderStats(); break;
     // Chart controls: what the trend plots, how it is drawn, and how the

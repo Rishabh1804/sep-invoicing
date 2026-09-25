@@ -23,7 +23,7 @@ Workforce management and invoicing PWA for **Soma Electro Products**, a zinc ele
 
 ## Architecture
 
-Split-file PWA. 38 modules, ~23,900 lines total.
+Split-file PWA. 39 modules, ~24,200 lines total.
 
 ```
 split/
@@ -58,6 +58,7 @@ split/
 ├── todo.js            ← To-do: your tasks + tasks raised from the data, Home card, Windows widget payload (726 lines)
 ├── relay.js           ← Attendance rolls: in/out-time WhatsApp parser, review, merge into the day (795 lines)
 ├── stats.js           ← Stats dashboard + History activity log (1,195 lines)
+├── intel.js           ← Stats tabs; Overview at the live cost; six months; contribution by client (~230 lines)
 ├── client-perf.js     ← Client performance: month on month + material cadence (314 lines)
 ├── im-form.js         ← IM add/edit/delete challan form (450 lines)
 ├── im-dupe.js         ← IM duplicate guard: fingerprint + pre-save warn + scan (305 lines)
@@ -68,7 +69,7 @@ split/
 └── init.js            ← Migrations + app bootstrap (567 lines)
 ```
 
-**Concat order defined in build.sh.** Dependencies: data → state → zinc → tabs → clients → items → create → settings → github-sync → invoice-ops → number-audit → exports → im → autocomplete → print → quality-cert → credit-note → charts → staff → labour → areas → payroll → stock → cost → todo → relay → stats → client-perf → im-form → im-dupe → scanner → events → swipe → seed → init.
+**Concat order defined in build.sh.** Dependencies: data → state → zinc → tabs → clients → items → create → settings → github-sync → invoice-ops → number-audit → exports → im → autocomplete → print → quality-cert → credit-note → charts → staff → labour → areas → payroll → stock → cost → todo → relay → stats → intel → client-perf → im-form → im-dupe → scanner → events → swipe → seed → init.
 
 ### Build
 
@@ -94,7 +95,7 @@ every session start — nothing to set up by hand. CI (`build-sync`) is the back
 ### Tests
 
 ```bash
-pnpm exec playwright test          # 406 tests, both layouts
+pnpm exec playwright test          # 409 tests, both layouts
 ```
 
 Some sandboxes ship a Chromium build Playwright does not expect and block downloading
@@ -1150,8 +1151,16 @@ the stock (price, usage, cadence, etc.)"*). `cost.js`.
   Opening a line shows its parts: labour by tier; chemicals line by line as quantity × price, with unpriced
   lines named; each power or other bill with its share of the month. **What was bought in the period is
   shown for reference and never used as the figure**, because a purchase is stock on the shelf, not use.
-  Modelled zinc is priced at the last price paid by the end of the period, and only failing that at today's
-  market rate. A period with any part-recorded line carries a *reads LOW* banner.
+  Modelled zinc is priced at the last price paid by the end of the period, then today's market rate, then
+  the cost model's ₹2.21/kg.
+- 🔴 **An unrecorded stretch is FILLED at the model, never read as zero.** Each row is measured where the
+  record exists and filled pro rata where it does not: labour's unrecorded working days, the days before
+  the stock record starts, a month with no power or other bill. The fill is its own line in the breakdown
+  ("Not recorded: …"), and only the measured part counts toward *measured*. The first cut read the gaps as
+  nothing, and on real data the quarter's live cost came out at **₹2.92/kg, "93% measured"**: one July
+  power bill stood in for three months of power, and three days of stock use stood in for the quarter. That
+  flattered every client's margin by ₹4+/kg, SSS Mehta included (+₹2.42 against −₹1.97 once filled).
+  **A figure that reads cheapest where least is known is the error this card exists to prevent.**
 - **Power and other bills** (`S.costBills`: kind, the month the bill covers, amount, units, note) are entered
   on the card and voided with a reason, never deleted. A bill counts in proportion to the share of its
   month's days that fall in the period. Fallbacks (power ₹0.81/kg, other ₹0.42/kg, zinc 425 kg/month) are
@@ -1163,6 +1172,28 @@ the stock (price, usage, cadence, etc.)"*). `cost.js`.
 Stats, History). More lights up while one of those is open and carries a red count of **every red row**
 — stock out or under its red line, and your own tasks overdue. The test fixture's `switchTab` opens
 More when the target is behind it.
+
+### Stats in tabs, and the overview
+Stats is five tabs over one period chip row (owner, 25 Sep 2026: *"break up the stats page into multiple
+grouped tabs"*): **Overview** (the headline four, *In one line*, six months), **Clients** (contribution by
+client, revenue, realisation, concentration), **Cost** (labour, live cost), **Billing** (GST, invoice
+states, unbilled, dispatch) and **Trends** (the trend chart, top items). The open tab is remembered on
+the device. `renderStats()` still draws every card; `take()` files each into its tab.
+
+- **Every "below cost" on Stats is judged against the period's live cost**, not the typed ₹8.55, so the
+  headline and the Overview cannot disagree. The typed figure is used only where there is no tonnage to
+  divide by (and still by Items Master's break-even).
+- **In one line**: realisation, live cost, contribution per kg and on the period, and capacity against
+  ~2 t per shift × two shifts × working days. Whatever is not measured is named under it.
+- **Six months**: each month at its own live cost, with labour ₹/kg shown only where 90% of the days are
+  recorded and the share of cost measured.
+- **Contribution by client** (Clients tab), worst first: net realisation (credit notes whose batch ends in
+  the period are taken off), against the variable cost (everything but the monthly crew) and the full cost,
+  and the ₹ on the period. The worst account with 10%+ of the tonnage is settled both ways: if labour is
+  fixed, if it scales, the break-even prices, and its share of the plant. **Cost is spread per kg**, which
+  the table says: a thin clamp and a heavy bracket cost the same per kg there. On the real book for the
+  quarter to 25 Sep: live cost ₹7.31/kg (40% measured) against ₹7.96 realised; SSS Mehta at ₹5.34 net is
+  −₹0.87/kg even with labour fixed.
 
 ### Home quick actions
 Six buttons under Month to Date, each opening its screen **already on the job**: New invoice, New

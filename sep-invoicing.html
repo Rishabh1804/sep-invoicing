@@ -15,7 +15,7 @@
 <title>SEP Invoicing</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-<meta name="app-build" content="d3772c8c">
+<meta name="app-build" content="2b97af23">
 <style>
 /* ===== DESIGN TOKENS ===== */
 :root {
@@ -2824,6 +2824,28 @@ body.inv-desktop #itemsSelBar {
 .inv-pay-total { font-weight: 700; }
 .inv-pay-void { opacity: 0.6; text-decoration: line-through; }
 .inv-pay-chart { margin: var(--sp-8) 0; }
+.inv-stats-tabs { display: flex; gap: var(--sp-4); overflow-x: auto; margin-bottom: var(--sp-8); border-bottom: 1px solid var(--border); }
+.inv-stats-tab { flex: 0 0 auto; min-height: 44px; padding: 0 var(--sp-12); background: none; border: none; border-bottom: 2px solid transparent; font: inherit; font-weight: 600; color: var(--text-2); cursor: pointer; }
+.inv-stats-tab-on { color: var(--accent); border-bottom-color: var(--accent); }
+.inv-stats-tab:focus-visible { outline: 2px solid var(--accent); outline-offset: calc(var(--sp-2) * -1); }
+.inv-ov-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-8); margin: var(--sp-8) 0; }
+@media (min-width: 900px) { .inv-ov-grid { grid-template-columns: repeat(4, 1fr); } .inv-ov-grid-2 { grid-template-columns: 1fr 1fr; } }
+.inv-ov-tile { border-radius: var(--r-md); padding: var(--sp-10); }
+.inv-ov-l { font-size: var(--fs-2xs); font-weight: 700; text-transform: uppercase; color: var(--text-2); }
+.inv-ov-v { font-family: var(--ff-mono); font-weight: 700; font-size: var(--fs-lg); color: var(--text-1); }
+.inv-ov-v small { font-size: var(--fs-xs); font-weight: 400; }
+.inv-ov-s { font-size: var(--fs-2xs); color: var(--text-2); }
+.inv-ov-table { width: 100%; border-collapse: collapse; font-size: var(--fs-sm); }
+.inv-ov-table th { font-size: var(--fs-2xs); text-transform: uppercase; color: var(--text-3); text-align: right; padding: var(--sp-4) var(--sp-2); }
+.inv-ov-table td { text-align: right; padding: var(--sp-6) var(--sp-2); border-top: 1px solid var(--border); font-family: var(--ff-mono); color: var(--text-1); }
+.inv-ov-table th:first-child, .inv-ov-table td:first-child { text-align: left; font-family: inherit; }
+.inv-ov-table tr[data-action] { cursor: pointer; }
+.inv-ov-pos { color: var(--attend-text); }
+.inv-ov-neg { color: var(--danger); }
+.inv-ov-case { margin-top: var(--sp-12); padding-top: var(--sp-8); border-top: 1px solid var(--border); }
+.dark .inv-ov-pos { color: var(--attend-text); }
+.dark .inv-ov-neg { color: var(--danger); }
+.dark .inv-stats-tab-on { color: var(--accent); border-bottom-color: var(--accent); }
 .inv-cost-row > summary { list-style: none; cursor: pointer; }
 .inv-cost-row > summary::-webkit-details-marker { display: none; }
 .inv-cost-note { display: block; font-size: var(--fs-2xs); color: var(--text-3); font-weight: 400; }
@@ -3734,7 +3756,7 @@ function getDefaultState() {
     // Power and other monthly bills, for the live cost (voided, never deleted).
     costBills: [],
     // Fallbacks the live cost uses only where nothing is recorded yet.
-    costModel: { power: 0.81, other: 0.42, zincKgMonth: 425 },
+    costModel: { power: 0.81, other: 0.42, zincKgMonth: 425, zincPerKg: 2.21 },
     // Which rules may raise a task, and their day thresholds.
     todoCheck: { stock: true, paste: true, cn: true, challan: true, dispatch: true, audit: true,
       backup: true, zinc: false, pasteDays: 2, challanDays: 5, dispatchDays: 2, backupDays: 7 },
@@ -7527,8 +7549,10 @@ function openSettings() {
     '<input type="number" step="0.01" min="0.01" class="inv-form-input inv-mono" id="setCostPower" value="' + costModelCfg().power + '"></div>' +
     '<div class="inv-form-group"><label class="inv-form-label" for="setCostOther">Consumables, ETP (&#8377;/kg)</label>' +
     '<input type="number" step="0.01" min="0.01" class="inv-form-input inv-mono" id="setCostOther" value="' + costModelCfg().other + '"></div></div>' +
-    '<div class="inv-form-group"><label class="inv-form-label" for="setCostZinc">Zinc used a month, when none is recorded (kg)</label>' +
+    '<div class="inv-form-row"><div class="inv-form-group"><label class="inv-form-label" for="setCostZinc">Zinc used a month, when none is recorded (kg)</label>' +
     '<input type="number" step="1" min="1" class="inv-form-input inv-mono" id="setCostZinc" value="' + costModelCfg().zincKgMonth + '"></div>' +
+    '<div class="inv-form-group"><label class="inv-form-label" for="setCostZincKg">Zinc (&#8377;/kg), when no zinc price exists</label>' +
+    '<input type="number" step="0.01" min="0.01" class="inv-form-input inv-mono" id="setCostZincKg" value="' + costModelCfg().zincPerKg + '"></div></div>' +
     '<div class="inv-text-muted inv-storage-text">Used by Stats &rarr; Live cost only where nothing is recorded for the period, and marked <em>model</em> there. A bill or a stock entry replaces each one.</div></div>' +
 
     todoSettingsHtml() +
@@ -7641,7 +7665,7 @@ function saveSettings() {
   var stkAmberEl = document.getElementById('setStkAmber');
   if (stkAmberEl) { var sa = parseFloat(stkAmberEl.value); if (!isNaN(sa) && sa > 0) S.stockCheck.amberDays = sa; }
   if (!S.costModel || typeof S.costModel !== 'object') S.costModel = {};
-  [['setCostPower', 'power'], ['setCostOther', 'other'], ['setCostZinc', 'zincKgMonth']].forEach(function(p) {
+  [['setCostPower', 'power'], ['setCostOther', 'other'], ['setCostZinc', 'zincKgMonth'], ['setCostZincKg', 'zincPerKg']].forEach(function(p) {
     var el = document.getElementById(p[0]);
     if (el) { var v = parseFloat(el.value); if (!isNaN(v) && v > 0) S.costModel[p[1]] = v; }
   });
@@ -18032,10 +18056,11 @@ function stockPatternHtml(item) {
 }
 
 /* ---------- The live cost ---------- */
-var COST_MODEL_DEFAULTS = { power: 0.81, other: 0.42, zincKgMonth: 425 };
+var COST_MODEL_DEFAULTS = { power: 0.81, other: 0.42, zincKgMonth: 425, zincPerKg: 2.21 };
 function costModelCfg() {
   var c = S.costModel || {}, d = COST_MODEL_DEFAULTS;
-  return { power: c.power > 0 ? c.power : d.power, other: c.other > 0 ? c.other : d.other, zincKgMonth: c.zincKgMonth > 0 ? c.zincKgMonth : d.zincKgMonth };
+  return { power: c.power > 0 ? c.power : d.power, other: c.other > 0 ? c.other : d.other, zincKgMonth: c.zincKgMonth > 0 ? c.zincKgMonth : d.zincKgMonth,
+    zincPerKg: c.zincPerKg > 0 ? c.zincPerKg : d.zincPerKg };
 }
 function costBills() {
   if (!Array.isArray(S.costBills)) S.costBills = [];
@@ -18051,17 +18076,34 @@ function costMonthShare(month, from, to) {
   return (stockDaysApart(a, b) + 1) / (stockDaysApart(start, end) + 1);
 }
 
+/* Every row is MEASURED where the record exists and FILLED from its model rate
+   where it does not, pro rata by the days (or, for labour, the working days)
+   the record leaves out. The fill is a line of its own in the breakdown, and
+   only the measured part counts towards "measured". Reading an unrecorded
+   stretch as zero made the plant look cheapest exactly where least was known:
+   a quarter with one power bill read as a quarter that used one month's power. */
 function liveCost(from, to, kg) {
   var cfg = costModelCfg(), days = stockDaysApart(from, to) + 1, rows = [];
   var per = function(v) { return kg > 0 ? v / kg : null; };
+  var fillLine = function(perKg, share, what) {
+    return { label: 'Not recorded: ' + what, sub: formatCurrency(perKg) + '/kg model × ' + formatNum(share * 100, 0) + '% of the tonnage', amount: perKg * kg * share, fill: true };
+  };
+  var push = function(r) {
+    var fill = r.detail.filter(function(d) { return d.fill; }).reduce(function(s, d) { return s + d.amount; }, 0);
+    r.measured = r.measuredOverride != null ? r.measuredOverride : r.amount - fill;
+    if (!r.source) r.source = r.measured <= 0.005 ? 'model' : (fill > 0.005 || r.low ? 'partial' : 'measured');
+    rows.push(r);
+  };
 
-  // Labour: the attendance record, every tier.
-  var lab = labourForRange(from, to);
-  rows.push({ key: 'labour', label: 'Labour', amount: lab.total, source: lab.coverage >= 0.9 ? 'measured' : lab.total > 0 ? 'partial' : 'none',
-    note: Math.round(lab.coverage * 100) + '% of working days recorded',
-    detail: [['Monthly crew, days worked', lab.monthlyDays], ['Monthly crew, rest days', lab.rest], ['Hourly pool', lab.pool],
-      ['Daily tier', lab.daily + lab.dailyRest], ['Overtime', lab.ot], ['EXTRA pool', lab.extra]].filter(function(d) { return d[1]; })
-      .map(function(d) { return { label: d[0], amount: d[1] }; }) });
+  // Labour: the attendance record, every tier; unrecorded working days at the model.
+  var lab = labourForRange(from, to), lm = labourCfg().modelPerKg || 3.55;
+  var labMissing = lab.total > 0 ? Math.max(0, 1 - lab.coverage) : 1;
+  var labDetail = [['Monthly crew, days worked', lab.monthlyDays], ['Monthly crew, rest days', lab.rest], ['Hourly pool', lab.pool],
+    ['Daily tier', lab.daily + lab.dailyRest], ['Overtime', lab.ot], ['EXTRA pool', lab.extra]].filter(function(d) { return d[1]; })
+    .map(function(d) { return { label: d[0], amount: d[1] }; });
+  if (labMissing > 0.001) labDetail.push(fillLine(lm, labMissing, Math.round(labMissing * 100) + '% of working days'));
+  push({ key: 'labour', label: 'Labour', amount: lab.total + (labMissing > 0.001 ? lm * kg * labMissing : 0),
+    note: lab.total > 0 ? Math.round(lab.coverage * 100) + '% of working days recorded' : 'no attendance recorded: ' + formatCurrency(lm) + '/kg from Settings', detail: labDetail });
 
   // Chemicals and zinc: what the stock record says was used, at the price paid.
   var chem = { amount: 0, detail: [], unpriced: [] }, zinc = { qty: 0, amount: 0, priced: true, item: null };
@@ -18094,61 +18136,82 @@ function liveCost(from, to, kg) {
     });
   });
   var boughtLine = function(t, what) {
-    return t.bills ? [{ label: 'Bought in the period, for reference', sub: t.bills + ' bill line' + (t.bills === 1 ? '' : 's') + (what ? ' · ' + what : '') + ' · purchases are not use, so not in the figure', amount: t.amount }] : [];
+    return t.bills ? [{ label: 'Bought in the period, for reference', sub: t.bills + ' bill line' + (t.bills === 1 ? '' : 's') + (what ? ' · ' + what : '') + ' · purchases are not use, so not in the figure', amount: t.amount, ref: true }] : [];
   };
-  // The stock record can start partway through a period. Use measured from a
-  // few days is not a month's use, so it is marked part-recorded and says how
-  // much of the period it covers.
+  // How much of the period the stock record covers.
   var firstStock = null;
   stockData().entries.forEach(function(e) { if (!e.voided && e.kind !== 'bill' && (!firstStock || e.date < firstStock)) firstStock = e.date; });
-  var stockShort = firstStock && firstStock > from && firstStock <= to;
-  var stockCover = stockShort ? 'stock record starts ' + stockShortDate(firstStock) + ': ' + (stockDaysApart(firstStock, to) + 1) + ' of ' + days + ' days' : '';
+  var coveredDays = !firstStock || firstStock > to ? 0 : firstStock <= from ? days : stockDaysApart(firstStock, to) + 1;
+  var stockMissing = 1 - coveredDays / days;
+  var stockWhat = coveredDays ? (days - coveredDays) + ' of ' + days + ' days before the stock record starts (' + stockShortDate(firstStock) + ')' : 'no stock record in this period';
+
+  var chemModel = stockCfg().chemModel;
+  var chemDetail = chem.detail.sort(function(a, b) { return b.amount - a.amount; }).concat(chem.unpriced);
+  if (stockMissing > 0.001) chemDetail.push(fillLine(chemModel, stockMissing, stockWhat));
   var chemLines = chem.detail.length + chem.unpriced.length;
-  if (chemLines && chem.detail.length) {
-    rows.push({ key: 'chem', label: 'Chemicals', amount: chem.amount, source: chem.unpriced.length || stockShort ? 'partial' : 'measured',
-      note: chem.detail.length + ' of ' + chemLines + ' lines priced' + (chem.unpriced.length ? ': reads low until the rest are' : '') + (stockShort ? ' · ' + stockCover : ''),
-      detail: chem.detail.sort(function(a, b) { return b.amount - a.amount; }).concat(chem.unpriced, boughtLine(bought.chem)) });
-  } else {
-    rows.push({ key: 'chem', label: 'Chemicals', amount: cfgPerKgAmount(stockCfg().chemModel, kg), source: 'model',
-      note: chemLines ? 'use is recorded but no line has a price yet' : 'no chemical use recorded in this period', detail: chem.unpriced.concat(boughtLine(bought.chem)) });
-  }
+  push({ key: 'chem', label: 'Chemicals', amount: chem.amount + (stockMissing > 0.001 ? chemModel * kg * stockMissing : 0), low: chem.unpriced.length > 0,
+    note: (chemLines ? chem.detail.length + ' of ' + chemLines + ' lines used are priced' + (chem.unpriced.length ? ', so the measured part reads low' : '') : 'no chemical use recorded') +
+      (stockMissing > 0.001 && coveredDays ? ' · ' + (days - coveredDays) + ' days at the model' : ''),
+    detail: chemDetail.concat(boughtLine(bought.chem)) });
 
   var landed = typeof zincLandedRate === 'function' ? zincLandedRate() : null;
-  // With no zinc use recorded, the modelled kilos are priced at what was last
-  // PAID for zinc by the end of the period, and only failing that at today's
-  // market rate: a July figure at September's rate is neither.
+  // Modelled zinc kilos are priced at what was last PAID by the end of the
+  // period, and only failing that at today's market rate.
   var zincItem = stockData().items.find(function(i) { return i.key === 'ZINC'; });
   var zincPaid = zincItem ? stockPriceAt(zincItem.id, to) : null;
   if (zincPaid && zincPaid.date > to) zincPaid = null;
-  var zincBought = boughtLine(bought.zinc, stockFmtQty(bought.zinc.qty) + ' kg');
-  if (zinc.qty > 0 && zinc.priced) {
-    rows.push({ key: 'zinc', label: 'Zinc', amount: zinc.amount, source: stockShort ? 'partial' : 'measured', note: stockFmtQty(zinc.qty) + ' kg charged, at the price paid' + (stockShort ? ' · ' + stockCover : ''), detail: zincBought });
-  } else if (zinc.qty > 0 && landed) {
-    rows.push({ key: 'zinc', label: 'Zinc', amount: zinc.qty * landed, source: 'rate', note: stockFmtQty(zinc.qty) + ' kg charged × the market rate ' + formatCurrency(landed) + '/kg (no bill yet)', detail: zincBought });
-  } else if (zincPaid || landed) {
-    var zkg = cfg.zincKgMonth * days / 30, zp = zincPaid ? zincPaid.price : landed;
-    rows.push({ key: 'zinc', label: 'Zinc', amount: zkg * zp, source: 'model', note: formatNum(zkg, 0) + ' kg (' + cfg.zincKgMonth + ' kg/month, use not recorded) × ' + formatCurrency(zp) + '/kg ' +
-      (zincPaid ? 'last paid, ' + stockShortDate(zincPaid.date) : 'market rate'), detail: zincBought });
-  } else {
-    rows.push({ key: 'zinc', label: 'Zinc', amount: 0, source: 'none', note: 'no zinc use recorded and no zinc rate set', detail: zincBought });
+  var zp = zincPaid ? zincPaid.price : landed;
+  var zDetail = [], zAmount = 0, zMeasured = 0, zSource = null;
+  if (zinc.qty > 0) {
+    var zPrice = zinc.priced ? null : landed;
+    var zAmt = zinc.priced ? zinc.amount : (landed ? zinc.qty * landed : 0);
+    zDetail.push({ label: 'Charged', sub: stockFmtQty(zinc.qty) + ' kg' + (zinc.priced ? ' at the price paid' : zPrice ? ' × the market rate ' + formatCurrency(zPrice) + ' (no bill yet)' : ', no price'), amount: zAmt });
+    zAmount += zAmt; zMeasured += zinc.priced ? zAmt : 0;
+    if (!zinc.priced) zSource = 'rate';
   }
+  if (stockMissing > 0.001 && zp) {
+    var missDays = days * stockMissing, zkg = cfg.zincKgMonth * missDays / 30;
+    zDetail.push({ label: 'Not recorded: ' + (coveredDays ? stockWhat : 'zinc use'), sub: formatNum(zkg, 0) + ' kg (' + cfg.zincKgMonth + ' kg/month) × ' + formatCurrency(zp) + (zincPaid ? ' last paid, ' + stockShortDate(zincPaid.date) : ' market rate'), amount: zkg * zp, fill: true });
+    zAmount += zkg * zp;
+  }
+  if (stockMissing > 0.001 && !zp) {
+    // No zinc price of any kind: the cost model's ₹/kg, never nothing.
+    zDetail.push(fillLine(cfg.zincPerKg, stockMissing, coveredDays ? stockWhat : 'zinc use, and no zinc rate set'));
+    zAmount += cfg.zincPerKg * kg * stockMissing;
+  }
+  if (!zDetail.length) zSource = 'none';
+  push({ key: 'zinc', label: 'Zinc', amount: zAmount, measuredOverride: zMeasured, source: zSource && zMeasured === 0 && zSource !== 'none' && zDetail.length === 1 ? 'rate' : (zSource === 'none' ? 'none' : null),
+    note: zSource === 'none' ? 'no zinc use recorded and no zinc rate set' : (zinc.qty > 0 ? stockFmtQty(zinc.qty) + ' kg charged' : 'use not recorded') + (stockMissing > 0.001 && zp && coveredDays ? ' · ' + (days - coveredDays) + ' days at the model' : ''),
+    detail: zDetail.concat(boughtLine(bought.zinc, stockFmtQty(bought.zinc.qty) + ' kg')) });
 
+  // Power and other: each month's bill for its share of the period; a month
+  // with no bill at the model rate, for its share of the tonnage.
+  var months = [], m = from.slice(0, 7);
+  for (var g = 0; m <= to.slice(0, 7) && g < 240; g++) { months.push(m); var d = new Date(m + '-01T00:00:00'); d.setMonth(d.getMonth() + 1); m = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0'); }
   ['power', 'other'].forEach(function(kind) {
     var bills = costBills().filter(function(b) { return b.kind === kind && !b.voided; });
-    var amt = 0, detail = [];
-    bills.forEach(function(b) {
-      var share = costMonthShare(b.month, from, to);
-      if (share <= 0) return;
-      amt += b.amount * share;
-      detail.push({ label: (b.label || COST_BILL_KINDS[kind]) + ' · ' + b.month, sub: formatCurrency(b.amount) + (share < 1 ? ' × ' + formatNum(share * 100, 0) + '% of the month' : '') + (b.units ? ' · ' + b.units + ' units' : ''), amount: b.amount * share });
+    var amt = 0, detail = [], unbilled = 0, unbilledMonths = [];
+    months.forEach(function(mo) {
+      var start = mo + '-01', end = payMonthEnd(start);
+      var a = from > start ? from : start, z = to < end ? to : end;
+      var rangeShare = (stockDaysApart(a, z) + 1) / days;
+      var mine = bills.filter(function(b) { return b.month === mo; });
+      if (!mine.length) { unbilled += rangeShare; unbilledMonths.push(mo); return; }
+      mine.forEach(function(b) {
+        var share = costMonthShare(b.month, from, to);
+        amt += b.amount * share;
+        detail.push({ label: (b.label || COST_BILL_KINDS[kind]) + ' · ' + b.month, sub: formatCurrency(b.amount) + (share < 0.999 ? ' × ' + formatNum(share * 100, 0) + '% of the month' : '') + (b.units ? ' · ' + b.units + ' units' : '') + (b.note ? ' · ' + b.note : ''), amount: b.amount * share });
+      });
     });
-    if (detail.length) rows.push({ key: kind, label: COST_BILL_KINDS[kind], amount: amt, source: 'measured', note: detail.length + ' bill' + (detail.length === 1 ? '' : 's'), detail: detail });
-    else rows.push({ key: kind, label: COST_BILL_KINDS[kind], amount: cfgPerKgAmount(cfg[kind], kg), source: 'model', note: formatCurrency(cfg[kind]) + '/kg from Settings; no bill entered for this period', detail: [] });
+    if (unbilled > 0.001) detail.push(fillLine(cfg[kind], unbilled, 'no bill for ' + unbilledMonths.join(', ')));
+    push({ key: kind, label: COST_BILL_KINDS[kind], amount: amt + (unbilled > 0.001 ? cfg[kind] * kg * unbilled : 0),
+      note: bills.length && detail.some(function(x) { return !x.fill; }) ? (detail.filter(function(x) { return !x.fill; }).length + ' bill' + (detail.filter(function(x) { return !x.fill; }).length === 1 ? '' : 's') + (unbilledMonths.length ? ' · ' + unbilledMonths.length + ' month' + (unbilledMonths.length === 1 ? '' : 's') + ' at the model' : ''))
+        : formatCurrency(cfg[kind]) + '/kg from Settings; no bill entered for this period', detail: detail });
   });
 
-  rows.forEach(function(r) { r.amount = gstRound(r.amount); r.perKg = per(r.amount); });
+  rows.forEach(function(r) { r.amount = gstRound(r.amount); r.measured = gstRound(Math.min(r.measured, r.amount)); r.perKg = per(r.amount); });
   var total = gstRound(rows.reduce(function(s, r) { return s + r.amount; }, 0));
-  var measured = rows.filter(function(r) { return r.source === 'measured'; }).reduce(function(s, r) { return s + r.amount; }, 0);
+  var measured = rows.reduce(function(s, r) { return s + (r.measured > 0 ? r.measured : 0); }, 0);
   return { from: from, to: to, kg: kg, rows: rows, total: total, perKg: per(total), measuredShare: total > 0 ? measured / total : 0 };
 }
 function cfgPerKgAmount(perKg, kg) { return kg > 0 ? perKg * kg : 0; }
@@ -20408,20 +20471,30 @@ function renderStats() {
         '" data-action="invStatsPeriod" data-period="' + p + '">' + chipLabels[p] + '</button>';
     });
     chipHtml += '</div>';
-    toolbar.innerHTML = chipHtml;
+    toolbar.innerHTML = statsTabsHtml() + chipHtml;
   }
 
   var activeInvs = S.invoices.filter(function(i) { return i.status === 'active'; });
   var filtered = filterByPeriod(activeInvs, _statsPeriod);
   var prior = filterByPeriod(activeInvs, _statsPeriod, 1);
   var html = '';
+  // Each card lands in one of the grouped tabs (intel.js): what has been drawn
+  // since the last take() moves to that tab, and only the open tab is shown.
+  var sec = { overview: '', clients: '', cost: '', billing: '', trends: '' };
+  function take(key) { sec[key] += html; html = ''; }
 
   var totalRev = sumTaxable(filtered);
   var totalGrand = filtered.reduce(function(s, i) { return s + (i.grandTotal || 0); }, 0);
   var priorRev = sumTaxable(prior);
   var tonnage = weighLines(filtered);
   var priorTonnage = weighLines(prior);
-  var costPerKg = S.defaultCostPerKg || 0;
+  // Every "below cost" on this page is judged against the LIVE cost of the
+  // period (cost.js), so the headline and the Overview cannot disagree. The
+  // typed figure stands only where there is no tonnage to divide by.
+  var liveRange = statsRangeIso(_statsPeriod);
+  var live = tonnage.kg > 0 ? liveCost(liveRange.from, liveRange.to, tonnage.kg) : null;
+  var costPerKg = live && live.perKg > 0 ? live.perKg : (S.defaultCostPerKg || 0);
+  var costLabel = live && live.perKg > 0 ? 'live cost ' : 'cost ';
 
   // Revenue on weighed lines over the tonnage of those same lines.
   var realisation = tonnage.kg > 0 ? tonnage.revKnown / tonnage.kg : null;
@@ -20443,7 +20516,7 @@ function renderStats() {
       formatNum(tonnage.kg, 0) + ' kg',
       comparable ? deltaHtml(tonnage.kg, priorTonnage.kg) : '') +
     kpiTile('Realisation', realisation != null ? formatCurrency(realisation) + '/kg' : '&mdash;',
-      costPerKg > 0 ? 'cost ' + formatCurrency(costPerKg) + '/kg' : 'set a cost in Settings',
+      costPerKg > 0 ? costLabel + formatCurrency(costPerKg) + '/kg' : 'set a cost in Settings',
       (comparable && realisation != null && priorRealisation != null) ? deltaHtml(realisation, priorRealisation) : '') +
     kpiTile('Gross Margin', grossMargin != null ? formatCurrency(grossMargin) : '&mdash;',
       contribution != null ? formatCurrency(contribution) + '/kg contribution' : 'needs tonnage and cost',
@@ -20469,6 +20542,7 @@ function renderStats() {
   }
   html += '</div>';
 
+  take('overview');
   /* ===== Card 1b: Labour =====
      Placed directly under the headline four, because realisation only means
      something against a cost, and labour is 42% of that cost — the single line
@@ -20480,6 +20554,7 @@ function renderStats() {
   // in it line by line, so the separate chemicals card is not drawn twice.
   html += renderLiveCostCard(_statsPeriod, tonnage);
 
+  take('cost');
   /* ===== Card 2: GST position ===== */
   var cgst = 0, sgst = 0, igst = 0, unfiledTax = 0, unfiledCount = 0;
   filtered.forEach(function(inv) {
@@ -20519,6 +20594,7 @@ function renderStats() {
     '<span class="inv-state-badge inv-state-filed">' + stateCount.filed + ' Filed</span>' +
     '</div></div>';
 
+  take('billing');
   /* ===== Card 4: Revenue by client — ranked bars or share ===== */
   var ranked = buildClientRollup(filtered);
   var maxClientRev = ranked.length > 0 ? ranked[0].total : 0;
@@ -20638,6 +20714,7 @@ function renderStats() {
     html += '</div>';
   }
 
+  take('clients');
   /* ===== Card 7: Unbilled, by age =====
      Not period-filtered: unbilled material is a live position, not a
      historical one. The ageing is the part that was missing — a challan
@@ -20703,6 +20780,7 @@ function renderStats() {
   }
   html += '</div>';
 
+  take('billing');
   /* ===== Card 8: Trend — revenue, tonnage, or material arriving ===== */
   var trendData = buildTrendSeries(_statsTrendGran, _statsTrendSeries);
   var trendUnit = TREND_SERIES_UNIT[_statsTrendSeries] || 'money';
@@ -20734,6 +20812,7 @@ function renderStats() {
       : '') +
     '</div>';
 
+  take('trends');
   /* ===== Card 9: Dispatch cycle ===== */
   var dispatchDays = [], deliveryDays = [], fullCycleDays = [];
   filtered.forEach(function(inv) {
@@ -20763,6 +20842,7 @@ function renderStats() {
     html += '</div>';
   }
 
+  take('billing');
   /* ===== Card 10: Top items — by value, tonnage, or price ===== */
   var top = buildTopItems(filtered, _statsTopBy);
   if (top.total > 0) {
@@ -20821,6 +20901,12 @@ function renderStats() {
     html += '</div>';
   }
 
+  take('trends');
+  if (filtered.length || activeInvs.length) {
+    sec.overview += statsOverviewHtml(_statsPeriod, filtered, tonnage) + statsMonthsHtml();
+    sec.clients = statsMarginHtml(_statsPeriod, filtered, tonnage) + sec.clients;
+  }
+  html = sec[statsTab()];
   if (html === '') html = '<div class="inv-empty-state">No data yet. Create invoices and log incoming material to see analytics.</div>';
   area.innerHTML = html;
 }
@@ -21344,6 +21430,188 @@ function exportHistoryCSV() {
   a.download = 'sep-activity-log-' + localDateStr() + '.csv';
   a.click();
   showToast('Exported ' + events.length + ' events');
+}
+/* ===== The intelligence engine, part two: the overview and margin by client =====
+
+   Owner, 25 Sep 2026: part two of the engine (the overview and the margin by
+   client, from the mockup), and "break up the stats page into multiple grouped
+   tabs". Stats is now five tabs over one period: Overview, Clients, Cost,
+   Billing, Trends.
+
+   **Everything here reads the live cost (cost.js)**, never the typed ₹8.55:
+   realisation against what the book says the plant cost, with the share of
+   that cost actually measured beside it. A cost that is mostly model is said to
+   be mostly model; the margin it implies is never shown without that.
+
+   **Margin by client spreads cost per kilo.** Labour, zinc, chemicals, power and
+   the rest are divided over every kilo plated, so a thin clamp and a heavy
+   bracket cost the same per kg here. That is the one assumption the table
+   cannot check, and it says so. Fixed is the monthly crew (its days and rest
+   days); everything else is variable. A client below the variable cost loses
+   money on every kilo whatever the labour question; one between variable and
+   full cost contributes only if labour is fixed. */
+
+var STATS_TABS = [['overview', 'Overview'], ['clients', 'Clients'], ['cost', 'Cost'], ['billing', 'Billing'], ['trends', 'Trends']];
+var STATS_TAB_KEY = 'sep_inv_stats_tab';
+var STATS_CAPACITY_KG_DAY = 4000; // ~2 t per 8-hour shift, two shifts (CLAUDE.md § Key Business Data)
+
+function statsTab() {
+  var t = null;
+  try { t = localStorage.getItem(STATS_TAB_KEY); } catch (e) { /* per-device convenience only */ }
+  return STATS_TABS.some(function(x) { return x[0] === t; }) ? t : 'overview';
+}
+function statsSetTab(t) {
+  try { localStorage.setItem(STATS_TAB_KEY, t); } catch (e) { /* per-device convenience only */ }
+  renderStats();
+  window.scrollTo(0, 0);
+}
+function statsTabsHtml() {
+  var cur = statsTab();
+  return '<div class="inv-stats-tabs" role="tablist">' + STATS_TABS.map(function(t) {
+    return '<button class="inv-stats-tab' + (cur === t[0] ? ' inv-stats-tab-on' : '') + '" role="tab" aria-selected="' + (cur === t[0]) +
+      '" data-action="invStatsTab" data-tab="' + t[0] + '">' + t[1] + '</button>';
+  }).join('') + '</div>';
+}
+
+/* The period the Stats chips select, as ISO dates. */
+function statsRangeIso(period) {
+  var range = periodRange(period, 0);
+  var iso = function(ts) { var d = new Date(ts); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
+  if (range) return { from: iso(range.start), to: iso(range.end) };
+  var first = (S.invoices || []).map(function(i) { return i.date; }).filter(Boolean).sort()[0];
+  return { from: first || localDateStr(), to: localDateStr() };
+}
+function statsWorkingDays(from, to) {
+  var n = 0, d = from;
+  for (var g = 0; d <= to && g < 4000; g++) { if (new Date(d + 'T00:00:00').getDay() !== 0) n++; d = stockIsoAdd(d, 1); }
+  return n;
+}
+/* Fixed and variable, from the live cost: fixed is the monthly crew's days and
+   rest days; everything else moves with the work. */
+function statsCostSplit(c) {
+  var lab = c.rows.find(function(r) { return r.key === 'labour'; });
+  var fixed = 0;
+  (lab ? lab.detail : []).forEach(function(d) { if (/^Monthly crew/.test(d.label)) fixed += d.amount; });
+  return { fixed: gstRound(fixed), variable: gstRound(c.total - fixed) };
+}
+function statsMoney(n) { return (n < 0 ? '&minus;' : '') + escHtml(formatCurrency(Math.abs(n))); }
+function statsSigned(n) { return (n > 0 ? '+' : n < 0 ? '&minus;' : '') + escHtml(formatCurrency(Math.abs(n))); }
+
+/* ---------- Overview: the period in one card ---------- */
+function statsOverviewHtml(period, filtered, tonnage) {
+  var r = statsRangeIso(period), kg = tonnage.kg;
+  var c = liveCost(r.from, r.to, kg);
+  var real = kg > 0 ? tonnage.revKnown / kg : null;
+  var contrib = real != null && c.perKg != null ? real - c.perKg : null;
+  var cap = STATS_CAPACITY_KG_DAY * statsWorkingDays(r.from, r.to);
+  var capPct = cap > 0 ? kg / cap : null;
+  var measured = Math.round(c.measuredShare * 100);
+  var h = '<div class="inv-stats-card inv-stats-card-full" id="statsOverview"><div class="inv-stats-title">' + escHtml(PERIOD_LABELS[period] || '') +
+    ' In one line<span class="inv-stats-title-sub">against the live cost, ' + measured + '% of it measured</span></div>';
+  if (!(kg > 0)) return h + '<div class="inv-stats-caveat">No weighed tonnage in this period, so no ₹/kg to compare.</div></div>';
+  h += '<div class="inv-ov-grid">' +
+    '<div class="inv-ov-tile inv-pay-blue"><div class="inv-ov-l">Realisation</div><div class="inv-ov-v">' + statsMoney(real) + '<small>/kg</small></div><div class="inv-ov-s">' + statsMoney(tonnage.revKnown) + ' on ' + formatNum(kg / 1000, 1) + ' t</div></div>' +
+    '<div class="inv-ov-tile inv-pay-green"><div class="inv-ov-l">Live cost</div><div class="inv-ov-v">' + statsMoney(c.perKg) + '<small>/kg</small></div><div class="inv-ov-s">typed ' + statsMoney(S.defaultCostPerKg || 0) + '</div></div>' +
+    '<div class="inv-ov-tile ' + (contrib >= 0 ? 'inv-pay-green' : 'inv-area-gap-over') + '"><div class="inv-ov-l">Contribution</div><div class="inv-ov-v" id="statsContrib">' + statsSigned(contrib) + '<small>/kg</small></div><div class="inv-ov-s">' + statsSigned(gstRound(contrib * kg)) + ' on the period</div></div>' +
+    '<div class="inv-ov-tile inv-area-gap-under"><div class="inv-ov-l">Capacity</div><div class="inv-ov-v">' + (capPct != null ? Math.round(capPct * 100) + '%' : '&mdash;') + '</div><div class="inv-ov-s">' + formatNum(kg / 1000, 1) + ' t of ~' + formatNum(cap / 1000, 0) + ' t (2 shifts)</div></div>' +
+    '</div>';
+  var parts = c.rows.filter(function(x) { return x.source !== 'measured'; }).map(function(x) { return x.label.toLowerCase() + ' (' + COST_SRC_LABEL[x.source] + ')'; });
+  if (parts.length) {
+    h += '<div class="inv-stats-caveat"><strong>Read with care:</strong> ' + escHtml(parts.join(', ')) + ' ' + (parts.length === 1 ? 'is' : 'are') +
+      ' not fully measured, so the contribution is only as good as ' + (parts.length === 1 ? 'that figure' : 'those figures') + '. Cost tab &rarr; Live cost shows each one.</div>';
+  }
+  return h + '</div>';
+}
+
+/* ---------- Overview: six months side by side ---------- */
+function statsMonthsHtml() {
+  var today = localDateStr(), rows = [];
+  var active = (S.invoices || []).filter(function(i) { return i.status === 'active' && i.date; });
+  for (var k = 5; k >= 0; k--) {
+    var d = new Date(today + 'T00:00:00'); d.setDate(1); d.setMonth(d.getMonth() - k);
+    var from = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-01', to = payMonthEnd(from);
+    if (to > today) to = today;
+    var inv = active.filter(function(i) { return i.date >= from && i.date <= to; });
+    var w = weighLines(inv), c = liveCost(from, to, w.kg);
+    var real = w.kg > 0 ? w.revKnown / w.kg : null;
+    var lab = c.rows.find(function(x) { return x.key === 'labour'; });
+    rows.push({ label: d.toLocaleString('en-IN', { month: 'short' }) + (to === today ? ' to date' : ''), real: real, cost: c.perKg, kg: w.kg,
+      contrib: real != null && c.perKg != null ? real - c.perKg : null, labour: lab && w.kg > 0 ? lab.amount / w.kg : null, labSrc: lab ? lab.source : 'none', measured: c.measuredShare });
+  }
+  if (!rows.some(function(r) { return r.kg > 0; })) return '';
+  var h = '<div class="inv-stats-card inv-stats-card-full" id="statsMonths"><div class="inv-stats-title">Six months<span class="inv-stats-title-sub">each at its own live cost</span></div>' +
+    '<table class="inv-ov-table"><thead><tr><th>Month</th><th>t</th><th>₹/kg</th><th>Cost</th><th>Contrib.</th><th>Labour</th><th>Measured</th></tr></thead><tbody>';
+  rows.forEach(function(r) {
+    h += '<tr><td>' + escHtml(r.label) + '</td><td>' + formatNum(r.kg / 1000, 1) + '</td><td>' + (r.real != null ? formatNum(r.real, 2) : '&mdash;') + '</td><td>' +
+      (r.cost != null ? formatNum(r.cost, 2) : '&mdash;') + '</td><td class="' + (r.contrib == null ? '' : r.contrib >= 0 ? 'inv-ov-pos' : 'inv-ov-neg') + '">' +
+      (r.contrib != null ? (r.contrib >= 0 ? '+' : '&minus;') + formatNum(Math.abs(r.contrib), 2) : '&mdash;') + '</td><td>' +
+      (r.labour != null && r.labSrc === 'measured' ? formatNum(r.labour, 2) : '&mdash;') + '</td><td>' + Math.round(r.measured * 100) + '%</td></tr>';
+  });
+  h += '</tbody></table><div class="inv-stats-note">₹ per kg. Labour shows only where the days are recorded (90% or more); a month with less is withheld rather than read low. ' +
+    'Measured is the share of that month&rsquo;s cost from the app&rsquo;s own records.</div></div>';
+  return h;
+}
+
+/* ---------- Clients: contribution by client ---------- */
+function statsClientMargins(period, filtered, tonnage) {
+  var r = statsRangeIso(period), c = liveCost(r.from, r.to, tonnage.kg);
+  if (!(tonnage.kg > 0) || c.perKg == null) return null;
+  var split = statsCostSplit(c);
+  var varKg = split.variable / tonnage.kg, fullKg = c.perKg;
+  var cns = {};
+  (S.creditNotes || []).forEach(function(n) {
+    if (n.status === 'cancelled' || !n.periodTo || n.periodTo < r.from || n.periodTo > r.to) return;
+    cns[n.clientId] = (cns[n.clientId] || 0) + (n.taxableValue || 0);
+  });
+  var rows = buildClientRollup(filtered).map(function(x) {
+    var cn = cns[x.clientId] || 0;
+    var net = x.comparable && x.kg > 0 ? (x.revKnown - cn) / x.kg : null;
+    return { id: x.clientId, name: x.name, kg: x.kg, total: x.total, real: x.realisation, comparable: x.comparable, coverage: x.coverage,
+      cn: cn, net: net, vsVar: net != null ? net - varKg : null, vsFull: net != null ? net - fullKg : null,
+      money: net != null ? gstRound((net - fullKg) * x.kg) : null };
+  });
+  return { c: c, varKg: varKg, fullKg: fullKg, fixedKg: split.fixed / tonnage.kg, kg: tonnage.kg, rev: filtered.reduce(function(s, i) { return s + (i.taxableValue || 0); }, 0),
+    ranked: rows.filter(function(x) { return x.comparable; }).sort(function(a, b) { return a.vsFull - b.vsFull; }),
+    apart: rows.filter(function(x) { return !x.comparable; }) };
+}
+
+function statsMarginHtml(period, filtered, tonnage) {
+  var m = statsClientMargins(period, filtered, tonnage);
+  var h = '<div class="inv-stats-card inv-stats-card-full" id="statsMargin"><div class="inv-stats-title">' + escHtml(PERIOD_LABELS[period] || '') +
+    ' Contribution by client<span class="inv-stats-title-sub">worst first, at the live cost</span></div>';
+  if (!m) return h + '<div class="inv-stats-caveat">No weighed tonnage in this period, so no margin to work out.</div></div>';
+  h += '<div class="inv-stats-note">Variable cost ' + statsMoney(m.varKg) + '/kg · fixed (monthly crew) ' + statsMoney(m.fixedKg) + '/kg · full ' + statsMoney(m.fullKg) + '/kg, ' +
+    Math.round(m.c.measuredShare * 100) + '% measured.</div>';
+  h += '<table class="inv-ov-table"><thead><tr><th>Client</th><th>₹/kg</th><th>t</th><th>vs var.</th><th>vs full</th><th>₹ on period</th></tr></thead><tbody>';
+  m.ranked.forEach(function(x) {
+    var cls = function(v) { return v >= 0 ? 'inv-ov-pos' : 'inv-ov-neg'; };
+    h += '<tr data-action="invStatsClientDrill" data-client-id="' + escHtml(x.id) + '"><td>' + escHtml(x.name) + (x.cn ? '<span class="inv-cost-note">net of ' + statsMoney(x.cn) + ' credit notes</span>' : '') + '</td>' +
+      '<td>' + formatNum(x.net, 2) + '</td><td>' + formatNum(x.kg / 1000, 1) + '</td>' +
+      '<td class="' + cls(x.vsVar) + '">' + (x.vsVar >= 0 ? '+' : '&minus;') + formatNum(Math.abs(x.vsVar), 2) + '</td>' +
+      '<td class="' + cls(x.vsFull) + '">' + (x.vsFull >= 0 ? '+' : '&minus;') + formatNum(Math.abs(x.vsFull), 2) + '</td>' +
+      '<td class="' + cls(x.money) + '">' + statsSigned(x.money) + '</td></tr>';
+  });
+  h += '</tbody></table>';
+  if (m.apart.length) h += '<div class="inv-stats-note">Listed apart, not ranked (under 90% of their revenue weighed): ' +
+    m.apart.map(function(x) { return escHtml(x.name) + ' (' + Math.round(x.coverage * 100) + '%)'; }).join(', ') + '.</div>';
+  h += '<div class="inv-stats-note">Cost is spread per kg: a thin clamp and a heavy bracket cost the same per kg here, which is the one assumption this table cannot check. ' +
+    '&ldquo;vs var.&rdquo; is what a kilo leaves after its variable cost; &ldquo;vs full&rdquo; also carries the monthly crew.</div>';
+
+  // The worst-placed large account, settled both ways.
+  var worst = m.ranked.filter(function(x) { return x.kg >= m.kg * 0.1; })[0];
+  if (worst && worst.vsFull < 0) {
+    h += '<div class="inv-ov-case" id="statsWorst"><div class="inv-stats-name"><strong>' + escHtml(worst.name) + '</strong>, settled on the live cost</div>' +
+      '<div class="inv-ov-grid inv-ov-grid-2">' +
+      '<div class="inv-ov-tile ' + (worst.vsVar >= 0 ? 'inv-pay-green' : 'inv-area-gap-over') + '"><div class="inv-ov-l">If labour is fixed</div><div class="inv-ov-v">' + statsSigned(worst.vsVar) + '<small>/kg</small></div><div class="inv-ov-s">' +
+        (worst.vsVar >= 0 ? 'contributes ' + statsMoney(gstRound(worst.vsVar * worst.kg)) : 'below its variable cost') + '</div></div>' +
+      '<div class="inv-ov-tile inv-area-gap-over"><div class="inv-ov-l">If labour scales</div><div class="inv-ov-v">' + statsSigned(worst.vsFull) + '<small>/kg</small></div><div class="inv-ov-s">' + statsSigned(worst.money) + ' on the period</div></div></div>' +
+      '<div class="inv-stats-row"><span class="inv-stats-name">Price that breaks even<span class="inv-cost-note">on variable · on full cost</span></span><span class="inv-stats-val">' + statsMoney(m.varKg) + ' · ' + statsMoney(m.fullKg) + '</span></div>' +
+      '<div class="inv-stats-row"><span class="inv-stats-name">Share of the plant<span class="inv-cost-note">tonnage · revenue</span></span><span class="inv-stats-val">' +
+        Math.round(worst.kg / m.kg * 100) + '% · ' + (m.rev > 0 ? Math.round(worst.total / m.rev * 100) : 0) + '%</span></div>' +
+      '<div class="inv-stats-caveat">' + (worst.vsVar < 0 ? 'It does not cover its variable cost either way' : 'It contributes only if labour is fixed') +
+      ', <strong>if</strong> its parts cost the same per kg as the rest of the book. That is the question to take to the floor before repricing.</div></div>';
+  }
+  return h + '</div>';
 }
 /* ===== CLIENT PERFORMANCE =====
  *
@@ -22770,6 +23038,7 @@ document.addEventListener('click', function(e) {
     case 'invBulkMarkFiled': bulkMarkFiled(); break;
     // Phase 7: Stats period chips
     case 'invStatsPeriod': _statsPeriod = btn.dataset.period; renderStats(); break;
+    case 'invStatsTab': statsSetTab(btn.dataset.tab); break;
     // P9: Trend granularity chips (day/week/month)
     case 'invStatsTrendGran': _statsTrendGran = btn.dataset.gran; renderStats(); break;
     // Chart controls: what the trend plots, how it is drawn, and how the

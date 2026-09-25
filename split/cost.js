@@ -173,10 +173,11 @@ function stockPatternHtml(item) {
 }
 
 /* ---------- The live cost ---------- */
-var COST_MODEL_DEFAULTS = { power: 0.81, other: 0.42, zincKgMonth: 425 };
+var COST_MODEL_DEFAULTS = { power: 0.81, other: 0.42, zincKgMonth: 425, zincPerKg: 2.21 };
 function costModelCfg() {
   var c = S.costModel || {}, d = COST_MODEL_DEFAULTS;
-  return { power: c.power > 0 ? c.power : d.power, other: c.other > 0 ? c.other : d.other, zincKgMonth: c.zincKgMonth > 0 ? c.zincKgMonth : d.zincKgMonth };
+  return { power: c.power > 0 ? c.power : d.power, other: c.other > 0 ? c.other : d.other, zincKgMonth: c.zincKgMonth > 0 ? c.zincKgMonth : d.zincKgMonth,
+    zincPerKg: c.zincPerKg > 0 ? c.zincPerKg : d.zincPerKg };
 }
 function costBills() {
   if (!Array.isArray(S.costBills)) S.costBills = [];
@@ -192,17 +193,34 @@ function costMonthShare(month, from, to) {
   return (stockDaysApart(a, b) + 1) / (stockDaysApart(start, end) + 1);
 }
 
+/* Every row is MEASURED where the record exists and FILLED from its model rate
+   where it does not, pro rata by the days (or, for labour, the working days)
+   the record leaves out. The fill is a line of its own in the breakdown, and
+   only the measured part counts towards "measured". Reading an unrecorded
+   stretch as zero made the plant look cheapest exactly where least was known:
+   a quarter with one power bill read as a quarter that used one month's power. */
 function liveCost(from, to, kg) {
   var cfg = costModelCfg(), days = stockDaysApart(from, to) + 1, rows = [];
   var per = function(v) { return kg > 0 ? v / kg : null; };
+  var fillLine = function(perKg, share, what) {
+    return { label: 'Not recorded: ' + what, sub: formatCurrency(perKg) + '/kg model × ' + formatNum(share * 100, 0) + '% of the tonnage', amount: perKg * kg * share, fill: true };
+  };
+  var push = function(r) {
+    var fill = r.detail.filter(function(d) { return d.fill; }).reduce(function(s, d) { return s + d.amount; }, 0);
+    r.measured = r.measuredOverride != null ? r.measuredOverride : r.amount - fill;
+    if (!r.source) r.source = r.measured <= 0.005 ? 'model' : (fill > 0.005 || r.low ? 'partial' : 'measured');
+    rows.push(r);
+  };
 
-  // Labour: the attendance record, every tier.
-  var lab = labourForRange(from, to);
-  rows.push({ key: 'labour', label: 'Labour', amount: lab.total, source: lab.coverage >= 0.9 ? 'measured' : lab.total > 0 ? 'partial' : 'none',
-    note: Math.round(lab.coverage * 100) + '% of working days recorded',
-    detail: [['Monthly crew, days worked', lab.monthlyDays], ['Monthly crew, rest days', lab.rest], ['Hourly pool', lab.pool],
-      ['Daily tier', lab.daily + lab.dailyRest], ['Overtime', lab.ot], ['EXTRA pool', lab.extra]].filter(function(d) { return d[1]; })
-      .map(function(d) { return { label: d[0], amount: d[1] }; }) });
+  // Labour: the attendance record, every tier; unrecorded working days at the model.
+  var lab = labourForRange(from, to), lm = labourCfg().modelPerKg || 3.55;
+  var labMissing = lab.total > 0 ? Math.max(0, 1 - lab.coverage) : 1;
+  var labDetail = [['Monthly crew, days worked', lab.monthlyDays], ['Monthly crew, rest days', lab.rest], ['Hourly pool', lab.pool],
+    ['Daily tier', lab.daily + lab.dailyRest], ['Overtime', lab.ot], ['EXTRA pool', lab.extra]].filter(function(d) { return d[1]; })
+    .map(function(d) { return { label: d[0], amount: d[1] }; });
+  if (labMissing > 0.001) labDetail.push(fillLine(lm, labMissing, Math.round(labMissing * 100) + '% of working days'));
+  push({ key: 'labour', label: 'Labour', amount: lab.total + (labMissing > 0.001 ? lm * kg * labMissing : 0),
+    note: lab.total > 0 ? Math.round(lab.coverage * 100) + '% of working days recorded' : 'no attendance recorded: ' + formatCurrency(lm) + '/kg from Settings', detail: labDetail });
 
   // Chemicals and zinc: what the stock record says was used, at the price paid.
   var chem = { amount: 0, detail: [], unpriced: [] }, zinc = { qty: 0, amount: 0, priced: true, item: null };
@@ -235,61 +253,82 @@ function liveCost(from, to, kg) {
     });
   });
   var boughtLine = function(t, what) {
-    return t.bills ? [{ label: 'Bought in the period, for reference', sub: t.bills + ' bill line' + (t.bills === 1 ? '' : 's') + (what ? ' · ' + what : '') + ' · purchases are not use, so not in the figure', amount: t.amount }] : [];
+    return t.bills ? [{ label: 'Bought in the period, for reference', sub: t.bills + ' bill line' + (t.bills === 1 ? '' : 's') + (what ? ' · ' + what : '') + ' · purchases are not use, so not in the figure', amount: t.amount, ref: true }] : [];
   };
-  // The stock record can start partway through a period. Use measured from a
-  // few days is not a month's use, so it is marked part-recorded and says how
-  // much of the period it covers.
+  // How much of the period the stock record covers.
   var firstStock = null;
   stockData().entries.forEach(function(e) { if (!e.voided && e.kind !== 'bill' && (!firstStock || e.date < firstStock)) firstStock = e.date; });
-  var stockShort = firstStock && firstStock > from && firstStock <= to;
-  var stockCover = stockShort ? 'stock record starts ' + stockShortDate(firstStock) + ': ' + (stockDaysApart(firstStock, to) + 1) + ' of ' + days + ' days' : '';
+  var coveredDays = !firstStock || firstStock > to ? 0 : firstStock <= from ? days : stockDaysApart(firstStock, to) + 1;
+  var stockMissing = 1 - coveredDays / days;
+  var stockWhat = coveredDays ? (days - coveredDays) + ' of ' + days + ' days before the stock record starts (' + stockShortDate(firstStock) + ')' : 'no stock record in this period';
+
+  var chemModel = stockCfg().chemModel;
+  var chemDetail = chem.detail.sort(function(a, b) { return b.amount - a.amount; }).concat(chem.unpriced);
+  if (stockMissing > 0.001) chemDetail.push(fillLine(chemModel, stockMissing, stockWhat));
   var chemLines = chem.detail.length + chem.unpriced.length;
-  if (chemLines && chem.detail.length) {
-    rows.push({ key: 'chem', label: 'Chemicals', amount: chem.amount, source: chem.unpriced.length || stockShort ? 'partial' : 'measured',
-      note: chem.detail.length + ' of ' + chemLines + ' lines priced' + (chem.unpriced.length ? ': reads low until the rest are' : '') + (stockShort ? ' · ' + stockCover : ''),
-      detail: chem.detail.sort(function(a, b) { return b.amount - a.amount; }).concat(chem.unpriced, boughtLine(bought.chem)) });
-  } else {
-    rows.push({ key: 'chem', label: 'Chemicals', amount: cfgPerKgAmount(stockCfg().chemModel, kg), source: 'model',
-      note: chemLines ? 'use is recorded but no line has a price yet' : 'no chemical use recorded in this period', detail: chem.unpriced.concat(boughtLine(bought.chem)) });
-  }
+  push({ key: 'chem', label: 'Chemicals', amount: chem.amount + (stockMissing > 0.001 ? chemModel * kg * stockMissing : 0), low: chem.unpriced.length > 0,
+    note: (chemLines ? chem.detail.length + ' of ' + chemLines + ' lines used are priced' + (chem.unpriced.length ? ', so the measured part reads low' : '') : 'no chemical use recorded') +
+      (stockMissing > 0.001 && coveredDays ? ' · ' + (days - coveredDays) + ' days at the model' : ''),
+    detail: chemDetail.concat(boughtLine(bought.chem)) });
 
   var landed = typeof zincLandedRate === 'function' ? zincLandedRate() : null;
-  // With no zinc use recorded, the modelled kilos are priced at what was last
-  // PAID for zinc by the end of the period, and only failing that at today's
-  // market rate: a July figure at September's rate is neither.
+  // Modelled zinc kilos are priced at what was last PAID by the end of the
+  // period, and only failing that at today's market rate.
   var zincItem = stockData().items.find(function(i) { return i.key === 'ZINC'; });
   var zincPaid = zincItem ? stockPriceAt(zincItem.id, to) : null;
   if (zincPaid && zincPaid.date > to) zincPaid = null;
-  var zincBought = boughtLine(bought.zinc, stockFmtQty(bought.zinc.qty) + ' kg');
-  if (zinc.qty > 0 && zinc.priced) {
-    rows.push({ key: 'zinc', label: 'Zinc', amount: zinc.amount, source: stockShort ? 'partial' : 'measured', note: stockFmtQty(zinc.qty) + ' kg charged, at the price paid' + (stockShort ? ' · ' + stockCover : ''), detail: zincBought });
-  } else if (zinc.qty > 0 && landed) {
-    rows.push({ key: 'zinc', label: 'Zinc', amount: zinc.qty * landed, source: 'rate', note: stockFmtQty(zinc.qty) + ' kg charged × the market rate ' + formatCurrency(landed) + '/kg (no bill yet)', detail: zincBought });
-  } else if (zincPaid || landed) {
-    var zkg = cfg.zincKgMonth * days / 30, zp = zincPaid ? zincPaid.price : landed;
-    rows.push({ key: 'zinc', label: 'Zinc', amount: zkg * zp, source: 'model', note: formatNum(zkg, 0) + ' kg (' + cfg.zincKgMonth + ' kg/month, use not recorded) × ' + formatCurrency(zp) + '/kg ' +
-      (zincPaid ? 'last paid, ' + stockShortDate(zincPaid.date) : 'market rate'), detail: zincBought });
-  } else {
-    rows.push({ key: 'zinc', label: 'Zinc', amount: 0, source: 'none', note: 'no zinc use recorded and no zinc rate set', detail: zincBought });
+  var zp = zincPaid ? zincPaid.price : landed;
+  var zDetail = [], zAmount = 0, zMeasured = 0, zSource = null;
+  if (zinc.qty > 0) {
+    var zPrice = zinc.priced ? null : landed;
+    var zAmt = zinc.priced ? zinc.amount : (landed ? zinc.qty * landed : 0);
+    zDetail.push({ label: 'Charged', sub: stockFmtQty(zinc.qty) + ' kg' + (zinc.priced ? ' at the price paid' : zPrice ? ' × the market rate ' + formatCurrency(zPrice) + ' (no bill yet)' : ', no price'), amount: zAmt });
+    zAmount += zAmt; zMeasured += zinc.priced ? zAmt : 0;
+    if (!zinc.priced) zSource = 'rate';
   }
+  if (stockMissing > 0.001 && zp) {
+    var missDays = days * stockMissing, zkg = cfg.zincKgMonth * missDays / 30;
+    zDetail.push({ label: 'Not recorded: ' + (coveredDays ? stockWhat : 'zinc use'), sub: formatNum(zkg, 0) + ' kg (' + cfg.zincKgMonth + ' kg/month) × ' + formatCurrency(zp) + (zincPaid ? ' last paid, ' + stockShortDate(zincPaid.date) : ' market rate'), amount: zkg * zp, fill: true });
+    zAmount += zkg * zp;
+  }
+  if (stockMissing > 0.001 && !zp) {
+    // No zinc price of any kind: the cost model's ₹/kg, never nothing.
+    zDetail.push(fillLine(cfg.zincPerKg, stockMissing, coveredDays ? stockWhat : 'zinc use, and no zinc rate set'));
+    zAmount += cfg.zincPerKg * kg * stockMissing;
+  }
+  if (!zDetail.length) zSource = 'none';
+  push({ key: 'zinc', label: 'Zinc', amount: zAmount, measuredOverride: zMeasured, source: zSource && zMeasured === 0 && zSource !== 'none' && zDetail.length === 1 ? 'rate' : (zSource === 'none' ? 'none' : null),
+    note: zSource === 'none' ? 'no zinc use recorded and no zinc rate set' : (zinc.qty > 0 ? stockFmtQty(zinc.qty) + ' kg charged' : 'use not recorded') + (stockMissing > 0.001 && zp && coveredDays ? ' · ' + (days - coveredDays) + ' days at the model' : ''),
+    detail: zDetail.concat(boughtLine(bought.zinc, stockFmtQty(bought.zinc.qty) + ' kg')) });
 
+  // Power and other: each month's bill for its share of the period; a month
+  // with no bill at the model rate, for its share of the tonnage.
+  var months = [], m = from.slice(0, 7);
+  for (var g = 0; m <= to.slice(0, 7) && g < 240; g++) { months.push(m); var d = new Date(m + '-01T00:00:00'); d.setMonth(d.getMonth() + 1); m = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0'); }
   ['power', 'other'].forEach(function(kind) {
     var bills = costBills().filter(function(b) { return b.kind === kind && !b.voided; });
-    var amt = 0, detail = [];
-    bills.forEach(function(b) {
-      var share = costMonthShare(b.month, from, to);
-      if (share <= 0) return;
-      amt += b.amount * share;
-      detail.push({ label: (b.label || COST_BILL_KINDS[kind]) + ' · ' + b.month, sub: formatCurrency(b.amount) + (share < 1 ? ' × ' + formatNum(share * 100, 0) + '% of the month' : '') + (b.units ? ' · ' + b.units + ' units' : ''), amount: b.amount * share });
+    var amt = 0, detail = [], unbilled = 0, unbilledMonths = [];
+    months.forEach(function(mo) {
+      var start = mo + '-01', end = payMonthEnd(start);
+      var a = from > start ? from : start, z = to < end ? to : end;
+      var rangeShare = (stockDaysApart(a, z) + 1) / days;
+      var mine = bills.filter(function(b) { return b.month === mo; });
+      if (!mine.length) { unbilled += rangeShare; unbilledMonths.push(mo); return; }
+      mine.forEach(function(b) {
+        var share = costMonthShare(b.month, from, to);
+        amt += b.amount * share;
+        detail.push({ label: (b.label || COST_BILL_KINDS[kind]) + ' · ' + b.month, sub: formatCurrency(b.amount) + (share < 0.999 ? ' × ' + formatNum(share * 100, 0) + '% of the month' : '') + (b.units ? ' · ' + b.units + ' units' : '') + (b.note ? ' · ' + b.note : ''), amount: b.amount * share });
+      });
     });
-    if (detail.length) rows.push({ key: kind, label: COST_BILL_KINDS[kind], amount: amt, source: 'measured', note: detail.length + ' bill' + (detail.length === 1 ? '' : 's'), detail: detail });
-    else rows.push({ key: kind, label: COST_BILL_KINDS[kind], amount: cfgPerKgAmount(cfg[kind], kg), source: 'model', note: formatCurrency(cfg[kind]) + '/kg from Settings; no bill entered for this period', detail: [] });
+    if (unbilled > 0.001) detail.push(fillLine(cfg[kind], unbilled, 'no bill for ' + unbilledMonths.join(', ')));
+    push({ key: kind, label: COST_BILL_KINDS[kind], amount: amt + (unbilled > 0.001 ? cfg[kind] * kg * unbilled : 0),
+      note: bills.length && detail.some(function(x) { return !x.fill; }) ? (detail.filter(function(x) { return !x.fill; }).length + ' bill' + (detail.filter(function(x) { return !x.fill; }).length === 1 ? '' : 's') + (unbilledMonths.length ? ' · ' + unbilledMonths.length + ' month' + (unbilledMonths.length === 1 ? '' : 's') + ' at the model' : ''))
+        : formatCurrency(cfg[kind]) + '/kg from Settings; no bill entered for this period', detail: detail });
   });
 
-  rows.forEach(function(r) { r.amount = gstRound(r.amount); r.perKg = per(r.amount); });
+  rows.forEach(function(r) { r.amount = gstRound(r.amount); r.measured = gstRound(Math.min(r.measured, r.amount)); r.perKg = per(r.amount); });
   var total = gstRound(rows.reduce(function(s, r) { return s + r.amount; }, 0));
-  var measured = rows.filter(function(r) { return r.source === 'measured'; }).reduce(function(s, r) { return s + r.amount; }, 0);
+  var measured = rows.reduce(function(s, r) { return s + (r.measured > 0 ? r.measured : 0); }, 0);
   return { from: from, to: to, kg: kg, rows: rows, total: total, perKg: per(total), measuredShare: total > 0 ? measured / total : 0 };
 }
 function cfgPerKgAmount(perKg, kg) { return kg > 0 ? perKg * kg : 0; }

@@ -108,7 +108,7 @@ async function ghRequest(url, options) {
       method: opts.method || 'GET',
       headers: {
         'Authorization': 'Bearer ' + token,
-        'Accept': 'application/vnd.github+json',
+        'Accept': opts.raw ? 'application/vnd.github.raw+json' : 'application/vnd.github+json',
         'X-GitHub-Api-Version': '2022-11-28',
         'Content-Type': 'application/json'
       },
@@ -118,6 +118,7 @@ async function ghRequest(url, options) {
     // fetch only rejects on a transport failure, which offline is.
     throw new Error('No connection to GitHub. The data is safe on this device — sync when you are back online.');
   }
+  if (opts.raw && res.ok) return res.text();
   var payload = null;
   try { payload = await res.json(); } catch (e) { payload = null; }
   if (!res.ok) {
@@ -129,16 +130,27 @@ async function ghRequest(url, options) {
 }
 
 /* Reads the remote file. Returns null when it does not exist yet, which is
-   the ordinary first-push case and not an error. */
-async function ghGetRemote(cfg) {
+   the ordinary first-push case and not an error.
+
+   🔴 Over 1 MB the Contents API returns the file's metadata with `content`
+   EMPTY (`encoding: "none"`) — it still takes a PUT of up to 100 MB, so push
+   kept working while every pull read an empty envelope and refused a real
+   4.3 MB backup as "not a SEP Invoicing backup". The book passed 1 MB long
+   ago. So when the content is missing the file is fetched again as raw bytes,
+   which the same endpoint serves up to 100 MB. `opts.body === false` skips
+   the body when only the SHA is wanted (the push's conflict check). */
+async function ghGetRemote(cfg, opts) {
   var url = ghContentsUrl(cfg) + '?ref=' + encodeURIComponent(cfg.branch);
   try {
     var data = await ghRequest(url);
+    var text = null;
+    if (data && data.content) text = ghDecode(data.content);
+    else if (data && data.sha && !(opts && opts.body === false)) text = await ghRequest(url, { raw: true });
     var envelope = null;
-    if (data && data.content) {
-      try { envelope = JSON.parse(ghDecode(data.content)); } catch (e) { envelope = null; }
+    if (text) {
+      try { envelope = JSON.parse(text); } catch (e) { envelope = null; }
     }
-    return { sha: data ? data.sha : null, envelope: envelope };
+    return { sha: data ? data.sha : null, envelope: envelope, size: data ? data.size : 0 };
   } catch (err) {
     if (err.status === 404) return null;
     throw err;
@@ -181,12 +193,14 @@ async function ghPush(opts) {
 
   ghSetBusy(true, 'Pushing');
   try {
-    var remote = await ghGetRemote(cfg);
+    var remote = await ghGetRemote(cfg, { body: false });
 
     // The SHA moved since this device last exchanged: someone else wrote.
     // Never resolve that quietly — the operator is the only one who knows
     // which copy is the real one.
     if (remote && remote.sha && remote.sha !== cfg.sha) {
+      // Only now is the other copy worth downloading: to say whose it is.
+      if (!remote.envelope) remote = await ghGetRemote(cfg) || remote;
       if (silent) {
         ghSetBusy(false);
         ghSetStatus('Auto-push paused: GitHub has a newer copy (' + ghDescribeEnvelope(remote.envelope) + '). Push or pull by hand.');

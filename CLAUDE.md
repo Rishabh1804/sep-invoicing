@@ -92,7 +92,7 @@ every session start — nothing to set up by hand. CI (`build-sync`) is the back
 ### Tests
 
 ```bash
-pnpm exec playwright test          # 387 tests, both layouts
+pnpm exec playwright test          # 389 tests, both layouts
 ```
 
 Some sandboxes ship a Chromium build Playwright does not expect and block downloading
@@ -1523,6 +1523,13 @@ any merge would be a reconciliation the app cannot verify — but no overwrite i
 Each device remembers the blob SHA it last exchanged, and if the server's SHA has moved since,
 the operator is told whose copy and when before anything is replaced. Auto-push is opt-in,
 debounced ~45 s, and pauses itself the moment it sees a copy it did not write.
+
+🔴 **Over 1 MB the Contents API sends a file WITHOUT its content** (`content: ""`, `encoding:
+"none"`) while still accepting a PUT of up to 100 MB. The book passed 1 MB long ago, so push worked
+and every pull refused a real 4.3 MB backup as *"not a SEP Invoicing backup"* (owner, 25 Sep 2026).
+`ghGetRemote()` now asks the same endpoint again for the raw file (`application/vnd.github.raw+json`)
+when the content is missing. The push's own conflict check reads only the SHA and downloads the
+other copy only when it has to say whose it is. The ceiling is now GitHub's 100 MB.
 
 **A state that arrives is as old as one read off disk.** Three paths replace `S` wholesale —
 the loader, a GitHub pull, and Settings → Import — and only the loader ran the migrations. So a

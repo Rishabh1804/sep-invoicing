@@ -190,6 +190,54 @@ test.describe('GitHub sync — pull', () => {
     expect(clients[0].name).toBe('PULLED CLIENT');
   });
 
+  // Over 1 MB the Contents API answers with `content: ""` and `encoding: "none"`
+  // — the live book is 4.3 MB, so every pull was refused as "not a backup"
+  // while push kept working. The app must ask again for the raw file.
+  test('pulls a backup over 1 MB, which the Contents API sends without its content', async ({ page }) => {
+    await seedSync(page);
+    const accepts: string[] = [];
+    await page.route(CONTENTS, async (route) => {
+      const accept = route.request().headers()['accept'] || '';
+      accepts.push(accept);
+      if (accept.includes('raw')) {
+        await route.fulfill({ status: 200, contentType: 'application/vnd.github.raw+json', body: JSON.stringify(remoteEnvelope()) });
+        return;
+      }
+      await route.fulfill({
+        status: 200, contentType: 'application/json',
+        body: JSON.stringify({ sha: 'bigsha', size: 4292782, encoding: 'none', content: '' }),
+      });
+    });
+    await loadAppWithState(page, emptyState());
+
+    await page.locator('[data-action="invOpenSettings"]').first().click();
+    page.once('dialog', (d) => { expect(d.message()).toContain('7 invoices'); d.accept(); });
+    await page.locator('#ghPullBtn').click();
+
+    await expect(page.locator('.inv-toast')).toContainText('Pulled from GitHub');
+    const clients = await page.evaluate(async () => JSON.parse((await (window as any).readPersistedStateRaw())!).clients);
+    expect(clients[0].name).toBe('PULLED CLIENT');
+    expect(accepts.filter(a => a.includes('raw'))).toHaveLength(1);
+    const cfg = await page.evaluate(() => JSON.parse(localStorage.getItem('sep_inv_github_sync')!));
+    expect(cfg.sha).toBe('bigsha');
+  });
+
+  test('a push checks the SHA without downloading a large backup it will not describe', async ({ page }) => {
+    await seedSync(page, { sha: 'bigsha' });
+    let rawGets = 0, puts = 0;
+    await page.route(CONTENTS, async (route) => {
+      const req = route.request();
+      if (req.method() === 'PUT') { puts++; await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ content: { sha: 'next' } }) }); return; }
+      if ((req.headers()['accept'] || '').includes('raw')) rawGets++;
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ sha: 'bigsha', size: 4292782, encoding: 'none', content: '' }) });
+    });
+    await loadAppWithState(page, emptyState());
+    await page.locator('[data-action="invGhPush"]').first().click();
+    await expect(page.locator('.inv-toast')).toContainText('Pushed to GitHub');
+    expect(puts).toBe(1);
+    expect(rawGets).toBe(0);
+  });
+
   test('refuses a file that is not a SEP backup', async ({ page }) => {
     await seedSync(page);
     await page.route(CONTENTS, async (route) => {

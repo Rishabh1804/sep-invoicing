@@ -260,10 +260,14 @@ function todoApp(only) { return todoAppAll(only).filter(function(t) { return !to
 function todoRanked() {
   var rows = todoApp().map(function(t) { return { app: t, tone: t.tone }; });
   todoMineOpen().forEach(function(t) { rows.push({ mine: t, tone: todoMineTone(t) }); });
+  // Your own tasks come before everything the app raised, bar what is already red (owner, 26 Sep 2026:
+  // a task typed in sat under ten raised ones and was easy to forget). An undated one of your own has
+  // no tone, and ranked by tone alone it fell below every info task the data raised.
+  var band = function(r) { return r.tone === 'red' ? 0 : r.mine ? 1 : 2; };
   return rows.sort(function(a, b) {
-    var r = TODO_TONE_RANK[a.tone] - TODO_TONE_RANK[b.tone];
+    var r = band(a) - band(b) || TODO_TONE_RANK[a.tone] - TODO_TONE_RANK[b.tone];
     if (r) return r;
-    if (!!a.app !== !!b.app) return a.app ? -1 : 1;
+    if (!!a.app !== !!b.app) return a.app ? 1 : -1;
     if (a.mine && b.mine) return (a.mine.due || '9999').localeCompare(b.mine.due || '9999') || (a.mine.createdAt - b.mine.createdAt);
     return 0;
   });
@@ -273,72 +277,110 @@ function todoRedCount() {
   return todoRanked().filter(function(r) { return r.tone === 'red'; }).length;
 }
 
-/* ---------- Screens ---------- */
+/* ---------- Screens ----------
+   View tabs Open / Done (design principles §7). Open: the add field, then two flush panels,
+   Mine and From your data (two across on the desktop, Mine on the left), then what is snoozed.
+   Yours lead: what you typed is what is easiest to forget under the raised ones. Rows are §6.10's:
+   an app task is a whole-row button led by its ! / i mark; a task of your own is led by its
+   tick box and ends with its due date as a dot and a word. */
 function renderTodo() {
   var el = document.getElementById('todoContent');
   if (!el) return;
   var app = todoApp(), mine = todoMineOpen(), td = todoData();
   var late = todoRanked().filter(function(r) { return r.tone === 'red'; }).length;
-  var h = '<div class="inv-stk-top"><div>' +
-    '<div class="inv-stk-meta"><strong>' + (app.length + mine.length) + '</strong> open' + (late ? ' · <strong>' + late + '</strong> late' : '') + '</div></div></div>';
-  h += '<div class="inv-td-add"><input class="inv-td-in" id="todoNew" data-todo-new placeholder="Add a task…" aria-label="New task" autocomplete="off">' +
-    '<button class="inv-stk-btn inv-stk-btn-pri" data-action="invTodoAdd">Add</button>' +
-    '<button class="inv-stk-btn" data-action="invTodoNew">Details</button></div>';
+  var done = td.tasks.filter(function(t) { return t.doneAt; }).sort(function(a, b) { return b.doneAt - a.doneAt; });
+  var tab = function(v, label, n) {
+    var on = (v === 'done') === _todoShowDone;
+    return '<button class="inv-viewtab" role="tab" aria-selected="' + on + '" data-action="invTodoFoldDone" data-v="' + v + '">' +
+      label + ' <span class="inv-panel-count">' + n + '</span></button>';
+  };
+  var h = '<div class="inv-viewtabs" role="tablist" aria-label="To-do">' + tab('open', 'Open', app.length + mine.length) + tab('done', 'Done', done.length) + '</div>';
 
-  h += '<div class="inv-td-sec"><span class="inv-td-lbl inv-td-lbl-app">App</span> From your data <span class="inv-td-count">· ' + app.length + '</span></div>';
-  if (!app.length) h += '<div class="inv-td-empty">Nothing from your data needs you.</div>';
-  app.forEach(function(t) { h += todoAppRowHtml(t); });
+  if (_todoShowDone) {
+    h += '<div class="inv-panel inv-panel-flush" data-todo-sec="done"><div class="inv-panel-head"><span class="inv-panel-title">Done' +
+      (done.length ? ' <span class="inv-panel-count">' + done.length + '</span>' : '') + '</span></div>';
+    if (!done.length) h += '<div class="inv-empty">Nothing ticked yet. A task you tick moves here, and can be reopened.</div>';
+    done.slice(0, 50).forEach(function(t) { h += todoMineRowHtml(t); });
+    if (done.length > 50) h += '<div class="inv-row inv-row-auto"><span class="inv-note">The 50 most recent of ' + done.length + '.</span></div>';
+    el.innerHTML = h + '</div>';
+    updateStockBadge();
+    return;
+  }
+
+  h += '<div class="inv-pagehead"><span class="inv-pagehead-meta">' + todoPlural(app.length + mine.length, 'open task') +
+    (late ? ' · <span class="inv-dot inv-dot-danger">' + late + ' late</span>' : '') + '</span></div>';
+  h += '<div class="inv-toolbar"><input class="inv-input inv-toolbar-item" id="todoNew" data-todo-new placeholder="Add a task…" aria-label="New task" autocomplete="off">' +
+    '<button class="inv-btn inv-btn-primary" data-action="invTodoAdd">Add</button>' +
+    '<button class="inv-btn inv-btn-secondary" data-action="invTodoNew">Details</button></div>';
 
   mine.sort(function(a, b) {
     return TODO_TONE_RANK[todoMineTone(a)] - TODO_TONE_RANK[todoMineTone(b)] ||
       (a.due || '9999').localeCompare(b.due || '9999') || (a.createdAt - b.createdAt);
   });
-  h += '<div class="inv-td-sec"><span class="inv-td-lbl inv-td-lbl-mine">Mine</span> <span class="inv-td-count">· ' + mine.length + '</span></div>';
-  if (!mine.length) h += '<div class="inv-td-empty">No tasks of your own. Type one above and press Enter.</div>';
+  h += '<div class="inv-panels">';
+  h += '<div class="inv-panel inv-panel-flush" data-todo-sec="mine"><div class="inv-panel-head"><span class="inv-panel-title">Mine' +
+    ' <span class="inv-panel-count">' + mine.length + '</span></span><span class="inv-badge">Mine</span></div>';
+  if (!mine.length) h += '<div class="inv-empty">No tasks of your own. Type one above and press Enter.</div>';
   mine.forEach(function(t) { h += todoMineRowHtml(t); });
+  h += '</div>';
+  h += '<div class="inv-panel inv-panel-flush" data-todo-sec="app"><div class="inv-panel-head"><span class="inv-panel-title">From your data' +
+    ' <span class="inv-panel-count">' + app.length + '</span></span><span class="inv-badge">App</span></div>';
+  if (!app.length) h += '<div class="inv-empty">Nothing from your data needs you.</div>';
+  app.forEach(function(t) { h += todoAppRowHtml(t); });
+  h += '</div>';
 
-  var done = td.tasks.filter(function(t) { return t.doneAt; }).sort(function(a, b) { return b.doneAt - a.doneAt; });
-  if (done.length) {
-    h += '<button class="inv-td-fold" data-action="invTodoFoldDone" aria-expanded="' + _todoShowDone + '"><span>Done · ' + done.length + '</span><span>' + (_todoShowDone ? 'Hide' : 'Show') + '</span></button>';
-    if (_todoShowDone) done.slice(0, 50).forEach(function(t) { h += todoMineRowHtml(t); });
-  }
   var snoozed = todoAppAll().filter(todoIsSnoozed);
   if (snoozed.length) {
-    h += '<button class="inv-td-fold" data-action="invTodoFoldSnoozed" aria-expanded="' + _todoShowSnoozed + '"><span>Snoozed · ' + snoozed.length + '</span><span>' + (_todoShowSnoozed ? 'Hide' : 'Show') + '</span></button>';
+    h += '<div class="inv-panel inv-panel-flush inv-panels-wide" data-todo-sec="snoozed"><div class="inv-panel-head"><span class="inv-panel-title">Snoozed' +
+      ' <span class="inv-panel-count">' + snoozed.length + '</span></span>' +
+      '<button class="inv-btn-link" data-action="invTodoFoldSnoozed" aria-expanded="' + _todoShowSnoozed + '">' + (_todoShowSnoozed ? 'Hide' : 'Show') + '</button></div>';
     if (_todoShowSnoozed) snoozed.forEach(function(t) {
       var s = td.snoozes[t.key];
-      h += '<div class="inv-td-row inv-td-row-snz"><div class="inv-td-main"><span class="inv-td-title">' + escHtml(t.title) + '</span>' +
-        '<span class="inv-td-sub">' + (s.until ? 'Until ' + escHtml(stockShortDate(s.until)) : 'Until the figures change') + '</span></div>' +
-        '<button class="inv-stk-tool" data-action="invTodoWake" data-key="' + escHtml(t.key) + '">Wake</button></div>';
+      h += '<div class="inv-row inv-row-2" data-todo="snoozed"><span class="inv-row-main"><span class="inv-row-title" title="' + escHtml(t.title) + '">' + escHtml(t.title) + '</span>' +
+        '<span class="inv-row-meta">' + (s.until ? 'Until ' + escHtml(stockShortDate(s.until)) : 'Until the figures change') + '</span></span>' +
+        '<span class="inv-row-end"><button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invTodoWake" data-key="' + escHtml(t.key) + '">Wake</button></span></div>';
     });
+    h += '</div>';
   }
-  el.innerHTML = h;
+  el.innerHTML = h + '</div>';
   updateStockBadge();
 }
 
+/* An app task's mark: its tone, and a symbol with it (DR-1) — ! to act on, i to know. */
 function todoGlyph(tone) {
-  return '<span class="inv-td-glyph inv-td-glyph-' + (tone || 'info') + '" aria-hidden="true">' + (tone === 'info' ? 'i' : '!') + '</span>';
+  var ui = uiTone(tone || 'info');
+  return '<span class="inv-dot-mark inv-dot-mark-' + ui + '" aria-hidden="true">' + (tone === 'red' || tone === 'amber' ? '!' : 'i') + '</span>';
 }
+var TODO_TONE_WORD = { red: 'Act now', amber: 'Soon', info: 'To know' };
 function todoAppRowHtml(t) {
-  return '<button class="inv-td-row inv-td-tone-' + t.tone + '" data-action="invTodoOpenApp" data-key="' + escHtml(t.key) + '">' +
-    todoGlyph(t.tone) + '<span class="inv-td-main"><span class="inv-td-title">' + escHtml(t.title) + '</span>' +
-    '<span class="inv-td-sub">' + escHtml(t.sub) + '</span><span class="inv-td-why">' + escHtml(t.why) + '</span></span></button>';
+  return '<button class="inv-row inv-row-2 inv-row-auto" data-todo="app" data-tone="' + escHtml(t.tone || '') + '" data-action="invTodoOpenApp" data-key="' + escHtml(t.key) + '">' +
+    '<span class="inv-row-lead">' + todoGlyph(t.tone) + '</span>' +
+    '<span class="inv-row-main"><span class="inv-row-title inv-row-wrap">' + escHtml(t.title) + '</span>' +
+    '<span class="inv-row-meta inv-row-wrap">' + escHtml(t.sub) + '</span>' +
+    (t.why ? '<span class="inv-row-meta inv-row-wrap">' + escHtml(t.why) + '</span>' : '') + '</span>' +
+    // Red and amber say so in a word as well; an info task's i is its word.
+    (t.tone === 'red' || t.tone === 'amber' ? '<span class="inv-row-end"><span class="inv-dot inv-dot-' + uiTone(t.tone) + '">' + TODO_TONE_WORD[t.tone] + '</span></span>' : '') + '</button>';
 }
 function todoLinkLabel(link) {
   if (!link) return '';
   var names = { client: 'Client', invoice: 'Invoice', challan: 'Challan', stock: 'Stock' };
   return (names[link.kind] || '') + ' · ' + (link.label || '');
 }
+/* A task of your own. The tick box is the row's lead (its label is the touch target); the text
+   opens the task; the end carries the due date as a dot and a word, and the link it points at. */
 function todoMineRowHtml(t) {
   var tone = todoMineTone(t);
-  return '<div class="inv-td-row inv-td-tone-' + (tone || 'none') + (t.doneAt ? ' inv-td-row-done' : '') + '">' +
-    '<button class="inv-td-box' + (t.doneAt ? ' inv-td-box-on' : '') + '" data-action="invTodoToggle" data-id="' + escHtml(t.id) + '" aria-label="' + (t.doneAt ? 'Reopen' : 'Mark done') + '">' +
-    (t.doneAt ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="5 12 10 17 19 7"/></svg>' : '') + '</button>' +
-    '<button class="inv-td-main" data-action="invTodoEdit" data-id="' + escHtml(t.id) + '"><span class="inv-td-title">' + escHtml(t.text) + '</span>' +
-    (t.note ? '<span class="inv-td-sub">' + escHtml(t.note) + '</span>' : '') +
-    (t.doneAt ? '<span class="inv-td-why">Done ' + escHtml(formatTimestamp(t.doneAt)) + (t.doneBy === 'widget' ? ' from the widget' : '') + '</span>' : '') + '</button>' +
-    '<span class="inv-td-side">' + (t.due && !t.doneAt ? '<span class="inv-td-due inv-td-due-' + (tone || 'none') + '">' + escHtml(todoDueLabel(t.due)) + '</span>' : '') +
-    (t.link ? '<button class="inv-td-link" data-action="invTodoGo" data-id="' + escHtml(t.id) + '">' + escHtml(todoLinkLabel(t.link)) + '</button>' : '') + '</span></div>';
+  var meta = [];
+  if (t.note) meta.push('<span class="inv-row-meta inv-row-wrap">' + escHtml(t.note) + '</span>');
+  if (t.doneAt) meta.push('<span class="inv-row-meta">Done ' + escHtml(formatTimestamp(t.doneAt)) + (t.doneBy === 'widget' ? ' from the widget' : '') + '</span>');
+  var end = '';
+  if (t.due && !t.doneAt) end += '<span class="inv-dot inv-dot-' + (tone ? uiTone(tone) : 'neutral') + '">' + escHtml(todoDueLabel(t.due)) + '</span>';
+  if (t.link) end += '<button class="inv-btn-link inv-col-grow-sm" data-action="invTodoGo" data-id="' + escHtml(t.id) + '" title="' + escHtml(todoLinkLabel(t.link)) + '">' + escHtml(todoLinkLabel(t.link)) + '</button>';
+  return '<div class="inv-row inv-row-2 inv-row-auto' + (t.doneAt ? ' inv-row-done' : '') + '" data-todo="mine" data-tone="' + tone + '"' + (t.doneAt ? ' data-done="1"' : '') + '>' +
+    '<label class="inv-row-lead inv-row-tick"><input type="checkbox" class="inv-check" data-action="invTodoToggle" data-id="' + escHtml(t.id) + '"' +
+    (t.doneAt ? ' checked' : '') + ' aria-label="' + (t.doneAt ? 'Reopen' : 'Mark done') + ': ' + escHtml(t.text) + '"></label>' +
+    '<button class="inv-row-main" data-action="invTodoEdit" data-id="' + escHtml(t.id) + '"><span class="inv-row-title inv-row-wrap">' + escHtml(t.text) + '</span>' + meta.join('') + '</button>' +
+    (end ? '<span class="inv-row-end inv-row-stack">' + end + '</span>' : '') + '</div>';
 }
 
 /* Home: the top three, both kinds, labelled. */
@@ -360,7 +402,7 @@ function renderTodoHomeCard() {
         '<span class="inv-row-end"><span class="inv-badge">App</span></span></button>';
     } else {
       var t = r.mine;
-      h += '<div class="inv-row inv-row-2" data-todo="mine"><span class="inv-row-lead"><button class="inv-td-box" data-action="invTodoToggle" data-id="' + escHtml(t.id) + '" aria-label="Mark done"></button></span>' +
+      h += '<div class="inv-row inv-row-2" data-todo="mine"><label class="inv-row-lead inv-row-tick"><input type="checkbox" class="inv-check" data-action="invTodoToggle" data-id="' + escHtml(t.id) + '" aria-label="Mark done: ' + escHtml(t.text) + '"></label>' +
         '<button class="inv-row-main" data-action="invTodoEdit" data-id="' + escHtml(t.id) + '"><span class="inv-row-title">' + escHtml(t.text) + '</span>' +
         (t.due ? '<span class="inv-row-meta"><span class="inv-dot inv-dot-' + tone + '">' + escHtml(todoDueLabel(t.due)) + '</span></span>' : '') + '</button>' +
         '<span class="inv-row-end"><span class="inv-badge">Mine</span></span></div>';
@@ -393,17 +435,21 @@ function todoOpenApp(key) {
   var t = todoAppAll().find(function(x) { return x.key === key; });
   if (!t) { showToast('That has cleared itself'); todoRefreshViews(); return; }
   var s = todoData().snoozes[key];
-  var h = '<div class="inv-td-ohead"><span class="inv-td-lbl inv-td-lbl-app">App</span><span class="inv-td-why">' + escHtml(t.why) + '</span></div>' +
-    '<div class="inv-td-otitle">' + escHtml(t.title) + '</div>' +
-    '<div class="inv-td-facts">' + t.facts.map(function(f) {
-      return '<div><span>' + escHtml(f[0]) + '</span><strong>' + escHtml(f[1]) + '</strong></div>';
+  // The task's head is a flush panel: its title, why it was raised, then the figures it was
+  // raised on as rows (label, and the figure mono at the end). What clears it is a callout.
+  var h = '<div class="inv-panel inv-panel-flush" data-todo-facts><div class="inv-panel-head"><span class="inv-row-main">' +
+    '<span class="inv-panel-title">' + escHtml(t.title) + '</span><span class="inv-row-meta inv-row-wrap">' + escHtml(t.why) + '</span></span>' +
+    '<span class="inv-dot inv-dot-' + uiTone(t.tone) + '">' + (TODO_TONE_WORD[t.tone] || 'To know') + '</span></div>' +
+    t.facts.map(function(f) {
+      return '<div class="inv-row inv-row-auto"><span class="inv-row-main inv-row-meta inv-row-wrap">' + escHtml(f[0]) + '</span>' +
+        '<span class="inv-row-end inv-num inv-row-wrap">' + escHtml(f[1]) + '</span></div>';
     }).join('') + '</div>' +
-    '<div class="inv-td-clears">' + escHtml(t.clears) + '</div>' +
-    (s && todoIsSnoozed(t) ? '<div class="inv-td-clears">Snoozed ' + (s.until ? 'until ' + escHtml(stockShortDate(s.until)) : 'until the figures change') + '.</div>' : '') +
-    '<div class="inv-btn-bar"><button class="inv-btn inv-btn-primary" data-action="invTodoGoApp" data-key="' + escHtml(key) + '">' + escHtml(t.goLabel) + '</button></div>' +
-    '<div class="inv-stk-label inv-mt-16">Snooze</div><div class="inv-td-pills">' +
-    '<button class="inv-td-pill" data-action="invTodoSnooze" data-key="' + escHtml(key) + '" data-v="sig">Until the figures change</button>' +
-    '<button class="inv-td-pill" data-action="invTodoSnooze" data-key="' + escHtml(key) + '" data-v="7">1 week</button></div>';
+    '<div class="inv-callout inv-callout-info" data-todo-clears>' + escHtml(t.clears) + '</div>' +
+    (s && todoIsSnoozed(t) ? '<p class="inv-note inv-mt-8">Snoozed ' + (s.until ? 'until ' + escHtml(stockShortDate(s.until)) : 'until the figures change') + '.</p>' : '') +
+    '<div class="inv-field inv-mt-16"><span class="inv-field-label">Snooze</span><div class="inv-toolbar">' +
+    '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invTodoSnooze" data-key="' + escHtml(key) + '" data-v="sig">Until the figures change</button>' +
+    '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invTodoSnooze" data-key="' + escHtml(key) + '" data-v="7">1 week</button></div></div>' +
+    '<div class="inv-btn-bar"><button class="inv-btn inv-btn-primary" data-action="invTodoGoApp" data-key="' + escHtml(key) + '">' + escHtml(t.goLabel) + '</button></div>';
   todoOverlay('From your data', h);
 }
 
@@ -428,22 +474,22 @@ function todoOpenEdit(id, text) {
   if (id && !t) return;
   var v = t || { text: text || '', due: '', note: '', link: null };
   var kind = v.link ? v.link.kind : '';
-  var h = '<div class="inv-form-group"><label class="inv-form-label" for="todoText">Task</label>' +
-    '<input class="inv-form-input" id="todoText" value="' + escHtml(v.text) + '" autocomplete="off"></div>' +
-    '<div class="inv-form-group"><label class="inv-form-label" for="todoDue">Due</label>' +
-    '<div class="inv-td-pills"><button class="inv-td-pill" data-action="invTodoDue" data-v="0">Today</button>' +
-    '<button class="inv-td-pill" data-action="invTodoDue" data-v="1">Tomorrow</button>' +
-    '<button class="inv-td-pill" data-action="invTodoDue" data-v="">None</button></div>' +
-    '<input type="date" class="inv-form-input inv-mono inv-mt-8" id="todoDue" value="' + escHtml(v.due || '') + '"></div>' +
-    '<div class="inv-form-row"><div class="inv-form-group"><label class="inv-form-label" for="todoLinkKind">Link to</label>' +
-    '<select class="inv-form-select" id="todoLinkKind">' + TODO_LINK_KINDS.map(function(k) {
+  var h = '<div class="inv-field"><label class="inv-field-label" for="todoText">Task</label>' +
+    '<input class="inv-input" id="todoText" value="' + escHtml(v.text) + '" autocomplete="off"></div>' +
+    '<div class="inv-field"><label class="inv-field-label" for="todoDue">Due</label>' +
+    '<div class="inv-toolbar"><button class="inv-chip" data-action="invTodoDue" data-v="0">Today</button>' +
+    '<button class="inv-chip" data-action="invTodoDue" data-v="1">Tomorrow</button>' +
+    '<button class="inv-chip" data-action="invTodoDue" data-v="">None</button></div>' +
+    '<input type="date" class="inv-input" id="todoDue" value="' + escHtml(v.due || '') + '"></div>' +
+    '<div class="inv-fields"><div class="inv-field"><label class="inv-field-label" for="todoLinkKind">Link to</label>' +
+    '<select class="inv-select" id="todoLinkKind">' + TODO_LINK_KINDS.map(function(k) {
       return '<option value="' + k[0] + '"' + (k[0] === kind ? ' selected' : '') + '>' + k[1] + '</option>';
     }).join('') + '</select></div>' +
-    '<div class="inv-form-group"><label class="inv-form-label" for="todoLinkId">Which</label>' +
-    '<select class="inv-form-select" id="todoLinkId"' + (kind ? '' : ' disabled') + '>' + todoLinkOptions(kind, v.link ? v.link.id : '') + '</select></div></div>' +
-    '<div class="inv-form-group"><label class="inv-form-label" for="todoNote">Note</label>' +
-    '<textarea class="inv-form-input" id="todoNote" rows="2">' + escHtml(v.note || '') + '</textarea></div>' +
-    '<div class="inv-btn-bar">' + (t && !t.doneAt ? '<button class="inv-btn inv-btn-ghost" data-action="invTodoToggle" data-id="' + escHtml(t.id) + '">Mark done</button>' : '') +
+    '<div class="inv-field"><label class="inv-field-label" for="todoLinkId">Which</label>' +
+    '<select class="inv-select" id="todoLinkId"' + (kind ? '' : ' disabled') + '>' + todoLinkOptions(kind, v.link ? v.link.id : '') + '</select></div></div>' +
+    '<div class="inv-field"><label class="inv-field-label" for="todoNote">Note</label>' +
+    '<textarea class="inv-textarea" id="todoNote" rows="2">' + escHtml(v.note || '') + '</textarea></div>' +
+    '<div class="inv-btn-bar">' + (t && !t.doneAt ? '<button class="inv-btn inv-btn-secondary" data-action="invTodoToggle" data-id="' + escHtml(t.id) + '">Mark done</button>' : '') +
     '<button class="inv-btn inv-btn-primary" data-action="invTodoSave" data-id="' + escHtml(t ? t.id : '') + '">Save</button></div>';
   todoOverlay(t ? 'Task' : 'New task', h);
 }
@@ -575,14 +621,14 @@ function todoGoLink(id) {
 function todoSettingsFields() {
   var c = todoCfg();
   return TODO_RULES.map(function(r) {
-    return '<label class="inv-checkbox-label inv-td-rule"><input type="checkbox" id="setTodo_' + r[0] + '"' + (c[r[0]] ? ' checked' : '') + '> ' + escHtml(r[1]) + '</label>';
+    return '<label class="inv-checkbox-label"><input type="checkbox" class="inv-check" id="setTodo_' + r[0] + '"' + (c[r[0]] ? ' checked' : '') + '> ' + escHtml(r[1]) + '</label>';
   }).join('') +
     '<div class="inv-form-row inv-mt-8"><div class="inv-form-group"><label class="inv-form-label" for="setTodoChallan">Challan unbilled after (days)</label>' +
     '<input type="number" step="1" min="1" class="inv-form-input inv-mono" id="setTodoChallan" value="' + c.challanDays + '"></div>' +
     '<div class="inv-form-group"><label class="inv-form-label" for="setTodoBackup">Backup older than (days)</label>' +
     '<input type="number" step="1" min="1" class="inv-form-input inv-mono" id="setTodoBackup" value="' + c.backupDays + '"></div></div>' +
     '<button class="inv-btn inv-btn-ghost inv-btn-sm inv-mt-8" data-action="invTodoWidgetCheck">Check Windows widget</button>' +
-    '<div id="todoWidgetStatus" class="inv-td-wstatus"></div>';
+    '<div id="todoWidgetStatus" class="inv-mt-8"></div>';
 }
 
 /* Why the Windows widget is not on the board. Every step is a condition only
@@ -619,11 +665,12 @@ function todoWidgetCheck() {
   var env = todoWidgetEnv();
   var show = function(st) {
     var v = todoWidgetVerdict(env, st);
-    var line = function(ok, text) { return '<div class="inv-td-wline inv-td-wline-' + (ok ? 'ok' : 'no') + '">' + (ok ? 'Yes: ' : 'No: ') + escHtml(text) + '</div>'; };
-    box.innerHTML = '<div class="inv-td-wverdict inv-td-wverdict-' + v[0] + '">' + escHtml(v[1]) + '</div>' +
-      line(env.windows, 'Windows') + line(env.edge, 'Microsoft Edge') + line(env.installed, 'Installed as an app') +
+    // Each step is a dot and a word (DR-8); the verdict names the first that fails.
+    var line = function(ok, text) { return '<div class="inv-row inv-row-auto"><span class="inv-dot inv-dot-' + (ok ? 'ok' : 'neutral') + '">' + (ok ? 'Yes: ' : 'No: ') + escHtml(text) + '</span></div>'; };
+    box.innerHTML = '<div class="inv-callout inv-callout-' + (v[0] === 'ok' ? 'info' : 'warning') + '" data-verdict="' + v[0] + '">' + escHtml(v[1]) + '</div>' +
+      '<div class="inv-panel inv-panel-flush inv-mt-8">' + line(env.windows, 'Windows') + line(env.edge, 'Microsoft Edge') + line(env.installed, 'Installed as an app') +
       line(env.worker, 'Offline worker running') + line(!!(st && st.api), 'Edge widgets available') +
-      line(!!(st && st.defined), 'Widget registered with Edge') + line(!!(st && st.instances), 'Widget on the board');
+      line(!!(st && st.defined), 'Widget registered with Edge') + line(!!(st && st.instances), 'Widget on the board') + '</div>';
   };
   if (!env.worker) { show(null); return; }
   box.textContent = 'Checking…';
@@ -777,6 +824,7 @@ function todoOnWorkerMessage(msg) {
 function todoHandleLaunch(action) {
   if (!action) return;
   todoApplyWidgetQueue();
+  if (action === 'add') _todoShowDone = false;
   switchTab('pageTodo');
   if (action === 'add') {
     var inp = document.getElementById('todoNew');
@@ -803,7 +851,8 @@ function todoAction(action, btn) {
     case 'invTodoGo': todoGoLink(btn.dataset.id); break;
     case 'invTodoSnooze': todoSnooze(btn.dataset.key, btn.dataset.v); break;
     case 'invTodoWake': delete todoData().snoozes[btn.dataset.key]; saveState(); renderTodo(); break;
-    case 'invTodoFoldDone': _todoShowDone = !_todoShowDone; renderTodo(); break;
+    // The Open / Done view tabs (they were a Done fold, whose action they keep).
+    case 'invTodoFoldDone': _todoShowDone = btn.dataset.v ? btn.dataset.v === 'done' : !_todoShowDone; renderTodo(); break;
     case 'invTodoFoldSnoozed': _todoShowSnoozed = !_todoShowSnoozed; renderTodo(); break;
     case 'invTodoDue': {
       var inp = document.getElementById('todoDue');

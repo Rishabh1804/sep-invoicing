@@ -18,7 +18,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <!-- Appearance before first paint (§3.2): the device's theme and palette, so nothing flashes in the wrong colours. -->
 <script>(function(){try{var d=document.documentElement,t=localStorage.getItem("sep_inv_theme"),p=localStorage.getItem("sep_inv_palette");if(t==="light"||t==="dark")d.dataset.theme=t;d.dataset.palette=(p==="zinc"||p==="terracotta")?p:"teal";}catch(e){document.documentElement.dataset.palette="teal";}})();</script>
-<meta name="app-build" content="04b45541">
+<meta name="app-build" content="73fa48ce">
 <style>
 /* ===== DESIGN TOKENS (design system v2.0 — docs/SEP_INVOICING_DESIGN_PRINCIPLES.md §3) ===== */
 /* Theme: colour-scheme decides every light-dark() below. <html data-theme> is set before first paint
@@ -1820,13 +1820,6 @@ body.inv-desktop #imSelBar {
 .inv-stk-pattern { margin-bottom: var(--sp-8); }
 .inv-stk-billform { border: 1px solid var(--border); border-radius: var(--r-md); padding: var(--sp-10); margin: var(--sp-8) 0; background: var(--surface); }
 .inv-stk-btn-sm { margin-top: var(--sp-6); }
-.inv-td-wstatus { margin-top: var(--sp-8); font-size: var(--fs-sm); }
-.inv-td-wverdict { padding: var(--sp-8) var(--sp-10); border-radius: var(--r-md); margin-bottom: var(--sp-6); font-weight: 600; }
-.inv-td-wverdict-ok { background: var(--attend-bg); color: var(--attend-text); }
-.inv-td-wverdict-bad { background: var(--warning-bg); color: var(--warning-text); }
-.inv-td-wline { padding: var(--sp-2) 0; color: var(--text-2); }
-.inv-td-wline-ok { color: var(--attend-text); }
-.inv-td-wline-no { color: var(--text-3); }
 .inv-pay-green { background: var(--attend-bg); }
 .inv-pay-blue { background: var(--prod-bg); }
 .inv-att-grid-sun { background: var(--surface-2); }
@@ -2273,99 +2266,14 @@ body.inv-desktop .inv-stk-foot { bottom: var(--sp-8); }
 /* Dark: the tokens above re-point by themselves; these are the spots that
    read a light-only value. Chips and tiles keep a solid border either way. */
 
-/* ===== TO-DO =====
-   App tasks carry a round marker (they clear themselves), your own a tick box.
-   Tone is the left rule, the same language as the Stock list. */
-.inv-td-add { display: flex; gap: var(--sp-8); margin-bottom: var(--sp-12); }
-.inv-td-in {
-  flex: 1; min-width: 0; min-height: 44px; padding: 0 var(--sp-12);
-  border: 1px solid var(--border-2); border-radius: var(--r-md); background: var(--surface); color: var(--text-1);
-  font: inherit; font-size: var(--fs-base);
-}
-.inv-td-in:focus { outline: 2px solid var(--accent); outline-offset: 0; border-color: var(--accent); }
-.inv-td-sec {
-  display: flex; align-items: center; gap: var(--sp-8); margin: var(--sp-16) var(--sp-2) var(--sp-6);
-  font-size: var(--fs-xs); font-weight: 700; color: var(--text-2);
-}
-.inv-td-count { font-weight: 500; letter-spacing: 0; text-transform: none; color: var(--text-2); }
-.inv-td-lbl {
-  display: inline-block; flex: none; padding: 0 var(--sp-6); border-radius: var(--r-sm);
-  font-size: var(--fs-xs); font-weight: 700; line-height: 1.6;
-}
-.inv-td-lbl-app { background: var(--todo-bg); color: var(--todo-text); border: 1px solid var(--todo); }
-.inv-td-lbl-mine { background: var(--neutral-bg); color: var(--neutral-text); border: 1px solid var(--neutral); }
-.inv-td-empty {
-  padding: var(--sp-12); border: 1px dashed var(--border-2); border-radius: var(--r-md);
-  color: var(--text-2); font-size: var(--fs-sm); background: var(--surface);
-}
-.inv-td-row {
-  display: flex; align-items: flex-start; gap: var(--sp-10); width: 100%; min-height: 44px;
-  padding: var(--sp-10) var(--sp-10) var(--sp-10) var(--sp-12); margin-bottom: var(--sp-6);
-  background: var(--surface); border: 1px solid var(--border-2); border-left-width: var(--sp-4); border-radius: var(--r-md);
-  color: var(--text-1); font: inherit; text-align: left;
-}
-button.inv-td-row { cursor: pointer; }
-.inv-td-row:focus-visible, .inv-td-main:focus-visible, .inv-td-box:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-.inv-td-tone-red { border-left-color: var(--danger); }
-.inv-td-tone-amber { border-left-color: var(--warning); }
-.inv-td-tone-info { border-left-color: var(--prod); }
-.inv-td-tone-none { border-left-color: var(--border-2); }
-.inv-td-row-done .inv-td-title { color: var(--text-2); text-decoration: line-through; }
-.inv-td-row-snz { align-items: center; }
-.inv-td-main {
-  display: flex; flex-direction: column; flex: 1; min-width: 0; padding: 0; border: none; background: none;
-  color: inherit; font: inherit; text-align: left; cursor: pointer;
-}
-.inv-td-row-snz .inv-td-main { cursor: default; }
-.inv-td-title { font-size: var(--fs-md); font-weight: 600; line-height: 1.3; overflow-wrap: anywhere; }
-.inv-td-sub { font-size: var(--fs-sm); color: var(--text-2); margin-top: var(--sp-2); }
-.inv-td-why { font-size: var(--fs-xs); color: var(--text-2); margin-top: var(--sp-2); }
-.inv-td-glyph {
-  flex: none; display: inline-flex; align-items: center; justify-content: center; width: var(--sp-20); height: var(--sp-20); margin-top: var(--sp-2);
-  border-radius: var(--r-full); color: var(--surface); font-size: var(--fs-sm); font-weight: 800; line-height: 1;
-}
-.inv-td-glyph-red { background: var(--danger); }
-.inv-td-glyph-amber { background: var(--warning); }
-.inv-td-glyph-info { background: var(--prod); }
-.inv-td-box {
-  flex: none; display: inline-flex; align-items: center; justify-content: center; width: calc(var(--sp-20) + var(--sp-2)); height: calc(var(--sp-20) + var(--sp-2)); margin-top: var(--sp-2);
-  border: 2px solid var(--text-2); border-radius: var(--r-sm); background: var(--surface); color: var(--surface); cursor: pointer; padding: 0;
-  position: relative;
-}
-.inv-td-box::before { content: ''; position: absolute; inset: calc(var(--sp-10) * -1); }
-.inv-td-box svg { width: var(--sp-16); height: var(--sp-16); }
-.inv-td-box-on { background: var(--attend); border-color: var(--attend); }
-.inv-td-side { display: flex; flex-direction: column; align-items: flex-end; gap: var(--sp-4); flex: none; }
-.inv-td-due { font-size: var(--fs-sm); font-weight: 700; color: var(--text-2); white-space: nowrap; }
-.inv-td-due-red { color: var(--danger-text); }
-.inv-td-due-amber { color: var(--warning-text); }
-.inv-td-link {
-  max-width: calc(var(--sp-32) * 5); padding: var(--sp-2) var(--sp-6); border: 1px solid var(--prod); border-radius: var(--r-sm);
-  background: var(--prod-bg); color: var(--prod-text); font: inherit; font-size: var(--fs-xs); font-weight: 700;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer;
-}
+/* ===== FOLD (v1.0, left from To-do) =====
+   Only the attendance paste review still draws it; it goes when that screen moves. */
 .inv-td-fold {
   display: flex; justify-content: space-between; align-items: center; width: 100%; min-height: 44px; margin-top: var(--sp-10);
   padding: 0 var(--sp-12); border: 1px dashed var(--border-2); border-radius: var(--r-md); background: var(--surface-2);
   color: var(--text-1); font: inherit; font-size: var(--fs-base); font-weight: 600; cursor: pointer;
 }
 .inv-td-fold span:last-child { color: var(--accent); }
-/* Overlays */
-.inv-td-ohead { display: flex; align-items: center; gap: var(--sp-8); margin-bottom: var(--sp-6); }
-.inv-td-otitle { font-family: var(--ff-display); font-size: var(--fs-lg); font-weight: 600; color: var(--text-1); margin-bottom: var(--sp-10); }
-.inv-td-facts { border: 1px solid var(--border-2); border-radius: var(--r-md); overflow: hidden; margin-bottom: var(--sp-10); }
-.inv-td-facts div { display: flex; justify-content: space-between; gap: var(--sp-12); padding: var(--sp-8) var(--sp-10); border-top: 1px solid var(--border); font-size: var(--fs-sm); }
-.inv-td-facts div:first-child { border-top: none; }
-.inv-td-facts span { color: var(--text-2); }
-.inv-td-facts strong { font-family: var(--ff-mono); font-weight: 500; color: var(--text-1); text-align: right; overflow-wrap: anywhere; }
-.inv-td-clears { padding: var(--sp-8) var(--sp-10); margin-bottom: var(--sp-10); border-radius: var(--r-md); background: var(--surface-2); color: var(--text-1); font-size: var(--fs-sm); }
-.inv-td-pills { display: flex; flex-wrap: wrap; gap: var(--sp-6); }
-.inv-td-pill {
-  min-height: calc(var(--sp-32) + var(--sp-4)); padding: 0 var(--sp-12); border: 1px solid var(--border-2); border-radius: var(--r-full);
-  background: var(--surface); color: var(--text-1); font: inherit; font-size: var(--fs-sm); font-weight: 600; cursor: pointer;
-}
-.inv-td-pill:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-.inv-td-rule { display: flex; align-items: center; gap: var(--sp-8); min-height: calc(var(--sp-32) + var(--sp-4)); font-size: var(--fs-base); }
 
 /* ===== ATTENDANCE PASTE (relay) ===== */
 .inv-rl-sum { grid-template-columns: repeat(3, 1fr); }
@@ -2648,6 +2556,7 @@ button.inv-row:hover, a.inv-row:hover { background: var(--surface-2); }
 .inv-row-title { font-size: var(--fs-14); font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .inv-row-meta { font-size: var(--fs-12); color: var(--text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .inv-row-end { flex-shrink: 0; display: flex; align-items: center; gap: var(--sp-8); text-align: right; }
+.inv-row-end .inv-btn-link { font-size: var(--fs-13); }
 button.inv-row-main { display: block; padding: 0; border: none; background: none; font: inherit; color: inherit; text-align: left; cursor: pointer; align-self: stretch; }
 .inv-row-main > .inv-row-title, .inv-row-main > .inv-row-meta { display: block; }
 .inv-row-stack { display: flex; flex-direction: column; align-items: flex-end; gap: var(--sp-2); }
@@ -2655,6 +2564,8 @@ button.inv-row-main { display: block; padding: 0; border: none; background: none
 .inv-row-wrap .inv-dot { white-space: normal; }
 .inv-row-auto { min-height: 0; padding-top: var(--sp-8); padding-bottom: var(--sp-8); }
 .inv-row-muted { opacity: 0.55; }
+/* A task ticked done: still listed (never deleted), its text struck through. */
+.inv-row-done .inv-row-title { color: var(--text-2); text-decoration: line-through; }
 .inv-row-strong { font-weight: 600; }
 .inv-check { width: var(--sp-20); height: var(--sp-20); accent-color: var(--accent); cursor: pointer; flex-shrink: 0; }
 /* A row's tick box is tapped through its label, which holds the full touch target. */
@@ -2733,7 +2644,17 @@ button.inv-row-expander[aria-expanded="true"]::after { transform: translateY(-25
 .inv-dot-ok::before { background: var(--ok); }
 .inv-dot-info::before { background: var(--info); }
 .inv-dot-neutral::before { background: var(--text-3); }
-.inv-badge, .inv-state-badge, .inv-att-badge, .inv-area-badge, .inv-client-badge, .inv-stk-chip, .inv-td-lbl, .inv-cost-src, .inv-kpi-delta {
+/* A dot that carries its own symbol (an app task's ! or i), where the row has no room for the word. */
+.inv-dot-mark {
+  display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; flex-shrink: 0;
+  border-radius: var(--r-full); background: var(--text-3); color: var(--surface);
+  font-family: var(--ff-base); font-size: var(--fs-12); font-weight: 600; line-height: 1;
+}
+.inv-dot-mark-danger { background: var(--danger); }
+.inv-dot-mark-warning { background: var(--warning); }
+.inv-dot-mark-ok { background: var(--ok); }
+.inv-dot-mark-info { background: var(--info); }
+.inv-badge, .inv-state-badge, .inv-att-badge, .inv-area-badge, .inv-client-badge, .inv-stk-chip, .inv-cost-src, .inv-kpi-delta {
   display: inline-flex; align-items: center; gap: var(--sp-4); padding: var(--sp-2) var(--sp-6);
   border-radius: var(--r-sm); font-family: var(--ff-base); font-size: var(--fs-12); font-weight: 500; line-height: 1.35; white-space: nowrap;
 }
@@ -2863,7 +2784,7 @@ body.inv-desktop .inv-keys { display: flex; flex-wrap: wrap; gap: var(--sp-4) va
 .inv-overlay-scrim, .inv-more-scrim { background: var(--scrim); }
 .inv-overlay-card, .inv-dialog, .inv-sheet { background: var(--surface); border: 1px solid var(--border); box-shadow: var(--shadow-dialog); }
 .inv-overlay-header, .inv-dialog-head { border-bottom: 1px solid var(--border); }
-.inv-overlay-title, .inv-dialog-title, .inv-td-otitle { font-family: var(--ff-base); font-size: var(--fs-16); font-weight: 600; letter-spacing: 0; }
+.inv-overlay-title, .inv-dialog-title { font-family: var(--ff-base); font-size: var(--fs-16); font-weight: 600; letter-spacing: 0; }
 .inv-menu { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-md); box-shadow: var(--shadow-pop); }
 /* A menu hangs off its field (inv-combo): suggestions for a part or a client, arrowed through by
    the keyboard. The cursor is the option's aria-selected; the create-a-part row reads as an action. */
@@ -2898,7 +2819,7 @@ body.inv-desktop .inv-keys { display: flex; flex-wrap: wrap; gap: var(--sp-4) va
 .inv-callout-warning, .inv-stk-banner, .inv-confirm-warn { background: var(--warning-bg); color: var(--warning); }
 .inv-callout-danger, .inv-stats-alert, .inv-stk-banner-red { background: var(--danger-bg); color: var(--danger); }
 .inv-note { font-size: var(--fs-12); color: var(--text-3); line-height: 1.5; }
-.inv-empty, .inv-empty-state, .inv-stk-empty, .inv-td-empty, .inv-chart-empty {
+.inv-empty, .inv-empty-state, .inv-stk-empty, .inv-chart-empty {
   padding: var(--sp-24) var(--sp-16); text-align: center; color: var(--text-3); font-size: var(--fs-13);
   border: none; background: none;
 }
@@ -4666,6 +4587,7 @@ function homeQuick(go) {
   else if (go === 'attendance') { _attView = 'day'; _attDate = localDateStr(); switchTab('pageStaff'); }
   else if (go === 'paste') relayOpen();
   else if (go === 'task') {
+    _todoShowDone = false;  // the add field is on the Open tab
     switchTab('pageTodo');
     var inp = document.getElementById('todoNew');
     if (inp) inp.focus();
@@ -21183,10 +21105,14 @@ function todoApp(only) { return todoAppAll(only).filter(function(t) { return !to
 function todoRanked() {
   var rows = todoApp().map(function(t) { return { app: t, tone: t.tone }; });
   todoMineOpen().forEach(function(t) { rows.push({ mine: t, tone: todoMineTone(t) }); });
+  // Your own tasks come before everything the app raised, bar what is already red (owner, 26 Sep 2026:
+  // a task typed in sat under ten raised ones and was easy to forget). An undated one of your own has
+  // no tone, and ranked by tone alone it fell below every info task the data raised.
+  var band = function(r) { return r.tone === 'red' ? 0 : r.mine ? 1 : 2; };
   return rows.sort(function(a, b) {
-    var r = TODO_TONE_RANK[a.tone] - TODO_TONE_RANK[b.tone];
+    var r = band(a) - band(b) || TODO_TONE_RANK[a.tone] - TODO_TONE_RANK[b.tone];
     if (r) return r;
-    if (!!a.app !== !!b.app) return a.app ? -1 : 1;
+    if (!!a.app !== !!b.app) return a.app ? 1 : -1;
     if (a.mine && b.mine) return (a.mine.due || '9999').localeCompare(b.mine.due || '9999') || (a.mine.createdAt - b.mine.createdAt);
     return 0;
   });
@@ -21196,72 +21122,110 @@ function todoRedCount() {
   return todoRanked().filter(function(r) { return r.tone === 'red'; }).length;
 }
 
-/* ---------- Screens ---------- */
+/* ---------- Screens ----------
+   View tabs Open / Done (design principles §7). Open: the add field, then two flush panels,
+   Mine and From your data (two across on the desktop, Mine on the left), then what is snoozed.
+   Yours lead: what you typed is what is easiest to forget under the raised ones. Rows are §6.10's:
+   an app task is a whole-row button led by its ! / i mark; a task of your own is led by its
+   tick box and ends with its due date as a dot and a word. */
 function renderTodo() {
   var el = document.getElementById('todoContent');
   if (!el) return;
   var app = todoApp(), mine = todoMineOpen(), td = todoData();
   var late = todoRanked().filter(function(r) { return r.tone === 'red'; }).length;
-  var h = '<div class="inv-stk-top"><div>' +
-    '<div class="inv-stk-meta"><strong>' + (app.length + mine.length) + '</strong> open' + (late ? ' · <strong>' + late + '</strong> late' : '') + '</div></div></div>';
-  h += '<div class="inv-td-add"><input class="inv-td-in" id="todoNew" data-todo-new placeholder="Add a task…" aria-label="New task" autocomplete="off">' +
-    '<button class="inv-stk-btn inv-stk-btn-pri" data-action="invTodoAdd">Add</button>' +
-    '<button class="inv-stk-btn" data-action="invTodoNew">Details</button></div>';
+  var done = td.tasks.filter(function(t) { return t.doneAt; }).sort(function(a, b) { return b.doneAt - a.doneAt; });
+  var tab = function(v, label, n) {
+    var on = (v === 'done') === _todoShowDone;
+    return '<button class="inv-viewtab" role="tab" aria-selected="' + on + '" data-action="invTodoFoldDone" data-v="' + v + '">' +
+      label + ' <span class="inv-panel-count">' + n + '</span></button>';
+  };
+  var h = '<div class="inv-viewtabs" role="tablist" aria-label="To-do">' + tab('open', 'Open', app.length + mine.length) + tab('done', 'Done', done.length) + '</div>';
 
-  h += '<div class="inv-td-sec"><span class="inv-td-lbl inv-td-lbl-app">App</span> From your data <span class="inv-td-count">· ' + app.length + '</span></div>';
-  if (!app.length) h += '<div class="inv-td-empty">Nothing from your data needs you.</div>';
-  app.forEach(function(t) { h += todoAppRowHtml(t); });
+  if (_todoShowDone) {
+    h += '<div class="inv-panel inv-panel-flush" data-todo-sec="done"><div class="inv-panel-head"><span class="inv-panel-title">Done' +
+      (done.length ? ' <span class="inv-panel-count">' + done.length + '</span>' : '') + '</span></div>';
+    if (!done.length) h += '<div class="inv-empty">Nothing ticked yet. A task you tick moves here, and can be reopened.</div>';
+    done.slice(0, 50).forEach(function(t) { h += todoMineRowHtml(t); });
+    if (done.length > 50) h += '<div class="inv-row inv-row-auto"><span class="inv-note">The 50 most recent of ' + done.length + '.</span></div>';
+    el.innerHTML = h + '</div>';
+    updateStockBadge();
+    return;
+  }
+
+  h += '<div class="inv-pagehead"><span class="inv-pagehead-meta">' + todoPlural(app.length + mine.length, 'open task') +
+    (late ? ' · <span class="inv-dot inv-dot-danger">' + late + ' late</span>' : '') + '</span></div>';
+  h += '<div class="inv-toolbar"><input class="inv-input inv-toolbar-item" id="todoNew" data-todo-new placeholder="Add a task…" aria-label="New task" autocomplete="off">' +
+    '<button class="inv-btn inv-btn-primary" data-action="invTodoAdd">Add</button>' +
+    '<button class="inv-btn inv-btn-secondary" data-action="invTodoNew">Details</button></div>';
 
   mine.sort(function(a, b) {
     return TODO_TONE_RANK[todoMineTone(a)] - TODO_TONE_RANK[todoMineTone(b)] ||
       (a.due || '9999').localeCompare(b.due || '9999') || (a.createdAt - b.createdAt);
   });
-  h += '<div class="inv-td-sec"><span class="inv-td-lbl inv-td-lbl-mine">Mine</span> <span class="inv-td-count">· ' + mine.length + '</span></div>';
-  if (!mine.length) h += '<div class="inv-td-empty">No tasks of your own. Type one above and press Enter.</div>';
+  h += '<div class="inv-panels">';
+  h += '<div class="inv-panel inv-panel-flush" data-todo-sec="mine"><div class="inv-panel-head"><span class="inv-panel-title">Mine' +
+    ' <span class="inv-panel-count">' + mine.length + '</span></span><span class="inv-badge">Mine</span></div>';
+  if (!mine.length) h += '<div class="inv-empty">No tasks of your own. Type one above and press Enter.</div>';
   mine.forEach(function(t) { h += todoMineRowHtml(t); });
+  h += '</div>';
+  h += '<div class="inv-panel inv-panel-flush" data-todo-sec="app"><div class="inv-panel-head"><span class="inv-panel-title">From your data' +
+    ' <span class="inv-panel-count">' + app.length + '</span></span><span class="inv-badge">App</span></div>';
+  if (!app.length) h += '<div class="inv-empty">Nothing from your data needs you.</div>';
+  app.forEach(function(t) { h += todoAppRowHtml(t); });
+  h += '</div>';
 
-  var done = td.tasks.filter(function(t) { return t.doneAt; }).sort(function(a, b) { return b.doneAt - a.doneAt; });
-  if (done.length) {
-    h += '<button class="inv-td-fold" data-action="invTodoFoldDone" aria-expanded="' + _todoShowDone + '"><span>Done · ' + done.length + '</span><span>' + (_todoShowDone ? 'Hide' : 'Show') + '</span></button>';
-    if (_todoShowDone) done.slice(0, 50).forEach(function(t) { h += todoMineRowHtml(t); });
-  }
   var snoozed = todoAppAll().filter(todoIsSnoozed);
   if (snoozed.length) {
-    h += '<button class="inv-td-fold" data-action="invTodoFoldSnoozed" aria-expanded="' + _todoShowSnoozed + '"><span>Snoozed · ' + snoozed.length + '</span><span>' + (_todoShowSnoozed ? 'Hide' : 'Show') + '</span></button>';
+    h += '<div class="inv-panel inv-panel-flush inv-panels-wide" data-todo-sec="snoozed"><div class="inv-panel-head"><span class="inv-panel-title">Snoozed' +
+      ' <span class="inv-panel-count">' + snoozed.length + '</span></span>' +
+      '<button class="inv-btn-link" data-action="invTodoFoldSnoozed" aria-expanded="' + _todoShowSnoozed + '">' + (_todoShowSnoozed ? 'Hide' : 'Show') + '</button></div>';
     if (_todoShowSnoozed) snoozed.forEach(function(t) {
       var s = td.snoozes[t.key];
-      h += '<div class="inv-td-row inv-td-row-snz"><div class="inv-td-main"><span class="inv-td-title">' + escHtml(t.title) + '</span>' +
-        '<span class="inv-td-sub">' + (s.until ? 'Until ' + escHtml(stockShortDate(s.until)) : 'Until the figures change') + '</span></div>' +
-        '<button class="inv-stk-tool" data-action="invTodoWake" data-key="' + escHtml(t.key) + '">Wake</button></div>';
+      h += '<div class="inv-row inv-row-2" data-todo="snoozed"><span class="inv-row-main"><span class="inv-row-title" title="' + escHtml(t.title) + '">' + escHtml(t.title) + '</span>' +
+        '<span class="inv-row-meta">' + (s.until ? 'Until ' + escHtml(stockShortDate(s.until)) : 'Until the figures change') + '</span></span>' +
+        '<span class="inv-row-end"><button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invTodoWake" data-key="' + escHtml(t.key) + '">Wake</button></span></div>';
     });
+    h += '</div>';
   }
-  el.innerHTML = h;
+  el.innerHTML = h + '</div>';
   updateStockBadge();
 }
 
+/* An app task's mark: its tone, and a symbol with it (DR-1) — ! to act on, i to know. */
 function todoGlyph(tone) {
-  return '<span class="inv-td-glyph inv-td-glyph-' + (tone || 'info') + '" aria-hidden="true">' + (tone === 'info' ? 'i' : '!') + '</span>';
+  var ui = uiTone(tone || 'info');
+  return '<span class="inv-dot-mark inv-dot-mark-' + ui + '" aria-hidden="true">' + (tone === 'red' || tone === 'amber' ? '!' : 'i') + '</span>';
 }
+var TODO_TONE_WORD = { red: 'Act now', amber: 'Soon', info: 'To know' };
 function todoAppRowHtml(t) {
-  return '<button class="inv-td-row inv-td-tone-' + t.tone + '" data-action="invTodoOpenApp" data-key="' + escHtml(t.key) + '">' +
-    todoGlyph(t.tone) + '<span class="inv-td-main"><span class="inv-td-title">' + escHtml(t.title) + '</span>' +
-    '<span class="inv-td-sub">' + escHtml(t.sub) + '</span><span class="inv-td-why">' + escHtml(t.why) + '</span></span></button>';
+  return '<button class="inv-row inv-row-2 inv-row-auto" data-todo="app" data-tone="' + escHtml(t.tone || '') + '" data-action="invTodoOpenApp" data-key="' + escHtml(t.key) + '">' +
+    '<span class="inv-row-lead">' + todoGlyph(t.tone) + '</span>' +
+    '<span class="inv-row-main"><span class="inv-row-title inv-row-wrap">' + escHtml(t.title) + '</span>' +
+    '<span class="inv-row-meta inv-row-wrap">' + escHtml(t.sub) + '</span>' +
+    (t.why ? '<span class="inv-row-meta inv-row-wrap">' + escHtml(t.why) + '</span>' : '') + '</span>' +
+    // Red and amber say so in a word as well; an info task's i is its word.
+    (t.tone === 'red' || t.tone === 'amber' ? '<span class="inv-row-end"><span class="inv-dot inv-dot-' + uiTone(t.tone) + '">' + TODO_TONE_WORD[t.tone] + '</span></span>' : '') + '</button>';
 }
 function todoLinkLabel(link) {
   if (!link) return '';
   var names = { client: 'Client', invoice: 'Invoice', challan: 'Challan', stock: 'Stock' };
   return (names[link.kind] || '') + ' · ' + (link.label || '');
 }
+/* A task of your own. The tick box is the row's lead (its label is the touch target); the text
+   opens the task; the end carries the due date as a dot and a word, and the link it points at. */
 function todoMineRowHtml(t) {
   var tone = todoMineTone(t);
-  return '<div class="inv-td-row inv-td-tone-' + (tone || 'none') + (t.doneAt ? ' inv-td-row-done' : '') + '">' +
-    '<button class="inv-td-box' + (t.doneAt ? ' inv-td-box-on' : '') + '" data-action="invTodoToggle" data-id="' + escHtml(t.id) + '" aria-label="' + (t.doneAt ? 'Reopen' : 'Mark done') + '">' +
-    (t.doneAt ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="5 12 10 17 19 7"/></svg>' : '') + '</button>' +
-    '<button class="inv-td-main" data-action="invTodoEdit" data-id="' + escHtml(t.id) + '"><span class="inv-td-title">' + escHtml(t.text) + '</span>' +
-    (t.note ? '<span class="inv-td-sub">' + escHtml(t.note) + '</span>' : '') +
-    (t.doneAt ? '<span class="inv-td-why">Done ' + escHtml(formatTimestamp(t.doneAt)) + (t.doneBy === 'widget' ? ' from the widget' : '') + '</span>' : '') + '</button>' +
-    '<span class="inv-td-side">' + (t.due && !t.doneAt ? '<span class="inv-td-due inv-td-due-' + (tone || 'none') + '">' + escHtml(todoDueLabel(t.due)) + '</span>' : '') +
-    (t.link ? '<button class="inv-td-link" data-action="invTodoGo" data-id="' + escHtml(t.id) + '">' + escHtml(todoLinkLabel(t.link)) + '</button>' : '') + '</span></div>';
+  var meta = [];
+  if (t.note) meta.push('<span class="inv-row-meta inv-row-wrap">' + escHtml(t.note) + '</span>');
+  if (t.doneAt) meta.push('<span class="inv-row-meta">Done ' + escHtml(formatTimestamp(t.doneAt)) + (t.doneBy === 'widget' ? ' from the widget' : '') + '</span>');
+  var end = '';
+  if (t.due && !t.doneAt) end += '<span class="inv-dot inv-dot-' + (tone ? uiTone(tone) : 'neutral') + '">' + escHtml(todoDueLabel(t.due)) + '</span>';
+  if (t.link) end += '<button class="inv-btn-link inv-col-grow-sm" data-action="invTodoGo" data-id="' + escHtml(t.id) + '" title="' + escHtml(todoLinkLabel(t.link)) + '">' + escHtml(todoLinkLabel(t.link)) + '</button>';
+  return '<div class="inv-row inv-row-2 inv-row-auto' + (t.doneAt ? ' inv-row-done' : '') + '" data-todo="mine" data-tone="' + tone + '"' + (t.doneAt ? ' data-done="1"' : '') + '>' +
+    '<label class="inv-row-lead inv-row-tick"><input type="checkbox" class="inv-check" data-action="invTodoToggle" data-id="' + escHtml(t.id) + '"' +
+    (t.doneAt ? ' checked' : '') + ' aria-label="' + (t.doneAt ? 'Reopen' : 'Mark done') + ': ' + escHtml(t.text) + '"></label>' +
+    '<button class="inv-row-main" data-action="invTodoEdit" data-id="' + escHtml(t.id) + '"><span class="inv-row-title inv-row-wrap">' + escHtml(t.text) + '</span>' + meta.join('') + '</button>' +
+    (end ? '<span class="inv-row-end inv-row-stack">' + end + '</span>' : '') + '</div>';
 }
 
 /* Home: the top three, both kinds, labelled. */
@@ -21283,7 +21247,7 @@ function renderTodoHomeCard() {
         '<span class="inv-row-end"><span class="inv-badge">App</span></span></button>';
     } else {
       var t = r.mine;
-      h += '<div class="inv-row inv-row-2" data-todo="mine"><span class="inv-row-lead"><button class="inv-td-box" data-action="invTodoToggle" data-id="' + escHtml(t.id) + '" aria-label="Mark done"></button></span>' +
+      h += '<div class="inv-row inv-row-2" data-todo="mine"><label class="inv-row-lead inv-row-tick"><input type="checkbox" class="inv-check" data-action="invTodoToggle" data-id="' + escHtml(t.id) + '" aria-label="Mark done: ' + escHtml(t.text) + '"></label>' +
         '<button class="inv-row-main" data-action="invTodoEdit" data-id="' + escHtml(t.id) + '"><span class="inv-row-title">' + escHtml(t.text) + '</span>' +
         (t.due ? '<span class="inv-row-meta"><span class="inv-dot inv-dot-' + tone + '">' + escHtml(todoDueLabel(t.due)) + '</span></span>' : '') + '</button>' +
         '<span class="inv-row-end"><span class="inv-badge">Mine</span></span></div>';
@@ -21316,17 +21280,21 @@ function todoOpenApp(key) {
   var t = todoAppAll().find(function(x) { return x.key === key; });
   if (!t) { showToast('That has cleared itself'); todoRefreshViews(); return; }
   var s = todoData().snoozes[key];
-  var h = '<div class="inv-td-ohead"><span class="inv-td-lbl inv-td-lbl-app">App</span><span class="inv-td-why">' + escHtml(t.why) + '</span></div>' +
-    '<div class="inv-td-otitle">' + escHtml(t.title) + '</div>' +
-    '<div class="inv-td-facts">' + t.facts.map(function(f) {
-      return '<div><span>' + escHtml(f[0]) + '</span><strong>' + escHtml(f[1]) + '</strong></div>';
+  // The task's head is a flush panel: its title, why it was raised, then the figures it was
+  // raised on as rows (label, and the figure mono at the end). What clears it is a callout.
+  var h = '<div class="inv-panel inv-panel-flush" data-todo-facts><div class="inv-panel-head"><span class="inv-row-main">' +
+    '<span class="inv-panel-title">' + escHtml(t.title) + '</span><span class="inv-row-meta inv-row-wrap">' + escHtml(t.why) + '</span></span>' +
+    '<span class="inv-dot inv-dot-' + uiTone(t.tone) + '">' + (TODO_TONE_WORD[t.tone] || 'To know') + '</span></div>' +
+    t.facts.map(function(f) {
+      return '<div class="inv-row inv-row-auto"><span class="inv-row-main inv-row-meta inv-row-wrap">' + escHtml(f[0]) + '</span>' +
+        '<span class="inv-row-end inv-num inv-row-wrap">' + escHtml(f[1]) + '</span></div>';
     }).join('') + '</div>' +
-    '<div class="inv-td-clears">' + escHtml(t.clears) + '</div>' +
-    (s && todoIsSnoozed(t) ? '<div class="inv-td-clears">Snoozed ' + (s.until ? 'until ' + escHtml(stockShortDate(s.until)) : 'until the figures change') + '.</div>' : '') +
-    '<div class="inv-btn-bar"><button class="inv-btn inv-btn-primary" data-action="invTodoGoApp" data-key="' + escHtml(key) + '">' + escHtml(t.goLabel) + '</button></div>' +
-    '<div class="inv-stk-label inv-mt-16">Snooze</div><div class="inv-td-pills">' +
-    '<button class="inv-td-pill" data-action="invTodoSnooze" data-key="' + escHtml(key) + '" data-v="sig">Until the figures change</button>' +
-    '<button class="inv-td-pill" data-action="invTodoSnooze" data-key="' + escHtml(key) + '" data-v="7">1 week</button></div>';
+    '<div class="inv-callout inv-callout-info" data-todo-clears>' + escHtml(t.clears) + '</div>' +
+    (s && todoIsSnoozed(t) ? '<p class="inv-note inv-mt-8">Snoozed ' + (s.until ? 'until ' + escHtml(stockShortDate(s.until)) : 'until the figures change') + '.</p>' : '') +
+    '<div class="inv-field inv-mt-16"><span class="inv-field-label">Snooze</span><div class="inv-toolbar">' +
+    '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invTodoSnooze" data-key="' + escHtml(key) + '" data-v="sig">Until the figures change</button>' +
+    '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invTodoSnooze" data-key="' + escHtml(key) + '" data-v="7">1 week</button></div></div>' +
+    '<div class="inv-btn-bar"><button class="inv-btn inv-btn-primary" data-action="invTodoGoApp" data-key="' + escHtml(key) + '">' + escHtml(t.goLabel) + '</button></div>';
   todoOverlay('From your data', h);
 }
 
@@ -21351,22 +21319,22 @@ function todoOpenEdit(id, text) {
   if (id && !t) return;
   var v = t || { text: text || '', due: '', note: '', link: null };
   var kind = v.link ? v.link.kind : '';
-  var h = '<div class="inv-form-group"><label class="inv-form-label" for="todoText">Task</label>' +
-    '<input class="inv-form-input" id="todoText" value="' + escHtml(v.text) + '" autocomplete="off"></div>' +
-    '<div class="inv-form-group"><label class="inv-form-label" for="todoDue">Due</label>' +
-    '<div class="inv-td-pills"><button class="inv-td-pill" data-action="invTodoDue" data-v="0">Today</button>' +
-    '<button class="inv-td-pill" data-action="invTodoDue" data-v="1">Tomorrow</button>' +
-    '<button class="inv-td-pill" data-action="invTodoDue" data-v="">None</button></div>' +
-    '<input type="date" class="inv-form-input inv-mono inv-mt-8" id="todoDue" value="' + escHtml(v.due || '') + '"></div>' +
-    '<div class="inv-form-row"><div class="inv-form-group"><label class="inv-form-label" for="todoLinkKind">Link to</label>' +
-    '<select class="inv-form-select" id="todoLinkKind">' + TODO_LINK_KINDS.map(function(k) {
+  var h = '<div class="inv-field"><label class="inv-field-label" for="todoText">Task</label>' +
+    '<input class="inv-input" id="todoText" value="' + escHtml(v.text) + '" autocomplete="off"></div>' +
+    '<div class="inv-field"><label class="inv-field-label" for="todoDue">Due</label>' +
+    '<div class="inv-toolbar"><button class="inv-chip" data-action="invTodoDue" data-v="0">Today</button>' +
+    '<button class="inv-chip" data-action="invTodoDue" data-v="1">Tomorrow</button>' +
+    '<button class="inv-chip" data-action="invTodoDue" data-v="">None</button></div>' +
+    '<input type="date" class="inv-input" id="todoDue" value="' + escHtml(v.due || '') + '"></div>' +
+    '<div class="inv-fields"><div class="inv-field"><label class="inv-field-label" for="todoLinkKind">Link to</label>' +
+    '<select class="inv-select" id="todoLinkKind">' + TODO_LINK_KINDS.map(function(k) {
       return '<option value="' + k[0] + '"' + (k[0] === kind ? ' selected' : '') + '>' + k[1] + '</option>';
     }).join('') + '</select></div>' +
-    '<div class="inv-form-group"><label class="inv-form-label" for="todoLinkId">Which</label>' +
-    '<select class="inv-form-select" id="todoLinkId"' + (kind ? '' : ' disabled') + '>' + todoLinkOptions(kind, v.link ? v.link.id : '') + '</select></div></div>' +
-    '<div class="inv-form-group"><label class="inv-form-label" for="todoNote">Note</label>' +
-    '<textarea class="inv-form-input" id="todoNote" rows="2">' + escHtml(v.note || '') + '</textarea></div>' +
-    '<div class="inv-btn-bar">' + (t && !t.doneAt ? '<button class="inv-btn inv-btn-ghost" data-action="invTodoToggle" data-id="' + escHtml(t.id) + '">Mark done</button>' : '') +
+    '<div class="inv-field"><label class="inv-field-label" for="todoLinkId">Which</label>' +
+    '<select class="inv-select" id="todoLinkId"' + (kind ? '' : ' disabled') + '>' + todoLinkOptions(kind, v.link ? v.link.id : '') + '</select></div></div>' +
+    '<div class="inv-field"><label class="inv-field-label" for="todoNote">Note</label>' +
+    '<textarea class="inv-textarea" id="todoNote" rows="2">' + escHtml(v.note || '') + '</textarea></div>' +
+    '<div class="inv-btn-bar">' + (t && !t.doneAt ? '<button class="inv-btn inv-btn-secondary" data-action="invTodoToggle" data-id="' + escHtml(t.id) + '">Mark done</button>' : '') +
     '<button class="inv-btn inv-btn-primary" data-action="invTodoSave" data-id="' + escHtml(t ? t.id : '') + '">Save</button></div>';
   todoOverlay(t ? 'Task' : 'New task', h);
 }
@@ -21498,14 +21466,14 @@ function todoGoLink(id) {
 function todoSettingsFields() {
   var c = todoCfg();
   return TODO_RULES.map(function(r) {
-    return '<label class="inv-checkbox-label inv-td-rule"><input type="checkbox" id="setTodo_' + r[0] + '"' + (c[r[0]] ? ' checked' : '') + '> ' + escHtml(r[1]) + '</label>';
+    return '<label class="inv-checkbox-label"><input type="checkbox" class="inv-check" id="setTodo_' + r[0] + '"' + (c[r[0]] ? ' checked' : '') + '> ' + escHtml(r[1]) + '</label>';
   }).join('') +
     '<div class="inv-form-row inv-mt-8"><div class="inv-form-group"><label class="inv-form-label" for="setTodoChallan">Challan unbilled after (days)</label>' +
     '<input type="number" step="1" min="1" class="inv-form-input inv-mono" id="setTodoChallan" value="' + c.challanDays + '"></div>' +
     '<div class="inv-form-group"><label class="inv-form-label" for="setTodoBackup">Backup older than (days)</label>' +
     '<input type="number" step="1" min="1" class="inv-form-input inv-mono" id="setTodoBackup" value="' + c.backupDays + '"></div></div>' +
     '<button class="inv-btn inv-btn-ghost inv-btn-sm inv-mt-8" data-action="invTodoWidgetCheck">Check Windows widget</button>' +
-    '<div id="todoWidgetStatus" class="inv-td-wstatus"></div>';
+    '<div id="todoWidgetStatus" class="inv-mt-8"></div>';
 }
 
 /* Why the Windows widget is not on the board. Every step is a condition only
@@ -21542,11 +21510,12 @@ function todoWidgetCheck() {
   var env = todoWidgetEnv();
   var show = function(st) {
     var v = todoWidgetVerdict(env, st);
-    var line = function(ok, text) { return '<div class="inv-td-wline inv-td-wline-' + (ok ? 'ok' : 'no') + '">' + (ok ? 'Yes: ' : 'No: ') + escHtml(text) + '</div>'; };
-    box.innerHTML = '<div class="inv-td-wverdict inv-td-wverdict-' + v[0] + '">' + escHtml(v[1]) + '</div>' +
-      line(env.windows, 'Windows') + line(env.edge, 'Microsoft Edge') + line(env.installed, 'Installed as an app') +
+    // Each step is a dot and a word (DR-8); the verdict names the first that fails.
+    var line = function(ok, text) { return '<div class="inv-row inv-row-auto"><span class="inv-dot inv-dot-' + (ok ? 'ok' : 'neutral') + '">' + (ok ? 'Yes: ' : 'No: ') + escHtml(text) + '</span></div>'; };
+    box.innerHTML = '<div class="inv-callout inv-callout-' + (v[0] === 'ok' ? 'info' : 'warning') + '" data-verdict="' + v[0] + '">' + escHtml(v[1]) + '</div>' +
+      '<div class="inv-panel inv-panel-flush inv-mt-8">' + line(env.windows, 'Windows') + line(env.edge, 'Microsoft Edge') + line(env.installed, 'Installed as an app') +
       line(env.worker, 'Offline worker running') + line(!!(st && st.api), 'Edge widgets available') +
-      line(!!(st && st.defined), 'Widget registered with Edge') + line(!!(st && st.instances), 'Widget on the board');
+      line(!!(st && st.defined), 'Widget registered with Edge') + line(!!(st && st.instances), 'Widget on the board') + '</div>';
   };
   if (!env.worker) { show(null); return; }
   box.textContent = 'Checking…';
@@ -21700,6 +21669,7 @@ function todoOnWorkerMessage(msg) {
 function todoHandleLaunch(action) {
   if (!action) return;
   todoApplyWidgetQueue();
+  if (action === 'add') _todoShowDone = false;
   switchTab('pageTodo');
   if (action === 'add') {
     var inp = document.getElementById('todoNew');
@@ -21726,7 +21696,8 @@ function todoAction(action, btn) {
     case 'invTodoGo': todoGoLink(btn.dataset.id); break;
     case 'invTodoSnooze': todoSnooze(btn.dataset.key, btn.dataset.v); break;
     case 'invTodoWake': delete todoData().snoozes[btn.dataset.key]; saveState(); renderTodo(); break;
-    case 'invTodoFoldDone': _todoShowDone = !_todoShowDone; renderTodo(); break;
+    // The Open / Done view tabs (they were a Done fold, whose action they keep).
+    case 'invTodoFoldDone': _todoShowDone = btn.dataset.v ? btn.dataset.v === 'done' : !_todoShowDone; renderTodo(); break;
     case 'invTodoFoldSnoozed': _todoShowSnoozed = !_todoShowSnoozed; renderTodo(); break;
     case 'invTodoDue': {
       var inp = document.getElementById('todoDue');

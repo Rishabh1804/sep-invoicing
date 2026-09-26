@@ -434,7 +434,7 @@ inside a list is `inv-row-group` (`--t-caption` on `--bg`, e.g. "25 Sep · 5 · 
 whole row is the `<button>`, so its figures open it too; a tick box's lead is a `<label class="inv-row-lead inv-row-tick">`
 holding the full `--touch` target; `inv-row-stack`
 stacks a figure over its badge in `inv-row-end`; `inv-row-wrap` lets a meta line wrap (a list of names);
-`inv-row-muted` is a cancelled or inactive row. A row that opens its own lines beneath it (a challan's items) has an
+`inv-row-muted` is a cancelled or inactive row; `inv-row-done` a task ticked done (struck through, never deleted). A row that opens its own lines beneath it (a challan's items) has an
 `inv-row-expander` main button (`aria-expanded`, a chevron drawn in CSS) and its lines in `inv-row-children`,
 indented on the page colour. **The phone form of every table.** Replaces `inv-client-item`, `inv-item-card`, `inv-reg-row`,
 `inv-im-header`, `inv-att-row`, `inv-area-row`, `inv-history-item`, `inv-stats-row`, `inv-lab-row`,
@@ -462,6 +462,7 @@ strips. The rule stands: **a selection never outlives the filter that hid it.**
 
 ### 6.13 Status — `inv-dot`, `inv-badge`
 - `inv-dot` + text: 7px dot in the tone, word in `--text-2`. Default in rows and tables (DR-8).
+- `inv-dot-mark`: a 20px filled dot carrying its own symbol (`!` to act on, `i` to know), `-danger|-warning|-ok|-info`; the lead of a row that has no room for the word (an app task).
 - `inv-badge`: soft pill, `--t-label` 500–600, tone bg + tone fg, `--r-sm`. For states that need weight:
   "Needs you", "Check", "No rate on record", a rate-check verdict on a line.
 - Tones: `-danger | -warning | -ok | -info | -neutral`. **These five are the only tone words in class
@@ -562,7 +563,7 @@ density §3.5) under Data & device, each a segmented control that applies at onc
 | IM | toolbar (filters, Duplicate check, Scan, **Add challan** — the page's one primary, replacing the floating buttons) · *Awaiting invoice* then *Invoiced*, each grouped by date with the day's value; a challan expands to its lines · selection bar | table (challan, client, date, vehicle, items, amount, status) + detail pane, as the Register. *Built.* The add/edit challan form moves with Create, whose line editor it shares. |
 | Register | toolbar (search + filter selects; `inv-token` filters to come) · rows grouped by day with subtotal · selection bar | table (invoice, client, date, challans, kg, taxable, GST, total, state) · selection bar · detail pane. *Built.* |
 | Clients / Items / Performance | tabs · toolbar (search, the view's one primary: **Add client** / **Add item** — the floating + is gone) · rows (a client opens its edit sheet, which leads with its Money panel: owed, by age, pays in, last receipt, cheques; its rate, piece-rate and piece-weight cards are flush panels of rows with the add form in an `inv-panel-body`, and a fill from history reports what it left out as rows under the reason) · Items: filter chips (`aria-pressed`), sort `<select>` on `change`, tick boxes and a selection bar · Performance: client select, month on month (`inv-seg` ₹ / Tonnes / ₹/kg, chart, four tiles with "+12% on Aug" deltas), materials grouped Stopped / New / Steady / One-off under dotted `inv-row-group`s | tabs · table · detail pane on demand with the Money panel (as the Register's; the resizable split and its drag handle are gone). *Built.* |
-| To-do | tabs (Open / Done) · add field · rows with a dot and meta | same, wider |
+| To-do | tabs (Open / Done, with counts) · summary line (open, late) · toolbar (the add field, **Add** the one primary, Details) · two flush panels, *From your data* (a whole-row button led by its `inv-dot-mark` ! / i, red and amber also a dot and a word) and *Mine* (a tick box, the text opening the task, its due date a dot and a word, its link) · Snoozed as a panel with Show / Hide · the task dialogs on `inv-field`s, the figures as rows, what clears it a callout · Done: ticked rows struck through (`inv-row-done`), reopened by the tick | same; the two panels side by side. *Built.* The Home card draws the same rows. |
 | Stock | view tabs Overview · Lines, opening on Overview (days left `chartRankedBars` red/amber, spend by supplier `chartPieTap` listing a slice's bills, used ₹ by week `chartLines`, price trend with a line `<select>`, reorder cash tiles) · Lines: stat strip (Out / ≤ 7 days / OK / No price, each filters) · one table grouped by status · reorder list as a table | same + detail pane for a line's pattern |
 | Finance → Overview | view tabs (the open one scrolled into view) · tiles (balance, owed, paid out, GST) · range chips `3M · 6M · FY · All` driving every panel · cash (`chartLines`: balance, in, out; tap a month) and its table · cash forecast (`inv-tiles-4`, `chartLines` with a band, *what it rests on*) · where money went (`chartStack` over the range, `chartPieTap` for the month, a slice lists its payments) · where money came from (`chartPieTap` by client, unplaced a named slice) · owed to us (ageing `inv-tiles-4`, top debtors) · invoiced against received (`chartLines`) · GST (`chartStack` grouped, then the table) · whole rupees on the Overview only | same, panels two across |
 | Finance → Receivables / Payments / Bank | head panel (range, rows, closing, balance check) · view tabs Receipts / Payments / Statement · Receipts: client rows expanding to receipts (*Exact* / *Oldest first* badge) and open invoices · Statement: filter + search, rows with a category dot, the row's edit as an `inv-panel-body` | same |
@@ -602,7 +603,7 @@ phone and desktop.
    the Clients segment and Stats tabs → view tabs, banners → callout, overlays → dialog). Labels are
    sentence case everywhere (DR-5); the duplicated `inv-chip` is one rule; decorative tone fills are neutral.
    Step 3 moves the markup onto the v2.0 class names and deletes the v1.0 names from those selector lists.
-3. **Screens, in order:** Home *(built 26 Sep 2026)* · Register *(built 26 Sep 2026)* · IM *(built 26 Sep 2026)* · Create *(built 26 Sep 2026)* · Clients/Items/Performance *(built 26 Sep 2026)* · To-do · Stock · Staff ·
+3. **Screens, in order:** Home *(built 26 Sep 2026)* · Register *(built 26 Sep 2026)* · IM *(built 26 Sep 2026)* · Create *(built 26 Sep 2026)* · Clients/Items/Performance *(built 26 Sep 2026)* · To-do *(built 26 Sep 2026)* · Stock · Staff ·
    Stats · History · Settings. Each moves its render functions onto the components and deletes its private
    family in the same PR (DR-7). The survey's bugs are fixed where their screen moves: History's filter bar,
    Register's desktop list, the doubled Add buttons, Staff's cut-off sub-tabs, the base-colour dark-mode text,

@@ -215,6 +215,10 @@ lines in; only the challan lines the invoice still carries are marked invoiced o
 the phone is gone — the survey's doubled Add buttons), rows on the phone, and on the desktop the Register's table and
 on-demand pane (the resizable split, its drag handle and `_dragState` are deleted). The items sort `<select>` lost its
 `data-action` and speaks through `change`; a client's cards are flush panels of rows; Performance's measure is `inv-seg` (P68).
+**To-do is built:** Open / Done are view tabs (the Done fold's `invTodoFoldDone` action carries `data-v`), the add field
+sits in a toolbar with Add as the one primary, *From your data* and *Mine* are flush panels of rows (two across on the
+desktop), a task of your own is ticked through a real tick box, and status is a dot and a word (an app task is led by
+`inv-dot-mark`). Its `inv-td-*` family is deleted; the Home card draws the same rows (P69).
 
 ⚠ **Until the migration in its §9 completes, the stylesheet still carries the v1.0 families** (`inv-card`,
 `inv-stk-*`, `inv-stats-card`, the domain colours). New work uses the v2.0 components; never extend a v1.0
@@ -1610,6 +1614,11 @@ is self-contained so it can move to `sep-dashboard` whole.
   deliberately coarse where a figure moves on its own: a stock line's is its colour, so it does not
   come back every time a litre is used.
 - One rule failing on an unexpected shape is caught; it must not take the list with it.
+- **Your own tasks lead** (owner, 26 Sep 2026: *"once I add a todo of my own, it still stays at the end of all the
+  system generated one, that makes it easy to miss"*). The page draws *Mine* before *From your data* (on the left on
+  the desktop), and `todoRanked()` — the Home card, the widget — puts every open task of yours ahead of every raised
+  one that is not red. Only a red task outranks yours; between two red ones, yours comes first. Ranked by tone alone,
+  an undated task of yours had no tone and fell below every info task the data raised (P69).
 
 **The widget cannot be the app's HTML.** Windows draws an Adaptive Card (`widgets/todo-template.json`)
 from data the service worker hands it. The rows are worked out **by the app** (the app tasks need the

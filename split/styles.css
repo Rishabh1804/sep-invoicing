@@ -1798,13 +1798,6 @@ body.inv-desktop #imSelBar {
 .inv-stk-pattern { margin-bottom: var(--sp-8); }
 .inv-stk-billform { border: 1px solid var(--border); border-radius: var(--r-md); padding: var(--sp-10); margin: var(--sp-8) 0; background: var(--surface); }
 .inv-stk-btn-sm { margin-top: var(--sp-6); }
-.inv-td-wstatus { margin-top: var(--sp-8); font-size: var(--fs-sm); }
-.inv-td-wverdict { padding: var(--sp-8) var(--sp-10); border-radius: var(--r-md); margin-bottom: var(--sp-6); font-weight: 600; }
-.inv-td-wverdict-ok { background: var(--attend-bg); color: var(--attend-text); }
-.inv-td-wverdict-bad { background: var(--warning-bg); color: var(--warning-text); }
-.inv-td-wline { padding: var(--sp-2) 0; color: var(--text-2); }
-.inv-td-wline-ok { color: var(--attend-text); }
-.inv-td-wline-no { color: var(--text-3); }
 .inv-pay-green { background: var(--attend-bg); }
 .inv-pay-blue { background: var(--prod-bg); }
 .inv-att-grid-sun { background: var(--surface-2); }
@@ -2251,99 +2244,14 @@ body.inv-desktop .inv-stk-foot { bottom: var(--sp-8); }
 /* Dark: the tokens above re-point by themselves; these are the spots that
    read a light-only value. Chips and tiles keep a solid border either way. */
 
-/* ===== TO-DO =====
-   App tasks carry a round marker (they clear themselves), your own a tick box.
-   Tone is the left rule, the same language as the Stock list. */
-.inv-td-add { display: flex; gap: var(--sp-8); margin-bottom: var(--sp-12); }
-.inv-td-in {
-  flex: 1; min-width: 0; min-height: 44px; padding: 0 var(--sp-12);
-  border: 1px solid var(--border-2); border-radius: var(--r-md); background: var(--surface); color: var(--text-1);
-  font: inherit; font-size: var(--fs-base);
-}
-.inv-td-in:focus { outline: 2px solid var(--accent); outline-offset: 0; border-color: var(--accent); }
-.inv-td-sec {
-  display: flex; align-items: center; gap: var(--sp-8); margin: var(--sp-16) var(--sp-2) var(--sp-6);
-  font-size: var(--fs-xs); font-weight: 700; color: var(--text-2);
-}
-.inv-td-count { font-weight: 500; letter-spacing: 0; text-transform: none; color: var(--text-2); }
-.inv-td-lbl {
-  display: inline-block; flex: none; padding: 0 var(--sp-6); border-radius: var(--r-sm);
-  font-size: var(--fs-xs); font-weight: 700; line-height: 1.6;
-}
-.inv-td-lbl-app { background: var(--todo-bg); color: var(--todo-text); border: 1px solid var(--todo); }
-.inv-td-lbl-mine { background: var(--neutral-bg); color: var(--neutral-text); border: 1px solid var(--neutral); }
-.inv-td-empty {
-  padding: var(--sp-12); border: 1px dashed var(--border-2); border-radius: var(--r-md);
-  color: var(--text-2); font-size: var(--fs-sm); background: var(--surface);
-}
-.inv-td-row {
-  display: flex; align-items: flex-start; gap: var(--sp-10); width: 100%; min-height: 44px;
-  padding: var(--sp-10) var(--sp-10) var(--sp-10) var(--sp-12); margin-bottom: var(--sp-6);
-  background: var(--surface); border: 1px solid var(--border-2); border-left-width: var(--sp-4); border-radius: var(--r-md);
-  color: var(--text-1); font: inherit; text-align: left;
-}
-button.inv-td-row { cursor: pointer; }
-.inv-td-row:focus-visible, .inv-td-main:focus-visible, .inv-td-box:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-.inv-td-tone-red { border-left-color: var(--danger); }
-.inv-td-tone-amber { border-left-color: var(--warning); }
-.inv-td-tone-info { border-left-color: var(--prod); }
-.inv-td-tone-none { border-left-color: var(--border-2); }
-.inv-td-row-done .inv-td-title { color: var(--text-2); text-decoration: line-through; }
-.inv-td-row-snz { align-items: center; }
-.inv-td-main {
-  display: flex; flex-direction: column; flex: 1; min-width: 0; padding: 0; border: none; background: none;
-  color: inherit; font: inherit; text-align: left; cursor: pointer;
-}
-.inv-td-row-snz .inv-td-main { cursor: default; }
-.inv-td-title { font-size: var(--fs-md); font-weight: 600; line-height: 1.3; overflow-wrap: anywhere; }
-.inv-td-sub { font-size: var(--fs-sm); color: var(--text-2); margin-top: var(--sp-2); }
-.inv-td-why { font-size: var(--fs-xs); color: var(--text-2); margin-top: var(--sp-2); }
-.inv-td-glyph {
-  flex: none; display: inline-flex; align-items: center; justify-content: center; width: var(--sp-20); height: var(--sp-20); margin-top: var(--sp-2);
-  border-radius: var(--r-full); color: var(--surface); font-size: var(--fs-sm); font-weight: 800; line-height: 1;
-}
-.inv-td-glyph-red { background: var(--danger); }
-.inv-td-glyph-amber { background: var(--warning); }
-.inv-td-glyph-info { background: var(--prod); }
-.inv-td-box {
-  flex: none; display: inline-flex; align-items: center; justify-content: center; width: calc(var(--sp-20) + var(--sp-2)); height: calc(var(--sp-20) + var(--sp-2)); margin-top: var(--sp-2);
-  border: 2px solid var(--text-2); border-radius: var(--r-sm); background: var(--surface); color: var(--surface); cursor: pointer; padding: 0;
-  position: relative;
-}
-.inv-td-box::before { content: ''; position: absolute; inset: calc(var(--sp-10) * -1); }
-.inv-td-box svg { width: var(--sp-16); height: var(--sp-16); }
-.inv-td-box-on { background: var(--attend); border-color: var(--attend); }
-.inv-td-side { display: flex; flex-direction: column; align-items: flex-end; gap: var(--sp-4); flex: none; }
-.inv-td-due { font-size: var(--fs-sm); font-weight: 700; color: var(--text-2); white-space: nowrap; }
-.inv-td-due-red { color: var(--danger-text); }
-.inv-td-due-amber { color: var(--warning-text); }
-.inv-td-link {
-  max-width: calc(var(--sp-32) * 5); padding: var(--sp-2) var(--sp-6); border: 1px solid var(--prod); border-radius: var(--r-sm);
-  background: var(--prod-bg); color: var(--prod-text); font: inherit; font-size: var(--fs-xs); font-weight: 700;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer;
-}
+/* ===== FOLD (v1.0, left from To-do) =====
+   Only the attendance paste review still draws it; it goes when that screen moves. */
 .inv-td-fold {
   display: flex; justify-content: space-between; align-items: center; width: 100%; min-height: 44px; margin-top: var(--sp-10);
   padding: 0 var(--sp-12); border: 1px dashed var(--border-2); border-radius: var(--r-md); background: var(--surface-2);
   color: var(--text-1); font: inherit; font-size: var(--fs-base); font-weight: 600; cursor: pointer;
 }
 .inv-td-fold span:last-child { color: var(--accent); }
-/* Overlays */
-.inv-td-ohead { display: flex; align-items: center; gap: var(--sp-8); margin-bottom: var(--sp-6); }
-.inv-td-otitle { font-family: var(--ff-display); font-size: var(--fs-lg); font-weight: 600; color: var(--text-1); margin-bottom: var(--sp-10); }
-.inv-td-facts { border: 1px solid var(--border-2); border-radius: var(--r-md); overflow: hidden; margin-bottom: var(--sp-10); }
-.inv-td-facts div { display: flex; justify-content: space-between; gap: var(--sp-12); padding: var(--sp-8) var(--sp-10); border-top: 1px solid var(--border); font-size: var(--fs-sm); }
-.inv-td-facts div:first-child { border-top: none; }
-.inv-td-facts span { color: var(--text-2); }
-.inv-td-facts strong { font-family: var(--ff-mono); font-weight: 500; color: var(--text-1); text-align: right; overflow-wrap: anywhere; }
-.inv-td-clears { padding: var(--sp-8) var(--sp-10); margin-bottom: var(--sp-10); border-radius: var(--r-md); background: var(--surface-2); color: var(--text-1); font-size: var(--fs-sm); }
-.inv-td-pills { display: flex; flex-wrap: wrap; gap: var(--sp-6); }
-.inv-td-pill {
-  min-height: calc(var(--sp-32) + var(--sp-4)); padding: 0 var(--sp-12); border: 1px solid var(--border-2); border-radius: var(--r-full);
-  background: var(--surface); color: var(--text-1); font: inherit; font-size: var(--fs-sm); font-weight: 600; cursor: pointer;
-}
-.inv-td-pill:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-.inv-td-rule { display: flex; align-items: center; gap: var(--sp-8); min-height: calc(var(--sp-32) + var(--sp-4)); font-size: var(--fs-base); }
 
 /* ===== ATTENDANCE PASTE (relay) ===== */
 .inv-rl-sum { grid-template-columns: repeat(3, 1fr); }
@@ -2626,6 +2534,7 @@ button.inv-row:hover, a.inv-row:hover { background: var(--surface-2); }
 .inv-row-title { font-size: var(--fs-14); font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .inv-row-meta { font-size: var(--fs-12); color: var(--text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .inv-row-end { flex-shrink: 0; display: flex; align-items: center; gap: var(--sp-8); text-align: right; }
+.inv-row-end .inv-btn-link { font-size: var(--fs-13); }
 button.inv-row-main { display: block; padding: 0; border: none; background: none; font: inherit; color: inherit; text-align: left; cursor: pointer; align-self: stretch; }
 .inv-row-main > .inv-row-title, .inv-row-main > .inv-row-meta { display: block; }
 .inv-row-stack { display: flex; flex-direction: column; align-items: flex-end; gap: var(--sp-2); }
@@ -2633,6 +2542,8 @@ button.inv-row-main { display: block; padding: 0; border: none; background: none
 .inv-row-wrap .inv-dot { white-space: normal; }
 .inv-row-auto { min-height: 0; padding-top: var(--sp-8); padding-bottom: var(--sp-8); }
 .inv-row-muted { opacity: 0.55; }
+/* A task ticked done: still listed (never deleted), its text struck through. */
+.inv-row-done .inv-row-title { color: var(--text-2); text-decoration: line-through; }
 .inv-row-strong { font-weight: 600; }
 .inv-check { width: var(--sp-20); height: var(--sp-20); accent-color: var(--accent); cursor: pointer; flex-shrink: 0; }
 /* A row's tick box is tapped through its label, which holds the full touch target. */
@@ -2711,7 +2622,17 @@ button.inv-row-expander[aria-expanded="true"]::after { transform: translateY(-25
 .inv-dot-ok::before { background: var(--ok); }
 .inv-dot-info::before { background: var(--info); }
 .inv-dot-neutral::before { background: var(--text-3); }
-.inv-badge, .inv-state-badge, .inv-att-badge, .inv-area-badge, .inv-client-badge, .inv-stk-chip, .inv-td-lbl, .inv-cost-src, .inv-kpi-delta {
+/* A dot that carries its own symbol (an app task's ! or i), where the row has no room for the word. */
+.inv-dot-mark {
+  display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; flex-shrink: 0;
+  border-radius: var(--r-full); background: var(--text-3); color: var(--surface);
+  font-family: var(--ff-base); font-size: var(--fs-12); font-weight: 600; line-height: 1;
+}
+.inv-dot-mark-danger { background: var(--danger); }
+.inv-dot-mark-warning { background: var(--warning); }
+.inv-dot-mark-ok { background: var(--ok); }
+.inv-dot-mark-info { background: var(--info); }
+.inv-badge, .inv-state-badge, .inv-att-badge, .inv-area-badge, .inv-client-badge, .inv-stk-chip, .inv-cost-src, .inv-kpi-delta {
   display: inline-flex; align-items: center; gap: var(--sp-4); padding: var(--sp-2) var(--sp-6);
   border-radius: var(--r-sm); font-family: var(--ff-base); font-size: var(--fs-12); font-weight: 500; line-height: 1.35; white-space: nowrap;
 }
@@ -2841,7 +2762,7 @@ body.inv-desktop .inv-keys { display: flex; flex-wrap: wrap; gap: var(--sp-4) va
 .inv-overlay-scrim, .inv-more-scrim { background: var(--scrim); }
 .inv-overlay-card, .inv-dialog, .inv-sheet { background: var(--surface); border: 1px solid var(--border); box-shadow: var(--shadow-dialog); }
 .inv-overlay-header, .inv-dialog-head { border-bottom: 1px solid var(--border); }
-.inv-overlay-title, .inv-dialog-title, .inv-td-otitle { font-family: var(--ff-base); font-size: var(--fs-16); font-weight: 600; letter-spacing: 0; }
+.inv-overlay-title, .inv-dialog-title { font-family: var(--ff-base); font-size: var(--fs-16); font-weight: 600; letter-spacing: 0; }
 .inv-menu { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-md); box-shadow: var(--shadow-pop); }
 /* A menu hangs off its field (inv-combo): suggestions for a part or a client, arrowed through by
    the keyboard. The cursor is the option's aria-selected; the create-a-part row reads as an action. */
@@ -2876,7 +2797,7 @@ body.inv-desktop .inv-keys { display: flex; flex-wrap: wrap; gap: var(--sp-4) va
 .inv-callout-warning, .inv-stk-banner, .inv-confirm-warn { background: var(--warning-bg); color: var(--warning); }
 .inv-callout-danger, .inv-stats-alert, .inv-stk-banner-red { background: var(--danger-bg); color: var(--danger); }
 .inv-note { font-size: var(--fs-12); color: var(--text-3); line-height: 1.5; }
-.inv-empty, .inv-empty-state, .inv-stk-empty, .inv-td-empty, .inv-chart-empty {
+.inv-empty, .inv-empty-state, .inv-stk-empty, .inv-chart-empty {
   padding: var(--sp-24) var(--sp-16); text-align: center; color: var(--text-3); font-size: var(--fs-13);
   border: none; background: none;
 }

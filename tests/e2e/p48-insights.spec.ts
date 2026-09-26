@@ -72,7 +72,7 @@ test.describe('P48: insights, predictions and the reorder list', () => {
     await openStatsTab(page, 'overview');
     await expect(page.locator('#statsInsights')).toContainText('QUIET WORKS: no challan for 40 days');
     await page.locator('#statsInsights [data-action="invTodoOpenApp"]').filter({ hasText: 'QUIET WORKS' }).click();
-    await expect(page.locator('.inv-td-facts')).toContainText('Usual gap');
+    await expect(page.locator('[data-todo-facts]')).toContainText('Usual gap');
     // Switched off in Settings, it is gone.
     await g(page, `(function(){ S.todoCheck = Object.assign({}, S.todoCheck, { insQuiet: false }); })()`);
     expect(await g(page, `todoAppAll().some(function(t){ return t.rule === 'insQuiet'; })`)).toBe(false);

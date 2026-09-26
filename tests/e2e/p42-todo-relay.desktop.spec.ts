@@ -35,10 +35,10 @@ test.describe('P42 desktop: to-do, quick actions, attendance paste', () => {
     await expect(page.locator('.inv-navbar-more')).toBeHidden();
     await switchTab(page, 'pageTodo');
     await expect(page.locator('.inv-side-item[data-tab="pageTodo"]:not([data-sub])')).toHaveClass(/inv-side-item-on/);
-    await expect(page.locator('#todoContent .inv-td-tone-red')).toContainText('Late one');
+    await expect(page.locator('#todoContent [data-todo][data-tone="red"]')).toContainText('Late one');
     await page.locator('#todoNew').fill('Desk task');
     await page.locator('#todoNew').press('Enter');
-    await expect(page.locator('#todoContent .inv-td-row').filter({ hasText: 'Desk task' })).toHaveCount(1);
+    await expect(page.locator('#todoContent [data-todo="mine"]').filter({ hasText: 'Desk task' })).toHaveCount(1);
     expect((await readStoredState(page)).todo.tasks).toHaveLength(2);
   });
 

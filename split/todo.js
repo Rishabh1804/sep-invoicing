@@ -621,13 +621,13 @@ function todoGoLink(id) {
 function todoSettingsFields() {
   var c = todoCfg();
   return TODO_RULES.map(function(r) {
-    return '<label class="inv-checkbox-label"><input type="checkbox" class="inv-check" id="setTodo_' + r[0] + '"' + (c[r[0]] ? ' checked' : '') + '> ' + escHtml(r[1]) + '</label>';
+    return '<label class="inv-field-check"><input type="checkbox" class="inv-check" id="setTodo_' + r[0] + '"' + (c[r[0]] ? ' checked' : '') + '><span>' + escHtml(r[1]) + '</span></label>';
   }).join('') +
-    '<div class="inv-form-row inv-mt-8"><div class="inv-form-group"><label class="inv-form-label" for="setTodoChallan">Challan unbilled after (days)</label>' +
-    '<input type="number" step="1" min="1" class="inv-form-input inv-mono" id="setTodoChallan" value="' + c.challanDays + '"></div>' +
-    '<div class="inv-form-group"><label class="inv-form-label" for="setTodoBackup">Backup older than (days)</label>' +
-    '<input type="number" step="1" min="1" class="inv-form-input inv-mono" id="setTodoBackup" value="' + c.backupDays + '"></div></div>' +
-    '<button class="inv-btn inv-btn-ghost inv-btn-sm inv-mt-8" data-action="invTodoWidgetCheck">Check Windows widget</button>' +
+    '<div class="inv-fields inv-mt-8"><div class="inv-field"><label class="inv-field-label" for="setTodoChallan">Challan unbilled after (days)</label>' +
+    '<input type="number" step="1" min="1" class="inv-input inv-input-num" id="setTodoChallan" value="' + c.challanDays + '"></div>' +
+    '<div class="inv-field"><label class="inv-field-label" for="setTodoBackup">Backup older than (days)</label>' +
+    '<input type="number" step="1" min="1" class="inv-input inv-input-num" id="setTodoBackup" value="' + c.backupDays + '"></div></div>' +
+    '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invTodoWidgetCheck">Check Windows widget</button>' +
     '<div id="todoWidgetStatus" class="inv-mt-8"></div>';
 }
 

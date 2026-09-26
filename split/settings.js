@@ -36,18 +36,20 @@ function _settingsGroupOf(sec) {
 }
 
 /* ---- field helpers ---- */
-function _sfg(label, id, input) {
-  return '<div class="inv-form-group"><label class="inv-form-label" for="' + id + '">' + label + '</label>' + input + '</div>';
+function _sfg(label, id, input, hint) {
+  return '<div class="inv-field"><label class="inv-field-label" for="' + id + '">' + label + '</label>' + input +
+    (hint ? '<div class="inv-field-hint">' + hint + '</div>' : '') + '</div>';
 }
 function _sNum(id, value, step, min, max) {
   return '<input type="number" step="' + step + '"' + (min != null ? ' min="' + min + '"' : '') + (max != null ? ' max="' + max + '"' : '') +
-    ' class="inv-form-input inv-mono" id="' + id + '" value="' + escHtml(value == null ? '' : value) + '">';
+    ' class="inv-input inv-input-num" id="' + id + '" value="' + escHtml(value == null ? '' : value) + '">';
 }
-function _sRow() { return '<div class="inv-form-row">' + Array.prototype.join.call(arguments, '') + '</div>'; }
-var _EYE_SVG = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>';
-function _sKey(id, value, placeholder, action) {
-  return '<div class="inv-api-key-wrap"><input class="inv-form-input inv-mono" id="' + id + '" type="password" value="' + escHtml(value) +
-    '" placeholder="' + placeholder + '" autocomplete="off"><button class="inv-api-key-toggle" data-action="' + action + '" type="button" aria-label="Show key">' + _EYE_SVG + '</button></div>';
+function _sRow() { return '<div class="inv-fields">' + Array.prototype.join.call(arguments, '') + '</div>'; }
+var _EYE_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>';
+/* A secret typed once and kept on the device: the field, and an icon button that shows it. */
+function _sKey(id, value, placeholder, action, what) {
+  return '<div class="inv-toolbar inv-toolbar-flush inv-toolbar-tight"><input class="inv-input inv-id inv-toolbar-item" id="' + id + '" type="password" value="' + escHtml(value) +
+    '" placeholder="' + placeholder + '" autocomplete="off"><button class="inv-btn inv-btn-ghost inv-btn-icon" data-action="' + action + '" type="button" aria-label="Show ' + (what || 'key') + '">' + _EYE_SVG + '</button></div>';
 }
 function _sVal(id) { var el = document.getElementById(id); return el ? el.value : null; }
 function _sPos(id) { var v = parseFloat(_sVal(id)); return !isNaN(v) && v > 0 ? v : null; }
@@ -61,13 +63,13 @@ function _sRs(v) { return '&#8377;' + escHtml(formatNum(v, 2)); }
 var SETTINGS_SECS = {
   company: {
     title: 'Company',
-    summary: function() { return escHtml(S.company.name || 'Not set') + (S.company.gstin ? ' &middot; <span class="inv-mono">' + escHtml(S.company.gstin) + '</span>' : ''); },
+    summary: function() { return escHtml(S.company.name || 'Not set') + (S.company.gstin ? ' &middot; <span class="inv-id">' + escHtml(S.company.gstin) + '</span>' : ''); },
     body: function() {
-      return _sfg('Name', 'setCompName', '<input class="inv-form-input" id="setCompName" value="' + escHtml(S.company.name) + '">') +
-        _sfg('GSTIN', 'setCompGstin', '<input class="inv-form-input inv-mono" id="setCompGstin" value="' + escHtml(S.company.gstin) + '">') +
-        _sfg('Address 1', 'setCompAdd1', '<input class="inv-form-input" id="setCompAdd1" value="' + escHtml(S.company.add1) + '">') +
-        _sfg('Address 2', 'setCompAdd2', '<input class="inv-form-input" id="setCompAdd2" value="' + escHtml(S.company.add2) + '">') +
-        _sfg('Phone', 'setCompPhone', '<input class="inv-form-input" id="setCompPhone" value="' + escHtml(S.company.phone) + '">');
+      return _sfg('Name', 'setCompName', '<input class="inv-input" id="setCompName" value="' + escHtml(S.company.name) + '">') +
+        _sfg('GSTIN', 'setCompGstin', '<input class="inv-input inv-id" id="setCompGstin" value="' + escHtml(S.company.gstin) + '">') +
+        _sfg('Address 1', 'setCompAdd1', '<input class="inv-input" id="setCompAdd1" value="' + escHtml(S.company.add1) + '">') +
+        _sfg('Address 2', 'setCompAdd2', '<input class="inv-input" id="setCompAdd2" value="' + escHtml(S.company.add2) + '">') +
+        _sfg('Phone', 'setCompPhone', '<input class="inv-input" id="setCompPhone" value="' + escHtml(S.company.phone) + '">');
     },
     why: 'Printed on the tax invoice, the credit note and the test certificate. All three read it from here, so they can never disagree about who issued them.',
     save: function() {
@@ -79,14 +81,14 @@ var SETTINGS_SECS = {
   bank: {
     title: 'Bank details',
     summary: function() { var l = (S.bankDetails || '').split('\n')[0].trim(); return l ? escHtml(l) : 'Not set'; },
-    body: function() { return _sfg('Printed on the invoice', 'setBank', '<textarea class="inv-form-input" id="setBank" rows="3">' + escHtml(S.bankDetails) + '</textarea>'); },
+    body: function() { return _sfg('Printed on the invoice', 'setBank', '<textarea class="inv-textarea" id="setBank" rows="3">' + escHtml(S.bankDetails) + '</textarea>'); },
     save: function() { S.bankDetails = _sVal('setBank').trim(); }
   },
   invoice: {
     title: 'Invoice series',
-    summary: function() { return 'next <span class="inv-mono">' + escHtml(S.invPrefix + String(S.invNextNum).padStart(5, '0')) + '</span>'; },
+    summary: function() { return 'next <span class="inv-id">' + escHtml(S.invPrefix + String(S.invNextNum).padStart(5, '0')) + '</span>'; },
     body: function() {
-      return _sRow(_sfg('Prefix', 'setPrefix', '<input class="inv-form-input inv-mono" id="setPrefix" value="' + escHtml(S.invPrefix) + '">'),
+      return _sRow(_sfg('Prefix', 'setPrefix', '<input class="inv-input inv-id" id="setPrefix" value="' + escHtml(S.invPrefix) + '">'),
         _sfg('Next number', 'setNextNum', _sNum('setNextNum', S.invNextNum, 1, 1)));
     },
     save: function() {
@@ -111,7 +113,7 @@ var SETTINGS_SECS = {
   },
   cn: {
     title: 'Credit note series',
-    summary: function() { return 'next <span class="inv-mono">' + escHtml(cnDisplayNumber(S.cnNextNum || 1)) + '</span>'; },
+    summary: function() { return 'next <span class="inv-id">' + escHtml(cnDisplayNumber(S.cnNextNum || 1)) + '</span>'; },
     body: function() { return _sfg('Next number', 'setCnNextNum', _sNum('setCnNextNum', S.cnNextNum || 1, 1, 1)); },
     why: 'Credit notes run their own series, formatted off the invoice prefix’s financial year. Notes raised before the app existed are not in here, so set this to the number after the last one issued by hand &mdash; the series must not restart.',
     save: function() {
@@ -190,7 +192,7 @@ var SETTINGS_SECS = {
           _sfg('Zinc (&#8377;/kg), when no zinc price exists', 'setCostZincKg', _sNum('setCostZincKg', c.zincPerKg, 0.01, 0.01))) +
         _sfg('Zinc used a month, when none is recorded (kg)', 'setCostZinc', _sNum('setCostZinc', c.zincKgMonth, 1, 1)) +
         '<button type="button" class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invCostDeriveBank" data-which="fallbacks">Derive from the bank</button>' +
-        '<div id="costDeriveOut" class="inv-set-derive"></div>';
+        '<div id="costDeriveOut" class="inv-callout inv-callout-neutral inv-mt-8"></div>';
     },
     why: 'Used by Stats &rarr; Live cost only where nothing is recorded for the period, and marked <em>model</em> there. A bill or a stock entry replaces each one, and where neither exists what the bank paid for that month comes before the model. The chemicals figure is also what the measured chemicals cost is reported against. <strong>Derive from the bank</strong> measures electricity and other from the statement: the six closed months it covers, paid &divide; tonnage.',
     save: function() {
@@ -214,14 +216,13 @@ var SETTINGS_SECS = {
     },
     body: function() {
       var z = getZinc();
-      return _sRow(_sfg('Market rate (&#8377;/kg)', 'setZincRate', '<input type="number" step="0.01" class="inv-form-input inv-mono" id="setZincRate" value="' + (z.ratePerKg == null ? '' : z.ratePerKg) + '" placeholder="400.00">'),
+      return _sRow(_sfg('Market rate (&#8377;/kg)', 'setZincRate', '<input type="number" step="0.01" class="inv-input inv-input-num" id="setZincRate" value="' + (z.ratePerKg == null ? '' : z.ratePerKg) + '" placeholder="400.00">',
+            z.basis === 'lme' ? 'LME from ' + escHtml(z.source || 'metals.dev') + ' &mdash; Refresh on the Home zinc card updates it.'
+              : 'Typed by hand, so it is taken as MCX already and not uplifted.'),
           _sfg('Supplier premium (&#8377;/kg)', 'setZincPremium', _sNum('setZincPremium', z.premiumPerKg || 0, 0.01, 0))) +
-        '<div class="inv-text-muted inv-storage-text inv-mb-8">' + (z.basis === 'lme'
-          ? 'LME from ' + escHtml(z.source || 'metals.dev') + ' &mdash; Refresh on the Home zinc card updates it.'
-          : 'Typed by hand, so it is taken as MCX already and not uplifted.') + '</div>' +
         _sfg('LME &rarr; MCX uplift (%)', 'setZincUplift', _sNum('setZincUplift', z.upliftPct, 0.1, 0)) +
         '<button type="button" class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invZincDeriveUplift">Derive from zinc bills</button>' +
-        '<div id="zincUpliftOut" class="inv-set-derive"></div>';
+        '<div id="zincUpliftOut" class="inv-callout inv-callout-neutral inv-mt-8"></div>';
     },
     why: 'metals.dev publishes no MCX base metal, so a fetched rate is LME and is uplifted by this to estimate MCX: uplift = (MCX &divide; LME &minus; 1) &times; 100. No free service publishes MCX zinc either, so <strong>Derive from zinc bills</strong> measures it from what the shop actually paid: each bill&rsquo;s price before GST, less the supplier premium, against LME on the bill&rsquo;s date (from metals.dev, with the same key). A rate typed above is taken as MCX already and is not uplifted.',
     save: function() {
@@ -259,7 +260,7 @@ var SETTINGS_SECS = {
       var c = labourCfg();
       return _sRow(_sfg('OT multiplier', 'setOtMult', _sNum('setOtMult', _sLab('otMult', 1.1), 0.01, 1)),
           _sfg('Monthly tier cap (&#8377;/h, after the multiplier)', 'setOtCap', _sNum('setOtCap', c.otCap, 0.01, 0))) +
-        _sfg('Cap applies to OT dated from', 'setOtCapFrom', '<input type="date" class="inv-form-input inv-mono" id="setOtCapFrom" value="' + escHtml(c.otCapFrom || '') + '">');
+        _sfg('Cap applies to OT dated from', 'setOtCapFrom', '<input type="date" class="inv-input inv-id" id="setOtCapFrom" value="' + escHtml(c.otCapFrom || '') + '">');
     },
     why: '<strong>Monthly</strong> OT is weekday hours over 8 at day rate &divide; 8 &times; the multiplier, capped per hour from the date above (owner, 25 Sep 2026: capped at &#8377;68.20 from September; July and August were paid uncapped). A Sunday&rsquo;s hours are that day, never OT. <strong>Daily</strong> OT is at the multiplier, uncapped. <strong>Hourly</strong> hands have no OT: every hour is paid at one rate.',
     save: function() {
@@ -280,7 +281,7 @@ var SETTINGS_SECS = {
     body: function() {
       return _sRow(_sfg('Rest gate &mdash; full at (%)', 'setGateFull', _sNum('setGateFull', Math.round(_sLab('gateFull', 0.9) * 100), 1, 0, 100)),
           _sfg('Rest gate &mdash; half at (%)', 'setGateHalf', _sNum('setGateHalf', Math.round(_sLab('gateHalf', 0.8) * 100), 1, 0, 100))) +
-        _sfg('Paid holidays (MM-DD every year, or a full date)', 'setHolidays', '<input class="inv-form-input inv-mono" id="setHolidays" value="' + escHtml(labourCfg().holidays.join(', ')) + '">') +
+        _sfg('Paid holidays (MM-DD every year, or a full date)', 'setHolidays', '<input class="inv-input inv-id" id="setHolidays" value="' + escHtml(labourCfg().holidays.join(', ')) + '">') +
         _sfg('Daily tier: rest credit at (days worked a week)', 'setRestMin', _sNum('setRestMin', _sLab('restCreditMinDays', 6), 1, 0, 7));
     },
     why: 'A monthly hand&rsquo;s Sundays are paid by the gate, judged per calendar month on weekdays worked &divide; the month&rsquo;s working days: at or over the first figure all of them, at or over the second half, below that none. Paid holidays are always paid (BM, 10 Sep 2026). A hand on a contracted monthly wage is not gated. The daily tier earns one rest day a week once it works this many days.',
@@ -321,7 +322,7 @@ var SETTINGS_SECS = {
     body: function() {
       return _sfg('Modelled labour (&#8377;/kg)', 'setLabModel', _sNum('setLabModel', _sLab('modelPerKg', 0), 0.01, 0)) +
         '<button type="button" class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invCostDeriveBank" data-which="labour">Derive from the bank</button>' +
-        '<div id="labDeriveOut" class="inv-set-derive"></div>';
+        '<div id="labDeriveOut" class="inv-callout inv-callout-neutral inv-mt-8"></div>';
     },
     why: 'What the measured labour figure is reported against, and what fills a stretch neither attendance nor the bank covers. The Apr&ndash;Jul 2026 rebuild put labour at &#8377;3.55 of an &#8377;8.55 cost. <strong>Derive from the bank</strong> measures it from the wages paid over the six closed months the statement covers.',
     save: function() { var v = _sNonNeg('setLabModel'); if (v != null) { if (!S.labour) S.labour = {}; S.labour.modelPerKg = v; } }
@@ -329,7 +330,7 @@ var SETTINGS_SECS = {
   metalsKey: {
     title: 'metals.dev (zinc rate)',
     summary: function() { return getMetalsKey() ? 'key saved on this device' : 'no key'; },
-    body: function() { return _sfg('API key', 'setMetalsKey', _sKey('setMetalsKey', getMetalsKey(), 'Paste key', 'invToggleMetalsKey')); },
+    body: function() { return _sfg('API key', 'setMetalsKey', _sKey('setMetalsKey', getMetalsKey(), 'Paste key', 'invToggleMetalsKey', 'key')); },
     why: 'Free tier at metals.dev covers a daily refresh. The key stays on this device and is never included in an export. Leave it blank to enter the zinc rate by hand.',
     save: function() { setMetalsKey(_sVal('setMetalsKey').trim()); renderZincCard(); }
   },
@@ -345,7 +346,7 @@ var SETTINGS_SECS = {
     summary: function() {
       var cfg = getGhConfig(), last = ghLastSyncAt();
       if (!cfg.owner || !cfg.repo) return 'not set up';
-      return '<span class="inv-mono">' + escHtml(cfg.owner + '/' + cfg.repo) + '</span>' + escHtml(last ? ' · synced ' + ghRelTime(last) : ' · not synced yet');
+      return '<span class="inv-id">' + escHtml(cfg.owner + '/' + cfg.repo) + '</span>' + escHtml(last ? ' · synced ' + ghRelTime(last) : ' · not synced yet');
     },
     body: function() { return renderGhSyncFields(); },
     save: function() { saveGhSyncSettings(); ghRenderCard(); }
@@ -360,35 +361,46 @@ var SETTINGS_SECS = {
   },
   data: {
     title: 'Backup, storage & build',
-    summary: function() { return 'export, import &middot; build <span class="inv-mono">' + escHtml(APP_BUILD) + '</span>'; },
+    summary: function() { return 'export, import &middot; build <span class="inv-id">' + escHtml(APP_BUILD) + '</span>'; },
     body: function() {
-      return '<div class="inv-form-row"><button class="inv-btn inv-btn-ghost inv-btn-block" data-action="invExportData">Export JSON</button>' +
-        '<button class="inv-btn inv-btn-ghost inv-btn-block" data-action="invImportData">Import JSON</button></div>' +
+      return '<div class="inv-toolbar"><button class="inv-btn inv-btn-secondary" data-action="invExportData">Export JSON</button>' +
+        '<button class="inv-btn inv-btn-secondary" data-action="invImportData">Import JSON</button></div>' +
         '<input type="file" id="importFileInput" accept=".json" class="inv-hidden">' +
-        '<div class="inv-storage-wrap"><div class="inv-text-muted inv-storage-text">Storage: ' + estimateStorage() + ' in memory &middot; <span class="inv-disk-summary">on disk: checking&hellip;</span></div>' +
-        '<div class="inv-text-muted inv-storage-text">Last save: <span class="inv-save-status">' + renderLastSave() + '</span></div>' +
-        '<div class="inv-text-muted inv-storage-text">Build <span class="inv-build-id">' + escHtml(APP_BUILD) + '</span> &middot; ' +
-        '<button type="button" class="inv-link-btn" data-action="invCheckUpdate">Check for a newer version</button> &middot; ' +
-        '<button type="button" class="inv-link-btn" data-action="invRunDiagnostics">Run storage diagnostics</button></div>' +
-        '<div id="storageDiagOut"></div></div>';
+        '<div class="inv-kv">' +
+        '<div><div class="inv-kv-k">In memory</div><div>' + estimateStorage() + '</div></div>' +
+        '<div><div class="inv-kv-k">On disk</div><div class="inv-disk-summary">checking&hellip;</div></div>' +
+        '<div><div class="inv-kv-k">Last save</div><div class="inv-save-status">' + renderLastSave() + '</div></div>' +
+        '<div><div class="inv-kv-k">Build</div><div class="inv-id inv-build-id">' + escHtml(APP_BUILD) + '</div></div></div>' +
+        '<div class="inv-toolbar inv-toolbar-flush inv-mt-8"><button type="button" class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invCheckUpdate">Check for a newer version</button>' +
+        '<button type="button" class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invRunDiagnostics">Run storage diagnostics</button></div>' +
+        '<div id="storageDiagOut"></div>';
     },
     why: 'Import replaces the whole book with the file. Exporting also counts as a backup for the To-do reminder.'
   }
 };
 
-var _CHEVRON_SVG = '<svg class="inv-set-chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>';
-
+/* A section is a panel that folds (§6.15 inv-panel-fold): its head is the row that says what it is set
+   to, its body the fields, how the figures are used, and its own Save. */
 function _settingsSecHtml(key, open) {
   var s = SETTINGS_SECS[key];
-  return '<details class="inv-set-sec" data-sec="' + key + '"' + (open ? ' open' : '') + '>' +
-    '<summary class="inv-set-sec-head">' + _CHEVRON_SVG +
-    '<span class="inv-set-sec-text"><span class="inv-set-sec-name">' + escHtml(s.title) + '</span>' +
-    '<span class="inv-set-sec-sum" data-sum="' + key + '">' + s.summary() + '</span></span>' +
-    '<span class="inv-set-dot" aria-label="Unsaved"></span></summary>' +
-    '<div class="inv-set-sec-body">' + s.body() +
-    (s.why ? '<details class="inv-set-why"><summary>How this is used</summary><div class="inv-text-muted inv-storage-text">' + s.why + '</div></details>' : '') +
-    (s.save ? '<div class="inv-set-actions"><button type="button" class="inv-btn inv-btn-primary inv-btn-sm" data-action="invSaveSettingsSec" data-sec="' + key + '" disabled>Save</button></div>' : '') +
+  return '<details class="inv-panel inv-panel-flush inv-panel-fold" data-sec="' + key + '"' + (open ? ' open' : '') + '>' +
+    '<summary class="inv-panel-head"><span class="inv-row-main"><span class="inv-row-title inv-row-strong">' + escHtml(s.title) + '</span>' +
+    '<span class="inv-row-meta" data-sum="' + key + '">' + s.summary() + '</span></span></summary>' +
+    '<div class="inv-panel-body">' + s.body() +
+    (s.why ? '<details class="inv-mt-8"><summary class="inv-btn-link inv-summary">How this is used</summary><p class="inv-note inv-mt-4">' + s.why + '</p></details>' : '') +
+    (s.save ? '<div class="inv-toolbar inv-toolbar-flush inv-toolbar-tight inv-mt-8"><button type="button" class="inv-btn inv-btn-primary inv-btn-sm" data-action="invSaveSettingsSec" data-sec="' + key + '" disabled>Save</button></div>' : '') +
     '</div></details>';
+}
+
+/* An unsaved edit is a dot and a word (DR-8) on the section's head and on its group in the list;
+   it is drawn only while it holds, so a clean list reads as its labels alone. */
+function _settingsMark(el, on) {
+  if (!el) return;
+  if (on) el.setAttribute('data-dirty', ''); else el.removeAttribute('data-dirty');
+  var host = el.tagName === 'DETAILS' ? el.querySelector(':scope > summary') : el;
+  var dot = host.querySelector(':scope > [data-unsaved]');
+  if (on && !dot) host.insertAdjacentHTML('beforeend', '<span class="inv-dot inv-dot-warning" data-unsaved>Unsaved</span>');
+  if (!on && dot) dot.remove();
 }
 
 /* Opens Settings; with a section key, on that section, open and in view. */
@@ -403,17 +415,18 @@ function openSettings(target) {
   var scrim = document.createElement('div');
   scrim.className = 'inv-overlay-scrim';
   scrim.id = 'settingsScrim';
-  scrim.innerHTML = '<div class="inv-overlay-card inv-set-card">' +
+  scrim.innerHTML = '<div class="inv-overlay-card inv-dialog-wide">' +
     '<div class="inv-overlay-header"><span class="inv-overlay-title">Settings</span>' +
     '<button class="inv-overlay-close" data-action="invCloseSettings" aria-label="Close settings">&times;</button></div>' +
-    '<div class="inv-set-layout">' +
-    '<nav class="inv-set-nav" aria-label="Settings groups">' + SETTINGS_GROUPS.map(function(g) {
-      return '<button type="button" class="inv-set-nav-btn' + (g.key === ui.group ? ' inv-set-nav-on' : '') + '" data-action="invSettingsGroup" data-group="' + g.key + '">' +
-        '<span>' + escHtml(g.label) + '</span><span class="inv-set-dot" aria-label="Unsaved"></span></button>';
+    '<div class="inv-dialog-panes">' +
+    '<nav class="inv-dialog-nav" aria-label="Settings groups">' + SETTINGS_GROUPS.map(function(g) {
+      var on = g.key === ui.group;
+      return '<button type="button" class="inv-side-item' + (on ? ' inv-side-item-on' : '') + '"' + (on ? ' aria-current="true"' : '') +
+        ' data-action="invSettingsGroup" data-group="' + g.key + '"><span class="inv-side-label">' + escHtml(g.label) + '</span></button>';
     }).join('') + '</nav>' +
-    '<div class="inv-set-panes">' + SETTINGS_GROUPS.map(function(g) {
-      return '<section class="inv-set-group' + (g.key === ui.group ? ' inv-set-group-on' : '') + '" data-group="' + g.key + '">' +
-        '<h3 class="inv-set-group-title">' + escHtml(g.label) + '</h3>' +
+    '<div class="inv-dialog-main">' + SETTINGS_GROUPS.map(function(g) {
+      return '<section data-group="' + g.key + '"' + (g.key === ui.group ? ' data-on' : '') + '>' +
+        '<div class="inv-pagehead"><h3 class="inv-pagehead-title">' + escHtml(g.label) + '</h3></div>' +
         g.secs.map(function(k) { return _settingsSecHtml(k, ui.open.indexOf(k) >= 0); }).join('') + '</section>';
     }).join('') + '</div></div></div>';
   scrim.addEventListener('click', function(e) { if (e.target === scrim) closeSettings(); });
@@ -422,7 +435,7 @@ function openSettings(target) {
   // toggle does not bubble; capture sees every section's.
   scrim.addEventListener('toggle', function(e) {
     var d = e.target;
-    if (!d.classList || !d.classList.contains('inv-set-sec')) return;
+    if (!d.dataset || !d.dataset.sec || d.tagName !== 'DETAILS') return;
     var u = _setUi(), k = d.dataset.sec;
     u.open = u.open.filter(function(x) { return x !== k; });
     if (d.open) u.open.push(k);
@@ -432,7 +445,7 @@ function openSettings(target) {
   document.body.appendChild(scrim);
   document.body.style.overflow = 'hidden';
   if (target) {
-    var sec = scrim.querySelector('.inv-set-sec[data-sec="' + target + '"]');
+    var sec = scrim.querySelector('details[data-sec="' + target + '"]');
     if (sec && sec.scrollIntoView) sec.scrollIntoView({ block: 'start' });
   }
   focusFirstInteractive(scrim.querySelector('.inv-overlay-card'));
@@ -442,19 +455,23 @@ function openSettings(target) {
 function settingsShowGroup(key) {
   var scrim = document.getElementById('settingsScrim');
   if (!scrim) return;
-  scrim.querySelectorAll('.inv-set-nav-btn').forEach(function(b) { b.classList.toggle('inv-set-nav-on', b.dataset.group === key); });
-  scrim.querySelectorAll('.inv-set-group').forEach(function(g) { g.classList.toggle('inv-set-group-on', g.dataset.group === key); });
-  var panes = scrim.querySelector('.inv-set-panes');
-  if (panes) panes.scrollTop = 0;
+  scrim.querySelectorAll('[data-action="invSettingsGroup"]').forEach(function(b) {
+    var on = b.dataset.group === key;
+    b.classList.toggle('inv-side-item-on', on);
+    if (on) b.setAttribute('aria-current', 'true'); else b.removeAttribute('aria-current');
+  });
+  scrim.querySelectorAll('section[data-group]').forEach(function(g) { g.toggleAttribute('data-on', g.dataset.group === key); });
+  var main = scrim.querySelector('.inv-dialog-main');
+  if (main) main.scrollTop = 0;
   var u = _setUi(); u.group = key; _setUiSave(u);
 }
 
 function _settingsOnEdit(e) {
   var t = e.target;
   if (!t || !t.closest || t.id === 'importFileInput') return;
-  var d = t.closest('details.inv-set-sec');
+  var d = t.closest('details[data-sec]');
   if (!d || !SETTINGS_SECS[d.dataset.sec] || !SETTINGS_SECS[d.dataset.sec].save) return;
-  d.classList.add('inv-set-dirty');
+  _settingsMark(d, true);
   var b = d.querySelector('[data-action="invSaveSettingsSec"]');
   if (b) b.disabled = false;
   _settingsNavDots();
@@ -463,14 +480,14 @@ function _settingsOnEdit(e) {
 function _settingsNavDots() {
   var scrim = document.getElementById('settingsScrim');
   if (!scrim) return;
-  scrim.querySelectorAll('.inv-set-nav-btn').forEach(function(b) {
-    var g = scrim.querySelector('.inv-set-group[data-group="' + b.dataset.group + '"]');
-    b.classList.toggle('inv-set-dirty', !!(g && g.querySelector('.inv-set-sec.inv-set-dirty')));
+  scrim.querySelectorAll('[data-action="invSettingsGroup"]').forEach(function(b) {
+    var g = scrim.querySelector('section[data-group="' + b.dataset.group + '"]');
+    _settingsMark(b, !!(g && g.querySelector('details[data-sec][data-dirty]')));
   });
 }
 
 function _settingsDirty() {
-  return Array.prototype.map.call(document.querySelectorAll('#settingsScrim .inv-set-sec.inv-set-dirty'), function(d) {
+  return Array.prototype.map.call(document.querySelectorAll('#settingsScrim details[data-sec][data-dirty]'), function(d) {
     return SETTINGS_SECS[d.dataset.sec].title;
   });
 }
@@ -480,9 +497,9 @@ function saveSettingsSection(key) {
   if (!s || !s.save) return;
   if (s.save() === false) return;
   saveState();
-  var d = document.querySelector('#settingsScrim .inv-set-sec[data-sec="' + key + '"]');
+  var d = document.querySelector('#settingsScrim details[data-sec="' + key + '"]');
   if (d) {
-    d.classList.remove('inv-set-dirty');
+    _settingsMark(d, false);
     var b = d.querySelector('[data-action="invSaveSettingsSec"]');
     if (b) b.disabled = true;
   }
@@ -516,11 +533,11 @@ function readDiskState() {
 }
 
 function renderDiskSummary(d) {
-  if (d.chars < 0) return 'on disk: unreadable (' + escHtml(d.error) + ')';
-  if (d.chars === 0) return 'on disk: nothing';
+  if (d.chars < 0) return 'unreadable (' + escHtml(d.error) + ')';
+  if (d.chars === 0) return 'nothing';
   var mem = 0;
   try { mem = JSON.stringify(S).length; } catch (e) {}
-  return 'on disk: ' + fmtChars(d.chars) + (mem && mem !== d.chars ? ' (differs from memory)' : ' (matches memory)');
+  return fmtChars(d.chars) + (mem && mem !== d.chars ? ' (differs from memory)' : ' (matches memory)');
 }
 
 function refreshDiskSummary() {
@@ -659,11 +676,11 @@ function buildDiagnosticsReport() {
 
 function runStorageDiagnostics() {
   var out = document.getElementById('storageDiagOut');
-  if (out) out.innerHTML = '<div class="inv-text-muted inv-storage-text">Reading the store&hellip;</div>';
+  if (out) out.innerHTML = '<p class="inv-note inv-mt-8">Reading the store&hellip;</p>';
   buildDiagnosticsReport().then(function(report) {
     if (out) {
-      out.innerHTML = '<pre class="inv-diag-report">' + escHtml(report) + '</pre>' +
-        '<div class="inv-text-muted inv-storage-text">Copied to the clipboard where the browser allows it; otherwise select the text above.</div>';
+      out.innerHTML = '<pre class="inv-quote inv-mt-8" data-report>' + escHtml(report) + '</pre>' +
+        '<p class="inv-note inv-mt-4">Copied to the clipboard where the browser allows it; otherwise select the text above.</p>';
     }
     var status = document.querySelector('.inv-save-status');
     if (status) status.innerHTML = renderLastSave();

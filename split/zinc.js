@@ -273,7 +273,7 @@ function zincDeriveUplift() {
   var out = document.getElementById('zincUpliftOut');
   var bills = zincUpliftBills();
   if (!bills.length) {
-    if (out) out.innerHTML = '<div class="inv-text-muted inv-storage-text">No priced zinc bill on record. Add one under Stock &rarr; Zinc &rarr; Add its bill, or import past purchases.</div>';
+    if (out) out.innerHTML = '<p class="inv-note">No priced zinc bill on record. Add one under Stock &rarr; Zinc &rarr; Add its bill, or import past purchases.</p>';
     return Promise.resolve(null);
   }
   // One lookup per date: two bills on one day (TT/92 and /93 both on 8 Jul)
@@ -287,7 +287,7 @@ function zincDeriveUplift() {
     if (!getMetalsKey()) {
       note = missing.length + ' bill' + (missing.length === 1 ? ' has' : 's have') + ' no LME on record, and there is no metals.dev key to look it up.';
     } else {
-      if (out) out.innerHTML = '<div class="inv-text-muted inv-storage-text">Looking up LME on ' + missing.length + ' bill date' + (missing.length === 1 ? '' : 's') + '&hellip;</div>';
+      if (out) out.innerHTML = '<p class="inv-note">Looking up LME on ' + missing.length + ' bill date' + (missing.length === 1 ? '' : 's') + '&hellip;</p>';
       // One request per bill window: a window is five days, well inside any
       // range limit, and each answer is kept.
       fetching = missing.reduce(function(chain, b) {
@@ -315,19 +315,19 @@ function zincDeriveUplift() {
 }
 
 function _zincDerivedHtml(d, note) {
-  var h = '<div class="inv-set-derive-rows">' + d.rows.map(function(r) {
-    return '<div class="inv-set-derive-row"><span>' + escHtml(formatDate(r.b.date)) + (r.b.supplier ? ' &middot; ' + escHtml(r.b.supplier) : '') + '</span>' +
-      '<span class="inv-mono">' + formatCurrency(r.b.price) + ' &minus; ' + formatCurrency(d.premium) + ' = ' + formatCurrency(r.mcx) +
+  var h = '<div data-derive="zinc">' + d.rows.map(function(r) {
+    return '<div class="inv-row inv-row-auto"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(formatDate(r.b.date)) + (r.b.supplier ? ' &middot; ' + escHtml(r.b.supplier) : '') + '</span>' +
+      '<span class="inv-row-meta inv-row-wrap inv-id">' + formatCurrency(r.b.price) + ' &minus; ' + formatCurrency(d.premium) + ' = ' + formatCurrency(r.mcx) +
       (r.lme ? ' vs LME ' + formatCurrency(r.lme.rate) + (r.lme.date !== r.b.date ? ' (' + escHtml(formatDate(r.lme.date)) + ')' : '') +
-        ' &rarr; <strong>' + escHtml(formatNum(r.pct, 1)) + '%</strong>' : ' &middot; no LME for this date') + '</span></div>';
+        ' &rarr; <strong>' + escHtml(formatNum(r.pct, 1)) + '%</strong>' : ' &middot; no LME for this date') + '</span></span></div>';
   }).join('') + '</div>';
-  if (note) h += '<div class="inv-text-muted inv-storage-text">' + escHtml(note) + '</div>';
-  if (d.median == null) return h + '<div class="inv-text-muted inv-storage-text">No bill could be set against LME, so nothing to offer.</div>';
+  if (note) h += '<p class="inv-note inv-mt-4">' + escHtml(note) + '</p>';
+  if (d.median == null) return h + '<p class="inv-note inv-mt-4">No bill could be set against LME, so nothing to offer.</p>';
   var n = d.rows.filter(function(r) { return r.pct != null; }).length;
   var pct = Math.round(d.median * 10) / 10;
-  return h + '<div class="inv-set-derive-foot"><span>Median of ' + n + ' bill' + (n === 1 ? '' : 's') + ': <strong class="inv-mono">' + escHtml(formatNum(pct, 1)) + '%</strong>' +
+  return h + '<div class="inv-toolbar inv-toolbar-flush inv-mt-8"><span class="inv-row-main">Median of ' + n + ' bill' + (n === 1 ? '' : 's') + ': <strong class="inv-id">' + escHtml(formatNum(pct, 1)) + '%</strong>' +
     ' against ' + escHtml(formatNum(getZinc().upliftPct, 1)) + '% set</span>' +
-    '<button type="button" class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invZincUseUplift" data-pct="' + pct + '">Use ' + escHtml(formatNum(pct, 1)) + '%</button></div>';
+    '<button type="button" class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invZincUseUplift" data-pct="' + pct + '">Use ' + escHtml(formatNum(pct, 1)) + '%</button></div>';
 }
 
 /* Puts the figure in the field and marks the section unsaved: offered, not applied. */

@@ -159,6 +159,6 @@ test('Derive from the bank offers paid ÷ tonnage over six closed months, and ch
   await expect(out).toContainText('6 months: ₹12,000.00 ÷ 3.0 t = ₹4.00/kg');
   await page.locator('[data-action="invCostUseDerived"][data-field="setCostPower"]').click();
   await expect(page.locator('#setCostPower')).toHaveValue('4');
-  await expect(page.locator('details[data-sec="fallbacks"]')).toHaveClass(/inv-set-dirty/);
+  await expect(page.locator('details[data-sec="fallbacks"]')).toHaveAttribute('data-dirty', '');
   expect(await ev(page, 'costModelCfg().power')).toBe(before);
 });

@@ -170,7 +170,9 @@ export async function switchTab(page: Page, tabId: string): Promise<void> {
   // Layout exposes this action in multiple places (mobile bottom tabs + desktop sidebar + home quick-actions).
   // Any visible one works; pick the first so the helper is layout-agnostic. On the
   // phone bar Stock, Staff, Stats and History sit behind More, so open it first.
-  const target = page.locator(`[data-action="invSwitchTab"][data-tab="${tabId}"]:visible`);
+  // A page with two sidebar entries (Clients/Items, Staff/Pay) routes its plain entry through
+  // invSideGo; that entry, never the one carrying data-sub, is the page's own door.
+  const target = page.locator(`:is([data-action="invSwitchTab"], [data-action="invSideGo"]:not([data-sub]))[data-tab="${tabId}"]:visible`);
   if ((await target.count()) === 0) await page.locator('.inv-navbar-more').click();
   await target.first().click();
   await page.locator(`#${tabId}.inv-page-active`).waitFor();

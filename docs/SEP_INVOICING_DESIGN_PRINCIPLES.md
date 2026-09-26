@@ -410,7 +410,7 @@ sharing the line and wrapping two to a row on the phone. Replaces `inv-reg-toolb
 
 ### 6.8 Panel — `inv-panel`
 `inv-panel-head` (`--t-heading` title · optional count in mono `--text-3` · spacer · actions as
-`inv-btn-link`/`-sm`), then body. `inv-panel-flush` for a panel whose body is rows or a table (no padding); inside one, `inv-panel-body` is a padded block (a form or a note) ruled off from the rows below it. A picker or figure in a row's end is `inv-select-sm` / `inv-input-sm` (`--col-sm-w`, `--ctl-h-sm`). `inv-panels` lays panels out: one column
+`inv-btn-link`/`-sm`), then body. `inv-panel-flush` for a panel whose body is rows or a table (no padding); inside one, `inv-panel-body` is a padded block (a form or a note) ruled off from the rows below it. A picker or figure in a row's end is `inv-select-sm` / `inv-input-sm` (`--col-sm-w`, `--ctl-h-sm`). A set of four tiles that must read as one row on the desktop, even in a half-width panel, is `inv-tiles-4`; a cell that is one token to the reader (a month, a date) is `inv-nowrap`. `inv-panels` lays panels out: one column
 on the phone, two on the desktop, `inv-panels-wide` spanning both; an empty host is not drawn.
 Replaces `inv-card`, `inv-card-list`, `inv-stats-card`, `inv-im-challan`, `inv-stk-hero`, `inv-stk-metabox`,
 `inv-set-sec`'s box, `inv-dupe-group`, `inv-td-facts`, `inv-rl-rows`.
@@ -538,8 +538,9 @@ density §3.5) under Data & device, each a segmented control that applies at onc
 | Clients / Items / Performance | tabs · toolbar · rows | tabs · table · detail pane |
 | To-do | tabs (Open / Done) · add field · rows with a dot and meta | same, wider |
 | Stock | stat strip (Out / ≤ 7 days / OK / No price, each filters) · one table grouped by status · reorder list as a table | same + detail pane for a line's pattern |
-| Stock → Bank | head panel (range, rows, closing, balance check) · view tabs Receipts / Payments / Statement · Receipts: client rows expanding to receipts (*Exact* / *Oldest first* badge) and open invoices · Statement: filter + search, rows with a category dot, the row's edit as an `inv-panel-body` | same |
-| Stock → Bills & notes | view tabs Chemicals · Bills & notes · two flush panels (electricity by month with missing months as rows; credit notes) · the note form as an `inv-panel-body` | same, panels side by side |
+| Finance → Overview | view tabs Overview / Receivables / Payments / Bank / Bills & notes / GST (the open one scrolled into view) · tiles (balance, owed, paid out, GST) · panels: cash by month (table, balance line when all in credit), owed to us (ageing as `inv-tiles-4`, top debtors as rows), where money went (month picker, ranked bars, three rows), GST due and paid (table, wide) · whole rupees on the Overview only | same, panels two across |
+| Finance → Receivables / Payments / Bank | head panel (range, rows, closing, balance check) · view tabs Receipts / Payments / Statement · Receipts: client rows expanding to receipts (*Exact* / *Oldest first* badge) and open invoices · Statement: filter + search, rows with a category dot, the row's edit as an `inv-panel-body` | same |
+| Finance → Bills & notes | two flush panels (electricity by month with missing months as rows; credit notes) · the note form as an `inv-panel-body` | same, panels side by side |
 | Staff | tabs Day / Week / Pay / Areas / Roster · Day: date stepper, stat strip, rows with P/H/A segmented + area + OT · Week: grid (`inv-table-grid`) | same; Week grid shows hours per cell |
 | Stats | tabs · period segmented · panels of stat strips, tables and charts | same, two-column panel grid |
 | History | toolbar · rows grouped by day | table |

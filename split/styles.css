@@ -3130,6 +3130,8 @@ body.inv-desktop .inv-panels-wide { grid-column: 1 / -1; }
   background: var(--border); border: 1px solid var(--border); border-radius: var(--r-lg); overflow: hidden; margin-bottom: var(--gap);
 }
 body.inv-desktop .inv-tiles { grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr)); }
+/* A set of four that must read as one row on the desktop, even in a half-width panel (ageing bands). */
+body.inv-desktop .inv-tiles-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .inv-tile { background: var(--surface); padding: var(--sp-10) var(--sp-12); min-width: 0; text-align: left; border: none; font: inherit; color: var(--text-1); }
 button.inv-tile { cursor: pointer; }
 button.inv-tile:hover { background: var(--surface-2); }
@@ -3213,6 +3215,8 @@ button.inv-row-expander[aria-expanded="true"]::after { transform: translateY(-25
 .inv-num { font-family: var(--ff-mono); text-align: right; white-space: nowrap; }
 .inv-table th.inv-num { font-family: var(--ff-base); text-align: right; }
 .inv-id { font-family: var(--ff-mono); white-space: nowrap; }
+/* A label that is one token to the reader (a month, a date) and must not break across lines. */
+.inv-nowrap { white-space: nowrap; }
 .inv-table-check { width: var(--sp-32); }
 .inv-table tr[data-action] { cursor: pointer; }
 /* The open row is marked by its rule; a ticked row keeps the selection fill. A muted

@@ -551,6 +551,7 @@ var SIDE_ICONS = {
   stock: '<path d="M9 3h6M10 3v6L4.5 19a1.3 1.3 0 0 0 1.1 2h12.8a1.3 1.3 0 0 0 1.1-2L14 9V3M7.5 14h9"/>',
   staff: '<path d="M15 20v-1.5a3.5 3.5 0 0 0-3.5-3.5h-5A3.5 3.5 0 0 0 3 18.5V20M9 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7M16 11l2 2 4-4"/>',
   pay: '<path d="M3 7h18v10H3zM12 14.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5"/>',
+  finance: '<path d="M4 21h16M5 10h14M12 3 4 7h16zM7 10v8M12 10v8M17 10v8"/>',
   todo: '<path d="M9 11l3 3 8-8M20 12v7a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h11"/>',
   stats: '<path d="M4 20V11M10 20V5M16 20v-6M3 20h18"/>',
   history: '<path d="M12 7v5l3 2M3.5 12a8.5 8.5 0 1 0 2.5-6M3 4v4h4"/>',
@@ -559,6 +560,7 @@ var SIDE_ICONS = {
 var SIDE_NAV = [
   ['Daily', [['pageHome', 'Home', 'home'], ['pageCreate', 'Create invoice', 'create'], ['pageIM', 'Challans', 'im'], ['pageRegister', 'Register', 'register']]],
   ['Book', [['pageClients', 'Clients', 'clients'], ['pageClients', 'Items', 'items', 'items']]],
+  ['Money', [['pageFinance', 'Finance', 'finance']]],
   ['Floor', [['pageStock', 'Stock', 'stock'], ['pageStaff', 'Staff', 'staff'], ['pageStaff', 'Pay', 'pay', 'pay']]],
   ['Review', [['pageTodo', 'To-do', 'todo'], ['pageStats', 'Stats', 'stats'], ['pageHistory', 'History', 'history']]]
 ];

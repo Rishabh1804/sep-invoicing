@@ -6,7 +6,7 @@ import { emptyState, loadAppWithState, noSeedIM, openSettingsAt, type SepState }
 test.describe('P53 desktop: sidebar and density', () => {
   test('the sidebar is grouped, and Items and Pay open their parent on that sub-view', async ({ page }) => {
     await loadAppWithState(page, { ...emptyState(), incomingMaterial: noSeedIM() } as SepState);
-    await expect(page.locator('.inv-side-group')).toHaveText(['Daily', 'Book', 'Floor', 'Review']);
+    await expect(page.locator('.inv-side-group')).toHaveText(['Daily', 'Book', 'Money', 'Floor', 'Review']);
     expect(await page.evaluate(() => getComputedStyle(document.body).marginLeft)).toBe('216px');
     await page.locator('.inv-side-item[data-sub="items"]').click();
     await expect(page.locator('#topbarTitle')).toHaveText('Clients');

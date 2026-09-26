@@ -18,7 +18,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <!-- Appearance before first paint (§3.2): the device's theme and palette, so nothing flashes in the wrong colours. -->
 <script>(function(){try{var d=document.documentElement,t=localStorage.getItem("sep_inv_theme"),p=localStorage.getItem("sep_inv_palette");if(t==="light"||t==="dark")d.dataset.theme=t;d.dataset.palette=(p==="zinc"||p==="terracotta")?p:"teal";}catch(e){document.documentElement.dataset.palette="teal";}})();</script>
-<meta name="app-build" content="c002121e">
+<meta name="app-build" content="7b55fb3f">
 <style>
 /* ===== DESIGN TOKENS (design system v2.0 — docs/SEP_INVOICING_DESIGN_PRINCIPLES.md §3) ===== */
 /* Theme: colour-scheme decides every light-dark() below. <html data-theme> is set before first paint
@@ -3152,6 +3152,8 @@ body.inv-desktop .inv-panels-wide { grid-column: 1 / -1; }
   background: var(--border); border: 1px solid var(--border); border-radius: var(--r-lg); overflow: hidden; margin-bottom: var(--gap);
 }
 body.inv-desktop .inv-tiles { grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr)); }
+/* A set of four that must read as one row on the desktop, even in a half-width panel (ageing bands). */
+body.inv-desktop .inv-tiles-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .inv-tile { background: var(--surface); padding: var(--sp-10) var(--sp-12); min-width: 0; text-align: left; border: none; font: inherit; color: var(--text-1); }
 button.inv-tile { cursor: pointer; }
 button.inv-tile:hover { background: var(--surface-2); }
@@ -3235,6 +3237,8 @@ button.inv-row-expander[aria-expanded="true"]::after { transform: translateY(-25
 .inv-num { font-family: var(--ff-mono); text-align: right; white-space: nowrap; }
 .inv-table th.inv-num { font-family: var(--ff-base); text-align: right; }
 .inv-id { font-family: var(--ff-mono); white-space: nowrap; }
+/* A label that is one token to the reader (a month, a date) and must not break across lines. */
+.inv-nowrap { white-space: nowrap; }
 .inv-table-check { width: var(--sp-32); }
 .inv-table tr[data-action] { cursor: pointer; }
 /* The open row is marked by its rule; a ticked row keeps the selection fill. A muted
@@ -3463,6 +3467,10 @@ body.inv-desktop .inv-actionbar { bottom: 0; }
   <div id="stockContent"></div>
 </div>
 
+<div id="pageFinance" class="inv-page">
+  <div id="financeContent"></div>
+</div>
+
 <div id="pageTodo" class="inv-page">
   <div id="todoContent"></div>
 </div>
@@ -3494,7 +3502,7 @@ body.inv-desktop .inv-actionbar { bottom: 0; }
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
     Clients
   </button>
-  <button class="inv-navbar-item inv-navbar-more" data-action="invOpenMore" aria-label="More: Stock, Staff, Stats, History">
+  <button class="inv-navbar-item inv-navbar-more" data-action="invOpenMore" aria-label="More: To-do, Finance, Stock, Staff, Stats, History">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
     More
     <span id="moreBadge" class="inv-navbar-count inv-hidden"></span>
@@ -4952,7 +4960,7 @@ function zincUseUplift(pct) {
 /* ===== TAB SWITCHING (DP v0.2 9-step) ===== */
 const PAGE_TITLES = {
   pageHome: 'Home', pageCreate: 'Create invoice', pageIM: 'Challans', pageRegister: 'Register',
-  pageClients: 'Clients', pageTodo: 'To-do', pageStock: 'Stock', pageStaff: 'Staff',
+  pageClients: 'Clients', pageFinance: 'Finance', pageTodo: 'To-do', pageStock: 'Stock', pageStaff: 'Staff',
   pageStats: 'Stats', pageHistory: 'History'
 };
 
@@ -4986,7 +4994,7 @@ function switchTab(tabId) {
   document.querySelectorAll('.inv-navbar-item').forEach(t => {
     if (t.dataset.tab === tabId) t.classList.add('inv-navbar-item-on');
   });
-  // To-do, Stock, Staff, Stats and History live behind More on the phone bar.
+  // To-do, Finance, Stock, Staff, Stats and History live behind More on the phone bar.
   document.querySelectorAll('.inv-navbar-more').forEach(t => t.classList.toggle('inv-navbar-item-on', MORE_TABS.indexOf(tabId) >= 0));
   // The top bar names the screen (§4); the desktop sidebar marks it.
   const title = document.getElementById('topbarTitle');
@@ -5036,6 +5044,8 @@ function switchTab(tabId) {
     renderTodo();
   } else if (tabId === 'pageStaff') {
     renderAttendance();
+  } else if (tabId === 'pageFinance') {
+    renderFinance();
   } else if (tabId === 'pageStats') {
     renderStats();
   } else if (tabId === 'pageHistory') {
@@ -12028,7 +12038,7 @@ function cnNoteFy(cn) {
   return p.length > 2 ? p.slice(2).join('/') : '';
 }
 /* A note of the current series: this financial year's, or one that states no
-   year. A note recorded from an earlier year (Stock → Bills & notes takes the
+   year. A note recorded from an earlier year (Finance → Bills & notes takes the
    year as printed) holds a number in THAT year's series, never in this one's. */
 function cnInSeries(cn) {
   var fy = cnNoteFy(cn);
@@ -12349,9 +12359,9 @@ function cancelCreditNote(cnId) {
   cn.cancelledAt = Date.now();
   cn.updatedAt = Date.now();
   saveState();
-  // Cancelled from wherever the note is listed: the Register's overlay, or Stock → Bills & notes.
+  // Cancelled from wherever the note is listed: the Register's overlay, or Finance → Bills & notes.
   if (document.querySelector('.inv-overlay-scrim')) { closeOverlay(); renderCreditNoteList(); }
-  else if (typeof _stockView !== 'undefined' && _stockView === 'bills') renderStock();
+  else if (document.querySelector('#pageFinance.inv-page-active')) renderFinance();
   showToast(cn.displayNumber + ' cancelled — the number stays in the series');
 }
 
@@ -17750,8 +17760,6 @@ function renderStock() {
   else if (_stockView === 'manual' && _stockManual) el.innerHTML = renderStockManual();
   else if (_stockView === 'item' && stockItem(_stockItemId)) el.innerHTML = renderStockItem(stockItem(_stockItemId));
   else if (_stockView === 'reorder' && _stockReorder) el.innerHTML = renderStockReorder();
-  else if (_stockView === 'bills') el.innerHTML = renderBillsNotes();
-  else if (_stockView === 'bank') el.innerHTML = renderBank();
   else { _stockView = 'list'; el.innerHTML = renderStockList(); }
   updateStockBadge();
 }
@@ -17768,7 +17776,7 @@ function renderStockList() {
   var items = st.items.filter(function(i) { return i.active !== false; });
   var lastCount = null;
   st.entries.forEach(function(e) { if (!e.voided && e.kind === 'count' && (!lastCount || e.date > lastCount.date || (e.date === lastCount.date && e.at > lastCount.at))) lastCount = e; });
-  var h = stockTabsHtml('list') + '<div class="inv-stk-top"><div>' +
+  var h = '<div class="inv-stk-top"><div>' +
     (lastCount ? '<div class="inv-stk-meta">Last count <strong>' + escHtml(stockShortDate(lastCount.date)) + '</strong>' +
       (lastCount.sentBy ? ' &middot; ' + escHtml(lastCount.sentBy) : '') + '</div>' : '') +
     '</div><div class="inv-stk-tools">' +
@@ -18232,7 +18240,7 @@ function stockImport() {
 }
 
 /* ---------- The More sheet ---------- */
-var MORE_TABS = ['pageTodo', 'pageStock', 'pageStaff', 'pageStats', 'pageHistory'];
+var MORE_TABS = ['pageTodo', 'pageFinance', 'pageStock', 'pageStaff', 'pageStats', 'pageHistory'];
 function closeMoreSheet() {
   var el = document.getElementById('moreSheet');
   if (el) el.remove();
@@ -18243,6 +18251,7 @@ function openMoreSheet() {
   var tdOpen = todoRanked().length, tdLate = todoRedCount();
   var items = [
     ['pageTodo', 'To-do', tdOpen ? tdOpen + ' open' + (tdLate ? ', ' + tdLate + ' late' : '') : 'Nothing due', '<path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/>'],
+    ['pageFinance', 'Finance', 'Bank, receivables, bills, GST', '<rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/><path d="M6 12h.01M18 12h.01"/>'],
     ['pageStock', 'Stock', out ? out + ' out' : 'Chemicals on the shelf', '<path d="M9 3h6"/><path d="M10 3v6L4.5 19a1.5 1.5 0 001.3 2h12.4a1.5 1.5 0 001.3-2L14 9V3"/><path d="M7 15h10"/>'],
     ['pageStaff', 'Staff', 'Attendance, labour, areas', '<path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><polyline points="17 11 19 13 23 9"/>'],
     ['pageStats', 'Stats', 'Realisation, tonnage, cost', '<path d="M18 20V10"/><path d="M12 20V4"/><path d="M6 20v-6"/>'],
@@ -18729,7 +18738,7 @@ function _costBillHtml() {
   return h + costBillFormHtml() + '</div>';
 }
 
-/* One form, drawn wherever it was opened: Stats → Live cost, or Stock → Bills & notes. */
+/* One form, drawn wherever it was opened: Stats → Live cost, or Finance → Bills & notes. */
 function costBillFormHtml() {
   var o = _costBillOpen || {}, m = o.month || localDateStr().slice(0, 7);
   return '<div class="inv-fields">' +
@@ -18742,11 +18751,11 @@ function costBillFormHtml() {
     '<div class="inv-toolbar"><button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invCostBillCancel">Cancel</button>' +
     '<button class="inv-btn inv-btn-primary inv-btn-sm" data-action="invCostBillSave">Save bill</button></div>';
 }
-function costBillRedraw(where) { if (where === 'stock') renderStock(); else renderStats(); }
+function costBillRedraw(where) { if (where === 'finance') renderFinance(); else renderStats(); }
 /* The page a form or a button sits on. Both pages stay in the DOM when hidden, so a form left open
    on Stats still holds the same ids as one opened on Stock, and a bare getElementById reads the
    hidden one (Stats comes first). Every lookup is scoped to the page the form was opened on. */
-function costBillRoot(where) { return document.getElementById(where === 'stock' ? 'pageStock' : 'pageStats') || document; }
+function costBillRoot(where) { return document.getElementById(where === 'finance' ? 'pageFinance' : 'pageStats') || document; }
 
 function costBillSave() {
   var root = costBillRoot((_costBillOpen || {}).where);
@@ -18777,7 +18786,7 @@ function costBillVoid(id, where) {
 function costAction(action, btn) {
   switch (action) {
     case 'invCostBillOpen': {
-      var where = btn.dataset.where === 'stock' ? 'stock' : 'stats';
+      var where = btn.dataset.where === 'finance' ? 'finance' : 'stats';
       _costBillOpen = { where: where, month: btn.dataset.month || '' };
       costBillRedraw(where);
       var a = costBillRoot(where).querySelector('#costBillAmount'); if (a) a.focus();
@@ -18907,7 +18916,7 @@ function stockReorderOnInput(t) {
   }
   return false;
 }
-/* ===== BILLS & NOTES (Stock → Bills & notes) =====
+/* ===== BILLS & NOTES (Finance → Bills & notes) =====
  * Two records that had no findable door (owner, 26 Sep 2026: "We don't have a place to enter
  * electricity bills anywhere in the app … And even credit notes").
  *
@@ -18955,16 +18964,9 @@ function billsMissingPower(n) {
   });
 }
 
-/* Stock's two views: the chemicals, and the bills and notes that cost the plant and credit its customers. */
-function stockTabsHtml(active) {
-  var tab = function(key, label) {
-    return '<button class="inv-viewtab" role="tab" aria-selected="' + (active === key) + '" data-action="invStockTab" data-tab="' + key + '">' + label + '</button>';
-  };
-  return '<div class="inv-viewtabs" role="tablist" aria-label="Stock views">' + tab('list', 'Chemicals') + tab('bills', 'Bills & notes') + tab('bank', 'Bank') + '</div>';
-}
 
 function renderBillsNotes() {
-  return stockTabsHtml('bills') + _billsPowerHtml() + _billsNotesHtml();
+  return _billsPowerHtml() + _billsNotesHtml();
 }
 
 /* ---------- Electricity and other bills ---------- */
@@ -18975,9 +18977,9 @@ function _billsPowerHtml() {
     (bills.length ? ' <span class="inv-panel-count">' + bills.length + '</span>' : '') + '</span>' +
     // Hidden only while the form is open HERE: a form left open on Stats must not take this door away.
     // Primary only while no credit-note form is open, which carries the view's one primary then.
-    (_costBillOpen && _costBillOpen.where === 'stock' ? '' : '<button class="inv-btn ' + (_billForm ? 'inv-btn-secondary' : 'inv-btn-primary') +
-      ' inv-btn-sm" data-action="invCostBillOpen" data-where="stock">Add bill</button>') + '</div>';
-  if (_costBillOpen && _costBillOpen.where === 'stock') h += '<div class="inv-panel-body">' + costBillFormHtml() + '</div>';
+    (_costBillOpen && _costBillOpen.where === 'finance' ? '' : '<button class="inv-btn ' + (_billForm ? 'inv-btn-secondary' : 'inv-btn-primary') +
+      ' inv-btn-sm" data-action="invCostBillOpen" data-where="finance">Add bill</button>') + '</div>';
+  if (_costBillOpen && _costBillOpen.where === 'finance') h += '<div class="inv-panel-body">' + costBillFormHtml() + '</div>';
   /* One list in month order: a missing month sits where its bill would. */
   var rows = missing.map(function(m) { return { month: m, missing: true }; }).concat(bills.map(function(b) { return { month: b.month, bill: b }; }));
   rows.sort(function(a, b) { return a.month < b.month ? 1 : a.month > b.month ? -1 : (a.missing ? -1 : b.missing ? 1 : 0); });
@@ -18992,7 +18994,7 @@ function _billsPowerHtml() {
       var paid = bankPower.find(function(v) { return bankBillMonth(v.row) === m; });
       h += '<div class="inv-row" data-missing="' + m + '"><span class="inv-row-main"><span class="inv-dot inv-dot-warning">No electricity bill for ' + escHtml(billsMonthLabel(m)) + '</span></span>' +
         '<span class="inv-row-end">' + (paid ? '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invBankAddBill" data-id="' + escHtml(paid.row.id) + '">Add ' + escHtml(formatCurrency(paid.row.dr)) + ' paid ' + escHtml(formatDate(paid.row.date)) + '</button>' : '') +
-        '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invCostBillOpen" data-where="stock" data-month="' + m + '">Add</button></span></div>';
+        '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invCostBillOpen" data-where="finance" data-month="' + m + '">Add</button></span></div>';
       return;
     }
     var b = r.bill;
@@ -19131,7 +19133,7 @@ function billsCnFormOpen(mode) {
   _billForm = { mode: mode === 'record' ? 'record' : 'new', date: localDateStr(), clientId: '', invId: '', reason: mode === 'record' ? 'rebate' : 'rate',
     note: '', taxable: '', qty: '', unit: 'KG', num: '', fy: cnFyShort(), pct: CN_DEFAULT_PCT, from: '', to: '', invNo: '', invDate: '',
     cgst: '', sgst: '', igst: '' };
-  renderStock();
+  renderFinance();
 }
 
 /* Read the form back into _billForm. A field that changes what the form shows redraws it; the
@@ -19146,7 +19148,7 @@ function billsCnFormInput(t) {
   if (!k) return false;
   _billForm[k] = ['taxable', 'qty', 'pct', 'cgst', 'sgst', 'igst'].indexOf(k) >= 0 ? (t.value === '' ? '' : parseFloat(t.value)) : t.value;
   if (k === 'clientId') _billForm.invId = '';
-  if (['clientId', 'invId', 'reason'].indexOf(k) >= 0) { renderStock(); return true; }
+  if (['clientId', 'invId', 'reason'].indexOf(k) >= 0) { renderFinance(); return true; }
   if (['taxable', 'cgst', 'sgst', 'igst'].indexOf(k) >= 0) {
     var box = document.querySelector('[data-cn-figures]'), c = _billsCnFigures();
     if (box) { box.innerHTML = _billsFiguresHtml(c); box.classList.toggle('inv-hidden', !c); }
@@ -19241,7 +19243,7 @@ function billsCnFormSave() {
   recomputeNextCnNumber();
   saveState();
   _billForm = null;
-  renderStock();
+  renderFinance();
   showToast(cn.displayNumber + (rec ? ' recorded — ' : ' issued — ') + formatCurrency(cn.grandTotal));
   if (!rec) showCreditNotePreview(cn.id);
 }
@@ -19293,9 +19295,8 @@ function stockEditHtml(item) {
 /* ---------- Actions ---------- */
 function billsAction(action, btn) {
   switch (action) {
-    case 'invStockTab': stockSetView(btn.dataset.tab === 'bills' || btn.dataset.tab === 'bank' ? btn.dataset.tab : 'list'); return true;
     case 'invCnFormOpen': billsCnFormOpen(btn.dataset.mode); return true;
-    case 'invCnFormCancel': _billForm = null; renderStock(); return true;
+    case 'invCnFormCancel': _billForm = null; renderFinance(); return true;
     case 'invCnFormSave': billsCnFormSave(); return true;
     case 'invStockEditSave': stockEditSave(btn.dataset.id); return true;
   }
@@ -19626,7 +19627,7 @@ function _xlsxZip(files) {
   all.forEach(function(c) { out.set(c, p); p += c.length; });
   return out;
 }
-/* ===== BANK (Stock → Bank) =====
+/* ===== BANK (Finance → Receivables, Payments, Bank) =====
  * The bank statement read in the app (owner, 26 Sep 2026: "We have the bank statement as well
  * right? There is no way to read it in the app yet"). Three jobs, all three asked for:
  *   - RECEIPTS: which invoices each customer credit pays, and what each customer still owes;
@@ -19656,10 +19657,10 @@ var BANK_CATS = [
 var BANK_CAT_TONE = { receipt: 'ok', wages: 'info', power: 'warning', supplier: 'neutral', gst: 'neutral', tax: 'neutral', charges: 'neutral', reversal: 'neutral', other: 'neutral' };
 function bankCatLabel(k) { var c = BANK_CATS.find(function(x) { return x[0] === k; }); return c ? c[1] : k; }
 
-var _bankTab = 'receipts';     // receipts | payments | statement
 var _bankFilter = { cat: '', q: '' };
 var _bankEdit = null;          // the statement row being categorised
 var _bankOpen = null;          // the client whose receipts are open
+var _bankChange = null;        // a placed receipt whose client is being changed
 
 function bankData() {
   if (!S.bank || typeof S.bank !== 'object' || Array.isArray(S.bank)) S.bank = {};
@@ -19668,6 +19669,7 @@ function bankData() {
   if (!Array.isArray(b.imports)) b.imports = [];
   if (!b.parties || typeof b.parties !== 'object') b.parties = {};
   if (!b.opening || typeof b.opening !== 'object') b.opening = {};
+  if (!b.gstNotes || typeof b.gstNotes !== 'object') b.gstNotes = {};
   return b;
 }
 
@@ -19845,7 +19847,8 @@ function bankClassify(rows) {
     [rule, row.set].forEach(function(o) {
       if (!o) return;
       if (o.cat) { v.cat = o.cat; v.auto = false; }
-      if (o.clientId != null) v.clientId = o.clientId;
+      // A pick set back to "no client" is a decision too: it unplaces, rather than falling back to the guess.
+      if ('clientId' in o) v.clientId = o.clientId == null ? null : o.clientId;
       if (o.staffId != null) { v.staffId = o.staffId; v.guess = false; }
     });
     v.row = row; v.key = key;
@@ -19939,22 +19942,23 @@ function bankAddPowerBill(rowId) {
   costBills().push({ id: 'CB-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), kind: 'power', month: m, amount: row.dr,
     units: null, note: 'Paid ' + formatDate(row.date) + ' (bank)', bankId: row.id, at: Date.now() });
   saveState();
-  renderStock();
+  renderFinance();
   showToast('Electricity bill for ' + billsMonthLabel(m) + ' added from the bank');
 }
 
 /* ---------- Views ---------- */
-function renderBank() {
-  var b = bankData(), rows = bankRows();
-  var h = stockTabsHtml('bank') + _bankHeadHtml(rows);
-  if (!rows.length) return h;
-  var tab = function(k, l) { return '<button class="inv-viewtab" role="tab" aria-selected="' + (_bankTab === k) + '" data-action="invBankTab" data-tab="' + k + '">' + l + '</button>'; };
-  h += '<div class="inv-viewtabs" role="tablist" aria-label="Bank views">' + tab('receipts', 'Receipts') + tab('payments', 'Payments') + tab('statement', 'Statement') + '</div>';
+/* One Finance tab: 'receipts' (Receivables), 'payments', or 'bank' (the statement itself, with its
+   import and export). Receivables and Payments read the statement, so without one they say where
+   to bring it in. */
+function renderBank(tab) {
+  var rows = bankRows();
+  if (tab === 'bank') return _bankHeadHtml(rows) + (rows.length ? _bankStatementHtml(bankClassify(rows)) : '');
+  if (!rows.length) {
+    return '<div class="inv-panel"><div class="inv-empty">' + (tab === 'payments' ? 'Payments read' : 'Receivables read') +
+      ' the bank statement, and none is imported yet. <button class="inv-btn inv-btn-link inv-btn-sm" data-action="invBankImport">Import the statement</button></div></div>';
+  }
   var cls = bankClassify(rows);
-  if (_bankTab === 'payments') h += _bankPaymentsHtml(cls);
-  else if (_bankTab === 'statement') h += _bankStatementHtml(cls);
-  else h += _bankReceiptsHtml(cls);
-  return h;
+  return tab === 'payments' ? _bankPaymentsHtml(cls) : _bankReceiptsHtml(cls);
 }
 
 function _bankHeadHtml(rows) {
@@ -19962,7 +19966,7 @@ function _bankHeadHtml(rows) {
   var h = '<div class="inv-panel inv-panel-flush" id="bankHead"><div class="inv-panel-head"><span class="inv-panel-title">Bank statement</span>' +
     '<span class="inv-toolbar inv-toolbar-tight">' + (rows.length ? '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invBankExport">Export Excel</button>' : '') +
     '<button class="inv-btn ' + (rows.length ? 'inv-btn-secondary' : 'inv-btn-primary') + ' inv-btn-sm" data-action="invBankImport">Import</button></span>' +
-    '<input type="file" accept=".xls,application/vnd.ms-excel" id="bankFileInput" class="inv-hidden"></div>';
+    '</div>';
   if (!rows.length) {
     return h + '<div class="inv-empty">No statement yet. Download the account statement from Bank of Baroda as Excel (.xls) and import it as it is; ' +
       'a later statement that overlaps it adds only the rows that are new.</div></div>';
@@ -20009,8 +20013,13 @@ function _bankReceiptsHtml(cls) {
         '<span class="inv-badge inv-badge-' + (a.how === 'exact' ? 'ok' : 'neutral') + '">' + (a.how === 'exact' ? 'Exact' : 'Oldest first') + '</span></span>' +
         '<span class="inv-row-meta">' + escHtml(a.parts.map(function(p) { return p.label + (p.whole ? '' : ' (part ' + formatCurrency(p.amount) + ')'); }).join(', ') || 'nothing open to set it against') +
         (a.unapplied > 0 ? ' · ' + escHtml(formatCurrency(a.unapplied)) + ' more than was owed' : '') + '</span></span>' +
-        '<span class="inv-row-end"><span class="inv-num">' + formatCurrency(a.v.row.cr) + '</span></span></div>';
+        '<span class="inv-row-end"><span class="inv-num">' + formatCurrency(a.v.row.cr) + '</span>' +
+        (_bankChange === a.v.row.id ? _bankClientSelect(a.v).replace('<option value="">Client…</option>', '<option value="">No client</option>')
+          : '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invBankChange" data-id="' + escHtml(a.v.row.id) + '">Change</button>') + '</span></div>';
     });
+    var ser = bankChequeSeries(cls)[String(r.client.id)];
+    if (ser && ser.length) h += '<div class="inv-row" data-series="' + escHtml(String(r.client.id)) + '"><span class="inv-row-main inv-row-meta">Cheques: <span class="inv-id">' + escHtml(ser.slice(-5).join(' · ')) + '</span>' +
+      (ser.length > 5 ? ' and ' + (ser.length - 5) + ' more' : '') + '</span></div>';
     r.open.forEach(function(o) {
       h += '<div class="inv-row inv-row-2" data-open-inv="' + escHtml(o.label) + '"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(o.label) + '</span>' +
         '<span class="inv-row-meta"><span class="inv-dot inv-dot-warning">Open</span> · ' + escHtml(formatDate(o.date)) + '</span></span>' +
@@ -20020,16 +20029,31 @@ function _bankReceiptsHtml(cls) {
   });
   h += '</div>';
   // Receipts nobody can name: cheques deposited, a remitter the client list does not recognise.
-  var loose = cls.filter(function(v) { return v.cat === 'receipt' && v.clientId == null; });
+  var loose = cls.filter(function(v) { return v.cat === 'receipt' && v.clientId == null; }), series = bankChequeSeries(cls);
   if (loose.length) {
     h += '<div class="inv-panel inv-panel-flush" id="bankLoose"><div class="inv-panel-head"><span class="inv-panel-title">Receipts with no client</span><span class="inv-panel-count">' + loose.length + '</span></div>' +
       '<div class="inv-panel-body inv-note">Cheques deposited carry no name. Pick the client; a remitter\'s name is remembered for its next receipt.</div>';
     loose.slice().reverse().forEach(function(v) {
-      var sug = bankSuggestClient(v.row.cr, recv);
-      h += '<div class="inv-row inv-row-2" data-loose="' + escHtml(v.row.id) + '"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(v.party || v.row.narration) + '</span>' +
-        '<span class="inv-row-meta">' + escHtml(formatDate(v.row.date)) + (v.row.chq ? ' · chq ' + escHtml(v.row.chq) : '') +
-        (sug ? ' · equals ' + escHtml(sug.labels.join(' + ')) + ' <button class="inv-btn inv-btn-link inv-btn-sm" data-action="invBankPlace" data-id="' + escHtml(v.row.id) + '" data-client="' + escHtml(String(sug.client.id)) + '">Place with ' + escHtml(sug.client.name) + '</button>' : '') + '</span></span>' +
+      var inst = bankInstrument(v.row), o = bankPlacementOffers(v.row, recv, series);
+      // The cheque number is what the owner matches against the book, so it leads; a remitter's name leads where there is one.
+      var chqDep = /^BY INST\b/i.test(v.row.narration) && inst;
+      h += '<div class="inv-row inv-row-2" data-loose="' + escHtml(v.row.id) + '"><span class="inv-row-main"><span class="inv-row-title">' +
+        (chqDep ? '<span class="inv-id">' + escHtml(inst) + '</span>' : escHtml(v.party || v.row.narration)) + '</span>' +
+        '<span class="inv-row-meta">' + (chqDep ? 'Cheque · ' : '') + escHtml(formatDate(v.row.date)) + (inst && !chqDep ? ' · chq ' + escHtml(inst) : '') + '</span></span>' +
         '<span class="inv-row-end"><span class="inv-num">' + formatCurrency(v.row.cr) + '</span>' + _bankClientSelect(v, 'bankLooseClient') + '</span></div>';
+      // Each offer is a line of its own under the cheque, its button at the row's end: inside the
+      // one-line meta it was clipped by the ellipsis on a phone and could not be tapped.
+      var offer = function(c, why, text) {
+        return '<div class="inv-row inv-row-2" data-offer="' + escHtml(v.row.id) + '" data-why="' + why + '"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(c.name) + '</span>' +
+          '<span class="inv-row-meta">' + escHtml(text) + '</span></span>' +
+          '<span class="inv-row-end"><button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invBankPlace" data-id="' + escHtml(v.row.id) + '" data-client="' + escHtml(String(c.id)) + '" data-why="' + why + '" aria-label="Place with ' + escHtml(c.name) + '">Place</button></span></div>';
+      };
+      if (o.both) h += '<div class="inv-row-children">' + offer(o.both, 'both', 'series and amount agree') + '</div>';
+      else if (o.series || o.amount) {
+        h += '<div class="inv-row-children">' +
+          (o.series ? offer(o.series.client, 'series', 'series ' + o.series.from + '–' + o.series.to) : '') +
+          (o.amount ? offer(o.amount.client, 'amount', 'equals ' + o.amount.labels.join(' + ')) : '') + '</div>';
+      }
     });
     h += '</div>';
   }
@@ -20053,6 +20077,47 @@ function bankSuggestClient(amt, recv) {
     }
   });
   return hits.length === 1 ? hits[0] : null;
+}
+
+/* ---------- Cheque numbers and their series ----------
+   A deposit's instrument is in the narration ("BY INST 525428 - MICR CLG"), not the cheque column.
+   Placing a deposit on a client IS the tag (owner, 26 Sep 2026: "tag cheque numbers to clients —
+   their series will help in automation"): no second store, the series is read off the placements. */
+function bankInstrument(row) {
+  var m = String(row.narration || '').match(/^BY INST\s+(\d+)/i);
+  return m ? m[1] : String(row.chq || '').trim();
+}
+function bankChequeSeries(cls) {
+  var out = {};
+  (cls || bankClassify()).forEach(function(v) {
+    if (v.cat !== 'receipt' || v.clientId == null) return;
+    var n = bankInstrument(v.row);
+    if (!/^\d{4,}$/.test(n)) return;
+    (out[String(v.clientId)] = out[String(v.clientId)] || []).push(n);
+  });
+  Object.keys(out).forEach(function(k) { out[k].sort(function(a, b) { return +a - +b; }); });
+  return out;
+}
+/* One cheque book: the same length, all but the last three digits alike. A number is suggested to a
+   client only when exactly one client holds a number of that book within 50 of it. */
+function bankSuggestBySeries(inst, series) {
+  if (!/^\d{4,}$/.test(inst)) return null;
+  var book = function(n) { return n.length + ':' + n.slice(0, -3); }, hits = [];
+  Object.keys(series).forEach(function(id) {
+    var near = series[id].filter(function(n) { return book(n) === book(inst) && n !== inst && Math.abs(+n - +inst) <= 50; });
+    if (near.length) hits.push({ id: id, nums: series[id].filter(function(n) { return book(n) === book(inst); }) });
+  });
+  if (hits.length !== 1) return null;
+  var c = (S.clients || []).find(function(x) { return String(x.id) === hits[0].id; });
+  return c ? { client: c, from: hits[0].nums[0], to: hits[0].nums[hits[0].nums.length - 1] } : null;
+}
+
+/* Both ways a deposit can point at a client. When they agree, that is the offer; when they disagree,
+   both are shown and nothing is placed. */
+function bankPlacementOffers(row, recv, series) {
+  var amount = bankSuggestClient(row.cr, recv), ser = bankSuggestBySeries(bankInstrument(row), series);
+  if (amount && ser && String(amount.client.id) === String(ser.client.id)) return { both: amount.client, series: ser, amount: amount };
+  return { both: null, series: ser, amount: amount };
 }
 
 function _bankClientSelect(v, cls) {
@@ -20204,7 +20269,7 @@ function bankSaveEdit(id) {
   else row.set = set;
   _bankEdit = null;
   saveState();
-  renderStock();
+  renderFinance();
   showToast(all && all.checked ? 'Saved for every row under ' + v.party : 'Saved');
 }
 /* The picker hands back text; ids are numbers on real books. */
@@ -20218,7 +20283,7 @@ function bankSetClient(rowId, clientId) {
   if (v.key && !/^BY INST\b/i.test(row.narration)) b.parties[v.key] = { cat: 'receipt', clientId: id };
   else row.set = { cat: 'receipt', clientId: id };
   saveState();
-  renderStock();
+  renderFinance();
 }
 
 function bankImportFile() {
@@ -20239,7 +20304,7 @@ function bankImportFile() {
         res = bankImport(parsed, f.name);
       } catch (err) { showToast(err.message || 'That file could not be read', 'error'); return; }
       saveState();
-      renderStock();
+      renderFinance();
       showToast(res.added + ' row' + (res.added === 1 ? '' : 's') + ' added' + (res.same ? ' · ' + res.same + ' already held' : ''));
     };
     reader.readAsArrayBuffer(f);
@@ -20305,7 +20370,7 @@ function bankExportJson() {
   var b = bankData(), meta = document.querySelector('meta[name="app-build"]');
   var cls = bankClassify();
   var out = { format: 'sep-bank', version: 1, exportedAt: new Date().toISOString(), build: meta ? meta.content : '', account: b.account || '',
-    imports: b.imports, parties: b.parties, opening: b.opening,
+    imports: b.imports, parties: b.parties, opening: b.opening, gstNotes: b.gstNotes,
     rows: cls.map(function(v) { return Object.assign({}, v.row, { cat: v.cat, party: v.party, clientId: v.clientId == null ? null : v.clientId, staffId: v.staffId == null ? null : v.staffId, cash: !!v.cash }); }) };
   var a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob([JSON.stringify(out, null, 2)], { type: 'application/json' }));
@@ -20316,25 +20381,25 @@ function bankExportJson() {
 
 function bankInput(t) {
   if (!t) return false;
-  if (t.id === 'bankCatFilter') { _bankFilter.cat = t.value; renderStock(); return true; }
+  if (t.id === 'bankCatFilter') { _bankFilter.cat = t.value; renderFinance(); return true; }
   if (t.id === 'bankSearch') {
     _bankFilter.q = t.value;
-    renderStock();
+    renderFinance();
     var s = document.getElementById('bankSearch');
     if (s) { s.focus(); s.setSelectionRange(s.value.length, s.value.length); }
     return true;
   }
-  if (t.dataset && t.dataset.bankClient) { bankSetClient(t.dataset.bankClient, t.value); return true; }
+  if (t.dataset && t.dataset.bankClient) { _bankChange = null; bankSetClient(t.dataset.bankClient, t.value); return true; }
   if (t.dataset && t.dataset.bankMonth) {
     var row = bankData().rows.find(function(x) { return x.id === t.dataset.bankMonth; });
-    if (row) { row.billMonth = t.value; saveState(); renderStock(); }
+    if (row) { row.billMonth = t.value; saveState(); renderFinance(); }
     return true;
   }
   if (t.id === 'bankOpening') {
     var amt = gstRound(parseFloat(t.value) || 0), o = bankData().opening;
     if (amt > 0) o[t.dataset.client] = { amount: amt, at: Date.now() }; else delete o[t.dataset.client];
     saveState();
-    renderStock();
+    renderFinance();
     return true;
   }
   if (t.id === 'bankEditCat') {
@@ -20343,7 +20408,7 @@ function bankInput(t) {
     if (!r) return true;
     var keep = r.set, v = bankClassify([r])[0];
     r.set = Object.assign({}, v.row.set || {}, { cat: t.value });
-    renderStock();
+    renderFinance();
     r.set = keep;
     return true;
   }
@@ -20352,16 +20417,293 @@ function bankInput(t) {
 
 function bankAction(action, btn) {
   switch (action) {
-    case 'invBankTab': _bankTab = btn.dataset.tab; _bankEdit = null; renderStock(); return true;
     case 'invBankImport': bankImportFile(); return true;
     case 'invBankExport': bankExportXlsx(); return true;
     case 'invBankExportJson': bankExportJson(); return true;
-    case 'invBankClient': _bankOpen = _bankOpen === btn.dataset.id ? null : btn.dataset.id; renderStock(); return true;
+    case 'invBankClient': _bankOpen = _bankOpen === btn.dataset.id ? null : btn.dataset.id; renderFinance(); return true;
     case 'invBankAddBill': bankAddPowerBill(btn.dataset.id); return true;
     case 'invBankPlace': bankSetClient(btn.dataset.id, btn.dataset.client); return true;
-    case 'invBankEdit': _bankEdit = _bankEdit === btn.dataset.id ? null : btn.dataset.id; renderStock(); return true;
-    case 'invBankEditCancel': _bankEdit = null; renderStock(); return true;
+    case 'invBankChange': _bankChange = btn.dataset.id; renderFinance(); return true;
+    case 'invBankEdit': _bankEdit = _bankEdit === btn.dataset.id ? null : btn.dataset.id; renderFinance(); return true;
+    case 'invBankEditCancel': _bankEdit = null; renderFinance(); return true;
     case 'invBankEditSave': bankSaveEdit(btn.dataset.id); return true;
+  }
+  return false;
+}
+/* ===== FINANCE (sidebar Money → Finance; More → Finance on the phone) =====
+ * The money side of the shop in one place (owner, 26 Sep 2026: "The entire finance sector of our
+ * app needs a dashboard"). Bank and Bills & notes lived under Stock, where they never belonged; they
+ * are tabs here, beside the Overview that reads across them:
+ *   - cash position: the balance on the statement and each month's money in and out;
+ *   - owed to us: what clients owe, by age, and the largest debtors;
+ *   - where money went: a month's outflow by category, against what was invoiced and received;
+ *   - GST due against GST paid, month by month.
+ * Every figure says what it rests on. A dashboard that reads a statement which stops on 18 Sep says
+ * so on the tile, rather than passing an old balance off as today's.
+ */
+
+var FIN_TABS = [['overview', 'Overview'], ['receipts', 'Receivables'], ['payments', 'Payments'], ['bank', 'Bank'], ['bills', 'Bills & notes'], ['gst', 'GST']];
+var _finTab = (function() { try { var t = localStorage.getItem('sep_inv_fin_tab'); return FIN_TABS.some(function(x) { return x[0] === t; }) ? t : 'overview'; } catch (e) { return 'overview'; } })();
+var _finGstEdit = null;   // the month whose GST note is open
+var _finMonth = null;   // the month "where money went" reads; null = the latest with a statement row
+
+function finSetTab(t) {
+  if (!FIN_TABS.some(function(x) { return x[0] === t; })) t = 'overview';
+  _finTab = t;
+  try { localStorage.setItem('sep_inv_fin_tab', t); } catch (e) { /* a per-device convenience only */ }
+}
+
+function renderFinance() {
+  var el = document.getElementById('financeContent');
+  if (!el) return;
+  var looseN = bankRows().length ? bankClassify().filter(function(v) { return v.cat === 'receipt' && v.clientId == null; }).length : 0;
+  var tab = function(k, l) { return '<button class="inv-viewtab" role="tab" aria-selected="' + (_finTab === k) + '" data-action="invFinTab" data-tab="' + k + '">' + l +
+    (k === 'receipts' && looseN ? ' <span class="inv-badge inv-badge-warning" title="Receipts with no client">' + looseN + '</span>' : '') + '</button>'; };
+  var h = '<div class="inv-viewtabs" role="tablist" aria-label="Finance">' + FIN_TABS.map(function(t) { return tab(t[0], t[1]); }).join('') + '</div>' +
+    '<input type="file" accept=".xls,application/vnd.ms-excel" id="bankFileInput" class="inv-hidden">';
+  if (_finTab === 'bills') h += renderBillsNotes();
+  else if (_finTab === 'gst') h += finGstHtml(12);
+  else if (_finTab === 'overview') h += finOverviewHtml();
+  else h += renderBank(_finTab);
+  el.innerHTML = h;
+  // Six tabs overflow a phone's width; the one open is scrolled into view, never left off-screen.
+  var on = el.querySelector('.inv-viewtab[aria-selected="true"]');
+  if (on && on.scrollIntoView) on.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+}
+
+/* The overview is read at a glance: whole rupees. Every tab behind it keeps the paise. */
+function finRs(v) { var n = Math.round(Number(v) || 0); return (n < 0 ? '-' : '') + '₹' + Math.abs(n).toLocaleString('en-IN'); }
+function finPl(n, one, many) { return n + ' ' + (n === 1 ? one : (many || one + 's')); }
+
+/* ---------- Months ---------- */
+function finYm(iso) { return String(iso || '').slice(0, 7); }
+function finNextMonth(ym) { var d = new Date(ym + '-01T00:00:00'); d.setMonth(d.getMonth() + 1); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0'); }
+/* The last n months, this one included, oldest first. */
+function finMonths(n) { return insMonthsBack(n - 1).concat([localDateStr().slice(0, 7)]); }
+function finDaysAgo(iso) { return Math.round((new Date(localDateStr() + 'T00:00:00') - new Date(iso + 'T00:00:00')) / 86400000); }
+
+/* ---------- Cash ---------- */
+/* Per month on the statement: money in, money out, and the balance the month closed on. */
+function finCashByMonth(rows) {
+  var out = {};
+  rows.forEach(function(r) {
+    var m = finYm(r.date), e = out[m] = out[m] || { month: m, cr: 0, dr: 0, close: null, open: null };
+    if (e.open == null) e.open = gstRound(r.balance + r.dr - r.cr);
+    e.cr = gstRound(e.cr + r.cr); e.dr = gstRound(e.dr + r.dr); e.close = r.balance;
+  });
+  return Object.keys(out).sort().map(function(k) { return out[k]; });
+}
+
+/* ---------- Owed ---------- */
+var FIN_AGE_BANDS = [[0, 30, '0–30 days'], [31, 60, '31–60 days'], [61, 90, '61–90 days'], [91, Infinity, 'Over 90 days']];
+function finAgeing(recv) {
+  var bands = FIN_AGE_BANDS.map(function(b) { return { label: b[2], lo: b[0], hi: b[1], amount: 0, n: 0 }; });
+  recv.forEach(function(r) {
+    r.open.forEach(function(o) {
+      var age = finDaysAgo(o.date), b = bands.find(function(x) { return age >= x.lo && age <= x.hi; }) || bands[bands.length - 1];
+      b.amount = gstRound(b.amount + o.due); b.n++;
+    });
+  });
+  return bands;
+}
+
+/* ---------- GST ---------- */
+/* Output tax per month on the invoices (active, by invoice date) less the tax on credit notes (not
+   cancelled, by note date), set against the GST paid through the bank the month after — a
+   month's return is paid by the 20th of the next. What is paid in cash is output tax LESS input
+   credit, so paying less than is due is the normal shape, not a shortfall by itself. */
+function finGstByMonth(months, cls) {
+  var due = {}, paid = {}, paidRows = {};
+  months.forEach(function(m) { due[m] = 0; paid[m] = 0; paidRows[m] = []; });
+  (S.invoices || []).forEach(function(i) {
+    var m = finYm(i.date);
+    if (i.status === 'active' && m in due) due[m] = gstRound(due[m] + (i.cgstAmt || 0) + (i.sgstAmt || 0) + (i.igstAmt || 0));
+  });
+  getCreditNotes().forEach(function(n) {
+    var m = finYm(n.date);
+    if (n.status !== 'cancelled' && m in due) due[m] = gstRound(due[m] - ((n.cgstAmt || 0) + (n.sgstAmt || 0) + (n.igstAmt || 0)));
+  });
+  (cls || []).forEach(function(v) {
+    if (v.cat !== 'gst' || !(v.row.dr > 0)) return;
+    var m = bankPrevMonth(v.row.date);
+    if (m in paid) { paid[m] = gstRound(paid[m] + v.row.dr); paidRows[m].push(v.row); }
+  });
+  var today = localDateStr(), notes = bankData().gstNotes;
+  return months.map(function(m) {
+    var next = finNextMonth(m), dueBy = next + '-20', n = notes[m] || null;
+    // A return paid another way (owner, 26 Sep 2026: July went by another route) is recorded by hand
+    // and counts as paid, but is never shown as what the bank saw.
+    var other = n && Number(n.paidOther) > 0 ? gstRound(Number(n.paidOther)) : 0;
+    return { month: m, due: due[m], paidBank: paid[m], paidOther: other, paid: gstRound(paid[m] + other), rows: paidRows[m], note: n,
+      dueBy: dueBy, open: today <= dueBy || m >= today.slice(0, 7) };
+  });
+}
+/* One reading of a month, shared by the table and the tile. */
+function finGstStatus(r) {
+  if (r.paidBank > 0) return { tone: 'ok', text: 'Paid ' + finShortDate(r.rows[r.rows.length - 1].date) };
+  if (r.paidOther > 0) return { tone: 'info', text: 'Outside bank', title: 'Paid another way' + (r.note && r.note.via ? ' via ' + r.note.via : '') };
+  if (r.note) return { tone: 'neutral', text: 'Noted', title: r.note.note };
+  if (r.due <= 0) return { tone: 'neutral', text: 'Nil' };
+  if (r.open) return { tone: 'info', text: 'Due ' + finShortDate(r.dueBy) };
+  // Only the bank is read: a return paid another way is not on the statement, so this says what is known.
+  return { tone: 'warning', text: 'Not in bank', title: 'No GST payment on the statement for this month; one made another way would not show here', missing: true };
+}
+
+/* "Jun '26": a month column that has to leave room for a status on a phone. */
+function finShortMonth(ym) { return TREND_MONTH_LABELS[parseInt(ym.slice(5, 7), 10) - 1] + " '" + ym.slice(2, 4); }
+function finShortDate(iso) { var d = new Date(iso + 'T00:00:00'); return d.getDate() + ' ' + TREND_MONTH_LABELS[d.getMonth()]; }
+function finGstHtml(n, wide) {
+  var cls = bankClassify(), rows = finGstByMonth(finMonths(n), cls).reverse();
+  var h = '<div class="inv-panel inv-panel-flush' + (wide ? ' inv-panels-wide' : '') + '" id="finGst"><div class="inv-panel-head"><span class="inv-panel-title">GST due and paid</span></div>' +
+    '<div class="inv-panel-body inv-note">Due is the output tax on the month\'s invoices less the tax on its credit notes. Paid is the GST the bank sent the month after. ' +
+    'Cash paid is output tax less input credit, so paying less than is due is normal; the gap is the credit claimed, or a shortfall only the return can tell apart.</div>' +
+    (_finGstEdit ? finGstNoteFormHtml(_finGstEdit) : '') +
+    '<div class="inv-scroll"><table class="inv-table"><thead><tr><th>Month</th><th class="inv-num">Due</th><th class="inv-num">Paid</th><th>Status</th></tr></thead><tbody>';
+  rows.forEach(function(r) {
+    var st = finGstStatus(r);
+    h += '<tr data-gst="' + r.month + '"><td class="inv-nowrap" title="' + escHtml(billsMonthLabel(r.month)) + '">' + escHtml(finShortMonth(r.month)) + '</td><td class="inv-num">' + formatCurrency(r.due) + '</td>' +
+      '<td class="inv-num">' + (r.paid ? formatCurrency(r.paid) : '&mdash;') + '</td><td><span class="inv-dot inv-dot-' + st.tone + '"' + (st.title ? ' title="' + escHtml(st.title) + '"' : '') + '>' + escHtml(st.text) + '</span>' +
+      // A note is possible for any month the bank shows no payment for, not only once it is overdue.
+      (r.note || (r.due > 0 && !r.paidBank) ? ' <button class="inv-btn inv-btn-link inv-btn-sm" data-action="invFinGstNote" data-month="' + r.month + '">' + (r.note ? 'Edit' : 'Add note') + '</button>' : '') + '</td></tr>';
+    if (r.note) {
+      h += '<tr class="inv-row-note" data-gst-note="' + r.month + '"><td colspan="4"><span class="inv-row-meta">' + escHtml(r.note.note) +
+        (r.paidOther ? ' · ' + escHtml(formatCurrency(r.paidOther)) + ' paid' + (r.note.paidOn ? ' on ' + escHtml(formatDate(r.note.paidOn)) : '') + (r.note.via ? ' via ' + escHtml(r.note.via) : '') : '') + '</span></td></tr>';
+    }
+  });
+  return h + '</tbody></table></div></div>';
+}
+
+/* ---------- The overview ---------- */
+function finOverviewHtml() {
+  var rows = bankRows(), cls = bankClassify(rows), has = rows.length > 0;
+  var recv = has ? bankReceivables(cls) : [];
+  var owed = gstRound(recv.reduce(function(s, r) { return s + Math.max(0, r.owed); }, 0));
+  var last = has ? rows[rows.length - 1] : null, stale = last ? finDaysAgo(last.date) : 0;
+  var months = finCashByMonth(rows);
+  var paidMonth = months.length ? months[months.length - 1] : null;
+  var gst = finGstByMonth(insMonthsBack(1), cls)[0];
+  var loose = cls.filter(function(v) { return v.cat === 'receipt' && v.clientId == null; }).length;
+
+  var tile = function(label, value, sub, tone, key) {
+    return '<div class="inv-tile' + (tone ? ' inv-tile-' + tone : '') + '" data-fin-tile="' + key + '"><div class="inv-tile-label">' + label + '</div>' +
+      '<div class="inv-tile-value inv-num">' + value + '</div><div class="inv-tile-sub">' + sub + '</div></div>';
+  };
+  var h = '<div class="inv-tiles">' +
+    tile('Bank balance', last ? formatCurrency(last.balance) : '&mdash;', last ? 'on ' + escHtml(formatDate(last.date)) + (stale > 7 ? ' · statement ' + stale + ' days old' : '') : 'no statement imported',
+      last && last.balance < 0 ? 'danger' : last && stale > 7 ? 'warning' : '', 'balance') +
+    // Unplaced receipts are money in that no client is credited with, so the figure reads HIGH until they are placed.
+    tile('Owed to us', has ? formatCurrency(owed) : '&mdash;', has ? (loose ? finPl(loose, 'receipt') + ' not placed: reads high' : finPl(recv.filter(function(r) { return r.owed > 0.005; }).length, 'client') + ' · since ' + escHtml(formatDate(rows[0].date))) : 'needs a statement',
+      loose ? 'warning' : '', 'owed') +
+    tile('Paid out', paidMonth ? formatCurrency(paidMonth.dr) : '&mdash;', paidMonth ? 'in ' + escHtml(billsMonthLabel(paidMonth.month)) + ' · ' + finRs(paidMonth.cr) + ' came in' : 'needs a statement', '', 'out') +
+    tile('GST for ' + escHtml(billsMonthLabel(gst.month)), formatCurrency(gst.due), (function() {
+      var st = finGstStatus(gst);
+      return gst.paidBank > 0 ? 'paid ' + formatCurrency(gst.paidBank) : gst.paidOther > 0 ? formatCurrency(gst.paidOther) + ' paid outside the bank'
+        : gst.note ? 'noted: ' + escHtml(gst.note.note) : gst.open ? 'due by ' + escHtml(formatDate(gst.dueBy)) : st.missing ? 'no payment on the statement' : '';
+    })(), gst.paid > 0 || gst.note || gst.due <= 0 ? '' : gst.open ? 'info' : 'warning', 'gst') +
+    '</div>';
+
+  if (!has) {
+    return h + '<div class="inv-panel"><div class="inv-empty">Import the bank statement on the Bank tab. The balance, what clients owe and where money went all read from it; GST due reads from the invoices and is below.</div></div>' +
+      finGstHtml(6);
+  }
+
+  h += '<div class="inv-panels">';
+  // Cash by month
+  h += '<div class="inv-panel inv-panel-flush" id="finCash"><div class="inv-panel-head"><span class="inv-panel-title">Cash by month</span></div>';
+  var bal = months.map(function(m) { return { label: insMonthLabel(m.month), value: m.close }; });
+  if (bal.length >= 2 && bal.every(function(b) { return b.value >= 0; })) h += '<div class="inv-panel-body">' + chartLine(bal, { ariaLabel: 'Month-end balance' }) + '</div>';
+  h += '<div class="inv-scroll"><table class="inv-table"><thead><tr><th>Month</th><th class="inv-num">In</th><th class="inv-num">Out</th><th class="inv-num">Closed at</th></tr></thead><tbody>';
+  months.slice(-6).reverse().forEach(function(m) {
+    h += '<tr data-cash="' + m.month + '"><td class="inv-nowrap">' + escHtml(billsMonthLabel(m.month)) + '</td><td class="inv-num" title="' + escHtml(formatCurrency(m.cr)) + '">' + finRs(m.cr) + '</td>' +
+      '<td class="inv-num" title="' + escHtml(formatCurrency(m.dr)) + '">' + finRs(m.dr) + '</td><td class="inv-num" title="' + escHtml(formatCurrency(m.close)) + '">' + finRs(m.close) + '</td></tr>';
+  });
+  h += '</tbody></table></div></div>';
+
+  // Owed to us
+  var bands = finAgeing(recv), top = recv.filter(function(r) { return r.owed > 0.005; }).slice(0, 5);
+  h += '<div class="inv-panel inv-panel-flush" id="finOwed"><div class="inv-panel-head"><span class="inv-panel-title">Owed to us</span><span class="inv-panel-count inv-num">' + formatCurrency(owed) + '</span></div>' +
+    '<div class="inv-tiles inv-tiles-flush inv-tiles-4">' + bands.map(function(b, i) {
+      return '<div class="inv-tile' + (i === 3 && b.amount > 0 ? ' inv-tile-danger' : i === 2 && b.amount > 0 ? ' inv-tile-warning' : '') + '" data-age="' + i + '"><div class="inv-tile-label">' + b.label + '</div>' +
+        '<div class="inv-tile-value inv-tile-value-sm inv-num" title="' + escHtml(formatCurrency(b.amount)) + '">' + finRs(b.amount) + '</div><div class="inv-tile-sub">' + finPl(b.n, 'invoice') + '</div></div>';
+    }).join('') + '</div>';
+  top.forEach(function(r) {
+    h += '<div class="inv-row inv-row-2" data-debtor="' + escHtml(String(r.client.id)) + '"><button class="inv-row-main" data-action="invFinClient" data-id="' + escHtml(String(r.client.id)) + '">' +
+      '<span class="inv-row-title">' + escHtml(r.client.name) + '</span><span class="inv-row-meta">' + r.open.length + ' open' + (r.oldestDays != null ? ' · oldest ' + r.oldestDays + ' d' : '') + '</span></button>' +
+      '<span class="inv-row-end inv-num">' + formatCurrency(r.owed) + '</span></div>';
+  });
+  if (!top.length) h += '<div class="inv-empty">Nothing owed since the statement starts.</div>';
+  if (loose) h += '<div class="inv-panel-body inv-note">' + finPl(loose, 'receipt') + ' with no client ' + (loose === 1 ? 'is' : 'are') + ' not counted yet, so what is owed reads high. ' +
+    '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invFinLoose">Place them</button></div>';
+  h += '</div>';
+
+  // Where money went
+  var ym = _finMonth && months.some(function(m) { return m.month === _finMonth; }) ? _finMonth : paidMonth.month;
+  var byCat = {};
+  cls.forEach(function(v) {
+    if (finYm(v.row.date) !== ym || !(v.row.dr > 0)) return;
+    var k = bankCatLabel(v.cat) + (v.cash ? ' (cash)' : '');
+    byCat[k] = gstRound((byCat[k] || 0) + v.row.dr);
+  });
+  var invoiced = gstRound((S.invoices || []).reduce(function(s, i) { return s + (i.status === 'active' && finYm(i.date) === ym ? (i.grandTotal || 0) : 0); }, 0));
+  var received = gstRound(cls.reduce(function(s, v) { return s + (v.cat === 'receipt' && finYm(v.row.date) === ym ? v.row.cr : 0); }, 0));
+  h += '<div class="inv-panel inv-panel-flush inv-panels-wide" id="finWent"><div class="inv-panel-head"><span class="inv-panel-title">Where money went</span>' +
+    '<select class="inv-select inv-select-sm" id="finMonthPick" aria-label="Month">' + months.slice().reverse().map(function(m) {
+      return '<option value="' + m.month + '"' + (m.month === ym ? ' selected' : '') + '>' + escHtml(billsMonthLabel(m.month)) + '</option>'; }).join('') + '</select></div>' +
+    '<div class="inv-panel-body">' + chartRankedBars(Object.keys(byCat).sort(function(a, b) { return byCat[b] - byCat[a]; }).map(function(k) { return { label: k, value: byCat[k] }; }),
+      { emptyText: 'Nothing paid out in ' + billsMonthLabel(ym) }) + '</div>' +
+    [['Invoiced', invoiced, 'incl. GST, by invoice date'], ['Received', received, 'from clients'], ['Paid out', Object.keys(byCat).reduce(function(s, k) { return gstRound(s + byCat[k]); }, 0), 'every category']].map(function(x) {
+      return '<div class="inv-row" data-went="' + x[0] + '"><span class="inv-row-main">' + x[0] + ' <span class="inv-row-meta">' + x[2] + '</span></span><span class="inv-row-end inv-num">' + formatCurrency(x[1]) + '</span></div>';
+    }).join('') +
+    '</div>';
+  return h + finGstHtml(6, true) + '</div>';
+}
+
+/* A place for what the statement cannot say (owner, 26 Sep 2026: "For July, make sure that reason is
+   mentioned or has a place where we can mention it"). Nothing is seeded: the note is the owner's. */
+function finGstNoteFormHtml(m) {
+  var n = bankData().gstNotes[m] || {};
+  var f = function(id, label, input) { return '<div class="inv-field"><label class="inv-field-label" for="' + id + '">' + label + '</label>' + input + '</div>'; };
+  return '<div class="inv-panel-body" data-gst-form="' + m + '"><div class="inv-panel-title">GST for ' + escHtml(billsMonthLabel(m)) + '</div><div class="inv-fields">' +
+    f('finGstNote', 'What happened', '<input class="inv-input" id="finGstNote" value="' + escHtml(n.note || '') + '" placeholder="e.g. paid from the ACI account">') +
+    f('finGstPaid', 'Paid another way (₹, optional)', '<input class="inv-input inv-num" type="number" step="0.01" min="0" inputmode="decimal" id="finGstPaid" value="' + (n.paidOther || '') + '">') +
+    f('finGstOn', 'On', '<input class="inv-input" type="date" id="finGstOn" value="' + escHtml(n.paidOn || '') + '">') +
+    f('finGstVia', 'Via', '<input class="inv-input" id="finGstVia" value="' + escHtml(n.via || '') + '" placeholder="account or route">') +
+    '</div><div class="inv-toolbar">' + (bankData().gstNotes[m] ? '<button class="inv-btn inv-btn-danger inv-btn-sm" data-action="invFinGstRemove" data-month="' + m + '">Remove note</button>' : '') +
+    '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invFinGstCancel">Cancel</button>' +
+    '<button class="inv-btn inv-btn-primary inv-btn-sm" data-action="invFinGstSave" data-month="' + m + '">Save</button></div></div>';
+}
+function finGstNoteSave(m) {
+  var root = document.querySelector('#pageFinance [data-gst-form="' + m + '"]');
+  if (!root) return;
+  var v = function(id) { var el = root.querySelector('#' + id); return el ? el.value.trim() : ''; };
+  if (!v('finGstNote')) { showToast('Say what happened', 'error'); return; }
+  var paid = gstRound(parseFloat(v('finGstPaid')) || 0);
+  bankData().gstNotes[m] = { note: v('finGstNote'), paidOther: paid > 0 ? paid : null, paidOn: v('finGstOn') || null, via: v('finGstVia') || null, at: Date.now() };
+  _finGstEdit = null;
+  saveState();
+  renderFinance();
+  showToast('Note saved for ' + billsMonthLabel(m));
+}
+
+function financeInput(t) {
+  if (t && t.id === 'finMonthPick') { _finMonth = t.value; renderFinance(); return true; }
+  return false;
+}
+function financeAction(action, btn) {
+  switch (action) {
+    case 'invFinTab': finSetTab(btn.dataset.tab); _bankEdit = null; renderFinance(); return true;
+    case 'invFinClient': _bankOpen = btn.dataset.id; finSetTab('receipts'); renderFinance(); return true;
+    case 'invFinLoose':
+      finSetTab('receipts'); renderFinance();
+      var lp = document.getElementById('bankLoose');
+      if (lp && lp.scrollIntoView) lp.scrollIntoView({ block: 'start' });
+      return true;
+    case 'invFinGstNote': _finGstEdit = btn.dataset.month; renderFinance(); return true;
+    case 'invFinGstCancel': _finGstEdit = null; renderFinance(); return true;
+    case 'invFinGstSave': finGstNoteSave(btn.dataset.month); return true;
+    case 'invFinGstRemove':
+      if (!confirm('Remove the note for ' + billsMonthLabel(btn.dataset.month) + '?')) return true;
+      delete bankData().gstNotes[btn.dataset.month]; _finGstEdit = null; saveState(); renderFinance(); return true;
   }
   return false;
 }
@@ -20878,9 +21220,9 @@ function todoGo(go) {
     case 'stock': _stockItemId = go.id; _stockView = 'item'; switchTab('pageStock'); break;
     case 'stockPaste': _stockView = 'paste'; switchTab('pageStock'); break;
     case 'bills':
-      _stockView = 'bills';
-      _costBillOpen = go.month ? { where: 'stock', month: go.month } : false;
-      switchTab('pageStock');
+      finSetTab('bills');
+      _costBillOpen = go.month ? { where: 'finance', month: go.month } : false;
+      switchTab('pageFinance');
       break;
     case 'cnBatch':
       regFilter.clientId = String(go.clientId); regFilter.month = ''; regFilter.search = ''; regFilter.state = '';
@@ -25645,6 +25987,7 @@ document.addEventListener('click', function(e) {
     default:
       if (billsAction(action, btn)) break;
       if (bankAction(action, btn)) break;
+      if (financeAction(action, btn)) break;
       if (action.indexOf('invStock') === 0) stockAction(action, btn);
       else if (action.indexOf('invTodo') === 0) todoAction(action, btn);
       else if (action.indexOf('invRelay') === 0) relayAction(action, btn);
@@ -25707,6 +26050,7 @@ document.addEventListener('change', function(e) {
   if (stockOnChange(e.target)) return;
   if (billsCnFormInput(e.target)) return;
   if (e.target.id !== 'bankSearch' && bankInput(e.target)) return;
+  if (financeInput(e.target)) return;
   if (todoOnChange(e.target)) return;
   if (relayOnChange(e.target)) return;
   const el = e.target.closest('[data-action="invUpdateLine"]');
@@ -26749,6 +27093,7 @@ var SIDE_ICONS = {
   stock: '<path d="M9 3h6M10 3v6L4.5 19a1.3 1.3 0 0 0 1.1 2h12.8a1.3 1.3 0 0 0 1.1-2L14 9V3M7.5 14h9"/>',
   staff: '<path d="M15 20v-1.5a3.5 3.5 0 0 0-3.5-3.5h-5A3.5 3.5 0 0 0 3 18.5V20M9 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7M16 11l2 2 4-4"/>',
   pay: '<path d="M3 7h18v10H3zM12 14.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5"/>',
+  finance: '<path d="M4 21h16M5 10h14M12 3 4 7h16zM7 10v8M12 10v8M17 10v8"/>',
   todo: '<path d="M9 11l3 3 8-8M20 12v7a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h11"/>',
   stats: '<path d="M4 20V11M10 20V5M16 20v-6M3 20h18"/>',
   history: '<path d="M12 7v5l3 2M3.5 12a8.5 8.5 0 1 0 2.5-6M3 4v4h4"/>',
@@ -26757,6 +27102,7 @@ var SIDE_ICONS = {
 var SIDE_NAV = [
   ['Daily', [['pageHome', 'Home', 'home'], ['pageCreate', 'Create invoice', 'create'], ['pageIM', 'Challans', 'im'], ['pageRegister', 'Register', 'register']]],
   ['Book', [['pageClients', 'Clients', 'clients'], ['pageClients', 'Items', 'items', 'items']]],
+  ['Money', [['pageFinance', 'Finance', 'finance']]],
   ['Floor', [['pageStock', 'Stock', 'stock'], ['pageStaff', 'Staff', 'staff'], ['pageStaff', 'Pay', 'pay', 'pay']]],
   ['Review', [['pageTodo', 'To-do', 'todo'], ['pageStats', 'Stats', 'stats'], ['pageHistory', 'History', 'history']]]
 ];

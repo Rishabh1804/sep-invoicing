@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
 import { emptyState, loadAppWithState, noSeedIM, openStatsTab, readStoredState, recentTs, switchTab, todayIso, type SepState } from './fixtures';
 
-// P56: Stock → Bills & notes. The electricity bill and the credit note each had no door the owner
+// P56: Finance → Bills & notes (moved from Stock, 26 Sep 2026). The electricity bill and the credit note each had no door the owner
 // could find (26 Sep 2026); a stock line's name had none at all.
 
 function prevMonth(): string {
@@ -33,8 +33,8 @@ function state(): SepState {
 }
 
 async function openBills(page: Page) {
-  await switchTab(page, 'pageStock');
-  await page.locator('[data-action="invStockTab"][data-tab="bills"]').click();
+  await switchTab(page, 'pageFinance');
+  await page.locator('[data-action="invFinTab"][data-tab="bills"]').click();
 }
 
 test('a closed month with no electricity bill is listed, and Add fills in that month', async ({ page }) => {
@@ -151,17 +151,17 @@ test('a stock line is renamed and re-united, and a message in the old name still
   expect(await page.evaluate(() => { const w = window as any; return w.stockFindByKey(w.stockKey('Nitric acid 68%'))?.id; })).toBe('SI1');
 });
 
-test('a form left open on Stats does not capture the Stock form\'s Save', async ({ page }) => {
+test('a form left open on Stats does not capture the Finance form\'s Save', async ({ page }) => {
   await loadAppWithState(page, state());
   await openStatsTab(page, 'cost');
   await page.locator('#liveCost [data-action="invCostBillOpen"]').click();
-  // Left open; the same ids now also exist on Stock, and Stats comes first in the page.
+  // Left open; the same ids now also exist on Finance, and Stats comes first in the page.
   await openBills(page);
   const m = prevMonth();
   await page.locator(`[data-missing="${m}"] [data-action="invCostBillOpen"]`).click();
-  await expect(page.locator('#pageStock #costBillAmount')).toBeFocused();
-  await page.locator('#pageStock #costBillAmount').fill('4200');
-  await page.locator('#pageStock [data-action="invCostBillSave"]').click();
+  await expect(page.locator('#pageFinance #costBillAmount')).toBeFocused();
+  await page.locator('#pageFinance #costBillAmount').fill('4200');
+  await page.locator('#pageFinance [data-action="invCostBillSave"]').click();
   const bills = (await readStoredState(page)).costBills;
   expect(bills).toHaveLength(1);
   expect(bills[0]).toMatchObject({ kind: 'power', month: m, amount: 4200 });

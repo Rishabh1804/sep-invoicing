@@ -58,7 +58,7 @@ function cnNoteFy(cn) {
   return p.length > 2 ? p.slice(2).join('/') : '';
 }
 /* A note of the current series: this financial year's, or one that states no
-   year. A note recorded from an earlier year (Stock → Bills & notes takes the
+   year. A note recorded from an earlier year (Finance → Bills & notes takes the
    year as printed) holds a number in THAT year's series, never in this one's. */
 function cnInSeries(cn) {
   var fy = cnNoteFy(cn);
@@ -379,9 +379,9 @@ function cancelCreditNote(cnId) {
   cn.cancelledAt = Date.now();
   cn.updatedAt = Date.now();
   saveState();
-  // Cancelled from wherever the note is listed: the Register's overlay, or Stock → Bills & notes.
+  // Cancelled from wherever the note is listed: the Register's overlay, or Finance → Bills & notes.
   if (document.querySelector('.inv-overlay-scrim')) { closeOverlay(); renderCreditNoteList(); }
-  else if (typeof _stockView !== 'undefined' && _stockView === 'bills') renderStock();
+  else if (document.querySelector('#pageFinance.inv-page-active')) renderFinance();
   showToast(cn.displayNumber + ' cancelled — the number stays in the series');
 }
 

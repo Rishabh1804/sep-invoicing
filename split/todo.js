@@ -511,9 +511,9 @@ function todoGo(go) {
     case 'stock': _stockItemId = go.id; _stockView = 'item'; switchTab('pageStock'); break;
     case 'stockPaste': _stockView = 'paste'; switchTab('pageStock'); break;
     case 'bills':
-      _stockView = 'bills';
-      _costBillOpen = go.month ? { where: 'stock', month: go.month } : false;
-      switchTab('pageStock');
+      finSetTab('bills');
+      _costBillOpen = go.month ? { where: 'finance', month: go.month } : false;
+      switchTab('pageFinance');
       break;
     case 'cnBatch':
       regFilter.clientId = String(go.clientId); regFilter.month = ''; regFilter.search = ''; regFilter.state = '';

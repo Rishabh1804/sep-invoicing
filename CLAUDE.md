@@ -15,6 +15,11 @@ When in QA mode, switch to **Cipher** (The Codewright): precise, minimalist, cat
 
 **Set by the owner, 24 Sep 2026.** This repo is one of three SEP repos, each worked in its own session, plus a fourth **compile session** that attaches all three and reconciles their data (canonical description: `soma-internal/docs/CROSS_REPO_SESSIONS.md`). `docs/NEXT_SESSION.md` holds the queued work — rate matcher, stock tab, to-do widget, patches — and **this repo's side of every data flow** with the other two. If a session changes one of those flows, say so in the PR.
 
+**Finance & intelligence work in progress — read `docs/FINANCE_INTELLIGENCE_SPEC.md` next.** Set by the owner,
+26 Sep 2026: cheque placement and series, a note for a month's GST paid outside the bank, an interactive finance
+dashboard, a live cost that uses the bank statement, the intelligence rules and forecast, and the tabs linked into
+one picture — in seven phases, one PR each. Its §0 says what is built.
+
 ## What SEP Invoicing Is
 
 Workforce management and invoicing PWA for **Soma Electro Products**, a zinc electroplating job-work operation in Adityapur Industrial Area, Jamshedpur. Handles client management, incoming material tracking, invoice creation (3 billing modes), GST-compliant exports, and business analytics.

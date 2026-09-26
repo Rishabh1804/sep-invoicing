@@ -125,6 +125,7 @@ function homeQuick(go) {
   else if (go === 'attendance') { _attView = 'day'; _attDate = localDateStr(); switchTab('pageStaff'); }
   else if (go === 'paste') relayOpen();
   else if (go === 'task') {
+    _todoShowDone = false;  // the add field is on the Open tab
     switchTab('pageTodo');
     var inp = document.getElementById('todoNew');
     if (inp) inp.focus();

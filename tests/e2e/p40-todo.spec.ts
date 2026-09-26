@@ -56,23 +56,25 @@ test.describe('P40: To-do', () => {
     await switchTab(page, 'pageTodo');
     await page.locator('#todoNew').fill('Ask about CN/001');
     await page.locator('#todoNew').press('Enter');
-    const row = page.locator('.inv-td-row').filter({ hasText: 'Ask about CN/001' });
+    const row = page.locator('#todoContent [data-todo="mine"]').filter({ hasText: 'Ask about CN/001' });
     await expect(row).toHaveCount(1);
     // Enter leaves the box ready for the next one.
     await expect(page.locator('#todoNew')).toBeFocused();
     await expect(page.locator('#todoNew')).toHaveValue('');
 
     await row.locator('[data-action="invTodoToggle"]').click();
-    await expect(page.locator('.inv-td-fold').first()).toContainText('Done · 1');
+    await expect(page.locator('.inv-viewtab[data-v="done"]')).toContainText('Done 1');
     let st = (await readStoredState(page)).todo;
     expect(st.tasks).toHaveLength(1);
     expect(st.tasks[0].doneAt).toBeGreaterThan(0);
 
-    await page.locator('[data-action="invTodoFoldDone"]').click();
-    await page.locator('.inv-td-row-done [data-action="invTodoToggle"]').click();
+    await page.locator('[data-action="invTodoFoldDone"][data-v="done"]').click();
+    await expect(page.locator('.inv-viewtab[data-v="done"]')).toHaveAttribute('aria-selected', 'true');
+    await page.locator('#todoContent [data-done] [data-action="invTodoToggle"]').click();
     st = (await readStoredState(page)).todo;
     expect(st.tasks[0].doneAt).toBeNull();
-    await expect(page.locator('.inv-td-row').filter({ hasText: 'Ask about CN/001' })).not.toHaveClass(/inv-td-row-done/);
+    await page.locator('[data-action="invTodoFoldDone"][data-v="open"]').click();
+    await expect(page.locator('#todoContent [data-todo="mine"]').filter({ hasText: 'Ask about CN/001' })).not.toHaveAttribute('data-done', /.*/);
   });
 
   test('a task due yesterday is late: red, counted on More, and on Home', async ({ page }) => {
@@ -84,9 +86,9 @@ test.describe('P40: To-do', () => {
     await expect(home.locator('[data-todo="mine"] .inv-badge').first()).toBeVisible();
 
     await switchTab(page, 'pageTodo');
-    await expect(page.locator('.inv-td-row.inv-td-tone-red')).toContainText('Check the nitric count');
-    await expect(page.locator('.inv-stk-meta')).toContainText('2 open');
-    await expect(page.locator('.inv-stk-meta')).toContainText('1 late');
+    await expect(page.locator('#todoContent [data-todo][data-tone="red"]')).toContainText('Check the nitric count');
+    await expect(page.locator('#todoContent .inv-pagehead-meta')).toContainText('2 open');
+    await expect(page.locator('#todoContent .inv-pagehead-meta')).toContainText('1 late');
   });
 
   test('stock running out raises an App task; a snooze holds until the figures change', async ({ page }) => {
@@ -94,16 +96,16 @@ test.describe('P40: To-do', () => {
     await switchTab(page, 'pageTodo');
     const row = page.locator('#todoContent [data-action="invTodoOpenApp"]').filter({ hasText: 'Order Q558' });
     await expect(row).toHaveCount(1);
-    await expect(row).toHaveClass(/inv-td-tone-red/);
+    await expect(row).toHaveAttribute('data-tone', 'red');
     await expect(row).toContainText('8 KG left');
     // An App task has no tick box: it clears itself.
-    await expect(row.locator('.inv-td-box')).toHaveCount(0);
+    await expect(row.locator('.inv-check, [data-action="invTodoToggle"]')).toHaveCount(0);
 
     await row.click();
-    await expect(page.locator('.inv-td-clears').first()).toContainText('Clears itself');
+    await expect(page.locator('[data-todo-clears]').first()).toContainText('Clears itself');
     await page.locator('[data-action="invTodoSnooze"][data-v="sig"]').click();
     await expect(page.locator('#todoContent [data-action="invTodoOpenApp"]').filter({ hasText: 'Order Q558' })).toHaveCount(0);
-    await expect(page.locator('[data-action="invTodoFoldSnoozed"]')).toContainText('Snoozed · 1');
+    await expect(page.locator('#todoContent [data-todo-sec="snoozed"] .inv-panel-head')).toContainText('Snoozed 1');
 
     // The line runs out: the figures the snooze was granted on no longer hold.
     await g(page, `S.stock.entries.push({ id: 'SE-4', itemId: 'SI-1', kind: 'used', qty: 8, date: '${todayIso()}', at: 4, seq: 1, days: 1 }); saveState(); renderTodo();`);
@@ -151,7 +153,7 @@ test.describe('P40: To-do', () => {
     const t = (await readStoredState(page)).todo.tasks[0];
     expect(t.due).toBe(iso(1));
     expect(t.link).toEqual({ kind: 'client', id: '1', label: 'TEST CLIENT KG' });
-    const row = page.locator('.inv-td-row').filter({ hasText: 'Revise rate' });
+    const row = page.locator('#todoContent [data-todo="mine"]').filter({ hasText: 'Revise rate' });
     await expect(row).toContainText('Tomorrow');
     await row.locator('[data-action="invTodoGo"]').click();
     await expect(page.locator('#ceditName')).toHaveValue('TEST CLIENT KG');

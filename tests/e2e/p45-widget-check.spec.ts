@@ -36,7 +36,7 @@ test('the widget check names the first step that fails, and what to do', async (
   await page.evaluate(() => (window as any).openSettings('todo'));
   await page.locator('[data-action="invTodoWidgetCheck"]').click();
   const box = page.locator('#todoWidgetStatus');
-  await expect(box.locator('.inv-td-wverdict-bad')).toBeVisible();
+  await expect(box.locator('.inv-callout-warning[data-verdict="bad"]')).toBeVisible();
   await expect(box).toContainText('No: Microsoft Edge');
   await expect(box).toContainText('No: Widget on the board');
 });

@@ -28,7 +28,7 @@ Workforce management and invoicing PWA for **Soma Electro Products**, a zinc ele
 
 ## Architecture
 
-Split-file PWA. 48 modules, ~27,100 lines total.
+Split-file PWA. 49 modules, ~27,400 lines total.
 
 ```
 split/
@@ -73,6 +73,7 @@ split/
 ├── insights.js        ← Insights (as To-do rules), predictions, invoice PO/vehicle prefill (~330 lines)
 ├── finintel.js        ← Finance intelligence: eleven bank To-do rules, days to pay, the cash forecast (~400 lines)
 ├── finlinks.js        ← Finance linked into Home, Stats, Clients, Register, Pay, Stock (~200 lines)
+├── dash.js            ← Staff and Stock Overviews: attendance, labour ₹/kg, OT by area, payroll vs bank; days left, supplier spend, use, prices (~230 lines)
 ├── client-perf.js     ← Client performance: month on month + material cadence (314 lines)
 ├── im-form.js         ← IM add/edit/delete challan form (450 lines)
 ├── im-dupe.js         ← IM duplicate guard: fingerprint + pre-save warn + scan (305 lines)
@@ -83,7 +84,7 @@ split/
 └── init.js            ← Migrations + app bootstrap (567 lines)
 ```
 
-**Concat order defined in build.sh.** Dependencies: data → state → appearance → zinc → tabs → clients → items → create → settings → github-sync → invoice-ops → number-audit → exports → im → autocomplete → print → quality-cert → credit-note → charts → staff → labour → areas → payroll → stock → cost → bills → xls → xlsx → bank → finance → todo → relay → stats → intel → insights → finintel → finlinks → client-perf → im-form → im-dupe → scanner → events → swipe → seed → init.
+**Concat order defined in build.sh.** Dependencies: data → state → appearance → zinc → tabs → clients → items → create → settings → github-sync → invoice-ops → number-audit → exports → im → autocomplete → print → quality-cert → credit-note → charts → staff → labour → areas → payroll → stock → cost → bills → xls → xlsx → bank → finance → todo → relay → stats → intel → insights → finintel → finlinks → dash → client-perf → im-form → im-dupe → scanner → events → swipe → seed → init.
 
 **Every module shares one global scope.** A top-level `var` or `function` in a later module silently replaces one of
 the same name in an earlier one; nothing warns. `bills.js` shipped a `STOCK_UNITS` array over `stock.js`'s unit map
@@ -113,7 +114,7 @@ every session start — nothing to set up by hand. CI (`build-sync`) is the back
 ### Tests
 
 ```bash
-pnpm exec playwright test          # 512 tests, both layouts
+pnpm exec playwright test          # 525 tests, both layouts
 ```
 
 Some sandboxes ship a Chromium build Playwright does not expect and block downloading
@@ -1440,6 +1441,26 @@ to read it in the app yet"* — all three of receipts, payments and the ledger, 
   frozen and filtered. **Summary** has the period, opening and closing balance, the balance check, and each
   category's rows, money in and money out, footing to the closing balance. Read back by `openpyxl` cleanly; P57
   unzips the download by hand, checks every part's CRC, and asserts the order, the date serials and the overdraft.
+- **Bug search, 26 Sep 2026 (P66).** The review over the merged finance code found these, now pinned:
+  - **A cheque deposit is never a payee.** Every one reads *Cheque deposited*, and one save had written a rule
+    placing all of them on one client.
+  - **The edit form's client picker waits for Save.** It had placed the receipt the moment it changed.
+  - **A receipt rule covers money in only.** A refund to the same party stays a payment.
+  - ***Nobody on the roster* clears a guessed hand.**
+  - **Exact matching only uses invoices raised by the day the receipt came in.**
+  - **An invoice dated ahead of today is not over 90 days.**
+  - **A month the statement never reached reads *No statement*,** not *Not in bank*.
+- **A returned cheque is linked to the deposit it undoes** (`bankLinkBounces`, owner: *"work on the open item"*):
+  - **By cheque number, automatically.** A debit naming a deposit's cheque number, within 60 days after it.
+  - **By amount, offered only.** A same-amount deposit in the 15 days before is offered with **Link**, never applied.
+  - **Posting-and-reversal pairs cancel.** A debit and credit of one amount and narration on one day cancel and
+    link to nothing: the real statement's only `REJECT` rows are such pairs, for the shop's own cheque 001290.
+  - **The owner's choice wins** (`S.bank.bounces`: a deposit id, or `null` for *not a bounce*), and is exported in
+    `sep-bank`.
+  - **A linked deposit stops being a receipt.** Every reading of receipts sees the client unpaid again, and its
+    cheque still counts in the client's series.
+  - Finance → Receivables → **Returned cheques** lists each one. To-do rule `bankBounce` asks until each is linked or
+    marked.
 - **Owned by soma-internal**, like stock: *Export JSON* writes `sep-bank` JSON (rows with their resolved category,
   payee rules, openings). The statement is never committed here; the specs read two fake statements in the
   bank's layout, `tests/fixtures/bank-*.xls`.
@@ -1489,7 +1510,7 @@ figure is the strongest evidence this repo has; this gives the live cost a secon
 ### The statement as intelligence
 Finance intelligence (`finintel.js`; spec Phase 5). The bank statement feeds the To-do and a forecast.
 
-- **Eleven To-do rules**, each switchable in Settings → Checks & alerts → To-do:
+- **Twelve To-do rules**, each switchable in Settings → Checks & alerts → To-do:
   - `bankStale`: the statement is 14 days old;
   - `bankLoose`: receipts still have no client a week on;
   - `owed90`: invoices over 90 days, per client. Never red while any receipt is unplaced, because that money may
@@ -1501,7 +1522,8 @@ Finance intelligence (`finintel.js`; spec Phase 5). The bank statement feeds the
   - `wageVsSlip`: a named salary leg against the payroll as paid;
   - `cashSwing`: last week's cash drawn is 25% off its payout;
   - `costGap`: recorded against paid over three closed months;
-  - `runway`: the forecast goes below zero within 45 days.
+  - `runway`: the forecast goes below zero within 45 days;
+  - `bankBounce`: a returned cheque is not linked to its deposit, or marked not a bounce.
 - **Days to pay** (`bankDaysToPay`) is weighted by amount. Each receipt counts the days from each invoice it paid, and
   opening balances are left out. Receivables and the Overview's debtor rows show it as *pays in N d*.
 - **Cash forecast, 60 days** (`finForecast`, Finance → Overview): the latest balance, plus what is expected in, less
@@ -1525,6 +1547,26 @@ than a zero.
 - **Staff → Pay:** the bank's wage legs beside the payroll as paid, one function shared with Payments.
 - **Stock:** what the bank paid each supplier. The reorder list sets its cost against the forecast's lowest point.
 - **Finance → Payments:** each section links to its home screen.
+
+### Staff and Stock open on an Overview
+Staff and Stock dashboards (`dash.js`; spec 7a, 7b; owner: *"We'll do the same for Staff, Stock"*). Both screens open
+on an Overview built from the Phase 2 charts.
+
+- **Staff → Overview:**
+  - today's attendance (the Home card's panel, one function);
+  - attendance % by pay week, where a week nobody typed is a gap;
+  - labour ₹/kg by month: recorded where 90% of days are typed, paid from the bank where the statement covers
+    the month, and the model;
+  - OT and EXTRA hours by area over four weeks;
+  - payroll against the bank's salary legs;
+  - the labour and pay tasks raised.
+- **Stock → Overview · Lines:**
+  - days left per line;
+  - spend by supplier (tap a slice for its bills and what the bank paid);
+  - rupees used by week;
+  - one line's price trend;
+  - the reorder list's cash against the forecast.
+- Entry keeps its doors. Home → Attendance opens Day, and Paste message and Enter by hand sit on both Stock tabs.
 
 ### Stock reorder list
 More → Stock → **Reorder list** (owner, 25 Sep 2026). For each line with a daily use:

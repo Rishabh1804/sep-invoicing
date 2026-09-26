@@ -628,7 +628,7 @@ function updateSideCounts() {
    be a bare switchTab, so from Pay, Staff switched to the page already open, on the view already
    showing, and nothing moved (owner, 26 Sep 2026). A plain entry now leaves any view that belongs to
    its sibling for the page's own default, and keeps every other view (Staff from Week stays on Week). */
-var SIDE_SUB_DEFAULT = { pageClients: 'clients', pageStaff: 'day' };
+var SIDE_SUB_DEFAULT = { pageClients: 'clients', pageStaff: 'overview' };
 function sideGo(tabId, sub) {
   if (!sub) {
     var cur = _currentSub(tabId);

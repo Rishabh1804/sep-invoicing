@@ -35,6 +35,9 @@ function chartShort(v, unit) {
     return Math.abs(v) >= 1000 ? formatNum(v / 1000, 1) + 't' : formatNum(v, 0) + 'kg';
   }
   if (unit === 'count') return formatNum(v, 0);
+  if (unit === 'pct') return formatNum(v, 0) + '%';
+  if (unit === 'rate') return '₹' + formatNum(v, 2);
+  if (unit === 'h') return formatNum(v, 0) + 'h';
   if (Math.abs(v) >= 100000) return '₹' + formatNum(v / 100000, 1) + 'L';
   if (Math.abs(v) >= 1000) return '₹' + formatNum(v / 1000, 0) + 'K';
   return '₹' + formatNum(v, 0);
@@ -43,6 +46,9 @@ function chartShort(v, unit) {
 function chartFull(v, unit) {
   if (unit === 'kg') return formatNum(v, 0) + ' kg';
   if (unit === 'count') return formatNum(v, 0);
+  if (unit === 'pct') return formatNum(v, 1) + '%';
+  if (unit === 'rate') return formatCurrency(v) + '/kg';
+  if (unit === 'h') return formatNum(v, 1) + ' h';
   return formatCurrency(v);
 }
 

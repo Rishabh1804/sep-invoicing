@@ -36,7 +36,8 @@ needs one it does not define).
 | **Phase 3** — the interactive Finance Overview (range, cash, where money went/came from, invoiced vs received, GST chart) | merged (#83); P59 | `finance.js` |
 | **Phase 4** — bank-paid cost by month, `notCost`, unsorted payees, precedence, recorded vs paid, Derive from the bank | merged (#84); P61 | `bank.js`, `cost.js`, `settings.js` |
 | **Phase 5** — eleven finance To-do rules, days to pay, the 60-day cash forecast | merged (#84); P62 | `finintel.js` |
-| **Phase 6** — finance linked into Home, Stats, Clients, Register, Pay, Stock and back from Payments | built; P64 | `finlinks.js` |
+| **Phase 6** — finance linked into Home, Stats, Clients, Register, Pay, Stock and back from Payments | merged (#85); P64 | `finlinks.js` |
+| **Phase 7** — Staff and Stock open on an Overview (7a, 7b) | built; P65 | `dash.js` |
 
 Data already available to build on — **use these, do not re-derive**:
 
@@ -301,6 +302,44 @@ Same pattern as Finance: the screen opens on an **Overview** tab built from Phas
   (lines), price trend per line, reorder cash need vs the cash forecast.
 
 Specify each in its own section of this file before building it.
+
+### 7a. Staff → Overview (`dash.js`, `staffOverviewHtml`)
+The first chip on Staff, and where the tab opens (the sidebar's Staff and More → Staff). Home → Attendance and
+Paste message still open Day and the paste box, because they are entry, not reading. Every panel names its
+instrument, and a week or month nobody typed is a gap in the line, never a zero.
+
+| Panel | Figure | Instrument |
+|---|---|---|
+| **Today** | on site / active roster · floor heads / complement · absent (named) · EXTRA booked | the day's marks (`attDaySummary`, the Home card's arithmetic, one function); the last typed day when today is empty, and says so |
+| **Attendance by week** | line, last 12 pay weeks | worker-days present (P = 1, H = ½) ÷ the active roster's marks typed that week (P, H or A) — unmarked is not absent; a week with no mark is null |
+| **Labour ₹/kg by month** | lines, last 6 closed months: recorded, paid (bank), model | `labourForRange` ÷ `weighLines` kg where 90% of days are recorded; bank `bankCostForRange().labour` ÷ kg where the month is known; `labourCfg().modelPerKg` flat |
+| **OT and EXTRA by area** | stacked bars, last 4 pay weeks: OT hours, EXTRA hours per area | `areaHoursForRange` |
+| **Payroll against the bank** | grouped bars, last 6 closed months: payroll as paid (else the model's monthly tier), named salary legs the bank paid for that month | `payrollPaidFor`, `labourForRange().byWorker`, `bankCostByMonth().months[m].labour.named` |
+| **Raised** | the staff To-do rules now open: `insLabour`, `insAttGap`, `wageVsSlip`, `cashSwing`, `costGap:labour` | `todoApp()`, each row opening its task's `go` |
+
+### 7b. Stock → Overview (`dash.js`, `stockOverviewHtml`)
+View tabs **Overview · Lines** on Stock; the tab opens on Overview. *Paste message* and *Enter by hand* stay the
+page's actions and sit on both tabs.
+
+| Panel | Figure | Instrument |
+|---|---|---|
+| **Days left** | ranked bars, red / amber by the Stock alert lines, a line with no daily use listed apart; a tap opens the line | `stockStatus` |
+| **Spend by supplier** | `chartPieTap`, last 6 months of bills (before GST); a slice lists that supplier's bills and what the bank paid them | `stockPurchases`, `finSupplierPaid` |
+| **Used, in rupees, by week** | lines, last 12 weeks: total and the four largest lines, each at the price paid on the day | used / charged entries × `stockPriceAt`; an unpriced line is left out and counted under the chart |
+| **Price trend** | one line's bill prices over time, picked from a `<select>` (speaks through `change`) | `stockPurchases` |
+| **Reorder cash** | tiles: the reorder list at the last prices with GST · the forecast's lowest in 45 days · what is left after it | `stockReorderList`, `finForecast` |
+
+**As built (26 Sep 2026).** As specified, with these notes:
+- Home → Attendance and the To-do's staff links still open Day, Roster or Paste; *Open the day* on the Overview's
+  attendance panel is its own action, so no screen carries two controls for one view.
+- Today's attendance is `attDaySummary()` + `attDayPanelHtml()` in `payroll.js`, drawn by Home and the Overview alike.
+- Charts gained three units: `pct`, `rate` (₹/kg, two places) and `h`; ranked bars gained a `warning` fill.
+- Staff and Stock specs that are about Day or Lines now open that view themselves (P24, P28, P39, P46, P56), and P58's
+  *Staff from Pay* lands on Overview.
+
+**Tests (new P65):** Staff and Stock open on Overview; each panel shows its figure on fake data built from today; a
+week with nothing recorded is a gap, not a zero; tapping a days-left bar opens the line; a supplier slice lists its
+bills; the price select redraws only its chart; Home → Attendance still opens Day.
 
 ---
 

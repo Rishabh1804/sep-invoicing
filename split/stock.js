@@ -551,7 +551,8 @@ function stockCommitPaste(parsed, res, meta) {
 }
 
 /* ---------- Screens ---------- */
-var _stockView = 'list';
+var _stockView = 'overview';
+var _stockHome = 'overview';   // Overview or Lines, whichever was open last: where Back returns to
 var _stockReview = null;   // { text, parsed, choices, sentBy }
 var _stockManual = null;   // { mode, date, supplier, billNo, bath, vals: {itemId: {qty, price}} }
 var _stockItemId = null;
@@ -587,7 +588,8 @@ function renderStock() {
   else if (_stockView === 'manual' && _stockManual) el.innerHTML = renderStockManual();
   else if (_stockView === 'item' && stockItem(_stockItemId)) el.innerHTML = renderStockItem(stockItem(_stockItemId));
   else if (_stockView === 'reorder' && _stockReorder) el.innerHTML = renderStockReorder();
-  else { _stockView = 'list'; el.innerHTML = renderStockList(); }
+  else if (_stockView === 'overview') { _stockHome = 'overview'; el.innerHTML = stockViewTabsHtml() + stockOverviewHtml(); }
+  else { _stockView = _stockHome = 'list'; el.innerHTML = stockViewTabsHtml() + renderStockList(); }
   updateStockBadge();
 }
 
@@ -1112,7 +1114,7 @@ function stockAction(action, btn) {
     case 'invStockManual': stockOpenManual(); break;
     case 'invStockBack':
       if (_stockView === 'review') { stockSetView('paste'); break; }
-      _stockReview = null; _stockManual = null; _stockReorder = null; stockSetView('list'); break;
+      _stockReview = null; _stockManual = null; _stockReorder = null; stockSetView(_stockHome); break;
     case 'invStockOpen': _stockItemId = btn.dataset.id; stockSetView('item'); break;
     case 'invStockBal':
       if (_stockReview) { _stockReview.choices['bal' + btn.dataset.i] = btn.dataset.v; renderStock(); }

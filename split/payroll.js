@@ -506,45 +506,49 @@ function areaHoursCard(from, to) {
 }
 
 /* ===== Home: the day's attendance ===== */
-function renderAttHomeCard() {
-  var el = document.getElementById('homeAttCard');
-  if (!el) return;
+/* One day's attendance, read once: Home's card and Staff → Overview draw the same figures. The day is today,
+   or the last day that has marks when nothing is typed today, and it says which. */
+function attDaySummary() {
   var roster = staffActive();
-  if (!roster.length) { el.innerHTML = ''; return; }
   var today = localDateStr();
   var iso = today, rec = (S.attendance || {})[today];
   var marked = function(r) { return r && Object.keys(r.marks || {}).length > 0; };
   if (!marked(rec)) {
-    // Nothing typed today yet: show the last day that was, and say which.
     var last = Object.keys(S.attendance || {}).filter(function(k) { return k < today && marked(S.attendance[k]); }).sort().pop();
     if (last) { iso = last; rec = S.attendance[last]; }
   }
-  var h = '<div class="inv-panel inv-panel-flush"><div class="inv-panel-head"><span class="inv-panel-title">Attendance ' +
-    '<span class="inv-panel-count">' + (iso === today ? 'today' : escHtml(attDayName(iso) + ' ' + formatDate(iso))) + '</span></span>' +
-    '<button class="inv-btn-link" data-action="invPayOpenAtt">Open</button></div>';
-  if (!marked(rec)) {
-    h += '<div class="inv-empty">Nothing recorded yet.</div>';
-  } else {
-    var p = 0, half = 0, absent = [], unmarked = 0, floorHeads = 0;
-    roster.forEach(function(w) {
-      var m = rec.marks[w.id];
-      if (!m || !m.st) { unmarked++; return; }
-      if (m.st === 'A') { absent.push(w.name); return; }
-      if (m.st === 'H') half++; else p++;
-      if (w.onFloor !== false && _areaIsFloor(m.area || w.area)) floorHeads++;
-    });
-    var complement = STAFF_AREAS.reduce(function(s, a) { var t = areaTarget(a.id); return s + (t != null ? t : 0); }, 0);
-    var extraH = (rec.extra || []).reduce(function(s, x) { return s + (x.hours || 0); }, 0);
-    var short = complement && floorHeads < complement;
-    h += '<div class="inv-tiles inv-tiles-flush">' +
-      '<div class="inv-tile"><div class="inv-tile-label">On site</div>' +
-      '<div class="inv-tile-value" id="homeAttOnSite">' + (p + half) + '<span class="inv-tile-of">/' + roster.length + '</span></div>' +
-      '<div class="inv-tile-sub">' + (half ? half + ' half day' + (half === 1 ? '' : 's') + ' · ' : '') + absent.length + ' absent' + (unmarked ? ' · ' + unmarked + ' unmarked' : '') + '</div></div>' +
-      '<div class="inv-tile' + (short ? ' inv-tile-warning' : '') + '"><div class="inv-tile-label">On the floor</div>' +
-      '<div class="inv-tile-value">' + floorHeads + (complement ? '<span class="inv-tile-of">/' + complement + '</span>' : '') + '</div>' +
-      '<div class="inv-tile-sub">' + (complement ? (short ? (complement - floorHeads) + ' short of the complement' : 'against the complement') : 'no complement set') + '</div></div></div>';
-    if (absent.length) h += '<div class="inv-row inv-row-2"><span class="inv-row-main"><span class="inv-row-meta">Absent</span><span class="inv-row-wrap">' + escHtml(absent.join(', ')) + '</span></span></div>';
-    if (extraH) h += '<div class="inv-row"><span class="inv-row-main">EXTRA booked</span><span class="inv-row-end inv-num">' + formatNum(extraH, 1) + ' h</span></div>';
-  }
-  el.innerHTML = h + '</div>';
+  var out = { roster: roster, iso: iso, today: iso === today, marked: marked(rec), p: 0, half: 0, absent: [], unmarked: 0, floorHeads: 0, complement: 0, extraH: 0, short: false };
+  if (!out.marked) return out;
+  roster.forEach(function(w) {
+    var m = rec.marks[w.id];
+    if (!m || !m.st) { out.unmarked++; return; }
+    if (m.st === 'A') { out.absent.push(w.name); return; }
+    if (m.st === 'H') out.half++; else out.p++;
+    if (w.onFloor !== false && _areaIsFloor(m.area || w.area)) out.floorHeads++;
+  });
+  out.complement = STAFF_AREAS.reduce(function(s, a) { var t = areaTarget(a.id); return s + (t != null ? t : 0); }, 0);
+  out.extraH = (rec.extra || []).reduce(function(s, x) { return s + (x.hours || 0); }, 0);
+  out.short = !!out.complement && out.floorHeads < out.complement;
+  return out;
+}
+function attDayPanelHtml(d, headBtn, id) {
+  var h = '<div class="inv-panel inv-panel-flush"' + (id ? ' id="' + id + '"' : '') + '><div class="inv-panel-head"><span class="inv-panel-title">Attendance ' +
+    '<span class="inv-panel-count">' + (d.today ? 'today' : escHtml(attDayName(d.iso) + ' ' + formatDate(d.iso))) + '</span></span>' + (headBtn || '') + '</div>';
+  if (!d.marked) return h + '<div class="inv-empty">Nothing recorded yet.</div></div>';
+  h += '<div class="inv-tiles inv-tiles-flush">' +
+    '<div class="inv-tile"><div class="inv-tile-label">On site</div>' +
+    '<div class="inv-tile-value"' + (id === 'homeAtt' ? ' id="homeAttOnSite"' : '') + '>' + (d.p + d.half) + '<span class="inv-tile-of">/' + d.roster.length + '</span></div>' +
+    '<div class="inv-tile-sub">' + (d.half ? d.half + ' half day' + (d.half === 1 ? '' : 's') + ' · ' : '') + d.absent.length + ' absent' + (d.unmarked ? ' · ' + d.unmarked + ' unmarked' : '') + '</div></div>' +
+    '<div class="inv-tile' + (d.short ? ' inv-tile-warning' : '') + '"><div class="inv-tile-label">On the floor</div>' +
+    '<div class="inv-tile-value">' + d.floorHeads + (d.complement ? '<span class="inv-tile-of">/' + d.complement + '</span>' : '') + '</div>' +
+    '<div class="inv-tile-sub">' + (d.complement ? (d.short ? (d.complement - d.floorHeads) + ' short of the complement' : 'against the complement') : 'no complement set') + '</div></div></div>';
+  if (d.absent.length) h += '<div class="inv-row inv-row-2"><span class="inv-row-main"><span class="inv-row-meta">Absent</span><span class="inv-row-wrap">' + escHtml(d.absent.join(', ')) + '</span></span></div>';
+  if (d.extraH) h += '<div class="inv-row"><span class="inv-row-main">EXTRA booked</span><span class="inv-row-end inv-num">' + formatNum(d.extraH, 1) + ' h</span></div>';
+  return h + '</div>';
+}
+function renderAttHomeCard() {
+  var el = document.getElementById('homeAttCard');
+  if (!el) return;
+  if (!staffActive().length) { el.innerHTML = ''; return; }
+  el.innerHTML = attDayPanelHtml(attDaySummary(), '<button class="inv-btn-link" data-action="invPayOpenAtt">Open</button>', 'homeAtt');
 }

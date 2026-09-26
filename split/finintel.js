@@ -242,7 +242,8 @@ var FIN_RULES = [
   ['wageVsSlip', 'Finance: a salary paid differs from the payroll as paid'],
   ['cashSwing', 'Finance: a week’s cash drawn is far from its payout'],
   ['costGap', 'Finance: a recorded cost is far from what was paid'],
-  ['runway', 'Finance: the cash forecast goes below zero']
+  ['runway', 'Finance: the cash forecast goes below zero'],
+  ['bankBounce', 'Finance: a returned cheque is not matched to its deposit']
 ];
 FIN_RULES.forEach(function(r) { TODO_RULES.push(r); TODO_CHECK_DEFAULTS[r[0]] = true; });
 function finGo(tab, extra) { return Object.assign({ kind: 'finance', tab: tab }, extra || {}); }
@@ -331,11 +332,15 @@ TODO_RULE_FNS.supplierNoBill = function() {
   var billKeys = Object.keys(bills).map(function(x) { return x.split('|')[0]; });
   finCtx().cls.forEach(function(v) {
     if (v.cat !== 'supplier' || !(v.row.dr > 0) || todoDaysBetween(v.row.date, today) > 90) return;
-    var pk = bankKey(v.party || ''), m = v.row.date.slice(0, 7);
-    var bk = billKeys.find(function(b) { return b.length >= 4 && (pk.indexOf(b) === 0 || b.indexOf(pk) === 0); });
+    var pk = bankKey(v.party || ''), nk = bankKey(v.row.narration || ''), m = v.row.date.slice(0, 7);
+    // The payee where the narration names one, else the supplier's name anywhere in the narration (as
+    // finSupplierPaid reads it). An empty or short payee key is a prefix of every supplier's name, and
+    // matched whichever bill came first.
+    var bk = billKeys.find(function(b) { return b.length >= 4 && (pk.length >= 4 ? pk.indexOf(b) === 0 || b.indexOf(pk) === 0 : nk.indexOf(b) >= 0); });
     // A bill dated that month or the one before covers the payment: a bill is paid after it is raised.
     if (bk && (bills[bk + '|' + m] || bills[bk + '|' + bankPrevMonth(m + '-01')])) return;
-    var e = byKey[pk + '|' + m] || (byKey[pk + '|' + m] = { name: v.supplier || v.party, month: m, paid: 0, n: 0 });
+    var gk = (pk || nk) + '|' + m;
+    var e = byKey[gk] || (byKey[gk] = { name: v.supplier || v.party || v.row.narration, month: m, paid: 0, n: 0 });
     e.paid = gstRound(e.paid + v.row.dr); e.n++;
   });
   return Object.keys(byKey).map(function(k) {
@@ -397,6 +402,16 @@ TODO_RULE_FNS.costGap = function() {
       why: 'Live cost · recorded against paid', facts: [['Recorded', formatCurrency(r.recorded)], ['Paid', formatCurrency(r.paid)], ['Reads', r.why]],
       clears: 'Clears itself when the two are within 10%; snooze it once the reason is known.', go: { kind: 'stats', tab: 'cost' }, goLabel: 'Open Live cost', sig: r.key + '|' + (r.pct != null ? Math.round(r.pct * 100) : '') };
   });
+};
+TODO_RULE_FNS.bankBounce = function() {
+  var open = bankReturnedCheques(finCtx().cls).filter(function(v) { return !v.bounceSet; });
+  if (!open.length) return [];
+  var sum = gstRound(open.reduce(function(s, v) { return s + v.row.dr; }, 0));
+  return [{ key: 'bankBounce', rule: 'bankBounce', tone: 'amber',
+    title: open.length === 1 ? 'Match the cheque returned on ' + formatDate(open[0].row.date) : 'Match ' + open.length + ' returned cheques',
+    sub: formatCurrency(sum) + ' went back out; until each is linked to its deposit, that client reads as paid',
+    why: 'Receivables · returned cheques', facts: open.map(function(v) { return [formatDate(v.row.date), formatCurrency(v.row.dr)]; }),
+    clears: 'Clears itself when each is linked to its deposit or marked not a bounce.', go: finGo('receipts', { anchor: 'bankBounces' }), goLabel: 'Match them', sig: open.map(function(v) { return v.row.id; }).join('|') }];
 };
 TODO_RULE_FNS.runway = function() {
   var fc = finForecast(45);

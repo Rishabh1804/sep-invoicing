@@ -475,6 +475,7 @@ test('the entry row shows the clock span and the credited length', async ({ page
     from: '06:00', to: '08:30', crew: hands.map((w) => w.id),
   }]));
   await switchTab(page, 'pageStaff');
+  await page.locator('[data-action="invAttView"][data-view="day"]').click();
   const len = page.locator('.inv-att-block-len').first();
   await expect(len).toContainText('2.5');
   await expect(len).toContainText('3');
@@ -488,6 +489,7 @@ test('the entry row shows the block’s own check as it is typed', async ({ page
     from: '06:00', to: '08:30', crew: hands.map((w) => w.id),
   }]));
   await switchTab(page, 'pageStaff');
+  await page.locator('[data-action="invAttView"][data-view="day"]').click();
 
   const block = page.locator('.inv-att-block').first();
   await expect(block).toBeVisible();
@@ -510,6 +512,7 @@ test('the entry preview agrees with the card about the pickling fold', async ({ 
       from: '17:00', to: '00:00', crew: [] },
   ]));
   await switchTab(page, 'pageStaff');
+  await page.locator('[data-action="invAttView"][data-view="day"]').click();
   // 3 of 4, not 3 of 6 — pickling is carrying its own norm on the next row.
   await expect(page.locator('.inv-att-block-check').first()).toContainText('3 of 4');
 });
@@ -523,6 +526,7 @@ test('toggling an area off leaves the row booked somewhere real', async ({ page 
     from: '17:00', to: '00:00', crew: hands.map((w) => w.id),
   }]));
   await switchTab(page, 'pageStaff');
+  await page.locator('[data-action="invAttView"][data-view="day"]').click();
   await page.locator('.inv-att-block-areas .inv-att-chip-on').first().click();
 
   const x = await page.evaluate(async (iso) => {

@@ -77,10 +77,12 @@ function stockBillSave() {
   if (!b.billNo.trim()) { showToast('Enter the invoice number', 'error'); return; }
   if (!/^\d{4}-\d{2}-\d{2}$/.test(b.date || '')) { showToast('Enter the invoice date', 'error'); return; }
   if (!(qty > 0)) { showToast('Enter the quantity billed', 'error'); return; }
-  if (!(price > 0) && amount > 0) price = amount / qty;
+  // A bill amount typed is the bill's figure: kept as typed, not rebuilt from a price rounded to 4 places.
+  var typedAmount = !(price > 0) && amount > 0;
+  if (typedAmount) price = amount / qty;
   if (!(price > 0)) { showToast('Enter the price per unit or the bill amount', 'error'); return; }
   price = Math.round(price * 10000) / 10000;
-  var fields = { price: price, amount: gstRound(price * qty), supplier: b.supplier.trim(), billNo: b.billNo.trim(), billDate: b.date };
+  var fields = { price: price, amount: gstRound(typedAmount ? amount : price * qty), supplier: b.supplier.trim(), billNo: b.billNo.trim(), billDate: b.date };
   if (b.entryId) {
     var e = stockData().entries.find(function(x) { return x.id === b.entryId; });
     if (!e) return;
@@ -205,7 +207,7 @@ function costMonthShare(month, from, to) {
 function liveCost(from, to, kg) {
   var cfg = costModelCfg(), days = stockDaysApart(from, to) + 1, rows = [];
   // What the bank paid, the second instrument (bank.js loads after this file; read at call time).
-  var bk = typeof bankCostForRange === 'function' && bankRows().length ? bankCostForRange(from, to) : null;
+  var bk = typeof bankCostForRange === 'function' && bankData().rows.length ? bankCostForRange(from, to) : null;
   var per = function(v) { return kg > 0 ? v / kg : null; };
   var fillLine = function(perKg, share, what) {
     return { label: 'Not recorded: ' + what, sub: formatCurrency(perKg) + '/kg model × ' + formatNum(share * 100, 0) + '% of the tonnage', amount: perKg * kg * share, fill: true };
@@ -377,7 +379,7 @@ function liveCost(from, to, kg) {
    design, so that row is never flagged. */
 var COST_GAP = 0.10;
 function liveCostPaidCheck(from, to) {
-  if (typeof bankCostForRange !== 'function' || !bankRows().length) return [];
+  if (typeof bankCostForRange !== 'function' || !bankData().rows.length) return [];
   var bk = bankCostForRange(from, to), out = [];
   var span = function(ym) { var s = ym + '-01', e = payMonthEnd(s); return [from > s ? from : s, to < e ? to : e]; };
   var finish = function(key, label, t, why, known) {
@@ -446,7 +448,7 @@ function costDeriveFromBank(which) {
   return res;
 }
 function costDeriveCompute(keys) {
-  if (!bankRows().length) return { none: 'No bank statement imported: Finance → Bank → Import.' };
+  if (!bankData().rows.length) return { none: 'No bank statement imported: Finance → Bank → Import.' };
   var bm = bankCostByMonth(), active = (S.invoices || []).filter(function(i) { return i.status === 'active' && i.date; });
   var months = [], ym = localDateStr().slice(0, 7);
   for (var k = 0; k < 6; k++) { ym = bankPrevMonth(ym + '-01'); months.unshift(ym); }
@@ -533,7 +535,7 @@ function _costBillHtml() {
   });
   if (!_costBillOpen || _costBillOpen.where !== 'stats') {
     return h + '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invCostBillOpen" data-where="stats">Add a bill</button>' +
-      '<div class="inv-note">Bills are also kept under Stock &rarr; Bills &amp; notes.</div></div>';
+      '<div class="inv-note">Bills are also kept under Finance &rarr; Bills &amp; notes.</div></div>';
   }
   return h + costBillFormHtml() + '</div>';
 }
@@ -594,8 +596,9 @@ function costAction(action, btn) {
     }
     case 'invCostBillCancel': { var w = (_costBillOpen || {}).where; _costBillOpen = false; costBillRedraw(w); return true; }
     case 'invCostBillSave': costBillSave(); return true;
-    // Redraw the page the Void was tapped on, read from the button, not guessed from a hidden page's DOM.
-    case 'invCostBillVoid': costBillVoid(btn.dataset.id, btn.closest('#pageStock') ? 'stock' : 'stats'); return true;
+    // Redraw the page the Void was tapped on, read from the button, not guessed from a hidden page's DOM:
+    // Finance → Bills & notes, or Stats → Live cost.
+    case 'invCostBillVoid': costBillVoid(btn.dataset.id, btn.closest('#pageFinance') ? 'finance' : 'stats'); return true;
   }
   return false;
 }

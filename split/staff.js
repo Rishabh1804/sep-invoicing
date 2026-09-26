@@ -128,7 +128,7 @@ var ATT_STATES = ['P', 'H', 'A'];
 var ATT_STATE_LABELS = { P: 'Present', H: 'Half day', A: 'Absent' };
 var ATT_DAY_VALUE = { P: 1, H: 0.5, A: 0 };
 
-var _attView = 'day';
+var _attView = 'overview';
 var _attDate = null;      // ISO date the Day view is showing
 var _attWeekStart = null; // ISO Sunday the Week view is showing (the pay week)
 
@@ -299,7 +299,7 @@ function renderAttendance() {
 
   var toolbar = document.getElementById('attToolbar');
   if (toolbar) {
-    var views = [['day', 'Day'], ['week', 'Week'], ['pay', 'Pay'], ['areas', 'Areas'], ['roster', 'Roster'], ['paste', 'Paste message']];
+    var views = [['overview', 'Overview'], ['day', 'Day'], ['week', 'Week'], ['pay', 'Pay'], ['areas', 'Areas'], ['roster', 'Roster'], ['paste', 'Paste message']];
     toolbar.innerHTML = '<div class="inv-stats-chips">' + views.map(function(v) {
       return '<button class="inv-chip' + (_attView === v[0] ? ' inv-chip-active' : '') +
         '" data-action="invAttView" data-view="' + v[0] + '">' + v[1] + '</button>';
@@ -319,6 +319,7 @@ function renderAttendance() {
   else if (_attView === 'paste') area.innerHTML = relayRenderView();
   else if (_attView === 'areas') area.innerHTML = _attAreasView();
   else if (_attView === 'pay') area.innerHTML = _attPayView();
+  else if (_attView === 'overview') area.innerHTML = staffOverviewHtml();
   else if (_attView === 'week') area.innerHTML = _attWeekView();
   else area.innerHTML = _attDayView();
 

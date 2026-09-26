@@ -32,7 +32,8 @@ function staffState(extra: Record<string, unknown> = {}) {
   };
 }
 
-const openStaff = (page: Page) => switchTab(page, 'pageStaff');
+// Staff opens on its Overview (spec 7a); these tests are about the Day view, so they open it.
+const openStaff = async (page: Page) => { await switchTab(page, 'pageStaff'); await page.locator('[data-action="invAttView"][data-view="day"]').click(); };
 
 test('an empty roster says so and offers the way in', async ({ page }) => {
   await loadAppWithState(page, { ...emptyState(), incomingMaterial: noSeedIM(), staff: [], attendance: {} });

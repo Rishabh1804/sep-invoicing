@@ -27,7 +27,7 @@ function finSetTab(t) {
 function renderFinance() {
   var el = document.getElementById('financeContent');
   if (!el) return;
-  var looseN = bankRows().length ? bankClassify().filter(function(v) { return v.cat === 'receipt' && v.clientId == null; }).length : 0;
+  var looseN = bankData().rows.length ? bankClassify().filter(function(v) { return v.cat === 'receipt' && v.clientId == null; }).length : 0;
   var tab = function(k, l) { return '<button class="inv-viewtab" role="tab" aria-selected="' + (_finTab === k) + '" data-action="invFinTab" data-tab="' + k + '">' + l +
     (k === 'receipts' && looseN ? ' <span class="inv-badge inv-badge-warning" title="Receipts with no client">' + looseN + '</span>' : '') + '</button>'; };
   var h = '<div class="inv-viewtabs" role="tablist" aria-label="Finance">' + FIN_TABS.map(function(t) { return tab(t[0], t[1]); }).join('') + '</div>' +
@@ -71,7 +71,8 @@ function finAgeing(recv) {
   var bands = FIN_AGE_BANDS.map(function(b) { return { label: b[2], lo: b[0], hi: b[1], amount: 0, n: 0 }; });
   recv.forEach(function(r) {
     r.open.forEach(function(o) {
-      var age = finDaysAgo(o.date), b = bands.find(function(x) { return age >= x.lo && age <= x.hi; }) || bands[bands.length - 1];
+      // An invoice dated ahead of today (raised for tomorrow's despatch) is not yet owed at all, never "over 90".
+      var age = Math.max(0, finDaysAgo(o.date)), b = bands.find(function(x) { return age >= x.lo && age <= x.hi; }) || bands[bands.length - 1];
       b.amount = gstRound(b.amount + o.due); b.n++;
     });
   });
@@ -99,14 +100,16 @@ function finGstByMonth(months, cls) {
     var m = bankPrevMonth(v.row.date);
     if (m in paid) { paid[m] = gstRound(paid[m] + v.row.dr); paidRows[m].push(v.row); }
   });
-  var today = localDateStr(), notes = bankData().gstNotes;
+  var today = localDateStr(), notes = bankData().gstNotes, cover = bankCover();
   return months.map(function(m) {
     var next = finNextMonth(m), dueBy = next + '-20', n = notes[m] || null;
     // A return paid another way (owner, 26 Sep 2026: July went by another route) is recorded by hand
     // and counts as paid, but is never shown as what the bank saw.
     var other = n && Number(n.paidOther) > 0 ? gstRound(Number(n.paidOther)) : 0;
     return { month: m, due: due[m], paidBank: paid[m], paidOther: other, paid: gstRound(paid[m] + other), rows: paidRows[m], note: n,
-      dueBy: dueBy, open: today <= dueBy || m >= today.slice(0, 7) };
+      dueBy: dueBy, open: today <= dueBy || m >= today.slice(0, 7),
+      // Whether the statement could show the payment at all: the month after, from its first day to the due date.
+      seen: !!cover && cover.from <= next + '-01' && cover.to >= dueBy };
   });
 }
 /* One reading of a month, shared by the table and the tile. */
@@ -116,6 +119,8 @@ function finGstStatus(r) {
   if (r.note) return { tone: 'neutral', text: 'Noted', title: r.note.note };
   if (r.due <= 0) return { tone: 'neutral', text: 'Nil' };
   if (r.open) return { tone: 'info', text: 'Due ' + finShortDate(r.dueBy) };
+  // A month the statement does not reach says nothing either way: unknown is not unpaid.
+  if (!r.seen) return { tone: 'neutral', text: 'No statement', title: 'The bank statement does not cover the days this was due by' };
   // Only the bank is read: a return paid another way is not on the statement, so this says what is known.
   return { tone: 'warning', text: 'Not in bank', title: 'No GST payment on the statement for this month; one made another way would not show here', missing: true };
 }
@@ -123,8 +128,9 @@ function finGstStatus(r) {
 /* "Jun '26": a month column that has to leave room for a status on a phone. */
 function finShortMonth(ym) { return TREND_MONTH_LABELS[parseInt(ym.slice(5, 7), 10) - 1] + " '" + ym.slice(2, 4); }
 function finShortDate(iso) { var d = new Date(iso + 'T00:00:00'); return d.getDate() + ' ' + TREND_MONTH_LABELS[d.getMonth()]; }
-function finGstHtml(n, wide, chartMonths) {
-  var cls = bankClassify(), rows = finGstByMonth(finMonths(n), cls).reverse();
+function finGstHtml(n, wide, chartMonths, cls) {
+  cls = cls || bankClassify();
+  var rows = finGstByMonth(finMonths(n), cls).reverse();
   // On the Overview the table is led by the range's due against paid (paid includes outside the bank).
   var chart = '';
   if (chartMonths && chartMonths.length) {
@@ -182,13 +188,14 @@ function finOverviewHtml() {
     tile('GST for ' + escHtml(billsMonthLabel(gst.month)), formatCurrency(gst.due), (function() {
       var st = finGstStatus(gst);
       return gst.paidBank > 0 ? 'paid ' + formatCurrency(gst.paidBank) : gst.paidOther > 0 ? formatCurrency(gst.paidOther) + ' paid outside the bank'
-        : gst.note ? 'noted: ' + escHtml(gst.note.note) : gst.open ? 'due by ' + escHtml(formatDate(gst.dueBy)) : st.missing ? 'no payment on the statement' : '';
-    })(), gst.paid > 0 || gst.note || gst.due <= 0 ? '' : gst.open ? 'info' : 'warning', 'gst') +
+        : gst.note ? 'noted: ' + escHtml(gst.note.note) : gst.open ? 'due by ' + escHtml(formatDate(gst.dueBy)) : st.missing ? 'no payment on the statement'
+        : gst.due > 0 ? 'the statement does not reach its due date' : '';
+    })(), gst.paid > 0 || gst.note || gst.due <= 0 ? '' : gst.open ? 'info' : finGstStatus(gst).missing ? 'warning' : '', 'gst') +
     '</div>';
 
   if (!has) {
     return h + '<div class="inv-panel"><div class="inv-empty">Import the bank statement on the Bank tab. The balance, what clients owe and where money went all read from it; GST due reads from the invoices and is below.</div></div>' +
-      finGstHtml(6);
+      finGstHtml(6, false, null, cls);
   }
 
   // One horizon for every panel below (spec Phase 3): the months the range covers, from the statement
@@ -305,7 +312,7 @@ function finOverviewHtml() {
     ], { ariaLabel: 'Invoiced against received', emptyText: 'Needs two months in the range' }) + '</div>' +
     '<div class="inv-panel-body inv-note">Invoiced is incl. GST, by invoice date; received is every receipt on the statement, placed or not. A month the statement does not cover shows no received figure rather than zero.</div></div>';
 
-  return h + finGstHtml(6, true, inRange) + '</div>';
+  return h + finGstHtml(6, true, inRange, cls) + '</div>';
 }
 
 /* A place for what the statement cannot say (owner, 26 Sep 2026: "For July, make sure that reason is

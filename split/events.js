@@ -378,6 +378,7 @@ document.addEventListener('click', function(e) {
       if (bankAction(action, btn)) break;
       if (financeAction(action, btn)) break;
       if (finLinkAction(action, btn)) break;
+      if (dashAction(action, btn)) break;
       if (action.indexOf('invStock') === 0) stockAction(action, btn);
       else if (action.indexOf('invTodo') === 0) todoAction(action, btn);
       else if (action.indexOf('invRelay') === 0) relayAction(action, btn);
@@ -441,6 +442,7 @@ document.addEventListener('change', function(e) {
   if (billsCnFormInput(e.target)) return;
   if (e.target.id !== 'bankSearch' && bankInput(e.target)) return;
   if (financeInput(e.target)) return;
+  if (dashInput(e.target)) return;
   if (todoOnChange(e.target)) return;
   if (relayOnChange(e.target)) return;
   const el = e.target.closest('[data-action="invUpdateLine"]');

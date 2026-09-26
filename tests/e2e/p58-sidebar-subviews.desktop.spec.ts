@@ -14,7 +14,7 @@ test('from Pay, Staff opens the staff view; from Items, Clients opens the client
   await side(page, 'Pay').click();
   await expect(page.locator('[data-action="invAttView"].inv-chip-active')).toHaveAttribute('data-view', 'pay');
   await side(page, 'Staff').click();
-  await expect(page.locator('[data-action="invAttView"].inv-chip-active')).toHaveAttribute('data-view', 'day');
+  await expect(page.locator('[data-action="invAttView"].inv-chip-active')).toHaveAttribute('data-view', 'overview');
   await expect(side(page, 'Staff')).toHaveAttribute('aria-current', 'page');
 
   // A view that belongs to no other entry is kept: Staff from Week stays on Week.

@@ -90,6 +90,7 @@
 
   /* Layout (§3.7) */
   --bar-h: 3.25rem; --bar-h-desk: 3rem; --nav-h: 3.625rem; --side-w: 13.5rem; --content-max: 80rem; --pane-w: 22rem;
+  --filter-w: 9rem; --col-sm-w: 8rem;
   --tab-h: var(--nav-h); --header-h: var(--bar-h); --max-w: 32.5rem;
   --set-card-w: 55rem; --set-nav-w: 12.5rem;
   --section-gap: var(--sp-12); --card-padding: var(--sp-16); --card-padding-sm: var(--sp-12);
@@ -2209,10 +2210,6 @@ body.inv-desktop .inv-tr:hover { background: var(--surface-2); }
   text-align: right;
 }
 
-/* Desktop-only toolbar overrides (Phase 8C) */
-body.inv-desktop [data-action="invRegToggleSort"],
-body.inv-desktop [data-action="invRegToggleSelect"] { display: none; }
-
 /* Selection bar desktop positioning (Phase 8C) */
 body.inv-desktop #regSelBar {
   position: sticky;
@@ -3304,7 +3301,7 @@ body.inv-desktop .inv-viewtab, body.inv-desktop .inv-stats-tab, body.inv-desktop
 .inv-search input { flex: 1; min-width: 0; border: none; outline: none; background: none; color: var(--text-1); font-size: var(--fs-14); }
 .inv-search input:focus-visible { box-shadow: none; }
 /* Filters in a toolbar share the line, wrapping two to a row on the phone; a labelled one keeps its label above. */
-.inv-toolbar > .inv-toolbar-item { flex: 1 1 9rem; min-width: 0; width: auto; }
+.inv-toolbar > .inv-toolbar-item { flex: 1 1 var(--filter-w); min-width: 0; width: auto; }
 .inv-toolbar .inv-field { margin-bottom: 0; }
 .inv-toolbar-end { align-self: flex-end; }
 .inv-toolbar-tight { gap: var(--sp-4); margin-bottom: 0; justify-content: flex-end; }
@@ -3391,8 +3388,9 @@ button.inv-row-main { display: block; padding: 0; border: none; background: none
 .inv-row-auto { min-height: 0; padding-top: var(--sp-8); padding-bottom: var(--sp-8); }
 .inv-row-muted { opacity: 0.55; }
 .inv-row-strong { font-weight: 600; }
-.inv-row-strong .inv-row-main { font-weight: 600; }
 .inv-check { width: var(--sp-20); height: var(--sp-20); accent-color: var(--accent); cursor: pointer; flex-shrink: 0; }
+/* A row's tick box is tapped through its label, which holds the full touch target. */
+.inv-row-tick { min-width: var(--touch); align-self: stretch; justify-content: center; cursor: pointer; }
 .inv-row-group {
   display: flex; justify-content: space-between; align-items: center; min-height: var(--sp-32);
   padding: 0 var(--pad-x); background: var(--bg); border-bottom: 1px solid var(--border);
@@ -3416,12 +3414,14 @@ button.inv-row-main { display: block; padding: 0; border: none; background: none
 .inv-id { font-family: var(--ff-mono); white-space: nowrap; }
 .inv-table-check { width: var(--sp-32); }
 .inv-table tr[data-action] { cursor: pointer; }
-.inv-table tr[aria-current="true"] td { background: var(--surface-2); }
-.inv-table tr[aria-current="true"] td:first-child { box-shadow: inset 2px 0 0 var(--accent); }
-.inv-table tr.inv-row-muted td { opacity: 0.55; }
+/* The open row is marked by its rule; a ticked row keeps the selection fill. A muted
+   (cancelled) row fades through .inv-row-muted on the tr — fading the cells as well
+   compounded to a third. */
+.inv-table tr[aria-current="true"]:not(.inv-row-selected) td { background: var(--surface-2); }
+.inv-table tr[aria-current="true"] td:first-child { box-shadow: inset var(--sp-2) 0 0 var(--accent); }
 /* A column that takes the spare width and ellipsizes, rather than wrapping a client's name over three lines. */
 .inv-col-grow { width: 100%; max-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.inv-col-grow-sm { max-width: 8rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.inv-col-grow-sm { max-width: var(--col-sm-w); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .inv-table-sort { padding: 0; border: none; background: none; font: inherit; color: inherit; cursor: pointer; white-space: nowrap; }
 .inv-table-sort:hover { color: var(--text-1); }
 .inv-table .inv-btn-link { color: var(--text-1); font-weight: 500; }

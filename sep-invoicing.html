@@ -18,7 +18,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <!-- Appearance before first paint (§3.2): the device's theme and palette, so nothing flashes in the wrong colours. -->
 <script>(function(){try{var d=document.documentElement,t=localStorage.getItem("sep_inv_theme"),p=localStorage.getItem("sep_inv_palette");if(t==="light"||t==="dark")d.dataset.theme=t;d.dataset.palette=(p==="zinc"||p==="terracotta")?p:"teal";}catch(e){document.documentElement.dataset.palette="teal";}})();</script>
-<meta name="app-build" content="bc712ba7">
+<meta name="app-build" content="42cc4b85">
 <style>
 /* ===== DESIGN TOKENS (design system v2.0 — docs/SEP_INVOICING_DESIGN_PRINCIPLES.md §3) ===== */
 /* Theme: colour-scheme decides every light-dark() below. <html data-theme> is set before first paint
@@ -112,6 +112,7 @@
 
   /* Layout (§3.7) */
   --bar-h: 3.25rem; --bar-h-desk: 3rem; --nav-h: 3.625rem; --side-w: 13.5rem; --content-max: 80rem; --pane-w: 22rem;
+  --filter-w: 9rem; --col-sm-w: 8rem;
   --tab-h: var(--nav-h); --header-h: var(--bar-h); --max-w: 32.5rem;
   --set-card-w: 55rem; --set-nav-w: 12.5rem;
   --section-gap: var(--sp-12); --card-padding: var(--sp-16); --card-padding-sm: var(--sp-12);
@@ -2231,10 +2232,6 @@ body.inv-desktop .inv-tr:hover { background: var(--surface-2); }
   text-align: right;
 }
 
-/* Desktop-only toolbar overrides (Phase 8C) */
-body.inv-desktop [data-action="invRegToggleSort"],
-body.inv-desktop [data-action="invRegToggleSelect"] { display: none; }
-
 /* Selection bar desktop positioning (Phase 8C) */
 body.inv-desktop #regSelBar {
   position: sticky;
@@ -3326,7 +3323,7 @@ body.inv-desktop .inv-viewtab, body.inv-desktop .inv-stats-tab, body.inv-desktop
 .inv-search input { flex: 1; min-width: 0; border: none; outline: none; background: none; color: var(--text-1); font-size: var(--fs-14); }
 .inv-search input:focus-visible { box-shadow: none; }
 /* Filters in a toolbar share the line, wrapping two to a row on the phone; a labelled one keeps its label above. */
-.inv-toolbar > .inv-toolbar-item { flex: 1 1 9rem; min-width: 0; width: auto; }
+.inv-toolbar > .inv-toolbar-item { flex: 1 1 var(--filter-w); min-width: 0; width: auto; }
 .inv-toolbar .inv-field { margin-bottom: 0; }
 .inv-toolbar-end { align-self: flex-end; }
 .inv-toolbar-tight { gap: var(--sp-4); margin-bottom: 0; justify-content: flex-end; }
@@ -3413,8 +3410,9 @@ button.inv-row-main { display: block; padding: 0; border: none; background: none
 .inv-row-auto { min-height: 0; padding-top: var(--sp-8); padding-bottom: var(--sp-8); }
 .inv-row-muted { opacity: 0.55; }
 .inv-row-strong { font-weight: 600; }
-.inv-row-strong .inv-row-main { font-weight: 600; }
 .inv-check { width: var(--sp-20); height: var(--sp-20); accent-color: var(--accent); cursor: pointer; flex-shrink: 0; }
+/* A row's tick box is tapped through its label, which holds the full touch target. */
+.inv-row-tick { min-width: var(--touch); align-self: stretch; justify-content: center; cursor: pointer; }
 .inv-row-group {
   display: flex; justify-content: space-between; align-items: center; min-height: var(--sp-32);
   padding: 0 var(--pad-x); background: var(--bg); border-bottom: 1px solid var(--border);
@@ -3438,12 +3436,14 @@ button.inv-row-main { display: block; padding: 0; border: none; background: none
 .inv-id { font-family: var(--ff-mono); white-space: nowrap; }
 .inv-table-check { width: var(--sp-32); }
 .inv-table tr[data-action] { cursor: pointer; }
-.inv-table tr[aria-current="true"] td { background: var(--surface-2); }
-.inv-table tr[aria-current="true"] td:first-child { box-shadow: inset 2px 0 0 var(--accent); }
-.inv-table tr.inv-row-muted td { opacity: 0.55; }
+/* The open row is marked by its rule; a ticked row keeps the selection fill. A muted
+   (cancelled) row fades through .inv-row-muted on the tr — fading the cells as well
+   compounded to a third. */
+.inv-table tr[aria-current="true"]:not(.inv-row-selected) td { background: var(--surface-2); }
+.inv-table tr[aria-current="true"] td:first-child { box-shadow: inset var(--sp-2) 0 0 var(--accent); }
 /* A column that takes the spare width and ellipsizes, rather than wrapping a client's name over three lines. */
 .inv-col-grow { width: 100%; max-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.inv-col-grow-sm { max-width: 8rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.inv-col-grow-sm { max-width: var(--col-sm-w); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .inv-table-sort { padding: 0; border: none; background: none; font: inherit; color: inherit; cursor: pointer; white-space: nowrap; }
 .inv-table-sort:hover { color: var(--text-1); }
 .inv-table .inv-btn-link { color: var(--text-1); font-weight: 500; }
@@ -4369,12 +4369,14 @@ function getInvState(inv) {
 var INV_STATE_TONE = { created: 'neutral', dispatched: 'warning', delivered: 'info', filed: 'ok', cancelled: 'danger' };
 function invStateOf(inv) { return inv.status === 'cancelled' ? 'cancelled' : getInvState(inv); }
 function invStateWord(inv) { var st = invStateOf(inv); return st === 'cancelled' ? 'Cancelled' : (INV_STATE_LABELS[st] || st); }
+/* A state this build does not know (an older or newer backup) reads neutral rather than untoned. */
+function invStateTone(inv) { return INV_STATE_TONE[invStateOf(inv)] || 'neutral'; }
 function getStateBadgeHtml(inv) {
-  return '<span class="inv-badge inv-badge-' + INV_STATE_TONE[invStateOf(inv)] + '">' + escHtml(invStateWord(inv)) + '</span>';
+  return '<span class="inv-badge inv-badge-' + invStateTone(inv) + '">' + escHtml(invStateWord(inv)) + '</span>';
 }
 /* The default in rows and tables (DR-8): a dot and the word. */
 function getStateDotHtml(inv) {
-  return '<span class="inv-dot inv-dot-' + INV_STATE_TONE[invStateOf(inv)] + '">' + escHtml(invStateWord(inv)) + '</span>';
+  return '<span class="inv-dot inv-dot-' + invStateTone(inv) + '">' + escHtml(invStateWord(inv)) + '</span>';
 }
 
 function advanceInvoiceState(invId) {
@@ -9445,20 +9447,33 @@ function renderRegisterList() {
       if (!byDate[k]) { byDate[k] = []; groups.push(k); }
       byDate[k].push(inv);
     });
+    // The list is sorted by when each invoice was raised, but the headers are
+    // invoice dates: a backdated or reissued invoice would otherwise pull its
+    // whole day to the top. Days follow the date; rows within a day, the raising.
+    var desc = (regFilter.regSortDir || 'desc') !== 'asc';
+    groups.sort(function(a, b) {
+      if (!a || !b) return (!a) - (!b);
+      return a === b ? 0 : ((a < b) === desc ? 1 : -1);
+    });
     groups.forEach(function(k) {
       var list = byDate[k], live = list.filter(function(i) { return i.status === 'active'; });
       html += '<div class="inv-row-group"><span>' + (k ? escHtml(formatDate(k)) : 'No date') + ' · ' + list.length + '</span>' +
         '<span class="inv-num">' + formatCurrency(gstRound(sumTaxable(live))) + '</span></div>';
       list.forEach(function(inv) {
         var cancelled = inv.status === 'cancelled';
-        html += '<div class="inv-row inv-row-2' + (cancelled ? ' inv-row-muted' : '') + (_regSelected[inv.id] ? ' inv-row-selected' : '') + '"' +
-          (cancelled ? ' data-cancelled' : '') + '>' +
-          (_regSelectMode && !cancelled ? '<span class="inv-row-lead">' + _regCheckHtml(inv) + '</span>' : '') +
-          '<button class="inv-row-main" data-action="invViewInvoiceDetail" data-id="' + escHtml(inv.id) + '">' +
-          '<span class="inv-row-title inv-id" data-invnum>' + escHtml(inv.displayNumber) + '</span>' +
-          '<span class="inv-row-meta">' + escHtml(inv.clientName) + '</span></button>' +
-          '<span class="inv-row-end"><span class="inv-row-stack"><span class="inv-num">' + formatCurrency(inv.grandTotal) + '</span>' +
-          getStateDotHtml(inv) + '</span></span></div>';
+        var tickable = _regSelectMode && !cancelled;
+        var cls = 'inv-row inv-row-2' + (cancelled ? ' inv-row-muted' : '') + (_regSelected[inv.id] ? ' inv-row-selected' : '');
+        var open = ' data-action="invViewInvoiceDetail" data-id="' + escHtml(inv.id) + '"';
+        var main = '<span class="inv-row-title inv-id" data-invnum>' + escHtml(inv.displayNumber) + '</span>' +
+          '<span class="inv-row-meta">' + escHtml(inv.clientName) + '</span>';
+        var end = '<span class="inv-row-end"><span class="inv-row-stack"><span class="inv-num">' + formatCurrency(inv.grandTotal) + '</span>' +
+          getStateDotHtml(inv) + '</span></span>';
+        // With no tick box the whole row opens the invoice, figures included; with
+        // one, the box is its own full-height touch target beside the row.
+        html += tickable
+          ? '<div class="' + cls + '"><label class="inv-row-lead inv-row-tick">' + _regCheckHtml(inv) + '</label>' +
+            '<button class="inv-row-main"' + open + '>' + main + '</button>' + end + '</div>'
+          : '<button class="' + cls + '"' + open + (cancelled ? ' data-cancelled' : '') + '><span class="inv-row-main">' + main + '</span>' + end + '</button>';
       });
     });
     html += '</div>';
@@ -9526,7 +9541,10 @@ function _buildRegisterTableHtml() {
 
   filtered.forEach(function(inv) {
     var cancelled = inv.status === 'cancelled';
-    var kg = cancelled ? 0 : weighLines([inv]).kg;
+    // A line with no known weight adds nothing to kg, so a partly weighed invoice
+    // reads light; it says so rather than passing as the whole consignment.
+    var w = cancelled ? null : weighLines([inv]);
+    var kg = w ? w.kg : 0, partKg = !!w && w.known < w.lines;
     var gst = gstRound((inv.cgstAmt || 0) + (inv.sgstAmt || 0) + (inv.igstAmt || 0));
     html += '<tr class="' + (cancelled ? 'inv-row-muted' : '') + (_regSelected[inv.id] ? ' inv-row-selected' : '') + '"' +
       (_regActiveInvId === inv.id ? ' aria-current="true"' : '') + (cancelled ? ' data-cancelled' : '') +
@@ -9537,7 +9555,8 @@ function _buildRegisterTableHtml() {
       '<td class="inv-col-grow" title="' + escHtml(inv.clientName) + '">' + escHtml(inv.clientName) + '</td>' +
       '<td class="inv-id inv-col-opt3">' + escHtml(formatDate(inv.date)) + '</td>' +
       '<td class="inv-id inv-col-grow-sm inv-col-opt2" title="' + escHtml(inv.challanNo || '') + '">' + escHtml(inv.challanNo || '') + '</td>' +
-      '<td class="inv-num inv-col-opt2">' + (kg > 0 ? formatNum(kg, 1) : '&mdash;') + '</td>' +
+      '<td class="inv-num inv-col-opt2"' + (partKg && kg > 0 ? ' title="' + w.known + ' of ' + w.lines + ' lines weighed"' : '') + '>' +
+        (kg > 0 ? (partKg ? '&ge;&thinsp;' : '') + formatNum(kg, 1) : '&mdash;') + '</td>' +
       '<td class="inv-num inv-col-opt3">' + formatCurrency(inv.taxableValue) + '</td>' +
       '<td class="inv-num inv-col-opt1">' + formatCurrency(gst) + '</td>' +
       '<td class="inv-num">' + formatCurrency(inv.grandTotal) + '</td>' +
@@ -9546,8 +9565,30 @@ function _buildRegisterTableHtml() {
   return html + '</tbody></table>' + _regExportHtml();
 }
 
+/* The table and the pane are rebuilt whole, which drops the keyboard to <body>.
+   Focus goes back to the same control; where that is gone or hidden (the pane
+   covering the list), to the pane's close button, and on closing, to the row
+   of the invoice that was open. */
+function _regFocusKey() {
+  var ae = document.activeElement, wrap = document.getElementById('regMasterDetail');
+  if (!ae || !wrap || !wrap.contains(ae) || !ae.dataset || !ae.dataset.action) return null;
+  return { action: ae.dataset.action, id: ae.dataset.id || '', col: ae.dataset.col || '', open: _regActiveInvId };
+}
+function _regRestoreFocus(k) {
+  var wrap = k && document.getElementById('regMasterDetail');
+  if (!wrap) return;
+  var q = function(sel) { var el = wrap.querySelector(sel); return el && el.offsetParent !== null ? el : null; };
+  var attr = function(n, v) { return v ? '[data-' + n + '="' + String(v).replace(/["\\]/g, '\\$&') + '"]' : ''; };
+  var el = k.action === 'invRegClosePane'
+    ? q('button[data-action="invSelectRegRow"]' + attr('id', k.open))
+    : q(':is(button, input)[data-action="' + k.action + '"]' + attr('id', k.id) + attr('col', k.col));
+  el = el || q('[data-action="invRegClosePane"]');
+  if (el) el.focus();
+}
+
 /* Render invoice detail inline in #regDetail */
 function _renderRegDetail(invId, skipMasterRefresh) {
+  var focusKey = skipMasterRefresh ? null : _regFocusKey();
   var inv = invId ? S.invoices.find(function(i) { return i.id === invId; }) : null;
   var detailEl = document.getElementById('regDetail');
   _regActiveInvId = inv ? invId : null;
@@ -9559,6 +9600,7 @@ function _renderRegDetail(invId, skipMasterRefresh) {
   if (!skipMasterRefresh) {
     var masterEl = document.getElementById('regMaster');
     if (masterEl) masterEl.innerHTML = _buildRegisterTableHtml();
+    _regRestoreFocus(focusKey);
   }
 }
 
@@ -9584,15 +9626,16 @@ function renderRegisterTable() {
 
   var master = document.getElementById('regMaster');
   if (!master) return;
+  var focusKey = _regFocusKey();
   master.innerHTML = _buildRegisterTableHtml();
 
   // Keep the pane in step with the data: a deleted or filtered-out invoice closes it.
+  // The filtered list is drawn from S.invoices, so being in it is being in the book too.
   if (_regActiveInvId) {
-    var visible = S.invoices.some(function(i) { return i.id === _regActiveInvId; }) &&
-      getFilteredInvoices().some(function(i) { return i.id === _regActiveInvId; });
-    if (visible) _renderRegDetail(_regActiveInvId, true);
-    else _renderRegDetail(null, true);
+    var visible = getFilteredInvoices().some(function(i) { return i.id === _regActiveInvId; });
+    _renderRegDetail(visible ? _regActiveInvId : null, true);
   }
+  _regRestoreFocus(focusKey);
 
   _renderRegSelBar();
 }

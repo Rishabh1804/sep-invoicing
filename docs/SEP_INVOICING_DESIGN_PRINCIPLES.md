@@ -241,7 +241,8 @@ their **own** paddings and heights — they read density aliases, so one attribu
 
 `--bar-h: 3.25rem (52)` phone top bar · `--bar-h-desk: 3rem (48)` · `--nav-h: 3.625rem (58)` phone bottom
 bar · `--side-w: 13.5rem (216)` desktop sidebar · `--content-max: 80rem` desktop content cap ·
-`--max-w: 32.5rem (520)` phone column (unchanged) · `--pane-w: 22rem` desktop detail pane.
+`--max-w: 32.5rem (520)` phone column (unchanged) · `--pane-w: 22rem` desktop detail pane · `--filter-w: 9rem`
+a toolbar filter's basis · `--col-sm-w: 8rem` a short ellipsized table column (`inv-col-grow-sm`).
 
 ### 3.8 Breakpoints
 
@@ -427,7 +428,9 @@ Replaces `inv-kpi*`, `inv-ov-tile`, `inv-stk-tile`, `inv-stat-label/value`, `inv
 One or two lines, `--row-h` / `--row-h-2`, divider below. Slots: `inv-row-lead` (checkbox, dot or icon),
 `inv-row-main` (`inv-row-title` + `inv-row-meta`), `inv-row-end` (figure, status, chevron). A group header
 inside a list is `inv-row-group` (`--t-caption` on `--bg`, e.g. "25 Sep · 5 · ₹11,801.88").
-`inv-row-main` may be a `<button>` when the row has a second action (a print icon, a tick box); `inv-row-stack`
+`inv-row-main` may be a `<button>` when the row has a second action (a print icon, a tick box) — otherwise the
+whole row is the `<button>`, so its figures open it too; a tick box's lead is a `<label class="inv-row-lead inv-row-tick">`
+holding the full `--touch` target; `inv-row-stack`
 stacks a figure over its badge in `inv-row-end`; `inv-row-wrap` lets a meta line wrap (a list of names);
 `inv-row-muted` is a cancelled or inactive row. **The phone form of every table.** Replaces `inv-client-item`, `inv-item-card`, `inv-reg-row`,
 `inv-im-header`, `inv-att-row`, `inv-area-row`, `inv-history-item`, `inv-stats-row`, `inv-lab-row`,

@@ -617,12 +617,14 @@ function getInvState(inv) {
 var INV_STATE_TONE = { created: 'neutral', dispatched: 'warning', delivered: 'info', filed: 'ok', cancelled: 'danger' };
 function invStateOf(inv) { return inv.status === 'cancelled' ? 'cancelled' : getInvState(inv); }
 function invStateWord(inv) { var st = invStateOf(inv); return st === 'cancelled' ? 'Cancelled' : (INV_STATE_LABELS[st] || st); }
+/* A state this build does not know (an older or newer backup) reads neutral rather than untoned. */
+function invStateTone(inv) { return INV_STATE_TONE[invStateOf(inv)] || 'neutral'; }
 function getStateBadgeHtml(inv) {
-  return '<span class="inv-badge inv-badge-' + INV_STATE_TONE[invStateOf(inv)] + '">' + escHtml(invStateWord(inv)) + '</span>';
+  return '<span class="inv-badge inv-badge-' + invStateTone(inv) + '">' + escHtml(invStateWord(inv)) + '</span>';
 }
 /* The default in rows and tables (DR-8): a dot and the word. */
 function getStateDotHtml(inv) {
-  return '<span class="inv-dot inv-dot-' + INV_STATE_TONE[invStateOf(inv)] + '">' + escHtml(invStateWord(inv)) + '</span>';
+  return '<span class="inv-dot inv-dot-' + invStateTone(inv) + '">' + escHtml(invStateWord(inv)) + '</span>';
 }
 
 function advanceInvoiceState(invId) {

@@ -233,3 +233,31 @@ test('P18: choosing a client still filters — the change path is the one that a
   await expect(page.locator('#regList')).toContainText('SEP/TEST-00002');
   await expect(page.locator('#regList')).not.toContainText('SEP/TEST-00001');
 });
+
+test('P18: the phone list orders its days by invoice date, not by when each was raised', async ({ page }) => {
+  const day = (n: number) => {
+    const d = new Date(); d.setDate(d.getDate() - n);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  };
+  // Raised in the order 1, 2, 3 — the last one backdated two days, the shape a
+  // reissue under its old number takes. By raising alone it would head the list.
+  await loadAppWithState(page, stateWith([
+    invoice(1, { date: day(1), createdAt: recentTs(3000) }),
+    invoice(2, { date: day(0), createdAt: recentTs(2000) }),
+    invoice(3, { date: day(2), createdAt: recentTs(1000) }),
+  ]));
+  await switchTab(page, 'pageRegister');
+  await page.locator('#regDateFrom').fill(day(5));
+
+  const order = () => page.locator('#regList [data-invnum]').allInnerTexts();
+  await expect.poll(order).toEqual(['SEP/TEST-00002', 'SEP/TEST-00001', 'SEP/TEST-00003']);
+  await page.locator('[data-action="invRegToggleSort"]').click();
+  await expect.poll(order).toEqual(['SEP/TEST-00003', 'SEP/TEST-00001', 'SEP/TEST-00002']);
+});
+
+test('P18: the whole phone row opens the invoice, its figures included', async ({ page }) => {
+  await loadAppWithState(page, stateWith([invoice(1)]));
+  await switchTab(page, 'pageRegister');
+  await page.locator('#regList .inv-row-end').first().click();
+  await expect(page.locator('.inv-overlay-scrim')).toContainText('SEP/TEST-00001');
+});

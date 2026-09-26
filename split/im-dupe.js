@@ -180,12 +180,8 @@ function showChallanDuplicateWarning(matches) {
     _challanForm._dupeMatchedIds = matches.content.concat(matches.number).map(function(im) { return im.id; });
   }
 
-  var scrim = document.createElement('div');
-  scrim.className = 'inv-overlay-scrim';
-
-  var html = '<div class="inv-overlay-card">' +
-    '<div class="inv-overlay-header"><span class="inv-overlay-title">Possible duplicate challan</span>' +
-    '<button class="inv-overlay-close" data-action="invCloseConfirm">&times;</button></div>';
+  var html = '<div class="inv-dialog">' +
+    dialogHeadHtml('Possible duplicate challan', 'invCloseConfirm');
 
   if (matches.content.length > 0) {
     html += '<div class="inv-callout inv-callout-warning inv-mb-8">This client already has ' +
@@ -212,11 +208,7 @@ function showChallanDuplicateWarning(matches) {
     '<button class="inv-btn inv-btn-secondary" data-action="invCloseConfirm">Go back</button>' +
     '<button class="inv-btn inv-btn-primary" data-action="invDupeSaveAnyway">Save anyway</button></div></div>';
 
-  scrim.innerHTML = html;
-  pushFocus();
-  document.body.appendChild(scrim);
-  document.body.style.overflow = 'hidden';
-  focusFirstInteractive(scrim.querySelector('.inv-overlay-card'));
+  dialogOpen(html);
 }
 
 function acceptChallanDuplicates() {
@@ -232,12 +224,8 @@ function runIMDuplicateScan() {
   var groups = imDuplicateGroups();
   var blanks = imBlankChallanRecords();
 
-  var scrim = document.createElement('div');
-  scrim.className = 'inv-overlay-scrim';
-
-  var html = '<div class="inv-overlay-card">' +
-    '<div class="inv-overlay-header"><span class="inv-overlay-title">Duplicate check</span>' +
-    '<button class="inv-overlay-close" data-action="invCloseOverlay" aria-label="Close">&times;</button></div>';
+  var html = '<div class="inv-dialog">' +
+    dialogHeadHtml('Duplicate check');
 
   if (groups.length === 0 && blanks.length === 0) {
     html += '<div class="inv-empty">No duplicate challans and no blank challan numbers.</div>';
@@ -262,13 +250,9 @@ function runIMDuplicateScan() {
       blanks.map(function(im) { return _dupeMatchRowHtml(im, true); }).join('') + '</div>';
   }
 
-  html += '<div class="inv-toolbar"><button class="inv-btn inv-btn-secondary" data-action="invCloseOverlay">Close</button></div></div>';
+  html += '<div class="inv-dialog-foot"><button class="inv-btn inv-btn-secondary" data-action="invCloseOverlay">Close</button></div></div>';
 
-  scrim.innerHTML = html;
-  pushFocus();
-  document.body.appendChild(scrim);
-  document.body.style.overflow = 'hidden';
-  focusFirstInteractive(scrim.querySelector('.inv-overlay-card'));
+  dialogOpen(html);
 }
 
 /* Close the scan, filter the list down to that client, and open the challan. */

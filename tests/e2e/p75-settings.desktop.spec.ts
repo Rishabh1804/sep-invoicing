@@ -20,7 +20,7 @@ test.describe('P75 desktop: Settings', () => {
     await page.locator('[data-action="invSaveSettingsSec"][data-sec="extra"]').click();
     await expect(labour.locator('.inv-dot-warning')).toHaveCount(0);
     // The pane scrolls on its own; the dialog keeps its height.
-    const card = await page.locator('#settingsScrim .inv-overlay-card').boundingBox();
+    const card = await page.locator('#settingsScrim .inv-dialog').boundingBox();
     const vh = page.viewportSize()!.height;
     expect(card!.height).toBeLessThanOrEqual(vh);
   });

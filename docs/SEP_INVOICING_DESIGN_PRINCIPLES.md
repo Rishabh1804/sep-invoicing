@@ -198,8 +198,9 @@ fallback stacks are chosen to hold layout. Fraunces, Inter and IBM Plex Mono are
 | `--t-stat` | 1.1875rem (19) phone / 1.375rem (22) desktop | 1.15 | 600 | mono | stat tiles (§6.9); letter-spacing `--ls-tight` |
 | `--t-hero` | 1.5rem (24) | 1.1 | 600 | mono | the single headline figure of a view, at most one |
 
-Size tokens: `--fs-11 .6875rem · --fs-12 .75rem · --fs-13 .8125rem · --fs-14 .875rem · --fs-17 1.0625rem ·
---fs-19 1.1875rem · --fs-22 1.375rem · --fs-24 1.5rem`. Letter-spacing: `--ls-tight: -0.02em`, `--ls-0: 0`
+Size tokens: `--fs-11 .6875rem · --fs-12 .75rem · --fs-13 .8125rem · --fs-14 .875rem · --fs-16 1rem (a dialog title, a
+small tile on the desktop) · --fs-17 1.0625rem · --fs-18 1.125rem (the action bar's total) · --fs-19 1.1875rem · --fs-22 1.375rem ·
+--fs-24 1.5rem`. The v1.0 names (`--fs-xs … --fs-3xl`) are gone (step 4). Letter-spacing: `--ls-tight: -0.02em`, `--ls-0: 0`
 (the five raw `em` values in v1.0 are gone). Weights: 400, 500, 600 only.
 
 ### 3.5 Spacing and density
@@ -230,10 +231,14 @@ their **own** paddings and heights — they read density aliases, so one attribu
 - Elevation (DR-6): `--shadow-pop: 0 0.25rem 1rem rgb(0 0 0 / 0.14)` for menus and toasts,
   `--shadow-dialog: 0 1rem 3rem rgb(0 0 0 / 0.28)` for dialogs. Nothing else casts a shadow.
 - Scrim: `--scrim: rgb(0 0 0 / 0.45)` (one token; v1.0 had four raw values).
-- Motion: `--dur-1: 120ms` (hover, press, toggle) · `--dur-2: 200ms` (panels, dialogs, tab switch) ·
+- Hairlines (§5.2): `--hair: 1px` every divider, control edge and tile gap · `--rule: 2px` an accent rule, a chevron's stroke.
+- Motion: `--dur-1: 120ms` (hover, press, toggle) · `--dur-2: 200ms` (panels, dialogs, tab switch, a two-faced dialog
+  turning) · `--dur-spin: 800ms` (the scan's busy ring) · `--perspective: 75rem` (the turn's depth) ·
   `--ease: cubic-bezier(.2,.7,.2,1)`. All motion sits inside `@media (prefers-reduced-motion: no-preference)`.
   Tab changes may use the View Transitions API as a progressive enhancement; nothing depends on it.
-- z-index tokens: `--z-bar 20 · --z-dropdown 50 · --z-scrim 100 · --z-dialog 200 · --z-toast 500 · --z-print 510`.
+- z-index tokens: `--z-bar 20 · --z-dropdown 50 · --z-scrim 100 · --z-dialog 200 · --z-busy 250 (reading a scanned challan) ·
+  --z-banner 300 (update and storage banners) · --z-toast 500 · --z-print 510` (a toast stays under the print preview, as
+  it always has).
 - Focus: `--focus-ring: 0 0 0 2px var(--surface), 0 0 0 4px var(--accent)` on `:focus-visible`, **every**
   interactive element (v1.0's `inv-btn` had none).
 
@@ -244,7 +249,12 @@ bar · `--side-w: 13.5rem (216)` desktop sidebar · `--content-max: 80rem` deskt
 `--max-w: 32.5rem (520)` phone column (unchanged) · `--pane-w: 22rem` desktop detail pane · `--filter-w: 9rem`
 a toolbar filter's basis · `--col-sm-w: 8rem` a short ellipsized table column (`inv-col-grow-sm`) · `--scroll-max: 55vh`
 a list scrolling inside a dialog · `--line-fig-w: 7rem` / `--line-unit-w: 5.5rem` the line editor's columns · `--menu-max: 17.5rem`
-a suggestion menu's height.
+a suggestion menu's height. Settings' dialog: `--set-card-w: 55rem`, `--set-nav-w: 12.5rem`. Dialogs: `--dialog-w: 40rem`,
+`--dialog-max-h: 90vh` (phone) / `--dialog-max-h-desk: 85vh`; `--toast-max: 30rem`; `--busy-w: 17.5rem`. Grid minimums:
+`--tile-min: 10rem` (a desktop tile), `--field-min: 12rem` (a desktop field), `--search-min: 16rem`; `--textarea-h: 5rem`;
+`--dot: 0.4375rem` (a status dot); `--spinner: 2.25rem`. Charts (§6.17): `--chart-h` 15rem / `--chart-h-wide` 20rem,
+`--pie` / `--pie-wide`, `--legend-min`, `--legend-row-h`, `--legend-pct-w`, `--swatch`, `--track-h`, and the drawing's own
+text sizes in viewBox units `--chart-fs-axis` (9) and `--chart-fs-centre` (15), which scale with the drawing.
 
 ### 3.8 Breakpoints
 
@@ -257,7 +267,10 @@ its own media queries, so the two can never disagree.
 1. `44px` minimum touch target (as `--touch: 2.75rem`, read via `max()`); 2. 20px/16px icon boxes (§5.6);
 3. print CSS and the three document token blocks (`.inv-print-invoice`, `.inv-qc-page`, `.inv-cn-doc`) and
 the sales register's `--sr-*` block; 4. SVG presentation attributes inside `charts.js` output (viewBox units),
-which read `var()` for every colour. Anything else raw is a defect.
+which read `var()` for every colour. Anything else raw is a defect. Two things are written out because CSS allows nothing
+else: a container query's width (`@container list (max-width: 70rem)` — a query's condition cannot read a custom property),
+and the viewport itself (`100vh`), which is not a design value. *Confirmed in step 4 (26 Sep 2026) by sweeping
+`styles.css` for raw px, rem, em, ms, hex and rgb outside the printed documents: these are the only ones.*
 
 ### 3.10 Contrast (measured, WCAG 2.x)
 
@@ -498,6 +511,8 @@ Desktop only: the right `--pane-w` of a list view, `--surface`, left hairline. *
 is open** (a close button in its head), and where the screen cannot hold both it takes the list's place until closed. Head (identifier in `--t-hero`
 mono, status badge, party), a key/value grid (`inv-kv`), a nested table, totals, actions (one primary).
 On the phone the same content opens as a sheet (§6.16).
+The list and its pane sit in an `inv-pane-host` (the list is `inv-pane-list`), which carries `inv-pane-open` while something
+is open; the pane's head is `paneHeadHtml(title, closeAction)` in `state.js` — Register, IM, Clients / Items and Stock.
 
 ### 6.15 Forms — `inv-field`, `inv-input`, `inv-select`, `inv-actionbar`
 - `inv-field`: label **above** the control, `--t-label` `--text-2`, **sentence case** (DR-5); hint below
@@ -520,16 +535,21 @@ On the phone the same content opens as a sheet (§6.16).
   the page while folded; the Enter-to-next-field chain steps over them.
 - `inv-keys`: a line of key hints (`inv-kbd`) above a keyboard-first form, desktop only.
 - `inv-actionbar`: sticky at the bottom of a form — total (label + `--t-stat`), secondary, primary.
-- `inv-form-*` and `_sfg()` keep working during migration as aliases (§7) and are then removed.
+- `_sfg()` is Settings' field helper; it draws `inv-field`s.
 Replaces `inv-form-group/label/input/select/row`, `inv-stk-label`, `inv-stk-field(s)`, `inv-stk-in`,
 `inv-td-in`, `inv-reg-range-field/label`, `inv-area-target-label`, `inv-att-block-label`, and on Create `inv-line-item`/`-header`,
 `inv-rm-*`, `inv-zero-*`, `inv-pred-*`, `inv-kbd-hint`, `inv-im-form*`, `inv-selected-client`, `inv-error`.
 
 ### 6.16 Overlays — `inv-dialog`, `inv-sheet`, `inv-menu`, `inv-toast`
-- `inv-dialog` (desktop, centred, `--r-xl`, `--shadow-dialog`, max 40rem) and `inv-sheet` (phone, from the
-  bottom, full width, `--r-xl` top corners). Both: head (`--t-heading` title + close icon button), scrolling
-  body, sticky foot with actions right-aligned (primary last). Built on `<dialog>` where it fits. Scrim
-  `--scrim`. Focus stack and `document.body.style.overflow` rules unchanged.
+- `inv-dialog`: a sheet from the bottom on the phone (full width, `--r-xl` top corners) and centred on the desktop
+  (`--r-xl`, `--dialog-w`), `--shadow-dialog`, in an `inv-scrim inv-scrim-dialog` (the dialog's scrim, above the More
+  sheet's). Head `inv-dialog-head`: the `inv-dialog-title` and the close button `inv-btn inv-btn-icon inv-dialog-close`
+  (optionally actions before it); a scrolling body; `inv-dialog-foot` the actions, right-aligned, primary last, **sticky
+  at the dialog's foot, so it is always its last child**. Every dialog is opened through `dialogOpen(html, {dismiss,
+  replace})` and headed by `dialogHeadHtml(title, closeAction, closeLabel, actionsHtml)` (`state.js`): it pushes focus,
+  locks the page and moves focus in; `dismiss` lets a tap on the scrim close a view (never an act); `replace` redraws the
+  top dialog in place. `closeOverlay()` / `closeTopOverlay()` shut them and give the focus back. A two-faced dialog
+  (Stats' client drill-down) shows `inv-flip-front` or `inv-flip-back`, turning over (`inv-flip-out` / `-in`, `--dur-2`).
 - Confirm dialogs for destructive actions: danger-filled primary, the consequence stated in the body.
 - `inv-menu`: dropdowns and autocompletes, `--surface`, `--border`, `--shadow-pop`, keyboard as now. It hangs off its
   field in an `inv-combo` (max `--menu-max`); options are `inv-menu-item` (`inv-menu-title`, `inv-menu-meta`), the
@@ -542,13 +562,15 @@ Replaces `inv-form-group/label/input/select/row`, `inv-stk-label`, `inv-stk-fiel
   desktop only; `inv-dialog-main` scrolls under a head that stays put, holding a `section[data-group]` per group (the
   open one `data-on`; the phone stacks them all under an `inv-pagehead-title`).
 - `inv-scroll`: a list inside a dialog scrolls within `--scroll-max` rather than pushing the dialog's buttons off screen.
-- `inv-toast`: bottom-centre, `--text-1` background with `--surface` text (it inverts with the theme),
-  `--shadow-pop`, tone shown by a leading dot.
+- `inv-toast`: under the top bar, centred (clear of the action bar and the bottom bar), `--text-1` background with
+  `--surface` text (it inverts with the theme), `--shadow-pop`, tone shown by a leading dot (`inv-toast-success|warning|error`).
 Replaces `inv-overlay-scrim/card/header/title/close`, `inv-more-scrim` (the duplicate scrim),
 `inv-confirm-*`, the To-do overlay's Fraunces title.
 
 ### 6.17 Charts — `charts.js`
-Same module, restyled: axis text `--t-micro` mono `--text-3`, gridlines `--border`, baseline `--text-3`.
+Same module, restyled: axis text mono `--text-3`, gridlines `--border`, baseline `--text-3`. The line chart's parts are
+`inv-chart-grid` / `-grid-label`, `inv-chart-area`, `inv-chart-line`, `inv-chart-dot`, `inv-chart-axis` (v1.0 called them
+`inv-svg-*`); an empty chart is an `inv-empty`.
 **Single series:** bars `--surface-3`, the current or selected bar `--accent`, value labels mono above bars.
 **Second measure** (e.g. ₹/kg over revenue): a 1.5px `--text-2` line. **Categorical:** `--chart-*`.
 Legend is inline in the panel head. Every datum keeps its `<title>`. SVG `font-size` attributes become the
@@ -590,6 +612,12 @@ used* as a fold of `inv-note`, and its own Save. An unsaved section is `data-dir
 is an `inv-input` with an `inv-btn-icon` that shows it, in a flush toolbar; the storage figures are an `inv-kv`; the
 diagnostics report is an `inv-quote`. Adds **Appearance** (theme and palette §3.2,
 density §3.5) under Data & device, each a segmented control that applies at once — appearance needs no Save.
+
+### 6.20 Utilities (closed list)
+`inv-hidden` (removed from view, for a control the code shows and hides), `inv-visually-hidden` (read by a screen reader
+only), and five margins on the spacing scale: `inv-mt-4`, `inv-mt-8`, `inv-mt-16`, `inv-mb-8`, `inv-mb-16`. Nothing else;
+a spacing a component needs belongs to the component. Status is a dot and a word through `uiDot(tone, word)` (`tabs.js`),
+its tone through `uiTone()`, which also maps the red / amber / info words the rules and parsers speak.
 
 ---
 
@@ -639,27 +667,31 @@ phone and desktop.
 
 1. **Foundation** — *built 26 Sep 2026.* New token block (§3) with `light-dark()`, the three palettes, theme + palette + density
    plumbing and Settings → Appearance, the new icons (§3.11), Geist faces,
-   `:focus-visible` ring, the new app shell (§4, §6.1). Old tokens kept as **aliases of the new** so every
+   `:focus-visible` ring, the new app shell (§4, §6.1). Old tokens were kept as **aliases of the new** (removed in step 4) so every
    existing rule renders in the new palette immediately. The old domain tokens map onto the status tones.
 2. **Components** — *built 26 Sep 2026.* §6.3–§6.18 sit in one block at the end of `styles.css`
    ("COMPONENTS v2.0"), and each rule also names the v1.0 families that do the same job, so every screen
    already renders the one look (cards → panel, the KPI and stock tiles → tile, every badge family → badge,
    the Clients segment and Stats tabs → view tabs, banners → callout, overlays → dialog). Labels are
    sentence case everywhere (DR-5); the duplicated `inv-chip` is one rule; decorative tone fills are neutral.
-   Step 3 moves the markup onto the v2.0 class names and deletes the v1.0 names from those selector lists.
+   Step 3 moved the markup onto the v2.0 class names and deleted the v1.0 names from those selector lists.
 3. **Screens, in order:** Home *(built 26 Sep 2026)* · Register *(built 26 Sep 2026)* · IM *(built 26 Sep 2026)* · Create *(built 26 Sep 2026)* · Clients/Items/Performance *(built 26 Sep 2026)* · To-do *(built 26 Sep 2026)* · Stock *(built 26 Sep 2026)* · Staff *(built 26 Sep 2026)* ·
    Stats *(built 26 Sep 2026)* · History *(built 26 Sep 2026)* · Settings *(built 26 Sep 2026)*. Each moves its render functions onto the components and deletes its private
    family in the same PR (DR-7). The survey's bugs are fixed where their screen moves: History's filter bar,
    Register's desktop list, the doubled Add buttons, Staff's cut-off sub-tabs, the base-colour dark-mode text,
    the duplicated `inv-chip`, IM's filter `<select>`s answering `click`, Settings' head scrolling away on the phone.
-4. **Clean-up.** Remove every alias, confirm the HR-6 exception list (§3.9) is the only raw-value set,
-   update CLAUDE.md's Design System section and the class count.
+4. **Clean-up** — *done 26 Sep 2026.* Every v1.0 class and every alias token is gone (`styles.css` 1,870 → 1,553 lines);
+   the last users — the credit note, number audit, invoice cancel and delete dialogs, the bank row's tick boxes, the
+   list/pane container, the chart parts — moved onto §6; every dialog is one shell (§6.16); the §3.9 exceptions were
+   confirmed as the only raw values; CLAUDE.md's class count is measured (427, every one `inv-`). P76 sweeps every
+   screen, view tab and dialog on the phone and the desktop, light and dark, and fails on any retired or unstyled class.
 
 **Route 3 (a framework build) is a separate app** in its own folder of this repo, built to this same
 document. See `docs/NEXT_SESSION.md` for the rule that keeps the books safe while both run.
 
 ### 9.1 Checklist for any UI PR
-- [ ] Uses only §6 components (or amends this document).
+- [ ] Uses only §6 components (or amends this document); P76's sweep is green (no retired or unstyled class, no second
+      primary, no `<select>` with a `data-action`, no duplicate id, nothing wider than the phone).
 - [ ] No raw values outside §3.9; no new tone word in a class name.
 - [ ] Light and dark both checked; contrast ≥ 4.5:1 for text.
 - [ ] Phone (393px) and desktop (1280px) both checked; compact and comfortable both usable.

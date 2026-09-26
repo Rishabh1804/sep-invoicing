@@ -59,9 +59,9 @@ function renderClientsPage() {
   container.innerHTML = _buildSubViewToggle(subView) +
     (isItems ? _buildItemsSubViewHtml() : _buildClientsSubViewHtml()) +
     (_isDesktop
-      ? '<div class="inv-master-detail inv-master-detail-pane" id="clientsMasterDetail">' +
-          '<div class="inv-master" id="clientsMaster">' + listHtml + '</div>' +
-          '<div class="inv-detail inv-pane" id="clientsDetail"></div>' +
+      ? '<div class="inv-pane-host" id="clientsMasterDetail">' +
+          '<div class="inv-pane-list" id="clientsMaster">' + listHtml + '</div>' +
+          '<div class="inv-pane" id="clientsDetail"></div>' +
         '</div>'
       : listHtml);
 
@@ -139,8 +139,7 @@ function _clientsPaneShow(title, bodyHtml) {
   var wrap = document.getElementById('clientsMasterDetail');
   if (wrap) wrap.classList.toggle('inv-pane-open', !!bodyHtml);
   var el = document.getElementById('clientsDetail');
-  if (el) el.innerHTML = bodyHtml ? '<div class="inv-pane-head">' + title +
-    '<button class="inv-btn inv-btn-icon inv-btn-ghost" data-action="invClientsClosePane" aria-label="Close">&times;</button></div>' + bodyHtml : '';
+  if (el) el.innerHTML = bodyHtml ? paneHeadHtml(title, 'invClientsClosePane') + bodyHtml : '';
 }
 
 function closeClientsPane() {
@@ -381,11 +380,8 @@ function _showItemOverlay(item, isAdd) {
   }
   var refCount = invRefs + imRefs;
 
-  var scrim = document.createElement('div');
-  scrim.className = 'inv-overlay-scrim';
-  scrim.innerHTML = '<div class="inv-overlay-card">' +
-    '<div class="inv-overlay-header"><span class="inv-overlay-title">' + escHtml(title) + '</span>' +
-    '<button class="inv-overlay-close" data-action="invCloseOverlay" aria-label="Close">&times;</button></div>' +
+  dialogOpen('<div class="inv-dialog">' +
+    dialogHeadHtml(escHtml(title)) +
     '<div class="inv-field"><label class="inv-field-label" for="itemEditPN">Part number</label>' +
     '<input class="inv-input inv-id" id="itemEditPN" value="' + escHtml(pn) + '"></div>' +
     '<div class="inv-field"><label class="inv-field-label" for="itemEditDesc">Description</label>' +
@@ -404,18 +400,10 @@ function _showItemOverlay(item, isAdd) {
     '<div class="inv-field"><label class="inv-field-label" for="itemEditWeight">Std weight (kg)</label>' +
     '<input type="number" class="inv-input inv-input-num" id="itemEditWeight" value="' + stdW + '" step="0.001" min="0" placeholder="Optional"></div></div>' +
     (refCount > 0 ? '<div class="inv-note">Referenced in ' + invRefs + ' invoice line' + (invRefs !== 1 ? 's' : '') + ', ' + imRefs + ' challan line' + (imRefs !== 1 ? 's' : '') + '</div>' : '') +
-    '<div class="inv-btn-bar">' +
+    '<div class="inv-dialog-foot">' +
     (!isAdd ? '<button class="inv-btn inv-btn-danger inv-btn-sm" data-action="invDeleteItem" data-id="' + itemId + '">Delete</button>' : '') +
     '<button class="inv-btn inv-btn-secondary" data-action="invCloseOverlay">Cancel</button>' +
-    '<button class="inv-btn inv-btn-primary" data-action="invSaveItem" data-id="' + itemId + '" data-mode="' + (isAdd ? 'add' : 'edit') + '">Save</button></div></div>';
-
-  scrim.addEventListener('click', function(e) {
-    if (e.target === scrim) { scrim.remove(); document.body.style.overflow = ''; popFocus(); }
-  });
-  pushFocus();
-  document.body.appendChild(scrim);
-  document.body.style.overflow = 'hidden';
-  focusFirstInteractive(scrim.querySelector('.inv-overlay-card'));
+    '<button class="inv-btn inv-btn-primary" data-action="invSaveItem" data-id="' + itemId + '" data-mode="' + (isAdd ? 'add' : 'edit') + '">Save</button></div></div>', { dismiss: true });
 }
 
 function saveItem(itemId, mode) {
@@ -532,11 +520,8 @@ function openMergeTool() {
 
   var groups = findDuplicateGroups(S.items);
 
-  var scrim = document.createElement('div');
-  scrim.className = 'inv-overlay-scrim';
-  var html = '<div class="inv-overlay-card">' +
-    '<div class="inv-overlay-header"><span class="inv-overlay-title">Merge duplicates</span>' +
-    '<button class="inv-overlay-close" data-action="invCloseOverlay" aria-label="Close">&times;</button></div>';
+  var html = '<div class="inv-dialog">' +
+    dialogHeadHtml('Merge duplicates');
 
   if (groups.length === 0) {
     html += '<div class="inv-empty">No duplicate groups found</div>';
@@ -565,18 +550,8 @@ function openMergeTool() {
     html += '</div>';
   }
 
-  html += '<div class="inv-btn-bar"><button class="inv-btn inv-btn-secondary" data-action="invCloseOverlay">Close</button></div></div>';
-  scrim.innerHTML = html;
-  scrim.addEventListener('click', function(e) {
-    if (e.target === scrim) { scrim.remove(); document.body.style.overflow = ''; popFocus(); }
-  });
-
-  scrim._mergeGroups = groups;
-
-  pushFocus();
-  document.body.appendChild(scrim);
-  document.body.style.overflow = 'hidden';
-  focusFirstInteractive(scrim.querySelector('.inv-overlay-card'));
+  html += '<div class="inv-dialog-foot"><button class="inv-btn inv-btn-secondary" data-action="invCloseOverlay">Close</button></div></div>';
+  dialogOpen(html, { dismiss: true })._mergeGroups = groups;
 }
 
 function findDuplicateGroups(items) {
@@ -624,7 +599,7 @@ function _extractNumericCore(partNumber) {
 }
 
 function mergeGroup(groupIdx) {
-  var scrim = document.querySelector('.inv-overlay-scrim');
+  var scrim = document.querySelector('.inv-scrim-dialog');
   if (!scrim || !scrim._mergeGroups) return;
   var group = scrim._mergeGroups[groupIdx];
   if (!group) return;
@@ -672,7 +647,7 @@ function mergeGroup(groupIdx) {
 }
 
 function confirmMerge(groupIdx, primaryId) {
-  var scrim = document.querySelector('.inv-overlay-scrim');
+  var scrim = document.querySelector('.inv-scrim-dialog');
   if (!scrim || !scrim._mergeGroups) return;
   var group = scrim._mergeGroups[groupIdx];
   if (!group) return;
@@ -794,21 +769,13 @@ function _breakEvenKg(item, cost) {
    own pieceWeights (the weight check). */
 function openPartWeights() {
   closeOverlay();
-  var scrim = document.createElement('div');
-  scrim.className = 'inv-overlay-scrim';
-  scrim.innerHTML = '<div class="inv-overlay-card">' +
-    '<div class="inv-overlay-header"><span class="inv-overlay-title">Part weights (NOS to KG)</span>' +
-    '<button class="inv-overlay-close" data-action="invCloseOverlay" aria-label="Close">&times;</button></div>' +
+  dialogOpen('<div class="inv-dialog">' +
+    dialogHeadHtml('Part weights (NOS to KG)') +
     '<p class="inv-note">A client billed by weight off a piece count is priced on pieces &times; this weight. It moves money on the invoice, unlike the standard weight Stats reads.</p>' +
     '<div class="inv-panel inv-panel-flush inv-scroll" id="setPWList">' + renderPartWeightsList() + '</div>' +
     '<div class="inv-fields"><div class="inv-field"><label class="inv-field-label" for="setPWPart">Part number</label><input class="inv-input inv-id" id="setPWPart" placeholder="HINGE PIN"></div>' +
     '<div class="inv-field"><label class="inv-field-label" for="setPWWeight">Weight (kg)</label><input type="number" class="inv-input inv-input-num" id="setPWWeight" step="0.001" placeholder="0.045"></div></div>' +
-    '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invAddPartWeight">Add weight</button></div>';
-  scrim.addEventListener('click', function(e) { if (e.target === scrim) closeOverlay(); });
-  pushFocus();
-  document.body.appendChild(scrim);
-  document.body.style.overflow = 'hidden';
-  focusFirstInteractive(scrim.querySelector('.inv-overlay-card'));
+    '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invAddPartWeight">Add weight</button></div>', { dismiss: true });
 }
 
 function _partWeightsCount() {
@@ -869,9 +836,8 @@ function openWeightEntry() {
   var weightMap = _buildDerivedWeightMap();
   var derivable = missing.filter(function(it) { return !!weightMap[it.partNumber]; }).length;
 
-  var html = '<div class="inv-overlay-card">' +
-    '<div class="inv-overlay-header"><span class="inv-overlay-title">Enter weights</span>' +
-    '<button class="inv-overlay-close" data-action="invCloseOverlay" aria-label="Close">&times;</button></div>' +
+  var html = '<div class="inv-dialog">' +
+    dialogHeadHtml('Enter weights') +
     '<p class="inv-note">' +
     missing.length + ' item' + (missing.length !== 1 ? 's' : '') + ' without a weight, heaviest revenue first. ' +
     (cost > 0
@@ -909,23 +875,14 @@ function openWeightEntry() {
   });
   html += '</div>';
 
-  html += '<div class="inv-btn-bar">' +
+  html += '<div class="inv-dialog-foot">' +
     '<button class="inv-btn inv-btn-secondary" data-action="invCloseOverlay">Cancel</button>' +
     (derivable > 0
       ? '<button class="inv-btn inv-btn-secondary" data-action="invDeriveWeights">Derive ' + derivable + ' from rates</button>'
       : '') +
     '<button class="inv-btn inv-btn-primary" data-action="invSaveWeights">Save weights</button></div></div>';
 
-  var scrim = document.createElement('div');
-  scrim.className = 'inv-overlay-scrim';
-  scrim.innerHTML = html;
-  scrim.addEventListener('click', function(e) {
-    if (e.target === scrim) { scrim.remove(); document.body.style.overflow = ''; popFocus(); }
-  });
-  pushFocus();
-  document.body.appendChild(scrim);
-  document.body.style.overflow = 'hidden';
-  focusFirstInteractive(scrim.querySelector('.inv-overlay-card'));
+  dialogOpen(html, { dismiss: true });
 }
 
 /* Live pricing as a weight is typed. */

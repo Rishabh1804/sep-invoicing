@@ -737,7 +737,7 @@ function stockReorderSub(g) { var sub = g.rows.reduce(function(s, r) { return s 
 function stockReorderRowsHtml(L) {
   var h = '';
   L.groups.forEach(function(g) {
-    h += '<div class="inv-row-group"><span>' + escHtml(g.supplier) + '</span><span class="inv-mono">' + escHtml(stockReorderSub(g)) + '</span></div>';
+    h += '<div class="inv-row-group"><span>' + escHtml(g.supplier) + '</span><span class="inv-num">' + escHtml(stockReorderSub(g)) + '</span></div>';
     g.rows.forEach(function(r) {
       h += '<div class="inv-row inv-row-2 inv-row-flow"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(r.item.name) + '</span>' +
         '<span class="inv-row-meta inv-row-wrap">' + escHtml(stockReorderWhy(r, true)) + '</span></span>' +

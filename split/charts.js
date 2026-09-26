@@ -58,7 +58,7 @@ function _chartLabelStride(n, maxLabels) {
 }
 
 function _chartEmpty(msg) {
-  return '<div class="inv-chart-empty">' + escHtml(msg) + '</div>';
+  return '<div class="inv-empty">' + escHtml(msg) + '</div>';
 }
 
 /* ===== TIME SERIES =====
@@ -73,8 +73,8 @@ function _chartFrame(data, unit, W, H, pad) {
   for (var g = 0; g <= 4; g++) {
     var gy = pad.t + (g / 4) * chartH;
     var gVal = maxVal - (g / 4) * maxVal;
-    svg += '<line x1="' + pad.l + '" y1="' + gy + '" x2="' + (W - pad.r) + '" y2="' + gy + '" class="inv-svg-grid"/>';
-    svg += '<text x="' + (pad.l - 4) + '" y="' + (gy + 3) + '" text-anchor="end" class="inv-svg-grid-label">' +
+    svg += '<line x1="' + pad.l + '" y1="' + gy + '" x2="' + (W - pad.r) + '" y2="' + gy + '" class="inv-chart-grid"/>';
+    svg += '<text x="' + (pad.l - 4) + '" y="' + (gy + 3) + '" text-anchor="end" class="inv-chart-grid-label">' +
       escHtml(chartShort(gVal, unit)) + '</text>';
   }
   return { svg: svg, maxVal: maxVal, chartW: chartW, chartH: chartH };
@@ -103,16 +103,16 @@ function chartLine(data, opts) {
   // Aspect is preserved, so a circle is a circle at any width.
   var svg = '<svg class="inv-chart-svg" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="' +
     escHtml(opts.ariaLabel || 'Trend') + '">' + f.svg;
-  svg += '<path d="' + area + '" class="inv-svg-area"/>';
-  svg += '<polyline points="' + line + '" class="inv-svg-line"/>';
+  svg += '<path d="' + area + '" class="inv-chart-area"/>';
+  svg += '<polyline points="' + line + '" class="inv-chart-line"/>';
 
   var stride = _chartLabelStride(data.length, opts.maxLabels);
   points.forEach(function(p, i) {
     // Every point carries its value; the marker is what the pointer aims at.
-    svg += '<circle cx="' + p.x + '" cy="' + p.y + '" r="3" class="inv-svg-dot">' +
+    svg += '<circle cx="' + p.x + '" cy="' + p.y + '" r="3" class="inv-chart-dot">' +
       '<title>' + escHtml(p.d.label + ': ' + chartFull(p.d.value, unit)) + '</title></circle>';
     if (i % stride === 0 || i === points.length - 1) {
-      svg += '<text x="' + p.x + '" y="' + (pad.t + f.chartH + 14) + '" text-anchor="middle" class="inv-svg-axis-label">' +
+      svg += '<text x="' + p.x + '" y="' + (pad.t + f.chartH + 14) + '" text-anchor="middle" class="inv-chart-axis">' +
         escHtml(p.d.label) + '</text>';
     }
   });
@@ -143,7 +143,7 @@ function chartBars(data, opts) {
       '<title>' + escHtml(d.label + ': ' + chartFull(d.value, unit)) + '</title></rect>';
     if (i % stride === 0 || i === data.length - 1) {
       svg += '<text x="' + (x + barW / 2) + '" y="' + (pad.t + f.chartH + 14) +
-        '" text-anchor="middle" class="inv-svg-axis-label">' + escHtml(d.label) + '</text>';
+        '" text-anchor="middle" class="inv-chart-axis">' + escHtml(d.label) + '</text>';
     }
   });
   svg += '</svg>';
@@ -210,8 +210,8 @@ function chartPie(slices, opts) {
     legend += '<div class="inv-chart-legend-row"' + tap + '>' +
       '<span class="inv-chart-swatch ' + cls + '"></span>' +
       '<span class="inv-chart-legend-label">' + escHtml(s.label) + '</span>' +
-      '<span class="inv-chart-legend-val inv-mono">' + escHtml(chartShort(s.value, unit)) + '</span>' +
-      '<span class="inv-chart-legend-pct inv-mono">' + formatNum(s.value / total * 100, 1) + '%</span></div>';
+      '<span class="inv-chart-legend-val inv-num">' + escHtml(chartShort(s.value, unit)) + '</span>' +
+      '<span class="inv-chart-legend-pct inv-num">' + formatNum(s.value / total * 100, 1) + '%</span></div>';
   });
   legend += '</div>';
 
@@ -233,7 +233,7 @@ function chartRankedBars(rows, opts) {
     html += '<div class="inv-chart-ranked-row"' + tap + '>' +
       '<div class="inv-chart-ranked-head">' +
       '<span class="inv-chart-ranked-label">' + escHtml(r.label) + '</span>' +
-      '<span class="inv-chart-ranked-val inv-mono">' + escHtml(r.display || chartFull(r.value, unit)) + '</span></div>' +
+      '<span class="inv-chart-ranked-val inv-num">' + escHtml(r.display || chartFull(r.value, unit)) + '</span></div>' +
       '<div class="inv-chart-ranked-track">' +
       '<svg class="inv-chart-ranked-svg" viewBox="0 0 100 8" preserveAspectRatio="none" aria-hidden="true">' +
       '<rect width="' + pct + '" height="8" rx="2" class="inv-chart-ranked-fill' +
@@ -279,7 +279,7 @@ function _chartSeriesLegend(series, unit, lastOf) {
   return '<div class="inv-chart-keys">' + series.map(function(s, i) {
     var v = lastOf ? lastOf(s) : null;
     return '<span class="inv-chart-key"><span class="inv-chart-swatch inv-chart-c' + (s.tone != null ? s.tone : i) + '"></span>' + escHtml(s.label) +
-      (v != null ? ' <span class="inv-mono">' + escHtml(chartShort(v, unit)) + '</span>' : '') + '</span>';
+      (v != null ? ' <span class="inv-num">' + escHtml(chartShort(v, unit)) + '</span>' : '') + '</span>';
   }).join('') + '</div>';
 }
 
@@ -301,8 +301,8 @@ function chartLines(labels, series, opts) {
   var svg = '<svg class="inv-chart-svg" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="' + escHtml(opts.ariaLabel || 'Trend') + '">';
   for (var g = 0; g <= 4; g++) {
     var gv = r.hi - (g / 4) * (r.hi - r.lo), gy = y(gv);
-    svg += '<line x1="' + pad.l + '" y1="' + gy + '" x2="' + (W - pad.r) + '" y2="' + gy + '" class="inv-svg-grid"/>' +
-      '<text x="' + (pad.l - 4) + '" y="' + (gy + 3) + '" text-anchor="end" class="inv-svg-grid-label">' + escHtml(chartShort(gv, unit)) + '</text>';
+    svg += '<line x1="' + pad.l + '" y1="' + gy + '" x2="' + (W - pad.r) + '" y2="' + gy + '" class="inv-chart-grid"/>' +
+      '<text x="' + (pad.l - 4) + '" y="' + (gy + 3) + '" text-anchor="end" class="inv-chart-grid-label">' + escHtml(chartShort(gv, unit)) + '</text>';
   }
   if (r.lo < 0) svg += '<line x1="' + pad.l + '" y1="' + y(0) + '" x2="' + (W - pad.r) + '" y2="' + y(0) + '" class="inv-chart-zero"/>';
   if (opts.band) {
@@ -323,7 +323,7 @@ function chartLines(labels, series, opts) {
   });
   var stride = _chartLabelStride(labels.length, opts.maxLabels);
   labels.forEach(function(l, i) {
-    if (i % stride === 0 || i === labels.length - 1) svg += '<text x="' + x(i) + '" y="' + (pad.t + ch + 14) + '" text-anchor="middle" class="inv-svg-axis-label">' + escHtml(l) + '</text>';
+    if (i % stride === 0 || i === labels.length - 1) svg += '<text x="' + x(i) + '" y="' + (pad.t + ch + 14) + '" text-anchor="middle" class="inv-chart-axis">' + escHtml(l) + '</text>';
   });
   svg += '</svg>';
   var last = function(s) { for (var i = s.values.length - 1; i >= 0; i--) if (s.values[i] != null) return s.values[i]; return null; };
@@ -359,7 +359,7 @@ function chartStack(labels, series, opts) {
         (opts.selected != null && String(opts.selected) === String(key) ? ' aria-current="true"' : '') + '><title>' + escHtml(read) + '</title></rect>';
       if (!group) base -= h;
     });
-    if (i % stride === 0 || i === labels.length - 1) svg += '<text x="' + (x0 + barW / 2) + '" y="' + (pad.t + f.chartH + 14) + '" text-anchor="middle" class="inv-svg-axis-label">' + escHtml(l) + '</text>';
+    if (i % stride === 0 || i === labels.length - 1) svg += '<text x="' + (x0 + barW / 2) + '" y="' + (pad.t + f.chartH + 14) + '" text-anchor="middle" class="inv-chart-axis">' + escHtml(l) + '</text>';
   });
   svg += '</svg>';
   if (!opts.readHint) opts.readHint = 'Tap a bar to read it';
@@ -399,8 +399,8 @@ function chartPieTap(slices, opts) {
     var sel = opts.selected != null && String(opts.selected) === String(s.key);
     return '<button type="button" class="inv-chart-legend-row" data-action="' + escHtml(act) + '" data-key="' + escHtml(s.key) + '" data-read="' + escHtml(s.label + ': ' + chartFull(s.value, unit)) + '"' +
       ' aria-pressed="' + sel + '"><span class="inv-chart-swatch inv-chart-c' + (s._others ? 'x' : (s.tone != null ? s.tone : i)) + '"></span>' +
-      '<span class="inv-chart-legend-label">' + escHtml(s.label) + '</span><span class="inv-chart-legend-val inv-mono">' + escHtml(chartShort(s.value, unit)) + '</span>' +
-      '<span class="inv-chart-legend-pct inv-mono">' + formatNum(s.value / total * 100, 1) + '%</span></button>';
+      '<span class="inv-chart-legend-label">' + escHtml(s.label) + '</span><span class="inv-chart-legend-val inv-num">' + escHtml(chartShort(s.value, unit)) + '</span>' +
+      '<span class="inv-chart-legend-pct inv-num">' + formatNum(s.value / total * 100, 1) + '%</span></button>';
   }).join('') + '</div>';
   return _chartBox('<div class="inv-chart-pie-wrap">' + svg + legend + '</div>', opts);
 }

@@ -259,5 +259,5 @@ test('P18: the whole phone row opens the invoice, its figures included', async (
   await loadAppWithState(page, stateWith([invoice(1)]));
   await switchTab(page, 'pageRegister');
   await page.locator('#regList .inv-row-end').first().click();
-  await expect(page.locator('.inv-overlay-scrim')).toContainText('SEP/TEST-00001');
+  await expect(page.locator('.inv-scrim-dialog')).toContainText('SEP/TEST-00001');
 });

@@ -631,7 +631,6 @@ function _attExtraCard(iso, rec) {
 }
 
 /* ===== WEEK VIEW ===== */
-var ATT_CELL_TONE = { P: 'ok', H: 'warning', A: 'danger' };
 
 function _attWeekView() {
   var days = attWeekDays(_attWeekStart);
@@ -666,7 +665,7 @@ function _attWeekView() {
       // day for the hourly pool, the overtime on top for everyone else.
       var badge = m ? (hourly ? (m.hours || 0) : (m.ot || 0)) : 0;
       html += '<td' + (attParseIso(d).getDay() === 0 ? ' data-sun' : '') + '><button class="inv-cell inv-cell-' +
-        (st ? ATT_CELL_TONE[st] : 'empty') + '" data-action="invAttCycle" data-id="' + w.id + '" data-date="' + d +
+        (st ? ATT_STATE_TONE[st] : 'empty') + '" data-action="invAttCycle" data-id="' + w.id + '" data-date="' + d +
         '" aria-label="' + escHtml(w.name) + ' ' + attDayName(d) + ' ' + (st ? ATT_STATE_LABELS[st] : 'unmarked') +
         (badge ? ', ' + formatNum(badge, 1) + ' hours' : '') + '">' +
         (st || '&middot;') + (badge ? '<span class="inv-unit">' + formatNum(badge, 0) + '</span>' : '') +
@@ -1039,11 +1038,8 @@ function _showWorkerOverlay(worker, isAdd) {
   var num = function(id, v, step) {
     return '<input class="inv-input inv-input-num" id="' + id + '" type="number" step="' + step + '" min="0" value="' + v + '">';
   };
-  var scrim = document.createElement('div');
-  scrim.className = 'inv-overlay-scrim';
-  scrim.innerHTML = '<div class="inv-overlay-card">' +
-    '<div class="inv-overlay-header"><span class="inv-overlay-title">' + (isAdd ? 'Add worker' : 'Edit worker') + '</span>' +
-    '<button class="inv-overlay-close" data-action="invCloseOverlay" aria-label="Close">&times;</button></div>' +
+  dialogOpen('<div class="inv-dialog">' +
+    dialogHeadHtml((isAdd ? 'Add worker' : 'Edit worker')) +
     _wfield('wedName', 'Name', '<input class="inv-input" id="wedName" value="' + escHtml(w.name) + '">') +
     '<div class="inv-fields">' +
     _wfield('wedComp', 'Comp class', '<select class="inv-select" id="wedComp">' +
@@ -1077,16 +1073,9 @@ function _showWorkerOverlay(worker, isAdd) {
     (isAdd ? '' : _mergeControl(w)) +
     (isAdd ? '' : '<div><button class="inv-btn inv-btn-danger inv-btn-sm" data-action="invAttDeleteWorker" data-id="' + w.id + '">Delete worker' +
       (marks > 0 ? ' (' + marks + ' day' + (marks === 1 ? '' : 's') + ' recorded)' : '') + '</button></div>') +
-    '<div class="inv-btn-bar"><button class="inv-btn inv-btn-secondary" data-action="invCloseOverlay">Cancel</button>' +
+    '<div class="inv-dialog-foot"><button class="inv-btn inv-btn-secondary" data-action="invCloseOverlay">Cancel</button>' +
     '<button class="inv-btn inv-btn-primary" data-action="invAttSaveWorker" data-id="' + w.id +
-    '" data-mode="' + (isAdd ? 'add' : 'edit') + '">' + (isAdd ? 'Add worker' : 'Save') + '</button></div></div>';
-  scrim.addEventListener('click', function(e) {
-    if (e.target === scrim) { scrim.remove(); document.body.style.overflow = ''; popFocus(); }
-  });
-  pushFocus();
-  document.body.appendChild(scrim);
-  document.body.style.overflow = 'hidden';
-  focusFirstInteractive(scrim.querySelector('.inv-overlay-card'));
+    '" data-mode="' + (isAdd ? 'add' : 'edit') + '">' + (isAdd ? 'Add worker' : 'Save') + '</button></div></div>', { dismiss: true });
 }
 
 /* Days on which the attendance record names this worker.
@@ -1733,11 +1722,8 @@ function mergeWorkerInto(fromId) {
    cannot tell whether the double entry reached a payout. Naming the dates is
    the whole point; a count would say there is a problem without saying where. */
 function showCollisionReport(res) {
-  var scrim = document.createElement('div');
-  scrim.className = 'inv-overlay-scrim';
-  scrim.innerHTML = '<div class="inv-overlay-card">' +
-    '<div class="inv-overlay-header"><span class="inv-overlay-title">Days marked on both rows</span>' +
-    '<button class="inv-overlay-close" data-action="invCloseOverlay" aria-label="Close">&times;</button></div>' +
+  dialogOpen('<div class="inv-dialog">' +
+    dialogHeadHtml('Days marked on both rows') +
     '<div class="inv-note inv-mb-8">' + res.collided + ' day' + (res.collided === 1 ? '' : 's') +
     ' had a mark on <strong>' + escHtml(res.fromName) + '</strong> and on <strong>' +
     escHtml(res.intoName) + '</strong>. Each has been collapsed to the fuller mark &mdash; a ' +
@@ -1752,15 +1738,8 @@ function showCollisionReport(res) {
     '<div class="inv-callout inv-callout-warning">Those days were entered twice before this merge. ' +
     'Check them against the payout for that week &mdash; the app cannot tell whether the ' +
     'double entry reached one.</div>' +
-    '<div class="inv-btn-bar"><button class="inv-btn inv-btn-primary" ' +
-    'data-action="invCloseOverlay">Done</button></div></div>';
-  scrim.addEventListener('click', function(e) {
-    if (e.target === scrim) { scrim.remove(); document.body.style.overflow = ''; popFocus(); }
-  });
-  pushFocus();
-  document.body.appendChild(scrim);
-  document.body.style.overflow = 'hidden';
-  focusFirstInteractive(scrim.querySelector('.inv-overlay-card'));
+    '<div class="inv-dialog-foot"><button class="inv-btn inv-btn-primary" ' +
+    'data-action="invCloseOverlay">Done</button></div></div>', { dismiss: true });
 }
 
 /* Deletion is refused while attendance names the worker. Removing the row would

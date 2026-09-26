@@ -97,13 +97,13 @@ function renderFinHomeCard() {
   var age = todoDaysBetween(last.date, localDateStr());
   var tile = function(tab, anchor, label, value, sub, tone) {
     return '<button class="inv-tile' + (tone ? ' inv-tile-' + tone : '') + '" data-action="invFinGo" data-tab="' + tab + '"' + (anchor ? ' data-anchor="' + anchor + '"' : '') + ' data-home-fin="' + label + '">' +
-      '<div class="inv-tile-label">' + label + '</div><div class="inv-tile-value inv-tile-value-sm inv-num inv-nowrap" title="' + escHtml(formatCurrency(value)) + '">' + finRs(value) + '</div><div class="inv-tile-sub">' + sub + '</div></button>';
+      '<div class="inv-tile-label">' + label + '</div><div class="inv-tile-value inv-tile-value-sm inv-nowrap" title="' + escHtml(formatCurrency(value)) + '">' + finRs(value) + '</div><div class="inv-tile-sub">' + sub + '</div></button>';
   };
   h += '<div class="inv-tiles inv-tiles-flush">' +
     tile('bank', '', 'Balance', last.balance, 'on ' + escHtml(finShortDate(last.date)) + (age > 7 ? ', ' + age + ' days ago' : ''), last.balance < 0 ? 'danger' : age > 7 ? 'warning' : '') +
     tile('receipts', loose ? 'bankLoose' : '', 'Owed to us', owed, loose ? loose + ' receipt' + (loose === 1 ? '' : 's') + ' not placed' : 'since ' + escHtml(finShortDate(rows[0].date)), loose ? 'warning' : '') +
     (book && book.median != null ? '<button class="inv-tile" data-action="invFinGo" data-tab="receipts" data-home-fin="Pays in"><div class="inv-tile-label">Pays in</div>' +
-      '<div class="inv-tile-value inv-tile-value-sm inv-num">' + Math.round(book.median) + ' days</div><div class="inv-tile-sub">the book, invoice to receipt</div></button>' : '') +
+      '<div class="inv-tile-value inv-tile-value-sm">' + Math.round(book.median) + ' days</div><div class="inv-tile-sub">the book, invoice to receipt</div></button>' : '') +
     tile('overview', 'finForecast', 'Runway', fc ? fc.min.bal : last.balance, fc && fc.cross ? 'below zero on ' + escHtml(finShortDate(fc.cross)) : fc ? 'lowest in 45 days, ' + escHtml(finShortDate(fc.min.date)) : '', fc && fc.cross ? 'danger' : '') +
     '</div>';
   el.innerHTML = h + '</div>';

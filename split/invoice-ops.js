@@ -449,8 +449,7 @@ function _renderRegDetail(invId, skipMasterRefresh) {
   // The pane takes room only while an invoice is open; the table then drops columns in priority order (§6.11).
   var wrap = document.getElementById('regMasterDetail');
   if (wrap) wrap.classList.toggle('inv-pane-open', !!inv);
-  if (detailEl) detailEl.innerHTML = inv ? '<div class="inv-pane-head"><span class="inv-panel-title inv-id">' + escHtml(inv.displayNumber) + '</span>' +
-    '<button class="inv-btn inv-btn-icon inv-btn-ghost" data-action="invRegClosePane" aria-label="Close">&times;</button></div>' + invoiceDetailHtml(inv) : '';
+  if (detailEl) detailEl.innerHTML = inv ? paneHeadHtml('<span class="inv-panel-title inv-id">' + escHtml(inv.displayNumber) + '</span>', 'invRegClosePane') + invoiceDetailHtml(inv) : '';
   if (!skipMasterRefresh) {
     var masterEl = document.getElementById('regMaster');
     if (masterEl) masterEl.innerHTML = _buildRegisterTableHtml();
@@ -472,9 +471,9 @@ function renderRegisterTable() {
   // name wrapped over three lines.
   if (!document.getElementById('regMasterDetail')) {
     area.innerHTML =
-      '<div class="inv-master-detail inv-master-detail-pane" id="regMasterDetail">' +
-        '<div class="inv-master" id="regMaster"></div>' +
-        '<div class="inv-detail inv-pane" id="regDetail"></div>' +
+      '<div class="inv-pane-host" id="regMasterDetail">' +
+        '<div class="inv-pane-list" id="regMaster"></div>' +
+        '<div class="inv-pane" id="regDetail"></div>' +
       '</div>';
   }
 
@@ -623,19 +622,8 @@ function toggleRegSortDir() {
 function openInvoiceDetail(invId) {
   const inv = S.invoices.find(i => i.id === invId);
   if (!inv) return;
-  var html = '<div class="inv-overlay-card">' +
-    '<div class="inv-overlay-header"><span class="inv-overlay-title">Invoice ' + escHtml(inv.displayNumber) + '</span>' +
-    '<button class="inv-overlay-close" data-action="invCloseOverlay" aria-label="Close">&times;</button></div>' +
-    invoiceDetailHtml(inv) + '</div>';
-
-  const scrim = document.createElement('div');
-  scrim.className = 'inv-overlay-scrim';
-  scrim.innerHTML = html;
-  scrim.addEventListener('click', function(e) { if (e.target === scrim) { scrim.remove(); document.body.style.overflow = ''; popFocus(); } });
-  pushFocus();
-  document.body.appendChild(scrim);
-  document.body.style.overflow = 'hidden';
-  focusFirstInteractive(scrim.querySelector('.inv-overlay-card'));
+  dialogOpen('<div class="inv-dialog">' + dialogHeadHtml('Invoice <span class="inv-id">' + escHtml(inv.displayNumber) + '</span>') +
+    invoiceDetailHtml(inv) + '</div>', { dismiss: true });
 }
 
 /* The count and the taxable of what the filter shows (cancelled invoices bill nothing). */
@@ -815,20 +803,11 @@ function cancelInvoice(invId) {
   const inv = S.invoices.find(i => i.id === invId);
   if (!inv || inv.status === 'cancelled') return;
 
-  // Show confirmation overlay (Act intent)
-  const scrim = document.createElement('div');
-  scrim.className = 'inv-overlay-scrim';
-  scrim.innerHTML = '<div class="inv-overlay-card">' +
-    '<div class="inv-overlay-header"><span class="inv-overlay-title">Cancel Invoice</span>' +
-    '<button class="inv-overlay-close" data-action="invCloseConfirm">&times;</button></div>' +
-    '<div class="inv-confirm-body">Cancel invoice <strong>' + escHtml(inv.displayNumber) + '</strong>?<br>This invoice will appear as cancelled in your GSTR1 export. The customer should be notified. This cannot be undone.</div>' +
-    '<div class="inv-btn-bar"><button class="inv-btn inv-btn-ghost" data-action="invCloseConfirm">Keep Active</button>' +
-    '<button class="inv-btn inv-btn-primary" data-action="invConfirmCancel" data-id="' + escHtml(inv.id) + '">Cancel Invoice</button></div></div>';
-  // Act overlay: scrim tap does nothing (DP 5.2)
-  pushFocus();
-  document.body.appendChild(scrim);
-  document.body.style.overflow = 'hidden';
-  focusFirstInteractive(scrim.querySelector('.inv-overlay-card'));
+  // An act: the consequence in the body, the danger button last; a tap on the scrim does nothing (DP 5.2).
+  dialogOpen('<div class="inv-dialog">' + dialogHeadHtml('Cancel invoice', 'invCloseConfirm') +
+    '<p class="inv-mb-8">Cancel invoice <strong class="inv-id">' + escHtml(inv.displayNumber) + '</strong>? It will appear as cancelled in your GSTR-1 export. The customer should be notified. This cannot be undone.</p>' +
+    '<div class="inv-dialog-foot"><button class="inv-btn inv-btn-secondary" data-action="invCloseConfirm">Keep active</button>' +
+    '<button class="inv-btn inv-btn-danger inv-btn-solid" data-action="invConfirmCancel" data-id="' + escHtml(inv.id) + '">Cancel invoice</button></div></div>');
 }
 
 function confirmCancelInvoice(invId) {
@@ -865,9 +844,6 @@ function deleteInvoice(invId) {
   const now = new Date();
   const pastDeadline = now >= filingDeadline;
 
-  const scrim = document.createElement('div');
-  scrim.className = 'inv-overlay-scrim';
-
   // The lifecycle state is harder evidence than the date heuristic: once an
   // invoice is dispatched the customer holds a document bearing that number,
   // and deleting it here does not retract it there.
@@ -879,14 +855,14 @@ function deleteInvoice(invId) {
   let btnClass = '';
 
   if (issued) {
-    warnHtml = '<div class="inv-confirm-warn">This invoice was ' + escHtml(INV_STATE_LABELS[getInvState(inv)].toLowerCase()) +
+    warnHtml = '<div class="inv-callout inv-callout-warning inv-mb-8" data-delete-warn>This invoice was ' + escHtml(INV_STATE_LABELS[getInvState(inv)].toLowerCase()) +
       '. The customer may hold a copy and claim credit against this number, which deleting it here does not retract' +
       (pastDeadline ? ', and it may already sit in a filed return' : '') +
       '. A credit note is usually the right instrument. The number stays spent either way.</div>';
     bodyText = 'Permanently delete invoice <strong>' + escHtml(inv.displayNumber) + '</strong>? This cannot be undone.';
     btnClass = 'inv-btn-danger inv-btn-solid';
   } else if (pastDeadline) {
-    warnHtml = '<div class="inv-confirm-warn">This invoice may have been included in a filed GST return. Cancelling (not deleting) is recommended.</div>';
+    warnHtml = '<div class="inv-callout inv-callout-warning inv-mb-8" data-delete-warn>This invoice may have been included in a filed GST return. Cancelling (not deleting) is recommended.</div>';
     bodyText = 'Permanently delete invoice <strong>' + escHtml(inv.displayNumber) + '</strong>? This cannot be undone.';
     btnClass = 'inv-btn-danger inv-btn-solid';
   } else {
@@ -894,27 +870,20 @@ function deleteInvoice(invId) {
     btnClass = 'inv-btn-primary';
   }
 
-  scrim.innerHTML = '<div class="inv-overlay-card">' +
-    '<div class="inv-overlay-header"><span class="inv-overlay-title">Delete Invoice</span>' +
-    '<button class="inv-overlay-close" data-action="invCloseConfirm">&times;</button></div>' +
+  dialogOpen('<div class="inv-dialog">' + dialogHeadHtml('Delete invoice', 'invCloseConfirm') +
     warnHtml +
-    '<div class="inv-confirm-body">' + bodyText + '</div>' +
-    '<div class="inv-form-group"><label class="inv-form-label">Why is it going?</label>' +
-    '<input class="inv-form-input" id="invDeleteReason" placeholder="e.g. duplicate of 00657" autocomplete="off">' +
-    '<div class="inv-form-hint">Kept against the number in the register. Without it a deleted number is indistinguishable from one never issued.</div></div>' +
-    '<div class="inv-btn-bar"><button class="inv-btn inv-btn-ghost" data-action="invCloseConfirm">Keep</button>' +
-    '<button class="inv-btn ' + btnClass + '" data-action="invConfirmDelete" data-id="' + escHtml(inv.id) + '">Delete</button></div>' +
+    '<p class="inv-mb-8">' + bodyText + '</p>' +
+    '<div class="inv-field"><label class="inv-field-label" for="invDeleteReason">Why is it going?</label>' +
+    '<input class="inv-input" id="invDeleteReason" placeholder="e.g. duplicate of 00657" autocomplete="off">' +
+    '<div class="inv-field-hint">Kept against the number in the register. Without it a deleted number is indistinguishable from one never issued.</div></div>' +
     // Before filing, a corrected invoice may take the number back. Filed is
     // final: GSTR-1 carries the number and only a credit note corrects it.
     (canReissue
-      ? '<div class="inv-reissue-offer"><button class="inv-btn inv-btn-ghost inv-btn-block" data-action="invConfirmReissue" data-id="' + escHtml(inv.id) + '">Delete and reissue ' + escHtml(inv.invoiceNumber) + '</button>' +
-        '<div class="inv-form-hint">Opens a new invoice with the same lines under this number, for correcting it before the GST return is filed. The old version stays on record against the number.</div></div>'
-      : '') + '</div>';
-  // Act overlay: scrim tap does nothing (DP 5.2)
-  pushFocus();
-  document.body.appendChild(scrim);
-  document.body.style.overflow = 'hidden';
-  focusFirstInteractive(scrim.querySelector('.inv-overlay-card'));
+      ? '<div class="inv-callout inv-callout-neutral"><button class="inv-btn inv-btn-secondary inv-btn-block" data-action="invConfirmReissue" data-id="' + escHtml(inv.id) + '">Delete and reissue <span class="inv-id">' + escHtml(inv.invoiceNumber) + '</span></button>' +
+        '<div class="inv-field-hint">Opens a new invoice with the same lines under this number, for correcting it before the GST return is filed. The old version stays on record against the number.</div></div>'
+      : '') +
+    '<div class="inv-dialog-foot"><button class="inv-btn inv-btn-secondary" data-action="invCloseConfirm">Keep</button>' +
+    '<button class="inv-btn ' + btnClass + '" data-action="invConfirmDelete" data-id="' + escHtml(inv.id) + '">Delete</button></div></div>');
 }
 
 function confirmDeleteInvoice(invId, reissue) {

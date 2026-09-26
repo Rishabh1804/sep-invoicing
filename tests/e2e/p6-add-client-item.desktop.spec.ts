@@ -22,7 +22,7 @@ test.describe('P6 desktop: add entry points survive the master-detail layout', (
     await expect(page.locator('#clientsItemsFab')).toHaveCount(0);
 
     await add.click();
-    await expect(page.locator('.inv-overlay-title')).toHaveText('Add client');
+    await expect(page.locator('.inv-dialog-title')).toHaveText('Add client');
   });
 
   test('a newly added client lands selected in the detail panel', async ({ page }) => {
@@ -52,7 +52,7 @@ test.describe('P6 desktop: add entry points survive the master-detail layout', (
     await expect(page.locator('#pageClients [data-action="invAddItem"]')).toHaveCount(1);
 
     await add.click();
-    await expect(page.locator('.inv-overlay-title')).toHaveText('Add item');
+    await expect(page.locator('.inv-dialog-title')).toHaveText('Add item');
   });
 
 });

@@ -221,7 +221,7 @@ function finForecastHtml() {
     ['In 60 days', at(60).bal, 'P25–P75 ' + finRs(at(60).lo) + ' to ' + finRs(at(60).hi)]];
   h += '<div class="inv-tiles inv-tiles-4">' + tiles.map(function(t) {
     return '<div class="inv-tile' + (t[1] < 0 ? ' inv-tile-danger' : '') + '" data-fc="' + t[0] + '"><div class="inv-tile-label">' + t[0] + '</div>' +
-      '<div class="inv-tile-value inv-tile-value-sm inv-num inv-nowrap" title="' + escHtml(formatCurrency(t[1])) + '">' + finRs(t[1]) + '</div><div class="inv-tile-sub">' + escHtml(t[2]) + '</div></div>';
+      '<div class="inv-tile-value inv-tile-value-sm inv-nowrap" title="' + escHtml(formatCurrency(t[1])) + '">' + finRs(t[1]) + '</div><div class="inv-tile-sub">' + escHtml(t[2]) + '</div></div>';
   }).join('') + '</div>';
   if (fc.cross) h += '<div class="inv-callout inv-callout-danger">At this pace the account goes below zero on ' + escHtml(formatDate(fc.cross)) + '.</div>';
   h += chartLines(pts.map(function(x) { return finShortDate(x.date); }), [{ label: 'Balance', values: pts.map(function(x) { return x.bal; }) }],

@@ -621,7 +621,7 @@ test('the merge control is on the worker overlay and names the row that disappea
   await page.locator('[data-action="invAttView"][data-view="roster"]').click();
   await page.locator(`[data-action="invAttEditWorker"][data-id="${POOL.id}"]`).first().click();
 
-  const card = page.locator('.inv-overlay-card');
+  const card = page.locator('.inv-dialog');
   await expect(card).toContainText('Merge this worker into');
   await expect(card).toContainText('POOL HAND');
   // Every other worker is offerable; the open row is not, because merging

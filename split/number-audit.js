@@ -172,26 +172,19 @@ function openAccountForNumber(num) {
   if (n == null) return;
   _accountForNum = n;
 
-  var scrim = document.createElement('div');
-  scrim.className = 'inv-overlay-scrim';
-  scrim.innerHTML = '<div class="inv-overlay-card">' +
-    '<div class="inv-overlay-header"><span class="inv-overlay-title">Account for ' + escHtml(displayForNumber(n)) + '</span>' +
-    '<button class="inv-overlay-close" data-action="invCloseConfirm">&times;</button></div>' +
-    '<div class="inv-confirm-body">This number is missing from the register. Record what happened to it — a cancelled invoice filed at zero, a spoiled number, one deleted before this ledger existed. No invoice is created.</div>' +
-    '<div class="inv-form-group"><label class="inv-form-label">What happened to this number</label>' +
-    '<input class="inv-form-input" id="invGapReason" placeholder="e.g. cancelled, filed in GSTR-1 at zero" autocomplete="off"></div>' +
-    '<div class="inv-form-row">' +
-    '<div class="inv-form-group"><label class="inv-form-label">Date (optional)</label>' +
-    '<input type="date" class="inv-form-input inv-mono" id="invGapDate"></div>' +
-    '<div class="inv-form-group"><label class="inv-form-label">Customer (optional)</label>' +
-    '<input class="inv-form-input" id="invGapClient" autocomplete="off"></div></div>' +
-    '<div class="inv-btn-bar">' +
-    '<button class="inv-btn inv-btn-ghost" data-action="invCloseConfirm">Cancel</button>' +
-    '<button class="inv-btn inv-btn-primary" data-action="invSaveGapReason">Record</button></div></div>';
-  pushFocus();
-  document.body.appendChild(scrim);
-  document.body.style.overflow = 'hidden';
-  focusFirstInteractive(scrim.querySelector('.inv-overlay-card'));
+  // An act, not a view: a tap on the scrim does nothing.
+  dialogOpen('<div class="inv-dialog">' + dialogHeadHtml('Account for ' + escHtml(displayForNumber(n)), 'invCloseConfirm') +
+    '<p class="inv-mb-8">This number is missing from the register. Record what happened to it — a cancelled invoice filed at zero, a spoiled number, one deleted before this ledger existed. No invoice is created.</p>' +
+    '<div class="inv-field"><label class="inv-field-label" for="invGapReason">What happened to this number</label>' +
+    '<input class="inv-input" id="invGapReason" placeholder="e.g. cancelled, filed in GSTR-1 at zero" autocomplete="off"></div>' +
+    '<div class="inv-fields">' +
+    '<div class="inv-field"><label class="inv-field-label" for="invGapDate">Date (optional)</label>' +
+    '<input type="date" class="inv-input inv-id" id="invGapDate"></div>' +
+    '<div class="inv-field"><label class="inv-field-label" for="invGapClient">Customer (optional)</label>' +
+    '<input class="inv-input" id="invGapClient" autocomplete="off"></div></div>' +
+    '<div class="inv-dialog-foot">' +
+    '<button class="inv-btn inv-btn-secondary" data-action="invCloseConfirm">Cancel</button>' +
+    '<button class="inv-btn inv-btn-primary" data-action="invSaveGapReason">Record</button></div></div>');
 }
 
 function saveGapReason() {
@@ -239,6 +232,8 @@ var NUM_AUDIT_LABELS = {
   active: 'Live', cancelled: 'Cancelled', voided: 'Voided',
   reissued: 'Reissued', unaccounted: 'Unaccounted'
 };
+/* A number's class as a status tone (§6.13): unaccounted is the one to act on. */
+var NUM_AUDIT_TONE = { active: 'ok', cancelled: 'neutral', voided: 'info', reissued: 'warning', unaccounted: 'danger' };
 
 function _numAuditRowHtml(entry) {
   var detail;
@@ -254,64 +249,51 @@ function _numAuditRowHtml(entry) {
       ' &middot; ' + formatCurrency(entry.inv.taxableValue || 0);
   }
 
-  return '<div class="inv-numaudit-row">' +
-    '<span class="inv-numaudit-num">' + escHtml(entry.display) + '</span>' +
-    '<span class="inv-numaudit-detail">' + detail + '</span>' +
-    '<span class="inv-numaudit-kind inv-numaudit-' + entry.kind + '">' + NUM_AUDIT_LABELS[entry.kind] + '</span>' +
+  return '<div class="inv-row inv-row-2" data-num-kind="' + entry.kind + '">' +
+    '<span class="inv-row-main"><span class="inv-row-title inv-id">' + escHtml(entry.display) + '</span>' +
+    '<span class="inv-row-meta">' + detail + '</span></span>' +
+    '<span class="inv-row-end"><span class="inv-dot inv-dot-' + NUM_AUDIT_TONE[entry.kind] + '">' + NUM_AUDIT_LABELS[entry.kind] + '</span>' +
     (entry.kind === 'unaccounted'
-      ? '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invAccountForNumber" data-num="' + entry.num + '">Account for</button>'
+      ? '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invAccountForNumber" data-num="' + entry.num + '">Account for</button>'
       : '') +
-    '</div>';
+    '</span></div>';
+}
+
+function _numAuditPanelHtml(title, entries) {
+  return '<div class="inv-panel inv-panel-flush"><div class="inv-panel-head"><span class="inv-panel-title">' + title +
+    ' <span class="inv-panel-count">' + entries.length + '</span></span></div>' +
+    '<div class="inv-scroll">' + entries.map(_numAuditRowHtml).join('') + '</div></div>';
 }
 
 function showNumberAudit() {
   var a = analyseInvoiceNumbers();
-
-  var scrim = document.createElement('div');
-  scrim.className = 'inv-overlay-scrim';
-
-  var html = '<div class="inv-overlay-card">' +
-    '<div class="inv-overlay-header"><span class="inv-overlay-title">Number Audit</span>' +
-    '<button class="inv-overlay-close" data-action="invCloseOverlay">&times;</button></div>';
+  var html = '<div class="inv-dialog">' + dialogHeadHtml('Number audit');
 
   if (a.entries.length === 0) {
-    html += '<div class="inv-empty-state">No invoice numbers issued yet.</div>';
+    html += '<div class="inv-empty">No invoice numbers issued yet.</div>';
   } else {
-    html += '<div class="inv-numaudit-note">Serial ' + escHtml(padInvNum(a.from)) + ' to ' +
-      escHtml(padInvNum(a.to)) + ', every number accounted for or not. Rule 46 wants a consecutive series; a gap is fine, an <em>unexplained</em> gap is not.</div>';
+    html += '<p class="inv-note inv-mb-8">Serial <span class="inv-id">' + escHtml(padInvNum(a.from)) + '</span> to <span class="inv-id">' +
+      escHtml(padInvNum(a.to)) + '</span>, every number accounted for or not. Rule 46 wants a consecutive series; a gap is fine, an <em>unexplained</em> gap is not.</p>';
 
-    html += '<div class="inv-numaudit-tally">' +
-      '<span class="inv-numaudit-kind inv-numaudit-active">' + a.counts.active + ' live</span>' +
-      '<span class="inv-numaudit-kind inv-numaudit-cancelled">' + a.counts.cancelled + ' cancelled</span>' +
-      '<span class="inv-numaudit-kind inv-numaudit-voided">' + a.counts.voided + ' voided</span>' +
-      (a.counts.reissued > 0 ? '<span class="inv-numaudit-kind inv-numaudit-reissued">' + a.counts.reissued + ' reissued</span>' : '') +
-      '<span class="inv-numaudit-kind inv-numaudit-unaccounted">' + a.counts.unaccounted + ' unaccounted</span></div>';
+    // The tally, each class a dot and a word in its tone.
+    var tally = function(kind, n, word) { return '<span class="inv-dot inv-dot-' + NUM_AUDIT_TONE[kind] + '">' + n + ' ' + word + '</span>'; };
+    html += '<div class="inv-toolbar" data-num-tally>' +
+      tally('active', a.counts.active, 'live') + tally('cancelled', a.counts.cancelled, 'cancelled') + tally('voided', a.counts.voided, 'voided') +
+      (a.counts.reissued > 0 ? tally('reissued', a.counts.reissued, 'reissued') : '') +
+      tally('unaccounted', a.counts.unaccounted, 'unaccounted') + '</div>';
 
-    if (a.unaccounted.length > 0) {
-      html += '<div class="inv-numaudit-section">Unaccounted (' + a.unaccounted.length + ')</div>' +
-        '<div class="inv-numaudit-scroll">' +
-        a.unaccounted.map(_numAuditRowHtml).join('') + '</div>';
-    }
+    if (a.unaccounted.length > 0) html += _numAuditPanelHtml('Unaccounted', a.unaccounted);
 
     var explained = a.entries.filter(function(e) { return e.kind === 'voided' || e.kind === 'reissued'; });
-    if (explained.length > 0) {
-      html += '<div class="inv-numaudit-section">Voided, with a reason (' + explained.length + ')</div>' +
-        '<div class="inv-numaudit-scroll">' +
-        explained.map(_numAuditRowHtml).join('') + '</div>';
-    }
+    if (explained.length > 0) html += _numAuditPanelHtml('Voided, with a reason', explained);
 
     if (a.unaccounted.length === 0 && explained.length === 0) {
-      html += '<div class="inv-empty-state">Unbroken series. No gaps to explain.</div>';
+      html += '<div class="inv-empty">Unbroken series. No gaps to explain.</div>';
     }
   }
 
-  html += '<div class="inv-btn-bar"><button class="inv-btn inv-btn-primary" data-action="invCloseOverlay">Close</button></div></div>';
-
-  scrim.innerHTML = html;
-  pushFocus();
-  document.body.appendChild(scrim);
-  document.body.style.overflow = 'hidden';
-  focusFirstInteractive(scrim.querySelector('.inv-overlay-card'));
+  html += '<div class="inv-dialog-foot"><button class="inv-btn inv-btn-primary" data-action="invCloseOverlay">Close</button></div></div>';
+  dialogOpen(html);
 }
 
 /* ===== EXPORT ROWS ===== */

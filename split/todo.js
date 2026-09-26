@@ -421,14 +421,7 @@ function todoRefreshViews() {
 /* ---------- Overlays ---------- */
 function todoOverlay(title, body) {
   closeOverlay();
-  var scrim = document.createElement('div');
-  scrim.className = 'inv-overlay-scrim';
-  scrim.innerHTML = '<div class="inv-overlay-card"><div class="inv-overlay-header"><span class="inv-overlay-title">' + title + '</span>' +
-    '<button class="inv-overlay-close" data-action="invCloseOverlay" aria-label="Close">&times;</button></div>' + body + '</div>';
-  scrim.addEventListener('click', function(e) { if (e.target === scrim) closeOverlay(); });
-  pushFocus();
-  document.body.appendChild(scrim);
-  focusFirstInteractive(scrim.querySelector('.inv-overlay-card'));
+  dialogOpen('<div class="inv-dialog">' + dialogHeadHtml(title) + body + '</div>', { dismiss: true });
 }
 
 function todoOpenApp(key) {
@@ -449,7 +442,7 @@ function todoOpenApp(key) {
     '<div class="inv-field inv-mt-16"><span class="inv-field-label">Snooze</span><div class="inv-toolbar">' +
     '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invTodoSnooze" data-key="' + escHtml(key) + '" data-v="sig">Until the figures change</button>' +
     '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invTodoSnooze" data-key="' + escHtml(key) + '" data-v="7">1 week</button></div></div>' +
-    '<div class="inv-btn-bar"><button class="inv-btn inv-btn-primary" data-action="invTodoGoApp" data-key="' + escHtml(key) + '">' + escHtml(t.goLabel) + '</button></div>';
+    '<div class="inv-dialog-foot"><button class="inv-btn inv-btn-primary" data-action="invTodoGoApp" data-key="' + escHtml(key) + '">' + escHtml(t.goLabel) + '</button></div>';
   todoOverlay('From your data', h);
 }
 
@@ -489,7 +482,7 @@ function todoOpenEdit(id, text) {
     '<select class="inv-select" id="todoLinkId"' + (kind ? '' : ' disabled') + '>' + todoLinkOptions(kind, v.link ? v.link.id : '') + '</select></div></div>' +
     '<div class="inv-field"><label class="inv-field-label" for="todoNote">Note</label>' +
     '<textarea class="inv-textarea" id="todoNote" rows="2">' + escHtml(v.note || '') + '</textarea></div>' +
-    '<div class="inv-btn-bar">' + (t && !t.doneAt ? '<button class="inv-btn inv-btn-secondary" data-action="invTodoToggle" data-id="' + escHtml(t.id) + '">Mark done</button>' : '') +
+    '<div class="inv-dialog-foot">' + (t && !t.doneAt ? '<button class="inv-btn inv-btn-secondary" data-action="invTodoToggle" data-id="' + escHtml(t.id) + '">Mark done</button>' : '') +
     '<button class="inv-btn inv-btn-primary" data-action="invTodoSave" data-id="' + escHtml(t ? t.id : '') + '">Save</button></div>';
   todoOverlay(t ? 'Task' : 'New task', h);
 }
@@ -533,7 +526,7 @@ function todoToggle(id, by) {
   if (t.doneAt) { t.doneAt = null; delete t.doneBy; }
   else { t.doneAt = Date.now(); t.doneBy = by || 'app'; }
   saveState();
-  if (document.querySelector('.inv-overlay-scrim')) closeOverlay();
+  if (document.querySelector('.inv-scrim-dialog')) closeOverlay();
   todoRefreshViews();
 }
 function todoSnooze(key, v) {

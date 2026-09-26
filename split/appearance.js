@@ -27,11 +27,6 @@ function appearanceSet(k, v) {
   applyAppearance(k === 'theme' ? v : null, k === 'palette' ? v : null, k === 'density' ? v : null);
 }
 
-function appearanceIsDark() {
-  var t = document.documentElement.dataset.theme;
-  return t === 'dark' || (!t && !!(_darkQuery && _darkQuery.matches));
-}
-
 /* Arguments override what storage says, so a device that refuses storage still switches. */
 function applyAppearance(theme, palette, density) {
   var d = document.documentElement;

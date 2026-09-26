@@ -103,7 +103,7 @@ function renderCreateForm() {
         ' role="combobox" aria-expanded="false" aria-autocomplete="list" aria-controls="invPartAC' + idx + '">' +
         '<div class="inv-menu inv-hidden" id="invPartAC' + idx + '" role="listbox"></div></div>', null, 'inv-line-part') +
       lineField('Qty', '<input type="number" class="inv-input inv-input-num" value="' + (item.qty||'') + '" data-field="qty" data-idx="' + idx + '" data-action="invUpdateLine" step="any" min="0">') +
-      lineField('Unit', '<select class="inv-select" data-field="unit" data-idx="' + idx + '" data-action="invUpdateLine">' +
+      lineField('Unit', '<select class="inv-select" data-field="unit" data-idx="' + idx + '" data-change="invUpdateLine">' +
         '<option value="KG"' + (item.unit==='KG'?' selected':'') + '>KG</option>' +
         '<option value="NOS"' + (item.unit==='NOS'?' selected':'') + '>NOS</option></select>') +
       (item.unit === 'KG'

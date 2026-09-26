@@ -413,11 +413,10 @@ function openSettings(target) {
     _setUiSave(ui);
   }
   var scrim = document.createElement('div');
-  scrim.className = 'inv-overlay-scrim';
+  scrim.className = 'inv-scrim inv-scrim-dialog';
   scrim.id = 'settingsScrim';
-  scrim.innerHTML = '<div class="inv-overlay-card inv-dialog-wide">' +
-    '<div class="inv-overlay-header"><span class="inv-overlay-title">Settings</span>' +
-    '<button class="inv-overlay-close" data-action="invCloseSettings" aria-label="Close settings">&times;</button></div>' +
+  scrim.innerHTML = '<div class="inv-dialog inv-dialog-wide">' +
+    dialogHeadHtml('Settings', 'invCloseSettings', 'Close settings') +
     '<div class="inv-dialog-panes">' +
     '<nav class="inv-dialog-nav" aria-label="Settings groups">' + SETTINGS_GROUPS.map(function(g) {
       var on = g.key === ui.group;
@@ -448,7 +447,7 @@ function openSettings(target) {
     var sec = scrim.querySelector('details[data-sec="' + target + '"]');
     if (sec && sec.scrollIntoView) sec.scrollIntoView({ block: 'start' });
   }
-  focusFirstInteractive(scrim.querySelector('.inv-overlay-card'));
+  focusFirstInteractive(scrim.querySelector('.inv-dialog'));
   refreshDiskSummary();
 }
 

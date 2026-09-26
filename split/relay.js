@@ -796,7 +796,6 @@ function relayMarkText(m) {
 /* The check before saving (§7, Paste message): the stock check's contract — every line beside what it was read
    as, the questions first as callouts with their pickers, each day's marks as rows with a badge for what changes,
    and Save in the action bar with what it will write. */
-var RELAY_ISSUE_TONE = { red: 'danger', amber: 'warning', info: 'info' };
 var RELAY_CHANGE = {
   kept: ['warning', 'Kept'], 'new': ['ok', 'New'], updated: ['info', 'Updated'], same: ['neutral', 'Same']
 };
@@ -820,7 +819,7 @@ function relayRenderReview() {
       '<span class="inv-panel-count">' + plan.issues.length + '</span></span></div>';
     plan.issues.forEach(function(is) {
       h += '<div class="inv-row inv-row-auto inv-row-top"><div class="inv-row-main">' +
-        '<div class="inv-callout inv-callout-' + (RELAY_ISSUE_TONE[is.tone] || 'neutral') + '" data-issue="' + escHtml(is.tone) + '">Line ' + is.n + ': ' + escHtml(is.text) + '</div>';
+        '<div class="inv-callout inv-callout-' + uiTone(is.tone) + '" data-issue="' + escHtml(is.tone) + '">Line ' + is.n + ': ' + escHtml(is.text) + '</div>';
       // A name not placed, one read as somebody, or one left out: each gets the
       // picker, so a wrong guess is put right here and remembered from then on.
       if (is.key && (is.tone === 'red' || is.tone === 'info' || is.id != null) && !askedNames[is.key]) {

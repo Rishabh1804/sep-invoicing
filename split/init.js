@@ -519,7 +519,7 @@ function updateLayoutMode() {
   }
 
   // Mode change — defer if overlay or form is active
-  if (document.querySelector('.inv-overlay-scrim') || _challanForm) {
+  if (document.querySelector('.inv-scrim-dialog') || _challanForm) {
     _pendingModeSwitch = true;
     return;
   }

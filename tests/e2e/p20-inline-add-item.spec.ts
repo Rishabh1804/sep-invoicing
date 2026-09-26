@@ -92,7 +92,7 @@ test('P20: creating it inline fills the line and never leaves the form', async (
   await page.locator('[data-action="invSaveItem"]').click();
 
   // The overlay closes back to the challan, not to the Items tab.
-  await expect(page.locator('.inv-overlay-scrim')).toHaveCount(0);
+  await expect(page.locator('.inv-scrim-dialog')).toHaveCount(0);
   await expect(page.locator('#pageIM.inv-page-active')).toBeVisible();
 
   const items = await storedItems(page);
@@ -114,7 +114,7 @@ test('P20: the same affordance exists on the invoice line', async ({ page }) => 
   await expect(page.locator('#itemEditPN')).toHaveValue('WASHER 12');
   await page.locator('[data-action="invSaveItem"]').click();
 
-  await expect(page.locator('.inv-overlay-scrim')).toHaveCount(0);
+  await expect(page.locator('.inv-scrim-dialog')).toHaveCount(0);
   await expect(page.locator('#pageCreate.inv-page-active')).toBeVisible();
   await expect(page.locator('[data-action="invEditLinePart"][data-idx="0"]')).toHaveValue('WASHER 12');
 });
@@ -177,7 +177,7 @@ test('P20: an abandoned inline add cannot redirect a later ordinary one', async 
   await page.locator('.inv-menu-add').click();
   // Walk away from it. (The overlay carries both an X and a Cancel; either
   // does, so name the one in the header.)
-  await page.locator('.inv-overlay-close').click();
+  await page.locator('.inv-dialog-close').click();
 
   // Now add an item the ordinary way, from the Items tab.
   await switchTab(page, 'pageClients');

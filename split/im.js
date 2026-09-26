@@ -226,8 +226,7 @@ function _renderIMDetail(challanId, skipMasterRefresh) {
   var wrap = document.getElementById('imMasterDetail');
   if (wrap) wrap.classList.toggle('inv-pane-open', !!im);
   var detailEl = document.getElementById('imDetail');
-  if (detailEl) detailEl.innerHTML = im ? '<div class="inv-pane-head"><span class="inv-panel-title inv-id">' + escHtml(imChallanLabel(im)) + '</span>' +
-    '<button class="inv-btn inv-btn-icon inv-btn-ghost" data-action="invIMClosePane" aria-label="Close">&times;</button></div>' + challanDetailHtml(im) : '';
+  if (detailEl) detailEl.innerHTML = im ? paneHeadHtml('<span class="inv-panel-title inv-id">' + escHtml(imChallanLabel(im)) + '</span>', 'invIMClosePane') + challanDetailHtml(im) : '';
   if (!skipMasterRefresh) {
     var masterEl = document.getElementById('imMaster');
     if (masterEl) masterEl.innerHTML = _buildIMTableHtml();
@@ -246,9 +245,9 @@ function renderIMTable() {
 
   if (!document.getElementById('imMasterDetail')) {
     area.innerHTML =
-      '<div class="inv-master-detail inv-master-detail-pane" id="imMasterDetail">' +
-        '<div class="inv-master" id="imMaster"></div>' +
-        '<div class="inv-detail inv-pane" id="imDetail"></div>' +
+      '<div class="inv-pane-host" id="imMasterDetail">' +
+        '<div class="inv-pane-list" id="imMaster"></div>' +
+        '<div class="inv-pane" id="imDetail"></div>' +
       '</div>';
   }
 

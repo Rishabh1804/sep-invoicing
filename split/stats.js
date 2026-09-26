@@ -251,7 +251,6 @@ function statsRow(title, meta, end, attrs, extra) {
 }
 function statsNum(html, cls) { return '<span class="inv-num' + (cls ? ' ' + cls : '') + '">' + html + '</span>'; }
 function statsUnit(u) { return '<span class="inv-unit">' + u + '</span>'; }
-function statsDot(tone, word) { return '<span class="inv-dot inv-dot-' + tone + '">' + word + '</span>'; }
 
 /* A padded stretch in a flush panel: a callout (neutral unless toned), a note, a chart. */
 function statsBody(html) { return '<div class="inv-panel-body">' + html + '</div>'; }
@@ -567,7 +566,7 @@ function renderStats() {
     (igst > 0 ? statsRow('IGST @ 18%', '', statsNum(formatCurrency(igst))) : '') +
     statsRow('Not yet marked filed', unfiledCount + ' invoice' + (unfiledCount === 1 ? '' : 's'),
       '<span class="inv-row-stack">' + statsNum(formatCurrency(gstRound(unfiledTax))) +
-      (unfiledCount > 0 ? statsDot('warning', unfiledCount + ' unfiled') : statsDot('ok', 'All filed')) + '</span>', ' data-unfiled') +
+      (unfiledCount > 0 ? uiDot('warning', unfiledCount + ' unfiled') : uiDot('ok', 'All filed')) + '</span>', ' data-unfiled') +
     '</div>';
 
   /* ===== Card 3: Invoice states ===== */
@@ -577,7 +576,7 @@ function renderStats() {
     if (stateCount[s] != null) stateCount[s]++;
   });
   html += statsPanel('states', 'Invoice states', '') + statsTiles(Object.keys(stateCount).map(function(s) {
-    return statsTile(s, statsDot(INV_STATE_TONE[s], INV_STATE_LABELS[s]), String(stateCount[s]));
+    return statsTile(s, uiDot(INV_STATE_TONE[s], INV_STATE_LABELS[s]), String(stateCount[s]));
   }).join(''), true) + '</div>';
 
   take('billing');
@@ -611,7 +610,7 @@ function renderStats() {
         var below = costPerKg > 0 && r.realisation < costPerKg;
         html += statsRow(escHtml(r.name), formatNum(r.kg / 1000, 2) + ' t · ' + formatCurrency(r.total),
           '<span class="inv-row-stack">' + statsNum(formatCurrency(r.realisation) + statsUnit('/kg')) +
-          (below ? statsDot('danger', 'Below cost') : '') + '</span>',
+          (below ? uiDot('danger', 'Below cost') : '') + '</span>',
           ' data-action="invStatsClientDrill" data-client-id="' + r.clientId + '" data-client-row');
       });
 
@@ -620,7 +619,7 @@ function renderStats() {
         partial.forEach(function(r) {
           html += statsRow(escHtml(r.name), 'weights on ' + Math.round(r.coverage * 100) + '% of revenue · ' +
             (r.kg > 0 ? formatNum(r.kg / 1000, 2) + ' t · ' : '') + formatCurrency(r.total),
-            statsDot('neutral', 'n/a'),
+            uiDot('neutral', 'n/a'),
             ' data-action="invStatsClientDrill" data-client-id="' + r.clientId + '" data-client-row data-partial');
         });
         var partialRev = partial.reduce(function(s, r) { return s + r.total; }, 0);
@@ -664,8 +663,8 @@ function renderStats() {
       statsRow(escHtml(top.name), 'Largest client by revenue', '') +
       statsRow('Share of revenue', '', statsNum(formatNum(topRevShare, 0) + '%')) +
       statsRow('Share of tonnage', '', topKgShare != null
-        ? '<span class="inv-row-stack">' + statsNum(formatNum(topKgShare, 0) + '%') + (heavier ? statsDot('warning', 'above its revenue share') : '') + '</span>'
-        : statsDot('neutral', 'not measurable')) +
+        ? '<span class="inv-row-stack">' + statsNum(formatNum(topKgShare, 0) + '%') + (heavier ? uiDot('warning', 'above its revenue share') : '') + '</span>'
+        : uiDot('neutral', 'not measurable')) +
       statsRow('Top 3 share', '', statsNum(formatNum((top3Rev / totalRev) * 100, 0) + '%'));
     if (heavier) {
       html += statsCallout(escHtml(top.name) + ' takes a larger share of the plant than of the revenue &mdash; ' +
@@ -917,15 +916,11 @@ function openClientDrillOverlay(clientId) {
   var periodLabel = PERIOD_LABELS[_statsPeriod] || 'All';
   var flipIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M17 1l4 4-4 4"/><path d="M3 11V9a4 4 0 014-4h14"/><path d="M7 23l-4-4 4-4"/><path d="M21 13v2a4 4 0 01-4 4H3"/></svg>';
 
-  pushFocus();
-  document.body.style.overflow = 'hidden';
-  var scrim = document.createElement('div');
-  scrim.className = 'inv-overlay-scrim';
-  scrim.innerHTML = '<div class="inv-overlay-card inv-flip-container" data-drill="' + clientId + '">' +
-    '<div class="inv-flip-inner">' +
+  // Two faces, one showing at a time (inv-flip-front / -back, §6.16): the figures, then the rows and the one primary.
+  dialogOpen('<div class="inv-dialog" data-drill="' + clientId + '">' +
+    '<div data-flip>' +
     '<div class="inv-flip-front">' +
-    '<div class="inv-overlay-header"><span class="inv-overlay-title">' + escHtml(client.name) + '</span>' +
-    '<button class="inv-overlay-close" data-action="invCloseOverlay" aria-label="Close">&times;</button></div>' +
+    dialogHeadHtml(escHtml(client.name)) +
     '<div class="inv-note inv-mb-8">' + escHtml(periodLabel) + ' &middot; ' + escHtml(rateInfo) + '</div>' +
     '<div class="inv-tiles">' +
     statsTile('revenue', 'Revenue', formatCurrency(totalRev)) +
@@ -937,14 +932,13 @@ function openClientDrillOverlay(clientId) {
     statsTile('unbilled', 'Unbilled', formatCurrency(pendingAmt)) +
     '</div>' +
     '<div class="inv-toolbar">' + Object.keys(stateCounts).map(function(s) {
-      return statsDot(INV_STATE_TONE[s], stateCounts[s] + ' ' + INV_STATE_LABELS[s]);
+      return uiDot(INV_STATE_TONE[s], stateCounts[s] + ' ' + INV_STATE_LABELS[s]);
     }).join('') + '</div>' +
     '<button class="inv-btn inv-btn-secondary inv-btn-block" data-action="invFlipCard">' + flipIcon + ' Details and actions</button>' +
     '</div>' +
     '<div class="inv-flip-back">' +
-    '<div class="inv-overlay-header"><span class="inv-overlay-title">' + escHtml(client.name) + '</span><div class="inv-toolbar inv-toolbar-tight">' +
-    '<button class="inv-btn inv-btn-icon inv-btn-ghost" data-action="invFlipCard" aria-label="Flip back">' + flipIcon + '</button>' +
-    '<button class="inv-overlay-close" data-action="invCloseOverlay" aria-label="Close">&times;</button></div></div>' +
+    dialogHeadHtml(escHtml(client.name), 'invCloseOverlay', 'Close',
+      '<button class="inv-btn inv-btn-icon inv-btn-ghost" data-action="invFlipCard" aria-label="Flip back">' + flipIcon + '</button>') +
     '<div class="inv-panel inv-panel-flush"><div class="inv-panel-head"><span class="inv-panel-title">Recent invoices</span></div>' + recentHtml + '</div>' +
     '<div class="inv-panel inv-panel-flush"><div class="inv-panel-head"><span class="inv-panel-title">Pending challans</span></div>' + challanHtml + '</div>' +
     '<div class="inv-toolbar">' +
@@ -952,9 +946,7 @@ function openClientDrillOverlay(clientId) {
     '<button class="inv-btn inv-btn-secondary" data-action="invStatsJumpRegister" data-client-id="' + clientId + '">View in Register</button>' +
     '<button class="inv-btn inv-btn-secondary" data-action="invStatsJumpIM" data-client-id="' + clientId + '">View in IM</button>' +
     '</div></div>' +
-    '</div></div>';
-  document.body.appendChild(scrim);
-  focusFirstInteractive(scrim);
+    '</div></div>');
 }
 
 /* ===== HISTORY (Phase 7 — Activity Log Rework) =====
@@ -1328,7 +1320,7 @@ function renderHistory() {
   function amountHtml(ev) { return ev.amount ? '<span class="inv-num">' + formatCurrency(ev.amount) + '</span>' : ''; }
 
   if (_isDesktop) {
-    html += '<table class="inv-table inv-table-history"><thead><tr><th class="inv-col-time">Time</th><th>Event</th><th>Kind</th><th class="inv-num">Amount</th></tr></thead><tbody>';
+    html += '<table class="inv-table inv-table-history"><thead><tr><th>Time</th><th>Event</th><th>Kind</th><th class="inv-num">Amount</th></tr></thead><tbody>';
     days.forEach(function(d) {
       html += '<tr class="inv-table-group"><td colspan="4">' + escHtml(d) + ' · ' + dayCount[d] + '</td></tr>';
       byDay[d].forEach(function(ev) {

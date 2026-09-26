@@ -41,7 +41,7 @@ test.describe('P8: bulk weight entry', () => {
     ]));
     await openEntry(page);
 
-    await expect(page.locator('.inv-overlay-title')).toHaveText('Enter weights');
+    await expect(page.locator('.inv-dialog-title')).toHaveText('Enter weights');
     await expect(page.locator('[data-weight-row]')).toHaveCount(1);
     await expect(page.locator('[data-weight-row]')).toContainText('CLAMP 165X83 (NT)');
     await expect(page.locator('[data-weight-row]')).not.toContainText('ALREADY WEIGHED');
@@ -88,7 +88,7 @@ test.describe('P8: bulk weight entry', () => {
     // PART B deliberately left blank.
     await page.locator('[data-action="invSaveWeights"]').click();
 
-    await expect(page.locator('.inv-overlay-scrim')).toHaveCount(0);
+    await expect(page.locator('.inv-scrim-dialog')).toHaveCount(0);
 
     const items = await page.evaluate(async () => {
       const raw = (await (window as any).readPersistedStateRaw()) || '{}';
@@ -122,7 +122,7 @@ test.describe('P8: bulk weight entry', () => {
     await page.locator('[data-action="invSaveWeights"]').click();
 
     // Overlay stays open, nothing stored.
-    await expect(page.locator('.inv-overlay-card')).toBeVisible();
+    await expect(page.locator('.inv-dialog')).toBeVisible();
     const items = await page.evaluate(async () => {
       const raw = (await (window as any).readPersistedStateRaw()) || '{}';
       return (JSON.parse(raw) as { items: Item[] }).items;
@@ -153,7 +153,7 @@ test.describe('P8: bulk weight entry', () => {
     await openEntry(page);
 
     await page.locator('[data-action="invDeriveWeights"]').click();
-    await expect(page.locator('.inv-overlay-scrim')).toHaveCount(0);
+    await expect(page.locator('.inv-scrim-dialog')).toHaveCount(0);
 
     const items = await page.evaluate(async () => {
       const raw = (await (window as any).readPersistedStateRaw()) || '{}';

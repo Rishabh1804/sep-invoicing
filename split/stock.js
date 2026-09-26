@@ -567,7 +567,6 @@ function setStockBy(v) { try { localStorage.setItem(STOCK_BY_KEY, v); } catch (e
 // The stock tones in the five status words of the design system (§3.3): a line
 // charged into a bath is information, not a warning, and one with no rate yet is neutral.
 var STOCK_TONE = { red: 'danger', amber: 'warning', ok: 'ok', bath: 'info', none: 'neutral' };
-var STOCK_ISSUE_TONE = { red: 'danger', amber: 'warning', info: 'info' };
 var _stockFilter = null;   // a Lines tile pressed: 'out' | 'low' | 'ok' | 'none' (none takes the bath lines too)
 var STOCK_BACK_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="15 18 9 12 15 6"/></svg>';
 
@@ -680,7 +679,7 @@ function renderStockList(open) {
   if (_isDesktop) return h + stockLinesTableHtml(groups, shown, titles, open);
   h += '<div class="inv-panel inv-panel-flush" id="stockLines">';
   shown.forEach(function(g) {
-    h += '<div class="inv-row-group"><span>' + escHtml(titles[g]) + '</span><span class="inv-mono">' + groups[g].length + '</span></div>';
+    h += '<div class="inv-row-group"><span>' + escHtml(titles[g]) + '</span><span class="inv-num">' + groups[g].length + '</span></div>';
     groups[g].forEach(function(x) { h += stockRowHtml(x.item, x.st); });
   });
   return h + '</div>';
@@ -695,7 +694,7 @@ function stockRowHtml(item, s) {
 
 /* The desktop: one table grouped by status, and the open line in the pane beside it. */
 function stockLinesTableHtml(groups, shown, titles, open) {
-  var h = '<div class="inv-master-detail inv-master-detail-pane' + (open ? ' inv-pane-open' : '') + '" id="stockMasterDetail"><div class="inv-master" id="stockLines">' +
+  var h = '<div class="inv-pane-host' + (open ? ' inv-pane-open' : '') + '" id="stockMasterDetail"><div class="inv-pane-list" id="stockLines">' +
     '<table class="inv-table"><thead><tr><th class="inv-col-grow">Line</th><th class="inv-num">On hand</th><th class="inv-col-opt1">Record</th>' +
     '<th>Status</th></tr></thead><tbody>';
   shown.forEach(function(g) {
@@ -709,10 +708,9 @@ function stockLinesTableHtml(groups, shown, titles, open) {
         '<td>' + stockStatusDot(x.st) + (stockUnsettled(it) ? ' <span class="inv-badge inv-badge-warning">Count unsettled</span>' : '') + '</td></tr>';
     });
   });
-  h += '</tbody></table></div><div class="inv-detail inv-pane" id="stockDetail">';
+  h += '</tbody></table></div><div class="inv-pane" id="stockDetail">';
   if (open) {
-    h += '<div class="inv-pane-head"><span class="inv-panel-title">' + escHtml(open.name) + '</span>' +
-      '<button class="inv-btn inv-btn-icon inv-btn-ghost" data-action="invStockPaneClose" aria-label="Close">&times;</button></div>' + stockItemBodyHtml(open);
+    h += paneHeadHtml('<span class="inv-panel-title">' + escHtml(open.name) + '</span>', 'invStockPaneClose') + stockItemBodyHtml(open);
   }
   return h + '</div></div>';
 }
@@ -801,10 +799,10 @@ function stockReviewRowHtml(r, rv, res, st) {
   var h = '<div class="inv-row inv-row-auto inv-row-top" data-line="' + r.src.n + '" data-tone="' + r.tone + '"><div class="inv-row-main">' +
     '<div class="inv-row-title">' + r.src.n + ' &middot; ' + escHtml(name) + '</div>' +
     '<div class="inv-quote inv-mt-4">' + escHtml(r.src.raw) + '</div>' +
-    (stockResultText(r, unit) ? '<div class="inv-mono inv-mt-4">' + escHtml(stockResultText(r, unit)) + '</div>' : '');
+    (stockResultText(r, unit) ? '<div class="inv-verdict-text inv-mt-4">' + escHtml(stockResultText(r, unit)) + '</div>' : '');
   r.issues.forEach(function(is) {
     if (is.code === 'new' && r.tone !== 'clear') return;
-    h += '<div class="inv-callout inv-callout-' + (STOCK_ISSUE_TONE[is.level] || 'neutral') + ' inv-mt-8">' + escHtml(is.text) + '</div>';
+    h += '<div class="inv-callout inv-callout-' + uiTone(is.level) + ' inv-mt-8">' + escHtml(is.text) + '</div>';
     if (is.code === 'balance') {
       var cur = rv.choices['bal' + r.idx] || 'unsettled';
       var opts = [['working', 'Use the working: ' + stockFmtQty(is.expected)], ['written', 'Use the figure written: ' + stockFmtQty(is.written)], ['unsettled', 'Save as unsettled, ask']];
@@ -1041,7 +1039,7 @@ function stockEntryRowHtml(e, r, unit) {
   }
   var armed = _stockVoidArm === e.id;
   return '<div class="inv-row inv-row-auto inv-row-top' + (e.voided ? ' inv-row-muted' : '') + '" data-entry="' + escHtml(e.id) + '"><div class="inv-row-main">' +
-    '<div class="inv-row-title">' + escHtml(STOCK_KIND_LABEL[e.kind] || e.kind) + ' <strong class="inv-mono">' + escHtml(stockFmtQty(e.qty)) + ' ' + escHtml(unit) + '</strong>' +
+    '<div class="inv-row-title">' + escHtml(STOCK_KIND_LABEL[e.kind] || e.kind) + ' <strong class="inv-num">' + escHtml(stockFmtQty(e.qty)) + ' ' + escHtml(unit) + '</strong>' +
     (e.unsettled ? ' <span class="inv-badge inv-badge-warning">Unsettled</span>' : '') + (e.voided ? ' <span class="inv-badge inv-badge-neutral">Voided</span>' : '') + '</div>' +
     '<div class="inv-row-meta inv-row-wrap">' + escHtml(when + ' · ' + src) + '</div>' +
     (extra.length ? '<div class="inv-row-meta inv-row-wrap">' + escHtml(extra.join(' · ')) + '</div>' : '') + gap +

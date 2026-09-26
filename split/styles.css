@@ -1336,6 +1336,7 @@ button.inv-chart-legend-row { width: 100%; background: none; border: none; font:
 .inv-mb-8 { margin-bottom: var(--sp-8); }
 .inv-mb-16 { margin-bottom: var(--sp-16); }
 .inv-mt-8 { margin-top: var(--sp-8); }
+.inv-mt-4 { margin-top: var(--sp-4); }
 .inv-flex-between { display: flex; justify-content: space-between; align-items: center; }
 .inv-empty-state {
   text-align: center; padding: var(--sp-32) var(--sp-16);
@@ -1762,8 +1763,6 @@ body.inv-desktop #imSelBar {
 .inv-pay-total { font-weight: 700; }
 .inv-pay-void { opacity: 0.6; text-decoration: line-through; }
 .inv-pay-chart { margin: var(--sp-8) 0; }
-.inv-stk-rprice { min-width: calc(var(--sp-32) * 2.5); text-align: right; font-family: var(--ff-mono); font-size: var(--fs-sm); color: var(--text-2); }
-.inv-stk-reorder .inv-stk-mname span { display: block; font-size: var(--fs-2xs); font-weight: 400; color: var(--text-3); }
 .inv-stats-tabs { display: flex; gap: var(--sp-4); overflow-x: auto; margin-bottom: var(--sp-8); border-bottom: 1px solid var(--border); }
 .inv-stats-tab { flex: 0 0 auto; min-height: 44px; padding: 0 var(--sp-12); background: none; border: none; border-bottom: 2px solid transparent; font: inherit; font-weight: 600; color: var(--text-2); cursor: pointer; }
 .inv-stats-tab-on { color: var(--accent); border-bottom-color: var(--accent); }
@@ -1793,11 +1792,6 @@ body.inv-desktop #imSelBar {
 .inv-cost-detail { padding: 0 0 var(--sp-8) var(--sp-12); }
 .inv-cost-dline { display: flex; justify-content: space-between; gap: var(--sp-8); padding: var(--sp-4) 0; font-size: var(--fs-sm); border-bottom: 1px solid var(--border); }
 .inv-cost-bills { margin-top: var(--sp-12); }
-.inv-stk-mhead { min-height: 0; font-size: var(--fs-2xs); color: var(--text-3); font-weight: 700; }
-.inv-stk-mhead .inv-stk-mname { font-size: var(--fs-2xs); color: var(--text-3); }
-.inv-stk-pattern { margin-bottom: var(--sp-8); }
-.inv-stk-billform { border: 1px solid var(--border); border-radius: var(--r-md); padding: var(--sp-10); margin: var(--sp-8) 0; background: var(--surface); }
-.inv-stk-btn-sm { margin-top: var(--sp-6); }
 .inv-pay-green { background: var(--attend-bg); }
 .inv-pay-blue { background: var(--prod-bg); }
 .inv-att-grid-sun { background: var(--surface-2); }
@@ -2038,43 +2032,14 @@ body.inv-desktop .inv-att-extra-row { max-width: calc(var(--sp-32) * 15); }
   border-radius: var(--r-full); background: var(--danger); color: var(--surface);
   font-size: var(--fs-2xs); font-weight: 700; line-height: var(--sp-16); text-align: center;
 }
-.inv-more-scrim {
-  position: fixed; inset: 0; z-index: 200; background: rgba(0,0,0,0.4);
-  display: flex; align-items: flex-end; justify-content: center;
-}
-.inv-more-sheet {
-  width: 100%; max-width: var(--max-w); background: var(--surface);
-  border-radius: var(--r-xl) var(--r-xl) 0 0; border-top: 1px solid var(--border-2);
-  padding: var(--sp-8) var(--sp-12) calc(var(--tab-h) + var(--sp-12));
-}
-.inv-more-grab { width: var(--sp-32); height: var(--sp-4); border-radius: var(--r-full); background: var(--border-2); margin: 0 auto var(--sp-8); }
-.inv-more-item {
-  display: flex; align-items: center; gap: var(--sp-12); width: 100%; min-height: calc(var(--sp-32) + var(--sp-24));
-  padding: var(--sp-10) var(--sp-8); border: none; border-bottom: 1px solid var(--border);
-  background: none; color: var(--text-1); text-align: left; cursor: pointer; font: inherit;
-}
-.inv-more-item:last-child { border-bottom: none; }
-.inv-more-item svg { width: 20px; height: 20px; flex: none; color: var(--text-2); }
-.inv-more-item-on svg, .inv-more-item-on .inv-more-label { color: var(--accent); }
-.inv-more-text { display: flex; flex-direction: column; flex: 1; min-width: 0; }
-.inv-more-label { font-size: var(--fs-md); font-weight: 600; }
-.inv-more-sub { font-size: var(--fs-sm); color: var(--text-2); }
 
-/* ===== STOCK =====
-   Built to be read at a glance on a phone: every figure in the text colour,
-   never the faint grey, and each state carried by a solid edge AND a word,
-   so nothing depends on telling two tints apart. */
-.inv-stk-top { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--sp-12); margin-bottom: var(--sp-12); }
-.inv-stk-h1 { font-family: var(--ff-display); font-size: var(--fs-2xl); font-weight: 600; color: var(--text-1); line-height: 1.1; }
+/* ===== STOCK'S v1.0 LEFTOVERS =====
+   Stock itself is drawn on the v2.0 components (§7). These rules remain only for the attendance
+   paste (relay.js), Pay (payroll.js) and Stats → Live cost, which still wear them until their own
+   screens move (§9 step 3); the clean-up PR removes them. */
 .inv-stk-h2 { font-size: var(--fs-md); font-weight: 700; color: var(--text-1); }
 .inv-stk-meta { font-size: var(--fs-sm); color: var(--text-2); margin-top: var(--sp-4); }
 .inv-stk-meta strong { color: var(--text-1); }
-.inv-stk-tools { display: flex; gap: var(--sp-4); }
-.inv-stk-tool {
-  min-height: 44px; padding: 0 var(--sp-10); border: none; background: none;
-  color: var(--accent); font: inherit; font-size: var(--fs-sm); font-weight: 600; cursor: pointer;
-}
-.inv-stk-cta { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-8); margin-bottom: var(--sp-12); }
 .inv-stk-btn {
   min-height: 44px; padding: 0 var(--sp-16); border-radius: var(--r-md);
   border: 1px solid var(--border-2); background: var(--surface); color: var(--text-1);
@@ -2095,47 +2060,14 @@ body.inv-desktop .inv-att-extra-row { max-width: calc(var(--sp-32) * 15); }
 .inv-stk-tile-red .inv-stk-tile-n { color: var(--danger-text); }
 .inv-stk-tile-amber { border-color: var(--warning); background: var(--warning-bg); color: var(--warning-text); }
 .inv-stk-tile-amber .inv-stk-tile-n { color: var(--warning-text); }
-.inv-stk-sec {
-  display: flex; justify-content: space-between; margin: var(--sp-16) var(--sp-2) var(--sp-6);
-  font-size: var(--fs-xs); font-weight: 700; color: var(--text-2);
-}
-.inv-stk-row {
-  display: flex; align-items: center; gap: var(--sp-10); width: 100%; min-height: calc(var(--sp-32) + var(--sp-24));
-  padding: var(--sp-8) var(--sp-10) var(--sp-8) var(--sp-12); margin-bottom: var(--sp-6);
-  background: var(--surface); border: 1px solid var(--border-2); border-left-width: var(--sp-4);
-  border-radius: var(--r-md); color: var(--text-1); font: inherit; text-align: left; cursor: pointer;
-}
-.inv-stk-row:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-.inv-stk-tone-red { border-left-color: var(--danger); }
-.inv-stk-tone-amber { border-left-color: var(--warning); }
-.inv-stk-tone-ok { border-left-color: var(--attend); }
-.inv-stk-tone-bath { border-left-color: var(--prod); }
-.inv-stk-tone-none { border-left-color: var(--border-2); }
-.inv-stk-row-main { display: flex; flex-direction: column; flex: 1; min-width: 0; }
-.inv-stk-row-name { font-size: var(--fs-md); font-weight: 600; }
-.inv-stk-row-sub { font-size: var(--fs-sm); color: var(--text-2); }
-.inv-stk-row-lv { white-space: nowrap; }
-.inv-stk-num { font-family: var(--ff-mono); font-size: var(--fs-lg); font-weight: 600; color: var(--text-1); }
-.inv-stk-unit { font-size: var(--fs-sm); font-weight: 600; color: var(--text-2); margin-left: var(--sp-2); }
 .inv-stk-chip {
   display: inline-flex; align-items: center; padding: var(--sp-2) var(--sp-8); min-width: calc(var(--sp-32) * 2); justify-content: center;
   border-radius: var(--r-full); border: 1px solid var(--border-2); background: var(--surface-2);
   font-size: var(--fs-xs); font-weight: 700; color: var(--text-1); white-space: nowrap;
 }
-.inv-stk-chip-red { background: var(--danger-bg); border-color: var(--danger); color: var(--danger-text); }
 .inv-stk-chip-amber { background: var(--warning-bg); border-color: var(--warning); color: var(--warning-text); }
 .inv-stk-chip-ok { background: var(--attend-bg); border-color: var(--attend); color: var(--attend-text); }
 .inv-stk-chip-bath { background: var(--prod-bg); border-color: var(--prod); color: var(--prod-text); }
-.inv-stk-flag {
-  display: inline-block; margin-left: var(--sp-6); padding: 0 var(--sp-6); border-radius: var(--r-sm);
-  background: var(--warning-bg); color: var(--warning-text); font-size: var(--fs-xs); font-weight: 700;
-}
-.inv-stk-empty {
-  padding: var(--sp-16); border: 1px dashed var(--border-2); border-radius: var(--r-md);
-  background: var(--surface); color: var(--text-2); font-size: var(--fs-base); line-height: 1.5;
-}
-.inv-stk-empty strong { color: var(--text-1); }
-
 .inv-stk-bar { display: flex; align-items: center; gap: var(--sp-8); margin-bottom: var(--sp-12); }
 .inv-stk-back {
   display: inline-flex; align-items: center; gap: var(--sp-2); min-height: 44px; padding: 0 var(--sp-8) 0 0;
@@ -2148,98 +2080,18 @@ body.inv-desktop .inv-att-extra-row { max-width: calc(var(--sp-32) * 15); }
   border: 1px solid var(--border-2); border-radius: var(--r-md); background: var(--surface); color: var(--text-1);
   font-family: var(--ff-mono); font-size: var(--fs-sm); line-height: 1.45;
 }
-.inv-stk-paste:focus, .inv-stk-in:focus { outline: 2px solid var(--accent); outline-offset: 0; border-color: var(--accent); }
+.inv-stk-paste:focus { outline: 2px solid var(--accent); outline-offset: 0; border-color: var(--accent); }
 .inv-stk-hint { font-size: var(--fs-sm); color: var(--text-2); margin: var(--sp-8) 0; line-height: 1.45; }
-.inv-stk-fields { display: flex; flex-wrap: wrap; gap: var(--sp-8); margin-top: var(--sp-10); }
-.inv-stk-field { flex: 1 1 calc(var(--sp-32) * 4.5); }
 .inv-stk-banner {
   padding: var(--sp-10) var(--sp-12); margin-bottom: var(--sp-10); border-radius: var(--r-md);
   border: 1px solid var(--warning); background: var(--warning-bg); color: var(--warning-text); font-size: var(--fs-sm); font-weight: 600;
 }
 .inv-stk-banner-red { border-color: var(--danger); background: var(--danger-bg); color: var(--danger-text); }
-.inv-stk-metabox {
-  display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-8) var(--sp-12); margin-bottom: var(--sp-12);
-  padding: var(--sp-12); border: 1px solid var(--border-2); border-radius: var(--r-md); background: var(--surface);
-}
-.inv-stk-metabox span, .inv-stk-metabox label { display: block; font-size: var(--fs-xs); font-weight: 600; color: var(--text-2); margin-bottom: var(--sp-2); }
-.inv-stk-metabox strong { font-size: var(--fs-base); color: var(--text-1); }
-.inv-stk-pr {
-  padding: var(--sp-10) var(--sp-12); margin-bottom: var(--sp-8); border-radius: var(--r-md);
-  border: 1px solid var(--border-2); border-left-width: var(--sp-4); background: var(--surface);
-}
-.inv-stk-pr-red { border-color: var(--danger); }
-.inv-stk-pr-amber { border-left-color: var(--warning); }
-.inv-stk-pr-clear { border-left-color: var(--attend); }
-.inv-stk-pr-top { display: flex; justify-content: space-between; align-items: center; gap: var(--sp-8); }
-.inv-stk-pr-name { font-size: var(--fs-base); font-weight: 700; color: var(--text-1); }
-.inv-stk-raw {
-  margin: var(--sp-6) 0; padding: var(--sp-6) var(--sp-8); border-radius: var(--r-sm); background: var(--surface-2);
-  font-family: var(--ff-mono); font-size: var(--fs-xs); color: var(--text-1); white-space: pre-wrap; word-break: break-word;
-}
-.inv-stk-res { font-family: var(--ff-mono); font-size: var(--fs-sm); font-weight: 600; color: var(--text-1); }
 .inv-stk-issue { margin-top: var(--sp-6); padding-left: var(--sp-8); border-left: var(--sp-2) solid var(--border-2); font-size: var(--fs-sm); color: var(--text-1); line-height: 1.4; }
 .inv-stk-issue-red { border-left-color: var(--danger); color: var(--danger-text); font-weight: 600; }
 .inv-stk-issue-amber { border-left-color: var(--warning); color: var(--warning-text); font-weight: 600; }
 .inv-stk-issue-info { border-left-color: var(--prod); color: var(--prod-text); }
-.inv-stk-choices { display: flex; flex-direction: column; gap: var(--sp-6); margin-top: var(--sp-8); }
-.inv-stk-choice {
-  min-height: 44px; padding: var(--sp-6) var(--sp-10); border-radius: var(--r-md); text-align: left;
-  border: 1px solid var(--border-2); background: var(--surface); color: var(--text-1); font: inherit; font-size: var(--fs-sm); font-weight: 600; cursor: pointer;
-}
-.inv-stk-choice-on { border-color: var(--accent); background: var(--accent); color: var(--on-accent); }
 .inv-stk-map { margin-top: var(--sp-8); }
-.inv-stk-label-gap { margin-top: var(--sp-8); }
-.inv-stk-foot {
-  position: sticky; bottom: calc(var(--tab-h) + var(--sp-8)); display: flex; align-items: center; justify-content: space-between; gap: var(--sp-12);
-  margin-top: var(--sp-12); padding: var(--sp-10) var(--sp-12); border: 1px solid var(--border-2); border-radius: var(--r-md);
-  background: var(--surface); box-shadow: var(--shadow-md); font-size: var(--fs-sm); color: var(--text-1);
-}
-body.inv-desktop .inv-stk-foot { bottom: var(--sp-8); }
-.inv-stk-seg { display: flex; border: 1px solid var(--border-2); border-radius: var(--r-md); overflow: hidden; margin-bottom: var(--sp-8); }
-.inv-stk-seg-btn {
-  flex: 1; min-height: 44px; border: none; border-right: 1px solid var(--border-2); background: var(--surface);
-  color: var(--text-1); font: inherit; font-size: var(--fs-sm); font-weight: 600; cursor: pointer;
-}
-.inv-stk-seg-btn:last-child { border-right: none; }
-.inv-stk-seg-on { background: var(--accent); color: var(--on-accent); }
-.inv-stk-mlist { border: 1px solid var(--border-2); border-radius: var(--r-md); background: var(--surface); padding: 0 var(--sp-12); }
-.inv-stk-mrow { display: flex; align-items: center; gap: var(--sp-6); min-height: calc(var(--sp-32) + var(--sp-24)); border-bottom: 1px solid var(--border); }
-.inv-stk-mrow:last-child { border-bottom: none; }
-.inv-stk-mname { flex: 1; min-width: 0; font-size: var(--fs-base); font-weight: 600; color: var(--text-1); }
-.inv-stk-mname span { display: block; font-size: var(--fs-xs); font-weight: 500; color: var(--text-2); }
-.inv-stk-in {
-  width: calc(var(--sp-32) * 2.75); min-height: calc(var(--sp-32) + var(--sp-8)); padding: 0 var(--sp-8); text-align: right;
-  border: 1px solid var(--border-2); border-radius: var(--r-sm); background: var(--surface); color: var(--text-1);
-  font-family: var(--ff-mono); font-size: var(--fs-base);
-}
-.inv-stk-in-price { width: calc(var(--sp-32) * 2.5); }
-.inv-stk-munit { width: var(--sp-32); font-size: var(--fs-xs); font-weight: 600; color: var(--text-2); }
-.inv-stk-newline { margin-top: var(--sp-12); }
-.inv-stk-newrow { display: flex; gap: var(--sp-6); }
-.inv-stk-newrow .inv-form-input:first-child { flex: 1; }
-.inv-stk-newrow select { width: auto; }
-.inv-stk-hero {
-  padding: var(--sp-16); margin-bottom: var(--sp-12); border: 1px solid var(--border-2);
-  border-left-width: var(--sp-4); border-radius: var(--r-md); background: var(--surface);
-}
-.inv-stk-hero-lv { display: inline-block; margin-right: var(--sp-8); }
-.inv-stk-hero-lv .inv-stk-num { font-size: var(--fs-3xl); }
-.inv-stk-hero-sub { margin-top: var(--sp-6); font-size: var(--fs-sm); color: var(--text-2); }
-.inv-stk-props { margin-bottom: var(--sp-8); }
-.inv-stk-hist { border: 1px solid var(--border-2); border-radius: var(--r-md); background: var(--surface); padding: 0 var(--sp-12); }
-.inv-stk-hrow { display: flex; gap: var(--sp-8); padding: var(--sp-10) 0; border-bottom: 1px solid var(--border); }
-.inv-stk-hrow:last-child { border-bottom: none; }
-.inv-stk-hmain { flex: 1; min-width: 0; }
-.inv-stk-hkind { font-size: var(--fs-base); color: var(--text-1); }
-.inv-stk-hsub { font-size: var(--fs-xs); color: var(--text-2); margin-top: var(--sp-2); line-height: 1.45; }
-.inv-stk-src summary { margin-top: var(--sp-4); font-size: var(--fs-xs); font-weight: 600; color: var(--accent); cursor: pointer; }
-.inv-stk-void {
-  align-self: flex-start; min-height: var(--sp-32); padding: 0 var(--sp-8); border-radius: var(--r-sm);
-  border: 1px solid var(--border-2); background: none; color: var(--text-2); font: inherit; font-size: var(--fs-xs); font-weight: 600; cursor: pointer;
-}
-.inv-stk-void-arm { border-color: var(--danger); background: var(--danger-bg); color: var(--danger-text); }
-.inv-stk-voided .inv-stk-hkind strong { text-decoration: line-through; }
-.inv-stk-voided { opacity: 0.6; }
 
 /* Dark: the tokens above re-point by themselves; these are the spots that
    read a light-only value. Chips and tiles keep a solid border either way. */
@@ -2381,11 +2233,11 @@ body.inv-desktop .inv-set-group-on { display: block; }
 .inv-btn-ghost:hover { background: var(--surface-2); color: var(--text-1); }
 .inv-btn-danger { background: var(--surface); border-color: var(--border); color: var(--danger); }
 .inv-confirm-actions .inv-btn-danger, .inv-btn-danger.inv-btn-solid { background: var(--danger); border-color: var(--danger); color: var(--surface); }
-.inv-btn-link, .inv-stk-tool, .inv-link-btn {
+.inv-btn-link, .inv-link-btn {
   min-height: auto; padding: 0; border: none; background: none;
   color: var(--accent); font-weight: 600; text-decoration: none; cursor: pointer;
 }
-.inv-btn-link:hover, .inv-stk-tool:hover, .inv-link-btn:hover { text-decoration: underline; background: none; color: var(--accent); }
+.inv-btn-link:hover, .inv-link-btn:hover { text-decoration: underline; background: none; color: var(--accent); }
 /* Before the icon rule: same specificity, so the later one wins. */
 .inv-btn svg { width: var(--sp-16); height: var(--sp-16); flex-shrink: 0; }
 .inv-btn-icon { width: var(--ctl-h); padding: 0; flex-shrink: 0; }
@@ -2455,10 +2307,17 @@ body.inv-desktop .inv-viewtab, body.inv-desktop .inv-stats-tab { min-height: var
 .inv-toolbar .inv-field { margin-bottom: 0; }
 .inv-toolbar-end { align-self: flex-end; }
 .inv-toolbar-tight { gap: var(--sp-4); margin-bottom: 0; justify-content: flex-end; }
+.inv-toolbar-flush { margin-bottom: 0; }
 .inv-btn .inv-badge { margin-left: var(--sp-2); }
 /* §6.2 Page head: a summary line worth more than the top bar. */
 .inv-pagehead { display: flex; align-items: baseline; justify-content: space-between; gap: var(--sp-8); margin-bottom: var(--sp-8); }
 .inv-pagehead-meta { font-size: var(--fs-12); color: var(--text-3); }
+/* A sub-view (a form, a check, one record on the phone) leads with the way back and its own title. */
+.inv-pagehead-back { flex-shrink: 0; padding-left: var(--sp-8); }
+.inv-pagehead-title {
+  flex: 1; min-width: 0; margin: 0; font-size: var(--fs-14); font-weight: 600; line-height: 1.3; color: var(--text-1);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
 
 /* §6.8 Panel. v1.0: every card family. */
 .inv-panel, .inv-card, .inv-stats-card {
@@ -2493,9 +2352,14 @@ body.inv-desktop .inv-panels-wide { grid-column: 1 / -1; }
 body.inv-desktop .inv-tiles { grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr)); }
 /* A set of four that must read as one row on the desktop, even in a half-width panel (ageing bands). */
 body.inv-desktop .inv-tiles-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+/* Three counts that read as one row on the phone too (a check's Needs you · Check · Clear). */
+.inv-tiles-3, body.inv-desktop .inv-tiles-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .inv-tile { background: var(--surface); padding: var(--sp-10) var(--sp-12); min-width: 0; text-align: left; border: none; font: inherit; color: var(--text-1); }
 button.inv-tile { cursor: pointer; }
 button.inv-tile:hover { background: var(--surface-2); }
+/* A tile that filters its list, pressed: the list shows only its rows until it is pressed again. */
+button.inv-tile[aria-pressed="true"] { background: var(--accent-soft); box-shadow: inset 0 -2px 0 var(--accent); }
+button.inv-tile[aria-pressed="true"] .inv-tile-label { color: var(--accent-soft-text); }
 .inv-tile-label, .inv-kpi-label, .inv-ov-l, .inv-lab-half-label, .inv-lab-perkg-label, .inv-area-stat-label {
   font-size: var(--fs-12); font-weight: 500; color: var(--text-3);
 }
@@ -2564,6 +2428,16 @@ button.inv-row-expander[aria-expanded="true"]::after { transform: translateY(-25
   font-size: var(--fs-12); color: var(--text-3);
 }
 .inv-row-selected, .inv-row[aria-selected="true"] { background: var(--accent-soft); }
+/* A row holding blocks (a quoted line, a callout, a field) keeps its end at the top. */
+.inv-row-top { align-items: flex-start; }
+/* A row whose end holds fields: on a narrow screen the end drops under the main, right-aligned. */
+.inv-row-flow { flex-wrap: wrap; }
+.inv-row-flow > .inv-row-main { flex: 1 1 var(--col-sm-w); }
+.inv-row-flow > .inv-row-end { margin-left: auto; }
+.inv-row-flow .inv-unit { min-width: var(--sp-20); }
+.inv-row-lead svg { width: 20px; height: 20px; color: var(--text-2); }
+/* The page a navigation row opens is the one on screen (the More sheet). */
+.inv-row[aria-current="page"] :is(.inv-row-title, .inv-row-lead svg) { color: var(--accent); }
 
 /* §6.11 Table */
 .inv-table { width: 100%; border-collapse: collapse; font-size: var(--fs-13); color: var(--text-1); }
@@ -2604,6 +2478,11 @@ button.inv-row-expander[aria-expanded="true"]::after { transform: translateY(-25
 .inv-cell-danger { background: var(--danger-bg); color: var(--danger); font-weight: 600; }
 .inv-cell-empty { color: var(--text-3); }
 .inv-cell-future { box-shadow: inset 0 0 0 1px var(--border); }
+/* A group heading inside a table (a status, a supplier), the row form of inv-row-group. */
+.inv-table tr.inv-table-group td { height: var(--sp-32); background: var(--bg); font-size: var(--fs-12); color: var(--text-3); }
+.inv-table tbody tr.inv-table-group:hover td { background: var(--bg); }
+/* The unit after a figure is quieter than the figure (§5.4). */
+.inv-unit { margin-left: var(--sp-2); font-family: var(--ff-base); font-size: var(--fs-12); font-weight: 400; color: var(--text-3); }
 
 /* §6.12 Selection bar */
 .inv-selbar {
@@ -2665,6 +2544,9 @@ body.inv-desktop .inv-master-detail-pane > .inv-master { container: list / inlin
   body.inv-desktop .inv-master-detail-pane.inv-pane-open > .inv-pane { flex: 1 1 auto; border-left: none; }
 }
 .inv-pane-head { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-8); }
+/* Panels stacked in the pane keep their height and scroll with it, never squeezed to fit (the pane is a flex column). */
+.inv-pane > .inv-panel { flex-shrink: 0; margin-bottom: 0; }
+body.inv-desktop .inv-pane .inv-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .inv-visually-hidden { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
 
 /* §6.15 Fields and the sticky action bar. v1.0 inv-form-* read these same rules. */
@@ -2681,6 +2563,8 @@ body.inv-desktop .inv-master-detail-pane > .inv-master { container: list / inlin
   font-size: var(--fs-14); transition: border-color var(--dur-1);
 }
 .inv-textarea { padding: var(--sp-8) var(--sp-12); min-height: 5rem; }
+/* A message pasted as sent: kept in its own shape, one line per line. */
+.inv-textarea-mono { font-family: var(--ff-mono); font-size: var(--fs-13); line-height: 1.45; resize: vertical; }
 :is(.inv-input, .inv-select, .inv-textarea, .inv-form-input, .inv-form-select):focus { outline: none; border-color: var(--accent); box-shadow: var(--focus-ring); }
 :is(.inv-input, .inv-form-input)[readonly] { background: var(--surface-2); color: var(--text-2); }
 .inv-input-num { font-family: var(--ff-mono); text-align: right; }
@@ -2759,10 +2643,17 @@ body.inv-desktop .inv-keys { display: flex; flex-wrap: wrap; gap: var(--sp-4) va
 .inv-panel-head .inv-panel-count { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* §6.16 Overlays. v1.0 inv-overlay-* is the dialog (desktop) and the sheet (phone). */
-.inv-overlay-scrim, .inv-more-scrim { background: var(--scrim); }
+.inv-overlay-scrim, .inv-scrim { background: var(--scrim); }
 .inv-overlay-card, .inv-dialog, .inv-sheet { background: var(--surface); border: 1px solid var(--border); box-shadow: var(--shadow-dialog); }
 .inv-overlay-header, .inv-dialog-head { border-bottom: 1px solid var(--border); }
 .inv-overlay-title, .inv-dialog-title { font-family: var(--ff-base); font-size: var(--fs-16); font-weight: 600; letter-spacing: 0; }
+/* The phone sheet from the bottom (the More sheet): full width, its rows running edge to edge, clear of the bar. */
+.inv-scrim { position: fixed; inset: 0; z-index: var(--z-scrim); display: flex; align-items: flex-end; justify-content: center; }
+.inv-sheet {
+  width: 100%; max-width: var(--max-w); border-bottom: none; border-radius: var(--r-xl) var(--r-xl) 0 0;
+  padding: var(--sp-8) 0 calc(var(--nav-h) + var(--sp-12));
+}
+.inv-sheet-grab { width: var(--sp-32); height: var(--sp-4); border-radius: var(--r-full); background: var(--border); margin: 0 auto var(--sp-8); }
 .inv-menu { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-md); box-shadow: var(--shadow-pop); }
 /* A menu hangs off its field (inv-combo): suggestions for a part or a client, arrowed through by
    the keyboard. The cursor is the option's aria-selected; the create-a-part row reads as an action. */
@@ -2797,7 +2688,15 @@ body.inv-desktop .inv-keys { display: flex; flex-wrap: wrap; gap: var(--sp-4) va
 .inv-callout-warning, .inv-stk-banner, .inv-confirm-warn { background: var(--warning-bg); color: var(--warning); }
 .inv-callout-danger, .inv-stats-alert, .inv-stk-banner-red { background: var(--danger-bg); color: var(--danger); }
 .inv-note { font-size: var(--fs-12); color: var(--text-3); line-height: 1.5; }
-.inv-empty, .inv-empty-state, .inv-stk-empty, .inv-chart-empty {
+/* Text quoted from its source as sent (a WhatsApp line), so a figure can be checked against it. */
+.inv-quote {
+  padding: var(--sp-6) var(--sp-8); border-radius: var(--r-sm); background: var(--surface-2);
+  font-family: var(--ff-mono); font-size: var(--fs-12); line-height: 1.45; color: var(--text-1); white-space: pre-wrap; overflow-wrap: anywhere;
+}
+/* A fold opened by a link-like summary ("Message text"). */
+summary.inv-summary { display: inline-block; list-style: none; font-size: var(--fs-12); }
+summary.inv-summary::-webkit-details-marker { display: none; }
+.inv-empty, .inv-empty-state, .inv-chart-empty {
   padding: var(--sp-24) var(--sp-16); text-align: center; color: var(--text-3); font-size: var(--fs-13);
   border: none; background: none;
 }
@@ -2810,5 +2709,3 @@ body.inv-desktop .inv-keys { display: flex; flex-wrap: wrap; gap: var(--sp-4) va
 .inv-ov-tile.inv-pay-green, .inv-ov-tile.inv-pay-blue, .inv-lab-half.inv-area-gap-under { background: var(--surface-2); }
 .inv-lab-half.inv-area-gap-over { background: var(--warning-bg); }
 .inv-lab-half.inv-area-gap-over .inv-lab-half-value, .inv-lab-half.inv-area-gap-over .inv-lab-half-label { color: var(--warning); }
-.inv-stk-tools { display: flex; align-items: center; gap: var(--sp-16); }
-.inv-stk-tool { min-height: var(--touch); }

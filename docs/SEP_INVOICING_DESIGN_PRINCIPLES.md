@@ -368,7 +368,9 @@ Replaces `inv-header`, `inv-tabs`/`inv-tab` (the old bottom bar — which is why
 ### 6.2 Page head (phone, in-content) — `inv-pagehead`
 Used only where a view has a summary line worth more than the top bar: `inv-pagehead-meta`
 (`--t-caption`, e.g. "Last count 24 Sep · 17 lines"). Replaces `inv-stk-top/h1/meta` and the various count
-strips ("1269 challans", "118 active invoices", "24 clients").
+strips ("1269 challans", "118 active invoices", "24 clients"). A sub-view (a form, a check, one record on the
+phone) leads with `inv-pagehead-back` — a ghost small button naming where it returns — and its title in
+`inv-pagehead-title` (`--t-heading`, one line).
 
 ### 6.3 Buttons — `inv-btn`
 `inv-btn-primary` (accent fill) · `inv-btn-secondary` (surface + border — the default) · `inv-btn-ghost`
@@ -421,7 +423,9 @@ A grid of tiles separated by 1px gaps on a `--border` background inside one bord
 `inv-tile-label` (`--t-label` `--text-3`), `inv-tile-value` (`--t-stat`), `inv-tile-sub` (`--t-caption`;
 toned only when it states a status). A tile that filters its list is a `<button>`. Tone modifiers
 `inv-tile-danger|warning|ok|info` colour the **value only**. 2 columns on the phone, up to 5 on the desktop.
-`inv-tile-of` is the quiet denominator or unit after a value (`15/21`, `/kg`). `inv-tiles-flush` is a strip inside
+A tile that filters is pressed with `aria-pressed` (`--accent-soft`, an accent rule under it) and
+pressed again to let every row back. `inv-tiles-3` keeps three counts on one row on the phone too. In the desktop pane
+a strip is two across. `inv-tile-of` is the quiet denominator or unit after a value (`15/21`, `/kg`). `inv-tiles-flush` is a strip inside
 a flush panel: the panel draws the box, the strip only its dividers.
 Replaces `inv-kpi*`, `inv-ov-tile`, `inv-stk-tile`, `inv-stat-label/value`, `inv-lab-half`, `inv-lab-perkg`,
 `inv-area-stat`, `inv-stats-metric-value`, `inv-att-count-value`, `inv-flip-kpi`.
@@ -434,7 +438,10 @@ inside a list is `inv-row-group` (`--t-caption` on `--bg`, e.g. "25 Sep · 5 · 
 whole row is the `<button>`, so its figures open it too; a tick box's lead is a `<label class="inv-row-lead inv-row-tick">`
 holding the full `--touch` target; `inv-row-stack`
 stacks a figure over its badge in `inv-row-end`; `inv-row-wrap` lets a meta line wrap (a list of names);
-`inv-row-muted` is a cancelled or inactive row; `inv-row-done` a task ticked done (struck through, never deleted). A row that opens its own lines beneath it (a challan's items) has an
+`inv-row-muted` is a cancelled or inactive row (a voided stock entry); `inv-row-top` keeps the end at the top of a
+row holding blocks (a quoted line, a callout, a field); `inv-row-flow` lets a row's end — fields, a long figure — drop
+under its main on a narrow screen, right-aligned; a navigation row for the page on screen is `aria-current="page"`
+(accent title and icon); `inv-row-done` a task ticked done (struck through, never deleted). A row that opens its own lines beneath it (a challan's items) has an
 `inv-row-expander` main button (`aria-expanded`, a chevron drawn in CSS) and its lines in `inv-row-children`,
 indented on the page colour. **The phone form of every table.** Replaces `inv-client-item`, `inv-item-card`, `inv-reg-row`,
 `inv-im-header`, `inv-att-row`, `inv-area-row`, `inv-history-item`, `inv-stats-row`, `inv-lab-row`,
@@ -451,6 +458,8 @@ narrows** — `inv-col-opt1` first, then `-opt2`, then `-opt3`, by container que
 right at 1024px and 1920px, pane open or shut. Sortable heads are `inv-table-sort` buttons with `aria-sort`; the row
 open in the pane is `aria-current`; the row's identifier is a real button, so it opens from the keyboard.
 Tick boxes are `inv-check`.
+A group heading inside a table (a status, a supplier) is a `tr.inv-table-group` — the table form of `inv-row-group`.
+A unit after a figure is `inv-unit` (`--text-3`, §5.4).
 Modifier `inv-table-grid` for the week grid: cells are `inv-cell` chips (`-ok|warning|danger|empty|future`)
 showing hours. Replaces `inv-desktop-table`/`inv-th`/`inv-tr`/`inv-td*` (**ending the `inv-td-` collision
 with To-do**), `inv-stats-table*`, `inv-ov-table`, `inv-detail-items-table`, `inv-att-grid`.
@@ -493,6 +502,7 @@ On the phone the same content opens as a sheet (§6.16).
   Below the fields, `inv-line-notes`: the rate/weight **verdict** as `inv-verdict` (`inv-dot` + word, then the
   working in mono), with `data-verdict` on the note and on the Rate field (a Check fills the field `--danger-bg`);
   a question that holds the save (a ₹0 line's reason, a red flag's) is a callout holding `inv-chip`s and a note input.
+- `inv-textarea-mono`: a message pasted as sent (the stock and attendance rolls), mono, one line per line.
 - `inv-panel-fold`: a `<details>` panel whose `inv-panel-head` is the summary (optional details). The fields stay in
   the page while folded; the Enter-to-next-field chain steps over them.
 - `inv-keys`: a line of key hints (`inv-kbd`) above a keyboard-first form, desktop only.
@@ -512,6 +522,8 @@ Replaces `inv-form-group/label/input/select/row`, `inv-stk-label`, `inv-stk-fiel
   field in an `inv-combo` (max `--menu-max`); options are `inv-menu-item` (`inv-menu-title`, `inv-menu-meta`), the
   arrow-key cursor is the option's `aria-selected`, and the create-a-part row is `inv-menu-add`.
   Replaces `inv-autocomplete-*`, `inv-ac-*`, `inv-search-results`/`-item`.
+- The phone sheet is `inv-sheet` in an `inv-scrim` (grab bar `inv-sheet-grab`), its entries `inv-row`s edge to edge,
+  clear of the bottom bar: the More sheet.
 - `inv-scroll`: a list inside a dialog scrolls within `--scroll-max` rather than pushing the dialog's buttons off screen.
 - `inv-toast`: bottom-centre, `--text-1` background with `--surface` text (it inverts with the theme),
   `--shadow-pop`, tone shown by a leading dot.
@@ -544,6 +556,8 @@ and the tapped datum is ringed.
   `inv-merge-warn`, `inv-reg-scope-note`, `inv-zero-reason`, `inv-area-flag`, `inv-set-derive`.
 - Plain explanatory text under a panel is `inv-note` (`--t-caption` `--text-3`). Replaces `inv-stats-note`,
   `inv-dupe-note`, `inv-numaudit-note`, `inv-form-hint`, `inv-stk-hint`, `inv-cp-group-note`.
+- `inv-quote`: text quoted from its source as sent (a WhatsApp line under what it was read as), mono `--t-caption`
+  on `--surface-2`, wrapping as written. A fold of it opens from a link-like `summary.inv-summary`.
 - `inv-empty`: centred in its panel, `--text-3`, one line saying what would appear and the action that
   makes it appear; `inv-empty-icon` above it where the empty panel is the first thing a new device sees. Replaces `inv-empty-state(-sm)`, `inv-stk-empty`, `inv-td-empty`, `inv-chart-empty`.
 
@@ -564,7 +578,7 @@ density §3.5) under Data & device, each a segmented control that applies at onc
 | Register | toolbar (search + filter selects; `inv-token` filters to come) · rows grouped by day with subtotal · selection bar | table (invoice, client, date, challans, kg, taxable, GST, total, state) · selection bar · detail pane. *Built.* |
 | Clients / Items / Performance | tabs · toolbar (search, the view's one primary: **Add client** / **Add item** — the floating + is gone) · rows (a client opens its edit sheet, which leads with its Money panel: owed, by age, pays in, last receipt, cheques; its rate, piece-rate and piece-weight cards are flush panels of rows with the add form in an `inv-panel-body`, and a fill from history reports what it left out as rows under the reason) · Items: filter chips (`aria-pressed`), sort `<select>` on `change`, tick boxes and a selection bar · Performance: client select, month on month (`inv-seg` ₹ / Tonnes / ₹/kg, chart, four tiles with "+12% on Aug" deltas), materials grouped Stopped / New / Steady / One-off under dotted `inv-row-group`s | tabs · table · detail pane on demand with the Money panel (as the Register's; the resizable split and its drag handle are gone). *Built.* |
 | To-do | tabs (Open / Done, with counts) · summary line (open, late) · toolbar (the add field, **Add** the one primary, Details) · two flush panels, *From your data* (a whole-row button led by its `inv-dot-mark` ! / i, red and amber also a dot and a word) and *Mine* (a tick box, the text opening the task, its due date a dot and a word, its link) · Snoozed as a panel with Show / Hide · the task dialogs on `inv-field`s, the figures as rows, what clears it a callout · Done: ticked rows struck through (`inv-row-done`), reopened by the tick | same; the two panels side by side. *Built.* The Home card draws the same rows. |
-| Stock | view tabs Overview · Lines, opening on Overview (days left `chartRankedBars` red/amber, spend by supplier `chartPieTap` listing a slice's bills, used ₹ by week `chartLines`, price trend with a line `<select>`, reorder cash tiles) · Lines: stat strip (Out / ≤ 7 days / OK / No price, each filters) · one table grouped by status · reorder list as a table | same + detail pane for a line's pattern |
+| Stock | view tabs Overview · Lines, opening on Overview (days left `chartRankedBars` red/amber, spend by supplier `chartPieTap` listing a slice's bills as rows, used ₹ by week `chartLines`, price trend with its line `<select>` in the panel head, reorder cash tiles) · toolbar (**Paste message** the one primary, Enter by hand; on Lines also Reorder list, Export, Import) · Lines: page head (lines, last count) · stat strip (Out / ≤ 7 days / OK / No rate, each a `button.inv-tile` that filters, `aria-pressed`) · rows grouped by status under `inv-row-group`s, level mono with its unit and status a dot and a word · a line: back · tiles (on hand, days left, use a day, last paid) · Price and pattern (rows; *Add a bill* in the head, the bill form an `inv-panel-body`) · the line (how it is used `inv-seg`, name and unit) · entries (rows, a count's gap a callout, the message text a fold of `inv-quote`, Void then *Tap again to void*) · Paste, Enter by hand and Reorder list are sub-views with a back button and the sticky `inv-actionbar` (Save / Copy as message) · the More sheet is `inv-sheet` rows | Lines is one table grouped by status (`tr.inv-table-group`), and a line opens in the detail pane beside it; the reorder list is a table grouped by supplier. *Built.* |
 | Finance → Overview | view tabs (the open one scrolled into view) · tiles (balance, owed, paid out, GST) · range chips `3M · 6M · FY · All` driving every panel · cash (`chartLines`: balance, in, out; tap a month) and its table · cash forecast (`inv-tiles-4`, `chartLines` with a band, *what it rests on*) · where money went (`chartStack` over the range, `chartPieTap` for the month, a slice lists its payments) · where money came from (`chartPieTap` by client, unplaced a named slice) · owed to us (ageing `inv-tiles-4`, top debtors) · invoiced against received (`chartLines`) · GST (`chartStack` grouped, then the table) · whole rupees on the Overview only | same, panels two across |
 | Finance → Receivables / Payments / Bank | head panel (range, rows, closing, balance check) · view tabs Receipts / Payments / Statement · Receipts: client rows expanding to receipts (*Exact* / *Oldest first* badge) and open invoices · Statement: filter + search, rows with a category dot, the row's edit as an `inv-panel-body` | same |
 | Finance → Bills & notes | two flush panels (electricity by month with missing months as rows; credit notes) · the note form as an `inv-panel-body` | same, panels side by side |
@@ -574,7 +588,10 @@ density §3.5) under Data & device, each a segmented control that applies at onc
 | Settings | groups stacked, folded sections | two-pane (side list + group) |
 
 **Paste message** (stock and attendance rolls) keeps its review contract — every line beside what it was
-read as — drawn as an `inv-table` with `inv-badge` verdicts ("Needs you", "Check", "read as …").
+read as — with `inv-badge` verdicts ("Needs you", "Check", "read as …"). The stock check is built: a flush panel of
+`inv-row-top` rows, each the line number and name, the text as sent (`inv-quote`), what was read (mono), its questions as
+callouts, a figure's choice as `inv-chip`s (`aria-pressed`) and its picker as an `inv-field`; Needs you · Check · Clear
+above as `inv-tiles-3`; Save in the action bar with the entries it will write. The attendance roll moves with Staff.
 
 ---
 
@@ -603,7 +620,7 @@ phone and desktop.
    the Clients segment and Stats tabs → view tabs, banners → callout, overlays → dialog). Labels are
    sentence case everywhere (DR-5); the duplicated `inv-chip` is one rule; decorative tone fills are neutral.
    Step 3 moves the markup onto the v2.0 class names and deletes the v1.0 names from those selector lists.
-3. **Screens, in order:** Home *(built 26 Sep 2026)* · Register *(built 26 Sep 2026)* · IM *(built 26 Sep 2026)* · Create *(built 26 Sep 2026)* · Clients/Items/Performance *(built 26 Sep 2026)* · To-do *(built 26 Sep 2026)* · Stock · Staff ·
+3. **Screens, in order:** Home *(built 26 Sep 2026)* · Register *(built 26 Sep 2026)* · IM *(built 26 Sep 2026)* · Create *(built 26 Sep 2026)* · Clients/Items/Performance *(built 26 Sep 2026)* · To-do *(built 26 Sep 2026)* · Stock *(built 26 Sep 2026)* · Staff ·
    Stats · History · Settings. Each moves its render functions onto the components and deletes its private
    family in the same PR (DR-7). The survey's bugs are fixed where their screen moves: History's filter bar,
    Register's desktop list, the doubled Add buttons, Staff's cut-off sub-tabs, the base-colour dark-mode text,

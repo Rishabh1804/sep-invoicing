@@ -18,7 +18,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <!-- Appearance before first paint (§3.2): the device's theme and palette, so nothing flashes in the wrong colours. -->
 <script>(function(){try{var d=document.documentElement,t=localStorage.getItem("sep_inv_theme"),p=localStorage.getItem("sep_inv_palette");if(t==="light"||t==="dark")d.dataset.theme=t;d.dataset.palette=(p==="zinc"||p==="terracotta")?p:"teal";}catch(e){document.documentElement.dataset.palette="teal";}})();</script>
-<meta name="app-build" content="73fa48ce">
+<meta name="app-build" content="0de39b55">
 <style>
 /* ===== DESIGN TOKENS (design system v2.0 — docs/SEP_INVOICING_DESIGN_PRINCIPLES.md §3) ===== */
 /* Theme: colour-scheme decides every light-dark() below. <html data-theme> is set before first paint
@@ -1358,6 +1358,7 @@ button.inv-chart-legend-row { width: 100%; background: none; border: none; font:
 .inv-mb-8 { margin-bottom: var(--sp-8); }
 .inv-mb-16 { margin-bottom: var(--sp-16); }
 .inv-mt-8 { margin-top: var(--sp-8); }
+.inv-mt-4 { margin-top: var(--sp-4); }
 .inv-flex-between { display: flex; justify-content: space-between; align-items: center; }
 .inv-empty-state {
   text-align: center; padding: var(--sp-32) var(--sp-16);
@@ -1784,8 +1785,6 @@ body.inv-desktop #imSelBar {
 .inv-pay-total { font-weight: 700; }
 .inv-pay-void { opacity: 0.6; text-decoration: line-through; }
 .inv-pay-chart { margin: var(--sp-8) 0; }
-.inv-stk-rprice { min-width: calc(var(--sp-32) * 2.5); text-align: right; font-family: var(--ff-mono); font-size: var(--fs-sm); color: var(--text-2); }
-.inv-stk-reorder .inv-stk-mname span { display: block; font-size: var(--fs-2xs); font-weight: 400; color: var(--text-3); }
 .inv-stats-tabs { display: flex; gap: var(--sp-4); overflow-x: auto; margin-bottom: var(--sp-8); border-bottom: 1px solid var(--border); }
 .inv-stats-tab { flex: 0 0 auto; min-height: 44px; padding: 0 var(--sp-12); background: none; border: none; border-bottom: 2px solid transparent; font: inherit; font-weight: 600; color: var(--text-2); cursor: pointer; }
 .inv-stats-tab-on { color: var(--accent); border-bottom-color: var(--accent); }
@@ -1815,11 +1814,6 @@ body.inv-desktop #imSelBar {
 .inv-cost-detail { padding: 0 0 var(--sp-8) var(--sp-12); }
 .inv-cost-dline { display: flex; justify-content: space-between; gap: var(--sp-8); padding: var(--sp-4) 0; font-size: var(--fs-sm); border-bottom: 1px solid var(--border); }
 .inv-cost-bills { margin-top: var(--sp-12); }
-.inv-stk-mhead { min-height: 0; font-size: var(--fs-2xs); color: var(--text-3); font-weight: 700; }
-.inv-stk-mhead .inv-stk-mname { font-size: var(--fs-2xs); color: var(--text-3); }
-.inv-stk-pattern { margin-bottom: var(--sp-8); }
-.inv-stk-billform { border: 1px solid var(--border); border-radius: var(--r-md); padding: var(--sp-10); margin: var(--sp-8) 0; background: var(--surface); }
-.inv-stk-btn-sm { margin-top: var(--sp-6); }
 .inv-pay-green { background: var(--attend-bg); }
 .inv-pay-blue { background: var(--prod-bg); }
 .inv-att-grid-sun { background: var(--surface-2); }
@@ -2060,43 +2054,14 @@ body.inv-desktop .inv-att-extra-row { max-width: calc(var(--sp-32) * 15); }
   border-radius: var(--r-full); background: var(--danger); color: var(--surface);
   font-size: var(--fs-2xs); font-weight: 700; line-height: var(--sp-16); text-align: center;
 }
-.inv-more-scrim {
-  position: fixed; inset: 0; z-index: 200; background: rgba(0,0,0,0.4);
-  display: flex; align-items: flex-end; justify-content: center;
-}
-.inv-more-sheet {
-  width: 100%; max-width: var(--max-w); background: var(--surface);
-  border-radius: var(--r-xl) var(--r-xl) 0 0; border-top: 1px solid var(--border-2);
-  padding: var(--sp-8) var(--sp-12) calc(var(--tab-h) + var(--sp-12));
-}
-.inv-more-grab { width: var(--sp-32); height: var(--sp-4); border-radius: var(--r-full); background: var(--border-2); margin: 0 auto var(--sp-8); }
-.inv-more-item {
-  display: flex; align-items: center; gap: var(--sp-12); width: 100%; min-height: calc(var(--sp-32) + var(--sp-24));
-  padding: var(--sp-10) var(--sp-8); border: none; border-bottom: 1px solid var(--border);
-  background: none; color: var(--text-1); text-align: left; cursor: pointer; font: inherit;
-}
-.inv-more-item:last-child { border-bottom: none; }
-.inv-more-item svg { width: 20px; height: 20px; flex: none; color: var(--text-2); }
-.inv-more-item-on svg, .inv-more-item-on .inv-more-label { color: var(--accent); }
-.inv-more-text { display: flex; flex-direction: column; flex: 1; min-width: 0; }
-.inv-more-label { font-size: var(--fs-md); font-weight: 600; }
-.inv-more-sub { font-size: var(--fs-sm); color: var(--text-2); }
 
-/* ===== STOCK =====
-   Built to be read at a glance on a phone: every figure in the text colour,
-   never the faint grey, and each state carried by a solid edge AND a word,
-   so nothing depends on telling two tints apart. */
-.inv-stk-top { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--sp-12); margin-bottom: var(--sp-12); }
-.inv-stk-h1 { font-family: var(--ff-display); font-size: var(--fs-2xl); font-weight: 600; color: var(--text-1); line-height: 1.1; }
+/* ===== STOCK'S v1.0 LEFTOVERS =====
+   Stock itself is drawn on the v2.0 components (§7). These rules remain only for the attendance
+   paste (relay.js), Pay (payroll.js) and Stats → Live cost, which still wear them until their own
+   screens move (§9 step 3); the clean-up PR removes them. */
 .inv-stk-h2 { font-size: var(--fs-md); font-weight: 700; color: var(--text-1); }
 .inv-stk-meta { font-size: var(--fs-sm); color: var(--text-2); margin-top: var(--sp-4); }
 .inv-stk-meta strong { color: var(--text-1); }
-.inv-stk-tools { display: flex; gap: var(--sp-4); }
-.inv-stk-tool {
-  min-height: 44px; padding: 0 var(--sp-10); border: none; background: none;
-  color: var(--accent); font: inherit; font-size: var(--fs-sm); font-weight: 600; cursor: pointer;
-}
-.inv-stk-cta { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-8); margin-bottom: var(--sp-12); }
 .inv-stk-btn {
   min-height: 44px; padding: 0 var(--sp-16); border-radius: var(--r-md);
   border: 1px solid var(--border-2); background: var(--surface); color: var(--text-1);
@@ -2117,47 +2082,14 @@ body.inv-desktop .inv-att-extra-row { max-width: calc(var(--sp-32) * 15); }
 .inv-stk-tile-red .inv-stk-tile-n { color: var(--danger-text); }
 .inv-stk-tile-amber { border-color: var(--warning); background: var(--warning-bg); color: var(--warning-text); }
 .inv-stk-tile-amber .inv-stk-tile-n { color: var(--warning-text); }
-.inv-stk-sec {
-  display: flex; justify-content: space-between; margin: var(--sp-16) var(--sp-2) var(--sp-6);
-  font-size: var(--fs-xs); font-weight: 700; color: var(--text-2);
-}
-.inv-stk-row {
-  display: flex; align-items: center; gap: var(--sp-10); width: 100%; min-height: calc(var(--sp-32) + var(--sp-24));
-  padding: var(--sp-8) var(--sp-10) var(--sp-8) var(--sp-12); margin-bottom: var(--sp-6);
-  background: var(--surface); border: 1px solid var(--border-2); border-left-width: var(--sp-4);
-  border-radius: var(--r-md); color: var(--text-1); font: inherit; text-align: left; cursor: pointer;
-}
-.inv-stk-row:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-.inv-stk-tone-red { border-left-color: var(--danger); }
-.inv-stk-tone-amber { border-left-color: var(--warning); }
-.inv-stk-tone-ok { border-left-color: var(--attend); }
-.inv-stk-tone-bath { border-left-color: var(--prod); }
-.inv-stk-tone-none { border-left-color: var(--border-2); }
-.inv-stk-row-main { display: flex; flex-direction: column; flex: 1; min-width: 0; }
-.inv-stk-row-name { font-size: var(--fs-md); font-weight: 600; }
-.inv-stk-row-sub { font-size: var(--fs-sm); color: var(--text-2); }
-.inv-stk-row-lv { white-space: nowrap; }
-.inv-stk-num { font-family: var(--ff-mono); font-size: var(--fs-lg); font-weight: 600; color: var(--text-1); }
-.inv-stk-unit { font-size: var(--fs-sm); font-weight: 600; color: var(--text-2); margin-left: var(--sp-2); }
 .inv-stk-chip {
   display: inline-flex; align-items: center; padding: var(--sp-2) var(--sp-8); min-width: calc(var(--sp-32) * 2); justify-content: center;
   border-radius: var(--r-full); border: 1px solid var(--border-2); background: var(--surface-2);
   font-size: var(--fs-xs); font-weight: 700; color: var(--text-1); white-space: nowrap;
 }
-.inv-stk-chip-red { background: var(--danger-bg); border-color: var(--danger); color: var(--danger-text); }
 .inv-stk-chip-amber { background: var(--warning-bg); border-color: var(--warning); color: var(--warning-text); }
 .inv-stk-chip-ok { background: var(--attend-bg); border-color: var(--attend); color: var(--attend-text); }
 .inv-stk-chip-bath { background: var(--prod-bg); border-color: var(--prod); color: var(--prod-text); }
-.inv-stk-flag {
-  display: inline-block; margin-left: var(--sp-6); padding: 0 var(--sp-6); border-radius: var(--r-sm);
-  background: var(--warning-bg); color: var(--warning-text); font-size: var(--fs-xs); font-weight: 700;
-}
-.inv-stk-empty {
-  padding: var(--sp-16); border: 1px dashed var(--border-2); border-radius: var(--r-md);
-  background: var(--surface); color: var(--text-2); font-size: var(--fs-base); line-height: 1.5;
-}
-.inv-stk-empty strong { color: var(--text-1); }
-
 .inv-stk-bar { display: flex; align-items: center; gap: var(--sp-8); margin-bottom: var(--sp-12); }
 .inv-stk-back {
   display: inline-flex; align-items: center; gap: var(--sp-2); min-height: 44px; padding: 0 var(--sp-8) 0 0;
@@ -2170,98 +2102,18 @@ body.inv-desktop .inv-att-extra-row { max-width: calc(var(--sp-32) * 15); }
   border: 1px solid var(--border-2); border-radius: var(--r-md); background: var(--surface); color: var(--text-1);
   font-family: var(--ff-mono); font-size: var(--fs-sm); line-height: 1.45;
 }
-.inv-stk-paste:focus, .inv-stk-in:focus { outline: 2px solid var(--accent); outline-offset: 0; border-color: var(--accent); }
+.inv-stk-paste:focus { outline: 2px solid var(--accent); outline-offset: 0; border-color: var(--accent); }
 .inv-stk-hint { font-size: var(--fs-sm); color: var(--text-2); margin: var(--sp-8) 0; line-height: 1.45; }
-.inv-stk-fields { display: flex; flex-wrap: wrap; gap: var(--sp-8); margin-top: var(--sp-10); }
-.inv-stk-field { flex: 1 1 calc(var(--sp-32) * 4.5); }
 .inv-stk-banner {
   padding: var(--sp-10) var(--sp-12); margin-bottom: var(--sp-10); border-radius: var(--r-md);
   border: 1px solid var(--warning); background: var(--warning-bg); color: var(--warning-text); font-size: var(--fs-sm); font-weight: 600;
 }
 .inv-stk-banner-red { border-color: var(--danger); background: var(--danger-bg); color: var(--danger-text); }
-.inv-stk-metabox {
-  display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-8) var(--sp-12); margin-bottom: var(--sp-12);
-  padding: var(--sp-12); border: 1px solid var(--border-2); border-radius: var(--r-md); background: var(--surface);
-}
-.inv-stk-metabox span, .inv-stk-metabox label { display: block; font-size: var(--fs-xs); font-weight: 600; color: var(--text-2); margin-bottom: var(--sp-2); }
-.inv-stk-metabox strong { font-size: var(--fs-base); color: var(--text-1); }
-.inv-stk-pr {
-  padding: var(--sp-10) var(--sp-12); margin-bottom: var(--sp-8); border-radius: var(--r-md);
-  border: 1px solid var(--border-2); border-left-width: var(--sp-4); background: var(--surface);
-}
-.inv-stk-pr-red { border-color: var(--danger); }
-.inv-stk-pr-amber { border-left-color: var(--warning); }
-.inv-stk-pr-clear { border-left-color: var(--attend); }
-.inv-stk-pr-top { display: flex; justify-content: space-between; align-items: center; gap: var(--sp-8); }
-.inv-stk-pr-name { font-size: var(--fs-base); font-weight: 700; color: var(--text-1); }
-.inv-stk-raw {
-  margin: var(--sp-6) 0; padding: var(--sp-6) var(--sp-8); border-radius: var(--r-sm); background: var(--surface-2);
-  font-family: var(--ff-mono); font-size: var(--fs-xs); color: var(--text-1); white-space: pre-wrap; word-break: break-word;
-}
-.inv-stk-res { font-family: var(--ff-mono); font-size: var(--fs-sm); font-weight: 600; color: var(--text-1); }
 .inv-stk-issue { margin-top: var(--sp-6); padding-left: var(--sp-8); border-left: var(--sp-2) solid var(--border-2); font-size: var(--fs-sm); color: var(--text-1); line-height: 1.4; }
 .inv-stk-issue-red { border-left-color: var(--danger); color: var(--danger-text); font-weight: 600; }
 .inv-stk-issue-amber { border-left-color: var(--warning); color: var(--warning-text); font-weight: 600; }
 .inv-stk-issue-info { border-left-color: var(--prod); color: var(--prod-text); }
-.inv-stk-choices { display: flex; flex-direction: column; gap: var(--sp-6); margin-top: var(--sp-8); }
-.inv-stk-choice {
-  min-height: 44px; padding: var(--sp-6) var(--sp-10); border-radius: var(--r-md); text-align: left;
-  border: 1px solid var(--border-2); background: var(--surface); color: var(--text-1); font: inherit; font-size: var(--fs-sm); font-weight: 600; cursor: pointer;
-}
-.inv-stk-choice-on { border-color: var(--accent); background: var(--accent); color: var(--on-accent); }
 .inv-stk-map { margin-top: var(--sp-8); }
-.inv-stk-label-gap { margin-top: var(--sp-8); }
-.inv-stk-foot {
-  position: sticky; bottom: calc(var(--tab-h) + var(--sp-8)); display: flex; align-items: center; justify-content: space-between; gap: var(--sp-12);
-  margin-top: var(--sp-12); padding: var(--sp-10) var(--sp-12); border: 1px solid var(--border-2); border-radius: var(--r-md);
-  background: var(--surface); box-shadow: var(--shadow-md); font-size: var(--fs-sm); color: var(--text-1);
-}
-body.inv-desktop .inv-stk-foot { bottom: var(--sp-8); }
-.inv-stk-seg { display: flex; border: 1px solid var(--border-2); border-radius: var(--r-md); overflow: hidden; margin-bottom: var(--sp-8); }
-.inv-stk-seg-btn {
-  flex: 1; min-height: 44px; border: none; border-right: 1px solid var(--border-2); background: var(--surface);
-  color: var(--text-1); font: inherit; font-size: var(--fs-sm); font-weight: 600; cursor: pointer;
-}
-.inv-stk-seg-btn:last-child { border-right: none; }
-.inv-stk-seg-on { background: var(--accent); color: var(--on-accent); }
-.inv-stk-mlist { border: 1px solid var(--border-2); border-radius: var(--r-md); background: var(--surface); padding: 0 var(--sp-12); }
-.inv-stk-mrow { display: flex; align-items: center; gap: var(--sp-6); min-height: calc(var(--sp-32) + var(--sp-24)); border-bottom: 1px solid var(--border); }
-.inv-stk-mrow:last-child { border-bottom: none; }
-.inv-stk-mname { flex: 1; min-width: 0; font-size: var(--fs-base); font-weight: 600; color: var(--text-1); }
-.inv-stk-mname span { display: block; font-size: var(--fs-xs); font-weight: 500; color: var(--text-2); }
-.inv-stk-in {
-  width: calc(var(--sp-32) * 2.75); min-height: calc(var(--sp-32) + var(--sp-8)); padding: 0 var(--sp-8); text-align: right;
-  border: 1px solid var(--border-2); border-radius: var(--r-sm); background: var(--surface); color: var(--text-1);
-  font-family: var(--ff-mono); font-size: var(--fs-base);
-}
-.inv-stk-in-price { width: calc(var(--sp-32) * 2.5); }
-.inv-stk-munit { width: var(--sp-32); font-size: var(--fs-xs); font-weight: 600; color: var(--text-2); }
-.inv-stk-newline { margin-top: var(--sp-12); }
-.inv-stk-newrow { display: flex; gap: var(--sp-6); }
-.inv-stk-newrow .inv-form-input:first-child { flex: 1; }
-.inv-stk-newrow select { width: auto; }
-.inv-stk-hero {
-  padding: var(--sp-16); margin-bottom: var(--sp-12); border: 1px solid var(--border-2);
-  border-left-width: var(--sp-4); border-radius: var(--r-md); background: var(--surface);
-}
-.inv-stk-hero-lv { display: inline-block; margin-right: var(--sp-8); }
-.inv-stk-hero-lv .inv-stk-num { font-size: var(--fs-3xl); }
-.inv-stk-hero-sub { margin-top: var(--sp-6); font-size: var(--fs-sm); color: var(--text-2); }
-.inv-stk-props { margin-bottom: var(--sp-8); }
-.inv-stk-hist { border: 1px solid var(--border-2); border-radius: var(--r-md); background: var(--surface); padding: 0 var(--sp-12); }
-.inv-stk-hrow { display: flex; gap: var(--sp-8); padding: var(--sp-10) 0; border-bottom: 1px solid var(--border); }
-.inv-stk-hrow:last-child { border-bottom: none; }
-.inv-stk-hmain { flex: 1; min-width: 0; }
-.inv-stk-hkind { font-size: var(--fs-base); color: var(--text-1); }
-.inv-stk-hsub { font-size: var(--fs-xs); color: var(--text-2); margin-top: var(--sp-2); line-height: 1.45; }
-.inv-stk-src summary { margin-top: var(--sp-4); font-size: var(--fs-xs); font-weight: 600; color: var(--accent); cursor: pointer; }
-.inv-stk-void {
-  align-self: flex-start; min-height: var(--sp-32); padding: 0 var(--sp-8); border-radius: var(--r-sm);
-  border: 1px solid var(--border-2); background: none; color: var(--text-2); font: inherit; font-size: var(--fs-xs); font-weight: 600; cursor: pointer;
-}
-.inv-stk-void-arm { border-color: var(--danger); background: var(--danger-bg); color: var(--danger-text); }
-.inv-stk-voided .inv-stk-hkind strong { text-decoration: line-through; }
-.inv-stk-voided { opacity: 0.6; }
 
 /* Dark: the tokens above re-point by themselves; these are the spots that
    read a light-only value. Chips and tiles keep a solid border either way. */
@@ -2403,11 +2255,11 @@ body.inv-desktop .inv-set-group-on { display: block; }
 .inv-btn-ghost:hover { background: var(--surface-2); color: var(--text-1); }
 .inv-btn-danger { background: var(--surface); border-color: var(--border); color: var(--danger); }
 .inv-confirm-actions .inv-btn-danger, .inv-btn-danger.inv-btn-solid { background: var(--danger); border-color: var(--danger); color: var(--surface); }
-.inv-btn-link, .inv-stk-tool, .inv-link-btn {
+.inv-btn-link, .inv-link-btn {
   min-height: auto; padding: 0; border: none; background: none;
   color: var(--accent); font-weight: 600; text-decoration: none; cursor: pointer;
 }
-.inv-btn-link:hover, .inv-stk-tool:hover, .inv-link-btn:hover { text-decoration: underline; background: none; color: var(--accent); }
+.inv-btn-link:hover, .inv-link-btn:hover { text-decoration: underline; background: none; color: var(--accent); }
 /* Before the icon rule: same specificity, so the later one wins. */
 .inv-btn svg { width: var(--sp-16); height: var(--sp-16); flex-shrink: 0; }
 .inv-btn-icon { width: var(--ctl-h); padding: 0; flex-shrink: 0; }
@@ -2477,10 +2329,17 @@ body.inv-desktop .inv-viewtab, body.inv-desktop .inv-stats-tab { min-height: var
 .inv-toolbar .inv-field { margin-bottom: 0; }
 .inv-toolbar-end { align-self: flex-end; }
 .inv-toolbar-tight { gap: var(--sp-4); margin-bottom: 0; justify-content: flex-end; }
+.inv-toolbar-flush { margin-bottom: 0; }
 .inv-btn .inv-badge { margin-left: var(--sp-2); }
 /* §6.2 Page head: a summary line worth more than the top bar. */
 .inv-pagehead { display: flex; align-items: baseline; justify-content: space-between; gap: var(--sp-8); margin-bottom: var(--sp-8); }
 .inv-pagehead-meta { font-size: var(--fs-12); color: var(--text-3); }
+/* A sub-view (a form, a check, one record on the phone) leads with the way back and its own title. */
+.inv-pagehead-back { flex-shrink: 0; padding-left: var(--sp-8); }
+.inv-pagehead-title {
+  flex: 1; min-width: 0; margin: 0; font-size: var(--fs-14); font-weight: 600; line-height: 1.3; color: var(--text-1);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
 
 /* §6.8 Panel. v1.0: every card family. */
 .inv-panel, .inv-card, .inv-stats-card {
@@ -2515,9 +2374,14 @@ body.inv-desktop .inv-panels-wide { grid-column: 1 / -1; }
 body.inv-desktop .inv-tiles { grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr)); }
 /* A set of four that must read as one row on the desktop, even in a half-width panel (ageing bands). */
 body.inv-desktop .inv-tiles-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+/* Three counts that read as one row on the phone too (a check's Needs you · Check · Clear). */
+.inv-tiles-3, body.inv-desktop .inv-tiles-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .inv-tile { background: var(--surface); padding: var(--sp-10) var(--sp-12); min-width: 0; text-align: left; border: none; font: inherit; color: var(--text-1); }
 button.inv-tile { cursor: pointer; }
 button.inv-tile:hover { background: var(--surface-2); }
+/* A tile that filters its list, pressed: the list shows only its rows until it is pressed again. */
+button.inv-tile[aria-pressed="true"] { background: var(--accent-soft); box-shadow: inset 0 -2px 0 var(--accent); }
+button.inv-tile[aria-pressed="true"] .inv-tile-label { color: var(--accent-soft-text); }
 .inv-tile-label, .inv-kpi-label, .inv-ov-l, .inv-lab-half-label, .inv-lab-perkg-label, .inv-area-stat-label {
   font-size: var(--fs-12); font-weight: 500; color: var(--text-3);
 }
@@ -2586,6 +2450,16 @@ button.inv-row-expander[aria-expanded="true"]::after { transform: translateY(-25
   font-size: var(--fs-12); color: var(--text-3);
 }
 .inv-row-selected, .inv-row[aria-selected="true"] { background: var(--accent-soft); }
+/* A row holding blocks (a quoted line, a callout, a field) keeps its end at the top. */
+.inv-row-top { align-items: flex-start; }
+/* A row whose end holds fields: on a narrow screen the end drops under the main, right-aligned. */
+.inv-row-flow { flex-wrap: wrap; }
+.inv-row-flow > .inv-row-main { flex: 1 1 var(--col-sm-w); }
+.inv-row-flow > .inv-row-end { margin-left: auto; }
+.inv-row-flow .inv-unit { min-width: var(--sp-20); }
+.inv-row-lead svg { width: 20px; height: 20px; color: var(--text-2); }
+/* The page a navigation row opens is the one on screen (the More sheet). */
+.inv-row[aria-current="page"] :is(.inv-row-title, .inv-row-lead svg) { color: var(--accent); }
 
 /* §6.11 Table */
 .inv-table { width: 100%; border-collapse: collapse; font-size: var(--fs-13); color: var(--text-1); }
@@ -2626,6 +2500,11 @@ button.inv-row-expander[aria-expanded="true"]::after { transform: translateY(-25
 .inv-cell-danger { background: var(--danger-bg); color: var(--danger); font-weight: 600; }
 .inv-cell-empty { color: var(--text-3); }
 .inv-cell-future { box-shadow: inset 0 0 0 1px var(--border); }
+/* A group heading inside a table (a status, a supplier), the row form of inv-row-group. */
+.inv-table tr.inv-table-group td { height: var(--sp-32); background: var(--bg); font-size: var(--fs-12); color: var(--text-3); }
+.inv-table tbody tr.inv-table-group:hover td { background: var(--bg); }
+/* The unit after a figure is quieter than the figure (§5.4). */
+.inv-unit { margin-left: var(--sp-2); font-family: var(--ff-base); font-size: var(--fs-12); font-weight: 400; color: var(--text-3); }
 
 /* §6.12 Selection bar */
 .inv-selbar {
@@ -2687,6 +2566,9 @@ body.inv-desktop .inv-master-detail-pane > .inv-master { container: list / inlin
   body.inv-desktop .inv-master-detail-pane.inv-pane-open > .inv-pane { flex: 1 1 auto; border-left: none; }
 }
 .inv-pane-head { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-8); }
+/* Panels stacked in the pane keep their height and scroll with it, never squeezed to fit (the pane is a flex column). */
+.inv-pane > .inv-panel { flex-shrink: 0; margin-bottom: 0; }
+body.inv-desktop .inv-pane .inv-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .inv-visually-hidden { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
 
 /* §6.15 Fields and the sticky action bar. v1.0 inv-form-* read these same rules. */
@@ -2703,6 +2585,8 @@ body.inv-desktop .inv-master-detail-pane > .inv-master { container: list / inlin
   font-size: var(--fs-14); transition: border-color var(--dur-1);
 }
 .inv-textarea { padding: var(--sp-8) var(--sp-12); min-height: 5rem; }
+/* A message pasted as sent: kept in its own shape, one line per line. */
+.inv-textarea-mono { font-family: var(--ff-mono); font-size: var(--fs-13); line-height: 1.45; resize: vertical; }
 :is(.inv-input, .inv-select, .inv-textarea, .inv-form-input, .inv-form-select):focus { outline: none; border-color: var(--accent); box-shadow: var(--focus-ring); }
 :is(.inv-input, .inv-form-input)[readonly] { background: var(--surface-2); color: var(--text-2); }
 .inv-input-num { font-family: var(--ff-mono); text-align: right; }
@@ -2781,10 +2665,17 @@ body.inv-desktop .inv-keys { display: flex; flex-wrap: wrap; gap: var(--sp-4) va
 .inv-panel-head .inv-panel-count { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* §6.16 Overlays. v1.0 inv-overlay-* is the dialog (desktop) and the sheet (phone). */
-.inv-overlay-scrim, .inv-more-scrim { background: var(--scrim); }
+.inv-overlay-scrim, .inv-scrim { background: var(--scrim); }
 .inv-overlay-card, .inv-dialog, .inv-sheet { background: var(--surface); border: 1px solid var(--border); box-shadow: var(--shadow-dialog); }
 .inv-overlay-header, .inv-dialog-head { border-bottom: 1px solid var(--border); }
 .inv-overlay-title, .inv-dialog-title { font-family: var(--ff-base); font-size: var(--fs-16); font-weight: 600; letter-spacing: 0; }
+/* The phone sheet from the bottom (the More sheet): full width, its rows running edge to edge, clear of the bar. */
+.inv-scrim { position: fixed; inset: 0; z-index: var(--z-scrim); display: flex; align-items: flex-end; justify-content: center; }
+.inv-sheet {
+  width: 100%; max-width: var(--max-w); border-bottom: none; border-radius: var(--r-xl) var(--r-xl) 0 0;
+  padding: var(--sp-8) 0 calc(var(--nav-h) + var(--sp-12));
+}
+.inv-sheet-grab { width: var(--sp-32); height: var(--sp-4); border-radius: var(--r-full); background: var(--border); margin: 0 auto var(--sp-8); }
 .inv-menu { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-md); box-shadow: var(--shadow-pop); }
 /* A menu hangs off its field (inv-combo): suggestions for a part or a client, arrowed through by
    the keyboard. The cursor is the option's aria-selected; the create-a-part row reads as an action. */
@@ -2819,7 +2710,15 @@ body.inv-desktop .inv-keys { display: flex; flex-wrap: wrap; gap: var(--sp-4) va
 .inv-callout-warning, .inv-stk-banner, .inv-confirm-warn { background: var(--warning-bg); color: var(--warning); }
 .inv-callout-danger, .inv-stats-alert, .inv-stk-banner-red { background: var(--danger-bg); color: var(--danger); }
 .inv-note { font-size: var(--fs-12); color: var(--text-3); line-height: 1.5; }
-.inv-empty, .inv-empty-state, .inv-stk-empty, .inv-chart-empty {
+/* Text quoted from its source as sent (a WhatsApp line), so a figure can be checked against it. */
+.inv-quote {
+  padding: var(--sp-6) var(--sp-8); border-radius: var(--r-sm); background: var(--surface-2);
+  font-family: var(--ff-mono); font-size: var(--fs-12); line-height: 1.45; color: var(--text-1); white-space: pre-wrap; overflow-wrap: anywhere;
+}
+/* A fold opened by a link-like summary ("Message text"). */
+summary.inv-summary { display: inline-block; list-style: none; font-size: var(--fs-12); }
+summary.inv-summary::-webkit-details-marker { display: none; }
+.inv-empty, .inv-empty-state, .inv-chart-empty {
   padding: var(--sp-24) var(--sp-16); text-align: center; color: var(--text-3); font-size: var(--fs-13);
   border: none; background: none;
 }
@@ -2832,8 +2731,6 @@ body.inv-desktop .inv-keys { display: flex; flex-wrap: wrap; gap: var(--sp-4) va
 .inv-ov-tile.inv-pay-green, .inv-ov-tile.inv-pay-blue, .inv-lab-half.inv-area-gap-under { background: var(--surface-2); }
 .inv-lab-half.inv-area-gap-over { background: var(--warning-bg); }
 .inv-lab-half.inv-area-gap-over .inv-lab-half-value, .inv-lab-half.inv-area-gap-over .inv-lab-half-label { color: var(--warning); }
-.inv-stk-tools { display: flex; align-items: center; gap: var(--sp-16); }
-.inv-stk-tool { min-height: var(--touch); }
 </style>
 </head>
 <body>
@@ -17395,19 +17292,62 @@ var STOCK_KIND_LABEL = { count: 'Count', received: 'Received', used: 'Used', cha
 function stockBy() { try { return localStorage.getItem(STOCK_BY_KEY) || ''; } catch (e) { return ''; } }
 function setStockBy(v) { try { localStorage.setItem(STOCK_BY_KEY, v); } catch (e) { /* per-device convenience only */ } }
 
+// The stock tones in the five status words of the design system (§3.3): a line
+// charged into a bath is information, not a warning, and one with no rate yet is neutral.
+var STOCK_TONE = { red: 'danger', amber: 'warning', ok: 'ok', bath: 'info', none: 'neutral' };
+var STOCK_ISSUE_TONE = { red: 'danger', amber: 'warning', info: 'info' };
+var _stockFilter = null;   // a Lines tile pressed: 'out' | 'low' | 'ok' | 'none' (none takes the bath lines too)
+var STOCK_BACK_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="15 18 9 12 15 6"/></svg>';
+
 function stockQtyUnit(v, unit) {
-  return '<span class="inv-stk-num">' + escHtml(stockFmtQty(v)) + '</span>' + (unit ? '<span class="inv-stk-unit">' + escHtml(unit) + '</span>' : '');
+  return '<span class="inv-num">' + escHtml(stockFmtQty(v)) + (unit ? '<span class="inv-unit">' + escHtml(unit) + '</span>' : '') + '</span>';
 }
+/* A sub-view (a form, the check, one line on the phone) leads with the way back and its own title. */
 function stockBackBar(label, title) {
-  return '<div class="inv-stk-bar"><button class="inv-stk-back" data-action="invStockBack">' +
-    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>' +
-    escHtml(label) + '</button><div class="inv-stk-h2">' + escHtml(title) + '</div></div>';
+  return '<div class="inv-pagehead"><button class="inv-btn inv-btn-ghost inv-btn-sm inv-pagehead-back" data-action="invStockBack">' +
+    STOCK_BACK_ICON + escHtml(label) + '</button><h2 class="inv-pagehead-title">' + escHtml(title) + '</h2></div>';
 }
 function stockDaysText(d, tentative) {
   // Below ten days the half day matters: 7.5 must not read as the amber line's 7.
   var n = d < 10 ? Math.floor(d * 10) / 10 : Math.floor(d);
   var t = d < 1 ? 'under 1 day' : n + (n === 1 ? ' day' : ' days');
   return t + (tentative ? '?' : '');
+}
+/* The word beside a line's dot: the same on the list, the table and the line's own page. */
+function stockStatusWord(s, long) {
+  if (s.group === 'bath') return s.level > 0 ? 'On shelf' : 'Shelf empty';
+  if (s.group === 'out') return 'Out';
+  if (s.daysLeft != null) return stockDaysText(s.daysLeft, s.rate.tentative) + (long ? ' left' : '');
+  return 'No rate';
+}
+function stockStatusDot(s, long) {
+  return '<span class="inv-dot inv-dot-' + STOCK_TONE[s.tone] + '">' + escHtml(stockStatusWord(s, long)) + '</span>';
+}
+/* What a row says under the name: the rate and what it rests on, or the last charge or count. */
+function stockRowSub(item, s) {
+  var unit = item.unit || '';
+  if (s.group === 'bath') {
+    var lc = stockItemEntries(item.id).filter(function(e) { return e.kind === 'charged'; }).pop();
+    return lc ? 'charged ' + stockFmtQty(lc.qty) + ' ' + unit + ' on ' + stockShortDate(lc.date) + (lc.note ? ' · ' + lc.note : '') : 'no charge recorded';
+  }
+  if (s.rate && s.rate.rate) return stockFmtRate(s.rate.rate) + ' ' + unit + '/day · over ' + s.rate.days + (s.rate.days === 1 ? ' day' : ' days');
+  var lcnt = stockItemEntries(item.id).filter(function(e) { return e.kind === 'count'; }).pop();
+  return lcnt ? 'counted ' + stockShortDate(lcnt.date) : 'not counted yet';
+}
+function stockUnsettled(item) {
+  var last = stockItemEntries(item.id).filter(function(e) { return e.kind === 'count'; }).pop();
+  return !!(last && last.unsettled);
+}
+
+/* The view tabs, and the toolbar under them: Paste message is the page's one primary. */
+function stockToolbarHtml() {
+  var lines = _stockView !== 'overview';
+  return '<div class="inv-toolbar"><button class="inv-btn inv-btn-primary" data-action="invStockPaste">Paste message</button>' +
+    '<button class="inv-btn inv-btn-secondary" data-action="invStockManual">Enter by hand</button>' +
+    (lines ? '<button class="inv-btn inv-btn-ghost" data-action="invStockReorder">Reorder list</button>' +
+      '<button class="inv-btn inv-btn-ghost" data-action="invStockExport">Export</button>' +
+      '<button class="inv-btn inv-btn-ghost" data-action="invStockImport">Import</button>' +
+      '<input type="file" accept=".json,application/json" id="stockFileInput" class="inv-hidden">' : '') + '</div>';
 }
 
 function renderStock() {
@@ -17417,10 +17357,11 @@ function renderStock() {
   if (_stockView === 'paste') el.innerHTML = renderStockPaste();
   else if (_stockView === 'review' && _stockReview) el.innerHTML = renderStockReview();
   else if (_stockView === 'manual' && _stockManual) el.innerHTML = renderStockManual();
-  else if (_stockView === 'item' && stockItem(_stockItemId)) el.innerHTML = renderStockItem(stockItem(_stockItemId));
+  // On the desktop a line opens in the pane beside the table; on the phone it is a page of its own.
+  else if (_stockView === 'item' && stockItem(_stockItemId)) el.innerHTML = _isDesktop ? stockViewTabsHtml() + renderStockList(stockItem(_stockItemId)) : renderStockItem(stockItem(_stockItemId));
   else if (_stockView === 'reorder' && _stockReorder) el.innerHTML = renderStockReorder();
-  else if (_stockView === 'overview') { _stockHome = 'overview'; el.innerHTML = stockViewTabsHtml() + stockOverviewHtml(); }
-  else { _stockView = _stockHome = 'list'; el.innerHTML = stockViewTabsHtml() + renderStockList(); }
+  else if (_stockView === 'overview') { _stockHome = 'overview'; el.innerHTML = stockViewTabsHtml() + stockToolbarHtml() + stockOverviewHtml(); }
+  else { _stockView = _stockHome = 'list'; el.innerHTML = stockViewTabsHtml() + renderStockList(null); }
   updateStockBadge();
 }
 
@@ -17431,25 +17372,18 @@ function stockSetView(v) {
   window.scrollTo(0, 0);
 }
 
-function renderStockList() {
+function renderStockList(open) {
   var st = stockData();
   var items = st.items.filter(function(i) { return i.active !== false; });
   var lastCount = null;
   st.entries.forEach(function(e) { if (!e.voided && e.kind === 'count' && (!lastCount || e.date > lastCount.date || (e.date === lastCount.date && e.at > lastCount.at))) lastCount = e; });
-  var h = '<div class="inv-stk-top"><div>' +
-    (lastCount ? '<div class="inv-stk-meta">Last count <strong>' + escHtml(stockShortDate(lastCount.date)) + '</strong>' +
-      (lastCount.sentBy ? ' &middot; ' + escHtml(lastCount.sentBy) : '') + '</div>' : '') +
-    '</div><div class="inv-stk-tools">' +
-    '<button class="inv-stk-tool" data-action="invStockReorder">Reorder list</button>' +
-    '<button class="inv-stk-tool" data-action="invStockExport">Export</button>' +
-    '<button class="inv-stk-tool" data-action="invStockImport">Import</button>' +
-    '<input type="file" accept=".json,application/json" id="stockFileInput" class="inv-hidden"></div></div>' +
-    '<div class="inv-stk-cta"><button class="inv-stk-btn inv-stk-btn-pri" data-action="invStockPaste">Paste message</button>' +
-    '<button class="inv-stk-btn" data-action="invStockManual">Enter by hand</button></div>';
+  var h = '<div class="inv-pagehead"><span class="inv-pagehead-meta">' + items.length + (items.length === 1 ? ' line' : ' lines') +
+    (lastCount ? ' · last count ' + escHtml(stockShortDate(lastCount.date)) + (lastCount.sentBy ? ', ' + escHtml(lastCount.sentBy) : '') : '') + '</span></div>' +
+    stockToolbarHtml();
 
   if (!items.length) {
-    return h + '<div class="inv-stk-empty"><strong>No stock recorded yet.</strong> Paste the supervisor\'s stock message: ' +
-      'its lines become the list, and every figure keeps the text it came from. Or import a stock file.</div>';
+    return h + '<div class="inv-panel"><div class="inv-empty">No stock recorded yet. Paste the supervisor\'s stock message: ' +
+      'its lines become the list, and every figure keeps the text it came from. Or import a stock file.</div></div>';
   }
   var groups = { out: [], low: [], ok: [], bath: [], none: [] };
   items.forEach(function(i) { var s = stockStatus(i); groups[s.group].push({ item: i, st: s }); });
@@ -17457,54 +17391,70 @@ function renderStockList() {
   groups.ok.sort(function(a, b) { return a.st.daysLeft - b.st.daysLeft; });
   ['out', 'bath', 'none'].forEach(function(g) { groups[g].sort(function(a, b) { return a.item.name < b.item.name ? -1 : 1; }); });
 
-  h += '<div class="inv-stk-sum">' +
-    '<div class="inv-stk-tile inv-stk-tile-red"><span class="inv-stk-tile-n">' + groups.out.length + '</span>Out</div>' +
-    '<div class="inv-stk-tile inv-stk-tile-amber"><span class="inv-stk-tile-n">' + groups.low.length + '</span>' + stockCfg().amberDays + ' days or less</div>' +
-    '<div class="inv-stk-tile"><span class="inv-stk-tile-n">' + groups.ok.length + '</span>OK</div>' +
-    '<div class="inv-stk-tile"><span class="inv-stk-tile-n">' + (groups.none.length + groups.bath.length) + '</span>No rate</div></div>';
+  // Each tile filters the list to its lines; pressed again, it lets them all back.
+  var amber = stockCfg().amberDays;
+  var tile = function(g, n, label, tone) {
+    return '<button class="inv-tile' + (n && tone ? ' inv-tile-' + tone : '') + '" data-action="invStockFilter" data-v="' + g + '" aria-pressed="' + (_stockFilter === g) + '">' +
+      '<div class="inv-tile-label">' + label + '</div><div class="inv-tile-value">' + n + '</div></button>';
+  };
+  h += '<div class="inv-tiles inv-tiles-4" id="stockTiles">' + tile('out', groups.out.length, 'Out', 'danger') + tile('low', groups.low.length, amber + ' days or less', 'warning') +
+    tile('ok', groups.ok.length, 'OK', '') + tile('none', groups.none.length + groups.bath.length, 'No rate', '') + '</div>';
 
-  var titles = { out: 'Out', low: stockCfg().amberDays + ' days or less', ok: 'OK', bath: 'Charged to the bath', none: 'No daily rate yet' };
-  ['out', 'low', 'ok', 'bath', 'none'].forEach(function(g) {
-    if (!groups[g].length) return;
-    h += '<div class="inv-stk-sec">' + escHtml(titles[g]) + '<span>' + groups[g].length + '</span></div>';
-    groups[g].forEach(function(x) { h += renderStockRow(x.item, x.st); });
+  var titles = { out: 'Out', low: amber + ' days or less', ok: 'OK', bath: 'Charged to the bath', none: 'No daily rate yet' };
+  var shown = ['out', 'low', 'ok', 'bath', 'none'].filter(function(g) {
+    return groups[g].length && (!_stockFilter || _stockFilter === g || (_stockFilter === 'none' && g === 'bath'));
   });
-  return h;
+  if (!shown.length) return h + '<div class="inv-panel"><div class="inv-empty">No line in this group. Press the tile again to see every line.</div></div>';
+  if (_isDesktop) return h + stockLinesTableHtml(groups, shown, titles, open);
+  h += '<div class="inv-panel inv-panel-flush" id="stockLines">';
+  shown.forEach(function(g) {
+    h += '<div class="inv-row-group"><span>' + escHtml(titles[g]) + '</span><span class="inv-mono">' + groups[g].length + '</span></div>';
+    groups[g].forEach(function(x) { h += stockRowHtml(x.item, x.st); });
+  });
+  return h + '</div>';
 }
 
-function renderStockRow(item, s) {
-  var unit = item.unit || '';
-  var sub = '', chip = '', tone = s.tone;
-  if (s.group === 'bath') {
-    var lc = stockItemEntries(item.id).filter(function(e) { return e.kind === 'charged'; }).pop();
-    sub = lc ? 'charged ' + stockFmtQty(lc.qty) + ' ' + unit + ' on ' + stockShortDate(lc.date) + (lc.note ? ' · ' + lc.note : '') : 'no charge recorded';
-    chip = s.level > 0 ? 'On shelf' : 'Shelf empty';
-  } else if (s.rate && s.rate.rate) {
-    sub = stockFmtRate(s.rate.rate) + ' ' + unit + '/day · over ' + s.rate.days + (s.rate.days === 1 ? ' day' : ' days');
-    chip = s.group === 'out' ? 'Out' : stockDaysText(s.daysLeft, s.rate.tentative);
-  } else {
-    var lcnt = stockItemEntries(item.id).filter(function(e) { return e.kind === 'count'; }).pop();
-    sub = lcnt ? 'counted ' + stockShortDate(lcnt.date) : 'not counted yet';
-    chip = s.group === 'out' ? 'Out' : 'No rate';
+function stockRowHtml(item, s) {
+  return '<button class="inv-row inv-row-2" data-action="invStockOpen" data-id="' + escHtml(item.id) + '" data-tone="' + s.tone + '">' +
+    '<span class="inv-row-main"><span class="inv-row-title">' + escHtml(item.name) + '</span>' +
+    '<span class="inv-row-meta">' + escHtml(stockRowSub(item, s)) + (stockUnsettled(item) ? ' <span class="inv-badge inv-badge-warning">Count unsettled</span>' : '') + '</span></span>' +
+    '<span class="inv-row-end inv-row-stack">' + stockQtyUnit(s.level, item.unit || '') + stockStatusDot(s) + '</span></button>';
+}
+
+/* The desktop: one table grouped by status, and the open line in the pane beside it. */
+function stockLinesTableHtml(groups, shown, titles, open) {
+  var h = '<div class="inv-master-detail inv-master-detail-pane' + (open ? ' inv-pane-open' : '') + '" id="stockMasterDetail"><div class="inv-master" id="stockLines">' +
+    '<table class="inv-table"><thead><tr><th class="inv-col-grow">Line</th><th class="inv-num">On hand</th><th class="inv-col-opt1">Record</th>' +
+    '<th>Status</th></tr></thead><tbody>';
+  shown.forEach(function(g) {
+    h += '<tr class="inv-table-group"><td colspan="4">' + escHtml(titles[g]) + ' <span class="inv-panel-count">' + groups[g].length + '</span></td></tr>';
+    groups[g].forEach(function(x) {
+      var it = x.item, id = escHtml(it.id);
+      h += '<tr data-action="invStockOpen" data-id="' + id + '" data-tone="' + x.st.tone + '"' + (open && open.id === it.id ? ' aria-current="true"' : '') + '>' +
+        '<td class="inv-col-grow"><button class="inv-btn-link" data-action="invStockOpen" data-id="' + id + '">' + escHtml(it.name) + '</button></td>' +
+        '<td class="inv-num">' + stockQtyUnit(x.st.level, it.unit || '') + '</td>' +
+        '<td class="inv-col-opt1 inv-col-grow-sm" title="' + escHtml(stockRowSub(it, x.st)) + '">' + escHtml(stockRowSub(it, x.st)) + '</td>' +
+        '<td>' + stockStatusDot(x.st) + (stockUnsettled(it) ? ' <span class="inv-badge inv-badge-warning">Count unsettled</span>' : '') + '</td></tr>';
+    });
+  });
+  h += '</tbody></table></div><div class="inv-detail inv-pane" id="stockDetail">';
+  if (open) {
+    h += '<div class="inv-pane-head"><span class="inv-panel-title">' + escHtml(open.name) + '</span>' +
+      '<button class="inv-btn inv-btn-icon inv-btn-ghost" data-action="invStockPaneClose" aria-label="Close">&times;</button></div>' + stockItemBodyHtml(open);
   }
-  var last = stockItemEntries(item.id).filter(function(e) { return e.kind === 'count'; }).pop();
-  var flag = last && last.unsettled ? '<span class="inv-stk-flag">count unsettled</span>' : '';
-  return '<button class="inv-stk-row inv-stk-tone-' + tone + '" data-action="invStockOpen" data-id="' + escHtml(item.id) + '">' +
-    '<span class="inv-stk-row-main"><span class="inv-stk-row-name">' + escHtml(item.name) + '</span>' +
-    '<span class="inv-stk-row-sub">' + escHtml(sub) + flag + '</span></span>' +
-    '<span class="inv-stk-row-lv">' + stockQtyUnit(s.level, unit) + '</span>' +
-    '<span class="inv-stk-chip inv-stk-chip-' + tone + '">' + escHtml(chip) + '</span></button>';
+  return h + '</div></div>';
 }
 
 function renderStockPaste() {
   return stockBackBar('Stock', 'Paste message') +
-    '<label class="inv-stk-label" for="stockPasteText">The supervisor\'s message, as sent</label>' +
-    '<textarea id="stockPasteText" class="inv-stk-paste" spellcheck="false" placeholder="Copy the stock message in WhatsApp and paste it here">' +
-    escHtml(_stockPasteDraft) + '</textarea>' +
-    '<div class="inv-stk-fields"><div class="inv-stk-field"><label class="inv-stk-label" for="stockBy">Entered by</label>' +
-    '<input id="stockBy" class="inv-form-input" value="' + escHtml(stockBy()) + '" placeholder="Your name"></div></div>' +
-    '<button class="inv-stk-btn inv-stk-btn-pri inv-stk-btn-block" data-action="invStockRead">Read message</button>' +
-    '<div class="inv-stk-hint">Copy the WhatsApp time line with it and the sender is read from it. Nothing is saved until you check what was read.</div>';
+    '<div class="inv-panel">' +
+    '<div class="inv-field"><label class="inv-field-label" for="stockPasteText">The supervisor\'s message, as sent</label>' +
+    '<textarea id="stockPasteText" class="inv-textarea inv-textarea-mono" rows="12" spellcheck="false" placeholder="Copy the stock message in WhatsApp and paste it here">' +
+    escHtml(_stockPasteDraft) + '</textarea></div>' +
+    '<div class="inv-field"><label class="inv-field-label" for="stockBy">Entered by</label>' +
+    '<input id="stockBy" class="inv-input" value="' + escHtml(stockBy()) + '" placeholder="Your name" autocomplete="off"></div>' +
+    '<button class="inv-btn inv-btn-primary inv-btn-block" data-action="invStockRead">Read message</button>' +
+    '<div class="inv-note inv-mt-8">Copy the WhatsApp time line with it and the sender is read from it. Nothing is saved until you check what was read.</div></div>';
 }
 
 function stockReadPaste() {
@@ -17531,6 +17481,8 @@ function stockResultText(r, unit) {
   return parts.join(' · ') + (end ? ' → ' + end : '');
 }
 
+/* The check before saving (§7, Paste message): every line beside the text it came from and what was
+   read, its verdict a badge, its questions callouts, its answers chips. */
 function renderStockReview() {
   var rv = _stockReview, p = rv.parsed;
   var res = resolveStockParse(p, rv.choices);
@@ -17538,79 +17490,86 @@ function renderStockReview() {
   var st = stockData();
   var h = stockBackBar('Edit text', 'Check before saving');
   if (res.dup) {
-    h += '<div class="inv-stk-banner inv-stk-banner-red">This message was already saved on ' +
+    h += '<div class="inv-callout inv-callout-danger inv-mb-8" id="stockDupNote">This message was already saved on ' +
       escHtml(new Date(res.dup.at).toLocaleDateString('en-IN')) + '. Saving it again would count every figure twice.</div>';
   }
-  h += '<div class="inv-stk-metabox">' +
-    '<div><span>Covers</span><strong>' + escHtml(stockShortDate(p.from)) + (p.to !== p.from ? ' – ' + escHtml(stockShortDate(p.to)) : '') + '</strong></div>' +
-    '<div><span>Count dated</span><strong>' + escHtml(stockShortDate(p.to)) + (p.noDate ? ' (no date in the message: today)' : '') + '</strong></div>' +
-    '<div><label for="stockSentBy">Sent by</label><input id="stockSentBy" class="inv-form-input" value="' + escHtml(rv.sentBy) + '" placeholder="Who counted"></div>' +
-    '<div><label for="stockBy">Entered by</label><input id="stockBy" class="inv-form-input" value="' + escHtml(stockBy()) + '" placeholder="Your name"></div></div>';
-  h += '<div class="inv-stk-sum">' +
-    '<div class="inv-stk-tile inv-stk-tile-red"><span class="inv-stk-tile-n">' + res.counts.red + '</span>Needs you</div>' +
-    '<div class="inv-stk-tile inv-stk-tile-amber"><span class="inv-stk-tile-n">' + res.counts.amber + '</span>Check</div>' +
-    '<div class="inv-stk-tile"><span class="inv-stk-tile-n">' + res.counts.clear + '</span>Clear</div></div>';
+  h += '<div class="inv-panel"><div class="inv-kv inv-mb-8">' +
+    '<div><div class="inv-kv-k">Covers</div><div>' + escHtml(stockShortDate(p.from)) + (p.to !== p.from ? ' – ' + escHtml(stockShortDate(p.to)) : '') + '</div></div>' +
+    '<div><div class="inv-kv-k">Count dated</div><div>' + escHtml(stockShortDate(p.to)) + (p.noDate ? ' (no date in the message: today)' : '') + '</div></div></div>' +
+    '<div class="inv-fields">' +
+    '<div class="inv-field"><label class="inv-field-label" for="stockSentBy">Sent by</label><input id="stockSentBy" class="inv-input" value="' + escHtml(rv.sentBy) + '" placeholder="Who counted" autocomplete="off"></div>' +
+    '<div class="inv-field"><label class="inv-field-label" for="stockBy">Entered by</label><input id="stockBy" class="inv-input" value="' + escHtml(stockBy()) + '" placeholder="Your name" autocomplete="off"></div></div></div>';
+  h += '<div class="inv-tiles inv-tiles-3" id="stockReviewTiles">' +
+    '<div class="inv-tile' + (res.counts.red ? ' inv-tile-danger' : '') + '"><div class="inv-tile-label">Needs you</div><div class="inv-tile-value">' + res.counts.red + '</div></div>' +
+    '<div class="inv-tile' + (res.counts.amber ? ' inv-tile-warning' : '') + '"><div class="inv-tile-label">Check</div><div class="inv-tile-value">' + res.counts.amber + '</div></div>' +
+    '<div class="inv-tile"><div class="inv-tile-label">Clear</div><div class="inv-tile-value">' + res.counts.clear + '</div></div></div>';
   if (p.unread.length) {
-    h += '<div class="inv-stk-banner">Not read: ' + p.unread.map(escHtml).join(' / ') + '</div>';
+    h += '<div class="inv-callout inv-callout-warning inv-mb-8">Not read: ' + p.unread.map(escHtml).join(' / ') + '</div>';
   }
   var order = { red: 0, amber: 1, clear: 2 };
   var sorted = res.lines.slice().sort(function(a, b) { return order[a.tone] - order[b.tone] || a.idx - b.idx; });
   var nEntries = 0, nLines = 0, nSkip = 0;
+  h += '<div class="inv-panel inv-panel-flush" id="stockReview"><div class="inv-panel-head"><span class="inv-panel-title">Lines read <span class="inv-panel-count">' + res.lines.length + '</span></span></div>';
   sorted.forEach(function(r) {
     if (r.skip) nSkip++; else if (r.entries.length) { nLines++; nEntries += r.entries.length; }
-    var item = r.item || r.newItem;
-    var name = item ? item.name : (r.src.name || 'No name');
-    var unit = item ? item.unit : r.src.unit;
-    var chip = r.tone === 'red' ? 'Needs you' : r.tone === 'amber' ? 'Check' : (r.newItem ? 'New line' : 'Clear');
-    h += '<div class="inv-stk-pr inv-stk-pr-' + r.tone + '"><div class="inv-stk-pr-top"><span class="inv-stk-pr-name">' +
-      r.src.n + ' &middot; ' + escHtml(name) + '</span><span class="inv-stk-chip inv-stk-chip-' + (r.tone === 'clear' ? (r.newItem ? 'bath' : 'ok') : r.tone === 'red' ? 'red' : 'amber') + '">' + chip + '</span></div>' +
-      '<div class="inv-stk-raw">' + escHtml(r.src.raw) + '</div>' +
-      '<div class="inv-stk-res">' + escHtml(stockResultText(r, unit)) + '</div>';
-    r.issues.forEach(function(is) {
-      if (is.code === 'new' && r.tone !== 'clear') return;
-      h += '<div class="inv-stk-issue inv-stk-issue-' + is.level + '">' + escHtml(is.text) + '</div>';
-      if (is.code === 'balance') {
-        var cur = rv.choices['bal' + r.idx] || 'unsettled';
-        var opts = [['working', 'Use the working: ' + stockFmtQty(is.expected)], ['written', 'Use the figure written: ' + stockFmtQty(is.written)], ['unsettled', 'Save as unsettled, ask']];
-        h += '<div class="inv-stk-choices">';
-        opts.forEach(function(o) {
-          h += '<button class="inv-stk-choice' + (cur === o[0] ? ' inv-stk-choice-on' : '') + '" data-action="invStockBal" data-i="' + r.idx + '" data-v="' + o[0] + '">' + escHtml(o[1]) + '</button>';
-        });
-        h += '</div>';
-      }
-    });
-    // Nothing to pick from on the first message, so a new line needs no picker there.
-    if ((r.via === 'new' && st.items.length) || !r.src.key || r.via === 'position' || r.via === 'chosen' || (r.skip && !r.item)) {
-      var sel = rv.choices['name' + r.idx] ? '' : (rv.choices['map' + r.idx] || (r.item ? r.item.id : (r.src.key ? 'new' : '')));
-      h += '<div class="inv-stk-map"><label class="inv-stk-label" for="stockMap' + r.idx + '">This line is</label>' +
-        '<select id="stockMap' + r.idx + '" class="inv-form-input" data-stock-map="' + r.idx + '">' +
-        (r.src.key ? '' : '<option value=""' + (sel === '' ? ' selected' : '') + '>Pick a line</option>') +
-        (r.src.key ? '<option value="new"' + (sel === 'new' ? ' selected' : '') + '>A new line: ' + escHtml(stockDisplayName(r.src.key)) + '</option>' : '');
-      st.items.forEach(function(i) {
-        h += '<option value="' + escHtml(i.id) + '"' + (sel === i.id ? ' selected' : '') + '>' + escHtml(i.name) + '</option>';
+    h += stockReviewRowHtml(r, rv, res, st);
+  });
+  h += '</div>';
+  h += '<div class="inv-actionbar"><div class="inv-actionbar-total"><div class="inv-actionbar-label">Across ' + nLines + (nLines === 1 ? ' line' : ' lines') +
+    (nSkip ? ' · <strong>' + nSkip + ' not saved</strong>' : '') + '</div><div class="inv-actionbar-value">' + nEntries + (nEntries === 1 ? ' entry' : ' entries') + '</div></div>' +
+    '<button class="inv-btn inv-btn-primary" data-action="invStockSavePaste"' + (res.dup ? ' disabled' : '') + '>Save</button></div>';
+  return h;
+}
+
+function stockReviewRowHtml(r, rv, res, st) {
+  var item = r.item || r.newItem;
+  var name = item ? item.name : (r.src.name || 'No name');
+  var unit = item ? item.unit : r.src.unit;
+  var badge = r.tone === 'red' ? ['danger', 'Needs you'] : r.tone === 'amber' ? ['warning', 'Check'] : r.newItem ? ['info', 'New line'] : ['ok', 'Clear'];
+  var h = '<div class="inv-row inv-row-auto inv-row-top" data-line="' + r.src.n + '" data-tone="' + r.tone + '"><div class="inv-row-main">' +
+    '<div class="inv-row-title">' + r.src.n + ' &middot; ' + escHtml(name) + '</div>' +
+    '<div class="inv-quote inv-mt-4">' + escHtml(r.src.raw) + '</div>' +
+    (stockResultText(r, unit) ? '<div class="inv-mono inv-mt-4">' + escHtml(stockResultText(r, unit)) + '</div>' : '');
+  r.issues.forEach(function(is) {
+    if (is.code === 'new' && r.tone !== 'clear') return;
+    h += '<div class="inv-callout inv-callout-' + (STOCK_ISSUE_TONE[is.level] || 'neutral') + ' inv-mt-8">' + escHtml(is.text) + '</div>';
+    if (is.code === 'balance') {
+      var cur = rv.choices['bal' + r.idx] || 'unsettled';
+      var opts = [['working', 'Use the working: ' + stockFmtQty(is.expected)], ['written', 'Use the figure written: ' + stockFmtQty(is.written)], ['unsettled', 'Save as unsettled, ask']];
+      h += '<div class="inv-toolbar inv-mt-8" role="group" aria-label="Which figure">';
+      opts.forEach(function(o) {
+        h += '<button class="inv-chip" data-action="invStockBal" data-i="' + r.idx + '" data-v="' + o[0] + '" aria-pressed="' + (cur === o[0]) + '">' + escHtml(o[1]) + '</button>';
       });
-      // Lines this message is adding, so the first message can map to them too.
-      var seen = {};
-      res.lines.forEach(function(o) {
-        var k = o.src.key;
-        if (!k || k === r.src.key || seen[k] || stockFindByKey(k)) return;
-        seen[k] = true;
-        h += '<option value="key:' + escHtml(k) + '"' + (sel === 'key:' + k ? ' selected' : '') + '>' + escHtml(stockDisplayName(k)) + ' (new in this message)</option>';
-      });
-      h += '</select>';
-      if (!r.src.key) {
-        h += '<label class="inv-stk-label inv-stk-label-gap" for="stockName' + r.idx + '">Or type its name</label>' +
-          '<input id="stockName' + r.idx + '" class="inv-form-input" data-stock-name="' + r.idx + '" value="' +
-          escHtml(rv.choices['name' + r.idx] || '') + '" placeholder="e.g. Nitric acid" autocomplete="off">';
-      }
       h += '</div>';
     }
-    h += '</div>';
   });
-  h += '<div class="inv-stk-foot"><span>' + nEntries + ' entries across ' + nLines + ' lines' +
-    (nSkip ? ' &middot; <strong>' + nSkip + ' not saved</strong>' : '') + '</span>' +
-    '<button class="inv-stk-btn inv-stk-btn-pri" data-action="invStockSavePaste"' + (res.dup ? ' disabled' : '') + '>Save</button></div>';
-  return h;
+  // Nothing to pick from on the first message, so a new line needs no picker there.
+  if ((r.via === 'new' && st.items.length) || !r.src.key || r.via === 'position' || r.via === 'chosen' || (r.skip && !r.item)) {
+    var sel = rv.choices['name' + r.idx] ? '' : (rv.choices['map' + r.idx] || (r.item ? r.item.id : (r.src.key ? 'new' : '')));
+    h += '<div class="inv-fields inv-mt-8"><div class="inv-field"><label class="inv-field-label" for="stockMap' + r.idx + '">This line is</label>' +
+      '<select id="stockMap' + r.idx + '" class="inv-select" data-stock-map="' + r.idx + '">' +
+      (r.src.key ? '' : '<option value=""' + (sel === '' ? ' selected' : '') + '>Pick a line</option>') +
+      (r.src.key ? '<option value="new"' + (sel === 'new' ? ' selected' : '') + '>A new line: ' + escHtml(stockDisplayName(r.src.key)) + '</option>' : '');
+    st.items.forEach(function(i) {
+      h += '<option value="' + escHtml(i.id) + '"' + (sel === i.id ? ' selected' : '') + '>' + escHtml(i.name) + '</option>';
+    });
+    // Lines this message is adding, so the first message can map to them too.
+    var seen = {};
+    res.lines.forEach(function(o) {
+      var k = o.src.key;
+      if (!k || k === r.src.key || seen[k] || stockFindByKey(k)) return;
+      seen[k] = true;
+      h += '<option value="key:' + escHtml(k) + '"' + (sel === 'key:' + k ? ' selected' : '') + '>' + escHtml(stockDisplayName(k)) + ' (new in this message)</option>';
+    });
+    h += '</select></div>';
+    if (!r.src.key) {
+      h += '<div class="inv-field"><label class="inv-field-label" for="stockName' + r.idx + '">Or type its name</label>' +
+        '<input id="stockName' + r.idx + '" class="inv-input" data-stock-name="' + r.idx + '" value="' +
+        escHtml(rv.choices['name' + r.idx] || '') + '" placeholder="e.g. Nitric acid" autocomplete="off"></div>';
+    }
+    h += '</div>';
+  }
+  return h + '</div><div class="inv-row-end"><span class="inv-badge inv-badge-' + badge[0] + '">' + badge[1] + '</span></div></div>';
 }
 
 function stockSavePaste() {
@@ -17634,43 +17593,45 @@ function stockOpenManual() {
 
 function renderStockManual() {
   var m = _stockManual, st = stockData();
+  var field = function(id, label, input) { return '<div class="inv-field"><label class="inv-field-label" for="' + id + '">' + label + '</label>' + input + '</div>'; };
   var h = stockBackBar('Stock', 'Enter by hand');
-  h += '<div class="inv-stk-seg">';
+  h += '<div class="inv-seg inv-mb-8" role="group" aria-label="What is entered">';
   [['count', 'Count'], ['received', 'Received'], ['used', 'Used'], ['charged', 'Charged']].forEach(function(o) {
-    h += '<button class="inv-stk-seg-btn' + (m.mode === o[0] ? ' inv-stk-seg-on' : '') + '" data-action="invStockMode" data-mode="' + o[0] + '">' + o[1] + '</button>';
+    h += '<button type="button" class="inv-seg-btn" data-action="invStockMode" data-mode="' + o[0] + '" aria-pressed="' + (m.mode === o[0]) + '">' + o[1] + '</button>';
   });
-  h += '</div><div class="inv-stk-fields">' +
-    '<div class="inv-stk-field"><label class="inv-stk-label" for="stockManDate">Date</label><input type="date" id="stockManDate" class="inv-form-input" value="' + escHtml(m.date) + '"></div>';
+  h += '</div><div class="inv-panel"><div class="inv-fields">' +
+    field('stockManDate', 'Date', '<input type="date" id="stockManDate" class="inv-input" value="' + escHtml(m.date) + '">');
   if (m.mode === 'received') {
-    h += '<div class="inv-stk-field"><label class="inv-stk-label" for="stockManSupplier">Company</label><input id="stockManSupplier" class="inv-form-input" list="stockSupplierList" value="' + escHtml(m.supplier) + '" placeholder="Who billed it"></div>' +
-      '<div class="inv-stk-field"><label class="inv-stk-label" for="stockManBill">Invoice no.</label><input id="stockManBill" class="inv-form-input" value="' + escHtml(m.billNo) + '"></div>' +
-      '<div class="inv-stk-field"><label class="inv-stk-label" for="stockManBillDate">Invoice date</label><input type="date" id="stockManBillDate" class="inv-form-input" value="' + escHtml(m.billDate || m.date) + '"></div>' +
+    h += field('stockManSupplier', 'Company', '<input id="stockManSupplier" class="inv-input" list="stockSupplierList" value="' + escHtml(m.supplier) + '" placeholder="Who billed it" autocomplete="off">') +
+      field('stockManBill', 'Invoice no.', '<input id="stockManBill" class="inv-input" value="' + escHtml(m.billNo) + '" autocomplete="off">') +
+      field('stockManBillDate', 'Invoice date', '<input type="date" id="stockManBillDate" class="inv-input" value="' + escHtml(m.billDate || m.date) + '">') +
       stockSupplierDatalist();
   }
   if (m.mode === 'charged') {
-    h += '<div class="inv-stk-field"><label class="inv-stk-label" for="stockManBath">Into</label><input id="stockManBath" class="inv-form-input" value="' + escHtml(m.bath) + '" placeholder="VAT A1, Barrel…"></div>';
+    h += field('stockManBath', 'Into', '<input id="stockManBath" class="inv-input" value="' + escHtml(m.bath) + '" placeholder="VAT A1, Barrel…" autocomplete="off">');
   }
-  h += '<div class="inv-stk-field"><label class="inv-stk-label" for="stockBy">Entered by</label><input id="stockBy" class="inv-form-input" value="' + escHtml(stockBy()) + '"></div></div>';
+  h += field('stockBy', 'Entered by', '<input id="stockBy" class="inv-input" value="' + escHtml(stockBy()) + '" autocomplete="off">') + '</div>';
   var hints = { count: 'What is on the shelf now. The app compares it with its own level.', received: 'A delivery, with its bill. The price per unit is what the live cost is worked out at.',
     used: 'Drawn from stock. Sets the daily rate.', charged: 'Put into a bath, e.g. zinc or salts.' };
-  h += '<div class="inv-stk-hint">' + hints[m.mode] + ' Fill only the lines that changed.</div>';
-  h += '<div class="inv-stk-mlist">';
-  if (m.mode === 'received') h += '<div class="inv-stk-mrow inv-stk-mhead"><div class="inv-stk-mname">Line</div><span>Quantity</span><span>&#8377; per unit, before GST</span></div>';
+  h += '<div class="inv-note">' + hints[m.mode] + ' Fill only the lines that changed.</div></div>';
+  h += '<div class="inv-panel inv-panel-flush" id="stockManualList"><div class="inv-panel-head"><span class="inv-panel-title">Lines</span></div>';
+  if (m.mode === 'received') h += '<div class="inv-row-group"><span>Line</span><span>Quantity · &#8377; per unit, before GST</span></div>';
   st.items.filter(function(i) { return i.active !== false; }).forEach(function(i) {
     var v = m.vals[i.id] || {}, lv = stockReplay(i.id).level;
-    h += '<div class="inv-stk-mrow"><div class="inv-stk-mname">' + escHtml(i.name) +
-      '<span>' + (m.mode === 'count' ? 'app has ' : 'now ') + escHtml(stockFmtQty(lv)) + ' ' + escHtml(i.unit || '') + '</span></div>' +
-      '<input type="number" inputmode="decimal" step="any" min="0" class="inv-stk-in" data-stock-qty="' + escHtml(i.id) + '" value="' + escHtml(v.qty != null ? v.qty : '') + '" aria-label="' + escHtml(i.name) + ' quantity">' +
-      '<span class="inv-stk-munit">' + escHtml(i.unit || '') + '</span>' +
-      (m.mode === 'received' ? '<input type="number" inputmode="decimal" step="any" min="0" class="inv-stk-in inv-stk-in-price" data-stock-price="' + escHtml(i.id) + '" value="' + escHtml(v.price != null ? v.price : '') + '" placeholder="₹/' + escHtml(i.unit || 'unit') + '" aria-label="' + escHtml(i.name) + ' price per unit">' : '') +
-      '</div>';
+    h += '<div class="inv-row inv-row-2 inv-row-flow"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(i.name) + '</span>' +
+      '<span class="inv-row-meta">' + (m.mode === 'count' ? 'app has ' : 'now ') + escHtml(stockFmtQty(lv)) + ' ' + escHtml(i.unit || '') + '</span></span>' +
+      '<span class="inv-row-end"><input type="number" inputmode="decimal" step="any" min="0" class="inv-input inv-input-sm inv-input-num" data-stock-qty="' + escHtml(i.id) + '" value="' + escHtml(v.qty != null ? v.qty : '') + '" aria-label="' + escHtml(i.name) + ' quantity">' +
+      '<span class="inv-unit">' + escHtml(i.unit || '') + '</span>' +
+      (m.mode === 'received' ? '<input type="number" inputmode="decimal" step="any" min="0" class="inv-input inv-input-sm inv-input-num" data-stock-price="' + escHtml(i.id) + '" value="' + escHtml(v.price != null ? v.price : '') + '" placeholder="₹/' + escHtml(i.unit || 'unit') + '" aria-label="' + escHtml(i.name) + ' price per unit">' : '') +
+      '</span></div>';
   });
-  h += '</div><div class="inv-stk-newline"><div class="inv-stk-label">Add a line</div><div class="inv-stk-newrow">' +
-    '<input id="stockNewName" class="inv-form-input" placeholder="Name, e.g. Chromic acid">' +
-    '<select id="stockNewUnit" class="inv-form-input"><option value="kg">kg</option><option value="L">L</option><option value="nos">nos</option></select>' +
-    '<button class="inv-stk-btn" data-action="invStockAddLine">Add</button></div></div>';
-  h += '<div class="inv-stk-foot"><span>' + escHtml(STOCK_KIND_LABEL[m.mode]) + ' on ' + escHtml(stockShortDate(m.date)) + '</span>' +
-    '<button class="inv-stk-btn inv-stk-btn-pri" data-action="invStockSaveManual">Save</button></div>';
+  h += '<div class="inv-panel-body"><div class="inv-field-label">Add a line</div><div class="inv-toolbar inv-toolbar-flush">' +
+    '<input id="stockNewName" class="inv-input inv-toolbar-item" placeholder="Name, e.g. Chromic acid" aria-label="New line name" autocomplete="off">' +
+    '<select id="stockNewUnit" class="inv-select inv-select-sm" aria-label="Unit"><option value="kg">kg</option><option value="L">L</option><option value="nos">nos</option></select>' +
+    '<button class="inv-btn inv-btn-secondary" data-action="invStockAddLine">Add</button></div></div></div>';
+  h += '<div class="inv-actionbar"><div class="inv-actionbar-total"><div class="inv-actionbar-label">' + escHtml(STOCK_KIND_LABEL[m.mode]) + ' on</div>' +
+    '<div class="inv-actionbar-value">' + escHtml(stockShortDate(m.date)) + '</div></div>' +
+    '<button class="inv-btn inv-btn-primary" data-action="invStockSaveManual">Save</button></div>';
   return h;
 }
 
@@ -17745,65 +17706,79 @@ function stockPriceAt(itemId, date) {
   return { price: hit.e.price, date: hit.date, supplier: hit.e.supplier || '', billNo: hit.e.billNo || '', entry: hit.e };
 }
 
+/* One line: on the phone a page with the way back; on the desktop the same body in the pane. */
 function renderStockItem(item) {
-  var s = stockStatus(item), unit = item.unit || '';
-  var h = stockBackBar('Stock', item.name);
-  var chip = s.group === 'bath' ? (s.level > 0 ? 'On shelf' : 'Shelf empty') : s.group === 'out' ? 'Out'
-    : s.daysLeft != null ? stockDaysText(s.daysLeft, s.rate.tentative) + ' left' : 'No rate';
-  h += '<div class="inv-stk-hero inv-stk-tone-' + s.tone + '"><div class="inv-stk-hero-lv">' + stockQtyUnit(s.level, unit) + '</div>' +
-    '<span class="inv-stk-chip inv-stk-chip-' + s.tone + '">' + escHtml(chip) + '</span>';
-  if (s.rate && s.rate.rate) {
-    h += '<div class="inv-stk-hero-sub">' + escHtml(stockFmtRate(s.rate.rate) + ' ' + unit + '/day, from what was ' + (item.basis === 'charge' ? 'charged' : 'used') + ' over ' + s.rate.days + ' days of record') +
-      (s.rate.tentative ? '. Under three days: not a firm rate yet.' : '.') + '</div>';
-  } else {
-    h += '<div class="inv-stk-hero-sub">No use recorded yet, so no daily rate.</div>';
-  }
-  var lp = stockPriceAt(item.id, '9999-12-31');
-  if (lp) h += '<div class="inv-stk-hero-sub">Last paid ' + formatCurrency(lp.price) + '/' + escHtml(unit || 'unit') + ' on ' + escHtml(stockShortDate(lp.date)) + (lp.supplier ? ' &middot; ' + escHtml(lp.supplier) : '') + '</div>';
-  else h += '<div class="inv-stk-hero-sub">No price yet. Add a bill below and the live cost can use this line.</div>';
-  h += '</div>';
-  h += stockPatternHtml(item);
+  return stockBackBar('Stock', item.name) + stockItemBodyHtml(item);
+}
 
-  h += '<div class="inv-stk-props"><div class="inv-stk-label">How it is used</div><div class="inv-stk-seg">' +
-    '<button class="inv-stk-seg-btn' + (item.basis !== 'charge' ? ' inv-stk-seg-on' : '') + '" data-action="invStockBasis" data-v="draw">Drawn daily</button>' +
-    '<button class="inv-stk-seg-btn' + (item.basis === 'charge' ? ' inv-stk-seg-on' : '') + '" data-action="invStockBasis" data-v="charge">Charged to a bath</button></div>' +
-    '</div>' + stockEditHtml(item);
+function stockItemBodyHtml(item) {
+  var s = stockStatus(item), unit = item.unit || '';
+  var tone = STOCK_TONE[s.tone];
+  var lp = stockPriceAt(item.id, '9999-12-31');
+  var lcnt = stockItemEntries(item.id).filter(function(e) { return e.kind === 'count'; }).pop();
+  var h = '<div class="inv-panel inv-panel-flush" id="stockSummary"><div class="inv-tiles inv-tiles-flush">' +
+    '<div class="inv-tile"><div class="inv-tile-label">On hand</div>' +
+      '<div class="inv-tile-value" id="stockLevel">' + escHtml(stockFmtQty(s.level)) + (unit ? ' <span class="inv-tile-of">' + escHtml(unit) + '</span>' : '') + '</div>' +
+      '<div class="inv-tile-sub">' + (lcnt ? 'counted ' + escHtml(stockShortDate(lcnt.date)) : 'not counted yet') + '</div></div>' +
+    '<div class="inv-tile' + (tone === 'danger' || tone === 'warning' ? ' inv-tile-' + tone : '') + '"><div class="inv-tile-label">' + (s.group === 'bath' ? 'Shelf' : 'Days left') + '</div>' +
+      '<div class="inv-tile-value">' + (s.daysLeft != null ? escHtml(stockDaysText(s.daysLeft, s.rate.tentative)) : '&mdash;') + '</div>' +
+      '<div class="inv-tile-sub"><span class="inv-dot inv-dot-' + tone + '">' + escHtml(s.group === 'low' ? stockCfg().amberDays + ' days or less' : s.group === 'ok' ? 'OK' : stockStatusWord(s)) + '</span></div></div>' +
+    '<div class="inv-tile"><div class="inv-tile-label">Use a day</div>' +
+      '<div class="inv-tile-value">' + (s.rate && s.rate.rate ? escHtml(stockFmtRate(s.rate.rate)) + (unit ? ' <span class="inv-tile-of">' + escHtml(unit) + '</span>' : '') : '&mdash;') + '</div>' +
+      '<div class="inv-tile-sub">' + (s.rate && s.rate.rate ? 'over ' + s.rate.days + (s.rate.days === 1 ? ' day' : ' days') + (s.rate.tentative ? ', not firm' : '') : 'no use recorded') + '</div></div>' +
+    '<div class="inv-tile"><div class="inv-tile-label">Last paid</div>' +
+      '<div class="inv-tile-value">' + (lp ? escHtml(formatCurrency(lp.price)) + ' <span class="inv-tile-of">/' + escHtml(unit || 'unit') + '</span>' : '&mdash;') + '</div>' +
+      '<div class="inv-tile-sub">' + (lp ? escHtml(stockShortDate(lp.date)) + (lp.supplier ? ' &middot; ' + escHtml(lp.supplier) : '') : 'No price yet') + '</div></div>' +
+    '</div><div class="inv-panel-body"><div class="inv-note">';
+  if (s.rate && s.rate.rate) {
+    h += escHtml(stockFmtRate(s.rate.rate) + ' ' + unit + '/day, from what was ' + (item.basis === 'charge' ? 'charged' : 'used') + ' over ' + s.rate.days + ' days of record') +
+      (s.rate.tentative ? '. Under three days: not a firm rate yet.' : '.');
+  } else {
+    h += 'No use recorded yet, so no daily rate.';
+  }
+  if (!lp) h += ' No price yet. Add a bill below and the live cost can use this line.';
+  h += '</div></div></div>';
+  h += stockPatternHtml(item) + stockEditHtml(item);
 
   var replay = stockReplay(item.id).rows;
   var byId = {};
   replay.forEach(function(r) { byId[r.e.id] = r; });
   var all = stockData().entries.filter(function(e) { return e.itemId === item.id; });
   all = stockSortEntries(all).reverse();
-  h += '<div class="inv-stk-sec">Entries<span>' + all.length + '</span></div><div class="inv-stk-hist">';
-  all.forEach(function(e) {
-    var r = byId[e.id];
-    var when = e.from && e.from !== e.date ? stockShortDate(e.from) + ' – ' + stockShortDate(e.date) : stockShortDate(e.date);
-    var src = e.source === 'paste' ? 'pasted' + (e.sentBy ? ', sent by ' + e.sentBy : '') : e.source === 'import' ? 'imported' : 'by hand';
-    if (e.by) src += ' · entered by ' + e.by;
-    var extra = [];
-    if (e.kind === 'received' || e.kind === 'bill') {
-      if (e.price != null) extra.push(formatCurrency(e.price) + '/' + (unit || 'unit'));
-      if (e.supplier) extra.push(e.supplier);
-      if (e.billNo) extra.push('invoice ' + e.billNo + (e.billDate && e.billDate !== e.date ? ' of ' + stockShortDate(e.billDate) : ''));
-    }
-    if (e.note) extra.push(e.note);
-    var gap = '';
-    if (e.kind === 'count' && r && r.before != null && stockRound(r.before) !== stockRound(e.qty)) {
-      var d = stockRound(e.qty - r.before);
-      gap = '<div class="inv-stk-issue inv-stk-issue-amber">The app expected ' + escHtml(stockFmtQty(r.before)) + ' (' + (d > 0 ? '+' : '') + escHtml(stockFmtQty(d)) + ' unexplained)</div>';
-    }
-    h += '<div class="inv-stk-hrow' + (e.voided ? ' inv-stk-voided' : '') + '"><div class="inv-stk-hmain"><div class="inv-stk-hkind">' +
-      escHtml(STOCK_KIND_LABEL[e.kind] || e.kind) + ' <strong>' + escHtml(stockFmtQty(e.qty)) + ' ' + escHtml(unit) + '</strong>' +
-      (e.unsettled ? '<span class="inv-stk-flag">unsettled</span>' : '') + (e.voided ? '<span class="inv-stk-flag">voided</span>' : '') + '</div>' +
-      '<div class="inv-stk-hsub">' + escHtml(when + ' · ' + src) + (extra.length ? '<br>' + escHtml(extra.join(' · ')) : '') + '</div>' + gap +
-      (e.raw ? '<details class="inv-stk-src"><summary>Message text</summary><div class="inv-stk-raw">' + escHtml(e.raw) + '</div></details>' : '') +
-      (e.kind === 'received' && e.price == null && !e.voided ? '<button class="inv-stk-btn inv-stk-btn-sm" data-action="invStockBillOpen" data-entry="' + escHtml(e.id) + '">Add its bill</button>' : '') +
-      '</div>' +
-      (e.voided ? '' : '<button class="inv-stk-void' + (_stockVoidArm === e.id ? ' inv-stk-void-arm' : '') + '" data-action="invStockVoid" data-id="' + escHtml(e.id) + '">' + (_stockVoidArm === e.id ? 'Tap again to void' : 'Void') + '</button>') +
-      '</div>';
-  });
-  h += '</div>';
-  return h;
+  h += '<div class="inv-panel inv-panel-flush" id="stockEntries"><div class="inv-panel-head"><span class="inv-panel-title">Entries <span class="inv-panel-count">' + all.length + '</span></span></div>';
+  if (!all.length) h += '<div class="inv-empty">Nothing recorded on this line yet.</div>';
+  all.forEach(function(e) { h += stockEntryRowHtml(e, byId[e.id], unit); });
+  return h + '</div>';
+}
+
+function stockEntryRowHtml(e, r, unit) {
+  var when = e.from && e.from !== e.date ? stockShortDate(e.from) + ' – ' + stockShortDate(e.date) : stockShortDate(e.date);
+  var src = e.source === 'paste' ? 'pasted' + (e.sentBy ? ', sent by ' + e.sentBy : '') : e.source === 'import' ? 'imported' : 'by hand';
+  if (e.by) src += ' · entered by ' + e.by;
+  var extra = [];
+  if (e.kind === 'received' || e.kind === 'bill') {
+    if (e.price != null) extra.push(formatCurrency(e.price) + '/' + (unit || 'unit'));
+    if (e.supplier) extra.push(e.supplier);
+    if (e.billNo) extra.push('invoice ' + e.billNo + (e.billDate && e.billDate !== e.date ? ' of ' + stockShortDate(e.billDate) : ''));
+  }
+  if (e.note) extra.push(e.note);
+  var gap = '';
+  if (e.kind === 'count' && r && r.before != null && stockRound(r.before) !== stockRound(e.qty)) {
+    var d = stockRound(e.qty - r.before);
+    gap = '<div class="inv-callout inv-callout-warning inv-mt-8">The app expected ' + escHtml(stockFmtQty(r.before)) + ' (' + (d > 0 ? '+' : '') + escHtml(stockFmtQty(d)) + ' unexplained)</div>';
+  }
+  var armed = _stockVoidArm === e.id;
+  return '<div class="inv-row inv-row-auto inv-row-top' + (e.voided ? ' inv-row-muted' : '') + '" data-entry="' + escHtml(e.id) + '"><div class="inv-row-main">' +
+    '<div class="inv-row-title">' + escHtml(STOCK_KIND_LABEL[e.kind] || e.kind) + ' <strong class="inv-mono">' + escHtml(stockFmtQty(e.qty)) + ' ' + escHtml(unit) + '</strong>' +
+    (e.unsettled ? ' <span class="inv-badge inv-badge-warning">Unsettled</span>' : '') + (e.voided ? ' <span class="inv-badge inv-badge-neutral">Voided</span>' : '') + '</div>' +
+    '<div class="inv-row-meta inv-row-wrap">' + escHtml(when + ' · ' + src) + '</div>' +
+    (extra.length ? '<div class="inv-row-meta inv-row-wrap">' + escHtml(extra.join(' · ')) + '</div>' : '') + gap +
+    (e.raw ? '<details class="inv-mt-4"><summary class="inv-btn-link inv-summary">Message text</summary><div class="inv-quote inv-mt-4">' + escHtml(e.raw) + '</div></details>' : '') +
+    (e.kind === 'received' && e.price == null && !e.voided ? '<button class="inv-btn inv-btn-secondary inv-btn-sm inv-mt-8" data-action="invStockBillOpen" data-entry="' + escHtml(e.id) + '">Add its bill</button>' : '') +
+    '</div>' +
+    (e.voided ? '' : '<div class="inv-row-end"><button class="inv-btn inv-btn-sm inv-btn-danger' + (armed ? ' inv-btn-solid' : '') + '" data-action="invStockVoid" data-id="' + escHtml(e.id) + '"' +
+      (armed ? ' aria-pressed="true"' : '') + '>' + (armed ? 'Tap again to void' : 'Void') + '</button></div>') +
+    '</div>';
 }
 
 /* A wrong entry is voided, never deleted: the export is the record's source,
@@ -17918,22 +17893,23 @@ function openMoreSheet() {
     ['pageHistory', 'History', 'The audit trail', '<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>']
   ];
   var cur = (document.querySelector('.inv-page-active') || {}).id;
-  var h = '<div class="inv-more-sheet" data-action="invMoreStay" role="dialog" aria-label="More"><div class="inv-more-grab"></div>';
+  // A sheet from the bottom (§6.16), its entries rows; the open one is the current page.
+  var h = '<div class="inv-sheet" data-action="invMoreStay" role="dialog" aria-label="More"><div class="inv-sheet-grab"></div>';
   items.forEach(function(it) {
-    h += '<button class="inv-more-item' + (cur === it[0] ? ' inv-more-item-on' : '') + '" data-action="invSwitchTab" data-tab="' + it[0] + '">' +
-      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">' + it[3] + '</svg>' +
-      '<span class="inv-more-text"><span class="inv-more-label">' + it[1] + '</span><span class="inv-more-sub">' + escHtml(it[2]) + '</span></span>' +
-      (it[0] === 'pageStock' && out ? '<span class="inv-stk-chip inv-stk-chip-red">' + out + ' out</span>' : '') +
-      (it[0] === 'pageTodo' && tdLate ? '<span class="inv-stk-chip inv-stk-chip-red">' + tdLate + ' late</span>' : '') + '</button>';
+    h += '<button class="inv-row inv-row-2" data-action="invSwitchTab" data-tab="' + it[0] + '"' + (cur === it[0] ? ' aria-current="page"' : '') + '>' +
+      '<span class="inv-row-lead"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + it[3] + '</svg></span>' +
+      '<span class="inv-row-main"><span class="inv-row-title">' + it[1] + '</span><span class="inv-row-meta">' + escHtml(it[2]) + '</span></span>' +
+      (it[0] === 'pageStock' && out ? '<span class="inv-row-end"><span class="inv-badge inv-badge-danger">' + out + ' out</span></span>' : '') +
+      (it[0] === 'pageTodo' && tdLate ? '<span class="inv-row-end"><span class="inv-badge inv-badge-danger">' + tdLate + ' late</span></span>' : '') + '</button>';
   });
   h += '</div>';
   var scrim = document.createElement('div');
   scrim.id = 'moreSheet';
-  scrim.className = 'inv-more-scrim';
+  scrim.className = 'inv-scrim';
   scrim.setAttribute('data-action', 'invCloseMore');
   scrim.innerHTML = h;
   document.body.appendChild(scrim);
-  var first = scrim.querySelector('.inv-more-item');
+  var first = scrim.querySelector('.inv-row');
   if (first) first.focus();
 }
 
@@ -17947,6 +17923,8 @@ function stockAction(action, btn) {
       if (_stockView === 'review') { stockSetView('paste'); break; }
       _stockReview = null; _stockManual = null; _stockReorder = null; stockSetView(_stockHome); break;
     case 'invStockOpen': _stockItemId = btn.dataset.id; stockSetView('item'); break;
+    case 'invStockPaneClose': stockSetView('list'); break;
+    case 'invStockFilter': _stockFilter = _stockFilter === btn.dataset.v ? null : btn.dataset.v; stockSetView('list'); break;
     case 'invStockBal':
       if (_stockReview) { _stockReview.choices['bal' + btn.dataset.i] = btn.dataset.v; renderStock(); }
       break;
@@ -18072,17 +18050,19 @@ function stockBillOnInput(t) {
 }
 function stockBillFormHtml(item) {
   var b = _stockBill, unit = item.unit || 'unit';
-  return '<div class="inv-stk-billform" id="stockBillForm"><div class="inv-stk-label">' + (b.entryId ? 'The bill for this delivery' : 'A bill') + '</div>' +
-    '<div class="inv-stk-fields">' +
-    '<div class="inv-stk-field"><label class="inv-stk-label" for="stockBillSupplier">Company</label><input id="stockBillSupplier" class="inv-form-input" list="stockSupplierList" value="' + escHtml(b.supplier) + '"></div>' +
-    '<div class="inv-stk-field"><label class="inv-stk-label" for="stockBillNo">Invoice no.</label><input id="stockBillNo" class="inv-form-input" value="' + escHtml(b.billNo) + '"></div>' +
-    '<div class="inv-stk-field"><label class="inv-stk-label" for="stockBillDate">Invoice date</label><input type="date" id="stockBillDate" class="inv-form-input" value="' + escHtml(b.date) + '"></div>' +
-    '<div class="inv-stk-field"><label class="inv-stk-label" for="stockBillQty">Quantity (' + escHtml(unit) + ')</label><input type="number" inputmode="decimal" step="any" min="0" id="stockBillQty" class="inv-form-input"' + (b.entryId ? ' disabled' : '') + ' value="' + escHtml(b.qty) + '"></div>' +
-    '<div class="inv-stk-field"><label class="inv-stk-label" for="stockBillPrice">&#8377; per ' + escHtml(unit) + ', before GST</label><input type="number" inputmode="decimal" step="any" min="0" id="stockBillPrice" class="inv-form-input" value="' + escHtml(b.price) + '"></div>' +
-    '<div class="inv-stk-field"><label class="inv-stk-label" for="stockBillAmount">or the bill amount, before GST</label><input type="number" inputmode="decimal" step="any" min="0" id="stockBillAmount" class="inv-form-input" value="' + escHtml(b.amount) + '"></div>' +
+  var field = function(id, label, input) { return '<div class="inv-field"><label class="inv-field-label" for="' + id + '">' + label + '</label>' + input + '</div>'; };
+  var num = function(id, v, dis) { return '<input type="number" inputmode="decimal" step="any" min="0" id="' + id + '" class="inv-input inv-input-num"' + (dis ? ' disabled' : '') + ' value="' + escHtml(v) + '">'; };
+  return '<div class="inv-panel-body" id="stockBillForm"><div class="inv-panel-title inv-mb-8">' + (b.entryId ? 'The bill for this delivery' : 'A bill') + '</div>' +
+    '<div class="inv-fields">' +
+    field('stockBillSupplier', 'Company', '<input id="stockBillSupplier" class="inv-input" list="stockSupplierList" value="' + escHtml(b.supplier) + '" autocomplete="off">') +
+    field('stockBillNo', 'Invoice no.', '<input id="stockBillNo" class="inv-input" value="' + escHtml(b.billNo) + '" autocomplete="off">') +
+    field('stockBillDate', 'Invoice date', '<input type="date" id="stockBillDate" class="inv-input" value="' + escHtml(b.date) + '">') +
+    field('stockBillQty', 'Quantity (' + escHtml(unit) + ')', num('stockBillQty', b.qty, !!b.entryId)) +
+    field('stockBillPrice', '&#8377; per ' + escHtml(unit) + ', before GST', num('stockBillPrice', b.price)) +
+    field('stockBillAmount', 'or the bill amount, before GST', num('stockBillAmount', b.amount)) +
     '</div>' + stockSupplierDatalist() +
-    '<div class="inv-stk-foot"><button class="inv-stk-btn" data-action="invStockBillCancel">Cancel</button>' +
-    '<button class="inv-stk-btn inv-stk-btn-pri" data-action="invStockBillSave">Save bill</button></div></div>';
+    '<div class="inv-toolbar inv-toolbar-tight"><button class="inv-btn inv-btn-secondary" data-action="invStockBillCancel">Cancel</button>' +
+    '<button class="inv-btn inv-btn-primary" data-action="invStockBillSave">Save bill</button></div></div>';
 }
 function stockBillSave() {
   var b = _stockBill;
@@ -18166,9 +18146,17 @@ function stockPattern(item) {
   return out;
 }
 
+/* Price and pattern, a flush panel of rows on the line's page (Stock → a line). */
 function stockPatternHtml(item) {
-  var p = stockPattern(item), unit = item.unit || 'unit', h = '<div class="inv-stk-sec">Price and pattern</div><div class="inv-stk-pattern">';
-  var row = function(label, sub, val) { return '<div class="inv-lab-row"><span class="inv-lab-label">' + label + (sub ? '<span class="inv-lab-sub">' + sub + '</span>' : '') + '</span><span class="inv-lab-value inv-mono">' + val + '</span></div>'; };
+  var p = stockPattern(item), unit = item.unit || 'unit';
+  var open = _stockBill && _stockBill.itemId === item.id;
+  var h = '<div class="inv-panel inv-panel-flush" id="stockPattern"><div class="inv-panel-head"><span class="inv-panel-title">Price and pattern</span>' +
+    (open ? '' : '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invStockBillOpen">Add a bill</button>') + '</div>';
+  if (open) h += stockBillFormHtml(item);
+  var row = function(label, sub, val) {
+    return '<div class="inv-row inv-row-2 inv-row-flow"><span class="inv-row-main"><span class="inv-row-title">' + label + '</span>' + (sub ? '<span class="inv-row-meta inv-row-wrap">' + sub + '</span>' : '') + '</span>' +
+      '<span class="inv-row-end inv-num">' + val + '</span></div>';
+  };
   if (p.last) {
     h += row('Price', 'last paid, ' + escHtml(stockShortDate(p.last.date)) + (p.last.e.supplier ? ' · ' + escHtml(p.last.e.supplier) : '') + (p.last.e.billNo ? ' · invoice ' + escHtml(p.last.e.billNo) : ''),
       formatCurrency(p.last.e.price) + '/' + escHtml(unit));
@@ -18182,16 +18170,13 @@ function stockPatternHtml(item) {
         (bp ? ' · the bank paid them ' + formatCurrency(bp.paid) + ' in ' + bp.n + ' payment' + (bp.n === 1 ? '' : 's') + ', last ' + escHtml(stockShortDate(bp.last.date)) : ''), formatCurrency(gstRound(s.spent)));
     });
   } else {
-    h += '<div class="inv-stk-hint">No price recorded. Add the bill for a delivery (on the entry below) or a past bill here.</div>';
+    h += '<div class="inv-row inv-row-auto"><span class="inv-note">No price recorded. Add the bill for a delivery (on its entry below) or a past bill here.</span></div>';
   }
   if (p.lastBought) h += row('Bought', p.cadence != null ? 'every ' + formatNum(p.cadence, 0) + ' days (median) · ' + (p.avgQty != null ? 'about ' + escHtml(stockFmtQty(p.avgQty)) + ' ' + escHtml(unit) + ' a time' : '') : 'once on record',
     'last ' + escHtml(stockShortDate(p.lastBought)) + (p.nextDue ? ', next ~' + escHtml(stockShortDate(p.nextDue)) : ''));
   if (p.rate && p.rate.rate) h += row('Use', escHtml(stockFmtQty(p.used30)) + ' ' + escHtml(unit) + ' in the last 30 days', escHtml(stockFmtRate(p.rate.rate)) + ' ' + escHtml(unit) + '/day');
   if (p.costDay != null) h += row('Costs', 'at the last price', formatCurrency(p.costDay) + '/day · ' + formatCurrency(p.costMonth) + '/month');
-  h += '</div>';
-  if (_stockBill && _stockBill.itemId === item.id) h += stockBillFormHtml(item);
-  else h += '<button class="inv-stk-btn" data-action="invStockBillOpen">Add a bill</button>';
-  return h;
+  return h + '</div>';
 }
 
 /* ---------- The live cost ---------- */
@@ -18682,49 +18667,81 @@ function stockReorderText(L) {
   });
   return lines.join('\n');
 }
+/* The reorder list (§7 Stock): grouped by the supplier each line last came from, the order
+   quantity typed in place. A table on the desktop, rows on the phone; one set of inputs either way. */
 function renderStockReorder() {
   var L = stockReorderList(), cfg = L.cfg;
   var h = stockBackBar('Stock', 'Reorder list');
-  h += '<div class="inv-stk-fields"><div class="inv-stk-field"><label class="inv-stk-label" for="stockLeadDays">Lead time (days)</label>' +
-    '<input type="number" min="1" step="1" inputmode="numeric" id="stockLeadDays" class="inv-form-input" value="' + cfg.leadDays + '"></div>' +
-    '<div class="inv-stk-field"><label class="inv-stk-label" for="stockCoverDays">Days to cover after it lands</label>' +
-    '<input type="number" min="1" step="1" inputmode="numeric" id="stockCoverDays" class="inv-form-input" value="' + cfg.coverDays + '"></div></div>' +
-    '<div class="inv-stk-hint">Suggested = daily use × (' + cfg.leadDays + ' + ' + cfg.coverDays + ' days) less what is on the shelf, rounded up to the pack it is bought in. Type a quantity to change it; 0 leaves the line out.</div>';
+  h += '<div class="inv-panel"><div class="inv-fields">' +
+    '<div class="inv-field"><label class="inv-field-label" for="stockLeadDays">Lead time (days)</label>' +
+    '<input type="number" min="1" step="1" inputmode="numeric" id="stockLeadDays" class="inv-input inv-input-num" value="' + cfg.leadDays + '"></div>' +
+    '<div class="inv-field"><label class="inv-field-label" for="stockCoverDays">Days to cover after it lands</label>' +
+    '<input type="number" min="1" step="1" inputmode="numeric" id="stockCoverDays" class="inv-input inv-input-num" value="' + cfg.coverDays + '"></div></div>' +
+    '<div class="inv-note">Suggested = daily use × (' + cfg.leadDays + ' + ' + cfg.coverDays + ' days) less what is on the shelf, rounded up to the pack it is bought in. Type a quantity to change it; 0 leaves the line out.</div></div>';
   if (!L.groups.length) {
-    h += '<div class="inv-stk-empty">Nothing to order: every line with a daily use covers ' + (cfg.leadDays + cfg.coverDays) + ' days.</div>';
+    h += '<div class="inv-panel"><div class="inv-empty">Nothing to order: every line with a daily use covers ' + (cfg.leadDays + cfg.coverDays) + ' days.</div></div>';
+  } else {
+    h += '<div class="inv-panel inv-panel-flush" id="stockReorder">' + (_isDesktop ? stockReorderTableHtml(L) : stockReorderRowsHtml(L)) + '</div>';
   }
-  L.groups.forEach(function(g) {
-    var sub = g.rows.reduce(function(s, r) { return s + (r.amount || 0); }, 0);
-    h += '<div class="inv-stk-sec">' + escHtml(g.supplier) + '<span>' + (sub ? escHtml(formatCurrency(gstRound(sub))) : '') + '</span></div><div class="inv-stk-reorder">';
-    g.rows.forEach(function(r) {
-      var unit = r.item.unit || '';
-      var why = r.noRate ? 'out, and no daily use on record: enter a quantity'
-        : stockFmtQty(r.level) + ' ' + unit + ' on hand · ' + stockFmtRate(r.rate) + ' ' + unit + '/day' + (r.daysLeft != null ? ' · ' + stockDaysText(r.daysLeft, false) + ' left' : '') +
-          ' · needs ' + stockFmtQty(Math.max(0, r.need)) + (r.pack ? ' · packs of ' + stockFmtQty(r.pack) : '') + (r.tentative ? ' · rate from under 3 days of record: check' : '');
-      h += '<div class="inv-stk-mrow"><div class="inv-stk-mname">' + escHtml(r.item.name) + '<span>' + escHtml(why) + '</span></div>' +
-        '<input type="number" inputmode="decimal" step="any" min="0" class="inv-stk-in" data-stock-reorder="' + escHtml(r.item.id) + '" value="' + escHtml(stockFmtQty(r.qty)) + '" aria-label="' + escHtml(r.item.name) + ' quantity to order">' +
-        '<span class="inv-stk-munit">' + escHtml(unit) + '</span>' +
-        '<span class="inv-stk-rprice">' + (r.amount != null ? escHtml(formatCurrency(r.amount)) : 'no price') + '</span></div>';
-    });
-    h += '</div>';
-  });
   if (L.skipped.enough || L.skipped.norate.length) {
-    h += '<div class="inv-stk-hint">' + (L.skipped.enough ? L.skipped.enough + ' line' + (L.skipped.enough === 1 ? ' has' : 's have') + ' enough on hand. ' : '') +
+    h += '<div class="inv-note inv-mb-8">' + (L.skipped.enough ? L.skipped.enough + ' line' + (L.skipped.enough === 1 ? ' has' : 's have') + ' enough on hand. ' : '') +
       (L.skipped.norate.length ? 'No daily use yet, so nothing suggested: ' + escHtml(L.skipped.norate.join(', ')) + '.' : '') + '</div>';
   }
   if (L.groups.length) {
-    h += '<div class="inv-stk-foot"><span id="stockReorderTotal">' + escHtml(formatCurrency(L.total)) + ' at the last prices, before GST' + (L.unpriced ? ' · ' + L.unpriced + ' without a price' : '') + '</span>' +
-      '<button class="inv-stk-btn inv-stk-btn-pri" data-action="invStockReorderCopy">Copy as message</button></div>';
     // The cash it needs, against the forecast: an order is a payment in a few weeks.
     var fc = typeof finForecast === 'function' && finHasBank() ? finForecast(45) : null;
     if (fc && L.total > 0) {
       var after = gstRound(fc.min.bal - L.total * 1.18);
-      h += '<div class="inv-stk-hint" id="stockReorderCash">With GST about ' + escHtml(formatCurrency(gstRound(L.total * 1.18))) + '. The cash forecast’s lowest point in 45 days is ' +
+      h += '<div class="inv-callout inv-callout-info inv-mb-8" id="stockReorderCash">With GST about ' + escHtml(formatCurrency(gstRound(L.total * 1.18))) + '. The cash forecast’s lowest point in 45 days is ' +
         escHtml(formatCurrency(fc.min.bal)) + ' (' + escHtml(stockShortDate(fc.min.date)) + '), ' + escHtml(formatCurrency(after)) + ' after this order. ' +
         '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invFinGo" data-tab="overview" data-anchor="finForecast">Open the forecast</button></div>';
     }
+    h += '<div class="inv-actionbar"><div class="inv-actionbar-total"><div class="inv-actionbar-label" id="stockReorderNote">' + escHtml(stockReorderNote(L)) + '</div>' +
+      '<div class="inv-actionbar-value" id="stockReorderTotal">' + escHtml(formatCurrency(L.total)) + '</div></div>' +
+      '<button class="inv-btn inv-btn-primary" data-action="invStockReorderCopy">Copy as message</button></div>';
   }
   return h;
+}
+function stockReorderNote(L) { return 'At the last prices, before GST' + (L.unpriced ? ' · ' + L.unpriced + ' without a price' : ''); }
+function stockReorderWhy(r, full) {
+  var unit = r.item.unit || '';
+  if (r.noRate) return 'out, and no daily use on record: enter a quantity';
+  return (full ? stockFmtQty(r.level) + ' ' + unit + ' on hand · ' + stockFmtRate(r.rate) + ' ' + unit + '/day' + (r.daysLeft != null ? ' · ' + stockDaysText(r.daysLeft, false) + ' left' : '') + ' · ' : '') +
+    'needs ' + stockFmtQty(Math.max(0, r.need)) + (r.pack ? ' · packs of ' + stockFmtQty(r.pack) : '') + (r.tentative ? ' · rate from under 3 days of record: check' : '');
+}
+function stockReorderInput(r) {
+  return '<input type="number" inputmode="decimal" step="any" min="0" class="inv-input inv-input-sm inv-input-num" data-stock-reorder="' + escHtml(r.item.id) + '" value="' + escHtml(stockFmtQty(r.qty)) + '" aria-label="' + escHtml(r.item.name) + ' quantity to order">';
+}
+function stockReorderSub(g) { var sub = g.rows.reduce(function(s, r) { return s + (r.amount || 0); }, 0); return sub ? formatCurrency(gstRound(sub)) : ''; }
+function stockReorderRowsHtml(L) {
+  var h = '';
+  L.groups.forEach(function(g) {
+    h += '<div class="inv-row-group"><span>' + escHtml(g.supplier) + '</span><span class="inv-mono">' + escHtml(stockReorderSub(g)) + '</span></div>';
+    g.rows.forEach(function(r) {
+      h += '<div class="inv-row inv-row-2 inv-row-flow"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(r.item.name) + '</span>' +
+        '<span class="inv-row-meta inv-row-wrap">' + escHtml(stockReorderWhy(r, true)) + '</span></span>' +
+        '<span class="inv-row-end">' + stockReorderInput(r) + '<span class="inv-unit">' + escHtml(r.item.unit || '') + '</span>' +
+        '<span class="inv-num">' + (r.amount != null ? escHtml(formatCurrency(r.amount)) : '<span class="inv-dot inv-dot-neutral">No price</span>') + '</span></span></div>';
+    });
+  });
+  return h;
+}
+function stockReorderTableHtml(L) {
+  var h = '<table class="inv-table"><thead><tr><th class="inv-col-grow">Line</th><th class="inv-num">On hand</th><th class="inv-num">Use a day</th><th>Days left</th>' +
+    '<th class="inv-num">Order</th><th class="inv-num">Amount</th></tr></thead><tbody>';
+  L.groups.forEach(function(g) {
+    h += '<tr class="inv-table-group"><td colspan="5">' + escHtml(g.supplier) + '</td><td class="inv-num">' + escHtml(stockReorderSub(g)) + '</td></tr>';
+    g.rows.forEach(function(r) {
+      var unit = r.item.unit || '';
+      h += '<tr><td class="inv-col-grow" title="' + escHtml(stockReorderWhy(r, false)) + '"><div>' + escHtml(r.item.name) + '</div><div class="inv-row-meta">' + escHtml(stockReorderWhy(r, false)) + '</div></td>' +
+        '<td class="inv-num">' + stockQtyUnit(r.level, unit) + '</td>' +
+        '<td class="inv-num">' + (r.rate ? escHtml(stockFmtRate(r.rate)) + '<span class="inv-unit">' + escHtml(unit) + '</span>' : '&mdash;') + '</td>' +
+        '<td class="inv-nowrap">' + (r.daysLeft != null ? escHtml(stockDaysText(r.daysLeft, r.tentative)) : r.noRate ? '<span class="inv-dot inv-dot-danger">Out</span>' : '&mdash;') + '</td>' +
+        '<td class="inv-num">' + stockReorderInput(r) + '<span class="inv-unit">' + escHtml(unit) + '</span></td>' +
+        '<td class="inv-num">' + (r.amount != null ? escHtml(formatCurrency(r.amount)) : '<span class="inv-dot inv-dot-neutral">No price</span>') + '</td></tr>';
+    });
+  });
+  return h + '</tbody></table>';
 }
 function stockReorderCopy() {
   var text = stockReorderText(stockReorderList());
@@ -18736,7 +18753,13 @@ function stockReorderCopy() {
 }
 function stockReorderOnInput(t) {
   var id = t.getAttribute && t.getAttribute('data-stock-reorder');
-  if (id && _stockReorder) { _stockReorder.qty[id] = t.value; var tot = document.getElementById('stockReorderTotal'); if (tot) { var L = stockReorderList(); tot.textContent = formatCurrency(L.total) + ' at the last prices, before GST' + (L.unpriced ? ' · ' + L.unpriced + ' without a price' : ''); } return true; }
+  if (id && _stockReorder) {
+    _stockReorder.qty[id] = t.value;
+    // Only the total moves as a figure is typed: redrawing would take the field from under the cursor.
+    var tot = document.getElementById('stockReorderTotal'), note = document.getElementById('stockReorderNote');
+    if (tot) { var L = stockReorderList(); tot.textContent = formatCurrency(L.total); if (note) note.textContent = stockReorderNote(L); }
+    return true;
+  }
   if (t.id === 'stockLeadDays' || t.id === 'stockCoverDays') {
     var v = parseInt(t.value, 10);
     if (v > 0) { if (!S.stockCheck) S.stockCheck = {}; S.stockCheck[t.id === 'stockLeadDays' ? 'leadDays' : 'coverDays'] = v; saveState(); }
@@ -19107,17 +19130,22 @@ function stockEditSave(itemId) {
   showToast(it.name + ' saved');
 }
 
+/* The line's own settings on its page: how it is used (a setting of the line, applied at once),
+   and its name and unit (saved together). */
 function stockEditHtml(item) {
   var units = STOCK_UNIT_CHOICES.slice();
   if (item.unit && units.indexOf(item.unit) < 0) units.unshift(item.unit);
-  return '<div class="inv-panel" id="stockEdit"><div class="inv-panel-head inv-mb-8"><span class="inv-panel-title">Name and unit</span></div>' +
+  var seg = function(v, l, on) { return '<button type="button" class="inv-seg-btn" data-action="invStockBasis" data-v="' + v + '" aria-pressed="' + on + '">' + l + '</button>'; };
+  return '<div class="inv-panel inv-panel-flush" id="stockEdit"><div class="inv-panel-head"><span class="inv-panel-title">The line</span></div><div class="inv-panel-body">' +
+    '<div class="inv-field"><span class="inv-field-label" id="stockBasisLabel">How it is used</span><div class="inv-seg" role="group" aria-labelledby="stockBasisLabel">' +
+    seg('draw', 'Drawn daily', item.basis !== 'charge') + seg('charge', 'Charged to a bath', item.basis === 'charge') + '</div></div>' +
     '<div class="inv-fields">' +
     '<label class="inv-field"><span class="inv-field-label">Name</span><input class="inv-input" id="stockEditName" value="' + escHtml(item.name) + '" autocomplete="off"></label>' +
     '<label class="inv-field"><span class="inv-field-label">Unit</span><select class="inv-select" id="stockEditUnit">' +
     '<option value=""' + (!item.unit ? ' selected' : '') + '>not set</option>' +
     units.map(function(u) { return '<option' + (item.unit === u ? ' selected' : '') + '>' + escHtml(u) + '</option>'; }).join('') + '</select></label></div>' +
     ((item.aliases || []).length ? '<div class="inv-note inv-mb-8">Messages are also read as: ' + item.aliases.map(escHtml).join(', ') + '</div>' : '') +
-    '<button class="inv-btn inv-btn-secondary" data-action="invStockEditSave" data-id="' + escHtml(item.id) + '">Save name and unit</button></div>';
+    '<button class="inv-btn inv-btn-secondary" data-action="invStockEditSave" data-id="' + escHtml(item.id) + '">Save name and unit</button></div></div>';
 }
 
 /* ---------- Actions ---------- */
@@ -25201,9 +25229,10 @@ function finLinkAction(action, btn) {
 
 var DASH_STAFF_RULES = ['insLabour', 'insAttGap', 'wageVsSlip', 'cashSwing', 'costGap'];
 
-function _dashPanel(id, title, body, head) {
-  return '<div class="inv-panel" id="' + id + '"><div class="inv-panel-head"><span class="inv-panel-title">' + title + '</span>' + (head || '') + '</div>' +
-    '<div class="inv-panel-body">' + body + '</div></div>';
+/* A flush panel: the head ruled off, the body padded once (a padded panel around a padded body indented it twice). */
+function _dashPanel(id, title, body, head, rows) {
+  return '<div class="inv-panel inv-panel-flush" id="' + id + '"><div class="inv-panel-head"><span class="inv-panel-title">' + title + '</span>' + (head || '') + '</div>' +
+    '<div class="inv-panel-body">' + body + '</div>' + (rows || '') + '</div>';
 }
 function _dashWeekLabel(sat) { return stockShortDate(sat); }
 
@@ -25375,17 +25404,18 @@ function stockOverviewHtml() {
   var sp = dashSupplierSpend(6), sel = sp.list.find(function(x) { return x.name === _dashSupplier; });
   var body = chartPieTap(sp.list.map(function(x) { return { key: x.name, label: x.name, value: x.amount }; }),
     { action: 'invDashSupplier', selected: _dashSupplier, ariaLabel: 'Spend by supplier', emptyText: 'No priced bill in six months', readHint: 'Tap a supplier to list its bills' });
+  var rows = '';
   if (sel) {
     var bp = sel.named ? finSupplierPaid(sel.name) : null;
     // Newest first across every line the supplier sold, not line by line.
     var bills = sel.bills.slice().sort(function(a, b) { return a.b.date < b.b.date ? 1 : a.b.date > b.b.date ? -1 : 0; });
-    body += '<div class="inv-rows" data-dash-supplier="' + escHtml(sel.name) + '">' + bills.map(function(x) {
+    rows = '<div data-dash-supplier="' + escHtml(sel.name) + '">' + bills.map(function(x) {
       return '<div class="inv-row inv-row-2"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(x.it.name) + '</span><span class="inv-row-meta">' + escHtml(formatDate(x.b.date)) +
         ' · ' + escHtml(stockFmtQty(x.b.e.qty)) + ' ' + escHtml(x.it.unit || '') + ' × ' + escHtml(formatCurrency(x.b.e.price)) + (x.b.e.billNo ? ' · ' + escHtml(x.b.e.billNo) : '') + '</span></span>' +
         '<span class="inv-row-end inv-num">' + formatCurrency(gstRound((x.b.e.price || 0) * (x.b.e.qty || 0))) + '</span></div>';
     }).join('') + (bp ? '<div class="inv-row"><span class="inv-row-main inv-row-meta">The bank paid them ' + escHtml(formatCurrency(bp.paid)) + ' in ' + bp.n + ' payment' + (bp.n === 1 ? '' : 's') + '</span></div>' : '') + '</div>';
   }
-  h += _dashPanel('dashSupplier', 'Spend by supplier, six months', body + '<div class="inv-note">Bills before GST from ' + escHtml(formatDate(sp.from)) + '.</div>');
+  h += _dashPanel('dashSupplier', 'Spend by supplier, six months', body + '<div class="inv-note">Bills before GST from ' + escHtml(formatDate(sp.from)) + '.</div>', '', rows);
 
   var u = dashUsedByWeek(12), labs = u.weeks.map(function(w) { return _dashWeekLabel(attAddDays(w, 6)); });
   h += _dashPanel('dashUsed', 'Used, in rupees, by week', chartLines(labs, [{ label: 'All lines', values: u.total }].concat(u.top.map(function(l, i) {
@@ -25395,9 +25425,9 @@ function stockOverviewHtml() {
 
   var priced = stockData().items.filter(function(i) { return i.active !== false && stockPurchases(i.id).length; });
   if (!priced.some(function(i) { return i.id === _dashPriceItem; })) _dashPriceItem = priced.length ? priced[0].id : null;
-  h += _dashPanel('dashPrice', 'Price trend', priced.length ? '<select class="inv-select inv-select-sm" id="dashPriceLine" aria-label="Line">' +
-    priced.map(function(i) { return '<option value="' + escHtml(i.id) + '"' + (i.id === _dashPriceItem ? ' selected' : '') + '>' + escHtml(i.name) + '</option>'; }).join('') + '</select>' +
-    '<div id="dashPriceChart">' + dashPriceChart() + '</div>' : '<div class="inv-empty">No bill with a price yet.</div>');
+  h += _dashPanel('dashPrice', 'Price trend', priced.length ? '<div id="dashPriceChart">' + dashPriceChart() + '</div>' : '<div class="inv-empty">No bill with a price yet.</div>',
+    priced.length ? '<select class="inv-select inv-select-sm" id="dashPriceLine" aria-label="Line">' +
+      priced.map(function(i) { return '<option value="' + escHtml(i.id) + '"' + (i.id === _dashPriceItem ? ' selected' : '') + '>' + escHtml(i.name) + '</option>'; }).join('') + '</select>' : '');
 
   var L = stockReorderList(), fc = finHasBank() ? finForecast(45) : null;
   var need = gstRound(L.total * 1.18);
@@ -25419,10 +25449,10 @@ function dashPriceChart() {
     { unit: 'money', ariaLabel: 'Price trend', emptyText: it.name + ': one bill so far, ' + (b[0] ? formatCurrency(b[0].e.price) + ' on ' + stockShortDate(b[0].date) : '') });
 }
 function stockViewTabsHtml() {
-  var t = function(k, l) { return '<button class="inv-viewtab" role="tab" aria-selected="' + (_stockView === k) + '" data-action="invDashStockView" data-view="' + k + '">' + l + '</button>'; };
-  return '<div class="inv-viewtabs" role="tablist">' + t('overview', 'Overview') + t('list', 'Lines') + '</div>' +
-    (_stockView === 'overview' ? '<div class="inv-toolbar"><button class="inv-btn inv-btn-primary" data-action="invStockPaste">Paste message</button>' +
-      '<button class="inv-btn" data-action="invStockManual">Enter by hand</button></div>' : '');
+  // A line open in the desktop pane belongs to Lines.
+  var cur = _stockView === 'overview' ? 'overview' : 'list';
+  var t = function(k, l) { return '<button class="inv-viewtab" role="tab" aria-selected="' + (cur === k) + '" data-action="invDashStockView" data-view="' + k + '">' + l + '</button>'; };
+  return '<div class="inv-viewtabs" role="tablist">' + t('overview', 'Overview') + t('list', 'Lines') + '</div>';
 }
 
 /* ---------- Doing ---------- */

@@ -219,9 +219,14 @@ on-demand pane (the resizable split, its drag handle and `_dragState` are delete
 sits in a toolbar with Add as the one primary, *From your data* and *Mine* are flush panels of rows (two across on the
 desktop), a task of your own is ticked through a real tick box, and status is a dot and a word (an app task is led by
 `inv-dot-mark`). Its `inv-td-*` family is deleted; the Home card draws the same rows (P69).
+**Stock is built:** Paste message is the page's one primary; the Lines tiles filter (`aria-pressed`); lines are rows
+grouped by status on the phone and one table beside a detail pane on the desktop; a line's page is tiles, *Price and
+pattern* rows with the bill form in place, its settings and its entries; the paste check is rows with the text as sent
+(`inv-quote`) and Save in the action bar; the reorder list is a table by supplier; More is an `inv-sheet` of rows. The
+`inv-stk-*` rules left are the attendance paste's, Pay's and Live cost's, until those screens move (P71).
 
 ⚠ **Until the migration in its §9 completes, the stylesheet still carries the v1.0 families** (`inv-card`,
-`inv-stk-*`, `inv-stats-card`, the domain colours). New work uses the v2.0 components; never extend a v1.0
+the `inv-stk-*` leftovers, `inv-stats-card`, the domain colours). New work uses the v2.0 components; never extend a v1.0
 family. **v1.0's dark mode was never reachable** — `.dark` was styled and nothing set it.
 
 ## Business Domain

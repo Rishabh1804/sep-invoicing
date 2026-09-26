@@ -539,6 +539,14 @@ function todoGo(go) {
     case 'audit': switchTab('pageRegister'); showNumberAudit(); break;
     case 'settings': openSettings(go.sec); break;
     case 'home': switchTab('pageHome'); break;
+    case 'finance':
+      finSetTab(go.tab || 'overview');
+      if (go.client != null) _bankOpen = String(go.client);
+      if (go.gstMonth) _finGstEdit = go.gstMonth;
+      switchTab('pageFinance');
+      var fa = go.anchor && document.getElementById(go.anchor);
+      if (fa && fa.scrollIntoView) fa.scrollIntoView({ block: 'start' });
+      break;
     case 'stats': try { localStorage.setItem(STATS_TAB_KEY, go.tab); } catch (e) { /* per-device */ } switchTab('pageStats'); break;
     case 'staffRoster': _attView = 'roster'; switchTab('pageStaff'); break;
     case 'staffPaste': _attView = 'paste'; switchTab('pageStaff'); break;

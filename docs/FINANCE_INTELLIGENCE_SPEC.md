@@ -32,8 +32,10 @@ needs one it does not define).
 | This spec | merged (#81) | `docs/FINANCE_INTELLIGENCE_SPEC.md` |
 | **Phase 1** — cheque placement links, series tagging and suggestion, GST month notes | merged (#81); P59 | `bank.js`, `finance.js` |
 | **Side track A** — challan line filled from the record, reason for a red flag | merged (#82); P63 | `state.js`, `im-form.js`, `events.js` |
-| **Phase 2** — `chartLines`, `chartStack`, `chartPieTap`, range chips, tap-to-read | built; P60 | `charts.js` |
-| **Phase 3** — the interactive Finance Overview (range, cash, where money went/came from, invoiced vs received, GST chart) | built; P59 | `finance.js` |
+| **Phase 2** — `chartLines`, `chartStack`, `chartPieTap`, range chips, tap-to-read | merged (#83); P60 | `charts.js` |
+| **Phase 3** — the interactive Finance Overview (range, cash, where money went/came from, invoiced vs received, GST chart) | merged (#83); P59 | `finance.js` |
+| **Phase 4** — bank-paid cost by month, `notCost`, unsorted payees, precedence, recorded vs paid, Derive from the bank | built (#84); P61 | `bank.js`, `cost.js`, `settings.js` |
+| **Phase 5** — eleven finance To-do rules, days to pay, the 60-day cash forecast | built; P62 | `finintel.js` |
 
 Data already available to build on — **use these, do not re-derive**:
 
@@ -43,6 +45,11 @@ Data already available to build on — **use these, do not re-derive**:
   each alloc `{v, how: 'exact'|'oldest', parts[], unapplied}`.
 - `finCashByMonth(rows)`, `finAgeing(recv)`, `finGstByMonth(months, cls)` in `finance.js`.
 - `liveCost(from, to, kg)` → `{rows: [{key: labour|chem|zinc|power|other, amount, measured, source, detail}], total, perKg, measuredShare}` (`cost.js`).
+  `source` is `measured · bank · partial · rate · model · none`; a labour row taken from the bank carries `bankShare`.
+- `bankCostByMonth()` → `{months: {ym: {labour: {amount, named, cash, rows}, power, other, supplies, unsorted}}, cover}`,
+  `bankMonthKnown(bm, ym, key)`, `bankCostForRange(from, to)` → per key `{amount, known, months[]}` plus `unsorted`
+  (`bank.js`). `liveCostPaidCheck(from, to)` → `[{key, label, recorded, paid, delta, pct, flag, months, skipped, note}]`
+  — Phase 5's `costGap` reads `flag` (`cost.js`). `costDeriveCompute(keys)` → per key `{rows, paid, kg, perKg}`.
 - `labourForRange(from, to)`, `payWeek(weekStart)`, `payrollPaidFor(month)` (`labour.js`, `payroll.js`).
 - `weighLines(rows)` (tonnage), `statsRangeIso(period)`, `statsWorkingDays(from, to)` (`stats.js`, `intel.js`).
 - `insMonthsBack(n)`, `insMonthly(months)`, `predCadence()`, `predMonthPace()`, and the To-do rule registry
@@ -177,6 +184,17 @@ Settings → Costing → Live cost fallbacks gains **Derive from the bank** for 
 ₹/kg in Settings → Labour): the trailing six months of bank-paid ÷ tonnage, each month's arithmetic shown,
 **offered, never applied** — the zinc uplift's contract exactly.
 
+**As built (26 Sep 2026), and one departure the real statement forced.** A payment the app only *guessed* as
+`other` — the payee matched nothing — is **unsorted**, and counts as neither cost nor supplier. On the real
+statement that residue was ₹3.4–5.6L a month (₹4–6/kg against a ₹0.42 model), and it was the zinc and chemical
+traders: the stock record carries no supplier names for `bankMatchSupplier` to find. Counting it as *other* by
+default read the quarter at ₹12.66/kg. So **other and supplies are known for a month only once nothing in it is
+unsorted**; the live cost's *other* row lists what is unsorted as a reference line, and Finance → Payments lists the
+payees with a **Sort** button that opens the row on the statement. `other` set by the operator (a payee rule or a
+row) and bank charges count. Everything else is as specified. On the real book the statement puts electricity at
+₹0.80/kg against the ₹0.81 model and labour at ₹3.46/kg against ₹3.55, while attendance records ₹2.02/kg for July at
+100% of days — recorded vs paid flags labour +80% over June–July, which is the finding the check exists for.
+
 **Tests (new P61):** attribution puts a 14 Sep salary leg in August and a JBVNL payment in its bill month; `notCost`
 rows are excluded; precedence picks recorded ≥ 90%, else bank, else model, and the source tag says which; recorded vs
 paid shows the delta; *Derive* offers a figure and changes nothing until saved.
@@ -214,6 +232,21 @@ what clears it, and a `sig` so a snooze holds until the figures change. **Warn, 
 - **Cash forecast** (`finForecast(days)`): today's balance + expected in − expected out, day by day for 60 days,
   with a band from the spread of each input (P25–P75). **Says what it rests on** under the chart, like
   *This month at its pace* does.
+
+**As built (26 Sep 2026).** `finintel.js`, after `insights.js`. `finCtx()` classifies the statement and builds the
+receivables once per task, so eleven rules cost one pass. Departures, each forced by the real book:
+- **An invoice long past its client's usual day is not expected at all** (over 90 days, or past twice the usual and a
+  month). On the real book 214 open invoices, ₹11.8L, sit there — most paid by the 21 unplaced cheques — and putting
+  them in the first week read the account at ₹15.9L in 30 days. They are named under the chart (*chase them, do not
+  plan on them*). One a little past its day is spread over four weeks and left out of the low end.
+- **New billing is an inflow**: the last eight weeks' pace, paid at the book's days-to-pay. Without it every week
+  carries wages and no sales.
+- **The forecast is cash, not cost**: every payment counts, drawings and tax included.
+- **`owed90` is never red while any receipt is unplaced** — it may already be paid — and says so.
+- **`powerPaidNoBill` is one task naming the months**, not one per month (six on the real book).
+- The Overview's debtor rows and Receivables say *pays in N d*.
+On the real book: 10 tasks (21 cheques to place, six clients over 90 days, July's GST, labour paid 80% over recorded,
+six electricity bills), and a forecast from ₹3.59L to ~₹3.2L at 60 days, P25–P75 wide.
 
 **Tests (new P62):** each rule raises on its trigger and clears on its fix (fake data, dates from `todayIso()` — no
 literal dates except inside the fixed-date statement fixtures, and no assertion that depends on today against those);

@@ -188,9 +188,11 @@ var SETTINGS_SECS = {
           _sfg('Consumables, ETP (&#8377;/kg)', 'setCostOther', _sNum('setCostOther', c.other, 0.01, 0.01))) +
         _sRow(_sfg('Chemicals (&#8377;/kg)', 'setStkModel', _sNum('setStkModel', stockCfg().chemModel, 0.01, 0.01)),
           _sfg('Zinc (&#8377;/kg), when no zinc price exists', 'setCostZincKg', _sNum('setCostZincKg', c.zincPerKg, 0.01, 0.01))) +
-        _sfg('Zinc used a month, when none is recorded (kg)', 'setCostZinc', _sNum('setCostZinc', c.zincKgMonth, 1, 1));
+        _sfg('Zinc used a month, when none is recorded (kg)', 'setCostZinc', _sNum('setCostZinc', c.zincKgMonth, 1, 1)) +
+        '<button type="button" class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invCostDeriveBank" data-which="fallbacks">Derive from the bank</button>' +
+        '<div id="costDeriveOut" class="inv-set-derive"></div>';
     },
-    why: 'Used by Stats &rarr; Live cost only where nothing is recorded for the period, and marked <em>model</em> there. A bill or a stock entry replaces each one. The chemicals figure is also what the measured chemicals cost is reported against.',
+    why: 'Used by Stats &rarr; Live cost only where nothing is recorded for the period, and marked <em>model</em> there. A bill or a stock entry replaces each one, and where neither exists what the bank paid for that month comes before the model. The chemicals figure is also what the measured chemicals cost is reported against. <strong>Derive from the bank</strong> measures electricity and other from the statement: the six closed months it covers, paid &divide; tonnage.',
     save: function() {
       if (!S.costModel || typeof S.costModel !== 'object') S.costModel = {};
       [['setCostPower', 'power'], ['setCostOther', 'other'], ['setCostZinc', 'zincKgMonth'], ['setCostZincKg', 'zincPerKg']].forEach(function(p) {
@@ -316,8 +318,12 @@ var SETTINGS_SECS = {
   labModel: {
     title: 'Modelled labour',
     summary: function() { return _sRs(_sLab('modelPerKg', 0)) + '/kg'; },
-    body: function() { return _sfg('Modelled labour (&#8377;/kg)', 'setLabModel', _sNum('setLabModel', _sLab('modelPerKg', 0), 0.01, 0)); },
-    why: 'What the measured labour figure is reported against. The Apr&ndash;Jul 2026 rebuild put labour at &#8377;3.55 of an &#8377;8.55 cost.',
+    body: function() {
+      return _sfg('Modelled labour (&#8377;/kg)', 'setLabModel', _sNum('setLabModel', _sLab('modelPerKg', 0), 0.01, 0)) +
+        '<button type="button" class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invCostDeriveBank" data-which="labour">Derive from the bank</button>' +
+        '<div id="labDeriveOut" class="inv-set-derive"></div>';
+    },
+    why: 'What the measured labour figure is reported against, and what fills a stretch neither attendance nor the bank covers. The Apr&ndash;Jul 2026 rebuild put labour at &#8377;3.55 of an &#8377;8.55 cost. <strong>Derive from the bank</strong> measures it from the wages paid over the six closed months the statement covers.',
     save: function() { var v = _sNonNeg('setLabModel'); if (v != null) { if (!S.labour) S.labour = {}; S.labour.modelPerKg = v; } }
   },
   metalsKey: {

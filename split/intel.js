@@ -82,7 +82,7 @@ function statsOverviewHtml(period, filtered, tonnage) {
     '<div class="inv-ov-tile ' + (contrib >= 0 ? 'inv-pay-green' : 'inv-area-gap-over') + '"><div class="inv-ov-l">Contribution</div><div class="inv-ov-v" id="statsContrib">' + statsSigned(contrib) + '<small>/kg</small></div><div class="inv-ov-s">' + statsSigned(gstRound(contrib * kg)) + ' on the period</div></div>' +
     '<div class="inv-ov-tile inv-area-gap-under"><div class="inv-ov-l">Capacity</div><div class="inv-ov-v">' + (capPct != null ? Math.round(capPct * 100) + '%' : '&mdash;') + '</div><div class="inv-ov-s">' + formatNum(kg / 1000, 1) + ' t of ~' + formatNum(cap / 1000, 0) + ' t (2 shifts)</div></div>' +
     '</div>';
-  var parts = c.rows.filter(function(x) { return x.source !== 'measured'; }).map(function(x) { return x.label.toLowerCase() + ' (' + COST_SRC_LABEL[x.source] + ')'; });
+  var parts = c.rows.filter(function(x) { return x.source !== 'measured' && x.source !== 'bank'; }).map(function(x) { return x.label.toLowerCase() + ' (' + COST_SRC_LABEL[x.source] + ')'; });
   if (parts.length) {
     h += '<div class="inv-stats-caveat"><strong>Read with care:</strong> ' + escHtml(parts.join(', ')) + ' ' + (parts.length === 1 ? 'is' : 'are') +
       ' not fully measured, so the contribution is only as good as ' + (parts.length === 1 ? 'that figure' : 'those figures') + '. Cost tab &rarr; Live cost shows each one.</div>';
@@ -103,7 +103,7 @@ function statsMonthsHtml() {
     var real = w.kg > 0 ? w.revKnown / w.kg : null;
     var lab = c.rows.find(function(x) { return x.key === 'labour'; });
     rows.push({ label: d.toLocaleString('en-IN', { month: 'short' }) + (to === today ? ' to date' : ''), real: real, cost: c.perKg, kg: w.kg,
-      contrib: real != null && c.perKg != null ? real - c.perKg : null, labour: lab && w.kg > 0 ? lab.amount / w.kg : null, labCov: lab ? lab.coverage : 0, measured: c.measuredShare });
+      contrib: real != null && c.perKg != null ? real - c.perKg : null, labour: lab && w.kg > 0 ? lab.amount / w.kg : null, labCov: lab ? Math.max(lab.coverage || 0, lab.bankShare || 0) : 0, measured: c.measuredShare });
   }
   if (!rows.some(function(r) { return r.kg > 0; })) return '';
   var h = '<div class="inv-stats-card inv-stats-card-full" id="statsMonths"><div class="inv-stats-title">Six months<span class="inv-stats-title-sub">each at its own live cost</span></div>' +
@@ -114,7 +114,7 @@ function statsMonthsHtml() {
       (r.contrib != null ? (r.contrib >= 0 ? '+' : '&minus;') + formatNum(Math.abs(r.contrib), 2) : '&mdash;') + '</td><td>' +
       (r.labour != null && r.labCov >= 0.9 ? formatNum(r.labour, 2) : '&mdash;') + '</td><td>' + Math.round(r.measured * 100) + '%</td></tr>';
   });
-  h += '</tbody></table><div class="inv-stats-note">₹ per kg. Labour shows only where the days are recorded (90% or more); a month with less is withheld rather than read low. ' +
+  h += '</tbody></table><div class="inv-stats-note">₹ per kg. Labour shows only where the days are recorded, or the bank statement covers what paid them (90% or more); a month with less is withheld rather than read low. ' +
     'Measured is the share of that month&rsquo;s cost from the app&rsquo;s own records.</div></div>';
   return h;
 }

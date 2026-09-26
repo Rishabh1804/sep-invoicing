@@ -221,6 +221,7 @@ function bankClassify(rows) {
       // A pick set back to "no client" is a decision too: it unplaces, rather than falling back to the guess.
       if ('clientId' in o) v.clientId = o.clientId == null ? null : o.clientId;
       if (o.staffId != null) { v.staffId = o.staffId; v.guess = false; }
+      if ('notCost' in o) v.notCost = !!o.notCost;
     });
     v.row = row; v.key = key;
     return v;
@@ -262,7 +263,7 @@ function bankReceivables(cls) {
         if (amt <= 0 || o.due <= 0) return;
         var k = Math.min(o.due, amt);
         o.due = gstRound(o.due - k); amt = gstRound(amt - k);
-        if (parts) parts.push({ label: o.label, amount: gstRound(k), whole: o.due === 0 });
+        if (parts) parts.push({ label: o.label, amount: gstRound(k), whole: o.due === 0, date: o.date, inv: !!o.inv });
       });
       return amt;
     };
@@ -277,7 +278,7 @@ function bankReceivables(cls) {
         for (var j = i; j < live.length && j < i + 40; j++) {
           sum = gstRound(sum + live[j].due);
           if (Math.abs(sum - amt) <= 1) {
-            live.slice(i, j + 1).forEach(function(o) { parts.push({ label: o.label, amount: o.due, whole: true }); o.due = 0; });
+            live.slice(i, j + 1).forEach(function(o) { parts.push({ label: o.label, amount: o.due, whole: true, date: o.date, inv: !!o.inv }); o.due = 0; });
             how = 'exact'; break;
           }
           if (sum > amt + 1) break;
@@ -315,6 +316,94 @@ function bankAddPowerBill(rowId) {
   saveState();
   renderFinance();
   showToast('Electricity bill for ' + billsMonthLabel(m) + ' added from the bank');
+}
+
+/* ---------- What was PAID, as cost (docs/FINANCE_INTELLIGENCE_SPEC.md, Phase 4) ----------
+   A second instrument beside the operational record: what left the account, attributed to the month
+   it pays for. GST, income tax, a returned cheque and anything the owner marks "not a cost"
+   (drawings, a loan, a transfer) are money out that is not operating cost. */
+var BANK_NOT_COST = { receipt: 1, gst: 1, tax: 1, reversal: 1 };
+function bankIsCost(v) { return v.row.dr > 0 && !BANK_NOT_COST[v.cat] && !v.notCost; }
+function bankCover(rows) { rows = rows || bankRows(); return rows.length ? { from: rows[0].date, to: rows[rows.length - 1].date } : null; }
+function bankNextMonth(ym) { var d = new Date(ym + '-01T00:00:00'); d.setMonth(d.getMonth() + 1); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0'); }
+
+/* Per month it pays for: labour, power, other and supplies, each with the rows behind it, and
+   whether the statement can speak for that month at all.
+   - Labour: a transfer to a named hand pays the month BEFORE (salaries go out ~14th for last month);
+     cash pays the pay week it was drawn in, spread over that week's seven days, so a week that
+     straddles two months is split between them.
+   - Electricity: the month the payment settles (bankBillMonth: the month before, operator-settable).
+   - Other (bank charges included) and supplies: the month paid.
+   A month is KNOWN when the statement covers what would pay for it: the whole month and the salary
+   run after it for labour, the whole month for other and supplies, a payment attributed to it for
+   electricity. Unknown is never zero. */
+function bankCostByMonth(cls) {
+  cls = cls || bankClassify();
+  var cover = bankCover(), out = {};
+  var at = function(ym) { return out[ym] || (out[ym] = { labour: { amount: 0, named: 0, cash: 0, rows: [] }, power: { amount: 0, rows: [] }, other: { amount: 0, rows: [] }, supplies: { amount: 0, rows: [] }, unsorted: { amount: 0, rows: [] } }); };
+  cls.forEach(function(v) {
+    if (!bankIsCost(v)) return;
+    var r = v.row;
+    if (v.cat === 'wages') {
+      if (!v.cash && v.staffId != null) {
+        var L = at(bankPrevMonth(r.date)).labour;
+        L.amount += r.dr; L.named += r.dr; L.rows.push(v);
+      } else {
+        var ws = attWeekStartOf(r.date), seen = {};
+        for (var k = 0; k < 7; k++) {
+          var d = attParseIso(ws); d.setDate(d.getDate() + k);
+          var C = at(attIso(d).slice(0, 7)).labour;
+          C.amount += r.dr / 7; C.cash += r.dr / 7;
+          if (!seen[attIso(d).slice(0, 7)]) { seen[attIso(d).slice(0, 7)] = 1; C.rows.push(v); }
+        }
+      }
+    } else if (v.cat === 'power') { var P = at(bankBillMonth(r)).power; P.amount += r.dr; P.rows.push(v); }
+    else if (v.cat === 'supplier') { var U = at(r.date.slice(0, 7)).supplies; U.amount += r.dr; U.rows.push(v); }
+    // "Other" only because nothing recognised the payee is UNSORTED, not a cost: on the real statement
+    // that residue is mostly the zinc and chemical traders, at four times the other-cost model.
+    else if (v.cat === 'other' && v.auto) { var X = at(r.date.slice(0, 7)).unsorted; X.amount += r.dr; X.rows.push(v); }
+    else { var O = at(r.date.slice(0, 7)).other; O.amount += r.dr; O.rows.push(v); }
+  });
+  return { months: out, cover: cover };
+}
+function bankMonthKnown(bm, ym, k) {
+  var c = bm.cover, e = bm.months[ym];
+  if (k === 'power') return !!(e && e.power.amount > 0);
+  if (!c || c.from > ym + '-01' || c.to < payMonthEnd(ym + '-01')) return false;
+  // Other and supplies speak for a month only once every payment in it is sorted: an unsorted one
+  // could be either, and counting it as neither reads the month cheap.
+  if ((k === 'other' || k === 'supplies') && e && e.unsorted.amount >= 1) return false;
+  return k !== 'labour' || c.to >= bankNextMonth(ym) + '-20';
+}
+
+/* The same over a date range: each month's figure for the share of its days inside the range, and
+   the share of the RANGE the statement can speak for. */
+/* One classification per render: Stats asks for the live cost of every month it draws, and the
+   answer cannot change until the current task ends. */
+var _bankCostMemo = null;
+function bankCostByMonthMemo() {
+  if (!_bankCostMemo) { _bankCostMemo = bankCostByMonth(); Promise.resolve().then(function() { _bankCostMemo = null; }); }
+  return _bankCostMemo;
+}
+function bankCostForRange(from, to, byMonth) {
+  var bm = byMonth || bankCostByMonthMemo(), days = stockDaysApart(from, to) + 1;
+  var res = { cover: bm.cover };
+  ['labour', 'power', 'other', 'supplies'].forEach(function(k) { res[k] = { amount: 0, known: 0, months: [] }; });
+  res.unsorted = { amount: 0, payees: {} };
+  if (!bm.cover) return res;
+  for (var ym = from.slice(0, 7), g = 0; ym <= to.slice(0, 7) && g < 240; ym = bankNextMonth(ym), g++) {
+    var start = ym + '-01', end = payMonthEnd(start), a = from > start ? from : start, z = to < end ? to : end;
+    var share = costMonthShare(ym, from, to), rangeShare = (stockDaysApart(a, z) + 1) / days, e = bm.months[ym];
+    if (e) e.unsorted.rows.forEach(function(v) { if (v.row.date >= from && v.row.date <= to) { res.unsorted.amount += v.row.dr; res.unsorted.payees[v.party || v.row.narration] = 1; } });
+    ['labour', 'power', 'other', 'supplies'].forEach(function(k) {
+      var c = e && e[k];
+      if (!bankMonthKnown(bm, ym, k)) return;
+      res[k].known += rangeShare;
+      res[k].amount += (c ? c.amount : 0) * share;
+      res[k].months.push({ month: ym, share: share, rangeShare: rangeShare, amount: (c ? c.amount : 0) * share, whole: c ? c.amount : 0, named: c && c.named || 0, cash: c && c.cash || 0, rows: c ? c.rows : [] });
+    });
+  }
+  return res;
 }
 
 /* ---------- Views ---------- */
@@ -367,12 +456,14 @@ function _bankReceiptsHtml(cls) {
     '<div class="inv-panel-body inv-note">From ' + escHtml(formatDate(rows[0].date)) + ', the statement\'s first day: invoices less credit notes less receipts, ' +
     'plus whatever was owed on that day if you set it. A receipt that equals one invoice, or a run of them, to the rupee is marked exact; any other is set against the oldest first.</div>';
   if (!recv.length) h += '<div class="inv-empty">No invoices or receipts since the statement starts.</div>';
+  var payHist = typeof bankPayHistory === 'function' ? bankPayHistory(recv) : {};
   recv.forEach(function(r) {
-    var open = _bankOpen === String(r.client.id);
+    var open = _bankOpen === String(r.client.id), dtp = typeof bankDaysToPay === 'function' ? bankDaysToPay(r.client.id, payHist) : null;
     h += '<div class="inv-row inv-row-2" data-recv="' + escHtml(String(r.client.id)) + '"><button class="inv-row-main inv-row-expander" aria-expanded="' + open + '" data-action="invBankClient" data-id="' + escHtml(String(r.client.id)) + '">' +
       '<span class="inv-row-title">' + escHtml(r.client.name) + '</span><span class="inv-row-meta">' +
       escHtml(formatCurrency(r.invoiced)) + ' invoiced' + (r.notes ? ' · ' + escHtml(formatCurrency(r.notes)) + ' credited' : '') + ' · ' + escHtml(formatCurrency(r.received)) + ' received' +
-      (r.open.length ? ' · oldest open ' + r.oldestDays + ' d' : '') + '</span></button>' +
+      (r.open.length ? ' · oldest open ' + r.oldestDays + ' d' : '') +
+      (dtp && dtp.median != null ? ' · pays in ' + Math.round(dtp.median) + ' d' + (dtp.n < 3 ? ' (' + dtp.n + ' receipt' + (dtp.n === 1 ? '' : 's') + ')' : '') : '') + '</span></button>' +
       '<span class="inv-row-end"><span class="inv-row-stack"><span class="inv-num">' + formatCurrency(r.owed) + '</span><span class="inv-row-meta">' + (r.owed < -0.005 ? 'paid ahead' : 'owed') + '</span></span></span></div>';
     if (!open) return;
     h += '<div class="inv-row-children">';
@@ -575,8 +666,27 @@ function _bankPaymentsHtml(cls) {
       (key ? ' · stock bills recorded ' + escHtml(formatCurrency(billed[key])) : ' · no stock bills recorded') + '</span></span><span class="inv-row-end inv-num">' + formatCurrency(s.paid) + '</span></div>';
   });
   h += '</div>';
+  // Payees read as "other" only because nothing recognised them: until each is set once, the live
+  // cost counts them as neither supplier nor cost, and says so.
+  var uns = {};
+  cls.forEach(function(v) {
+    if (v.cat !== 'other' || !v.auto || !(v.row.dr > 0)) return;
+    var k = v.party || v.row.narration, u = uns[k] || (uns[k] = { paid: 0, n: 0, last: v.row });
+    u.paid = gstRound(u.paid + v.row.dr); u.n++; if (v.row.date >= u.last.date) u.last = v.row;
+  });
+  var uk = Object.keys(uns).sort(function(a, b) { return uns[b].paid - uns[a].paid; });
+  if (uk.length) {
+    h += '<div class="inv-panel inv-panel-flush" id="bankUnsorted"><div class="inv-panel-head"><span class="inv-panel-title">Not yet sorted</span><span class="inv-panel-count">' + uk.length + '</span></div>' +
+      '<div class="inv-panel-body inv-note">Nothing recognised these payees, so the live cost counts them as neither supplier nor cost. Set each once: Supplier, Other, or not a cost.</div>';
+    uk.forEach(function(k) {
+      var u = uns[k];
+      h += '<div class="inv-row inv-row-2" data-unsorted="' + escHtml(k) + '"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(k) + '</span><span class="inv-row-meta">' + u.n + ' payment' + (u.n === 1 ? '' : 's') + ' · last ' + escHtml(formatDate(u.last.date)) + '</span></span>' +
+        '<span class="inv-row-end"><span class="inv-num">' + formatCurrency(u.paid) + '</span><button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invBankSort" data-id="' + escHtml(u.last.id) + '" data-q="' + escHtml(k) + '">Sort</button></span></div>';
+    });
+    h += '</div>';
+  }
   var tot = {};
-  cls.forEach(function(v) { if (['gst', 'tax', 'charges', 'other'].indexOf(v.cat) >= 0 && v.row.dr > 0) tot[v.cat] = gstRound((tot[v.cat] || 0) + v.row.dr); });
+  cls.forEach(function(v) { if (['gst', 'tax', 'charges', 'other'].indexOf(v.cat) >= 0 && v.row.dr > 0 && !(v.cat === 'other' && v.auto)) tot[v.cat] = gstRound((tot[v.cat] || 0) + v.row.dr); });
   h += '<div class="inv-panel inv-panel-flush" id="bankOther"><div class="inv-panel-head"><span class="inv-panel-title">Everything else paid</span></div>';
   ['gst', 'tax', 'charges', 'other'].forEach(function(k) {
     if (tot[k]) h += '<div class="inv-row"><span class="inv-row-main">' + escHtml(bankCatLabel(k)) + '</span><span class="inv-row-end inv-num">' + formatCurrency(tot[k]) + '</span></div>';
@@ -602,7 +712,7 @@ function _bankStatementHtml(cls) {
     h += '<div class="inv-row inv-row-2" data-bank-row="' + escHtml(r.id) + '"><button class="inv-row-main" data-action="invBankEdit" data-id="' + escHtml(r.id) + '" aria-expanded="' + (_bankEdit === r.id) + '">' +
       '<span class="inv-row-title">' + escHtml(v.party || r.narration) + '</span>' +
       '<span class="inv-row-meta">' + escHtml(formatDate(r.date)) + ' · <span class="inv-dot inv-dot-' + BANK_CAT_TONE[v.cat] + '">' + escHtml(bankCatLabel(v.cat)) + (who ? ': ' + escHtml(who) : '') + '</span>' +
-      (r.chq ? ' · chq ' + escHtml(r.chq) : '') + '</span></button>' +
+      (r.chq ? ' · chq ' + escHtml(r.chq) : '') + (v.notCost ? ' · not a cost' : '') + '</span></button>' +
       '<span class="inv-row-end"><span class="inv-row-stack"><span class="inv-num">' + (out ? '−' : '+') + formatCurrency(out ? r.dr : r.cr) + '</span>' +
       '<span class="inv-row-meta inv-num">' + formatCurrency(r.balance) + '</span></span></span></div>';
     if (_bankEdit === r.id) h += _bankEditHtml(v);
@@ -620,7 +730,8 @@ function _bankEditHtml(v) {
     h += '<div class="inv-field"><label class="inv-field-label" for="bankEditStaff">Paid to</label><select class="inv-select" id="bankEditStaff"><option value="">Nobody on the roster</option>' +
       (S.staff || []).map(function(w) { return '<option value="' + escHtml(String(w.id)) + '"' + (String(v.staffId) === String(w.id) ? ' selected' : '') + '>' + escHtml(w.name) + '</option>'; }).join('') + '</select></div>';
   }
-  h += '</div>' + (canRule ? '<label class="inv-check"><input type="checkbox" id="bankEditAll" checked> Every payment ' + (r.cr > 0 ? 'from' : 'to') + ' ' + escHtml(v.party) + '</label>' : '') +
+  if (r.dr > 0) h += '<label class="inv-check-row"><input type="checkbox" class="inv-check" id="bankEditNotCost"' + (v.notCost ? ' checked' : '') + '> Not an operating cost (drawings, a loan, a transfer)</label>';
+  h += '</div>' + (canRule ? '<label class="inv-check-row"><input type="checkbox" class="inv-check" id="bankEditAll" checked> Every payment ' + (r.cr > 0 ? 'from' : 'to') + ' ' + escHtml(v.party) + '</label>' : '') +
     '<div class="inv-toolbar"><button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invBankEditCancel">Cancel</button>' +
     '<button class="inv-btn inv-btn-primary inv-btn-sm" data-action="invBankEditSave" data-id="' + escHtml(r.id) + '">Save</button></div></div>';
   return h;
@@ -635,6 +746,8 @@ function bankSaveEdit(id) {
   var cl = val('bankEditClient'), st = val('bankEditStaff');
   if (set.cat === 'receipt' && cl != null) set.clientId = cl === '' ? null : _bankIdOf(S.clients, cl);
   if (set.cat === 'wages' && st != null) set.staffId = st === '' ? null : _bankIdOf(S.staff, st);
+  var nc = document.getElementById('bankEditNotCost');
+  if (nc) set.notCost = nc.checked;
   var all = document.getElementById('bankEditAll');
   if (all && all.checked && v.key) { b.parties[v.key] = set; delete row.set; }
   else row.set = set;
@@ -793,6 +906,7 @@ function bankAction(action, btn) {
     case 'invBankExportJson': bankExportJson(); return true;
     case 'invBankClient': _bankOpen = _bankOpen === btn.dataset.id ? null : btn.dataset.id; renderFinance(); return true;
     case 'invBankAddBill': bankAddPowerBill(btn.dataset.id); return true;
+    case 'invBankSort': _bankFilter = { cat: '', q: btn.dataset.q || '' }; _bankEdit = btn.dataset.id; finSetTab('bank'); renderFinance(); return true;
     case 'invBankPlace': bankSetClient(btn.dataset.id, btn.dataset.client); return true;
     case 'invBankChange': _bankChange = btn.dataset.id; renderFinance(); return true;
     case 'invBankEdit': _bankEdit = _bankEdit === btn.dataset.id ? null : btn.dataset.id; renderFinance(); return true;

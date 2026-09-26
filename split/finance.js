@@ -219,6 +219,9 @@ function finOverviewHtml() {
   });
   h += '</tbody></table></div></div>';
 
+  // The next 60 days, at the pace the statement shows (Phase 5).
+  h += finForecastHtml();
+
   // Where money went: the range stacked by category, and the chosen month as a pie that filters.
   var catKey = function(v) { return v.cat + (v.cash ? ':cash' : ''); };
   var catLabel = function(k) { var p = k.split(':'); return bankCatLabel(p[0]) + (p[1] ? ' (cash)' : ''); };
@@ -278,9 +281,12 @@ function finOverviewHtml() {
       return '<div class="inv-tile' + (i === 3 && b.amount > 0 ? ' inv-tile-danger' : i === 2 && b.amount > 0 ? ' inv-tile-warning' : '') + '" data-age="' + i + '"><div class="inv-tile-label">' + b.label + '</div>' +
         '<div class="inv-tile-value inv-tile-value-sm inv-num" title="' + escHtml(formatCurrency(b.amount)) + '">' + finRs(b.amount) + '</div><div class="inv-tile-sub">' + finPl(b.n, 'invoice') + '</div></div>';
     }).join('') + '</div>';
+  var payHist = bankPayHistory(recv);
   top.forEach(function(r) {
+    var dtp = bankDaysToPay(r.client.id, payHist);
     h += '<div class="inv-row inv-row-2" data-debtor="' + escHtml(String(r.client.id)) + '"><button class="inv-row-main" data-action="invFinClient" data-id="' + escHtml(String(r.client.id)) + '">' +
-      '<span class="inv-row-title">' + escHtml(r.client.name) + '</span><span class="inv-row-meta">' + r.open.length + ' open' + (r.oldestDays != null ? ' · oldest ' + r.oldestDays + ' d' : '') + '</span></button>' +
+      '<span class="inv-row-title">' + escHtml(r.client.name) + '</span><span class="inv-row-meta">' + r.open.length + ' open' + (r.oldestDays != null ? ' · oldest ' + r.oldestDays + ' d' : '') +
+      (dtp && dtp.median != null ? ' · pays in ' + Math.round(dtp.median) + ' d' : '') + '</span></button>' +
       '<span class="inv-row-end inv-num">' + formatCurrency(r.owed) + '</span></div>';
   });
   if (!top.length) h += '<div class="inv-empty">Nothing owed since the statement starts.</div>';

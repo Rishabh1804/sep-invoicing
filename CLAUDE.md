@@ -28,7 +28,7 @@ Workforce management and invoicing PWA for **Soma Electro Products**, a zinc ele
 
 ## Architecture
 
-Split-file PWA. 46 modules, ~26,400 lines total.
+Split-file PWA. 47 modules, ~26,800 lines total.
 
 ```
 split/
@@ -71,6 +71,7 @@ split/
 ├── stats.js           ← Stats dashboard + History activity log (1,195 lines)
 ├── intel.js           ← Stats tabs; Overview at the live cost; six months; contribution by client (~230 lines)
 ├── insights.js        ← Insights (as To-do rules), predictions, invoice PO/vehicle prefill (~330 lines)
+├── finintel.js        ← Finance intelligence: eleven bank To-do rules, days to pay, the cash forecast (~400 lines)
 ├── client-perf.js     ← Client performance: month on month + material cadence (314 lines)
 ├── im-form.js         ← IM add/edit/delete challan form (450 lines)
 ├── im-dupe.js         ← IM duplicate guard: fingerprint + pre-save warn + scan (305 lines)
@@ -81,7 +82,7 @@ split/
 └── init.js            ← Migrations + app bootstrap (567 lines)
 ```
 
-**Concat order defined in build.sh.** Dependencies: data → state → appearance → zinc → tabs → clients → items → create → settings → github-sync → invoice-ops → number-audit → exports → im → autocomplete → print → quality-cert → credit-note → charts → staff → labour → areas → payroll → stock → cost → bills → xls → xlsx → bank → finance → todo → relay → stats → intel → insights → client-perf → im-form → im-dupe → scanner → events → swipe → seed → init.
+**Concat order defined in build.sh.** Dependencies: data → state → appearance → zinc → tabs → clients → items → create → settings → github-sync → invoice-ops → number-audit → exports → im → autocomplete → print → quality-cert → credit-note → charts → staff → labour → areas → payroll → stock → cost → bills → xls → xlsx → bank → finance → todo → relay → stats → intel → insights → finintel → client-perf → im-form → im-dupe → scanner → events → swipe → seed → init.
 
 **Every module shares one global scope.** A top-level `var` or `function` in a later module silently replaces one of
 the same name in an earlier one; nothing warns. `bills.js` shipped a `STOCK_UNITS` array over `stock.js`'s unit map
@@ -111,7 +112,7 @@ every session start — nothing to set up by hand. CI (`build-sync`) is the back
 ### Tests
 
 ```bash
-pnpm exec playwright test          # 494 tests, both layouts
+pnpm exec playwright test          # 505 tests, both layouts
 ```
 
 Some sandboxes ship a Chromium build Playwright does not expect and block downloading
@@ -1441,6 +1442,75 @@ to read it in the app yet"* — all three of receipts, payments and the ledger, 
 - **Owned by soma-internal**, like stock: *Export JSON* writes `sep-bank` JSON (rows with their resolved category,
   payee rules, openings). The statement is never committed here; the specs read two fake statements in the
   bank's layout, `tests/fixtures/bank-*.xls`.
+
+### What the bank paid, as cost
+Stats → Cost → **Live cost** reads the statement as a second instrument beside the app's own record
+(`docs/FINANCE_INTELLIGENCE_SPEC.md`, Phase 4; `bankCostByMonth`, `bankCostForRange` in `bank.js`). Two routes to one
+figure is the strongest evidence this repo has; this gives the live cost a second route.
+
+- **Every payment is set against the month it PAYS FOR.** A transfer to a named hand pays the month before, since
+  salaries go out around the 14th for the month before. Cash pays the pay week it was drawn in, spread over that week's
+  seven days, so a week that straddles two months is split. Electricity pays its bill month (`bankBillMonth`).
+  Other costs and supplies pay the month they were paid in.
+- **Not every payment is a cost.** GST, income tax and a returned cheque never are. A payment the owner ticks
+  **Not an operating cost** on the statement (drawings, a loan, a transfer) is kept off too: `notCost` on the
+  row or the payee rule.
+- 🔴 **A payee the app only guessed as "other" is UNSORTED and counts as nothing.**
+  - On the real statement that residue was ₹3.4–5.6L a month, and it was the zinc and chemical traders.
+    Counted as other, it read the quarter at ₹12.66/kg, the opposite of the old error of reading a gap as zero.
+  - So other costs and supplies speak for a month **only once nothing in it is unsorted**.
+  - Finance → Payments lists those payees under **Not yet sorted**. Each has a **Sort** button that opens its row
+    on the statement, so each payee is set once.
+- **The order, per component:**
+  1. the app's own record, where it covers 90% or more;
+  2. then the bank, where the statement covers the period (for labour: covers more of it than attendance does);
+  3. then the model, for the rest.
+
+  Electricity and other costs work month by month: a bill, else the bank's payment, else the model. The tag reads
+  **paid, bank**. "Measured" counts bank-paid, since it is a record too.
+- **A month is "known" only when the statement could have paid for it.**
+  - Labour: the statement covers the whole month and the salary run up to the 20th of the next.
+  - Electricity: a payment is attributed to the month.
+  - Other costs and supplies: the statement covers the whole month and nothing in it is unsorted.
+
+  Unknown is never zero.
+- **Recorded against paid** sits under the live cost (`liveCostPaidCheck`). It compares only the months where both
+  instruments exist, and flags a gap over 10%.
+  - Chemicals and zinc compare use with purchases, which differ by design, so that row is never flagged.
+  - On the real book, labour was recorded at ₹2.67L and paid ₹4.80L over June–July. That is the finding the check exists for.
+- **Derive from the bank**: Settings → Costing → Live cost fallbacks (electricity, other costs) and Settings → Labour → Modelled
+  labour.
+  - It takes the six closed months the statement can speak for, and divides total paid by total tonnage.
+  - Each month's arithmetic is shown.
+  - Offered, never applied, the same as the zinc uplift.
+  - On the real statement: electricity ₹0.80/kg against the ₹0.81 model; labour ₹3.46 against ₹3.55.
+
+### The statement as intelligence
+Finance intelligence (`finintel.js`; spec Phase 5). The bank statement feeds the To-do and a forecast.
+
+- **Eleven To-do rules**, each switchable in Settings → Checks & alerts → To-do:
+  - `bankStale`: the statement is 14 days old;
+  - `bankLoose`: receipts still have no client a week on;
+  - `owed90`: invoices over 90 days, per client. Never red while any receipt is unplaced, because that money may
+    already be in; the task says so;
+  - `payingSlower`: a client's last three receipts are 25% slower than its usual;
+  - `gstNotInBank`: a month's GST has no payment and no note, and the statement reaches its due date;
+  - `powerPaidNoBill`: one task naming the months;
+  - `supplierNoBill`: no stock bill that month or the one before;
+  - `wageVsSlip`: a named salary leg against the payroll as paid;
+  - `cashSwing`: last week's cash drawn is 25% off its payout;
+  - `costGap`: recorded against paid over three closed months;
+  - `runway`: the forecast goes below zero within 45 days.
+- **Days to pay** (`bankDaysToPay`) is weighted by amount. Each receipt counts the days from each invoice it paid, and
+  opening balances are left out. Receivables and the Overview's debtor rows show it as *pays in N d*.
+- **Cash forecast, 60 days** (`finForecast`, Finance → Overview): the latest balance, plus what is expected in, less
+  what is expected out, with a P25–P75 band.
+  - **In:** open invoices at the client's own days to pay, and new billing at the last eight weeks' pace.
+  - **Out:** salaries, cash by Saturday, electricity, GST by the 20th, and every other payment spread by day.
+  - **Cash, not cost:** drawings and tax count.
+  - An invoice long past its usual day is **not expected at all**: on the real book that is ₹11.8L of mostly
+    already-paid invoices. Expecting it read the account at ₹15.9L in 30 days.
+  - Everything it rests on is listed under the chart.
 
 ### Stock reorder list
 More → Stock → **Reorder list** (owner, 25 Sep 2026). For each line with a daily use:

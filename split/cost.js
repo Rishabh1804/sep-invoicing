@@ -201,6 +201,8 @@ function costMonthShare(month, from, to) {
    a quarter with one power bill read as a quarter that used one month's power. */
 function liveCost(from, to, kg) {
   var cfg = costModelCfg(), days = stockDaysApart(from, to) + 1, rows = [];
+  // What the bank paid, the second instrument (bank.js loads after this file; read at call time).
+  var bk = typeof bankCostForRange === 'function' && bankRows().length ? bankCostForRange(from, to) : null;
   var per = function(v) { return kg > 0 ? v / kg : null; };
   var fillLine = function(perKg, share, what) {
     return { label: 'Not recorded: ' + what, sub: formatCurrency(perKg) + '/kg model × ' + formatNum(share * 100, 0) + '% of the tonnage', amount: perKg * kg * share, fill: true };
@@ -208,7 +210,9 @@ function liveCost(from, to, kg) {
   var push = function(r) {
     var fill = r.detail.filter(function(d) { return d.fill; }).reduce(function(s, d) { return s + d.amount; }, 0);
     r.measured = r.measuredOverride != null ? r.measuredOverride : r.amount - fill;
-    if (!r.source) r.source = r.measured <= 0.005 ? 'model' : (fill > 0.005 || r.low ? 'partial' : 'measured');
+    // Paid from the bank, with nothing from the app's own records beside it.
+    var paid = r.detail.some(function(d) { return d.bank; }) && !r.detail.some(function(d) { return !d.bank && !d.fill && !d.ref && d.amount; });
+    if (!r.source) r.source = r.measured <= 0.005 ? 'model' : (fill > 0.005 || r.low ? 'partial' : paid ? 'bank' : 'measured');
     rows.push(r);
   };
 
@@ -218,9 +222,23 @@ function liveCost(from, to, kg) {
   var labDetail = [['Monthly crew, days worked', lab.monthlyDays], ['Monthly crew, rest days', lab.rest], ['Hourly pool', lab.pool],
     ['Daily tier', lab.daily + lab.dailyRest], ['Overtime', lab.ot], ['EXTRA pool', lab.extra]].filter(function(d) { return d[1]; })
     .map(function(d) { return { label: d[0], amount: d[1] }; });
-  if (labMissing > 0.001) labDetail.push(fillLine(lm, labMissing, Math.round(labMissing * 100) + '% of working days'));
-  push({ key: 'labour', label: 'Labour', coverage: lab.total > 0 ? lab.coverage : 0, amount: lab.total + (labMissing > 0.001 ? lm * kg * labMissing : 0),
-    note: lab.total > 0 ? Math.round(lab.coverage * 100) + '% of working days recorded' : 'no attendance recorded: ' + formatCurrency(lm) + '/kg from Settings', detail: labDetail });
+  var labCov = lab.total > 0 ? lab.coverage : 0;
+  // The order: attendance where 90% of the days are recorded; else what the bank paid, where the
+  // statement covers more of the period than attendance does; else attendance and the model.
+  if (labCov < 0.9 && bk && bk.labour.known > 0.001 && bk.labour.known >= labCov) {
+    var bl = bk.labour, blMissing = Math.max(0, 1 - bl.known);
+    var blDetail = bl.months.map(function(mo) {
+      return { label: 'Paid for ' + billsMonthLabel(mo.month), bank: true, amount: mo.amount,
+        sub: [mo.named ? formatCurrency(mo.named) + ' to named hands, paid the month after' : '', mo.cash ? formatCurrency(mo.cash) + ' cash, by pay week' : '', mo.share < 0.999 ? formatNum(mo.share * 100, 0) + '% of the month' : ''].filter(Boolean).join(' · ') || 'nothing paid' };
+    });
+    if (blMissing > 0.001) blDetail.push(fillLine(lm, blMissing, Math.round(blMissing * 100) + '% of the period the statement does not cover'));
+    push({ key: 'labour', label: 'Labour', coverage: labCov, bankShare: bl.known, amount: bl.amount + (blMissing > 0.001 ? lm * kg * blMissing : 0),
+      note: 'paid, from the bank statement: ' + Math.round(bl.known * 100) + '% of the period · attendance covers ' + Math.round(labCov * 100) + '%', detail: blDetail });
+  } else {
+    if (labMissing > 0.001) labDetail.push(fillLine(lm, labMissing, Math.round(labMissing * 100) + '% of working days'));
+    push({ key: 'labour', label: 'Labour', coverage: labCov, amount: lab.total + (labMissing > 0.001 ? lm * kg * labMissing : 0),
+      note: lab.total > 0 ? Math.round(lab.coverage * 100) + '% of working days recorded' : 'no attendance recorded: ' + formatCurrency(lm) + '/kg from Settings', detail: labDetail });
+  }
 
   // Chemicals and zinc: what the stock record says was used, at the price paid.
   var chem = { amount: 0, detail: [], unpriced: [] }, zinc = { qty: 0, amount: 0, priced: true, item: null };
@@ -269,7 +287,8 @@ function liveCost(from, to, kg) {
   push({ key: 'chem', label: 'Chemicals', amount: chem.amount + (stockMissing > 0.001 ? chemModel * kg * stockMissing : 0), low: chem.unpriced.length > 0,
     note: (chemLines ? chem.detail.length + ' of ' + chemLines + ' lines used are priced' + (chem.unpriced.length ? ', so the measured part reads low' : '') : 'no chemical use recorded') +
       (stockMissing > 0.001 && coveredDays ? ' · ' + (days - coveredDays) + ' days at the model' : ''),
-    detail: chemDetail.concat(boughtLine(bought.chem)) });
+    detail: chemDetail.concat(boughtLine(bought.chem)).concat(bk && bk.supplies.months.length ? [{ label: 'Paid to suppliers, for reference', ref: true, amount: bk.supplies.amount,
+      sub: 'chemicals and zinc together, from the bank · ' + Math.round(bk.supplies.known * 100) + '% of the period on the statement · a payment is not use, so not in the figure' }] : []) });
 
   var landed = typeof zincLandedRate === 'function' ? zincLandedRate() : null;
   // Modelled zinc kilos are priced at what was last PAID by the end of the
@@ -313,6 +332,13 @@ function liveCost(from, to, kg) {
       var a = from > start ? from : start, z = to < end ? to : end;
       var rangeShare = (stockDaysApart(a, z) + 1) / days;
       var mine = bills.filter(function(b) { return b.month === mo; });
+      var bm = !mine.length && bk ? bk[kind].months.find(function(x) { return x.month === mo; }) : null;
+      if (bm) {
+        amt += bm.amount;
+        detail.push({ label: 'Paid for ' + billsMonthLabel(mo), bank: true, amount: bm.amount,
+          sub: 'from the bank, no bill entered · ' + bm.rows.length + ' payment' + (bm.rows.length === 1 ? '' : 's') + (bm.share < 0.999 ? ' × ' + formatNum(bm.share * 100, 0) + '% of the month' : '') });
+        return;
+      }
       if (!mine.length) { unbilled += rangeShare; unbilledMonths.push(mo); return; }
       mine.forEach(function(b) {
         var share = costMonthShare(b.month, from, to);
@@ -321,9 +347,18 @@ function liveCost(from, to, kg) {
       });
     });
     if (unbilled > 0.001) detail.push(fillLine(cfg[kind], unbilled, 'no bill for ' + unbilledMonths.join(', ')));
+    if (kind === 'other' && bk && bk.unsorted.amount >= 1) {
+      var np = Object.keys(bk.unsorted.payees).length;
+      detail.push({ label: 'Paid to payees not yet sorted, not counted', ref: true, amount: bk.unsorted.amount,
+        sub: np + ' payee' + (np === 1 ? '' : 's') + ' on the bank statement read as neither supplier nor cost · set each once in Finance → Bank, and the month counts' });
+    }
     push({ key: kind, label: COST_BILL_KINDS[kind], amount: amt + (unbilled > 0.001 ? cfg[kind] * kg * unbilled : 0),
-      note: bills.length && detail.some(function(x) { return !x.fill; }) ? (detail.filter(function(x) { return !x.fill; }).length + ' bill' + (detail.filter(function(x) { return !x.fill; }).length === 1 ? '' : 's') + (unbilledMonths.length ? ' · ' + unbilledMonths.length + ' month' + (unbilledMonths.length === 1 ? '' : 's') + ' at the model' : ''))
-        : formatCurrency(cfg[kind]) + '/kg from Settings; no bill entered for this period', detail: detail });
+      note: (function() {
+        var nb = detail.filter(function(x) { return !x.fill && !x.bank && !x.ref; }).length, np = detail.filter(function(x) { return x.bank; }).length;
+        var parts = [nb ? nb + ' bill' + (nb === 1 ? '' : 's') : '', np ? np + ' month' + (np === 1 ? '' : 's') + ' paid, from the bank' : '',
+          unbilledMonths.length && (nb || np) ? unbilledMonths.length + ' month' + (unbilledMonths.length === 1 ? '' : 's') + ' at the model' : ''].filter(Boolean);
+        return parts.length ? parts.join(' · ') : formatCurrency(cfg[kind]) + '/kg from Settings; no bill entered for this period';
+      })(), detail: detail });
   });
 
   rows.forEach(function(r) { r.amount = gstRound(r.amount); r.measured = gstRound(Math.min(r.measured, r.amount)); r.perKg = per(r.amount); });
@@ -332,7 +367,125 @@ function liveCost(from, to, kg) {
   return { from: from, to: to, kg: kg, rows: rows, total: total, perKg: per(total), measuredShare: total > 0 ? measured / total : 0 };
 }
 
-var COST_SRC_LABEL = { measured: 'measured', partial: 'part-recorded', rate: 'market rate', model: 'model', none: 'nothing recorded' };
+/* Recorded against paid (docs/FINANCE_INTELLIGENCE_SPEC.md, 4c): the app's own record of a cost set
+   beside what the bank paid for it, over ONLY the months where both exist — numerator and
+   denominator, same population. A gap over 10% is flagged, never smoothed: the reasons it can be
+   right are written on the row. Chemicals and zinc compare use with purchases, which differ by
+   design, so that row is never flagged. */
+var COST_GAP = 0.10;
+function liveCostPaidCheck(from, to) {
+  if (typeof bankCostForRange !== 'function' || !bankRows().length) return [];
+  var bk = bankCostForRange(from, to), out = [];
+  var span = function(ym) { var s = ym + '-01', e = payMonthEnd(s); return [from > s ? from : s, to < e ? to : e]; };
+  var finish = function(key, label, t, why, known) {
+    var r = { key: key, label: label, months: t.months, skipped: t.skipped, recorded: null, paid: null, delta: null, pct: null, flag: false, why: why };
+    if (key === 'supplies' && t.paid < 1 && t.recorded < 1) { r.note = 'no priced use and no supplier payment in the months the statement covers'; out.push(r); return; }
+    if (t.months.length) {
+      r.recorded = gstRound(t.recorded); r.paid = gstRound(t.paid); r.delta = gstRound(t.paid - t.recorded);
+      r.pct = t.recorded > 0 ? r.delta / t.recorded : null;
+      r.flag = key !== 'supplies' && (r.pct == null ? r.paid > 0 : Math.abs(r.pct) > COST_GAP);
+    }
+    r.note = t.months.length ? 'over ' + t.months.map(billsMonthLabel).join(', ') + (t.skipped.length ? ' · not ' + t.skipped.map(billsMonthLabel).join(', ') + ': ' + known : '') + ' · ' + why
+      : t.skipped.length ? 'nothing to compare: ' + known + ' for ' + t.skipped.map(billsMonthLabel).join(', ') : 'nothing paid on the statement for this period';
+    out.push(r);
+  };
+
+  var lab = { recorded: 0, paid: 0, months: [], skipped: [] };
+  bk.labour.months.forEach(function(mo) {
+    var p = span(mo.month), l = labourForRange(p[0], p[1]);
+    if (!(l.total > 0) || l.coverage < 0.9) { lab.skipped.push(mo.month); return; }
+    lab.recorded += l.total; lab.paid += mo.amount; lab.months.push(mo.month);
+  });
+  finish('labour', 'Labour', lab, 'salaries are set against the month before; cash against the pay week it was drawn in', 'attendance under 90% of days');
+
+  ['power', 'other'].forEach(function(kind) {
+    var t = { recorded: 0, paid: 0, months: [], skipped: [] };
+    bk[kind].months.forEach(function(mo) {
+      var bills = costBills().filter(function(b) { return b.kind === kind && !b.voided && b.month === mo.month; });
+      if (!bills.length) { t.skipped.push(mo.month); return; }
+      t.recorded += bills.reduce(function(s, b) { return s + b.amount; }, 0) * mo.share; t.paid += mo.amount; t.months.push(mo.month);
+    });
+    finish(kind, COST_BILL_KINDS[kind], t, kind === 'power' ? 'a payment settles the month before unless set otherwise' : 'bills are before GST, a payment includes it', 'no bill entered');
+  });
+
+  var sup = { recorded: 0, paid: 0, months: [], skipped: [] };
+  bk.supplies.months.forEach(function(mo) {
+    var p = span(mo.month), u = liveCost(p[0], p[1], 0);
+    var used = u.rows.filter(function(r) { return r.key === 'chem' || r.key === 'zinc'; }).reduce(function(s, r) { return s + (r.measured > 0 ? r.measured : 0); }, 0);
+    sup.recorded += used; sup.paid += mo.amount; sup.months.push(mo.month);
+  });
+  finish('supplies', 'Chemicals and zinc', sup, 'used against bought: a purchase is stock on the shelf, so these differ by design', '');
+  return out;
+}
+function _costPaidHtml(from, to) {
+  var chk = liveCostPaidCheck(from, to);
+  if (!chk.length) return '';
+  return '<div class="inv-cost-bills" id="liveCostPaid"><div class="inv-stk-label">Recorded against paid</div>' + chk.map(function(r) {
+    // The gap on the right; what it is the gap between leads the note, so a phone keeps one figure per column.
+    var fig = r.recorded == null ? '&mdash;' : (r.delta >= 0 ? '+' : '&minus;') + formatCurrency(Math.abs(r.delta)) +
+      (r.pct != null ? ' (' + (r.pct >= 0 ? '+' : '&minus;') + formatNum(Math.abs(r.pct) * 100, 0) + '%)' : '');
+    var note = (r.recorded == null ? '' : 'recorded ' + formatCurrency(r.recorded) + ' · paid ' + formatCurrency(r.paid) + ' · ') + r.note;
+    return '<div class="inv-cost-dline" data-paid="' + r.key + '"><span>' + escHtml(r.label) + (r.flag ? ' <span class="inv-dot inv-dot-danger">over 10% apart</span>' : '') +
+      '<span class="inv-cost-note">' + escHtml(note) + '</span></span><span class="inv-mono inv-nowrap">' + fig + '</span></div>';
+  }).join('') + '</div>';
+}
+
+/* Derive from the bank (docs/FINANCE_INTELLIGENCE_SPEC.md, 4d): the six closed months before this one
+   that the statement can speak for, each as paid ÷ tonnage, and the six together as total paid ÷ total
+   tonnage — a sum over a sum, not a mean of ratios, so a thin month cannot pull the figure. Offered,
+   never applied: Use fills the field and leaves the section unsaved, the zinc uplift's contract. */
+var COST_DERIVE_FIELDS = { labour: ['setLabModel', 'Labour'], power: ['setCostPower', 'Electricity'], other: ['setCostOther', 'Consumables, ETP'] };
+function costDeriveFromBank(which) {
+  var keys = which === 'labour' ? ['labour'] : ['power', 'other'];
+  var out = document.getElementById(which === 'labour' ? 'labDeriveOut' : 'costDeriveOut');
+  var res = costDeriveCompute(keys);
+  if (out) out.innerHTML = _costDerivedHtml(res);
+  return res;
+}
+function costDeriveCompute(keys) {
+  if (!bankRows().length) return { none: 'No bank statement imported: Finance → Bank → Import.' };
+  var bm = bankCostByMonth(), active = (S.invoices || []).filter(function(i) { return i.status === 'active' && i.date; });
+  var months = [], ym = localDateStr().slice(0, 7);
+  for (var k = 0; k < 6; k++) { ym = bankPrevMonth(ym + '-01'); months.unshift(ym); }
+  var res = {};
+  keys.forEach(function(key) {
+    var rows = [], paid = 0, kg = 0;
+    months.forEach(function(m) {
+      if (!bankMonthKnown(bm, m, key)) { rows.push({ month: m, skip: key === 'power' ? 'no payment for this month' : 'not on the statement' }); return; }
+      var e = bm.months[m], p = gstRound(e ? e[key].amount : 0), s = m + '-01';
+      var w = weighLines(active.filter(function(i) { return i.date >= s && i.date <= payMonthEnd(s); })).kg;
+      if (!(w > 0)) { rows.push({ month: m, skip: 'no tonnage invoiced' }); return; }
+      rows.push({ month: m, paid: p, kg: w, perKg: p / w });
+      paid += p; kg += w;
+    });
+    res[key] = { rows: rows, paid: paid, kg: kg, perKg: kg > 0 ? Math.round(paid / kg * 100) / 100 : null };
+  });
+  return res;
+}
+function _costDerivedHtml(res) {
+  if (res.none) return '<div class="inv-text-muted inv-storage-text">' + escHtml(res.none) + '</div>';
+  var set = { labour: labourCfg().modelPerKg, power: costModelCfg().power, other: costModelCfg().other };
+  return Object.keys(res).map(function(key) {
+    var d = res[key], f = COST_DERIVE_FIELDS[key];
+    var h = '<div class="inv-set-derive-rows" data-derive="' + key + '"><div class="inv-set-derive-row"><strong>' + escHtml(f[1]) + '</strong></div>' + d.rows.map(function(r) {
+      return '<div class="inv-set-derive-row"><span>' + escHtml(billsMonthLabel(r.month)) + '</span><span class="inv-mono">' + (r.skip ? escHtml(r.skip)
+        : formatCurrency(r.paid) + ' &divide; ' + formatNum(r.kg / 1000, 1) + ' t = ' + formatCurrency(r.perKg) + '/kg') + '</span></div>';
+    }).join('') + '</div>';
+    if (d.perKg == null) return h + '<div class="inv-text-muted inv-storage-text">No month the statement covers has tonnage beside it, so nothing to offer.</div>';
+    var n = d.rows.filter(function(r) { return !r.skip; }).length;
+    return h + '<div class="inv-set-derive-foot"><span>' + n + ' month' + (n === 1 ? '' : 's') + ': ' + formatCurrency(d.paid) + ' &divide; ' + formatNum(d.kg / 1000, 1) + ' t = <strong class="inv-mono">' +
+      formatCurrency(d.perKg) + '/kg</strong> against ' + formatCurrency(set[key] || 0) + ' set</span>' +
+      '<button type="button" class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invCostUseDerived" data-field="' + f[0] + '" data-val="' + d.perKg + '">Use ' + formatCurrency(d.perKg) + '</button></div>';
+  }).join('') + (res.labour ? '<div class="inv-text-muted inv-storage-text">Paid covers every wage leg on the statement: salaries for the month before, and cash by pay week, the EXTRA pool with it.</div>' : '');
+}
+function costUseDerived(field, val) {
+  var el = document.getElementById(field);
+  if (!el) return;
+  el.value = val;
+  el.dispatchEvent(new Event('input', { bubbles: true }));
+}
+
+var COST_SRC_LABEL = { measured: 'measured', bank: 'paid, bank', partial: 'part-recorded', rate: 'market rate', model: 'model', none: 'nothing recorded' };
 var _costBillOpen = false;
 
 function renderLiveCostCard(period, tonnage) {
@@ -359,6 +512,7 @@ function renderLiveCostCard(period, tonnage) {
     }
     h += '</details>';
   });
+  h += _costPaidHtml(from, to);
   var typed = S.defaultCostPerKg || 0;
   if (typed && c.perKg != null) h += '<div class="inv-stats-caveat">The figure typed in Settings is ' + formatCurrency(typed) + '/kg; this period measures ' + formatCurrency(c.perKg) + '/kg. ' +
     'Anything marked model is a Settings fallback until the record exists: add bills to Stock lines, and power and other bills below.</div>';

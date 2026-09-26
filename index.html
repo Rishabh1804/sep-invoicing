@@ -18,7 +18,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <!-- Appearance before first paint (§3.2): the device's theme and palette, so nothing flashes in the wrong colours. -->
 <script>(function(){try{var d=document.documentElement,t=localStorage.getItem("sep_inv_theme"),p=localStorage.getItem("sep_inv_palette");if(t==="light"||t==="dark")d.dataset.theme=t;d.dataset.palette=(p==="zinc"||p==="terracotta")?p:"teal";}catch(e){document.documentElement.dataset.palette="teal";}})();</script>
-<meta name="app-build" content="1918a344">
+<meta name="app-build" content="5bbd9eb1">
 <style>
 /* ===== DESIGN TOKENS (design system v2.0 — docs/SEP_INVOICING_DESIGN_PRINCIPLES.md §3) ===== */
 /* Theme: colour-scheme decides every light-dark() below. <html data-theme> is set before first paint
@@ -7964,9 +7964,11 @@ var SETTINGS_SECS = {
           _sfg('Consumables, ETP (&#8377;/kg)', 'setCostOther', _sNum('setCostOther', c.other, 0.01, 0.01))) +
         _sRow(_sfg('Chemicals (&#8377;/kg)', 'setStkModel', _sNum('setStkModel', stockCfg().chemModel, 0.01, 0.01)),
           _sfg('Zinc (&#8377;/kg), when no zinc price exists', 'setCostZincKg', _sNum('setCostZincKg', c.zincPerKg, 0.01, 0.01))) +
-        _sfg('Zinc used a month, when none is recorded (kg)', 'setCostZinc', _sNum('setCostZinc', c.zincKgMonth, 1, 1));
+        _sfg('Zinc used a month, when none is recorded (kg)', 'setCostZinc', _sNum('setCostZinc', c.zincKgMonth, 1, 1)) +
+        '<button type="button" class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invCostDeriveBank" data-which="fallbacks">Derive from the bank</button>' +
+        '<div id="costDeriveOut" class="inv-set-derive"></div>';
     },
-    why: 'Used by Stats &rarr; Live cost only where nothing is recorded for the period, and marked <em>model</em> there. A bill or a stock entry replaces each one. The chemicals figure is also what the measured chemicals cost is reported against.',
+    why: 'Used by Stats &rarr; Live cost only where nothing is recorded for the period, and marked <em>model</em> there. A bill or a stock entry replaces each one, and where neither exists what the bank paid for that month comes before the model. The chemicals figure is also what the measured chemicals cost is reported against. <strong>Derive from the bank</strong> measures electricity and other from the statement: the six closed months it covers, paid &divide; tonnage.',
     save: function() {
       if (!S.costModel || typeof S.costModel !== 'object') S.costModel = {};
       [['setCostPower', 'power'], ['setCostOther', 'other'], ['setCostZinc', 'zincKgMonth'], ['setCostZincKg', 'zincPerKg']].forEach(function(p) {
@@ -8092,8 +8094,12 @@ var SETTINGS_SECS = {
   labModel: {
     title: 'Modelled labour',
     summary: function() { return _sRs(_sLab('modelPerKg', 0)) + '/kg'; },
-    body: function() { return _sfg('Modelled labour (&#8377;/kg)', 'setLabModel', _sNum('setLabModel', _sLab('modelPerKg', 0), 0.01, 0)); },
-    why: 'What the measured labour figure is reported against. The Apr&ndash;Jul 2026 rebuild put labour at &#8377;3.55 of an &#8377;8.55 cost.',
+    body: function() {
+      return _sfg('Modelled labour (&#8377;/kg)', 'setLabModel', _sNum('setLabModel', _sLab('modelPerKg', 0), 0.01, 0)) +
+        '<button type="button" class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invCostDeriveBank" data-which="labour">Derive from the bank</button>' +
+        '<div id="labDeriveOut" class="inv-set-derive"></div>';
+    },
+    why: 'What the measured labour figure is reported against, and what fills a stretch neither attendance nor the bank covers. The Apr&ndash;Jul 2026 rebuild put labour at &#8377;3.55 of an &#8377;8.55 cost. <strong>Derive from the bank</strong> measures it from the wages paid over the six closed months the statement covers.',
     save: function() { var v = _sNonNeg('setLabModel'); if (v != null) { if (!S.labour) S.labour = {}; S.labour.modelPerKg = v; } }
   },
   metalsKey: {
@@ -18822,6 +18828,8 @@ function costMonthShare(month, from, to) {
    a quarter with one power bill read as a quarter that used one month's power. */
 function liveCost(from, to, kg) {
   var cfg = costModelCfg(), days = stockDaysApart(from, to) + 1, rows = [];
+  // What the bank paid, the second instrument (bank.js loads after this file; read at call time).
+  var bk = typeof bankCostForRange === 'function' && bankRows().length ? bankCostForRange(from, to) : null;
   var per = function(v) { return kg > 0 ? v / kg : null; };
   var fillLine = function(perKg, share, what) {
     return { label: 'Not recorded: ' + what, sub: formatCurrency(perKg) + '/kg model × ' + formatNum(share * 100, 0) + '% of the tonnage', amount: perKg * kg * share, fill: true };
@@ -18829,7 +18837,9 @@ function liveCost(from, to, kg) {
   var push = function(r) {
     var fill = r.detail.filter(function(d) { return d.fill; }).reduce(function(s, d) { return s + d.amount; }, 0);
     r.measured = r.measuredOverride != null ? r.measuredOverride : r.amount - fill;
-    if (!r.source) r.source = r.measured <= 0.005 ? 'model' : (fill > 0.005 || r.low ? 'partial' : 'measured');
+    // Paid from the bank, with nothing from the app's own records beside it.
+    var paid = r.detail.some(function(d) { return d.bank; }) && !r.detail.some(function(d) { return !d.bank && !d.fill && !d.ref && d.amount; });
+    if (!r.source) r.source = r.measured <= 0.005 ? 'model' : (fill > 0.005 || r.low ? 'partial' : paid ? 'bank' : 'measured');
     rows.push(r);
   };
 
@@ -18839,9 +18849,23 @@ function liveCost(from, to, kg) {
   var labDetail = [['Monthly crew, days worked', lab.monthlyDays], ['Monthly crew, rest days', lab.rest], ['Hourly pool', lab.pool],
     ['Daily tier', lab.daily + lab.dailyRest], ['Overtime', lab.ot], ['EXTRA pool', lab.extra]].filter(function(d) { return d[1]; })
     .map(function(d) { return { label: d[0], amount: d[1] }; });
-  if (labMissing > 0.001) labDetail.push(fillLine(lm, labMissing, Math.round(labMissing * 100) + '% of working days'));
-  push({ key: 'labour', label: 'Labour', coverage: lab.total > 0 ? lab.coverage : 0, amount: lab.total + (labMissing > 0.001 ? lm * kg * labMissing : 0),
-    note: lab.total > 0 ? Math.round(lab.coverage * 100) + '% of working days recorded' : 'no attendance recorded: ' + formatCurrency(lm) + '/kg from Settings', detail: labDetail });
+  var labCov = lab.total > 0 ? lab.coverage : 0;
+  // The order: attendance where 90% of the days are recorded; else what the bank paid, where the
+  // statement covers more of the period than attendance does; else attendance and the model.
+  if (labCov < 0.9 && bk && bk.labour.known > 0.001 && bk.labour.known >= labCov) {
+    var bl = bk.labour, blMissing = Math.max(0, 1 - bl.known);
+    var blDetail = bl.months.map(function(mo) {
+      return { label: 'Paid for ' + billsMonthLabel(mo.month), bank: true, amount: mo.amount,
+        sub: [mo.named ? formatCurrency(mo.named) + ' to named hands, paid the month after' : '', mo.cash ? formatCurrency(mo.cash) + ' cash, by pay week' : '', mo.share < 0.999 ? formatNum(mo.share * 100, 0) + '% of the month' : ''].filter(Boolean).join(' · ') || 'nothing paid' };
+    });
+    if (blMissing > 0.001) blDetail.push(fillLine(lm, blMissing, Math.round(blMissing * 100) + '% of the period the statement does not cover'));
+    push({ key: 'labour', label: 'Labour', coverage: labCov, bankShare: bl.known, amount: bl.amount + (blMissing > 0.001 ? lm * kg * blMissing : 0),
+      note: 'paid, from the bank statement: ' + Math.round(bl.known * 100) + '% of the period · attendance covers ' + Math.round(labCov * 100) + '%', detail: blDetail });
+  } else {
+    if (labMissing > 0.001) labDetail.push(fillLine(lm, labMissing, Math.round(labMissing * 100) + '% of working days'));
+    push({ key: 'labour', label: 'Labour', coverage: labCov, amount: lab.total + (labMissing > 0.001 ? lm * kg * labMissing : 0),
+      note: lab.total > 0 ? Math.round(lab.coverage * 100) + '% of working days recorded' : 'no attendance recorded: ' + formatCurrency(lm) + '/kg from Settings', detail: labDetail });
+  }
 
   // Chemicals and zinc: what the stock record says was used, at the price paid.
   var chem = { amount: 0, detail: [], unpriced: [] }, zinc = { qty: 0, amount: 0, priced: true, item: null };
@@ -18890,7 +18914,8 @@ function liveCost(from, to, kg) {
   push({ key: 'chem', label: 'Chemicals', amount: chem.amount + (stockMissing > 0.001 ? chemModel * kg * stockMissing : 0), low: chem.unpriced.length > 0,
     note: (chemLines ? chem.detail.length + ' of ' + chemLines + ' lines used are priced' + (chem.unpriced.length ? ', so the measured part reads low' : '') : 'no chemical use recorded') +
       (stockMissing > 0.001 && coveredDays ? ' · ' + (days - coveredDays) + ' days at the model' : ''),
-    detail: chemDetail.concat(boughtLine(bought.chem)) });
+    detail: chemDetail.concat(boughtLine(bought.chem)).concat(bk && bk.supplies.months.length ? [{ label: 'Paid to suppliers, for reference', ref: true, amount: bk.supplies.amount,
+      sub: 'chemicals and zinc together, from the bank · ' + Math.round(bk.supplies.known * 100) + '% of the period on the statement · a payment is not use, so not in the figure' }] : []) });
 
   var landed = typeof zincLandedRate === 'function' ? zincLandedRate() : null;
   // Modelled zinc kilos are priced at what was last PAID by the end of the
@@ -18934,6 +18959,13 @@ function liveCost(from, to, kg) {
       var a = from > start ? from : start, z = to < end ? to : end;
       var rangeShare = (stockDaysApart(a, z) + 1) / days;
       var mine = bills.filter(function(b) { return b.month === mo; });
+      var bm = !mine.length && bk ? bk[kind].months.find(function(x) { return x.month === mo; }) : null;
+      if (bm) {
+        amt += bm.amount;
+        detail.push({ label: 'Paid for ' + billsMonthLabel(mo), bank: true, amount: bm.amount,
+          sub: 'from the bank, no bill entered · ' + bm.rows.length + ' payment' + (bm.rows.length === 1 ? '' : 's') + (bm.share < 0.999 ? ' × ' + formatNum(bm.share * 100, 0) + '% of the month' : '') });
+        return;
+      }
       if (!mine.length) { unbilled += rangeShare; unbilledMonths.push(mo); return; }
       mine.forEach(function(b) {
         var share = costMonthShare(b.month, from, to);
@@ -18942,9 +18974,18 @@ function liveCost(from, to, kg) {
       });
     });
     if (unbilled > 0.001) detail.push(fillLine(cfg[kind], unbilled, 'no bill for ' + unbilledMonths.join(', ')));
+    if (kind === 'other' && bk && bk.unsorted.amount >= 1) {
+      var np = Object.keys(bk.unsorted.payees).length;
+      detail.push({ label: 'Paid to payees not yet sorted, not counted', ref: true, amount: bk.unsorted.amount,
+        sub: np + ' payee' + (np === 1 ? '' : 's') + ' on the bank statement read as neither supplier nor cost · set each once in Finance → Bank, and the month counts' });
+    }
     push({ key: kind, label: COST_BILL_KINDS[kind], amount: amt + (unbilled > 0.001 ? cfg[kind] * kg * unbilled : 0),
-      note: bills.length && detail.some(function(x) { return !x.fill; }) ? (detail.filter(function(x) { return !x.fill; }).length + ' bill' + (detail.filter(function(x) { return !x.fill; }).length === 1 ? '' : 's') + (unbilledMonths.length ? ' · ' + unbilledMonths.length + ' month' + (unbilledMonths.length === 1 ? '' : 's') + ' at the model' : ''))
-        : formatCurrency(cfg[kind]) + '/kg from Settings; no bill entered for this period', detail: detail });
+      note: (function() {
+        var nb = detail.filter(function(x) { return !x.fill && !x.bank && !x.ref; }).length, np = detail.filter(function(x) { return x.bank; }).length;
+        var parts = [nb ? nb + ' bill' + (nb === 1 ? '' : 's') : '', np ? np + ' month' + (np === 1 ? '' : 's') + ' paid, from the bank' : '',
+          unbilledMonths.length && (nb || np) ? unbilledMonths.length + ' month' + (unbilledMonths.length === 1 ? '' : 's') + ' at the model' : ''].filter(Boolean);
+        return parts.length ? parts.join(' · ') : formatCurrency(cfg[kind]) + '/kg from Settings; no bill entered for this period';
+      })(), detail: detail });
   });
 
   rows.forEach(function(r) { r.amount = gstRound(r.amount); r.measured = gstRound(Math.min(r.measured, r.amount)); r.perKg = per(r.amount); });
@@ -18953,7 +18994,125 @@ function liveCost(from, to, kg) {
   return { from: from, to: to, kg: kg, rows: rows, total: total, perKg: per(total), measuredShare: total > 0 ? measured / total : 0 };
 }
 
-var COST_SRC_LABEL = { measured: 'measured', partial: 'part-recorded', rate: 'market rate', model: 'model', none: 'nothing recorded' };
+/* Recorded against paid (docs/FINANCE_INTELLIGENCE_SPEC.md, 4c): the app's own record of a cost set
+   beside what the bank paid for it, over ONLY the months where both exist — numerator and
+   denominator, same population. A gap over 10% is flagged, never smoothed: the reasons it can be
+   right are written on the row. Chemicals and zinc compare use with purchases, which differ by
+   design, so that row is never flagged. */
+var COST_GAP = 0.10;
+function liveCostPaidCheck(from, to) {
+  if (typeof bankCostForRange !== 'function' || !bankRows().length) return [];
+  var bk = bankCostForRange(from, to), out = [];
+  var span = function(ym) { var s = ym + '-01', e = payMonthEnd(s); return [from > s ? from : s, to < e ? to : e]; };
+  var finish = function(key, label, t, why, known) {
+    var r = { key: key, label: label, months: t.months, skipped: t.skipped, recorded: null, paid: null, delta: null, pct: null, flag: false, why: why };
+    if (key === 'supplies' && t.paid < 1 && t.recorded < 1) { r.note = 'no priced use and no supplier payment in the months the statement covers'; out.push(r); return; }
+    if (t.months.length) {
+      r.recorded = gstRound(t.recorded); r.paid = gstRound(t.paid); r.delta = gstRound(t.paid - t.recorded);
+      r.pct = t.recorded > 0 ? r.delta / t.recorded : null;
+      r.flag = key !== 'supplies' && (r.pct == null ? r.paid > 0 : Math.abs(r.pct) > COST_GAP);
+    }
+    r.note = t.months.length ? 'over ' + t.months.map(billsMonthLabel).join(', ') + (t.skipped.length ? ' · not ' + t.skipped.map(billsMonthLabel).join(', ') + ': ' + known : '') + ' · ' + why
+      : t.skipped.length ? 'nothing to compare: ' + known + ' for ' + t.skipped.map(billsMonthLabel).join(', ') : 'nothing paid on the statement for this period';
+    out.push(r);
+  };
+
+  var lab = { recorded: 0, paid: 0, months: [], skipped: [] };
+  bk.labour.months.forEach(function(mo) {
+    var p = span(mo.month), l = labourForRange(p[0], p[1]);
+    if (!(l.total > 0) || l.coverage < 0.9) { lab.skipped.push(mo.month); return; }
+    lab.recorded += l.total; lab.paid += mo.amount; lab.months.push(mo.month);
+  });
+  finish('labour', 'Labour', lab, 'salaries are set against the month before; cash against the pay week it was drawn in', 'attendance under 90% of days');
+
+  ['power', 'other'].forEach(function(kind) {
+    var t = { recorded: 0, paid: 0, months: [], skipped: [] };
+    bk[kind].months.forEach(function(mo) {
+      var bills = costBills().filter(function(b) { return b.kind === kind && !b.voided && b.month === mo.month; });
+      if (!bills.length) { t.skipped.push(mo.month); return; }
+      t.recorded += bills.reduce(function(s, b) { return s + b.amount; }, 0) * mo.share; t.paid += mo.amount; t.months.push(mo.month);
+    });
+    finish(kind, COST_BILL_KINDS[kind], t, kind === 'power' ? 'a payment settles the month before unless set otherwise' : 'bills are before GST, a payment includes it', 'no bill entered');
+  });
+
+  var sup = { recorded: 0, paid: 0, months: [], skipped: [] };
+  bk.supplies.months.forEach(function(mo) {
+    var p = span(mo.month), u = liveCost(p[0], p[1], 0);
+    var used = u.rows.filter(function(r) { return r.key === 'chem' || r.key === 'zinc'; }).reduce(function(s, r) { return s + (r.measured > 0 ? r.measured : 0); }, 0);
+    sup.recorded += used; sup.paid += mo.amount; sup.months.push(mo.month);
+  });
+  finish('supplies', 'Chemicals and zinc', sup, 'used against bought: a purchase is stock on the shelf, so these differ by design', '');
+  return out;
+}
+function _costPaidHtml(from, to) {
+  var chk = liveCostPaidCheck(from, to);
+  if (!chk.length) return '';
+  return '<div class="inv-cost-bills" id="liveCostPaid"><div class="inv-stk-label">Recorded against paid</div>' + chk.map(function(r) {
+    // The gap on the right; what it is the gap between leads the note, so a phone keeps one figure per column.
+    var fig = r.recorded == null ? '&mdash;' : (r.delta >= 0 ? '+' : '&minus;') + formatCurrency(Math.abs(r.delta)) +
+      (r.pct != null ? ' (' + (r.pct >= 0 ? '+' : '&minus;') + formatNum(Math.abs(r.pct) * 100, 0) + '%)' : '');
+    var note = (r.recorded == null ? '' : 'recorded ' + formatCurrency(r.recorded) + ' · paid ' + formatCurrency(r.paid) + ' · ') + r.note;
+    return '<div class="inv-cost-dline" data-paid="' + r.key + '"><span>' + escHtml(r.label) + (r.flag ? ' <span class="inv-dot inv-dot-danger">over 10% apart</span>' : '') +
+      '<span class="inv-cost-note">' + escHtml(note) + '</span></span><span class="inv-mono inv-nowrap">' + fig + '</span></div>';
+  }).join('') + '</div>';
+}
+
+/* Derive from the bank (docs/FINANCE_INTELLIGENCE_SPEC.md, 4d): the six closed months before this one
+   that the statement can speak for, each as paid ÷ tonnage, and the six together as total paid ÷ total
+   tonnage — a sum over a sum, not a mean of ratios, so a thin month cannot pull the figure. Offered,
+   never applied: Use fills the field and leaves the section unsaved, the zinc uplift's contract. */
+var COST_DERIVE_FIELDS = { labour: ['setLabModel', 'Labour'], power: ['setCostPower', 'Electricity'], other: ['setCostOther', 'Consumables, ETP'] };
+function costDeriveFromBank(which) {
+  var keys = which === 'labour' ? ['labour'] : ['power', 'other'];
+  var out = document.getElementById(which === 'labour' ? 'labDeriveOut' : 'costDeriveOut');
+  var res = costDeriveCompute(keys);
+  if (out) out.innerHTML = _costDerivedHtml(res);
+  return res;
+}
+function costDeriveCompute(keys) {
+  if (!bankRows().length) return { none: 'No bank statement imported: Finance → Bank → Import.' };
+  var bm = bankCostByMonth(), active = (S.invoices || []).filter(function(i) { return i.status === 'active' && i.date; });
+  var months = [], ym = localDateStr().slice(0, 7);
+  for (var k = 0; k < 6; k++) { ym = bankPrevMonth(ym + '-01'); months.unshift(ym); }
+  var res = {};
+  keys.forEach(function(key) {
+    var rows = [], paid = 0, kg = 0;
+    months.forEach(function(m) {
+      if (!bankMonthKnown(bm, m, key)) { rows.push({ month: m, skip: key === 'power' ? 'no payment for this month' : 'not on the statement' }); return; }
+      var e = bm.months[m], p = gstRound(e ? e[key].amount : 0), s = m + '-01';
+      var w = weighLines(active.filter(function(i) { return i.date >= s && i.date <= payMonthEnd(s); })).kg;
+      if (!(w > 0)) { rows.push({ month: m, skip: 'no tonnage invoiced' }); return; }
+      rows.push({ month: m, paid: p, kg: w, perKg: p / w });
+      paid += p; kg += w;
+    });
+    res[key] = { rows: rows, paid: paid, kg: kg, perKg: kg > 0 ? Math.round(paid / kg * 100) / 100 : null };
+  });
+  return res;
+}
+function _costDerivedHtml(res) {
+  if (res.none) return '<div class="inv-text-muted inv-storage-text">' + escHtml(res.none) + '</div>';
+  var set = { labour: labourCfg().modelPerKg, power: costModelCfg().power, other: costModelCfg().other };
+  return Object.keys(res).map(function(key) {
+    var d = res[key], f = COST_DERIVE_FIELDS[key];
+    var h = '<div class="inv-set-derive-rows" data-derive="' + key + '"><div class="inv-set-derive-row"><strong>' + escHtml(f[1]) + '</strong></div>' + d.rows.map(function(r) {
+      return '<div class="inv-set-derive-row"><span>' + escHtml(billsMonthLabel(r.month)) + '</span><span class="inv-mono">' + (r.skip ? escHtml(r.skip)
+        : formatCurrency(r.paid) + ' &divide; ' + formatNum(r.kg / 1000, 1) + ' t = ' + formatCurrency(r.perKg) + '/kg') + '</span></div>';
+    }).join('') + '</div>';
+    if (d.perKg == null) return h + '<div class="inv-text-muted inv-storage-text">No month the statement covers has tonnage beside it, so nothing to offer.</div>';
+    var n = d.rows.filter(function(r) { return !r.skip; }).length;
+    return h + '<div class="inv-set-derive-foot"><span>' + n + ' month' + (n === 1 ? '' : 's') + ': ' + formatCurrency(d.paid) + ' &divide; ' + formatNum(d.kg / 1000, 1) + ' t = <strong class="inv-mono">' +
+      formatCurrency(d.perKg) + '/kg</strong> against ' + formatCurrency(set[key] || 0) + ' set</span>' +
+      '<button type="button" class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invCostUseDerived" data-field="' + f[0] + '" data-val="' + d.perKg + '">Use ' + formatCurrency(d.perKg) + '</button></div>';
+  }).join('') + (res.labour ? '<div class="inv-text-muted inv-storage-text">Paid covers every wage leg on the statement: salaries for the month before, and cash by pay week, the EXTRA pool with it.</div>' : '');
+}
+function costUseDerived(field, val) {
+  var el = document.getElementById(field);
+  if (!el) return;
+  el.value = val;
+  el.dispatchEvent(new Event('input', { bubbles: true }));
+}
+
+var COST_SRC_LABEL = { measured: 'measured', bank: 'paid, bank', partial: 'part-recorded', rate: 'market rate', model: 'model', none: 'nothing recorded' };
 var _costBillOpen = false;
 
 function renderLiveCostCard(period, tonnage) {
@@ -18980,6 +19139,7 @@ function renderLiveCostCard(period, tonnage) {
     }
     h += '</details>';
   });
+  h += _costPaidHtml(from, to);
   var typed = S.defaultCostPerKg || 0;
   if (typed && c.perKg != null) h += '<div class="inv-stats-caveat">The figure typed in Settings is ' + formatCurrency(typed) + '/kg; this period measures ' + formatCurrency(c.perKg) + '/kg. ' +
     'Anything marked model is a Settings fallback until the record exists: add bills to Stock lines, and power and other bills below.</div>';
@@ -20114,6 +20274,7 @@ function bankClassify(rows) {
       // A pick set back to "no client" is a decision too: it unplaces, rather than falling back to the guess.
       if ('clientId' in o) v.clientId = o.clientId == null ? null : o.clientId;
       if (o.staffId != null) { v.staffId = o.staffId; v.guess = false; }
+      if ('notCost' in o) v.notCost = !!o.notCost;
     });
     v.row = row; v.key = key;
     return v;
@@ -20155,7 +20316,7 @@ function bankReceivables(cls) {
         if (amt <= 0 || o.due <= 0) return;
         var k = Math.min(o.due, amt);
         o.due = gstRound(o.due - k); amt = gstRound(amt - k);
-        if (parts) parts.push({ label: o.label, amount: gstRound(k), whole: o.due === 0 });
+        if (parts) parts.push({ label: o.label, amount: gstRound(k), whole: o.due === 0, date: o.date, inv: !!o.inv });
       });
       return amt;
     };
@@ -20170,7 +20331,7 @@ function bankReceivables(cls) {
         for (var j = i; j < live.length && j < i + 40; j++) {
           sum = gstRound(sum + live[j].due);
           if (Math.abs(sum - amt) <= 1) {
-            live.slice(i, j + 1).forEach(function(o) { parts.push({ label: o.label, amount: o.due, whole: true }); o.due = 0; });
+            live.slice(i, j + 1).forEach(function(o) { parts.push({ label: o.label, amount: o.due, whole: true, date: o.date, inv: !!o.inv }); o.due = 0; });
             how = 'exact'; break;
           }
           if (sum > amt + 1) break;
@@ -20208,6 +20369,94 @@ function bankAddPowerBill(rowId) {
   saveState();
   renderFinance();
   showToast('Electricity bill for ' + billsMonthLabel(m) + ' added from the bank');
+}
+
+/* ---------- What was PAID, as cost (docs/FINANCE_INTELLIGENCE_SPEC.md, Phase 4) ----------
+   A second instrument beside the operational record: what left the account, attributed to the month
+   it pays for. GST, income tax, a returned cheque and anything the owner marks "not a cost"
+   (drawings, a loan, a transfer) are money out that is not operating cost. */
+var BANK_NOT_COST = { receipt: 1, gst: 1, tax: 1, reversal: 1 };
+function bankIsCost(v) { return v.row.dr > 0 && !BANK_NOT_COST[v.cat] && !v.notCost; }
+function bankCover(rows) { rows = rows || bankRows(); return rows.length ? { from: rows[0].date, to: rows[rows.length - 1].date } : null; }
+function bankNextMonth(ym) { var d = new Date(ym + '-01T00:00:00'); d.setMonth(d.getMonth() + 1); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0'); }
+
+/* Per month it pays for: labour, power, other and supplies, each with the rows behind it, and
+   whether the statement can speak for that month at all.
+   - Labour: a transfer to a named hand pays the month BEFORE (salaries go out ~14th for last month);
+     cash pays the pay week it was drawn in, spread over that week's seven days, so a week that
+     straddles two months is split between them.
+   - Electricity: the month the payment settles (bankBillMonth: the month before, operator-settable).
+   - Other (bank charges included) and supplies: the month paid.
+   A month is KNOWN when the statement covers what would pay for it: the whole month and the salary
+   run after it for labour, the whole month for other and supplies, a payment attributed to it for
+   electricity. Unknown is never zero. */
+function bankCostByMonth(cls) {
+  cls = cls || bankClassify();
+  var cover = bankCover(), out = {};
+  var at = function(ym) { return out[ym] || (out[ym] = { labour: { amount: 0, named: 0, cash: 0, rows: [] }, power: { amount: 0, rows: [] }, other: { amount: 0, rows: [] }, supplies: { amount: 0, rows: [] }, unsorted: { amount: 0, rows: [] } }); };
+  cls.forEach(function(v) {
+    if (!bankIsCost(v)) return;
+    var r = v.row;
+    if (v.cat === 'wages') {
+      if (!v.cash && v.staffId != null) {
+        var L = at(bankPrevMonth(r.date)).labour;
+        L.amount += r.dr; L.named += r.dr; L.rows.push(v);
+      } else {
+        var ws = attWeekStartOf(r.date), seen = {};
+        for (var k = 0; k < 7; k++) {
+          var d = attParseIso(ws); d.setDate(d.getDate() + k);
+          var C = at(attIso(d).slice(0, 7)).labour;
+          C.amount += r.dr / 7; C.cash += r.dr / 7;
+          if (!seen[attIso(d).slice(0, 7)]) { seen[attIso(d).slice(0, 7)] = 1; C.rows.push(v); }
+        }
+      }
+    } else if (v.cat === 'power') { var P = at(bankBillMonth(r)).power; P.amount += r.dr; P.rows.push(v); }
+    else if (v.cat === 'supplier') { var U = at(r.date.slice(0, 7)).supplies; U.amount += r.dr; U.rows.push(v); }
+    // "Other" only because nothing recognised the payee is UNSORTED, not a cost: on the real statement
+    // that residue is mostly the zinc and chemical traders, at four times the other-cost model.
+    else if (v.cat === 'other' && v.auto) { var X = at(r.date.slice(0, 7)).unsorted; X.amount += r.dr; X.rows.push(v); }
+    else { var O = at(r.date.slice(0, 7)).other; O.amount += r.dr; O.rows.push(v); }
+  });
+  return { months: out, cover: cover };
+}
+function bankMonthKnown(bm, ym, k) {
+  var c = bm.cover, e = bm.months[ym];
+  if (k === 'power') return !!(e && e.power.amount > 0);
+  if (!c || c.from > ym + '-01' || c.to < payMonthEnd(ym + '-01')) return false;
+  // Other and supplies speak for a month only once every payment in it is sorted: an unsorted one
+  // could be either, and counting it as neither reads the month cheap.
+  if ((k === 'other' || k === 'supplies') && e && e.unsorted.amount >= 1) return false;
+  return k !== 'labour' || c.to >= bankNextMonth(ym) + '-20';
+}
+
+/* The same over a date range: each month's figure for the share of its days inside the range, and
+   the share of the RANGE the statement can speak for. */
+/* One classification per render: Stats asks for the live cost of every month it draws, and the
+   answer cannot change until the current task ends. */
+var _bankCostMemo = null;
+function bankCostByMonthMemo() {
+  if (!_bankCostMemo) { _bankCostMemo = bankCostByMonth(); Promise.resolve().then(function() { _bankCostMemo = null; }); }
+  return _bankCostMemo;
+}
+function bankCostForRange(from, to, byMonth) {
+  var bm = byMonth || bankCostByMonthMemo(), days = stockDaysApart(from, to) + 1;
+  var res = { cover: bm.cover };
+  ['labour', 'power', 'other', 'supplies'].forEach(function(k) { res[k] = { amount: 0, known: 0, months: [] }; });
+  res.unsorted = { amount: 0, payees: {} };
+  if (!bm.cover) return res;
+  for (var ym = from.slice(0, 7), g = 0; ym <= to.slice(0, 7) && g < 240; ym = bankNextMonth(ym), g++) {
+    var start = ym + '-01', end = payMonthEnd(start), a = from > start ? from : start, z = to < end ? to : end;
+    var share = costMonthShare(ym, from, to), rangeShare = (stockDaysApart(a, z) + 1) / days, e = bm.months[ym];
+    if (e) e.unsorted.rows.forEach(function(v) { if (v.row.date >= from && v.row.date <= to) { res.unsorted.amount += v.row.dr; res.unsorted.payees[v.party || v.row.narration] = 1; } });
+    ['labour', 'power', 'other', 'supplies'].forEach(function(k) {
+      var c = e && e[k];
+      if (!bankMonthKnown(bm, ym, k)) return;
+      res[k].known += rangeShare;
+      res[k].amount += (c ? c.amount : 0) * share;
+      res[k].months.push({ month: ym, share: share, rangeShare: rangeShare, amount: (c ? c.amount : 0) * share, whole: c ? c.amount : 0, named: c && c.named || 0, cash: c && c.cash || 0, rows: c ? c.rows : [] });
+    });
+  }
+  return res;
 }
 
 /* ---------- Views ---------- */
@@ -20260,12 +20509,14 @@ function _bankReceiptsHtml(cls) {
     '<div class="inv-panel-body inv-note">From ' + escHtml(formatDate(rows[0].date)) + ', the statement\'s first day: invoices less credit notes less receipts, ' +
     'plus whatever was owed on that day if you set it. A receipt that equals one invoice, or a run of them, to the rupee is marked exact; any other is set against the oldest first.</div>';
   if (!recv.length) h += '<div class="inv-empty">No invoices or receipts since the statement starts.</div>';
+  var payHist = typeof bankPayHistory === 'function' ? bankPayHistory(recv) : {};
   recv.forEach(function(r) {
-    var open = _bankOpen === String(r.client.id);
+    var open = _bankOpen === String(r.client.id), dtp = typeof bankDaysToPay === 'function' ? bankDaysToPay(r.client.id, payHist) : null;
     h += '<div class="inv-row inv-row-2" data-recv="' + escHtml(String(r.client.id)) + '"><button class="inv-row-main inv-row-expander" aria-expanded="' + open + '" data-action="invBankClient" data-id="' + escHtml(String(r.client.id)) + '">' +
       '<span class="inv-row-title">' + escHtml(r.client.name) + '</span><span class="inv-row-meta">' +
       escHtml(formatCurrency(r.invoiced)) + ' invoiced' + (r.notes ? ' · ' + escHtml(formatCurrency(r.notes)) + ' credited' : '') + ' · ' + escHtml(formatCurrency(r.received)) + ' received' +
-      (r.open.length ? ' · oldest open ' + r.oldestDays + ' d' : '') + '</span></button>' +
+      (r.open.length ? ' · oldest open ' + r.oldestDays + ' d' : '') +
+      (dtp && dtp.median != null ? ' · pays in ' + Math.round(dtp.median) + ' d' + (dtp.n < 3 ? ' (' + dtp.n + ' receipt' + (dtp.n === 1 ? '' : 's') + ')' : '') : '') + '</span></button>' +
       '<span class="inv-row-end"><span class="inv-row-stack"><span class="inv-num">' + formatCurrency(r.owed) + '</span><span class="inv-row-meta">' + (r.owed < -0.005 ? 'paid ahead' : 'owed') + '</span></span></span></div>';
     if (!open) return;
     h += '<div class="inv-row-children">';
@@ -20468,8 +20719,27 @@ function _bankPaymentsHtml(cls) {
       (key ? ' · stock bills recorded ' + escHtml(formatCurrency(billed[key])) : ' · no stock bills recorded') + '</span></span><span class="inv-row-end inv-num">' + formatCurrency(s.paid) + '</span></div>';
   });
   h += '</div>';
+  // Payees read as "other" only because nothing recognised them: until each is set once, the live
+  // cost counts them as neither supplier nor cost, and says so.
+  var uns = {};
+  cls.forEach(function(v) {
+    if (v.cat !== 'other' || !v.auto || !(v.row.dr > 0)) return;
+    var k = v.party || v.row.narration, u = uns[k] || (uns[k] = { paid: 0, n: 0, last: v.row });
+    u.paid = gstRound(u.paid + v.row.dr); u.n++; if (v.row.date >= u.last.date) u.last = v.row;
+  });
+  var uk = Object.keys(uns).sort(function(a, b) { return uns[b].paid - uns[a].paid; });
+  if (uk.length) {
+    h += '<div class="inv-panel inv-panel-flush" id="bankUnsorted"><div class="inv-panel-head"><span class="inv-panel-title">Not yet sorted</span><span class="inv-panel-count">' + uk.length + '</span></div>' +
+      '<div class="inv-panel-body inv-note">Nothing recognised these payees, so the live cost counts them as neither supplier nor cost. Set each once: Supplier, Other, or not a cost.</div>';
+    uk.forEach(function(k) {
+      var u = uns[k];
+      h += '<div class="inv-row inv-row-2" data-unsorted="' + escHtml(k) + '"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(k) + '</span><span class="inv-row-meta">' + u.n + ' payment' + (u.n === 1 ? '' : 's') + ' · last ' + escHtml(formatDate(u.last.date)) + '</span></span>' +
+        '<span class="inv-row-end"><span class="inv-num">' + formatCurrency(u.paid) + '</span><button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invBankSort" data-id="' + escHtml(u.last.id) + '" data-q="' + escHtml(k) + '">Sort</button></span></div>';
+    });
+    h += '</div>';
+  }
   var tot = {};
-  cls.forEach(function(v) { if (['gst', 'tax', 'charges', 'other'].indexOf(v.cat) >= 0 && v.row.dr > 0) tot[v.cat] = gstRound((tot[v.cat] || 0) + v.row.dr); });
+  cls.forEach(function(v) { if (['gst', 'tax', 'charges', 'other'].indexOf(v.cat) >= 0 && v.row.dr > 0 && !(v.cat === 'other' && v.auto)) tot[v.cat] = gstRound((tot[v.cat] || 0) + v.row.dr); });
   h += '<div class="inv-panel inv-panel-flush" id="bankOther"><div class="inv-panel-head"><span class="inv-panel-title">Everything else paid</span></div>';
   ['gst', 'tax', 'charges', 'other'].forEach(function(k) {
     if (tot[k]) h += '<div class="inv-row"><span class="inv-row-main">' + escHtml(bankCatLabel(k)) + '</span><span class="inv-row-end inv-num">' + formatCurrency(tot[k]) + '</span></div>';
@@ -20495,7 +20765,7 @@ function _bankStatementHtml(cls) {
     h += '<div class="inv-row inv-row-2" data-bank-row="' + escHtml(r.id) + '"><button class="inv-row-main" data-action="invBankEdit" data-id="' + escHtml(r.id) + '" aria-expanded="' + (_bankEdit === r.id) + '">' +
       '<span class="inv-row-title">' + escHtml(v.party || r.narration) + '</span>' +
       '<span class="inv-row-meta">' + escHtml(formatDate(r.date)) + ' · <span class="inv-dot inv-dot-' + BANK_CAT_TONE[v.cat] + '">' + escHtml(bankCatLabel(v.cat)) + (who ? ': ' + escHtml(who) : '') + '</span>' +
-      (r.chq ? ' · chq ' + escHtml(r.chq) : '') + '</span></button>' +
+      (r.chq ? ' · chq ' + escHtml(r.chq) : '') + (v.notCost ? ' · not a cost' : '') + '</span></button>' +
       '<span class="inv-row-end"><span class="inv-row-stack"><span class="inv-num">' + (out ? '−' : '+') + formatCurrency(out ? r.dr : r.cr) + '</span>' +
       '<span class="inv-row-meta inv-num">' + formatCurrency(r.balance) + '</span></span></span></div>';
     if (_bankEdit === r.id) h += _bankEditHtml(v);
@@ -20513,7 +20783,8 @@ function _bankEditHtml(v) {
     h += '<div class="inv-field"><label class="inv-field-label" for="bankEditStaff">Paid to</label><select class="inv-select" id="bankEditStaff"><option value="">Nobody on the roster</option>' +
       (S.staff || []).map(function(w) { return '<option value="' + escHtml(String(w.id)) + '"' + (String(v.staffId) === String(w.id) ? ' selected' : '') + '>' + escHtml(w.name) + '</option>'; }).join('') + '</select></div>';
   }
-  h += '</div>' + (canRule ? '<label class="inv-check"><input type="checkbox" id="bankEditAll" checked> Every payment ' + (r.cr > 0 ? 'from' : 'to') + ' ' + escHtml(v.party) + '</label>' : '') +
+  if (r.dr > 0) h += '<label class="inv-check-row"><input type="checkbox" class="inv-check" id="bankEditNotCost"' + (v.notCost ? ' checked' : '') + '> Not an operating cost (drawings, a loan, a transfer)</label>';
+  h += '</div>' + (canRule ? '<label class="inv-check-row"><input type="checkbox" class="inv-check" id="bankEditAll" checked> Every payment ' + (r.cr > 0 ? 'from' : 'to') + ' ' + escHtml(v.party) + '</label>' : '') +
     '<div class="inv-toolbar"><button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invBankEditCancel">Cancel</button>' +
     '<button class="inv-btn inv-btn-primary inv-btn-sm" data-action="invBankEditSave" data-id="' + escHtml(r.id) + '">Save</button></div></div>';
   return h;
@@ -20528,6 +20799,8 @@ function bankSaveEdit(id) {
   var cl = val('bankEditClient'), st = val('bankEditStaff');
   if (set.cat === 'receipt' && cl != null) set.clientId = cl === '' ? null : _bankIdOf(S.clients, cl);
   if (set.cat === 'wages' && st != null) set.staffId = st === '' ? null : _bankIdOf(S.staff, st);
+  var nc = document.getElementById('bankEditNotCost');
+  if (nc) set.notCost = nc.checked;
   var all = document.getElementById('bankEditAll');
   if (all && all.checked && v.key) { b.parties[v.key] = set; delete row.set; }
   else row.set = set;
@@ -20686,6 +20959,7 @@ function bankAction(action, btn) {
     case 'invBankExportJson': bankExportJson(); return true;
     case 'invBankClient': _bankOpen = _bankOpen === btn.dataset.id ? null : btn.dataset.id; renderFinance(); return true;
     case 'invBankAddBill': bankAddPowerBill(btn.dataset.id); return true;
+    case 'invBankSort': _bankFilter = { cat: '', q: btn.dataset.q || '' }; _bankEdit = btn.dataset.id; finSetTab('bank'); renderFinance(); return true;
     case 'invBankPlace': bankSetClient(btn.dataset.id, btn.dataset.client); return true;
     case 'invBankChange': _bankChange = btn.dataset.id; renderFinance(); return true;
     case 'invBankEdit': _bankEdit = _bankEdit === btn.dataset.id ? null : btn.dataset.id; renderFinance(); return true;
@@ -20915,6 +21189,9 @@ function finOverviewHtml() {
   });
   h += '</tbody></table></div></div>';
 
+  // The next 60 days, at the pace the statement shows (Phase 5).
+  h += finForecastHtml();
+
   // Where money went: the range stacked by category, and the chosen month as a pie that filters.
   var catKey = function(v) { return v.cat + (v.cash ? ':cash' : ''); };
   var catLabel = function(k) { var p = k.split(':'); return bankCatLabel(p[0]) + (p[1] ? ' (cash)' : ''); };
@@ -20974,9 +21251,12 @@ function finOverviewHtml() {
       return '<div class="inv-tile' + (i === 3 && b.amount > 0 ? ' inv-tile-danger' : i === 2 && b.amount > 0 ? ' inv-tile-warning' : '') + '" data-age="' + i + '"><div class="inv-tile-label">' + b.label + '</div>' +
         '<div class="inv-tile-value inv-tile-value-sm inv-num" title="' + escHtml(formatCurrency(b.amount)) + '">' + finRs(b.amount) + '</div><div class="inv-tile-sub">' + finPl(b.n, 'invoice') + '</div></div>';
     }).join('') + '</div>';
+  var payHist = bankPayHistory(recv);
   top.forEach(function(r) {
+    var dtp = bankDaysToPay(r.client.id, payHist);
     h += '<div class="inv-row inv-row-2" data-debtor="' + escHtml(String(r.client.id)) + '"><button class="inv-row-main" data-action="invFinClient" data-id="' + escHtml(String(r.client.id)) + '">' +
-      '<span class="inv-row-title">' + escHtml(r.client.name) + '</span><span class="inv-row-meta">' + r.open.length + ' open' + (r.oldestDays != null ? ' · oldest ' + r.oldestDays + ' d' : '') + '</span></button>' +
+      '<span class="inv-row-title">' + escHtml(r.client.name) + '</span><span class="inv-row-meta">' + r.open.length + ' open' + (r.oldestDays != null ? ' · oldest ' + r.oldestDays + ' d' : '') +
+      (dtp && dtp.median != null ? ' · pays in ' + Math.round(dtp.median) + ' d' : '') + '</span></button>' +
       '<span class="inv-row-end inv-num">' + formatCurrency(r.owed) + '</span></div>';
   });
   if (!top.length) h += '<div class="inv-empty">Nothing owed since the statement starts.</div>';
@@ -21599,6 +21879,14 @@ function todoGo(go) {
     case 'audit': switchTab('pageRegister'); showNumberAudit(); break;
     case 'settings': openSettings(go.sec); break;
     case 'home': switchTab('pageHome'); break;
+    case 'finance':
+      finSetTab(go.tab || 'overview');
+      if (go.client != null) _bankOpen = String(go.client);
+      if (go.gstMonth) _finGstEdit = go.gstMonth;
+      switchTab('pageFinance');
+      var fa = go.anchor && document.getElementById(go.anchor);
+      if (fa && fa.scrollIntoView) fa.scrollIntoView({ block: 'start' });
+      break;
     case 'stats': try { localStorage.setItem(STATS_TAB_KEY, go.tab); } catch (e) { /* per-device */ } switchTab('pageStats'); break;
     case 'staffRoster': _attView = 'roster'; switchTab('pageStaff'); break;
     case 'staffPaste': _attView = 'paste'; switchTab('pageStaff'); break;
@@ -24298,7 +24586,7 @@ function statsOverviewHtml(period, filtered, tonnage) {
     '<div class="inv-ov-tile ' + (contrib >= 0 ? 'inv-pay-green' : 'inv-area-gap-over') + '"><div class="inv-ov-l">Contribution</div><div class="inv-ov-v" id="statsContrib">' + statsSigned(contrib) + '<small>/kg</small></div><div class="inv-ov-s">' + statsSigned(gstRound(contrib * kg)) + ' on the period</div></div>' +
     '<div class="inv-ov-tile inv-area-gap-under"><div class="inv-ov-l">Capacity</div><div class="inv-ov-v">' + (capPct != null ? Math.round(capPct * 100) + '%' : '&mdash;') + '</div><div class="inv-ov-s">' + formatNum(kg / 1000, 1) + ' t of ~' + formatNum(cap / 1000, 0) + ' t (2 shifts)</div></div>' +
     '</div>';
-  var parts = c.rows.filter(function(x) { return x.source !== 'measured'; }).map(function(x) { return x.label.toLowerCase() + ' (' + COST_SRC_LABEL[x.source] + ')'; });
+  var parts = c.rows.filter(function(x) { return x.source !== 'measured' && x.source !== 'bank'; }).map(function(x) { return x.label.toLowerCase() + ' (' + COST_SRC_LABEL[x.source] + ')'; });
   if (parts.length) {
     h += '<div class="inv-stats-caveat"><strong>Read with care:</strong> ' + escHtml(parts.join(', ')) + ' ' + (parts.length === 1 ? 'is' : 'are') +
       ' not fully measured, so the contribution is only as good as ' + (parts.length === 1 ? 'that figure' : 'those figures') + '. Cost tab &rarr; Live cost shows each one.</div>';
@@ -24319,7 +24607,7 @@ function statsMonthsHtml() {
     var real = w.kg > 0 ? w.revKnown / w.kg : null;
     var lab = c.rows.find(function(x) { return x.key === 'labour'; });
     rows.push({ label: d.toLocaleString('en-IN', { month: 'short' }) + (to === today ? ' to date' : ''), real: real, cost: c.perKg, kg: w.kg,
-      contrib: real != null && c.perKg != null ? real - c.perKg : null, labour: lab && w.kg > 0 ? lab.amount / w.kg : null, labCov: lab ? lab.coverage : 0, measured: c.measuredShare });
+      contrib: real != null && c.perKg != null ? real - c.perKg : null, labour: lab && w.kg > 0 ? lab.amount / w.kg : null, labCov: lab ? Math.max(lab.coverage || 0, lab.bankShare || 0) : 0, measured: c.measuredShare });
   }
   if (!rows.some(function(r) { return r.kg > 0; })) return '';
   var h = '<div class="inv-stats-card inv-stats-card-full" id="statsMonths"><div class="inv-stats-title">Six months<span class="inv-stats-title-sub">each at its own live cost</span></div>' +
@@ -24330,7 +24618,7 @@ function statsMonthsHtml() {
       (r.contrib != null ? (r.contrib >= 0 ? '+' : '&minus;') + formatNum(Math.abs(r.contrib), 2) : '&mdash;') + '</td><td>' +
       (r.labour != null && r.labCov >= 0.9 ? formatNum(r.labour, 2) : '&mdash;') + '</td><td>' + Math.round(r.measured * 100) + '%</td></tr>';
   });
-  h += '</tbody></table><div class="inv-stats-note">₹ per kg. Labour shows only where the days are recorded (90% or more); a month with less is withheld rather than read low. ' +
+  h += '</tbody></table><div class="inv-stats-note">₹ per kg. Labour shows only where the days are recorded, or the bank statement covers what paid them (90% or more); a month with less is withheld rather than read low. ' +
     'Measured is the share of that month&rsquo;s cost from the app&rsquo;s own records.</div></div>';
   return h;
 }
@@ -24736,6 +25024,414 @@ function nextChallanCardHtml() {
   });
   return h + '<div class="inv-stats-note">The median gap between each client&rsquo;s challans, counted from the last one. Late is past that; quiet is past both 1.75 times the gap and three weeks beyond it.</div></div>';
 }
+/* ===== FINANCE INTELLIGENCE =====
+ * docs/FINANCE_INTELLIGENCE_SPEC.md, Phase 5: what the bank statement says, as To-do rules, a
+ * days-to-pay per client, and a cash forecast. Every rule is an ordinary To-do rule (an insight is a
+ * To-do rule): figures, what to do, what clears it, a snooze against its figures. Warn, never block.
+ * Nothing here writes to the book.
+ */
+
+/* One classification and one receivables pass per task: the To-do asks every rule in one go. */
+var _finCtxMemo = null;
+function finCtx() {
+  if (!_finCtxMemo) {
+    var rows = bankRows(), ctx = { rows: rows, cls: rows.length ? bankClassify(rows) : [], _recv: null };
+    ctx.recv = function() { return ctx._recv || (ctx._recv = bankReceivables(ctx.cls)); };
+    _finCtxMemo = ctx;
+    Promise.resolve().then(function() { _finCtxMemo = null; });
+  }
+  return _finCtxMemo;
+}
+function finPct(a, p) {
+  if (!a.length) return null;
+  var s = a.slice().sort(function(x, y) { return x - y; }), i = (s.length - 1) * p, lo = Math.floor(i), hi = Math.ceil(i);
+  return s[lo] + (s[hi] - s[lo]) * (i - lo);
+}
+function finOrd(n) { var t = n % 100, u = n % 10; return n + (t > 10 && t < 14 ? 'th' : u === 1 ? 'st' : u === 2 ? 'nd' : u === 3 ? 'rd' : 'th'); }
+function finMonthEnd(ym) { return payMonthEnd(ym + '-01'); }
+/* Closed months the statement covers end to end, newest last. */
+function finClosedMonths(n) {
+  var c = bankCover();
+  if (!c) return [];
+  var out = [], ym = bankPrevMonth(localDateStr());
+  for (var g = 0; g < 36 && out.length < n; g++, ym = bankPrevMonth(ym + '-01')) {
+    if (ym + '-01' < c.from) break;
+    if (c.to >= finMonthEnd(ym)) out.unshift(ym);
+  }
+  return out;
+}
+
+/* ---------- Days to pay ----------
+   Per receipt, the days from each invoice it paid to the day it came in, weighted by the amount
+   paid against that invoice. An opening balance has no invoice date and is left out. */
+function bankPayHistory(recv) {
+  var out = {};
+  (recv || finCtx().recv()).forEach(function(r) {
+    var list = [];
+    r.allocs.forEach(function(a) {
+      var w = 0, d = 0;
+      a.parts.forEach(function(p) {
+        if (!p.inv || !p.date) return;
+        var days = todoDaysBetween(p.date, a.v.row.date);
+        if (days < 0) return;
+        w += p.amount; d += days * p.amount;
+      });
+      if (w > 0) list.push({ date: a.v.row.date, days: d / w, amount: w, exact: a.how === 'exact' });
+    });
+    out[r.client.id] = list;
+  });
+  return out;
+}
+function _finWeightedMedian(list) {
+  var s = list.slice().sort(function(a, b) { return a.days - b.days; }), tot = 0, acc = 0;
+  s.forEach(function(x) { tot += x.amount; });
+  for (var i = 0; i < s.length; i++) { acc += s[i].amount; if (acc >= tot / 2) return s[i].days; }
+  return null;
+}
+function bankDaysToPay(clientId, hist) {
+  var list = (hist || bankPayHistory())[clientId] || [];
+  if (!list.length) return null;
+  var tot = 0, ex = 0;
+  list.forEach(function(x) { tot += x.amount; if (x.exact) ex += x.amount; });
+  var l3 = list.slice(-3), w3 = 0, d3 = 0;
+  l3.forEach(function(x) { w3 += x.amount; d3 += x.days * x.amount; });
+  return { median: _finWeightedMedian(list), last3: w3 > 0 ? d3 / w3 : null, n: list.length, exactShare: tot > 0 ? ex / tot : 0, list: list };
+}
+function bankBookDaysToPay(hist) {
+  var all = [];
+  Object.keys(hist).forEach(function(k) { all = all.concat(hist[k]); });
+  return all.length ? { median: _finWeightedMedian(all), n: all.length } : null;
+}
+
+/* ---------- The cash forecast ----------
+   Today's balance + what is expected in − what is expected out, day by day. Each input is a median
+   of what the statement shows, with its 25th and 75th percentiles for the band; what it rests on is
+   returned with it, and said under the chart. */
+function finForecast(days) {
+  days = days || 60;
+  var ctx = finCtx(), rows = ctx.rows;
+  if (!rows.length) return null;
+  var today = localDateStr(), last = rows[rows.length - 1], end = attAddDays(today, days);
+  var ev = {}, rests = [];
+  var add = function(date, k, lo, mid, hi) {
+    if (date <= today || date > end) return;
+    var e = ev[date] || (ev[date] = { in: [0, 0, 0], out: [0, 0, 0] });
+    e[k][0] += lo; e[k][1] += mid; e[k][2] += hi;
+  };
+  var months = [], ym = today.slice(0, 7);
+  for (var g = 0; g < 4 && ym <= end.slice(0, 7); g++, ym = bankNextMonth(ym)) months.push(ym);
+  var onDay = function(ymm, day) { var e = finMonthEnd(ymm); return ymm + '-' + String(Math.min(day, +e.slice(8, 10))).padStart(2, '0'); };
+
+  // In: open invoices at the client's own days-to-pay (the book's where it has under three receipts).
+  var recv = ctx.recv(), hist = bankPayHistory(recv), book = bankBookDaysToPay(hist), bookMed = book ? book.median : null;
+  // An invoice a little past its usual day is spread over the next four weeks; one long past it (twice
+  // the usual and a month, or over 90 days) is not expected at all: on a book with unplaced receipts it is
+  // most likely already paid, and otherwise it is a debt to chase, not cash to plan on.
+  var nOpen = 0, amtOpen = 0, late = 0, lateAmt = 0, stale = 0, staleAmt = 0;
+  recv.forEach(function(r) {
+    var d = bankDaysToPay(r.client.id, hist), med = d && d.n >= 3 ? d.median : bookMed;
+    if (med == null) return;
+    r.open.forEach(function(o) {
+      if (!o.inv) return;
+      var age = todoDaysBetween(o.date, today), due = attAddDays(o.date, Math.round(med));
+      if (age > 90 || age > Math.max(2 * med, med + 30)) { stale++; staleAmt += o.due; return; }
+      if (due <= today) {
+        for (var k = 1; k <= 28; k++) add(attAddDays(today, k), 'in', 0, o.due / 28, o.due / 28);
+        late++; lateAmt += o.due;
+      } else add(due, 'in', o.due, o.due, o.due);
+      nOpen++; amtOpen += o.due;
+    });
+  });
+  if (bookMed == null) rests.push('No receipt is placed against an invoice yet, so nothing is expected in: the forecast is outflows only.');
+  else rests.push(todoPlural(nOpen, 'open invoice') + ', ' + formatCurrency(gstRound(amtOpen)) + ', each at its client’s usual days to pay (the book’s ' + Math.round(bookMed) + ' days where a client has under three receipts)' +
+    (late ? '; ' + late + ' a little past it (' + formatCurrency(gstRound(lateAmt)) + ') spread over four weeks, and not counted at the low end' : '') + '.');
+  if (stale) rests.push(todoPlural(stale, 'invoice') + ' long past their usual day, ' + formatCurrency(gstRound(staleAmt)) + ', not expected: chase them, do not plan on them.');
+  var loose = ctx.cls.filter(function(v) { return v.cat === 'receipt' && v.clientId == null && v.row.cr > 0; });
+  if (loose.length && bookMed != null) rests.push(todoPlural(loose.length, 'receipt') + ' not placed on a client: the invoices they paid still read as open, so money in reads high.');
+
+  // In: billing at its recent pace, paid at the book's lag. Without it every future week would carry
+  // wages and no sales.
+  if (bookMed != null) {
+    var from60 = attAddDays(today, -56), billed = 0, wk = {};
+    (S.invoices || []).forEach(function(i) {
+      if (i.status !== 'active' || !i.date || i.date <= from60 || i.date > today) return;
+      billed += i.grandTotal || 0;
+      var ws = attWeekStartOf(i.date); wk[ws] = (wk[ws] || 0) + (i.grandTotal || 0);
+    });
+    var weeks = [];
+    for (var w = 1; w <= 8; w++) weeks.push(wk[attWeekStartOf(attAddDays(today, -7 * w))] || 0);
+    var perDay = [finPct(weeks, 0.25) / 6, billed / 48, finPct(weeks, 0.75) / 6];
+    for (var d = attAddDays(today, 1); d <= end; d = attAddDays(d, 1)) {
+      if (attParseIso(d).getDay() === 0) continue;
+      add(attAddDays(d, Math.round(bookMed)), 'in', perDay[0], perDay[1], perDay[2]);
+    }
+    if (billed > 0) rests.push('New billing at the last eight weeks’ pace, ' + formatCurrency(gstRound(billed / 8)) + ' a week, paid ' + Math.round(bookMed) + ' days after it is invoiced.');
+  }
+
+  // Out: from the closed months the statement covers.
+  var closed = finClosedMonths(3), wages = {}, days1 = [], other = {}, power = [], powerDays = [], cashWk = {};
+  closed.forEach(function(m) { wages[m] = 0; other[m] = 0; });
+  ctx.cls.forEach(function(v) {
+    var r = v.row;
+    if (!(r.dr > 0)) return;
+    var m = r.date.slice(0, 7);
+    if (v.cat === 'wages' && !v.cash && v.staffId != null) { if (m in wages) { wages[m] += r.dr; days1.push(+r.date.slice(8, 10)); } }
+    else if (v.cat === 'wages') { var ws = attWeekStartOf(r.date); cashWk[ws] = (cashWk[ws] || 0) + r.dr; }
+    else if (v.cat === 'power') { power.push(r.dr); powerDays.push(+r.date.slice(8, 10)); }
+    else if (v.cat !== 'gst' && m in other) other[m] += r.dr;
+  });
+  if (!closed.length) rests.push('The statement covers no whole month yet, so salaries, suppliers and other payments are not forecast.');
+  if (closed.length) {
+    var wv = closed.map(function(m) { return wages[m]; }), sd = Math.round(finPct(days1, 0.5) || 14);
+    if (finPct(wv, 0.5) > 0) {
+      months.forEach(function(mm) { add(onDay(mm, sd), 'out', finPct(wv, 0.25), finPct(wv, 0.5), finPct(wv, 0.75)); });
+      rests.push('Salaries to named hands, ' + formatCurrency(gstRound(finPct(wv, 0.5))) + ' a month around the ' + finOrd(sd) + '.');
+    }
+    var ov = closed.map(function(m) { return other[m]; });
+    months.forEach(function(mm) {
+      var n = +finMonthEnd(mm).slice(8, 10);
+      for (var k = 1; k <= n; k++) add(mm + '-' + String(k).padStart(2, '0'), 'out', finPct(ov, 0.25) / n, finPct(ov, 0.5) / n, finPct(ov, 0.75) / n);
+    });
+    rests.push('Suppliers and every other payment, ' + formatCurrency(gstRound(finPct(ov, 0.5))) + ' a month spread by day (the median of ' + closed.map(billsMonthLabel).join(', ') + ').');
+  }
+  var cw = [], c0 = bankCover();
+  for (var q = 1; q <= 8; q++) {
+    var s0 = attWeekStartOf(attAddDays(today, -7 * q));
+    if (c0 && s0 >= c0.from && attAddDays(s0, 6) <= c0.to) cw.push(cashWk[s0] || 0);
+  }
+  if (cw.length && finPct(cw, 0.5) > 0) {
+    for (var sat = attAddDays(attWeekStartOf(today), 6); sat <= end; sat = attAddDays(sat, 7)) add(sat, 'out', finPct(cw, 0.25), finPct(cw, 0.5), finPct(cw, 0.75));
+    rests.push('Cash drawn for the weekly payout, ' + formatCurrency(gstRound(finPct(cw, 0.5))) + ' each Saturday (the median of ' + cw.length + ' weeks).');
+  }
+  if (power.length) {
+    var pv = power.slice(-6), pd = Math.round(finPct(powerDays.slice(-6), 0.5));
+    months.forEach(function(mm) { add(onDay(mm, pd), 'out', finPct(pv, 0.25), finPct(pv, 0.5), finPct(pv, 0.75)); });
+    rests.push('Electricity, ' + formatCurrency(gstRound(finPct(pv, 0.5))) + ' around the ' + finOrd(pd) + '.');
+  }
+  // GST by the 20th: the month's own due where it is closed, else the last closed month's, at the share of
+  // due the bank has paid (input credit takes the rest).
+  var gm = insMonthsBack(6), gst = finGstByMonth(gm.concat([today.slice(0, 7)]), ctx.cls), ratios = [];
+  gst.forEach(function(r) { if (r.paidBank > 0 && r.due > 0) ratios.push(r.paidBank / r.due); });
+  var ratio = ratios.length ? finPct(ratios, 0.5) : null, lastDue = gst.length > 1 ? gst[gst.length - 2].due : 0;
+  if (ratio != null) {
+    months.forEach(function(mm) {
+      var pm = bankPrevMonth(mm + '-01'), r = gst.find(function(x) { return x.month === pm; });
+      if (r && r.paid > 0) return;
+      var due = r && pm < today.slice(0, 7) ? r.due : lastDue;
+      if (due > 0) add(mm + '-20', 'out', due * finPct(ratios, 0.25), due * ratio, due * finPct(ratios, 0.75));
+    });
+    rests.push('GST by the 20th at ' + Math.round(ratio * 100) + '% of the output tax due, the share the bank has paid.');
+  }
+
+  var bal = [last.balance, last.balance, last.balance], out = [], cross = null, min = { bal: last.balance, date: today };
+  for (var dd = attAddDays(today, 1); dd <= end; dd = attAddDays(dd, 1)) {
+    var e = ev[dd] || { in: [0, 0, 0], out: [0, 0, 0] };
+    bal = [bal[0] + e.in[0] - e.out[2], bal[1] + e.in[1] - e.out[1], bal[2] + e.in[2] - e.out[0]];
+    out.push({ date: dd, lo: gstRound(bal[0]), bal: gstRound(bal[1]), hi: gstRound(bal[2]), in: gstRound(e.in[1]), out: gstRound(e.out[1]) });
+    if (bal[1] < min.bal) min = { bal: gstRound(bal[1]), date: dd };
+    if (!cross && bal[1] < 0) cross = dd;
+  }
+  var stale = todoDaysBetween(last.date, today);
+  if (stale > 3) rests.unshift('Starts from the balance on ' + formatDate(last.date) + ', the statement’s last day: ' + stale + ' days of payments since are not on it.');
+  return { asOf: last.date, start: last.balance, days: out, cross: cross, min: min, rests: rests, bookDays: bookMed };
+}
+
+function finForecastHtml() {
+  var fc = finForecast(60);
+  if (!fc) return '';
+  var pts = fc.days.filter(function(x, i) { return i % 3 === 2 || i === fc.days.length - 1; });
+  var h = '<div class="inv-panel inv-panels-wide" id="finForecast"><div class="inv-panel-head"><span class="inv-panel-title">Cash forecast, 60 days</span></div><div class="inv-panel-body">';
+  var at = function(n) { return fc.days[Math.min(n, fc.days.length) - 1]; };
+  var tiles = [['Now', fc.start, 'on the statement, ' + finShortDate(fc.asOf)], ['Lowest', fc.min.bal, 'on ' + finShortDate(fc.min.date)],
+    ['In 30 days', at(30).bal, at(30).lo < 0 && at(30).bal >= 0 ? 'could dip below zero' : 'P25–P75 ' + finRs(at(30).lo) + ' to ' + finRs(at(30).hi)],
+    ['In 60 days', at(60).bal, 'P25–P75 ' + finRs(at(60).lo) + ' to ' + finRs(at(60).hi)]];
+  h += '<div class="inv-tiles inv-tiles-4">' + tiles.map(function(t) {
+    return '<div class="inv-tile' + (t[1] < 0 ? ' inv-tile-danger' : '') + '" data-fc="' + t[0] + '"><div class="inv-tile-label">' + t[0] + '</div>' +
+      '<div class="inv-tile-value inv-tile-value-sm inv-num inv-nowrap" title="' + escHtml(formatCurrency(t[1])) + '">' + finRs(t[1]) + '</div><div class="inv-tile-sub">' + escHtml(t[2]) + '</div></div>';
+  }).join('') + '</div>';
+  if (fc.cross) h += '<div class="inv-callout inv-callout-danger">At this pace the account goes below zero on ' + escHtml(formatDate(fc.cross)) + '.</div>';
+  h += chartLines(pts.map(function(x) { return finShortDate(x.date); }), [{ label: 'Balance', values: pts.map(function(x) { return x.bal; }) }],
+    { band: pts.map(function(x) { return { lo: x.lo, hi: x.hi }; }), ariaLabel: 'Cash forecast' });
+  h += '<div class="inv-note">What it rests on:</div><ul class="inv-note">' + fc.rests.map(function(r) { return '<li>' + escHtml(r) + '</li>'; }).join('') + '</ul>';
+  return h + '</div></div>';
+}
+
+/* ---------- The rules ---------- */
+var FIN_RULES = [
+  ['bankStale', 'Finance: the bank statement is out of date'],
+  ['bankLoose', 'Finance: receipts not placed on a client'],
+  ['owed90', 'Finance: a client owes invoices over 90 days old'],
+  ['payingSlower', 'Finance: a client is paying slower than usual'],
+  ['gstNotInBank', 'Finance: a month’s GST is not on the statement'],
+  ['powerPaidNoBill', 'Finance: electricity paid with no bill entered'],
+  ['supplierNoBill', 'Finance: a supplier paid with no stock bill'],
+  ['wageVsSlip', 'Finance: a salary paid differs from the payroll as paid'],
+  ['cashSwing', 'Finance: a week’s cash drawn is far from its payout'],
+  ['costGap', 'Finance: a recorded cost is far from what was paid'],
+  ['runway', 'Finance: the cash forecast goes below zero']
+];
+FIN_RULES.forEach(function(r) { TODO_RULES.push(r); TODO_CHECK_DEFAULTS[r[0]] = true; });
+function finGo(tab, extra) { return Object.assign({ kind: 'finance', tab: tab }, extra || {}); }
+function _finRows() { return finCtx().rows; }
+
+TODO_RULE_FNS.bankStale = function() {
+  var rows = _finRows();
+  if (!rows.length) return [];
+  var last = rows[rows.length - 1].date, age = todoDaysBetween(last, localDateStr());
+  if (age < 14) return [];
+  return [{ key: 'bankStale', rule: 'bankStale', tone: age >= 30 ? 'red' : 'amber', title: 'Import the bank statement', sub: 'The last row is from ' + formatDate(last),
+    why: 'Bank · ' + todoPlural(age, 'day') + ' old', facts: [['Last row', formatDate(last)], ['Age', todoPlural(age, 'day')]],
+    clears: 'Clears itself when a newer statement is imported.', go: finGo('bank'), goLabel: 'Open the statement', sig: last }];
+};
+TODO_RULE_FNS.bankLoose = function() {
+  var today = localDateStr(), loose = finCtx().cls.filter(function(v) { return v.cat === 'receipt' && v.clientId == null && v.row.cr > 0 && todoDaysBetween(v.row.date, today) >= 7; });
+  if (!loose.length) return [];
+  var sum = gstRound(loose.reduce(function(s, v) { return s + v.row.cr; }, 0));
+  return [{ key: 'bankLoose', rule: 'bankLoose', tone: loose.length >= 10 || sum >= 100000 ? 'red' : 'amber',
+    title: 'Place ' + todoPlural(loose.length, 'receipt') + ' on a client', sub: formatCurrency(sum) + ' came in with no client, so what is owed reads high',
+    why: 'Receivables · a week or more unplaced', facts: [['Receipts', String(loose.length)], ['Amount', formatCurrency(sum)], ['Oldest', formatDate(loose[0].row.date)]],
+    clears: 'Clears itself when every receipt a week old is placed.', go: finGo('receipts', { anchor: 'bankLoose' }), goLabel: 'Place them', sig: loose.length + '|' + sum }];
+};
+TODO_RULE_FNS.owed90 = function() {
+  var today = localDateStr(), recv = finCtx().recv(), book = recv.reduce(function(s, r) { return s + Math.max(0, r.owed); }, 0);
+  // Unplaced receipts may have paid these: until they are placed the figure is an upper bound, never red.
+  var loose = finCtx().cls.filter(function(v) { return v.cat === 'receipt' && v.clientId == null && v.row.cr > 0; }).length;
+  return recv.map(function(r) {
+    var old = r.open.filter(function(o) { return o.inv && todoDaysBetween(o.date, today) > 90; });
+    if (!old.length) return null;
+    var sum = gstRound(old.reduce(function(s, o) { return s + o.due; }, 0));
+    return { key: 'owed90:' + r.client.id, rule: 'owed90', tone: !loose && book > 0 && sum >= book * 0.1 ? 'red' : 'amber',
+      title: r.client.name + ' owes ' + formatCurrency(sum) + ' over 90 days', sub: todoPlural(old.length, 'invoice') + ', oldest ' + formatDate(old[0].date) +
+        (loose ? ' · ' + todoPlural(loose, 'receipt') + ' not placed yet may have paid some' : ''),
+      why: 'Receivables · over 90 days', facts: [['Over 90 days', formatCurrency(sum)], ['Invoices', String(old.length)], ['Owed in all', formatCurrency(r.owed)]],
+      clears: 'Clears itself when they are paid, or the opening balance is corrected.', go: finGo('receipts', { client: r.client.id }), goLabel: 'Open the client', sig: old.length + '|' + sum };
+  }).filter(Boolean);
+};
+TODO_RULE_FNS.payingSlower = function() {
+  var hist = bankPayHistory();
+  return (S.clients || []).map(function(c) {
+    var d = bankDaysToPay(c.id, hist);
+    if (!d || d.n < 5 || d.median == null || d.last3 == null || d.last3 < d.median * 1.25 || d.last3 - d.median < 5) return null;
+    return { key: 'payingSlower:' + c.id, rule: 'payingSlower', tone: 'amber', title: c.name + ' is paying slower',
+      sub: 'Last three receipts ' + Math.round(d.last3) + ' days after the invoice, against a usual ' + Math.round(d.median),
+      why: 'Receivables · days to pay', facts: [['Usual', Math.round(d.median) + ' days'], ['Last three', Math.round(d.last3) + ' days'], ['Receipts', String(d.n)], ['Matched exactly', Math.round(d.exactShare * 100) + '%']],
+      clears: 'Clears itself when its last three receipts are back within its usual.', go: finGo('receipts', { client: c.id }), goLabel: 'Open the client', sig: d.list[d.list.length - 1].date };
+  }).filter(Boolean);
+};
+TODO_RULE_FNS.gstNotInBank = function() {
+  var c = bankCover();
+  if (!c) return [];
+  return finGstByMonth(insMonthsBack(6), finCtx().cls).filter(function(r) {
+    // Only where the statement reaches the day it was due by and covers the month: otherwise it cannot say.
+    return finGstStatus(r).missing && c.to >= r.dueBy && c.from <= r.month + '-01';
+  }).map(function(r) {
+    return { key: 'gstNotInBank:' + r.month, rule: 'gstNotInBank', tone: 'amber', title: 'GST for ' + billsMonthLabel(r.month) + ' is not on the statement',
+      sub: formatCurrency(r.due) + ' output tax due by ' + formatDate(r.dueBy) + '; add a note if it was paid another way',
+      why: 'GST · no payment, no note', facts: [['Output tax', formatCurrency(r.due)], ['Due by', formatDate(r.dueBy)]],
+      clears: 'Clears itself when the payment is on the statement or the month has a note.', go: finGo('gst', { gstMonth: r.month }), goLabel: 'Add a note', sig: r.month };
+  });
+};
+TODO_RULE_FNS.powerPaidNoBill = function() {
+  var miss = {};
+  bankPowerRows(finCtx().cls).forEach(function(v) {
+    var m = bankBillMonth(v.row);
+    if (costBills().some(function(b) { return b.kind === 'power' && !b.voided && b.month === m; })) return;
+    miss[m] = gstRound((miss[m] || 0) + v.row.dr);
+  });
+  var ms = Object.keys(miss).sort();
+  if (!ms.length) return [];
+  var tot = gstRound(ms.reduce(function(s, m) { return s + miss[m]; }, 0));
+  return [{ key: 'powerPaidNoBill', rule: 'powerPaidNoBill', tone: 'info',
+    title: ms.length === 1 ? 'Add the electricity bill the bank paid for ' + billsMonthLabel(ms[0]) : 'Add ' + ms.length + ' electricity bills the bank paid for',
+    sub: ms.map(billsMonthLabel).join(', ') + ' · ' + formatCurrency(tot) + '; Live cost reads them from the bank until then',
+    why: 'Payments · electricity', facts: ms.map(function(m) { return [billsMonthLabel(m), formatCurrency(miss[m])]; }),
+    clears: 'Clears itself when each month has its bill (one tap on Payments: Add as bill).', go: finGo('payments', { anchor: 'bankPower' }), goLabel: 'Add as bills', sig: ms.join('|') }];
+};
+TODO_RULE_FNS.supplierNoBill = function() {
+  var today = localDateStr(), byKey = {}, bills = {};
+  stockData().entries.forEach(function(e) {
+    if (e.voided || !e.supplier || !(e.kind === 'bill' || e.kind === 'received')) return;
+    var k = bankKey(e.supplier), m = String(e.billDate || e.date || '').slice(0, 7);
+    if (k && m) bills[k + '|' + m] = 1;
+  });
+  var billKeys = Object.keys(bills).map(function(x) { return x.split('|')[0]; });
+  finCtx().cls.forEach(function(v) {
+    if (v.cat !== 'supplier' || !(v.row.dr > 0) || todoDaysBetween(v.row.date, today) > 90) return;
+    var pk = bankKey(v.party || ''), m = v.row.date.slice(0, 7);
+    var bk = billKeys.find(function(b) { return b.length >= 4 && (pk.indexOf(b) === 0 || b.indexOf(pk) === 0); });
+    // A bill dated that month or the one before covers the payment: a bill is paid after it is raised.
+    if (bk && (bills[bk + '|' + m] || bills[bk + '|' + bankPrevMonth(m + '-01')])) return;
+    var e = byKey[pk + '|' + m] || (byKey[pk + '|' + m] = { name: v.supplier || v.party, month: m, paid: 0, n: 0 });
+    e.paid = gstRound(e.paid + v.row.dr); e.n++;
+  });
+  return Object.keys(byKey).map(function(k) {
+    var e = byKey[k];
+    return { key: 'supplierNoBill:' + k, rule: 'supplierNoBill', tone: 'info', title: 'Enter the stock bill for ' + e.name + ', ' + billsMonthLabel(e.month),
+      sub: formatCurrency(e.paid) + ' paid in ' + todoPlural(e.n, 'payment') + ' with no stock bill from them that month or the one before',
+      why: 'Payments · supplier', facts: [['Paid', formatCurrency(e.paid)], ['Month', billsMonthLabel(e.month)]],
+      clears: 'Clears itself when a stock bill from them is entered for that month.', go: { kind: 'stockList' }, goLabel: 'Open Stock', sig: e.paid + '' };
+  });
+};
+TODO_RULE_FNS.wageVsSlip = function() {
+  var byMonth = {};
+  finCtx().cls.forEach(function(v) {
+    if (v.cat !== 'wages' || v.cash || v.staffId == null || !(v.row.dr > 0)) return;
+    var m = v.row.date.slice(0, 7), e = byMonth[m] || (byMonth[m] = {});
+    e[String(v.staffId)] = gstRound((e[String(v.staffId)] || 0) + v.row.dr);
+  });
+  return Object.keys(byMonth).map(function(m) {
+    var slip = payrollPaidFor(bankPrevMonth(m + '-01'));
+    if (!slip) return null;
+    var off = [];
+    Object.keys(byMonth[m]).forEach(function(id) {
+      var row = slip.rows.find(function(r) { var pw = payrollWorker(r); return pw && String(pw.id) === id; });
+      if (!row) return;
+      var owed = gstRound(row.paid != null ? Number(row.paid) : (Number(row.dayPay) || 0) + (Number(row.ot) || 0)), d = gstRound(byMonth[m][id] - owed);
+      if (Math.abs(d) >= 1) off.push([((S.staff || []).find(function(w) { return String(w.id) === id; }) || { name: '?' }).name, d]);
+    });
+    if (!off.length) return null;
+    var pm = bankPrevMonth(m + '-01');
+    return { key: 'wageVsSlip:' + m, rule: 'wageVsSlip', tone: 'amber', title: todoPlural(off.length, 'salary', 'salaries') + ' for ' + billsMonthLabel(pm) + ' differ from the slip',
+      sub: off.slice(0, 3).map(function(o) { return o[0] + ' ' + (o[1] > 0 ? 'over' : 'short') + ' ' + formatCurrency(Math.abs(o[1])); }).join(' · '),
+      why: 'Payments · wages against payroll as paid', facts: off.map(function(o) { return [o[0], (o[1] > 0 ? '+' : '−') + formatCurrency(Math.abs(o[1]))]; }),
+      clears: 'Clears itself when the amounts agree; snooze it if a note explains them.', go: finGo('payments', { anchor: 'bankWages' }), goLabel: 'Open wages paid', sig: off.map(function(o) { return o[1]; }).join('|') };
+  }).filter(Boolean);
+};
+TODO_RULE_FNS.cashSwing = function() {
+  var c = bankCover(), today = localDateStr();
+  if (!c) return [];
+  var ws = attWeekStartOf(attAddDays(today, -7)), sat = attAddDays(ws, 6);
+  if (c.to < sat || c.from > ws) return [];
+  var drawn = gstRound(finCtx().cls.reduce(function(s, v) {
+    return s + (v.cat === 'wages' && (v.cash || v.staffId == null) && v.row.dr > 0 && attWeekStartOf(v.row.date) === ws ? v.row.dr : 0);
+  }, 0));
+  var pw = payWeek(ws);
+  if (!pw.recordedDays || !(pw.total > 0) || Math.abs(drawn - pw.total) < pw.total * 0.25) return [];
+  var d = gstRound(drawn - pw.total);
+  return [{ key: 'cashSwing:' + ws, rule: 'cashSwing', tone: 'amber', title: 'Cash drawn for the week to ' + formatDate(sat) + ' is ' + (d > 0 ? 'over' : 'under') + ' its payout',
+    sub: formatCurrency(drawn) + ' drawn against a payout of ' + formatCurrency(pw.total), why: 'Payments · cash by pay week',
+    facts: [['Drawn', formatCurrency(drawn)], ['Payout', formatCurrency(pw.total)], ['Gap', (d > 0 ? '+' : '−') + formatCurrency(Math.abs(d))]],
+    clears: 'Clears itself when the next week is within a quarter of its payout.', go: finGo('payments', { anchor: 'bankWages' }), goLabel: 'Open wages paid', sig: drawn + '|' + pw.total }];
+};
+TODO_RULE_FNS.costGap = function() {
+  var closed = finClosedMonths(3);
+  if (!closed.length) return [];
+  var from = closed[0] + '-01', to = finMonthEnd(closed[closed.length - 1]);
+  return liveCostPaidCheck(from, to).filter(function(r) { return r.flag; }).map(function(r) {
+    return { key: 'costGap:' + r.key, rule: 'costGap', tone: 'amber', title: r.label + ': recorded and paid are ' + (r.pct != null ? Math.round(Math.abs(r.pct) * 100) + '%' : 'far') + ' apart',
+      sub: 'Recorded ' + formatCurrency(r.recorded) + ' · paid ' + formatCurrency(r.paid) + ' over ' + r.months.map(billsMonthLabel).join(', '),
+      why: 'Live cost · recorded against paid', facts: [['Recorded', formatCurrency(r.recorded)], ['Paid', formatCurrency(r.paid)], ['Reads', r.why]],
+      clears: 'Clears itself when the two are within 10%; snooze it once the reason is known.', go: { kind: 'stats', tab: 'cost' }, goLabel: 'Open Live cost', sig: r.key + '|' + (r.pct != null ? Math.round(r.pct * 100) : '') };
+  });
+};
+TODO_RULE_FNS.runway = function() {
+  var fc = finForecast(45);
+  if (!fc || !fc.cross) return [];
+  return [{ key: 'runway', rule: 'runway', tone: 'red', title: 'Cash goes below zero on ' + formatDate(fc.cross),
+    sub: 'At the forecast’s pace; the lowest point is ' + formatCurrency(fc.min.bal) + ' on ' + formatDate(fc.min.date),
+    why: 'Finance · cash forecast', facts: [['Balance on ' + formatDate(fc.asOf), formatCurrency(fc.start)], ['Below zero', formatDate(fc.cross)], ['Lowest', formatCurrency(fc.min.bal)]],
+    clears: 'Clears itself when the forecast stays above zero for 45 days.', go: finGo('overview', { anchor: 'finForecast' }), goLabel: 'Open the forecast', sig: fc.cross }];
+};
 /* ===== CLIENT PERFORMANCE =====
  *
  * Month on month for one account, and — the part that earns its place — what
@@ -26102,6 +26798,8 @@ document.addEventListener('click', function(e) {
     case 'invAppearance': appearancePick(btn.dataset.k, btn.dataset.v); break;
     case 'invCloseSettings': closeSettings(); break;
     case 'invZincDeriveUplift': zincDeriveUplift(); break;
+    case 'invCostDeriveBank': costDeriveFromBank(btn.dataset.which); break;
+    case 'invCostUseDerived': costUseDerived(btn.dataset.field, btn.dataset.val); break;
     case 'invZincUseUplift': zincUseUplift(btn.dataset.pct); break;
     case 'invExportData': exportData(); break;
     case 'invImportData': importData(); break;

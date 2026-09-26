@@ -57,6 +57,7 @@ JS_SOURCES=(
     "$DIR/stats.js" \
     "$DIR/intel.js" \
     "$DIR/insights.js" \
+    "$DIR/finintel.js" \
     "$DIR/client-perf.js" \
     "$DIR/im-form.js" \
     "$DIR/im-dupe.js" \

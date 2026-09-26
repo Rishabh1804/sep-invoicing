@@ -75,6 +75,8 @@ test('the overview reads the statement: balance, cash by month, what went where,
   await importXls(page, JUL);
   await importXls(page, JUL_AUG);
   await finTab(page, 'overview');
+  // The fixture statement has fixed dates; "All" keeps its months in range whatever today is.
+  await page.locator('[data-action="invFinRange"][data-range="ALL"]').click();
 
   // The balance tile names the day it is from, and an overdraft reads as one.
   const bal = page.locator('[data-fin-tile="balance"]');
@@ -203,4 +205,44 @@ test('a month\'s GST paid another way gets a note, counts as paid, and reads as 
   await page.locator('#finGstPaid').fill('');
   await page.locator('[data-action="invFinGstSave"]').click();
   await expect(row).toContainText('Noted');
+});
+
+// ---- Phase 3: the dashboard is interactive ----
+
+test('the dashboard reads one range, and a tap on a month, a slice or a client goes where it points', async ({ page }) => {
+  await loadAppWithState(page, state());
+  await switchTab(page, 'pageFinance');
+  await finTab(page, 'bank');
+  await importXls(page, JUL);
+  await importXls(page, JUL_AUG);
+  await finTab(page, 'overview');
+  await page.locator('[data-action="invFinRange"][data-range="ALL"]').click();
+  await expect(page.locator('[data-action="invFinRange"][data-range="ALL"]')).toHaveAttribute('aria-pressed', 'true');
+  expect(await page.evaluate(() => { try { return localStorage.getItem('sep_inv_fin_range'); } catch { return null; } })).toBe('ALL');
+
+  // Cash: balance, in and out on one axis; tapping July's point moves "where money went" to July.
+  await expect(page.locator('#finCash polyline.inv-chart-path')).toHaveCount(3);
+  await page.locator('#finCash .inv-chart-pt[data-key="2026-07"]').first().click();
+  await expect(page.locator('#finMonthPick')).toHaveValue('2026-07');
+
+  // July's outflow as a pie; tapping Electricity lists its payment and opens the statement on that category.
+  const wedge = page.locator('#finWent .inv-chart-legend-row[data-key="power"]');
+  await wedge.click();
+  await expect(page.locator('#finWent .inv-chart-legend-row[data-key="power"]')).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.locator('#finWent [data-went-row]')).toHaveCount(1);
+  await expect(page.locator('#finWent [data-went-row]')).toContainText('₹61,234.50');
+  await page.locator('[data-action="invFinStatementCat"]').click();
+  await expect(page.locator('[data-action="invFinTab"][data-tab="bank"]')).toHaveAttribute('aria-selected', 'true');
+  await expect(page.locator('#bankCatFilter')).toHaveValue('power');
+
+  // Where money came from: unplaced receipts are a named slice, and it opens them.
+  await finTab(page, 'overview');
+  await expect(page.locator('#finFrom .inv-chart-legend-row[data-key="__loose"]')).toContainText('Not placed yet');
+  await page.locator('#finFrom .inv-chart-legend-row[data-key="__loose"]').click();
+  await expect(page.locator('[data-action="invFinTab"][data-tab="receipts"]')).toHaveAttribute('aria-selected', 'true');
+
+  // GST due against paid, grouped, and invoiced against received as two lines.
+  await finTab(page, 'overview');
+  await expect(page.locator('#finGst rect.inv-chart-seg').first()).toBeVisible();
+  await expect(page.locator('#finInvRec polyline.inv-chart-path')).toHaveCount(2);
 });

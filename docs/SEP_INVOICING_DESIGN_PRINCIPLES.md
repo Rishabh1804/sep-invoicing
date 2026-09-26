@@ -510,6 +510,18 @@ Same module, restyled: axis text `--t-micro` mono `--text-3`, gridlines `--borde
 Legend is inline in the panel head. Every datum keeps its `<title>`. SVG `font-size` attributes become the
 `--fs-*` tokens via `var()` on the text elements' class.
 
+**Charts that answer questions** (26 Sep 2026, finance spec Phase 2). Each is drawn into an `inv-chart-box`: the
+drawing, its keys (`inv-chart-keys`, each series with its last value), and an `inv-chart-readout` line — a phone has
+no hover, so a tap on any datum writes its exact figure there (`data-read`, action `invChartRead`, `chartShowRead`),
+and the tapped datum is ringed.
+- `chartLines(labels, series, opts)` — several series on one axis (`--chart-*` strokes `inv-chart-s0…7`), a range
+  that crosses zero draws a zero rule (`inv-chart-zero`), `opts.band` draws a forecast range (`inv-chart-band`).
+- `chartStack(labels, series, {mode: 'stack'|'group'})` — a whole of parts, or two figures side by side; a segment
+  carries `data-key` and an optional action, and the selected key is ringed.
+- `chartPieTap(slices, {action, selected})` — a pie that filters: wedge and legend row (a button) carry the action
+  and key; the selected wedge is pulled out. The centre shows the total and never takes a tap.
+- `chartRangeHtml(active, action)` — `3M · 6M · FY · All` chips; `chartRangeMonths(range, months)` says which months.
+
 ### 6.18 Callout and empty state — `inv-callout`, `inv-empty`
 - `inv-callout-info|warning|danger|neutral`: tone bg + tone text, `--r-lg`, leading icon, `--t-body`.
   For "how this figure is made" notes, caveats and warnings about the data on screen.
@@ -538,7 +550,7 @@ density §3.5) under Data & device, each a segmented control that applies at onc
 | Clients / Items / Performance | tabs · toolbar · rows | tabs · table · detail pane |
 | To-do | tabs (Open / Done) · add field · rows with a dot and meta | same, wider |
 | Stock | stat strip (Out / ≤ 7 days / OK / No price, each filters) · one table grouped by status · reorder list as a table | same + detail pane for a line's pattern |
-| Finance → Overview | view tabs Overview / Receivables / Payments / Bank / Bills & notes / GST (the open one scrolled into view) · tiles (balance, owed, paid out, GST) · panels: cash by month (table, balance line when all in credit), owed to us (ageing as `inv-tiles-4`, top debtors as rows), where money went (month picker, ranked bars, three rows), GST due and paid (table, wide) · whole rupees on the Overview only | same, panels two across |
+| Finance → Overview | view tabs (the open one scrolled into view) · tiles (balance, owed, paid out, GST) · range chips `3M · 6M · FY · All` driving every panel · cash (`chartLines`: balance, in, out; tap a month) and its table · where money went (`chartStack` over the range, `chartPieTap` for the month, a slice lists its payments) · where money came from (`chartPieTap` by client, unplaced a named slice) · owed to us (ageing `inv-tiles-4`, top debtors) · invoiced against received (`chartLines`) · GST (`chartStack` grouped, then the table) · whole rupees on the Overview only | same, panels two across |
 | Finance → Receivables / Payments / Bank | head panel (range, rows, closing, balance check) · view tabs Receipts / Payments / Statement · Receipts: client rows expanding to receipts (*Exact* / *Oldest first* badge) and open invoices · Statement: filter + search, rows with a category dot, the row's edit as an `inv-panel-body` | same |
 | Finance → Bills & notes | two flush panels (electricity by month with missing months as rows; credit notes) · the note form as an `inv-panel-body` | same, panels side by side |
 | Staff | tabs Day / Week / Pay / Areas / Roster · Day: date stepper, stat strip, rows with P/H/A segmented + area + OT · Week: grid (`inv-table-grid`) | same; Week grid shows hours per cell |

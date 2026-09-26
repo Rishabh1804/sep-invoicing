@@ -20,13 +20,17 @@ function chartNiceMax(v) {
   if (!(v > 0)) return 1;
   var mag = Math.pow(10, Math.floor(Math.log10(v)));
   var n = v / mag;
-  var step = n <= 1 ? 1 : n <= 2 ? 2 : n <= 2.5 ? 2.5 : n <= 5 ? 5 : 10;
+  // Steps that split into four clean gridlines: jumping 1 → 2 drew a ₹10.3L peak on a ₹20L frame, half empty.
+  var steps = [1, 1.2, 1.6, 2, 2.4, 3, 4, 6, 8, 10];
+  var step = steps.find(function(x) { return n <= x + 1e-9; }) || 10;
   return step * mag;
 }
 
 /* Axis and tooltip formatting per unit. Rupees get lakh/thousand shortening
    because a job-work month runs to seven figures and the axis is 40px wide. */
 function chartShort(v, unit) {
+  // The sign leads the currency: -₹25K, not ₹-25K.
+  if (v < 0) return '-' + chartShort(-v, unit);
   if (unit === 'kg') {
     return Math.abs(v) >= 1000 ? formatNum(v / 1000, 1) + 't' : formatNum(v, 0) + 'kg';
   }
@@ -240,4 +244,187 @@ function chartRankedBars(rows, opts) {
   });
   html += '</div>';
   return html;
+}
+
+/* ===== CHARTS THAT ANSWER QUESTIONS (docs/FINANCE_INTELLIGENCE_SPEC.md, Phase 2) =====
+   The functions above draw one series from a zero floor. A finance dashboard needs more:
+   a balance that goes overdrawn, money in against money out on one axis, a forecast drawn as a
+   range, a month's outflow stacked by category, a pie that filters what is under it, and a way to
+   read a figure on a phone, where there is no hover to raise a <title>. Everything stays SVG, sized
+   by CSS, tokens only; every datum still carries its <title>.
+
+   Tap-to-read: a datum carries data-read="label: figure"; a tap writes it into the chart box's
+   readout line (chartShowRead). A datum with an action of its own (a wedge that filters) keeps it,
+   and its handler calls chartShowRead too. */
+
+/* A round step either side of the data: the frame for a range that may cross zero. */
+function chartNiceRange(lo, hi) {
+  lo = Math.min(0, lo); hi = Math.max(0, hi);
+  if (hi === lo) hi = lo + 1;
+  var niceHi = hi > 0 ? chartNiceMax(hi) : 0, niceLo = lo < 0 ? -chartNiceMax(-lo) : 0;
+  return { lo: niceLo, hi: niceHi };
+}
+
+function _chartBox(inner, opts) {
+  return '<div class="inv-chart-box"' + (opts && opts.id ? ' id="' + escHtml(opts.id) + '"' : '') + '>' + inner +
+    '<div class="inv-chart-readout" aria-live="polite">' + escHtml((opts && opts.readHint) || 'Tap a point to read it') + '</div></div>';
+}
+function _chartSeriesLegend(series, unit, lastOf) {
+  return '<div class="inv-chart-keys">' + series.map(function(s, i) {
+    var v = lastOf ? lastOf(s) : null;
+    return '<span class="inv-chart-key"><span class="inv-chart-swatch inv-chart-c' + (s.tone != null ? s.tone : i) + '"></span>' + escHtml(s.label) +
+      (v != null ? ' <span class="inv-mono">' + escHtml(chartShort(v, unit)) + '</span>' : '') + '</span>';
+  }).join('') + '</div>';
+}
+
+/* Several series over the same labels, crossing zero when they must, with an optional band.
+   labels: ['Apr', …]; series: [{label, values: [n|null], tone?}]; opts: {unit, band: [{lo, hi}|null], ariaLabel}. */
+function chartLines(labels, series, opts) {
+  opts = opts || {};
+  var unit = opts.unit || 'money';
+  if (!labels || labels.length < 2 || !series || !series.length) return _chartEmpty(opts.emptyText || 'Need at least two points to show a trend');
+  var all = [];
+  series.forEach(function(s) { s.values.forEach(function(v) { if (v != null && isFinite(v)) all.push(v); }); });
+  (opts.band || []).forEach(function(b) { if (b) { all.push(b.lo); all.push(b.hi); } });
+  if (!all.length) return _chartEmpty(opts.emptyText || 'No data in this period');
+  var W = 480, H = 220, pad = { l: 50, r: 12, t: 14, b: 30 };
+  var r = chartNiceRange(Math.min.apply(null, all), Math.max.apply(null, all));
+  var cw = W - pad.l - pad.r, ch = H - pad.t - pad.b;
+  var x = function(i) { return pad.l + (labels.length === 1 ? cw / 2 : (i / (labels.length - 1)) * cw); };
+  var y = function(v) { return pad.t + ch - ((v - r.lo) / (r.hi - r.lo)) * ch; };
+  var svg = '<svg class="inv-chart-svg" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="' + escHtml(opts.ariaLabel || 'Trend') + '">';
+  for (var g = 0; g <= 4; g++) {
+    var gv = r.hi - (g / 4) * (r.hi - r.lo), gy = y(gv);
+    svg += '<line x1="' + pad.l + '" y1="' + gy + '" x2="' + (W - pad.r) + '" y2="' + gy + '" class="inv-svg-grid"/>' +
+      '<text x="' + (pad.l - 4) + '" y="' + (gy + 3) + '" text-anchor="end" class="inv-svg-grid-label">' + escHtml(chartShort(gv, unit)) + '</text>';
+  }
+  if (r.lo < 0) svg += '<line x1="' + pad.l + '" y1="' + y(0) + '" x2="' + (W - pad.r) + '" y2="' + y(0) + '" class="inv-chart-zero"/>';
+  if (opts.band) {
+    var up = [], down = [];
+    opts.band.forEach(function(b, i) { if (b) { up.push(x(i) + ',' + y(b.hi)); down.unshift(x(i) + ',' + y(b.lo)); } });
+    if (up.length > 1) svg += '<polygon points="' + up.concat(down).join(' ') + '" class="inv-chart-band"/>';
+  }
+  series.forEach(function(s, si) {
+    var tone = s.tone != null ? s.tone : si, pts = [];
+    s.values.forEach(function(v, i) { if (v != null && isFinite(v)) pts.push([x(i), y(v), v, i]); });
+    if (pts.length > 1) svg += '<polyline points="' + pts.map(function(p) { return p[0] + ',' + p[1]; }).join(' ') + '" class="inv-chart-path inv-chart-s' + tone + '"' + (s.dashed ? ' stroke-dasharray="4 3"' : '') + '/>';
+    pts.forEach(function(p) {
+      var read = s.label + ', ' + labels[p[3]] + ': ' + chartFull(p[2], unit);
+      svg += '<circle cx="' + p[0] + '" cy="' + p[1] + '" r="3.5" class="inv-chart-pt inv-chart-c' + tone + '" data-action="' + escHtml(opts.pointAction || 'invChartRead') + '" data-read="' + escHtml(read) + '"' +
+        ' data-key="' + escHtml(opts.keys ? opts.keys[p[3]] : labels[p[3]]) + '"' +
+        '><title>' + escHtml(read) + '</title></circle>';
+    });
+  });
+  var stride = _chartLabelStride(labels.length, opts.maxLabels);
+  labels.forEach(function(l, i) {
+    if (i % stride === 0 || i === labels.length - 1) svg += '<text x="' + x(i) + '" y="' + (pad.t + ch + 14) + '" text-anchor="middle" class="inv-svg-axis-label">' + escHtml(l) + '</text>';
+  });
+  svg += '</svg>';
+  var last = function(s) { for (var i = s.values.length - 1; i >= 0; i--) if (s.values[i] != null) return s.values[i]; return null; };
+  return _chartBox(svg + _chartSeriesLegend(series, unit, last), opts);
+}
+
+/* Bars per label, stacked (a whole made of parts) or grouped (two figures side by side).
+   series: [{label, values: [n], tone?}]; opts: {unit, mode: 'stack'|'group', action, keys}. Values ≥ 0. */
+function chartStack(labels, series, opts) {
+  opts = opts || {};
+  var unit = opts.unit || 'money', group = opts.mode === 'group';
+  if (!labels || !labels.length || !series || !series.length) return _chartEmpty(opts.emptyText || 'No data in this period');
+  var totals = labels.map(function(_, i) {
+    return group ? Math.max.apply(null, series.map(function(s) { return s.values[i] || 0; })) : series.reduce(function(t, s) { return t + (s.values[i] || 0); }, 0);
+  });
+  var max = Math.max.apply(null, totals.concat([0]));
+  if (!(max > 0)) return _chartEmpty(opts.emptyText || 'No data in this period');
+  var W = 480, H = 220, pad = { l: 50, r: 12, t: 14, b: 30 };
+  var f = _chartFrame(labels.map(function(l, i) { return { label: l, value: totals[i] }; }), unit, W, H, pad);
+  var slot = f.chartW / labels.length, barW = Math.max(slot * 0.62, 1);
+  var svg = '<svg class="inv-chart-svg" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="' + escHtml(opts.ariaLabel || 'Bars') + '">' + f.svg;
+  var stride = _chartLabelStride(labels.length, opts.maxLabels);
+  labels.forEach(function(l, i) {
+    var x0 = pad.l + i * slot + (slot - barW) / 2, base = pad.t + f.chartH, w = group ? barW / series.length : barW;
+    var key = opts.keys ? opts.keys[i] : l;
+    series.forEach(function(s, si) {
+      var v = s.values[i] || 0;
+      if (!(v > 0)) return;
+      var h = (v / f.maxVal) * f.chartH, bx = group ? x0 + si * w : x0, by = group ? base - h : base - h;
+      var read = l + ', ' + s.label + ': ' + chartFull(v, unit);
+      svg += '<rect x="' + bx + '" y="' + by + '" width="' + Math.max(w - (group ? 1 : 0), 1) + '" height="' + h + '" class="inv-chart-seg inv-chart-c' + (s.tone != null ? s.tone : si) + '"' +
+        ' data-action="' + escHtml(opts.action || 'invChartRead') + '" data-read="' + escHtml(read) + '" data-key="' + escHtml(key) + '" data-series="' + si + '"' +
+        (opts.selected != null && String(opts.selected) === String(key) ? ' aria-current="true"' : '') + '><title>' + escHtml(read) + '</title></rect>';
+      if (!group) base -= h;
+    });
+    if (i % stride === 0 || i === labels.length - 1) svg += '<text x="' + (x0 + barW / 2) + '" y="' + (pad.t + f.chartH + 14) + '" text-anchor="middle" class="inv-svg-axis-label">' + escHtml(l) + '</text>';
+  });
+  svg += '</svg>';
+  if (!opts.readHint) opts.readHint = 'Tap a bar to read it';
+  return _chartBox(svg + _chartSeriesLegend(series, unit, null), opts);
+}
+
+/* A pie that filters what is under it: each wedge and legend row carries data-key and the action;
+   the selected wedge is pulled out along its bisector. slices: [{key, label, value}]. */
+function chartPieTap(slices, opts) {
+  opts = opts || {};
+  var unit = opts.unit || 'money';
+  var rows = (slices || []).filter(function(s) { return s.value > 0; }).sort(function(a, b) { return b.value - a.value; });
+  if (!rows.length) return _chartEmpty(opts.emptyText || 'No data in this period');
+  var shown = rows.slice(0, CHART_SERIES_MAX), rest = rows.slice(CHART_SERIES_MAX);
+  if (rest.length) shown.push({ key: '__others', label: rest.length + ' others', value: rest.reduce(function(s, r) { return s + r.value; }, 0), _others: true });
+  var total = shown.reduce(function(s, r) { return s + r.value; }, 0);
+  var R = 96, CX = 105, CY = 105, inner = 54, angle = -Math.PI / 2, act = opts.action || 'invChartRead';
+  var svg = '<svg class="inv-chart-pie-svg" viewBox="0 0 210 210" role="img" aria-label="' + escHtml(opts.ariaLabel || 'Composition') + '">';
+  shown.forEach(function(s, i) {
+    var frac = s.value / total, sweep = frac * Math.PI * 2, end = angle + sweep, mid = angle + sweep / 2;
+    // A slice may carry its own tone, so a category keeps one colour across every chart on a page.
+    var cls = 'inv-chart-c' + (s._others ? 'x' : (s.tone != null ? s.tone : i)), sel = opts.selected != null && String(opts.selected) === String(s.key);
+    var dx = sel ? 6 * Math.cos(mid) : 0, dy = sel ? 6 * Math.sin(mid) : 0;
+    var read = s.label + ': ' + chartFull(s.value, unit) + ' (' + formatNum(frac * 100, 1) + '%)';
+    var attrs = ' class="inv-chart-wedge ' + cls + '" data-action="' + escHtml(act) + '" data-key="' + escHtml(s.key) + '" data-read="' + escHtml(read) + '"' + (sel ? ' aria-current="true"' : '');
+    if (frac >= 0.9999) svg += '<circle cx="' + CX + '" cy="' + CY + '" r="' + R + '"' + attrs + '><title>' + escHtml(read) + '</title></circle>';
+    else {
+      var x1 = CX + dx + R * Math.cos(angle), y1 = CY + dy + R * Math.sin(angle), x2 = CX + dx + R * Math.cos(end), y2 = CY + dy + R * Math.sin(end);
+      svg += '<path d="M' + (CX + dx) + ',' + (CY + dy) + ' L' + x1 + ',' + y1 + ' A' + R + ',' + R + ' 0 ' + (sweep > Math.PI ? 1 : 0) + ' 1 ' + x2 + ',' + y2 + ' Z"' + attrs +
+        '><title>' + escHtml(read) + '</title></path>';
+    }
+    angle = end;
+  });
+  svg += '<circle cx="' + CX + '" cy="' + CY + '" r="' + inner + '" class="inv-chart-hole"/>' +
+    '<text x="' + CX + '" y="' + (CY + 4) + '" text-anchor="middle" class="inv-chart-centre">' + escHtml(chartShort(total, unit)) + '</text></svg>';
+  var legend = '<div class="inv-chart-legend">' + shown.map(function(s, i) {
+    var sel = opts.selected != null && String(opts.selected) === String(s.key);
+    return '<button type="button" class="inv-chart-legend-row" data-action="' + escHtml(act) + '" data-key="' + escHtml(s.key) + '" data-read="' + escHtml(s.label + ': ' + chartFull(s.value, unit)) + '"' +
+      ' aria-pressed="' + sel + '"><span class="inv-chart-swatch inv-chart-c' + (s._others ? 'x' : (s.tone != null ? s.tone : i)) + '"></span>' +
+      '<span class="inv-chart-legend-label">' + escHtml(s.label) + '</span><span class="inv-chart-legend-val inv-mono">' + escHtml(chartShort(s.value, unit)) + '</span>' +
+      '<span class="inv-chart-legend-pct inv-mono">' + formatNum(s.value / total * 100, 1) + '%</span></button>';
+  }).join('') + '</div>';
+  return _chartBox('<div class="inv-chart-pie-wrap">' + svg + legend + '</div>', opts);
+}
+
+/* The horizon a dashboard reads: 3 months, 6, this financial year (April on), or everything. */
+var CHART_RANGES = [['3M', '3M'], ['6M', '6M'], ['FY', 'FY'], ['ALL', 'All']];
+function chartRangeHtml(active, action) {
+  return '<div class="inv-toolbar inv-chart-ranges" role="group" aria-label="Range">' + CHART_RANGES.map(function(r) {
+    return '<button type="button" class="inv-chip" aria-pressed="' + (active === r[0]) + '" data-action="' + escHtml(action) + '" data-range="' + r[0] + '">' + r[1] + '</button>';
+  }).join('') + '</div>';
+}
+/* The months (YYYY-MM, oldest first) a range covers, out of those with data. */
+function chartRangeMonths(range, months) {
+  var ms = (months || []).slice().sort();
+  if (range === '3M') return ms.slice(-3);
+  if (range === '6M') return ms.slice(-6);
+  if (range === 'FY') {
+    var t = localDateStr(), y = +t.slice(0, 4), m = +t.slice(5, 7), start = (m >= 4 ? y : y - 1) + '-04';
+    return ms.filter(function(x) { return x >= start; });
+  }
+  return ms;
+}
+
+/* Writes a datum's figure into its chart's readout, and marks it. */
+function chartShowRead(el) {
+  if (!el || !el.dataset || !el.dataset.read) return;
+  var box = el.closest('.inv-chart-box');
+  if (!box) return;
+  var out = box.querySelector('.inv-chart-readout');
+  if (out) out.textContent = el.dataset.read;
+  box.querySelectorAll('.inv-chart-read-on').forEach(function(n) { n.classList.remove('inv-chart-read-on'); });
+  el.classList.add('inv-chart-read-on');
 }

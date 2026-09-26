@@ -1294,6 +1294,24 @@ table.inv-qc-grid.inv-qc-no-top { border-top: 0; }
   .inv-chart-svg { max-height: 320px; }
 }
 .inv-chart-bar { fill: var(--accent); }
+/* Phase 2 charts (docs/FINANCE_INTELLIGENCE_SPEC.md). A box holds the drawing, its keys and a readout
+   line: on a phone there is no hover to raise a <title>, so a tap writes the figure there. */
+.inv-chart-box { display: flex; flex-direction: column; gap: var(--sp-6); }
+.inv-chart-readout { min-height: var(--row-h); display: flex; align-items: center; padding: 0 var(--sp-4); font-size: var(--fs-13); color: var(--text-2); font-family: var(--ff-mono); }
+.inv-chart-keys { display: flex; flex-wrap: wrap; gap: var(--sp-6) var(--sp-16); font-size: var(--fs-12); color: var(--text-2); }
+.inv-chart-key { display: inline-flex; align-items: center; gap: var(--sp-6); }
+.inv-chart-zero { stroke: var(--text-3); stroke-width: 1; }
+.inv-chart-band { fill: var(--chart-1); opacity: 0.16; }
+.inv-chart-path { fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.inv-chart-s0 { stroke: var(--chart-1); } .inv-chart-s1 { stroke: var(--chart-2); } .inv-chart-s2 { stroke: var(--chart-3); }
+.inv-chart-s3 { stroke: var(--chart-4); } .inv-chart-s4 { stroke: var(--chart-5); } .inv-chart-s5 { stroke: var(--chart-6); }
+.inv-chart-s6 { stroke: var(--chart-7); } .inv-chart-s7 { stroke: var(--chart-8); }
+.inv-chart-pt, .inv-chart-seg, .inv-chart-wedge { cursor: pointer; stroke: var(--surface); stroke-width: 1; }
+.inv-chart-read-on, .inv-chart-seg[aria-current="true"], .inv-chart-wedge[aria-current="true"] { stroke: var(--text-1); stroke-width: 2; }
+.inv-chart-centre { font-size: 15px; font-weight: 600; fill: var(--text-1); font-family: var(--ff-mono); pointer-events: none; }
+.inv-chart-ranges { margin-bottom: var(--sp-8); }
+button.inv-chart-legend-row { width: 100%; background: none; border: none; font: inherit; color: inherit; text-align: left; cursor: pointer; }
+.inv-chart-legend-row[aria-pressed="true"] { background: var(--accent-soft); color: var(--accent-soft-text); }
 .inv-chart-empty {
   color: var(--text-3); font-size: var(--fs-sm);
   padding: var(--sp-16); text-align: center;

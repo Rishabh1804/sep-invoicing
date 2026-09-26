@@ -18,7 +18,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <!-- Appearance before first paint (§3.2): the device's theme and palette, so nothing flashes in the wrong colours. -->
 <script>(function(){try{var d=document.documentElement,t=localStorage.getItem("sep_inv_theme"),p=localStorage.getItem("sep_inv_palette");if(t==="light"||t==="dark")d.dataset.theme=t;d.dataset.palette=(p==="zinc"||p==="terracotta")?p:"teal";}catch(e){document.documentElement.dataset.palette="teal";}})();</script>
-<meta name="app-build" content="42d5df2d">
+<meta name="app-build" content="1918a344">
 <style>
 /* ===== DESIGN TOKENS (design system v2.0 — docs/SEP_INVOICING_DESIGN_PRINCIPLES.md §3) ===== */
 /* Theme: colour-scheme decides every light-dark() below. <html data-theme> is set before first paint
@@ -12991,13 +12991,17 @@ function chartNiceMax(v) {
   if (!(v > 0)) return 1;
   var mag = Math.pow(10, Math.floor(Math.log10(v)));
   var n = v / mag;
-  var step = n <= 1 ? 1 : n <= 2 ? 2 : n <= 2.5 ? 2.5 : n <= 5 ? 5 : 10;
+  // Steps that split into four clean gridlines: jumping 1 → 2 drew a ₹10.3L peak on a ₹20L frame, half empty.
+  var steps = [1, 1.2, 1.6, 2, 2.4, 3, 4, 6, 8, 10];
+  var step = steps.find(function(x) { return n <= x + 1e-9; }) || 10;
   return step * mag;
 }
 
 /* Axis and tooltip formatting per unit. Rupees get lakh/thousand shortening
    because a job-work month runs to seven figures and the axis is 40px wide. */
 function chartShort(v, unit) {
+  // The sign leads the currency: -₹25K, not ₹-25K.
+  if (v < 0) return '-' + chartShort(-v, unit);
   if (unit === 'kg') {
     return Math.abs(v) >= 1000 ? formatNum(v / 1000, 1) + 't' : formatNum(v, 0) + 'kg';
   }
@@ -13323,6 +13327,7 @@ function chartStack(labels, series, opts) {
     if (i % stride === 0 || i === labels.length - 1) svg += '<text x="' + (x0 + barW / 2) + '" y="' + (pad.t + f.chartH + 14) + '" text-anchor="middle" class="inv-svg-axis-label">' + escHtml(l) + '</text>';
   });
   svg += '</svg>';
+  if (!opts.readHint) opts.readHint = 'Tap a bar to read it';
   return _chartBox(svg + _chartSeriesLegend(series, unit, null), opts);
 }
 
@@ -13340,7 +13345,8 @@ function chartPieTap(slices, opts) {
   var svg = '<svg class="inv-chart-pie-svg" viewBox="0 0 210 210" role="img" aria-label="' + escHtml(opts.ariaLabel || 'Composition') + '">';
   shown.forEach(function(s, i) {
     var frac = s.value / total, sweep = frac * Math.PI * 2, end = angle + sweep, mid = angle + sweep / 2;
-    var cls = 'inv-chart-c' + (s._others ? 'x' : i), sel = opts.selected != null && String(opts.selected) === String(s.key);
+    // A slice may carry its own tone, so a category keeps one colour across every chart on a page.
+    var cls = 'inv-chart-c' + (s._others ? 'x' : (s.tone != null ? s.tone : i)), sel = opts.selected != null && String(opts.selected) === String(s.key);
     var dx = sel ? 6 * Math.cos(mid) : 0, dy = sel ? 6 * Math.sin(mid) : 0;
     var read = s.label + ': ' + chartFull(s.value, unit) + ' (' + formatNum(frac * 100, 1) + '%)';
     var attrs = ' class="inv-chart-wedge ' + cls + '" data-action="' + escHtml(act) + '" data-key="' + escHtml(s.key) + '" data-read="' + escHtml(read) + '"' + (sel ? ' aria-current="true"' : '');
@@ -13357,7 +13363,7 @@ function chartPieTap(slices, opts) {
   var legend = '<div class="inv-chart-legend">' + shown.map(function(s, i) {
     var sel = opts.selected != null && String(opts.selected) === String(s.key);
     return '<button type="button" class="inv-chart-legend-row" data-action="' + escHtml(act) + '" data-key="' + escHtml(s.key) + '" data-read="' + escHtml(s.label + ': ' + chartFull(s.value, unit)) + '"' +
-      ' aria-pressed="' + sel + '"><span class="inv-chart-swatch inv-chart-c' + (s._others ? 'x' : i) + '"></span>' +
+      ' aria-pressed="' + sel + '"><span class="inv-chart-swatch inv-chart-c' + (s._others ? 'x' : (s.tone != null ? s.tone : i)) + '"></span>' +
       '<span class="inv-chart-legend-label">' + escHtml(s.label) + '</span><span class="inv-chart-legend-val inv-mono">' + escHtml(chartShort(s.value, unit)) + '</span>' +
       '<span class="inv-chart-legend-pct inv-mono">' + formatNum(s.value / total * 100, 1) + '%</span></button>';
   }).join('') + '</div>';
@@ -20704,6 +20710,9 @@ var FIN_TABS = [['overview', 'Overview'], ['receipts', 'Receivables'], ['payment
 var _finTab = (function() { try { var t = localStorage.getItem('sep_inv_fin_tab'); return FIN_TABS.some(function(x) { return x[0] === t; }) ? t : 'overview'; } catch (e) { return 'overview'; } })();
 var _finGstEdit = null;   // the month whose GST note is open
 var _finMonth = null;   // the month "where money went" reads; null = the latest with a statement row
+var _finCat = null;     // the outflow category the pie has open
+// The horizon every Overview panel reads; a per-device convenience, like the open tab.
+var _finRange = (function() { try { var r = localStorage.getItem('sep_inv_fin_range'); return CHART_RANGES.some(function(x) { return x[0] === r; }) ? r : '6M'; } catch (e) { return '6M'; } })();
 
 function finSetTab(t) {
   if (!FIN_TABS.some(function(x) { return x[0] === t; })) t = 'overview';
@@ -20810,19 +20819,32 @@ function finGstStatus(r) {
 /* "Jun '26": a month column that has to leave room for a status on a phone. */
 function finShortMonth(ym) { return TREND_MONTH_LABELS[parseInt(ym.slice(5, 7), 10) - 1] + " '" + ym.slice(2, 4); }
 function finShortDate(iso) { var d = new Date(iso + 'T00:00:00'); return d.getDate() + ' ' + TREND_MONTH_LABELS[d.getMonth()]; }
-function finGstHtml(n, wide) {
+function finGstHtml(n, wide, chartMonths) {
   var cls = bankClassify(), rows = finGstByMonth(finMonths(n), cls).reverse();
+  // On the Overview the table is led by the range's due against paid (paid includes outside the bank).
+  var chart = '';
+  if (chartMonths && chartMonths.length) {
+    var g = finGstByMonth(chartMonths, cls);
+    chart = '<div class="inv-panel-body">' + chartStack(chartMonths.map(function(m) { return insMonthLabel(m) + (chartMonths.length > 12 ? " '" + m.slice(2, 4) : ''); }), [
+      { label: 'Due', values: g.map(function(r) { return Math.max(0, r.due); }) },
+      { label: 'Paid', values: g.map(function(r) { return r.paid; }), tone: 2 }
+    ], { mode: 'group', ariaLabel: 'GST due and paid', keys: chartMonths }) + '</div>';
+  }
   var h = '<div class="inv-panel inv-panel-flush' + (wide ? ' inv-panels-wide' : '') + '" id="finGst"><div class="inv-panel-head"><span class="inv-panel-title">GST due and paid</span></div>' +
-    '<div class="inv-panel-body inv-note">Due is the output tax on the month\'s invoices less the tax on its credit notes. Paid is the GST the bank sent the month after. ' +
+    chart + '<div class="inv-panel-body inv-note">Due is the output tax on the month\'s invoices less the tax on its credit notes. Paid is the GST the bank sent the month after. ' +
     'Cash paid is output tax less input credit, so paying less than is due is normal; the gap is the credit claimed, or a shortfall only the return can tell apart.</div>' +
     (_finGstEdit ? finGstNoteFormHtml(_finGstEdit) : '') +
     '<div class="inv-scroll"><table class="inv-table"><thead><tr><th>Month</th><th class="inv-num">Due</th><th class="inv-num">Paid</th><th>Status</th></tr></thead><tbody>';
   rows.forEach(function(r) {
     var st = finGstStatus(r);
     h += '<tr data-gst="' + r.month + '"><td class="inv-nowrap" title="' + escHtml(billsMonthLabel(r.month)) + '">' + escHtml(finShortMonth(r.month)) + '</td><td class="inv-num">' + formatCurrency(r.due) + '</td>' +
-      '<td class="inv-num">' + (r.paid ? formatCurrency(r.paid) : '&mdash;') + '</td><td><span class="inv-dot inv-dot-' + st.tone + '"' + (st.title ? ' title="' + escHtml(st.title) + '"' : '') + '>' + escHtml(st.text) + '</span>' +
-      // A note is possible for any month the bank shows no payment for, not only once it is overdue.
-      (r.note || (r.due > 0 && !r.paidBank) ? ' <button class="inv-btn inv-btn-link inv-btn-sm" data-action="invFinGstNote" data-month="' + r.month + '">' + (r.note ? 'Edit' : 'Add note') + '</button>' : '') + '</td></tr>';
+      '<td class="inv-num">' + (r.paid ? formatCurrency(r.paid) : '&mdash;') + '</td><td>' +
+      // A note is possible for any month the bank shows no payment for, not only once it is overdue. The status
+      // itself opens it: a separate "Add note" beside it did not fit a phone's column.
+      (r.note || (r.due > 0 && !r.paidBank)
+        ? '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invFinGstNote" data-month="' + r.month + '" title="' + escHtml((st.title ? st.title + ' · ' : '') + (r.note ? 'Edit the note' : 'Add a note')) + '">' +
+          '<span class="inv-dot inv-dot-' + st.tone + '">' + escHtml(st.text) + '</span></button>'
+        : '<span class="inv-dot inv-dot-' + st.tone + '"' + (st.title ? ' title="' + escHtml(st.title) + '"' : '') + '>' + escHtml(st.text) + '</span>') + '</td></tr>';
     if (r.note) {
       h += '<tr class="inv-row-note" data-gst-note="' + r.month + '"><td colspan="4"><span class="inv-row-meta">' + escHtml(r.note.note) +
         (r.paidOther ? ' · ' + escHtml(formatCurrency(r.paidOther)) + ' paid' + (r.note.paidOn ? ' on ' + escHtml(formatDate(r.note.paidOn)) : '') + (r.note.via ? ' via ' + escHtml(r.note.via) : '') : '') + '</span></td></tr>';
@@ -20865,17 +20887,85 @@ function finOverviewHtml() {
       finGstHtml(6);
   }
 
+  // One horizon for every panel below (spec Phase 3): the months the range covers, from the statement
+  // and the invoices together, so a month with invoices but no statement row still shows.
+  var monthSet = {};
+  months.forEach(function(m) { monthSet[m.month] = true; });
+  (S.invoices || []).forEach(function(i) { if (i.status === 'active' && i.date && i.date <= localDateStr()) monthSet[finYm(i.date)] = true; });
+  var inRange = chartRangeMonths(_finRange, Object.keys(monthSet));
+  var byMonth = {};
+  months.forEach(function(m) { byMonth[m.month] = m; });
+  var lab = function(m) { return insMonthLabel(m) + (inRange.length > 12 ? " '" + m.slice(2, 4) : ''); };
+  h += chartRangeHtml(_finRange, 'invFinRange');
   h += '<div class="inv-panels">';
-  // Cash by month
-  h += '<div class="inv-panel inv-panel-flush" id="finCash"><div class="inv-panel-head"><span class="inv-panel-title">Cash by month</span></div>';
-  var bal = months.map(function(m) { return { label: insMonthLabel(m.month), value: m.close }; });
-  if (bal.length >= 2 && bal.every(function(b) { return b.value >= 0; })) h += '<div class="inv-panel-body">' + chartLine(bal, { ariaLabel: 'Month-end balance' }) + '</div>';
-  h += '<div class="inv-scroll"><table class="inv-table"><thead><tr><th>Month</th><th class="inv-num">In</th><th class="inv-num">Out</th><th class="inv-num">Closed at</th></tr></thead><tbody>';
-  months.slice(-6).reverse().forEach(function(m) {
+
+  // Cash: balance, in and out on one axis; a tap on a month moves "where money went" to it.
+  var cashMonths = inRange.filter(function(m) { return byMonth[m]; });
+  h += '<div class="inv-panel inv-panel-flush inv-panels-wide" id="finCash"><div class="inv-panel-head"><span class="inv-panel-title">Cash by month</span></div>' +
+    '<div class="inv-panel-body">' + chartLines(cashMonths.map(lab), [
+      { label: 'Balance', values: cashMonths.map(function(m) { return byMonth[m].close; }) },
+      { label: 'In', values: cashMonths.map(function(m) { return byMonth[m].cr; }), tone: 2 },
+      { label: 'Out', values: cashMonths.map(function(m) { return byMonth[m].dr; }), tone: 3 }
+    ], { ariaLabel: 'Cash by month', pointAction: 'invFinMonth', keys: cashMonths, emptyText: 'The statement covers under two months of this range' }) + '</div>' +
+    '<div class="inv-scroll"><table class="inv-table"><thead><tr><th>Month</th><th class="inv-num">In</th><th class="inv-num">Out</th><th class="inv-num">Closed at</th></tr></thead><tbody>';
+  cashMonths.slice().reverse().forEach(function(k) {
+    var m = byMonth[k];
     h += '<tr data-cash="' + m.month + '"><td class="inv-nowrap">' + escHtml(billsMonthLabel(m.month)) + '</td><td class="inv-num" title="' + escHtml(formatCurrency(m.cr)) + '">' + finRs(m.cr) + '</td>' +
       '<td class="inv-num" title="' + escHtml(formatCurrency(m.dr)) + '">' + finRs(m.dr) + '</td><td class="inv-num" title="' + escHtml(formatCurrency(m.close)) + '">' + finRs(m.close) + '</td></tr>';
   });
   h += '</tbody></table></div></div>';
+
+  // Where money went: the range stacked by category, and the chosen month as a pie that filters.
+  var catKey = function(v) { return v.cat + (v.cash ? ':cash' : ''); };
+  var catLabel = function(k) { var p = k.split(':'); return bankCatLabel(p[0]) + (p[1] ? ' (cash)' : ''); };
+  var outByMonthCat = {}, cats = {};
+  cls.forEach(function(v) {
+    if (!(v.row.dr > 0)) return;
+    var m = finYm(v.row.date), k = catKey(v);
+    (outByMonthCat[m] = outByMonthCat[m] || {})[k] = gstRound(((outByMonthCat[m] || {})[k] || 0) + v.row.dr);
+    if (inRange.indexOf(m) >= 0) cats[k] = gstRound((cats[k] || 0) + v.row.dr);
+  });
+  var catOrder = Object.keys(cats).sort(function(a, b) { return cats[b] - cats[a]; }).slice(0, CHART_SERIES_MAX);
+  var ym = _finMonth && byMonth[_finMonth] ? _finMonth : (cashMonths.length ? cashMonths[cashMonths.length - 1] : paidMonth.month);
+  var byCat = outByMonthCat[ym] || {};
+  var sel = _finCat && byCat[_finCat] ? _finCat : null;
+  var invoiced = gstRound((S.invoices || []).reduce(function(s, i) { return s + (i.status === 'active' && finYm(i.date) === ym ? (i.grandTotal || 0) : 0); }, 0));
+  var received = gstRound(cls.reduce(function(s, v) { return s + (v.cat === 'receipt' && finYm(v.row.date) === ym ? v.row.cr : 0); }, 0));
+  h += '<div class="inv-panel inv-panel-flush inv-panels-wide" id="finWent"><div class="inv-panel-head"><span class="inv-panel-title">Where money went</span>' +
+    '<select class="inv-select inv-select-sm" id="finMonthPick" aria-label="Month">' + months.slice().reverse().map(function(m) {
+      return '<option value="' + m.month + '"' + (m.month === ym ? ' selected' : '') + '>' + escHtml(billsMonthLabel(m.month)) + '</option>'; }).join('') + '</select></div>' +
+    '<div class="inv-panel-body">' + chartStack(cashMonths.map(lab), catOrder.map(function(k) {
+      return { label: catLabel(k), values: cashMonths.map(function(m) { return (outByMonthCat[m] || {})[k] || 0; }) };
+    }), { action: 'invFinMonth', keys: cashMonths, selected: ym, ariaLabel: 'Outflow by category', readHint: 'Tap a month to read it; the pie below follows' }) + '</div>' +
+    '<div class="inv-panel-body">' + chartPieTap(Object.keys(byCat).map(function(k) { var t = catOrder.indexOf(k); return { key: k, label: catLabel(k), value: byCat[k], tone: t >= 0 ? t : null }; }),
+      { action: 'invFinCat', selected: sel, ariaLabel: 'Outflow in ' + billsMonthLabel(ym), emptyText: 'Nothing paid out in ' + billsMonthLabel(ym), readHint: 'Tap a slice to list its payments' }) + '</div>';
+  Object.keys(byCat).sort(function(a, b) { return byCat[b] - byCat[a]; }).forEach(function(k) {
+    h += '<div class="inv-row" data-went-cat="' + escHtml(k) + '"><span class="inv-row-main">' + escHtml(catLabel(k)) + '</span><span class="inv-row-end inv-num">' + formatCurrency(byCat[k]) + '</span></div>';
+    if (k !== sel) return;
+    var list = cls.filter(function(v) { return catKey(v) === k && finYm(v.row.date) === ym && v.row.dr > 0; }).reverse();
+    h += '<div class="inv-row-children">';
+    list.slice(0, 8).forEach(function(v) {
+      h += '<div class="inv-row inv-row-2" data-went-row="' + escHtml(v.row.id) + '"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(v.party || v.row.narration) + '</span>' +
+        '<span class="inv-row-meta">' + escHtml(formatDate(v.row.date)) + '</span></span><span class="inv-row-end inv-num">' + formatCurrency(v.row.dr) + '</span></div>';
+    });
+    h += '<div class="inv-row"><span class="inv-row-main inv-row-meta">' + finPl(list.length, 'payment') + '</span><span class="inv-row-end">' +
+      '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invFinStatementCat" data-cat="' + escHtml(k.split(':')[0]) + '">Open in the statement</button></span></div></div>';
+  });
+  h += [['Invoiced', invoiced, 'incl. GST, by invoice date'], ['Received', received, 'from clients'], ['Paid out', Object.keys(byCat).reduce(function(s, k) { return gstRound(s + byCat[k]); }, 0), 'every category']].map(function(x) {
+      return '<div class="inv-row" data-went="' + x[0] + '"><span class="inv-row-main">' + x[0] + ' <span class="inv-row-meta">' + x[2] + '</span></span><span class="inv-row-end inv-num">' + formatCurrency(x[1]) + '</span></div>';
+    }).join('') + '</div>';
+
+  // Where money came from: receipts by client over the range; unplaced receipts are a wedge of their own, named.
+  var from = {};
+  cls.forEach(function(v) {
+    if (v.cat !== 'receipt' || !(v.row.cr > 0) || inRange.indexOf(finYm(v.row.date)) < 0) return;
+    var k = v.clientId == null ? '__loose' : String(v.clientId);
+    from[k] = gstRound((from[k] || 0) + v.row.cr);
+  });
+  h += '<div class="inv-panel inv-panel-flush" id="finFrom"><div class="inv-panel-head"><span class="inv-panel-title">Where money came from</span></div>' +
+    '<div class="inv-panel-body">' + chartPieTap(Object.keys(from).map(function(k) {
+      return { key: k, label: k === '__loose' ? 'Not placed yet' : insClientName(k), value: from[k] };
+    }), { action: 'invFinFrom', ariaLabel: 'Receipts by client', emptyText: 'No receipts in this range', readHint: 'Tap a client to open what it owes' }) + '</div></div>';
 
   // Owed to us
   var bands = finAgeing(recv), top = recv.filter(function(r) { return r.owed > 0.005; }).slice(0, 5);
@@ -20894,26 +20984,18 @@ function finOverviewHtml() {
     '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invFinLoose">Place them</button></div>';
   h += '</div>';
 
-  // Where money went
-  var ym = _finMonth && months.some(function(m) { return m.month === _finMonth; }) ? _finMonth : paidMonth.month;
-  var byCat = {};
-  cls.forEach(function(v) {
-    if (finYm(v.row.date) !== ym || !(v.row.dr > 0)) return;
-    var k = bankCatLabel(v.cat) + (v.cash ? ' (cash)' : '');
-    byCat[k] = gstRound((byCat[k] || 0) + v.row.dr);
-  });
-  var invoiced = gstRound((S.invoices || []).reduce(function(s, i) { return s + (i.status === 'active' && finYm(i.date) === ym ? (i.grandTotal || 0) : 0); }, 0));
-  var received = gstRound(cls.reduce(function(s, v) { return s + (v.cat === 'receipt' && finYm(v.row.date) === ym ? v.row.cr : 0); }, 0));
-  h += '<div class="inv-panel inv-panel-flush inv-panels-wide" id="finWent"><div class="inv-panel-head"><span class="inv-panel-title">Where money went</span>' +
-    '<select class="inv-select inv-select-sm" id="finMonthPick" aria-label="Month">' + months.slice().reverse().map(function(m) {
-      return '<option value="' + m.month + '"' + (m.month === ym ? ' selected' : '') + '>' + escHtml(billsMonthLabel(m.month)) + '</option>'; }).join('') + '</select></div>' +
-    '<div class="inv-panel-body">' + chartRankedBars(Object.keys(byCat).sort(function(a, b) { return byCat[b] - byCat[a]; }).map(function(k) { return { label: k, value: byCat[k] }; }),
-      { emptyText: 'Nothing paid out in ' + billsMonthLabel(ym) }) + '</div>' +
-    [['Invoiced', invoiced, 'incl. GST, by invoice date'], ['Received', received, 'from clients'], ['Paid out', Object.keys(byCat).reduce(function(s, k) { return gstRound(s + byCat[k]); }, 0), 'every category']].map(function(x) {
-      return '<div class="inv-row" data-went="' + x[0] + '"><span class="inv-row-main">' + x[0] + ' <span class="inv-row-meta">' + x[2] + '</span></span><span class="inv-row-end inv-num">' + formatCurrency(x[1]) + '</span></div>';
-    }).join('') +
-    '</div>';
-  return h + finGstHtml(6, true) + '</div>';
+  // Invoiced against received: the gap between the lines is what the book is lending its clients.
+  var invBy = {}, recBy = {};
+  (S.invoices || []).forEach(function(i) { if (i.status === 'active' && i.date) invBy[finYm(i.date)] = gstRound((invBy[finYm(i.date)] || 0) + (i.grandTotal || 0)); });
+  cls.forEach(function(v) { if (v.cat === 'receipt' && v.row.cr > 0) recBy[finYm(v.row.date)] = gstRound((recBy[finYm(v.row.date)] || 0) + v.row.cr); });
+  h += '<div class="inv-panel inv-panel-flush inv-panels-wide" id="finInvRec"><div class="inv-panel-head"><span class="inv-panel-title">Invoiced against received</span></div>' +
+    '<div class="inv-panel-body">' + chartLines(inRange.map(lab), [
+      { label: 'Invoiced', values: inRange.map(function(m) { return invBy[m] || 0; }) },
+      { label: 'Received', values: inRange.map(function(m) { return byMonth[m] ? (recBy[m] || 0) : null; }), tone: 2 }
+    ], { ariaLabel: 'Invoiced against received', emptyText: 'Needs two months in the range' }) + '</div>' +
+    '<div class="inv-panel-body inv-note">Invoiced is incl. GST, by invoice date; received is every receipt on the statement, placed or not. A month the statement does not cover shows no received figure rather than zero.</div></div>';
+
+  return h + finGstHtml(6, true, inRange) + '</div>';
 }
 
 /* A place for what the statement cannot say (owner, 26 Sep 2026: "For July, make sure that reason is
@@ -20944,13 +21026,24 @@ function finGstNoteSave(m) {
 }
 
 function financeInput(t) {
-  if (t && t.id === 'finMonthPick') { _finMonth = t.value; renderFinance(); return true; }
+  if (t && t.id === 'finMonthPick') { _finMonth = t.value; _finCat = null; renderFinance(); return true; }
   return false;
 }
 function financeAction(action, btn) {
   switch (action) {
     case 'invFinTab': finSetTab(btn.dataset.tab); _bankEdit = null; renderFinance(); return true;
     case 'invFinClient': _bankOpen = btn.dataset.id; finSetTab('receipts'); renderFinance(); return true;
+    case 'invFinRange':
+      _finRange = btn.dataset.range;
+      try { localStorage.setItem('sep_inv_fin_range', _finRange); } catch (e) { /* a per-device convenience only */ }
+      renderFinance(); return true;
+    case 'invFinMonth': _finMonth = btn.dataset.key; _finCat = null; renderFinance(); return true;
+    case 'invFinCat': _finCat = _finCat === btn.dataset.key ? null : btn.dataset.key; renderFinance(); return true;
+    case 'invFinFrom':
+      if (btn.dataset.key === '__loose') return financeAction('invFinLoose', btn);
+      if (btn.dataset.key === '__others') { chartShowRead(btn); return true; }
+      _bankOpen = btn.dataset.key; finSetTab('receipts'); renderFinance(); return true;
+    case 'invFinStatementCat': _bankFilter = { cat: btn.dataset.cat, q: '' }; finSetTab('bank'); renderFinance(); return true;
     case 'invFinLoose':
       finSetTab('receipts'); renderFinance();
       var lp = document.getElementById('bankLoose');

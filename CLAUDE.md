@@ -111,7 +111,7 @@ every session start — nothing to set up by hand. CI (`build-sync`) is the back
 ### Tests
 
 ```bash
-pnpm exec playwright test          # 493 tests, both layouts
+pnpm exec playwright test          # 494 tests, both layouts
 ```
 
 Some sandboxes ship a Chromium build Playwright does not expect and block downloading
@@ -1335,6 +1335,16 @@ Payments · Bank · Bills & notes · GST**. The open tab is remembered on the de
   - **where money went**: one month's outflow by category, SELF draws as *Wages (cash)*, beside what was invoiced
     and received that month;
   - **GST due and paid**, the last six months.
+- **The Overview is interactive** (spec Phase 3; owner: *"more like financial dashboard with interactive pie
+  charts, line charts, trends chart"*). One range chip row (`3M · 6M · FY · All`, kept per device as
+  `sep_inv_fin_range`) drives every panel. **Cash**: balance, in and out on one axis, with the balance line
+  crossing a zero rule when overdrawn; a tap on a month moves *where money went* to it. **Where money went**: the
+  range stacked by category, and the chosen month as a pie — a slice lists that category's payments with exact
+  figures and opens the statement filtered to it; a category keeps one colour in both. **Where money came from**:
+  receipts by client, with unplaced receipts a named slice that opens them. **Invoiced against received**: two lines
+  (a month the statement does not cover shows no received figure, not zero). **GST**: due against paid, grouped,
+  above the table; the month's status is itself the button that opens its note. Every chart takes a tap and writes
+  the exact figure into its readout line.
 - **GST due** is the output tax on the month's invoices (active, by invoice date) less the tax on its credit notes
   (not cancelled, by note date). **Paid** is the GST the statement sent the month after, since a return is paid by the
   20th of the next month. Cash paid is output tax *less input credit*, so paying less than is due is the normal

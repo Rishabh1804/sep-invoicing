@@ -20,13 +20,17 @@ function chartNiceMax(v) {
   if (!(v > 0)) return 1;
   var mag = Math.pow(10, Math.floor(Math.log10(v)));
   var n = v / mag;
-  var step = n <= 1 ? 1 : n <= 2 ? 2 : n <= 2.5 ? 2.5 : n <= 5 ? 5 : 10;
+  // Steps that split into four clean gridlines: jumping 1 → 2 drew a ₹10.3L peak on a ₹20L frame, half empty.
+  var steps = [1, 1.2, 1.6, 2, 2.4, 3, 4, 6, 8, 10];
+  var step = steps.find(function(x) { return n <= x + 1e-9; }) || 10;
   return step * mag;
 }
 
 /* Axis and tooltip formatting per unit. Rupees get lakh/thousand shortening
    because a job-work month runs to seven figures and the axis is 40px wide. */
 function chartShort(v, unit) {
+  // The sign leads the currency: -₹25K, not ₹-25K.
+  if (v < 0) return '-' + chartShort(-v, unit);
   if (unit === 'kg') {
     return Math.abs(v) >= 1000 ? formatNum(v / 1000, 1) + 't' : formatNum(v, 0) + 'kg';
   }
@@ -352,6 +356,7 @@ function chartStack(labels, series, opts) {
     if (i % stride === 0 || i === labels.length - 1) svg += '<text x="' + (x0 + barW / 2) + '" y="' + (pad.t + f.chartH + 14) + '" text-anchor="middle" class="inv-svg-axis-label">' + escHtml(l) + '</text>';
   });
   svg += '</svg>';
+  if (!opts.readHint) opts.readHint = 'Tap a bar to read it';
   return _chartBox(svg + _chartSeriesLegend(series, unit, null), opts);
 }
 
@@ -369,7 +374,8 @@ function chartPieTap(slices, opts) {
   var svg = '<svg class="inv-chart-pie-svg" viewBox="0 0 210 210" role="img" aria-label="' + escHtml(opts.ariaLabel || 'Composition') + '">';
   shown.forEach(function(s, i) {
     var frac = s.value / total, sweep = frac * Math.PI * 2, end = angle + sweep, mid = angle + sweep / 2;
-    var cls = 'inv-chart-c' + (s._others ? 'x' : i), sel = opts.selected != null && String(opts.selected) === String(s.key);
+    // A slice may carry its own tone, so a category keeps one colour across every chart on a page.
+    var cls = 'inv-chart-c' + (s._others ? 'x' : (s.tone != null ? s.tone : i)), sel = opts.selected != null && String(opts.selected) === String(s.key);
     var dx = sel ? 6 * Math.cos(mid) : 0, dy = sel ? 6 * Math.sin(mid) : 0;
     var read = s.label + ': ' + chartFull(s.value, unit) + ' (' + formatNum(frac * 100, 1) + '%)';
     var attrs = ' class="inv-chart-wedge ' + cls + '" data-action="' + escHtml(act) + '" data-key="' + escHtml(s.key) + '" data-read="' + escHtml(read) + '"' + (sel ? ' aria-current="true"' : '');
@@ -386,7 +392,7 @@ function chartPieTap(slices, opts) {
   var legend = '<div class="inv-chart-legend">' + shown.map(function(s, i) {
     var sel = opts.selected != null && String(opts.selected) === String(s.key);
     return '<button type="button" class="inv-chart-legend-row" data-action="' + escHtml(act) + '" data-key="' + escHtml(s.key) + '" data-read="' + escHtml(s.label + ': ' + chartFull(s.value, unit)) + '"' +
-      ' aria-pressed="' + sel + '"><span class="inv-chart-swatch inv-chart-c' + (s._others ? 'x' : i) + '"></span>' +
+      ' aria-pressed="' + sel + '"><span class="inv-chart-swatch inv-chart-c' + (s._others ? 'x' : (s.tone != null ? s.tone : i)) + '"></span>' +
       '<span class="inv-chart-legend-label">' + escHtml(s.label) + '</span><span class="inv-chart-legend-val inv-mono">' + escHtml(chartShort(s.value, unit)) + '</span>' +
       '<span class="inv-chart-legend-pct inv-mono">' + formatNum(s.value / total * 100, 1) + '%</span></button>';
   }).join('') + '</div>';

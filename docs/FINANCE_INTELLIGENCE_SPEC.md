@@ -33,6 +33,7 @@ needs one it does not define).
 | **Phase 1** — cheque placement links, series tagging and suggestion, GST month notes | merged (#81); P59 | `bank.js`, `finance.js` |
 | **Side track A** — challan line filled from the record, reason for a red flag | PR #82; P63 | `state.js`, `im-form.js`, `events.js` |
 | **Phase 2** — `chartLines`, `chartStack`, `chartPieTap`, range chips, tap-to-read | built; P60 | `charts.js` |
+| **Phase 3** — the interactive Finance Overview (range, cash, where money went/came from, invoiced vs received, GST chart) | built; P59 | `finance.js` |
 
 Data already available to build on — **use these, do not re-derive**:
 

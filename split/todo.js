@@ -236,10 +236,12 @@ var TODO_RULE_FNS = {
   }
 };
 
-function todoAppAll() {
+/* `only` (optional): the rule ids to run, for a screen that shows a few of them — every rule reads the
+   whole book, and the finance ones classify the statement and run the forecast. */
+function todoAppAll(only) {
   var cfg = todoCfg(), out = [];
   TODO_RULES.forEach(function(r) {
-    if (!cfg[r[0]]) return;
+    if (!cfg[r[0]] || (only && only.indexOf(r[0]) < 0)) return;
     // One rule failing on a shape nobody anticipated must not take the list with it.
     try { out = out.concat(TODO_RULE_FNS[r[0]]() || []); } catch (e) { /* skipped */ }
   });
@@ -251,7 +253,7 @@ function todoIsSnoozed(t) {
   if (s.until) return todoToday() < s.until;
   return s.sig === t.sig;
 }
-function todoApp() { return todoAppAll().filter(function(t) { return !todoIsSnoozed(t); }); }
+function todoApp(only) { return todoAppAll(only).filter(function(t) { return !todoIsSnoozed(t); }); }
 
 /* Both kinds in one order, for Home and the widget: red, amber, then the rest;
    App before Mine within a tone; Mine by due date. */

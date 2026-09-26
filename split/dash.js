@@ -13,39 +13,57 @@ function _dashPanel(id, title, body, head) {
 function _dashWeekLabel(sat) { return stockShortDate(sat); }
 
 /* ---------- 7a. Staff ---------- */
-/* Worker-days present (P = 1, H = ½) over (active roster × working days that carry any mark), per pay week. */
+/* Worker-days present (P = 1, H = ½) over the active roster's marks typed that week, per pay week.
+   Only the active roster's marks count: a leaver's days are not in the denominator, so they are not in the numerator. */
 function dashAttendanceByWeek(n) {
-  var roster = staffActive().length, out = [], ws = attWeekStartOf(localDateStr());
+  // Unmarked is not absent (CLAUDE.md, Labour and attendance): the denominator is the active roster's marks that
+  // were actually typed — present, half or absent — so a half-entered day reads as what was entered.
+  var active = staffActive(), ids = {}, today = localDateStr(), out = [], ws = attWeekStartOf(today);
+  active.forEach(function(w) { ids[String(w.id)] = true; });
   for (var k = n - 1; k >= 0; k--) {
-    var start = attAddDays(ws, -7 * k), sat = attAddDays(start, 6), present = 0, days = 0;
+    var start = attAddDays(ws, -7 * k), sat = attAddDays(start, 6), present = 0, marked = 0, days = 0;
     for (var d = 1; d <= 6; d++) {
       var iso = attAddDays(start, d), rec = (S.attendance || {})[iso];
-      if (iso > localDateStr() || !rec || !Object.keys(rec.marks || {}).length) continue;
+      if (iso > today || !rec || !Object.keys(rec.marks || {}).length) continue;
       days++;
-      Object.keys(rec.marks).forEach(function(id) { var m = rec.marks[id]; if (m && m.st === 'P') present += 1; else if (m && m.st === 'H') present += 0.5; });
+      Object.keys(rec.marks).forEach(function(id) {
+        var m = rec.marks[id];
+        if (!ids[String(id)] || !m || (m.st !== 'P' && m.st !== 'H' && m.st !== 'A')) return;
+        marked++;
+        if (m.st === 'P') present += 1; else if (m.st === 'H') present += 0.5;
+      });
     }
-    out.push({ start: start, sat: sat, days: days, pct: days && roster ? Math.min(100, present / (roster * days) * 100) : null });
+    out.push({ start: start, sat: sat, days: days, marked: marked, pct: marked ? present / marked * 100 : null });
   }
   return out;
 }
-function dashLabourByMonth() {
-  var months = insMonthsBack(6), active = insActive(), bm = typeof bankCostByMonth === 'function' && bankRows().length ? bankCostByMonth() : null;
+/* One labour reading per closed month, shared by the ₹/kg and the payroll panels. */
+function _dashLabMonths(months) {
+  var out = {};
+  months.forEach(function(m) { out[m] = labourForRange(m + '-01', payMonthEnd(m + '-01')); });
+  return out;
+}
+function _dashBankByMonth() { return finHasBank() ? bankCostByMonthMemo() : null; }
+function dashLabourByMonth(labs) {
+  var months = insMonthsBack(6), active = insActive(), bm = _dashBankByMonth();
+  labs = labs || _dashLabMonths(months);
   return months.map(function(m) {
-    var from = m + '-01', to = payMonthEnd(from), lab = labourForRange(from, to);
+    var from = m + '-01', to = payMonthEnd(from), lab = labs[m];
     var kg = weighLines(active.filter(function(i) { return i.date >= from && i.date <= to; })).kg;
-    var paid = bm && bankMonthKnown(bm, m, 'labour') && bm.months[m] ? bm.months[m].labour.amount : null;
+    // A month the statement speaks for with no wage on it paid nothing: known, and zero.
+    var paid = bm && bankMonthKnown(bm, m, 'labour') ? (bm.months[m] ? bm.months[m].labour.amount : 0) : null;
     return { month: m, kg: kg, recorded: kg > 0 && lab.total > 0 && lab.coverage >= 0.9 ? lab.total / kg : null, coverage: lab.coverage,
       paid: kg > 0 && paid != null ? paid / kg : null };
   });
 }
-function dashPayrollVsBank() {
-  var months = insMonthsBack(6), bm = typeof bankCostByMonth === 'function' && bankRows().length ? bankCostByMonth() : null;
+function dashPayrollVsBank(labs) {
+  var months = insMonthsBack(6), bm = _dashBankByMonth();
   return months.map(function(m) {
     var slip = payrollPaidFor(m), payroll = 0, src = 'slip';
     if (slip) slip.rows.forEach(function(r) { payroll += r.paid != null ? Number(r.paid) || 0 : (Number(r.dayPay) || 0) + (Number(r.ot) || 0); });
     else {
       src = 'model';
-      var lab = labourForRange(m + '-01', payMonthEnd(m + '-01'));
+      var lab = labs && labs[m] || labourForRange(m + '-01', payMonthEnd(m + '-01'));
       Object.keys(lab.byWorker).forEach(function(id) { if (lab.byWorker[id].comp === 'monthly') payroll += lab.byWorker[id].total; });
     }
     var named = bm && bankMonthKnown(bm, m, 'labour') ? (bm.months[m] ? bm.months[m].labour.named : 0) : null;
@@ -54,18 +72,20 @@ function dashPayrollVsBank() {
 }
 
 function staffOverviewHtml() {
-  var h = attDayPanelHtml(attDaySummary(), '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invDashOpenDay">Open the day</button>', 'dashStaffToday');
+  // "Open the day" opens the day the panel shows: today, or the last day typed when today is empty.
+  var day = attDaySummary();
+  var h = attDayPanelHtml(day, '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invDashOpenDay" data-date="' + escHtml(day.iso) + '">Open the day</button>', 'dashStaffToday');
 
   var weeks = dashAttendanceByWeek(12);
   h += _dashPanel('dashAttWeeks', 'Attendance by week', chartLines(weeks.map(function(w) { return _dashWeekLabel(w.sat); }),
     [{ label: 'Present', values: weeks.map(function(w) { return w.pct == null ? null : Math.round(w.pct * 10) / 10; }) }],
     { unit: 'pct', ariaLabel: 'Attendance by week', emptyText: 'Needs two pay weeks with attendance recorded' }) +
-    '<div class="inv-note">Worker-days present (a half day is half) over the active roster × the working days that carry any mark. A week nobody typed is a gap, not a zero.</div>');
+    '<div class="inv-note">Worker-days present (a half day is half) over the active roster’s marks typed that week; an unmarked hand is not counted absent. A week nobody typed is a gap, not a zero.</div>');
 
-  var lm = dashLabourByMonth(), model = labourCfg().modelPerKg || 3.55;
+  var labs = _dashLabMonths(insMonthsBack(6)), lm = dashLabourByMonth(labs), model = labourCfg().modelPerKg || 3.55;
   h += _dashPanel('dashLabour', 'Labour ₹/kg by month', chartLines(lm.map(function(x) { return insMonthLabel(x.month); }), [
-    { label: 'Recorded', values: lm.map(function(x) { return x.recorded == null ? null : Math.round(x.recorded * 100) / 100; }) },
-    { label: 'Paid, bank', values: lm.map(function(x) { return x.paid == null ? null : Math.round(x.paid * 100) / 100; }), tone: 2 },
+    { label: 'Recorded', values: lm.map(function(x) { return x.recorded == null ? null : gstRound(x.recorded); }) },
+    { label: 'Paid, bank', values: lm.map(function(x) { return x.paid == null ? null : gstRound(x.paid); }), tone: 2 },
     { label: 'Model', values: lm.map(function() { return model; }), tone: 3 }
   ], { unit: 'rate', ariaLabel: 'Labour per kg by month', emptyText: 'Needs two months with tonnage' }) +
     '<div class="inv-note">Recorded is attendance priced by the wage model, shown where 90% of the month’s working days are recorded; paid is the salaries and cash the bank statement set against the month; model is Settings → Labour.</div>');
@@ -74,10 +94,10 @@ function staffOverviewHtml() {
   h += _dashPanel('dashAreaHours', 'OT and EXTRA by area, four weeks', chartStack(ah.rows.map(function(r) { return r.label; }), [
     { label: 'OT', values: ah.rows.map(function(r) { return Math.round(r.ot * 10) / 10; }) },
     { label: 'EXTRA', values: ah.rows.map(function(r) { return Math.round(r.extra * 10) / 10; }) }
-  ], { unit: 'h', ariaLabel: 'OT and EXTRA hours by area', emptyText: 'No attendance in the last four weeks' }) +
+  ], { unit: 'h', ariaLabel: 'OT and EXTRA hours by area', emptyText: 'No OT or EXTRA booked in the last four weeks' }) +
     '<div class="inv-note">From ' + escHtml(formatDate(from)) + ': overtime hours on each mark where the worker stood that day, and the EXTRA booked to the area.</div>');
 
-  var pb = dashPayrollVsBank();
+  var pb = dashPayrollVsBank(labs);
   h += _dashPanel('dashPayBank', 'Payroll against the bank', chartStack(pb.map(function(x) { return insMonthLabel(x.month); }), [
     { label: 'Payroll', values: pb.map(function(x) { return x.payroll; }) },
     { label: 'Paid, bank', values: pb.map(function(x) { return x.bank == null ? 0 : x.bank; }) }
@@ -86,7 +106,7 @@ function staffOverviewHtml() {
     escHtml(pb.filter(function(x) { return x.src === 'model'; }).map(function(x) { return insMonthLabel(x.month); }).join(', ') || 'none') +
     '). Paid is the transfers to named hands the bank set against the month; a month the statement does not reach shows none.</div>');
 
-  var raised = todoApp().filter(function(t) { return DASH_STAFF_RULES.indexOf(t.rule) >= 0 && (t.rule !== 'costGap' || t.key === 'costGap:labour'); });
+  var raised = todoApp(DASH_STAFF_RULES).filter(function(t) { return t.rule !== 'costGap' || t.key === 'costGap:labour'; });
   h += '<div class="inv-panel inv-panel-flush" id="dashStaffRaised"><div class="inv-panel-head"><span class="inv-panel-title">Raised</span><span class="inv-panel-count">' + raised.length + '</span></div>' +
     (raised.length ? raised.map(_dashTaskRow).join('') : '<div class="inv-empty">Nothing raised about labour or pay.</div>') + '</div>';
   return '<div class="inv-panels">' + h + '</div>';
@@ -105,7 +125,7 @@ function dashStockDays() {
   stockData().items.filter(function(i) { return i.active !== false && i.basis !== 'charge'; }).forEach(function(it) {
     var st = stockStatus(it);
     if (st.group === 'out') rows.push({ it: it, days: 0, tone: 'red', out: true });
-    else if (st.daysLeft != null) rows.push({ it: it, days: st.daysLeft, tone: st.tone });
+    else if (st.daysLeft != null) rows.push({ it: it, days: st.daysLeft, tone: st.tone, tentative: !!(st.rate && st.rate.tentative) });
     else none.push(it.name);
   });
   rows.sort(function(a, b) { return a.days - b.days; });
@@ -116,29 +136,34 @@ function dashSupplierSpend(months) {
   stockData().items.forEach(function(it) {
     stockPurchases(it.id).forEach(function(b) {
       if (b.date < from) return;
-      var k = b.e.supplier || 'No supplier on record', r = by[k] || (by[k] = { name: k, amount: 0, bills: [] });
+      var k = b.e.supplier || 'No supplier on record', r = by[k] || (by[k] = { name: k, named: !!b.e.supplier, amount: 0, bills: [] });
       r.amount += (b.e.price || 0) * (b.e.qty || 0); r.bills.push({ it: it, b: b });
     });
   });
   return { from: from, list: Object.keys(by).map(function(k) { by[k].amount = gstRound(by[k].amount); return by[k]; }).sort(function(a, b) { return b.amount - a.amount; }) };
 }
+/* A week with no stock entry at all (count, delivery, use or charge) is a week nobody typed: null, a gap in
+   the line, never ₹0. A week that was typed and used nothing priced is a real zero. */
 function dashUsedByWeek(n) {
-  var ws = attWeekStartOf(localDateStr()), weeks = [], byItem = {}, unpriced = {};
-  for (var k = n - 1; k >= 0; k--) weeks.push(attAddDays(ws, -7 * k));
+  var ws = attWeekStartOf(localDateStr()), weeks = [], byItem = {}, unpriced = {}, typed = [];
+  for (var k = n - 1; k >= 0; k--) { weeks.push(attAddDays(ws, -7 * k)); typed.push(false); }
   var first = weeks[0];
   stockData().entries.forEach(function(e) {
-    if (e.voided || (e.kind !== 'used' && e.kind !== 'charged') || e.date < first) return;
+    if (e.voided || e.kind === 'bill' || e.date < first) return;
+    var w = weeks.indexOf(attWeekStartOf(e.date));
+    if (w < 0) return;
+    typed[w] = true;
+    if (e.kind !== 'used' && e.kind !== 'charged') return;
     var it = stockItem(e.itemId);
     if (!it) return;
     var p = stockPriceAt(it.id, e.date);
     if (!p) { unpriced[it.name] = 1; return; }
-    var w = weeks.indexOf(attWeekStartOf(e.date));
-    if (w < 0) return;
     var r = byItem[it.id] || (byItem[it.id] = { name: it.name, v: weeks.map(function() { return 0; }), total: 0 });
     r.v[w] += e.qty * p.price; r.total += e.qty * p.price;
   });
   var lines = Object.keys(byItem).map(function(k) { return byItem[k]; }).sort(function(a, b) { return b.total - a.total; });
-  var total = weeks.map(function(_, i) { return gstRound(lines.reduce(function(s, l) { return s + l.v[i]; }, 0)); });
+  lines.forEach(function(l) { l.v = l.v.map(function(v, i) { return typed[i] ? gstRound(v) : null; }); });
+  var total = weeks.map(function(_, i) { return typed[i] ? gstRound(lines.reduce(function(s, l) { return s + l.v[i]; }, 0)) : null; });
   return { weeks: weeks, total: total, top: lines.slice(0, 4), unpriced: Object.keys(unpriced) };
 }
 
@@ -146,7 +171,7 @@ function stockOverviewHtml() {
   var h = '';
   var dd = dashStockDays();
   h += _dashPanel('dashStockDays', 'Days left', chartRankedBars(dd.rows.map(function(r) {
-    return { label: r.it.name, value: r.out ? 0 : Math.round(r.days * 10) / 10, display: r.out ? 'Out' : stockDaysText(r.days, false),
+    return { label: r.it.name, value: r.out ? 0 : Math.round(r.days * 10) / 10, display: r.out ? 'Out' : stockDaysText(r.days, r.tentative),
       tone: r.tone === 'red' ? 'danger' : r.tone === 'amber' ? 'warning' : 'good', action: 'invDashStockLine', clientId: r.it.id };
   }), { unit: 'count', emptyText: 'No line has a daily use yet' }) +
     (dd.none.length ? '<div class="inv-note">No daily use yet: ' + escHtml(dd.none.join(', ')) + '.</div>' : '') +
@@ -156,8 +181,10 @@ function stockOverviewHtml() {
   var body = chartPieTap(sp.list.map(function(x) { return { key: x.name, label: x.name, value: x.amount }; }),
     { action: 'invDashSupplier', selected: _dashSupplier, ariaLabel: 'Spend by supplier', emptyText: 'No priced bill in six months', readHint: 'Tap a supplier to list its bills' });
   if (sel) {
-    var bp = typeof finSupplierPaid === 'function' ? finSupplierPaid(sel.name) : null;
-    body += '<div class="inv-rows" data-dash-supplier="' + escHtml(sel.name) + '">' + sel.bills.slice().reverse().map(function(x) {
+    var bp = sel.named ? finSupplierPaid(sel.name) : null;
+    // Newest first across every line the supplier sold, not line by line.
+    var bills = sel.bills.slice().sort(function(a, b) { return a.b.date < b.b.date ? 1 : a.b.date > b.b.date ? -1 : 0; });
+    body += '<div class="inv-rows" data-dash-supplier="' + escHtml(sel.name) + '">' + bills.map(function(x) {
       return '<div class="inv-row inv-row-2"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(x.it.name) + '</span><span class="inv-row-meta">' + escHtml(formatDate(x.b.date)) +
         ' · ' + escHtml(stockFmtQty(x.b.e.qty)) + ' ' + escHtml(x.it.unit || '') + ' × ' + escHtml(formatCurrency(x.b.e.price)) + (x.b.e.billNo ? ' · ' + escHtml(x.b.e.billNo) : '') + '</span></span>' +
         '<span class="inv-row-end inv-num">' + formatCurrency(gstRound((x.b.e.price || 0) * (x.b.e.qty || 0))) + '</span></div>';
@@ -167,7 +194,7 @@ function stockOverviewHtml() {
 
   var u = dashUsedByWeek(12), labs = u.weeks.map(function(w) { return _dashWeekLabel(attAddDays(w, 6)); });
   h += _dashPanel('dashUsed', 'Used, in rupees, by week', chartLines(labs, [{ label: 'All lines', values: u.total }].concat(u.top.map(function(l, i) {
-    return { label: l.name, values: l.v.map(gstRound), tone: i + 2 };
+    return { label: l.name, values: l.v, tone: i + 2 };
   })), { ariaLabel: 'Stock used by week in rupees', emptyText: 'Needs two weeks of use recorded' }) +
     '<div class="inv-note">Each use at the price paid for that line on the day.' + (u.unpriced.length ? ' Not counted, no price: ' + escHtml(u.unpriced.join(', ')) + '.' : '') + '</div>');
 
@@ -177,7 +204,7 @@ function stockOverviewHtml() {
     priced.map(function(i) { return '<option value="' + escHtml(i.id) + '"' + (i.id === _dashPriceItem ? ' selected' : '') + '>' + escHtml(i.name) + '</option>'; }).join('') + '</select>' +
     '<div id="dashPriceChart">' + dashPriceChart() + '</div>' : '<div class="inv-empty">No bill with a price yet.</div>');
 
-  var L = stockReorderList(), fc = typeof finForecast === 'function' && typeof finHasBank === 'function' && finHasBank() ? finForecast(45) : null;
+  var L = stockReorderList(), fc = finHasBank() ? finForecast(45) : null;
   var need = gstRound(L.total * 1.18);
   h += '<div class="inv-panel inv-panel-flush" id="dashReorder"><div class="inv-panel-head"><span class="inv-panel-title">Reorder cash</span>' +
     '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invStockReorder">Open the reorder list</button></div><div class="inv-tiles inv-tiles-flush">' +
@@ -199,19 +226,19 @@ function dashPriceChart() {
 function stockViewTabsHtml() {
   var t = function(k, l) { return '<button class="inv-viewtab" role="tab" aria-selected="' + (_stockView === k) + '" data-action="invDashStockView" data-view="' + k + '">' + l + '</button>'; };
   return '<div class="inv-viewtabs" role="tablist">' + t('overview', 'Overview') + t('list', 'Lines') + '</div>' +
-    (_stockView === 'overview' ? '<div class="inv-stk-cta"><button class="inv-stk-btn inv-stk-btn-pri" data-action="invStockPaste">Paste message</button>' +
-      '<button class="inv-stk-btn" data-action="invStockManual">Enter by hand</button></div>' : '');
+    (_stockView === 'overview' ? '<div class="inv-toolbar"><button class="inv-btn inv-btn-primary" data-action="invStockPaste">Paste message</button>' +
+      '<button class="inv-btn" data-action="invStockManual">Enter by hand</button></div>' : '');
 }
 
 /* ---------- Doing ---------- */
 function dashAction(action, btn) {
   switch (action) {
     case 'invDashTask': {
-      var t = todoAppAll().find(function(x) { return x.key === btn.dataset.key; });
+      var t = todoAppAll(DASH_STAFF_RULES).find(function(x) { return x.key === btn.dataset.key; });
       if (t) todoGo(t.go);
       return true;
     }
-    case 'invDashOpenDay': _attView = 'day'; renderAttendance(); return true;
+    case 'invDashOpenDay': if (btn.dataset.date) _attDate = btn.dataset.date; _attView = 'day'; renderAttendance(); return true;
     case 'invDashStockView': stockSetView(btn.dataset.view); return true;
     case 'invDashStockLine': _stockItemId = btn.dataset.clientId; stockSetView('item'); return true;
     case 'invDashSupplier': _dashSupplier = _dashSupplier === btn.dataset.key ? null : btn.dataset.key; renderStock(); return true;

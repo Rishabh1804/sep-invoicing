@@ -59,8 +59,12 @@ test('Staff opens on Overview; the quick action still opens the Day', async ({ p
   await switchTab(page, 'pageStaff');
   await expect(page.locator('[data-action="invAttView"].inv-chip-active')).toHaveAttribute('data-view', 'overview');
   await expect(page.locator('#dashStaffToday')).toBeVisible();
+  // Open the day opens the day the panel shows, even after the Day view was left on another date.
+  const shown = await ev(page, `attDaySummary().iso`);
+  await ev(page, `_attDate = '${addDays(todayIso(), -30)}'`);
   await page.locator('[data-action="invDashOpenDay"]').click();
   await expect(page.locator('[data-action="invAttView"].inv-chip-active')).toHaveAttribute('data-view', 'day');
+  expect(await ev(page, `_attDate`)).toBe(shown);
   await switchTab(page, 'pageHome');
   await page.locator('[data-action="invHomeQuick"][data-go="attendance"]').click();
   await expect(page.locator('[data-action="invAttView"].inv-chip-active')).toHaveAttribute('data-view', 'day');
@@ -81,6 +85,24 @@ test('Staff overview: a week nobody typed is a gap, OT sits in its area, and pay
   await expect(page.locator('#dashStaffRaised')).toContainText('differ from the slip');
 });
 
+test('attendance by week counts the active roster on both sides: a leaver present is not a head', async ({ page }) => {
+  const s = staffState() as any;
+  s.staff = [A, B, { ...A, id: 3, name: 'Old Hand', active: false }];
+  Object.keys(s.attendance).forEach((iso) => { s.attendance[iso].marks[2] = { st: 'A' }; s.attendance[iso].marks[3] = { st: 'P', hours: 8, area: 'vat-a2' }; });
+  await loadAppWithState(page, s);
+  const weeks = await ev(page, `dashAttendanceByWeek(4).map(function(w) { return w.pct; })`) as any[];
+  expect(weeks.slice(0, 3)).toEqual([50, null, 50]);
+});
+
+test('attendance by week reads what was typed: an unmarked hand is not absent', async ({ page }) => {
+  const s = staffState() as any;
+  // Only Ramu's marks are typed; Gita's day is left unmarked, not marked absent.
+  Object.keys(s.attendance).forEach((iso) => { delete s.attendance[iso].marks[2]; });
+  await loadAppWithState(page, s);
+  const weeks = await ev(page, `dashAttendanceByWeek(4).map(function(w) { return w.pct; })`) as any[];
+  expect(weeks.slice(0, 3)).toEqual([100, null, 100]);
+});
+
 test('Stock opens on Overview: days left opens the line, a supplier lists its bills, the price select redraws only its chart', async ({ page }) => {
   await loadAppWithState(page, stockState());
   await switchTab(page, 'pageStock');
@@ -89,8 +111,9 @@ test('Stock opens on Overview: days left opens the line, a supplier lists its bi
   await expect(nitric.locator('.inv-chart-ranked-fill-danger')).toHaveCount(1);
   await nitric.click();
   await expect(page.locator('#stockContent')).toContainText('Price and pattern');
+  // Back returns to the Overview it came from, not to Lines.
   await page.locator('[data-action="invStockBack"]').click();
-  await page.locator('[data-action="invDashStockView"][data-view="overview"]').click();
+  await expect(page.locator('[data-action="invDashStockView"][data-view="overview"]')).toHaveAttribute('aria-selected', 'true');
 
   await page.locator('#dashSupplier .inv-chart-legend-row[data-key="Alpha"]').click();
   const list = page.locator('[data-dash-supplier="Alpha"]');
@@ -98,6 +121,8 @@ test('Stock opens on Overview: days left opens the line, a supplier lists its bi
   await expect(list).toContainText('A2');
 
   await expect(page.locator('#dashUsed')).toContainText('All lines');
+  // Twelve weeks back nothing was typed: a gap, not ₹0.
+  expect(await ev(page, `dashUsedByWeek(12).total[0]`)).toBeNull();
   await page.evaluate(() => { document.getElementById('dashSupplier')!.setAttribute('data-mark', '1'); });
   await page.locator('#dashPriceLine').selectOption('Z');
   await expect(page.locator('#dashPriceChart')).toContainText('Caustic soda');

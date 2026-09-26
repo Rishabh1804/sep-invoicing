@@ -311,7 +311,7 @@ instrument, and a week or month nobody typed is a gap in the line, never a zero.
 | Panel | Figure | Instrument |
 |---|---|---|
 | **Today** | on site / active roster · floor heads / complement · absent (named) · EXTRA booked | the day's marks (`attDaySummary`, the Home card's arithmetic, one function); the last typed day when today is empty, and says so |
-| **Attendance by week** | line, last 12 pay weeks | worker-days present (P = 1, H = ½) ÷ (active roster × recorded working days); a week with no working day recorded is null |
+| **Attendance by week** | line, last 12 pay weeks | worker-days present (P = 1, H = ½) ÷ the active roster's marks typed that week (P, H or A) — unmarked is not absent; a week with no mark is null |
 | **Labour ₹/kg by month** | lines, last 6 closed months: recorded, paid (bank), model | `labourForRange` ÷ `weighLines` kg where 90% of days are recorded; bank `bankCostForRange().labour` ÷ kg where the month is known; `labourCfg().modelPerKg` flat |
 | **OT and EXTRA by area** | stacked bars, last 4 pay weeks: OT hours, EXTRA hours per area | `areaHoursForRange` |
 | **Payroll against the bank** | grouped bars, last 6 closed months: payroll as paid (else the model's monthly tier), named salary legs the bank paid for that month | `payrollPaidFor`, `labourForRange().byWorker`, `bankCostByMonth().months[m].labour.named` |

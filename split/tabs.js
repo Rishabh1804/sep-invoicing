@@ -138,17 +138,20 @@ var ICON_PRINT = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" str
 /* Home's stat strip: the month so far, with the tonnage behind the revenue (What Stats measures). */
 function renderHomeTiles(active) {
   var set = function(id, html) { var e = document.getElementById(id); if (e) e.innerHTML = html; };
-  var rev = active.reduce(function(s, i) { return s + (i.taxableValue || 0); }, 0);
   var w = weighLines(active);
-  var month = new Date().toLocaleString('en-IN', { month: 'short' });
+  // The app's own month names ('Sep'); en-IN's locale string reads 'Sept'.
+  var month = TREND_MONTH_LABELS[new Date().getMonth()];
   set('mtdCount', String(active.length));
   set('mtdCountSub', escHtml(month) + ' to date');
-  set('mtdRevenue', formatCurrency(rev));
-  set('mtdKg', w.kg > 0 ? formatNum(w.kg / 1000, 1) + ' t' : '&mdash;');
+  set('mtdRevenue', formatCurrency(sumTaxable(active)));
+  // Two places, as Stats shows it: one place read 40 kg as '0.0 t'.
+  set('mtdKg', w.kg > 0 ? formatNum(w.kg / 1000, 2) + ' t' : '&mdash;');
   set('mtdKgSub', w.kg > 0 ? Math.round(w.kg).toLocaleString('en-IN') + ' kg' : 'nothing weighed yet');
   set('mtdPerKg', w.kg > 0 ? formatCurrency(w.revKnown / w.kg) + '<span class="inv-tile-of">/kg</span>' : '&mdash;');
   // A partial figure always reads better than the blend: the unweighed lines are the piece-billed end.
-  set('mtdPerKgSub', !(w.kg > 0) ? '&nbsp;' : w.coverage >= 0.995 ? 'all revenue weighed' : 'on the ' + Math.round(w.coverage * 100) + '% of revenue weighed');
+  // "All" only when nothing priced is unweighed, and a partial share never rounds up to 100%.
+  set('mtdPerKgSub', !(w.kg > 0) ? '&nbsp;' : w.revUnknown < 0.005 ? 'all revenue weighed'
+    : 'on the ' + Math.min(99, Math.round(w.coverage * 100)) + '% of revenue weighed');
 }
 
 function renderHome() {
@@ -189,7 +192,7 @@ function renderHome() {
       if (latestChallan) {
         ub += '<div class="inv-row"><span class="inv-row-main"><span class="inv-row-meta">Latest</span>' +
           '<span class="inv-row-title"><span class="inv-id">' + (latestChallan.challanNo ? 'Ch. ' + escHtml(latestChallan.challanNo) : 'No number') + '</span> ' +
-          escHtml(latestChallan.clientName) + '</span></span><span class="inv-row-end inv-row-meta">' + formatDate(latestChallan.challanDate) + '</span></div>';
+          escHtml(latestChallan.clientName) + '</span></span><span class="inv-row-end inv-row-meta">' + escHtml(formatDate(latestChallan.challanDate)) + '</span></div>';
       }
       unbilledEl.innerHTML = ub + '</div>';
     } else {
@@ -203,7 +206,7 @@ function renderHome() {
     el.innerHTML = '<div class="inv-empty">' +
       '<svg class="inv-empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>' +
       '<div>No invoices yet</div>' +
-      '<button class="inv-btn inv-btn-primary" data-action="invCreateNew">Create your first invoice</button>' +
+      '<button class="inv-btn inv-btn-secondary" data-action="invCreateNew">Create your first invoice</button>' +
       '</div>';
     return;
   }
@@ -211,9 +214,9 @@ function renderHome() {
     return '<div class="inv-row inv-row-2' + (inv.status === 'cancelled' ? ' inv-row-muted' : '') + '">' +
       '<button class="inv-row-main" data-action="invViewInvoiceDetail" data-id="' + escHtml(inv.id) + '">' +
       '<span class="inv-row-title inv-id">' + escHtml(inv.displayNumber) + '</span>' +
-      '<span class="inv-row-meta">' + escHtml(inv.clientName) + ' &middot; ' + formatDate(inv.date) + '</span></button>' +
+      '<span class="inv-row-meta">' + escHtml(inv.clientName) + ' &middot; ' + escHtml(formatDate(inv.date)) + '</span></button>' +
       '<span class="inv-row-end"><span class="inv-row-stack"><span class="inv-num">' + formatCurrency(inv.grandTotal) + '</span>' + getStateBadgeHtml(inv) + '</span>' +
-      '<button class="inv-btn inv-btn-icon inv-btn-sm" data-action="invPreviewInvoice" data-id="' + escHtml(inv.id) + '" aria-label="Print">' + ICON_PRINT + '</button></span></div>';
+      '<button class="inv-btn inv-btn-icon" data-action="invPreviewInvoice" data-id="' + escHtml(inv.id) + '" aria-label="Print">' + ICON_PRINT + '</button></span></div>';
   }).join('');
 }
 

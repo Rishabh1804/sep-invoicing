@@ -18,7 +18,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <!-- Appearance before first paint (§3.2): the device's theme and palette, so nothing flashes in the wrong colours. -->
 <script>(function(){try{var d=document.documentElement,t=localStorage.getItem("sep_inv_theme"),p=localStorage.getItem("sep_inv_palette");if(t==="light"||t==="dark")d.dataset.theme=t;d.dataset.palette=(p==="zinc"||p==="terracotta")?p:"teal";}catch(e){document.documentElement.dataset.palette="teal";}})();</script>
-<meta name="app-build" content="106648c0">
+<meta name="app-build" content="d5588a0f">
 <style>
 /* ===== DESIGN TOKENS (design system v2.0 — docs/SEP_INVOICING_DESIGN_PRINCIPLES.md §3) ===== */
 /* Theme: colour-scheme decides every light-dark() below. <html data-theme> is set before first paint
@@ -3411,12 +3411,13 @@ body.inv-desktop .inv-set-group-on { display: block; }
   color: var(--accent); font-weight: 600; text-decoration: none; cursor: pointer;
 }
 .inv-btn-link:hover, .inv-stk-tool:hover, .inv-link-btn:hover { text-decoration: underline; background: none; color: var(--accent); }
+/* Before the icon rule: same specificity, so the later one wins. */
+.inv-btn svg { width: var(--sp-16); height: var(--sp-16); flex-shrink: 0; }
 .inv-btn-icon { width: var(--ctl-h); padding: 0; flex-shrink: 0; }
 .inv-btn-icon svg { width: 20px; height: 20px; }
 .inv-btn-sm { min-height: var(--ctl-h-sm); padding: 0 var(--sp-12); font-size: var(--fs-13); }
 .inv-btn-block, .inv-stk-btn-block { width: 100%; }
 .inv-btn:disabled, .inv-btn-disabled, .inv-stk-btn:disabled { opacity: 0.45; cursor: not-allowed; pointer-events: none; }
-.inv-btn svg { width: 16px; height: 16px; flex-shrink: 0; }
 /* A grid of launch buttons (Home's quick actions): three across on the phone, one row on the desktop. */
 .inv-btn-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--sp-8); margin-bottom: var(--gap); }
 .inv-btn-grid > .inv-btn { flex-direction: column; gap: var(--sp-4); min-height: calc(var(--ctl-h) * 1.75); padding: var(--sp-8); text-align: center; }
@@ -3549,6 +3550,7 @@ button.inv-row-main { display: block; padding: 0; border: none; background: none
 .inv-row-main > .inv-row-title, .inv-row-main > .inv-row-meta { display: block; }
 .inv-row-stack { display: flex; flex-direction: column; align-items: flex-end; gap: var(--sp-2); }
 .inv-row-wrap { display: block; white-space: normal; }
+.inv-row-wrap .inv-dot { white-space: normal; }
 .inv-row-auto { min-height: 0; padding-top: var(--sp-8); padding-bottom: var(--sp-8); }
 .inv-row-muted { opacity: 0.55; }
 .inv-row-group {
@@ -5388,17 +5390,20 @@ var ICON_PRINT = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" str
 /* Home's stat strip: the month so far, with the tonnage behind the revenue (What Stats measures). */
 function renderHomeTiles(active) {
   var set = function(id, html) { var e = document.getElementById(id); if (e) e.innerHTML = html; };
-  var rev = active.reduce(function(s, i) { return s + (i.taxableValue || 0); }, 0);
   var w = weighLines(active);
-  var month = new Date().toLocaleString('en-IN', { month: 'short' });
+  // The app's own month names ('Sep'); en-IN's locale string reads 'Sept'.
+  var month = TREND_MONTH_LABELS[new Date().getMonth()];
   set('mtdCount', String(active.length));
   set('mtdCountSub', escHtml(month) + ' to date');
-  set('mtdRevenue', formatCurrency(rev));
-  set('mtdKg', w.kg > 0 ? formatNum(w.kg / 1000, 1) + ' t' : '&mdash;');
+  set('mtdRevenue', formatCurrency(sumTaxable(active)));
+  // Two places, as Stats shows it: one place read 40 kg as '0.0 t'.
+  set('mtdKg', w.kg > 0 ? formatNum(w.kg / 1000, 2) + ' t' : '&mdash;');
   set('mtdKgSub', w.kg > 0 ? Math.round(w.kg).toLocaleString('en-IN') + ' kg' : 'nothing weighed yet');
   set('mtdPerKg', w.kg > 0 ? formatCurrency(w.revKnown / w.kg) + '<span class="inv-tile-of">/kg</span>' : '&mdash;');
   // A partial figure always reads better than the blend: the unweighed lines are the piece-billed end.
-  set('mtdPerKgSub', !(w.kg > 0) ? '&nbsp;' : w.coverage >= 0.995 ? 'all revenue weighed' : 'on the ' + Math.round(w.coverage * 100) + '% of revenue weighed');
+  // "All" only when nothing priced is unweighed, and a partial share never rounds up to 100%.
+  set('mtdPerKgSub', !(w.kg > 0) ? '&nbsp;' : w.revUnknown < 0.005 ? 'all revenue weighed'
+    : 'on the ' + Math.min(99, Math.round(w.coverage * 100)) + '% of revenue weighed');
 }
 
 function renderHome() {
@@ -5439,7 +5444,7 @@ function renderHome() {
       if (latestChallan) {
         ub += '<div class="inv-row"><span class="inv-row-main"><span class="inv-row-meta">Latest</span>' +
           '<span class="inv-row-title"><span class="inv-id">' + (latestChallan.challanNo ? 'Ch. ' + escHtml(latestChallan.challanNo) : 'No number') + '</span> ' +
-          escHtml(latestChallan.clientName) + '</span></span><span class="inv-row-end inv-row-meta">' + formatDate(latestChallan.challanDate) + '</span></div>';
+          escHtml(latestChallan.clientName) + '</span></span><span class="inv-row-end inv-row-meta">' + escHtml(formatDate(latestChallan.challanDate)) + '</span></div>';
       }
       unbilledEl.innerHTML = ub + '</div>';
     } else {
@@ -5453,7 +5458,7 @@ function renderHome() {
     el.innerHTML = '<div class="inv-empty">' +
       '<svg class="inv-empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>' +
       '<div>No invoices yet</div>' +
-      '<button class="inv-btn inv-btn-primary" data-action="invCreateNew">Create your first invoice</button>' +
+      '<button class="inv-btn inv-btn-secondary" data-action="invCreateNew">Create your first invoice</button>' +
       '</div>';
     return;
   }
@@ -5461,9 +5466,9 @@ function renderHome() {
     return '<div class="inv-row inv-row-2' + (inv.status === 'cancelled' ? ' inv-row-muted' : '') + '">' +
       '<button class="inv-row-main" data-action="invViewInvoiceDetail" data-id="' + escHtml(inv.id) + '">' +
       '<span class="inv-row-title inv-id">' + escHtml(inv.displayNumber) + '</span>' +
-      '<span class="inv-row-meta">' + escHtml(inv.clientName) + ' &middot; ' + formatDate(inv.date) + '</span></button>' +
+      '<span class="inv-row-meta">' + escHtml(inv.clientName) + ' &middot; ' + escHtml(formatDate(inv.date)) + '</span></button>' +
       '<span class="inv-row-end"><span class="inv-row-stack"><span class="inv-num">' + formatCurrency(inv.grandTotal) + '</span>' + getStateBadgeHtml(inv) + '</span>' +
-      '<button class="inv-btn inv-btn-icon inv-btn-sm" data-action="invPreviewInvoice" data-id="' + escHtml(inv.id) + '" aria-label="Print">' + ICON_PRINT + '</button></span></div>';
+      '<button class="inv-btn inv-btn-icon" data-action="invPreviewInvoice" data-id="' + escHtml(inv.id) + '" aria-label="Print">' + ICON_PRINT + '</button></span></div>';
   }).join('');
 }
 
@@ -9116,10 +9121,13 @@ function ghRenderCard() {
   // whose only other copy is the localStorage it is sitting in.
   var stale = !last || (Date.now() - last) > 86400000;
 
+  // The status leads the meta line: it ellipsizes at its end, and a long repo
+  // name must not push the stale warning out of sight on a phone.
+  var when = 'Last synced ' + escHtml(ghRelTime(last));
   host.innerHTML = '<div class="inv-panel inv-panel-flush" data-card="sync"><div class="inv-row inv-row-2">' +
     '<span class="inv-row-main"><span class="inv-row-title">GitHub backup</span>' +
-      '<span class="inv-row-meta"><span class="inv-id">' + escHtml(cfg.owner + '/' + cfg.repo) + '</span> · ' +
-      (stale ? '<span class="inv-dot inv-dot-warning">last synced ' + escHtml(ghRelTime(last)) + '</span>' : 'last synced ' + escHtml(ghRelTime(last))) + '</span></span>' +
+      '<span class="inv-row-meta">' + (stale ? '<span class="inv-dot inv-dot-warning">' + when + '</span>' : when) +
+      ' · <span class="inv-id">' + escHtml(cfg.owner + '/' + cfg.repo) + '</span></span></span>' +
     '<span class="inv-row-end"><button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invGhPush"' + (_ghBusy ? ' disabled' : '') + '>' +
       (_ghBusy ? 'Syncing…' : 'Back up now') + '</button></span></div></div>';
 }
@@ -19771,13 +19779,14 @@ function renderTodoHomeCard() {
   var ranked = todoRanked();
   var h = '<div class="inv-panel inv-panel-flush"><div class="inv-panel-head"><span class="inv-panel-title">To-do' +
     (ranked.length ? ' <span class="inv-panel-count">' + ranked.length + '</span>' : '') + '</span>' +
-    '<button class="inv-btn-link" data-action="invSwitchTab" data-tab="pageTodo">' + (ranked.length ? 'All ' + ranked.length : 'Add a task') + '</button></div>';
+    '<button class="inv-btn-link" data-action="invSwitchTab" data-tab="pageTodo">' + (ranked.length ? 'See all' : 'Add a task') + '</button></div>';
   if (!ranked.length) h += '<div class="inv-empty">Nothing due</div>';
   ranked.slice(0, 3).forEach(function(r) {
     var tone = uiTone(r.tone);
     if (r.app) {
       h += '<button class="inv-row inv-row-2" data-todo="app" data-action="invTodoOpenApp" data-key="' + escHtml(r.app.key) + '">' +
-        '<span class="inv-row-lead"><span class="inv-dot inv-dot-' + tone + '" aria-hidden="true"></span></span>' +
+        // The tone travels with a symbol, never colour alone (DR-1): the To-do screen's own ! / i glyph.
+        '<span class="inv-row-lead">' + todoGlyph(r.app.tone) + '</span>' +
         '<span class="inv-row-main"><span class="inv-row-title">' + escHtml(r.app.title) + '</span><span class="inv-row-meta">' + escHtml(r.app.sub) + '</span></span>' +
         '<span class="inv-row-end"><span class="inv-badge">App</span></span></button>';
     } else {

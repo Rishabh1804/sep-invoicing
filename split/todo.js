@@ -329,13 +329,14 @@ function renderTodoHomeCard() {
   var ranked = todoRanked();
   var h = '<div class="inv-panel inv-panel-flush"><div class="inv-panel-head"><span class="inv-panel-title">To-do' +
     (ranked.length ? ' <span class="inv-panel-count">' + ranked.length + '</span>' : '') + '</span>' +
-    '<button class="inv-btn-link" data-action="invSwitchTab" data-tab="pageTodo">' + (ranked.length ? 'All ' + ranked.length : 'Add a task') + '</button></div>';
+    '<button class="inv-btn-link" data-action="invSwitchTab" data-tab="pageTodo">' + (ranked.length ? 'See all' : 'Add a task') + '</button></div>';
   if (!ranked.length) h += '<div class="inv-empty">Nothing due</div>';
   ranked.slice(0, 3).forEach(function(r) {
     var tone = uiTone(r.tone);
     if (r.app) {
       h += '<button class="inv-row inv-row-2" data-todo="app" data-action="invTodoOpenApp" data-key="' + escHtml(r.app.key) + '">' +
-        '<span class="inv-row-lead"><span class="inv-dot inv-dot-' + tone + '" aria-hidden="true"></span></span>' +
+        // The tone travels with a symbol, never colour alone (DR-1): the To-do screen's own ! / i glyph.
+        '<span class="inv-row-lead">' + todoGlyph(r.app.tone) + '</span>' +
         '<span class="inv-row-main"><span class="inv-row-title">' + escHtml(r.app.title) + '</span><span class="inv-row-meta">' + escHtml(r.app.sub) + '</span></span>' +
         '<span class="inv-row-end"><span class="inv-badge">App</span></span></button>';
     } else {

@@ -23,7 +23,7 @@ Workforce management and invoicing PWA for **Soma Electro Products**, a zinc ele
 
 ## Architecture
 
-Split-file PWA. 41 modules, ~24,700 lines total.
+Split-file PWA. 42 modules, ~25,100 lines total.
 
 ```
 split/
@@ -56,6 +56,7 @@ split/
 ├── payroll.js         ← Pay: due by worker, payments, weekly payout + forecast, monthly payroll as paid, hours by area, Home attendance (547 lines)
 ├── stock.js           ← Stock: WhatsApp message parser, event replay, More sheet, chemicals ₹/kg (1,189 lines)
 ├── cost.js            ← Prices, bills and patterns per stock line; Stats → Live cost with every source shown (~390 lines)
+├── bills.js           ← Stock → Bills & notes: electricity bills by month, credit notes recorded or issued, stock line edit (~400 lines)
 ├── todo.js            ← To-do: your tasks + tasks raised from the data, Home card, Windows widget payload (726 lines)
 ├── relay.js           ← Attendance rolls: in/out-time WhatsApp parser, review, merge into the day (795 lines)
 ├── stats.js           ← Stats dashboard + History activity log (1,195 lines)
@@ -71,7 +72,11 @@ split/
 └── init.js            ← Migrations + app bootstrap (567 lines)
 ```
 
-**Concat order defined in build.sh.** Dependencies: data → state → appearance → zinc → tabs → clients → items → create → settings → github-sync → invoice-ops → number-audit → exports → im → autocomplete → print → quality-cert → credit-note → charts → staff → labour → areas → payroll → stock → cost → todo → relay → stats → intel → insights → client-perf → im-form → im-dupe → scanner → events → swipe → seed → init.
+**Concat order defined in build.sh.** Dependencies: data → state → appearance → zinc → tabs → clients → items → create → settings → github-sync → invoice-ops → number-audit → exports → im → autocomplete → print → quality-cert → credit-note → charts → staff → labour → areas → payroll → stock → cost → bills → todo → relay → stats → intel → insights → client-perf → im-form → im-dupe → scanner → events → swipe → seed → init.
+
+**Every module shares one global scope.** A top-level `var` or `function` in a later module silently replaces one of
+the same name in an earlier one; nothing warns. `bills.js` shipped a `STOCK_UNITS` array over `stock.js`'s unit map
+and the stock parser stopped reading units, caught only by P39. Grep `split/*.js` for a new top-level name first.
 
 ### Build
 
@@ -97,7 +102,7 @@ every session start — nothing to set up by hand. CI (`build-sync`) is the back
 ### Tests
 
 ```bash
-pnpm exec playwright test          # 456 tests, both layouts
+pnpm exec playwright test          # 466 tests, both layouts
 ```
 
 Some sandboxes ship a Chromium build Playwright does not expect and block downloading
@@ -1284,6 +1289,36 @@ Parts three and four of the intelligence engine (owner, 25 Sep 2026). `insights.
     across all its suppliers: Dorabji `DA1/01322 → 01333 → 01339`), only the prefix is filled and the hint
     says so. An empty vehicle field is filled **only where one vehicle carries 60%+** of the client's last
     30; otherwise the usual ones are offered as chips and nothing is typed.
+
+### Bills & notes
+More → Stock → **Bills & notes** (`bills.js`; owner, 26 Sep 2026: *"We don't have a place to enter electricity
+bills anywhere in the app. And even credit notes"*). The bill form existed, labelled *Power*, at the foot of
+Stats → Cost → Live cost; nobody found it. Credit notes could only be raised from a Register selection as a
+batch rebate.
+
+- **Electricity** (the `power` kind is labelled *Electricity* everywhere now). Every closed month with invoices
+  and no electricity bill is listed with an **Add** that opens the form on that month (`billsMissingPower()`). The
+  same form serves the Stats card (`costBillFormHtml`, `_costBillOpen = {where, month}`).
+  To-do rule **`power`**: from the 10th, last month without a bill; amber from the 20th, `sig` the month.
+- **Credit notes, two doors.** *Record an issued note* takes a note that already exists on paper, with its **own
+  number** (refused if the series holds it) and **the GST as printed**: recomputing is not the same thing, and
+  CN/004's 3,749.29 at 9% + 9% rounds each half to 337.44 = ₹4,424.17 where the customer holds ₹4,424.16. The
+  fields start at the computed figure. `recorded: true`; `cnNextNum` moves past it **only within its own financial
+  year's series** (`cnSeriesHighest()`, read off each note's display number): a note recorded from 25-26 holds no
+  number in 26-27's, and a typed invoice takes the client master's address. *New note* issues the next
+  number against **one invoice** for a reason from a **fixed list** (`CN_REASONS`: rate correction, goods returned,
+  short quantity, discount, other); **Other needs a description**. The batch rebate is not offered there: it is
+  raised off a Register selection, as before.
+- **`kind`: `rebate` | `adjustment`** (absent = rebate, every note before this). An adjustment or a recorded note
+  prints no batch annex (a Register batch note keeps it, a one-invoice batch included, so a reprint matches the
+  customer's copy), reads as its reason in the Register's list, and offers no *Reference* re-pick — *Clear* would
+  erase the number printed on a recorded note. An adjustment is not a rebate to the To-do's batch rule (`cnIsRebate`). Stats nets both by `periodTo` (the invoice
+  date for an adjustment). A note with no quantity prints blank qty and rate cells; the CDNR CSV leaves a blank
+  `discountPct` / `batchTaxable` blank.
+- **This is the door for the control gap above**: CN/004 and CN/005 can now be entered as issued, not re-raised.
+- **A stock line's name and unit are edited on its page.** A rename keeps the old spelling as an alias, so a
+  message in the old name still finds the line; a unit change on a line with entries asks first and converts
+  nothing.
 
 ### Stock reorder list
 More → Stock → **Reorder list** (owner, 25 Sep 2026). For each line with a daily use:

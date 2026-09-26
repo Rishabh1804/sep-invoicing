@@ -51,17 +51,37 @@ function getCreditNotes() {
   return S.creditNotes;
 }
 
+/* The financial year a note's number belongs to, off its own display number:
+   'CN/007/26-27' → '26-27'; '' where the note states none. */
+function cnNoteFy(cn) {
+  var p = String((cn && cn.displayNumber) || '').split('/');
+  return p.length > 2 ? p.slice(2).join('/') : '';
+}
+/* A note of the current series: this financial year's, or one that states no
+   year. A note recorded from an earlier year (Stock → Bills & notes takes the
+   year as printed) holds a number in THAT year's series, never in this one's. */
+function cnInSeries(cn) {
+  var fy = cnNoteFy(cn);
+  return !fy || fy === cnFyShort();
+}
+/* The highest number issued in the current series. */
+function cnSeriesHighest() {
+  var highest = 0;
+  getCreditNotes().forEach(function(cn) {
+    if (!cnInSeries(cn)) return;
+    var n = parseInt(cn.cnNumber, 10);
+    if (!isNaN(n) && n > highest) highest = n;
+  });
+  return highest;
+}
+
 /* A credit note number is issued — the customer holds a document bearing it —
    so by the same rule that governs invoice numbers it may never be reused.
    It needs no separate void ledger, though: a credit note is cancelled, never
    deleted, which is the correct GST treatment anyway. The number stays in the
    series carrying its own explanation, and exports declare it at zero. */
 function recomputeNextCnNumber() {
-  var highest = 0;
-  getCreditNotes().forEach(function(cn) {
-    var n = parseInt(cn.cnNumber, 10);
-    if (!isNaN(n) && n > highest) highest = n;
-  });
+  var highest = cnSeriesHighest();
   if (!S.cnNextNum || S.cnNextNum <= highest) S.cnNextNum = highest + 1;
   return S.cnNextNum;
 }
@@ -359,8 +379,9 @@ function cancelCreditNote(cnId) {
   cn.cancelledAt = Date.now();
   cn.updatedAt = Date.now();
   saveState();
-  closeOverlay();
-  renderCreditNoteList();
+  // Cancelled from wherever the note is listed: the Register's overlay, or Stock → Bills & notes.
+  if (document.querySelector('.inv-overlay-scrim')) { closeOverlay(); renderCreditNoteList(); }
+  else if (typeof _stockView !== 'undefined' && _stockView === 'bills') renderStock();
   showToast(cn.displayNumber + ' cancelled — the number stays in the series');
 }
 
@@ -409,9 +430,10 @@ function buildCreditNoteHtml(cn) {
     '<th>UOM</th><th>Rate</th><th>Amount</th></tr></thead><tbody>' +
     '<tr><td class="inv-cn-c">1</td><td>' + escHtml(cn.particulars || CN_PARTICULARS) + '</td>' +
     '<td class="inv-cn-c">' + gstRate + '%</td>' +
-    '<td class="inv-cn-num">' + formatNum(cn.qty, 2) + '</td>' +
-    '<td class="inv-cn-c">' + escHtml(cn.unit || 'KG') + '</td>' +
-    '<td class="inv-cn-num">' + formatNum(cn.rate, 2) + '</td>' +
+    // A note credited by value alone states no quantity or rate rather than printing 0.00.
+    '<td class="inv-cn-num">' + (cn.qty ? formatNum(cn.qty, 2) : '') + '</td>' +
+    '<td class="inv-cn-c">' + (cn.qty ? escHtml(cn.unit || 'KG') : '') + '</td>' +
+    '<td class="inv-cn-num">' + (cn.rate ? formatNum(cn.rate, 2) : '') + '</td>' +
     '<td class="inv-cn-num">' + formatNum(cn.taxableValue, 2) + '</td></tr>' +
     '</tbody></table>';
 
@@ -457,7 +479,10 @@ function buildCreditNoteHtml(cn) {
   // improvement over CN/005. An intermediate version of this line read "Computed
   // on (N invoices)", which asserts an arithmetic basis and drops the linkage
   // claim. Both readings now, because the document needs both.
-  html += '<div class="inv-cn-annex"><div class="inv-cn-annex-title">Invoices credited (' +
+  // Every batch note raised from the Register keeps its annex, a one-invoice batch
+  // included — a reprint must read as the copy the customer holds. A recorded note
+  // has no batch here to list, and an adjustment is about its one invoice.
+  if (cnIsRebate(cn) && !cn.recorded && cn.discountPct) html += '<div class="inv-cn-annex"><div class="inv-cn-annex-title">Invoices credited (' +
     (cn.invoiceNumbers || []).length + ') &mdash; the discount is computed on this batch, taxable ' +
     formatNum(cn.batchTaxable, 2) +
     ' at ' + escHtml(cn.discountPct) + '%</div>' +
@@ -791,12 +816,17 @@ function renderCreditNoteList() {
     notes.forEach(function(cn) {
       var cancelled = cn.status === 'cancelled';
       var n = (cn.invoiceNumbers || []).length;
+      // A batch note states its batch; a recorded or adjustment note has none, so it states its reason.
+      var batch = cnIsRebate(cn) && !cn.recorded && cn.discountPct;
+      var basis = batch
+        ? escHtml(cn.discountPct) + '% of ' + formatCurrency(cn.batchTaxable) + ' over ' + n + ' invoice' + (n !== 1 ? 's' : '')
+        : escHtml((cn.reason || 'Credit note') + (cn.recorded ? ' · recorded' : ''));
       html += '<div class="inv-row inv-row-auto' + (cancelled ? ' inv-row-muted' : '') + '"' + (cancelled ? ' data-cancelled' : '') + '>' +
         '<button class="inv-row-main" data-action="invCnPreview" data-id="' + escHtml(cn.id) + '">' +
         '<span class="inv-row-title"><span class="inv-id" data-invnum>' + escHtml(cn.displayNumber) + '</span> ' +
         (cancelled ? '<span class="inv-dot inv-dot-danger">Cancelled</span>' : '') + '</span>' +
         '<span class="inv-row-meta">' + escHtml(cn.clientName) + ' · ' + escHtml(formatDate(cn.date)) + '</span>' +
-        '<span class="inv-row-meta">' + escHtml(cn.discountPct) + '% of ' + formatCurrency(cn.batchTaxable) + ' over ' + n + ' invoice' + (n !== 1 ? 's' : '') + '</span>' +
+        '<span class="inv-row-meta">' + basis + '</span>' +
         // The customer identifies this note by ONE invoice number now, so that
         // number belongs on the row rather than behind a preview.
         '<span class="inv-row-meta">Against ' + escHtml(cnAgainstInvoiceLabel(cn)) + '</span></button>' +
@@ -804,7 +834,9 @@ function renderCreditNoteList() {
         '<span class="inv-row-meta inv-num">' + formatCurrency(cn.taxableValue) + ' taxable</span>' +
         (cancelled ? '' :
           '<span class="inv-toolbar inv-toolbar-tight">' +
-          '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invCnSetAgainst" data-id="' + escHtml(cn.id) + '">Reference</button>' +
+          // Only a batch has invoices to choose among. A recorded note carries the number
+          // printed on the customer's copy, and "Clear" would erase it for good.
+          (batch ? '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invCnSetAgainst" data-id="' + escHtml(cn.id) + '">Reference</button>' : '') +
           '<button class="inv-btn inv-btn-danger inv-btn-sm" data-action="invCnCancel" data-id="' + escHtml(cn.id) + '">Cancel</button></span>') +
         '</span></span></div>';
     });
@@ -864,7 +896,7 @@ function exportCreditNotesCSV() {
       cn.againstInvoice || (cnDeriveAgainstInvoice(cn) || {}).displayNumber || '',
       cnAgainstInvoiceDate(cn) ? formatDateExport(cnAgainstInvoiceDate(cn)) : '',
       formatDateExport(cn.periodFrom), formatDateExport(cn.periodTo),
-      cn.discountPct, cn.batchTaxable, z ? 'Cancelled' : 'Active'
+      cn.discountPct != null ? cn.discountPct : '', cn.batchTaxable != null ? cn.batchTaxable : '', z ? 'Cancelled' : 'Active'
     ]);
   });
   // Named for what the file holds, not for the register's filters. It borrowed

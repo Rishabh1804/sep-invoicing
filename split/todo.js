@@ -18,12 +18,13 @@
    queue the app applies. Both directions run on open AND on close: the queue is
    read when the app is shown, the payload is written when it is hidden. */
 
-var TODO_CHECK_DEFAULTS = { stock: true, paste: true, cn: true, challan: true, dispatch: true, audit: true,
+var TODO_CHECK_DEFAULTS = { stock: true, paste: true, cn: true, power: true, challan: true, dispatch: true, audit: true,
   backup: true, zinc: false, pasteDays: 2, challanDays: 5, dispatchDays: 2, backupDays: 7 };
 var TODO_RULES = [
   ['stock', 'A stock line turns red or amber'],
   ['paste', 'No stock message for a while'],
   ['cn', 'A credit-note batch reaches 7 days'],
+  ['power', 'A month closes without an electricity bill'],
   ['challan', 'A challan is waiting to be billed'],
   ['dispatch', 'An invoice is still Created'],
   ['audit', 'The number audit finds a gap'],
@@ -82,6 +83,21 @@ function todoDueLabel(iso) {
    where the figure moves every day on its own (a stock level falls with use —
    the snooze lasts until the line changes colour, not until it drops a litre). */
 var TODO_RULE_FNS = {
+  /* The month's electricity bill, asked for once the bill should have arrived (the 10th), for a
+     closed month the app billed in. Amber after the 20th: by then Live cost has been reading the
+     model figure for three weeks. */
+  power: function() {
+    var today = todoToday(), day = parseInt(today.slice(8, 10), 10);
+    if (day < 10) return [];
+    var prev = billsPrevMonths(1)[0];
+    if (billsMissingPower(1).indexOf(prev) < 0) return [];
+    return [{ key: 'power:' + prev, rule: 'power', tone: day >= 20 ? 'amber' : 'info',
+      title: 'Add the electricity bill for ' + billsMonthLabel(prev), sub: 'Live cost is using the Settings figure for it',
+      why: 'Bills · none recorded for ' + billsMonthLabel(prev),
+      facts: [['Month', billsMonthLabel(prev)], ['Until then', 'the model ₹/kg']],
+      clears: 'Clears itself when the bill for ' + billsMonthLabel(prev) + ' is saved.',
+      go: { kind: 'bills', month: prev }, goLabel: 'Add the bill', sig: prev }];
+  },
   stock: function() {
     var out = [];
     stockData().items.forEach(function(it) {
@@ -120,7 +136,8 @@ var TODO_RULE_FNS = {
   },
   cn: function() {
     var out = [];
-    var notes = getCreditNotes().filter(function(c) { return c.status !== 'cancelled'; });
+    // The batch rebate's own notes: a rate correction for the same client does not start a new batch window.
+    var notes = getCreditNotes().filter(function(c) { return c.status !== 'cancelled' && cnIsRebate(c); });
     var byClient = {};
     notes.forEach(function(c) {
       var b = byClient[c.clientId] || (byClient[c.clientId] = { to: '', ids: {}, last: null });
@@ -493,6 +510,11 @@ function todoGo(go) {
   switch (go.kind) {
     case 'stock': _stockItemId = go.id; _stockView = 'item'; switchTab('pageStock'); break;
     case 'stockPaste': _stockView = 'paste'; switchTab('pageStock'); break;
+    case 'bills':
+      _stockView = 'bills';
+      _costBillOpen = go.month ? { where: 'stock', month: go.month } : false;
+      switchTab('pageStock');
+      break;
     case 'cnBatch':
       regFilter.clientId = String(go.clientId); regFilter.month = ''; regFilter.search = ''; regFilter.state = '';
       regFilter.dateFrom = go.from; regFilter.dateTo = go.to;

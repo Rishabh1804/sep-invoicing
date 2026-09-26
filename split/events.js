@@ -359,6 +359,7 @@ document.addEventListener('click', function(e) {
       break;
     }
     default:
+      if (billsAction(action, btn)) break;
       if (action.indexOf('invStock') === 0) stockAction(action, btn);
       else if (action.indexOf('invTodo') === 0) todoAction(action, btn);
       else if (action.indexOf('invRelay') === 0) relayAction(action, btn);
@@ -419,6 +420,7 @@ function updateTotalsDisplay() {
 
 document.addEventListener('change', function(e) {
   if (stockOnChange(e.target)) return;
+  if (billsCnFormInput(e.target)) return;
   if (todoOnChange(e.target)) return;
   if (relayOnChange(e.target)) return;
   const el = e.target.closest('[data-action="invUpdateLine"]');
@@ -558,6 +560,8 @@ document.addEventListener('change', function(e) {
 
 document.addEventListener('input', function(e) {
   if (stockOnInput(e.target)) return;
+  // Every typed field of the credit-note form, held as typed; a <select> speaks through change only.
+  if (e.target.tagName === 'INPUT' && /^cnf/.test(e.target.id) && billsCnFormInput(e.target)) return;
   if (relayOnInput(e.target)) return;
   if (e.target.id === 'clientSearch') {
     renderClientList(e.target.value);

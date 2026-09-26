@@ -153,13 +153,17 @@ tax-invoice section below for what a margin box costs; a spec asserts it.
 
 ## Design System
 
-| Element | Value |
-|---------|-------|
-| CSS prefix | `inv-` on all classes |
-| Color system | 9 domains (sage, rose, amber, lavender, sky, indigo, peach, slate, gold) |
-| Dark mode | `.dark` class, all 9 domains have light + dark variants |
-| Touch targets | 44px minimum (WCAG) |
-| Currency display | `formatCurrency()` for Indian comma grouping, `gstRound()` for calculation |
+**`docs/SEP_INVOICING_DESIGN_PRINCIPLES.md` (v2.0, "Dense console", adopted 26 Sep 2026) is the one
+document the interface is built on** — tokens, theme, density, navigation, every component, how each screen
+is assembled, and the migration plan. Read it before touching `styles.css` or a render function; a UI
+change that needs something it does not define amends it in the same PR. Its design rules DR-1…DR-8 carry
+the weight of the hard rules above (colour means status; one accent for interaction; one primary button per
+view; figures mono and right-aligned; sentence case; no shadows on content; components, not one-offs; status
+is a dot or badge plus a word).
+
+⚠ **Until the migration in its §9 completes, the stylesheet still carries the v1.0 families** (`inv-card`,
+`inv-stk-*`, `inv-stats-card`, the domain colours). New work uses the v2.0 components; never extend a v1.0
+family. **v1.0's dark mode was never reachable** — `.dark` was styled and nothing set it.
 
 ## Business Domain
 

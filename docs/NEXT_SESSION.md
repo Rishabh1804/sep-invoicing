@@ -106,6 +106,20 @@ A to-do list for Soma, the workplace, shown as a widget on the desktop and on th
   loses. ⚠ **The roster ships empty because this repo is public**, so per-client labour cost must
   be computed from runtime data on the device, never from anything committed.
 
+### 5. Redesign: "Dense console" (owner, 25–26 Sep 2026)
+
+The interface is being rebuilt to `docs/SEP_INVOICING_DESIGN_PRINCIPLES.md` v2.0 — read it first; it is the
+whole spec. **Route 1** (native CSS, no build step) runs in four phases (its §9): foundation (tokens, theme,
+density, shell) → components → screens one PR at a time (Home, Register, IM, Create, Clients, To-do, Stock,
+Staff, Stats, History, Settings) → clean-up. Open decisions (palette, icon, default theme) are its §10.
+
+**Route 3 — a framework build — is a separate app in this repo** (owner: *"a separate build from this, so
+that we can keep running our data without missing any days and once that is finished we can port"*). It lives
+in its own folder (e.g. `next/`, served at `/sep-invoicing/next/`) and is built to the same design document.
+⚠ **Both apps are the same origin, so they see the same IndexedDB (`sep-invoicing`).** Until cut-over the new
+build must **never write that store**: it either reads it and keeps its own database, or is fed through
+GitHub sync / a backup import. The live app stays the system of record until the owner switches.
+
 ### Carried from the codex
 
 - **T-HC** (`soma-internal`): the scanner bypasses `itemRates`. **Fixed here 24 Sep 2026** — the compile session should close it in `soma-internal/tasks.md`.

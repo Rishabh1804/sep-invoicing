@@ -403,17 +403,15 @@ function ghRenderCard() {
   // whose only other copy is the localStorage it is sitting in.
   var stale = !last || (Date.now() - last) > 86400000;
 
-  host.innerHTML = '<div class="inv-card inv-sync-card">' +
-    '<div class="inv-flex-between">' +
-      '<div class="inv-sync-meta">' +
-        '<div class="inv-sync-label">GitHub backup' +
-          (stale ? '<span class="inv-sync-stale">stale</span>' : '') + '</div>' +
-        '<div class="inv-sync-repo inv-mono">' + escHtml(cfg.owner + '/' + cfg.repo) + '</div>' +
-        '<div class="inv-sync-time">Last synced ' + escHtml(ghRelTime(last)) + '</div>' +
-      '</div>' +
-      '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invGhPush"' + (_ghBusy ? ' disabled' : '') + '>' +
-        (_ghBusy ? 'Syncing…' : 'Back up now') + '</button>' +
-    '</div></div>';
+  // The status leads the meta line: it ellipsizes at its end, and a long repo
+  // name must not push the stale warning out of sight on a phone.
+  var when = 'Last synced ' + escHtml(ghRelTime(last));
+  host.innerHTML = '<div class="inv-panel inv-panel-flush" data-card="sync"><div class="inv-row inv-row-2">' +
+    '<span class="inv-row-main"><span class="inv-row-title">GitHub backup</span>' +
+      '<span class="inv-row-meta">' + (stale ? '<span class="inv-dot inv-dot-warning">' + when + '</span>' : when) +
+      ' · <span class="inv-id">' + escHtml(cfg.owner + '/' + cfg.repo) + '</span></span></span>' +
+    '<span class="inv-row-end"><button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invGhPush"' + (_ghBusy ? ' disabled' : '') + '>' +
+      (_ghBusy ? 'Syncing…' : 'Back up now') + '</button></span></div></div>';
 }
 
 /* ===== SETTINGS SECTION ===== */

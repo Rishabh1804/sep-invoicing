@@ -372,6 +372,8 @@ strips ("1269 challans", "118 active invoices", "24 clients").
 (transparent with a hairline border: a lighter secondary, never bare text, which reads as a label) · `inv-btn-danger` (danger text on the surface; `inv-btn-danger inv-btn-solid` is the filled one, used only
 for the final button of a confirm dialog) · `inv-btn-link` (accent
 text, no box) · `inv-btn-icon` (square, `aria-label`) · size `inv-btn-sm`, width `inv-btn-block`.
+`inv-btn-grid` lays launch buttons out — three across on the phone (icon over label), one row on the desktop;
+Home's quick actions are the one use.
 Height `--ctl-h`, radius `--r-md`, `--t-body` 500 (primary 600). Replaces `inv-stk-btn*`, `inv-stk-tool`,
 `inv-stk-back`, `inv-link-btn`, `inv-quick-action`, `inv-header-btn`, `inv-overlay-close`,
 `inv-att-nav-btn`, `inv-im-sel-btn`, `inv-sel-clear-btn`, `inv-td-fold`.
@@ -405,7 +407,8 @@ Every searchable list uses it. Replaces `inv-reg-toolbar`, `inv-im-toolbar`, `in
 
 ### 6.8 Panel — `inv-panel`
 `inv-panel-head` (`--t-heading` title · optional count in mono `--text-3` · spacer · actions as
-`inv-btn-link`/`-sm`), then body. `inv-panel-flush` for a panel whose body is rows or a table (no padding).
+`inv-btn-link`/`-sm`), then body. `inv-panel-flush` for a panel whose body is rows or a table (no padding). `inv-panels` lays panels out: one column
+on the phone, two on the desktop, `inv-panels-wide` spanning both; an empty host is not drawn.
 Replaces `inv-card`, `inv-card-list`, `inv-stats-card`, `inv-im-challan`, `inv-stk-hero`, `inv-stk-metabox`,
 `inv-set-sec`'s box, `inv-dupe-group`, `inv-td-facts`, `inv-rl-rows`.
 
@@ -414,6 +417,8 @@ A grid of tiles separated by 1px gaps on a `--border` background inside one bord
 `inv-tile-label` (`--t-label` `--text-3`), `inv-tile-value` (`--t-stat`), `inv-tile-sub` (`--t-caption`;
 toned only when it states a status). A tile that filters its list is a `<button>`. Tone modifiers
 `inv-tile-danger|warning|ok|info` colour the **value only**. 2 columns on the phone, up to 5 on the desktop.
+`inv-tile-of` is the quiet denominator or unit after a value (`15/21`, `/kg`). `inv-tiles-flush` is a strip inside
+a flush panel: the panel draws the box, the strip only its dividers.
 Replaces `inv-kpi*`, `inv-ov-tile`, `inv-stk-tile`, `inv-stat-label/value`, `inv-lab-half`, `inv-lab-perkg`,
 `inv-area-stat`, `inv-stats-metric-value`, `inv-att-count-value`, `inv-flip-kpi`.
 
@@ -421,7 +426,9 @@ Replaces `inv-kpi*`, `inv-ov-tile`, `inv-stk-tile`, `inv-stat-label/value`, `inv
 One or two lines, `--row-h` / `--row-h-2`, divider below. Slots: `inv-row-lead` (checkbox, dot or icon),
 `inv-row-main` (`inv-row-title` + `inv-row-meta`), `inv-row-end` (figure, status, chevron). A group header
 inside a list is `inv-row-group` (`--t-caption` on `--bg`, e.g. "25 Sep · 5 · ₹11,801.88").
-**The phone form of every table.** Replaces `inv-client-item`, `inv-item-card`, `inv-reg-row`,
+`inv-row-main` may be a `<button>` when the row has a second action (a print icon, a tick box); `inv-row-stack`
+stacks a figure over its badge in `inv-row-end`; `inv-row-wrap` lets a meta line wrap (a list of names);
+`inv-row-muted` is a cancelled or inactive row. **The phone form of every table.** Replaces `inv-client-item`, `inv-item-card`, `inv-reg-row`,
 `inv-im-header`, `inv-att-row`, `inv-area-row`, `inv-history-item`, `inv-stats-row`, `inv-lab-row`,
 `inv-pay-row`, `inv-rate-row`, `inv-cost-dline`, `inv-td-hrow`, `inv-more-item`, `inv-stk-row`,
 `inv-stk-hrow`, `inv-stk-mrow`, `inv-td-row`.
@@ -497,7 +504,7 @@ Legend is inline in the panel head. Every datum keeps its `<title>`. SVG `font-s
 - Plain explanatory text under a panel is `inv-note` (`--t-caption` `--text-3`). Replaces `inv-stats-note`,
   `inv-dupe-note`, `inv-numaudit-note`, `inv-form-hint`, `inv-stk-hint`, `inv-cp-group-note`.
 - `inv-empty`: centred in its panel, `--text-3`, one line saying what would appear and the action that
-  makes it appear. Replaces `inv-empty-state(-sm)`, `inv-stk-empty`, `inv-td-empty`, `inv-chart-empty`.
+  makes it appear; `inv-empty-icon` above it where the empty panel is the first thing a new device sees. Replaces `inv-empty-state(-sm)`, `inv-stk-empty`, `inv-td-empty`, `inv-chart-empty`.
 
 ### 6.19 Settings
 Keeps its six groups, folded sections and per-section Save (see CLAUDE.md § Settings), redrawn with
@@ -510,7 +517,7 @@ density §3.5) under Data & device, each a segmented control that applies at onc
 
 | Screen | Phone | Desktop |
 |---|---|---|
-| Home | stat strip (revenue, invoices, plated, ₹/kg) · quick actions (2×3 `inv-btn-secondary`, first primary) · To-do panel of rows · Floor today panel (area table) | stat strip ×5 · six-month chart · contribution-by-client table · To-do · floor-by-area tiles |
+| Home | stat strip (invoices, revenue, plated, ₹/kg) · quick actions (3×2 `inv-btn-grid`, first primary) · To-do, Attendance, Unbilled, Sync and Zinc panels · recent invoices as rows | same strip ×4 · quick actions in one row · panels two across · recent invoices spanning both. *Built.* The six-month chart and contribution table move here with Stats (they are Stats' renderers). |
 | Create | fields · unbilled-challan rows with checkboxes · line editor · collapsible optional details · action bar | same, two-column fields, lines as a table |
 | IM | toolbar · rows grouped by date (challan no., client, amount; meta: date · vehicle · items; status dot) · selection bar | table + detail pane |
 | Register | toolbar with tokens · rows grouped by day with subtotal · selection bar | table (invoice, client, date, challans, kg, taxable, GST, total, state) · selection bar · detail pane |
@@ -552,7 +559,7 @@ phone and desktop.
    the Clients segment and Stats tabs → view tabs, banners → callout, overlays → dialog). Labels are
    sentence case everywhere (DR-5); the duplicated `inv-chip` is one rule; decorative tone fills are neutral.
    Step 3 moves the markup onto the v2.0 class names and deletes the v1.0 names from those selector lists.
-3. **Screens, in order:** Home · Register · IM · Create · Clients/Items/Performance · To-do · Stock · Staff ·
+3. **Screens, in order:** Home *(built 26 Sep 2026)* · Register · IM · Create · Clients/Items/Performance · To-do · Stock · Staff ·
    Stats · History · Settings. Each moves its render functions onto the components and deletes its private
    family in the same PR (DR-7). The survey's bugs are fixed where their screen moves: History's filter bar,
    Register's desktop list, the doubled Add buttons, Staff's cut-off sub-tabs, the base-colour dark-mode text,

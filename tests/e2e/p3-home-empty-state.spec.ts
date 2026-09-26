@@ -20,8 +20,8 @@ test.describe('P3: Home "Recent Invoices" empty-state', () => {
     const recent = page.locator('#recentInvoices');
     await expect(recent).toBeVisible();
 
-    // Positive: icon is present and sized via the new .inv-empty-state-icon class.
-    await expect(recent.locator('svg.inv-empty-state-icon')).toBeVisible();
+    // Positive: icon is present and sized via the .inv-empty-icon class.
+    await expect(recent.locator('svg.inv-empty-icon')).toBeVisible();
     // Positive: copy present.
     await expect(recent).toContainText('No invoices yet');
     // Positive: CTA present with the correct action + text.
@@ -74,7 +74,7 @@ test.describe('P3: Home "Recent Invoices" empty-state', () => {
 
     // With a real invoice seeded, the list renders the invoice row — NOT the empty-state block.
     await expect(recent).toContainText('SEP/TEST-00020');
-    await expect(recent.locator('svg.inv-empty-state-icon')).toHaveCount(0);
+    await expect(recent.locator('svg.inv-empty-icon')).toHaveCount(0);
     await expect(recent.locator('button[data-action="invCreateNew"]')).toHaveCount(0);
     await expect(recent).not.toContainText('Create your first invoice');
   });

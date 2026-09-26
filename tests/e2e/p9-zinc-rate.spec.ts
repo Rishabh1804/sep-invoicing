@@ -28,7 +28,7 @@ test.describe('P9: zinc market rate', () => {
     await expect(card).toContainText('Zinc');
     await expect(card).toContainText('₹415');       // 400 + 15 landed
     await expect(card).toContainText('updated today');
-    await expect(page.locator('.inv-zinc-stale')).toHaveCount(0);
+    await expect(page.locator('#homeZincCard [data-zinc-age="stale"]')).toHaveCount(0);
   });
 
   test('flags a rate that has gone stale', async ({ page }) => {
@@ -36,8 +36,8 @@ test.describe('P9: zinc market rate', () => {
     await loadAppWithState(page, stateWithZinc(400, 15, tenDaysAgo));
 
     await expect(page.locator('#homeZincCard')).toContainText('10 days ago');
-    await expect(page.locator('.inv-zinc-stale')).toBeVisible();
-    await expect(page.locator('.inv-zinc-stale')).toContainText('may be out of date');
+    await expect(page.locator('#homeZincCard [data-zinc-age="stale"]')).toBeVisible();
+    await expect(page.locator('#homeZincCard [data-zinc-age="stale"]')).toContainText('may be out of date');
   });
 
   test('prompts for setup when no rate is recorded and no key is set', async ({ page }) => {

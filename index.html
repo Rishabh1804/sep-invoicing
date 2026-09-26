@@ -18,7 +18,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <!-- Appearance before first paint (§3.2): the device's theme and palette, so nothing flashes in the wrong colours. -->
 <script>(function(){try{var d=document.documentElement,t=localStorage.getItem("sep_inv_theme"),p=localStorage.getItem("sep_inv_palette");if(t==="light"||t==="dark")d.dataset.theme=t;d.dataset.palette=(p==="zinc"||p==="terracotta")?p:"teal";}catch(e){document.documentElement.dataset.palette="teal";}})();</script>
-<meta name="app-build" content="293e5933">
+<meta name="app-build" content="d5588a0f">
 <style>
 /* ===== DESIGN TOKENS (design system v2.0 — docs/SEP_INVOICING_DESIGN_PRINCIPLES.md §3) ===== */
 /* Theme: colour-scheme decides every light-dark() below. <html data-theme> is set before first paint
@@ -1530,31 +1530,6 @@ table.inv-qc-grid.inv-qc-no-top { border-top: 0; }
 .inv-mb-8 { margin-bottom: var(--sp-8); }
 .inv-mb-16 { margin-bottom: var(--sp-16); }
 .inv-mt-8 { margin-top: var(--sp-8); }
-
-/* Phase 5: Home dashboard unbilled card */
-.inv-card-unbilled {
-  background: linear-gradient(135deg, var(--warning-bg), var(--surface));
-  border: 1px solid var(--border);
-}
-.inv-unbilled-row {
-  display: flex; justify-content: space-between; align-items: center;
-  padding: var(--sp-4) 0;
-}
-.inv-unbilled-label { font-size: var(--fs-sm); color: var(--text-2); }
-.inv-unbilled-value { font-family: var(--ff-mono); font-weight: 600; color: var(--warning-text); }
-.inv-latest-challan {
-  font-size: var(--fs-sm); color: var(--text-2);
-  padding-top: var(--sp-8); margin-top: var(--sp-8);
-  border-top: 1px solid var(--border);
-}
-.inv-latest-challan-num { font-family: var(--ff-mono); font-weight: 600; color: var(--text-1); }
-.inv-quick-action {
-  display: inline-flex; align-items: center; gap: var(--sp-6);
-  font-size: var(--fs-sm); font-weight: 600; color: var(--accent);
-  cursor: pointer; padding: var(--sp-6) 0;
-  background: none; border: none; min-height: 44px;
-}
-.inv-quick-action:active { opacity: 0.7; }
 .inv-flex-between { display: flex; justify-content: space-between; align-items: center; }
 .inv-empty-state {
   text-align: center; padding: var(--sp-32) var(--sp-16);
@@ -1565,20 +1540,8 @@ table.inv-qc-grid.inv-qc-no-top { border-top: 0; }
   margin: 0 auto var(--sp-8); display: block;
   opacity: 0.6;
 }
-.inv-stat-label { font-size: var(--fs-xs); }
-.inv-stat-value { font-size: var(--fs-2xl); color: var(--cost); }
 .inv-text-right { text-align: right; }
 .inv-btn-bar-center { justify-content: center; margin-bottom: var(--sp-16); }
-.inv-recent-num { font-size: var(--fs-sm); }
-.inv-recent-total { font-size: var(--fs-base); }
-.inv-recent-right { flex-shrink: 0; }
-.inv-recent-print {
-  min-width: 44px; min-height: 44px; display: flex;
-  align-items: center; justify-content: center;
-  background: none; border: none; color: var(--text-3);
-  cursor: pointer; border-radius: var(--r-md); flex-shrink: 0;
-}
-.inv-recent-print:active { color: var(--accent); background: var(--surface-2); }
 .inv-client-badges { display: flex; gap: var(--sp-4); margin-top: var(--sp-4); flex-wrap: wrap; }
 .inv-client-content { flex: 1; min-width: 0; }
 .inv-checkbox-label { display: flex; align-items: center; gap: var(--sp-8); min-height: 44px; cursor: pointer; }
@@ -2106,29 +2069,7 @@ table.inv-qc-grid.inv-qc-no-top { border-top: 0; }
   border-radius: var(--r-sm); font-size: var(--fs-2xs); font-weight: 600;
   font-family: var(--ff-mono);
 }
-
-/* ===== ZINC RATE CARD ===== */
-.inv-zinc-breakdown { font-size: var(--fs-sm); color: var(--text-2); }
-.inv-zinc-meta { font-size: var(--fs-xs); color: var(--text-3); }
-.inv-zinc-stale { color: var(--warning-text); font-weight: 600; }
-
-/* ===== GITHUB SYNC ===== */
-.inv-sync-card { padding: var(--card-padding-sm) var(--card-padding); }
-.inv-sync-meta { display: flex; flex-direction: column; gap: var(--sp-2); min-width: 0; }
-.inv-sync-label {
-  display: flex; align-items: center; gap: var(--sp-6);
-  font-size: var(--fs-sm); font-weight: 600; color: var(--text-1);
-}
-.inv-sync-stale {
-  padding: var(--sp-2) var(--sp-6); border-radius: var(--r-sm);
-  background: var(--warning-bg); color: var(--warning-text);
-  font-size: var(--fs-2xs); font-weight: 600;
-}
-.inv-sync-repo {
-  font-size: var(--fs-xs); color: var(--text-2);
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
-.inv-sync-time { font-size: var(--fs-xs); color: var(--text-3); }
+/* ===== GITHUB SYNC (Settings) ===== */
 .inv-sync-status {
   margin-top: var(--sp-8); padding: var(--sp-8) var(--sp-10);
   background: var(--surface-2); border-radius: var(--r-sm);
@@ -2379,7 +2320,6 @@ body.inv-desktop .inv-detail-empty-text {
 
 /* --- Dark mode: master-detail (Phase 8B) --- */
 
-
 /* ===== DESKTOP TABLE (Phase 8C) ===== */
 body.inv-desktop .inv-desktop-table {
   width: 100%;
@@ -2456,7 +2396,6 @@ body.inv-desktop #regSelBar {
 
 /* --- Dark mode: desktop table (Phase 8C) --- */
 
-
 /* ===== IM DESKTOP TABLE (Phase 8D) ===== */
 .inv-td-challan {
   width: 100px;
@@ -2480,7 +2419,6 @@ body.inv-desktop #imSelBar {
 }
 
 /* --- Dark mode: IM desktop (Phase 8D) --- */
-
 
 /* ===== CLIENTS/ITEMS DESKTOP (Phase 8E) ===== */
 
@@ -2573,7 +2511,6 @@ body.inv-desktop #itemsSelBar {
 }
 
 /* --- Dark mode: Clients/Items desktop (Phase 8E) --- */
-
 
 /* --- Tablet: Wider cards, no max-width cap --- */
 @media (min-width: 768px) {
@@ -2798,7 +2735,6 @@ body.inv-desktop #itemsSelBar {
 .inv-td-wline-no { color: var(--text-3); }
 .inv-pay-green { background: var(--attend-bg); }
 .inv-pay-blue { background: var(--prod-bg); }
-.inv-att-home { margin-bottom: var(--sp-16); }
 .inv-att-grid-sun { background: var(--surface-2); }
 .inv-lab-label { color: var(--text-1); min-width: 0; }
 .inv-lab-sub { display: block; font-size: var(--fs-2xs); color: var(--text-3); }
@@ -2817,7 +2753,6 @@ body.inv-desktop #itemsSelBar {
 .inv-lab-perkg-none .inv-lab-perkg-value { color: var(--text-3); }
 
 /* Dark mode. Every surface above that is not already a token pair. */
-
 
 /* Focus rings, matching the ones the tabs and chips already carry. */
 .inv-att-seg-btn:focus-visible,
@@ -3244,7 +3179,6 @@ body.inv-desktop .inv-stk-foot { bottom: var(--sp-8); }
 /* Dark: the tokens above re-point by themselves; these are the spots that
    read a light-only value. Chips and tiles keep a solid border either way. */
 
-
 /* ===== TO-DO =====
    App tasks carry a round marker (they clear themselves), your own a tick box.
    Tone is the left rule, the same language as the Stock list. */
@@ -3277,7 +3211,7 @@ body.inv-desktop .inv-stk-foot { bottom: var(--sp-8); }
   color: var(--text-1); font: inherit; text-align: left;
 }
 button.inv-td-row { cursor: pointer; }
-.inv-td-row:focus-visible, .inv-td-main:focus-visible, .inv-td-box:focus-visible, .inv-td-hrow:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.inv-td-row:focus-visible, .inv-td-main:focus-visible, .inv-td-box:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .inv-td-tone-red { border-left-color: var(--danger); }
 .inv-td-tone-amber { border-left-color: var(--warning); }
 .inv-td-tone-info { border-left-color: var(--prod); }
@@ -3322,16 +3256,6 @@ button.inv-td-row { cursor: pointer; }
   color: var(--text-1); font: inherit; font-size: var(--fs-base); font-weight: 600; cursor: pointer;
 }
 .inv-td-fold span:last-child { color: var(--accent); }
-/* Home */
-.inv-td-card .inv-card-header { display: flex; justify-content: space-between; align-items: center; }
-.inv-td-hrow {
-  display: flex; align-items: flex-start; gap: var(--sp-10); width: 100%; min-height: 44px; padding: var(--sp-8) 0;
-  border: none; border-top: 1px solid var(--border); background: none; color: var(--text-1); font: inherit; text-align: left;
-}
-button.inv-td-hrow { cursor: pointer; }
-.inv-td-hrow:first-of-type { border-top: none; }
-.inv-td-hrow .inv-td-title { font-size: var(--fs-base); }
-.inv-td-home-none { font-size: var(--fs-sm); color: var(--text-2); }
 /* Overlays */
 .inv-td-ohead { display: flex; align-items: center; gap: var(--sp-8); margin-bottom: var(--sp-6); }
 .inv-td-otitle { font-family: var(--ff-display); font-size: var(--fs-lg); font-weight: 600; color: var(--text-1); margin-bottom: var(--sp-10); }
@@ -3372,21 +3296,6 @@ button.inv-td-hrow { cursor: pointer; }
 .inv-rl-read { color: var(--text-2); }
 .inv-rl-line-unknown .inv-rl-read { color: var(--danger-text); font-weight: 600; }
 .inv-rl-line-extra .inv-rl-read { color: var(--prod-text); font-weight: 600; }
-
-/* ===== HOME QUICK ACTIONS ===== */
-.inv-qa-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--sp-8); margin-bottom: var(--sp-16); }
-.inv-qa {
-  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--sp-4);
-  min-height: calc(var(--sp-32) * 2 + var(--sp-8)); padding: var(--sp-8) var(--sp-4);
-  border: 1px solid var(--border-2); border-radius: var(--r-lg); background: var(--surface); color: var(--text-1);
-  font: inherit; font-size: var(--fs-sm); font-weight: 600; line-height: 1.2; text-align: center; cursor: pointer;
-}
-.inv-qa svg { width: 20px; height: 20px; color: var(--accent); }
-.inv-qa:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-.inv-qa:active { transform: scale(0.98); }
-.inv-qa-pri { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
-.inv-qa-pri svg { color: var(--on-accent); }
-body.inv-desktop .inv-qa-grid { grid-template-columns: repeat(6, 1fr); }
 
 /* ===== SETTINGS: groups, folded sections, per-section save ===== */
 .inv-set-nav { display: none; }
@@ -3502,11 +3411,20 @@ body.inv-desktop .inv-set-group-on { display: block; }
   color: var(--accent); font-weight: 600; text-decoration: none; cursor: pointer;
 }
 .inv-btn-link:hover, .inv-stk-tool:hover, .inv-link-btn:hover { text-decoration: underline; background: none; color: var(--accent); }
+/* Before the icon rule: same specificity, so the later one wins. */
+.inv-btn svg { width: var(--sp-16); height: var(--sp-16); flex-shrink: 0; }
 .inv-btn-icon { width: var(--ctl-h); padding: 0; flex-shrink: 0; }
 .inv-btn-icon svg { width: 20px; height: 20px; }
 .inv-btn-sm { min-height: var(--ctl-h-sm); padding: 0 var(--sp-12); font-size: var(--fs-13); }
 .inv-btn-block, .inv-stk-btn-block { width: 100%; }
 .inv-btn:disabled, .inv-btn-disabled, .inv-stk-btn:disabled { opacity: 0.45; cursor: not-allowed; pointer-events: none; }
+/* A grid of launch buttons (Home's quick actions): three across on the phone, one row on the desktop. */
+.inv-btn-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--sp-8); margin-bottom: var(--gap); }
+.inv-btn-grid > .inv-btn { flex-direction: column; gap: var(--sp-4); min-height: calc(var(--ctl-h) * 1.75); padding: var(--sp-8); text-align: center; }
+.inv-btn-grid > .inv-btn svg { width: 20px; height: 20px; }
+.inv-btn-grid > .inv-btn-secondary svg { color: var(--accent); }
+body.inv-desktop .inv-btn-grid { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+body.inv-desktop .inv-btn-grid > .inv-btn { flex-direction: row; min-height: var(--ctl-h); }
 
 /* §6.4 View tabs — underline. The one control for switching views. v1.0: the Clients segment, the Stats tabs. */
 .inv-viewtabs, .inv-stats-tabs, .inv-subview-toggle {
@@ -3574,6 +3492,12 @@ body.inv-desktop :is(.inv-panel, .inv-card, .inv-card-list, .inv-stats-card, .in
   font-size: var(--fs-14); font-weight: 600; line-height: 1.4; color: var(--text-1);
 }
 .inv-panel-count { font-family: var(--ff-mono); font-size: var(--fs-12); color: var(--text-3); font-weight: 400; }
+/* Panels laid out: one column on the phone, two on the desktop; a -wide panel spans both. */
+.inv-panels { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--gap); }
+.inv-panels > :empty { display: none; }
+.inv-panels .inv-panel { margin-bottom: 0; }
+body.inv-desktop .inv-panels { grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; }
+body.inv-desktop .inv-panels-wide { grid-column: 1 / -1; }
 
 /* §6.9 Stat tiles: one bordered strip, tiles separated by 1px gaps. v1.0: KPI and stock tiles. */
 .inv-tiles {
@@ -3587,12 +3511,18 @@ button.inv-tile:hover { background: var(--surface-2); }
 .inv-tile-label, .inv-kpi-label, .inv-ov-l, .inv-lab-half-label, .inv-lab-perkg-label, .inv-area-stat-label {
   font-size: var(--fs-12); font-weight: 500; color: var(--text-3);
 }
-.inv-tile-value, .inv-kpi-value, .inv-stk-tile-n, .inv-ov-v, .inv-stat-value, .inv-lab-half-value, .inv-area-stat-value, .inv-stats-metric-value {
+.inv-tile-value, .inv-kpi-value, .inv-stk-tile-n, .inv-ov-v, .inv-lab-half-value, .inv-area-stat-value, .inv-stats-metric-value {
   font-family: var(--ff-mono); font-size: var(--fs-19); font-weight: 600; letter-spacing: var(--ls-tight); line-height: 1.2; color: var(--text-1);
 }
-body.inv-desktop :is(.inv-tile-value, .inv-kpi-value, .inv-stk-tile-n, .inv-ov-v, .inv-stat-value, .inv-lab-half-value, .inv-area-stat-value, .inv-stats-metric-value) { font-size: var(--fs-22); }
+body.inv-desktop :is(.inv-tile-value, .inv-kpi-value, .inv-stk-tile-n, .inv-ov-v, .inv-lab-half-value, .inv-area-stat-value, .inv-stats-metric-value) { font-size: var(--fs-22); }
 .inv-lab-perkg-value { font-family: var(--ff-mono); font-weight: 600; letter-spacing: var(--ls-tight); color: var(--text-1); }
 .inv-tile-sub { font-size: var(--fs-12); color: var(--text-3); margin-top: var(--sp-2); }
+.inv-tile-of { font-size: var(--fs-13); font-weight: 500; color: var(--text-3); }
+.inv-tile-value-sm { font-size: var(--fs-14); }
+body.inv-desktop .inv-tile-value-sm { font-size: var(--fs-16); }
+/* A strip inside a flush panel: the panel draws the box, so the strip only draws its dividers. */
+.inv-tiles-flush { border: none; border-radius: 0; margin-bottom: 0; border-bottom: 1px solid var(--border); }
+.inv-tiles-flush:last-child { border-bottom: none; }
 .inv-tile-danger .inv-tile-value { color: var(--danger); }
 .inv-tile-warning .inv-tile-value { color: var(--warning); }
 .inv-tile-ok .inv-tile-value { color: var(--ok); }
@@ -3612,10 +3542,17 @@ body.inv-desktop :is(.inv-tile-value, .inv-kpi-value, .inv-stk-tile-n, .inv-ov-v
 button.inv-row, a.inv-row { width: 100%; border-left: none; border-right: none; border-top: none; background: none; text-align: left; font: inherit; cursor: pointer; }
 button.inv-row:hover, a.inv-row:hover { background: var(--surface-2); }
 .inv-row-lead { flex-shrink: 0; display: flex; align-items: center; }
-.inv-row-main { flex: 1; min-width: 0; }
+.inv-row-main { flex: 1; min-width: 0; font-size: var(--fs-14); }
 .inv-row-title { font-size: var(--fs-14); font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .inv-row-meta { font-size: var(--fs-12); color: var(--text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .inv-row-end { flex-shrink: 0; display: flex; align-items: center; gap: var(--sp-8); text-align: right; }
+button.inv-row-main { display: block; padding: 0; border: none; background: none; font: inherit; color: inherit; text-align: left; cursor: pointer; align-self: stretch; }
+.inv-row-main > .inv-row-title, .inv-row-main > .inv-row-meta { display: block; }
+.inv-row-stack { display: flex; flex-direction: column; align-items: flex-end; gap: var(--sp-2); }
+.inv-row-wrap { display: block; white-space: normal; }
+.inv-row-wrap .inv-dot { white-space: normal; }
+.inv-row-auto { min-height: 0; padding-top: var(--sp-8); padding-bottom: var(--sp-8); }
+.inv-row-muted { opacity: 0.55; }
 .inv-row-group {
   display: flex; justify-content: space-between; align-items: center; min-height: var(--sp-32);
   padding: 0 var(--pad-x); background: var(--bg); border-bottom: 1px solid var(--border);
@@ -3739,6 +3676,8 @@ body.inv-desktop .inv-actionbar { bottom: 0; }
   padding: var(--sp-24) var(--sp-16); text-align: center; color: var(--text-3); font-size: var(--fs-13);
   border: none; background: none;
 }
+.inv-empty { display: flex; flex-direction: column; align-items: center; gap: var(--sp-12); }
+.inv-empty-icon { width: var(--sp-32); height: var(--sp-32); color: var(--text-3); }
 
 /* Tiles that borrowed tone classes for decoration (v1.0): neutral unless they state a status (DR-1).
    A predicted payout well above the median is a caution, not an error. */
@@ -3764,35 +3703,30 @@ body.inv-desktop .inv-actionbar { bottom: 0; }
 
 <!-- PAGES -->
 <div id="pageHome" class="inv-page inv-page-active">
-  <div class="inv-card inv-card-hero">
-    <div class="inv-card-header"><span class="inv-card-title">Month to Date</span></div>
-    <div class="inv-flex-between inv-mb-8">
-      <div>
-        <div class="inv-text-muted inv-stat-label">Invoices</div>
-        <div id="mtdCount" class="inv-display inv-stat-value">0</div>
-      </div>
-      <div class="inv-text-right">
-        <div class="inv-text-muted inv-stat-label">Revenue</div>
-        <div id="mtdRevenue" class="inv-display inv-stat-value">&#8377;0</div>
-      </div>
+  <div class="inv-tiles" id="homeTiles">
+    <div class="inv-tile"><div class="inv-tile-label">Invoices</div><div class="inv-tile-value" id="mtdCount">0</div><div class="inv-tile-sub" id="mtdCountSub">&nbsp;</div></div>
+    <div class="inv-tile"><div class="inv-tile-label">Revenue</div><div class="inv-tile-value" id="mtdRevenue">&#8377;0</div><div class="inv-tile-sub">taxable</div></div>
+    <div class="inv-tile"><div class="inv-tile-label">Plated</div><div class="inv-tile-value" id="mtdKg">&mdash;</div><div class="inv-tile-sub" id="mtdKgSub">&nbsp;</div></div>
+    <div class="inv-tile"><div class="inv-tile-label">Realisation</div><div class="inv-tile-value" id="mtdPerKg">&mdash;</div><div class="inv-tile-sub" id="mtdPerKgSub">&nbsp;</div></div>
+  </div>
+  <div class="inv-btn-grid" role="group" aria-label="Quick actions">
+    <button class="inv-btn inv-btn-primary" data-action="invCreateNew"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg><span>New invoice</span></button>
+    <button class="inv-btn inv-btn-secondary" data-action="invHomeQuick" data-go="challan"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg><span>New challan</span></button>
+    <button class="inv-btn inv-btn-secondary" data-action="invHomeQuick" data-go="stock"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M9 3h6"/><path d="M10 3v6L4.5 19a1.5 1.5 0 001.3 2h12.4a1.5 1.5 0 001.3-2L14 9V3"/><path d="M7 15h10"/></svg><span>Stock entry</span></button>
+    <button class="inv-btn inv-btn-secondary" data-action="invHomeQuick" data-go="attendance"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><polyline points="17 11 19 13 23 9"/></svg><span>Attendance</span></button>
+    <button class="inv-btn inv-btn-secondary" data-action="invHomeQuick" data-go="paste"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z"/></svg><span>Paste message</span></button>
+    <button class="inv-btn inv-btn-secondary" data-action="invHomeQuick" data-go="task"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg><span>Add task</span></button>
+  </div>
+  <div class="inv-panels">
+    <div id="homeTodoCard"></div>
+    <div id="homeAttCard"></div>
+    <div id="homeUnbilledCard"></div>
+    <div id="homeSyncCard"></div>
+    <div id="homeZincCard"></div>
+    <div class="inv-panel inv-panel-flush inv-panels-wide">
+      <div class="inv-panel-head"><span class="inv-panel-title">Recent invoices</span></div>
+      <div id="recentInvoices"></div>
     </div>
-  </div>
-  <div class="inv-qa-grid" role="group" aria-label="Quick actions">
-    <button class="inv-qa inv-qa-pri" data-action="invCreateNew"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg><span>New invoice</span></button>
-    <button class="inv-qa" data-action="invHomeQuick" data-go="challan"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg><span>New challan</span></button>
-    <button class="inv-qa" data-action="invHomeQuick" data-go="stock"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M9 3h6"/><path d="M10 3v6L4.5 19a1.5 1.5 0 001.3 2h12.4a1.5 1.5 0 001.3-2L14 9V3"/><path d="M7 15h10"/></svg><span>Stock entry</span></button>
-    <button class="inv-qa" data-action="invHomeQuick" data-go="attendance"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><polyline points="17 11 19 13 23 9"/></svg><span>Attendance</span></button>
-    <button class="inv-qa" data-action="invHomeQuick" data-go="paste"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z"/></svg><span>Paste message</span></button>
-    <button class="inv-qa" data-action="invHomeQuick" data-go="task"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg><span>Add task</span></button>
-  </div>
-  <div id="homeTodoCard"></div>
-  <div id="homeAttCard"></div>
-  <div id="homeUnbilledCard"></div>
-  <div id="homeSyncCard"></div>
-  <div id="homeZincCard"></div>
-  <div class="inv-card">
-    <div class="inv-card-header"><span class="inv-card-title">Recent Invoices</span></div>
-    <div id="recentInvoices" class="inv-empty-state">No invoices yet</div>
   </div>
 </div>
 
@@ -5041,17 +4975,15 @@ function renderZincCard() {
   if (!el) return;
   var z = getZinc();
   var landed = zincLandedRate();
+  var head = '<div class="inv-panel inv-panel-flush"><div class="inv-panel-head"><span class="inv-panel-title">Zinc</span>';
 
   if (landed == null) {
     // Adding the key does not fetch anything by itself, so the empty state has
     // to carry the Refresh button too. Without it, setting a key left the card
     // still asking for a key and no way to act on it.
     var hasKey = !!getMetalsKey();
-    el.innerHTML = '<div class="inv-card"><div class="inv-card-header">' +
-      '<span class="inv-card-title">Zinc</span>' +
-      (hasKey ? '<button class="inv-btn inv-btn-primary inv-btn-sm" data-action="invRefreshZinc">Refresh</button>' : '') +
-      '</div>' +
-      '<div class="inv-text-muted inv-storage-text">' +
+    el.innerHTML = head + (hasKey ? '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invRefreshZinc">Refresh</button>' : '') + '</div>' +
+      '<div class="inv-empty">' +
       (hasKey
         ? 'No rate recorded yet. Tap Refresh to pull the current market rate, or enter it by hand in Settings.'
         : 'No rate recorded. Set it in Settings, or add a metals.dev API key there to pull it from the market.') +
@@ -5065,27 +4997,20 @@ function renderZincCard() {
     : age === 0 ? 'updated today'
     : 'updated ' + age + ' day' + (age !== 1 ? 's' : '') + ' ago';
 
-  el.innerHTML = '<div class="inv-card"><div class="inv-card-header">' +
-    '<span class="inv-card-title">Zinc</span>' +
-    '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invRefreshZinc">Refresh</button>' +
-    '</div>' +
-    '<div class="inv-flex-between inv-mb-8">' +
-    '<div><div class="inv-text-muted inv-stat-label">Landed per kg</div>' +
-    '<div class="inv-display inv-stat-value">' + formatCurrency(landed) + '</div></div>' +
-    '<div class="inv-text-right"><div class="inv-text-muted inv-stat-label">' +
-    (z.basis === 'lme' ? 'MCX est. + premium' : 'MCX + premium') + '</div>' +
-    '<div class="inv-mono inv-zinc-breakdown">' + formatCurrency(zincMcxRate()) +
-    ' + ' + formatCurrency(z.premiumPerKg || 0) + '</div></div></div>' +
+  el.innerHTML = head + '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invRefreshZinc">Refresh</button></div>' +
+    '<div class="inv-tiles inv-tiles-flush">' +
+    '<div class="inv-tile"><div class="inv-tile-label">Landed per kg</div><div class="inv-tile-value">' + formatCurrency(landed) + '</div></div>' +
+    '<div class="inv-tile"><div class="inv-tile-label">' + (z.basis === 'lme' ? 'MCX est. + premium' : 'MCX + premium') + '</div>' +
+    '<div class="inv-tile-value inv-tile-value-sm">' + formatCurrency(zincMcxRate()) + ' + ' + formatCurrency(z.premiumPerKg || 0) + '</div></div></div>' +
+    '<div class="inv-row inv-row-auto"><span class="inv-row-main">' +
     // Show the whole derivation when the figure was uplifted from LME, so an
     // estimate never reads as a quoted MCX price.
     (z.basis === 'lme'
-      ? '<div class="inv-zinc-meta">LME ' + formatCurrency(z.ratePerKg) +
-        ' + ' + formatNum(z.upliftPct, 1) + '% duty/freight = MCX est. ' +
-        formatCurrency(zincMcxRate()) + '</div>'
+      ? '<span class="inv-row-meta inv-row-wrap">LME ' + formatCurrency(z.ratePerKg) +
+        ' + ' + formatNum(z.upliftPct, 1) + '% duty/freight = MCX est. ' + formatCurrency(zincMcxRate()) + '</span>'
       : '') +
-    '<div class="inv-zinc-meta' + (stale ? ' inv-zinc-stale' : '') + '">' +
-    escHtml(ageText) + (z.source ? ' · ' + escHtml(z.source) : '') +
-    (stale ? ' · may be out of date' : '') + '</div></div>';
+    '<span class="inv-row-meta inv-row-wrap"><span class="inv-dot ' + (stale ? 'inv-dot-warning' : 'inv-dot-ok') + '" data-zinc-age="' + (stale ? 'stale' : 'fresh') + '">' +
+    escHtml(ageText) + (z.source ? ' · ' + escHtml(z.source) : '') + (stale ? ' · may be out of date' : '') + '</span></span></span></div></div>';
 }
 
 /* Pull the live rate. Deliberately forgiving about the response shape: the
@@ -5456,12 +5381,36 @@ function homeQuick(go) {
   }
 }
 
+/* A status is one of five tone words (design principles §6.13); the modules keep their own. */
+var UI_TONE = { red: 'danger', amber: 'warning', info: 'info', green: 'ok' };
+function uiTone(t) { return UI_TONE[t] || (/^(danger|warning|ok|info|neutral)$/.test(t) ? t : 'neutral'); }
+
+var ICON_PRINT = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>';
+
+/* Home's stat strip: the month so far, with the tonnage behind the revenue (What Stats measures). */
+function renderHomeTiles(active) {
+  var set = function(id, html) { var e = document.getElementById(id); if (e) e.innerHTML = html; };
+  var w = weighLines(active);
+  // The app's own month names ('Sep'); en-IN's locale string reads 'Sept'.
+  var month = TREND_MONTH_LABELS[new Date().getMonth()];
+  set('mtdCount', String(active.length));
+  set('mtdCountSub', escHtml(month) + ' to date');
+  set('mtdRevenue', formatCurrency(sumTaxable(active)));
+  // Two places, as Stats shows it: one place read 40 kg as '0.0 t'.
+  set('mtdKg', w.kg > 0 ? formatNum(w.kg / 1000, 2) + ' t' : '&mdash;');
+  set('mtdKgSub', w.kg > 0 ? Math.round(w.kg).toLocaleString('en-IN') + ' kg' : 'nothing weighed yet');
+  set('mtdPerKg', w.kg > 0 ? formatCurrency(w.revKnown / w.kg) + '<span class="inv-tile-of">/kg</span>' : '&mdash;');
+  // A partial figure always reads better than the blend: the unweighed lines are the piece-billed end.
+  // "All" only when nothing priced is unweighed, and a partial share never rounds up to 100%.
+  set('mtdPerKgSub', !(w.kg > 0) ? '&nbsp;' : w.revUnknown < 0.005 ? 'all revenue weighed'
+    : 'on the ' + Math.min(99, Math.round(w.coverage * 100)) + '% of revenue weighed');
+}
+
 function renderHome() {
   const now = new Date();
   const ym = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0');
   const active = S.invoices.filter(i => i.status === 'active' && i.date && i.date.startsWith(ym));
-  document.getElementById('mtdCount').textContent = active.length;
-  document.getElementById('mtdRevenue').innerHTML = formatCurrency(active.reduce((s,i) => s + (i.taxableValue || 0), 0));
+  renderHomeTiles(active);
 
   renderZincCard();
   renderTodoHomeCard();
@@ -5469,51 +5418,35 @@ function renderHome() {
   updateStockBadge();
   ghRenderCard();
 
-  // Phase 5: Unbilled IM summary card
   var unbilledEl = document.getElementById('homeUnbilledCard');
   if (unbilledEl) {
-    var pendingChallans = 0;
-    var pendingAmount = 0;
-    var pendingItemCount = 0;
-    var latestChallan = null;
+    var pendingChallans = 0, pendingAmount = 0, pendingItemCount = 0, latestChallan = null;
     (S.incomingMaterial || []).forEach(function(im) {
       var hasPending = false;
       im.items.forEach(function(it) {
-        if (!it.invoiced) {
-          hasPending = true;
-          pendingAmount += (it.amount || 0);
-          pendingItemCount++;
-        }
+        if (!it.invoiced) { hasPending = true; pendingAmount += (it.amount || 0); pendingItemCount++; }
       });
       if (hasPending) pendingChallans++;
-      if (!latestChallan || (im.createdAt || 0) > (latestChallan.createdAt || 0)) {
-        latestChallan = im;
-      }
+      if (!latestChallan || (im.createdAt || 0) > (latestChallan.createdAt || 0)) latestChallan = im;
     });
-
     if (pendingChallans > 0 || latestChallan) {
-      var ubHtml = '<div class="inv-card inv-card-unbilled">' +
-        '<div class="inv-card-header"><span class="inv-card-title">Unbilled Material</span></div>';
+      var ub = '<div class="inv-panel inv-panel-flush"><div class="inv-panel-head"><span class="inv-panel-title">Unbilled material</span>' +
+        '<button class="inv-btn-link" data-action="invSwitchTab" data-tab="pageIM">View challans</button></div>';
       if (pendingChallans > 0) {
-        ubHtml += '<div class="inv-unbilled-row"><span class="inv-unbilled-label">Pending challans</span>' +
-          '<span class="inv-unbilled-value">' + pendingChallans + '</span></div>' +
-          '<div class="inv-unbilled-row"><span class="inv-unbilled-label">Items awaiting invoicing</span>' +
-          '<span class="inv-unbilled-value">' + pendingItemCount + '</span></div>' +
-          '<div class="inv-unbilled-row"><span class="inv-unbilled-label">Pending amount</span>' +
-          '<span class="inv-unbilled-value">' + formatCurrency(pendingAmount) + '</span></div>';
+        ub += '<div class="inv-tiles inv-tiles-flush">' +
+          '<div class="inv-tile"><div class="inv-tile-label">Pending challans</div><div class="inv-tile-value">' + pendingChallans + '</div>' +
+          '<div class="inv-tile-sub">' + pendingItemCount + ' item' + (pendingItemCount === 1 ? '' : 's') + ' awaiting invoicing</div></div>' +
+          '<div class="inv-tile"><div class="inv-tile-label">Pending amount</div><div class="inv-tile-value">' + formatCurrency(pendingAmount) + '</div>' +
+          '<div class="inv-tile-sub">at the challans&rsquo; rates</div></div></div>';
       } else {
-        ubHtml += '<div class="inv-unbilled-row"><span class="inv-unbilled-label">All items invoiced</span>' +
-          '<span class="inv-unbilled-value inv-text-cost">0 pending</span></div>';
+        ub += '<div class="inv-row"><span class="inv-row-main"><span class="inv-dot inv-dot-ok">All items invoiced</span></span></div>';
       }
       if (latestChallan) {
-        ubHtml += '<div class="inv-latest-challan">Latest: ' +
-          '<span class="inv-latest-challan-num">' + (latestChallan.challanNo ? 'Ch. ' + escHtml(latestChallan.challanNo) : 'No number') + '</span> ' +
-          escHtml(latestChallan.clientName) + ' &middot; ' + formatDate(latestChallan.challanDate) + '</div>';
+        ub += '<div class="inv-row"><span class="inv-row-main"><span class="inv-row-meta">Latest</span>' +
+          '<span class="inv-row-title"><span class="inv-id">' + (latestChallan.challanNo ? 'Ch. ' + escHtml(latestChallan.challanNo) : 'No number') + '</span> ' +
+          escHtml(latestChallan.clientName) + '</span></span><span class="inv-row-end inv-row-meta">' + escHtml(formatDate(latestChallan.challanDate)) + '</span></div>';
       }
-      ubHtml += '<button class="inv-quick-action" data-action="invSwitchTab" data-tab="pageIM">' +
-        '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>' +
-        'View Incoming</button></div>';
-      unbilledEl.innerHTML = ubHtml;
+      unbilledEl.innerHTML = ub + '</div>';
     } else {
       unbilledEl.innerHTML = '';
     }
@@ -5522,24 +5455,20 @@ function renderHome() {
   const recent = [...S.invoices].sort((a,b) => (b.createdAt||0) - (a.createdAt||0)).slice(0, 10);
   const el = document.getElementById('recentInvoices');
   if (recent.length === 0) {
-    el.innerHTML = '<div class="inv-empty-state">' +
-      '<svg class="inv-empty-state-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>' +
-      '<div class="inv-mt-16">No invoices yet</div>' +
-      '<div class="inv-mt-16"><button class="inv-btn inv-btn-primary" data-action="invCreateNew">Create your first invoice</button></div>' +
+    el.innerHTML = '<div class="inv-empty">' +
+      '<svg class="inv-empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>' +
+      '<div>No invoices yet</div>' +
+      '<button class="inv-btn inv-btn-secondary" data-action="invCreateNew">Create your first invoice</button>' +
       '</div>';
     return;
   }
   el.innerHTML = recent.map(inv => {
-    const cancelled = inv.status === 'cancelled';
-    return '<div class="inv-client-item' + (cancelled ? ' inv-client-inactive' : '') + '" data-action="invViewInvoiceDetail" data-id="' + escHtml(inv.id) + '">' +
-      '<div><div class="inv-client-name inv-mono inv-recent-num">' + escHtml(inv.displayNumber) + '</div>' +
-      '<div class="inv-client-meta">' + escHtml(inv.clientName) + ' &middot; ' + formatDate(inv.date) + '</div></div>' +
-      '<div class="inv-text-right inv-recent-right"><div class="inv-mono inv-text-cost inv-recent-total">' + formatCurrency(inv.grandTotal) + '</div>' +
-      getStateBadgeHtml(inv) +
-      '</div>' +
-      '<button class="inv-recent-print" data-action="invPreviewInvoice" data-id="' + escHtml(inv.id) + '" aria-label="Print">' +
-      '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>' +
-      '</button></div>';
+    return '<div class="inv-row inv-row-2' + (inv.status === 'cancelled' ? ' inv-row-muted' : '') + '">' +
+      '<button class="inv-row-main" data-action="invViewInvoiceDetail" data-id="' + escHtml(inv.id) + '">' +
+      '<span class="inv-row-title inv-id">' + escHtml(inv.displayNumber) + '</span>' +
+      '<span class="inv-row-meta">' + escHtml(inv.clientName) + ' &middot; ' + escHtml(formatDate(inv.date)) + '</span></button>' +
+      '<span class="inv-row-end"><span class="inv-row-stack"><span class="inv-num">' + formatCurrency(inv.grandTotal) + '</span>' + getStateBadgeHtml(inv) + '</span>' +
+      '<button class="inv-btn inv-btn-icon" data-action="invPreviewInvoice" data-id="' + escHtml(inv.id) + '" aria-label="Print">' + ICON_PRINT + '</button></span></div>';
   }).join('');
 }
 
@@ -9192,17 +9121,15 @@ function ghRenderCard() {
   // whose only other copy is the localStorage it is sitting in.
   var stale = !last || (Date.now() - last) > 86400000;
 
-  host.innerHTML = '<div class="inv-card inv-sync-card">' +
-    '<div class="inv-flex-between">' +
-      '<div class="inv-sync-meta">' +
-        '<div class="inv-sync-label">GitHub backup' +
-          (stale ? '<span class="inv-sync-stale">stale</span>' : '') + '</div>' +
-        '<div class="inv-sync-repo inv-mono">' + escHtml(cfg.owner + '/' + cfg.repo) + '</div>' +
-        '<div class="inv-sync-time">Last synced ' + escHtml(ghRelTime(last)) + '</div>' +
-      '</div>' +
-      '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invGhPush"' + (_ghBusy ? ' disabled' : '') + '>' +
-        (_ghBusy ? 'Syncing…' : 'Back up now') + '</button>' +
-    '</div></div>';
+  // The status leads the meta line: it ellipsizes at its end, and a long repo
+  // name must not push the stale warning out of sight on a phone.
+  var when = 'Last synced ' + escHtml(ghRelTime(last));
+  host.innerHTML = '<div class="inv-panel inv-panel-flush" data-card="sync"><div class="inv-row inv-row-2">' +
+    '<span class="inv-row-main"><span class="inv-row-title">GitHub backup</span>' +
+      '<span class="inv-row-meta">' + (stale ? '<span class="inv-dot inv-dot-warning">' + when + '</span>' : when) +
+      ' · <span class="inv-id">' + escHtml(cfg.owner + '/' + cfg.repo) + '</span></span></span>' +
+    '<span class="inv-row-end"><button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invGhPush"' + (_ghBusy ? ' disabled' : '') + '>' +
+      (_ghBusy ? 'Syncing…' : 'Back up now') + '</button></span></div></div>';
 }
 
 /* ===== SETTINGS SECTION ===== */
@@ -17766,10 +17693,11 @@ function renderAttHomeCard() {
     var last = Object.keys(S.attendance || {}).filter(function(k) { return k < today && marked(S.attendance[k]); }).sort().pop();
     if (last) { iso = last; rec = S.attendance[last]; }
   }
-  var h = '<div class="inv-card inv-pay-card inv-att-home"><div class="inv-card-header"><span class="inv-card-title">Attendance</span>' +
-    '<span class="inv-lab-sub">' + (iso === today ? 'today' : escHtml(attDayName(iso) + ' ' + formatDate(iso))) + '</span></div>';
+  var h = '<div class="inv-panel inv-panel-flush"><div class="inv-panel-head"><span class="inv-panel-title">Attendance ' +
+    '<span class="inv-panel-count">' + (iso === today ? 'today' : escHtml(attDayName(iso) + ' ' + formatDate(iso))) + '</span></span>' +
+    '<button class="inv-btn-link" data-action="invPayOpenAtt">Open</button></div>';
   if (!marked(rec)) {
-    h += '<div class="inv-empty-state inv-empty-state-sm">Nothing recorded yet.</div>';
+    h += '<div class="inv-empty">Nothing recorded yet.</div>';
   } else {
     var p = 0, half = 0, absent = [], unmarked = 0, floorHeads = 0;
     roster.forEach(function(w) {
@@ -17781,17 +17709,17 @@ function renderAttHomeCard() {
     });
     var complement = STAFF_AREAS.reduce(function(s, a) { var t = areaTarget(a.id); return s + (t != null ? t : 0); }, 0);
     var extraH = (rec.extra || []).reduce(function(s, x) { return s + (x.hours || 0); }, 0);
-    h += '<div class="inv-lab-split">' +
-      '<div class="inv-lab-half inv-pay-green"><div class="inv-lab-half-label">On site</div>' +
-      '<div class="inv-lab-half-value inv-mono" id="homeAttOnSite">' + (p + half) + '<span class="inv-att-grid-of">/' + roster.length + '</span></div>' +
-      '<div class="inv-lab-half-sub">' + (half ? half + ' half day' + (half === 1 ? '' : 's') + ' · ' : '') + absent.length + ' absent' + (unmarked ? ' · ' + unmarked + ' unmarked' : '') + '</div></div>' +
-      '<div class="inv-lab-half ' + (complement && floorHeads < complement ? 'inv-area-gap-under' : 'inv-pay-blue') + '"><div class="inv-lab-half-label">On the floor</div>' +
-      '<div class="inv-lab-half-value inv-mono">' + floorHeads + (complement ? '<span class="inv-att-grid-of">/' + complement + '</span>' : '') + '</div>' +
-      '<div class="inv-lab-half-sub">' + (complement ? 'against the complement' : 'no complement set') + '</div></div></div>';
-    if (absent.length) h += '<div class="inv-lab-row"><span class="inv-lab-label">Absent<span class="inv-lab-sub">' + escHtml(absent.join(', ')) + '</span></span></div>';
-    if (extraH) h += '<div class="inv-lab-row"><span class="inv-lab-label">EXTRA booked</span><span class="inv-lab-value inv-mono">' + formatNum(extraH, 1) + ' h</span></div>';
+    var short = complement && floorHeads < complement;
+    h += '<div class="inv-tiles inv-tiles-flush">' +
+      '<div class="inv-tile"><div class="inv-tile-label">On site</div>' +
+      '<div class="inv-tile-value" id="homeAttOnSite">' + (p + half) + '<span class="inv-tile-of">/' + roster.length + '</span></div>' +
+      '<div class="inv-tile-sub">' + (half ? half + ' half day' + (half === 1 ? '' : 's') + ' · ' : '') + absent.length + ' absent' + (unmarked ? ' · ' + unmarked + ' unmarked' : '') + '</div></div>' +
+      '<div class="inv-tile' + (short ? ' inv-tile-warning' : '') + '"><div class="inv-tile-label">On the floor</div>' +
+      '<div class="inv-tile-value">' + floorHeads + (complement ? '<span class="inv-tile-of">/' + complement + '</span>' : '') + '</div>' +
+      '<div class="inv-tile-sub">' + (complement ? (short ? (complement - floorHeads) + ' short of the complement' : 'against the complement') : 'no complement set') + '</div></div></div>';
+    if (absent.length) h += '<div class="inv-row inv-row-2"><span class="inv-row-main"><span class="inv-row-meta">Absent</span><span class="inv-row-wrap">' + escHtml(absent.join(', ')) + '</span></span></div>';
+    if (extraH) h += '<div class="inv-row"><span class="inv-row-main">EXTRA booked</span><span class="inv-row-end inv-num">' + formatNum(extraH, 1) + ' h</span></div>';
   }
-  h += '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invPayOpenAtt">Open attendance</button>';
   el.innerHTML = h + '</div>';
 }
 /* ===== STOCK =====
@@ -19849,20 +19777,24 @@ function renderTodoHomeCard() {
   var el = document.getElementById('homeTodoCard');
   if (!el) return;
   var ranked = todoRanked();
-  var h = '<div class="inv-card inv-td-card"><div class="inv-card-header"><span class="inv-card-title">To-do</span>' +
-    '<button class="inv-stk-tool" data-action="invSwitchTab" data-tab="pageTodo">' + (ranked.length ? 'All ' + ranked.length : 'Add a task') + '</button></div>';
-  if (!ranked.length) h += '<div class="inv-td-home-none">Nothing due</div>';
+  var h = '<div class="inv-panel inv-panel-flush"><div class="inv-panel-head"><span class="inv-panel-title">To-do' +
+    (ranked.length ? ' <span class="inv-panel-count">' + ranked.length + '</span>' : '') + '</span>' +
+    '<button class="inv-btn-link" data-action="invSwitchTab" data-tab="pageTodo">' + (ranked.length ? 'See all' : 'Add a task') + '</button></div>';
+  if (!ranked.length) h += '<div class="inv-empty">Nothing due</div>';
   ranked.slice(0, 3).forEach(function(r) {
+    var tone = uiTone(r.tone);
     if (r.app) {
-      h += '<button class="inv-td-hrow" data-action="invTodoOpenApp" data-key="' + escHtml(r.app.key) + '">' + todoGlyph(r.tone) +
-        '<span class="inv-td-main"><span class="inv-td-title">' + escHtml(r.app.title) + '</span><span class="inv-td-sub">' + escHtml(r.app.sub) + '</span></span>' +
-        '<span class="inv-td-lbl inv-td-lbl-app">App</span></button>';
+      h += '<button class="inv-row inv-row-2" data-todo="app" data-action="invTodoOpenApp" data-key="' + escHtml(r.app.key) + '">' +
+        // The tone travels with a symbol, never colour alone (DR-1): the To-do screen's own ! / i glyph.
+        '<span class="inv-row-lead">' + todoGlyph(r.app.tone) + '</span>' +
+        '<span class="inv-row-main"><span class="inv-row-title">' + escHtml(r.app.title) + '</span><span class="inv-row-meta">' + escHtml(r.app.sub) + '</span></span>' +
+        '<span class="inv-row-end"><span class="inv-badge">App</span></span></button>';
     } else {
       var t = r.mine;
-      h += '<div class="inv-td-hrow"><button class="inv-td-box" data-action="invTodoToggle" data-id="' + escHtml(t.id) + '" aria-label="Mark done"></button>' +
-        '<button class="inv-td-main" data-action="invTodoEdit" data-id="' + escHtml(t.id) + '"><span class="inv-td-title">' + escHtml(t.text) + '</span>' +
-        (t.due ? '<span class="inv-td-sub inv-td-due-' + (r.tone || 'none') + '">' + escHtml(todoDueLabel(t.due)) + '</span>' : '') + '</button>' +
-        '<span class="inv-td-lbl inv-td-lbl-mine">Mine</span></div>';
+      h += '<div class="inv-row inv-row-2" data-todo="mine"><span class="inv-row-lead"><button class="inv-td-box" data-action="invTodoToggle" data-id="' + escHtml(t.id) + '" aria-label="Mark done"></button></span>' +
+        '<button class="inv-row-main" data-action="invTodoEdit" data-id="' + escHtml(t.id) + '"><span class="inv-row-title">' + escHtml(t.text) + '</span>' +
+        (t.due ? '<span class="inv-row-meta"><span class="inv-dot inv-dot-' + tone + '">' + escHtml(todoDueLabel(t.due)) + '</span></span>' : '') + '</button>' +
+        '<span class="inv-row-end"><span class="inv-badge">Mine</span></span></div>';
     }
   });
   el.innerHTML = h + '</div>';

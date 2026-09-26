@@ -517,10 +517,11 @@ function renderAttHomeCard() {
     var last = Object.keys(S.attendance || {}).filter(function(k) { return k < today && marked(S.attendance[k]); }).sort().pop();
     if (last) { iso = last; rec = S.attendance[last]; }
   }
-  var h = '<div class="inv-card inv-pay-card inv-att-home"><div class="inv-card-header"><span class="inv-card-title">Attendance</span>' +
-    '<span class="inv-lab-sub">' + (iso === today ? 'today' : escHtml(attDayName(iso) + ' ' + formatDate(iso))) + '</span></div>';
+  var h = '<div class="inv-panel inv-panel-flush"><div class="inv-panel-head"><span class="inv-panel-title">Attendance ' +
+    '<span class="inv-panel-count">' + (iso === today ? 'today' : escHtml(attDayName(iso) + ' ' + formatDate(iso))) + '</span></span>' +
+    '<button class="inv-btn-link" data-action="invPayOpenAtt">Open</button></div>';
   if (!marked(rec)) {
-    h += '<div class="inv-empty-state inv-empty-state-sm">Nothing recorded yet.</div>';
+    h += '<div class="inv-empty">Nothing recorded yet.</div>';
   } else {
     var p = 0, half = 0, absent = [], unmarked = 0, floorHeads = 0;
     roster.forEach(function(w) {
@@ -532,16 +533,16 @@ function renderAttHomeCard() {
     });
     var complement = STAFF_AREAS.reduce(function(s, a) { var t = areaTarget(a.id); return s + (t != null ? t : 0); }, 0);
     var extraH = (rec.extra || []).reduce(function(s, x) { return s + (x.hours || 0); }, 0);
-    h += '<div class="inv-lab-split">' +
-      '<div class="inv-lab-half inv-pay-green"><div class="inv-lab-half-label">On site</div>' +
-      '<div class="inv-lab-half-value inv-mono" id="homeAttOnSite">' + (p + half) + '<span class="inv-att-grid-of">/' + roster.length + '</span></div>' +
-      '<div class="inv-lab-half-sub">' + (half ? half + ' half day' + (half === 1 ? '' : 's') + ' · ' : '') + absent.length + ' absent' + (unmarked ? ' · ' + unmarked + ' unmarked' : '') + '</div></div>' +
-      '<div class="inv-lab-half ' + (complement && floorHeads < complement ? 'inv-area-gap-under' : 'inv-pay-blue') + '"><div class="inv-lab-half-label">On the floor</div>' +
-      '<div class="inv-lab-half-value inv-mono">' + floorHeads + (complement ? '<span class="inv-att-grid-of">/' + complement + '</span>' : '') + '</div>' +
-      '<div class="inv-lab-half-sub">' + (complement ? 'against the complement' : 'no complement set') + '</div></div></div>';
-    if (absent.length) h += '<div class="inv-lab-row"><span class="inv-lab-label">Absent<span class="inv-lab-sub">' + escHtml(absent.join(', ')) + '</span></span></div>';
-    if (extraH) h += '<div class="inv-lab-row"><span class="inv-lab-label">EXTRA booked</span><span class="inv-lab-value inv-mono">' + formatNum(extraH, 1) + ' h</span></div>';
+    var short = complement && floorHeads < complement;
+    h += '<div class="inv-tiles inv-tiles-flush">' +
+      '<div class="inv-tile"><div class="inv-tile-label">On site</div>' +
+      '<div class="inv-tile-value" id="homeAttOnSite">' + (p + half) + '<span class="inv-tile-of">/' + roster.length + '</span></div>' +
+      '<div class="inv-tile-sub">' + (half ? half + ' half day' + (half === 1 ? '' : 's') + ' · ' : '') + absent.length + ' absent' + (unmarked ? ' · ' + unmarked + ' unmarked' : '') + '</div></div>' +
+      '<div class="inv-tile' + (short ? ' inv-tile-warning' : '') + '"><div class="inv-tile-label">On the floor</div>' +
+      '<div class="inv-tile-value">' + floorHeads + (complement ? '<span class="inv-tile-of">/' + complement + '</span>' : '') + '</div>' +
+      '<div class="inv-tile-sub">' + (complement ? (short ? (complement - floorHeads) + ' short of the complement' : 'against the complement') : 'no complement set') + '</div></div></div>';
+    if (absent.length) h += '<div class="inv-row inv-row-2"><span class="inv-row-main"><span class="inv-row-meta">Absent</span><span class="inv-row-wrap">' + escHtml(absent.join(', ')) + '</span></span></div>';
+    if (extraH) h += '<div class="inv-row"><span class="inv-row-main">EXTRA booked</span><span class="inv-row-end inv-num">' + formatNum(extraH, 1) + ' h</span></div>';
   }
-  h += '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invPayOpenAtt">Open attendance</button>';
   el.innerHTML = h + '</div>';
 }

@@ -44,7 +44,7 @@ test.describe('P42 desktop: to-do, quick actions, attendance paste', () => {
 
   test('the six quick actions sit in one row and each reaches its screen', async ({ page }) => {
     await load(page, { staff: STAFF } as any);
-    const qa = page.locator('.inv-qa-grid .inv-qa');
+    const qa = page.locator('.inv-btn-grid .inv-btn');
     await expect(qa).toHaveCount(6);
     const ys = await qa.evaluateAll(els => els.map(e => Math.round(e.getBoundingClientRect().top)));
     expect(new Set(ys).size).toBe(1);

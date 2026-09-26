@@ -129,12 +129,36 @@ function homeQuick(go) {
   }
 }
 
+/* A status is one of five tone words (design principles §6.13); the modules keep their own. */
+var UI_TONE = { red: 'danger', amber: 'warning', info: 'info', green: 'ok' };
+function uiTone(t) { return UI_TONE[t] || (/^(danger|warning|ok|info|neutral)$/.test(t) ? t : 'neutral'); }
+
+var ICON_PRINT = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>';
+
+/* Home's stat strip: the month so far, with the tonnage behind the revenue (What Stats measures). */
+function renderHomeTiles(active) {
+  var set = function(id, html) { var e = document.getElementById(id); if (e) e.innerHTML = html; };
+  var w = weighLines(active);
+  // The app's own month names ('Sep'); en-IN's locale string reads 'Sept'.
+  var month = TREND_MONTH_LABELS[new Date().getMonth()];
+  set('mtdCount', String(active.length));
+  set('mtdCountSub', escHtml(month) + ' to date');
+  set('mtdRevenue', formatCurrency(sumTaxable(active)));
+  // Two places, as Stats shows it: one place read 40 kg as '0.0 t'.
+  set('mtdKg', w.kg > 0 ? formatNum(w.kg / 1000, 2) + ' t' : '&mdash;');
+  set('mtdKgSub', w.kg > 0 ? Math.round(w.kg).toLocaleString('en-IN') + ' kg' : 'nothing weighed yet');
+  set('mtdPerKg', w.kg > 0 ? formatCurrency(w.revKnown / w.kg) + '<span class="inv-tile-of">/kg</span>' : '&mdash;');
+  // A partial figure always reads better than the blend: the unweighed lines are the piece-billed end.
+  // "All" only when nothing priced is unweighed, and a partial share never rounds up to 100%.
+  set('mtdPerKgSub', !(w.kg > 0) ? '&nbsp;' : w.revUnknown < 0.005 ? 'all revenue weighed'
+    : 'on the ' + Math.min(99, Math.round(w.coverage * 100)) + '% of revenue weighed');
+}
+
 function renderHome() {
   const now = new Date();
   const ym = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0');
   const active = S.invoices.filter(i => i.status === 'active' && i.date && i.date.startsWith(ym));
-  document.getElementById('mtdCount').textContent = active.length;
-  document.getElementById('mtdRevenue').innerHTML = formatCurrency(active.reduce((s,i) => s + (i.taxableValue || 0), 0));
+  renderHomeTiles(active);
 
   renderZincCard();
   renderTodoHomeCard();
@@ -142,51 +166,35 @@ function renderHome() {
   updateStockBadge();
   ghRenderCard();
 
-  // Phase 5: Unbilled IM summary card
   var unbilledEl = document.getElementById('homeUnbilledCard');
   if (unbilledEl) {
-    var pendingChallans = 0;
-    var pendingAmount = 0;
-    var pendingItemCount = 0;
-    var latestChallan = null;
+    var pendingChallans = 0, pendingAmount = 0, pendingItemCount = 0, latestChallan = null;
     (S.incomingMaterial || []).forEach(function(im) {
       var hasPending = false;
       im.items.forEach(function(it) {
-        if (!it.invoiced) {
-          hasPending = true;
-          pendingAmount += (it.amount || 0);
-          pendingItemCount++;
-        }
+        if (!it.invoiced) { hasPending = true; pendingAmount += (it.amount || 0); pendingItemCount++; }
       });
       if (hasPending) pendingChallans++;
-      if (!latestChallan || (im.createdAt || 0) > (latestChallan.createdAt || 0)) {
-        latestChallan = im;
-      }
+      if (!latestChallan || (im.createdAt || 0) > (latestChallan.createdAt || 0)) latestChallan = im;
     });
-
     if (pendingChallans > 0 || latestChallan) {
-      var ubHtml = '<div class="inv-card inv-card-unbilled">' +
-        '<div class="inv-card-header"><span class="inv-card-title">Unbilled Material</span></div>';
+      var ub = '<div class="inv-panel inv-panel-flush"><div class="inv-panel-head"><span class="inv-panel-title">Unbilled material</span>' +
+        '<button class="inv-btn-link" data-action="invSwitchTab" data-tab="pageIM">View challans</button></div>';
       if (pendingChallans > 0) {
-        ubHtml += '<div class="inv-unbilled-row"><span class="inv-unbilled-label">Pending challans</span>' +
-          '<span class="inv-unbilled-value">' + pendingChallans + '</span></div>' +
-          '<div class="inv-unbilled-row"><span class="inv-unbilled-label">Items awaiting invoicing</span>' +
-          '<span class="inv-unbilled-value">' + pendingItemCount + '</span></div>' +
-          '<div class="inv-unbilled-row"><span class="inv-unbilled-label">Pending amount</span>' +
-          '<span class="inv-unbilled-value">' + formatCurrency(pendingAmount) + '</span></div>';
+        ub += '<div class="inv-tiles inv-tiles-flush">' +
+          '<div class="inv-tile"><div class="inv-tile-label">Pending challans</div><div class="inv-tile-value">' + pendingChallans + '</div>' +
+          '<div class="inv-tile-sub">' + pendingItemCount + ' item' + (pendingItemCount === 1 ? '' : 's') + ' awaiting invoicing</div></div>' +
+          '<div class="inv-tile"><div class="inv-tile-label">Pending amount</div><div class="inv-tile-value">' + formatCurrency(pendingAmount) + '</div>' +
+          '<div class="inv-tile-sub">at the challans&rsquo; rates</div></div></div>';
       } else {
-        ubHtml += '<div class="inv-unbilled-row"><span class="inv-unbilled-label">All items invoiced</span>' +
-          '<span class="inv-unbilled-value inv-text-cost">0 pending</span></div>';
+        ub += '<div class="inv-row"><span class="inv-row-main"><span class="inv-dot inv-dot-ok">All items invoiced</span></span></div>';
       }
       if (latestChallan) {
-        ubHtml += '<div class="inv-latest-challan">Latest: ' +
-          '<span class="inv-latest-challan-num">' + (latestChallan.challanNo ? 'Ch. ' + escHtml(latestChallan.challanNo) : 'No number') + '</span> ' +
-          escHtml(latestChallan.clientName) + ' &middot; ' + formatDate(latestChallan.challanDate) + '</div>';
+        ub += '<div class="inv-row"><span class="inv-row-main"><span class="inv-row-meta">Latest</span>' +
+          '<span class="inv-row-title"><span class="inv-id">' + (latestChallan.challanNo ? 'Ch. ' + escHtml(latestChallan.challanNo) : 'No number') + '</span> ' +
+          escHtml(latestChallan.clientName) + '</span></span><span class="inv-row-end inv-row-meta">' + escHtml(formatDate(latestChallan.challanDate)) + '</span></div>';
       }
-      ubHtml += '<button class="inv-quick-action" data-action="invSwitchTab" data-tab="pageIM">' +
-        '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>' +
-        'View Incoming</button></div>';
-      unbilledEl.innerHTML = ubHtml;
+      unbilledEl.innerHTML = ub + '</div>';
     } else {
       unbilledEl.innerHTML = '';
     }
@@ -195,24 +203,20 @@ function renderHome() {
   const recent = [...S.invoices].sort((a,b) => (b.createdAt||0) - (a.createdAt||0)).slice(0, 10);
   const el = document.getElementById('recentInvoices');
   if (recent.length === 0) {
-    el.innerHTML = '<div class="inv-empty-state">' +
-      '<svg class="inv-empty-state-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>' +
-      '<div class="inv-mt-16">No invoices yet</div>' +
-      '<div class="inv-mt-16"><button class="inv-btn inv-btn-primary" data-action="invCreateNew">Create your first invoice</button></div>' +
+    el.innerHTML = '<div class="inv-empty">' +
+      '<svg class="inv-empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>' +
+      '<div>No invoices yet</div>' +
+      '<button class="inv-btn inv-btn-secondary" data-action="invCreateNew">Create your first invoice</button>' +
       '</div>';
     return;
   }
   el.innerHTML = recent.map(inv => {
-    const cancelled = inv.status === 'cancelled';
-    return '<div class="inv-client-item' + (cancelled ? ' inv-client-inactive' : '') + '" data-action="invViewInvoiceDetail" data-id="' + escHtml(inv.id) + '">' +
-      '<div><div class="inv-client-name inv-mono inv-recent-num">' + escHtml(inv.displayNumber) + '</div>' +
-      '<div class="inv-client-meta">' + escHtml(inv.clientName) + ' &middot; ' + formatDate(inv.date) + '</div></div>' +
-      '<div class="inv-text-right inv-recent-right"><div class="inv-mono inv-text-cost inv-recent-total">' + formatCurrency(inv.grandTotal) + '</div>' +
-      getStateBadgeHtml(inv) +
-      '</div>' +
-      '<button class="inv-recent-print" data-action="invPreviewInvoice" data-id="' + escHtml(inv.id) + '" aria-label="Print">' +
-      '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>' +
-      '</button></div>';
+    return '<div class="inv-row inv-row-2' + (inv.status === 'cancelled' ? ' inv-row-muted' : '') + '">' +
+      '<button class="inv-row-main" data-action="invViewInvoiceDetail" data-id="' + escHtml(inv.id) + '">' +
+      '<span class="inv-row-title inv-id">' + escHtml(inv.displayNumber) + '</span>' +
+      '<span class="inv-row-meta">' + escHtml(inv.clientName) + ' &middot; ' + escHtml(formatDate(inv.date)) + '</span></button>' +
+      '<span class="inv-row-end"><span class="inv-row-stack"><span class="inv-num">' + formatCurrency(inv.grandTotal) + '</span>' + getStateBadgeHtml(inv) + '</span>' +
+      '<button class="inv-btn inv-btn-icon" data-action="invPreviewInvoice" data-id="' + escHtml(inv.id) + '" aria-label="Print">' + ICON_PRINT + '</button></span></div>';
   }).join('');
 }
 

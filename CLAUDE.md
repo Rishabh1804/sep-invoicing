@@ -28,7 +28,7 @@ Workforce management and invoicing PWA for **Soma Electro Products**, a zinc ele
 
 ## Architecture
 
-Split-file PWA. 47 modules, ~26,800 lines total.
+Split-file PWA. 48 modules, ~27,100 lines total.
 
 ```
 split/
@@ -72,6 +72,7 @@ split/
 ├── intel.js           ← Stats tabs; Overview at the live cost; six months; contribution by client (~230 lines)
 ├── insights.js        ← Insights (as To-do rules), predictions, invoice PO/vehicle prefill (~330 lines)
 ├── finintel.js        ← Finance intelligence: eleven bank To-do rules, days to pay, the cash forecast (~400 lines)
+├── finlinks.js        ← Finance linked into Home, Stats, Clients, Register, Pay, Stock (~200 lines)
 ├── client-perf.js     ← Client performance: month on month + material cadence (314 lines)
 ├── im-form.js         ← IM add/edit/delete challan form (450 lines)
 ├── im-dupe.js         ← IM duplicate guard: fingerprint + pre-save warn + scan (305 lines)
@@ -82,7 +83,7 @@ split/
 └── init.js            ← Migrations + app bootstrap (567 lines)
 ```
 
-**Concat order defined in build.sh.** Dependencies: data → state → appearance → zinc → tabs → clients → items → create → settings → github-sync → invoice-ops → number-audit → exports → im → autocomplete → print → quality-cert → credit-note → charts → staff → labour → areas → payroll → stock → cost → bills → xls → xlsx → bank → finance → todo → relay → stats → intel → insights → finintel → client-perf → im-form → im-dupe → scanner → events → swipe → seed → init.
+**Concat order defined in build.sh.** Dependencies: data → state → appearance → zinc → tabs → clients → items → create → settings → github-sync → invoice-ops → number-audit → exports → im → autocomplete → print → quality-cert → credit-note → charts → staff → labour → areas → payroll → stock → cost → bills → xls → xlsx → bank → finance → todo → relay → stats → intel → insights → finintel → finlinks → client-perf → im-form → im-dupe → scanner → events → swipe → seed → init.
 
 **Every module shares one global scope.** A top-level `var` or `function` in a later module silently replaces one of
 the same name in an earlier one; nothing warns. `bills.js` shipped a `STOCK_UNITS` array over `stock.js`'s unit map
@@ -112,7 +113,7 @@ every session start — nothing to set up by hand. CI (`build-sync`) is the back
 ### Tests
 
 ```bash
-pnpm exec playwright test          # 505 tests, both layouts
+pnpm exec playwright test          # 512 tests, both layouts
 ```
 
 Some sandboxes ship a Chromium build Playwright does not expect and block downloading
@@ -1511,6 +1512,19 @@ Finance intelligence (`finintel.js`; spec Phase 5). The bank statement feeds the
   - An invoice long past its usual day is **not expected at all**: on the real book that is ₹11.8L of mostly
     already-paid invoices. Expecting it read the account at ₹15.9L in 30 days.
   - Everything it rests on is listed under the chart.
+
+### Finance on every screen
+Finance linked into every screen (`finlinks.js`; spec Phase 6). Each screen carries the finance fact that belongs to it,
+as a link into Finance, never a second copy of the arithmetic. With no statement, each screen says nothing rather
+than a zero.
+
+- **Home → Money:** balance, owed, pays-in and runway tiles, each opening Finance, plus *Import statement*.
+- **Stats:** *In one line* gets a Cash row. Contribution by client shows *owes · pays in* under each name.
+- **Clients:** a *Money* panel on the detail, the edit sheet and Performance.
+- **Register:** the detail says *Paid, exact* / *Paid, oldest first* with its receipt, or *Open, N days*.
+- **Staff → Pay:** the bank's wage legs beside the payroll as paid, one function shared with Payments.
+- **Stock:** what the bank paid each supplier. The reorder list sets its cost against the forecast's lowest point.
+- **Finance → Payments:** each section links to its home screen.
 
 ### Stock reorder list
 More → Stock → **Reorder list** (owner, 25 Sep 2026). For each line with a daily use:

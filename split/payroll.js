@@ -143,6 +143,8 @@ function _attPayView() {
   html += _payDueCard(ws);
   html += _payHistoryCard(ws);
   html += _payrollPaidCard();
+  // The bank's side of the same payroll (Finance → Payments draws the same panel).
+  if (finHasBank()) html += finWagesHtml(finCtx().cls, 'pay');
   return html;
 }
 

@@ -593,7 +593,8 @@ function _bankPaymentsHtml(cls) {
   var h = '';
   // Electricity: each payment is a month's bill.
   var power = bankPowerRows(cls).slice().reverse();
-  h += '<div class="inv-panel inv-panel-flush" id="bankPower"><div class="inv-panel-head"><span class="inv-panel-title">Electricity paid</span><span class="inv-panel-count">' + power.length + '</span></div>';
+  h += '<div class="inv-panel inv-panel-flush" id="bankPower"><div class="inv-panel-head"><span class="inv-panel-title">Electricity paid</span><span class="inv-panel-count">' + power.length + '</span>' +
+    '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invGoBills">Open Bills &amp; notes</button></div>';
   if (!power.length) h += '<div class="inv-empty">No payment to JBVNL on the statement.</div>';
   power.forEach(function(v) {
     var m = bankBillMonth(v.row), bill = costBills().find(function(b) { return b.kind === 'power' && !b.voided && b.month === m; });
@@ -609,48 +610,8 @@ function _bankPaymentsHtml(cls) {
   });
   h += '</div>';
 
-  // Wages: named transfers against the payroll as paid, and cash against the weekly payout.
-  var wages = cls.filter(function(v) { return v.cat === 'wages' && v.row.dr > 0; });
-  var byMonth = {};
-  wages.forEach(function(v) {
-    var m = v.row.date.slice(0, 7), e = byMonth[m] = byMonth[m] || { named: {}, cash: 0, total: 0 };
-    e.total = gstRound(e.total + v.row.dr);
-    if (v.cash || v.staffId == null) e.cash = gstRound(e.cash + v.row.dr);
-    else { var k = String(v.staffId); e.named[k] = gstRound((e.named[k] || 0) + v.row.dr); }
-  });
-  h += '<div class="inv-panel inv-panel-flush" id="bankWages"><div class="inv-panel-head"><span class="inv-panel-title">Wages paid</span></div>' +
-    '<div class="inv-panel-body inv-note">Every cash draw (SELF, TO SELF, TO CASH) counts as wages unless a row is set otherwise. Transfers to a hand on the roster are set against the payroll as paid for the month before; cash is set against the weekly payout.</div>';
-  var months = Object.keys(byMonth).sort().reverse();
-  if (!months.length) h += '<div class="inv-empty">No wages on the statement.</div>';
-  months.forEach(function(m) {
-    var e = byMonth[m], slip = payrollPaidFor(bankPrevMonth(m + '-01')), named = Object.keys(e.named);
-    h += '<div class="inv-row inv-row-group"><span class="inv-row-main">Paid in ' + escHtml(billsMonthLabel(m)) + '</span><span class="inv-row-end inv-num">' + formatCurrency(e.total) + '</span></div>';
-    named.forEach(function(id) {
-      var w = staffById(id) || (S.staff || []).find(function(x) { return String(x.id) === id; }) || { name: '?' };
-      var row = slip ? slip.rows.find(function(r) { var pw = payrollWorker(r); return pw && String(pw.id) === id; }) : null;
-      var owed = row ? gstRound(row.paid != null ? Number(row.paid) : (Number(row.dayPay) || 0) + (Number(row.ot) || 0)) : null;
-      var diff = owed == null ? null : gstRound(e.named[id] - owed);
-      h += '<div class="inv-row" data-wage="' + escHtml(m + ':' + id) + '"><span class="inv-row-main">' + escHtml(w.name) +
-        (owed == null ? '' : Math.abs(diff) < 1 ? ' <span class="inv-dot inv-dot-ok">as the slip</span>'
-          : ' <span class="inv-dot inv-dot-danger">slip ' + escHtml(formatCurrency(owed)) + ', ' + (diff > 0 ? 'over' : 'short') + ' ' + escHtml(formatCurrency(Math.abs(diff))) + '</span>') +
-        '</span><span class="inv-row-end inv-num">' + formatCurrency(e.named[id]) + '</span></div>';
-    });
-    if (named.length && !slip) h += '<div class="inv-row"><span class="inv-row-main inv-row-meta">No payroll as paid for ' + escHtml(billsMonthLabel(bankPrevMonth(m + '-01'))) + ' to set these against.</span></div>';
-    if (e.cash) h += '<div class="inv-row"><span class="inv-row-main">Cash drawn</span><span class="inv-row-end inv-num">' + formatCurrency(e.cash) + '</span></div>';
-  });
-  var weeks = {};
-  wages.forEach(function(v) { if (v.cash) { var ws = attWeekStartOf(v.row.date); weeks[ws] = gstRound((weeks[ws] || 0) + v.row.dr); } });
-  var wk = Object.keys(weeks).sort().reverse().slice(0, 12);
-  if (wk.length) {
-    h += '<div class="inv-row inv-row-group"><span class="inv-row-main">Cash by pay week, against the weekly payout</span></div>';
-    wk.forEach(function(ws) {
-      var pw = payWeek(ws), d = gstRound(weeks[ws] - pw.total);
-      h += '<div class="inv-row inv-row-2" data-cashweek="' + ws + '"><span class="inv-row-main"><span class="inv-row-title">Week to ' + escHtml(formatDate(pw.sat)) + '</span>' +
-        '<span class="inv-row-meta">payout ' + escHtml(formatCurrency(pw.total)) + (pw.recordedDays ? '' : ' (no attendance recorded)') + ' · ' + (d >= 0 ? 'drawn ' + formatCurrency(d) + ' more' : 'drawn ' + formatCurrency(-d) + ' less') + '</span></span>' +
-        '<span class="inv-row-end inv-num">' + formatCurrency(weeks[ws]) + '</span></div>';
-    });
-  }
-  h += '</div>';
+  // Wages: the same panel Staff → Pay draws.
+  h += finWagesHtml(cls, 'payments');
 
   // Suppliers, and everything else by category.
   var sup = {};
@@ -658,7 +619,8 @@ function _bankPaymentsHtml(cls) {
   var billed = {};
   (stockData().entries || []).forEach(function(e) { if (!e.voided && e.supplier && e.amount) billed[bankKey(e.supplier)] = gstRound((billed[bankKey(e.supplier)] || 0) + Number(e.amount)); });
   var sk = Object.keys(sup).sort(function(a, b) { return sup[b].paid - sup[a].paid; });
-  h += '<div class="inv-panel inv-panel-flush" id="bankSuppliers"><div class="inv-panel-head"><span class="inv-panel-title">Suppliers paid</span><span class="inv-panel-count">' + sk.length + '</span></div>';
+  h += '<div class="inv-panel inv-panel-flush" id="bankSuppliers"><div class="inv-panel-head"><span class="inv-panel-title">Suppliers paid</span><span class="inv-panel-count">' + sk.length + '</span>' +
+    '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invGoStock">Open Stock</button></div>';
   if (!sk.length) h += '<div class="inv-empty">No payment matched to a stock supplier. Set a payee to Supplier on the statement and it is remembered.</div>';
   sk.forEach(function(k) {
     var s = sup[k], key = Object.keys(billed).find(function(bk) { var pk = bankKey(k); return bk.length >= 4 && (pk.indexOf(bk) === 0 || bk.indexOf(pk) === 0); });

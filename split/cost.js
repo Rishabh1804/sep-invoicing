@@ -157,7 +157,10 @@ function stockPatternHtml(item) {
       (p.change > 0 ? '+' : p.change < 0 ? '&minus;' : '') + formatNum(Math.abs(p.change) * 100, 1) + '%');
     if (p.buys.length > 1) h += row('Range', p.buys.length + ' priced purchases', formatCurrency(p.min) + ' – ' + formatCurrency(p.max));
     p.suppliers.forEach(function(s) {
-      h += row(escHtml(s.name), s.count + ' bill' + (s.count === 1 ? '' : 's') + ' · ' + escHtml(stockFmtQty(s.qty)) + ' ' + escHtml(unit) + ' · last ' + formatCurrency(s.last.e.price), formatCurrency(gstRound(s.spent)));
+      // What the bank paid them, beside what the bills say (every line from them, not only this one).
+      var bp = typeof finSupplierPaid === 'function' ? finSupplierPaid(s.name) : null;
+      h += row(escHtml(s.name), s.count + ' bill' + (s.count === 1 ? '' : 's') + ' · ' + escHtml(stockFmtQty(s.qty)) + ' ' + escHtml(unit) + ' · last ' + formatCurrency(s.last.e.price) +
+        (bp ? ' · the bank paid them ' + formatCurrency(bp.paid) + ' in ' + bp.n + ' payment' + (bp.n === 1 ? '' : 's') + ', last ' + escHtml(stockShortDate(bp.last.date)) : ''), formatCurrency(gstRound(s.spent)));
     });
   } else {
     h += '<div class="inv-stk-hint">No price recorded. Add the bill for a delivery (on the entry below) or a past bill here.</div>';
@@ -692,6 +695,14 @@ function renderStockReorder() {
   if (L.groups.length) {
     h += '<div class="inv-stk-foot"><span id="stockReorderTotal">' + escHtml(formatCurrency(L.total)) + ' at the last prices, before GST' + (L.unpriced ? ' · ' + L.unpriced + ' without a price' : '') + '</span>' +
       '<button class="inv-stk-btn inv-stk-btn-pri" data-action="invStockReorderCopy">Copy as message</button></div>';
+    // The cash it needs, against the forecast: an order is a payment in a few weeks.
+    var fc = typeof finForecast === 'function' && finHasBank() ? finForecast(45) : null;
+    if (fc && L.total > 0) {
+      var after = gstRound(fc.min.bal - L.total * 1.18);
+      h += '<div class="inv-stk-hint" id="stockReorderCash">With GST about ' + escHtml(formatCurrency(gstRound(L.total * 1.18))) + '. The cash forecast’s lowest point in 45 days is ' +
+        escHtml(formatCurrency(fc.min.bal)) + ' (' + escHtml(stockShortDate(fc.min.date)) + '), ' + escHtml(formatCurrency(after)) + ' after this order. ' +
+        '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invFinGo" data-tab="overview" data-anchor="finForecast">Open the forecast</button></div>';
+    }
   }
   return h;
 }

@@ -377,6 +377,7 @@ document.addEventListener('click', function(e) {
       if (billsAction(action, btn)) break;
       if (bankAction(action, btn)) break;
       if (financeAction(action, btn)) break;
+      if (finLinkAction(action, btn)) break;
       if (action.indexOf('invStock') === 0) stockAction(action, btn);
       else if (action.indexOf('invTodo') === 0) todoAction(action, btn);
       else if (action.indexOf('invRelay') === 0) relayAction(action, btn);

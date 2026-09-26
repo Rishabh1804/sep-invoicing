@@ -142,11 +142,9 @@ function renderAddChallanForm() {
   // Hide list, toolbar, FAB while form is open
   var listEl = document.getElementById('imList');
   var toolbarEl = document.getElementById('imToolbar');
-  var fabEl = document.getElementById('imFabBar');
   var selBarEl = document.getElementById('imSelBar');
   if (listEl) listEl.classList.add('inv-hidden');
   if (toolbarEl) toolbarEl.classList.add('inv-hidden');
-  if (fabEl) fabEl.classList.add('inv-hidden');
   if (selBarEl) selBarEl.classList.add('inv-hidden');
 
   // Bind client search
@@ -374,11 +372,9 @@ function cancelAddChallanUI() {
   if (area) area.innerHTML = '';
   var listEl = document.getElementById('imList');
   var toolbarEl = document.getElementById('imToolbar');
-  var fabEl = document.getElementById('imFabBar');
   var selBarEl = document.getElementById('imSelBar');
   if (listEl) listEl.classList.remove('inv-hidden');
   if (toolbarEl) toolbarEl.classList.remove('inv-hidden');
-  if (fabEl) fabEl.classList.remove('inv-hidden');
   if (selBarEl) selBarEl.classList.remove('inv-hidden');
 }
 

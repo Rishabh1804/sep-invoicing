@@ -69,6 +69,6 @@ test.describe('P35: register search reaches the challan', () => {
     await loadAppWithState(page, s);
     await switchTab(page, 'pageIM');
     await page.locator('[data-action="invToggleIM"][data-id="IM-1"]').click();
-    await expect(page.locator('.inv-im-item-desc').first()).toHaveText('CLAMP 133X83 (NT) · 35X6');
+    await expect(page.locator('[data-im-desc]').first()).toHaveText('CLAMP 133X83 (NT) · 35X6');
   });
 });

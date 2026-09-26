@@ -97,7 +97,7 @@ every session start — nothing to set up by hand. CI (`build-sync`) is the back
 ### Tests
 
 ```bash
-pnpm exec playwright test          # 451 tests, both layouts
+pnpm exec playwright test          # 456 tests, both layouts
 ```
 
 Some sandboxes ship a Chromium build Playwright does not expect and block downloading
@@ -183,6 +183,12 @@ the status timeline twice); the phone list is grouped by day with each day's tax
 in priority by container query and the pane opens on demand, which fixes the survey's squeezed list (40% of the screen,
 Total cut off, client names over three lines — P54 measures it at 1024 and 1280). States read through
 `INV_STATE_TONE` in `state.js`.
+**IM is built:** the worklist leads with *Awaiting invoice*, then *Invoiced*, each grouped by challan date; a challan
+expands to its lines (`inv-row-expander`). The desktop table and pane are the Register's, with the focus helpers shared
+(`_mdFocusKey` / `_mdRestoreFocus`). **Add challan is the page's one primary, in the toolbar** — the floating + and camera
+buttons are gone. The survey's last IM bug is closed: the filter `<select>`s carried `data-action="invFilterIM"`, so the
+click that opened one ran the filter; they speak through `change` only now (P55 asserts no select carries an action).
+The challan add/edit form is untouched and moves with Create, which shares its line editor.
 
 ⚠ **Until the migration in its §9 completes, the stylesheet still carries the v1.0 families** (`inv-card`,
 `inv-stk-*`, `inv-stats-card`, the domain colours). New work uses the v2.0 components; never extend a v1.0

@@ -89,7 +89,7 @@
   --cw: var(--ok); --perm: var(--info);
 
   /* Layout (§3.7) */
-  --bar-h: 3.25rem; --bar-h-desk: 3rem; --nav-h: 3.625rem; --side-w: 13.5rem; --content-max: 80rem; --pane-w: 22rem;
+  --bar-h: 3.25rem; --bar-h-desk: 3rem; --nav-h: 3.625rem; --side-w: 13.5rem; --content-max: 80rem; --pane-w: 22rem; --scroll-max: 55vh;
   --filter-w: 9rem; --col-sm-w: 8rem;
   --tab-h: var(--nav-h); --header-h: var(--bar-h); --max-w: 32.5rem;
   --set-card-w: 55rem; --set-nav-w: 12.5rem;
@@ -952,25 +952,8 @@ table.inv-qc-grid.inv-qc-no-top { border-top: 0; }
   margin-bottom: var(--sp-16);
 }
 .inv-im-form-title { font-size: var(--fs-lg); font-weight: 700; color: var(--text-1); }
-.inv-im-delete-bar { padding: var(--sp-8) var(--sp-12); margin-top: 0; }
 
 /* ===== SCAN CHALLAN ===== */
-.inv-scan-bar {
-  display: flex; gap: var(--sp-8);
-  position: fixed; bottom: calc(var(--tab-h) + var(--sp-16));
-  right: var(--sp-16); z-index: 50;
-  align-items: center;
-}
-.inv-scan-bar .inv-fab {
-  position: static;
-}
-.inv-fab-scan {
-  width: 48px; height: 48px; border-radius: var(--r-full);
-  background: var(--neutral); color: var(--surface); border: none;
-  box-shadow: var(--shadow-md); cursor: pointer;
-  display: flex; align-items: center; justify-content: center;
-}
-.inv-fab-scan:active { transform: scale(0.95); }
 .inv-scan-processing {
   position: fixed; inset: 0; z-index: 250;
   display: flex; align-items: center; justify-content: center;
@@ -1033,7 +1016,7 @@ table.inv-qc-grid.inv-qc-no-top { border-top: 0; }
      One more element selector settles it without reaching for !important. */
   html body.inv-desktop { margin-left: 0; }
   .inv-topbar, .inv-navbar, .inv-fab, .inv-toast, .inv-update-bar, .inv-storage-bar, .inv-page,
-  .inv-overlay-scrim, .inv-print-toolbar, #imSelBar, .inv-scan-bar, .inv-side { display: none !important; }
+  .inv-overlay-scrim, .inv-print-toolbar, #imSelBar, .inv-side { display: none !important; }
   .inv-print-view { position: static; display: block !important; overflow: visible; }
   .inv-print-body { padding: 0; }
   .inv-print-invoice { border: none; max-width: none; padding: 10mm 12mm 8mm 12mm; }
@@ -1542,7 +1525,7 @@ table.inv-qc-grid.inv-qc-no-top { border-top: 0; }
 
 /* ===== INVOICE STATES (v1.0) =====
    The Register draws states with inv-dot / inv-badge (state.js INV_STATE_TONE); these remain for
-   Stats' state counts, and the summary strip for IM, until those screens move (§9 step 3). */
+   Stats' state counts until Stats moves (§9 step 3). */
 .inv-state-badge {
   display: inline-block; padding: var(--sp-2) var(--sp-8);
   border-radius: var(--r-full); font-size: var(--fs-2xs); font-weight: 600;
@@ -1551,13 +1534,6 @@ table.inv-qc-grid.inv-qc-no-top { border-top: 0; }
 .inv-state-dispatched { background: var(--warning-bg); color: var(--warning-text); }
 .inv-state-delivered { background: var(--attend-bg); color: var(--attend-text); }
 .inv-state-filed { background: var(--prod-bg); color: var(--prod-text); }
-.inv-reg-summary {
-  display: flex; justify-content: space-between; align-items: center;
-  padding: var(--sp-8) var(--sp-16);
-  background: var(--surface-2); border-radius: var(--r-md);
-  margin-bottom: var(--sp-12); font-size: var(--fs-sm);
-}
-.inv-reg-summary-label { color: var(--text-3); }
 
 /* ===== INVOICE DETAIL OVERLAY ===== */
 .inv-detail-section {
@@ -1599,132 +1575,12 @@ table.inv-qc-grid.inv-qc-no-top { border-top: 0; }
 }
 .inv-im-toolbar > * { flex: 1 1 9rem; min-width: 0; }
 .inv-im-toolbar .inv-form-group { margin-bottom: 0; }
-.inv-im-challan {
-  background: var(--surface); border-radius: var(--r-xl);
-  box-shadow: var(--shadow-sm); margin-bottom: var(--sp-8);
-  overflow: hidden;
-}
-.inv-im-header {
-  display: flex; align-items: center; gap: var(--sp-8);
-  padding: var(--sp-12) var(--sp-16);
-  cursor: pointer; min-height: 52px;
-  transition: background var(--anim-fast);
-}
-.inv-im-header:active { background: var(--surface-2); }
 .inv-im-check {
   width: 20px; height: 20px; flex-shrink: 0;
   accent-color: var(--accent);
 }
-.inv-im-info { flex: 1; min-width: 0; }
-.inv-im-challan-num {
-  font-family: var(--ff-mono); font-size: var(--fs-sm);
-  font-weight: 600; color: var(--text-1);
-}
-.inv-im-client {
-  font-size: var(--fs-xs); color: var(--text-2);
-  word-break: break-word;
-}
-.inv-im-meta {
-  font-family: var(--ff-mono); font-size: var(--fs-2xs);
-  color: var(--text-3);
-}
-.inv-im-amount {
-  font-family: var(--ff-mono); font-weight: 600;
-  font-size: var(--fs-sm); color: var(--cost-text);
-  text-align: right; white-space: nowrap;
-}
-.inv-im-chevron {
-  color: var(--text-3); transition: transform var(--anim-fast);
-  flex-shrink: 0;
-}
-.inv-im-chevron-open { transform: rotate(90deg); }
-.inv-im-items {
-  padding: 0 var(--sp-16) var(--sp-12);
-  display: none;
-}
-.inv-im-items-open { display: block; }
-.inv-im-item {
-  display: flex; align-items: flex-start; gap: var(--sp-8);
-  padding: var(--sp-8) 0;
-  border-bottom: 1px solid var(--border);
-  min-height: 44px;
-}
-.inv-im-item:last-child { border-bottom: none; }
-.inv-im-item-info { flex: 1; min-width: 0; }
-.inv-im-item-desc {
-  font-size: var(--fs-sm); color: var(--text-1);
-  word-break: break-word;
-}
-.inv-im-item-detail {
-  font-family: var(--ff-mono); font-size: var(--fs-2xs);
-  color: var(--text-3);
-}
-.inv-im-item-amount {
-  font-family: var(--ff-mono); font-size: var(--fs-sm);
-  color: var(--cost-text); white-space: nowrap;
-  flex-shrink: 0;
-}
-.inv-im-status {
-  display: inline-block; padding: var(--sp-2) var(--sp-8);
-  border-radius: var(--r-full); font-size: var(--fs-2xs);
-  font-weight: 600;
-}
-.inv-im-status-pending { background: var(--warning-bg); color: var(--warning-text); }
-.inv-im-status-partial { background: var(--prod-bg); color: var(--prod-text); }
-.inv-im-status-invoiced { background: var(--attend-bg); color: var(--attend-text); }
-.inv-im-status-orphan { background: var(--danger-bg); color: var(--danger-text); }
-.inv-im-item-invoiced { opacity: 0.45; }
 
 /* ===== IM DUPLICATE GUARD ===== */
-.inv-im-dupe-btn { flex: 0 0 auto; white-space: nowrap; }
-.inv-im-dupe-count {
-  display: inline-block; margin-left: var(--sp-6);
-  padding: 0 var(--sp-6); border-radius: var(--r-full);
-  background: var(--danger-bg); color: var(--danger-text);
-  font-size: var(--fs-xs); font-weight: 600;
-}
-.inv-dupe-note {
-  font-size: var(--fs-sm); color: var(--text-2);
-  margin-bottom: var(--sp-12);
-}
-.inv-dupe-section-label {
-  font-size: var(--fs-sm); font-weight: 600; color: var(--text-2);
-  margin: var(--sp-16) 0 var(--sp-8);
-}
-.inv-dupe-scroll { max-height: 55vh; overflow-y: auto; }
-.inv-dupe-group {
-  background: var(--surface-2); border: 1px solid var(--border);
-  border-radius: var(--r-md); padding: var(--sp-12);
-  margin-bottom: var(--sp-12);
-}
-.inv-dupe-group-head {
-  display: flex; justify-content: space-between; align-items: baseline;
-  gap: var(--sp-8); margin-bottom: var(--sp-4);
-}
-.inv-dupe-group-title {
-  font-size: var(--fs-base); font-weight: 600; color: var(--text-1);
-}
-.inv-dupe-group-meta {
-  font-size: var(--fs-sm); color: var(--text-2); margin-bottom: var(--sp-4);
-}
-.inv-dupe-verdict {
-  display: inline-block; padding: var(--sp-2) var(--sp-8);
-  border-radius: var(--r-full); font-size: var(--fs-2xs);
-  font-weight: 600;
-  white-space: nowrap;
-}
-.inv-dupe-verdict-billed { background: var(--danger-bg); color: var(--danger-text); }
-.inv-dupe-verdict-open { background: var(--warning-bg); color: var(--warning-text); }
-.inv-dupe-verdict-clean { background: var(--attend-bg); color: var(--attend-text); }
-.inv-dupe-row {
-  display: flex; align-items: center; gap: var(--sp-8);
-  padding: var(--sp-8) 0; border-top: 1px solid var(--border);
-}
-.inv-dupe-row-main { flex: 1; min-width: 0; }
-.inv-dupe-row-no {
-  font-family: var(--ff-mono); font-size: var(--fs-sm); color: var(--text-1);
-}
-.inv-dupe-row-detail { font-size: var(--fs-xs); color: var(--text-3); }
 
 /* ===== INVOICE NUMBER LEDGER ===== */
 .inv-form-hint {
@@ -1786,12 +1642,6 @@ table.inv-qc-grid.inv-qc-no-top { border-top: 0; }
   min-height: 36px;
 }
 .inv-im-sel-btn:active { opacity: 0.8; }
-.inv-im-summary {
-  display: flex; justify-content: space-between; align-items: center;
-  padding: var(--sp-8) var(--sp-16);
-  background: var(--surface-2); border-radius: var(--r-md);
-  margin-bottom: var(--sp-12); font-size: var(--fs-sm);
-}
 
 /* ===== PART AUTOCOMPLETE ===== */
 .inv-autocomplete-wrap { position: relative; }
@@ -2084,7 +1934,6 @@ body.inv-desktop .inv-navbar { display: none; }
 
 /* --- Desktop: FAB repositioned (no tab-h offset) --- */
 body.inv-desktop .inv-fab { bottom: var(--sp-16); }
-body.inv-desktop .inv-scan-bar { bottom: var(--sp-16); }
 
 /* --- Desktop: IM selection bar (no tab-h offset) --- */
 body.inv-desktop .inv-im-sel-bar { bottom: var(--sp-8); }
@@ -2156,58 +2005,10 @@ body.inv-desktop .inv-detail-empty-text {
 /* --- Dark mode: master-detail (Phase 8B) --- */
 
 /* ===== DESKTOP TABLE (Phase 8C) ===== */
-body.inv-desktop .inv-desktop-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: var(--fs-sm);
-}
-body.inv-desktop .inv-desktop-table thead {
-  background: var(--surface);
-  position: sticky;
-  top: 0;
-  z-index: 2;
-}
-.inv-th {
-  padding: var(--sp-8) var(--sp-12);
-  text-align: left;
-  font-weight: 600;
-  font-size: var(--fs-xs);
-  color: var(--text-2);
-  border-bottom: 2px solid var(--border);
-  white-space: nowrap;
-  user-select: none;
-}
-.inv-th-sortable { cursor: pointer; }
-.inv-th-sortable:hover { color: var(--accent); }
-.inv-th-amount { text-align: right; }
-.inv-sort-arrow {
-  margin-left: var(--sp-4);
-  font-size: var(--fs-2xs);
-}
-.inv-tr {
-  border-bottom: 1px solid var(--border);
-  transition: background var(--anim-fast);
-}
-body.inv-desktop .inv-tr:hover { background: var(--surface-2); }
-.inv-tr-active { background: var(--neutral-bg); }
 .inv-td {
   padding: var(--sp-8) var(--sp-12);
   vertical-align: middle;
   cursor: pointer;
-}
-.inv-td-check {
-  width: 40px;
-  text-align: center;
-  cursor: default;
-}
-.inv-td-date {
-  width: 100px;
-  font-family: var(--ff-mono);
-}
-.inv-td-amount {
-  width: 110px;
-  font-family: var(--ff-mono);
-  text-align: right;
 }
 
 /* Selection bar desktop positioning (Phase 8C) */
@@ -2222,17 +2023,6 @@ body.inv-desktop #regSelBar {
 /* --- Dark mode: desktop table (Phase 8C) --- */
 
 /* ===== IM DESKTOP TABLE (Phase 8D) ===== */
-.inv-td-challan {
-  width: 100px;
-  font-family: var(--ff-mono);
-}
-.inv-td-items {
-  width: 60px;
-  text-align: center;
-}
-.inv-td-status {
-  width: 80px;
-}
 
 /* IM selection bar desktop positioning (Phase 8D) */
 body.inv-desktop #imSelBar {
@@ -3198,7 +2988,6 @@ body.inv-desktop .inv-set-group { display: none; }
 body.inv-desktop .inv-set-group-on { display: block; }
 
 /* The desktop challan list's Add / Scan pair, under the table. */
-.inv-im-fab-bar { display: flex; gap: var(--sp-8); justify-content: flex-end; padding: var(--sp-12) 0; }
 
 /* Reissuing an invoice under the number it replaces. */
 .inv-reissue-offer { margin-top: var(--sp-12); padding-top: var(--sp-12); border-top: 1px solid var(--border); }
@@ -3311,10 +3100,10 @@ body.inv-desktop .inv-viewtab, body.inv-desktop .inv-stats-tab, body.inv-desktop
 .inv-pagehead-meta { font-size: var(--fs-12); color: var(--text-3); }
 
 /* §6.8 Panel. v1.0: every card family. */
-.inv-panel, .inv-card, .inv-card-list, .inv-stats-card, .inv-im-challan {
+.inv-panel, .inv-card, .inv-card-list, .inv-stats-card {
   background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-xl); box-shadow: none;
 }
-body.inv-desktop :is(.inv-panel, .inv-card, .inv-card-list, .inv-stats-card, .inv-im-challan) { border-radius: var(--r-lg); }
+body.inv-desktop :is(.inv-panel, .inv-card, .inv-card-list, .inv-stats-card) { border-radius: var(--r-lg); }
 .inv-card-hero { background: var(--surface); }
 .inv-panel { padding: var(--card-padding); margin-bottom: var(--gap); }
 .inv-panel-flush { padding: 0; overflow: hidden; }
@@ -3391,6 +3180,16 @@ button.inv-row-main { display: block; padding: 0; border: none; background: none
 .inv-check { width: var(--sp-20); height: var(--sp-20); accent-color: var(--accent); cursor: pointer; flex-shrink: 0; }
 /* A row's tick box is tapped through its label, which holds the full touch target. */
 .inv-row-tick { min-width: var(--touch); align-self: stretch; justify-content: center; cursor: pointer; }
+/* A row that opens its own lines beneath it (a challan's items): the lines are indented and sit on the page colour. */
+button.inv-row-expander { position: relative; padding-right: var(--sp-16); }
+button.inv-row-expander::after { content: ''; position: absolute; right: 0; top: 50%; width: var(--sp-6); height: var(--sp-6);
+  border-right: 2px solid var(--text-3); border-bottom: 2px solid var(--text-3); transform: translateY(-75%) rotate(45deg); transition: transform var(--dur-1); }
+button.inv-row-expander[aria-expanded="true"]::after { transform: translateY(-25%) rotate(225deg); }
+.inv-row-children { background: var(--bg); border-bottom: 1px solid var(--border); }
+.inv-row-children > .inv-row { padding-left: calc(var(--pad-x) + var(--sp-16)); }
+.inv-row-sub .inv-row-title { color: var(--text-2); }
+/* A list inside a dialog scrolls within it rather than pushing its buttons off the screen. */
+.inv-scroll { max-height: var(--scroll-max); overflow-y: auto; }
 .inv-row-group {
   display: flex; justify-content: space-between; align-items: center; min-height: var(--sp-32);
   padding: 0 var(--pad-x); background: var(--bg); border-bottom: 1px solid var(--border);
@@ -3453,7 +3252,7 @@ button.inv-row-main { display: block; padding: 0; border: none; background: none
 .inv-dot-ok::before { background: var(--ok); }
 .inv-dot-info::before { background: var(--info); }
 .inv-dot-neutral::before { background: var(--text-3); }
-.inv-badge, .inv-state-badge, .inv-im-status, .inv-att-badge, .inv-area-badge, .inv-client-badge, .inv-stk-chip, .inv-td-lbl, .inv-cost-src, .inv-kpi-delta {
+.inv-badge, .inv-state-badge, .inv-att-badge, .inv-area-badge, .inv-client-badge, .inv-stk-chip, .inv-td-lbl, .inv-cost-src, .inv-kpi-delta {
   display: inline-flex; align-items: center; gap: var(--sp-4); padding: var(--sp-2) var(--sp-6);
   border-radius: var(--r-sm); font-family: var(--ff-base); font-size: var(--fs-12); font-weight: 500; line-height: 1.35; white-space: nowrap;
 }

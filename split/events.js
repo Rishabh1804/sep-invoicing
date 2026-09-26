@@ -132,7 +132,6 @@ document.addEventListener('click', function(e) {
     case 'invCheckIMItem': toggleIMItem(btn.dataset.itemId); break;
     case 'invCheckIMChallan': toggleIMChallan(btn.dataset.id); break;
     case 'invCreateFromIM': createInvoiceFromIM(); break;
-    case 'invFilterIM': captureIMFilters(); break;
     // Phase 4: Print preview
     case 'invPreviewInvoice': closeOverlay(); showPrintPreview(btn.dataset.id); break;
     case 'invClosePrint': closePrintPreview(); break;
@@ -253,8 +252,7 @@ document.addEventListener('click', function(e) {
       _imToolbarRendered = false;
       switchTab('pageIM');
       setTimeout(function() {
-        var hdr = document.querySelector('[data-action="invToggleIM"][data-id="' + imId + '"]');
-        var card = hdr ? hdr.closest('.inv-im-challan') : null;
+        var card = document.querySelector('[data-im="' + imId + '"]');
         if (card) card.scrollIntoView({ behavior: 'smooth', block: 'center' });
       }, 100);
       break;
@@ -349,6 +347,7 @@ document.addEventListener('click', function(e) {
     }
     // Phase 8D: IM desktop table interactions
     case 'invSelectIMRow': _renderIMDetail(btn.dataset.id); break;
+    case 'invIMClosePane': _renderIMDetail(null); break;
     case 'invDesktopIMSort': {
       if (!_imFilter.desktopSort) _imFilter.desktopSort = { col: 'date', dir: 'desc' };
       if (_imFilter.desktopSort.col === btn.dataset.col) {

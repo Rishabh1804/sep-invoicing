@@ -5,6 +5,14 @@ let _imFilter = { clientId: '', status: '' }; // '' = all
 let _imToolbarRendered = false;
 var _imActiveChallanId = null;
 
+/* A challan's billing state as a status (design principles §6.13): material waiting on an
+   invoice is the caution; part-billed is information; fully invoiced is done. */
+var IM_STATUS_UI = {
+  pending: { word: 'Pending', tone: 'warning' },
+  partial: { word: 'Part invoiced', tone: 'info' },
+  invoiced: { word: 'Invoiced', tone: 'ok' }
+};
+
 /* Unified IM sort accessor (Phase 8D) */
 function getIMSortConfig() {
   if (_isDesktop && _imFilter.desktopSort) return _imFilter.desktopSort;
@@ -81,91 +89,67 @@ function renderIMToolbar() {
     const c = S.clients.find(x => x.id === cid);
     return c ? '<option value="' + cid + '"' + (_imFilter.clientId == cid ? ' selected' : '') + '>' + escHtml(c.name) + '</option>' : '';
   }).join('');
+  var opt = function(v, label) { return '<option value="' + v + '"' + ((_imFilter.status || '') === v ? ' selected' : '') + '>' + label + '</option>'; };
 
   const dupeCount = imDuplicateGroupCount();
 
-  area.innerHTML = '<div class="inv-im-toolbar">' +
-    '<div class="inv-form-group"><select class="inv-form-select" id="imClientFilter" data-action="invFilterIM">' +
-    '<option value="">All Clients</option>' + clientOpts + '</select></div>' +
-    '<div class="inv-form-group"><select class="inv-form-select" id="imStatusFilter" data-action="invFilterIM">' +
-    '<option value=""' + (!_imFilter.status ? ' selected' : '') + '>All Status</option>' +
-    '<option value="pending"' + (_imFilter.status === 'pending' ? ' selected' : '') + '>Pending</option>' +
-    '<option value="partial"' + (_imFilter.status === 'partial' ? ' selected' : '') + '>Partial</option>' +
-    '<option value="invoiced"' + (_imFilter.status === 'invoiced' ? ' selected' : '') + '>Invoiced</option></select></div>' +
-    '<button class="inv-btn inv-btn-ghost inv-im-dupe-btn" id="imDupeCheck" data-action="invRunDupeScan">Duplicate check' +
-    (dupeCount > 0 ? '<span class="inv-im-dupe-count">' + dupeCount + '</span>' : '') +
-    '</button></div>';
+  // The filters speak through change (events.js), never click: a click that re-rendered
+  // the toolbar replaced the element the native list hangs off, and it shut unpicked.
+  area.innerHTML = '<div class="inv-toolbar">' +
+    '<select class="inv-select inv-toolbar-item" id="imClientFilter" aria-label="Filter by client">' +
+    '<option value="">All clients</option>' + clientOpts + '</select>' +
+    '<select class="inv-select inv-toolbar-item" id="imStatusFilter" aria-label="Filter by status">' +
+    opt('', 'All statuses') + opt('pending', 'Pending') + opt('partial', 'Part invoiced') + opt('invoiced', 'Invoiced') + '</select>' +
+    '<button class="inv-btn inv-btn-secondary" id="imDupeCheck" data-action="invRunDupeScan">Duplicate check' +
+    (dupeCount > 0 ? '<span class="inv-badge inv-badge-warning" data-dupes>' + dupeCount + '</span>' : '') + '</button>' +
+    '<button class="inv-btn inv-btn-secondary" data-action="invScanChallan">' + ICON_CAMERA + 'Scan</button>' +
+    '<button class="inv-btn inv-btn-primary" data-action="invShowAddChallan">Add challan</button>' +
+    '</div>';
 }
 
 function renderIMList() {
   const area = document.getElementById('imList');
   if (!area) return;
   const filtered = getFilteredIM();
-  const pendingCount = filtered.filter(im => getIMStatus(im) !== 'invoiced').length;
-
-  let html = '<div class="inv-im-summary">' +
-    '<span class="inv-reg-summary-label">' + filtered.length + ' challan' + (filtered.length !== 1 ? 's' : '') +
-    ' (' + pendingCount + ' pending)</span></div>';
+  let html = _imSummaryHtml(filtered);
 
   if (filtered.length === 0) {
-    html += '<div class="inv-empty-state">No incoming material found</div>';
+    html += '<div class="inv-panel"><div class="inv-empty">No incoming material found</div></div>';
   } else {
-    filtered.forEach(im => {
-      const status = getIMStatus(im);
-      const expanded = _imExpanded[im.id] || false;
-      const challanTotal = im.items.reduce((s, it) => s + (it.amount || 0), 0);
-      const pendingItems = im.items.filter(it => !it.invoiced);
-      const allPendingChecked = pendingItems.length > 0 && pendingItems.every(it => _imSelected[it.id]);
-
-      html += '<div class="inv-im-challan">' +
-        '<div class="inv-im-header" data-action="invToggleIM" data-id="' + escHtml(im.id) + '">' +
-        (status !== 'invoiced' ? '<input type="checkbox" class="inv-im-check" data-action="invCheckIMChallan" data-id="' + escHtml(im.id) + '"' + (allPendingChecked ? ' checked' : '') + '>' : '') +
-        '<div class="inv-im-info">' +
-        '<div class="inv-im-challan-num">' + (im.challanNo ? 'Ch. ' + escHtml(im.challanNo) : 'No challan no.') +
-        ' <span class="inv-im-status inv-im-status-' + status + '">' + status + '</span></div>' +
-        '<div class="inv-im-client">' + escHtml(im.clientName) + '</div>' +
-        '<div class="inv-im-meta">' + formatDate(im.challanDate) +
-        (im.vehicleNo ? ' &middot; ' + escHtml(im.vehicleNo) : '') +
-        ' &middot; ' + im.items.length + ' item' + (im.items.length > 1 ? 's' : '') + '</div></div>' +
-        '<span class="inv-im-amount">' + formatCurrency(challanTotal) + '</span>' +
-        '<svg class="inv-im-chevron' + (expanded ? ' inv-im-chevron-open' : '') + '" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg></div>';
-
-      // Line items (expandable)
-      html += '<div class="inv-im-items' + (expanded ? ' inv-im-items-open' : '') + '">';
-      im.items.forEach(it => {
-        const itemInvoiced = it.invoiced;
-        var invBadgeHtml = '';
-        if (itemInvoiced) {
-          var linkedInv = it.invoiceId ? S.invoices.find(function(iv) { return iv.id === it.invoiceId; }) : null;
-          if (linkedInv) {
-            var shortNum = linkedInv.invoiceNumber || linkedInv.displayNumber;
-            invBadgeHtml = '<span class="inv-im-status inv-im-status-invoiced inv-mono" title="' + escHtml(linkedInv.displayNumber) + '">INV ' + escHtml(shortNum) + '</span>';
-          } else {
-            invBadgeHtml = '<span class="inv-im-status inv-im-status-orphan" title="Invoice deleted — tap to repair">INV (missing)</span>';
-          }
+    // The list is the worklist: material still to bill first, then what is billed —
+    // each grouped by challan date with the day's value (§7).
+    [['open', 'Awaiting invoice'], ['done', 'Invoiced']].forEach(function(sec) {
+      var list = filtered.filter(function(im) { return (getIMStatus(im) === 'invoiced') === (sec[0] === 'done'); });
+      if (!list.length) return;
+      html += '<div class="inv-panel inv-panel-flush"><div class="inv-panel-head"><span class="inv-panel-title">' + sec[1] +
+        ' <span class="inv-panel-count">' + list.length + '</span></span></div>';
+      var day = null;
+      list.forEach(function(im, idx) {
+        if (im.challanDate !== day) {
+          day = im.challanDate;
+          var same = list.filter(function(x) { return x.challanDate === day; });
+          html += '<div class="inv-row-group"><span>' + (day ? escHtml(formatDate(day)) : 'No date') + ' · ' + same.length + '</span>' +
+            '<span class="inv-num">' + formatCurrency(same.reduce(function(s, x) { return s + imChallanTotal(x); }, 0)) + '</span></div>';
         }
-        html += '<div class="inv-im-item' + (itemInvoiced ? ' inv-im-item-invoiced' : '') + '">' +
-          (!itemInvoiced ? '<input type="checkbox" class="inv-im-check" data-action="invCheckIMItem" data-item-id="' + escHtml(it.id) + '"' + (_imSelected[it.id] ? ' checked' : '') + '>' :
-          invBadgeHtml) +
-          '<div class="inv-im-item-info">' +
-          '<div class="inv-im-item-desc">' + escHtml(lineLabel(it)) + '</div>' +
-          '<div class="inv-im-item-detail">' + escHtml(it.qty) + ' ' + escHtml(it.unit) +
-          (it.nosQty && it.nosQty > 0 ? ' (' + escHtml(it.nosQty) + ' NOS)' : '') +
-          ' @ ' + formatCurrency(it.rate) + '/' + escHtml(it.unit) + '</div></div>' +
-          '<span class="inv-im-item-amount">' + formatCurrency(it.amount) + '</span></div>';
+        var status = getIMStatus(im), expanded = !!_imExpanded[im.id];
+        var pendingItems = im.items.filter(function(it) { return !it.invoiced; });
+        var allChecked = pendingItems.length > 0 && pendingItems.every(function(it) { return _imSelected[it.id]; });
+        var id = escHtml(im.id);
+        html += '<div class="inv-row inv-row-2' + (allChecked ? ' inv-row-selected' : '') + '" data-im="' + id + '">' +
+          (status !== 'invoiced' ? '<label class="inv-row-lead inv-row-tick"><input type="checkbox" class="inv-check" data-action="invCheckIMChallan" data-id="' + id + '"' +
+            (allChecked ? ' checked' : '') + ' aria-label="Select all of ' + escHtml(imChallanLabel(im)) + '"></label>' : '') +
+          '<button class="inv-row-main inv-row-expander" data-action="invToggleIM" data-id="' + id + '" aria-expanded="' + expanded + '">' +
+          '<span class="inv-row-title"><span class="inv-id">' + escHtml(imChallanLabel(im)) + '</span> · ' + escHtml(im.clientName) + '</span>' +
+          '<span class="inv-row-meta">' + (im.vehicleNo ? escHtml(im.vehicleNo) + ' · ' : '') + im.items.length + ' item' + (im.items.length !== 1 ? 's' : '') + '</span></button>' +
+          '<span class="inv-row-end"><span class="inv-row-stack"><span class="inv-num">' + formatCurrency(imChallanTotal(im)) + '</span>' + imStatusDotHtml(im) + '</span></span></div>';
+        if (expanded) {
+          html += '<div class="inv-row-children">' + im.items.map(_imItemRowHtml).join('');
+          var acts = _imActionsHtml(im, false);
+          if (acts) html += '<div class="inv-row inv-row-auto"><span class="inv-toolbar inv-toolbar-tight">' + acts + '</span></div>';
+          html += '</div>';
+        }
       });
-      // Delete + Edit buttons (only if zero items invoiced)
-      if (status !== 'invoiced' && im.items.filter(it => it.invoiced).length === 0) {
-        html += '<div class="inv-btn-bar inv-im-delete-bar">' +
-          '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invEditChallan" data-id="' + escHtml(im.id) + '">Edit</button>' +
-          '<button class="inv-btn inv-btn-ghost inv-btn-sm inv-text-danger" data-action="invDeleteChallan" data-id="' + escHtml(im.id) + '">Delete Challan</button></div>';
-      } else if (status !== 'invoiced') {
-        // Partially invoiced: show disabled edit with toast guard
-        var invoicedItemCount = im.items.filter(function(it2) { return it2.invoiced; }).length;
-        html += '<div class="inv-btn-bar inv-im-delete-bar">' +
-          '<button class="inv-btn inv-btn-ghost inv-btn-sm inv-btn-disabled" data-action="invEditChallanGuard" data-count="' + invoicedItemCount + '">Edit</button></div>';
-      }
-      html += '</div></div>';
+      html += '</div>';
     });
   }
   area.innerHTML = html;
@@ -174,220 +158,80 @@ function renderIMList() {
 
 function renderIMSelBar() {
   const bar = document.getElementById('imSelBar');
-  const fab = document.getElementById('imFabBar');
   if (!bar) return;
   const selectedIds = Object.keys(_imSelected).filter(k => _imSelected[k]);
-  if (selectedIds.length === 0) {
-    bar.innerHTML = '';
-    if (fab) fab.classList.remove('inv-hidden');
-    return;
-  }
-  if (fab) fab.classList.add('inv-hidden');
-  // Calculate total of selected items
+  if (selectedIds.length === 0) { bar.innerHTML = ''; return; }
   let total = 0;
-  (S.incomingMaterial || []).forEach(im => {
-    im.items.forEach(it => {
-      if (_imSelected[it.id]) total += (it.amount || 0);
-    });
-  });
-  // Check if all selected items belong to one client
   const clientIds = new Set();
   (S.incomingMaterial || []).forEach(im => {
     im.items.forEach(it => {
-      if (_imSelected[it.id]) clientIds.add(im.clientId);
+      if (_imSelected[it.id]) { total += (it.amount || 0); clientIds.add(im.clientId); }
     });
   });
+  // An invoice is addressed to one customer: a two-client selection says so on the button.
   const multiClient = clientIds.size > 1;
-
-  bar.innerHTML = '<div class="inv-im-sel-bar">' +
-    '<span class="inv-im-sel-count">' + selectedIds.length + ' item' + (selectedIds.length > 1 ? 's' : '') +
-    ' &middot; ' + formatCurrency(total) + '</span>' +
-    '<button class="inv-im-sel-btn" data-action="invCreateFromIM"' + (multiClient ? ' disabled title="Select items from one client only"' : '') + '>' +
-    (multiClient ? 'Multi-client' : 'Create Invoice') + '</button></div>';
+  bar.innerHTML = '<div class="inv-selbar">' +
+    '<span class="inv-selbar-count">' + selectedIds.length + ' item' + (selectedIds.length > 1 ? 's' : '') + '</span>' +
+    '<span class="inv-selbar-sum">' + formatCurrency(total) + '</span>' +
+    '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invCreateFromIM"' + (multiClient ? ' disabled title="Select items from one client only"' : '') + '>' +
+    (multiClient ? 'Two clients selected' : 'Create invoice') + '</button></div>';
 }
 
 /* ===== IM DESKTOP TABLE (Phase 8D) ===== */
 
+/* ===== IM DESKTOP TABLE ===== */
 function _buildIMTableHtml() {
   var filtered = getFilteredIM();
-  var pendingCount = filtered.filter(function(im) { return getIMStatus(im) !== 'invoiced'; }).length;
-
-  var html = '<div class="inv-im-summary">' +
-    '<span class="inv-reg-summary-label">' + filtered.length + ' challan' + (filtered.length !== 1 ? 's' : '') +
-    ' (' + pendingCount + ' pending)</span></div>';
-
-  if (filtered.length === 0) {
-    html += '<div class="inv-empty-state">No incoming material found</div>';
-    return html;
-  }
+  var html = _imSummaryHtml(filtered);
+  if (filtered.length === 0) return html + '<div class="inv-empty">No incoming material found</div>';
 
   var sc = getIMSortConfig();
-
-  html += '<table class="inv-desktop-table"><thead><tr>';
-  html += '<th class="inv-th inv-td-check"></th>';
-  html += '<th class="inv-th inv-td-challan">Challan</th>';
-
-  var cols = [
-    { key: 'client', label: 'Client', cls: '' },
-    { key: 'date', label: 'Date', cls: 'inv-td-date' },
-    { key: 'items', label: 'Items', cls: 'inv-td-items' },
-    { key: 'amount', label: 'Amount', cls: 'inv-td-amount inv-th-amount' },
-    { key: 'status', label: 'Status', cls: 'inv-td-status' }
-  ];
-  cols.forEach(function(c) {
-    html += '<th class="inv-th inv-th-sortable' + (c.cls ? ' ' + c.cls : '') + '" data-action="invDesktopIMSort" data-col="' + c.key + '">' +
-      c.label + (sc && sc.col === c.key ? '<span class="inv-sort-arrow">' + (sc.dir === 'asc' ? '\u25B2' : '\u25BC') + '</span>' : '') +
-      '</th>';
-  });
-  html += '</tr></thead><tbody>';
+  var th = function(key, label, cls) {
+    var on = sc && sc.col === key;
+    return '<th class="' + (cls || '') + '"' + (on ? ' aria-sort="' + (sc.dir === 'asc' ? 'ascending' : 'descending') + '"' : '') + '>' +
+      '<button class="inv-table-sort" data-action="invDesktopIMSort" data-col="' + key + '">' + label +
+      (on ? '<span aria-hidden="true">' + (sc.dir === 'asc' ? ' ▲' : ' ▼') + '</span>' : '') + '</button></th>';
+  };
+  html += '<table class="inv-table"><thead><tr>' +
+    '<th class="inv-table-check"><span class="inv-visually-hidden">Select</span></th><th>Challan</th>' + th('client', 'Client', 'inv-col-grow') +
+    th('date', 'Date', 'inv-col-opt3') + '<th class="inv-col-opt2">Vehicle</th>' + th('items', 'Items', 'inv-num inv-col-opt2') +
+    th('amount', 'Amount', 'inv-num') + th('status', 'Status') + '</tr></thead><tbody>';
 
   filtered.forEach(function(im) {
-    var status = getIMStatus(im);
-    var isActive = _imActiveChallanId === im.id;
-    var challanTotal = im.items.reduce(function(s, it) { return s + (it.amount || 0); }, 0);
+    var status = getIMStatus(im), id = escHtml(im.id);
     var pendingItems = im.items.filter(function(it) { return !it.invoiced; });
-    var allPendingChecked = pendingItems.length > 0 && pendingItems.every(function(it) { return _imSelected[it.id]; });
-
-    html += '<tr class="inv-tr' + (isActive ? ' inv-tr-active' : '') + '" data-id="' + escHtml(im.id) + '">';
-
-    // Checkbox cell
-    if (status !== 'invoiced') {
-      html += '<td class="inv-td inv-td-check"><input type="checkbox" data-action="invCheckIMChallan" data-id="' + escHtml(im.id) + '"' + (allPendingChecked ? ' checked' : '') + '></td>';
-    } else {
-      html += '<td class="inv-td inv-td-check"></td>';
-    }
-
-    // Challan number (monospace)
-    html += '<td class="inv-td inv-td-challan" data-action="invSelectIMRow" data-id="' + escHtml(im.id) + '">' +
-      (im.challanNo ? escHtml(im.challanNo) : '\u2014') + '</td>';
-
-    // Content cells — all get invSelectIMRow
-    html += '<td class="inv-td" data-action="invSelectIMRow" data-id="' + escHtml(im.id) + '">' + escHtml(im.clientName) + '</td>';
-    html += '<td class="inv-td inv-td-date" data-action="invSelectIMRow" data-id="' + escHtml(im.id) + '">' + formatDate(im.challanDate) + '</td>';
-    html += '<td class="inv-td inv-td-items" data-action="invSelectIMRow" data-id="' + escHtml(im.id) + '">' + im.items.length + '</td>';
-    html += '<td class="inv-td inv-td-amount" data-action="invSelectIMRow" data-id="' + escHtml(im.id) + '">' + formatCurrency(challanTotal) + '</td>';
-
-    // Status badge (inline, no helper function)
-    html += '<td class="inv-td inv-td-status" data-action="invSelectIMRow" data-id="' + escHtml(im.id) + '">' +
-      '<span class="inv-im-status inv-im-status-' + status + '">' + status + '</span></td>';
-
-    html += '</tr>';
+    var allChecked = pendingItems.length > 0 && pendingItems.every(function(it) { return _imSelected[it.id]; });
+    html += '<tr class="' + (allChecked ? 'inv-row-selected' : '') + '"' + (_imActiveChallanId === im.id ? ' aria-current="true"' : '') +
+      ' data-id="' + id + '" data-im="' + id + '" data-action="invSelectIMRow">' +
+      '<td class="inv-table-check">' + (status !== 'invoiced' ? '<input type="checkbox" class="inv-check" data-action="invCheckIMChallan" data-id="' + id + '"' +
+        (allChecked ? ' checked' : '') + ' aria-label="Select all of ' + escHtml(imChallanLabel(im)) + '">' : '') + '</td>' +
+      // The challan number is a real button, so the row opens from the keyboard.
+      '<td><button class="inv-btn-link inv-id" data-action="invSelectIMRow" data-id="' + id + '">' + (im.challanNo ? escHtml(im.challanNo) : '—') + '</button></td>' +
+      '<td class="inv-col-grow" title="' + escHtml(im.clientName) + '">' + escHtml(im.clientName) + '</td>' +
+      '<td class="inv-id inv-col-opt3">' + escHtml(formatDate(im.challanDate)) + '</td>' +
+      '<td class="inv-id inv-col-opt2">' + escHtml(im.vehicleNo || '') + '</td>' +
+      '<td class="inv-num inv-col-opt2">' + im.items.length + '</td>' +
+      '<td class="inv-num">' + formatCurrency(imChallanTotal(im)) + '</td>' +
+      '<td>' + imStatusDotHtml(im) + '</td></tr>';
   });
-
-  html += '</tbody></table>';
-
-  // IM FAB bar (Add Challan + Scan buttons visible on desktop too)
-  html += '<div class="inv-im-fab-bar" id="imFabBarDesktop">' +
-    '<button class="inv-btn inv-btn-primary" data-action="invShowAddChallan">Add Challan</button>' +
-    '<button class="inv-btn inv-btn-ghost" data-action="invScanChallan">Scan</button></div>';
-
-  return html;
+  return html + '</tbody></table>';
 }
 
-/* Render challan detail inline in #imDetail (Phase 8D) */
+/* Render challan detail inline in #imDetail */
 function _renderIMDetail(challanId, skipMasterRefresh) {
-  var im = (S.incomingMaterial || []).find(function(m) { return m.id === challanId; });
-  if (!im) {
-    _imActiveChallanId = null;
-    var detail = document.getElementById('imDetail');
-    if (detail) detail.innerHTML = _renderDetailEmpty();
-    if (!skipMasterRefresh) {
-      var master = document.getElementById('imMaster');
-      if (master) master.innerHTML = _buildIMTableHtml();
-    }
-    return;
-  }
-
-  _imActiveChallanId = challanId;
-  var status = getIMStatus(im);
-  var challanTotal = im.items.reduce(function(s, it) { return s + (it.amount || 0); }, 0);
-  var invoicedItemCount = im.items.filter(function(it) { return it.invoiced; }).length;
-
-  var html = '';
-
-  // Header: challan number + date
-  html += '<div class="inv-detail-section">' +
-    '<div class="inv-form-row">' +
-    '<div><div class="inv-detail-label">Challan No</div><div class="inv-detail-value-mono">' +
-    (im.challanNo ? escHtml(im.challanNo) : '\u2014') + '</div></div>' +
-    '<div><div class="inv-detail-label">Date</div><div class="inv-detail-value-mono">' + formatDate(im.challanDate) + '</div></div></div></div>';
-
-  // Client name
-  html += '<div class="inv-detail-section">' +
-    '<div class="inv-detail-label">Client</div>' +
-    '<div class="inv-detail-value">' + escHtml(im.clientName) + '</div></div>';
-
-  // Vehicle number (if present)
-  if (im.vehicleNo) {
-    html += '<div class="inv-detail-section">' +
-      '<div class="inv-detail-label">Vehicle</div>' +
-      '<div class="inv-detail-value">' + escHtml(im.vehicleNo) + '</div></div>';
-  }
-
-  // Status indicator
-  html += '<div class="inv-detail-section">' +
-    '<div class="inv-detail-label">Status</div>' +
-    '<span class="inv-im-status inv-im-status-' + status + '">' + status + '</span></div>';
-
-  // Line items with item-level checkboxes
-  html += '<div class="inv-detail-section">' +
-    '<div class="inv-detail-label">Items (' + im.items.length + ')</div>';
-  im.items.forEach(function(it) {
-    var itemInvoiced = it.invoiced;
-    var invBadgeHtml = '';
-    if (itemInvoiced) {
-      var linkedInv = it.invoiceId ? S.invoices.find(function(iv) { return iv.id === it.invoiceId; }) : null;
-      if (linkedInv) {
-        var shortNum = linkedInv.invoiceNumber || linkedInv.displayNumber;
-        invBadgeHtml = '<span class="inv-im-status inv-im-status-invoiced inv-mono" title="' + escHtml(linkedInv.displayNumber) + '">INV ' + escHtml(shortNum) + '</span>';
-      } else {
-        invBadgeHtml = '<span class="inv-im-status inv-im-status-orphan" title="Invoice deleted">INV (missing)</span>';
-      }
-    }
-    html += '<div class="inv-im-item' + (itemInvoiced ? ' inv-im-item-invoiced' : '') + '">' +
-      (!itemInvoiced ? '<input type="checkbox" class="inv-im-check" data-action="invCheckIMItem" data-item-id="' + escHtml(it.id) + '"' + (_imSelected[it.id] ? ' checked' : '') + '>' :
-      invBadgeHtml) +
-      '<div class="inv-im-item-info">' +
-      '<div class="inv-im-item-desc">' + escHtml(lineLabel(it)) + '</div>' +
-      '<div class="inv-im-item-detail">' + escHtml(it.qty) + ' ' + escHtml(it.unit) +
-      (it.nosQty && it.nosQty > 0 ? ' (' + escHtml(it.nosQty) + ' NOS)' : '') +
-      ' @ ' + formatCurrency(it.rate) + '/' + escHtml(it.unit) + '</div></div>' +
-      '<span class="inv-im-item-amount">' + formatCurrency(it.amount) + '</span></div>';
-  });
-  html += '</div>';
-
-  // Total amount
-  html += '<div class="inv-detail-section"><div class="inv-totals">' +
-    '<div class="inv-total-row inv-total-row-grand"><span class="inv-total-label">Total</span>' +
-    '<span class="inv-total-grand">' + formatCurrency(challanTotal) + '</span></div></div></div>';
-
-  // Action buttons
-  if (invoicedItemCount === 0) {
-    // Zero items invoiced: Edit + Delete
-    html += '<div class="inv-detail-actions">' +
-      '<button class="inv-btn inv-btn-primary" data-action="invEditChallan" data-id="' + escHtml(im.id) + '">Edit</button>' +
-      '<button class="inv-btn inv-btn-danger" data-action="invDeleteChallan" data-id="' + escHtml(im.id) + '">Delete</button></div>';
-  } else if (status !== 'invoiced') {
-    // Partially invoiced: disabled edit with guard
-    html += '<div class="inv-detail-actions">' +
-      '<button class="inv-btn inv-btn-ghost inv-btn-disabled" data-action="invEditChallanGuard" data-count="' + invoicedItemCount + '">Edit</button></div>';
-  }
-  // Fully invoiced: no action buttons (read-only)
-
-  // Notes
-  if (im.notes) {
-    html += '<div class="inv-detail-section">' +
-      '<div class="inv-detail-label">Notes</div>' +
-      '<div class="inv-detail-value">' + escHtml(im.notes) + '</div></div>';
-  }
-
+  var focusKey = skipMasterRefresh ? null : _mdFocusKey('imMasterDetail', _imActiveChallanId);
+  var im = challanId ? (S.incomingMaterial || []).find(function(m) { return m.id === challanId; }) : null;
+  _imActiveChallanId = im ? challanId : null;
+  // The pane takes room only while a challan is open (§6.14), as the Register's does.
+  var wrap = document.getElementById('imMasterDetail');
+  if (wrap) wrap.classList.toggle('inv-pane-open', !!im);
   var detailEl = document.getElementById('imDetail');
-  if (detailEl) detailEl.innerHTML = html;
-
-  // Update master to show active row highlight
+  if (detailEl) detailEl.innerHTML = im ? '<div class="inv-pane-head"><span class="inv-panel-title inv-id">' + escHtml(imChallanLabel(im)) + '</span>' +
+    '<button class="inv-btn inv-btn-icon inv-btn-ghost" data-action="invIMClosePane" aria-label="Close">&times;</button></div>' + challanDetailHtml(im) : '';
   if (!skipMasterRefresh) {
     var masterEl = document.getElementById('imMaster');
     if (masterEl) masterEl.innerHTML = _buildIMTableHtml();
+    _mdRestoreFocus(focusKey, 'invSelectIMRow', 'invIMClosePane');
   }
 }
 
@@ -400,49 +244,93 @@ function renderIMTable() {
     _imToolbarRendered = true;
   }
 
-  var wrapper = document.getElementById('imMasterDetail');
-  if (!wrapper) {
-    // First render — build wrapper, init drag, restore width
+  if (!document.getElementById('imMasterDetail')) {
     area.innerHTML =
-      '<div class="inv-master-detail" id="imMasterDetail">' +
+      '<div class="inv-master-detail inv-master-detail-pane" id="imMasterDetail">' +
         '<div class="inv-master" id="imMaster"></div>' +
-        '<div class="inv-drag-handle" id="imDragHandle"></div>' +
-        '<div class="inv-detail" id="imDetail">' + _renderDetailEmpty() + '</div>' +
+        '<div class="inv-detail inv-pane" id="imDetail"></div>' +
       '</div>';
-    _initDragHandle('imDragHandle', 'imMaster', 'imDetail', 'pageIM');
-    _restorePanelWidth('imMaster', 'pageIM');
   }
 
-  // Re-render master content
   var master = document.getElementById('imMaster');
   if (!master) return;
+  var focusKey = _mdFocusKey('imMasterDetail', _imActiveChallanId);
   master.innerHTML = _buildIMTableHtml();
 
-  // Detail panel validation: keep detail in sync with data changes
+  // Keep the pane in step with the data: a deleted or filtered-out challan closes it.
   if (_imActiveChallanId) {
-    var stillExists = (S.incomingMaterial || []).find(function(m) { return m.id === _imActiveChallanId; });
-    if (!stillExists) {
-      // Deleted — clear detail
-      _imActiveChallanId = null;
-      var detail = document.getElementById('imDetail');
-      if (detail) detail.innerHTML = _renderDetailEmpty();
-    } else {
-      // Check if active challan is still in filtered set
-      var filtered = getFilteredIM();
-      var inFiltered = filtered.find(function(m) { return m.id === _imActiveChallanId; });
-      if (!inFiltered) {
-        // Filtered out — clear detail
-        _imActiveChallanId = null;
-        var detail2 = document.getElementById('imDetail');
-        if (detail2) detail2.innerHTML = _renderDetailEmpty();
-      } else {
-        // Still visible — refresh detail content (skip master since we just rendered it)
-        _renderIMDetail(_imActiveChallanId, true);
-      }
-    }
+    var visible = getFilteredIM().some(function(m) { return m.id === _imActiveChallanId; });
+    _renderIMDetail(visible ? _imActiveChallanId : null, true);
+  } else {
+    _renderIMDetail(null, true);
   }
+  _mdRestoreFocus(focusKey, 'invSelectIMRow', 'invIMClosePane');
 
   renderIMSelBar();
+}
+
+function imStatusDotHtml(im) {
+  var s = IM_STATUS_UI[getIMStatus(im)] || { word: getIMStatus(im), tone: 'neutral' };
+  return '<span class="inv-dot inv-dot-' + s.tone + '">' + escHtml(s.word) + '</span>';
+}
+
+function imChallanTotal(im) { return im.items.reduce(function(s, it) { return s + (it.amount || 0); }, 0); }
+
+function _imSummaryHtml(filtered) {
+  var pending = filtered.filter(function(im) { return getIMStatus(im) !== 'invoiced'; }).length;
+  return '<div class="inv-pagehead"><span class="inv-pagehead-meta" data-im-summary>' + filtered.length + ' challan' +
+    (filtered.length !== 1 ? 's' : '') + ' · ' + pending + ' awaiting invoice</span></div>';
+}
+
+/* A challan line. A line still to bill carries its tick box; a billed one names its invoice. */
+function _imItemRowHtml(it) {
+  var lead = '', tag = '';
+  if (!it.invoiced) {
+    lead = '<label class="inv-row-lead inv-row-tick"><input type="checkbox" class="inv-check" data-action="invCheckIMItem" data-item-id="' + escHtml(it.id) + '"' +
+      (_imSelected[it.id] ? ' checked' : '') + ' aria-label="Select ' + escHtml(lineLabel(it)) + '"></label>';
+  } else {
+    var linked = it.invoiceId ? S.invoices.find(function(iv) { return iv.id === it.invoiceId; }) : null;
+    tag = linked
+      ? '<span class="inv-badge inv-badge-ok" title="' + escHtml(linked.displayNumber) + '">Invoice ' + escHtml(linked.invoiceNumber || linked.displayNumber) + '</span>'
+      : '<span class="inv-badge inv-badge-danger" title="Invoice deleted">Invoice missing</span>';
+  }
+  return '<div class="inv-row inv-row-auto' + (it.invoiced ? ' inv-row-sub' : '') + '" data-im-item>' + lead +
+    '<span class="inv-row-main"><span class="inv-row-title inv-row-wrap" data-im-desc>' + escHtml(lineLabel(it)) + '</span>' +
+    '<span class="inv-row-meta inv-row-wrap" data-im-detail>' + escHtml(it.qty) + ' ' + escHtml(it.unit) +
+    (it.nosQty && it.nosQty > 0 ? ' (' + escHtml(it.nosQty) + ' NOS)' : '') +
+    ' @ ' + formatCurrency(it.rate) + '/' + escHtml(it.unit) + '</span>' + (tag ? '<span class="inv-row-meta">' + tag + '</span>' : '') + '</span>' +
+    '<span class="inv-row-end inv-num">' + formatCurrency(it.amount) + '</span></div>';
+}
+
+/* Edit and delete while nothing on the challan is billed; once a line is, the edit says why not. */
+function _imActionsHtml(im, primary) {
+  var status = getIMStatus(im), billed = im.items.filter(function(it) { return it.invoiced; }).length, id = escHtml(im.id);
+  if (billed === 0) {
+    // Secondary: the page's one primary is Add challan (DR-3).
+    return '<button class="inv-btn inv-btn-secondary' + (primary ? '' : ' inv-btn-sm') + '" data-action="invEditChallan" data-id="' + id + '">Edit</button>' +
+      '<button class="inv-btn inv-btn-danger' + (primary ? '' : ' inv-btn-sm') + '" data-action="invDeleteChallan" data-id="' + id + '">Delete challan</button>';
+  }
+  if (status !== 'invoiced') {
+    return '<button class="inv-btn inv-btn-secondary inv-btn-disabled' + (primary ? '' : ' inv-btn-sm') + '" data-action="invEditChallanGuard" data-count="' + billed + '">Edit</button>';
+  }
+  return '';
+}
+
+/* One challan read in full, in the desktop pane. */
+function challanDetailHtml(im) {
+  var h = '<div class="inv-kv inv-mb-8">' +
+    '<div><div class="inv-kv-k">Challan</div><div class="inv-id">' + (im.challanNo ? escHtml(im.challanNo) : '—') + '</div></div>' +
+    '<div><div class="inv-kv-k">Date</div><div class="inv-id">' + escHtml(formatDate(im.challanDate)) + '</div></div>' +
+    '<div class="inv-kv-wide"><div class="inv-kv-k">Client</div><div>' + escHtml(im.clientName) + '</div></div>' +
+    (im.vehicleNo ? '<div><div class="inv-kv-k">Vehicle</div><div class="inv-id">' + escHtml(im.vehicleNo) + '</div></div>' : '') +
+    '<div><div class="inv-kv-k">Status</div><div>' + imStatusDotHtml(im) + '</div></div>' +
+    (im.notes ? '<div class="inv-kv-wide"><div class="inv-kv-k">Notes</div><div>' + escHtml(im.notes) + '</div></div>' : '') +
+    '</div>';
+  h += '<div class="inv-panel inv-panel-flush"><div class="inv-row-group"><span>Lines · ' + im.items.length + '</span></div>' +
+    im.items.map(_imItemRowHtml).join('') +
+    '<div class="inv-row inv-row-strong"><span class="inv-row-main">Total</span><span class="inv-row-end inv-num">' + formatCurrency(imChallanTotal(im)) + '</span></div></div>';
+  var acts = _imActionsHtml(im, true);
+  return h + (acts ? '<div class="inv-toolbar">' + acts + '</div>' : '');
 }
 
 /* View dispatcher (Phase 8B) */

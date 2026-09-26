@@ -43,7 +43,7 @@ test('P2 desktop: IM master-detail rate renders with ₹ prefix', async ({ page 
   // actionability checks (app binds via delegated `data-action` click handlers).
   await row.locator('[data-action="invSelectIMRow"]').first().dispatchEvent('click');
 
-  const detail = page.locator('#imDetail .inv-im-item-detail').first();
+  const detail = page.locator('#imDetail [data-im-detail]').first();
   await expect(detail).toBeVisible();
   await expect(detail).toHaveText(/₹13\.00\/KG/);
   await expect(detail).not.toHaveText(/@ 13\.00\/KG/);

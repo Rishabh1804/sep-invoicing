@@ -291,19 +291,56 @@ function _attRestoreFocus(sel) {
 }
 
 /* ===== TAB RENDER ===== */
+/* The view tabs (§6.4). Paste message is not one of them: it is a sub-view with its own way back, opened by
+   the page's one primary (Overview, Day) or from Home. */
+var ATT_VIEWS = [['overview', 'Overview'], ['day', 'Day'], ['week', 'Week'], ['pay', 'Pay'], ['areas', 'Areas'], ['roster', 'Roster']];
+var _attPrevView = 'overview';   // where Paste message's back button returns
+var STAFF_BACK_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="15 18 9 12 15 6"/></svg>';
+var STAFF_NEXT_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>';
+
+function _attTabsHtml() {
+  return '<div class="inv-viewtabs" role="tablist" aria-label="Staff">' + ATT_VIEWS.map(function(v) {
+    return '<button class="inv-viewtab" role="tab" aria-selected="' + (_attView === v[0]) + '" data-action="invAttView" data-view="' + v[0] + '">' + v[1] + '</button>';
+  }).join('') + '</div>';
+}
+
+/* A period stepper (§6.7): previous · the period · next · back to now. `label` is the middle: the date field
+   on Day, the week's number and dates elsewhere. */
+function _attStepper(action, label, nowAction, nowLabel, prevLabel, nextLabel) {
+  return '<div class="inv-toolbar inv-stepper">' +
+    '<button class="inv-btn inv-btn-icon inv-btn-ghost" data-action="' + action + '" data-step="-1" aria-label="' + prevLabel + '">' + STAFF_BACK_ICON + '</button>' +
+    '<div class="inv-stepper-label">' + label + '</div>' +
+    '<button class="inv-btn inv-btn-icon inv-btn-ghost" data-action="' + action + '" data-step="1" aria-label="' + nextLabel + '">' + STAFF_NEXT_ICON + '</button>' +
+    '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="' + nowAction + '">' + nowLabel + '</button></div>';
+}
+function _attWeekLabel(title, sub) {
+  return '<span class="inv-stepper-title">' + title + '</span><span class="inv-stepper-sub">' + sub + '</span>';
+}
+
+/* The page's one primary on the views where marks are entered. */
+function _attPasteBar() {
+  return '<div class="inv-toolbar"><button class="inv-btn inv-btn-primary" data-action="invAttView" data-view="paste">Paste message</button></div>';
+}
+
 function renderAttendance() {
   if (!_attDate) _attDate = localDateStr();
   if (!_attWeekStart) _attWeekStart = attWeekStartOf(_attDate);
+  if (_attView !== 'paste') _attPrevView = _attView;
 
   var focusSel = _attFocusSelector();
 
+  // Paste message is a sub-view: its own head and way back, no tabs.
   var toolbar = document.getElementById('attToolbar');
   if (toolbar) {
-    var views = [['overview', 'Overview'], ['day', 'Day'], ['week', 'Week'], ['pay', 'Pay'], ['areas', 'Areas'], ['roster', 'Roster'], ['paste', 'Paste message']];
-    toolbar.innerHTML = '<div class="inv-stats-chips">' + views.map(function(v) {
-      return '<button class="inv-chip' + (_attView === v[0] ? ' inv-chip-active' : '') +
-        '" data-action="invAttView" data-view="' + v[0] + '">' + v[1] + '</button>';
-    }).join('') + '</div>';
+    toolbar.innerHTML = _attView === 'paste' ? '' : _attTabsHtml();
+    // Six tabs overflow a phone; the open one is scrolled into view sideways only, so a tap lower on the
+    // page (a P/H/A, an hour) never jumps the page back up to the tabs.
+    var list = toolbar.querySelector('.inv-viewtabs'), on = toolbar.querySelector('.inv-viewtab[aria-selected="true"]');
+    if (list && on) {
+      var left = on.offsetLeft - list.offsetLeft, right = left + on.offsetWidth;
+      if (left < list.scrollLeft) list.scrollLeft = left;
+      else if (right > list.scrollLeft + list.clientWidth) list.scrollLeft = right - list.clientWidth;
+    }
   }
 
   var area = document.getElementById('attContent');
@@ -319,7 +356,7 @@ function renderAttendance() {
   else if (_attView === 'paste') area.innerHTML = relayRenderView();
   else if (_attView === 'areas') area.innerHTML = _attAreasView();
   else if (_attView === 'pay') area.innerHTML = _attPayView();
-  else if (_attView === 'overview') area.innerHTML = staffOverviewHtml();
+  else if (_attView === 'overview') area.innerHTML = _attPasteBar() + staffOverviewHtml();
   else if (_attView === 'week') area.innerHTML = _attWeekView();
   else area.innerHTML = _attDayView();
 
@@ -327,18 +364,22 @@ function renderAttendance() {
 }
 
 function _attEmptyRoster() {
-  return '<div class="inv-card"><div class="inv-empty-state">' +
-    '<svg class="inv-empty-state-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">' +
+  return '<div class="inv-panel"><div class="inv-empty">' +
+    '<svg class="inv-empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
     '<path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/>' +
     '<polyline points="17 11 19 13 23 9"/></svg>' +
-    '<div class="inv-mt-16">No one on the roster yet</div>' +
-    '<div class="inv-stats-note">Attendance and the labour breakdown both read the roster. ' +
+    '<div>No one on the roster yet</div>' +
+    '<div class="inv-note">Attendance and the labour breakdown both read the roster. ' +
     'Add each worker once with their comp class and rate; the wage arithmetic follows from there.</div>' +
-    '<div class="inv-mt-16"><button class="inv-btn inv-btn-primary" data-action="invAttAddWorker">Add the first worker</button></div>' +
+    '<button class="inv-btn inv-btn-primary" data-action="invAttAddWorker">Add the first worker</button>' +
     '</div></div>';
 }
 
 /* ===== DAY VIEW ===== */
+/* P/H/A carry their tone when chosen (a segment of the status's own colour, which switches with the theme):
+   present ok, half warning, absent danger. */
+var ATT_STATE_TONE = { P: 'ok', H: 'warning', A: 'danger' };
+
 function _attDayView() {
   var iso = _attDate;
   var rec = attDay(iso, false);
@@ -358,38 +399,32 @@ function _attDayView() {
   var extraHours = rec ? rec.extra.reduce(function(s, x) { return s + (x.hours || 0); }, 0) : 0;
   var onSite = present + half;
 
-  var html = '<div class="inv-att-nav">' +
-    '<button class="inv-att-nav-btn" data-action="invAttStep" data-step="-1" aria-label="Previous day">' +
-    '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg></button>' +
-    '<div class="inv-att-nav-label"><input type="date" class="inv-form-input inv-mono inv-att-date" id="attDate" value="' + escHtml(iso) + '">' +
-    '<span class="inv-att-nav-day">' + attDayName(iso) + '</span></div>' +
-    '<button class="inv-att-nav-btn" data-action="invAttStep" data-step="1" aria-label="Next day">' +
-    '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg></button>' +
-    '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invAttToday">Today</button>' +
-    '</div>';
+  var html = _attStepper('invAttStep',
+    '<input type="date" class="inv-input inv-id" id="attDate" value="' + escHtml(iso) + '" aria-label="Day">' +
+    '<span class="inv-stepper-sub">' + attDayName(iso) + '</span>',
+    'invAttToday', 'Today', 'Previous day', 'Next day') + _attPasteBar();
 
-  html += '<div class="inv-card inv-card-hero"><div class="inv-card-header">' +
-    '<span class="inv-card-title">On site</span>' +
-    '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invAttAllPresent">All present</button></div>' +
-    '<div class="inv-att-count"><span class="inv-display inv-att-count-value">' + onSite + '</span>' +
-    '<span class="inv-att-count-of">/ ' + total + '</span></div>' +
-    '<div class="inv-att-summary">' +
-    '<span class="inv-att-pill inv-att-pill-p">' + present + ' present</span>' +
-    '<span class="inv-att-pill inv-att-pill-h">' + half + ' half</span>' +
-    '<span class="inv-att-pill inv-att-pill-a">' + absent + ' absent</span>' +
-    (unmarked > 0 ? '<span class="inv-att-pill inv-att-pill-u">' + unmarked + ' unmarked</span>' : '') +
-    '</div>' +
-    (poolHours > 0 || otHours > 0 || extraHours > 0
-      ? '<div class="inv-att-summary">' +
-        (poolHours > 0 ? '<span class="inv-att-pill inv-att-pill-hr">' + formatNum(poolHours, 1) + ' h pool</span>' : '') +
-        (otHours > 0 ? '<span class="inv-att-pill inv-att-pill-ot">' + formatNum(otHours, 1) + ' h OT named</span>' : '') +
-        (extraHours > 0 ? '<span class="inv-att-pill inv-att-pill-x">' + formatNum(extraHours, 1) + ' h extra</span>' : '') +
-        '</div>'
-      : '') +
-    '</div>';
+  var tile = function(id, label, value, sub, tone) {
+    return '<div class="inv-tile' + (tone ? ' inv-tile-' + tone : '') + '"><div class="inv-tile-label">' + label + '</div>' +
+      '<div class="inv-tile-value" id="' + id + '">' + value + '</div>' + (sub ? '<div class="inv-tile-sub">' + sub + '</div>' : '') + '</div>';
+  };
+  html += '<div class="inv-tiles inv-tiles-4" id="attDayTiles">' +
+    '<div class="inv-tile"><div class="inv-tile-label">On site</div><div class="inv-tile-value"><span id="attOnSite">' + onSite + '</span>' +
+    '<span class="inv-tile-of">/' + total + '</span></div><div class="inv-tile-sub">' + present + ' present</div></div>' +
+    tile('attHalf', 'Half day', half, '', half ? 'warning' : '') +
+    tile('attAbsent', 'Absent', absent, '', absent ? 'danger' : '') +
+    tile('attUnmarked', 'Unmarked', unmarked, unmarked ? 'nobody typed' : '', '') + '</div>';
+  if (poolHours > 0 || otHours > 0 || extraHours > 0) {
+    html += '<div class="inv-tiles inv-tiles-3" id="attDayHours">' +
+      tile('attPoolHours', 'Hourly pool', formatNum(poolHours, 1) + '<span class="inv-tile-of"> h</span>', '', '') +
+      tile('attOtHours', 'OT, named', formatNum(otHours, 1) + '<span class="inv-tile-of"> h</span>', '', '') +
+      tile('attExtraHours', 'Extra', formatNum(extraHours, 1) + '<span class="inv-tile-of"> h</span>', '', '') + '</div>';
+  }
 
-  // The rows. One line per worker: who, where, what state, and OT hours.
-  html += '<div class="inv-card"><div class="inv-card-header"><span class="inv-card-title">Mark the day</span></div>';
+  // The rows. One line per worker: who, what state, where, and the hours.
+  html += '<div class="inv-panel inv-panel-flush" id="attMarks"><div class="inv-panel-head"><span class="inv-panel-title">Mark the day ' +
+    '<span class="inv-panel-count">' + total + '</span></span>' +
+    '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invAttAllPresent">All present</button></div>';
   roster.forEach(function(w) {
     var m = rec ? rec.marks[w.id] : null;
     var st = m ? m.st : '';
@@ -399,30 +434,29 @@ function _attDayView() {
     // Half a day is not a state an hourly worker can be in: the hours say it.
     var states = hourly ? ['P', 'A'] : ATT_STATES;
     var live = st && st !== 'A';
-    html += '<div class="inv-att-row">' +
-      '<div class="inv-att-who"><span class="inv-att-name">' + escHtml(w.name) + '</span>' +
-      '<span class="inv-att-badge inv-att-badge-' + cls.tone + '">' + escHtml(cls.label) + '</span></div>' +
-      '<div class="inv-att-controls">' +
-      '<div class="inv-att-seg" role="group" aria-label="Attendance for ' + escHtml(w.name) + '">' +
+    html += '<div class="inv-row inv-row-flow inv-row-auto" data-att-row="' + w.id + '">' +
+      '<span class="inv-row-main"><span class="inv-row-title">' + escHtml(w.name) + '</span>' +
+      '<span class="inv-row-meta">' + escHtml(cls.label) + (m ? ' · ' + escHtml(ATT_STATE_LABELS[st] || '') : ' · unmarked') + '</span></span>' +
+      '<span class="inv-row-end inv-row-fields">' +
+      '<span class="inv-seg" role="group" aria-label="Attendance for ' + escHtml(w.name) + '">' +
       states.map(function(x) {
-        return '<button class="inv-att-seg-btn inv-att-seg-' + x.toLowerCase() +
-          (st === x ? ' inv-att-seg-on' : '') + '" data-action="invAttSet" data-id="' + w.id +
+        return '<button class="inv-seg-btn inv-seg-btn-' + ATT_STATE_TONE[x] + '" data-action="invAttSet" data-id="' + w.id +
           '" data-st="' + x + '" aria-pressed="' + (st === x) + '" title="' + ATT_STATE_LABELS[x] + '">' + x + '</button>';
       }).join('') +
-      '</div>' +
-      '<select class="inv-form-select inv-att-area" data-att-area data-id="' + w.id + '" aria-label="Area for ' + escHtml(w.name) + '"' +
+      '</span>' +
+      '<select class="inv-select inv-select-sm" data-att-area data-id="' + w.id + '" aria-label="Area for ' + escHtml(w.name) + '"' +
       (live ? '' : ' disabled') + '>' + attAreaOptions(wArea) + '</select>' +
-      // Deliberately not inv-mono: in the mono face the placeholders "OT" and
-      // "h" sit in a field whose whole content is otherwise numbers, and the
+      // Deliberately not mono: in the mono face the placeholders "OT" and
+      // "hrs" sit in a field whose whole content is otherwise numbers, and the
       // mono O is indistinguishable from a zero.
       (hourly
-        ? '<input type="number" class="inv-form-input inv-att-ot" data-att-hours data-id="' + w.id +
+        ? '<input type="number" class="inv-input inv-input-sm" data-att-hours data-id="' + w.id +
           '" step="0.5" min="0" placeholder="hrs" value="' + (m && m.hours ? m.hours : '') + '"' +
           (live ? '' : ' disabled') + ' aria-label="Hours worked by ' + escHtml(w.name) + '">'
-        : '<input type="number" class="inv-form-input inv-att-ot" data-att-ot data-id="' + w.id +
+        : '<input type="number" class="inv-input inv-input-sm" data-att-ot data-id="' + w.id +
           '" step="0.5" min="0" placeholder="OT" value="' + (m && m.ot ? m.ot : '') + '"' +
           (live ? '' : ' disabled') + ' aria-label="OT hours for ' + escHtml(w.name) + '">') +
-      '</div></div>';
+      '</span></div>';
   });
   html += '</div>';
 
@@ -470,18 +504,18 @@ function _attBlockFields(x, i, siblings) {
   var span = blockSpan(x);
   var roster = staffActive();
 
-  var html = '<div class="inv-att-block">' +
-    '<div class="inv-att-block-times">' +
-    '<label class="inv-att-block-label" for="blkFrom-' + i + '">In</label>' +
-    '<input type="time" class="inv-form-input inv-mono" id="blkFrom-' + i + '" data-att-block-from data-idx="' + i +
-    '" value="' + escHtml(x.from || '') + '" aria-label="Block start time">' +
-    '<label class="inv-att-block-label" for="blkTo-' + i + '">Out</label>' +
-    '<input type="time" class="inv-form-input inv-mono" id="blkTo-' + i + '" data-att-block-to data-idx="' + i +
-    '" value="' + escHtml(x.to || '') + '" aria-label="Block end time">' +
+  var html = '<div class="inv-mt-8" data-block="' + i + '">' +
+    '<div class="inv-toolbar">' +
+    '<div class="inv-field inv-toolbar-item"><label class="inv-field-label" for="blkFrom-' + i + '">In</label>' +
+    '<input type="time" class="inv-input inv-id" id="blkFrom-' + i + '" data-att-block-from data-idx="' + i +
+    '" value="' + escHtml(x.from || '') + '" aria-label="Block start time"></div>' +
+    '<div class="inv-field inv-toolbar-item"><label class="inv-field-label" for="blkTo-' + i + '">Out</label>' +
+    '<input type="time" class="inv-input inv-id" id="blkTo-' + i + '" data-att-block-to data-idx="' + i +
+    '" value="' + escHtml(x.to || '') + '" aria-label="Block end time"></div>' +
     // Both lengths, whenever they differ: the clock span the operator typed
     // and the credited length the tag is judged against. Nothing is rounded
     // behind their back.
-    '<span class="inv-att-block-len inv-mono">' + (hrs == null ? '&mdash;'
+    '<span class="inv-num inv-toolbar-end" data-block-len>' + (hrs == null ? '&mdash;'
       : (span != null && span !== hrs
         ? formatNum(span, 1) + ' h &rarr; ' + formatNum(hrs, 1) + ' credited'
         : formatNum(hrs, 1) + ' h')) + '</span>' +
@@ -490,25 +524,24 @@ function _attBlockFields(x, i, siblings) {
   // Areas as toggles rather than one select, because a block row genuinely
   // spans several: the relay writes one tag over A1 and A2 together about as
   // often as one each, and the complement differs between the two readings.
-  html += '<div class="inv-att-block-areas">';
+  html += '<div class="inv-field-label">Areas it covers</div>' +
+    '<div class="inv-toolbar" role="group" aria-label="Areas the block covers" data-block-areas>';
   STAFF_AREAS.filter(function(a) { return a.floor && a.id !== 'flex'; }).forEach(function(a) {
     var on = areas.indexOf(a.id) >= 0;
-    html += '<button class="inv-att-chip' + (on ? ' inv-att-chip-on' : '') + '" data-action="invAttBlockArea" ' +
+    html += '<button class="inv-chip" data-action="invAttBlockArea" ' +
       'data-idx="' + i + '" data-area="' + escHtml(a.id) + '" aria-pressed="' + (on ? 'true' : 'false') + '">' +
       escHtml(a.label) + '</button>';
   });
   html += '</div>';
 
-  html += '<div class="inv-att-block-crew">' +
-    '<span class="inv-att-block-label">On the block</span>' +
-    '<span class="inv-att-block-count inv-mono">' + crew.length + '</span></div>' +
-    '<div class="inv-att-block-names">';
+  html += '<div class="inv-field-label">On the block <span class="inv-num" data-block-count>' + crew.length + '</span></div>' +
+    '<div class="inv-toolbar" role="group" aria-label="Who stood the block" data-block-crew>';
   if (roster.length === 0) {
-    html += '<span class="inv-att-block-empty">No roster yet &mdash; import one on the Roster view</span>';
+    html += '<span class="inv-note">No roster yet &mdash; import one on the Roster view</span>';
   } else {
     roster.forEach(function(w) {
       var on = crew.indexOf(w.id) >= 0;
-      html += '<button class="inv-att-chip' + (on ? ' inv-att-chip-on' : '') + '" data-action="invAttBlockCrew" ' +
+      html += '<button class="inv-chip" data-action="invAttBlockCrew" ' +
         'data-idx="' + i + '" data-worker="' + w.id + '" aria-pressed="' + (on ? 'true' : 'false') + '">' +
         escHtml(w.name) + '</button>';
     });
@@ -528,16 +561,17 @@ function _attBlockFields(x, i, siblings) {
     var expect = gstRound(short * hrs);
     var booked = x.hours || 0;
     var ok = Math.abs(booked - expect) <= 0.001;
-    html += '<div class="inv-att-block-check' + (ok ? ' inv-att-block-ok' : '') + '">' +
+    html += '<div class="inv-callout' + (ok ? '' : ' inv-callout-warning') + '" data-block-check="' + (ok ? 'ok' : 'differs') + '">' +
+      '<span class="inv-dot inv-dot-' + (ok ? 'ok' : 'warning') + '">' + (ok ? 'Matches' : 'Differs') + '</span> ' +
       crew.length + ' of ' + norm + ' &middot; short ' + short + ' &times; ' + formatNum(hrs, 1) + ' h = ' +
       '<strong>' + formatNum(expect, 1) + ' h</strong>' +
-      (ok ? ' &mdash; matches' : ' &middot; booked ' + formatNum(booked, 1)) + '</div>';
+      (ok ? '' : ' &middot; booked ' + formatNum(booked, 1)) + '</div>';
   } else {
     var missing = [];
     if (hrs == null) missing.push('in/out times');
     if (norm == null) missing.push('an area with a complement');
     if (!hasCrew) missing.push('its crew');
-    html += '<div class="inv-att-block-check">Not checkable yet &mdash; needs ' +
+    html += '<div class="inv-callout" data-block-check="none">Not checkable yet &mdash; needs ' +
       escHtml(missing.join(', ')) + '. The hours still count in the bill.</div>';
   }
 
@@ -546,11 +580,11 @@ function _attBlockFields(x, i, siblings) {
 
 function _attExtraCard(iso, rec) {
   var rows = rec ? rec.extra : [];
-  var html = '<div class="inv-card"><div class="inv-card-header">' +
-    '<span class="inv-card-title">Extra hours</span>' +
-    '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invAttAddExtra">Add</button></div>' +
-    '<div class="inv-stats-note">Hours booked to an area block rather than to a named worker &mdash; ' +
-    'the <span class="inv-mono">EXTRA n HOURS</span> lines on the daily sheet. Priced at the contract tier ' +
+  var html = '<div class="inv-panel inv-panel-flush" id="attExtra"><div class="inv-panel-head">' +
+    '<span class="inv-panel-title">Extra hours ' + (rows.length ? '<span class="inv-panel-count">' + rows.length + '</span>' : '') + '</span>' +
+    '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invAttAddExtra">Add</button></div>' +
+    '<div class="inv-panel-body inv-note">Hours booked to an area block rather than to a named worker &mdash; ' +
+    'the <span class="inv-id">EXTRA n HOURS</span> lines on the daily sheet. Priced at the contract tier ' +
     '(' + formatCurrency((S.labour && S.labour.extraRate) || 0) + '/h) and counted in the bill. ' +
     'Both kinds are checked against the shortfall in the area that ran; they differ only in the ' +
     '<strong>multiplier</strong>. A general shift credits a missing hand a full eight hours. An ' +
@@ -558,31 +592,30 @@ function _attExtraCard(iso, rec) {
     'times and its crew &mdash; the day&rsquo;s marks supply neither, because a hand on one area ' +
     'all day turns up in another area&rsquo;s evening block.</div>';
   if (rows.length === 0) {
-    html += '<div class="inv-empty-state inv-empty-state-sm">None booked for this day</div>';
+    html += '<div class="inv-empty">None booked for this day</div>';
   } else {
     rows.forEach(function(x, i) {
       var kind = x.kind || 'coverage';
-      html += '<div class="inv-att-extra-row">' +
+      html += '<div class="inv-row inv-row-top inv-row-auto" data-extra-row="' + i + '"><div class="inv-row-main">' +
+        '<div class="inv-toolbar inv-toolbar-flush">' +
+        '<select class="inv-select inv-toolbar-item" data-att-extra-kind data-idx="' + i + '" aria-label="Kind of extra hours">' +
+        EXTRA_KINDS.map(function(k) {
+          return '<option value="' + k.id + '"' + (kind === k.id ? ' selected' : '') + '>' + escHtml(k.label) + '</option>';
+        }).join('') + '</select>' +
         // A block row's areas are the chips below; showing the single-area
         // select as well would let the operator set an area the reconciler
         // never reads, and the hours would bucket somewhere the check does
         // not look.
         (kind === 'block'
-          ? '<span class="inv-att-extra-areas-label">' +
-            escHtml(_attBlockAreaSummary(x)) + '</span>'
-          : '<select class="inv-form-select" data-att-extra-area data-idx="' + i + '" aria-label="Area for extra hours">' +
+          ? '<span class="inv-toolbar-item inv-row-title">' + escHtml(_attBlockAreaSummary(x)) + '</span>'
+          : '<select class="inv-select inv-toolbar-item" data-att-extra-area data-idx="' + i + '" aria-label="Area for extra hours">' +
             attAreaOptions(x.area) + '</select>') +
-        '<input type="number" class="inv-form-input inv-mono" data-att-extra-hours data-idx="' + i +
+        '<input type="number" class="inv-input inv-input-num inv-toolbar-item" data-att-extra-hours data-idx="' + i +
         '" step="0.5" min="0" value="' + (x.hours || 0) + '" aria-label="Extra hours">' +
-        '<button class="inv-att-extra-del" data-action="invAttRemoveExtra" data-idx="' + i + '" aria-label="Remove">&times;</button>' +
+        '<button class="inv-btn inv-btn-icon inv-btn-ghost" data-action="invAttRemoveExtra" data-idx="' + i +
+        '" aria-label="Remove">&times;</button>' +
         '</div>' +
-        '<div class="inv-att-extra-kind">' +
-        '<select class="inv-form-select" data-att-extra-kind data-idx="' + i + '" aria-label="Kind of extra hours">' +
-        EXTRA_KINDS.map(function(k) {
-          return '<option value="' + k.id + '"' + (kind === k.id ? ' selected' : '') + '>' + escHtml(k.label) + '</option>';
-        }).join('') + '</select>' +
-        '<span class="inv-att-extra-hint">' + escHtml((EXTRA_KINDS.find(function(k) { return k.id === kind; }) || EXTRA_KINDS[0]).hint) + '</span>' +
-        '</div>';
+        '<div class="inv-note inv-mt-4">' + escHtml((EXTRA_KINDS.find(function(k) { return k.id === kind; }) || EXTRA_KINDS[0]).hint) + '</div>';
       // Siblings matter: the pickling fold depends on whether ANOTHER row in
       // the same block tags pickling, so the preview must see them or it will
       // disagree with the Areas card over the same day.
@@ -591,70 +624,67 @@ function _attExtraCard(iso, rec) {
           return r !== x && r.kind === 'block' && blockKey(r) === blockKey(x);
         }));
       }
+      html += '</div></div>';
     });
   }
   return html + '</div>';
 }
 
 /* ===== WEEK VIEW ===== */
+var ATT_CELL_TONE = { P: 'ok', H: 'warning', A: 'danger' };
+
 function _attWeekView() {
   var days = attWeekDays(_attWeekStart);
   var roster = staffActive();
   var last = days[days.length - 1];
+  var today = localDateStr();
 
-  var html = '<div class="inv-att-nav">' +
-    '<button class="inv-att-nav-btn" data-action="invAttWeekStep" data-step="-1" aria-label="Previous week">' +
-    '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg></button>' +
-    '<div class="inv-att-nav-label"><span class="inv-att-week-num">Week ' + attPayWeekNumber(_attWeekStart) + '</span>' +
-    '<span class="inv-att-nav-day">' + formatDate(_attWeekStart) + ' &ndash; ' + formatDate(last) + '</span></div>' +
-    '<button class="inv-att-nav-btn" data-action="invAttWeekStep" data-step="1" aria-label="Next week">' +
-    '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg></button>' +
-    '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invAttThisWeek">This week</button>' +
-    '</div>';
+  var html = _attStepper('invAttWeekStep', _attWeekLabel('Week ' + attPayWeekNumber(_attWeekStart),
+    formatDate(_attWeekStart) + ' &ndash; ' + formatDate(last)), 'invAttThisWeek', 'This week', 'Previous week', 'Next week');
 
-  html += '<div class="inv-card"><div class="inv-card-header"><span class="inv-card-title">Week grid</span></div>' +
-    '<div class="inv-stats-note">Tap a cell to cycle it: present, half day, absent, then back to unmarked. ' +
+  html += '<div class="inv-panel inv-panel-flush" id="attWeekGrid"><div class="inv-panel-head"><span class="inv-panel-title">Week grid</span></div>' +
+    '<div class="inv-panel-body inv-note">Tap a cell to cycle it: present, half day, absent, then back to unmarked. ' +
     'An unmarked cell is a day nobody typed &mdash; which is not the same fact as a day nobody worked, ' +
-    'and the labour figures below keep the two apart.</div>' +
-    '<div class="inv-att-grid-wrap"><table class="inv-att-grid">' +
-    '<thead><tr><th class="inv-att-grid-name">Worker</th>' +
+    'and the labour figures below keep the two apart. The figure in a cell is the hours that decide the pay: ' +
+    'the whole day for the hourly pool, the overtime for everyone else.</div>' +
+    '<div class="inv-scroll-x"><table class="inv-table inv-table-grid">' +
+    '<thead><tr><th scope="col">Worker</th>' +
     days.map(function(d) {
-      return '<th class="inv-att-grid-day' + (d === localDateStr() ? ' inv-att-grid-today' : '') + (attParseIso(d).getDay() === 0 ? ' inv-att-grid-sun' : '') + '">' +
-        attDayName(d) + '<span class="inv-att-grid-date">' + attParseIso(d).getDate() + '</span></th>';
+      return '<th scope="col"' + (d === today ? ' aria-current="date"' : '') + (attParseIso(d).getDay() === 0 ? ' data-sun' : '') + '>' +
+        attDayName(d) + '<span class="inv-table-grid-date">' + attParseIso(d).getDate() + '</span></th>';
     }).join('') + '</tr></thead><tbody>';
 
   roster.forEach(function(w) {
     var cls = compClass(w.comp);
     var hourly = compIsHourly(w);
-    html += '<tr><th class="inv-att-grid-name"><span class="inv-att-grid-worker">' + escHtml(w.name) + '</span>' +
-      '<span class="inv-att-grid-comp inv-att-badge-' + cls.tone + '" title="' + escHtml(cls.label) + '">' +
-      cls.short + '</span></th>';
+    html += '<tr><th scope="row" title="' + escHtml(w.name + ' · ' + cls.label) + '">' + escHtml(w.name) +
+      '<span class="inv-unit">' + cls.short + '</span></th>';
     days.forEach(function(d) {
       var m = attMark(d, w.id);
       var st = m ? m.st : '';
-      // The corner figure is the hours that decide this worker's pay: the whole
+      // The figure is the hours that decide this worker's pay: the whole
       // day for the hourly pool, the overtime on top for everyone else.
       var badge = m ? (hourly ? (m.hours || 0) : (m.ot || 0)) : 0;
-      html += '<td class="inv-att-grid-cell' + (attParseIso(d).getDay() === 0 ? ' inv-att-grid-sun' : '') + '"><button class="inv-att-cell inv-att-cell-' +
-        (st ? st.toLowerCase() : 'u') + '" data-action="invAttCycle" data-id="' + w.id + '" data-date="' + d +
+      html += '<td' + (attParseIso(d).getDay() === 0 ? ' data-sun' : '') + '><button class="inv-cell inv-cell-' +
+        (st ? ATT_CELL_TONE[st] : 'empty') + '" data-action="invAttCycle" data-id="' + w.id + '" data-date="' + d +
         '" aria-label="' + escHtml(w.name) + ' ' + attDayName(d) + ' ' + (st ? ATT_STATE_LABELS[st] : 'unmarked') +
         (badge ? ', ' + formatNum(badge, 1) + ' hours' : '') + '">' +
-        (st || '·') + (badge ? '<span class="inv-att-cell-ot">' + formatNum(badge, 0) + '</span>' : '') +
+        (st || '&middot;') + (badge ? '<span class="inv-unit">' + formatNum(badge, 0) + '</span>' : '') +
         '</button></td>';
     });
     html += '</tr>';
   });
 
-  html += '</tbody><tfoot><tr><th class="inv-att-grid-name">On site</th>' +
+  html += '</tbody><tfoot><tr><th scope="row">On site</th>' +
     days.map(function(d) {
       var rec = attDay(d, false);
-      if (!rec) return '<td class="inv-att-grid-cell inv-att-grid-foot">&mdash;</td>';
+      if (!rec) return '<td class="inv-num"' + (attParseIso(d).getDay() === 0 ? ' data-sun' : '') + '>&mdash;</td>';
       var n = 0;
       roster.forEach(function(w) {
         var m = rec.marks[w.id];
         if (m && (m.st === 'P' || m.st === 'H')) n++;
       });
-      return '<td class="inv-att-grid-cell inv-att-grid-foot">' + n + '<span class="inv-att-grid-of">/' + roster.length + '</span></td>';
+      return '<td class="inv-num"' + (attParseIso(d).getDay() === 0 ? ' data-sun' : '') + '>' + n + '<span class="inv-unit">/' + roster.length + '</span></td>';
     }).join('') + '</tr></tfoot></table></div></div>';
 
   html += renderLabourCard(_attWeekStart, attAddDays(_attWeekStart, 6), 'Week cost');
@@ -675,32 +705,28 @@ function _attRosterView() {
   });
   var activeCount = all.filter(function(w) { return w.active !== false; }).length;
 
-  var html = '<div class="inv-card"><div class="inv-card-header">' +
-    '<span class="inv-card-title">Roster</span>' +
-    '<span class="inv-att-roster-actions">' +
-    '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invAttImportRoster">Import</button>' +
-    '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invAttAddWorker">Add worker</button></span></div>' +
-    '<div class="inv-stats-note">' + activeCount + ' active of ' + all.length + ' on file. ' +
-    'The denominator on every headcount above is this number.</div>';
+  var html = '<div class="inv-toolbar">' +
+    '<button class="inv-btn inv-btn-primary" data-action="invAttAddWorker">Add worker</button>' +
+    '<button class="inv-btn inv-btn-ghost" data-action="invAttImportRoster">Import</button></div>' +
+    '<div class="inv-pagehead"><span class="inv-pagehead-meta">' + activeCount + ' active of ' + all.length + ' on file. ' +
+    'The denominator on every headcount is this number.</span></div>';
 
-  if (all.length === 0) {
-    html += '<div class="inv-empty-state inv-empty-state-sm">Nobody on file yet</div></div>';
-    return html;
-  }
+  html += '<div class="inv-panel inv-panel-flush" id="attRoster"><div class="inv-panel-head"><span class="inv-panel-title">Roster ' +
+    '<span class="inv-panel-count">' + all.length + '</span></span></div>';
+  if (all.length === 0) return html + '<div class="inv-empty">Nobody on file yet</div></div>';
 
   all.forEach(function(w) {
     var cls = compClass(w.comp);
-    html += '<div class="inv-client-item' + (w.active === false ? ' inv-client-inactive' : '') +
-      '" data-action="invAttEditWorker" data-id="' + w.id + '">' +
-      '<div class="inv-client-content"><div class="inv-client-name">' + escHtml(w.name) + '</div>' +
-      '<div class="inv-client-meta inv-mono">' + escHtml(workerRateLabel(w)) + '</div>' +
-      '<div class="inv-client-badges">' +
-      '<span class="inv-att-badge inv-att-badge-' + cls.tone + '">' + escHtml(cls.label) + '</span>' +
-      '<span class="inv-client-badge inv-badge-mode">' + escHtml(areaLabel(w.area)) + '</span>' +
-      (w.onFloor === false ? '<span class="inv-client-badge inv-badge-rate">Off floor</span>' : '') +
-      (w.active === false ? '<span class="inv-client-badge inv-badge-inactive">Inactive</span>' : '') +
-      '</div></div>' +
-      '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg></div>';
+    var inactive = w.active === false;
+    html += '<button class="inv-row inv-row-2 inv-row-flow' + (inactive ? ' inv-row-muted' : '') + '" data-action="invAttEditWorker" data-id="' + w.id + '">' +
+      '<span class="inv-row-main"><span class="inv-row-title">' + escHtml(w.name) + '</span>' +
+      '<span class="inv-row-meta inv-id">' + escHtml(workerRateLabel(w)) + '</span></span>' +
+      '<span class="inv-row-end">' +
+      '<span class="inv-badge">' + escHtml(cls.label) + '</span>' +
+      '<span class="inv-badge">' + escHtml(areaLabel(w.area)) + '</span>' +
+      (w.onFloor === false ? '<span class="inv-badge inv-badge-info">Off floor</span>' : '') +
+      (inactive ? '<span class="inv-badge inv-badge-neutral">Inactive</span>' : '') +
+      '</span></button>';
   });
   return html + '</div>';
 }
@@ -987,69 +1013,73 @@ function _mergeControl(w) {
   var others = (S.staff || []).filter(function(x) { return x.id !== w.id; });
   if (!others.length) return '';
   others.sort(function(a, b) { return (a.name || '').localeCompare(b.name || ''); });
-  return '<div class="inv-form-group"><label class="inv-form-label" for="wedMergeInto">' +
-    'Merge this worker into</label>' +
-    '<select class="inv-form-select" id="wedMergeInto"><option value="">Select a worker&hellip;</option>' +
+  return _wfield('wedMergeInto', 'Merge this worker into',
+    '<select class="inv-select" id="wedMergeInto"><option value="">Select a worker&hellip;</option>' +
     others.map(function(x) {
       return '<option value="' + x.id + '">' + escHtml(x.name) + '</option>';
-    }).join('') + '</select></div>' +
-    '<div class="inv-stats-note">Use this when one person was entered twice under two ' +
+    }).join('') + '</select>',
+    'Use this when one person was entered twice under two ' +
     'spellings. <strong>' + escHtml(w.name) + '</strong> is the row that disappears &mdash; their days ' +
     'and block crews move to the worker chosen here, so open whichever of the two carries ' +
     'the name you want to keep. A day both rows were marked on is a day that was paid twice; ' +
-    'the merge collapses it to the fuller mark and tells you the dates.</div>' +
-    '<button class="inv-btn inv-btn-ghost inv-btn-sm inv-mb-16" data-action="invAttMergeWorker" ' +
+    'the merge collapses it to the fuller mark and tells you the dates.') +
+    '<button class="inv-btn inv-btn-secondary inv-btn-sm inv-mb-16" data-action="invAttMergeWorker" ' +
     'data-id="' + w.id + '">Merge worker</button>';
+}
+
+/* A labelled field (§6.15), its hint under the control. */
+function _wfield(id, label, control, hint) {
+  return '<div class="inv-field"><label class="inv-field-label" for="' + id + '">' + label + '</label>' + control +
+    (hint ? '<div class="inv-field-hint">' + hint + '</div>' : '') + '</div>';
 }
 
 function _showWorkerOverlay(worker, isAdd) {
   var w = worker || _blankWorker();
   var marks = worker ? _attMarkCount(w.id) : 0;
+  var num = function(id, v, step) {
+    return '<input class="inv-input inv-input-num" id="' + id + '" type="number" step="' + step + '" min="0" value="' + v + '">';
+  };
   var scrim = document.createElement('div');
   scrim.className = 'inv-overlay-scrim';
   scrim.innerHTML = '<div class="inv-overlay-card">' +
-    '<div class="inv-overlay-header"><span class="inv-overlay-title">' + (isAdd ? 'Add Worker' : 'Edit Worker') + '</span>' +
-    '<button class="inv-overlay-close" data-action="invCloseOverlay">&times;</button></div>' +
-    '<div class="inv-form-group"><label class="inv-form-label" for="wedName">Name</label>' +
-    '<input class="inv-form-input" id="wedName" value="' + escHtml(w.name) + '"></div>' +
-    '<div class="inv-form-row"><div class="inv-form-group"><label class="inv-form-label" for="wedComp">Comp class</label>' +
-    '<select class="inv-form-select" id="wedComp">' +
+    '<div class="inv-overlay-header"><span class="inv-overlay-title">' + (isAdd ? 'Add worker' : 'Edit worker') + '</span>' +
+    '<button class="inv-overlay-close" data-action="invCloseOverlay" aria-label="Close">&times;</button></div>' +
+    _wfield('wedName', 'Name', '<input class="inv-input" id="wedName" value="' + escHtml(w.name) + '">') +
+    '<div class="inv-fields">' +
+    _wfield('wedComp', 'Comp class', '<select class="inv-select" id="wedComp">' +
     COMP_CLASSES.map(function(c) {
       return '<option value="' + c.id + '"' + (w.comp === c.id ? ' selected' : '') + '>' + escHtml(c.label) + '</option>';
-    }).join('') + '</select></div>' +
-    '<div class="inv-form-group"><label class="inv-form-label" for="wedArea">Area</label>' +
-    '<select class="inv-form-select" id="wedArea">' + attAreaOptions(w.area) + '</select></div></div>' +
-    '<div class="inv-stats-note">' + COMP_CLASSES.map(function(c) {
+    }).join('') + '</select>') +
+    _wfield('wedArea', 'Area', '<select class="inv-select" id="wedArea">' + attAreaOptions(w.area) + '</select>') +
+    '</div>' +
+    '<div class="inv-note inv-mb-16">' + COMP_CLASSES.map(function(c) {
       return '<strong>' + escHtml(c.label) + '</strong> &mdash; ' + escHtml(c.hint) + '.';
     }).join(' ') + '</div>' +
-    '<div class="inv-form-row"><div class="inv-form-group"><label class="inv-form-label" for="wedDay">Day rate</label>' +
-    '<input class="inv-form-input inv-mono" id="wedDay" type="number" step="0.01" min="0" value="' + (w.dayRate || 0) + '"></div>' +
-    '<div class="inv-form-group"><label class="inv-form-label" for="wedHour">Hour rate</label>' +
-    '<input class="inv-form-input inv-mono" id="wedHour" type="number" step="0.01" min="0" value="' + (w.hourRate || 0) + '"></div></div>' +
-    '<div class="inv-form-group"><label class="inv-form-label" for="wedMonth">Contracted monthly wage (monthly tier only)</label>' +
-    '<input class="inv-form-input inv-mono" id="wedMonth" type="number" step="1" min="0" value="' + (w.monthWage || 0) + '"></div>' +
-    '<div class="inv-stats-note">Leave at zero for a monthly hand paid by the day. A contracted wage is paid as ' +
-    '<span class="inv-mono">wage ÷ days in the month</span> a day, its Sundays are not gated by attendance, and a ' +
-    'Sunday worked adds nothing &mdash; it is inside the wage.</div>' +
-    '<div class="inv-stats-note">The hourly tier uses the hour rate alone. The monthly and daily tiers use the day ' +
-    'rate; leave their hour rate at zero and a monthly worker&rsquo;s overtime derives as <span class="inv-mono">day rate ÷ 8</span>, ' +
+    '<div class="inv-fields">' +
+    _wfield('wedDay', 'Day rate', num('wedDay', w.dayRate || 0, '0.01')) +
+    _wfield('wedHour', 'Hour rate', num('wedHour', w.hourRate || 0, '0.01')) +
+    '</div>' +
+    '<div class="inv-note inv-mb-16">The hourly tier uses the hour rate alone. The monthly and daily tiers use the day ' +
+    'rate; leave their hour rate at zero and a monthly worker&rsquo;s overtime derives as <span class="inv-id">day rate ÷ 8</span>, ' +
     'which is how the rate card&rsquo;s own OT column is built. Wages are counted only for days actually recorded, ' +
     'which is why the labour card states its coverage.</div>' +
-    '<div class="inv-form-group"><label class="inv-form-label" for="wedSpell">Other spellings on the WhatsApp roll</label>' +
-    '<input class="inv-form-input" id="wedSpell" value="' + escHtml((w.relayNames || []).join(', ')) + '" placeholder="e.g. SHARAT, SARAT MAHTO"></div>' +
-    '<div class="inv-stats-note">Paste message reads these as this worker. A name you place on the check screen is added here.</div>' +
-    '<div class="inv-flex-between inv-mb-8"><label class="inv-checkbox-label">' +
-    '<input type="checkbox" id="wedFloor"' + (w.onFloor !== false ? ' checked' : '') + '> On the plant floor</label></div>' +
-    '<div class="inv-stats-note">Clear this for the gate and the office. Their wage is still labour and still in the ' +
+    _wfield('wedMonth', 'Contracted monthly wage (monthly tier only)', num('wedMonth', w.monthWage || 0, '1'),
+      'Leave at zero for a monthly hand paid by the day. A contracted wage is paid as ' +
+      '<span class="inv-id">wage ÷ days in the month</span> a day, its Sundays are not gated by attendance, and a ' +
+      'Sunday worked adds nothing &mdash; it is inside the wage.') +
+    _wfield('wedSpell', 'Other spellings on the WhatsApp roll',
+      '<input class="inv-input" id="wedSpell" value="' + escHtml((w.relayNames || []).join(', ')) + '" placeholder="e.g. SHARAT, SARAT MAHTO">',
+      'Paste message reads these as this worker. A name you place on the check screen is added here.') +
+    '<label class="inv-field inv-toolbar inv-toolbar-flush"><input type="checkbox" class="inv-check" id="wedFloor"' + (w.onFloor !== false ? ' checked' : '') + '> On the plant floor</label>' +
+    '<div class="inv-note inv-mb-16">Clear this for the gate and the office. Their wage is still labour and still in the ' +
     'bill; it is simply not plating cost, and the breakdown splits it out.</div>' +
-    '<div class="inv-flex-between inv-mb-16"><label class="inv-checkbox-label">' +
-    '<input type="checkbox" id="wedActive"' + (w.active !== false ? ' checked' : '') + '> Active</label></div>' +
+    '<label class="inv-field inv-toolbar"><input type="checkbox" class="inv-check" id="wedActive"' + (w.active !== false ? ' checked' : '') + '> Active</label>' +
     (isAdd ? '' : _mergeControl(w)) +
-    (isAdd ? '' : '<button class="inv-btn inv-btn-danger inv-btn-sm inv-mb-16" data-action="invAttDeleteWorker" data-id="' + w.id + '">Delete worker' +
-      (marks > 0 ? ' (' + marks + ' day' + (marks === 1 ? '' : 's') + ' recorded)' : '') + '</button>') +
-    '<div class="inv-btn-bar"><button class="inv-btn inv-btn-ghost" data-action="invCloseOverlay">Cancel</button>' +
+    (isAdd ? '' : '<div><button class="inv-btn inv-btn-danger inv-btn-sm" data-action="invAttDeleteWorker" data-id="' + w.id + '">Delete worker' +
+      (marks > 0 ? ' (' + marks + ' day' + (marks === 1 ? '' : 's') + ' recorded)' : '') + '</button></div>') +
+    '<div class="inv-btn-bar"><button class="inv-btn inv-btn-secondary" data-action="invCloseOverlay">Cancel</button>' +
     '<button class="inv-btn inv-btn-primary" data-action="invAttSaveWorker" data-id="' + w.id +
-    '" data-mode="' + (isAdd ? 'add' : 'edit') + '">' + (isAdd ? 'Add Worker' : 'Save') + '</button></div></div>';
+    '" data-mode="' + (isAdd ? 'add' : 'edit') + '">' + (isAdd ? 'Add worker' : 'Save') + '</button></div></div>';
   scrim.addEventListener('click', function(e) {
     if (e.target === scrim) { scrim.remove(); document.body.style.overflow = ''; popFocus(); }
   });
@@ -1707,16 +1737,19 @@ function showCollisionReport(res) {
   scrim.className = 'inv-overlay-scrim';
   scrim.innerHTML = '<div class="inv-overlay-card">' +
     '<div class="inv-overlay-header"><span class="inv-overlay-title">Days marked on both rows</span>' +
-    '<button class="inv-overlay-close" data-action="invCloseOverlay">&times;</button></div>' +
-    '<div class="inv-stats-note">' + res.collided + ' day' + (res.collided === 1 ? '' : 's') +
+    '<button class="inv-overlay-close" data-action="invCloseOverlay" aria-label="Close">&times;</button></div>' +
+    '<div class="inv-note inv-mb-8">' + res.collided + ' day' + (res.collided === 1 ? '' : 's') +
     ' had a mark on <strong>' + escHtml(res.fromName) + '</strong> and on <strong>' +
     escHtml(res.intoName) + '</strong>. Each has been collapsed to the fuller mark &mdash; a ' +
     'recorded day beats an absence, and the longer day wins between two present marks. ' +
     'Every other day moved across untouched.</div>' +
-    '<ul class="inv-list-plain inv-mono">' +
-    res.collisionDays.map(function(d) { return '<li>' + escHtml(d) + '</li>'; }).join('') +
-    '</ul>' +
-    '<div class="inv-stats-note">Those days were entered twice before this merge. ' +
+    '<div class="inv-panel inv-panel-flush inv-scroll" id="mergeCollisions">' +
+    res.collisionDays.map(function(d) {
+      return '<div class="inv-row"><span class="inv-row-main inv-id">' + escHtml(d) + '</span>' +
+        '<span class="inv-row-end inv-row-meta">' + escHtml(attDayName(d) + ' ' + formatDate(d)) + '</span></div>';
+    }).join('') +
+    '</div>' +
+    '<div class="inv-callout inv-callout-warning">Those days were entered twice before this merge. ' +
     'Check them against the payout for that week &mdash; the app cannot tell whether the ' +
     'double entry reached one.</div>' +
     '<div class="inv-btn-bar"><button class="inv-btn inv-btn-primary" ' +

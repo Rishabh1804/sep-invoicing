@@ -215,6 +215,11 @@ lines in; only the challan lines the invoice still carries are marked invoiced o
 the phone is gone — the survey's doubled Add buttons), rows on the phone, and on the desktop the Register's table and
 on-demand pane (the resizable split, its drag handle and `_dragState` are deleted). The items sort `<select>` lost its
 `data-action` and speaks through `change`; a client's cards are flush panels of rows; Performance's measure is `inv-seg` (P68).
+**Staff is built:** six view tabs that scroll the open one into view (the survey's cut-off sub-tabs), Paste message the one
+primary on Overview and Day and a sub-view with its way back; Day's P / H / A an `inv-seg` pressed in its tone, in dark as in
+light; Week an `inv-table-grid`; the labour, extra, payout and due cards flush panels of tiles and rows (`data-card`); the
+attendance paste on the stock check's pieces. The `inv-att-`, `inv-lab-`, `inv-area-`, `inv-rl-` and last `inv-stk-` families are
+deleted, but for the two tone classes Stats' tiles still borrow (`inv-pay-green|blue`, `inv-area-gap-*`) (P72).
 **To-do is built:** Open / Done are view tabs (the Done fold's `invTodoFoldDone` action carries `data-v`), the add field
 sits in a toolbar with Add as the one primary, *From your data* and *Mine* are flush panels of rows (two across on the
 desktop), a task of your own is ticked through a real tick box, and status is a dot and a word (an app task is led by

@@ -56,7 +56,7 @@ async function openAreas(page: Page) {
   await page.locator('[data-action="invAttView"][data-view="areas"]').click();
 }
 
-const extraCard = (page: Page) => page.locator('.inv-lab-card', { hasText: 'The extra, checked' });
+const extraCard = (page: Page) => page.locator('[data-card="extra"]');
 
 /* ===== THE RECONCILIATION ===== */
 
@@ -107,7 +107,7 @@ test('the same day attributes the coverage pro-rata to the crews who carried it'
   }));
   await openAreas(page);
 
-  const card = page.locator('.inv-card', { hasText: 'The extra, paid pro-rata' });
+  const card = page.locator('[data-card="absorb"]');
   await expect(card).toBeVisible();
   // 8 h over the two-hand pickling crew is 4.0 each; over the three-hand VAT
   // crews it is 2.7. The barrel-pickling pair were at norm and carry nothing,
@@ -145,7 +145,7 @@ test('booking against an area at full complement is flagged on its own', async (
   const card = extraCard(page);
   await expect(card).toContainText('Booked at or above complement');
   await expect(card).toContainText('the rule predicts nothing here');
-  await expect(card.locator('.inv-area-flag').first()).toContainText('8.0 h on 3/3');
+  await expect(card.locator('[data-flag]').first()).toContainText('8.0 h on 3/3');
 });
 
 test('less booked than allowed is not called an error — it may be a light day', async ({ page }) => {
@@ -217,7 +217,7 @@ test('the roster import carries the complements, so the check arrives switched o
   await page.locator('[data-action="invAttView"][data-view="day"]').click();
   await page.locator('[data-action="invAttView"][data-view="areas"]').click();
   await expect(extraCard(page)).toContainText('exactly as predicted');
-  await expect(page.locator('.inv-area-row', { hasText: 'Pickling A1+A2' })).toContainText('3');
+  await expect(page.locator('[data-area-row]', { hasText: 'Pickling A1+A2' })).toContainText('3');
 });
 
 test('a unit with no heads but hours booked to it is fully short, not idle', async ({ page }) => {
@@ -292,7 +292,7 @@ test('the recorded counter-cases surface as a quantity mismatch, not as silence'
   await openAreas(page);
   const card = extraCard(page);
   await expect(card).toContainText('Booked, but not the predicted amount');
-  await expect(card.locator('.inv-area-flag-warn').first()).toContainText('8.0 h against 16.0 h');
+  await expect(card.locator('[data-flag="warning"]').first()).toContainText('8.0 h against 16.0 h');
 });
 
 test('a share past a shift is flagged as pay to check, not settled', async ({ page }) => {
@@ -306,8 +306,8 @@ test('a share past a shift is flagged as pay to check, not settled', async ({ pa
     [d1]: { marks: marksFor(staff), extra: [{ area: 'barrel', hours: 24 }], note: '' },
   }));
   await openAreas(page);
-  const card = page.locator('.inv-card', { hasText: 'The extra, paid pro-rata' });
-  await expect(card.locator('.inv-area-absorb-flag').first()).toBeVisible();
+  const card = page.locator('[data-card="absorb"]');
+  await expect(card.locator('[data-implausible]').first()).toBeVisible();
   await expect(card).toContainText('does not repeal arithmetic');
 });
 
@@ -341,7 +341,7 @@ test('a block is absorbed by its own crew, never by the area’s day crew', asyn
   }, { barrel: 3 }));
   await openAreas(page);
   await expect(extraCard(page)).toContainText('Not checkable');
-  await expect(page.locator('.inv-card', { hasText: 'The extra, paid pro-rata' })).toHaveCount(0);
+  await expect(page.locator('[data-card="absorb"]')).toHaveCount(0);
 });
 
 /* ===== THE AREA REALIGNMENT ===== */
@@ -371,7 +371,7 @@ test('retired area ids are re-pointed: pickling to the VAT side, colour into A1'
   await openAreas(page);
   // Colour is a step inside VAT A1, not a place with a crew, so both the mark
   // and the extra booking land there.
-  await expect(page.locator('.inv-area-row', { hasText: 'VAT A1' })).toContainText('4.0');
-  await expect(page.locator('.inv-area-row', { hasText: 'Pickling A1+A2' })).toBeVisible();
+  await expect(page.locator('[data-area-row]', { hasText: 'VAT A1' })).toContainText('4.0');
+  await expect(page.locator('[data-area-row]', { hasText: 'Pickling A1+A2' })).toBeVisible();
   await expect(page.locator('#attContent')).not.toContainText('Colour');
 });

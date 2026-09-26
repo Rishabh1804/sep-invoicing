@@ -432,7 +432,7 @@ function liveCostPaidCheck(from, to) {
 function _costPaidHtml(from, to) {
   var chk = liveCostPaidCheck(from, to);
   if (!chk.length) return '';
-  return '<div class="inv-cost-bills" id="liveCostPaid"><div class="inv-stk-label">Recorded against paid</div>' + chk.map(function(r) {
+  return '<div class="inv-cost-bills" id="liveCostPaid"><div class="inv-field-label">Recorded against paid</div>' + chk.map(function(r) {
     // The gap on the right; what it is the gap between leads the note, so a phone keeps one figure per column.
     var fig = r.recorded == null ? '&mdash;' : (r.delta >= 0 ? '+' : '&minus;') + formatCurrency(Math.abs(r.delta)) +
       (r.pct != null ? ' (' + (r.pct >= 0 ? '+' : '&minus;') + formatNum(Math.abs(r.pct) * 100, 0) + '%)' : '');
@@ -534,9 +534,9 @@ function renderLiveCostCard(period, tonnage) {
 
 function _costBillHtml() {
   var bills = costBills().slice().sort(function(a, b) { return a.month < b.month ? 1 : -1; });
-  var h = '<div class="inv-cost-bills"><div class="inv-stk-label">Electricity and other bills</div>';
+  var h = '<div class="inv-cost-bills"><div class="inv-field-label">Electricity and other bills</div>';
   bills.slice(0, 12).forEach(function(b) {
-    h += '<div class="inv-cost-dline' + (b.voided ? ' inv-pay-void' : '') + '"><span>' + escHtml((b.label || COST_BILL_KINDS[b.kind]) + ' · ' + b.month) +
+    h += '<div class="inv-cost-dline' + (b.voided ? ' inv-row-muted' : '') + '"><span>' + escHtml((b.label || COST_BILL_KINDS[b.kind]) + ' · ' + b.month) +
       '<span class="inv-cost-note">' + escHtml([b.units ? b.units + ' units' : '', b.note || '', b.voided ? 'void: ' + (b.voidReason || '') : ''].filter(Boolean).join(' · ')) + '</span></span>' +
       '<span class="inv-mono">' + formatCurrency(b.amount) + (b.voided ? '' : ' <button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invCostBillVoid" data-id="' + escHtml(b.id) + '">Void</button>') + '</span></div>';
   });

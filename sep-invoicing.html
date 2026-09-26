@@ -18,7 +18,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <!-- Appearance before first paint (§3.2): the device's theme and palette, so nothing flashes in the wrong colours. -->
 <script>(function(){try{var d=document.documentElement,t=localStorage.getItem("sep_inv_theme"),p=localStorage.getItem("sep_inv_palette");if(t==="light"||t==="dark")d.dataset.theme=t;d.dataset.palette=(p==="zinc"||p==="terracotta")?p:"teal";}catch(e){document.documentElement.dataset.palette="teal";}})();</script>
-<meta name="app-build" content="0de39b55">
+<meta name="app-build" content="7b95c788">
 <style>
 /* ===== DESIGN TOKENS (design system v2.0 — docs/SEP_INVOICING_DESIGN_PRINCIPLES.md §3) ===== */
 /* Theme: colour-scheme decides every light-dark() below. <html data-theme> is set before first paint
@@ -205,11 +205,6 @@ body.inv-desktop .inv-topbar-btn { display: none; }
 .inv-card-title {
   font-size: var(--fs-md); font-weight: 600; color: var(--text-1);
 }
-.inv-card-hero {
-  background: linear-gradient(135deg, var(--cost-bg), var(--surface));
-  border: 1px solid var(--border);
-}
-
 /* ===== FORM SYSTEM ===== */
 .inv-form-group { margin-bottom: var(--sp-12); }
 .inv-form-label {
@@ -250,6 +245,10 @@ body.inv-desktop .inv-topbar-btn { display: none; }
 body.inv-desktop .inv-seg { width: auto; display: inline-flex; }
 body.inv-desktop .inv-seg-btn { flex: 0 1 auto; padding: 0 var(--sp-16); }
 body.inv-desktop .inv-seg-btn[aria-pressed="true"] { background: var(--surface-2); color: var(--text-1); }
+/* A segment that records a status (Staff → Day's P / H / A) is pressed in its tone, which switches with the theme. */
+.inv-seg .inv-seg-btn.inv-seg-btn-ok[aria-pressed="true"] { background: var(--ok-bg); color: var(--ok); }
+.inv-seg .inv-seg-btn.inv-seg-btn-warning[aria-pressed="true"] { background: var(--warning-bg); color: var(--warning); }
+.inv-seg .inv-seg-btn.inv-seg-btn-danger[aria-pressed="true"] { background: var(--danger-bg); color: var(--danger); }
 .inv-set-sec-body .inv-seg + * { margin-top: var(--sp-4); }
 .inv-form-select {
   width: 100%; padding: var(--sp-10) var(--sp-12);
@@ -305,25 +304,6 @@ body.inv-desktop .inv-seg-btn[aria-pressed="true"] { background: var(--surface-2
 }
 @keyframes inv-fadeIn { from { opacity: 0; } to { opacity: 1; } }
 @keyframes inv-slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
-
-/* ===== CLIENT LIST ===== */
-.inv-client-item {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: var(--sp-12) var(--sp-16); border-bottom: 1px solid var(--border);
-  cursor: pointer; min-height: 52px;
-}
-.inv-client-item:active { background: var(--surface-2); }
-.inv-client-name { font-weight: 600; font-size: var(--fs-base); word-break: break-word; }
-.inv-client-meta { font-size: var(--fs-xs); color: var(--text-3); font-family: var(--ff-mono); }
-.inv-client-inactive { opacity: 0.5; }
-.inv-client-badge {
-  display: inline-block; padding: var(--sp-2) var(--sp-8);
-  border-radius: var(--r-full); font-size: var(--fs-2xs); font-weight: 600;
-}
-.inv-badge-mode { background: var(--neutral-bg); color: var(--neutral-text); }
-.inv-badge-rate { background: var(--cost-bg); color: var(--cost-text); font-family: var(--ff-mono); }
-.inv-badge-inactive { background: var(--danger-bg); color: var(--danger-text); }
-
 
 /* ===== TOTALS ===== */
 .inv-totals {
@@ -1173,21 +1153,6 @@ button.inv-chart-legend-row { width: 100%; background: none; border: none; font:
   margin-top: var(--sp-8); line-height: 1.4;
 }
 
-/* A short list of bare facts inside an overlay — the dates a merge could not
-   decide between. No bullets: these are data, not prose, and the marker reads
-   as decoration next to a monospaced date. Colours come from the same tokens
-   the rest of the card uses, so dark mode is covered by the token swap. */
-.inv-list-plain {
-  list-style: none; margin: var(--sp-8) 0; padding: 0;
-  max-height: 40vh; overflow-y: auto;
-  border: 1px solid var(--border); border-radius: var(--r-sm);
-}
-.inv-list-plain li {
-  padding: var(--sp-6) var(--sp-12); font-size: var(--fs-sm); color: var(--text-1);
-  border-bottom: 1px solid var(--border);
-}
-.inv-list-plain li:last-child { border-bottom: none; }
-
 /* Composition. Eight series colours drawn from the domain palette, plus a
    ninth for the folded "others" wedge so the tail is visibly a tail. */
 .inv-chart-pie-wrap {
@@ -1350,7 +1315,6 @@ button.inv-chart-legend-row { width: 100%; background: none; border: none; font:
 /* ===== UTILITY ===== */
 .inv-hidden { display: none !important; }
 .inv-mono { font-family: var(--ff-mono); }
-.inv-display { font-family: var(--ff-display); }
 .inv-text-cost { color: var(--cost-text); }
 .inv-text-danger { color: var(--danger); }
 .inv-text-muted { color: var(--text-3); }
@@ -1364,14 +1328,7 @@ button.inv-chart-legend-row { width: 100%; background: none; border: none; font:
   text-align: center; padding: var(--sp-32) var(--sp-16);
   color: var(--text-3); font-size: var(--fs-base);
 }
-.inv-empty-state-icon {
-  width: var(--sp-32); height: var(--sp-32);
-  margin: 0 auto var(--sp-8); display: block;
-  opacity: 0.6;
-}
 .inv-text-right { text-align: right; }
-.inv-client-badges { display: flex; gap: var(--sp-4); margin-top: var(--sp-4); flex-wrap: wrap; }
-.inv-client-content { flex: 1; min-width: 0; }
 .inv-checkbox-label { display: flex; align-items: center; gap: var(--sp-8); min-height: 44px; cursor: pointer; }
 .inv-prefix-preview { font-size: var(--fs-xs); margin-bottom: var(--sp-8); }
 .inv-storage-wrap { margin-top: var(--sp-8); }
@@ -1619,172 +1576,7 @@ body.inv-desktop #imSelBar {
   .inv-toast { max-width: 480px; }
 }
 
-/* ===== STAFF & ATTENDANCE ===== */
-.inv-empty-state-sm { padding: var(--sp-20) var(--sp-8); font-size: var(--fs-sm); }
-
-.inv-att-nav {
-  display: flex; align-items: center; gap: var(--sp-8);
-  margin-bottom: var(--sp-16);
-}
-.inv-att-nav-btn {
-  min-width: 44px; min-height: 44px; display: flex; align-items: center;
-  justify-content: center; background: var(--surface); border: 1px solid var(--border);
-  border-radius: var(--r-md); color: var(--text-2); cursor: pointer;
-  transition: background var(--anim-fast);
-}
-.inv-att-nav-btn:active { background: var(--surface-2); }
-.inv-att-nav-label {
-  flex: 1; min-width: 0; display: flex; flex-direction: column;
-  align-items: center; gap: var(--sp-2);
-}
-.inv-att-date { text-align: center; padding: var(--sp-6) var(--sp-8); }
-.inv-att-nav-day { font-size: var(--fs-xs); color: var(--text-3); }
-.inv-att-week-num {
-  font-family: var(--ff-display); font-size: var(--fs-lg); color: var(--text-1);
-}
-
-.inv-att-count { display: flex; align-items: baseline; gap: var(--sp-6); }
-.inv-att-count-value { font-size: var(--fs-3xl); color: var(--attend); }
-.inv-att-count-of { font-family: var(--ff-mono); font-size: var(--fs-md); color: var(--text-3); }
-.inv-att-summary {
-  display: flex; flex-wrap: wrap; gap: var(--sp-6); margin-top: var(--sp-8);
-}
-.inv-att-pill {
-  font-size: var(--fs-xs); font-weight: 600; padding: var(--sp-2) var(--sp-8);
-  border-radius: var(--r-full); white-space: nowrap;
-}
-.inv-att-pill-p { background: var(--attend-bg); color: var(--attend-text); }
-.inv-att-pill-h { background: var(--warning-bg); color: var(--warning-text); }
-.inv-att-pill-a { background: var(--danger-bg); color: var(--danger-text); }
-.inv-att-pill-u { background: var(--surface-2); color: var(--text-3); }
-.inv-att-pill-ot { background: var(--prod-bg); color: var(--prod-text); }
-.inv-att-pill-hr { background: var(--attend-bg); color: var(--attend-text); }
-.inv-att-pill-x { background: var(--neutral-bg); color: var(--neutral-text); }
-
-.inv-att-row {
-  display: flex; flex-direction: column; gap: var(--sp-6);
-  padding: var(--sp-10) 0; border-bottom: 1px solid var(--border);
-}
-.inv-att-row:last-child { border-bottom: none; }
-.inv-att-who { display: flex; align-items: center; gap: var(--sp-8); min-width: 0; }
-.inv-att-name {
-  font-size: var(--fs-base); font-weight: 600; color: var(--text-1);
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
-.inv-att-badge {
-  font-size: var(--fs-2xs); font-weight: 700; padding: var(--sp-2) var(--sp-6);
-  border-radius: var(--r-sm); flex-shrink: 0;
-}
-.inv-att-badge-perm { background: var(--prod-bg); color: var(--prod-text); }
-.inv-att-badge-cw { background: var(--attend-bg); color: var(--attend-text); }
-.inv-att-controls { display: flex; align-items: center; gap: var(--sp-6); }
-.inv-att-seg { display: flex; gap: var(--sp-2); flex-shrink: 0; }
-.inv-att-seg-btn {
-  min-width: 44px; min-height: 44px; border: 1px solid var(--border);
-  background: var(--surface); color: var(--text-3); font-weight: 700;
-  border-radius: var(--r-md); cursor: pointer;
-  transition: background var(--anim-fast), color var(--anim-fast);
-}
-.inv-att-seg-btn:active { background: var(--surface-2); }
-.inv-att-seg-p.inv-att-seg-on { background: var(--attend); border-color: var(--attend); color: var(--surface); }
-.inv-att-seg-h.inv-att-seg-on { background: var(--warning); border-color: var(--warning); color: var(--surface); }
-.inv-att-seg-a.inv-att-seg-on { background: var(--danger); border-color: var(--danger); color: var(--surface); }
-.inv-att-area { flex: 1; min-width: 0; padding: var(--sp-6) var(--sp-8); }
-.inv-att-ot { width: calc(var(--sp-32) + var(--sp-24)); flex-shrink: 0; text-align: center; padding: var(--sp-6) var(--sp-4); }
-.inv-att-area:disabled, .inv-att-ot:disabled { opacity: 0.45; }
-
-.inv-att-extra-row {
-  display: flex; align-items: center; gap: var(--sp-8);
-  padding: var(--sp-6) 0; border-bottom: 1px solid var(--border);
-}
-.inv-att-extra-row:last-child { border-bottom: none; }
-.inv-att-extra-row select { flex: 1; min-width: 0; }
-.inv-att-extra-row input { width: calc(var(--sp-32) + var(--sp-24)); flex-shrink: 0; text-align: center; }
-.inv-att-extra-del {
-  min-width: 44px; min-height: 44px; background: none; border: none;
-  color: var(--danger); font-size: var(--fs-lg); cursor: pointer; flex-shrink: 0;
-}
-
-/* Week grid. Scrolls sideways rather than reflowing: six days and a name column
-   do not fit a 393px phone, and a grid that wraps stops being a grid. */
-.inv-att-grid-wrap { overflow-x: auto; margin: 0 calc(-1 * var(--sp-4)); }
-.inv-att-grid { border-collapse: collapse; width: 100%; font-size: var(--fs-sm); }
-.inv-att-grid th, .inv-att-grid td { padding: var(--sp-2); }
-.inv-att-grid-name {
-  text-align: left; font-weight: 600; color: var(--text-1);
-  position: sticky; left: 0; background: var(--surface); z-index: 1;
-  white-space: nowrap; padding-right: var(--sp-8);
-}
-.inv-att-grid-worker {
-  display: inline-block; max-width: calc(var(--sp-32) * 2.5); overflow: hidden;
-  text-overflow: ellipsis; white-space: nowrap; vertical-align: middle;
-}
-@media (min-width: 380px) { .inv-att-grid-worker { max-width: none; } }
-.inv-att-grid-comp {
-  display: inline-block; margin-left: var(--sp-4); font-size: var(--fs-2xs);
-  font-weight: 700; padding: 0 var(--sp-4); border-radius: var(--r-sm);
-  vertical-align: middle;
-}
-.inv-att-grid-day {
-  font-size: var(--fs-2xs); font-weight: 600;
-  color: var(--text-3); text-align: center;
-}
-.inv-att-grid-today { color: var(--accent); }
-.inv-att-grid-date { display: block; font-family: var(--ff-mono); font-size: var(--fs-xs); }
-.inv-att-grid-cell { text-align: center; }
-.inv-att-cell {
-  position: relative; min-width: 44px; min-height: 44px; width: 100%;
-  border: 1px solid var(--border); border-radius: var(--r-sm);
-  background: var(--surface); color: var(--text-3); font-weight: 700;
-  cursor: pointer; transition: background var(--anim-fast);
-}
-.inv-att-cell-p { background: var(--attend-bg); color: var(--attend-text); border-color: var(--attend-bg); }
-.inv-att-cell-h { background: var(--warning-bg); color: var(--warning-text); border-color: var(--warning-bg); }
-.inv-att-cell-a { background: var(--danger-bg); color: var(--danger-text); border-color: var(--danger-bg); }
-.inv-att-cell-u { background: var(--surface-3); }
-.inv-att-cell-ot {
-  position: absolute; top: var(--sp-2); right: var(--sp-2);
-  font-size: var(--fs-2xs); font-weight: 700; color: var(--prod-text);
-}
-.inv-att-grid-foot {
-  font-family: var(--ff-mono); font-weight: 700; color: var(--text-1);
-  padding-top: var(--sp-8);
-}
-.inv-att-grid-of { font-weight: 400; color: var(--text-3); }
-
-/* ===== LABOUR BREAKDOWN ===== */
-.inv-lab-total { font-family: var(--ff-mono); font-weight: 700; color: var(--cost-text); }
-.inv-lab-split {
-  display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-8);
-  margin-bottom: var(--sp-12);
-}
-.inv-lab-half { padding: var(--sp-10); border-radius: var(--r-md); }
-.inv-lab-fixed { background: var(--prod-bg); }
-.inv-lab-variable { background: var(--attend-bg); }
-.inv-lab-half-label {
-  font-size: var(--fs-2xs); font-weight: 700; color: var(--text-2);
-}
-.inv-lab-half-value {
-  font-family: var(--ff-display); font-size: var(--fs-lg); color: var(--text-1);
-}
-.inv-lab-half-sub { font-size: var(--fs-2xs); color: var(--text-2); }
-.inv-lab-row {
-  display: flex; justify-content: space-between; align-items: baseline;
-  gap: var(--sp-8); padding: var(--sp-6) 0; border-bottom: 1px solid var(--border);
-  font-size: var(--fs-sm);
-}
-.inv-lab-row:last-of-type { border-bottom: none; }
-/* Pay: a due row is a button that fills the payment form. */
-.inv-pay-row {
-  width: 100%; background: none; border: none; border-bottom: 1px solid var(--border);
-  font: inherit; text-align: left; cursor: pointer; min-height: 44px; color: inherit;
-}
-.inv-pay-row:active { background: var(--surface-2); }
-.inv-pay-row:focus-visible { outline: 2px solid var(--accent); outline-offset: calc(var(--sp-2) * -1); }
-.inv-pay-over { color: var(--warning-text); }
-.inv-pay-total { font-weight: 700; }
-.inv-pay-void { opacity: 0.6; text-decoration: line-through; }
-.inv-pay-chart { margin: var(--sp-8) 0; }
+/* ===== STATS: tabs, overview tiles, live cost rows (v1.0, until Stats moves) ===== */
 .inv-stats-tabs { display: flex; gap: var(--sp-4); overflow-x: auto; margin-bottom: var(--sp-8); border-bottom: 1px solid var(--border); }
 .inv-stats-tab { flex: 0 0 auto; min-height: 44px; padding: 0 var(--sp-12); background: none; border: none; border-bottom: 2px solid transparent; font: inherit; font-weight: 600; color: var(--text-2); cursor: pointer; }
 .inv-stats-tab-on { color: var(--accent); border-bottom-color: var(--accent); }
@@ -1814,180 +1606,6 @@ body.inv-desktop #imSelBar {
 .inv-cost-detail { padding: 0 0 var(--sp-8) var(--sp-12); }
 .inv-cost-dline { display: flex; justify-content: space-between; gap: var(--sp-8); padding: var(--sp-4) 0; font-size: var(--fs-sm); border-bottom: 1px solid var(--border); }
 .inv-cost-bills { margin-top: var(--sp-12); }
-.inv-pay-green { background: var(--attend-bg); }
-.inv-pay-blue { background: var(--prod-bg); }
-.inv-att-grid-sun { background: var(--surface-2); }
-.inv-lab-label { color: var(--text-1); min-width: 0; }
-.inv-lab-sub { display: block; font-size: var(--fs-2xs); color: var(--text-3); }
-.inv-lab-value { font-weight: 600; color: var(--cost-text); white-space: nowrap; }
-.inv-lab-perkg {
-  display: flex; flex-direction: column; align-items: center; gap: var(--sp-2);
-  padding: var(--sp-12); margin-top: var(--sp-12);
-  background: var(--cost-bg); border-radius: var(--r-md); text-align: center;
-}
-.inv-lab-perkg-value { font-family: var(--ff-display); font-size: var(--fs-2xl); color: var(--cost); }
-.inv-lab-perkg-label {
-  font-size: var(--fs-2xs); font-weight: 700; color: var(--text-2);
-}
-.inv-lab-perkg-model { font-size: var(--fs-xs); color: var(--text-2); }
-.inv-lab-perkg-none { background: var(--surface-2); }
-.inv-lab-perkg-none .inv-lab-perkg-value { color: var(--text-3); }
-
-/* Dark mode. Every surface above that is not already a token pair. */
-
-/* Focus rings, matching the ones the tabs and chips already carry. */
-.inv-att-seg-btn:focus-visible,
-.inv-att-cell:focus-visible,
-.inv-att-nav-btn:focus-visible,
-.inv-att-extra-del:focus-visible {
-  outline: var(--sp-2) solid var(--accent);
-  outline-offset: var(--sp-2);
-}
-
-.inv-att-roster-actions { display: flex; gap: var(--sp-6); }
-
-.inv-lab-area-title {
-  margin-top: var(--sp-16); margin-bottom: var(--sp-8);
-  font-size: var(--fs-2xs); font-weight: 700; color: var(--text-3);
-}
-
-/* Desktop: the controls are sized for a thumb, not for a 1280px row. Left to
-   stretch they put a hand's width of empty select between the name and the
-   hours. */
-body.inv-desktop .inv-att-controls { max-width: calc(var(--sp-32) * 15); }
-body.inv-desktop .inv-att-extra-row { max-width: calc(var(--sp-32) * 15); }
-
-/* ===== AREAS ===== */
-.inv-area-row {
-  padding: var(--sp-12) 0; border-bottom: 1px solid var(--border);
-  border-left: var(--sp-4) solid transparent; padding-left: var(--sp-10);
-}
-.inv-area-row:last-child { border-bottom: none; }
-.inv-area-over { border-left-color: var(--warning); }
-.inv-area-under { border-left-color: var(--danger); }
-.inv-area-ok { border-left-color: var(--attend); }
-.inv-area-head {
-  display: flex; align-items: baseline; justify-content: space-between;
-  gap: var(--sp-8); margin-bottom: var(--sp-8);
-}
-.inv-area-name { font-size: var(--fs-base); font-weight: 700; color: var(--text-1); }
-.inv-area-offfloor {
-  margin-left: var(--sp-6); font-size: var(--fs-2xs); font-weight: 500;
-  color: var(--text-3);
-}
-.inv-area-badge {
-  font-size: var(--fs-2xs); font-weight: 700; white-space: nowrap;
-  padding: var(--sp-2) var(--sp-8); border-radius: var(--r-full);
-  background: var(--surface-2); color: var(--text-2);
-}
-.inv-area-over .inv-area-badge { background: var(--warning-bg); color: var(--warning-text); }
-.inv-area-under .inv-area-badge { background: var(--danger-bg); color: var(--danger-text); }
-.inv-area-ok .inv-area-badge { background: var(--attend-bg); color: var(--attend-text); }
-.inv-area-badge-none { background: none; color: var(--text-3); font-weight: 500; }
-.inv-area-grid {
-  display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--sp-6);
-  margin-bottom: var(--sp-8);
-}
-.inv-area-stat { display: flex; flex-direction: column; gap: var(--sp-2); }
-.inv-area-stat-value { font-size: var(--fs-md); font-weight: 700; color: var(--text-1); }
-.inv-area-stat-label {
-  font-size: var(--fs-2xs); color: var(--text-3);
-}
-.inv-area-foot {
-  display: flex; justify-content: space-between; align-items: baseline;
-  gap: var(--sp-8); font-size: var(--fs-xs); color: var(--text-2);
-}
-.inv-area-detail { min-width: 0; }
-.inv-area-cost { font-weight: 600; color: var(--cost-text); white-space: nowrap; }
-.inv-area-cost-basis {
-  display: block; font-size: var(--fs-2xs); font-weight: 500; color: var(--text-3); text-align: right;
-}
-/* Dark mode for this block is carried by the tokens (--cost-text, --text-3,
-   --danger-bg, --warning-bg all flip under .dark), so there are deliberately
-   no `.dark .inv-area-*` restatements here. Nine such rules existed and were
-   byte-identical no-ops. */
-.inv-area-target {
-  display: flex; align-items: center; gap: var(--sp-8); margin-top: var(--sp-8);
-}
-.inv-area-target-label { font-size: var(--fs-2xs); color: var(--text-3); }
-.inv-area-target-input { width: calc(var(--sp-32) + var(--sp-24)); text-align: center; padding: var(--sp-4) var(--sp-6); }
-
-.inv-area-flags { margin: var(--sp-8) 0; }
-.inv-area-flag {
-  display: flex; align-items: baseline; gap: var(--sp-8);
-  padding: var(--sp-4) var(--sp-8); font-size: var(--fs-xs);
-  background: var(--danger-bg); color: var(--danger-text);
-  border-radius: var(--r-sm); margin-bottom: var(--sp-4);
-}
-.inv-area-flag-area { font-weight: 700; }
-.inv-area-flag-date { flex: 1; min-width: 0; }
-.inv-area-flag-hours { font-weight: 700; white-space: nowrap; }
-.inv-area-flag-more { background: none; color: var(--text-3); }
-
-.inv-area-gap-over { background: var(--danger-bg); }
-.inv-area-gap-under { background: var(--warning-bg); }
-.inv-area-flag-warn { background: var(--warning-bg); color: var(--warning-text); }
-.inv-area-stat-vs { font-size: var(--fs-sm); font-weight: 500; color: var(--text-3); }
-.inv-area-absorb-days { font-weight: 400; color: var(--text-3); }
-.inv-att-extra-kind {
-  display: flex; align-items: center; gap: var(--sp-8);
-  padding-bottom: var(--sp-8); margin-top: calc(-1 * var(--sp-4));
-}
-.inv-att-extra-kind select { flex: 0 0 auto; }
-.inv-att-extra-hint { font-size: var(--fs-2xs); color: var(--text-3); min-width: 0; }
-.inv-area-absorb-flag {
-  margin-left: var(--sp-6); font-size: var(--fs-2xs); font-weight: 700;
-  padding: 0 var(--sp-6); border-radius: var(--r-sm);
-  background: var(--warning-bg); color: var(--warning-text);
-}
-
-/* OT block entry: times, area and crew toggles, and the check in place. */
-.inv-att-block {
-  display: flex; flex-direction: column; gap: var(--sp-8);
-  padding: var(--sp-8); margin-bottom: var(--sp-8);
-  background: var(--surface-2); border-radius: var(--r-sm);
-}
-.inv-att-block-times { display: flex; align-items: center; gap: var(--sp-8); flex-wrap: wrap; }
-.inv-att-block-times input { flex: 0 1 auto; min-width: 0; }
-.inv-att-block-label {
-  font-size: var(--fs-2xs); color: var(--text-3);
-}
-.inv-att-block-len { font-weight: 700; color: var(--text-2); margin-left: auto; white-space: nowrap; }
-.inv-att-block-areas, .inv-att-block-names { display: flex; flex-wrap: wrap; gap: var(--sp-4); }
-.inv-att-chip {
-  min-height: 44px; padding: var(--sp-4) var(--sp-8);
-  font-size: var(--fs-2xs); font-weight: 600;
-  background: var(--surface); color: var(--text-2);
-  border: 1px solid var(--border); border-radius: var(--r-sm);
-}
-.inv-att-chip-on { background: var(--attend-bg); color: var(--attend-text); border-color: var(--attend); }
-.inv-att-block-crew { display: flex; align-items: baseline; gap: var(--sp-8); }
-.inv-att-block-count { font-weight: 700; color: var(--text-1); }
-.inv-att-block-empty { font-size: var(--fs-2xs); color: var(--text-3); }
-.inv-att-block-check {
-  font-size: var(--fs-2xs); color: var(--text-2);
-  padding: var(--sp-4) var(--sp-8); border-radius: var(--r-sm);
-  background: var(--warning-bg);
-}
-.inv-att-block-ok { background: var(--attend-bg); color: var(--attend-text); }
-.inv-area-blocks { margin-top: var(--sp-12); }
-.inv-att-extra-areas-label {
-  font-size: var(--fs-xs); font-weight: 600; color: var(--text-2);
-  align-self: center; min-width: 0; overflow: hidden; text-overflow: ellipsis;
-}
-
-/* Explained exceptions: precedent, not accusation. */
-.inv-area-flag-ack { background: var(--surface-2); color: var(--text-2); }
-.inv-area-flag-reason {
-  flex-basis: 100%; font-size: var(--fs-2xs); color: var(--text-3);
-  font-weight: 500; min-width: 0;
-}
-.inv-area-flag-explain {
-  min-height: 44px; padding: 0 var(--sp-8); margin-left: auto;
-  font-size: var(--fs-2xs); font-weight: 700;
-  background: none; color: inherit; border: 1px solid currentColor;
-  border-radius: var(--r-sm); opacity: 0.75;
-}
 
 /* ===== SALES REGISTER (printed) =====
    Its own point scale, like the certificate and the credit note and for the
@@ -2054,102 +1672,6 @@ body.inv-desktop .inv-att-extra-row { max-width: calc(var(--sp-32) * 15); }
   border-radius: var(--r-full); background: var(--danger); color: var(--surface);
   font-size: var(--fs-2xs); font-weight: 700; line-height: var(--sp-16); text-align: center;
 }
-
-/* ===== STOCK'S v1.0 LEFTOVERS =====
-   Stock itself is drawn on the v2.0 components (§7). These rules remain only for the attendance
-   paste (relay.js), Pay (payroll.js) and Stats → Live cost, which still wear them until their own
-   screens move (§9 step 3); the clean-up PR removes them. */
-.inv-stk-h2 { font-size: var(--fs-md); font-weight: 700; color: var(--text-1); }
-.inv-stk-meta { font-size: var(--fs-sm); color: var(--text-2); margin-top: var(--sp-4); }
-.inv-stk-meta strong { color: var(--text-1); }
-.inv-stk-btn {
-  min-height: 44px; padding: 0 var(--sp-16); border-radius: var(--r-md);
-  border: 1px solid var(--border-2); background: var(--surface); color: var(--text-1);
-  font: inherit; font-size: var(--fs-base); font-weight: 600; cursor: pointer;
-}
-.inv-stk-btn-pri { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
-.inv-stk-btn:disabled { opacity: 0.45; cursor: not-allowed; }
-.inv-stk-btn-block { width: 100%; margin: var(--sp-12) 0 var(--sp-8); }
-.inv-stk-sum { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--sp-6); margin-bottom: var(--sp-12); }
-.inv-stk-sum:has(> :nth-child(3):last-child) { grid-template-columns: repeat(3, 1fr); }
-.inv-stk-tile {
-  display: flex; flex-direction: column; align-items: center; padding: var(--sp-8) var(--sp-4);
-  border: 1px solid var(--border-2); border-radius: var(--r-md); background: var(--surface);
-  font-size: var(--fs-xs); font-weight: 600; color: var(--text-2); text-align: center;
-}
-.inv-stk-tile-n { font-family: var(--ff-mono); font-size: var(--fs-xl); font-weight: 600; color: var(--text-1); line-height: 1.2; }
-.inv-stk-tile-red { border-color: var(--danger); background: var(--danger-bg); color: var(--danger-text); }
-.inv-stk-tile-red .inv-stk-tile-n { color: var(--danger-text); }
-.inv-stk-tile-amber { border-color: var(--warning); background: var(--warning-bg); color: var(--warning-text); }
-.inv-stk-tile-amber .inv-stk-tile-n { color: var(--warning-text); }
-.inv-stk-chip {
-  display: inline-flex; align-items: center; padding: var(--sp-2) var(--sp-8); min-width: calc(var(--sp-32) * 2); justify-content: center;
-  border-radius: var(--r-full); border: 1px solid var(--border-2); background: var(--surface-2);
-  font-size: var(--fs-xs); font-weight: 700; color: var(--text-1); white-space: nowrap;
-}
-.inv-stk-chip-amber { background: var(--warning-bg); border-color: var(--warning); color: var(--warning-text); }
-.inv-stk-chip-ok { background: var(--attend-bg); border-color: var(--attend); color: var(--attend-text); }
-.inv-stk-chip-bath { background: var(--prod-bg); border-color: var(--prod); color: var(--prod-text); }
-.inv-stk-bar { display: flex; align-items: center; gap: var(--sp-8); margin-bottom: var(--sp-12); }
-.inv-stk-back {
-  display: inline-flex; align-items: center; gap: var(--sp-2); min-height: 44px; padding: 0 var(--sp-8) 0 0;
-  border: none; background: none; color: var(--accent); font: inherit; font-size: var(--fs-base); font-weight: 600; cursor: pointer;
-}
-.inv-stk-back svg { width: 20px; height: 20px; }
-.inv-stk-label { display: block; font-size: var(--fs-sm); font-weight: 600; color: var(--text-2); margin-bottom: var(--sp-4); }
-.inv-stk-paste {
-  width: 100%; min-height: calc(var(--sp-32) * 7.5); padding: var(--sp-10); resize: vertical;
-  border: 1px solid var(--border-2); border-radius: var(--r-md); background: var(--surface); color: var(--text-1);
-  font-family: var(--ff-mono); font-size: var(--fs-sm); line-height: 1.45;
-}
-.inv-stk-paste:focus { outline: 2px solid var(--accent); outline-offset: 0; border-color: var(--accent); }
-.inv-stk-hint { font-size: var(--fs-sm); color: var(--text-2); margin: var(--sp-8) 0; line-height: 1.45; }
-.inv-stk-banner {
-  padding: var(--sp-10) var(--sp-12); margin-bottom: var(--sp-10); border-radius: var(--r-md);
-  border: 1px solid var(--warning); background: var(--warning-bg); color: var(--warning-text); font-size: var(--fs-sm); font-weight: 600;
-}
-.inv-stk-banner-red { border-color: var(--danger); background: var(--danger-bg); color: var(--danger-text); }
-.inv-stk-issue { margin-top: var(--sp-6); padding-left: var(--sp-8); border-left: var(--sp-2) solid var(--border-2); font-size: var(--fs-sm); color: var(--text-1); line-height: 1.4; }
-.inv-stk-issue-red { border-left-color: var(--danger); color: var(--danger-text); font-weight: 600; }
-.inv-stk-issue-amber { border-left-color: var(--warning); color: var(--warning-text); font-weight: 600; }
-.inv-stk-issue-info { border-left-color: var(--prod); color: var(--prod-text); }
-.inv-stk-map { margin-top: var(--sp-8); }
-
-/* Dark: the tokens above re-point by themselves; these are the spots that
-   read a light-only value. Chips and tiles keep a solid border either way. */
-
-/* ===== FOLD (v1.0, left from To-do) =====
-   Only the attendance paste review still draws it; it goes when that screen moves. */
-.inv-td-fold {
-  display: flex; justify-content: space-between; align-items: center; width: 100%; min-height: 44px; margin-top: var(--sp-10);
-  padding: 0 var(--sp-12); border: 1px dashed var(--border-2); border-radius: var(--r-md); background: var(--surface-2);
-  color: var(--text-1); font: inherit; font-size: var(--fs-base); font-weight: 600; cursor: pointer;
-}
-.inv-td-fold span:last-child { color: var(--accent); }
-
-/* ===== ATTENDANCE PASTE (relay) ===== */
-.inv-rl-sum { grid-template-columns: repeat(3, 1fr); }
-.inv-rl-day { margin-top: var(--sp-16); padding-top: var(--sp-12); border-top: 1px solid var(--border-2); }
-.inv-rl-dayhead { display: flex; flex-direction: column; gap: var(--sp-2); margin-bottom: var(--sp-8); }
-.inv-rl-rows { border: 1px solid var(--border-2); border-radius: var(--r-md); overflow: hidden; background: var(--surface); }
-.inv-rl-row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-8); padding: var(--sp-8) var(--sp-10); border-top: 1px solid var(--border); }
-.inv-rl-row:first-child { border-top: none; }
-.inv-rl-row-A { background: var(--surface-2); }
-.inv-rl-row-main { display: flex; flex-direction: column; flex: 1; min-width: 0; }
-.inv-rl-name { font-size: var(--fs-base); font-weight: 600; color: var(--text-1); }
-.inv-rl-area { font-size: var(--fs-xs); color: var(--text-2); }
-.inv-rl-row-side { display: flex; align-items: center; gap: var(--sp-8); }
-.inv-rl-hrs { font-family: var(--ff-mono); font-size: var(--fs-sm); color: var(--text-1); white-space: nowrap; }
-.inv-rl-was { flex-basis: 100%; font-size: var(--fs-xs); color: var(--text-2); }
-.inv-rl-extra { padding: var(--sp-6) var(--sp-10); margin-bottom: var(--sp-4); border-left: var(--sp-4) solid var(--prod); background: var(--surface); border-radius: var(--r-sm); font-size: var(--fs-sm); color: var(--text-1); }
-.inv-rl-extra-dup { border-left-color: var(--border-2); color: var(--text-2); }
-.inv-rl-lines { margin-top: var(--sp-8); border: 1px solid var(--border-2); border-radius: var(--r-md); background: var(--surface); }
-.inv-rl-line { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-8); padding: var(--sp-4) var(--sp-8); border-top: 1px solid var(--border); font-size: var(--fs-xs); }
-.inv-rl-line:first-child { border-top: none; }
-.inv-rl-raw { font-family: var(--ff-mono); color: var(--text-1); overflow-wrap: anywhere; }
-.inv-rl-read { color: var(--text-2); }
-.inv-rl-line-unknown .inv-rl-read { color: var(--danger-text); font-weight: 600; }
-.inv-rl-line-extra .inv-rl-read { color: var(--prod-text); font-weight: 600; }
 
 /* ===== SETTINGS: groups, folded sections, per-section save ===== */
 .inv-set-nav { display: none; }
@@ -2238,18 +1760,18 @@ body.inv-desktop .inv-set-group-on { display: block; }
    ====================================================================== */
 
 /* §6.3 Buttons. Secondary (surface + border) is the default; one primary per view. */
-.inv-btn, .inv-stk-btn {
+.inv-btn {
   display: inline-flex; align-items: center; justify-content: center; gap: var(--sp-6);
   min-height: var(--ctl-h); padding: 0 var(--sp-16); border-radius: var(--r-md);
   border: 1px solid var(--border); background: var(--surface); color: var(--text-1);
   font-size: var(--fs-14); font-weight: 500; line-height: 1.2; cursor: pointer;
   transition: background var(--dur-1), border-color var(--dur-1), color var(--dur-1);
 }
-.inv-btn:hover, .inv-stk-btn:hover { background: var(--surface-2); }
-.inv-btn:active, .inv-stk-btn:active { background: var(--surface-3); }
-.inv-btn-primary, .inv-stk-btn-pri { background: var(--accent); border-color: var(--accent); color: var(--on-accent); font-weight: 600; }
-.inv-btn-primary:hover, .inv-stk-btn-pri:hover { background: color-mix(in srgb, var(--accent) 88%, var(--text-1)); }
-.inv-btn-primary:active, .inv-stk-btn-pri:active { background: color-mix(in srgb, var(--accent) 78%, var(--text-1)); }
+.inv-btn:hover { background: var(--surface-2); }
+.inv-btn:active { background: var(--surface-3); }
+.inv-btn-primary { background: var(--accent); border-color: var(--accent); color: var(--on-accent); font-weight: 600; }
+.inv-btn-primary:hover { background: color-mix(in srgb, var(--accent) 88%, var(--text-1)); }
+.inv-btn-primary:active { background: color-mix(in srgb, var(--accent) 78%, var(--text-1)); }
 .inv-btn-secondary { background: var(--surface); border-color: var(--border); color: var(--text-1); }
 .inv-btn-ghost { background: transparent; border-color: var(--border); color: var(--text-1); }
 .inv-btn-ghost:hover { background: var(--surface-2); color: var(--text-1); }
@@ -2265,8 +1787,8 @@ body.inv-desktop .inv-set-group-on { display: block; }
 .inv-btn-icon { width: var(--ctl-h); padding: 0; flex-shrink: 0; }
 .inv-btn-icon svg { width: 20px; height: 20px; }
 .inv-btn-sm { min-height: var(--ctl-h-sm); padding: 0 var(--sp-12); font-size: var(--fs-13); }
-.inv-btn-block, .inv-stk-btn-block { width: 100%; }
-.inv-btn:disabled, .inv-btn-disabled, .inv-stk-btn:disabled { opacity: 0.45; cursor: not-allowed; pointer-events: none; }
+.inv-btn-block { width: 100%; }
+.inv-btn:disabled, .inv-btn-disabled { opacity: 0.45; cursor: not-allowed; pointer-events: none; }
 /* A grid of launch buttons (Home's quick actions): three across on the phone, one row on the desktop. */
 .inv-btn-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--sp-8); margin-bottom: var(--gap); }
 .inv-btn-grid > .inv-btn { flex-direction: column; gap: var(--sp-4); min-height: calc(var(--ctl-h) * 1.75); padding: var(--sp-8); text-align: center; }
@@ -2330,6 +1852,13 @@ body.inv-desktop .inv-viewtab, body.inv-desktop .inv-stats-tab { min-height: var
 .inv-toolbar-end { align-self: flex-end; }
 .inv-toolbar-tight { gap: var(--sp-4); margin-bottom: 0; justify-content: flex-end; }
 .inv-toolbar-flush { margin-bottom: 0; }
+/* A period stepper: previous · the period (a date field, or its title over its dates) · next · back to now. */
+.inv-stepper { flex-wrap: nowrap; }
+.inv-stepper-label { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: var(--sp-2); text-align: center; }
+.inv-stepper-label > .inv-input { max-width: calc(var(--col-sm-w) * 1.5); text-align: center; }
+.inv-stepper-title { font-size: var(--fs-14); font-weight: 600; color: var(--text-1); }
+.inv-stepper-sub { font-size: var(--fs-12); color: var(--text-3); }
+body.inv-desktop .inv-stepper-label { flex: 0 1 auto; min-width: calc(var(--col-sm-w) * 2); }
 .inv-btn .inv-badge { margin-left: var(--sp-2); }
 /* §6.2 Page head: a summary line worth more than the top bar. */
 .inv-pagehead { display: flex; align-items: baseline; justify-content: space-between; gap: var(--sp-8); margin-bottom: var(--sp-8); }
@@ -2346,7 +1875,6 @@ body.inv-desktop .inv-viewtab, body.inv-desktop .inv-stats-tab { min-height: var
   background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-xl); box-shadow: none;
 }
 body.inv-desktop :is(.inv-panel, .inv-card, .inv-stats-card) { border-radius: var(--r-lg); }
-.inv-card-hero { background: var(--surface); }
 .inv-panel { padding: var(--card-padding); margin-bottom: var(--gap); }
 .inv-panel-flush { padding: 0; overflow: hidden; }
 .inv-panel-head, .inv-card-header {
@@ -2357,6 +1885,8 @@ body.inv-desktop :is(.inv-panel, .inv-card, .inv-stats-card) { border-radius: va
   font-size: var(--fs-14); font-weight: 600; line-height: 1.4; color: var(--text-1);
 }
 .inv-panel-count { font-family: var(--ff-mono); font-size: var(--fs-12); color: var(--text-3); font-weight: 400; }
+/* A card's total in its head (labour, a payout): the figure the card adds up to. */
+.inv-panel-head > .inv-num { font-weight: 600; }
 /* A padded stretch inside a flush panel (a form opened in place), set off from the rows below it. */
 .inv-panel-body { padding: var(--card-padding); border-bottom: 1px solid var(--border); }
 /* Panels laid out: one column on the phone, two on the desktop; a -wide panel spans both. */
@@ -2382,14 +1912,13 @@ button.inv-tile:hover { background: var(--surface-2); }
 /* A tile that filters its list, pressed: the list shows only its rows until it is pressed again. */
 button.inv-tile[aria-pressed="true"] { background: var(--accent-soft); box-shadow: inset 0 -2px 0 var(--accent); }
 button.inv-tile[aria-pressed="true"] .inv-tile-label { color: var(--accent-soft-text); }
-.inv-tile-label, .inv-kpi-label, .inv-ov-l, .inv-lab-half-label, .inv-lab-perkg-label, .inv-area-stat-label {
+.inv-tile-label, .inv-kpi-label, .inv-ov-l {
   font-size: var(--fs-12); font-weight: 500; color: var(--text-3);
 }
-.inv-tile-value, .inv-kpi-value, .inv-stk-tile-n, .inv-ov-v, .inv-lab-half-value, .inv-area-stat-value, .inv-stats-metric-value {
+.inv-tile-value, .inv-kpi-value, .inv-ov-v, .inv-stats-metric-value {
   font-family: var(--ff-mono); font-size: var(--fs-19); font-weight: 600; letter-spacing: var(--ls-tight); line-height: 1.2; color: var(--text-1);
 }
-body.inv-desktop :is(.inv-tile-value, .inv-kpi-value, .inv-stk-tile-n, .inv-ov-v, .inv-lab-half-value, .inv-area-stat-value, .inv-stats-metric-value) { font-size: var(--fs-22); }
-.inv-lab-perkg-value { font-family: var(--ff-mono); font-weight: 600; letter-spacing: var(--ls-tight); color: var(--text-1); }
+body.inv-desktop :is(.inv-tile-value, .inv-kpi-value, .inv-ov-v, .inv-stats-metric-value) { font-size: var(--fs-22); }
 .inv-tile-sub { font-size: var(--fs-12); color: var(--text-3); margin-top: var(--sp-2); }
 .inv-tile-of { font-size: var(--fs-13); font-weight: 500; color: var(--text-3); }
 .inv-tile-value-sm { font-size: var(--fs-14); }
@@ -2401,10 +1930,7 @@ body.inv-desktop .inv-tile-value-sm { font-size: var(--fs-16); }
 .inv-tile-warning .inv-tile-value { color: var(--warning); }
 .inv-tile-ok .inv-tile-value { color: var(--ok); }
 .inv-tile-info .inv-tile-value { color: var(--info); }
-.inv-kpi, .inv-stk-tile { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg); box-shadow: none; }
-.inv-stk-tile-red, .inv-stk-tile-amber { background: var(--surface); }
-.inv-stk-tile-red .inv-stk-tile-n { color: var(--danger); }
-.inv-stk-tile-amber .inv-stk-tile-n { color: var(--warning); }
+.inv-kpi { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg); box-shadow: none; }
 
 /* §6.10 Rows */
 .inv-row {
@@ -2457,6 +1983,17 @@ button.inv-row-expander[aria-expanded="true"]::after { transform: translateY(-25
 .inv-row-flow > .inv-row-main { flex: 1 1 var(--col-sm-w); }
 .inv-row-flow > .inv-row-end { margin-left: auto; }
 .inv-row-flow .inv-unit { min-width: var(--sp-20); }
+/* A row's end that is a line of controls (P/H/A, an area, hours): the width of the row under the name on the
+   phone, beside the name on the desktop. */
+.inv-row-fields { flex: 1 1 100%; min-width: 0; }
+.inv-row-fields > .inv-seg { width: auto; flex: 0 0 auto; }
+.inv-row-fields > .inv-seg .inv-seg-btn { min-width: var(--touch); padding: 0 var(--sp-8); }
+.inv-row-fields > .inv-select { flex: 1 1 auto; width: auto; min-width: 0; }
+.inv-row-fields > .inv-input { flex: 0 0 var(--line-unit-w); width: var(--line-unit-w); }
+body.inv-desktop .inv-row-fields { flex: 0 1 auto; }
+body.inv-desktop .inv-row-fields > .inv-select { flex: 0 0 var(--col-sm-w); width: var(--col-sm-w); }
+body.inv-desktop .inv-row-fields > .inv-seg .inv-seg-btn { min-width: var(--ctl-h); }
+.inv-row-end > .inv-field { margin-bottom: 0; }
 .inv-row-lead svg { width: 20px; height: 20px; color: var(--text-2); }
 /* The page a navigation row opens is the one on screen (the More sheet). */
 .inv-row[aria-current="page"] :is(.inv-row-title, .inv-row-lead svg) { color: var(--accent); }
@@ -2500,6 +2037,23 @@ button.inv-row-expander[aria-expanded="true"]::after { transform: translateY(-25
 .inv-cell-danger { background: var(--danger-bg); color: var(--danger); font-weight: 600; }
 .inv-cell-empty { color: var(--text-3); }
 .inv-cell-future { box-shadow: inset 0 0 0 1px var(--border); }
+/* The week grid scrolls sideways in its panel rather than reflowing: seven days and a name column do not fit
+   a phone, and a grid that wraps stops being a grid. The names stay put; Sunday reads as the rest day. */
+.inv-scroll-x { overflow-x: auto; }
+.inv-table-grid th, .inv-table-grid td { height: auto; padding: var(--sp-2); text-align: center; }
+.inv-table-grid :is(thead, tbody, tfoot) :is(th, td):first-child {
+  position: sticky; left: 0; z-index: 1; padding-left: var(--pad-x); text-align: left; background: var(--surface);
+  max-width: var(--col-sm-w); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; color: var(--text-1);
+}
+.inv-table-grid thead th:first-child { z-index: 2; background: var(--bg); color: var(--text-3); }
+.inv-table-grid thead th[aria-current="date"] { color: var(--accent); }
+.inv-table-grid [data-sun] { background: var(--bg); }
+.inv-table-grid tfoot td, .inv-table-grid tfoot th { padding-top: var(--sp-8); padding-bottom: var(--sp-8); }
+.inv-table-grid-date { display: block; font-family: var(--ff-mono); }
+button.inv-cell { width: 100%; min-width: var(--touch); min-height: var(--ctl-h); gap: var(--sp-2); border: none; cursor: pointer; font-weight: 600; }
+button.inv-cell.inv-cell-empty { background: var(--surface); box-shadow: inset 0 0 0 1px var(--border); }
+button.inv-cell:hover { box-shadow: inset 0 0 0 1px var(--text-3); }
+body.inv-desktop button.inv-cell { min-width: var(--ctl-h); }
 /* A group heading inside a table (a status, a supplier), the row form of inv-row-group. */
 .inv-table tr.inv-table-group td { height: var(--sp-32); background: var(--bg); font-size: var(--fs-12); color: var(--text-3); }
 .inv-table tbody tr.inv-table-group:hover td { background: var(--bg); }
@@ -2533,7 +2087,7 @@ button.inv-row-expander[aria-expanded="true"]::after { transform: translateY(-25
 .inv-dot-mark-warning { background: var(--warning); }
 .inv-dot-mark-ok { background: var(--ok); }
 .inv-dot-mark-info { background: var(--info); }
-.inv-badge, .inv-state-badge, .inv-att-badge, .inv-area-badge, .inv-client-badge, .inv-stk-chip, .inv-cost-src, .inv-kpi-delta {
+.inv-badge, .inv-state-badge, .inv-cost-src, .inv-kpi-delta {
   display: inline-flex; align-items: center; gap: var(--sp-4); padding: var(--sp-2) var(--sp-6);
   border-radius: var(--r-sm); font-family: var(--ff-base); font-size: var(--fs-12); font-weight: 500; line-height: 1.35; white-space: nowrap;
 }
@@ -2701,14 +2255,14 @@ body.inv-desktop .inv-keys { display: flex; flex-wrap: wrap; gap: var(--sp-4) va
 .inv-toast-warning::before { background: var(--warning); }
 
 /* §6.18 Callouts, notes, empty states */
-.inv-callout, .inv-stats-caveat, .inv-stats-alert, .inv-stk-banner, .inv-confirm-warn {
+.inv-callout, .inv-stats-caveat, .inv-stats-alert, .inv-confirm-warn {
   display: block; padding: var(--sp-10) var(--sp-12); border: none; border-radius: var(--r-lg);
   font-size: var(--fs-13); line-height: 1.5;
 }
 .inv-callout, .inv-callout-neutral, .inv-stats-caveat { background: var(--surface-2); color: var(--text-2); }
 .inv-callout-info { background: var(--info-bg); color: var(--info); }
-.inv-callout-warning, .inv-stk-banner, .inv-confirm-warn { background: var(--warning-bg); color: var(--warning); }
-.inv-callout-danger, .inv-stats-alert, .inv-stk-banner-red { background: var(--danger-bg); color: var(--danger); }
+.inv-callout-warning, .inv-confirm-warn { background: var(--warning-bg); color: var(--warning); }
+.inv-callout-danger, .inv-stats-alert { background: var(--danger-bg); color: var(--danger); }
 .inv-note { font-size: var(--fs-12); color: var(--text-3); line-height: 1.5; }
 /* Text quoted from its source as sent (a WhatsApp line), so a figure can be checked against it. */
 .inv-quote {
@@ -2725,12 +2279,11 @@ summary.inv-summary::-webkit-details-marker { display: none; }
 .inv-empty { display: flex; flex-direction: column; align-items: center; gap: var(--sp-12); }
 .inv-empty-icon { width: var(--sp-32); height: var(--sp-32); color: var(--text-3); }
 
-/* Tiles that borrowed tone classes for decoration (v1.0): neutral unless they state a status (DR-1).
-   A predicted payout well above the median is a caution, not an error. */
-.inv-lab-half, .inv-lab-half.inv-pay-green, .inv-lab-half.inv-pay-blue, .inv-lab-fixed, .inv-lab-variable,
-.inv-ov-tile.inv-pay-green, .inv-ov-tile.inv-pay-blue, .inv-lab-half.inv-area-gap-under { background: var(--surface-2); }
-.inv-lab-half.inv-area-gap-over { background: var(--warning-bg); }
-.inv-lab-half.inv-area-gap-over .inv-lab-half-value, .inv-lab-half.inv-area-gap-over .inv-lab-half-label { color: var(--warning); }
+/* Tiles that borrowed tone classes for decoration (v1.0): neutral unless they state a status (DR-1). Only
+   Stats' tiles still wear them (intel.js, insights.js); they go when Stats moves (§9 step 3). */
+.inv-pay-green, .inv-pay-blue { background: var(--surface-2); }
+.inv-area-gap-over { background: var(--danger-bg); }
+.inv-area-gap-under { background: var(--warning-bg); }
 </style>
 </head>
 <body>
@@ -12976,19 +12529,56 @@ function _attRestoreFocus(sel) {
 }
 
 /* ===== TAB RENDER ===== */
+/* The view tabs (§6.4). Paste message is not one of them: it is a sub-view with its own way back, opened by
+   the page's one primary (Overview, Day) or from Home. */
+var ATT_VIEWS = [['overview', 'Overview'], ['day', 'Day'], ['week', 'Week'], ['pay', 'Pay'], ['areas', 'Areas'], ['roster', 'Roster']];
+var _attPrevView = 'overview';   // where Paste message's back button returns
+var STAFF_BACK_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="15 18 9 12 15 6"/></svg>';
+var STAFF_NEXT_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>';
+
+function _attTabsHtml() {
+  return '<div class="inv-viewtabs" role="tablist" aria-label="Staff">' + ATT_VIEWS.map(function(v) {
+    return '<button class="inv-viewtab" role="tab" aria-selected="' + (_attView === v[0]) + '" data-action="invAttView" data-view="' + v[0] + '">' + v[1] + '</button>';
+  }).join('') + '</div>';
+}
+
+/* A period stepper (§6.7): previous · the period · next · back to now. `label` is the middle: the date field
+   on Day, the week's number and dates elsewhere. */
+function _attStepper(action, label, nowAction, nowLabel, prevLabel, nextLabel) {
+  return '<div class="inv-toolbar inv-stepper">' +
+    '<button class="inv-btn inv-btn-icon inv-btn-ghost" data-action="' + action + '" data-step="-1" aria-label="' + prevLabel + '">' + STAFF_BACK_ICON + '</button>' +
+    '<div class="inv-stepper-label">' + label + '</div>' +
+    '<button class="inv-btn inv-btn-icon inv-btn-ghost" data-action="' + action + '" data-step="1" aria-label="' + nextLabel + '">' + STAFF_NEXT_ICON + '</button>' +
+    '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="' + nowAction + '">' + nowLabel + '</button></div>';
+}
+function _attWeekLabel(title, sub) {
+  return '<span class="inv-stepper-title">' + title + '</span><span class="inv-stepper-sub">' + sub + '</span>';
+}
+
+/* The page's one primary on the views where marks are entered. */
+function _attPasteBar() {
+  return '<div class="inv-toolbar"><button class="inv-btn inv-btn-primary" data-action="invAttView" data-view="paste">Paste message</button></div>';
+}
+
 function renderAttendance() {
   if (!_attDate) _attDate = localDateStr();
   if (!_attWeekStart) _attWeekStart = attWeekStartOf(_attDate);
+  if (_attView !== 'paste') _attPrevView = _attView;
 
   var focusSel = _attFocusSelector();
 
+  // Paste message is a sub-view: its own head and way back, no tabs.
   var toolbar = document.getElementById('attToolbar');
   if (toolbar) {
-    var views = [['overview', 'Overview'], ['day', 'Day'], ['week', 'Week'], ['pay', 'Pay'], ['areas', 'Areas'], ['roster', 'Roster'], ['paste', 'Paste message']];
-    toolbar.innerHTML = '<div class="inv-stats-chips">' + views.map(function(v) {
-      return '<button class="inv-chip' + (_attView === v[0] ? ' inv-chip-active' : '') +
-        '" data-action="invAttView" data-view="' + v[0] + '">' + v[1] + '</button>';
-    }).join('') + '</div>';
+    toolbar.innerHTML = _attView === 'paste' ? '' : _attTabsHtml();
+    // Six tabs overflow a phone; the open one is scrolled into view sideways only, so a tap lower on the
+    // page (a P/H/A, an hour) never jumps the page back up to the tabs.
+    var list = toolbar.querySelector('.inv-viewtabs'), on = toolbar.querySelector('.inv-viewtab[aria-selected="true"]');
+    if (list && on) {
+      var left = on.offsetLeft - list.offsetLeft, right = left + on.offsetWidth;
+      if (left < list.scrollLeft) list.scrollLeft = left;
+      else if (right > list.scrollLeft + list.clientWidth) list.scrollLeft = right - list.clientWidth;
+    }
   }
 
   var area = document.getElementById('attContent');
@@ -13004,7 +12594,7 @@ function renderAttendance() {
   else if (_attView === 'paste') area.innerHTML = relayRenderView();
   else if (_attView === 'areas') area.innerHTML = _attAreasView();
   else if (_attView === 'pay') area.innerHTML = _attPayView();
-  else if (_attView === 'overview') area.innerHTML = staffOverviewHtml();
+  else if (_attView === 'overview') area.innerHTML = _attPasteBar() + staffOverviewHtml();
   else if (_attView === 'week') area.innerHTML = _attWeekView();
   else area.innerHTML = _attDayView();
 
@@ -13012,18 +12602,22 @@ function renderAttendance() {
 }
 
 function _attEmptyRoster() {
-  return '<div class="inv-card"><div class="inv-empty-state">' +
-    '<svg class="inv-empty-state-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">' +
+  return '<div class="inv-panel"><div class="inv-empty">' +
+    '<svg class="inv-empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
     '<path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/>' +
     '<polyline points="17 11 19 13 23 9"/></svg>' +
-    '<div class="inv-mt-16">No one on the roster yet</div>' +
-    '<div class="inv-stats-note">Attendance and the labour breakdown both read the roster. ' +
+    '<div>No one on the roster yet</div>' +
+    '<div class="inv-note">Attendance and the labour breakdown both read the roster. ' +
     'Add each worker once with their comp class and rate; the wage arithmetic follows from there.</div>' +
-    '<div class="inv-mt-16"><button class="inv-btn inv-btn-primary" data-action="invAttAddWorker">Add the first worker</button></div>' +
+    '<button class="inv-btn inv-btn-primary" data-action="invAttAddWorker">Add the first worker</button>' +
     '</div></div>';
 }
 
 /* ===== DAY VIEW ===== */
+/* P/H/A carry their tone when chosen (a segment of the status's own colour, which switches with the theme):
+   present ok, half warning, absent danger. */
+var ATT_STATE_TONE = { P: 'ok', H: 'warning', A: 'danger' };
+
 function _attDayView() {
   var iso = _attDate;
   var rec = attDay(iso, false);
@@ -13043,38 +12637,32 @@ function _attDayView() {
   var extraHours = rec ? rec.extra.reduce(function(s, x) { return s + (x.hours || 0); }, 0) : 0;
   var onSite = present + half;
 
-  var html = '<div class="inv-att-nav">' +
-    '<button class="inv-att-nav-btn" data-action="invAttStep" data-step="-1" aria-label="Previous day">' +
-    '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg></button>' +
-    '<div class="inv-att-nav-label"><input type="date" class="inv-form-input inv-mono inv-att-date" id="attDate" value="' + escHtml(iso) + '">' +
-    '<span class="inv-att-nav-day">' + attDayName(iso) + '</span></div>' +
-    '<button class="inv-att-nav-btn" data-action="invAttStep" data-step="1" aria-label="Next day">' +
-    '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg></button>' +
-    '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invAttToday">Today</button>' +
-    '</div>';
+  var html = _attStepper('invAttStep',
+    '<input type="date" class="inv-input inv-id" id="attDate" value="' + escHtml(iso) + '" aria-label="Day">' +
+    '<span class="inv-stepper-sub">' + attDayName(iso) + '</span>',
+    'invAttToday', 'Today', 'Previous day', 'Next day') + _attPasteBar();
 
-  html += '<div class="inv-card inv-card-hero"><div class="inv-card-header">' +
-    '<span class="inv-card-title">On site</span>' +
-    '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invAttAllPresent">All present</button></div>' +
-    '<div class="inv-att-count"><span class="inv-display inv-att-count-value">' + onSite + '</span>' +
-    '<span class="inv-att-count-of">/ ' + total + '</span></div>' +
-    '<div class="inv-att-summary">' +
-    '<span class="inv-att-pill inv-att-pill-p">' + present + ' present</span>' +
-    '<span class="inv-att-pill inv-att-pill-h">' + half + ' half</span>' +
-    '<span class="inv-att-pill inv-att-pill-a">' + absent + ' absent</span>' +
-    (unmarked > 0 ? '<span class="inv-att-pill inv-att-pill-u">' + unmarked + ' unmarked</span>' : '') +
-    '</div>' +
-    (poolHours > 0 || otHours > 0 || extraHours > 0
-      ? '<div class="inv-att-summary">' +
-        (poolHours > 0 ? '<span class="inv-att-pill inv-att-pill-hr">' + formatNum(poolHours, 1) + ' h pool</span>' : '') +
-        (otHours > 0 ? '<span class="inv-att-pill inv-att-pill-ot">' + formatNum(otHours, 1) + ' h OT named</span>' : '') +
-        (extraHours > 0 ? '<span class="inv-att-pill inv-att-pill-x">' + formatNum(extraHours, 1) + ' h extra</span>' : '') +
-        '</div>'
-      : '') +
-    '</div>';
+  var tile = function(id, label, value, sub, tone) {
+    return '<div class="inv-tile' + (tone ? ' inv-tile-' + tone : '') + '"><div class="inv-tile-label">' + label + '</div>' +
+      '<div class="inv-tile-value" id="' + id + '">' + value + '</div>' + (sub ? '<div class="inv-tile-sub">' + sub + '</div>' : '') + '</div>';
+  };
+  html += '<div class="inv-tiles inv-tiles-4" id="attDayTiles">' +
+    '<div class="inv-tile"><div class="inv-tile-label">On site</div><div class="inv-tile-value"><span id="attOnSite">' + onSite + '</span>' +
+    '<span class="inv-tile-of">/' + total + '</span></div><div class="inv-tile-sub">' + present + ' present</div></div>' +
+    tile('attHalf', 'Half day', half, '', half ? 'warning' : '') +
+    tile('attAbsent', 'Absent', absent, '', absent ? 'danger' : '') +
+    tile('attUnmarked', 'Unmarked', unmarked, unmarked ? 'nobody typed' : '', '') + '</div>';
+  if (poolHours > 0 || otHours > 0 || extraHours > 0) {
+    html += '<div class="inv-tiles inv-tiles-3" id="attDayHours">' +
+      tile('attPoolHours', 'Hourly pool', formatNum(poolHours, 1) + '<span class="inv-tile-of"> h</span>', '', '') +
+      tile('attOtHours', 'OT, named', formatNum(otHours, 1) + '<span class="inv-tile-of"> h</span>', '', '') +
+      tile('attExtraHours', 'Extra', formatNum(extraHours, 1) + '<span class="inv-tile-of"> h</span>', '', '') + '</div>';
+  }
 
-  // The rows. One line per worker: who, where, what state, and OT hours.
-  html += '<div class="inv-card"><div class="inv-card-header"><span class="inv-card-title">Mark the day</span></div>';
+  // The rows. One line per worker: who, what state, where, and the hours.
+  html += '<div class="inv-panel inv-panel-flush" id="attMarks"><div class="inv-panel-head"><span class="inv-panel-title">Mark the day ' +
+    '<span class="inv-panel-count">' + total + '</span></span>' +
+    '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invAttAllPresent">All present</button></div>';
   roster.forEach(function(w) {
     var m = rec ? rec.marks[w.id] : null;
     var st = m ? m.st : '';
@@ -13084,30 +12672,29 @@ function _attDayView() {
     // Half a day is not a state an hourly worker can be in: the hours say it.
     var states = hourly ? ['P', 'A'] : ATT_STATES;
     var live = st && st !== 'A';
-    html += '<div class="inv-att-row">' +
-      '<div class="inv-att-who"><span class="inv-att-name">' + escHtml(w.name) + '</span>' +
-      '<span class="inv-att-badge inv-att-badge-' + cls.tone + '">' + escHtml(cls.label) + '</span></div>' +
-      '<div class="inv-att-controls">' +
-      '<div class="inv-att-seg" role="group" aria-label="Attendance for ' + escHtml(w.name) + '">' +
+    html += '<div class="inv-row inv-row-flow inv-row-auto" data-att-row="' + w.id + '">' +
+      '<span class="inv-row-main"><span class="inv-row-title">' + escHtml(w.name) + '</span>' +
+      '<span class="inv-row-meta">' + escHtml(cls.label) + (m ? ' · ' + escHtml(ATT_STATE_LABELS[st] || '') : ' · unmarked') + '</span></span>' +
+      '<span class="inv-row-end inv-row-fields">' +
+      '<span class="inv-seg" role="group" aria-label="Attendance for ' + escHtml(w.name) + '">' +
       states.map(function(x) {
-        return '<button class="inv-att-seg-btn inv-att-seg-' + x.toLowerCase() +
-          (st === x ? ' inv-att-seg-on' : '') + '" data-action="invAttSet" data-id="' + w.id +
+        return '<button class="inv-seg-btn inv-seg-btn-' + ATT_STATE_TONE[x] + '" data-action="invAttSet" data-id="' + w.id +
           '" data-st="' + x + '" aria-pressed="' + (st === x) + '" title="' + ATT_STATE_LABELS[x] + '">' + x + '</button>';
       }).join('') +
-      '</div>' +
-      '<select class="inv-form-select inv-att-area" data-att-area data-id="' + w.id + '" aria-label="Area for ' + escHtml(w.name) + '"' +
+      '</span>' +
+      '<select class="inv-select inv-select-sm" data-att-area data-id="' + w.id + '" aria-label="Area for ' + escHtml(w.name) + '"' +
       (live ? '' : ' disabled') + '>' + attAreaOptions(wArea) + '</select>' +
-      // Deliberately not inv-mono: in the mono face the placeholders "OT" and
-      // "h" sit in a field whose whole content is otherwise numbers, and the
+      // Deliberately not mono: in the mono face the placeholders "OT" and
+      // "hrs" sit in a field whose whole content is otherwise numbers, and the
       // mono O is indistinguishable from a zero.
       (hourly
-        ? '<input type="number" class="inv-form-input inv-att-ot" data-att-hours data-id="' + w.id +
+        ? '<input type="number" class="inv-input inv-input-sm" data-att-hours data-id="' + w.id +
           '" step="0.5" min="0" placeholder="hrs" value="' + (m && m.hours ? m.hours : '') + '"' +
           (live ? '' : ' disabled') + ' aria-label="Hours worked by ' + escHtml(w.name) + '">'
-        : '<input type="number" class="inv-form-input inv-att-ot" data-att-ot data-id="' + w.id +
+        : '<input type="number" class="inv-input inv-input-sm" data-att-ot data-id="' + w.id +
           '" step="0.5" min="0" placeholder="OT" value="' + (m && m.ot ? m.ot : '') + '"' +
           (live ? '' : ' disabled') + ' aria-label="OT hours for ' + escHtml(w.name) + '">') +
-      '</div></div>';
+      '</span></div>';
   });
   html += '</div>';
 
@@ -13155,18 +12742,18 @@ function _attBlockFields(x, i, siblings) {
   var span = blockSpan(x);
   var roster = staffActive();
 
-  var html = '<div class="inv-att-block">' +
-    '<div class="inv-att-block-times">' +
-    '<label class="inv-att-block-label" for="blkFrom-' + i + '">In</label>' +
-    '<input type="time" class="inv-form-input inv-mono" id="blkFrom-' + i + '" data-att-block-from data-idx="' + i +
-    '" value="' + escHtml(x.from || '') + '" aria-label="Block start time">' +
-    '<label class="inv-att-block-label" for="blkTo-' + i + '">Out</label>' +
-    '<input type="time" class="inv-form-input inv-mono" id="blkTo-' + i + '" data-att-block-to data-idx="' + i +
-    '" value="' + escHtml(x.to || '') + '" aria-label="Block end time">' +
+  var html = '<div class="inv-mt-8" data-block="' + i + '">' +
+    '<div class="inv-toolbar">' +
+    '<div class="inv-field inv-toolbar-item"><label class="inv-field-label" for="blkFrom-' + i + '">In</label>' +
+    '<input type="time" class="inv-input inv-id" id="blkFrom-' + i + '" data-att-block-from data-idx="' + i +
+    '" value="' + escHtml(x.from || '') + '" aria-label="Block start time"></div>' +
+    '<div class="inv-field inv-toolbar-item"><label class="inv-field-label" for="blkTo-' + i + '">Out</label>' +
+    '<input type="time" class="inv-input inv-id" id="blkTo-' + i + '" data-att-block-to data-idx="' + i +
+    '" value="' + escHtml(x.to || '') + '" aria-label="Block end time"></div>' +
     // Both lengths, whenever they differ: the clock span the operator typed
     // and the credited length the tag is judged against. Nothing is rounded
     // behind their back.
-    '<span class="inv-att-block-len inv-mono">' + (hrs == null ? '&mdash;'
+    '<span class="inv-num inv-toolbar-end" data-block-len>' + (hrs == null ? '&mdash;'
       : (span != null && span !== hrs
         ? formatNum(span, 1) + ' h &rarr; ' + formatNum(hrs, 1) + ' credited'
         : formatNum(hrs, 1) + ' h')) + '</span>' +
@@ -13175,25 +12762,24 @@ function _attBlockFields(x, i, siblings) {
   // Areas as toggles rather than one select, because a block row genuinely
   // spans several: the relay writes one tag over A1 and A2 together about as
   // often as one each, and the complement differs between the two readings.
-  html += '<div class="inv-att-block-areas">';
+  html += '<div class="inv-field-label">Areas it covers</div>' +
+    '<div class="inv-toolbar" role="group" aria-label="Areas the block covers" data-block-areas>';
   STAFF_AREAS.filter(function(a) { return a.floor && a.id !== 'flex'; }).forEach(function(a) {
     var on = areas.indexOf(a.id) >= 0;
-    html += '<button class="inv-att-chip' + (on ? ' inv-att-chip-on' : '') + '" data-action="invAttBlockArea" ' +
+    html += '<button class="inv-chip" data-action="invAttBlockArea" ' +
       'data-idx="' + i + '" data-area="' + escHtml(a.id) + '" aria-pressed="' + (on ? 'true' : 'false') + '">' +
       escHtml(a.label) + '</button>';
   });
   html += '</div>';
 
-  html += '<div class="inv-att-block-crew">' +
-    '<span class="inv-att-block-label">On the block</span>' +
-    '<span class="inv-att-block-count inv-mono">' + crew.length + '</span></div>' +
-    '<div class="inv-att-block-names">';
+  html += '<div class="inv-field-label">On the block <span class="inv-num" data-block-count>' + crew.length + '</span></div>' +
+    '<div class="inv-toolbar" role="group" aria-label="Who stood the block" data-block-crew>';
   if (roster.length === 0) {
-    html += '<span class="inv-att-block-empty">No roster yet &mdash; import one on the Roster view</span>';
+    html += '<span class="inv-note">No roster yet &mdash; import one on the Roster view</span>';
   } else {
     roster.forEach(function(w) {
       var on = crew.indexOf(w.id) >= 0;
-      html += '<button class="inv-att-chip' + (on ? ' inv-att-chip-on' : '') + '" data-action="invAttBlockCrew" ' +
+      html += '<button class="inv-chip" data-action="invAttBlockCrew" ' +
         'data-idx="' + i + '" data-worker="' + w.id + '" aria-pressed="' + (on ? 'true' : 'false') + '">' +
         escHtml(w.name) + '</button>';
     });
@@ -13213,16 +12799,17 @@ function _attBlockFields(x, i, siblings) {
     var expect = gstRound(short * hrs);
     var booked = x.hours || 0;
     var ok = Math.abs(booked - expect) <= 0.001;
-    html += '<div class="inv-att-block-check' + (ok ? ' inv-att-block-ok' : '') + '">' +
+    html += '<div class="inv-callout' + (ok ? '' : ' inv-callout-warning') + '" data-block-check="' + (ok ? 'ok' : 'differs') + '">' +
+      '<span class="inv-dot inv-dot-' + (ok ? 'ok' : 'warning') + '">' + (ok ? 'Matches' : 'Differs') + '</span> ' +
       crew.length + ' of ' + norm + ' &middot; short ' + short + ' &times; ' + formatNum(hrs, 1) + ' h = ' +
       '<strong>' + formatNum(expect, 1) + ' h</strong>' +
-      (ok ? ' &mdash; matches' : ' &middot; booked ' + formatNum(booked, 1)) + '</div>';
+      (ok ? '' : ' &middot; booked ' + formatNum(booked, 1)) + '</div>';
   } else {
     var missing = [];
     if (hrs == null) missing.push('in/out times');
     if (norm == null) missing.push('an area with a complement');
     if (!hasCrew) missing.push('its crew');
-    html += '<div class="inv-att-block-check">Not checkable yet &mdash; needs ' +
+    html += '<div class="inv-callout" data-block-check="none">Not checkable yet &mdash; needs ' +
       escHtml(missing.join(', ')) + '. The hours still count in the bill.</div>';
   }
 
@@ -13231,11 +12818,11 @@ function _attBlockFields(x, i, siblings) {
 
 function _attExtraCard(iso, rec) {
   var rows = rec ? rec.extra : [];
-  var html = '<div class="inv-card"><div class="inv-card-header">' +
-    '<span class="inv-card-title">Extra hours</span>' +
-    '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invAttAddExtra">Add</button></div>' +
-    '<div class="inv-stats-note">Hours booked to an area block rather than to a named worker &mdash; ' +
-    'the <span class="inv-mono">EXTRA n HOURS</span> lines on the daily sheet. Priced at the contract tier ' +
+  var html = '<div class="inv-panel inv-panel-flush" id="attExtra"><div class="inv-panel-head">' +
+    '<span class="inv-panel-title">Extra hours ' + (rows.length ? '<span class="inv-panel-count">' + rows.length + '</span>' : '') + '</span>' +
+    '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invAttAddExtra">Add</button></div>' +
+    '<div class="inv-panel-body inv-note">Hours booked to an area block rather than to a named worker &mdash; ' +
+    'the <span class="inv-id">EXTRA n HOURS</span> lines on the daily sheet. Priced at the contract tier ' +
     '(' + formatCurrency((S.labour && S.labour.extraRate) || 0) + '/h) and counted in the bill. ' +
     'Both kinds are checked against the shortfall in the area that ran; they differ only in the ' +
     '<strong>multiplier</strong>. A general shift credits a missing hand a full eight hours. An ' +
@@ -13243,31 +12830,30 @@ function _attExtraCard(iso, rec) {
     'times and its crew &mdash; the day&rsquo;s marks supply neither, because a hand on one area ' +
     'all day turns up in another area&rsquo;s evening block.</div>';
   if (rows.length === 0) {
-    html += '<div class="inv-empty-state inv-empty-state-sm">None booked for this day</div>';
+    html += '<div class="inv-empty">None booked for this day</div>';
   } else {
     rows.forEach(function(x, i) {
       var kind = x.kind || 'coverage';
-      html += '<div class="inv-att-extra-row">' +
+      html += '<div class="inv-row inv-row-top inv-row-auto" data-extra-row="' + i + '"><div class="inv-row-main">' +
+        '<div class="inv-toolbar inv-toolbar-flush">' +
+        '<select class="inv-select inv-toolbar-item" data-att-extra-kind data-idx="' + i + '" aria-label="Kind of extra hours">' +
+        EXTRA_KINDS.map(function(k) {
+          return '<option value="' + k.id + '"' + (kind === k.id ? ' selected' : '') + '>' + escHtml(k.label) + '</option>';
+        }).join('') + '</select>' +
         // A block row's areas are the chips below; showing the single-area
         // select as well would let the operator set an area the reconciler
         // never reads, and the hours would bucket somewhere the check does
         // not look.
         (kind === 'block'
-          ? '<span class="inv-att-extra-areas-label">' +
-            escHtml(_attBlockAreaSummary(x)) + '</span>'
-          : '<select class="inv-form-select" data-att-extra-area data-idx="' + i + '" aria-label="Area for extra hours">' +
+          ? '<span class="inv-toolbar-item inv-row-title">' + escHtml(_attBlockAreaSummary(x)) + '</span>'
+          : '<select class="inv-select inv-toolbar-item" data-att-extra-area data-idx="' + i + '" aria-label="Area for extra hours">' +
             attAreaOptions(x.area) + '</select>') +
-        '<input type="number" class="inv-form-input inv-mono" data-att-extra-hours data-idx="' + i +
+        '<input type="number" class="inv-input inv-input-num inv-toolbar-item" data-att-extra-hours data-idx="' + i +
         '" step="0.5" min="0" value="' + (x.hours || 0) + '" aria-label="Extra hours">' +
-        '<button class="inv-att-extra-del" data-action="invAttRemoveExtra" data-idx="' + i + '" aria-label="Remove">&times;</button>' +
+        '<button class="inv-btn inv-btn-icon inv-btn-ghost" data-action="invAttRemoveExtra" data-idx="' + i +
+        '" aria-label="Remove">&times;</button>' +
         '</div>' +
-        '<div class="inv-att-extra-kind">' +
-        '<select class="inv-form-select" data-att-extra-kind data-idx="' + i + '" aria-label="Kind of extra hours">' +
-        EXTRA_KINDS.map(function(k) {
-          return '<option value="' + k.id + '"' + (kind === k.id ? ' selected' : '') + '>' + escHtml(k.label) + '</option>';
-        }).join('') + '</select>' +
-        '<span class="inv-att-extra-hint">' + escHtml((EXTRA_KINDS.find(function(k) { return k.id === kind; }) || EXTRA_KINDS[0]).hint) + '</span>' +
-        '</div>';
+        '<div class="inv-note inv-mt-4">' + escHtml((EXTRA_KINDS.find(function(k) { return k.id === kind; }) || EXTRA_KINDS[0]).hint) + '</div>';
       // Siblings matter: the pickling fold depends on whether ANOTHER row in
       // the same block tags pickling, so the preview must see them or it will
       // disagree with the Areas card over the same day.
@@ -13276,70 +12862,67 @@ function _attExtraCard(iso, rec) {
           return r !== x && r.kind === 'block' && blockKey(r) === blockKey(x);
         }));
       }
+      html += '</div></div>';
     });
   }
   return html + '</div>';
 }
 
 /* ===== WEEK VIEW ===== */
+var ATT_CELL_TONE = { P: 'ok', H: 'warning', A: 'danger' };
+
 function _attWeekView() {
   var days = attWeekDays(_attWeekStart);
   var roster = staffActive();
   var last = days[days.length - 1];
+  var today = localDateStr();
 
-  var html = '<div class="inv-att-nav">' +
-    '<button class="inv-att-nav-btn" data-action="invAttWeekStep" data-step="-1" aria-label="Previous week">' +
-    '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg></button>' +
-    '<div class="inv-att-nav-label"><span class="inv-att-week-num">Week ' + attPayWeekNumber(_attWeekStart) + '</span>' +
-    '<span class="inv-att-nav-day">' + formatDate(_attWeekStart) + ' &ndash; ' + formatDate(last) + '</span></div>' +
-    '<button class="inv-att-nav-btn" data-action="invAttWeekStep" data-step="1" aria-label="Next week">' +
-    '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg></button>' +
-    '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invAttThisWeek">This week</button>' +
-    '</div>';
+  var html = _attStepper('invAttWeekStep', _attWeekLabel('Week ' + attPayWeekNumber(_attWeekStart),
+    formatDate(_attWeekStart) + ' &ndash; ' + formatDate(last)), 'invAttThisWeek', 'This week', 'Previous week', 'Next week');
 
-  html += '<div class="inv-card"><div class="inv-card-header"><span class="inv-card-title">Week grid</span></div>' +
-    '<div class="inv-stats-note">Tap a cell to cycle it: present, half day, absent, then back to unmarked. ' +
+  html += '<div class="inv-panel inv-panel-flush" id="attWeekGrid"><div class="inv-panel-head"><span class="inv-panel-title">Week grid</span></div>' +
+    '<div class="inv-panel-body inv-note">Tap a cell to cycle it: present, half day, absent, then back to unmarked. ' +
     'An unmarked cell is a day nobody typed &mdash; which is not the same fact as a day nobody worked, ' +
-    'and the labour figures below keep the two apart.</div>' +
-    '<div class="inv-att-grid-wrap"><table class="inv-att-grid">' +
-    '<thead><tr><th class="inv-att-grid-name">Worker</th>' +
+    'and the labour figures below keep the two apart. The figure in a cell is the hours that decide the pay: ' +
+    'the whole day for the hourly pool, the overtime for everyone else.</div>' +
+    '<div class="inv-scroll-x"><table class="inv-table inv-table-grid">' +
+    '<thead><tr><th scope="col">Worker</th>' +
     days.map(function(d) {
-      return '<th class="inv-att-grid-day' + (d === localDateStr() ? ' inv-att-grid-today' : '') + (attParseIso(d).getDay() === 0 ? ' inv-att-grid-sun' : '') + '">' +
-        attDayName(d) + '<span class="inv-att-grid-date">' + attParseIso(d).getDate() + '</span></th>';
+      return '<th scope="col"' + (d === today ? ' aria-current="date"' : '') + (attParseIso(d).getDay() === 0 ? ' data-sun' : '') + '>' +
+        attDayName(d) + '<span class="inv-table-grid-date">' + attParseIso(d).getDate() + '</span></th>';
     }).join('') + '</tr></thead><tbody>';
 
   roster.forEach(function(w) {
     var cls = compClass(w.comp);
     var hourly = compIsHourly(w);
-    html += '<tr><th class="inv-att-grid-name"><span class="inv-att-grid-worker">' + escHtml(w.name) + '</span>' +
-      '<span class="inv-att-grid-comp inv-att-badge-' + cls.tone + '" title="' + escHtml(cls.label) + '">' +
-      cls.short + '</span></th>';
+    html += '<tr><th scope="row" title="' + escHtml(w.name + ' · ' + cls.label) + '">' + escHtml(w.name) +
+      '<span class="inv-unit">' + cls.short + '</span></th>';
     days.forEach(function(d) {
       var m = attMark(d, w.id);
       var st = m ? m.st : '';
-      // The corner figure is the hours that decide this worker's pay: the whole
+      // The figure is the hours that decide this worker's pay: the whole
       // day for the hourly pool, the overtime on top for everyone else.
       var badge = m ? (hourly ? (m.hours || 0) : (m.ot || 0)) : 0;
-      html += '<td class="inv-att-grid-cell' + (attParseIso(d).getDay() === 0 ? ' inv-att-grid-sun' : '') + '"><button class="inv-att-cell inv-att-cell-' +
-        (st ? st.toLowerCase() : 'u') + '" data-action="invAttCycle" data-id="' + w.id + '" data-date="' + d +
+      html += '<td' + (attParseIso(d).getDay() === 0 ? ' data-sun' : '') + '><button class="inv-cell inv-cell-' +
+        (st ? ATT_CELL_TONE[st] : 'empty') + '" data-action="invAttCycle" data-id="' + w.id + '" data-date="' + d +
         '" aria-label="' + escHtml(w.name) + ' ' + attDayName(d) + ' ' + (st ? ATT_STATE_LABELS[st] : 'unmarked') +
         (badge ? ', ' + formatNum(badge, 1) + ' hours' : '') + '">' +
-        (st || '·') + (badge ? '<span class="inv-att-cell-ot">' + formatNum(badge, 0) + '</span>' : '') +
+        (st || '&middot;') + (badge ? '<span class="inv-unit">' + formatNum(badge, 0) + '</span>' : '') +
         '</button></td>';
     });
     html += '</tr>';
   });
 
-  html += '</tbody><tfoot><tr><th class="inv-att-grid-name">On site</th>' +
+  html += '</tbody><tfoot><tr><th scope="row">On site</th>' +
     days.map(function(d) {
       var rec = attDay(d, false);
-      if (!rec) return '<td class="inv-att-grid-cell inv-att-grid-foot">&mdash;</td>';
+      if (!rec) return '<td class="inv-num"' + (attParseIso(d).getDay() === 0 ? ' data-sun' : '') + '>&mdash;</td>';
       var n = 0;
       roster.forEach(function(w) {
         var m = rec.marks[w.id];
         if (m && (m.st === 'P' || m.st === 'H')) n++;
       });
-      return '<td class="inv-att-grid-cell inv-att-grid-foot">' + n + '<span class="inv-att-grid-of">/' + roster.length + '</span></td>';
+      return '<td class="inv-num"' + (attParseIso(d).getDay() === 0 ? ' data-sun' : '') + '>' + n + '<span class="inv-unit">/' + roster.length + '</span></td>';
     }).join('') + '</tr></tfoot></table></div></div>';
 
   html += renderLabourCard(_attWeekStart, attAddDays(_attWeekStart, 6), 'Week cost');
@@ -13360,32 +12943,28 @@ function _attRosterView() {
   });
   var activeCount = all.filter(function(w) { return w.active !== false; }).length;
 
-  var html = '<div class="inv-card"><div class="inv-card-header">' +
-    '<span class="inv-card-title">Roster</span>' +
-    '<span class="inv-att-roster-actions">' +
-    '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invAttImportRoster">Import</button>' +
-    '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invAttAddWorker">Add worker</button></span></div>' +
-    '<div class="inv-stats-note">' + activeCount + ' active of ' + all.length + ' on file. ' +
-    'The denominator on every headcount above is this number.</div>';
+  var html = '<div class="inv-toolbar">' +
+    '<button class="inv-btn inv-btn-primary" data-action="invAttAddWorker">Add worker</button>' +
+    '<button class="inv-btn inv-btn-ghost" data-action="invAttImportRoster">Import</button></div>' +
+    '<div class="inv-pagehead"><span class="inv-pagehead-meta">' + activeCount + ' active of ' + all.length + ' on file. ' +
+    'The denominator on every headcount is this number.</span></div>';
 
-  if (all.length === 0) {
-    html += '<div class="inv-empty-state inv-empty-state-sm">Nobody on file yet</div></div>';
-    return html;
-  }
+  html += '<div class="inv-panel inv-panel-flush" id="attRoster"><div class="inv-panel-head"><span class="inv-panel-title">Roster ' +
+    '<span class="inv-panel-count">' + all.length + '</span></span></div>';
+  if (all.length === 0) return html + '<div class="inv-empty">Nobody on file yet</div></div>';
 
   all.forEach(function(w) {
     var cls = compClass(w.comp);
-    html += '<div class="inv-client-item' + (w.active === false ? ' inv-client-inactive' : '') +
-      '" data-action="invAttEditWorker" data-id="' + w.id + '">' +
-      '<div class="inv-client-content"><div class="inv-client-name">' + escHtml(w.name) + '</div>' +
-      '<div class="inv-client-meta inv-mono">' + escHtml(workerRateLabel(w)) + '</div>' +
-      '<div class="inv-client-badges">' +
-      '<span class="inv-att-badge inv-att-badge-' + cls.tone + '">' + escHtml(cls.label) + '</span>' +
-      '<span class="inv-client-badge inv-badge-mode">' + escHtml(areaLabel(w.area)) + '</span>' +
-      (w.onFloor === false ? '<span class="inv-client-badge inv-badge-rate">Off floor</span>' : '') +
-      (w.active === false ? '<span class="inv-client-badge inv-badge-inactive">Inactive</span>' : '') +
-      '</div></div>' +
-      '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg></div>';
+    var inactive = w.active === false;
+    html += '<button class="inv-row inv-row-2 inv-row-flow' + (inactive ? ' inv-row-muted' : '') + '" data-action="invAttEditWorker" data-id="' + w.id + '">' +
+      '<span class="inv-row-main"><span class="inv-row-title">' + escHtml(w.name) + '</span>' +
+      '<span class="inv-row-meta inv-id">' + escHtml(workerRateLabel(w)) + '</span></span>' +
+      '<span class="inv-row-end">' +
+      '<span class="inv-badge">' + escHtml(cls.label) + '</span>' +
+      '<span class="inv-badge">' + escHtml(areaLabel(w.area)) + '</span>' +
+      (w.onFloor === false ? '<span class="inv-badge inv-badge-info">Off floor</span>' : '') +
+      (inactive ? '<span class="inv-badge inv-badge-neutral">Inactive</span>' : '') +
+      '</span></button>';
   });
   return html + '</div>';
 }
@@ -13672,69 +13251,73 @@ function _mergeControl(w) {
   var others = (S.staff || []).filter(function(x) { return x.id !== w.id; });
   if (!others.length) return '';
   others.sort(function(a, b) { return (a.name || '').localeCompare(b.name || ''); });
-  return '<div class="inv-form-group"><label class="inv-form-label" for="wedMergeInto">' +
-    'Merge this worker into</label>' +
-    '<select class="inv-form-select" id="wedMergeInto"><option value="">Select a worker&hellip;</option>' +
+  return _wfield('wedMergeInto', 'Merge this worker into',
+    '<select class="inv-select" id="wedMergeInto"><option value="">Select a worker&hellip;</option>' +
     others.map(function(x) {
       return '<option value="' + x.id + '">' + escHtml(x.name) + '</option>';
-    }).join('') + '</select></div>' +
-    '<div class="inv-stats-note">Use this when one person was entered twice under two ' +
+    }).join('') + '</select>',
+    'Use this when one person was entered twice under two ' +
     'spellings. <strong>' + escHtml(w.name) + '</strong> is the row that disappears &mdash; their days ' +
     'and block crews move to the worker chosen here, so open whichever of the two carries ' +
     'the name you want to keep. A day both rows were marked on is a day that was paid twice; ' +
-    'the merge collapses it to the fuller mark and tells you the dates.</div>' +
-    '<button class="inv-btn inv-btn-ghost inv-btn-sm inv-mb-16" data-action="invAttMergeWorker" ' +
+    'the merge collapses it to the fuller mark and tells you the dates.') +
+    '<button class="inv-btn inv-btn-secondary inv-btn-sm inv-mb-16" data-action="invAttMergeWorker" ' +
     'data-id="' + w.id + '">Merge worker</button>';
+}
+
+/* A labelled field (§6.15), its hint under the control. */
+function _wfield(id, label, control, hint) {
+  return '<div class="inv-field"><label class="inv-field-label" for="' + id + '">' + label + '</label>' + control +
+    (hint ? '<div class="inv-field-hint">' + hint + '</div>' : '') + '</div>';
 }
 
 function _showWorkerOverlay(worker, isAdd) {
   var w = worker || _blankWorker();
   var marks = worker ? _attMarkCount(w.id) : 0;
+  var num = function(id, v, step) {
+    return '<input class="inv-input inv-input-num" id="' + id + '" type="number" step="' + step + '" min="0" value="' + v + '">';
+  };
   var scrim = document.createElement('div');
   scrim.className = 'inv-overlay-scrim';
   scrim.innerHTML = '<div class="inv-overlay-card">' +
-    '<div class="inv-overlay-header"><span class="inv-overlay-title">' + (isAdd ? 'Add Worker' : 'Edit Worker') + '</span>' +
-    '<button class="inv-overlay-close" data-action="invCloseOverlay">&times;</button></div>' +
-    '<div class="inv-form-group"><label class="inv-form-label" for="wedName">Name</label>' +
-    '<input class="inv-form-input" id="wedName" value="' + escHtml(w.name) + '"></div>' +
-    '<div class="inv-form-row"><div class="inv-form-group"><label class="inv-form-label" for="wedComp">Comp class</label>' +
-    '<select class="inv-form-select" id="wedComp">' +
+    '<div class="inv-overlay-header"><span class="inv-overlay-title">' + (isAdd ? 'Add worker' : 'Edit worker') + '</span>' +
+    '<button class="inv-overlay-close" data-action="invCloseOverlay" aria-label="Close">&times;</button></div>' +
+    _wfield('wedName', 'Name', '<input class="inv-input" id="wedName" value="' + escHtml(w.name) + '">') +
+    '<div class="inv-fields">' +
+    _wfield('wedComp', 'Comp class', '<select class="inv-select" id="wedComp">' +
     COMP_CLASSES.map(function(c) {
       return '<option value="' + c.id + '"' + (w.comp === c.id ? ' selected' : '') + '>' + escHtml(c.label) + '</option>';
-    }).join('') + '</select></div>' +
-    '<div class="inv-form-group"><label class="inv-form-label" for="wedArea">Area</label>' +
-    '<select class="inv-form-select" id="wedArea">' + attAreaOptions(w.area) + '</select></div></div>' +
-    '<div class="inv-stats-note">' + COMP_CLASSES.map(function(c) {
+    }).join('') + '</select>') +
+    _wfield('wedArea', 'Area', '<select class="inv-select" id="wedArea">' + attAreaOptions(w.area) + '</select>') +
+    '</div>' +
+    '<div class="inv-note inv-mb-16">' + COMP_CLASSES.map(function(c) {
       return '<strong>' + escHtml(c.label) + '</strong> &mdash; ' + escHtml(c.hint) + '.';
     }).join(' ') + '</div>' +
-    '<div class="inv-form-row"><div class="inv-form-group"><label class="inv-form-label" for="wedDay">Day rate</label>' +
-    '<input class="inv-form-input inv-mono" id="wedDay" type="number" step="0.01" min="0" value="' + (w.dayRate || 0) + '"></div>' +
-    '<div class="inv-form-group"><label class="inv-form-label" for="wedHour">Hour rate</label>' +
-    '<input class="inv-form-input inv-mono" id="wedHour" type="number" step="0.01" min="0" value="' + (w.hourRate || 0) + '"></div></div>' +
-    '<div class="inv-form-group"><label class="inv-form-label" for="wedMonth">Contracted monthly wage (monthly tier only)</label>' +
-    '<input class="inv-form-input inv-mono" id="wedMonth" type="number" step="1" min="0" value="' + (w.monthWage || 0) + '"></div>' +
-    '<div class="inv-stats-note">Leave at zero for a monthly hand paid by the day. A contracted wage is paid as ' +
-    '<span class="inv-mono">wage ÷ days in the month</span> a day, its Sundays are not gated by attendance, and a ' +
-    'Sunday worked adds nothing &mdash; it is inside the wage.</div>' +
-    '<div class="inv-stats-note">The hourly tier uses the hour rate alone. The monthly and daily tiers use the day ' +
-    'rate; leave their hour rate at zero and a monthly worker&rsquo;s overtime derives as <span class="inv-mono">day rate ÷ 8</span>, ' +
+    '<div class="inv-fields">' +
+    _wfield('wedDay', 'Day rate', num('wedDay', w.dayRate || 0, '0.01')) +
+    _wfield('wedHour', 'Hour rate', num('wedHour', w.hourRate || 0, '0.01')) +
+    '</div>' +
+    '<div class="inv-note inv-mb-16">The hourly tier uses the hour rate alone. The monthly and daily tiers use the day ' +
+    'rate; leave their hour rate at zero and a monthly worker&rsquo;s overtime derives as <span class="inv-id">day rate ÷ 8</span>, ' +
     'which is how the rate card&rsquo;s own OT column is built. Wages are counted only for days actually recorded, ' +
     'which is why the labour card states its coverage.</div>' +
-    '<div class="inv-form-group"><label class="inv-form-label" for="wedSpell">Other spellings on the WhatsApp roll</label>' +
-    '<input class="inv-form-input" id="wedSpell" value="' + escHtml((w.relayNames || []).join(', ')) + '" placeholder="e.g. SHARAT, SARAT MAHTO"></div>' +
-    '<div class="inv-stats-note">Paste message reads these as this worker. A name you place on the check screen is added here.</div>' +
-    '<div class="inv-flex-between inv-mb-8"><label class="inv-checkbox-label">' +
-    '<input type="checkbox" id="wedFloor"' + (w.onFloor !== false ? ' checked' : '') + '> On the plant floor</label></div>' +
-    '<div class="inv-stats-note">Clear this for the gate and the office. Their wage is still labour and still in the ' +
+    _wfield('wedMonth', 'Contracted monthly wage (monthly tier only)', num('wedMonth', w.monthWage || 0, '1'),
+      'Leave at zero for a monthly hand paid by the day. A contracted wage is paid as ' +
+      '<span class="inv-id">wage ÷ days in the month</span> a day, its Sundays are not gated by attendance, and a ' +
+      'Sunday worked adds nothing &mdash; it is inside the wage.') +
+    _wfield('wedSpell', 'Other spellings on the WhatsApp roll',
+      '<input class="inv-input" id="wedSpell" value="' + escHtml((w.relayNames || []).join(', ')) + '" placeholder="e.g. SHARAT, SARAT MAHTO">',
+      'Paste message reads these as this worker. A name you place on the check screen is added here.') +
+    '<label class="inv-field inv-toolbar inv-toolbar-flush"><input type="checkbox" class="inv-check" id="wedFloor"' + (w.onFloor !== false ? ' checked' : '') + '> On the plant floor</label>' +
+    '<div class="inv-note inv-mb-16">Clear this for the gate and the office. Their wage is still labour and still in the ' +
     'bill; it is simply not plating cost, and the breakdown splits it out.</div>' +
-    '<div class="inv-flex-between inv-mb-16"><label class="inv-checkbox-label">' +
-    '<input type="checkbox" id="wedActive"' + (w.active !== false ? ' checked' : '') + '> Active</label></div>' +
+    '<label class="inv-field inv-toolbar"><input type="checkbox" class="inv-check" id="wedActive"' + (w.active !== false ? ' checked' : '') + '> Active</label>' +
     (isAdd ? '' : _mergeControl(w)) +
-    (isAdd ? '' : '<button class="inv-btn inv-btn-danger inv-btn-sm inv-mb-16" data-action="invAttDeleteWorker" data-id="' + w.id + '">Delete worker' +
-      (marks > 0 ? ' (' + marks + ' day' + (marks === 1 ? '' : 's') + ' recorded)' : '') + '</button>') +
-    '<div class="inv-btn-bar"><button class="inv-btn inv-btn-ghost" data-action="invCloseOverlay">Cancel</button>' +
+    (isAdd ? '' : '<div><button class="inv-btn inv-btn-danger inv-btn-sm" data-action="invAttDeleteWorker" data-id="' + w.id + '">Delete worker' +
+      (marks > 0 ? ' (' + marks + ' day' + (marks === 1 ? '' : 's') + ' recorded)' : '') + '</button></div>') +
+    '<div class="inv-btn-bar"><button class="inv-btn inv-btn-secondary" data-action="invCloseOverlay">Cancel</button>' +
     '<button class="inv-btn inv-btn-primary" data-action="invAttSaveWorker" data-id="' + w.id +
-    '" data-mode="' + (isAdd ? 'add' : 'edit') + '">' + (isAdd ? 'Add Worker' : 'Save') + '</button></div></div>';
+    '" data-mode="' + (isAdd ? 'add' : 'edit') + '">' + (isAdd ? 'Add worker' : 'Save') + '</button></div></div>';
   scrim.addEventListener('click', function(e) {
     if (e.target === scrim) { scrim.remove(); document.body.style.overflow = ''; popFocus(); }
   });
@@ -14392,16 +13975,19 @@ function showCollisionReport(res) {
   scrim.className = 'inv-overlay-scrim';
   scrim.innerHTML = '<div class="inv-overlay-card">' +
     '<div class="inv-overlay-header"><span class="inv-overlay-title">Days marked on both rows</span>' +
-    '<button class="inv-overlay-close" data-action="invCloseOverlay">&times;</button></div>' +
-    '<div class="inv-stats-note">' + res.collided + ' day' + (res.collided === 1 ? '' : 's') +
+    '<button class="inv-overlay-close" data-action="invCloseOverlay" aria-label="Close">&times;</button></div>' +
+    '<div class="inv-note inv-mb-8">' + res.collided + ' day' + (res.collided === 1 ? '' : 's') +
     ' had a mark on <strong>' + escHtml(res.fromName) + '</strong> and on <strong>' +
     escHtml(res.intoName) + '</strong>. Each has been collapsed to the fuller mark &mdash; a ' +
     'recorded day beats an absence, and the longer day wins between two present marks. ' +
     'Every other day moved across untouched.</div>' +
-    '<ul class="inv-list-plain inv-mono">' +
-    res.collisionDays.map(function(d) { return '<li>' + escHtml(d) + '</li>'; }).join('') +
-    '</ul>' +
-    '<div class="inv-stats-note">Those days were entered twice before this merge. ' +
+    '<div class="inv-panel inv-panel-flush inv-scroll" id="mergeCollisions">' +
+    res.collisionDays.map(function(d) {
+      return '<div class="inv-row"><span class="inv-row-main inv-id">' + escHtml(d) + '</span>' +
+        '<span class="inv-row-end inv-row-meta">' + escHtml(attDayName(d) + ' ' + formatDate(d)) + '</span></div>';
+    }).join('') +
+    '</div>' +
+    '<div class="inv-callout inv-callout-warning">Those days were entered twice before this merge. ' +
     'Check them against the payout for that week &mdash; the app cannot tell whether the ' +
     'double entry reached one.</div>' +
     '<div class="inv-btn-bar"><button class="inv-btn inv-btn-primary" ' +
@@ -14802,10 +14388,27 @@ function labourPerKgVerdict(lab, tonnageKg) {
   return { ok: true, perKg: lab.total / tonnageKg };
 }
 
+/* A figure on a labour card (§6.10): what it is, what it rests on, and the figure, mono at the row's end. */
 function _labRow(label, value, sub) {
-  return '<div class="inv-lab-row"><span class="inv-lab-label">' + label +
-    (sub ? '<span class="inv-lab-sub">' + sub + '</span>' : '') + '</span>' +
-    '<span class="inv-lab-value inv-mono">' + value + '</span></div>';
+  return '<div class="inv-row' + (sub ? ' inv-row-2' : '') + '"><span class="inv-row-main"><span class="inv-row-title inv-row-wrap">' + label + '</span>' +
+    (sub ? '<span class="inv-row-meta inv-row-wrap">' + sub + '</span>' : '') + '</span>' +
+    '<span class="inv-row-end inv-num">' + value + '</span></div>';
+}
+/* How a figure on the card is made: a padded stretch between the rows (a note, or a caveat as a callout). */
+function _labNote(html) { return '<div class="inv-panel-body inv-note">' + html + '</div>'; }
+function _labCallout(html, tone) {
+  return '<div class="inv-panel-body"><div class="inv-callout' + (tone ? ' inv-callout-' + tone : '') + '">' + html + '</div></div>';
+}
+/* A tile on a card's strip (§6.9). `key` names it for whoever reads the card back (data-tile). */
+function _labTile(key, label, value, sub, tone) {
+  return '<div class="inv-tile' + (tone ? ' inv-tile-' + tone : '') + '" data-tile="' + key + '"><div class="inv-tile-label">' + label + '</div>' +
+    '<div class="inv-tile-value">' + value + '</div>' + (sub ? '<div class="inv-tile-sub">' + sub + '</div>' : '') + '</div>';
+}
+/* The card itself: a flush panel, its total in the head. */
+function _labPanelHead(card, title, total, extraClass, id) {
+  return '<div class="inv-panel inv-panel-flush' + (extraClass ? ' ' + extraClass : '') + '" data-card="' + card + '"' + (id ? ' id="' + id + '"' : '') + '>' +
+    '<div class="inv-panel-head"><span class="inv-panel-title">' + escHtml(title) + '</span>' +
+    (total != null ? '<span class="inv-num" data-card-total>' + total + '</span>' : '') + '</div>';
 }
 
 /* Where the variable hours went.
@@ -14845,13 +14448,13 @@ function _labAreaRows(lab) {
     };
   });
 
-  return '<div class="inv-lab-area-title">Variable labour by area</div>' +
-    chartRankedBars(rows, { unit: 'money' }) +
-    '<div class="inv-stats-note">Hourly pool, daily tier, overtime and extra hours, placed by the area each ' +
+  return '<div class="inv-row-group">Variable labour by area</div>' +
+    '<div class="inv-panel-body">' + chartRankedBars(rows, { unit: 'money' }) +
+    '<div class="inv-note inv-mt-8">Hourly pool, daily tier, overtime and extra hours, placed by the area each ' +
     'was worked in. <strong>The monthly tier&rsquo;s day pay and rest days are not in here</strong> &mdash; that ' +
     'crew is the standing one and its cost does not follow the area it happened to stand in, so splitting it ' +
     'would print an allocation nobody measured. Their overtime <em>is</em> in here, because an overtime hour ' +
-    'was worked somewhere specific and was paid for being worked.</div>';
+    'was worked somewhere specific and was paid for being worked.</div></div>';
 }
 
 /* The breakdown card. Used by the Attendance tab for a day or a week (cash
@@ -14859,22 +14462,43 @@ function _labAreaRows(lab) {
 function renderLabourCard(fromIso, toIso, title, tonnage, extraClass) {
   var lab = labourForRange(fromIso, toIso);
   var cfg = labourCfg();
-  var html = '<div class="inv-card inv-lab-card' + (extraClass ? ' ' + extraClass : '') +
-    '"><div class="inv-card-header">' +
-    '<span class="inv-card-title">' + escHtml(title || 'Labour') + '</span>' +
-    '<span class="inv-lab-total inv-mono">' + formatCurrency(lab.total) + '</span></div>';
+  var html = _labPanelHead('labour', title || 'Labour', formatCurrency(lab.total), extraClass);
 
   if (lab.rosterSize === 0) {
-    return html + '<div class="inv-empty-state inv-empty-state-sm">Nobody on the roster</div></div>';
+    return html + '<div class="inv-empty">Nobody on the roster</div></div>';
   }
 
-  html += '<div class="inv-lab-split">' +
-    '<div class="inv-lab-half inv-lab-fixed"><div class="inv-lab-half-label">Fixed</div>' +
-    '<div class="inv-lab-half-value inv-mono">' + formatCurrency(lab.fixed) + '</div>' +
-    '<div class="inv-lab-half-sub">monthly tier, days and rest</div></div>' +
-    '<div class="inv-lab-half inv-lab-variable"><div class="inv-lab-half-label">Variable</div>' +
-    '<div class="inv-lab-half-value inv-mono">' + formatCurrency(lab.variable) + '</div>' +
-    '<div class="inv-lab-half-sub">hourly, daily, OT and extra</div></div></div>';
+  // Fixed and variable, and — where there is tonnage to divide by — the ₹/kg, as one strip: in Stats the ₹/kg
+  // is the headline, so it leads rather than sitting under the breakdown.
+  var tiles = _labTile('fixed', 'Fixed', formatCurrency(lab.fixed), 'monthly tier, days and rest') +
+    _labTile('variable', 'Variable', formatCurrency(lab.variable), 'hourly, daily, OT and extra');
+  var after = '';
+  if (tonnage) {
+    var verdict = labourPerKgVerdict(lab, tonnage.kg);
+    if (verdict.ok) {
+      var gap = cfg.modelPerKg > 0 ? verdict.perKg - cfg.modelPerKg : null;
+      tiles += _labTile('perkg', 'Measured labour', formatCurrency(verdict.perKg) + '<span class="inv-tile-of">/kg</span>',
+        gap != null
+          ? 'against ' + formatCurrency(cfg.modelPerKg) + '/kg modelled &mdash; ' + (Math.abs(gap) < 0.005 ? 'the same figure'
+              : formatCurrency(Math.abs(gap)) + '/kg ' + (gap > 0 ? 'higher' : 'lower'))
+          : '');
+      if (lab.rangeDays < LABOUR_PERKG_LAG_DAYS) {
+        after += _labCallout('Read that as an order of magnitude, not a rate. The labour is ' +
+          'this period&rsquo;s; the tonnage under it is what was <strong>billed</strong> in this period, and ' +
+          'material is plated weeks before it is invoiced. Over a quarter or a year the two line up; over ' +
+          'a month they measure partly different work.');
+      }
+      if (tonnage.coverage < 0.999) {
+        after += _labCallout('That ₹/kg divides the whole labour bill by tonnage covering <strong>' +
+          Math.round(tonnage.coverage * 100) + '% of revenue</strong>. The unweighed lines are the piece-billed work, ' +
+          'so the real denominator is larger and the true labour cost per kilo is <strong>lower</strong> than this. ' +
+          'Items Master &rarr; Derive weights from rates closes it.');
+      }
+    } else {
+      tiles += _labTile('perkg-withheld', '₹/kg withheld', '&mdash;', verdict.why);
+    }
+  }
+  html += '<div class="inv-tiles inv-tiles-flush">' + tiles + '</div>' + after;
 
   // One row per tier that actually has something in it. A tier nobody is on
   // renders nothing rather than a zero: a zero reads as a measurement.
@@ -14908,42 +14532,11 @@ function renderLabourCard(fromIso, toIso, title, tonnage, extraClass) {
   html += _labRow('On the floor', formatCurrency(lab.floor),
     lab.offFloor > 0 ? formatCurrency(lab.offFloor) + ' off floor (gate, office)' : 'all of it');
 
-  if (tonnage) {
-    var verdict = labourPerKgVerdict(lab, tonnage.kg);
-    if (verdict.ok) {
-      var gap = cfg.modelPerKg > 0 ? verdict.perKg - cfg.modelPerKg : null;
-      html += '<div class="inv-lab-perkg"><span class="inv-lab-perkg-value inv-mono">' +
-        formatCurrency(verdict.perKg) + '/kg</span><span class="inv-lab-perkg-label">measured labour</span>' +
-        (gap != null
-          ? '<span class="inv-lab-perkg-model">against ' + formatCurrency(cfg.modelPerKg) +
-            '/kg modelled &mdash; ' + (Math.abs(gap) < 0.005 ? 'the same figure'
-              : formatCurrency(Math.abs(gap)) + '/kg ' + (gap > 0 ? 'higher' : 'lower')) + '</span>'
-          : '') +
-        '</div>';
-      if (lab.rangeDays < LABOUR_PERKG_LAG_DAYS) {
-        html += '<div class="inv-stats-caveat">Read that as an order of magnitude, not a rate. The labour is ' +
-          'this period&rsquo;s; the tonnage under it is what was <strong>billed</strong> in this period, and ' +
-          'material is plated weeks before it is invoiced. Over a quarter or a year the two line up; over ' +
-          'a month they measure partly different work.</div>';
-      }
-      if (tonnage.coverage < 0.999) {
-        html += '<div class="inv-stats-caveat">That ₹/kg divides the whole labour bill by tonnage covering <strong>' +
-          Math.round(tonnage.coverage * 100) + '% of revenue</strong>. The unweighed lines are the piece-billed work, ' +
-          'so the real denominator is larger and the true labour cost per kilo is <strong>lower</strong> than this. ' +
-          'Items Master &rarr; Derive weights from rates closes it.</div>';
-      }
-    } else {
-      html += '<div class="inv-lab-perkg inv-lab-perkg-none"><span class="inv-lab-perkg-value">&mdash;</span>' +
-        '<span class="inv-lab-perkg-label">₹/kg withheld</span>' +
-        '<span class="inv-lab-perkg-model">' + verdict.why + '</span></div>';
-    }
-  }
-
   // Coverage, always, in the same place whether it is complete or not. A card
   // that only mentions its gaps when it has them teaches the reader to stop
   // looking for the line.
   var covPct = Math.round(lab.coverage * 100);
-  html += '<div class="inv-stats-note">Recorded <strong>' + lab.daysRecorded + ' of ' + lab.workingDays +
+  html += _labNote('Recorded <strong>' + lab.daysRecorded + ' of ' + lab.workingDays +
     ' working days</strong> in this range (' + covPct + '%)' +
     (lab.sundaysRecorded > 0 ? ', plus ' + lab.sundaysRecorded + ' Sunday' + (lab.sundaysRecorded === 1 ? '' : 's') : '') + '. ' +
     (lab.coverage < 0.999
@@ -14954,26 +14547,24 @@ function renderLabourCard(fromIso, toIso, title, tonnage, extraClass) {
     (lab.restDaysInRange > 0 && lab.rangeDays < 28
       ? ' The rest-day gate is a monthly rule; over a range shorter than a month it judges each rest day on this range&rsquo;s attendance alone.'
       : '') +
-    (lab.dailyRest > 0 && lab.rangeDays > 7 ? ' Daily rest credit is gated on days inside this range, so a range cutting a week in half under-credits that week.' : '') +
-    '</div>';
+    (lab.dailyRest > 0 && lab.rangeDays > 7 ? ' Daily rest credit is gated on days inside this range, so a range cutting a week in half under-credits that week.' : ''));
 
   if (lab.ratelessWorkers.length > 0) {
-    html += '<div class="inv-stats-caveat">Hours are recorded for <strong>' +
+    html += _labCallout('Hours are recorded for <strong>' +
       escHtml(lab.ratelessWorkers.join(', ')) + '</strong> with no rate to price them at, so those hours ' +
-      'are counted in the totals above and paid at zero. Set the rate in Roster to bring them into the bill.</div>';
+      'are counted in the totals above and paid at zero. Set the rate in Roster to bring them into the bill.', 'warning');
   }
 
   // The allocation answer sits last: it is a breakdown of a figure the reader
-  // has already been given, and in Stats the ₹/kg is the headline that must not
-  // be pushed below a chart.
+  // has already been given.
   html += _labAreaRows(lab);
 
   if (lab.extra > 0) {
     var share = lab.total > 0 ? (lab.extra / lab.total) * 100 : 0;
-    html += '<div class="inv-stats-note"><strong>' + formatNum(share, 1) + '% of this bill</strong> is extra hours ' +
+    html += _labNote('<strong>' + formatNum(share, 1) + '% of this bill</strong> is extra hours ' +
       'booked to an area rather than to a person. That is what &ldquo;the extra&rdquo; on the daily sheet is: ' +
       'real paid contract hours with no name against them. They are not spread across the men present, because ' +
-      'a per-worker cost invented that way would answer the fixed-versus-variable question by accident.</div>';
+      'a per-worker cost invented that way would answer the fixed-versus-variable question by accident.');
   }
 
   return html + '</div>';
@@ -15721,16 +15312,16 @@ function openAreaExplain(payload) {
   scrim.className = 'inv-overlay-scrim';
   scrim.innerHTML = '<div class="inv-overlay-card">' +
     '<div class="inv-overlay-header"><span class="inv-overlay-title">Explain this exception</span>' +
-    '<button class="inv-overlay-close" data-action="invCloseOverlay">&times;</button></div>' +
-    '<div class="inv-stats-note">' + escHtml(d.label) + ' &middot; ' + formatDate(d.iso) + ' &mdash; ' +
-    'booked <span class="inv-mono">' + formatNum(d.booked, 1) + ' h</span> against a predicted ' +
-    '<span class="inv-mono">' + formatNum(d.expected, 1) + ' h</span>. Say what the record shows, ' +
+    '<button class="inv-overlay-close" data-action="invCloseOverlay" aria-label="Close">&times;</button></div>' +
+    '<div class="inv-note inv-mb-8">' + escHtml(d.label) + ' &middot; ' + formatDate(d.iso) + ' &mdash; ' +
+    'booked <span class="inv-num">' + formatNum(d.booked, 1) + ' h</span> against a predicted ' +
+    '<span class="inv-num">' + formatNum(d.expected, 1) + ' h</span>. Say what the record shows, ' +
     'so the next reader inherits the finding rather than the puzzle.</div>' +
-    '<div class="inv-form-group"><label class="inv-form-label" for="areaExReason">Reason</label>' +
-    '<textarea class="inv-form-input" id="areaExReason" rows="3" ' +
+    '<div class="inv-field"><label class="inv-field-label" for="areaExReason">Reason</label>' +
+    '<textarea class="inv-textarea" id="areaExReason" rows="3" ' +
     'placeholder="e.g. no fold value reconciles both rows of this block"></textarea></div>' +
     '<div class="inv-btn-bar">' +
-    '<button class="inv-btn inv-btn-ghost" data-action="invCloseOverlay">Cancel</button>' +
+    '<button class="inv-btn inv-btn-secondary" data-action="invCloseOverlay">Cancel</button>' +
     '<button class="inv-btn inv-btn-primary" data-action="invAreaExplainSave">Record it</button>' +
     '</div></div>';
   document.body.appendChild(scrim);
@@ -15766,25 +15357,16 @@ function _attAreasView() {
   var to = attAddDays(_attWeekStart, _areaSpan * 7 - 1);
   var stats = areaStats(from, to);
 
-  var html = '<div class="inv-att-nav">' +
-    '<button class="inv-att-nav-btn" data-action="invAttWeekStep" data-step="-1" aria-label="Earlier">' +
-    '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg></button>' +
-    '<div class="inv-att-nav-label"><span class="inv-att-week-num">' +
-    (_areaSpan === 1 ? 'Week ' + attPayWeekNumber(from) : _areaSpan + ' weeks') + '</span>' +
-    '<span class="inv-att-nav-day">' + formatDate(from) + ' &ndash; ' + formatDate(to) + '</span></div>' +
-    '<button class="inv-att-nav-btn" data-action="invAttWeekStep" data-step="1" aria-label="Later">' +
-    '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg></button>' +
-    '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invAttThisWeek">This week</button>' +
-    '</div>';
+  var html = _attStepper('invAttWeekStep', _attWeekLabel(_areaSpan === 1 ? 'Week ' + attPayWeekNumber(from) : _areaSpan + ' weeks',
+    formatDate(from) + ' &ndash; ' + formatDate(to)), 'invAttThisWeek', 'This week', 'Earlier', 'Later');
 
-  html += '<div class="inv-stats-chips inv-mb-16">' +
+  html += '<div class="inv-seg inv-mb-8" role="group" aria-label="Span">' +
     [[1, '1 week'], [4, '4 weeks'], [12, '12 weeks']].map(function(s) {
-      return '<button class="inv-chip' + (_areaSpan === s[0] ? ' inv-chip-active' : '') +
-        '" data-action="invAreaSpan" data-span="' + s[0] + '">' + s[1] + '</button>';
+      return '<button class="inv-seg-btn" aria-pressed="' + (_areaSpan === s[0]) + '" data-action="invAreaSpan" data-span="' + s[0] + '">' + s[1] + '</button>';
     }).join('') + '</div>';
 
   if (stats.recordedDays === 0) {
-    return html + '<div class="inv-card"><div class="inv-empty-state inv-empty-state-sm">' +
+    return html + '<div class="inv-panel"><div class="inv-empty">' +
       'No attendance recorded in this range. Mark some days and the floor appears here.</div></div>';
   }
 
@@ -15800,26 +15382,25 @@ function _attAreasView() {
     return (b.paidHours + b.extraHours + b.dayTierDays * 8) - (a.paidHours + a.extraHours + a.dayTierDays * 8);
   });
 
-  html += '<div class="inv-card"><div class="inv-card-header"><span class="inv-card-title">Staffing by area</span></div>' +
-    '<div class="inv-stats-note">Heads are counted from the day’s marks, so a worker moved to another area ' +
+  html += '<div class="inv-panel inv-panel-flush" id="areaStaffing"><div class="inv-panel-head"><span class="inv-panel-title">Staffing by area</span></div>' +
+    '<div class="inv-panel-body inv-note">Heads are counted from the day’s marks, so a worker moved to another area ' +
     'counts where they actually stood. Set a complement to see the variance; leave it blank and the area’s own ' +
     'median stands as the only reference &mdash; and the extra above cannot be checked without one. ' +
     'Averages are over the <strong>' + stats.recordedDays +
     ' recorded day' + (stats.recordedDays === 1 ? '' : 's') + '</strong> in this range, not over the calendar.</div>';
 
   rows.forEach(function(a) { html += _areaRow(a); });
-  html += '</div>';
-
-  html += _areaAbsorptionCard(stats);
 
   var flex = stats.rows.find(function(a) { return a.id === 'flex'; });
   if (flex && flex.headDays > 0) {
-    html += '<div class="inv-stats-caveat"><strong>' + formatNum(flex.headDays, 0) + ' worker-day' +
+    html += _labCallout('<strong>' + formatNum(flex.headDays, 0) + ' worker-day' +
       (flex.headDays === 1 ? '' : 's') + '</strong> sit on Flex and are counted against no area. ' +
       'A floating hand is a fact about the day rather than a gap to fill by guesswork &mdash; but every one of ' +
-      'them is missing from the staffing figures above. Set the area on the day view to move them.</div>';
+      'them is missing from the staffing figures above. Set the area on the day view to move them.');
   }
+  html += '</div>';
 
+  html += _areaAbsorptionCard(stats);
   return html;
 }
 
@@ -15854,15 +15435,13 @@ function _areaExtraCard(stats) {
   var unmannedH = stats.units.reduce(function(s, u) { return s + u.unmannedHours; }, 0);
   var unmannedDays = stats.units.reduce(function(s, u) { return s + u.unmannedDays; }, 0);
 
-  var html = '<div class="inv-card inv-lab-card"><div class="inv-card-header">' +
-    '<span class="inv-card-title">The extra, checked</span>' +
-    '<span class="inv-lab-total inv-mono">' + formatNum(totalExtra, 1) + ' h</span></div>';
+  var html = _labPanelHead('extra', 'The extra, checked', formatNum(totalExtra, 1) + ' h', '', 'areaExtra');
 
   if (totalExtra === 0 && stats.expectedExtra === 0 && stats.blockHours === 0) {
     // Nothing to reconcile — but say WHY nothing was expected, because on a
     // day with lines standing idle that is an assumption doing real work.
     var idleQuiet = stats.idleDays;
-    return html + '<div class="inv-empty-state inv-empty-state-sm">No extra hours booked, and every area ' +
+    return html + '<div class="inv-empty">No extra hours booked, and every area ' +
       'that ran was at its complement' +
       (idleQuiet > 0 ? ' &mdash; ' + idleQuiet + ' unit-day' + (idleQuiet === 1 ? '' : 's') +
         ' were idle and not counted' : '') + '</div></div>';
@@ -15871,33 +15450,32 @@ function _areaExtraCard(stats) {
   // The headline comparison, when there is a norm to compare against.
   if (stats.normed > 0) {
     var gap = stats.bookedInNormed - stats.expectedExtra;
-    var tone = Math.abs(gap) < 0.001 ? 'inv-lab-fixed' : (gap > 0 ? 'inv-area-gap-over' : 'inv-area-gap-under');
-    html += '<div class="inv-lab-split">' +
-      '<div class="inv-lab-half inv-lab-fixed"><div class="inv-lab-half-label">Expected</div>' +
-      '<div class="inv-lab-half-value inv-mono">' + formatNum(stats.expectedExtra, 1) + ' h</div>' +
-      '<div class="inv-lab-half-sub">' + formatNum(cfg.extraHoursPerHead, 0) + ' h &times; each missing hand</div></div>' +
-      '<div class="inv-lab-half ' + tone + '"><div class="inv-lab-half-label">Booked</div>' +
-      '<div class="inv-lab-half-value inv-mono">' + formatNum(stats.bookedInNormed, 1) + ' h</div>' +
-      '<div class="inv-lab-half-sub">' + (Math.abs(gap) < 0.001 ? 'exactly as predicted'
-        : formatNum(Math.abs(gap), 1) + ' h ' + (gap > 0 ? 'more than the shortfall explains' : 'less than the shortfall allows')) +
-      '</div></div></div>';
+    // More booked than the shortfall explains is the case the rule forbids (a caution); less is an upper
+    // bound read loosely, not an error, so it takes no tone.
+    html += '<div class="inv-tiles inv-tiles-flush">' +
+      _labTile('expected', 'Expected', formatNum(stats.expectedExtra, 1) + '<span class="inv-tile-of"> h</span>',
+        formatNum(cfg.extraHoursPerHead, 0) + ' h &times; each missing hand') +
+      _labTile('booked', 'Booked', formatNum(stats.bookedInNormed, 1) + '<span class="inv-tile-of"> h</span>',
+        Math.abs(gap) < 0.001 ? 'exactly as predicted'
+          : formatNum(Math.abs(gap), 1) + ' h ' + (gap > 0 ? 'more than the shortfall explains' : 'less than the shortfall allows'),
+        gap > 0.001 ? 'warning' : (Math.abs(gap) < 0.001 ? 'ok' : '')) + '</div>';
 
     if (gap > 0.001) {
-      html += '<div class="inv-stats-caveat"><strong>More was booked than the shortfall explains.</strong> ' +
+      html += _labCallout('<strong>More was booked than the shortfall explains.</strong> ' +
         'Under the rule every extra hour answers a missing hand, so a surplus has to come from somewhere the ' +
         'rule does not describe &mdash; hours on top of named columns rather than instead of them, a tag on a ' +
-        'full area, or a quantity written larger than the gap. The rows below say which areas and which days.</div>';
+        'full area, or a quantity written larger than the gap. The rows below say which areas and which days.', 'warning');
     } else if (gap < -0.001) {
-      html += '<div class="inv-stats-note">Less was booked than the shortfall allows. That is not in itself ' +
+      html += _labNote('Less was booked than the shortfall allows. That is not in itself ' +
         'wrong: the rule applies to an area running at full tilt, and an area that was short <em>and</em> ' +
         'running light needs no coverage. Nothing here measures per-area output, so the expected figure is an ' +
-        '<strong>upper bound</strong> rather than a target.</div>';
+        '<strong>upper bound</strong> rather than a target.');
     }
   } else {
-    html += '<div class="inv-stats-caveat">No complement is set on any area, so there is no shortfall to ' +
+    html += _labCallout('No complement is set on any area, so there is no shortfall to ' +
       'predict from and the extra cannot be checked &mdash; only counted. Set the norms below ' +
       '(VAT A1 and A2 at 4, Barrel 3, Barrel pickling 2, Pickling A1+A2 3 is the floor\u2019s own full house) ' +
-      'and this card starts answering the question it exists for.</div>';
+      'and this card starts answering the question it exists for.');
   }
 
   var share = (totalPaid + totalExtra) > 0 ? (totalExtra / (totalPaid + totalExtra)) * 100 : 0;
@@ -15918,7 +15496,7 @@ function _areaExtraCard(stats) {
       'the rule predicts nothing here');
     html += _areaFlagList(atNorm, function(f) {
       return formatNum(f.d.booked, 1) + ' h on ' + f.d.heads + '/' + f.d.norm;
-    }, 'inv-area-flag');
+    }, 'danger');
   }
   if (unmannedDays > 0) {
     html += _labRow('Read as fully short', formatNum(unmannedH, 1) + ' h',
@@ -15930,7 +15508,7 @@ function _areaExtraCard(stats) {
       'short, and covered by a different number of hours');
     html += _areaFlagList(mism, function(f) {
       return formatNum(f.d.booked, 1) + ' h against ' + formatNum(f.d.short * cfg.extraHoursPerHead, 1) + ' h';
-    }, 'inv-area-flag inv-area-flag-warn');
+    }, 'warning');
   }
   if (unbooked.length > 0) {
     html += _labRow('Short, nothing booked', unbooked.length + ' unit-day' + (unbooked.length === 1 ? '' : 's'),
@@ -15941,11 +15519,11 @@ function _areaExtraCard(stats) {
       'nobody stood on it and nothing was booked to it');
   }
   if (unmannedDays > 0) {
-    html += '<div class="inv-stats-note">A unit nobody was marked on that still carries hours is ' +
+    html += _labNote('A unit nobody was marked on that still carries hours is ' +
       'read as <strong>fully short and fully covered</strong> &mdash; a zero-head pickling row against ' +
       'a norm of three booking 24 hours is 8 &times; 3 exactly. It counts on both sides of the check ' +
       'rather than neither, so it does not fail it. What it does say is that the marks for that day ' +
-      'were never typed.</div>';
+      'were never typed.');
   }
   if (stats.blockHours > 0) html += _areaBlockSection(stats);
 
@@ -15958,19 +15536,19 @@ function _areaExtraCard(stats) {
   // disagreements too. Gated on the shift ones alone it rendered "30.0 h
   // against 14.0 h" and "every booking reconciles exactly" one after the other.
   if (atNorm.length === 0 && mism.length === 0 && stats.blockMismatched.length === 0 && stats.normed > 0) {
-    html += '<div class="inv-stats-note">Every booking in this range sits on an area that was short by ' +
-      'exactly the hands the hours pay for. That is the whole cross-check the record supports, and it passes.</div>';
+    html += _labNote('<span class="inv-dot inv-dot-ok">Passed</span> Every booking in this range sits on an area that was short by ' +
+      'exactly the hands the hours pay for. That is the whole cross-check the record supports, and it passes.');
   } else if (atNorm.length > 0) {
-    html += '<div class="inv-stats-caveat">These are flags on the <strong>paperwork</strong>. Hours booked to ' +
+    html += _labCallout('These are flags on the <strong>paperwork</strong>. Hours booked to ' +
       'the wrong area, an area assignment nobody typed, and hours that were never worked all look identical ' +
       'from here, and so does a day the relay simply recorded loosely. What the card gives you is the area and ' +
-      'the date &mdash; the sheet settles the rest.</div>';
+      'the date &mdash; the sheet settles the rest.');
   }
 
-  html += '<div class="inv-stats-note"><strong>extra /head-day</strong> in the table below is the area&rsquo;s extra ' +
+  html += _labNote('<strong>extra /head-day</strong> in the staffing rows below is the area&rsquo;s extra ' +
     'hours divided by its worker-days &mdash; the hours each body standing there carried beyond their own ' +
     'recorded time. Under the norm-gap rule that absorption is real and pro-rata, which is what the ' +
-    'card below it ranks; it stays out of the wage arithmetic because the payout is pooled, not per-worker.</div>';
+    'card below it ranks; it stays out of the wage arithmetic because the payout is pooled, not per-worker.');
 
   return html + '</div>';
 }
@@ -15984,10 +15562,10 @@ function _areaExtraCard(stats) {
    for a 3-hour morning slot are not the same finding, and one total would
    report neither. */
 function _areaBlockSection(stats) {
-  var html = '<div class="inv-area-blocks"><div class="inv-stats-note"><strong>OT blocks</strong> ' +
+  var html = '<div id="areaBlocks"><div class="inv-row-group">OT blocks</div>' + _labNote('<strong>OT blocks</strong> ' +
     'book the extra the same way a general shift does &mdash; against the shortfall in the area ' +
     'that ran &mdash; credited the block&rsquo;s own hours rather than a full eight. The named ' +
-    'hands&rsquo; own overtime is a separate figure and is not in here.</div>';
+    'hands&rsquo; own overtime is a separate figure and is not in here.');
 
   if (stats.blockReconciled > 0) {
     html += _labRow('Expected across the blocks', formatNum(stats.blockExpected, 1) + ' h',
@@ -16000,52 +15578,40 @@ function _areaBlockSection(stats) {
   if (part.open.length > 0) {
     html += _labRow('Booked, but not the predicted amount', part.open.length + ' block' +
       (part.open.length === 1 ? '' : 's'), 'the block\u2019s shortfall explains a different number');
-    html += '<div class="inv-area-flags">';
     part.open.slice(0, 8).forEach(function(b) {
-      html += '<div class="inv-area-flag inv-area-flag-warn">' +
-        '<span class="inv-area-flag-area">' + escHtml(b.label) + '</span>' +
-        '<span class="inv-area-flag-date">' + formatDate(b.iso) + '</span>' +
-        '<span class="inv-area-flag-hours inv-mono">' + formatNum(b.booked, 1) + ' h against ' +
-        formatNum(b.expected, 1) + ' h</span>' +
-        '<button class="inv-area-flag-explain" data-action="invAreaExplain" ' +
+      html += _areaFlagRow('warning', b.label, b.iso, formatNum(b.booked, 1) + ' h against ' + formatNum(b.expected, 1) + ' h', '',
+        '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invAreaExplain" ' +
         'data-ex="' + encodeURIComponent(JSON.stringify({
           iso: b.iso, scope: b.scope, key: b.key, kind: b.kind,
           label: b.label, expected: b.expected, booked: b.booked
-        })) + '">Explain</button></div>';
+        })) + '">Explain</button>');
     });
-    html += '</div>';
   } else if (stats.blockReconciled > 0 && part.acked.length === 0) {
-    html += '<div class="inv-stats-note">Every block row sits on a shortfall that explains its ' +
-      'hours exactly. That is the whole cross-check the record supports, and it passes.</div>';
+    html += _labNote('<span class="inv-dot inv-dot-ok">Passed</span> Every block row sits on a shortfall that explains its ' +
+      'hours exactly. That is the whole cross-check the record supports, and it passes.');
   }
 
   if (part.stale.length > 0) {
     html += _labRow('Explanation no longer matches', part.stale.length + ' block' +
       (part.stale.length === 1 ? '' : 's'), 'the figures moved since it was written');
-    html += '<div class="inv-stats-caveat">An exception is granted against the numbers it was ' +
+    html += _labCallout('An exception is granted against the numbers it was ' +
       'written about. These have changed since &mdash; a crew corrected, a tag retyped &mdash; so ' +
       'the note no longer describes what is here and the disagreement is listed again above. ' +
-      'Explain it afresh rather than letting an old note quietly cover a new problem.</div>';
+      'Explain it afresh rather than letting an old note quietly cover a new problem.', 'warning');
   }
 
   if (part.acked.length > 0) {
     html += _labRow('Explained exceptions', part.acked.length + ' block' +
       (part.acked.length === 1 ? '' : 's'), 'examined, and the reason is on the record');
-    html += '<div class="inv-area-flags">';
     part.acked.slice(0, 8).forEach(function(a) {
-      html += '<div class="inv-area-flag inv-area-flag-ack">' +
-        '<span class="inv-area-flag-area">' + escHtml(a.x.label || a.d.label) + '</span>' +
-        '<span class="inv-area-flag-date">' + formatDate(a.d.iso) + '</span>' +
-        '<span class="inv-area-flag-hours inv-mono">' + formatNum(a.d.booked, 1) + ' h against ' +
-        formatNum(a.d.expected, 1) + ' h</span>' +
-        '<span class="inv-area-flag-reason">' + escHtml(a.x.reason) + '</span>' +
-        '<button class="inv-area-flag-explain" data-action="invAreaUnexplain" ' +
-        'data-key="' + encodeURIComponent(exceptionKey(a.x)) + '">Reopen</button></div>';
+      html += _areaFlagRow('ack', a.x.label || a.d.label, a.d.iso,
+        formatNum(a.d.booked, 1) + ' h against ' + formatNum(a.d.expected, 1) + ' h', escHtml(a.x.reason),
+        '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invAreaUnexplain" ' +
+        'data-key="' + encodeURIComponent(exceptionKey(a.x)) + '">Reopen</button>');
     });
-    html += '</div>';
-    html += '<div class="inv-stats-note">These are the cases the rule does <strong>not</strong> ' +
+    html += _labNote('These are the cases the rule does <strong>not</strong> ' +
       'reproduce, kept as records rather than smoothed away. A rule whose exceptions are named is ' +
-      'one you can trust the rest of; a rule with none is one nobody has tested.</div>';
+      'one you can trust the rest of; a rule with none is one nobody has tested.');
   }
 
   // Never reconciled at a guess, and never silently dropped either.
@@ -16054,28 +15620,34 @@ function _areaBlockSection(stats) {
     html += _labRow('Not checkable', formatNum(ih, 1) + ' h',
       stats.blockIncomplete.length + ' row' + (stats.blockIncomplete.length === 1 ? '' : 's') +
       ' missing times, crew or a complement');
-    html += '<div class="inv-stats-caveat">A block is checked against <strong>its own length ' +
+    html += _labCallout('A block is checked against <strong>its own length ' +
       '&times; its own shortfall</strong>, so it needs all three: the in and out times give the ' +
       'multiplier, the named crew gives the head count (the day&rsquo;s marks cannot &mdash; a hand ' +
       'on one area all day turns up in another area&rsquo;s evening block), and the areas it covers ' +
       'give the complement. These hours are still counted in the bill; they are simply not ' +
-      'evidence about staffing.</div>';
+      'evidence about staffing.');
   }
 
   return html + '</div>';
 }
 
-function _areaFlagList(flags, detail, cls) {
-  var html = '<div class="inv-area-flags">';
-  flags.slice(0, 8).forEach(function(f) {
-    html += '<div class="' + cls + '"><span class="inv-area-flag-area">' + escHtml(f.a.label) + '</span>' +
-      '<span class="inv-area-flag-date">' + formatDate(f.d.iso) + '</span>' +
-      '<span class="inv-area-flag-hours inv-mono">' + detail(f) + '</span></div>';
-  });
+/* A disagreement on the card: the area and the day, the hours, and — once somebody has examined it — the
+   reason on the record. `tone` is danger (booked at complement), warning (not the predicted amount) or ack
+   (explained: a record, not a flag, so it reads neutral). */
+var AREA_FLAG_WORD = { danger: 'At complement', warning: 'Differs', ack: 'Explained' };
+function _areaFlagRow(tone, label, iso, hours, reason, action) {
+  return '<div class="inv-row inv-row-2" data-flag="' + tone + '"><span class="inv-row-main">' +
+    '<span class="inv-row-title"><span class="inv-dot inv-dot-' + (tone === 'ack' ? 'neutral' : tone) + '">' + escHtml(label) + '</span></span>' +
+    '<span class="inv-row-meta inv-row-wrap">' + formatDate(iso) + ' &middot; ' + AREA_FLAG_WORD[tone] + (reason ? ' &middot; ' + reason : '') + '</span></span>' +
+    '<span class="inv-row-end"><span class="inv-num">' + hours + '</span>' + (action || '') + '</span></div>';
+}
+function _areaFlagList(flags, detail, tone) {
+  var html = '';
+  flags.slice(0, 8).forEach(function(f) { html += _areaFlagRow(tone, f.a.label, f.d.iso, detail(f)); });
   if (flags.length > 8) {
-    html += '<div class="' + cls + ' inv-area-flag-more">' + (flags.length - 8) + ' more</div>';
+    html += '<div class="inv-row" data-flag="more"><span class="inv-row-meta">' + (flags.length - 8) + ' more</span></div>';
   }
-  return html + '</div>';
+  return html;
 }
 
 /* Who carried the coverage. Ranked, because the question this answers is which
@@ -16085,43 +15657,41 @@ function _areaAbsorptionCard(stats) {
   if (!rows || rows.length === 0) return '';
   var cfg = labourCfg();
   var total = rows.reduce(function(s, r) { return s + r.hours; }, 0);
-  var html = '<div class="inv-card"><div class="inv-card-header">' +
-    '<span class="inv-card-title">The extra, paid pro-rata</span>' +
-    '<span class="inv-lab-total inv-mono">' + formatCurrency(gstRound(total * cfg.extraRate)) + '</span></div>' +
-    '<div class="inv-stats-note">The extra is booked to an area, and <strong>the area&rsquo;s present crew ' +
+  var html = _labPanelHead('absorb', 'The extra, paid pro-rata', formatCurrency(gstRound(total * cfg.extraRate)), '', 'areaAbsorb') +
+    _labNote('The extra is booked to an area, and <strong>the area&rsquo;s present crew ' +
     'receive it pro-rata</strong> (owner, 28 Aug 2026). It stays under the <strong>EXTRA</strong> line of the ' +
     'bill &mdash; one pooled figure, <strong>disbursed by the supervisor on the floor</strong> &mdash; and these shares ' +
     'are the split he disburses it by. Nothing here enters the per-worker wage arithmetic; the bill counts the ' +
-    'extra exactly once, and this card says who it reaches.</div>';
+    'extra exactly once, and this card says who it reaches.');
   var flagged = 0;
   rows.slice(0, 12).forEach(function(r) {
     if (r.implausible) flagged++;
-    html += '<div class="inv-stats-row"><span class="inv-stats-name">' + escHtml(r.name) +
-      (r.implausible ? '<span class="inv-area-absorb-flag">more than a shift</span>' : '') + '</span>' +
-      '<span class="inv-stats-val">' + formatCurrency(gstRound(r.hours * cfg.extraRate)) +
-      '<span class="inv-area-absorb-days"> · ' + formatNum(r.hours, 1) + ' h · ' +
-      formatNum(r.perDay, 1) + ' h/day over ' + r.days +
-      ' day' + (r.days === 1 ? '' : 's') + '</span></span></div>';
+    html += '<div class="inv-row inv-row-2"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(r.name) + '</span>' +
+      '<span class="inv-row-meta inv-row-wrap">' + formatNum(r.hours, 1) + ' h &middot; ' +
+      formatNum(r.perDay, 1) + ' h/day over ' + r.days + ' day' + (r.days === 1 ? '' : 's') + '</span></span>' +
+      '<span class="inv-row-end">' + (r.implausible ? '<span class="inv-badge inv-badge-warning" data-implausible>More than a shift</span>' : '') +
+      '<span class="inv-num">' + formatCurrency(gstRound(r.hours * cfg.extraRate)) + '</span></span></div>';
   });
   if (flagged > 0) {
-    html += '<div class="inv-stats-caveat">Marked rows are paid more in a day than a body could stand on top ' +
+    html += _labCallout('Marked rows are paid more in a day than a body could stand on top ' +
       'of their own shift &mdash; twenty-four coverage hours against two present hands is twelve each. The ' +
       'ruling names the payee; it does not repeal arithmetic. Check those rows against the record before ' +
-      'reading them as settled pay.</div>';
+      'reading them as settled pay.', 'warning');
   }
   return html + '</div>';
 }
 
+/* An area's staffing (§6.10): its status as a dot and a word — over is a caution, under is short, at
+   complement is fine — its heads and extra as figures, what was paid for work done here, and its complement. */
 function _areaRow(a) {
   var target = a.target;
-  var tone = '';
-  var badge = '';
+  var staffing = 'none', tone = 'neutral', word = 'No complement';
   if (target != null) {
     var v = a.avgHeads - target;
     // Half a head either way is rounding on a small crew, not a staffing call.
-    if (v >= 0.5) { tone = ' inv-area-over'; badge = '+' + formatNum(v, 1) + ' over'; }
-    else if (v <= -0.5) { tone = ' inv-area-under'; badge = formatNum(v, 1) + ' under'; }
-    else { tone = ' inv-area-ok'; badge = 'at complement'; }
+    if (v >= 0.5) { staffing = 'over'; tone = 'warning'; word = '+' + formatNum(v, 1) + ' over'; }
+    else if (v <= -0.5) { staffing = 'under'; tone = 'danger'; word = formatNum(v, 1) + ' under'; }
+    else { staffing = 'ok'; tone = 'ok'; word = 'At complement'; }
   }
 
   // NOTE on the basis. This figure is what was PAID FOR WORK DONE IN THIS AREA:
@@ -16136,36 +15706,26 @@ function _areaRow(a) {
   if (a.hours > 0) bits.push(formatNum(a.hours, 1) + ' pool h');
   if (a.otHours > 0) bits.push(formatNum(a.otHours, 1) + ' OT h');
 
-  return '<div class="inv-area-row' + tone + '">' +
-    '<div class="inv-area-head">' +
-    '<span class="inv-area-name">' + escHtml(a.label) +
-    (a.floor ? '' : '<span class="inv-area-offfloor">off floor</span>') + '</span>' +
-    (badge ? '<span class="inv-area-badge">' + badge + '</span>' : '<span class="inv-area-badge inv-area-badge-none">no complement</span>') +
-    '</div>' +
-    '<div class="inv-area-grid">' +
-    '<div class="inv-area-stat"><span class="inv-area-stat-value inv-mono">' + formatNum(a.avgHeads, 1) + '</span>' +
-    '<span class="inv-area-stat-label">avg heads</span></div>' +
-    '<div class="inv-area-stat"><span class="inv-area-stat-value inv-mono">' + formatNum(a.medianHeads, 1) + '</span>' +
-    '<span class="inv-area-stat-label">median</span></div>' +
-    '<div class="inv-area-stat"><span class="inv-area-stat-value inv-mono">' + formatNum(a.extraHours, 1) +
-    (a.blockHours > 0 ? '<span class="inv-area-stat-vs">' + formatNum(a.blockHours, 0) + ' blk</span>' : '') + '</span>' +
-    '<span class="inv-area-stat-label">extra h</span></div>' +
-    '<div class="inv-area-stat"><span class="inv-area-stat-value inv-mono">' +
-    (a.impliedPerHead != null ? formatNum(a.impliedPerHead, 1) : '&mdash;') + '</span>' +
-    '<span class="inv-area-stat-label">extra /head-day</span></div>' +
-    '</div>' +
-    '<div class="inv-area-foot">' +
-    '<span class="inv-area-detail">' + (bits.length ? escHtml(bits.join(' · ')) : 'nothing recorded') +
-    (a.extraShare > 0 ? ' · extra is ' + formatNum(a.extraShare * 100, 0) + '% of its hours' : '') + '</span>' +
-    '<span class="inv-area-cost inv-mono" title="All tiers, work done here: day and hour pay, OT, ' +
-    'and the extra booked to this area. Not the labour card\u2019s variable-by-area figure.">' +
-    formatCurrency(a.cost) + '<span class="inv-area-cost-basis">worked here</span></span>' +
-    '</div>' +
-    '<div class="inv-area-target"><label class="inv-area-target-label" for="areaTgt-' + a.id + '">Complement</label>' +
-    '<input type="number" class="inv-form-input inv-mono inv-area-target-input" id="areaTgt-' + a.id +
+  var figs = formatNum(a.avgHeads, 1) + ' avg heads · ' + formatNum(a.medianHeads, 1) + ' median · ' +
+    formatNum(a.extraHours, 1) + ' extra h' + (a.blockHours > 0 ? ' (' + formatNum(a.blockHours, 0) + ' blk)' : '') + ' · ' +
+    (a.impliedPerHead != null ? formatNum(a.impliedPerHead, 1) : '—') + ' extra /head-day';
+
+  return '<div class="inv-row inv-row-flow inv-row-auto inv-row-top" data-area-row="' + a.id + '" data-staffing="' + staffing + '">' +
+    '<span class="inv-row-main"><span class="inv-row-title">' + escHtml(a.label) +
+    (a.floor ? '' : ' <span class="inv-badge">Off floor</span>') + '</span>' +
+    '<span class="inv-row-meta inv-row-wrap">' + figs + '</span>' +
+    '<span class="inv-row-meta inv-row-wrap">' + (bits.length ? escHtml(bits.join(' · ')) : 'nothing recorded') +
+    (a.extraShare > 0 ? ' · extra is ' + formatNum(a.extraShare * 100, 0) + '% of its hours' : '') + '</span></span>' +
+    '<span class="inv-row-end">' +
+    '<span class="inv-row-stack"><span class="inv-dot inv-dot-' + tone + '">' + word + '</span>' +
+    '<span class="inv-num" title="All tiers, work done here: day and hour pay, OT, ' +
+    'and the extra booked to this area. Not the labour card’s variable-by-area figure.">' +
+    formatCurrency(a.cost) + '<span class="inv-unit">worked here</span></span></span>' +
+    '<span class="inv-field"><label class="inv-field-label" for="areaTgt-' + a.id + '">Complement</label>' +
+    '<input type="number" class="inv-input inv-input-sm inv-input-num" id="areaTgt-' + a.id +
     '" data-area-target data-area="' + a.id + '" step="1" min="0" placeholder="—" value="' +
-    (target != null ? target : '') + '" aria-label="Expected heads in ' + escHtml(a.label) + '"></div>' +
-    '</div>';
+    (target != null ? target : '') + '" aria-label="Expected heads in ' + escHtml(a.label) + '"></span>' +
+    '</span></div>';
 }
 
 function setAreaSpan(n) {
@@ -16304,15 +15864,8 @@ function paySigned(n) { return (n > 0 ? '+' : n < 0 ? '&minus;' : '') + escHtml(
 
 function _attPayView() {
   var ws = _attWeekStart, sat = attAddDays(ws, 6);
-  var html = '<div class="inv-att-nav">' +
-    '<button class="inv-att-nav-btn" data-action="invAttWeekStep" data-step="-1" aria-label="Previous week">' +
-    '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg></button>' +
-    '<div class="inv-att-nav-label"><span class="inv-att-week-num">Week ' + attPayWeekNumber(ws) + '</span>' +
-    '<span class="inv-att-nav-day">Paid Sat ' + formatDate(sat) + '</span></div>' +
-    '<button class="inv-att-nav-btn" data-action="invAttWeekStep" data-step="1" aria-label="Next week">' +
-    '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg></button>' +
-    '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invAttThisWeek">This week</button>' +
-    '</div>';
+  var html = _attStepper('invAttWeekStep', _attWeekLabel('Week ' + attPayWeekNumber(ws), 'Paid Sat ' + formatDate(sat)),
+    'invAttThisWeek', 'This week', 'Previous week', 'Next week');
   html += _payForecastCard(ws);
   html += _payDueCard(ws);
   html += _payHistoryCard(ws);
@@ -16322,61 +15875,69 @@ function _attPayView() {
   return html;
 }
 
+/* A worker's or a week's figure on a pay card (§6.10): who or what, what it rests on, the money at the end. */
+function _payRow(title, sub, end, attrs, cls) {
+  var tag = attrs && attrs.indexOf('data-action') >= 0 ? 'button' : 'div';
+  return '<' + tag + ' class="inv-row' + (sub ? ' inv-row-2' : '') + (cls ? ' ' + cls : '') + '"' + (attrs || '') + '>' +
+    '<span class="inv-row-main"><span class="inv-row-title inv-row-wrap">' + title + '</span>' +
+    (sub ? '<span class="inv-row-meta inv-row-wrap">' + sub + '</span>' : '') + '</span>' +
+    '<span class="inv-row-end">' + end + '</span></' + tag + '>';
+}
+
 function _payForecastCard(ws) {
   var f = payForecast(ws), wk = f.week;
-  var tone = f.swing == null ? 'inv-pay-blue' : (f.swingPct != null && f.swingPct > 0.15 ? 'inv-area-gap-over'
-    : (f.swingPct != null && f.swingPct < -0.15 ? 'inv-area-gap-under' : 'inv-pay-blue'));
-  var h = '<div class="inv-card inv-pay-card" id="payForecast"><div class="inv-card-header"><span class="inv-card-title">Weekly payout</span>' +
-    '<span class="inv-lab-total inv-mono">' + payMoney(f.open ? f.predicted : wk.total) + '</span></div>' +
-    '<div class="inv-lab-split">' +
-    '<div class="inv-lab-half inv-pay-green"><div class="inv-lab-half-label">' + (f.open ? 'So far' : 'The week') + '</div>' +
-    '<div class="inv-lab-half-value inv-mono">' + payMoney(wk.total) + '</div>' +
-    '<div class="inv-lab-half-sub">' + wk.recordedDays + ' of 6 working days recorded' + (wk.sundays ? ' + Sunday' : '') + '</div></div>' +
-    '<div class="inv-lab-half ' + tone + '"><div class="inv-lab-half-label">' + (f.open ? 'Predicted' : 'Against the median') + '</div>' +
-    '<div class="inv-lab-half-value inv-mono">' + (f.open ? payMoney(f.predicted) : (f.swing == null ? '&mdash;' : paySigned(f.swing))) + '</div>' +
-    '<div class="inv-lab-half-sub">' + (f.open
-      ? (f.basis === 'pace' ? f.missing + ' day' + (f.missing === 1 ? '' : 's') + ' at this week&rsquo;s pace, ' + payMoney(f.pace) + '/day'
-        : f.basis === 'median' ? 'nothing recorded yet: the median stands in' : 'every working day recorded')
-      : (f.swingPct == null ? 'no earlier weeks to compare' : (f.swing >= 0 ? '+' : '&minus;') + formatNum(Math.abs(f.swingPct) * 100, 0) + '% of the median')) + '</div></div></div>';
-  h += '<div class="inv-lab-row"><span class="inv-lab-label">Median week<span class="inv-lab-sub">' +
-    (f.medianWeeks ? 'of the ' + f.medianWeeks + ' recorded week' + (f.medianWeeks === 1 ? '' : 's') + ' in the ' + PAY_HISTORY_WEEKS + ' before' : 'no recorded weeks before this one') +
-    '</span></span><span class="inv-lab-value inv-mono">' + (f.median == null ? '&mdash;' : payMoney(f.median)) + '</span></div>';
+  // A week well above the usual is a caution, not an error; one well below says nothing on its own.
+  var tone = f.swingPct != null && f.swingPct > 0.15 ? 'warning' : '';
+  var h = _labPanelHead('payout', 'Weekly payout', payMoney(f.open ? f.predicted : wk.total), '', 'payForecast');
+  h += '<div class="inv-tiles inv-tiles-flush">' +
+    _labTile('sofar', f.open ? 'So far' : 'The week', payMoney(wk.total),
+      wk.recordedDays + ' of 6 working days recorded' + (wk.sundays ? ' + Sunday' : '')) +
+    _labTile('predicted', f.open ? 'Predicted' : 'Against the median', f.open ? payMoney(f.predicted) : (f.swing == null ? '&mdash;' : paySigned(f.swing)),
+      f.open
+        ? (f.basis === 'pace' ? f.missing + ' day' + (f.missing === 1 ? '' : 's') + ' at this week&rsquo;s pace, ' + payMoney(f.pace) + '/day'
+          : f.basis === 'median' ? 'nothing recorded yet: the median stands in' : 'every working day recorded')
+        : (f.swingPct == null ? 'no earlier weeks to compare' : (f.swing >= 0 ? '+' : '&minus;') + formatNum(Math.abs(f.swingPct) * 100, 0) + '% of the median'),
+      tone) + '</div>';
+  h += _payRow('Median week', f.medianWeeks ? 'of the ' + f.medianWeeks + ' recorded week' + (f.medianWeeks === 1 ? '' : 's') + ' in the ' + PAY_HISTORY_WEEKS + ' before' : 'no recorded weeks before this one',
+    '<span class="inv-num">' + (f.median == null ? '&mdash;' : payMoney(f.median)) + '</span>');
   if (f.open && f.swing != null) {
-    h += '<div class="inv-lab-row"><span class="inv-lab-label">Swing from the median<span class="inv-lab-sub">predicted less median</span></span>' +
-      '<span class="inv-lab-value inv-mono" id="paySwing">' + paySigned(f.swing) + ' (' + (f.swing >= 0 ? '+' : '&minus;') + formatNum(Math.abs(f.swingPct) * 100, 0) + '%)</span></div>';
+    h += _payRow('Swing from the median', 'predicted less median',
+      '<span class="inv-num" id="paySwing">' + paySigned(f.swing) + ' (' + (f.swing >= 0 ? '+' : '&minus;') + formatNum(Math.abs(f.swingPct) * 100, 0) + '%)</span>');
   }
-  h += '<div class="inv-lab-row"><span class="inv-lab-label">Hourly and daily tiers<span class="inv-lab-sub">their pay, OT and rest credit</span></span><span class="inv-lab-value inv-mono">' + payMoney(wk.workers) + '</span></div>' +
-    '<div class="inv-lab-row"><span class="inv-lab-label">EXTRA pool<span class="inv-lab-sub">' + formatNum(wk.lab.extraHours, 1) + ' h, disbursed by the supervisor</span></span><span class="inv-lab-value inv-mono">' + payMoney(wk.extra) + '</span></div>' +
-    '<div class="inv-stats-note">The weekly tiers and the EXTRA pool, as recorded. The monthly tier is paid by the month and is in the due list below, not here. A day nobody typed is not a day nobody worked: the prediction fills unrecorded days at the week&rsquo;s pace, and the figure so far reads low until they are in.</div>';
+  h += _payRow('Hourly and daily tiers', 'their pay, OT and rest credit', '<span class="inv-num">' + payMoney(wk.workers) + '</span>') +
+    _payRow('EXTRA pool', formatNum(wk.lab.extraHours, 1) + ' h, disbursed by the supervisor', '<span class="inv-num">' + payMoney(wk.extra) + '</span>') +
+    _labNote('The weekly tiers and the EXTRA pool, as recorded. The monthly tier is paid by the month and is in the due list below, not here. A day nobody typed is not a day nobody worked: the prediction fills unrecorded days at the week&rsquo;s pace, and the figure so far reads low until they are in.');
   return h + '</div>';
 }
 
 function _payDueCard(ws) {
   var d = payDue(ws);
   var monthName = attParseIso(d.mFrom).toLocaleString('en-IN', { month: 'long', year: 'numeric' });
-  var h = '<div class="inv-card inv-pay-card" id="payDue"><div class="inv-card-header"><span class="inv-card-title">Due by worker</span></div>';
+  var h = _labPanelHead('due', 'Due by worker', null, '', 'payDue');
   var group = function(title, rows) {
     if (!rows.length) return '';
     var tot = rows.reduce(function(s, r) { return s + r.due; }, 0);
-    var g = '<div class="inv-stk-label inv-mt-8">' + title + '</div>';
+    var g = '<div class="inv-row-group">' + title + '</div>';
     rows.forEach(function(r) {
       var e = r.earned, bits = [];
       if (e.days) bits.push(formatNum(e.days, 1) + ' day' + (e.days === 1 ? '' : 's'));
       if (r.w.comp === 'hourly' && e.hours) bits.push(formatNum(e.hours, 1) + ' h');
       if (e.otHours) bits.push('OT ' + formatNum(e.otHours, 1) + ' h');
       if (e.rest) bits.push('rest ' + payMoney(e.rest));
-      g += '<button class="inv-lab-row inv-pay-row" data-action="invPayPick" data-id="' + escHtml(r.w.id) + '" data-due="' + r.due + '">' +
-        '<span class="inv-lab-label">' + escHtml(r.w.name) + '<span class="inv-lab-sub">' +
+      // A negative due is an advance not yet worked off: said in a word beside the figure.
+      g += _payRow(escHtml(r.w.name),
         (bits.length ? bits.join(' · ') + ' · ' : 'nothing recorded · ') + 'earned ' + payMoney(e.total) +
-        (r.asPaid ? ' · as paid, from the slip' : r.paid ? ' &minus; paid ' + payMoney(r.paid) : '') + '</span></span>' +
-        '<span class="inv-lab-value inv-mono' + (r.due < 0 ? ' inv-pay-over' : '') + '">' + payMoney(r.due) + '</span></button>';
+          (r.asPaid ? ' · as paid, from the slip' : r.paid ? ' &minus; paid ' + payMoney(r.paid) : ''),
+        r.due < 0 ? '<span class="inv-row-stack"><span class="inv-num">' + payMoney(r.due) + '</span><span class="inv-dot inv-dot-warning">Advance</span></span>'
+          : '<span class="inv-num">' + payMoney(r.due) + '</span>',
+        ' data-action="invPayPick" data-id="' + escHtml(r.w.id) + '" data-due="' + r.due + '"');
     });
-    g += '<div class="inv-lab-row inv-pay-total"><span class="inv-lab-label">Total due</span><span class="inv-lab-value inv-mono">' + payMoney(gstRound(tot)) + '</span></div>';
+    g += _payRow('Total due', '', '<span class="inv-num">' + payMoney(gstRound(tot)) + '</span>', '', 'inv-row-strong');
     return g;
   };
   h += group('Weekly &middot; paid Sat ' + formatDate(d.sat), d.rows.filter(function(r) { return r.weekly; }));
   h += group('Monthly &middot; ' + escHtml(monthName), d.rows.filter(function(r) { return !r.weekly; }));
-  h += '<div class="inv-stats-note">Earned is worked out from the days recorded, on the labour card&rsquo;s own rates. A negative due is an advance not yet worked off. Tap a worker to pay what is due.</div>';
+  h += _labNote('Earned is worked out from the days recorded, on the labour card&rsquo;s own rates. A negative due is an advance not yet worked off. Tap a worker to pay what is due.');
   h += _payFormHtml(d);
   h += _payListHtml(d);
   return h + '</div>';
@@ -16385,19 +15946,15 @@ function _payDueCard(ws) {
 function _payFormHtml(d) {
   var today = localDateStr();
   var defDate = today >= d.weekStart && today <= d.sat ? today : d.sat;
-  return '<div class="inv-stk-label inv-mt-8">Record a payment</div>' +
-    '<div class="inv-form-row"><div class="inv-form-group"><label class="inv-form-label" for="payWorker">Worker</label>' +
-    '<select class="inv-form-select" id="payWorker"><option value="">Select&hellip;</option>' +
-    staffActive().map(function(w) { return '<option value="' + escHtml(w.id) + '">' + escHtml(w.name) + '</option>'; }).join('') + '</select></div>' +
-    '<div class="inv-form-group"><label class="inv-form-label" for="payKind">Kind</label>' +
-    '<select class="inv-form-select" id="payKind"><option value="payment">Payment</option><option value="advance">Advance</option></select></div></div>' +
-    '<div class="inv-form-row"><div class="inv-form-group"><label class="inv-form-label" for="payAmount">Amount</label>' +
-    '<input class="inv-form-input inv-mono" id="payAmount" type="number" step="0.01" min="0" inputmode="decimal"></div>' +
-    '<div class="inv-form-group"><label class="inv-form-label" for="payDate">Date</label>' +
-    '<input class="inv-form-input" id="payDate" type="date" value="' + defDate + '"></div></div>' +
-    '<div class="inv-form-group"><label class="inv-form-label" for="payNote">Note</label>' +
-    '<input class="inv-form-input" id="payNote" placeholder="optional"></div>' +
-    '<button class="inv-btn inv-btn-primary inv-btn-sm" data-action="invPaySave">Save payment</button>';
+  var f = function(id, label, control) { return '<div class="inv-field"><label class="inv-field-label" for="' + id + '">' + label + '</label>' + control + '</div>'; };
+  return '<div class="inv-row-group">Record a payment</div><div class="inv-panel-body" id="payForm"><div class="inv-fields">' +
+    f('payWorker', 'Worker', '<select class="inv-select" id="payWorker"><option value="">Select&hellip;</option>' +
+      staffActive().map(function(w) { return '<option value="' + escHtml(w.id) + '">' + escHtml(w.name) + '</option>'; }).join('') + '</select>') +
+    f('payKind', 'Kind', '<select class="inv-select" id="payKind"><option value="payment">Payment</option><option value="advance">Advance</option></select>') +
+    f('payAmount', 'Amount', '<input class="inv-input inv-input-num" id="payAmount" type="number" step="0.01" min="0" inputmode="decimal">') +
+    f('payDate', 'Date', '<input class="inv-input inv-id" id="payDate" type="date" value="' + defDate + '">') +
+    '</div>' + f('payNote', 'Note', '<input class="inv-input" id="payNote" placeholder="optional">') +
+    '<button class="inv-btn inv-btn-primary" data-action="invPaySave">Save payment</button></div>';
 }
 
 function _payListHtml(d) {
@@ -16407,14 +15964,15 @@ function _payListHtml(d) {
     return weekly ? (p.date >= d.weekStart && p.date <= d.sat) : (p.date >= d.mFrom && p.date <= d.mTo);
   }).sort(function(a, b) { return a.date < b.date ? 1 : a.date > b.date ? -1 : (b.at || 0) - (a.at || 0); });
   if (!list.length) return '';
-  var h = '<div class="inv-stk-label inv-mt-8">Payments in these periods</div>';
+  var h = '<div class="inv-row-group">Payments in these periods</div>';
   list.forEach(function(p) {
     var w = (S.staff || []).find(function(x) { return String(x.id) === String(p.staffId); });
-    h += '<div class="inv-lab-row' + (p.voidedAt ? ' inv-pay-void' : '') + '"><span class="inv-lab-label">' + escHtml(w ? w.name : 'Removed worker') +
-      '<span class="inv-lab-sub">' + escHtml(formatDate(p.date)) + ' · ' + (p.kind === 'advance' ? 'Advance' : 'Payment') +
-      (p.note ? ' · ' + escHtml(p.note) : '') + (p.voidedAt ? ' · void: ' + escHtml(p.voidReason || '') : '') + '</span></span>' +
-      '<span class="inv-lab-value inv-mono">' + payMoney(Number(p.amount) || 0) +
-      (p.voidedAt ? '' : ' <button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invPayVoid" data-id="' + escHtml(p.id) + '">Void</button>') + '</span></div>';
+    h += _payRow(escHtml(w ? w.name : 'Removed worker'),
+      escHtml(formatDate(p.date)) + ' · ' + (p.kind === 'advance' ? 'Advance' : 'Payment') +
+        (p.note ? ' · ' + escHtml(p.note) : '') + (p.voidedAt ? ' · void: ' + escHtml(p.voidReason || '') : ''),
+      '<span class="inv-num">' + payMoney(Number(p.amount) || 0) + '</span>' +
+        (p.voidedAt ? '' : '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invPayVoid" data-id="' + escHtml(p.id) + '">Void</button>'),
+      ' data-payment="' + escHtml(p.id) + '"', p.voidedAt ? 'inv-row-muted' : '');
   });
   return h;
 }
@@ -16424,16 +15982,16 @@ function _payHistoryCard(ws) {
   for (var i = PAY_HISTORY_WEEKS - 1; i >= 0; i--) weeks.push(payWeek(attAddDays(ws, -7 * i)));
   // The same median the forecast reads: the twelve weeks before this one.
   var median = payForecast(ws).median;
-  var h = '<div class="inv-card inv-pay-card" id="payHistory"><div class="inv-card-header"><span class="inv-card-title">Weekly payouts</span>' +
-    '<span class="inv-lab-sub">median ' + (median == null ? '&mdash;' : payMoney(median)) + '</span></div>';
-  h += '<div class="inv-pay-chart">' + chartBars(weeks.map(function(w) { return { label: 'W' + attPayWeekNumber(w.start), value: w.total }; }), { ariaLabel: 'Weekly payout' }) + '</div>';
+  var h = '<div class="inv-panel inv-panel-flush" id="payHistory"><div class="inv-panel-head"><span class="inv-panel-title">Weekly payouts</span>' +
+    '<span class="inv-panel-count">median ' + (median == null ? '&mdash;' : payMoney(median)) + '</span></div>';
+  h += '<div class="inv-panel-body">' + chartBars(weeks.map(function(w) { return { label: 'W' + attPayWeekNumber(w.start), value: w.total }; }), { ariaLabel: 'Weekly payout' }) + '</div>';
   weeks.slice().reverse().forEach(function(w) {
     var swing = median != null && w.recordedDays > 0 ? gstRound(w.total - median) : null;
-    h += '<div class="inv-lab-row inv-pay-week"><span class="inv-lab-label">Week ' + attPayWeekNumber(w.start) + ' &middot; Sat ' + escHtml(formatDate(w.sat)) +
-      '<span class="inv-lab-sub">' + (w.recordedDays ? w.recordedDays + ' day' + (w.recordedDays === 1 ? '' : 's') + ' recorded' : 'nothing recorded') +
-      (w.paid ? ' · paid ' + payMoney(w.paid) : '') +
-      (swing != null ? ' · ' + paySigned(swing) + ' against the median' : '') + '</span></span>' +
-      '<span class="inv-lab-value inv-mono">' + payMoney(w.total) + '</span></div>';
+    h += _payRow('Week ' + attPayWeekNumber(w.start) + ' &middot; Sat ' + escHtml(formatDate(w.sat)),
+      (w.recordedDays ? w.recordedDays + ' day' + (w.recordedDays === 1 ? '' : 's') + ' recorded' : 'nothing recorded') +
+        (w.paid ? ' · paid ' + payMoney(w.paid) : '') +
+        (swing != null ? ' · ' + paySigned(swing) + ' against the median' : ''),
+      '<span class="inv-num">' + payMoney(w.total) + '</span>', ' data-week="' + w.start + '"');
   });
   return h + '</div>';
 }
@@ -16557,31 +16115,31 @@ function _monthLabel(month) {
 }
 function _payrollPaidCard() {
   var recs = payrollPaidRecords().slice().sort(function(a, b) { return a.month < b.month ? 1 : a.month > b.month ? -1 : (b.at || 0) - (a.at || 0); });
-  var h = '<div class="inv-card inv-pay-card" id="payrollPaid"><div class="inv-card-header"><span class="inv-card-title">Monthly payroll as paid</span>' +
+  var h = '<div class="inv-panel inv-panel-flush" id="payrollPaid"><div class="inv-panel-head"><span class="inv-panel-title">Monthly payroll as paid</span>' +
     '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invPayrollImport">Import</button>' +
     '<input type="file" accept=".json,application/json" id="payrollFileInput" class="inv-hidden"></div>';
   if (!recs.length) {
-    h += '<div class="inv-stats-note">No closed month is on record, so every month of the monthly tier is worked out from ' +
-      'the attendance marks. Import the payroll file built from the slips and a closed month is read as it was paid.</div>';
-    return h + '</div>';
+    return h + _labNote('No closed month is on record, so every month of the monthly tier is worked out from ' +
+      'the attendance marks. Import the payroll file built from the slips and a closed month is read as it was paid.') + '</div>';
   }
   recs.forEach(function(r) {
     var gross = r.rows.reduce(function(s, x) { return s + (Number(x.dayPay) || 0) + (Number(x.ot) || 0); }, 0);
     var otH = r.rows.reduce(function(s, x) { return s + (Number(x.otHours) || 0); }, 0);
     var unmatched = r.rows.filter(function(x) { return !payrollWorker(x); }).map(function(x) { return x.name; });
-    h += '<div class="inv-lab-row' + (r.voidedAt ? ' inv-pay-void' : '') + '"><span class="inv-lab-label">' + escHtml(_monthLabel(r.month)) +
-      '<span class="inv-lab-sub">' + r.rows.length + ' hand' + (r.rows.length === 1 ? '' : 's') +
-      (otH ? ' · OT ' + formatNum(otH, 1) + ' h' : '') + (r.status === 'computed' ? ' · computed, not confirmed paid' : ' · as paid') +
-      (r.source ? ' · ' + escHtml(r.source) : '') +
-      (unmatched.length ? ' · not on the roster: ' + escHtml(unmatched.join(', ')) : '') +
-      (r.note ? ' · ' + escHtml(r.note) : '') +
-      (r.voidedAt ? ' · void: ' + escHtml(r.voidReason || '') : '') + '</span></span>' +
-      '<span class="inv-lab-value inv-mono">' + payMoney(gstRound(gross)) +
-      (r.voidedAt ? '' : ' <button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invPayrollVoid" data-id="' + escHtml(r.id) + '">Void</button>') + '</span></div>';
+    h += _payRow(escHtml(_monthLabel(r.month)),
+      r.rows.length + ' hand' + (r.rows.length === 1 ? '' : 's') +
+        (otH ? ' · OT ' + formatNum(otH, 1) + ' h' : '') + (r.status === 'computed' ? ' · computed, not confirmed paid' : ' · as paid') +
+        (r.source ? ' · ' + escHtml(r.source) : '') +
+        (unmatched.length ? ' · not on the roster: ' + escHtml(unmatched.join(', ')) : '') +
+        (r.note ? ' · ' + escHtml(r.note) : '') +
+        (r.voidedAt ? ' · void: ' + escHtml(r.voidReason || '') : ''),
+      '<span class="inv-num">' + payMoney(gstRound(gross)) + '</span>' +
+        (r.voidedAt ? '' : '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invPayrollVoid" data-id="' + escHtml(r.id) + '">Void</button>'),
+      '', r.voidedAt ? 'inv-row-muted' : '');
   });
-  h += '<div class="inv-stats-note">A closed month on record replaces the attendance model for the monthly tier &mdash; ' +
+  h += _labNote('A closed month on record replaces the attendance model for the monthly tier &mdash; ' +
     'here, on the labour card and in the live cost &mdash; for the hands it names; a monthly hand it does not name is still modelled. ' +
-    'The month in progress is always modelled.</div>';
+    'The month in progress is always modelled.');
   return h + '</div>';
 }
 
@@ -16665,17 +16223,15 @@ function areaHoursForRange(from, to) {
 function areaHoursCard(from, to) {
   var r = areaHoursForRange(from, to);
   if (!r.rows.length) return '';
-  var h = '<div class="inv-card inv-pay-card" id="areaHours"><div class="inv-card-header"><span class="inv-card-title">Hours by area</span>' +
-    '<span class="inv-lab-total inv-mono">' + formatNum(r.total, 1) + ' h</span></div>';
+  var h = _labPanelHead('hours', 'Hours by area', formatNum(r.total, 1) + ' h', '', 'areaHours');
   r.rows.forEach(function(a) {
     var bits = [formatNum(a.workerDays, 1) + ' worker-day' + (a.workerDays === 1 ? '' : 's'), formatNum(a.hours, 1) + ' h worked'];
     if (a.ot) bits.push('OT ' + formatNum(a.ot, 1) + ' h of it');
     if (a.extra) bits.push('EXTRA ' + formatNum(a.extra, 1) + ' h');
-    h += '<div class="inv-lab-row"><span class="inv-lab-label">' + escHtml(a.label) + '<span class="inv-lab-sub">' + bits.join(' · ') + '</span></span>' +
-      '<span class="inv-lab-value inv-mono">' + formatNum(a.total, 1) + ' h</span></div>';
+    h += _payRow(escHtml(a.label), bits.join(' · '), '<span class="inv-num">' + formatNum(a.total, 1) + ' h</span>');
   });
-  h += '<div class="inv-stats-note">Every tier together: the hours on each day&rsquo;s mark, where the worker stood that day, plus the EXTRA booked to the area.' +
-    (r.assumed ? ' <strong>' + r.assumed + ' mark' + (r.assumed === 1 ? '' : 's') + '</strong> carried no hours and ' + (r.assumed === 1 ? 'is' : 'are') + ' counted as 8 (a half day as 4).' : '') + '</div>';
+  h += _labNote('Every tier together: the hours on each day&rsquo;s mark, where the worker stood that day, plus the EXTRA booked to the area.' +
+    (r.assumed ? ' <strong>' + r.assumed + ' mark' + (r.assumed === 1 ? '' : 's') + '</strong> carried no hours and ' + (r.assumed === 1 ? 'is' : 'are') + ' counted as 8 (a half day as 4).' : ''));
   return h + '</div>';
 }
 
@@ -18427,7 +17983,7 @@ function liveCostPaidCheck(from, to) {
 function _costPaidHtml(from, to) {
   var chk = liveCostPaidCheck(from, to);
   if (!chk.length) return '';
-  return '<div class="inv-cost-bills" id="liveCostPaid"><div class="inv-stk-label">Recorded against paid</div>' + chk.map(function(r) {
+  return '<div class="inv-cost-bills" id="liveCostPaid"><div class="inv-field-label">Recorded against paid</div>' + chk.map(function(r) {
     // The gap on the right; what it is the gap between leads the note, so a phone keeps one figure per column.
     var fig = r.recorded == null ? '&mdash;' : (r.delta >= 0 ? '+' : '&minus;') + formatCurrency(Math.abs(r.delta)) +
       (r.pct != null ? ' (' + (r.pct >= 0 ? '+' : '&minus;') + formatNum(Math.abs(r.pct) * 100, 0) + '%)' : '');
@@ -18529,9 +18085,9 @@ function renderLiveCostCard(period, tonnage) {
 
 function _costBillHtml() {
   var bills = costBills().slice().sort(function(a, b) { return a.month < b.month ? 1 : -1; });
-  var h = '<div class="inv-cost-bills"><div class="inv-stk-label">Electricity and other bills</div>';
+  var h = '<div class="inv-cost-bills"><div class="inv-field-label">Electricity and other bills</div>';
   bills.slice(0, 12).forEach(function(b) {
-    h += '<div class="inv-cost-dline' + (b.voided ? ' inv-pay-void' : '') + '"><span>' + escHtml((b.label || COST_BILL_KINDS[b.kind]) + ' · ' + b.month) +
+    h += '<div class="inv-cost-dline' + (b.voided ? ' inv-row-muted' : '') + '"><span>' + escHtml((b.label || COST_BILL_KINDS[b.kind]) + ' · ' + b.month) +
       '<span class="inv-cost-note">' + escHtml([b.units ? b.units + ' units' : '', b.note || '', b.voided ? 'void: ' + (b.voidReason || '') : ''].filter(Boolean).join(' · ')) + '</span></span>' +
       '<span class="inv-mono">' + formatCurrency(b.amount) + (b.voided ? '' : ' <button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invCostBillVoid" data-id="' + escHtml(b.id) + '">Void</button>') + '</span></div>';
   });
@@ -22482,14 +22038,22 @@ function relayOpen(text) {
   if (ta) ta.focus();
 }
 
+/* A sub-view of Staff (§6.2): the way back to the view it was opened from, and its own title. */
+function relayBackBar(action, label, title) {
+  return '<div class="inv-pagehead"><button class="inv-btn inv-btn-ghost inv-btn-sm inv-pagehead-back" data-action="' + action + '"' +
+    (action === 'invAttView' ? ' data-view="' + escHtml(_attPrevView || 'overview') + '"' : '') + '>' +
+    STAFF_BACK_ICON + escHtml(label) + '</button><h2 class="inv-pagehead-title">' + escHtml(title) + '</h2></div>';
+}
+
 function relayRenderView() {
   if (_relayView === 'review' && _relay) return relayRenderReview();
-  return '<div class="inv-stk-bar"><div class="inv-stk-h2">Paste a WhatsApp message</div></div>' +
-    '<label class="inv-stk-label" for="relayPasteText">The in-time or out-time roll, as sent (the stock message works here too)</label>' +
-    '<textarea id="relayPasteText" class="inv-stk-paste" spellcheck="false" placeholder="Copy the message in WhatsApp and paste it here. Several at once is fine.">' +
-    escHtml(_relayDraft) + '</textarea>' +
-    '<button class="inv-stk-btn inv-stk-btn-pri inv-stk-btn-block" data-action="invRelayRead">Read message</button>' +
-    '<div class="inv-stk-hint">Nothing is saved until you check what was read. Names are matched to the roster; a name it cannot place is asked about once and remembered.</div>';
+  return relayBackBar('invAttView', 'Staff', 'Paste message') +
+    '<div class="inv-panel">' +
+    '<div class="inv-field"><label class="inv-field-label" for="relayPasteText">The in-time or out-time roll, as sent (the stock message works here too)</label>' +
+    '<textarea id="relayPasteText" class="inv-textarea inv-textarea-mono" rows="12" spellcheck="false" placeholder="Copy the message in WhatsApp and paste it here. Several at once is fine.">' +
+    escHtml(_relayDraft) + '</textarea></div>' +
+    '<button class="inv-btn inv-btn-primary inv-btn-block" data-action="invRelayRead">Read message</button>' +
+    '<div class="inv-note inv-mt-8">Nothing is saved until you check what was read. Names are matched to the roster; a name it cannot place is asked about once and remembered.</div></div>';
 }
 
 function relayRead() {
@@ -22529,79 +22093,103 @@ function relayMarkText(m) {
   return t + (m.ot ? ' · OT ' + m.ot + ' h' : '');
 }
 
+/* The check before saving (§7, Paste message): the stock check's contract — every line beside what it was read
+   as, the questions first as callouts with their pickers, each day's marks as rows with a badge for what changes,
+   and Save in the action bar with what it will write. */
+var RELAY_ISSUE_TONE = { red: 'danger', amber: 'warning', info: 'info' };
+var RELAY_CHANGE = {
+  kept: ['warning', 'Kept'], 'new': ['ok', 'New'], updated: ['info', 'Updated'], same: ['neutral', 'Same']
+};
 function relayRenderReview() {
   var rv = _relay, plan = relayPlan(rv);
   rv.plan = plan;
-  var h = '<div class="inv-stk-bar"><button class="inv-stk-back" data-action="invRelayBack">' +
-    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>Edit text</button>' +
-    '<div class="inv-stk-h2">Check before saving</div></div>';
-  if (plan.dupes) h += '<div class="inv-stk-banner inv-stk-banner-red">' + todoPlural(plan.dupes, 'message was', 'messages were') + ' already saved and ' + (plan.dupes === 1 ? 'is' : 'are') + ' left out: saving again would count every hour twice.</div>';
-  if (rv.stock) h += '<div class="inv-stk-banner">The stock message in this paste was not read here. Paste it in More → Stock.</div>';
-  if (rv.other) h += '<div class="inv-stk-banner">' + todoPlural(rv.other, 'other message') + ' (pickling log, notes) not read.</div>';
-  h += '<div class="inv-stk-sum inv-rl-sum">' +
-    '<div class="inv-stk-tile inv-stk-tile-red"><span class="inv-stk-tile-n">' + plan.counts.red + '</span>Needs you</div>' +
-    '<div class="inv-stk-tile inv-stk-tile-amber"><span class="inv-stk-tile-n">' + plan.counts.amber + '</span>Check</div>' +
-    '<div class="inv-stk-tile"><span class="inv-stk-tile-n">' + plan.counts.people + '</span>People</div></div>';
+  var h = relayBackBar('invRelayBack', 'Edit text', 'Check before saving');
+  if (plan.dupes) h += '<div class="inv-callout inv-callout-danger inv-mb-8" id="relayDupNote">' + todoPlural(plan.dupes, 'message was', 'messages were') + ' already saved and ' + (plan.dupes === 1 ? 'is' : 'are') + ' left out: saving again would count every hour twice.</div>';
+  if (rv.stock) h += '<div class="inv-callout inv-callout-warning inv-mb-8">The stock message in this paste was not read here. Paste it in More → Stock.</div>';
+  if (rv.other) h += '<div class="inv-callout inv-callout-warning inv-mb-8">' + todoPlural(rv.other, 'other message') + ' (pickling log, notes) not read.</div>';
+  h += '<div class="inv-tiles inv-tiles-3" id="relayReviewTiles">' +
+    '<div class="inv-tile' + (plan.counts.red ? ' inv-tile-danger' : '') + '" data-tile="red"><div class="inv-tile-label">Needs you</div><div class="inv-tile-value">' + plan.counts.red + '</div></div>' +
+    '<div class="inv-tile' + (plan.counts.amber ? ' inv-tile-warning' : '') + '" data-tile="amber"><div class="inv-tile-label">Check</div><div class="inv-tile-value">' + plan.counts.amber + '</div></div>' +
+    '<div class="inv-tile" data-tile="people"><div class="inv-tile-label">People</div><div class="inv-tile-value">' + plan.counts.people + '</div></div></div>';
 
   // What needs a decision, first.
   var staff = (S.staff || []).filter(function(w) { return w.active !== false; }).sort(function(a, b) { return String(a.name).localeCompare(String(b.name)); });
   var askedNames = {};
-  plan.issues.forEach(function(is) {
-    h += '<div class="inv-stk-issue inv-stk-issue-' + is.tone + '">Line ' + is.n + ': ' + escHtml(is.text) + '</div>';
-    // A name not placed, one read as somebody, or one left out: each gets the
-    // picker, so a wrong guess is put right here and remembered from then on.
-    if (is.key && (is.tone === 'red' || is.tone === 'info' || is.id != null)) {
-      var key = is.key;
-      if (askedNames[key]) return;
-      askedNames[key] = true;
-      var sel = key in rv.choices ? String(rv.choices[key]) : (is.id != null ? String(is.id) : '');
-      h += '<div class="inv-stk-map"><label class="inv-stk-label" for="relayMap' + escHtml(key) + '">"' + escHtml(is.name) + '" is</label>' +
-        '<select id="relayMap' + escHtml(key) + '" class="inv-form-input" data-relay-map="' + escHtml(key) + '"><option value="">Nobody on the roster (leave out)</option>' +
-        staff.map(function(w) { return '<option value="' + escHtml(w.id) + '"' + (sel === String(w.id) ? ' selected' : '') + '>' + escHtml(w.name) + '</option>'; }).join('') +
-        '</select></div>';
-    }
-  });
-
-  plan.days.forEach(function(d) {
-    var rec = S.attendance && S.attendance[d.iso];
-    h += '<div class="inv-rl-day"><div class="inv-rl-dayhead"><span class="inv-stk-h2">' + escHtml(attDayName(d.iso)) + ' ' + escHtml(stockShortDate(d.iso)) + '</span>' +
-      '<span class="inv-stk-meta">' + d.kinds.map(function(k) { return k === 'in' ? 'In-time roll' : 'Out-time roll'; }).join(' + ') +
-      (rec ? ' · day already has entries' : '') + '</span></div>';
-    if (d.holiday) h += '<div class="inv-stk-banner">Holiday: ' + escHtml(d.holiday) + '</div>';
-    if (d.provisional) h += '<div class="inv-stk-issue inv-stk-issue-info">No out-time roll yet: present hands are read as out at 5 PM (the gate at 7 PM). Paste the out-time roll when it comes and the hours update.</div>';
-    h += '<div class="inv-rl-rows">';
-    d.rows.forEach(function(r) {
-      var chip = r.change === 'kept' ? ['Kept', 'amber', 'Entered by hand as ' + relayMarkText(r.prev) + '; left as it is.']
-        : r.change === 'new' ? ['New', 'ok', ''] : r.change === 'updated' ? ['Updated', 'bath', 'Was ' + relayMarkText(r.prev)] : ['Same', '', ''];
-      h += '<div class="inv-rl-row inv-rl-row-' + r.next.st + '"><div class="inv-rl-row-main"><span class="inv-rl-name">' + escHtml(r.w.name) + '</span>' +
-        '<span class="inv-rl-area">' + escHtml(r.next.st === 'A' ? 'Absent' : areaLabel(r.next.area)) + '</span></div>' +
-        '<div class="inv-rl-row-side"><span class="inv-rl-hrs">' + escHtml(r.next.st === 'A' ? '—' : relayMarkText(r.next)) + '</span>' +
-        '<span class="inv-stk-chip' + (chip[1] ? ' inv-stk-chip-' + chip[1] : '') + '">' + chip[0] + '</span></div>' +
-        (chip[2] ? '<div class="inv-rl-was">' + escHtml(chip[2]) + '</div>' : '') + '</div>';
+  if (plan.issues.length) {
+    h += '<div class="inv-panel inv-panel-flush" id="relayIssues"><div class="inv-panel-head"><span class="inv-panel-title">Questions ' +
+      '<span class="inv-panel-count">' + plan.issues.length + '</span></span></div>';
+    plan.issues.forEach(function(is) {
+      h += '<div class="inv-row inv-row-auto inv-row-top"><div class="inv-row-main">' +
+        '<div class="inv-callout inv-callout-' + (RELAY_ISSUE_TONE[is.tone] || 'neutral') + '" data-issue="' + escHtml(is.tone) + '">Line ' + is.n + ': ' + escHtml(is.text) + '</div>';
+      // A name not placed, one read as somebody, or one left out: each gets the
+      // picker, so a wrong guess is put right here and remembered from then on.
+      if (is.key && (is.tone === 'red' || is.tone === 'info' || is.id != null) && !askedNames[is.key]) {
+        var key = is.key;
+        askedNames[key] = true;
+        var sel = key in rv.choices ? String(rv.choices[key]) : (is.id != null ? String(is.id) : '');
+        h += '<div class="inv-field inv-mt-8"><label class="inv-field-label" for="relayMap' + escHtml(key) + '">"' + escHtml(is.name) + '" is</label>' +
+          '<select id="relayMap' + escHtml(key) + '" class="inv-select" data-relay-map="' + escHtml(key) + '"><option value="">Nobody on the roster (leave out)</option>' +
+          staff.map(function(w) { return '<option value="' + escHtml(w.id) + '"' + (sel === String(w.id) ? ' selected' : '') + '>' + escHtml(w.name) + '</option>'; }).join('') +
+          '</select></div>';
+      }
+      h += '</div></div>';
     });
     h += '</div>';
+  }
+
+  var marks = 0, extras = 0;
+  plan.days.forEach(function(d) {
+    var rec = S.attendance && S.attendance[d.iso];
+    h += '<div class="inv-panel inv-panel-flush" data-relay-day="' + escHtml(d.iso) + '"><div class="inv-panel-head"><span class="inv-panel-title">' +
+      escHtml(attDayName(d.iso)) + ' ' + escHtml(stockShortDate(d.iso)) + '</span>' +
+      '<span class="inv-panel-count">' + d.kinds.map(function(k) { return k === 'in' ? 'In-time roll' : 'Out-time roll'; }).join(' + ') +
+      (rec ? ' · day already has entries' : '') + '</span></div>';
+    if (d.holiday) h += '<div class="inv-panel-body"><div class="inv-callout inv-callout-warning">Holiday: ' + escHtml(d.holiday) + '</div></div>';
+    if (d.provisional) h += '<div class="inv-panel-body"><div class="inv-callout inv-callout-info" data-issue="info">No out-time roll yet: present hands are read as out at 5 PM (the gate at 7 PM). Paste the out-time roll when it comes and the hours update.</div></div>';
+    d.rows.forEach(function(r) {
+      var ch = RELAY_CHANGE[r.change] || RELAY_CHANGE.same;
+      var was = r.change === 'kept' ? 'Entered by hand as ' + relayMarkText(r.prev) + '; left as it is.'
+        : r.change === 'updated' ? 'Was ' + relayMarkText(r.prev) : '';
+      if (r.change === 'new' || r.change === 'updated') marks++;
+      var absent = r.next.st === 'A';
+      h += '<div class="inv-row inv-row-2" data-relay-row data-st="' + escHtml(r.next.st) + '"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(r.w.name) + '</span>' +
+        '<span class="inv-row-meta">' + (absent ? '<span class="inv-dot inv-dot-danger">Absent</span>' : escHtml(areaLabel(r.next.area))) + '</span>' +
+        (was ? '<span class="inv-row-meta inv-row-wrap">' + escHtml(was) + '</span>' : '') + '</span>' +
+        '<span class="inv-row-end"><span class="inv-row-stack"><span class="inv-num">' + escHtml(absent ? '—' : relayMarkText(r.next)) + '</span>' +
+        '<span class="inv-badge inv-badge-' + ch[0] + '">' + ch[1] + '</span></span></span></div>';
+    });
     if (d.extras.length) {
-      h += '<div class="inv-stk-label inv-mt-8">EXTRA hours</div>';
+      h += '<div class="inv-row-group">EXTRA hours</div>';
       d.extras.forEach(function(x) {
         var e = x.row;
+        if (!x.dup) extras++;
         var what = e.kind === 'coverage' ? relayAreaName(e.area) + ', general shift'
           : 'Block ' + relayClockLabel(relayParseHhmm(e.from)) + ' – ' + (e.to ? relayClockLabel(relayParseHhmm(e.to)) : '?') +
             (e.areas.length ? ', ' + e.areas.map(relayAreaName).join(' + ') : '') + ', crew ' + (e.crew.length ? e.crew.map(function(id) { var w = staffById(id); return w ? w.name : '?'; }).join(', ') : 'not named');
-        h += '<div class="inv-rl-extra' + (x.dup ? ' inv-rl-extra-dup' : '') + '"><strong>' + e.hours + ' h</strong> ' + escHtml(what) + (x.dup ? ' · already on the day, not added again' : '') + '</div>';
+        h += '<div class="inv-row inv-row-auto' + (x.dup ? ' inv-row-muted' : '') + '" data-relay-extra><span class="inv-row-main inv-row-wrap">' + escHtml(what) +
+          (x.dup ? ' · already on the day, not added again' : '') + '</span><span class="inv-row-end inv-num">' + e.hours + ' h</span></div>';
       });
     }
-    if (d.notes.length) h += '<div class="inv-stk-hint">Also in the roll (kept as the day\'s note): ' + escHtml(d.notes.slice(0, 8).join(' · ')) + (d.notes.length > 8 ? '…' : '') + '</div>';
+    if (d.notes.length) h += '<div class="inv-panel-body inv-note">Also in the roll (kept as the day\'s note): ' + escHtml(d.notes.slice(0, 8).join(' · ')) + (d.notes.length > 8 ? '…' : '') + '</div>';
     h += '</div>';
   });
 
-  h += '<button class="inv-td-fold" data-action="invRelayLines" aria-expanded="' + _relayShowLines + '"><span>The message, line by line</span><span>' + (_relayShowLines ? 'Hide' : 'Show') + '</span></button>';
+  h += '<div class="inv-panel inv-panel-flush" id="relayLines"><div class="inv-panel-head"><span class="inv-panel-title">The message, line by line ' +
+    '<span class="inv-panel-count">' + plan.lines.length + '</span></span>' +
+    '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invRelayLines" aria-expanded="' + _relayShowLines + '">' + (_relayShowLines ? 'Hide' : 'Show') + '</button></div>';
   if (_relayShowLines) {
-    h += '<div class="inv-rl-lines">' + plan.lines.map(function(l) {
-      return '<div class="inv-rl-line inv-rl-line-' + l.role + '"><span class="inv-rl-raw">' + escHtml(l.raw.trim()) + '</span><span class="inv-rl-read">' + escHtml(l.read) + '</span></div>';
-    }).join('') + '</div>';
+    h += plan.lines.map(function(l) {
+      var tone = l.role === 'unknown' ? 'danger' : l.role === 'extra' ? 'info' : '';
+      return '<div class="inv-row inv-row-auto" data-line-role="' + escHtml(l.role) + '"><div class="inv-row-main"><div class="inv-quote">' + escHtml(l.raw.trim()) + '</div>' +
+        '<div class="inv-row-meta inv-row-wrap inv-mt-4">' + (tone ? '<span class="inv-dot inv-dot-' + tone + '">' + escHtml(l.read) + '</span>' : escHtml(l.read)) + '</div></div></div>';
+    }).join('');
   }
+  h += '</div>';
+
   var nothing = !plan.days.length;
-  h += '<button class="inv-stk-btn inv-stk-btn-pri inv-stk-btn-block" data-action="invRelaySave"' + (nothing ? ' disabled' : '') + '>Save ' + todoPlural(plan.days.length, 'day') + '</button>';
+  h += '<div class="inv-actionbar"><div class="inv-actionbar-total"><div class="inv-actionbar-label">' + todoPlural(marks, 'mark') + ' · ' + todoPlural(extras, 'EXTRA row') + '</div>' +
+    '<div class="inv-actionbar-value">' + todoPlural(plan.days.length, 'day') + '</div></div>' +
+    '<button class="inv-btn inv-btn-primary" data-action="invRelaySave"' + (nothing ? ' disabled' : '') + '>Save ' + todoPlural(plan.days.length, 'day') + '</button></div>';
   return h;
 }
 function relayParseHhmm(s) {

@@ -52,6 +52,17 @@ document.addEventListener('click', function(e) {
       updateTotalsDisplay();
       break;
     }
+    case 'invFlagReason': {
+      var fIdx = parseInt(btn.dataset.idx), fLine = _challanForm && _challanForm.items[fIdx];
+      if (!fLine) break;
+      fLine.flagReason = btn.dataset.reason;
+      var fClient = S.clients.find(function(c) { return c.id === _challanForm.clientId; });
+      var fBox = document.getElementById('imFlag' + fIdx);
+      if (fBox && fClient) fBox.innerHTML = challanFlagHtml(fClient, fLine, fIdx);
+      var fOn = fBox && fBox.querySelector('[data-reason="' + btn.dataset.reason + '"]');
+      if (fOn) fOn.focus();
+      break;
+    }
     case 'invSelectClient': selectClient(parseInt(btn.dataset.id)); break;
     case 'invClearClient': captureOptionalFields(); invoiceForm.clientId = null; renderCreateForm(); break;
     case 'invAddLineItem': captureOptionalFields(); addLineItem(); break;
@@ -553,7 +564,11 @@ document.addEventListener('change', function(e) {
       citem.unit = challanLineEl.value;
       var cclient = _challanForm.clientId ? S.clients.find(function(c) { return c.id === _challanForm.clientId; }) : null;
       if (cclient && cclient.billingMode === 'piece' && challanLineEl.value === 'NOS') {
+        // A piece line is priced per piece: the rate on record, not the ₹/kg the line started with.
+        citem._auto = { rate: true, amount: true };
         citem.rate = 0; citem.amount = 0;
+        lineFillFromRecord(cclient, _challanForm.challanDate || localDateStr(), citem, S.items.find(function(p) { return p.partNumber === citem.partNumber; }));
+        lineFillFromCount(cclient, citem);
       }
       recalcChallanLine(citem, cclient);
       captureChallanFields();
@@ -705,17 +720,27 @@ document.addEventListener('input', function(e) {
     var citem2 = _challanForm.items[cidx2];
     if (citem2) {
       // nosQty is integer, others are float
+      var cclient2 = _challanForm.clientId ? S.clients.find(function(c) { return c.id === _challanForm.clientId; }) : null;
+      var setVal = function(field, v) { var el = document.querySelector('[data-action="invUpdateChallanLine"][data-field="' + field + '"][data-idx="' + cidx2 + '"]'); if (el) el.value = v ? formatNum(v, field === 'qty' ? 3 : 2) : ''; };
+      citem2._auto = citem2._auto || {};
       if (challanLineInput.dataset.field === 'nosQty') {
         citem2.nosQty = parseInt(challanLineInput.value) || null;
+        // Pieces on a weight line fill the kilograms from kg/pc, into an empty field or one the record filled.
+        var hadQty = citem2.qty;
+        lineFillFromCount(cclient2, citem2);
+        if (citem2._auto.qty && citem2.qty !== hadQty) { setVal('qty', citem2.qty); setVal('amount', citem2.amount); }
         refreshChallanLineMatch(cidx2);
         return;
       }
-      var cclient2 = _challanForm.clientId ? S.clients.find(function(c) { return c.id === _challanForm.clientId; }) : null;
       citem2[challanLineInput.dataset.field] = parseFloat(challanLineInput.value) || 0;
+      // A figure typed is the operator's: the record never fills over it again.
+      citem2._auto[challanLineInput.dataset.field] = false;
       if (cclient2 && cclient2.billingMode === 'piece' && citem2.unit === 'NOS') {
-        if (challanLineInput.dataset.field === 'amount' || challanLineInput.dataset.field === 'qty') {
+        if (challanLineInput.dataset.field === 'qty') { lineFillFromCount(cclient2, citem2); if (citem2._auto.amount) setVal('amount', citem2.amount); }
+        if ((challanLineInput.dataset.field === 'amount' || challanLineInput.dataset.field === 'qty') && !citem2._auto.amount) {
           if (citem2.qty > 0 && citem2.amount > 0) {
             citem2.rate = gstRound(citem2.amount / citem2.qty);
+            citem2._auto.rate = false;   // worked back from a typed amount: the operator's, not the record's
             var rI2 = document.querySelector('[data-action="invUpdateChallanLine"][data-field="rate"][data-idx="' + cidx2 + '"]');
             if (rI2) rI2.value = formatNum(citem2.rate);
           }
@@ -772,6 +797,10 @@ document.addEventListener('input', function(e) {
   if (e.target.dataset.action === 'invZeroNote') {
     var zItem = invoiceForm.items[parseInt(e.target.dataset.idx)];
     if (zItem) zItem.zeroNote = e.target.value;
+  }
+  if (e.target.dataset.action === 'invFlagNote' && _challanForm) {
+    var fnItem = _challanForm.items[parseInt(e.target.dataset.idx)];
+    if (fnItem) fnItem.flagNote = e.target.value;
   }
 });
 

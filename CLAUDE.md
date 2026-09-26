@@ -111,7 +111,7 @@ every session start — nothing to set up by hand. CI (`build-sync`) is the back
 ### Tests
 
 ```bash
-pnpm exec playwright test          # 480 tests, both layouts
+pnpm exec playwright test          # 487 tests, both layouts
 ```
 
 Some sandboxes ship a Chromium build Playwright does not expect and block downloading
@@ -1146,6 +1146,26 @@ the owner searched a challan and could not see which part was on it. The part nu
 description follows when it adds something. The printed invoice is unchanged. **Register search
 reaches challan numbers**, matching a whole number (leading zeros ignored), never a fragment:
 `83` must not find challan 834.
+
+### A challan line filled from the record
+Owner, 26 Sep 2026: *"When I select C-Clamp 66x42(30x6) as we know all its value and std weight and rate, fill that
+out automatically so that me or anyone can click through it to verify and change if needed; if the change for the
+final amount is more than the conditions we have for matches which raises a red flag then ask for a reason."*
+
+- **Choosing a part fills the line from the client's record** (`lineFillFromRecord`, state.js): the rate on record
+  (`defaultLineRate` — a piece client's card for a NOS line, else the ₹/kg ladder) and the **kg per piece** (the
+  client's own `pieceWeights` card, else the Items Master `stdWeightKg`, and the note says which).
+- **Counting fills the rest** (`lineFillFromCount`): on a piece line, pieces × rate → the amount (the amount stays
+  editable — the customer's challan figure is the passthrough); on a weight line, pieces × kg/pc → the kilograms.
+  **Never over a typed figure:** a filled field is marked in `item._auto` until somebody types in it, and a typed one
+  is the operator's for good. A note under the line says what came from the record, so tabbing through it is a check.
+  Switching a piece client's line to NOS re-prices it from the card rather than zeroing it.
+- **A red flag needs a reason.** A line on the matcher's own **Check** or **×10** verdict — rate (`rateMatch`) or
+  weight (`weightMatch`), the Settings thresholds — cannot be saved until a reason is picked under it, one tap:
+  *Customer's challan says so · Rate changed · Weight differs this batch · Other*, with a note (recommended). The ₹0
+  line's contract, for the same reason: an audit must tell a figure somebody examined from one nobody was shown.
+  **Differs** asks nothing. Saved as `flagReason`, `flagNote` and `flagAt {kind, status, ref, value}` — the verdict it
+  was given against — and dropped when a later edit puts the line right (`lineFlagFields`).
 
 ### Billed at ₹0
 The history held **25 lines billed at ₹0 — 1,192.54 kg, ₹16,355.67 at the client's own rate —

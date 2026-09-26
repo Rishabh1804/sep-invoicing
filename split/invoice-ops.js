@@ -252,52 +252,41 @@ function renderRegisterToolbar() {
     const c = S.clients.find(x => x.id === cid);
     return c ? '<option value="' + cid + '"' + (regFilter.clientId == cid ? ' selected' : '') + '>' + escHtml(c.name) + '</option>' : '';
   }).join('');
+  var stateOpt = function(v, label) { return '<option value="' + v + '"' + ((regFilter.state || '') === v ? ' selected' : '') + '>' + label + '</option>'; };
 
-  let html = '<div class="inv-reg-toolbar">' +
-    '<div class="inv-search-wrap inv-search-no-mb">' +
-    '<svg class="inv-search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>' +
-    '<input type="text" class="inv-reg-search" id="regSearch" placeholder="Search invoice, client or challan" value="' + escHtml(regFilter.search) + '" autocomplete="off"></div>' +
-    '<div class="inv-reg-filters">' +
-    '<div class="inv-form-group"><select class="inv-form-select" id="regClientFilter" aria-label="Filter by client">' +
-    '<option value="">All Clients</option>' + clientOpts + '</select></div>' +
-    '<div class="inv-form-group"><input type="month" class="inv-form-input inv-mono" id="regMonthFilter" value="' + escHtml(regFilter.month || '') + '" aria-label="Filter by month"></div>' +
-    '<div class="inv-form-group"><select class="inv-form-select" id="regStateFilter" aria-label="Filter by state">' +
-    '<option value=""' + (!regFilter.state ? ' selected' : '') + '>All States</option>' +
-    '<option value="created"' + (regFilter.state === 'created' ? ' selected' : '') + '>Created</option>' +
-    '<option value="dispatched"' + (regFilter.state === 'dispatched' ? ' selected' : '') + '>Dispatched</option>' +
-    '<option value="delivered"' + (regFilter.state === 'delivered' ? ' selected' : '') + '>Delivered</option>' +
-    '<option value="filed"' + (regFilter.state === 'filed' ? ' selected' : '') + '>Filed</option>' +
-    '<option value="cancelled"' + (regFilter.state === 'cancelled' ? ' selected' : '') + '>Cancelled</option></select></div>' +
+  let html = '<div class="inv-toolbar">' +
+    '<label class="inv-search">' + ICON_SEARCH +
+    '<input type="text" id="regSearch" placeholder="Search invoice, client or challan" value="' + escHtml(regFilter.search) + '" autocomplete="off" aria-label="Search the register"></label>' +
+    '<select class="inv-select inv-toolbar-item" id="regClientFilter" aria-label="Filter by client">' +
+    '<option value="">All clients</option>' + clientOpts + '</select>' +
+    '<input type="month" class="inv-input inv-toolbar-item" id="regMonthFilter" value="' + escHtml(regFilter.month || '') + '" aria-label="Filter by month">' +
+    '<select class="inv-select inv-toolbar-item" id="regStateFilter" aria-label="Filter by state">' +
+    stateOpt('', 'All states') + stateOpt('created', 'Created') + stateOpt('dispatched', 'Dispatched') +
+    stateOpt('delivered', 'Delivered') + stateOpt('filed', 'Filed') + stateOpt('cancelled', 'Cancelled') + '</select>' +
     '</div>' +
     // Explicit range, for an export that does not line up with a calendar month.
-    '<div class="inv-reg-range">' +
-    '<label class="inv-reg-range-field"><span class="inv-reg-range-label">From</span>' +
-    '<input type="date" class="inv-form-input inv-mono" id="regDateFrom" value="' + escHtml(regFilter.dateFrom || '') + '"></label>' +
-    '<label class="inv-reg-range-field"><span class="inv-reg-range-label">To</span>' +
-    '<input type="date" class="inv-form-input inv-mono" id="regDateTo" value="' + escHtml(regFilter.dateTo || '') + '"></label>' +
-    (rangeActive ? '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invRegClearRange">Clear range</button>' : '') +
+    '<div class="inv-toolbar">' +
+    '<label class="inv-field inv-toolbar-item"><span class="inv-field-label">From</span>' +
+    '<input type="date" class="inv-input" id="regDateFrom" value="' + escHtml(regFilter.dateFrom || '') + '"></label>' +
+    '<label class="inv-field inv-toolbar-item"><span class="inv-field-label">To</span>' +
+    '<input type="date" class="inv-input" id="regDateTo" value="' + escHtml(regFilter.dateTo || '') + '"></label>' +
+    (rangeActive ? '<button class="inv-btn inv-btn-secondary inv-btn-sm inv-toolbar-end" data-action="invRegClearRange">Clear range</button>' : '') +
     '</div>' +
-    (rangeActive ? '<div class="inv-reg-scope-note">Range in use — the month filter is ignored while it is set.</div>' : '') +
-    '<div class="inv-reg-actions-row">' +
-    '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invRegToggleSort">' +
-    (sortDir === 'asc' ? 'Oldest first' : 'Newest first') +
-    '</button>' +
-    '<button class="inv-btn inv-btn-ghost inv-btn-sm' + (_regSelectMode ? ' inv-chip-active' : '') + '" data-action="invRegToggleSelect">' +
-    (_regSelectMode ? 'Cancel select' : 'Select') +
-    '</button>' +
-    // Desktop always shows checkboxes; mobile only inside select mode, so the
-    // control follows wherever ticking is actually possible.
+    (rangeActive ? '<div class="inv-callout inv-callout-warning inv-mb-8" data-scope-note>Range in use — the month filter is ignored while it is set.</div>' : '') +
+    '<div class="inv-toolbar">' +
+    // The desktop table sorts by its column heads, and always shows its tick boxes.
+    (_isDesktop ? '' :
+      '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invRegToggleSort">' + (sortDir === 'asc' ? 'Oldest first' : 'Newest first') + '</button>' +
+      '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invRegToggleSelect" aria-pressed="' + _regSelectMode + '">' + (_regSelectMode ? 'Cancel select' : 'Select') + '</button>') +
+    // Offered wherever ticking is actually possible.
     ((_isDesktop || _regSelectMode) && selectableCount > 0
-      ? '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invRegSelectAll">' +
+      ? '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invRegSelectAll">' +
         (allSelected ? 'Clear selection' : 'Select all (' + selectableCount + ')') + '</button>'
       : '') +
-    '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invCnList">Credit notes' +
-    (cnCount > 0 ? '<span class="inv-numaudit-count">' + cnCount + '</span>' : '') +
-    '</button>' +
-    '<button class="inv-btn inv-btn-ghost inv-btn-sm" id="regNumberAudit" data-action="invShowNumberAudit">Number audit' +
-    (unaccounted > 0 ? '<span class="inv-numaudit-count">' + unaccounted + '</span>' : '') +
-    '</button>' +
-    '</div>' +
+    '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invCnList">Credit notes' +
+    (cnCount > 0 ? '<span class="inv-badge">' + cnCount + '</span>' : '') + '</button>' +
+    '<button class="inv-btn inv-btn-secondary inv-btn-sm" id="regNumberAudit" data-action="invShowNumberAudit">Number audit' +
+    (unaccounted > 0 ? '<span class="inv-badge inv-badge-warning" data-unaccounted>' + unaccounted + '</span>' : '') + '</button>' +
     '</div>';
 
   area.innerHTML = html;
@@ -335,53 +324,39 @@ function renderRegisterList() {
   if (!area) return;
 
   const filtered = getFilteredInvoices();
-  const activeFiltered = filtered.filter(i => i.status === 'active');
-  const activeCount = activeFiltered.length;
-  const activeRevenue = gstRound(activeFiltered.reduce((s, i) => s + (i.taxableValue || 0), 0));
+  let html = _regSummaryHtml(filtered);
 
-  let html = '';
-
-  // Summary bar
-  html += '<div class="inv-reg-summary">' +
-    '<span class="inv-reg-summary-label">' + activeCount + ' active invoice' + (activeCount !== 1 ? 's' : '') + '</span>' +
-    '<span class="inv-reg-summary-value">Taxable: ' + formatCurrency(activeRevenue) + '</span></div>';
-
-  // Invoice rows
   if (filtered.length === 0) {
-    html += '<div class="inv-empty-state">No invoices found</div>';
+    html += '<div class="inv-panel"><div class="inv-empty">No invoices found</div></div>';
   } else {
-    html += '<div class="inv-card-list">';
-    filtered.forEach(inv => {
-      const cancelled = inv.status === 'cancelled';
-      var isSelected = !!_regSelected[inv.id];
-      html += '<div class="inv-reg-row' + (cancelled ? ' inv-reg-row-cancelled' : '') + (isSelected ? ' inv-reg-row-selected' : '') + '">' +
-        (_regSelectMode && !cancelled ? '<label class="inv-reg-check-wrap" data-action="invRegToggleInv" data-id="' + escHtml(inv.id) + '">' +
-        '<input type="checkbox"' + (isSelected ? ' checked' : '') + ' class="inv-im-check"></label>' : '') +
-        '<div class="inv-reg-row-content" data-action="invViewInvoiceDetail" data-id="' + escHtml(inv.id) + '">' +
-        '<div class="inv-reg-row-top">' +
-        '<div class="inv-reg-status-row">' +
-        '<span class="inv-reg-invnum">' + escHtml(inv.displayNumber) + '</span> ' +
-        getStateBadgeHtml(inv) +
-        '</div>' +
-        '<div class="inv-reg-amounts"><span class="inv-reg-total">' + formatCurrency(inv.grandTotal) + '</span>' +
-        '<span class="inv-reg-taxable">Taxable: ' + formatCurrency(inv.taxableValue) + '</span></div></div>' +
-        '<div class="inv-reg-row-bottom">' +
-        '<span class="inv-reg-client">' + escHtml(inv.clientName) + '</span>' +
-        '<span class="inv-reg-date">' + formatDate(inv.date) + '</span></div>' +
-        '</div></div>';
+    // Rows grouped by invoice date, each group with its count and taxable (§7).
+    html += '<div class="inv-panel inv-panel-flush">';
+    var groups = [], byDate = {};
+    filtered.forEach(function(inv) {
+      var k = inv.date || '';
+      if (!byDate[k]) { byDate[k] = []; groups.push(k); }
+      byDate[k].push(inv);
+    });
+    groups.forEach(function(k) {
+      var list = byDate[k], live = list.filter(function(i) { return i.status === 'active'; });
+      html += '<div class="inv-row-group"><span>' + (k ? escHtml(formatDate(k)) : 'No date') + ' · ' + list.length + '</span>' +
+        '<span class="inv-num">' + formatCurrency(gstRound(sumTaxable(live))) + '</span></div>';
+      list.forEach(function(inv) {
+        var cancelled = inv.status === 'cancelled';
+        html += '<div class="inv-row inv-row-2' + (cancelled ? ' inv-row-muted' : '') + (_regSelected[inv.id] ? ' inv-row-selected' : '') + '"' +
+          (cancelled ? ' data-cancelled' : '') + '>' +
+          (_regSelectMode && !cancelled ? '<span class="inv-row-lead">' + _regCheckHtml(inv) + '</span>' : '') +
+          '<button class="inv-row-main" data-action="invViewInvoiceDetail" data-id="' + escHtml(inv.id) + '">' +
+          '<span class="inv-row-title inv-id" data-invnum>' + escHtml(inv.displayNumber) + '</span>' +
+          '<span class="inv-row-meta">' + escHtml(inv.clientName) + '</span></button>' +
+          '<span class="inv-row-end"><span class="inv-row-stack"><span class="inv-num">' + formatCurrency(inv.grandTotal) + '</span>' +
+          getStateDotHtml(inv) + '</span></span></div>';
+      });
     });
     html += '</div>';
   }
 
-  // Export + bulk actions
-  html += '<div class="inv-reg-export-bar">' +
-    '<button class="inv-btn inv-btn-ghost" data-action="invExportSales">Sales Register CSV</button>' +
-    '<button class="inv-btn inv-btn-ghost" data-action="invPrintSalesRegister">Sales Register PDF</button>' +
-    '<button class="inv-btn inv-btn-ghost" data-action="invExportGstr1">GSTR1 CSV</button></div>' +
-    '<div class="inv-reg-export-bar">' +
-    '<button class="inv-btn inv-btn-ghost" data-action="invBulkMarkFiled">Bulk Mark Filed</button></div>';
-
-  area.innerHTML = html;
+  area.innerHTML = html + _regExportHtml();
 }
 
 /* ===== SHARED DESKTOP UTILITIES (Phase 8B) ===== */
@@ -422,193 +397,57 @@ function _initDragHandle(handleId, masterId, detailId, tabKey) {
   handle.addEventListener('touchstart', onStart, { passive: false });
 }
 
-/* ===== REGISTER DESKTOP TABLE (Phase 8C) ===== */
+/* ===== REGISTER DESKTOP TABLE ===== */
 function _buildRegisterTableHtml() {
   var filtered = getFilteredInvoices();
-  var activeFiltered = filtered.filter(function(i) { return i.status === 'active'; });
-  var activeCount = activeFiltered.length;
-  var activeRevenue = gstRound(activeFiltered.reduce(function(s, i) { return s + (i.taxableValue || 0); }, 0));
-
-  var html = '<div class="inv-reg-summary">' +
-    '<span class="inv-reg-summary-label">' + activeCount + ' active invoice' + (activeCount !== 1 ? 's' : '') + '</span>' +
-    '<span class="inv-reg-summary-value">Taxable: ' + formatCurrency(activeRevenue) + '</span></div>';
-
-  if (filtered.length === 0) {
-    html += '<div class="inv-empty-state">No invoices found</div>';
-    return html;
-  }
+  var html = _regSummaryHtml(filtered);
+  if (filtered.length === 0) return html + '<div class="inv-empty">No invoices found</div>' + _regExportHtml();
 
   var sc = getRegSortConfig();
-
-  html += '<table class="inv-desktop-table"><thead><tr>';
-  html += '<th class="inv-th inv-td-check"></th>';
-  html += '<th class="inv-th inv-td-num">#</th>';
-
-  var cols = [
-    { key: 'client', label: 'Client', cls: '' },
-    { key: 'date', label: 'Date', cls: 'inv-td-date' },
-    { key: 'taxable', label: 'Taxable', cls: 'inv-td-amount inv-th-amount' },
-    { key: 'total', label: 'Total', cls: 'inv-td-amount inv-th-amount' },
-    { key: 'state', label: 'State', cls: 'inv-td-state' }
-  ];
-  cols.forEach(function(c) {
-    html += '<th class="inv-th inv-th-sortable' + (c.cls ? ' ' + c.cls : '') + '" data-action="invDesktopSort" data-col="' + c.key + '">' +
-      c.label + (sc.col === c.key ? '<span class="inv-sort-arrow">' + (sc.dir === 'asc' ? '\u25B2' : '\u25BC') + '</span>' : '') +
-      '</th>';
-  });
-  html += '</tr></thead><tbody>';
+  // The column heads the register sorts by; the rest are read-only.
+  var th = function(key, label, cls) {
+    var on = sc.col === key;
+    return '<th class="' + (cls || '') + '"' + (on ? ' aria-sort="' + (sc.dir === 'asc' ? 'ascending' : 'descending') + '"' : '') + '>' +
+      '<button class="inv-table-sort" data-action="invDesktopSort" data-col="' + key + '">' + label +
+      (on ? '<span aria-hidden="true">' + (sc.dir === 'asc' ? ' ▲' : ' ▼') + '</span>' : '') + '</button></th>';
+  };
+  html += '<table class="inv-table"><thead><tr>' +
+    '<th class="inv-table-check"><span class="inv-visually-hidden">Select</span></th><th>Invoice</th>' + th('client', 'Client', 'inv-col-grow') + th('date', 'Date', 'inv-col-opt3') +
+    '<th class="inv-col-opt2">Challans</th><th class="inv-num inv-col-opt2">kg</th>' + th('taxable', 'Taxable', 'inv-num inv-col-opt3') + '<th class="inv-num inv-col-opt1">GST</th>' +
+    th('total', 'Total', 'inv-num') + th('state', 'State') + '</tr></thead><tbody>';
 
   filtered.forEach(function(inv) {
     var cancelled = inv.status === 'cancelled';
-    var isActive = _regActiveInvId === inv.id;
-    var isSelected = !!_regSelected[inv.id];
-    html += '<tr class="inv-tr' + (isActive ? ' inv-tr-active' : '') + (cancelled ? ' inv-tr-cancelled' : '') + '" data-id="' + escHtml(inv.id) + '">';
-    html += '<td class="inv-td inv-td-check"><input type="checkbox" data-action="invRegToggleInv" data-id="' + escHtml(inv.id) + '"' + (isSelected ? ' checked' : '') + '></td>';
-    html += '<td class="inv-td inv-td-num" data-action="invSelectRegRow" data-id="' + escHtml(inv.id) + '">' + escHtml(inv.displayNumber) + '</td>';
-    html += '<td class="inv-td" data-action="invSelectRegRow" data-id="' + escHtml(inv.id) + '">' + escHtml(inv.clientName) + '</td>';
-    html += '<td class="inv-td inv-td-date" data-action="invSelectRegRow" data-id="' + escHtml(inv.id) + '">' + formatDate(inv.date) + '</td>';
-    html += '<td class="inv-td inv-td-amount" data-action="invSelectRegRow" data-id="' + escHtml(inv.id) + '">' + formatCurrency(inv.taxableValue) + '</td>';
-    html += '<td class="inv-td inv-td-amount" data-action="invSelectRegRow" data-id="' + escHtml(inv.id) + '">' + formatCurrency(inv.grandTotal) + '</td>';
-    html += '<td class="inv-td inv-td-state" data-action="invSelectRegRow" data-id="' + escHtml(inv.id) + '">' + getStateBadgeHtml(inv) + '</td>';
-    html += '</tr>';
+    var kg = cancelled ? 0 : weighLines([inv]).kg;
+    var gst = gstRound((inv.cgstAmt || 0) + (inv.sgstAmt || 0) + (inv.igstAmt || 0));
+    html += '<tr class="' + (cancelled ? 'inv-row-muted' : '') + (_regSelected[inv.id] ? ' inv-row-selected' : '') + '"' +
+      (_regActiveInvId === inv.id ? ' aria-current="true"' : '') + (cancelled ? ' data-cancelled' : '') +
+      ' data-action="invSelectRegRow" data-id="' + escHtml(inv.id) + '">' +
+      '<td class="inv-table-check">' + (cancelled ? '' : _regCheckHtml(inv)) + '</td>' +
+      // The number is a real button, so the row can be opened from the keyboard.
+      '<td><button class="inv-btn-link inv-id" data-action="invSelectRegRow" data-id="' + escHtml(inv.id) + '" data-invnum>' + escHtml(inv.displayNumber) + '</button></td>' +
+      '<td class="inv-col-grow" title="' + escHtml(inv.clientName) + '">' + escHtml(inv.clientName) + '</td>' +
+      '<td class="inv-id inv-col-opt3">' + escHtml(formatDate(inv.date)) + '</td>' +
+      '<td class="inv-id inv-col-grow-sm inv-col-opt2" title="' + escHtml(inv.challanNo || '') + '">' + escHtml(inv.challanNo || '') + '</td>' +
+      '<td class="inv-num inv-col-opt2">' + (kg > 0 ? formatNum(kg, 1) : '&mdash;') + '</td>' +
+      '<td class="inv-num inv-col-opt3">' + formatCurrency(inv.taxableValue) + '</td>' +
+      '<td class="inv-num inv-col-opt1">' + formatCurrency(gst) + '</td>' +
+      '<td class="inv-num">' + formatCurrency(inv.grandTotal) + '</td>' +
+      '<td>' + getStateDotHtml(inv) + '</td></tr>';
   });
-
-  html += '</tbody></table>';
-
-  html += '<div class="inv-reg-export-bar">' +
-    '<button class="inv-btn inv-btn-ghost" data-action="invExportSales">Sales Register CSV</button>' +
-    '<button class="inv-btn inv-btn-ghost" data-action="invPrintSalesRegister">Sales Register PDF</button>' +
-    '<button class="inv-btn inv-btn-ghost" data-action="invExportGstr1">GSTR1 CSV</button></div>' +
-    '<div class="inv-reg-export-bar">' +
-    '<button class="inv-btn inv-btn-ghost" data-action="invBulkMarkFiled">Bulk Mark Filed</button></div>';
-
-  return html;
+  return html + '</tbody></table>' + _regExportHtml();
 }
 
-/* Render invoice detail inline in #regDetail (Phase 8C) */
+/* Render invoice detail inline in #regDetail */
 function _renderRegDetail(invId, skipMasterRefresh) {
-  var inv = S.invoices.find(function(i) { return i.id === invId; });
-  if (!inv) {
-    _regActiveInvId = null;
-    var detail = document.getElementById('regDetail');
-    if (detail) detail.innerHTML = _renderDetailEmpty();
-    if (!skipMasterRefresh) {
-      var master = document.getElementById('regMaster');
-      if (master) master.innerHTML = _buildRegisterTableHtml();
-    }
-    return;
-  }
-
-  _regActiveInvId = invId;
-  var d = formatInvoiceData(inv);
-
-  var html = '';
-
-  // Cancelled warning
-  if (d.cancelled) {
-    html += '<div class="inv-confirm-warn">This invoice was cancelled on ' +
-      escHtml(d.cancelledAt || 'unknown date') +
-      '. It cannot be edited.</div>';
-  }
-
-  // Header info
-  html += '<div class="inv-detail-section">' +
-    '<div class="inv-form-row">' +
-    '<div><div class="inv-detail-label">Invoice No</div><div class="inv-detail-value-mono">' + escHtml(d.invoiceNumber) + '</div></div>' +
-    '<div><div class="inv-detail-label">Date</div><div class="inv-detail-value-mono">' + escHtml(d.date) + '</div></div></div></div>';
-
-  html += '<div class="inv-detail-section">' +
-    '<div class="inv-detail-label">Client</div>' +
-    '<div class="inv-detail-value">' + escHtml(d.clientName) + '</div>' +
-    '<div class="inv-detail-value-mono inv-text-muted inv-detail-gstin">' + escHtml(d.clientGSTIN) + '</div></div>';
-
-  // Lifecycle state timeline
-  if (!d.cancelled) {
-    var curState = getInvState(inv);
-    var curIdx = INV_STATES.indexOf(curState);
-    html += '<div class="inv-detail-section inv-state-timeline">' +
-      '<div class="inv-detail-label">Status</div>';
-    var stateData = [
-      { key: 'created', label: 'Created', ts: inv.createdAt },
-      { key: 'dispatched', label: 'Dispatched', ts: inv.dispatchedAt },
-      { key: 'delivered', label: 'Delivered', ts: inv.deliveredAt },
-      { key: 'filed', label: 'Filed', ts: inv.filedAt }
-    ];
-    stateData.forEach(function(sd, si) {
-      var done = si <= curIdx;
-      var isCurrent = si === curIdx;
-      html += '<div class="inv-state-step">' +
-        '<span class="inv-state-dot' + (done ? (isCurrent ? ' inv-state-dot-current' : ' inv-state-dot-done') : '') + '"></span>' +
-        '<span class="inv-state-step-label">' + escHtml(sd.label) + '</span>' +
-        (sd.ts ? '<span class="inv-state-step-date">' + formatTimestamp(sd.ts) + '</span>' : '') +
-        '</div>';
-    });
-    // Advance button
-    if (curIdx < INV_STATES.length - 1) {
-      var nextLabel = INV_STATE_LABELS[INV_STATES[curIdx + 1]];
-      html += '<div class="inv-btn-bar inv-mb-8"><button class="inv-btn inv-btn-primary inv-btn-sm" data-action="invAdvanceState" data-id="' + escHtml(inv.id) + '">Mark ' + escHtml(nextLabel) + '</button></div>';
-    }
-    html += '</div>';
-  }
-
-  // Line items table
-  html += '<div class="inv-detail-section">' +
-    '<div class="inv-detail-label">Line Items</div>' +
-    '<div class="inv-detail-items-wrap"><table class="inv-detail-items-table"><thead><tr>' +
-    '<th>Part</th><th>Qty</th><th>Unit</th><th>Rate</th><th>Amount</th></tr></thead><tbody>';
-  d.items.forEach(function(item, li) {
-    html += '<tr>' +
-      '<td>' + escHtml(lineLabel((inv.items || [])[li] || item)) + zeroReasonTag((inv.items || [])[li]) + detailRateMatch(inv, (inv.items || [])[li]) + '</td>' +
-      '<td class="inv-mono">' + escHtml(item.qty) + (item.nosQtyRaw && item.nosQtyRaw > 0 ? ' <span class="inv-text-muted">(' + escHtml(item.nosQtyRaw) + ' NOS)</span>' : '') + '</td>' +
-      '<td>' + escHtml(item.unit) + '</td>' +
-      '<td class="inv-mono">' + escHtml(item.rate) + '</td>' +
-      '<td class="inv-mono">' + escHtml(item.amount) + '</td></tr>';
-  });
-  html += '</tbody></table></div></div>';
-
-  // Totals
-  html += '<div class="inv-detail-section"><div class="inv-totals">' +
-    '<div class="inv-total-row"><span class="inv-total-label">Taxable Value</span><span class="inv-total-value">' + escHtml(d.taxableValue) + '</span></div>';
-  if (d.gstType === 'intra') {
-    html += '<div class="inv-total-row"><span class="inv-total-label">CGST @ ' + d.cgstPer + '%</span><span class="inv-total-value">' + escHtml(d.cgstAmt) + '</span></div>' +
-      '<div class="inv-total-row"><span class="inv-total-label">SGST @ ' + d.sgstPer + '%</span><span class="inv-total-value">' + escHtml(d.sgstAmt) + '</span></div>';
-  } else {
-    html += '<div class="inv-total-row"><span class="inv-total-label">IGST @ ' + d.igstPer + '%</span><span class="inv-total-value">' + escHtml(d.igstAmt) + '</span></div>';
-  }
-  html += '<div class="inv-total-row inv-total-row-grand"><span class="inv-total-label">Grand Total</span>' +
-    '<span class="inv-total-grand">' + escHtml(d.grandTotal) + '</span></div></div></div>';
-
-  // Optional fields
-  var optFields = [
-    ['Challan No', d.challanNo], ['Challan Date', d.challanDate],
-    ['Remarks', d.remarks]
-  ].filter(function(f) { return f[1]; });
-  if (optFields.length > 0) {
-    html += '<div class="inv-detail-section">';
-    optFields.forEach(function(f) {
-      html += '<div class="inv-detail-label">' + escHtml(f[0]) + '</div>' +
-        '<div class="inv-detail-value">' + escHtml(f[1]) + '</div>';
-    });
-    html += '</div>';
-  }
-
-  // Action buttons
-  html += '<div class="inv-detail-actions">';
-  if (!d.cancelled) {
-    html += '<button class="inv-btn inv-btn-primary" data-action="invEditInvoice" data-id="' + escHtml(inv.id) + '">Edit</button>';
-    html += '<button class="inv-btn inv-btn-ghost" data-action="invPreviewInvoice" data-id="' + escHtml(inv.id) + '">Preview</button>';
-    html += '<button class="inv-btn inv-btn-ghost" data-action="invQualityCert" data-id="' + escHtml(inv.id) + '">Quality Cert</button>';
-    html += '<button class="inv-btn inv-btn-ghost" data-action="invCancelInvoice" data-id="' + escHtml(inv.id) + '">Cancel Invoice</button>';
-  } else {
-    html += '<button class="inv-btn inv-btn-ghost" data-action="invPreviewInvoice" data-id="' + escHtml(inv.id) + '">Preview</button>';
-  }
-  html += '<button class="inv-btn inv-btn-danger" data-action="invDeleteInvoice" data-id="' + escHtml(inv.id) + '">Delete</button>';
-  html += '</div>';
-
+  var inv = invId ? S.invoices.find(function(i) { return i.id === invId; }) : null;
   var detailEl = document.getElementById('regDetail');
-  if (detailEl) detailEl.innerHTML = html;
-
-  // Update master to show active row highlight
+  _regActiveInvId = inv ? invId : null;
+  // The pane takes room only while an invoice is open; the table then drops columns in priority order (§6.11).
+  var wrap = document.getElementById('regMasterDetail');
+  if (wrap) wrap.classList.toggle('inv-pane-open', !!inv);
+  if (detailEl) detailEl.innerHTML = inv ? '<div class="inv-pane-head"><span class="inv-panel-title inv-id">' + escHtml(inv.displayNumber) + '</span>' +
+    '<button class="inv-btn inv-btn-icon inv-btn-ghost" data-action="invRegClosePane" aria-label="Close">&times;</button></div>' + invoiceDetailHtml(inv) : '';
   if (!skipMasterRefresh) {
     var masterEl = document.getElementById('regMaster');
     if (masterEl) masterEl.innerHTML = _buildRegisterTableHtml();
@@ -624,46 +463,27 @@ function renderRegisterTable() {
     _regToolbarRendered = true;
   }
 
-  var wrapper = document.getElementById('regMasterDetail');
-  if (!wrapper) {
-    // First render — build wrapper, init drag, restore width
+  // The list takes the room and the pane a fixed width (§6.14): a resizable
+  // split left the table in 40% of the screen, Total cut off and every client
+  // name wrapped over three lines.
+  if (!document.getElementById('regMasterDetail')) {
     area.innerHTML =
-      '<div class="inv-master-detail" id="regMasterDetail">' +
+      '<div class="inv-master-detail inv-master-detail-pane" id="regMasterDetail">' +
         '<div class="inv-master" id="regMaster"></div>' +
-        '<div class="inv-drag-handle" id="regDragHandle"></div>' +
-        '<div class="inv-detail" id="regDetail">' + _renderDetailEmpty() + '</div>' +
+        '<div class="inv-detail inv-pane" id="regDetail"></div>' +
       '</div>';
-    _initDragHandle('regDragHandle', 'regMaster', 'regDetail', 'pageRegister');
-    _restorePanelWidth('regMaster', 'pageRegister');
   }
 
-  // Re-render master content
   var master = document.getElementById('regMaster');
   if (!master) return;
   master.innerHTML = _buildRegisterTableHtml();
 
-  // Detail panel validation: keep detail in sync with data changes
+  // Keep the pane in step with the data: a deleted or filtered-out invoice closes it.
   if (_regActiveInvId) {
-    var stillExists = S.invoices.find(function(i) { return i.id === _regActiveInvId; });
-    if (!stillExists) {
-      // Deleted — clear detail
-      _regActiveInvId = null;
-      var detail = document.getElementById('regDetail');
-      if (detail) detail.innerHTML = _renderDetailEmpty();
-    } else {
-      // Check if active invoice is still in filtered set
-      var filtered = getFilteredInvoices();
-      var inFiltered = filtered.find(function(i) { return i.id === _regActiveInvId; });
-      if (!inFiltered) {
-        // Filtered out — clear detail
-        _regActiveInvId = null;
-        var detail2 = document.getElementById('regDetail');
-        if (detail2) detail2.innerHTML = _renderDetailEmpty();
-      } else {
-        // Still visible — refresh detail content (skip master since we just rendered it)
-        _renderRegDetail(_regActiveInvId, true);
-      }
-    }
+    var visible = S.invoices.some(function(i) { return i.id === _regActiveInvId; }) &&
+      getFilteredInvoices().some(function(i) { return i.id === _regActiveInvId; });
+    if (visible) _renderRegDetail(_regActiveInvId, true);
+    else _renderRegDetail(null, true);
   }
 
   _renderRegSelBar();
@@ -717,12 +537,11 @@ function _renderRegSelBar() {
   if (ids.length === 0 || (!_isDesktop && !_regSelectMode)) { bar.innerHTML = ''; return; }
 
   // Determine what state transitions are available
-  var canDispatch = 0;
-  var canDeliver = 0;
-  var canFile = 0;
+  var canDispatch = 0, canDeliver = 0, canFile = 0, taxable = 0;
   ids.forEach(function(id) {
     var inv = S.invoices.find(function(i) { return i.id === id; });
     if (!inv || inv.status !== 'active') return;
+    taxable += inv.taxableValue || 0;
     var st = getInvState(inv);
     if (st === 'created') canDispatch++;
     if (st === 'dispatched') canDeliver++;
@@ -732,23 +551,25 @@ function _renderRegSelBar() {
   // Certificates go out with the dispatch, so the count is of what can actually
   // be certified — a cancelled invoice in the selection is not offered.
   var canCert = qcEligibleCount(ids);
-
+  var b = function(action, label, extra) {
+    return '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="' + action + '"' + (extra || '') + '>' + label + '</button>';
+  };
   var btns = '';
-  if (canDispatch > 0) btns += '<button class="inv-im-sel-btn" data-action="invRegBulkState" data-state="dispatched">Dispatch (' + canDispatch + ')</button>';
-  if (canDeliver > 0) btns += '<button class="inv-im-sel-btn" data-action="invRegBulkState" data-state="delivered">Deliver (' + canDeliver + ')</button>';
-  if (canFile > 0) btns += '<button class="inv-im-sel-btn" data-action="invRegBulkState" data-state="filed">File (' + canFile + ')</button>';
-  if (canCert > 0) btns += '<button class="inv-im-sel-btn" data-action="invRegQualityCerts">Quality certs (' + canCert + ')</button>';
+  if (canDispatch > 0) btns += b('invRegBulkState', 'Dispatch (' + canDispatch + ')', ' data-state="dispatched"');
+  if (canDeliver > 0) btns += b('invRegBulkState', 'Deliver (' + canDeliver + ')', ' data-state="delivered"');
+  if (canFile > 0) btns += b('invRegBulkState', 'File (' + canFile + ')', ' data-state="filed"');
+  if (canCert > 0) btns += b('invRegQualityCerts', 'Quality certs (' + canCert + ')');
   // Offered whenever there is anything active in the selection. If the batch is
   // unusable — two customers in it, say — the click explains why rather than
   // the button silently not being there.
   if (ids.some(function(id) {
     var inv = S.invoices.find(function(i) { return i.id === id; });
     return inv && inv.status !== 'cancelled';
-  })) btns += '<button class="inv-im-sel-btn" data-action="invRegCreditNote">Credit note</button>';
+  })) btns += b('invRegCreditNote', 'Credit note');
 
-  bar.innerHTML = '<div class="inv-im-sel-bar">' +
-    '<span class="inv-im-sel-count">' + ids.length + ' selected</span>' +
-    '<div class="inv-items-sel-actions">' + btns + '</div></div>';
+  bar.innerHTML = '<div class="inv-selbar">' +
+    '<span class="inv-selbar-count">' + ids.length + ' selected</span>' +
+    '<span class="inv-selbar-sum">' + formatCurrency(gstRound(taxable)) + ' taxable</span>' + btns + '</div>';
 }
 
 function regBulkSetState(targetState) {
@@ -793,141 +614,14 @@ function toggleRegSortDir() {
   _renderRegView();
 }
 
-/* Invoice detail overlay (Read intent) — consumes formatInvoiceData (Phase 5 refactor) */
+/* Invoice detail on the phone: the same content as the desktop pane, in a sheet. */
 function openInvoiceDetail(invId) {
   const inv = S.invoices.find(i => i.id === invId);
   if (!inv) return;
-  const d = formatInvoiceData(inv);
-
-  let html = '<div class="inv-overlay-card">' +
-    '<div class="inv-overlay-header"><span class="inv-overlay-title">Invoice Detail</span>' +
-    '<button class="inv-overlay-close" data-action="invCloseOverlay" aria-label="Close">&times;</button></div>';
-
-  // Status badge if cancelled
-  if (d.cancelled) {
-    html += '<div class="inv-confirm-warn">This invoice was cancelled on ' +
-      escHtml(d.cancelledAt || 'unknown date') +
-      '. It cannot be edited.</div>';
-  }
-
-  // Header info
-  html += '<div class="inv-detail-section">' +
-    '<div class="inv-form-row">' +
-    '<div><div class="inv-detail-label">Invoice No</div><div class="inv-detail-value-mono">' + escHtml(d.invoiceNumber) + '</div></div>' +
-    '<div><div class="inv-detail-label">Date</div><div class="inv-detail-value-mono">' + escHtml(d.date) + '</div></div></div></div>';
-
-  html += '<div class="inv-detail-section">' +
-    '<div class="inv-detail-label">Client</div>' +
-    '<div class="inv-detail-value">' + escHtml(d.clientName) + '</div>' +
-    '<div class="inv-detail-value-mono inv-text-muted inv-detail-gstin">' + escHtml(d.clientGSTIN) + '</div></div>';
-
-  // Lifecycle state timeline
-  if (!d.cancelled) {
-    var curState = getInvState(inv);
-    var curIdx = INV_STATES.indexOf(curState);
-    html += '<div class="inv-detail-section inv-state-timeline">' +
-      '<div class="inv-detail-label">Status</div>';
-    var stateData = [
-      { key: 'created', label: 'Created', ts: inv.createdAt },
-      { key: 'dispatched', label: 'Dispatched', ts: inv.dispatchedAt },
-      { key: 'delivered', label: 'Delivered', ts: inv.deliveredAt },
-      { key: 'filed', label: 'Filed', ts: inv.filedAt }
-    ];
-    stateData.forEach(function(sd, si) {
-      var done = si <= curIdx;
-      var isCurrent = si === curIdx;
-      html += '<div class="inv-state-step">' +
-        '<span class="inv-state-dot' + (done ? (isCurrent ? ' inv-state-dot-current' : ' inv-state-dot-done') : '') + '"></span>' +
-        '<span class="inv-state-step-label">' + escHtml(sd.label) + '</span>' +
-        (sd.ts ? '<span class="inv-state-step-date">' + formatTimestamp(sd.ts) + '</span>' : '') +
-        '</div>';
-    });
-    // Advance button
-    if (curIdx < INV_STATES.length - 1) {
-      var nextLabel = INV_STATE_LABELS[INV_STATES[curIdx + 1]];
-      html += '<div class="inv-btn-bar inv-mb-8"><button class="inv-btn inv-btn-primary inv-btn-sm" data-action="invAdvanceState" data-id="' + escHtml(inv.id) + '">Mark ' + escHtml(nextLabel) + '</button></div>';
-    }
-    html += '</div>';
-  }
-
-  // Line items table
-  html += '<div class="inv-detail-section">' +
-    '<div class="inv-detail-label">Line Items</div>' +
-    '<div class="inv-detail-items-wrap"><table class="inv-detail-items-table"><thead><tr>' +
-    '<th>Part</th><th>Qty</th><th>Unit</th><th>Rate</th><th>Amount</th></tr></thead><tbody>';
-  d.items.forEach(function(item, li) {
-    html += '<tr>' +
-      '<td>' + escHtml(lineLabel((inv.items || [])[li] || item)) + zeroReasonTag((inv.items || [])[li]) + detailRateMatch(inv, (inv.items || [])[li]) + '</td>' +
-      '<td class="inv-mono">' + escHtml(item.qty) + (item.nosQtyRaw && item.nosQtyRaw > 0 ? ' <span class="inv-text-muted">(' + escHtml(item.nosQtyRaw) + ' NOS)</span>' : '') + '</td>' +
-      '<td>' + escHtml(item.unit) + '</td>' +
-      '<td class="inv-mono">' + escHtml(item.rate) + '</td>' +
-      '<td class="inv-mono">' + escHtml(item.amount) + '</td></tr>';
-  });
-  html += '</tbody></table></div></div>';
-
-  // Totals — from formatted data
-  html += '<div class="inv-detail-section"><div class="inv-totals">' +
-    '<div class="inv-total-row"><span class="inv-total-label">Taxable Value</span><span class="inv-total-value">' + escHtml(d.taxableValue) + '</span></div>';
-  if (d.gstType === 'intra') {
-    html += '<div class="inv-total-row"><span class="inv-total-label">CGST @ ' + d.cgstPer + '%</span><span class="inv-total-value">' + escHtml(d.cgstAmt) + '</span></div>' +
-      '<div class="inv-total-row"><span class="inv-total-label">SGST @ ' + d.sgstPer + '%</span><span class="inv-total-value">' + escHtml(d.sgstAmt) + '</span></div>';
-  } else {
-    html += '<div class="inv-total-row"><span class="inv-total-label">IGST @ ' + d.igstPer + '%</span><span class="inv-total-value">' + escHtml(d.igstAmt) + '</span></div>';
-  }
-  html += '<div class="inv-total-row inv-total-row-grand"><span class="inv-total-label">Grand Total</span>' +
-    '<span class="inv-total-grand">' + escHtml(d.grandTotal) + '</span></div></div></div>';
-
-  // Optional fields
-  const optFields = [
-    ['Challan No', d.challanNo], ['Challan Date', d.challanDate],
-    ['Remarks', d.remarks]
-  ].filter(f => f[1]);
-  if (optFields.length > 0) {
-    html += '<div class="inv-detail-section">';
-    optFields.forEach(([label, val]) => {
-      html += '<div class="inv-detail-label">' + escHtml(label) + '</div>' +
-        '<div class="inv-detail-value">' + escHtml(val) + '</div>';
-    });
-    html += '</div>';
-  }
-
-  // Action buttons
-  var invState = getInvState(inv);
-  var nextStateIdx = INV_STATES.indexOf(invState) + 1;
-  var nextState = nextStateIdx < INV_STATES.length ? INV_STATES[nextStateIdx] : null;
-
-  // State timeline
-  if (!d.cancelled) {
-    html += '<div class="inv-detail-section"><div class="inv-detail-label">Status</div>' +
-      '<div class="inv-state-timeline">';
-    INV_STATES.forEach(function(st, i) {
-      var done = INV_STATES.indexOf(invState) >= i;
-      var current = invState === st;
-      var tsMap = { created: inv.createdAt, dispatched: inv.dispatchedAt, delivered: inv.deliveredAt, filed: inv.filedAt };
-      html += '<div class="inv-state-step">' +
-        '<span class="inv-state-dot' + (done ? ' inv-state-dot-done' : '') + (current ? ' inv-state-dot-current' : '') + '"></span>' +
-        '<span class="inv-state-step-label">' + escHtml(INV_STATE_LABELS[st]) + '</span>' +
-        (tsMap[st] ? '<span class="inv-state-step-date">' + formatTimestamp(tsMap[st]) + '</span>' : '') +
-        '</div>';
-    });
-    html += '</div>';
-    if (nextState) {
-      html += '<button class="inv-btn inv-btn-primary inv-btn-block" data-action="invAdvanceState" data-id="' + escHtml(inv.id) + '">Mark as ' + escHtml(INV_STATE_LABELS[nextState]) + '</button>';
-    }
-    html += '</div>';
-  }
-
-  html += '<div class="inv-detail-actions">';
-  if (!d.cancelled) {
-    html += '<button class="inv-btn inv-btn-primary" data-action="invEditInvoice" data-id="' + escHtml(inv.id) + '">Edit</button>';
-    html += '<button class="inv-btn inv-btn-ghost" data-action="invPreviewInvoice" data-id="' + escHtml(inv.id) + '">Preview</button>';
-    html += '<button class="inv-btn inv-btn-ghost" data-action="invQualityCert" data-id="' + escHtml(inv.id) + '">Quality Cert</button>';
-    html += '<button class="inv-btn inv-btn-ghost" data-action="invCancelInvoice" data-id="' + escHtml(inv.id) + '">Cancel Invoice</button>';
-  } else {
-    html += '<button class="inv-btn inv-btn-ghost" data-action="invPreviewInvoice" data-id="' + escHtml(inv.id) + '">Preview</button>';
-  }
-  html += '<button class="inv-btn inv-btn-danger" data-action="invDeleteInvoice" data-id="' + escHtml(inv.id) + '">Delete</button>';
-  html += '</div></div>';
+  var html = '<div class="inv-overlay-card">' +
+    '<div class="inv-overlay-header"><span class="inv-overlay-title">Invoice ' + escHtml(inv.displayNumber) + '</span>' +
+    '<button class="inv-overlay-close" data-action="invCloseOverlay" aria-label="Close">&times;</button></div>' +
+    invoiceDetailHtml(inv) + '</div>';
 
   const scrim = document.createElement('div');
   scrim.className = 'inv-overlay-scrim';
@@ -937,6 +631,96 @@ function openInvoiceDetail(invId) {
   document.body.appendChild(scrim);
   document.body.style.overflow = 'hidden';
   focusFirstInteractive(scrim.querySelector('.inv-overlay-card'));
+}
+
+/* The count and the taxable of what the filter shows (cancelled invoices bill nothing). */
+function _regSummaryHtml(filtered) {
+  var active = filtered.filter(function(i) { return i.status === 'active'; });
+  return '<div class="inv-pagehead"><span class="inv-pagehead-meta" data-reg-summary>' + active.length + ' active invoice' + (active.length !== 1 ? 's' : '') +
+    ' · <span class="inv-num">' + formatCurrency(gstRound(sumTaxable(active))) + '</span> taxable</span></div>';
+}
+
+function _regExportHtml() {
+  return '<div class="inv-toolbar inv-mt-16">' +
+    '<button class="inv-btn inv-btn-secondary" data-action="invExportSales">Sales register CSV</button>' +
+    '<button class="inv-btn inv-btn-secondary" data-action="invPrintSalesRegister">Sales register PDF</button>' +
+    '<button class="inv-btn inv-btn-secondary" data-action="invExportGstr1">GSTR-1 CSV</button>' +
+    '<button class="inv-btn inv-btn-secondary" data-action="invBulkMarkFiled">Bulk mark filed</button></div>';
+}
+
+function _regCheckHtml(inv) {
+  return '<input type="checkbox" class="inv-check" data-action="invRegToggleInv" data-id="' + escHtml(inv.id) + '"' +
+    (_regSelected[inv.id] ? ' checked' : '') + ' aria-label="Select ' + escHtml(inv.displayNumber) + '">';
+}
+
+/* One invoice read in full: the desktop pane and the phone sheet draw the same thing. */
+function invoiceDetailHtml(inv) {
+  var d = formatInvoiceData(inv);
+  var raws = inv.items || [];
+  var h = '';
+  if (d.cancelled) {
+    h += '<div class="inv-callout inv-callout-danger inv-mb-8">This invoice was cancelled on ' + escHtml(d.cancelledAt || 'unknown date') + '. It cannot be edited.</div>';
+  }
+  h += '<div class="inv-kv inv-mb-8">' +
+    '<div><div class="inv-kv-k">Invoice</div><div class="inv-id">' + escHtml(d.invoiceNumber) + '</div></div>' +
+    '<div><div class="inv-kv-k">Date</div><div class="inv-id">' + escHtml(d.date) + '</div></div>' +
+    '<div class="inv-kv-wide"><div class="inv-kv-k">Client</div><div>' + escHtml(d.clientName) + '</div>' +
+    (d.clientGSTIN ? '<div class="inv-id inv-note">' + escHtml(d.clientGSTIN) + '</div>' : '') + '</div>' +
+    (d.challanNo ? '<div><div class="inv-kv-k">Challan</div><div class="inv-id">' + escHtml(d.challanNo) + '</div></div>' : '') +
+    (d.challanDate ? '<div><div class="inv-kv-k">Challan date</div><div class="inv-id">' + escHtml(d.challanDate) + '</div></div>' : '') +
+    (d.remarks ? '<div class="inv-kv-wide"><div class="inv-kv-k">Remarks</div><div>' + escHtml(d.remarks) + '</div></div>' : '') +
+    '</div>';
+
+  h += '<div class="inv-panel inv-panel-flush">';
+  // The lifecycle, once (the phone sheet used to draw it twice).
+  if (!d.cancelled) {
+    var cur = getInvState(inv), curIdx = INV_STATES.indexOf(cur);
+    var ts = { created: inv.createdAt, dispatched: inv.dispatchedAt, delivered: inv.deliveredAt, filed: inv.filedAt };
+    h += '<div class="inv-row-group"><span>Status</span></div>';
+    INV_STATES.forEach(function(st, i) {
+      var tone = i < curIdx ? 'ok' : i === curIdx ? INV_STATE_TONE[st] : 'neutral';
+      h += '<div class="inv-row' + (i > curIdx ? ' inv-row-muted' : '') + '"' + (i === curIdx ? ' aria-current="step"' : '') + '>' +
+        '<span class="inv-row-main"><span class="inv-dot inv-dot-' + tone + '">' + escHtml(INV_STATE_LABELS[st]) + (i === curIdx ? ' · now' : '') + '</span></span>' +
+        '<span class="inv-row-end inv-row-meta">' + (ts[st] ? escHtml(formatTimestamp(ts[st])) : '') + '</span></div>';
+    });
+    if (curIdx < INV_STATES.length - 1) {
+      h += '<div class="inv-row"><button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invAdvanceState" data-id="' + escHtml(inv.id) + '">Mark ' +
+        escHtml(INV_STATE_LABELS[INV_STATES[curIdx + 1]]).toLowerCase() + '</button></div>';
+    }
+  }
+
+  h += '<div class="inv-row-group"><span>Lines · ' + d.items.length + '</span></div><div data-lines>';
+  d.items.forEach(function(item, li) {
+    var raw = raws[li];
+    h += '<div class="inv-row inv-row-auto" data-line>' +
+      '<span class="inv-row-main"><span class="inv-row-title inv-row-wrap">' + escHtml(lineLabel(raw || item)) + '</span>' +
+      '<span class="inv-row-meta"><span class="inv-num">' + escHtml(item.qty) + '</span> ' + escHtml(item.unit) +
+      (item.nosQtyRaw && item.nosQtyRaw > 0 ? ' (' + escHtml(item.nosQtyRaw) + ' NOS)' : '') + ' × <span class="inv-num">' + escHtml(item.rate) + '</span></span>' +
+      zeroReasonTag(raw) + detailRateMatch(inv, raw) + '</span>' +
+      '<span class="inv-row-end inv-num">' + escHtml(item.amount) + '</span></div>';
+  });
+  h += '</div>';
+
+  var tot = function(label, value, strong) {
+    return '<div class="inv-row' + (strong ? ' inv-row-strong' : '') + '"><span class="inv-row-main">' + label + '</span><span class="inv-row-end inv-num">' + escHtml(value) + '</span></div>';
+  };
+  h += '<div class="inv-row-group"><span>Totals</span></div>' + tot('Taxable value', d.taxableValue);
+  if (d.gstType === 'intra') h += tot('CGST @ ' + escHtml(d.cgstPer) + '%', d.cgstAmt) + tot('SGST @ ' + escHtml(d.sgstPer) + '%', d.sgstAmt);
+  else h += tot('IGST @ ' + escHtml(d.igstPer) + '%', d.igstAmt);
+  h += tot('Grand total', d.grandTotal, true) + '</div>';
+
+  // One primary: Edit. A cancelled invoice can only be read or removed.
+  var id = escHtml(inv.id);
+  h += '<div class="inv-toolbar">';
+  if (!d.cancelled) {
+    h += '<button class="inv-btn inv-btn-primary" data-action="invEditInvoice" data-id="' + id + '">Edit</button>' +
+      '<button class="inv-btn inv-btn-secondary" data-action="invPreviewInvoice" data-id="' + id + '">Preview</button>' +
+      '<button class="inv-btn inv-btn-secondary" data-action="invQualityCert" data-id="' + id + '">Quality cert</button>' +
+      '<button class="inv-btn inv-btn-danger" data-action="invCancelInvoice" data-id="' + id + '">Cancel invoice</button>';
+  } else {
+    h += '<button class="inv-btn inv-btn-secondary" data-action="invPreviewInvoice" data-id="' + id + '">Preview</button>';
+  }
+  return h + '<button class="inv-btn inv-btn-danger" data-action="invDeleteInvoice" data-id="' + id + '">Delete</button></div>';
 }
 
 /* Edit invoice — loads into Create Invoice in edit mode */

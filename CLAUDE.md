@@ -97,7 +97,7 @@ every session start — nothing to set up by hand. CI (`build-sync`) is the back
 ### Tests
 
 ```bash
-pnpm exec playwright test          # 443 tests, both layouts
+pnpm exec playwright test          # 446 tests, both layouts
 ```
 
 Some sandboxes ship a Chromium build Playwright does not expect and block downloading
@@ -178,6 +178,11 @@ class names; a v1.0 name is only ever *removed* from those lists (in step 3), ne
 **Step 3 is under way, one screen per PR** in §9's order. **Home is built:** its markup is v2.0 only, and its private
 family (`inv-qa*`, `inv-unbilled-*`, `inv-recent-*`, `inv-sync-card`, `inv-zinc-*`, `inv-td-hrow`) is deleted. Its tiles now
 carry the month's tonnage and ₹/kg next to the revenue, on the same `weighLines()` Stats uses.
+**Register is built:** one `invoiceDetailHtml()` draws the desktop pane and the phone sheet (the sheet used to draw
+the status timeline twice); the phone list is grouped by day with each day's taxable; the desktop table drops columns
+in priority by container query and the pane opens on demand, which fixes the survey's squeezed list (40% of the screen,
+Total cut off, client names over three lines — P54 measures it at 1024 and 1280). States read through
+`INV_STATE_TONE` in `state.js`.
 
 ⚠ **Until the migration in its §9 completes, the stylesheet still carries the v1.0 families** (`inv-card`,
 `inv-stk-*`, `inv-stats-card`, the domain colours). New work uses the v2.0 components; never extend a v1.0

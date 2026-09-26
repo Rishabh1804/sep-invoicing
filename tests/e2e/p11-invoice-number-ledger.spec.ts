@@ -120,7 +120,7 @@ test('P11: the audit classifies every number in the series', async ({ page }) =>
   await loadAppWithState(page, state);
   await switchTab(page, 'pageRegister');
 
-  await expect(page.locator('#regNumberAudit .inv-numaudit-count')).toHaveText('1');
+  await expect(page.locator('#regNumberAudit [data-unaccounted]')).toHaveText('1');
 
   await page.locator('#regNumberAudit').click();
   const overlay = page.locator('.inv-overlay-scrim');
@@ -161,7 +161,7 @@ test('P11: the series is read from evidence, not from 1', async ({ page }) => {
   await loadAppWithState(page, stateWith([500, 501], 502));
   await switchTab(page, 'pageRegister');
 
-  await expect(page.locator('#regNumberAudit .inv-numaudit-count')).toHaveCount(0);
+  await expect(page.locator('#regNumberAudit [data-unaccounted]')).toHaveCount(0);
   await page.locator('#regNumberAudit').click();
   await expect(page.locator('.inv-overlay-scrim')).toContainText('0 unaccounted');
 });

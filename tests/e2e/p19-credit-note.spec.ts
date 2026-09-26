@@ -545,10 +545,10 @@ test('P19: the reference can be set by hand, and the headroom rule still binds',
   await page.evaluate(async (cnId) => {
     (window as unknown as { cnSetAgainstInvoice: (c: string) => void }).cnSetAgainstInvoice(cnId);
   }, id);
-  const offered = await page.locator('.inv-overlay-scrim .inv-reg-invnum').allInnerTexts();
+  const offered = await page.locator('.inv-overlay-scrim [data-invnum]').allInnerTexts();
   expect(offered.sort()).toEqual(['SEP/TEST-00001', 'SEP/TEST-00002', 'SEP/TEST-00003']);
   // And the one that cannot carry the credit is shown as unpickable, with why.
-  await expect(page.locator('.inv-overlay-scrim .inv-reg-row-cancelled')).toContainText('SEP/TEST-00003');
+  await expect(page.locator('.inv-overlay-scrim [data-unavailable]')).toContainText('SEP/TEST-00003');
 });
 
 test('P19: a cancelled note is neither stamped nor editable', async ({ page }) => {

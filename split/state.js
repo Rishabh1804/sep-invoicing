@@ -612,10 +612,17 @@ function getInvState(inv) {
   return inv.invoiceState || 'created';
 }
 
+/* An invoice's state as a status tone (design principles §6.13): waiting on the
+   floor is a caution, in the customer's hands is information, filed is done. */
+var INV_STATE_TONE = { created: 'neutral', dispatched: 'warning', delivered: 'info', filed: 'ok', cancelled: 'danger' };
+function invStateOf(inv) { return inv.status === 'cancelled' ? 'cancelled' : getInvState(inv); }
+function invStateWord(inv) { var st = invStateOf(inv); return st === 'cancelled' ? 'Cancelled' : (INV_STATE_LABELS[st] || st); }
 function getStateBadgeHtml(inv) {
-  if (inv.status === 'cancelled') return '<span class="inv-cancelled-badge">Cancelled</span>';
-  var state = getInvState(inv);
-  return '<span class="inv-state-badge inv-state-' + state + '">' + escHtml(INV_STATE_LABELS[state] || state) + '</span>';
+  return '<span class="inv-badge inv-badge-' + INV_STATE_TONE[invStateOf(inv)] + '">' + escHtml(invStateWord(inv)) + '</span>';
+}
+/* The default in rows and tables (DR-8): a dot and the word. */
+function getStateDotHtml(inv) {
+  return '<span class="inv-dot inv-dot-' + INV_STATE_TONE[invStateOf(inv)] + '">' + escHtml(invStateWord(inv)) + '</span>';
 }
 
 function advanceInvoiceState(invId) {

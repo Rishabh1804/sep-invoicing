@@ -113,7 +113,7 @@ test.describe('P36: rate matcher — option E', () => {
     }];
     await loadAppWithState(page, s);
     await page.evaluate(() => (window as any).openInvoiceDetail('INV-684'));
-    const rows = page.locator('.inv-detail-items-table').first().locator('tbody tr');
+    const rows = page.locator('[data-lines]').first().locator('[data-line]');
     await expect(rows.nth(0).locator('.inv-rm-chip')).toHaveText('Check');
     await expect(rows.nth(0)).toContainText('−₹119.60 on this line');
     await expect(rows.nth(1).locator('.inv-rm-chip')).toHaveCount(0);

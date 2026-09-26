@@ -642,8 +642,8 @@ function cnSetAgainstInvoice(id) {
     '<div class="inv-overlay-header"><span class="inv-overlay-title">Against invoice &mdash; ' +
     escHtml(cn.displayNumber) + '</span>' +
     '<button class="inv-overlay-close" data-action="invCloseOverlay" aria-label="Close">&times;</button></div>' +
-    '<div class="inv-empty-state">Pick the invoice this credit note is taken against. It must carry ' +
-    formatCurrency(need) + ' taxable.</div><div class="inv-card-list">';
+    '<div class="inv-note inv-mb-8">Pick the invoice this credit note is taken against. It must carry ' +
+    formatCurrency(need) + ' taxable.</div><div class="inv-panel inv-panel-flush">';
 
   rows.forEach(function(r) {
     var why = '';
@@ -651,22 +651,19 @@ function cnSetAgainstInvoice(id) {
     else if (r.inv.status === 'cancelled') why = 'cancelled — credits nothing';
     else if (cnInvoiceHeadroom(r.inv, cn.id) < need) why = 'only ' + formatCurrency(cnInvoiceHeadroom(r.inv, cn.id)) + ' left';
     var chosen = cn.againstInvoice === r.num;
-    html += '<div class="inv-reg-row' + (why ? ' inv-reg-row-cancelled' : '') + '">' +
-      (why ? '<div class="inv-reg-row-content">' :
-        '<div class="inv-reg-row-content" data-action="invCnPickAgainst" data-id="' + escHtml(cn.id) +
-        '" data-idx="' + r.idx + '">') +
-      '<div class="inv-reg-row-top"><div class="inv-reg-status-row">' +
-      '<span class="inv-reg-invnum">' + escHtml(r.num) + '</span>' +
-      (chosen ? ' <span class="inv-cancelled-badge">Current</span>' : '') + '</div>' +
-      '<div class="inv-reg-amounts"><span class="inv-reg-taxable">' +
-      (r.inv ? 'Taxable: ' + formatCurrency(r.inv.taxableValue) : '&mdash;') + '</span></div></div>' +
-      (why ? '<div class="inv-reg-row-bottom"><span class="inv-text-muted inv-text-xs">' +
-        escHtml(why) + '</span></div>' : '') +
-      '</div></div>';
+    var body = '<span class="inv-row-title"><span class="inv-id" data-invnum>' + escHtml(r.num) + '</span>' +
+      (chosen ? ' <span class="inv-badge inv-badge-info">Current</span>' : '') + '</span>' +
+      (why ? '<span class="inv-row-meta">' + escHtml(why) + '</span>' : '');
+    var end = '<span class="inv-row-end inv-num">' + (r.inv ? formatCurrency(r.inv.taxableValue) : '&mdash;') + '</span>';
+    // An invoice that cannot carry the note is listed, not offered.
+    html += why
+      ? '<div class="inv-row inv-row-2 inv-row-muted" data-unavailable><span class="inv-row-main">' + body + '</span>' + end + '</div>'
+      : '<button class="inv-row inv-row-2" data-action="invCnPickAgainst" data-id="' + escHtml(cn.id) + '" data-idx="' + r.idx + '">' +
+        '<span class="inv-row-main">' + body + '</span>' + end + '</button>';
   });
 
-  html += '</div><div class="inv-btn-bar">' +
-    '<button class="inv-btn inv-btn-ghost" data-action="invCnPickAgainst" data-id="' + escHtml(cn.id) +
+  html += '</div><div class="inv-toolbar">' +
+    '<button class="inv-btn inv-btn-secondary" data-action="invCnPickAgainst" data-id="' + escHtml(cn.id) +
     '" data-idx="-1">Clear &mdash; let the rule choose</button></div></div>';
 
   var existing = document.querySelector('.inv-overlay-scrim');
@@ -784,39 +781,35 @@ function renderCreditNoteList() {
   });
 
   var html = '<div class="inv-overlay-card">' +
-    '<div class="inv-overlay-header"><span class="inv-overlay-title">Credit Notes</span>' +
+    '<div class="inv-overlay-header"><span class="inv-overlay-title">Credit notes</span>' +
     '<button class="inv-overlay-close" data-action="invCloseOverlay" aria-label="Close">&times;</button></div>';
 
   if (notes.length === 0) {
-    html += '<div class="inv-empty-state">No credit notes yet. Select a batch of invoices in the register to raise one.</div>';
+    html += '<div class="inv-empty">No credit notes yet. Select a batch of invoices in the register to raise one.</div>';
   } else {
-    html += '<div class="inv-card-list">';
+    html += '<div class="inv-panel inv-panel-flush">';
     notes.forEach(function(cn) {
       var cancelled = cn.status === 'cancelled';
-      html += '<div class="inv-reg-row' + (cancelled ? ' inv-reg-row-cancelled' : '') + '">' +
-        '<div class="inv-reg-row-content" data-action="invCnPreview" data-id="' + escHtml(cn.id) + '">' +
-        '<div class="inv-reg-row-top"><div class="inv-reg-status-row">' +
-        '<span class="inv-reg-invnum">' + escHtml(cn.displayNumber) + '</span>' +
-        (cancelled ? ' <span class="inv-cancelled-badge">Cancelled</span>' : '') + '</div>' +
-        '<div class="inv-reg-amounts"><span class="inv-reg-total">' + formatCurrency(cn.grandTotal) + '</span>' +
-        '<span class="inv-reg-taxable">Taxable: ' + formatCurrency(cn.taxableValue) + '</span></div></div>' +
-        '<div class="inv-reg-row-bottom"><span class="inv-reg-client">' + escHtml(cn.clientName) + '</span>' +
-        '<span class="inv-reg-date">' + escHtml(formatDate(cn.date)) + '</span></div>' +
-        '<div class="inv-reg-row-bottom"><span class="inv-text-muted inv-text-xs">' +
-        escHtml(cn.discountPct) + '% of ' + formatCurrency(cn.batchTaxable) + ' over ' +
-        (cn.invoiceNumbers || []).length + ' invoice' + ((cn.invoiceNumbers || []).length !== 1 ? 's' : '') +
-        '</span></div>' +
+      var n = (cn.invoiceNumbers || []).length;
+      html += '<div class="inv-row inv-row-auto' + (cancelled ? ' inv-row-muted' : '') + '"' + (cancelled ? ' data-cancelled' : '') + '>' +
+        '<button class="inv-row-main" data-action="invCnPreview" data-id="' + escHtml(cn.id) + '">' +
+        '<span class="inv-row-title"><span class="inv-id" data-invnum>' + escHtml(cn.displayNumber) + '</span> ' +
+        (cancelled ? '<span class="inv-dot inv-dot-danger">Cancelled</span>' : '') + '</span>' +
+        '<span class="inv-row-meta">' + escHtml(cn.clientName) + ' · ' + escHtml(formatDate(cn.date)) + '</span>' +
+        '<span class="inv-row-meta">' + escHtml(cn.discountPct) + '% of ' + formatCurrency(cn.batchTaxable) + ' over ' + n + ' invoice' + (n !== 1 ? 's' : '') + '</span>' +
         // The customer identifies this note by ONE invoice number now, so that
         // number belongs on the row rather than behind a preview.
-        '<div class="inv-reg-row-bottom"><span class="inv-text-muted inv-text-xs">Against ' +
-        escHtml(cnAgainstInvoiceLabel(cn)) + '</span></div></div>' +
+        '<span class="inv-row-meta">Against ' + escHtml(cnAgainstInvoiceLabel(cn)) + '</span></button>' +
+        '<span class="inv-row-end"><span class="inv-row-stack"><span class="inv-num">' + formatCurrency(cn.grandTotal) + '</span>' +
+        '<span class="inv-row-meta inv-num">' + formatCurrency(cn.taxableValue) + ' taxable</span>' +
         (cancelled ? '' :
-          '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invCnSetAgainst" data-id="' + escHtml(cn.id) + '">Reference</button>' +
-          '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invCnCancel" data-id="' + escHtml(cn.id) + '">Cancel</button>') +
-        '</div>';
+          '<span class="inv-toolbar inv-toolbar-tight">' +
+          '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invCnSetAgainst" data-id="' + escHtml(cn.id) + '">Reference</button>' +
+          '<button class="inv-btn inv-btn-danger inv-btn-sm" data-action="invCnCancel" data-id="' + escHtml(cn.id) + '">Cancel</button></span>') +
+        '</span></span></div>';
     });
     html += '</div>';
-    html += '<div class="inv-btn-bar"><button class="inv-btn inv-btn-ghost" data-action="invExportCreditNotes">Credit Notes CSV</button></div>';
+    html += '<div class="inv-toolbar inv-mt-16"><button class="inv-btn inv-btn-secondary" data-action="invExportCreditNotes">Credit notes CSV</button></div>';
   }
   html += '</div>';
 

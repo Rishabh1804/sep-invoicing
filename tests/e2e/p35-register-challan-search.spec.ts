@@ -40,23 +40,23 @@ test.describe('P35: register search reaches the challan', () => {
     const search = page.locator('#regSearch');
 
     await search.fill('912');
-    await expect(page.locator('.inv-reg-invnum').filter({ hasText: '00835' })).toHaveCount(1);
+    await expect(page.locator('#regList [data-invnum]').filter({ hasText: '00835' })).toHaveCount(1);
     // The invoice number still matches as before.
-    await expect(page.locator('.inv-reg-invnum').filter({ hasText: '00912' })).toHaveCount(1);
+    await expect(page.locator('#regList [data-invnum]').filter({ hasText: '00912' })).toHaveCount(1);
 
     // Leading zeros on a challan do not hide it.
     await search.fill('913');
-    await expect(page.locator('.inv-reg-invnum').filter({ hasText: '00836' })).toHaveCount(1);
+    await expect(page.locator('#regList [data-invnum]').filter({ hasText: '00836' })).toHaveCount(1);
 
     // A fragment of a challan number is not that challan.
     await search.fill('91');
-    await expect(page.locator('.inv-reg-invnum').filter({ hasText: '00835' })).toHaveCount(0);
+    await expect(page.locator('#regList [data-invnum]').filter({ hasText: '00835' })).toHaveCount(0);
   });
 
   test('the invoice detail names the part, with the gauge beside it', async ({ page }) => {
     await loadAppWithState(page, stateWith([invoice(835, { challanNo: '911' })]));
     await page.evaluate(() => (window as any).openInvoiceDetail('INV-835'));
-    await expect(page.locator('.inv-detail-items-table').first()).toContainText('CLAMP 165X83 (NT) · 40X6');
+    await expect(page.locator('[data-lines]').first()).toContainText('CLAMP 165X83 (NT) · 40X6');
   });
 
   test('a challan line names the part, not only its gauge', async ({ page }) => {

@@ -89,7 +89,7 @@
   --cw: var(--ok); --perm: var(--info);
 
   /* Layout (§3.7) */
-  --bar-h: 3.25rem; --bar-h-desk: 3rem; --nav-h: 3.625rem; --side-w: 13.5rem; --content-max: 80rem;
+  --bar-h: 3.25rem; --bar-h-desk: 3rem; --nav-h: 3.625rem; --side-w: 13.5rem; --content-max: 80rem; --pane-w: 22rem;
   --tab-h: var(--nav-h); --header-h: var(--bar-h); --max-w: 32.5rem;
   --set-card-w: 55rem; --set-nav-w: 12.5rem;
   --section-gap: var(--sp-12); --card-padding: var(--sp-16); --card-padding-sm: var(--sp-12);
@@ -1539,86 +1539,9 @@ table.inv-qc-grid.inv-qc-no-top { border-top: 0; }
 }
 .inv-rate-row:last-child { border-bottom: none; }
 
-/* ===== REGISTER ===== */
-.inv-reg-toolbar {
-  display: flex; flex-direction: column; gap: var(--sp-8);
-  margin-bottom: var(--sp-16);
-}
-.inv-reg-filters {
-  display: flex; gap: var(--sp-8); flex-wrap: wrap;
-}
-.inv-reg-filters > * { flex: 1 1 9rem; min-width: 0; }
-.inv-reg-filters .inv-form-group { margin-bottom: 0; }
-/* Explicit date range, for an export that does not line up with a month. */
-.inv-reg-range { display: flex; gap: var(--sp-8); flex-wrap: wrap; align-items: flex-end; }
-/* Capped so the pair stays a compact control on a wide desktop toolbar rather
-   than stretching edge to edge, while still filling a 393px phone. */
-.inv-reg-range-field {
-  flex: 1; min-width: 0; max-width: 240px;
-  display: flex; flex-direction: column; gap: var(--sp-2);
-}
-.inv-reg-range-label { font-size: var(--fs-xs); color: var(--text-3); font-weight: 600; }
-.inv-reg-scope-note {
-  font-size: var(--fs-xs); color: var(--warning-text);
-  background: var(--warning-bg); border: 1px solid var(--warning);
-  border-radius: var(--r-sm); padding: var(--sp-4) var(--sp-8);
-}
-.inv-reg-search {
-  width: 100%; padding: var(--sp-10) var(--sp-12) var(--sp-10) var(--sp-32);
-  border: 1px solid var(--border); border-radius: var(--r-md);
-  background: var(--surface); font-size: var(--fs-base); min-height: 44px;
-  color: var(--text-1); transition: border-color var(--anim-fast);
-}
-.inv-reg-search:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 2px rgba(180,90,55,0.15); }
-.inv-reg-row {
-  display: flex; align-items: stretch;
-  border-bottom: 1px solid var(--border);
-  transition: background var(--anim-fast);
-}
-.inv-reg-row:last-child { border-bottom: none; }
-.inv-reg-row-cancelled { opacity: 0.5; }
-.inv-reg-row-top {
-  display: flex; justify-content: space-between; align-items: center;
-}
-.inv-reg-row-bottom {
-  display: flex; justify-content: space-between; align-items: center;
-}
-.inv-reg-invnum {
-  font-family: var(--ff-mono); font-size: var(--fs-sm); font-weight: 600;
-  color: var(--text-1); white-space: nowrap;
-}
-.inv-reg-date {
-  font-family: var(--ff-mono); font-size: var(--fs-xs); color: var(--text-3);
-  white-space: nowrap; flex-shrink: 0;
-}
-.inv-reg-client {
-  font-size: var(--fs-sm); color: var(--text-2);
-  word-break: break-word;
-}
-.inv-reg-total {
-  font-family: var(--ff-mono); font-weight: 600;
-  font-size: var(--fs-base); color: var(--cost-text);
-  text-align: right; white-space: nowrap;
-}
-.inv-reg-amounts {
-  display: flex; flex-direction: column; align-items: flex-end; gap: var(--sp-2);
-}
-.inv-reg-taxable {
-  font-family: var(--ff-mono); font-size: var(--fs-2xs); color: var(--text-3);
-  white-space: nowrap;
-}
-.inv-reg-status-row {
-  display: flex; align-items: center; gap: var(--sp-6); flex-wrap: wrap; min-width: 0;
-}
-/* The number is atomic: a long badge goes under it rather than splitting it. */
-.inv-reg-row-top, .inv-reg-row-bottom { gap: var(--sp-8); }
-.inv-reg-amounts { flex-shrink: 0; }
-.inv-cancelled-badge {
-  display: inline-block; padding: var(--sp-2) var(--sp-8);
-  border-radius: var(--r-full); font-size: var(--fs-2xs); font-weight: 700;
-  background: var(--danger-bg); color: var(--danger-text);
-}
-/* Invoice lifecycle state badges */
+/* ===== INVOICE STATES (v1.0) =====
+   The Register draws states with inv-dot / inv-badge (state.js INV_STATE_TONE); these remain for
+   Stats' state counts, and the summary strip for IM, until those screens move (§9 step 3). */
 .inv-state-badge {
   display: inline-block; padding: var(--sp-2) var(--sp-8);
   border-radius: var(--r-full); font-size: var(--fs-2xs); font-weight: 600;
@@ -1627,23 +1550,6 @@ table.inv-qc-grid.inv-qc-no-top { border-top: 0; }
 .inv-state-dispatched { background: var(--warning-bg); color: var(--warning-text); }
 .inv-state-delivered { background: var(--attend-bg); color: var(--attend-text); }
 .inv-state-filed { background: var(--prod-bg); color: var(--prod-text); }
-.inv-state-timeline { margin-bottom: var(--sp-12); }
-.inv-state-step {
-  display: flex; align-items: center; gap: var(--sp-8);
-  padding: var(--sp-4) 0; font-size: var(--fs-sm);
-}
-.inv-state-dot {
-  width: var(--sp-8); height: var(--sp-8); border-radius: var(--r-full);
-  background: var(--border); flex-shrink: 0;
-}
-.inv-state-dot-done { background: var(--attend); }
-.inv-state-dot-current { background: var(--warning); }
-.inv-state-step-label { color: var(--text-2); }
-.inv-state-step-date { font-family: var(--ff-mono); font-size: var(--fs-2xs); color: var(--text-3); margin-left: auto; }
-.inv-reg-export-bar {
-  display: flex; gap: var(--sp-8); margin-top: var(--sp-12);
-}
-.inv-reg-export-bar > * { flex: 1; }
 .inv-reg-summary {
   display: flex; justify-content: space-between; align-items: center;
   padding: var(--sp-8) var(--sp-16);
@@ -1651,9 +1557,6 @@ table.inv-qc-grid.inv-qc-no-top { border-top: 0; }
   margin-bottom: var(--sp-12); font-size: var(--fs-sm);
 }
 .inv-reg-summary-label { color: var(--text-3); }
-.inv-reg-summary-value {
-  font-family: var(--ff-mono); font-weight: 600; color: var(--cost-text);
-}
 
 /* ===== INVOICE DETAIL OVERLAY ===== */
 .inv-detail-section {
@@ -1670,27 +1573,6 @@ table.inv-qc-grid.inv-qc-no-top { border-top: 0; }
 .inv-detail-value-mono {
   font-family: var(--ff-mono); font-size: var(--fs-base); color: var(--text-1);
 }
-.inv-detail-gstin {
-  font-size: var(--fs-xs); color: var(--text-3);
-}
-.inv-detail-items-table {
-  width: 100%; border-collapse: collapse;
-  font-size: var(--fs-xs); margin-top: var(--sp-8);
-}
-.inv-detail-items-wrap {
-  overflow-x: auto; -webkit-overflow-scrolling: touch;
-}
-.inv-detail-items-table th {
-  text-align: left; padding: var(--sp-6) var(--sp-4);
-  border-bottom: 2px solid var(--border-2);
-  font-size: var(--fs-2xs); color: var(--text-3); font-weight: 600;
-}
-.inv-detail-items-table td {
-  padding: var(--sp-6) var(--sp-4);
-  border-bottom: 1px solid var(--border);
-  font-size: var(--fs-xs); vertical-align: top;
-}
-.inv-detail-items-table .inv-mono { font-family: var(--ff-mono); }
 .inv-detail-actions {
   display: flex; gap: var(--sp-8); flex-wrap: wrap;
   margin-top: var(--sp-16); padding-top: var(--sp-16);
@@ -1847,12 +1729,6 @@ table.inv-qc-grid.inv-qc-no-top { border-top: 0; }
 .inv-form-hint {
   font-size: var(--fs-xs); color: var(--text-3);
   margin-top: var(--sp-4);
-}
-.inv-numaudit-count {
-  display: inline-block; margin-left: var(--sp-6);
-  padding: 0 var(--sp-6); border-radius: var(--r-full);
-  background: var(--danger-bg); color: var(--danger-text);
-  font-size: var(--fs-xs); font-weight: 600;
 }
 .inv-numaudit-note {
   font-size: var(--fs-sm); color: var(--text-2);
@@ -2156,26 +2032,6 @@ table.inv-qc-grid.inv-qc-no-top { border-top: 0; }
 }
 
 /* ===== REGISTER — Phase 6b (Bulk Select + Sort) ===== */
-.inv-reg-actions-row {
-  display: flex; gap: var(--sp-8); margin-top: var(--sp-8);
-  /* Wraps rather than squeezing: with select-all present this row carries four
-     buttons, and at 393px they were compressing their labels onto two lines. */
-  flex-wrap: wrap;
-}
-.inv-reg-check-wrap {
-  display: flex; align-items: center; justify-content: center;
-  min-width: 44px; flex-shrink: 0; cursor: pointer;
-  border-bottom: 1px solid var(--border);
-}
-.inv-reg-row-content {
-  flex: 1; min-width: 0; display: flex; flex-direction: column;
-  gap: var(--sp-4); padding: var(--sp-12) var(--sp-16);
-  border-bottom: 1px solid var(--border);
-  cursor: pointer; min-height: 52px;
-  transition: background var(--anim-fast);
-}
-.inv-reg-row-content:active { background: var(--surface-2); }
-.inv-reg-row-selected { background: var(--prod-bg); }
 .inv-sel-clear-btn {
   background: transparent; color: var(--on-accent);
   border-color: color-mix(in srgb, var(--on-accent) 40%, transparent);
@@ -2333,7 +2189,6 @@ body.inv-desktop .inv-desktop-table thead {
 }
 body.inv-desktop .inv-tr:hover { background: var(--surface-2); }
 .inv-tr-active { background: var(--neutral-bg); }
-.inv-tr-cancelled { opacity: 0.6; }
 .inv-td {
   padding: var(--sp-8) var(--sp-12);
   vertical-align: middle;
@@ -2344,10 +2199,6 @@ body.inv-desktop .inv-tr:hover { background: var(--surface-2); }
   text-align: center;
   cursor: default;
 }
-.inv-td-num {
-  width: 60px;
-  font-family: var(--ff-mono);
-}
 .inv-td-date {
   width: 100px;
   font-family: var(--ff-mono);
@@ -2357,7 +2208,6 @@ body.inv-desktop .inv-tr:hover { background: var(--surface-2); }
   font-family: var(--ff-mono);
   text-align: right;
 }
-.inv-td-state { width: 90px; }
 
 /* Desktop-only toolbar overrides (Phase 8C) */
 body.inv-desktop [data-action="invRegToggleSort"],
@@ -3453,6 +3303,15 @@ body.inv-desktop .inv-viewtab, body.inv-desktop .inv-stats-tab, body.inv-desktop
 .inv-search svg { width: 16px; height: 16px; flex-shrink: 0; }
 .inv-search input { flex: 1; min-width: 0; border: none; outline: none; background: none; color: var(--text-1); font-size: var(--fs-14); }
 .inv-search input:focus-visible { box-shadow: none; }
+/* Filters in a toolbar share the line, wrapping two to a row on the phone; a labelled one keeps its label above. */
+.inv-toolbar > .inv-toolbar-item { flex: 1 1 9rem; min-width: 0; width: auto; }
+.inv-toolbar .inv-field { margin-bottom: 0; }
+.inv-toolbar-end { align-self: flex-end; }
+.inv-toolbar-tight { gap: var(--sp-4); margin-bottom: 0; justify-content: flex-end; }
+.inv-btn .inv-badge { margin-left: var(--sp-2); }
+/* §6.2 Page head: a summary line worth more than the top bar. */
+.inv-pagehead { display: flex; align-items: baseline; justify-content: space-between; gap: var(--sp-8); margin-bottom: var(--sp-8); }
+.inv-pagehead-meta { font-size: var(--fs-12); color: var(--text-3); }
 
 /* §6.8 Panel. v1.0: every card family. */
 .inv-panel, .inv-card, .inv-card-list, .inv-stats-card, .inv-im-challan {
@@ -3531,6 +3390,9 @@ button.inv-row-main { display: block; padding: 0; border: none; background: none
 .inv-row-wrap .inv-dot { white-space: normal; }
 .inv-row-auto { min-height: 0; padding-top: var(--sp-8); padding-bottom: var(--sp-8); }
 .inv-row-muted { opacity: 0.55; }
+.inv-row-strong { font-weight: 600; }
+.inv-row-strong .inv-row-main { font-weight: 600; }
+.inv-check { width: var(--sp-20); height: var(--sp-20); accent-color: var(--accent); cursor: pointer; flex-shrink: 0; }
 .inv-row-group {
   display: flex; justify-content: space-between; align-items: center; min-height: var(--sp-32);
   padding: 0 var(--pad-x); background: var(--bg); border-bottom: 1px solid var(--border);
@@ -3550,9 +3412,20 @@ button.inv-row-main { display: block; padding: 0; border: none; background: none
 .inv-table tr.inv-row-selected td { background: var(--accent-soft); }
 .inv-table tfoot td { font-weight: 600; border-bottom: none; border-top: 1px solid var(--border); }
 .inv-num { font-family: var(--ff-mono); text-align: right; white-space: nowrap; }
-.inv-table th.inv-num { font-family: var(--ff-base); }
+.inv-table th.inv-num { font-family: var(--ff-base); text-align: right; }
 .inv-id { font-family: var(--ff-mono); white-space: nowrap; }
 .inv-table-check { width: var(--sp-32); }
+.inv-table tr[data-action] { cursor: pointer; }
+.inv-table tr[aria-current="true"] td { background: var(--surface-2); }
+.inv-table tr[aria-current="true"] td:first-child { box-shadow: inset 2px 0 0 var(--accent); }
+.inv-table tr.inv-row-muted td { opacity: 0.55; }
+/* A column that takes the spare width and ellipsizes, rather than wrapping a client's name over three lines. */
+.inv-col-grow { width: 100%; max-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.inv-col-grow-sm { max-width: 8rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.inv-table-sort { padding: 0; border: none; background: none; font: inherit; color: inherit; cursor: pointer; white-space: nowrap; }
+.inv-table-sort:hover { color: var(--text-1); }
+.inv-table .inv-btn-link { color: var(--text-1); font-weight: 500; }
+.inv-table .inv-btn-link:hover { color: var(--accent); }
 .inv-cell {
   display: flex; align-items: center; justify-content: center; min-height: var(--ctl-h-sm);
   border-radius: var(--r-sm); font-family: var(--ff-mono); font-size: var(--fs-12);
@@ -3579,8 +3452,8 @@ button.inv-row-main { display: block; padding: 0; border: none; background: none
 .inv-dot-warning::before { background: var(--warning); }
 .inv-dot-ok::before { background: var(--ok); }
 .inv-dot-info::before { background: var(--info); }
-.inv-dot-neutral::before { background: var(--surface-3); }
-.inv-badge, .inv-state-badge, .inv-cancelled-badge, .inv-im-status, .inv-att-badge, .inv-area-badge, .inv-client-badge, .inv-stk-chip, .inv-td-lbl, .inv-cost-src, .inv-kpi-delta {
+.inv-dot-neutral::before { background: var(--text-3); }
+.inv-badge, .inv-state-badge, .inv-im-status, .inv-att-badge, .inv-area-badge, .inv-client-badge, .inv-stk-chip, .inv-td-lbl, .inv-cost-src, .inv-kpi-delta {
   display: inline-flex; align-items: center; gap: var(--sp-4); padding: var(--sp-2) var(--sp-6);
   border-radius: var(--r-sm); font-family: var(--ff-base); font-size: var(--fs-12); font-weight: 500; line-height: 1.35; white-space: nowrap;
 }
@@ -3596,6 +3469,24 @@ button.inv-row-main { display: block; padding: 0; border: none; background: none
 .inv-pane { background: var(--surface); border-left: 1px solid var(--border); padding: var(--sp-16); display: flex; flex-direction: column; gap: var(--sp-12); }
 .inv-kv { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--sp-8) var(--sp-16); font-size: var(--fs-13); }
 .inv-kv-k { font-size: var(--fs-12); color: var(--text-3); }
+.inv-kv-wide { grid-column: 1 / -1; }
+/* The list takes the room; the pane is a fixed column on the right (desktop only). */
+body.inv-desktop .inv-master-detail-pane > .inv-master { flex: 1; width: auto; min-width: 0; border-right: none; }
+body.inv-desktop .inv-master-detail-pane > .inv-pane { display: none; flex: 0 0 var(--pane-w); overflow-y: auto; }
+body.inv-desktop .inv-master-detail-pane.inv-pane-open > .inv-pane { display: flex; }
+/* Columns drop in priority as the list narrows (the pane opening narrows it), and where the
+   screen cannot hold both, the open invoice takes the list's place until it is closed. */
+body.inv-desktop .inv-master-detail-pane { container: masterdetail / inline-size; }
+body.inv-desktop .inv-master-detail-pane > .inv-master { container: list / inline-size; }
+@container list (max-width: 70rem) { .inv-col-opt1 { display: none; } }
+@container list (max-width: 60rem) { .inv-col-opt2 { display: none; } }
+@container list (max-width: 44rem) { .inv-col-opt3 { display: none; } }
+@container masterdetail (max-width: 50rem) {
+  .inv-pane-open > .inv-master { display: none; }
+  body.inv-desktop .inv-master-detail-pane.inv-pane-open > .inv-pane { flex: 1 1 auto; border-left: none; }
+}
+.inv-pane-head { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-8); }
+.inv-visually-hidden { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
 
 /* §6.15 Fields and the sticky action bar. v1.0 inv-form-* read these same rules. */
 .inv-field { margin-bottom: var(--sp-12); }
@@ -3641,13 +3532,13 @@ body.inv-desktop .inv-actionbar { bottom: 0; }
 .inv-toast-warning::before { background: var(--warning); }
 
 /* §6.18 Callouts, notes, empty states */
-.inv-callout, .inv-stats-caveat, .inv-stats-alert, .inv-stk-banner, .inv-confirm-warn, .inv-reissue-note, .inv-merge-warn, .inv-reg-scope-note {
+.inv-callout, .inv-stats-caveat, .inv-stats-alert, .inv-stk-banner, .inv-confirm-warn, .inv-reissue-note, .inv-merge-warn {
   display: block; padding: var(--sp-10) var(--sp-12); border: none; border-radius: var(--r-lg);
   font-size: var(--fs-13); line-height: 1.5;
 }
 .inv-callout, .inv-callout-neutral, .inv-stats-caveat { background: var(--surface-2); color: var(--text-2); }
 .inv-callout-info { background: var(--info-bg); color: var(--info); }
-.inv-callout-warning, .inv-stk-banner, .inv-confirm-warn, .inv-reissue-note, .inv-merge-warn, .inv-reg-scope-note { background: var(--warning-bg); color: var(--warning); }
+.inv-callout-warning, .inv-stk-banner, .inv-confirm-warn, .inv-reissue-note, .inv-merge-warn { background: var(--warning-bg); color: var(--warning); }
 .inv-callout-danger, .inv-stats-alert, .inv-stk-banner-red { background: var(--danger-bg); color: var(--danger); }
 .inv-note { font-size: var(--fs-12); color: var(--text-3); line-height: 1.5; }
 .inv-empty, .inv-empty-state, .inv-stk-empty, .inv-td-empty, .inv-chart-empty {

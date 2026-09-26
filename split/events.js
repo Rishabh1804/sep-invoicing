@@ -335,6 +335,7 @@ document.addEventListener('click', function(e) {
     case 'invRegBulkState': regBulkSetState(btn.dataset.state); break;
     // Phase 8C: Desktop table interactions
     case 'invSelectRegRow': _renderRegDetail(btn.dataset.id); break;
+    case 'invRegClosePane': _renderRegDetail(null); break;
     case 'invDesktopSort': {
       if (!regFilter.desktopSort) regFilter.desktopSort = { col: 'date', dir: 'desc' };
       if (regFilter.desktopSort.col === btn.dataset.col) {

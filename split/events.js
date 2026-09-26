@@ -20,6 +20,7 @@ document.addEventListener('click', function(e) {
 
   switch(action) {
     case 'invSwitchTab': switchTab(btn.dataset.tab); break;
+    case 'invSideGo': sideGo(btn.dataset.tab, btn.dataset.sub); break;
     case 'invOpenMore': openMoreSheet(); break;
     case 'invCloseMore': closeMoreSheet(); break;
     case 'invCreateNew': initCreateForm(); switchTab('pageCreate'); break;
@@ -59,6 +60,7 @@ document.addEventListener('click', function(e) {
     case 'invResetForm': initCreateForm(); break;
     case 'invSaveSettingsSec': saveSettingsSection(btn.dataset.sec); break;
     case 'invSettingsGroup': settingsShowGroup(btn.dataset.group); break;
+    case 'invAppearance': appearancePick(btn.dataset.k, btn.dataset.v); break;
     case 'invCloseSettings': closeSettings(); break;
     case 'invZincDeriveUplift': zincDeriveUplift(); break;
     case 'invZincUseUplift': zincUseUplift(btn.dataset.pct); break;
@@ -89,7 +91,7 @@ document.addEventListener('click', function(e) {
     }
     case 'invRegSelectAll': toggleRegSelectAll(); break;
     // Staff & attendance
-    case 'invAttView': attSetView(btn.dataset.view); break;
+    case 'invAttView': attSetView(btn.dataset.view); markSideActive('pageStaff'); break;
     case 'invAreaSpan': setAreaSpan(btn.dataset.span); break;
     case 'invAttStep': attStepDay(parseInt(btn.dataset.step, 10)); break;
     case 'invAttToday': attGoToday(); break;
@@ -283,7 +285,7 @@ document.addEventListener('click', function(e) {
       break;
     }
     // Phase 6: Items Master
-    case 'invSwitchSubView': setItemsSubView(btn.dataset.view); renderClientsPage(); break;
+    case 'invSwitchSubView': setItemsSubView(btn.dataset.view); renderClientsPage(); markSideActive('pageClients'); break;
     case 'invEditItem': openItemEdit(parseInt(btn.dataset.id)); break;
     case 'invAddItem': openItemAdd(); break;
     case 'invSaveItem': saveItem(parseInt(btn.dataset.id), btn.dataset.mode); break;

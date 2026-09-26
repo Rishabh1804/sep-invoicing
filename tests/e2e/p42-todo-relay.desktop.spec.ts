@@ -31,10 +31,10 @@ async function load(page: Page, extra: Partial<SepState> = {}) {
 test.describe('P42 desktop: to-do, quick actions, attendance paste', () => {
   test('To-do is in the sidebar and works without the More sheet', async ({ page }) => {
     await load(page, { todo: { tasks: [{ id: 'TD-a', text: 'Late one', due: iso(-1), note: '', link: null, createdAt: 1, doneAt: null }], snoozes: {} } } as any);
-    await expect(page.locator('.inv-sidebar-item[data-tab="pageTodo"]')).toBeVisible();
-    await expect(page.locator('.inv-tab-more')).toBeHidden();
+    await expect(page.locator('.inv-side-item[data-tab="pageTodo"]:not([data-sub])')).toBeVisible();
+    await expect(page.locator('.inv-navbar-more')).toBeHidden();
     await switchTab(page, 'pageTodo');
-    await expect(page.locator('.inv-sidebar-item[data-tab="pageTodo"]')).toHaveClass(/inv-sidebar-active/);
+    await expect(page.locator('.inv-side-item[data-tab="pageTodo"]:not([data-sub])')).toHaveClass(/inv-side-item-on/);
     await expect(page.locator('#todoContent .inv-td-tone-red')).toContainText('Late one');
     await page.locator('#todoNew').fill('Desk task');
     await page.locator('#todoNew').press('Enter');
@@ -65,7 +65,7 @@ test.describe('P42 desktop: to-do, quick actions, attendance paste', () => {
   test('a roll pasted on the desktop is checked and saved into the day', async ({ page }) => {
     await load(page, { staff: STAFF, attendance: {} } as any);
     await page.locator('[data-action="invHomeQuick"][data-go="paste"]').click();
-    await expect(page.locator('.inv-sidebar-item[data-tab="pageStaff"]')).toHaveClass(/inv-sidebar-active/);
+    await expect(page.locator('.inv-side-item[data-tab="pageStaff"]:not([data-sub])')).toHaveClass(/inv-side-item-on/);
     await page.locator('#relayPasteText').fill(`${dmy(-1)}/ in time\n----6:00 AM---\n---VAT A 1---\n1) ARUN\nEXTRA 3 HOURS\n----8:30 AM---\n---VAT A 1---\n1) ARUN\n---berral---\n2) BALA`);
     await page.locator('[data-action="invRelayRead"]').click();
     await expect(page.locator('.inv-rl-row').filter({ hasText: 'Arun' })).toContainText('6 AM – 5 PM · 11 h · OT 3 h');

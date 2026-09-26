@@ -260,7 +260,7 @@ function renderTodo() {
   if (!el) return;
   var app = todoApp(), mine = todoMineOpen(), td = todoData();
   var late = todoRanked().filter(function(r) { return r.tone === 'red'; }).length;
-  var h = '<div class="inv-stk-top"><div><div class="inv-stk-h1">To-do</div>' +
+  var h = '<div class="inv-stk-top"><div>' +
     '<div class="inv-stk-meta"><strong>' + (app.length + mine.length) + '</strong> open' + (late ? ' · <strong>' + late + '</strong> late' : '') + '</div></div></div>';
   h += '<div class="inv-td-add"><input class="inv-td-in" id="todoNew" data-todo-new placeholder="Add a task…" aria-label="New task" autocomplete="off">' +
     '<button class="inv-stk-btn inv-stk-btn-pri" data-action="invTodoAdd">Add</button>' +

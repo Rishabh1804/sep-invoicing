@@ -532,72 +532,103 @@ function _applyModeSwitch(newDesktop, newTablet) {
   _isTablet = newTablet;
   document.body.classList.toggle('inv-desktop', _isDesktop);
   document.body.classList.toggle('inv-tablet', _isTablet);
+  applyAppearance(); // density follows the layout (§3.5)
   _regToolbarRendered = false;
   _imToolbarRendered = false;
   renderSidebar();
   switchTab(regFilter.activeTab || 'pageHome');
 }
 
+/* Desktop sidebar (design system §4.2): labelled, grouped, always expanded. Items and Pay open their
+   parent tab on that sub-view, so an entry carries data-sub as well as data-tab. */
+var SIDE_ICONS = {
+  home: '<path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/>',
+  create: '<path d="M14 3H6a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8zM14 3v5h5M12 11v6M9 14h6"/>',
+  im: '<path d="M12 2.5 20.5 7.3v9.4L12 21.5l-8.5-4.8V7.3z"/>',
+  register: '<path d="M14 3H6a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8zM14 3v5h5M9 13h6M9 17h6"/>',
+  clients: '<path d="M16 20v-1.5a3.5 3.5 0 0 0-3.5-3.5h-5A3.5 3.5 0 0 0 4 18.5V20M10 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7M20 20v-1.5a3.5 3.5 0 0 0-2.5-3.35M15.5 4.2a3.5 3.5 0 0 1 0 6.6"/>',
+  items: '<path d="M4 7h16M4 12h16M4 17h10"/>',
+  stock: '<path d="M9 3h6M10 3v6L4.5 19a1.3 1.3 0 0 0 1.1 2h12.8a1.3 1.3 0 0 0 1.1-2L14 9V3M7.5 14h9"/>',
+  staff: '<path d="M15 20v-1.5a3.5 3.5 0 0 0-3.5-3.5h-5A3.5 3.5 0 0 0 3 18.5V20M9 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7M16 11l2 2 4-4"/>',
+  pay: '<path d="M3 7h18v10H3zM12 14.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5"/>',
+  todo: '<path d="M9 11l3 3 8-8M20 12v7a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h11"/>',
+  stats: '<path d="M4 20V11M10 20V5M16 20v-6M3 20h18"/>',
+  history: '<path d="M12 7v5l3 2M3.5 12a8.5 8.5 0 1 0 2.5-6M3 4v4h4"/>',
+  settings: '<path d="M4 6h9M17 6h3M4 12h3M11 12h9M4 18h11M19 18h1M15 4v4M9 10v4M17 16v4"/>'
+};
+var SIDE_NAV = [
+  ['Daily', [['pageHome', 'Home', 'home'], ['pageCreate', 'Create invoice', 'create'], ['pageIM', 'Challans', 'im'], ['pageRegister', 'Register', 'register']]],
+  ['Book', [['pageClients', 'Clients', 'clients'], ['pageClients', 'Items', 'items', 'items']]],
+  ['Floor', [['pageStock', 'Stock', 'stock'], ['pageStaff', 'Staff', 'staff'], ['pageStaff', 'Pay', 'pay', 'pay']]],
+  ['Review', [['pageTodo', 'To-do', 'todo'], ['pageStats', 'Stats', 'stats'], ['pageHistory', 'History', 'history']]]
+];
+function _sideSvg(k) { return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + SIDE_ICONS[k] + '</svg>'; }
+
 function renderSidebar() {
   var existing = document.getElementById('invSidebar');
   if (existing) existing.remove();
   if (!_isDesktop) return;
-
-  var tabs = [
-    { id: 'pageHome', label: 'Home', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg>' },
-    { id: 'pageCreate', label: 'Create', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>' },
-    { id: 'pageIM', label: 'IM', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/></svg>' },
-    { id: 'pageRegister', label: 'Register', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>' },
-    { id: 'pageClients', label: 'Clients', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>' },
-    { id: 'pageTodo', label: 'To-do', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>' },
-    { id: 'pageStock', label: 'Stock', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 3h6"/><path d="M10 3v6L4.5 19a1.5 1.5 0 001.3 2h12.4a1.5 1.5 0 001.3-2L14 9V3"/><path d="M7 15h10"/></svg>' },
-    { id: 'pageStaff', label: 'Staff', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><polyline points="17 11 19 13 23 9"/></svg>' },
-    { id: 'pageStats', label: 'Stats', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 20V10"/><path d="M12 20V4"/><path d="M6 20v-6"/></svg>' },
-    { id: 'pageHistory', label: 'History', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>' }
-  ];
-
-  var activeTab = regFilter.activeTab || 'pageHome';
-  var html = '<div class="inv-sidebar-inner">';
-  tabs.forEach(function(t) {
-    var cls = 'inv-sidebar-item' + (t.id === activeTab ? ' inv-sidebar-active' : '');
-    html += '<button class="' + cls + '" data-action="invSwitchTab" data-tab="' + t.id + '">' +
-      t.icon + '<span class="inv-sidebar-label">' + escHtml(t.label) + '</span></button>';
+  var html = '<div class="inv-side-brand"><svg class="inv-side-mark" viewBox="0 0 512 512" aria-hidden="true"><rect width="512" height="512" rx="96"/>' +
+    '<polygon points="256,106 385.9,181 385.9,331 256,406 126.1,331 126.1,181"/><polygon points="256,160 339.1,208 339.1,304 256,352 172.9,304 172.9,208"/><circle cx="256" cy="256" r="38"/></svg>' +
+    '<span>Soma Electro</span></div>';
+  SIDE_NAV.forEach(function(g) {
+    html += '<div class="inv-side-group">' + g[0] + '</div>';
+    g[1].forEach(function(it) {
+      html += '<button class="inv-side-item" data-action="' + (it[3] ? 'invSideGo' : 'invSwitchTab') + '" data-tab="' + it[0] + '"' +
+        (it[3] ? ' data-sub="' + it[3] + '"' : '') + '>' + _sideSvg(it[2]) +
+        '<span class="inv-side-label">' + it[1] + '</span><span class="inv-side-count" data-count="' + it[0] + (it[3] ? '-' + it[3] : '') + '"></span></button>';
+    });
   });
-  html += '<div class="inv-sidebar-spacer"></div>';
-  html += '<button class="inv-sidebar-item" data-action="invOpenSettings">' +
-    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg>' +
-    '<span class="inv-sidebar-label">Settings</span></button>';
-  html += '</div>';
-
+  html += '<div class="inv-side-spacer"></div><button class="inv-side-item" data-action="invOpenSettings">' + _sideSvg('settings') + '<span class="inv-side-label">Settings</span></button>';
   var sidebar = document.createElement('nav');
-  sidebar.className = 'inv-sidebar';
+  sidebar.className = 'inv-side';
   sidebar.id = 'invSidebar';
+  sidebar.setAttribute('aria-label', 'Main');
   sidebar.innerHTML = html;
   document.body.insertBefore(sidebar, document.body.firstChild);
+  markSideActive(regFilter.activeTab || 'pageHome');
+  updateSideCounts();
+}
 
-  // Touch-desktop fallback
-  sidebar.addEventListener('click', function(e) {
-    if (e.target.closest('[data-action]')) {
-      // Nav click — collapse after navigation on touch devices
-      if (!window.matchMedia('(hover: hover)').matches) {
-        sidebar.classList.remove('inv-sidebar-expanded');
-      }
-      return;
-    }
-    // Background tap — toggle expand/collapse
-    if (!window.matchMedia('(hover: hover)').matches) {
-      sidebar.classList.toggle('inv-sidebar-expanded');
-    }
+function _currentSub(tabId) {
+  if (tabId === 'pageClients') return getItemsSubView();
+  if (tabId === 'pageStaff') return _attView;
+  return '';
+}
+
+/* An entry with data-sub is on only on that sub-view; its parent entry is on for every other one. */
+function markSideActive(tabId) {
+  var items = document.querySelectorAll('.inv-side-item[data-tab]');
+  if (!items.length) return;
+  var sub = _currentSub(tabId);
+  var subHit = Array.prototype.some.call(items, function(b) { return b.dataset.tab === tabId && b.dataset.sub === sub; });
+  items.forEach(function(b) {
+    var on = b.dataset.tab === tabId && (b.dataset.sub ? b.dataset.sub === sub : !subHit);
+    b.classList.toggle('inv-side-item-on', on);
+    if (on) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
   });
 }
 
-// One-time outside-tap handler for sidebar collapse
-document.addEventListener('click', function(e) {
-  var sb = document.getElementById('invSidebar');
-  if (sb && !sb.contains(e.target)) {
-    sb.classList.remove('inv-sidebar-expanded');
+/* Counts are toned only when they count a problem (§4.2). */
+function updateSideCounts() {
+  function put(key, n, tone) {
+    var el = document.querySelector('.inv-side-count[data-count="' + key + '"]');
+    if (!el) return;
+    el.textContent = n ? String(n) : '';
+    el.className = 'inv-side-count' + (n && tone ? ' inv-side-count-' + tone : '');
   }
-});
+  if (!S) return;
+  put('pageTodo', typeof todoRedCount === 'function' ? todoRedCount() : 0, 'danger');
+  put('pageStock', typeof stockOutCount === 'function' ? stockOutCount() : 0, 'danger');
+}
+
+function sideGo(tabId, sub) {
+  if (tabId === 'pageClients') setItemsSubView(sub);
+  if (tabId === 'pageStaff') _attView = sub;
+  switchTab(tabId);
+  if (tabId === 'pageClients') renderClientsPage();
+  markSideActive(tabId);
+}
 
 /* ===== GLOBAL DRAG HANDLERS (Phase 8B) ===== */
 function _onDragMove(clientX) {

@@ -16,7 +16,7 @@
 // - Static assets: cache-first, revalidated in the background.
 // - Gemini (scanner), metals.dev (zinc) and GitHub (sync) are network-only.
 
-const CACHE_NAME = 'sep-inv-v30';
+const CACHE_NAME = 'sep-inv-v31';
 
 // The shell cache is deliberately NOT versioned. It holds one entry, and every
 // online navigation overwrites it with whatever the server just sent, so a
@@ -43,11 +43,13 @@ const UPDATE_MANIFEST = '/version.json';
 // Every navigation, whatever its query string, maps to this one shell entry.
 const SHELL_KEY = './';
 
-const FONT_CSS = 'https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap';
+const FONT_CSS = 'https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap';
 
 // Same-origin and always available: if one of these fails the install is a lie,
 // so they stay atomic.
-const CORE_ASSETS = ['./manifest.json', './icon-192.png', './icon-512.png', './widgets/todo-template.json'];
+const CORE_ASSETS = ['./manifest.json', './icon-192.png', './icon-512.png', './widgets/todo-template.json',
+  './icons/icon-teal.svg', './icons/icon-zinc.svg', './icons/icon-terracotta.svg',
+  './icons/icon-teal-192.png', './icons/icon-zinc-192.png', './icons/icon-terracotta-192.png'];
 
 // Cross-origin and allowed to fail. These used to sit in the same addAll() as
 // the core assets, and addAll is all-or-nothing — so a single hiccup reaching

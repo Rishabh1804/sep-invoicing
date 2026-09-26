@@ -1,71 +1,125 @@
-/* ===== DESIGN TOKENS ===== */
-:root {
-  --ff-base: 'Inter', sans-serif;
-  --ff-display: 'Fraunces', serif;
-  --ff-mono: 'IBM Plex Mono', ui-monospace, 'Cascadia Mono', 'Roboto Mono', monospace;
+/* ===== DESIGN TOKENS (design system v2.0 — docs/SEP_INVOICING_DESIGN_PRINCIPLES.md §3) ===== */
+/* Theme: colour-scheme decides every light-dark() below. <html data-theme> is set before first paint
+   by head.html from the device's choice; with none it follows the phone (§3.2). */
+:root { color-scheme: light dark; }
+:root[data-theme="light"] { color-scheme: light; }
+:root[data-theme="dark"] { color-scheme: dark; }
 
-  --fs-2xs: 0.5625rem; --fs-xs: 0.625rem; --fs-sm: 0.75rem;
-  --fs-base: 0.875rem; --fs-md: 1rem; --fs-lg: 1.25rem;
-  --fs-xl: 1.5rem; --fs-2xl: 1.75rem; --fs-3xl: 2rem;
+/* Palettes (§3.1): primitives only. No surface is pure white (owner, 26 Sep 2026: "nothing in absolute
+   white — it puts a lot of stress on our eyes"); the lightest is an off-white a step below #fff.
+   Nothing but the aliases below reads a --c-* token. */
+:root, :root[data-palette="teal"] {
+  --c-bg: light-dark(#eef2f3, #0d1213); --c-surface: light-dark(#f8fafa, #131a1b);
+  --c-surface-2: light-dark(#e6ecee, #1a2224); --c-surface-3: light-dark(#dbe3e6, #222c2e);
+  --c-border: light-dark(#d3dcdf, #293537);
+  --c-text-1: light-dark(#11191c, #ecf2f2); --c-text-2: light-dark(#4a585e, #a6b6b8); --c-text-3: light-dark(#58686e, #7d8f91);
+  --c-accent: light-dark(#0d6b63, #4fc1b3); --c-on-accent: light-dark(#f6faf9, #04211d);
+  --c-accent-soft: light-dark(#dcefec, #15302d); --c-accent-soft-text: light-dark(#0a4d47, #8fdcd2);
+}
+:root[data-palette="zinc"] {
+  --c-bg: light-dark(#eff0f2, #0e1114); --c-surface: light-dark(#f8f9fa, #15191d);
+  --c-surface-2: light-dark(#e6e9ec, #1c2126); --c-surface-3: light-dark(#dde1e5, #242a30);
+  --c-border: light-dark(#d5dadf, #2b323a);
+  --c-text-1: light-dark(#14191e, #edf0f3); --c-text-2: light-dark(#4d5761, #a9b3bd); --c-text-3: light-dark(#5e6974, #86919c);
+  --c-accent: light-dark(#8a5d0c, #dcaa4c); --c-on-accent: light-dark(#fbf7ef, #1b1204);
+  --c-accent-soft: light-dark(#f5ead3, #33291a); --c-accent-soft-text: light-dark(#6a4606, #ecc983);
+}
+:root[data-palette="terracotta"] {
+  --c-bg: light-dark(#f3f0ea, #141311); --c-surface: light-dark(#fbf9f5, #1c1b18);
+  --c-surface-2: light-dark(#ebe6dd, #24221e); --c-surface-3: light-dark(#e2dbcf, #2d2a25);
+  --c-border: light-dark(#ddd6c8, #36322c);
+  --c-text-1: light-dark(#1b1916, #f3f0ea); --c-text-2: light-dark(#58534b, #bcb6aa); --c-text-3: light-dark(#6a6459, #948d80);
+  --c-accent: light-dark(#ad4f2c, #e98c64); --c-on-accent: light-dark(#fbf6f2, #1f0e06);
+  --c-accent-soft: light-dark(#f6e6dc, #3b2419); --c-accent-soft-text: light-dark(#7e3418, #f2b89c);
+}
+
+:root {
+  /* Faces (§3.4). Printed documents pin their own below — the UI face never reaches paper. */
+  --ff-base: 'Geist', system-ui, 'Segoe UI', sans-serif;
+  --ff-mono: 'Geist Mono', ui-monospace, 'Cascadia Mono', 'Roboto Mono', monospace;
+  --ff-display: var(--ff-base);
+
+  /* Type sizes (§3.4). The v1.0 names are kept as aliases of the new scale until §9 step 4. */
+  --fs-11: 0.6875rem; --fs-12: 0.75rem; --fs-13: 0.8125rem; --fs-14: 0.875rem; --fs-16: 1rem;
+  --fs-17: 1.0625rem; --fs-18: 1.125rem; --fs-19: 1.1875rem; --fs-20: 1.25rem; --fs-22: 1.375rem; --fs-24: 1.5rem;
+  --fs-2xs: var(--fs-11); --fs-xs: var(--fs-12); --fs-sm: var(--fs-13);
+  --fs-base: var(--fs-14); --fs-md: var(--fs-16); --fs-lg: var(--fs-18);
+  --fs-xl: var(--fs-20); --fs-2xl: var(--fs-22); --fs-3xl: var(--fs-24);
+  --ls-tight: -0.02em;
 
   --sp-2: 0.125rem; --sp-4: 0.25rem; --sp-6: 0.375rem;
   --sp-8: 0.5rem; --sp-10: 0.625rem; --sp-12: 0.75rem;
   --sp-16: 1rem; --sp-20: 1.25rem; --sp-24: 1.5rem; --sp-32: 2rem;
 
-  --r-sm: 0.375rem; --r-md: 0.5rem; --r-lg: 0.625rem;
-  --r-xl: 0.75rem; --r-full: 9999px;
+  --r-sm: 0.25rem; --r-md: 0.375rem; --r-lg: 0.5rem; --r-xl: 0.625rem; --r-full: 9999px;
 
-  --shadow-sm: 0 1px 3px rgba(0,0,0,0.08);
-  --shadow-md: 0 4px 12px rgba(0,0,0,0.12);
-  --shadow-lg: 0 8px 24px rgba(0,0,0,0.18);
+  /* Elevation (§3.6, DR-6): content casts no shadow; only floating layers do. */
+  --shadow-pop: 0 0.25rem 1rem rgb(0 0 0 / 0.14);
+  --shadow-dialog: 0 1rem 3rem rgb(0 0 0 / 0.28);
+  --shadow-sm: none; --shadow-md: var(--shadow-pop); --shadow-lg: var(--shadow-dialog);
+  --scrim: rgb(0 0 0 / 0.45);
 
-  --anim-fast: 150ms; --anim-normal: 300ms;
+  --dur-1: 120ms; --dur-2: 200ms; --ease: cubic-bezier(.2, .7, .2, 1);
+  --anim-fast: var(--dur-1); --anim-normal: var(--dur-2);
 
-  /* Surfaces */
-  --bg: #faf9f5; --surface: #fff; --surface-2: #f5f4ed; --surface-3: #f7f6f1;
-  --text-1: #1a1a1a; --text-2: #555; --text-3: #888;
-  --border: #e0ddd5; --border-2: #ccc9c0;
+  --touch: 2.75rem;
+  --focus-ring: 0 0 0 2px var(--surface), 0 0 0 4px var(--accent);
 
-  /* Domain Colors */
-  --attend: #177a36; --attend-bg: #e8f5ec; --attend-text: #0d5623;
-  --cost: #b5583a; --cost-bg: #fdf0eb; --cost-text: #8a3f28;
-  --prod: #2e75b6; --prod-bg: #e8f0f8; --prod-text: #1d5a8f;
-  --danger: #c13e34; --danger-bg: #fceae8; --danger-text: #9a2e26;
-  --warning: #8a6b08; --warning-bg: #fdf6e0; --warning-text: #6b5206;
-  --neutral: #8b6c4a; --neutral-bg: #f5f0e8; --neutral-text: #6b5237;
-  --todo: #6b4c8a; --todo-bg: #f1ecf7; --todo-text: #4f3570;
-  --accent: #b45a37; --accent-dark: #8f4529;
-  --cw: #1a8a3e; --perm: #2e75b6;
+  /* Semantic colour (§3.3) — the only colour tokens components read. */
+  --bg: var(--c-bg); --surface: var(--c-surface); --surface-2: var(--c-surface-2); --surface-3: var(--c-surface-3);
+  --border: var(--c-border); --border-2: var(--c-border);
+  --text-1: var(--c-text-1); --text-2: var(--c-text-2); --text-3: var(--c-text-3);
+  --accent: var(--c-accent); --on-accent: var(--c-on-accent);
+  --accent-soft: var(--c-accent-soft); --accent-soft-text: var(--c-accent-soft-text);
+  --accent-dark: var(--c-accent-soft-text);
 
-  --tab-h: 52px; --header-h: 48px; --max-w: 520px;
-  --set-card-w: 880px; --set-nav-w: 200px;
-  --section-gap: var(--sp-16); --card-padding: var(--sp-16);
-  --card-padding-sm: var(--sp-12);
+  /* Status tones, shared by every palette. */
+  --danger: light-dark(#b42318, #f38b81); --danger-bg: light-dark(#fdecea, #3a1916);
+  --warning: light-dark(#8a5700, #e8b95c); --warning-bg: light-dark(#fcf1d9, #352911);
+  --ok: light-dark(#176e37, #72c98f); --ok-bg: light-dark(#e4f3e8, #14301e);
+  --info: light-dark(#1d5ea6, #8dbaf0); --info-bg: light-dark(#e6effa, #15263a);
+  --danger-text: var(--danger); --warning-text: var(--warning);
 
-  /* Chart series palette. Eight hues drawn from the domain colours so a pie
-     reads as part of this app, plus a muted ninth for the folded "others"
-     wedge — the tail should look like a tail, not like a ninth client. */
-  --chart-1: #b45a37; --chart-2: #2e75b6; --chart-3: #177a36; --chart-4: #8a6b08;
-  --chart-5: #8b6c4a; --chart-6: #6b4c8a; --chart-7: #b5583a; --chart-8: #2f7d7d;
-  --chart-other: #9a958c;
+  /* v1.0 domain colours, retired into the tones (§3.3). Aliases until §9 step 4. */
+  --attend: var(--ok); --attend-bg: var(--ok-bg); --attend-text: var(--ok);
+  --cost: var(--text-1); --cost-bg: var(--surface-2); --cost-text: var(--text-1);
+  --prod: var(--info); --prod-bg: var(--info-bg); --prod-text: var(--info);
+  --neutral: var(--text-3); --neutral-bg: var(--surface-2); --neutral-text: var(--text-2);
+  --todo: var(--info); --todo-bg: var(--info-bg); --todo-text: var(--info);
+  --cw: var(--ok); --perm: var(--info);
+
+  /* Layout (§3.7) */
+  --bar-h: 3.25rem; --bar-h-desk: 3rem; --nav-h: 3.625rem; --side-w: 13.5rem; --content-max: 80rem;
+  --tab-h: var(--nav-h); --header-h: var(--bar-h); --max-w: 32.5rem;
+  --set-card-w: 55rem; --set-nav-w: 12.5rem;
+  --section-gap: var(--sp-12); --card-padding: var(--sp-16); --card-padding-sm: var(--sp-12);
+
+  /* Density (§3.5): comfortable here, compact below. */
+  --row-h: 2.75rem; --row-h-2: 3.5rem; --ctl-h: 2.75rem; --ctl-h-sm: 2.25rem;
+  --pad-x: var(--sp-12); --pad-y: var(--sp-10); --gap: var(--sp-12);
+
+  --z-bar: 20; --z-dropdown: 50; --z-scrim: 100; --z-dialog: 200; --z-toast: 500; --z-print: 510;
+
+  /* Chart series: categorical only (§6.17). */
+  --chart-1: var(--accent); --chart-2: light-dark(#2e75b6, #88b8e8); --chart-3: light-dark(#177a36, #6cd88a);
+  --chart-4: light-dark(#8a6b08, #d4b848); --chart-5: light-dark(#8b6c4a, #c8b898); --chart-6: light-dark(#6b4c8a, #b79ae0);
+  --chart-7: light-dark(#b5583a, #e8a888); --chart-8: light-dark(#2f7d7d, #7fd0d0); --chart-other: light-dark(#9a958c, #6e6a63);
+}
+@media (pointer: fine) {
+  :root[data-density="compact"] {
+    --row-h: 2rem; --row-h-2: 2.75rem; --ctl-h: 1.875rem; --ctl-h-sm: 1.625rem; --pad-y: var(--sp-8);
+  }
 }
 
-/* Dark mode tokens */
-.dark {
-  --bg: #1a1918; --surface: #242320; --surface-2: #2a2928; --surface-3: #1f1e1d;
-  --text-1: #e8e6e1; --text-2: #aaa8a0; --text-3: #777570;
-  --border: #3a3835; --border-2: #4a4845;
-  --attend-bg: #1a3322; --cost-bg: #3a2218; --prod-bg: #1a2a3a;
-  --danger-bg: #3a1a18; --warning-bg: #3a3018; --neutral-bg: #2a2518;
-  --attend-text: #6cd88a; --cost-text: #e8a888; --prod-text: #88b8e8;
-  --danger-text: #e89090; --warning-text: #d4b848; --neutral-text: #c8b898;
-  --todo: #b79ae0; --todo-bg: #2a2238; --todo-text: #cdb8f0;
-  /* Lifted for contrast against the dark surface; the light values go muddy
-     on #242320 and adjacent wedges stop being tellable apart. */
-  --chart-1: #e8a888; --chart-2: #88b8e8; --chart-3: #6cd88a; --chart-4: #d4b848;
-  --chart-5: #c8b898; --chart-6: #b79ae0; --chart-7: #e89090; --chart-8: #7fd0d0;
-  --chart-other: #6e6a63;
+/* Printed documents keep their own faces (§8); this rescopes the three face tokens inside each. */
+.inv-print-invoice, .inv-qc-page, .inv-cn-doc, .inv-sr-doc {
+  --ff-base: 'Inter', sans-serif;
+  --ff-display: 'Fraunces', serif;
+  --ff-mono: 'IBM Plex Mono', ui-monospace, 'Cascadia Mono', 'Roboto Mono', monospace;
 }
+
+/* Focus (§3.6): every interactive element. */
+:where(button, a, input, select, textarea, summary, [tabindex]):focus-visible { outline: none; box-shadow: var(--focus-ring); }
 
 /* ===== RESET ===== */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -73,37 +127,43 @@ html { font-family: var(--ff-base); font-size: 16px; background: var(--bg); colo
 body { max-width: var(--max-w); margin: 0 auto; min-height: 100vh; background: var(--bg); padding-bottom: calc(var(--tab-h) + var(--sp-16)); }
 input, select, textarea, button { font-family: inherit; font-size: var(--fs-base); }
 
-/* ===== HEADER ===== */
-.inv-header {
-  position: sticky; top: 0; z-index: 100;
-  display: flex; align-items: center; justify-content: space-between;
-  height: var(--header-h); padding: 0 var(--sp-16);
-  background: var(--accent); color: #fff;
+/* ===== APP SHELL (design system §4, §6.1) ===== */
+.inv-topbar {
+  position: sticky; top: 0; z-index: var(--z-bar);
+  display: flex; align-items: center; gap: var(--sp-8);
+  height: var(--bar-h); padding: 0 var(--sp-8) 0 var(--sp-16);
+  background: var(--surface); color: var(--text-1); border-bottom: 1px solid var(--border);
 }
-.inv-header-title { font-family: var(--ff-base); font-weight: 700; font-size: var(--fs-md); }
-.inv-header-btn {
-  min-width: 44px; min-height: 44px; display: flex; align-items: center;
-  justify-content: center; background: none; border: none; color: #fff;
-  cursor: pointer; border-radius: var(--r-md);
+.inv-topbar-title { font-size: var(--fs-17); font-weight: 600; line-height: 1.3; white-space: nowrap; }
+.inv-topbar-ctx { font-size: var(--fs-13); color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.inv-topbar-ctx:empty { display: none; }
+.inv-topbar-spacer { flex: 1; }
+.inv-topbar-btn {
+  width: var(--touch); height: var(--touch); flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  border: none; background: none; color: var(--text-2); border-radius: var(--r-md); cursor: pointer;
 }
-.inv-header-btn:active { opacity: 0.7; }
+.inv-topbar-btn svg { width: 20px; height: 20px; }
+.inv-topbar-btn:hover { background: var(--surface-2); color: var(--text-1); }
+body.inv-desktop .inv-topbar { height: var(--bar-h-desk); padding: 0 var(--sp-16); }
+body.inv-desktop .inv-topbar-title { font-size: var(--fs-14); }
+body.inv-desktop .inv-topbar-ctx::before { content: '/'; color: var(--text-3); margin-right: var(--sp-8); }
+body.inv-desktop .inv-topbar-btn { display: none; }
 
-/* ===== TABS ===== */
-.inv-tabs {
-  position: fixed; bottom: 0; left: 0; right: 0; z-index: 100;
-  display: flex; height: var(--tab-h);
+.inv-navbar {
+  position: fixed; bottom: 0; left: 0; right: 0; z-index: var(--z-bar);
+  display: flex; height: var(--nav-h);
   background: var(--surface); border-top: 1px solid var(--border);
   max-width: var(--max-w); margin: 0 auto;
 }
-.inv-tab {
-  flex: 1; display: flex; flex-direction: column; align-items: center;
+.inv-navbar-item {
+  flex: 1; position: relative; display: flex; flex-direction: column; align-items: center;
   justify-content: center; gap: var(--sp-2); border: none; background: none;
-  color: var(--text-3); font-size: var(--fs-2xs); font-weight: 500;
-  cursor: pointer; min-height: 44px; transition: color var(--anim-fast);
+  color: var(--text-3); font-size: var(--fs-11); font-weight: 500;
+  cursor: pointer; min-height: var(--touch); transition: color var(--dur-1);
 }
-.inv-tab svg { width: 20px; height: 20px; }
-.inv-tab-active { color: var(--accent); }
-.inv-tab-active svg { stroke: var(--accent); }
+.inv-navbar-item svg { width: 20px; height: 20px; }
+.inv-navbar-item-on { color: var(--accent); box-shadow: inset 0 2px 0 var(--accent); }
 
 /* ===== PAGES ===== */
 .inv-page { display: none; padding: var(--sp-16); }
@@ -170,11 +230,11 @@ input, select, textarea, button { font-family: inherit; font-size: var(--fs-base
   font-size: var(--fs-base); cursor: pointer; min-height: 44px;
   transition: all var(--anim-fast);
 }
-.inv-btn-primary { background: var(--accent); color: #fff; }
+.inv-btn-primary { background: var(--accent); color: var(--on-accent); }
 .inv-btn-primary:active { background: var(--accent-dark); }
 .inv-btn-ghost { background: transparent; color: var(--text-2); border: 1px solid var(--border); }
 .inv-btn-ghost:active { background: var(--surface-2); }
-.inv-btn-danger { background: var(--danger); color: #fff; }
+.inv-btn-danger { background: var(--danger); color: var(--surface); }
 .inv-btn-sm { padding: var(--sp-6) var(--sp-12); font-size: var(--fs-sm); min-height: 36px; }
 .inv-btn-block { width: 100%; }
 .inv-btn:disabled, .inv-btn-disabled { opacity: 0.4; pointer-events: none; }
@@ -184,7 +244,7 @@ input, select, textarea, button { font-family: inherit; font-size: var(--fs-base
 .inv-fab {
   position: fixed; bottom: calc(var(--tab-h) + var(--sp-16));
   right: var(--sp-16); width: 56px; height: 56px;
-  border-radius: var(--r-full); background: var(--accent); color: #fff;
+  border-radius: var(--r-full); background: var(--accent); color: var(--on-accent);
   border: none; box-shadow: var(--shadow-md); cursor: pointer;
   display: flex; align-items: center; justify-content: center;
   font-size: var(--fs-xl); z-index: 50;
@@ -388,9 +448,9 @@ input, select, textarea, button { font-family: inherit; font-size: var(--fs-base
   box-shadow: var(--shadow-md); animation: inv-fadeIn var(--anim-fast) ease;
   max-width: calc(var(--max-w) - var(--sp-32));
 }
-.inv-toast-success { background: var(--attend); color: #fff; }
+.inv-toast-success { background: var(--attend); color: var(--surface); }
 .inv-toast-warning { background: var(--warning-bg); color: var(--warning-text); border: 1px solid var(--warning); }
-.inv-toast-error { background: var(--danger); color: #fff; }
+.inv-toast-error { background: var(--danger); color: var(--surface); }
 
 /* Until the store has loaded, the shell is visible but takes no input: every
    handler reads S, and there is none yet. Boot adds the class. */
@@ -453,12 +513,12 @@ body:not(.inv-booted) { pointer-events: none; }
   position: sticky; top: 0; z-index: 510;
   display: flex; align-items: center; justify-content: space-between;
   height: var(--header-h); padding: 0 var(--sp-16);
-  background: var(--accent); color: #fff;
+  background: var(--accent); color: var(--on-accent);
 }
 .inv-print-toolbar-btn {
   min-width: 44px; min-height: 44px; display: flex; align-items: center;
   justify-content: center; gap: var(--sp-6); background: none; border: none;
-  color: #fff; cursor: pointer; font-size: var(--fs-base); font-weight: 600;
+  color: var(--on-accent); cursor: pointer; font-size: var(--fs-base); font-weight: 600;
   border-radius: var(--r-md); padding: 0 var(--sp-8);
 }
 .inv-print-toolbar-btn:active { opacity: 0.7; }
@@ -898,7 +958,7 @@ table.inv-qc-grid.inv-qc-no-top { border-top: 0; }
 }
 .inv-fab-scan {
   width: 48px; height: 48px; border-radius: var(--r-full);
-  background: var(--neutral); color: #fff; border: none;
+  background: var(--neutral); color: var(--surface); border: none;
   box-shadow: var(--shadow-md); cursor: pointer;
   display: flex; align-items: center; justify-content: center;
 }
@@ -958,14 +1018,14 @@ table.inv-qc-grid.inv-qc-no-top { border-top: 0; }
      of nondeterminism rather than racing it. */
   *, *::before, *::after { transition: none !important; animation: none !important; }
   body { max-width: none; padding: 0; margin: 0; background: #fff; }
-  /* The desktop sidebar offset. `body.inv-desktop { margin-left: 64px }` is
+  /* The desktop sidebar offset. `body.inv-desktop { margin-left: var(--side-w) }` is
      declared later in this sheet at the same specificity, so a plain reset
      here loses on source order and every printed document came out shifted
      64px right — asymmetric margins, and 240px when the sidebar was expanded.
      One more element selector settles it without reaching for !important. */
   html body.inv-desktop { margin-left: 0; }
-  .inv-header, .inv-tabs, .inv-fab, .inv-toast, .inv-update-bar, .inv-storage-bar, .inv-page,
-  .inv-overlay-scrim, .inv-print-toolbar, #imSelBar, .inv-scan-bar, .inv-sidebar { display: none !important; }
+  .inv-topbar, .inv-navbar, .inv-fab, .inv-toast, .inv-update-bar, .inv-storage-bar, .inv-page,
+  .inv-overlay-scrim, .inv-print-toolbar, #imSelBar, .inv-scan-bar, .inv-side { display: none !important; }
   .inv-print-view { position: static; display: block !important; overflow: visible; }
   .inv-print-body { padding: 0; }
   .inv-print-invoice { border: none; max-width: none; padding: 10mm 12mm 8mm 12mm; }
@@ -1186,7 +1246,7 @@ table.inv-qc-grid.inv-qc-no-top { border-top: 0; }
   cursor: pointer; white-space: nowrap;
   transition: all var(--anim-fast) ease;
 }
-.inv-chip-active { background: var(--accent); color: #fff; border-color: var(--accent); }
+.inv-chip-active { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
 .dark .inv-chip { border-color: var(--border); background: var(--surface-2); }
 .dark .inv-chip-active { background: var(--accent-dark); border-color: var(--accent-dark); }
 
@@ -1502,7 +1562,7 @@ table.inv-qc-grid.inv-qc-no-top { border-top: 0; }
   font-size: var(--fs-sm); font-weight: 500; cursor: pointer;
   min-height: 44px; transition: all var(--anim-fast);
 }
-.inv-chip-active { background: var(--accent); color: #fff; border-color: var(--accent); }
+.inv-chip-active { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
 .inv-empty-state {
   text-align: center; padding: var(--sp-32) var(--sp-16);
   color: var(--text-3); font-size: var(--fs-base);
@@ -1909,7 +1969,7 @@ table.inv-qc-grid.inv-qc-no-top { border-top: 0; }
   left: 50%; transform: translateX(-50%);
   width: calc(100% - var(--sp-32));
   max-width: calc(var(--max-w) - var(--sp-32));
-  background: var(--accent); color: #fff;
+  background: var(--accent); color: var(--on-accent);
   border-radius: var(--r-xl); padding: var(--sp-10) var(--sp-16);
   display: flex; align-items: center; justify-content: space-between;
   box-shadow: var(--shadow-lg); min-height: 48px;
@@ -1917,7 +1977,7 @@ table.inv-qc-grid.inv-qc-no-top { border-top: 0; }
 }
 .inv-im-sel-count { font-size: var(--fs-sm); font-weight: 500; }
 .inv-im-sel-btn {
-  background: #fff; color: var(--accent); border: none;
+  background: var(--surface); color: var(--accent); border: none;
   border-radius: var(--r-md); padding: var(--sp-6) var(--sp-16);
   font-weight: 700; font-size: var(--fs-sm); cursor: pointer;
   min-height: 36px;
@@ -2007,42 +2067,7 @@ table.inv-qc-grid.inv-qc-no-top { border-top: 0; }
 .dark .inv-kbd-hint { background: var(--surface-3); border-color: var(--border); }
 .dark .inv-kbd { background: var(--surface-2); border-color: var(--border-2); }
 
-/* ===== KEYBOARD FOCUS VISIBILITY =====
-   Buttons and selects had no focus style at all, so a keyboard user could not
-   see where they were. :focus-visible keeps pointer users unaffected. */
-.inv-btn:focus-visible,
-.inv-fab:focus-visible,
-.inv-fab-scan:focus-visible,
-.inv-chip:focus-visible,
-.inv-tab:focus-visible,
-.inv-header-btn:focus-visible,
-.inv-line-remove:focus-visible,
-.inv-overlay-close:focus-visible,
-.inv-form-select:focus-visible,
-.inv-search-input:focus-visible,
-.inv-search-item:focus-visible,
-.inv-autocomplete-item:focus-visible {
-  outline: var(--sp-2) solid var(--accent);
-  outline-offset: var(--sp-2);
-}
-.dark .inv-btn:focus-visible,
-.dark .inv-fab:focus-visible,
-.dark .inv-fab-scan:focus-visible,
-.dark .inv-chip:focus-visible,
-.dark .inv-tab:focus-visible,
-.dark .inv-header-btn:focus-visible,
-.dark .inv-line-remove:focus-visible,
-.dark .inv-overlay-close:focus-visible,
-.dark .inv-form-select:focus-visible,
-.dark .inv-search-input:focus-visible,
-.dark .inv-search-item:focus-visible,
-.dark .inv-autocomplete-item:focus-visible {
-  outline-color: var(--cost-text);
-}
-/* The header sits on --accent, so an accent-coloured ring would vanish into it.
-   #fff matches the header's own foreground, as used above. */
-.inv-header-btn:focus-visible,
-.dark .inv-header-btn:focus-visible { outline-color: #fff; }
+/* Keyboard focus: one ring for every control, declared with the tokens (§3.6). */
 
 /* ===== ITEMS MASTER (Phase 6) ===== */
 .inv-subview-toggle {
@@ -2282,64 +2307,53 @@ table.inv-qc-grid.inv-qc-no-top { border-top: 0; }
 .inv-reg-row-selected { background: var(--prod-bg); }
 .dark .inv-reg-row-selected { background: var(--prod-bg); }
 .inv-sel-clear-btn {
-  background: transparent; color: #fff;
-  border-color: rgba(255,255,255,0.4);
+  background: transparent; color: var(--on-accent);
+  border-color: color-mix(in srgb, var(--on-accent) 40%, transparent);
 }
-.inv-sel-clear-btn:active { background: rgba(255,255,255,0.15); }
+.inv-sel-clear-btn:active { background: color-mix(in srgb, var(--on-accent) 15%, transparent); }
 
 /* ===== PHASE 8A: DESKTOP LAYOUT FOUNDATION ===== */
 
-/* --- Sidebar (hidden by default) --- */
-.inv-sidebar { display: none; }
-
-body.inv-desktop .inv-sidebar {
-  display: flex; flex-direction: column;
-  position: fixed; left: 0; top: 0; bottom: 0;
-  width: 64px; background: var(--surface);
-  border-right: 1px solid var(--border);
-  z-index: 100; transition: width 200ms ease;
-  overflow: hidden;
+/* --- Sidebar (design system §4.2): labelled, grouped, always expanded --- */
+.inv-side { display: none; }
+body.inv-desktop .inv-side {
+  display: flex; flex-direction: column; gap: 1px;
+  position: fixed; left: 0; top: 0; bottom: 0; z-index: var(--z-bar);
+  width: var(--side-w); padding: var(--sp-10) var(--sp-8);
+  background: var(--bg); border-right: 1px solid var(--border); overflow-y: auto;
 }
-body.inv-desktop .inv-sidebar:hover { width: 240px; }
-.inv-sidebar.inv-sidebar-expanded { width: 240px; }
-.inv-sidebar.inv-sidebar-expanded .inv-sidebar-label { opacity: 1; }
-
-.inv-sidebar-inner {
-  display: flex; flex-direction: column;
-  height: 100%; padding: var(--sp-8) 0;
+.inv-side-brand {
+  display: flex; align-items: center; gap: var(--sp-8);
+  min-height: var(--sp-32); padding: 0 var(--sp-8); margin-bottom: var(--sp-6);
+  font-size: var(--fs-13); font-weight: 600; color: var(--text-1);
 }
-
-.inv-sidebar-item {
-  display: flex; align-items: center; gap: var(--sp-12);
-  padding: var(--sp-12) var(--sp-20);
-  min-height: 48px; color: var(--text-2); cursor: pointer;
-  border: none; background: none; white-space: nowrap;
-  font-family: var(--ff-base); font-size: var(--fs-base); font-weight: 500;
-  text-align: left; width: 100%;
+.inv-side-mark { width: 20px; height: 20px; flex-shrink: 0; }
+.inv-side-mark rect, .inv-side-mark circle { fill: var(--accent); }
+.inv-side-mark polygon { fill: none; stroke: var(--on-accent); stroke-width: 22; stroke-linejoin: round; }
+.inv-side-mark polygon + polygon { fill: var(--on-accent); stroke: none; }
+.inv-side-group { padding: var(--sp-12) var(--sp-8) var(--sp-4); font-size: var(--fs-11); font-weight: 500; color: var(--text-3); }
+.inv-side-item {
+  display: flex; align-items: center; gap: var(--sp-8); width: 100%;
+  min-height: var(--ctl-h); padding: 0 var(--sp-8);
+  border: none; border-radius: var(--r-md); background: none; cursor: pointer;
+  color: var(--text-2); font-size: var(--fs-13); font-weight: 400; text-align: left;
 }
-.inv-sidebar-item svg { flex-shrink: 0; width: 24px; height: 24px; }
-.inv-sidebar-label { opacity: 0; transition: opacity 150ms ease; }
-body.inv-desktop .inv-sidebar:hover .inv-sidebar-label { opacity: 1; }
-.inv-sidebar-active { color: var(--accent); background: var(--surface-2); }
-.inv-sidebar-spacer { flex: 1; }
+.inv-side-item svg { width: 16px; height: 16px; flex-shrink: 0; }
+.inv-side-item:hover { background: var(--surface-2); color: var(--text-1); }
+.inv-side-item-on { background: var(--surface-2); color: var(--text-1); font-weight: 600; }
+.inv-side-item-on svg { color: var(--accent); }
+.inv-side-label { flex: 1; }
+.inv-side-count { font-family: var(--ff-mono); font-size: var(--fs-11); color: var(--text-3); }
+.inv-side-count-danger { color: var(--danger); font-weight: 600; }
+.inv-side-count-warning { color: var(--warning); font-weight: 600; }
+.inv-side-spacer { flex: 1; min-height: var(--sp-16); }
 
-/* Dark mode sidebar */
-.dark .inv-sidebar { background: var(--surface); border-right-color: var(--border); }
-.dark .inv-sidebar-active { background: var(--surface-2); color: var(--accent); }
-
-/* --- Desktop: Body offset --- */
+/* --- Desktop: body offset clear of the sidebar --- */
 body.inv-desktop {
-  max-width: none; padding-bottom: 0; margin-left: 64px;
-  transition: margin-left var(--anim-normal) ease;
+  max-width: none; padding-bottom: 0; margin-left: var(--side-w);
+  transition: margin-left var(--dur-2) var(--ease);
 }
-/* Body follows sidenav width so header + content shift instead of being covered */
-body.inv-desktop:has(.inv-sidebar:hover),
-body.inv-desktop:has(.inv-sidebar.inv-sidebar-expanded) {
-  margin-left: 240px;
-}
-
-/* --- Desktop: Hide bottom tabs --- */
-body.inv-desktop .inv-tabs { display: none; }
+body.inv-desktop .inv-navbar { display: none; }
 
 /* --- Desktop: FAB repositioned (no tab-h offset) --- */
 body.inv-desktop .inv-fab { bottom: var(--sp-16); }
@@ -2631,7 +2645,7 @@ body.inv-desktop #itemsSelBar {
 /* --- Tablet: Wider cards, no max-width cap --- */
 @media (min-width: 768px) {
   body { max-width: none; }
-  .inv-tabs { max-width: none; }
+  .inv-navbar { max-width: none; }
   .inv-card { padding: var(--sp-20); }
   .inv-page { padding: var(--sp-20) var(--sp-32); }
   .inv-toast { max-width: 480px; }
@@ -2705,9 +2719,9 @@ body.inv-desktop #itemsSelBar {
   transition: background var(--anim-fast), color var(--anim-fast);
 }
 .inv-att-seg-btn:active { background: var(--surface-2); }
-.inv-att-seg-p.inv-att-seg-on { background: var(--attend); border-color: var(--attend); color: #fff; }
-.inv-att-seg-h.inv-att-seg-on { background: var(--warning); border-color: var(--warning); color: #fff; }
-.inv-att-seg-a.inv-att-seg-on { background: var(--danger); border-color: var(--danger); color: #fff; }
+.inv-att-seg-p.inv-att-seg-on { background: var(--attend); border-color: var(--attend); color: var(--surface); }
+.inv-att-seg-h.inv-att-seg-on { background: var(--warning); border-color: var(--warning); color: var(--surface); }
+.inv-att-seg-a.inv-att-seg-on { background: var(--danger); border-color: var(--danger); color: var(--surface); }
 .inv-att-area { flex: 1; min-width: 0; padding: var(--sp-6) var(--sp-8); }
 .inv-att-ot { width: calc(var(--sp-32) + var(--sp-24)); flex-shrink: 0; text-align: center; padding: var(--sp-6) var(--sp-4); }
 .inv-att-area:disabled, .inv-att-ot:disabled { opacity: 0.45; }
@@ -3118,8 +3132,7 @@ body.inv-desktop .inv-att-extra-row { max-width: calc(var(--sp-32) * 15); }
 .inv-sr-foot { margin-top: var(--sp-8); font-size: var(--sr-fs-sm); color: var(--sr-muted); }
 
 /* ===== MORE (phone bar) ===== */
-.inv-tab-more { position: relative; }
-.inv-tab-badge {
+.inv-navbar-count {
   position: absolute; top: var(--sp-4); left: calc(50% + var(--sp-6));
   min-width: var(--sp-16); height: var(--sp-16); padding: 0 var(--sp-4);
   border-radius: var(--r-full); background: var(--danger); color: var(--surface);
@@ -3167,7 +3180,7 @@ body.inv-desktop .inv-att-extra-row { max-width: calc(var(--sp-32) * 15); }
   border: 1px solid var(--border-2); background: var(--surface); color: var(--text-1);
   font: inherit; font-size: var(--fs-base); font-weight: 600; cursor: pointer;
 }
-.inv-stk-btn-pri { background: var(--accent); border-color: var(--accent); color: var(--surface); }
+.inv-stk-btn-pri { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
 .inv-stk-btn:disabled { opacity: 0.45; cursor: not-allowed; }
 .inv-stk-btn-block { width: 100%; margin: var(--sp-12) 0 var(--sp-8); }
 .inv-stk-sum { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--sp-6); margin-bottom: var(--sp-12); }
@@ -3273,7 +3286,7 @@ body.inv-desktop .inv-att-extra-row { max-width: calc(var(--sp-32) * 15); }
   min-height: 44px; padding: var(--sp-6) var(--sp-10); border-radius: var(--r-md); text-align: left;
   border: 1px solid var(--border-2); background: var(--surface); color: var(--text-1); font: inherit; font-size: var(--fs-sm); font-weight: 600; cursor: pointer;
 }
-.inv-stk-choice-on { border-color: var(--accent); background: var(--accent); color: var(--surface); }
+.inv-stk-choice-on { border-color: var(--accent); background: var(--accent); color: var(--on-accent); }
 .inv-stk-map { margin-top: var(--sp-8); }
 .inv-stk-label-gap { margin-top: var(--sp-8); }
 .inv-stk-foot {
@@ -3288,7 +3301,7 @@ body.inv-desktop .inv-stk-foot { bottom: var(--sp-8); }
   color: var(--text-1); font: inherit; font-size: var(--fs-sm); font-weight: 600; cursor: pointer;
 }
 .inv-stk-seg-btn:last-child { border-right: none; }
-.inv-stk-seg-on { background: var(--accent); color: var(--surface); }
+.inv-stk-seg-on { background: var(--accent); color: var(--on-accent); }
 .inv-stk-mlist { border: 1px solid var(--border-2); border-radius: var(--r-md); background: var(--surface); padding: 0 var(--sp-12); }
 .inv-stk-mrow { display: flex; align-items: center; gap: var(--sp-6); min-height: calc(var(--sp-32) + var(--sp-24)); border-bottom: 1px solid var(--border); }
 .inv-stk-mrow:last-child { border-bottom: none; }
@@ -3331,7 +3344,6 @@ body.inv-desktop .inv-stk-foot { bottom: var(--sp-8); }
 /* Dark: the tokens above re-point by themselves; these are the spots that
    read a light-only value. Chips and tiles keep a solid border either way. */
 .dark .inv-more-scrim { background: rgba(0,0,0,0.6); }
-.dark .inv-stk-btn-pri, .dark .inv-stk-choice-on, .dark .inv-stk-seg-on { color: var(--text-1); }
 .dark .inv-stk-row, .dark .inv-stk-tile, .dark .inv-stk-pr, .dark .inv-stk-hero, .dark .inv-stk-mlist,
 .dark .inv-stk-hist, .dark .inv-stk-metabox, .dark .inv-stk-foot, .dark .inv-stk-in, .dark .inv-stk-paste { border-color: var(--border-2); }
 .dark .inv-stk-chip-red, .dark .inv-stk-tile-red { border-color: var(--danger-text); }
@@ -3342,7 +3354,6 @@ body.inv-desktop .inv-stk-foot { bottom: var(--sp-8); }
 .dark .inv-stk-tone-amber, .dark .inv-stk-pr-amber { border-left-color: var(--warning-text); }
 .dark .inv-stk-tone-ok, .dark .inv-stk-pr-clear { border-left-color: var(--attend-text); }
 .dark .inv-stk-tone-bath { border-left-color: var(--prod-text); }
-.dark .inv-tab-badge { color: var(--text-1); }
 
 /* ===== TO-DO =====
    App tasks carry a round marker (they clear themselves), your own a tick box.
@@ -3497,10 +3508,8 @@ button.inv-td-hrow { cursor: pointer; }
 .inv-qa svg { width: 20px; height: 20px; color: var(--accent); }
 .inv-qa:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .inv-qa:active { transform: scale(0.98); }
-.inv-qa-pri { background: var(--accent); border-color: var(--accent); color: var(--surface); }
-.inv-qa-pri svg { color: var(--surface); }
-.dark .inv-qa-pri { color: var(--text-1); }
-.dark .inv-qa-pri svg { color: var(--text-1); }
+.inv-qa-pri { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+.inv-qa-pri svg { color: var(--on-accent); }
 body.inv-desktop .inv-qa-grid { grid-template-columns: repeat(6, 1fr); }
 
 /* ===== SETTINGS: groups, folded sections, per-section save ===== */

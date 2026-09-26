@@ -378,6 +378,7 @@ function updateStockBadge() {
   var n = typeof todoRedCount === 'function' ? todoRedCount() : stockOutCount();
   b.textContent = n ? String(n) : '';
   b.classList.toggle('inv-hidden', !n);
+  if (typeof updateSideCounts === 'function') updateSideCounts();
 }
 
 /* ---------- Resolving a parsed message against the app's lines ---------- */
@@ -602,7 +603,7 @@ function renderStockList() {
   var items = st.items.filter(function(i) { return i.active !== false; });
   var lastCount = null;
   st.entries.forEach(function(e) { if (!e.voided && e.kind === 'count' && (!lastCount || e.date > lastCount.date || (e.date === lastCount.date && e.at > lastCount.at))) lastCount = e; });
-  var h = '<div class="inv-stk-top"><div><div class="inv-stk-h1">Stock</div>' +
+  var h = '<div class="inv-stk-top"><div>' +
     (lastCount ? '<div class="inv-stk-meta">Last count <strong>' + escHtml(stockShortDate(lastCount.date)) + '</strong>' +
       (lastCount.sentBy ? ' &middot; ' + escHtml(lastCount.sentBy) : '') + '</div>' : '') +
     '</div><div class="inv-stk-tools">' +

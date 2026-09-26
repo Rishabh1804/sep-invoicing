@@ -23,7 +23,7 @@ Workforce management and invoicing PWA for **Soma Electro Products**, a zinc ele
 
 ## Architecture
 
-Split-file PWA. 40 modules, ~24,700 lines total.
+Split-file PWA. 41 modules, ~24,700 lines total.
 
 ```
 split/
@@ -33,6 +33,7 @@ split/
 ├── body.html          ← HTML body, tabs, print view (137 lines)
 ├── data.js            ← ITEMS_MASTER + SEED_CLIENTS (27 lines)
 ├── state.js           ← IndexedDB store, verified coalesced saves, escHtml, gstRound (677 lines)
+├── appearance.js      ← Theme / palette / density per device, dark hook, theme-color, icon (~100 lines)
 ├── zinc.js            ← Zinc market rate: store, display, metals.dev refresh, uplift from bills (~350 lines)
 ├── tabs.js            ← switchTab (9-step protocol) + renderHome (188 lines)
 ├── clients.js         ← Client Master CRUD + overlay (343 lines)
@@ -70,7 +71,7 @@ split/
 └── init.js            ← Migrations + app bootstrap (567 lines)
 ```
 
-**Concat order defined in build.sh.** Dependencies: data → state → zinc → tabs → clients → items → create → settings → github-sync → invoice-ops → number-audit → exports → im → autocomplete → print → quality-cert → credit-note → charts → staff → labour → areas → payroll → stock → cost → todo → relay → stats → intel → insights → client-perf → im-form → im-dupe → scanner → events → swipe → seed → init.
+**Concat order defined in build.sh.** Dependencies: data → state → appearance → zinc → tabs → clients → items → create → settings → github-sync → invoice-ops → number-audit → exports → im → autocomplete → print → quality-cert → credit-note → charts → staff → labour → areas → payroll → stock → cost → todo → relay → stats → intel → insights → client-perf → im-form → im-dupe → scanner → events → swipe → seed → init.
 
 ### Build
 
@@ -96,7 +97,7 @@ every session start — nothing to set up by hand. CI (`build-sync`) is the back
 ### Tests
 
 ```bash
-pnpm exec playwright test          # 436 tests, both layouts
+pnpm exec playwright test          # 443 tests, both layouts
 ```
 
 Some sandboxes ship a Chromium build Playwright does not expect and block downloading
@@ -160,6 +161,14 @@ change that needs something it does not define amends it in the same PR. Its des
 the weight of the hard rules above (colour means status; one accent for interaction; one primary button per
 view; figures mono and right-aligned; sentence case; no shadows on content; components, not one-offs; status
 is a dot or badge plus a word).
+
+**Step 1 of the migration is built (26 Sep 2026):** the v2.0 tokens with three palettes (Teal default,
+Zinc & brass, Terracotta), theme following the phone, density, **no pure white anywhere in the interface**
+(owner: *"it puts a lot of stress at our eyes"* — paper is the one exception), the top bar naming each
+screen, the grouped labelled sidebar, the nut icon in the palette, and Settings → Data & device →
+Appearance. The v1.0 token names are aliases of the new ones, so every older rule already renders in the
+new palette. `html.dark` is still set on the resolved dark theme as a **transitional hook** for v1.0
+`.dark .inv-…` rules — never write a new one.
 
 ⚠ **Until the migration in its §9 completes, the stylesheet still carries the v1.0 families** (`inv-card`,
 `inv-stk-*`, `inv-stats-card`, the domain colours). New work uses the v2.0 components; never extend a v1.0
@@ -1863,6 +1872,8 @@ organisation account per project) is the no-code answer for them.
 
 Credentials live in their own localStorage entries (`sep_inv_gemini_key`, `sep_inv_metals_key`,
 `sep_inv_github_token`), never on the state object, so an exported backup can never carry one.
+Appearance is device-only the same way (`sep_inv_theme`, `sep_inv_palette`, `sep_inv_density`): a backup
+must not repaint the phone that imports it.
 The sync config (`sep_inv_github_sync`) is kept off `S` for the same class of reason: a file
 SHA and a device id describe this device's relationship to the remote, and restoring someone
 else's backup must not hand this device their sync position.

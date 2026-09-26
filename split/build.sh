@@ -59,6 +59,7 @@ JS_SOURCES=(
     "$DIR/insights.js" \
     "$DIR/finintel.js" \
     "$DIR/finlinks.js" \
+    "$DIR/dash.js" \
     "$DIR/client-perf.js" \
     "$DIR/im-form.js" \
     "$DIR/im-dupe.js" \

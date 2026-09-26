@@ -18,7 +18,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <!-- Appearance before first paint (§3.2): the device's theme and palette, so nothing flashes in the wrong colours. -->
 <script>(function(){try{var d=document.documentElement,t=localStorage.getItem("sep_inv_theme"),p=localStorage.getItem("sep_inv_palette");if(t==="light"||t==="dark")d.dataset.theme=t;d.dataset.palette=(p==="zinc"||p==="terracotta")?p:"teal";}catch(e){document.documentElement.dataset.palette="teal";}})();</script>
-<meta name="app-build" content="15ed967c">
+<meta name="app-build" content="7095a59c">
 <style>
 /* ===== DESIGN TOKENS (design system v2.0 — docs/SEP_INVOICING_DESIGN_PRINCIPLES.md §3) ===== */
 /* Theme: colour-scheme decides every light-dark() below. <html data-theme> is set before first paint
@@ -1420,6 +1420,7 @@ button.inv-chart-legend-row { width: 100%; background: none; border: none; font:
 .inv-chart-ranked-svg { width: 100%; height: 8px; display: block; }
 .inv-chart-ranked-fill { fill: var(--accent); }
 .inv-chart-ranked-fill-danger { fill: var(--danger); }
+.inv-chart-ranked-fill-warning { fill: var(--warning); }
 .inv-chart-ranked-fill-good { fill: var(--attend); }
 .inv-chart-ranked-mark { fill: var(--text-1); opacity: 0.55; }
 .inv-chart-ranked-sub { font-size: var(--fs-2xs); color: var(--text-3); font-family: var(--ff-mono); }
@@ -13017,6 +13018,9 @@ function chartShort(v, unit) {
     return Math.abs(v) >= 1000 ? formatNum(v / 1000, 1) + 't' : formatNum(v, 0) + 'kg';
   }
   if (unit === 'count') return formatNum(v, 0);
+  if (unit === 'pct') return formatNum(v, 0) + '%';
+  if (unit === 'rate') return '₹' + formatNum(v, 2);
+  if (unit === 'h') return formatNum(v, 0) + 'h';
   if (Math.abs(v) >= 100000) return '₹' + formatNum(v / 100000, 1) + 'L';
   if (Math.abs(v) >= 1000) return '₹' + formatNum(v / 1000, 0) + 'K';
   return '₹' + formatNum(v, 0);
@@ -13025,6 +13029,9 @@ function chartShort(v, unit) {
 function chartFull(v, unit) {
   if (unit === 'kg') return formatNum(v, 0) + ' kg';
   if (unit === 'count') return formatNum(v, 0);
+  if (unit === 'pct') return formatNum(v, 1) + '%';
+  if (unit === 'rate') return formatCurrency(v) + '/kg';
+  if (unit === 'h') return formatNum(v, 1) + ' h';
   return formatCurrency(v);
 }
 
@@ -13540,7 +13547,7 @@ var ATT_STATES = ['P', 'H', 'A'];
 var ATT_STATE_LABELS = { P: 'Present', H: 'Half day', A: 'Absent' };
 var ATT_DAY_VALUE = { P: 1, H: 0.5, A: 0 };
 
-var _attView = 'day';
+var _attView = 'overview';
 var _attDate = null;      // ISO date the Day view is showing
 var _attWeekStart = null; // ISO Sunday the Week view is showing (the pay week)
 
@@ -13711,7 +13718,7 @@ function renderAttendance() {
 
   var toolbar = document.getElementById('attToolbar');
   if (toolbar) {
-    var views = [['day', 'Day'], ['week', 'Week'], ['pay', 'Pay'], ['areas', 'Areas'], ['roster', 'Roster'], ['paste', 'Paste message']];
+    var views = [['overview', 'Overview'], ['day', 'Day'], ['week', 'Week'], ['pay', 'Pay'], ['areas', 'Areas'], ['roster', 'Roster'], ['paste', 'Paste message']];
     toolbar.innerHTML = '<div class="inv-stats-chips">' + views.map(function(v) {
       return '<button class="inv-chip' + (_attView === v[0] ? ' inv-chip-active' : '') +
         '" data-action="invAttView" data-view="' + v[0] + '">' + v[1] + '</button>';
@@ -13731,6 +13738,7 @@ function renderAttendance() {
   else if (_attView === 'paste') area.innerHTML = relayRenderView();
   else if (_attView === 'areas') area.innerHTML = _attAreasView();
   else if (_attView === 'pay') area.innerHTML = _attPayView();
+  else if (_attView === 'overview') area.innerHTML = staffOverviewHtml();
   else if (_attView === 'week') area.innerHTML = _attWeekView();
   else area.innerHTML = _attDayView();
 
@@ -17406,47 +17414,51 @@ function areaHoursCard(from, to) {
 }
 
 /* ===== Home: the day's attendance ===== */
-function renderAttHomeCard() {
-  var el = document.getElementById('homeAttCard');
-  if (!el) return;
+/* One day's attendance, read once: Home's card and Staff → Overview draw the same figures. The day is today,
+   or the last day that has marks when nothing is typed today, and it says which. */
+function attDaySummary() {
   var roster = staffActive();
-  if (!roster.length) { el.innerHTML = ''; return; }
   var today = localDateStr();
   var iso = today, rec = (S.attendance || {})[today];
   var marked = function(r) { return r && Object.keys(r.marks || {}).length > 0; };
   if (!marked(rec)) {
-    // Nothing typed today yet: show the last day that was, and say which.
     var last = Object.keys(S.attendance || {}).filter(function(k) { return k < today && marked(S.attendance[k]); }).sort().pop();
     if (last) { iso = last; rec = S.attendance[last]; }
   }
-  var h = '<div class="inv-panel inv-panel-flush"><div class="inv-panel-head"><span class="inv-panel-title">Attendance ' +
-    '<span class="inv-panel-count">' + (iso === today ? 'today' : escHtml(attDayName(iso) + ' ' + formatDate(iso))) + '</span></span>' +
-    '<button class="inv-btn-link" data-action="invPayOpenAtt">Open</button></div>';
-  if (!marked(rec)) {
-    h += '<div class="inv-empty">Nothing recorded yet.</div>';
-  } else {
-    var p = 0, half = 0, absent = [], unmarked = 0, floorHeads = 0;
-    roster.forEach(function(w) {
-      var m = rec.marks[w.id];
-      if (!m || !m.st) { unmarked++; return; }
-      if (m.st === 'A') { absent.push(w.name); return; }
-      if (m.st === 'H') half++; else p++;
-      if (w.onFloor !== false && _areaIsFloor(m.area || w.area)) floorHeads++;
-    });
-    var complement = STAFF_AREAS.reduce(function(s, a) { var t = areaTarget(a.id); return s + (t != null ? t : 0); }, 0);
-    var extraH = (rec.extra || []).reduce(function(s, x) { return s + (x.hours || 0); }, 0);
-    var short = complement && floorHeads < complement;
-    h += '<div class="inv-tiles inv-tiles-flush">' +
-      '<div class="inv-tile"><div class="inv-tile-label">On site</div>' +
-      '<div class="inv-tile-value" id="homeAttOnSite">' + (p + half) + '<span class="inv-tile-of">/' + roster.length + '</span></div>' +
-      '<div class="inv-tile-sub">' + (half ? half + ' half day' + (half === 1 ? '' : 's') + ' · ' : '') + absent.length + ' absent' + (unmarked ? ' · ' + unmarked + ' unmarked' : '') + '</div></div>' +
-      '<div class="inv-tile' + (short ? ' inv-tile-warning' : '') + '"><div class="inv-tile-label">On the floor</div>' +
-      '<div class="inv-tile-value">' + floorHeads + (complement ? '<span class="inv-tile-of">/' + complement + '</span>' : '') + '</div>' +
-      '<div class="inv-tile-sub">' + (complement ? (short ? (complement - floorHeads) + ' short of the complement' : 'against the complement') : 'no complement set') + '</div></div></div>';
-    if (absent.length) h += '<div class="inv-row inv-row-2"><span class="inv-row-main"><span class="inv-row-meta">Absent</span><span class="inv-row-wrap">' + escHtml(absent.join(', ')) + '</span></span></div>';
-    if (extraH) h += '<div class="inv-row"><span class="inv-row-main">EXTRA booked</span><span class="inv-row-end inv-num">' + formatNum(extraH, 1) + ' h</span></div>';
-  }
-  el.innerHTML = h + '</div>';
+  var out = { roster: roster, iso: iso, today: iso === today, marked: marked(rec), p: 0, half: 0, absent: [], unmarked: 0, floorHeads: 0, complement: 0, extraH: 0, short: false };
+  if (!out.marked) return out;
+  roster.forEach(function(w) {
+    var m = rec.marks[w.id];
+    if (!m || !m.st) { out.unmarked++; return; }
+    if (m.st === 'A') { out.absent.push(w.name); return; }
+    if (m.st === 'H') out.half++; else out.p++;
+    if (w.onFloor !== false && _areaIsFloor(m.area || w.area)) out.floorHeads++;
+  });
+  out.complement = STAFF_AREAS.reduce(function(s, a) { var t = areaTarget(a.id); return s + (t != null ? t : 0); }, 0);
+  out.extraH = (rec.extra || []).reduce(function(s, x) { return s + (x.hours || 0); }, 0);
+  out.short = !!out.complement && out.floorHeads < out.complement;
+  return out;
+}
+function attDayPanelHtml(d, headBtn, id) {
+  var h = '<div class="inv-panel inv-panel-flush"' + (id ? ' id="' + id + '"' : '') + '><div class="inv-panel-head"><span class="inv-panel-title">Attendance ' +
+    '<span class="inv-panel-count">' + (d.today ? 'today' : escHtml(attDayName(d.iso) + ' ' + formatDate(d.iso))) + '</span></span>' + (headBtn || '') + '</div>';
+  if (!d.marked) return h + '<div class="inv-empty">Nothing recorded yet.</div></div>';
+  h += '<div class="inv-tiles inv-tiles-flush">' +
+    '<div class="inv-tile"><div class="inv-tile-label">On site</div>' +
+    '<div class="inv-tile-value" data-att-onsite' + (id === 'homeAtt' ? ' id="homeAttOnSite"' : '') + '>' + (d.p + d.half) + '<span class="inv-tile-of">/' + d.roster.length + '</span></div>' +
+    '<div class="inv-tile-sub">' + (d.half ? d.half + ' half day' + (d.half === 1 ? '' : 's') + ' · ' : '') + d.absent.length + ' absent' + (d.unmarked ? ' · ' + d.unmarked + ' unmarked' : '') + '</div></div>' +
+    '<div class="inv-tile' + (d.short ? ' inv-tile-warning' : '') + '"><div class="inv-tile-label">On the floor</div>' +
+    '<div class="inv-tile-value">' + d.floorHeads + (d.complement ? '<span class="inv-tile-of">/' + d.complement + '</span>' : '') + '</div>' +
+    '<div class="inv-tile-sub">' + (d.complement ? (d.short ? (d.complement - d.floorHeads) + ' short of the complement' : 'against the complement') : 'no complement set') + '</div></div></div>';
+  if (d.absent.length) h += '<div class="inv-row inv-row-2"><span class="inv-row-main"><span class="inv-row-meta">Absent</span><span class="inv-row-wrap">' + escHtml(d.absent.join(', ')) + '</span></span></div>';
+  if (d.extraH) h += '<div class="inv-row"><span class="inv-row-main">EXTRA booked</span><span class="inv-row-end inv-num">' + formatNum(d.extraH, 1) + ' h</span></div>';
+  return h + '</div>';
+}
+function renderAttHomeCard() {
+  var el = document.getElementById('homeAttCard');
+  if (!el) return;
+  if (!staffActive().length) { el.innerHTML = ''; return; }
+  el.innerHTML = attDayPanelHtml(attDaySummary(), '<button class="inv-btn-link" data-action="invPayOpenAtt">Open</button>', 'homeAtt');
 }
 /* ===== STOCK =====
    Chemical stock, owned by soma-internal (owner's ruling, 24 Sep 2026): this
@@ -18001,7 +18013,7 @@ function stockCommitPaste(parsed, res, meta) {
 }
 
 /* ---------- Screens ---------- */
-var _stockView = 'list';
+var _stockView = 'overview';
 var _stockReview = null;   // { text, parsed, choices, sentBy }
 var _stockManual = null;   // { mode, date, supplier, billNo, bath, vals: {itemId: {qty, price}} }
 var _stockItemId = null;
@@ -18037,7 +18049,8 @@ function renderStock() {
   else if (_stockView === 'manual' && _stockManual) el.innerHTML = renderStockManual();
   else if (_stockView === 'item' && stockItem(_stockItemId)) el.innerHTML = renderStockItem(stockItem(_stockItemId));
   else if (_stockView === 'reorder' && _stockReorder) el.innerHTML = renderStockReorder();
-  else { _stockView = 'list'; el.innerHTML = renderStockList(); }
+  else if (_stockView === 'overview') el.innerHTML = stockViewTabsHtml() + stockOverviewHtml();
+  else { _stockView = 'list'; el.innerHTML = stockViewTabsHtml() + renderStockList(); }
   updateStockBadge();
 }
 
@@ -25601,6 +25614,233 @@ function finLinkAction(action, btn) {
   }
   return false;
 }
+/* ===== STAFF AND STOCK OVERVIEWS =====
+ * docs/FINANCE_INTELLIGENCE_SPEC.md, Phase 7 (7a, 7b): the owner's "same for Staff, Stock" — each screen opens on an
+ * Overview built from the Phase 2 charts and reading the functions the rest of the app already uses. A week or month
+ * nobody typed is a gap in a line, never a zero; every panel says what it rests on.
+ */
+
+var DASH_STAFF_RULES = ['insLabour', 'insAttGap', 'wageVsSlip', 'cashSwing', 'costGap'];
+
+function _dashPanel(id, title, body, head) {
+  return '<div class="inv-panel" id="' + id + '"><div class="inv-panel-head"><span class="inv-panel-title">' + title + '</span>' + (head || '') + '</div>' +
+    '<div class="inv-panel-body">' + body + '</div></div>';
+}
+function _dashWeekLabel(sat) { return stockShortDate(sat); }
+
+/* ---------- 7a. Staff ---------- */
+/* Worker-days present (P = 1, H = ½) over (active roster × working days that carry any mark), per pay week. */
+function dashAttendanceByWeek(n) {
+  var roster = staffActive().length, out = [], ws = attWeekStartOf(localDateStr());
+  for (var k = n - 1; k >= 0; k--) {
+    var start = attAddDays(ws, -7 * k), sat = attAddDays(start, 6), present = 0, days = 0;
+    for (var d = 1; d <= 6; d++) {
+      var iso = attAddDays(start, d), rec = (S.attendance || {})[iso];
+      if (iso > localDateStr() || !rec || !Object.keys(rec.marks || {}).length) continue;
+      days++;
+      Object.keys(rec.marks).forEach(function(id) { var m = rec.marks[id]; if (m && m.st === 'P') present += 1; else if (m && m.st === 'H') present += 0.5; });
+    }
+    out.push({ start: start, sat: sat, days: days, pct: days && roster ? Math.min(100, present / (roster * days) * 100) : null });
+  }
+  return out;
+}
+function dashLabourByMonth() {
+  var months = insMonthsBack(6), active = insActive(), bm = typeof bankCostByMonth === 'function' && bankRows().length ? bankCostByMonth() : null;
+  return months.map(function(m) {
+    var from = m + '-01', to = payMonthEnd(from), lab = labourForRange(from, to);
+    var kg = weighLines(active.filter(function(i) { return i.date >= from && i.date <= to; })).kg;
+    var paid = bm && bankMonthKnown(bm, m, 'labour') && bm.months[m] ? bm.months[m].labour.amount : null;
+    return { month: m, kg: kg, recorded: kg > 0 && lab.total > 0 && lab.coverage >= 0.9 ? lab.total / kg : null, coverage: lab.coverage,
+      paid: kg > 0 && paid != null ? paid / kg : null };
+  });
+}
+function dashPayrollVsBank() {
+  var months = insMonthsBack(6), bm = typeof bankCostByMonth === 'function' && bankRows().length ? bankCostByMonth() : null;
+  return months.map(function(m) {
+    var slip = payrollPaidFor(m), payroll = 0, src = 'slip';
+    if (slip) slip.rows.forEach(function(r) { payroll += r.paid != null ? Number(r.paid) || 0 : (Number(r.dayPay) || 0) + (Number(r.ot) || 0); });
+    else {
+      src = 'model';
+      var lab = labourForRange(m + '-01', payMonthEnd(m + '-01'));
+      Object.keys(lab.byWorker).forEach(function(id) { if (lab.byWorker[id].comp === 'monthly') payroll += lab.byWorker[id].total; });
+    }
+    var named = bm && bankMonthKnown(bm, m, 'labour') ? (bm.months[m] ? bm.months[m].labour.named : 0) : null;
+    return { month: m, payroll: gstRound(payroll), src: src, bank: named == null ? null : gstRound(named) };
+  });
+}
+
+function staffOverviewHtml() {
+  var h = attDayPanelHtml(attDaySummary(), '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invDashOpenDay">Open the day</button>', 'dashStaffToday');
+
+  var weeks = dashAttendanceByWeek(12);
+  h += _dashPanel('dashAttWeeks', 'Attendance by week', chartLines(weeks.map(function(w) { return _dashWeekLabel(w.sat); }),
+    [{ label: 'Present', values: weeks.map(function(w) { return w.pct == null ? null : Math.round(w.pct * 10) / 10; }) }],
+    { unit: 'pct', ariaLabel: 'Attendance by week', emptyText: 'Needs two pay weeks with attendance recorded' }) +
+    '<div class="inv-note">Worker-days present (a half day is half) over the active roster × the working days that carry any mark. A week nobody typed is a gap, not a zero.</div>');
+
+  var lm = dashLabourByMonth(), model = labourCfg().modelPerKg || 3.55;
+  h += _dashPanel('dashLabour', 'Labour ₹/kg by month', chartLines(lm.map(function(x) { return insMonthLabel(x.month); }), [
+    { label: 'Recorded', values: lm.map(function(x) { return x.recorded == null ? null : Math.round(x.recorded * 100) / 100; }) },
+    { label: 'Paid, bank', values: lm.map(function(x) { return x.paid == null ? null : Math.round(x.paid * 100) / 100; }), tone: 2 },
+    { label: 'Model', values: lm.map(function() { return model; }), tone: 3 }
+  ], { unit: 'rate', ariaLabel: 'Labour per kg by month', emptyText: 'Needs two months with tonnage' }) +
+    '<div class="inv-note">Recorded is attendance priced by the wage model, shown where 90% of the month’s working days are recorded; paid is the salaries and cash the bank statement set against the month; model is Settings → Labour.</div>');
+
+  var ws = attWeekStartOf(localDateStr()), from = attAddDays(ws, -21), ah = areaHoursForRange(from, localDateStr());
+  h += _dashPanel('dashAreaHours', 'OT and EXTRA by area, four weeks', chartStack(ah.rows.map(function(r) { return r.label; }), [
+    { label: 'OT', values: ah.rows.map(function(r) { return Math.round(r.ot * 10) / 10; }) },
+    { label: 'EXTRA', values: ah.rows.map(function(r) { return Math.round(r.extra * 10) / 10; }) }
+  ], { unit: 'h', ariaLabel: 'OT and EXTRA hours by area', emptyText: 'No attendance in the last four weeks' }) +
+    '<div class="inv-note">From ' + escHtml(formatDate(from)) + ': overtime hours on each mark where the worker stood that day, and the EXTRA booked to the area.</div>');
+
+  var pb = dashPayrollVsBank();
+  h += _dashPanel('dashPayBank', 'Payroll against the bank', chartStack(pb.map(function(x) { return insMonthLabel(x.month); }), [
+    { label: 'Payroll', values: pb.map(function(x) { return x.payroll; }) },
+    { label: 'Paid, bank', values: pb.map(function(x) { return x.bank == null ? 0 : x.bank; }) }
+  ], { mode: 'group', ariaLabel: 'Payroll against the bank', emptyText: 'No monthly payroll in six months' }) +
+    '<div class="inv-note">Payroll is the slip as paid where one is imported, else the wage model’s monthly tier (' +
+    escHtml(pb.filter(function(x) { return x.src === 'model'; }).map(function(x) { return insMonthLabel(x.month); }).join(', ') || 'none') +
+    '). Paid is the transfers to named hands the bank set against the month; a month the statement does not reach shows none.</div>');
+
+  var raised = todoApp().filter(function(t) { return DASH_STAFF_RULES.indexOf(t.rule) >= 0 && (t.rule !== 'costGap' || t.key === 'costGap:labour'); });
+  h += '<div class="inv-panel inv-panel-flush" id="dashStaffRaised"><div class="inv-panel-head"><span class="inv-panel-title">Raised</span><span class="inv-panel-count">' + raised.length + '</span></div>' +
+    (raised.length ? raised.map(_dashTaskRow).join('') : '<div class="inv-empty">Nothing raised about labour or pay.</div>') + '</div>';
+  return '<div class="inv-panels">' + h + '</div>';
+}
+function _dashTaskRow(t) {
+  return '<div class="inv-row inv-row-2"><button class="inv-row-main" data-action="invDashTask" data-key="' + escHtml(t.key) + '"><span class="inv-row-title">' +
+    '<span class="inv-dot inv-dot-' + uiTone(t.tone) + '">' + escHtml(t.title) + '</span></span><span class="inv-row-meta">' + escHtml(t.sub || '') + '</span></button></div>';
+}
+
+/* ---------- 7b. Stock ---------- */
+var _dashSupplier = null;     // the supplier slice open on the pie
+var _dashPriceItem = null;    // the line on the price chart
+
+function dashStockDays() {
+  var rows = [], none = [];
+  stockData().items.filter(function(i) { return i.active !== false && i.basis !== 'charge'; }).forEach(function(it) {
+    var st = stockStatus(it);
+    if (st.group === 'out') rows.push({ it: it, days: 0, tone: 'red', out: true });
+    else if (st.daysLeft != null) rows.push({ it: it, days: st.daysLeft, tone: st.tone });
+    else none.push(it.name);
+  });
+  rows.sort(function(a, b) { return a.days - b.days; });
+  return { rows: rows, none: none };
+}
+function dashSupplierSpend(months) {
+  var from = insMonthsBack(months)[0] + '-01', by = {};
+  stockData().items.forEach(function(it) {
+    stockPurchases(it.id).forEach(function(b) {
+      if (b.date < from) return;
+      var k = b.e.supplier || 'No supplier on record', r = by[k] || (by[k] = { name: k, amount: 0, bills: [] });
+      r.amount += (b.e.price || 0) * (b.e.qty || 0); r.bills.push({ it: it, b: b });
+    });
+  });
+  return { from: from, list: Object.keys(by).map(function(k) { by[k].amount = gstRound(by[k].amount); return by[k]; }).sort(function(a, b) { return b.amount - a.amount; }) };
+}
+function dashUsedByWeek(n) {
+  var ws = attWeekStartOf(localDateStr()), weeks = [], byItem = {}, unpriced = {};
+  for (var k = n - 1; k >= 0; k--) weeks.push(attAddDays(ws, -7 * k));
+  var first = weeks[0];
+  stockData().entries.forEach(function(e) {
+    if (e.voided || (e.kind !== 'used' && e.kind !== 'charged') || e.date < first) return;
+    var it = stockItem(e.itemId);
+    if (!it) return;
+    var p = stockPriceAt(it.id, e.date);
+    if (!p) { unpriced[it.name] = 1; return; }
+    var w = weeks.indexOf(attWeekStartOf(e.date));
+    if (w < 0) return;
+    var r = byItem[it.id] || (byItem[it.id] = { name: it.name, v: weeks.map(function() { return 0; }), total: 0 });
+    r.v[w] += e.qty * p.price; r.total += e.qty * p.price;
+  });
+  var lines = Object.keys(byItem).map(function(k) { return byItem[k]; }).sort(function(a, b) { return b.total - a.total; });
+  var total = weeks.map(function(_, i) { return gstRound(lines.reduce(function(s, l) { return s + l.v[i]; }, 0)); });
+  return { weeks: weeks, total: total, top: lines.slice(0, 4), unpriced: Object.keys(unpriced) };
+}
+
+function stockOverviewHtml() {
+  var h = '';
+  var dd = dashStockDays();
+  h += _dashPanel('dashStockDays', 'Days left', chartRankedBars(dd.rows.map(function(r) {
+    return { label: r.it.name, value: r.out ? 0 : Math.round(r.days * 10) / 10, display: r.out ? 'Out' : stockDaysText(r.days, false),
+      tone: r.tone === 'red' ? 'danger' : r.tone === 'amber' ? 'warning' : 'good', action: 'invDashStockLine', clientId: r.it.id };
+  }), { unit: 'count', emptyText: 'No line has a daily use yet' }) +
+    (dd.none.length ? '<div class="inv-note">No daily use yet: ' + escHtml(dd.none.join(', ')) + '.</div>' : '') +
+    '<div class="inv-note">Red at ' + stockCfg().redDays + ' days or fewer, amber at ' + stockCfg().amberDays + ' (Settings → Checks & alerts → Stock alerts). A bath line is not listed: its shelf runs empty by design.</div>');
+
+  var sp = dashSupplierSpend(6), sel = sp.list.find(function(x) { return x.name === _dashSupplier; });
+  var body = chartPieTap(sp.list.map(function(x) { return { key: x.name, label: x.name, value: x.amount }; }),
+    { action: 'invDashSupplier', selected: _dashSupplier, ariaLabel: 'Spend by supplier', emptyText: 'No priced bill in six months', readHint: 'Tap a supplier to list its bills' });
+  if (sel) {
+    var bp = typeof finSupplierPaid === 'function' ? finSupplierPaid(sel.name) : null;
+    body += '<div class="inv-rows" data-dash-supplier="' + escHtml(sel.name) + '">' + sel.bills.slice().reverse().map(function(x) {
+      return '<div class="inv-row inv-row-2"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(x.it.name) + '</span><span class="inv-row-meta">' + escHtml(formatDate(x.b.date)) +
+        ' · ' + escHtml(stockFmtQty(x.b.e.qty)) + ' ' + escHtml(x.it.unit || '') + ' × ' + escHtml(formatCurrency(x.b.e.price)) + (x.b.e.billNo ? ' · ' + escHtml(x.b.e.billNo) : '') + '</span></span>' +
+        '<span class="inv-row-end inv-num">' + formatCurrency(gstRound((x.b.e.price || 0) * (x.b.e.qty || 0))) + '</span></div>';
+    }).join('') + (bp ? '<div class="inv-row"><span class="inv-row-main inv-row-meta">The bank paid them ' + escHtml(formatCurrency(bp.paid)) + ' in ' + bp.n + ' payment' + (bp.n === 1 ? '' : 's') + '</span></div>' : '') + '</div>';
+  }
+  h += _dashPanel('dashSupplier', 'Spend by supplier, six months', body + '<div class="inv-note">Bills before GST from ' + escHtml(formatDate(sp.from)) + '.</div>');
+
+  var u = dashUsedByWeek(12), labs = u.weeks.map(function(w) { return _dashWeekLabel(attAddDays(w, 6)); });
+  h += _dashPanel('dashUsed', 'Used, in rupees, by week', chartLines(labs, [{ label: 'All lines', values: u.total }].concat(u.top.map(function(l, i) {
+    return { label: l.name, values: l.v.map(gstRound), tone: i + 2 };
+  })), { ariaLabel: 'Stock used by week in rupees', emptyText: 'Needs two weeks of use recorded' }) +
+    '<div class="inv-note">Each use at the price paid for that line on the day.' + (u.unpriced.length ? ' Not counted, no price: ' + escHtml(u.unpriced.join(', ')) + '.' : '') + '</div>');
+
+  var priced = stockData().items.filter(function(i) { return i.active !== false && stockPurchases(i.id).length; });
+  if (!priced.some(function(i) { return i.id === _dashPriceItem; })) _dashPriceItem = priced.length ? priced[0].id : null;
+  h += _dashPanel('dashPrice', 'Price trend', priced.length ? '<select class="inv-select inv-select-sm" id="dashPriceLine" aria-label="Line">' +
+    priced.map(function(i) { return '<option value="' + escHtml(i.id) + '"' + (i.id === _dashPriceItem ? ' selected' : '') + '>' + escHtml(i.name) + '</option>'; }).join('') + '</select>' +
+    '<div id="dashPriceChart">' + dashPriceChart() + '</div>' : '<div class="inv-empty">No bill with a price yet.</div>');
+
+  var L = stockReorderList(), fc = typeof finForecast === 'function' && typeof finHasBank === 'function' && finHasBank() ? finForecast(45) : null;
+  var need = gstRound(L.total * 1.18);
+  h += '<div class="inv-panel inv-panel-flush" id="dashReorder"><div class="inv-panel-head"><span class="inv-panel-title">Reorder cash</span>' +
+    '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invStockReorder">Open the reorder list</button></div><div class="inv-tiles inv-tiles-flush">' +
+    '<div class="inv-tile"><div class="inv-tile-label">Order, with GST</div><div class="inv-tile-value inv-tile-value-sm inv-num">' + escHtml(formatCurrency(need)) + '</div><div class="inv-tile-sub">' +
+      (L.unpriced ? L.unpriced + ' line' + (L.unpriced === 1 ? '' : 's') + ' without a price' : 'at the last prices') + '</div></div>' +
+    (fc ? '<div class="inv-tile"><div class="inv-tile-label">Forecast lowest</div><div class="inv-tile-value inv-tile-value-sm inv-num">' + escHtml(formatCurrency(fc.min.bal)) + '</div><div class="inv-tile-sub">on ' + escHtml(stockShortDate(fc.min.date)) + '</div></div>' +
+      '<div class="inv-tile' + (fc.min.bal - need < 0 ? ' inv-tile-danger' : '') + '"><div class="inv-tile-label">After the order</div><div class="inv-tile-value inv-tile-value-sm inv-num">' + escHtml(formatCurrency(gstRound(fc.min.bal - need))) + '</div><div class="inv-tile-sub">at the lowest point</div></div>'
+      : '<div class="inv-tile"><div class="inv-tile-label">Forecast</div><div class="inv-tile-value inv-tile-value-sm">&mdash;</div><div class="inv-tile-sub">import a bank statement</div></div>') +
+    '</div></div>';
+  return '<div class="inv-panels">' + h + '</div>';
+}
+function dashPriceChart() {
+  var it = stockItem(_dashPriceItem);
+  if (!it) return '';
+  var b = stockPurchases(it.id);
+  return chartLines(b.map(function(x) { return stockShortDate(x.date); }), [{ label: it.name + ' ₹/' + (it.unit || 'unit'), values: b.map(function(x) { return x.e.price; }) }],
+    { unit: 'money', ariaLabel: 'Price trend', emptyText: it.name + ': one bill so far, ' + (b[0] ? formatCurrency(b[0].e.price) + ' on ' + stockShortDate(b[0].date) : '') });
+}
+function stockViewTabsHtml() {
+  var t = function(k, l) { return '<button class="inv-viewtab" role="tab" aria-selected="' + (_stockView === k) + '" data-action="invDashStockView" data-view="' + k + '">' + l + '</button>'; };
+  return '<div class="inv-viewtabs" role="tablist">' + t('overview', 'Overview') + t('list', 'Lines') + '</div>' +
+    (_stockView === 'overview' ? '<div class="inv-stk-cta"><button class="inv-stk-btn inv-stk-btn-pri" data-action="invStockPaste">Paste message</button>' +
+      '<button class="inv-stk-btn" data-action="invStockManual">Enter by hand</button></div>' : '');
+}
+
+/* ---------- Doing ---------- */
+function dashAction(action, btn) {
+  switch (action) {
+    case 'invDashTask': {
+      var t = todoAppAll().find(function(x) { return x.key === btn.dataset.key; });
+      if (t) todoGo(t.go);
+      return true;
+    }
+    case 'invDashOpenDay': _attView = 'day'; renderAttendance(); return true;
+    case 'invDashStockView': stockSetView(btn.dataset.view); return true;
+    case 'invDashStockLine': _stockItemId = btn.dataset.clientId; stockSetView('item'); return true;
+    case 'invDashSupplier': _dashSupplier = _dashSupplier === btn.dataset.key ? null : btn.dataset.key; renderStock(); return true;
+  }
+  return false;
+}
+function dashInput(t) {
+  if (t.id !== 'dashPriceLine') return false;
+  _dashPriceItem = t.value;
+  var el = document.getElementById('dashPriceChart');
+  if (el) el.innerHTML = dashPriceChart();
+  return true;
+}
 /* ===== CLIENT PERFORMANCE =====
  *
  * Month on month for one account, and — the part that earns its place — what
@@ -27272,6 +27512,7 @@ document.addEventListener('click', function(e) {
       if (bankAction(action, btn)) break;
       if (financeAction(action, btn)) break;
       if (finLinkAction(action, btn)) break;
+      if (dashAction(action, btn)) break;
       if (action.indexOf('invStock') === 0) stockAction(action, btn);
       else if (action.indexOf('invTodo') === 0) todoAction(action, btn);
       else if (action.indexOf('invRelay') === 0) relayAction(action, btn);
@@ -27335,6 +27576,7 @@ document.addEventListener('change', function(e) {
   if (billsCnFormInput(e.target)) return;
   if (e.target.id !== 'bankSearch' && bankInput(e.target)) return;
   if (financeInput(e.target)) return;
+  if (dashInput(e.target)) return;
   if (todoOnChange(e.target)) return;
   if (relayOnChange(e.target)) return;
   const el = e.target.closest('[data-action="invUpdateLine"]');
@@ -28472,7 +28714,7 @@ function updateSideCounts() {
    be a bare switchTab, so from Pay, Staff switched to the page already open, on the view already
    showing, and nothing moved (owner, 26 Sep 2026). A plain entry now leaves any view that belongs to
    its sibling for the page's own default, and keeps every other view (Staff from Week stays on Week). */
-var SIDE_SUB_DEFAULT = { pageClients: 'clients', pageStaff: 'day' };
+var SIDE_SUB_DEFAULT = { pageClients: 'clients', pageStaff: 'overview' };
 function sideGo(tabId, sub) {
   if (!sub) {
     var cur = _currentSub(tabId);

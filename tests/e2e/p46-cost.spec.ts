@@ -39,6 +39,7 @@ test.describe('P46: prices, purchases and the live cost', () => {
   test('a pasted delivery gets its bill; a past bill never moves the stock; the line shows its pattern', async ({ page }) => {
     await loadAppWithState(page, stockState());
     await switchTab(page, 'pageStock');
+    await page.locator('[data-action="invDashStockView"][data-view="list"]').click();
     await page.locator('.inv-stk-row').filter({ hasText: 'Q558' }).click();
     await expect(page.locator('.inv-stk-hero-lv')).toContainText('88');
     await expect(page.locator('.inv-stk-hero')).toContainText('No price yet');
@@ -82,6 +83,7 @@ test.describe('P46: prices, purchases and the live cost', () => {
   test('Received by hand asks for the company, the invoice number and its date', async ({ page }) => {
     await loadAppWithState(page, stockState());
     await switchTab(page, 'pageStock');
+    await page.locator('[data-action="invDashStockView"][data-view="list"]').click();
     await page.locator('[data-action="invStockManual"]').click();
     await page.locator('[data-action="invStockMode"][data-mode="received"]').click();
     await expect(page.locator('.inv-stk-mhead')).toContainText('per unit, before GST');

@@ -28,7 +28,7 @@ Workforce management and invoicing PWA for **Soma Electro Products**, a zinc ele
 
 ## Architecture
 
-Split-file PWA. 48 modules, ~27,100 lines total.
+Split-file PWA. 49 modules, ~27,400 lines total.
 
 ```
 split/
@@ -73,6 +73,7 @@ split/
 ├── insights.js        ← Insights (as To-do rules), predictions, invoice PO/vehicle prefill (~330 lines)
 ├── finintel.js        ← Finance intelligence: eleven bank To-do rules, days to pay, the cash forecast (~400 lines)
 ├── finlinks.js        ← Finance linked into Home, Stats, Clients, Register, Pay, Stock (~200 lines)
+├── dash.js            ← Staff and Stock Overviews: attendance, labour ₹/kg, OT by area, payroll vs bank; days left, supplier spend, use, prices (~230 lines)
 ├── client-perf.js     ← Client performance: month on month + material cadence (314 lines)
 ├── im-form.js         ← IM add/edit/delete challan form (450 lines)
 ├── im-dupe.js         ← IM duplicate guard: fingerprint + pre-save warn + scan (305 lines)
@@ -83,7 +84,7 @@ split/
 └── init.js            ← Migrations + app bootstrap (567 lines)
 ```
 
-**Concat order defined in build.sh.** Dependencies: data → state → appearance → zinc → tabs → clients → items → create → settings → github-sync → invoice-ops → number-audit → exports → im → autocomplete → print → quality-cert → credit-note → charts → staff → labour → areas → payroll → stock → cost → bills → xls → xlsx → bank → finance → todo → relay → stats → intel → insights → finintel → finlinks → client-perf → im-form → im-dupe → scanner → events → swipe → seed → init.
+**Concat order defined in build.sh.** Dependencies: data → state → appearance → zinc → tabs → clients → items → create → settings → github-sync → invoice-ops → number-audit → exports → im → autocomplete → print → quality-cert → credit-note → charts → staff → labour → areas → payroll → stock → cost → bills → xls → xlsx → bank → finance → todo → relay → stats → intel → insights → finintel → finlinks → dash → client-perf → im-form → im-dupe → scanner → events → swipe → seed → init.
 
 **Every module shares one global scope.** A top-level `var` or `function` in a later module silently replaces one of
 the same name in an earlier one; nothing warns. `bills.js` shipped a `STOCK_UNITS` array over `stock.js`'s unit map
@@ -113,7 +114,7 @@ every session start — nothing to set up by hand. CI (`build-sync`) is the back
 ### Tests
 
 ```bash
-pnpm exec playwright test          # 512 tests, both layouts
+pnpm exec playwright test          # 515 tests, both layouts
 ```
 
 Some sandboxes ship a Chromium build Playwright does not expect and block downloading
@@ -1525,6 +1526,26 @@ than a zero.
 - **Staff → Pay:** the bank's wage legs beside the payroll as paid, one function shared with Payments.
 - **Stock:** what the bank paid each supplier. The reorder list sets its cost against the forecast's lowest point.
 - **Finance → Payments:** each section links to its home screen.
+
+### Staff and Stock open on an Overview
+Staff and Stock dashboards (`dash.js`; spec 7a, 7b; owner: *"We'll do the same for Staff, Stock"*). Both screens open
+on an Overview built from the Phase 2 charts.
+
+- **Staff → Overview:**
+  - today's attendance (the Home card's panel, one function);
+  - attendance % by pay week, where a week nobody typed is a gap;
+  - labour ₹/kg by month: recorded where 90% of days are typed, paid from the bank where the statement covers
+    the month, and the model;
+  - OT and EXTRA hours by area over four weeks;
+  - payroll against the bank's salary legs;
+  - the labour and pay tasks raised.
+- **Stock → Overview · Lines:**
+  - days left per line;
+  - spend by supplier (tap a slice for its bills and what the bank paid);
+  - rupees used by week;
+  - one line's price trend;
+  - the reorder list's cash against the forecast.
+- Entry keeps its doors. Home → Attendance opens Day, and Paste message and Enter by hand sit on both Stock tabs.
 
 ### Stock reorder list
 More → Stock → **Reorder list** (owner, 25 Sep 2026). For each line with a daily use:

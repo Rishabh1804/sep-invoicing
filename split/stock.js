@@ -551,7 +551,7 @@ function stockCommitPaste(parsed, res, meta) {
 }
 
 /* ---------- Screens ---------- */
-var _stockView = 'list';
+var _stockView = 'overview';
 var _stockReview = null;   // { text, parsed, choices, sentBy }
 var _stockManual = null;   // { mode, date, supplier, billNo, bath, vals: {itemId: {qty, price}} }
 var _stockItemId = null;
@@ -587,7 +587,8 @@ function renderStock() {
   else if (_stockView === 'manual' && _stockManual) el.innerHTML = renderStockManual();
   else if (_stockView === 'item' && stockItem(_stockItemId)) el.innerHTML = renderStockItem(stockItem(_stockItemId));
   else if (_stockView === 'reorder' && _stockReorder) el.innerHTML = renderStockReorder();
-  else { _stockView = 'list'; el.innerHTML = renderStockList(); }
+  else if (_stockView === 'overview') el.innerHTML = stockViewTabsHtml() + stockOverviewHtml();
+  else { _stockView = 'list'; el.innerHTML = stockViewTabsHtml() + renderStockList(); }
   updateStockBadge();
 }
 

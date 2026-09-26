@@ -141,6 +141,7 @@ test('Other needs a description', async ({ page }) => {
 test('a stock line is renamed and re-united, and a message in the old name still finds it', async ({ page }) => {
   await loadAppWithState(page, state());
   await switchTab(page, 'pageStock');
+  await page.locator('[data-action="invDashStockView"][data-view="list"]').click();
   await page.locator('[data-action="invStockOpen"][data-id="SI1"]').click();
   await page.locator('#stockEditName').fill('Nitric acid 68%');
   await page.locator('#stockEditUnit').selectOption('L');

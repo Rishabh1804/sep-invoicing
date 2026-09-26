@@ -54,6 +54,7 @@ function state(): SepState {
 
 async function openStock(page: Page) {
   await switchTab(page, 'pageStock');
+  await page.locator('[data-action="invDashStockView"][data-view="list"]').click();
 }
 
 async function paste(page: Page, text: string) {

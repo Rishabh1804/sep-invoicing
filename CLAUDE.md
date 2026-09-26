@@ -223,6 +223,9 @@ deleted (P72); the two tone classes Stats' tiles borrowed went with Stats.
 **Stats is built:** five view tabs and the period an `inv-seg`; every card a flush panel named by `data-card` (tiles, rows,
 callouts, `inv-table`s), the live cost's components rows that fold open (`inv-row-fold`), the drill-down tiles and rows; the
 `inv-stats-*`, `inv-kpi*`, `inv-ov-*`, `inv-cost-*` families are deleted, and "below cost" is still judged at the live cost (P73).
+**History is built:** a toolbar (search, client, labelled dates) and the kind of event as pressed chips, which closes the survey's
+filter bar (chips stretched to the filters' height and clipped off the phone); rows grouped by day ending in a dot and a word, a table
+on the desktop; a void is a plain row, and the exception ledger's row now says `recorded`. The `inv-history-*` family is deleted (P74).
 **To-do is built:** Open / Done are view tabs (the Done fold's `invTodoFoldDone` action carries `data-v`), the add field
 sits in a toolbar with Add as the one primary, *From your data* and *Mine* are flush panels of rows (two across on the
 desktop), a task of your own is ticked through a real tick box, and status is a dot and a word (an app task is led by

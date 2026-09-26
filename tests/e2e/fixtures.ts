@@ -163,7 +163,7 @@ export async function readStoredState(page: Page): Promise<any> {
 export async function openStatsTab(page: Page, tab: string): Promise<void> {
   await switchTab(page, 'pageStats');
   await page.locator(`[data-action="invStatsTab"][data-tab="${tab}"]`).click();
-  await page.locator(`.inv-stats-tab-on[data-tab="${tab}"]`).waitFor();
+  await page.locator(`#statsToolbar .inv-viewtab[aria-selected="true"][data-tab="${tab}"]`).waitFor();
 }
 
 export async function switchTab(page: Page, tabId: string): Promise<void> {

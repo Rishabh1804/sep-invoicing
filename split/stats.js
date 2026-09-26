@@ -95,7 +95,7 @@ function filterByPeriod(invoices, period, offset) {
   });
 }
 
-var PERIOD_LABELS = { mtd: 'MTD', qtd: 'QTD', ytd: 'YTD', all: 'All Time' };
+var PERIOD_LABELS = { mtd: 'MTD', qtd: 'QTD', ytd: 'YTD', all: 'All time' };
 var PERIOD_PRIOR_LABELS = {
   mtd: 'same days last month',
   qtd: 'same stretch last quarter',
@@ -197,39 +197,68 @@ function sumTaxable(invoices) {
   return invoices.reduce(function(s, i) { return s + (i.taxableValue || 0); }, 0);
 }
 
-/* ===== DELTA CHIPS ===== */
-function deltaHtml(cur, prev) {
-  // A percentage against no prior activity is noise dressed as a signal.
-  if (prev == null || !isFinite(prev) || prev === 0) {
-    return '<span class="inv-kpi-delta inv-kpi-delta-flat">no prior period</span>';
-  }
+/* ===== THE DASHBOARD'S PIECES (design system §6) =====
+   Every Stats card is a flush panel (§6.8) named by data-card, its qualifier an inv-note in the title;
+   figures are tiles (§6.9) and rows (§6.10); caveats are callouts (§6.18). intel.js, insights.js and
+   cost.js draw their cards with the same pieces. */
+
+/* A change against the prior period in words (§5.4): "+12.3% on same days last month". A
+   percentage against no prior activity is noise dressed as a signal, so it says so instead. */
+function statsDeltaText(cur, prev, label) {
+  if (prev == null || !isFinite(prev) || prev === 0) return 'no prior period';
   var pct = ((cur - prev) / Math.abs(prev)) * 100;
-  var rising = pct > 0.5, falling = pct < -0.5;
-  var cls = rising ? 'inv-kpi-delta-up' : falling ? 'inv-kpi-delta-down' : 'inv-kpi-delta-flat';
-  var arrow = rising ? '&uarr;' : falling ? '&darr;' : '';
-  return '<span class="inv-kpi-delta ' + cls + '">' + arrow +
-    (rising || falling ? ' ' + formatNum(Math.abs(pct), 1) + '%' : 'level') + '</span>';
+  if (Math.abs(pct) <= 0.5) return 'level with ' + escHtml(label);
+  return (pct > 0 ? '+' : '&minus;') + formatNum(Math.abs(pct), 1) + '% on ' + escHtml(label);
 }
 
-/* A row of toggle chips. Four cards needed the same markup, and the trend card
-   needed two rows of it. */
-function statsChipRow(action, dataKey, labels, current) {
-  var html = '<div class="inv-stats-chips inv-stats-chips-sm">';
-  Object.keys(labels).forEach(function(k) {
-    html += '<button class="inv-chip' + (current === k ? ' inv-chip-active' : '') +
-      '" data-action="' + action + '" data-' + dataKey + '="' + escHtml(k) + '">' +
-      escHtml(labels[k]) + '</button>';
-  });
-  return html + '</div>';
+/* A segmented control for a setting of the card it sits in (§6.5). `inv-seg-fit` keeps it the width
+   of its buttons, so a card's head or toolbar can hold it beside its title. */
+function statsSeg(action, dataKey, labels, current, aria, fit) {
+  return '<div class="inv-seg' + (fit === false ? '' : ' inv-seg-fit') + '" role="group" aria-label="' + escHtml(aria) + '">' +
+    Object.keys(labels).map(function(k) {
+      return '<button type="button" class="inv-seg-btn" aria-pressed="' + (current === k) + '" data-action="' + action +
+        '" data-' + dataKey + '="' + escHtml(k) + '">' + escHtml(labels[k]) + '</button>';
+    }).join('') + '</div>';
 }
 
-function kpiTile(label, value, sub, delta) {
-  return '<div class="inv-kpi">' +
-    '<div class="inv-kpi-label">' + escHtml(label) + '</div>' +
-    '<div class="inv-kpi-value">' + value + '</div>' +
-    (sub ? '<div class="inv-kpi-sub">' + sub + '</div>' : '') +
-    (delta || '') + '</div>';
+/* A card: a flush panel with its title, the qualifier after it, and anything the head carries at its
+   end (a total, a segmented control). `wide` spans both desktop columns. The caller closes the div. */
+function statsPanel(card, title, note, opts) {
+  opts = opts || {};
+  return '<div class="inv-panel inv-panel-flush' + (opts.wide ? ' inv-panels-wide' : '') + '" data-card="' + card + '"' +
+    (opts.id ? ' id="' + opts.id + '"' : '') + '><div class="inv-panel-head"><span class="inv-panel-title">' + title +
+    (note ? ' <span class="inv-note">' + note + '</span>' : '') + '</span>' + (opts.end || '') + '</div>';
 }
+
+/* A tile (§6.9). `valueId` names the value for whoever reads it back. */
+function statsTile(key, label, value, sub, tone, valueId) {
+  return '<div class="inv-tile' + (tone ? ' inv-tile-' + tone : '') + '" data-tile="' + key + '"><div class="inv-tile-label">' + label + '</div>' +
+    '<div class="inv-tile-value"' + (valueId ? ' id="' + valueId + '"' : '') + '>' + value + '</div>' + (sub || '') + '</div>';
+}
+function statsTileSub(html) { return html ? '<div class="inv-tile-sub">' + html + '</div>' : ''; }
+function statsTiles(tiles, four) {
+  return '<div class="inv-tiles inv-tiles-flush' + (four ? ' inv-tiles-4' : '') + '">' + tiles + '</div>';
+}
+
+/* A row (§6.10): a label and its working, the figure at the end. `attrs` makes it a drill-through
+   (a <button>) when it carries an action. */
+function statsRow(title, meta, end, attrs, extra) {
+  var tag = attrs && attrs.indexOf('data-action') >= 0 ? 'button' : 'div';
+  return '<' + tag + (tag === 'button' ? ' type="button"' : '') + ' class="inv-row' + (meta ? ' inv-row-2' : '') + (extra ? ' ' + extra : '') + '"' + (attrs || '') + '>' +
+    '<span class="inv-row-main"><span class="inv-row-title">' + title + '</span>' +
+    (meta ? '<span class="inv-row-meta inv-row-wrap">' + meta + '</span>' : '') + '</span>' +
+    (end ? '<span class="inv-row-end">' + end + '</span>' : '') + '</' + tag + '>';
+}
+function statsNum(html, cls) { return '<span class="inv-num' + (cls ? ' ' + cls : '') + '">' + html + '</span>'; }
+function statsUnit(u) { return '<span class="inv-unit">' + u + '</span>'; }
+function statsDot(tone, word) { return '<span class="inv-dot inv-dot-' + tone + '">' + word + '</span>'; }
+
+/* A padded stretch in a flush panel: a callout (neutral unless toned), a note, a chart. */
+function statsBody(html) { return '<div class="inv-panel-body">' + html + '</div>'; }
+function statsCallout(html, tone, key) {
+  return statsBody('<div class="inv-callout' + (tone ? ' inv-callout-' + tone : '') + '"' + (key ? ' data-callout="' + key + '"' : '') + '>' + html + '</div>');
+}
+function statsNote(html) { return '<div class="inv-note">' + html + '</div>'; }
 
 var TREND_MONTH_LABELS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
@@ -411,29 +440,16 @@ function buildClientRollup(invoices) {
   }).sort(function(a, b) { return b.total - a.total; });
 }
 
-function renderRevenueBarSvg(ranked, maxVal) {
-  if (ranked.length === 0) return '<div class="inv-empty-state">' +
-    'No revenue in this period' +
-    '<div class="inv-mt-16"><button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invCreateNew">Create an invoice</button></div>' +
-    '</div>';
-  var html = '<div class="inv-revbar-list">';
-  ranked.forEach(function(r) {
-    var pct = maxVal > 0 ? (r.total / maxVal) * 100 : 0;
-    var fillW = Math.max(pct, 0.5);
-    html += '<div class="inv-revbar-row" data-action="invStatsClientDrill" data-client-id="' + r.clientId + '">' +
-      '<div class="inv-revbar-track">' +
-        '<svg class="inv-revbar-svg" viewBox="0 0 100 28" preserveAspectRatio="none" aria-hidden="true">' +
-          '<rect width="' + fillW + '" height="28" rx="3" class="inv-revbar-fill"/>' +
-        '</svg>' +
-      '</div>' +
-      '<div class="inv-revbar-meta">' +
-        '<div class="inv-revbar-name">' + escHtml(r.name) + '</div>' +
-        '<div class="inv-revbar-amount">' + formatCurrency(r.total) + '</div>' +
-      '</div>' +
-    '</div>';
-  });
-  html += '</div>';
-  return html;
+/* Revenue by client, ranked: the ranked-bar chart (charts.js), each bar tapping through to the
+   client. An empty period says what would fill it and offers the way there. */
+function renderRevenueBars(ranked, totalRev) {
+  if (ranked.length === 0) return '<div class="inv-empty">No revenue in this period' +
+    '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invCreateNew">Create an invoice</button></div>';
+  return statsBody(chartRankedBars(ranked.map(function(r) {
+    return { label: r.name, value: r.total, display: formatCurrency(r.total),
+      sub: (totalRev > 0 ? formatNum(r.total / totalRev * 100, 0) + '% of revenue' : ''),
+      action: 'invStatsClientDrill', clientId: r.clientId };
+  }), { unit: 'money' }));
 }
 
 function renderStats() {
@@ -441,17 +457,17 @@ function renderStats() {
   var area = document.getElementById('statsContent');
   if (!area) return;
 
-  // Period chips
+  // The view tabs, then the period: a setting of every card on the page (§6.5).
   if (toolbar) {
-    var chips = ['mtd', 'qtd', 'ytd', 'all'];
-    var chipLabels = { mtd: 'MTD', qtd: 'QTD', ytd: 'YTD', all: 'All' };
-    var chipHtml = '<div class="inv-stats-chips">';
-    chips.forEach(function(p) {
-      chipHtml += '<button class="inv-chip' + (_statsPeriod === p ? ' inv-chip-active' : '') +
-        '" data-action="invStatsPeriod" data-period="' + p + '">' + chipLabels[p] + '</button>';
-    });
-    chipHtml += '</div>';
-    toolbar.innerHTML = statsTabsHtml() + chipHtml;
+    toolbar.innerHTML = statsTabsHtml() + '<div class="inv-toolbar">' +
+      statsSeg('invStatsPeriod', 'period', { mtd: 'MTD', qtd: 'QTD', ytd: 'YTD', all: 'All' }, _statsPeriod, 'Period', false) + '</div>';
+    // The open tab is scrolled into view sideways only, as Staff's: never cut off at a phone's edge.
+    var list = toolbar.querySelector('.inv-viewtabs'), on = toolbar.querySelector('.inv-viewtab[aria-selected="true"]');
+    if (list && on) {
+      var left = on.offsetLeft - list.offsetLeft, right = left + on.offsetWidth;
+      if (left < list.scrollLeft) list.scrollLeft = left;
+      else if (right > list.scrollLeft + list.clientWidth) list.scrollLeft = right - list.clientWidth;
+    }
   }
 
   var activeInvs = S.invoices.filter(function(i) { return i.status === 'active'; });
@@ -484,41 +500,40 @@ function renderStats() {
 
   /* ===== Card 1: the four numbers that decide the month ===== */
   var comparable = _statsPeriod !== 'all' && prior.length > 0;
-  html += '<div class="inv-stats-card inv-stats-card-full">' +
-    '<div class="inv-stats-title">' + escHtml(PERIOD_LABELS[_statsPeriod] || '') + ' Performance' +
-    (comparable ? '<span class="inv-stats-title-sub">vs ' + escHtml(PERIOD_PRIOR_LABELS[_statsPeriod]) + '</span>' : '') +
-    '</div><div class="inv-kpi-grid">' +
-    kpiTile('Taxable Revenue', formatCurrency(totalRev),
-      filtered.length + ' invoice' + (filtered.length === 1 ? '' : 's') +
-        ' · ' + formatCurrency(totalGrand) + ' incl. GST',
-      comparable ? deltaHtml(totalRev, priorRev) : '') +
-    kpiTile('Tonnage', formatNum(tonnage.kg / 1000, 2) + ' t',
-      formatNum(tonnage.kg, 0) + ' kg',
-      comparable ? deltaHtml(tonnage.kg, priorTonnage.kg) : '') +
-    kpiTile('Realisation', realisation != null ? formatCurrency(realisation) + '/kg' : '&mdash;',
-      costPerKg > 0 ? costLabel + formatCurrency(costPerKg) + '/kg' : 'set a cost in Settings',
-      (comparable && realisation != null && priorRealisation != null) ? deltaHtml(realisation, priorRealisation) : '') +
-    kpiTile('Gross Margin', grossMargin != null ? formatCurrency(grossMargin) : '&mdash;',
-      contribution != null ? formatCurrency(contribution) + '/kg contribution' : 'needs tonnage and cost',
-      '') +
-    '</div>';
+  var priorLabel = PERIOD_PRIOR_LABELS[_statsPeriod] || '';
+  var delta = function(cur, prev) { return comparable ? statsTileSub(statsDeltaText(cur, prev, priorLabel)) : ''; };
+  html += statsPanel('headline', escHtml(PERIOD_LABELS[_statsPeriod] || '') + ' performance',
+    comparable ? 'vs ' + escHtml(priorLabel) : '', { wide: true }) +
+    statsTiles(
+      statsTile('revenue', 'Taxable revenue', formatCurrency(totalRev),
+        statsTileSub(filtered.length + ' invoice' + (filtered.length === 1 ? '' : 's') + ' · ' + formatCurrency(totalGrand) + ' incl. GST') +
+        delta(totalRev, priorRev)) +
+      statsTile('tonnage', 'Tonnage', formatNum(tonnage.kg / 1000, 2) + '<span class="inv-tile-of"> t</span>',
+        statsTileSub(formatNum(tonnage.kg, 0) + ' kg') + delta(tonnage.kg, priorTonnage.kg)) +
+      statsTile('realisation', 'Realisation', realisation != null ? formatCurrency(realisation) + '<span class="inv-tile-of">/kg</span>' : '&mdash;',
+        statsTileSub(costPerKg > 0 ? costLabel + formatCurrency(costPerKg) + '/kg' : 'set a cost in Settings') +
+        ((realisation != null && priorRealisation != null) ? delta(realisation, priorRealisation) : ''),
+        contribution != null && contribution < 0 ? 'danger' : '') +
+      statsTile('margin', 'Gross margin', grossMargin != null ? statsMoney(grossMargin) : '&mdash;',
+        statsTileSub(contribution != null ? statsMoney(contribution) + '/kg contribution' : 'needs tonnage and cost'),
+        grossMargin != null && grossMargin < 0 ? 'danger' : ''), true);
 
   // Tonnage is only ever as good as the weights behind it — and the lines that
   // lack weights are not a random sample, they are the piece-billed work. Say
   // so in place, in revenue terms, rather than letting a partial figure pass.
   if (tonnage.lines > 0 && tonnage.coverage < 0.999) {
     var missing = tonnage.lines - tonnage.known;
-    html += '<div class="inv-stats-caveat">Tonnage and realisation cover <strong>' +
+    html += statsCallout('Tonnage and realisation cover <strong>' +
       Math.round(tonnage.coverage * 100) + '% of revenue</strong> &mdash; ' +
       missing + ' line' + (missing === 1 ? ' worth ' : 's worth ') + formatCurrency(tonnage.revUnknown) +
       (missing === 1 ? ' is' : ' are') + ' priced in NOS with no weight on file, and excluded from both figures. ' +
       'That exclusion is not neutral: unweighed lines are typically piece-billed work, which is ' +
       'the low-realisation end of the book, so the rate above reads better than the real blend. ' +
-      'Items Master &rarr; Derive weights from rates closes it.</div>';
+      'Items Master &rarr; Derive weights from rates closes it.', '', 'coverage');
   }
   if (contribution != null && contribution < 0) {
-    html += '<div class="inv-stats-alert">Realisation is ' + formatCurrency(Math.abs(contribution)) +
-      '/kg below full cost. At this tonnage that is ' + formatCurrency(Math.abs(grossMargin)) + ' of loss for the period.</div>';
+    html += statsCallout('Realisation is ' + formatCurrency(Math.abs(contribution)) +
+      '/kg below full cost. At this tonnage that is ' + formatCurrency(Math.abs(grossMargin)) + ' of loss for the period.', 'danger', 'below-cost');
   }
   html += '</div>';
 
@@ -547,17 +562,13 @@ function renderStats() {
     }
   });
   var outputTax = gstRound(cgst + sgst + igst);
-  html += '<div class="inv-stats-card">' +
-    '<div class="inv-stats-title">Output Tax</div>' +
-    '<div class="inv-stats-metric"><span class="inv-stats-metric-label">Total Output Tax</span>' +
-    '<span class="inv-stats-metric-value">' + formatCurrency(outputTax) + '</span></div>' +
-    (cgst > 0 ? '<div class="inv-stats-row"><span class="inv-stats-name">CGST + SGST @ 9% each</span>' +
-      '<span class="inv-stats-val">' + formatCurrency(gstRound(cgst + sgst)) + '</span></div>' : '') +
-    (igst > 0 ? '<div class="inv-stats-row"><span class="inv-stats-name">IGST @ 18%</span>' +
-      '<span class="inv-stats-val">' + formatCurrency(igst) + '</span></div>' : '') +
-    '<div class="inv-stats-row"><span class="inv-stats-name">Not yet marked filed</span>' +
-    '<span class="inv-stats-val' + (unfiledCount > 0 ? ' inv-stats-val-warn' : '') + '">' +
-    formatCurrency(unfiledTax) + ' (' + unfiledCount + ')</span></div></div>';
+  html += statsPanel('gst', 'Output tax', '', { end: statsNum(formatCurrency(outputTax)) }) +
+    (cgst > 0 ? statsRow('CGST + SGST @ 9% each', '', statsNum(formatCurrency(gstRound(cgst + sgst)))) : '') +
+    (igst > 0 ? statsRow('IGST @ 18%', '', statsNum(formatCurrency(igst))) : '') +
+    statsRow('Not yet marked filed', unfiledCount + ' invoice' + (unfiledCount === 1 ? '' : 's'),
+      '<span class="inv-row-stack">' + statsNum(formatCurrency(gstRound(unfiledTax))) +
+      (unfiledCount > 0 ? statsDot('warning', unfiledCount + ' unfiled') : statsDot('ok', 'All filed')) + '</span>', ' data-unfiled') +
+    '</div>';
 
   /* ===== Card 3: Invoice states ===== */
   var stateCount = { created: 0, dispatched: 0, delivered: 0, filed: 0 };
@@ -565,28 +576,19 @@ function renderStats() {
     var s = getInvState(inv);
     if (stateCount[s] != null) stateCount[s]++;
   });
-  html += '<div class="inv-stats-card">' +
-    '<div class="inv-stats-title">Invoice States</div>' +
-    '<div class="inv-stats-states-row">' +
-    '<span class="inv-state-badge inv-state-created">' + stateCount.created + ' Created</span>' +
-    '<span class="inv-state-badge inv-state-dispatched">' + stateCount.dispatched + ' Dispatched</span>' +
-    '<span class="inv-state-badge inv-state-delivered">' + stateCount.delivered + ' Delivered</span>' +
-    '<span class="inv-state-badge inv-state-filed">' + stateCount.filed + ' Filed</span>' +
-    '</div></div>';
+  html += statsPanel('states', 'Invoice states', '') + statsTiles(Object.keys(stateCount).map(function(s) {
+    return statsTile(s, statsDot(INV_STATE_TONE[s], INV_STATE_LABELS[s]), String(stateCount[s]));
+  }).join(''), true) + '</div>';
 
   take('billing');
   /* ===== Card 4: Revenue by client — ranked bars or share ===== */
   var ranked = buildClientRollup(filtered);
-  var maxClientRev = ranked.length > 0 ? ranked[0].total : 0;
-  html += '<div class="inv-stats-card inv-stats-card-full">' +
-    '<div class="inv-stats-trend-header">' +
-    '<div class="inv-stats-title">Revenue by Client</div>' +
-    statsChipRow('invStatsClientChart', 'chart', { bar: 'Ranked', pie: 'Share' }, _statsClientChart) +
-    '</div>' +
+  html += statsPanel('revenue', 'Revenue by client', '', { wide: true,
+    end: statsSeg('invStatsClientChart', 'chart', { bar: 'Ranked', pie: 'Share' }, _statsClientChart, 'Chart') }) +
     (_statsClientChart === 'pie'
-      ? chartPie(ranked.map(function(r) { return { label: r.name, value: r.total, clientId: r.clientId }; }),
-          { unit: 'money', ariaLabel: 'Revenue share by client' })
-      : renderRevenueBarSvg(ranked, maxClientRev)) +
+      ? statsBody(chartPie(ranked.map(function(r) { return { label: r.name, value: r.total, clientId: r.clientId }; }),
+          { unit: 'money', ariaLabel: 'Revenue share by client' }))
+      : renderRevenueBars(ranked, totalRev)) +
     '</div>';
 
   /* ===== Card 5: Realisation by client =====
@@ -597,61 +599,48 @@ function renderStats() {
     // interleaved. A ₹/kg drawn from 4% of a client's book is not the same
     // kind of number as one drawn from all of it, and sorting them together
     // would present it as if it were.
-    var comparable = ranked.filter(function(r) { return r.comparable; })
+    var comparableRows = ranked.filter(function(r) { return r.comparable; })
       .sort(function(a, b) { return a.realisation - b.realisation; });
     var partial = ranked.filter(function(r) { return !r.comparable; })
       .sort(function(a, b) { return b.total - a.total; });
 
-    if (comparable.length > 0 || partial.length > 0) {
-      html += '<div class="inv-stats-card inv-stats-card-full">' +
-        '<div class="inv-stats-title">Realisation by Client' +
-        '<span class="inv-stats-title-sub">worst priced first</span></div>' +
-        '<div class="inv-stats-table"><div class="inv-stats-table-header">' +
-        '<span class="inv-stats-table-cell inv-stats-table-part">Client</span>' +
-        '<span class="inv-stats-table-cell inv-stats-table-qty">Tonnes</span>' +
-        '<span class="inv-stats-table-cell inv-stats-table-qty">&#8377;/kg</span>' +
-        '<span class="inv-stats-table-cell inv-stats-table-amt">Revenue</span></div>';
+    if (comparableRows.length > 0 || partial.length > 0) {
+      html += statsPanel('realisation', 'Realisation by client', 'worst priced first', { wide: true });
 
-      comparable.forEach(function(r) {
+      comparableRows.forEach(function(r) {
         var below = costPerKg > 0 && r.realisation < costPerKg;
-        html += '<div class="inv-stats-table-row inv-stats-row-tap" data-action="invStatsClientDrill" data-client-id="' + r.clientId + '">' +
-          '<span class="inv-stats-table-cell inv-stats-table-part">' + escHtml(r.name) + '</span>' +
-          '<span class="inv-stats-table-cell inv-stats-table-qty inv-mono">' + formatNum(r.kg / 1000, 2) + '</span>' +
-          '<span class="inv-stats-table-cell inv-stats-table-qty inv-mono' + (below ? ' inv-stats-val-danger' : '') + '">' +
-          formatNum(r.realisation, 2) + '</span>' +
-          '<span class="inv-stats-table-cell inv-stats-table-amt inv-mono">' + formatCurrency(r.total) + '</span></div>';
+        html += statsRow(escHtml(r.name), formatNum(r.kg / 1000, 2) + ' t · ' + formatCurrency(r.total),
+          '<span class="inv-row-stack">' + statsNum(formatCurrency(r.realisation) + statsUnit('/kg')) +
+          (below ? statsDot('danger', 'Below cost') : '') + '</span>',
+          ' data-action="invStatsClientDrill" data-client-id="' + r.clientId + '" data-client-row');
       });
-
-      partial.forEach(function(r) {
-        html += '<div class="inv-stats-table-row inv-stats-row-tap inv-stats-row-partial" data-action="invStatsClientDrill" data-client-id="' + r.clientId + '">' +
-          '<span class="inv-stats-table-cell inv-stats-table-part">' + escHtml(r.name) +
-          '<br><span class="inv-text-muted inv-text-xs">weights on ' + Math.round(r.coverage * 100) + '% of revenue</span></span>' +
-          '<span class="inv-stats-table-cell inv-stats-table-qty inv-mono">' +
-          (r.kg > 0 ? formatNum(r.kg / 1000, 2) : '&mdash;') + '</span>' +
-          '<span class="inv-stats-table-cell inv-stats-table-qty inv-mono inv-stats-val-unknown">n/a</span>' +
-          '<span class="inv-stats-table-cell inv-stats-table-amt inv-mono">' + formatCurrency(r.total) + '</span></div>';
-      });
-      html += '</div>';
 
       if (partial.length > 0) {
+        html += '<div class="inv-row-group"><span>Not ranked: weights on under ' + Math.round(REALISATION_MIN_COVERAGE * 100) + '% of revenue</span></div>';
+        partial.forEach(function(r) {
+          html += statsRow(escHtml(r.name), 'weights on ' + Math.round(r.coverage * 100) + '% of revenue · ' +
+            (r.kg > 0 ? formatNum(r.kg / 1000, 2) + ' t · ' : '') + formatCurrency(r.total),
+            statsDot('neutral', 'n/a'),
+            ' data-action="invStatsClientDrill" data-client-id="' + r.clientId + '" data-client-row data-partial');
+        });
         var partialRev = partial.reduce(function(s, r) { return s + r.total; }, 0);
         var partialShare = totalRev > 0 ? (partialRev / totalRev) * 100 : 0;
-        html += '<div class="inv-stats-alert">' + partial.length + ' client' + (partial.length === 1 ? '' : 's') +
+        html += statsCallout(partial.length + ' client' + (partial.length === 1 ? '' : 's') +
           ' cannot be priced per kg &mdash; ' + formatCurrency(partialRev) + ', ' + formatNum(partialShare, 0) +
           '% of revenue, billed on parts with no weight on file. These are the accounts most likely to be ' +
           'underpriced, and they are the ones this table cannot yet rank. ' +
-          'Items Master &rarr; Derive weights from rates fills them in.</div>';
+          'Items Master &rarr; Derive weights from rates fills them in.', 'danger', 'unranked');
       }
 
       if (costPerKg > 0) {
-        var belowCost = comparable.filter(function(r) { return r.realisation < costPerKg; });
+        var belowCost = comparableRows.filter(function(r) { return r.realisation < costPerKg; });
         if (belowCost.length > 0) {
           var lossKg = belowCost.reduce(function(s, r) { return s + r.kg; }, 0);
           var lossAmt = belowCost.reduce(function(s, r) { return s + (costPerKg - r.realisation) * r.kg; }, 0);
-          html += '<div class="inv-stats-caveat">' + belowCost.length + ' client' + (belowCost.length === 1 ? '' : 's') +
+          html += statsCallout(belowCost.length + ' client' + (belowCost.length === 1 ? '' : 's') +
             ' priced below the ' + formatCurrency(costPerKg) + '/kg full cost, carrying ' +
             formatNum(lossKg / 1000, 2) + ' t and ' + formatCurrency(lossAmt) + ' of the period\'s shortfall. ' +
-            'Whether that is worth exiting depends on how much of the cost base is actually variable.</div>';
+            'Whether that is worth exiting depends on how much of the cost base is actually variable.', '', 'below-cost');
         }
       }
       html += '</div>';
@@ -670,26 +659,21 @@ function renderStats() {
     // printing nothing.
     var topKgShare = (tonnage.kg > 0 && top.comparable) ? (top.kg / tonnage.kg) * 100 : null;
     var topRevShare = (top.total / totalRev) * 100;
-    html += '<div class="inv-stats-card">' +
-      '<div class="inv-stats-title">Concentration</div>' +
-      '<div class="inv-stats-row"><span class="inv-stats-name">Largest client</span>' +
-      '<span class="inv-stats-val">' + escHtml(top.name) + '</span></div>' +
-      '<div class="inv-stats-row"><span class="inv-stats-name">Share of revenue</span>' +
-      '<span class="inv-stats-val">' + formatNum(topRevShare, 0) + '%</span></div>' +
-      '<div class="inv-stats-row"><span class="inv-stats-name">Share of tonnage</span>' +
-      (topKgShare != null
-        ? '<span class="inv-stats-val' + (topKgShare - topRevShare > 10 ? ' inv-stats-val-warn' : '') + '">' +
-          formatNum(topKgShare, 0) + '%</span>'
-        : '<span class="inv-stats-val inv-stats-val-unknown">not measurable</span>') + '</div>' +
-      '<div class="inv-stats-row"><span class="inv-stats-name">Top 3 share</span>' +
-      '<span class="inv-stats-val">' + formatNum((top3Rev / totalRev) * 100, 0) + '%</span></div>';
-    if (topKgShare != null && topKgShare - topRevShare > 10) {
-      html += '<div class="inv-stats-caveat">' + escHtml(top.name) + ' takes a larger share of the plant than of the revenue &mdash; ' +
-        'capacity is going somewhere it is not being paid for at the average rate.</div>';
+    var heavier = topKgShare != null && topKgShare - topRevShare > 10;
+    html += statsPanel('concentration', 'Concentration', '') +
+      statsRow(escHtml(top.name), 'Largest client by revenue', '') +
+      statsRow('Share of revenue', '', statsNum(formatNum(topRevShare, 0) + '%')) +
+      statsRow('Share of tonnage', '', topKgShare != null
+        ? '<span class="inv-row-stack">' + statsNum(formatNum(topKgShare, 0) + '%') + (heavier ? statsDot('warning', 'above its revenue share') : '') + '</span>'
+        : statsDot('neutral', 'not measurable')) +
+      statsRow('Top 3 share', '', statsNum(formatNum((top3Rev / totalRev) * 100, 0) + '%'));
+    if (heavier) {
+      html += statsCallout(escHtml(top.name) + ' takes a larger share of the plant than of the revenue &mdash; ' +
+        'capacity is going somewhere it is not being paid for at the average rate.', '', 'plant-share');
     } else if (topKgShare == null) {
-      html += '<div class="inv-stats-caveat">' + escHtml(top.name) + ' is the largest account by revenue, and how much of the ' +
+      html += statsCallout(escHtml(top.name) + ' is the largest account by revenue, and how much of the ' +
         'plant it uses cannot be established &mdash; its parts have no weights on file. Until they do, the tonnage ' +
-        'share of the single biggest user of capacity is unknown, not small.</div>';
+        'share of the single biggest user of capacity is unknown, not small.', '', 'plant-share');
     }
     html += '</div>';
   }
@@ -734,29 +718,19 @@ function renderStats() {
   var pendingRanked = Object.values(pendingByClient).sort(function(a, b) { return b.total - a.total; });
   var totalPending = pendingRanked.reduce(function(s, r) { return s + r.total; }, 0);
 
-  html += '<div class="inv-stats-card inv-stats-card-full">' +
-    '<div class="inv-stats-title">Unbilled Material<span class="inv-stats-title-sub">current, not period-filtered</span></div>' +
-    '<div class="inv-stats-metric"><span class="inv-stats-metric-label">Total Unbilled</span>' +
-    '<span class="inv-stats-metric-value">' + formatCurrency(totalPending) + '</span></div>';
+  html += statsPanel('unbilled', 'Unbilled material', 'current, not period-filtered', { wide: true, end: statsNum(formatCurrency(totalPending)) });
   if (totalPending > 0) {
-    html += '<div class="inv-age-row">';
-    ageBuckets.forEach(function(b) {
+    html += statsTiles(ageBuckets.map(function(b, i) {
       var share = totalPending > 0 ? (b.total / totalPending) * 100 : 0;
-      html += '<div class="inv-age-bucket' + (b.max === Infinity && b.total > 0 ? ' inv-age-bucket-warn' : '') + '">' +
-        '<div class="inv-age-label">' + b.label + '</div>' +
-        '<div class="inv-age-value">' + formatCurrency(b.total) + '</div>' +
-        '<div class="inv-age-share">' + formatNum(share, 0) + '% &middot; ' + b.items + ' items</div></div>';
-    });
-    html += '</div>';
+      return statsTile('age' + i, b.label, formatCurrency(b.total),
+        statsTileSub(formatNum(share, 0) + '% &middot; ' + b.items + ' items'), b.max === Infinity && b.total > 0 ? 'warning' : '');
+    }).join(''), true);
     pendingRanked.forEach(function(r) {
-      html += '<div class="inv-stats-row inv-stats-row-tap" data-action="invStatsClientDrill" data-client-id="' + r.clientId + '">' +
-        '<span class="inv-stats-name">' + escHtml(r.name) +
-        ' <span class="inv-text-muted">(' + r.items + ' items' +
-        (r.oldest != null ? ', oldest ' + r.oldest + 'd' : '') + ')</span></span>' +
-        '<span class="inv-stats-val">' + formatCurrency(r.total) + '</span></div>';
+      html += statsRow(escHtml(r.name), r.items + ' items' + (r.oldest != null ? ' · oldest ' + r.oldest + 'd' : ''),
+        statsNum(formatCurrency(r.total)), ' data-action="invStatsClientDrill" data-client-id="' + r.clientId + '"');
     });
   } else {
-    html += '<div class="inv-text-muted inv-p-8">All material invoiced</div>';
+    html += '<div class="inv-empty">All material invoiced</div>';
   }
   html += '</div>';
 
@@ -765,31 +739,24 @@ function renderStats() {
   var trendData = buildTrendSeries(_statsTrendGran, _statsTrendSeries);
   var trendUnit = TREND_SERIES_UNIT[_statsTrendSeries] || 'money';
   var trendTitles = {
-    revenue: 'Revenue Trend',
-    tonnage: 'Tonnage Trend',
-    im: 'Incoming Material Trend'
+    revenue: 'Revenue trend',
+    tonnage: 'Tonnage trend',
+    im: 'Incoming material trend'
   };
-  html += '<div class="inv-stats-card inv-stats-card-full">' +
-    '<div class="inv-stats-trend-header">' +
-      '<div class="inv-stats-title">' + escHtml(trendTitles[_statsTrendSeries]) +
+  html += statsPanel('trend', escHtml(trendTitles[_statsTrendSeries]),
+    _statsTrendSeries === 'im' ? 'by challan date' : 'by invoice date', { wide: true }) +
+    statsBody('<div class="inv-toolbar">' +
+      statsSeg('invStatsTrendSeries', 'series', { revenue: '₹', tonnage: 'Tonnes', im: 'IM' }, _statsTrendSeries, 'Series') +
+      statsSeg('invStatsTrendGran', 'gran', { day: 'Day', week: 'Week', month: 'Month' }, _statsTrendGran, 'Step') +
+      statsSeg('invStatsTrendType', 'type', { line: 'Line', bar: 'Bar' }, _statsTrendType, 'Chart') + '</div>' +
+      (_statsTrendType === 'bar'
+        ? chartBars(trendData, { unit: trendUnit, ariaLabel: trendTitles[_statsTrendSeries] })
+        : chartLine(trendData, { unit: trendUnit, ariaLabel: trendTitles[_statsTrendSeries] })) +
+      // Incoming material is the leading indicator: it is what has arrived and
+      // not yet been billed, so a fall here shows up in revenue weeks later.
       (_statsTrendSeries === 'im'
-        ? '<span class="inv-stats-title-sub">by challan date</span>'
-        : '<span class="inv-stats-title-sub">by invoice date</span>') + '</div>' +
-      statsChipRow('invStatsTrendSeries', 'series',
-        { revenue: '₹', tonnage: 'Tonnes', im: 'IM' }, _statsTrendSeries) +
-    '</div>' +
-    '<div class="inv-stats-trend-header">' +
-      statsChipRow('invStatsTrendGran', 'gran', { day: 'Day', week: 'Week', month: 'Month' }, _statsTrendGran) +
-      statsChipRow('invStatsTrendType', 'type', { line: 'Line', bar: 'Bar' }, _statsTrendType) +
-    '</div>' +
-    (_statsTrendType === 'bar'
-      ? chartBars(trendData, { unit: trendUnit, ariaLabel: trendTitles[_statsTrendSeries] })
-      : chartLine(trendData, { unit: trendUnit, ariaLabel: trendTitles[_statsTrendSeries] })) +
-    // Incoming material is the leading indicator: it is what has arrived and
-    // not yet been billed, so a fall here shows up in revenue weeks later.
-    (_statsTrendSeries === 'im'
-      ? '<div class="inv-stats-note">Weighed challan lines only. What arrives here bills later, so a dip shows in revenue after a lag.</div>'
-      : '') +
+        ? statsNote('Weighed challan lines only. What arrives here bills later, so a dip shows in revenue after a lag.')
+        : '')) +
     '</div>';
 
   take('trends');
@@ -804,39 +771,26 @@ function renderStats() {
   var avgDispatch = avg(dispatchDays);
   var avgDelivery = avg(deliveryDays);
   var avgFull = avg(fullCycleDays);
+  var cycleRow = function(label, v, n) {
+    return v !== null ? statsRow(label, 'average of ' + n + ' invoice' + (n === 1 ? '' : 's'), statsNum(formatNum(v, 1) + statsUnit('days'))) : '';
+  };
   if (avgDispatch !== null || avgDelivery !== null) {
-    html += '<div class="inv-stats-card">' +
-      '<div class="inv-stats-title">Dispatch Cycle</div>';
-    if (avgDispatch !== null) {
-      html += '<div class="inv-stats-metric"><span class="inv-stats-metric-label">Created to Dispatched</span>' +
-        '<span class="inv-stats-metric-sub">' + formatNum(avgDispatch, 1) + ' days avg (' + dispatchDays.length + ')</span></div>';
-    }
-    if (avgDelivery !== null) {
-      html += '<div class="inv-stats-metric"><span class="inv-stats-metric-label">Dispatched to Delivered</span>' +
-        '<span class="inv-stats-metric-sub">' + formatNum(avgDelivery, 1) + ' days avg (' + deliveryDays.length + ')</span></div>';
-    }
-    if (avgFull !== null) {
-      html += '<div class="inv-stats-metric"><span class="inv-stats-metric-label">Full Cycle</span>' +
-        '<span class="inv-stats-metric-sub">' + formatNum(avgFull, 1) + ' days avg (' + fullCycleDays.length + ')</span></div>';
-    }
-    html += '</div>';
+    html += statsPanel('dispatch', 'Dispatch cycle', '') +
+      cycleRow('Created to dispatched', avgDispatch, dispatchDays.length) +
+      cycleRow('Dispatched to delivered', avgDelivery, deliveryDays.length) +
+      cycleRow('Full cycle', avgFull, fullCycleDays.length) + '</div>';
   }
 
   take('billing');
   /* ===== Card 10: Top items — by value, tonnage, or price ===== */
   var top = buildTopItems(filtered, _statsTopBy);
   if (top.total > 0) {
-    var topTitles = { value: 'Top Items by Value', tonnage: 'Top Items by Tonnage', rate: 'Worst Priced Items' };
+    var topTitles = { value: 'Top items by value', tonnage: 'Top items by tonnage', rate: 'Worst priced items' };
     var topUnits = { value: 'money', tonnage: 'kg', rate: 'money' };
-    html += '<div class="inv-stats-card inv-stats-card-full">' +
-      '<div class="inv-stats-trend-header">' +
-      '<div class="inv-stats-title">' + escHtml(topTitles[_statsTopBy]) +
-      (_statsTopBy === 'rate' ? '<span class="inv-stats-title-sub">worst first</span>' : '') + '</div>' +
-      statsChipRow('invStatsTopBy', 'by', { value: '₹', tonnage: 'Tonnes', rate: '₹/kg' }, _statsTopBy) +
-      '</div>';
+    var topBody = '';
 
     if (top.rows.length === 0) {
-      html += '<div class="inv-text-muted inv-p-8">No part in this period has a known weight.</div>';
+      topBody += '<div class="inv-empty">No part in this period has a known weight.</div>';
     } else {
       // On the price ranking the bar is measured against cost, not against the
       // best-priced part: a mark at full cost, and anything short of it in the
@@ -844,7 +798,7 @@ function renderStats() {
       var rateMax = _statsTopBy === 'rate'
         ? Math.max.apply(null, top.rows.map(function(r) { return r.perKg; }).concat([costPerKg]))
         : 0;
-      html += chartRankedBars(top.rows.map(function(r) {
+      topBody += chartRankedBars(top.rows.map(function(r) {
         var value = _statsTopBy === 'tonnage' ? r.kg : _statsTopBy === 'rate' ? r.perKg : r.amount;
         var display = _statsTopBy === 'tonnage' ? formatNum(r.kg, 0) + ' kg'
           : _statsTopBy === 'rate' ? formatCurrency(r.perKg) + '/kg'
@@ -866,8 +820,8 @@ function renderStats() {
         };
       }), { unit: topUnits[_statsTopBy] });
       if (_statsTopBy === 'rate' && costPerKg > 0) {
-        html += '<div class="inv-stats-note">Mark is full cost, ' + formatCurrency(costPerKg) +
-          '/kg. Bars short of it are plated below what they cost to plate.</div>';
+        topBody += statsNote('Mark is full cost, ' + formatCurrency(costPerKg) +
+          '/kg. Bars short of it are plated below what they cost to plate.');
       }
     }
 
@@ -875,10 +829,12 @@ function renderStats() {
     // piece-billed end, so a weight-based ranking that hides them reads better
     // than the truth — the same trap the realisation cards already guard.
     if (top.dropped > 0) {
-      html += '<div class="inv-stats-note">' + top.dropped + ' of ' + top.total +
-        ' part' + (top.total !== 1 ? 's' : '') + ' left out: no known weight, so they cannot be ranked this way.</div>';
+      topBody += statsNote(top.dropped + ' of ' + top.total +
+        ' part' + (top.total !== 1 ? 's' : '') + ' left out: no known weight, so they cannot be ranked this way.');
     }
-    html += '</div>';
+    html += statsPanel('top', escHtml(topTitles[_statsTopBy]), _statsTopBy === 'rate' ? 'worst first' : '', { wide: true,
+      end: statsSeg('invStatsTopBy', 'by', { value: '₹', tonnage: 'Tonnes', rate: '₹/kg' }, _statsTopBy, 'Rank by') }) +
+      (top.rows.length === 0 ? topBody : statsBody(topBody)) + '</div>';
   }
 
   take('trends');
@@ -887,11 +843,13 @@ function renderStats() {
     sec.clients = statsMarginHtml(_statsPeriod, filtered, tonnage) + nextChallanCardHtml() + sec.clients;
   }
   html = sec[statsTab()];
-  if (html === '') html = '<div class="inv-empty-state">No data yet. Create invoices and log incoming material to see analytics.</div>';
+  if (html === '') html = '<div class="inv-panel inv-panels-wide"><div class="inv-empty">No data yet. Create invoices and log incoming material to see analytics.</div></div>';
   area.innerHTML = html;
 }
 
-/* ===== CLIENT DRILL-DOWN OVERLAY (Flippable Card) ===== */
+/* ===== CLIENT DRILL-DOWN OVERLAY (a card that turns over) =====
+   The front is the period at a glance (tiles, the invoice states); the back is the recent invoices
+   and pending challans as rows, and the actions. invFlipCard turns it (events.js). */
 function openClientDrillOverlay(clientId) {
   clientId = parseInt(clientId);
   var client = S.clients.find(function(c) { return c.id === clientId; });
@@ -929,7 +887,7 @@ function openClientDrillOverlay(clientId) {
   var rateInfo = '';
   if (client.billingMode === 'perKg') {
     var r = getLineItemRate(client, localDateStr());
-    rateInfo = 'Per Kg \u00b7 ' + formatCurrency(r.ratePerKg || r.rate || 0) + '/kg';
+    rateInfo = 'Per Kg · ' + formatCurrency(r.ratePerKg || r.rate || 0) + '/kg';
   } else if (client.billingMode === 'perPiece') {
     rateInfo = 'Per Piece';
   } else {
@@ -940,83 +898,59 @@ function openClientDrillOverlay(clientId) {
     .filter(function(i) { return i.clientId === clientId && i.status === 'active'; })
     .sort(function(a, b) { return (b.createdAt || 0) - (a.createdAt || 0); })
     .slice(0, 5);
-  var recentHtml = '';
-  if (recentInvs.length === 0) {
-    recentHtml = '<div class="inv-text-muted">No invoices</div>';
-  } else {
-    recentInvs.forEach(function(inv) {
-      recentHtml += '<div class="inv-flip-row">' +
-        '<span class="inv-mono">' + escHtml(inv.displayNumber) + '</span>' +
-        '<span class="inv-text-muted">' + formatDate(inv.date) + '</span>' +
-        '<span class="inv-mono inv-text-cost">' + formatCurrency(inv.grandTotal) + '</span>' +
-        getStateBadgeHtml(inv) + '</div>';
-    });
-  }
+  var recentHtml = recentInvs.length === 0 ? '<div class="inv-empty">No invoices</div>' : recentInvs.map(function(inv) {
+    return statsRow('<span class="inv-id">' + escHtml(inv.displayNumber) + '</span>', escHtml(formatDate(inv.date)),
+      '<span class="inv-row-stack">' + statsNum(formatCurrency(inv.grandTotal)) + getStateDotHtml(inv) + '</span>');
+  }).join('');
 
   var pendingChallans = (S.incomingMaterial || []).filter(function(im) {
     if (im.clientId !== clientId) return false;
     return im.items.some(function(it) { return !it.invoiced; });
   });
-  var challanHtml = '';
-  if (pendingChallans.length === 0) {
-    challanHtml = '<div class="inv-text-muted">No pending challans</div>';
-  } else {
-    pendingChallans.forEach(function(im) {
-      var pItems = im.items.filter(function(it) { return !it.invoiced; });
-      var pAmt = pItems.reduce(function(s, it) { return s + (it.amount || 0); }, 0);
-      challanHtml += '<div class="inv-flip-row">' +
-        '<span>' + (im.challanNo ? 'Ch. ' + escHtml(im.challanNo) : 'No number') + '</span>' +
-        '<span class="inv-text-muted">' + formatDate(im.challanDate) + '</span>' +
-        '<span class="inv-text-muted">' + pItems.length + ' items</span>' +
-        '<span class="inv-mono">' + formatCurrency(pAmt) + '</span></div>';
-    });
-  }
+  var challanHtml = pendingChallans.length === 0 ? '<div class="inv-empty">No pending challans</div>' : pendingChallans.map(function(im) {
+    var pItems = im.items.filter(function(it) { return !it.invoiced; });
+    var pAmt = pItems.reduce(function(s, it) { return s + (it.amount || 0); }, 0);
+    return statsRow(im.challanNo ? 'Ch. <span class="inv-id">' + escHtml(im.challanNo) + '</span>' : 'No number',
+      escHtml(formatDate(im.challanDate)) + ' · ' + pItems.length + ' items', statsNum(formatCurrency(pAmt)));
+  }).join('');
 
   var periodLabel = PERIOD_LABELS[_statsPeriod] || 'All';
+  var flipIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M17 1l4 4-4 4"/><path d="M3 11V9a4 4 0 014-4h14"/><path d="M7 23l-4-4 4-4"/><path d="M21 13v2a4 4 0 01-4 4H3"/></svg>';
 
   pushFocus();
   document.body.style.overflow = 'hidden';
   var scrim = document.createElement('div');
   scrim.className = 'inv-overlay-scrim';
-  scrim.innerHTML = '<div class="inv-overlay-card inv-flip-container">' +
+  scrim.innerHTML = '<div class="inv-overlay-card inv-flip-container" data-drill="' + clientId + '">' +
     '<div class="inv-flip-inner">' +
     '<div class="inv-flip-front">' +
     '<div class="inv-overlay-header"><span class="inv-overlay-title">' + escHtml(client.name) + '</span>' +
-    '<button class="inv-overlay-close" data-action="invCloseOverlay">&times;</button></div>' +
-    '<div class="inv-flip-period-label">' + escHtml(periodLabel) + '</div>' +
-    '<div class="inv-flip-kpis">' +
-    '<div class="inv-flip-kpi"><span class="inv-flip-kpi-label">Revenue</span><span class="inv-flip-kpi-value">' + formatCurrency(totalRev) + '</span></div>' +
-    '<div class="inv-flip-kpi"><span class="inv-flip-kpi-label">Tonnage</span><span class="inv-flip-kpi-value">' + formatNum(clientTonnage.kg / 1000, 2) + ' t</span></div>' +
-    '<div class="inv-flip-kpi"><span class="inv-flip-kpi-label">&#8377;/kg</span><span class="inv-flip-kpi-value' +
-      (realisation != null && costPerKg > 0 && realisation < costPerKg ? ' inv-stats-val-danger' : '') + '">' +
-      (realisation != null ? formatNum(realisation, 2) : '&mdash;') + '</span></div>' +
-    '<div class="inv-flip-kpi"><span class="inv-flip-kpi-label">Share</span><span class="inv-flip-kpi-value">' + pct + '%</span></div>' +
-    '<div class="inv-flip-kpi"><span class="inv-flip-kpi-label">Invoices</span><span class="inv-flip-kpi-value">' + clientInvs.length + '</span></div>' +
-    '<div class="inv-flip-kpi"><span class="inv-flip-kpi-label">Unbilled</span><span class="inv-flip-kpi-value">' + formatCurrency(pendingAmt) + '</span></div>' +
+    '<button class="inv-overlay-close" data-action="invCloseOverlay" aria-label="Close">&times;</button></div>' +
+    '<div class="inv-note inv-mb-8">' + escHtml(periodLabel) + ' &middot; ' + escHtml(rateInfo) + '</div>' +
+    '<div class="inv-tiles">' +
+    statsTile('revenue', 'Revenue', formatCurrency(totalRev)) +
+    statsTile('tonnage', 'Tonnage', formatNum(clientTonnage.kg / 1000, 2) + '<span class="inv-tile-of"> t</span>') +
+    statsTile('realisation', '&#8377;/kg', realisation != null ? formatNum(realisation, 2) : '&mdash;', '',
+      realisation != null && costPerKg > 0 && realisation < costPerKg ? 'danger' : '') +
+    statsTile('share', 'Share', pct + '%') +
+    statsTile('invoices', 'Invoices', String(clientInvs.length)) +
+    statsTile('unbilled', 'Unbilled', formatCurrency(pendingAmt)) +
     '</div>' +
-    '<div class="inv-flip-states">' +
-    '<span class="inv-state-badge inv-state-created">' + stateCounts.created + ' Created</span>' +
-    '<span class="inv-state-badge inv-state-dispatched">' + stateCounts.dispatched + ' Dispatched</span>' +
-    '<span class="inv-state-badge inv-state-delivered">' + stateCounts.delivered + ' Delivered</span>' +
-    '<span class="inv-state-badge inv-state-filed">' + stateCounts.filed + ' Filed</span>' +
-    '</div>' +
-    '<div class="inv-flip-meta">' + escHtml(rateInfo) + '</div>' +
-    '<button class="inv-btn inv-btn-ghost inv-btn-block" data-action="invFlipCard">' +
-    '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 1l4 4-4 4"/><path d="M3 11V9a4 4 0 014-4h14"/><path d="M7 23l-4-4 4-4"/><path d="M21 13v2a4 4 0 01-4 4H3"/></svg>' +
-    ' Details &amp; Actions</button>' +
+    '<div class="inv-toolbar">' + Object.keys(stateCounts).map(function(s) {
+      return statsDot(INV_STATE_TONE[s], stateCounts[s] + ' ' + INV_STATE_LABELS[s]);
+    }).join('') + '</div>' +
+    '<button class="inv-btn inv-btn-secondary inv-btn-block" data-action="invFlipCard">' + flipIcon + ' Details and actions</button>' +
     '</div>' +
     '<div class="inv-flip-back">' +
-    '<div class="inv-overlay-header"><span class="inv-overlay-title">' + escHtml(client.name) + '</span><div>' +
-    '<button class="inv-overlay-close" data-action="invFlipCard" aria-label="Flip back">' +
-    '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 1l4 4-4 4"/><path d="M3 11V9a4 4 0 014-4h14"/><path d="M7 23l-4-4 4-4"/><path d="M21 13v2a4 4 0 01-4 4H3"/></svg>' +
-    '</button>' +
-    '<button class="inv-overlay-close" data-action="invCloseOverlay">&times;</button></div></div>' +
-    '<div class="inv-flip-section-title">Recent Invoices</div>' + recentHtml +
-    '<div class="inv-flip-section-title">Pending Challans</div>' + challanHtml +
-    '<div class="inv-flip-actions">' +
-    '<button class="inv-btn inv-btn-primary" data-action="invStatsCreateInvoice" data-client-id="' + clientId + '">Create Invoice</button>' +
-    '<button class="inv-btn inv-btn-ghost" data-action="invStatsJumpRegister" data-client-id="' + clientId + '">View in Register</button>' +
-    '<button class="inv-btn inv-btn-ghost" data-action="invStatsJumpIM" data-client-id="' + clientId + '">View in IM</button>' +
+    '<div class="inv-overlay-header"><span class="inv-overlay-title">' + escHtml(client.name) + '</span><div class="inv-toolbar inv-toolbar-tight">' +
+    '<button class="inv-btn inv-btn-icon inv-btn-ghost" data-action="invFlipCard" aria-label="Flip back">' + flipIcon + '</button>' +
+    '<button class="inv-overlay-close" data-action="invCloseOverlay" aria-label="Close">&times;</button></div></div>' +
+    '<div class="inv-panel inv-panel-flush"><div class="inv-panel-head"><span class="inv-panel-title">Recent invoices</span></div>' + recentHtml + '</div>' +
+    '<div class="inv-panel inv-panel-flush"><div class="inv-panel-head"><span class="inv-panel-title">Pending challans</span></div>' + challanHtml + '</div>' +
+    '<div class="inv-toolbar">' +
+    '<button class="inv-btn inv-btn-primary" data-action="invStatsCreateInvoice" data-client-id="' + clientId + '">Create invoice</button>' +
+    '<button class="inv-btn inv-btn-secondary" data-action="invStatsJumpRegister" data-client-id="' + clientId + '">View in Register</button>' +
+    '<button class="inv-btn inv-btn-secondary" data-action="invStatsJumpIM" data-client-id="' + clientId + '">View in IM</button>' +
     '</div></div>' +
     '</div></div>';
   document.body.appendChild(scrim);

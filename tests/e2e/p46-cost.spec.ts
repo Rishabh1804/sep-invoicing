@@ -136,9 +136,9 @@ test.describe('P46: prices, purchases and the live cost', () => {
 
     await openStatsTab(page, 'cost');
     const card = page.locator('#liveCost');
-    await expect(card).toContainText('Live cost');
-    await expect(card.locator('.inv-cost-row').filter({ hasText: 'Zinc' }).locator('.inv-cost-src')).toHaveText('market rate');
-    await expect(card.locator('.inv-cost-row').filter({ hasText: 'Electricity' }).locator('.inv-cost-src')).toHaveText('measured');
+    await expect(card).toContainText('live cost');
+    await expect(card.locator('[data-cost]').filter({ hasText: 'Zinc' }).locator('[data-src]')).toHaveText('market rate');
+    await expect(card.locator('[data-cost]').filter({ hasText: 'Electricity' }).locator('[data-src]')).toHaveText('measured');
 
     // A bill for the other costs replaces the model figure.
     await card.locator('[data-action="invCostBillOpen"]').click();
@@ -146,7 +146,7 @@ test.describe('P46: prices, purchases and the live cost', () => {
     await page.locator('#costBillMonth').fill(month);
     await page.locator('#costBillAmount').fill('9000');
     await page.locator('[data-action="invCostBillSave"]').click();
-    await expect(page.locator('#liveCost .inv-cost-row').filter({ hasText: 'Consumables' }).locator('.inv-cost-src')).toHaveText('measured');
+    await expect(page.locator('#liveCost [data-cost]').filter({ hasText: 'Consumables' }).locator('[data-src]')).toHaveText('measured');
     expect((await readStoredState(page)).costBills).toHaveLength(2);
   });
 

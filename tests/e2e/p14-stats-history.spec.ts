@@ -61,7 +61,7 @@ test.describe('Stats — tonnage and realisation', () => {
     await loadAppWithState(page, pricedState());
     await switchTab(page, 'pageStats');
 
-    const band = page.locator('.inv-kpi-grid').first();
+    const band = page.locator('[data-card="headline"] .inv-tiles');
     await expect(band).toBeVisible();
 
     // 1000 kg + 2000 kg.
@@ -76,7 +76,7 @@ test.describe('Stats — tonnage and realisation', () => {
     await switchTab(page, 'pageStats');
 
     // 7.93 realised against 8.55 cost is a loss, and the alert says by how much.
-    const alert = page.locator('.inv-stats-alert');
+    const alert = page.locator('[data-card="headline"] [data-callout="below-cost"]');
     await expect(alert).toBeVisible();
     await expect(alert).toContainText('below full cost');
   });
@@ -85,10 +85,10 @@ test.describe('Stats — tonnage and realisation', () => {
     await loadAppWithState(page, pricedState());
     await openStatsTab(page, 'clients');
 
-    const table = page.locator('.inv-stats-card', { hasText: 'Realisation by Client' });
+    const table = page.locator('[data-card="realisation"]');
     await expect(table).toBeVisible();
 
-    const rows = table.locator('.inv-stats-table-row');
+    const rows = table.locator('[data-client-row]');
     await expect(rows).toHaveCount(2);
     // Worst priced first — the ordering is the point of the table.
     await expect(rows.nth(0)).toContainText('BELOW COST CLIENT');
@@ -97,8 +97,8 @@ test.describe('Stats — tonnage and realisation', () => {
     await expect(rows.nth(1)).toContainText('13.00');
 
     // The under-cost figure is called out, not just listed.
-    await expect(rows.nth(0).locator('.inv-stats-val-danger')).toHaveCount(1);
-    await expect(rows.nth(1).locator('.inv-stats-val-danger')).toHaveCount(0);
+    await expect(rows.nth(0).locator('.inv-dot-danger')).toHaveCount(1);
+    await expect(rows.nth(1).locator('.inv-dot-danger')).toHaveCount(0);
   });
 
   test('says so when tonnage could not be established for every line', async ({ page }) => {
@@ -111,7 +111,7 @@ test.describe('Stats — tonnage and realisation', () => {
     await loadAppWithState(page, state);
     await switchTab(page, 'pageStats');
 
-    const caveat = page.locator('.inv-stats-caveat').first();
+    const caveat = page.locator('[data-card="headline"] [data-callout="coverage"]');
     // Stated in revenue terms: one unweighed line worth ₹10L matters more than
     // fifty worth ₹500, and it is the revenue ratio that governs how far the
     // realisation figure can be trusted.
@@ -139,7 +139,7 @@ test.describe('Stats — tonnage and realisation', () => {
     await loadAppWithState(page, state);
     await switchTab(page, 'pageStats');
 
-    const band = page.locator('.inv-kpi-grid').first();
+    const band = page.locator('[data-card="headline"] .inv-tiles');
     // Tonnage is unchanged at 3.00 t, so realisation must stay 7.93 — not leap
     // to (23,800 + 20,000) / 3000 = 14.60.
     await expect(band).toContainText('3.00 t');
@@ -158,8 +158,8 @@ test.describe('Stats — tonnage and realisation', () => {
     await loadAppWithState(page, state);
     await openStatsTab(page, 'clients');
 
-    const table = page.locator('.inv-stats-card', { hasText: 'Realisation by Client' });
-    const partialRow = table.locator('.inv-stats-row-partial');
+    const table = page.locator('[data-card="realisation"]');
+    const partialRow = table.locator('[data-partial]');
     await expect(partialRow).toHaveCount(1);
     await expect(partialRow).toContainText('BELOW COST CLIENT');
     // Shown as unestablished, never as a per-kg number drawn from a sliver.
@@ -178,7 +178,7 @@ test.describe('Stats — tonnage and realisation', () => {
     await loadAppWithState(page, state);
     await openStatsTab(page, 'clients');
 
-    const card = page.locator('.inv-stats-card', { hasText: 'Concentration' });
+    const card = page.locator('[data-card="concentration"]');
     await expect(card).toContainText('BELOW COST CLIENT');
     // Its measured tonnage is ~0, so a share would read as "small" when the
     // truth is "unknown". That inversion is the trap.
@@ -190,11 +190,11 @@ test.describe('Stats — tonnage and realisation', () => {
     await loadAppWithState(page, pricedState());
     await openStatsTab(page, 'billing');
 
-    const card = page.locator('.inv-stats-card', { hasText: 'Output Tax' });
+    const card = page.locator('[data-card="gst"]');
     await expect(card).toBeVisible();
     await expect(card).toContainText('Not yet marked filed');
     // Neither seeded invoice is filed.
-    await expect(card).toContainText('(2)');
+    await expect(card).toContainText('2 unfiled');
   });
 
   test('periods are measured on the invoice date, not on entry time', async ({ page }) => {
@@ -213,7 +213,7 @@ test.describe('Stats — tonnage and realisation', () => {
     await switchTab(page, 'pageStats');
 
     // MTD sees only the invoice dated this month: 1000 kg.
-    await expect(page.locator('.inv-kpi-grid').first()).toContainText('1.00 t');
+    await expect(page.locator('[data-card="headline"] .inv-tiles')).toContainText('1.00 t');
   });
 });
 

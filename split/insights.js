@@ -306,24 +306,25 @@ TODO_RULE_FNS.insChemPrice = function() {
 function insightsCardHtml() {
   var all = [];
   try { all = todoAppAll().filter(function(t) { return t.rule.indexOf('ins') === 0; }); } catch (e) { all = []; }
-  var h = '<div class="inv-stats-card inv-stats-card-full" id="statsInsights"><div class="inv-stats-title">Insights<span class="inv-stats-title-sub">what the book shows on its own, most urgent first</span></div>';
-  if (!all.length) return h + '<div class="inv-stats-note">Nothing stands out right now. Each insight appears here and on the To-do list when its figures call for it.</div></div>';
-  h += '<div class="inv-td-list">' + all.map(function(t) { return todoAppRowHtml(t); }).join('') + '</div>';
-  return h + '<div class="inv-stats-note">Tap one for its figures and what clears it. They are on the To-do list too, and can be switched off in Settings &rarr; To-do.</div></div>';
+  var h = statsPanel('insights', 'Insights', 'what the book shows on its own, most urgent first', { wide: true, id: 'statsInsights' });
+  if (!all.length) return h + '<div class="inv-empty">Nothing stands out right now. Each insight appears here and on the To-do list when its figures call for it.</div></div>';
+  // The To-do's own rows: an insight is a task, and reads as one wherever it is listed.
+  h += all.map(function(t) { return todoAppRowHtml(t); }).join('');
+  return h + statsBody(statsNote('Tap one for its figures and what clears it. They are on the To-do list too, and can be switched off in Settings &rarr; To-do.')) + '</div>';
 }
 
 function paceCardHtml() {
   var p = predMonthPace();
   if (!p) return '';
-  var h = '<div class="inv-stats-card inv-stats-card-full" id="statsPace"><div class="inv-stats-title">This month at its pace<span class="inv-stats-title-sub">' + p.done + ' of ' + p.total + ' working days in</span></div>';
-  h += '<div class="inv-ov-grid inv-ov-grid-2">' +
-    '<div class="inv-ov-tile inv-pay-blue"><div class="inv-ov-l">Revenue</div><div class="inv-ov-v" id="paceRev">' + escHtml(formatCurrency(p.projRev)) + '</div><div class="inv-ov-s">' + escHtml(p.prevLabel) + ' ' + escHtml(formatCurrency(p.prevRev)) +
-      (p.prevRev > 0 ? ' · ' + (p.projRev >= p.prevRev ? '+' : '&minus;') + Math.abs(Math.round((p.projRev / p.prevRev - 1) * 100)) + '%' : '') + '</div></div>' +
-    '<div class="inv-ov-tile inv-pay-blue"><div class="inv-ov-l">Tonnage</div><div class="inv-ov-v">' + formatNum(p.projKg / 1000, 1) + ' t</div><div class="inv-ov-s">' + escHtml(p.prevLabel) + ' ' + formatNum(p.prevKg / 1000, 1) + ' t' +
-      (p.prevKg > 0 ? ' · ' + (p.projKg >= p.prevKg ? '+' : '&minus;') + Math.abs(Math.round((p.projKg / p.prevKg - 1) * 100)) + '%' : '') + '</div></div></div>';
-  h += '<div class="inv-stats-row"><span class="inv-stats-name">So far<span class="inv-cost-note">' + formatNum(p.kg / 1000, 1) + ' t billed</span></span><span class="inv-stats-val">' + escHtml(formatCurrency(p.rev)) + '</span></div>' +
-    '<div class="inv-stats-row"><span class="inv-stats-name">Likely range<span class="inv-cost-note">from how much the working days so far have varied</span></span><span class="inv-stats-val">' + escHtml(formatCurrency(p.low)) + ' – ' + escHtml(formatCurrency(p.high)) + '</span></div>' +
-    '<div class="inv-stats-row"><span class="inv-stats-name">Unbilled challans in hand<span class="inv-cost-note">would lift the month if billed in it</span></span><span class="inv-stats-val">' + escHtml(formatCurrency(p.unbilled)) + '</span></div>';
+  var h = statsPanel('pace', 'This month at its pace', p.done + ' of ' + p.total + ' working days in', { wide: true, id: 'statsPace' });
+  h += statsTiles(
+    statsTile('revenue', 'Revenue', escHtml(formatCurrency(p.projRev)), statsTileSub(escHtml(p.prevLabel) + ' ' + escHtml(formatCurrency(p.prevRev)) +
+      (p.prevRev > 0 ? ' · ' + (p.projRev >= p.prevRev ? '+' : '&minus;') + Math.abs(Math.round((p.projRev / p.prevRev - 1) * 100)) + '%' : '')), '', 'paceRev') +
+    statsTile('tonnage', 'Tonnage', formatNum(p.projKg / 1000, 1) + '<span class="inv-tile-of"> t</span>', statsTileSub(escHtml(p.prevLabel) + ' ' + formatNum(p.prevKg / 1000, 1) + ' t' +
+      (p.prevKg > 0 ? ' · ' + (p.projKg >= p.prevKg ? '+' : '&minus;') + Math.abs(Math.round((p.projKg / p.prevKg - 1) * 100)) + '%' : ''))));
+  h += statsRow('So far', formatNum(p.kg / 1000, 1) + ' t billed', statsNum(escHtml(formatCurrency(p.rev)))) +
+    statsRow('Likely range', 'from how much the working days so far have varied', statsNum(escHtml(formatCurrency(p.low)) + ' – ' + escHtml(formatCurrency(p.high))), '', 'inv-row-flow') +
+    statsRow('Unbilled challans in hand', 'would lift the month if billed in it', statsNum(escHtml(formatCurrency(p.unbilled))));
   return h + '</div>';
 }
 
@@ -331,11 +332,11 @@ function nextChallanCardHtml() {
   var list = predCadence().filter(function(c) { return c.median != null && c.count >= 3; }).slice(0, 12);
   if (!list.length) return '';
   var today = localDateStr();
-  var h = '<div class="inv-stats-card inv-stats-card-full" id="statsNextChallan"><div class="inv-stats-title">Next challan expected<span class="inv-stats-title-sub">from each client&rsquo;s own rhythm</span></div>';
+  var h = statsPanel('next', 'Next challan expected', 'from each client&rsquo;s own rhythm', { id: 'statsNextChallan' });
   list.sort(function(a, b) { return (b.late - a.late) || (a.next < b.next ? -1 : 1); }).forEach(function(c) {
-    var when = c.quiet ? '<span class="inv-ov-neg">' + c.late + ' days late · quiet</span>' : c.late ? '<span class="inv-ov-neg">' + c.late + ' day' + (c.late === 1 ? '' : 's') + ' late</span>'
-      : c.next === today ? 'today' : escHtml(formatDate(c.next));
-    h += '<div class="inv-stats-row"><span class="inv-stats-name">' + escHtml(c.name) + '<span class="inv-cost-note">every ' + formatNum(c.median, 0) + ' day' + (c.median === 1 ? '' : 's') + ' · last ' + escHtml(formatDate(c.last)) + '</span></span><span class="inv-stats-val">' + when + '</span></div>';
+    var when = c.quiet ? statsDot('danger', c.late + ' days late · quiet') : c.late ? statsDot('warning', c.late + ' day' + (c.late === 1 ? '' : 's') + ' late')
+      : '<span class="inv-nowrap">' + (c.next === today ? 'today' : escHtml(formatDate(c.next))) + '</span>';
+    h += statsRow(escHtml(c.name), 'every ' + formatNum(c.median, 0) + ' day' + (c.median === 1 ? '' : 's') + ' · last ' + escHtml(formatDate(c.last)), when);
   });
-  return h + '<div class="inv-stats-note">The median gap between each client&rsquo;s challans, counted from the last one. Late is past that; quiet is past both 1.75 times the gap and three weeks beyond it.</div></div>';
+  return h + statsBody(statsNote('The median gap between each client&rsquo;s challans, counted from the last one. Late is past that; quiet is past both 1.75 times the gap and three weeks beyond it.')) + '</div>';
 }

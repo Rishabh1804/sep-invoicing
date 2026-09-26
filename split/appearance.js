@@ -1,7 +1,8 @@
 /* ===== APPEARANCE: theme, palette, density (design system v2.0 §3.2, §3.5, §3.11) ===== */
 /* Appearance is a fact about the device, never about the books: it lives in localStorage and an
    imported backup cannot repaint the phone. head.html applies theme and palette before first paint;
-   this module owns everything after that — the dark hook, density, theme-color and the icon. */
+   this module owns everything after that — density, theme-color and the icon. Nothing sets a `.dark`
+   class: colour-scheme alone decides every light-dark() token. */
 
 var APPEARANCE_KEYS = { theme: 'sep_inv_theme', palette: 'sep_inv_palette', density: 'sep_inv_density' };
 var APPEARANCE_OPTS = {
@@ -39,8 +40,6 @@ function applyAppearance(theme, palette, density) {
   d.dataset.palette = p;
   var desk = !!(document.body && document.body.classList.contains('inv-desktop'));
   d.dataset.density = n === 'compact' || (n === 'auto' && desk) ? 'compact' : 'comfortable';
-  // Transitional hook: v1.0 rules written as `.dark .inv-…` keep working until §9 step 4 removes them.
-  d.classList.toggle('dark', appearanceIsDark());
   var icon = document.getElementById('appIcon');
   if (icon) icon.setAttribute('href', 'icons/icon-' + p + '.svg');
   var touch = document.getElementById('appTouchIcon');

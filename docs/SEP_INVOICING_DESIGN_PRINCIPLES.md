@@ -366,7 +366,8 @@ strips ("1269 challans", "118 active invoices", "24 clients").
 
 ### 6.3 Buttons — `inv-btn`
 `inv-btn-primary` (accent fill) · `inv-btn-secondary` (surface + border — the default) · `inv-btn-ghost`
-(no border) · `inv-btn-danger` (danger text; filled only inside a confirm dialog) · `inv-btn-link` (accent
+(no border) · `inv-btn-danger` (danger text on the surface; `inv-btn-danger inv-btn-solid` is the filled one, used only
+for the final button of a confirm dialog) · `inv-btn-link` (accent
 text, no box) · `inv-btn-icon` (square, `aria-label`) · size `inv-btn-sm`, width `inv-btn-block`.
 Height `--ctl-h`, radius `--r-md`, `--t-body` 500 (primary 600). Replaces `inv-stk-btn*`, `inv-stk-tool`,
 `inv-stk-back`, `inv-link-btn`, `inv-quick-action`, `inv-header-btn`, `inv-overlay-close`,
@@ -542,8 +543,12 @@ phone and desktop.
    plumbing and Settings → Appearance, the new icons (§3.11), Geist faces,
    `:focus-visible` ring, the new app shell (§4, §6.1). Old tokens kept as **aliases of the new** so every
    existing rule renders in the new palette immediately. The old domain tokens map onto the status tones.
-2. **Components.** Add §6.3–§6.18 to `styles.css`, each with its dark coverage, and turn the old families into
-   thin aliases where the markup cannot change yet.
+2. **Components** — *built 26 Sep 2026.* §6.3–§6.18 sit in one block at the end of `styles.css`
+   ("COMPONENTS v2.0"), and each rule also names the v1.0 families that do the same job, so every screen
+   already renders the one look (cards → panel, the KPI and stock tiles → tile, every badge family → badge,
+   the Clients segment and Stats tabs → view tabs, banners → callout, overlays → dialog). Labels are
+   sentence case everywhere (DR-5); the duplicated `inv-chip` is one rule; decorative tone fills are neutral.
+   Step 3 moves the markup onto the v2.0 class names and deletes the v1.0 names from those selector lists.
 3. **Screens, in order:** Home · Register · IM · Create · Clients/Items/Performance · To-do · Stock · Staff ·
    Stats · History · Settings. Each moves its render functions onto the components and deletes its private
    family in the same PR (DR-7). The survey's bugs are fixed where their screen moves: History's filter bar,

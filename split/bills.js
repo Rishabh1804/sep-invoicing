@@ -51,7 +51,7 @@ function stockTabsHtml(active) {
   var tab = function(key, label) {
     return '<button class="inv-viewtab" role="tab" aria-selected="' + (active === key) + '" data-action="invStockTab" data-tab="' + key + '">' + label + '</button>';
   };
-  return '<div class="inv-viewtabs" role="tablist" aria-label="Stock views">' + tab('list', 'Chemicals') + tab('bills', 'Bills & notes') + '</div>';
+  return '<div class="inv-viewtabs" role="tablist" aria-label="Stock views">' + tab('list', 'Chemicals') + tab('bills', 'Bills & notes') + tab('bank', 'Bank') + '</div>';
 }
 
 function renderBillsNotes() {
@@ -75,11 +75,15 @@ function _billsPowerHtml() {
   if (!bills.length && !missing.length) {
     h += '<div class="inv-empty">No bills recorded. Until there are, Live cost prices electricity and the other costs at the Settings fallbacks.</div>';
   }
+  var bankPower = missing.length ? bankPowerRows() : [];
   rows.forEach(function(r) {
     if (r.missing) {
       var m = r.month;
+      // The bank already says what was paid for it: offered, never added unasked.
+      var paid = bankPower.find(function(v) { return bankBillMonth(v.row) === m; });
       h += '<div class="inv-row" data-missing="' + m + '"><span class="inv-row-main"><span class="inv-dot inv-dot-warning">No electricity bill for ' + escHtml(billsMonthLabel(m)) + '</span></span>' +
-      '<span class="inv-row-end"><button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invCostBillOpen" data-where="stock" data-month="' + m + '">Add</button></span></div>';
+        '<span class="inv-row-end">' + (paid ? '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invBankAddBill" data-id="' + escHtml(paid.row.id) + '">Add ' + escHtml(formatCurrency(paid.row.dr)) + ' paid ' + escHtml(formatDate(paid.row.date)) + '</button>' : '') +
+        '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invCostBillOpen" data-where="stock" data-month="' + m + '">Add</button></span></div>';
       return;
     }
     var b = r.bill;
@@ -380,7 +384,7 @@ function stockEditHtml(item) {
 /* ---------- Actions ---------- */
 function billsAction(action, btn) {
   switch (action) {
-    case 'invStockTab': stockSetView(btn.dataset.tab === 'bills' ? 'bills' : 'list'); return true;
+    case 'invStockTab': stockSetView(btn.dataset.tab === 'bills' || btn.dataset.tab === 'bank' ? btn.dataset.tab : 'list'); return true;
     case 'invCnFormOpen': billsCnFormOpen(btn.dataset.mode); return true;
     case 'invCnFormCancel': _billForm = null; renderStock(); return true;
     case 'invCnFormSave': billsCnFormSave(); return true;

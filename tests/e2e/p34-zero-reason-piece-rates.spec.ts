@@ -28,7 +28,7 @@ test.describe('P34: billed at ₹0 needs a reason', () => {
     await openCreateWithLine(page, zeroClientState());
     await page.locator('input[data-field="qty"][data-idx="0"]').fill('48.8');
 
-    const box = page.locator('#invZeroReason0 .inv-zero-reason');
+    const box = page.locator('#invZeroReason0 [data-zero-reason]');
     await expect(box).toBeVisible();
     await expect(page.locator('#invSaveBtn')).toBeDisabled();
     await expect(page.locator('#invErrorsArea')).toContainText('pick a reason');
@@ -38,7 +38,7 @@ test.describe('P34: billed at ₹0 needs a reason', () => {
     // The note is recommended, never required: save is open without it.
     await expect(page.locator('#invSaveBtn')).toBeEnabled();
 
-    await box.locator('.inv-zero-note').fill('Returned lot, ch 812');
+    await box.locator('[data-action="invZeroNote"]').fill('Returned lot, ch 812');
     await page.locator('#invSaveBtn').click();
 
     const st = await readStoredState(page);
@@ -54,7 +54,7 @@ test.describe('P34: billed at ₹0 needs a reason', () => {
     await page.locator('input[data-field="qty"][data-idx="0"]').fill('10');
     await page.locator('#invZeroReason0 [data-reason="other"]').click();
     await page.locator('input[data-field="rate"][data-idx="0"]').fill('14.25');
-    await expect(page.locator('#invZeroReason0 .inv-zero-reason')).toHaveCount(0);
+    await expect(page.locator('#invZeroReason0 [data-zero-reason]')).toHaveCount(0);
     await page.locator('#invSaveBtn').click();
     const line = (await readStoredState(page)).invoices[0].items[0];
     expect(line.amount).toBe(142.5);

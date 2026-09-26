@@ -1,16 +1,7 @@
 /* ===== EVENT DELEGATION ===== */
 document.addEventListener('click', function(e) {
-  // Dismiss client search dropdown when clicking outside it
-  const searchRes = document.getElementById('invClientResults');
-  if (searchRes && !searchRes.classList.contains('inv-hidden')) {
-    const searchWrap = searchRes.closest('.inv-search-wrap');
-    if (searchWrap && !searchWrap.contains(e.target)) {
-      searchRes.classList.add('inv-hidden');
-    }
-  }
-
-  // Dismiss part autocomplete when clicking outside
-  if (!e.target.closest('.inv-autocomplete-wrap')) {
+  // Dismiss any open suggestion menu (part or client) when clicking outside its field
+  if (!e.target.closest('.inv-combo')) {
     dismissAllAutocomplete();
   }
 
@@ -64,6 +55,7 @@ document.addEventListener('click', function(e) {
       break;
     }
     case 'invSelectClient': selectClient(parseInt(btn.dataset.id)); break;
+    case 'invCreatePickChallan': createPickChallan(btn.dataset.id); break;
     case 'invClearClient': captureOptionalFields(); invoiceForm.clientId = null; renderCreateForm(); break;
     case 'invAddLineItem': captureOptionalFields(); addLineItem(); break;
     case 'invRemoveLineItem': captureOptionalFields(); invoiceForm.items.splice(parseInt(btn.dataset.idx), 1); renderCreateForm(); break;
@@ -413,26 +405,13 @@ function updateTotalsDisplay() {
   const container = document.getElementById('invTotalsArea');
   if (!container) return;
   const client = invoiceForm.clientId ? S.clients.find(c => c.id === invoiceForm.clientId) : null;
-  if (invoiceForm.items.length === 0) { container.innerHTML = ''; return; }
-  const taxable = gstRound(invoiceForm.items.reduce((s,i) => s + (i.amount || 0), 0));
-  const gstType = client ? client.gstType : 'intra';
-  const cgst = gstType === 'intra' ? gstRound(taxable * 9 / 100) : 0;
-  const sgst = gstType === 'intra' ? gstRound(taxable * 9 / 100) : 0;
-  const igst = gstType === 'inter' ? gstRound(taxable * 18 / 100) : 0;
-  const grand = gstRound(taxable + cgst + sgst + igst);
-  let h = '<div class="inv-totals"><div class="inv-total-row"><span class="inv-total-label">Taxable Value</span><span class="inv-total-value">' + formatCurrency(taxable) + '</span></div>';
-  if (gstType === 'intra') {
-    h += '<div class="inv-total-row"><span class="inv-total-label">CGST @ 9%</span><span class="inv-total-value">' + formatCurrency(cgst) + '</span></div>' +
-      '<div class="inv-total-row"><span class="inv-total-label">SGST @ 9%</span><span class="inv-total-value">' + formatCurrency(sgst) + '</span></div>';
-  } else {
-    h += '<div class="inv-total-row"><span class="inv-total-label">IGST @ 18%</span><span class="inv-total-value">' + formatCurrency(igst) + '</span></div>';
-  }
-  h += '<div class="inv-total-row inv-total-row-grand"><span class="inv-total-label">Grand Total</span><span class="inv-total-grand">' + formatCurrency(grand) + '</span></div></div>';
-  container.innerHTML = h;
+  container.innerHTML = createTotalsHtml(client);
+  const grand = document.getElementById('invGrandTotal');
+  if (grand) grand.textContent = formatCurrency(createTotals(client).grand);
   // Update validation state
   const errors = validateInvoice();
   const errArea = document.getElementById('invErrorsArea');
-  if (errArea) errArea.innerHTML = errors.length > 0 ? errors.map(e => '<div class="inv-error">' + escHtml(e) + '</div>').join('') : '';
+  if (errArea) errArea.innerHTML = errors.map(e => '<div class="inv-field-error">' + escHtml(e) + '</div>').join('');
   const saveBtn = document.getElementById('invSaveBtn');
   if (saveBtn) saveBtn.disabled = errors.length > 0;
 }
@@ -881,11 +860,13 @@ document.addEventListener('keydown', function(e) {
   }
   if (e.key === 'Enter' && (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT')) {
     e.preventDefault();
-    var container = e.target.closest('.inv-page-active, .inv-im-form-active, .inv-overlay-card');
+    var container = e.target.closest('[data-form], .inv-page-active, .inv-overlay-card');
     if (!container) container = document.body;
+    // A folded section (Optional details) keeps its fields in the page but out of reach,
+    // so the chain steps over them rather than dead-ending on a field it cannot focus.
     var focusable = Array.from(container.querySelectorAll(
       'input:not([readonly]):not([type="hidden"]):not(.inv-hidden), select:not(.inv-hidden), textarea:not(.inv-hidden), [data-kbd-ring]'
-    ));
+    )).filter(function(el) { return !el.closest('details:not([open])'); });
     var curIdx = focusable.indexOf(e.target);
     if (curIdx >= 0 && curIdx < focusable.length - 1) {
       var next = focusable[curIdx + 1];

@@ -68,20 +68,20 @@ test.describe('P36: rate matcher — option E', () => {
     const note = page.locator('#invRateMatch0');
 
     await qty.fill('100');
-    await expect(note.locator('.inv-rm-chip')).toHaveText('Matches');
-    await expect(rate).toHaveClass(/inv-rm-input-match/);
+    await expect(note.locator('.inv-verdict .inv-dot')).toHaveText('Matches');
+    await expect(rate).toHaveAttribute('data-verdict', 'match');
 
     await rate.fill('15');
-    await expect(note.locator('.inv-rm-chip')).toHaveText('Differs');
+    await expect(note.locator('.inv-verdict .inv-dot')).toHaveText('Differs');
     await expect(note).toContainText('+₹75.00 on this line');
 
     await rate.fill('16');
-    await expect(note.locator('.inv-rm-chip')).toHaveText('Check');
-    await expect(rate).toHaveClass(/inv-rm-input-check/);
-    await expect(rate).not.toHaveClass(/inv-rm-input-match/);
+    await expect(note.locator('.inv-verdict .inv-dot')).toHaveText('Check');
+    await expect(rate).toHaveAttribute('data-verdict', 'check');
+    await expect(rate).not.toHaveAttribute('data-verdict', 'match');
 
     await rate.fill('142.5');
-    await expect(note.locator('.inv-rm-chip')).toHaveText('×10 slip');
+    await expect(note.locator('.inv-verdict .inv-dot')).toHaveText('×10 slip');
 
     // Warn, never block: a line that needs checking still saves.
     await rate.fill('16');
@@ -93,9 +93,9 @@ test.describe('P36: rate matcher — option E', () => {
     await switchTab(page, 'pageIM');
     await g(page, `_applyScanResult({ clientName: 'DORABJI AUTO', challanNo: '41', challanDate: '${todayIso()}',
       items: [{ partNumber: 'P1', desc: 'P1', unit: 'KG', qty: 10, rate: 13, amount: 130 }] })`);
-    await expect(page.locator('#imRateMatch0 .inv-rm-chip')).toHaveText('Matches');
+    await expect(page.locator('#imRateMatch0 .inv-verdict .inv-dot')).toHaveText('Matches');
     await page.locator('#imRate0').fill('20');
-    await expect(page.locator('#imRateMatch0 .inv-rm-chip')).toHaveText('Check');
+    await expect(page.locator('#imRateMatch0 .inv-verdict .inv-dot')).toHaveText('Check');
   });
 
   test('the invoice detail names only what needs a second look', async ({ page }) => {
@@ -114,9 +114,9 @@ test.describe('P36: rate matcher — option E', () => {
     await loadAppWithState(page, s);
     await page.evaluate(() => (window as any).openInvoiceDetail('INV-684'));
     const rows = page.locator('[data-lines]').first().locator('[data-line]');
-    await expect(rows.nth(0).locator('.inv-rm-chip')).toHaveText('Check');
+    await expect(rows.nth(0).locator('.inv-verdict .inv-dot')).toHaveText('Check');
     await expect(rows.nth(0)).toContainText('−₹119.60 on this line');
-    await expect(rows.nth(1).locator('.inv-rm-chip')).toHaveCount(0);
+    await expect(rows.nth(1).locator('.inv-verdict .inv-dot')).toHaveCount(0);
   });
 
   test('the thresholds are set in Settings and take effect at once', async ({ page }) => {

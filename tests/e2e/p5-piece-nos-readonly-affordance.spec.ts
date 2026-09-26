@@ -4,7 +4,7 @@ import { emptyState, loadAppWithState, switchTab, type SepState } from './fixtur
 
 // P5 assertion: piece-mode NOS line items show a clear affordance that the rate
 // field is readonly because it's set from the client's piece-mode profile —
-// `.inv-form-input-readonly` class (italic) + `title=` tooltip + `readonly` attr.
+// `title=` tooltip + `readonly` attr, which v2.0 draws as the read-only fill (§6.15).
 //
 // Test shape per Aurelius's ratified triad idiom:
 //   1. Positive — affordance renders on piece+NOS rows
@@ -50,14 +50,13 @@ async function setupRow(page: Page, billingMode: 'piece' | 'kg', unit: 'NOS' | '
 
 test.describe('P5: piece-mode NOS readonly affordance on rate field', () => {
 
-  test('positive: piece+NOS row shows readonly + class + tooltip on rate field', async ({ page }) => {
+  test('positive: piece+NOS row shows readonly + tooltip on rate field', async ({ page }) => {
     await setupRow(page, 'piece', 'NOS');
 
     const rate = page.locator('input[data-field="rate"][data-idx="0"]');
     await expect(rate).toBeVisible();
 
-    // All three signals of the affordance must be present.
-    await expect(rate).toHaveClass(/inv-form-input-readonly/);
+    // Both signals of the affordance must be present.
     await expect(rate).toHaveAttribute('title', READONLY_TOOLTIP_FRAGMENT);
     await expect(rate).toHaveAttribute('readonly', '');
   });
@@ -69,7 +68,6 @@ test.describe('P5: piece-mode NOS readonly affordance on rate field', () => {
     await expect(rate).toBeVisible();
 
     // Affordance must NOT shadow an editable field.
-    await expect(rate).not.toHaveClass(/inv-form-input-readonly/);
     await expect(rate).not.toHaveAttribute('title', READONLY_TOOLTIP_FRAGMENT);
     await expect(rate).not.toHaveAttribute('readonly', '');
   });
@@ -80,7 +78,6 @@ test.describe('P5: piece-mode NOS readonly affordance on rate field', () => {
     const rate = page.locator('input[data-field="rate"][data-idx="0"]');
     await expect(rate).toBeVisible();
 
-    await expect(rate).not.toHaveClass(/inv-form-input-readonly/);
     await expect(rate).not.toHaveAttribute('title', READONLY_TOOLTIP_FRAGMENT);
     await expect(rate).not.toHaveAttribute('readonly', '');
   });

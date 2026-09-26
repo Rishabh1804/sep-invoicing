@@ -60,7 +60,7 @@ test('P52: delete and reissue keeps the number, the series and one clean export 
   await page.locator('#invDeleteReason').fill('Rate mismatch');
   await page.locator('[data-action="invConfirmReissue"]').click();
 
-  await expect(page.locator('.inv-reissue-note')).toContainText('SEP/TEST-00002');
+  await expect(page.locator('[data-reissue]')).toContainText('SEP/TEST-00002');
   const save = page.locator('[data-action="invSaveInvoice"]');
   await expect(save).toHaveText('Reissue 00002');
   await save.click();

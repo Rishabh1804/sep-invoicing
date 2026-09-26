@@ -243,7 +243,8 @@ their **own** paddings and heights — they read density aliases, so one attribu
 bar · `--side-w: 13.5rem (216)` desktop sidebar · `--content-max: 80rem` desktop content cap ·
 `--max-w: 32.5rem (520)` phone column (unchanged) · `--pane-w: 22rem` desktop detail pane · `--filter-w: 9rem`
 a toolbar filter's basis · `--col-sm-w: 8rem` a short ellipsized table column (`inv-col-grow-sm`) · `--scroll-max: 55vh`
-a list scrolling inside a dialog.
+a list scrolling inside a dialog · `--line-fig-w: 7rem` / `--line-unit-w: 5.5rem` the line editor's columns · `--menu-max: 17.5rem`
+a suggestion menu's height.
 
 ### 3.8 Breakpoints
 
@@ -483,12 +484,22 @@ On the phone the same content opens as a sheet (§6.16).
 - `inv-input` / `inv-select` / `inv-textarea`: `--ctl-h`, `--surface`, 1px `--border`, `--r-md`; focus
   border `--accent` + `--focus-ring`. `inv-input-num`: mono, right-aligned. Read-only: `--surface-2`.
 - `inv-fields` lays fields in a grid: 1 column phone, 2–4 desktop.
-- Line-item editor rows use `inv-input-num` in a three-up grid (pieces · kg · rate) with the rate/weight
-  verdict below as `inv-dot` + text.
+- **Line editor** — `inv-lines` holding `inv-line`s, shared by the invoice and challan forms. On the phone a line is
+  a three-up grid under "Line n" (`inv-line-num`, the remove icon button `inv-line-rm` beside it): `inv-line-part`
+  across, then qty · unit · pcs, then rate · `inv-line-amt`; figures are `inv-input-num`. On the desktop the same
+  fields sit on one row under `inv-lines-head` (column widths `--line-fig-w`, `--line-unit-w`), so the lines read as a
+  table; it is a grid rather than a `<table>` because one DOM serves both layouts and every control keeps its `data-k`.
+  Below the fields, `inv-line-notes`: the rate/weight **verdict** as `inv-verdict` (`inv-dot` + word, then the
+  working in mono), with `data-verdict` on the note and on the Rate field (a Check fills the field `--danger-bg`);
+  a question that holds the save (a ₹0 line's reason, a red flag's) is a callout holding `inv-chip`s and a note input.
+- `inv-panel-fold`: a `<details>` panel whose `inv-panel-head` is the summary (optional details). The fields stay in
+  the page while folded; the Enter-to-next-field chain steps over them.
+- `inv-keys`: a line of key hints (`inv-kbd`) above a keyboard-first form, desktop only.
 - `inv-actionbar`: sticky at the bottom of a form — total (label + `--t-stat`), secondary, primary.
 - `inv-form-*` and `_sfg()` keep working during migration as aliases (§7) and are then removed.
 Replaces `inv-form-group/label/input/select/row`, `inv-stk-label`, `inv-stk-field(s)`, `inv-stk-in`,
-`inv-td-in`, `inv-reg-range-field/label`, `inv-area-target-label`, `inv-att-block-label`.
+`inv-td-in`, `inv-reg-range-field/label`, `inv-area-target-label`, `inv-att-block-label`, and on Create `inv-line-item`/`-header`,
+`inv-rm-*`, `inv-zero-*`, `inv-pred-*`, `inv-kbd-hint`, `inv-im-form*`, `inv-selected-client`, `inv-error`.
 
 ### 6.16 Overlays — `inv-dialog`, `inv-sheet`, `inv-menu`, `inv-toast`
 - `inv-dialog` (desktop, centred, `--r-xl`, `--shadow-dialog`, max 40rem) and `inv-sheet` (phone, from the
@@ -496,7 +507,10 @@ Replaces `inv-form-group/label/input/select/row`, `inv-stk-label`, `inv-stk-fiel
   body, sticky foot with actions right-aligned (primary last). Built on `<dialog>` where it fits. Scrim
   `--scrim`. Focus stack and `document.body.style.overflow` rules unchanged.
 - Confirm dialogs for destructive actions: danger-filled primary, the consequence stated in the body.
-- `inv-menu`: dropdowns and autocompletes, `--surface`, `--border`, `--shadow-pop`, keyboard as now.
+- `inv-menu`: dropdowns and autocompletes, `--surface`, `--border`, `--shadow-pop`, keyboard as now. It hangs off its
+  field in an `inv-combo` (max `--menu-max`); options are `inv-menu-item` (`inv-menu-title`, `inv-menu-meta`), the
+  arrow-key cursor is the option's `aria-selected`, and the create-a-part row is `inv-menu-add`.
+  Replaces `inv-autocomplete-*`, `inv-ac-*`, `inv-search-results`/`-item`.
 - `inv-scroll`: a list inside a dialog scrolls within `--scroll-max` rather than pushing the dialog's buttons off screen.
 - `inv-toast`: bottom-centre, `--text-1` background with `--surface` text (it inverts with the theme),
   `--shadow-pop`, tone shown by a leading dot.
@@ -544,7 +558,7 @@ density §3.5) under Data & device, each a segmented control that applies at onc
 | Screen | Phone | Desktop |
 |---|---|---|
 | Home | stat strip (invoices, revenue, plated, ₹/kg) · quick actions (3×2 `inv-btn-grid`, first primary) · Money (`button.inv-tile` ×4 into Finance: balance, owed, pays in, runway; *Import statement* in its head) · To-do, Attendance, Unbilled, Sync and Zinc panels · recent invoices as rows | same strip ×4 · quick actions in one row · panels two across · recent invoices spanning both. *Built.* The six-month chart and contribution table move here with Stats (they are Stats' renderers). |
-| Create | fields · unbilled-challan rows with checkboxes · line editor · collapsible optional details · action bar | same, two-column fields, lines as a table |
+| Create | fields · unbilled-challan rows with checkboxes (ticking one brings its open lines in) · line editor · collapsible optional details (`inv-panel-fold`) · action bar (grand total, Clear, Create invoice) | same, two-column fields, lines as a table. *Built.* The add/edit challan form is assembled the same way, on the same line editor. |
 | IM | toolbar (filters, Duplicate check, Scan, **Add challan** — the page's one primary, replacing the floating buttons) · *Awaiting invoice* then *Invoiced*, each grouped by date with the day's value; a challan expands to its lines · selection bar | table (challan, client, date, vehicle, items, amount, status) + detail pane, as the Register. *Built.* The add/edit challan form moves with Create, whose line editor it shares. |
 | Register | toolbar (search + filter selects; `inv-token` filters to come) · rows grouped by day with subtotal · selection bar | table (invoice, client, date, challans, kg, taxable, GST, total, state) · selection bar · detail pane. *Built.* |
 | Clients / Items / Performance | tabs · toolbar · rows · a client's Money panel (owed, by age, pays in, last receipt, cheques) | tabs · table · detail pane with the Money panel |
@@ -588,7 +602,7 @@ phone and desktop.
    the Clients segment and Stats tabs → view tabs, banners → callout, overlays → dialog). Labels are
    sentence case everywhere (DR-5); the duplicated `inv-chip` is one rule; decorative tone fills are neutral.
    Step 3 moves the markup onto the v2.0 class names and deletes the v1.0 names from those selector lists.
-3. **Screens, in order:** Home *(built 26 Sep 2026)* · Register *(built 26 Sep 2026)* · IM *(built 26 Sep 2026)* · Create · Clients/Items/Performance · To-do · Stock · Staff ·
+3. **Screens, in order:** Home *(built 26 Sep 2026)* · Register *(built 26 Sep 2026)* · IM *(built 26 Sep 2026)* · Create *(built 26 Sep 2026)* · Clients/Items/Performance · To-do · Stock · Staff ·
    Stats · History · Settings. Each moves its render functions onto the components and deletes its private
    family in the same PR (DR-7). The survey's bugs are fixed where their screen moves: History's filter bar,
    Register's desktop list, the doubled Add buttons, Staff's cut-off sub-tabs, the base-colour dark-mode text,

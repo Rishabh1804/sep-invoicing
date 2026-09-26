@@ -34,8 +34,9 @@ needs one it does not define).
 | **Side track A** — challan line filled from the record, reason for a red flag | merged (#82); P63 | `state.js`, `im-form.js`, `events.js` |
 | **Phase 2** — `chartLines`, `chartStack`, `chartPieTap`, range chips, tap-to-read | merged (#83); P60 | `charts.js` |
 | **Phase 3** — the interactive Finance Overview (range, cash, where money went/came from, invoiced vs received, GST chart) | merged (#83); P59 | `finance.js` |
-| **Phase 4** — bank-paid cost by month, `notCost`, unsorted payees, precedence, recorded vs paid, Derive from the bank | built (#84); P61 | `bank.js`, `cost.js`, `settings.js` |
-| **Phase 5** — eleven finance To-do rules, days to pay, the 60-day cash forecast | built; P62 | `finintel.js` |
+| **Phase 4** — bank-paid cost by month, `notCost`, unsorted payees, precedence, recorded vs paid, Derive from the bank | merged (#84); P61 | `bank.js`, `cost.js`, `settings.js` |
+| **Phase 5** — eleven finance To-do rules, days to pay, the 60-day cash forecast | merged (#84); P62 | `finintel.js` |
+| **Phase 6** — finance linked into Home, Stats, Clients, Register, Pay, Stock and back from Payments | built; P64 | `finlinks.js` |
 
 Data already available to build on — **use these, do not re-derive**:
 
@@ -270,6 +271,24 @@ Each screen gets the finance fact that belongs to it, as a link into Finance rat
 | **Finance → Payments** | stays the one place all payments are categorised; each section links to its home screen |
 
 **Tests:** one spec per screen asserting the link exists and lands on the right place with the right figure.
+
+**As built (26 Sep 2026).** `finlinks.js`, after `finintel.js`; every figure is read from the functions Finance itself
+uses, once per task through `finCtx()`, and a screen with no statement says nothing rather than a zero.
+- **Home → Money**: four `button.inv-tile`s (balance with its date, owed with unplaced receipts, the book's days to pay, runway = the forecast's
+  lowest in 45 days or the day it crosses zero), each opening its Finance tab; *Import statement* in the panel head opens
+  the bank's file picker. It sits in the panel head rather than as a seventh quick action, which would break the 3×2 grid.
+- **Stats**: *In one line* gains a Cash row (balance, owed, the book's days to pay); contribution by client carries
+  *owes ₹X · pays in N d* under each name, a note rather than two more columns a phone cannot fit.
+- **Clients**: one *Money* panel (owed, by age, pays in, last receipt, cheque series) on the desktop detail, the phone's
+  edit sheet and Performance.
+- **Register**: the detail's *Payment* section: *Paid, exact* / *Paid, oldest first* with the date and cheque, or
+  *Open, N days*; an invoice from before the statement's first day says its payment is not read.
+- **Staff → Pay**: the wages panel (`finWagesHtml`) is drawn there as well as on Payments, one function, each linking to
+  the other.
+- **Stock**: a supplier's row on a line says what the bank paid them; the reorder list sets its cost with GST against
+  the forecast's lowest point.
+- **Finance → Payments**: Electricity links to Bills & notes, Wages to Pay, Suppliers to Stock.
+Home renders in ~100 ms on the real book (desktop); the forecast is the cost.
 
 ---
 

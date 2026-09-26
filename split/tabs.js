@@ -165,6 +165,7 @@ function renderHome() {
   renderHomeTiles(active);
 
   renderZincCard();
+  renderFinHomeCard();
   renderTodoHomeCard();
   renderAttHomeCard();
   updateStockBadge();

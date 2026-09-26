@@ -227,6 +227,7 @@ function renderClientPerformance(container) {
     container.innerHTML = html + '<div class="inv-empty-state">No clients yet</div>';
     return;
   }
+  html += finClientMoneyHtml(clientId);
 
   var monthly = cpMonthly(clientId, CP_LOOKBACK_MONTHS);
   var today = localDateStr();

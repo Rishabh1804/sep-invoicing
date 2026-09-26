@@ -82,6 +82,13 @@ function statsOverviewHtml(period, filtered, tonnage) {
     '<div class="inv-ov-tile ' + (contrib >= 0 ? 'inv-pay-green' : 'inv-area-gap-over') + '"><div class="inv-ov-l">Contribution</div><div class="inv-ov-v" id="statsContrib">' + statsSigned(contrib) + '<small>/kg</small></div><div class="inv-ov-s">' + statsSigned(gstRound(contrib * kg)) + ' on the period</div></div>' +
     '<div class="inv-ov-tile inv-area-gap-under"><div class="inv-ov-l">Capacity</div><div class="inv-ov-v">' + (capPct != null ? Math.round(capPct * 100) + '%' : '&mdash;') + '</div><div class="inv-ov-s">' + formatNum(kg / 1000, 1) + ' t of ~' + formatNum(cap / 1000, 0) + ' t (2 shifts)</div></div>' +
     '</div>';
+  if (finHasBank()) {
+    var bRows = bankRows(), bLast = bRows[bRows.length - 1], bRecv = finCtx().recv(), bBook = bankBookDaysToPay(bankPayHistory(bRecv));
+    h += '<div class="inv-stats-row" id="statsCash"><span class="inv-stats-name">Cash<span class="inv-cost-note">bank on ' + escHtml(formatDate(bLast.date)) + ' · owed to us' +
+      (bBook ? ' · clients pay in ' + Math.round(bBook.median) + ' days' : '') + '</span></span><span class="inv-stats-val">' + statsMoney(bLast.balance) + ' · ' +
+      statsMoney(gstRound(bRecv.reduce(function(s, r) { return s + Math.max(0, r.owed); }, 0))) +
+      ' <button class="inv-btn inv-btn-link inv-btn-sm" data-action="invFinGo" data-tab="overview">Finance</button></span></div>';
+  }
   var parts = c.rows.filter(function(x) { return x.source !== 'measured' && x.source !== 'bank'; }).map(function(x) { return x.label.toLowerCase() + ' (' + COST_SRC_LABEL[x.source] + ')'; });
   if (parts.length) {
     h += '<div class="inv-stats-caveat"><strong>Read with care:</strong> ' + escHtml(parts.join(', ')) + ' ' + (parts.length === 1 ? 'is' : 'are') +
@@ -149,10 +156,17 @@ function statsMarginHtml(period, filtered, tonnage) {
   if (!m) return h + '<div class="inv-stats-caveat">No weighed tonnage in this period, so no margin to work out.</div></div>';
   h += '<div class="inv-stats-note">Variable cost ' + statsMoney(m.varKg) + '/kg · fixed (monthly crew) ' + statsMoney(m.fixedKg) + '/kg · full ' + statsMoney(m.fullKg) + '/kg, ' +
     Math.round(m.c.measuredShare * 100) + '% measured.</div>';
+  // Owed and days to pay beside the margin: a client below cost that also pays in 120 days is two problems.
+  var money = {};
+  if (finHasBank()) {
+    var mh = bankPayHistory(finCtx().recv());
+    finCtx().recv().forEach(function(r) { var d = bankDaysToPay(r.client.id, mh); money[String(r.client.id)] = { owed: r.owed, days: d && d.median != null ? Math.round(d.median) : null }; });
+  }
   h += '<table class="inv-ov-table"><thead><tr><th>Client</th><th>₹/kg</th><th>t</th><th>vs var.</th><th>vs full</th><th>₹ on period</th></tr></thead><tbody>';
   m.ranked.forEach(function(x) {
     var cls = function(v) { return v >= 0 ? 'inv-ov-pos' : 'inv-ov-neg'; };
-    h += '<tr data-action="invStatsClientDrill" data-client-id="' + escHtml(x.id) + '"><td>' + escHtml(x.name) + (x.cn ? '<span class="inv-cost-note">net of ' + statsMoney(x.cn) + ' credit notes</span>' : '') + '</td>' +
+    h += '<tr data-action="invStatsClientDrill" data-client-id="' + escHtml(x.id) + '"><td>' + escHtml(x.name) + (x.cn ? '<span class="inv-cost-note">net of ' + statsMoney(x.cn) + ' credit notes</span>' : '') +
+      (money[String(x.id)] ? '<span class="inv-cost-note" data-client-owed>owes ' + statsMoney(Math.max(0, money[String(x.id)].owed)) + (money[String(x.id)].days != null ? ' · pays in ' + money[String(x.id)].days + ' d' : '') + '</span>' : '') + '</td>' +
       '<td>' + formatNum(x.net, 2) + '</td><td>' + formatNum(x.kg / 1000, 1) + '</td>' +
       '<td class="' + cls(x.vsVar) + '">' + (x.vsVar >= 0 ? '+' : '&minus;') + formatNum(Math.abs(x.vsVar), 2) + '</td>' +
       '<td class="' + cls(x.vsFull) + '">' + (x.vsFull >= 0 ? '+' : '&minus;') + formatNum(Math.abs(x.vsFull), 2) + '</td>' +

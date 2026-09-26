@@ -68,6 +68,7 @@ function _showClientOverlay(client, isAdd) {
   scrim.innerHTML = '<div class="inv-overlay-card">' +
     '<div class="inv-overlay-header"><span class="inv-overlay-title">' + (isAdd ? 'Add Client' : 'Edit Client') + '</span>' +
     '<button class="inv-overlay-close" data-action="invCloseOverlay">&times;</button></div>' +
+    (isAdd ? '' : finClientMoneyHtml(c.id)) +
     '<div class="inv-form-group"><label class="inv-form-label">Name</label><input class="inv-form-input" id="ceditName" value="' + escHtml(c.name) + '"></div>' +
     '<div class="inv-form-group"><label class="inv-form-label">GSTIN</label><input class="inv-form-input inv-mono" id="ceditGstin" value="' + escHtml(c.gstin) + '" maxlength="15"></div>' +
     '<div class="inv-form-row"><div class="inv-form-group"><label class="inv-form-label">State</label><input class="inv-form-input" id="ceditState" value="' + escHtml(c.state) + '"></div>' +
@@ -275,6 +276,8 @@ function _renderClientDetail(clientId, skipMasterRefresh) {
       '<div class="inv-detail-value">' + escHtml(c.notes) + '</div>';
   }
   html += '</div>';
+
+  html += finClientMoneyHtml(c.id);
 
   // Rate History
   var sortedRates = (c.rates || []).slice().sort(function(a, b) {

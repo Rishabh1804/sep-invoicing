@@ -750,7 +750,7 @@ function invoiceDetailHtml(inv) {
   h += '<div class="inv-row-group"><span>Totals</span></div>' + tot('Taxable value', d.taxableValue);
   if (d.gstType === 'intra') h += tot('CGST @ ' + escHtml(d.cgstPer) + '%', d.cgstAmt) + tot('SGST @ ' + escHtml(d.sgstPer) + '%', d.sgstAmt);
   else h += tot('IGST @ ' + escHtml(d.igstPer) + '%', d.igstAmt);
-  h += tot('Grand total', d.grandTotal, true) + '</div>';
+  h += tot('Grand total', d.grandTotal, true) + finInvoicePaymentHtml(inv) + '</div>';
 
   // One primary: Edit. A cancelled invoice can only be read or removed.
   var id = escHtml(inv.id);

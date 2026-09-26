@@ -148,11 +148,12 @@ function predApplyToInvoice() {
 function predHintHtml(field) {
   var p = invoiceForm && invoiceForm._pred;
   if (!p) return '';
-  if (field === 'po' && p.po) return '<div class="inv-pred-hint">Predicted: ' + escHtml(p.po.why) + '</div>';
+  if (field === 'po' && p.po) return '<div class="inv-field-hint" data-pred="po">Predicted: ' + escHtml(p.po.why) + '</div>';
   if (field === 've' && p.ve) {
     var chips = p.ve.top.concat(p.ve.top.indexOf(p.ve.last) < 0 ? [p.ve.last] : []);
-    return '<div class="inv-pred-hint">' + (p.ve.fill ? 'Usual vehicle: ' + escHtml(p.ve.share) : 'No single usual vehicle') + '</div><div class="inv-pred-chips">' +
-      chips.map(function(v) { return '<button class="inv-pred-chip" data-action="invPredVehicle" data-v="' + escHtml(v) + '">' + escHtml(v) + (v === p.ve.last ? ' · last' : '') + '</button>'; }).join('') + '</div>';
+    return '<div class="inv-field-hint" data-pred="ve">' + (p.ve.fill ? 'Usual vehicle: ' + escHtml(p.ve.share) : 'No single usual vehicle') + '</div>' +
+      '<div class="inv-toolbar inv-field-hint" role="group" aria-label="Vehicles this client uses">' +
+      chips.map(function(v) { return '<button type="button" class="inv-chip inv-id" data-action="invPredVehicle" data-v="' + escHtml(v) + '">' + escHtml(v) + (v === p.ve.last ? ' · last' : '') + '</button>'; }).join('') + '</div>';
   }
   return '';
 }

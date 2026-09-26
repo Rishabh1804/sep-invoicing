@@ -10,11 +10,11 @@ test.describe('Golden flows — smoke coverage for inv-1-2', () => {
     await expect(page.locator('#createFormArea')).toBeVisible();
     await expect(page.locator('#invClientSearch')).toBeVisible();
 
-    // P1 regression: new-invoice save-bar must say "Create Invoice", not "Save Invoice".
+    // P1 regression: new-invoice save-bar must say "Create invoice", not "Save invoice" (sentence case, DR-5).
     const saveBtn = page.locator('#invSaveBtn');
     await expect(saveBtn).toBeVisible();
-    await expect(saveBtn).toHaveText(/Create Invoice/);
-    await expect(saveBtn).not.toHaveText(/Save Invoice/);
+    await expect(saveBtn).toHaveText(/Create invoice/i);
+    await expect(saveBtn).not.toHaveText(/Save invoice/i);
   });
 
   test('invoice-send: Register lists a seeded invoice', async ({ page }) => {

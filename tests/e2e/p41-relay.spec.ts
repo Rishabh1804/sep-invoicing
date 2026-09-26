@@ -187,7 +187,7 @@ test.describe('P41: attendance rolls from WhatsApp', () => {
     await switchTab(page, 'pageHome');
     await page.locator('[data-action="invHomeQuick"][data-go="challan"]').click();
     await expect(page.locator('#pageIM.inv-page-active')).toBeVisible();
-    await expect(page.locator('.inv-im-form-active, #imFormArea .inv-form-input').first()).toBeVisible();
+    await expect(page.locator('[data-form="challan"]').first()).toBeVisible();
   });
 
   test('a stock message pasted in the same box goes to the Stock check', async ({ page }) => {

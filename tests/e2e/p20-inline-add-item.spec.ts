@@ -76,7 +76,7 @@ test('P20: a part with no match offers to be created instead of the list vanishi
   await loadAppWithState(page, itemsState([CLAMP]));
   await typeChallanPart(page, 'BRACKET 990');
 
-  const add = page.locator('.inv-ac-add');
+  const add = page.locator('.inv-menu-add');
   await expect(add).toBeVisible();
   await expect(add).toContainText('Add “BRACKET 990”');
 });
@@ -84,7 +84,7 @@ test('P20: a part with no match offers to be created instead of the list vanishi
 test('P20: creating it inline fills the line and never leaves the form', async ({ page }) => {
   await loadAppWithState(page, itemsState([CLAMP]));
   await typeChallanPart(page, 'BRACKET 990');
-  await page.locator('.inv-ac-add').click();
+  await page.locator('.inv-menu-add').click();
 
   // Prefilled from what was typed — confirming, not retyping.
   await expect(page.locator('#itemEditPN')).toHaveValue('BRACKET 990');
@@ -109,7 +109,7 @@ test('P20: creating it inline fills the line and never leaves the form', async (
 test('P20: the same affordance exists on the invoice line', async ({ page }) => {
   await loadAppWithState(page, itemsState([CLAMP]));
   await typeInvoicePart(page, 'WASHER 12');
-  await page.locator('.inv-ac-add').click();
+  await page.locator('.inv-menu-add').click();
 
   await expect(page.locator('#itemEditPN')).toHaveValue('WASHER 12');
   await page.locator('[data-action="invSaveItem"]').click();
@@ -125,8 +125,8 @@ test('P20: it is offered alongside matches, because a new gauge is a new part', 
 
   // The existing 40X6 row matches, and the same number in 35X6 is still a part
   // the registry does not have.
-  await expect(page.locator('.inv-autocomplete-item[data-part-id="1"]')).toBeVisible();
-  await expect(page.locator('.inv-ac-add')).toBeVisible();
+  await expect(page.locator('.inv-menu-item[data-part-id="1"]')).toBeVisible();
+  await expect(page.locator('.inv-menu-add')).toBeVisible();
 });
 
 test('P20: a lone real match still commits on Enter with the add row present', async ({ page }) => {
@@ -159,7 +159,7 @@ test('P20: the add row is reachable by keyboard', async ({ page }) => {
   const part = await typeChallanPart(page, 'BRACKET 990');
 
   await part.press('ArrowDown');
-  await expect(page.locator('.inv-ac-add.inv-ac-active')).toBeVisible();
+  await expect(page.locator('.inv-menu-add[aria-selected="true"]')).toBeVisible();
   await part.press('Enter');
 
   await expect(page.locator('#itemEditPN')).toHaveValue('BRACKET 990');
@@ -168,13 +168,13 @@ test('P20: the add row is reachable by keyboard', async ({ page }) => {
 test('P20: one character is not enough to offer creating a part', async ({ page }) => {
   await loadAppWithState(page, itemsState([]));
   await typeChallanPart(page, 'B');
-  await expect(page.locator('.inv-ac-add')).toHaveCount(0);
+  await expect(page.locator('.inv-menu-add')).toHaveCount(0);
 });
 
 test('P20: an abandoned inline add cannot redirect a later ordinary one', async ({ page }) => {
   await loadAppWithState(page, itemsState([CLAMP]));
   await typeChallanPart(page, 'BRACKET 990');
-  await page.locator('.inv-ac-add').click();
+  await page.locator('.inv-menu-add').click();
   // Walk away from it. (The overlay carries both an X and a Cancel; either
   // does, so name the one in the header.)
   await page.locator('.inv-overlay-close').click();
@@ -195,7 +195,7 @@ test('P20: an abandoned inline add cannot redirect a later ordinary one', async 
 test('P20: a duplicate part and gauge is refused, and the line is left alone', async ({ page }) => {
   await loadAppWithState(page, itemsState([CLAMP]));
   await typeChallanPart(page, 'CLAMP 165X83');
-  await page.locator('.inv-ac-add').click();
+  await page.locator('.inv-menu-add').click();
   await page.locator('#itemEditGauge').fill('40X6');
   await page.locator('[data-action="invSaveItem"]').click();
 

@@ -774,8 +774,7 @@ function zeroReasonTag(raw) {
   var text = raw.zeroReason ? zeroReasonLabel(raw.zeroReason) || raw.zeroReason : 'No reason recorded';
   if (raw.zeroNote) text += ' \u2014 ' + raw.zeroNote;
   if (raw.zeroReasonBackfilled) text += ' (backfilled: owner ruling ' + raw.zeroReasonBackfilled + ')';
-  return '<div class="inv-zero-tag' + (raw.zeroReason ? '' : ' inv-zero-tag-missing') + '">' +
-    '<span class="inv-zero-badge">\u20B90</span> ' + escHtml(text) + '</div>';
+  return '<div class="inv-note"><span class="inv-badge inv-badge-' + (raw.zeroReason ? 'warning' : 'danger') + '">\u20B90</span> ' + escHtml(text) + '</div>';
 }
 
 /* The matcher on a saved invoice: only what needs a second look. A matching

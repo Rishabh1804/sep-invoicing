@@ -96,7 +96,7 @@ test.describe('P48: insights, predictions and the reorder list', () => {
     await g(page, `selectClient(83)`);
     await expect(page.locator('#invPONumber')).toHaveValue('SA/0046');
     await expect(page.locator('#invTransport')).toHaveValue('JH 05AB 1234');
-    await expect(page.locator('.inv-pred-hint').first()).toContainText('next in sequence after SA/0045');
+    await expect(page.locator('[data-pred]').first()).toContainText('next in sequence after SA/0045');
     // Rising but skipping: only the prefix is offered.
     expect(await g(page, `(function(){ S.invoices.filter(function(i){ return i.clientId === 83; }).forEach(function(i, n){ i.poNumber = 'SA/0' + (100 + n * 9); }); return predPO(83); })()`)).toMatchObject({ value: 'SA/', prefixOnly: true });
   });

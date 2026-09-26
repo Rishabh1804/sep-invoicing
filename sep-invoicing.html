@@ -18,7 +18,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <!-- Appearance before first paint (§3.2): the device's theme and palette, so nothing flashes in the wrong colours. -->
 <script>(function(){try{var d=document.documentElement,t=localStorage.getItem("sep_inv_theme"),p=localStorage.getItem("sep_inv_palette");if(t==="light"||t==="dark")d.dataset.theme=t;d.dataset.palette=(p==="zinc"||p==="terracotta")?p:"teal";}catch(e){document.documentElement.dataset.palette="teal";}})();</script>
-<meta name="app-build" content="66033605">
+<meta name="app-build" content="aa0c2753">
 <style>
 /* ===== DESIGN TOKENS (design system v2.0 — docs/SEP_INVOICING_DESIGN_PRINCIPLES.md §3) ===== */
 /* Theme: colour-scheme decides every light-dark() below. <html data-theme> is set before first paint
@@ -112,7 +112,7 @@
 
   /* Layout (§3.7) */
   --bar-h: 3.25rem; --bar-h-desk: 3rem; --nav-h: 3.625rem; --side-w: 13.5rem; --content-max: 80rem; --pane-w: 22rem; --scroll-max: 55vh;
-  --filter-w: 9rem; --col-sm-w: 8rem;
+  --filter-w: 9rem; --col-sm-w: 8rem; --line-fig-w: 7rem; --line-unit-w: 5.5rem; --menu-max: 17.5rem;
   --tab-h: var(--nav-h); --header-h: var(--bar-h); --max-w: 32.5rem;
   --set-card-w: 55rem; --set-nav-w: 12.5rem;
   --section-gap: var(--sp-12); --card-padding: var(--sp-16); --card-padding-sm: var(--sp-12);
@@ -230,7 +230,6 @@ body.inv-desktop .inv-topbar-btn { display: none; }
 }
 .inv-form-input:focus { outline: none; border-color: var(--accent); box-shadow: var(--focus-ring); }
 .inv-form-input[readonly] { background: var(--surface-2); color: var(--text-2); cursor: default; }
-.inv-form-input-readonly { font-style: italic; }
 .inv-form-row { display: flex; gap: var(--sp-8); }
 .inv-form-row > * { flex: 1; min-width: 0; }
 /* Fields in a row line their boxes up along the bottom: a label that wraps to two lines takes the extra
@@ -340,18 +339,6 @@ body.inv-desktop .inv-seg-btn[aria-pressed="true"] { background: var(--surface-2
 .inv-badge-rate { background: var(--cost-bg); color: var(--cost-text); font-family: var(--ff-mono); }
 .inv-badge-inactive { background: var(--danger-bg); color: var(--danger-text); }
 
-/* ===== LINE ITEMS ===== */
-.inv-line-item {
-  background: var(--surface-2); border-radius: var(--r-md);
-  padding: var(--sp-12); margin-bottom: var(--sp-8);
-}
-.inv-line-header {
-  display: flex; align-items: center; justify-content: space-between;
-  margin-bottom: var(--sp-8);
-}
-.inv-line-num {
-  font-size: var(--fs-xs); font-weight: 600; color: var(--text-3);
-}
 .inv-line-remove {
   min-width: 44px; min-height: 44px; display: flex;
   align-items: center; justify-content: center;
@@ -390,52 +377,13 @@ body.inv-desktop .inv-seg-btn[aria-pressed="true"] { background: var(--surface-2
   position: absolute; left: var(--sp-10); top: 50%; transform: translateY(-50%);
   color: var(--text-3); pointer-events: none;
 }
-.inv-search-results {
-  position: absolute; top: 100%; left: 0; right: 0;
-  background: var(--surface); border: 1px solid var(--border);
-  border-radius: var(--r-md); max-height: 240px; overflow-y: auto;
-  box-shadow: var(--shadow-md); z-index: 10;
-}
-.inv-search-item {
-  padding: var(--sp-10) var(--sp-12); cursor: pointer;
-  border-bottom: 1px solid var(--border); min-height: 44px;
-  display: flex; align-items: center;
-}
-.inv-search-item:active { background: var(--surface-2); }
 
-/* ===== ZERO BADGE ===== */
-.inv-zero-badge {
-  display: inline-block; padding: var(--sp-2) var(--sp-6);
-  background: var(--warning-bg); color: var(--warning-text);
-  border-radius: var(--r-sm); font-size: var(--fs-2xs); font-weight: 600;
-  font-family: var(--ff-mono);
-}
 .inv-override-badge {
   display: inline-block; padding: var(--sp-2) var(--sp-6);
   background: var(--prod-bg); color: var(--prod-text);
   border-radius: var(--r-sm); font-size: var(--fs-2xs); font-weight: 600;
 }
 
-/* A ₹0 line carries its reason: three options and an optional note. */
-.inv-zero-reason {
-  margin-top: var(--sp-8); padding: var(--sp-8);
-  border: 1px solid var(--warning); border-radius: var(--r-md);
-  background: var(--warning-bg);
-}
-.inv-zero-reason-head { display: flex; align-items: center; gap: var(--sp-8); margin-bottom: var(--sp-8); }
-.inv-zero-reason-q { font-size: var(--fs-xs); font-weight: 600; color: var(--warning-text); }
-.inv-zero-reason-opts { display: flex; flex-wrap: wrap; gap: var(--sp-6); margin-bottom: var(--sp-8); }
-.inv-zero-opt {
-  min-height: 44px; padding: var(--sp-6) var(--sp-12);
-  border: 1px solid var(--border); border-radius: var(--r-full);
-  background: var(--surface); color: var(--text-2);
-  font-size: var(--fs-sm); font-weight: 600; cursor: pointer;
-}
-.inv-zero-opt-on { background: var(--warning-text); color: var(--surface); border-color: var(--warning-text); }
-.inv-zero-opt:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-.inv-zero-note { width: 100%; }
-.inv-zero-tag { margin-top: var(--sp-4); font-size: var(--fs-2xs); color: var(--text-2); }
-.inv-zero-tag-missing { color: var(--danger); }
 
 /* Piece-rate card in the client overlay */
 .inv-piece-row { align-items: center; gap: var(--sp-8); }
@@ -447,27 +395,8 @@ body.inv-desktop .inv-seg-btn[aria-pressed="true"] { background: var(--surface-2
 .inv-piece-report-warn { margin-top: var(--sp-6); color: var(--warning-text); font-weight: 600; }
 .inv-piece-report-list { margin: var(--sp-4) 0 0 0; padding-left: var(--sp-16); }
 
-/* Rate matcher: the verdict on a line's rate, under the Rate field */
-.inv-rm-note { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-6); margin-top: var(--sp-6); }
-.inv-rm-text { font-size: var(--fs-xs); color: var(--text-2); font-family: var(--ff-mono); }
-.inv-rm-chip {
-  display: inline-flex; align-items: center; padding: var(--sp-2) var(--sp-8);
-  border-radius: var(--r-full); border: 1px solid transparent;
-  font-size: var(--fs-xs); font-weight: 600; white-space: nowrap;
-}
-.inv-rm-match { background: var(--attend-bg); color: var(--attend-text); border-color: var(--attend); }
-.inv-rm-decimal { background: var(--warning-bg); color: var(--warning-text); border-color: var(--warning); }
-.inv-rm-differs { background: var(--neutral-bg); color: var(--neutral-text); border-color: var(--neutral); }
-.inv-rm-check { background: var(--danger-bg); color: var(--danger-text); border-color: var(--danger); }
-.inv-rm-none, .inv-rm-gauge { background: transparent; color: var(--text-3); border-color: var(--border-2); font-weight: 500; }
-.inv-form-input.inv-rm-input-match { border-color: var(--attend); }
-.inv-form-input.inv-rm-input-decimal { border-color: var(--warning); background: var(--warning-bg); }
-.inv-form-input.inv-rm-input-differs { border-color: var(--neutral); }
-.inv-form-input.inv-rm-input-check { border-color: var(--danger); background: var(--danger-bg); }
 
 /* ===== VALIDATION ===== */
-.inv-error { color: var(--danger); font-size: var(--fs-xs); margin-top: var(--sp-4); }
-.inv-form-input-error { border-color: var(--danger); }
 
 /* ===== TOAST ===== */
 .inv-toast {
@@ -966,14 +895,6 @@ table.inv-qc-grid.inv-qc-no-top { border-top: 0; }
   padding: var(--sp-4) var(--sp-6); margin-top: var(--sp-4); line-height: 1.4;
 }
 
-/* ===== IM ADD CHALLAN FORM ===== */
-.inv-im-form { display: none; }
-.inv-im-form-active { display: block; }
-.inv-im-form-header {
-  display: flex; align-items: center; justify-content: space-between;
-  margin-bottom: var(--sp-16);
-}
-.inv-im-form-title { font-size: var(--fs-lg); font-weight: 700; color: var(--text-1); }
 
 /* ===== SCAN CHALLAN ===== */
 .inv-scan-processing {
@@ -1548,10 +1469,7 @@ button.inv-chart-legend-row { width: 100%; background: none; border: none; font:
 .inv-client-badges { display: flex; gap: var(--sp-4); margin-top: var(--sp-4); flex-wrap: wrap; }
 .inv-client-content { flex: 1; min-width: 0; }
 .inv-checkbox-label { display: flex; align-items: center; gap: var(--sp-8); min-height: 44px; cursor: pointer; }
-.inv-selected-client { padding: var(--sp-8); background: var(--surface-2); border-radius: var(--r-md); }
 .inv-search-no-mb { margin-bottom: 0; }
-.inv-errors-wrap { margin-top: var(--sp-12); }
-.inv-save-bar { margin-top: var(--sp-16); }
 .inv-prefix-preview { font-size: var(--fs-xs); margin-bottom: var(--sp-8); }
 .inv-storage-wrap { margin-top: var(--sp-8); }
 .inv-storage-text { font-size: var(--fs-xs); }
@@ -1684,64 +1602,7 @@ button.inv-chart-legend-row { width: 100%; background: none; border: none; font:
 }
 .inv-im-sel-btn:active { opacity: 0.8; }
 
-/* ===== PART AUTOCOMPLETE ===== */
-.inv-autocomplete-wrap { position: relative; }
-.inv-autocomplete-list {
-  position: absolute; top: 100%; left: 0; right: 0;
-  background: var(--surface); border: 1px solid var(--border);
-  border-radius: var(--r-md); max-height: 280px; overflow-y: auto;
-  box-shadow: var(--shadow-md); z-index: 20;
-}
-.inv-autocomplete-item {
-  padding: var(--sp-10) var(--sp-12); cursor: pointer;
-  border-bottom: 1px solid var(--border); min-height: 44px;
-  display: flex; flex-direction: column; gap: var(--sp-2);
-}
-.inv-autocomplete-item:last-child { border-bottom: none; }
-.inv-autocomplete-item:active { background: var(--surface-2); }
-.inv-autocomplete-part {
-  font-family: var(--ff-mono); font-size: var(--fs-xs);
-  color: var(--text-2); font-weight: 500;
-}
-.inv-autocomplete-desc {
-  font-size: var(--fs-sm); color: var(--text-1);
-  word-break: break-word;
-}
-/* The create-a-part row. Tinted and ruled off so it reads as an action rather
-   than as one more suggestion to pick from — it is always last, and choosing it
-   opens a form instead of filling the line. */
-.inv-ac-add {
-  flex-direction: row; align-items: center; gap: var(--sp-8);
-  background: var(--surface-2); border-top: 1px solid var(--border);
-  color: var(--accent);
-}
-.inv-ac-add .inv-autocomplete-part { color: var(--accent); font-family: var(--ff-base); font-weight: 600; }
-.inv-ac-add .inv-autocomplete-desc { font-size: var(--fs-xs); color: var(--text-3); }
-.inv-ac-add-icon { flex: 0 0 auto; }
 
-/* ===== SUGGESTION KEYBOARD CURSOR =====
-   The row the arrow keys have landed on. Carries a left rule as well as a
-   tint so the position is readable without relying on colour alone. */
-.inv-ac-active {
-  background: var(--surface-2);
-  box-shadow: inset var(--sp-4) 0 0 var(--accent);
-}
-
-/* ===== KEYBOARD HINT STRIP ===== */
-.inv-kbd-hint {
-  display: flex; flex-wrap: wrap; gap: var(--sp-4) var(--sp-12);
-  padding: var(--sp-8) var(--sp-12); margin-bottom: var(--sp-12);
-  background: var(--surface-2); border: 1px solid var(--border);
-  border-radius: var(--r-md);
-  font-size: var(--fs-xs); color: var(--text-3);
-}
-.inv-kbd-hint-item { display: inline-flex; align-items: center; gap: var(--sp-4); }
-.inv-kbd {
-  font-family: var(--ff-mono); font-size: var(--fs-2xs);
-  padding: var(--sp-2) var(--sp-4);
-  background: var(--surface); border: 1px solid var(--border-2);
-  border-radius: var(--r-sm); color: var(--text-2);
-}
 
 /* Keyboard focus: one ring for every control, declared with the tokens (§3.6). */
 
@@ -2345,9 +2206,6 @@ body.inv-desktop #itemsSelBar {
 .inv-pay-chart { margin: var(--sp-8) 0; }
 .inv-stk-rprice { min-width: calc(var(--sp-32) * 2.5); text-align: right; font-family: var(--ff-mono); font-size: var(--fs-sm); color: var(--text-2); }
 .inv-stk-reorder .inv-stk-mname span { display: block; font-size: var(--fs-2xs); font-weight: 400; color: var(--text-3); }
-.inv-pred-hint { font-size: var(--fs-2xs); color: var(--prod-text); margin-top: var(--sp-4); }
-.inv-pred-chips { display: flex; flex-wrap: wrap; gap: var(--sp-4); margin-top: var(--sp-4); }
-.inv-pred-chip { font: inherit; font-size: var(--fs-xs); font-family: var(--ff-mono); border: 1px solid var(--border); border-radius: var(--r-md); padding: var(--sp-4) var(--sp-8); background: var(--prod-bg); color: var(--prod-text); cursor: pointer; min-height: 32px; }
 .inv-stats-tabs { display: flex; gap: var(--sp-4); overflow-x: auto; margin-bottom: var(--sp-8); border-bottom: 1px solid var(--border); }
 .inv-stats-tab { flex: 0 0 auto; min-height: 44px; padding: 0 var(--sp-12); background: none; border: none; border-bottom: 2px solid transparent; font: inherit; font-weight: 600; color: var(--text-2); cursor: pointer; }
 .inv-stats-tab-on { color: var(--accent); border-bottom-color: var(--accent); }
@@ -3032,10 +2890,6 @@ body.inv-desktop .inv-set-group-on { display: block; }
 
 /* Reissuing an invoice under the number it replaces. */
 .inv-reissue-offer { margin-top: var(--sp-12); padding-top: var(--sp-12); border-top: 1px solid var(--border); }
-.inv-reissue-note {
-  margin-bottom: var(--sp-12); padding: var(--sp-8) var(--sp-12); border-radius: var(--r-md);
-  background: var(--warning-bg); color: var(--warning-text); font-size: var(--fs-sm);
-}
 
 /* ======================================================================
    COMPONENTS v2.0 (docs/SEP_INVOICING_DESIGN_PRINCIPLES.md §6)
@@ -3364,12 +3218,87 @@ body.inv-desktop .inv-actionbar { bottom: 0; }
 .inv-actionbar-label { font-size: var(--fs-12); color: var(--text-3); }
 .inv-actionbar-value { font-family: var(--ff-mono); font-size: var(--fs-18); font-weight: 600; }
 
+/* §6.15 The line editor, shared by the invoice and challan forms. On the phone a line is a grid of
+   fields under "Line n" (part across, then qty · unit · pcs, then rate · amount); on the desktop the
+   same fields sit in one row under a column head, so the lines read as a table. One DOM for both. */
+.inv-lines-head { display: none; }
+.inv-line {
+  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--sp-8); align-items: end;
+  padding: var(--sp-12) var(--pad-x); border-bottom: 1px solid var(--border);
+}
+.inv-line .inv-field { margin-bottom: 0; min-width: 0; }
+.inv-line-num { grid-column: 1 / 3; align-self: center; font-size: var(--fs-12); font-weight: 500; color: var(--text-3); }
+.inv-line-num::before { content: 'Line '; }
+.inv-line-rm { grid-row: 1; grid-column: 3; justify-self: end; align-self: center; color: var(--text-3); }
+.inv-line-rm:hover { color: var(--danger); }
+.inv-line-part, .inv-line-notes { grid-column: 1 / -1; }
+.inv-line-amt { grid-column: span 2; }
+.inv-line-notes { display: flex; flex-direction: column; gap: var(--sp-6); }
+.inv-line-notes > :empty { display: none; }
+.inv-line-notes:not(:has(> :not(:empty))) { display: none; }
+body.inv-desktop :is(.inv-lines-head, .inv-line) {
+  grid-template-columns: var(--sp-24) minmax(0, 1fr) var(--line-fig-w) var(--line-unit-w) var(--line-fig-w) var(--line-fig-w) var(--line-fig-w) var(--ctl-h);
+  gap: var(--sp-8); align-items: center;
+}
+body.inv-desktop .inv-lines-head {
+  display: grid; min-height: var(--row-h); padding: 0 var(--pad-x); background: var(--bg); border-bottom: 1px solid var(--border);
+  font-size: var(--fs-12); font-weight: 500; color: var(--text-3);
+}
+body.inv-desktop .inv-line { padding-top: var(--sp-6); padding-bottom: var(--sp-6); }
+body.inv-desktop :is(.inv-line-num, .inv-line-rm, .inv-line-part, .inv-line-amt) { grid-column: auto; grid-row: auto; }
+body.inv-desktop .inv-line-num { font-family: var(--ff-mono); }
+body.inv-desktop .inv-line-num::before { content: none; }
+body.inv-desktop .inv-line-notes { grid-column: 2 / -1; }
+body.inv-desktop .inv-line .inv-field-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+/* A line's verdict (rate, weight): the dot and its word, then the working in mono. The field it
+   judges carries the verdict too, so a Check reads on the Rate box itself. */
+.inv-verdict { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--sp-4) var(--sp-8); }
+.inv-verdict-text { font-family: var(--ff-mono); font-size: var(--fs-12); color: var(--text-2); }
+.inv-input[data-verdict="check"] { border-color: var(--danger); background-color: var(--danger-bg); }
+.inv-input[data-verdict="decimal"] { border-color: var(--warning); background-color: var(--warning-bg); }
+.inv-input[data-verdict="match"] { border-color: var(--ok); }
+/* A question asked in a callout (a ₹0 line's reason, a red flag's): its chips, then its note. */
+.inv-callout .inv-toolbar { margin: var(--sp-8) 0; }
+/* Errors that hold a form's Save, above its action bar. */
+#invErrorsArea:not(:empty) { margin-bottom: var(--sp-8); }
+/* Key hints for a keyboard-first form. Desktop only: a phone has no keys to hint at. */
+.inv-keys { display: none; }
+body.inv-desktop .inv-keys { display: flex; flex-wrap: wrap; gap: var(--sp-4) var(--sp-16); margin: 0 0 var(--sp-12); font-size: var(--fs-12); color: var(--text-3); }
+.inv-kbd {
+  display: inline-block; min-width: var(--sp-20); padding: 0 var(--sp-4); margin-right: var(--sp-2); text-align: center;
+  font-family: var(--ff-mono); font-size: var(--fs-11); color: var(--text-2);
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-sm);
+}
+/* A panel that folds (Optional details): the head is the summary; closed, only the head shows. */
+.inv-panel-fold > summary.inv-panel-head { list-style: none; cursor: pointer; position: relative; padding-right: calc(var(--pad-x) + var(--sp-16)); }
+.inv-panel-fold > summary::-webkit-details-marker { display: none; }
+.inv-panel-fold > summary::after { content: ''; position: absolute; right: var(--pad-x); top: 50%; width: var(--sp-6); height: var(--sp-6);
+  border-right: 2px solid var(--text-3); border-bottom: 2px solid var(--text-3); transform: translateY(-75%) rotate(45deg); transition: transform var(--dur-1); }
+.inv-panel-fold[open] > summary::after { transform: translateY(-25%) rotate(225deg); }
+.inv-panel-fold:not([open]) > summary { border-bottom: none; }
+.inv-panel-flush > .inv-panel-body:last-child { border-bottom: none; }
+.inv-panel-head .inv-panel-count { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
 /* §6.16 Overlays. v1.0 inv-overlay-* is the dialog (desktop) and the sheet (phone). */
 .inv-overlay-scrim, .inv-more-scrim { background: var(--scrim); }
 .inv-overlay-card, .inv-dialog, .inv-sheet { background: var(--surface); border: 1px solid var(--border); box-shadow: var(--shadow-dialog); }
 .inv-overlay-header, .inv-dialog-head { border-bottom: 1px solid var(--border); }
 .inv-overlay-title, .inv-dialog-title, .inv-td-otitle { font-family: var(--ff-base); font-size: var(--fs-16); font-weight: 600; letter-spacing: 0; }
-.inv-menu, .inv-autocomplete-list, .inv-search-results { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-md); box-shadow: var(--shadow-pop); }
+.inv-menu { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-md); box-shadow: var(--shadow-pop); }
+/* A menu hangs off its field (inv-combo): suggestions for a part or a client, arrowed through by
+   the keyboard. The cursor is the option's aria-selected; the create-a-part row reads as an action. */
+.inv-combo { position: relative; }
+.inv-combo > .inv-menu { position: absolute; top: 100%; left: 0; right: 0; z-index: var(--z-dropdown); margin-top: var(--sp-2); max-height: var(--menu-max); overflow-y: auto; }
+.inv-menu-item {
+  display: flex; flex-direction: column; justify-content: center; gap: var(--sp-2); min-height: var(--touch);
+  padding: var(--sp-6) var(--sp-12); border-bottom: 1px solid var(--border); cursor: pointer;
+}
+.inv-menu-item:last-child { border-bottom: none; }
+.inv-menu-item:hover { background: var(--surface-2); }
+.inv-menu-item[aria-selected="true"] { background: var(--accent-soft); box-shadow: inset var(--sp-2) 0 0 var(--accent); }
+.inv-menu-title { font-size: var(--fs-14); font-weight: 500; color: var(--text-1); overflow-wrap: anywhere; }
+.inv-menu-meta { font-size: var(--fs-12); color: var(--text-3); overflow-wrap: anywhere; }
+.inv-menu-add .inv-menu-title { color: var(--accent); font-weight: 600; }
 .inv-toast { background: var(--text-1); color: var(--surface); border: none; border-radius: var(--r-lg); box-shadow: var(--shadow-pop); font-size: var(--fs-14); }
 .inv-toast-success, .inv-toast-error, .inv-toast-warning { background: var(--text-1); color: var(--surface); border: none; }
 .inv-toast-success::before, .inv-toast-error::before, .inv-toast-warning::before {
@@ -3380,13 +3309,13 @@ body.inv-desktop .inv-actionbar { bottom: 0; }
 .inv-toast-warning::before { background: var(--warning); }
 
 /* §6.18 Callouts, notes, empty states */
-.inv-callout, .inv-stats-caveat, .inv-stats-alert, .inv-stk-banner, .inv-confirm-warn, .inv-reissue-note, .inv-merge-warn {
+.inv-callout, .inv-stats-caveat, .inv-stats-alert, .inv-stk-banner, .inv-confirm-warn, .inv-merge-warn {
   display: block; padding: var(--sp-10) var(--sp-12); border: none; border-radius: var(--r-lg);
   font-size: var(--fs-13); line-height: 1.5;
 }
 .inv-callout, .inv-callout-neutral, .inv-stats-caveat { background: var(--surface-2); color: var(--text-2); }
 .inv-callout-info { background: var(--info-bg); color: var(--info); }
-.inv-callout-warning, .inv-stk-banner, .inv-confirm-warn, .inv-reissue-note, .inv-merge-warn { background: var(--warning-bg); color: var(--warning); }
+.inv-callout-warning, .inv-stk-banner, .inv-confirm-warn, .inv-merge-warn { background: var(--warning-bg); color: var(--warning); }
 .inv-callout-danger, .inv-stats-alert, .inv-stk-banner-red { background: var(--danger-bg); color: var(--danger); }
 .inv-note { font-size: var(--fs-12); color: var(--text-3); line-height: 1.5; }
 .inv-empty, .inv-empty-state, .inv-stk-empty, .inv-td-empty, .inv-chart-empty {
@@ -7334,122 +7263,147 @@ function initCreateForm() {
   renderCreateForm();
 }
 
+/* ===== THE LINE EDITOR (design principles §6.15) =====
+   Shared by the invoice form and the challan form. On the phone a line is a
+   small grid of fields under "Line n"; on the desktop the same fields line up
+   as one row under a column head (inv-lines-head). One DOM for both layouts,
+   so every control keeps its place, its data-k and its focus across a switch. */
+var LINE_X_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>';
+
+function lineField(label, control, forId, cls) {
+  return '<div class="inv-field' + (cls ? ' ' + cls : '') + '"><label class="inv-field-label"' +
+    (forId ? ' for="' + forId + '"' : '') + '>' + label + '</label>' + control + '</div>';
+}
+
+function linesHeadHtml(qtyLabel) {
+  return '<div class="inv-lines-head" aria-hidden="true"><span>#</span><span>Part</span>' +
+    '<span class="inv-num">' + qtyLabel + '</span><span>Unit</span><span class="inv-num">Pcs</span>' +
+    '<span class="inv-num">Rate</span><span class="inv-num">Amount</span><span></span></div>';
+}
+
+/* The client picker both forms open on: a search field with its suggestion menu. */
+function clientSearchHtml(inputId, resultsId, dataK) {
+  return '<div class="inv-field"><label class="inv-field-label" for="' + inputId + '">Client</label>' +
+    '<div class="inv-combo"><div class="inv-search">' +
+    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg>' +
+    '<input type="text" id="' + inputId + '"' + (dataK ? ' data-k="' + dataK + '"' : '') + ' placeholder="Search client" autocomplete="off"' +
+    ' role="combobox" aria-expanded="false" aria-autocomplete="list" aria-controls="' + resultsId + '"></div>' +
+    '<div id="' + resultsId + '" class="inv-menu inv-hidden" role="listbox"></div></div></div>';
+}
+
+function clientMenuHtml(matches, action, idPrefix) {
+  return matches.map(function(c, i) {
+    return '<div class="inv-menu-item" role="option" id="' + idPrefix + i + '" data-action="' + action + '" data-id="' + c.id + '">' +
+      '<span class="inv-menu-title">' + escHtml(c.name) + '</span>' +
+      (c.gstin ? '<span class="inv-menu-meta inv-id">' + escHtml(c.gstin) + '</span>' : '') + '</div>';
+  }).join('');
+}
+
+/* The chosen client, as a row with its Change button. */
+function chosenClientHtml(client, meta, changeAction, dataK) {
+  return '<div class="inv-row inv-row-2" data-chosen-client><div class="inv-row-main">' +
+    '<div class="inv-row-title">' + escHtml(client.name) + '</div>' +
+    '<div class="inv-row-meta inv-id">' + escHtml(meta) + '</div></div>' +
+    '<div class="inv-row-end"><button type="button" class="inv-btn inv-btn-secondary inv-btn-sm"' + (dataK ? ' data-k="' + dataK + '"' : '') +
+    ' data-action="' + changeAction + '">Change</button></div></div>';
+}
+
 function renderCreateForm() {
   const client = invoiceForm.clientId ? S.clients.find(c => c.id === invoiceForm.clientId) : null;
   const area = document.getElementById('createFormArea');
+  const editing = invoiceForm.editingId ? S.invoices.find(i => i.id === invoiceForm.editingId) : null;
+  const number = editing ? editing.displayNumber : invoiceForm.reissue ? invoiceForm.reissue.displayNumber
+    : (S.invPrefix || '') + String(S.invNextNum).padStart(5, '0');
+  const unbilled = client && !invoiceForm.editingId && !invoiceForm.reissue ? createUnbilledHtml(client) : '';
 
-  let html = '<div class="inv-card"><div class="inv-card-header"><span class="inv-card-title">Invoice Details</span></div>';
+  let html = '<div data-form="invoice"><div class="inv-panels">';
+
+  // Invoice: who and when. Takes the whole row until the client's unbilled challans sit beside it.
+  html += '<div class="inv-panel inv-panel-flush' + (unbilled ? '' : ' inv-panels-wide') + '">' +
+    '<div class="inv-panel-head"><span class="inv-panel-title">' + (editing ? 'Edit invoice' : invoiceForm.reissue ? 'Reissue invoice' : 'New invoice') + '</span>' +
+    '<span class="inv-panel-count">' + escHtml(number) + '</span></div>';
   if (invoiceForm.reissue) {
-    html += '<div class="inv-reissue-note">Reissuing <strong class="inv-mono">' + escHtml(invoiceForm.reissue.displayNumber) +
-      '</strong>: this invoice takes the number back. Withdraw the customer&rsquo;s copy of the old one.</div>';
+    html += '<div class="inv-panel-body"><div class="inv-callout inv-callout-warning" data-reissue>Reissuing <strong class="inv-id">' + escHtml(invoiceForm.reissue.displayNumber) +
+      '</strong>: this invoice takes the number back. Withdraw the customer&rsquo;s copy of the old one.</div></div>';
   }
+  if (client) html += chosenClientHtml(client, (client.gstin || 'No GSTIN') + ' · ' + client.billingMode, 'invClearClient');
+  html += '<div class="inv-panel-body"><div class="inv-fields">' +
+    (client ? '' : clientSearchHtml('invClientSearch', 'invClientResults')) +
+    '<div class="inv-field"><label class="inv-field-label" for="invDate">Invoice date</label>' +
+    '<input type="date" class="inv-input inv-id" id="invDate" value="' + escHtml(invoiceForm.date) + '"></div></div></div></div>';
 
-  // Client selector
-  html += '<div class="inv-form-group"><label class="inv-form-label">Client</label>';
-  if (client) {
-    html += '<div class="inv-flex-between inv-selected-client">' +
-      '<div><div class="inv-client-name">' + escHtml(client.name) + '</div>' +
-      '<div class="inv-client-meta">' + escHtml(client.gstin || 'No GSTIN') + ' &middot; ' + escHtml(client.billingMode) + '</div></div>' +
-      '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invClearClient">Change</button></div>';
-  } else {
-    html += '<div class="inv-search-wrap inv-search-no-mb">' +
-      '<svg class="inv-search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>' +
-      '<input type="text" class="inv-search-input" id="invClientSearch" placeholder="Search client" autocomplete="off"' +
-      ' role="combobox" aria-expanded="false" aria-autocomplete="list" aria-controls="invClientResults">' +
-      '<div id="invClientResults" class="inv-search-results inv-hidden" role="listbox"></div></div>';
-  }
-  html += '</div>';
+  html += unbilled;
 
-  // Date
-  html += '<div class="inv-form-group"><label class="inv-form-label">Invoice Date</label>' +
-    '<input type="date" class="inv-form-input inv-mono" id="invDate" value="' + escHtml(invoiceForm.date) + '"></div></div>';
-
-  // Line items
-  html += '<div class="inv-card"><div class="inv-card-header"><span class="inv-card-title">Line Items</span></div>';
+  // Lines
+  html += '<div class="inv-panel inv-panel-flush inv-panels-wide"><div class="inv-panel-head"><span class="inv-panel-title">Lines</span>' +
+    '<span class="inv-panel-count">' + invoiceForm.items.length + '</span></div><div class="inv-lines">' +
+    (invoiceForm.items.length ? linesHeadHtml('Qty') : '');
   invoiceForm.items.forEach((item, idx) => {
     const isPieceNOS = client && client.billingMode==='piece' && item.unit==='NOS';
-    const rateDisplay = (item.rate != null && !isNaN(item.rate) && item.rate !== 0) ? formatNum(item.rate) : (item.qty > 0 && isPieceNOS ? '\u2014' : (item.rate === 0 && item.qty > 0 ? '0.00' : ''));
+    const rateDisplay = (item.rate != null && !isNaN(item.rate) && item.rate !== 0) ? formatNum(item.rate) : (item.qty > 0 && isPieceNOS ? '—' : (item.rate === 0 && item.qty > 0 ? '0.00' : ''));
     const amtDisplay = (item.amount != null && !isNaN(item.amount) && item.amount !== 0) ? formatNum(item.amount) : (item.amount === 0 && item.qty > 0 ? '0.00' : '');
     const rm = client ? rateMatch(client, invoiceForm.date, item) : null;
-    html += '<div class="inv-line-item">' +
-      '<div class="inv-line-header"><span class="inv-line-num">Item ' + (idx + 1) + '</span>' +
-      '<button class="inv-line-remove" data-action="invRemoveLineItem" data-idx="' + idx + '">&times;</button></div>' +
-      '<div class="inv-form-group"><label class="inv-form-label">Part / Description</label>' +
-      '<div class="inv-autocomplete-wrap">' +
-      '<input class="inv-form-input" value="' + escHtml(item.desc || item.partNumber) + '" data-action="invEditLinePart" data-idx="' + idx + '" placeholder="Part name or number" autocomplete="off"' +
-      ' role="combobox" aria-expanded="false" aria-autocomplete="list" aria-controls="invPartAC' + idx + '">' +
-      '<div class="inv-autocomplete-list inv-hidden" id="invPartAC' + idx + '" role="listbox"></div></div></div>' +
-      '<div class="inv-form-row">' +
-      '<div class="inv-form-group"><label class="inv-form-label">Qty</label>' +
-      '<input type="number" class="inv-form-input inv-mono" value="' + (item.qty||'') + '" data-field="qty" data-idx="' + idx + '" data-action="invUpdateLine" step="any" min="0"></div>' +
-      '<div class="inv-form-group"><label class="inv-form-label">Unit</label>' +
-      '<select class="inv-form-select" data-field="unit" data-idx="' + idx + '" data-action="invUpdateLine">' +
-      '<option value="KG"' + (item.unit==='KG'?' selected':'') + '>KG</option>' +
-      '<option value="NOS"' + (item.unit==='NOS'?' selected':'') + '>NOS</option></select></div>' +
-      (item.unit === 'KG' ? '<div class="inv-form-group"><label class="inv-form-label">Pcs</label>' +
-        '<input type="number" class="inv-form-input inv-mono" value="' + (item.nosQty || '') + '" data-field="nosQty" data-idx="' + idx + '" data-action="invUpdateLine" step="1" min="0" placeholder="Pieces"></div>' : '') +
-      '</div>' +
-      '<div class="inv-form-row">' +
-      '<div class="inv-form-group"><label class="inv-form-label">Rate</label>' +
-      '<input type="number" class="inv-form-input inv-mono' + (client && client.billingMode==='piece' && item.unit==='NOS' ? ' inv-form-input-readonly' : '') + rateMatchInputClass(rm) + '" value="' + rateDisplay + '" data-field="rate" data-idx="' + idx + '" data-action="invUpdateLine" step="any" min="0"' +
-      (client && client.billingMode==='piece' && item.unit==='NOS' ? ' readonly title="Rate is set from this client&#39;s piece-mode profile"' : '') + '></div>' +
-      '<div class="inv-form-group"><label class="inv-form-label">Amount</label>' +
-      '<input type="number" class="inv-form-input inv-mono" value="' + amtDisplay + '" data-field="amount" data-idx="' + idx + '" data-action="invUpdateLine" step="any" min="0"' +
-      (client && client.billingMode==='piece' && item.unit==='NOS' ? '' : ' readonly') + '></div></div>' +
-      (item._override ? '<span class="inv-override-badge">' + escHtml(item._label || 'Override') + '</span> ' : '') +
+    html += '<div class="inv-line"><span class="inv-line-num">' + (idx + 1) + '</span>' +
+      lineField('Part', '<div class="inv-combo">' +
+        '<input class="inv-input" value="' + escHtml(item.desc || item.partNumber) + '" data-action="invEditLinePart" data-idx="' + idx + '" placeholder="Part name or number" autocomplete="off"' +
+        ' role="combobox" aria-expanded="false" aria-autocomplete="list" aria-controls="invPartAC' + idx + '">' +
+        '<div class="inv-menu inv-hidden" id="invPartAC' + idx + '" role="listbox"></div></div>', null, 'inv-line-part') +
+      lineField('Qty', '<input type="number" class="inv-input inv-input-num" value="' + (item.qty||'') + '" data-field="qty" data-idx="' + idx + '" data-action="invUpdateLine" step="any" min="0">') +
+      lineField('Unit', '<select class="inv-select" data-field="unit" data-idx="' + idx + '" data-action="invUpdateLine">' +
+        '<option value="KG"' + (item.unit==='KG'?' selected':'') + '>KG</option>' +
+        '<option value="NOS"' + (item.unit==='NOS'?' selected':'') + '>NOS</option></select>') +
+      (item.unit === 'KG'
+        ? lineField('Pcs', '<input type="number" class="inv-input inv-input-num" value="' + (item.nosQty || '') + '" data-field="nosQty" data-idx="' + idx + '" data-action="invUpdateLine" step="1" min="0" placeholder="Pieces">')
+        : '<div class="inv-field" aria-hidden="true"></div>') +
+      lineField('Rate', '<input type="number" class="inv-input inv-input-num" value="' + rateDisplay + '" data-field="rate" data-idx="' + idx + '" data-action="invUpdateLine" step="any" min="0"' +
+        rateMatchInputAttr(rm) + (isPieceNOS ? ' readonly title="Rate is set from this client&#39;s piece-mode profile"' : '') + '>') +
+      lineField('Amount', '<input type="number" class="inv-input inv-input-num" value="' + amtDisplay + '" data-field="amount" data-idx="' + idx + '" data-action="invUpdateLine" step="any" min="0"' +
+        (isPieceNOS ? '' : ' readonly') + '>', null, 'inv-line-amt') +
+      '<button type="button" class="inv-btn inv-btn-ghost inv-btn-icon inv-line-rm" data-action="invRemoveLineItem" data-idx="' + idx + '" aria-label="Remove line ' + (idx + 1) + '">' + LINE_X_ICON + '</button>' +
+      '<div class="inv-line-notes">' +
+      (item._override ? '<div><span class="inv-badge inv-badge-info">' + escHtml(item._label || 'Override') + '</span></div>' : '') +
       '<div id="invRateMatch' + idx + '">' + rateMatchNote(rm) + '</div>' +
       '<div id="invWeightMatch' + idx + '">' + (client ? weightMatchNote(weightMatch(client, invoiceForm.date, item)) : '') + '</div>' +
       '<div id="invZeroReason' + idx + '">' + zeroReasonHtml(item, idx) + '</div>' +
-      '</div>';
+      '</div></div>';
   });
-  html += '<button class="inv-btn inv-btn-ghost inv-btn-block" data-action="invAddLineItem">+ Add Line Item</button></div>';
+  html += '</div><div class="inv-panel-body"><button type="button" class="inv-btn inv-btn-secondary inv-btn-block" data-action="invAddLineItem">Add line</button></div></div>';
 
-  // Optional fields
-  html += '<div class="inv-card"><div class="inv-card-header"><span class="inv-card-title">Optional Details</span></div>' +
-    '<div class="inv-form-row"><div class="inv-form-group"><label class="inv-form-label">Challan No</label><input class="inv-form-input" id="invChallanNo" value="' + escHtml(invoiceForm.challanNo) + '"></div>' +
-    '<div class="inv-form-group"><label class="inv-form-label">Challan Date</label><input type="date" class="inv-form-input inv-mono" id="invChallanDate" value="' + escHtml(invoiceForm.challanDate) + '"></div></div>' +
-    '<div class="inv-form-row"><div class="inv-form-group"><label class="inv-form-label">PO No</label><input class="inv-form-input" id="invPONumber" value="' + escHtml(invoiceForm.poNumber) + '">' + predHintHtml('po') + '</div>' +
-    '<div class="inv-form-group"><label class="inv-form-label">PO Date</label><input type="date" class="inv-form-input inv-mono" id="invPODate" value="' + escHtml(invoiceForm.poDate) + '"></div></div>' +
-    '<div class="inv-form-row"><div class="inv-form-group"><label class="inv-form-label">Vehicle No</label><input class="inv-form-input" id="invTransport" value="' + escHtml(invoiceForm.transport) + '" placeholder="JH 05XX 0000" list="invVehicleList" autocomplete="off">' +
+  // Optional details: folded until something is in them. The fields stay in the
+  // page while folded, so every capture by id still reads them.
+  const optSummary = [invoiceForm.challanNo && 'Challan ' + invoiceForm.challanNo, invoiceForm.poNumber && 'PO ' + invoiceForm.poNumber,
+    invoiceForm.transport].filter(Boolean).join(' · ');
+  const optOpen = invoiceForm._optOpen != null ? invoiceForm._optOpen : !!(optSummary || invoiceForm.remarks || (invoiceForm._pred && (invoiceForm._pred.po || invoiceForm._pred.ve)));
+  html += '<details class="inv-panel inv-panel-flush inv-panel-fold" id="invOptional"' + (optOpen ? ' open' : '') + '>' +
+    '<summary class="inv-panel-head"><span class="inv-panel-title">Optional details</span>' +
+    '<span class="inv-panel-count">' + escHtml(optSummary) + '</span></summary>' +
+    '<div class="inv-panel-body"><div class="inv-fields">' +
+    '<div class="inv-field"><label class="inv-field-label" for="invChallanNo">Challan no.</label><input class="inv-input inv-id" id="invChallanNo" value="' + escHtml(invoiceForm.challanNo) + '"></div>' +
+    '<div class="inv-field"><label class="inv-field-label" for="invChallanDate">Challan date</label><input type="date" class="inv-input inv-id" id="invChallanDate" value="' + escHtml(invoiceForm.challanDate) + '"></div>' +
+    '<div class="inv-field"><label class="inv-field-label" for="invPONumber">P.O. no.</label><input class="inv-input inv-id" id="invPONumber" value="' + escHtml(invoiceForm.poNumber) + '">' + predHintHtml('po') + '</div>' +
+    '<div class="inv-field"><label class="inv-field-label" for="invPODate">P.O. date</label><input type="date" class="inv-input inv-id" id="invPODate" value="' + escHtml(invoiceForm.poDate) + '"></div>' +
+    '<div class="inv-field"><label class="inv-field-label" for="invTransport">Vehicle no.</label><input class="inv-input inv-id" id="invTransport" value="' + escHtml(invoiceForm.transport) + '" placeholder="JH 05XX 0000" list="invVehicleList" autocomplete="off">' +
     '<datalist id="invVehicleList">' + getVehicleSuggestions(invoiceForm.clientId) + '</datalist>' + predHintHtml('ve') + '</div>' +
-    '<div class="inv-form-group"><label class="inv-form-label">Despatch Date</label><input type="date" class="inv-form-input inv-mono" id="invDespatchDate" value="' + escHtml(invoiceForm.despatchDate) + '"></div></div>' +
-    '<div class="inv-form-group"><label class="inv-form-label">Remarks</label><textarea class="inv-form-input" id="invRemarks" rows="2">' + escHtml(invoiceForm.remarks) + '</textarea></div></div>';
+    '<div class="inv-field"><label class="inv-field-label" for="invDespatchDate">Despatch date</label><input type="date" class="inv-input inv-id" id="invDespatchDate" value="' + escHtml(invoiceForm.despatchDate) + '"></div>' +
+    '</div><div class="inv-field"><label class="inv-field-label" for="invRemarks">Remarks</label><textarea class="inv-textarea" id="invRemarks" rows="2">' + escHtml(invoiceForm.remarks) + '</textarea></div></div></details>';
 
-  // Totals
-  html += '<div id="invTotalsArea">';
-  if (invoiceForm.items.length > 0) {
-    const taxable = gstRound(invoiceForm.items.reduce((s,i) => s + (i.amount || 0), 0));
-    const gstType = client ? client.gstType : 'intra';
-    const cgst = gstType === 'intra' ? gstRound(taxable * 9 / 100) : 0;
-    const sgst = gstType === 'intra' ? gstRound(taxable * 9 / 100) : 0;
-    const igst = gstType === 'inter' ? gstRound(taxable * 18 / 100) : 0;
-    const grand = gstRound(taxable + cgst + sgst + igst);
-
-    html += '<div class="inv-totals">' +
-      '<div class="inv-total-row"><span class="inv-total-label">Taxable Value</span><span class="inv-total-value">' + formatCurrency(taxable) + '</span></div>';
-    if (gstType === 'intra') {
-      html += '<div class="inv-total-row"><span class="inv-total-label">CGST @ 9%</span><span class="inv-total-value">' + formatCurrency(cgst) + '</span></div>' +
-        '<div class="inv-total-row"><span class="inv-total-label">SGST @ 9%</span><span class="inv-total-value">' + formatCurrency(sgst) + '</span></div>';
-    } else {
-      html += '<div class="inv-total-row"><span class="inv-total-label">IGST @ 18%</span><span class="inv-total-value">' + formatCurrency(igst) + '</span></div>';
-    }
-    html += '<div class="inv-total-row inv-total-row-grand"><span class="inv-total-label">Grand Total</span><span class="inv-total-grand">' + formatCurrency(grand) + '</span></div></div>';
-  }
+  // Totals: the panel is empty (and not drawn) until there is a line.
+  html += '<div id="invTotalsArea" class="inv-panel inv-panel-flush">' + createTotalsHtml(client) + '</div>';
   html += '</div>';
 
-  // Validation + Save
+  // Validation + the action bar: the grand total, Clear, and the page's one primary.
   const errors = validateInvoice();
-  html += '<div id="invErrorsArea">';
-  if (errors.length > 0) {
-    html += errors.map(e => '<div class="inv-error">' + escHtml(e) + '</div>').join('');
-  }
-  html += '</div>';
-  html += '<div class="inv-btn-bar inv-save-bar">' +
-    '<button class="inv-btn inv-btn-ghost" data-action="invResetForm">Clear</button>' +
-    '<button class="inv-btn inv-btn-primary" id="invSaveBtn" data-action="invSaveInvoice"' + (errors.length > 0 ? ' disabled' : '') + '>' +
-    (invoiceForm.editingId ? 'Update Invoice' : invoiceForm.reissue ? 'Reissue ' + escHtml(invoiceForm.reissue.invoiceNumber) : 'Create Invoice') + '</button></div>';
+  html += '<div id="invErrorsArea">' + errors.map(e => '<div class="inv-field-error">' + escHtml(e) + '</div>').join('') + '</div>';
+  html += '<div class="inv-actionbar"><div class="inv-actionbar-total"><div class="inv-actionbar-label">Grand total</div>' +
+    '<div class="inv-actionbar-value" id="invGrandTotal">' + formatCurrency(createTotals(client).grand) + '</div></div>' +
+    '<button type="button" class="inv-btn inv-btn-secondary" data-action="invResetForm">Clear</button>' +
+    '<button type="button" class="inv-btn inv-btn-primary" id="invSaveBtn" data-action="invSaveInvoice"' + (errors.length > 0 ? ' disabled' : '') + '>' +
+    (invoiceForm.editingId ? 'Update invoice' : invoiceForm.reissue ? 'Reissue ' + escHtml(invoiceForm.reissue.invoiceNumber) : 'Create invoice') + '</button></div></div>';
 
   area.innerHTML = html;
+
+  const fold = document.getElementById('invOptional');
+  if (fold) fold.addEventListener('toggle', () => { invoiceForm._optOpen = fold.open; });
 
   // Bind client search
   const cs = document.getElementById('invClientSearch');
@@ -7461,36 +7415,122 @@ function renderCreateForm() {
         S.clients.filter(c => c.isActive && (c.name.toLowerCase().includes(q) || (c.gstin||'').includes(q))).slice(0, 8);
       acReset();
       if (matches.length === 0) {
-        res.className = 'inv-search-results inv-hidden';
+        res.classList.add('inv-hidden');
         res.innerHTML = '';
         cs.setAttribute('aria-expanded', 'false');
         return;
       }
-      res.className = 'inv-search-results';
-      res.innerHTML = matches.map((c, i) => '<div class="inv-search-item" role="option" id="invClientOpt' + i + '" data-action="invSelectClient" data-id="' + c.id + '">' +
-        '<div><div class="inv-client-name">' + escHtml(c.name) + '</div>' +
-        '<div class="inv-client-meta">' + escHtml(c.gstin || '') + '</div></div></div>').join('');
+      res.classList.remove('inv-hidden');
+      res.innerHTML = clientMenuHtml(matches, 'invSelectClient', 'invClientOpt');
       cs.setAttribute('aria-expanded', 'true');
     });
     setTimeout(() => cs.focus(), 100);
   }
 }
 
+/* The invoice's tax, worked the one way both the render and the live update read. */
+function createTotals(client) {
+  const taxable = gstRound(invoiceForm.items.reduce((s,i) => s + (i.amount || 0), 0));
+  const gstType = client ? client.gstType : 'intra';
+  const cgst = gstType === 'intra' ? gstRound(taxable * 9 / 100) : 0;
+  const sgst = gstType === 'intra' ? gstRound(taxable * 9 / 100) : 0;
+  const igst = gstType === 'inter' ? gstRound(taxable * 18 / 100) : 0;
+  return { gstType, taxable, cgst, sgst, igst, grand: gstRound(taxable + cgst + sgst + igst) };
+}
+
+function createTotalsHtml(client) {
+  if (invoiceForm.items.length === 0) return '';
+  const t = createTotals(client);
+  const row = (label, v, strong) => '<div class="inv-row' + (strong ? ' inv-row-strong' : '') + '"><span class="inv-row-main">' + label + '</span>' +
+    '<span class="inv-row-end inv-num">' + formatCurrency(v) + '</span></div>';
+  return '<div class="inv-panel-head"><span class="inv-panel-title">Totals</span></div>' +
+    row('Taxable value', t.taxable) +
+    (t.gstType === 'intra' ? row('CGST @ 9%', t.cgst) + row('SGST @ 9%', t.sgst) : row('IGST @ 18%', t.igst)) +
+    row('Grand total', t.grand, true);
+}
+
+/* The client's challans still waiting for an invoice, each a tick box: ticking one
+   brings its open lines into the invoice (linked, so saving marks them invoiced),
+   unticking takes them out. The same lines the IM screen's selection would bring. */
+function createUnbilledHtml(client) {
+  const open = (S.incomingMaterial || []).filter(im => im.clientId === client.id && (im.items || []).some(it => !it.invoiced))
+    .sort((a, b) => String(a.challanDate || '').localeCompare(String(b.challanDate || '')));
+  if (!open.length) return '';
+  const inForm = {};
+  invoiceForm.items.forEach(i => { if (i._imItemId) inForm[i._imItemId] = true; });
+  let html = '<div class="inv-panel inv-panel-flush"><div class="inv-panel-head"><span class="inv-panel-title">Unbilled challans</span>' +
+    '<span class="inv-panel-count">' + open.length + '</span></div><div class="inv-scroll">';
+  open.forEach(im => {
+    const lines = im.items.filter(it => !it.invoiced);
+    const on = lines.some(it => inForm[it.id]);
+    const kg = lines.reduce((s, it) => s + (it.unit === 'KG' ? (it.qty || 0) : 0), 0);
+    const amt = gstRound(lines.reduce((s, it) => s + (it.amount || 0), 0));
+    const name = 'Challan ' + (im.challanNo || '(no number)');
+    html += '<div class="inv-row inv-row-2' + (on ? ' inv-row-selected' : '') + '">' +
+      '<label class="inv-row-lead inv-row-tick"><input type="checkbox" class="inv-check" data-action="invCreatePickChallan" data-id="' + escHtml(im.id) + '"' +
+      (on ? ' checked' : '') + ' aria-label="' + escHtml(name) + '"></label>' +
+      '<div class="inv-row-main"><div class="inv-row-title inv-id">' + escHtml(name) + '</div>' +
+      '<div class="inv-row-meta">' + escHtml(formatDate(im.challanDate)) + ' · ' + lines.length + ' line' + (lines.length === 1 ? '' : 's') +
+      (kg > 0 ? ' · <span class="inv-id">' + formatNum(kg, 2) + ' kg</span>' : '') + '</div></div>' +
+      '<div class="inv-row-end inv-num">' + formatCurrency(amt) + '</div></div>';
+  });
+  return html + '</div></div>';
+}
+
+/* What the ticked challans say for the invoice's challan no., date and vehicle. */
+function createChallanAuto() {
+  const ims = (invoiceForm._linkedIMIds || []).map(id => (S.incomingMaterial || []).find(m => m.id === id)).filter(Boolean);
+  const uniq = arr => arr.filter(Boolean).filter((v, i, a) => a.indexOf(v) === i).join(', ');
+  const dates = ims.map(m => m.challanDate).filter(Boolean).sort();
+  return { no: uniq(ims.map(m => m.challanNo)), date: dates[0] || '', ve: uniq(ims.map(m => m.vehicleNo)) };
+}
+
+function createPickChallan(imId) {
+  captureOptionalFields();
+  const im = (S.incomingMaterial || []).find(m => m.id === imId);
+  if (!im || im.clientId !== invoiceForm.clientId) return;
+  const lines = im.items.filter(it => !it.invoiced);
+  const ids = lines.map(it => it.id);
+  const before = createChallanAuto();
+  const had = invoiceForm.items.some(i => ids.indexOf(i._imItemId) >= 0);
+  if (had) {
+    invoiceForm.items = invoiceForm.items.filter(i => ids.indexOf(i._imItemId) < 0);
+    invoiceForm._linkedIMItemIds = (invoiceForm._linkedIMItemIds || []).filter(id => ids.indexOf(id) < 0);
+    invoiceForm._linkedIMIds = (invoiceForm._linkedIMIds || []).filter(id => id !== imId);
+  } else {
+    // An untouched blank line would only sit above the challan's lines.
+    invoiceForm.items = invoiceForm.items.filter(i => i._imItemId || i.partNumber || i.desc || i.qty || i.amount);
+    lines.forEach(it => invoiceForm.items.push({
+      partNumber: it.partNumber, desc: it.desc, hsn: it.hsn || '998873', unit: it.unit, qty: it.qty,
+      rate: it.rate || 0, amount: it.amount || 0, nosQty: it.nosQty || null, _override: false, _label: '', _imItemId: it.id
+    }));
+    invoiceForm._linkedIMItemIds = (invoiceForm._linkedIMItemIds || []).concat(ids);
+    invoiceForm._linkedIMIds = (invoiceForm._linkedIMIds || []).concat([imId]);
+  }
+  // The challan fields follow the ticks while nobody has typed over them.
+  const after = createChallanAuto();
+  if (!invoiceForm.challanNo || invoiceForm.challanNo === before.no) {
+    invoiceForm.challanNo = after.no;
+    if (after.date) invoiceForm.challanDate = after.date;
+  }
+  if (!invoiceForm.transport || invoiceForm.transport === before.ve) invoiceForm.transport = after.ve;
+  renderCreateForm();
+}
+
 /* The reason block under a line billed at ₹0. Re-rendered on its own when the
    line moves in or out of ₹0, so the field being typed in keeps focus. */
 function zeroReasonHtml(item, idx) {
   if (!isZeroBilledLine(item)) return '';
-  var html = '<div class="inv-zero-reason">' +
-    '<div class="inv-zero-reason-head"><span class="inv-zero-badge">\u20B90</span>' +
-    '<span class="inv-zero-reason-q">Why is this line not billed?</span></div>' +
-    '<div class="inv-zero-reason-opts" role="radiogroup" aria-label="Reason for billing at zero">';
+  var html = '<div class="inv-callout inv-callout-warning" data-zero-reason>' +
+    '<span class="inv-badge inv-badge-warning">₹0</span> Why is this line not billed?' +
+    '<div class="inv-toolbar" role="radiogroup" aria-label="Reason for billing at zero">';
   ZERO_REASONS.forEach(function(r) {
     var on = item.zeroReason === r.id;
-    html += '<button type="button" class="inv-zero-opt' + (on ? ' inv-zero-opt-on' : '') + '" role="radio" aria-checked="' + on + '"' +
+    html += '<button type="button" class="inv-chip' + (on ? ' inv-chip-on' : '') + '" role="radio" aria-checked="' + on + '"' +
       ' data-action="invZeroReason" data-idx="' + idx + '" data-reason="' + r.id + '">' + escHtml(r.label) + '</button>';
   });
   html += '</div>' +
-    '<input class="inv-form-input inv-zero-note" data-action="invZeroNote" data-idx="' + idx + '" data-k="zeronote-' + idx + '"' +
+    '<input class="inv-input" data-action="invZeroNote" data-idx="' + idx + '" data-k="zeronote-' + idx + '"' +
     ' value="' + escHtml(item.zeroNote || '') + '" placeholder="' + (item.zeroReason === 'other' ? 'What was it? (recommended)' : 'Note (optional)') + '"' +
     ' aria-label="Note on why this line is not billed">' +
     '</div>';
@@ -7657,6 +7697,14 @@ function saveInvoice() {
       showToast(disp + ' is already a live invoice — not saved. Check Settings → Business → Invoice series.', 'error');
       return;
     }
+    // Only what the invoice still carries is linked: a challan line taken out of
+    // the form again (a line removed, a challan unticked) stays unbilled.
+    const carried = invoiceForm.items.map(i => i._imItemId).filter(Boolean);
+    const linkedItemIds = (invoiceForm._linkedIMItemIds || []).filter(id => carried.indexOf(id) >= 0);
+    const linkedIMIds = (invoiceForm._linkedIMIds || []).filter(imId => {
+      const im = (S.incomingMaterial || []).find(m => m.id === imId);
+      return !im || im.items.some(it => linkedItemIds.indexOf(it.id) >= 0);
+    });
     const inv = {
       id: 'INV-' + now,
       invoiceNumber: num,
@@ -7674,7 +7722,7 @@ function saveInvoice() {
       grandTotal: grand, amountInWords: numberToWords(grand),
       poNumber: invoiceForm.poNumber, poDate: invoiceForm.poDate, challanNo: invoiceForm.challanNo, challanDate: invoiceForm.challanDate,
       despatchDate: invoiceForm.despatchDate, transport: invoiceForm.transport, eWayBill:'', remarks: invoiceForm.remarks,
-      linkedIMIds: invoiceForm._linkedIMIds || [], createdAt: now, updatedAt: now, cancelledAt: null
+      linkedIMIds: linkedIMIds, createdAt: now, updatedAt: now, cancelledAt: null
     };
     S.invoices.push(inv);
     // Never leave the series pointing at a number already held: a number
@@ -7684,10 +7732,10 @@ function saveInvoice() {
     S.invNextNum = Math.max(S.invNextNum + (reissue ? 0 : 1), invHighestIssued(S.invPrefix) + 1);
 
     // Mark IM items as invoiced
-    if (invoiceForm._linkedIMItemIds && invoiceForm._linkedIMItemIds.length > 0) {
+    if (linkedItemIds.length > 0) {
       (S.incomingMaterial || []).forEach(function(im) {
         im.items.forEach(function(it) {
-          if (invoiceForm._linkedIMItemIds.indexOf(it.id) >= 0) {
+          if (linkedItemIds.indexOf(it.id) >= 0) {
             it.invoiced = true;
             it.invoiceId = inv.id;
           }
@@ -7714,11 +7762,18 @@ function saveInvoice() {
    so the three can never describe the same line differently. */
 var RM_LABELS = { match: 'Matches', decimal: '×10 slip', differs: 'Differs', check: 'Check',
   none: 'No rate on record', gauge: 'Gauge not stated' };
+/* The tone each verdict speaks in (DR-1): a Check or ×10 is a red flag, the rest are not. */
+var RM_TONE = { match: 'ok', decimal: 'warning', differs: 'neutral', check: 'danger', none: 'neutral', gauge: 'neutral' };
+
+/* A verdict under a line: a dot and its word, then the working in mono (§6.15). */
+function verdictHtml(status, label, text) {
+  return '<div class="inv-verdict" data-verdict="' + status + '"><span class="inv-dot inv-dot-' + RM_TONE[status] + '">' + label + '</span>' +
+    (text ? '<span class="inv-verdict-text">' + escHtml(text) + '</span>' : '') + '</div>';
+}
 
 function rateMatchNote(m, compact) {
   if (!m) return '';
   var per = m.unit === 'kg' ? '/kg' : '/pc';
-  var chip = '<span class="inv-rm-chip inv-rm-' + m.status + '">' + RM_LABELS[m.status] + '</span>';
   var text = '';
   if (m.status === 'match') text = compact ? '' : formatCurrency(m.ref) + per + ' on record';
   else if (m.status === 'decimal') text = 'On record ' + formatCurrency(m.ref) + per + ' — a power of ten away. Did you mean ' + formatCurrency(m.ref) + '?';
@@ -7728,11 +7783,12 @@ function rateMatchNote(m, compact) {
       ' · ' + sign(m.stake) + ' on this line';
   } else if (m.status === 'none') text = compact ? '' : 'Add it to the client’s piece rates to check this line';
   else if (m.status === 'gauge') text = compact ? '' : 'This part is priced by gauge — put the gauge in the description';
-  return '<div class="inv-rm-note">' + chip + (text ? '<span class="inv-rm-text">' + escHtml(text) + '</span>' : '') + '</div>';
+  return verdictHtml(m.status, RM_LABELS[m.status], text);
 }
 
-function rateMatchInputClass(m) {
-  return m ? ' inv-rm-input-' + m.status : '';
+/* The Rate field carries its verdict too, so a Check reads on the field itself. */
+function rateMatchInputAttr(m) {
+  return m ? ' data-verdict="' + m.status + '"' : '';
 }
 
 /* Re-judge one line in place: the note and the Rate field's class. Called from
@@ -7742,7 +7798,7 @@ function refreshRateMatch(boxId, inputEl, client, onDate, item) {
   var box = document.getElementById(boxId);
   if (box) box.innerHTML = rateMatchNote(m);
   if (inputEl) {
-    inputEl.className = inputEl.className.replace(/\s*inv-rm-input-\w+/g, '') + rateMatchInputClass(m);
+    if (m) inputEl.setAttribute('data-verdict', m.status); else inputEl.removeAttribute('data-verdict');
   }
 }
 
@@ -7763,7 +7819,6 @@ var WM_LABELS = { match: 'Weight matches', decimal: 'Weight ×10', differs: 'Wei
 function weightMatchNote(m, compact) {
   if (!m) return '';
   var kg = function(n) { return (Math.round(n * 100) / 100).toFixed(2) + ' kg'; };
-  var chip = '<span class="inv-rm-chip inv-rm-' + m.status + '">' + WM_LABELS[m.status] + '</span>';
   var text = '';
   var basis = m.pcs + ' pcs × ' + m.ref + ' kg/pc = ' + kg(m.expected);
   if (m.status === 'match') text = compact ? '' : basis;
@@ -7773,7 +7828,7 @@ function weightMatchNote(m, compact) {
       ' · ' + (m.stake > 0 ? '+' : '−') + formatCurrency(Math.abs(m.stake)) + ' on this line';
   } else if (m.status === 'none') text = compact ? '' : 'Add it to the client’s piece weights to check this line';
   else if (m.status === 'gauge') text = compact ? '' : 'This part is weighed by gauge — put the gauge in the description';
-  return '<div class="inv-rm-note">' + chip + (text ? '<span class="inv-rm-text">' + escHtml(text) + '</span>' : '') + '</div>';
+  return verdictHtml(m.status, WM_LABELS[m.status], text);
 }
 
 function refreshWeightMatch(boxId, client, onDate, item) {
@@ -9777,8 +9832,7 @@ function zeroReasonTag(raw) {
   var text = raw.zeroReason ? zeroReasonLabel(raw.zeroReason) || raw.zeroReason : 'No reason recorded';
   if (raw.zeroNote) text += ' \u2014 ' + raw.zeroNote;
   if (raw.zeroReasonBackfilled) text += ' (backfilled: owner ruling ' + raw.zeroReasonBackfilled + ')';
-  return '<div class="inv-zero-tag' + (raw.zeroReason ? '' : ' inv-zero-tag-missing') + '">' +
-    '<span class="inv-zero-badge">\u20B90</span> ' + escHtml(text) + '</div>';
+  return '<div class="inv-note"><span class="inv-badge inv-badge-' + (raw.zeroReason ? 'warning' : 'danger') + '">\u20B90</span> ' + escHtml(text) + '</div>';
 }
 
 /* The matcher on a saved invoice: only what needs a second look. A matching
@@ -11162,13 +11216,11 @@ function partLineDesc(part) {
 var AC_MIN_NEW = 2;
 
 function renderAddPartOption(idx, idPrefix, query, kind) {
-  return '<div class="inv-autocomplete-item inv-ac-add" role="option" id="' + idPrefix + idx + '_new"' +
+  return '<div class="inv-menu-item inv-menu-add" role="option" id="' + idPrefix + idx + '_new"' +
     ' data-ac-new="1" data-action="invAddItemInline" data-kind="' + kind + '"' +
     ' data-idx="' + idx + '" data-q="' + escHtml(query) + '">' +
-    '<svg class="inv-ac-add-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">' +
-    '<line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>' +
-    '<span class="inv-autocomplete-part">Add &ldquo;' + escHtml(query) + '&rdquo;</span>' +
-    '<span class="inv-autocomplete-desc">new item in the master</span></div>';
+    '<span class="inv-menu-title">Add &ldquo;' + escHtml(query) + '&rdquo;</span>' +
+    '<span class="inv-menu-meta">New item in the master</span></div>';
 }
 
 /* Render the suggestion rows for one part input. Shared by the invoice form
@@ -11177,11 +11229,11 @@ function renderPartOptions(acEl, matches, action, idx, idPrefix, query, kind) {
   // The gauge is shown as its own badge: several clamp part numbers exist in
   // more than one gauge, and it is the only thing telling those rows apart.
   var html = matches.map((m, i) =>
-    '<div class="inv-autocomplete-item" role="option" id="' + idPrefix + idx + '_' + i + '"' +
+    '<div class="inv-menu-item" role="option" id="' + idPrefix + idx + '_' + i + '"' +
     ' data-action="' + action + '" data-idx="' + idx + '" data-part-id="' + m.id + '">' +
-    '<span class="inv-autocomplete-part">' + escHtml(m.partNumber) + '</span>' +
-    (m.gauge ? '<span class="inv-gauge-badge">' + escHtml(m.gauge) + '</span>' : '') +
-    '<span class="inv-autocomplete-desc">' + escHtml(m.desc || '') + '</span></div>'
+    '<span class="inv-menu-title inv-id">' + escHtml(m.partNumber) +
+    (m.gauge ? ' <span class="inv-badge inv-badge-neutral">' + escHtml(m.gauge) + '</span>' : '') + '</span>' +
+    '<span class="inv-menu-meta">' + escHtml(m.desc || '') + '</span></div>'
   ).join('');
   // Offered even when there are matches: a new gauge of an existing clamp
   // matches the part number but is a different part, and that is precisely the
@@ -11224,7 +11276,7 @@ function showChallanPartAutocomplete(idx, query) {
 }
 
 function dismissAllAutocomplete() {
-  document.querySelectorAll('.inv-autocomplete-list').forEach(el => el.classList.add('inv-hidden'));
+  document.querySelectorAll('.inv-combo > .inv-menu').forEach(el => el.classList.add('inv-hidden'));
   document.querySelectorAll('[role="combobox"]').forEach(el => el.setAttribute('aria-expanded', 'false'));
   acReset();
 }
@@ -11242,22 +11294,15 @@ function acReset() { _acCursor = -1; }
 /* The open suggestion list belonging to an input, or null. */
 function acListFor(input) {
   if (!input || !input.closest) return null;
-  const wrap = input.closest('.inv-autocomplete-wrap');
-  if (wrap) {
-    const list = wrap.querySelector('.inv-autocomplete-list');
-    return list && !list.classList.contains('inv-hidden') ? list : null;
-  }
-  const searchWrap = input.closest('.inv-search-wrap');
-  if (searchWrap) {
-    const results = searchWrap.querySelector('.inv-search-results');
-    return results && !results.classList.contains('inv-hidden') ? results : null;
-  }
-  return null;
+  const combo = input.closest('.inv-combo');
+  if (!combo) return null;
+  const list = combo.querySelector('.inv-menu');
+  return list && !list.classList.contains('inv-hidden') ? list : null;
 }
 
 function acOptions(list) {
   if (!list) return [];
-  return Array.prototype.slice.call(list.querySelectorAll('.inv-autocomplete-item, .inv-search-item'));
+  return Array.prototype.slice.call(list.querySelectorAll('.inv-menu-item'));
 }
 
 /* Move the highlight, wrapping at both ends. */
@@ -11268,19 +11313,16 @@ function acMoveCursor(list, delta) {
   if (next < 0) next = opts.length - 1;
   if (next >= opts.length) next = 0;
   _acCursor = next;
+  // The cursor is aria-selected; the menu draws it from that (§6.16), so the
+  // position is announced and shown by the one attribute.
   opts.forEach((opt, i) => {
-    if (i === next) {
-      opt.classList.add('inv-ac-active');
-      opt.setAttribute('aria-selected', 'true');
-    } else {
-      opt.classList.remove('inv-ac-active');
-      opt.removeAttribute('aria-selected');
-    }
+    if (i === next) opt.setAttribute('aria-selected', 'true');
+    else opt.removeAttribute('aria-selected');
   });
   const active = opts[next];
   if (active) {
     if (active.scrollIntoView) active.scrollIntoView({ block: 'nearest' });
-    const input = list.closest('.inv-autocomplete-wrap, .inv-search-wrap');
+    const input = list.closest('.inv-combo');
     const combo = input ? input.querySelector('[role="combobox"]') : null;
     if (combo && active.id) combo.setAttribute('aria-activedescendant', active.id);
   }
@@ -24986,11 +25028,12 @@ function predApplyToInvoice() {
 function predHintHtml(field) {
   var p = invoiceForm && invoiceForm._pred;
   if (!p) return '';
-  if (field === 'po' && p.po) return '<div class="inv-pred-hint">Predicted: ' + escHtml(p.po.why) + '</div>';
+  if (field === 'po' && p.po) return '<div class="inv-field-hint" data-pred="po">Predicted: ' + escHtml(p.po.why) + '</div>';
   if (field === 've' && p.ve) {
     var chips = p.ve.top.concat(p.ve.top.indexOf(p.ve.last) < 0 ? [p.ve.last] : []);
-    return '<div class="inv-pred-hint">' + (p.ve.fill ? 'Usual vehicle: ' + escHtml(p.ve.share) : 'No single usual vehicle') + '</div><div class="inv-pred-chips">' +
-      chips.map(function(v) { return '<button class="inv-pred-chip" data-action="invPredVehicle" data-v="' + escHtml(v) + '">' + escHtml(v) + (v === p.ve.last ? ' · last' : '') + '</button>'; }).join('') + '</div>';
+    return '<div class="inv-field-hint" data-pred="ve">' + (p.ve.fill ? 'Usual vehicle: ' + escHtml(p.ve.share) : 'No single usual vehicle') + '</div>' +
+      '<div class="inv-toolbar inv-field-hint" role="group" aria-label="Vehicles this client uses">' +
+      chips.map(function(v) { return '<button type="button" class="inv-chip inv-id" data-action="invPredVehicle" data-v="' + escHtml(v) + '">' + escHtml(v) + (v === p.ve.last ? ' · last' : '') + '</button>'; }).join('') + '</div>';
   }
   return '';
 }
@@ -26409,88 +26452,71 @@ function renderAddChallanForm() {
   var focusTarget = _challanFocusNext || _challanCaptureFocus();
   _challanFocusNext = null;
 
-  var html = '<div class="inv-im-form inv-im-form-active">' +
-    '<div class="inv-im-form-header"><span class="inv-im-form-title">' + (_challanForm._editingId ? 'Edit Challan' : 'Add Challan') + '</span></div>' +
-    '<div class="inv-kbd-hint">' +
-      '<span class="inv-kbd-hint-item"><kbd class="inv-kbd">Enter</kbd> next field</span>' +
-      '<span class="inv-kbd-hint-item"><kbd class="inv-kbd">&uarr;</kbd><kbd class="inv-kbd">&darr;</kbd> pick suggestion</span>' +
-      '<span class="inv-kbd-hint-item"><kbd class="inv-kbd">Alt</kbd>+<kbd class="inv-kbd">N</kbd> add line</span>' +
-      '<span class="inv-kbd-hint-item"><kbd class="inv-kbd">Ctrl</kbd>+<kbd class="inv-kbd">Enter</kbd> save</span>' +
-    '</div>';
+  var date = _challanForm.challanDate || localDateStr();
+  var total = gstRound(_challanForm.items.reduce(function(t, it) { return t + (it.amount || 0); }, 0));
+  var html = '<div data-form="challan">' +
+    '<p class="inv-keys">' +
+      '<span><kbd class="inv-kbd">Enter</kbd> next field</span>' +
+      '<span><kbd class="inv-kbd">&uarr;</kbd><kbd class="inv-kbd">&darr;</kbd> pick suggestion</span>' +
+      '<span><kbd class="inv-kbd">Alt</kbd>+<kbd class="inv-kbd">N</kbd> add line</span>' +
+      '<span><kbd class="inv-kbd">Ctrl</kbd>+<kbd class="inv-kbd">Enter</kbd> save</span>' +
+    '</p><div class="inv-panels">';
 
-  // Client selector
-  html += '<div class="inv-card"><div class="inv-card-header"><span class="inv-card-title">Challan Details</span></div>';
-  html += '<div class="inv-form-group"><label class="inv-form-label" for="imChallanClientSearch">Client</label>';
-  if (client) {
-    html += '<div class="inv-flex-between inv-selected-client">' +
-      '<div><div class="inv-client-name">' + escHtml(client.name) + '</div>' +
-      '<div class="inv-client-meta">' + escHtml(client.gstin || 'No GSTIN') + '</div></div>' +
-      '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-k="client-change" data-action="invClearChallanClient">Change</button></div>';
-  } else {
-    html += '<div class="inv-search-wrap inv-search-no-mb">' +
-      '<svg class="inv-search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>' +
-      '<input type="text" class="inv-search-input" id="imChallanClientSearch" data-k="client-search" placeholder="Search client" autocomplete="off"' +
-      ' role="combobox" aria-expanded="false" aria-autocomplete="list" aria-controls="imChallanClientResults">' +
-      '<div id="imChallanClientResults" class="inv-search-results inv-hidden" role="listbox"></div></div>';
-  }
-  html += '</div>';
+  // Challan: client, number, date, vehicle.
+  html += '<div class="inv-panel inv-panel-flush inv-panels-wide"><div class="inv-panel-head"><span class="inv-panel-title">' +
+    (_challanForm._editingId ? 'Edit challan' : 'Add challan') + '</span></div>';
+  if (client) html += chosenClientHtml(client, client.gstin || 'No GSTIN', 'invClearChallanClient', 'client-change');
+  html += '<div class="inv-panel-body"><div class="inv-fields">' +
+    (client ? '' : clientSearchHtml('imChallanClientSearch', 'imChallanClientResults', 'client-search')) +
+    '<div class="inv-field"><label class="inv-field-label" for="imChallanNo">Challan no.</label>' +
+    '<input class="inv-input inv-id" id="imChallanNo" data-k="challanNo" value="' + escHtml(_challanForm.challanNo) + '"></div>' +
+    '<div class="inv-field"><label class="inv-field-label" for="imChallanDate">Challan date</label>' +
+    '<input type="date" class="inv-input inv-id" id="imChallanDate" data-k="challanDate" value="' + escHtml(_challanForm.challanDate) + '"></div>' +
+    '<div class="inv-field"><label class="inv-field-label" for="imVehicleNo">Vehicle no.</label>' +
+    '<input class="inv-input inv-id" id="imVehicleNo" data-k="vehicleNo" value="' + escHtml(_challanForm.vehicleNo) + '" list="imVehicleList" autocomplete="off">' +
+    '<datalist id="imVehicleList">' + getVehicleSuggestions(_challanForm.clientId) + '</datalist></div></div></div></div>';
 
-  // Challan fields
-  html += '<div class="inv-form-row">' +
-    '<div class="inv-form-group"><label class="inv-form-label" for="imChallanNo">Challan No</label>' +
-    '<input class="inv-form-input inv-mono" id="imChallanNo" data-k="challanNo" value="' + escHtml(_challanForm.challanNo) + '"></div>' +
-    '<div class="inv-form-group"><label class="inv-form-label" for="imChallanDate">Challan Date</label>' +
-    '<input type="date" class="inv-form-input inv-mono" id="imChallanDate" data-k="challanDate" value="' + escHtml(_challanForm.challanDate) + '"></div></div>' +
-    '<div class="inv-form-group"><label class="inv-form-label" for="imVehicleNo">Vehicle No</label>' +
-    '<input class="inv-form-input" id="imVehicleNo" data-k="vehicleNo" value="' + escHtml(_challanForm.vehicleNo) + '" list="imVehicleList" autocomplete="off">' +
-    '<datalist id="imVehicleList">' + getVehicleSuggestions(_challanForm.clientId) + '</datalist></div></div>';
-
-  // Line items
-  html += '<div class="inv-card"><div class="inv-card-header"><span class="inv-card-title">Line Items</span></div>';
+  // Lines, on the invoice form's line editor.
+  html += '<div class="inv-panel inv-panel-flush inv-panels-wide"><div class="inv-panel-head"><span class="inv-panel-title">Lines</span>' +
+    '<span class="inv-panel-count">' + _challanForm.items.length + '</span></div><div class="inv-lines">' +
+    (_challanForm.items.length ? linesHeadHtml('Qty') : '');
   _challanForm.items.forEach(function(item, idx) {
     var isPieceNOS = client && client.billingMode === 'piece' && item.unit === 'NOS';
     var rateDisplay = (item.rate != null && !isNaN(item.rate) && item.rate !== 0) ? formatNum(item.rate) : '';
     var amtDisplay = (item.amount != null && !isNaN(item.amount) && item.amount !== 0) ? formatNum(item.amount) : '';
 
-    var rm = client ? rateMatch(client, _challanForm.challanDate || localDateStr(), item) : null;
-    html += '<div class="inv-line-item">' +
-      '<div class="inv-line-header"><span class="inv-line-num" id="imLineLbl' + idx + '">Item ' + (idx + 1) + '</span>' +
-      '<button class="inv-line-remove" data-k="remove-' + idx + '" data-action="invRemoveChallanLine" data-idx="' + idx + '" aria-label="Remove item ' + (idx + 1) + '">&times;</button></div>' +
-      '<div class="inv-form-group"><label class="inv-form-label" for="imPart' + idx + '">Part / Description</label>' +
-      '<div class="inv-autocomplete-wrap">' +
-      '<input class="inv-form-input" id="imPart' + idx + '" data-k="part-' + idx + '" value="' + escHtml(item.desc || item.partNumber) + '" data-action="invEditChallanPart" data-idx="' + idx + '" placeholder="Part name or number" autocomplete="off"' +
-      ' role="combobox" aria-expanded="false" aria-autocomplete="list" aria-controls="imPartAC' + idx + '">' +
-      '<div class="inv-autocomplete-list inv-hidden" id="imPartAC' + idx + '" role="listbox"></div></div></div>' +
-      '<div class="inv-form-row">' +
-      '<div class="inv-form-group"><label class="inv-form-label" for="imQty' + idx + '">Qty (Weight)</label>' +
-      '<input type="number" class="inv-form-input inv-mono" id="imQty' + idx + '" data-k="qty-' + idx + '" value="' + (item.qty || '') + '" data-field="qty" data-idx="' + idx + '" data-action="invUpdateChallanLine" step="any" min="0"></div>' +
-      '<div class="inv-form-group"><label class="inv-form-label" for="imUnit' + idx + '">Unit</label>' +
-      '<select class="inv-form-select" id="imUnit' + idx + '" data-k="unit-' + idx + '" data-field="unit" data-idx="' + idx + '" data-action="invUpdateChallanLine">' +
-      '<option value="KG"' + (item.unit === 'KG' ? ' selected' : '') + '>KG</option>' +
-      '<option value="NOS"' + (item.unit === 'NOS' ? ' selected' : '') + '>NOS</option></select></div>' +
-      '<div class="inv-form-group"><label class="inv-form-label" for="imNos' + idx + '">NOS Qty</label>' +
-      '<input type="number" class="inv-form-input inv-mono" id="imNos' + idx + '" data-k="nos-' + idx + '" value="' + (item.nosQty || '') + '" data-field="nosQty" data-idx="' + idx + '" data-action="invUpdateChallanLine" step="1" min="0" placeholder="Pcs"></div></div>' +
-      '<div id="imWeightMatch' + idx + '">' + (client ? weightMatchNote(weightMatch(client, _challanForm.challanDate || localDateStr(), item)) : '') + '</div>' +
-      '<div class="inv-form-row">' +
-      '<div class="inv-form-group"><label class="inv-form-label" for="imRate' + idx + '">Rate</label>' +
-      '<input type="number" class="inv-form-input inv-mono' + rateMatchInputClass(rm) + '" id="imRate' + idx + '" data-k="rate-' + idx + '" value="' + rateDisplay + '" data-field="rate" data-idx="' + idx + '" data-action="invUpdateChallanLine" step="any" min="0"' +
-      (isPieceNOS ? ' readonly' : '') + '></div>' +
-      '<div class="inv-form-group"><label class="inv-form-label" for="imAmt' + idx + '">Amount</label>' +
-      '<input type="number" class="inv-form-input inv-mono" id="imAmt' + idx + '" data-k="amount-' + idx + '" value="' + amtDisplay + '" data-field="amount" data-idx="' + idx + '" data-action="invUpdateChallanLine" step="any" min="0"' +
-      (isPieceNOS ? '' : ' readonly') + '></div></div>' +
+    var rm = client ? rateMatch(client, date, item) : null;
+    html += '<div class="inv-line"><span class="inv-line-num" id="imLineLbl' + idx + '">' + (idx + 1) + '</span>' +
+      lineField('Part', '<div class="inv-combo">' +
+        '<input class="inv-input" id="imPart' + idx + '" data-k="part-' + idx + '" value="' + escHtml(item.desc || item.partNumber) + '" data-action="invEditChallanPart" data-idx="' + idx + '" placeholder="Part name or number" autocomplete="off"' +
+        ' role="combobox" aria-expanded="false" aria-autocomplete="list" aria-controls="imPartAC' + idx + '">' +
+        '<div class="inv-menu inv-hidden" id="imPartAC' + idx + '" role="listbox"></div></div>', 'imPart' + idx, 'inv-line-part') +
+      lineField('Qty', '<input type="number" class="inv-input inv-input-num" id="imQty' + idx + '" data-k="qty-' + idx + '" value="' + (item.qty || '') + '" data-field="qty" data-idx="' + idx + '" data-action="invUpdateChallanLine" step="any" min="0">', 'imQty' + idx) +
+      lineField('Unit', '<select class="inv-select" id="imUnit' + idx + '" data-k="unit-' + idx + '" data-field="unit" data-idx="' + idx + '" data-action="invUpdateChallanLine">' +
+        '<option value="KG"' + (item.unit === 'KG' ? ' selected' : '') + '>KG</option>' +
+        '<option value="NOS"' + (item.unit === 'NOS' ? ' selected' : '') + '>NOS</option></select>', 'imUnit' + idx) +
+      lineField('Pcs', '<input type="number" class="inv-input inv-input-num" id="imNos' + idx + '" data-k="nos-' + idx + '" value="' + (item.nosQty || '') + '" data-field="nosQty" data-idx="' + idx + '" data-action="invUpdateChallanLine" step="1" min="0" placeholder="Pcs">', 'imNos' + idx) +
+      lineField('Rate', '<input type="number" class="inv-input inv-input-num" id="imRate' + idx + '" data-k="rate-' + idx + '" value="' + rateDisplay + '" data-field="rate" data-idx="' + idx + '" data-action="invUpdateChallanLine" step="any" min="0"' +
+        rateMatchInputAttr(rm) + (isPieceNOS ? ' readonly' : '') + '>', 'imRate' + idx) +
+      lineField('Amount', '<input type="number" class="inv-input inv-input-num" id="imAmt' + idx + '" data-k="amount-' + idx + '" value="' + amtDisplay + '" data-field="amount" data-idx="' + idx + '" data-action="invUpdateChallanLine" step="any" min="0"' +
+        (isPieceNOS ? '' : ' readonly') + '>', 'imAmt' + idx, 'inv-line-amt') +
+      '<button type="button" class="inv-btn inv-btn-ghost inv-btn-icon inv-line-rm" data-k="remove-' + idx + '" data-action="invRemoveChallanLine" data-idx="' + idx + '" aria-label="Remove line ' + (idx + 1) + '">' + LINE_X_ICON + '</button>' +
+      '<div class="inv-line-notes">' +
+      '<div id="imWeightMatch' + idx + '">' + (client ? weightMatchNote(weightMatch(client, date, item)) : '') + '</div>' +
       '<div id="imRateMatch' + idx + '">' + rateMatchNote(rm) + '</div>' +
       '<div id="imFill' + idx + '">' + challanFillNote(item, client) + '</div>' +
-      '<div id="imFlag' + idx + '">' + (client ? challanFlagHtml(client, item, idx) : '') + '</div></div>';
+      '<div id="imFlag' + idx + '">' + (client ? challanFlagHtml(client, item, idx) : '') + '</div></div></div>';
   });
   // data-kbd-ring puts these two in the Enter-to-next-field chain, so the last
-  // field of the last line steps onto "Add Line Item" instead of dead-ending.
+  // field of the last line steps onto "Add line" instead of dead-ending.
   // The per-line remove buttons are deliberately left out of that chain.
-  html += '<button class="inv-btn inv-btn-ghost inv-btn-block" data-k="addline" data-kbd-ring data-action="invAddChallanLine">+ Add Line Item</button></div>';
+  html += '</div><div class="inv-panel-body"><button type="button" class="inv-btn inv-btn-secondary inv-btn-block" data-k="addline" data-kbd-ring data-action="invAddChallanLine">Add line</button></div></div></div>';
 
-  // Save/Cancel
-  html += '<div class="inv-btn-bar inv-save-bar">' +
-    '<button class="inv-btn inv-btn-ghost" data-k="cancel" data-action="invCancelChallan">Cancel</button>' +
-    '<button class="inv-btn inv-btn-primary" data-k="save" data-kbd-ring data-action="invSaveChallan">' + (_challanForm._editingId ? 'Update Challan' : 'Save Challan') + '</button></div></div>';
+  // The action bar: the challan's amount, Cancel, and the one primary.
+  html += '<div class="inv-actionbar"><div class="inv-actionbar-total"><div class="inv-actionbar-label">Challan amount</div>' +
+    '<div class="inv-actionbar-value" id="imChallanTotal">' + formatCurrency(total) + '</div></div>' +
+    '<button type="button" class="inv-btn inv-btn-secondary" data-k="cancel" data-action="invCancelChallan">Cancel</button>' +
+    '<button type="button" class="inv-btn inv-btn-primary" data-k="save" data-kbd-ring data-action="invSaveChallan">' + (_challanForm._editingId ? 'Update challan' : 'Save challan') + '</button></div></div>';
 
   area.innerHTML = html;
 
@@ -26526,17 +26552,13 @@ function renderChallanClientResults(query) {
 
   acReset();
   if (matches.length === 0) {
-    res.className = 'inv-search-results inv-hidden';
+    res.classList.add('inv-hidden');
     res.innerHTML = '';
     if (input) input.setAttribute('aria-expanded', 'false');
     return;
   }
-  res.className = 'inv-search-results';
-  res.innerHTML = matches.map(function(c, i) {
-    return '<div class="inv-search-item" role="option" id="imClientOpt' + i + '" data-action="invSelectChallanClient" data-id="' + c.id + '">' +
-      '<div><div class="inv-client-name">' + escHtml(c.name) + '</div>' +
-      '<div class="inv-client-meta">' + escHtml(c.gstin || '') + '</div></div></div>';
-  }).join('');
+  res.classList.remove('inv-hidden');
+  res.innerHTML = clientMenuHtml(matches, 'invSelectChallanClient', 'imClientOpt');
   if (input) input.setAttribute('aria-expanded', 'true');
 }
 
@@ -26855,6 +26877,8 @@ function refreshChallanLineMatch(idx) {
   if (fn) fn.innerHTML = challanFillNote(item, client);
   var fl = document.getElementById('imFlag' + idx);
   if (fl && !fl.contains(document.activeElement)) fl.innerHTML = challanFlagHtml(client, item, idx);
+  var tot = document.getElementById('imChallanTotal');
+  if (tot) tot.textContent = formatCurrency(gstRound(_challanForm.items.reduce(function(t, it) { return t + (it.amount || 0); }, 0)));
 }
 /* ===== IM DUPLICATE GUARD ===== */
 
@@ -27321,17 +27345,8 @@ function _applyScanResult(parsed) {
 
 /* ===== EVENT DELEGATION ===== */
 document.addEventListener('click', function(e) {
-  // Dismiss client search dropdown when clicking outside it
-  const searchRes = document.getElementById('invClientResults');
-  if (searchRes && !searchRes.classList.contains('inv-hidden')) {
-    const searchWrap = searchRes.closest('.inv-search-wrap');
-    if (searchWrap && !searchWrap.contains(e.target)) {
-      searchRes.classList.add('inv-hidden');
-    }
-  }
-
-  // Dismiss part autocomplete when clicking outside
-  if (!e.target.closest('.inv-autocomplete-wrap')) {
+  // Dismiss any open suggestion menu (part or client) when clicking outside its field
+  if (!e.target.closest('.inv-combo')) {
     dismissAllAutocomplete();
   }
 
@@ -27385,6 +27400,7 @@ document.addEventListener('click', function(e) {
       break;
     }
     case 'invSelectClient': selectClient(parseInt(btn.dataset.id)); break;
+    case 'invCreatePickChallan': createPickChallan(btn.dataset.id); break;
     case 'invClearClient': captureOptionalFields(); invoiceForm.clientId = null; renderCreateForm(); break;
     case 'invAddLineItem': captureOptionalFields(); addLineItem(); break;
     case 'invRemoveLineItem': captureOptionalFields(); invoiceForm.items.splice(parseInt(btn.dataset.idx), 1); renderCreateForm(); break;
@@ -27734,26 +27750,13 @@ function updateTotalsDisplay() {
   const container = document.getElementById('invTotalsArea');
   if (!container) return;
   const client = invoiceForm.clientId ? S.clients.find(c => c.id === invoiceForm.clientId) : null;
-  if (invoiceForm.items.length === 0) { container.innerHTML = ''; return; }
-  const taxable = gstRound(invoiceForm.items.reduce((s,i) => s + (i.amount || 0), 0));
-  const gstType = client ? client.gstType : 'intra';
-  const cgst = gstType === 'intra' ? gstRound(taxable * 9 / 100) : 0;
-  const sgst = gstType === 'intra' ? gstRound(taxable * 9 / 100) : 0;
-  const igst = gstType === 'inter' ? gstRound(taxable * 18 / 100) : 0;
-  const grand = gstRound(taxable + cgst + sgst + igst);
-  let h = '<div class="inv-totals"><div class="inv-total-row"><span class="inv-total-label">Taxable Value</span><span class="inv-total-value">' + formatCurrency(taxable) + '</span></div>';
-  if (gstType === 'intra') {
-    h += '<div class="inv-total-row"><span class="inv-total-label">CGST @ 9%</span><span class="inv-total-value">' + formatCurrency(cgst) + '</span></div>' +
-      '<div class="inv-total-row"><span class="inv-total-label">SGST @ 9%</span><span class="inv-total-value">' + formatCurrency(sgst) + '</span></div>';
-  } else {
-    h += '<div class="inv-total-row"><span class="inv-total-label">IGST @ 18%</span><span class="inv-total-value">' + formatCurrency(igst) + '</span></div>';
-  }
-  h += '<div class="inv-total-row inv-total-row-grand"><span class="inv-total-label">Grand Total</span><span class="inv-total-grand">' + formatCurrency(grand) + '</span></div></div>';
-  container.innerHTML = h;
+  container.innerHTML = createTotalsHtml(client);
+  const grand = document.getElementById('invGrandTotal');
+  if (grand) grand.textContent = formatCurrency(createTotals(client).grand);
   // Update validation state
   const errors = validateInvoice();
   const errArea = document.getElementById('invErrorsArea');
-  if (errArea) errArea.innerHTML = errors.length > 0 ? errors.map(e => '<div class="inv-error">' + escHtml(e) + '</div>').join('') : '';
+  if (errArea) errArea.innerHTML = errors.map(e => '<div class="inv-field-error">' + escHtml(e) + '</div>').join('');
   const saveBtn = document.getElementById('invSaveBtn');
   if (saveBtn) saveBtn.disabled = errors.length > 0;
 }
@@ -28202,11 +28205,13 @@ document.addEventListener('keydown', function(e) {
   }
   if (e.key === 'Enter' && (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT')) {
     e.preventDefault();
-    var container = e.target.closest('.inv-page-active, .inv-im-form-active, .inv-overlay-card');
+    var container = e.target.closest('[data-form], .inv-page-active, .inv-overlay-card');
     if (!container) container = document.body;
+    // A folded section (Optional details) keeps its fields in the page but out of reach,
+    // so the chain steps over them rather than dead-ending on a field it cannot focus.
     var focusable = Array.from(container.querySelectorAll(
       'input:not([readonly]):not([type="hidden"]):not(.inv-hidden), select:not(.inv-hidden), textarea:not(.inv-hidden), [data-kbd-ring]'
-    ));
+    )).filter(function(el) { return !el.closest('details:not([open])'); });
     var curIdx = focusable.indexOf(e.target);
     if (curIdx >= 0 && curIdx < focusable.length - 1) {
       var next = focusable[curIdx + 1];

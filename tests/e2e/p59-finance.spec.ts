@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
 import path from 'path';
-import { emptyState, loadAppWithState, noSeedIM, recentTs, switchTab, type SepState } from './fixtures';
+import { emptyState, loadAppWithState, noSeedIM, recentTs, switchTab, todayIso, type SepState } from './fixtures';
 
 // P59: Finance. Bank and Bills & notes moved out of Stock into a page of their own, which opens on an
 // overview read across them (owner, 26 Sep 2026: "The entire finance sector of our app needs a
@@ -115,4 +115,92 @@ test('the To-do\'s missing electricity bill opens Finance on Bills & notes', asy
   await expect(page.locator('#pageFinance')).toHaveClass(/inv-page-active/);
   await expect(page.locator('[data-action="invFinTab"][data-tab="bills"]')).toHaveAttribute('aria-selected', 'true');
   await expect(page.locator('#pageFinance #costBillMonth')).toHaveValue('2026-08');
+});
+
+// ---- Phase 1 (docs/FINANCE_INTELLIGENCE_SPEC.md): cheques by series, and a month's GST paid outside the bank ----
+
+test('a cheque\'s instrument is read from the narration, and a client\'s series suggests the next one', async ({ page }) => {
+  await loadAppWithState(page, state());
+  const r = await page.evaluate(() => {
+    const w = window as any;
+    const c = (w.S || {}).clients;
+    return {
+      inst: w.bankInstrument({ narration: 'BY INST 525428 - MICR CLG (CTS)', chq: '' }),
+      near: w.bankSuggestBySeries('525433', { 1: ['525421', '525428'] })?.client.id ?? null,
+      far: w.bankSuggestBySeries('525500', { 1: ['525421', '525428'] }),
+      book: w.bankSuggestBySeries('625433', { 1: ['525421', '525428'] }),
+      two: w.bankSuggestBySeries('525433', { 1: ['525428'], 2: ['525440'] }),
+      agree: w.bankPlacementOffers({ narration: 'BY INST 100002 - MICR CLG', cr: 3000 },
+        [{ client: { id: 1, name: 'ALPHA FORGINGS' }, open: [{ inv: {}, label: 'X', due: 3000, date: '2026-07-01' }] }], { 1: ['100001'] }).both?.id ?? null,
+      disagree: w.bankPlacementOffers({ narration: 'BY INST 100002 - MICR CLG', cr: 3000 },
+        [{ client: { id: 2, name: 'BETA AUTO' }, open: [{ inv: {}, label: 'X', due: 3000, date: '2026-07-01' }] }], { 1: ['100001'] }),
+      clients: c ? c.length : 0,
+    };
+  });
+  expect(r.inst).toBe('525428');
+  expect(r.near).toBe(1);
+  expect(r.far).toBeNull();
+  expect(r.book).toBeNull();          // another cheque book
+  expect(r.two).toBeNull();           // two clients hold numbers near it: nothing is offered
+  expect(r.agree).toBe(1);            // series and amount agree
+  expect(r.disagree.both).toBeNull();
+  expect(r.disagree.series.client.id).toBe(1);
+  expect(r.disagree.amount.client.id).toBe(2);
+});
+
+test('placing one cheque tags its series; the next is offered to the same client, and a placement can be changed', async ({ page }) => {
+  await loadAppWithState(page, state());
+  await switchTab(page, 'pageFinance');
+  await finTab(page, 'bank');
+  await importXls(page, JUL);
+  await finTab(page, 'overview');
+  await page.locator('[data-action="invFinLoose"]').click();
+  await expect(page.locator('[data-action="invFinTab"][data-tab="receipts"]')).toContainText('2');
+
+  await page.locator('#bankLoose [data-loose]').filter({ hasText: '₹50,000.00' }).locator('select').selectOption('2');
+  const next = page.locator('#bankLoose [data-loose]').filter({ hasText: '₹3,000.00' });
+  await expect(next.locator('.inv-row-title')).toHaveText('100002');
+  await expect(next).toContainText('Cheque');
+  const id = await next.getAttribute('data-loose');
+  const offer = page.locator(`[data-offer="${id}"][data-why="series"]`);
+  await expect(offer).toContainText('series 100001–100001');
+  await expect(offer).toContainText('BETA AUTO');
+  await offer.locator('[data-action="invBankPlace"]').click();
+  await expect(page.locator('#bankLoose')).toHaveCount(0);
+  await page.locator('[data-recv="2"] [data-action="invBankClient"]').click();
+  await expect(page.locator('[data-series="2"]')).toContainText('100001 · 100002');
+
+  // A wrong placement is undone from the client's own list.
+  await page.locator('[data-alloc] [data-action="invBankChange"]').first().click();
+  await page.locator('[data-alloc] select').first().selectOption('');
+  await expect(page.locator('#bankLoose [data-loose]')).toHaveCount(1);
+});
+
+test('a month\'s GST paid another way gets a note, counts as paid, and reads as outside the bank', async ({ page }) => {
+  const s = state() as any;
+  const d = new Date(todayIso() + 'T00:00:00'); d.setDate(1); d.setMonth(d.getMonth() - 1);
+  const last = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  s.invoices.push(inv(9, last + '-10', 10000, 1, 'ALPHA FORGINGS'));   // 1,800 of GST due, no payment on any statement
+  await loadAppWithState(page, s);
+  await switchTab(page, 'pageFinance');
+  await finTab(page, 'gst');
+  const row = page.locator(`[data-gst="${last}"]`);
+  await row.locator('[data-action="invFinGstNote"]').click();
+  await page.locator('#finGstNote').fill('Paid from the ACI account');
+  await page.locator('#finGstPaid').fill('1800');
+  await page.locator('#finGstVia').fill('ACI');
+  await page.locator('[data-action="invFinGstSave"]').click();
+  await expect(row).toContainText('Outside bank');
+  await expect(page.locator(`[data-gst-note="${last}"]`)).toContainText('Paid from the ACI account');
+  await finTab(page, 'overview');
+  await expect(page.locator('[data-fin-tile="gst"]')).toContainText('paid outside the bank');
+  const note = await page.evaluate(m => (window as any).bankData().gstNotes[m], last);
+  expect(note).toMatchObject({ note: 'Paid from the ACI account', paidOther: 1800, via: 'ACI' });
+
+  // A note without an amount is a note, not a payment.
+  await finTab(page, 'gst');
+  await row.locator('[data-action="invFinGstNote"]').click();
+  await page.locator('#finGstPaid').fill('');
+  await page.locator('[data-action="invFinGstSave"]').click();
+  await expect(row).toContainText('Noted');
 });

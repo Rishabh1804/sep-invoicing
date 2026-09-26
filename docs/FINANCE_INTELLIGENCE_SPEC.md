@@ -30,6 +30,7 @@ needs one it does not define).
 | Sidebar: Staff from Pay, Clients from Items | PR #80, green | `init.js` `sideGo` |
 | **Finance page** (Overview · Receivables · Payments · Bank · Bills & notes · GST), Bank and Bills & notes moved out of Stock | committed on local branch `finance` (86945fe) **on top of #80**; PR opens when #80 merges | `finance.js` |
 | This spec | same branch | `docs/FINANCE_INTELLIGENCE_SPEC.md` |
+| **Phase 1** — cheque placement links, series tagging and suggestion, GST month notes | built on the same branch; P59 covers it | `bank.js`, `finance.js` |
 
 Data already available to build on — **use these, do not re-derive**:
 

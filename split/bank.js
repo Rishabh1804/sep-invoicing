@@ -31,6 +31,7 @@ function bankCatLabel(k) { var c = BANK_CATS.find(function(x) { return x[0] === 
 var _bankFilter = { cat: '', q: '' };
 var _bankEdit = null;          // the statement row being categorised
 var _bankOpen = null;          // the client whose receipts are open
+var _bankChange = null;        // a placed receipt whose client is being changed
 
 function bankData() {
   if (!S.bank || typeof S.bank !== 'object' || Array.isArray(S.bank)) S.bank = {};
@@ -39,6 +40,7 @@ function bankData() {
   if (!Array.isArray(b.imports)) b.imports = [];
   if (!b.parties || typeof b.parties !== 'object') b.parties = {};
   if (!b.opening || typeof b.opening !== 'object') b.opening = {};
+  if (!b.gstNotes || typeof b.gstNotes !== 'object') b.gstNotes = {};
   return b;
 }
 
@@ -216,7 +218,8 @@ function bankClassify(rows) {
     [rule, row.set].forEach(function(o) {
       if (!o) return;
       if (o.cat) { v.cat = o.cat; v.auto = false; }
-      if (o.clientId != null) v.clientId = o.clientId;
+      // A pick set back to "no client" is a decision too: it unplaces, rather than falling back to the guess.
+      if ('clientId' in o) v.clientId = o.clientId == null ? null : o.clientId;
       if (o.staffId != null) { v.staffId = o.staffId; v.guess = false; }
     });
     v.row = row; v.key = key;
@@ -381,8 +384,13 @@ function _bankReceiptsHtml(cls) {
         '<span class="inv-badge inv-badge-' + (a.how === 'exact' ? 'ok' : 'neutral') + '">' + (a.how === 'exact' ? 'Exact' : 'Oldest first') + '</span></span>' +
         '<span class="inv-row-meta">' + escHtml(a.parts.map(function(p) { return p.label + (p.whole ? '' : ' (part ' + formatCurrency(p.amount) + ')'); }).join(', ') || 'nothing open to set it against') +
         (a.unapplied > 0 ? ' · ' + escHtml(formatCurrency(a.unapplied)) + ' more than was owed' : '') + '</span></span>' +
-        '<span class="inv-row-end"><span class="inv-num">' + formatCurrency(a.v.row.cr) + '</span></span></div>';
+        '<span class="inv-row-end"><span class="inv-num">' + formatCurrency(a.v.row.cr) + '</span>' +
+        (_bankChange === a.v.row.id ? _bankClientSelect(a.v).replace('<option value="">Client…</option>', '<option value="">No client</option>')
+          : '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invBankChange" data-id="' + escHtml(a.v.row.id) + '">Change</button>') + '</span></div>';
     });
+    var ser = bankChequeSeries(cls)[String(r.client.id)];
+    if (ser && ser.length) h += '<div class="inv-row" data-series="' + escHtml(String(r.client.id)) + '"><span class="inv-row-main inv-row-meta">Cheques: <span class="inv-id">' + escHtml(ser.slice(-5).join(' · ')) + '</span>' +
+      (ser.length > 5 ? ' and ' + (ser.length - 5) + ' more' : '') + '</span></div>';
     r.open.forEach(function(o) {
       h += '<div class="inv-row inv-row-2" data-open-inv="' + escHtml(o.label) + '"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(o.label) + '</span>' +
         '<span class="inv-row-meta"><span class="inv-dot inv-dot-warning">Open</span> · ' + escHtml(formatDate(o.date)) + '</span></span>' +
@@ -392,16 +400,31 @@ function _bankReceiptsHtml(cls) {
   });
   h += '</div>';
   // Receipts nobody can name: cheques deposited, a remitter the client list does not recognise.
-  var loose = cls.filter(function(v) { return v.cat === 'receipt' && v.clientId == null; });
+  var loose = cls.filter(function(v) { return v.cat === 'receipt' && v.clientId == null; }), series = bankChequeSeries(cls);
   if (loose.length) {
     h += '<div class="inv-panel inv-panel-flush" id="bankLoose"><div class="inv-panel-head"><span class="inv-panel-title">Receipts with no client</span><span class="inv-panel-count">' + loose.length + '</span></div>' +
       '<div class="inv-panel-body inv-note">Cheques deposited carry no name. Pick the client; a remitter\'s name is remembered for its next receipt.</div>';
     loose.slice().reverse().forEach(function(v) {
-      var sug = bankSuggestClient(v.row.cr, recv);
-      h += '<div class="inv-row inv-row-2" data-loose="' + escHtml(v.row.id) + '"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(v.party || v.row.narration) + '</span>' +
-        '<span class="inv-row-meta">' + escHtml(formatDate(v.row.date)) + (v.row.chq ? ' · chq ' + escHtml(v.row.chq) : '') +
-        (sug ? ' · equals ' + escHtml(sug.labels.join(' + ')) + ' <button class="inv-btn inv-btn-link inv-btn-sm" data-action="invBankPlace" data-id="' + escHtml(v.row.id) + '" data-client="' + escHtml(String(sug.client.id)) + '">Place with ' + escHtml(sug.client.name) + '</button>' : '') + '</span></span>' +
+      var inst = bankInstrument(v.row), o = bankPlacementOffers(v.row, recv, series);
+      // The cheque number is what the owner matches against the book, so it leads; a remitter's name leads where there is one.
+      var chqDep = /^BY INST\b/i.test(v.row.narration) && inst;
+      h += '<div class="inv-row inv-row-2" data-loose="' + escHtml(v.row.id) + '"><span class="inv-row-main"><span class="inv-row-title">' +
+        (chqDep ? '<span class="inv-id">' + escHtml(inst) + '</span>' : escHtml(v.party || v.row.narration)) + '</span>' +
+        '<span class="inv-row-meta">' + (chqDep ? 'Cheque · ' : '') + escHtml(formatDate(v.row.date)) + (inst && !chqDep ? ' · chq ' + escHtml(inst) : '') + '</span></span>' +
         '<span class="inv-row-end"><span class="inv-num">' + formatCurrency(v.row.cr) + '</span>' + _bankClientSelect(v, 'bankLooseClient') + '</span></div>';
+      // Each offer is a line of its own under the cheque, its button at the row's end: inside the
+      // one-line meta it was clipped by the ellipsis on a phone and could not be tapped.
+      var offer = function(c, why, text) {
+        return '<div class="inv-row inv-row-2" data-offer="' + escHtml(v.row.id) + '" data-why="' + why + '"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(c.name) + '</span>' +
+          '<span class="inv-row-meta">' + escHtml(text) + '</span></span>' +
+          '<span class="inv-row-end"><button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invBankPlace" data-id="' + escHtml(v.row.id) + '" data-client="' + escHtml(String(c.id)) + '" data-why="' + why + '" aria-label="Place with ' + escHtml(c.name) + '">Place</button></span></div>';
+      };
+      if (o.both) h += '<div class="inv-row-children">' + offer(o.both, 'both', 'series and amount agree') + '</div>';
+      else if (o.series || o.amount) {
+        h += '<div class="inv-row-children">' +
+          (o.series ? offer(o.series.client, 'series', 'series ' + o.series.from + '–' + o.series.to) : '') +
+          (o.amount ? offer(o.amount.client, 'amount', 'equals ' + o.amount.labels.join(' + ')) : '') + '</div>';
+      }
     });
     h += '</div>';
   }
@@ -425,6 +448,47 @@ function bankSuggestClient(amt, recv) {
     }
   });
   return hits.length === 1 ? hits[0] : null;
+}
+
+/* ---------- Cheque numbers and their series ----------
+   A deposit's instrument is in the narration ("BY INST 525428 - MICR CLG"), not the cheque column.
+   Placing a deposit on a client IS the tag (owner, 26 Sep 2026: "tag cheque numbers to clients —
+   their series will help in automation"): no second store, the series is read off the placements. */
+function bankInstrument(row) {
+  var m = String(row.narration || '').match(/^BY INST\s+(\d+)/i);
+  return m ? m[1] : String(row.chq || '').trim();
+}
+function bankChequeSeries(cls) {
+  var out = {};
+  (cls || bankClassify()).forEach(function(v) {
+    if (v.cat !== 'receipt' || v.clientId == null) return;
+    var n = bankInstrument(v.row);
+    if (!/^\d{4,}$/.test(n)) return;
+    (out[String(v.clientId)] = out[String(v.clientId)] || []).push(n);
+  });
+  Object.keys(out).forEach(function(k) { out[k].sort(function(a, b) { return +a - +b; }); });
+  return out;
+}
+/* One cheque book: the same length, all but the last three digits alike. A number is suggested to a
+   client only when exactly one client holds a number of that book within 50 of it. */
+function bankSuggestBySeries(inst, series) {
+  if (!/^\d{4,}$/.test(inst)) return null;
+  var book = function(n) { return n.length + ':' + n.slice(0, -3); }, hits = [];
+  Object.keys(series).forEach(function(id) {
+    var near = series[id].filter(function(n) { return book(n) === book(inst) && n !== inst && Math.abs(+n - +inst) <= 50; });
+    if (near.length) hits.push({ id: id, nums: series[id].filter(function(n) { return book(n) === book(inst); }) });
+  });
+  if (hits.length !== 1) return null;
+  var c = (S.clients || []).find(function(x) { return String(x.id) === hits[0].id; });
+  return c ? { client: c, from: hits[0].nums[0], to: hits[0].nums[hits[0].nums.length - 1] } : null;
+}
+
+/* Both ways a deposit can point at a client. When they agree, that is the offer; when they disagree,
+   both are shown and nothing is placed. */
+function bankPlacementOffers(row, recv, series) {
+  var amount = bankSuggestClient(row.cr, recv), ser = bankSuggestBySeries(bankInstrument(row), series);
+  if (amount && ser && String(amount.client.id) === String(ser.client.id)) return { both: amount.client, series: ser, amount: amount };
+  return { both: null, series: ser, amount: amount };
 }
 
 function _bankClientSelect(v, cls) {
@@ -677,7 +741,7 @@ function bankExportJson() {
   var b = bankData(), meta = document.querySelector('meta[name="app-build"]');
   var cls = bankClassify();
   var out = { format: 'sep-bank', version: 1, exportedAt: new Date().toISOString(), build: meta ? meta.content : '', account: b.account || '',
-    imports: b.imports, parties: b.parties, opening: b.opening,
+    imports: b.imports, parties: b.parties, opening: b.opening, gstNotes: b.gstNotes,
     rows: cls.map(function(v) { return Object.assign({}, v.row, { cat: v.cat, party: v.party, clientId: v.clientId == null ? null : v.clientId, staffId: v.staffId == null ? null : v.staffId, cash: !!v.cash }); }) };
   var a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob([JSON.stringify(out, null, 2)], { type: 'application/json' }));
@@ -696,7 +760,7 @@ function bankInput(t) {
     if (s) { s.focus(); s.setSelectionRange(s.value.length, s.value.length); }
     return true;
   }
-  if (t.dataset && t.dataset.bankClient) { bankSetClient(t.dataset.bankClient, t.value); return true; }
+  if (t.dataset && t.dataset.bankClient) { _bankChange = null; bankSetClient(t.dataset.bankClient, t.value); return true; }
   if (t.dataset && t.dataset.bankMonth) {
     var row = bankData().rows.find(function(x) { return x.id === t.dataset.bankMonth; });
     if (row) { row.billMonth = t.value; saveState(); renderFinance(); }
@@ -730,6 +794,7 @@ function bankAction(action, btn) {
     case 'invBankClient': _bankOpen = _bankOpen === btn.dataset.id ? null : btn.dataset.id; renderFinance(); return true;
     case 'invBankAddBill': bankAddPowerBill(btn.dataset.id); return true;
     case 'invBankPlace': bankSetClient(btn.dataset.id, btn.dataset.client); return true;
+    case 'invBankChange': _bankChange = btn.dataset.id; renderFinance(); return true;
     case 'invBankEdit': _bankEdit = _bankEdit === btn.dataset.id ? null : btn.dataset.id; renderFinance(); return true;
     case 'invBankEditCancel': _bankEdit = null; renderFinance(); return true;
     case 'invBankEditSave': bankSaveEdit(btn.dataset.id); return true;

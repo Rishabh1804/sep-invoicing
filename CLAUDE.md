@@ -1321,6 +1321,23 @@ Payments · Bank · Bills & notes · GST**. The open tab is remembered on the de
   shape; the tab says so and never calls the gap a shortfall. The GST tab reads twelve months.
 - With no statement the Overview says what reads from it and still shows GST due, which reads from the invoices.
 - The To-do's missing electricity bill opens Finance → Bills & notes on the month (`todoGo` kind `bills`).
+- **Cheques are placed, and tagged by their series** (owner, 26 Sep 2026: *"make sure we have a field to enter the
+  client so that what the client owes starts coming down to the actual figure. Also tag cheque numbers to clients —
+  their series will help in automation"*). The Overview's *"N receipts not placed"* is a link to them, and the
+  Receivables tab carries the count. A deposit's instrument is in the narration (`BY INST 525428`, `bankInstrument`).
+  **Placing a deposit is its tag** — no second store: `bankChequeSeries()` reads each client's numbers off its
+  placements and lists them on the client (*Cheques: …*). A new deposit is **offered** to a client when exactly one
+  client holds a number from the same book (same length, all but the last three digits alike) within 50 of it; when
+  the series and the exact-sum match agree they are one offer (*Series and amount agree*), when they disagree both
+  are shown and nothing is placed (`bankPlacementOffers`). Each offer is a line of its own with its button at the
+  row's end — inside the one-line meta it was clipped by the ellipsis on a phone and could not be tapped. A placed
+  receipt is moved or unplaced with *Change* on the client's list; *No client* is a decision, stored as
+  `clientId: null`, not a fallback to the guess.
+- **A month's GST paid outside the bank** (owner: *"For July, make sure that reason is mentioned or has a place where
+  we can mention it"*). Finance → GST → *Add note* on any month the bank shows no payment for: what happened
+  (required), and optionally the amount paid another way, the date and the route (`S.bank.gstNotes[YYYY-MM]`,
+  exported in `sep-bank`). An amount counts as paid and reads **Outside bank** (info, never ok — the app cannot see
+  it); a note alone reads **Noted**. The tile follows. Nothing is seeded: July's note is the owner's to write.
 
 ### Bills & notes
 More → Finance → **Bills & notes** (`bills.js`, moved from Stock 26 Sep 2026; owner, 26 Sep 2026: *"We don't have a place to enter electricity

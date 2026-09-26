@@ -12,6 +12,7 @@
 
 var FIN_TABS = [['overview', 'Overview'], ['receipts', 'Receivables'], ['payments', 'Payments'], ['bank', 'Bank'], ['bills', 'Bills & notes'], ['gst', 'GST']];
 var _finTab = (function() { try { var t = localStorage.getItem('sep_inv_fin_tab'); return FIN_TABS.some(function(x) { return x[0] === t; }) ? t : 'overview'; } catch (e) { return 'overview'; } })();
+var _finGstEdit = null;   // the month whose GST note is open
 var _finMonth = null;   // the month "where money went" reads; null = the latest with a statement row
 
 function finSetTab(t) {
@@ -23,7 +24,9 @@ function finSetTab(t) {
 function renderFinance() {
   var el = document.getElementById('financeContent');
   if (!el) return;
-  var tab = function(k, l) { return '<button class="inv-viewtab" role="tab" aria-selected="' + (_finTab === k) + '" data-action="invFinTab" data-tab="' + k + '">' + l + '</button>'; };
+  var looseN = bankRows().length ? bankClassify().filter(function(v) { return v.cat === 'receipt' && v.clientId == null; }).length : 0;
+  var tab = function(k, l) { return '<button class="inv-viewtab" role="tab" aria-selected="' + (_finTab === k) + '" data-action="invFinTab" data-tab="' + k + '">' + l +
+    (k === 'receipts' && looseN ? ' <span class="inv-badge inv-badge-warning" title="Receipts with no client">' + looseN + '</span>' : '') + '</button>'; };
   var h = '<div class="inv-viewtabs" role="tablist" aria-label="Finance">' + FIN_TABS.map(function(t) { return tab(t[0], t[1]); }).join('') + '</div>' +
     '<input type="file" accept=".xls,application/vnd.ms-excel" id="bankFileInput" class="inv-hidden">';
   if (_finTab === 'bills') h += renderBillsNotes();
@@ -93,11 +96,25 @@ function finGstByMonth(months, cls) {
     var m = bankPrevMonth(v.row.date);
     if (m in paid) { paid[m] = gstRound(paid[m] + v.row.dr); paidRows[m].push(v.row); }
   });
-  var today = localDateStr();
+  var today = localDateStr(), notes = bankData().gstNotes;
   return months.map(function(m) {
-    var next = finNextMonth(m), dueBy = next + '-20';
-    return { month: m, due: due[m], paid: paid[m], rows: paidRows[m], dueBy: dueBy, open: today <= dueBy || m >= today.slice(0, 7) };
+    var next = finNextMonth(m), dueBy = next + '-20', n = notes[m] || null;
+    // A return paid another way (owner, 26 Sep 2026: July went by another route) is recorded by hand
+    // and counts as paid, but is never shown as what the bank saw.
+    var other = n && Number(n.paidOther) > 0 ? gstRound(Number(n.paidOther)) : 0;
+    return { month: m, due: due[m], paidBank: paid[m], paidOther: other, paid: gstRound(paid[m] + other), rows: paidRows[m], note: n,
+      dueBy: dueBy, open: today <= dueBy || m >= today.slice(0, 7) };
   });
+}
+/* One reading of a month, shared by the table and the tile. */
+function finGstStatus(r) {
+  if (r.paidBank > 0) return { tone: 'ok', text: 'Paid ' + finShortDate(r.rows[r.rows.length - 1].date) };
+  if (r.paidOther > 0) return { tone: 'info', text: 'Outside bank', title: 'Paid another way' + (r.note && r.note.via ? ' via ' + r.note.via : '') };
+  if (r.note) return { tone: 'neutral', text: 'Noted', title: r.note.note };
+  if (r.due <= 0) return { tone: 'neutral', text: 'Nil' };
+  if (r.open) return { tone: 'info', text: 'Due ' + finShortDate(r.dueBy) };
+  // Only the bank is read: a return paid another way is not on the statement, so this says what is known.
+  return { tone: 'warning', text: 'Not in bank', title: 'No GST payment on the statement for this month; one made another way would not show here', missing: true };
 }
 
 /* "Jun '26": a month column that has to leave room for a status on a phone. */
@@ -108,16 +125,18 @@ function finGstHtml(n, wide) {
   var h = '<div class="inv-panel inv-panel-flush' + (wide ? ' inv-panels-wide' : '') + '" id="finGst"><div class="inv-panel-head"><span class="inv-panel-title">GST due and paid</span></div>' +
     '<div class="inv-panel-body inv-note">Due is the output tax on the month\'s invoices less the tax on its credit notes. Paid is the GST the bank sent the month after. ' +
     'Cash paid is output tax less input credit, so paying less than is due is normal; the gap is the credit claimed, or a shortfall only the return can tell apart.</div>' +
+    (_finGstEdit ? finGstNoteFormHtml(_finGstEdit) : '') +
     '<div class="inv-scroll"><table class="inv-table"><thead><tr><th>Month</th><th class="inv-num">Due</th><th class="inv-num">Paid</th><th>Status</th></tr></thead><tbody>';
   rows.forEach(function(r) {
-    // Short, so the column fits a phone; the full reading is the row's title.
-    var st = r.paid > 0 ? '<span class="inv-dot inv-dot-ok">Paid ' + escHtml(finShortDate(r.rows[r.rows.length - 1].date)) + '</span>'
-      : r.due <= 0 ? '<span class="inv-dot inv-dot-neutral">Nil</span>'
-      : r.open ? '<span class="inv-dot inv-dot-info">Due ' + escHtml(finShortDate(r.dueBy)) + '</span>'
-      // Only the bank is read: a return paid another way is not on the statement, so this says what is known.
-      : '<span class="inv-dot inv-dot-warning" title="No GST payment on the statement for this month; one made another way would not show here">Not in bank</span>';
+    var st = finGstStatus(r);
     h += '<tr data-gst="' + r.month + '"><td class="inv-nowrap" title="' + escHtml(billsMonthLabel(r.month)) + '">' + escHtml(finShortMonth(r.month)) + '</td><td class="inv-num">' + formatCurrency(r.due) + '</td>' +
-      '<td class="inv-num">' + (r.paid ? formatCurrency(r.paid) : '&mdash;') + '</td><td>' + st + '</td></tr>';
+      '<td class="inv-num">' + (r.paid ? formatCurrency(r.paid) : '&mdash;') + '</td><td><span class="inv-dot inv-dot-' + st.tone + '"' + (st.title ? ' title="' + escHtml(st.title) + '"' : '') + '>' + escHtml(st.text) + '</span>' +
+      // A note is possible for any month the bank shows no payment for, not only once it is overdue.
+      (r.note || (r.due > 0 && !r.paidBank) ? ' <button class="inv-btn inv-btn-link inv-btn-sm" data-action="invFinGstNote" data-month="' + r.month + '">' + (r.note ? 'Edit' : 'Add note') + '</button>' : '') + '</td></tr>';
+    if (r.note) {
+      h += '<tr class="inv-row-note" data-gst-note="' + r.month + '"><td colspan="4"><span class="inv-row-meta">' + escHtml(r.note.note) +
+        (r.paidOther ? ' · ' + escHtml(formatCurrency(r.paidOther)) + ' paid' + (r.note.paidOn ? ' on ' + escHtml(formatDate(r.note.paidOn)) : '') + (r.note.via ? ' via ' + escHtml(r.note.via) : '') : '') + '</span></td></tr>';
+    }
   });
   return h + '</tbody></table></div></div>';
 }
@@ -144,8 +163,11 @@ function finOverviewHtml() {
     tile('Owed to us', has ? formatCurrency(owed) : '&mdash;', has ? (loose ? finPl(loose, 'receipt') + ' not placed: reads high' : finPl(recv.filter(function(r) { return r.owed > 0.005; }).length, 'client') + ' · since ' + escHtml(formatDate(rows[0].date))) : 'needs a statement',
       loose ? 'warning' : '', 'owed') +
     tile('Paid out', paidMonth ? formatCurrency(paidMonth.dr) : '&mdash;', paidMonth ? 'in ' + escHtml(billsMonthLabel(paidMonth.month)) + ' · ' + finRs(paidMonth.cr) + ' came in' : 'needs a statement', '', 'out') +
-    tile('GST for ' + escHtml(billsMonthLabel(gst.month)), formatCurrency(gst.due), gst.paid > 0 ? 'paid ' + formatCurrency(gst.paid) : gst.open ? 'due by ' + escHtml(formatDate(gst.dueBy)) : 'no payment on the statement',
-      gst.paid > 0 || gst.due <= 0 ? '' : gst.open ? 'info' : 'warning', 'gst') +
+    tile('GST for ' + escHtml(billsMonthLabel(gst.month)), formatCurrency(gst.due), (function() {
+      var st = finGstStatus(gst);
+      return gst.paidBank > 0 ? 'paid ' + formatCurrency(gst.paidBank) : gst.paidOther > 0 ? formatCurrency(gst.paidOther) + ' paid outside the bank'
+        : gst.note ? 'noted: ' + escHtml(gst.note.note) : gst.open ? 'due by ' + escHtml(formatDate(gst.dueBy)) : st.missing ? 'no payment on the statement' : '';
+    })(), gst.paid > 0 || gst.note || gst.due <= 0 ? '' : gst.open ? 'info' : 'warning', 'gst') +
     '</div>';
 
   if (!has) {
@@ -178,7 +200,8 @@ function finOverviewHtml() {
       '<span class="inv-row-end inv-num">' + formatCurrency(r.owed) + '</span></div>';
   });
   if (!top.length) h += '<div class="inv-empty">Nothing owed since the statement starts.</div>';
-  if (loose) h += '<div class="inv-panel-body inv-note">' + loose + ' receipt' + (loose === 1 ? '' : 's') + ' with no client are not counted yet: place them on Receivables.</div>';
+  if (loose) h += '<div class="inv-panel-body inv-note">' + finPl(loose, 'receipt') + ' with no client ' + (loose === 1 ? 'is' : 'are') + ' not counted yet, so what is owed reads high. ' +
+    '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invFinLoose">Place them</button></div>';
   h += '</div>';
 
   // Where money went
@@ -203,6 +226,33 @@ function finOverviewHtml() {
   return h + finGstHtml(6, true) + '</div>';
 }
 
+/* A place for what the statement cannot say (owner, 26 Sep 2026: "For July, make sure that reason is
+   mentioned or has a place where we can mention it"). Nothing is seeded: the note is the owner's. */
+function finGstNoteFormHtml(m) {
+  var n = bankData().gstNotes[m] || {};
+  var f = function(id, label, input) { return '<div class="inv-field"><label class="inv-field-label" for="' + id + '">' + label + '</label>' + input + '</div>'; };
+  return '<div class="inv-panel-body" data-gst-form="' + m + '"><div class="inv-panel-title">GST for ' + escHtml(billsMonthLabel(m)) + '</div><div class="inv-fields">' +
+    f('finGstNote', 'What happened', '<input class="inv-input" id="finGstNote" value="' + escHtml(n.note || '') + '" placeholder="e.g. paid from the ACI account">') +
+    f('finGstPaid', 'Paid another way (₹, optional)', '<input class="inv-input inv-num" type="number" step="0.01" min="0" inputmode="decimal" id="finGstPaid" value="' + (n.paidOther || '') + '">') +
+    f('finGstOn', 'On', '<input class="inv-input" type="date" id="finGstOn" value="' + escHtml(n.paidOn || '') + '">') +
+    f('finGstVia', 'Via', '<input class="inv-input" id="finGstVia" value="' + escHtml(n.via || '') + '" placeholder="account or route">') +
+    '</div><div class="inv-toolbar">' + (bankData().gstNotes[m] ? '<button class="inv-btn inv-btn-danger inv-btn-sm" data-action="invFinGstRemove" data-month="' + m + '">Remove note</button>' : '') +
+    '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invFinGstCancel">Cancel</button>' +
+    '<button class="inv-btn inv-btn-primary inv-btn-sm" data-action="invFinGstSave" data-month="' + m + '">Save</button></div></div>';
+}
+function finGstNoteSave(m) {
+  var root = document.querySelector('#pageFinance [data-gst-form="' + m + '"]');
+  if (!root) return;
+  var v = function(id) { var el = root.querySelector('#' + id); return el ? el.value.trim() : ''; };
+  if (!v('finGstNote')) { showToast('Say what happened', 'error'); return; }
+  var paid = gstRound(parseFloat(v('finGstPaid')) || 0);
+  bankData().gstNotes[m] = { note: v('finGstNote'), paidOther: paid > 0 ? paid : null, paidOn: v('finGstOn') || null, via: v('finGstVia') || null, at: Date.now() };
+  _finGstEdit = null;
+  saveState();
+  renderFinance();
+  showToast('Note saved for ' + billsMonthLabel(m));
+}
+
 function financeInput(t) {
   if (t && t.id === 'finMonthPick') { _finMonth = t.value; renderFinance(); return true; }
   return false;
@@ -211,6 +261,17 @@ function financeAction(action, btn) {
   switch (action) {
     case 'invFinTab': finSetTab(btn.dataset.tab); _bankEdit = null; renderFinance(); return true;
     case 'invFinClient': _bankOpen = btn.dataset.id; finSetTab('receipts'); renderFinance(); return true;
+    case 'invFinLoose':
+      finSetTab('receipts'); renderFinance();
+      var lp = document.getElementById('bankLoose');
+      if (lp && lp.scrollIntoView) lp.scrollIntoView({ block: 'start' });
+      return true;
+    case 'invFinGstNote': _finGstEdit = btn.dataset.month; renderFinance(); return true;
+    case 'invFinGstCancel': _finGstEdit = null; renderFinance(); return true;
+    case 'invFinGstSave': finGstNoteSave(btn.dataset.month); return true;
+    case 'invFinGstRemove':
+      if (!confirm('Remove the note for ' + billsMonthLabel(btn.dataset.month) + '?')) return true;
+      delete bankData().gstNotes[btn.dataset.month]; _finGstEdit = null; saveState(); renderFinance(); return true;
   }
   return false;
 }

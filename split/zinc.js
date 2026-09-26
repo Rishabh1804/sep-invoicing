@@ -62,17 +62,15 @@ function renderZincCard() {
   if (!el) return;
   var z = getZinc();
   var landed = zincLandedRate();
+  var head = '<div class="inv-panel inv-panel-flush"><div class="inv-panel-head"><span class="inv-panel-title">Zinc</span>';
 
   if (landed == null) {
     // Adding the key does not fetch anything by itself, so the empty state has
     // to carry the Refresh button too. Without it, setting a key left the card
     // still asking for a key and no way to act on it.
     var hasKey = !!getMetalsKey();
-    el.innerHTML = '<div class="inv-card"><div class="inv-card-header">' +
-      '<span class="inv-card-title">Zinc</span>' +
-      (hasKey ? '<button class="inv-btn inv-btn-primary inv-btn-sm" data-action="invRefreshZinc">Refresh</button>' : '') +
-      '</div>' +
-      '<div class="inv-text-muted inv-storage-text">' +
+    el.innerHTML = head + (hasKey ? '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invRefreshZinc">Refresh</button>' : '') + '</div>' +
+      '<div class="inv-empty">' +
       (hasKey
         ? 'No rate recorded yet. Tap Refresh to pull the current market rate, or enter it by hand in Settings.'
         : 'No rate recorded. Set it in Settings, or add a metals.dev API key there to pull it from the market.') +
@@ -86,27 +84,20 @@ function renderZincCard() {
     : age === 0 ? 'updated today'
     : 'updated ' + age + ' day' + (age !== 1 ? 's' : '') + ' ago';
 
-  el.innerHTML = '<div class="inv-card"><div class="inv-card-header">' +
-    '<span class="inv-card-title">Zinc</span>' +
-    '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invRefreshZinc">Refresh</button>' +
-    '</div>' +
-    '<div class="inv-flex-between inv-mb-8">' +
-    '<div><div class="inv-text-muted inv-stat-label">Landed per kg</div>' +
-    '<div class="inv-display inv-stat-value">' + formatCurrency(landed) + '</div></div>' +
-    '<div class="inv-text-right"><div class="inv-text-muted inv-stat-label">' +
-    (z.basis === 'lme' ? 'MCX est. + premium' : 'MCX + premium') + '</div>' +
-    '<div class="inv-mono inv-zinc-breakdown">' + formatCurrency(zincMcxRate()) +
-    ' + ' + formatCurrency(z.premiumPerKg || 0) + '</div></div></div>' +
+  el.innerHTML = head + '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invRefreshZinc">Refresh</button></div>' +
+    '<div class="inv-tiles inv-tiles-flush">' +
+    '<div class="inv-tile"><div class="inv-tile-label">Landed per kg</div><div class="inv-tile-value">' + formatCurrency(landed) + '</div></div>' +
+    '<div class="inv-tile"><div class="inv-tile-label">' + (z.basis === 'lme' ? 'MCX est. + premium' : 'MCX + premium') + '</div>' +
+    '<div class="inv-tile-value inv-tile-value-sm">' + formatCurrency(zincMcxRate()) + ' + ' + formatCurrency(z.premiumPerKg || 0) + '</div></div></div>' +
+    '<div class="inv-row inv-row-auto"><span class="inv-row-main">' +
     // Show the whole derivation when the figure was uplifted from LME, so an
     // estimate never reads as a quoted MCX price.
     (z.basis === 'lme'
-      ? '<div class="inv-zinc-meta">LME ' + formatCurrency(z.ratePerKg) +
-        ' + ' + formatNum(z.upliftPct, 1) + '% duty/freight = MCX est. ' +
-        formatCurrency(zincMcxRate()) + '</div>'
+      ? '<span class="inv-row-meta inv-row-wrap">LME ' + formatCurrency(z.ratePerKg) +
+        ' + ' + formatNum(z.upliftPct, 1) + '% duty/freight = MCX est. ' + formatCurrency(zincMcxRate()) + '</span>'
       : '') +
-    '<div class="inv-zinc-meta' + (stale ? ' inv-zinc-stale' : '') + '">' +
-    escHtml(ageText) + (z.source ? ' · ' + escHtml(z.source) : '') +
-    (stale ? ' · may be out of date' : '') + '</div></div>';
+    '<span class="inv-row-meta inv-row-wrap"><span class="inv-dot ' + (stale ? 'inv-dot-warning' : 'inv-dot-ok') + '" data-zinc-age="' + (stale ? 'stale' : 'fresh') + '">' +
+    escHtml(ageText) + (z.source ? ' · ' + escHtml(z.source) : '') + (stale ? ' · may be out of date' : '') + '</span></span></span></div></div>';
 }
 
 /* Pull the live rate. Deliberately forgiving about the response shape: the

@@ -79,9 +79,9 @@ test.describe('P40: To-do', () => {
     await load(page, base({ todo: { tasks: [task('TD-a', 'Later thing'), task('TD-b', 'Check the nitric count', iso(-1))], snoozes: {} } } as any));
     await expect(page.locator('#moreBadge')).toHaveText('1');
     const home = page.locator('#homeTodoCard');
-    await expect(home.locator('.inv-td-hrow').first()).toContainText('Check the nitric count');
-    await expect(home.locator('.inv-td-hrow').first()).toContainText('Yesterday');
-    await expect(home.locator('.inv-td-lbl-mine').first()).toBeVisible();
+    await expect(home.locator('[data-todo]').first()).toContainText('Check the nitric count');
+    await expect(home.locator('[data-todo]').first()).toContainText('Yesterday');
+    await expect(home.locator('[data-todo="mine"] .inv-badge').first()).toBeVisible();
 
     await switchTab(page, 'pageTodo');
     await expect(page.locator('.inv-td-row.inv-td-tone-red')).toContainText('Check the nitric count');

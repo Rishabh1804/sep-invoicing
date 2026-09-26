@@ -56,8 +56,8 @@ test.describe('P53: appearance', () => {
     await page.emulateMedia({ colorScheme: 'dark' });
     await load(page);
     // Teal's dark accent is light, so its text is dark — never the v1.0 hard-coded white.
-    expect(await css(page, '.inv-qa-pri', 'color')).toBe('rgb(4, 33, 29)');
-    expect(await css(page, '.inv-qa-pri', 'background-color')).toBe('rgb(79, 193, 179)');
+    expect(await css(page, '#pageHome .inv-btn-grid .inv-btn-primary', 'color')).toBe('rgb(4, 33, 29)');
+    expect(await css(page, '#pageHome .inv-btn-grid .inv-btn-primary', 'background-color')).toBe('rgb(79, 193, 179)');
   });
 
   test('the top bar names the screen, and the system bar matches it', async ({ page }) => {

@@ -327,20 +327,23 @@ function renderTodoHomeCard() {
   var el = document.getElementById('homeTodoCard');
   if (!el) return;
   var ranked = todoRanked();
-  var h = '<div class="inv-card inv-td-card"><div class="inv-card-header"><span class="inv-card-title">To-do</span>' +
-    '<button class="inv-stk-tool" data-action="invSwitchTab" data-tab="pageTodo">' + (ranked.length ? 'All ' + ranked.length : 'Add a task') + '</button></div>';
-  if (!ranked.length) h += '<div class="inv-td-home-none">Nothing due</div>';
+  var h = '<div class="inv-panel inv-panel-flush"><div class="inv-panel-head"><span class="inv-panel-title">To-do' +
+    (ranked.length ? ' <span class="inv-panel-count">' + ranked.length + '</span>' : '') + '</span>' +
+    '<button class="inv-btn-link" data-action="invSwitchTab" data-tab="pageTodo">' + (ranked.length ? 'All ' + ranked.length : 'Add a task') + '</button></div>';
+  if (!ranked.length) h += '<div class="inv-empty">Nothing due</div>';
   ranked.slice(0, 3).forEach(function(r) {
+    var tone = uiTone(r.tone);
     if (r.app) {
-      h += '<button class="inv-td-hrow" data-action="invTodoOpenApp" data-key="' + escHtml(r.app.key) + '">' + todoGlyph(r.tone) +
-        '<span class="inv-td-main"><span class="inv-td-title">' + escHtml(r.app.title) + '</span><span class="inv-td-sub">' + escHtml(r.app.sub) + '</span></span>' +
-        '<span class="inv-td-lbl inv-td-lbl-app">App</span></button>';
+      h += '<button class="inv-row inv-row-2" data-todo="app" data-action="invTodoOpenApp" data-key="' + escHtml(r.app.key) + '">' +
+        '<span class="inv-row-lead"><span class="inv-dot inv-dot-' + tone + '" aria-hidden="true"></span></span>' +
+        '<span class="inv-row-main"><span class="inv-row-title">' + escHtml(r.app.title) + '</span><span class="inv-row-meta">' + escHtml(r.app.sub) + '</span></span>' +
+        '<span class="inv-row-end"><span class="inv-badge">App</span></span></button>';
     } else {
       var t = r.mine;
-      h += '<div class="inv-td-hrow"><button class="inv-td-box" data-action="invTodoToggle" data-id="' + escHtml(t.id) + '" aria-label="Mark done"></button>' +
-        '<button class="inv-td-main" data-action="invTodoEdit" data-id="' + escHtml(t.id) + '"><span class="inv-td-title">' + escHtml(t.text) + '</span>' +
-        (t.due ? '<span class="inv-td-sub inv-td-due-' + (r.tone || 'none') + '">' + escHtml(todoDueLabel(t.due)) + '</span>' : '') + '</button>' +
-        '<span class="inv-td-lbl inv-td-lbl-mine">Mine</span></div>';
+      h += '<div class="inv-row inv-row-2" data-todo="mine"><span class="inv-row-lead"><button class="inv-td-box" data-action="invTodoToggle" data-id="' + escHtml(t.id) + '" aria-label="Mark done"></button></span>' +
+        '<button class="inv-row-main" data-action="invTodoEdit" data-id="' + escHtml(t.id) + '"><span class="inv-row-title">' + escHtml(t.text) + '</span>' +
+        (t.due ? '<span class="inv-row-meta"><span class="inv-dot inv-dot-' + tone + '">' + escHtml(todoDueLabel(t.due)) + '</span></span>' : '') + '</button>' +
+        '<span class="inv-row-end"><span class="inv-badge">Mine</span></span></div>';
     }
   });
   el.innerHTML = h + '</div>';

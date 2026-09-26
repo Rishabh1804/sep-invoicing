@@ -333,7 +333,7 @@ test.describe('GitHub sync — configuration', () => {
 
   test('the home card only appears once sync is configured', async ({ page }) => {
     await loadAppWithState(page, emptyState());
-    await expect(page.locator('#homeSyncCard .inv-sync-card')).toHaveCount(0);
+    await expect(page.locator('#homeSyncCard [data-card="sync"]')).toHaveCount(0);
 
     await openSettingsAt(page, 'sync');
     await page.locator('#setGhOwner').fill('testowner');
@@ -341,7 +341,7 @@ test.describe('GitHub sync — configuration', () => {
     await page.locator('#setGhToken').fill('github_pat_TESTTOKEN');
     await page.locator('[data-action="invSaveSettingsSec"][data-sec="sync"]').click();
 
-    await expect(page.locator('#homeSyncCard .inv-sync-card')).toBeVisible();
+    await expect(page.locator('#homeSyncCard [data-card="sync"]')).toBeVisible();
     await expect(page.locator('#homeSyncCard')).toContainText('testowner/testrepo');
   });
 

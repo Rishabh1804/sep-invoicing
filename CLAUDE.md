@@ -175,6 +175,10 @@ Day's chosen P/H/A went invisible in dark (owner). Dark coverage (HR-7) is the `
 the v1.0 classes doing the same job, so old markup already renders the new look. Add new UI with the v2.0
 class names; a v1.0 name is only ever *removed* from those lists (in step 3), never added.
 
+**Step 3 is under way, one screen per PR** in §9's order. **Home is built:** its markup is v2.0 only, and its private
+family (`inv-qa*`, `inv-unbilled-*`, `inv-recent-*`, `inv-sync-card`, `inv-zinc-*`, `inv-td-hrow`) is deleted. Its tiles now
+carry the month's tonnage and ₹/kg next to the revenue, on the same `weighLines()` Stats uses.
+
 ⚠ **Until the migration in its §9 completes, the stylesheet still carries the v1.0 families** (`inv-card`,
 `inv-stk-*`, `inv-stats-card`, the domain colours). New work uses the v2.0 components; never extend a v1.0
 family. **v1.0's dark mode was never reachable** — `.dark` was styled and nothing set it.

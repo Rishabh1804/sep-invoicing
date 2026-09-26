@@ -1508,31 +1508,6 @@ table.inv-qc-grid.inv-qc-no-top { border-top: 0; }
 .inv-mb-8 { margin-bottom: var(--sp-8); }
 .inv-mb-16 { margin-bottom: var(--sp-16); }
 .inv-mt-8 { margin-top: var(--sp-8); }
-
-/* Phase 5: Home dashboard unbilled card */
-.inv-card-unbilled {
-  background: linear-gradient(135deg, var(--warning-bg), var(--surface));
-  border: 1px solid var(--border);
-}
-.inv-unbilled-row {
-  display: flex; justify-content: space-between; align-items: center;
-  padding: var(--sp-4) 0;
-}
-.inv-unbilled-label { font-size: var(--fs-sm); color: var(--text-2); }
-.inv-unbilled-value { font-family: var(--ff-mono); font-weight: 600; color: var(--warning-text); }
-.inv-latest-challan {
-  font-size: var(--fs-sm); color: var(--text-2);
-  padding-top: var(--sp-8); margin-top: var(--sp-8);
-  border-top: 1px solid var(--border);
-}
-.inv-latest-challan-num { font-family: var(--ff-mono); font-weight: 600; color: var(--text-1); }
-.inv-quick-action {
-  display: inline-flex; align-items: center; gap: var(--sp-6);
-  font-size: var(--fs-sm); font-weight: 600; color: var(--accent);
-  cursor: pointer; padding: var(--sp-6) 0;
-  background: none; border: none; min-height: 44px;
-}
-.inv-quick-action:active { opacity: 0.7; }
 .inv-flex-between { display: flex; justify-content: space-between; align-items: center; }
 .inv-empty-state {
   text-align: center; padding: var(--sp-32) var(--sp-16);
@@ -1543,20 +1518,8 @@ table.inv-qc-grid.inv-qc-no-top { border-top: 0; }
   margin: 0 auto var(--sp-8); display: block;
   opacity: 0.6;
 }
-.inv-stat-label { font-size: var(--fs-xs); }
-.inv-stat-value { font-size: var(--fs-2xl); color: var(--cost); }
 .inv-text-right { text-align: right; }
 .inv-btn-bar-center { justify-content: center; margin-bottom: var(--sp-16); }
-.inv-recent-num { font-size: var(--fs-sm); }
-.inv-recent-total { font-size: var(--fs-base); }
-.inv-recent-right { flex-shrink: 0; }
-.inv-recent-print {
-  min-width: 44px; min-height: 44px; display: flex;
-  align-items: center; justify-content: center;
-  background: none; border: none; color: var(--text-3);
-  cursor: pointer; border-radius: var(--r-md); flex-shrink: 0;
-}
-.inv-recent-print:active { color: var(--accent); background: var(--surface-2); }
 .inv-client-badges { display: flex; gap: var(--sp-4); margin-top: var(--sp-4); flex-wrap: wrap; }
 .inv-client-content { flex: 1; min-width: 0; }
 .inv-checkbox-label { display: flex; align-items: center; gap: var(--sp-8); min-height: 44px; cursor: pointer; }
@@ -2084,29 +2047,7 @@ table.inv-qc-grid.inv-qc-no-top { border-top: 0; }
   border-radius: var(--r-sm); font-size: var(--fs-2xs); font-weight: 600;
   font-family: var(--ff-mono);
 }
-
-/* ===== ZINC RATE CARD ===== */
-.inv-zinc-breakdown { font-size: var(--fs-sm); color: var(--text-2); }
-.inv-zinc-meta { font-size: var(--fs-xs); color: var(--text-3); }
-.inv-zinc-stale { color: var(--warning-text); font-weight: 600; }
-
-/* ===== GITHUB SYNC ===== */
-.inv-sync-card { padding: var(--card-padding-sm) var(--card-padding); }
-.inv-sync-meta { display: flex; flex-direction: column; gap: var(--sp-2); min-width: 0; }
-.inv-sync-label {
-  display: flex; align-items: center; gap: var(--sp-6);
-  font-size: var(--fs-sm); font-weight: 600; color: var(--text-1);
-}
-.inv-sync-stale {
-  padding: var(--sp-2) var(--sp-6); border-radius: var(--r-sm);
-  background: var(--warning-bg); color: var(--warning-text);
-  font-size: var(--fs-2xs); font-weight: 600;
-}
-.inv-sync-repo {
-  font-size: var(--fs-xs); color: var(--text-2);
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
-.inv-sync-time { font-size: var(--fs-xs); color: var(--text-3); }
+/* ===== GITHUB SYNC (Settings) ===== */
 .inv-sync-status {
   margin-top: var(--sp-8); padding: var(--sp-8) var(--sp-10);
   background: var(--surface-2); border-radius: var(--r-sm);
@@ -2357,7 +2298,6 @@ body.inv-desktop .inv-detail-empty-text {
 
 /* --- Dark mode: master-detail (Phase 8B) --- */
 
-
 /* ===== DESKTOP TABLE (Phase 8C) ===== */
 body.inv-desktop .inv-desktop-table {
   width: 100%;
@@ -2434,7 +2374,6 @@ body.inv-desktop #regSelBar {
 
 /* --- Dark mode: desktop table (Phase 8C) --- */
 
-
 /* ===== IM DESKTOP TABLE (Phase 8D) ===== */
 .inv-td-challan {
   width: 100px;
@@ -2458,7 +2397,6 @@ body.inv-desktop #imSelBar {
 }
 
 /* --- Dark mode: IM desktop (Phase 8D) --- */
-
 
 /* ===== CLIENTS/ITEMS DESKTOP (Phase 8E) ===== */
 
@@ -2551,7 +2489,6 @@ body.inv-desktop #itemsSelBar {
 }
 
 /* --- Dark mode: Clients/Items desktop (Phase 8E) --- */
-
 
 /* --- Tablet: Wider cards, no max-width cap --- */
 @media (min-width: 768px) {
@@ -2776,7 +2713,6 @@ body.inv-desktop #itemsSelBar {
 .inv-td-wline-no { color: var(--text-3); }
 .inv-pay-green { background: var(--attend-bg); }
 .inv-pay-blue { background: var(--prod-bg); }
-.inv-att-home { margin-bottom: var(--sp-16); }
 .inv-att-grid-sun { background: var(--surface-2); }
 .inv-lab-label { color: var(--text-1); min-width: 0; }
 .inv-lab-sub { display: block; font-size: var(--fs-2xs); color: var(--text-3); }
@@ -2795,7 +2731,6 @@ body.inv-desktop #itemsSelBar {
 .inv-lab-perkg-none .inv-lab-perkg-value { color: var(--text-3); }
 
 /* Dark mode. Every surface above that is not already a token pair. */
-
 
 /* Focus rings, matching the ones the tabs and chips already carry. */
 .inv-att-seg-btn:focus-visible,
@@ -3222,7 +3157,6 @@ body.inv-desktop .inv-stk-foot { bottom: var(--sp-8); }
 /* Dark: the tokens above re-point by themselves; these are the spots that
    read a light-only value. Chips and tiles keep a solid border either way. */
 
-
 /* ===== TO-DO =====
    App tasks carry a round marker (they clear themselves), your own a tick box.
    Tone is the left rule, the same language as the Stock list. */
@@ -3255,7 +3189,7 @@ body.inv-desktop .inv-stk-foot { bottom: var(--sp-8); }
   color: var(--text-1); font: inherit; text-align: left;
 }
 button.inv-td-row { cursor: pointer; }
-.inv-td-row:focus-visible, .inv-td-main:focus-visible, .inv-td-box:focus-visible, .inv-td-hrow:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.inv-td-row:focus-visible, .inv-td-main:focus-visible, .inv-td-box:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .inv-td-tone-red { border-left-color: var(--danger); }
 .inv-td-tone-amber { border-left-color: var(--warning); }
 .inv-td-tone-info { border-left-color: var(--prod); }
@@ -3300,16 +3234,6 @@ button.inv-td-row { cursor: pointer; }
   color: var(--text-1); font: inherit; font-size: var(--fs-base); font-weight: 600; cursor: pointer;
 }
 .inv-td-fold span:last-child { color: var(--accent); }
-/* Home */
-.inv-td-card .inv-card-header { display: flex; justify-content: space-between; align-items: center; }
-.inv-td-hrow {
-  display: flex; align-items: flex-start; gap: var(--sp-10); width: 100%; min-height: 44px; padding: var(--sp-8) 0;
-  border: none; border-top: 1px solid var(--border); background: none; color: var(--text-1); font: inherit; text-align: left;
-}
-button.inv-td-hrow { cursor: pointer; }
-.inv-td-hrow:first-of-type { border-top: none; }
-.inv-td-hrow .inv-td-title { font-size: var(--fs-base); }
-.inv-td-home-none { font-size: var(--fs-sm); color: var(--text-2); }
 /* Overlays */
 .inv-td-ohead { display: flex; align-items: center; gap: var(--sp-8); margin-bottom: var(--sp-6); }
 .inv-td-otitle { font-family: var(--ff-display); font-size: var(--fs-lg); font-weight: 600; color: var(--text-1); margin-bottom: var(--sp-10); }
@@ -3350,21 +3274,6 @@ button.inv-td-hrow { cursor: pointer; }
 .inv-rl-read { color: var(--text-2); }
 .inv-rl-line-unknown .inv-rl-read { color: var(--danger-text); font-weight: 600; }
 .inv-rl-line-extra .inv-rl-read { color: var(--prod-text); font-weight: 600; }
-
-/* ===== HOME QUICK ACTIONS ===== */
-.inv-qa-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--sp-8); margin-bottom: var(--sp-16); }
-.inv-qa {
-  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--sp-4);
-  min-height: calc(var(--sp-32) * 2 + var(--sp-8)); padding: var(--sp-8) var(--sp-4);
-  border: 1px solid var(--border-2); border-radius: var(--r-lg); background: var(--surface); color: var(--text-1);
-  font: inherit; font-size: var(--fs-sm); font-weight: 600; line-height: 1.2; text-align: center; cursor: pointer;
-}
-.inv-qa svg { width: 20px; height: 20px; color: var(--accent); }
-.inv-qa:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-.inv-qa:active { transform: scale(0.98); }
-.inv-qa-pri { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
-.inv-qa-pri svg { color: var(--on-accent); }
-body.inv-desktop .inv-qa-grid { grid-template-columns: repeat(6, 1fr); }
 
 /* ===== SETTINGS: groups, folded sections, per-section save ===== */
 .inv-set-nav { display: none; }
@@ -3485,6 +3394,14 @@ body.inv-desktop .inv-set-group-on { display: block; }
 .inv-btn-sm { min-height: var(--ctl-h-sm); padding: 0 var(--sp-12); font-size: var(--fs-13); }
 .inv-btn-block, .inv-stk-btn-block { width: 100%; }
 .inv-btn:disabled, .inv-btn-disabled, .inv-stk-btn:disabled { opacity: 0.45; cursor: not-allowed; pointer-events: none; }
+.inv-btn svg { width: 16px; height: 16px; flex-shrink: 0; }
+/* A grid of launch buttons (Home's quick actions): three across on the phone, one row on the desktop. */
+.inv-btn-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--sp-8); margin-bottom: var(--gap); }
+.inv-btn-grid > .inv-btn { flex-direction: column; gap: var(--sp-4); min-height: calc(var(--ctl-h) * 1.75); padding: var(--sp-8); text-align: center; }
+.inv-btn-grid > .inv-btn svg { width: 20px; height: 20px; }
+.inv-btn-grid > .inv-btn-secondary svg { color: var(--accent); }
+body.inv-desktop .inv-btn-grid { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+body.inv-desktop .inv-btn-grid > .inv-btn { flex-direction: row; min-height: var(--ctl-h); }
 
 /* §6.4 View tabs — underline. The one control for switching views. v1.0: the Clients segment, the Stats tabs. */
 .inv-viewtabs, .inv-stats-tabs, .inv-subview-toggle {
@@ -3552,6 +3469,12 @@ body.inv-desktop :is(.inv-panel, .inv-card, .inv-card-list, .inv-stats-card, .in
   font-size: var(--fs-14); font-weight: 600; line-height: 1.4; color: var(--text-1);
 }
 .inv-panel-count { font-family: var(--ff-mono); font-size: var(--fs-12); color: var(--text-3); font-weight: 400; }
+/* Panels laid out: one column on the phone, two on the desktop; a -wide panel spans both. */
+.inv-panels { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--gap); }
+.inv-panels > :empty { display: none; }
+.inv-panels .inv-panel { margin-bottom: 0; }
+body.inv-desktop .inv-panels { grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; }
+body.inv-desktop .inv-panels-wide { grid-column: 1 / -1; }
 
 /* §6.9 Stat tiles: one bordered strip, tiles separated by 1px gaps. v1.0: KPI and stock tiles. */
 .inv-tiles {
@@ -3565,12 +3488,18 @@ button.inv-tile:hover { background: var(--surface-2); }
 .inv-tile-label, .inv-kpi-label, .inv-ov-l, .inv-lab-half-label, .inv-lab-perkg-label, .inv-area-stat-label {
   font-size: var(--fs-12); font-weight: 500; color: var(--text-3);
 }
-.inv-tile-value, .inv-kpi-value, .inv-stk-tile-n, .inv-ov-v, .inv-stat-value, .inv-lab-half-value, .inv-area-stat-value, .inv-stats-metric-value {
+.inv-tile-value, .inv-kpi-value, .inv-stk-tile-n, .inv-ov-v, .inv-lab-half-value, .inv-area-stat-value, .inv-stats-metric-value {
   font-family: var(--ff-mono); font-size: var(--fs-19); font-weight: 600; letter-spacing: var(--ls-tight); line-height: 1.2; color: var(--text-1);
 }
-body.inv-desktop :is(.inv-tile-value, .inv-kpi-value, .inv-stk-tile-n, .inv-ov-v, .inv-stat-value, .inv-lab-half-value, .inv-area-stat-value, .inv-stats-metric-value) { font-size: var(--fs-22); }
+body.inv-desktop :is(.inv-tile-value, .inv-kpi-value, .inv-stk-tile-n, .inv-ov-v, .inv-lab-half-value, .inv-area-stat-value, .inv-stats-metric-value) { font-size: var(--fs-22); }
 .inv-lab-perkg-value { font-family: var(--ff-mono); font-weight: 600; letter-spacing: var(--ls-tight); color: var(--text-1); }
 .inv-tile-sub { font-size: var(--fs-12); color: var(--text-3); margin-top: var(--sp-2); }
+.inv-tile-of { font-size: var(--fs-13); font-weight: 500; color: var(--text-3); }
+.inv-tile-value-sm { font-size: var(--fs-14); }
+body.inv-desktop .inv-tile-value-sm { font-size: var(--fs-16); }
+/* A strip inside a flush panel: the panel draws the box, so the strip only draws its dividers. */
+.inv-tiles-flush { border: none; border-radius: 0; margin-bottom: 0; border-bottom: 1px solid var(--border); }
+.inv-tiles-flush:last-child { border-bottom: none; }
 .inv-tile-danger .inv-tile-value { color: var(--danger); }
 .inv-tile-warning .inv-tile-value { color: var(--warning); }
 .inv-tile-ok .inv-tile-value { color: var(--ok); }
@@ -3590,10 +3519,16 @@ body.inv-desktop :is(.inv-tile-value, .inv-kpi-value, .inv-stk-tile-n, .inv-ov-v
 button.inv-row, a.inv-row { width: 100%; border-left: none; border-right: none; border-top: none; background: none; text-align: left; font: inherit; cursor: pointer; }
 button.inv-row:hover, a.inv-row:hover { background: var(--surface-2); }
 .inv-row-lead { flex-shrink: 0; display: flex; align-items: center; }
-.inv-row-main { flex: 1; min-width: 0; }
+.inv-row-main { flex: 1; min-width: 0; font-size: var(--fs-14); }
 .inv-row-title { font-size: var(--fs-14); font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .inv-row-meta { font-size: var(--fs-12); color: var(--text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .inv-row-end { flex-shrink: 0; display: flex; align-items: center; gap: var(--sp-8); text-align: right; }
+button.inv-row-main { display: block; padding: 0; border: none; background: none; font: inherit; color: inherit; text-align: left; cursor: pointer; align-self: stretch; }
+.inv-row-main > .inv-row-title, .inv-row-main > .inv-row-meta { display: block; }
+.inv-row-stack { display: flex; flex-direction: column; align-items: flex-end; gap: var(--sp-2); }
+.inv-row-wrap { display: block; white-space: normal; }
+.inv-row-auto { min-height: 0; padding-top: var(--sp-8); padding-bottom: var(--sp-8); }
+.inv-row-muted { opacity: 0.55; }
 .inv-row-group {
   display: flex; justify-content: space-between; align-items: center; min-height: var(--sp-32);
   padding: 0 var(--pad-x); background: var(--bg); border-bottom: 1px solid var(--border);
@@ -3717,6 +3652,8 @@ body.inv-desktop .inv-actionbar { bottom: 0; }
   padding: var(--sp-24) var(--sp-16); text-align: center; color: var(--text-3); font-size: var(--fs-13);
   border: none; background: none;
 }
+.inv-empty { display: flex; flex-direction: column; align-items: center; gap: var(--sp-12); }
+.inv-empty-icon { width: var(--sp-32); height: var(--sp-32); color: var(--text-3); }
 
 /* Tiles that borrowed tone classes for decoration (v1.0): neutral unless they state a status (DR-1).
    A predicted payout well above the median is a caution, not an error. */

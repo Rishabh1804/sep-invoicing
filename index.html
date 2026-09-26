@@ -18,7 +18,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <!-- Appearance before first paint (§3.2): the device's theme and palette, so nothing flashes in the wrong colours. -->
 <script>(function(){try{var d=document.documentElement,t=localStorage.getItem("sep_inv_theme"),p=localStorage.getItem("sep_inv_palette");if(t==="light"||t==="dark")d.dataset.theme=t;d.dataset.palette=(p==="zinc"||p==="terracotta")?p:"teal";}catch(e){document.documentElement.dataset.palette="teal";}})();</script>
-<meta name="app-build" content="2e03adac">
+<meta name="app-build" content="c21caeca">
 <style>
 /* ===== DESIGN TOKENS (design system v2.0 — docs/SEP_INVOICING_DESIGN_PRINCIPLES.md §3) ===== */
 /* Theme: colour-scheme decides every light-dark() below. <html data-theme> is set before first paint
@@ -892,73 +892,6 @@ table.inv-qc-grid.inv-qc-no-top { border-top: 0; }
 
 /* ===== SETTINGS ===== */
 
-/* ===== STATS & HISTORY ===== */
-.inv-stats-card {
-  background: var(--surface); border-radius: var(--r-xl);
-  padding: var(--card-padding); box-shadow: var(--shadow-sm);
-  margin-bottom: var(--sp-12);
-}
-.inv-stats-title {
-  font-size: var(--fs-sm); font-weight: 700; color: var(--text-3); margin-bottom: var(--sp-12);
-}
-.inv-history-item {
-  display: flex; gap: var(--sp-10); padding: var(--sp-10) 0;
-  border-bottom: 1px solid var(--border); font-size: var(--fs-sm);
-}
-.inv-history-item:last-child { border-bottom: none; }
-.inv-history-dot {
-  width: var(--sp-10); height: var(--sp-10); border-radius: var(--r-full);
-  flex-shrink: 0; margin-top: var(--sp-4);
-}
-.inv-history-dot-invoice { background: var(--cost); }
-.inv-history-dot-challan { background: var(--neutral); }
-.inv-history-dot-state { background: var(--attend); }
-.inv-history-dot-cancel { background: var(--danger); }
-.inv-history-body { flex: 1; min-width: 0; }
-.inv-history-text { color: var(--text-1); word-break: break-word; }
-.inv-history-meta { font-family: var(--ff-mono); font-size: var(--fs-2xs); color: var(--text-3); margin-top: var(--sp-2); }
-
-/* ===== HISTORY EVENT ICONS =====
-   Replaces the bare colour dot: an audit log has to be readable by kind, and
-   colour alone does not carry that for everyone. */
-.inv-history-icon {
-  width: var(--sp-32); height: var(--sp-32); border-radius: var(--r-full);
-  display: flex; align-items: center; justify-content: center;
-  flex-shrink: 0; background: var(--surface-2); color: var(--text-2);
-}
-.inv-history-icon-svg { width: var(--sp-16); height: var(--sp-16); }
-.inv-history-icon-invoice { background: var(--cost-bg); color: var(--cost-text); }
-.inv-history-icon-challan { background: var(--neutral-bg); color: var(--neutral-text); }
-.inv-history-icon-state { background: var(--attend-bg); color: var(--attend-text); }
-.inv-history-icon-cancel { background: var(--danger-bg); color: var(--danger-text); }
-.inv-history-icon-void { background: var(--danger-bg); color: var(--danger-text); }
-.inv-history-icon-dupe { background: var(--warning-bg); color: var(--warning-text); }
-/* The floor. Attendance takes the attend domain because that is literally what
-   it is; booked extra hours take prod; an examined exception takes warning,
-   the same domain an accepted duplicate receipt already uses -- both are a
-   disagreement somebody looked at and signed off. All three pairs carry a
-   .dark override in the token block above (HR-7). */
-.inv-history-icon-shift { background: var(--attend-bg); color: var(--attend-text); }
-.inv-history-icon-extra { background: var(--prod-bg); color: var(--prod-text); }
-.inv-history-icon-except { background: var(--warning-bg); color: var(--warning-text); }
-.inv-history-item-static { cursor: default; }
-.inv-history-summary {
-  font-family: var(--ff-mono); font-size: var(--fs-xs);
-  color: var(--text-3); margin-bottom: var(--sp-8);
-}
-
-/* Phase 7: Period chips */
-.inv-stats-chips {
-  display: flex; gap: var(--sp-8); padding: var(--sp-8) 0 var(--sp-16) 0;
-  overflow-x: auto; -webkit-overflow-scrolling: touch;
-}
-
-/* P9: Compact chip variant for in-card toolbars (e.g. trend granularity) */
-.inv-stats-chips-sm { padding: 0; gap: var(--sp-4); flex: 0 0 auto; }
-.inv-stats-chips-sm .inv-chip {
-  padding: var(--sp-2) var(--sp-10); font-size: var(--fs-xs);
-}
-
 /* Phase 7: SVG charts */
 .inv-svg-chart { width: 100%; height: auto; display: block; }
 
@@ -1107,23 +1040,6 @@ button.inv-chart-legend-row { width: 100%; background: none; border: none; font:
   0% { transform: perspective(1200px) rotateY(-90deg); opacity: 0; }
   100% { transform: perspective(1200px) rotateY(0deg); opacity: 1; }
 }
-/* Phase 7: History improvements */
-/* One control group per row: the type chips, then client and dates, then search. */
-.inv-im-toolbar.inv-history-toolbar { flex-direction: column; align-items: stretch; }
-.inv-im-toolbar.inv-history-toolbar > * { flex: none; max-width: 100%; }
-.inv-history-toolbar .inv-stats-chips { flex-wrap: wrap; }
-.inv-history-filters { display: flex; gap: var(--sp-8); flex-wrap: wrap; }
-.inv-history-filters .inv-form-select { flex: 1 1 12rem; width: auto; }
-.inv-history-filters .inv-history-date { flex: 1 1 8rem; min-width: 0; width: auto; }
-.inv-history-day-header {
-  font-size: var(--fs-sm); font-weight: 700; color: var(--text-3);
-  padding: var(--sp-12) 0 var(--sp-4) 0;
-  border-bottom: 1px solid var(--border); margin-top: var(--sp-8);
-}
-.inv-history-day-header:first-child { margin-top: 0; }
-.inv-history-item[data-action] { cursor: pointer; }
-.inv-history-item[data-action]:active { background: var(--surface-2); }
-
 /* ===== UTILITY ===== */
 .inv-hidden { display: none !important; }
 .inv-mono { font-family: var(--ff-mono); }
@@ -1135,7 +1051,6 @@ button.inv-chart-legend-row { width: 100%; background: none; border: none; font:
 .inv-mb-16 { margin-bottom: var(--sp-16); }
 .inv-mt-8 { margin-top: var(--sp-8); }
 .inv-mt-4 { margin-top: var(--sp-4); }
-.inv-flex-between { display: flex; justify-content: space-between; align-items: center; }
 .inv-empty-state {
   text-align: center; padding: var(--sp-32) var(--sp-16);
   color: var(--text-3); font-size: var(--fs-base);
@@ -1176,12 +1091,6 @@ button.inv-chart-legend-row { width: 100%; background: none; border: none; font:
 }
 
 /* ===== INCOMING MATERIAL ===== */
-.inv-im-toolbar {
-  display: flex; gap: var(--sp-8); flex-wrap: wrap;
-  margin-bottom: var(--sp-12);
-}
-.inv-im-toolbar > * { flex: 1 1 9rem; min-width: 0; }
-.inv-im-toolbar .inv-form-group { margin-bottom: 0; }
 
 /* ===== IM DUPLICATE GUARD ===== */
 
@@ -1593,7 +1502,7 @@ body.inv-desktop .inv-viewtab { min-height: var(--ctl-h); font-size: var(--fs-13
   transition: background var(--dur-1), color var(--dur-1), border-color var(--dur-1);
 }
 .inv-chip:hover { background: var(--surface-2); color: var(--text-1); }
-.inv-chip-active, .inv-chip-on, .inv-chip[aria-pressed="true"] {
+.inv-chip-on, .inv-chip[aria-pressed="true"] {
   background: var(--accent-soft); border-color: var(--accent); color: var(--accent-soft-text); font-weight: 600;
 }
 .inv-token {
@@ -1640,17 +1549,17 @@ body.inv-desktop .inv-stepper-label { flex: 0 1 auto; min-width: calc(var(--col-
 }
 
 /* §6.8 Panel. v1.0: every card family. */
-.inv-panel, .inv-card, .inv-stats-card {
+.inv-panel, .inv-card {
   background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-xl); box-shadow: none;
 }
-body.inv-desktop :is(.inv-panel, .inv-card, .inv-stats-card) { border-radius: var(--r-lg); }
+body.inv-desktop :is(.inv-panel, .inv-card) { border-radius: var(--r-lg); }
 .inv-panel { padding: var(--card-padding); margin-bottom: var(--gap); }
 .inv-panel-flush { padding: 0; overflow: hidden; }
 .inv-panel-head, .inv-card-header {
   display: flex; align-items: center; justify-content: space-between; gap: var(--sp-8);
 }
 .inv-panel-flush > .inv-panel-head { padding: var(--pad-y) var(--pad-x); border-bottom: 1px solid var(--border); }
-.inv-panel-title, .inv-card-title, .inv-stats-title {
+.inv-panel-title, .inv-card-title {
   font-size: var(--fs-14); font-weight: 600; line-height: 1.4; color: var(--text-1);
 }
 .inv-panel-count { font-family: var(--ff-mono); font-size: var(--fs-12); color: var(--text-3); font-weight: 400; }
@@ -1839,6 +1748,9 @@ body.inv-desktop button.inv-cell { min-width: var(--ctl-h); }
 /* A group heading inside a table (a status, a supplier), the row form of inv-row-group. */
 .inv-table tr.inv-table-group td { height: var(--sp-32); background: var(--bg); font-size: var(--fs-12); color: var(--text-3); }
 .inv-table tbody tr.inv-table-group:hover td { background: var(--bg); }
+/* History's log on the desktop: an event is a sentence and wraps; the one that opens is a link that reads as text. */
+.inv-table-history td { padding-top: var(--sp-6); padding-bottom: var(--sp-6); }
+.inv-table-history .inv-btn-link { font-size: inherit; font-weight: 400; text-align: left; }
 /* The unit after a figure is quieter than the figure (§5.4). */
 .inv-unit { margin-left: var(--sp-2); font-family: var(--ff-base); font-size: var(--fs-12); font-weight: 400; color: var(--text-3); }
 
@@ -23049,7 +22961,24 @@ var HISTORY_ICONS = {
 
 function historyIcon(kind) {
   var path = HISTORY_ICONS[kind] || HISTORY_ICONS.state;
-  return '<svg class="inv-history-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">' + path + '</svg>';
+  return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">' + path + '</svg>';
+}
+
+/* What each kind of event is called on its row, and its tone (DR-8: a dot and a
+   word). Colour is spent on the audit trail's own findings: a cancellation or a
+   deletion is danger, a decision somebody signed off (an accepted duplicate, an
+   explained exception, a corrected challan) is warning, a state moving forward
+   is ok; the ordinary record is neutral. */
+var HISTORY_KIND_WORDS = {
+  invoice: ['Invoice', 'neutral'], challan: ['Challan', 'neutral'], state: ['Status', 'ok'],
+  cancel: ['Cancelled', 'danger'], void: ['Deleted', 'danger'], dupe: ['Duplicate', 'warning'],
+  shift: ['Attendance', 'neutral'], extra: ['Extra hours', 'neutral'], except: ['Exception', 'warning']
+};
+function historyKindHtml(ev) {
+  // A challan corrected from an invoice is a challan event on the audit filter.
+  var k = ev.kind === 'challan' && ev.type === 'audit' ? ['Corrected', 'warning']
+    : (HISTORY_KIND_WORDS[ev.kind] || ['Event', 'neutral']);
+  return '<span class="inv-dot inv-dot-' + k[1] + '">' + k[0] + '</span>';
 }
 
 /* Every event the app can account for, newest first. Kept as one function so
@@ -23275,6 +23204,20 @@ function filteredHistoryEvents() {
   return events;
 }
 
+/* Which clock a row is on (CLAUDE.md § History is the audit trail). A floor day
+   is dated by the day it describes and shows the DATE ALONE: its midday
+   timestamp exists only to sort it among recorded events, and rendering the
+   '12:00' would invent an entry time on exactly the rows the two-clock labelling
+   keeps honest. The exception ledger has a real record-time and says so.
+   `part` is 'all' for the phone's meta line, 'time' for the desktop table,
+   whose day heading already carries the date. */
+function historyWhen(ev, part) {
+  if (!ev.ts) return '';
+  var full = formatTimestamp(ev.ts), day = full.split(',')[0], time = (full.split(',')[1] || '').trim();
+  if (ev.clock === 'floor') return (part === 'time' ? '' : day + ' · ') + 'floor day';
+  return (part === 'time' ? time : full) + (ev.clock === 'recorded' ? ' · recorded' : '');
+}
+
 function renderHistory() {
   var toolbar = document.getElementById('historyToolbar');
   var area = document.getElementById('historyList');
@@ -23289,76 +23232,104 @@ function renderHistory() {
       var c = S.clients.find(function(x) { return x.id === cid; });
       if (c) clientOpts += '<option value="' + cid + '"' + (_historyClientFilter == cid ? ' selected' : '') + '>' + escHtml(c.name) + '</option>';
     });
-    var typeChips = '<div class="inv-stats-chips inv-stats-chips-sm">';
-    HISTORY_TYPES.forEach(function(t) {
-      typeChips += '<button class="inv-chip' + (_historyType === t.key ? ' inv-chip-active' : '') +
-        '" data-action="invHistoryType" data-type="' + t.key + '">' + t.label + '</button>';
-    });
-    typeChips += '</div>';
+    // The kind of event is a choice among six (§6.6): chips pressed with aria-pressed,
+    // wrapping on the phone rather than stretched to the height of the filters beside them.
+    var typeChips = HISTORY_TYPES.map(function(t) {
+      return '<button class="inv-chip" data-action="invHistoryType" data-type="' + t.key + '" aria-pressed="' + (_historyType === t.key) + '">' + t.label + '</button>';
+    }).join('');
 
-    toolbar.innerHTML = '<div class="inv-im-toolbar inv-history-toolbar">' + typeChips +
-      '<div class="inv-history-filters">' +
-      '<select class="inv-form-select" id="historyClientFilter" aria-label="Filter by client">' +
-      '<option value="">All Clients</option>' + clientOpts + '</select>' +
-      '<input type="date" class="inv-form-input inv-history-date" id="historyDateFrom" value="' + escHtml(_historyDateFrom) + '" aria-label="From date">' +
-      '<input type="date" class="inv-form-input inv-history-date" id="historyDateTo" value="' + escHtml(_historyDateTo) + '" aria-label="To date">' +
+    toolbar.innerHTML = '<div class="inv-toolbar">' +
+      '<label class="inv-search">' + ICON_SEARCH +
+      '<input type="search" id="historySearch" value="' + escHtml(_historySearch) + '" placeholder="Search invoice or challan number" autocomplete="off" aria-label="Search the log"></label>' +
+      '<select class="inv-select inv-toolbar-item" id="historyClientFilter" aria-label="Filter by client">' +
+      '<option value="">All clients</option>' + clientOpts + '</select>' +
       '</div>' +
-      '<input type="search" class="inv-form-input inv-mb-8" id="historySearch" value="' + escHtml(_historySearch) + '" placeholder="Search invoice or challan number" autocomplete="off">' +
-      '</div>';
+      '<div class="inv-toolbar">' +
+      '<label class="inv-field inv-toolbar-item"><span class="inv-field-label">From</span>' +
+      '<input type="date" class="inv-input" id="historyDateFrom" value="' + escHtml(_historyDateFrom) + '" aria-label="From date"></label>' +
+      '<label class="inv-field inv-toolbar-item"><span class="inv-field-label">To</span>' +
+      '<input type="date" class="inv-input" id="historyDateTo" value="' + escHtml(_historyDateTo) + '" aria-label="To date"></label>' +
+      '</div>' +
+      '<div class="inv-toolbar" role="group" aria-label="Kind of event">' + typeChips + '</div>';
   }
 
   var events = filteredHistoryEvents();
 
   if (events.length === 0) {
-    area.innerHTML = '<div class="inv-empty-state">No activity found</div>';
+    var filtered = _historyType !== 'all' || _historySearch || _historyClientFilter || _historyDateFrom || _historyDateTo;
+    area.innerHTML = '<div class="inv-panel"><div class="inv-empty">' +
+      (filtered ? 'No activity matches these filters' : 'No activity yet: invoices, challans and attendance appear here as they are recorded') +
+      '</div></div>';
     return;
   }
 
   var totalValue = events.reduce(function(s, ev) { return s + (ev.amount || 0); }, 0);
-  var html = '<div class="inv-stats-card">' +
-    '<div class="inv-flex-between inv-mb-8">' +
-    '<div class="inv-stats-title">Activity Log (' + events.length + ')</div>' +
-    '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invHistoryExport">Export CSV</button>' +
-    '</div>' +
-    (totalValue > 0 ? '<div class="inv-history-summary">' + formatCurrency(totalValue) + ' across the events shown</div>' : '');
+  var html = '<div class="inv-panel inv-panel-flush" data-card="history">' +
+    '<div class="inv-panel-head"><span class="inv-panel-title">Activity log <span class="inv-panel-count">' + events.length + '</span></span>' +
+    '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invHistoryExport">Export CSV</button></div>' +
+    (totalValue > 0 ? '<div class="inv-panel-body inv-note" data-history-total><span class="inv-num">' + formatCurrency(totalValue) + '</span> across the events shown</div>' : '');
 
   var shown = events.slice(0, _historyShowCount);
-  var currentDay = '';
+  // Rows grouped by day (§7): the day heads the group, so on the desktop a row's
+  // cell carries the time alone.
+  // A day's count is of all its events, not only those shown before Show more,
+  // so a day cut in half by the page does not read as a quiet day.
+  var days = [], byDay = {}, dayCount = {};
+  function dayOf(ev) { return ev.ts ? formatTimestamp(ev.ts).split(',')[0] : 'Unknown date'; }
+  events.forEach(function(ev) { var d = dayOf(ev); dayCount[d] = (dayCount[d] || 0) + 1; });
   shown.forEach(function(ev) {
-    var dayStr = ev.ts ? formatTimestamp(ev.ts).split(',')[0] : 'Unknown date';
-    if (dayStr !== currentDay) {
-      currentDay = dayStr;
-      html += '<div class="inv-history-day-header">' + escHtml(dayStr) + '</div>';
-    }
-    // A void has no record left to jump to — the invoice is gone. Rendering it
-    // as a tappable row would promise a destination that does not exist.
-    var action = ev.jump === 'challan' ? 'invHistoryJumpChallan'
-      : ev.jump === 'invoice' ? 'invHistoryJumpInvoice' : '';
-    html += '<div class="inv-history-item' + (action ? '' : ' inv-history-item-static') + '"' +
-      (action ? ' data-action="' + action + '" data-id="' + escHtml(ev.sourceId) + '"' : '') + '>' +
-      '<div class="inv-history-icon inv-history-icon-' + ev.kind + '">' + historyIcon(ev.kind) + '</div>' +
-      '<div class="inv-history-body">' +
-      '<div class="inv-history-text">' + escHtml(ev.text) +
-      (ev.amount ? ' \u00b7 ' + formatCurrency(ev.amount) : '') + '</div>' +
-      // Which clock this row is on. A floor day is dated by the day it
-      // describes; everything else by when it was recorded. Unlabelled, the two
-      // read as one timeline and a reader cannot tell them apart.
-      // A floor row shows the DATE ALONE: its midday timestamp exists only to
-      // sort it among recorded events, and rendering the '12:00' would invent
-      // an entry time on exactly the rows the two-clock labelling keeps honest.
-      '<div class="inv-history-meta">' +
-      (ev.clock === 'floor'
-        ? (ev.ts ? formatTimestamp(ev.ts).split(',')[0] : '') + ' \u00b7 floor day'
-        : (ev.ts ? formatTimestamp(ev.ts) : '')) + '</div>' +
-      '</div></div>';
+    var d = dayOf(ev);
+    if (!byDay[d]) { byDay[d] = []; days.push(d); }
+    byDay[d].push(ev);
   });
+  // A void has no record left to jump to — the invoice is gone. Rendering it as
+  // a tappable row would promise a destination that does not exist, so it is a
+  // plain row (a div, a tr with no action), never a button.
+  function jumpOf(ev) {
+    return ev.jump === 'challan' ? 'invHistoryJumpChallan' : ev.jump === 'invoice' ? 'invHistoryJumpInvoice' : '';
+  }
+  function amountHtml(ev) { return ev.amount ? '<span class="inv-num">' + formatCurrency(ev.amount) + '</span>' : ''; }
+
+  if (_isDesktop) {
+    html += '<table class="inv-table inv-table-history"><thead><tr><th class="inv-col-time">Time</th><th>Event</th><th>Kind</th><th class="inv-num">Amount</th></tr></thead><tbody>';
+    days.forEach(function(d) {
+      html += '<tr class="inv-table-group"><td colspan="4">' + escHtml(d) + ' · ' + dayCount[d] + '</td></tr>';
+      byDay[d].forEach(function(ev) {
+        var action = jumpOf(ev);
+        var attrs = ' data-ev="' + ev.kind + '"' + (action ? ' data-action="' + action + '" data-id="' + escHtml(ev.sourceId) + '"' : '');
+        html += '<tr' + attrs + '>' +
+          '<td class="inv-id">' + escHtml(historyWhen(ev, 'time')) + '</td>' +
+          // The event is a real button on a row that opens, so it opens from the keyboard.
+          '<td>' + (action
+            ? '<button class="inv-btn-link" data-action="' + action + '" data-id="' + escHtml(ev.sourceId) + '">' + escHtml(ev.text) + '</button>'
+            : escHtml(ev.text)) + '</td>' +
+          '<td>' + historyKindHtml(ev) + '</td>' +
+          '<td class="inv-num">' + (ev.amount ? formatCurrency(ev.amount) : '') + '</td></tr>';
+      });
+    });
+    html += '</tbody></table>';
+  } else {
+    days.forEach(function(d) {
+      html += '<div class="inv-row-group"><span>' + escHtml(d) + '</span><span class="inv-num">' + byDay[d].length + '</span></div>';
+      byDay[d].forEach(function(ev) {
+        var action = jumpOf(ev);
+        var inner = '<span class="inv-row-lead">' + historyIcon(ev.kind) + '</span>' +
+          '<span class="inv-row-main"><span class="inv-row-title inv-row-wrap">' + escHtml(ev.text) + '</span>' +
+          '<span class="inv-row-meta inv-id">' + escHtml(historyWhen(ev, 'all')) + '</span></span>' +
+          '<span class="inv-row-end"><span class="inv-row-stack">' + amountHtml(ev) + historyKindHtml(ev) + '</span></span>';
+        html += action
+          ? '<button class="inv-row inv-row-2 inv-row-top" data-ev="' + ev.kind + '" data-action="' + action + '" data-id="' + escHtml(ev.sourceId) + '">' + inner + '</button>'
+          : '<div class="inv-row inv-row-2 inv-row-top" data-ev="' + ev.kind + '">' + inner + '</div>';
+      });
+    });
+  }
+  html += '</div>';
 
   if (events.length > _historyShowCount) {
     var remaining = events.length - _historyShowCount;
-    html += '<button class="inv-btn inv-btn-ghost inv-btn-block inv-mt-16" data-action="invHistoryLoadMore">' +
+    html += '<button class="inv-btn inv-btn-secondary inv-btn-block" data-action="invHistoryLoadMore">' +
       'Show more (' + remaining + ' remaining)</button>';
   }
-  html += '</div>';
   area.innerHTML = html;
 }
 

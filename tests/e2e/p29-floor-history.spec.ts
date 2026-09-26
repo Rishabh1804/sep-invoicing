@@ -60,7 +60,7 @@ async function seedFloor(page: Page, attendance: Record<string, unknown>) {
 
 async function floorRows(page: Page) {
   await switchTab(page, 'pageHistory');
-  return page.locator('.inv-history-item');
+  return page.locator('#historyList [data-ev]');
 }
 
 test.describe('P29: attendance through the roster door', () => {
@@ -351,7 +351,7 @@ test.describe('P29: the floor in the activity log', () => {
       });
       await switchTab(page, 'pageHistory');
       await page.locator('[data-action="invHistoryType"][data-type="floor"]').click();
-      const rows = page.locator('.inv-history-item');
+      const rows = page.locator('#historyList [data-ev]');
       // The attendance day and its one booked extra — and NOT the invoice.
       await expect(rows).toHaveCount(2);
       await expect(rows.filter({ hasText: 'SEP/TEST-001' })).toHaveCount(0);
@@ -361,10 +361,10 @@ test.describe('P29: the floor in the activity log', () => {
       // connection that does not exist.
       await page.locator('[data-action="invHistoryType"][data-type="all"]').click();
       await page.selectOption('#historyClientFilter', { index: 1 });
-      await expect(page.locator('.inv-history-item').filter({ hasText: 'Attendance recorded' }))
+      await expect(page.locator('#historyList [data-ev]').filter({ hasText: 'Attendance recorded' }))
         .toHaveCount(0);
       // The account's own row is still there — the filter narrowed, it did not empty.
-      await expect(page.locator('.inv-history-item').filter({ hasText: 'SEP/TEST-001' }))
+      await expect(page.locator('#historyList [data-ev]').filter({ hasText: 'SEP/TEST-001' }))
         .not.toHaveCount(0);
     });
 
@@ -379,7 +379,7 @@ test.describe('P29: the floor in the activity log', () => {
       }];
       await loadAppWithState(page, state);
       await switchTab(page, 'pageHistory');
-      const row = page.locator('.inv-history-item').filter({ hasText: 'exception explained' });
+      const row = page.locator('#historyList [data-ev]').filter({ hasText: 'exception explained' });
       await expect(row).toContainText('expected 8.0 h, booked 16.0 h');
       await expect(row).toContainText('Second crew ran the rework batch');
       // It has a real record-time, so it is NOT relabelled as a floor day —

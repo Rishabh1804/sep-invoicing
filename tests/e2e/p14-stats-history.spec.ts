@@ -286,7 +286,7 @@ test.describe('History — audit events', () => {
     await switchTab(page, 'pageHistory');
 
     await page.locator('#historySearch').fill('00666');
-    await expect(page.locator('.inv-history-item')).toHaveCount(1);
+    await expect(page.locator('#historyList [data-ev]')).toHaveCount(1);
     await expect(page.locator('#historyList')).toContainText('00666');
   });
 
@@ -295,8 +295,9 @@ test.describe('History — audit events', () => {
     await switchTab(page, 'pageHistory');
     await page.locator('[data-action="invHistoryType"][data-type="audit"]').click();
 
-    const voidRow = page.locator('.inv-history-item', { hasText: '00666 deleted' });
-    await expect(voidRow).toHaveClass(/inv-history-item-static/);
+    const voidRow = page.locator('#historyList [data-ev]', { hasText: '00666 deleted' });
+    // A plain row, never a button: nothing to open.
+    expect(await voidRow.evaluate((e) => e.tagName)).toBe('DIV');
     await expect(voidRow).not.toHaveAttribute('data-action', /.*/);
   });
 });

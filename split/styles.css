@@ -870,73 +870,6 @@ table.inv-qc-grid.inv-qc-no-top { border-top: 0; }
 
 /* ===== SETTINGS ===== */
 
-/* ===== STATS & HISTORY ===== */
-.inv-stats-card {
-  background: var(--surface); border-radius: var(--r-xl);
-  padding: var(--card-padding); box-shadow: var(--shadow-sm);
-  margin-bottom: var(--sp-12);
-}
-.inv-stats-title {
-  font-size: var(--fs-sm); font-weight: 700; color: var(--text-3); margin-bottom: var(--sp-12);
-}
-.inv-history-item {
-  display: flex; gap: var(--sp-10); padding: var(--sp-10) 0;
-  border-bottom: 1px solid var(--border); font-size: var(--fs-sm);
-}
-.inv-history-item:last-child { border-bottom: none; }
-.inv-history-dot {
-  width: var(--sp-10); height: var(--sp-10); border-radius: var(--r-full);
-  flex-shrink: 0; margin-top: var(--sp-4);
-}
-.inv-history-dot-invoice { background: var(--cost); }
-.inv-history-dot-challan { background: var(--neutral); }
-.inv-history-dot-state { background: var(--attend); }
-.inv-history-dot-cancel { background: var(--danger); }
-.inv-history-body { flex: 1; min-width: 0; }
-.inv-history-text { color: var(--text-1); word-break: break-word; }
-.inv-history-meta { font-family: var(--ff-mono); font-size: var(--fs-2xs); color: var(--text-3); margin-top: var(--sp-2); }
-
-/* ===== HISTORY EVENT ICONS =====
-   Replaces the bare colour dot: an audit log has to be readable by kind, and
-   colour alone does not carry that for everyone. */
-.inv-history-icon {
-  width: var(--sp-32); height: var(--sp-32); border-radius: var(--r-full);
-  display: flex; align-items: center; justify-content: center;
-  flex-shrink: 0; background: var(--surface-2); color: var(--text-2);
-}
-.inv-history-icon-svg { width: var(--sp-16); height: var(--sp-16); }
-.inv-history-icon-invoice { background: var(--cost-bg); color: var(--cost-text); }
-.inv-history-icon-challan { background: var(--neutral-bg); color: var(--neutral-text); }
-.inv-history-icon-state { background: var(--attend-bg); color: var(--attend-text); }
-.inv-history-icon-cancel { background: var(--danger-bg); color: var(--danger-text); }
-.inv-history-icon-void { background: var(--danger-bg); color: var(--danger-text); }
-.inv-history-icon-dupe { background: var(--warning-bg); color: var(--warning-text); }
-/* The floor. Attendance takes the attend domain because that is literally what
-   it is; booked extra hours take prod; an examined exception takes warning,
-   the same domain an accepted duplicate receipt already uses -- both are a
-   disagreement somebody looked at and signed off. All three pairs carry a
-   .dark override in the token block above (HR-7). */
-.inv-history-icon-shift { background: var(--attend-bg); color: var(--attend-text); }
-.inv-history-icon-extra { background: var(--prod-bg); color: var(--prod-text); }
-.inv-history-icon-except { background: var(--warning-bg); color: var(--warning-text); }
-.inv-history-item-static { cursor: default; }
-.inv-history-summary {
-  font-family: var(--ff-mono); font-size: var(--fs-xs);
-  color: var(--text-3); margin-bottom: var(--sp-8);
-}
-
-/* Phase 7: Period chips */
-.inv-stats-chips {
-  display: flex; gap: var(--sp-8); padding: var(--sp-8) 0 var(--sp-16) 0;
-  overflow-x: auto; -webkit-overflow-scrolling: touch;
-}
-
-/* P9: Compact chip variant for in-card toolbars (e.g. trend granularity) */
-.inv-stats-chips-sm { padding: 0; gap: var(--sp-4); flex: 0 0 auto; }
-.inv-stats-chips-sm .inv-chip {
-  padding: var(--sp-2) var(--sp-10); font-size: var(--fs-xs);
-}
-
 /* Phase 7: SVG charts */
 .inv-svg-chart { width: 100%; height: auto; display: block; }
 
@@ -1085,23 +1018,6 @@ button.inv-chart-legend-row { width: 100%; background: none; border: none; font:
   0% { transform: perspective(1200px) rotateY(-90deg); opacity: 0; }
   100% { transform: perspective(1200px) rotateY(0deg); opacity: 1; }
 }
-/* Phase 7: History improvements */
-/* One control group per row: the type chips, then client and dates, then search. */
-.inv-im-toolbar.inv-history-toolbar { flex-direction: column; align-items: stretch; }
-.inv-im-toolbar.inv-history-toolbar > * { flex: none; max-width: 100%; }
-.inv-history-toolbar .inv-stats-chips { flex-wrap: wrap; }
-.inv-history-filters { display: flex; gap: var(--sp-8); flex-wrap: wrap; }
-.inv-history-filters .inv-form-select { flex: 1 1 12rem; width: auto; }
-.inv-history-filters .inv-history-date { flex: 1 1 8rem; min-width: 0; width: auto; }
-.inv-history-day-header {
-  font-size: var(--fs-sm); font-weight: 700; color: var(--text-3);
-  padding: var(--sp-12) 0 var(--sp-4) 0;
-  border-bottom: 1px solid var(--border); margin-top: var(--sp-8);
-}
-.inv-history-day-header:first-child { margin-top: 0; }
-.inv-history-item[data-action] { cursor: pointer; }
-.inv-history-item[data-action]:active { background: var(--surface-2); }
-
 /* ===== UTILITY ===== */
 .inv-hidden { display: none !important; }
 .inv-mono { font-family: var(--ff-mono); }
@@ -1113,7 +1029,6 @@ button.inv-chart-legend-row { width: 100%; background: none; border: none; font:
 .inv-mb-16 { margin-bottom: var(--sp-16); }
 .inv-mt-8 { margin-top: var(--sp-8); }
 .inv-mt-4 { margin-top: var(--sp-4); }
-.inv-flex-between { display: flex; justify-content: space-between; align-items: center; }
 .inv-empty-state {
   text-align: center; padding: var(--sp-32) var(--sp-16);
   color: var(--text-3); font-size: var(--fs-base);
@@ -1154,12 +1069,6 @@ button.inv-chart-legend-row { width: 100%; background: none; border: none; font:
 }
 
 /* ===== INCOMING MATERIAL ===== */
-.inv-im-toolbar {
-  display: flex; gap: var(--sp-8); flex-wrap: wrap;
-  margin-bottom: var(--sp-12);
-}
-.inv-im-toolbar > * { flex: 1 1 9rem; min-width: 0; }
-.inv-im-toolbar .inv-form-group { margin-bottom: 0; }
 
 /* ===== IM DUPLICATE GUARD ===== */
 
@@ -1571,7 +1480,7 @@ body.inv-desktop .inv-viewtab { min-height: var(--ctl-h); font-size: var(--fs-13
   transition: background var(--dur-1), color var(--dur-1), border-color var(--dur-1);
 }
 .inv-chip:hover { background: var(--surface-2); color: var(--text-1); }
-.inv-chip-active, .inv-chip-on, .inv-chip[aria-pressed="true"] {
+.inv-chip-on, .inv-chip[aria-pressed="true"] {
   background: var(--accent-soft); border-color: var(--accent); color: var(--accent-soft-text); font-weight: 600;
 }
 .inv-token {
@@ -1618,17 +1527,17 @@ body.inv-desktop .inv-stepper-label { flex: 0 1 auto; min-width: calc(var(--col-
 }
 
 /* §6.8 Panel. v1.0: every card family. */
-.inv-panel, .inv-card, .inv-stats-card {
+.inv-panel, .inv-card {
   background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-xl); box-shadow: none;
 }
-body.inv-desktop :is(.inv-panel, .inv-card, .inv-stats-card) { border-radius: var(--r-lg); }
+body.inv-desktop :is(.inv-panel, .inv-card) { border-radius: var(--r-lg); }
 .inv-panel { padding: var(--card-padding); margin-bottom: var(--gap); }
 .inv-panel-flush { padding: 0; overflow: hidden; }
 .inv-panel-head, .inv-card-header {
   display: flex; align-items: center; justify-content: space-between; gap: var(--sp-8);
 }
 .inv-panel-flush > .inv-panel-head { padding: var(--pad-y) var(--pad-x); border-bottom: 1px solid var(--border); }
-.inv-panel-title, .inv-card-title, .inv-stats-title {
+.inv-panel-title, .inv-card-title {
   font-size: var(--fs-14); font-weight: 600; line-height: 1.4; color: var(--text-1);
 }
 .inv-panel-count { font-family: var(--ff-mono); font-size: var(--fs-12); color: var(--text-3); font-weight: 400; }
@@ -1817,6 +1726,9 @@ body.inv-desktop button.inv-cell { min-width: var(--ctl-h); }
 /* A group heading inside a table (a status, a supplier), the row form of inv-row-group. */
 .inv-table tr.inv-table-group td { height: var(--sp-32); background: var(--bg); font-size: var(--fs-12); color: var(--text-3); }
 .inv-table tbody tr.inv-table-group:hover td { background: var(--bg); }
+/* History's log on the desktop: an event is a sentence and wraps; the one that opens is a link that reads as text. */
+.inv-table-history td { padding-top: var(--sp-6); padding-bottom: var(--sp-6); }
+.inv-table-history .inv-btn-link { font-size: inherit; font-weight: 400; text-align: left; }
 /* The unit after a figure is quieter than the figure (§5.4). */
 .inv-unit { margin-left: var(--sp-2); font-family: var(--ff-base); font-size: var(--fs-12); font-weight: 400; color: var(--text-3); }
 

@@ -46,6 +46,23 @@ async function load(page: Page) {
 }
 
 test.describe('P69: To-do', () => {
+  test('your own tasks lead: first on the page, and ahead of every raised task that is not red', async ({ page }) => {
+    // No export recorded, so the backup task is raised too: a raised task that is not red.
+    await loadAppWithState(page, state());
+    const order = await page.evaluate(() => (window as any).todoRanked().map((r: any) => (r.mine ? 'mine:' + r.mine.text : 'app:' + r.app.tone)));
+    // Late ones first (yours before the raised one), then all of yours, then the rest.
+    expect(order.slice(0, 3)).toEqual(['mine:Call the zinc supplier', 'app:red', 'mine:File the July note']);
+    expect(order.slice(3).length).toBeGreaterThan(0);
+    expect(order.slice(3).every((k: string) => k.startsWith('app:') && k !== 'app:red')).toBe(true);
+    await switchTab(page, 'pageTodo');
+    const secs = await page.locator('#todoContent .inv-panels > [data-todo-sec]').evaluateAll(els => els.map(e => e.getAttribute('data-todo-sec')));
+    expect(secs.slice(0, 2)).toEqual(['mine', 'app']);
+    // A task just added lands in the panel under the field, not under the raised ones.
+    await page.locator('#todoNew').fill('Ring the bank');
+    await page.locator('[data-action="invTodoAdd"]').click();
+    await expect(page.locator('#todoContent [data-todo-sec="mine"]')).toContainText('Ring the bank');
+  });
+
   test('Open and Done are view tabs; the add field has the one primary; no v1.0 class is drawn', async ({ page }) => {
     await load(page);
     await switchTab(page, 'pageTodo');

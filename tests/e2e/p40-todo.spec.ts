@@ -164,9 +164,10 @@ test.describe('P40: To-do', () => {
 
     const p = await g(page, 'todoWidgetPayload()') as any;
     expect(p.title).toBe('3 open · 2 late');
-    expect(p.rows.map((r: any) => r.text)).toEqual(['Order Q558', 'Check the nitric count', 'Later thing']);
-    expect(p.rows[0]).toMatchObject({ mine: false, rid: 'a:stock:SI-1', color: 'Attention', late: true, big: false });
-    expect(p.rows[1]).toMatchObject({ mine: true, id: 'TD-a', rid: 'm:TD-a', sub: 'due yesterday', color: 'Attention' });
+    // Both late: yours first, then the raised one; your undated one still ahead of anything not red.
+    expect(p.rows.map((r: any) => r.text)).toEqual(['Check the nitric count', 'Order Q558', 'Later thing']);
+    expect(p.rows[1]).toMatchObject({ mine: false, rid: 'a:stock:SI-1', color: 'Attention', late: true, big: false });
+    expect(p.rows[0]).toMatchObject({ mine: true, id: 'TD-a', rid: 'm:TD-a', sub: 'due yesterday', color: 'Attention' });
     // Every binding in the template is something the payload carries.
     const tpl = readFileSync('widgets/todo-template.json', 'utf8');
     const names = new Set([...tpl.matchAll(/\$\{!?([a-z]+)/gi)].map(m => m[1]).filter(n => n !== 'host'));

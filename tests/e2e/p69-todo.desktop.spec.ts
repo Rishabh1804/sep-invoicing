@@ -10,7 +10,7 @@ function iso(offset: number): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
-test('P69 desktop: the two lists sit side by side, the add field on one line', async ({ page }) => {
+test('P69 desktop: the two lists sit side by side, yours on the left, the add field on one line', async ({ page }) => {
   await page.addInitScript(() => { try { localStorage.setItem('sep_inv_last_export', String(Date.now())); } catch { /* */ } });
   await loadAppWithState(page, {
     ...emptyState(), incomingMaterial: noSeedIM(),
@@ -21,7 +21,8 @@ test('P69 desktop: the two lists sit side by side, the add field on one line', a
   const mine = await page.locator('#todoContent [data-todo-sec="mine"]').boundingBox();
   expect(app && mine).toBeTruthy();
   expect(Math.abs(app!.y - mine!.y)).toBeLessThan(2);
-  expect(mine!.x).toBeGreaterThan(app!.x + app!.width - 1);
+  // Yours on the left: what you typed leads.
+  expect(app!.x).toBeGreaterThan(mine!.x + mine!.width - 1);
   const input = await page.locator('#todoNew').boundingBox();
   const add = await page.locator('[data-action="invTodoAdd"]').boundingBox();
   expect(Math.abs(input!.y + input!.height / 2 - (add!.y + add!.height / 2))).toBeLessThan(2);

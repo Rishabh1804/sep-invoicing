@@ -74,6 +74,8 @@ document.addEventListener('click', function(e) {
     case 'invAppearance': appearancePick(btn.dataset.k, btn.dataset.v); break;
     case 'invCloseSettings': closeSettings(); break;
     case 'invZincDeriveUplift': zincDeriveUplift(); break;
+    case 'invCostDeriveBank': costDeriveFromBank(btn.dataset.which); break;
+    case 'invCostUseDerived': costUseDerived(btn.dataset.field, btn.dataset.val); break;
     case 'invZincUseUplift': zincUseUplift(btn.dataset.pct); break;
     case 'invExportData': exportData(); break;
     case 'invImportData': importData(); break;

@@ -32,8 +32,9 @@ needs one it does not define).
 | This spec | merged (#81) | `docs/FINANCE_INTELLIGENCE_SPEC.md` |
 | **Phase 1** — cheque placement links, series tagging and suggestion, GST month notes | merged (#81); P59 | `bank.js`, `finance.js` |
 | **Side track A** — challan line filled from the record, reason for a red flag | merged (#82); P63 | `state.js`, `im-form.js`, `events.js` |
-| **Phase 2** — `chartLines`, `chartStack`, `chartPieTap`, range chips, tap-to-read | built; P60 | `charts.js` |
-| **Phase 3** — the interactive Finance Overview (range, cash, where money went/came from, invoiced vs received, GST chart) | built; P59 | `finance.js` |
+| **Phase 2** — `chartLines`, `chartStack`, `chartPieTap`, range chips, tap-to-read | merged (#83); P60 | `charts.js` |
+| **Phase 3** — the interactive Finance Overview (range, cash, where money went/came from, invoiced vs received, GST chart) | merged (#83); P59 | `finance.js` |
+| **Phase 4** — bank-paid cost by month, `notCost`, unsorted payees, precedence, recorded vs paid, Derive from the bank | built; P61 | `bank.js`, `cost.js`, `settings.js` |
 
 Data already available to build on — **use these, do not re-derive**:
 
@@ -43,6 +44,11 @@ Data already available to build on — **use these, do not re-derive**:
   each alloc `{v, how: 'exact'|'oldest', parts[], unapplied}`.
 - `finCashByMonth(rows)`, `finAgeing(recv)`, `finGstByMonth(months, cls)` in `finance.js`.
 - `liveCost(from, to, kg)` → `{rows: [{key: labour|chem|zinc|power|other, amount, measured, source, detail}], total, perKg, measuredShare}` (`cost.js`).
+  `source` is `measured · bank · partial · rate · model · none`; a labour row taken from the bank carries `bankShare`.
+- `bankCostByMonth()` → `{months: {ym: {labour: {amount, named, cash, rows}, power, other, supplies, unsorted}}, cover}`,
+  `bankMonthKnown(bm, ym, key)`, `bankCostForRange(from, to)` → per key `{amount, known, months[]}` plus `unsorted`
+  (`bank.js`). `liveCostPaidCheck(from, to)` → `[{key, label, recorded, paid, delta, pct, flag, months, skipped, note}]`
+  — Phase 5's `costGap` reads `flag` (`cost.js`). `costDeriveCompute(keys)` → per key `{rows, paid, kg, perKg}`.
 - `labourForRange(from, to)`, `payWeek(weekStart)`, `payrollPaidFor(month)` (`labour.js`, `payroll.js`).
 - `weighLines(rows)` (tonnage), `statsRangeIso(period)`, `statsWorkingDays(from, to)` (`stats.js`, `intel.js`).
 - `insMonthsBack(n)`, `insMonthly(months)`, `predCadence()`, `predMonthPace()`, and the To-do rule registry
@@ -176,6 +182,17 @@ written down, not smoothed: EXTRA pool paid in cash, salaries paid the month aft
 Settings → Costing → Live cost fallbacks gains **Derive from the bank** for power ₹/kg and other ₹/kg (and labour
 ₹/kg in Settings → Labour): the trailing six months of bank-paid ÷ tonnage, each month's arithmetic shown,
 **offered, never applied** — the zinc uplift's contract exactly.
+
+**As built (26 Sep 2026), and one departure the real statement forced.** A payment the app only *guessed* as
+`other` — the payee matched nothing — is **unsorted**, and counts as neither cost nor supplier. On the real
+statement that residue was ₹3.4–5.6L a month (₹4–6/kg against a ₹0.42 model), and it was the zinc and chemical
+traders: the stock record carries no supplier names for `bankMatchSupplier` to find. Counting it as *other* by
+default read the quarter at ₹12.66/kg. So **other and supplies are known for a month only once nothing in it is
+unsorted**; the live cost's *other* row lists what is unsorted as a reference line, and Finance → Payments lists the
+payees with a **Sort** button that opens the row on the statement. `other` set by the operator (a payee rule or a
+row) and bank charges count. Everything else is as specified. On the real book the statement puts electricity at
+₹0.80/kg against the ₹0.81 model and labour at ₹3.46/kg against ₹3.55, while attendance records ₹2.02/kg for July at
+100% of days — recorded vs paid flags labour +80% over June–July, which is the finding the check exists for.
 
 **Tests (new P61):** attribution puts a 14 Sep salary leg in August and a JBVNL payment in its bill month; `notCost`
 rows are excluded; precedence picks recorded ≥ 90%, else bank, else model, and the source tag says which; recorded vs

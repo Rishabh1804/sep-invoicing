@@ -334,7 +334,7 @@ function nextChallanCardHtml() {
   var today = localDateStr();
   var h = statsPanel('next', 'Next challan expected', 'from each client&rsquo;s own rhythm', { id: 'statsNextChallan' });
   list.sort(function(a, b) { return (b.late - a.late) || (a.next < b.next ? -1 : 1); }).forEach(function(c) {
-    var when = c.quiet ? statsDot('danger', c.late + ' days late · quiet') : c.late ? statsDot('warning', c.late + ' day' + (c.late === 1 ? '' : 's') + ' late')
+    var when = c.quiet ? uiDot('danger', c.late + ' days late · quiet') : c.late ? uiDot('warning', c.late + ' day' + (c.late === 1 ? '' : 's') + ' late')
       : '<span class="inv-nowrap">' + (c.next === today ? 'today' : escHtml(formatDate(c.next))) + '</span>';
     h += statsRow(escHtml(c.name), 'every ' + formatNum(c.median, 0) + ' day' + (c.median === 1 ? '' : 's') + ' · last ' + escHtml(formatDate(c.last)), when);
   });

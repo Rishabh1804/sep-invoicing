@@ -79,7 +79,7 @@ test('P10: an aliased part number on identical weights still trips the guard', a
   await fillChallan(page, '47-A', '282.7', 'BRACKET 3302');
   await page.locator('[data-action="invSaveChallan"]').click();
 
-  const overlay = page.locator('.inv-overlay-scrim');
+  const overlay = page.locator('.inv-scrim-dialog');
   await expect(overlay).toBeVisible();
   await expect(overlay).toContainText('Possible duplicate challan');
   await expect(overlay).toContainText('Ch. 47');
@@ -98,7 +98,7 @@ test('P10: a blank challan number is raised in its own right', async ({ page }) 
   await fillChallan(page, '', '100', 'SOME PART');
   await page.locator('[data-action="invSaveChallan"]').click();
 
-  const overlay = page.locator('.inv-overlay-scrim');
+  const overlay = page.locator('.inv-scrim-dialog');
   await expect(overlay).toBeVisible();
   await expect(overlay).toContainText('No challan number on this entry');
   await expect(overlay).not.toContainText('exactly these quantities');
@@ -112,10 +112,10 @@ test('P10: Save Anyway writes the challan and stamps the acknowledgement', async
 
   await fillChallan(page, '47-A', '282.7', 'BRACKET 3302');
   await page.locator('[data-action="invSaveChallan"]').click();
-  await expect(page.locator('.inv-overlay-scrim')).toBeVisible();
+  await expect(page.locator('.inv-scrim-dialog')).toBeVisible();
 
   await page.locator('[data-action="invDupeSaveAnyway"]').click();
-  await expect(page.locator('.inv-overlay-scrim')).toHaveCount(0);
+  await expect(page.locator('.inv-scrim-dialog')).toHaveCount(0);
 
   const im = await storedIM(page);
   expect(im).toHaveLength(2);
@@ -131,7 +131,7 @@ test('P10: a genuinely different quantity saves without a warning', async ({ pag
   await fillChallan(page, '48', '190.5', 'BRACKET 3302');
   await page.locator('[data-action="invSaveChallan"]').click();
 
-  await expect(page.locator('.inv-overlay-scrim')).toHaveCount(0);
+  await expect(page.locator('.inv-scrim-dialog')).toHaveCount(0);
   expect(await storedIM(page)).toHaveLength(2);
 });
 
@@ -158,7 +158,7 @@ test('P10: the scan counts duplicate groups and separates billed-twice from unbi
   await expect(page.locator('#imDupeCheck [data-dupes]')).toHaveText('1');
 
   await page.locator('#imDupeCheck').click();
-  const overlay = page.locator('.inv-overlay-scrim');
+  const overlay = page.locator('.inv-scrim-dialog');
   await expect(overlay).toBeVisible();
   await expect(overlay).toContainText('Duplicate check');
   await expect(overlay).toContainText('1 duplicate group');
@@ -184,7 +184,7 @@ test('P10: two copies collapsed into one invoice are not reported as billed twic
   await switchTab(page, 'pageIM');
   await page.locator('#imDupeCheck').click();
 
-  const overlay = page.locator('.inv-overlay-scrim');
+  const overlay = page.locator('.inv-scrim-dialog');
   await expect(overlay).toContainText('Collapsed into one invoice');
   await expect(overlay).not.toContainText('Billed twice');
 });

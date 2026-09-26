@@ -114,13 +114,13 @@ test.describe('P69: To-do', () => {
     await load(page);
     await switchTab(page, 'pageTodo');
     await page.locator('#todoContent [data-todo="app"]').first().click();
-    const card = page.locator('.inv-overlay-card');
+    const card = page.locator('.inv-dialog');
     await expect(card.locator('[data-todo-facts] .inv-panel-title')).toContainText('Order Q558');
     await expect(card.locator('[data-todo-facts] .inv-row .inv-num').first()).toBeVisible();
     await expect(card.locator('.inv-callout-info[data-todo-clears]')).toContainText('Clears itself');
     await expect(card.locator('.inv-btn-primary')).toHaveCount(1);
     await expect(card.locator('[data-action="invTodoSnooze"]')).toHaveCount(2);
-    await page.locator('.inv-overlay-close').click();
+    await page.locator('.inv-dialog-close').click();
 
     await page.locator('#todoContent [data-todo="mine"] [data-action="invTodoEdit"]').first().click();
     await expect(card.locator('.inv-field #todoText.inv-input')).toBeVisible();

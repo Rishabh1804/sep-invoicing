@@ -205,72 +205,59 @@ function renderCreditNoteForm() {
   var from = invoices[0] ? invoices[0].date : '';
   var to = invoices[invoices.length - 1] ? invoices[invoices.length - 1].date : '';
 
-  var html = '<div class="inv-overlay-card">' +
-    '<div class="inv-overlay-header"><span class="inv-overlay-title">Raise Credit Note</span>' +
-    '<button class="inv-overlay-close" data-action="invCloseOverlay" aria-label="Close">&times;</button></div>';
+  var html = '<div class="inv-dialog">' + dialogHeadHtml('Raise credit note');
 
-  html += '<div class="inv-detail-section">' +
-    '<div class="inv-detail-label">Customer</div>' +
-    '<div class="inv-detail-value">' + escHtml(client ? client.name : '') + '</div>' +
-    '<div class="inv-detail-label inv-mt-8">Batch</div>' +
-    '<div class="inv-detail-value">' + invoices.length + ' invoice' + (invoices.length !== 1 ? 's' : '') +
+  html += '<div class="inv-kv inv-mb-8">' +
+    '<div class="inv-kv-wide"><div class="inv-kv-k">Customer</div><div>' + escHtml(client ? client.name : '') + '</div></div>' +
+    '<div class="inv-kv-wide"><div class="inv-kv-k">Batch</div><div>' + invoices.length + ' invoice' + (invoices.length !== 1 ? 's' : '') +
     ', ' + escHtml(formatDate(from)) + ' &ndash; ' + escHtml(formatDate(to)) +
-    ' <span class="inv-text-muted">(' + _cnForm.spanDays + ' day' + (_cnForm.spanDays !== 1 ? 's' : '') + ')</span></div>' +
+    ' <span class="inv-note">(' + _cnForm.spanDays + ' day' + (_cnForm.spanDays !== 1 ? 's' : '') + ')</span></div></div>' +
     '</div>';
 
   // The discount is for batches of a week or more. Split batches are the
   // operator's call, so this warns and does not block.
   if (_cnForm.spanDays < CN_BATCH_MIN_DAYS) {
-    html += '<div class="inv-confirm-warn">This batch spans ' + _cnForm.spanDays + ' day' +
+    html += '<div class="inv-callout inv-callout-warning inv-mb-8" data-cn-warn>This batch spans ' + _cnForm.spanDays + ' day' +
       (_cnForm.spanDays !== 1 ? 's' : '') + '. The standing discount is for batches of ' +
       CN_BATCH_MIN_DAYS + ' days or more — raise it anyway only if you mean to.</div>';
   }
   if (_cnForm.cancelledSkipped > 0) {
-    html += '<div class="inv-confirm-warn">' + _cnForm.cancelledSkipped +
+    html += '<div class="inv-callout inv-callout-warning inv-mb-8" data-cn-warn>' + _cnForm.cancelledSkipped +
       ' cancelled invoice' + (_cnForm.cancelledSkipped !== 1 ? 's were' : ' was') +
       ' left out of the base — those goods were never billed.</div>';
   }
 
-  html += '<div class="inv-form-row">' +
-    '<div class="inv-form-group"><label class="inv-form-label">Discount %</label>' +
-    '<input type="number" step="0.01" min="0" max="100" class="inv-form-input inv-mono" id="cnPct" value="' + escHtml(_cnForm.pct) + '" data-action="invCnInput"></div>' +
-    '<div class="inv-form-group"><label class="inv-form-label">Credit note date</label>' +
-    '<input type="date" class="inv-form-input inv-mono" id="cnDate" value="' + escHtml(_cnForm.date) + '" data-action="invCnInput"></div></div>';
+  html += '<div class="inv-fields">' +
+    '<div class="inv-field"><label class="inv-field-label" for="cnPct">Discount %</label>' +
+    '<input type="number" step="0.01" min="0" max="100" class="inv-input inv-input-num" id="cnPct" value="' + escHtml(_cnForm.pct) + '" data-action="invCnInput"></div>' +
+    '<div class="inv-field"><label class="inv-field-label" for="cnDate">Credit note date</label>' +
+    '<input type="date" class="inv-input inv-id" id="cnDate" value="' + escHtml(_cnForm.date) + '" data-action="invCnInput"></div></div>';
 
-  html += '<div class="inv-form-group"><label class="inv-form-label">Vehicle No. (optional)</label>' +
-    '<input type="text" class="inv-form-input" id="cnVehicle" value="' + escHtml(_cnForm.vehicleNo) + '" data-action="invCnInput" autocomplete="off"></div>';
+  html += '<div class="inv-field"><label class="inv-field-label" for="cnVehicle">Vehicle no. (optional)</label>' +
+    '<input type="text" class="inv-input inv-id" id="cnVehicle" value="' + escHtml(_cnForm.vehicleNo) + '" data-action="invCnInput" autocomplete="off"></div>';
 
-  html += '<div class="inv-totals">' +
-    '<div class="inv-total-row"><span class="inv-total-label">Batch taxable</span><span class="inv-total-value">' + formatCurrency(c.batchTaxable) + '</span></div>' +
-    '<div class="inv-total-row"><span class="inv-total-label">Credit @ ' + escHtml(_cnForm.pct) + '%</span><span class="inv-total-value">' + formatCurrency(c.taxable) + '</span></div>';
+  var tot = function(label, v, strong) {
+    return '<div class="inv-row' + (strong ? ' inv-row-strong' : '') + '"><span class="inv-row-main">' + label + '</span>' +
+      '<span class="inv-row-end inv-num"' + (strong ? ' data-cn-total' : '') + '>' + formatCurrency(v) + '</span></div>';
+  };
+  html += '<div class="inv-panel inv-panel-flush inv-mb-8">' +
+    tot('Batch taxable', c.batchTaxable) +
+    tot('Credit @ ' + escHtml(_cnForm.pct) + '%', c.taxable);
   if (c.gstType === 'intra') {
-    html += '<div class="inv-total-row"><span class="inv-total-label">CGST @ ' + c.cgstPer + '%</span><span class="inv-total-value">' + formatCurrency(c.cgstAmt) + '</span></div>' +
-      '<div class="inv-total-row"><span class="inv-total-label">SGST @ ' + c.sgstPer + '%</span><span class="inv-total-value">' + formatCurrency(c.sgstAmt) + '</span></div>';
+    html += tot('CGST @ ' + c.cgstPer + '%', c.cgstAmt) + tot('SGST @ ' + c.sgstPer + '%', c.sgstAmt);
   } else {
-    html += '<div class="inv-total-row"><span class="inv-total-label">IGST @ ' + c.igstPer + '%</span><span class="inv-total-value">' + formatCurrency(c.igstAmt) + '</span></div>';
+    html += tot('IGST @ ' + c.igstPer + '%', c.igstAmt);
   }
-  html += '<div class="inv-total-row inv-total-row-grand"><span class="inv-total-label">Total credit</span>' +
-    '<span class="inv-total-grand">' + formatCurrency(c.grandTotal) + '</span></div></div>';
+  html += tot('Total credit', c.grandTotal, true) + '</div>';
 
-  html += '<div class="inv-form-hint">Shown on the note as ' + formatNum(c.qty, 2) + ' KG at &#8377;' +
+  html += '<div class="inv-note">Shown on the note as ' + formatNum(c.qty, 2) + ' KG at &#8377;' +
     formatNum(c.rate, 2) + '/KG &mdash; the kilograms these rupees represent at the batch rate, derived from the value.</div>';
 
-  html += '<div class="inv-btn-bar">' +
-    '<button class="inv-btn inv-btn-ghost" data-action="invCloseOverlay">Cancel</button>' +
+  html += '<div class="inv-dialog-foot">' +
+    '<button class="inv-btn inv-btn-secondary" data-action="invCloseOverlay">Cancel</button>' +
     '<button class="inv-btn inv-btn-primary" data-action="invCnSave">Raise ' + escHtml(cnDisplayNumber(recomputeNextCnNumber())) + '</button></div></div>';
 
-  var existing = document.querySelector('.inv-overlay-scrim');
-  if (existing) {
-    existing.innerHTML = html;
-  } else {
-    var scrim = document.createElement('div');
-    scrim.className = 'inv-overlay-scrim';
-    scrim.innerHTML = html;
-    pushFocus();
-    document.body.appendChild(scrim);
-    document.body.style.overflow = 'hidden';
-    focusFirstInteractive(scrim.querySelector('.inv-overlay-card'));
-  }
+  dialogOpen(html, { replace: true });
 }
 
 function captureCnForm() {
@@ -380,7 +367,7 @@ function cancelCreditNote(cnId) {
   cn.updatedAt = Date.now();
   saveState();
   // Cancelled from wherever the note is listed: the Register's overlay, or Finance → Bills & notes.
-  if (document.querySelector('.inv-overlay-scrim')) { closeOverlay(); renderCreditNoteList(); }
+  if (document.querySelector('.inv-scrim-dialog')) { closeOverlay(); renderCreditNoteList(); }
   else if (document.querySelector('#pageFinance.inv-page-active')) renderFinance();
   showToast(cn.displayNumber + ' cancelled — the number stays in the series');
 }
@@ -663,10 +650,7 @@ function cnSetAgainstInvoice(id) {
     return { num: num, idx: idx, inv: inv };
   });
 
-  var html = '<div class="inv-overlay-card">' +
-    '<div class="inv-overlay-header"><span class="inv-overlay-title">Against invoice &mdash; ' +
-    escHtml(cn.displayNumber) + '</span>' +
-    '<button class="inv-overlay-close" data-action="invCloseOverlay" aria-label="Close">&times;</button></div>' +
+  var html = '<div class="inv-dialog">' + dialogHeadHtml('Against invoice &mdash; ' + escHtml(cn.displayNumber)) +
     '<div class="inv-note inv-mb-8">Pick the invoice this credit note is taken against. It must carry ' +
     formatCurrency(need) + ' taxable.</div><div class="inv-panel inv-panel-flush">';
 
@@ -691,16 +675,7 @@ function cnSetAgainstInvoice(id) {
     '<button class="inv-btn inv-btn-secondary" data-action="invCnPickAgainst" data-id="' + escHtml(cn.id) +
     '" data-idx="-1">Clear &mdash; let the rule choose</button></div></div>';
 
-  var existing = document.querySelector('.inv-overlay-scrim');
-  if (existing) { existing.innerHTML = html; return; }
-  var scrim = document.createElement('div');
-  scrim.className = 'inv-overlay-scrim';
-  scrim.innerHTML = html;
-  scrim.addEventListener('click', function(e) { if (e.target === scrim) { scrim.remove(); document.body.style.overflow = ''; popFocus(); } });
-  pushFocus();
-  document.body.appendChild(scrim);
-  document.body.style.overflow = 'hidden';
-  focusFirstInteractive(scrim.querySelector('.inv-overlay-card'));
+  dialogOpen(html, { replace: true, dismiss: true });
 }
 
 /* Commit the pick. The headroom test binds whoever chose the invoice — the
@@ -805,9 +780,7 @@ function renderCreditNoteList() {
     return (parseInt(b.cnNumber, 10) || 0) - (parseInt(a.cnNumber, 10) || 0);
   });
 
-  var html = '<div class="inv-overlay-card">' +
-    '<div class="inv-overlay-header"><span class="inv-overlay-title">Credit notes</span>' +
-    '<button class="inv-overlay-close" data-action="invCloseOverlay" aria-label="Close">&times;</button></div>';
+  var html = '<div class="inv-dialog">' + dialogHeadHtml('Credit notes');
 
   if (notes.length === 0) {
     html += '<div class="inv-empty">No credit notes yet. Select a batch of invoices in the register to raise one.</div>';
@@ -845,19 +818,7 @@ function renderCreditNoteList() {
   }
   html += '</div>';
 
-  var existing = document.querySelector('.inv-overlay-scrim');
-  if (existing) {
-    existing.innerHTML = html;
-  } else {
-    var scrim = document.createElement('div');
-    scrim.className = 'inv-overlay-scrim';
-    scrim.innerHTML = html;
-    scrim.addEventListener('click', function(e) { if (e.target === scrim) { scrim.remove(); document.body.style.overflow = ''; popFocus(); } });
-    pushFocus();
-    document.body.appendChild(scrim);
-    document.body.style.overflow = 'hidden';
-    focusFirstInteractive(scrim.querySelector('.inv-overlay-card'));
-  }
+  dialogOpen(html, { replace: true, dismiss: true });
 }
 
 /* ===== EXPORT =====

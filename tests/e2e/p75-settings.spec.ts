@@ -61,8 +61,8 @@ test.describe('P75: Settings', () => {
     await page.locator('details[data-sec="data"]').scrollIntoViewIfNeeded();
     const close = page.locator('[data-action="invCloseSettings"]');
     await expect(close).toBeInViewport();
-    const card = await page.locator('#settingsScrim .inv-overlay-card').boundingBox();
-    const head = await page.locator('#settingsScrim .inv-overlay-header').boundingBox();
+    const card = await page.locator('#settingsScrim .inv-dialog').boundingBox();
+    const head = await page.locator('#settingsScrim .inv-dialog-head').boundingBox();
     expect(head!.y).toBeGreaterThanOrEqual(card!.y);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   });

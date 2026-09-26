@@ -74,7 +74,7 @@ test('P11: a never-issued invoice returns its number to the series', async ({ pa
 
   await page.locator('#invDeleteReason').fill('created by mistake');
   await page.locator('[data-action="invConfirmDelete"]').click();
-  await expect(page.locator('.inv-overlay-scrim')).toHaveCount(0);
+  await expect(page.locator('.inv-scrim-dialog')).toHaveCount(0);
 
   const s = await stored(page);
   expect(s.invoices).toHaveLength(1);
@@ -93,11 +93,11 @@ test('P11: a dispatched invoice keeps its number spent — invNextNum never walk
   await openDelete(page, 'INV-2');
 
   // The warning names the real risk, not the date heuristic.
-  await expect(page.locator('.inv-confirm-warn')).toContainText('customer may hold a copy');
+  await expect(page.locator('[data-delete-warn]')).toContainText('customer may hold a copy');
 
   await page.locator('#invDeleteReason').fill('duplicate of 00001');
   await page.locator('[data-action="invConfirmDelete"]').click();
-  await expect(page.locator('.inv-overlay-scrim')).toHaveCount(0);
+  await expect(page.locator('.inv-scrim-dialog')).toHaveCount(0);
 
   const s = await stored(page);
   expect(s.invoices).toHaveLength(1);
@@ -123,7 +123,7 @@ test('P11: the audit classifies every number in the series', async ({ page }) =>
   await expect(page.locator('#regNumberAudit [data-unaccounted]')).toHaveText('1');
 
   await page.locator('#regNumberAudit').click();
-  const overlay = page.locator('.inv-overlay-scrim');
+  const overlay = page.locator('.inv-scrim-dialog');
   await expect(overlay).toContainText('2 live');
   await expect(overlay).toContainText('1 cancelled');
   await expect(overlay).toContainText('1 voided');
@@ -151,7 +151,7 @@ test('P11: a historical gap can be accounted for without inventing an invoice', 
   expect(s.voidedNumbers[0].reserved).toBe(true);
 
   // Audit reopens with the gap closed.
-  const overlay = page.locator('.inv-overlay-scrim');
+  const overlay = page.locator('.inv-scrim-dialog');
   await expect(overlay).toContainText('0 unaccounted');
   await expect(overlay).toContainText('cancelled, filed in GSTR-1 at zero');
 });
@@ -163,7 +163,7 @@ test('P11: the series is read from evidence, not from 1', async ({ page }) => {
 
   await expect(page.locator('#regNumberAudit [data-unaccounted]')).toHaveCount(0);
   await page.locator('#regNumberAudit').click();
-  await expect(page.locator('.inv-overlay-scrim')).toContainText('0 unaccounted');
+  await expect(page.locator('.inv-scrim-dialog')).toContainText('0 unaccounted');
 });
 
 test('P11: a reserved void exports at zero; a recycled one does not', async ({ page }) => {

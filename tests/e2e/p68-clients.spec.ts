@@ -26,10 +26,10 @@ test.describe('P68: Clients, Items and Performance', () => {
     await expect(page.locator('#clientList .inv-row')).toHaveCount(2);
     await expect(page.locator('#clientList .inv-row-muted')).toContainText('Inactive');
     await page.locator('#clientList [data-action="invEditClient"][data-id="1"]').click();
-    await expect(page.locator('.inv-overlay-title')).toHaveText('Edit client');
+    await expect(page.locator('.inv-dialog-title')).toHaveText('Edit client');
     await expect(page.locator('#ceditRates .inv-row')).toContainText('Current');
 
-    await page.locator('.inv-overlay-close').click();
+    await page.locator('.inv-dialog-close').click();
     await openView(page, 'items');
     await expect(page.locator('#pageClients [data-action="invAddItem"]')).toHaveCount(1);
     await expect(page.locator('#pageClients .inv-btn-primary')).toHaveCount(1);

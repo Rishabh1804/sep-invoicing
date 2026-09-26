@@ -210,10 +210,10 @@ function stockOverviewHtml() {
   var need = gstRound(L.total * 1.18);
   h += '<div class="inv-panel inv-panel-flush" id="dashReorder"><div class="inv-panel-head"><span class="inv-panel-title">Reorder cash</span>' +
     '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invStockReorder">Open the reorder list</button></div><div class="inv-tiles inv-tiles-flush">' +
-    '<div class="inv-tile"><div class="inv-tile-label">Order, with GST</div><div class="inv-tile-value inv-tile-value-sm inv-num">' + escHtml(formatCurrency(need)) + '</div><div class="inv-tile-sub">' +
+    '<div class="inv-tile"><div class="inv-tile-label">Order, with GST</div><div class="inv-tile-value inv-tile-value-sm">' + escHtml(formatCurrency(need)) + '</div><div class="inv-tile-sub">' +
       (L.unpriced ? L.unpriced + ' line' + (L.unpriced === 1 ? '' : 's') + ' without a price' : 'at the last prices') + '</div></div>' +
-    (fc ? '<div class="inv-tile"><div class="inv-tile-label">Forecast lowest</div><div class="inv-tile-value inv-tile-value-sm inv-num">' + escHtml(formatCurrency(fc.min.bal)) + '</div><div class="inv-tile-sub">on ' + escHtml(stockShortDate(fc.min.date)) + '</div></div>' +
-      '<div class="inv-tile' + (fc.min.bal - need < 0 ? ' inv-tile-danger' : '') + '"><div class="inv-tile-label">After the order</div><div class="inv-tile-value inv-tile-value-sm inv-num">' + escHtml(formatCurrency(gstRound(fc.min.bal - need))) + '</div><div class="inv-tile-sub">at the lowest point</div></div>'
+    (fc ? '<div class="inv-tile"><div class="inv-tile-label">Forecast lowest</div><div class="inv-tile-value inv-tile-value-sm">' + escHtml(formatCurrency(fc.min.bal)) + '</div><div class="inv-tile-sub">on ' + escHtml(stockShortDate(fc.min.date)) + '</div></div>' +
+      '<div class="inv-tile' + (fc.min.bal - need < 0 ? ' inv-tile-danger' : '') + '"><div class="inv-tile-label">After the order</div><div class="inv-tile-value inv-tile-value-sm">' + escHtml(formatCurrency(gstRound(fc.min.bal - need))) + '</div><div class="inv-tile-sub">at the lowest point</div></div>'
       : '<div class="inv-tile"><div class="inv-tile-label">Forecast</div><div class="inv-tile-value inv-tile-value-sm">&mdash;</div><div class="inv-tile-sub">import a bank statement</div></div>') +
     '</div></div>';
   return '<div class="inv-panels">' + h + '</div>';

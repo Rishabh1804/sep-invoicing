@@ -18,7 +18,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <!-- Appearance before first paint (§3.2): the device's theme and palette, so nothing flashes in the wrong colours. -->
 <script>(function(){try{var d=document.documentElement,t=localStorage.getItem("sep_inv_theme"),p=localStorage.getItem("sep_inv_palette");if(t==="light"||t==="dark")d.dataset.theme=t;d.dataset.palette=(p==="zinc"||p==="terracotta")?p:"teal";}catch(e){document.documentElement.dataset.palette="teal";}})();</script>
-<meta name="app-build" content="643c09b8">
+<meta name="app-build" content="b2568dad">
 <style>
 /* ===== DESIGN TOKENS (design system v2.0 — docs/SEP_INVOICING_DESIGN_PRINCIPLES.md §3) ===== */
 /* Theme: colour-scheme decides every light-dark() below. <html data-theme> is set before first paint
@@ -59,14 +59,10 @@
   /* Faces (§3.4). Printed documents pin their own below — the UI face never reaches paper. */
   --ff-base: 'Geist', system-ui, 'Segoe UI', sans-serif;
   --ff-mono: 'Geist Mono', ui-monospace, 'Cascadia Mono', 'Roboto Mono', monospace;
-  --ff-display: var(--ff-base);
 
-  /* Type sizes (§3.4). The v1.0 names are kept as aliases of the new scale until §9 step 4. */
+  /* Type sizes (§3.4). */
   --fs-11: 0.6875rem; --fs-12: 0.75rem; --fs-13: 0.8125rem; --fs-14: 0.875rem; --fs-16: 1rem;
-  --fs-17: 1.0625rem; --fs-18: 1.125rem; --fs-19: 1.1875rem; --fs-20: 1.25rem; --fs-22: 1.375rem; --fs-24: 1.5rem;
-  --fs-2xs: var(--fs-11); --fs-xs: var(--fs-12); --fs-sm: var(--fs-13);
-  --fs-base: var(--fs-14); --fs-md: var(--fs-16); --fs-lg: var(--fs-18);
-  --fs-xl: var(--fs-20); --fs-2xl: var(--fs-22); --fs-3xl: var(--fs-24);
+  --fs-17: 1.0625rem; --fs-18: 1.125rem; --fs-19: 1.1875rem; --fs-22: 1.375rem; --fs-24: 1.5rem;
   --ls-tight: -0.02em;
 
   --sp-2: 0.125rem; --sp-4: 0.25rem; --sp-6: 0.375rem;
@@ -74,59 +70,54 @@
   --sp-16: 1rem; --sp-20: 1.25rem; --sp-24: 1.5rem; --sp-32: 2rem;
 
   --r-sm: 0.25rem; --r-md: 0.375rem; --r-lg: 0.5rem; --r-xl: 0.625rem; --r-full: 9999px;
+  /* Hairlines (§5.2): every divider and control edge is --hair; an accent or chevron rule is --rule. */
+  --hair: 1px; --rule: 2px;
 
   /* Elevation (§3.6, DR-6): content casts no shadow; only floating layers do. */
   --shadow-pop: 0 0.25rem 1rem rgb(0 0 0 / 0.14);
   --shadow-dialog: 0 1rem 3rem rgb(0 0 0 / 0.28);
-  --shadow-sm: none; --shadow-md: var(--shadow-pop); --shadow-lg: var(--shadow-dialog);
   --scrim: rgb(0 0 0 / 0.45);
 
-  --dur-1: 120ms; --dur-2: 200ms; --ease: cubic-bezier(.2, .7, .2, 1);
-  --anim-fast: var(--dur-1); --anim-normal: var(--dur-2);
+  --dur-1: 120ms; --dur-2: 200ms; --dur-spin: 800ms; --ease: cubic-bezier(.2, .7, .2, 1);
+  --perspective: 75rem;
 
   --touch: 2.75rem;
   --focus-ring: 0 0 0 2px var(--surface), 0 0 0 4px var(--accent);
 
   /* Semantic colour (§3.3) — the only colour tokens components read. */
   --bg: var(--c-bg); --surface: var(--c-surface); --surface-2: var(--c-surface-2); --surface-3: var(--c-surface-3);
-  --border: var(--c-border); --border-2: var(--c-border);
+  --border: var(--c-border);
   --text-1: var(--c-text-1); --text-2: var(--c-text-2); --text-3: var(--c-text-3);
   --accent: var(--c-accent); --on-accent: var(--c-on-accent);
   --accent-soft: var(--c-accent-soft); --accent-soft-text: var(--c-accent-soft-text);
-  --accent-dark: var(--c-accent-soft-text);
 
   /* Status tones, shared by every palette. */
   --danger: light-dark(#b42318, #f38b81); --danger-bg: light-dark(#fdecea, #3a1916);
   --warning: light-dark(#8a5700, #e8b95c); --warning-bg: light-dark(#fcf1d9, #352911);
   --ok: light-dark(#176e37, #72c98f); --ok-bg: light-dark(#e4f3e8, #14301e);
   --info: light-dark(#1d5ea6, #8dbaf0); --info-bg: light-dark(#e6effa, #15263a);
-  --danger-text: var(--danger); --warning-text: var(--warning);
-
-  /* v1.0 domain colours, retired into the tones (§3.3). Aliases until §9 step 4. */
-  --attend: var(--ok); --attend-bg: var(--ok-bg); --attend-text: var(--ok);
-  --cost: var(--text-1); --cost-bg: var(--surface-2); --cost-text: var(--text-1);
-  --prod: var(--info); --prod-bg: var(--info-bg); --prod-text: var(--info);
-  --neutral: var(--text-3); --neutral-bg: var(--surface-2); --neutral-text: var(--text-2);
-  --todo: var(--info); --todo-bg: var(--info-bg); --todo-text: var(--info);
-  --cw: var(--ok); --perm: var(--info);
 
   /* Layout (§3.7) */
   --bar-h: 3.25rem; --bar-h-desk: 3rem; --nav-h: 3.625rem; --side-w: 13.5rem; --content-max: 80rem; --pane-w: 22rem; --scroll-max: 55vh;
   --filter-w: 9rem; --col-sm-w: 8rem; --line-fig-w: 7rem; --line-unit-w: 5.5rem; --menu-max: 17.5rem;
-  --tab-h: var(--nav-h); --header-h: var(--bar-h); --max-w: 32.5rem;
-  --set-card-w: 55rem; --set-nav-w: 12.5rem;
-  --section-gap: var(--sp-12); --card-padding: var(--sp-16); --card-padding-sm: var(--sp-12);
+  --max-w: 32.5rem; --set-card-w: 55rem; --set-nav-w: 12.5rem;
+  --dialog-w: 40rem; --dialog-max-h: 90vh; --dialog-max-h-desk: 85vh; --toast-max: 30rem; --busy-w: 17.5rem;
+  --tile-min: 10rem; --field-min: 12rem; --search-min: 16rem; --textarea-h: 5rem; --dot: 0.4375rem; --spinner: 2.25rem;
 
   /* Density (§3.5): comfortable here, compact below. */
   --row-h: 2.75rem; --row-h-2: 3.5rem; --ctl-h: 2.75rem; --ctl-h-sm: 2.25rem;
   --pad-x: var(--sp-12); --pad-y: var(--sp-10); --gap: var(--sp-12);
 
-  --z-bar: 20; --z-dropdown: 50; --z-scrim: 100; --z-dialog: 200; --z-toast: 500; --z-print: 510;
+  --z-bar: 20; --z-dropdown: 50; --z-scrim: 100; --z-dialog: 200; --z-busy: 250; --z-banner: 300; --z-toast: 500; --z-print: 510;
 
   /* Chart series: categorical only (§6.17). */
   --chart-1: var(--accent); --chart-2: light-dark(#2e75b6, #88b8e8); --chart-3: light-dark(#177a36, #6cd88a);
   --chart-4: light-dark(#8a6b08, #d4b848); --chart-5: light-dark(#8b6c4a, #c8b898); --chart-6: light-dark(#6b4c8a, #b79ae0);
   --chart-7: light-dark(#b5583a, #e8a888); --chart-8: light-dark(#2f7d7d, #7fd0d0); --chart-other: light-dark(#9a958c, #6e6a63);
+  /* Chart frames (§6.17). The -fs- sizes are in the drawing's own viewBox units, which scale with it. */
+  --chart-h: 15rem; --chart-h-wide: 20rem; --pie: 11.25rem; --pie-wide: 13.75rem; --legend-min: 13.75rem;
+  --legend-row-h: 1.5rem; --legend-pct-w: 2.75rem; --swatch: 0.625rem; --track-h: 0.5rem;
+  --chart-fs-axis: 0.5625rem; --chart-fs-centre: 0.9375rem;
 }
 @media (pointer: fine) {
   :root[data-density="compact"] {
@@ -146,16 +137,16 @@
 
 /* ===== RESET ===== */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-html { font-family: var(--ff-base); font-size: 16px; background: var(--bg); color: var(--text-1); -webkit-tap-highlight-color: transparent; font-variant-numeric: slashed-zero tabular-nums lining-nums; }
-body { max-width: var(--max-w); margin: 0 auto; min-height: 100vh; background: var(--bg); padding-bottom: calc(var(--tab-h) + var(--sp-16)); }
-input, select, textarea, button { font-family: inherit; font-size: var(--fs-base); }
+html { font-family: var(--ff-base); font-size: 100%; background: var(--bg); color: var(--text-1); -webkit-tap-highlight-color: transparent; font-variant-numeric: slashed-zero tabular-nums lining-nums; }
+body { max-width: var(--max-w); margin: 0 auto; min-height: 100vh; background: var(--bg); padding-bottom: calc(var(--nav-h) + var(--sp-16)); }
+input, select, textarea, button { font-family: inherit; font-size: var(--fs-14); }
 
 /* ===== APP SHELL (design system §4, §6.1) ===== */
 .inv-topbar {
   position: sticky; top: 0; z-index: var(--z-bar);
   display: flex; align-items: center; gap: var(--sp-8);
   height: var(--bar-h); padding: 0 var(--sp-8) 0 var(--sp-16);
-  background: var(--surface); color: var(--text-1); border-bottom: 1px solid var(--border);
+  background: var(--surface); color: var(--text-1); border-bottom: var(--hair) solid var(--border);
 }
 .inv-topbar-title { font-size: var(--fs-17); font-weight: 600; line-height: 1.3; white-space: nowrap; }
 .inv-topbar-ctx { font-size: var(--fs-13); color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -176,7 +167,7 @@ body.inv-desktop .inv-topbar-btn { display: none; }
 .inv-navbar {
   position: fixed; bottom: 0; left: 0; right: 0; z-index: var(--z-bar);
   display: flex; height: var(--nav-h);
-  background: var(--surface); border-top: 1px solid var(--border);
+  background: var(--surface); border-top: var(--hair) solid var(--border);
   max-width: var(--max-w); margin: 0 auto;
 }
 .inv-navbar-item {
@@ -186,56 +177,21 @@ body.inv-desktop .inv-topbar-btn { display: none; }
   cursor: pointer; min-height: var(--touch); transition: color var(--dur-1);
 }
 .inv-navbar-item svg { width: 20px; height: 20px; }
-.inv-navbar-item-on { color: var(--accent); box-shadow: inset 0 2px 0 var(--accent); }
+.inv-navbar-item-on { color: var(--accent); box-shadow: inset 0 var(--rule) 0 var(--accent); }
 
 /* ===== PAGES ===== */
 .inv-page { display: none; padding: var(--sp-16); }
 .inv-page-active { display: block; }
 
-/* ===== CARDS ===== */
-.inv-card {
-  background: var(--surface); border-radius: var(--r-xl);
-  padding: var(--card-padding); box-shadow: var(--shadow-sm);
-  margin-bottom: var(--sp-12);
-}
-.inv-card-header {
-  display: flex; align-items: center; gap: var(--sp-8);
-  margin-bottom: var(--sp-12);
-}
-.inv-card-title {
-  font-size: var(--fs-md); font-weight: 600; color: var(--text-1);
-}
-/* ===== FORM SYSTEM ===== */
-.inv-form-group { margin-bottom: var(--sp-12); }
-.inv-form-label {
-  display: block; font-size: var(--fs-12); font-weight: 500; line-height: 1.35;
-  color: var(--text-2); margin-bottom: var(--sp-4);
-}
-.inv-form-input {
-  width: 100%; padding: var(--sp-10) var(--sp-12);
-  border: 1px solid var(--border); border-radius: var(--r-md);
-  background: var(--surface); color: var(--text-1);
-  font-size: var(--fs-base); transition: border-color var(--anim-fast);
-  min-height: 44px;
-}
-.inv-form-input:focus { outline: none; border-color: var(--accent); box-shadow: var(--focus-ring); }
-.inv-form-input[readonly] { background: var(--surface-2); color: var(--text-2); cursor: default; }
-.inv-form-row { display: flex; gap: var(--sp-8); }
-.inv-form-row > * { flex: 1; min-width: 0; }
-/* Fields in a row line their boxes up along the bottom: a label that wraps to two lines takes the extra
-   height above its own box instead of pushing that box below its neighbours'. */
-.inv-form-row > .inv-form-group { display: flex; flex-direction: column; }
-.inv-form-row > .inv-form-group > .inv-form-label { flex: 1; display: flex; align-items: flex-end; }
-
 /* Segmented control (design system §6.5): a setting of the current view, never navigation. */
 .inv-seg {
   display: flex; width: 100%; max-width: 100%;
-  border: 1px solid var(--border); border-radius: var(--r-md);
+  border: var(--hair) solid var(--border); border-radius: var(--r-md);
   background: var(--surface); overflow: hidden;
 }
 .inv-seg-btn {
   flex: 1; min-width: 0; min-height: var(--ctl-h); padding: 0 var(--sp-10);
-  border: none; border-left: 1px solid var(--border); background: none; cursor: pointer;
+  border: none; border-left: var(--hair) solid var(--border); background: none; cursor: pointer;
   color: var(--text-2); font-size: var(--fs-13); font-weight: 500; white-space: nowrap;
   overflow: hidden; text-overflow: ellipsis; transition: background var(--dur-1), color var(--dur-1);
 }
@@ -252,151 +208,47 @@ body.inv-desktop .inv-seg-btn[aria-pressed="true"] { background: var(--surface-2
 /* A segmented control the width of its buttons, for a card's head or toolbar (Stats' Ranked / Share, the trend's series). */
 .inv-seg-fit { width: auto; display: inline-flex; flex: 0 0 auto; }
 .inv-seg-fit .inv-seg-btn { flex: 0 1 auto; min-height: var(--ctl-h-sm); }
-.inv-form-select {
-  width: 100%; padding: var(--sp-10) var(--sp-12);
-  border: 1px solid var(--border); border-radius: var(--r-md);
-  background: var(--surface); color: var(--text-1);
-  font-size: var(--fs-base); min-height: 44px;
-  -webkit-appearance: none; appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M3 5l3 3 3-3' stroke='%23888' fill='none' stroke-width='1.5'/%3E%3C/svg%3E");
-  background-repeat: no-repeat; background-position: right var(--sp-12) center;
-}
-
-/* ===== BUTTONS ===== */
-.inv-btn {
-  display: inline-flex; align-items: center; justify-content: center;
-  gap: var(--sp-6); padding: var(--sp-10) var(--sp-16);
-  border: none; border-radius: var(--r-md); font-weight: 600;
-  font-size: var(--fs-base); cursor: pointer; min-height: 44px;
-  transition: all var(--anim-fast);
-}
-.inv-btn-primary { background: var(--accent); color: var(--on-accent); }
-.inv-btn-primary:active { background: var(--accent-dark); }
-.inv-btn-ghost { background: transparent; color: var(--text-2); border: 1px solid var(--border); }
-.inv-btn-ghost:active { background: var(--surface-2); }
-.inv-btn-danger { background: var(--danger); color: var(--surface); }
-.inv-btn-sm { padding: var(--sp-6) var(--sp-12); font-size: var(--fs-sm); min-height: 36px; }
-.inv-btn-block { width: 100%; }
-.inv-btn:disabled, .inv-btn-disabled { opacity: 0.4; pointer-events: none; }
-.inv-btn-bar { display: flex; gap: var(--sp-8); justify-content: flex-end; margin-top: var(--sp-16); }
-
-
-/* ===== OVERLAY ===== */
-.inv-overlay-scrim {
-  position: fixed; inset: 0; background: rgba(0,0,0,0.4);
-  z-index: 200; display: flex; align-items: flex-end; justify-content: center;
-  animation: inv-fadeIn var(--anim-normal) ease;
-}
-.inv-overlay-card {
-  background: var(--surface); border-radius: var(--r-xl) var(--r-xl) 0 0;
-  width: 100%; max-width: var(--max-w); max-height: 90vh;
-  overflow-y: auto; padding: var(--sp-20);
-  animation: inv-slideUp var(--anim-normal) ease;
-}
-.inv-overlay-header {
-  display: flex; align-items: center; justify-content: space-between;
-  margin-bottom: var(--sp-16);
-}
-.inv-overlay-title { font-size: var(--fs-lg); font-weight: 700; }
-.inv-overlay-close {
-  min-width: 44px; min-height: 44px; display: flex; align-items: center;
-  justify-content: center; background: none; border: none;
-  color: var(--text-3); cursor: pointer; font-size: var(--fs-lg);
-  border-radius: var(--r-md);
-}
-@keyframes inv-fadeIn { from { opacity: 0; } to { opacity: 1; } }
-@keyframes inv-slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
-
-/* ===== TOTALS ===== */
-.inv-totals {
-  background: var(--surface); border-radius: var(--r-xl);
-  padding: var(--card-padding); box-shadow: var(--shadow-sm);
-  border: 1px solid var(--border);
-}
-.inv-total-row {
-  display: flex; justify-content: space-between; align-items: center;
-  padding: var(--sp-6) 0; font-size: var(--fs-base);
-}
-.inv-total-row-grand {
-  border-top: 2px solid var(--text-1);
-  padding-top: var(--sp-12); margin-top: var(--sp-8);
-  font-weight: 700;
-}
-.inv-total-label { color: var(--text-2); }
-.inv-total-value { font-family: var(--ff-mono); font-weight: 600; color: var(--cost-text); }
-.inv-total-grand { font-family: var(--ff-display); font-size: var(--fs-xl); color: var(--cost); }
-
-
-/* ===== VALIDATION ===== */
-
-/* ===== TOAST ===== */
-.inv-toast {
-  position: fixed; top: calc(var(--header-h) + var(--sp-8));
-  left: 50%; transform: translateX(-50%);
-  padding: var(--sp-10) var(--sp-16); border-radius: var(--r-md);
-  font-size: var(--fs-sm); font-weight: 500; z-index: 300;
-  box-shadow: var(--shadow-md); animation: inv-fadeIn var(--anim-fast) ease;
-  max-width: calc(var(--max-w) - var(--sp-32));
-}
-.inv-toast-success { background: var(--attend); color: var(--surface); }
-.inv-toast-warning { background: var(--warning-bg); color: var(--warning-text); border: 1px solid var(--warning); }
-.inv-toast-error { background: var(--danger); color: var(--surface); }
-
 /* Until the store has loaded, the shell is visible but takes no input: every
    handler reads S, and there is none yet. Boot adds the class. */
 body:not(.inv-booted) { pointer-events: none; }
 
 /* ===== UPDATE BANNER =====
-   Persistent until answered, unlike a toast, so it sits under the header where
+   Persistent until answered, unlike a toast, so it sits under the top bar where
    the toast does but below it in the stack — a toast fired while the banner is
-   up still reads. Colours are tokens, so the dark theme is covered by .dark
-   swapping them; nothing here is a raw value. */
+   up still reads. Every colour is a token, so it switches with the theme. */
 .inv-update-bar, .inv-storage-bar {
-  position: fixed; top: calc(var(--header-h) + var(--sp-8));
+  position: fixed; top: calc(var(--bar-h) + var(--sp-8));
   left: 50%; transform: translateX(-50%);
   display: flex; align-items: center; gap: var(--sp-12); flex-wrap: wrap;
   width: calc(100% - var(--sp-24)); max-width: calc(var(--max-w) - var(--sp-32));
   padding: var(--sp-10) var(--sp-12);
   background: var(--surface); color: var(--text-1);
-  border: 1px solid var(--accent); border-radius: var(--r-md);
-  box-shadow: var(--shadow-md); font-size: var(--fs-sm); z-index: 290;
-  animation: inv-fadeIn var(--anim-fast) ease;
+  border: var(--hair) solid var(--accent); border-radius: var(--r-md);
+  box-shadow: var(--shadow-pop); font-size: var(--fs-13); z-index: var(--z-banner);
 }
 /* A failed save outranks a pending update: danger border, and above it in
    the stack when both are up. Removed by the next save that lands. */
-.inv-storage-bar { border-color: var(--danger); z-index: 295; }
-.inv-update-text { flex: 1 1 12rem; line-height: 1.4; }
+.inv-storage-bar { border-color: var(--danger); z-index: calc(var(--z-banner) + 1); }
+.inv-update-text { flex: 1 1 var(--field-min); line-height: 1.4; }
 .inv-update-actions { display: flex; gap: var(--sp-8); margin-left: auto; }
-.inv-update-btn { min-height: 44px; }
-
-/* ===== PREVIEW ===== */
-.inv-preview-container {
-  background: #fff; padding: var(--sp-16); border: 1px solid var(--border);
-  border-radius: var(--r-md); font-size: var(--fs-sm); color: #000;
-}
-.inv-preview-container table { width: 100%; border-collapse: collapse; }
-.inv-preview-container th, .inv-preview-container td {
-  border: 1px solid #333; padding: var(--sp-4) var(--sp-6);
-  text-align: left; font-size: var(--fs-xs);
-}
-.inv-preview-container th { background: #f0f0f0; font-weight: 600; }
+.inv-update-btn { min-height: var(--touch); }
 
 /* ===== PRINT VIEW ===== */
 .inv-print-view {
-  display: none; position: fixed; inset: 0; z-index: 500;
+  display: none; position: fixed; inset: 0; z-index: var(--z-print);
   background: var(--bg); overflow-y: auto;
 }
 .inv-print-view-active { display: block; }
 .inv-print-toolbar {
-  position: sticky; top: 0; z-index: 510;
+  position: sticky; top: 0; z-index: 1;
   display: flex; align-items: center; justify-content: space-between;
-  height: var(--header-h); padding: 0 var(--sp-16);
+  height: var(--bar-h); padding: 0 var(--sp-16);
   background: var(--accent); color: var(--on-accent);
 }
 .inv-print-toolbar-btn {
-  min-width: 44px; min-height: 44px; display: flex; align-items: center;
+  min-width: var(--touch); min-height: var(--touch); display: flex; align-items: center;
   justify-content: center; gap: var(--sp-6); background: none; border: none;
-  color: var(--on-accent); cursor: pointer; font-size: var(--fs-base); font-weight: 600;
+  color: var(--on-accent); cursor: pointer; font-size: var(--fs-14); font-weight: 600;
   border-radius: var(--r-md); padding: 0 var(--sp-8);
 }
 .inv-print-toolbar-btn:active { opacity: 0.7; }
@@ -535,12 +387,12 @@ body:not(.inv-booted) { pointer-events: none; }
 .inv-qc-notice {
   max-width: var(--max-w); margin: 0 auto var(--sp-12) auto;
   padding: var(--sp-8) var(--sp-12); border-radius: var(--r-md);
-  font-size: var(--fs-sm); font-weight: 600;
+  font-size: var(--fs-13); font-weight: 600;
   background: var(--surface-2); color: var(--text-2);
-  border: 1px solid var(--border);
+  border: var(--hair) solid var(--border);
 }
 .inv-qc-notice-warn {
-  background: var(--warning-bg); color: var(--warning-text);
+  background: var(--warning-bg); color: var(--warning);
   border-color: var(--warning);
 }
 .inv-qc-sheets { overflow-x: auto; }
@@ -770,33 +622,31 @@ table.inv-qc-grid.inv-qc-no-top { border-top: 0; }
 .inv-cn-sig-co { font-weight: 700; }
 .inv-cn-sig-line { margin-top: 10mm; font-weight: 700; }
 
-/* ===== CLIENT PERFORMANCE ===== */
-/* Stopped is the only one of the four that is a question, so it is the only
-   one that carries a colour. */
-
-
 /* ===== SCAN CHALLAN ===== */
+/* While the challan is read: a card on the scrim, the one busy indicator in the app. */
 .inv-scan-processing {
-  position: fixed; inset: 0; z-index: 250;
+  position: fixed; inset: 0; z-index: var(--z-busy);
   display: flex; align-items: center; justify-content: center;
-  background: rgba(0,0,0,0.5);
+  background: var(--scrim);
 }
 .inv-scan-processing-card {
-  background: var(--surface); border-radius: var(--r-xl);
+  background: var(--surface); border: var(--hair) solid var(--border); border-radius: var(--r-xl);
   padding: var(--sp-24); text-align: center;
-  box-shadow: var(--shadow-lg); max-width: 280px;
+  box-shadow: var(--shadow-dialog); max-width: var(--busy-w);
 }
 .inv-scan-processing-text {
-  font-size: var(--fs-base); font-weight: 600;
+  font-size: var(--fs-14); font-weight: 600;
   color: var(--text-1); margin-top: var(--sp-8);
 }
 .inv-scan-processing-sub {
-  font-size: var(--fs-xs); color: var(--text-3); margin-top: var(--sp-4);
+  font-size: var(--fs-12); color: var(--text-3); margin-top: var(--sp-4);
 }
 .inv-scan-spinner {
-  width: 36px; height: 36px; border: 3px solid var(--border);
-  border-top-color: var(--accent); border-radius: 50%;
-  animation: inv-spin 0.8s linear infinite; margin: 0 auto;
+  width: var(--spinner); height: var(--spinner); border: calc(var(--rule) * 1.5) solid var(--border);
+  border-top-color: var(--accent); border-radius: 50%; margin: 0 auto;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .inv-scan-spinner { animation: inv-spin var(--dur-spin) linear infinite; }
 }
 @keyframes inv-spin { to { transform: rotate(360deg); } }
 
@@ -830,8 +680,8 @@ table.inv-qc-grid.inv-qc-no-top { border-top: 0; }
      64px right — asymmetric margins, and 240px when the sidebar was expanded.
      One more element selector settles it without reaching for !important. */
   html body.inv-desktop { margin-left: 0; }
-  .inv-topbar, .inv-navbar, .inv-fab, .inv-toast, .inv-update-bar, .inv-storage-bar, .inv-page,
-  .inv-overlay-scrim, .inv-print-toolbar, #imSelBar, .inv-side { display: none !important; }
+  .inv-topbar, .inv-navbar, .inv-toast, .inv-update-bar, .inv-storage-bar, .inv-page,
+  .inv-scrim, .inv-print-toolbar, #imSelBar, .inv-side { display: none !important; }
   .inv-print-view { position: static; display: block !important; overflow: visible; }
   .inv-print-body { padding: 0; }
   .inv-print-invoice { border: none; max-width: none; padding: 10mm 12mm 8mm 12mm; }
@@ -870,46 +720,25 @@ table.inv-qc-grid.inv-qc-no-top { border-top: 0; }
   .inv-cn-doc { border: none; margin: 0; width: auto; }
 }
 
-/* ===== SETTINGS ===== */
+/* ===== CHARTS (design system §6.17) ===== */
+/* The line chart's parts: gridlines and their labels, the area under the line, the line, its points, the axis. */
+.inv-chart-grid { stroke: var(--border); stroke-width: calc(var(--hair) / 2); }
+.inv-chart-grid-label, .inv-chart-axis { font-size: var(--chart-fs-axis); fill: var(--text-3); font-family: var(--ff-mono); }
+.inv-chart-line { fill: none; stroke: var(--accent); stroke-width: var(--rule); stroke-linecap: round; stroke-linejoin: round; }
+.inv-chart-area { fill: var(--surface-2); opacity: 0.5; }
+.inv-chart-dot { fill: var(--accent); stroke: var(--surface); stroke-width: var(--rule); }
 
-/* Phase 7: SVG charts */
-.inv-svg-chart { width: 100%; height: auto; display: block; }
-
-/* Trend chart — height-capped so it doesn't dominate the dashboard.
-   preserveAspectRatio="none" on the SVG lets it stretch into this fixed box. */
-.inv-trend-svg {
-  width: 100%; height: 140px; display: block;
-}
-@media (min-width: 768px) {
-  .inv-trend-svg { height: 160px; }
-}
-.inv-svg-bar { fill: var(--accent); transition: fill var(--anim-fast); }
-.inv-svg-bar-group { cursor: pointer; }
-
-.inv-svg-bar-group:active .inv-svg-bar { fill: var(--cost); }
-.inv-svg-bar-label { font-size: 11px; fill: var(--text-1); font-family: var(--ff-base); }
-.inv-svg-bar-amount { font-size: 10px; fill: var(--text-3); font-family: var(--ff-mono); }
-.inv-svg-grid { stroke: var(--border); stroke-width: 0.5; }
-.inv-svg-grid-label { font-size: 9px; fill: var(--text-3); font-family: var(--ff-mono); }
-.inv-svg-line { fill: none; stroke: var(--accent); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
-.inv-svg-area { fill: var(--cost-bg); opacity: 0.5; }
-.inv-svg-dot { fill: var(--accent); stroke: var(--surface); stroke-width: 2; }
-.inv-svg-axis-label { font-size: 9px; fill: var(--text-3); font-family: var(--ff-mono); }
-
-/* ===== CHARTS =====
-   Drawn at their natural aspect and sized by CSS, so a circle is a circle on a
+/* Drawn at their natural aspect and sized by CSS, so a circle is a circle on a
    phone and on a desktop. The old trend chart stretched a 400x160 drawing with
    preserveAspectRatio="none", which is why it could only ever be a bare line —
    markers came out as ellipses and text skewed. */
 .inv-chart-svg {
   width: 100%; height: auto; display: block;
-  max-height: 240px; margin: 0 auto;
+  max-height: var(--chart-h); margin: 0 auto;
 }
-@media (min-width: 768px) {
-  /* Desktop gets a taller frame: the same series, more room between
-     gridlines, and labels that stop colliding. */
-  .inv-chart-svg { max-height: 320px; }
-}
+/* A wider screen gets a taller frame: the same series, more room between
+   gridlines, and labels that stop colliding. */
+:is(body.inv-tablet, body.inv-desktop) .inv-chart-svg { max-height: var(--chart-h-wide); }
 .inv-chart-bar { fill: var(--accent); }
 /* Phase 2 charts (docs/FINANCE_INTELLIGENCE_SPEC.md). A box holds the drawing, its keys and a readout
    line: on a phone there is no hover to raise a <title>, so a tap writes the figure there. */
@@ -917,51 +746,45 @@ table.inv-qc-grid.inv-qc-no-top { border-top: 0; }
 .inv-chart-readout { min-height: var(--row-h); display: flex; align-items: center; padding: 0 var(--sp-4); font-size: var(--fs-13); color: var(--text-2); font-family: var(--ff-mono); }
 .inv-chart-keys { display: flex; flex-wrap: wrap; gap: var(--sp-6) var(--sp-16); font-size: var(--fs-12); color: var(--text-2); }
 .inv-chart-key { display: inline-flex; align-items: center; gap: var(--sp-6); }
-.inv-chart-zero { stroke: var(--text-3); stroke-width: 1; }
+.inv-chart-zero { stroke: var(--text-3); stroke-width: var(--hair); }
 .inv-chart-band { fill: var(--chart-1); opacity: 0.16; }
-.inv-chart-path { fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.inv-chart-path { fill: none; stroke-width: var(--rule); stroke-linecap: round; stroke-linejoin: round; }
 .inv-chart-s0 { stroke: var(--chart-1); } .inv-chart-s1 { stroke: var(--chart-2); } .inv-chart-s2 { stroke: var(--chart-3); }
 .inv-chart-s3 { stroke: var(--chart-4); } .inv-chart-s4 { stroke: var(--chart-5); } .inv-chart-s5 { stroke: var(--chart-6); }
 .inv-chart-s6 { stroke: var(--chart-7); } .inv-chart-s7 { stroke: var(--chart-8); }
-.inv-chart-pt, .inv-chart-seg, .inv-chart-wedge { cursor: pointer; stroke: var(--surface); stroke-width: 1; }
-.inv-chart-read-on, .inv-chart-seg[aria-current="true"], .inv-chart-wedge[aria-current="true"] { stroke: var(--text-1); stroke-width: 2; }
-.inv-chart-centre { font-size: 15px; font-weight: 600; fill: var(--text-1); font-family: var(--ff-mono); pointer-events: none; }
+.inv-chart-pt, .inv-chart-seg, .inv-chart-wedge { cursor: pointer; stroke: var(--surface); stroke-width: var(--hair); }
+.inv-chart-read-on, .inv-chart-seg[aria-current="true"], .inv-chart-wedge[aria-current="true"] { stroke: var(--text-1); stroke-width: var(--rule); }
+.inv-chart-centre { font-size: var(--chart-fs-centre); font-weight: 600; fill: var(--text-1); font-family: var(--ff-mono); pointer-events: none; }
 .inv-chart-ranges { margin-bottom: var(--sp-8); }
 button.inv-chart-legend-row { width: 100%; background: none; border: none; font: inherit; color: inherit; text-align: left; cursor: pointer; }
 .inv-chart-legend-row[aria-pressed="true"] { background: var(--accent-soft); color: var(--accent-soft-text); }
-.inv-chart-empty {
-  color: var(--text-3); font-size: var(--fs-sm);
-  padding: var(--sp-16); text-align: center;
-}
 
-/* Composition. Eight series colours drawn from the domain palette, plus a
+/* Composition. Eight series colours (--chart-*), plus a
    ninth for the folded "others" wedge so the tail is visibly a tail. */
 .inv-chart-pie-wrap {
   display: flex; flex-wrap: wrap; gap: var(--sp-16);
   align-items: center; justify-content: center;
 }
-.inv-chart-pie-svg { width: 180px; height: 180px; flex: 0 0 auto; }
-@media (min-width: 768px) {
-  .inv-chart-pie-svg { width: 220px; height: 220px; }
-}
+.inv-chart-pie-svg { width: var(--pie); height: var(--pie); flex: 0 0 auto; }
+:is(body.inv-tablet, body.inv-desktop) .inv-chart-pie-svg { width: var(--pie-wide); height: var(--pie-wide); }
 .inv-chart-hole { fill: var(--surface); }
-.inv-chart-legend { flex: 1 1 220px; min-width: 0; display: flex; flex-direction: column; gap: var(--sp-4); }
+.inv-chart-legend { flex: 1 1 var(--legend-min); min-width: 0; display: flex; flex-direction: column; gap: var(--sp-4); }
 .inv-chart-legend-row {
   display: flex; align-items: center; gap: var(--sp-8);
-  font-size: var(--fs-xs); min-height: 24px;
+  font-size: var(--fs-12); min-height: var(--legend-row-h);
 }
 /* Only the rows that drill through look tappable. The folded "others" wedge
    has no single client behind it, so offering a pointer on it promised
    something that never happened. */
 .inv-chart-legend-row[data-action] { cursor: pointer; }
 .inv-chart-legend-row[data-action]:active { background: var(--surface-2); }
-.inv-chart-swatch { width: 10px; height: 10px; border-radius: var(--r-sm); flex: 0 0 auto; }
+.inv-chart-swatch { width: var(--swatch); height: var(--swatch); border-radius: var(--r-sm); flex: 0 0 auto; }
 .inv-chart-legend-label {
   flex: 1; min-width: 0; color: var(--text-1);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .inv-chart-legend-val { color: var(--text-2); white-space: nowrap; }
-.inv-chart-legend-pct { color: var(--text-3); white-space: nowrap; min-width: 44px; text-align: right; }
+.inv-chart-legend-pct { color: var(--text-3); white-space: nowrap; min-width: var(--legend-pct-w); text-align: right; }
 
 .inv-chart-c0 { fill: var(--chart-1); }
 .inv-chart-c1 { fill: var(--chart-2); }
@@ -988,155 +811,52 @@ button.inv-chart-legend-row { width: 100%; background: none; border: none; font:
 .inv-chart-ranked-row { display: flex; flex-direction: column; gap: var(--sp-2); }
 .inv-chart-ranked-head { display: flex; align-items: baseline; gap: var(--sp-8); }
 .inv-chart-ranked-label {
-  flex: 1; min-width: 0; font-size: var(--fs-sm); font-weight: 600;
+  flex: 1; min-width: 0; font-size: var(--fs-13); font-weight: 600;
   color: var(--text-1); word-break: break-word; line-height: 1.25;
 }
-.inv-chart-ranked-val { font-size: var(--fs-xs); color: var(--text-2); white-space: nowrap; }
+.inv-chart-ranked-val { font-size: var(--fs-12); color: var(--text-2); white-space: nowrap; }
 .inv-chart-ranked-track { width: 100%; }
-.inv-chart-ranked-svg { width: 100%; height: 8px; display: block; }
+.inv-chart-ranked-svg { width: 100%; height: var(--track-h); display: block; }
 .inv-chart-ranked-fill { fill: var(--accent); }
 .inv-chart-ranked-fill-danger { fill: var(--danger); }
 .inv-chart-ranked-fill-warning { fill: var(--warning); }
-.inv-chart-ranked-fill-good { fill: var(--attend); }
+.inv-chart-ranked-fill-good { fill: var(--ok); }
 .inv-chart-ranked-mark { fill: var(--text-1); opacity: 0.55; }
-.inv-chart-ranked-sub { font-size: var(--fs-2xs); color: var(--text-3); font-family: var(--ff-mono); }
+.inv-chart-ranked-sub { font-size: var(--fs-11); color: var(--text-3); font-family: var(--ff-mono); }
 
 .inv-mt-16 { margin-top: var(--sp-16); }
 
-/* Phase 7: Flippable card overlay */
-.inv-flip-container { overflow: visible; }
-.inv-flip-inner { position: relative; }
-.inv-flip-front, .inv-flip-back { background: var(--surface); }
-.inv-flip-back { display: none; }
-.inv-flip-back.inv-flip-visible { display: block; }
-.inv-flip-front.inv-flip-hidden { display: none; }
-.inv-flip-out { animation: invFlipOut 0.25s ease-in forwards; }
-.inv-flip-in { animation: invFlipIn 0.25s ease-out forwards; }
-@keyframes invFlipOut {
-  0% { transform: perspective(1200px) rotateY(0deg); opacity: 1; }
-  100% { transform: perspective(1200px) rotateY(90deg); opacity: 0; }
+/* A dialog with two faces (Stats' client drill-down, §6.16): one shows at a time, and it turns over. */
+.inv-flip-back:not(.inv-flip-visible), .inv-flip-hidden { display: none; }
+@media (prefers-reduced-motion: no-preference) {
+  .inv-flip-out { animation: inv-flip-out var(--dur-2) ease-in forwards; }
+  .inv-flip-in { animation: inv-flip-in var(--dur-2) ease-out forwards; }
 }
-@keyframes invFlipIn {
-  0% { transform: perspective(1200px) rotateY(-90deg); opacity: 0; }
-  100% { transform: perspective(1200px) rotateY(0deg); opacity: 1; }
+@keyframes inv-flip-out {
+  0% { transform: perspective(var(--perspective)) rotateY(0deg); opacity: 1; }
+  100% { transform: perspective(var(--perspective)) rotateY(90deg); opacity: 0; }
 }
-/* ===== UTILITY ===== */
+@keyframes inv-flip-in {
+  0% { transform: perspective(var(--perspective)) rotateY(-90deg); opacity: 0; }
+  100% { transform: perspective(var(--perspective)) rotateY(0deg); opacity: 1; }
+}
+
+/* ===== UTILITIES (design system §6.20, a closed list) ===== */
 .inv-hidden { display: none !important; }
-.inv-mono { font-family: var(--ff-mono); }
-.inv-text-cost { color: var(--cost-text); }
-.inv-text-danger { color: var(--danger); }
-.inv-text-muted { color: var(--text-3); }
-.inv-text-center { text-align: center; }
+.inv-mt-4 { margin-top: var(--sp-4); }
+.inv-mt-8 { margin-top: var(--sp-8); }
+.inv-mt-16 { margin-top: var(--sp-16); }
 .inv-mb-8 { margin-bottom: var(--sp-8); }
 .inv-mb-16 { margin-bottom: var(--sp-16); }
-.inv-mt-8 { margin-top: var(--sp-8); }
-.inv-mt-4 { margin-top: var(--sp-4); }
-.inv-empty-state {
-  text-align: center; padding: var(--sp-32) var(--sp-16);
-  color: var(--text-3); font-size: var(--fs-base);
-}
-.inv-text-right { text-align: right; }
 
-/* ===== RATE HISTORY ===== */
-
-/* ===== INVOICE DETAIL OVERLAY ===== */
-.inv-detail-section {
-  margin-bottom: var(--sp-16);
-}
-.inv-detail-label {
-  font-size: var(--fs-2xs); font-weight: 600;
-  color: var(--text-3); margin-bottom: var(--sp-4);
-}
-.inv-detail-value {
-  font-size: var(--fs-base); color: var(--text-1);
-  word-break: break-word;
-}
-.inv-detail-value-mono {
-  font-family: var(--ff-mono); font-size: var(--fs-base); color: var(--text-1);
-}
-
-/* ===== CONFIRM DIALOG ===== */
-.inv-confirm-body {
-  font-size: var(--fs-base); color: var(--text-2);
-  line-height: 1.5; margin-bottom: var(--sp-16);
-}
-.inv-confirm-warn {
-  font-size: var(--fs-sm); color: var(--warning-text);
-  background: var(--warning-bg); padding: var(--sp-8) var(--sp-12);
-  border-radius: var(--r-md); margin-bottom: var(--sp-16);
-}
-
-/* ===== INCOMING MATERIAL ===== */
-
-/* ===== IM DUPLICATE GUARD ===== */
-
-/* ===== INVOICE NUMBER LEDGER ===== */
-.inv-form-hint {
-  font-size: var(--fs-xs); color: var(--text-3);
-  margin-top: var(--sp-4);
-}
-.inv-numaudit-note {
-  font-size: var(--fs-sm); color: var(--text-2);
-  margin-bottom: var(--sp-12);
-}
-.inv-numaudit-tally {
-  display: flex; flex-wrap: wrap; gap: var(--sp-6);
-  margin-bottom: var(--sp-16);
-}
-.inv-numaudit-section {
-  font-size: var(--fs-sm); font-weight: 600; color: var(--text-2);
-  margin: var(--sp-16) 0 var(--sp-8);
-}
-.inv-numaudit-scroll { max-height: 45vh; overflow-y: auto; }
-.inv-numaudit-row {
-  display: flex; align-items: center; gap: var(--sp-8);
-  padding: var(--sp-8) 0; border-top: 1px solid var(--border);
-}
-.inv-numaudit-num {
-  font-family: var(--ff-mono); font-size: var(--fs-sm);
-  color: var(--text-1); white-space: nowrap; flex-shrink: 0;
-}
-.inv-numaudit-detail {
-  flex: 1; min-width: 0; font-size: var(--fs-xs); color: var(--text-3);
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
-.inv-numaudit-kind {
-  display: inline-block; padding: var(--sp-2) var(--sp-8);
-  border-radius: var(--r-full); font-size: var(--fs-2xs);
-  font-weight: 600;
-  white-space: nowrap; flex-shrink: 0;
-}
-.inv-numaudit-active { background: var(--attend-bg); color: var(--attend-text); }
-.inv-numaudit-cancelled { background: var(--neutral-bg); color: var(--neutral-text); }
-.inv-numaudit-voided { background: var(--prod-bg); color: var(--prod-text); }
-.inv-numaudit-reissued { background: var(--warning-bg); color: var(--warning-text); }
-.inv-numaudit-unaccounted { background: var(--danger-bg); color: var(--danger-text); }
-
-
-/* Keyboard focus: one ring for every control, declared with the tokens (§3.6). */
-
-
-
-/* ===== CHECKBOX ROW ===== */
-.inv-check-row {
-  display: flex; align-items: center; gap: var(--sp-8);
-  min-height: 44px; cursor: pointer;
-  font-size: var(--fs-base); color: var(--text-1);
-}
-.inv-check { width: var(--sp-16); height: var(--sp-16); accent-color: var(--accent); flex-shrink: 0; }
-
-
-/* ===== REGISTER — Phase 6b (Bulk Select + Sort) ===== */
-
-/* ===== PHASE 8A: DESKTOP LAYOUT FOUNDATION ===== */
-
+/* ===== DESKTOP LAYOUT ===== */
 /* --- Sidebar (design system §4.2): labelled, grouped, always expanded --- */
 .inv-side { display: none; }
 body.inv-desktop .inv-side {
-  display: flex; flex-direction: column; gap: 1px;
+  display: flex; flex-direction: column; gap: var(--hair);
   position: fixed; left: 0; top: 0; bottom: 0; z-index: var(--z-bar);
   width: var(--side-w); padding: var(--sp-10) var(--sp-8);
-  background: var(--bg); border-right: 1px solid var(--border); overflow-y: auto;
+  background: var(--bg); border-right: var(--hair) solid var(--border); overflow-y: auto;
 }
 .inv-side-brand {
   display: flex; align-items: center; gap: var(--sp-8);
@@ -1171,89 +891,20 @@ body.inv-desktop {
 }
 body.inv-desktop .inv-navbar { display: none; }
 
-
-/* --- Desktop: IM selection bar (no tab-h offset) --- */
-
-/* --- Desktop: Toast max-width fix --- */
-body.inv-desktop .inv-toast { max-width: 480px; }
-
-/* --- Desktop: Overlay as centered modal --- */
-body.inv-desktop .inv-overlay-scrim {
-  align-items: center;
-  padding: var(--sp-16);
+/* A list and its detail pane (§6.14), desktop only: the list takes the room, the pane a fixed column on the right
+   while something is open. Register, IM, Clients / Items and Stock. */
+body.inv-desktop .inv-pane-host {
+  display: flex; height: calc(100vh - var(--bar-h)); overflow: hidden; container: masterdetail / inline-size;
 }
-body.inv-desktop .inv-overlay-card {
-  border-radius: var(--r-xl);
-  width: min(90vw, 560px);
-  max-height: 85vh;
-  animation: inv-scaleIn var(--anim-normal) ease;
-}
-@keyframes inv-scaleIn {
-  0% { transform: scale(0.95); opacity: 0; }
-  100% { transform: scale(1); opacity: 1; }
-}
+body.inv-desktop .inv-pane-list { flex: 1; min-width: 0; overflow-y: auto; container: list / inline-size; }
 
-/* ===== MASTER-DETAIL LAYOUT (Phase 8B) ===== */
-body.inv-desktop .inv-master-detail {
-  display: flex;
-  flex-direction: row;
-  height: calc(100vh - var(--header-h));
-  overflow: hidden;
-}
-body.inv-desktop .inv-master {
-  flex-shrink: 0;
-  width: 40%;
-  overflow-y: auto;
-  border-right: 1px solid var(--border);
-}
-body.inv-desktop .inv-detail {
-  flex: 1;
-  overflow-y: auto;
-  padding: var(--sp-16);
-}
+/* A list's selection bar stays in view at the foot of the page on the desktop. */
+body.inv-desktop :is(#regSelBar, #imSelBar) { position: sticky; bottom: 0; z-index: var(--z-bar); }
 
-/* --- Dark mode: master-detail (Phase 8B) --- */
-
-/* ===== DESKTOP TABLE (Phase 8C) ===== */
-.inv-td {
-  padding: var(--sp-8) var(--sp-12);
-  vertical-align: middle;
-  cursor: pointer;
-}
-
-/* Selection bar desktop positioning (Phase 8C) */
-body.inv-desktop #regSelBar {
-  position: sticky;
-  bottom: 0;
-  border-top: 1px solid var(--border);
-  background: var(--surface);
-  z-index: 10;
-}
-
-/* --- Dark mode: desktop table (Phase 8C) --- */
-
-/* ===== IM DESKTOP TABLE (Phase 8D) ===== */
-
-/* IM selection bar desktop positioning (Phase 8D) */
-body.inv-desktop #imSelBar {
-  position: sticky;
-  bottom: 0;
-  border-top: 1px solid var(--border);
-  background: var(--surface);
-  z-index: 10;
-}
-
-/* --- Dark mode: IM desktop (Phase 8D) --- */
-
-
-/* --- Tablet: Wider cards, no max-width cap --- */
-@media (min-width: 768px) {
-  body { max-width: none; }
-  .inv-navbar { max-width: none; }
-  .inv-card { padding: var(--sp-20); }
-  .inv-page { padding: var(--sp-20) var(--sp-32); }
-  .inv-toast { max-width: 480px; }
-}
+/* Tablet and desktop: the column is uncapped and the page has more air. */
+:is(body.inv-tablet, body.inv-desktop) { max-width: none; }
+:is(body.inv-tablet, body.inv-desktop) .inv-navbar { max-width: none; }
+:is(body.inv-tablet, body.inv-desktop) .inv-page { padding: var(--sp-20) var(--sp-32); }
 
 /* ===== SALES REGISTER (printed) =====
    Its own point scale, like the certificate and the credit note and for the
@@ -1318,26 +969,19 @@ body.inv-desktop #imSelBar {
   position: absolute; top: var(--sp-4); left: calc(50% + var(--sp-6));
   min-width: var(--sp-16); height: var(--sp-16); padding: 0 var(--sp-4);
   border-radius: var(--r-full); background: var(--danger); color: var(--surface);
-  font-size: var(--fs-2xs); font-weight: 700; line-height: var(--sp-16); text-align: center;
+  font-size: var(--fs-11); font-weight: 700; line-height: var(--sp-16); text-align: center;
 }
-
-
-/* The desktop challan list's Add / Scan pair, under the table. */
-
-/* Reissuing an invoice under the number it replaces. */
-.inv-reissue-offer { margin-top: var(--sp-12); padding-top: var(--sp-12); border-top: 1px solid var(--border); }
 
 /* ======================================================================
    COMPONENTS v2.0 (docs/SEP_INVOICING_DESIGN_PRINCIPLES.md §6)
-   Declared last so that, until each screen is re-assembled (§9 step 3), the v1.0
-   families listed beside each component render the same way — one look per job.
+   Every screen is assembled from these. A module adds a modifier, never a parallel family (DR-7).
    ====================================================================== */
 
 /* §6.3 Buttons. Secondary (surface + border) is the default; one primary per view. */
 .inv-btn {
   display: inline-flex; align-items: center; justify-content: center; gap: var(--sp-6);
   min-height: var(--ctl-h); padding: 0 var(--sp-16); border-radius: var(--r-md);
-  border: 1px solid var(--border); background: var(--surface); color: var(--text-1);
+  border: var(--hair) solid var(--border); background: var(--surface); color: var(--text-1);
   font-size: var(--fs-14); font-weight: 500; line-height: 1.2; cursor: pointer;
   transition: background var(--dur-1), border-color var(--dur-1), color var(--dur-1);
 }
@@ -1350,7 +994,7 @@ body.inv-desktop #imSelBar {
 .inv-btn-ghost { background: transparent; border-color: var(--border); color: var(--text-1); }
 .inv-btn-ghost:hover { background: var(--surface-2); color: var(--text-1); }
 .inv-btn-danger { background: var(--surface); border-color: var(--border); color: var(--danger); }
-.inv-confirm-actions .inv-btn-danger, .inv-btn-danger.inv-btn-solid { background: var(--danger); border-color: var(--danger); color: var(--surface); }
+.inv-btn-danger.inv-btn-solid { background: var(--danger); border-color: var(--danger); color: var(--surface); }
 .inv-btn-link {
   min-height: auto; padding: 0; border: none; background: none;
   color: var(--accent); font-weight: 600; text-decoration: none; cursor: pointer;
@@ -1371,7 +1015,7 @@ body.inv-desktop #imSelBar {
 body.inv-desktop .inv-btn-grid { grid-template-columns: repeat(6, minmax(0, 1fr)); }
 body.inv-desktop .inv-btn-grid > .inv-btn { flex-direction: row; min-height: var(--ctl-h); }
 
-/* §6.4 View tabs — underline. The one control for switching views. v1.0: the Clients segment, the Stats tabs. */
+/* §6.4 View tabs — underline. The one control for switching views. */
 .inv-viewtabs {
   display: flex; gap: 0; overflow-x: auto; scrollbar-width: none;
   margin-bottom: var(--sp-12); padding: 0; border: none; border-radius: 0; background: none;
@@ -1384,16 +1028,16 @@ body.inv-desktop .inv-btn-grid > .inv-btn { flex-direction: row; min-height: var
   color: var(--text-2); font-size: var(--fs-14); font-weight: 500; white-space: nowrap;
 }
 .inv-viewtab:hover { color: var(--text-1); }
-.inv-viewtab-on, .inv-viewtab[aria-selected="true"] {
+.inv-viewtab[aria-selected="true"] {
   color: var(--text-1); font-weight: 600; background: none; box-shadow: inset 0 -2px 0 var(--accent);
 }
 body.inv-desktop .inv-viewtab { min-height: var(--ctl-h); font-size: var(--fs-13); }
 
-/* §6.6 Chips: a choice among options (and, until step 3, the period and Staff view pickers). */
+/* §6.6 Chips: a choice among options. Tokens: an applied filter. */
 .inv-chip {
   display: inline-flex; align-items: center; justify-content: center; gap: var(--sp-4);
   min-height: var(--ctl-h); padding: 0 var(--sp-12); border-radius: var(--r-md);
-  border: 1px solid var(--border); background: var(--surface); color: var(--text-2);
+  border: var(--hair) solid var(--border); background: var(--surface); color: var(--text-2);
   font-size: var(--fs-13); font-weight: 500; white-space: nowrap; cursor: pointer;
   transition: background var(--dur-1), color var(--dur-1), border-color var(--dur-1);
 }
@@ -1407,14 +1051,14 @@ body.inv-desktop .inv-viewtab { min-height: var(--ctl-h); font-size: var(--fs-13
 }
 .inv-token-key { color: var(--text-3); font-weight: 400; }
 .inv-token-on { background: var(--accent-soft); color: var(--accent-soft-text); }
-.inv-token-add { background: none; border: 1px dashed var(--border); color: var(--text-2); cursor: pointer; }
+.inv-token-add { background: none; border: var(--hair) dashed var(--border); color: var(--text-2); cursor: pointer; }
 
 /* §6.7 Toolbar and search */
 .inv-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-8); margin-bottom: var(--sp-12); }
 .inv-search {
-  display: flex; align-items: center; gap: var(--sp-8); flex: 1 1 16rem; min-width: 0;
+  display: flex; align-items: center; gap: var(--sp-8); flex: 1 1 var(--search-min); min-width: 0;
   min-height: var(--ctl-h); padding: 0 var(--sp-10);
-  border: 1px solid var(--border); border-radius: var(--r-md); background: var(--surface); color: var(--text-3);
+  border: var(--hair) solid var(--border); border-radius: var(--r-md); background: var(--surface); color: var(--text-3);
 }
 .inv-search:focus-within { border-color: var(--accent); box-shadow: var(--focus-ring); }
 .inv-search svg { width: 16px; height: 16px; flex-shrink: 0; }
@@ -1422,6 +1066,8 @@ body.inv-desktop .inv-viewtab { min-height: var(--ctl-h); font-size: var(--fs-13
 .inv-search input:focus-visible { box-shadow: none; }
 /* Filters in a toolbar share the line, wrapping two to a row on the phone; a labelled one keeps its label above. */
 .inv-toolbar > .inv-toolbar-item { flex: 1 1 var(--filter-w); min-width: 0; width: auto; }
+/* On the desktop a filter or sort picker is as wide as its choices, not the row: the search takes the room. */
+body.inv-desktop .inv-toolbar > :is(select, input[type="month"]).inv-toolbar-item { flex: 0 1 auto; max-width: calc(var(--col-sm-w) * 2); }
 .inv-toolbar .inv-field { margin-bottom: 0; }
 .inv-toolbar-end { align-self: flex-end; }
 .inv-toolbar-tight { gap: var(--sp-4); margin-bottom: 0; justify-content: flex-end; }
@@ -1444,18 +1090,18 @@ body.inv-desktop .inv-stepper-label { flex: 0 1 auto; min-width: calc(var(--col-
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 
-/* §6.8 Panel. v1.0: every card family. */
-.inv-panel, .inv-card {
-  background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-xl); box-shadow: none;
+/* §6.8 Panel */
+.inv-panel {
+  background: var(--surface); border: var(--hair) solid var(--border); border-radius: var(--r-xl);
+  padding: var(--sp-16); margin-bottom: var(--gap);
 }
-body.inv-desktop :is(.inv-panel, .inv-card) { border-radius: var(--r-lg); }
-.inv-panel { padding: var(--card-padding); margin-bottom: var(--gap); }
+body.inv-desktop .inv-panel { border-radius: var(--r-lg); }
 .inv-panel-flush { padding: 0; overflow: hidden; }
-.inv-panel-head, .inv-card-header {
+.inv-panel-head {
   display: flex; align-items: center; justify-content: space-between; gap: var(--sp-8);
 }
-.inv-panel-flush > .inv-panel-head { padding: var(--pad-y) var(--pad-x); border-bottom: 1px solid var(--border); }
-.inv-panel-title, .inv-card-title {
+.inv-panel-flush > .inv-panel-head { padding: var(--pad-y) var(--pad-x); border-bottom: var(--hair) solid var(--border); }
+.inv-panel-title {
   font-size: var(--fs-14); font-weight: 600; line-height: 1.4; color: var(--text-1);
 }
 .inv-panel-count { font-family: var(--ff-mono); font-size: var(--fs-12); color: var(--text-3); font-weight: 400; }
@@ -1464,7 +1110,7 @@ body.inv-desktop :is(.inv-panel, .inv-card) { border-radius: var(--r-lg); }
 /* A card's total in its head (labour, a payout): the figure the card adds up to. */
 .inv-panel-head > .inv-num { font-weight: 600; }
 /* A padded stretch inside a flush panel (a form opened in place), set off from the rows below it. */
-.inv-panel-body { padding: var(--card-padding); border-bottom: 1px solid var(--border); }
+.inv-panel-body { padding: var(--sp-16); border-bottom: var(--hair) solid var(--border); }
 /* Panels laid out: one column on the phone, two on the desktop; a -wide panel spans both. */
 .inv-panels { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--gap); }
 .inv-panels > :empty { display: none; }
@@ -1474,12 +1120,15 @@ body.inv-desktop .inv-panels-wide { grid-column: 1 / -1; }
 /* A dashboard of half and wide panels (Stats): a half panel fills the gap beside another rather than sitting alone. */
 body.inv-desktop .inv-panels-dense { grid-auto-flow: row dense; }
 
-/* §6.9 Stat tiles: one bordered strip, tiles separated by 1px gaps. v1.0: KPI and stock tiles. */
+/* §6.9 Stat tiles: one bordered strip, tiles separated by hairline gaps. */
 .inv-tiles {
-  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1px;
-  background: var(--border); border: 1px solid var(--border); border-radius: var(--r-lg); overflow: hidden; margin-bottom: var(--gap);
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--hair);
+  background: var(--border); border: var(--hair) solid var(--border); border-radius: var(--r-lg); overflow: hidden; margin-bottom: var(--gap);
 }
-body.inv-desktop .inv-tiles { grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr)); }
+body.inv-desktop .inv-tiles { grid-template-columns: repeat(auto-fit, minmax(var(--tile-min), 1fr)); }
+/* Two across (the phone, the desktop pane): an odd last tile takes the row rather than leaving a blank cell. */
+body:not(.inv-desktop) .inv-tiles:not(.inv-tiles-3) > .inv-tile:last-child:nth-child(odd),
+body.inv-desktop .inv-pane .inv-tiles > .inv-tile:last-child:nth-child(odd) { grid-column: 1 / -1; }
 /* A set of four that must read as one row on the desktop, even in a half-width panel (ageing bands). */
 body.inv-desktop .inv-tiles-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 /* Three counts that read as one row on the phone too (a check's Needs you · Check · Clear). */
@@ -1502,7 +1151,7 @@ body.inv-desktop .inv-tile-value { font-size: var(--fs-22); }
 .inv-tile-value-sm { font-size: var(--fs-14); }
 body.inv-desktop .inv-tile-value-sm { font-size: var(--fs-16); }
 /* A strip inside a flush panel: the panel draws the box, so the strip only draws its dividers. */
-.inv-tiles-flush { border: none; border-radius: 0; margin-bottom: 0; border-bottom: 1px solid var(--border); }
+.inv-tiles-flush { border: none; border-radius: 0; margin-bottom: 0; border-bottom: var(--hair) solid var(--border); }
 .inv-tiles-flush:last-child { border-bottom: none; }
 .inv-tile-danger .inv-tile-value { color: var(--danger); }
 .inv-tile-warning .inv-tile-value { color: var(--warning); }
@@ -1512,7 +1161,7 @@ body.inv-desktop .inv-tile-value-sm { font-size: var(--fs-16); }
 /* §6.10 Rows */
 .inv-row {
   display: flex; align-items: center; gap: var(--sp-10); min-height: var(--row-h);
-  padding: var(--sp-6) var(--pad-x); border-bottom: 1px solid var(--border); color: var(--text-1);
+  padding: var(--sp-6) var(--pad-x); border-bottom: var(--hair) solid var(--border); color: var(--text-1);
 }
 .inv-row:last-child { border-bottom: none; }
 .inv-row-2 { min-height: var(--row-h-2); }
@@ -1540,9 +1189,9 @@ button.inv-row-main { display: block; padding: 0; border: none; background: none
 /* A row that opens its own lines beneath it (a challan's items): the lines are indented and sit on the page colour. */
 button.inv-row-expander { position: relative; padding-right: var(--sp-16); }
 button.inv-row-expander::after { content: ''; position: absolute; right: 0; top: 50%; width: var(--sp-6); height: var(--sp-6);
-  border-right: 2px solid var(--text-3); border-bottom: 2px solid var(--text-3); transform: translateY(-75%) rotate(45deg); transition: transform var(--dur-1); }
+  border-right: var(--rule) solid var(--text-3); border-bottom: var(--rule) solid var(--text-3); transform: translateY(-75%) rotate(45deg); transition: transform var(--dur-1); }
 button.inv-row-expander[aria-expanded="true"]::after { transform: translateY(-25%) rotate(225deg); }
-.inv-row-children { background: var(--bg); border-bottom: 1px solid var(--border); }
+.inv-row-children { background: var(--bg); border-bottom: var(--hair) solid var(--border); }
 .inv-row-children > .inv-row { padding-left: calc(var(--pad-x) + var(--sp-16)); }
 .inv-row-sub .inv-row-title { color: var(--text-2); }
 /* A row that folds open to its parts (a live cost component): a <details> whose summary is the row. */
@@ -1550,13 +1199,13 @@ details.inv-row-fold > summary.inv-row { list-style: none; cursor: pointer; posi
 details.inv-row-fold > summary::-webkit-details-marker { display: none; }
 details.inv-row-fold > summary:hover { background: var(--surface-2); }
 details.inv-row-fold > summary::after { content: ''; position: absolute; right: var(--pad-x); top: 50%; width: var(--sp-6); height: var(--sp-6);
-  border-right: 2px solid var(--text-3); border-bottom: 2px solid var(--text-3); transform: translateY(-75%) rotate(45deg); transition: transform var(--dur-1); }
+  border-right: var(--rule) solid var(--text-3); border-bottom: var(--rule) solid var(--text-3); transform: translateY(-75%) rotate(45deg); transition: transform var(--dur-1); }
 details.inv-row-fold[open] > summary::after { transform: translateY(-25%) rotate(225deg); }
 /* A list inside a dialog scrolls within it rather than pushing its buttons off the screen. */
 .inv-scroll { max-height: var(--scroll-max); overflow-y: auto; }
 .inv-row-group {
   display: flex; justify-content: space-between; align-items: center; min-height: var(--sp-32);
-  padding: 0 var(--pad-x); background: var(--bg); border-bottom: 1px solid var(--border);
+  padding: 0 var(--pad-x); background: var(--bg); border-bottom: var(--hair) solid var(--border);
   font-size: var(--fs-12); color: var(--text-3);
 }
 .inv-row-selected, .inv-row[aria-selected="true"] { background: var(--accent-soft); }
@@ -1586,13 +1235,13 @@ body.inv-desktop .inv-row-fields > .inv-seg .inv-seg-btn { min-width: var(--ctl-
 .inv-table { width: 100%; border-collapse: collapse; font-size: var(--fs-13); color: var(--text-1); }
 .inv-table thead th {
   position: sticky; top: 0; z-index: 1; height: var(--row-h); padding: 0 var(--pad-x);
-  background: var(--bg); border-bottom: 1px solid var(--border);
+  background: var(--bg); border-bottom: var(--hair) solid var(--border);
   font-size: var(--fs-12); font-weight: 500; color: var(--text-3); text-align: left; white-space: nowrap;
 }
-.inv-table td { height: var(--row-h); padding: 0 var(--pad-x); border-bottom: 1px solid var(--border); vertical-align: middle; }
+.inv-table td { height: var(--row-h); padding: 0 var(--pad-x); border-bottom: var(--hair) solid var(--border); vertical-align: middle; }
 .inv-table tbody tr:hover td { background: var(--surface-2); }
 .inv-table tr.inv-row-selected td { background: var(--accent-soft); }
-.inv-table tfoot td { font-weight: 600; border-bottom: none; border-top: 1px solid var(--border); }
+.inv-table tfoot td { font-weight: 600; border-bottom: none; border-top: var(--hair) solid var(--border); }
 .inv-num { font-family: var(--ff-mono); text-align: right; white-space: nowrap; }
 /* A signed figure: its sign is the symbol, the tone follows it (§5.4). */
 .inv-num-pos { color: var(--ok); }
@@ -1623,7 +1272,7 @@ body.inv-desktop .inv-row-fields > .inv-seg .inv-seg-btn { min-width: var(--ctl-
 .inv-cell-warning { background: var(--warning-bg); color: var(--warning); font-weight: 600; }
 .inv-cell-danger { background: var(--danger-bg); color: var(--danger); font-weight: 600; }
 .inv-cell-empty { color: var(--text-3); }
-.inv-cell-future { box-shadow: inset 0 0 0 1px var(--border); }
+.inv-cell-future { box-shadow: inset 0 0 0 var(--hair) var(--border); }
 /* The week grid scrolls sideways in its panel rather than reflowing: seven days and a name column do not fit
    a phone, and a grid that wraps stops being a grid. The names stay put; Sunday reads as the rest day. */
 .inv-scroll-x { overflow-x: auto; }
@@ -1638,8 +1287,8 @@ body.inv-desktop .inv-row-fields > .inv-seg .inv-seg-btn { min-width: var(--ctl-
 .inv-table-grid tfoot td, .inv-table-grid tfoot th { padding-top: var(--sp-8); padding-bottom: var(--sp-8); }
 .inv-table-grid-date { display: block; font-family: var(--ff-mono); }
 button.inv-cell { width: 100%; min-width: var(--touch); min-height: var(--ctl-h); gap: var(--sp-2); border: none; cursor: pointer; font-weight: 600; }
-button.inv-cell.inv-cell-empty { background: var(--surface); box-shadow: inset 0 0 0 1px var(--border); }
-button.inv-cell:hover { box-shadow: inset 0 0 0 1px var(--text-3); }
+button.inv-cell.inv-cell-empty { background: var(--surface); box-shadow: inset 0 0 0 var(--hair) var(--border); }
+button.inv-cell:hover { box-shadow: inset 0 0 0 var(--hair) var(--text-3); }
 body.inv-desktop button.inv-cell { min-width: var(--ctl-h); }
 /* A group heading inside a table (a status, a supplier), the row form of inv-row-group. */
 .inv-table tr.inv-table-group td { height: var(--sp-32); background: var(--bg); font-size: var(--fs-12); color: var(--text-3); }
@@ -1654,14 +1303,14 @@ body.inv-desktop button.inv-cell { min-width: var(--ctl-h); }
 .inv-selbar {
   position: sticky; bottom: 0; z-index: var(--z-bar); display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-8) var(--sp-12);
   min-height: var(--row-h); padding: var(--sp-6) var(--pad-x);
-  background: var(--surface-2); border-top: 1px solid var(--border); font-size: var(--fs-13);
+  background: var(--surface-2); border-top: var(--hair) solid var(--border); font-size: var(--fs-13);
 }
 .inv-selbar-count { font-weight: 600; }
 .inv-selbar-sum { font-family: var(--ff-mono); color: var(--text-2); }
 
-/* §6.13 Status: dot + word, and the soft badge. v1.0: every badge family. */
+/* §6.13 Status: dot + word, and the soft badge. */
 .inv-dot { display: inline-flex; align-items: center; gap: var(--sp-6); color: var(--text-2); font-size: var(--fs-13); white-space: nowrap; }
-.inv-dot::before { content: ''; width: 0.4375rem; height: 0.4375rem; border-radius: 50%; background: var(--text-3); flex-shrink: 0; }
+.inv-dot::before { content: ''; width: var(--dot); height: var(--dot); border-radius: 50%; background: var(--text-3); flex-shrink: 0; }
 .inv-dot-danger::before { background: var(--danger); }
 .inv-dot-warning::before { background: var(--warning); }
 .inv-dot-ok::before { background: var(--ok); }
@@ -1689,57 +1338,53 @@ body.inv-desktop button.inv-cell { min-width: var(--ctl-h); }
 .inv-badge-neutral { background: var(--surface-2); color: var(--text-2); }
 
 /* §6.14 Detail pane and key/value grid */
-.inv-pane { background: var(--surface); border-left: 1px solid var(--border); padding: var(--sp-16); display: flex; flex-direction: column; gap: var(--sp-12); }
+.inv-pane { background: var(--surface); border-left: var(--hair) solid var(--border); padding: var(--sp-16); display: flex; flex-direction: column; gap: var(--sp-12); }
 .inv-kv { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--sp-8) var(--sp-16); font-size: var(--fs-13); }
 .inv-kv-k { font-size: var(--fs-12); color: var(--text-3); }
 .inv-kv-wide { grid-column: 1 / -1; }
-/* The list takes the room; the pane is a fixed column on the right (desktop only). */
-body.inv-desktop .inv-master-detail-pane > .inv-master { flex: 1; width: auto; min-width: 0; border-right: none; }
-body.inv-desktop .inv-master-detail-pane > .inv-pane { display: none; flex: 0 0 var(--pane-w); overflow-y: auto; }
-body.inv-desktop .inv-master-detail-pane.inv-pane-open > .inv-pane { display: flex; }
+/* The list takes the room; the pane is a fixed column on the right (desktop only), there only while something is open. */
+body.inv-desktop .inv-pane-host > .inv-pane { display: none; flex: 0 0 var(--pane-w); overflow-y: auto; }
+body.inv-desktop .inv-pane-host.inv-pane-open > .inv-pane { display: flex; }
 /* Columns drop in priority as the list narrows (the pane opening narrows it), and where the
-   screen cannot hold both, the open invoice takes the list's place until it is closed. */
-body.inv-desktop .inv-master-detail-pane { container: masterdetail / inline-size; }
-body.inv-desktop .inv-master-detail-pane > .inv-master { container: list / inline-size; }
+   screen cannot hold both, the open record takes the list's place until it is closed.
+   (A container query's condition cannot read a custom property, so these widths are written out.) */
 @container list (max-width: 70rem) { .inv-col-opt1 { display: none; } }
 @container list (max-width: 60rem) { .inv-col-opt2 { display: none; } }
 @container list (max-width: 44rem) { .inv-col-opt3 { display: none; } }
 @container masterdetail (max-width: 50rem) {
-  .inv-pane-open > .inv-master { display: none; }
-  body.inv-desktop .inv-master-detail-pane.inv-pane-open > .inv-pane { flex: 1 1 auto; border-left: none; }
+  .inv-pane-open > .inv-pane-list { display: none; }
+  body.inv-desktop .inv-pane-host.inv-pane-open > .inv-pane { flex: 1 1 auto; border-left: none; }
 }
 .inv-pane-head { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-8); }
 /* Panels stacked in the pane keep their height and scroll with it, never squeezed to fit (the pane is a flex column). */
 .inv-pane > .inv-panel { flex-shrink: 0; margin-bottom: 0; }
 body.inv-desktop .inv-pane .inv-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-.inv-visually-hidden { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+.inv-visually-hidden { position: absolute; width: var(--hair); height: var(--hair); padding: 0; margin: calc(var(--hair) * -1); overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
 
-/* §6.15 Fields and the sticky action bar. v1.0 inv-form-* read these same rules. */
+/* §6.15 Fields and the sticky action bar. */
 .inv-field { margin-bottom: var(--sp-12); }
 .inv-field-label { display: block; font-size: var(--fs-12); font-weight: 500; line-height: 1.35; color: var(--text-2); margin-bottom: var(--sp-4); }
-.inv-field-hint, .inv-form-hint { font-size: var(--fs-12); color: var(--text-3); margin-top: var(--sp-4); }
+.inv-field-hint { font-size: var(--fs-12); color: var(--text-3); margin-top: var(--sp-4); }
 .inv-field-error { font-size: var(--fs-12); color: var(--danger); margin-top: var(--sp-4); }
 .inv-input, .inv-select, .inv-textarea { width: 100%; min-height: var(--ctl-h); padding: 0 var(--sp-12); }
 /* A picker or figure that sits in a row's end, beside the value it acts on. */
 .inv-select-sm, .inv-input-sm { width: var(--col-sm-w); min-height: var(--ctl-h-sm); padding: 0 var(--sp-8); font-size: var(--fs-13); }
-/* The v1.0 names take the look only: width, padding and height stay with the screen that set them. */
-.inv-input, .inv-select, .inv-textarea, .inv-form-input, .inv-form-select {
-  border: 1px solid var(--border); border-radius: var(--r-md); background-color: var(--surface); color: var(--text-1);
+.inv-input, .inv-select, .inv-textarea {
+  border: var(--hair) solid var(--border); border-radius: var(--r-md); background-color: var(--surface); color: var(--text-1);
   font-size: var(--fs-14); transition: border-color var(--dur-1);
 }
-.inv-textarea { padding: var(--sp-8) var(--sp-12); min-height: 5rem; }
+.inv-textarea { padding: var(--sp-8) var(--sp-12); min-height: var(--textarea-h); }
 /* A message pasted as sent: kept in its own shape, one line per line. */
 .inv-textarea-mono { font-family: var(--ff-mono); font-size: var(--fs-13); line-height: 1.45; resize: vertical; }
-:is(.inv-input, .inv-select, .inv-textarea, .inv-form-input, .inv-form-select):focus { outline: none; border-color: var(--accent); box-shadow: var(--focus-ring); }
-:is(.inv-input, .inv-form-input)[readonly] { background: var(--surface-2); color: var(--text-2); }
+:is(.inv-input, .inv-select, .inv-textarea):focus { outline: none; border-color: var(--accent); box-shadow: var(--focus-ring); }
+.inv-input[readonly] { background: var(--surface-2); color: var(--text-2); }
 .inv-input-num { font-family: var(--ff-mono); text-align: right; }
-.inv-field-invalid :is(.inv-input, .inv-select, .inv-form-input) { border-color: var(--danger); }
 .inv-fields { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0 var(--sp-12); }
-body.inv-desktop .inv-fields { grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr)); }
+body.inv-desktop .inv-fields { grid-template-columns: repeat(auto-fit, minmax(var(--field-min), 1fr)); }
 .inv-actionbar {
   position: sticky; bottom: var(--nav-h); z-index: var(--z-bar); display: flex; align-items: center; gap: var(--sp-8);
   min-height: calc(var(--row-h) + var(--sp-16)); padding: var(--sp-8) var(--sp-12);
-  background: var(--surface); border-top: 1px solid var(--border);
+  background: var(--surface); border-top: var(--hair) solid var(--border);
 }
 body.inv-desktop .inv-actionbar { bottom: 0; }
 .inv-actionbar-total { flex: 1; min-width: 0; }
@@ -1757,7 +1402,7 @@ body.inv-desktop .inv-actionbar { bottom: 0; }
 .inv-lines-head { display: none; }
 .inv-line {
   display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--sp-8); align-items: end;
-  padding: var(--sp-12) var(--pad-x); border-bottom: 1px solid var(--border);
+  padding: var(--sp-12) var(--pad-x); border-bottom: var(--hair) solid var(--border);
 }
 .inv-line .inv-field { margin-bottom: 0; min-width: 0; }
 .inv-line-num { grid-column: 1 / 3; align-self: center; font-size: var(--fs-12); font-weight: 500; color: var(--text-3); }
@@ -1774,7 +1419,7 @@ body.inv-desktop :is(.inv-lines-head, .inv-line) {
   gap: var(--sp-8); align-items: center;
 }
 body.inv-desktop .inv-lines-head {
-  display: grid; min-height: var(--row-h); padding: 0 var(--pad-x); background: var(--bg); border-bottom: 1px solid var(--border);
+  display: grid; min-height: var(--row-h); padding: 0 var(--pad-x); background: var(--bg); border-bottom: var(--hair) solid var(--border);
   font-size: var(--fs-12); font-weight: 500; color: var(--text-3);
 }
 body.inv-desktop .inv-line { padding-top: var(--sp-6); padding-bottom: var(--sp-6); }
@@ -1782,7 +1427,7 @@ body.inv-desktop :is(.inv-line-num, .inv-line-rm, .inv-line-part, .inv-line-amt)
 body.inv-desktop .inv-line-num { font-family: var(--ff-mono); }
 body.inv-desktop .inv-line-num::before { content: none; }
 body.inv-desktop .inv-line-notes { grid-column: 2 / -1; }
-body.inv-desktop .inv-line .inv-field-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+body.inv-desktop .inv-line .inv-field-label { position: absolute; width: var(--hair); height: var(--hair); overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 /* A line's verdict (rate, weight): the dot and its word, then the working in mono. The field it
    judges carries the verdict too, so a Check reads on the Rate box itself. */
 .inv-verdict { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--sp-4) var(--sp-8); }
@@ -1800,51 +1445,83 @@ body.inv-desktop .inv-keys { display: flex; flex-wrap: wrap; gap: var(--sp-4) va
 .inv-kbd {
   display: inline-block; min-width: var(--sp-20); padding: 0 var(--sp-4); margin-right: var(--sp-2); text-align: center;
   font-family: var(--ff-mono); font-size: var(--fs-11); color: var(--text-2);
-  background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-sm);
+  background: var(--surface); border: var(--hair) solid var(--border); border-radius: var(--r-sm);
 }
 /* A panel that folds (Optional details): the head is the summary; closed, only the head shows. */
 .inv-panel-fold > summary.inv-panel-head { list-style: none; cursor: pointer; position: relative; padding-right: calc(var(--pad-x) + var(--sp-16)); }
 .inv-panel-fold > summary::-webkit-details-marker { display: none; }
 .inv-panel-fold > summary::after { content: ''; position: absolute; right: var(--pad-x); top: 50%; width: var(--sp-6); height: var(--sp-6);
-  border-right: 2px solid var(--text-3); border-bottom: 2px solid var(--text-3); transform: translateY(-75%) rotate(45deg); transition: transform var(--dur-1); }
+  border-right: var(--rule) solid var(--text-3); border-bottom: var(--rule) solid var(--text-3); transform: translateY(-75%) rotate(45deg); transition: transform var(--dur-1); }
 .inv-panel-fold[open] > summary::after { transform: translateY(-25%) rotate(225deg); }
 .inv-panel-fold:not([open]) > summary { border-bottom: none; }
 .inv-panel-flush > .inv-panel-body:last-child { border-bottom: none; }
 .inv-panel-head .inv-panel-count { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-/* §6.16 Overlays. v1.0 inv-overlay-* is the dialog (desktop) and the sheet (phone). */
-.inv-overlay-scrim, .inv-scrim { background: var(--scrim); }
-.inv-overlay-card, .inv-dialog, .inv-sheet { background: var(--surface); border: 1px solid var(--border); box-shadow: var(--shadow-dialog); }
-.inv-overlay-header, .inv-dialog-head { border-bottom: 1px solid var(--border); }
-.inv-overlay-title, .inv-dialog-title { font-family: var(--ff-base); font-size: var(--fs-16); font-weight: 600; letter-spacing: 0; }
+/* §6.16 Overlays. A scrim holds either the More sheet or a dialog (inv-scrim-dialog, which sits above the sheet). */
+.inv-scrim {
+  position: fixed; inset: 0; z-index: var(--z-scrim); display: flex; align-items: flex-end; justify-content: center;
+  background: var(--scrim);
+}
+.inv-scrim-dialog { z-index: var(--z-dialog); }
+.inv-dialog, .inv-sheet { background: var(--surface); border: var(--hair) solid var(--border); box-shadow: var(--shadow-dialog); }
+/* A dialog is a sheet from the bottom on the phone and centred on the desktop. Its body scrolls; the foot stays put. */
+.inv-dialog {
+  width: 100%; max-width: var(--max-w); max-height: var(--dialog-max-h); overflow-y: auto;
+  padding: var(--sp-20); border-bottom: none; border-radius: var(--r-xl) var(--r-xl) 0 0;
+  font-size: var(--fs-14); line-height: 1.45; color: var(--text-1);
+}
+body.inv-desktop .inv-scrim-dialog { align-items: center; padding: var(--sp-16); }
+body.inv-desktop .inv-dialog { width: min(90vw, var(--dialog-w)); max-width: none; max-height: var(--dialog-max-h-desk); border-bottom: var(--hair) solid var(--border); border-radius: var(--r-xl); }
+.inv-dialog-head {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--sp-8);
+  margin-bottom: var(--sp-16); padding-bottom: var(--sp-8); border-bottom: var(--hair) solid var(--border);
+}
+.inv-dialog-title { min-width: 0; font-size: var(--fs-16); font-weight: 600; overflow-wrap: anywhere; }
+.inv-dialog-close { border-color: transparent; background: none; color: var(--text-3); font-size: var(--fs-19); }
+.inv-dialog-close:hover { color: var(--text-1); }
+/* The actions, primary last, held at the foot of a dialog that scrolls. */
+.inv-dialog-foot {
+  position: sticky; bottom: calc(var(--sp-20) * -1); z-index: 1;
+  display: flex; flex-wrap: wrap; justify-content: flex-end; gap: var(--sp-8);
+  margin: var(--sp-16) calc(var(--sp-20) * -1) calc(var(--sp-20) * -1); padding: var(--sp-12) var(--sp-20) var(--sp-20);
+  background: var(--surface); border-top: var(--hair) solid var(--border);
+}
 /* The phone sheet from the bottom (the More sheet): full width, its rows running edge to edge, clear of the bar. */
-.inv-scrim { position: fixed; inset: 0; z-index: var(--z-scrim); display: flex; align-items: flex-end; justify-content: center; }
 .inv-sheet {
   width: 100%; max-width: var(--max-w); border-bottom: none; border-radius: var(--r-xl) var(--r-xl) 0 0;
   padding: var(--sp-8) 0 calc(var(--nav-h) + var(--sp-12));
 }
 .inv-sheet-grab { width: var(--sp-32); height: var(--sp-4); border-radius: var(--r-full); background: var(--border); margin: 0 auto var(--sp-8); }
+@media (prefers-reduced-motion: no-preference) {
+  .inv-scrim { animation: inv-fade-in var(--dur-2) var(--ease); }
+  .inv-dialog, .inv-sheet { animation: inv-slide-up var(--dur-2) var(--ease); }
+  body.inv-desktop .inv-dialog { animation-name: inv-scale-in; }
+  .inv-toast { animation: inv-fade-in var(--dur-1) var(--ease); }
+}
+@keyframes inv-fade-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes inv-slide-up { from { transform: translateY(100%); } to { transform: translateY(0); } }
+@keyframes inv-scale-in { from { transform: scale(0.95); opacity: 0; } to { transform: scale(1); opacity: 1; } }
 /* A dialog holding a list of groups and one group's content (Settings, §6.19). The phone stacks the groups under
    a head that stays put; the desktop sets the list down the left (inv-side-items) and shows one group at a time. */
 .inv-dialog-wide { display: flex; flex-direction: column; overflow: hidden; }
-.inv-dialog-wide > .inv-overlay-header { flex-shrink: 0; }
+.inv-dialog-wide > .inv-dialog-head { flex-shrink: 0; }
 .inv-dialog-panes { flex: 1; min-height: 0; overflow-y: auto; }
 .inv-dialog-nav { display: none; }
 .inv-dialog-main > section { margin-bottom: var(--sp-20); }
 .inv-dialog-main > section:last-child { margin-bottom: 0; }
-body.inv-desktop .inv-dialog-wide { width: min(94vw, var(--set-card-w)); max-width: none; height: 85vh; }
+body.inv-desktop .inv-dialog-wide { width: min(94vw, var(--set-card-w)); height: var(--dialog-max-h-desk); }
 body.inv-desktop .inv-dialog-panes { overflow: hidden; display: grid; grid-template-columns: var(--set-nav-w) minmax(0, 1fr); gap: var(--sp-20); }
-body.inv-desktop .inv-dialog-nav { display: flex; flex-direction: column; gap: var(--sp-2); border-right: 1px solid var(--border); padding-right: var(--sp-12); }
+body.inv-desktop .inv-dialog-nav { display: flex; flex-direction: column; gap: var(--sp-2); border-right: var(--hair) solid var(--border); padding-right: var(--sp-12); }
 body.inv-desktop .inv-dialog-main { overflow-y: auto; min-height: 0; padding-right: var(--sp-4); }
 body.inv-desktop .inv-dialog-main > section:not([data-on]) { display: none; }
-.inv-menu { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-md); box-shadow: var(--shadow-pop); }
+.inv-menu { background: var(--surface); border: var(--hair) solid var(--border); border-radius: var(--r-md); box-shadow: var(--shadow-pop); }
 /* A menu hangs off its field (inv-combo): suggestions for a part or a client, arrowed through by
    the keyboard. The cursor is the option's aria-selected; the create-a-part row reads as an action. */
 .inv-combo { position: relative; }
 .inv-combo > .inv-menu { position: absolute; top: 100%; left: 0; right: 0; z-index: var(--z-dropdown); margin-top: var(--sp-2); max-height: var(--menu-max); overflow-y: auto; }
 .inv-menu-item {
   display: flex; flex-direction: column; justify-content: center; gap: var(--sp-2); min-height: var(--touch);
-  padding: var(--sp-6) var(--sp-12); border-bottom: 1px solid var(--border); cursor: pointer;
+  padding: var(--sp-6) var(--sp-12); border-bottom: var(--hair) solid var(--border); cursor: pointer;
 }
 .inv-menu-item:last-child { border-bottom: none; }
 .inv-menu-item:hover { background: var(--surface-2); }
@@ -1852,23 +1529,29 @@ body.inv-desktop .inv-dialog-main > section:not([data-on]) { display: none; }
 .inv-menu-title { font-size: var(--fs-14); font-weight: 500; color: var(--text-1); overflow-wrap: anywhere; }
 .inv-menu-meta { font-size: var(--fs-12); color: var(--text-3); overflow-wrap: anywhere; }
 .inv-menu-add .inv-menu-title { color: var(--accent); font-weight: 600; }
-.inv-toast { background: var(--text-1); color: var(--surface); border: none; border-radius: var(--r-lg); box-shadow: var(--shadow-pop); font-size: var(--fs-14); }
-.inv-toast-success, .inv-toast-error, .inv-toast-warning { background: var(--text-1); color: var(--surface); border: none; }
-.inv-toast-success::before, .inv-toast-error::before, .inv-toast-warning::before {
-  content: ''; display: inline-block; width: 0.5rem; height: 0.5rem; border-radius: 50%; margin-right: var(--sp-8); vertical-align: middle;
+/* A toast sits under the top bar, clear of the action bar and the bottom bar; it inverts with the theme,
+   and its tone is the leading dot. */
+.inv-toast {
+  position: fixed; top: calc(var(--bar-h) + var(--sp-8)); left: 50%; transform: translateX(-50%); z-index: var(--z-toast);
+  max-width: min(calc(100% - var(--sp-24)), var(--toast-max)); padding: var(--sp-10) var(--sp-16);
+  background: var(--text-1); color: var(--surface); border-radius: var(--r-lg); box-shadow: var(--shadow-pop);
+  font-size: var(--fs-14); font-weight: 500;
+}
+.inv-toast::before {
+  content: ''; display: inline-block; width: var(--sp-8); height: var(--sp-8); border-radius: 50%; margin-right: var(--sp-8); vertical-align: middle;
 }
 .inv-toast-success::before { background: var(--ok); }
 .inv-toast-error::before { background: var(--danger); }
 .inv-toast-warning::before { background: var(--warning); }
 
 /* §6.18 Callouts, notes, empty states */
-.inv-callout, .inv-confirm-warn {
+.inv-callout {
   display: block; padding: var(--sp-10) var(--sp-12); border: none; border-radius: var(--r-lg);
   font-size: var(--fs-13); line-height: 1.5;
 }
 .inv-callout, .inv-callout-neutral { background: var(--surface-2); color: var(--text-2); }
 .inv-callout-info { background: var(--info-bg); color: var(--info); }
-.inv-callout-warning, .inv-confirm-warn { background: var(--warning-bg); color: var(--warning); }
+.inv-callout-warning { background: var(--warning-bg); color: var(--warning); }
 .inv-callout-danger { background: var(--danger-bg); color: var(--danger); }
 /* A callout filled on demand (a derivation in Settings) is not drawn until it holds something. Rows inside one
    (the working, month by month) sit on its own padding. */
@@ -1884,7 +1567,7 @@ body.inv-desktop .inv-dialog-main > section:not([data-on]) { display: none; }
 /* A fold opened by a link-like summary ("Message text"). */
 summary.inv-summary { display: inline-block; list-style: none; font-size: var(--fs-12); }
 summary.inv-summary::-webkit-details-marker { display: none; }
-.inv-empty, .inv-empty-state, .inv-chart-empty {
+.inv-empty {
   padding: var(--sp-24) var(--sp-16); text-align: center; color: var(--text-3); font-size: var(--fs-13);
   border: none; background: none;
 }
@@ -2540,6 +2223,47 @@ function focusFirstInteractive(container) {
   if (el) { try { el.focus(); } catch(e) {} }
 }
 
+/* ===== DIALOG SHELL (design system §6.16) =====
+   Every dialog is an inv-dialog in an inv-scrim-dialog: a sheet from the bottom on the phone, centred on the
+   desktop. Its head is the title and a close button; its foot (inv-dialog-foot) the actions, primary last.
+   The More sheet is an inv-scrim too but not a dialog, so closing dialogs never takes it (or its focus) along.
+   `title` is HTML: the caller escapes what came from the user. */
+function dialogHeadHtml(title, closeAction, closeLabel, actionsHtml) {
+  var close = '<button class="inv-btn inv-btn-icon inv-dialog-close" data-action="' + (closeAction || 'invCloseOverlay') +
+    '" aria-label="' + (closeLabel || 'Close') + '">&times;</button>';
+  return '<div class="inv-dialog-head"><span class="inv-dialog-title">' + title + '</span>' +
+    (actionsHtml ? '<span class="inv-toolbar inv-toolbar-tight">' + actionsHtml + close + '</span>' : close) + '</div>';
+}
+
+/* A two-faced dialog turns over in this many ms (--dur-2, §3.6). */
+var FLIP_MS = 200;
+
+/* The desktop detail pane's head (§6.14): what is open, and the button that closes the pane. */
+function paneHeadHtml(titleHtml, closeAction) {
+  return '<div class="inv-pane-head">' + titleHtml +
+    '<button class="inv-btn inv-btn-icon inv-btn-ghost" data-action="' + closeAction + '" aria-label="Close">&times;</button></div>';
+}
+
+/* Opens `html` (the whole inv-dialog) over the page and moves focus into it; the focus it left returns on close.
+   opts.dismiss: a tap on the scrim closes it (a view, never an act). opts.replace: redraw the top dialog in place
+   when one is open (a form re-rendered as it is typed). Returns the scrim. */
+function dialogOpen(html, opts) {
+  opts = opts || {};
+  if (opts.replace) {
+    var open = document.querySelectorAll('.inv-scrim-dialog');
+    if (open.length) { open[open.length - 1].innerHTML = html; return open[open.length - 1]; }
+  }
+  var scrim = document.createElement('div');
+  scrim.className = 'inv-scrim inv-scrim-dialog';
+  scrim.innerHTML = html;
+  if (opts.dismiss) scrim.addEventListener('click', function(e) { if (e.target === scrim) closeTopOverlay(); });
+  pushFocus();
+  document.body.appendChild(scrim);
+  document.body.style.overflow = 'hidden';
+  focusFirstInteractive(scrim.querySelector('.inv-dialog'));
+  return scrim;
+}
+
 function getApiKey() { try { return localStorage.getItem(API_KEY_KEY) || ''; } catch(e) { return ''; } }
 function setApiKey(key) { try { localStorage.setItem(API_KEY_KEY, key); } catch(e) {} }
 
@@ -3042,7 +2766,6 @@ var FLAG_REASONS = [
   { id: 'weight', label: 'Weight differs this batch' },
   { id: 'other', label: 'Other' }
 ];
-function flagReasonLabel(id) { var r = FLAG_REASONS.find(function(x) { return x.id === id; }); return r ? r.label : ''; }
 /* A red flag is the matcher's own Check or ×10 verdict, on the rate or on the weight. Differs asks nothing. */
 function lineFlag(client, onDate, item) {
   var red = function(m) { return m && (m.status === 'check' || m.status === 'decimal'); };
@@ -3111,11 +2834,6 @@ function appearanceSet(k, v) {
     else localStorage.setItem(APPEARANCE_KEYS[k], v);
   } catch (e) { /* still applied for this session */ }
   applyAppearance(k === 'theme' ? v : null, k === 'palette' ? v : null, k === 'density' ? v : null);
-}
-
-function appearanceIsDark() {
-  var t = document.documentElement.dataset.theme;
-  return t === 'dark' || (!t && !!(_darkQuery && _darkQuery.matches));
 }
 
 /* Arguments override what storage says, so a device that refuses storage still switches. */
@@ -3652,6 +3370,8 @@ function homeQuick(go) {
 
 /* A status is one of five tone words (design principles §6.13); the modules keep their own. */
 var UI_TONE = { red: 'danger', amber: 'warning', info: 'info', green: 'ok' };
+/* Status as a dot and a word (§6.13, DR-8). `word` is HTML: the caller escapes what came from the user. */
+function uiDot(tone, word) { return '<span class="inv-dot inv-dot-' + uiTone(tone) + '">' + word + '</span>'; }
 function uiTone(t) { return UI_TONE[t] || (/^(danger|warning|ok|info|neutral)$/.test(t) ? t : 'neutral'); }
 
 var ICON_SEARCH = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>';
@@ -3870,11 +3590,8 @@ function _showClientOverlay(client, isAdd) {
       '<div class="inv-panel-body">' + _clientRateFieldsHtml(false) +
       '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invAddRate" data-client="' + c.id + '">Add rate</button></div>', 'ceditRates');
   }
-  const scrim = document.createElement('div');
-  scrim.className = 'inv-overlay-scrim';
-  scrim.innerHTML = '<div class="inv-overlay-card">' +
-    '<div class="inv-overlay-header"><span class="inv-overlay-title">' + (isAdd ? 'Add client' : 'Edit client') + '</span>' +
-    '<button class="inv-overlay-close" data-action="invCloseOverlay" aria-label="Close">&times;</button></div>' +
+  dialogOpen('<div class="inv-dialog">' +
+    dialogHeadHtml((isAdd ? 'Add client' : 'Edit client')) +
     (isAdd ? '' : finClientMoneyHtml(c.id)) +
     _cfield('ceditName', 'Name', _cinput('ceditName', c.name)) +
     '<div class="inv-fields">' +
@@ -3901,13 +3618,8 @@ function _showClientOverlay(client, isAdd) {
     // A new client takes an optional opening rate; an existing one keeps its dated cards.
     (isAdd ? _clientCardHtml('Opening rate', null, '', '<div class="inv-panel-body">' + _clientRateFieldsHtml(true) + '</div>')
       : rates + _pieceRatesEditHtml(c) + _pieceWeightsEditHtml(c)) +
-    '<div class="inv-btn-bar"><button class="inv-btn inv-btn-secondary" data-action="invCloseOverlay">Cancel</button>' +
-    '<button class="inv-btn inv-btn-primary" data-action="invSaveClient" data-client="' + c.id + '" data-mode="' + (isAdd ? 'add' : 'edit') + '">' + (isAdd ? 'Add client' : 'Save') + '</button></div></div>';
-  scrim.addEventListener('click', e => { if (e.target === scrim) { scrim.remove(); document.body.style.overflow = ''; popFocus(); } });
-  pushFocus();
-  document.body.appendChild(scrim);
-  document.body.style.overflow = 'hidden';
-  focusFirstInteractive(scrim.querySelector('.inv-overlay-card'));
+    '<div class="inv-dialog-foot"><button class="inv-btn inv-btn-secondary" data-action="invCloseOverlay">Cancel</button>' +
+    '<button class="inv-btn inv-btn-primary" data-action="invSaveClient" data-client="' + c.id + '" data-mode="' + (isAdd ? 'add' : 'edit') + '">' + (isAdd ? 'Add client' : 'Save') + '</button></div></div>', { dismiss: true });
 }
 
 /* The ₹/kg ladder, newest first; the rate in force today says so. */
@@ -4026,8 +3738,8 @@ function addClientRate(clientId) {
 }
 
 function closeOverlay() {
-  var count = document.querySelectorAll('.inv-overlay-scrim').length;
-  document.querySelectorAll('.inv-overlay-scrim').forEach(s => s.remove());
+  var count = document.querySelectorAll('.inv-scrim-dialog').length;
+  document.querySelectorAll('.inv-scrim-dialog').forEach(s => s.remove());
   document.body.style.overflow = '';
   // Pop focus stack for each closed overlay
   for (var i = 0; i < count; i++) popFocus();
@@ -4039,13 +3751,15 @@ function closeOverlay() {
 }
 
 function closeTopOverlay() {
-  const all = document.querySelectorAll('.inv-overlay-scrim');
+  const all = document.querySelectorAll('.inv-scrim-dialog');
   if (all.length > 0) {
     all[all.length - 1].remove();
-    if (document.querySelectorAll('.inv-overlay-scrim').length === 0) {
-      document.body.style.overflow = '';
-    }
     popFocus();
+    // The last one shut: the page scrolls again, and a layout switch deferred while it was open runs now.
+    if (document.querySelectorAll('.inv-scrim-dialog').length === 0) {
+      document.body.style.overflow = '';
+      if (_pendingModeSwitch) { _pendingModeSwitch = false; updateLayoutMode(); }
+    }
   }
 }
 
@@ -4495,9 +4209,9 @@ function renderClientsPage() {
   container.innerHTML = _buildSubViewToggle(subView) +
     (isItems ? _buildItemsSubViewHtml() : _buildClientsSubViewHtml()) +
     (_isDesktop
-      ? '<div class="inv-master-detail inv-master-detail-pane" id="clientsMasterDetail">' +
-          '<div class="inv-master" id="clientsMaster">' + listHtml + '</div>' +
-          '<div class="inv-detail inv-pane" id="clientsDetail"></div>' +
+      ? '<div class="inv-pane-host" id="clientsMasterDetail">' +
+          '<div class="inv-pane-list" id="clientsMaster">' + listHtml + '</div>' +
+          '<div class="inv-pane" id="clientsDetail"></div>' +
         '</div>'
       : listHtml);
 
@@ -4575,8 +4289,7 @@ function _clientsPaneShow(title, bodyHtml) {
   var wrap = document.getElementById('clientsMasterDetail');
   if (wrap) wrap.classList.toggle('inv-pane-open', !!bodyHtml);
   var el = document.getElementById('clientsDetail');
-  if (el) el.innerHTML = bodyHtml ? '<div class="inv-pane-head">' + title +
-    '<button class="inv-btn inv-btn-icon inv-btn-ghost" data-action="invClientsClosePane" aria-label="Close">&times;</button></div>' + bodyHtml : '';
+  if (el) el.innerHTML = bodyHtml ? paneHeadHtml(title, 'invClientsClosePane') + bodyHtml : '';
 }
 
 function closeClientsPane() {
@@ -4817,11 +4530,8 @@ function _showItemOverlay(item, isAdd) {
   }
   var refCount = invRefs + imRefs;
 
-  var scrim = document.createElement('div');
-  scrim.className = 'inv-overlay-scrim';
-  scrim.innerHTML = '<div class="inv-overlay-card">' +
-    '<div class="inv-overlay-header"><span class="inv-overlay-title">' + escHtml(title) + '</span>' +
-    '<button class="inv-overlay-close" data-action="invCloseOverlay" aria-label="Close">&times;</button></div>' +
+  dialogOpen('<div class="inv-dialog">' +
+    dialogHeadHtml(escHtml(title)) +
     '<div class="inv-field"><label class="inv-field-label" for="itemEditPN">Part number</label>' +
     '<input class="inv-input inv-id" id="itemEditPN" value="' + escHtml(pn) + '"></div>' +
     '<div class="inv-field"><label class="inv-field-label" for="itemEditDesc">Description</label>' +
@@ -4840,18 +4550,10 @@ function _showItemOverlay(item, isAdd) {
     '<div class="inv-field"><label class="inv-field-label" for="itemEditWeight">Std weight (kg)</label>' +
     '<input type="number" class="inv-input inv-input-num" id="itemEditWeight" value="' + stdW + '" step="0.001" min="0" placeholder="Optional"></div></div>' +
     (refCount > 0 ? '<div class="inv-note">Referenced in ' + invRefs + ' invoice line' + (invRefs !== 1 ? 's' : '') + ', ' + imRefs + ' challan line' + (imRefs !== 1 ? 's' : '') + '</div>' : '') +
-    '<div class="inv-btn-bar">' +
+    '<div class="inv-dialog-foot">' +
     (!isAdd ? '<button class="inv-btn inv-btn-danger inv-btn-sm" data-action="invDeleteItem" data-id="' + itemId + '">Delete</button>' : '') +
     '<button class="inv-btn inv-btn-secondary" data-action="invCloseOverlay">Cancel</button>' +
-    '<button class="inv-btn inv-btn-primary" data-action="invSaveItem" data-id="' + itemId + '" data-mode="' + (isAdd ? 'add' : 'edit') + '">Save</button></div></div>';
-
-  scrim.addEventListener('click', function(e) {
-    if (e.target === scrim) { scrim.remove(); document.body.style.overflow = ''; popFocus(); }
-  });
-  pushFocus();
-  document.body.appendChild(scrim);
-  document.body.style.overflow = 'hidden';
-  focusFirstInteractive(scrim.querySelector('.inv-overlay-card'));
+    '<button class="inv-btn inv-btn-primary" data-action="invSaveItem" data-id="' + itemId + '" data-mode="' + (isAdd ? 'add' : 'edit') + '">Save</button></div></div>', { dismiss: true });
 }
 
 function saveItem(itemId, mode) {
@@ -4968,11 +4670,8 @@ function openMergeTool() {
 
   var groups = findDuplicateGroups(S.items);
 
-  var scrim = document.createElement('div');
-  scrim.className = 'inv-overlay-scrim';
-  var html = '<div class="inv-overlay-card">' +
-    '<div class="inv-overlay-header"><span class="inv-overlay-title">Merge duplicates</span>' +
-    '<button class="inv-overlay-close" data-action="invCloseOverlay" aria-label="Close">&times;</button></div>';
+  var html = '<div class="inv-dialog">' +
+    dialogHeadHtml('Merge duplicates');
 
   if (groups.length === 0) {
     html += '<div class="inv-empty">No duplicate groups found</div>';
@@ -5001,18 +4700,8 @@ function openMergeTool() {
     html += '</div>';
   }
 
-  html += '<div class="inv-btn-bar"><button class="inv-btn inv-btn-secondary" data-action="invCloseOverlay">Close</button></div></div>';
-  scrim.innerHTML = html;
-  scrim.addEventListener('click', function(e) {
-    if (e.target === scrim) { scrim.remove(); document.body.style.overflow = ''; popFocus(); }
-  });
-
-  scrim._mergeGroups = groups;
-
-  pushFocus();
-  document.body.appendChild(scrim);
-  document.body.style.overflow = 'hidden';
-  focusFirstInteractive(scrim.querySelector('.inv-overlay-card'));
+  html += '<div class="inv-dialog-foot"><button class="inv-btn inv-btn-secondary" data-action="invCloseOverlay">Close</button></div></div>';
+  dialogOpen(html, { dismiss: true })._mergeGroups = groups;
 }
 
 function findDuplicateGroups(items) {
@@ -5060,7 +4749,7 @@ function _extractNumericCore(partNumber) {
 }
 
 function mergeGroup(groupIdx) {
-  var scrim = document.querySelector('.inv-overlay-scrim');
+  var scrim = document.querySelector('.inv-scrim-dialog');
   if (!scrim || !scrim._mergeGroups) return;
   var group = scrim._mergeGroups[groupIdx];
   if (!group) return;
@@ -5108,7 +4797,7 @@ function mergeGroup(groupIdx) {
 }
 
 function confirmMerge(groupIdx, primaryId) {
-  var scrim = document.querySelector('.inv-overlay-scrim');
+  var scrim = document.querySelector('.inv-scrim-dialog');
   if (!scrim || !scrim._mergeGroups) return;
   var group = scrim._mergeGroups[groupIdx];
   if (!group) return;
@@ -5230,21 +4919,13 @@ function _breakEvenKg(item, cost) {
    own pieceWeights (the weight check). */
 function openPartWeights() {
   closeOverlay();
-  var scrim = document.createElement('div');
-  scrim.className = 'inv-overlay-scrim';
-  scrim.innerHTML = '<div class="inv-overlay-card">' +
-    '<div class="inv-overlay-header"><span class="inv-overlay-title">Part weights (NOS to KG)</span>' +
-    '<button class="inv-overlay-close" data-action="invCloseOverlay" aria-label="Close">&times;</button></div>' +
+  dialogOpen('<div class="inv-dialog">' +
+    dialogHeadHtml('Part weights (NOS to KG)') +
     '<p class="inv-note">A client billed by weight off a piece count is priced on pieces &times; this weight. It moves money on the invoice, unlike the standard weight Stats reads.</p>' +
     '<div class="inv-panel inv-panel-flush inv-scroll" id="setPWList">' + renderPartWeightsList() + '</div>' +
     '<div class="inv-fields"><div class="inv-field"><label class="inv-field-label" for="setPWPart">Part number</label><input class="inv-input inv-id" id="setPWPart" placeholder="HINGE PIN"></div>' +
     '<div class="inv-field"><label class="inv-field-label" for="setPWWeight">Weight (kg)</label><input type="number" class="inv-input inv-input-num" id="setPWWeight" step="0.001" placeholder="0.045"></div></div>' +
-    '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invAddPartWeight">Add weight</button></div>';
-  scrim.addEventListener('click', function(e) { if (e.target === scrim) closeOverlay(); });
-  pushFocus();
-  document.body.appendChild(scrim);
-  document.body.style.overflow = 'hidden';
-  focusFirstInteractive(scrim.querySelector('.inv-overlay-card'));
+    '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invAddPartWeight">Add weight</button></div>', { dismiss: true });
 }
 
 function _partWeightsCount() {
@@ -5305,9 +4986,8 @@ function openWeightEntry() {
   var weightMap = _buildDerivedWeightMap();
   var derivable = missing.filter(function(it) { return !!weightMap[it.partNumber]; }).length;
 
-  var html = '<div class="inv-overlay-card">' +
-    '<div class="inv-overlay-header"><span class="inv-overlay-title">Enter weights</span>' +
-    '<button class="inv-overlay-close" data-action="invCloseOverlay" aria-label="Close">&times;</button></div>' +
+  var html = '<div class="inv-dialog">' +
+    dialogHeadHtml('Enter weights') +
     '<p class="inv-note">' +
     missing.length + ' item' + (missing.length !== 1 ? 's' : '') + ' without a weight, heaviest revenue first. ' +
     (cost > 0
@@ -5345,23 +5025,14 @@ function openWeightEntry() {
   });
   html += '</div>';
 
-  html += '<div class="inv-btn-bar">' +
+  html += '<div class="inv-dialog-foot">' +
     '<button class="inv-btn inv-btn-secondary" data-action="invCloseOverlay">Cancel</button>' +
     (derivable > 0
       ? '<button class="inv-btn inv-btn-secondary" data-action="invDeriveWeights">Derive ' + derivable + ' from rates</button>'
       : '') +
     '<button class="inv-btn inv-btn-primary" data-action="invSaveWeights">Save weights</button></div></div>';
 
-  var scrim = document.createElement('div');
-  scrim.className = 'inv-overlay-scrim';
-  scrim.innerHTML = html;
-  scrim.addEventListener('click', function(e) {
-    if (e.target === scrim) { scrim.remove(); document.body.style.overflow = ''; popFocus(); }
-  });
-  pushFocus();
-  document.body.appendChild(scrim);
-  document.body.style.overflow = 'hidden';
-  focusFirstInteractive(scrim.querySelector('.inv-overlay-card'));
+  dialogOpen(html, { dismiss: true });
 }
 
 /* Live pricing as a weight is typed. */
@@ -5770,7 +5441,7 @@ function renderCreateForm() {
         ' role="combobox" aria-expanded="false" aria-autocomplete="list" aria-controls="invPartAC' + idx + '">' +
         '<div class="inv-menu inv-hidden" id="invPartAC' + idx + '" role="listbox"></div></div>', null, 'inv-line-part') +
       lineField('Qty', '<input type="number" class="inv-input inv-input-num" value="' + (item.qty||'') + '" data-field="qty" data-idx="' + idx + '" data-action="invUpdateLine" step="any" min="0">') +
-      lineField('Unit', '<select class="inv-select" data-field="unit" data-idx="' + idx + '" data-action="invUpdateLine">' +
+      lineField('Unit', '<select class="inv-select" data-field="unit" data-idx="' + idx + '" data-change="invUpdateLine">' +
         '<option value="KG"' + (item.unit==='KG'?' selected':'') + '>KG</option>' +
         '<option value="NOS"' + (item.unit==='NOS'?' selected':'') + '>NOS</option></select>') +
       (item.unit === 'KG'
@@ -6671,11 +6342,10 @@ function openSettings(target) {
     _setUiSave(ui);
   }
   var scrim = document.createElement('div');
-  scrim.className = 'inv-overlay-scrim';
+  scrim.className = 'inv-scrim inv-scrim-dialog';
   scrim.id = 'settingsScrim';
-  scrim.innerHTML = '<div class="inv-overlay-card inv-dialog-wide">' +
-    '<div class="inv-overlay-header"><span class="inv-overlay-title">Settings</span>' +
-    '<button class="inv-overlay-close" data-action="invCloseSettings" aria-label="Close settings">&times;</button></div>' +
+  scrim.innerHTML = '<div class="inv-dialog inv-dialog-wide">' +
+    dialogHeadHtml('Settings', 'invCloseSettings', 'Close settings') +
     '<div class="inv-dialog-panes">' +
     '<nav class="inv-dialog-nav" aria-label="Settings groups">' + SETTINGS_GROUPS.map(function(g) {
       var on = g.key === ui.group;
@@ -6706,7 +6376,7 @@ function openSettings(target) {
     var sec = scrim.querySelector('details[data-sec="' + target + '"]');
     if (sec && sec.scrollIntoView) sec.scrollIntoView({ block: 'start' });
   }
-  focusFirstInteractive(scrim.querySelector('.inv-overlay-card'));
+  focusFirstInteractive(scrim.querySelector('.inv-dialog'));
   refreshDiskSummary();
 }
 
@@ -7938,8 +7608,7 @@ function _renderRegDetail(invId, skipMasterRefresh) {
   // The pane takes room only while an invoice is open; the table then drops columns in priority order (§6.11).
   var wrap = document.getElementById('regMasterDetail');
   if (wrap) wrap.classList.toggle('inv-pane-open', !!inv);
-  if (detailEl) detailEl.innerHTML = inv ? '<div class="inv-pane-head"><span class="inv-panel-title inv-id">' + escHtml(inv.displayNumber) + '</span>' +
-    '<button class="inv-btn inv-btn-icon inv-btn-ghost" data-action="invRegClosePane" aria-label="Close">&times;</button></div>' + invoiceDetailHtml(inv) : '';
+  if (detailEl) detailEl.innerHTML = inv ? paneHeadHtml('<span class="inv-panel-title inv-id">' + escHtml(inv.displayNumber) + '</span>', 'invRegClosePane') + invoiceDetailHtml(inv) : '';
   if (!skipMasterRefresh) {
     var masterEl = document.getElementById('regMaster');
     if (masterEl) masterEl.innerHTML = _buildRegisterTableHtml();
@@ -7961,9 +7630,9 @@ function renderRegisterTable() {
   // name wrapped over three lines.
   if (!document.getElementById('regMasterDetail')) {
     area.innerHTML =
-      '<div class="inv-master-detail inv-master-detail-pane" id="regMasterDetail">' +
-        '<div class="inv-master" id="regMaster"></div>' +
-        '<div class="inv-detail inv-pane" id="regDetail"></div>' +
+      '<div class="inv-pane-host" id="regMasterDetail">' +
+        '<div class="inv-pane-list" id="regMaster"></div>' +
+        '<div class="inv-pane" id="regDetail"></div>' +
       '</div>';
   }
 
@@ -8112,19 +7781,8 @@ function toggleRegSortDir() {
 function openInvoiceDetail(invId) {
   const inv = S.invoices.find(i => i.id === invId);
   if (!inv) return;
-  var html = '<div class="inv-overlay-card">' +
-    '<div class="inv-overlay-header"><span class="inv-overlay-title">Invoice ' + escHtml(inv.displayNumber) + '</span>' +
-    '<button class="inv-overlay-close" data-action="invCloseOverlay" aria-label="Close">&times;</button></div>' +
-    invoiceDetailHtml(inv) + '</div>';
-
-  const scrim = document.createElement('div');
-  scrim.className = 'inv-overlay-scrim';
-  scrim.innerHTML = html;
-  scrim.addEventListener('click', function(e) { if (e.target === scrim) { scrim.remove(); document.body.style.overflow = ''; popFocus(); } });
-  pushFocus();
-  document.body.appendChild(scrim);
-  document.body.style.overflow = 'hidden';
-  focusFirstInteractive(scrim.querySelector('.inv-overlay-card'));
+  dialogOpen('<div class="inv-dialog">' + dialogHeadHtml('Invoice <span class="inv-id">' + escHtml(inv.displayNumber) + '</span>') +
+    invoiceDetailHtml(inv) + '</div>', { dismiss: true });
 }
 
 /* The count and the taxable of what the filter shows (cancelled invoices bill nothing). */
@@ -8304,20 +7962,11 @@ function cancelInvoice(invId) {
   const inv = S.invoices.find(i => i.id === invId);
   if (!inv || inv.status === 'cancelled') return;
 
-  // Show confirmation overlay (Act intent)
-  const scrim = document.createElement('div');
-  scrim.className = 'inv-overlay-scrim';
-  scrim.innerHTML = '<div class="inv-overlay-card">' +
-    '<div class="inv-overlay-header"><span class="inv-overlay-title">Cancel Invoice</span>' +
-    '<button class="inv-overlay-close" data-action="invCloseConfirm">&times;</button></div>' +
-    '<div class="inv-confirm-body">Cancel invoice <strong>' + escHtml(inv.displayNumber) + '</strong>?<br>This invoice will appear as cancelled in your GSTR1 export. The customer should be notified. This cannot be undone.</div>' +
-    '<div class="inv-btn-bar"><button class="inv-btn inv-btn-ghost" data-action="invCloseConfirm">Keep Active</button>' +
-    '<button class="inv-btn inv-btn-primary" data-action="invConfirmCancel" data-id="' + escHtml(inv.id) + '">Cancel Invoice</button></div></div>';
-  // Act overlay: scrim tap does nothing (DP 5.2)
-  pushFocus();
-  document.body.appendChild(scrim);
-  document.body.style.overflow = 'hidden';
-  focusFirstInteractive(scrim.querySelector('.inv-overlay-card'));
+  // An act: the consequence in the body, the danger button last; a tap on the scrim does nothing (DP 5.2).
+  dialogOpen('<div class="inv-dialog">' + dialogHeadHtml('Cancel invoice', 'invCloseConfirm') +
+    '<p class="inv-mb-8">Cancel invoice <strong class="inv-id">' + escHtml(inv.displayNumber) + '</strong>? It will appear as cancelled in your GSTR-1 export. The customer should be notified. This cannot be undone.</p>' +
+    '<div class="inv-dialog-foot"><button class="inv-btn inv-btn-secondary" data-action="invCloseConfirm">Keep active</button>' +
+    '<button class="inv-btn inv-btn-danger inv-btn-solid" data-action="invConfirmCancel" data-id="' + escHtml(inv.id) + '">Cancel invoice</button></div></div>');
 }
 
 function confirmCancelInvoice(invId) {
@@ -8354,9 +8003,6 @@ function deleteInvoice(invId) {
   const now = new Date();
   const pastDeadline = now >= filingDeadline;
 
-  const scrim = document.createElement('div');
-  scrim.className = 'inv-overlay-scrim';
-
   // The lifecycle state is harder evidence than the date heuristic: once an
   // invoice is dispatched the customer holds a document bearing that number,
   // and deleting it here does not retract it there.
@@ -8368,14 +8014,14 @@ function deleteInvoice(invId) {
   let btnClass = '';
 
   if (issued) {
-    warnHtml = '<div class="inv-confirm-warn">This invoice was ' + escHtml(INV_STATE_LABELS[getInvState(inv)].toLowerCase()) +
+    warnHtml = '<div class="inv-callout inv-callout-warning inv-mb-8" data-delete-warn>This invoice was ' + escHtml(INV_STATE_LABELS[getInvState(inv)].toLowerCase()) +
       '. The customer may hold a copy and claim credit against this number, which deleting it here does not retract' +
       (pastDeadline ? ', and it may already sit in a filed return' : '') +
       '. A credit note is usually the right instrument. The number stays spent either way.</div>';
     bodyText = 'Permanently delete invoice <strong>' + escHtml(inv.displayNumber) + '</strong>? This cannot be undone.';
     btnClass = 'inv-btn-danger inv-btn-solid';
   } else if (pastDeadline) {
-    warnHtml = '<div class="inv-confirm-warn">This invoice may have been included in a filed GST return. Cancelling (not deleting) is recommended.</div>';
+    warnHtml = '<div class="inv-callout inv-callout-warning inv-mb-8" data-delete-warn>This invoice may have been included in a filed GST return. Cancelling (not deleting) is recommended.</div>';
     bodyText = 'Permanently delete invoice <strong>' + escHtml(inv.displayNumber) + '</strong>? This cannot be undone.';
     btnClass = 'inv-btn-danger inv-btn-solid';
   } else {
@@ -8383,27 +8029,20 @@ function deleteInvoice(invId) {
     btnClass = 'inv-btn-primary';
   }
 
-  scrim.innerHTML = '<div class="inv-overlay-card">' +
-    '<div class="inv-overlay-header"><span class="inv-overlay-title">Delete Invoice</span>' +
-    '<button class="inv-overlay-close" data-action="invCloseConfirm">&times;</button></div>' +
+  dialogOpen('<div class="inv-dialog">' + dialogHeadHtml('Delete invoice', 'invCloseConfirm') +
     warnHtml +
-    '<div class="inv-confirm-body">' + bodyText + '</div>' +
-    '<div class="inv-form-group"><label class="inv-form-label">Why is it going?</label>' +
-    '<input class="inv-form-input" id="invDeleteReason" placeholder="e.g. duplicate of 00657" autocomplete="off">' +
-    '<div class="inv-form-hint">Kept against the number in the register. Without it a deleted number is indistinguishable from one never issued.</div></div>' +
-    '<div class="inv-btn-bar"><button class="inv-btn inv-btn-ghost" data-action="invCloseConfirm">Keep</button>' +
-    '<button class="inv-btn ' + btnClass + '" data-action="invConfirmDelete" data-id="' + escHtml(inv.id) + '">Delete</button></div>' +
+    '<p class="inv-mb-8">' + bodyText + '</p>' +
+    '<div class="inv-field"><label class="inv-field-label" for="invDeleteReason">Why is it going?</label>' +
+    '<input class="inv-input" id="invDeleteReason" placeholder="e.g. duplicate of 00657" autocomplete="off">' +
+    '<div class="inv-field-hint">Kept against the number in the register. Without it a deleted number is indistinguishable from one never issued.</div></div>' +
     // Before filing, a corrected invoice may take the number back. Filed is
     // final: GSTR-1 carries the number and only a credit note corrects it.
     (canReissue
-      ? '<div class="inv-reissue-offer"><button class="inv-btn inv-btn-ghost inv-btn-block" data-action="invConfirmReissue" data-id="' + escHtml(inv.id) + '">Delete and reissue ' + escHtml(inv.invoiceNumber) + '</button>' +
-        '<div class="inv-form-hint">Opens a new invoice with the same lines under this number, for correcting it before the GST return is filed. The old version stays on record against the number.</div></div>'
-      : '') + '</div>';
-  // Act overlay: scrim tap does nothing (DP 5.2)
-  pushFocus();
-  document.body.appendChild(scrim);
-  document.body.style.overflow = 'hidden';
-  focusFirstInteractive(scrim.querySelector('.inv-overlay-card'));
+      ? '<div class="inv-callout inv-callout-neutral"><button class="inv-btn inv-btn-secondary inv-btn-block" data-action="invConfirmReissue" data-id="' + escHtml(inv.id) + '">Delete and reissue <span class="inv-id">' + escHtml(inv.invoiceNumber) + '</span></button>' +
+        '<div class="inv-field-hint">Opens a new invoice with the same lines under this number, for correcting it before the GST return is filed. The old version stays on record against the number.</div></div>'
+      : '') +
+    '<div class="inv-dialog-foot"><button class="inv-btn inv-btn-secondary" data-action="invCloseConfirm">Keep</button>' +
+    '<button class="inv-btn ' + btnClass + '" data-action="invConfirmDelete" data-id="' + escHtml(inv.id) + '">Delete</button></div></div>');
 }
 
 function confirmDeleteInvoice(invId, reissue) {
@@ -8638,26 +8277,19 @@ function openAccountForNumber(num) {
   if (n == null) return;
   _accountForNum = n;
 
-  var scrim = document.createElement('div');
-  scrim.className = 'inv-overlay-scrim';
-  scrim.innerHTML = '<div class="inv-overlay-card">' +
-    '<div class="inv-overlay-header"><span class="inv-overlay-title">Account for ' + escHtml(displayForNumber(n)) + '</span>' +
-    '<button class="inv-overlay-close" data-action="invCloseConfirm">&times;</button></div>' +
-    '<div class="inv-confirm-body">This number is missing from the register. Record what happened to it — a cancelled invoice filed at zero, a spoiled number, one deleted before this ledger existed. No invoice is created.</div>' +
-    '<div class="inv-form-group"><label class="inv-form-label">What happened to this number</label>' +
-    '<input class="inv-form-input" id="invGapReason" placeholder="e.g. cancelled, filed in GSTR-1 at zero" autocomplete="off"></div>' +
-    '<div class="inv-form-row">' +
-    '<div class="inv-form-group"><label class="inv-form-label">Date (optional)</label>' +
-    '<input type="date" class="inv-form-input inv-mono" id="invGapDate"></div>' +
-    '<div class="inv-form-group"><label class="inv-form-label">Customer (optional)</label>' +
-    '<input class="inv-form-input" id="invGapClient" autocomplete="off"></div></div>' +
-    '<div class="inv-btn-bar">' +
-    '<button class="inv-btn inv-btn-ghost" data-action="invCloseConfirm">Cancel</button>' +
-    '<button class="inv-btn inv-btn-primary" data-action="invSaveGapReason">Record</button></div></div>';
-  pushFocus();
-  document.body.appendChild(scrim);
-  document.body.style.overflow = 'hidden';
-  focusFirstInteractive(scrim.querySelector('.inv-overlay-card'));
+  // An act, not a view: a tap on the scrim does nothing.
+  dialogOpen('<div class="inv-dialog">' + dialogHeadHtml('Account for ' + escHtml(displayForNumber(n)), 'invCloseConfirm') +
+    '<p class="inv-mb-8">This number is missing from the register. Record what happened to it — a cancelled invoice filed at zero, a spoiled number, one deleted before this ledger existed. No invoice is created.</p>' +
+    '<div class="inv-field"><label class="inv-field-label" for="invGapReason">What happened to this number</label>' +
+    '<input class="inv-input" id="invGapReason" placeholder="e.g. cancelled, filed in GSTR-1 at zero" autocomplete="off"></div>' +
+    '<div class="inv-fields">' +
+    '<div class="inv-field"><label class="inv-field-label" for="invGapDate">Date (optional)</label>' +
+    '<input type="date" class="inv-input inv-id" id="invGapDate"></div>' +
+    '<div class="inv-field"><label class="inv-field-label" for="invGapClient">Customer (optional)</label>' +
+    '<input class="inv-input" id="invGapClient" autocomplete="off"></div></div>' +
+    '<div class="inv-dialog-foot">' +
+    '<button class="inv-btn inv-btn-secondary" data-action="invCloseConfirm">Cancel</button>' +
+    '<button class="inv-btn inv-btn-primary" data-action="invSaveGapReason">Record</button></div></div>');
 }
 
 function saveGapReason() {
@@ -8705,6 +8337,8 @@ var NUM_AUDIT_LABELS = {
   active: 'Live', cancelled: 'Cancelled', voided: 'Voided',
   reissued: 'Reissued', unaccounted: 'Unaccounted'
 };
+/* A number's class as a status tone (§6.13): unaccounted is the one to act on. */
+var NUM_AUDIT_TONE = { active: 'ok', cancelled: 'neutral', voided: 'info', reissued: 'warning', unaccounted: 'danger' };
 
 function _numAuditRowHtml(entry) {
   var detail;
@@ -8720,64 +8354,51 @@ function _numAuditRowHtml(entry) {
       ' &middot; ' + formatCurrency(entry.inv.taxableValue || 0);
   }
 
-  return '<div class="inv-numaudit-row">' +
-    '<span class="inv-numaudit-num">' + escHtml(entry.display) + '</span>' +
-    '<span class="inv-numaudit-detail">' + detail + '</span>' +
-    '<span class="inv-numaudit-kind inv-numaudit-' + entry.kind + '">' + NUM_AUDIT_LABELS[entry.kind] + '</span>' +
+  return '<div class="inv-row inv-row-2" data-num-kind="' + entry.kind + '">' +
+    '<span class="inv-row-main"><span class="inv-row-title inv-id">' + escHtml(entry.display) + '</span>' +
+    '<span class="inv-row-meta">' + detail + '</span></span>' +
+    '<span class="inv-row-end"><span class="inv-dot inv-dot-' + NUM_AUDIT_TONE[entry.kind] + '">' + NUM_AUDIT_LABELS[entry.kind] + '</span>' +
     (entry.kind === 'unaccounted'
-      ? '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invAccountForNumber" data-num="' + entry.num + '">Account for</button>'
+      ? '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invAccountForNumber" data-num="' + entry.num + '">Account for</button>'
       : '') +
-    '</div>';
+    '</span></div>';
+}
+
+function _numAuditPanelHtml(title, entries) {
+  return '<div class="inv-panel inv-panel-flush"><div class="inv-panel-head"><span class="inv-panel-title">' + title +
+    ' <span class="inv-panel-count">' + entries.length + '</span></span></div>' +
+    '<div class="inv-scroll">' + entries.map(_numAuditRowHtml).join('') + '</div></div>';
 }
 
 function showNumberAudit() {
   var a = analyseInvoiceNumbers();
-
-  var scrim = document.createElement('div');
-  scrim.className = 'inv-overlay-scrim';
-
-  var html = '<div class="inv-overlay-card">' +
-    '<div class="inv-overlay-header"><span class="inv-overlay-title">Number Audit</span>' +
-    '<button class="inv-overlay-close" data-action="invCloseOverlay">&times;</button></div>';
+  var html = '<div class="inv-dialog">' + dialogHeadHtml('Number audit');
 
   if (a.entries.length === 0) {
-    html += '<div class="inv-empty-state">No invoice numbers issued yet.</div>';
+    html += '<div class="inv-empty">No invoice numbers issued yet.</div>';
   } else {
-    html += '<div class="inv-numaudit-note">Serial ' + escHtml(padInvNum(a.from)) + ' to ' +
-      escHtml(padInvNum(a.to)) + ', every number accounted for or not. Rule 46 wants a consecutive series; a gap is fine, an <em>unexplained</em> gap is not.</div>';
+    html += '<p class="inv-note inv-mb-8">Serial <span class="inv-id">' + escHtml(padInvNum(a.from)) + '</span> to <span class="inv-id">' +
+      escHtml(padInvNum(a.to)) + '</span>, every number accounted for or not. Rule 46 wants a consecutive series; a gap is fine, an <em>unexplained</em> gap is not.</p>';
 
-    html += '<div class="inv-numaudit-tally">' +
-      '<span class="inv-numaudit-kind inv-numaudit-active">' + a.counts.active + ' live</span>' +
-      '<span class="inv-numaudit-kind inv-numaudit-cancelled">' + a.counts.cancelled + ' cancelled</span>' +
-      '<span class="inv-numaudit-kind inv-numaudit-voided">' + a.counts.voided + ' voided</span>' +
-      (a.counts.reissued > 0 ? '<span class="inv-numaudit-kind inv-numaudit-reissued">' + a.counts.reissued + ' reissued</span>' : '') +
-      '<span class="inv-numaudit-kind inv-numaudit-unaccounted">' + a.counts.unaccounted + ' unaccounted</span></div>';
+    // The tally, each class a dot and a word in its tone.
+    var tally = function(kind, n, word) { return '<span class="inv-dot inv-dot-' + NUM_AUDIT_TONE[kind] + '">' + n + ' ' + word + '</span>'; };
+    html += '<div class="inv-toolbar" data-num-tally>' +
+      tally('active', a.counts.active, 'live') + tally('cancelled', a.counts.cancelled, 'cancelled') + tally('voided', a.counts.voided, 'voided') +
+      (a.counts.reissued > 0 ? tally('reissued', a.counts.reissued, 'reissued') : '') +
+      tally('unaccounted', a.counts.unaccounted, 'unaccounted') + '</div>';
 
-    if (a.unaccounted.length > 0) {
-      html += '<div class="inv-numaudit-section">Unaccounted (' + a.unaccounted.length + ')</div>' +
-        '<div class="inv-numaudit-scroll">' +
-        a.unaccounted.map(_numAuditRowHtml).join('') + '</div>';
-    }
+    if (a.unaccounted.length > 0) html += _numAuditPanelHtml('Unaccounted', a.unaccounted);
 
     var explained = a.entries.filter(function(e) { return e.kind === 'voided' || e.kind === 'reissued'; });
-    if (explained.length > 0) {
-      html += '<div class="inv-numaudit-section">Voided, with a reason (' + explained.length + ')</div>' +
-        '<div class="inv-numaudit-scroll">' +
-        explained.map(_numAuditRowHtml).join('') + '</div>';
-    }
+    if (explained.length > 0) html += _numAuditPanelHtml('Voided, with a reason', explained);
 
     if (a.unaccounted.length === 0 && explained.length === 0) {
-      html += '<div class="inv-empty-state">Unbroken series. No gaps to explain.</div>';
+      html += '<div class="inv-empty">Unbroken series. No gaps to explain.</div>';
     }
   }
 
-  html += '<div class="inv-btn-bar"><button class="inv-btn inv-btn-primary" data-action="invCloseOverlay">Close</button></div></div>';
-
-  scrim.innerHTML = html;
-  pushFocus();
-  document.body.appendChild(scrim);
-  document.body.style.overflow = 'hidden';
-  focusFirstInteractive(scrim.querySelector('.inv-overlay-card'));
+  html += '<div class="inv-dialog-foot"><button class="inv-btn inv-btn-primary" data-action="invCloseOverlay">Close</button></div></div>';
+  dialogOpen(html);
 }
 
 /* ===== EXPORT ROWS ===== */
@@ -9345,8 +8966,7 @@ function _renderIMDetail(challanId, skipMasterRefresh) {
   var wrap = document.getElementById('imMasterDetail');
   if (wrap) wrap.classList.toggle('inv-pane-open', !!im);
   var detailEl = document.getElementById('imDetail');
-  if (detailEl) detailEl.innerHTML = im ? '<div class="inv-pane-head"><span class="inv-panel-title inv-id">' + escHtml(imChallanLabel(im)) + '</span>' +
-    '<button class="inv-btn inv-btn-icon inv-btn-ghost" data-action="invIMClosePane" aria-label="Close">&times;</button></div>' + challanDetailHtml(im) : '';
+  if (detailEl) detailEl.innerHTML = im ? paneHeadHtml('<span class="inv-panel-title inv-id">' + escHtml(imChallanLabel(im)) + '</span>', 'invIMClosePane') + challanDetailHtml(im) : '';
   if (!skipMasterRefresh) {
     var masterEl = document.getElementById('imMaster');
     if (masterEl) masterEl.innerHTML = _buildIMTableHtml();
@@ -9365,9 +8985,9 @@ function renderIMTable() {
 
   if (!document.getElementById('imMasterDetail')) {
     area.innerHTML =
-      '<div class="inv-master-detail inv-master-detail-pane" id="imMasterDetail">' +
-        '<div class="inv-master" id="imMaster"></div>' +
-        '<div class="inv-detail inv-pane" id="imDetail"></div>' +
+      '<div class="inv-pane-host" id="imMasterDetail">' +
+        '<div class="inv-pane-list" id="imMaster"></div>' +
+        '<div class="inv-pane" id="imDetail"></div>' +
       '</div>';
   }
 
@@ -10709,72 +10329,59 @@ function renderCreditNoteForm() {
   var from = invoices[0] ? invoices[0].date : '';
   var to = invoices[invoices.length - 1] ? invoices[invoices.length - 1].date : '';
 
-  var html = '<div class="inv-overlay-card">' +
-    '<div class="inv-overlay-header"><span class="inv-overlay-title">Raise Credit Note</span>' +
-    '<button class="inv-overlay-close" data-action="invCloseOverlay" aria-label="Close">&times;</button></div>';
+  var html = '<div class="inv-dialog">' + dialogHeadHtml('Raise credit note');
 
-  html += '<div class="inv-detail-section">' +
-    '<div class="inv-detail-label">Customer</div>' +
-    '<div class="inv-detail-value">' + escHtml(client ? client.name : '') + '</div>' +
-    '<div class="inv-detail-label inv-mt-8">Batch</div>' +
-    '<div class="inv-detail-value">' + invoices.length + ' invoice' + (invoices.length !== 1 ? 's' : '') +
+  html += '<div class="inv-kv inv-mb-8">' +
+    '<div class="inv-kv-wide"><div class="inv-kv-k">Customer</div><div>' + escHtml(client ? client.name : '') + '</div></div>' +
+    '<div class="inv-kv-wide"><div class="inv-kv-k">Batch</div><div>' + invoices.length + ' invoice' + (invoices.length !== 1 ? 's' : '') +
     ', ' + escHtml(formatDate(from)) + ' &ndash; ' + escHtml(formatDate(to)) +
-    ' <span class="inv-text-muted">(' + _cnForm.spanDays + ' day' + (_cnForm.spanDays !== 1 ? 's' : '') + ')</span></div>' +
+    ' <span class="inv-note">(' + _cnForm.spanDays + ' day' + (_cnForm.spanDays !== 1 ? 's' : '') + ')</span></div></div>' +
     '</div>';
 
   // The discount is for batches of a week or more. Split batches are the
   // operator's call, so this warns and does not block.
   if (_cnForm.spanDays < CN_BATCH_MIN_DAYS) {
-    html += '<div class="inv-confirm-warn">This batch spans ' + _cnForm.spanDays + ' day' +
+    html += '<div class="inv-callout inv-callout-warning inv-mb-8" data-cn-warn>This batch spans ' + _cnForm.spanDays + ' day' +
       (_cnForm.spanDays !== 1 ? 's' : '') + '. The standing discount is for batches of ' +
       CN_BATCH_MIN_DAYS + ' days or more — raise it anyway only if you mean to.</div>';
   }
   if (_cnForm.cancelledSkipped > 0) {
-    html += '<div class="inv-confirm-warn">' + _cnForm.cancelledSkipped +
+    html += '<div class="inv-callout inv-callout-warning inv-mb-8" data-cn-warn>' + _cnForm.cancelledSkipped +
       ' cancelled invoice' + (_cnForm.cancelledSkipped !== 1 ? 's were' : ' was') +
       ' left out of the base — those goods were never billed.</div>';
   }
 
-  html += '<div class="inv-form-row">' +
-    '<div class="inv-form-group"><label class="inv-form-label">Discount %</label>' +
-    '<input type="number" step="0.01" min="0" max="100" class="inv-form-input inv-mono" id="cnPct" value="' + escHtml(_cnForm.pct) + '" data-action="invCnInput"></div>' +
-    '<div class="inv-form-group"><label class="inv-form-label">Credit note date</label>' +
-    '<input type="date" class="inv-form-input inv-mono" id="cnDate" value="' + escHtml(_cnForm.date) + '" data-action="invCnInput"></div></div>';
+  html += '<div class="inv-fields">' +
+    '<div class="inv-field"><label class="inv-field-label" for="cnPct">Discount %</label>' +
+    '<input type="number" step="0.01" min="0" max="100" class="inv-input inv-input-num" id="cnPct" value="' + escHtml(_cnForm.pct) + '" data-action="invCnInput"></div>' +
+    '<div class="inv-field"><label class="inv-field-label" for="cnDate">Credit note date</label>' +
+    '<input type="date" class="inv-input inv-id" id="cnDate" value="' + escHtml(_cnForm.date) + '" data-action="invCnInput"></div></div>';
 
-  html += '<div class="inv-form-group"><label class="inv-form-label">Vehicle No. (optional)</label>' +
-    '<input type="text" class="inv-form-input" id="cnVehicle" value="' + escHtml(_cnForm.vehicleNo) + '" data-action="invCnInput" autocomplete="off"></div>';
+  html += '<div class="inv-field"><label class="inv-field-label" for="cnVehicle">Vehicle no. (optional)</label>' +
+    '<input type="text" class="inv-input inv-id" id="cnVehicle" value="' + escHtml(_cnForm.vehicleNo) + '" data-action="invCnInput" autocomplete="off"></div>';
 
-  html += '<div class="inv-totals">' +
-    '<div class="inv-total-row"><span class="inv-total-label">Batch taxable</span><span class="inv-total-value">' + formatCurrency(c.batchTaxable) + '</span></div>' +
-    '<div class="inv-total-row"><span class="inv-total-label">Credit @ ' + escHtml(_cnForm.pct) + '%</span><span class="inv-total-value">' + formatCurrency(c.taxable) + '</span></div>';
+  var tot = function(label, v, strong) {
+    return '<div class="inv-row' + (strong ? ' inv-row-strong' : '') + '"><span class="inv-row-main">' + label + '</span>' +
+      '<span class="inv-row-end inv-num"' + (strong ? ' data-cn-total' : '') + '>' + formatCurrency(v) + '</span></div>';
+  };
+  html += '<div class="inv-panel inv-panel-flush inv-mb-8">' +
+    tot('Batch taxable', c.batchTaxable) +
+    tot('Credit @ ' + escHtml(_cnForm.pct) + '%', c.taxable);
   if (c.gstType === 'intra') {
-    html += '<div class="inv-total-row"><span class="inv-total-label">CGST @ ' + c.cgstPer + '%</span><span class="inv-total-value">' + formatCurrency(c.cgstAmt) + '</span></div>' +
-      '<div class="inv-total-row"><span class="inv-total-label">SGST @ ' + c.sgstPer + '%</span><span class="inv-total-value">' + formatCurrency(c.sgstAmt) + '</span></div>';
+    html += tot('CGST @ ' + c.cgstPer + '%', c.cgstAmt) + tot('SGST @ ' + c.sgstPer + '%', c.sgstAmt);
   } else {
-    html += '<div class="inv-total-row"><span class="inv-total-label">IGST @ ' + c.igstPer + '%</span><span class="inv-total-value">' + formatCurrency(c.igstAmt) + '</span></div>';
+    html += tot('IGST @ ' + c.igstPer + '%', c.igstAmt);
   }
-  html += '<div class="inv-total-row inv-total-row-grand"><span class="inv-total-label">Total credit</span>' +
-    '<span class="inv-total-grand">' + formatCurrency(c.grandTotal) + '</span></div></div>';
+  html += tot('Total credit', c.grandTotal, true) + '</div>';
 
-  html += '<div class="inv-form-hint">Shown on the note as ' + formatNum(c.qty, 2) + ' KG at &#8377;' +
+  html += '<div class="inv-note">Shown on the note as ' + formatNum(c.qty, 2) + ' KG at &#8377;' +
     formatNum(c.rate, 2) + '/KG &mdash; the kilograms these rupees represent at the batch rate, derived from the value.</div>';
 
-  html += '<div class="inv-btn-bar">' +
-    '<button class="inv-btn inv-btn-ghost" data-action="invCloseOverlay">Cancel</button>' +
+  html += '<div class="inv-dialog-foot">' +
+    '<button class="inv-btn inv-btn-secondary" data-action="invCloseOverlay">Cancel</button>' +
     '<button class="inv-btn inv-btn-primary" data-action="invCnSave">Raise ' + escHtml(cnDisplayNumber(recomputeNextCnNumber())) + '</button></div></div>';
 
-  var existing = document.querySelector('.inv-overlay-scrim');
-  if (existing) {
-    existing.innerHTML = html;
-  } else {
-    var scrim = document.createElement('div');
-    scrim.className = 'inv-overlay-scrim';
-    scrim.innerHTML = html;
-    pushFocus();
-    document.body.appendChild(scrim);
-    document.body.style.overflow = 'hidden';
-    focusFirstInteractive(scrim.querySelector('.inv-overlay-card'));
-  }
+  dialogOpen(html, { replace: true });
 }
 
 function captureCnForm() {
@@ -10884,7 +10491,7 @@ function cancelCreditNote(cnId) {
   cn.updatedAt = Date.now();
   saveState();
   // Cancelled from wherever the note is listed: the Register's overlay, or Finance → Bills & notes.
-  if (document.querySelector('.inv-overlay-scrim')) { closeOverlay(); renderCreditNoteList(); }
+  if (document.querySelector('.inv-scrim-dialog')) { closeOverlay(); renderCreditNoteList(); }
   else if (document.querySelector('#pageFinance.inv-page-active')) renderFinance();
   showToast(cn.displayNumber + ' cancelled — the number stays in the series');
 }
@@ -11167,10 +10774,7 @@ function cnSetAgainstInvoice(id) {
     return { num: num, idx: idx, inv: inv };
   });
 
-  var html = '<div class="inv-overlay-card">' +
-    '<div class="inv-overlay-header"><span class="inv-overlay-title">Against invoice &mdash; ' +
-    escHtml(cn.displayNumber) + '</span>' +
-    '<button class="inv-overlay-close" data-action="invCloseOverlay" aria-label="Close">&times;</button></div>' +
+  var html = '<div class="inv-dialog">' + dialogHeadHtml('Against invoice &mdash; ' + escHtml(cn.displayNumber)) +
     '<div class="inv-note inv-mb-8">Pick the invoice this credit note is taken against. It must carry ' +
     formatCurrency(need) + ' taxable.</div><div class="inv-panel inv-panel-flush">';
 
@@ -11195,16 +10799,7 @@ function cnSetAgainstInvoice(id) {
     '<button class="inv-btn inv-btn-secondary" data-action="invCnPickAgainst" data-id="' + escHtml(cn.id) +
     '" data-idx="-1">Clear &mdash; let the rule choose</button></div></div>';
 
-  var existing = document.querySelector('.inv-overlay-scrim');
-  if (existing) { existing.innerHTML = html; return; }
-  var scrim = document.createElement('div');
-  scrim.className = 'inv-overlay-scrim';
-  scrim.innerHTML = html;
-  scrim.addEventListener('click', function(e) { if (e.target === scrim) { scrim.remove(); document.body.style.overflow = ''; popFocus(); } });
-  pushFocus();
-  document.body.appendChild(scrim);
-  document.body.style.overflow = 'hidden';
-  focusFirstInteractive(scrim.querySelector('.inv-overlay-card'));
+  dialogOpen(html, { replace: true, dismiss: true });
 }
 
 /* Commit the pick. The headroom test binds whoever chose the invoice — the
@@ -11309,9 +10904,7 @@ function renderCreditNoteList() {
     return (parseInt(b.cnNumber, 10) || 0) - (parseInt(a.cnNumber, 10) || 0);
   });
 
-  var html = '<div class="inv-overlay-card">' +
-    '<div class="inv-overlay-header"><span class="inv-overlay-title">Credit notes</span>' +
-    '<button class="inv-overlay-close" data-action="invCloseOverlay" aria-label="Close">&times;</button></div>';
+  var html = '<div class="inv-dialog">' + dialogHeadHtml('Credit notes');
 
   if (notes.length === 0) {
     html += '<div class="inv-empty">No credit notes yet. Select a batch of invoices in the register to raise one.</div>';
@@ -11349,19 +10942,7 @@ function renderCreditNoteList() {
   }
   html += '</div>';
 
-  var existing = document.querySelector('.inv-overlay-scrim');
-  if (existing) {
-    existing.innerHTML = html;
-  } else {
-    var scrim = document.createElement('div');
-    scrim.className = 'inv-overlay-scrim';
-    scrim.innerHTML = html;
-    scrim.addEventListener('click', function(e) { if (e.target === scrim) { scrim.remove(); document.body.style.overflow = ''; popFocus(); } });
-    pushFocus();
-    document.body.appendChild(scrim);
-    document.body.style.overflow = 'hidden';
-    focusFirstInteractive(scrim.querySelector('.inv-overlay-card'));
-  }
+  dialogOpen(html, { replace: true, dismiss: true });
 }
 
 /* ===== EXPORT =====
@@ -11476,7 +11057,7 @@ function _chartLabelStride(n, maxLabels) {
 }
 
 function _chartEmpty(msg) {
-  return '<div class="inv-chart-empty">' + escHtml(msg) + '</div>';
+  return '<div class="inv-empty">' + escHtml(msg) + '</div>';
 }
 
 /* ===== TIME SERIES =====
@@ -11491,8 +11072,8 @@ function _chartFrame(data, unit, W, H, pad) {
   for (var g = 0; g <= 4; g++) {
     var gy = pad.t + (g / 4) * chartH;
     var gVal = maxVal - (g / 4) * maxVal;
-    svg += '<line x1="' + pad.l + '" y1="' + gy + '" x2="' + (W - pad.r) + '" y2="' + gy + '" class="inv-svg-grid"/>';
-    svg += '<text x="' + (pad.l - 4) + '" y="' + (gy + 3) + '" text-anchor="end" class="inv-svg-grid-label">' +
+    svg += '<line x1="' + pad.l + '" y1="' + gy + '" x2="' + (W - pad.r) + '" y2="' + gy + '" class="inv-chart-grid"/>';
+    svg += '<text x="' + (pad.l - 4) + '" y="' + (gy + 3) + '" text-anchor="end" class="inv-chart-grid-label">' +
       escHtml(chartShort(gVal, unit)) + '</text>';
   }
   return { svg: svg, maxVal: maxVal, chartW: chartW, chartH: chartH };
@@ -11521,16 +11102,16 @@ function chartLine(data, opts) {
   // Aspect is preserved, so a circle is a circle at any width.
   var svg = '<svg class="inv-chart-svg" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="' +
     escHtml(opts.ariaLabel || 'Trend') + '">' + f.svg;
-  svg += '<path d="' + area + '" class="inv-svg-area"/>';
-  svg += '<polyline points="' + line + '" class="inv-svg-line"/>';
+  svg += '<path d="' + area + '" class="inv-chart-area"/>';
+  svg += '<polyline points="' + line + '" class="inv-chart-line"/>';
 
   var stride = _chartLabelStride(data.length, opts.maxLabels);
   points.forEach(function(p, i) {
     // Every point carries its value; the marker is what the pointer aims at.
-    svg += '<circle cx="' + p.x + '" cy="' + p.y + '" r="3" class="inv-svg-dot">' +
+    svg += '<circle cx="' + p.x + '" cy="' + p.y + '" r="3" class="inv-chart-dot">' +
       '<title>' + escHtml(p.d.label + ': ' + chartFull(p.d.value, unit)) + '</title></circle>';
     if (i % stride === 0 || i === points.length - 1) {
-      svg += '<text x="' + p.x + '" y="' + (pad.t + f.chartH + 14) + '" text-anchor="middle" class="inv-svg-axis-label">' +
+      svg += '<text x="' + p.x + '" y="' + (pad.t + f.chartH + 14) + '" text-anchor="middle" class="inv-chart-axis">' +
         escHtml(p.d.label) + '</text>';
     }
   });
@@ -11561,7 +11142,7 @@ function chartBars(data, opts) {
       '<title>' + escHtml(d.label + ': ' + chartFull(d.value, unit)) + '</title></rect>';
     if (i % stride === 0 || i === data.length - 1) {
       svg += '<text x="' + (x + barW / 2) + '" y="' + (pad.t + f.chartH + 14) +
-        '" text-anchor="middle" class="inv-svg-axis-label">' + escHtml(d.label) + '</text>';
+        '" text-anchor="middle" class="inv-chart-axis">' + escHtml(d.label) + '</text>';
     }
   });
   svg += '</svg>';
@@ -11628,8 +11209,8 @@ function chartPie(slices, opts) {
     legend += '<div class="inv-chart-legend-row"' + tap + '>' +
       '<span class="inv-chart-swatch ' + cls + '"></span>' +
       '<span class="inv-chart-legend-label">' + escHtml(s.label) + '</span>' +
-      '<span class="inv-chart-legend-val inv-mono">' + escHtml(chartShort(s.value, unit)) + '</span>' +
-      '<span class="inv-chart-legend-pct inv-mono">' + formatNum(s.value / total * 100, 1) + '%</span></div>';
+      '<span class="inv-chart-legend-val inv-num">' + escHtml(chartShort(s.value, unit)) + '</span>' +
+      '<span class="inv-chart-legend-pct inv-num">' + formatNum(s.value / total * 100, 1) + '%</span></div>';
   });
   legend += '</div>';
 
@@ -11651,7 +11232,7 @@ function chartRankedBars(rows, opts) {
     html += '<div class="inv-chart-ranked-row"' + tap + '>' +
       '<div class="inv-chart-ranked-head">' +
       '<span class="inv-chart-ranked-label">' + escHtml(r.label) + '</span>' +
-      '<span class="inv-chart-ranked-val inv-mono">' + escHtml(r.display || chartFull(r.value, unit)) + '</span></div>' +
+      '<span class="inv-chart-ranked-val inv-num">' + escHtml(r.display || chartFull(r.value, unit)) + '</span></div>' +
       '<div class="inv-chart-ranked-track">' +
       '<svg class="inv-chart-ranked-svg" viewBox="0 0 100 8" preserveAspectRatio="none" aria-hidden="true">' +
       '<rect width="' + pct + '" height="8" rx="2" class="inv-chart-ranked-fill' +
@@ -11697,7 +11278,7 @@ function _chartSeriesLegend(series, unit, lastOf) {
   return '<div class="inv-chart-keys">' + series.map(function(s, i) {
     var v = lastOf ? lastOf(s) : null;
     return '<span class="inv-chart-key"><span class="inv-chart-swatch inv-chart-c' + (s.tone != null ? s.tone : i) + '"></span>' + escHtml(s.label) +
-      (v != null ? ' <span class="inv-mono">' + escHtml(chartShort(v, unit)) + '</span>' : '') + '</span>';
+      (v != null ? ' <span class="inv-num">' + escHtml(chartShort(v, unit)) + '</span>' : '') + '</span>';
   }).join('') + '</div>';
 }
 
@@ -11719,8 +11300,8 @@ function chartLines(labels, series, opts) {
   var svg = '<svg class="inv-chart-svg" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="' + escHtml(opts.ariaLabel || 'Trend') + '">';
   for (var g = 0; g <= 4; g++) {
     var gv = r.hi - (g / 4) * (r.hi - r.lo), gy = y(gv);
-    svg += '<line x1="' + pad.l + '" y1="' + gy + '" x2="' + (W - pad.r) + '" y2="' + gy + '" class="inv-svg-grid"/>' +
-      '<text x="' + (pad.l - 4) + '" y="' + (gy + 3) + '" text-anchor="end" class="inv-svg-grid-label">' + escHtml(chartShort(gv, unit)) + '</text>';
+    svg += '<line x1="' + pad.l + '" y1="' + gy + '" x2="' + (W - pad.r) + '" y2="' + gy + '" class="inv-chart-grid"/>' +
+      '<text x="' + (pad.l - 4) + '" y="' + (gy + 3) + '" text-anchor="end" class="inv-chart-grid-label">' + escHtml(chartShort(gv, unit)) + '</text>';
   }
   if (r.lo < 0) svg += '<line x1="' + pad.l + '" y1="' + y(0) + '" x2="' + (W - pad.r) + '" y2="' + y(0) + '" class="inv-chart-zero"/>';
   if (opts.band) {
@@ -11741,7 +11322,7 @@ function chartLines(labels, series, opts) {
   });
   var stride = _chartLabelStride(labels.length, opts.maxLabels);
   labels.forEach(function(l, i) {
-    if (i % stride === 0 || i === labels.length - 1) svg += '<text x="' + x(i) + '" y="' + (pad.t + ch + 14) + '" text-anchor="middle" class="inv-svg-axis-label">' + escHtml(l) + '</text>';
+    if (i % stride === 0 || i === labels.length - 1) svg += '<text x="' + x(i) + '" y="' + (pad.t + ch + 14) + '" text-anchor="middle" class="inv-chart-axis">' + escHtml(l) + '</text>';
   });
   svg += '</svg>';
   var last = function(s) { for (var i = s.values.length - 1; i >= 0; i--) if (s.values[i] != null) return s.values[i]; return null; };
@@ -11777,7 +11358,7 @@ function chartStack(labels, series, opts) {
         (opts.selected != null && String(opts.selected) === String(key) ? ' aria-current="true"' : '') + '><title>' + escHtml(read) + '</title></rect>';
       if (!group) base -= h;
     });
-    if (i % stride === 0 || i === labels.length - 1) svg += '<text x="' + (x0 + barW / 2) + '" y="' + (pad.t + f.chartH + 14) + '" text-anchor="middle" class="inv-svg-axis-label">' + escHtml(l) + '</text>';
+    if (i % stride === 0 || i === labels.length - 1) svg += '<text x="' + (x0 + barW / 2) + '" y="' + (pad.t + f.chartH + 14) + '" text-anchor="middle" class="inv-chart-axis">' + escHtml(l) + '</text>';
   });
   svg += '</svg>';
   if (!opts.readHint) opts.readHint = 'Tap a bar to read it';
@@ -11817,8 +11398,8 @@ function chartPieTap(slices, opts) {
     var sel = opts.selected != null && String(opts.selected) === String(s.key);
     return '<button type="button" class="inv-chart-legend-row" data-action="' + escHtml(act) + '" data-key="' + escHtml(s.key) + '" data-read="' + escHtml(s.label + ': ' + chartFull(s.value, unit)) + '"' +
       ' aria-pressed="' + sel + '"><span class="inv-chart-swatch inv-chart-c' + (s._others ? 'x' : (s.tone != null ? s.tone : i)) + '"></span>' +
-      '<span class="inv-chart-legend-label">' + escHtml(s.label) + '</span><span class="inv-chart-legend-val inv-mono">' + escHtml(chartShort(s.value, unit)) + '</span>' +
-      '<span class="inv-chart-legend-pct inv-mono">' + formatNum(s.value / total * 100, 1) + '%</span></button>';
+      '<span class="inv-chart-legend-label">' + escHtml(s.label) + '</span><span class="inv-chart-legend-val inv-num">' + escHtml(chartShort(s.value, unit)) + '</span>' +
+      '<span class="inv-chart-legend-pct inv-num">' + formatNum(s.value / total * 100, 1) + '%</span></button>';
   }).join('') + '</div>';
   return _chartBox('<div class="inv-chart-pie-wrap">' + svg + legend + '</div>', opts);
 }
@@ -12485,7 +12066,6 @@ function _attExtraCard(iso, rec) {
 }
 
 /* ===== WEEK VIEW ===== */
-var ATT_CELL_TONE = { P: 'ok', H: 'warning', A: 'danger' };
 
 function _attWeekView() {
   var days = attWeekDays(_attWeekStart);
@@ -12520,7 +12100,7 @@ function _attWeekView() {
       // day for the hourly pool, the overtime on top for everyone else.
       var badge = m ? (hourly ? (m.hours || 0) : (m.ot || 0)) : 0;
       html += '<td' + (attParseIso(d).getDay() === 0 ? ' data-sun' : '') + '><button class="inv-cell inv-cell-' +
-        (st ? ATT_CELL_TONE[st] : 'empty') + '" data-action="invAttCycle" data-id="' + w.id + '" data-date="' + d +
+        (st ? ATT_STATE_TONE[st] : 'empty') + '" data-action="invAttCycle" data-id="' + w.id + '" data-date="' + d +
         '" aria-label="' + escHtml(w.name) + ' ' + attDayName(d) + ' ' + (st ? ATT_STATE_LABELS[st] : 'unmarked') +
         (badge ? ', ' + formatNum(badge, 1) + ' hours' : '') + '">' +
         (st || '&middot;') + (badge ? '<span class="inv-unit">' + formatNum(badge, 0) + '</span>' : '') +
@@ -12893,11 +12473,8 @@ function _showWorkerOverlay(worker, isAdd) {
   var num = function(id, v, step) {
     return '<input class="inv-input inv-input-num" id="' + id + '" type="number" step="' + step + '" min="0" value="' + v + '">';
   };
-  var scrim = document.createElement('div');
-  scrim.className = 'inv-overlay-scrim';
-  scrim.innerHTML = '<div class="inv-overlay-card">' +
-    '<div class="inv-overlay-header"><span class="inv-overlay-title">' + (isAdd ? 'Add worker' : 'Edit worker') + '</span>' +
-    '<button class="inv-overlay-close" data-action="invCloseOverlay" aria-label="Close">&times;</button></div>' +
+  dialogOpen('<div class="inv-dialog">' +
+    dialogHeadHtml((isAdd ? 'Add worker' : 'Edit worker')) +
     _wfield('wedName', 'Name', '<input class="inv-input" id="wedName" value="' + escHtml(w.name) + '">') +
     '<div class="inv-fields">' +
     _wfield('wedComp', 'Comp class', '<select class="inv-select" id="wedComp">' +
@@ -12931,16 +12508,9 @@ function _showWorkerOverlay(worker, isAdd) {
     (isAdd ? '' : _mergeControl(w)) +
     (isAdd ? '' : '<div><button class="inv-btn inv-btn-danger inv-btn-sm" data-action="invAttDeleteWorker" data-id="' + w.id + '">Delete worker' +
       (marks > 0 ? ' (' + marks + ' day' + (marks === 1 ? '' : 's') + ' recorded)' : '') + '</button></div>') +
-    '<div class="inv-btn-bar"><button class="inv-btn inv-btn-secondary" data-action="invCloseOverlay">Cancel</button>' +
+    '<div class="inv-dialog-foot"><button class="inv-btn inv-btn-secondary" data-action="invCloseOverlay">Cancel</button>' +
     '<button class="inv-btn inv-btn-primary" data-action="invAttSaveWorker" data-id="' + w.id +
-    '" data-mode="' + (isAdd ? 'add' : 'edit') + '">' + (isAdd ? 'Add worker' : 'Save') + '</button></div></div>';
-  scrim.addEventListener('click', function(e) {
-    if (e.target === scrim) { scrim.remove(); document.body.style.overflow = ''; popFocus(); }
-  });
-  pushFocus();
-  document.body.appendChild(scrim);
-  document.body.style.overflow = 'hidden';
-  focusFirstInteractive(scrim.querySelector('.inv-overlay-card'));
+    '" data-mode="' + (isAdd ? 'add' : 'edit') + '">' + (isAdd ? 'Add worker' : 'Save') + '</button></div></div>', { dismiss: true });
 }
 
 /* Days on which the attendance record names this worker.
@@ -13587,11 +13157,8 @@ function mergeWorkerInto(fromId) {
    cannot tell whether the double entry reached a payout. Naming the dates is
    the whole point; a count would say there is a problem without saying where. */
 function showCollisionReport(res) {
-  var scrim = document.createElement('div');
-  scrim.className = 'inv-overlay-scrim';
-  scrim.innerHTML = '<div class="inv-overlay-card">' +
-    '<div class="inv-overlay-header"><span class="inv-overlay-title">Days marked on both rows</span>' +
-    '<button class="inv-overlay-close" data-action="invCloseOverlay" aria-label="Close">&times;</button></div>' +
+  dialogOpen('<div class="inv-dialog">' +
+    dialogHeadHtml('Days marked on both rows') +
     '<div class="inv-note inv-mb-8">' + res.collided + ' day' + (res.collided === 1 ? '' : 's') +
     ' had a mark on <strong>' + escHtml(res.fromName) + '</strong> and on <strong>' +
     escHtml(res.intoName) + '</strong>. Each has been collapsed to the fuller mark &mdash; a ' +
@@ -13606,15 +13173,8 @@ function showCollisionReport(res) {
     '<div class="inv-callout inv-callout-warning">Those days were entered twice before this merge. ' +
     'Check them against the payout for that week &mdash; the app cannot tell whether the ' +
     'double entry reached one.</div>' +
-    '<div class="inv-btn-bar"><button class="inv-btn inv-btn-primary" ' +
-    'data-action="invCloseOverlay">Done</button></div></div>';
-  scrim.addEventListener('click', function(e) {
-    if (e.target === scrim) { scrim.remove(); document.body.style.overflow = ''; popFocus(); }
-  });
-  pushFocus();
-  document.body.appendChild(scrim);
-  document.body.style.overflow = 'hidden';
-  focusFirstInteractive(scrim.querySelector('.inv-overlay-card'));
+    '<div class="inv-dialog-foot"><button class="inv-btn inv-btn-primary" ' +
+    'data-action="invCloseOverlay">Done</button></div></div>', { dismiss: true });
 }
 
 /* Deletion is refused while attendance names the worker. Removing the row would
@@ -14016,10 +13576,8 @@ function _labCallout(html, tone) {
   return '<div class="inv-panel-body"><div class="inv-callout' + (tone ? ' inv-callout-' + tone : '') + '">' + html + '</div></div>';
 }
 /* A tile on a card's strip (§6.9). `key` names it for whoever reads the card back (data-tile). */
-function _labTile(key, label, value, sub, tone) {
-  return '<div class="inv-tile' + (tone ? ' inv-tile-' + tone : '') + '" data-tile="' + key + '"><div class="inv-tile-label">' + label + '</div>' +
-    '<div class="inv-tile-value">' + value + '</div>' + (sub ? '<div class="inv-tile-sub">' + sub + '</div>' : '') + '</div>';
-}
+/* The labour card's tiles are Stats' tiles (one markup for a tile, §6.9); `sub` is the caption's HTML. */
+function _labTile(key, label, value, sub, tone) { return statsTile(key, label, value, statsTileSub(sub), tone); }
 /* The card itself: a flush panel, its total in the head. */
 function _labPanelHead(card, title, total, extraClass, id) {
   return '<div class="inv-panel inv-panel-flush' + (extraClass ? ' ' + extraClass : '') + '" data-card="' + card + '"' + (id ? ' id="' + id + '"' : '') + '>' +
@@ -14924,11 +14482,8 @@ function openAreaExplain(payload) {
   var d;
   try { d = JSON.parse(decodeURIComponent(payload)); } catch (e) { return; }
   _exPending = d;
-  var scrim = document.createElement('div');
-  scrim.className = 'inv-overlay-scrim';
-  scrim.innerHTML = '<div class="inv-overlay-card">' +
-    '<div class="inv-overlay-header"><span class="inv-overlay-title">Explain this exception</span>' +
-    '<button class="inv-overlay-close" data-action="invCloseOverlay" aria-label="Close">&times;</button></div>' +
+  dialogOpen('<div class="inv-dialog">' +
+    dialogHeadHtml('Explain this exception') +
     '<div class="inv-note inv-mb-8">' + escHtml(d.label) + ' &middot; ' + formatDate(d.iso) + ' &mdash; ' +
     'booked <span class="inv-num">' + formatNum(d.booked, 1) + ' h</span> against a predicted ' +
     '<span class="inv-num">' + formatNum(d.expected, 1) + ' h</span>. Say what the record shows, ' +
@@ -14936,11 +14491,10 @@ function openAreaExplain(payload) {
     '<div class="inv-field"><label class="inv-field-label" for="areaExReason">Reason</label>' +
     '<textarea class="inv-textarea" id="areaExReason" rows="3" ' +
     'placeholder="e.g. no fold value reconciles both rows of this block"></textarea></div>' +
-    '<div class="inv-btn-bar">' +
+    '<div class="inv-dialog-foot">' +
     '<button class="inv-btn inv-btn-secondary" data-action="invCloseOverlay">Cancel</button>' +
     '<button class="inv-btn inv-btn-primary" data-action="invAreaExplainSave">Record it</button>' +
-    '</div></div>';
-  document.body.appendChild(scrim);
+    '</div></div>');
   var ta = document.getElementById('areaExReason');
   if (ta) ta.focus();
 }
@@ -16467,7 +16021,6 @@ function setStockBy(v) { try { localStorage.setItem(STOCK_BY_KEY, v); } catch (e
 // The stock tones in the five status words of the design system (§3.3): a line
 // charged into a bath is information, not a warning, and one with no rate yet is neutral.
 var STOCK_TONE = { red: 'danger', amber: 'warning', ok: 'ok', bath: 'info', none: 'neutral' };
-var STOCK_ISSUE_TONE = { red: 'danger', amber: 'warning', info: 'info' };
 var _stockFilter = null;   // a Lines tile pressed: 'out' | 'low' | 'ok' | 'none' (none takes the bath lines too)
 var STOCK_BACK_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="15 18 9 12 15 6"/></svg>';
 
@@ -16580,7 +16133,7 @@ function renderStockList(open) {
   if (_isDesktop) return h + stockLinesTableHtml(groups, shown, titles, open);
   h += '<div class="inv-panel inv-panel-flush" id="stockLines">';
   shown.forEach(function(g) {
-    h += '<div class="inv-row-group"><span>' + escHtml(titles[g]) + '</span><span class="inv-mono">' + groups[g].length + '</span></div>';
+    h += '<div class="inv-row-group"><span>' + escHtml(titles[g]) + '</span><span class="inv-num">' + groups[g].length + '</span></div>';
     groups[g].forEach(function(x) { h += stockRowHtml(x.item, x.st); });
   });
   return h + '</div>';
@@ -16595,7 +16148,7 @@ function stockRowHtml(item, s) {
 
 /* The desktop: one table grouped by status, and the open line in the pane beside it. */
 function stockLinesTableHtml(groups, shown, titles, open) {
-  var h = '<div class="inv-master-detail inv-master-detail-pane' + (open ? ' inv-pane-open' : '') + '" id="stockMasterDetail"><div class="inv-master" id="stockLines">' +
+  var h = '<div class="inv-pane-host' + (open ? ' inv-pane-open' : '') + '" id="stockMasterDetail"><div class="inv-pane-list" id="stockLines">' +
     '<table class="inv-table"><thead><tr><th class="inv-col-grow">Line</th><th class="inv-num">On hand</th><th class="inv-col-opt1">Record</th>' +
     '<th>Status</th></tr></thead><tbody>';
   shown.forEach(function(g) {
@@ -16609,10 +16162,9 @@ function stockLinesTableHtml(groups, shown, titles, open) {
         '<td>' + stockStatusDot(x.st) + (stockUnsettled(it) ? ' <span class="inv-badge inv-badge-warning">Count unsettled</span>' : '') + '</td></tr>';
     });
   });
-  h += '</tbody></table></div><div class="inv-detail inv-pane" id="stockDetail">';
+  h += '</tbody></table></div><div class="inv-pane" id="stockDetail">';
   if (open) {
-    h += '<div class="inv-pane-head"><span class="inv-panel-title">' + escHtml(open.name) + '</span>' +
-      '<button class="inv-btn inv-btn-icon inv-btn-ghost" data-action="invStockPaneClose" aria-label="Close">&times;</button></div>' + stockItemBodyHtml(open);
+    h += paneHeadHtml('<span class="inv-panel-title">' + escHtml(open.name) + '</span>', 'invStockPaneClose') + stockItemBodyHtml(open);
   }
   return h + '</div></div>';
 }
@@ -16701,10 +16253,10 @@ function stockReviewRowHtml(r, rv, res, st) {
   var h = '<div class="inv-row inv-row-auto inv-row-top" data-line="' + r.src.n + '" data-tone="' + r.tone + '"><div class="inv-row-main">' +
     '<div class="inv-row-title">' + r.src.n + ' &middot; ' + escHtml(name) + '</div>' +
     '<div class="inv-quote inv-mt-4">' + escHtml(r.src.raw) + '</div>' +
-    (stockResultText(r, unit) ? '<div class="inv-mono inv-mt-4">' + escHtml(stockResultText(r, unit)) + '</div>' : '');
+    (stockResultText(r, unit) ? '<div class="inv-verdict-text inv-mt-4">' + escHtml(stockResultText(r, unit)) + '</div>' : '');
   r.issues.forEach(function(is) {
     if (is.code === 'new' && r.tone !== 'clear') return;
-    h += '<div class="inv-callout inv-callout-' + (STOCK_ISSUE_TONE[is.level] || 'neutral') + ' inv-mt-8">' + escHtml(is.text) + '</div>';
+    h += '<div class="inv-callout inv-callout-' + uiTone(is.level) + ' inv-mt-8">' + escHtml(is.text) + '</div>';
     if (is.code === 'balance') {
       var cur = rv.choices['bal' + r.idx] || 'unsettled';
       var opts = [['working', 'Use the working: ' + stockFmtQty(is.expected)], ['written', 'Use the figure written: ' + stockFmtQty(is.written)], ['unsettled', 'Save as unsettled, ask']];
@@ -16941,7 +16493,7 @@ function stockEntryRowHtml(e, r, unit) {
   }
   var armed = _stockVoidArm === e.id;
   return '<div class="inv-row inv-row-auto inv-row-top' + (e.voided ? ' inv-row-muted' : '') + '" data-entry="' + escHtml(e.id) + '"><div class="inv-row-main">' +
-    '<div class="inv-row-title">' + escHtml(STOCK_KIND_LABEL[e.kind] || e.kind) + ' <strong class="inv-mono">' + escHtml(stockFmtQty(e.qty)) + ' ' + escHtml(unit) + '</strong>' +
+    '<div class="inv-row-title">' + escHtml(STOCK_KIND_LABEL[e.kind] || e.kind) + ' <strong class="inv-num">' + escHtml(stockFmtQty(e.qty)) + ' ' + escHtml(unit) + '</strong>' +
     (e.unsettled ? ' <span class="inv-badge inv-badge-warning">Unsettled</span>' : '') + (e.voided ? ' <span class="inv-badge inv-badge-neutral">Voided</span>' : '') + '</div>' +
     '<div class="inv-row-meta inv-row-wrap">' + escHtml(when + ' · ' + src) + '</div>' +
     (extra.length ? '<div class="inv-row-meta inv-row-wrap">' + escHtml(extra.join(' · ')) + '</div>' : '') + gap +
@@ -17904,7 +17456,7 @@ function stockReorderSub(g) { var sub = g.rows.reduce(function(s, r) { return s 
 function stockReorderRowsHtml(L) {
   var h = '';
   L.groups.forEach(function(g) {
-    h += '<div class="inv-row-group"><span>' + escHtml(g.supplier) + '</span><span class="inv-mono">' + escHtml(stockReorderSub(g)) + '</span></div>';
+    h += '<div class="inv-row-group"><span>' + escHtml(g.supplier) + '</span><span class="inv-num">' + escHtml(stockReorderSub(g)) + '</span></div>';
     g.rows.forEach(function(r) {
       h += '<div class="inv-row inv-row-2 inv-row-flow"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(r.item.name) + '</span>' +
         '<span class="inv-row-meta inv-row-wrap">' + escHtml(stockReorderWhy(r, true)) + '</span></span>' +
@@ -19489,8 +19041,8 @@ function _bankEditHtml(v) {
     h += '<div class="inv-field"><label class="inv-field-label" for="bankEditStaff">Paid to</label><select class="inv-select" id="bankEditStaff"><option value="">Nobody on the roster</option>' +
       (S.staff || []).map(function(w) { return '<option value="' + escHtml(String(w.id)) + '"' + (String(v.staffId) === String(w.id) ? ' selected' : '') + '>' + escHtml(w.name) + '</option>'; }).join('') + '</select></div>';
   }
-  if (r.dr > 0) h += '<label class="inv-check-row"><input type="checkbox" class="inv-check" id="bankEditNotCost"' + (v.notCost ? ' checked' : '') + '> Not an operating cost (drawings, a loan, a transfer)</label>';
-  h += '</div>' + (canRule ? '<label class="inv-check-row"><input type="checkbox" class="inv-check" id="bankEditAll" checked> Every payment ' + (r.cr > 0 ? 'from' : 'to') + ' ' + escHtml(v.party) + '</label>' : '') +
+  if (r.dr > 0) h += '<label class="inv-field-check"><input type="checkbox" class="inv-check" id="bankEditNotCost"' + (v.notCost ? ' checked' : '') + '> Not an operating cost (drawings, a loan, a transfer)</label>';
+  h += '</div>' + (canRule ? '<label class="inv-field-check"><input type="checkbox" class="inv-check" id="bankEditAll" checked> Every payment ' + (r.cr > 0 ? 'from' : 'to') + ' ' + escHtml(v.party) + '</label>' : '') +
     '<div class="inv-toolbar"><button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invBankEditCancel">Cancel</button>' +
     '<button class="inv-btn inv-btn-primary inv-btn-sm" data-action="invBankEditSave" data-id="' + escHtml(r.id) + '">Save</button></div></div>';
   return h;
@@ -19860,7 +19412,7 @@ function finOverviewHtml() {
 
   var tile = function(label, value, sub, tone, key) {
     return '<div class="inv-tile' + (tone ? ' inv-tile-' + tone : '') + '" data-fin-tile="' + key + '"><div class="inv-tile-label">' + label + '</div>' +
-      '<div class="inv-tile-value inv-num">' + value + '</div><div class="inv-tile-sub">' + sub + '</div></div>';
+      '<div class="inv-tile-value">' + value + '</div><div class="inv-tile-sub">' + sub + '</div></div>';
   };
   var h = '<div class="inv-tiles">' +
     tile('Bank balance', last ? formatCurrency(last.balance) : '&mdash;', last ? 'on ' + escHtml(formatDate(last.date)) + (stale > 7 ? ' · statement ' + stale + ' days old' : '') : 'no statement imported',
@@ -19970,7 +19522,7 @@ function finOverviewHtml() {
   h += '<div class="inv-panel inv-panel-flush" id="finOwed"><div class="inv-panel-head"><span class="inv-panel-title">Owed to us</span><span class="inv-panel-count inv-num">' + formatCurrency(owed) + '</span></div>' +
     '<div class="inv-tiles inv-tiles-flush inv-tiles-4">' + bands.map(function(b, i) {
       return '<div class="inv-tile' + (i === 3 && b.amount > 0 ? ' inv-tile-danger' : i === 2 && b.amount > 0 ? ' inv-tile-warning' : '') + '" data-age="' + i + '"><div class="inv-tile-label">' + b.label + '</div>' +
-        '<div class="inv-tile-value inv-tile-value-sm inv-num" title="' + escHtml(formatCurrency(b.amount)) + '">' + finRs(b.amount) + '</div><div class="inv-tile-sub">' + finPl(b.n, 'invoice') + '</div></div>';
+        '<div class="inv-tile-value inv-tile-value-sm" title="' + escHtml(formatCurrency(b.amount)) + '">' + finRs(b.amount) + '</div><div class="inv-tile-sub">' + finPl(b.n, 'invoice') + '</div></div>';
     }).join('') + '</div>';
   var payHist = bankPayHistory(recv);
   top.forEach(function(r) {
@@ -20482,14 +20034,7 @@ function todoRefreshViews() {
 /* ---------- Overlays ---------- */
 function todoOverlay(title, body) {
   closeOverlay();
-  var scrim = document.createElement('div');
-  scrim.className = 'inv-overlay-scrim';
-  scrim.innerHTML = '<div class="inv-overlay-card"><div class="inv-overlay-header"><span class="inv-overlay-title">' + title + '</span>' +
-    '<button class="inv-overlay-close" data-action="invCloseOverlay" aria-label="Close">&times;</button></div>' + body + '</div>';
-  scrim.addEventListener('click', function(e) { if (e.target === scrim) closeOverlay(); });
-  pushFocus();
-  document.body.appendChild(scrim);
-  focusFirstInteractive(scrim.querySelector('.inv-overlay-card'));
+  dialogOpen('<div class="inv-dialog">' + dialogHeadHtml(title) + body + '</div>', { dismiss: true });
 }
 
 function todoOpenApp(key) {
@@ -20510,7 +20055,7 @@ function todoOpenApp(key) {
     '<div class="inv-field inv-mt-16"><span class="inv-field-label">Snooze</span><div class="inv-toolbar">' +
     '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invTodoSnooze" data-key="' + escHtml(key) + '" data-v="sig">Until the figures change</button>' +
     '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invTodoSnooze" data-key="' + escHtml(key) + '" data-v="7">1 week</button></div></div>' +
-    '<div class="inv-btn-bar"><button class="inv-btn inv-btn-primary" data-action="invTodoGoApp" data-key="' + escHtml(key) + '">' + escHtml(t.goLabel) + '</button></div>';
+    '<div class="inv-dialog-foot"><button class="inv-btn inv-btn-primary" data-action="invTodoGoApp" data-key="' + escHtml(key) + '">' + escHtml(t.goLabel) + '</button></div>';
   todoOverlay('From your data', h);
 }
 
@@ -20550,7 +20095,7 @@ function todoOpenEdit(id, text) {
     '<select class="inv-select" id="todoLinkId"' + (kind ? '' : ' disabled') + '>' + todoLinkOptions(kind, v.link ? v.link.id : '') + '</select></div></div>' +
     '<div class="inv-field"><label class="inv-field-label" for="todoNote">Note</label>' +
     '<textarea class="inv-textarea" id="todoNote" rows="2">' + escHtml(v.note || '') + '</textarea></div>' +
-    '<div class="inv-btn-bar">' + (t && !t.doneAt ? '<button class="inv-btn inv-btn-secondary" data-action="invTodoToggle" data-id="' + escHtml(t.id) + '">Mark done</button>' : '') +
+    '<div class="inv-dialog-foot">' + (t && !t.doneAt ? '<button class="inv-btn inv-btn-secondary" data-action="invTodoToggle" data-id="' + escHtml(t.id) + '">Mark done</button>' : '') +
     '<button class="inv-btn inv-btn-primary" data-action="invTodoSave" data-id="' + escHtml(t ? t.id : '') + '">Save</button></div>';
   todoOverlay(t ? 'Task' : 'New task', h);
 }
@@ -20594,7 +20139,7 @@ function todoToggle(id, by) {
   if (t.doneAt) { t.doneAt = null; delete t.doneBy; }
   else { t.doneAt = Date.now(); t.doneBy = by || 'app'; }
   saveState();
-  if (document.querySelector('.inv-overlay-scrim')) closeOverlay();
+  if (document.querySelector('.inv-scrim-dialog')) closeOverlay();
   todoRefreshViews();
 }
 function todoSnooze(key, v) {
@@ -21728,7 +21273,6 @@ function relayMarkText(m) {
 /* The check before saving (§7, Paste message): the stock check's contract — every line beside what it was read
    as, the questions first as callouts with their pickers, each day's marks as rows with a badge for what changes,
    and Save in the action bar with what it will write. */
-var RELAY_ISSUE_TONE = { red: 'danger', amber: 'warning', info: 'info' };
 var RELAY_CHANGE = {
   kept: ['warning', 'Kept'], 'new': ['ok', 'New'], updated: ['info', 'Updated'], same: ['neutral', 'Same']
 };
@@ -21752,7 +21296,7 @@ function relayRenderReview() {
       '<span class="inv-panel-count">' + plan.issues.length + '</span></span></div>';
     plan.issues.forEach(function(is) {
       h += '<div class="inv-row inv-row-auto inv-row-top"><div class="inv-row-main">' +
-        '<div class="inv-callout inv-callout-' + (RELAY_ISSUE_TONE[is.tone] || 'neutral') + '" data-issue="' + escHtml(is.tone) + '">Line ' + is.n + ': ' + escHtml(is.text) + '</div>';
+        '<div class="inv-callout inv-callout-' + uiTone(is.tone) + '" data-issue="' + escHtml(is.tone) + '">Line ' + is.n + ': ' + escHtml(is.text) + '</div>';
       // A name not placed, one read as somebody, or one left out: each gets the
       // picker, so a wrong guess is put right here and remembered from then on.
       if (is.key && (is.tone === 'red' || is.tone === 'info' || is.id != null) && !askedNames[is.key]) {
@@ -22146,7 +21690,6 @@ function statsRow(title, meta, end, attrs, extra) {
 }
 function statsNum(html, cls) { return '<span class="inv-num' + (cls ? ' ' + cls : '') + '">' + html + '</span>'; }
 function statsUnit(u) { return '<span class="inv-unit">' + u + '</span>'; }
-function statsDot(tone, word) { return '<span class="inv-dot inv-dot-' + tone + '">' + word + '</span>'; }
 
 /* A padded stretch in a flush panel: a callout (neutral unless toned), a note, a chart. */
 function statsBody(html) { return '<div class="inv-panel-body">' + html + '</div>'; }
@@ -22462,7 +22005,7 @@ function renderStats() {
     (igst > 0 ? statsRow('IGST @ 18%', '', statsNum(formatCurrency(igst))) : '') +
     statsRow('Not yet marked filed', unfiledCount + ' invoice' + (unfiledCount === 1 ? '' : 's'),
       '<span class="inv-row-stack">' + statsNum(formatCurrency(gstRound(unfiledTax))) +
-      (unfiledCount > 0 ? statsDot('warning', unfiledCount + ' unfiled') : statsDot('ok', 'All filed')) + '</span>', ' data-unfiled') +
+      (unfiledCount > 0 ? uiDot('warning', unfiledCount + ' unfiled') : uiDot('ok', 'All filed')) + '</span>', ' data-unfiled') +
     '</div>';
 
   /* ===== Card 3: Invoice states ===== */
@@ -22472,7 +22015,7 @@ function renderStats() {
     if (stateCount[s] != null) stateCount[s]++;
   });
   html += statsPanel('states', 'Invoice states', '') + statsTiles(Object.keys(stateCount).map(function(s) {
-    return statsTile(s, statsDot(INV_STATE_TONE[s], INV_STATE_LABELS[s]), String(stateCount[s]));
+    return statsTile(s, uiDot(INV_STATE_TONE[s], INV_STATE_LABELS[s]), String(stateCount[s]));
   }).join(''), true) + '</div>';
 
   take('billing');
@@ -22506,7 +22049,7 @@ function renderStats() {
         var below = costPerKg > 0 && r.realisation < costPerKg;
         html += statsRow(escHtml(r.name), formatNum(r.kg / 1000, 2) + ' t · ' + formatCurrency(r.total),
           '<span class="inv-row-stack">' + statsNum(formatCurrency(r.realisation) + statsUnit('/kg')) +
-          (below ? statsDot('danger', 'Below cost') : '') + '</span>',
+          (below ? uiDot('danger', 'Below cost') : '') + '</span>',
           ' data-action="invStatsClientDrill" data-client-id="' + r.clientId + '" data-client-row');
       });
 
@@ -22515,7 +22058,7 @@ function renderStats() {
         partial.forEach(function(r) {
           html += statsRow(escHtml(r.name), 'weights on ' + Math.round(r.coverage * 100) + '% of revenue · ' +
             (r.kg > 0 ? formatNum(r.kg / 1000, 2) + ' t · ' : '') + formatCurrency(r.total),
-            statsDot('neutral', 'n/a'),
+            uiDot('neutral', 'n/a'),
             ' data-action="invStatsClientDrill" data-client-id="' + r.clientId + '" data-client-row data-partial');
         });
         var partialRev = partial.reduce(function(s, r) { return s + r.total; }, 0);
@@ -22559,8 +22102,8 @@ function renderStats() {
       statsRow(escHtml(top.name), 'Largest client by revenue', '') +
       statsRow('Share of revenue', '', statsNum(formatNum(topRevShare, 0) + '%')) +
       statsRow('Share of tonnage', '', topKgShare != null
-        ? '<span class="inv-row-stack">' + statsNum(formatNum(topKgShare, 0) + '%') + (heavier ? statsDot('warning', 'above its revenue share') : '') + '</span>'
-        : statsDot('neutral', 'not measurable')) +
+        ? '<span class="inv-row-stack">' + statsNum(formatNum(topKgShare, 0) + '%') + (heavier ? uiDot('warning', 'above its revenue share') : '') + '</span>'
+        : uiDot('neutral', 'not measurable')) +
       statsRow('Top 3 share', '', statsNum(formatNum((top3Rev / totalRev) * 100, 0) + '%'));
     if (heavier) {
       html += statsCallout(escHtml(top.name) + ' takes a larger share of the plant than of the revenue &mdash; ' +
@@ -22812,15 +22355,11 @@ function openClientDrillOverlay(clientId) {
   var periodLabel = PERIOD_LABELS[_statsPeriod] || 'All';
   var flipIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M17 1l4 4-4 4"/><path d="M3 11V9a4 4 0 014-4h14"/><path d="M7 23l-4-4 4-4"/><path d="M21 13v2a4 4 0 01-4 4H3"/></svg>';
 
-  pushFocus();
-  document.body.style.overflow = 'hidden';
-  var scrim = document.createElement('div');
-  scrim.className = 'inv-overlay-scrim';
-  scrim.innerHTML = '<div class="inv-overlay-card inv-flip-container" data-drill="' + clientId + '">' +
-    '<div class="inv-flip-inner">' +
+  // Two faces, one showing at a time (inv-flip-front / -back, §6.16): the figures, then the rows and the one primary.
+  dialogOpen('<div class="inv-dialog" data-drill="' + clientId + '">' +
+    '<div data-flip>' +
     '<div class="inv-flip-front">' +
-    '<div class="inv-overlay-header"><span class="inv-overlay-title">' + escHtml(client.name) + '</span>' +
-    '<button class="inv-overlay-close" data-action="invCloseOverlay" aria-label="Close">&times;</button></div>' +
+    dialogHeadHtml(escHtml(client.name)) +
     '<div class="inv-note inv-mb-8">' + escHtml(periodLabel) + ' &middot; ' + escHtml(rateInfo) + '</div>' +
     '<div class="inv-tiles">' +
     statsTile('revenue', 'Revenue', formatCurrency(totalRev)) +
@@ -22832,14 +22371,13 @@ function openClientDrillOverlay(clientId) {
     statsTile('unbilled', 'Unbilled', formatCurrency(pendingAmt)) +
     '</div>' +
     '<div class="inv-toolbar">' + Object.keys(stateCounts).map(function(s) {
-      return statsDot(INV_STATE_TONE[s], stateCounts[s] + ' ' + INV_STATE_LABELS[s]);
+      return uiDot(INV_STATE_TONE[s], stateCounts[s] + ' ' + INV_STATE_LABELS[s]);
     }).join('') + '</div>' +
     '<button class="inv-btn inv-btn-secondary inv-btn-block" data-action="invFlipCard">' + flipIcon + ' Details and actions</button>' +
     '</div>' +
     '<div class="inv-flip-back">' +
-    '<div class="inv-overlay-header"><span class="inv-overlay-title">' + escHtml(client.name) + '</span><div class="inv-toolbar inv-toolbar-tight">' +
-    '<button class="inv-btn inv-btn-icon inv-btn-ghost" data-action="invFlipCard" aria-label="Flip back">' + flipIcon + '</button>' +
-    '<button class="inv-overlay-close" data-action="invCloseOverlay" aria-label="Close">&times;</button></div></div>' +
+    dialogHeadHtml(escHtml(client.name), 'invCloseOverlay', 'Close',
+      '<button class="inv-btn inv-btn-icon inv-btn-ghost" data-action="invFlipCard" aria-label="Flip back">' + flipIcon + '</button>') +
     '<div class="inv-panel inv-panel-flush"><div class="inv-panel-head"><span class="inv-panel-title">Recent invoices</span></div>' + recentHtml + '</div>' +
     '<div class="inv-panel inv-panel-flush"><div class="inv-panel-head"><span class="inv-panel-title">Pending challans</span></div>' + challanHtml + '</div>' +
     '<div class="inv-toolbar">' +
@@ -22847,9 +22385,7 @@ function openClientDrillOverlay(clientId) {
     '<button class="inv-btn inv-btn-secondary" data-action="invStatsJumpRegister" data-client-id="' + clientId + '">View in Register</button>' +
     '<button class="inv-btn inv-btn-secondary" data-action="invStatsJumpIM" data-client-id="' + clientId + '">View in IM</button>' +
     '</div></div>' +
-    '</div></div>';
-  document.body.appendChild(scrim);
-  focusFirstInteractive(scrim);
+    '</div></div>');
 }
 
 /* ===== HISTORY (Phase 7 — Activity Log Rework) =====
@@ -23223,7 +22759,7 @@ function renderHistory() {
   function amountHtml(ev) { return ev.amount ? '<span class="inv-num">' + formatCurrency(ev.amount) + '</span>' : ''; }
 
   if (_isDesktop) {
-    html += '<table class="inv-table inv-table-history"><thead><tr><th class="inv-col-time">Time</th><th>Event</th><th>Kind</th><th class="inv-num">Amount</th></tr></thead><tbody>';
+    html += '<table class="inv-table inv-table-history"><thead><tr><th>Time</th><th>Event</th><th>Kind</th><th class="inv-num">Amount</th></tr></thead><tbody>';
     days.forEach(function(d) {
       html += '<tr class="inv-table-group"><td colspan="4">' + escHtml(d) + ' · ' + dayCount[d] + '</td></tr>';
       byDay[d].forEach(function(ev) {
@@ -23840,7 +23376,7 @@ function nextChallanCardHtml() {
   var today = localDateStr();
   var h = statsPanel('next', 'Next challan expected', 'from each client&rsquo;s own rhythm', { id: 'statsNextChallan' });
   list.sort(function(a, b) { return (b.late - a.late) || (a.next < b.next ? -1 : 1); }).forEach(function(c) {
-    var when = c.quiet ? statsDot('danger', c.late + ' days late · quiet') : c.late ? statsDot('warning', c.late + ' day' + (c.late === 1 ? '' : 's') + ' late')
+    var when = c.quiet ? uiDot('danger', c.late + ' days late · quiet') : c.late ? uiDot('warning', c.late + ' day' + (c.late === 1 ? '' : 's') + ' late')
       : '<span class="inv-nowrap">' + (c.next === today ? 'today' : escHtml(formatDate(c.next))) + '</span>';
     h += statsRow(escHtml(c.name), 'every ' + formatNum(c.median, 0) + ' day' + (c.median === 1 ? '' : 's') + ' · last ' + escHtml(formatDate(c.last)), when);
   });
@@ -24069,7 +23605,7 @@ function finForecastHtml() {
     ['In 60 days', at(60).bal, 'P25–P75 ' + finRs(at(60).lo) + ' to ' + finRs(at(60).hi)]];
   h += '<div class="inv-tiles inv-tiles-4">' + tiles.map(function(t) {
     return '<div class="inv-tile' + (t[1] < 0 ? ' inv-tile-danger' : '') + '" data-fc="' + t[0] + '"><div class="inv-tile-label">' + t[0] + '</div>' +
-      '<div class="inv-tile-value inv-tile-value-sm inv-num inv-nowrap" title="' + escHtml(formatCurrency(t[1])) + '">' + finRs(t[1]) + '</div><div class="inv-tile-sub">' + escHtml(t[2]) + '</div></div>';
+      '<div class="inv-tile-value inv-tile-value-sm inv-nowrap" title="' + escHtml(formatCurrency(t[1])) + '">' + finRs(t[1]) + '</div><div class="inv-tile-sub">' + escHtml(t[2]) + '</div></div>';
   }).join('') + '</div>';
   if (fc.cross) h += '<div class="inv-callout inv-callout-danger">At this pace the account goes below zero on ' + escHtml(formatDate(fc.cross)) + '.</div>';
   h += chartLines(pts.map(function(x) { return finShortDate(x.date); }), [{ label: 'Balance', values: pts.map(function(x) { return x.bal; }) }],
@@ -24368,13 +23904,13 @@ function renderFinHomeCard() {
   var age = todoDaysBetween(last.date, localDateStr());
   var tile = function(tab, anchor, label, value, sub, tone) {
     return '<button class="inv-tile' + (tone ? ' inv-tile-' + tone : '') + '" data-action="invFinGo" data-tab="' + tab + '"' + (anchor ? ' data-anchor="' + anchor + '"' : '') + ' data-home-fin="' + label + '">' +
-      '<div class="inv-tile-label">' + label + '</div><div class="inv-tile-value inv-tile-value-sm inv-num inv-nowrap" title="' + escHtml(formatCurrency(value)) + '">' + finRs(value) + '</div><div class="inv-tile-sub">' + sub + '</div></button>';
+      '<div class="inv-tile-label">' + label + '</div><div class="inv-tile-value inv-tile-value-sm inv-nowrap" title="' + escHtml(formatCurrency(value)) + '">' + finRs(value) + '</div><div class="inv-tile-sub">' + sub + '</div></button>';
   };
   h += '<div class="inv-tiles inv-tiles-flush">' +
     tile('bank', '', 'Balance', last.balance, 'on ' + escHtml(finShortDate(last.date)) + (age > 7 ? ', ' + age + ' days ago' : ''), last.balance < 0 ? 'danger' : age > 7 ? 'warning' : '') +
     tile('receipts', loose ? 'bankLoose' : '', 'Owed to us', owed, loose ? loose + ' receipt' + (loose === 1 ? '' : 's') + ' not placed' : 'since ' + escHtml(finShortDate(rows[0].date)), loose ? 'warning' : '') +
     (book && book.median != null ? '<button class="inv-tile" data-action="invFinGo" data-tab="receipts" data-home-fin="Pays in"><div class="inv-tile-label">Pays in</div>' +
-      '<div class="inv-tile-value inv-tile-value-sm inv-num">' + Math.round(book.median) + ' days</div><div class="inv-tile-sub">the book, invoice to receipt</div></button>' : '') +
+      '<div class="inv-tile-value inv-tile-value-sm">' + Math.round(book.median) + ' days</div><div class="inv-tile-sub">the book, invoice to receipt</div></button>' : '') +
     tile('overview', 'finForecast', 'Runway', fc ? fc.min.bal : last.balance, fc && fc.cross ? 'below zero on ' + escHtml(finShortDate(fc.cross)) : fc ? 'lowest in 45 days, ' + escHtml(finShortDate(fc.min.date)) : '', fc && fc.cross ? 'danger' : '') +
     '</div>';
   el.innerHTML = h + '</div>';
@@ -24656,10 +24192,10 @@ function stockOverviewHtml() {
   var need = gstRound(L.total * 1.18);
   h += '<div class="inv-panel inv-panel-flush" id="dashReorder"><div class="inv-panel-head"><span class="inv-panel-title">Reorder cash</span>' +
     '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invStockReorder">Open the reorder list</button></div><div class="inv-tiles inv-tiles-flush">' +
-    '<div class="inv-tile"><div class="inv-tile-label">Order, with GST</div><div class="inv-tile-value inv-tile-value-sm inv-num">' + escHtml(formatCurrency(need)) + '</div><div class="inv-tile-sub">' +
+    '<div class="inv-tile"><div class="inv-tile-label">Order, with GST</div><div class="inv-tile-value inv-tile-value-sm">' + escHtml(formatCurrency(need)) + '</div><div class="inv-tile-sub">' +
       (L.unpriced ? L.unpriced + ' line' + (L.unpriced === 1 ? '' : 's') + ' without a price' : 'at the last prices') + '</div></div>' +
-    (fc ? '<div class="inv-tile"><div class="inv-tile-label">Forecast lowest</div><div class="inv-tile-value inv-tile-value-sm inv-num">' + escHtml(formatCurrency(fc.min.bal)) + '</div><div class="inv-tile-sub">on ' + escHtml(stockShortDate(fc.min.date)) + '</div></div>' +
-      '<div class="inv-tile' + (fc.min.bal - need < 0 ? ' inv-tile-danger' : '') + '"><div class="inv-tile-label">After the order</div><div class="inv-tile-value inv-tile-value-sm inv-num">' + escHtml(formatCurrency(gstRound(fc.min.bal - need))) + '</div><div class="inv-tile-sub">at the lowest point</div></div>'
+    (fc ? '<div class="inv-tile"><div class="inv-tile-label">Forecast lowest</div><div class="inv-tile-value inv-tile-value-sm">' + escHtml(formatCurrency(fc.min.bal)) + '</div><div class="inv-tile-sub">on ' + escHtml(stockShortDate(fc.min.date)) + '</div></div>' +
+      '<div class="inv-tile' + (fc.min.bal - need < 0 ? ' inv-tile-danger' : '') + '"><div class="inv-tile-label">After the order</div><div class="inv-tile-value inv-tile-value-sm">' + escHtml(formatCurrency(gstRound(fc.min.bal - need))) + '</div><div class="inv-tile-sub">at the lowest point</div></div>'
       : '<div class="inv-tile"><div class="inv-tile-label">Forecast</div><div class="inv-tile-value inv-tile-value-sm">&mdash;</div><div class="inv-tile-sub">import a bank statement</div></div>') +
     '</div></div>';
   return '<div class="inv-panels">' + h + '</div>';
@@ -25122,7 +24658,7 @@ function renderAddChallanForm() {
         ' role="combobox" aria-expanded="false" aria-autocomplete="list" aria-controls="imPartAC' + idx + '">' +
         '<div class="inv-menu inv-hidden" id="imPartAC' + idx + '" role="listbox"></div></div>', 'imPart' + idx, 'inv-line-part') +
       lineField('Qty', '<input type="number" class="inv-input inv-input-num" id="imQty' + idx + '" data-k="qty-' + idx + '" value="' + (item.qty || '') + '" data-field="qty" data-idx="' + idx + '" data-action="invUpdateChallanLine" step="any" min="0">', 'imQty' + idx) +
-      lineField('Unit', '<select class="inv-select" id="imUnit' + idx + '" data-k="unit-' + idx + '" data-field="unit" data-idx="' + idx + '" data-action="invUpdateChallanLine">' +
+      lineField('Unit', '<select class="inv-select" id="imUnit' + idx + '" data-k="unit-' + idx + '" data-field="unit" data-idx="' + idx + '" data-change="invUpdateChallanLine">' +
         '<option value="KG"' + (item.unit === 'KG' ? ' selected' : '') + '>KG</option>' +
         '<option value="NOS"' + (item.unit === 'NOS' ? ' selected' : '') + '>NOS</option></select>', 'imUnit' + idx) +
       lineField('Pcs', '<input type="number" class="inv-input inv-input-num" id="imNos' + idx + '" data-k="nos-' + idx + '" value="' + (item.nosQty || '') + '" data-field="nosQty" data-idx="' + idx + '" data-action="invUpdateChallanLine" step="1" min="0" placeholder="Pcs">', 'imNos' + idx) +
@@ -25692,12 +25228,8 @@ function showChallanDuplicateWarning(matches) {
     _challanForm._dupeMatchedIds = matches.content.concat(matches.number).map(function(im) { return im.id; });
   }
 
-  var scrim = document.createElement('div');
-  scrim.className = 'inv-overlay-scrim';
-
-  var html = '<div class="inv-overlay-card">' +
-    '<div class="inv-overlay-header"><span class="inv-overlay-title">Possible duplicate challan</span>' +
-    '<button class="inv-overlay-close" data-action="invCloseConfirm">&times;</button></div>';
+  var html = '<div class="inv-dialog">' +
+    dialogHeadHtml('Possible duplicate challan', 'invCloseConfirm');
 
   if (matches.content.length > 0) {
     html += '<div class="inv-callout inv-callout-warning inv-mb-8">This client already has ' +
@@ -25724,11 +25256,7 @@ function showChallanDuplicateWarning(matches) {
     '<button class="inv-btn inv-btn-secondary" data-action="invCloseConfirm">Go back</button>' +
     '<button class="inv-btn inv-btn-primary" data-action="invDupeSaveAnyway">Save anyway</button></div></div>';
 
-  scrim.innerHTML = html;
-  pushFocus();
-  document.body.appendChild(scrim);
-  document.body.style.overflow = 'hidden';
-  focusFirstInteractive(scrim.querySelector('.inv-overlay-card'));
+  dialogOpen(html);
 }
 
 function acceptChallanDuplicates() {
@@ -25744,12 +25272,8 @@ function runIMDuplicateScan() {
   var groups = imDuplicateGroups();
   var blanks = imBlankChallanRecords();
 
-  var scrim = document.createElement('div');
-  scrim.className = 'inv-overlay-scrim';
-
-  var html = '<div class="inv-overlay-card">' +
-    '<div class="inv-overlay-header"><span class="inv-overlay-title">Duplicate check</span>' +
-    '<button class="inv-overlay-close" data-action="invCloseOverlay" aria-label="Close">&times;</button></div>';
+  var html = '<div class="inv-dialog">' +
+    dialogHeadHtml('Duplicate check');
 
   if (groups.length === 0 && blanks.length === 0) {
     html += '<div class="inv-empty">No duplicate challans and no blank challan numbers.</div>';
@@ -25774,13 +25298,9 @@ function runIMDuplicateScan() {
       blanks.map(function(im) { return _dupeMatchRowHtml(im, true); }).join('') + '</div>';
   }
 
-  html += '<div class="inv-toolbar"><button class="inv-btn inv-btn-secondary" data-action="invCloseOverlay">Close</button></div></div>';
+  html += '<div class="inv-dialog-foot"><button class="inv-btn inv-btn-secondary" data-action="invCloseOverlay">Close</button></div></div>';
 
-  scrim.innerHTML = html;
-  pushFocus();
-  document.body.appendChild(scrim);
-  document.body.style.overflow = 'hidden';
-  focusFirstInteractive(scrim.querySelector('.inv-overlay-card'));
+  dialogOpen(html);
 }
 
 /* Close the scan, filter the list down to that client, and open the challan. */
@@ -26167,7 +25687,7 @@ document.addEventListener('click', function(e) {
     case 'invStatsClientDrill': openClientDrillOverlay(btn.dataset.clientId); break;
     // Phase 7: Flippable card
     case 'invFlipCard': {
-      var inner = document.querySelector('.inv-flip-inner');
+      var inner = document.querySelector('.inv-scrim-dialog [data-flip]');
       if (!inner) break;
       var front = inner.querySelector('.inv-flip-front');
       var back = inner.querySelector('.inv-flip-back');
@@ -26182,8 +25702,8 @@ document.addEventListener('click', function(e) {
         outFace.classList.remove('inv-flip-visible');
         inFace.classList.remove('inv-flip-hidden');
         inFace.classList.add('inv-flip-visible', 'inv-flip-in');
-        setTimeout(function() { inFace.classList.remove('inv-flip-in'); }, 250);
-      }, 250);
+        setTimeout(function() { inFace.classList.remove('inv-flip-in'); }, FLIP_MS);
+      }, FLIP_MS);
       break;
     }
     // Phase 7: Stats actions
@@ -26395,7 +25915,9 @@ document.addEventListener('change', function(e) {
   if (dashInput(e.target)) return;
   if (todoOnChange(e.target)) return;
   if (relayOnChange(e.target)) return;
-  const el = e.target.closest('[data-action="invUpdateLine"]');
+  // A line's fields answer to their data-action; its unit <select> to data-change, since a select carrying an
+  // action would run it on the click that opens it.
+  const el = e.target.closest('[data-action="invUpdateLine"], [data-change="invUpdateLine"]');
   if (el) {
     const idx = parseInt(el.dataset.idx);
     const field = el.dataset.field;
@@ -26513,7 +26035,7 @@ document.addEventListener('change', function(e) {
     renderHistory();
   }
   // Phase 4: IM challan line unit change
-  const challanLineEl = e.target.closest('[data-action="invUpdateChallanLine"]');
+  const challanLineEl = e.target.closest('[data-change="invUpdateChallanLine"]');
   if (challanLineEl && challanLineEl.dataset.field === 'unit' && _challanForm) {
     const cidx = parseInt(challanLineEl.dataset.idx);
     const citem = _challanForm.items[cidx];
@@ -26831,7 +26353,7 @@ document.addEventListener('keydown', function(e) {
   }
   if (e.key === 'Enter' && (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT')) {
     e.preventDefault();
-    var container = e.target.closest('[data-form], .inv-page-active, .inv-overlay-card');
+    var container = e.target.closest('[data-form], .inv-page-active, .inv-dialog');
     if (!container) container = document.body;
     // A folded section (Optional details) keeps its fields in the page but out of reach,
     // so the chain steps over them rather than dead-ending on a field it cannot focus.
@@ -27423,7 +26945,7 @@ function updateLayoutMode() {
   }
 
   // Mode change — defer if overlay or form is active
-  if (document.querySelector('.inv-overlay-scrim') || _challanForm) {
+  if (document.querySelector('.inv-scrim-dialog') || _challanForm) {
     _pendingModeSwitch = true;
     return;
   }

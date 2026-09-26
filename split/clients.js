@@ -124,11 +124,8 @@ function _showClientOverlay(client, isAdd) {
       '<div class="inv-panel-body">' + _clientRateFieldsHtml(false) +
       '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invAddRate" data-client="' + c.id + '">Add rate</button></div>', 'ceditRates');
   }
-  const scrim = document.createElement('div');
-  scrim.className = 'inv-overlay-scrim';
-  scrim.innerHTML = '<div class="inv-overlay-card">' +
-    '<div class="inv-overlay-header"><span class="inv-overlay-title">' + (isAdd ? 'Add client' : 'Edit client') + '</span>' +
-    '<button class="inv-overlay-close" data-action="invCloseOverlay" aria-label="Close">&times;</button></div>' +
+  dialogOpen('<div class="inv-dialog">' +
+    dialogHeadHtml((isAdd ? 'Add client' : 'Edit client')) +
     (isAdd ? '' : finClientMoneyHtml(c.id)) +
     _cfield('ceditName', 'Name', _cinput('ceditName', c.name)) +
     '<div class="inv-fields">' +
@@ -155,13 +152,8 @@ function _showClientOverlay(client, isAdd) {
     // A new client takes an optional opening rate; an existing one keeps its dated cards.
     (isAdd ? _clientCardHtml('Opening rate', null, '', '<div class="inv-panel-body">' + _clientRateFieldsHtml(true) + '</div>')
       : rates + _pieceRatesEditHtml(c) + _pieceWeightsEditHtml(c)) +
-    '<div class="inv-btn-bar"><button class="inv-btn inv-btn-secondary" data-action="invCloseOverlay">Cancel</button>' +
-    '<button class="inv-btn inv-btn-primary" data-action="invSaveClient" data-client="' + c.id + '" data-mode="' + (isAdd ? 'add' : 'edit') + '">' + (isAdd ? 'Add client' : 'Save') + '</button></div></div>';
-  scrim.addEventListener('click', e => { if (e.target === scrim) { scrim.remove(); document.body.style.overflow = ''; popFocus(); } });
-  pushFocus();
-  document.body.appendChild(scrim);
-  document.body.style.overflow = 'hidden';
-  focusFirstInteractive(scrim.querySelector('.inv-overlay-card'));
+    '<div class="inv-dialog-foot"><button class="inv-btn inv-btn-secondary" data-action="invCloseOverlay">Cancel</button>' +
+    '<button class="inv-btn inv-btn-primary" data-action="invSaveClient" data-client="' + c.id + '" data-mode="' + (isAdd ? 'add' : 'edit') + '">' + (isAdd ? 'Add client' : 'Save') + '</button></div></div>', { dismiss: true });
 }
 
 /* The ₹/kg ladder, newest first; the rate in force today says so. */
@@ -280,8 +272,8 @@ function addClientRate(clientId) {
 }
 
 function closeOverlay() {
-  var count = document.querySelectorAll('.inv-overlay-scrim').length;
-  document.querySelectorAll('.inv-overlay-scrim').forEach(s => s.remove());
+  var count = document.querySelectorAll('.inv-scrim-dialog').length;
+  document.querySelectorAll('.inv-scrim-dialog').forEach(s => s.remove());
   document.body.style.overflow = '';
   // Pop focus stack for each closed overlay
   for (var i = 0; i < count; i++) popFocus();
@@ -293,13 +285,15 @@ function closeOverlay() {
 }
 
 function closeTopOverlay() {
-  const all = document.querySelectorAll('.inv-overlay-scrim');
+  const all = document.querySelectorAll('.inv-scrim-dialog');
   if (all.length > 0) {
     all[all.length - 1].remove();
-    if (document.querySelectorAll('.inv-overlay-scrim').length === 0) {
-      document.body.style.overflow = '';
-    }
     popFocus();
+    // The last one shut: the page scrolls again, and a layout switch deferred while it was open runs now.
+    if (document.querySelectorAll('.inv-scrim-dialog').length === 0) {
+      document.body.style.overflow = '';
+      if (_pendingModeSwitch) { _pendingModeSwitch = false; updateLayoutMode(); }
+    }
   }
 }
 

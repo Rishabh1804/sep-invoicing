@@ -816,8 +816,8 @@ function _bankEditHtml(v) {
     h += '<div class="inv-field"><label class="inv-field-label" for="bankEditStaff">Paid to</label><select class="inv-select" id="bankEditStaff"><option value="">Nobody on the roster</option>' +
       (S.staff || []).map(function(w) { return '<option value="' + escHtml(String(w.id)) + '"' + (String(v.staffId) === String(w.id) ? ' selected' : '') + '>' + escHtml(w.name) + '</option>'; }).join('') + '</select></div>';
   }
-  if (r.dr > 0) h += '<label class="inv-check-row"><input type="checkbox" class="inv-check" id="bankEditNotCost"' + (v.notCost ? ' checked' : '') + '> Not an operating cost (drawings, a loan, a transfer)</label>';
-  h += '</div>' + (canRule ? '<label class="inv-check-row"><input type="checkbox" class="inv-check" id="bankEditAll" checked> Every payment ' + (r.cr > 0 ? 'from' : 'to') + ' ' + escHtml(v.party) + '</label>' : '') +
+  if (r.dr > 0) h += '<label class="inv-field-check"><input type="checkbox" class="inv-check" id="bankEditNotCost"' + (v.notCost ? ' checked' : '') + '> Not an operating cost (drawings, a loan, a transfer)</label>';
+  h += '</div>' + (canRule ? '<label class="inv-field-check"><input type="checkbox" class="inv-check" id="bankEditAll" checked> Every payment ' + (r.cr > 0 ? 'from' : 'to') + ' ' + escHtml(v.party) + '</label>' : '') +
     '<div class="inv-toolbar"><button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invBankEditCancel">Cancel</button>' +
     '<button class="inv-btn inv-btn-primary inv-btn-sm" data-action="invBankEditSave" data-id="' + escHtml(r.id) + '">Save</button></div></div>';
   return h;

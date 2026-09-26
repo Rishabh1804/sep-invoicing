@@ -66,8 +66,8 @@ test.describe('P72: Staff', () => {
     await expect(chand).toHaveClass(/inv-row-muted/);
     await expect(chand.locator('.inv-badge')).toContainText(['Hourly', 'VAT A2', 'Inactive']);
     await chand.click();
-    await expect(page.locator('.inv-overlay-card .inv-field-label[for="wedName"]')).toHaveText('Name');
-    await expect(page.locator('.inv-overlay-card .inv-form-group, .inv-overlay-card .inv-form-input')).toHaveCount(0);
+    await expect(page.locator('.inv-dialog .inv-field-label[for="wedName"]')).toHaveText('Name');
+    await expect(page.locator('.inv-dialog .inv-form-group, .inv-dialog .inv-form-input')).toHaveCount(0);
   });
 
   test('Day: stat strip, P / H / A pressed in their tone in dark mode, the labour card as tiles and rows', async ({ page }) => {

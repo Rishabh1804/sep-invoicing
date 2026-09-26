@@ -716,11 +716,8 @@ function openAreaExplain(payload) {
   var d;
   try { d = JSON.parse(decodeURIComponent(payload)); } catch (e) { return; }
   _exPending = d;
-  var scrim = document.createElement('div');
-  scrim.className = 'inv-overlay-scrim';
-  scrim.innerHTML = '<div class="inv-overlay-card">' +
-    '<div class="inv-overlay-header"><span class="inv-overlay-title">Explain this exception</span>' +
-    '<button class="inv-overlay-close" data-action="invCloseOverlay" aria-label="Close">&times;</button></div>' +
+  dialogOpen('<div class="inv-dialog">' +
+    dialogHeadHtml('Explain this exception') +
     '<div class="inv-note inv-mb-8">' + escHtml(d.label) + ' &middot; ' + formatDate(d.iso) + ' &mdash; ' +
     'booked <span class="inv-num">' + formatNum(d.booked, 1) + ' h</span> against a predicted ' +
     '<span class="inv-num">' + formatNum(d.expected, 1) + ' h</span>. Say what the record shows, ' +
@@ -728,11 +725,10 @@ function openAreaExplain(payload) {
     '<div class="inv-field"><label class="inv-field-label" for="areaExReason">Reason</label>' +
     '<textarea class="inv-textarea" id="areaExReason" rows="3" ' +
     'placeholder="e.g. no fold value reconciles both rows of this block"></textarea></div>' +
-    '<div class="inv-btn-bar">' +
+    '<div class="inv-dialog-foot">' +
     '<button class="inv-btn inv-btn-secondary" data-action="invCloseOverlay">Cancel</button>' +
     '<button class="inv-btn inv-btn-primary" data-action="invAreaExplainSave">Record it</button>' +
-    '</div></div>';
-  document.body.appendChild(scrim);
+    '</div></div>');
   var ta = document.getElementById('areaExReason');
   if (ta) ta.focus();
 }

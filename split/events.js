@@ -192,7 +192,7 @@ document.addEventListener('click', function(e) {
     case 'invStatsClientDrill': openClientDrillOverlay(btn.dataset.clientId); break;
     // Phase 7: Flippable card
     case 'invFlipCard': {
-      var inner = document.querySelector('.inv-flip-inner');
+      var inner = document.querySelector('.inv-scrim-dialog [data-flip]');
       if (!inner) break;
       var front = inner.querySelector('.inv-flip-front');
       var back = inner.querySelector('.inv-flip-back');
@@ -207,8 +207,8 @@ document.addEventListener('click', function(e) {
         outFace.classList.remove('inv-flip-visible');
         inFace.classList.remove('inv-flip-hidden');
         inFace.classList.add('inv-flip-visible', 'inv-flip-in');
-        setTimeout(function() { inFace.classList.remove('inv-flip-in'); }, 250);
-      }, 250);
+        setTimeout(function() { inFace.classList.remove('inv-flip-in'); }, FLIP_MS);
+      }, FLIP_MS);
       break;
     }
     // Phase 7: Stats actions
@@ -420,7 +420,9 @@ document.addEventListener('change', function(e) {
   if (dashInput(e.target)) return;
   if (todoOnChange(e.target)) return;
   if (relayOnChange(e.target)) return;
-  const el = e.target.closest('[data-action="invUpdateLine"]');
+  // A line's fields answer to their data-action; its unit <select> to data-change, since a select carrying an
+  // action would run it on the click that opens it.
+  const el = e.target.closest('[data-action="invUpdateLine"], [data-change="invUpdateLine"]');
   if (el) {
     const idx = parseInt(el.dataset.idx);
     const field = el.dataset.field;
@@ -538,7 +540,7 @@ document.addEventListener('change', function(e) {
     renderHistory();
   }
   // Phase 4: IM challan line unit change
-  const challanLineEl = e.target.closest('[data-action="invUpdateChallanLine"]');
+  const challanLineEl = e.target.closest('[data-change="invUpdateChallanLine"]');
   if (challanLineEl && challanLineEl.dataset.field === 'unit' && _challanForm) {
     const cidx = parseInt(challanLineEl.dataset.idx);
     const citem = _challanForm.items[cidx];
@@ -856,7 +858,7 @@ document.addEventListener('keydown', function(e) {
   }
   if (e.key === 'Enter' && (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT')) {
     e.preventDefault();
-    var container = e.target.closest('[data-form], .inv-page-active, .inv-overlay-card');
+    var container = e.target.closest('[data-form], .inv-page-active, .inv-dialog');
     if (!container) container = document.body;
     // A folded section (Optional details) keeps its fields in the page but out of reach,
     // so the chain steps over them rather than dead-ending on a field it cannot focus.

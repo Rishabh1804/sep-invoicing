@@ -74,7 +74,7 @@ test.describe('P73: Stats', () => {
     await expect(page.locator('#statsMargin tbody tr').nth(0).locator('td.inv-num-neg')).toHaveCount(3);
     await expect(page.locator('[data-card="revenue"] .inv-seg [data-chart="bar"]')).toHaveAttribute('aria-pressed', 'true');
     await rows.nth(0).click();
-    const card = page.locator('.inv-overlay-card[data-drill="72"]');
+    const card = page.locator('.inv-dialog[data-drill="72"]');
     await expect(card.locator('.inv-flip-front .inv-tile')).toHaveCount(6);
     await expect(card.locator('[data-tile="realisation"]')).toHaveClass(/inv-tile-danger/);
     await card.locator('.inv-flip-front [data-action="invFlipCard"]').click();

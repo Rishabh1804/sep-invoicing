@@ -96,7 +96,7 @@ function renderAddChallanForm() {
         ' role="combobox" aria-expanded="false" aria-autocomplete="list" aria-controls="imPartAC' + idx + '">' +
         '<div class="inv-menu inv-hidden" id="imPartAC' + idx + '" role="listbox"></div></div>', 'imPart' + idx, 'inv-line-part') +
       lineField('Qty', '<input type="number" class="inv-input inv-input-num" id="imQty' + idx + '" data-k="qty-' + idx + '" value="' + (item.qty || '') + '" data-field="qty" data-idx="' + idx + '" data-action="invUpdateChallanLine" step="any" min="0">', 'imQty' + idx) +
-      lineField('Unit', '<select class="inv-select" id="imUnit' + idx + '" data-k="unit-' + idx + '" data-field="unit" data-idx="' + idx + '" data-action="invUpdateChallanLine">' +
+      lineField('Unit', '<select class="inv-select" id="imUnit' + idx + '" data-k="unit-' + idx + '" data-field="unit" data-idx="' + idx + '" data-change="invUpdateChallanLine">' +
         '<option value="KG"' + (item.unit === 'KG' ? ' selected' : '') + '>KG</option>' +
         '<option value="NOS"' + (item.unit === 'NOS' ? ' selected' : '') + '>NOS</option></select>', 'imUnit' + idx) +
       lineField('Pcs', '<input type="number" class="inv-input inv-input-num" id="imNos' + idx + '" data-k="nos-' + idx + '" value="' + (item.nosQty || '') + '" data-field="nosQty" data-idx="' + idx + '" data-action="invUpdateChallanLine" step="1" min="0" placeholder="Pcs">', 'imNos' + idx) +

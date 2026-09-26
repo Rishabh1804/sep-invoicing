@@ -118,10 +118,10 @@ test('P21: line and bar draw the same series, and neither distorts its aspect', 
   await loadAppWithState(page, s);
   await openStats(page);
 
-  await expect(page.locator('.inv-chart-svg polyline.inv-svg-line')).toBeVisible();
+  await expect(page.locator('.inv-chart-svg polyline.inv-chart-line')).toBeVisible();
   await page.locator('[data-action="invStatsTrendType"][data-type="bar"]').click();
   await expect(page.locator('.inv-chart-svg rect.inv-chart-bar').first()).toBeVisible();
-  await expect(page.locator('.inv-chart-svg polyline.inv-svg-line')).toHaveCount(0);
+  await expect(page.locator('.inv-chart-svg polyline.inv-chart-line')).toHaveCount(0);
 
   // The old chart stretched with preserveAspectRatio="none", which is why a
   // marker could never be a circle.
@@ -143,7 +143,7 @@ test('P21: every point carries its own value, not just the endpoints', async ({ 
   // labelled. The count follows the series — which now includes the quiet
   // months between January and today, each as an explicit zero.
   const series = await page.evaluate(() => (window as any).buildTrendSeries('month', 'revenue'));
-  const titles = await page.locator('.inv-chart-svg circle.inv-svg-dot title').allTextContents();
+  const titles = await page.locator('.inv-chart-svg circle.inv-chart-dot title').allTextContents();
   expect(titles).toHaveLength(series.length);
   expect(titles.length).toBeGreaterThan(3);
   expect(titles.join(' ')).toContain('₹3,000.00');

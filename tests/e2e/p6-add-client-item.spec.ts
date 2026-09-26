@@ -32,7 +32,7 @@ test.describe('P6: explicit add entry points for clients and items', () => {
     await openClientsTab(page);
 
     await page.locator('.inv-toolbar [data-action="invAddClient"]').click();
-    await expect(page.locator('.inv-overlay-title')).toHaveText('Add client');
+    await expect(page.locator('.inv-dialog-title')).toHaveText('Add client');
 
     await page.locator('#ceditName').fill('NEW PLATING CO');
     await page.locator('#ceditGstin').fill('20AAECS1234F1Z5');
@@ -42,7 +42,7 @@ test.describe('P6: explicit add entry points for clients and items', () => {
     await page.locator('[data-action="invSaveClient"][data-mode="add"]').click();
 
     // Overlay closes and the new client appears in the list.
-    await expect(page.locator('.inv-overlay-scrim')).toHaveCount(0);
+    await expect(page.locator('.inv-scrim-dialog')).toHaveCount(0);
     await expect(page.locator('#clientList')).toContainText('NEW PLATING CO');
 
     // Persisted with the opening rate attached to the rate history.
@@ -65,7 +65,7 @@ test.describe('P6: explicit add entry points for clients and items', () => {
     await page.locator('[data-action="invSaveClient"][data-mode="add"]').click();
 
     // Overlay stays open, nothing added.
-    await expect(page.locator('.inv-overlay-card')).toBeVisible();
+    await expect(page.locator('.inv-dialog')).toBeVisible();
     const count = await page.evaluate(async () => {
       const raw = (await (window as any).readPersistedStateRaw()) || '{}';
       return (JSON.parse(raw) as { clients: unknown[] }).clients.length;
@@ -80,8 +80,8 @@ test.describe('P6: explicit add entry points for clients and items', () => {
     await page.locator('.inv-toolbar [data-action="invAddClient"]').click();
     await page.locator('[data-action="invSaveClient"][data-mode="add"]').click();
 
-    await expect(page.locator('.inv-overlay-card')).toBeVisible();
-    await expect(page.locator('.inv-overlay-title')).toHaveText('Add client');
+    await expect(page.locator('.inv-dialog')).toBeVisible();
+    await expect(page.locator('.inv-dialog-title')).toHaveText('Add client');
   });
 
   test('positive: Add Item button creates an item in Items Master', async ({ page }) => {
@@ -89,14 +89,14 @@ test.describe('P6: explicit add entry points for clients and items', () => {
     await openItemsTab(page);
 
     await page.locator('.inv-toolbar [data-action="invAddItem"]').click();
-    await expect(page.locator('.inv-overlay-title')).toHaveText('Add item');
+    await expect(page.locator('.inv-dialog-title')).toHaveText('Add item');
 
     await page.locator('#itemEditPN').fill('15020030');
     await page.locator('#itemEditDesc').fill('188 CD');
     await page.locator('#itemEditRate').fill('9');
     await page.locator('[data-action="invSaveItem"][data-mode="add"]').click();
 
-    await expect(page.locator('.inv-overlay-scrim')).toHaveCount(0);
+    await expect(page.locator('.inv-scrim-dialog')).toHaveCount(0);
     await expect(page.locator('#itemsList')).toContainText('15020030');
   });
 
@@ -110,7 +110,7 @@ test.describe('P6: explicit add entry points for clients and items', () => {
     await page.locator('#itemEditPN').fill('15020030');
     await page.locator('[data-action="invSaveItem"][data-mode="add"]').click();
 
-    await expect(page.locator('.inv-overlay-card')).toBeVisible();
+    await expect(page.locator('.inv-dialog')).toBeVisible();
     const count = await page.evaluate(async () => {
       const raw = (await (window as any).readPersistedStateRaw()) || '{}';
       return (JSON.parse(raw) as { items: unknown[] }).items.length;

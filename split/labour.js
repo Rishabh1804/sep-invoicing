@@ -376,10 +376,8 @@ function _labCallout(html, tone) {
   return '<div class="inv-panel-body"><div class="inv-callout' + (tone ? ' inv-callout-' + tone : '') + '">' + html + '</div></div>';
 }
 /* A tile on a card's strip (§6.9). `key` names it for whoever reads the card back (data-tile). */
-function _labTile(key, label, value, sub, tone) {
-  return '<div class="inv-tile' + (tone ? ' inv-tile-' + tone : '') + '" data-tile="' + key + '"><div class="inv-tile-label">' + label + '</div>' +
-    '<div class="inv-tile-value">' + value + '</div>' + (sub ? '<div class="inv-tile-sub">' + sub + '</div>' : '') + '</div>';
-}
+/* The labour card's tiles are Stats' tiles (one markup for a tile, §6.9); `sub` is the caption's HTML. */
+function _labTile(key, label, value, sub, tone) { return statsTile(key, label, value, statsTileSub(sub), tone); }
 /* The card itself: a flush panel, its total in the head. */
 function _labPanelHead(card, title, total, extraClass, id) {
   return '<div class="inv-panel inv-panel-flush' + (extraClass ? ' ' + extraClass : '') + '" data-card="' + card + '"' + (id ? ' id="' + id + '"' : '') + '>' +

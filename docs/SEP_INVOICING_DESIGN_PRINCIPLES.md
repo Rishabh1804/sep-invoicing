@@ -135,6 +135,9 @@ sheet they print on and the PDF they save as.
   localStorage (`sep_inv_theme`, `sep_inv_palette`) and applied to `<html data-theme data-palette>` before
   first paint by a short script in `head.html`, so there is no flash of the wrong colours. Never on `S`:
   appearance is a fact about the device, not the books — an imported backup must not repaint the phone.
+- **No `.dark` class exists** (removed 26 Sep 2026, with the 147 v1.0 `.dark .inv-…` rules: they restated tokens that
+  now switch by themselves, and some repainted a selected state in the background colour, hiding it). Dark coverage is
+  the token, nothing else.
 - ⚠ **v1.0 shipped dark styles that nothing could switch on**: `.dark` was defined in the stylesheet and no
   code ever set it. v2.0 is the first version in which dark mode is reachable. Both themes are tested (§9).
 - `light-dark()` is colour-only (it takes no images). Chrome/Edge 123+, which covers every device the shop uses.
@@ -366,7 +369,7 @@ strips ("1269 challans", "118 active invoices", "24 clients").
 
 ### 6.3 Buttons — `inv-btn`
 `inv-btn-primary` (accent fill) · `inv-btn-secondary` (surface + border — the default) · `inv-btn-ghost`
-(no border) · `inv-btn-danger` (danger text on the surface; `inv-btn-danger inv-btn-solid` is the filled one, used only
+(transparent with a hairline border: a lighter secondary, never bare text, which reads as a label) · `inv-btn-danger` (danger text on the surface; `inv-btn-danger inv-btn-solid` is the filled one, used only
 for the final button of a confirm dialog) · `inv-btn-link` (accent
 text, no box) · `inv-btn-icon` (square, `aria-label`) · size `inv-btn-sm`, width `inv-btn-block`.
 Height `--ctl-h`, radius `--r-md`, `--t-body` 500 (primary 600). Replaces `inv-stk-btn*`, `inv-stk-tool`,

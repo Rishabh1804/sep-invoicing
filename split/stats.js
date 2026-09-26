@@ -1311,7 +1311,7 @@ function renderHistory() {
     });
     typeChips += '</div>';
 
-    toolbar.innerHTML = '<div class="inv-im-toolbar">' + typeChips +
+    toolbar.innerHTML = '<div class="inv-im-toolbar inv-history-toolbar">' + typeChips +
       '<div class="inv-history-filters">' +
       '<select class="inv-form-select" id="historyClientFilter" aria-label="Filter by client">' +
       '<option value="">All Clients</option>' + clientOpts + '</select>' +

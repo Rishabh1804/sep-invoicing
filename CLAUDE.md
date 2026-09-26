@@ -143,7 +143,7 @@ filter on; a literal date in a fixture is a time bomb, not a constant.
 | HR-4 | No emojis. Inline SVGs in HTML template. |
 | HR-5 | escHtml() on all user-data innerHTML. |
 | HR-6 | CSS design tokens only. No raw px/rem/hex/timing. |
-| HR-7 | Dark mode coverage on every new element. `.dark` class on `:root`. |
+| HR-7 | Dark mode coverage on every new element — by reading tokens, which switch with `color-scheme`. No `.dark` class exists. |
 | HR-8 | gstRound() for all currency. `Math.round(val * 100) / 100`. Never Math.floor for financials. GST rules require proper rounding. |
 
 **Known HR-6 exceptions (do not expand):** 44px min touch targets (WCAG), 20px SVG icons, print CSS
@@ -167,8 +167,9 @@ Zinc & brass, Terracotta), theme following the phone, density, **no pure white a
 (owner: *"it puts a lot of stress at our eyes"* — paper is the one exception), the top bar naming each
 screen, the grouped labelled sidebar, the nut icon in the palette, and Settings → Data & device →
 Appearance. The v1.0 token names are aliases of the new ones, so every older rule already renders in the
-new palette. `html.dark` is still set on the resolved dark theme as a **transitional hook** for v1.0
-`.dark .inv-…` rules — never write a new one.
+new palette. **There is no `.dark` class any more** (removed 26 Sep 2026): its 147 v1.0 rules restated tokens
+that now switch by themselves, and some of them repainted selected states in the background colour — Staff →
+Day's chosen P/H/A went invisible in dark (owner). Dark coverage (HR-7) is the `light-dark()` token, nothing else.
 
 **Step 2 is built too:** the §6 components are one block at the end of `styles.css`, and each rule also lists
 the v1.0 classes doing the same job, so old markup already renders the new look. Add new UI with the v2.0

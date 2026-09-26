@@ -17,11 +17,10 @@ test.describe('P53: appearance', () => {
     await expect(html).not.toHaveAttribute('data-theme', /./);
     await expect(html).toHaveAttribute('data-palette', 'teal');
     expect(await css(page, 'body', 'background-color')).toBe('rgb(13, 18, 19)');
-    // The v1.0 `.dark` rules still apply while they exist (§9 step 4 removes them).
-    await expect(html).toHaveClass(/dark/);
+    // No theme class: colour-scheme alone decides every token (the v1.0 `.dark` rules are gone).
+    await expect(html).not.toHaveClass(/dark/);
     await page.emulateMedia({ colorScheme: 'light' });
     await expect.poll(() => css(page, 'body', 'background-color')).toBe('rgb(238, 242, 243)');
-    await expect(html).not.toHaveClass(/dark/);
   });
 
   test('Settings → Appearance switches palette and theme at once, keeps them on the device, never on the books', async ({ page }) => {

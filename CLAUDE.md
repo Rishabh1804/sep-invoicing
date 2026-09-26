@@ -28,7 +28,7 @@ Workforce management and invoicing PWA for **Soma Electro Products**, a zinc ele
 
 ## Architecture
 
-Split-file PWA. 46 modules, ~26,400 lines total.
+Split-file PWA. 47 modules, ~26,800 lines total.
 
 ```
 split/
@@ -71,6 +71,7 @@ split/
 ├── stats.js           ← Stats dashboard + History activity log (1,195 lines)
 ├── intel.js           ← Stats tabs; Overview at the live cost; six months; contribution by client (~230 lines)
 ├── insights.js        ← Insights (as To-do rules), predictions, invoice PO/vehicle prefill (~330 lines)
+├── finintel.js        ← Finance intelligence: eleven bank To-do rules, days to pay, the cash forecast (~400 lines)
 ├── client-perf.js     ← Client performance: month on month + material cadence (314 lines)
 ├── im-form.js         ← IM add/edit/delete challan form (450 lines)
 ├── im-dupe.js         ← IM duplicate guard: fingerprint + pre-save warn + scan (305 lines)
@@ -81,7 +82,7 @@ split/
 └── init.js            ← Migrations + app bootstrap (567 lines)
 ```
 
-**Concat order defined in build.sh.** Dependencies: data → state → appearance → zinc → tabs → clients → items → create → settings → github-sync → invoice-ops → number-audit → exports → im → autocomplete → print → quality-cert → credit-note → charts → staff → labour → areas → payroll → stock → cost → bills → xls → xlsx → bank → finance → todo → relay → stats → intel → insights → client-perf → im-form → im-dupe → scanner → events → swipe → seed → init.
+**Concat order defined in build.sh.** Dependencies: data → state → appearance → zinc → tabs → clients → items → create → settings → github-sync → invoice-ops → number-audit → exports → im → autocomplete → print → quality-cert → credit-note → charts → staff → labour → areas → payroll → stock → cost → bills → xls → xlsx → bank → finance → todo → relay → stats → intel → insights → finintel → client-perf → im-form → im-dupe → scanner → events → swipe → seed → init.
 
 **Every module shares one global scope.** A top-level `var` or `function` in a later module silently replaces one of
 the same name in an earlier one; nothing warns. `bills.js` shipped a `STOCK_UNITS` array over `stock.js`'s unit map
@@ -111,7 +112,7 @@ every session start — nothing to set up by hand. CI (`build-sync`) is the back
 ### Tests
 
 ```bash
-pnpm exec playwright test          # 498 tests, both layouts
+pnpm exec playwright test          # 505 tests, both layouts
 ```
 
 Some sandboxes ship a Chromium build Playwright does not expect and block downloading
@@ -1483,6 +1484,33 @@ figure is the strongest evidence this repo has; this gives the live cost a secon
   - Each month's arithmetic is shown.
   - Offered, never applied, the same as the zinc uplift.
   - On the real statement: electricity ₹0.80/kg against the ₹0.81 model; labour ₹3.46 against ₹3.55.
+
+### The statement as intelligence
+Finance intelligence (`finintel.js`; spec Phase 5). The bank statement feeds the To-do and a forecast.
+
+- **Eleven To-do rules**, each switchable in Settings → Checks & alerts → To-do:
+  - `bankStale`: the statement is 14 days old;
+  - `bankLoose`: receipts still have no client a week on;
+  - `owed90`: invoices over 90 days, per client. Never red while any receipt is unplaced, because that money may
+    already be in; the task says so;
+  - `payingSlower`: a client's last three receipts are 25% slower than its usual;
+  - `gstNotInBank`: a month's GST has no payment and no note, and the statement reaches its due date;
+  - `powerPaidNoBill`: one task naming the months;
+  - `supplierNoBill`: no stock bill that month or the one before;
+  - `wageVsSlip`: a named salary leg against the payroll as paid;
+  - `cashSwing`: last week's cash drawn is 25% off its payout;
+  - `costGap`: recorded against paid over three closed months;
+  - `runway`: the forecast goes below zero within 45 days.
+- **Days to pay** (`bankDaysToPay`) is weighted by amount. Each receipt counts the days from each invoice it paid, and
+  opening balances are left out. Receivables and the Overview's debtor rows show it as *pays in N d*.
+- **Cash forecast, 60 days** (`finForecast`, Finance → Overview): the latest balance, plus what is expected in, less
+  what is expected out, with a P25–P75 band.
+  - **In:** open invoices at the client's own days to pay, and new billing at the last eight weeks' pace.
+  - **Out:** salaries, cash by Saturday, electricity, GST by the 20th, and every other payment spread by day.
+  - **Cash, not cost:** drawings and tax count.
+  - An invoice long past its usual day is **not expected at all**: on the real book that is ₹11.8L of mostly
+    already-paid invoices. Expecting it read the account at ₹15.9L in 30 days.
+  - Everything it rests on is listed under the chart.
 
 ### Stock reorder list
 More → Stock → **Reorder list** (owner, 25 Sep 2026). For each line with a daily use:

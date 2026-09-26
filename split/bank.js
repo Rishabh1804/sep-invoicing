@@ -263,7 +263,7 @@ function bankReceivables(cls) {
         if (amt <= 0 || o.due <= 0) return;
         var k = Math.min(o.due, amt);
         o.due = gstRound(o.due - k); amt = gstRound(amt - k);
-        if (parts) parts.push({ label: o.label, amount: gstRound(k), whole: o.due === 0 });
+        if (parts) parts.push({ label: o.label, amount: gstRound(k), whole: o.due === 0, date: o.date, inv: !!o.inv });
       });
       return amt;
     };
@@ -278,7 +278,7 @@ function bankReceivables(cls) {
         for (var j = i; j < live.length && j < i + 40; j++) {
           sum = gstRound(sum + live[j].due);
           if (Math.abs(sum - amt) <= 1) {
-            live.slice(i, j + 1).forEach(function(o) { parts.push({ label: o.label, amount: o.due, whole: true }); o.due = 0; });
+            live.slice(i, j + 1).forEach(function(o) { parts.push({ label: o.label, amount: o.due, whole: true, date: o.date, inv: !!o.inv }); o.due = 0; });
             how = 'exact'; break;
           }
           if (sum > amt + 1) break;
@@ -456,12 +456,14 @@ function _bankReceiptsHtml(cls) {
     '<div class="inv-panel-body inv-note">From ' + escHtml(formatDate(rows[0].date)) + ', the statement\'s first day: invoices less credit notes less receipts, ' +
     'plus whatever was owed on that day if you set it. A receipt that equals one invoice, or a run of them, to the rupee is marked exact; any other is set against the oldest first.</div>';
   if (!recv.length) h += '<div class="inv-empty">No invoices or receipts since the statement starts.</div>';
+  var payHist = typeof bankPayHistory === 'function' ? bankPayHistory(recv) : {};
   recv.forEach(function(r) {
-    var open = _bankOpen === String(r.client.id);
+    var open = _bankOpen === String(r.client.id), dtp = typeof bankDaysToPay === 'function' ? bankDaysToPay(r.client.id, payHist) : null;
     h += '<div class="inv-row inv-row-2" data-recv="' + escHtml(String(r.client.id)) + '"><button class="inv-row-main inv-row-expander" aria-expanded="' + open + '" data-action="invBankClient" data-id="' + escHtml(String(r.client.id)) + '">' +
       '<span class="inv-row-title">' + escHtml(r.client.name) + '</span><span class="inv-row-meta">' +
       escHtml(formatCurrency(r.invoiced)) + ' invoiced' + (r.notes ? ' · ' + escHtml(formatCurrency(r.notes)) + ' credited' : '') + ' · ' + escHtml(formatCurrency(r.received)) + ' received' +
-      (r.open.length ? ' · oldest open ' + r.oldestDays + ' d' : '') + '</span></button>' +
+      (r.open.length ? ' · oldest open ' + r.oldestDays + ' d' : '') +
+      (dtp && dtp.median != null ? ' · pays in ' + Math.round(dtp.median) + ' d' + (dtp.n < 3 ? ' (' + dtp.n + ' receipt' + (dtp.n === 1 ? '' : 's') + ')' : '') : '') + '</span></button>' +
       '<span class="inv-row-end"><span class="inv-row-stack"><span class="inv-num">' + formatCurrency(r.owed) + '</span><span class="inv-row-meta">' + (r.owed < -0.005 ? 'paid ahead' : 'owed') + '</span></span></span></div>';
     if (!open) return;
     h += '<div class="inv-row-children">';

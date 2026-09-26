@@ -34,7 +34,8 @@ needs one it does not define).
 | **Side track A** — challan line filled from the record, reason for a red flag | merged (#82); P63 | `state.js`, `im-form.js`, `events.js` |
 | **Phase 2** — `chartLines`, `chartStack`, `chartPieTap`, range chips, tap-to-read | merged (#83); P60 | `charts.js` |
 | **Phase 3** — the interactive Finance Overview (range, cash, where money went/came from, invoiced vs received, GST chart) | merged (#83); P59 | `finance.js` |
-| **Phase 4** — bank-paid cost by month, `notCost`, unsorted payees, precedence, recorded vs paid, Derive from the bank | built; P61 | `bank.js`, `cost.js`, `settings.js` |
+| **Phase 4** — bank-paid cost by month, `notCost`, unsorted payees, precedence, recorded vs paid, Derive from the bank | built (#84); P61 | `bank.js`, `cost.js`, `settings.js` |
+| **Phase 5** — eleven finance To-do rules, days to pay, the 60-day cash forecast | built; P62 | `finintel.js` |
 
 Data already available to build on — **use these, do not re-derive**:
 
@@ -231,6 +232,21 @@ what clears it, and a `sig` so a snooze holds until the figures change. **Warn, 
 - **Cash forecast** (`finForecast(days)`): today's balance + expected in − expected out, day by day for 60 days,
   with a band from the spread of each input (P25–P75). **Says what it rests on** under the chart, like
   *This month at its pace* does.
+
+**As built (26 Sep 2026).** `finintel.js`, after `insights.js`. `finCtx()` classifies the statement and builds the
+receivables once per task, so eleven rules cost one pass. Departures, each forced by the real book:
+- **An invoice long past its client's usual day is not expected at all** (over 90 days, or past twice the usual and a
+  month). On the real book 214 open invoices, ₹11.8L, sit there — most paid by the 21 unplaced cheques — and putting
+  them in the first week read the account at ₹15.9L in 30 days. They are named under the chart (*chase them, do not
+  plan on them*). One a little past its day is spread over four weeks and left out of the low end.
+- **New billing is an inflow**: the last eight weeks' pace, paid at the book's days-to-pay. Without it every week
+  carries wages and no sales.
+- **The forecast is cash, not cost**: every payment counts, drawings and tax included.
+- **`owed90` is never red while any receipt is unplaced** — it may already be paid — and says so.
+- **`powerPaidNoBill` is one task naming the months**, not one per month (six on the real book).
+- The Overview's debtor rows and Receivables say *pays in N d*.
+On the real book: 10 tasks (21 cheques to place, six clients over 90 days, July's GST, labour paid 80% over recorded,
+six electricity bills), and a forecast from ₹3.59L to ~₹3.2L at 60 days, P25–P75 wide.
 
 **Tests (new P62):** each rule raises on its trigger and clears on its fix (fake data, dates from `todayIso()` — no
 literal dates except inside the fixed-date statement fixtures, and no assertion that depends on today against those);

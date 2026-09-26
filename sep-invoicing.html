@@ -18,7 +18,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <!-- Appearance before first paint (§3.2): the device's theme and palette, so nothing flashes in the wrong colours. -->
 <script>(function(){try{var d=document.documentElement,t=localStorage.getItem("sep_inv_theme"),p=localStorage.getItem("sep_inv_palette");if(t==="light"||t==="dark")d.dataset.theme=t;d.dataset.palette=(p==="zinc"||p==="terracotta")?p:"teal";}catch(e){document.documentElement.dataset.palette="teal";}})();</script>
-<meta name="app-build" content="0c2419a4">
+<meta name="app-build" content="539a67a1">
 <style>
 /* ===== DESIGN TOKENS (design system v2.0 — docs/SEP_INVOICING_DESIGN_PRINCIPLES.md §3) ===== */
 /* Theme: colour-scheme decides every light-dark() below. <html data-theme> is set before first paint
@@ -7807,10 +7807,8 @@ var SETTINGS_SECS = {
       var cnNext = parseInt(_sVal('setCnNextNum'), 10);
       // Never below a number already issued from the app: a credit note number
       // the customer holds may not be handed out twice.
-      var issued = (S.creditNotes || []).reduce(function(mx, c) {
-        var n = parseInt(c.cnNumber, 10);
-        return isNaN(n) ? mx : Math.max(mx, n);
-      }, 0);
+      // In this financial year's series: a note recorded from an earlier year holds a number in that one's.
+      var issued = cnSeriesHighest();
       if (isNaN(cnNext) || cnNext < 1) { showToast('Enter the next credit note number', 'error'); return false; }
       if (cnNext <= issued) { showToast('Next credit note must be above ' + cnPadNum(issued) + ' — that one is issued', 'error'); return false; }
       S.cnNextNum = cnNext;
@@ -7871,11 +7869,11 @@ var SETTINGS_SECS = {
     title: 'Live cost fallbacks',
     summary: function() {
       var c = costModelCfg();
-      return 'power ' + _sRs(c.power) + ' &middot; other ' + _sRs(c.other) + ' &middot; chemicals ' + _sRs(stockCfg().chemModel) + ' /kg';
+      return 'electricity ' + _sRs(c.power) + ' &middot; other ' + _sRs(c.other) + ' &middot; chemicals ' + _sRs(stockCfg().chemModel) + ' /kg';
     },
     body: function() {
       var c = costModelCfg();
-      return _sRow(_sfg('Power (&#8377;/kg)', 'setCostPower', _sNum('setCostPower', c.power, 0.01, 0.01)),
+      return _sRow(_sfg('Electricity (&#8377;/kg)', 'setCostPower', _sNum('setCostPower', c.power, 0.01, 0.01)),
           _sfg('Consumables, ETP (&#8377;/kg)', 'setCostOther', _sNum('setCostOther', c.other, 0.01, 0.01))) +
         _sRow(_sfg('Chemicals (&#8377;/kg)', 'setStkModel', _sNum('setStkModel', stockCfg().chemModel, 0.01, 0.01)),
           _sfg('Zinc (&#8377;/kg), when no zinc price exists', 'setCostZincKg', _sNum('setCostZincKg', c.zincPerKg, 0.01, 0.01))) +
@@ -12019,17 +12017,37 @@ function getCreditNotes() {
   return S.creditNotes;
 }
 
+/* The financial year a note's number belongs to, off its own display number:
+   'CN/007/26-27' → '26-27'; '' where the note states none. */
+function cnNoteFy(cn) {
+  var p = String((cn && cn.displayNumber) || '').split('/');
+  return p.length > 2 ? p.slice(2).join('/') : '';
+}
+/* A note of the current series: this financial year's, or one that states no
+   year. A note recorded from an earlier year (Stock → Bills & notes takes the
+   year as printed) holds a number in THAT year's series, never in this one's. */
+function cnInSeries(cn) {
+  var fy = cnNoteFy(cn);
+  return !fy || fy === cnFyShort();
+}
+/* The highest number issued in the current series. */
+function cnSeriesHighest() {
+  var highest = 0;
+  getCreditNotes().forEach(function(cn) {
+    if (!cnInSeries(cn)) return;
+    var n = parseInt(cn.cnNumber, 10);
+    if (!isNaN(n) && n > highest) highest = n;
+  });
+  return highest;
+}
+
 /* A credit note number is issued — the customer holds a document bearing it —
    so by the same rule that governs invoice numbers it may never be reused.
    It needs no separate void ledger, though: a credit note is cancelled, never
    deleted, which is the correct GST treatment anyway. The number stays in the
    series carrying its own explanation, and exports declare it at zero. */
 function recomputeNextCnNumber() {
-  var highest = 0;
-  getCreditNotes().forEach(function(cn) {
-    var n = parseInt(cn.cnNumber, 10);
-    if (!isNaN(n) && n > highest) highest = n;
-  });
+  var highest = cnSeriesHighest();
   if (!S.cnNextNum || S.cnNextNum <= highest) S.cnNextNum = highest + 1;
   return S.cnNextNum;
 }
@@ -12427,7 +12445,10 @@ function buildCreditNoteHtml(cn) {
   // improvement over CN/005. An intermediate version of this line read "Computed
   // on (N invoices)", which asserts an arithmetic basis and drops the linkage
   // claim. Both readings now, because the document needs both.
-  if (cnIsRebate(cn) && cn.discountPct && (cn.invoiceNumbers || []).length > 1) html += '<div class="inv-cn-annex"><div class="inv-cn-annex-title">Invoices credited (' +
+  // Every batch note raised from the Register keeps its annex, a one-invoice batch
+  // included — a reprint must read as the copy the customer holds. A recorded note
+  // has no batch here to list, and an adjustment is about its one invoice.
+  if (cnIsRebate(cn) && !cn.recorded && cn.discountPct) html += '<div class="inv-cn-annex"><div class="inv-cn-annex-title">Invoices credited (' +
     (cn.invoiceNumbers || []).length + ') &mdash; the discount is computed on this batch, taxable ' +
     formatNum(cn.batchTaxable, 2) +
     ' at ' + escHtml(cn.discountPct) + '%</div>' +
@@ -12761,12 +12782,17 @@ function renderCreditNoteList() {
     notes.forEach(function(cn) {
       var cancelled = cn.status === 'cancelled';
       var n = (cn.invoiceNumbers || []).length;
+      // A batch note states its batch; a recorded or adjustment note has none, so it states its reason.
+      var batch = cnIsRebate(cn) && !cn.recorded && cn.discountPct;
+      var basis = batch
+        ? escHtml(cn.discountPct) + '% of ' + formatCurrency(cn.batchTaxable) + ' over ' + n + ' invoice' + (n !== 1 ? 's' : '')
+        : escHtml((cn.reason || 'Credit note') + (cn.recorded ? ' · recorded' : ''));
       html += '<div class="inv-row inv-row-auto' + (cancelled ? ' inv-row-muted' : '') + '"' + (cancelled ? ' data-cancelled' : '') + '>' +
         '<button class="inv-row-main" data-action="invCnPreview" data-id="' + escHtml(cn.id) + '">' +
         '<span class="inv-row-title"><span class="inv-id" data-invnum>' + escHtml(cn.displayNumber) + '</span> ' +
         (cancelled ? '<span class="inv-dot inv-dot-danger">Cancelled</span>' : '') + '</span>' +
         '<span class="inv-row-meta">' + escHtml(cn.clientName) + ' · ' + escHtml(formatDate(cn.date)) + '</span>' +
-        '<span class="inv-row-meta">' + escHtml(cn.discountPct) + '% of ' + formatCurrency(cn.batchTaxable) + ' over ' + n + ' invoice' + (n !== 1 ? 's' : '') + '</span>' +
+        '<span class="inv-row-meta">' + basis + '</span>' +
         // The customer identifies this note by ONE invoice number now, so that
         // number belongs on the row rather than behind a preview.
         '<span class="inv-row-meta">Against ' + escHtml(cnAgainstInvoiceLabel(cn)) + '</span></button>' +
@@ -12774,7 +12800,9 @@ function renderCreditNoteList() {
         '<span class="inv-row-meta inv-num">' + formatCurrency(cn.taxableValue) + ' taxable</span>' +
         (cancelled ? '' :
           '<span class="inv-toolbar inv-toolbar-tight">' +
-          '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invCnSetAgainst" data-id="' + escHtml(cn.id) + '">Reference</button>' +
+          // Only a batch has invoices to choose among. A recorded note carries the number
+          // printed on the customer's copy, and "Clear" would erase it for good.
+          (batch ? '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invCnSetAgainst" data-id="' + escHtml(cn.id) + '">Reference</button>' : '') +
           '<button class="inv-btn inv-btn-danger inv-btn-sm" data-action="invCnCancel" data-id="' + escHtml(cn.id) + '">Cancel</button></span>') +
         '</span></span></div>';
     });
@@ -18710,9 +18738,14 @@ function costBillFormHtml() {
     '<button class="inv-btn inv-btn-primary inv-btn-sm" data-action="invCostBillSave">Save bill</button></div>';
 }
 function costBillRedraw(where) { if (where === 'stock') renderStock(); else renderStats(); }
+/* The page a form or a button sits on. Both pages stay in the DOM when hidden, so a form left open
+   on Stats still holds the same ids as one opened on Stock, and a bare getElementById reads the
+   hidden one (Stats comes first). Every lookup is scoped to the page the form was opened on. */
+function costBillRoot(where) { return document.getElementById(where === 'stock' ? 'pageStock' : 'pageStats') || document; }
 
 function costBillSave() {
-  var v = function(id) { return ((document.getElementById(id) || {}).value || '').trim(); };
+  var root = costBillRoot((_costBillOpen || {}).where);
+  var v = function(id) { return ((root.querySelector('#' + id) || {}).value || '').trim(); };
   var kind = v('costBillKind') === 'other' ? 'other' : 'power', month = v('costBillMonth'), amount = gstRound(parseFloat(v('costBillAmount')) || 0);
   if (!/^\d{4}-\d{2}$/.test(month)) { showToast('Pick the month the bill covers', 'error'); return; }
   if (!(amount > 0)) { showToast('Enter the amount', 'error'); return; }
@@ -18725,7 +18758,7 @@ function costBillSave() {
   costBillRedraw(where);
   showToast(COST_BILL_KINDS[kind] + ' bill saved for ' + month);
 }
-function costBillVoid(id) {
+function costBillVoid(id, where) {
   var b = costBills().find(function(x) { return x.id === id; });
   if (!b || b.voided) return;
   var reason = prompt('Why is this bill void? (kept on the record, not deleted)');
@@ -18734,7 +18767,7 @@ function costBillVoid(id) {
   b.voided = Date.now();
   b.voidReason = reason.trim();
   saveState();
-  costBillRedraw(_stockView === 'bills' && document.getElementById('billsPower') ? 'stock' : 'stats');
+  costBillRedraw(where);
 }
 function costAction(action, btn) {
   switch (action) {
@@ -18742,13 +18775,13 @@ function costAction(action, btn) {
       var where = btn.dataset.where === 'stock' ? 'stock' : 'stats';
       _costBillOpen = { where: where, month: btn.dataset.month || '' };
       costBillRedraw(where);
-      if (btn.dataset.month) { var k = document.getElementById('costBillKind'); if (k) k.value = 'power'; }
-      var a = document.getElementById('costBillAmount'); if (a) a.focus();
+      var a = costBillRoot(where).querySelector('#costBillAmount'); if (a) a.focus();
       return true;
     }
     case 'invCostBillCancel': { var w = (_costBillOpen || {}).where; _costBillOpen = false; costBillRedraw(w); return true; }
     case 'invCostBillSave': costBillSave(); return true;
-    case 'invCostBillVoid': costBillVoid(btn.dataset.id); return true;
+    // Redraw the page the Void was tapped on, read from the button, not guessed from a hidden page's DOM.
+    case 'invCostBillVoid': costBillVoid(btn.dataset.id, btn.closest('#pageStock') ? 'stock' : 'stats'); return true;
   }
   return false;
 }
@@ -18905,18 +18938,14 @@ function billsMonthLabel(ym) {
   var p = String(ym || '').split('-');
   return p.length === 2 ? TREND_MONTH_LABELS[parseInt(p[1], 10) - 1] + ' ' + p[0] : ym;
 }
-function billsPrevMonths(n) {
-  var out = [], d = new Date(localDateStr() + 'T00:00:00');
-  d.setDate(1);
-  for (var i = 0; i < n; i++) { d.setMonth(d.getMonth() - 1); out.push(d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0')); }
-  return out;
-}
+/* The n closed months before this one, newest first. */
+function billsPrevMonths(n) { return insMonthsBack(n).reverse(); }
 /* A closed month with invoices but no electricity bill. A month the app billed nothing in is
    not asked for: that is a device holding no books, not a missing bill. */
-function billsMissingPower() {
+function billsMissingPower(n) {
   var have = {};
   costBills().forEach(function(b) { if (b.kind === 'power' && !b.voided) have[b.month] = true; });
-  return billsPrevMonths(_billsMonths).filter(function(m) {
+  return billsPrevMonths(n || _billsMonths).filter(function(m) {
     return !have[m] && (S.invoices || []).some(function(i) { return i.status === 'active' && i.date && i.date.slice(0, 7) === m; });
   });
 }
@@ -18939,7 +18968,10 @@ function _billsPowerHtml() {
   var missing = billsMissingPower();
   var h = '<div class="inv-panel inv-panel-flush" id="billsPower"><div class="inv-panel-head"><span class="inv-panel-title">Electricity and other bills' +
     (bills.length ? ' <span class="inv-panel-count">' + bills.length + '</span>' : '') + '</span>' +
-    (_costBillOpen ? '' : '<button class="inv-btn inv-btn-primary inv-btn-sm" data-action="invCostBillOpen" data-where="stock">Add bill</button>') + '</div>';
+    // Hidden only while the form is open HERE: a form left open on Stats must not take this door away.
+    // Primary only while no credit-note form is open, which carries the view's one primary then.
+    (_costBillOpen && _costBillOpen.where === 'stock' ? '' : '<button class="inv-btn ' + (_billForm ? 'inv-btn-secondary' : 'inv-btn-primary') +
+      ' inv-btn-sm" data-action="invCostBillOpen" data-where="stock">Add bill</button>') + '</div>';
   if (_costBillOpen && _costBillOpen.where === 'stock') h += '<div class="inv-panel-body">' + costBillFormHtml() + '</div>';
   /* One list in month order: a missing month sits where its bill would. */
   var rows = missing.map(function(m) { return { month: m, missing: true }; }).concat(bills.map(function(b) { return { month: b.month, bill: b }; }));
@@ -18988,7 +19020,8 @@ function _billsNotesHtml() {
       (cn.recorded ? ' · recorded' : '') + '</span></button>' +
       '<span class="inv-row-end"><span class="inv-row-stack"><span class="inv-num">' + formatCurrency(cn.grandTotal) + '</span>' +
       (cancelled ? '<span class="inv-dot inv-dot-danger">Cancelled</span>' : '<span class="inv-row-meta inv-num">' + formatCurrency(cn.taxableValue) + ' taxable</span>') + '</span>' +
-      (cancelled ? '' : '<button class="inv-btn inv-btn-danger inv-btn-sm" data-action="invCnCancel" data-id="' + escHtml(cn.id) + '">Cancel</button>') + '</span></div>';
+      // A form open above the list has its own Cancel; the list's would cancel a GST note at a tap.
+      (cancelled || _billForm ? '' : '<button class="inv-btn inv-btn-danger inv-btn-sm" data-action="invCnCancel" data-id="' + escHtml(cn.id) + '">Cancel</button>') + '</span></div>';
   });
   if (notes.length) h += '<div class="inv-row"><button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invExportCreditNotes">Credit notes CSV</button></div>';
   return h + '</div>';
@@ -19041,9 +19074,10 @@ function _billsCnFormHtml() {
     field('Unit', 'cnfUnit', '<select class="inv-select" id="cnfUnit">' + ['KG', 'NOS'].map(function(u) {
       return '<option' + (f.unit === u ? ' selected' : '') + '>' + u + '</option>'; }).join('') + '</select>') +
     '</div>';
+  // Always drawn, hidden while empty, so typing the taxable fills it in place rather than redrawing
+  // the form under the field being typed in.
   var c = _billsCnFigures();
-  if (c) h += '<div class="inv-callout inv-mb-8" data-cn-figures>' + formatCurrency(c.taxable) + ' taxable + ' + formatCurrency(gstRound(c.cgstAmt + c.sgstAmt + c.igstAmt)) +
-    ' GST (' + (c.gstType === 'inter' ? 'IGST 18%' : 'CGST 9% + SGST 9%') + ') = <strong>' + formatCurrency(c.grandTotal) + '</strong></div>';
+  h += '<div class="inv-callout inv-mb-8' + (c ? '' : ' inv-hidden') + '" data-cn-figures>' + _billsFiguresHtml(c) + '</div>';
   return h + '<div class="inv-toolbar"><button class="inv-btn inv-btn-secondary" data-action="invCnFormCancel">Cancel</button>' +
     '<button class="inv-btn inv-btn-primary" data-action="invCnFormSave">' + (rec ? 'Record note' : 'Issue note') + '</button></div>';
 }
@@ -19078,6 +19112,12 @@ function _billsCnFigures() {
   return c;
 }
 
+function _billsFiguresHtml(c) {
+  if (!c) return '';
+  return formatCurrency(c.taxable) + ' taxable + ' + formatCurrency(gstRound(c.cgstAmt + c.sgstAmt + c.igstAmt)) +
+    ' GST (' + (c.gstType === 'inter' ? 'IGST 18%' : 'CGST 9% + SGST 9%') + ') = <strong>' + formatCurrency(c.grandTotal) + '</strong>';
+}
+
 function billsCnFormOpen(mode) {
   _billForm = { mode: mode === 'record' ? 'record' : 'new', date: localDateStr(), clientId: '', invId: '', reason: mode === 'record' ? 'rebate' : 'rate',
     note: '', taxable: '', qty: '', unit: 'KG', num: '', fy: cnFyShort(), pct: CN_DEFAULT_PCT, from: '', to: '', invNo: '', invDate: '',
@@ -19085,7 +19125,9 @@ function billsCnFormOpen(mode) {
   renderStock();
 }
 
-/* Read the form back into _billForm. A field that changes what the form shows redraws it. */
+/* Read the form back into _billForm. A field that changes what the form shows redraws it; the
+   figures are updated in place. Called on `input` for typed fields (held as typed, so Save reads
+   them even if the field never lost focus) and on `change` for every field. */
 function billsCnFormInput(t) {
   if (!_billForm || !t.id || t.id.indexOf('cnf') !== 0) return false;
   var map = { cnfNum: 'num', cnfFy: 'fy', cnfDate: 'date', cnfClient: 'clientId', cnfInv: 'invId', cnfInvNo: 'invNo', cnfInvDate: 'invDate',
@@ -19098,9 +19140,7 @@ function billsCnFormInput(t) {
   if (['clientId', 'invId', 'reason'].indexOf(k) >= 0) { renderStock(); return true; }
   if (['taxable', 'cgst', 'sgst', 'igst'].indexOf(k) >= 0) {
     var box = document.querySelector('[data-cn-figures]'), c = _billsCnFigures();
-    if (c && box) box.innerHTML = formatCurrency(c.taxable) + ' taxable + ' + formatCurrency(gstRound(c.cgstAmt + c.sgstAmt + c.igstAmt)) +
-      ' GST (' + (c.gstType === 'inter' ? 'IGST 18%' : 'CGST 9% + SGST 9%') + ') = <strong>' + formatCurrency(c.grandTotal) + '</strong>';
-    else if (c && !box) renderStock();
+    if (box) { box.innerHTML = _billsFiguresHtml(c); box.classList.toggle('inv-hidden', !c); }
   }
   return true;
 }
@@ -19127,30 +19167,35 @@ function billsCnFormSave() {
 
   // The number: the next in the series for a new note; the printed one for a recorded note,
   // refused if the series already holds it — a credit note number is issued, never reused.
-  var num;
+  // A number is unique within its financial year's series (a note stating no year is this year's):
+  // CN/004/25-26 does not hold CN/004/26-27, and CN/007 typed without a year is CN/007/26-27.
+  var num, display;
   if (rec) {
     num = parseInt(f.num, 10);
     if (!(num > 0)) { showToast('Enter the number printed on the note', 'error'); return; }
-    var fy = String(f.fy || '').trim();
-    var display = 'CN/' + cnPadNum(num) + (fy ? '/' + fy : '');
-    if (getCreditNotes().some(function(x) { return x.displayNumber === display || (parseInt(x.cnNumber, 10) === num && (!fy || fy === cnFyShort())); })) {
+    var fy = String(f.fy || '').trim(), cur = cnFyShort();
+    display = 'CN/' + cnPadNum(num) + (fy ? '/' + fy : '');
+    if (getCreditNotes().some(function(x) { return parseInt(x.cnNumber, 10) === num && (cnNoteFy(x) || cur) === (fy || cur); })) {
       showToast(display + ' is already in the series', 'error'); return;
     }
   } else {
     num = recomputeNextCnNumber();
+    display = cnDisplayNumber(num);
   }
 
   var c = _billsCnFigures();
   var qty = f.qty > 0 ? f.qty : null;
   var rebate = f.reason === 'rebate';
   var pct = rebate && f.pct > 0 ? f.pct : null;
-  var addr = (inv && inv.clientAddress) || {};
+  // The invoice's own snapshot where there is one; a typed invoice falls back to the client master,
+  // or the note prints no buyer address and its CDNR row takes the home state as place of supply.
+  var addr = (inv && inv.clientAddress) || { add1: client.add1, add2: client.add2, add3: client.add3, state: client.state, stateCode: client.stateCode };
   var invDate = inv ? (inv.date || '') : (f.invDate || '');
   var reasonText = cnReasonLabel(f.reason) + (String(f.note || '').trim() ? ': ' + String(f.note).trim() : '');
   var cn = {
     id: 'CN-' + Date.now(),
     cnNumber: cnPadNum(num),
-    displayNumber: rec ? 'CN/' + cnPadNum(num) + (String(f.fy || '').trim() ? '/' + String(f.fy).trim() : '') : cnDisplayNumber(num),
+    displayNumber: display,
     date: f.date,
     clientId: client.id, clientName: client.name,
     clientGSTIN: (inv && inv.clientGSTIN) || client.gstin || '',
@@ -19339,7 +19384,7 @@ var TODO_RULE_FNS = {
     var today = todoToday(), day = parseInt(today.slice(8, 10), 10);
     if (day < 10) return [];
     var prev = billsPrevMonths(1)[0];
-    if (billsMissingPower().indexOf(prev) < 0) return [];
+    if (billsMissingPower(1).indexOf(prev) < 0) return [];
     return [{ key: 'power:' + prev, rule: 'power', tone: day >= 20 ? 'amber' : 'info',
       title: 'Add the electricity bill for ' + billsMonthLabel(prev), sub: 'Live cost is using the Settings figure for it',
       why: 'Bills · none recorded for ' + billsMonthLabel(prev),
@@ -24726,7 +24771,8 @@ document.addEventListener('change', function(e) {
 
 document.addEventListener('input', function(e) {
   if (stockOnInput(e.target)) return;
-  if (/^cnf(Taxable|Cgst|Sgst|Igst)$/.test(e.target.id) && billsCnFormInput(e.target)) return;
+  // Every typed field of the credit-note form, held as typed; a <select> speaks through change only.
+  if (e.target.tagName === 'INPUT' && /^cnf/.test(e.target.id) && billsCnFormInput(e.target)) return;
   if (relayOnInput(e.target)) return;
   if (e.target.id === 'clientSearch') {
     renderClientList(e.target.value);

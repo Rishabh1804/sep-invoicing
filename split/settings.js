@@ -118,10 +118,8 @@ var SETTINGS_SECS = {
       var cnNext = parseInt(_sVal('setCnNextNum'), 10);
       // Never below a number already issued from the app: a credit note number
       // the customer holds may not be handed out twice.
-      var issued = (S.creditNotes || []).reduce(function(mx, c) {
-        var n = parseInt(c.cnNumber, 10);
-        return isNaN(n) ? mx : Math.max(mx, n);
-      }, 0);
+      // In this financial year's series: a note recorded from an earlier year holds a number in that one's.
+      var issued = cnSeriesHighest();
       if (isNaN(cnNext) || cnNext < 1) { showToast('Enter the next credit note number', 'error'); return false; }
       if (cnNext <= issued) { showToast('Next credit note must be above ' + cnPadNum(issued) + ' — that one is issued', 'error'); return false; }
       S.cnNextNum = cnNext;
@@ -182,11 +180,11 @@ var SETTINGS_SECS = {
     title: 'Live cost fallbacks',
     summary: function() {
       var c = costModelCfg();
-      return 'power ' + _sRs(c.power) + ' &middot; other ' + _sRs(c.other) + ' &middot; chemicals ' + _sRs(stockCfg().chemModel) + ' /kg';
+      return 'electricity ' + _sRs(c.power) + ' &middot; other ' + _sRs(c.other) + ' &middot; chemicals ' + _sRs(stockCfg().chemModel) + ' /kg';
     },
     body: function() {
       var c = costModelCfg();
-      return _sRow(_sfg('Power (&#8377;/kg)', 'setCostPower', _sNum('setCostPower', c.power, 0.01, 0.01)),
+      return _sRow(_sfg('Electricity (&#8377;/kg)', 'setCostPower', _sNum('setCostPower', c.power, 0.01, 0.01)),
           _sfg('Consumables, ETP (&#8377;/kg)', 'setCostOther', _sNum('setCostOther', c.other, 0.01, 0.01))) +
         _sRow(_sfg('Chemicals (&#8377;/kg)', 'setStkModel', _sNum('setStkModel', stockCfg().chemModel, 0.01, 0.01)),
           _sfg('Zinc (&#8377;/kg), when no zinc price exists', 'setCostZincKg', _sNum('setCostZincKg', c.zincPerKg, 0.01, 0.01))) +

@@ -102,7 +102,7 @@ every session start — nothing to set up by hand. CI (`build-sync`) is the back
 ### Tests
 
 ```bash
-pnpm exec playwright test          # 462 tests, both layouts
+pnpm exec playwright test          # 466 tests, both layouts
 ```
 
 Some sandboxes ship a Chromium build Playwright does not expect and block downloading
@@ -1303,12 +1303,16 @@ batch rebate.
 - **Credit notes, two doors.** *Record an issued note* takes a note that already exists on paper, with its **own
   number** (refused if the series holds it) and **the GST as printed**: recomputing is not the same thing, and
   CN/004's 3,749.29 at 9% + 9% rounds each half to 337.44 = ₹4,424.17 where the customer holds ₹4,424.16. The
-  fields start at the computed figure. `recorded: true`; `cnNextNum` moves past it. *New note* issues the next
+  fields start at the computed figure. `recorded: true`; `cnNextNum` moves past it **only within its own financial
+  year's series** (`cnSeriesHighest()`, read off each note's display number): a note recorded from 25-26 holds no
+  number in 26-27's, and a typed invoice takes the client master's address. *New note* issues the next
   number against **one invoice** for a reason from a **fixed list** (`CN_REASONS`: rate correction, goods returned,
   short quantity, discount, other); **Other needs a description**. The batch rebate is not offered there: it is
   raised off a Register selection, as before.
-- **`kind`: `rebate` | `adjustment`** (absent = rebate, every note before this). An adjustment prints no batch
-  annex and is not a rebate to the To-do's batch rule (`cnIsRebate`). Stats nets both by `periodTo` (the invoice
+- **`kind`: `rebate` | `adjustment`** (absent = rebate, every note before this). An adjustment or a recorded note
+  prints no batch annex (a Register batch note keeps it, a one-invoice batch included, so a reprint matches the
+  customer's copy), reads as its reason in the Register's list, and offers no *Reference* re-pick — *Clear* would
+  erase the number printed on a recorded note. An adjustment is not a rebate to the To-do's batch rule (`cnIsRebate`). Stats nets both by `periodTo` (the invoice
   date for an adjustment). A note with no quantity prints blank qty and rate cells; the CDNR CSV leaves a blank
   `discountPct` / `batchTaxable` blank.
 - **This is the door for the control gap above**: CN/004 and CN/005 can now be entered as issued, not re-raised.

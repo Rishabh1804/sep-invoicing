@@ -395,9 +395,14 @@ function costBillFormHtml() {
     '<button class="inv-btn inv-btn-primary inv-btn-sm" data-action="invCostBillSave">Save bill</button></div>';
 }
 function costBillRedraw(where) { if (where === 'stock') renderStock(); else renderStats(); }
+/* The page a form or a button sits on. Both pages stay in the DOM when hidden, so a form left open
+   on Stats still holds the same ids as one opened on Stock, and a bare getElementById reads the
+   hidden one (Stats comes first). Every lookup is scoped to the page the form was opened on. */
+function costBillRoot(where) { return document.getElementById(where === 'stock' ? 'pageStock' : 'pageStats') || document; }
 
 function costBillSave() {
-  var v = function(id) { return ((document.getElementById(id) || {}).value || '').trim(); };
+  var root = costBillRoot((_costBillOpen || {}).where);
+  var v = function(id) { return ((root.querySelector('#' + id) || {}).value || '').trim(); };
   var kind = v('costBillKind') === 'other' ? 'other' : 'power', month = v('costBillMonth'), amount = gstRound(parseFloat(v('costBillAmount')) || 0);
   if (!/^\d{4}-\d{2}$/.test(month)) { showToast('Pick the month the bill covers', 'error'); return; }
   if (!(amount > 0)) { showToast('Enter the amount', 'error'); return; }
@@ -410,7 +415,7 @@ function costBillSave() {
   costBillRedraw(where);
   showToast(COST_BILL_KINDS[kind] + ' bill saved for ' + month);
 }
-function costBillVoid(id) {
+function costBillVoid(id, where) {
   var b = costBills().find(function(x) { return x.id === id; });
   if (!b || b.voided) return;
   var reason = prompt('Why is this bill void? (kept on the record, not deleted)');
@@ -419,7 +424,7 @@ function costBillVoid(id) {
   b.voided = Date.now();
   b.voidReason = reason.trim();
   saveState();
-  costBillRedraw(_stockView === 'bills' && document.getElementById('billsPower') ? 'stock' : 'stats');
+  costBillRedraw(where);
 }
 function costAction(action, btn) {
   switch (action) {
@@ -427,13 +432,13 @@ function costAction(action, btn) {
       var where = btn.dataset.where === 'stock' ? 'stock' : 'stats';
       _costBillOpen = { where: where, month: btn.dataset.month || '' };
       costBillRedraw(where);
-      if (btn.dataset.month) { var k = document.getElementById('costBillKind'); if (k) k.value = 'power'; }
-      var a = document.getElementById('costBillAmount'); if (a) a.focus();
+      var a = costBillRoot(where).querySelector('#costBillAmount'); if (a) a.focus();
       return true;
     }
     case 'invCostBillCancel': { var w = (_costBillOpen || {}).where; _costBillOpen = false; costBillRedraw(w); return true; }
     case 'invCostBillSave': costBillSave(); return true;
-    case 'invCostBillVoid': costBillVoid(btn.dataset.id); return true;
+    // Redraw the page the Void was tapped on, read from the button, not guessed from a hidden page's DOM.
+    case 'invCostBillVoid': costBillVoid(btn.dataset.id, btn.closest('#pageStock') ? 'stock' : 'stats'); return true;
   }
   return false;
 }

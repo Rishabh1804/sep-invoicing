@@ -90,7 +90,7 @@ var TODO_RULE_FNS = {
     var today = todoToday(), day = parseInt(today.slice(8, 10), 10);
     if (day < 10) return [];
     var prev = billsPrevMonths(1)[0];
-    if (billsMissingPower().indexOf(prev) < 0) return [];
+    if (billsMissingPower(1).indexOf(prev) < 0) return [];
     return [{ key: 'power:' + prev, rule: 'power', tone: day >= 20 ? 'amber' : 'info',
       title: 'Add the electricity bill for ' + billsMonthLabel(prev), sub: 'Live cost is using the Settings figure for it',
       why: 'Bills · none recorded for ' + billsMonthLabel(prev),

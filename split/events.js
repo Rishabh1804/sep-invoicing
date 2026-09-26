@@ -560,7 +560,8 @@ document.addEventListener('change', function(e) {
 
 document.addEventListener('input', function(e) {
   if (stockOnInput(e.target)) return;
-  if (/^cnf(Taxable|Cgst|Sgst|Igst)$/.test(e.target.id) && billsCnFormInput(e.target)) return;
+  // Every typed field of the credit-note form, held as typed; a <select> speaks through change only.
+  if (e.target.tagName === 'INPUT' && /^cnf/.test(e.target.id) && billsCnFormInput(e.target)) return;
   if (relayOnInput(e.target)) return;
   if (e.target.id === 'clientSearch') {
     renderClientList(e.target.value);

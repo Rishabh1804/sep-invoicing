@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
-import { emptyState, loadAppWithState, noSeedIM, readStoredState, recentTs, switchTab, todayIso, type SepState } from './fixtures';
+import { emptyState, loadAppWithState, noSeedIM, openStatsTab, readStoredState, recentTs, switchTab, todayIso, type SepState } from './fixtures';
 
 // P56: Stock → Bills & notes. The electricity bill and the credit note each had no door the owner
 // could find (26 Sep 2026); a stock line's name had none at all.
@@ -25,6 +25,7 @@ function state(): SepState {
   const s = emptyState();
   s.incomingMaterial = noSeedIM() as any;
   s.clients = [{ id: 1, name: 'ALPHA', billingMode: 'weight', gstType: 'intra', gstin: '20AAAAA0000A1Z5', address: '', isActive: true,
+    add1: 'PLOT 1, ADITYAPUR', add2: '', add3: '', state: 'JHARKHAND', stateCode: '20',
     rates: [{ ratePerKg: 13, ratePerPiece: null, effectiveFrom: '2020-04-01' }], itemRates: [] }] as never;
   s.invoices = [inv(1, prevMonth() + '-12', 5000), inv(2, todayIso(), 3000)] as never;
   (s as any).stock = { items: [{ id: 'SI1', name: 'Nitric Acid', key: 'NITRICACID', aliases: [], unit: 'kg', basis: 'draw' }], entries: [], pastes: [] };
@@ -148,4 +149,77 @@ test('a stock line is renamed and re-united, and a message in the old name still
   expect(it).toMatchObject({ name: 'Nitric acid 68%', unit: 'L' });
   expect(await page.evaluate(() => { const w = window as any; return w.stockFindByKey(w.stockKey('Nitric Acid'))?.id; })).toBe('SI1');
   expect(await page.evaluate(() => { const w = window as any; return w.stockFindByKey(w.stockKey('Nitric acid 68%'))?.id; })).toBe('SI1');
+});
+
+test('a form left open on Stats does not capture the Stock form\'s Save', async ({ page }) => {
+  await loadAppWithState(page, state());
+  await openStatsTab(page, 'cost');
+  await page.locator('#liveCost [data-action="invCostBillOpen"]').click();
+  // Left open; the same ids now also exist on Stock, and Stats comes first in the page.
+  await openBills(page);
+  const m = prevMonth();
+  await page.locator(`[data-missing="${m}"] [data-action="invCostBillOpen"]`).click();
+  await expect(page.locator('#pageStock #costBillAmount')).toBeFocused();
+  await page.locator('#pageStock #costBillAmount').fill('4200');
+  await page.locator('#pageStock [data-action="invCostBillSave"]').click();
+  const bills = (await readStoredState(page)).costBills;
+  expect(bills).toHaveLength(1);
+  expect(bills[0]).toMatchObject({ kind: 'power', month: m, amount: 4200 });
+});
+
+test('the taxable value is typed key by key without the form redrawing under it', async ({ page }) => {
+  await loadAppWithState(page, state());
+  await openBills(page);
+  await page.locator('[data-action="invCnFormOpen"][data-mode="new"]').click();
+  await page.locator('#cnfClient').selectOption('1');
+  await page.locator('#cnfInv').selectOption('INV-2');
+  await page.locator('#cnfTaxable').pressSequentially('150');
+  await expect(page.locator('#cnfTaxable')).toHaveValue('150');
+  await expect(page.locator('#cnfTaxable')).toBeFocused();
+  await expect(page.locator('[data-cn-figures]')).toContainText('177.00');
+});
+
+test('a note recorded from an earlier year holds no number in this year\'s series', async ({ page }) => {
+  const s0 = state();
+  s0.invPrefix = 'SEP/2026-27/';
+  await loadAppWithState(page, s0);
+  await openBills(page);
+  const record = async (num: string, fy: string, invNo: string) => {
+    await page.locator('[data-action="invCnFormOpen"][data-mode="record"]').click();
+    await page.locator('#cnfNum').fill(num);
+    await page.locator('#cnfFy').fill(fy);
+    await page.locator('#cnfClient').selectOption('1');
+    await page.locator('#cnfInv').selectOption('__typed');
+    await page.locator('#cnfInvNo').fill(invNo);
+    await page.locator('#cnfTaxable').fill('100');
+    await page.locator('[data-action="invCnFormSave"]').click();
+  };
+  await record('40', '25-26', '000100');
+  let s = await readStoredState(page);
+  expect(s.creditNotes).toHaveLength(1);
+  expect(s.creditNotes[0].displayNumber).toBe('CN/040/25-26');
+  // A typed invoice still gives the note the client's address, so its place of supply is the client's.
+  expect(s.creditNotes[0].clientAddress).toMatchObject({ add1: 'PLOT 1, ADITYAPUR', stateCode: '20' });
+  expect(s.cnNextNum).toBe(6);
+  // And the same number in this year's series is its own number, not a duplicate of last year's.
+  await record('40', '26-27', '000101');
+  s = await readStoredState(page);
+  expect(s.creditNotes).toHaveLength(2);
+  expect(s.cnNextNum).toBe(41);
+});
+
+test('an adjustment note reads as its reason in the Register list, with no batch to re-pick', async ({ page }) => {
+  await loadAppWithState(page, state());
+  await openBills(page);
+  await page.locator('[data-action="invCnFormOpen"][data-mode="new"]').click();
+  await page.locator('#cnfClient').selectOption('1');
+  await page.locator('#cnfInv').selectOption('INV-2');
+  await page.locator('#cnfTaxable').fill('150');
+  await page.locator('[data-action="invCnFormSave"]').click();
+  await page.locator('[data-action="invClosePrint"]').click();
+  await page.evaluate(() => (window as any).renderCreditNoteList());
+  const row = page.locator('.inv-overlay-card .inv-row').first();
+  await expect(row).toContainText('Rate correction');
+  await expect(row).not.toContainText('% of');
+  await expect(row.locator('[data-action="invCnSetAgainst"]')).toHaveCount(0);
 });

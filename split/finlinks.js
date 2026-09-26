@@ -6,7 +6,7 @@
  * With no statement imported, each screen says nothing rather than a zero.
  */
 
-function finHasBank() { return bankRows().length > 0; }
+function finHasBank() { return bankData().rows.length > 0; }
 
 /* ---------- A client ---------- */
 function finClientMoney(clientId) {

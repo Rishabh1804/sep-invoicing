@@ -151,6 +151,8 @@ function bankPartyOf(narr) {
   return '';
 }
 function bankKey(s) { return relayKey(s); }
+/* A cheque deposit names nobody: its "Cheque deposited" is every cheque's, never a payee to remember. */
+function bankIsChequeDeposit(row) { return /^BY INST\b/i.test(String((row && row.narration) || '')); }
 
 function bankMatchClient(party) {
   var pk = bankKey(party);
@@ -214,13 +216,18 @@ function bankClassify(rows) {
   var b = bankData(), ctx = { suppliers: bankSupplierKeys(), roster: relayRosterIndex(S.staff || []) };
   return (rows || bankRows()).map(function(row) {
     var v = bankGuess(row, ctx), key = bankKey(v.party);
-    var rule = key && !v.cash ? b.parties[key] : null;
+    // A payee rule needs a payee: a cash draw and a cheque deposit name nobody.
+    var rule = key && !v.cash && !bankIsChequeDeposit(row) ? b.parties[key] : null;
+    // A rule is written from one row. Money OUT to a remitter (a refund) is not a receipt, so a receipt
+    // rule speaks for money in only; the row's own setting can still say otherwise.
+    if (rule && rule.cat === 'receipt' && !(row.cr > 0)) rule = null;
     [rule, row.set].forEach(function(o) {
       if (!o) return;
       if (o.cat) { v.cat = o.cat; v.auto = false; }
       // A pick set back to "no client" is a decision too: it unplaces, rather than falling back to the guess.
       if ('clientId' in o) v.clientId = o.clientId == null ? null : o.clientId;
-      if (o.staffId != null) { v.staffId = o.staffId; v.guess = false; }
+      // So is "Nobody on the roster": it clears a guessed hand rather than falling back to the guess.
+      if ('staffId' in o) { v.staffId = o.staffId == null ? null : o.staffId; v.guess = false; }
       if ('notCost' in o) v.notCost = !!o.notCost;
     });
     v.row = row; v.key = key;
@@ -272,7 +279,9 @@ function bankReceivables(cls) {
     recs.forEach(function(v) {
       var amt = v.row.cr, parts = [], how = 'oldest';
       received = gstRound(received + amt);
-      var live = open.filter(function(o) { return o.due > 0; });
+      // Exact only against what was already invoiced on the day it came in: a receipt cannot pay, to the
+      // rupee, an invoice not yet raised, and matching one left the older invoices it did pay open.
+      var live = open.filter(function(o) { return o.due > 0 && o.date <= v.row.date; });
       for (var i = 0; i < live.length && how !== 'exact'; i++) {
         var sum = 0;
         for (var j = i; j < live.length && j < i + 40; j++) {
@@ -292,7 +301,7 @@ function bankReceivables(cls) {
     var stillOpen = open.filter(function(o) { return o.due > 0.005; });
     var today = localDateStr();
     out.push({ client: c, opening: opening, invoiced: invoiced, notes: gstRound(notesTotal), received: received, owed: owed,
-      open: stillOpen, allocs: allocs, oldestDays: stillOpen.length ? Math.round((new Date(today) - new Date(stillOpen[0].date)) / 86400000) : null });
+      open: stillOpen, allocs: allocs, oldestDays: stillOpen.length ? Math.max(0, todoDaysBetween(stillOpen[0].date, today)) : null });
   });
   return out.sort(function(a, b) { return b.owed - a.owed; });
 }
@@ -476,7 +485,7 @@ function _bankReceiptsHtml(cls) {
         '<span class="inv-row-meta">' + escHtml(a.parts.map(function(p) { return p.label + (p.whole ? '' : ' (part ' + formatCurrency(p.amount) + ')'); }).join(', ') || 'nothing open to set it against') +
         (a.unapplied > 0 ? ' · ' + escHtml(formatCurrency(a.unapplied)) + ' more than was owed' : '') + '</span></span>' +
         '<span class="inv-row-end"><span class="inv-num">' + formatCurrency(a.v.row.cr) + '</span>' +
-        (_bankChange === a.v.row.id ? _bankClientSelect(a.v).replace('<option value="">Client…</option>', '<option value="">No client</option>')
+        (_bankChange === a.v.row.id ? _bankClientSelect(a.v, { empty: 'No client' })
           : '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invBankChange" data-id="' + escHtml(a.v.row.id) + '">Change</button>') + '</span></div>';
     });
     var ser = bankChequeSeries(cls)[String(r.client.id)];
@@ -498,11 +507,11 @@ function _bankReceiptsHtml(cls) {
     loose.slice().reverse().forEach(function(v) {
       var inst = bankInstrument(v.row), o = bankPlacementOffers(v.row, recv, series);
       // The cheque number is what the owner matches against the book, so it leads; a remitter's name leads where there is one.
-      var chqDep = /^BY INST\b/i.test(v.row.narration) && inst;
+      var chqDep = bankIsChequeDeposit(v.row) && inst;
       h += '<div class="inv-row inv-row-2" data-loose="' + escHtml(v.row.id) + '"><span class="inv-row-main"><span class="inv-row-title">' +
         (chqDep ? '<span class="inv-id">' + escHtml(inst) + '</span>' : escHtml(v.party || v.row.narration)) + '</span>' +
         '<span class="inv-row-meta">' + (chqDep ? 'Cheque · ' : '') + escHtml(formatDate(v.row.date)) + (inst && !chqDep ? ' · chq ' + escHtml(inst) : '') + '</span></span>' +
-        '<span class="inv-row-end"><span class="inv-num">' + formatCurrency(v.row.cr) + '</span>' + _bankClientSelect(v, 'bankLooseClient') + '</span></div>';
+        '<span class="inv-row-end"><span class="inv-num">' + formatCurrency(v.row.cr) + '</span>' + _bankClientSelect(v) + '</span></div>';
       // Each offer is a line of its own under the cheque, its button at the row's end: inside the
       // one-line meta it was clipped by the ellipsis on a phone and could not be tapped.
       var offer = function(c, why, text) {
@@ -525,10 +534,11 @@ function _bankReceiptsHtml(cls) {
 /* A cheque deposit names nobody. Where its amount equals, to the rupee, one open invoice or a run
    of one client's open invoices — and only one client's — that client is OFFERED, never placed:
    an exact sum is evidence, not a record of who wrote the cheque. */
-function bankSuggestClient(amt, recv) {
+function bankSuggestClient(amt, recv, date) {
   var hits = [];
   recv.forEach(function(r) {
-    var open = r.open.filter(function(o) { return o.inv; });
+    // Only what was invoiced by the day the cheque came in: an invoice raised after it is not what it paid.
+    var open = r.open.filter(function(o) { return o.inv && (!date || o.date <= date); });
     for (var i = 0; i < open.length; i++) {
       var sum = 0;
       for (var j = i; j < open.length && j < i + 40; j++) {
@@ -577,13 +587,17 @@ function bankSuggestBySeries(inst, series) {
 /* Both ways a deposit can point at a client. When they agree, that is the offer; when they disagree,
    both are shown and nothing is placed. */
 function bankPlacementOffers(row, recv, series) {
-  var amount = bankSuggestClient(row.cr, recv), ser = bankSuggestBySeries(bankInstrument(row), series);
+  var amount = bankSuggestClient(row.cr, recv, row.date), ser = bankSuggestBySeries(bankInstrument(row), series);
   if (amount && ser && String(amount.client.id) === String(ser.client.id)) return { both: amount.client, series: ser, amount: amount };
   return { both: null, series: ser, amount: amount };
 }
 
-function _bankClientSelect(v, cls) {
-  return '<select class="inv-select inv-select-sm" data-bank-client="' + escHtml(v.row.id) + '" aria-label="Client"><option value="">Client…</option>' +
+/* o.id: the edit form's picker, which waits for its Save. Without it the picker is live: data-bank-client
+   places the receipt the moment it changes (bankInput), so the form's picker must never carry it. */
+function _bankClientSelect(v, o) {
+  o = o || {};
+  var attrs = o.id ? 'class="inv-select" id="' + o.id + '"' : 'class="inv-select inv-select-sm" data-bank-client="' + escHtml(v.row.id) + '" aria-label="Client"';
+  return '<select ' + attrs + '><option value="">' + escHtml(o.empty || 'Client…') + '</option>' +
     (S.clients || []).slice().sort(function(a, b) { return a.name.localeCompare(b.name); }).map(function(c) {
       return '<option value="' + escHtml(String(c.id)) + '"' + (String(v.clientId) === String(c.id) ? ' selected' : '') + '>' + escHtml(c.name) + '</option>';
     }).join('') + '</select>';
@@ -683,11 +697,12 @@ function _bankStatementHtml(cls) {
 }
 
 function _bankEditHtml(v) {
-  var r = v.row, canRule = !!v.key && !v.cash;
+  // Every cheque deposit reads "Cheque deposited": a rule on that would place all of them on one client.
+  var r = v.row, canRule = !!v.key && !v.cash && !bankIsChequeDeposit(r);
   var h = '<div class="inv-panel-body" data-bank-edit="' + escHtml(r.id) + '"><div class="inv-row-meta">' + escHtml(r.narration) + '</div><div class="inv-fields">' +
     '<div class="inv-field"><label class="inv-field-label" for="bankEditCat">Category</label><select class="inv-select" id="bankEditCat">' +
     BANK_CATS.map(function(c) { return '<option value="' + c[0] + '"' + (v.cat === c[0] ? ' selected' : '') + '>' + c[1] + '</option>'; }).join('') + '</select></div>';
-  if (v.cat === 'receipt') h += '<div class="inv-field"><label class="inv-field-label" for="bankEditClient">Client</label>' + _bankClientSelect(v).replace('<select class="inv-select inv-select-sm"', '<select class="inv-select" id="bankEditClient"') + '</div>';
+  if (v.cat === 'receipt') h += '<div class="inv-field"><label class="inv-field-label" for="bankEditClient">Client</label>' + _bankClientSelect(v, { id: 'bankEditClient' }) + '</div>';
   if (v.cat === 'wages' && !v.cash) {
     h += '<div class="inv-field"><label class="inv-field-label" for="bankEditStaff">Paid to</label><select class="inv-select" id="bankEditStaff"><option value="">Nobody on the roster</option>' +
       (S.staff || []).map(function(w) { return '<option value="' + escHtml(String(w.id)) + '"' + (String(v.staffId) === String(w.id) ? ' selected' : '') + '>' + escHtml(w.name) + '</option>'; }).join('') + '</select></div>';
@@ -711,7 +726,7 @@ function bankSaveEdit(id) {
   var nc = document.getElementById('bankEditNotCost');
   if (nc) set.notCost = nc.checked;
   var all = document.getElementById('bankEditAll');
-  if (all && all.checked && v.key) { b.parties[v.key] = set; delete row.set; }
+  if (all && all.checked && v.key && !bankIsChequeDeposit(row)) { b.parties[v.key] = set; delete row.set; }
   else row.set = set;
   _bankEdit = null;
   saveState();
@@ -726,7 +741,8 @@ function bankSetClient(rowId, clientId) {
   if (!row) return;
   var v = bankClassify([row])[0], id = clientId === '' ? null : _bankIdOf(S.clients, clientId);
   // A named remitter is remembered; a cheque deposit has no name to remember and is kept on the row.
-  if (v.key && !/^BY INST\b/i.test(row.narration)) b.parties[v.key] = { cat: 'receipt', clientId: id };
+  // The row's own setting would outrank the rule (bankClassify), so it goes: the placement just made is the answer.
+  if (v.key && !bankIsChequeDeposit(row)) { b.parties[v.key] = { cat: 'receipt', clientId: id }; delete row.set; }
   else row.set = { cat: 'receipt', clientId: id };
   saveState();
   renderFinance();
@@ -853,9 +869,14 @@ function bankInput(t) {
     var id = _bankEdit, r = bankData().rows.find(function(x) { return x.id === id; });
     if (!r) return true;
     var keep = r.set, v = bankClassify([r])[0];
+    // The redraw rebuilds every box from the record: what was ticked but not saved is carried across, or
+    // an unticked "every payment" comes back ticked and the Save that follows writes a rule for every row.
+    var ticks = {};
+    ['bankEditAll', 'bankEditNotCost'].forEach(function(k) { var el = document.getElementById(k); if (el) ticks[k] = el.checked; });
     r.set = Object.assign({}, v.row.set || {}, { cat: t.value });
     renderFinance();
     r.set = keep;
+    Object.keys(ticks).forEach(function(k) { var el = document.getElementById(k); if (el) el.checked = ticks[k]; });
     return true;
   }
   return false;

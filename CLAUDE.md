@@ -114,7 +114,7 @@ every session start — nothing to set up by hand. CI (`build-sync`) is the back
 ### Tests
 
 ```bash
-pnpm exec playwright test          # 517 tests, both layouts
+pnpm exec playwright test          # 522 tests, both layouts
 ```
 
 Some sandboxes ship a Chromium build Playwright does not expect and block downloading
@@ -1441,6 +1441,17 @@ to read it in the app yet"* — all three of receipts, payments and the ledger, 
   frozen and filtered. **Summary** has the period, opening and closing balance, the balance check, and each
   category's rows, money in and money out, footing to the closing balance. Read back by `openpyxl` cleanly; P57
   unzips the download by hand, checks every part's CRC, and asserts the order, the date serials and the overdraft.
+- **Bug search, 26 Sep 2026 (P66).** The review over the merged finance code found these, now pinned:
+  - **A cheque deposit is never a payee.** Every one reads *Cheque deposited*, and one save had written a rule
+    placing all of them on one client.
+  - **The edit form's client picker waits for Save.** It had placed the receipt the moment it changed.
+  - **A receipt rule covers money in only.** A refund to the same party stays a payment.
+  - ***Nobody on the roster* clears a guessed hand.**
+  - **Exact matching only uses invoices raised by the day the receipt came in.**
+  - **An invoice dated ahead of today is not over 90 days.**
+  - **A month the statement never reached reads *No statement*,** not *Not in bank*.
+  - ⚠ **Still open:** a returned cheque is not netted against the deposit it reverses. Linking the two is a rule for
+    the owner to set.
 - **Owned by soma-internal**, like stock: *Export JSON* writes `sep-bank` JSON (rows with their resolved category,
   payee rules, openings). The statement is never committed here; the specs read two fake statements in the
   bank's layout, `tests/fixtures/bank-*.xls`.

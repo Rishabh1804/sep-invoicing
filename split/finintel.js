@@ -331,11 +331,15 @@ TODO_RULE_FNS.supplierNoBill = function() {
   var billKeys = Object.keys(bills).map(function(x) { return x.split('|')[0]; });
   finCtx().cls.forEach(function(v) {
     if (v.cat !== 'supplier' || !(v.row.dr > 0) || todoDaysBetween(v.row.date, today) > 90) return;
-    var pk = bankKey(v.party || ''), m = v.row.date.slice(0, 7);
-    var bk = billKeys.find(function(b) { return b.length >= 4 && (pk.indexOf(b) === 0 || b.indexOf(pk) === 0); });
+    var pk = bankKey(v.party || ''), nk = bankKey(v.row.narration || ''), m = v.row.date.slice(0, 7);
+    // The payee where the narration names one, else the supplier's name anywhere in the narration (as
+    // finSupplierPaid reads it). An empty or short payee key is a prefix of every supplier's name, and
+    // matched whichever bill came first.
+    var bk = billKeys.find(function(b) { return b.length >= 4 && (pk.length >= 4 ? pk.indexOf(b) === 0 || b.indexOf(pk) === 0 : nk.indexOf(b) >= 0); });
     // A bill dated that month or the one before covers the payment: a bill is paid after it is raised.
     if (bk && (bills[bk + '|' + m] || bills[bk + '|' + bankPrevMonth(m + '-01')])) return;
-    var e = byKey[pk + '|' + m] || (byKey[pk + '|' + m] = { name: v.supplier || v.party, month: m, paid: 0, n: 0 });
+    var gk = (pk || nk) + '|' + m;
+    var e = byKey[gk] || (byKey[gk] = { name: v.supplier || v.party || v.row.narration, month: m, paid: 0, n: 0 });
     e.paid = gstRound(e.paid + v.row.dr); e.n++;
   });
   return Object.keys(byKey).map(function(k) {

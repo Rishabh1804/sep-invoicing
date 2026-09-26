@@ -77,11 +77,11 @@ test('P18: select all ticks every selectable invoice, and toggles back off', asy
   await expect(selectAll).toHaveText('Select all (3)');
   await selectAll.click();
 
-  await expect(page.locator('.inv-im-sel-count')).toHaveText('3 selected');
+  await expect(page.locator('#regSelBar .inv-selbar-count')).toHaveText('3 selected');
   // The same control clears, rather than leaving the only way out be three taps.
   await expect(selectAll).toHaveText('Clear selection');
   await selectAll.click();
-  await expect(page.locator('.inv-im-sel-count')).toHaveCount(0);
+  await expect(page.locator('#regSelBar .inv-selbar-count')).toHaveCount(0);
 });
 
 test('P18: select all skips cancelled invoices — no bulk action accepts one', async ({ page }) => {
@@ -96,20 +96,20 @@ test('P18: select all skips cancelled invoices — no bulk action accepts one', 
   // unclearable — and every bulk path refuses it anyway.
   await expect(page.locator('[data-action="invRegSelectAll"]')).toHaveText('Select all (2)');
   await page.locator('[data-action="invRegSelectAll"]').click();
-  await expect(page.locator('.inv-im-sel-count')).toHaveText('2 selected');
+  await expect(page.locator('#regSelBar .inv-selbar-count')).toHaveText('2 selected');
 });
 
 test('P18: changing a filter drops the selection instead of hiding it', async ({ page }) => {
   await loadAppWithState(page, stateWith([invoice(1), invoice(2)]));
   await enterSelectMode(page);
   await page.locator('[data-action="invRegSelectAll"]').click();
-  await expect(page.locator('.inv-im-sel-count')).toHaveText('2 selected');
+  await expect(page.locator('#regSelBar .inv-selbar-count')).toHaveText('2 selected');
 
   // Filter to a state none of them are in. The rows leave the screen; without
   // this the selection survives and every bulk action still acts on it.
   await page.locator('#regStateFilter').selectOption('filed');
 
-  await expect(page.locator('.inv-im-sel-count')).toHaveCount(0);
+  await expect(page.locator('#regSelBar .inv-selbar-count')).toHaveCount(0);
   const selected = await page.evaluate(() => Object.keys((window as any)._regSelected));
   expect(selected).toEqual([]);
 });
@@ -132,7 +132,7 @@ test('P18: a date range reaches invoices the month filter hides', async ({ page 
   await expect(page.locator('#regList')).not.toContainText('SEP/TEST-00002');
   // The month it replaced is cleared, not left set and quietly ignored.
   await expect(page.locator('#regMonthFilter')).toHaveValue('');
-  await expect(page.locator('.inv-reg-scope-note')).toBeVisible();
+  await expect(page.locator('[data-scope-note]')).toBeVisible();
 });
 
 test('P18: setting a month clears the range, so only one of them is ever in force', async ({ page }) => {
@@ -145,7 +145,7 @@ test('P18: setting a month clears the range, so only one of them is ever in forc
   await page.locator('#regMonthFilter').fill(todayIso().slice(0, 7));
   await expect(page.locator('#regDateFrom')).toHaveValue('');
   await expect(page.locator('#regDateTo')).toHaveValue('');
-  await expect(page.locator('.inv-reg-scope-note')).toHaveCount(0);
+  await expect(page.locator('[data-scope-note]')).toHaveCount(0);
 });
 
 test('P18: the sales register exports in serial order, with voids in their own slot', async ({ page }) => {
@@ -232,4 +232,32 @@ test('P18: choosing a client still filters — the change path is the one that a
   await page.locator('#regClientFilter').selectOption('2');
   await expect(page.locator('#regList')).toContainText('SEP/TEST-00002');
   await expect(page.locator('#regList')).not.toContainText('SEP/TEST-00001');
+});
+
+test('P18: the phone list orders its days by invoice date, not by when each was raised', async ({ page }) => {
+  const day = (n: number) => {
+    const d = new Date(); d.setDate(d.getDate() - n);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  };
+  // Raised in the order 1, 2, 3 — the last one backdated two days, the shape a
+  // reissue under its old number takes. By raising alone it would head the list.
+  await loadAppWithState(page, stateWith([
+    invoice(1, { date: day(1), createdAt: recentTs(3000) }),
+    invoice(2, { date: day(0), createdAt: recentTs(2000) }),
+    invoice(3, { date: day(2), createdAt: recentTs(1000) }),
+  ]));
+  await switchTab(page, 'pageRegister');
+  await page.locator('#regDateFrom').fill(day(5));
+
+  const order = () => page.locator('#regList [data-invnum]').allInnerTexts();
+  await expect.poll(order).toEqual(['SEP/TEST-00002', 'SEP/TEST-00001', 'SEP/TEST-00003']);
+  await page.locator('[data-action="invRegToggleSort"]').click();
+  await expect.poll(order).toEqual(['SEP/TEST-00003', 'SEP/TEST-00001', 'SEP/TEST-00002']);
+});
+
+test('P18: the whole phone row opens the invoice, its figures included', async ({ page }) => {
+  await loadAppWithState(page, stateWith([invoice(1)]));
+  await switchTab(page, 'pageRegister');
+  await page.locator('#regList .inv-row-end').first().click();
+  await expect(page.locator('.inv-overlay-scrim')).toContainText('SEP/TEST-00001');
 });

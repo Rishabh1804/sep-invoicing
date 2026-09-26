@@ -18,7 +18,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <!-- Appearance before first paint (§3.2): the device's theme and palette, so nothing flashes in the wrong colours. -->
 <script>(function(){try{var d=document.documentElement,t=localStorage.getItem("sep_inv_theme"),p=localStorage.getItem("sep_inv_palette");if(t==="light"||t==="dark")d.dataset.theme=t;d.dataset.palette=(p==="zinc"||p==="terracotta")?p:"teal";}catch(e){document.documentElement.dataset.palette="teal";}})();</script>
-<meta name="app-build" content="d5588a0f">
+<meta name="app-build" content="42cc4b85">
 <style>
 /* ===== DESIGN TOKENS (design system v2.0 — docs/SEP_INVOICING_DESIGN_PRINCIPLES.md §3) ===== */
 /* Theme: colour-scheme decides every light-dark() below. <html data-theme> is set before first paint
@@ -111,7 +111,8 @@
   --cw: var(--ok); --perm: var(--info);
 
   /* Layout (§3.7) */
-  --bar-h: 3.25rem; --bar-h-desk: 3rem; --nav-h: 3.625rem; --side-w: 13.5rem; --content-max: 80rem;
+  --bar-h: 3.25rem; --bar-h-desk: 3rem; --nav-h: 3.625rem; --side-w: 13.5rem; --content-max: 80rem; --pane-w: 22rem;
+  --filter-w: 9rem; --col-sm-w: 8rem;
   --tab-h: var(--nav-h); --header-h: var(--bar-h); --max-w: 32.5rem;
   --set-card-w: 55rem; --set-nav-w: 12.5rem;
   --section-gap: var(--sp-12); --card-padding: var(--sp-16); --card-padding-sm: var(--sp-12);
@@ -1561,86 +1562,9 @@ table.inv-qc-grid.inv-qc-no-top { border-top: 0; }
 }
 .inv-rate-row:last-child { border-bottom: none; }
 
-/* ===== REGISTER ===== */
-.inv-reg-toolbar {
-  display: flex; flex-direction: column; gap: var(--sp-8);
-  margin-bottom: var(--sp-16);
-}
-.inv-reg-filters {
-  display: flex; gap: var(--sp-8); flex-wrap: wrap;
-}
-.inv-reg-filters > * { flex: 1 1 9rem; min-width: 0; }
-.inv-reg-filters .inv-form-group { margin-bottom: 0; }
-/* Explicit date range, for an export that does not line up with a month. */
-.inv-reg-range { display: flex; gap: var(--sp-8); flex-wrap: wrap; align-items: flex-end; }
-/* Capped so the pair stays a compact control on a wide desktop toolbar rather
-   than stretching edge to edge, while still filling a 393px phone. */
-.inv-reg-range-field {
-  flex: 1; min-width: 0; max-width: 240px;
-  display: flex; flex-direction: column; gap: var(--sp-2);
-}
-.inv-reg-range-label { font-size: var(--fs-xs); color: var(--text-3); font-weight: 600; }
-.inv-reg-scope-note {
-  font-size: var(--fs-xs); color: var(--warning-text);
-  background: var(--warning-bg); border: 1px solid var(--warning);
-  border-radius: var(--r-sm); padding: var(--sp-4) var(--sp-8);
-}
-.inv-reg-search {
-  width: 100%; padding: var(--sp-10) var(--sp-12) var(--sp-10) var(--sp-32);
-  border: 1px solid var(--border); border-radius: var(--r-md);
-  background: var(--surface); font-size: var(--fs-base); min-height: 44px;
-  color: var(--text-1); transition: border-color var(--anim-fast);
-}
-.inv-reg-search:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 2px rgba(180,90,55,0.15); }
-.inv-reg-row {
-  display: flex; align-items: stretch;
-  border-bottom: 1px solid var(--border);
-  transition: background var(--anim-fast);
-}
-.inv-reg-row:last-child { border-bottom: none; }
-.inv-reg-row-cancelled { opacity: 0.5; }
-.inv-reg-row-top {
-  display: flex; justify-content: space-between; align-items: center;
-}
-.inv-reg-row-bottom {
-  display: flex; justify-content: space-between; align-items: center;
-}
-.inv-reg-invnum {
-  font-family: var(--ff-mono); font-size: var(--fs-sm); font-weight: 600;
-  color: var(--text-1); white-space: nowrap;
-}
-.inv-reg-date {
-  font-family: var(--ff-mono); font-size: var(--fs-xs); color: var(--text-3);
-  white-space: nowrap; flex-shrink: 0;
-}
-.inv-reg-client {
-  font-size: var(--fs-sm); color: var(--text-2);
-  word-break: break-word;
-}
-.inv-reg-total {
-  font-family: var(--ff-mono); font-weight: 600;
-  font-size: var(--fs-base); color: var(--cost-text);
-  text-align: right; white-space: nowrap;
-}
-.inv-reg-amounts {
-  display: flex; flex-direction: column; align-items: flex-end; gap: var(--sp-2);
-}
-.inv-reg-taxable {
-  font-family: var(--ff-mono); font-size: var(--fs-2xs); color: var(--text-3);
-  white-space: nowrap;
-}
-.inv-reg-status-row {
-  display: flex; align-items: center; gap: var(--sp-6); flex-wrap: wrap; min-width: 0;
-}
-/* The number is atomic: a long badge goes under it rather than splitting it. */
-.inv-reg-row-top, .inv-reg-row-bottom { gap: var(--sp-8); }
-.inv-reg-amounts { flex-shrink: 0; }
-.inv-cancelled-badge {
-  display: inline-block; padding: var(--sp-2) var(--sp-8);
-  border-radius: var(--r-full); font-size: var(--fs-2xs); font-weight: 700;
-  background: var(--danger-bg); color: var(--danger-text);
-}
-/* Invoice lifecycle state badges */
+/* ===== INVOICE STATES (v1.0) =====
+   The Register draws states with inv-dot / inv-badge (state.js INV_STATE_TONE); these remain for
+   Stats' state counts, and the summary strip for IM, until those screens move (§9 step 3). */
 .inv-state-badge {
   display: inline-block; padding: var(--sp-2) var(--sp-8);
   border-radius: var(--r-full); font-size: var(--fs-2xs); font-weight: 600;
@@ -1649,23 +1573,6 @@ table.inv-qc-grid.inv-qc-no-top { border-top: 0; }
 .inv-state-dispatched { background: var(--warning-bg); color: var(--warning-text); }
 .inv-state-delivered { background: var(--attend-bg); color: var(--attend-text); }
 .inv-state-filed { background: var(--prod-bg); color: var(--prod-text); }
-.inv-state-timeline { margin-bottom: var(--sp-12); }
-.inv-state-step {
-  display: flex; align-items: center; gap: var(--sp-8);
-  padding: var(--sp-4) 0; font-size: var(--fs-sm);
-}
-.inv-state-dot {
-  width: var(--sp-8); height: var(--sp-8); border-radius: var(--r-full);
-  background: var(--border); flex-shrink: 0;
-}
-.inv-state-dot-done { background: var(--attend); }
-.inv-state-dot-current { background: var(--warning); }
-.inv-state-step-label { color: var(--text-2); }
-.inv-state-step-date { font-family: var(--ff-mono); font-size: var(--fs-2xs); color: var(--text-3); margin-left: auto; }
-.inv-reg-export-bar {
-  display: flex; gap: var(--sp-8); margin-top: var(--sp-12);
-}
-.inv-reg-export-bar > * { flex: 1; }
 .inv-reg-summary {
   display: flex; justify-content: space-between; align-items: center;
   padding: var(--sp-8) var(--sp-16);
@@ -1673,9 +1580,6 @@ table.inv-qc-grid.inv-qc-no-top { border-top: 0; }
   margin-bottom: var(--sp-12); font-size: var(--fs-sm);
 }
 .inv-reg-summary-label { color: var(--text-3); }
-.inv-reg-summary-value {
-  font-family: var(--ff-mono); font-weight: 600; color: var(--cost-text);
-}
 
 /* ===== INVOICE DETAIL OVERLAY ===== */
 .inv-detail-section {
@@ -1692,27 +1596,6 @@ table.inv-qc-grid.inv-qc-no-top { border-top: 0; }
 .inv-detail-value-mono {
   font-family: var(--ff-mono); font-size: var(--fs-base); color: var(--text-1);
 }
-.inv-detail-gstin {
-  font-size: var(--fs-xs); color: var(--text-3);
-}
-.inv-detail-items-table {
-  width: 100%; border-collapse: collapse;
-  font-size: var(--fs-xs); margin-top: var(--sp-8);
-}
-.inv-detail-items-wrap {
-  overflow-x: auto; -webkit-overflow-scrolling: touch;
-}
-.inv-detail-items-table th {
-  text-align: left; padding: var(--sp-6) var(--sp-4);
-  border-bottom: 2px solid var(--border-2);
-  font-size: var(--fs-2xs); color: var(--text-3); font-weight: 600;
-}
-.inv-detail-items-table td {
-  padding: var(--sp-6) var(--sp-4);
-  border-bottom: 1px solid var(--border);
-  font-size: var(--fs-xs); vertical-align: top;
-}
-.inv-detail-items-table .inv-mono { font-family: var(--ff-mono); }
 .inv-detail-actions {
   display: flex; gap: var(--sp-8); flex-wrap: wrap;
   margin-top: var(--sp-16); padding-top: var(--sp-16);
@@ -1869,12 +1752,6 @@ table.inv-qc-grid.inv-qc-no-top { border-top: 0; }
 .inv-form-hint {
   font-size: var(--fs-xs); color: var(--text-3);
   margin-top: var(--sp-4);
-}
-.inv-numaudit-count {
-  display: inline-block; margin-left: var(--sp-6);
-  padding: 0 var(--sp-6); border-radius: var(--r-full);
-  background: var(--danger-bg); color: var(--danger-text);
-  font-size: var(--fs-xs); font-weight: 600;
 }
 .inv-numaudit-note {
   font-size: var(--fs-sm); color: var(--text-2);
@@ -2178,26 +2055,6 @@ table.inv-qc-grid.inv-qc-no-top { border-top: 0; }
 }
 
 /* ===== REGISTER — Phase 6b (Bulk Select + Sort) ===== */
-.inv-reg-actions-row {
-  display: flex; gap: var(--sp-8); margin-top: var(--sp-8);
-  /* Wraps rather than squeezing: with select-all present this row carries four
-     buttons, and at 393px they were compressing their labels onto two lines. */
-  flex-wrap: wrap;
-}
-.inv-reg-check-wrap {
-  display: flex; align-items: center; justify-content: center;
-  min-width: 44px; flex-shrink: 0; cursor: pointer;
-  border-bottom: 1px solid var(--border);
-}
-.inv-reg-row-content {
-  flex: 1; min-width: 0; display: flex; flex-direction: column;
-  gap: var(--sp-4); padding: var(--sp-12) var(--sp-16);
-  border-bottom: 1px solid var(--border);
-  cursor: pointer; min-height: 52px;
-  transition: background var(--anim-fast);
-}
-.inv-reg-row-content:active { background: var(--surface-2); }
-.inv-reg-row-selected { background: var(--prod-bg); }
 .inv-sel-clear-btn {
   background: transparent; color: var(--on-accent);
   border-color: color-mix(in srgb, var(--on-accent) 40%, transparent);
@@ -2355,7 +2212,6 @@ body.inv-desktop .inv-desktop-table thead {
 }
 body.inv-desktop .inv-tr:hover { background: var(--surface-2); }
 .inv-tr-active { background: var(--neutral-bg); }
-.inv-tr-cancelled { opacity: 0.6; }
 .inv-td {
   padding: var(--sp-8) var(--sp-12);
   vertical-align: middle;
@@ -2366,10 +2222,6 @@ body.inv-desktop .inv-tr:hover { background: var(--surface-2); }
   text-align: center;
   cursor: default;
 }
-.inv-td-num {
-  width: 60px;
-  font-family: var(--ff-mono);
-}
 .inv-td-date {
   width: 100px;
   font-family: var(--ff-mono);
@@ -2379,11 +2231,6 @@ body.inv-desktop .inv-tr:hover { background: var(--surface-2); }
   font-family: var(--ff-mono);
   text-align: right;
 }
-.inv-td-state { width: 90px; }
-
-/* Desktop-only toolbar overrides (Phase 8C) */
-body.inv-desktop [data-action="invRegToggleSort"],
-body.inv-desktop [data-action="invRegToggleSelect"] { display: none; }
 
 /* Selection bar desktop positioning (Phase 8C) */
 body.inv-desktop #regSelBar {
@@ -3475,6 +3322,15 @@ body.inv-desktop .inv-viewtab, body.inv-desktop .inv-stats-tab, body.inv-desktop
 .inv-search svg { width: 16px; height: 16px; flex-shrink: 0; }
 .inv-search input { flex: 1; min-width: 0; border: none; outline: none; background: none; color: var(--text-1); font-size: var(--fs-14); }
 .inv-search input:focus-visible { box-shadow: none; }
+/* Filters in a toolbar share the line, wrapping two to a row on the phone; a labelled one keeps its label above. */
+.inv-toolbar > .inv-toolbar-item { flex: 1 1 var(--filter-w); min-width: 0; width: auto; }
+.inv-toolbar .inv-field { margin-bottom: 0; }
+.inv-toolbar-end { align-self: flex-end; }
+.inv-toolbar-tight { gap: var(--sp-4); margin-bottom: 0; justify-content: flex-end; }
+.inv-btn .inv-badge { margin-left: var(--sp-2); }
+/* §6.2 Page head: a summary line worth more than the top bar. */
+.inv-pagehead { display: flex; align-items: baseline; justify-content: space-between; gap: var(--sp-8); margin-bottom: var(--sp-8); }
+.inv-pagehead-meta { font-size: var(--fs-12); color: var(--text-3); }
 
 /* §6.8 Panel. v1.0: every card family. */
 .inv-panel, .inv-card, .inv-card-list, .inv-stats-card, .inv-im-challan {
@@ -3553,6 +3409,10 @@ button.inv-row-main { display: block; padding: 0; border: none; background: none
 .inv-row-wrap .inv-dot { white-space: normal; }
 .inv-row-auto { min-height: 0; padding-top: var(--sp-8); padding-bottom: var(--sp-8); }
 .inv-row-muted { opacity: 0.55; }
+.inv-row-strong { font-weight: 600; }
+.inv-check { width: var(--sp-20); height: var(--sp-20); accent-color: var(--accent); cursor: pointer; flex-shrink: 0; }
+/* A row's tick box is tapped through its label, which holds the full touch target. */
+.inv-row-tick { min-width: var(--touch); align-self: stretch; justify-content: center; cursor: pointer; }
 .inv-row-group {
   display: flex; justify-content: space-between; align-items: center; min-height: var(--sp-32);
   padding: 0 var(--pad-x); background: var(--bg); border-bottom: 1px solid var(--border);
@@ -3572,9 +3432,22 @@ button.inv-row-main { display: block; padding: 0; border: none; background: none
 .inv-table tr.inv-row-selected td { background: var(--accent-soft); }
 .inv-table tfoot td { font-weight: 600; border-bottom: none; border-top: 1px solid var(--border); }
 .inv-num { font-family: var(--ff-mono); text-align: right; white-space: nowrap; }
-.inv-table th.inv-num { font-family: var(--ff-base); }
+.inv-table th.inv-num { font-family: var(--ff-base); text-align: right; }
 .inv-id { font-family: var(--ff-mono); white-space: nowrap; }
 .inv-table-check { width: var(--sp-32); }
+.inv-table tr[data-action] { cursor: pointer; }
+/* The open row is marked by its rule; a ticked row keeps the selection fill. A muted
+   (cancelled) row fades through .inv-row-muted on the tr — fading the cells as well
+   compounded to a third. */
+.inv-table tr[aria-current="true"]:not(.inv-row-selected) td { background: var(--surface-2); }
+.inv-table tr[aria-current="true"] td:first-child { box-shadow: inset var(--sp-2) 0 0 var(--accent); }
+/* A column that takes the spare width and ellipsizes, rather than wrapping a client's name over three lines. */
+.inv-col-grow { width: 100%; max-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.inv-col-grow-sm { max-width: var(--col-sm-w); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.inv-table-sort { padding: 0; border: none; background: none; font: inherit; color: inherit; cursor: pointer; white-space: nowrap; }
+.inv-table-sort:hover { color: var(--text-1); }
+.inv-table .inv-btn-link { color: var(--text-1); font-weight: 500; }
+.inv-table .inv-btn-link:hover { color: var(--accent); }
 .inv-cell {
   display: flex; align-items: center; justify-content: center; min-height: var(--ctl-h-sm);
   border-radius: var(--r-sm); font-family: var(--ff-mono); font-size: var(--fs-12);
@@ -3601,8 +3474,8 @@ button.inv-row-main { display: block; padding: 0; border: none; background: none
 .inv-dot-warning::before { background: var(--warning); }
 .inv-dot-ok::before { background: var(--ok); }
 .inv-dot-info::before { background: var(--info); }
-.inv-dot-neutral::before { background: var(--surface-3); }
-.inv-badge, .inv-state-badge, .inv-cancelled-badge, .inv-im-status, .inv-att-badge, .inv-area-badge, .inv-client-badge, .inv-stk-chip, .inv-td-lbl, .inv-cost-src, .inv-kpi-delta {
+.inv-dot-neutral::before { background: var(--text-3); }
+.inv-badge, .inv-state-badge, .inv-im-status, .inv-att-badge, .inv-area-badge, .inv-client-badge, .inv-stk-chip, .inv-td-lbl, .inv-cost-src, .inv-kpi-delta {
   display: inline-flex; align-items: center; gap: var(--sp-4); padding: var(--sp-2) var(--sp-6);
   border-radius: var(--r-sm); font-family: var(--ff-base); font-size: var(--fs-12); font-weight: 500; line-height: 1.35; white-space: nowrap;
 }
@@ -3618,6 +3491,24 @@ button.inv-row-main { display: block; padding: 0; border: none; background: none
 .inv-pane { background: var(--surface); border-left: 1px solid var(--border); padding: var(--sp-16); display: flex; flex-direction: column; gap: var(--sp-12); }
 .inv-kv { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--sp-8) var(--sp-16); font-size: var(--fs-13); }
 .inv-kv-k { font-size: var(--fs-12); color: var(--text-3); }
+.inv-kv-wide { grid-column: 1 / -1; }
+/* The list takes the room; the pane is a fixed column on the right (desktop only). */
+body.inv-desktop .inv-master-detail-pane > .inv-master { flex: 1; width: auto; min-width: 0; border-right: none; }
+body.inv-desktop .inv-master-detail-pane > .inv-pane { display: none; flex: 0 0 var(--pane-w); overflow-y: auto; }
+body.inv-desktop .inv-master-detail-pane.inv-pane-open > .inv-pane { display: flex; }
+/* Columns drop in priority as the list narrows (the pane opening narrows it), and where the
+   screen cannot hold both, the open invoice takes the list's place until it is closed. */
+body.inv-desktop .inv-master-detail-pane { container: masterdetail / inline-size; }
+body.inv-desktop .inv-master-detail-pane > .inv-master { container: list / inline-size; }
+@container list (max-width: 70rem) { .inv-col-opt1 { display: none; } }
+@container list (max-width: 60rem) { .inv-col-opt2 { display: none; } }
+@container list (max-width: 44rem) { .inv-col-opt3 { display: none; } }
+@container masterdetail (max-width: 50rem) {
+  .inv-pane-open > .inv-master { display: none; }
+  body.inv-desktop .inv-master-detail-pane.inv-pane-open > .inv-pane { flex: 1 1 auto; border-left: none; }
+}
+.inv-pane-head { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-8); }
+.inv-visually-hidden { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
 
 /* §6.15 Fields and the sticky action bar. v1.0 inv-form-* read these same rules. */
 .inv-field { margin-bottom: var(--sp-12); }
@@ -3663,13 +3554,13 @@ body.inv-desktop .inv-actionbar { bottom: 0; }
 .inv-toast-warning::before { background: var(--warning); }
 
 /* §6.18 Callouts, notes, empty states */
-.inv-callout, .inv-stats-caveat, .inv-stats-alert, .inv-stk-banner, .inv-confirm-warn, .inv-reissue-note, .inv-merge-warn, .inv-reg-scope-note {
+.inv-callout, .inv-stats-caveat, .inv-stats-alert, .inv-stk-banner, .inv-confirm-warn, .inv-reissue-note, .inv-merge-warn {
   display: block; padding: var(--sp-10) var(--sp-12); border: none; border-radius: var(--r-lg);
   font-size: var(--fs-13); line-height: 1.5;
 }
 .inv-callout, .inv-callout-neutral, .inv-stats-caveat { background: var(--surface-2); color: var(--text-2); }
 .inv-callout-info { background: var(--info-bg); color: var(--info); }
-.inv-callout-warning, .inv-stk-banner, .inv-confirm-warn, .inv-reissue-note, .inv-merge-warn, .inv-reg-scope-note { background: var(--warning-bg); color: var(--warning); }
+.inv-callout-warning, .inv-stk-banner, .inv-confirm-warn, .inv-reissue-note, .inv-merge-warn { background: var(--warning-bg); color: var(--warning); }
 .inv-callout-danger, .inv-stats-alert, .inv-stk-banner-red { background: var(--danger-bg); color: var(--danger); }
 .inv-note { font-size: var(--fs-12); color: var(--text-3); line-height: 1.5; }
 .inv-empty, .inv-empty-state, .inv-stk-empty, .inv-td-empty, .inv-chart-empty {
@@ -4473,10 +4364,19 @@ function getInvState(inv) {
   return inv.invoiceState || 'created';
 }
 
+/* An invoice's state as a status tone (design principles §6.13): waiting on the
+   floor is a caution, in the customer's hands is information, filed is done. */
+var INV_STATE_TONE = { created: 'neutral', dispatched: 'warning', delivered: 'info', filed: 'ok', cancelled: 'danger' };
+function invStateOf(inv) { return inv.status === 'cancelled' ? 'cancelled' : getInvState(inv); }
+function invStateWord(inv) { var st = invStateOf(inv); return st === 'cancelled' ? 'Cancelled' : (INV_STATE_LABELS[st] || st); }
+/* A state this build does not know (an older or newer backup) reads neutral rather than untoned. */
+function invStateTone(inv) { return INV_STATE_TONE[invStateOf(inv)] || 'neutral'; }
 function getStateBadgeHtml(inv) {
-  if (inv.status === 'cancelled') return '<span class="inv-cancelled-badge">Cancelled</span>';
-  var state = getInvState(inv);
-  return '<span class="inv-state-badge inv-state-' + state + '">' + escHtml(INV_STATE_LABELS[state] || state) + '</span>';
+  return '<span class="inv-badge inv-badge-' + invStateTone(inv) + '">' + escHtml(invStateWord(inv)) + '</span>';
+}
+/* The default in rows and tables (DR-8): a dot and the word. */
+function getStateDotHtml(inv) {
+  return '<span class="inv-dot inv-dot-' + invStateTone(inv) + '">' + escHtml(invStateWord(inv)) + '</span>';
 }
 
 function advanceInvoiceState(invId) {
@@ -5385,6 +5285,7 @@ function homeQuick(go) {
 var UI_TONE = { red: 'danger', amber: 'warning', info: 'info', green: 'ok' };
 function uiTone(t) { return UI_TONE[t] || (/^(danger|warning|ok|info|neutral)$/.test(t) ? t : 'neutral'); }
 
+var ICON_SEARCH = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>';
 var ICON_PRINT = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>';
 
 /* Home's stat strip: the month so far, with the tonnage behind the revenue (What Stats measures). */
@@ -9461,52 +9362,41 @@ function renderRegisterToolbar() {
     const c = S.clients.find(x => x.id === cid);
     return c ? '<option value="' + cid + '"' + (regFilter.clientId == cid ? ' selected' : '') + '>' + escHtml(c.name) + '</option>' : '';
   }).join('');
+  var stateOpt = function(v, label) { return '<option value="' + v + '"' + ((regFilter.state || '') === v ? ' selected' : '') + '>' + label + '</option>'; };
 
-  let html = '<div class="inv-reg-toolbar">' +
-    '<div class="inv-search-wrap inv-search-no-mb">' +
-    '<svg class="inv-search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>' +
-    '<input type="text" class="inv-reg-search" id="regSearch" placeholder="Search invoice, client or challan" value="' + escHtml(regFilter.search) + '" autocomplete="off"></div>' +
-    '<div class="inv-reg-filters">' +
-    '<div class="inv-form-group"><select class="inv-form-select" id="regClientFilter" aria-label="Filter by client">' +
-    '<option value="">All Clients</option>' + clientOpts + '</select></div>' +
-    '<div class="inv-form-group"><input type="month" class="inv-form-input inv-mono" id="regMonthFilter" value="' + escHtml(regFilter.month || '') + '" aria-label="Filter by month"></div>' +
-    '<div class="inv-form-group"><select class="inv-form-select" id="regStateFilter" aria-label="Filter by state">' +
-    '<option value=""' + (!regFilter.state ? ' selected' : '') + '>All States</option>' +
-    '<option value="created"' + (regFilter.state === 'created' ? ' selected' : '') + '>Created</option>' +
-    '<option value="dispatched"' + (regFilter.state === 'dispatched' ? ' selected' : '') + '>Dispatched</option>' +
-    '<option value="delivered"' + (regFilter.state === 'delivered' ? ' selected' : '') + '>Delivered</option>' +
-    '<option value="filed"' + (regFilter.state === 'filed' ? ' selected' : '') + '>Filed</option>' +
-    '<option value="cancelled"' + (regFilter.state === 'cancelled' ? ' selected' : '') + '>Cancelled</option></select></div>' +
+  let html = '<div class="inv-toolbar">' +
+    '<label class="inv-search">' + ICON_SEARCH +
+    '<input type="text" id="regSearch" placeholder="Search invoice, client or challan" value="' + escHtml(regFilter.search) + '" autocomplete="off" aria-label="Search the register"></label>' +
+    '<select class="inv-select inv-toolbar-item" id="regClientFilter" aria-label="Filter by client">' +
+    '<option value="">All clients</option>' + clientOpts + '</select>' +
+    '<input type="month" class="inv-input inv-toolbar-item" id="regMonthFilter" value="' + escHtml(regFilter.month || '') + '" aria-label="Filter by month">' +
+    '<select class="inv-select inv-toolbar-item" id="regStateFilter" aria-label="Filter by state">' +
+    stateOpt('', 'All states') + stateOpt('created', 'Created') + stateOpt('dispatched', 'Dispatched') +
+    stateOpt('delivered', 'Delivered') + stateOpt('filed', 'Filed') + stateOpt('cancelled', 'Cancelled') + '</select>' +
     '</div>' +
     // Explicit range, for an export that does not line up with a calendar month.
-    '<div class="inv-reg-range">' +
-    '<label class="inv-reg-range-field"><span class="inv-reg-range-label">From</span>' +
-    '<input type="date" class="inv-form-input inv-mono" id="regDateFrom" value="' + escHtml(regFilter.dateFrom || '') + '"></label>' +
-    '<label class="inv-reg-range-field"><span class="inv-reg-range-label">To</span>' +
-    '<input type="date" class="inv-form-input inv-mono" id="regDateTo" value="' + escHtml(regFilter.dateTo || '') + '"></label>' +
-    (rangeActive ? '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invRegClearRange">Clear range</button>' : '') +
+    '<div class="inv-toolbar">' +
+    '<label class="inv-field inv-toolbar-item"><span class="inv-field-label">From</span>' +
+    '<input type="date" class="inv-input" id="regDateFrom" value="' + escHtml(regFilter.dateFrom || '') + '"></label>' +
+    '<label class="inv-field inv-toolbar-item"><span class="inv-field-label">To</span>' +
+    '<input type="date" class="inv-input" id="regDateTo" value="' + escHtml(regFilter.dateTo || '') + '"></label>' +
+    (rangeActive ? '<button class="inv-btn inv-btn-secondary inv-btn-sm inv-toolbar-end" data-action="invRegClearRange">Clear range</button>' : '') +
     '</div>' +
-    (rangeActive ? '<div class="inv-reg-scope-note">Range in use — the month filter is ignored while it is set.</div>' : '') +
-    '<div class="inv-reg-actions-row">' +
-    '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invRegToggleSort">' +
-    (sortDir === 'asc' ? 'Oldest first' : 'Newest first') +
-    '</button>' +
-    '<button class="inv-btn inv-btn-ghost inv-btn-sm' + (_regSelectMode ? ' inv-chip-active' : '') + '" data-action="invRegToggleSelect">' +
-    (_regSelectMode ? 'Cancel select' : 'Select') +
-    '</button>' +
-    // Desktop always shows checkboxes; mobile only inside select mode, so the
-    // control follows wherever ticking is actually possible.
+    (rangeActive ? '<div class="inv-callout inv-callout-warning inv-mb-8" data-scope-note>Range in use — the month filter is ignored while it is set.</div>' : '') +
+    '<div class="inv-toolbar">' +
+    // The desktop table sorts by its column heads, and always shows its tick boxes.
+    (_isDesktop ? '' :
+      '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invRegToggleSort">' + (sortDir === 'asc' ? 'Oldest first' : 'Newest first') + '</button>' +
+      '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invRegToggleSelect" aria-pressed="' + _regSelectMode + '">' + (_regSelectMode ? 'Cancel select' : 'Select') + '</button>') +
+    // Offered wherever ticking is actually possible.
     ((_isDesktop || _regSelectMode) && selectableCount > 0
-      ? '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invRegSelectAll">' +
+      ? '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invRegSelectAll">' +
         (allSelected ? 'Clear selection' : 'Select all (' + selectableCount + ')') + '</button>'
       : '') +
-    '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invCnList">Credit notes' +
-    (cnCount > 0 ? '<span class="inv-numaudit-count">' + cnCount + '</span>' : '') +
-    '</button>' +
-    '<button class="inv-btn inv-btn-ghost inv-btn-sm" id="regNumberAudit" data-action="invShowNumberAudit">Number audit' +
-    (unaccounted > 0 ? '<span class="inv-numaudit-count">' + unaccounted + '</span>' : '') +
-    '</button>' +
-    '</div>' +
+    '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invCnList">Credit notes' +
+    (cnCount > 0 ? '<span class="inv-badge">' + cnCount + '</span>' : '') + '</button>' +
+    '<button class="inv-btn inv-btn-secondary inv-btn-sm" id="regNumberAudit" data-action="invShowNumberAudit">Number audit' +
+    (unaccounted > 0 ? '<span class="inv-badge inv-badge-warning" data-unaccounted>' + unaccounted + '</span>' : '') + '</button>' +
     '</div>';
 
   area.innerHTML = html;
@@ -9544,53 +9434,52 @@ function renderRegisterList() {
   if (!area) return;
 
   const filtered = getFilteredInvoices();
-  const activeFiltered = filtered.filter(i => i.status === 'active');
-  const activeCount = activeFiltered.length;
-  const activeRevenue = gstRound(activeFiltered.reduce((s, i) => s + (i.taxableValue || 0), 0));
+  let html = _regSummaryHtml(filtered);
 
-  let html = '';
-
-  // Summary bar
-  html += '<div class="inv-reg-summary">' +
-    '<span class="inv-reg-summary-label">' + activeCount + ' active invoice' + (activeCount !== 1 ? 's' : '') + '</span>' +
-    '<span class="inv-reg-summary-value">Taxable: ' + formatCurrency(activeRevenue) + '</span></div>';
-
-  // Invoice rows
   if (filtered.length === 0) {
-    html += '<div class="inv-empty-state">No invoices found</div>';
+    html += '<div class="inv-panel"><div class="inv-empty">No invoices found</div></div>';
   } else {
-    html += '<div class="inv-card-list">';
-    filtered.forEach(inv => {
-      const cancelled = inv.status === 'cancelled';
-      var isSelected = !!_regSelected[inv.id];
-      html += '<div class="inv-reg-row' + (cancelled ? ' inv-reg-row-cancelled' : '') + (isSelected ? ' inv-reg-row-selected' : '') + '">' +
-        (_regSelectMode && !cancelled ? '<label class="inv-reg-check-wrap" data-action="invRegToggleInv" data-id="' + escHtml(inv.id) + '">' +
-        '<input type="checkbox"' + (isSelected ? ' checked' : '') + ' class="inv-im-check"></label>' : '') +
-        '<div class="inv-reg-row-content" data-action="invViewInvoiceDetail" data-id="' + escHtml(inv.id) + '">' +
-        '<div class="inv-reg-row-top">' +
-        '<div class="inv-reg-status-row">' +
-        '<span class="inv-reg-invnum">' + escHtml(inv.displayNumber) + '</span> ' +
-        getStateBadgeHtml(inv) +
-        '</div>' +
-        '<div class="inv-reg-amounts"><span class="inv-reg-total">' + formatCurrency(inv.grandTotal) + '</span>' +
-        '<span class="inv-reg-taxable">Taxable: ' + formatCurrency(inv.taxableValue) + '</span></div></div>' +
-        '<div class="inv-reg-row-bottom">' +
-        '<span class="inv-reg-client">' + escHtml(inv.clientName) + '</span>' +
-        '<span class="inv-reg-date">' + formatDate(inv.date) + '</span></div>' +
-        '</div></div>';
+    // Rows grouped by invoice date, each group with its count and taxable (§7).
+    html += '<div class="inv-panel inv-panel-flush">';
+    var groups = [], byDate = {};
+    filtered.forEach(function(inv) {
+      var k = inv.date || '';
+      if (!byDate[k]) { byDate[k] = []; groups.push(k); }
+      byDate[k].push(inv);
+    });
+    // The list is sorted by when each invoice was raised, but the headers are
+    // invoice dates: a backdated or reissued invoice would otherwise pull its
+    // whole day to the top. Days follow the date; rows within a day, the raising.
+    var desc = (regFilter.regSortDir || 'desc') !== 'asc';
+    groups.sort(function(a, b) {
+      if (!a || !b) return (!a) - (!b);
+      return a === b ? 0 : ((a < b) === desc ? 1 : -1);
+    });
+    groups.forEach(function(k) {
+      var list = byDate[k], live = list.filter(function(i) { return i.status === 'active'; });
+      html += '<div class="inv-row-group"><span>' + (k ? escHtml(formatDate(k)) : 'No date') + ' · ' + list.length + '</span>' +
+        '<span class="inv-num">' + formatCurrency(gstRound(sumTaxable(live))) + '</span></div>';
+      list.forEach(function(inv) {
+        var cancelled = inv.status === 'cancelled';
+        var tickable = _regSelectMode && !cancelled;
+        var cls = 'inv-row inv-row-2' + (cancelled ? ' inv-row-muted' : '') + (_regSelected[inv.id] ? ' inv-row-selected' : '');
+        var open = ' data-action="invViewInvoiceDetail" data-id="' + escHtml(inv.id) + '"';
+        var main = '<span class="inv-row-title inv-id" data-invnum>' + escHtml(inv.displayNumber) + '</span>' +
+          '<span class="inv-row-meta">' + escHtml(inv.clientName) + '</span>';
+        var end = '<span class="inv-row-end"><span class="inv-row-stack"><span class="inv-num">' + formatCurrency(inv.grandTotal) + '</span>' +
+          getStateDotHtml(inv) + '</span></span>';
+        // With no tick box the whole row opens the invoice, figures included; with
+        // one, the box is its own full-height touch target beside the row.
+        html += tickable
+          ? '<div class="' + cls + '"><label class="inv-row-lead inv-row-tick">' + _regCheckHtml(inv) + '</label>' +
+            '<button class="inv-row-main"' + open + '>' + main + '</button>' + end + '</div>'
+          : '<button class="' + cls + '"' + open + (cancelled ? ' data-cancelled' : '') + '><span class="inv-row-main">' + main + '</span>' + end + '</button>';
+      });
     });
     html += '</div>';
   }
 
-  // Export + bulk actions
-  html += '<div class="inv-reg-export-bar">' +
-    '<button class="inv-btn inv-btn-ghost" data-action="invExportSales">Sales Register CSV</button>' +
-    '<button class="inv-btn inv-btn-ghost" data-action="invPrintSalesRegister">Sales Register PDF</button>' +
-    '<button class="inv-btn inv-btn-ghost" data-action="invExportGstr1">GSTR1 CSV</button></div>' +
-    '<div class="inv-reg-export-bar">' +
-    '<button class="inv-btn inv-btn-ghost" data-action="invBulkMarkFiled">Bulk Mark Filed</button></div>';
-
-  area.innerHTML = html;
+  area.innerHTML = html + _regExportHtml();
 }
 
 /* ===== SHARED DESKTOP UTILITIES (Phase 8B) ===== */
@@ -9631,196 +9520,87 @@ function _initDragHandle(handleId, masterId, detailId, tabKey) {
   handle.addEventListener('touchstart', onStart, { passive: false });
 }
 
-/* ===== REGISTER DESKTOP TABLE (Phase 8C) ===== */
+/* ===== REGISTER DESKTOP TABLE ===== */
 function _buildRegisterTableHtml() {
   var filtered = getFilteredInvoices();
-  var activeFiltered = filtered.filter(function(i) { return i.status === 'active'; });
-  var activeCount = activeFiltered.length;
-  var activeRevenue = gstRound(activeFiltered.reduce(function(s, i) { return s + (i.taxableValue || 0); }, 0));
-
-  var html = '<div class="inv-reg-summary">' +
-    '<span class="inv-reg-summary-label">' + activeCount + ' active invoice' + (activeCount !== 1 ? 's' : '') + '</span>' +
-    '<span class="inv-reg-summary-value">Taxable: ' + formatCurrency(activeRevenue) + '</span></div>';
-
-  if (filtered.length === 0) {
-    html += '<div class="inv-empty-state">No invoices found</div>';
-    return html;
-  }
+  var html = _regSummaryHtml(filtered);
+  if (filtered.length === 0) return html + '<div class="inv-empty">No invoices found</div>' + _regExportHtml();
 
   var sc = getRegSortConfig();
-
-  html += '<table class="inv-desktop-table"><thead><tr>';
-  html += '<th class="inv-th inv-td-check"></th>';
-  html += '<th class="inv-th inv-td-num">#</th>';
-
-  var cols = [
-    { key: 'client', label: 'Client', cls: '' },
-    { key: 'date', label: 'Date', cls: 'inv-td-date' },
-    { key: 'taxable', label: 'Taxable', cls: 'inv-td-amount inv-th-amount' },
-    { key: 'total', label: 'Total', cls: 'inv-td-amount inv-th-amount' },
-    { key: 'state', label: 'State', cls: 'inv-td-state' }
-  ];
-  cols.forEach(function(c) {
-    html += '<th class="inv-th inv-th-sortable' + (c.cls ? ' ' + c.cls : '') + '" data-action="invDesktopSort" data-col="' + c.key + '">' +
-      c.label + (sc.col === c.key ? '<span class="inv-sort-arrow">' + (sc.dir === 'asc' ? '\u25B2' : '\u25BC') + '</span>' : '') +
-      '</th>';
-  });
-  html += '</tr></thead><tbody>';
+  // The column heads the register sorts by; the rest are read-only.
+  var th = function(key, label, cls) {
+    var on = sc.col === key;
+    return '<th class="' + (cls || '') + '"' + (on ? ' aria-sort="' + (sc.dir === 'asc' ? 'ascending' : 'descending') + '"' : '') + '>' +
+      '<button class="inv-table-sort" data-action="invDesktopSort" data-col="' + key + '">' + label +
+      (on ? '<span aria-hidden="true">' + (sc.dir === 'asc' ? ' ▲' : ' ▼') + '</span>' : '') + '</button></th>';
+  };
+  html += '<table class="inv-table"><thead><tr>' +
+    '<th class="inv-table-check"><span class="inv-visually-hidden">Select</span></th><th>Invoice</th>' + th('client', 'Client', 'inv-col-grow') + th('date', 'Date', 'inv-col-opt3') +
+    '<th class="inv-col-opt2">Challans</th><th class="inv-num inv-col-opt2">kg</th>' + th('taxable', 'Taxable', 'inv-num inv-col-opt3') + '<th class="inv-num inv-col-opt1">GST</th>' +
+    th('total', 'Total', 'inv-num') + th('state', 'State') + '</tr></thead><tbody>';
 
   filtered.forEach(function(inv) {
     var cancelled = inv.status === 'cancelled';
-    var isActive = _regActiveInvId === inv.id;
-    var isSelected = !!_regSelected[inv.id];
-    html += '<tr class="inv-tr' + (isActive ? ' inv-tr-active' : '') + (cancelled ? ' inv-tr-cancelled' : '') + '" data-id="' + escHtml(inv.id) + '">';
-    html += '<td class="inv-td inv-td-check"><input type="checkbox" data-action="invRegToggleInv" data-id="' + escHtml(inv.id) + '"' + (isSelected ? ' checked' : '') + '></td>';
-    html += '<td class="inv-td inv-td-num" data-action="invSelectRegRow" data-id="' + escHtml(inv.id) + '">' + escHtml(inv.displayNumber) + '</td>';
-    html += '<td class="inv-td" data-action="invSelectRegRow" data-id="' + escHtml(inv.id) + '">' + escHtml(inv.clientName) + '</td>';
-    html += '<td class="inv-td inv-td-date" data-action="invSelectRegRow" data-id="' + escHtml(inv.id) + '">' + formatDate(inv.date) + '</td>';
-    html += '<td class="inv-td inv-td-amount" data-action="invSelectRegRow" data-id="' + escHtml(inv.id) + '">' + formatCurrency(inv.taxableValue) + '</td>';
-    html += '<td class="inv-td inv-td-amount" data-action="invSelectRegRow" data-id="' + escHtml(inv.id) + '">' + formatCurrency(inv.grandTotal) + '</td>';
-    html += '<td class="inv-td inv-td-state" data-action="invSelectRegRow" data-id="' + escHtml(inv.id) + '">' + getStateBadgeHtml(inv) + '</td>';
-    html += '</tr>';
+    // A line with no known weight adds nothing to kg, so a partly weighed invoice
+    // reads light; it says so rather than passing as the whole consignment.
+    var w = cancelled ? null : weighLines([inv]);
+    var kg = w ? w.kg : 0, partKg = !!w && w.known < w.lines;
+    var gst = gstRound((inv.cgstAmt || 0) + (inv.sgstAmt || 0) + (inv.igstAmt || 0));
+    html += '<tr class="' + (cancelled ? 'inv-row-muted' : '') + (_regSelected[inv.id] ? ' inv-row-selected' : '') + '"' +
+      (_regActiveInvId === inv.id ? ' aria-current="true"' : '') + (cancelled ? ' data-cancelled' : '') +
+      ' data-action="invSelectRegRow" data-id="' + escHtml(inv.id) + '">' +
+      '<td class="inv-table-check">' + (cancelled ? '' : _regCheckHtml(inv)) + '</td>' +
+      // The number is a real button, so the row can be opened from the keyboard.
+      '<td><button class="inv-btn-link inv-id" data-action="invSelectRegRow" data-id="' + escHtml(inv.id) + '" data-invnum>' + escHtml(inv.displayNumber) + '</button></td>' +
+      '<td class="inv-col-grow" title="' + escHtml(inv.clientName) + '">' + escHtml(inv.clientName) + '</td>' +
+      '<td class="inv-id inv-col-opt3">' + escHtml(formatDate(inv.date)) + '</td>' +
+      '<td class="inv-id inv-col-grow-sm inv-col-opt2" title="' + escHtml(inv.challanNo || '') + '">' + escHtml(inv.challanNo || '') + '</td>' +
+      '<td class="inv-num inv-col-opt2"' + (partKg && kg > 0 ? ' title="' + w.known + ' of ' + w.lines + ' lines weighed"' : '') + '>' +
+        (kg > 0 ? (partKg ? '&ge;&thinsp;' : '') + formatNum(kg, 1) : '&mdash;') + '</td>' +
+      '<td class="inv-num inv-col-opt3">' + formatCurrency(inv.taxableValue) + '</td>' +
+      '<td class="inv-num inv-col-opt1">' + formatCurrency(gst) + '</td>' +
+      '<td class="inv-num">' + formatCurrency(inv.grandTotal) + '</td>' +
+      '<td>' + getStateDotHtml(inv) + '</td></tr>';
   });
-
-  html += '</tbody></table>';
-
-  html += '<div class="inv-reg-export-bar">' +
-    '<button class="inv-btn inv-btn-ghost" data-action="invExportSales">Sales Register CSV</button>' +
-    '<button class="inv-btn inv-btn-ghost" data-action="invPrintSalesRegister">Sales Register PDF</button>' +
-    '<button class="inv-btn inv-btn-ghost" data-action="invExportGstr1">GSTR1 CSV</button></div>' +
-    '<div class="inv-reg-export-bar">' +
-    '<button class="inv-btn inv-btn-ghost" data-action="invBulkMarkFiled">Bulk Mark Filed</button></div>';
-
-  return html;
+  return html + '</tbody></table>' + _regExportHtml();
 }
 
-/* Render invoice detail inline in #regDetail (Phase 8C) */
+/* The table and the pane are rebuilt whole, which drops the keyboard to <body>.
+   Focus goes back to the same control; where that is gone or hidden (the pane
+   covering the list), to the pane's close button, and on closing, to the row
+   of the invoice that was open. */
+function _regFocusKey() {
+  var ae = document.activeElement, wrap = document.getElementById('regMasterDetail');
+  if (!ae || !wrap || !wrap.contains(ae) || !ae.dataset || !ae.dataset.action) return null;
+  return { action: ae.dataset.action, id: ae.dataset.id || '', col: ae.dataset.col || '', open: _regActiveInvId };
+}
+function _regRestoreFocus(k) {
+  var wrap = k && document.getElementById('regMasterDetail');
+  if (!wrap) return;
+  var q = function(sel) { var el = wrap.querySelector(sel); return el && el.offsetParent !== null ? el : null; };
+  var attr = function(n, v) { return v ? '[data-' + n + '="' + String(v).replace(/["\\]/g, '\\$&') + '"]' : ''; };
+  var el = k.action === 'invRegClosePane'
+    ? q('button[data-action="invSelectRegRow"]' + attr('id', k.open))
+    : q(':is(button, input)[data-action="' + k.action + '"]' + attr('id', k.id) + attr('col', k.col));
+  el = el || q('[data-action="invRegClosePane"]');
+  if (el) el.focus();
+}
+
+/* Render invoice detail inline in #regDetail */
 function _renderRegDetail(invId, skipMasterRefresh) {
-  var inv = S.invoices.find(function(i) { return i.id === invId; });
-  if (!inv) {
-    _regActiveInvId = null;
-    var detail = document.getElementById('regDetail');
-    if (detail) detail.innerHTML = _renderDetailEmpty();
-    if (!skipMasterRefresh) {
-      var master = document.getElementById('regMaster');
-      if (master) master.innerHTML = _buildRegisterTableHtml();
-    }
-    return;
-  }
-
-  _regActiveInvId = invId;
-  var d = formatInvoiceData(inv);
-
-  var html = '';
-
-  // Cancelled warning
-  if (d.cancelled) {
-    html += '<div class="inv-confirm-warn">This invoice was cancelled on ' +
-      escHtml(d.cancelledAt || 'unknown date') +
-      '. It cannot be edited.</div>';
-  }
-
-  // Header info
-  html += '<div class="inv-detail-section">' +
-    '<div class="inv-form-row">' +
-    '<div><div class="inv-detail-label">Invoice No</div><div class="inv-detail-value-mono">' + escHtml(d.invoiceNumber) + '</div></div>' +
-    '<div><div class="inv-detail-label">Date</div><div class="inv-detail-value-mono">' + escHtml(d.date) + '</div></div></div></div>';
-
-  html += '<div class="inv-detail-section">' +
-    '<div class="inv-detail-label">Client</div>' +
-    '<div class="inv-detail-value">' + escHtml(d.clientName) + '</div>' +
-    '<div class="inv-detail-value-mono inv-text-muted inv-detail-gstin">' + escHtml(d.clientGSTIN) + '</div></div>';
-
-  // Lifecycle state timeline
-  if (!d.cancelled) {
-    var curState = getInvState(inv);
-    var curIdx = INV_STATES.indexOf(curState);
-    html += '<div class="inv-detail-section inv-state-timeline">' +
-      '<div class="inv-detail-label">Status</div>';
-    var stateData = [
-      { key: 'created', label: 'Created', ts: inv.createdAt },
-      { key: 'dispatched', label: 'Dispatched', ts: inv.dispatchedAt },
-      { key: 'delivered', label: 'Delivered', ts: inv.deliveredAt },
-      { key: 'filed', label: 'Filed', ts: inv.filedAt }
-    ];
-    stateData.forEach(function(sd, si) {
-      var done = si <= curIdx;
-      var isCurrent = si === curIdx;
-      html += '<div class="inv-state-step">' +
-        '<span class="inv-state-dot' + (done ? (isCurrent ? ' inv-state-dot-current' : ' inv-state-dot-done') : '') + '"></span>' +
-        '<span class="inv-state-step-label">' + escHtml(sd.label) + '</span>' +
-        (sd.ts ? '<span class="inv-state-step-date">' + formatTimestamp(sd.ts) + '</span>' : '') +
-        '</div>';
-    });
-    // Advance button
-    if (curIdx < INV_STATES.length - 1) {
-      var nextLabel = INV_STATE_LABELS[INV_STATES[curIdx + 1]];
-      html += '<div class="inv-btn-bar inv-mb-8"><button class="inv-btn inv-btn-primary inv-btn-sm" data-action="invAdvanceState" data-id="' + escHtml(inv.id) + '">Mark ' + escHtml(nextLabel) + '</button></div>';
-    }
-    html += '</div>';
-  }
-
-  // Line items table
-  html += '<div class="inv-detail-section">' +
-    '<div class="inv-detail-label">Line Items</div>' +
-    '<div class="inv-detail-items-wrap"><table class="inv-detail-items-table"><thead><tr>' +
-    '<th>Part</th><th>Qty</th><th>Unit</th><th>Rate</th><th>Amount</th></tr></thead><tbody>';
-  d.items.forEach(function(item, li) {
-    html += '<tr>' +
-      '<td>' + escHtml(lineLabel((inv.items || [])[li] || item)) + zeroReasonTag((inv.items || [])[li]) + detailRateMatch(inv, (inv.items || [])[li]) + '</td>' +
-      '<td class="inv-mono">' + escHtml(item.qty) + (item.nosQtyRaw && item.nosQtyRaw > 0 ? ' <span class="inv-text-muted">(' + escHtml(item.nosQtyRaw) + ' NOS)</span>' : '') + '</td>' +
-      '<td>' + escHtml(item.unit) + '</td>' +
-      '<td class="inv-mono">' + escHtml(item.rate) + '</td>' +
-      '<td class="inv-mono">' + escHtml(item.amount) + '</td></tr>';
-  });
-  html += '</tbody></table></div></div>';
-
-  // Totals
-  html += '<div class="inv-detail-section"><div class="inv-totals">' +
-    '<div class="inv-total-row"><span class="inv-total-label">Taxable Value</span><span class="inv-total-value">' + escHtml(d.taxableValue) + '</span></div>';
-  if (d.gstType === 'intra') {
-    html += '<div class="inv-total-row"><span class="inv-total-label">CGST @ ' + d.cgstPer + '%</span><span class="inv-total-value">' + escHtml(d.cgstAmt) + '</span></div>' +
-      '<div class="inv-total-row"><span class="inv-total-label">SGST @ ' + d.sgstPer + '%</span><span class="inv-total-value">' + escHtml(d.sgstAmt) + '</span></div>';
-  } else {
-    html += '<div class="inv-total-row"><span class="inv-total-label">IGST @ ' + d.igstPer + '%</span><span class="inv-total-value">' + escHtml(d.igstAmt) + '</span></div>';
-  }
-  html += '<div class="inv-total-row inv-total-row-grand"><span class="inv-total-label">Grand Total</span>' +
-    '<span class="inv-total-grand">' + escHtml(d.grandTotal) + '</span></div></div></div>';
-
-  // Optional fields
-  var optFields = [
-    ['Challan No', d.challanNo], ['Challan Date', d.challanDate],
-    ['Remarks', d.remarks]
-  ].filter(function(f) { return f[1]; });
-  if (optFields.length > 0) {
-    html += '<div class="inv-detail-section">';
-    optFields.forEach(function(f) {
-      html += '<div class="inv-detail-label">' + escHtml(f[0]) + '</div>' +
-        '<div class="inv-detail-value">' + escHtml(f[1]) + '</div>';
-    });
-    html += '</div>';
-  }
-
-  // Action buttons
-  html += '<div class="inv-detail-actions">';
-  if (!d.cancelled) {
-    html += '<button class="inv-btn inv-btn-primary" data-action="invEditInvoice" data-id="' + escHtml(inv.id) + '">Edit</button>';
-    html += '<button class="inv-btn inv-btn-ghost" data-action="invPreviewInvoice" data-id="' + escHtml(inv.id) + '">Preview</button>';
-    html += '<button class="inv-btn inv-btn-ghost" data-action="invQualityCert" data-id="' + escHtml(inv.id) + '">Quality Cert</button>';
-    html += '<button class="inv-btn inv-btn-ghost" data-action="invCancelInvoice" data-id="' + escHtml(inv.id) + '">Cancel Invoice</button>';
-  } else {
-    html += '<button class="inv-btn inv-btn-ghost" data-action="invPreviewInvoice" data-id="' + escHtml(inv.id) + '">Preview</button>';
-  }
-  html += '<button class="inv-btn inv-btn-danger" data-action="invDeleteInvoice" data-id="' + escHtml(inv.id) + '">Delete</button>';
-  html += '</div>';
-
+  var focusKey = skipMasterRefresh ? null : _regFocusKey();
+  var inv = invId ? S.invoices.find(function(i) { return i.id === invId; }) : null;
   var detailEl = document.getElementById('regDetail');
-  if (detailEl) detailEl.innerHTML = html;
-
-  // Update master to show active row highlight
+  _regActiveInvId = inv ? invId : null;
+  // The pane takes room only while an invoice is open; the table then drops columns in priority order (§6.11).
+  var wrap = document.getElementById('regMasterDetail');
+  if (wrap) wrap.classList.toggle('inv-pane-open', !!inv);
+  if (detailEl) detailEl.innerHTML = inv ? '<div class="inv-pane-head"><span class="inv-panel-title inv-id">' + escHtml(inv.displayNumber) + '</span>' +
+    '<button class="inv-btn inv-btn-icon inv-btn-ghost" data-action="invRegClosePane" aria-label="Close">&times;</button></div>' + invoiceDetailHtml(inv) : '';
   if (!skipMasterRefresh) {
     var masterEl = document.getElementById('regMaster');
     if (masterEl) masterEl.innerHTML = _buildRegisterTableHtml();
+    _regRestoreFocus(focusKey);
   }
 }
 
@@ -9833,47 +9613,29 @@ function renderRegisterTable() {
     _regToolbarRendered = true;
   }
 
-  var wrapper = document.getElementById('regMasterDetail');
-  if (!wrapper) {
-    // First render — build wrapper, init drag, restore width
+  // The list takes the room and the pane a fixed width (§6.14): a resizable
+  // split left the table in 40% of the screen, Total cut off and every client
+  // name wrapped over three lines.
+  if (!document.getElementById('regMasterDetail')) {
     area.innerHTML =
-      '<div class="inv-master-detail" id="regMasterDetail">' +
+      '<div class="inv-master-detail inv-master-detail-pane" id="regMasterDetail">' +
         '<div class="inv-master" id="regMaster"></div>' +
-        '<div class="inv-drag-handle" id="regDragHandle"></div>' +
-        '<div class="inv-detail" id="regDetail">' + _renderDetailEmpty() + '</div>' +
+        '<div class="inv-detail inv-pane" id="regDetail"></div>' +
       '</div>';
-    _initDragHandle('regDragHandle', 'regMaster', 'regDetail', 'pageRegister');
-    _restorePanelWidth('regMaster', 'pageRegister');
   }
 
-  // Re-render master content
   var master = document.getElementById('regMaster');
   if (!master) return;
+  var focusKey = _regFocusKey();
   master.innerHTML = _buildRegisterTableHtml();
 
-  // Detail panel validation: keep detail in sync with data changes
+  // Keep the pane in step with the data: a deleted or filtered-out invoice closes it.
+  // The filtered list is drawn from S.invoices, so being in it is being in the book too.
   if (_regActiveInvId) {
-    var stillExists = S.invoices.find(function(i) { return i.id === _regActiveInvId; });
-    if (!stillExists) {
-      // Deleted — clear detail
-      _regActiveInvId = null;
-      var detail = document.getElementById('regDetail');
-      if (detail) detail.innerHTML = _renderDetailEmpty();
-    } else {
-      // Check if active invoice is still in filtered set
-      var filtered = getFilteredInvoices();
-      var inFiltered = filtered.find(function(i) { return i.id === _regActiveInvId; });
-      if (!inFiltered) {
-        // Filtered out — clear detail
-        _regActiveInvId = null;
-        var detail2 = document.getElementById('regDetail');
-        if (detail2) detail2.innerHTML = _renderDetailEmpty();
-      } else {
-        // Still visible — refresh detail content (skip master since we just rendered it)
-        _renderRegDetail(_regActiveInvId, true);
-      }
-    }
+    var visible = getFilteredInvoices().some(function(i) { return i.id === _regActiveInvId; });
+    _renderRegDetail(visible ? _regActiveInvId : null, true);
   }
+  _regRestoreFocus(focusKey);
 
   _renderRegSelBar();
 }
@@ -9926,12 +9688,11 @@ function _renderRegSelBar() {
   if (ids.length === 0 || (!_isDesktop && !_regSelectMode)) { bar.innerHTML = ''; return; }
 
   // Determine what state transitions are available
-  var canDispatch = 0;
-  var canDeliver = 0;
-  var canFile = 0;
+  var canDispatch = 0, canDeliver = 0, canFile = 0, taxable = 0;
   ids.forEach(function(id) {
     var inv = S.invoices.find(function(i) { return i.id === id; });
     if (!inv || inv.status !== 'active') return;
+    taxable += inv.taxableValue || 0;
     var st = getInvState(inv);
     if (st === 'created') canDispatch++;
     if (st === 'dispatched') canDeliver++;
@@ -9941,23 +9702,25 @@ function _renderRegSelBar() {
   // Certificates go out with the dispatch, so the count is of what can actually
   // be certified — a cancelled invoice in the selection is not offered.
   var canCert = qcEligibleCount(ids);
-
+  var b = function(action, label, extra) {
+    return '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="' + action + '"' + (extra || '') + '>' + label + '</button>';
+  };
   var btns = '';
-  if (canDispatch > 0) btns += '<button class="inv-im-sel-btn" data-action="invRegBulkState" data-state="dispatched">Dispatch (' + canDispatch + ')</button>';
-  if (canDeliver > 0) btns += '<button class="inv-im-sel-btn" data-action="invRegBulkState" data-state="delivered">Deliver (' + canDeliver + ')</button>';
-  if (canFile > 0) btns += '<button class="inv-im-sel-btn" data-action="invRegBulkState" data-state="filed">File (' + canFile + ')</button>';
-  if (canCert > 0) btns += '<button class="inv-im-sel-btn" data-action="invRegQualityCerts">Quality certs (' + canCert + ')</button>';
+  if (canDispatch > 0) btns += b('invRegBulkState', 'Dispatch (' + canDispatch + ')', ' data-state="dispatched"');
+  if (canDeliver > 0) btns += b('invRegBulkState', 'Deliver (' + canDeliver + ')', ' data-state="delivered"');
+  if (canFile > 0) btns += b('invRegBulkState', 'File (' + canFile + ')', ' data-state="filed"');
+  if (canCert > 0) btns += b('invRegQualityCerts', 'Quality certs (' + canCert + ')');
   // Offered whenever there is anything active in the selection. If the batch is
   // unusable — two customers in it, say — the click explains why rather than
   // the button silently not being there.
   if (ids.some(function(id) {
     var inv = S.invoices.find(function(i) { return i.id === id; });
     return inv && inv.status !== 'cancelled';
-  })) btns += '<button class="inv-im-sel-btn" data-action="invRegCreditNote">Credit note</button>';
+  })) btns += b('invRegCreditNote', 'Credit note');
 
-  bar.innerHTML = '<div class="inv-im-sel-bar">' +
-    '<span class="inv-im-sel-count">' + ids.length + ' selected</span>' +
-    '<div class="inv-items-sel-actions">' + btns + '</div></div>';
+  bar.innerHTML = '<div class="inv-selbar">' +
+    '<span class="inv-selbar-count">' + ids.length + ' selected</span>' +
+    '<span class="inv-selbar-sum">' + formatCurrency(gstRound(taxable)) + ' taxable</span>' + btns + '</div>';
 }
 
 function regBulkSetState(targetState) {
@@ -10002,141 +9765,14 @@ function toggleRegSortDir() {
   _renderRegView();
 }
 
-/* Invoice detail overlay (Read intent) — consumes formatInvoiceData (Phase 5 refactor) */
+/* Invoice detail on the phone: the same content as the desktop pane, in a sheet. */
 function openInvoiceDetail(invId) {
   const inv = S.invoices.find(i => i.id === invId);
   if (!inv) return;
-  const d = formatInvoiceData(inv);
-
-  let html = '<div class="inv-overlay-card">' +
-    '<div class="inv-overlay-header"><span class="inv-overlay-title">Invoice Detail</span>' +
-    '<button class="inv-overlay-close" data-action="invCloseOverlay" aria-label="Close">&times;</button></div>';
-
-  // Status badge if cancelled
-  if (d.cancelled) {
-    html += '<div class="inv-confirm-warn">This invoice was cancelled on ' +
-      escHtml(d.cancelledAt || 'unknown date') +
-      '. It cannot be edited.</div>';
-  }
-
-  // Header info
-  html += '<div class="inv-detail-section">' +
-    '<div class="inv-form-row">' +
-    '<div><div class="inv-detail-label">Invoice No</div><div class="inv-detail-value-mono">' + escHtml(d.invoiceNumber) + '</div></div>' +
-    '<div><div class="inv-detail-label">Date</div><div class="inv-detail-value-mono">' + escHtml(d.date) + '</div></div></div></div>';
-
-  html += '<div class="inv-detail-section">' +
-    '<div class="inv-detail-label">Client</div>' +
-    '<div class="inv-detail-value">' + escHtml(d.clientName) + '</div>' +
-    '<div class="inv-detail-value-mono inv-text-muted inv-detail-gstin">' + escHtml(d.clientGSTIN) + '</div></div>';
-
-  // Lifecycle state timeline
-  if (!d.cancelled) {
-    var curState = getInvState(inv);
-    var curIdx = INV_STATES.indexOf(curState);
-    html += '<div class="inv-detail-section inv-state-timeline">' +
-      '<div class="inv-detail-label">Status</div>';
-    var stateData = [
-      { key: 'created', label: 'Created', ts: inv.createdAt },
-      { key: 'dispatched', label: 'Dispatched', ts: inv.dispatchedAt },
-      { key: 'delivered', label: 'Delivered', ts: inv.deliveredAt },
-      { key: 'filed', label: 'Filed', ts: inv.filedAt }
-    ];
-    stateData.forEach(function(sd, si) {
-      var done = si <= curIdx;
-      var isCurrent = si === curIdx;
-      html += '<div class="inv-state-step">' +
-        '<span class="inv-state-dot' + (done ? (isCurrent ? ' inv-state-dot-current' : ' inv-state-dot-done') : '') + '"></span>' +
-        '<span class="inv-state-step-label">' + escHtml(sd.label) + '</span>' +
-        (sd.ts ? '<span class="inv-state-step-date">' + formatTimestamp(sd.ts) + '</span>' : '') +
-        '</div>';
-    });
-    // Advance button
-    if (curIdx < INV_STATES.length - 1) {
-      var nextLabel = INV_STATE_LABELS[INV_STATES[curIdx + 1]];
-      html += '<div class="inv-btn-bar inv-mb-8"><button class="inv-btn inv-btn-primary inv-btn-sm" data-action="invAdvanceState" data-id="' + escHtml(inv.id) + '">Mark ' + escHtml(nextLabel) + '</button></div>';
-    }
-    html += '</div>';
-  }
-
-  // Line items table
-  html += '<div class="inv-detail-section">' +
-    '<div class="inv-detail-label">Line Items</div>' +
-    '<div class="inv-detail-items-wrap"><table class="inv-detail-items-table"><thead><tr>' +
-    '<th>Part</th><th>Qty</th><th>Unit</th><th>Rate</th><th>Amount</th></tr></thead><tbody>';
-  d.items.forEach(function(item, li) {
-    html += '<tr>' +
-      '<td>' + escHtml(lineLabel((inv.items || [])[li] || item)) + zeroReasonTag((inv.items || [])[li]) + detailRateMatch(inv, (inv.items || [])[li]) + '</td>' +
-      '<td class="inv-mono">' + escHtml(item.qty) + (item.nosQtyRaw && item.nosQtyRaw > 0 ? ' <span class="inv-text-muted">(' + escHtml(item.nosQtyRaw) + ' NOS)</span>' : '') + '</td>' +
-      '<td>' + escHtml(item.unit) + '</td>' +
-      '<td class="inv-mono">' + escHtml(item.rate) + '</td>' +
-      '<td class="inv-mono">' + escHtml(item.amount) + '</td></tr>';
-  });
-  html += '</tbody></table></div></div>';
-
-  // Totals — from formatted data
-  html += '<div class="inv-detail-section"><div class="inv-totals">' +
-    '<div class="inv-total-row"><span class="inv-total-label">Taxable Value</span><span class="inv-total-value">' + escHtml(d.taxableValue) + '</span></div>';
-  if (d.gstType === 'intra') {
-    html += '<div class="inv-total-row"><span class="inv-total-label">CGST @ ' + d.cgstPer + '%</span><span class="inv-total-value">' + escHtml(d.cgstAmt) + '</span></div>' +
-      '<div class="inv-total-row"><span class="inv-total-label">SGST @ ' + d.sgstPer + '%</span><span class="inv-total-value">' + escHtml(d.sgstAmt) + '</span></div>';
-  } else {
-    html += '<div class="inv-total-row"><span class="inv-total-label">IGST @ ' + d.igstPer + '%</span><span class="inv-total-value">' + escHtml(d.igstAmt) + '</span></div>';
-  }
-  html += '<div class="inv-total-row inv-total-row-grand"><span class="inv-total-label">Grand Total</span>' +
-    '<span class="inv-total-grand">' + escHtml(d.grandTotal) + '</span></div></div></div>';
-
-  // Optional fields
-  const optFields = [
-    ['Challan No', d.challanNo], ['Challan Date', d.challanDate],
-    ['Remarks', d.remarks]
-  ].filter(f => f[1]);
-  if (optFields.length > 0) {
-    html += '<div class="inv-detail-section">';
-    optFields.forEach(([label, val]) => {
-      html += '<div class="inv-detail-label">' + escHtml(label) + '</div>' +
-        '<div class="inv-detail-value">' + escHtml(val) + '</div>';
-    });
-    html += '</div>';
-  }
-
-  // Action buttons
-  var invState = getInvState(inv);
-  var nextStateIdx = INV_STATES.indexOf(invState) + 1;
-  var nextState = nextStateIdx < INV_STATES.length ? INV_STATES[nextStateIdx] : null;
-
-  // State timeline
-  if (!d.cancelled) {
-    html += '<div class="inv-detail-section"><div class="inv-detail-label">Status</div>' +
-      '<div class="inv-state-timeline">';
-    INV_STATES.forEach(function(st, i) {
-      var done = INV_STATES.indexOf(invState) >= i;
-      var current = invState === st;
-      var tsMap = { created: inv.createdAt, dispatched: inv.dispatchedAt, delivered: inv.deliveredAt, filed: inv.filedAt };
-      html += '<div class="inv-state-step">' +
-        '<span class="inv-state-dot' + (done ? ' inv-state-dot-done' : '') + (current ? ' inv-state-dot-current' : '') + '"></span>' +
-        '<span class="inv-state-step-label">' + escHtml(INV_STATE_LABELS[st]) + '</span>' +
-        (tsMap[st] ? '<span class="inv-state-step-date">' + formatTimestamp(tsMap[st]) + '</span>' : '') +
-        '</div>';
-    });
-    html += '</div>';
-    if (nextState) {
-      html += '<button class="inv-btn inv-btn-primary inv-btn-block" data-action="invAdvanceState" data-id="' + escHtml(inv.id) + '">Mark as ' + escHtml(INV_STATE_LABELS[nextState]) + '</button>';
-    }
-    html += '</div>';
-  }
-
-  html += '<div class="inv-detail-actions">';
-  if (!d.cancelled) {
-    html += '<button class="inv-btn inv-btn-primary" data-action="invEditInvoice" data-id="' + escHtml(inv.id) + '">Edit</button>';
-    html += '<button class="inv-btn inv-btn-ghost" data-action="invPreviewInvoice" data-id="' + escHtml(inv.id) + '">Preview</button>';
-    html += '<button class="inv-btn inv-btn-ghost" data-action="invQualityCert" data-id="' + escHtml(inv.id) + '">Quality Cert</button>';
-    html += '<button class="inv-btn inv-btn-ghost" data-action="invCancelInvoice" data-id="' + escHtml(inv.id) + '">Cancel Invoice</button>';
-  } else {
-    html += '<button class="inv-btn inv-btn-ghost" data-action="invPreviewInvoice" data-id="' + escHtml(inv.id) + '">Preview</button>';
-  }
-  html += '<button class="inv-btn inv-btn-danger" data-action="invDeleteInvoice" data-id="' + escHtml(inv.id) + '">Delete</button>';
-  html += '</div></div>';
+  var html = '<div class="inv-overlay-card">' +
+    '<div class="inv-overlay-header"><span class="inv-overlay-title">Invoice ' + escHtml(inv.displayNumber) + '</span>' +
+    '<button class="inv-overlay-close" data-action="invCloseOverlay" aria-label="Close">&times;</button></div>' +
+    invoiceDetailHtml(inv) + '</div>';
 
   const scrim = document.createElement('div');
   scrim.className = 'inv-overlay-scrim';
@@ -10146,6 +9782,96 @@ function openInvoiceDetail(invId) {
   document.body.appendChild(scrim);
   document.body.style.overflow = 'hidden';
   focusFirstInteractive(scrim.querySelector('.inv-overlay-card'));
+}
+
+/* The count and the taxable of what the filter shows (cancelled invoices bill nothing). */
+function _regSummaryHtml(filtered) {
+  var active = filtered.filter(function(i) { return i.status === 'active'; });
+  return '<div class="inv-pagehead"><span class="inv-pagehead-meta" data-reg-summary>' + active.length + ' active invoice' + (active.length !== 1 ? 's' : '') +
+    ' · <span class="inv-num">' + formatCurrency(gstRound(sumTaxable(active))) + '</span> taxable</span></div>';
+}
+
+function _regExportHtml() {
+  return '<div class="inv-toolbar inv-mt-16">' +
+    '<button class="inv-btn inv-btn-secondary" data-action="invExportSales">Sales register CSV</button>' +
+    '<button class="inv-btn inv-btn-secondary" data-action="invPrintSalesRegister">Sales register PDF</button>' +
+    '<button class="inv-btn inv-btn-secondary" data-action="invExportGstr1">GSTR-1 CSV</button>' +
+    '<button class="inv-btn inv-btn-secondary" data-action="invBulkMarkFiled">Bulk mark filed</button></div>';
+}
+
+function _regCheckHtml(inv) {
+  return '<input type="checkbox" class="inv-check" data-action="invRegToggleInv" data-id="' + escHtml(inv.id) + '"' +
+    (_regSelected[inv.id] ? ' checked' : '') + ' aria-label="Select ' + escHtml(inv.displayNumber) + '">';
+}
+
+/* One invoice read in full: the desktop pane and the phone sheet draw the same thing. */
+function invoiceDetailHtml(inv) {
+  var d = formatInvoiceData(inv);
+  var raws = inv.items || [];
+  var h = '';
+  if (d.cancelled) {
+    h += '<div class="inv-callout inv-callout-danger inv-mb-8">This invoice was cancelled on ' + escHtml(d.cancelledAt || 'unknown date') + '. It cannot be edited.</div>';
+  }
+  h += '<div class="inv-kv inv-mb-8">' +
+    '<div><div class="inv-kv-k">Invoice</div><div class="inv-id">' + escHtml(d.invoiceNumber) + '</div></div>' +
+    '<div><div class="inv-kv-k">Date</div><div class="inv-id">' + escHtml(d.date) + '</div></div>' +
+    '<div class="inv-kv-wide"><div class="inv-kv-k">Client</div><div>' + escHtml(d.clientName) + '</div>' +
+    (d.clientGSTIN ? '<div class="inv-id inv-note">' + escHtml(d.clientGSTIN) + '</div>' : '') + '</div>' +
+    (d.challanNo ? '<div><div class="inv-kv-k">Challan</div><div class="inv-id">' + escHtml(d.challanNo) + '</div></div>' : '') +
+    (d.challanDate ? '<div><div class="inv-kv-k">Challan date</div><div class="inv-id">' + escHtml(d.challanDate) + '</div></div>' : '') +
+    (d.remarks ? '<div class="inv-kv-wide"><div class="inv-kv-k">Remarks</div><div>' + escHtml(d.remarks) + '</div></div>' : '') +
+    '</div>';
+
+  h += '<div class="inv-panel inv-panel-flush">';
+  // The lifecycle, once (the phone sheet used to draw it twice).
+  if (!d.cancelled) {
+    var cur = getInvState(inv), curIdx = INV_STATES.indexOf(cur);
+    var ts = { created: inv.createdAt, dispatched: inv.dispatchedAt, delivered: inv.deliveredAt, filed: inv.filedAt };
+    h += '<div class="inv-row-group"><span>Status</span></div>';
+    INV_STATES.forEach(function(st, i) {
+      var tone = i < curIdx ? 'ok' : i === curIdx ? INV_STATE_TONE[st] : 'neutral';
+      h += '<div class="inv-row' + (i > curIdx ? ' inv-row-muted' : '') + '"' + (i === curIdx ? ' aria-current="step"' : '') + '>' +
+        '<span class="inv-row-main"><span class="inv-dot inv-dot-' + tone + '">' + escHtml(INV_STATE_LABELS[st]) + (i === curIdx ? ' · now' : '') + '</span></span>' +
+        '<span class="inv-row-end inv-row-meta">' + (ts[st] ? escHtml(formatTimestamp(ts[st])) : '') + '</span></div>';
+    });
+    if (curIdx < INV_STATES.length - 1) {
+      h += '<div class="inv-row"><button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invAdvanceState" data-id="' + escHtml(inv.id) + '">Mark ' +
+        escHtml(INV_STATE_LABELS[INV_STATES[curIdx + 1]]).toLowerCase() + '</button></div>';
+    }
+  }
+
+  h += '<div class="inv-row-group"><span>Lines · ' + d.items.length + '</span></div><div data-lines>';
+  d.items.forEach(function(item, li) {
+    var raw = raws[li];
+    h += '<div class="inv-row inv-row-auto" data-line>' +
+      '<span class="inv-row-main"><span class="inv-row-title inv-row-wrap">' + escHtml(lineLabel(raw || item)) + '</span>' +
+      '<span class="inv-row-meta"><span class="inv-num">' + escHtml(item.qty) + '</span> ' + escHtml(item.unit) +
+      (item.nosQtyRaw && item.nosQtyRaw > 0 ? ' (' + escHtml(item.nosQtyRaw) + ' NOS)' : '') + ' × <span class="inv-num">' + escHtml(item.rate) + '</span></span>' +
+      zeroReasonTag(raw) + detailRateMatch(inv, raw) + '</span>' +
+      '<span class="inv-row-end inv-num">' + escHtml(item.amount) + '</span></div>';
+  });
+  h += '</div>';
+
+  var tot = function(label, value, strong) {
+    return '<div class="inv-row' + (strong ? ' inv-row-strong' : '') + '"><span class="inv-row-main">' + label + '</span><span class="inv-row-end inv-num">' + escHtml(value) + '</span></div>';
+  };
+  h += '<div class="inv-row-group"><span>Totals</span></div>' + tot('Taxable value', d.taxableValue);
+  if (d.gstType === 'intra') h += tot('CGST @ ' + escHtml(d.cgstPer) + '%', d.cgstAmt) + tot('SGST @ ' + escHtml(d.sgstPer) + '%', d.sgstAmt);
+  else h += tot('IGST @ ' + escHtml(d.igstPer) + '%', d.igstAmt);
+  h += tot('Grand total', d.grandTotal, true) + '</div>';
+
+  // One primary: Edit. A cancelled invoice can only be read or removed.
+  var id = escHtml(inv.id);
+  h += '<div class="inv-toolbar">';
+  if (!d.cancelled) {
+    h += '<button class="inv-btn inv-btn-primary" data-action="invEditInvoice" data-id="' + id + '">Edit</button>' +
+      '<button class="inv-btn inv-btn-secondary" data-action="invPreviewInvoice" data-id="' + id + '">Preview</button>' +
+      '<button class="inv-btn inv-btn-secondary" data-action="invQualityCert" data-id="' + id + '">Quality cert</button>' +
+      '<button class="inv-btn inv-btn-danger" data-action="invCancelInvoice" data-id="' + id + '">Cancel invoice</button>';
+  } else {
+    h += '<button class="inv-btn inv-btn-secondary" data-action="invPreviewInvoice" data-id="' + id + '">Preview</button>';
+  }
+  return h + '<button class="inv-btn inv-btn-danger" data-action="invDeleteInvoice" data-id="' + id + '">Delete</button></div>';
 }
 
 /* Edit invoice — loads into Create Invoice in edit mode */
@@ -13198,8 +12924,8 @@ function cnSetAgainstInvoice(id) {
     '<div class="inv-overlay-header"><span class="inv-overlay-title">Against invoice &mdash; ' +
     escHtml(cn.displayNumber) + '</span>' +
     '<button class="inv-overlay-close" data-action="invCloseOverlay" aria-label="Close">&times;</button></div>' +
-    '<div class="inv-empty-state">Pick the invoice this credit note is taken against. It must carry ' +
-    formatCurrency(need) + ' taxable.</div><div class="inv-card-list">';
+    '<div class="inv-note inv-mb-8">Pick the invoice this credit note is taken against. It must carry ' +
+    formatCurrency(need) + ' taxable.</div><div class="inv-panel inv-panel-flush">';
 
   rows.forEach(function(r) {
     var why = '';
@@ -13207,22 +12933,19 @@ function cnSetAgainstInvoice(id) {
     else if (r.inv.status === 'cancelled') why = 'cancelled — credits nothing';
     else if (cnInvoiceHeadroom(r.inv, cn.id) < need) why = 'only ' + formatCurrency(cnInvoiceHeadroom(r.inv, cn.id)) + ' left';
     var chosen = cn.againstInvoice === r.num;
-    html += '<div class="inv-reg-row' + (why ? ' inv-reg-row-cancelled' : '') + '">' +
-      (why ? '<div class="inv-reg-row-content">' :
-        '<div class="inv-reg-row-content" data-action="invCnPickAgainst" data-id="' + escHtml(cn.id) +
-        '" data-idx="' + r.idx + '">') +
-      '<div class="inv-reg-row-top"><div class="inv-reg-status-row">' +
-      '<span class="inv-reg-invnum">' + escHtml(r.num) + '</span>' +
-      (chosen ? ' <span class="inv-cancelled-badge">Current</span>' : '') + '</div>' +
-      '<div class="inv-reg-amounts"><span class="inv-reg-taxable">' +
-      (r.inv ? 'Taxable: ' + formatCurrency(r.inv.taxableValue) : '&mdash;') + '</span></div></div>' +
-      (why ? '<div class="inv-reg-row-bottom"><span class="inv-text-muted inv-text-xs">' +
-        escHtml(why) + '</span></div>' : '') +
-      '</div></div>';
+    var body = '<span class="inv-row-title"><span class="inv-id" data-invnum>' + escHtml(r.num) + '</span>' +
+      (chosen ? ' <span class="inv-badge inv-badge-info">Current</span>' : '') + '</span>' +
+      (why ? '<span class="inv-row-meta">' + escHtml(why) + '</span>' : '');
+    var end = '<span class="inv-row-end inv-num">' + (r.inv ? formatCurrency(r.inv.taxableValue) : '&mdash;') + '</span>';
+    // An invoice that cannot carry the note is listed, not offered.
+    html += why
+      ? '<div class="inv-row inv-row-2 inv-row-muted" data-unavailable><span class="inv-row-main">' + body + '</span>' + end + '</div>'
+      : '<button class="inv-row inv-row-2" data-action="invCnPickAgainst" data-id="' + escHtml(cn.id) + '" data-idx="' + r.idx + '">' +
+        '<span class="inv-row-main">' + body + '</span>' + end + '</button>';
   });
 
-  html += '</div><div class="inv-btn-bar">' +
-    '<button class="inv-btn inv-btn-ghost" data-action="invCnPickAgainst" data-id="' + escHtml(cn.id) +
+  html += '</div><div class="inv-toolbar">' +
+    '<button class="inv-btn inv-btn-secondary" data-action="invCnPickAgainst" data-id="' + escHtml(cn.id) +
     '" data-idx="-1">Clear &mdash; let the rule choose</button></div></div>';
 
   var existing = document.querySelector('.inv-overlay-scrim');
@@ -13340,39 +13063,35 @@ function renderCreditNoteList() {
   });
 
   var html = '<div class="inv-overlay-card">' +
-    '<div class="inv-overlay-header"><span class="inv-overlay-title">Credit Notes</span>' +
+    '<div class="inv-overlay-header"><span class="inv-overlay-title">Credit notes</span>' +
     '<button class="inv-overlay-close" data-action="invCloseOverlay" aria-label="Close">&times;</button></div>';
 
   if (notes.length === 0) {
-    html += '<div class="inv-empty-state">No credit notes yet. Select a batch of invoices in the register to raise one.</div>';
+    html += '<div class="inv-empty">No credit notes yet. Select a batch of invoices in the register to raise one.</div>';
   } else {
-    html += '<div class="inv-card-list">';
+    html += '<div class="inv-panel inv-panel-flush">';
     notes.forEach(function(cn) {
       var cancelled = cn.status === 'cancelled';
-      html += '<div class="inv-reg-row' + (cancelled ? ' inv-reg-row-cancelled' : '') + '">' +
-        '<div class="inv-reg-row-content" data-action="invCnPreview" data-id="' + escHtml(cn.id) + '">' +
-        '<div class="inv-reg-row-top"><div class="inv-reg-status-row">' +
-        '<span class="inv-reg-invnum">' + escHtml(cn.displayNumber) + '</span>' +
-        (cancelled ? ' <span class="inv-cancelled-badge">Cancelled</span>' : '') + '</div>' +
-        '<div class="inv-reg-amounts"><span class="inv-reg-total">' + formatCurrency(cn.grandTotal) + '</span>' +
-        '<span class="inv-reg-taxable">Taxable: ' + formatCurrency(cn.taxableValue) + '</span></div></div>' +
-        '<div class="inv-reg-row-bottom"><span class="inv-reg-client">' + escHtml(cn.clientName) + '</span>' +
-        '<span class="inv-reg-date">' + escHtml(formatDate(cn.date)) + '</span></div>' +
-        '<div class="inv-reg-row-bottom"><span class="inv-text-muted inv-text-xs">' +
-        escHtml(cn.discountPct) + '% of ' + formatCurrency(cn.batchTaxable) + ' over ' +
-        (cn.invoiceNumbers || []).length + ' invoice' + ((cn.invoiceNumbers || []).length !== 1 ? 's' : '') +
-        '</span></div>' +
+      var n = (cn.invoiceNumbers || []).length;
+      html += '<div class="inv-row inv-row-auto' + (cancelled ? ' inv-row-muted' : '') + '"' + (cancelled ? ' data-cancelled' : '') + '>' +
+        '<button class="inv-row-main" data-action="invCnPreview" data-id="' + escHtml(cn.id) + '">' +
+        '<span class="inv-row-title"><span class="inv-id" data-invnum>' + escHtml(cn.displayNumber) + '</span> ' +
+        (cancelled ? '<span class="inv-dot inv-dot-danger">Cancelled</span>' : '') + '</span>' +
+        '<span class="inv-row-meta">' + escHtml(cn.clientName) + ' · ' + escHtml(formatDate(cn.date)) + '</span>' +
+        '<span class="inv-row-meta">' + escHtml(cn.discountPct) + '% of ' + formatCurrency(cn.batchTaxable) + ' over ' + n + ' invoice' + (n !== 1 ? 's' : '') + '</span>' +
         // The customer identifies this note by ONE invoice number now, so that
         // number belongs on the row rather than behind a preview.
-        '<div class="inv-reg-row-bottom"><span class="inv-text-muted inv-text-xs">Against ' +
-        escHtml(cnAgainstInvoiceLabel(cn)) + '</span></div></div>' +
+        '<span class="inv-row-meta">Against ' + escHtml(cnAgainstInvoiceLabel(cn)) + '</span></button>' +
+        '<span class="inv-row-end"><span class="inv-row-stack"><span class="inv-num">' + formatCurrency(cn.grandTotal) + '</span>' +
+        '<span class="inv-row-meta inv-num">' + formatCurrency(cn.taxableValue) + ' taxable</span>' +
         (cancelled ? '' :
-          '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invCnSetAgainst" data-id="' + escHtml(cn.id) + '">Reference</button>' +
-          '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invCnCancel" data-id="' + escHtml(cn.id) + '">Cancel</button>') +
-        '</div>';
+          '<span class="inv-toolbar inv-toolbar-tight">' +
+          '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invCnSetAgainst" data-id="' + escHtml(cn.id) + '">Reference</button>' +
+          '<button class="inv-btn inv-btn-danger inv-btn-sm" data-action="invCnCancel" data-id="' + escHtml(cn.id) + '">Cancel</button></span>') +
+        '</span></span></div>';
     });
     html += '</div>';
-    html += '<div class="inv-btn-bar"><button class="inv-btn inv-btn-ghost" data-action="invExportCreditNotes">Credit Notes CSV</button></div>';
+    html += '<div class="inv-toolbar inv-mt-16"><button class="inv-btn inv-btn-secondary" data-action="invExportCreditNotes">Credit notes CSV</button></div>';
   }
   html += '</div>';
 
@@ -24697,6 +24416,7 @@ document.addEventListener('click', function(e) {
     case 'invRegBulkState': regBulkSetState(btn.dataset.state); break;
     // Phase 8C: Desktop table interactions
     case 'invSelectRegRow': _renderRegDetail(btn.dataset.id); break;
+    case 'invRegClosePane': _renderRegDetail(null); break;
     case 'invDesktopSort': {
       if (!regFilter.desktopSort) regFilter.desktopSort = { col: 'date', dir: 'desc' };
       if (regFilter.desktopSort.col === btn.dataset.col) {

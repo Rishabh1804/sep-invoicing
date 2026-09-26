@@ -84,7 +84,7 @@ test.describe('P37: weight per piece — the kilograms checked', () => {
     s.invoices = [inv('086', todayIso(), [L('2525 2015 8202', 500, 10.4), L('2525 2015 8202', 500, 106)])];
     await loadAppWithState(page, s);
     await page.evaluate(() => (window as any).openInvoiceDetail('I086'));
-    const rows = page.locator('.inv-detail-items-table').first().locator('tbody tr');
+    const rows = page.locator('[data-lines]').first().locator('[data-line]');
     await expect(rows.nth(0).locator('.inv-rm-chip')).toHaveText('Weight ×10');
     await expect(rows.nth(1).locator('.inv-rm-chip')).toHaveCount(0);
 

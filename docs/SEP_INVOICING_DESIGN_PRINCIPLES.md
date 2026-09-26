@@ -241,7 +241,8 @@ their **own** paddings and heights — they read density aliases, so one attribu
 
 `--bar-h: 3.25rem (52)` phone top bar · `--bar-h-desk: 3rem (48)` · `--nav-h: 3.625rem (58)` phone bottom
 bar · `--side-w: 13.5rem (216)` desktop sidebar · `--content-max: 80rem` desktop content cap ·
-`--max-w: 32.5rem (520)` phone column (unchanged).
+`--max-w: 32.5rem (520)` phone column (unchanged) · `--pane-w: 22rem` desktop detail pane · `--filter-w: 9rem`
+a toolbar filter's basis · `--col-sm-w: 8rem` a short ellipsized table column (`inv-col-grow-sm`).
 
 ### 3.8 Breakpoints
 
@@ -402,7 +403,8 @@ Joined buttons in one bordered box, the "on" segment `--surface-2` + 600 (deskto
 ### 6.7 Toolbar and search — `inv-toolbar`, `inv-search`
 `inv-toolbar`: search + tokens + view settings, one line on the desktop, wrapping to two on the phone.
 `inv-search`: bordered field with the search icon inside and, on the desktop, a `/` key hint.
-Every searchable list uses it. Replaces `inv-reg-toolbar`, `inv-im-toolbar`, `inv-items-toolbar`,
+Every searchable list uses it. Filters beside it are `inv-toolbar-item` (a select, a month, a labelled date field),
+sharing the line and wrapping two to a row on the phone. Replaces `inv-reg-toolbar`, `inv-im-toolbar`, `inv-items-toolbar`,
 `inv-cp-toolbar`, `inv-history-filters`, `inv-search-wrap`, `inv-reg-search`.
 
 ### 6.8 Panel — `inv-panel`
@@ -426,7 +428,9 @@ Replaces `inv-kpi*`, `inv-ov-tile`, `inv-stk-tile`, `inv-stat-label/value`, `inv
 One or two lines, `--row-h` / `--row-h-2`, divider below. Slots: `inv-row-lead` (checkbox, dot or icon),
 `inv-row-main` (`inv-row-title` + `inv-row-meta`), `inv-row-end` (figure, status, chevron). A group header
 inside a list is `inv-row-group` (`--t-caption` on `--bg`, e.g. "25 Sep · 5 · ₹11,801.88").
-`inv-row-main` may be a `<button>` when the row has a second action (a print icon, a tick box); `inv-row-stack`
+`inv-row-main` may be a `<button>` when the row has a second action (a print icon, a tick box) — otherwise the
+whole row is the `<button>`, so its figures open it too; a tick box's lead is a `<label class="inv-row-lead inv-row-tick">`
+holding the full `--touch` target; `inv-row-stack`
 stacks a figure over its badge in `inv-row-end`; `inv-row-wrap` lets a meta line wrap (a list of names);
 `inv-row-muted` is a cancelled or inactive row. **The phone form of every table.** Replaces `inv-client-item`, `inv-item-card`, `inv-reg-row`,
 `inv-im-header`, `inv-att-row`, `inv-area-row`, `inv-history-item`, `inv-stats-row`, `inv-lab-row`,
@@ -437,7 +441,12 @@ stacks a figure over its badge in `inv-row-end`; `inv-row-wrap` lets a meta line
 A real `<table>`. `thead` sticky, `--t-label` `--text-3` on `--bg` with a bottom hairline; rows `--row-h`
 with hairlines; numeric columns `inv-num` (mono, right); identifier columns `inv-id` (mono); status column
 dot + word; checkbox column `inv-table-check`. Selected row `--accent-soft`. `tfoot` for totals. Column widths
-are classes reading tokens (`inv-col-date`, `inv-col-money`, `inv-col-state`…), never raw px.
+are classes reading tokens (`inv-col-date`, `inv-col-money`, `inv-col-state`…), never raw px. `inv-col-grow`
+takes the spare width and ellipsizes (a client's name never wraps). **Columns drop in priority as the list
+narrows** — `inv-col-opt1` first, then `-opt2`, then `-opt3`, by container query on the list, so the same table is
+right at 1024px and 1920px, pane open or shut. Sortable heads are `inv-table-sort` buttons with `aria-sort`; the row
+open in the pane is `aria-current`; the row's identifier is a real button, so it opens from the keyboard.
+Tick boxes are `inv-check`.
 Modifier `inv-table-grid` for the week grid: cells are `inv-cell` chips (`-ok|warning|danger|empty|future`)
 showing hours. Replaces `inv-desktop-table`/`inv-th`/`inv-tr`/`inv-td*` (**ending the `inv-td-` collision
 with To-do**), `inv-stats-table*`, `inv-ov-table`, `inv-detail-items-table`, `inv-att-grid`.
@@ -460,7 +469,8 @@ Replaces `inv-client-badge`/`inv-badge-*`, `inv-state-badge`, `inv-cancelled-bad
 `inv-td-tone-*`, `inv-area-over/under/ok`, `inv-stk-issue-*`).
 
 ### 6.14 Detail pane — `inv-pane`
-Desktop only: the right 22rem of a list view, `--surface`, left hairline. Head (identifier in `--t-hero`
+Desktop only: the right `--pane-w` of a list view, `--surface`, left hairline. **It takes room only while something
+is open** (a close button in its head), and where the screen cannot hold both it takes the list's place until closed. Head (identifier in `--t-hero`
 mono, status badge, party), a key/value grid (`inv-kv`), a nested table, totals, actions (one primary).
 On the phone the same content opens as a sheet (§6.16).
 
@@ -520,7 +530,7 @@ density §3.5) under Data & device, each a segmented control that applies at onc
 | Home | stat strip (invoices, revenue, plated, ₹/kg) · quick actions (3×2 `inv-btn-grid`, first primary) · To-do, Attendance, Unbilled, Sync and Zinc panels · recent invoices as rows | same strip ×4 · quick actions in one row · panels two across · recent invoices spanning both. *Built.* The six-month chart and contribution table move here with Stats (they are Stats' renderers). |
 | Create | fields · unbilled-challan rows with checkboxes · line editor · collapsible optional details · action bar | same, two-column fields, lines as a table |
 | IM | toolbar · rows grouped by date (challan no., client, amount; meta: date · vehicle · items; status dot) · selection bar | table + detail pane |
-| Register | toolbar with tokens · rows grouped by day with subtotal · selection bar | table (invoice, client, date, challans, kg, taxable, GST, total, state) · selection bar · detail pane |
+| Register | toolbar (search + filter selects; `inv-token` filters to come) · rows grouped by day with subtotal · selection bar | table (invoice, client, date, challans, kg, taxable, GST, total, state) · selection bar · detail pane. *Built.* |
 | Clients / Items / Performance | tabs · toolbar · rows | tabs · table · detail pane |
 | To-do | tabs (Open / Done) · add field · rows with a dot and meta | same, wider |
 | Stock | stat strip (Out / ≤ 7 days / OK / No price, each filters) · one table grouped by status · reorder list as a table | same + detail pane for a line's pattern |
@@ -559,7 +569,7 @@ phone and desktop.
    the Clients segment and Stats tabs → view tabs, banners → callout, overlays → dialog). Labels are
    sentence case everywhere (DR-5); the duplicated `inv-chip` is one rule; decorative tone fills are neutral.
    Step 3 moves the markup onto the v2.0 class names and deletes the v1.0 names from those selector lists.
-3. **Screens, in order:** Home *(built 26 Sep 2026)* · Register · IM · Create · Clients/Items/Performance · To-do · Stock · Staff ·
+3. **Screens, in order:** Home *(built 26 Sep 2026)* · Register *(built 26 Sep 2026)* · IM · Create · Clients/Items/Performance · To-do · Stock · Staff ·
    Stats · History · Settings. Each moves its render functions onto the components and deletes its private
    family in the same PR (DR-7). The survey's bugs are fixed where their screen moves: History's filter bar,
    Register's desktop list, the doubled Add buttons, Staff's cut-off sub-tabs, the base-colour dark-mode text,

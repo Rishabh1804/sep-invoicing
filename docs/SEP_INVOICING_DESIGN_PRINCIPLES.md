@@ -66,7 +66,15 @@ And the v2.0 rules, which carry the same weight:
 Two layers. **Primitives** hold raw values and are never read by a component. **Semantic aliases** give them
 meaning and are the only thing components read. A theme or palette swaps aliases; components never change.
 
-### 3.1 Palette — Teal (primitives)
+### 3.1 Palettes (primitives)
+
+**Three palettes, chosen per device in Settings → Data & device → Appearance** (owner, 26 Sep 2026:
+*"give different palette style options in settings, we'll start with Teal"*). **Teal is the default.** A
+palette is only a set of primitives: `<html data-palette="teal|zinc|terracotta">` selects which set the
+aliases read, so no component knows which palette is on. Adding a palette = one more block of primitives
+plus its row in §3.10; nothing else changes.
+
+**Teal** (default)
 
 | Primitive | Light | Dark |
 |---|---|---|
@@ -83,10 +91,29 @@ meaning and are the only thing components read. A theme or palette swaps aliases
 | `--c-accent-soft` | `#dcefec` | `#15302d` |
 | `--c-accent-soft-text` | `#0a4d47` | `#8fdcd2` |
 
-Two alternates were mocked and are kept as documented primitive sets, so a future change of palette is a
-swap of this table only: **Zinc & brass** (accent `#8a5d0c` / dark `#dcaa4c`, cool zinc neutrals) and
-**Terracotta** (accent `#ad4f2c` / dark `#e98c64`, warm neutrals — the v1.0 identity). Values are in the
-mock-up source.
+**Zinc & brass** — zinc-grey neutrals, brass accent (the trade's own materials).
+
+| Primitive | Light | Dark |
+|---|---|---|
+| `--c-bg` / `--c-surface` | `#f3f4f5` / `#ffffff` | `#0e1114` / `#15191d` |
+| `--c-surface-2` / `--c-surface-3` | `#eaecee` / `#e0e3e6` | `#1c2126` / `#242a30` |
+| `--c-border` | `#dadee2` | `#2b323a` |
+| `--c-text-1` / `-2` / `-3` | `#14191e` / `#4d5761` / `#5e6974` | `#edf0f3` / `#a9b3bd` / `#86919c` |
+| `--c-accent` / `--c-on-accent` | `#8a5d0c` / `#ffffff` | `#dcaa4c` / `#1b1204` |
+| `--c-accent-soft` / `-text` | `#f5ead3` / `#6a4606` | `#33291a` / `#ecc983` |
+
+**Terracotta** — warm neutrals, the v1.0 accent.
+
+| Primitive | Light | Dark |
+|---|---|---|
+| `--c-bg` / `--c-surface` | `#f6f4ef` / `#ffffff` | `#141311` / `#1c1b18` |
+| `--c-surface-2` / `--c-surface-3` | `#efebe3` / `#e6e0d5` | `#24221e` / `#2d2a25` |
+| `--c-border` | `#e2dccf` | `#36322c` |
+| `--c-text-1` / `-2` / `-3` | `#1b1916` / `#58534b` / `#6a6459` | `#f3f0ea` / `#bcb6aa` / `#948d80` |
+| `--c-accent` / `--c-on-accent` | `#ad4f2c` / `#ffffff` | `#e98c64` / `#1f0e06` |
+| `--c-accent-soft` / `-text` | `#f6e6dc` / `#7e3418` | `#3b2419` / `#f2b89c` |
+
+The status tones (§3.3) are **shared by every palette**: red must mean the same thing whichever accent is on.
 
 ### 3.2 Theme: light, dark, and following the system
 
@@ -97,13 +124,16 @@ mock-up source.
   :root[data-theme="light"] { color-scheme: light; }
   :root[data-theme="dark"]  { color-scheme: dark; }
   ```
-- **Settings → Data & device → Appearance: System / Light / Dark**, stored per device in localStorage
-  (`sep_inv_theme`), applied to `<html data-theme>` before first paint by a two-line script in `head.html`.
-  Never on `S`: a theme is a fact about the device, not the books.
+- **Default: follow the phone's setting** (owner, 26 Sep 2026). **Settings → Data & device → Appearance**
+  offers Theme (System / Light / Dark) and Palette (Teal / Zinc & brass / Terracotta), stored per device in
+  localStorage (`sep_inv_theme`, `sep_inv_palette`) and applied to `<html data-theme data-palette>` before
+  first paint by a short script in `head.html`, so there is no flash of the wrong colours. Never on `S`:
+  appearance is a fact about the device, not the books — an imported backup must not repaint the phone.
 - ⚠ **v1.0 shipped dark styles that nothing could switch on**: `.dark` was defined in the stylesheet and no
   code ever set it. v2.0 is the first version in which dark mode is reachable. Both themes are tested (§9).
 - `light-dark()` is colour-only (it takes no images). Chrome/Edge 123+, which covers every device the shop uses.
-- `meta[name=theme-color]` gets two tags with `media="(prefers-color-scheme: …)"`, `--c-surface` of each theme.
+- `meta[name=theme-color]` is set at runtime to the active palette's `--c-surface` for the resolved theme
+  (the system bar matches the top bar), and updated when the device theme or the palette changes.
 
 ### 3.3 Semantic colour aliases
 
@@ -219,10 +249,30 @@ which read `var()` for every colour. Anything else raw is a defect.
 
 ### 3.10 Contrast (measured, WCAG 2.x)
 
+Teal:
+
 Light: text-1/surface 17.8 · text-2 7.4 · text-3 5.2 (≥ 4.5 on `--surface-2` too) · accent/surface 6.4 ·
 danger/danger-bg 5.8 · warning 5.4 · ok 4.7 · info 5.7. Dark: text-1 15.6 · text-2 8.4 · text-3 ≥ 4.8 on
-every surface · accent 8.1 · on-accent/accent 7.8 · tones 6.6–7.8. **A palette change must re-measure this
-table before it merges.**
+every surface · accent 8.1 · on-accent/accent 7.8 · tones 6.6–7.8.
+Zinc & brass: text-3 ≥ 4.7 light / 5.0 dark on every surface · accent 5.8 / 8.3 · accent-soft text 7.1 / 9.0.
+Terracotta: text-3 ≥ 4.9 light / 4.8 dark · accent 5.3 / 6.9 · accent-soft text 7.2 / 8.3.
+(Both alternates' `--c-text-3` were darkened from the mock-ups, which failed 4.5:1 on `--surface-2`.)
+**A new or changed palette must re-measure its row before it merges.**
+
+### 3.11 App icon
+
+Redrawn in the palette (owner, 26 Sep 2026: *"Redesign it in Teal, changes with the palette theme"*):
+a full-bleed square in `--c-accent` with a hexagon (the plated part — the same hexagon as the IM icon) drawn
+in `--c-on-accent` and **SEP** set in Geist 700 inside it. The artwork sits inside the central 80% so the
+one file is also a valid **maskable** icon. Masters are SVG, one per palette
+(`icons/icon-teal.svg`, `icon-zinc.svg`, `icon-terracotta.svg`), with PNG exports at 192 and 512.
+
+- **In the app** — the browser tab icon, the Apple touch icon and the sidebar brand mark — the icon follows
+  the device's palette at runtime.
+- ⚠ **The installed home-screen / Start-menu icon cannot follow it.** It is read from `manifest.json`, one
+  file served to every device, and the browser fixes it at install and refreshes it only from that file. So
+  the manifest carries **Teal**, the default. This is a platform limit, not a choice; if the shop settles on
+  another palette for good, the manifest icon is switched to that palette's PNG in one line.
 
 ---
 
@@ -438,8 +488,8 @@ Legend is inline in the panel head. Every datum keeps its `<title>`. SVG `font-s
 
 ### 6.19 Settings
 Keeps its six groups, folded sections and per-section Save (see CLAUDE.md § Settings), redrawn with
-`inv-side-item` (desktop group nav), `inv-panel` sections, `inv-field`. Adds **Appearance** (theme §3.2,
-density §3.5) under Data & device.
+`inv-side-item` (desktop group nav), `inv-panel` sections, `inv-field`. Adds **Appearance** (theme and palette §3.2,
+density §3.5) under Data & device, each a segmented control that applies at once — appearance needs no Save.
 
 ---
 
@@ -479,7 +529,8 @@ read as — drawn as an `inv-table` with `inv-badge` verdicts ("Needs you", "Che
 Each phase is one PR, full suite green, before/after screenshots of every touched screen in light and dark,
 phone and desktop.
 
-1. **Foundation.** New token block (§3) with `light-dark()`, theme + density plumbing, Geist faces,
+1. **Foundation.** New token block (§3) with `light-dark()`, the three palettes, theme + palette + density
+   plumbing and Settings → Appearance, the new icons (§3.11), Geist faces,
    `:focus-visible` ring, the new app shell (§4, §6.1). Old tokens kept as **aliases of the new** so every
    existing rule renders in the new palette immediately. The old domain tokens map onto the status tones.
 2. **Components.** Add §6.3–§6.18 to `styles.css`, each with its dark coverage, and turn the old families into
@@ -506,11 +557,11 @@ document. See `docs/NEXT_SESSION.md` for the rule that keeps the books safe whil
 
 ---
 
-## 10. Open decisions
+## 10. Decisions
 
-| # | Question | Default until answered |
+| # | Question | Decided |
 |---|---|---|
-| 1 | Palette: teal, or zinc & brass / terracotta on the C layout? | **Teal** (as mocked) |
-| 2 | App icon and `theme-color` still terracotta — redraw in the new accent? | Keep the icon; `theme-color` follows the surface |
-| 3 | Default theme: follow the device, or light unless chosen? | **Follow the device** |
-| 4 | Ctrl K command palette on the desktop (shown in the mock-up; research did not support it as an expectation) | Not built in route 1 |
+| 1 | Palette | **Three, per device; Teal the default** (owner, 26 Sep 2026) — §3.1 |
+| 2 | App icon | **Redrawn in the palette**; the installed icon is Teal (platform limit) — §3.11 |
+| 3 | Default theme | **Follow the phone's setting** — §3.2 |
+| 4 | Ctrl K command palette on the desktop | Open. Shown in the mock-up; the research did not support it as an expectation. Not built in route 1. |

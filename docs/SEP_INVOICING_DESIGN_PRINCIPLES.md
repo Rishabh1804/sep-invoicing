@@ -394,7 +394,9 @@ layout, drawn with `inv-side-item`).
 ### 6.5 Segmented control — `inv-seg`
 Joined buttons in one bordered box, the "on" segment `--surface-2` + 600 (desktop) or `--accent-soft`
 (phone). For a **setting of the current view**, not navigation: period (MTD/QTD/YTD/All), span
-(1/4/12 weeks), metric (₹ / Tonnes / ₹/kg), density. `inv-seg-btn` (`aria-pressed`). Replaces `inv-stk-seg`,
+(1/4/12 weeks), metric (₹ / Tonnes / ₹/kg), density. `inv-seg-btn` (`aria-pressed`). A segment that records a status
+(Staff → Day's P / H / A) carries its tone, `inv-seg-btn-ok|warning|danger`, and is pressed in the tone's bg and colour —
+in both themes and on the desktop too, where an ordinary pressed segment is grey. Replaces `inv-stk-seg`,
 `inv-stats-chips` as period pickers, `inv-pred-chip`.
 
 ### 6.6 Filter tokens and chips — `inv-token`, `inv-chip`
@@ -407,13 +409,14 @@ Joined buttons in one bordered box, the "on" segment `--surface-2` + 600 (deskto
 ### 6.7 Toolbar and search — `inv-toolbar`, `inv-search`
 `inv-toolbar`: search + tokens + view settings, one line on the desktop, wrapping to two on the phone.
 `inv-search`: bordered field with the search icon inside and, on the desktop, a `/` key hint.
-Every searchable list uses it. Filters beside it are `inv-toolbar-item` (a select, a month, a labelled date field),
+Every searchable list uses it. `inv-stepper` is a period stepper: an `inv-btn-icon` back, the period in
+`inv-stepper-label` (a date field, or `inv-stepper-title` over `inv-stepper-sub`), forward, and a ghost *Today* / *This week*. Filters beside it are `inv-toolbar-item` (a select, a month, a labelled date field),
 sharing the line and wrapping two to a row on the phone. Replaces `inv-reg-toolbar`, `inv-im-toolbar`, `inv-items-toolbar`,
 `inv-cp-toolbar`, `inv-history-filters`, `inv-search-wrap`, `inv-reg-search`.
 
 ### 6.8 Panel — `inv-panel`
 `inv-panel-head` (`--t-heading` title · optional count in mono `--text-3` · spacer · actions as
-`inv-btn-link`/`-sm`), then body. `inv-panel-flush` for a panel whose body is rows or a table (no padding); inside one, `inv-panel-body` is a padded block (a form or a note) ruled off from the rows below it. A picker or figure in a row's end is `inv-select-sm` / `inv-input-sm` (`--col-sm-w`, `--ctl-h-sm`). A set of four tiles that must read as one row on the desktop, even in a half-width panel, is `inv-tiles-4`; a cell that is one token to the reader (a month, a date) is `inv-nowrap`. `inv-panels` lays panels out: one column
+`inv-btn-link`/`-sm`), then body. `inv-panel-flush` for a panel whose body is rows or a table (no padding); inside one, `inv-panel-body` is a padded block (a form or a note) ruled off from the rows below it. A card's total sits in its head as `inv-num`. A picker or figure in a row's end is `inv-select-sm` / `inv-input-sm` (`--col-sm-w`, `--ctl-h-sm`). A set of four tiles that must read as one row on the desktop, even in a half-width panel, is `inv-tiles-4`; a cell that is one token to the reader (a month, a date) is `inv-nowrap`. `inv-panels` lays panels out: one column
 on the phone, two on the desktop, `inv-panels-wide` spanning both; an empty host is not drawn.
 Replaces `inv-card`, `inv-card-list`, `inv-stats-card`, `inv-im-challan`, `inv-stk-hero`, `inv-stk-metabox`,
 `inv-set-sec`'s box, `inv-dupe-group`, `inv-td-facts`, `inv-rl-rows`.
@@ -440,7 +443,8 @@ holding the full `--touch` target; `inv-row-stack`
 stacks a figure over its badge in `inv-row-end`; `inv-row-wrap` lets a meta line wrap (a list of names);
 `inv-row-muted` is a cancelled or inactive row (a voided stock entry); `inv-row-top` keeps the end at the top of a
 row holding blocks (a quoted line, a callout, a field); `inv-row-flow` lets a row's end — fields, a long figure — drop
-under its main on a narrow screen, right-aligned; a navigation row for the page on screen is `aria-current="page"`
+under its main on a narrow screen, right-aligned; `inv-row-fields` is an end that is a line of controls (P/H/A, an area, hours),
+the row's width under the name on the phone and beside it on the desktop; a navigation row for the page on screen is `aria-current="page"`
 (accent title and icon); `inv-row-done` a task ticked done (struck through, never deleted). A row that opens its own lines beneath it (a challan's items) has an
 `inv-row-expander` main button (`aria-expanded`, a chevron drawn in CSS) and its lines in `inv-row-children`,
 indented on the page colour. **The phone form of every table.** Replaces `inv-client-item`, `inv-item-card`, `inv-reg-row`,
@@ -461,7 +465,9 @@ Tick boxes are `inv-check`.
 A group heading inside a table (a status, a supplier) is a `tr.inv-table-group` — the table form of `inv-row-group`.
 A unit after a figure is `inv-unit` (`--text-3`, §5.4).
 Modifier `inv-table-grid` for the week grid: cells are `inv-cell` chips (`-ok|warning|danger|empty|future`)
-showing hours. Replaces `inv-desktop-table`/`inv-th`/`inv-tr`/`inv-td*` (**ending the `inv-td-` collision
+showing hours; a tappable cell is `button.inv-cell`. The grid scrolls sideways in its panel (`inv-scroll-x`) with the name
+column sticky; Sunday's column is `data-sun`, today's head `aria-current="date"`, a day's date under its name
+`inv-table-grid-date`. Replaces `inv-desktop-table`/`inv-th`/`inv-tr`/`inv-td*` (**ending the `inv-td-` collision
 with To-do**), `inv-stats-table*`, `inv-ov-table`, `inv-detail-items-table`, `inv-att-grid`.
 
 ### 6.12 Selection bar — `inv-selbar`
@@ -582,7 +588,7 @@ density §3.5) under Data & device, each a segmented control that applies at onc
 | Finance → Overview | view tabs (the open one scrolled into view) · tiles (balance, owed, paid out, GST) · range chips `3M · 6M · FY · All` driving every panel · cash (`chartLines`: balance, in, out; tap a month) and its table · cash forecast (`inv-tiles-4`, `chartLines` with a band, *what it rests on*) · where money went (`chartStack` over the range, `chartPieTap` for the month, a slice lists its payments) · where money came from (`chartPieTap` by client, unplaced a named slice) · owed to us (ageing `inv-tiles-4`, top debtors) · invoiced against received (`chartLines`) · GST (`chartStack` grouped, then the table) · whole rupees on the Overview only | same, panels two across |
 | Finance → Receivables / Payments / Bank | head panel (range, rows, closing, balance check) · view tabs Receipts / Payments / Statement · Receipts: client rows expanding to receipts (*Exact* / *Oldest first* badge) and open invoices · Statement: filter + search, rows with a category dot, the row's edit as an `inv-panel-body` | same |
 | Finance → Bills & notes | two flush panels (electricity by month with missing months as rows; credit notes) · the note form as an `inv-panel-body` | same, panels side by side |
-| Staff | tabs Overview / Day / Week / Pay / Areas / Roster, opening on Overview (today's attendance panel, attendance % by week, labour ₹/kg by month recorded / paid / model, OT and EXTRA by area stacked, payroll against the bank grouped, raised tasks) · Day: date stepper, stat strip, rows with P/H/A segmented + area + OT · Week: grid (`inv-table-grid`) | same; Week grid shows hours per cell |
+| Staff | tabs Overview / Day / Week / Pay / Areas / Roster (scrolling sideways, the open one scrolled into view), opening on Overview (today's attendance panel, attendance % by week, labour ₹/kg by month recorded / paid / model, OT and EXTRA by area stacked, payroll against the bank grouped, raised tasks) · **Paste message** the one primary on Overview and Day, a sub-view with its way back · Day: `inv-stepper`, stat strip (on site, half day, absent, unmarked; the hours), rows with P/H/A `inv-seg` in its tone + area + OT (`inv-row-fields`), Extra hours as rows (a block's areas and crew as `inv-chip`s, its check a callout) · Week: grid (`inv-table-grid`) · Pay: stepper, the payout as tiles and rows, due by worker as row buttons under `inv-row-group`s, the payment form an `inv-panel-body` · Areas: stepper, span `inv-seg`, hours by area, the extra checked (tiles, rows, flags as rows with a dot and a word), staffing rows with their complement, the pro-rata split · Roster: toolbar (**Add worker**, Import), rows with badges · the labour card a flush panel (total in the head, Fixed / Variable / ₹/kg tiles, a row per tier, notes and callouts between) | same; the Day row's controls beside the name. *Built.* |
 | Stats | tabs · period segmented · panels of stat strips, tables and charts | same, two-column panel grid |
 | History | toolbar · rows grouped by day | table |
 | Settings | groups stacked, folded sections | two-pane (side list + group) |
@@ -591,7 +597,9 @@ density §3.5) under Data & device, each a segmented control that applies at onc
 read as — with `inv-badge` verdicts ("Needs you", "Check", "read as …"). The stock check is built: a flush panel of
 `inv-row-top` rows, each the line number and name, the text as sent (`inv-quote`), what was read (mono), its questions as
 callouts, a figure's choice as `inv-chip`s (`aria-pressed`) and its picker as an `inv-field`; Needs you · Check · Clear
-above as `inv-tiles-3`; Save in the action bar with the entries it will write. The attendance roll moves with Staff.
+above as `inv-tiles-3`; Save in the action bar with the entries it will write. The attendance roll is built the same way: its
+questions a panel of callouts with their pickers, each day a flush panel of rows (what changes a badge: New, Updated, Kept, Same),
+the message line by line as `inv-quote`s, Save in the action bar.
 
 ---
 
@@ -620,7 +628,7 @@ phone and desktop.
    the Clients segment and Stats tabs → view tabs, banners → callout, overlays → dialog). Labels are
    sentence case everywhere (DR-5); the duplicated `inv-chip` is one rule; decorative tone fills are neutral.
    Step 3 moves the markup onto the v2.0 class names and deletes the v1.0 names from those selector lists.
-3. **Screens, in order:** Home *(built 26 Sep 2026)* · Register *(built 26 Sep 2026)* · IM *(built 26 Sep 2026)* · Create *(built 26 Sep 2026)* · Clients/Items/Performance *(built 26 Sep 2026)* · To-do *(built 26 Sep 2026)* · Stock *(built 26 Sep 2026)* · Staff ·
+3. **Screens, in order:** Home *(built 26 Sep 2026)* · Register *(built 26 Sep 2026)* · IM *(built 26 Sep 2026)* · Create *(built 26 Sep 2026)* · Clients/Items/Performance *(built 26 Sep 2026)* · To-do *(built 26 Sep 2026)* · Stock *(built 26 Sep 2026)* · Staff *(built 26 Sep 2026)* ·
    Stats · History · Settings. Each moves its render functions onto the components and deletes its private
    family in the same PR (DR-7). The survey's bugs are fixed where their screen moves: History's filter bar,
    Register's desktop list, the doubled Add buttons, Staff's cut-off sub-tabs, the base-colour dark-mode text,

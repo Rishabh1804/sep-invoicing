@@ -720,16 +720,16 @@ function openAreaExplain(payload) {
   scrim.className = 'inv-overlay-scrim';
   scrim.innerHTML = '<div class="inv-overlay-card">' +
     '<div class="inv-overlay-header"><span class="inv-overlay-title">Explain this exception</span>' +
-    '<button class="inv-overlay-close" data-action="invCloseOverlay">&times;</button></div>' +
-    '<div class="inv-stats-note">' + escHtml(d.label) + ' &middot; ' + formatDate(d.iso) + ' &mdash; ' +
-    'booked <span class="inv-mono">' + formatNum(d.booked, 1) + ' h</span> against a predicted ' +
-    '<span class="inv-mono">' + formatNum(d.expected, 1) + ' h</span>. Say what the record shows, ' +
+    '<button class="inv-overlay-close" data-action="invCloseOverlay" aria-label="Close">&times;</button></div>' +
+    '<div class="inv-note inv-mb-8">' + escHtml(d.label) + ' &middot; ' + formatDate(d.iso) + ' &mdash; ' +
+    'booked <span class="inv-num">' + formatNum(d.booked, 1) + ' h</span> against a predicted ' +
+    '<span class="inv-num">' + formatNum(d.expected, 1) + ' h</span>. Say what the record shows, ' +
     'so the next reader inherits the finding rather than the puzzle.</div>' +
-    '<div class="inv-form-group"><label class="inv-form-label" for="areaExReason">Reason</label>' +
-    '<textarea class="inv-form-input" id="areaExReason" rows="3" ' +
+    '<div class="inv-field"><label class="inv-field-label" for="areaExReason">Reason</label>' +
+    '<textarea class="inv-textarea" id="areaExReason" rows="3" ' +
     'placeholder="e.g. no fold value reconciles both rows of this block"></textarea></div>' +
     '<div class="inv-btn-bar">' +
-    '<button class="inv-btn inv-btn-ghost" data-action="invCloseOverlay">Cancel</button>' +
+    '<button class="inv-btn inv-btn-secondary" data-action="invCloseOverlay">Cancel</button>' +
     '<button class="inv-btn inv-btn-primary" data-action="invAreaExplainSave">Record it</button>' +
     '</div></div>';
   document.body.appendChild(scrim);
@@ -765,25 +765,16 @@ function _attAreasView() {
   var to = attAddDays(_attWeekStart, _areaSpan * 7 - 1);
   var stats = areaStats(from, to);
 
-  var html = '<div class="inv-att-nav">' +
-    '<button class="inv-att-nav-btn" data-action="invAttWeekStep" data-step="-1" aria-label="Earlier">' +
-    '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg></button>' +
-    '<div class="inv-att-nav-label"><span class="inv-att-week-num">' +
-    (_areaSpan === 1 ? 'Week ' + attPayWeekNumber(from) : _areaSpan + ' weeks') + '</span>' +
-    '<span class="inv-att-nav-day">' + formatDate(from) + ' &ndash; ' + formatDate(to) + '</span></div>' +
-    '<button class="inv-att-nav-btn" data-action="invAttWeekStep" data-step="1" aria-label="Later">' +
-    '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg></button>' +
-    '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invAttThisWeek">This week</button>' +
-    '</div>';
+  var html = _attStepper('invAttWeekStep', _attWeekLabel(_areaSpan === 1 ? 'Week ' + attPayWeekNumber(from) : _areaSpan + ' weeks',
+    formatDate(from) + ' &ndash; ' + formatDate(to)), 'invAttThisWeek', 'This week', 'Earlier', 'Later');
 
-  html += '<div class="inv-stats-chips inv-mb-16">' +
+  html += '<div class="inv-seg inv-mb-8" role="group" aria-label="Span">' +
     [[1, '1 week'], [4, '4 weeks'], [12, '12 weeks']].map(function(s) {
-      return '<button class="inv-chip' + (_areaSpan === s[0] ? ' inv-chip-active' : '') +
-        '" data-action="invAreaSpan" data-span="' + s[0] + '">' + s[1] + '</button>';
+      return '<button class="inv-seg-btn" aria-pressed="' + (_areaSpan === s[0]) + '" data-action="invAreaSpan" data-span="' + s[0] + '">' + s[1] + '</button>';
     }).join('') + '</div>';
 
   if (stats.recordedDays === 0) {
-    return html + '<div class="inv-card"><div class="inv-empty-state inv-empty-state-sm">' +
+    return html + '<div class="inv-panel"><div class="inv-empty">' +
       'No attendance recorded in this range. Mark some days and the floor appears here.</div></div>';
   }
 
@@ -799,26 +790,25 @@ function _attAreasView() {
     return (b.paidHours + b.extraHours + b.dayTierDays * 8) - (a.paidHours + a.extraHours + a.dayTierDays * 8);
   });
 
-  html += '<div class="inv-card"><div class="inv-card-header"><span class="inv-card-title">Staffing by area</span></div>' +
-    '<div class="inv-stats-note">Heads are counted from the day’s marks, so a worker moved to another area ' +
+  html += '<div class="inv-panel inv-panel-flush" id="areaStaffing"><div class="inv-panel-head"><span class="inv-panel-title">Staffing by area</span></div>' +
+    '<div class="inv-panel-body inv-note">Heads are counted from the day’s marks, so a worker moved to another area ' +
     'counts where they actually stood. Set a complement to see the variance; leave it blank and the area’s own ' +
     'median stands as the only reference &mdash; and the extra above cannot be checked without one. ' +
     'Averages are over the <strong>' + stats.recordedDays +
     ' recorded day' + (stats.recordedDays === 1 ? '' : 's') + '</strong> in this range, not over the calendar.</div>';
 
   rows.forEach(function(a) { html += _areaRow(a); });
-  html += '</div>';
-
-  html += _areaAbsorptionCard(stats);
 
   var flex = stats.rows.find(function(a) { return a.id === 'flex'; });
   if (flex && flex.headDays > 0) {
-    html += '<div class="inv-stats-caveat"><strong>' + formatNum(flex.headDays, 0) + ' worker-day' +
+    html += _labCallout('<strong>' + formatNum(flex.headDays, 0) + ' worker-day' +
       (flex.headDays === 1 ? '' : 's') + '</strong> sit on Flex and are counted against no area. ' +
       'A floating hand is a fact about the day rather than a gap to fill by guesswork &mdash; but every one of ' +
-      'them is missing from the staffing figures above. Set the area on the day view to move them.</div>';
+      'them is missing from the staffing figures above. Set the area on the day view to move them.');
   }
+  html += '</div>';
 
+  html += _areaAbsorptionCard(stats);
   return html;
 }
 
@@ -853,15 +843,13 @@ function _areaExtraCard(stats) {
   var unmannedH = stats.units.reduce(function(s, u) { return s + u.unmannedHours; }, 0);
   var unmannedDays = stats.units.reduce(function(s, u) { return s + u.unmannedDays; }, 0);
 
-  var html = '<div class="inv-card inv-lab-card"><div class="inv-card-header">' +
-    '<span class="inv-card-title">The extra, checked</span>' +
-    '<span class="inv-lab-total inv-mono">' + formatNum(totalExtra, 1) + ' h</span></div>';
+  var html = _labPanelHead('extra', 'The extra, checked', formatNum(totalExtra, 1) + ' h', '', 'areaExtra');
 
   if (totalExtra === 0 && stats.expectedExtra === 0 && stats.blockHours === 0) {
     // Nothing to reconcile — but say WHY nothing was expected, because on a
     // day with lines standing idle that is an assumption doing real work.
     var idleQuiet = stats.idleDays;
-    return html + '<div class="inv-empty-state inv-empty-state-sm">No extra hours booked, and every area ' +
+    return html + '<div class="inv-empty">No extra hours booked, and every area ' +
       'that ran was at its complement' +
       (idleQuiet > 0 ? ' &mdash; ' + idleQuiet + ' unit-day' + (idleQuiet === 1 ? '' : 's') +
         ' were idle and not counted' : '') + '</div></div>';
@@ -870,33 +858,32 @@ function _areaExtraCard(stats) {
   // The headline comparison, when there is a norm to compare against.
   if (stats.normed > 0) {
     var gap = stats.bookedInNormed - stats.expectedExtra;
-    var tone = Math.abs(gap) < 0.001 ? 'inv-lab-fixed' : (gap > 0 ? 'inv-area-gap-over' : 'inv-area-gap-under');
-    html += '<div class="inv-lab-split">' +
-      '<div class="inv-lab-half inv-lab-fixed"><div class="inv-lab-half-label">Expected</div>' +
-      '<div class="inv-lab-half-value inv-mono">' + formatNum(stats.expectedExtra, 1) + ' h</div>' +
-      '<div class="inv-lab-half-sub">' + formatNum(cfg.extraHoursPerHead, 0) + ' h &times; each missing hand</div></div>' +
-      '<div class="inv-lab-half ' + tone + '"><div class="inv-lab-half-label">Booked</div>' +
-      '<div class="inv-lab-half-value inv-mono">' + formatNum(stats.bookedInNormed, 1) + ' h</div>' +
-      '<div class="inv-lab-half-sub">' + (Math.abs(gap) < 0.001 ? 'exactly as predicted'
-        : formatNum(Math.abs(gap), 1) + ' h ' + (gap > 0 ? 'more than the shortfall explains' : 'less than the shortfall allows')) +
-      '</div></div></div>';
+    // More booked than the shortfall explains is the case the rule forbids (a caution); less is an upper
+    // bound read loosely, not an error, so it takes no tone.
+    html += '<div class="inv-tiles inv-tiles-flush">' +
+      _labTile('expected', 'Expected', formatNum(stats.expectedExtra, 1) + '<span class="inv-tile-of"> h</span>',
+        formatNum(cfg.extraHoursPerHead, 0) + ' h &times; each missing hand') +
+      _labTile('booked', 'Booked', formatNum(stats.bookedInNormed, 1) + '<span class="inv-tile-of"> h</span>',
+        Math.abs(gap) < 0.001 ? 'exactly as predicted'
+          : formatNum(Math.abs(gap), 1) + ' h ' + (gap > 0 ? 'more than the shortfall explains' : 'less than the shortfall allows'),
+        gap > 0.001 ? 'warning' : (Math.abs(gap) < 0.001 ? 'ok' : '')) + '</div>';
 
     if (gap > 0.001) {
-      html += '<div class="inv-stats-caveat"><strong>More was booked than the shortfall explains.</strong> ' +
+      html += _labCallout('<strong>More was booked than the shortfall explains.</strong> ' +
         'Under the rule every extra hour answers a missing hand, so a surplus has to come from somewhere the ' +
         'rule does not describe &mdash; hours on top of named columns rather than instead of them, a tag on a ' +
-        'full area, or a quantity written larger than the gap. The rows below say which areas and which days.</div>';
+        'full area, or a quantity written larger than the gap. The rows below say which areas and which days.', 'warning');
     } else if (gap < -0.001) {
-      html += '<div class="inv-stats-note">Less was booked than the shortfall allows. That is not in itself ' +
+      html += _labNote('Less was booked than the shortfall allows. That is not in itself ' +
         'wrong: the rule applies to an area running at full tilt, and an area that was short <em>and</em> ' +
         'running light needs no coverage. Nothing here measures per-area output, so the expected figure is an ' +
-        '<strong>upper bound</strong> rather than a target.</div>';
+        '<strong>upper bound</strong> rather than a target.');
     }
   } else {
-    html += '<div class="inv-stats-caveat">No complement is set on any area, so there is no shortfall to ' +
+    html += _labCallout('No complement is set on any area, so there is no shortfall to ' +
       'predict from and the extra cannot be checked &mdash; only counted. Set the norms below ' +
       '(VAT A1 and A2 at 4, Barrel 3, Barrel pickling 2, Pickling A1+A2 3 is the floor\u2019s own full house) ' +
-      'and this card starts answering the question it exists for.</div>';
+      'and this card starts answering the question it exists for.');
   }
 
   var share = (totalPaid + totalExtra) > 0 ? (totalExtra / (totalPaid + totalExtra)) * 100 : 0;
@@ -917,7 +904,7 @@ function _areaExtraCard(stats) {
       'the rule predicts nothing here');
     html += _areaFlagList(atNorm, function(f) {
       return formatNum(f.d.booked, 1) + ' h on ' + f.d.heads + '/' + f.d.norm;
-    }, 'inv-area-flag');
+    }, 'danger');
   }
   if (unmannedDays > 0) {
     html += _labRow('Read as fully short', formatNum(unmannedH, 1) + ' h',
@@ -929,7 +916,7 @@ function _areaExtraCard(stats) {
       'short, and covered by a different number of hours');
     html += _areaFlagList(mism, function(f) {
       return formatNum(f.d.booked, 1) + ' h against ' + formatNum(f.d.short * cfg.extraHoursPerHead, 1) + ' h';
-    }, 'inv-area-flag inv-area-flag-warn');
+    }, 'warning');
   }
   if (unbooked.length > 0) {
     html += _labRow('Short, nothing booked', unbooked.length + ' unit-day' + (unbooked.length === 1 ? '' : 's'),
@@ -940,11 +927,11 @@ function _areaExtraCard(stats) {
       'nobody stood on it and nothing was booked to it');
   }
   if (unmannedDays > 0) {
-    html += '<div class="inv-stats-note">A unit nobody was marked on that still carries hours is ' +
+    html += _labNote('A unit nobody was marked on that still carries hours is ' +
       'read as <strong>fully short and fully covered</strong> &mdash; a zero-head pickling row against ' +
       'a norm of three booking 24 hours is 8 &times; 3 exactly. It counts on both sides of the check ' +
       'rather than neither, so it does not fail it. What it does say is that the marks for that day ' +
-      'were never typed.</div>';
+      'were never typed.');
   }
   if (stats.blockHours > 0) html += _areaBlockSection(stats);
 
@@ -957,19 +944,19 @@ function _areaExtraCard(stats) {
   // disagreements too. Gated on the shift ones alone it rendered "30.0 h
   // against 14.0 h" and "every booking reconciles exactly" one after the other.
   if (atNorm.length === 0 && mism.length === 0 && stats.blockMismatched.length === 0 && stats.normed > 0) {
-    html += '<div class="inv-stats-note">Every booking in this range sits on an area that was short by ' +
-      'exactly the hands the hours pay for. That is the whole cross-check the record supports, and it passes.</div>';
+    html += _labNote('<span class="inv-dot inv-dot-ok">Passed</span> Every booking in this range sits on an area that was short by ' +
+      'exactly the hands the hours pay for. That is the whole cross-check the record supports, and it passes.');
   } else if (atNorm.length > 0) {
-    html += '<div class="inv-stats-caveat">These are flags on the <strong>paperwork</strong>. Hours booked to ' +
+    html += _labCallout('These are flags on the <strong>paperwork</strong>. Hours booked to ' +
       'the wrong area, an area assignment nobody typed, and hours that were never worked all look identical ' +
       'from here, and so does a day the relay simply recorded loosely. What the card gives you is the area and ' +
-      'the date &mdash; the sheet settles the rest.</div>';
+      'the date &mdash; the sheet settles the rest.');
   }
 
-  html += '<div class="inv-stats-note"><strong>extra /head-day</strong> in the table below is the area&rsquo;s extra ' +
+  html += _labNote('<strong>extra /head-day</strong> in the staffing rows below is the area&rsquo;s extra ' +
     'hours divided by its worker-days &mdash; the hours each body standing there carried beyond their own ' +
     'recorded time. Under the norm-gap rule that absorption is real and pro-rata, which is what the ' +
-    'card below it ranks; it stays out of the wage arithmetic because the payout is pooled, not per-worker.</div>';
+    'card below it ranks; it stays out of the wage arithmetic because the payout is pooled, not per-worker.');
 
   return html + '</div>';
 }
@@ -983,10 +970,10 @@ function _areaExtraCard(stats) {
    for a 3-hour morning slot are not the same finding, and one total would
    report neither. */
 function _areaBlockSection(stats) {
-  var html = '<div class="inv-area-blocks"><div class="inv-stats-note"><strong>OT blocks</strong> ' +
+  var html = '<div id="areaBlocks"><div class="inv-row-group">OT blocks</div>' + _labNote('<strong>OT blocks</strong> ' +
     'book the extra the same way a general shift does &mdash; against the shortfall in the area ' +
     'that ran &mdash; credited the block&rsquo;s own hours rather than a full eight. The named ' +
-    'hands&rsquo; own overtime is a separate figure and is not in here.</div>';
+    'hands&rsquo; own overtime is a separate figure and is not in here.');
 
   if (stats.blockReconciled > 0) {
     html += _labRow('Expected across the blocks', formatNum(stats.blockExpected, 1) + ' h',
@@ -999,52 +986,40 @@ function _areaBlockSection(stats) {
   if (part.open.length > 0) {
     html += _labRow('Booked, but not the predicted amount', part.open.length + ' block' +
       (part.open.length === 1 ? '' : 's'), 'the block\u2019s shortfall explains a different number');
-    html += '<div class="inv-area-flags">';
     part.open.slice(0, 8).forEach(function(b) {
-      html += '<div class="inv-area-flag inv-area-flag-warn">' +
-        '<span class="inv-area-flag-area">' + escHtml(b.label) + '</span>' +
-        '<span class="inv-area-flag-date">' + formatDate(b.iso) + '</span>' +
-        '<span class="inv-area-flag-hours inv-mono">' + formatNum(b.booked, 1) + ' h against ' +
-        formatNum(b.expected, 1) + ' h</span>' +
-        '<button class="inv-area-flag-explain" data-action="invAreaExplain" ' +
+      html += _areaFlagRow('warning', b.label, b.iso, formatNum(b.booked, 1) + ' h against ' + formatNum(b.expected, 1) + ' h', '',
+        '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invAreaExplain" ' +
         'data-ex="' + encodeURIComponent(JSON.stringify({
           iso: b.iso, scope: b.scope, key: b.key, kind: b.kind,
           label: b.label, expected: b.expected, booked: b.booked
-        })) + '">Explain</button></div>';
+        })) + '">Explain</button>');
     });
-    html += '</div>';
   } else if (stats.blockReconciled > 0 && part.acked.length === 0) {
-    html += '<div class="inv-stats-note">Every block row sits on a shortfall that explains its ' +
-      'hours exactly. That is the whole cross-check the record supports, and it passes.</div>';
+    html += _labNote('<span class="inv-dot inv-dot-ok">Passed</span> Every block row sits on a shortfall that explains its ' +
+      'hours exactly. That is the whole cross-check the record supports, and it passes.');
   }
 
   if (part.stale.length > 0) {
     html += _labRow('Explanation no longer matches', part.stale.length + ' block' +
       (part.stale.length === 1 ? '' : 's'), 'the figures moved since it was written');
-    html += '<div class="inv-stats-caveat">An exception is granted against the numbers it was ' +
+    html += _labCallout('An exception is granted against the numbers it was ' +
       'written about. These have changed since &mdash; a crew corrected, a tag retyped &mdash; so ' +
       'the note no longer describes what is here and the disagreement is listed again above. ' +
-      'Explain it afresh rather than letting an old note quietly cover a new problem.</div>';
+      'Explain it afresh rather than letting an old note quietly cover a new problem.', 'warning');
   }
 
   if (part.acked.length > 0) {
     html += _labRow('Explained exceptions', part.acked.length + ' block' +
       (part.acked.length === 1 ? '' : 's'), 'examined, and the reason is on the record');
-    html += '<div class="inv-area-flags">';
     part.acked.slice(0, 8).forEach(function(a) {
-      html += '<div class="inv-area-flag inv-area-flag-ack">' +
-        '<span class="inv-area-flag-area">' + escHtml(a.x.label || a.d.label) + '</span>' +
-        '<span class="inv-area-flag-date">' + formatDate(a.d.iso) + '</span>' +
-        '<span class="inv-area-flag-hours inv-mono">' + formatNum(a.d.booked, 1) + ' h against ' +
-        formatNum(a.d.expected, 1) + ' h</span>' +
-        '<span class="inv-area-flag-reason">' + escHtml(a.x.reason) + '</span>' +
-        '<button class="inv-area-flag-explain" data-action="invAreaUnexplain" ' +
-        'data-key="' + encodeURIComponent(exceptionKey(a.x)) + '">Reopen</button></div>';
+      html += _areaFlagRow('ack', a.x.label || a.d.label, a.d.iso,
+        formatNum(a.d.booked, 1) + ' h against ' + formatNum(a.d.expected, 1) + ' h', escHtml(a.x.reason),
+        '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invAreaUnexplain" ' +
+        'data-key="' + encodeURIComponent(exceptionKey(a.x)) + '">Reopen</button>');
     });
-    html += '</div>';
-    html += '<div class="inv-stats-note">These are the cases the rule does <strong>not</strong> ' +
+    html += _labNote('These are the cases the rule does <strong>not</strong> ' +
       'reproduce, kept as records rather than smoothed away. A rule whose exceptions are named is ' +
-      'one you can trust the rest of; a rule with none is one nobody has tested.</div>';
+      'one you can trust the rest of; a rule with none is one nobody has tested.');
   }
 
   // Never reconciled at a guess, and never silently dropped either.
@@ -1053,28 +1028,34 @@ function _areaBlockSection(stats) {
     html += _labRow('Not checkable', formatNum(ih, 1) + ' h',
       stats.blockIncomplete.length + ' row' + (stats.blockIncomplete.length === 1 ? '' : 's') +
       ' missing times, crew or a complement');
-    html += '<div class="inv-stats-caveat">A block is checked against <strong>its own length ' +
+    html += _labCallout('A block is checked against <strong>its own length ' +
       '&times; its own shortfall</strong>, so it needs all three: the in and out times give the ' +
       'multiplier, the named crew gives the head count (the day&rsquo;s marks cannot &mdash; a hand ' +
       'on one area all day turns up in another area&rsquo;s evening block), and the areas it covers ' +
       'give the complement. These hours are still counted in the bill; they are simply not ' +
-      'evidence about staffing.</div>';
+      'evidence about staffing.');
   }
 
   return html + '</div>';
 }
 
-function _areaFlagList(flags, detail, cls) {
-  var html = '<div class="inv-area-flags">';
-  flags.slice(0, 8).forEach(function(f) {
-    html += '<div class="' + cls + '"><span class="inv-area-flag-area">' + escHtml(f.a.label) + '</span>' +
-      '<span class="inv-area-flag-date">' + formatDate(f.d.iso) + '</span>' +
-      '<span class="inv-area-flag-hours inv-mono">' + detail(f) + '</span></div>';
-  });
+/* A disagreement on the card: the area and the day, the hours, and — once somebody has examined it — the
+   reason on the record. `tone` is danger (booked at complement), warning (not the predicted amount) or ack
+   (explained: a record, not a flag, so it reads neutral). */
+var AREA_FLAG_WORD = { danger: 'At complement', warning: 'Differs', ack: 'Explained' };
+function _areaFlagRow(tone, label, iso, hours, reason, action) {
+  return '<div class="inv-row inv-row-2" data-flag="' + tone + '"><span class="inv-row-main">' +
+    '<span class="inv-row-title"><span class="inv-dot inv-dot-' + (tone === 'ack' ? 'neutral' : tone) + '">' + escHtml(label) + '</span></span>' +
+    '<span class="inv-row-meta inv-row-wrap">' + formatDate(iso) + ' &middot; ' + AREA_FLAG_WORD[tone] + (reason ? ' &middot; ' + reason : '') + '</span></span>' +
+    '<span class="inv-row-end"><span class="inv-num">' + hours + '</span>' + (action || '') + '</span></div>';
+}
+function _areaFlagList(flags, detail, tone) {
+  var html = '';
+  flags.slice(0, 8).forEach(function(f) { html += _areaFlagRow(tone, f.a.label, f.d.iso, detail(f)); });
   if (flags.length > 8) {
-    html += '<div class="' + cls + ' inv-area-flag-more">' + (flags.length - 8) + ' more</div>';
+    html += '<div class="inv-row" data-flag="more"><span class="inv-row-meta">' + (flags.length - 8) + ' more</span></div>';
   }
-  return html + '</div>';
+  return html;
 }
 
 /* Who carried the coverage. Ranked, because the question this answers is which
@@ -1084,43 +1065,41 @@ function _areaAbsorptionCard(stats) {
   if (!rows || rows.length === 0) return '';
   var cfg = labourCfg();
   var total = rows.reduce(function(s, r) { return s + r.hours; }, 0);
-  var html = '<div class="inv-card"><div class="inv-card-header">' +
-    '<span class="inv-card-title">The extra, paid pro-rata</span>' +
-    '<span class="inv-lab-total inv-mono">' + formatCurrency(gstRound(total * cfg.extraRate)) + '</span></div>' +
-    '<div class="inv-stats-note">The extra is booked to an area, and <strong>the area&rsquo;s present crew ' +
+  var html = _labPanelHead('absorb', 'The extra, paid pro-rata', formatCurrency(gstRound(total * cfg.extraRate)), '', 'areaAbsorb') +
+    _labNote('The extra is booked to an area, and <strong>the area&rsquo;s present crew ' +
     'receive it pro-rata</strong> (owner, 28 Aug 2026). It stays under the <strong>EXTRA</strong> line of the ' +
     'bill &mdash; one pooled figure, <strong>disbursed by the supervisor on the floor</strong> &mdash; and these shares ' +
     'are the split he disburses it by. Nothing here enters the per-worker wage arithmetic; the bill counts the ' +
-    'extra exactly once, and this card says who it reaches.</div>';
+    'extra exactly once, and this card says who it reaches.');
   var flagged = 0;
   rows.slice(0, 12).forEach(function(r) {
     if (r.implausible) flagged++;
-    html += '<div class="inv-stats-row"><span class="inv-stats-name">' + escHtml(r.name) +
-      (r.implausible ? '<span class="inv-area-absorb-flag">more than a shift</span>' : '') + '</span>' +
-      '<span class="inv-stats-val">' + formatCurrency(gstRound(r.hours * cfg.extraRate)) +
-      '<span class="inv-area-absorb-days"> · ' + formatNum(r.hours, 1) + ' h · ' +
-      formatNum(r.perDay, 1) + ' h/day over ' + r.days +
-      ' day' + (r.days === 1 ? '' : 's') + '</span></span></div>';
+    html += '<div class="inv-row inv-row-2"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(r.name) + '</span>' +
+      '<span class="inv-row-meta inv-row-wrap">' + formatNum(r.hours, 1) + ' h &middot; ' +
+      formatNum(r.perDay, 1) + ' h/day over ' + r.days + ' day' + (r.days === 1 ? '' : 's') + '</span></span>' +
+      '<span class="inv-row-end">' + (r.implausible ? '<span class="inv-badge inv-badge-warning" data-implausible>More than a shift</span>' : '') +
+      '<span class="inv-num">' + formatCurrency(gstRound(r.hours * cfg.extraRate)) + '</span></span></div>';
   });
   if (flagged > 0) {
-    html += '<div class="inv-stats-caveat">Marked rows are paid more in a day than a body could stand on top ' +
+    html += _labCallout('Marked rows are paid more in a day than a body could stand on top ' +
       'of their own shift &mdash; twenty-four coverage hours against two present hands is twelve each. The ' +
       'ruling names the payee; it does not repeal arithmetic. Check those rows against the record before ' +
-      'reading them as settled pay.</div>';
+      'reading them as settled pay.', 'warning');
   }
   return html + '</div>';
 }
 
+/* An area's staffing (§6.10): its status as a dot and a word — over is a caution, under is short, at
+   complement is fine — its heads and extra as figures, what was paid for work done here, and its complement. */
 function _areaRow(a) {
   var target = a.target;
-  var tone = '';
-  var badge = '';
+  var staffing = 'none', tone = 'neutral', word = 'No complement';
   if (target != null) {
     var v = a.avgHeads - target;
     // Half a head either way is rounding on a small crew, not a staffing call.
-    if (v >= 0.5) { tone = ' inv-area-over'; badge = '+' + formatNum(v, 1) + ' over'; }
-    else if (v <= -0.5) { tone = ' inv-area-under'; badge = formatNum(v, 1) + ' under'; }
-    else { tone = ' inv-area-ok'; badge = 'at complement'; }
+    if (v >= 0.5) { staffing = 'over'; tone = 'warning'; word = '+' + formatNum(v, 1) + ' over'; }
+    else if (v <= -0.5) { staffing = 'under'; tone = 'danger'; word = formatNum(v, 1) + ' under'; }
+    else { staffing = 'ok'; tone = 'ok'; word = 'At complement'; }
   }
 
   // NOTE on the basis. This figure is what was PAID FOR WORK DONE IN THIS AREA:
@@ -1135,36 +1114,26 @@ function _areaRow(a) {
   if (a.hours > 0) bits.push(formatNum(a.hours, 1) + ' pool h');
   if (a.otHours > 0) bits.push(formatNum(a.otHours, 1) + ' OT h');
 
-  return '<div class="inv-area-row' + tone + '">' +
-    '<div class="inv-area-head">' +
-    '<span class="inv-area-name">' + escHtml(a.label) +
-    (a.floor ? '' : '<span class="inv-area-offfloor">off floor</span>') + '</span>' +
-    (badge ? '<span class="inv-area-badge">' + badge + '</span>' : '<span class="inv-area-badge inv-area-badge-none">no complement</span>') +
-    '</div>' +
-    '<div class="inv-area-grid">' +
-    '<div class="inv-area-stat"><span class="inv-area-stat-value inv-mono">' + formatNum(a.avgHeads, 1) + '</span>' +
-    '<span class="inv-area-stat-label">avg heads</span></div>' +
-    '<div class="inv-area-stat"><span class="inv-area-stat-value inv-mono">' + formatNum(a.medianHeads, 1) + '</span>' +
-    '<span class="inv-area-stat-label">median</span></div>' +
-    '<div class="inv-area-stat"><span class="inv-area-stat-value inv-mono">' + formatNum(a.extraHours, 1) +
-    (a.blockHours > 0 ? '<span class="inv-area-stat-vs">' + formatNum(a.blockHours, 0) + ' blk</span>' : '') + '</span>' +
-    '<span class="inv-area-stat-label">extra h</span></div>' +
-    '<div class="inv-area-stat"><span class="inv-area-stat-value inv-mono">' +
-    (a.impliedPerHead != null ? formatNum(a.impliedPerHead, 1) : '&mdash;') + '</span>' +
-    '<span class="inv-area-stat-label">extra /head-day</span></div>' +
-    '</div>' +
-    '<div class="inv-area-foot">' +
-    '<span class="inv-area-detail">' + (bits.length ? escHtml(bits.join(' · ')) : 'nothing recorded') +
-    (a.extraShare > 0 ? ' · extra is ' + formatNum(a.extraShare * 100, 0) + '% of its hours' : '') + '</span>' +
-    '<span class="inv-area-cost inv-mono" title="All tiers, work done here: day and hour pay, OT, ' +
-    'and the extra booked to this area. Not the labour card\u2019s variable-by-area figure.">' +
-    formatCurrency(a.cost) + '<span class="inv-area-cost-basis">worked here</span></span>' +
-    '</div>' +
-    '<div class="inv-area-target"><label class="inv-area-target-label" for="areaTgt-' + a.id + '">Complement</label>' +
-    '<input type="number" class="inv-form-input inv-mono inv-area-target-input" id="areaTgt-' + a.id +
+  var figs = formatNum(a.avgHeads, 1) + ' avg heads · ' + formatNum(a.medianHeads, 1) + ' median · ' +
+    formatNum(a.extraHours, 1) + ' extra h' + (a.blockHours > 0 ? ' (' + formatNum(a.blockHours, 0) + ' blk)' : '') + ' · ' +
+    (a.impliedPerHead != null ? formatNum(a.impliedPerHead, 1) : '—') + ' extra /head-day';
+
+  return '<div class="inv-row inv-row-flow inv-row-auto inv-row-top" data-area-row="' + a.id + '" data-staffing="' + staffing + '">' +
+    '<span class="inv-row-main"><span class="inv-row-title">' + escHtml(a.label) +
+    (a.floor ? '' : ' <span class="inv-badge">Off floor</span>') + '</span>' +
+    '<span class="inv-row-meta inv-row-wrap">' + figs + '</span>' +
+    '<span class="inv-row-meta inv-row-wrap">' + (bits.length ? escHtml(bits.join(' · ')) : 'nothing recorded') +
+    (a.extraShare > 0 ? ' · extra is ' + formatNum(a.extraShare * 100, 0) + '% of its hours' : '') + '</span></span>' +
+    '<span class="inv-row-end">' +
+    '<span class="inv-row-stack"><span class="inv-dot inv-dot-' + tone + '">' + word + '</span>' +
+    '<span class="inv-num" title="All tiers, work done here: day and hour pay, OT, ' +
+    'and the extra booked to this area. Not the labour card’s variable-by-area figure.">' +
+    formatCurrency(a.cost) + '<span class="inv-unit">worked here</span></span></span>' +
+    '<span class="inv-field"><label class="inv-field-label" for="areaTgt-' + a.id + '">Complement</label>' +
+    '<input type="number" class="inv-input inv-input-sm inv-input-num" id="areaTgt-' + a.id +
     '" data-area-target data-area="' + a.id + '" step="1" min="0" placeholder="—" value="' +
-    (target != null ? target : '') + '" aria-label="Expected heads in ' + escHtml(a.label) + '"></div>' +
-    '</div>';
+    (target != null ? target : '') + '" aria-label="Expected heads in ' + escHtml(a.label) + '"></span>' +
+    '</span></div>';
 }
 
 function setAreaSpan(n) {

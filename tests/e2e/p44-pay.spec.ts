@@ -52,11 +52,11 @@ test.describe('P44: pay', () => {
     await load(page);
     await switchTab(page, 'pageStaff');
     await page.locator('[data-action="invAttView"][data-view="week"]').click();
-    const heads = page.locator('.inv-att-grid thead .inv-att-grid-day');
+    const heads = page.locator('#attWeekGrid thead th:not(:first-child)');
     await expect(heads).toHaveCount(7);
     await expect(heads.first()).toContainText('Sun');
     await expect(heads.last()).toContainText('Sat');
-    await expect(heads.first()).toHaveClass(/inv-att-grid-sun/);
+    await expect(heads.first()).toHaveAttribute('data-sun', '');
     // Bala's Sunday is on the grid, carrying its hours.
     await expect(page.locator(`[data-action="invAttCycle"][data-id="2"][data-date="${wd(0, 0)}"]`)).toContainText('P6');
     expect(await g(page, `attPayWeekNumber('${wd(0, 0)}') === attWeekNumber('${wd(0, 6)}')`)).toBe(true);
@@ -83,8 +83,8 @@ test.describe('P44: pay', () => {
     await openPay(page);
     await expect(page.locator('#payForecast')).toContainText('2 of 6 working days recorded + Sunday');
     await expect(page.locator('#paySwing')).toContainText('+13%');
-    await expect(page.locator('#payHistory .inv-pay-week')).toHaveCount(12);
-    await expect(page.locator('#payHistory .inv-pay-week').nth(1)).toContainText('+₹600.00 against the median');
+    await expect(page.locator('#payHistory [data-week]')).toHaveCount(12);
+    await expect(page.locator('#payHistory [data-week]').nth(1)).toContainText('+₹600.00 against the median');
   });
 
   test('due is earned minus paid, recorded from the due list, and a void keeps the record', async ({ page }) => {
@@ -97,7 +97,7 @@ test.describe('P44: pay', () => {
     await expect(page.locator('#payAmount')).toHaveValue('1100');
     await page.locator('[data-action="invPaySave"]').click();
     await expect(page.locator('#payDue [data-action="invPayPick"][data-id="2"]')).toContainText('paid ₹1,100.00');
-    await expect(page.locator('#payDue [data-action="invPayPick"][data-id="2"] .inv-lab-value')).toHaveText('₹0.00');
+    await expect(page.locator('#payDue [data-action="invPayPick"][data-id="2"] .inv-num')).toHaveText('₹0.00');
 
     // An advance to the monthly hand is taken off the month.
     await page.locator('#payWorker').selectOption('1');

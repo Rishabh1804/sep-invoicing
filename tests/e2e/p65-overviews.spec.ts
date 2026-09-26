@@ -57,17 +57,17 @@ function stockState(): SepState {
 test('Staff opens on Overview; the quick action still opens the Day', async ({ page }) => {
   await loadAppWithState(page, staffState());
   await switchTab(page, 'pageStaff');
-  await expect(page.locator('[data-action="invAttView"].inv-chip-active')).toHaveAttribute('data-view', 'overview');
+  await expect(page.locator('.inv-viewtab[data-action="invAttView"][aria-selected="true"]')).toHaveAttribute('data-view', 'overview');
   await expect(page.locator('#dashStaffToday')).toBeVisible();
   // Open the day opens the day the panel shows, even after the Day view was left on another date.
   const shown = await ev(page, `attDaySummary().iso`);
   await ev(page, `_attDate = '${addDays(todayIso(), -30)}'`);
   await page.locator('[data-action="invDashOpenDay"]').click();
-  await expect(page.locator('[data-action="invAttView"].inv-chip-active')).toHaveAttribute('data-view', 'day');
+  await expect(page.locator('.inv-viewtab[data-action="invAttView"][aria-selected="true"]')).toHaveAttribute('data-view', 'day');
   expect(await ev(page, `_attDate`)).toBe(shown);
   await switchTab(page, 'pageHome');
   await page.locator('[data-action="invHomeQuick"][data-go="attendance"]').click();
-  await expect(page.locator('[data-action="invAttView"].inv-chip-active')).toHaveAttribute('data-view', 'day');
+  await expect(page.locator('.inv-viewtab[data-action="invAttView"][aria-selected="true"]')).toHaveAttribute('data-view', 'day');
 });
 
 test('Staff overview: a week nobody typed is a gap, OT sits in its area, and payroll meets the bank', async ({ page }) => {

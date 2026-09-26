@@ -110,12 +110,12 @@ test.describe('P41: attendance rolls from WhatsApp', () => {
   test('in and out rolls pasted together: checked, a name placed once, saved, and a repeat refused', async ({ page }) => {
     await load(page);
     await paste(page, IN() + '\n' + OUT());
-    await expect(page.locator('.inv-stk-tile-red .inv-stk-tile-n')).toHaveText('1');
+    await expect(page.locator('#relayReviewTiles [data-tile="red"] .inv-tile-value')).toHaveText('1');
     await page.locator('[data-relay-map="ZORO"]').selectOption('W8');
-    await expect(page.locator('.inv-stk-tile-red .inv-stk-tile-n')).toHaveText('0');
-    const arun = page.locator('.inv-rl-row').filter({ hasText: 'Arun' });
+    await expect(page.locator('#relayReviewTiles [data-tile="red"] .inv-tile-value')).toHaveText('0');
+    const arun = page.locator('[data-relay-row]').filter({ hasText: 'Arun' });
     await expect(arun).toContainText('6 AM – 8 PM · 14 h · OT 6 h');
-    await expect(page.locator('.inv-rl-extra')).toHaveCount(3);
+    await expect(page.locator('[data-relay-extra]')).toHaveCount(3);
     await page.locator('[data-action="invRelaySave"]').click();
 
     const s = await readStoredState(page);
@@ -133,19 +133,19 @@ test.describe('P41: attendance rolls from WhatsApp', () => {
     await expect(page.locator('#attDate')).toHaveValue(iso());
 
     await paste(page, IN());
-    await expect(page.locator('.inv-stk-banner-red')).toContainText('already saved');
+    await expect(page.locator('#relayDupNote')).toContainText('already saved');
     await expect(page.locator('[data-action="invRelaySave"]')).toBeDisabled();
   });
 
   test('the in-time roll alone reads out at 5 PM; the out-time roll then updates it', async ({ page }) => {
     await load(page);
     await paste(page, IN());
-    await expect(page.locator('.inv-stk-issue-info')).toContainText('No out-time roll yet');
+    await expect(page.locator('[data-issue="info"]')).toContainText('No out-time roll yet');
     await page.locator('[data-action="invRelaySave"]').click();
     expect((await readStoredState(page)).attendance[iso()].marks.W1).toMatchObject({ hours: 11, ot: 3 });
 
     await paste(page, OUT());
-    const arun = page.locator('.inv-rl-row').filter({ hasText: 'Arun' });
+    const arun = page.locator('[data-relay-row]').filter({ hasText: 'Arun' });
     await expect(arun).toContainText('Updated');
     await expect(arun).toContainText('14 h');
     await page.locator('[data-action="invRelaySave"]').click();
@@ -158,7 +158,7 @@ test.describe('P41: attendance rolls from WhatsApp', () => {
   test('a mark entered by hand is kept, and says so', async ({ page }) => {
     await load(page, { attendance: { [iso()]: { marks: { W3: { st: 'H', ot: 0, hours: 4, area: 'vat-a2' } }, extra: [], note: '' } } } as any);
     await paste(page, IN());
-    const chand = page.locator('.inv-rl-row').filter({ hasText: 'Chand' });
+    const chand = page.locator('[data-relay-row]').filter({ hasText: 'Chand' });
     await expect(chand).toContainText('Kept');
     await expect(chand).toContainText('Entered by hand as Half day');
     await page.locator('[data-action="invRelaySave"]').click();

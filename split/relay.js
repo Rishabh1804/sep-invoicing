@@ -738,14 +738,22 @@ function relayOpen(text) {
   if (ta) ta.focus();
 }
 
+/* A sub-view of Staff (§6.2): the way back to the view it was opened from, and its own title. */
+function relayBackBar(action, label, title) {
+  return '<div class="inv-pagehead"><button class="inv-btn inv-btn-ghost inv-btn-sm inv-pagehead-back" data-action="' + action + '"' +
+    (action === 'invAttView' ? ' data-view="' + escHtml(_attPrevView || 'overview') + '"' : '') + '>' +
+    STAFF_BACK_ICON + escHtml(label) + '</button><h2 class="inv-pagehead-title">' + escHtml(title) + '</h2></div>';
+}
+
 function relayRenderView() {
   if (_relayView === 'review' && _relay) return relayRenderReview();
-  return '<div class="inv-stk-bar"><div class="inv-stk-h2">Paste a WhatsApp message</div></div>' +
-    '<label class="inv-stk-label" for="relayPasteText">The in-time or out-time roll, as sent (the stock message works here too)</label>' +
-    '<textarea id="relayPasteText" class="inv-stk-paste" spellcheck="false" placeholder="Copy the message in WhatsApp and paste it here. Several at once is fine.">' +
-    escHtml(_relayDraft) + '</textarea>' +
-    '<button class="inv-stk-btn inv-stk-btn-pri inv-stk-btn-block" data-action="invRelayRead">Read message</button>' +
-    '<div class="inv-stk-hint">Nothing is saved until you check what was read. Names are matched to the roster; a name it cannot place is asked about once and remembered.</div>';
+  return relayBackBar('invAttView', 'Staff', 'Paste message') +
+    '<div class="inv-panel">' +
+    '<div class="inv-field"><label class="inv-field-label" for="relayPasteText">The in-time or out-time roll, as sent (the stock message works here too)</label>' +
+    '<textarea id="relayPasteText" class="inv-textarea inv-textarea-mono" rows="12" spellcheck="false" placeholder="Copy the message in WhatsApp and paste it here. Several at once is fine.">' +
+    escHtml(_relayDraft) + '</textarea></div>' +
+    '<button class="inv-btn inv-btn-primary inv-btn-block" data-action="invRelayRead">Read message</button>' +
+    '<div class="inv-note inv-mt-8">Nothing is saved until you check what was read. Names are matched to the roster; a name it cannot place is asked about once and remembered.</div></div>';
 }
 
 function relayRead() {
@@ -785,79 +793,103 @@ function relayMarkText(m) {
   return t + (m.ot ? ' · OT ' + m.ot + ' h' : '');
 }
 
+/* The check before saving (§7, Paste message): the stock check's contract — every line beside what it was read
+   as, the questions first as callouts with their pickers, each day's marks as rows with a badge for what changes,
+   and Save in the action bar with what it will write. */
+var RELAY_ISSUE_TONE = { red: 'danger', amber: 'warning', info: 'info' };
+var RELAY_CHANGE = {
+  kept: ['warning', 'Kept'], 'new': ['ok', 'New'], updated: ['info', 'Updated'], same: ['neutral', 'Same']
+};
 function relayRenderReview() {
   var rv = _relay, plan = relayPlan(rv);
   rv.plan = plan;
-  var h = '<div class="inv-stk-bar"><button class="inv-stk-back" data-action="invRelayBack">' +
-    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>Edit text</button>' +
-    '<div class="inv-stk-h2">Check before saving</div></div>';
-  if (plan.dupes) h += '<div class="inv-stk-banner inv-stk-banner-red">' + todoPlural(plan.dupes, 'message was', 'messages were') + ' already saved and ' + (plan.dupes === 1 ? 'is' : 'are') + ' left out: saving again would count every hour twice.</div>';
-  if (rv.stock) h += '<div class="inv-stk-banner">The stock message in this paste was not read here. Paste it in More → Stock.</div>';
-  if (rv.other) h += '<div class="inv-stk-banner">' + todoPlural(rv.other, 'other message') + ' (pickling log, notes) not read.</div>';
-  h += '<div class="inv-stk-sum inv-rl-sum">' +
-    '<div class="inv-stk-tile inv-stk-tile-red"><span class="inv-stk-tile-n">' + plan.counts.red + '</span>Needs you</div>' +
-    '<div class="inv-stk-tile inv-stk-tile-amber"><span class="inv-stk-tile-n">' + plan.counts.amber + '</span>Check</div>' +
-    '<div class="inv-stk-tile"><span class="inv-stk-tile-n">' + plan.counts.people + '</span>People</div></div>';
+  var h = relayBackBar('invRelayBack', 'Edit text', 'Check before saving');
+  if (plan.dupes) h += '<div class="inv-callout inv-callout-danger inv-mb-8" id="relayDupNote">' + todoPlural(plan.dupes, 'message was', 'messages were') + ' already saved and ' + (plan.dupes === 1 ? 'is' : 'are') + ' left out: saving again would count every hour twice.</div>';
+  if (rv.stock) h += '<div class="inv-callout inv-callout-warning inv-mb-8">The stock message in this paste was not read here. Paste it in More → Stock.</div>';
+  if (rv.other) h += '<div class="inv-callout inv-callout-warning inv-mb-8">' + todoPlural(rv.other, 'other message') + ' (pickling log, notes) not read.</div>';
+  h += '<div class="inv-tiles inv-tiles-3" id="relayReviewTiles">' +
+    '<div class="inv-tile' + (plan.counts.red ? ' inv-tile-danger' : '') + '" data-tile="red"><div class="inv-tile-label">Needs you</div><div class="inv-tile-value">' + plan.counts.red + '</div></div>' +
+    '<div class="inv-tile' + (plan.counts.amber ? ' inv-tile-warning' : '') + '" data-tile="amber"><div class="inv-tile-label">Check</div><div class="inv-tile-value">' + plan.counts.amber + '</div></div>' +
+    '<div class="inv-tile" data-tile="people"><div class="inv-tile-label">People</div><div class="inv-tile-value">' + plan.counts.people + '</div></div></div>';
 
   // What needs a decision, first.
   var staff = (S.staff || []).filter(function(w) { return w.active !== false; }).sort(function(a, b) { return String(a.name).localeCompare(String(b.name)); });
   var askedNames = {};
-  plan.issues.forEach(function(is) {
-    h += '<div class="inv-stk-issue inv-stk-issue-' + is.tone + '">Line ' + is.n + ': ' + escHtml(is.text) + '</div>';
-    // A name not placed, one read as somebody, or one left out: each gets the
-    // picker, so a wrong guess is put right here and remembered from then on.
-    if (is.key && (is.tone === 'red' || is.tone === 'info' || is.id != null)) {
-      var key = is.key;
-      if (askedNames[key]) return;
-      askedNames[key] = true;
-      var sel = key in rv.choices ? String(rv.choices[key]) : (is.id != null ? String(is.id) : '');
-      h += '<div class="inv-stk-map"><label class="inv-stk-label" for="relayMap' + escHtml(key) + '">"' + escHtml(is.name) + '" is</label>' +
-        '<select id="relayMap' + escHtml(key) + '" class="inv-form-input" data-relay-map="' + escHtml(key) + '"><option value="">Nobody on the roster (leave out)</option>' +
-        staff.map(function(w) { return '<option value="' + escHtml(w.id) + '"' + (sel === String(w.id) ? ' selected' : '') + '>' + escHtml(w.name) + '</option>'; }).join('') +
-        '</select></div>';
-    }
-  });
-
-  plan.days.forEach(function(d) {
-    var rec = S.attendance && S.attendance[d.iso];
-    h += '<div class="inv-rl-day"><div class="inv-rl-dayhead"><span class="inv-stk-h2">' + escHtml(attDayName(d.iso)) + ' ' + escHtml(stockShortDate(d.iso)) + '</span>' +
-      '<span class="inv-stk-meta">' + d.kinds.map(function(k) { return k === 'in' ? 'In-time roll' : 'Out-time roll'; }).join(' + ') +
-      (rec ? ' · day already has entries' : '') + '</span></div>';
-    if (d.holiday) h += '<div class="inv-stk-banner">Holiday: ' + escHtml(d.holiday) + '</div>';
-    if (d.provisional) h += '<div class="inv-stk-issue inv-stk-issue-info">No out-time roll yet: present hands are read as out at 5 PM (the gate at 7 PM). Paste the out-time roll when it comes and the hours update.</div>';
-    h += '<div class="inv-rl-rows">';
-    d.rows.forEach(function(r) {
-      var chip = r.change === 'kept' ? ['Kept', 'amber', 'Entered by hand as ' + relayMarkText(r.prev) + '; left as it is.']
-        : r.change === 'new' ? ['New', 'ok', ''] : r.change === 'updated' ? ['Updated', 'bath', 'Was ' + relayMarkText(r.prev)] : ['Same', '', ''];
-      h += '<div class="inv-rl-row inv-rl-row-' + r.next.st + '"><div class="inv-rl-row-main"><span class="inv-rl-name">' + escHtml(r.w.name) + '</span>' +
-        '<span class="inv-rl-area">' + escHtml(r.next.st === 'A' ? 'Absent' : areaLabel(r.next.area)) + '</span></div>' +
-        '<div class="inv-rl-row-side"><span class="inv-rl-hrs">' + escHtml(r.next.st === 'A' ? '—' : relayMarkText(r.next)) + '</span>' +
-        '<span class="inv-stk-chip' + (chip[1] ? ' inv-stk-chip-' + chip[1] : '') + '">' + chip[0] + '</span></div>' +
-        (chip[2] ? '<div class="inv-rl-was">' + escHtml(chip[2]) + '</div>' : '') + '</div>';
+  if (plan.issues.length) {
+    h += '<div class="inv-panel inv-panel-flush" id="relayIssues"><div class="inv-panel-head"><span class="inv-panel-title">Questions ' +
+      '<span class="inv-panel-count">' + plan.issues.length + '</span></span></div>';
+    plan.issues.forEach(function(is) {
+      h += '<div class="inv-row inv-row-auto inv-row-top"><div class="inv-row-main">' +
+        '<div class="inv-callout inv-callout-' + (RELAY_ISSUE_TONE[is.tone] || 'neutral') + '" data-issue="' + escHtml(is.tone) + '">Line ' + is.n + ': ' + escHtml(is.text) + '</div>';
+      // A name not placed, one read as somebody, or one left out: each gets the
+      // picker, so a wrong guess is put right here and remembered from then on.
+      if (is.key && (is.tone === 'red' || is.tone === 'info' || is.id != null) && !askedNames[is.key]) {
+        var key = is.key;
+        askedNames[key] = true;
+        var sel = key in rv.choices ? String(rv.choices[key]) : (is.id != null ? String(is.id) : '');
+        h += '<div class="inv-field inv-mt-8"><label class="inv-field-label" for="relayMap' + escHtml(key) + '">"' + escHtml(is.name) + '" is</label>' +
+          '<select id="relayMap' + escHtml(key) + '" class="inv-select" data-relay-map="' + escHtml(key) + '"><option value="">Nobody on the roster (leave out)</option>' +
+          staff.map(function(w) { return '<option value="' + escHtml(w.id) + '"' + (sel === String(w.id) ? ' selected' : '') + '>' + escHtml(w.name) + '</option>'; }).join('') +
+          '</select></div>';
+      }
+      h += '</div></div>';
     });
     h += '</div>';
+  }
+
+  var marks = 0, extras = 0;
+  plan.days.forEach(function(d) {
+    var rec = S.attendance && S.attendance[d.iso];
+    h += '<div class="inv-panel inv-panel-flush" data-relay-day="' + escHtml(d.iso) + '"><div class="inv-panel-head"><span class="inv-panel-title">' +
+      escHtml(attDayName(d.iso)) + ' ' + escHtml(stockShortDate(d.iso)) + '</span>' +
+      '<span class="inv-panel-count">' + d.kinds.map(function(k) { return k === 'in' ? 'In-time roll' : 'Out-time roll'; }).join(' + ') +
+      (rec ? ' · day already has entries' : '') + '</span></div>';
+    if (d.holiday) h += '<div class="inv-panel-body"><div class="inv-callout inv-callout-warning">Holiday: ' + escHtml(d.holiday) + '</div></div>';
+    if (d.provisional) h += '<div class="inv-panel-body"><div class="inv-callout inv-callout-info" data-issue="info">No out-time roll yet: present hands are read as out at 5 PM (the gate at 7 PM). Paste the out-time roll when it comes and the hours update.</div></div>';
+    d.rows.forEach(function(r) {
+      var ch = RELAY_CHANGE[r.change] || RELAY_CHANGE.same;
+      var was = r.change === 'kept' ? 'Entered by hand as ' + relayMarkText(r.prev) + '; left as it is.'
+        : r.change === 'updated' ? 'Was ' + relayMarkText(r.prev) : '';
+      if (r.change === 'new' || r.change === 'updated') marks++;
+      var absent = r.next.st === 'A';
+      h += '<div class="inv-row inv-row-2" data-relay-row data-st="' + escHtml(r.next.st) + '"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(r.w.name) + '</span>' +
+        '<span class="inv-row-meta">' + (absent ? '<span class="inv-dot inv-dot-danger">Absent</span>' : escHtml(areaLabel(r.next.area))) + '</span>' +
+        (was ? '<span class="inv-row-meta inv-row-wrap">' + escHtml(was) + '</span>' : '') + '</span>' +
+        '<span class="inv-row-end"><span class="inv-row-stack"><span class="inv-num">' + escHtml(absent ? '—' : relayMarkText(r.next)) + '</span>' +
+        '<span class="inv-badge inv-badge-' + ch[0] + '">' + ch[1] + '</span></span></span></div>';
+    });
     if (d.extras.length) {
-      h += '<div class="inv-stk-label inv-mt-8">EXTRA hours</div>';
+      h += '<div class="inv-row-group">EXTRA hours</div>';
       d.extras.forEach(function(x) {
         var e = x.row;
+        if (!x.dup) extras++;
         var what = e.kind === 'coverage' ? relayAreaName(e.area) + ', general shift'
           : 'Block ' + relayClockLabel(relayParseHhmm(e.from)) + ' – ' + (e.to ? relayClockLabel(relayParseHhmm(e.to)) : '?') +
             (e.areas.length ? ', ' + e.areas.map(relayAreaName).join(' + ') : '') + ', crew ' + (e.crew.length ? e.crew.map(function(id) { var w = staffById(id); return w ? w.name : '?'; }).join(', ') : 'not named');
-        h += '<div class="inv-rl-extra' + (x.dup ? ' inv-rl-extra-dup' : '') + '"><strong>' + e.hours + ' h</strong> ' + escHtml(what) + (x.dup ? ' · already on the day, not added again' : '') + '</div>';
+        h += '<div class="inv-row inv-row-auto' + (x.dup ? ' inv-row-muted' : '') + '" data-relay-extra><span class="inv-row-main inv-row-wrap">' + escHtml(what) +
+          (x.dup ? ' · already on the day, not added again' : '') + '</span><span class="inv-row-end inv-num">' + e.hours + ' h</span></div>';
       });
     }
-    if (d.notes.length) h += '<div class="inv-stk-hint">Also in the roll (kept as the day\'s note): ' + escHtml(d.notes.slice(0, 8).join(' · ')) + (d.notes.length > 8 ? '…' : '') + '</div>';
+    if (d.notes.length) h += '<div class="inv-panel-body inv-note">Also in the roll (kept as the day\'s note): ' + escHtml(d.notes.slice(0, 8).join(' · ')) + (d.notes.length > 8 ? '…' : '') + '</div>';
     h += '</div>';
   });
 
-  h += '<button class="inv-td-fold" data-action="invRelayLines" aria-expanded="' + _relayShowLines + '"><span>The message, line by line</span><span>' + (_relayShowLines ? 'Hide' : 'Show') + '</span></button>';
+  h += '<div class="inv-panel inv-panel-flush" id="relayLines"><div class="inv-panel-head"><span class="inv-panel-title">The message, line by line ' +
+    '<span class="inv-panel-count">' + plan.lines.length + '</span></span>' +
+    '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invRelayLines" aria-expanded="' + _relayShowLines + '">' + (_relayShowLines ? 'Hide' : 'Show') + '</button></div>';
   if (_relayShowLines) {
-    h += '<div class="inv-rl-lines">' + plan.lines.map(function(l) {
-      return '<div class="inv-rl-line inv-rl-line-' + l.role + '"><span class="inv-rl-raw">' + escHtml(l.raw.trim()) + '</span><span class="inv-rl-read">' + escHtml(l.read) + '</span></div>';
-    }).join('') + '</div>';
+    h += plan.lines.map(function(l) {
+      var tone = l.role === 'unknown' ? 'danger' : l.role === 'extra' ? 'info' : '';
+      return '<div class="inv-row inv-row-auto" data-line-role="' + escHtml(l.role) + '"><div class="inv-row-main"><div class="inv-quote">' + escHtml(l.raw.trim()) + '</div>' +
+        '<div class="inv-row-meta inv-row-wrap inv-mt-4">' + (tone ? '<span class="inv-dot inv-dot-' + tone + '">' + escHtml(l.read) + '</span>' : escHtml(l.read)) + '</div></div></div>';
+    }).join('');
   }
+  h += '</div>';
+
   var nothing = !plan.days.length;
-  h += '<button class="inv-stk-btn inv-stk-btn-pri inv-stk-btn-block" data-action="invRelaySave"' + (nothing ? ' disabled' : '') + '>Save ' + todoPlural(plan.days.length, 'day') + '</button>';
+  h += '<div class="inv-actionbar"><div class="inv-actionbar-total"><div class="inv-actionbar-label">' + todoPlural(marks, 'mark') + ' · ' + todoPlural(extras, 'EXTRA row') + '</div>' +
+    '<div class="inv-actionbar-value">' + todoPlural(plan.days.length, 'day') + '</div></div>' +
+    '<button class="inv-btn inv-btn-primary" data-action="invRelaySave"' + (nothing ? ' disabled' : '') + '>Save ' + todoPlural(plan.days.length, 'day') + '</button></div>';
   return h;
 }
 function relayParseHhmm(s) {

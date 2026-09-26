@@ -65,27 +65,27 @@ test('the monthly tier is paid by the day, not by a flat salary', async ({ page 
   await loadAppWithState(page, staffState());
   await openStaff(page);
 
-  await expect(page.locator('.inv-att-count-value')).toHaveText('0');
-  await expect(page.locator('.inv-att-pill-u')).toContainText('4 unmarked');
+  await expect(page.locator('#attOnSite')).toHaveText('0');
+  await expect(page.locator('#attUnmarked')).toHaveText('4');
 
   await page.locator(`[data-action="invAttSet"][data-id="${LEAD.id}"][data-st="P"]`).click();
-  await expect(page.locator('.inv-att-count-value')).toHaveText('1');
-  await expect(page.locator('.inv-lab-fixed .inv-lab-half-value')).toContainText('500.00');
+  await expect(page.locator('#attOnSite')).toHaveText('1');
+  await expect(page.locator('[data-card="labour"] [data-tile="fixed"] .inv-tile-value')).toContainText('500.00');
   // Nothing has been paid on the variable side: nobody in the hourly pool has
   // logged an hour, and the first cut's flat-monthly accrual would have put a
   // figure here regardless.
-  await expect(page.locator('.inv-lab-variable .inv-lab-half-value')).toHaveText('₹0.00');
+  await expect(page.locator('[data-card="labour"] [data-tile="variable"] .inv-tile-value')).toHaveText('₹0.00');
 
   await page.locator(`[data-action="invAttSet"][data-id="${LEAD.id}"][data-st="P"]`).click();
-  await expect(page.locator('.inv-att-count-value')).toHaveText('0');
+  await expect(page.locator('#attOnSite')).toHaveText('0');
 });
 
 test('a half day is worth half a day on the monthly tier', async ({ page }) => {
   await loadAppWithState(page, staffState());
   await openStaff(page);
   await page.locator(`[data-action="invAttSet"][data-id="${LEAD.id}"][data-st="H"]`).click();
-  await expect(page.locator('.inv-lab-fixed .inv-lab-half-value')).toContainText('250.00');
-  await expect(page.locator('.inv-att-pill-h')).toContainText('1 half');
+  await expect(page.locator('[data-card="labour"] [data-tile="fixed"] .inv-tile-value')).toContainText('250.00');
+  await expect(page.locator('#attHalf')).toHaveText('1');
 });
 
 test('the hourly pool is paid flat for every hour — no day rate, no multiplier', async ({ page }) => {
@@ -96,9 +96,9 @@ test('the hourly pool is paid flat for every hour — no day rate, no multiplier
   await openStaff(page);
   // 14 h x Rs47.50 = Rs665.00 flat. A day rate with six hours of overtime at
   // x1.1 — the shape the first cut imposed — would not produce this number.
-  await expect(page.locator('.inv-lab-card')).toContainText('665.00');
-  await expect(page.locator('.inv-lab-card')).toContainText('Hourly pool');
-  await expect(page.locator('.inv-lab-card')).toContainText('no multiplier');
+  await expect(page.locator('[data-card="labour"]')).toContainText('665.00');
+  await expect(page.locator('[data-card="labour"]')).toContainText('Hourly pool');
+  await expect(page.locator('[data-card="labour"]')).toContainText('no multiplier');
 });
 
 test('an hourly worker has no half day to reach, in either view', async ({ page }) => {
@@ -138,8 +138,8 @@ test('monthly overtime derives from the day rate, at rate ÷ 8 × the multiplier
   await openStaff(page);
   // 500/8 x 1.1 = Rs68.75 an hour, above the owner's cap (25 Sep 2026: "Capped
   // at 68.2"), so 4 h pay 4 x 68.20 = Rs272.80.
-  await expect(page.locator('.inv-lab-card')).toContainText('272.80');
-  await expect(page.locator('.inv-lab-card')).toContainText('capped at ₹68.20/h');
+  await expect(page.locator('[data-card="labour"]')).toContainText('272.80');
+  await expect(page.locator('[data-card="labour"]')).toContainText('capped at ₹68.20/h');
   // Under the cap the formula stands: a Rs400 day rate pays 400/8 x 1.1 = Rs55 an hour.
   const under = await page.evaluate(() => (0, eval)(`workerOtHourPay({ comp: 'monthly', dayRate: 400 })`));
   expect(under).toBeCloseTo(55, 6);
@@ -178,12 +178,12 @@ test('the hourly pool reproduces a real weekly slip to the rupee', async ({ page
   });
   await openStaff(page);
 
-  const row = page.locator('.inv-lab-row', { hasText: 'Hourly pool' });
-  await expect(row.locator('.inv-lab-value')).toHaveText('₹27,550.00');
+  const row = page.locator('[data-card="labour"] .inv-row', { hasText: 'Hourly pool' });
+  await expect(row.locator('.inv-num')).toHaveText('₹27,550.00');
   await expect(row).toContainText('580.0 h');
   // Every rupee of it is variable, and none of it is a day rate.
-  await expect(page.locator('.inv-lab-variable .inv-lab-half-value')).toHaveText('₹27,550.00');
-  await expect(page.locator('.inv-lab-fixed .inv-lab-half-value')).toHaveText('₹0.00');
+  await expect(page.locator('[data-card="labour"] [data-tile="variable"] .inv-tile-value')).toHaveText('₹27,550.00');
+  await expect(page.locator('[data-card="labour"] [data-tile="fixed"] .inv-tile-value')).toHaveText('₹0.00');
 });
 
 /* ===== THE REST-DAY GATE ===== */
@@ -203,9 +203,9 @@ test('full attendance credits the range’s rest days to the monthly tier', asyn
   await openStatsTab(page, 'cost');
   await page.locator('[data-action="invStatsPeriod"][data-period="all"]').click();
 
-  const row = page.locator('.inv-lab-row', { hasText: 'Rest days credited' });
+  const row = page.locator('[data-card="labour"] .inv-row', { hasText: 'Rest days credited' });
   await expect(row).toBeVisible();
-  await expect(row.locator('.inv-lab-value')).not.toHaveText('₹0.00');
+  await expect(row.locator('.inv-num')).not.toHaveText('₹0.00');
 });
 
 test('attendance below the gate credits no rest days at all', async ({ page }) => {
@@ -220,8 +220,8 @@ test('attendance below the gate credits no rest days at all', async ({ page }) =
   await openStatsTab(page, 'cost');
   await page.locator('[data-action="invStatsPeriod"][data-period="all"]').click();
 
-  const row = page.locator('.inv-lab-row', { hasText: 'Rest days credited' });
-  await expect(row.locator('.inv-lab-value')).toHaveText('₹0.00');
+  const row = page.locator('[data-card="labour"] .inv-row', { hasText: 'Rest days credited' });
+  await expect(row.locator('.inv-num')).toHaveText('₹0.00');
 });
 
 /* ===== WHAT THE CARD REFUSES TO SAY ===== */
@@ -232,10 +232,10 @@ test('extra hours are counted in the bill and reported as unattributed', async (
     attendance: { [day]: { marks: { [POOL.id]: { st: 'P', hours: 8, ot: 0, area: 'barrel' } }, extra: [{ area: 'barrel', hours: 10 }], note: '' } },
   }));
   await openStaff(page);
-  await expect(page.locator('.inv-lab-card')).toBeVisible();
-  await expect(page.locator('.inv-lab-card')).toContainText('475.00');   // 10 h x Rs47.50
-  await expect(page.locator('.inv-lab-card')).toContainText('Extra (unattributed)');
-  await expect(page.locator('.inv-lab-card')).toContainText('booked to an area rather than to a person');
+  await expect(page.locator('[data-card="labour"]')).toBeVisible();
+  await expect(page.locator('[data-card="labour"]')).toContainText('475.00');   // 10 h x Rs47.50
+  await expect(page.locator('[data-card="labour"]')).toContainText('Extra (unattributed)');
+  await expect(page.locator('[data-card="labour"]')).toContainText('booked to an area rather than to a person');
 });
 
 test('hours for a worker with no rate are counted and named as unpriced', async ({ page }) => {
@@ -244,10 +244,10 @@ test('hours for a worker with no rate are counted and named as unpriced', async 
     attendance: { [day]: { marks: { [NORATE.id]: { st: 'P', hours: 3, ot: 0, area: 'pickling-vat' } }, extra: [], note: '' } },
   }));
   await openStaff(page);
-  await expect(page.locator('.inv-lab-card .inv-stats-caveat')).toBeVisible();
-  await expect(page.locator('.inv-lab-card')).toContainText('3.0 h');
-  await expect(page.locator('.inv-lab-card')).toContainText('UNRATED HAND');
-  await expect(page.locator('.inv-lab-card')).toContainText('no rate to price them at');
+  await expect(page.locator('[data-card="labour"] .inv-callout')).toBeVisible();
+  await expect(page.locator('[data-card="labour"]')).toContainText('3.0 h');
+  await expect(page.locator('[data-card="labour"]')).toContainText('UNRATED HAND');
+  await expect(page.locator('[data-card="labour"]')).toContainText('no rate to price them at');
 });
 
 test('off-floor wages are split out of plating cost', async ({ page }) => {
@@ -256,8 +256,8 @@ test('off-floor wages are split out of plating cost', async ({ page }) => {
     attendance: { [day]: { marks: { [GUARD.id]: { st: 'P', ot: 0, hours: 0, area: 'gate' } }, extra: [], note: '' } },
   }));
   await openStaff(page);
-  await expect(page.locator('.inv-lab-card')).toContainText('off floor (gate, office)');
-  await expect(page.locator('.inv-lab-card')).toContainText('300.00');
+  await expect(page.locator('[data-card="labour"]')).toContainText('off floor (gate, office)');
+  await expect(page.locator('[data-card="labour"]')).toContainText('300.00');
 });
 
 test('variable labour is broken down by the area it was worked in', async ({ page }) => {
@@ -276,19 +276,19 @@ test('variable labour is broken down by the area it was worked in', async ({ pag
   }));
   await openStaff(page);
 
-  const ranked = page.locator('.inv-lab-card .inv-chart-ranked');
+  const ranked = page.locator('[data-card="labour"] .inv-chart-ranked');
   await expect(ranked).toBeVisible();
   await expect(ranked.locator('.inv-chart-ranked-label')).toHaveText(['Barrel', 'VAT A1', 'Pickling A1+A2']);
   // The monthly tier's day pay is excluded and the card has to say so, or the
   // shares read as a full allocation of the labour bill.
-  await expect(page.locator('.inv-lab-card')).toContainText('day pay and rest days are not in here');
+  await expect(page.locator('[data-card="labour"]')).toContainText('day pay and rest days are not in here');
 });
 
 test('a day range states its coverage and draws no ₹/kg', async ({ page }) => {
   await loadAppWithState(page, staffState());
   await openStaff(page);
-  await expect(page.locator('.inv-lab-card')).toContainText('working days');
-  await expect(page.locator('.inv-lab-perkg')).toHaveCount(0);
+  await expect(page.locator('[data-card="labour"]')).toContainText('working days');
+  await expect(page.locator('[data-tile="perkg"]')).toHaveCount(0);
 });
 
 test('deleting a worker who is on a recorded day is refused, with the count', async ({ page }) => {
@@ -673,10 +673,10 @@ test('Stats prints a labour ₹/kg once coverage and range allow, against the mo
   // end to end — MTD would depend on what day of the month the suite runs.
   await page.locator('[data-action="invStatsPeriod"][data-period="all"]').click();
 
-  const card = page.locator('.inv-lab-card');
+  const card = page.locator('[data-card="labour"]');
   await expect(card).toBeVisible();
   await expect(card).toContainText('/kg');
-  await expect(card).toContainText('measured labour');
+  await expect(card).toContainText('Measured labour');
   await expect(card).toContainText('modelled');
 });
 
@@ -698,10 +698,10 @@ test('Stats withholds labour ₹/kg when the days are not on file, and says whic
   await openStatsTab(page, 'cost');
   await page.locator('[data-action="invStatsPeriod"][data-period="all"]').click();
 
-  const card = page.locator('.inv-lab-card');
+  const card = page.locator('[data-card="labour"]');
   // Visible, not merely composed: a reporting path that only proves its message
   // reached the DOM is the trap the certificate run's toast fell into.
-  await expect(card.locator('.inv-lab-perkg-none')).toBeVisible();
+  await expect(card.locator('[data-tile="perkg-withheld"]')).toBeVisible();
   await expect(card).toContainText('₹/kg withheld');
   await expect(card).toContainText('working days are recorded');
   await expect(card).toContainText('never neutral');
@@ -710,5 +710,5 @@ test('Stats withholds labour ₹/kg when the days are not on file, and says whic
 test('Stats stays silent about labour while the roster is empty', async ({ page }) => {
   await loadAppWithState(page, { ...emptyState(), incomingMaterial: noSeedIM(), staff: [], attendance: {} });
   await switchTab(page, 'pageStats');
-  await expect(page.locator('.inv-lab-card')).toHaveCount(0);
+  await expect(page.locator('[data-card="labour"]')).toHaveCount(0);
 });

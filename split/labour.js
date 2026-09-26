@@ -364,10 +364,27 @@ function labourPerKgVerdict(lab, tonnageKg) {
   return { ok: true, perKg: lab.total / tonnageKg };
 }
 
+/* A figure on a labour card (§6.10): what it is, what it rests on, and the figure, mono at the row's end. */
 function _labRow(label, value, sub) {
-  return '<div class="inv-lab-row"><span class="inv-lab-label">' + label +
-    (sub ? '<span class="inv-lab-sub">' + sub + '</span>' : '') + '</span>' +
-    '<span class="inv-lab-value inv-mono">' + value + '</span></div>';
+  return '<div class="inv-row' + (sub ? ' inv-row-2' : '') + '"><span class="inv-row-main"><span class="inv-row-title inv-row-wrap">' + label + '</span>' +
+    (sub ? '<span class="inv-row-meta inv-row-wrap">' + sub + '</span>' : '') + '</span>' +
+    '<span class="inv-row-end inv-num">' + value + '</span></div>';
+}
+/* How a figure on the card is made: a padded stretch between the rows (a note, or a caveat as a callout). */
+function _labNote(html) { return '<div class="inv-panel-body inv-note">' + html + '</div>'; }
+function _labCallout(html, tone) {
+  return '<div class="inv-panel-body"><div class="inv-callout' + (tone ? ' inv-callout-' + tone : '') + '">' + html + '</div></div>';
+}
+/* A tile on a card's strip (§6.9). `key` names it for whoever reads the card back (data-tile). */
+function _labTile(key, label, value, sub, tone) {
+  return '<div class="inv-tile' + (tone ? ' inv-tile-' + tone : '') + '" data-tile="' + key + '"><div class="inv-tile-label">' + label + '</div>' +
+    '<div class="inv-tile-value">' + value + '</div>' + (sub ? '<div class="inv-tile-sub">' + sub + '</div>' : '') + '</div>';
+}
+/* The card itself: a flush panel, its total in the head. */
+function _labPanelHead(card, title, total, extraClass, id) {
+  return '<div class="inv-panel inv-panel-flush' + (extraClass ? ' ' + extraClass : '') + '" data-card="' + card + '"' + (id ? ' id="' + id + '"' : '') + '>' +
+    '<div class="inv-panel-head"><span class="inv-panel-title">' + escHtml(title) + '</span>' +
+    (total != null ? '<span class="inv-num" data-card-total>' + total + '</span>' : '') + '</div>';
 }
 
 /* Where the variable hours went.
@@ -407,13 +424,13 @@ function _labAreaRows(lab) {
     };
   });
 
-  return '<div class="inv-lab-area-title">Variable labour by area</div>' +
-    chartRankedBars(rows, { unit: 'money' }) +
-    '<div class="inv-stats-note">Hourly pool, daily tier, overtime and extra hours, placed by the area each ' +
+  return '<div class="inv-row-group">Variable labour by area</div>' +
+    '<div class="inv-panel-body">' + chartRankedBars(rows, { unit: 'money' }) +
+    '<div class="inv-note inv-mt-8">Hourly pool, daily tier, overtime and extra hours, placed by the area each ' +
     'was worked in. <strong>The monthly tier&rsquo;s day pay and rest days are not in here</strong> &mdash; that ' +
     'crew is the standing one and its cost does not follow the area it happened to stand in, so splitting it ' +
     'would print an allocation nobody measured. Their overtime <em>is</em> in here, because an overtime hour ' +
-    'was worked somewhere specific and was paid for being worked.</div>';
+    'was worked somewhere specific and was paid for being worked.</div></div>';
 }
 
 /* The breakdown card. Used by the Attendance tab for a day or a week (cash
@@ -421,22 +438,43 @@ function _labAreaRows(lab) {
 function renderLabourCard(fromIso, toIso, title, tonnage, extraClass) {
   var lab = labourForRange(fromIso, toIso);
   var cfg = labourCfg();
-  var html = '<div class="inv-card inv-lab-card' + (extraClass ? ' ' + extraClass : '') +
-    '"><div class="inv-card-header">' +
-    '<span class="inv-card-title">' + escHtml(title || 'Labour') + '</span>' +
-    '<span class="inv-lab-total inv-mono">' + formatCurrency(lab.total) + '</span></div>';
+  var html = _labPanelHead('labour', title || 'Labour', formatCurrency(lab.total), extraClass);
 
   if (lab.rosterSize === 0) {
-    return html + '<div class="inv-empty-state inv-empty-state-sm">Nobody on the roster</div></div>';
+    return html + '<div class="inv-empty">Nobody on the roster</div></div>';
   }
 
-  html += '<div class="inv-lab-split">' +
-    '<div class="inv-lab-half inv-lab-fixed"><div class="inv-lab-half-label">Fixed</div>' +
-    '<div class="inv-lab-half-value inv-mono">' + formatCurrency(lab.fixed) + '</div>' +
-    '<div class="inv-lab-half-sub">monthly tier, days and rest</div></div>' +
-    '<div class="inv-lab-half inv-lab-variable"><div class="inv-lab-half-label">Variable</div>' +
-    '<div class="inv-lab-half-value inv-mono">' + formatCurrency(lab.variable) + '</div>' +
-    '<div class="inv-lab-half-sub">hourly, daily, OT and extra</div></div></div>';
+  // Fixed and variable, and — where there is tonnage to divide by — the ₹/kg, as one strip: in Stats the ₹/kg
+  // is the headline, so it leads rather than sitting under the breakdown.
+  var tiles = _labTile('fixed', 'Fixed', formatCurrency(lab.fixed), 'monthly tier, days and rest') +
+    _labTile('variable', 'Variable', formatCurrency(lab.variable), 'hourly, daily, OT and extra');
+  var after = '';
+  if (tonnage) {
+    var verdict = labourPerKgVerdict(lab, tonnage.kg);
+    if (verdict.ok) {
+      var gap = cfg.modelPerKg > 0 ? verdict.perKg - cfg.modelPerKg : null;
+      tiles += _labTile('perkg', 'Measured labour', formatCurrency(verdict.perKg) + '<span class="inv-tile-of">/kg</span>',
+        gap != null
+          ? 'against ' + formatCurrency(cfg.modelPerKg) + '/kg modelled &mdash; ' + (Math.abs(gap) < 0.005 ? 'the same figure'
+              : formatCurrency(Math.abs(gap)) + '/kg ' + (gap > 0 ? 'higher' : 'lower'))
+          : '');
+      if (lab.rangeDays < LABOUR_PERKG_LAG_DAYS) {
+        after += _labCallout('Read that as an order of magnitude, not a rate. The labour is ' +
+          'this period&rsquo;s; the tonnage under it is what was <strong>billed</strong> in this period, and ' +
+          'material is plated weeks before it is invoiced. Over a quarter or a year the two line up; over ' +
+          'a month they measure partly different work.');
+      }
+      if (tonnage.coverage < 0.999) {
+        after += _labCallout('That ₹/kg divides the whole labour bill by tonnage covering <strong>' +
+          Math.round(tonnage.coverage * 100) + '% of revenue</strong>. The unweighed lines are the piece-billed work, ' +
+          'so the real denominator is larger and the true labour cost per kilo is <strong>lower</strong> than this. ' +
+          'Items Master &rarr; Derive weights from rates closes it.');
+      }
+    } else {
+      tiles += _labTile('perkg-withheld', '₹/kg withheld', '&mdash;', verdict.why);
+    }
+  }
+  html += '<div class="inv-tiles inv-tiles-flush">' + tiles + '</div>' + after;
 
   // One row per tier that actually has something in it. A tier nobody is on
   // renders nothing rather than a zero: a zero reads as a measurement.
@@ -470,42 +508,11 @@ function renderLabourCard(fromIso, toIso, title, tonnage, extraClass) {
   html += _labRow('On the floor', formatCurrency(lab.floor),
     lab.offFloor > 0 ? formatCurrency(lab.offFloor) + ' off floor (gate, office)' : 'all of it');
 
-  if (tonnage) {
-    var verdict = labourPerKgVerdict(lab, tonnage.kg);
-    if (verdict.ok) {
-      var gap = cfg.modelPerKg > 0 ? verdict.perKg - cfg.modelPerKg : null;
-      html += '<div class="inv-lab-perkg"><span class="inv-lab-perkg-value inv-mono">' +
-        formatCurrency(verdict.perKg) + '/kg</span><span class="inv-lab-perkg-label">measured labour</span>' +
-        (gap != null
-          ? '<span class="inv-lab-perkg-model">against ' + formatCurrency(cfg.modelPerKg) +
-            '/kg modelled &mdash; ' + (Math.abs(gap) < 0.005 ? 'the same figure'
-              : formatCurrency(Math.abs(gap)) + '/kg ' + (gap > 0 ? 'higher' : 'lower')) + '</span>'
-          : '') +
-        '</div>';
-      if (lab.rangeDays < LABOUR_PERKG_LAG_DAYS) {
-        html += '<div class="inv-stats-caveat">Read that as an order of magnitude, not a rate. The labour is ' +
-          'this period&rsquo;s; the tonnage under it is what was <strong>billed</strong> in this period, and ' +
-          'material is plated weeks before it is invoiced. Over a quarter or a year the two line up; over ' +
-          'a month they measure partly different work.</div>';
-      }
-      if (tonnage.coverage < 0.999) {
-        html += '<div class="inv-stats-caveat">That ₹/kg divides the whole labour bill by tonnage covering <strong>' +
-          Math.round(tonnage.coverage * 100) + '% of revenue</strong>. The unweighed lines are the piece-billed work, ' +
-          'so the real denominator is larger and the true labour cost per kilo is <strong>lower</strong> than this. ' +
-          'Items Master &rarr; Derive weights from rates closes it.</div>';
-      }
-    } else {
-      html += '<div class="inv-lab-perkg inv-lab-perkg-none"><span class="inv-lab-perkg-value">&mdash;</span>' +
-        '<span class="inv-lab-perkg-label">₹/kg withheld</span>' +
-        '<span class="inv-lab-perkg-model">' + verdict.why + '</span></div>';
-    }
-  }
-
   // Coverage, always, in the same place whether it is complete or not. A card
   // that only mentions its gaps when it has them teaches the reader to stop
   // looking for the line.
   var covPct = Math.round(lab.coverage * 100);
-  html += '<div class="inv-stats-note">Recorded <strong>' + lab.daysRecorded + ' of ' + lab.workingDays +
+  html += _labNote('Recorded <strong>' + lab.daysRecorded + ' of ' + lab.workingDays +
     ' working days</strong> in this range (' + covPct + '%)' +
     (lab.sundaysRecorded > 0 ? ', plus ' + lab.sundaysRecorded + ' Sunday' + (lab.sundaysRecorded === 1 ? '' : 's') : '') + '. ' +
     (lab.coverage < 0.999
@@ -516,26 +523,24 @@ function renderLabourCard(fromIso, toIso, title, tonnage, extraClass) {
     (lab.restDaysInRange > 0 && lab.rangeDays < 28
       ? ' The rest-day gate is a monthly rule; over a range shorter than a month it judges each rest day on this range&rsquo;s attendance alone.'
       : '') +
-    (lab.dailyRest > 0 && lab.rangeDays > 7 ? ' Daily rest credit is gated on days inside this range, so a range cutting a week in half under-credits that week.' : '') +
-    '</div>';
+    (lab.dailyRest > 0 && lab.rangeDays > 7 ? ' Daily rest credit is gated on days inside this range, so a range cutting a week in half under-credits that week.' : ''));
 
   if (lab.ratelessWorkers.length > 0) {
-    html += '<div class="inv-stats-caveat">Hours are recorded for <strong>' +
+    html += _labCallout('Hours are recorded for <strong>' +
       escHtml(lab.ratelessWorkers.join(', ')) + '</strong> with no rate to price them at, so those hours ' +
-      'are counted in the totals above and paid at zero. Set the rate in Roster to bring them into the bill.</div>';
+      'are counted in the totals above and paid at zero. Set the rate in Roster to bring them into the bill.', 'warning');
   }
 
   // The allocation answer sits last: it is a breakdown of a figure the reader
-  // has already been given, and in Stats the ₹/kg is the headline that must not
-  // be pushed below a chart.
+  // has already been given.
   html += _labAreaRows(lab);
 
   if (lab.extra > 0) {
     var share = lab.total > 0 ? (lab.extra / lab.total) * 100 : 0;
-    html += '<div class="inv-stats-note"><strong>' + formatNum(share, 1) + '% of this bill</strong> is extra hours ' +
+    html += _labNote('<strong>' + formatNum(share, 1) + '% of this bill</strong> is extra hours ' +
       'booked to an area rather than to a person. That is what &ldquo;the extra&rdquo; on the daily sheet is: ' +
       'real paid contract hours with no name against them. They are not spread across the men present, because ' +
-      'a per-worker cost invented that way would answer the fixed-versus-variable question by accident.</div>';
+      'a per-worker cost invented that way would answer the fixed-versus-variable question by accident.');
   }
 
   return html + '</div>';

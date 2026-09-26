@@ -47,7 +47,7 @@ async function openAreas(page: Page) {
   await page.locator('[data-action="invAttView"][data-view="areas"]').click();
 }
 
-const row = (page: Page, label: string) => page.locator('.inv-area-row', { hasText: label });
+const row = (page: Page, label: string) => page.locator('[data-area-row]', { hasText: label });
 
 test('an empty range says so rather than drawing empty areas', async ({ page }) => {
   await loadAppWithState(page, areaState({}));
@@ -75,7 +75,7 @@ test('an area with no complement set says so instead of reading as overstaffed',
     [d1]: { marks: { [LEAD.id]: { st: 'P', hours: 0, ot: 0, area: 'barrel' } }, extra: [], note: '' },
   }));
   await openAreas(page);
-  await expect(row(page, 'Barrel')).toContainText('no complement');
+  await expect(row(page, 'Barrel')).toContainText('No complement');
   await expect(row(page, 'Barrel')).not.toContainText('over');
 });
 
@@ -94,10 +94,10 @@ test('a complement turns the headcount into a variance, in both directions', asy
   await openAreas(page);
   // Two heads against a complement of four.
   await expect(row(page, 'Barrel')).toContainText('-2.0 under');
-  await expect(row(page, 'Barrel')).toHaveClass(/inv-area-under/);
+  await expect(row(page, 'Barrel')).toHaveAttribute('data-staffing', 'under');
   // One head against a complement of one.
-  await expect(row(page, 'Pickling A1+A2')).toContainText('at complement');
-  await expect(row(page, 'Pickling A1+A2')).toHaveClass(/inv-area-ok/);
+  await expect(row(page, 'Pickling A1+A2')).toContainText('At complement');
+  await expect(row(page, 'Pickling A1+A2')).toHaveAttribute('data-staffing', 'ok');
 });
 
 test('setting a complement in place moves the variance', async ({ page }) => {
@@ -106,7 +106,7 @@ test('setting a complement in place moves the variance', async ({ page }) => {
     [d1]: { marks: { [LEAD.id]: { st: 'P', hours: 0, ot: 0, area: 'barrel' } }, extra: [], note: '' },
   }));
   await openAreas(page);
-  await expect(row(page, 'Barrel')).toContainText('no complement');
+  await expect(row(page, 'Barrel')).toContainText('No complement');
   await page.locator('[data-area-target][data-area="barrel"]').fill('3');
   await page.locator('[data-area-target][data-area="barrel"]').blur();
   await expect(row(page, 'Barrel')).toContainText('-2.0 under');
@@ -127,7 +127,7 @@ test('a unit nobody was marked on is read as fully short, and said so in place',
   }, { barrel: 2, 'vat-a2': 1 }));
   await openAreas(page);
 
-  const card = page.locator('.inv-lab-card', { hasText: 'The extra, checked' });
+  const card = page.locator('[data-card="extra"]');
   await expect(card).toBeVisible();
   await expect(card).toContainText('Read as fully short');
   await expect(card).toContainText('20.0 h');
@@ -146,9 +146,9 @@ test('a range where every booking answers a real shortfall says the check passed
     [d1]: { marks: { [HAND.id]: { st: 'P', hours: 8, ot: 0, area: 'barrel' } }, extra: [{ area: 'barrel', hours: 8 }], note: '' },
   }, { barrel: 2 }));
   await openAreas(page);
-  const card = page.locator('.inv-lab-card', { hasText: 'The extra, checked' });
+  const card = page.locator('[data-card="extra"]');
   await expect(card).toContainText('passes');
-  await expect(card.locator('.inv-area-flag')).toHaveCount(0);
+  await expect(card.locator('[data-flag]')).toHaveCount(0);
 });
 
 test('the extra is shown against named hours and priced at the contract tier', async ({ page }) => {
@@ -160,7 +160,7 @@ test('the extra is shown against named hours and priced at the contract tier', a
     },
   }));
   await openAreas(page);
-  const card = page.locator('.inv-lab-card', { hasText: 'The extra, checked' });
+  const card = page.locator('[data-card="extra"]');
   // 10 named against 10 extra: half the paid hours carry no name.
   await expect(card).toContainText('50.0% of paid hours');
   await expect(card).toContainText('475.00');   // 10 h x Rs47.50

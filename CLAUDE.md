@@ -23,7 +23,7 @@ Workforce management and invoicing PWA for **Soma Electro Products**, a zinc ele
 
 ## Architecture
 
-Split-file PWA. 44 modules, ~25,900 lines total.
+Split-file PWA. 45 modules, ~26,100 lines total.
 
 ```
 split/
@@ -58,6 +58,7 @@ split/
 ├── cost.js            ← Prices, bills and patterns per stock line; Stats → Live cost with every source shown (~390 lines)
 ├── bills.js           ← Stock → Bills & notes: electricity bills by month, credit notes recorded or issued, stock line edit (~400 lines)
 ├── xls.js             ← Excel 97–2003 reader: OLE compound file + BIFF8 records, first sheet's values (~190 lines)
+├── xlsx.js            ← .xlsx writer: typed cells, dates, number formats, frozen header, filter; a stored zip (~170 lines)
 ├── bank.js            ← Stock → Bank: statement import, categories, receipts vs invoices, payments vs bills and Pay (~560 lines)
 ├── todo.js            ← To-do: your tasks + tasks raised from the data, Home card, Windows widget payload (726 lines)
 ├── relay.js           ← Attendance rolls: in/out-time WhatsApp parser, review, merge into the day (795 lines)
@@ -74,7 +75,7 @@ split/
 └── init.js            ← Migrations + app bootstrap (567 lines)
 ```
 
-**Concat order defined in build.sh.** Dependencies: data → state → appearance → zinc → tabs → clients → items → create → settings → github-sync → invoice-ops → number-audit → exports → im → autocomplete → print → quality-cert → credit-note → charts → staff → labour → areas → payroll → stock → cost → bills → xls → bank → todo → relay → stats → intel → insights → client-perf → im-form → im-dupe → scanner → events → swipe → seed → init.
+**Concat order defined in build.sh.** Dependencies: data → state → appearance → zinc → tabs → clients → items → create → settings → github-sync → invoice-ops → number-audit → exports → im → autocomplete → print → quality-cert → credit-note → charts → staff → labour → areas → payroll → stock → cost → bills → xls → xlsx → bank → todo → relay → stats → intel → insights → client-perf → im-form → im-dupe → scanner → events → swipe → seed → init.
 
 **Every module shares one global scope.** A top-level `var` or `function` in a later module silently replaces one of
 the same name in an earlier one; nothing warns. `bills.js` shipped a `STOCK_UNITS` array over `stock.js`'s unit map
@@ -104,7 +105,7 @@ every session start — nothing to set up by hand. CI (`build-sync`) is the back
 ### Tests
 
 ```bash
-pnpm exec playwright test          # 474 tests, both layouts
+pnpm exec playwright test          # 475 tests, both layouts
 ```
 
 Some sandboxes ship a Chromium build Playwright does not expect and block downloading
@@ -1354,7 +1355,14 @@ to read it in the app yet"* — all three of receipts, payments and the ledger, 
   the **payroll as paid** for the month before, per worker — the check that would have shown the crossed Behra
   legs of 14 Sep. Cash draws are set against the weekly payout by pay week. Suppliers are totalled beside the
   stock bills recorded from them.
-- **Owned by soma-internal**, like stock: Export writes `sep-bank` JSON (rows with their resolved category,
+- **Export Excel is a clean workbook** (owner, 26 Sep 2026: *"BANK Statement export should be a clean sorted excel
+  file"*): `xlsx.js` writes a real `.xlsx` with no library — the parts zipped *stored*, so there is no deflate to
+  carry. **Statement** is oldest first in the bank's own order inside a day, so the balance column reads down as
+  the running balance; dates are Excel dates and amounts numbers, so it sorts, filters and sums; the header is
+  frozen and filtered. **Summary** has the period, opening and closing balance, the balance check, and each
+  category's rows, money in and money out, footing to the closing balance. Read back by `openpyxl` cleanly; P57
+  unzips the download by hand, checks every part's CRC, and asserts the order, the date serials and the overdraft.
+- **Owned by soma-internal**, like stock: *Export JSON* writes `sep-bank` JSON (rows with their resolved category,
   payee rules, openings). The statement is never committed here; the specs read two fake statements in the
   bank's layout, `tests/fixtures/bank-*.xls`.
 

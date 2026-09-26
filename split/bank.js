@@ -332,7 +332,7 @@ function renderBank() {
 function _bankHeadHtml(rows) {
   var b = bankData();
   var h = '<div class="inv-panel inv-panel-flush" id="bankHead"><div class="inv-panel-head"><span class="inv-panel-title">Bank statement</span>' +
-    '<span class="inv-toolbar inv-toolbar-tight">' + (rows.length ? '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invBankExport">Export</button>' : '') +
+    '<span class="inv-toolbar inv-toolbar-tight">' + (rows.length ? '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invBankExport">Export Excel</button>' : '') +
     '<button class="inv-btn ' + (rows.length ? 'inv-btn-secondary' : 'inv-btn-primary') + ' inv-btn-sm" data-action="invBankImport">Import</button></span>' +
     '<input type="file" accept=".xls,application/vnd.ms-excel" id="bankFileInput" class="inv-hidden"></div>';
   if (!rows.length) {
@@ -351,6 +351,8 @@ function _bankHeadHtml(rows) {
   } else {
     h += '<div class="inv-panel-body inv-note" data-bank-breaks="0">Every balance follows from the row before it, first row to last.</div>';
   }
+  h += '<div class="inv-row"><span class="inv-row-main inv-row-meta">The record for the soma-internal compile</span>' +
+    '<span class="inv-row-end"><button class="inv-btn inv-btn-link inv-btn-sm" data-action="invBankExportJson">Export JSON</button></span></div>';
   return h + '</div>';
 }
 
@@ -617,7 +619,61 @@ function bankImportFile() {
   inp.click();
 }
 
-function bankExport() {
+/* The statement as a clean workbook (owner, 26 Sep 2026: "BANK Statement export should be a clean
+   sorted excel file"). Oldest first, in the bank's own order inside a day, so the balance column
+   reads down as the running balance it is. Dates are Excel dates and amounts are numbers, so the
+   sheet sorts, filters and sums. A second sheet totals each category over the period. */
+function bankExportXlsx() {
+  var b = bankData(), rows = bankRows();
+  if (!rows.length) { showToast('No statement to export', 'error'); return; }
+  var cls = bankClassify(rows);
+  var clientName = function(id) { var c = (S.clients || []).find(function(x) { return String(x.id) === String(id); }); return c ? c.name : ''; };
+  var who = function(v) {
+    if (v.cat === 'receipt' && v.clientId != null) return clientName(v.clientId);
+    if (v.cat === 'wages' && v.staffId != null) return ((staffById(v.staffId) || {}).name || '') + (v.guess ? ' (?)' : '');
+    if (v.cat === 'supplier') return v.supplier || '';
+    return '';
+  };
+  var head = ['Date', 'Value date', 'Narration', 'Payee', 'Category', 'Client / worker', 'Cheque no.', 'Withdrawal', 'Deposit', 'Balance']
+    .map(function(t) { return { v: t, s: 'head' }; });
+  var data = cls.map(function(v) {
+    var r = v.row;
+    return [{ v: r.date, s: 'date' }, { v: r.valueDate || r.date, s: 'date' }, r.narration, v.party || '', bankCatLabel(v.cat) + (v.cash ? ' (cash)' : ''),
+      who(v), r.chq || '', { v: r.dr || null, s: 'money' }, { v: r.cr || null, s: 'money' }, { v: r.balance, s: 'money' }];
+  });
+  var first = rows[0], last = rows[rows.length - 1], breaks = bankContinuity(rows);
+  var sum = {};
+  cls.forEach(function(v) {
+    var k = bankCatLabel(v.cat) + (v.cash ? ' (cash)' : ''), e = sum[k] = sum[k] || { n: 0, cr: 0, dr: 0 };
+    e.n++; e.cr = gstRound(e.cr + v.row.cr); e.dr = gstRound(e.dr + v.row.dr);
+  });
+  var keys = Object.keys(sum).sort(function(a, c) { return (sum[c].cr + sum[c].dr) - (sum[a].cr + sum[a].dr); });
+  var tot = keys.reduce(function(t, k) { return { n: t.n + sum[k].n, cr: gstRound(t.cr + sum[k].cr), dr: gstRound(t.dr + sum[k].dr) }; }, { n: 0, cr: 0, dr: 0 });
+  var summary = [
+    [{ v: 'Bank statement', s: 'bold' }],
+    ['Account', b.account || ''],
+    ['From', { v: first.date, s: 'date' }],
+    ['To', { v: last.date, s: 'date' }],
+    ['Opening balance', { v: gstRound(first.balance + first.dr - first.cr), s: 'money' }],
+    ['Closing balance', { v: last.balance, s: 'money' }],
+    ['Balance check', breaks.length ? breaks.length + ' place(s) where a balance does not follow from the row before; first on ' + formatDate(breaks[0].row.date) : 'Every balance follows from the row before it'],
+    [],
+    ['Category', 'Rows', 'Money in', 'Money out'].map(function(t) { return { v: t, s: 'head' }; })
+  ].concat(keys.map(function(k) { return [k, { v: sum[k].n, s: 'int' }, { v: sum[k].cr || null, s: 'money' }, { v: sum[k].dr || null, s: 'money' }]; }))
+    .concat([[{ v: 'Total', s: 'bold' }, { v: tot.n, s: 'int' }, { v: tot.cr, s: 'boldMoney' }, { v: tot.dr, s: 'boldMoney' }]]);
+  var bytes = xlsxBuild([
+    { name: 'Statement', cols: [11, 11, 48, 30, 16, 24, 11, 14, 14, 15], rows: [head].concat(data), freeze: 1, filter: true },
+    { name: 'Summary', cols: [22, 14, 16, 16], rows: summary }
+  ]);
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([bytes], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }));
+  a.download = 'bank-statement-' + first.date + '-to-' + last.date + '.xlsx';
+  a.click();
+  showToast('Statement exported: ' + rows.length + ' rows');
+}
+
+/* The whole record for soma-internal's compile, which owns the ledger. */
+function bankExportJson() {
   var b = bankData(), meta = document.querySelector('meta[name="app-build"]');
   var cls = bankClassify();
   var out = { format: 'sep-bank', version: 1, exportedAt: new Date().toISOString(), build: meta ? meta.content : '', account: b.account || '',
@@ -670,7 +726,8 @@ function bankAction(action, btn) {
   switch (action) {
     case 'invBankTab': _bankTab = btn.dataset.tab; _bankEdit = null; renderStock(); return true;
     case 'invBankImport': bankImportFile(); return true;
-    case 'invBankExport': bankExport(); return true;
+    case 'invBankExport': bankExportXlsx(); return true;
+    case 'invBankExportJson': bankExportJson(); return true;
     case 'invBankClient': _bankOpen = _bankOpen === btn.dataset.id ? null : btn.dataset.id; renderStock(); return true;
     case 'invBankAddBill': bankAddPowerBill(btn.dataset.id); return true;
     case 'invBankPlace': bankSetClient(btn.dataset.id, btn.dataset.client); return true;

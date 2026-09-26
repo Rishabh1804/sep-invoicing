@@ -188,3 +188,44 @@ test('a missing electricity month offers what the bank says was paid', async ({ 
   });
   expect(offer).toEqual([61234.5]);
 });
+
+/* A stored zip read by hand: every entry's name, bytes and whether its CRC holds. */
+function unzipStored(buf: Buffer) {
+  const table = Array.from({ length: 256 }, (_, n) => { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; return c >>> 0; });
+  const crc = (b: Buffer) => { let c = 0xFFFFFFFF; for (const x of b) c = table[(c ^ x) & 0xFF] ^ (c >>> 8); return (c ^ 0xFFFFFFFF) >>> 0; };
+  const out: Record<string, { text: string; crcOk: boolean }> = {};
+  for (let p = 0; buf.readUInt32LE(p) === 0x04034B50;) {
+    const size = buf.readUInt32LE(p + 18), nlen = buf.readUInt16LE(p + 26), xlen = buf.readUInt16LE(p + 28);
+    const name = buf.toString('utf8', p + 30, p + 30 + nlen), data = buf.subarray(p + 30 + nlen + xlen, p + 30 + nlen + xlen + size);
+    out[name] = { text: data.toString('utf8'), crcOk: crc(data) === buf.readUInt32LE(p + 14) };
+    p += 30 + nlen + xlen + size;
+  }
+  return out;
+}
+
+test('Export Excel writes a clean workbook: sorted, real dates and numbers, and a summary that foots', async ({ page }) => {
+  await loadAppWithState(page, state());
+  await openBank(page);
+  await importXls(page, JUL_AUG);   // imported first, so the file is not already in date order
+  await importXls(page, JUL);
+  const [dl] = await Promise.all([page.waitForEvent('download'), page.locator('[data-action="invBankExport"]').click()]);
+  expect(dl.suggestedFilename()).toBe('bank-statement-2026-07-01-to-2026-08-14.xlsx');
+  const zip = unzipStored(await (await import('fs')).promises.readFile((await dl.path())!));
+  for (const part of ['[Content_Types].xml', '_rels/.rels', 'xl/workbook.xml', 'xl/styles.xml', 'xl/worksheets/sheet1.xml', 'xl/worksheets/sheet2.xml']) {
+    expect(zip[part], part).toBeTruthy();
+    expect(zip[part].crcOk, part + ' crc').toBe(true);
+  }
+  const sheet = zip['xl/worksheets/sheet1.xml'].text;
+  expect(sheet).toContain('<pane ySplit="1"');
+  expect(sheet).toContain('<autoFilter ref="A1:J317"/>');
+  // Column A is an Excel date (a number with the date style), oldest first.
+  const serials = [...sheet.matchAll(/<c r="A(\d+)" s="2"><v>(\d+)<\/v>/g)].map(m => +m[2]);
+  expect(serials).toHaveLength(316);
+  expect(serials).toEqual([...serials].sort((a, b) => a - b));
+  expect(serials[0]).toBe(Math.round((Date.UTC(2026, 6, 1) - Date.UTC(1899, 11, 30)) / 86400000));
+  // The last row's balance is a number, and an overdraft is negative.
+  expect(sheet).toMatch(/<c r="J317" s="3"><v>-84624\.5<\/v><\/c>/);
+  const summary = zip['xl/worksheets/sheet2.xml'].text;
+  expect(summary).toContain('Every balance follows from the row before it');
+  expect(summary).toMatch(/<c r="B5" s="3"><v>100000<\/v>/);   // opening = first balance − its deposit + its withdrawal
+});

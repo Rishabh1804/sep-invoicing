@@ -226,7 +226,11 @@ function selectChallanPartForLine(idx, partId) {
 
   const cClient = _challanForm.clientId ? S.clients.find(c => c.id === _challanForm.clientId) : null;
   if (cClient) {
-    cItem.rate = defaultLineRate(cClient, _challanForm.challanDate || localDateStr(), cItem);
+    // Choosing a part re-prices the line from the record unless the rate was typed by hand.
+    cItem._auto = cItem._auto || {};
+    if (cItem._auto.rate !== false) cItem._auto.rate = true;
+    lineFillFromRecord(cClient, _challanForm.challanDate || localDateStr(), cItem, part);
+    lineFillFromCount(cClient, cItem);
     recalcChallanLine(cItem, cClient);
   }
 

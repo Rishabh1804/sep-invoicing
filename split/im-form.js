@@ -125,7 +125,9 @@ function renderAddChallanForm() {
       '<div class="inv-form-group"><label class="inv-form-label" for="imAmt' + idx + '">Amount</label>' +
       '<input type="number" class="inv-form-input inv-mono" id="imAmt' + idx + '" data-k="amount-' + idx + '" value="' + amtDisplay + '" data-field="amount" data-idx="' + idx + '" data-action="invUpdateChallanLine" step="any" min="0"' +
       (isPieceNOS ? '' : ' readonly') + '></div></div>' +
-      '<div id="imRateMatch' + idx + '">' + rateMatchNote(rm) + '</div></div>';
+      '<div id="imRateMatch' + idx + '">' + rateMatchNote(rm) + '</div>' +
+      '<div id="imFill' + idx + '">' + challanFillNote(item, client) + '</div>' +
+      '<div id="imFlag' + idx + '">' + (client ? challanFlagHtml(client, item, idx) : '') + '</div></div>';
   });
   // data-kbd-ring puts these two in the Enter-to-next-field chain, so the last
   // field of the last line steps onto "Add Line Item" instead of dead-ending.
@@ -212,6 +214,36 @@ function selectChallanClient(clientId) {
   renderAddChallanForm();
 }
 
+/* What the record put into the line, so tabbing through it is a check rather than a re-type. */
+function challanFillNote(item, client) {
+  if (!client || !item.partNumber) return '';
+  var bits = [];
+  var piece = client.billingMode === 'piece' && item.unit === 'NOS';
+  // The rate the RECORD holds, whatever the line now carries: a rate worked back from a typed amount is not the record's.
+  var rec = defaultLineRate(client, _challanForm.challanDate || localDateStr(), item);
+  if (rec > 0) bits.push(formatCurrency(rec) + (item.unit === 'NOS' ? '/pc' : '/kg'));
+  if (item._kgPc) bits.push(formatNum(item._kgPc.kg, 3) + ' kg/pc (' + item._kgPc.src + ')');
+  if (item._auto && item._auto.amount) bits.push('amount = pieces × rate');
+  if (item._auto && item._auto.qty) bits.push('kg = pieces × kg/pc');
+  if (piece && item._kgPc && item.qty > 0) bits.push('≈ ' + formatNum(item.qty * item._kgPc.kg, 1) + ' kg');
+  return bits.length ? '<div class="inv-note" data-fill>From the record: ' + escHtml(bits.join(' · ')) + '</div>' : '';
+}
+/* A line on a red flag (the matcher's Check or ×10) asks why, one tap, before it can be saved. */
+function challanFlagHtml(client, item, idx) {
+  var f = lineFlag(client, _challanForm.challanDate || localDateStr(), item);
+  if (!f) return '';
+  var what = f.kind === 'rate' ? 'The rate is ' + formatCurrency(item.rate) + ' against ' + formatCurrency(f.m.ref) + ' on record'
+    : 'The weight is ' + formatNum(item.qty, 3) + ' kg against ' + formatNum(f.m.expected, 3) + ' kg for ' + f.m.pcs + ' pcs on record';
+  var h = '<div class="inv-callout inv-callout-danger" data-flag="' + idx + '">' + escHtml(what) + (f.m.status === 'decimal' ? ' (a power of ten away)' : '') + '. Why?' +
+    '<div class="inv-toolbar" role="group" aria-label="Reason">';
+  // Chips that wrap: a segmented bar truncated the reasons to "Cust…" on a phone.
+  FLAG_REASONS.forEach(function(r) {
+    h += '<button type="button" class="inv-chip" aria-pressed="' + (item.flagReason === r.id) + '" data-action="invFlagReason" data-idx="' + idx + '" data-reason="' + r.id + '" data-k="flag-' + idx + '-' + r.id + '">' + escHtml(r.label) + '</button>';
+  });
+  return h + '</div><input class="inv-input" data-action="invFlagNote" data-idx="' + idx + '" data-k="flagnote-' + idx + '" value="' + escHtml(item.flagNote || '') + '"' +
+    ' placeholder="' + (item.flagReason === 'other' ? 'What was it? (recommended)' : 'Note (optional)') + '" aria-label="Note on the flag"></div>';
+}
+
 function recalcChallanLine(item, client) {
   if (!client) { item.amount = gstRound((item.qty || 0) * (item.rate || 0)); return; }
   if (client.billingMode === 'piece' && item.unit === 'NOS') {
@@ -228,10 +260,11 @@ function addChallanLine() {
   if (!_challanForm) return;
   captureChallanFields();
   var client = _challanForm.clientId ? S.clients.find(function(c) { return c.id === _challanForm.clientId; }) : null;
-  var item = { partNumber: '', desc: '', hsn: '998873', unit: 'KG', qty: 0, rate: 0, amount: 0, nosQty: null };
+  var item = { partNumber: '', desc: '', hsn: '998873', unit: 'KG', qty: 0, rate: 0, amount: 0, nosQty: null, _auto: {} };
   if (client) {
     var rateInfo = getLineItemRate(client, _challanForm.challanDate || localDateStr(), '');
     item.rate = rateInfo.ratePerKg || 0;
+    item._auto.rate = item.rate > 0;   // the client's ladder, until a part says otherwise
   }
   _challanForm.items.push(item);
   _challanFocusNext = { k: 'part-' + (_challanForm.items.length - 1), sel: null };
@@ -262,6 +295,17 @@ function saveChallan() {
   var client = S.clients.find(function(c) { return c.id === _challanForm.clientId; });
   if (!client) return;
 
+  // A red-flagged line is saved only with a reason, the ₹0 line's contract.
+  var fDate = _challanForm.challanDate || localDateStr();
+  for (var fi = 0; fi < _challanForm.items.length; fi++) {
+    if (lineFlag(client, fDate, _challanForm.items[fi]) && !_challanForm.items[fi].flagReason) {
+      showToast('Item ' + (fi + 1) + ' is flagged: pick why before saving', 'error');
+      _challanFocusNext = { k: 'flag-' + fi + '-challan', sel: null };
+      renderAddChallanForm();
+      return;
+    }
+  }
+
   // Duplicate guard: warn once, then let the operator decide. Covers both entry
   // paths — the scanner fills this same form and comes through here.
   if (!_challanForm._dupeAcked) {
@@ -288,7 +332,7 @@ function saveChallan() {
     existing.notes = _challanForm.notes || '';
     if (dupeAck) existing.dupeAck = dupeAck;
     existing.items = _challanForm.items.map(function(item, idx) {
-      return {
+      return Object.assign({
         id: existing.id + '-' + idx,
         partNumber: item.partNumber,
         desc: item.desc || item.partNumber,
@@ -300,7 +344,7 @@ function saveChallan() {
         nosQty: item.nosQty || null,
         invoiced: false,
         invoiceId: null
-      };
+      }, lineFlagFields(client, _challanForm.challanDate || localDateStr(), item));
     });
     saveVehicleToClient(_challanForm.clientId, _challanForm.vehicleNo);
     saveState();
@@ -324,7 +368,7 @@ function saveChallan() {
     clientName: client.name,
     vehicleNo: _challanForm.vehicleNo,
     items: _challanForm.items.map(function(item, idx) {
-      return {
+      return Object.assign({
         id: imId + '-' + idx,
         partNumber: item.partNumber,
         desc: item.desc || item.partNumber,
@@ -336,7 +380,7 @@ function saveChallan() {
         nosQty: item.nosQty || null,
         invoiced: false,
         invoiceId: null
-      };
+      }, lineFlagFields(client, _challanForm.challanDate || localDateStr(), item));
     }),
     receivedDate: _challanForm.challanDate || localDateStr(),
     notes: '',
@@ -429,7 +473,9 @@ function editChallan(imId) {
         qty: it.qty || 0,
         rate: it.rate || 0,
         amount: it.amount || 0,
-        nosQty: it.nosQty || null
+        nosQty: it.nosQty || null,
+        // A saved figure is the operator's, never the record's to overwrite; a reason given is kept.
+        _auto: {}, flagReason: it.flagReason || null, flagNote: it.flagNote || ''
       };
     }),
     notes: im.notes || '',
@@ -451,4 +497,9 @@ function refreshChallanLineMatch(idx) {
   refreshRateMatch('imRateMatch' + idx, document.getElementById('imRate' + idx), client,
     _challanForm.challanDate || localDateStr(), item);
   refreshWeightMatch('imWeightMatch' + idx, client, _challanForm.challanDate || localDateStr(), item);
+  // The fill note and the flag are redrawn on their own, so the field being typed in keeps focus.
+  var fn = document.getElementById('imFill' + idx);
+  if (fn) fn.innerHTML = challanFillNote(item, client);
+  var fl = document.getElementById('imFlag' + idx);
+  if (fl && !fl.contains(document.activeElement)) fl.innerHTML = challanFlagHtml(client, item, idx);
 }

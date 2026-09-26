@@ -944,6 +944,61 @@ function rateMatch(client, onDate, item) {
   return out;
 }
 
+/* ===== A LINE FILLED FROM THE RECORD, AND A REASON FOR A RED FLAG =====
+   Owner, 26 Sep 2026: "When I select C-Clamp 66x42(30x6) as we know all its value and std weight and
+   rate, fill that out automatically so that me or anyone can click through it to verify and change if
+   needed; if the change for the final amount is more than the conditions we have for matches which
+   raises a red flag then ask for a reason." The fill never overwrites a figure somebody typed: each
+   filled field is marked in item._auto until the operator types in it. */
+function lineFillFromRecord(client, onDate, item, part) {
+  if (!client || !item) return;
+  item._auto = item._auto || {};
+  if (!(item.rate > 0) || item._auto.rate) { item.rate = defaultLineRate(client, onDate, item); item._auto.rate = item.rate > 0; }
+  // The weight per piece: the client's own card first (a part's weight is the customer's), else the
+  // Items Master's standard weight, which is said to be the master's.
+  var w = getPieceWeight(client, onDate, item.partNumber, item.desc);
+  if (w && w.kg > 0) item._kgPc = { kg: w.kg, src: 'client card' };
+  else if (part && part.stdWeightKg > 0) item._kgPc = { kg: part.stdWeightKg, src: 'Items Master' };
+  else item._kgPc = null;
+}
+/* What the record fills into a counted line: pieces × rate is the amount on a piece line; pieces ×
+   kg/pc is the kilograms on a weight line. Only into an empty field or one the record filled. */
+function lineFillFromCount(client, item) {
+  if (!client || !item) return;
+  item._auto = item._auto || {};
+  var piece = client.billingMode === 'piece' && item.unit === 'NOS';
+  if (piece && item.qty > 0 && item.rate > 0 && (!(item.amount > 0) || item._auto.amount)) {
+    item.amount = gstRound(item.qty * item.rate); item._auto.amount = true;
+  }
+  if (item.unit === 'KG' && item.nosQty > 0 && item._kgPc && (!(item.qty > 0) || item._auto.qty)) {
+    item.qty = Math.round(item.nosQty * item._kgPc.kg * 1000) / 1000; item._auto.qty = true;
+    item.amount = gstRound(item.qty * (item.rate || 0));
+  }
+}
+var FLAG_REASONS = [
+  { id: 'challan', label: 'Customer\'s challan says so' },
+  { id: 'rate', label: 'Rate changed' },
+  { id: 'weight', label: 'Weight differs this batch' },
+  { id: 'other', label: 'Other' }
+];
+function flagReasonLabel(id) { var r = FLAG_REASONS.find(function(x) { return x.id === id; }); return r ? r.label : ''; }
+/* A red flag is the matcher's own Check or ×10 verdict, on the rate or on the weight. Differs asks nothing. */
+function lineFlag(client, onDate, item) {
+  var red = function(m) { return m && (m.status === 'check' || m.status === 'decimal'); };
+  var rm = rateMatch(client, onDate, item);
+  if (red(rm)) return { kind: 'rate', m: rm, value: item.rate };
+  var wm = weightMatch(client, onDate, item);
+  if (red(wm)) return { kind: 'weight', m: wm, value: item.qty };
+  return null;
+}
+/* What a saved line carries about its flag: nothing when it is not flagged, so a line put right later
+   drops a reason that no longer applies; the verdict it was given against when it is. */
+function lineFlagFields(client, onDate, item) {
+  var f = lineFlag(client, onDate, item);
+  if (!f || !item.flagReason) return {};
+  return { flagReason: item.flagReason, flagNote: item.flagNote || '', flagAt: { kind: f.kind, status: f.m.status, ref: f.m.ref, value: f.value } };
+}
+
 /* The kilograms on a KG line against pieces × the weight per piece on record.
    Same verdicts and the same Check thresholds as the rate, with two
    differences a scale forces: a band of ±weightTol% counts as a match, and a

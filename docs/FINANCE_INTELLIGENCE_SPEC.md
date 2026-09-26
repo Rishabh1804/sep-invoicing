@@ -31,7 +31,7 @@ needs one it does not define).
 | **Finance page** (Overview · Receivables · Payments · Bank · Bills & notes · GST), Bank and Bills & notes moved out of Stock | merged (#81) | `finance.js` |
 | This spec | merged (#81) | `docs/FINANCE_INTELLIGENCE_SPEC.md` |
 | **Phase 1** — cheque placement links, series tagging and suggestion, GST month notes | merged (#81); P59 | `bank.js`, `finance.js` |
-| **Side track A** — challan line filled from the record, reason for a red flag | PR #82; P63 | `state.js`, `im-form.js`, `events.js` |
+| **Side track A** — challan line filled from the record, reason for a red flag | merged (#82); P63 | `state.js`, `im-form.js`, `events.js` |
 | **Phase 2** — `chartLines`, `chartStack`, `chartPieTap`, range chips, tap-to-read | built; P60 | `charts.js` |
 | **Phase 3** — the interactive Finance Overview (range, cash, where money went/came from, invoiced vs received, GST chart) | built; P59 | `finance.js` |
 

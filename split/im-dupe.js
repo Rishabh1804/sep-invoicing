@@ -100,9 +100,9 @@ function imDuplicateVerdict(group) {
     if (hit) invoicedCopies++;
   });
   var distinct = Object.keys(invoiceIds).length;
-  if (distinct > 1) return { key: 'billed', label: 'Billed twice', cls: 'inv-dupe-verdict-billed' };
-  if (invoicedCopies === 0) return { key: 'open', label: 'Unbilled — still preventable', cls: 'inv-dupe-verdict-open' };
-  return { key: 'collapsed', label: 'Collapsed into one invoice', cls: 'inv-dupe-verdict-clean' };
+  if (distinct > 1) return { key: 'billed', label: 'Billed twice', tone: 'danger' };
+  if (invoicedCopies === 0) return { key: 'open', label: 'Unbilled — still preventable', tone: 'warning' };
+  return { key: 'collapsed', label: 'Collapsed into one invoice', tone: 'info' };
 }
 
 /* Value of the surplus copies: everything beyond the first. */
@@ -163,16 +163,12 @@ function imChallanLabel(im) {
 }
 
 function _dupeMatchRowHtml(im, showLocate) {
-  var status = getIMStatus(im);
-  return '<div class="inv-dupe-row">' +
-    '<div class="inv-dupe-row-main">' +
-    '<div class="inv-dupe-row-no">' + escHtml(imChallanLabel(im)) + '</div>' +
-    '<div class="inv-dupe-row-detail">' + escHtml(formatDate(im.challanDate)) + ' · ' +
-    escHtml(imChallanSummary(im)) + '</div></div>' +
-    '<span class="inv-im-status inv-im-status-' + status + '">' + status + '</span>' +
-    (showLocate ? '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invDupeLocate" data-id="' +
-      escHtml(im.id) + '">Locate</button>' : '') +
-    '</div>';
+  return '<div class="inv-row inv-row-2" data-dupe-row>' +
+    '<span class="inv-row-main"><span class="inv-row-title inv-id">' + escHtml(imChallanLabel(im)) + '</span>' +
+    '<span class="inv-row-meta">' + escHtml(formatDate(im.challanDate)) + ' · ' + escHtml(imChallanSummary(im)) + '</span></span>' +
+    '<span class="inv-row-end">' + imStatusDotHtml(im) +
+    (showLocate ? '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invDupeLocate" data-id="' + escHtml(im.id) + '">Locate</button>' : '') +
+    '</span></div>';
 }
 
 /*
@@ -192,29 +188,29 @@ function showChallanDuplicateWarning(matches) {
     '<button class="inv-overlay-close" data-action="invCloseConfirm">&times;</button></div>';
 
   if (matches.content.length > 0) {
-    html += '<div class="inv-confirm-warn">This client already has ' +
+    html += '<div class="inv-callout inv-callout-warning inv-mb-8">This client already has ' +
       (matches.content.length === 1 ? 'a challan' : matches.content.length + ' challans') +
       ' on the same date with exactly these quantities. Entering it twice inflates the receipt and can reach the customer\'s bill.</div>' +
-      '<div class="inv-dupe-scroll">' +
+      '<div class="inv-panel inv-panel-flush inv-scroll">' +
       matches.content.map(function(im) { return _dupeMatchRowHtml(im, false); }).join('') +
       '</div>';
   }
 
   if (matches.number.length > 0) {
-    html += '<div class="inv-dupe-section-label">Same challan number already recorded</div>' +
-      '<div class="inv-dupe-scroll">' +
+    html += '<div class="inv-panel inv-panel-flush inv-scroll"><div class="inv-row-group"><span>Same challan number already recorded</span></div>' +
       matches.number.map(function(im) { return _dupeMatchRowHtml(im, false); }).join('') +
       '</div>';
   }
 
   if (matches.blankNo) {
-    html += '<div class="inv-dupe-note">No challan number on this entry. A blank number is what let one copy of a duplicated challan hide the first time — worth filling in if the paper has one.</div>';
+    html += '<div class="inv-note inv-mb-8">No challan number on this entry. A blank number is what let one copy of a duplicated challan hide the first time — worth filling in if the paper has one.</div>';
   }
 
-  html += '<div class="inv-confirm-body">Split challans against one consignment are legitimate. If this is genuinely a separate receipt, save it — the acknowledgement is recorded against the entry.</div>' +
-    '<div class="inv-btn-bar">' +
-    '<button class="inv-btn inv-btn-ghost" data-action="invCloseConfirm">Go Back</button>' +
-    '<button class="inv-btn inv-btn-primary" data-action="invDupeSaveAnyway">Save Anyway</button></div></div>';
+  // Warn, never block: a split consignment is legitimate, and the override is recorded.
+  html += '<div class="inv-note inv-mb-8">Split challans against one consignment are legitimate. If this is genuinely a separate receipt, save it — the acknowledgement is recorded against the entry.</div>' +
+    '<div class="inv-toolbar">' +
+    '<button class="inv-btn inv-btn-secondary" data-action="invCloseConfirm">Go back</button>' +
+    '<button class="inv-btn inv-btn-primary" data-action="invDupeSaveAnyway">Save anyway</button></div></div>';
 
   scrim.innerHTML = html;
   pushFocus();
@@ -240,42 +236,33 @@ function runIMDuplicateScan() {
   scrim.className = 'inv-overlay-scrim';
 
   var html = '<div class="inv-overlay-card">' +
-    '<div class="inv-overlay-header"><span class="inv-overlay-title">Duplicate Check</span>' +
-    '<button class="inv-overlay-close" data-action="invCloseOverlay">&times;</button></div>';
+    '<div class="inv-overlay-header"><span class="inv-overlay-title">Duplicate check</span>' +
+    '<button class="inv-overlay-close" data-action="invCloseOverlay" aria-label="Close">&times;</button></div>';
 
   if (groups.length === 0 && blanks.length === 0) {
-    html += '<div class="inv-empty-state">No duplicate challans and no blank challan numbers.</div>';
+    html += '<div class="inv-empty">No duplicate challans and no blank challan numbers.</div>';
   } else {
-    html += '<div class="inv-dupe-note">Challans matched on client, date and line quantities. Nothing here is deleted automatically — a duplicate record is the evidence of the pattern, and only you know which copy is the real one.</div>';
+    html += '<div class="inv-note inv-mb-8">Challans matched on client, date and line quantities. Nothing here is deleted automatically — a duplicate record is the evidence of the pattern, and only you know which copy is the real one.</div>';
   }
 
   if (groups.length > 0) {
-    html += '<div class="inv-dupe-section-label">' + groups.length + ' duplicate group' +
-      (groups.length === 1 ? '' : 's') + '</div><div class="inv-dupe-scroll">';
+    html += '<div class="inv-panel inv-panel-flush inv-scroll"><div class="inv-panel-head"><span class="inv-panel-title">' + groups.length + ' duplicate group' + (groups.length === 1 ? '' : 's') + '</span></div>';
     groups.forEach(function(group) {
       var verdict = imDuplicateVerdict(group);
-      var exposure = imDuplicateExposure(group);
-      html += '<div class="inv-dupe-group">' +
-        '<div class="inv-dupe-group-head">' +
-        '<span class="inv-dupe-group-title">' + escHtml(group[0].clientName || 'Unknown client') + '</span>' +
-        '<span class="inv-dupe-verdict ' + verdict.cls + '">' + escHtml(verdict.label) + '</span></div>' +
-        '<div class="inv-dupe-group-meta">' + escHtml(formatDate(group[0].challanDate)) +
-        ' · ' + group.length + ' copies · surplus ' + formatCurrency(exposure) + '</div>' +
-        group.map(function(im) { return _dupeMatchRowHtml(im, true); }).join('') +
-        '</div>';
+      html += '<div class="inv-row-group" data-dupe-group><span>' + escHtml(group[0].clientName || 'Unknown client') + ' · ' + escHtml(formatDate(group[0].challanDate)) +
+        ' · ' + group.length + ' copies · surplus <span class="inv-num">' + formatCurrency(imDuplicateExposure(group)) + '</span></span>' +
+        '<span class="inv-badge inv-badge-' + verdict.tone + '">' + escHtml(verdict.label) + '</span></div>' +
+        group.map(function(im) { return _dupeMatchRowHtml(im, true); }).join('');
     });
     html += '</div>';
   }
 
   if (blanks.length > 0) {
-    html += '<div class="inv-dupe-section-label">' + blanks.length + ' challan' +
-      (blanks.length === 1 ? '' : 's') + ' with no challan number</div>' +
-      '<div class="inv-dupe-scroll">' +
-      blanks.map(function(im) { return _dupeMatchRowHtml(im, true); }).join('') +
-      '</div>';
+    html += '<div class="inv-panel inv-panel-flush inv-scroll"><div class="inv-panel-head"><span class="inv-panel-title">' + blanks.length + ' challan' + (blanks.length === 1 ? '' : 's') + ' with no challan number</span></div>' +
+      blanks.map(function(im) { return _dupeMatchRowHtml(im, true); }).join('') + '</div>';
   }
 
-  html += '<div class="inv-btn-bar"><button class="inv-btn inv-btn-primary" data-action="invCloseOverlay">Close</button></div></div>';
+  html += '<div class="inv-toolbar"><button class="inv-btn inv-btn-secondary" data-action="invCloseOverlay">Close</button></div></div>';
 
   scrim.innerHTML = html;
   pushFocus();

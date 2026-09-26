@@ -455,26 +455,28 @@ function _buildRegisterTableHtml() {
   return html + '</tbody></table>' + _regExportHtml();
 }
 
-/* The table and the pane are rebuilt whole, which drops the keyboard to <body>.
-   Focus goes back to the same control; where that is gone or hidden (the pane
-   covering the list), to the pane's close button, and on closing, to the row
-   of the invoice that was open. */
-function _regFocusKey() {
-  var ae = document.activeElement, wrap = document.getElementById('regMasterDetail');
+/* A list-and-pane view rebuilds its table and pane whole, which drops the keyboard to <body>.
+   Focus goes back to the same control; where that is gone or hidden (the pane covering the
+   list), to the pane's close button, and on closing, to the row of the item that was open.
+   Shared by the Register and IM (one wrapper id, and the actions that open and close). */
+function _mdFocusKey(wrapId, openId) {
+  var ae = document.activeElement, wrap = document.getElementById(wrapId);
   if (!ae || !wrap || !wrap.contains(ae) || !ae.dataset || !ae.dataset.action) return null;
-  return { action: ae.dataset.action, id: ae.dataset.id || '', col: ae.dataset.col || '', open: _regActiveInvId };
+  return { wrap: wrapId, action: ae.dataset.action, id: ae.dataset.id || '', col: ae.dataset.col || '', open: openId };
 }
-function _regRestoreFocus(k) {
-  var wrap = k && document.getElementById('regMasterDetail');
+function _mdRestoreFocus(k, openAction, closeAction) {
+  var wrap = k && document.getElementById(k.wrap);
   if (!wrap) return;
   var q = function(sel) { var el = wrap.querySelector(sel); return el && el.offsetParent !== null ? el : null; };
   var attr = function(n, v) { return v ? '[data-' + n + '="' + String(v).replace(/["\\]/g, '\\$&') + '"]' : ''; };
-  var el = k.action === 'invRegClosePane'
-    ? q('button[data-action="invSelectRegRow"]' + attr('id', k.open))
+  var el = k.action === closeAction
+    ? q('button[data-action="' + openAction + '"]' + attr('id', k.open))
     : q(':is(button, input)[data-action="' + k.action + '"]' + attr('id', k.id) + attr('col', k.col));
-  el = el || q('[data-action="invRegClosePane"]');
+  el = el || q('[data-action="' + closeAction + '"]');
   if (el) el.focus();
 }
+function _regFocusKey() { return _mdFocusKey('regMasterDetail', _regActiveInvId); }
+function _regRestoreFocus(k) { _mdRestoreFocus(k, 'invSelectRegRow', 'invRegClosePane'); }
 
 /* Render invoice detail inline in #regDetail */
 function _renderRegDetail(invId, skipMasterRefresh) {

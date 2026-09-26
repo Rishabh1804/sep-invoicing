@@ -242,7 +242,8 @@ their **own** paddings and heights — they read density aliases, so one attribu
 `--bar-h: 3.25rem (52)` phone top bar · `--bar-h-desk: 3rem (48)` · `--nav-h: 3.625rem (58)` phone bottom
 bar · `--side-w: 13.5rem (216)` desktop sidebar · `--content-max: 80rem` desktop content cap ·
 `--max-w: 32.5rem (520)` phone column (unchanged) · `--pane-w: 22rem` desktop detail pane · `--filter-w: 9rem`
-a toolbar filter's basis · `--col-sm-w: 8rem` a short ellipsized table column (`inv-col-grow-sm`).
+a toolbar filter's basis · `--col-sm-w: 8rem` a short ellipsized table column (`inv-col-grow-sm`) · `--scroll-max: 55vh`
+a list scrolling inside a dialog.
 
 ### 3.8 Breakpoints
 
@@ -432,7 +433,9 @@ inside a list is `inv-row-group` (`--t-caption` on `--bg`, e.g. "25 Sep · 5 · 
 whole row is the `<button>`, so its figures open it too; a tick box's lead is a `<label class="inv-row-lead inv-row-tick">`
 holding the full `--touch` target; `inv-row-stack`
 stacks a figure over its badge in `inv-row-end`; `inv-row-wrap` lets a meta line wrap (a list of names);
-`inv-row-muted` is a cancelled or inactive row. **The phone form of every table.** Replaces `inv-client-item`, `inv-item-card`, `inv-reg-row`,
+`inv-row-muted` is a cancelled or inactive row. A row that opens its own lines beneath it (a challan's items) has an
+`inv-row-expander` main button (`aria-expanded`, a chevron drawn in CSS) and its lines in `inv-row-children`,
+indented on the page colour. **The phone form of every table.** Replaces `inv-client-item`, `inv-item-card`, `inv-reg-row`,
 `inv-im-header`, `inv-att-row`, `inv-area-row`, `inv-history-item`, `inv-stats-row`, `inv-lab-row`,
 `inv-pay-row`, `inv-rate-row`, `inv-cost-dline`, `inv-td-hrow`, `inv-more-item`, `inv-stk-row`,
 `inv-stk-hrow`, `inv-stk-mrow`, `inv-td-row`.
@@ -494,6 +497,7 @@ Replaces `inv-form-group/label/input/select/row`, `inv-stk-label`, `inv-stk-fiel
   `--scrim`. Focus stack and `document.body.style.overflow` rules unchanged.
 - Confirm dialogs for destructive actions: danger-filled primary, the consequence stated in the body.
 - `inv-menu`: dropdowns and autocompletes, `--surface`, `--border`, `--shadow-pop`, keyboard as now.
+- `inv-scroll`: a list inside a dialog scrolls within `--scroll-max` rather than pushing the dialog's buttons off screen.
 - `inv-toast`: bottom-centre, `--text-1` background with `--surface` text (it inverts with the theme),
   `--shadow-pop`, tone shown by a leading dot.
 Replaces `inv-overlay-scrim/card/header/title/close`, `inv-more-scrim` (the duplicate scrim),
@@ -529,7 +533,7 @@ density §3.5) under Data & device, each a segmented control that applies at onc
 |---|---|---|
 | Home | stat strip (invoices, revenue, plated, ₹/kg) · quick actions (3×2 `inv-btn-grid`, first primary) · To-do, Attendance, Unbilled, Sync and Zinc panels · recent invoices as rows | same strip ×4 · quick actions in one row · panels two across · recent invoices spanning both. *Built.* The six-month chart and contribution table move here with Stats (they are Stats' renderers). |
 | Create | fields · unbilled-challan rows with checkboxes · line editor · collapsible optional details · action bar | same, two-column fields, lines as a table |
-| IM | toolbar · rows grouped by date (challan no., client, amount; meta: date · vehicle · items; status dot) · selection bar | table + detail pane |
+| IM | toolbar (filters, Duplicate check, Scan, **Add challan** — the page's one primary, replacing the floating buttons) · *Awaiting invoice* then *Invoiced*, each grouped by date with the day's value; a challan expands to its lines · selection bar | table (challan, client, date, vehicle, items, amount, status) + detail pane, as the Register. *Built.* The add/edit challan form moves with Create, whose line editor it shares. |
 | Register | toolbar (search + filter selects; `inv-token` filters to come) · rows grouped by day with subtotal · selection bar | table (invoice, client, date, challans, kg, taxable, GST, total, state) · selection bar · detail pane. *Built.* |
 | Clients / Items / Performance | tabs · toolbar · rows | tabs · table · detail pane |
 | To-do | tabs (Open / Done) · add field · rows with a dot and meta | same, wider |
@@ -569,7 +573,7 @@ phone and desktop.
    the Clients segment and Stats tabs → view tabs, banners → callout, overlays → dialog). Labels are
    sentence case everywhere (DR-5); the duplicated `inv-chip` is one rule; decorative tone fills are neutral.
    Step 3 moves the markup onto the v2.0 class names and deletes the v1.0 names from those selector lists.
-3. **Screens, in order:** Home *(built 26 Sep 2026)* · Register *(built 26 Sep 2026)* · IM · Create · Clients/Items/Performance · To-do · Stock · Staff ·
+3. **Screens, in order:** Home *(built 26 Sep 2026)* · Register *(built 26 Sep 2026)* · IM *(built 26 Sep 2026)* · Create · Clients/Items/Performance · To-do · Stock · Staff ·
    Stats · History · Settings. Each moves its render functions onto the components and deletes its private
    family in the same PR (DR-7). The survey's bugs are fixed where their screen moves: History's filter bar,
    Register's desktop list, the doubled Add buttons, Staff's cut-off sub-tabs, the base-colour dark-mode text,

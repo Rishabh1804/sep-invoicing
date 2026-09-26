@@ -38,7 +38,7 @@ test('P2: IM line-item rate renders with ₹ prefix (formatCurrency)', async ({ 
   await expect(header).toBeVisible();
   await header.click();
 
-  const detail = page.locator('.inv-im-item-detail').first();
+  const detail = page.locator('[data-im-detail]').first();
   await expect(detail).toBeVisible();
 
   // Post-P2 expected format: "10 KG @ ₹13.00/KG"

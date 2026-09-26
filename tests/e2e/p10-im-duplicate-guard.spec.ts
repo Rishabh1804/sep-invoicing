@@ -155,12 +155,12 @@ test('P10: the scan counts duplicate groups and separates billed-twice from unbi
   await loadAppWithState(page, state);
   await switchTab(page, 'pageIM');
 
-  await expect(page.locator('#imDupeCheck .inv-im-dupe-count')).toHaveText('1');
+  await expect(page.locator('#imDupeCheck [data-dupes]')).toHaveText('1');
 
   await page.locator('#imDupeCheck').click();
   const overlay = page.locator('.inv-overlay-scrim');
   await expect(overlay).toBeVisible();
-  await expect(overlay).toContainText('Duplicate Check');
+  await expect(overlay).toContainText('Duplicate check');
   await expect(overlay).toContainText('1 duplicate group');
   await expect(overlay).toContainText('Billed twice');
   // The blank challanNo on the second copy is listed separately too.

@@ -114,7 +114,7 @@ every session start — nothing to set up by hand. CI (`build-sync`) is the back
 ### Tests
 
 ```bash
-pnpm exec playwright test          # 525 tests, both layouts
+pnpm exec playwright test          # 527 tests, both layouts
 ```
 
 Some sandboxes ship a Chromium build Playwright does not expect and block downloading
@@ -200,6 +200,9 @@ the status timeline twice); the phone list is grouped by day with each day's tax
 in priority by container query and the pane opens on demand, which fixes the survey's squeezed list (40% of the screen,
 Total cut off, client names over three lines — P54 measures it at 1024 and 1280). States read through
 `INV_STATE_TONE` in `state.js`.
+**The register sorts by invoice number too** (owner, 26 Sep 2026): the desktop's Invoice column head, and *By date / By
+number* on the phone, where a number sort is grouped by series rather than by day. The order is the series prefix, so
+25-26 comes before 26-27, then the number read as a number, so `100` follows `00099` however it was padded (P70).
 **IM is built:** the worklist leads with *Awaiting invoice*, then *Invoiced*, each grouped by challan date; a challan
 expands to its lines (`inv-row-expander`). The desktop table and pane are the Register's, with the focus helpers shared
 (`_mdFocusKey` / `_mdRestoreFocus`). **Add challan is the page's one primary, in the toolbar** — the floating + and camera

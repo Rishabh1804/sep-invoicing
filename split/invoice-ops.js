@@ -86,7 +86,22 @@ var _regActiveInvId = null;
 /* Unified sort accessor (Phase 8C) */
 function getRegSortConfig() {
   if (_isDesktop && regFilter.desktopSort) return regFilter.desktopSort;
-  return { col: 'date', dir: regFilter.regSortDir || 'desc' };
+  return { col: regFilter.regSortBy === 'number' ? 'number' : 'date', dir: regFilter.regSortDir || 'desc' };
+}
+
+/* An invoice's place in the series: its prefix (the financial year's, so
+   SEP/25-26/ sorts before SEP/26-27/), then the number under it as a number,
+   never as text — 00100 after 00099 however the zeros were padded. */
+function invNumPrefix(inv) {
+  return String(inv.displayNumber || '').replace(/\d+$/, '');
+}
+function regByNumber(a, b) {
+  var pa = invNumPrefix(a), pb = invNumPrefix(b);
+  if (pa !== pb) return pa < pb ? -1 : 1;
+  var na = invNumInt(a.invoiceNumber), nb = invNumInt(b.invoiceNumber);
+  if (na == null) na = -1;
+  if (nb == null) nb = -1;
+  return na - nb;
 }
 
 function getFilteredInvoices() {
@@ -137,6 +152,7 @@ function getFilteredInvoices() {
       switch (sc.col) {
         case 'client': va = (a.clientName || '').toLowerCase(); vb = (b.clientName || '').toLowerCase(); return va < vb ? -dir : va > vb ? dir : 0;
         case 'date': va = a.date || ''; vb = b.date || ''; return va < vb ? -dir : va > vb ? dir : 0;
+        case 'number': return dir * regByNumber(a, b);
         case 'taxable': return dir * ((a.taxableValue || 0) - (b.taxableValue || 0));
         case 'total': return dir * ((a.grandTotal || 0) - (b.grandTotal || 0));
         case 'state': {
@@ -150,7 +166,9 @@ function getFilteredInvoices() {
     });
   } else {
     var sortDir = regFilter.regSortDir || 'desc';
-    if (sortDir === 'asc') {
+    if (regFilter.regSortBy === 'number') {
+      list.sort(function(a, b) { return (sortDir === 'asc' ? 1 : -1) * regByNumber(a, b); });
+    } else if (sortDir === 'asc') {
       list.sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
     } else {
       list.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
@@ -239,6 +257,7 @@ function renderRegisterToolbar() {
   if (!area) return;
 
   var sortDir = regFilter.regSortDir || 'desc';
+  var byNumber = regFilter.regSortBy === 'number';
   var unaccounted = unaccountedNumberCount();
   var rangeActive = !!(regFilter.dateFrom || regFilter.dateTo);
   var selectable = regSelectableInvoices();
@@ -276,7 +295,9 @@ function renderRegisterToolbar() {
     '<div class="inv-toolbar">' +
     // The desktop table sorts by its column heads, and always shows its tick boxes.
     (_isDesktop ? '' :
-      '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invRegToggleSort">' + (sortDir === 'asc' ? 'Oldest first' : 'Newest first') + '</button>' +
+      '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invRegSortBy">' + (byNumber ? 'By number' : 'By date') + '</button>' +
+      '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invRegToggleSort">' +
+      (byNumber ? (sortDir === 'asc' ? 'Lowest first' : 'Highest first') : (sortDir === 'asc' ? 'Oldest first' : 'Newest first')) + '</button>' +
       '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invRegToggleSelect" aria-pressed="' + _regSelectMode + '">' + (_regSelectMode ? 'Cancel select' : 'Select') + '</button>') +
     // Offered wherever ticking is actually possible.
     ((_isDesktop || _regSelectMode) && selectableCount > 0
@@ -330,10 +351,13 @@ function renderRegisterList() {
     html += '<div class="inv-panel"><div class="inv-empty">No invoices found</div></div>';
   } else {
     // Rows grouped by invoice date, each group with its count and taxable (§7).
+    // Sorted by number they are grouped by series instead: a day heading over a
+    // run of numbers would repeat every time a backdated invoice broke the run.
     html += '<div class="inv-panel inv-panel-flush">';
+    var byNum = regFilter.regSortBy === 'number';
     var groups = [], byDate = {};
     filtered.forEach(function(inv) {
-      var k = inv.date || '';
+      var k = byNum ? invNumPrefix(inv) : (inv.date || '');
       if (!byDate[k]) { byDate[k] = []; groups.push(k); }
       byDate[k].push(inv);
     });
@@ -347,7 +371,7 @@ function renderRegisterList() {
     });
     groups.forEach(function(k) {
       var list = byDate[k], live = list.filter(function(i) { return i.status === 'active'; });
-      html += '<div class="inv-row-group"><span>' + (k ? escHtml(formatDate(k)) : 'No date') + ' · ' + list.length + '</span>' +
+      html += '<div class="inv-row-group"><span>' + (byNum ? (k ? escHtml(k.replace(/\/$/, '')) : 'No number') : (k ? escHtml(formatDate(k)) : 'No date')) + ' · ' + list.length + '</span>' +
         '<span class="inv-num">' + formatCurrency(gstRound(sumTaxable(live))) + '</span></div>';
       list.forEach(function(inv) {
         var cancelled = inv.status === 'cancelled';
@@ -425,7 +449,7 @@ function _buildRegisterTableHtml() {
       (on ? '<span aria-hidden="true">' + (sc.dir === 'asc' ? ' ▲' : ' ▼') + '</span>' : '') + '</button></th>';
   };
   html += '<table class="inv-table"><thead><tr>' +
-    '<th class="inv-table-check"><span class="inv-visually-hidden">Select</span></th><th>Invoice</th>' + th('client', 'Client', 'inv-col-grow') + th('date', 'Date', 'inv-col-opt3') +
+    '<th class="inv-table-check"><span class="inv-visually-hidden">Select</span></th>' + th('number', 'Invoice') + th('client', 'Client', 'inv-col-grow') + th('date', 'Date', 'inv-col-opt3') +
     '<th class="inv-col-opt2">Challans</th><th class="inv-num inv-col-opt2">kg</th>' + th('taxable', 'Taxable', 'inv-num inv-col-opt3') + '<th class="inv-num inv-col-opt1">GST</th>' +
     th('total', 'Total', 'inv-num') + th('state', 'State') + '</tr></thead><tbody>';
 
@@ -646,6 +670,16 @@ function regBulkSetState(targetState) {
     _renderRegSelBar();
     showToast(updated + ' invoice' + (updated !== 1 ? 's' : '') + ' marked as ' + INV_STATE_LABELS[targetState]);
   }
+}
+
+/* Phone: sort by the date an invoice was raised, or by its number. */
+function toggleRegSortBy() {
+  regFilter.regSortBy = regFilter.regSortBy === 'number' ? 'date' : 'number';
+  saveRegFilter();
+  _regToolbarRendered = false;
+  renderRegisterToolbar();
+  _regToolbarRendered = true;
+  _renderRegView();
 }
 
 function toggleRegSortDir() {

@@ -249,6 +249,33 @@ Specify each in its own section of this file before building it.
 
 ---
 
+## Side track A — a challan line filled from the record, and a reason for a red flag
+
+**Owner, 26 Sep 2026:** *"when entering a challan say for example SSSMehta — When I select C-Clamp 66x42(30x6) as we
+know all its value and std weight and rate, fill that out automatically so that me or anyone can enter click through
+it to verify and change if needed, if the change for the final amount is more than the conditions we have for matches
+which raises a red flag then ask for a reason."*
+
+- **One helper, both forms:** `lineFillFromRecord(client, date, item)` sets, where empty, the **unit** (the client's
+  card: a part on `pieceRates` is NOS, else the part's own unit), the **rate on record** (`defaultLineRate`), and
+  **kg per piece** (`getPieceWeight` on the client's card, else the Items Master `stdWeightKg`, marked as the master's).
+  Called from the challan form's part pick (`selectChallanPartForLine`) and the invoice form's.
+- **Counting fills the rest, never over a typed value.** NOS line: pieces × rate → amount (a piece client's amount stays
+  editable — the customer's challan amount is the passthrough). KG line with pieces: pieces × kg/pc → kilograms. Each
+  filled field carries `item._auto[field] = true` until the operator types in it; a filled field is marked *from the
+  record* so tabbing through it is a check, not a re-type.
+- **A red flag needs a reason.** A line whose `rateMatch` or `weightMatch` is **Check** (the Settings thresholds:
+  10% or ₹100 at stake) or **×10 slip** cannot be saved until a reason is picked, one tap, under the line — the ₹0
+  line's contract: *Customer's challan says so · Rate changed · Weight differs this batch · Other* (a note,
+  recommended). Stored as `item.flagReason`, `item.flagNote`, and the verdict it was given against
+  (`item.flagAt = {status, ref, value}`), so the invoice detail can show it and a later change is visible as stale.
+  **Differs** (under the thresholds) asks nothing.
+- **Tests (P63, fake data):** picking a part fills unit, rate and kg/pc; typing pieces fills the amount (NOS) or the
+  kilograms (KG) and does not overwrite a typed figure; a line pushed past the threshold refuses Save until a reason is
+  picked, then saves with the reason and the verdict; a Differs line saves without one.
+
+---
+
 ## Conventions that bind every phase
 
 - **One PR per phase**, draft, watched; the owner merges. Each PR updates CLAUDE.md, the design doc where a

@@ -642,38 +642,6 @@ function sideGo(tabId, sub) {
   markSideActive(tabId);
 }
 
-/* ===== GLOBAL DRAG HANDLERS (Phase 8B) ===== */
-function _onDragMove(clientX) {
-  if (!_dragState) return;
-  var dx = clientX - _dragState.startX;
-  var newW = _dragState.masterStart + dx;
-  var minMaster = 280, minDetail = 320;
-  var maxMaster = _dragState.containerW - minDetail;
-  newW = Math.max(minMaster, Math.min(maxMaster, newW));
-  document.getElementById(_dragState.masterId).style.width = (newW / _dragState.containerW * 100) + '%';
-}
-
-function _onDragEnd() {
-  if (!_dragState) return;
-  var master = document.getElementById(_dragState.masterId);
-  var ratio = master.offsetWidth / master.parentElement.offsetWidth;
-  if (!regFilter.desktopPanelWidths) regFilter.desktopPanelWidths = {};
-  regFilter.desktopPanelWidths[_dragState.tabKey] = ratio;
-  saveRegFilter();
-  document.body.style.cursor = '';
-  document.body.style.userSelect = '';
-  _dragState = null;
-}
-
-document.addEventListener('mousemove', function(e) { _onDragMove(e.clientX); });
-document.addEventListener('mouseup', _onDragEnd);
-document.addEventListener('touchmove', function(e) {
-  if (!_dragState) return;
-  e.preventDefault();
-  _onDragMove(e.touches[0].clientX);
-}, { passive: false });
-document.addEventListener('touchend', _onDragEnd);
-
 // Debounced ResizeObserver
 new ResizeObserver(function() {
   clearTimeout(_resizeTimer);

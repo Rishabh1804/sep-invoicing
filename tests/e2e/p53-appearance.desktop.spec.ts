@@ -12,7 +12,7 @@ test.describe('P53 desktop: sidebar and density', () => {
     await expect(page.locator('#topbarTitle')).toHaveText('Clients');
     await expect(page.locator('.inv-side-item[data-sub="items"]')).toHaveClass(/inv-side-item-on/);
     await expect(page.locator('.inv-side-item[data-tab="pageClients"]:not([data-sub])')).not.toHaveClass(/inv-side-item-on/);
-    await expect(page.locator('[data-action="invSwitchSubView"][data-view="items"]').first()).toHaveClass(/inv-subview-active/);
+    await expect(page.locator('[data-action="invSwitchSubView"][data-view="items"]').first()).toHaveAttribute('aria-selected', 'true');
     await page.locator('.inv-side-item[data-sub="pay"]').click();
     await expect(page.locator('.inv-side-item[data-sub="pay"]')).toHaveAttribute('aria-current', 'page');
     // Back to a sub-view with no entry of its own: the parent carries the mark.

@@ -176,29 +176,39 @@ function cpMonthly(clientId, months) {
 }
 
 /* ===== VIEW ===== */
+/* A material row: the part, how often and when it was last handled, and what it earned. A stopped
+   part says how long it has been gone; a possible rename says so. */
 function _cpMaterialRows(list, renames) {
   return list.map(function(m) {
     var meta = m.times + '× · last ' + formatDate(m.lastSeen) +
       (m.typicalGap > 0 ? ' · usually every ' + Math.round(m.typicalGap) + 'd' : '') +
       (m.kg > 0 ? ' · ' + formatNum(m.kg, 0) + ' kg' : '');
     var rename = renames && renames[m.key];
-    return '<div class="inv-cp-mat">' +
-      '<div class="inv-cp-mat-head">' +
-      '<span class="inv-cp-mat-name">' + escHtml(m.part) + '</span>' +
+    return '<div class="inv-row inv-row-auto" data-cp-mat>' +
+      '<span class="inv-row-main"><span class="inv-row-title inv-row-wrap"><span class="inv-id">' + escHtml(m.part) + '</span></span>' +
+      '<span class="inv-row-meta inv-row-wrap">' + escHtml(meta) + '</span>' +
+      (m.state === 'stopped'
+        ? '<span class="inv-row-meta inv-row-wrap"><span class="inv-dot inv-dot-danger">' + m.sinceLast + ' days since the last one' +
+          (m.overdueBy > 0 ? ', about ' + m.overdueBy + ' overdue' : '') + '</span></span>'
+        : '') +
+      (rename ? '<span class="inv-note inv-row-wrap">Possibly renamed to &ldquo;' + escHtml(rename) +
+        '&rdquo; — the spellings share a stem, so this may not be lost work.</span>' : '') +
+      '</span>' +
       // A part that only ever arrived on a challan has no revenue yet. Printing
       // Rs 0.00 for it reads as worthless work rather than unbilled work.
-      '<span class="inv-cp-mat-rev inv-mono">' +
-      (m.invoiced > 0 ? formatCurrency(m.revenue) : '<span class="inv-cp-mat-unbilled">challan only</span>') +
-      '</span></div>' +
-      '<div class="inv-cp-mat-meta">' + escHtml(meta) + '</div>' +
-      (m.state === 'stopped'
-        ? '<div class="inv-cp-mat-flag">' + m.sinceLast + ' days since the last one' +
-          (m.overdueBy > 0 ? ', about ' + m.overdueBy + ' overdue' : '') + '</div>'
-        : '') +
-      (rename ? '<div class="inv-cp-mat-note">Possibly renamed to &ldquo;' + escHtml(rename) +
-        '&rdquo; — the spellings share a stem, so this may not be lost work.</div>' : '') +
-      '</div>';
+      '<span class="inv-row-end">' +
+      (m.invoiced > 0 ? '<span class="inv-num">' + formatCurrency(m.revenue) + '</span>' : '<span class="inv-badge inv-badge-neutral">Challan only</span>') +
+      '</span></div>';
   }).join('');
+}
+
+/* "+12.3% on Aug", never an arrow alone (§5.4). */
+function _cpDelta(cur, prev) {
+  if (!prev) return '';
+  if (!isFinite(prev.v) || prev.v === 0) return 'no figure for ' + escHtml(prev.label);
+  var pct = ((cur - prev.v) / Math.abs(prev.v)) * 100;
+  if (Math.abs(pct) <= 0.5) return 'level with ' + escHtml(prev.label);
+  return (pct > 0 ? '+' : '−') + formatNum(Math.abs(pct), 1) + '% on ' + escHtml(prev.label);
 }
 
 function renderClientPerformance(container) {
@@ -216,15 +226,16 @@ function renderClientPerformance(container) {
     clientId = best != null ? parseInt(best, 10) : clients[0].id;
   }
 
-  var html = '<div class="inv-cp-toolbar">' +
-    '<div class="inv-form-group"><label class="inv-form-label">Client</label>' +
-    '<select class="inv-form-select" id="cpClientSelect" aria-label="Client">' +
+  // The client picker speaks through change only (events.js).
+  var html = '<div class="inv-toolbar">' +
+    '<label class="inv-field inv-toolbar-item"><span class="inv-field-label">Client</span>' +
+    '<select class="inv-select" id="cpClientSelect">' +
     clients.map(function(c) {
       return '<option value="' + c.id + '"' + (c.id === clientId ? ' selected' : '') + '>' + escHtml(c.name) + '</option>';
-    }).join('') + '</select></div></div>';
+    }).join('') + '</select></label></div>';
 
   if (clientId == null) {
-    container.innerHTML = html + '<div class="inv-empty-state">No clients yet</div>';
+    container.innerHTML = html + '<div class="inv-panel"><div class="inv-empty">No clients yet</div></div>';
     return;
   }
   html += finClientMoneyHtml(clientId);
@@ -245,19 +256,19 @@ function renderClientPerformance(container) {
   var renames = cpFindRenames(stopped, fresh);
 
   if (monthly.length === 0 && classified.length === 0) {
-    container.innerHTML = html + '<div class="inv-empty-state">Nothing recorded for this client yet</div>';
+    container.innerHTML = html + '<div class="inv-panel"><div class="inv-empty">Nothing recorded for this client yet</div></div>';
     return;
   }
 
-  // Month on month.
+  // Month on month: the chart, the metric as a segmented control (§6.5), then the latest month as tiles.
   var last = monthly[monthly.length - 1];
   var prev = monthly.length > 1 ? monthly[monthly.length - 2] : null;
-  html += '<div class="inv-stats-card inv-stats-card-full">' +
-    '<div class="inv-stats-trend-header">' +
-    '<div class="inv-stats-title">Month on Month' +
-    '<span class="inv-stats-title-sub">last ' + monthly.length + ' month' + (monthly.length !== 1 ? 's' : '') + '</span></div>' +
-    statsChipRow('invPerfSeries', 'series', { revenue: '₹', tonnage: 'Tonnes', rate: '₹/kg' }, _cpSeries) +
-    '</div>';
+  var seg = function(k, l) {
+    return '<button type="button" class="inv-seg-btn" data-action="invPerfSeries" data-series="' + k + '" aria-pressed="' + (_cpSeries === k) + '">' + l + '</button>';
+  };
+  html += '<div class="inv-panel" data-cp-trend>' +
+    '<div class="inv-panel-head inv-mb-8"><span class="inv-panel-title">Month on month <span class="inv-panel-count">last ' + monthly.length + ' month' + (monthly.length !== 1 ? 's' : '') + '</span></span></div>' +
+    '<div class="inv-seg inv-mb-8" role="group" aria-label="Measure">' + seg('revenue', '₹') + seg('tonnage', 'Tonnes') + seg('rate', '₹/kg') + '</div>';
 
   var series = monthly.map(function(r) {
     return {
@@ -271,53 +282,43 @@ function renderClientPerformance(container) {
   });
 
   if (last) {
-    html += '<div class="inv-kpi-grid inv-mt-8">' +
-      kpiTile('Latest month', formatCurrency(last.revenue),
-        last.count + ' invoice' + (last.count !== 1 ? 's' : ''),
-        prev ? deltaHtml(last.revenue, prev.revenue) : '') +
-      kpiTile('Tonnage', formatNum(last.kg / 1000, 2) + ' t', formatNum(last.kg, 0) + ' kg',
-        prev ? deltaHtml(last.kg, prev.kg) : '') +
-      kpiTile('Realisation', last.realisation != null ? formatCurrency(last.realisation) + '/kg' : '&mdash;',
+    var tile = function(label, value, sub, delta) {
+      return '<div class="inv-tile"><div class="inv-tile-label">' + label + '</div><div class="inv-tile-value">' + value + '</div>' +
+        (sub ? '<div class="inv-tile-sub">' + sub + '</div>' : '') + (delta ? '<div class="inv-tile-sub">' + delta + '</div>' : '') + '</div>';
+    };
+    var p = function(v) { return prev ? { v: v, label: prev.label } : null; };
+    html += '<div class="inv-tiles inv-tiles-flush">' +
+      tile('Latest month · ' + escHtml(last.label), formatCurrency(last.revenue),
+        last.count + ' invoice' + (last.count !== 1 ? 's' : ''), _cpDelta(last.revenue, p(prev && prev.revenue))) +
+      tile('Tonnage', formatNum(last.kg / 1000, 2) + '<span class="inv-tile-of"> t</span>', formatNum(last.kg, 0) + ' kg', _cpDelta(last.kg, p(prev && prev.kg))) +
+      tile('Realisation', last.realisation != null ? formatCurrency(last.realisation) + '<span class="inv-tile-of">/kg</span>' : '&mdash;',
         (S.defaultCostPerKg > 0 ? 'cost ' + formatCurrency(S.defaultCostPerKg) + '/kg' : ''),
-        (prev && prev.realisation != null && last.realisation != null) ? deltaHtml(last.realisation, prev.realisation) : '') +
+        (prev && prev.realisation != null && last.realisation != null) ? _cpDelta(last.realisation, p(prev.realisation)) : '') +
+      // The months shown, quiet ones included: the level the latest month is read against.
+      tile('Average month', formatCurrency(monthly.reduce(function(t, r) { return t + r.revenue; }, 0) / monthly.length),
+        'over ' + monthly.length + ' month' + (monthly.length !== 1 ? 's' : ''), '') +
       '</div>';
   }
   html += '</div>';
 
   // Stopped first. It is the only one of the four that is a question.
-  html += '<div class="inv-stats-card inv-stats-card-full">' +
-    '<div class="inv-stats-title">Materials' +
-    '<span class="inv-stats-title-sub">cadence across invoices and challans</span></div>';
-
-  html += '<div class="inv-cp-group">' +
-    '<div class="inv-cp-group-title inv-cp-group-stopped">Stopped (' + stopped.length + ')</div>' +
-    (stopped.length === 0
-      ? '<div class="inv-text-muted inv-p-8">Nothing has fallen out of its rhythm.</div>'
-      : '<div class="inv-cp-group-note">Overdue against the gap each part usually keeps, not a fixed cut-off — a quarterly part is not called stopped in month two.</div>' +
-        _cpMaterialRows(stopped, renames)) +
+  var group = function(key, title, tone, list, emptyText, note, renamesFor) {
+    return '<div data-cp-group="' + key + '">' +
+      '<div class="inv-row-group"><span class="inv-dot inv-dot-' + tone + '">' + title + ' · ' + list.length + '</span></div>' +
+      (list.length === 0
+        ? '<div class="inv-row"><span class="inv-row-main inv-row-meta">' + emptyText + '</span></div>'
+        : (note ? '<div class="inv-row inv-row-auto"><span class="inv-row-main inv-note inv-row-wrap">' + note + '</span></div>' : '') +
+          _cpMaterialRows(list, renamesFor)) +
+      '</div>';
+  };
+  html += '<div class="inv-panel inv-panel-flush">' +
+    '<div class="inv-panel-head"><span class="inv-panel-title">Materials</span><span class="inv-note">cadence across invoices and challans</span></div>' +
+    group('stopped', 'Stopped', 'danger', stopped, 'Nothing has fallen out of its rhythm.',
+      'Overdue against the gap each part usually keeps, not a fixed cut-off — a quarterly part is not called stopped in month two.', renames) +
+    group('new', 'New', 'info', fresh, 'Nothing new in the last ' + CP_NEW_DAYS + ' days.', '', null) +
+    group('steady', 'Steady', 'ok', steady, 'No part is running to a regular cadence.', '', null) +
+    (oneoff.length > 0 ? group('oneoff', 'One-off', 'neutral', oneoff, '', 'Handled once and long ago. Never had a cadence to fall out of.', null) : '') +
     '</div>';
 
-  html += '<div class="inv-cp-group">' +
-    '<div class="inv-cp-group-title inv-cp-group-new">New (' + fresh.length + ')</div>' +
-    (fresh.length === 0
-      ? '<div class="inv-text-muted inv-p-8">Nothing new in the last ' + CP_NEW_DAYS + ' days.</div>'
-      : _cpMaterialRows(fresh, null)) +
-    '</div>';
-
-  html += '<div class="inv-cp-group">' +
-    '<div class="inv-cp-group-title inv-cp-group-steady">Steady (' + steady.length + ')</div>' +
-    (steady.length === 0
-      ? '<div class="inv-text-muted inv-p-8">No part is running to a regular cadence.</div>'
-      : _cpMaterialRows(steady, null)) +
-    '</div>';
-
-  if (oneoff.length > 0) {
-    html += '<div class="inv-cp-group">' +
-      '<div class="inv-cp-group-title">One-off (' + oneoff.length + ')</div>' +
-      '<div class="inv-cp-group-note">Handled once and long ago. Never had a cadence to fall out of.</div>' +
-      _cpMaterialRows(oneoff, null) + '</div>';
-  }
-
-  html += '</div>';
   container.innerHTML = html;
 }

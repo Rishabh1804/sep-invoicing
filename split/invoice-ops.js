@@ -372,44 +372,6 @@ function renderRegisterList() {
   area.innerHTML = html + _regExportHtml();
 }
 
-/* ===== SHARED DESKTOP UTILITIES (Phase 8B) ===== */
-function _renderDetailEmpty() {
-  return '<div class="inv-detail-empty">' +
-    '<svg class="inv-detail-empty-icon" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">' +
-    '<path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>' +
-    '<div class="inv-detail-empty-text">Select an item to view details</div></div>';
-}
-
-function _restorePanelWidth(masterId, tabKey) {
-  var widths = regFilter.desktopPanelWidths;
-  if (!widths || !widths[tabKey]) return;
-  var master = document.getElementById(masterId);
-  if (master) master.style.width = (widths[tabKey] * 100) + '%';
-}
-
-function _initDragHandle(handleId, masterId, detailId, tabKey) {
-  var handle = document.getElementById(handleId);
-  if (!handle || handle.dataset.dragInit) return;
-  handle.dataset.dragInit = 'true';
-
-  function onStart(e) {
-    e.preventDefault();
-    var container = handle.parentElement;
-    var startX = e.clientX || e.touches[0].clientX;
-    _dragState = {
-      startX: startX,
-      containerW: container.offsetWidth,
-      masterStart: document.getElementById(masterId).offsetWidth,
-      masterId: masterId, tabKey: tabKey
-    };
-    document.body.style.cursor = 'col-resize';
-    document.body.style.userSelect = 'none';
-  }
-
-  handle.addEventListener('mousedown', onStart);
-  handle.addEventListener('touchstart', onStart, { passive: false });
-}
-
 /* ===== REGISTER DESKTOP TABLE ===== */
 function _buildRegisterTableHtml() {
   var filtered = getFilteredInvoices();

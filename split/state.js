@@ -443,7 +443,6 @@ function bootState(loaded) {
 var _isDesktop = false;
 var _isTablet = false;
 var _pendingModeSwitch = false;
-var _dragState = null;
 
 /* ===== ARCHITECTURAL GLOBALS (Phase 3) ===== */
 let _tabDirty = { home: true, register: true };

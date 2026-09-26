@@ -574,7 +574,7 @@ function renderSidebar() {
   SIDE_NAV.forEach(function(g) {
     html += '<div class="inv-side-group">' + g[0] + '</div>';
     g[1].forEach(function(it) {
-      html += '<button class="inv-side-item" data-action="' + (it[3] ? 'invSideGo' : 'invSwitchTab') + '" data-tab="' + it[0] + '"' +
+      html += '<button class="inv-side-item" data-action="' + (SIDE_SUB_DEFAULT[it[0]] ? 'invSideGo' : 'invSwitchTab') + '" data-tab="' + it[0] + '"' +
         (it[3] ? ' data-sub="' + it[3] + '"' : '') + '>' + _sideSvg(it[2]) +
         '<span class="inv-side-label">' + it[1] + '</span><span class="inv-side-count" data-count="' + it[0] + (it[3] ? '-' + it[3] : '') + '"></span></button>';
     });
@@ -622,7 +622,17 @@ function updateSideCounts() {
   put('pageStock', typeof stockOutCount === 'function' ? stockOutCount() : 0, 'danger');
 }
 
+/* Two pages carry two sidebar entries each: Clients and Items, Staff and Pay. The plain entry used to
+   be a bare switchTab, so from Pay, Staff switched to the page already open, on the view already
+   showing, and nothing moved (owner, 26 Sep 2026). A plain entry now leaves any view that belongs to
+   its sibling for the page's own default, and keeps every other view (Staff from Week stays on Week). */
+var SIDE_SUB_DEFAULT = { pageClients: 'clients', pageStaff: 'day' };
 function sideGo(tabId, sub) {
+  if (!sub) {
+    var cur = _currentSub(tabId);
+    var claimed = SIDE_NAV.some(function(g) { return g[1].some(function(it) { return it[0] === tabId && it[3] === cur; }); });
+    sub = claimed ? SIDE_SUB_DEFAULT[tabId] : cur;
+  }
   if (tabId === 'pageClients') setItemsSubView(sub);
   if (tabId === 'pageStaff') _attView = sub;
   switchTab(tabId);

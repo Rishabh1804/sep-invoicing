@@ -18,7 +18,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <!-- Appearance before first paint (§3.2): the device's theme and palette, so nothing flashes in the wrong colours. -->
 <script>(function(){try{var d=document.documentElement,t=localStorage.getItem("sep_inv_theme"),p=localStorage.getItem("sep_inv_palette");if(t==="light"||t==="dark")d.dataset.theme=t;d.dataset.palette=(p==="zinc"||p==="terracotta")?p:"teal";}catch(e){document.documentElement.dataset.palette="teal";}})();</script>
-<meta name="app-build" content="3aa8523f">
+<meta name="app-build" content="c002121e">
 <style>
 /* ===== DESIGN TOKENS (design system v2.0 — docs/SEP_INVOICING_DESIGN_PRINCIPLES.md §3) ===== */
 /* Theme: colour-scheme decides every light-dark() below. <html data-theme> is set before first paint
@@ -26772,7 +26772,7 @@ function renderSidebar() {
   SIDE_NAV.forEach(function(g) {
     html += '<div class="inv-side-group">' + g[0] + '</div>';
     g[1].forEach(function(it) {
-      html += '<button class="inv-side-item" data-action="' + (it[3] ? 'invSideGo' : 'invSwitchTab') + '" data-tab="' + it[0] + '"' +
+      html += '<button class="inv-side-item" data-action="' + (SIDE_SUB_DEFAULT[it[0]] ? 'invSideGo' : 'invSwitchTab') + '" data-tab="' + it[0] + '"' +
         (it[3] ? ' data-sub="' + it[3] + '"' : '') + '>' + _sideSvg(it[2]) +
         '<span class="inv-side-label">' + it[1] + '</span><span class="inv-side-count" data-count="' + it[0] + (it[3] ? '-' + it[3] : '') + '"></span></button>';
     });
@@ -26820,7 +26820,17 @@ function updateSideCounts() {
   put('pageStock', typeof stockOutCount === 'function' ? stockOutCount() : 0, 'danger');
 }
 
+/* Two pages carry two sidebar entries each: Clients and Items, Staff and Pay. The plain entry used to
+   be a bare switchTab, so from Pay, Staff switched to the page already open, on the view already
+   showing, and nothing moved (owner, 26 Sep 2026). A plain entry now leaves any view that belongs to
+   its sibling for the page's own default, and keeps every other view (Staff from Week stays on Week). */
+var SIDE_SUB_DEFAULT = { pageClients: 'clients', pageStaff: 'day' };
 function sideGo(tabId, sub) {
+  if (!sub) {
+    var cur = _currentSub(tabId);
+    var claimed = SIDE_NAV.some(function(g) { return g[1].some(function(it) { return it[0] === tabId && it[3] === cur; }); });
+    sub = claimed ? SIDE_SUB_DEFAULT[tabId] : cur;
+  }
   if (tabId === 'pageClients') setItemsSubView(sub);
   if (tabId === 'pageStaff') _attView = sub;
   switchTab(tabId);

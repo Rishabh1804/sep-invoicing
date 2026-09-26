@@ -323,14 +323,10 @@ document.addEventListener('click', function(e) {
     case 'invClearItemSelection': clearItemSelection(); break;
     case 'invBatchDeleteItems': batchDeleteItems(); break;
     case 'invLoadMoreItems': _renderItemsList(); break;
-    case 'invItemsSort': {
-      var sortEl = document.getElementById('itemsSort');
-      if (sortEl) { regFilter.itemsSort = sortEl.value; saveRegFilter(); _itemsRendered = 0; _renderItemsList(); }
-      break;
-    }
-    // Phase 8E: Clients/Items desktop row selection
+    // Clients/Items desktop: a row opens the pane; its close button shuts it
     case 'invSelectClientRow': _renderClientDetail(parseInt(btn.dataset.id)); break;
     case 'invSelectItemRow': _renderItemDetail(parseInt(btn.dataset.id)); break;
+    case 'invClientsClosePane': closeClientsPane(); break;
     // Phase 6b: Register bulk operations
     case 'invRegToggleSort': toggleRegSortDir(); break;
     case 'invRegToggleSelect': toggleRegSelectMode(); break;

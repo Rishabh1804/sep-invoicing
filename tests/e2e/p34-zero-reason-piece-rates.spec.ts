@@ -187,7 +187,7 @@ test.describe('P34: piece rates on record', () => {
     expect(pr).toHaveLength(5);
     expect(pr[4]).toMatchObject({ partNumber: 'CLAMP 94X81 (NT)', gauge: '25X6', rate: 2.18, source: 'manual' });
 
-    await expect(page.locator('#ceditPieceRates .inv-piece-row')).toHaveCount(5);
+    await expect(page.locator('#ceditPieceRates .inv-row')).toHaveCount(5);
     await page.locator('[data-action="invRemovePieceRate"][data-idx="4"]').click();
     st = await readStoredState(page);
     pr = st.clients.find((c: any) => c.id === 2).pieceRates;

@@ -1,44 +1,72 @@
 /* ===== CLIENT MASTER ===== */
 var _clientsActiveId = null;
 
-function renderClientList(filter='') {
-  const q = filter.toLowerCase();
+var CLIENT_MODE_LABEL = { weight: 'Weight', piece: 'Piece', nos_to_weight: 'NOS to weight' };
+
+/* The rate in force today, else the newest on record. */
+function _clientRateNow(c) {
+  var today = localDateStr();
+  var sorted = (c.rates || []).slice().sort(function(a, b) { return b.effectiveFrom.localeCompare(a.effectiveFrom); });
+  return sorted.find(function(r) { return r.effectiveFrom <= today; }) || sorted[0] || null;
+}
+
+function _clientStatusDot(c) {
+  return '<span class="inv-dot inv-dot-' + (c.isActive ? 'ok' : 'neutral') + '">' + (c.isActive ? 'Active' : 'Inactive') + '</span>';
+}
+
+/* Phone: a row per client that opens its edit sheet. Desktop: a table beside the pane. */
+function renderClientList(filter) {
+  const q = (filter || '').toLowerCase();
   const sorted = [...S.clients].sort((a,b) => {
     if (a.isActive !== b.isActive) return a.isActive ? -1 : 1;
     return a.name.localeCompare(b.name);
   });
   const filtered = q ? sorted.filter(c => c.name.toLowerCase().includes(q) || (c.gstin||'').toLowerCase().includes(q)) : sorted;
   const el = document.getElementById('clientList');
+  if (!el) return;
   const countEl = document.getElementById('clientsCount');
   if (countEl) countEl.textContent = filtered.length + (filtered.length === 1 ? ' client' : ' clients');
-  if (filtered.length === 0) { el.innerHTML = '<div class="inv-empty-state">No clients found</div>'; return; }
-  el.innerHTML = filtered.map(c => {
-    const sortedRates = (c.rates || []).slice().sort((a,b) => b.effectiveFrom.localeCompare(a.effectiveFrom));
-    const rateInfo = sortedRates.length > 0 ? sortedRates[0] : null;
-    const rateStr = rateInfo ? '\u20B9' + rateInfo.ratePerKg + '/kg' : 'No rate';
-    var cardAction = _isDesktop ? 'invSelectClientRow' : 'invEditClient';
-    var activeClass = (_isDesktop && _clientsActiveId === c.id) ? ' inv-client-item-active' : '';
-    return '<div class="inv-client-item' + (c.isActive ? '' : ' inv-client-inactive') + activeClass + '" data-action="' + cardAction + '" data-id="' + c.id + '">' +
-      '<div class="inv-client-content"><div class="inv-client-name">' + escHtml(c.name) + '</div>' +
-      '<div class="inv-client-meta">' + escHtml(c.gstin || 'No GSTIN') + '</div>' +
-      '<div class="inv-client-badges">' +
-      '<span class="inv-client-badge inv-badge-mode">' + escHtml(c.billingMode) + '</span>' +
-      '<span class="inv-client-badge inv-badge-rate">' + escHtml(rateStr) + '</span>' +
-      (c.itemRates && c.itemRates.length ? '<span class="inv-override-badge">' + c.itemRates.length + ' override' + (c.itemRates.length>1?'s':'') + '</span>' : '') +
-      (!c.isActive ? '<span class="inv-client-badge inv-badge-inactive">Inactive</span>' : '') +
-      '</div></div>' +
-      '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg></div>';
-  }).join('');
 
-  // Desktop detail validation: active client filtered out → clear detail
-  if (_isDesktop && _clientsActiveId) {
-    var stillVisible = filtered.find(function(c) { return c.id === _clientsActiveId; });
-    if (!stillVisible) {
-      _clientsActiveId = null;
-      var detail = document.getElementById('clientsDetail');
-      if (detail) detail.innerHTML = _renderDetailEmpty();
-    }
+  // Desktop: a client filtered out of the list closes its pane.
+  if (_isDesktop && _clientsActiveId && !filtered.some(function(c) { return c.id === _clientsActiveId; })) {
+    _clientsActiveId = null;
+    _clientsPaneShow('', '');
   }
+
+  if (filtered.length === 0) {
+    el.innerHTML = _isDesktop ? '<div class="inv-empty">No clients found</div>' : '<div class="inv-panel"><div class="inv-empty">No clients found</div></div>';
+    return;
+  }
+  const overrides = c => (c.itemRates && c.itemRates.length) ? c.itemRates.length + ' override' + (c.itemRates.length > 1 ? 's' : '') : '';
+
+  if (_isDesktop) {
+    el.innerHTML = '<table class="inv-table"><thead><tr><th class="inv-col-grow">Client</th><th class="inv-col-opt2">GSTIN</th>' +
+      '<th class="inv-col-opt1">Billing</th><th class="inv-num">Rate / kg</th><th>Status</th></tr></thead><tbody>' +
+      filtered.map(c => {
+        const r = _clientRateNow(c);
+        const id = escHtml(String(c.id));
+        return '<tr class="' + (c.isActive ? '' : 'inv-row-muted') + '"' + (_clientsActiveId === c.id ? ' aria-current="true"' : '') +
+          ' data-action="invSelectClientRow" data-id="' + id + '">' +
+          // The name is a real button, so the row opens from the keyboard.
+          '<td class="inv-col-grow" title="' + escHtml(c.name) + '"><button class="inv-btn-link" data-action="invSelectClientRow" data-id="' + id + '">' + escHtml(c.name) + '</button></td>' +
+          '<td class="inv-id inv-col-opt2">' + escHtml(c.gstin || '') + '</td>' +
+          '<td class="inv-col-opt1">' + escHtml([CLIENT_MODE_LABEL[c.billingMode] || c.billingMode, overrides(c)].filter(Boolean).join(' · ')) + '</td>' +
+          '<td class="inv-num">' + (r ? formatCurrency(r.ratePerKg) : '&mdash;') + '</td>' +
+          '<td>' + _clientStatusDot(c) + '</td></tr>';
+      }).join('') + '</tbody></table>';
+    return;
+  }
+
+  el.innerHTML = '<div class="inv-panel inv-panel-flush">' + filtered.map(c => {
+    const r = _clientRateNow(c);
+    const meta = [c.gstin || 'No GSTIN', CLIENT_MODE_LABEL[c.billingMode] || c.billingMode, overrides(c)].filter(Boolean).join(' · ');
+    return '<button class="inv-row inv-row-2' + (c.isActive ? '' : ' inv-row-muted') + '" data-action="invEditClient" data-id="' + escHtml(String(c.id)) + '">' +
+      '<span class="inv-row-main"><span class="inv-row-title">' + escHtml(c.name) + '</span>' +
+      '<span class="inv-row-meta">' + escHtml(meta) + '</span></span>' +
+      '<span class="inv-row-end"><span class="inv-row-stack">' +
+      (r ? '<span class="inv-num">' + formatCurrency(r.ratePerKg) + '/kg</span>' : '<span class="inv-row-meta">No rate</span>') +
+      (c.isActive ? '' : _clientStatusDot(c)) + '</span></span></button>';
+  }).join('') + '</div>';
 }
 
 /* Client add/edit overlay */
@@ -61,48 +89,97 @@ function _blankClient() {
   };
 }
 
+/* A labelled field (§6.15). `control` is the whole input/select element. */
+function _cfield(id, label, control) {
+  return '<div class="inv-field"><label class="inv-field-label" for="' + id + '">' + label + '</label>' + control + '</div>';
+}
+function _cinput(id, value, cls, extra) {
+  return '<input class="inv-input' + (cls ? ' ' + cls : '') + '" id="' + id + '" value="' + escHtml(value == null ? '' : value) + '"' + (extra || '') + '>';
+}
+
+/* A card on the client (rates, piece rates, piece weights): its rows, then the form that adds to it. */
+function _clientCardHtml(title, count, rowsHtml, bodyHtml, id) {
+  return '<div class="inv-panel inv-panel-flush">' +
+    '<div class="inv-panel-head"><span class="inv-panel-title">' + title + (count != null ? ' <span class="inv-panel-count">' + count + '</span>' : '') + '</span></div>' +
+    '<div' + (id ? ' id="' + id + '"' : '') + '>' + rowsHtml + '</div>' + bodyHtml + '</div>';
+}
+
+/* A dated entry on a card: what (mono), the figure, the date it applies from, and a remove button. */
+function _cardRowHtml(what, figure, date, removeAttrs) {
+  return '<div class="inv-row inv-row-2">' +
+    '<span class="inv-row-main"><span class="inv-row-title inv-row-wrap">' + what + '</span>' +
+    '<span class="inv-row-meta inv-id">' + (date ? 'from ' + escHtml(date) : '') + '</span></span>' +
+    '<span class="inv-row-end"><span class="inv-num">' + figure + '</span>' +
+    (removeAttrs ? '<button class="inv-btn inv-btn-icon inv-btn-ghost inv-btn-sm"' + removeAttrs + '>&times;</button>' : '') + '</span></div>';
+}
+
 function _showClientOverlay(client, isAdd) {
   const c = client || _blankClient();
+  const opt = (v, cur, l) => '<option value="' + v + '"' + (cur === v ? ' selected' : '') + '>' + l + '</option>';
+  let rates = '';
+  if (!isAdd) {
+    rates = _clientCardHtml('Rate history', (c.rates || []).length,
+      _clientRateRowsHtml(c) ||
+        '<div class="inv-empty">No rate on record</div>',
+      '<div class="inv-panel-body">' + _clientRateFieldsHtml(false) +
+      '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invAddRate" data-client="' + c.id + '">Add rate</button></div>', 'ceditRates');
+  }
   const scrim = document.createElement('div');
   scrim.className = 'inv-overlay-scrim';
   scrim.innerHTML = '<div class="inv-overlay-card">' +
-    '<div class="inv-overlay-header"><span class="inv-overlay-title">' + (isAdd ? 'Add Client' : 'Edit Client') + '</span>' +
-    '<button class="inv-overlay-close" data-action="invCloseOverlay">&times;</button></div>' +
+    '<div class="inv-overlay-header"><span class="inv-overlay-title">' + (isAdd ? 'Add client' : 'Edit client') + '</span>' +
+    '<button class="inv-overlay-close" data-action="invCloseOverlay" aria-label="Close">&times;</button></div>' +
     (isAdd ? '' : finClientMoneyHtml(c.id)) +
-    '<div class="inv-form-group"><label class="inv-form-label">Name</label><input class="inv-form-input" id="ceditName" value="' + escHtml(c.name) + '"></div>' +
-    '<div class="inv-form-group"><label class="inv-form-label">GSTIN</label><input class="inv-form-input inv-mono" id="ceditGstin" value="' + escHtml(c.gstin) + '" maxlength="15"></div>' +
-    '<div class="inv-form-row"><div class="inv-form-group"><label class="inv-form-label">State</label><input class="inv-form-input" id="ceditState" value="' + escHtml(c.state) + '"></div>' +
-    '<div class="inv-form-group"><label class="inv-form-label">State Code</label><input class="inv-form-input inv-mono" id="ceditStateCode" value="' + escHtml(c.stateCode) + '" maxlength="2"></div></div>' +
-    '<div class="inv-form-group"><label class="inv-form-label">Address 1</label><input class="inv-form-input" id="ceditAdd1" value="' + escHtml(c.add1) + '"></div>' +
-    '<div class="inv-form-group"><label class="inv-form-label">Address 2</label><input class="inv-form-input" id="ceditAdd2" value="' + escHtml(c.add2) + '"></div>' +
-    '<div class="inv-form-group"><label class="inv-form-label">Address 3</label><input class="inv-form-input" id="ceditAdd3" value="' + escHtml(c.add3) + '"></div>' +
-    '<div class="inv-form-row"><div class="inv-form-group"><label class="inv-form-label">Mobile</label><input class="inv-form-input inv-mono" id="ceditMobile" type="tel" value="' + escHtml(c.mobile || '') + '"></div>' +
-    '<div class="inv-form-group"><label class="inv-form-label">Phone</label><input class="inv-form-input inv-mono" id="ceditPhone" type="tel" value="' + escHtml(c.phone || '') + '"></div></div>' +
-    '<div class="inv-form-group"><label class="inv-form-label">Email</label><input class="inv-form-input" id="ceditEmail" type="email" value="' + escHtml(c.email || '') + '"></div>' +
-    '<div class="inv-form-row"><div class="inv-form-group"><label class="inv-form-label">Billing Mode</label><select class="inv-form-select" id="ceditMode">' +
-    '<option value="weight"' + (c.billingMode==='weight'?' selected':'') + '>Weight (KG)</option>' +
-    '<option value="piece"' + (c.billingMode==='piece'?' selected':'') + '>Piece (Challan)</option>' +
-    '<option value="nos_to_weight"' + (c.billingMode==='nos_to_weight'?' selected':'') + '>NOS to Weight</option></select></div>' +
-    '<div class="inv-form-group"><label class="inv-form-label">GST Type</label><select class="inv-form-select" id="ceditGstType">' +
-    '<option value="intra"' + (c.gstType==='intra'?' selected':'') + '>Intra (CGST+SGST)</option>' +
-    '<option value="inter"' + (c.gstType==='inter'?' selected':'') + '>Inter (IGST)</option></select></div></div>' +
-    '<div class="inv-form-group"><label class="inv-form-label">Notes</label><textarea class="inv-form-input" id="ceditNotes" rows="2">' + escHtml(c.notes) + '</textarea></div>' +
-    '<div class="inv-settings-title">' + (isAdd ? 'Opening Rate' : 'Rate History') + '</div>' +
-    (isAdd ? '' : '<div id="ceditRates">' + (c.rates||[]).map((r,i) => '<div class="inv-rate-row"><span class="inv-mono">\u20B9' + escHtml(r.ratePerKg) + '/kg</span><span class="inv-text-muted inv-mono">' + escHtml(r.effectiveFrom) + '</span></div>').join('') + '</div>') +
-    '<div class="inv-form-row inv-mb-8"><div class="inv-form-group"><label class="inv-form-label">' + (isAdd ? 'Rate/KG' : 'New Rate/KG') + '</label><input class="inv-form-input inv-mono" id="ceditNewRate" type="number" step="0.01" placeholder="14.25"></div>' +
-    '<div class="inv-form-group"><label class="inv-form-label">Effective From</label><input class="inv-form-input inv-mono" id="ceditNewRateDate" type="date" value="' + localDateStr() + '"></div></div>' +
-    (isAdd ? '' : '<button class="inv-btn inv-btn-ghost inv-btn-sm inv-mb-16" data-action="invAddRate" data-client="' + c.id + '">Add Rate</button>') +
-    (isAdd ? '' : _pieceRatesEditHtml(c)) +
-    (isAdd ? '' : _pieceWeightsEditHtml(c)) +
-    '<div class="inv-flex-between inv-mb-16"><label class="inv-checkbox-label">' +
-    '<input type="checkbox" id="ceditActive"' + (c.isActive?' checked':'') + '> Active</label></div>' +
-    '<div class="inv-btn-bar"><button class="inv-btn inv-btn-ghost" data-action="invCloseOverlay">Cancel</button>' +
-    '<button class="inv-btn inv-btn-primary" data-action="invSaveClient" data-client="' + c.id + '" data-mode="' + (isAdd ? 'add' : 'edit') + '">' + (isAdd ? 'Add Client' : 'Save') + '</button></div></div>';
+    _cfield('ceditName', 'Name', _cinput('ceditName', c.name)) +
+    '<div class="inv-fields">' +
+    _cfield('ceditGstin', 'GSTIN', _cinput('ceditGstin', c.gstin, 'inv-id', ' maxlength="15"')) +
+    _cfield('ceditState', 'State', _cinput('ceditState', c.state)) +
+    _cfield('ceditStateCode', 'State code', _cinput('ceditStateCode', c.stateCode, 'inv-id', ' maxlength="2"')) +
+    '</div>' +
+    _cfield('ceditAdd1', 'Address 1', _cinput('ceditAdd1', c.add1)) +
+    _cfield('ceditAdd2', 'Address 2', _cinput('ceditAdd2', c.add2)) +
+    _cfield('ceditAdd3', 'Address 3', _cinput('ceditAdd3', c.add3)) +
+    '<div class="inv-fields">' +
+    _cfield('ceditMobile', 'Mobile', _cinput('ceditMobile', c.mobile || '', 'inv-id', ' type="tel"')) +
+    _cfield('ceditPhone', 'Phone', _cinput('ceditPhone', c.phone || '', 'inv-id', ' type="tel"')) +
+    _cfield('ceditEmail', 'Email', _cinput('ceditEmail', c.email || '', '', ' type="email"')) +
+    '</div>' +
+    '<div class="inv-fields">' +
+    _cfield('ceditMode', 'Billing mode', '<select class="inv-select" id="ceditMode">' +
+      opt('weight', c.billingMode, 'Weight (KG)') + opt('piece', c.billingMode, 'Piece (challan)') + opt('nos_to_weight', c.billingMode, 'NOS to weight') + '</select>') +
+    _cfield('ceditGstType', 'GST type', '<select class="inv-select" id="ceditGstType">' +
+      opt('intra', c.gstType, 'Intra (CGST+SGST)') + opt('inter', c.gstType, 'Inter (IGST)') + '</select>') +
+    '</div>' +
+    _cfield('ceditNotes', 'Notes', '<textarea class="inv-textarea" id="ceditNotes" rows="2">' + escHtml(c.notes) + '</textarea>') +
+    '<label class="inv-field inv-toolbar"><input type="checkbox" class="inv-check" id="ceditActive"' + (c.isActive ? ' checked' : '') + '> Active</label>' +
+    // A new client takes an optional opening rate; an existing one keeps its dated cards.
+    (isAdd ? _clientCardHtml('Opening rate', null, '', '<div class="inv-panel-body">' + _clientRateFieldsHtml(true) + '</div>')
+      : rates + _pieceRatesEditHtml(c) + _pieceWeightsEditHtml(c)) +
+    '<div class="inv-btn-bar"><button class="inv-btn inv-btn-secondary" data-action="invCloseOverlay">Cancel</button>' +
+    '<button class="inv-btn inv-btn-primary" data-action="invSaveClient" data-client="' + c.id + '" data-mode="' + (isAdd ? 'add' : 'edit') + '">' + (isAdd ? 'Add client' : 'Save') + '</button></div></div>';
   scrim.addEventListener('click', e => { if (e.target === scrim) { scrim.remove(); document.body.style.overflow = ''; popFocus(); } });
   pushFocus();
   document.body.appendChild(scrim);
   document.body.style.overflow = 'hidden';
   focusFirstInteractive(scrim.querySelector('.inv-overlay-card'));
+}
+
+/* The ₹/kg ladder, newest first; the rate in force today says so. */
+function _clientRateRowsHtml(c) {
+  var now = _clientRateNow(c);
+  return (c.rates || []).slice().sort(function(a, b) { return b.effectiveFrom.localeCompare(a.effectiveFrom); }).map(function(r) {
+    var cur = now && r.effectiveFrom === now.effectiveFrom && r.ratePerKg === now.ratePerKg;
+    return '<div class="inv-row"><span class="inv-row-main inv-id">from ' + escHtml(r.effectiveFrom) + '</span>' +
+      '<span class="inv-row-end">' + (cur ? '<span class="inv-dot inv-dot-ok">Current</span>' : '') +
+      '<span class="inv-num">' + formatCurrency(r.ratePerKg) + '/kg</span></span></div>';
+  }).join('');
+}
+
+function _clientRateFieldsHtml(isAdd) {
+  return '<div class="inv-fields">' +
+    _cfield('ceditNewRate', isAdd ? 'Rate per kg' : 'New rate per kg', '<input class="inv-input inv-input-num" id="ceditNewRate" type="number" step="0.01" placeholder="14.25">') +
+    _cfield('ceditNewRateDate', 'Effective from', '<input class="inv-input inv-id" id="ceditNewRateDate" type="date" value="' + localDateStr() + '">') +
+    '</div>';
 }
 
 /* Reads the overlay form into a plain object. Returns null on validation failure
@@ -226,154 +303,79 @@ function closeTopOverlay() {
   }
 }
 
-/* ===== CLIENT DETAIL PANEL (Phase 8E) ===== */
+/* ===== CLIENT DETAIL PANE (desktop) =====
+   The client's particulars, its Money panel, then its cards as rows under group heads, and the
+   last five invoices. One primary: Edit. */
 function _renderClientDetail(clientId, skipMasterRefresh) {
-  var c = S.clients.find(function(x) { return x.id === clientId; });
+  var focusKey = skipMasterRefresh ? null : _clientsFocusKey();
+  var c = clientId != null ? S.clients.find(function(x) { return x.id === clientId; }) : null;
+  _clientsActiveId = c ? clientId : null;
   if (!c) {
-    _clientsActiveId = null;
-    var detail = document.getElementById('clientsDetail');
-    if (detail) detail.innerHTML = _renderDetailEmpty();
-    if (!skipMasterRefresh) {
-      var searchEl = document.getElementById('clientSearch');
-      renderClientList(searchEl ? searchEl.value : '');
+    _clientsPaneShow('', '');
+  } else {
+    var kv = function(k, v, wide) { return '<div' + (wide ? ' class="inv-kv-wide"' : '') + '><div class="inv-kv-k">' + k + '</div><div>' + v + '</div></div>'; };
+    var address = [c.add1, c.add2, c.add3].filter(function(a) { return a; });
+    var html = '<div>' + _clientStatusDot(c) + '</div><div class="inv-kv">' +
+      (c.gstin ? kv('GSTIN', '<span class="inv-id">' + escHtml(c.gstin) + '</span>', true) : '') +
+      (c.state || c.stateCode ? kv('State', escHtml(c.state || '') + (c.stateCode ? ' <span class="inv-id">(' + escHtml(c.stateCode) + ')</span>' : '')) : '') +
+      kv('Billing mode', escHtml(CLIENT_MODE_LABEL[c.billingMode] || c.billingMode)) +
+      kv('GST type', escHtml(c.gstType === 'inter' ? 'Inter-state (IGST)' : 'Intra-state (CGST+SGST)'), true) +
+      (address.length ? kv('Address', address.map(function(a) { return escHtml(a); }).join('<br>'), true) : '') +
+      (c.notes ? kv('Notes', escHtml(c.notes), true) : '') +
+      '</div>';
+
+    html += finClientMoneyHtml(c.id);
+
+    var group = function(title, n) { return '<div class="inv-row-group"><span>' + title + ' · ' + n + '</span></div>'; };
+    var cards = '';
+    if ((c.rates || []).length) cards += group('Rate history', c.rates.length) + _clientRateRowsHtml(c);
+    if (c.itemRates && c.itemRates.length) {
+      cards += group('Item rate overrides', c.itemRates.length) + c.itemRates.map(function(ir) {
+        return '<div class="inv-row inv-row-2"><span class="inv-row-main"><span class="inv-row-title inv-id">' + escHtml(ir.partPattern) + '</span>' +
+          (ir.label ? '<span class="inv-row-meta">' + escHtml(ir.label) + '</span>' : '') + '</span>' +
+          '<span class="inv-row-end inv-num">' + formatCurrency(ir.rate) + '/' + escHtml(ir.unit || 'kg') + '</span></div>';
+      }).join('');
     }
-    return;
+    if (c.pieceRates && c.pieceRates.length) {
+      cards += group('Piece rates', c.pieceRates.length) + _sortedPieceRates(c).map(function(pr) {
+        return _cardRowHtml(_partGaugeHtml(pr), formatCurrency(pr.rate) + '/pc', pr.effectiveFrom, '');
+      }).join('');
+    }
+    if (c.pieceWeights && c.pieceWeights.length) {
+      cards += group('Piece weights', c.pieceWeights.length) + _sortedCard(c.pieceWeights).map(function(pw) {
+        return _cardRowHtml(_partGaugeHtml(pw), escHtml(pw.kgPerPiece) + ' kg/pc', pw.effectiveFrom, '');
+      }).join('');
+    }
+    var recent = (S.invoices || []).filter(function(i) { return i.clientId === c.id; })
+      .sort(function(a, b) { return (b.date || '').localeCompare(a.date || ''); }).slice(0, 5);
+    if (recent.length) {
+      cards += '<div class="inv-row-group"><span>Recent invoices</span></div>' + recent.map(function(inv) {
+        return '<button class="inv-row inv-row-2' + (inv.status === 'cancelled' ? ' inv-row-muted' : '') + '" data-action="invViewInvoiceDetail" data-id="' + escHtml(inv.id) + '">' +
+          '<span class="inv-row-main"><span class="inv-row-title inv-id">' + escHtml(inv.displayNumber) + '</span>' +
+          '<span class="inv-row-meta inv-id">' + escHtml(formatDate(inv.date)) + '</span></span>' +
+          '<span class="inv-row-end inv-num">' + formatCurrency(inv.grandTotal) + '</span></button>';
+      }).join('');
+    }
+    if (cards) html += '<div class="inv-panel inv-panel-flush">' + cards + '</div>';
+
+    html += '<div class="inv-toolbar">' +
+      '<button class="inv-btn inv-btn-primary" data-action="invEditClient" data-id="' + c.id + '">Edit</button>' +
+      '<button class="inv-btn inv-btn-secondary" data-action="invStatsJumpRegister" data-client-id="' + c.id + '">View in register</button>' +
+      '</div>';
+    _clientsPaneShow('<span class="inv-panel-title">' + escHtml(c.name) + '</span>', html);
   }
 
-  _clientsActiveId = clientId;
-
-  var html = '';
-
-  // Header
-  html += '<div class="inv-detail-section">' +
-    '<div class="inv-detail-client-header">' +
-    '<span class="inv-detail-client-name">' + escHtml(c.name) + '</span>' +
-    '<span class="inv-client-badge ' + (c.isActive ? 'inv-badge-active' : 'inv-badge-inactive') + '">' +
-    (c.isActive ? 'Active' : 'Inactive') + '</span></div></div>';
-
-  // Info section
-  html += '<div class="inv-detail-section">';
-  if (c.gstin) {
-    html += '<div class="inv-detail-label">GSTIN</div>' +
-      '<div class="inv-detail-value-mono">' + escHtml(c.gstin) + '</div>';
-  }
-  if (c.state || c.stateCode) {
-    html += '<div class="inv-detail-label">State</div>' +
-      '<div class="inv-detail-value">' + escHtml(c.state || '') +
-      (c.stateCode ? ' <span class="inv-detail-value-mono">(' + escHtml(c.stateCode) + ')</span>' : '') + '</div>';
-  }
-  var address = [c.add1, c.add2, c.add3].filter(function(a) { return a; });
-  if (address.length > 0) {
-    html += '<div class="inv-detail-label">Address</div>' +
-      '<div class="inv-detail-value">' + address.map(function(a) { return escHtml(a); }).join('<br>') + '</div>';
-  }
-  html += '<div class="inv-detail-label">Billing Mode</div>' +
-    '<div class="inv-detail-value">' + escHtml(c.billingMode) + '</div>';
-  html += '<div class="inv-detail-label">GST Type</div>' +
-    '<div class="inv-detail-value">' + escHtml(c.gstType === 'inter' ? 'Inter-state (IGST)' : 'Intra-state (CGST+SGST)') + '</div>';
-  if (c.notes) {
-    html += '<div class="inv-detail-label">Notes</div>' +
-      '<div class="inv-detail-value">' + escHtml(c.notes) + '</div>';
-  }
-  html += '</div>';
-
-  html += finClientMoneyHtml(c.id);
-
-  // Rate History
-  var sortedRates = (c.rates || []).slice().sort(function(a, b) {
-    return b.effectiveFrom.localeCompare(a.effectiveFrom);
-  });
-  if (sortedRates.length > 0) {
-    var today = localDateStr();
-    var currentRate = sortedRates.find(function(r) { return r.effectiveFrom <= today; });
-    html += '<div class="inv-detail-section">' +
-      '<div class="inv-detail-label">Rate History</div>';
-    sortedRates.forEach(function(r) {
-      var isCurrent = currentRate && r.effectiveFrom === currentRate.effectiveFrom;
-      html += '<div class="inv-detail-rate-row' + (isCurrent ? ' inv-detail-rate-current' : '') + '">' +
-        '<span class="inv-detail-value-mono">' + formatCurrency(r.ratePerKg) + '/kg</span>' +
-        '<span class="inv-detail-value-mono inv-text-muted">' + escHtml(r.effectiveFrom) + '</span>' +
-        (isCurrent ? '<span class="inv-client-badge inv-badge-active">Current</span>' : '') +
-        '</div>';
-    });
-    html += '</div>';
-  }
-
-  // Item Rate Overrides
-  if (c.itemRates && c.itemRates.length > 0) {
-    html += '<div class="inv-detail-section">' +
-      '<div class="inv-detail-label">Item Rate Overrides</div>';
-    c.itemRates.forEach(function(ir) {
-      html += '<div class="inv-detail-rate-row">' +
-        '<span class="inv-detail-value-mono">' + escHtml(ir.partPattern) + '</span>' +
-        '<span class="inv-detail-value-mono">' + formatCurrency(ir.rate) + '/' + escHtml(ir.unit || 'kg') + '</span>' +
-        (ir.label ? '<span class="inv-text-muted">' + escHtml(ir.label) + '</span>' : '') +
-        '</div>';
-    });
-    html += '</div>';
-  }
-
-  // Piece rates on record
-  if (c.pieceRates && c.pieceRates.length > 0) {
-    html += '<div class="inv-detail-section">' +
-      '<div class="inv-detail-label">Piece Rates</div>';
-    _sortedPieceRates(c).forEach(function(pr) {
-      html += '<div class="inv-detail-rate-row">' +
-        '<span class="inv-detail-value-mono">' + escHtml(pr.partNumber) + (pr.gauge ? ' \u00B7 ' + escHtml(pr.gauge) : '') + '</span>' +
-        '<span class="inv-detail-value-mono">' + formatCurrency(pr.rate) + '/pc</span>' +
-        '<span class="inv-detail-value-mono inv-text-muted">' + escHtml(pr.effectiveFrom || '') + '</span>' +
-        '</div>';
-    });
-    html += '</div>';
-  }
-
-  // Piece weights on record
-  if (c.pieceWeights && c.pieceWeights.length > 0) {
-    html += '<div class="inv-detail-section">' +
-      '<div class="inv-detail-label">Piece Weights</div>';
-    _sortedCard(c.pieceWeights).forEach(function(pw) {
-      html += '<div class="inv-detail-rate-row">' +
-        '<span class="inv-detail-value-mono">' + escHtml(pw.partNumber) + (pw.gauge ? ' \u00B7 ' + escHtml(pw.gauge) : '') + '</span>' +
-        '<span class="inv-detail-value-mono">' + escHtml(pw.kgPerPiece) + ' kg/pc</span>' +
-        '<span class="inv-detail-value-mono inv-text-muted">' + escHtml(pw.effectiveFrom || '') + '</span>' +
-        '</div>';
-    });
-    html += '</div>';
-  }
-
-  // Recent Invoices
-  var clientInvoices = (S.invoices || []).filter(function(i) { return i.clientId === c.id; })
-    .sort(function(a, b) { return (b.date || '').localeCompare(a.date || ''); })
-    .slice(0, 5);
-  if (clientInvoices.length > 0) {
-    html += '<div class="inv-detail-section">' +
-      '<div class="inv-detail-label">Recent Invoices</div>';
-    clientInvoices.forEach(function(inv) {
-      html += '<div class="inv-detail-invoice-row" data-action="invViewInvoiceDetail" data-id="' + escHtml(inv.id) + '">' +
-        '<span class="inv-detail-value-mono">' + escHtml(inv.displayNumber) + '</span>' +
-        '<span class="inv-detail-value-mono inv-text-muted">' + formatDate(inv.date) + '</span>' +
-        '<span class="inv-detail-value-mono inv-text-cost">' + formatCurrency(inv.grandTotal) + '</span>' +
-        '</div>';
-    });
-    html += '</div>';
-  }
-
-  // Action buttons
-  html += '<div class="inv-detail-actions">' +
-    '<button class="inv-btn inv-btn-primary" data-action="invEditClient" data-id="' + c.id + '">Edit</button>' +
-    '<button class="inv-btn inv-btn-ghost" data-action="invStatsJumpRegister" data-client-id="' + c.id + '">View in Register</button>' +
-    '</div>';
-
-  var detailEl = document.getElementById('clientsDetail');
-  if (detailEl) detailEl.innerHTML = html;
-
-  // Update master to show active card highlight
   if (!skipMasterRefresh) {
     var searchEl = document.getElementById('clientSearch');
     renderClientList(searchEl ? searchEl.value : '');
+    _clientsRestoreFocus(focusKey);
   }
 }
 
+/* A card entry's part, with its gauge when it has one. */
+function _partGaugeHtml(e) {
+  return '<span class="inv-id">' + escHtml(e.partNumber) + '</span>' + (e.gauge ? ' · <span class="inv-id">' + escHtml(e.gauge) + '</span>' : '');
+}
 
 
 /* ===== PIECE RATE CARD =====
@@ -396,54 +398,47 @@ function _sortedCard(list) {
 function _pieceRatesEditHtml(c) {
   // Every client: a weight-billed client can still send a part billed per piece
   // (Parakh's ROLLER), and the matcher tells the operator to add it here.
-  var html = '<div class="inv-settings-title">Piece Rates</div>';
-  var rows = _sortedPieceRates(c);
-  if (rows.length === 0) {
-    html += '<div class="inv-text-muted inv-piece-empty">No piece rates on record. Fill them from what has been billed, or add one below.</div>';
-  }
-  html += '<div id="ceditPieceRates">';
-  rows.forEach(function(pr) {
-    html += '<div class="inv-rate-row inv-piece-row">' +
-      '<span class="inv-mono">' + escHtml(pr.partNumber) + (pr.gauge ? ' · ' + escHtml(pr.gauge) : '') + '</span>' +
-      '<span class="inv-mono">' + formatCurrency(pr.rate) + '/pc</span>' +
-      '<span class="inv-text-muted inv-mono">' + escHtml(pr.effectiveFrom || '') + '</span>' +
-      '<button class="inv-line-remove" data-action="invRemovePieceRate" data-client="' + c.id + '" data-idx="' + pr._i + '" aria-label="Remove piece rate">&times;</button>' +
-      '</div>';
+  var rows = _sortedPieceRates(c).map(function(pr) {
+    return _cardRowHtml(_partGaugeHtml(pr), formatCurrency(pr.rate) + '/pc', pr.effectiveFrom,
+      ' data-action="invRemovePieceRate" data-client="' + c.id + '" data-idx="' + pr._i + '" aria-label="Remove piece rate"');
+  }).join('') || '<div class="inv-empty">No piece rates on record. Fill them from what has been billed, or add one below.</div>';
+  var body = (_pieceFillReport && _pieceFillReport.clientId === c.id ? _pieceFillReportHtml(_pieceFillReport) : '') +
+    '<div class="inv-panel-body"><div class="inv-fields">' +
+    _cfield('ceditPiecePart', 'Part', '<input class="inv-input inv-id" id="ceditPiecePart" placeholder="CLAMP 165X83 (NT)">') +
+    _cfield('ceditPieceGauge', 'Gauge', '<input class="inv-input inv-id" id="ceditPieceGauge" placeholder="40X6">') +
+    _cfield('ceditPieceRate', 'Rate per piece', '<input class="inv-input inv-input-num" id="ceditPieceRate" type="number" step="0.01" min="0">') +
+    _cfield('ceditPieceDate', 'Effective from', '<input class="inv-input inv-id" id="ceditPieceDate" type="date" value="' + localDateStr() + '">') +
+    '</div><div class="inv-toolbar inv-toolbar-tight">' +
+    '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invFillPieceRates" data-client="' + c.id + '">Fill from billing history</button>' +
+    '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invAddPieceRate" data-client="' + c.id + '">Add piece rate</button></div></div>';
+  return _clientCardHtml('Piece rates', (c.pieceRates || []).length, rows, body, 'ceditPieceRates');
+}
+
+/* What a fill from billing history did, and what it left out and why: a summary, then each part it
+   would not guess at, as rows under the reason. */
+function _fillReportHtml(summary, groups) {
+  var html = '<div class="inv-panel-body"><div class="inv-callout inv-callout-' + (groups.some(function(g) { return g.rows.length; }) ? 'warning' : 'info') + '">' + summary + '</div></div>';
+  groups.forEach(function(g) {
+    if (!g.rows.length) return;
+    html += '<div class="inv-row-group"><span>' + g.title + '</span></div>' + g.rows.map(function(r) {
+      return '<div class="inv-row inv-row-auto"><span class="inv-row-main"><span class="inv-row-title inv-row-wrap">' + r[0] + '</span>' +
+        '<span class="inv-row-meta inv-row-wrap">' + r[1] + '</span></span></div>';
+    }).join('');
   });
-  html += '</div>';
-  if (_pieceFillReport && _pieceFillReport.clientId === c.id) html += _pieceFillReportHtml(_pieceFillReport);
-  html += '<div class="inv-form-row"><div class="inv-form-group"><label class="inv-form-label">Part</label><input class="inv-form-input inv-mono" id="ceditPiecePart" placeholder="CLAMP 165X83 (NT)"></div>' +
-    '<div class="inv-form-group"><label class="inv-form-label">Gauge</label><input class="inv-form-input inv-mono" id="ceditPieceGauge" placeholder="40X6"></div></div>' +
-    '<div class="inv-form-row"><div class="inv-form-group"><label class="inv-form-label">Rate/piece</label><input class="inv-form-input inv-mono" id="ceditPieceRate" type="number" step="0.01" min="0"></div>' +
-    '<div class="inv-form-group"><label class="inv-form-label">Effective From</label><input class="inv-form-input inv-mono" id="ceditPieceDate" type="date" value="' + localDateStr() + '"></div></div>' +
-    '<div class="inv-btn-bar inv-mb-16">' +
-    '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invFillPieceRates" data-client="' + c.id + '">Fill from billing history</button>' +
-    '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invAddPieceRate" data-client="' + c.id + '">Add Piece Rate</button></div>';
   return html;
 }
 
 function _pieceFillReportHtml(r) {
-  var html = '<div class="inv-piece-report">' +
-    '<div>' + r.added + ' rate' + (r.added === 1 ? '' : 's') + ' added from ' + r.lines + ' billed line' + (r.lines === 1 ? '' : 's') +
-    (r.skippedExisting ? ' · ' + r.skippedExisting + ' part' + (r.skippedExisting === 1 ? '' : 's') + ' already on the card, left alone' : '') + '</div>';
-  if (r.mixed.length) {
-    html += '<div class="inv-piece-report-warn">Left out \u2014 billed at alternating rates, most likely two gauges under one name. Add these by hand, with the gauge:</div><ul class="inv-piece-report-list">';
-    r.mixed.forEach(function(m) {
-      html += '<li class="inv-mono">' + escHtml(m.partNumber) + (m.gauge ? ' \u00B7 ' + escHtml(m.gauge) : '') + ': ' +
-        m.rates.map(function(x) { return formatCurrency(x); }).join(' / ') + '</li>';
-    });
-    html += '</ul>';
-  }
-  if (r.outliers.length) {
-    html += '<div class="inv-piece-report-warn">Left out — a rate billed on one invoice only. Check these against the customer’s rate card:</div><ul class="inv-piece-report-list">';
-    r.outliers.forEach(function(o) {
-      html += '<li class="inv-mono">' + escHtml(o.partNumber) + (o.gauge ? ' · ' + escHtml(o.gauge) : '') + ' at ' + formatCurrency(o.rate) +
-        ' on ' + escHtml(o.invoiceNumber) + ' (' + escHtml(o.date) + ')' +
-        (o.usual != null && o.usual !== o.rate ? '; elsewhere ' + formatCurrency(o.usual) : '; no rate seen twice') + '</li>';
-    });
-    html += '</ul>';
-  }
-  return html + '</div>';
+  return _fillReportHtml(
+    r.added + ' rate' + (r.added === 1 ? '' : 's') + ' added from ' + r.lines + ' billed line' + (r.lines === 1 ? '' : 's') +
+    (r.skippedExisting ? ' · ' + r.skippedExisting + ' part' + (r.skippedExisting === 1 ? '' : 's') + ' already on the card, left alone' : ''),
+    [{ title: 'Left out — billed at alternating rates, most likely two gauges under one name. Add these by hand, with the gauge:',
+       rows: r.mixed.map(function(m) { return [_partGaugeHtml(m), m.rates.map(function(x) { return formatCurrency(x); }).join(' / ')]; }) },
+     { title: 'Left out — a rate billed on one invoice only. Check these against the customer’s rate card:',
+       rows: r.outliers.map(function(o) {
+         return [_partGaugeHtml(o), 'at ' + formatCurrency(o.rate) + ' on ' + escHtml(o.invoiceNumber) + ' (' + escHtml(o.date) + ')' +
+           (o.usual != null && o.usual !== o.rate ? '; elsewhere ' + formatCurrency(o.usual) : '; no rate seen twice')];
+       }) }]);
 }
 
 /* Derive a dated piece-rate card from what this client has actually been billed.
@@ -573,46 +568,29 @@ function _reopenClientAfterRateChange(clientId) {
 var _weightFillReport = null;
 
 function _pieceWeightsEditHtml(c) {
-  var html = '<div class="inv-settings-title">Piece Weights</div>';
-  var rows = _sortedCard(c.pieceWeights);
-  if (rows.length === 0) {
-    html += '<div class="inv-text-muted inv-piece-empty">No piece weights on record. For a client billed by the kilo whose challans also count pieces, fill them from what has been billed.</div>';
-  }
-  html += '<div id="ceditPieceWeights">';
-  rows.forEach(function(pw) {
-    html += '<div class="inv-rate-row inv-piece-row">' +
-      '<span class="inv-mono">' + escHtml(pw.partNumber) + (pw.gauge ? ' · ' + escHtml(pw.gauge) : '') + '</span>' +
-      '<span class="inv-mono">' + escHtml(pw.kgPerPiece) + ' kg/pc</span>' +
-      '<span class="inv-text-muted inv-mono">' + escHtml(pw.effectiveFrom || '') + '</span>' +
-      '<button class="inv-line-remove" data-action="invRemovePieceWeight" data-client="' + c.id + '" data-idx="' + pw._i + '" aria-label="Remove piece weight">&times;</button>' +
-      '</div>';
-  });
-  html += '</div>';
-  if (_weightFillReport && _weightFillReport.clientId === c.id) html += _weightFillReportHtml(_weightFillReport);
-  html += '<div class="inv-form-row"><div class="inv-form-group"><label class="inv-form-label" for="ceditWtPart">Part</label><input class="inv-form-input inv-mono" id="ceditWtPart" placeholder="2525 2015 8202"></div>' +
-    '<div class="inv-form-group"><label class="inv-form-label" for="ceditWtGauge">Gauge</label><input class="inv-form-input inv-mono" id="ceditWtGauge" placeholder="(if any)"></div></div>' +
-    '<div class="inv-form-row"><div class="inv-form-group"><label class="inv-form-label" for="ceditWtKg">kg per piece</label><input class="inv-form-input inv-mono" id="ceditWtKg" type="number" step="0.0001" min="0"></div>' +
-    '<div class="inv-form-group"><label class="inv-form-label" for="ceditWtDate">Effective From</label><input class="inv-form-input inv-mono" id="ceditWtDate" type="date" value="' + localDateStr() + '"></div></div>' +
-    '<div class="inv-btn-bar inv-mb-16">' +
-    '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invFillPieceWeights" data-client="' + c.id + '">Fill from billing history</button>' +
-    '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invAddPieceWeight" data-client="' + c.id + '">Add Piece Weight</button></div>';
-  return html;
+  var rows = _sortedCard(c.pieceWeights).map(function(pw) {
+    return _cardRowHtml(_partGaugeHtml(pw), escHtml(pw.kgPerPiece) + ' kg/pc', pw.effectiveFrom,
+      ' data-action="invRemovePieceWeight" data-client="' + c.id + '" data-idx="' + pw._i + '" aria-label="Remove piece weight"');
+  }).join('') || '<div class="inv-empty">No piece weights on record. For a client billed by the kilo whose challans also count pieces, fill them from what has been billed.</div>';
+  var body = (_weightFillReport && _weightFillReport.clientId === c.id ? _weightFillReportHtml(_weightFillReport) : '') +
+    '<div class="inv-panel-body"><div class="inv-fields">' +
+    _cfield('ceditWtPart', 'Part', '<input class="inv-input inv-id" id="ceditWtPart" placeholder="2525 2015 8202">') +
+    _cfield('ceditWtGauge', 'Gauge', '<input class="inv-input inv-id" id="ceditWtGauge" placeholder="(if any)">') +
+    _cfield('ceditWtKg', 'kg per piece', '<input class="inv-input inv-input-num" id="ceditWtKg" type="number" step="0.0001" min="0">') +
+    _cfield('ceditWtDate', 'Effective from', '<input class="inv-input inv-id" id="ceditWtDate" type="date" value="' + localDateStr() + '">') +
+    '</div><div class="inv-toolbar inv-toolbar-tight">' +
+    '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invFillPieceWeights" data-client="' + c.id + '">Fill from billing history</button>' +
+    '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invAddPieceWeight" data-client="' + c.id + '">Add piece weight</button></div></div>';
+  return _clientCardHtml('Piece weights', (c.pieceWeights || []).length, rows, body, 'ceditPieceWeights');
 }
 
 function _weightFillReportHtml(r) {
-  var html = '<div class="inv-piece-report">' +
-    '<div>' + r.added + ' weight' + (r.added === 1 ? '' : 's') + ' added from ' + r.lines + ' weighed line' + (r.lines === 1 ? '' : 's') +
+  return _fillReportHtml(
+    r.added + ' weight' + (r.added === 1 ? '' : 's') + ' added from ' + r.lines + ' weighed line' + (r.lines === 1 ? '' : 's') +
     (r.skippedExisting ? ' · ' + r.skippedExisting + ' part' + (r.skippedExisting === 1 ? '' : 's') + ' already on the card, left alone' : '') +
-    (r.single ? ' · ' + r.single + ' part' + (r.single === 1 ? '' : 's') + ' seen on one invoice only, not enough to set a weight' : '') + '</div>';
-  if (r.mixed.length) {
-    html += '<div class="inv-piece-report-warn">Left out — weights spread too far for one part, most likely two sizes under one name. Add these by hand, with the size in the name or gauge:</div><ul class="inv-piece-report-list">';
-    r.mixed.forEach(function(m) {
-      html += '<li class="inv-mono">' + escHtml(m.partNumber) + (m.gauge ? ' · ' + escHtml(m.gauge) : '') + ': ' +
-        m.lines + ' lines, ' + m.far + ' more than 10% from the middle (' + m.median + ' kg/pc)</li>';
-    });
-    html += '</ul>';
-  }
-  return html + '</div>';
+    (r.single ? ' · ' + r.single + ' part' + (r.single === 1 ? '' : 's') + ' seen on one invoice only, not enough to set a weight' : ''),
+    [{ title: 'Left out — weights spread too far for one part, most likely two sizes under one name. Add these by hand, with the size in the name or gauge:',
+       rows: r.mixed.map(function(m) { return [_partGaugeHtml(m), m.lines + ' lines, ' + m.far + ' more than 10% from the middle (' + m.median + ' kg/pc)']; }) }]);
 }
 
 function _median(a) {

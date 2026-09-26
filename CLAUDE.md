@@ -211,6 +211,10 @@ phone and a row under a column head on the desktop), verdicts are a dot and a wo
 Rate field), suggestion lists are `inv-menu` in an `inv-combo` (the cursor is `aria-selected`), optional details fold,
 and Create invoice sits in the sticky action bar. A chosen client's **unbilled challans are tick boxes** that bring their
 lines in; only the challan lines the invoice still carries are marked invoiced on save (P67).
+**Clients / Items / Performance is built:** view tabs, one Add per view in its toolbar (the floating + that doubled it on
+the phone is gone — the survey's doubled Add buttons), rows on the phone, and on the desktop the Register's table and
+on-demand pane (the resizable split, its drag handle and `_dragState` are deleted). The items sort `<select>` lost its
+`data-action` and speaks through `change`; a client's cards are flush panels of rows; Performance's measure is `inv-seg` (P68).
 
 ⚠ **Until the migration in its §9 completes, the stylesheet still carries the v1.0 families** (`inv-card`,
 `inv-stk-*`, `inv-stats-card`, the domain colours). New work uses the v2.0 components; never extend a v1.0

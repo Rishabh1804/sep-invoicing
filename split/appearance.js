@@ -72,7 +72,7 @@ function appearanceSummary() {
 function appearanceFieldsHtml() {
   function seg(k, title) {
     var cur = appearanceGet(k);
-    return '<div class="inv-form-group"><span class="inv-form-label">' + title + '</span>' +
+    return '<div class="inv-field"><span class="inv-field-label">' + title + '</span>' +
       '<div class="inv-seg" role="group" aria-label="' + title + '">' + APPEARANCE_OPTS[k].map(function(o) {
         return '<button type="button" class="inv-seg-btn" data-action="invAppearance" data-k="' + k + '" data-v="' + o[0] + '" aria-pressed="' + (o[0] === cur) + '">' + escHtml(o[1]) + '</button>';
       }).join('') + '</div></div>';

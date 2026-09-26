@@ -475,21 +475,24 @@ function costDeriveCompute(keys) {
   });
   return res;
 }
+/* The working drawn into a neutral callout in Settings: a row per month (the month, then paid ÷ tonnage in
+   mono), and what it offers with its Use button. */
 function _costDerivedHtml(res) {
-  if (res.none) return '<div class="inv-text-muted inv-storage-text">' + escHtml(res.none) + '</div>';
+  if (res.none) return '<p class="inv-note">' + escHtml(res.none) + '</p>';
   var set = { labour: labourCfg().modelPerKg, power: costModelCfg().power, other: costModelCfg().other };
   return Object.keys(res).map(function(key) {
     var d = res[key], f = COST_DERIVE_FIELDS[key];
-    var h = '<div class="inv-set-derive-rows" data-derive="' + key + '"><div class="inv-set-derive-row"><strong>' + escHtml(f[1]) + '</strong></div>' + d.rows.map(function(r) {
-      return '<div class="inv-set-derive-row"><span>' + escHtml(billsMonthLabel(r.month)) + '</span><span class="inv-mono">' + (r.skip ? escHtml(r.skip)
-        : formatCurrency(r.paid) + ' &divide; ' + formatNum(r.kg / 1000, 1) + ' t = ' + formatCurrency(r.perKg) + '/kg') + '</span></div>';
+    var h = '<div data-derive="' + key + '"><div class="inv-row-group">' + escHtml(f[1]) + '</div>' + d.rows.map(function(r) {
+      return '<div class="inv-row inv-row-auto"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(billsMonthLabel(r.month)) + '</span>' +
+        '<span class="inv-row-meta inv-row-wrap' + (r.skip ? '' : ' inv-id') + '">' + (r.skip ? escHtml(r.skip)
+        : formatCurrency(r.paid) + ' &divide; ' + formatNum(r.kg / 1000, 1) + ' t = ' + formatCurrency(r.perKg) + '/kg') + '</span></span></div>';
     }).join('') + '</div>';
-    if (d.perKg == null) return h + '<div class="inv-text-muted inv-storage-text">No month the statement covers has tonnage beside it, so nothing to offer.</div>';
+    if (d.perKg == null) return h + '<p class="inv-note inv-mt-4">No month the statement covers has tonnage beside it, so nothing to offer.</p>';
     var n = d.rows.filter(function(r) { return !r.skip; }).length;
-    return h + '<div class="inv-set-derive-foot"><span>' + n + ' month' + (n === 1 ? '' : 's') + ': ' + formatCurrency(d.paid) + ' &divide; ' + formatNum(d.kg / 1000, 1) + ' t = <strong class="inv-mono">' +
+    return h + '<div class="inv-toolbar inv-toolbar-flush inv-mt-8"><span class="inv-row-main">' + n + ' month' + (n === 1 ? '' : 's') + ': ' + formatCurrency(d.paid) + ' &divide; ' + formatNum(d.kg / 1000, 1) + ' t = <strong class="inv-id">' +
       formatCurrency(d.perKg) + '/kg</strong> against ' + formatCurrency(set[key] || 0) + ' set</span>' +
-      '<button type="button" class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invCostUseDerived" data-field="' + f[0] + '" data-val="' + d.perKg + '">Use ' + formatCurrency(d.perKg) + '</button></div>';
-  }).join('') + (res.labour ? '<div class="inv-text-muted inv-storage-text">Paid covers every wage leg on the statement: salaries for the month before, and cash by pay week, the EXTRA pool with it.</div>' : '');
+      '<button type="button" class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invCostUseDerived" data-field="' + f[0] + '" data-val="' + d.perKg + '">Use ' + formatCurrency(d.perKg) + '</button></div>';
+  }).join('') + (res.labour ? '<p class="inv-note inv-mt-8">Paid covers every wage leg on the statement: salaries for the month before, and cash by pay week, the EXTRA pool with it.</p>' : '');
 }
 function costUseDerived(field, val) {
   var el = document.getElementById(field);

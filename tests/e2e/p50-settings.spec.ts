@@ -17,8 +17,8 @@ test.describe('P50: Settings', () => {
     await load(page);
     await page.evaluate(() => localStorage.removeItem('sep_inv_settings_ui'));
     await page.locator('[data-action="invOpenSettings"]').first().click();
-    await expect(page.locator('.inv-set-group-title')).toHaveText(['Business', 'Checks & alerts', 'Costing', 'Labour', 'Connections', 'Data & device']);
-    expect(await page.locator('details.inv-set-sec[open]').count()).toBe(0);
+    await expect(page.locator('section[data-group] .inv-pagehead-title')).toHaveText(['Business', 'Checks & alerts', 'Costing', 'Labour', 'Connections', 'Data & device']);
+    expect(await page.locator('details[data-sec][open]').count()).toBe(0);
     await expect(page.locator('[data-sum="rateCheck"]')).toHaveText('10% · ₹100 · ±3%');
     await expect(page.locator('[data-sum="overtime"]')).toContainText('cap ₹68.20/h from 01 Sep 2026');
     await expect(page.locator('[data-sum="rest"]')).toHaveText('full at 90% · half at 80% · 3 paid holidays');
@@ -34,7 +34,7 @@ test.describe('P50: Settings', () => {
     await expect(save).toBeDisabled();
     await page.locator('#setCompName').fill('Test Plating Works');
     await expect(save).toBeEnabled();
-    await expect(page.locator('details[data-sec="company"]')).toHaveClass(/inv-set-dirty/);
+    await expect(page.locator('details[data-sec="company"]')).toHaveAttribute('data-dirty', '');
 
     // An edit elsewhere, not saved.
     await page.locator('details[data-sec="bank"] > summary').click();
@@ -64,7 +64,7 @@ test.describe('P50: Settings', () => {
     await page.locator('#setCnNextNum').fill('5');
     await page.locator('[data-action="invSaveSettingsSec"][data-sec="cn"]').click();
     await expect(page.locator('.inv-toast')).toContainText('must be above');
-    await expect(page.locator('details[data-sec="cn"]')).toHaveClass(/inv-set-dirty/);
+    await expect(page.locator('details[data-sec="cn"]')).toHaveAttribute('data-dirty', '');
   });
 
   test('open sections are remembered, and the phone stacks every group', async ({ page }) => {
@@ -74,8 +74,8 @@ test.describe('P50: Settings', () => {
     await page.locator('[data-action="invOpenSettings"]').first().click();
     await expect(page.locator('details[data-sec="overtime"]')).toHaveAttribute('open', '');
     await expect(page.locator('#setOtCap')).toBeVisible();
-    await expect(page.locator('.inv-set-nav')).toBeHidden();
-    await expect(page.locator('.inv-set-group[data-group="business"]')).toBeVisible();
+    await expect(page.locator('.inv-dialog-nav')).toBeHidden();
+    await expect(page.locator('section[data-group="business"]')).toBeVisible();
   });
 
   test('labour sections each save only their own figures', async ({ page }) => {
@@ -156,7 +156,7 @@ test.describe('P50: Settings', () => {
     expect(await g(page, 'S.zinc.upliftPct')).toBe(14);
     await page.locator('[data-action="invZincUseUplift"]').click();
     await expect(page.locator('#setZincUplift')).toHaveValue('14.7');
-    await expect(page.locator('details[data-sec="zinc"]')).toHaveClass(/inv-set-dirty/);
+    await expect(page.locator('details[data-sec="zinc"]')).toHaveAttribute('data-dirty', '');
     await page.locator('[data-action="invSaveSettingsSec"][data-sec="zinc"]').click();
     const z = (await readStoredState(page)).zinc;
     expect(z.upliftPct).toBe(14.7);

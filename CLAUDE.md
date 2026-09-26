@@ -236,6 +236,10 @@ pattern* rows with the bill form in place, its settings and its entries; the pas
 (`inv-quote`) and Save in the action bar; the reorder list is a table by supplier; More is an `inv-sheet` of rows. The
 `inv-stk-*` rules left are the attendance paste's, Pay's and Live cost's, until those screens move (P71).
 
+**Settings is built:** each section an `inv-panel-fold` of `inv-field`s, the desktop group list `inv-side-item`s in an
+`inv-dialog-wide`, an unsaved edit `data-dirty` and a dot and a word; the `inv-set-*` family is deleted, and the phone's
+head stays put while the groups scroll (it used to scroll away with the close button). P75.
+
 ⚠ **Until the migration in its §9 completes, the stylesheet still carries the v1.0 families** (`inv-card`,
 the `inv-stk-*` leftovers, `inv-stats-card`, the domain colours). New work uses the v2.0 components; never extend a v1.0
 family. **v1.0's dark mode was never reachable** — `.dark` was styled and nothing set it.

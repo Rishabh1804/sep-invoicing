@@ -230,7 +230,6 @@ body.inv-desktop .inv-seg-btn[aria-pressed="true"] { background: var(--surface-2
 /* A segmented control the width of its buttons, for a card's head or toolbar (Stats' Ranked / Share, the trend's series). */
 .inv-seg-fit { width: auto; display: inline-flex; flex: 0 0 auto; }
 .inv-seg-fit .inv-seg-btn { flex: 0 1 auto; min-height: var(--ctl-h-sm); }
-.inv-set-sec-body .inv-seg + * { margin-top: var(--sp-4); }
 .inv-form-select {
   width: 100%; padding: var(--sp-10) var(--sp-12);
   border: 1px solid var(--border); border-radius: var(--r-md);
@@ -345,20 +344,8 @@ body:not(.inv-booted) { pointer-events: none; }
    the stack when both are up. Removed by the next save that lands. */
 .inv-storage-bar { border-color: var(--danger); z-index: 295; }
 .inv-update-text { flex: 1 1 12rem; line-height: 1.4; }
-.inv-diag-report {
-  font-family: var(--ff-mono); font-size: var(--fs-2xs); line-height: 1.5;
-  white-space: pre-wrap; word-break: break-word; user-select: text;
-  background: var(--surface-2); color: var(--text-1); border: 1px solid var(--border);
-  border-radius: var(--r-sm); padding: var(--sp-8); margin: var(--sp-8) 0 0;
-}
 .inv-update-actions { display: flex; gap: var(--sp-8); margin-left: auto; }
 .inv-update-btn { min-height: 44px; }
-.inv-link-btn {
-  background: none; border: none; padding: 0; margin: 0;
-  color: var(--accent); font: inherit; text-decoration: underline; cursor: pointer;
-  min-height: 44px; min-width: 44px;
-}
-.inv-link-btn:hover { color: var(--accent-dark); }
 
 /* ===== PREVIEW ===== */
 .inv-preview-container {
@@ -790,13 +777,6 @@ table.inv-qc-grid.inv-qc-no-top { border-top: 0; }
   animation: inv-spin 0.8s linear infinite; margin: 0 auto;
 }
 @keyframes inv-spin { to { transform: rotate(360deg); } }
-.inv-api-key-wrap { position: relative; }
-.inv-api-key-toggle {
-  position: absolute; right: var(--sp-8); top: 50%; transform: translateY(-50%);
-  min-width: 44px; min-height: 44px; display: flex; align-items: center;
-  justify-content: center; background: none; border: none;
-  color: var(--text-3); cursor: pointer;
-}
 
 /* Print CSS */
 @page { margin: 0; }
@@ -1034,10 +1014,6 @@ button.inv-chart-legend-row { width: 100%; background: none; border: none; font:
   color: var(--text-3); font-size: var(--fs-base);
 }
 .inv-text-right { text-align: right; }
-.inv-checkbox-label { display: flex; align-items: center; gap: var(--sp-8); min-height: 44px; cursor: pointer; }
-.inv-prefix-preview { font-size: var(--fs-xs); margin-bottom: var(--sp-8); }
-.inv-storage-wrap { margin-top: var(--sp-8); }
-.inv-storage-text { font-size: var(--fs-xs); }
 
 /* ===== RATE HISTORY ===== */
 
@@ -1118,12 +1094,6 @@ button.inv-chart-legend-row { width: 100%; background: none; border: none; font:
 /* Keyboard focus: one ring for every control, declared with the tokens (§3.6). */
 
 
-/* ===== GITHUB SYNC (Settings) ===== */
-.inv-sync-status {
-  margin-top: var(--sp-8); padding: var(--sp-8) var(--sp-10);
-  background: var(--surface-2); border-radius: var(--r-sm);
-  font-size: var(--fs-xs); color: var(--text-2); line-height: 1.5;
-}
 
 /* ===== CHECKBOX ROW ===== */
 .inv-check-row {
@@ -1329,80 +1299,6 @@ body.inv-desktop #imSelBar {
   font-size: var(--fs-2xs); font-weight: 700; line-height: var(--sp-16); text-align: center;
 }
 
-/* ===== SETTINGS: groups, folded sections, per-section save ===== */
-.inv-set-nav { display: none; }
-.inv-set-group { margin-bottom: var(--sp-20); }
-.inv-set-group-title {
-  font-size: var(--fs-xs); font-weight: 700; color: var(--text-3); margin: 0 0 var(--sp-8);
-}
-.inv-set-sec {
-  border: 1px solid var(--border); border-radius: var(--r-md);
-  background: var(--surface); margin-bottom: var(--sp-8);
-}
-.inv-set-sec[open] { border-color: var(--border-2); }
-.inv-set-sec-head {
-  list-style: none; cursor: pointer; display: flex; align-items: center; gap: var(--sp-10);
-  min-height: 44px; padding: var(--sp-8) var(--sp-12);
-}
-.inv-set-sec-head::-webkit-details-marker { display: none; }
-.inv-set-chev { flex-shrink: 0; color: var(--text-3); transition: transform var(--anim-fast) ease; }
-.inv-set-sec[open] > .inv-set-sec-head .inv-set-chev { transform: rotate(90deg); }
-.inv-set-sec-text { display: flex; flex-direction: column; min-width: 0; flex: 1; }
-.inv-set-sec-name { font-size: var(--fs-base); font-weight: 600; color: var(--text-1); }
-.inv-set-sec-sum {
-  font-size: var(--fs-xs); color: var(--text-3);
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
-.inv-set-sec[open] .inv-set-sec-sum { display: none; }
-.inv-set-sec-body { padding: 0 var(--sp-12) var(--sp-12); }
-.inv-set-dot {
-  display: none; width: var(--sp-8); height: var(--sp-8); flex-shrink: 0;
-  border-radius: var(--r-full); background: var(--warning);
-}
-.inv-set-dirty > .inv-set-sec-head .inv-set-dot,
-.inv-set-nav-btn.inv-set-dirty .inv-set-dot { display: inline-block; }
-.inv-set-why { margin-top: var(--sp-8); }
-.inv-set-why > summary {
-  cursor: pointer; font-size: var(--fs-xs); font-weight: 600; color: var(--accent);
-  padding: var(--sp-6) 0;
-}
-.inv-set-actions { display: flex; justify-content: flex-end; margin-top: var(--sp-12); }
-.inv-set-derive:empty { display: none; }
-.inv-set-derive {
-  margin-top: var(--sp-8); padding: var(--sp-8) var(--sp-10);
-  background: var(--surface-2); border-radius: var(--r-sm); font-size: var(--fs-xs);
-}
-.inv-set-derive-row {
-  display: flex; flex-wrap: wrap; justify-content: space-between; gap: var(--sp-4);
-  padding: var(--sp-4) 0; border-bottom: 1px solid var(--border); color: var(--text-2);
-}
-.inv-set-derive-foot {
-  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between;
-  gap: var(--sp-8); margin-top: var(--sp-8); color: var(--text-1);
-}
-
-/* Desktop: the groups down the left, one group at a time on the right. */
-body.inv-desktop .inv-set-card {
-  width: min(94vw, var(--set-card-w)); max-width: none; height: 85vh; display: flex; flex-direction: column; overflow: hidden;
-}
-body.inv-desktop .inv-set-layout {
-  flex: 1; min-height: 0; display: grid; grid-template-columns: var(--set-nav-w) minmax(0, 1fr); gap: var(--sp-20);
-}
-body.inv-desktop .inv-set-nav {
-  display: flex; flex-direction: column; gap: var(--sp-2);
-  border-right: 1px solid var(--border); padding-right: var(--sp-12);
-}
-.inv-set-nav-btn {
-  display: flex; align-items: center; justify-content: space-between; gap: var(--sp-8);
-  min-height: 44px; padding: 0 var(--sp-12); border: none; border-radius: var(--r-md);
-  background: none; color: var(--text-2); font: inherit; font-size: var(--fs-sm);
-  text-align: left; cursor: pointer;
-}
-.inv-set-nav-btn:hover { background: var(--surface-2); }
-.inv-set-nav-on { background: var(--surface-2); color: var(--text-1); font-weight: 700; }
-body.inv-desktop .inv-set-panes { overflow-y: auto; min-height: 0; padding-right: var(--sp-4); }
-body.inv-desktop .inv-set-group { display: none; }
-body.inv-desktop .inv-set-group-on { display: block; }
 
 /* The desktop challan list's Add / Scan pair, under the table. */
 
@@ -1433,11 +1329,11 @@ body.inv-desktop .inv-set-group-on { display: block; }
 .inv-btn-ghost:hover { background: var(--surface-2); color: var(--text-1); }
 .inv-btn-danger { background: var(--surface); border-color: var(--border); color: var(--danger); }
 .inv-confirm-actions .inv-btn-danger, .inv-btn-danger.inv-btn-solid { background: var(--danger); border-color: var(--danger); color: var(--surface); }
-.inv-btn-link, .inv-link-btn {
+.inv-btn-link {
   min-height: auto; padding: 0; border: none; background: none;
   color: var(--accent); font-weight: 600; text-decoration: none; cursor: pointer;
 }
-.inv-btn-link:hover, .inv-link-btn:hover { text-decoration: underline; background: none; color: var(--accent); }
+.inv-btn-link:hover { text-decoration: underline; background: none; color: var(--accent); }
 /* Before the icon rule: same specificity, so the later one wins. */
 .inv-btn svg { width: var(--sp-16); height: var(--sp-16); flex-shrink: 0; }
 .inv-btn-icon { width: var(--ctl-h); padding: 0; flex-shrink: 0; }
@@ -1827,6 +1723,11 @@ body.inv-desktop .inv-actionbar { bottom: 0; }
 .inv-actionbar-total { flex: 1; min-width: 0; }
 .inv-actionbar-label { font-size: var(--fs-12); color: var(--text-3); }
 .inv-actionbar-value { font-family: var(--ff-mono); font-size: var(--fs-18); font-weight: 600; }
+/* A tick box and its words on one line, the whole line its touch target (a To-do rule, auto backup). */
+.inv-field-check {
+  display: flex; align-items: center; gap: var(--sp-8); min-height: var(--touch); margin-bottom: 0;
+  font-size: var(--fs-14); color: var(--text-1); cursor: pointer;
+}
 
 /* §6.15 The line editor, shared by the invoice and challan forms. On the phone a line is a grid of
    fields under "Line n" (part across, then qty · unit · pcs, then rate · amount); on the desktop the
@@ -1901,6 +1802,19 @@ body.inv-desktop .inv-keys { display: flex; flex-wrap: wrap; gap: var(--sp-4) va
   padding: var(--sp-8) 0 calc(var(--nav-h) + var(--sp-12));
 }
 .inv-sheet-grab { width: var(--sp-32); height: var(--sp-4); border-radius: var(--r-full); background: var(--border); margin: 0 auto var(--sp-8); }
+/* A dialog holding a list of groups and one group's content (Settings, §6.19). The phone stacks the groups under
+   a head that stays put; the desktop sets the list down the left (inv-side-items) and shows one group at a time. */
+.inv-dialog-wide { display: flex; flex-direction: column; overflow: hidden; }
+.inv-dialog-wide > .inv-overlay-header { flex-shrink: 0; }
+.inv-dialog-panes { flex: 1; min-height: 0; overflow-y: auto; }
+.inv-dialog-nav { display: none; }
+.inv-dialog-main > section { margin-bottom: var(--sp-20); }
+.inv-dialog-main > section:last-child { margin-bottom: 0; }
+body.inv-desktop .inv-dialog-wide { width: min(94vw, var(--set-card-w)); max-width: none; height: 85vh; }
+body.inv-desktop .inv-dialog-panes { overflow: hidden; display: grid; grid-template-columns: var(--set-nav-w) minmax(0, 1fr); gap: var(--sp-20); }
+body.inv-desktop .inv-dialog-nav { display: flex; flex-direction: column; gap: var(--sp-2); border-right: 1px solid var(--border); padding-right: var(--sp-12); }
+body.inv-desktop .inv-dialog-main { overflow-y: auto; min-height: 0; padding-right: var(--sp-4); }
+body.inv-desktop .inv-dialog-main > section:not([data-on]) { display: none; }
 .inv-menu { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-md); box-shadow: var(--shadow-pop); }
 /* A menu hangs off its field (inv-combo): suggestions for a part or a client, arrowed through by
    the keyboard. The cursor is the option's aria-selected; the create-a-part row reads as an action. */
@@ -1934,9 +1848,14 @@ body.inv-desktop .inv-keys { display: flex; flex-wrap: wrap; gap: var(--sp-4) va
 .inv-callout-info { background: var(--info-bg); color: var(--info); }
 .inv-callout-warning, .inv-confirm-warn { background: var(--warning-bg); color: var(--warning); }
 .inv-callout-danger { background: var(--danger-bg); color: var(--danger); }
+/* A callout filled on demand (a derivation in Settings) is not drawn until it holds something. Rows inside one
+   (the working, month by month) sit on its own padding. */
+.inv-callout:empty { display: none; }
+.inv-callout :is(.inv-row, .inv-row-group) { padding-left: 0; padding-right: 0; background: none; }
 .inv-note { font-size: var(--fs-12); color: var(--text-3); line-height: 1.5; }
 /* Text quoted from its source as sent (a WhatsApp line), so a figure can be checked against it. */
 .inv-quote {
+  margin-bottom: 0;
   padding: var(--sp-6) var(--sp-8); border-radius: var(--r-sm); background: var(--surface-2);
   font-family: var(--ff-mono); font-size: var(--fs-12); line-height: 1.45; color: var(--text-1); white-space: pre-wrap; overflow-wrap: anywhere;
 }

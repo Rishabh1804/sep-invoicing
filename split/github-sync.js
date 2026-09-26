@@ -419,38 +419,31 @@ function ghRenderCard() {
 function renderGhSyncFields() {
   var cfg = getGhConfig();
   var last = ghLastSyncAt();
-  return '<div class="inv-form-row">' +
-      '<div class="inv-form-group"><label class="inv-form-label" for="setGhOwner">Owner</label>' +
-      '<input class="inv-form-input inv-mono" id="setGhOwner" value="' + escHtml(cfg.owner) + '" placeholder="rishabh1804" autocomplete="off"></div>' +
-      '<div class="inv-form-group"><label class="inv-form-label" for="setGhRepo">Repo</label>' +
-      '<input class="inv-form-input inv-mono" id="setGhRepo" value="' + escHtml(cfg.repo) + '" placeholder="sep-invoicing-data" autocomplete="off"></div>' +
-    '</div>' +
-    '<div class="inv-form-row">' +
-      '<div class="inv-form-group"><label class="inv-form-label" for="setGhBranch">Branch</label>' +
-      '<input class="inv-form-input inv-mono" id="setGhBranch" value="' + escHtml(cfg.branch) + '" placeholder="main" autocomplete="off"></div>' +
-      '<div class="inv-form-group"><label class="inv-form-label" for="setGhPath">File path</label>' +
-      '<input class="inv-form-input inv-mono" id="setGhPath" value="' + escHtml(cfg.path) + '" placeholder="sep-invoicing-data.json" autocomplete="off"></div>' +
-    '</div>' +
-    '<div class="inv-form-group"><label class="inv-form-label" for="setGhDevice">This device</label>' +
-    '<input class="inv-form-input" id="setGhDevice" value="' + escHtml(cfg.deviceName) + '" placeholder="Office desktop" autocomplete="off">' +
-    '<div class="inv-text-muted inv-storage-text">Named in the commit message, so the history says which device wrote each backup.</div></div>' +
+  function field(id, label, value, placeholder, cls, hint) {
+    return '<div class="inv-field"><label class="inv-field-label" for="' + id + '">' + label + '</label>' +
+      '<input class="inv-input' + cls + '" id="' + id + '" value="' + escHtml(value) + '" placeholder="' + placeholder + '" autocomplete="off">' +
+      (hint ? '<div class="inv-field-hint">' + hint + '</div>' : '') + '</div>';
+  }
+  return '<div class="inv-fields">' + field('setGhOwner', 'Owner', cfg.owner, 'rishabh1804', ' inv-id') +
+      field('setGhRepo', 'Repo', cfg.repo, 'sep-invoicing-data', ' inv-id') + '</div>' +
+    '<div class="inv-fields">' + field('setGhBranch', 'Branch', cfg.branch, 'main', ' inv-id') +
+      field('setGhPath', 'File path', cfg.path, 'sep-invoicing-data.json', ' inv-id') + '</div>' +
+    field('setGhDevice', 'This device', cfg.deviceName, 'Office desktop', '', 'Named in the commit message, so the history says which device wrote each backup.') +
 
-    '<div class="inv-form-group"><label class="inv-form-label" for="setGhToken">Personal access token</label>' +
-    '<div class="inv-api-key-wrap"><input class="inv-form-input inv-mono" id="setGhToken" type="password" value="' + escHtml(getGhToken()) + '" placeholder="github_pat_..." autocomplete="off">' +
-    '<button class="inv-api-key-toggle" data-action="invToggleGhToken" type="button" aria-label="Show token">' +
-    '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button></div>' +
-    '<div class="inv-text-muted inv-storage-text">A fine-grained token with <strong>Contents: Read and write</strong> on one private repo is enough — nothing wider. It stays on this device and is never written into a JSON export. Anyone with access to this device can read it, so use a private repo and revoke the token if the device is lost.</div></div>' +
+    '<div class="inv-field"><label class="inv-field-label" for="setGhToken">Personal access token</label>' +
+    _sKey('setGhToken', getGhToken(), 'github_pat_...', 'invToggleGhToken', 'token') +
+    '<div class="inv-field-hint">A fine-grained token with <strong>Contents: Read and write</strong> on one private repo is enough — nothing wider. It stays on this device and is never written into a JSON export. Anyone with access to this device can read it, so use a private repo and revoke the token if the device is lost.</div></div>' +
 
-    '<label class="inv-check-row" for="setGhAuto">' +
+    '<div class="inv-field"><label class="inv-field-check" for="setGhAuto">' +
     '<input type="checkbox" id="setGhAuto" class="inv-check"' + (cfg.autoPush ? ' checked' : '') + '>' +
     '<span>Back up automatically after changes</span></label>' +
-    '<div class="inv-text-muted inv-storage-text inv-mb-8">Pushes about a minute after the last edit. Paused automatically if GitHub holds a copy this device has not seen.</div>' +
+    '<div class="inv-field-hint">Pushes about a minute after the last edit. Paused automatically if GitHub holds a copy this device has not seen.</div></div>' +
 
-    '<div class="inv-form-row">' +
-      '<button class="inv-btn inv-btn-ghost inv-btn-block" id="ghPushBtn" data-action="invGhPush">Push to GitHub</button>' +
-      '<button class="inv-btn inv-btn-ghost inv-btn-block" id="ghPullBtn" data-action="invGhPull">Pull from GitHub</button>' +
+    '<div class="inv-toolbar inv-toolbar-flush">' +
+      '<button class="inv-btn inv-btn-secondary" id="ghPushBtn" data-action="invGhPush">Push to GitHub</button>' +
+      '<button class="inv-btn inv-btn-secondary" id="ghPullBtn" data-action="invGhPull">Pull from GitHub</button>' +
     '</div>' +
-    '<div class="inv-sync-status" id="ghSyncStatus">' +
+    '<div class="inv-callout inv-callout-neutral inv-mt-8" id="ghSyncStatus">' +
       escHtml(_ghStatusText || (last ? 'Last synced ' + ghRelTime(last) + '.' : 'Not synced yet.')) +
     '</div>';
 }

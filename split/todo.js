@@ -260,10 +260,14 @@ function todoApp(only) { return todoAppAll(only).filter(function(t) { return !to
 function todoRanked() {
   var rows = todoApp().map(function(t) { return { app: t, tone: t.tone }; });
   todoMineOpen().forEach(function(t) { rows.push({ mine: t, tone: todoMineTone(t) }); });
+  // Your own tasks come before everything the app raised, bar what is already red (owner, 26 Sep 2026:
+  // a task typed in sat under ten raised ones and was easy to forget). An undated one of your own has
+  // no tone, and ranked by tone alone it fell below every info task the data raised.
+  var band = function(r) { return r.tone === 'red' ? 0 : r.mine ? 1 : 2; };
   return rows.sort(function(a, b) {
-    var r = TODO_TONE_RANK[a.tone] - TODO_TONE_RANK[b.tone];
+    var r = band(a) - band(b) || TODO_TONE_RANK[a.tone] - TODO_TONE_RANK[b.tone];
     if (r) return r;
-    if (!!a.app !== !!b.app) return a.app ? -1 : 1;
+    if (!!a.app !== !!b.app) return a.app ? 1 : -1;
     if (a.mine && b.mine) return (a.mine.due || '9999').localeCompare(b.mine.due || '9999') || (a.mine.createdAt - b.mine.createdAt);
     return 0;
   });
@@ -275,7 +279,8 @@ function todoRedCount() {
 
 /* ---------- Screens ----------
    View tabs Open / Done (design principles §7). Open: the add field, then two flush panels,
-   From your data and Mine (two across on the desktop), then what is snoozed. Rows are §6.10's:
+   Mine and From your data (two across on the desktop, Mine on the left), then what is snoozed.
+   Yours lead: what you typed is what is easiest to forget under the raised ones. Rows are §6.10's:
    an app task is a whole-row button led by its ! / i mark; a task of your own is led by its
    tick box and ends with its due date as a dot and a word. */
 function renderTodo() {
@@ -313,15 +318,15 @@ function renderTodo() {
       (a.due || '9999').localeCompare(b.due || '9999') || (a.createdAt - b.createdAt);
   });
   h += '<div class="inv-panels">';
-  h += '<div class="inv-panel inv-panel-flush" data-todo-sec="app"><div class="inv-panel-head"><span class="inv-panel-title">From your data' +
-    ' <span class="inv-panel-count">' + app.length + '</span></span><span class="inv-badge">App</span></div>';
-  if (!app.length) h += '<div class="inv-empty">Nothing from your data needs you.</div>';
-  app.forEach(function(t) { h += todoAppRowHtml(t); });
-  h += '</div>';
   h += '<div class="inv-panel inv-panel-flush" data-todo-sec="mine"><div class="inv-panel-head"><span class="inv-panel-title">Mine' +
     ' <span class="inv-panel-count">' + mine.length + '</span></span><span class="inv-badge">Mine</span></div>';
   if (!mine.length) h += '<div class="inv-empty">No tasks of your own. Type one above and press Enter.</div>';
   mine.forEach(function(t) { h += todoMineRowHtml(t); });
+  h += '</div>';
+  h += '<div class="inv-panel inv-panel-flush" data-todo-sec="app"><div class="inv-panel-head"><span class="inv-panel-title">From your data' +
+    ' <span class="inv-panel-count">' + app.length + '</span></span><span class="inv-badge">App</span></div>';
+  if (!app.length) h += '<div class="inv-empty">Nothing from your data needs you.</div>';
+  app.forEach(function(t) { h += todoAppRowHtml(t); });
   h += '</div>';
 
   var snoozed = todoAppAll().filter(todoIsSnoozed);

@@ -1614,6 +1614,11 @@ is self-contained so it can move to `sep-dashboard` whole.
   deliberately coarse where a figure moves on its own: a stock line's is its colour, so it does not
   come back every time a litre is used.
 - One rule failing on an unexpected shape is caught; it must not take the list with it.
+- **Your own tasks lead** (owner, 26 Sep 2026: *"once I add a todo of my own, it still stays at the end of all the
+  system generated one, that makes it easy to miss"*). The page draws *Mine* before *From your data* (on the left on
+  the desktop), and `todoRanked()` — the Home card, the widget — puts every open task of yours ahead of every raised
+  one that is not red. Only a red task outranks yours; between two red ones, yours comes first. Ranked by tone alone,
+  an undated task of yours had no tone and fell below every info task the data raised (P69).
 
 **The widget cannot be the app's HTML.** Windows draws an Adaptive Card (`widgets/todo-template.json`)
 from data the service worker hands it. The rows are worked out **by the app** (the app tasks need the

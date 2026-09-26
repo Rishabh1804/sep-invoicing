@@ -41,6 +41,8 @@ function bankData() {
   if (!b.parties || typeof b.parties !== 'object') b.parties = {};
   if (!b.opening || typeof b.opening !== 'object') b.opening = {};
   if (!b.gstNotes || typeof b.gstNotes !== 'object') b.gstNotes = {};
+  // A returned cheque's link to the deposit it undoes: { reversalRowId: depositRowId | null (not a bounce) }.
+  if (!b.bounces || typeof b.bounces !== 'object' || Array.isArray(b.bounces)) b.bounces = {};
   return b;
 }
 
@@ -214,7 +216,7 @@ function bankGuess(row, ctx) {
 /* Worked out, then what the operator set for this payee, then for this row. */
 function bankClassify(rows) {
   var b = bankData(), ctx = { suppliers: bankSupplierKeys(), roster: relayRosterIndex(S.staff || []) };
-  return (rows || bankRows()).map(function(row) {
+  var out = (rows || bankRows()).map(function(row) {
     var v = bankGuess(row, ctx), key = bankKey(v.party);
     // A payee rule needs a payee: a cash draw and a cheque deposit name nobody.
     var rule = key && !v.cash && !bankIsChequeDeposit(row) ? b.parties[key] : null;
@@ -233,6 +235,111 @@ function bankClassify(rows) {
     v.row = row; v.key = key;
     return v;
   });
+  return bankLinkBounces(out);
+}
+
+/* ---------- Returned cheques ----------
+   A bounced cheque is money that came in and went back out. Left alone, the deposit reads as the client
+   paying and the debit as a cost-free "Returned" row: the client looks paid, owed90 stays quiet and the
+   forecast counts money that never stayed. So a returned-cheque debit is linked to the deposit it undoes:
+   - a debit and a credit of the same amount and narration on one day (a posting and its own reversal, as
+     REJECT:001290 on the real statement) cancel each other and link to nothing;
+   - a debit that names a deposit's cheque number, dated within 60 days after it, is that deposit: linked;
+   - otherwise a deposit of exactly that amount in the 15 days before is OFFERED, never applied;
+   - what the owner sets (S.bank.bounces) wins: a deposit id, or null for "not a bounce".
+   A linked deposit is no longer a receipt (cat 'reversal', its client kept for the cheque series), so every
+   reading of receipts — Receivables, owed90, days to pay, the forecast, unplaced counts — sees it unpaid. */
+var BANK_BOUNCE_DAYS = 15, BANK_BOUNCE_CHQ_DAYS = 60;
+function bankChequeNums(narr) {
+  return (String(narr || '').match(/\d{5,}/g) || []).map(function(n) { return n.replace(/^0+/, ''); }).filter(Boolean);
+}
+function bankLinkBounces(list) {
+  if (list.length < 2) return list;
+  var set = bankData().bounces, byId = {};
+  list.forEach(function(v) { byId[v.row.id] = v; });
+  // Postings and their own reversals.
+  list.forEach(function(v) {
+    if (v.cat !== 'reversal' || v.selfPair) return;
+    var twin = list.find(function(w) { return w !== v && !w.selfPair && w.row.date === v.row.date && w.row.narration === v.row.narration &&
+      (v.row.dr > 0 ? Math.abs(w.row.cr - v.row.dr) < 0.005 : Math.abs(w.row.dr - v.row.cr) < 0.005); });
+    if (twin) { v.selfPair = true; twin.selfPair = true; }
+  });
+  var taken = {}, isDeposit = function(w) { return w.row.cr > 0 && !w.selfPair && w.cat !== 'reversal'; };
+  var link = function(rev, dep, how) {
+    taken[dep.row.id] = true;
+    rev.bounceOf = { id: dep.row.id, how: how, date: dep.row.date, amount: dep.row.cr, clientId: dep.clientId, chq: bankInstrument(dep.row) };
+    dep.bounced = { id: rev.row.id, date: rev.row.date, how: how };
+    dep.cat = 'reversal';
+  };
+  var revs = list.filter(function(v) { return v.cat === 'reversal' && v.row.dr > 0 && !v.selfPair; });
+  // What the owner set first, then cheque numbers, then offers by amount.
+  revs.forEach(function(r) {
+    if (!(r.row.id in set)) return;
+    r.bounceSet = true;
+    var d = set[r.row.id] == null ? null : byId[set[r.row.id]];
+    if (d && isDeposit(d) && !taken[d.row.id]) link(r, d, 'set');
+  });
+  revs.forEach(function(r) {
+    if (r.bounceSet) return;
+    var nums = bankChequeNums(r.row.narration);
+    if (!nums.length) return;
+    var hit = list.filter(function(d) {
+      var inst = String(bankInstrument(d.row) || '').replace(/^0+/, '');
+      return isDeposit(d) && !taken[d.row.id] && inst && nums.indexOf(inst) >= 0 && d.row.date <= r.row.date && todoDaysBetween(d.row.date, r.row.date) <= BANK_BOUNCE_CHQ_DAYS;
+    }).pop();
+    if (hit) link(r, hit, 'cheque');
+  });
+  revs.forEach(function(r) {
+    if (r.bounceSet || r.bounceOf) return;
+    r.bounceOffers = list.filter(function(d) {
+      return isDeposit(d) && !taken[d.row.id] && Math.abs(d.row.cr - r.row.dr) < 0.005 && d.row.date <= r.row.date && todoDaysBetween(d.row.date, r.row.date) <= BANK_BOUNCE_DAYS;
+    }).map(function(d) { return d.row.id; });
+  });
+  return list;
+}
+function bankReturnedCheques(cls) {
+  return (cls || bankClassify()).filter(function(v) { return v.cat === 'reversal' && v.row.dr > 0 && !v.selfPair && !v.bounceOf; });
+}
+function _bankBouncesHtml(cls) {
+  var list = bankReturnedCheques(cls);
+  // Linked ones are shown from their reversal too, so a wrong link can be undone where it was made.
+  var linked = cls.filter(function(v) { return v.bounceOf; });
+  if (!list.length && !linked.length) return '';
+  var byId = {}; cls.forEach(function(v) { byId[v.row.id] = v; });
+  var cname = function(id) { var c = (S.clients || []).find(function(x) { return String(x.id) === String(id); }); return c ? c.name : 'no client'; };
+  var depLine = function(d) { return formatCurrency(d.row.cr) + ' deposited ' + formatDate(d.row.date) + (bankInstrument(d.row) ? ' · chq ' + bankInstrument(d.row) : '') + ' · ' + cname(d.clientId); };
+  var h = '<div class="inv-panel inv-panel-flush" id="bankBounces"><div class="inv-panel-head"><span class="inv-panel-title">Returned cheques</span><span class="inv-panel-count">' + (list.length + linked.length) + '</span></div>' +
+    '<div class="inv-panel-body inv-note">A cheque that came back is not a receipt: linked to its deposit, the client owes it again. A debit naming the deposit\'s cheque number links itself; a same-amount deposit in the 15 days before is only offered.</div>';
+  linked.forEach(function(v) {
+    var b = v.bounceOf;
+    h += '<div class="inv-row inv-row-2" data-bounce="' + escHtml(v.row.id) + '"><span class="inv-row-main"><span class="inv-row-title"><span class="inv-dot inv-dot-warning">Returned ' + escHtml(formatDate(v.row.date)) + '</span></span>' +
+      '<span class="inv-row-meta">' + escHtml(depLine(byId[b.id])) + ' · ' + (b.how === 'cheque' ? 'by cheque number' : 'linked by you') + '</span></span>' +
+      '<span class="inv-row-end"><span class="inv-num">' + formatCurrency(v.row.dr) + '</span><button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invBankBounce" data-rev="' + escHtml(v.row.id) + '" data-dep="">Not a bounce</button></span></div>';
+  });
+  list.forEach(function(v) {
+    var marked = v.bounceSet;
+    h += '<div class="inv-row inv-row-2" data-bounce="' + escHtml(v.row.id) + '"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(v.row.narration) + '</span>' +
+      '<span class="inv-row-meta">' + escHtml(formatDate(v.row.date)) + ' · ' + (marked ? 'marked not a bounce' : (v.bounceOffers || []).length ? 'which deposit came back?' : 'no deposit of this amount in the 15 days before') + '</span></span>' +
+      '<span class="inv-row-end"><span class="inv-num">' + formatCurrency(v.row.dr) + '</span>' +
+      (marked ? '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invBankBounceClear" data-rev="' + escHtml(v.row.id) + '">Undo</button>'
+        : '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invBankBounce" data-rev="' + escHtml(v.row.id) + '" data-dep="">Not a bounce</button>') + '</span></div>';
+    if (!marked) (v.bounceOffers || []).forEach(function(id) {
+      var d = byId[id];
+      h += '<div class="inv-row" data-bounce-offer="' + escHtml(id) + '"><span class="inv-row-main inv-row-meta">' + escHtml(depLine(d)) + '</span>' +
+        '<span class="inv-row-end"><button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invBankBounce" data-rev="' + escHtml(v.row.id) + '" data-dep="' + escHtml(id) + '">Link</button></span></div>';
+    });
+  });
+  return h + '</div>';
+}
+function bankSetBounce(revId, depId) {
+  bankData().bounces[revId] = depId || null;
+  saveState();
+  renderFinance();
+}
+function bankClearBounce(revId) {
+  delete bankData().bounces[revId];
+  saveState();
+  renderFinance();
 }
 
 /* ---------- Receipts against invoices ---------- */
@@ -528,7 +635,7 @@ function _bankReceiptsHtml(cls) {
     });
     h += '</div>';
   }
-  return h;
+  return h + _bankBouncesHtml(cls);
 }
 
 /* A cheque deposit names nobody. Where its amount equals, to the rupee, one open invoice or a run
@@ -562,7 +669,8 @@ function bankInstrument(row) {
 function bankChequeSeries(cls) {
   var out = {};
   (cls || bankClassify()).forEach(function(v) {
-    if (v.cat !== 'receipt' || v.clientId == null) return;
+    // A bounced cheque still came from the client's book.
+    if ((v.cat !== 'receipt' && !v.bounced) || v.clientId == null) return;
     var n = bankInstrument(v.row);
     if (!/^\d{4,}$/.test(n)) return;
     (out[String(v.clientId)] = out[String(v.clientId)] || []).push(n);
@@ -688,7 +796,8 @@ function _bankStatementHtml(cls) {
     h += '<div class="inv-row inv-row-2" data-bank-row="' + escHtml(r.id) + '"><button class="inv-row-main" data-action="invBankEdit" data-id="' + escHtml(r.id) + '" aria-expanded="' + (_bankEdit === r.id) + '">' +
       '<span class="inv-row-title">' + escHtml(v.party || r.narration) + '</span>' +
       '<span class="inv-row-meta">' + escHtml(formatDate(r.date)) + ' · <span class="inv-dot inv-dot-' + BANK_CAT_TONE[v.cat] + '">' + escHtml(bankCatLabel(v.cat)) + (who ? ': ' + escHtml(who) : '') + '</span>' +
-      (r.chq ? ' · chq ' + escHtml(r.chq) : '') + (v.notCost ? ' · not a cost' : '') + '</span></button>' +
+      (r.chq ? ' · chq ' + escHtml(r.chq) : '') + (v.notCost ? ' · not a cost' : '') + (v.bounced ? ' · returned ' + escHtml(formatDate(v.bounced.date)) : '') +
+      (v.bounceOf ? ' · bounce of ' + escHtml(formatDate(v.bounceOf.date)) + ' deposit' : '') + '</span></button>' +
       '<span class="inv-row-end"><span class="inv-row-stack"><span class="inv-num">' + (out ? '−' : '+') + formatCurrency(out ? r.dr : r.cr) + '</span>' +
       '<span class="inv-row-meta inv-num">' + formatCurrency(r.balance) + '</span></span></span></div>';
     if (_bankEdit === r.id) h += _bankEditHtml(v);
@@ -832,7 +941,7 @@ function bankExportJson() {
   var b = bankData(), meta = document.querySelector('meta[name="app-build"]');
   var cls = bankClassify();
   var out = { format: 'sep-bank', version: 1, exportedAt: new Date().toISOString(), build: meta ? meta.content : '', account: b.account || '',
-    imports: b.imports, parties: b.parties, opening: b.opening, gstNotes: b.gstNotes,
+    imports: b.imports, parties: b.parties, opening: b.opening, gstNotes: b.gstNotes, bounces: b.bounces,
     rows: cls.map(function(v) { return Object.assign({}, v.row, { cat: v.cat, party: v.party, clientId: v.clientId == null ? null : v.clientId, staffId: v.staffId == null ? null : v.staffId, cash: !!v.cash }); }) };
   var a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob([JSON.stringify(out, null, 2)], { type: 'application/json' }));
@@ -889,6 +998,8 @@ function bankAction(action, btn) {
     case 'invBankExportJson': bankExportJson(); return true;
     case 'invBankClient': _bankOpen = _bankOpen === btn.dataset.id ? null : btn.dataset.id; renderFinance(); return true;
     case 'invBankAddBill': bankAddPowerBill(btn.dataset.id); return true;
+    case 'invBankBounce': bankSetBounce(btn.dataset.rev, btn.dataset.dep); return true;
+    case 'invBankBounceClear': bankClearBounce(btn.dataset.rev); return true;
     case 'invBankSort': _bankFilter = { cat: '', q: btn.dataset.q || '' }; _bankEdit = btn.dataset.id; finSetTab('bank'); renderFinance(); return true;
     case 'invBankPlace': bankSetClient(btn.dataset.id, btn.dataset.client); return true;
     case 'invBankChange': _bankChange = btn.dataset.id; renderFinance(); return true;

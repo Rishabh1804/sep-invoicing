@@ -143,5 +143,5 @@ test('each finance rule can be switched off in Settings', async ({ page }) => {
   seq = 0;
   await loadAppWithState(page, state({ bank: bank([row(day(-40), 'NEFT-ALPHA FORGINGS', 0, 5000)]), todoCheck: { bankStale: false } }));
   expect(await tasks(page, 'bankStale')).toEqual([]);
-  expect(await ev(page, `TODO_RULES.filter(function(r) { return FIN_RULES.some(function(f) { return f[0] === r[0]; }); }).length`)).toBe(11);
+  expect(await ev(page, `TODO_RULES.filter(function(r) { return FIN_RULES.some(function(f) { return f[0] === r[0]; }); }).length`)).toBe(12);
 });

@@ -114,7 +114,7 @@ every session start — nothing to set up by hand. CI (`build-sync`) is the back
 ### Tests
 
 ```bash
-pnpm exec playwright test          # 522 tests, both layouts
+pnpm exec playwright test          # 525 tests, both layouts
 ```
 
 Some sandboxes ship a Chromium build Playwright does not expect and block downloading
@@ -1450,8 +1450,17 @@ to read it in the app yet"* — all three of receipts, payments and the ledger, 
   - **Exact matching only uses invoices raised by the day the receipt came in.**
   - **An invoice dated ahead of today is not over 90 days.**
   - **A month the statement never reached reads *No statement*,** not *Not in bank*.
-  - ⚠ **Still open:** a returned cheque is not netted against the deposit it reverses. Linking the two is a rule for
-    the owner to set.
+- **A returned cheque is linked to the deposit it undoes** (`bankLinkBounces`, owner: *"work on the open item"*):
+  - **By cheque number, automatically.** A debit naming a deposit's cheque number, within 60 days after it.
+  - **By amount, offered only.** A same-amount deposit in the 15 days before is offered with **Link**, never applied.
+  - **Posting-and-reversal pairs cancel.** A debit and credit of one amount and narration on one day cancel and
+    link to nothing: the real statement's only `REJECT` rows are such pairs, for the shop's own cheque 001290.
+  - **The owner's choice wins** (`S.bank.bounces`: a deposit id, or `null` for *not a bounce*), and is exported in
+    `sep-bank`.
+  - **A linked deposit stops being a receipt.** Every reading of receipts sees the client unpaid again, and its
+    cheque still counts in the client's series.
+  - Finance → Receivables → **Returned cheques** lists each one. To-do rule `bankBounce` asks until each is linked or
+    marked.
 - **Owned by soma-internal**, like stock: *Export JSON* writes `sep-bank` JSON (rows with their resolved category,
   payee rules, openings). The statement is never committed here; the specs read two fake statements in the
   bank's layout, `tests/fixtures/bank-*.xls`.
@@ -1501,7 +1510,7 @@ figure is the strongest evidence this repo has; this gives the live cost a secon
 ### The statement as intelligence
 Finance intelligence (`finintel.js`; spec Phase 5). The bank statement feeds the To-do and a forecast.
 
-- **Eleven To-do rules**, each switchable in Settings → Checks & alerts → To-do:
+- **Twelve To-do rules**, each switchable in Settings → Checks & alerts → To-do:
   - `bankStale`: the statement is 14 days old;
   - `bankLoose`: receipts still have no client a week on;
   - `owed90`: invoices over 90 days, per client. Never red while any receipt is unplaced, because that money may
@@ -1513,7 +1522,8 @@ Finance intelligence (`finintel.js`; spec Phase 5). The bank statement feeds the
   - `wageVsSlip`: a named salary leg against the payroll as paid;
   - `cashSwing`: last week's cash drawn is 25% off its payout;
   - `costGap`: recorded against paid over three closed months;
-  - `runway`: the forecast goes below zero within 45 days.
+  - `runway`: the forecast goes below zero within 45 days;
+  - `bankBounce`: a returned cheque is not linked to its deposit, or marked not a bounce.
 - **Days to pay** (`bankDaysToPay`) is weighted by amount. Each receipt counts the days from each invoice it paid, and
   opening balances are left out. Receivables and the Overview's debtor rows show it as *pays in N d*.
 - **Cash forecast, 60 days** (`finForecast`, Finance → Overview): the latest balance, plus what is expected in, less

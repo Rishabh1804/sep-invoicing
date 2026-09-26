@@ -79,3 +79,46 @@ test('an invoice dated ahead of today is not over 90 days; GST a statement never
   const st = await ev(page, `(function() { var m = insMonthsBack(3)[0]; var r = finGstByMonth([m], bankClassify())[0]; return finGstStatus(Object.assign(r, { due: 100 })).text; })()`);
   expect(st).toBe('No statement');
 });
+
+/* ---------- Returned cheques ---------- */
+test('a returned cheque that names the deposit links itself, and the client owes it again', async ({ page }) => {
+  seq = 0;
+  await loadAppWithState(page, state([row(day(-40), 'SMS CHARGES', 1, 0),
+    row(day(-20), 'BY INST 525428', 0, 50000, { cat: 'receipt', clientId: 1 }),
+    row(day(-15), 'REJECT:525428:30:Funds insufficient', 50000, 0)], { invoices: [inv(1, day(-30), 50000)] }));
+  const r = await ev(page, `(function() { var x = bankReceivables().find(function(y) { return y.client.id === 1; }); return { owed: x.owed, received: x.received }; })()`);
+  expect(r).toEqual({ owed: 50000, received: 0 });
+  // The cheque still belongs to the client's series.
+  expect(await ev(page, `bankChequeSeries()['1']`)).toEqual(['525428']);
+  expect(await ev(page, `todoAppAll(['bankBounce']).length`)).toBe(0);
+  await switchTab(page, 'pageFinance');
+  await page.locator('[data-action="invFinTab"][data-tab="receipts"]').click();
+  await expect(page.locator('#bankBounces')).toContainText('by cheque number');
+  // Not a bounce: the deposit counts as paid again.
+  await page.locator('#bankBounces [data-action="invBankBounce"]').click();
+  expect(await ev(page, `bankReceivables().find(function(y) { return y.client.id === 1; }).owed`)).toBe(0);
+});
+
+test('a return naming no deposit is only offered one of the same amount, and a task asks for it', async ({ page }) => {
+  seq = 0;
+  await loadAppWithState(page, state([row(day(-40), 'SMS CHARGES', 1, 0),
+    row(day(-10), 'BY INST 111111', 0, 7000, { cat: 'receipt', clientId: 2 }),
+    row(day(-6), 'INWARD RTN CHQ', 7000, 0, { cat: 'reversal' })]));
+  // Offered, never applied: Beta still reads as having paid.
+  expect(await ev(page, `bankReceivables().find(function(y) { return y.client.id === 2; }).received`)).toBe(7000);
+  expect(await ev(page, `todoAppAll(['bankBounce'])[0].title`)).toContain('Match the cheque returned');
+  await switchTab(page, 'pageFinance');
+  await page.locator('[data-action="invFinTab"][data-tab="receipts"]').click();
+  await page.locator('#bankBounces [data-bounce-offer] [data-action="invBankBounce"]').click();
+  // Linked, the deposit is no receipt at all: Beta has nothing left on Receivables.
+  expect(await ev(page, `bankReceivables().some(function(y) { return y.client.id === 2; })`)).toBe(false);
+  expect(await ev(page, `todoAppAll(['bankBounce']).length`)).toBe(0);
+  expect(await ev(page, `JSON.stringify(bankData().bounces)`)).toContain('BK-F2');
+});
+
+test('a posting and its own reversal on one day cancel, and nobody is asked about them', async ({ page }) => {
+  seq = 0;
+  await loadAppWithState(page, state([row(day(-9), 'REJECT:001290:70:Advice not received', 0, 88018), row(day(-9), 'REJECT:001290:70:Advice not received', 88018, 0)]));
+  expect(await ev(page, `bankReturnedCheques().length`)).toBe(0);
+  expect(await ev(page, `todoAppAll(['bankBounce']).length`)).toBe(0);
+});

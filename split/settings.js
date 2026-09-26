@@ -18,7 +18,7 @@ var SETTINGS_GROUPS = [
   { key: 'costing', label: 'Costing', secs: ['fullCost', 'fallbacks', 'zinc'] },
   { key: 'labour', label: 'Labour', secs: ['overtime', 'rest', 'extra', 'labModel'] },
   { key: 'connections', label: 'Connections', secs: ['metalsKey', 'geminiKey', 'sync'] },
-  { key: 'data', label: 'Data & device', secs: ['data'] }
+  { key: 'data', label: 'Data & device', secs: ['appearance', 'data'] }
 ];
 
 function _setUi() {
@@ -345,6 +345,14 @@ var SETTINGS_SECS = {
     },
     body: function() { return renderGhSyncFields(); },
     save: function() { saveGhSyncSettings(); ghRenderCard(); }
+  },
+  appearance: {
+    title: 'Appearance',
+    summary: function() { return appearanceSummary(); },
+    body: function() { return appearanceFieldsHtml(); },
+    why: 'Kept on this device only, so each phone and computer can look its own way and a backup never changes it. ' +
+      'Theme on System follows the phone&rsquo;s light or dark setting. Density Auto is compact on the desktop layout and comfortable on the phone. ' +
+      'The installed app icon stays Teal: it comes from one file every device shares.'
   },
   data: {
     title: 'Backup, storage & build',

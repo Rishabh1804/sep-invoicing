@@ -97,7 +97,7 @@ test('P31: the invoice owns its type scale — the root font size cannot move it
   // vacuous and would pass on a stylesheet that had stopped working.
   const appMoved = await page.evaluate(() => {
     const probe = document.createElement('div');
-    probe.style.fontSize = 'var(--fs-sm)';
+    probe.style.fontSize = 'var(--fs-12)'; // v2.0 names the size; --fs-sm moved to 13px with the new scale
     document.body.appendChild(probe);
     const size = getComputedStyle(probe).fontSize;
     probe.remove();

@@ -238,13 +238,13 @@ test.describe('P39: stock', () => {
 
   test('More holds To-do, Stock, Staff, Stats and History, and lights up while one is open', async ({ page }) => {
     await loadAppWithState(page, state());
-    await expect(page.locator('.inv-tabs .inv-tab')).toHaveCount(6);
-    await page.locator('.inv-tab-more').click();
+    await expect(page.locator('.inv-navbar .inv-navbar-item')).toHaveCount(6);
+    await page.locator('.inv-navbar-more').click();
     await expect(page.locator('.inv-more-item')).toHaveText([/To-do/, /Stock/, /Staff/, /Stats/, /History/]);
     await page.locator('.inv-more-item[data-tab="pageStaff"]').click();
     await expect(page.locator('#moreSheet')).toHaveCount(0);
     await expect(page.locator('#pageStaff')).toHaveClass(/inv-page-active/);
-    await expect(page.locator('.inv-tab-more')).toHaveClass(/inv-tab-active/);
+    await expect(page.locator('.inv-navbar-more')).toHaveClass(/inv-navbar-item-on/);
   });
 
   test('export carries the whole record; importing it again adds nothing', async ({ page }) => {

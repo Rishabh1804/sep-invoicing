@@ -1,4 +1,10 @@
 /* ===== TAB SWITCHING (DP v0.2 9-step) ===== */
+const PAGE_TITLES = {
+  pageHome: 'Home', pageCreate: 'Create invoice', pageIM: 'Challans', pageRegister: 'Register',
+  pageClients: 'Clients', pageTodo: 'To-do', pageStock: 'Stock', pageStaff: 'Staff',
+  pageStats: 'Stats', pageHistory: 'History'
+};
+
 function switchTab(tabId) {
   // Step 1: Dismiss toasts and close overlays
   document.querySelectorAll('.inv-toast').forEach(t => t.remove());
@@ -17,9 +23,7 @@ function switchTab(tabId) {
 
   // Step 3: Deactivate all tabs and pages
   document.querySelectorAll('.inv-page').forEach(p => p.classList.remove('inv-page-active'));
-  document.querySelectorAll('.inv-tab').forEach(t => t.classList.remove('inv-tab-active'));
-  // Phase 8A: Deactivate sidebar items
-  document.querySelectorAll('.inv-sidebar-item').forEach(s => s.classList.remove('inv-sidebar-active'));
+  document.querySelectorAll('.inv-navbar-item').forEach(t => t.classList.remove('inv-navbar-item-on'));
 
   // Step 4: Read and clear _navReturnTab
   const returnTab = _navReturnTab;
@@ -28,15 +32,15 @@ function switchTab(tabId) {
   // Step 5: Activate target page and tab
   const page = document.getElementById(tabId);
   if (page) page.classList.add('inv-page-active');
-  document.querySelectorAll('.inv-tab').forEach(t => {
-    if (t.dataset.tab === tabId) t.classList.add('inv-tab-active');
+  document.querySelectorAll('.inv-navbar-item').forEach(t => {
+    if (t.dataset.tab === tabId) t.classList.add('inv-navbar-item-on');
   });
   // To-do, Stock, Staff, Stats and History live behind More on the phone bar.
-  document.querySelectorAll('.inv-tab-more').forEach(t => t.classList.toggle('inv-tab-active', MORE_TABS.indexOf(tabId) >= 0));
-  // Phase 8A: Activate sidebar item
-  document.querySelectorAll('.inv-sidebar-item').forEach(s => {
-    if (s.dataset.tab === tabId) s.classList.add('inv-sidebar-active');
-  });
+  document.querySelectorAll('.inv-navbar-more').forEach(t => t.classList.toggle('inv-navbar-item-on', MORE_TABS.indexOf(tabId) >= 0));
+  // The top bar names the screen (§4); the desktop sidebar marks it.
+  const title = document.getElementById('topbarTitle');
+  if (title) title.textContent = PAGE_TITLES[tabId] || 'SEP Invoicing';
+  markSideActive(tabId);
 
   // Step 5b: Persist active tab for refresh recovery (Phase 6b)
   regFilter.activeTab = tabId;

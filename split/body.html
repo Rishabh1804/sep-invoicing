@@ -1,11 +1,13 @@
 </head>
 <body>
 
-<!-- HEADER -->
-<header class="inv-header">
-  <span class="inv-header-title">SEP Invoicing</span>
-  <button class="inv-header-btn" data-action="invOpenSettings" aria-label="Settings">
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg>
+<!-- TOP BAR (design system §4, §6.1) -->
+<header class="inv-topbar">
+  <h1 class="inv-topbar-title" id="topbarTitle">Home</h1>
+  <span class="inv-topbar-ctx" id="topbarCtx"></span>
+  <span class="inv-topbar-spacer"></span>
+  <button class="inv-topbar-btn" data-action="invOpenSettings" aria-label="Settings">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M4 6h9M17 6h3M4 12h3M11 12h9M4 18h11M19 18h1M15 4v4M9 10v4M17 16v4"/></svg>
   </button>
 </header>
 
@@ -97,32 +99,32 @@
   <div id="historyList"></div>
 </div>
 
-<!-- TABS -->
-<nav class="inv-tabs">
-  <button class="inv-tab inv-tab-active" data-action="invSwitchTab" data-tab="pageHome">
+<!-- BOTTOM BAR (phone and tablet) -->
+<nav class="inv-navbar" aria-label="Main">
+  <button class="inv-navbar-item inv-navbar-item-on" data-action="invSwitchTab" data-tab="pageHome">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg>
     Home
   </button>
-  <button class="inv-tab" data-action="invSwitchTab" data-tab="pageCreate">
+  <button class="inv-navbar-item" data-action="invSwitchTab" data-tab="pageCreate">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
     Create
   </button>
-  <button class="inv-tab" data-action="invSwitchTab" data-tab="pageIM">
+  <button class="inv-navbar-item" data-action="invSwitchTab" data-tab="pageIM">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/></svg>
     IM
   </button>
-  <button class="inv-tab" data-action="invSwitchTab" data-tab="pageRegister">
+  <button class="inv-navbar-item" data-action="invSwitchTab" data-tab="pageRegister">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
     Register
   </button>
-  <button class="inv-tab" data-action="invSwitchTab" data-tab="pageClients">
+  <button class="inv-navbar-item" data-action="invSwitchTab" data-tab="pageClients">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
     Clients
   </button>
-  <button class="inv-tab inv-tab-more" data-action="invOpenMore" aria-label="More: Stock, Staff, Stats, History">
+  <button class="inv-navbar-item inv-navbar-more" data-action="invOpenMore" aria-label="More: Stock, Staff, Stats, History">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
     More
-    <span id="moreBadge" class="inv-tab-badge inv-hidden"></span>
+    <span id="moreBadge" class="inv-navbar-count inv-hidden"></span>
   </button>
 </nav>
 

@@ -78,16 +78,16 @@ plus its row in §3.10; nothing else changes.
 
 | Primitive | Light | Dark |
 |---|---|---|
-| `--c-bg` | `#f4f6f7` | `#0d1213` |
-| `--c-surface` | `#ffffff` | `#131a1b` |
-| `--c-surface-2` | `#eaeff1` | `#1a2224` |
-| `--c-surface-3` | `#dfe6e9` | `#222c2e` |
-| `--c-border` | `#d8e0e3` | `#293537` |
+| `--c-bg` | `#eef2f3` | `#0d1213` |
+| `--c-surface` | `#f8fafa` | `#131a1b` |
+| `--c-surface-2` | `#e6ecee` | `#1a2224` |
+| `--c-surface-3` | `#dbe3e6` | `#222c2e` |
+| `--c-border` | `#d3dcdf` | `#293537` |
 | `--c-text-1` | `#11191c` | `#ecf2f2` |
 | `--c-text-2` | `#4a585e` | `#a6b6b8` |
-| `--c-text-3` | `#5f6f75` | `#7d8f91` |
+| `--c-text-3` | `#58686e` | `#7d8f91` |
 | `--c-accent` | `#0d6b63` | `#4fc1b3` |
-| `--c-on-accent` | `#ffffff` | `#04211d` |
+| `--c-on-accent` | `#f6faf9` | `#04211d` |
 | `--c-accent-soft` | `#dcefec` | `#15302d` |
 | `--c-accent-soft-text` | `#0a4d47` | `#8fdcd2` |
 
@@ -95,25 +95,31 @@ plus its row in §3.10; nothing else changes.
 
 | Primitive | Light | Dark |
 |---|---|---|
-| `--c-bg` / `--c-surface` | `#f3f4f5` / `#ffffff` | `#0e1114` / `#15191d` |
-| `--c-surface-2` / `--c-surface-3` | `#eaecee` / `#e0e3e6` | `#1c2126` / `#242a30` |
-| `--c-border` | `#dadee2` | `#2b323a` |
+| `--c-bg` / `--c-surface` | `#eff0f2` / `#f8f9fa` | `#0e1114` / `#15191d` |
+| `--c-surface-2` / `--c-surface-3` | `#e6e9ec` / `#dde1e5` | `#1c2126` / `#242a30` |
+| `--c-border` | `#d5dadf` | `#2b323a` |
 | `--c-text-1` / `-2` / `-3` | `#14191e` / `#4d5761` / `#5e6974` | `#edf0f3` / `#a9b3bd` / `#86919c` |
-| `--c-accent` / `--c-on-accent` | `#8a5d0c` / `#ffffff` | `#dcaa4c` / `#1b1204` |
+| `--c-accent` / `--c-on-accent` | `#8a5d0c` / `#fbf7ef` | `#dcaa4c` / `#1b1204` |
 | `--c-accent-soft` / `-text` | `#f5ead3` / `#6a4606` | `#33291a` / `#ecc983` |
 
 **Terracotta** — warm neutrals, the v1.0 accent.
 
 | Primitive | Light | Dark |
 |---|---|---|
-| `--c-bg` / `--c-surface` | `#f6f4ef` / `#ffffff` | `#141311` / `#1c1b18` |
-| `--c-surface-2` / `--c-surface-3` | `#efebe3` / `#e6e0d5` | `#24221e` / `#2d2a25` |
-| `--c-border` | `#e2dccf` | `#36322c` |
+| `--c-bg` / `--c-surface` | `#f3f0ea` / `#fbf9f5` | `#141311` / `#1c1b18` |
+| `--c-surface-2` / `--c-surface-3` | `#ebe6dd` / `#e2dbcf` | `#24221e` / `#2d2a25` |
+| `--c-border` | `#ddd6c8` | `#36322c` |
 | `--c-text-1` / `-2` / `-3` | `#1b1916` / `#58534b` / `#6a6459` | `#f3f0ea` / `#bcb6aa` / `#948d80` |
-| `--c-accent` / `--c-on-accent` | `#ad4f2c` / `#ffffff` | `#e98c64` / `#1f0e06` |
+| `--c-accent` / `--c-on-accent` | `#ad4f2c` / `#fbf6f2` | `#e98c64` / `#1f0e06` |
 | `--c-accent-soft` / `-text` | `#f6e6dc` / `#7e3418` | `#3b2419` / `#f2b89c` |
 
 The status tones (§3.3) are **shared by every palette**: red must mean the same thing whichever accent is on.
+
+**No pure white anywhere in the interface** (owner, 26 Sep 2026: *"make sure that nothing is in absolute
+white colour as that puts a lot of stress at our eyes"*). The lightest surface in every palette is an
+off-white a step below `#fff`, text on the accent is off-white too, and the app icons use the same. The one
+exception is **paper**: the printed documents and their on-screen previews stay `#fff`, because that is the
+sheet they print on and the PDF they save as.
 
 ### 3.2 Theme: light, dark, and following the system
 
@@ -154,7 +160,7 @@ The status tones (§3.3) are **shared by every palette**: red must mean the same
 |---|---|---|---|
 | `--danger` / `--danger-bg` | broken, below cost, absent, out, overdue | `#b42318` / `#fdecea` | `#f38b81` / `#3a1916` |
 | `--warning` / `--warning-bg` | check, running low, half, short, due | `#8a5700` / `#fcf1d9` | `#e8b95c` / `#352911` |
-| `--ok` / `--ok-bg` | matches, healthy, present, delivered, measured | `#1b7a3d` / `#e4f3e8` | `#72c98f` / `#14301e` |
+| `--ok` / `--ok-bg` | matches, healthy, present, delivered, measured | `#176e37` / `#e4f3e8` | `#72c98f` / `#14301e` |
 | `--info` / `--info-bg` | in transit, informational, market rate, "on shelf" | `#1d5ea6` / `#e6effa` | `#8dbaf0` / `#15263a` |
 
 `--neutral` is `--text-3` on `--surface-2` (created, filed, model, no data). **The v1.0 domain colours
@@ -251,21 +257,23 @@ which read `var()` for every colour. Anything else raw is a defect.
 
 Teal:
 
-Light: text-1/surface 17.8 · text-2 7.4 · text-3 5.2 (≥ 4.5 on `--surface-2` too) · accent/surface 6.4 ·
-danger/danger-bg 5.8 · warning 5.4 · ok 4.7 · info 5.7. Dark: text-1 15.6 · text-2 8.4 · text-3 ≥ 4.8 on
+Light: text-3 ≥ 4.9 on every surface · text-2 ≥ 6.2 · accent/surface 6.1 · on-accent/accent 6.1 ·
+danger/danger-bg 5.8 · warning 5.4 · ok 5.5 · info 5.7; every tone ≥ 5.0 as text on any surface. Dark: text-1 15.6 · text-2 8.4 · text-3 ≥ 4.8 on
 every surface · accent 8.1 · on-accent/accent 7.8 · tones 6.6–7.8.
-Zinc & brass: text-3 ≥ 4.7 light / 5.0 dark on every surface · accent 5.8 / 8.3 · accent-soft text 7.1 / 9.0.
-Terracotta: text-3 ≥ 4.9 light / 4.8 dark · accent 5.3 / 6.9 · accent-soft text 7.2 / 8.3.
+Zinc & brass: text-3 ≥ 4.6 light / 5.0 dark on every surface · accent 5.5 / 8.3 · on-accent 5.4 · accent-soft text 7.1 / 9.0.
+Terracotta: text-3 ≥ 4.7 light / 4.8 dark · accent 5.1 / 6.9 · on-accent 5.0 · accent-soft text 7.2 / 8.3.
 (Both alternates' `--c-text-3` were darkened from the mock-ups, which failed 4.5:1 on `--surface-2`.)
 **A new or changed palette must re-measure its row before it merges.**
 
 ### 3.11 App icon
 
 Redrawn in the palette (owner, 26 Sep 2026: *"Redesign it in Teal, changes with the palette theme"*):
-a full-bleed square in `--c-accent` with a hexagon (the plated part — the same hexagon as the IM icon) drawn
-in `--c-on-accent` and **SEP** set in Geist 700 inside it. The artwork sits inside the central 80% so the
+a full-bleed square in the palette's light `--c-accent` with a **nut**: a hexagon outline, a solid hexagon
+inside it and a round hole — the plated part, and the same hexagon as the IM icon — in the palette's off-white `--c-on-accent`. No lettering,
+so it reads the same at 16px and needs no font. The artwork sits inside the central 80% so the
 one file is also a valid **maskable** icon. Masters are SVG, one per palette
-(`icons/icon-teal.svg`, `icon-zinc.svg`, `icon-terracotta.svg`), with PNG exports at 192 and 512.
+(`icons/icon-teal.svg`, `icon-zinc.svg`, `icon-terracotta.svg`), with PNG exports at 192 and 512;
+`icon-192.png` / `icon-512.png` at the root are the Teal exports the manifest names.
 
 - **In the app** — the browser tab icon, the Apple touch icon and the sidebar brand mark — the icon follows
   the device's palette at runtime.
@@ -281,8 +289,9 @@ one file is also a valid **maskable** icon. Masters are SVG, one per palette
 ### 4.1 Phone and tablet
 
 - **Top bar** (`--bar-h`, `--surface`, bottom hairline): page title (`--t-title`), then at most **two**
-  actions on the right — the view's primary action and one secondary (or an icon button). Settings is an
-  icon button on Home only; elsewhere it lives in More.
+  actions on the right — the view's primary action and one secondary (or an icon button) — then the
+  Settings icon button, on every screen (built 26 Sep 2026; a Settings reachable from Home only cost a
+  detour from every other tab). On the desktop Settings is the sidebar's last entry instead.
 - **Sub-tabs** sit directly under the top bar, inside the same surface (§6.4, underline tabs), and scroll
   horizontally when they do not fit — never cut off, never wrap.
 - **Bottom bar** (`--nav-h`): Home · Create · IM · Register · Clients · More, icon + `--t-micro` label; the
@@ -529,7 +538,7 @@ read as — drawn as an `inv-table` with `inv-badge` verdicts ("Needs you", "Che
 Each phase is one PR, full suite green, before/after screenshots of every touched screen in light and dark,
 phone and desktop.
 
-1. **Foundation.** New token block (§3) with `light-dark()`, the three palettes, theme + palette + density
+1. **Foundation** — *built 26 Sep 2026.* New token block (§3) with `light-dark()`, the three palettes, theme + palette + density
    plumbing and Settings → Appearance, the new icons (§3.11), Geist faces,
    `:focus-visible` ring, the new app shell (§4, §6.1). Old tokens kept as **aliases of the new** so every
    existing rule renders in the new palette immediately. The old domain tokens map onto the status tones.

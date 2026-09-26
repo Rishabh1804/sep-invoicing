@@ -171,7 +171,7 @@ export async function switchTab(page: Page, tabId: string): Promise<void> {
   // Any visible one works; pick the first so the helper is layout-agnostic. On the
   // phone bar Stock, Staff, Stats and History sit behind More, so open it first.
   const target = page.locator(`[data-action="invSwitchTab"][data-tab="${tabId}"]:visible`);
-  if ((await target.count()) === 0) await page.locator('.inv-tab-more').click();
+  if ((await target.count()) === 0) await page.locator('.inv-navbar-more').click();
   await target.first().click();
   await page.locator(`#${tabId}.inv-page-active`).waitFor();
 }

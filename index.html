@@ -18,7 +18,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <!-- Appearance before first paint (§3.2): the device's theme and palette, so nothing flashes in the wrong colours. -->
 <script>(function(){try{var d=document.documentElement,t=localStorage.getItem("sep_inv_theme"),p=localStorage.getItem("sep_inv_palette");if(t==="light"||t==="dark")d.dataset.theme=t;d.dataset.palette=(p==="zinc"||p==="terracotta")?p:"teal";}catch(e){document.documentElement.dataset.palette="teal";}})();</script>
-<meta name="app-build" content="572c342f">
+<meta name="app-build" content="0c2419a4">
 <style>
 /* ===== DESIGN TOKENS (design system v2.0 — docs/SEP_INVOICING_DESIGN_PRINCIPLES.md §3) ===== */
 /* Theme: colour-scheme decides every light-dark() below. <html data-theme> is set before first paint
@@ -3137,6 +3137,8 @@ body.inv-desktop :is(.inv-panel, .inv-card, .inv-card-list, .inv-stats-card) { b
   font-size: var(--fs-14); font-weight: 600; line-height: 1.4; color: var(--text-1);
 }
 .inv-panel-count { font-family: var(--ff-mono); font-size: var(--fs-12); color: var(--text-3); font-weight: 400; }
+/* A padded stretch inside a flush panel (a form opened in place), set off from the rows below it. */
+.inv-panel-body { padding: var(--card-padding); border-bottom: 1px solid var(--border); }
 /* Panels laid out: one column on the phone, two on the desktop; a -wide panel spans both. */
 .inv-panels { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--gap); }
 .inv-panels > :empty { display: none; }
@@ -12325,8 +12327,9 @@ function cancelCreditNote(cnId) {
   cn.cancelledAt = Date.now();
   cn.updatedAt = Date.now();
   saveState();
-  closeOverlay();
-  renderCreditNoteList();
+  // Cancelled from wherever the note is listed: the Register's overlay, or Stock → Bills & notes.
+  if (document.querySelector('.inv-overlay-scrim')) { closeOverlay(); renderCreditNoteList(); }
+  else if (typeof _stockView !== 'undefined' && _stockView === 'bills') renderStock();
   showToast(cn.displayNumber + ' cancelled — the number stays in the series');
 }
 
@@ -12375,9 +12378,10 @@ function buildCreditNoteHtml(cn) {
     '<th>UOM</th><th>Rate</th><th>Amount</th></tr></thead><tbody>' +
     '<tr><td class="inv-cn-c">1</td><td>' + escHtml(cn.particulars || CN_PARTICULARS) + '</td>' +
     '<td class="inv-cn-c">' + gstRate + '%</td>' +
-    '<td class="inv-cn-num">' + formatNum(cn.qty, 2) + '</td>' +
-    '<td class="inv-cn-c">' + escHtml(cn.unit || 'KG') + '</td>' +
-    '<td class="inv-cn-num">' + formatNum(cn.rate, 2) + '</td>' +
+    // A note credited by value alone states no quantity or rate rather than printing 0.00.
+    '<td class="inv-cn-num">' + (cn.qty ? formatNum(cn.qty, 2) : '') + '</td>' +
+    '<td class="inv-cn-c">' + (cn.qty ? escHtml(cn.unit || 'KG') : '') + '</td>' +
+    '<td class="inv-cn-num">' + (cn.rate ? formatNum(cn.rate, 2) : '') + '</td>' +
     '<td class="inv-cn-num">' + formatNum(cn.taxableValue, 2) + '</td></tr>' +
     '</tbody></table>';
 
@@ -12423,7 +12427,7 @@ function buildCreditNoteHtml(cn) {
   // improvement over CN/005. An intermediate version of this line read "Computed
   // on (N invoices)", which asserts an arithmetic basis and drops the linkage
   // claim. Both readings now, because the document needs both.
-  html += '<div class="inv-cn-annex"><div class="inv-cn-annex-title">Invoices credited (' +
+  if (cnIsRebate(cn) && cn.discountPct && (cn.invoiceNumbers || []).length > 1) html += '<div class="inv-cn-annex"><div class="inv-cn-annex-title">Invoices credited (' +
     (cn.invoiceNumbers || []).length + ') &mdash; the discount is computed on this batch, taxable ' +
     formatNum(cn.batchTaxable, 2) +
     ' at ' + escHtml(cn.discountPct) + '%</div>' +
@@ -12830,7 +12834,7 @@ function exportCreditNotesCSV() {
       cn.againstInvoice || (cnDeriveAgainstInvoice(cn) || {}).displayNumber || '',
       cnAgainstInvoiceDate(cn) ? formatDateExport(cnAgainstInvoiceDate(cn)) : '',
       formatDateExport(cn.periodFrom), formatDateExport(cn.periodTo),
-      cn.discountPct, cn.batchTaxable, z ? 'Cancelled' : 'Active'
+      cn.discountPct != null ? cn.discountPct : '', cn.batchTaxable != null ? cn.batchTaxable : '', z ? 'Cancelled' : 'Active'
     ]);
   });
   // Named for what the file holds, not for the register's filters. It borrowed
@@ -17714,6 +17718,7 @@ function renderStock() {
   else if (_stockView === 'manual' && _stockManual) el.innerHTML = renderStockManual();
   else if (_stockView === 'item' && stockItem(_stockItemId)) el.innerHTML = renderStockItem(stockItem(_stockItemId));
   else if (_stockView === 'reorder' && _stockReorder) el.innerHTML = renderStockReorder();
+  else if (_stockView === 'bills') el.innerHTML = renderBillsNotes();
   else { _stockView = 'list'; el.innerHTML = renderStockList(); }
   updateStockBadge();
 }
@@ -17730,7 +17735,7 @@ function renderStockList() {
   var items = st.items.filter(function(i) { return i.active !== false; });
   var lastCount = null;
   st.entries.forEach(function(e) { if (!e.voided && e.kind === 'count' && (!lastCount || e.date > lastCount.date || (e.date === lastCount.date && e.at > lastCount.at))) lastCount = e; });
-  var h = '<div class="inv-stk-top"><div>' +
+  var h = stockTabsHtml('list') + '<div class="inv-stk-top"><div>' +
     (lastCount ? '<div class="inv-stk-meta">Last count <strong>' + escHtml(stockShortDate(lastCount.date)) + '</strong>' +
       (lastCount.sentBy ? ' &middot; ' + escHtml(lastCount.sentBy) : '') + '</div>' : '') +
     '</div><div class="inv-stk-tools">' +
@@ -18061,10 +18066,7 @@ function renderStockItem(item) {
   h += '<div class="inv-stk-props"><div class="inv-stk-label">How it is used</div><div class="inv-stk-seg">' +
     '<button class="inv-stk-seg-btn' + (item.basis !== 'charge' ? ' inv-stk-seg-on' : '') + '" data-action="invStockBasis" data-v="draw">Drawn daily</button>' +
     '<button class="inv-stk-seg-btn' + (item.basis === 'charge' ? ' inv-stk-seg-on' : '') + '" data-action="invStockBasis" data-v="charge">Charged to a bath</button></div>' +
-    '<div class="inv-stk-fields"><div class="inv-stk-field"><label class="inv-stk-label" for="stockItemUnit">Unit</label><select id="stockItemUnit" class="inv-form-input" data-stock-unit="' + escHtml(item.id) + '">' +
-    ['', 'kg', 'L', 'nos'].map(function(u) { return '<option value="' + u + '"' + ((item.unit || '') === u ? ' selected' : '') + '>' + (u || 'not set') + '</option>'; }).join('') +
-    '</select></div></div>' +
-    ((item.aliases || []).length ? '<div class="inv-stk-hint">Also read as: ' + item.aliases.map(escHtml).join(', ') + '</div>' : '') + '</div>';
+    '</div>' + stockEditHtml(item);
 
   var replay = stockReplay(item.id).rows;
   var byId = {};
@@ -18309,8 +18311,6 @@ function stockOnChange(t) {
   if (ni != null && _stockReview) { stockCommitName(t, false); return true; }
   if (t.id === 'stockManDate' && _stockManual) { _stockManual.date = t.value; return true; }
   if ((t.id === 'stockLeadDays' || t.id === 'stockCoverDays') && _stockReorder) { stockReorderOnInput(t); renderStock(); return true; }
-  var u = t.getAttribute && t.getAttribute('data-stock-unit');
-  if (u) { var it = stockItem(u); if (it) { it.unit = t.value; saveState(); renderStock(); } return true; }
   return false;
 }
 /* ===== Prices, purchases and the live cost =====
@@ -18498,7 +18498,7 @@ function costBills() {
   if (!Array.isArray(S.costBills)) S.costBills = [];
   return S.costBills;
 }
-var COST_BILL_KINDS = { power: 'Power', other: 'Consumables, ETP, maintenance' };
+var COST_BILL_KINDS = { power: 'Electricity', other: 'Consumables, ETP, maintenance' };
 
 /* The share of a month's bill that falls inside the range, by calendar days. */
 function costMonthShare(month, from, to) {
@@ -18683,23 +18683,33 @@ function renderLiveCostCard(period, tonnage) {
 
 function _costBillHtml() {
   var bills = costBills().slice().sort(function(a, b) { return a.month < b.month ? 1 : -1; });
-  var h = '<div class="inv-cost-bills"><div class="inv-stk-label">Power and other bills</div>';
+  var h = '<div class="inv-cost-bills"><div class="inv-stk-label">Electricity and other bills</div>';
   bills.slice(0, 12).forEach(function(b) {
     h += '<div class="inv-cost-dline' + (b.voided ? ' inv-pay-void' : '') + '"><span>' + escHtml((b.label || COST_BILL_KINDS[b.kind]) + ' · ' + b.month) +
       '<span class="inv-cost-note">' + escHtml([b.units ? b.units + ' units' : '', b.note || '', b.voided ? 'void: ' + (b.voidReason || '') : ''].filter(Boolean).join(' · ')) + '</span></span>' +
       '<span class="inv-mono">' + formatCurrency(b.amount) + (b.voided ? '' : ' <button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invCostBillVoid" data-id="' + escHtml(b.id) + '">Void</button>') + '</span></div>';
   });
-  if (!_costBillOpen) return h + '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invCostBillOpen">Add a bill</button></div>';
-  var m = localDateStr().slice(0, 7);
-  h += '<div class="inv-form-row"><div class="inv-form-group"><label class="inv-form-label" for="costBillKind">Kind</label><select class="inv-form-select" id="costBillKind">' +
-    '<option value="power">Power</option><option value="other">Consumables, ETP, maintenance</option></select></div>' +
-    '<div class="inv-form-group"><label class="inv-form-label" for="costBillMonth">Month it covers</label><input class="inv-form-input" id="costBillMonth" type="month" value="' + m + '"></div></div>' +
-    '<div class="inv-form-row"><div class="inv-form-group"><label class="inv-form-label" for="costBillAmount">Amount, before GST</label><input class="inv-form-input inv-mono" id="costBillAmount" type="number" step="0.01" min="0" inputmode="decimal"></div>' +
-    '<div class="inv-form-group"><label class="inv-form-label" for="costBillUnits">Units (power)</label><input class="inv-form-input inv-mono" id="costBillUnits" type="number" step="1" min="0" inputmode="numeric"></div></div>' +
-    '<div class="inv-form-group"><label class="inv-form-label" for="costBillNote">Note</label><input class="inv-form-input" id="costBillNote" placeholder="e.g. JBVNL bill, ETP sludge"></div>' +
-    '<div class="inv-btn-bar"><button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invCostBillCancel">Cancel</button><button class="inv-btn inv-btn-primary inv-btn-sm" data-action="invCostBillSave">Save bill</button></div>';
-  return h + '</div>';
+  if (!_costBillOpen || _costBillOpen.where !== 'stats') {
+    return h + '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invCostBillOpen" data-where="stats">Add a bill</button>' +
+      '<div class="inv-note">Bills are also kept under Stock &rarr; Bills &amp; notes.</div></div>';
+  }
+  return h + costBillFormHtml() + '</div>';
 }
+
+/* One form, drawn wherever it was opened: Stats → Live cost, or Stock → Bills & notes. */
+function costBillFormHtml() {
+  var o = _costBillOpen || {}, m = o.month || localDateStr().slice(0, 7);
+  return '<div class="inv-fields">' +
+    '<label class="inv-field"><span class="inv-field-label">Kind</span><select class="inv-select" id="costBillKind">' +
+    '<option value="power">Electricity</option><option value="other">Consumables, ETP, maintenance</option></select></label>' +
+    '<label class="inv-field"><span class="inv-field-label">Month it covers</span><input class="inv-input" id="costBillMonth" type="month" value="' + escHtml(m) + '"></label>' +
+    '<label class="inv-field"><span class="inv-field-label">Amount, before GST</span><input class="inv-input inv-input-num" id="costBillAmount" type="number" step="0.01" min="0" inputmode="decimal"></label>' +
+    '<label class="inv-field"><span class="inv-field-label">Units (electricity)</span><input class="inv-input inv-input-num" id="costBillUnits" type="number" step="1" min="0" inputmode="numeric"></label>' +
+    '<label class="inv-field inv-kv-wide"><span class="inv-field-label">Note</span><input class="inv-input" id="costBillNote" placeholder="e.g. JBVNL bill, ETP sludge"></label></div>' +
+    '<div class="inv-toolbar"><button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invCostBillCancel">Cancel</button>' +
+    '<button class="inv-btn inv-btn-primary inv-btn-sm" data-action="invCostBillSave">Save bill</button></div>';
+}
+function costBillRedraw(where) { if (where === 'stock') renderStock(); else renderStats(); }
 
 function costBillSave() {
   var v = function(id) { return ((document.getElementById(id) || {}).value || '').trim(); };
@@ -18709,9 +18719,10 @@ function costBillSave() {
   var units = parseFloat(v('costBillUnits'));
   costBills().push({ id: 'CB-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), kind: kind, month: month, amount: amount,
     units: units > 0 ? units : null, note: v('costBillNote'), at: Date.now() });
+  var where = (_costBillOpen || {}).where;
   _costBillOpen = false;
   saveState();
-  renderStats();
+  costBillRedraw(where);
   showToast(COST_BILL_KINDS[kind] + ' bill saved for ' + month);
 }
 function costBillVoid(id) {
@@ -18723,12 +18734,19 @@ function costBillVoid(id) {
   b.voided = Date.now();
   b.voidReason = reason.trim();
   saveState();
-  renderStats();
+  costBillRedraw(_stockView === 'bills' && document.getElementById('billsPower') ? 'stock' : 'stats');
 }
 function costAction(action, btn) {
   switch (action) {
-    case 'invCostBillOpen': _costBillOpen = true; renderStats(); return true;
-    case 'invCostBillCancel': _costBillOpen = false; renderStats(); return true;
+    case 'invCostBillOpen': {
+      var where = btn.dataset.where === 'stock' ? 'stock' : 'stats';
+      _costBillOpen = { where: where, month: btn.dataset.month || '' };
+      costBillRedraw(where);
+      if (btn.dataset.month) { var k = document.getElementById('costBillKind'); if (k) k.value = 'power'; }
+      var a = document.getElementById('costBillAmount'); if (a) a.focus();
+      return true;
+    }
+    case 'invCostBillCancel': { var w = (_costBillOpen || {}).where; _costBillOpen = false; costBillRedraw(w); return true; }
     case 'invCostBillSave': costBillSave(); return true;
     case 'invCostBillVoid': costBillVoid(btn.dataset.id); return true;
   }
@@ -18851,6 +18869,384 @@ function stockReorderOnInput(t) {
   }
   return false;
 }
+/* ===== BILLS & NOTES (Stock → Bills & notes) =====
+ * Two records that had no findable door (owner, 26 Sep 2026: "We don't have a place to enter
+ * electricity bills anywhere in the app … And even credit notes").
+ *
+ * Electricity and other bills are S.costBills, the same records Stats → Live cost reads; they
+ * were entered only at the foot of that card, under "Power". They are entered here now, a month
+ * that closed without one is listed as missing, and the To-do rule `power` asks for it.
+ *
+ * Credit notes could only be RAISED, and only one way: a register selection priced at the SSS
+ * Mehta batch discount. Two things had no door at all:
+ *   - a note already issued outside the app (CN/001–005 were; CN/004 and CN/005, ₹11,388.66 gross,
+ *     sat outside S.creditNotes and so outside the CDNR export — CLAUDE.md's control gap);
+ *   - a note for any other reason: a rate correction, goods returned, a short weight.
+ * Both land in the same series, list, printout and CSV as a batch note. The reason is a FIXED
+ * list (owner's choice) so the register can be read by kind; Other requires a description.
+ */
+
+var CN_REASONS = [
+  ['rate', 'Rate correction'],
+  ['returned', 'Goods returned or rejected'],
+  ['short', 'Short quantity or weight'],
+  ['discount', 'Discount'],
+  ['rebate', 'Batch rebate'],
+  ['other', 'Other']
+];
+function cnReasonLabel(key) { var r = CN_REASONS.find(function(x) { return x[0] === key; }); return r ? r[1] : ''; }
+/* A batch rebate is the SSS Mehta scheme: the To-do batch rule and the printed annex read only these. */
+function cnIsRebate(cn) { return !cn.kind || cn.kind === 'rebate'; }
+
+var _billForm = null;   // { mode: 'new' | 'record', ... } — the credit-note form on this view
+var _billsMonths = 6;   // closed months checked for a missing electricity bill
+
+function billsMonthLabel(ym) {
+  var p = String(ym || '').split('-');
+  return p.length === 2 ? TREND_MONTH_LABELS[parseInt(p[1], 10) - 1] + ' ' + p[0] : ym;
+}
+function billsPrevMonths(n) {
+  var out = [], d = new Date(localDateStr() + 'T00:00:00');
+  d.setDate(1);
+  for (var i = 0; i < n; i++) { d.setMonth(d.getMonth() - 1); out.push(d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0')); }
+  return out;
+}
+/* A closed month with invoices but no electricity bill. A month the app billed nothing in is
+   not asked for: that is a device holding no books, not a missing bill. */
+function billsMissingPower() {
+  var have = {};
+  costBills().forEach(function(b) { if (b.kind === 'power' && !b.voided) have[b.month] = true; });
+  return billsPrevMonths(_billsMonths).filter(function(m) {
+    return !have[m] && (S.invoices || []).some(function(i) { return i.status === 'active' && i.date && i.date.slice(0, 7) === m; });
+  });
+}
+
+/* Stock's two views: the chemicals, and the bills and notes that cost the plant and credit its customers. */
+function stockTabsHtml(active) {
+  var tab = function(key, label) {
+    return '<button class="inv-viewtab" role="tab" aria-selected="' + (active === key) + '" data-action="invStockTab" data-tab="' + key + '">' + label + '</button>';
+  };
+  return '<div class="inv-viewtabs" role="tablist" aria-label="Stock views">' + tab('list', 'Chemicals') + tab('bills', 'Bills & notes') + '</div>';
+}
+
+function renderBillsNotes() {
+  return stockTabsHtml('bills') + _billsPowerHtml() + _billsNotesHtml();
+}
+
+/* ---------- Electricity and other bills ---------- */
+function _billsPowerHtml() {
+  var bills = costBills().slice().sort(function(a, b) { return a.month < b.month ? 1 : a.month > b.month ? -1 : (b.at || 0) - (a.at || 0); });
+  var missing = billsMissingPower();
+  var h = '<div class="inv-panel inv-panel-flush" id="billsPower"><div class="inv-panel-head"><span class="inv-panel-title">Electricity and other bills' +
+    (bills.length ? ' <span class="inv-panel-count">' + bills.length + '</span>' : '') + '</span>' +
+    (_costBillOpen ? '' : '<button class="inv-btn inv-btn-primary inv-btn-sm" data-action="invCostBillOpen" data-where="stock">Add bill</button>') + '</div>';
+  if (_costBillOpen && _costBillOpen.where === 'stock') h += '<div class="inv-panel-body">' + costBillFormHtml() + '</div>';
+  /* One list in month order: a missing month sits where its bill would. */
+  var rows = missing.map(function(m) { return { month: m, missing: true }; }).concat(bills.map(function(b) { return { month: b.month, bill: b }; }));
+  rows.sort(function(a, b) { return a.month < b.month ? 1 : a.month > b.month ? -1 : (a.missing ? -1 : b.missing ? 1 : 0); });
+  if (!bills.length && !missing.length) {
+    h += '<div class="inv-empty">No bills recorded. Until there are, Live cost prices electricity and the other costs at the Settings fallbacks.</div>';
+  }
+  rows.forEach(function(r) {
+    if (r.missing) {
+      var m = r.month;
+      h += '<div class="inv-row" data-missing="' + m + '"><span class="inv-row-main"><span class="inv-dot inv-dot-warning">No electricity bill for ' + escHtml(billsMonthLabel(m)) + '</span></span>' +
+      '<span class="inv-row-end"><button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invCostBillOpen" data-where="stock" data-month="' + m + '">Add</button></span></div>';
+      return;
+    }
+    var b = r.bill;
+    var meta = [b.units ? formatNum(b.units, 0) + ' units' : '', b.note || '', b.voided ? 'void: ' + (b.voidReason || '') : ''].filter(Boolean).join(' · ');
+    h += '<div class="inv-row inv-row-2' + (b.voided ? ' inv-row-muted' : '') + '" data-bill="' + escHtml(b.id) + '"><span class="inv-row-main">' +
+      '<span class="inv-row-title">' + escHtml((b.label || COST_BILL_KINDS[b.kind] || b.kind) + ' · ' + billsMonthLabel(b.month)) + '</span>' +
+      (meta ? '<span class="inv-row-meta">' + escHtml(meta) + '</span>' : '') + '</span>' +
+      '<span class="inv-row-end"><span class="inv-num">' + formatCurrency(b.amount) + '</span>' +
+      (b.voided ? '<span class="inv-dot inv-dot-neutral">Void</span>' : '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invCostBillVoid" data-id="' + escHtml(b.id) + '">Void</button>') +
+      '</span></div>';
+  });
+  return h + '</div>';
+}
+
+/* ---------- Credit notes ---------- */
+function _billsNotesHtml() {
+  var notes = getCreditNotes().slice().sort(function(a, b) { return (parseInt(b.cnNumber, 10) || 0) - (parseInt(a.cnNumber, 10) || 0); });
+  var h = '<div class="inv-panel inv-panel-flush" id="billsNotes"><div class="inv-panel-head"><span class="inv-panel-title">Credit notes' +
+    (notes.length ? ' <span class="inv-panel-count">' + notes.length + '</span>' : '') + '</span>' +
+    (_billForm ? '' : '<span class="inv-toolbar inv-toolbar-tight">' +
+      '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invCnFormOpen" data-mode="record">Record issued</button>' +
+      '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invCnFormOpen" data-mode="new">New note</button></span>') + '</div>';
+  if (_billForm) h += '<div class="inv-panel-body">' + _billsCnFormHtml() + '</div>';
+  if (!notes.length) {
+    h += '<div class="inv-empty">No credit notes. The batch rebate is raised from a Register selection; any other note, or one already issued, is entered here.</div>';
+  }
+  notes.forEach(function(cn) {
+    var cancelled = cn.status === 'cancelled';
+    var kind = cnIsRebate(cn) ? 'Batch rebate' + (cn.discountPct ? ' ' + cn.discountPct + '%' : '') : (cn.reason || 'Credit note');
+    h += '<div class="inv-row inv-row-2' + (cancelled ? ' inv-row-muted' : '') + '" data-cn="' + escHtml(cn.id) + '">' +
+      '<button class="inv-row-main" data-action="invCnPreview" data-id="' + escHtml(cn.id) + '">' +
+      '<span class="inv-row-title"><span class="inv-id" title="' + escHtml(cn.displayNumber) + '">CN/' + escHtml(cn.cnNumber) + '</span> · ' + escHtml(cn.clientName) + '</span>' +
+      '<span class="inv-row-meta">' + escHtml(formatDate(cn.date)) + ' · ' + escHtml(kind) + ' · against ' + escHtml(cnAgainstInvoiceLabel(cn)) +
+      (cn.recorded ? ' · recorded' : '') + '</span></button>' +
+      '<span class="inv-row-end"><span class="inv-row-stack"><span class="inv-num">' + formatCurrency(cn.grandTotal) + '</span>' +
+      (cancelled ? '<span class="inv-dot inv-dot-danger">Cancelled</span>' : '<span class="inv-row-meta inv-num">' + formatCurrency(cn.taxableValue) + ' taxable</span>') + '</span>' +
+      (cancelled ? '' : '<button class="inv-btn inv-btn-danger inv-btn-sm" data-action="invCnCancel" data-id="' + escHtml(cn.id) + '">Cancel</button>') + '</span></div>';
+  });
+  if (notes.length) h += '<div class="inv-row"><button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invExportCreditNotes">Credit notes CSV</button></div>';
+  return h + '</div>';
+}
+
+function _billsClientOptions(sel) {
+  var ids = {};
+  (S.invoices || []).forEach(function(i) { ids[i.clientId] = true; });
+  return S.clients.filter(function(c) { return ids[c.id]; }).sort(function(a, b) { return a.name < b.name ? -1 : 1; })
+    .map(function(c) { return '<option value="' + c.id + '"' + (String(sel) === String(c.id) ? ' selected' : '') + '>' + escHtml(c.name) + '</option>'; }).join('');
+}
+function _billsClientInvoices(clientId) {
+  return (S.invoices || []).filter(function(i) { return String(i.clientId) === String(clientId) && i.status === 'active'; })
+    .sort(function(a, b) { return (b.date || '').localeCompare(a.date || '') || (b.createdAt || 0) - (a.createdAt || 0); });
+}
+
+function _billsCnFormHtml() {
+  var f = _billForm, rec = f.mode === 'record';
+  var reasons = CN_REASONS.filter(function(r) { return rec || r[0] !== 'rebate'; });
+  var invs = f.clientId ? _billsClientInvoices(f.clientId) : [];
+  var field = function(label, id, control, cls) {
+    return '<label class="inv-field' + (cls ? ' ' + cls : '') + '"><span class="inv-field-label">' + label + '</span>' + control + '</label>';
+  };
+  var inp = function(id, type, val, extra) {
+    return '<input class="inv-input' + (type === 'number' ? ' inv-input-num' : '') + '" id="' + id + '" type="' + type + '" value="' + escHtml(val == null ? '' : val) + '"' + (extra || '') + '>';
+  };
+  var h = '<div class="inv-panel-title inv-mb-8">' + (rec ? 'Record a credit note already issued' : 'New credit note') + '</div>' +
+    (rec ? '<div class="inv-note inv-mb-8">For a note the customer already holds: type it as printed. It joins the series, the list and the credit-note CSV; the number it carries is kept, and never issued again.</div>'
+         : '<div class="inv-note inv-mb-8">A note against one invoice, for a reason other than the batch rebate (that is raised from a Register selection). It takes the next number in the series.</div>') +
+    '<div class="inv-fields">' +
+    (rec ? field('Number', 'cnfNum', inp('cnfNum', 'number', f.num, ' min="1" step="1" inputmode="numeric"')) +
+      field('Financial year', 'cnfFy', inp('cnfFy', 'text', f.fy, ' placeholder="26-27"')) : '') +
+    field('Date', 'cnfDate', inp('cnfDate', 'date', f.date)) +
+    field('Client', 'cnfClient', '<select class="inv-select" id="cnfClient"><option value="">Choose a client</option>' + _billsClientOptions(f.clientId) + '</select>') +
+    field('Against invoice', 'cnfInv', '<select class="inv-select" id="cnfInv"' + (f.clientId ? '' : ' disabled') + '>' +
+      '<option value="">' + (f.clientId ? 'Choose an invoice' : 'Choose a client first') + '</option>' +
+      invs.map(function(i) {
+        return '<option value="' + escHtml(i.id) + '"' + (f.invId === i.id ? ' selected' : '') + '>' + escHtml(i.displayNumber + ' · ' + formatDate(i.date) + ' · ' + formatCurrency(i.taxableValue)) + '</option>';
+      }).join('') +
+      (rec ? '<option value="__typed"' + (f.invId === '__typed' ? ' selected' : '') + '>Not in the register: type it</option>' : '') + '</select>') +
+    (rec && f.invId === '__typed' ? field('Invoice number, as printed', 'cnfInvNo', inp('cnfInvNo', 'text', f.invNo)) + field('Invoice date', 'cnfInvDate', inp('cnfInvDate', 'date', f.invDate)) : '') +
+    field('Reason', 'cnfReason', '<select class="inv-select" id="cnfReason">' + reasons.map(function(r) {
+      return '<option value="' + r[0] + '"' + (f.reason === r[0] ? ' selected' : '') + '>' + r[1] + '</option>'; }).join('') + '</select>') +
+    field(f.reason === 'other' ? 'Describe it (required)' : 'Note (optional)', 'cnfNote', inp('cnfNote', 'text', f.note)) +
+    (f.reason === 'rebate' ? field('Discount %', 'cnfPct', inp('cnfPct', 'number', f.pct, ' step="0.01" min="0"')) +
+      field('Period from', 'cnfFrom', inp('cnfFrom', 'date', f.from)) + field('Period to', 'cnfTo', inp('cnfTo', 'date', f.to)) : '') +
+    field('Taxable value credited (before GST)', 'cnfTaxable', inp('cnfTaxable', 'number', f.taxable, ' step="0.01" min="0" inputmode="decimal"')) +
+    (rec ? _billsTaxFields(field, inp) : '') +
+    field('Quantity (optional)', 'cnfQty', inp('cnfQty', 'number', f.qty, ' step="any" min="0" inputmode="decimal"')) +
+    field('Unit', 'cnfUnit', '<select class="inv-select" id="cnfUnit">' + ['KG', 'NOS'].map(function(u) {
+      return '<option' + (f.unit === u ? ' selected' : '') + '>' + u + '</option>'; }).join('') + '</select>') +
+    '</div>';
+  var c = _billsCnFigures();
+  if (c) h += '<div class="inv-callout inv-mb-8" data-cn-figures>' + formatCurrency(c.taxable) + ' taxable + ' + formatCurrency(gstRound(c.cgstAmt + c.sgstAmt + c.igstAmt)) +
+    ' GST (' + (c.gstType === 'inter' ? 'IGST 18%' : 'CGST 9% + SGST 9%') + ') = <strong>' + formatCurrency(c.grandTotal) + '</strong></div>';
+  return h + '<div class="inv-toolbar"><button class="inv-btn inv-btn-secondary" data-action="invCnFormCancel">Cancel</button>' +
+    '<button class="inv-btn inv-btn-primary" data-action="invCnFormSave">' + (rec ? 'Record note' : 'Issue note') + '</button></div>';
+}
+
+/* A recorded note carries the tax AS PRINTED. Recomputing it is not the same thing: CN/004 is
+   3,749.29 taxable, which the app's per-half rounding makes 337.44 + 337.44 = 4,424.17 gross,
+   where the note the customer holds reads 4,424.16. The fields start at the computed figure. */
+function _billsTaxFields(field, inp) {
+  var f = _billForm, client = S.clients.find(function(c) { return String(c.id) === String(f.clientId); });
+  var inter = client && client.gstType === 'inter';
+  return inter
+    ? field('IGST as printed', 'cnfIgst', inp('cnfIgst', 'number', f.igst, ' step="0.01" min="0" inputmode="decimal" placeholder="18% of taxable"'))
+    : field('CGST as printed', 'cnfCgst', inp('cnfCgst', 'number', f.cgst, ' step="0.01" min="0" inputmode="decimal" placeholder="9% of taxable"')) +
+      field('SGST as printed', 'cnfSgst', inp('cnfSgst', 'number', f.sgst, ' step="0.01" min="0" inputmode="decimal" placeholder="9% of taxable"'));
+}
+
+/* The GST follows the client's own type, as a batch note's does (cnCompute); a recorded note
+   overrides any half the operator typed as printed. */
+function _billsCnFigures() {
+  var f = _billForm;
+  if (!f || !f.clientId || !(f.taxable > 0)) return null;
+  var client = S.clients.find(function(c) { return String(c.id) === String(f.clientId); });
+  var c = cnCompute([{ taxableValue: f.taxable }], client, 100, 0);
+  if (f.mode === 'record') {
+    if (c.gstType === 'inter') { if (f.igst !== '' && f.igst != null && !isNaN(f.igst)) c.igstAmt = gstRound(f.igst); }
+    else {
+      if (f.cgst !== '' && f.cgst != null && !isNaN(f.cgst)) c.cgstAmt = gstRound(f.cgst);
+      if (f.sgst !== '' && f.sgst != null && !isNaN(f.sgst)) c.sgstAmt = gstRound(f.sgst);
+    }
+    c.grandTotal = gstRound(c.taxable + c.cgstAmt + c.sgstAmt + c.igstAmt);
+  }
+  return c;
+}
+
+function billsCnFormOpen(mode) {
+  _billForm = { mode: mode === 'record' ? 'record' : 'new', date: localDateStr(), clientId: '', invId: '', reason: mode === 'record' ? 'rebate' : 'rate',
+    note: '', taxable: '', qty: '', unit: 'KG', num: '', fy: cnFyShort(), pct: CN_DEFAULT_PCT, from: '', to: '', invNo: '', invDate: '',
+    cgst: '', sgst: '', igst: '' };
+  renderStock();
+}
+
+/* Read the form back into _billForm. A field that changes what the form shows redraws it. */
+function billsCnFormInput(t) {
+  if (!_billForm || !t.id || t.id.indexOf('cnf') !== 0) return false;
+  var map = { cnfNum: 'num', cnfFy: 'fy', cnfDate: 'date', cnfClient: 'clientId', cnfInv: 'invId', cnfInvNo: 'invNo', cnfInvDate: 'invDate',
+    cnfReason: 'reason', cnfNote: 'note', cnfPct: 'pct', cnfFrom: 'from', cnfTo: 'to', cnfTaxable: 'taxable', cnfQty: 'qty', cnfUnit: 'unit',
+    cnfCgst: 'cgst', cnfSgst: 'sgst', cnfIgst: 'igst' };
+  var k = map[t.id];
+  if (!k) return false;
+  _billForm[k] = ['taxable', 'qty', 'pct', 'cgst', 'sgst', 'igst'].indexOf(k) >= 0 ? (t.value === '' ? '' : parseFloat(t.value)) : t.value;
+  if (k === 'clientId') _billForm.invId = '';
+  if (['clientId', 'invId', 'reason'].indexOf(k) >= 0) { renderStock(); return true; }
+  if (['taxable', 'cgst', 'sgst', 'igst'].indexOf(k) >= 0) {
+    var box = document.querySelector('[data-cn-figures]'), c = _billsCnFigures();
+    if (c && box) box.innerHTML = formatCurrency(c.taxable) + ' taxable + ' + formatCurrency(gstRound(c.cgstAmt + c.sgstAmt + c.igstAmt)) +
+      ' GST (' + (c.gstType === 'inter' ? 'IGST 18%' : 'CGST 9% + SGST 9%') + ') = <strong>' + formatCurrency(c.grandTotal) + '</strong>';
+    else if (c && !box) renderStock();
+  }
+  return true;
+}
+
+function billsCnFormSave() {
+  var f = _billForm;
+  if (!f) return;
+  var rec = f.mode === 'record';
+  var client = S.clients.find(function(c) { return String(c.id) === String(f.clientId); });
+  if (!client) { showToast('Choose the client', 'error'); return; }
+  if (!f.date) { showToast('A credit note needs a date', 'error'); return; }
+  if (!(f.taxable > 0)) { showToast('Enter the taxable value credited', 'error'); return; }
+  if (f.reason === 'other' && !String(f.note || '').trim()) { showToast('Describe what the note is for', 'error'); return; }
+
+  var inv = f.invId && f.invId !== '__typed' ? S.invoices.find(function(i) { return i.id === f.invId; }) : null;
+  var typedNo = rec && f.invId === '__typed' ? String(f.invNo || '').trim() : '';
+  if (!inv && !typedNo) { showToast('Choose the invoice the note is against', 'error'); return; }
+  // Warn, never block: a credit larger than what is left on the invoice is the operator's call.
+  if (inv) {
+    var room = cnInvoiceHeadroom(inv, null);
+    if (f.taxable > room + 0.005 && !confirm('This credits ' + formatCurrency(f.taxable) + ' taxable against ' + inv.displayNumber +
+        ', which has ' + formatCurrency(room) + ' left after the notes already taken against it.\n\nIssue it anyway?')) return;
+  }
+
+  // The number: the next in the series for a new note; the printed one for a recorded note,
+  // refused if the series already holds it — a credit note number is issued, never reused.
+  var num;
+  if (rec) {
+    num = parseInt(f.num, 10);
+    if (!(num > 0)) { showToast('Enter the number printed on the note', 'error'); return; }
+    var fy = String(f.fy || '').trim();
+    var display = 'CN/' + cnPadNum(num) + (fy ? '/' + fy : '');
+    if (getCreditNotes().some(function(x) { return x.displayNumber === display || (parseInt(x.cnNumber, 10) === num && (!fy || fy === cnFyShort())); })) {
+      showToast(display + ' is already in the series', 'error'); return;
+    }
+  } else {
+    num = recomputeNextCnNumber();
+  }
+
+  var c = _billsCnFigures();
+  var qty = f.qty > 0 ? f.qty : null;
+  var rebate = f.reason === 'rebate';
+  var pct = rebate && f.pct > 0 ? f.pct : null;
+  var addr = (inv && inv.clientAddress) || {};
+  var invDate = inv ? (inv.date || '') : (f.invDate || '');
+  var reasonText = cnReasonLabel(f.reason) + (String(f.note || '').trim() ? ': ' + String(f.note).trim() : '');
+  var cn = {
+    id: 'CN-' + Date.now(),
+    cnNumber: cnPadNum(num),
+    displayNumber: rec ? 'CN/' + cnPadNum(num) + (String(f.fy || '').trim() ? '/' + String(f.fy).trim() : '') : cnDisplayNumber(num),
+    date: f.date,
+    clientId: client.id, clientName: client.name,
+    clientGSTIN: (inv && inv.clientGSTIN) || client.gstin || '',
+    clientAddress: { add1: addr.add1 || '', add2: addr.add2 || '', add3: addr.add3 || '', state: addr.state || '', stateCode: addr.stateCode || '' },
+    invoiceIds: inv ? [inv.id] : [],
+    invoiceNumbers: [inv ? inv.displayNumber : typedNo],
+    invoiceDates: [invDate],
+    againstInvoice: inv ? inv.displayNumber : typedNo,
+    againstInvoiceId: inv ? inv.id : '',
+    againstInvoiceDate: invDate,
+    // A rebate states the period it was taken on; any other note is about its one invoice.
+    periodFrom: rebate && f.from ? f.from : (invDate || f.date),
+    periodTo: rebate && f.to ? f.to : (invDate || f.date),
+    spanDays: 0,
+    kind: rebate ? 'rebate' : 'adjustment',
+    reasonKey: f.reason,
+    reason: reasonText,
+    discountPct: pct,
+    batchTaxable: pct ? gstRound(c.taxable * 100 / pct) : null,
+    particulars: CN_PARTICULARS,
+    unit: f.unit || 'KG', qty: qty, rate: qty ? gstRound(c.taxable / qty) : null,
+    gstType: c.gstType,
+    taxableValue: c.taxable,
+    cgstPer: c.cgstPer, cgstAmt: c.cgstAmt, sgstPer: c.sgstPer, sgstAmt: c.sgstAmt, igstPer: c.igstPer, igstAmt: c.igstAmt,
+    grandTotal: c.grandTotal,
+    amountInWords: numberToWords(c.grandTotal),
+    taxInWords: numberToWords(gstRound(c.cgstAmt + c.sgstAmt + c.igstAmt)),
+    vehicleNo: '',
+    status: 'active',
+    recorded: rec || undefined,
+    createdAt: Date.now(), updatedAt: Date.now()
+  };
+  getCreditNotes().push(cn);
+  recomputeNextCnNumber();
+  saveState();
+  _billForm = null;
+  renderStock();
+  showToast(cn.displayNumber + (rec ? ' recorded — ' : ' issued — ') + formatCurrency(cn.grandTotal));
+  if (!rec) showCreditNotePreview(cn.id);
+}
+
+/* ---------- Stock line: name and unit ---------- */
+var STOCK_UNIT_CHOICES = ['kg', 'g', 'L', 'mL', 'nos', 'bag', 'drum', 'can'];
+
+/* A rename keeps every spelling the line was known by, so a pasted message written the old
+   way still lands on it. A unit change converts nothing, and says so before it is made. */
+function stockEditSave(itemId) {
+  var it = stockItem(itemId);
+  if (!it) return;
+  var nameEl = document.getElementById('stockEditName'), unitEl = document.getElementById('stockEditUnit');
+  var name = String(nameEl ? nameEl.value : '').trim().replace(/\s+/g, ' ');
+  var unit = unitEl ? unitEl.value : it.unit;
+  if (!name) { showToast('A stock line needs a name', 'error'); return; }
+  var key = stockKey(name);
+  var clash = stockData().items.find(function(o) { return o.id !== it.id && (o.key === key || (o.aliases || []).indexOf(key) >= 0); });
+  if (clash) { showToast('"' + name + '" is already read as ' + clash.name + '. Pick another name.', 'error'); return; }
+  var used = stockData().entries.some(function(e) { return e.itemId === it.id && !e.voided; });
+  if (unit !== (it.unit || '') && used && !confirm('Change the unit from ' + (it.unit || 'not set') + ' to ' + (unit || 'not set') + '?\n\n' +
+      'The figures already recorded are not converted: 40 ' + (it.unit || 'units') + ' will read as 40 ' + (unit || 'units') + '. Change it only if the unit was wrong.')) return;
+  if (name !== it.name) {
+    var old = stockKey(it.name);
+    it.aliases = (it.aliases || []).slice();
+    [old, it.key].forEach(function(k) { if (k && k !== key && it.aliases.indexOf(k) < 0) it.aliases.push(k); });
+    if (key !== it.key && it.aliases.indexOf(key) < 0) it.aliases.push(key);
+    it.name = name;
+  }
+  it.unit = unit;
+  saveState();
+  renderStock();
+  showToast(it.name + ' saved');
+}
+
+function stockEditHtml(item) {
+  var units = STOCK_UNIT_CHOICES.slice();
+  if (item.unit && units.indexOf(item.unit) < 0) units.unshift(item.unit);
+  return '<div class="inv-panel" id="stockEdit"><div class="inv-panel-head inv-mb-8"><span class="inv-panel-title">Name and unit</span></div>' +
+    '<div class="inv-fields">' +
+    '<label class="inv-field"><span class="inv-field-label">Name</span><input class="inv-input" id="stockEditName" value="' + escHtml(item.name) + '" autocomplete="off"></label>' +
+    '<label class="inv-field"><span class="inv-field-label">Unit</span><select class="inv-select" id="stockEditUnit">' +
+    '<option value=""' + (!item.unit ? ' selected' : '') + '>not set</option>' +
+    units.map(function(u) { return '<option' + (item.unit === u ? ' selected' : '') + '>' + escHtml(u) + '</option>'; }).join('') + '</select></label></div>' +
+    ((item.aliases || []).length ? '<div class="inv-note inv-mb-8">Messages are also read as: ' + item.aliases.map(escHtml).join(', ') + '</div>' : '') +
+    '<button class="inv-btn inv-btn-secondary" data-action="invStockEditSave" data-id="' + escHtml(item.id) + '">Save name and unit</button></div>';
+}
+
+/* ---------- Actions ---------- */
+function billsAction(action, btn) {
+  switch (action) {
+    case 'invStockTab': stockSetView(btn.dataset.tab === 'bills' ? 'bills' : 'list'); return true;
+    case 'invCnFormOpen': billsCnFormOpen(btn.dataset.mode); return true;
+    case 'invCnFormCancel': _billForm = null; renderStock(); return true;
+    case 'invCnFormSave': billsCnFormSave(); return true;
+    case 'invStockEditSave': stockEditSave(btn.dataset.id); return true;
+  }
+  return false;
+}
 /* ===== TO-DO =====
    More → To-do, a Home card, and a Windows 11 widget. The owner's own list,
    inside the app for now (owner, 25 Sep 2026); sep-dashboard can take it whole
@@ -18871,12 +19267,13 @@ function stockReorderOnInput(t) {
    queue the app applies. Both directions run on open AND on close: the queue is
    read when the app is shown, the payload is written when it is hidden. */
 
-var TODO_CHECK_DEFAULTS = { stock: true, paste: true, cn: true, challan: true, dispatch: true, audit: true,
+var TODO_CHECK_DEFAULTS = { stock: true, paste: true, cn: true, power: true, challan: true, dispatch: true, audit: true,
   backup: true, zinc: false, pasteDays: 2, challanDays: 5, dispatchDays: 2, backupDays: 7 };
 var TODO_RULES = [
   ['stock', 'A stock line turns red or amber'],
   ['paste', 'No stock message for a while'],
   ['cn', 'A credit-note batch reaches 7 days'],
+  ['power', 'A month closes without an electricity bill'],
   ['challan', 'A challan is waiting to be billed'],
   ['dispatch', 'An invoice is still Created'],
   ['audit', 'The number audit finds a gap'],
@@ -18935,6 +19332,21 @@ function todoDueLabel(iso) {
    where the figure moves every day on its own (a stock level falls with use —
    the snooze lasts until the line changes colour, not until it drops a litre). */
 var TODO_RULE_FNS = {
+  /* The month's electricity bill, asked for once the bill should have arrived (the 10th), for a
+     closed month the app billed in. Amber after the 20th: by then Live cost has been reading the
+     model figure for three weeks. */
+  power: function() {
+    var today = todoToday(), day = parseInt(today.slice(8, 10), 10);
+    if (day < 10) return [];
+    var prev = billsPrevMonths(1)[0];
+    if (billsMissingPower().indexOf(prev) < 0) return [];
+    return [{ key: 'power:' + prev, rule: 'power', tone: day >= 20 ? 'amber' : 'info',
+      title: 'Add the electricity bill for ' + billsMonthLabel(prev), sub: 'Live cost is using the Settings figure for it',
+      why: 'Bills · none recorded for ' + billsMonthLabel(prev),
+      facts: [['Month', billsMonthLabel(prev)], ['Until then', 'the model ₹/kg']],
+      clears: 'Clears itself when the bill for ' + billsMonthLabel(prev) + ' is saved.',
+      go: { kind: 'bills', month: prev }, goLabel: 'Add the bill', sig: prev }];
+  },
   stock: function() {
     var out = [];
     stockData().items.forEach(function(it) {
@@ -18973,7 +19385,8 @@ var TODO_RULE_FNS = {
   },
   cn: function() {
     var out = [];
-    var notes = getCreditNotes().filter(function(c) { return c.status !== 'cancelled'; });
+    // The batch rebate's own notes: a rate correction for the same client does not start a new batch window.
+    var notes = getCreditNotes().filter(function(c) { return c.status !== 'cancelled' && cnIsRebate(c); });
     var byClient = {};
     notes.forEach(function(c) {
       var b = byClient[c.clientId] || (byClient[c.clientId] = { to: '', ids: {}, last: null });
@@ -19346,6 +19759,11 @@ function todoGo(go) {
   switch (go.kind) {
     case 'stock': _stockItemId = go.id; _stockView = 'item'; switchTab('pageStock'); break;
     case 'stockPaste': _stockView = 'paste'; switchTab('pageStock'); break;
+    case 'bills':
+      _stockView = 'bills';
+      _costBillOpen = go.month ? { where: 'stock', month: go.month } : false;
+      switchTab('pageStock');
+      break;
     case 'cnBatch':
       regFilter.clientId = String(go.clientId); regFilter.month = ''; regFilter.search = ''; regFilter.state = '';
       regFilter.dateFrom = go.from; regFilter.dateTo = go.to;
@@ -24107,6 +24525,7 @@ document.addEventListener('click', function(e) {
       break;
     }
     default:
+      if (billsAction(action, btn)) break;
       if (action.indexOf('invStock') === 0) stockAction(action, btn);
       else if (action.indexOf('invTodo') === 0) todoAction(action, btn);
       else if (action.indexOf('invRelay') === 0) relayAction(action, btn);
@@ -24167,6 +24586,7 @@ function updateTotalsDisplay() {
 
 document.addEventListener('change', function(e) {
   if (stockOnChange(e.target)) return;
+  if (billsCnFormInput(e.target)) return;
   if (todoOnChange(e.target)) return;
   if (relayOnChange(e.target)) return;
   const el = e.target.closest('[data-action="invUpdateLine"]');
@@ -24306,6 +24726,7 @@ document.addEventListener('change', function(e) {
 
 document.addEventListener('input', function(e) {
   if (stockOnInput(e.target)) return;
+  if (/^cnf(Taxable|Cgst|Sgst|Igst)$/.test(e.target.id) && billsCnFormInput(e.target)) return;
   if (relayOnInput(e.target)) return;
   if (e.target.id === 'clientSearch') {
     renderClientList(e.target.value);

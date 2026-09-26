@@ -47,6 +47,7 @@ JS_SOURCES=(
     "$DIR/payroll.js" \
     "$DIR/stock.js" \
     "$DIR/cost.js" \
+    "$DIR/bills.js" \
     "$DIR/todo.js" \
     "$DIR/relay.js" \
     "$DIR/stats.js" \

@@ -136,7 +136,7 @@ test.describe('P46: prices, purchases and the live cost', () => {
     const card = page.locator('#liveCost');
     await expect(card).toContainText('Live cost');
     await expect(card.locator('.inv-cost-row').filter({ hasText: 'Zinc' }).locator('.inv-cost-src')).toHaveText('market rate');
-    await expect(card.locator('.inv-cost-row').filter({ hasText: 'Power' }).locator('.inv-cost-src')).toHaveText('measured');
+    await expect(card.locator('.inv-cost-row').filter({ hasText: 'Electricity' }).locator('.inv-cost-src')).toHaveText('measured');
 
     // A bill for the other costs replaces the model figure.
     await card.locator('[data-action="invCostBillOpen"]').click();

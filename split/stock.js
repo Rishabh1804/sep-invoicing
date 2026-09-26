@@ -587,6 +587,7 @@ function renderStock() {
   else if (_stockView === 'manual' && _stockManual) el.innerHTML = renderStockManual();
   else if (_stockView === 'item' && stockItem(_stockItemId)) el.innerHTML = renderStockItem(stockItem(_stockItemId));
   else if (_stockView === 'reorder' && _stockReorder) el.innerHTML = renderStockReorder();
+  else if (_stockView === 'bills') el.innerHTML = renderBillsNotes();
   else { _stockView = 'list'; el.innerHTML = renderStockList(); }
   updateStockBadge();
 }
@@ -603,7 +604,7 @@ function renderStockList() {
   var items = st.items.filter(function(i) { return i.active !== false; });
   var lastCount = null;
   st.entries.forEach(function(e) { if (!e.voided && e.kind === 'count' && (!lastCount || e.date > lastCount.date || (e.date === lastCount.date && e.at > lastCount.at))) lastCount = e; });
-  var h = '<div class="inv-stk-top"><div>' +
+  var h = stockTabsHtml('list') + '<div class="inv-stk-top"><div>' +
     (lastCount ? '<div class="inv-stk-meta">Last count <strong>' + escHtml(stockShortDate(lastCount.date)) + '</strong>' +
       (lastCount.sentBy ? ' &middot; ' + escHtml(lastCount.sentBy) : '') + '</div>' : '') +
     '</div><div class="inv-stk-tools">' +
@@ -934,10 +935,7 @@ function renderStockItem(item) {
   h += '<div class="inv-stk-props"><div class="inv-stk-label">How it is used</div><div class="inv-stk-seg">' +
     '<button class="inv-stk-seg-btn' + (item.basis !== 'charge' ? ' inv-stk-seg-on' : '') + '" data-action="invStockBasis" data-v="draw">Drawn daily</button>' +
     '<button class="inv-stk-seg-btn' + (item.basis === 'charge' ? ' inv-stk-seg-on' : '') + '" data-action="invStockBasis" data-v="charge">Charged to a bath</button></div>' +
-    '<div class="inv-stk-fields"><div class="inv-stk-field"><label class="inv-stk-label" for="stockItemUnit">Unit</label><select id="stockItemUnit" class="inv-form-input" data-stock-unit="' + escHtml(item.id) + '">' +
-    ['', 'kg', 'L', 'nos'].map(function(u) { return '<option value="' + u + '"' + ((item.unit || '') === u ? ' selected' : '') + '>' + (u || 'not set') + '</option>'; }).join('') +
-    '</select></div></div>' +
-    ((item.aliases || []).length ? '<div class="inv-stk-hint">Also read as: ' + item.aliases.map(escHtml).join(', ') + '</div>' : '') + '</div>';
+    '</div>' + stockEditHtml(item);
 
   var replay = stockReplay(item.id).rows;
   var byId = {};
@@ -1182,7 +1180,5 @@ function stockOnChange(t) {
   if (ni != null && _stockReview) { stockCommitName(t, false); return true; }
   if (t.id === 'stockManDate' && _stockManual) { _stockManual.date = t.value; return true; }
   if ((t.id === 'stockLeadDays' || t.id === 'stockCoverDays') && _stockReorder) { stockReorderOnInput(t); renderStock(); return true; }
-  var u = t.getAttribute && t.getAttribute('data-stock-unit');
-  if (u) { var it = stockItem(u); if (it) { it.unit = t.value; saveState(); renderStock(); } return true; }
   return false;
 }

@@ -183,7 +183,7 @@ function costBills() {
   if (!Array.isArray(S.costBills)) S.costBills = [];
   return S.costBills;
 }
-var COST_BILL_KINDS = { power: 'Power', other: 'Consumables, ETP, maintenance' };
+var COST_BILL_KINDS = { power: 'Electricity', other: 'Consumables, ETP, maintenance' };
 
 /* The share of a month's bill that falls inside the range, by calendar days. */
 function costMonthShare(month, from, to) {
@@ -368,23 +368,33 @@ function renderLiveCostCard(period, tonnage) {
 
 function _costBillHtml() {
   var bills = costBills().slice().sort(function(a, b) { return a.month < b.month ? 1 : -1; });
-  var h = '<div class="inv-cost-bills"><div class="inv-stk-label">Power and other bills</div>';
+  var h = '<div class="inv-cost-bills"><div class="inv-stk-label">Electricity and other bills</div>';
   bills.slice(0, 12).forEach(function(b) {
     h += '<div class="inv-cost-dline' + (b.voided ? ' inv-pay-void' : '') + '"><span>' + escHtml((b.label || COST_BILL_KINDS[b.kind]) + ' · ' + b.month) +
       '<span class="inv-cost-note">' + escHtml([b.units ? b.units + ' units' : '', b.note || '', b.voided ? 'void: ' + (b.voidReason || '') : ''].filter(Boolean).join(' · ')) + '</span></span>' +
       '<span class="inv-mono">' + formatCurrency(b.amount) + (b.voided ? '' : ' <button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invCostBillVoid" data-id="' + escHtml(b.id) + '">Void</button>') + '</span></div>';
   });
-  if (!_costBillOpen) return h + '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invCostBillOpen">Add a bill</button></div>';
-  var m = localDateStr().slice(0, 7);
-  h += '<div class="inv-form-row"><div class="inv-form-group"><label class="inv-form-label" for="costBillKind">Kind</label><select class="inv-form-select" id="costBillKind">' +
-    '<option value="power">Power</option><option value="other">Consumables, ETP, maintenance</option></select></div>' +
-    '<div class="inv-form-group"><label class="inv-form-label" for="costBillMonth">Month it covers</label><input class="inv-form-input" id="costBillMonth" type="month" value="' + m + '"></div></div>' +
-    '<div class="inv-form-row"><div class="inv-form-group"><label class="inv-form-label" for="costBillAmount">Amount, before GST</label><input class="inv-form-input inv-mono" id="costBillAmount" type="number" step="0.01" min="0" inputmode="decimal"></div>' +
-    '<div class="inv-form-group"><label class="inv-form-label" for="costBillUnits">Units (power)</label><input class="inv-form-input inv-mono" id="costBillUnits" type="number" step="1" min="0" inputmode="numeric"></div></div>' +
-    '<div class="inv-form-group"><label class="inv-form-label" for="costBillNote">Note</label><input class="inv-form-input" id="costBillNote" placeholder="e.g. JBVNL bill, ETP sludge"></div>' +
-    '<div class="inv-btn-bar"><button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invCostBillCancel">Cancel</button><button class="inv-btn inv-btn-primary inv-btn-sm" data-action="invCostBillSave">Save bill</button></div>';
-  return h + '</div>';
+  if (!_costBillOpen || _costBillOpen.where !== 'stats') {
+    return h + '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invCostBillOpen" data-where="stats">Add a bill</button>' +
+      '<div class="inv-note">Bills are also kept under Stock &rarr; Bills &amp; notes.</div></div>';
+  }
+  return h + costBillFormHtml() + '</div>';
 }
+
+/* One form, drawn wherever it was opened: Stats → Live cost, or Stock → Bills & notes. */
+function costBillFormHtml() {
+  var o = _costBillOpen || {}, m = o.month || localDateStr().slice(0, 7);
+  return '<div class="inv-fields">' +
+    '<label class="inv-field"><span class="inv-field-label">Kind</span><select class="inv-select" id="costBillKind">' +
+    '<option value="power">Electricity</option><option value="other">Consumables, ETP, maintenance</option></select></label>' +
+    '<label class="inv-field"><span class="inv-field-label">Month it covers</span><input class="inv-input" id="costBillMonth" type="month" value="' + escHtml(m) + '"></label>' +
+    '<label class="inv-field"><span class="inv-field-label">Amount, before GST</span><input class="inv-input inv-input-num" id="costBillAmount" type="number" step="0.01" min="0" inputmode="decimal"></label>' +
+    '<label class="inv-field"><span class="inv-field-label">Units (electricity)</span><input class="inv-input inv-input-num" id="costBillUnits" type="number" step="1" min="0" inputmode="numeric"></label>' +
+    '<label class="inv-field inv-kv-wide"><span class="inv-field-label">Note</span><input class="inv-input" id="costBillNote" placeholder="e.g. JBVNL bill, ETP sludge"></label></div>' +
+    '<div class="inv-toolbar"><button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invCostBillCancel">Cancel</button>' +
+    '<button class="inv-btn inv-btn-primary inv-btn-sm" data-action="invCostBillSave">Save bill</button></div>';
+}
+function costBillRedraw(where) { if (where === 'stock') renderStock(); else renderStats(); }
 
 function costBillSave() {
   var v = function(id) { return ((document.getElementById(id) || {}).value || '').trim(); };
@@ -394,9 +404,10 @@ function costBillSave() {
   var units = parseFloat(v('costBillUnits'));
   costBills().push({ id: 'CB-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), kind: kind, month: month, amount: amount,
     units: units > 0 ? units : null, note: v('costBillNote'), at: Date.now() });
+  var where = (_costBillOpen || {}).where;
   _costBillOpen = false;
   saveState();
-  renderStats();
+  costBillRedraw(where);
   showToast(COST_BILL_KINDS[kind] + ' bill saved for ' + month);
 }
 function costBillVoid(id) {
@@ -408,12 +419,19 @@ function costBillVoid(id) {
   b.voided = Date.now();
   b.voidReason = reason.trim();
   saveState();
-  renderStats();
+  costBillRedraw(_stockView === 'bills' && document.getElementById('billsPower') ? 'stock' : 'stats');
 }
 function costAction(action, btn) {
   switch (action) {
-    case 'invCostBillOpen': _costBillOpen = true; renderStats(); return true;
-    case 'invCostBillCancel': _costBillOpen = false; renderStats(); return true;
+    case 'invCostBillOpen': {
+      var where = btn.dataset.where === 'stock' ? 'stock' : 'stats';
+      _costBillOpen = { where: where, month: btn.dataset.month || '' };
+      costBillRedraw(where);
+      if (btn.dataset.month) { var k = document.getElementById('costBillKind'); if (k) k.value = 'power'; }
+      var a = document.getElementById('costBillAmount'); if (a) a.focus();
+      return true;
+    }
+    case 'invCostBillCancel': { var w = (_costBillOpen || {}).where; _costBillOpen = false; costBillRedraw(w); return true; }
     case 'invCostBillSave': costBillSave(); return true;
     case 'invCostBillVoid': costBillVoid(btn.dataset.id); return true;
   }

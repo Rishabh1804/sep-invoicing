@@ -359,8 +359,9 @@ function cancelCreditNote(cnId) {
   cn.cancelledAt = Date.now();
   cn.updatedAt = Date.now();
   saveState();
-  closeOverlay();
-  renderCreditNoteList();
+  // Cancelled from wherever the note is listed: the Register's overlay, or Stock → Bills & notes.
+  if (document.querySelector('.inv-overlay-scrim')) { closeOverlay(); renderCreditNoteList(); }
+  else if (typeof _stockView !== 'undefined' && _stockView === 'bills') renderStock();
   showToast(cn.displayNumber + ' cancelled — the number stays in the series');
 }
 
@@ -409,9 +410,10 @@ function buildCreditNoteHtml(cn) {
     '<th>UOM</th><th>Rate</th><th>Amount</th></tr></thead><tbody>' +
     '<tr><td class="inv-cn-c">1</td><td>' + escHtml(cn.particulars || CN_PARTICULARS) + '</td>' +
     '<td class="inv-cn-c">' + gstRate + '%</td>' +
-    '<td class="inv-cn-num">' + formatNum(cn.qty, 2) + '</td>' +
-    '<td class="inv-cn-c">' + escHtml(cn.unit || 'KG') + '</td>' +
-    '<td class="inv-cn-num">' + formatNum(cn.rate, 2) + '</td>' +
+    // A note credited by value alone states no quantity or rate rather than printing 0.00.
+    '<td class="inv-cn-num">' + (cn.qty ? formatNum(cn.qty, 2) : '') + '</td>' +
+    '<td class="inv-cn-c">' + (cn.qty ? escHtml(cn.unit || 'KG') : '') + '</td>' +
+    '<td class="inv-cn-num">' + (cn.rate ? formatNum(cn.rate, 2) : '') + '</td>' +
     '<td class="inv-cn-num">' + formatNum(cn.taxableValue, 2) + '</td></tr>' +
     '</tbody></table>';
 
@@ -457,7 +459,7 @@ function buildCreditNoteHtml(cn) {
   // improvement over CN/005. An intermediate version of this line read "Computed
   // on (N invoices)", which asserts an arithmetic basis and drops the linkage
   // claim. Both readings now, because the document needs both.
-  html += '<div class="inv-cn-annex"><div class="inv-cn-annex-title">Invoices credited (' +
+  if (cnIsRebate(cn) && cn.discountPct && (cn.invoiceNumbers || []).length > 1) html += '<div class="inv-cn-annex"><div class="inv-cn-annex-title">Invoices credited (' +
     (cn.invoiceNumbers || []).length + ') &mdash; the discount is computed on this batch, taxable ' +
     formatNum(cn.batchTaxable, 2) +
     ' at ' + escHtml(cn.discountPct) + '%</div>' +
@@ -864,7 +866,7 @@ function exportCreditNotesCSV() {
       cn.againstInvoice || (cnDeriveAgainstInvoice(cn) || {}).displayNumber || '',
       cnAgainstInvoiceDate(cn) ? formatDateExport(cnAgainstInvoiceDate(cn)) : '',
       formatDateExport(cn.periodFrom), formatDateExport(cn.periodTo),
-      cn.discountPct, cn.batchTaxable, z ? 'Cancelled' : 'Active'
+      cn.discountPct != null ? cn.discountPct : '', cn.batchTaxable != null ? cn.batchTaxable : '', z ? 'Cancelled' : 'Active'
     ]);
   });
   // Named for what the file holds, not for the register's filters. It borrowed

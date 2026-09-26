@@ -3115,6 +3115,8 @@ body.inv-desktop :is(.inv-panel, .inv-card, .inv-card-list, .inv-stats-card) { b
   font-size: var(--fs-14); font-weight: 600; line-height: 1.4; color: var(--text-1);
 }
 .inv-panel-count { font-family: var(--ff-mono); font-size: var(--fs-12); color: var(--text-3); font-weight: 400; }
+/* A padded stretch inside a flush panel (a form opened in place), set off from the rows below it. */
+.inv-panel-body { padding: var(--card-padding); border-bottom: 1px solid var(--border); }
 /* Panels laid out: one column on the phone, two on the desktop; a -wide panel spans both. */
 .inv-panels { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--gap); }
 .inv-panels > :empty { display: none; }

@@ -510,6 +510,18 @@ Same module, restyled: axis text `--t-micro` mono `--text-3`, gridlines `--borde
 Legend is inline in the panel head. Every datum keeps its `<title>`. SVG `font-size` attributes become the
 `--fs-*` tokens via `var()` on the text elements' class.
 
+**Charts that answer questions** (26 Sep 2026, finance spec Phase 2). Each is drawn into an `inv-chart-box`: the
+drawing, its keys (`inv-chart-keys`, each series with its last value), and an `inv-chart-readout` line — a phone has
+no hover, so a tap on any datum writes its exact figure there (`data-read`, action `invChartRead`, `chartShowRead`),
+and the tapped datum is ringed.
+- `chartLines(labels, series, opts)` — several series on one axis (`--chart-*` strokes `inv-chart-s0…7`), a range
+  that crosses zero draws a zero rule (`inv-chart-zero`), `opts.band` draws a forecast range (`inv-chart-band`).
+- `chartStack(labels, series, {mode: 'stack'|'group'})` — a whole of parts, or two figures side by side; a segment
+  carries `data-key` and an optional action, and the selected key is ringed.
+- `chartPieTap(slices, {action, selected})` — a pie that filters: wedge and legend row (a button) carry the action
+  and key; the selected wedge is pulled out. The centre shows the total and never takes a tap.
+- `chartRangeHtml(active, action)` — `3M · 6M · FY · All` chips; `chartRangeMonths(range, months)` says which months.
+
 ### 6.18 Callout and empty state — `inv-callout`, `inv-empty`
 - `inv-callout-info|warning|danger|neutral`: tone bg + tone text, `--r-lg`, leading icon, `--t-body`.
   For "how this figure is made" notes, caveats and warnings about the data on screen.

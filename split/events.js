@@ -370,6 +370,8 @@ document.addEventListener('click', function(e) {
       break;
     }
     default:
+      // A chart datum: its figure goes into the chart's readout line (a phone has no hover).
+      if (action === 'invChartRead') { chartShowRead(btn); break; }
       if (billsAction(action, btn)) break;
       if (bankAction(action, btn)) break;
       if (financeAction(action, btn)) break;

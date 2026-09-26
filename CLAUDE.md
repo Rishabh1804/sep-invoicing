@@ -219,7 +219,10 @@ on-demand pane (the resizable split, its drag handle and `_dragState` are delete
 primary on Overview and Day and a sub-view with its way back; Day's P / H / A an `inv-seg` pressed in its tone, in dark as in
 light; Week an `inv-table-grid`; the labour, extra, payout and due cards flush panels of tiles and rows (`data-card`); the
 attendance paste on the stock check's pieces. The `inv-att-`, `inv-lab-`, `inv-area-`, `inv-rl-` and last `inv-stk-` families are
-deleted, but for the two tone classes Stats' tiles still borrow (`inv-pay-green|blue`, `inv-area-gap-*`) (P72).
+deleted (P72); the two tone classes Stats' tiles borrowed went with Stats.
+**Stats is built:** five view tabs and the period an `inv-seg`; every card a flush panel named by `data-card` (tiles, rows,
+callouts, `inv-table`s), the live cost's components rows that fold open (`inv-row-fold`), the drill-down tiles and rows; the
+`inv-stats-*`, `inv-kpi*`, `inv-ov-*`, `inv-cost-*` families are deleted, and "below cost" is still judged at the live cost (P73).
 **To-do is built:** Open / Done are view tabs (the Done fold's `invTodoFoldDone` action carries `data-v`), the add field
 sits in a toolbar with Add as the one primary, *From your data* and *Mine* are flush panels of rows (two across on the
 desktop), a task of your own is ticked through a real tick box, and status is a dot and a word (an app task is led by

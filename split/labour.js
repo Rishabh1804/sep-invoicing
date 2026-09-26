@@ -564,5 +564,5 @@ function renderLabourStatsCard(period, tonnage) {
   if ((S.staff || []).length === 0) return '';
   var r = labourRangeForPeriod(period);
   if (!r) return '';
-  return renderLabourCard(r.from, r.to, (PERIOD_LABELS[period] || '') + ' Labour', tonnage, 'inv-stats-card-full');
+  return renderLabourCard(r.from, r.to, (PERIOD_LABELS[period] || '') + ' labour', tonnage, 'inv-panels-wide');
 }

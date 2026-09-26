@@ -113,13 +113,13 @@ test('derived weights make the client measurable in Stats without changing billi
   await loadAppWithState(page, state);
   await openStatsTab(page, 'clients');
 
-  const table = page.locator('.inv-stats-card', { hasText: 'Realisation by Client' });
-  const row = table.locator('.inv-stats-table-row').first();
+  const table = page.locator('[data-card="realisation"]');
+  const row = table.locator('[data-client-row]').first();
   // 324 revenue over (100 x 0.5) + (10 x 0.9) = 59 kg = 5.49/kg, below cost.
   await expect(row).toContainText('PIECE CLIENT');
   await expect(row).toContainText('5.49');
-  await expect(row.locator('.inv-stats-val-danger')).toHaveCount(1);
-  await expect(table.locator('.inv-stats-row-partial')).toHaveCount(0);
+  await expect(row.locator('.inv-dot-danger')).toHaveCount(1);
+  await expect(table.locator('[data-partial]')).toHaveCount(0);
 
   // The invoice's own money is untouched — stdWeightKg feeds Stats, never rates.
   const inv = await page.evaluate(async () => JSON.parse((await (window as any).readPersistedStateRaw())!).invoices[0]);
@@ -151,11 +151,11 @@ test('a piece-billed line with no catalogue row is still weighed', async ({ page
   await switchTab(page, 'pageStats');
 
   // 540 / 5.40 = 100 kg, and realisation is the contract rate.
-  const band = page.locator('.inv-kpi-grid').first();
+  const band = page.locator('[data-card="headline"] .inv-tiles');
   await expect(band).toContainText('0.10 t');
   await expect(band).toContainText('5.40');
   // Fully covered, so no shortfall caveat.
-  await expect(page.locator('.inv-stats-caveat').filter({ hasText: 'no weight on file' })).toHaveCount(0);
+  await expect(page.locator('[data-card="headline"] .inv-callout').filter({ hasText: 'no weight on file' })).toHaveCount(0);
 });
 
 test('the same part in two gauges is left for manual entry, never averaged', async ({ page }) => {
@@ -180,7 +180,7 @@ test('the same part in two gauges is left for manual entry, never averaged', asy
   // Withholding the catalogue figure costs no tonnage: the line is still
   // weighed from its own amount. 489 / 5.40 = 90.56 kg.
   await switchTab(page, 'pageStats');
-  await expect(page.locator('.inv-kpi-grid').first()).toContainText('0.09 t');
+  await expect(page.locator('[data-card="headline"] .inv-tiles')).toContainText('0.09 t');
 });
 
 test('picking a part on a challan keeps the gauge in the line description', async ({ page }) => {

@@ -18,7 +18,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <!-- Appearance before first paint (§3.2): the device's theme and palette, so nothing flashes in the wrong colours. -->
 <script>(function(){try{var d=document.documentElement,t=localStorage.getItem("sep_inv_theme"),p=localStorage.getItem("sep_inv_palette");if(t==="light"||t==="dark")d.dataset.theme=t;d.dataset.palette=(p==="zinc"||p==="terracotta")?p:"teal";}catch(e){document.documentElement.dataset.palette="teal";}})();</script>
-<meta name="app-build" content="7b95c788">
+<meta name="app-build" content="2e03adac">
 <style>
 /* ===== DESIGN TOKENS (design system v2.0 — docs/SEP_INVOICING_DESIGN_PRINCIPLES.md §3) ===== */
 /* Theme: colour-scheme decides every light-dark() below. <html data-theme> is set before first paint
@@ -249,6 +249,9 @@ body.inv-desktop .inv-seg-btn[aria-pressed="true"] { background: var(--surface-2
 .inv-seg .inv-seg-btn.inv-seg-btn-ok[aria-pressed="true"] { background: var(--ok-bg); color: var(--ok); }
 .inv-seg .inv-seg-btn.inv-seg-btn-warning[aria-pressed="true"] { background: var(--warning-bg); color: var(--warning); }
 .inv-seg .inv-seg-btn.inv-seg-btn-danger[aria-pressed="true"] { background: var(--danger-bg); color: var(--danger); }
+/* A segmented control the width of its buttons, for a card's head or toolbar (Stats' Ranked / Share, the trend's series). */
+.inv-seg-fit { width: auto; display: inline-flex; flex: 0 0 auto; }
+.inv-seg-fit .inv-seg-btn { flex: 0 1 auto; min-height: var(--ctl-h-sm); }
 .inv-set-sec-body .inv-seg + * { margin-top: var(--sp-4); }
 .inv-form-select {
   width: 100%; padding: var(--sp-10) var(--sp-12);
@@ -898,22 +901,6 @@ table.inv-qc-grid.inv-qc-no-top { border-top: 0; }
 .inv-stats-title {
   font-size: var(--fs-sm); font-weight: 700; color: var(--text-3); margin-bottom: var(--sp-12);
 }
-.inv-stats-row {
-  display: flex; justify-content: space-between; align-items: center;
-  padding: var(--sp-6) 0; border-bottom: 1px solid var(--border);
-  font-size: var(--fs-sm);
-}
-.inv-stats-row:last-child { border-bottom: none; }
-.inv-stats-rank { font-weight: 700; color: var(--text-3); min-width: var(--sp-20); }
-.inv-stats-name { flex: 1; min-width: 0; word-break: break-word; color: var(--text-1); }
-.inv-stats-val { font-family: var(--ff-mono); font-weight: 600; color: var(--cost-text); white-space: nowrap; margin-left: var(--sp-8); }
-.inv-stats-metric {
-  display: flex; justify-content: space-between; align-items: baseline;
-  padding: var(--sp-4) 0;
-}
-.inv-stats-metric-label { font-size: var(--fs-sm); color: var(--text-2); }
-.inv-stats-metric-value { font-family: var(--ff-display); font-size: var(--fs-xl); color: var(--cost); }
-.inv-stats-metric-sub { font-family: var(--ff-mono); font-size: var(--fs-sm); color: var(--text-3); }
 .inv-history-item {
   display: flex; gap: var(--sp-10); padding: var(--sp-10) 0;
   border-bottom: 1px solid var(--border); font-size: var(--fs-sm);
@@ -930,94 +917,6 @@ table.inv-qc-grid.inv-qc-no-top { border-top: 0; }
 .inv-history-body { flex: 1; min-width: 0; }
 .inv-history-text { color: var(--text-1); word-break: break-word; }
 .inv-history-meta { font-family: var(--ff-mono); font-size: var(--fs-2xs); color: var(--text-3); margin-top: var(--sp-2); }
-
-/* Phase 7: Dashboard grid */
-.inv-stats-grid {
-  display: grid; grid-template-columns: 1fr; gap: var(--sp-16);
-}
-@media (min-width: 480px) {
-  .inv-stats-grid { grid-template-columns: 1fr 1fr; }
-}
-.inv-stats-card-full { grid-column: 1 / -1; }
-.inv-stats-states-row { display: flex; gap: var(--sp-8); flex-wrap: wrap; }
-.inv-stats-row-tap { cursor: pointer; }
-.inv-stats-row-tap:active { background: var(--surface-2); }
-
-/* ===== KPI BAND ===== */
-.inv-stats-title-sub {
-  margin-left: var(--sp-8); font-weight: 500; text-transform: none;
-  letter-spacing: 0; color: var(--text-3); font-size: var(--fs-xs);
-}
-.inv-kpi-grid {
-  display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-12);
-}
-@media (min-width: 700px) {
-  .inv-kpi-grid { grid-template-columns: repeat(4, 1fr); }
-}
-.inv-kpi {
-  display: flex; flex-direction: column; gap: var(--sp-2);
-  padding: var(--sp-10); background: var(--surface-2);
-  border-radius: var(--r-md); min-width: 0;
-}
-.inv-kpi-label {
-  font-size: var(--fs-2xs);
-  color: var(--text-3); font-weight: 600;
-}
-.inv-kpi-value {
-  font-family: var(--ff-display); font-size: var(--fs-lg); color: var(--cost);
-  word-break: break-word;
-}
-.inv-kpi-sub { font-size: var(--fs-2xs); color: var(--text-3); }
-.inv-kpi-delta {
-  align-self: flex-start; margin-top: var(--sp-4);
-  padding: var(--sp-2) var(--sp-6); border-radius: var(--r-sm);
-  font-family: var(--ff-mono); font-size: var(--fs-2xs); font-weight: 600;
-}
-.inv-kpi-delta-up { background: var(--attend-bg); color: var(--attend-text); }
-.inv-kpi-delta-down { background: var(--danger-bg); color: var(--danger-text); }
-.inv-kpi-delta-flat { background: var(--surface-3); color: var(--text-3); }
-
-/* ===== CAVEATS AND ALERTS =====
-   A number that is known to be incomplete says so next to itself, rather
-   than passing as complete. */
-.inv-stats-caveat {
-  margin-top: var(--sp-12); padding: var(--sp-8) var(--sp-10);
-  background: var(--surface-2); border-left: var(--sp-4) solid var(--border-2);
-  border-radius: var(--r-sm); font-size: var(--fs-xs);
-  color: var(--text-2); line-height: 1.5;
-}
-.inv-stats-alert {
-  margin-top: var(--sp-12); padding: var(--sp-8) var(--sp-10);
-  background: var(--danger-bg); border-left: var(--sp-4) solid var(--danger);
-  border-radius: var(--r-sm); font-size: var(--fs-xs);
-  color: var(--danger-text); line-height: 1.5; font-weight: 500;
-}
-.inv-stats-val-warn { color: var(--warning-text); }
-.inv-stats-val-danger { color: var(--danger-text); }
-/* A figure that could not be established, held visibly apart from one that
-   was established and happens to be bad. */
-.inv-stats-val-unknown { color: var(--text-3); font-style: italic; }
-.inv-stats-row-partial { opacity: 0.75; }
-
-/* ===== UNBILLED AGEING ===== */
-.inv-age-row {
-  display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-8);
-  margin: var(--sp-12) 0;
-}
-@media (min-width: 700px) {
-  .inv-age-row { grid-template-columns: repeat(4, 1fr); }
-}
-.inv-age-bucket {
-  padding: var(--sp-8); background: var(--surface-2);
-  border-radius: var(--r-md); min-width: 0;
-}
-.inv-age-bucket-warn { background: var(--warning-bg); }
-.inv-age-label { font-size: var(--fs-2xs); color: var(--text-3); font-weight: 600; }
-.inv-age-value {
-  font-family: var(--ff-mono); font-size: var(--fs-sm);
-  font-weight: 600; color: var(--text-1); margin-top: var(--sp-2);
-}
-.inv-age-share { font-size: var(--fs-2xs); color: var(--text-3); }
 
 /* ===== HISTORY EVENT ICONS =====
    Replaces the bare colour dot: an audit log has to be readable by kind, and
@@ -1060,13 +959,6 @@ table.inv-qc-grid.inv-qc-no-top { border-top: 0; }
   padding: var(--sp-2) var(--sp-10); font-size: var(--fs-xs);
 }
 
-/* P9: Trend card header — title left, granularity chips right */
-.inv-stats-trend-header {
-  display: flex; align-items: center; justify-content: space-between;
-  gap: var(--sp-12); margin-bottom: var(--sp-8); flex-wrap: wrap;
-}
-.inv-stats-trend-header .inv-stats-title { margin: 0; }
-
 /* Phase 7: SVG charts */
 .inv-svg-chart { width: 100%; height: auto; display: block; }
 
@@ -1081,26 +973,6 @@ table.inv-qc-grid.inv-qc-no-top { border-top: 0; }
 .inv-svg-bar { fill: var(--accent); transition: fill var(--anim-fast); }
 .inv-svg-bar-group { cursor: pointer; }
 
-/* Revenue-by-client bar rows (HTML+SVG hybrid; HTML labels wrap, SVG fill encodes value) */
-.inv-revbar-list { display: flex; flex-direction: column; gap: var(--sp-8); }
-.inv-revbar-row {
-  display: flex; align-items: center; gap: var(--sp-12);
-  padding: var(--sp-4) 0; cursor: pointer;
-  transition: background var(--anim-fast);
-}
-.inv-revbar-row:active { background: var(--surface-2); }
-.inv-revbar-track { flex: 0 0 40%; min-width: 0; }
-.inv-revbar-svg { width: 100%; height: 28px; display: block; }
-.inv-revbar-fill { fill: var(--accent); }
-.inv-revbar-meta { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--sp-2); }
-.inv-revbar-name {
-  font-size: var(--fs-sm); font-weight: 600; color: var(--text-1);
-  word-break: break-word; line-height: 1.25;
-}
-.inv-revbar-amount {
-  font-family: var(--ff-mono); font-size: var(--fs-2xs);
-  color: var(--text-3); white-space: nowrap;
-}
 .inv-svg-bar-group:active .inv-svg-bar { fill: var(--cost); }
 .inv-svg-bar-label { font-size: 11px; fill: var(--text-1); font-family: var(--ff-base); }
 .inv-svg-bar-amount { font-size: 10px; fill: var(--text-3); font-family: var(--ff-mono); }
@@ -1147,10 +1019,6 @@ button.inv-chart-legend-row { width: 100%; background: none; border: none; font:
 .inv-chart-empty {
   color: var(--text-3); font-size: var(--fs-sm);
   padding: var(--sp-16); text-align: center;
-}
-.inv-stats-note {
-  font-size: var(--fs-xs); color: var(--text-3);
-  margin-top: var(--sp-8); line-height: 1.4;
 }
 
 /* Composition. Eight series colours drawn from the domain palette, plus a
@@ -1220,25 +1088,6 @@ button.inv-chart-legend-row { width: 100%; background: none; border: none; font:
 .inv-chart-ranked-mark { fill: var(--text-1); opacity: 0.55; }
 .inv-chart-ranked-sub { font-size: var(--fs-2xs); color: var(--text-3); font-family: var(--ff-mono); }
 
-/* Phase 7: Top items table */
-.inv-stats-table { display: flex; flex-direction: column; }
-.inv-stats-table-header {
-  display: flex; gap: var(--sp-4); padding: var(--sp-6) 0;
-  border-bottom: 2px solid var(--border); font-size: var(--fs-xs);
-  font-weight: 700; color: var(--text-3);
-}
-.inv-stats-table-row {
-  display: flex; gap: var(--sp-4); padding: var(--sp-8) 0;
-  border-bottom: 1px solid var(--border); align-items: flex-start;
-}
-.inv-stats-table-row:last-child { border-bottom: none; }
-.inv-stats-table-cell { font-size: var(--fs-sm); }
-.inv-stats-table-rank { min-width: 20px; color: var(--text-3); font-weight: 700; }
-.inv-stats-table-part { flex: 1; min-width: 0; word-break: break-word; color: var(--text-1); }
-.inv-stats-table-qty { min-width: 60px; text-align: right; color: var(--text-2); }
-.inv-stats-table-amt { min-width: 80px; text-align: right; color: var(--cost-text); }
-.inv-text-xs { font-size: var(--fs-xs); }
-.inv-p-8 { padding: var(--sp-8) 0; }
 .inv-mt-16 { margin-top: var(--sp-16); }
 
 /* Phase 7: Flippable card overlay */
@@ -1258,43 +1107,6 @@ button.inv-chart-legend-row { width: 100%; background: none; border: none; font:
   0% { transform: perspective(1200px) rotateY(-90deg); opacity: 0; }
   100% { transform: perspective(1200px) rotateY(0deg); opacity: 1; }
 }
-.inv-flip-period-label {
-  font-size: var(--fs-xs); font-weight: 700; color: var(--accent); margin-bottom: var(--sp-12);
-}
-.inv-flip-kpis {
-  display: grid; grid-template-columns: 1fr 1fr;
-  gap: var(--sp-12); margin-bottom: var(--sp-16);
-}
-.inv-flip-kpi {
-  text-align: center; padding: var(--sp-12);
-  background: var(--surface-2); border-radius: var(--r-lg);
-}
-.inv-flip-kpi-label {
-  display: block; font-size: var(--fs-xs); color: var(--text-3); margin-bottom: var(--sp-4);
-}
-.inv-flip-kpi-value {
-  display: block; font-family: var(--ff-display); font-size: var(--fs-lg);
-  font-weight: 700; color: var(--cost-text);
-}
-.inv-flip-states { display: flex; gap: var(--sp-8); flex-wrap: wrap; margin-bottom: var(--sp-16); }
-.inv-flip-meta { font-size: var(--fs-sm); color: var(--text-3); margin-bottom: var(--sp-16); }
-.inv-flip-section-title {
-  font-size: var(--fs-sm); font-weight: 700; color: var(--text-3);
-  margin: var(--sp-16) 0 var(--sp-8) 0;
-}
-.inv-flip-section-title:first-child { margin-top: 0; }
-.inv-flip-row {
-  display: flex; gap: var(--sp-8); align-items: center;
-  padding: var(--sp-6) 0; border-bottom: 1px solid var(--border);
-  font-size: var(--fs-sm); flex-wrap: wrap;
-}
-.inv-flip-row:last-child { border-bottom: none; }
-.inv-flip-actions {
-  display: flex; flex-direction: column; gap: var(--sp-8);
-  margin-top: var(--sp-20); padding-top: var(--sp-16);
-  border-top: 1px solid var(--border);
-}
-
 /* Phase 7: History improvements */
 /* One control group per row: the type chips, then client and dates, then search. */
 .inv-im-toolbar.inv-history-toolbar { flex-direction: column; align-items: stretch; }
@@ -1335,18 +1147,6 @@ button.inv-chart-legend-row { width: 100%; background: none; border: none; font:
 .inv-storage-text { font-size: var(--fs-xs); }
 
 /* ===== RATE HISTORY ===== */
-
-/* ===== INVOICE STATES (v1.0) =====
-   The Register draws states with inv-dot / inv-badge (state.js INV_STATE_TONE); these remain for
-   Stats' state counts until Stats moves (§9 step 3). */
-.inv-state-badge {
-  display: inline-block; padding: var(--sp-2) var(--sp-8);
-  border-radius: var(--r-full); font-size: var(--fs-2xs); font-weight: 600;
-}
-.inv-state-created { background: var(--neutral-bg); color: var(--neutral-text); }
-.inv-state-dispatched { background: var(--warning-bg); color: var(--warning-text); }
-.inv-state-delivered { background: var(--attend-bg); color: var(--attend-text); }
-.inv-state-filed { background: var(--prod-bg); color: var(--prod-text); }
 
 /* ===== INVOICE DETAIL OVERLAY ===== */
 .inv-detail-section {
@@ -1576,37 +1376,6 @@ body.inv-desktop #imSelBar {
   .inv-toast { max-width: 480px; }
 }
 
-/* ===== STATS: tabs, overview tiles, live cost rows (v1.0, until Stats moves) ===== */
-.inv-stats-tabs { display: flex; gap: var(--sp-4); overflow-x: auto; margin-bottom: var(--sp-8); border-bottom: 1px solid var(--border); }
-.inv-stats-tab { flex: 0 0 auto; min-height: 44px; padding: 0 var(--sp-12); background: none; border: none; border-bottom: 2px solid transparent; font: inherit; font-weight: 600; color: var(--text-2); cursor: pointer; }
-.inv-stats-tab-on { color: var(--accent); border-bottom-color: var(--accent); }
-.inv-stats-tab:focus-visible { outline: 2px solid var(--accent); outline-offset: calc(var(--sp-2) * -1); }
-.inv-ov-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-8); margin: var(--sp-8) 0; }
-@media (min-width: 900px) { .inv-ov-grid { grid-template-columns: repeat(4, 1fr); } .inv-ov-grid-2 { grid-template-columns: 1fr 1fr; } }
-.inv-ov-tile { border-radius: var(--r-md); padding: var(--sp-10); }
-.inv-ov-l { font-size: var(--fs-2xs); font-weight: 700; color: var(--text-2); }
-.inv-ov-v { font-family: var(--ff-mono); font-weight: 700; font-size: var(--fs-lg); color: var(--text-1); }
-.inv-ov-v small { font-size: var(--fs-xs); font-weight: 400; }
-.inv-ov-s { font-size: var(--fs-2xs); color: var(--text-2); }
-.inv-ov-table { width: 100%; border-collapse: collapse; font-size: var(--fs-sm); }
-.inv-ov-table th { font-size: var(--fs-2xs); color: var(--text-3); text-align: right; padding: var(--sp-4) var(--sp-2); }
-.inv-ov-table td { text-align: right; padding: var(--sp-6) var(--sp-2); border-top: 1px solid var(--border); font-family: var(--ff-mono); color: var(--text-1); }
-.inv-ov-table th:first-child, .inv-ov-table td:first-child { text-align: left; font-family: inherit; }
-.inv-ov-table tr[data-action] { cursor: pointer; }
-.inv-ov-pos { color: var(--attend-text); }
-.inv-ov-neg { color: var(--danger); }
-.inv-ov-case { margin-top: var(--sp-12); padding-top: var(--sp-8); border-top: 1px solid var(--border); }
-.inv-cost-row > summary { list-style: none; cursor: pointer; }
-.inv-cost-row > summary::-webkit-details-marker { display: none; }
-.inv-cost-note { display: block; font-size: var(--fs-2xs); color: var(--text-3); font-weight: 400; }
-.inv-cost-src { font-size: var(--fs-2xs); font-weight: 700; border-radius: var(--r-sm); padding: 0 var(--sp-4); background: var(--surface-2); color: var(--text-2); }
-.inv-cost-src-measured { background: var(--attend-bg); color: var(--attend-text); }
-.inv-cost-src-partial, .inv-cost-src-rate { background: var(--prod-bg); color: var(--prod-text); }
-.inv-cost-src-model, .inv-cost-src-none { background: var(--warning-bg); color: var(--warning-text); }
-.inv-cost-detail { padding: 0 0 var(--sp-8) var(--sp-12); }
-.inv-cost-dline { display: flex; justify-content: space-between; gap: var(--sp-8); padding: var(--sp-4) 0; font-size: var(--fs-sm); border-bottom: 1px solid var(--border); }
-.inv-cost-bills { margin-top: var(--sp-12); }
-
 /* ===== SALES REGISTER (printed) =====
    Its own point scale, like the certificate and the credit note and for the
    documented reason: a printed GST document must not resize because somebody
@@ -1798,22 +1567,22 @@ body.inv-desktop .inv-btn-grid { grid-template-columns: repeat(6, minmax(0, 1fr)
 body.inv-desktop .inv-btn-grid > .inv-btn { flex-direction: row; min-height: var(--ctl-h); }
 
 /* §6.4 View tabs — underline. The one control for switching views. v1.0: the Clients segment, the Stats tabs. */
-.inv-viewtabs, .inv-stats-tabs {
+.inv-viewtabs {
   display: flex; gap: 0; overflow-x: auto; scrollbar-width: none;
   margin-bottom: var(--sp-12); padding: 0; border: none; border-radius: 0; background: none;
   box-shadow: inset 0 -1px 0 var(--border);
 }
-.inv-viewtabs::-webkit-scrollbar, .inv-stats-tabs::-webkit-scrollbar { display: none; }
-.inv-viewtab, .inv-stats-tab {
+.inv-viewtabs::-webkit-scrollbar { display: none; }
+.inv-viewtab {
   flex: 0 0 auto; min-height: var(--touch); padding: 0 var(--sp-12);
   border: none; border-radius: 0; background: none; box-shadow: none; cursor: pointer;
   color: var(--text-2); font-size: var(--fs-14); font-weight: 500; white-space: nowrap;
 }
-.inv-viewtab:hover, .inv-stats-tab:hover { color: var(--text-1); }
-.inv-viewtab-on, .inv-viewtab[aria-selected="true"], .inv-stats-tab-on {
+.inv-viewtab:hover { color: var(--text-1); }
+.inv-viewtab-on, .inv-viewtab[aria-selected="true"] {
   color: var(--text-1); font-weight: 600; background: none; box-shadow: inset 0 -2px 0 var(--accent);
 }
-body.inv-desktop .inv-viewtab, body.inv-desktop .inv-stats-tab { min-height: var(--ctl-h); font-size: var(--fs-13); }
+body.inv-desktop .inv-viewtab { min-height: var(--ctl-h); font-size: var(--fs-13); }
 
 /* §6.6 Chips: a choice among options (and, until step 3, the period and Staff view pickers). */
 .inv-chip {
@@ -1885,6 +1654,8 @@ body.inv-desktop :is(.inv-panel, .inv-card, .inv-stats-card) { border-radius: va
   font-size: var(--fs-14); font-weight: 600; line-height: 1.4; color: var(--text-1);
 }
 .inv-panel-count { font-family: var(--ff-mono); font-size: var(--fs-12); color: var(--text-3); font-weight: 400; }
+/* A panel's qualifier after its title ("worst first", "by invoice date"). */
+.inv-panel-title > .inv-note { font-weight: 400; }
 /* A card's total in its head (labour, a payout): the figure the card adds up to. */
 .inv-panel-head > .inv-num { font-weight: 600; }
 /* A padded stretch inside a flush panel (a form opened in place), set off from the rows below it. */
@@ -1895,6 +1666,8 @@ body.inv-desktop :is(.inv-panel, .inv-card, .inv-stats-card) { border-radius: va
 .inv-panels .inv-panel { margin-bottom: 0; }
 body.inv-desktop .inv-panels { grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; }
 body.inv-desktop .inv-panels-wide { grid-column: 1 / -1; }
+/* A dashboard of half and wide panels (Stats): a half panel fills the gap beside another rather than sitting alone. */
+body.inv-desktop .inv-panels-dense { grid-auto-flow: row dense; }
 
 /* §6.9 Stat tiles: one bordered strip, tiles separated by 1px gaps. v1.0: KPI and stock tiles. */
 .inv-tiles {
@@ -1912,13 +1685,13 @@ button.inv-tile:hover { background: var(--surface-2); }
 /* A tile that filters its list, pressed: the list shows only its rows until it is pressed again. */
 button.inv-tile[aria-pressed="true"] { background: var(--accent-soft); box-shadow: inset 0 -2px 0 var(--accent); }
 button.inv-tile[aria-pressed="true"] .inv-tile-label { color: var(--accent-soft-text); }
-.inv-tile-label, .inv-kpi-label, .inv-ov-l {
+.inv-tile-label {
   font-size: var(--fs-12); font-weight: 500; color: var(--text-3);
 }
-.inv-tile-value, .inv-kpi-value, .inv-ov-v, .inv-stats-metric-value {
+.inv-tile-value {
   font-family: var(--ff-mono); font-size: var(--fs-19); font-weight: 600; letter-spacing: var(--ls-tight); line-height: 1.2; color: var(--text-1);
 }
-body.inv-desktop :is(.inv-tile-value, .inv-kpi-value, .inv-ov-v, .inv-stats-metric-value) { font-size: var(--fs-22); }
+body.inv-desktop .inv-tile-value { font-size: var(--fs-22); }
 .inv-tile-sub { font-size: var(--fs-12); color: var(--text-3); margin-top: var(--sp-2); }
 .inv-tile-of { font-size: var(--fs-13); font-weight: 500; color: var(--text-3); }
 .inv-tile-value-sm { font-size: var(--fs-14); }
@@ -1930,7 +1703,6 @@ body.inv-desktop .inv-tile-value-sm { font-size: var(--fs-16); }
 .inv-tile-warning .inv-tile-value { color: var(--warning); }
 .inv-tile-ok .inv-tile-value { color: var(--ok); }
 .inv-tile-info .inv-tile-value { color: var(--info); }
-.inv-kpi { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg); box-shadow: none; }
 
 /* §6.10 Rows */
 .inv-row {
@@ -1968,6 +1740,13 @@ button.inv-row-expander[aria-expanded="true"]::after { transform: translateY(-25
 .inv-row-children { background: var(--bg); border-bottom: 1px solid var(--border); }
 .inv-row-children > .inv-row { padding-left: calc(var(--pad-x) + var(--sp-16)); }
 .inv-row-sub .inv-row-title { color: var(--text-2); }
+/* A row that folds open to its parts (a live cost component): a <details> whose summary is the row. */
+details.inv-row-fold > summary.inv-row { list-style: none; cursor: pointer; position: relative; padding-right: calc(var(--pad-x) + var(--sp-16)); }
+details.inv-row-fold > summary::-webkit-details-marker { display: none; }
+details.inv-row-fold > summary:hover { background: var(--surface-2); }
+details.inv-row-fold > summary::after { content: ''; position: absolute; right: var(--pad-x); top: 50%; width: var(--sp-6); height: var(--sp-6);
+  border-right: 2px solid var(--text-3); border-bottom: 2px solid var(--text-3); transform: translateY(-75%) rotate(45deg); transition: transform var(--dur-1); }
+details.inv-row-fold[open] > summary::after { transform: translateY(-25%) rotate(225deg); }
 /* A list inside a dialog scrolls within it rather than pushing its buttons off the screen. */
 .inv-scroll { max-height: var(--scroll-max); overflow-y: auto; }
 .inv-row-group {
@@ -2010,6 +1789,9 @@ body.inv-desktop .inv-row-fields > .inv-seg .inv-seg-btn { min-width: var(--ctl-
 .inv-table tr.inv-row-selected td { background: var(--accent-soft); }
 .inv-table tfoot td { font-weight: 600; border-bottom: none; border-top: 1px solid var(--border); }
 .inv-num { font-family: var(--ff-mono); text-align: right; white-space: nowrap; }
+/* A signed figure: its sign is the symbol, the tone follows it (§5.4). */
+.inv-num-pos { color: var(--ok); }
+.inv-num-neg { color: var(--danger); }
 .inv-table th.inv-num { font-family: var(--ff-base); text-align: right; }
 .inv-id { font-family: var(--ff-mono); white-space: nowrap; }
 /* A label that is one token to the reader (a month, a date) and must not break across lines. */
@@ -2087,7 +1869,7 @@ body.inv-desktop button.inv-cell { min-width: var(--ctl-h); }
 .inv-dot-mark-warning { background: var(--warning); }
 .inv-dot-mark-ok { background: var(--ok); }
 .inv-dot-mark-info { background: var(--info); }
-.inv-badge, .inv-state-badge, .inv-cost-src, .inv-kpi-delta {
+.inv-badge {
   display: inline-flex; align-items: center; gap: var(--sp-4); padding: var(--sp-2) var(--sp-6);
   border-radius: var(--r-sm); font-family: var(--ff-base); font-size: var(--fs-12); font-weight: 500; line-height: 1.35; white-space: nowrap;
 }
@@ -2097,7 +1879,6 @@ body.inv-desktop button.inv-cell { min-width: var(--ctl-h); }
 .inv-badge-ok { background: var(--ok-bg); color: var(--ok); }
 .inv-badge-info { background: var(--info-bg); color: var(--info); }
 .inv-badge-neutral { background: var(--surface-2); color: var(--text-2); }
-.inv-kpi-delta { font-family: var(--ff-mono); }
 
 /* §6.14 Detail pane and key/value grid */
 .inv-pane { background: var(--surface); border-left: 1px solid var(--border); padding: var(--sp-16); display: flex; flex-direction: column; gap: var(--sp-12); }
@@ -2255,14 +2036,14 @@ body.inv-desktop .inv-keys { display: flex; flex-wrap: wrap; gap: var(--sp-4) va
 .inv-toast-warning::before { background: var(--warning); }
 
 /* §6.18 Callouts, notes, empty states */
-.inv-callout, .inv-stats-caveat, .inv-stats-alert, .inv-confirm-warn {
+.inv-callout, .inv-confirm-warn {
   display: block; padding: var(--sp-10) var(--sp-12); border: none; border-radius: var(--r-lg);
   font-size: var(--fs-13); line-height: 1.5;
 }
-.inv-callout, .inv-callout-neutral, .inv-stats-caveat { background: var(--surface-2); color: var(--text-2); }
+.inv-callout, .inv-callout-neutral { background: var(--surface-2); color: var(--text-2); }
 .inv-callout-info { background: var(--info-bg); color: var(--info); }
 .inv-callout-warning, .inv-confirm-warn { background: var(--warning-bg); color: var(--warning); }
-.inv-callout-danger, .inv-stats-alert { background: var(--danger-bg); color: var(--danger); }
+.inv-callout-danger { background: var(--danger-bg); color: var(--danger); }
 .inv-note { font-size: var(--fs-12); color: var(--text-3); line-height: 1.5; }
 /* Text quoted from its source as sent (a WhatsApp line), so a figure can be checked against it. */
 .inv-quote {
@@ -2278,12 +2059,6 @@ summary.inv-summary::-webkit-details-marker { display: none; }
 }
 .inv-empty { display: flex; flex-direction: column; align-items: center; gap: var(--sp-12); }
 .inv-empty-icon { width: var(--sp-32); height: var(--sp-32); color: var(--text-3); }
-
-/* Tiles that borrowed tone classes for decoration (v1.0): neutral unless they state a status (DR-1). Only
-   Stats' tiles still wear them (intel.js, insights.js); they go when Stats moves (§9 step 3). */
-.inv-pay-green, .inv-pay-blue { background: var(--surface-2); }
-.inv-area-gap-over { background: var(--danger-bg); }
-.inv-area-gap-under { background: var(--warning-bg); }
 </style>
 </head>
 <body>
@@ -2359,7 +2134,7 @@ summary.inv-summary::-webkit-details-marker { display: none; }
 
 <div id="pageStats" class="inv-page">
   <div id="statsToolbar"></div>
-  <div id="statsContent" class="inv-stats-grid"></div>
+  <div id="statsContent" class="inv-panels inv-panels-dense"></div>
 </div>
 
 <div id="pageStock" class="inv-page">
@@ -14588,7 +14363,7 @@ function renderLabourStatsCard(period, tonnage) {
   if ((S.staff || []).length === 0) return '';
   var r = labourRangeForPeriod(period);
   if (!r) return '';
-  return renderLabourCard(r.from, r.to, (PERIOD_LABELS[period] || '') + ' Labour', tonnage, 'inv-stats-card-full');
+  return renderLabourCard(r.from, r.to, (PERIOD_LABELS[period] || '') + ' labour', tonnage, 'inv-panels-wide');
 }
 /* ===== AREAS =====
 
@@ -17983,13 +17758,14 @@ function liveCostPaidCheck(from, to) {
 function _costPaidHtml(from, to) {
   var chk = liveCostPaidCheck(from, to);
   if (!chk.length) return '';
-  return '<div class="inv-cost-bills" id="liveCostPaid"><div class="inv-field-label">Recorded against paid</div>' + chk.map(function(r) {
+  return '<div id="liveCostPaid"><div class="inv-row-group"><span>Recorded against paid</span></div>' + chk.map(function(r) {
     // The gap on the right; what it is the gap between leads the note, so a phone keeps one figure per column.
     var fig = r.recorded == null ? '&mdash;' : (r.delta >= 0 ? '+' : '&minus;') + formatCurrency(Math.abs(r.delta)) +
       (r.pct != null ? ' (' + (r.pct >= 0 ? '+' : '&minus;') + formatNum(Math.abs(r.pct) * 100, 0) + '%)' : '');
     var note = (r.recorded == null ? '' : 'recorded ' + formatCurrency(r.recorded) + ' · paid ' + formatCurrency(r.paid) + ' · ') + r.note;
-    return '<div class="inv-cost-dline" data-paid="' + r.key + '"><span>' + escHtml(r.label) + (r.flag ? ' <span class="inv-dot inv-dot-danger">over 10% apart</span>' : '') +
-      '<span class="inv-cost-note">' + escHtml(note) + '</span></span><span class="inv-mono inv-nowrap">' + fig + '</span></div>';
+    return '<div class="inv-row inv-row-2 inv-row-top" data-paid="' + r.key + '"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(r.label) + '</span>' +
+      (r.flag ? '<span class="inv-row-meta"><span class="inv-dot inv-dot-danger">over 10% apart</span></span>' : '') +
+      '<span class="inv-row-meta inv-row-wrap">' + escHtml(note) + '</span></span><span class="inv-row-end"><span class="inv-num">' + fig + '</span></span></div>';
   }).join('') + '</div>';
 }
 
@@ -18051,6 +17827,12 @@ function costUseDerived(field, val) {
 var COST_SRC_LABEL = { measured: 'measured', bank: 'paid, bank', partial: 'part-recorded', rate: 'market rate', model: 'model', none: 'nothing recorded' };
 var _costBillOpen = false;
 
+/* A component's source, as a badge (§6.13): the tone says how far the figure can be trusted. */
+var COST_SRC_TONE = { measured: 'ok', bank: 'ok', partial: 'warning', rate: 'info', model: 'neutral', none: 'neutral' };
+function costSrcBadge(src) {
+  return '<span class="inv-badge inv-badge-' + (COST_SRC_TONE[src] || 'neutral') + '" data-src="' + src + '">' + COST_SRC_LABEL[src] + '</span>';
+}
+
 function renderLiveCostCard(period, tonnage) {
   var range = periodRange(period, 0);
   var iso = function(ts) { var d = new Date(ts); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
@@ -18058,44 +17840,50 @@ function renderLiveCostCard(period, tonnage) {
   var to = range ? iso(range.end) : localDateStr();
   var kg = tonnage ? tonnage.kg : 0;
   var c = liveCost(from, to, kg);
-  var h = '<div class="inv-stats-card inv-stats-card-full" id="liveCost"><div class="inv-stats-title">' + escHtml(PERIOD_LABELS[period] || '') + ' Live cost' +
-    '<span class="inv-stats-title-sub">every figure with where it came from</span></div>';
-  h += '<div class="inv-stats-row"><span class="inv-stats-name"><strong>Full cost</strong><span class="inv-cost-note">' + formatNum(kg / 1000, 1) + ' t plated · ' +
-    Math.round(c.measuredShare * 100) + '% of it measured</span></span><span class="inv-stats-val"><strong>' + (c.perKg != null ? formatCurrency(c.perKg) + '/kg' : '&mdash;') + '</strong><span class="inv-cost-note">' + formatCurrency(c.total) + '</span></span></div>';
+  var money = function(v) { return '<span class="inv-row-stack"><span class="inv-num">' + (v.perKg != null ? formatCurrency(v.perKg) + '<span class="inv-unit">/kg</span>' : '&mdash;') +
+    '</span><span class="inv-row-meta inv-num">' + formatCurrency(v.amount != null ? v.amount : v.total) + '</span></span>'; };
+  var h = '<div class="inv-panel inv-panel-flush inv-panels-wide" id="liveCost" data-card="livecost"><div class="inv-panel-head"><span class="inv-panel-title">' +
+    escHtml(PERIOD_LABELS[period] || '') + ' live cost <span class="inv-note">every figure with where it came from</span></span></div>';
+  h += '<div class="inv-row inv-row-2 inv-row-strong" data-cost-total><span class="inv-row-main"><span class="inv-row-title">Full cost</span><span class="inv-row-meta">' +
+    formatNum(kg / 1000, 1) + ' t plated · ' + Math.round(c.measuredShare * 100) + '% of it measured</span></span><span class="inv-row-end">' + money(c) + '</span></div>';
   var partial = c.rows.filter(function(r) { return r.source === 'partial'; }).map(function(r) { return r.label.toLowerCase(); });
-  if (partial.length) h += '<div class="inv-stats-alert">This period reads LOW: ' + escHtml(partial.join(' and ')) + (partial.length === 1 ? ' is' : ' are') + ' only part-recorded. Open a line to see what is missing.</div>';
+  if (partial.length) h += '<div class="inv-panel-body"><div class="inv-callout inv-callout-danger">This period reads LOW: ' + escHtml(partial.join(' and ')) + (partial.length === 1 ? ' is' : ' are') + ' only part-recorded. Open a line to see what is missing.</div></div>';
+  // Each component folds open to its parts: labour by tier, chemicals line by line, each bill's share.
   c.rows.forEach(function(r) {
-    h += '<details class="inv-cost-row"><summary class="inv-stats-row"><span class="inv-stats-name">' + escHtml(r.label) +
-      ' <span class="inv-cost-src inv-cost-src-' + r.source + '">' + COST_SRC_LABEL[r.source] + '</span><span class="inv-cost-note">' + escHtml(r.note) + '</span></span>' +
-      '<span class="inv-stats-val">' + (r.perKg != null ? formatCurrency(r.perKg) + '/kg' : '&mdash;') + '<span class="inv-cost-note">' + formatCurrency(r.amount) + '</span></span></summary>';
+    h += '<details class="inv-row-fold" data-cost="' + r.key + '"><summary class="inv-row inv-row-2"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(r.label) +
+      ' ' + costSrcBadge(r.source) + '</span><span class="inv-row-meta inv-row-wrap">' + escHtml(r.note) + '</span></span>' +
+      '<span class="inv-row-end">' + money(r) + '</span></summary>';
     if (r.detail.length) {
-      h += '<div class="inv-cost-detail">' + r.detail.map(function(d) {
-        return '<div class="inv-cost-dline"><span>' + escHtml(d.label) + (d.sub ? '<span class="inv-cost-note">' + escHtml(d.sub) + '</span>' : '') + '</span><span class="inv-mono">' + (d.amount != null ? formatCurrency(gstRound(d.amount)) : '&mdash;') + '</span></div>';
+      h += '<div class="inv-row-children">' + r.detail.map(function(d) {
+        return '<div class="inv-row' + (d.sub ? ' inv-row-2' : '') + '"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(d.label) + '</span>' +
+          (d.sub ? '<span class="inv-row-meta inv-row-wrap">' + escHtml(d.sub) + '</span>' : '') + '</span>' +
+          '<span class="inv-row-end"><span class="inv-num">' + (d.amount != null ? formatCurrency(gstRound(d.amount)) : '&mdash;') + '</span></span></div>';
       }).join('') + '</div>';
     }
     h += '</details>';
   });
   h += _costPaidHtml(from, to);
   var typed = S.defaultCostPerKg || 0;
-  if (typed && c.perKg != null) h += '<div class="inv-stats-caveat">The figure typed in Settings is ' + formatCurrency(typed) + '/kg; this period measures ' + formatCurrency(c.perKg) + '/kg. ' +
-    'Anything marked model is a Settings fallback until the record exists: add bills to Stock lines, and power and other bills below.</div>';
+  if (typed && c.perKg != null) h += '<div class="inv-panel-body"><div class="inv-callout">The figure typed in Settings is ' + formatCurrency(typed) + '/kg; this period measures ' + formatCurrency(c.perKg) + '/kg. ' +
+    'Anything marked model is a Settings fallback until the record exists: add bills to Stock lines, and power and other bills below.</div></div>';
   h += _costBillHtml();
   return h + '</div>';
 }
 
+/* The bills on the card: a group of rows, Add a bill in its heading, the form in place below them. */
 function _costBillHtml() {
   var bills = costBills().slice().sort(function(a, b) { return a.month < b.month ? 1 : -1; });
-  var h = '<div class="inv-cost-bills"><div class="inv-field-label">Electricity and other bills</div>';
+  var open = _costBillOpen && _costBillOpen.where === 'stats';
+  var h = '<div data-cost-bills><div class="inv-row-group"><span>Electricity and other bills</span>' +
+    (open ? '' : '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invCostBillOpen" data-where="stats">Add a bill</button>') + '</div>';
   bills.slice(0, 12).forEach(function(b) {
-    h += '<div class="inv-cost-dline' + (b.voided ? ' inv-row-muted' : '') + '"><span>' + escHtml((b.label || COST_BILL_KINDS[b.kind]) + ' · ' + b.month) +
-      '<span class="inv-cost-note">' + escHtml([b.units ? b.units + ' units' : '', b.note || '', b.voided ? 'void: ' + (b.voidReason || '') : ''].filter(Boolean).join(' · ')) + '</span></span>' +
-      '<span class="inv-mono">' + formatCurrency(b.amount) + (b.voided ? '' : ' <button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invCostBillVoid" data-id="' + escHtml(b.id) + '">Void</button>') + '</span></div>';
+    var meta = [b.units ? b.units + ' units' : '', b.note || '', b.voided ? 'void: ' + (b.voidReason || '') : ''].filter(Boolean).join(' · ');
+    h += '<div class="inv-row' + (meta ? ' inv-row-2' : '') + (b.voided ? ' inv-row-muted' : '') + '"><span class="inv-row-main"><span class="inv-row-title">' + escHtml((b.label || COST_BILL_KINDS[b.kind]) + ' · ' + b.month) + '</span>' +
+      (meta ? '<span class="inv-row-meta inv-row-wrap">' + escHtml(meta) + '</span>' : '') + '</span>' +
+      '<span class="inv-row-end"><span class="inv-num">' + formatCurrency(b.amount) + '</span>' + (b.voided ? '' : '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invCostBillVoid" data-id="' + escHtml(b.id) + '">Void</button>') + '</span></div>';
   });
-  if (!_costBillOpen || _costBillOpen.where !== 'stats') {
-    return h + '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invCostBillOpen" data-where="stats">Add a bill</button>' +
-      '<div class="inv-note">Bills are also kept under Finance &rarr; Bills &amp; notes.</div></div>';
-  }
-  return h + costBillFormHtml() + '</div>';
+  if (!open) return h + '<div class="inv-panel-body"><div class="inv-note">Bills are also kept under Finance &rarr; Bills &amp; notes.</div></div></div>';
+  return h + '<div class="inv-panel-body">' + costBillFormHtml() + '</div></div>';
 }
 
 /* One form, drawn wherever it was opened: Stats → Live cost, or Finance → Bills & notes. */
@@ -22358,7 +22146,7 @@ function filterByPeriod(invoices, period, offset) {
   });
 }
 
-var PERIOD_LABELS = { mtd: 'MTD', qtd: 'QTD', ytd: 'YTD', all: 'All Time' };
+var PERIOD_LABELS = { mtd: 'MTD', qtd: 'QTD', ytd: 'YTD', all: 'All time' };
 var PERIOD_PRIOR_LABELS = {
   mtd: 'same days last month',
   qtd: 'same stretch last quarter',
@@ -22460,39 +22248,68 @@ function sumTaxable(invoices) {
   return invoices.reduce(function(s, i) { return s + (i.taxableValue || 0); }, 0);
 }
 
-/* ===== DELTA CHIPS ===== */
-function deltaHtml(cur, prev) {
-  // A percentage against no prior activity is noise dressed as a signal.
-  if (prev == null || !isFinite(prev) || prev === 0) {
-    return '<span class="inv-kpi-delta inv-kpi-delta-flat">no prior period</span>';
-  }
+/* ===== THE DASHBOARD'S PIECES (design system §6) =====
+   Every Stats card is a flush panel (§6.8) named by data-card, its qualifier an inv-note in the title;
+   figures are tiles (§6.9) and rows (§6.10); caveats are callouts (§6.18). intel.js, insights.js and
+   cost.js draw their cards with the same pieces. */
+
+/* A change against the prior period in words (§5.4): "+12.3% on same days last month". A
+   percentage against no prior activity is noise dressed as a signal, so it says so instead. */
+function statsDeltaText(cur, prev, label) {
+  if (prev == null || !isFinite(prev) || prev === 0) return 'no prior period';
   var pct = ((cur - prev) / Math.abs(prev)) * 100;
-  var rising = pct > 0.5, falling = pct < -0.5;
-  var cls = rising ? 'inv-kpi-delta-up' : falling ? 'inv-kpi-delta-down' : 'inv-kpi-delta-flat';
-  var arrow = rising ? '&uarr;' : falling ? '&darr;' : '';
-  return '<span class="inv-kpi-delta ' + cls + '">' + arrow +
-    (rising || falling ? ' ' + formatNum(Math.abs(pct), 1) + '%' : 'level') + '</span>';
+  if (Math.abs(pct) <= 0.5) return 'level with ' + escHtml(label);
+  return (pct > 0 ? '+' : '&minus;') + formatNum(Math.abs(pct), 1) + '% on ' + escHtml(label);
 }
 
-/* A row of toggle chips. Four cards needed the same markup, and the trend card
-   needed two rows of it. */
-function statsChipRow(action, dataKey, labels, current) {
-  var html = '<div class="inv-stats-chips inv-stats-chips-sm">';
-  Object.keys(labels).forEach(function(k) {
-    html += '<button class="inv-chip' + (current === k ? ' inv-chip-active' : '') +
-      '" data-action="' + action + '" data-' + dataKey + '="' + escHtml(k) + '">' +
-      escHtml(labels[k]) + '</button>';
-  });
-  return html + '</div>';
+/* A segmented control for a setting of the card it sits in (§6.5). `inv-seg-fit` keeps it the width
+   of its buttons, so a card's head or toolbar can hold it beside its title. */
+function statsSeg(action, dataKey, labels, current, aria, fit) {
+  return '<div class="inv-seg' + (fit === false ? '' : ' inv-seg-fit') + '" role="group" aria-label="' + escHtml(aria) + '">' +
+    Object.keys(labels).map(function(k) {
+      return '<button type="button" class="inv-seg-btn" aria-pressed="' + (current === k) + '" data-action="' + action +
+        '" data-' + dataKey + '="' + escHtml(k) + '">' + escHtml(labels[k]) + '</button>';
+    }).join('') + '</div>';
 }
 
-function kpiTile(label, value, sub, delta) {
-  return '<div class="inv-kpi">' +
-    '<div class="inv-kpi-label">' + escHtml(label) + '</div>' +
-    '<div class="inv-kpi-value">' + value + '</div>' +
-    (sub ? '<div class="inv-kpi-sub">' + sub + '</div>' : '') +
-    (delta || '') + '</div>';
+/* A card: a flush panel with its title, the qualifier after it, and anything the head carries at its
+   end (a total, a segmented control). `wide` spans both desktop columns. The caller closes the div. */
+function statsPanel(card, title, note, opts) {
+  opts = opts || {};
+  return '<div class="inv-panel inv-panel-flush' + (opts.wide ? ' inv-panels-wide' : '') + '" data-card="' + card + '"' +
+    (opts.id ? ' id="' + opts.id + '"' : '') + '><div class="inv-panel-head"><span class="inv-panel-title">' + title +
+    (note ? ' <span class="inv-note">' + note + '</span>' : '') + '</span>' + (opts.end || '') + '</div>';
 }
+
+/* A tile (§6.9). `valueId` names the value for whoever reads it back. */
+function statsTile(key, label, value, sub, tone, valueId) {
+  return '<div class="inv-tile' + (tone ? ' inv-tile-' + tone : '') + '" data-tile="' + key + '"><div class="inv-tile-label">' + label + '</div>' +
+    '<div class="inv-tile-value"' + (valueId ? ' id="' + valueId + '"' : '') + '>' + value + '</div>' + (sub || '') + '</div>';
+}
+function statsTileSub(html) { return html ? '<div class="inv-tile-sub">' + html + '</div>' : ''; }
+function statsTiles(tiles, four) {
+  return '<div class="inv-tiles inv-tiles-flush' + (four ? ' inv-tiles-4' : '') + '">' + tiles + '</div>';
+}
+
+/* A row (§6.10): a label and its working, the figure at the end. `attrs` makes it a drill-through
+   (a <button>) when it carries an action. */
+function statsRow(title, meta, end, attrs, extra) {
+  var tag = attrs && attrs.indexOf('data-action') >= 0 ? 'button' : 'div';
+  return '<' + tag + (tag === 'button' ? ' type="button"' : '') + ' class="inv-row' + (meta ? ' inv-row-2' : '') + (extra ? ' ' + extra : '') + '"' + (attrs || '') + '>' +
+    '<span class="inv-row-main"><span class="inv-row-title">' + title + '</span>' +
+    (meta ? '<span class="inv-row-meta inv-row-wrap">' + meta + '</span>' : '') + '</span>' +
+    (end ? '<span class="inv-row-end">' + end + '</span>' : '') + '</' + tag + '>';
+}
+function statsNum(html, cls) { return '<span class="inv-num' + (cls ? ' ' + cls : '') + '">' + html + '</span>'; }
+function statsUnit(u) { return '<span class="inv-unit">' + u + '</span>'; }
+function statsDot(tone, word) { return '<span class="inv-dot inv-dot-' + tone + '">' + word + '</span>'; }
+
+/* A padded stretch in a flush panel: a callout (neutral unless toned), a note, a chart. */
+function statsBody(html) { return '<div class="inv-panel-body">' + html + '</div>'; }
+function statsCallout(html, tone, key) {
+  return statsBody('<div class="inv-callout' + (tone ? ' inv-callout-' + tone : '') + '"' + (key ? ' data-callout="' + key + '"' : '') + '>' + html + '</div>');
+}
+function statsNote(html) { return '<div class="inv-note">' + html + '</div>'; }
 
 var TREND_MONTH_LABELS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
@@ -22674,29 +22491,16 @@ function buildClientRollup(invoices) {
   }).sort(function(a, b) { return b.total - a.total; });
 }
 
-function renderRevenueBarSvg(ranked, maxVal) {
-  if (ranked.length === 0) return '<div class="inv-empty-state">' +
-    'No revenue in this period' +
-    '<div class="inv-mt-16"><button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invCreateNew">Create an invoice</button></div>' +
-    '</div>';
-  var html = '<div class="inv-revbar-list">';
-  ranked.forEach(function(r) {
-    var pct = maxVal > 0 ? (r.total / maxVal) * 100 : 0;
-    var fillW = Math.max(pct, 0.5);
-    html += '<div class="inv-revbar-row" data-action="invStatsClientDrill" data-client-id="' + r.clientId + '">' +
-      '<div class="inv-revbar-track">' +
-        '<svg class="inv-revbar-svg" viewBox="0 0 100 28" preserveAspectRatio="none" aria-hidden="true">' +
-          '<rect width="' + fillW + '" height="28" rx="3" class="inv-revbar-fill"/>' +
-        '</svg>' +
-      '</div>' +
-      '<div class="inv-revbar-meta">' +
-        '<div class="inv-revbar-name">' + escHtml(r.name) + '</div>' +
-        '<div class="inv-revbar-amount">' + formatCurrency(r.total) + '</div>' +
-      '</div>' +
-    '</div>';
-  });
-  html += '</div>';
-  return html;
+/* Revenue by client, ranked: the ranked-bar chart (charts.js), each bar tapping through to the
+   client. An empty period says what would fill it and offers the way there. */
+function renderRevenueBars(ranked, totalRev) {
+  if (ranked.length === 0) return '<div class="inv-empty">No revenue in this period' +
+    '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invCreateNew">Create an invoice</button></div>';
+  return statsBody(chartRankedBars(ranked.map(function(r) {
+    return { label: r.name, value: r.total, display: formatCurrency(r.total),
+      sub: (totalRev > 0 ? formatNum(r.total / totalRev * 100, 0) + '% of revenue' : ''),
+      action: 'invStatsClientDrill', clientId: r.clientId };
+  }), { unit: 'money' }));
 }
 
 function renderStats() {
@@ -22704,17 +22508,17 @@ function renderStats() {
   var area = document.getElementById('statsContent');
   if (!area) return;
 
-  // Period chips
+  // The view tabs, then the period: a setting of every card on the page (§6.5).
   if (toolbar) {
-    var chips = ['mtd', 'qtd', 'ytd', 'all'];
-    var chipLabels = { mtd: 'MTD', qtd: 'QTD', ytd: 'YTD', all: 'All' };
-    var chipHtml = '<div class="inv-stats-chips">';
-    chips.forEach(function(p) {
-      chipHtml += '<button class="inv-chip' + (_statsPeriod === p ? ' inv-chip-active' : '') +
-        '" data-action="invStatsPeriod" data-period="' + p + '">' + chipLabels[p] + '</button>';
-    });
-    chipHtml += '</div>';
-    toolbar.innerHTML = statsTabsHtml() + chipHtml;
+    toolbar.innerHTML = statsTabsHtml() + '<div class="inv-toolbar">' +
+      statsSeg('invStatsPeriod', 'period', { mtd: 'MTD', qtd: 'QTD', ytd: 'YTD', all: 'All' }, _statsPeriod, 'Period', false) + '</div>';
+    // The open tab is scrolled into view sideways only, as Staff's: never cut off at a phone's edge.
+    var list = toolbar.querySelector('.inv-viewtabs'), on = toolbar.querySelector('.inv-viewtab[aria-selected="true"]');
+    if (list && on) {
+      var left = on.offsetLeft - list.offsetLeft, right = left + on.offsetWidth;
+      if (left < list.scrollLeft) list.scrollLeft = left;
+      else if (right > list.scrollLeft + list.clientWidth) list.scrollLeft = right - list.clientWidth;
+    }
   }
 
   var activeInvs = S.invoices.filter(function(i) { return i.status === 'active'; });
@@ -22747,41 +22551,40 @@ function renderStats() {
 
   /* ===== Card 1: the four numbers that decide the month ===== */
   var comparable = _statsPeriod !== 'all' && prior.length > 0;
-  html += '<div class="inv-stats-card inv-stats-card-full">' +
-    '<div class="inv-stats-title">' + escHtml(PERIOD_LABELS[_statsPeriod] || '') + ' Performance' +
-    (comparable ? '<span class="inv-stats-title-sub">vs ' + escHtml(PERIOD_PRIOR_LABELS[_statsPeriod]) + '</span>' : '') +
-    '</div><div class="inv-kpi-grid">' +
-    kpiTile('Taxable Revenue', formatCurrency(totalRev),
-      filtered.length + ' invoice' + (filtered.length === 1 ? '' : 's') +
-        ' · ' + formatCurrency(totalGrand) + ' incl. GST',
-      comparable ? deltaHtml(totalRev, priorRev) : '') +
-    kpiTile('Tonnage', formatNum(tonnage.kg / 1000, 2) + ' t',
-      formatNum(tonnage.kg, 0) + ' kg',
-      comparable ? deltaHtml(tonnage.kg, priorTonnage.kg) : '') +
-    kpiTile('Realisation', realisation != null ? formatCurrency(realisation) + '/kg' : '&mdash;',
-      costPerKg > 0 ? costLabel + formatCurrency(costPerKg) + '/kg' : 'set a cost in Settings',
-      (comparable && realisation != null && priorRealisation != null) ? deltaHtml(realisation, priorRealisation) : '') +
-    kpiTile('Gross Margin', grossMargin != null ? formatCurrency(grossMargin) : '&mdash;',
-      contribution != null ? formatCurrency(contribution) + '/kg contribution' : 'needs tonnage and cost',
-      '') +
-    '</div>';
+  var priorLabel = PERIOD_PRIOR_LABELS[_statsPeriod] || '';
+  var delta = function(cur, prev) { return comparable ? statsTileSub(statsDeltaText(cur, prev, priorLabel)) : ''; };
+  html += statsPanel('headline', escHtml(PERIOD_LABELS[_statsPeriod] || '') + ' performance',
+    comparable ? 'vs ' + escHtml(priorLabel) : '', { wide: true }) +
+    statsTiles(
+      statsTile('revenue', 'Taxable revenue', formatCurrency(totalRev),
+        statsTileSub(filtered.length + ' invoice' + (filtered.length === 1 ? '' : 's') + ' · ' + formatCurrency(totalGrand) + ' incl. GST') +
+        delta(totalRev, priorRev)) +
+      statsTile('tonnage', 'Tonnage', formatNum(tonnage.kg / 1000, 2) + '<span class="inv-tile-of"> t</span>',
+        statsTileSub(formatNum(tonnage.kg, 0) + ' kg') + delta(tonnage.kg, priorTonnage.kg)) +
+      statsTile('realisation', 'Realisation', realisation != null ? formatCurrency(realisation) + '<span class="inv-tile-of">/kg</span>' : '&mdash;',
+        statsTileSub(costPerKg > 0 ? costLabel + formatCurrency(costPerKg) + '/kg' : 'set a cost in Settings') +
+        ((realisation != null && priorRealisation != null) ? delta(realisation, priorRealisation) : ''),
+        contribution != null && contribution < 0 ? 'danger' : '') +
+      statsTile('margin', 'Gross margin', grossMargin != null ? statsMoney(grossMargin) : '&mdash;',
+        statsTileSub(contribution != null ? statsMoney(contribution) + '/kg contribution' : 'needs tonnage and cost'),
+        grossMargin != null && grossMargin < 0 ? 'danger' : ''), true);
 
   // Tonnage is only ever as good as the weights behind it — and the lines that
   // lack weights are not a random sample, they are the piece-billed work. Say
   // so in place, in revenue terms, rather than letting a partial figure pass.
   if (tonnage.lines > 0 && tonnage.coverage < 0.999) {
     var missing = tonnage.lines - tonnage.known;
-    html += '<div class="inv-stats-caveat">Tonnage and realisation cover <strong>' +
+    html += statsCallout('Tonnage and realisation cover <strong>' +
       Math.round(tonnage.coverage * 100) + '% of revenue</strong> &mdash; ' +
       missing + ' line' + (missing === 1 ? ' worth ' : 's worth ') + formatCurrency(tonnage.revUnknown) +
       (missing === 1 ? ' is' : ' are') + ' priced in NOS with no weight on file, and excluded from both figures. ' +
       'That exclusion is not neutral: unweighed lines are typically piece-billed work, which is ' +
       'the low-realisation end of the book, so the rate above reads better than the real blend. ' +
-      'Items Master &rarr; Derive weights from rates closes it.</div>';
+      'Items Master &rarr; Derive weights from rates closes it.', '', 'coverage');
   }
   if (contribution != null && contribution < 0) {
-    html += '<div class="inv-stats-alert">Realisation is ' + formatCurrency(Math.abs(contribution)) +
-      '/kg below full cost. At this tonnage that is ' + formatCurrency(Math.abs(grossMargin)) + ' of loss for the period.</div>';
+    html += statsCallout('Realisation is ' + formatCurrency(Math.abs(contribution)) +
+      '/kg below full cost. At this tonnage that is ' + formatCurrency(Math.abs(grossMargin)) + ' of loss for the period.', 'danger', 'below-cost');
   }
   html += '</div>';
 
@@ -22810,17 +22613,13 @@ function renderStats() {
     }
   });
   var outputTax = gstRound(cgst + sgst + igst);
-  html += '<div class="inv-stats-card">' +
-    '<div class="inv-stats-title">Output Tax</div>' +
-    '<div class="inv-stats-metric"><span class="inv-stats-metric-label">Total Output Tax</span>' +
-    '<span class="inv-stats-metric-value">' + formatCurrency(outputTax) + '</span></div>' +
-    (cgst > 0 ? '<div class="inv-stats-row"><span class="inv-stats-name">CGST + SGST @ 9% each</span>' +
-      '<span class="inv-stats-val">' + formatCurrency(gstRound(cgst + sgst)) + '</span></div>' : '') +
-    (igst > 0 ? '<div class="inv-stats-row"><span class="inv-stats-name">IGST @ 18%</span>' +
-      '<span class="inv-stats-val">' + formatCurrency(igst) + '</span></div>' : '') +
-    '<div class="inv-stats-row"><span class="inv-stats-name">Not yet marked filed</span>' +
-    '<span class="inv-stats-val' + (unfiledCount > 0 ? ' inv-stats-val-warn' : '') + '">' +
-    formatCurrency(unfiledTax) + ' (' + unfiledCount + ')</span></div></div>';
+  html += statsPanel('gst', 'Output tax', '', { end: statsNum(formatCurrency(outputTax)) }) +
+    (cgst > 0 ? statsRow('CGST + SGST @ 9% each', '', statsNum(formatCurrency(gstRound(cgst + sgst)))) : '') +
+    (igst > 0 ? statsRow('IGST @ 18%', '', statsNum(formatCurrency(igst))) : '') +
+    statsRow('Not yet marked filed', unfiledCount + ' invoice' + (unfiledCount === 1 ? '' : 's'),
+      '<span class="inv-row-stack">' + statsNum(formatCurrency(gstRound(unfiledTax))) +
+      (unfiledCount > 0 ? statsDot('warning', unfiledCount + ' unfiled') : statsDot('ok', 'All filed')) + '</span>', ' data-unfiled') +
+    '</div>';
 
   /* ===== Card 3: Invoice states ===== */
   var stateCount = { created: 0, dispatched: 0, delivered: 0, filed: 0 };
@@ -22828,28 +22627,19 @@ function renderStats() {
     var s = getInvState(inv);
     if (stateCount[s] != null) stateCount[s]++;
   });
-  html += '<div class="inv-stats-card">' +
-    '<div class="inv-stats-title">Invoice States</div>' +
-    '<div class="inv-stats-states-row">' +
-    '<span class="inv-state-badge inv-state-created">' + stateCount.created + ' Created</span>' +
-    '<span class="inv-state-badge inv-state-dispatched">' + stateCount.dispatched + ' Dispatched</span>' +
-    '<span class="inv-state-badge inv-state-delivered">' + stateCount.delivered + ' Delivered</span>' +
-    '<span class="inv-state-badge inv-state-filed">' + stateCount.filed + ' Filed</span>' +
-    '</div></div>';
+  html += statsPanel('states', 'Invoice states', '') + statsTiles(Object.keys(stateCount).map(function(s) {
+    return statsTile(s, statsDot(INV_STATE_TONE[s], INV_STATE_LABELS[s]), String(stateCount[s]));
+  }).join(''), true) + '</div>';
 
   take('billing');
   /* ===== Card 4: Revenue by client — ranked bars or share ===== */
   var ranked = buildClientRollup(filtered);
-  var maxClientRev = ranked.length > 0 ? ranked[0].total : 0;
-  html += '<div class="inv-stats-card inv-stats-card-full">' +
-    '<div class="inv-stats-trend-header">' +
-    '<div class="inv-stats-title">Revenue by Client</div>' +
-    statsChipRow('invStatsClientChart', 'chart', { bar: 'Ranked', pie: 'Share' }, _statsClientChart) +
-    '</div>' +
+  html += statsPanel('revenue', 'Revenue by client', '', { wide: true,
+    end: statsSeg('invStatsClientChart', 'chart', { bar: 'Ranked', pie: 'Share' }, _statsClientChart, 'Chart') }) +
     (_statsClientChart === 'pie'
-      ? chartPie(ranked.map(function(r) { return { label: r.name, value: r.total, clientId: r.clientId }; }),
-          { unit: 'money', ariaLabel: 'Revenue share by client' })
-      : renderRevenueBarSvg(ranked, maxClientRev)) +
+      ? statsBody(chartPie(ranked.map(function(r) { return { label: r.name, value: r.total, clientId: r.clientId }; }),
+          { unit: 'money', ariaLabel: 'Revenue share by client' }))
+      : renderRevenueBars(ranked, totalRev)) +
     '</div>';
 
   /* ===== Card 5: Realisation by client =====
@@ -22860,61 +22650,48 @@ function renderStats() {
     // interleaved. A ₹/kg drawn from 4% of a client's book is not the same
     // kind of number as one drawn from all of it, and sorting them together
     // would present it as if it were.
-    var comparable = ranked.filter(function(r) { return r.comparable; })
+    var comparableRows = ranked.filter(function(r) { return r.comparable; })
       .sort(function(a, b) { return a.realisation - b.realisation; });
     var partial = ranked.filter(function(r) { return !r.comparable; })
       .sort(function(a, b) { return b.total - a.total; });
 
-    if (comparable.length > 0 || partial.length > 0) {
-      html += '<div class="inv-stats-card inv-stats-card-full">' +
-        '<div class="inv-stats-title">Realisation by Client' +
-        '<span class="inv-stats-title-sub">worst priced first</span></div>' +
-        '<div class="inv-stats-table"><div class="inv-stats-table-header">' +
-        '<span class="inv-stats-table-cell inv-stats-table-part">Client</span>' +
-        '<span class="inv-stats-table-cell inv-stats-table-qty">Tonnes</span>' +
-        '<span class="inv-stats-table-cell inv-stats-table-qty">&#8377;/kg</span>' +
-        '<span class="inv-stats-table-cell inv-stats-table-amt">Revenue</span></div>';
+    if (comparableRows.length > 0 || partial.length > 0) {
+      html += statsPanel('realisation', 'Realisation by client', 'worst priced first', { wide: true });
 
-      comparable.forEach(function(r) {
+      comparableRows.forEach(function(r) {
         var below = costPerKg > 0 && r.realisation < costPerKg;
-        html += '<div class="inv-stats-table-row inv-stats-row-tap" data-action="invStatsClientDrill" data-client-id="' + r.clientId + '">' +
-          '<span class="inv-stats-table-cell inv-stats-table-part">' + escHtml(r.name) + '</span>' +
-          '<span class="inv-stats-table-cell inv-stats-table-qty inv-mono">' + formatNum(r.kg / 1000, 2) + '</span>' +
-          '<span class="inv-stats-table-cell inv-stats-table-qty inv-mono' + (below ? ' inv-stats-val-danger' : '') + '">' +
-          formatNum(r.realisation, 2) + '</span>' +
-          '<span class="inv-stats-table-cell inv-stats-table-amt inv-mono">' + formatCurrency(r.total) + '</span></div>';
+        html += statsRow(escHtml(r.name), formatNum(r.kg / 1000, 2) + ' t · ' + formatCurrency(r.total),
+          '<span class="inv-row-stack">' + statsNum(formatCurrency(r.realisation) + statsUnit('/kg')) +
+          (below ? statsDot('danger', 'Below cost') : '') + '</span>',
+          ' data-action="invStatsClientDrill" data-client-id="' + r.clientId + '" data-client-row');
       });
-
-      partial.forEach(function(r) {
-        html += '<div class="inv-stats-table-row inv-stats-row-tap inv-stats-row-partial" data-action="invStatsClientDrill" data-client-id="' + r.clientId + '">' +
-          '<span class="inv-stats-table-cell inv-stats-table-part">' + escHtml(r.name) +
-          '<br><span class="inv-text-muted inv-text-xs">weights on ' + Math.round(r.coverage * 100) + '% of revenue</span></span>' +
-          '<span class="inv-stats-table-cell inv-stats-table-qty inv-mono">' +
-          (r.kg > 0 ? formatNum(r.kg / 1000, 2) : '&mdash;') + '</span>' +
-          '<span class="inv-stats-table-cell inv-stats-table-qty inv-mono inv-stats-val-unknown">n/a</span>' +
-          '<span class="inv-stats-table-cell inv-stats-table-amt inv-mono">' + formatCurrency(r.total) + '</span></div>';
-      });
-      html += '</div>';
 
       if (partial.length > 0) {
+        html += '<div class="inv-row-group"><span>Not ranked: weights on under ' + Math.round(REALISATION_MIN_COVERAGE * 100) + '% of revenue</span></div>';
+        partial.forEach(function(r) {
+          html += statsRow(escHtml(r.name), 'weights on ' + Math.round(r.coverage * 100) + '% of revenue · ' +
+            (r.kg > 0 ? formatNum(r.kg / 1000, 2) + ' t · ' : '') + formatCurrency(r.total),
+            statsDot('neutral', 'n/a'),
+            ' data-action="invStatsClientDrill" data-client-id="' + r.clientId + '" data-client-row data-partial');
+        });
         var partialRev = partial.reduce(function(s, r) { return s + r.total; }, 0);
         var partialShare = totalRev > 0 ? (partialRev / totalRev) * 100 : 0;
-        html += '<div class="inv-stats-alert">' + partial.length + ' client' + (partial.length === 1 ? '' : 's') +
+        html += statsCallout(partial.length + ' client' + (partial.length === 1 ? '' : 's') +
           ' cannot be priced per kg &mdash; ' + formatCurrency(partialRev) + ', ' + formatNum(partialShare, 0) +
           '% of revenue, billed on parts with no weight on file. These are the accounts most likely to be ' +
           'underpriced, and they are the ones this table cannot yet rank. ' +
-          'Items Master &rarr; Derive weights from rates fills them in.</div>';
+          'Items Master &rarr; Derive weights from rates fills them in.', 'danger', 'unranked');
       }
 
       if (costPerKg > 0) {
-        var belowCost = comparable.filter(function(r) { return r.realisation < costPerKg; });
+        var belowCost = comparableRows.filter(function(r) { return r.realisation < costPerKg; });
         if (belowCost.length > 0) {
           var lossKg = belowCost.reduce(function(s, r) { return s + r.kg; }, 0);
           var lossAmt = belowCost.reduce(function(s, r) { return s + (costPerKg - r.realisation) * r.kg; }, 0);
-          html += '<div class="inv-stats-caveat">' + belowCost.length + ' client' + (belowCost.length === 1 ? '' : 's') +
+          html += statsCallout(belowCost.length + ' client' + (belowCost.length === 1 ? '' : 's') +
             ' priced below the ' + formatCurrency(costPerKg) + '/kg full cost, carrying ' +
             formatNum(lossKg / 1000, 2) + ' t and ' + formatCurrency(lossAmt) + ' of the period\'s shortfall. ' +
-            'Whether that is worth exiting depends on how much of the cost base is actually variable.</div>';
+            'Whether that is worth exiting depends on how much of the cost base is actually variable.', '', 'below-cost');
         }
       }
       html += '</div>';
@@ -22933,26 +22710,21 @@ function renderStats() {
     // printing nothing.
     var topKgShare = (tonnage.kg > 0 && top.comparable) ? (top.kg / tonnage.kg) * 100 : null;
     var topRevShare = (top.total / totalRev) * 100;
-    html += '<div class="inv-stats-card">' +
-      '<div class="inv-stats-title">Concentration</div>' +
-      '<div class="inv-stats-row"><span class="inv-stats-name">Largest client</span>' +
-      '<span class="inv-stats-val">' + escHtml(top.name) + '</span></div>' +
-      '<div class="inv-stats-row"><span class="inv-stats-name">Share of revenue</span>' +
-      '<span class="inv-stats-val">' + formatNum(topRevShare, 0) + '%</span></div>' +
-      '<div class="inv-stats-row"><span class="inv-stats-name">Share of tonnage</span>' +
-      (topKgShare != null
-        ? '<span class="inv-stats-val' + (topKgShare - topRevShare > 10 ? ' inv-stats-val-warn' : '') + '">' +
-          formatNum(topKgShare, 0) + '%</span>'
-        : '<span class="inv-stats-val inv-stats-val-unknown">not measurable</span>') + '</div>' +
-      '<div class="inv-stats-row"><span class="inv-stats-name">Top 3 share</span>' +
-      '<span class="inv-stats-val">' + formatNum((top3Rev / totalRev) * 100, 0) + '%</span></div>';
-    if (topKgShare != null && topKgShare - topRevShare > 10) {
-      html += '<div class="inv-stats-caveat">' + escHtml(top.name) + ' takes a larger share of the plant than of the revenue &mdash; ' +
-        'capacity is going somewhere it is not being paid for at the average rate.</div>';
+    var heavier = topKgShare != null && topKgShare - topRevShare > 10;
+    html += statsPanel('concentration', 'Concentration', '') +
+      statsRow(escHtml(top.name), 'Largest client by revenue', '') +
+      statsRow('Share of revenue', '', statsNum(formatNum(topRevShare, 0) + '%')) +
+      statsRow('Share of tonnage', '', topKgShare != null
+        ? '<span class="inv-row-stack">' + statsNum(formatNum(topKgShare, 0) + '%') + (heavier ? statsDot('warning', 'above its revenue share') : '') + '</span>'
+        : statsDot('neutral', 'not measurable')) +
+      statsRow('Top 3 share', '', statsNum(formatNum((top3Rev / totalRev) * 100, 0) + '%'));
+    if (heavier) {
+      html += statsCallout(escHtml(top.name) + ' takes a larger share of the plant than of the revenue &mdash; ' +
+        'capacity is going somewhere it is not being paid for at the average rate.', '', 'plant-share');
     } else if (topKgShare == null) {
-      html += '<div class="inv-stats-caveat">' + escHtml(top.name) + ' is the largest account by revenue, and how much of the ' +
+      html += statsCallout(escHtml(top.name) + ' is the largest account by revenue, and how much of the ' +
         'plant it uses cannot be established &mdash; its parts have no weights on file. Until they do, the tonnage ' +
-        'share of the single biggest user of capacity is unknown, not small.</div>';
+        'share of the single biggest user of capacity is unknown, not small.', '', 'plant-share');
     }
     html += '</div>';
   }
@@ -22997,29 +22769,19 @@ function renderStats() {
   var pendingRanked = Object.values(pendingByClient).sort(function(a, b) { return b.total - a.total; });
   var totalPending = pendingRanked.reduce(function(s, r) { return s + r.total; }, 0);
 
-  html += '<div class="inv-stats-card inv-stats-card-full">' +
-    '<div class="inv-stats-title">Unbilled Material<span class="inv-stats-title-sub">current, not period-filtered</span></div>' +
-    '<div class="inv-stats-metric"><span class="inv-stats-metric-label">Total Unbilled</span>' +
-    '<span class="inv-stats-metric-value">' + formatCurrency(totalPending) + '</span></div>';
+  html += statsPanel('unbilled', 'Unbilled material', 'current, not period-filtered', { wide: true, end: statsNum(formatCurrency(totalPending)) });
   if (totalPending > 0) {
-    html += '<div class="inv-age-row">';
-    ageBuckets.forEach(function(b) {
+    html += statsTiles(ageBuckets.map(function(b, i) {
       var share = totalPending > 0 ? (b.total / totalPending) * 100 : 0;
-      html += '<div class="inv-age-bucket' + (b.max === Infinity && b.total > 0 ? ' inv-age-bucket-warn' : '') + '">' +
-        '<div class="inv-age-label">' + b.label + '</div>' +
-        '<div class="inv-age-value">' + formatCurrency(b.total) + '</div>' +
-        '<div class="inv-age-share">' + formatNum(share, 0) + '% &middot; ' + b.items + ' items</div></div>';
-    });
-    html += '</div>';
+      return statsTile('age' + i, b.label, formatCurrency(b.total),
+        statsTileSub(formatNum(share, 0) + '% &middot; ' + b.items + ' items'), b.max === Infinity && b.total > 0 ? 'warning' : '');
+    }).join(''), true);
     pendingRanked.forEach(function(r) {
-      html += '<div class="inv-stats-row inv-stats-row-tap" data-action="invStatsClientDrill" data-client-id="' + r.clientId + '">' +
-        '<span class="inv-stats-name">' + escHtml(r.name) +
-        ' <span class="inv-text-muted">(' + r.items + ' items' +
-        (r.oldest != null ? ', oldest ' + r.oldest + 'd' : '') + ')</span></span>' +
-        '<span class="inv-stats-val">' + formatCurrency(r.total) + '</span></div>';
+      html += statsRow(escHtml(r.name), r.items + ' items' + (r.oldest != null ? ' · oldest ' + r.oldest + 'd' : ''),
+        statsNum(formatCurrency(r.total)), ' data-action="invStatsClientDrill" data-client-id="' + r.clientId + '"');
     });
   } else {
-    html += '<div class="inv-text-muted inv-p-8">All material invoiced</div>';
+    html += '<div class="inv-empty">All material invoiced</div>';
   }
   html += '</div>';
 
@@ -23028,31 +22790,24 @@ function renderStats() {
   var trendData = buildTrendSeries(_statsTrendGran, _statsTrendSeries);
   var trendUnit = TREND_SERIES_UNIT[_statsTrendSeries] || 'money';
   var trendTitles = {
-    revenue: 'Revenue Trend',
-    tonnage: 'Tonnage Trend',
-    im: 'Incoming Material Trend'
+    revenue: 'Revenue trend',
+    tonnage: 'Tonnage trend',
+    im: 'Incoming material trend'
   };
-  html += '<div class="inv-stats-card inv-stats-card-full">' +
-    '<div class="inv-stats-trend-header">' +
-      '<div class="inv-stats-title">' + escHtml(trendTitles[_statsTrendSeries]) +
+  html += statsPanel('trend', escHtml(trendTitles[_statsTrendSeries]),
+    _statsTrendSeries === 'im' ? 'by challan date' : 'by invoice date', { wide: true }) +
+    statsBody('<div class="inv-toolbar">' +
+      statsSeg('invStatsTrendSeries', 'series', { revenue: '₹', tonnage: 'Tonnes', im: 'IM' }, _statsTrendSeries, 'Series') +
+      statsSeg('invStatsTrendGran', 'gran', { day: 'Day', week: 'Week', month: 'Month' }, _statsTrendGran, 'Step') +
+      statsSeg('invStatsTrendType', 'type', { line: 'Line', bar: 'Bar' }, _statsTrendType, 'Chart') + '</div>' +
+      (_statsTrendType === 'bar'
+        ? chartBars(trendData, { unit: trendUnit, ariaLabel: trendTitles[_statsTrendSeries] })
+        : chartLine(trendData, { unit: trendUnit, ariaLabel: trendTitles[_statsTrendSeries] })) +
+      // Incoming material is the leading indicator: it is what has arrived and
+      // not yet been billed, so a fall here shows up in revenue weeks later.
       (_statsTrendSeries === 'im'
-        ? '<span class="inv-stats-title-sub">by challan date</span>'
-        : '<span class="inv-stats-title-sub">by invoice date</span>') + '</div>' +
-      statsChipRow('invStatsTrendSeries', 'series',
-        { revenue: '₹', tonnage: 'Tonnes', im: 'IM' }, _statsTrendSeries) +
-    '</div>' +
-    '<div class="inv-stats-trend-header">' +
-      statsChipRow('invStatsTrendGran', 'gran', { day: 'Day', week: 'Week', month: 'Month' }, _statsTrendGran) +
-      statsChipRow('invStatsTrendType', 'type', { line: 'Line', bar: 'Bar' }, _statsTrendType) +
-    '</div>' +
-    (_statsTrendType === 'bar'
-      ? chartBars(trendData, { unit: trendUnit, ariaLabel: trendTitles[_statsTrendSeries] })
-      : chartLine(trendData, { unit: trendUnit, ariaLabel: trendTitles[_statsTrendSeries] })) +
-    // Incoming material is the leading indicator: it is what has arrived and
-    // not yet been billed, so a fall here shows up in revenue weeks later.
-    (_statsTrendSeries === 'im'
-      ? '<div class="inv-stats-note">Weighed challan lines only. What arrives here bills later, so a dip shows in revenue after a lag.</div>'
-      : '') +
+        ? statsNote('Weighed challan lines only. What arrives here bills later, so a dip shows in revenue after a lag.')
+        : '')) +
     '</div>';
 
   take('trends');
@@ -23067,39 +22822,26 @@ function renderStats() {
   var avgDispatch = avg(dispatchDays);
   var avgDelivery = avg(deliveryDays);
   var avgFull = avg(fullCycleDays);
+  var cycleRow = function(label, v, n) {
+    return v !== null ? statsRow(label, 'average of ' + n + ' invoice' + (n === 1 ? '' : 's'), statsNum(formatNum(v, 1) + statsUnit('days'))) : '';
+  };
   if (avgDispatch !== null || avgDelivery !== null) {
-    html += '<div class="inv-stats-card">' +
-      '<div class="inv-stats-title">Dispatch Cycle</div>';
-    if (avgDispatch !== null) {
-      html += '<div class="inv-stats-metric"><span class="inv-stats-metric-label">Created to Dispatched</span>' +
-        '<span class="inv-stats-metric-sub">' + formatNum(avgDispatch, 1) + ' days avg (' + dispatchDays.length + ')</span></div>';
-    }
-    if (avgDelivery !== null) {
-      html += '<div class="inv-stats-metric"><span class="inv-stats-metric-label">Dispatched to Delivered</span>' +
-        '<span class="inv-stats-metric-sub">' + formatNum(avgDelivery, 1) + ' days avg (' + deliveryDays.length + ')</span></div>';
-    }
-    if (avgFull !== null) {
-      html += '<div class="inv-stats-metric"><span class="inv-stats-metric-label">Full Cycle</span>' +
-        '<span class="inv-stats-metric-sub">' + formatNum(avgFull, 1) + ' days avg (' + fullCycleDays.length + ')</span></div>';
-    }
-    html += '</div>';
+    html += statsPanel('dispatch', 'Dispatch cycle', '') +
+      cycleRow('Created to dispatched', avgDispatch, dispatchDays.length) +
+      cycleRow('Dispatched to delivered', avgDelivery, deliveryDays.length) +
+      cycleRow('Full cycle', avgFull, fullCycleDays.length) + '</div>';
   }
 
   take('billing');
   /* ===== Card 10: Top items — by value, tonnage, or price ===== */
   var top = buildTopItems(filtered, _statsTopBy);
   if (top.total > 0) {
-    var topTitles = { value: 'Top Items by Value', tonnage: 'Top Items by Tonnage', rate: 'Worst Priced Items' };
+    var topTitles = { value: 'Top items by value', tonnage: 'Top items by tonnage', rate: 'Worst priced items' };
     var topUnits = { value: 'money', tonnage: 'kg', rate: 'money' };
-    html += '<div class="inv-stats-card inv-stats-card-full">' +
-      '<div class="inv-stats-trend-header">' +
-      '<div class="inv-stats-title">' + escHtml(topTitles[_statsTopBy]) +
-      (_statsTopBy === 'rate' ? '<span class="inv-stats-title-sub">worst first</span>' : '') + '</div>' +
-      statsChipRow('invStatsTopBy', 'by', { value: '₹', tonnage: 'Tonnes', rate: '₹/kg' }, _statsTopBy) +
-      '</div>';
+    var topBody = '';
 
     if (top.rows.length === 0) {
-      html += '<div class="inv-text-muted inv-p-8">No part in this period has a known weight.</div>';
+      topBody += '<div class="inv-empty">No part in this period has a known weight.</div>';
     } else {
       // On the price ranking the bar is measured against cost, not against the
       // best-priced part: a mark at full cost, and anything short of it in the
@@ -23107,7 +22849,7 @@ function renderStats() {
       var rateMax = _statsTopBy === 'rate'
         ? Math.max.apply(null, top.rows.map(function(r) { return r.perKg; }).concat([costPerKg]))
         : 0;
-      html += chartRankedBars(top.rows.map(function(r) {
+      topBody += chartRankedBars(top.rows.map(function(r) {
         var value = _statsTopBy === 'tonnage' ? r.kg : _statsTopBy === 'rate' ? r.perKg : r.amount;
         var display = _statsTopBy === 'tonnage' ? formatNum(r.kg, 0) + ' kg'
           : _statsTopBy === 'rate' ? formatCurrency(r.perKg) + '/kg'
@@ -23129,8 +22871,8 @@ function renderStats() {
         };
       }), { unit: topUnits[_statsTopBy] });
       if (_statsTopBy === 'rate' && costPerKg > 0) {
-        html += '<div class="inv-stats-note">Mark is full cost, ' + formatCurrency(costPerKg) +
-          '/kg. Bars short of it are plated below what they cost to plate.</div>';
+        topBody += statsNote('Mark is full cost, ' + formatCurrency(costPerKg) +
+          '/kg. Bars short of it are plated below what they cost to plate.');
       }
     }
 
@@ -23138,10 +22880,12 @@ function renderStats() {
     // piece-billed end, so a weight-based ranking that hides them reads better
     // than the truth — the same trap the realisation cards already guard.
     if (top.dropped > 0) {
-      html += '<div class="inv-stats-note">' + top.dropped + ' of ' + top.total +
-        ' part' + (top.total !== 1 ? 's' : '') + ' left out: no known weight, so they cannot be ranked this way.</div>';
+      topBody += statsNote(top.dropped + ' of ' + top.total +
+        ' part' + (top.total !== 1 ? 's' : '') + ' left out: no known weight, so they cannot be ranked this way.');
     }
-    html += '</div>';
+    html += statsPanel('top', escHtml(topTitles[_statsTopBy]), _statsTopBy === 'rate' ? 'worst first' : '', { wide: true,
+      end: statsSeg('invStatsTopBy', 'by', { value: '₹', tonnage: 'Tonnes', rate: '₹/kg' }, _statsTopBy, 'Rank by') }) +
+      (top.rows.length === 0 ? topBody : statsBody(topBody)) + '</div>';
   }
 
   take('trends');
@@ -23150,11 +22894,13 @@ function renderStats() {
     sec.clients = statsMarginHtml(_statsPeriod, filtered, tonnage) + nextChallanCardHtml() + sec.clients;
   }
   html = sec[statsTab()];
-  if (html === '') html = '<div class="inv-empty-state">No data yet. Create invoices and log incoming material to see analytics.</div>';
+  if (html === '') html = '<div class="inv-panel inv-panels-wide"><div class="inv-empty">No data yet. Create invoices and log incoming material to see analytics.</div></div>';
   area.innerHTML = html;
 }
 
-/* ===== CLIENT DRILL-DOWN OVERLAY (Flippable Card) ===== */
+/* ===== CLIENT DRILL-DOWN OVERLAY (a card that turns over) =====
+   The front is the period at a glance (tiles, the invoice states); the back is the recent invoices
+   and pending challans as rows, and the actions. invFlipCard turns it (events.js). */
 function openClientDrillOverlay(clientId) {
   clientId = parseInt(clientId);
   var client = S.clients.find(function(c) { return c.id === clientId; });
@@ -23192,7 +22938,7 @@ function openClientDrillOverlay(clientId) {
   var rateInfo = '';
   if (client.billingMode === 'perKg') {
     var r = getLineItemRate(client, localDateStr());
-    rateInfo = 'Per Kg \u00b7 ' + formatCurrency(r.ratePerKg || r.rate || 0) + '/kg';
+    rateInfo = 'Per Kg · ' + formatCurrency(r.ratePerKg || r.rate || 0) + '/kg';
   } else if (client.billingMode === 'perPiece') {
     rateInfo = 'Per Piece';
   } else {
@@ -23203,83 +22949,59 @@ function openClientDrillOverlay(clientId) {
     .filter(function(i) { return i.clientId === clientId && i.status === 'active'; })
     .sort(function(a, b) { return (b.createdAt || 0) - (a.createdAt || 0); })
     .slice(0, 5);
-  var recentHtml = '';
-  if (recentInvs.length === 0) {
-    recentHtml = '<div class="inv-text-muted">No invoices</div>';
-  } else {
-    recentInvs.forEach(function(inv) {
-      recentHtml += '<div class="inv-flip-row">' +
-        '<span class="inv-mono">' + escHtml(inv.displayNumber) + '</span>' +
-        '<span class="inv-text-muted">' + formatDate(inv.date) + '</span>' +
-        '<span class="inv-mono inv-text-cost">' + formatCurrency(inv.grandTotal) + '</span>' +
-        getStateBadgeHtml(inv) + '</div>';
-    });
-  }
+  var recentHtml = recentInvs.length === 0 ? '<div class="inv-empty">No invoices</div>' : recentInvs.map(function(inv) {
+    return statsRow('<span class="inv-id">' + escHtml(inv.displayNumber) + '</span>', escHtml(formatDate(inv.date)),
+      '<span class="inv-row-stack">' + statsNum(formatCurrency(inv.grandTotal)) + getStateDotHtml(inv) + '</span>');
+  }).join('');
 
   var pendingChallans = (S.incomingMaterial || []).filter(function(im) {
     if (im.clientId !== clientId) return false;
     return im.items.some(function(it) { return !it.invoiced; });
   });
-  var challanHtml = '';
-  if (pendingChallans.length === 0) {
-    challanHtml = '<div class="inv-text-muted">No pending challans</div>';
-  } else {
-    pendingChallans.forEach(function(im) {
-      var pItems = im.items.filter(function(it) { return !it.invoiced; });
-      var pAmt = pItems.reduce(function(s, it) { return s + (it.amount || 0); }, 0);
-      challanHtml += '<div class="inv-flip-row">' +
-        '<span>' + (im.challanNo ? 'Ch. ' + escHtml(im.challanNo) : 'No number') + '</span>' +
-        '<span class="inv-text-muted">' + formatDate(im.challanDate) + '</span>' +
-        '<span class="inv-text-muted">' + pItems.length + ' items</span>' +
-        '<span class="inv-mono">' + formatCurrency(pAmt) + '</span></div>';
-    });
-  }
+  var challanHtml = pendingChallans.length === 0 ? '<div class="inv-empty">No pending challans</div>' : pendingChallans.map(function(im) {
+    var pItems = im.items.filter(function(it) { return !it.invoiced; });
+    var pAmt = pItems.reduce(function(s, it) { return s + (it.amount || 0); }, 0);
+    return statsRow(im.challanNo ? 'Ch. <span class="inv-id">' + escHtml(im.challanNo) + '</span>' : 'No number',
+      escHtml(formatDate(im.challanDate)) + ' · ' + pItems.length + ' items', statsNum(formatCurrency(pAmt)));
+  }).join('');
 
   var periodLabel = PERIOD_LABELS[_statsPeriod] || 'All';
+  var flipIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M17 1l4 4-4 4"/><path d="M3 11V9a4 4 0 014-4h14"/><path d="M7 23l-4-4 4-4"/><path d="M21 13v2a4 4 0 01-4 4H3"/></svg>';
 
   pushFocus();
   document.body.style.overflow = 'hidden';
   var scrim = document.createElement('div');
   scrim.className = 'inv-overlay-scrim';
-  scrim.innerHTML = '<div class="inv-overlay-card inv-flip-container">' +
+  scrim.innerHTML = '<div class="inv-overlay-card inv-flip-container" data-drill="' + clientId + '">' +
     '<div class="inv-flip-inner">' +
     '<div class="inv-flip-front">' +
     '<div class="inv-overlay-header"><span class="inv-overlay-title">' + escHtml(client.name) + '</span>' +
-    '<button class="inv-overlay-close" data-action="invCloseOverlay">&times;</button></div>' +
-    '<div class="inv-flip-period-label">' + escHtml(periodLabel) + '</div>' +
-    '<div class="inv-flip-kpis">' +
-    '<div class="inv-flip-kpi"><span class="inv-flip-kpi-label">Revenue</span><span class="inv-flip-kpi-value">' + formatCurrency(totalRev) + '</span></div>' +
-    '<div class="inv-flip-kpi"><span class="inv-flip-kpi-label">Tonnage</span><span class="inv-flip-kpi-value">' + formatNum(clientTonnage.kg / 1000, 2) + ' t</span></div>' +
-    '<div class="inv-flip-kpi"><span class="inv-flip-kpi-label">&#8377;/kg</span><span class="inv-flip-kpi-value' +
-      (realisation != null && costPerKg > 0 && realisation < costPerKg ? ' inv-stats-val-danger' : '') + '">' +
-      (realisation != null ? formatNum(realisation, 2) : '&mdash;') + '</span></div>' +
-    '<div class="inv-flip-kpi"><span class="inv-flip-kpi-label">Share</span><span class="inv-flip-kpi-value">' + pct + '%</span></div>' +
-    '<div class="inv-flip-kpi"><span class="inv-flip-kpi-label">Invoices</span><span class="inv-flip-kpi-value">' + clientInvs.length + '</span></div>' +
-    '<div class="inv-flip-kpi"><span class="inv-flip-kpi-label">Unbilled</span><span class="inv-flip-kpi-value">' + formatCurrency(pendingAmt) + '</span></div>' +
+    '<button class="inv-overlay-close" data-action="invCloseOverlay" aria-label="Close">&times;</button></div>' +
+    '<div class="inv-note inv-mb-8">' + escHtml(periodLabel) + ' &middot; ' + escHtml(rateInfo) + '</div>' +
+    '<div class="inv-tiles">' +
+    statsTile('revenue', 'Revenue', formatCurrency(totalRev)) +
+    statsTile('tonnage', 'Tonnage', formatNum(clientTonnage.kg / 1000, 2) + '<span class="inv-tile-of"> t</span>') +
+    statsTile('realisation', '&#8377;/kg', realisation != null ? formatNum(realisation, 2) : '&mdash;', '',
+      realisation != null && costPerKg > 0 && realisation < costPerKg ? 'danger' : '') +
+    statsTile('share', 'Share', pct + '%') +
+    statsTile('invoices', 'Invoices', String(clientInvs.length)) +
+    statsTile('unbilled', 'Unbilled', formatCurrency(pendingAmt)) +
     '</div>' +
-    '<div class="inv-flip-states">' +
-    '<span class="inv-state-badge inv-state-created">' + stateCounts.created + ' Created</span>' +
-    '<span class="inv-state-badge inv-state-dispatched">' + stateCounts.dispatched + ' Dispatched</span>' +
-    '<span class="inv-state-badge inv-state-delivered">' + stateCounts.delivered + ' Delivered</span>' +
-    '<span class="inv-state-badge inv-state-filed">' + stateCounts.filed + ' Filed</span>' +
-    '</div>' +
-    '<div class="inv-flip-meta">' + escHtml(rateInfo) + '</div>' +
-    '<button class="inv-btn inv-btn-ghost inv-btn-block" data-action="invFlipCard">' +
-    '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 1l4 4-4 4"/><path d="M3 11V9a4 4 0 014-4h14"/><path d="M7 23l-4-4 4-4"/><path d="M21 13v2a4 4 0 01-4 4H3"/></svg>' +
-    ' Details &amp; Actions</button>' +
+    '<div class="inv-toolbar">' + Object.keys(stateCounts).map(function(s) {
+      return statsDot(INV_STATE_TONE[s], stateCounts[s] + ' ' + INV_STATE_LABELS[s]);
+    }).join('') + '</div>' +
+    '<button class="inv-btn inv-btn-secondary inv-btn-block" data-action="invFlipCard">' + flipIcon + ' Details and actions</button>' +
     '</div>' +
     '<div class="inv-flip-back">' +
-    '<div class="inv-overlay-header"><span class="inv-overlay-title">' + escHtml(client.name) + '</span><div>' +
-    '<button class="inv-overlay-close" data-action="invFlipCard" aria-label="Flip back">' +
-    '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 1l4 4-4 4"/><path d="M3 11V9a4 4 0 014-4h14"/><path d="M7 23l-4-4 4-4"/><path d="M21 13v2a4 4 0 01-4 4H3"/></svg>' +
-    '</button>' +
-    '<button class="inv-overlay-close" data-action="invCloseOverlay">&times;</button></div></div>' +
-    '<div class="inv-flip-section-title">Recent Invoices</div>' + recentHtml +
-    '<div class="inv-flip-section-title">Pending Challans</div>' + challanHtml +
-    '<div class="inv-flip-actions">' +
-    '<button class="inv-btn inv-btn-primary" data-action="invStatsCreateInvoice" data-client-id="' + clientId + '">Create Invoice</button>' +
-    '<button class="inv-btn inv-btn-ghost" data-action="invStatsJumpRegister" data-client-id="' + clientId + '">View in Register</button>' +
-    '<button class="inv-btn inv-btn-ghost" data-action="invStatsJumpIM" data-client-id="' + clientId + '">View in IM</button>' +
+    '<div class="inv-overlay-header"><span class="inv-overlay-title">' + escHtml(client.name) + '</span><div class="inv-toolbar inv-toolbar-tight">' +
+    '<button class="inv-btn inv-btn-icon inv-btn-ghost" data-action="invFlipCard" aria-label="Flip back">' + flipIcon + '</button>' +
+    '<button class="inv-overlay-close" data-action="invCloseOverlay" aria-label="Close">&times;</button></div></div>' +
+    '<div class="inv-panel inv-panel-flush"><div class="inv-panel-head"><span class="inv-panel-title">Recent invoices</span></div>' + recentHtml + '</div>' +
+    '<div class="inv-panel inv-panel-flush"><div class="inv-panel-head"><span class="inv-panel-title">Pending challans</span></div>' + challanHtml + '</div>' +
+    '<div class="inv-toolbar">' +
+    '<button class="inv-btn inv-btn-primary" data-action="invStatsCreateInvoice" data-client-id="' + clientId + '">Create invoice</button>' +
+    '<button class="inv-btn inv-btn-secondary" data-action="invStatsJumpRegister" data-client-id="' + clientId + '">View in Register</button>' +
+    '<button class="inv-btn inv-btn-secondary" data-action="invStatsJumpIM" data-client-id="' + clientId + '">View in IM</button>' +
     '</div></div>' +
     '</div></div>';
   document.body.appendChild(scrim);
@@ -23710,9 +23432,8 @@ function statsSetTab(t) {
 }
 function statsTabsHtml() {
   var cur = statsTab();
-  return '<div class="inv-stats-tabs" role="tablist">' + STATS_TABS.map(function(t) {
-    return '<button class="inv-stats-tab' + (cur === t[0] ? ' inv-stats-tab-on' : '') + '" role="tab" aria-selected="' + (cur === t[0]) +
-      '" data-action="invStatsTab" data-tab="' + t[0] + '">' + t[1] + '</button>';
+  return '<div class="inv-viewtabs" role="tablist" aria-label="Stats">' + STATS_TABS.map(function(t) {
+    return '<button class="inv-viewtab" role="tab" aria-selected="' + (cur === t[0]) + '" data-action="invStatsTab" data-tab="' + t[0] + '">' + t[1] + '</button>';
   }).join('') + '</div>';
 }
 
@@ -23749,28 +23470,36 @@ function statsOverviewHtml(period, filtered, tonnage) {
   var cap = STATS_CAPACITY_KG_DAY * statsWorkingDays(r.from, r.to);
   var capPct = cap > 0 ? kg / cap : null;
   var measured = Math.round(c.measuredShare * 100);
-  var h = '<div class="inv-stats-card inv-stats-card-full" id="statsOverview"><div class="inv-stats-title">' + escHtml(PERIOD_LABELS[period] || '') +
-    ' In one line<span class="inv-stats-title-sub">against the live cost, ' + measured + '% of it measured</span></div>';
-  if (!(kg > 0)) return h + '<div class="inv-stats-caveat">No weighed tonnage in this period, so no ₹/kg to compare.</div></div>';
-  h += '<div class="inv-ov-grid">' +
-    '<div class="inv-ov-tile inv-pay-blue"><div class="inv-ov-l">Realisation</div><div class="inv-ov-v">' + statsMoney(real) + '<small>/kg</small></div><div class="inv-ov-s">' + statsMoney(tonnage.revKnown) + ' on ' + formatNum(kg / 1000, 1) + ' t</div></div>' +
-    '<div class="inv-ov-tile inv-pay-green"><div class="inv-ov-l">Live cost</div><div class="inv-ov-v">' + statsMoney(c.perKg) + '<small>/kg</small></div><div class="inv-ov-s">typed ' + statsMoney(S.defaultCostPerKg || 0) + '</div></div>' +
-    '<div class="inv-ov-tile ' + (contrib >= 0 ? 'inv-pay-green' : 'inv-area-gap-over') + '"><div class="inv-ov-l">Contribution</div><div class="inv-ov-v" id="statsContrib">' + statsSigned(contrib) + '<small>/kg</small></div><div class="inv-ov-s">' + statsSigned(gstRound(contrib * kg)) + ' on the period</div></div>' +
-    '<div class="inv-ov-tile inv-area-gap-under"><div class="inv-ov-l">Capacity</div><div class="inv-ov-v">' + (capPct != null ? Math.round(capPct * 100) + '%' : '&mdash;') + '</div><div class="inv-ov-s">' + formatNum(kg / 1000, 1) + ' t of ~' + formatNum(cap / 1000, 0) + ' t (2 shifts)</div></div>' +
-    '</div>';
+  var perKg = '<span class="inv-tile-of">/kg</span>';
+  var h = statsPanel('overview', escHtml(PERIOD_LABELS[period] || '') + ' in one line', 'against the live cost, ' + measured + '% of it measured',
+    { wide: true, id: 'statsOverview' });
+  if (!(kg > 0)) return h + statsCallout('No weighed tonnage in this period, so no ₹/kg to compare.') + '</div>';
+  h += statsTiles(
+    statsTile('realisation', 'Realisation', statsMoney(real) + perKg, statsTileSub(statsMoney(tonnage.revKnown) + ' on ' + formatNum(kg / 1000, 1) + ' t')) +
+    statsTile('cost', 'Live cost', statsMoney(c.perKg) + perKg, statsTileSub('typed ' + statsMoney(S.defaultCostPerKg || 0))) +
+    statsTile('contrib', 'Contribution', statsSigned(contrib) + perKg, statsTileSub(statsSigned(gstRound(contrib * kg)) + ' on the period'),
+      contrib >= 0 ? 'ok' : 'danger', 'statsContrib') +
+    statsTile('capacity', 'Capacity', capPct != null ? Math.round(capPct * 100) + '%' : '&mdash;',
+      statsTileSub(formatNum(kg / 1000, 1) + ' t of ~' + formatNum(cap / 1000, 0) + ' t (2 shifts)')), true);
   if (finHasBank()) {
     var bRows = bankRows(), bLast = bRows[bRows.length - 1], bRecv = finCtx().recv(), bBook = bankBookDaysToPay(bankPayHistory(bRecv));
-    h += '<div class="inv-stats-row" id="statsCash"><span class="inv-stats-name">Cash<span class="inv-cost-note">bank on ' + escHtml(formatDate(bLast.date)) + ' · owed to us' +
-      (bBook ? ' · clients pay in ' + Math.round(bBook.median) + ' days' : '') + '</span></span><span class="inv-stats-val">' + statsMoney(bLast.balance) + ' · ' +
-      statsMoney(gstRound(bRecv.reduce(function(s, r) { return s + Math.max(0, r.owed); }, 0))) +
-      ' <button class="inv-btn inv-btn-link inv-btn-sm" data-action="invFinGo" data-tab="overview">Finance</button></span></div>';
+    h += '<div class="inv-row inv-row-2 inv-row-flow" id="statsCash"><span class="inv-row-main"><span class="inv-row-title">Cash</span>' +
+      '<span class="inv-row-meta inv-row-wrap">bank on ' + escHtml(formatDate(bLast.date)) + ' · owed to us' +
+      (bBook ? ' · clients pay in ' + Math.round(bBook.median) + ' days' : '') + '</span></span><span class="inv-row-end"><span class="inv-num">' + statsMoney(bLast.balance) + ' · ' +
+      statsMoney(gstRound(bRecv.reduce(function(s, r) { return s + Math.max(0, r.owed); }, 0))) + '</span>' +
+      '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invFinGo" data-tab="overview">Finance</button></span></div>';
   }
   var parts = c.rows.filter(function(x) { return x.source !== 'measured' && x.source !== 'bank'; }).map(function(x) { return x.label.toLowerCase() + ' (' + COST_SRC_LABEL[x.source] + ')'; });
   if (parts.length) {
-    h += '<div class="inv-stats-caveat"><strong>Read with care:</strong> ' + escHtml(parts.join(', ')) + ' ' + (parts.length === 1 ? 'is' : 'are') +
-      ' not fully measured, so the contribution is only as good as ' + (parts.length === 1 ? 'that figure' : 'those figures') + '. Cost tab &rarr; Live cost shows each one.</div>';
+    h += statsCallout('<strong>Read with care:</strong> ' + escHtml(parts.join(', ')) + ' ' + (parts.length === 1 ? 'is' : 'are') +
+      ' not fully measured, so the contribution is only as good as ' + (parts.length === 1 ? 'that figure' : 'those figures') + '. Cost tab &rarr; Live cost shows each one.', '', 'model');
   }
   return h + '</div>';
+}
+
+/* A signed figure in a table: the sign carries the tone (§5.4, DR-1). */
+function statsSignedCell(v, text) {
+  return '<td class="inv-num' + (v == null ? '' : v >= 0 ? ' inv-num-pos' : ' inv-num-neg') + '">' + text + '</td>';
 }
 
 /* ---------- Overview: six months side by side ---------- */
@@ -23789,16 +23518,17 @@ function statsMonthsHtml() {
       contrib: real != null && c.perKg != null ? real - c.perKg : null, labour: lab && w.kg > 0 ? lab.amount / w.kg : null, labCov: lab ? Math.max(lab.coverage || 0, lab.bankShare || 0) : 0, measured: c.measuredShare });
   }
   if (!rows.some(function(r) { return r.kg > 0; })) return '';
-  var h = '<div class="inv-stats-card inv-stats-card-full" id="statsMonths"><div class="inv-stats-title">Six months<span class="inv-stats-title-sub">each at its own live cost</span></div>' +
-    '<table class="inv-ov-table"><thead><tr><th>Month</th><th>t</th><th>₹/kg</th><th>Cost</th><th>Contrib.</th><th>Labour</th><th>Measured</th></tr></thead><tbody>';
+  var h = statsPanel('months', 'Six months', 'each at its own live cost', { wide: true, id: 'statsMonths' }) +
+    '<div class="inv-scroll-x"><table class="inv-table"><thead><tr><th>Month</th><th class="inv-num">t</th><th class="inv-num">₹/kg</th><th class="inv-num">Cost</th>' +
+    '<th class="inv-num">Contrib.</th><th class="inv-num">Labour</th><th class="inv-num">Measured</th></tr></thead><tbody>';
   rows.forEach(function(r) {
-    h += '<tr><td>' + escHtml(r.label) + '</td><td>' + formatNum(r.kg / 1000, 1) + '</td><td>' + (r.real != null ? formatNum(r.real, 2) : '&mdash;') + '</td><td>' +
-      (r.cost != null ? formatNum(r.cost, 2) : '&mdash;') + '</td><td class="' + (r.contrib == null ? '' : r.contrib >= 0 ? 'inv-ov-pos' : 'inv-ov-neg') + '">' +
-      (r.contrib != null ? (r.contrib >= 0 ? '+' : '&minus;') + formatNum(Math.abs(r.contrib), 2) : '&mdash;') + '</td><td>' +
-      (r.labour != null && r.labCov >= 0.9 ? formatNum(r.labour, 2) : '&mdash;') + '</td><td>' + Math.round(r.measured * 100) + '%</td></tr>';
+    h += '<tr><td class="inv-nowrap">' + escHtml(r.label) + '</td><td class="inv-num">' + formatNum(r.kg / 1000, 1) + '</td><td class="inv-num">' + (r.real != null ? formatNum(r.real, 2) : '&mdash;') + '</td>' +
+      '<td class="inv-num">' + (r.cost != null ? formatNum(r.cost, 2) : '&mdash;') + '</td>' +
+      statsSignedCell(r.contrib, r.contrib != null ? (r.contrib >= 0 ? '+' : '&minus;') + formatNum(Math.abs(r.contrib), 2) : '&mdash;') +
+      '<td class="inv-num">' + (r.labour != null && r.labCov >= 0.9 ? formatNum(r.labour, 2) : '&mdash;') + '</td><td class="inv-num">' + Math.round(r.measured * 100) + '%</td></tr>';
   });
-  h += '</tbody></table><div class="inv-stats-note">₹ per kg. Labour shows only where the days are recorded, or the bank statement covers what paid them (90% or more); a month with less is withheld rather than read low. ' +
-    'Measured is the share of that month&rsquo;s cost from the app&rsquo;s own records.</div></div>';
+  h += '</tbody></table></div>' + statsBody(statsNote('₹ per kg. Labour shows only where the days are recorded, or the bank statement covers what paid them (90% or more); a month with less is withheld rather than read low. ' +
+    'Measured is the share of that month&rsquo;s cost from the app&rsquo;s own records.')) + '</div>';
   return h;
 }
 
@@ -23827,46 +23557,47 @@ function statsClientMargins(period, filtered, tonnage, range) {
 
 function statsMarginHtml(period, filtered, tonnage) {
   var m = statsClientMargins(period, filtered, tonnage);
-  var h = '<div class="inv-stats-card inv-stats-card-full" id="statsMargin"><div class="inv-stats-title">' + escHtml(PERIOD_LABELS[period] || '') +
-    ' Contribution by client<span class="inv-stats-title-sub">worst first, at the live cost</span></div>';
-  if (!m) return h + '<div class="inv-stats-caveat">No weighed tonnage in this period, so no margin to work out.</div></div>';
-  h += '<div class="inv-stats-note">Variable cost ' + statsMoney(m.varKg) + '/kg · fixed (monthly crew) ' + statsMoney(m.fixedKg) + '/kg · full ' + statsMoney(m.fullKg) + '/kg, ' +
-    Math.round(m.c.measuredShare * 100) + '% measured.</div>';
+  var h = statsPanel('margin', escHtml(PERIOD_LABELS[period] || '') + ' contribution by client', 'worst first, at the live cost', { wide: true, id: 'statsMargin' });
+  if (!m) return h + statsCallout('No weighed tonnage in this period, so no margin to work out.') + '</div>';
+  h += statsBody(statsNote('Variable cost ' + statsMoney(m.varKg) + '/kg · fixed (monthly crew) ' + statsMoney(m.fixedKg) + '/kg · full ' + statsMoney(m.fullKg) + '/kg, ' +
+    Math.round(m.c.measuredShare * 100) + '% measured.'));
   // Owed and days to pay beside the margin: a client below cost that also pays in 120 days is two problems.
   var money = {};
   if (finHasBank()) {
     var mh = bankPayHistory(finCtx().recv());
     finCtx().recv().forEach(function(r) { var d = bankDaysToPay(r.client.id, mh); money[String(r.client.id)] = { owed: r.owed, days: d && d.median != null ? Math.round(d.median) : null }; });
   }
-  h += '<table class="inv-ov-table"><thead><tr><th>Client</th><th>₹/kg</th><th>t</th><th>vs var.</th><th>vs full</th><th>₹ on period</th></tr></thead><tbody>';
+  h += '<div class="inv-scroll-x"><table class="inv-table"><thead><tr><th>Client</th><th class="inv-num">₹/kg</th><th class="inv-num">t</th><th class="inv-num">vs var.</th>' +
+    '<th class="inv-num">vs full</th><th class="inv-num">₹ on period</th></tr></thead><tbody>';
   m.ranked.forEach(function(x) {
-    var cls = function(v) { return v >= 0 ? 'inv-ov-pos' : 'inv-ov-neg'; };
-    h += '<tr data-action="invStatsClientDrill" data-client-id="' + escHtml(x.id) + '"><td>' + escHtml(x.name) + (x.cn ? '<span class="inv-cost-note">net of ' + statsMoney(x.cn) + ' credit notes</span>' : '') +
-      (money[String(x.id)] ? '<span class="inv-cost-note" data-client-owed>owes ' + statsMoney(Math.max(0, money[String(x.id)].owed)) + (money[String(x.id)].days != null ? ' · pays in ' + money[String(x.id)].days + ' d' : '') + '</span>' : '') + '</td>' +
-      '<td>' + formatNum(x.net, 2) + '</td><td>' + formatNum(x.kg / 1000, 1) + '</td>' +
-      '<td class="' + cls(x.vsVar) + '">' + (x.vsVar >= 0 ? '+' : '&minus;') + formatNum(Math.abs(x.vsVar), 2) + '</td>' +
-      '<td class="' + cls(x.vsFull) + '">' + (x.vsFull >= 0 ? '+' : '&minus;') + formatNum(Math.abs(x.vsFull), 2) + '</td>' +
-      '<td class="' + cls(x.money) + '">' + statsSigned(x.money) + '</td></tr>';
+    var sign = function(v) { return (v >= 0 ? '+' : '&minus;') + formatNum(Math.abs(v), 2); };
+    h += '<tr data-action="invStatsClientDrill" data-client-id="' + escHtml(x.id) + '"><td><div class="inv-row-title">' + escHtml(x.name) + '</div>' +
+      (x.cn ? '<div class="inv-row-meta">net of ' + statsMoney(x.cn) + ' credit notes</div>' : '') +
+      (money[String(x.id)] ? '<div class="inv-row-meta" data-client-owed>owes ' + statsMoney(Math.max(0, money[String(x.id)].owed)) + (money[String(x.id)].days != null ? ' · pays in ' + money[String(x.id)].days + ' d' : '') + '</div>' : '') + '</td>' +
+      '<td class="inv-num">' + formatNum(x.net, 2) + '</td><td class="inv-num">' + formatNum(x.kg / 1000, 1) + '</td>' +
+      statsSignedCell(x.vsVar, sign(x.vsVar)) + statsSignedCell(x.vsFull, sign(x.vsFull)) + statsSignedCell(x.money, statsSigned(x.money)) + '</tr>';
   });
-  h += '</tbody></table>';
-  if (m.apart.length) h += '<div class="inv-stats-note">Listed apart, not ranked (under 90% of their revenue weighed): ' +
-    m.apart.map(function(x) { return escHtml(x.name) + ' (' + Math.round(x.coverage * 100) + '%)'; }).join(', ') + '.</div>';
-  h += '<div class="inv-stats-note">Cost is spread per kg: a thin clamp and a heavy bracket cost the same per kg here, which is the one assumption this table cannot check. ' +
-    '&ldquo;vs var.&rdquo; is what a kilo leaves after its variable cost; &ldquo;vs full&rdquo; also carries the monthly crew.</div>';
+  h += '</tbody></table></div>';
+  var notes = '';
+  if (m.apart.length) notes += statsNote('Listed apart, not ranked (under 90% of their revenue weighed): ' +
+    m.apart.map(function(x) { return escHtml(x.name) + ' (' + Math.round(x.coverage * 100) + '%)'; }).join(', ') + '.');
+  notes += statsNote('Cost is spread per kg: a thin clamp and a heavy bracket cost the same per kg here, which is the one assumption this table cannot check. ' +
+    '&ldquo;vs var.&rdquo; is what a kilo leaves after its variable cost; &ldquo;vs full&rdquo; also carries the monthly crew.');
+  h += statsBody(notes);
 
   // The worst-placed large account, settled both ways.
   var worst = m.ranked.filter(function(x) { return x.kg >= m.kg * 0.1; })[0];
   if (worst && worst.vsFull < 0) {
-    h += '<div class="inv-ov-case" id="statsWorst"><div class="inv-stats-name"><strong>' + escHtml(worst.name) + '</strong>, settled on the live cost</div>' +
-      '<div class="inv-ov-grid inv-ov-grid-2">' +
-      '<div class="inv-ov-tile ' + (worst.vsVar >= 0 ? 'inv-pay-green' : 'inv-area-gap-over') + '"><div class="inv-ov-l">If labour is fixed</div><div class="inv-ov-v">' + statsSigned(worst.vsVar) + '<small>/kg</small></div><div class="inv-ov-s">' +
-        (worst.vsVar >= 0 ? 'contributes ' + statsMoney(gstRound(worst.vsVar * worst.kg)) : 'below its variable cost') + '</div></div>' +
-      '<div class="inv-ov-tile inv-area-gap-over"><div class="inv-ov-l">If labour scales</div><div class="inv-ov-v">' + statsSigned(worst.vsFull) + '<small>/kg</small></div><div class="inv-ov-s">' + statsSigned(worst.money) + ' on the period</div></div></div>' +
-      '<div class="inv-stats-row"><span class="inv-stats-name">Price that breaks even<span class="inv-cost-note">on variable · on full cost</span></span><span class="inv-stats-val">' + statsMoney(m.varKg) + ' · ' + statsMoney(m.fullKg) + '</span></div>' +
-      '<div class="inv-stats-row"><span class="inv-stats-name">Share of the plant<span class="inv-cost-note">tonnage · revenue</span></span><span class="inv-stats-val">' +
-        Math.round(worst.kg / m.kg * 100) + '% · ' + (m.rev > 0 ? Math.round(worst.total / m.rev * 100) : 0) + '%</span></div>' +
-      '<div class="inv-stats-caveat">' + (worst.vsVar < 0 ? 'It does not cover its variable cost either way' : 'It contributes only if labour is fixed') +
-      ', <strong>if</strong> its parts cost the same per kg as the rest of the book. That is the question to take to the floor before repricing.</div></div>';
+    var perKg = '<span class="inv-tile-of">/kg</span>';
+    h += '<div id="statsWorst"><div class="inv-row-group"><span><strong>' + escHtml(worst.name) + '</strong>, settled on the live cost</span></div>' +
+      statsTiles(
+        statsTile('fixed', 'If labour is fixed', statsSigned(worst.vsVar) + perKg,
+          statsTileSub(worst.vsVar >= 0 ? 'contributes ' + statsMoney(gstRound(worst.vsVar * worst.kg)) : 'below its variable cost'), worst.vsVar >= 0 ? 'ok' : 'danger') +
+        statsTile('scales', 'If labour scales', statsSigned(worst.vsFull) + perKg, statsTileSub(statsSigned(worst.money) + ' on the period'), 'danger')) +
+      statsRow('Price that breaks even', 'on variable · on full cost', statsNum(statsMoney(m.varKg) + ' · ' + statsMoney(m.fullKg))) +
+      statsRow('Share of the plant', 'tonnage · revenue', statsNum(Math.round(worst.kg / m.kg * 100) + '% · ' + (m.rev > 0 ? Math.round(worst.total / m.rev * 100) : 0) + '%')) +
+      statsCallout((worst.vsVar < 0 ? 'It does not cover its variable cost either way' : 'It contributes only if labour is fixed') +
+        ', <strong>if</strong> its parts cost the same per kg as the rest of the book. That is the question to take to the floor before repricing.') + '</div>';
   }
   return h + '</div>';
 }
@@ -24178,24 +23909,25 @@ TODO_RULE_FNS.insChemPrice = function() {
 function insightsCardHtml() {
   var all = [];
   try { all = todoAppAll().filter(function(t) { return t.rule.indexOf('ins') === 0; }); } catch (e) { all = []; }
-  var h = '<div class="inv-stats-card inv-stats-card-full" id="statsInsights"><div class="inv-stats-title">Insights<span class="inv-stats-title-sub">what the book shows on its own, most urgent first</span></div>';
-  if (!all.length) return h + '<div class="inv-stats-note">Nothing stands out right now. Each insight appears here and on the To-do list when its figures call for it.</div></div>';
-  h += '<div class="inv-td-list">' + all.map(function(t) { return todoAppRowHtml(t); }).join('') + '</div>';
-  return h + '<div class="inv-stats-note">Tap one for its figures and what clears it. They are on the To-do list too, and can be switched off in Settings &rarr; To-do.</div></div>';
+  var h = statsPanel('insights', 'Insights', 'what the book shows on its own, most urgent first', { wide: true, id: 'statsInsights' });
+  if (!all.length) return h + '<div class="inv-empty">Nothing stands out right now. Each insight appears here and on the To-do list when its figures call for it.</div></div>';
+  // The To-do's own rows: an insight is a task, and reads as one wherever it is listed.
+  h += all.map(function(t) { return todoAppRowHtml(t); }).join('');
+  return h + statsBody(statsNote('Tap one for its figures and what clears it. They are on the To-do list too, and can be switched off in Settings &rarr; To-do.')) + '</div>';
 }
 
 function paceCardHtml() {
   var p = predMonthPace();
   if (!p) return '';
-  var h = '<div class="inv-stats-card inv-stats-card-full" id="statsPace"><div class="inv-stats-title">This month at its pace<span class="inv-stats-title-sub">' + p.done + ' of ' + p.total + ' working days in</span></div>';
-  h += '<div class="inv-ov-grid inv-ov-grid-2">' +
-    '<div class="inv-ov-tile inv-pay-blue"><div class="inv-ov-l">Revenue</div><div class="inv-ov-v" id="paceRev">' + escHtml(formatCurrency(p.projRev)) + '</div><div class="inv-ov-s">' + escHtml(p.prevLabel) + ' ' + escHtml(formatCurrency(p.prevRev)) +
-      (p.prevRev > 0 ? ' · ' + (p.projRev >= p.prevRev ? '+' : '&minus;') + Math.abs(Math.round((p.projRev / p.prevRev - 1) * 100)) + '%' : '') + '</div></div>' +
-    '<div class="inv-ov-tile inv-pay-blue"><div class="inv-ov-l">Tonnage</div><div class="inv-ov-v">' + formatNum(p.projKg / 1000, 1) + ' t</div><div class="inv-ov-s">' + escHtml(p.prevLabel) + ' ' + formatNum(p.prevKg / 1000, 1) + ' t' +
-      (p.prevKg > 0 ? ' · ' + (p.projKg >= p.prevKg ? '+' : '&minus;') + Math.abs(Math.round((p.projKg / p.prevKg - 1) * 100)) + '%' : '') + '</div></div></div>';
-  h += '<div class="inv-stats-row"><span class="inv-stats-name">So far<span class="inv-cost-note">' + formatNum(p.kg / 1000, 1) + ' t billed</span></span><span class="inv-stats-val">' + escHtml(formatCurrency(p.rev)) + '</span></div>' +
-    '<div class="inv-stats-row"><span class="inv-stats-name">Likely range<span class="inv-cost-note">from how much the working days so far have varied</span></span><span class="inv-stats-val">' + escHtml(formatCurrency(p.low)) + ' – ' + escHtml(formatCurrency(p.high)) + '</span></div>' +
-    '<div class="inv-stats-row"><span class="inv-stats-name">Unbilled challans in hand<span class="inv-cost-note">would lift the month if billed in it</span></span><span class="inv-stats-val">' + escHtml(formatCurrency(p.unbilled)) + '</span></div>';
+  var h = statsPanel('pace', 'This month at its pace', p.done + ' of ' + p.total + ' working days in', { wide: true, id: 'statsPace' });
+  h += statsTiles(
+    statsTile('revenue', 'Revenue', escHtml(formatCurrency(p.projRev)), statsTileSub(escHtml(p.prevLabel) + ' ' + escHtml(formatCurrency(p.prevRev)) +
+      (p.prevRev > 0 ? ' · ' + (p.projRev >= p.prevRev ? '+' : '&minus;') + Math.abs(Math.round((p.projRev / p.prevRev - 1) * 100)) + '%' : '')), '', 'paceRev') +
+    statsTile('tonnage', 'Tonnage', formatNum(p.projKg / 1000, 1) + '<span class="inv-tile-of"> t</span>', statsTileSub(escHtml(p.prevLabel) + ' ' + formatNum(p.prevKg / 1000, 1) + ' t' +
+      (p.prevKg > 0 ? ' · ' + (p.projKg >= p.prevKg ? '+' : '&minus;') + Math.abs(Math.round((p.projKg / p.prevKg - 1) * 100)) + '%' : ''))));
+  h += statsRow('So far', formatNum(p.kg / 1000, 1) + ' t billed', statsNum(escHtml(formatCurrency(p.rev)))) +
+    statsRow('Likely range', 'from how much the working days so far have varied', statsNum(escHtml(formatCurrency(p.low)) + ' – ' + escHtml(formatCurrency(p.high))), '', 'inv-row-flow') +
+    statsRow('Unbilled challans in hand', 'would lift the month if billed in it', statsNum(escHtml(formatCurrency(p.unbilled))));
   return h + '</div>';
 }
 
@@ -24203,13 +23935,13 @@ function nextChallanCardHtml() {
   var list = predCadence().filter(function(c) { return c.median != null && c.count >= 3; }).slice(0, 12);
   if (!list.length) return '';
   var today = localDateStr();
-  var h = '<div class="inv-stats-card inv-stats-card-full" id="statsNextChallan"><div class="inv-stats-title">Next challan expected<span class="inv-stats-title-sub">from each client&rsquo;s own rhythm</span></div>';
+  var h = statsPanel('next', 'Next challan expected', 'from each client&rsquo;s own rhythm', { id: 'statsNextChallan' });
   list.sort(function(a, b) { return (b.late - a.late) || (a.next < b.next ? -1 : 1); }).forEach(function(c) {
-    var when = c.quiet ? '<span class="inv-ov-neg">' + c.late + ' days late · quiet</span>' : c.late ? '<span class="inv-ov-neg">' + c.late + ' day' + (c.late === 1 ? '' : 's') + ' late</span>'
-      : c.next === today ? 'today' : escHtml(formatDate(c.next));
-    h += '<div class="inv-stats-row"><span class="inv-stats-name">' + escHtml(c.name) + '<span class="inv-cost-note">every ' + formatNum(c.median, 0) + ' day' + (c.median === 1 ? '' : 's') + ' · last ' + escHtml(formatDate(c.last)) + '</span></span><span class="inv-stats-val">' + when + '</span></div>';
+    var when = c.quiet ? statsDot('danger', c.late + ' days late · quiet') : c.late ? statsDot('warning', c.late + ' day' + (c.late === 1 ? '' : 's') + ' late')
+      : '<span class="inv-nowrap">' + (c.next === today ? 'today' : escHtml(formatDate(c.next))) + '</span>';
+    h += statsRow(escHtml(c.name), 'every ' + formatNum(c.median, 0) + ' day' + (c.median === 1 ? '' : 's') + ' · last ' + escHtml(formatDate(c.last)), when);
   });
-  return h + '<div class="inv-stats-note">The median gap between each client&rsquo;s challans, counted from the last one. Late is past that; quiet is past both 1.75 times the gap and three weeks beyond it.</div></div>';
+  return h + statsBody(statsNote('The median gap between each client&rsquo;s challans, counted from the last one. Late is past that; quiet is past both 1.75 times the gap and three weeks beyond it.')) + '</div>';
 }
 /* ===== FINANCE INTELLIGENCE =====
  * docs/FINANCE_INTELLIGENCE_SPEC.md, Phase 5: what the bank statement says, as To-do rules, a

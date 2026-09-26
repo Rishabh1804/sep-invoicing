@@ -32,8 +32,8 @@ test.describe('P47: Stats tabs, the overview and the margin by client', () => {
   test('Stats is five tabs over one period, and remembers the one open', async ({ page }) => {
     await loadAppWithState(page, state());
     await switchTab(page, 'pageStats');
-    await expect(page.locator('.inv-stats-tab')).toHaveText(['Overview', 'Clients', 'Cost', 'Billing', 'Trends']);
-    await expect(page.locator('.inv-stats-tab-on')).toHaveText('Overview');
+    await expect(page.locator('#statsToolbar .inv-viewtab')).toHaveText(['Overview', 'Clients', 'Cost', 'Billing', 'Trends']);
+    await expect(page.locator('#statsToolbar .inv-viewtab[aria-selected="true"]')).toHaveText('Overview');
     await expect(page.locator('#statsOverview')).toBeVisible();
     await expect(page.locator('#liveCost')).toHaveCount(0);
     await page.locator('[data-action="invStatsTab"][data-tab="cost"]').click();
@@ -42,7 +42,7 @@ test.describe('P47: Stats tabs, the overview and the margin by client', () => {
     await page.reload();
     await page.locator('body.inv-booted').waitFor();
     await switchTab(page, 'pageStats');
-    await expect(page.locator('.inv-stats-tab-on')).toHaveText('Cost');
+    await expect(page.locator('#statsToolbar .inv-viewtab[aria-selected="true"]')).toHaveText('Cost');
   });
 
   test('the overview reads realisation against the live cost, and says what is model', async ({ page }) => {

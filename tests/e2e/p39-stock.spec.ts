@@ -225,16 +225,16 @@ test.describe('P39: stock', () => {
     };
     await loadAppWithState(page, s);
     await openStatsTab(page, 'cost');
-    const chem = page.locator('#liveCost .inv-cost-row').filter({ hasText: 'Chemicals' });
+    const chem = page.locator('#liveCost [data-cost]').filter({ hasText: 'Chemicals' });
     await expect(chem).toContainText('₹2,000.00');
     // Q558 was used but never priced: part-recorded, and named in the breakdown.
-    await expect(chem.locator('.inv-cost-src')).toHaveText('part-recorded');
+    await expect(chem.locator('[data-src]')).toHaveText('part-recorded');
     await expect(chem).toContainText('1 of 2 lines used are priced');
     await chem.locator('summary').click();
-    await expect(chem.locator('.inv-cost-detail')).toContainText('Q558');
-    await expect(chem.locator('.inv-cost-detail')).toContainText('5 kg used, no price');
+    await expect(chem.locator('.inv-row-children')).toContainText('Q558');
+    await expect(chem.locator('.inv-row-children')).toContainText('5 kg used, no price');
     // The days before the stock record began are filled at the model, and say so.
-    await expect(chem.locator('.inv-cost-detail')).toContainText('Not recorded');
+    await expect(chem.locator('.inv-row-children')).toContainText('Not recorded');
   });
 
   test('More holds To-do, Finance, Stock, Staff, Stats and History, and lights up while one is open', async ({ page }) => {

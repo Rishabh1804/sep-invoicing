@@ -432,13 +432,14 @@ function liveCostPaidCheck(from, to) {
 function _costPaidHtml(from, to) {
   var chk = liveCostPaidCheck(from, to);
   if (!chk.length) return '';
-  return '<div class="inv-cost-bills" id="liveCostPaid"><div class="inv-field-label">Recorded against paid</div>' + chk.map(function(r) {
+  return '<div id="liveCostPaid"><div class="inv-row-group"><span>Recorded against paid</span></div>' + chk.map(function(r) {
     // The gap on the right; what it is the gap between leads the note, so a phone keeps one figure per column.
     var fig = r.recorded == null ? '&mdash;' : (r.delta >= 0 ? '+' : '&minus;') + formatCurrency(Math.abs(r.delta)) +
       (r.pct != null ? ' (' + (r.pct >= 0 ? '+' : '&minus;') + formatNum(Math.abs(r.pct) * 100, 0) + '%)' : '');
     var note = (r.recorded == null ? '' : 'recorded ' + formatCurrency(r.recorded) + ' · paid ' + formatCurrency(r.paid) + ' · ') + r.note;
-    return '<div class="inv-cost-dline" data-paid="' + r.key + '"><span>' + escHtml(r.label) + (r.flag ? ' <span class="inv-dot inv-dot-danger">over 10% apart</span>' : '') +
-      '<span class="inv-cost-note">' + escHtml(note) + '</span></span><span class="inv-mono inv-nowrap">' + fig + '</span></div>';
+    return '<div class="inv-row inv-row-2 inv-row-top" data-paid="' + r.key + '"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(r.label) + '</span>' +
+      (r.flag ? '<span class="inv-row-meta"><span class="inv-dot inv-dot-danger">over 10% apart</span></span>' : '') +
+      '<span class="inv-row-meta inv-row-wrap">' + escHtml(note) + '</span></span><span class="inv-row-end"><span class="inv-num">' + fig + '</span></span></div>';
   }).join('') + '</div>';
 }
 
@@ -500,6 +501,12 @@ function costUseDerived(field, val) {
 var COST_SRC_LABEL = { measured: 'measured', bank: 'paid, bank', partial: 'part-recorded', rate: 'market rate', model: 'model', none: 'nothing recorded' };
 var _costBillOpen = false;
 
+/* A component's source, as a badge (§6.13): the tone says how far the figure can be trusted. */
+var COST_SRC_TONE = { measured: 'ok', bank: 'ok', partial: 'warning', rate: 'info', model: 'neutral', none: 'neutral' };
+function costSrcBadge(src) {
+  return '<span class="inv-badge inv-badge-' + (COST_SRC_TONE[src] || 'neutral') + '" data-src="' + src + '">' + COST_SRC_LABEL[src] + '</span>';
+}
+
 function renderLiveCostCard(period, tonnage) {
   var range = periodRange(period, 0);
   var iso = function(ts) { var d = new Date(ts); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
@@ -507,44 +514,50 @@ function renderLiveCostCard(period, tonnage) {
   var to = range ? iso(range.end) : localDateStr();
   var kg = tonnage ? tonnage.kg : 0;
   var c = liveCost(from, to, kg);
-  var h = '<div class="inv-stats-card inv-stats-card-full" id="liveCost"><div class="inv-stats-title">' + escHtml(PERIOD_LABELS[period] || '') + ' Live cost' +
-    '<span class="inv-stats-title-sub">every figure with where it came from</span></div>';
-  h += '<div class="inv-stats-row"><span class="inv-stats-name"><strong>Full cost</strong><span class="inv-cost-note">' + formatNum(kg / 1000, 1) + ' t plated · ' +
-    Math.round(c.measuredShare * 100) + '% of it measured</span></span><span class="inv-stats-val"><strong>' + (c.perKg != null ? formatCurrency(c.perKg) + '/kg' : '&mdash;') + '</strong><span class="inv-cost-note">' + formatCurrency(c.total) + '</span></span></div>';
+  var money = function(v) { return '<span class="inv-row-stack"><span class="inv-num">' + (v.perKg != null ? formatCurrency(v.perKg) + '<span class="inv-unit">/kg</span>' : '&mdash;') +
+    '</span><span class="inv-row-meta inv-num">' + formatCurrency(v.amount != null ? v.amount : v.total) + '</span></span>'; };
+  var h = '<div class="inv-panel inv-panel-flush inv-panels-wide" id="liveCost" data-card="livecost"><div class="inv-panel-head"><span class="inv-panel-title">' +
+    escHtml(PERIOD_LABELS[period] || '') + ' live cost <span class="inv-note">every figure with where it came from</span></span></div>';
+  h += '<div class="inv-row inv-row-2 inv-row-strong" data-cost-total><span class="inv-row-main"><span class="inv-row-title">Full cost</span><span class="inv-row-meta">' +
+    formatNum(kg / 1000, 1) + ' t plated · ' + Math.round(c.measuredShare * 100) + '% of it measured</span></span><span class="inv-row-end">' + money(c) + '</span></div>';
   var partial = c.rows.filter(function(r) { return r.source === 'partial'; }).map(function(r) { return r.label.toLowerCase(); });
-  if (partial.length) h += '<div class="inv-stats-alert">This period reads LOW: ' + escHtml(partial.join(' and ')) + (partial.length === 1 ? ' is' : ' are') + ' only part-recorded. Open a line to see what is missing.</div>';
+  if (partial.length) h += '<div class="inv-panel-body"><div class="inv-callout inv-callout-danger">This period reads LOW: ' + escHtml(partial.join(' and ')) + (partial.length === 1 ? ' is' : ' are') + ' only part-recorded. Open a line to see what is missing.</div></div>';
+  // Each component folds open to its parts: labour by tier, chemicals line by line, each bill's share.
   c.rows.forEach(function(r) {
-    h += '<details class="inv-cost-row"><summary class="inv-stats-row"><span class="inv-stats-name">' + escHtml(r.label) +
-      ' <span class="inv-cost-src inv-cost-src-' + r.source + '">' + COST_SRC_LABEL[r.source] + '</span><span class="inv-cost-note">' + escHtml(r.note) + '</span></span>' +
-      '<span class="inv-stats-val">' + (r.perKg != null ? formatCurrency(r.perKg) + '/kg' : '&mdash;') + '<span class="inv-cost-note">' + formatCurrency(r.amount) + '</span></span></summary>';
+    h += '<details class="inv-row-fold" data-cost="' + r.key + '"><summary class="inv-row inv-row-2"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(r.label) +
+      ' ' + costSrcBadge(r.source) + '</span><span class="inv-row-meta inv-row-wrap">' + escHtml(r.note) + '</span></span>' +
+      '<span class="inv-row-end">' + money(r) + '</span></summary>';
     if (r.detail.length) {
-      h += '<div class="inv-cost-detail">' + r.detail.map(function(d) {
-        return '<div class="inv-cost-dline"><span>' + escHtml(d.label) + (d.sub ? '<span class="inv-cost-note">' + escHtml(d.sub) + '</span>' : '') + '</span><span class="inv-mono">' + (d.amount != null ? formatCurrency(gstRound(d.amount)) : '&mdash;') + '</span></div>';
+      h += '<div class="inv-row-children">' + r.detail.map(function(d) {
+        return '<div class="inv-row' + (d.sub ? ' inv-row-2' : '') + '"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(d.label) + '</span>' +
+          (d.sub ? '<span class="inv-row-meta inv-row-wrap">' + escHtml(d.sub) + '</span>' : '') + '</span>' +
+          '<span class="inv-row-end"><span class="inv-num">' + (d.amount != null ? formatCurrency(gstRound(d.amount)) : '&mdash;') + '</span></span></div>';
       }).join('') + '</div>';
     }
     h += '</details>';
   });
   h += _costPaidHtml(from, to);
   var typed = S.defaultCostPerKg || 0;
-  if (typed && c.perKg != null) h += '<div class="inv-stats-caveat">The figure typed in Settings is ' + formatCurrency(typed) + '/kg; this period measures ' + formatCurrency(c.perKg) + '/kg. ' +
-    'Anything marked model is a Settings fallback until the record exists: add bills to Stock lines, and power and other bills below.</div>';
+  if (typed && c.perKg != null) h += '<div class="inv-panel-body"><div class="inv-callout">The figure typed in Settings is ' + formatCurrency(typed) + '/kg; this period measures ' + formatCurrency(c.perKg) + '/kg. ' +
+    'Anything marked model is a Settings fallback until the record exists: add bills to Stock lines, and power and other bills below.</div></div>';
   h += _costBillHtml();
   return h + '</div>';
 }
 
+/* The bills on the card: a group of rows, Add a bill in its heading, the form in place below them. */
 function _costBillHtml() {
   var bills = costBills().slice().sort(function(a, b) { return a.month < b.month ? 1 : -1; });
-  var h = '<div class="inv-cost-bills"><div class="inv-field-label">Electricity and other bills</div>';
+  var open = _costBillOpen && _costBillOpen.where === 'stats';
+  var h = '<div data-cost-bills><div class="inv-row-group"><span>Electricity and other bills</span>' +
+    (open ? '' : '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invCostBillOpen" data-where="stats">Add a bill</button>') + '</div>';
   bills.slice(0, 12).forEach(function(b) {
-    h += '<div class="inv-cost-dline' + (b.voided ? ' inv-row-muted' : '') + '"><span>' + escHtml((b.label || COST_BILL_KINDS[b.kind]) + ' · ' + b.month) +
-      '<span class="inv-cost-note">' + escHtml([b.units ? b.units + ' units' : '', b.note || '', b.voided ? 'void: ' + (b.voidReason || '') : ''].filter(Boolean).join(' · ')) + '</span></span>' +
-      '<span class="inv-mono">' + formatCurrency(b.amount) + (b.voided ? '' : ' <button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invCostBillVoid" data-id="' + escHtml(b.id) + '">Void</button>') + '</span></div>';
+    var meta = [b.units ? b.units + ' units' : '', b.note || '', b.voided ? 'void: ' + (b.voidReason || '') : ''].filter(Boolean).join(' · ');
+    h += '<div class="inv-row' + (meta ? ' inv-row-2' : '') + (b.voided ? ' inv-row-muted' : '') + '"><span class="inv-row-main"><span class="inv-row-title">' + escHtml((b.label || COST_BILL_KINDS[b.kind]) + ' · ' + b.month) + '</span>' +
+      (meta ? '<span class="inv-row-meta inv-row-wrap">' + escHtml(meta) + '</span>' : '') + '</span>' +
+      '<span class="inv-row-end"><span class="inv-num">' + formatCurrency(b.amount) + '</span>' + (b.voided ? '' : '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invCostBillVoid" data-id="' + escHtml(b.id) + '">Void</button>') + '</span></div>';
   });
-  if (!_costBillOpen || _costBillOpen.where !== 'stats') {
-    return h + '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invCostBillOpen" data-where="stats">Add a bill</button>' +
-      '<div class="inv-note">Bills are also kept under Finance &rarr; Bills &amp; notes.</div></div>';
-  }
-  return h + costBillFormHtml() + '</div>';
+  if (!open) return h + '<div class="inv-panel-body"><div class="inv-note">Bills are also kept under Finance &rarr; Bills &amp; notes.</div></div></div>';
+  return h + '<div class="inv-panel-body">' + costBillFormHtml() + '</div></div>';
 }
 
 /* One form, drawn wherever it was opened: Stats → Live cost, or Finance → Bills & notes. */

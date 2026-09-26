@@ -41,16 +41,16 @@ test.describe('P8: bulk weight entry', () => {
     ]));
     await openEntry(page);
 
-    await expect(page.locator('.inv-overlay-title')).toHaveText('Enter Weights');
-    await expect(page.locator('.inv-weight-row')).toHaveCount(1);
-    await expect(page.locator('.inv-weight-row')).toContainText('CLAMP 165X83 (NT)');
-    await expect(page.locator('.inv-weight-row')).not.toContainText('ALREADY WEIGHED');
+    await expect(page.locator('.inv-overlay-title')).toHaveText('Enter weights');
+    await expect(page.locator('[data-weight-row]')).toHaveCount(1);
+    await expect(page.locator('[data-weight-row]')).toContainText('CLAMP 165X83 (NT)');
+    await expect(page.locator('[data-weight-row]')).not.toContainText('ALREADY WEIGHED');
 
     // 4.88 / 7.5 = 0.6507 -> 0.651 kg
-    await expect(page.locator('.inv-weight-breakeven')).toContainText('0.651 kg');
+    await expect(page.locator('[data-breakeven]')).toContainText('0.651 kg');
     // The gauge rides along, since it is what distinguishes clamp variants.
     // Scoped to the row — the items list behind the overlay shows one too.
-    await expect(page.locator('.inv-weight-row .inv-gauge-badge')).toHaveText('40X6');
+    await expect(page.locator('[data-weight-row] [data-gauge]')).toHaveText('40X6');
   });
 
   test('typing a weight prices the part live, above and below break-even', async ({ page }) => {
@@ -59,18 +59,18 @@ test.describe('P8: bulk weight entry', () => {
     ]));
     await openEntry(page);
 
-    const input = page.locator('.inv-weight-input');
-    const verdict = page.locator('.inv-weight-verdict');
+    const input = page.locator('[data-action="invWeightInput"]');
+    const verdict = page.locator('[id^="invWeightVerdict"]');
 
     // Lighter than break-even -> earns more per kg than it costs.
     await input.fill('0.400');
     await expect(verdict).toContainText('12.20');       // 4.88 / 0.4
-    await expect(verdict).toHaveClass(/inv-weight-ok/);
+    await expect(verdict).toHaveAttribute('data-verdict', 'ok');
 
     // Heavier than break-even -> below the 7.50 cost.
     await input.fill('0.900');
     await expect(verdict).toContainText('5.42');        // 4.88 / 0.9
-    await expect(verdict).toHaveClass(/inv-weight-bad/);
+    await expect(verdict).toHaveAttribute('data-verdict', 'bad');
 
     // Clearing the field clears the verdict rather than leaving a stale one.
     await input.fill('');
@@ -84,7 +84,7 @@ test.describe('P8: bulk weight entry', () => {
     ]));
     await openEntry(page);
 
-    await page.locator('.inv-weight-input[data-id="1"]').fill('0.651');
+    await page.locator('[data-action="invWeightInput"][data-id="1"]').fill('0.651');
     // PART B deliberately left blank.
     await page.locator('[data-action="invSaveWeights"]').click();
 
@@ -104,12 +104,12 @@ test.describe('P8: bulk weight entry', () => {
     ]));
     await openEntry(page);
 
-    await expect(page.locator('.inv-weight-row')).toHaveCount(1);
-    await expect(page.locator('.inv-weight-breakeven')).toHaveCount(0);
+    await expect(page.locator('[data-weight-row]')).toHaveCount(1);
+    await expect(page.locator('[data-breakeven]')).toHaveCount(0);
 
     // And typing a weight must not invent a verdict for it either.
-    await page.locator('.inv-weight-input').fill('0.5');
-    await expect(page.locator('.inv-weight-verdict')).toHaveText('');
+    await page.locator('[data-action="invWeightInput"]').fill('0.5');
+    await expect(page.locator('[id^="invWeightVerdict"]')).toHaveText('');
   });
 
   test('NEGATIVE: rejects a zero or negative weight rather than storing it', async ({ page }) => {
@@ -118,7 +118,7 @@ test.describe('P8: bulk weight entry', () => {
     ]));
     await openEntry(page);
 
-    await page.locator('.inv-weight-input').fill('0');
+    await page.locator('[data-action="invWeightInput"]').fill('0');
     await page.locator('[data-action="invSaveWeights"]').click();
 
     // Overlay stays open, nothing stored.
@@ -220,7 +220,7 @@ test.describe('P8: bulk weight entry', () => {
     await loadAppWithState(page, state);
     await openEntry(page);
 
-    const rows = page.locator('.inv-weight-row');
+    const rows = page.locator('[data-weight-row]');
     await expect(rows).toHaveCount(2);
     await expect(rows.nth(0)).toContainText('HIGH VALUE');
     await expect(rows.nth(1)).toContainText('LOW VALUE');

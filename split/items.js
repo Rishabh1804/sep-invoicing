@@ -31,276 +31,173 @@ function getItemsFilter() {
   return regFilter.itemsFilter || 'all';
 }
 
-/* --- Clients page dispatcher --- */
+/* --- Clients page dispatcher ---
+   Tabs, then the view's toolbar (its one primary is Add), then the list. On the desktop the list
+   is a table with a detail pane that takes room only while a row is open (§6.14), as the
+   Register's does; on the phone a row opens the edit sheet. There is no floating Add: the
+   toolbar's was the second Add on every phone view (the survey's doubled Add buttons). */
 function renderClientsPage() {
   var container = document.getElementById('clientsPageContent');
   if (!container) return;
   var subView = getItemsSubView();
 
-  // Performance is one client's analysis, not a list with a detail panel, so it
-  // renders full width in both layouts and skips the master-detail wrapper.
+  // Performance is one client's analysis, not a list with a detail pane, so it
+  // renders full width in both layouts.
   if (subView === 'performance') {
-    _updateClientsFab(subView, false);
-    container.innerHTML = '<div id="clientsDesktopToggle">' + _buildSubViewToggle('performance') + '</div>' +
-      '<div id="clientPerfArea"></div>';
+    container.innerHTML = _buildSubViewToggle('performance') + '<div id="clientPerfArea"></div>';
     renderClientPerformance(document.getElementById('clientPerfArea'));
     return;
   }
 
-  // Phase 8E: Desktop master-detail — toolbar buttons carry Add, FAB stays hidden
-  if (_isDesktop) {
-    _updateClientsFab(subView, false);
-    _renderClientsDesktop(subView);
-    return;
-  }
+  var isItems = subView === 'items';
+  var focusKey = _isDesktop ? _clientsFocusKey() : null;
+  // The pane belongs to the view it was opened in.
+  if (isItems) _clientsActiveId = null; else _itemsActiveId = null;
+  var listHtml = isItems
+    ? '<div id="itemsList"></div><div id="itemsLoadMore"></div><div id="itemsSelBar"></div>'
+    : '<div id="clientList"></div>';
+  container.innerHTML = _buildSubViewToggle(subView) +
+    (isItems ? _buildItemsSubViewHtml() : _buildClientsSubViewHtml()) +
+    (_isDesktop
+      ? '<div class="inv-master-detail inv-master-detail-pane" id="clientsMasterDetail">' +
+          '<div class="inv-master" id="clientsMaster">' + listHtml + '</div>' +
+          '<div class="inv-detail inv-pane" id="clientsDetail"></div>' +
+        '</div>'
+      : listHtml);
 
-  _updateClientsFab(subView, true);
-
-  if (subView === 'items') {
-    container.innerHTML = _buildItemsSubViewHtml();
+  if (isItems) {
     _bindItemsSearch();
     _itemsRendered = 0;
     _renderItemsList();
+    if (_isDesktop) _renderItemDetail(_itemsActiveId && S.items.some(function(it) { return it.id === _itemsActiveId; }) ? _itemsActiveId : null, true);
   } else {
-    container.innerHTML = _buildClientsSubViewHtml();
     renderClientList('');
+    if (_isDesktop) _renderClientDetail(_clientsActiveId, true);
   }
+  _clientsRestoreFocus(focusKey);
 }
 
-/* FAB is shared by both sub-views — retarget it at whichever one is showing */
-function _updateClientsFab(subView, visible) {
-  var fab = document.getElementById('clientsItemsFab');
-  if (!fab) return;
-  var isItems = subView === 'items';
-  fab.dataset.action = isItems ? 'invAddItem' : 'invAddClient';
-  fab.setAttribute('aria-label', isItems ? 'Add Item' : 'Add Client');
-  fab.classList.toggle('inv-hidden', !visible);
+function _buildClientsSubViewHtml() {
+  return '<div class="inv-toolbar">' +
+    '<label class="inv-search">' + ICON_SEARCH +
+    '<input type="text" id="clientSearch" placeholder="Search clients" autocomplete="off" aria-label="Search clients"></label>' +
+    '<button class="inv-btn inv-btn-primary" data-action="invAddClient">Add client</button>' +
+    '</div>' +
+    '<div class="inv-pagehead"><span class="inv-pagehead-meta" id="clientsCount">' + S.clients.length + ' clients</span></div>';
 }
 
-function _buildClientsSubViewHtml(includeToggle) {
-  return (includeToggle !== false ? _buildSubViewToggle('clients') : '') +
-    '<div class="inv-items-toolbar">' +
-    '<div class="inv-search-wrap inv-search-no-mb">' +
-    '<svg class="inv-search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>' +
-    '<input type="text" class="inv-search-input" id="clientSearch" placeholder="Search clients" autocomplete="off">' +
-    '</div>' +
-    '<div class="inv-items-toolbar-row">' +
-    '<span class="inv-items-count" id="clientsCount">' + S.clients.length + ' clients</span>' +
-    '<button class="inv-btn inv-btn-primary inv-btn-sm inv-toolbar-add" data-action="invAddClient">Add Client</button>' +
-    '</div>' +
-    '</div>' +
-    '<div id="clientList"></div>';
-}
-
-function _buildItemsSubViewHtml(includeToggle) {
+function _buildItemsSubViewHtml() {
   var search = getItemsSearch();
   var sort = getItemsSort();
   var filter = getItemsFilter();
   var noWeightCount = S.items.filter(function(it) { return it.stdWeightKg == null; }).length;
   var cache = _buildUsageCache();
   var unusedCount = S.items.filter(function(it) { return !cache[it.partNumber]; }).length;
+  var opt = function(v, l) { return '<option value="' + v + '"' + (sort === v ? ' selected' : '') + '>' + l + '</option>'; };
 
-  var html = (includeToggle !== false ? _buildSubViewToggle('items') : '');
-
-  // Toolbar
-  html += '<div class="inv-items-toolbar">' +
-    '<div class="inv-search-wrap inv-search-no-mb">' +
-    '<svg class="inv-search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>' +
-    '<input type="text" class="inv-search-input" id="itemsSearch" placeholder="Search items" value="' + escHtml(search) + '" autocomplete="off">' +
+  // A <select> speaks through change only (events.js), never a data-action: the click that opens it must not run it.
+  return '<div class="inv-toolbar">' +
+    '<label class="inv-search">' + ICON_SEARCH +
+    '<input type="text" id="itemsSearch" placeholder="Search items" value="' + escHtml(search) + '" autocomplete="off" aria-label="Search items"></label>' +
+    '<button class="inv-btn inv-btn-primary" data-action="invAddItem">Add item</button>' +
     '</div>' +
-    '<div class="inv-items-toolbar-row">' +
-    '<span class="inv-items-count" id="itemsCount">' + S.items.length + ' items</span>' +
-    '<select class="inv-form-select inv-items-sort" id="itemsSort" data-action="invItemsSort">' +
-    '<option value="alpha"' + (sort === 'alpha' ? ' selected' : '') + '>A-Z</option>' +
-    '<option value="unit"' + (sort === 'unit' ? ' selected' : '') + '>Unit</option>' +
-    '<option value="rate"' + (sort === 'rate' ? ' selected' : '') + '>Rate</option>' +
-    '<option value="usage"' + (sort === 'usage' ? ' selected' : '') + '>Usage</option>' +
-    '</select>' +
-    '<button class="inv-btn inv-btn-primary inv-btn-sm inv-toolbar-add" data-action="invAddItem">Add Item</button>' +
+    '<div class="inv-toolbar">' +
+    '<button class="inv-chip" data-action="invFilterNoWeight" aria-pressed="' + (filter === 'no-weight') + '">No weight (' + noWeightCount + ')</button>' +
+    '<button class="inv-chip" data-action="invFilterUnused" aria-pressed="' + (filter === 'unused') + '">Unused (' + unusedCount + ')</button>' +
+    '<select class="inv-select inv-toolbar-item" id="itemsSort" aria-label="Sort items">' +
+    opt('alpha', 'A to Z') + opt('unit', 'Unit') + opt('rate', 'Rate') + opt('usage', 'Usage') + '</select>' +
     '</div>' +
-    '<div class="inv-items-toolbar-row">' +
-    '<button class="inv-btn inv-btn-ghost inv-btn-sm' + (filter === 'no-weight' ? ' inv-chip-active' : '') + '" data-action="invFilterNoWeight">No weight (' + noWeightCount + ')</button>' +
-    '<button class="inv-btn inv-btn-ghost inv-btn-sm' + (filter === 'unused' ? ' inv-chip-active' : '') + '" data-action="invFilterUnused">Unused (' + unusedCount + ')</button>' +
-    '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invSelectAllUnused">Select unused</button>' +
+    '<div class="inv-toolbar">' +
+    '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invSelectAllUnused">Select unused</button>' +
+    '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invCalcWeights">Calc weights</button>' +
+    '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invOpenWeightEntry">Enter weights (' + noWeightCount + ')</button>' +
+    '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invOpenMergeTool">Merge</button>' +
+    '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invOpenPartWeights">Part weights (' + Object.keys(S.partWeights || {}).length + ')</button>' +
     '</div>' +
-    '<div class="inv-items-toolbar-row">' +
-    '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invCalcWeights">Calc Weights</button>' +
-    '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invOpenWeightEntry">Enter Weights (' + noWeightCount + ')</button>' +
-    '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invOpenMergeTool">Merge</button>' +
-    '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invOpenPartWeights">Part weights (' + Object.keys(S.partWeights || {}).length + ')</button>' +
-    '</div>' +
-    '</div>';
-
-  // List container
-  html += '<div id="itemsList"></div>';
-  html += '<div id="itemsLoadMore"></div>';
-  html += '<div id="itemsSelBar"></div>';
-
-  return html;
+    '<div class="inv-pagehead"><span class="inv-pagehead-meta" id="itemsCount">' + S.items.length + ' items</span></div>';
 }
 
 function _buildSubViewToggle(active) {
-  return '<div class="inv-subview-toggle">' +
-    '<button class="inv-subview-btn' + (active === 'clients' ? ' inv-subview-active' : '') + '" data-action="invSwitchSubView" data-view="clients">Clients</button>' +
-    '<button class="inv-subview-btn' + (active === 'items' ? ' inv-subview-active' : '') + '" data-action="invSwitchSubView" data-view="items">Items</button>' +
-    '<button class="inv-subview-btn' + (active === 'performance' ? ' inv-subview-active' : '') + '" data-action="invSwitchSubView" data-view="performance">Performance</button>' +
-    '</div>';
+  var tab = function(k, l) {
+    return '<button class="inv-viewtab" role="tab" aria-selected="' + (active === k) + '" data-action="invSwitchSubView" data-view="' + k + '">' + l + '</button>';
+  };
+  return '<div class="inv-viewtabs" role="tablist" aria-label="Clients">' +
+    tab('clients', 'Clients') + tab('items', 'Items') + tab('performance', 'Performance') + '</div>';
 }
 
-/* ===== CLIENTS/ITEMS DESKTOP MASTER-DETAIL (Phase 8E) ===== */
-function _renderClientsDesktop(subView) {
-  var container = document.getElementById('clientsPageContent');
-  if (!container) return;
-
-  var wrapper = document.getElementById('clientsMasterDetail');
-  var toggleEl = document.getElementById('clientsDesktopToggle');
-
-  if (!wrapper) {
-    // First render — build full wrapper with toggle above
-    container.innerHTML =
-      '<div id="clientsDesktopToggle">' + _buildSubViewToggle(subView) + '</div>' +
-      '<div class="inv-master-detail" id="clientsMasterDetail">' +
-        '<div class="inv-master inv-master-clients" id="clientsMaster"></div>' +
-        '<div class="inv-drag-handle" id="clientsDragHandle"></div>' +
-        '<div class="inv-detail" id="clientsDetail">' + _renderDetailEmpty() + '</div>' +
-      '</div>';
-    _initDragHandle('clientsDragHandle', 'clientsMaster', 'clientsDetail', 'pageClients');
-    _restorePanelWidth('clientsMaster', 'pageClients');
-  } else {
-    // Re-render — update toggle and master content only
-    if (toggleEl) toggleEl.innerHTML = _buildSubViewToggle(subView);
-  }
-
-  var master = document.getElementById('clientsMaster');
-  if (!master) return;
-
-  // Detect sub-view switch: clear detail and both active IDs
-  var prevSubView = master.dataset.subView;
-  if (prevSubView && prevSubView !== subView) {
-    _clientsActiveId = null;
-    _itemsActiveId = null;
-    var detail = document.getElementById('clientsDetail');
-    if (detail) detail.innerHTML = _renderDetailEmpty();
-  }
-  master.dataset.subView = subView;
-
-  if (subView === 'clients') {
-    master.innerHTML = _buildClientsSubViewHtml(false);
-    renderClientList('');
-    _itemsActiveId = null;
-  } else {
-    master.innerHTML = _buildItemsSubViewHtml(false);
-    _bindItemsSearch();
-    _itemsRendered = 0;
-    _renderItemsList();
-    _clientsActiveId = null;
-  }
-
-  // Detail validation
-  if (subView === 'clients' && _clientsActiveId) {
-    var cStill = S.clients.find(function(c) { return c.id === _clientsActiveId; });
-    if (!cStill) {
-      _clientsActiveId = null;
-      var d1 = document.getElementById('clientsDetail');
-      if (d1) d1.innerHTML = _renderDetailEmpty();
-    } else {
-      _renderClientDetail(_clientsActiveId, true);
-    }
-  } else if (subView === 'items' && _itemsActiveId) {
-    var iStill = S.items.find(function(it) { return it.id === _itemsActiveId; });
-    if (!iStill) {
-      _itemsActiveId = null;
-      var d2 = document.getElementById('clientsDetail');
-      if (d2) d2.innerHTML = _renderDetailEmpty();
-    } else {
-      _renderItemDetail(_itemsActiveId, true);
-    }
-  }
+/* ===== CLIENTS/ITEMS DESKTOP: LIST AND PANE =====
+   The pane re-renders whole, which drops the keyboard; focus goes back as the Register's does. */
+function _clientsFocusKey() {
+  return _mdFocusKey('clientsMasterDetail', getItemsSubView() === 'items' ? _itemsActiveId : _clientsActiveId);
+}
+function _clientsRestoreFocus(k) {
+  _mdRestoreFocus(k, getItemsSubView() === 'items' ? 'invSelectItemRow' : 'invSelectClientRow', 'invClientsClosePane');
 }
 
-/* Item detail panel (Phase 8E) */
+/* The pane opens with its identifier and a close button; with nothing open it takes no room. */
+function _clientsPaneShow(title, bodyHtml) {
+  var wrap = document.getElementById('clientsMasterDetail');
+  if (wrap) wrap.classList.toggle('inv-pane-open', !!bodyHtml);
+  var el = document.getElementById('clientsDetail');
+  if (el) el.innerHTML = bodyHtml ? '<div class="inv-pane-head">' + title +
+    '<button class="inv-btn inv-btn-icon inv-btn-ghost" data-action="invClientsClosePane" aria-label="Close">&times;</button></div>' + bodyHtml : '';
+}
+
+function closeClientsPane() {
+  var focusKey = _clientsFocusKey();
+  if (getItemsSubView() === 'items') _renderItemDetail(null); else _renderClientDetail(null);
+  _clientsRestoreFocus(focusKey);
+}
+
+/* Item detail pane (Phase 8E) */
 function _renderItemDetail(itemId, skipMasterRefresh) {
-  var item = S.items.find(function(it) { return it.id === itemId; });
+  var focusKey = skipMasterRefresh ? null : _clientsFocusKey();
+  var item = itemId != null ? S.items.find(function(it) { return it.id === itemId; }) : null;
+  _itemsActiveId = item ? itemId : null;
   if (!item) {
-    _itemsActiveId = null;
-    var detail = document.getElementById('clientsDetail');
-    if (detail) detail.innerHTML = _renderDetailEmpty();
-    if (!skipMasterRefresh) {
-      _itemsRendered = 0;
-      _renderItemsList();
-    }
-    return;
-  }
-
-  _itemsActiveId = itemId;
-
-  var html = '';
-
-  // Header
-  html += '<div class="inv-detail-section">' +
-    '<div class="inv-detail-client-name inv-detail-value-mono">' + escHtml(item.partNumber) + '</div></div>';
-
-  // Info section
-  html += '<div class="inv-detail-section">';
-  if (item.desc) {
-    html += '<div class="inv-detail-label">Description</div>' +
-      '<div class="inv-detail-value">' + escHtml(item.desc) + '</div>';
-  }
-  if (item.gauge) {
-    html += '<div class="inv-detail-label">Gauge / Spec</div>' +
-      '<div class="inv-detail-value-mono">' + escHtml(item.gauge) + '</div>';
-  }
-  html += '<div class="inv-detail-label">HSN Code</div>' +
-    '<div class="inv-detail-value-mono">' + escHtml(item.hsn || '998873') + '</div>';
-  html += '<div class="inv-detail-label">Unit</div>' +
-    '<div class="inv-detail-value">' + escHtml(item.unit || 'KG') + '</div>';
-  html += '<div class="inv-detail-label">Default Rate</div>' +
-    '<div class="inv-detail-value-mono">' + (item.rate ? formatCurrency(item.rate) : 'No rate') + '</div>';
-  if (item.stdWeightKg != null) {
-    html += '<div class="inv-detail-label">Standard Weight</div>' +
-      '<div class="inv-detail-value-mono">' + formatNum(item.stdWeightKg, 3) + ' kg</div>';
-  }
-  html += '</div>';
-
-  // Usage stats
-  var cache = _buildUsageCache();
-  var usage = cache[item.partNumber];
-  html += '<div class="inv-detail-section">' +
-    '<div class="inv-detail-label">Usage</div>';
-  if (usage) {
-    var invLines = 0;
-    var imLines = 0;
-    (S.invoices || []).forEach(function(inv) {
-      inv.items.forEach(function(li) {
-        if (li.partNumber === item.partNumber) invLines++;
-      });
-    });
-    (S.incomingMaterial || []).forEach(function(im) {
-      im.items.forEach(function(li) {
-        if (li.partNumber === item.partNumber) imLines++;
-      });
-    });
-    html += '<div class="inv-detail-value">' + usage.total + ' total references (' + usage.recent + ' in last 30 days)</div>' +
-      '<div class="inv-detail-value inv-text-muted">' + invLines + ' invoice line' + (invLines !== 1 ? 's' : '') +
-      ', ' + imLines + ' challan line' + (imLines !== 1 ? 's' : '') + '</div>';
+    _clientsPaneShow('', '');
   } else {
-    html += '<div class="inv-detail-value inv-text-muted">Unused</div>';
+    var kv = function(k, v, cls) { return '<div' + (cls ? ' class="' + cls + '"' : '') + '><div class="inv-kv-k">' + k + '</div><div>' + v + '</div></div>'; };
+    var html = '<div class="inv-kv">' +
+      (item.desc ? kv('Description', escHtml(item.desc), 'inv-kv-wide') : '') +
+      (item.gauge ? kv('Gauge / spec', '<span class="inv-id">' + escHtml(item.gauge) + '</span>') : '') +
+      kv('HSN code', '<span class="inv-id">' + escHtml(item.hsn || '998873') + '</span>') +
+      kv('Unit', escHtml(item.unit || 'KG')) +
+      kv('Default rate', item.rate ? '<span class="inv-num">' + formatCurrency(item.rate) + '</span>' : 'No rate') +
+      (item.stdWeightKg != null ? kv('Standard weight', '<span class="inv-num">' + formatNum(item.stdWeightKg, 3) + '</span> kg') : '') +
+      '</div>';
+
+    // Usage
+    var usage = _buildUsageCache()[item.partNumber];
+    html += '<div class="inv-panel inv-panel-flush"><div class="inv-panel-head"><span class="inv-panel-title">Usage</span></div>';
+    if (usage) {
+      var invLines = 0, imLines = 0;
+      (S.invoices || []).forEach(function(inv) {
+        inv.items.forEach(function(li) { if (li.partNumber === item.partNumber) invLines++; });
+      });
+      (S.incomingMaterial || []).forEach(function(im) {
+        im.items.forEach(function(li) { if (li.partNumber === item.partNumber) imLines++; });
+      });
+      html += '<div class="inv-row inv-row-2"><span class="inv-row-main"><span class="inv-row-title">References</span>' +
+        '<span class="inv-row-meta">' + invLines + ' invoice line' + (invLines !== 1 ? 's' : '') + ', ' + imLines + ' challan line' + (imLines !== 1 ? 's' : '') + '</span></span>' +
+        '<span class="inv-row-end inv-num">' + usage.total + '</span></div>' +
+        '<div class="inv-row"><span class="inv-row-main">In the last 30 days</span><span class="inv-row-end inv-num">' + usage.recent + '</span></div>';
+    } else {
+      html += '<div class="inv-empty">Unused: on no invoice or challan.</div>';
+    }
+    html += '</div>';
+
+    html += '<div class="inv-toolbar">' +
+      '<button class="inv-btn inv-btn-primary" data-action="invEditItem" data-id="' + item.id + '">Edit</button>' +
+      '<button class="inv-btn inv-btn-danger" data-action="invDeleteItem" data-id="' + item.id + '">Delete</button>' +
+      '</div>';
+    _clientsPaneShow('<span class="inv-panel-title inv-id">' + escHtml(item.partNumber) + '</span>', html);
   }
-  html += '</div>';
 
-  // Action buttons
-  html += '<div class="inv-detail-actions">' +
-    '<button class="inv-btn inv-btn-primary" data-action="invEditItem" data-id="' + item.id + '">Edit</button>' +
-    '<button class="inv-btn inv-btn-danger" data-action="invDeleteItem" data-id="' + item.id + '">Delete</button>' +
-    '</div>';
-
-  var detailEl = document.getElementById('clientsDetail');
-  if (detailEl) detailEl.innerHTML = html;
-
-  // Update master to show active card highlight
   if (!skipMasterRefresh) {
     _itemsRendered = 0;
     _renderItemsList();
+    _clientsRestoreFocus(focusKey);
   }
 }
 
@@ -359,6 +256,49 @@ function _getSortedFilteredItems() {
   return list;
 }
 
+function _itemCheckHtml(it) {
+  return '<input type="checkbox" class="inv-check" data-action="invToggleItemSelect" data-id="' + it.id + '"' +
+    (_itemsSelected[it.id] ? ' checked' : '') + ' aria-label="Select ' + escHtml(it.partNumber) + '">';
+}
+
+/* The phone row: a tick box, then the part (which opens its edit sheet), then its rate. */
+function _itemRowHtml(it) {
+  var usageCount = _getUsageCount(it.partNumber);
+  var meta = [it.desc || '', it.gauge || '', it.unit || '',
+    it.stdWeightKg != null ? formatNum(it.stdWeightKg, 3) + ' kg' : '',
+    usageCount > 0 ? usageCount + ' ref' + (usageCount !== 1 ? 's' : '') : 'Unused'].filter(Boolean).join(' · ');
+  var hasRate = it.rate != null && it.rate > 0;
+  return '<div class="inv-row inv-row-2' + (_itemsSelected[it.id] ? ' inv-row-selected' : '') + '" data-item-row="' + it.id + '">' +
+    '<label class="inv-row-lead inv-row-tick">' + _itemCheckHtml(it) + '</label>' +
+    '<button class="inv-row-main" data-action="invEditItem" data-id="' + it.id + '">' +
+    '<span class="inv-row-title inv-id">' + escHtml(it.partNumber) + '</span>' +
+    '<span class="inv-row-meta">' + escHtml(meta) + '</span></button>' +
+    '<span class="inv-row-end">' + (hasRate ? '<span class="inv-num">' + formatCurrency(it.rate) + '</span>' : '<span class="inv-row-meta">No rate</span>') + '</span>' +
+    '</div>';
+}
+
+/* The desktop table: the part number is a real button, so the row opens from the keyboard. */
+function _itemsTableHtml(list) {
+  var html = '<table class="inv-table"><thead><tr>' +
+    '<th class="inv-table-check"><span class="inv-visually-hidden">Select</span></th><th>Part</th><th class="inv-col-grow">Description</th>' +
+    '<th class="inv-col-opt2">Gauge</th><th class="inv-col-opt1">Unit</th><th class="inv-num inv-col-opt3">kg / pc</th>' +
+    '<th class="inv-num inv-col-opt2">Refs</th><th class="inv-num">Rate</th></tr></thead><tbody>';
+  list.forEach(function(it) {
+    var usageCount = _getUsageCount(it.partNumber);
+    html += '<tr class="' + (_itemsSelected[it.id] ? 'inv-row-selected' : '') + '"' + (_itemsActiveId === it.id ? ' aria-current="true"' : '') +
+      ' data-item-row="' + it.id + '" data-action="invSelectItemRow" data-id="' + it.id + '">' +
+      '<td class="inv-table-check">' + _itemCheckHtml(it) + '</td>' +
+      '<td><button class="inv-btn-link inv-id" data-action="invSelectItemRow" data-id="' + it.id + '">' + escHtml(it.partNumber) + '</button></td>' +
+      '<td class="inv-col-grow" title="' + escHtml(it.desc || '') + '">' + escHtml(it.desc || '') + '</td>' +
+      '<td class="inv-id inv-col-opt2">' + escHtml(it.gauge || '') + '</td>' +
+      '<td class="inv-col-opt1">' + escHtml(it.unit || '') + '</td>' +
+      '<td class="inv-num inv-col-opt3">' + (it.stdWeightKg != null ? formatNum(it.stdWeightKg, 3) : '&mdash;') + '</td>' +
+      '<td class="inv-num inv-col-opt2">' + (usageCount > 0 ? usageCount : '<span class="inv-dot inv-dot-neutral">Unused</span>') + '</td>' +
+      '<td class="inv-num">' + (it.rate > 0 ? formatCurrency(it.rate) : '&mdash;') + '</td></tr>';
+  });
+  return html + '</tbody></table>';
+}
+
 function _renderItemsList() {
   var listEl = document.getElementById('itemsList');
   var moreEl = document.getElementById('itemsLoadMore');
@@ -372,72 +312,29 @@ function _renderItemsList() {
   if (countEl) countEl.textContent = total + ' item' + (total !== 1 ? 's' : '');
 
   if (total === 0) {
-    listEl.innerHTML = '<div class="inv-empty-state">No items found</div>';
+    listEl.innerHTML = _isDesktop ? '<div class="inv-empty">No items found</div>' : '<div class="inv-panel"><div class="inv-empty">No items found</div></div>';
     if (moreEl) moreEl.innerHTML = '';
-    return;
+  } else {
+    // For search results, render up to 100; otherwise batch
+    var limit = search.length > 0 ? Math.min(total, 100) : Math.min(total, _itemsRendered + ITEMS_BATCH);
+    if (_itemsRendered === 0) limit = Math.min(total, ITEMS_BATCH);
+    var shown = _itemsSorted.slice(0, limit);
+    listEl.innerHTML = _isDesktop ? _itemsTableHtml(shown)
+      : '<div class="inv-panel inv-panel-flush">' + shown.map(_itemRowHtml).join('') + '</div>';
+    _itemsRendered = limit;
+
+    if (moreEl) {
+      moreEl.innerHTML = limit < total && search.length === 0
+        ? '<div class="inv-toolbar"><button class="inv-btn inv-btn-secondary" data-action="invLoadMoreItems">Load more (' + (total - limit) + ' remaining)</button></div>'
+        : '';
+    }
   }
 
-  // For search results, render up to 100; otherwise batch
-  var limit = search.length > 0 ? Math.min(total, 100) : Math.min(total, _itemsRendered + ITEMS_BATCH);
-  if (_itemsRendered === 0) limit = Math.min(total, ITEMS_BATCH);
-
-  var html = '<div class="inv-card-list">';
-  for (var i = 0; i < limit; i++) {
-    var it = _itemsSorted[i];
-    var rateStr = (it.rate != null && it.rate > 0) ? formatCurrency(it.rate) : '';
-    var noRate = !it.rate || it.rate === 0;
-    var weightStr = it.stdWeightKg != null ? formatNum(it.stdWeightKg, 3) + ' kg' : '';
-    var usageCount = _getUsageCount(it.partNumber);
-    var isSelected = !!_itemsSelected[it.id];
-    var itemAction = _isDesktop ? 'invSelectItemRow' : 'invEditItem';
-    var itemActiveClass = (_isDesktop && _itemsActiveId === it.id) ? ' inv-item-card-active' : '';
-
-    html += '<div class="inv-item-card' + (isSelected ? ' inv-item-selected' : '') + itemActiveClass + '" data-action="' + itemAction + '" data-id="' + it.id + '">' +
-      '<div class="inv-item-card-top">' +
-      '<label class="inv-item-check-wrap" data-action="invToggleItemSelect" data-id="' + it.id + '">' +
-      '<input type="checkbox"' + (isSelected ? ' checked' : '') + ' class="inv-im-check"></label>' +
-      '<span class="inv-item-pn inv-mono">' + escHtml(it.partNumber) + '</span>' +
-      '<span class="inv-item-unit inv-client-badge inv-badge-mode">' + escHtml(it.unit) + '</span>' +
-      '</div>' +
-      '<div class="inv-item-card-bottom">' +
-      '<span class="inv-item-desc">' + escHtml(it.desc || '') + '</span>' +
-      '<span class="inv-item-rate inv-mono' + (noRate ? ' inv-text-muted' : ' inv-text-cost') + '">' +
-      (noRate ? 'No rate' : rateStr) + '</span>' +
-      '</div>' +
-      '<div class="inv-item-badges-row">' +
-      (it.gauge ? '<span class="inv-gauge-badge">' + escHtml(it.gauge) + '</span>' : '') +
-      (weightStr ? '<span class="inv-weight-badge">' + escHtml(weightStr) + '</span>' : '') +
-      (usageCount > 0 ? '<span class="inv-usage-badge">' + usageCount + ' ref' + (usageCount !== 1 ? 's' : '') + '</span>' :
-        '<span class="inv-usage-badge inv-usage-zero">Unused</span>') +
-      '</div>' +
-      '</div>';
-  }
-  html += '</div>';
-
-  listEl.innerHTML = html;
-  _itemsRendered = limit;
-
-  // Selection bar
   _renderItemsSelectionBar();
 
-  // Load more button
-  if (moreEl) {
-    if (limit < total && search.length === 0) {
-      moreEl.innerHTML = '<div class="inv-btn-bar inv-btn-bar-center">' +
-        '<button class="inv-btn inv-btn-ghost" data-action="invLoadMoreItems">Load more (' + (total - limit) + ' remaining)</button></div>';
-    } else {
-      moreEl.innerHTML = '';
-    }
-  }
-
-  // Phase 8E: Desktop detail validation — active item filtered out → clear detail
-  if (_isDesktop && _itemsActiveId) {
-    var stillVisible = _itemsSorted.find(function(it) { return it.id === _itemsActiveId; });
-    if (!stillVisible) {
-      _itemsActiveId = null;
-      var detail = document.getElementById('clientsDetail');
-      if (detail) detail.innerHTML = _renderDetailEmpty();
-    }
+  // Desktop: an item filtered out of the list closes its pane.
+  if (_isDesktop && _itemsActiveId && !_itemsSorted.some(function(it) { return it.id === _itemsActiveId; })) {
+    _renderItemDetail(null, true);
   }
 }
 
@@ -457,7 +354,7 @@ function openItemAdd() {
 }
 
 function _showItemOverlay(item, isAdd) {
-  var title = isAdd ? 'Add Item' : 'Edit Item';
+  var title = isAdd ? 'Add item' : 'Edit item';
   var pn = item ? item.partNumber : '';
   var desc = item ? item.desc : '';
   var gauge = item ? (item.gauge || '') : '';
@@ -488,29 +385,28 @@ function _showItemOverlay(item, isAdd) {
   scrim.className = 'inv-overlay-scrim';
   scrim.innerHTML = '<div class="inv-overlay-card">' +
     '<div class="inv-overlay-header"><span class="inv-overlay-title">' + escHtml(title) + '</span>' +
-    '<button class="inv-overlay-close" data-action="invCloseOverlay">&times;</button></div>' +
-    '<div class="inv-form-group"><label class="inv-form-label">Part Number</label>' +
-    '<input class="inv-form-input inv-mono" id="itemEditPN" value="' + escHtml(pn) + '"></div>' +
-    '<div class="inv-form-group"><label class="inv-form-label">Description</label>' +
-    '<input class="inv-form-input" id="itemEditDesc" value="' + escHtml(desc) + '"></div>' +
-    '<div class="inv-form-group"><label class="inv-form-label">Gauge / Spec</label>' +
-    '<input class="inv-form-input inv-mono" id="itemEditGauge" value="' + escHtml(gauge) + '" placeholder="e.g. 40X6"></div>' +
-    '<div class="inv-form-row">' +
-    '<div class="inv-form-group"><label class="inv-form-label">HSN Code</label>' +
-    '<input class="inv-form-input inv-mono" id="itemEditHSN" value="' + escHtml(hsn) + '"></div>' +
-    '<div class="inv-form-group"><label class="inv-form-label">Unit</label>' +
-    '<select class="inv-form-select" id="itemEditUnit">' +
+    '<button class="inv-overlay-close" data-action="invCloseOverlay" aria-label="Close">&times;</button></div>' +
+    '<div class="inv-field"><label class="inv-field-label" for="itemEditPN">Part number</label>' +
+    '<input class="inv-input inv-id" id="itemEditPN" value="' + escHtml(pn) + '"></div>' +
+    '<div class="inv-field"><label class="inv-field-label" for="itemEditDesc">Description</label>' +
+    '<input class="inv-input" id="itemEditDesc" value="' + escHtml(desc) + '"></div>' +
+    '<div class="inv-field"><label class="inv-field-label" for="itemEditGauge">Gauge / spec</label>' +
+    '<input class="inv-input inv-id" id="itemEditGauge" value="' + escHtml(gauge) + '" placeholder="e.g. 40X6"></div>' +
+    '<div class="inv-fields">' +
+    '<div class="inv-field"><label class="inv-field-label" for="itemEditHSN">HSN code</label>' +
+    '<input class="inv-input inv-id" id="itemEditHSN" value="' + escHtml(hsn) + '"></div>' +
+    '<div class="inv-field"><label class="inv-field-label" for="itemEditUnit">Unit</label>' +
+    '<select class="inv-select" id="itemEditUnit">' +
     '<option value="KG"' + (unit === 'KG' ? ' selected' : '') + '>KG</option>' +
-    '<option value="NOS"' + (unit === 'NOS' ? ' selected' : '') + '>NOS</option></select></div></div>' +
-    '<div class="inv-form-row">' +
-    '<div class="inv-form-group"><label class="inv-form-label">Default Rate</label>' +
-    '<input type="number" class="inv-form-input inv-mono" id="itemEditRate" value="' + rate + '" step="0.01" min="0"></div>' +
-    '<div class="inv-form-group"><label class="inv-form-label">Std Weight (kg)</label>' +
-    '<input type="number" class="inv-form-input inv-mono" id="itemEditWeight" value="' + stdW + '" step="0.001" min="0" placeholder="Optional"></div></div>' +
-    (refCount > 0 ? '<div class="inv-text-muted inv-storage-text">Referenced in ' + invRefs + ' invoice line' + (invRefs !== 1 ? 's' : '') + ', ' + imRefs + ' challan line' + (imRefs !== 1 ? 's' : '') + '</div>' : '') +
+    '<option value="NOS"' + (unit === 'NOS' ? ' selected' : '') + '>NOS</option></select></div>' +
+    '<div class="inv-field"><label class="inv-field-label" for="itemEditRate">Default rate</label>' +
+    '<input type="number" class="inv-input inv-input-num" id="itemEditRate" value="' + rate + '" step="0.01" min="0"></div>' +
+    '<div class="inv-field"><label class="inv-field-label" for="itemEditWeight">Std weight (kg)</label>' +
+    '<input type="number" class="inv-input inv-input-num" id="itemEditWeight" value="' + stdW + '" step="0.001" min="0" placeholder="Optional"></div></div>' +
+    (refCount > 0 ? '<div class="inv-note">Referenced in ' + invRefs + ' invoice line' + (invRefs !== 1 ? 's' : '') + ', ' + imRefs + ' challan line' + (imRefs !== 1 ? 's' : '') + '</div>' : '') +
     '<div class="inv-btn-bar">' +
     (!isAdd ? '<button class="inv-btn inv-btn-danger inv-btn-sm" data-action="invDeleteItem" data-id="' + itemId + '">Delete</button>' : '') +
-    '<button class="inv-btn inv-btn-ghost" data-action="invCloseOverlay">Cancel</button>' +
+    '<button class="inv-btn inv-btn-secondary" data-action="invCloseOverlay">Cancel</button>' +
     '<button class="inv-btn inv-btn-primary" data-action="invSaveItem" data-id="' + itemId + '" data-mode="' + (isAdd ? 'add' : 'edit') + '">Save</button></div></div>';
 
   scrim.addEventListener('click', function(e) {
@@ -621,11 +517,7 @@ function deleteItem(itemId) {
   saveState();
   closeOverlay();
   // Phase 8E: Clear detail panel if active item was deleted
-  if (_isDesktop && _itemsActiveId === itemId) {
-    _itemsActiveId = null;
-    var detail = document.getElementById('clientsDetail');
-    if (detail) detail.innerHTML = _renderDetailEmpty();
-  }
+  if (_isDesktop && _itemsActiveId === itemId) _renderItemDetail(null, true);
   _itemsRendered = 0;
   _renderItemsList();
   showToast('Item deleted');
@@ -643,39 +535,37 @@ function openMergeTool() {
   var scrim = document.createElement('div');
   scrim.className = 'inv-overlay-scrim';
   var html = '<div class="inv-overlay-card">' +
-    '<div class="inv-overlay-header"><span class="inv-overlay-title">Merge Duplicates</span>' +
-    '<button class="inv-overlay-close" data-action="invCloseOverlay">&times;</button></div>';
+    '<div class="inv-overlay-header"><span class="inv-overlay-title">Merge duplicates</span>' +
+    '<button class="inv-overlay-close" data-action="invCloseOverlay" aria-label="Close">&times;</button></div>';
 
   if (groups.length === 0) {
-    html += '<div class="inv-empty-state">No duplicate groups found</div>';
+    html += '<div class="inv-empty">No duplicate groups found</div>';
   } else {
-    html += '<div class="inv-text-muted inv-storage-text inv-mb-16">' + groups.length + ' candidate group' + (groups.length !== 1 ? 's' : '') + ' found. Select the primary item in each group, then merge.</div>';
+    html += '<p class="inv-note">' + groups.length + ' candidate group' + (groups.length !== 1 ? 's' : '') + ' found. Pick the item to keep in each group, then merge.</p>' +
+      '<div class="inv-scroll">';
+    // Each group is a panel of radio rows; Merge on its head opens a preview whose Confirm is the one primary.
     groups.forEach(function(group, gi) {
-      html += '<div class="inv-merge-group" id="mergeGroup' + gi + '">' +
-        '<div class="inv-merge-group-header">' +
-        '<span class="inv-card-title">Group ' + (gi + 1) + ' \u2014 ' + group.items.length + ' items</span>' +
-        '<button class="inv-btn inv-btn-primary inv-btn-sm inv-merge-btn" data-action="invMergeGroup" data-group="' + gi + '">Merge</button>' +
+      html += '<div class="inv-panel inv-panel-flush" id="mergeGroup' + gi + '">' +
+        '<div class="inv-panel-head"><span class="inv-panel-title">Group ' + (gi + 1) + ' <span class="inv-panel-count">' + group.items.length + ' items</span></span>' +
+        '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invMergeGroup" data-group="' + gi + '">Merge</button>' +
         '</div>';
+      if (group._warn) {
+        html += '<div class="inv-panel-body"><div class="inv-callout inv-callout-warning">Review: descriptions differ within this group</div></div>';
+      }
       group.items.forEach(function(it, ii) {
-        html += '<label class="inv-merge-radio-row">' +
-          '<input type="radio" name="mergePrimary' + gi + '" value="' + it.id + '"' + (ii === 0 ? ' checked' : '') + ' class="inv-merge-radio">' +
-          '<div class="inv-merge-item-info">' +
-          '<span class="inv-mono">' + escHtml(it.partNumber) + '</span> ' +
-          '<span class="inv-client-badge inv-badge-mode">' + escHtml(it.unit) + '</span> ' +
-          '<span class="inv-mono' + (it.rate > 0 ? ' inv-text-cost' : ' inv-text-muted') + '">' +
-          (it.rate > 0 ? formatCurrency(it.rate) : 'No rate') + '</span>' +
-          '</div>' +
-          '<div class="inv-merge-item-desc inv-text-muted">' + escHtml(it.desc || '') + '</div>' +
+        html += '<label class="inv-row inv-row-2">' +
+          '<span class="inv-row-lead inv-row-tick"><input type="radio" class="inv-check" name="mergePrimary' + gi + '" value="' + it.id + '"' + (ii === 0 ? ' checked' : '') + '></span>' +
+          '<span class="inv-row-main"><span class="inv-row-title inv-id">' + escHtml(it.partNumber) + '</span>' +
+          '<span class="inv-row-meta">' + escHtml([it.unit, it.desc].filter(Boolean).join(' · ')) + '</span></span>' +
+          '<span class="inv-row-end">' + (it.rate > 0 ? '<span class="inv-num">' + formatCurrency(it.rate) + '</span>' : '<span class="inv-row-meta">No rate</span>') + '</span>' +
           '</label>';
       });
-      if (group._warn) {
-        html += '<div class="inv-merge-warn">Review: descriptions differ within this group</div>';
-      }
       html += '</div>';
     });
+    html += '</div>';
   }
 
-  html += '<div class="inv-btn-bar"><button class="inv-btn inv-btn-ghost" data-action="invCloseOverlay">Close</button></div></div>';
+  html += '<div class="inv-btn-bar"><button class="inv-btn inv-btn-secondary" data-action="invCloseOverlay">Close</button></div></div>';
   scrim.innerHTML = html;
   scrim.addEventListener('click', function(e) {
     if (e.target === scrim) { scrim.remove(); document.body.style.overflow = ''; popFocus(); }
@@ -771,14 +661,14 @@ function mergeGroup(groupIdx) {
   var groupEl = document.getElementById('mergeGroup' + groupIdx);
   if (!groupEl) return;
 
-  groupEl.innerHTML = '<div class="inv-merge-preview">' +
-    '<div class="inv-card-title">Merge into: ' + escHtml(primary.partNumber) + '</div>' +
-    '<div class="inv-text-muted inv-storage-text inv-mb-8">Will remove: ' + secondaries.length + ' duplicate item' + (secondaries.length !== 1 ? 's' : '') + '</div>' +
-    '<div class="inv-text-muted inv-storage-text inv-mb-16">Will update: ' + invCount + ' invoice' + (invCount !== 1 ? 's' : '') + ', ' + imCount + ' challan' + (imCount !== 1 ? 's' : '') + '</div>' +
-    '<div class="inv-btn-bar">' +
-    '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invMergeCancelPreview" data-group="' + groupIdx + '">Cancel</button>' +
-    '<button class="inv-btn inv-btn-primary inv-btn-sm" data-action="invMergeConfirm" data-group="' + groupIdx + '" data-primary="' + primaryId + '">Confirm Merge</button>' +
-    '</div></div>';
+  groupEl.innerHTML = '<div class="inv-panel-head"><span class="inv-panel-title">Merge into <span class="inv-id">' + escHtml(primary.partNumber) + '</span></span></div>' +
+    '<div class="inv-row"><span class="inv-row-main">Duplicates removed</span><span class="inv-row-end inv-num">' + secondaries.length + '</span></div>' +
+    '<div class="inv-row"><span class="inv-row-main">Invoices updated</span><span class="inv-row-end inv-num">' + invCount + '</span></div>' +
+    '<div class="inv-row"><span class="inv-row-main">Challans updated</span><span class="inv-row-end inv-num">' + imCount + '</span></div>' +
+    '<div class="inv-panel-body inv-toolbar inv-toolbar-tight">' +
+    '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invMergeCancelPreview" data-group="' + groupIdx + '">Cancel</button>' +
+    '<button class="inv-btn inv-btn-primary inv-btn-sm" data-action="invMergeConfirm" data-group="' + groupIdx + '" data-primary="' + primaryId + '">Confirm merge</button>' +
+    '</div>';
 }
 
 function confirmMerge(groupIdx, primaryId) {
@@ -909,11 +799,11 @@ function openPartWeights() {
   scrim.innerHTML = '<div class="inv-overlay-card">' +
     '<div class="inv-overlay-header"><span class="inv-overlay-title">Part weights (NOS to KG)</span>' +
     '<button class="inv-overlay-close" data-action="invCloseOverlay" aria-label="Close">&times;</button></div>' +
-    '<div class="inv-text-muted inv-storage-text inv-mb-8">A client billed by weight off a piece count is priced on pieces &times; this weight. It moves money on the invoice, unlike the standard weight Stats reads.</div>' +
-    '<div id="setPWList">' + renderPartWeightsList() + '</div>' +
-    '<div class="inv-form-row inv-mb-8"><div class="inv-form-group"><label class="inv-form-label" for="setPWPart">Part number</label><input class="inv-form-input inv-mono" id="setPWPart" placeholder="HINGE PIN"></div>' +
-    '<div class="inv-form-group"><label class="inv-form-label" for="setPWWeight">Weight (kg)</label><input type="number" class="inv-form-input inv-mono" id="setPWWeight" step="0.001" placeholder="0.045"></div></div>' +
-    '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invAddPartWeight">Add weight</button></div>';
+    '<p class="inv-note">A client billed by weight off a piece count is priced on pieces &times; this weight. It moves money on the invoice, unlike the standard weight Stats reads.</p>' +
+    '<div class="inv-panel inv-panel-flush inv-scroll" id="setPWList">' + renderPartWeightsList() + '</div>' +
+    '<div class="inv-fields"><div class="inv-field"><label class="inv-field-label" for="setPWPart">Part number</label><input class="inv-input inv-id" id="setPWPart" placeholder="HINGE PIN"></div>' +
+    '<div class="inv-field"><label class="inv-field-label" for="setPWWeight">Weight (kg)</label><input type="number" class="inv-input inv-input-num" id="setPWWeight" step="0.001" placeholder="0.045"></div></div>' +
+    '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invAddPartWeight">Add weight</button></div>';
   scrim.addEventListener('click', function(e) { if (e.target === scrim) closeOverlay(); });
   pushFocus();
   document.body.appendChild(scrim);
@@ -928,11 +818,11 @@ function _partWeightsCount() {
 
 function renderPartWeightsList() {
   const entries = Object.entries(S.partWeights || {});
-  if (entries.length === 0) return '<div class="inv-text-muted inv-storage-text">No part weights defined yet</div>';
+  if (entries.length === 0) return '<div class="inv-empty">No part weights defined yet</div>';
   return entries.map(([part, wt]) =>
-    '<div class="inv-rate-row"><span class="inv-mono">' + escHtml(part) + '</span>' +
-    '<span class="inv-flex-between"><span class="inv-mono inv-text-cost">' + escHtml(wt) + ' kg</span>' +
-    '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invDeletePartWeight" data-part="' + escHtml(part) + '">&times;</button></span></div>'
+    '<div class="inv-row"><span class="inv-row-main inv-row-title inv-id">' + escHtml(part) + '</span>' +
+    '<span class="inv-row-end"><span class="inv-num">' + escHtml(wt) + '</span> kg' +
+    '<button class="inv-btn inv-btn-icon inv-btn-ghost inv-btn-sm" data-action="invDeletePartWeight" data-part="' + escHtml(part) + '" aria-label="Remove ' + escHtml(part) + '">&times;</button></span></div>'
   ).join('');
 }
 
@@ -980,54 +870,51 @@ function openWeightEntry() {
   var derivable = missing.filter(function(it) { return !!weightMap[it.partNumber]; }).length;
 
   var html = '<div class="inv-overlay-card">' +
-    '<div class="inv-overlay-header"><span class="inv-overlay-title">Enter Weights</span>' +
-    '<button class="inv-overlay-close" data-action="invCloseOverlay">&times;</button></div>' +
-    '<div class="inv-text-muted inv-storage-text inv-mb-8">' +
+    '<div class="inv-overlay-header"><span class="inv-overlay-title">Enter weights</span>' +
+    '<button class="inv-overlay-close" data-action="invCloseOverlay" aria-label="Close">&times;</button></div>' +
+    '<p class="inv-note">' +
     missing.length + ' item' + (missing.length !== 1 ? 's' : '') + ' without a weight, heaviest revenue first. ' +
     (cost > 0
       ? 'Break-even is shown against a cost of ' + formatCurrency(cost) + '/kg.'
       : 'Set a cost per kg in Settings to see break-even weights.') +
-    '</div>' +
+    '</p>' +
     (derivable > 0
-      ? '<div class="inv-text-muted inv-storage-text inv-mb-16">' +
+      ? '<div class="inv-callout inv-callout-info">' +
         derivable + ' of these are billed per piece off a rate per kg, so the weight is ' +
         'recoverable from the pricing itself — no weighing needed. Note that a weight ' +
         'derived this way prices back at exactly that rate, so it measures tonnage, not margin.' +
         '</div>'
       : '');
 
-  html += '<div class="inv-weight-list">';
+  // One row per part: what it is and what rides on it, then the weight field and what that weight
+  // prices the part at (a dot and the ₹/kg), updated as it is typed.
+  html += '<div class="inv-panel inv-panel-flush inv-scroll">';
   missing.forEach(function(it) {
     var be = _breakEvenKg(it, cost);
     var revenue = revMap[it.partNumber] || 0;
-    html += '<div class="inv-weight-row">' +
-      '<div class="inv-weight-row-head">' +
-      '<span class="inv-item-pn inv-mono">' + escHtml(it.partNumber) + '</span>' +
-      (it.gauge ? '<span class="inv-gauge-badge">' + escHtml(it.gauge) + '</span>' : '') +
-      '<span class="inv-client-badge inv-badge-mode">' + escHtml(it.unit || 'KG') + '</span>' +
-      '</div>' +
-      '<div class="inv-weight-row-meta">' +
-      '<span class="inv-mono">' + (it.rate ? formatCurrency(it.rate) + '/' + escHtml(it.unit || 'KG') : 'No rate') + '</span>' +
-      (revenue > 0 ? '<span class="inv-text-muted inv-mono">' + formatCurrency(revenue) + ' billed</span>' : '') +
-      (be != null ? '<span class="inv-weight-breakeven">break-even ' + formatNum(be, 3) + ' kg</span>' : '') +
-      '</div>' +
-      '<div class="inv-weight-row-entry">' +
-      '<input type="number" class="inv-form-input inv-mono inv-weight-input" ' +
+    var meta = [(it.rate ? formatCurrency(it.rate) + '/' + (it.unit || 'KG') : 'No rate'),
+      revenue > 0 ? formatCurrency(revenue) + ' billed' : ''].filter(Boolean).join(' · ');
+    html += '<div class="inv-row inv-row-auto" data-weight-row="' + it.id + '">' +
+      '<span class="inv-row-main"><span class="inv-row-title inv-row-wrap"><span class="inv-id">' + escHtml(it.partNumber) + '</span>' +
+      (it.gauge ? ' <span class="inv-badge" data-gauge>' + escHtml(it.gauge) + '</span>' : '') +
+      ' <span class="inv-badge">' + escHtml(it.unit || 'KG') + '</span></span>' +
+      '<span class="inv-row-meta inv-row-wrap">' + escHtml(meta) +
+      (be != null ? ' · <span data-breakeven>break-even ' + formatNum(be, 3) + ' kg</span>' : '') + '</span>' +
+      '<span class="inv-row-meta" id="invWeightVerdict' + it.id + '" data-verdict></span></span>' +
+      '<span class="inv-row-end"><input type="number" class="inv-input inv-input-sm inv-input-num" ' +
       'data-action="invWeightInput" data-id="' + it.id + '" ' +
       'data-rate="' + (it.rate || 0) + '" data-unit="' + escHtml(it.unit || 'KG') + '" ' +
-      'step="0.001" min="0" placeholder="kg per piece">' +
-      '<span class="inv-weight-verdict" id="invWeightVerdict' + it.id + '"></span>' +
-      '</div>' +
+      'step="0.001" min="0" placeholder="kg per piece" aria-label="Weight of ' + escHtml(it.partNumber) + ' in kg per piece"></span>' +
       '</div>';
   });
   html += '</div>';
 
   html += '<div class="inv-btn-bar">' +
-    '<button class="inv-btn inv-btn-ghost" data-action="invCloseOverlay">Cancel</button>' +
+    '<button class="inv-btn inv-btn-secondary" data-action="invCloseOverlay">Cancel</button>' +
     (derivable > 0
-      ? '<button class="inv-btn inv-btn-ghost" data-action="invDeriveWeights">Derive ' + derivable + ' from rates</button>'
+      ? '<button class="inv-btn inv-btn-secondary" data-action="invDeriveWeights">Derive ' + derivable + ' from rates</button>'
       : '') +
-    '<button class="inv-btn inv-btn-primary" data-action="invSaveWeights">Save Weights</button></div></div>';
+    '<button class="inv-btn inv-btn-primary" data-action="invSaveWeights">Save weights</button></div></div>';
 
   var scrim = document.createElement('div');
   scrim.className = 'inv-overlay-scrim';
@@ -1049,20 +936,21 @@ function updateWeightVerdict(input) {
   var rate = parseFloat(input.dataset.rate) || 0;
   var kg = parseFloat(input.value);
 
-  el.classList.remove('inv-weight-ok', 'inv-weight-bad');
-  if (!input.value.trim() || isNaN(kg) || kg <= 0) { el.textContent = ''; return; }
-  if (rate <= 0 || cost <= 0 || (input.dataset.unit || '').toUpperCase() !== 'NOS') {
-    el.textContent = '';
-    return;
-  }
+  el.dataset.verdict = '';
+  el.textContent = '';
+  if (!input.value.trim() || isNaN(kg) || kg <= 0) return;
+  if (rate <= 0 || cost <= 0 || (input.dataset.unit || '').toUpperCase() !== 'NOS') return;
 
+  // At or above the cost per kg the part pays for itself; below it, it is processed at a loss.
   var perKg = gstRound(rate / kg);
-  el.textContent = formatCurrency(perKg) + '/kg';
-  el.classList.add(perKg >= cost ? 'inv-weight-ok' : 'inv-weight-bad');
+  var ok = perKg >= cost;
+  el.dataset.verdict = ok ? 'ok' : 'bad';
+  el.innerHTML = '<span class="inv-dot inv-dot-' + (ok ? 'ok' : 'danger') + '">' + (ok ? 'Covers cost' : 'Below cost') + '</span> ' +
+    '<span class="inv-num">' + escHtml(formatCurrency(perKg)) + '/kg</span>';
 }
 
 function saveWeights() {
-  var inputs = document.querySelectorAll('.inv-weight-input');
+  var inputs = document.querySelectorAll('[data-action="invWeightInput"]');
   var saved = 0;
   var invalid = 0;
 
@@ -1288,9 +1176,9 @@ function toggleItemSelect(itemId) {
   _itemsSelected[itemId] = !_itemsSelected[itemId];
   if (!_itemsSelected[itemId]) delete _itemsSelected[itemId];
   _renderItemsSelectionBar();
-  // Toggle visual on card
-  var card = document.querySelector('.inv-item-card[data-id="' + itemId + '"]');
-  if (card) card.classList.toggle('inv-item-selected', !!_itemsSelected[itemId]);
+  // The row (phone) or table row (desktop) carries the selection fill.
+  var row = document.querySelector('[data-item-row="' + itemId + '"]');
+  if (row) row.classList.toggle('inv-row-selected', !!_itemsSelected[itemId]);
 }
 
 function selectAllUnused() {
@@ -1335,10 +1223,9 @@ function _renderItemsSelectionBar() {
     bar.innerHTML = '';
     return;
   }
-  bar.innerHTML = '<div class="inv-im-sel-bar">' +
-    '<span class="inv-im-sel-count">' + count + ' selected</span>' +
-    '<div class="inv-items-sel-actions">' +
-    '<button class="inv-btn inv-btn-ghost inv-btn-sm inv-sel-clear-btn" data-action="invClearItemSelection">Clear</button>' +
-    '<button class="inv-im-sel-btn" data-action="invBatchDeleteItems">Delete</button>' +
-    '</div></div>';
+  bar.innerHTML = '<div class="inv-selbar">' +
+    '<span class="inv-selbar-count">' + count + ' selected</span>' +
+    '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invClearItemSelection">Clear</button>' +
+    '<button class="inv-btn inv-btn-danger inv-btn-sm" data-action="invBatchDeleteItems">Delete</button>' +
+    '</div>';
 }

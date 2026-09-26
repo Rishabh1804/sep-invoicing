@@ -443,7 +443,6 @@ function bootState(loaded) {
 var _isDesktop = false;
 var _isTablet = false;
 var _pendingModeSwitch = false;
-var _dragState = null;
 
 /* ===== ARCHITECTURAL GLOBALS (Phase 3) ===== */
 let _tabDirty = { home: true, register: true };
@@ -477,6 +476,47 @@ function focusFirstInteractive(container) {
   if (!container) return;
   var el = container.querySelector('button, input:not([type="hidden"]):not([readonly]), select, textarea, [tabindex]:not([tabindex="-1"])');
   if (el) { try { el.focus(); } catch(e) {} }
+}
+
+/* ===== DIALOG SHELL (design system §6.16) =====
+   Every dialog is an inv-dialog in an inv-scrim-dialog: a sheet from the bottom on the phone, centred on the
+   desktop. Its head is the title and a close button; its foot (inv-dialog-foot) the actions, primary last.
+   The More sheet is an inv-scrim too but not a dialog, so closing dialogs never takes it (or its focus) along.
+   `title` is HTML: the caller escapes what came from the user. */
+function dialogHeadHtml(title, closeAction, closeLabel, actionsHtml) {
+  var close = '<button class="inv-btn inv-btn-icon inv-dialog-close" data-action="' + (closeAction || 'invCloseOverlay') +
+    '" aria-label="' + (closeLabel || 'Close') + '">&times;</button>';
+  return '<div class="inv-dialog-head"><span class="inv-dialog-title">' + title + '</span>' +
+    (actionsHtml ? '<span class="inv-toolbar inv-toolbar-tight">' + actionsHtml + close + '</span>' : close) + '</div>';
+}
+
+/* A two-faced dialog turns over in this many ms (--dur-2, §3.6). */
+var FLIP_MS = 200;
+
+/* The desktop detail pane's head (§6.14): what is open, and the button that closes the pane. */
+function paneHeadHtml(titleHtml, closeAction) {
+  return '<div class="inv-pane-head">' + titleHtml +
+    '<button class="inv-btn inv-btn-icon inv-btn-ghost" data-action="' + closeAction + '" aria-label="Close">&times;</button></div>';
+}
+
+/* Opens `html` (the whole inv-dialog) over the page and moves focus into it; the focus it left returns on close.
+   opts.dismiss: a tap on the scrim closes it (a view, never an act). opts.replace: redraw the top dialog in place
+   when one is open (a form re-rendered as it is typed). Returns the scrim. */
+function dialogOpen(html, opts) {
+  opts = opts || {};
+  if (opts.replace) {
+    var open = document.querySelectorAll('.inv-scrim-dialog');
+    if (open.length) { open[open.length - 1].innerHTML = html; return open[open.length - 1]; }
+  }
+  var scrim = document.createElement('div');
+  scrim.className = 'inv-scrim inv-scrim-dialog';
+  scrim.innerHTML = html;
+  if (opts.dismiss) scrim.addEventListener('click', function(e) { if (e.target === scrim) closeTopOverlay(); });
+  pushFocus();
+  document.body.appendChild(scrim);
+  document.body.style.overflow = 'hidden';
+  focusFirstInteractive(scrim.querySelector('.inv-dialog'));
+  return scrim;
 }
 
 function getApiKey() { try { return localStorage.getItem(API_KEY_KEY) || ''; } catch(e) { return ''; } }
@@ -981,7 +1021,6 @@ var FLAG_REASONS = [
   { id: 'weight', label: 'Weight differs this batch' },
   { id: 'other', label: 'Other' }
 ];
-function flagReasonLabel(id) { var r = FLAG_REASONS.find(function(x) { return x.id === id; }); return r ? r.label : ''; }
 /* A red flag is the matcher's own Check or ×10 verdict, on the rate or on the weight. Differs asks nothing. */
 function lineFlag(client, onDate, item) {
   var red = function(m) { return m && (m.status === 'check' || m.status === 'decimal'); };

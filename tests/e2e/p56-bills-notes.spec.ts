@@ -219,7 +219,7 @@ test('an adjustment note reads as its reason in the Register list, with no batch
   await page.locator('[data-action="invCnFormSave"]').click();
   await page.locator('[data-action="invClosePrint"]').click();
   await page.evaluate(() => (window as any).renderCreditNoteList());
-  const row = page.locator('.inv-overlay-card .inv-row').first();
+  const row = page.locator('.inv-dialog .inv-row').first();
   await expect(row).toContainText('Rate correction');
   await expect(row).not.toContainText('% of');
   await expect(row.locator('[data-action="invCnSetAgainst"]')).toHaveCount(0);

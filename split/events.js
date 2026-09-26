@@ -1,16 +1,7 @@
 /* ===== EVENT DELEGATION ===== */
 document.addEventListener('click', function(e) {
-  // Dismiss client search dropdown when clicking outside it
-  const searchRes = document.getElementById('invClientResults');
-  if (searchRes && !searchRes.classList.contains('inv-hidden')) {
-    const searchWrap = searchRes.closest('.inv-search-wrap');
-    if (searchWrap && !searchWrap.contains(e.target)) {
-      searchRes.classList.add('inv-hidden');
-    }
-  }
-
-  // Dismiss part autocomplete when clicking outside
-  if (!e.target.closest('.inv-autocomplete-wrap')) {
+  // Dismiss any open suggestion menu (part or client) when clicking outside its field
+  if (!e.target.closest('.inv-combo')) {
     dismissAllAutocomplete();
   }
 
@@ -64,6 +55,7 @@ document.addEventListener('click', function(e) {
       break;
     }
     case 'invSelectClient': selectClient(parseInt(btn.dataset.id)); break;
+    case 'invCreatePickChallan': createPickChallan(btn.dataset.id); break;
     case 'invClearClient': captureOptionalFields(); invoiceForm.clientId = null; renderCreateForm(); break;
     case 'invAddLineItem': captureOptionalFields(); addLineItem(); break;
     case 'invRemoveLineItem': captureOptionalFields(); invoiceForm.items.splice(parseInt(btn.dataset.idx), 1); renderCreateForm(); break;
@@ -200,7 +192,7 @@ document.addEventListener('click', function(e) {
     case 'invStatsClientDrill': openClientDrillOverlay(btn.dataset.clientId); break;
     // Phase 7: Flippable card
     case 'invFlipCard': {
-      var inner = document.querySelector('.inv-flip-inner');
+      var inner = document.querySelector('.inv-scrim-dialog [data-flip]');
       if (!inner) break;
       var front = inner.querySelector('.inv-flip-front');
       var back = inner.querySelector('.inv-flip-back');
@@ -215,8 +207,8 @@ document.addEventListener('click', function(e) {
         outFace.classList.remove('inv-flip-visible');
         inFace.classList.remove('inv-flip-hidden');
         inFace.classList.add('inv-flip-visible', 'inv-flip-in');
-        setTimeout(function() { inFace.classList.remove('inv-flip-in'); }, 250);
-      }, 250);
+        setTimeout(function() { inFace.classList.remove('inv-flip-in'); }, FLIP_MS);
+      }, FLIP_MS);
       break;
     }
     // Phase 7: Stats actions
@@ -331,14 +323,10 @@ document.addEventListener('click', function(e) {
     case 'invClearItemSelection': clearItemSelection(); break;
     case 'invBatchDeleteItems': batchDeleteItems(); break;
     case 'invLoadMoreItems': _renderItemsList(); break;
-    case 'invItemsSort': {
-      var sortEl = document.getElementById('itemsSort');
-      if (sortEl) { regFilter.itemsSort = sortEl.value; saveRegFilter(); _itemsRendered = 0; _renderItemsList(); }
-      break;
-    }
-    // Phase 8E: Clients/Items desktop row selection
+    // Clients/Items desktop: a row opens the pane; its close button shuts it
     case 'invSelectClientRow': _renderClientDetail(parseInt(btn.dataset.id)); break;
     case 'invSelectItemRow': _renderItemDetail(parseInt(btn.dataset.id)); break;
+    case 'invClientsClosePane': closeClientsPane(); break;
     // Phase 6b: Register bulk operations
     case 'invRegToggleSort': toggleRegSortDir(); break;
     case 'invRegSortBy': toggleRegSortBy(); break;
@@ -414,26 +402,13 @@ function updateTotalsDisplay() {
   const container = document.getElementById('invTotalsArea');
   if (!container) return;
   const client = invoiceForm.clientId ? S.clients.find(c => c.id === invoiceForm.clientId) : null;
-  if (invoiceForm.items.length === 0) { container.innerHTML = ''; return; }
-  const taxable = gstRound(invoiceForm.items.reduce((s,i) => s + (i.amount || 0), 0));
-  const gstType = client ? client.gstType : 'intra';
-  const cgst = gstType === 'intra' ? gstRound(taxable * 9 / 100) : 0;
-  const sgst = gstType === 'intra' ? gstRound(taxable * 9 / 100) : 0;
-  const igst = gstType === 'inter' ? gstRound(taxable * 18 / 100) : 0;
-  const grand = gstRound(taxable + cgst + sgst + igst);
-  let h = '<div class="inv-totals"><div class="inv-total-row"><span class="inv-total-label">Taxable Value</span><span class="inv-total-value">' + formatCurrency(taxable) + '</span></div>';
-  if (gstType === 'intra') {
-    h += '<div class="inv-total-row"><span class="inv-total-label">CGST @ 9%</span><span class="inv-total-value">' + formatCurrency(cgst) + '</span></div>' +
-      '<div class="inv-total-row"><span class="inv-total-label">SGST @ 9%</span><span class="inv-total-value">' + formatCurrency(sgst) + '</span></div>';
-  } else {
-    h += '<div class="inv-total-row"><span class="inv-total-label">IGST @ 18%</span><span class="inv-total-value">' + formatCurrency(igst) + '</span></div>';
-  }
-  h += '<div class="inv-total-row inv-total-row-grand"><span class="inv-total-label">Grand Total</span><span class="inv-total-grand">' + formatCurrency(grand) + '</span></div></div>';
-  container.innerHTML = h;
+  container.innerHTML = createTotalsHtml(client);
+  const grand = document.getElementById('invGrandTotal');
+  if (grand) grand.textContent = formatCurrency(createTotals(client).grand);
   // Update validation state
   const errors = validateInvoice();
   const errArea = document.getElementById('invErrorsArea');
-  if (errArea) errArea.innerHTML = errors.length > 0 ? errors.map(e => '<div class="inv-error">' + escHtml(e) + '</div>').join('') : '';
+  if (errArea) errArea.innerHTML = errors.map(e => '<div class="inv-field-error">' + escHtml(e) + '</div>').join('');
   const saveBtn = document.getElementById('invSaveBtn');
   if (saveBtn) saveBtn.disabled = errors.length > 0;
 }
@@ -446,7 +421,9 @@ document.addEventListener('change', function(e) {
   if (dashInput(e.target)) return;
   if (todoOnChange(e.target)) return;
   if (relayOnChange(e.target)) return;
-  const el = e.target.closest('[data-action="invUpdateLine"]');
+  // A line's fields answer to their data-action; its unit <select> to data-change, since a select carrying an
+  // action would run it on the click that opens it.
+  const el = e.target.closest('[data-action="invUpdateLine"], [data-change="invUpdateLine"]');
   if (el) {
     const idx = parseInt(el.dataset.idx);
     const field = el.dataset.field;
@@ -564,7 +541,7 @@ document.addEventListener('change', function(e) {
     renderHistory();
   }
   // Phase 4: IM challan line unit change
-  const challanLineEl = e.target.closest('[data-action="invUpdateChallanLine"]');
+  const challanLineEl = e.target.closest('[data-change="invUpdateChallanLine"]');
   if (challanLineEl && challanLineEl.dataset.field === 'unit' && _challanForm) {
     const cidx = parseInt(challanLineEl.dataset.idx);
     const citem = _challanForm.items[cidx];
@@ -882,11 +859,13 @@ document.addEventListener('keydown', function(e) {
   }
   if (e.key === 'Enter' && (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT')) {
     e.preventDefault();
-    var container = e.target.closest('.inv-page-active, .inv-im-form-active, .inv-overlay-card');
+    var container = e.target.closest('[data-form], .inv-page-active, .inv-dialog');
     if (!container) container = document.body;
+    // A folded section (Optional details) keeps its fields in the page but out of reach,
+    // so the chain steps over them rather than dead-ending on a field it cannot focus.
     var focusable = Array.from(container.querySelectorAll(
       'input:not([readonly]):not([type="hidden"]):not(.inv-hidden), select:not(.inv-hidden), textarea:not(.inv-hidden), [data-kbd-ring]'
-    ));
+    )).filter(function(el) { return !el.closest('details:not([open])'); });
     var curIdx = focusable.indexOf(e.target);
     if (curIdx >= 0 && curIdx < focusable.length - 1) {
       var next = focusable[curIdx + 1];

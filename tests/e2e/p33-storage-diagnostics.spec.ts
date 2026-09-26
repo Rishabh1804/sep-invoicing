@@ -181,7 +181,7 @@ test.describe('storage diagnostics', () => {
     await openSettingsAt(page, 'data');
     await page.locator('[data-action="invRunDiagnostics"]').click();
 
-    const report = page.locator('.inv-diag-report');
+    const report = page.locator('#storageDiagOut [data-report]');
     await expect(report).toContainText('Build: ');
     await expect(report).toContainText('Store: IndexedDB sep-invoicing/state (verified writes)');
     await expect(report).toContainText(/Quota: using .* of .* available to this origin/);
@@ -213,7 +213,7 @@ test.describe('storage diagnostics', () => {
     await page.evaluate(async () => (window as any).saveState());
     await openSettingsAt(page, 'data');
     await page.locator('[data-action="invRunDiagnostics"]').click();
-    const report = page.locator('.inv-diag-report');
+    const report = page.locator('#storageDiagOut [data-report]');
     await expect(report).toContainText('one pool for every app served from this origin');
     await expect(report).toContainText('sproutlab_state: 300K chars');
     // The state itself is no longer in that pool.

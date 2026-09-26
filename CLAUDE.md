@@ -28,17 +28,17 @@ Workforce management and invoicing PWA for **Soma Electro Products**, a zinc ele
 
 ## Architecture
 
-Split-file PWA. 49 modules, ~27,400 lines total.
+Split-file PWA. 49 modules, ~27,200 lines total.
 
 ```
 split/
 ├── build.sh           ← writes ../sep-invoicing.html, syncs ../index.html, stamps ../version.json
 ├── head.html          ← DOCTYPE, meta, font links (17 lines)
-├── styles.css         ← All CSS with inv- prefix (2,720 lines)
+├── styles.css         ← All CSS with inv- prefix: tokens, shell, printed documents, the v2.0 components (1,553 lines)
 ├── body.html          ← HTML body, tabs, print view (137 lines)
 ├── data.js            ← ITEMS_MASTER + SEED_CLIENTS (27 lines)
-├── state.js           ← IndexedDB store, verified coalesced saves, escHtml, gstRound (677 lines)
-├── appearance.js      ← Theme / palette / density per device, dark hook, theme-color, icon (~100 lines)
+├── state.js           ← IndexedDB store, verified coalesced saves, escHtml, gstRound, the dialog and pane shells (1,064 lines)
+├── appearance.js      ← Theme / palette / density per device, theme-color, icon (~90 lines)
 ├── zinc.js            ← Zinc market rate: store, display, metals.dev refresh, uplift from bills (~350 lines)
 ├── tabs.js            ← switchTab (9-step protocol) + renderHome (188 lines)
 ├── clients.js         ← Client Master CRUD + overlay (343 lines)
@@ -47,7 +47,7 @@ split/
 ├── settings.js        ← Settings: six groups, folded sections, per-section save + import/export + storage diagnostics (~640 lines)
 ├── github-sync.js     ← GitHub Contents API push/pull, SHA conflict guard (452 lines)
 ├── invoice-ops.js     ← Invoice detail, edit, cancel, delete, register (949 lines)
-├── number-audit.js    ← Void ledger + serial-sequence audit + gap reconcile (311 lines)
+├── number-audit.js    ← Void ledger + serial-sequence audit + gap reconcile (340 lines)
 ├── exports.js         ← Sales CSV + GSTR1 CSV + printed sales register (291 lines)
 ├── im.js              ← Incoming Material list + selection (535 lines)
 ├── autocomplete.js    ← Part autocomplete + inline item creation (270 lines)
@@ -114,7 +114,7 @@ every session start — nothing to set up by hand. CI (`build-sync`) is the back
 ### Tests
 
 ```bash
-pnpm exec playwright test          # 527 tests, both layouts
+pnpm exec playwright test          # 576 tests, both layouts
 ```
 
 Some sandboxes ship a Chromium build Playwright does not expect and block downloading
@@ -156,7 +156,7 @@ filter on; a literal date in a fixture is a time bomb, not a constant.
 |----|------|
 | HR-1 | No inline styles. CSS classes + design tokens. |
 | HR-2 | No inline onclick. data-action delegation only. |
-| HR-3 | inv- CSS prefix on every class. 486 classes follow this. |
+| HR-3 | inv- CSS prefix on every class. 427 classes, all of them (distinct class selectors in `split/styles.css`, comments stripped, 26 Sep 2026); P76 asserts every class the app draws is one of them or a named hook. |
 | HR-4 | No emojis. Inline SVGs in HTML template. |
 | HR-5 | escHtml() on all user-data innerHTML. |
 | HR-6 | CSS design tokens only. No raw px/rem/hex/timing. |
@@ -183,16 +183,13 @@ is a dot or badge plus a word).
 Zinc & brass, Terracotta), theme following the phone, density, **no pure white anywhere in the interface**
 (owner: *"it puts a lot of stress at our eyes"* — paper is the one exception), the top bar naming each
 screen, the grouped labelled sidebar, the nut icon in the palette, and Settings → Data & device →
-Appearance. The v1.0 token names are aliases of the new ones, so every older rule already renders in the
-new palette. **There is no `.dark` class any more** (removed 26 Sep 2026): its 147 v1.0 rules restated tokens
+Appearance. **There is no `.dark` class any more** (removed 26 Sep 2026): its 147 v1.0 rules restated tokens
 that now switch by themselves, and some of them repainted selected states in the background colour — Staff →
 Day's chosen P/H/A went invisible in dark (owner). Dark coverage (HR-7) is the `light-dark()` token, nothing else.
 
-**Step 2 is built too:** the §6 components are one block at the end of `styles.css`, and each rule also lists
-the v1.0 classes doing the same job, so old markup already renders the new look. Add new UI with the v2.0
-class names; a v1.0 name is only ever *removed* from those lists (in step 3), never added.
+**Step 2 built the §6 components** as one block at the end of `styles.css`; step 3 moved every screen onto them.
 
-**Step 3 is under way, one screen per PR** in §9's order. **Home is built:** its markup is v2.0 only, and its private
+**Step 3 is complete (26 Sep 2026), one screen per PR** in §9's order. **Home is built:** its markup is v2.0 only, and its private
 family (`inv-qa*`, `inv-unbilled-*`, `inv-recent-*`, `inv-sync-card`, `inv-zinc-*`, `inv-td-hrow`) is deleted. Its tiles now
 carry the month's tonnage and ₹/kg next to the revenue, on the same `weighLines()` Stats uses.
 **Register is built:** one `invoiceDetailHtml()` draws the desktop pane and the phone sheet (the sheet used to draw
@@ -208,11 +205,61 @@ expands to its lines (`inv-row-expander`). The desktop table and pane are the Re
 (`_mdFocusKey` / `_mdRestoreFocus`). **Add challan is the page's one primary, in the toolbar** — the floating + and camera
 buttons are gone. The survey's last IM bug is closed: the filter `<select>`s carried `data-action="invFilterIM"`, so the
 click that opened one ran the filter; they speak through `change` only now (P55 asserts no select carries an action).
-The challan add/edit form is untouched and moves with Create, which shares its line editor.
+The challan add/edit form moved with Create.
+**Create is built:** the invoice and challan forms share one line editor (`inv-lines` / `inv-line`, a grid of fields on the
+phone and a row under a column head on the desktop), verdicts are a dot and a word (`inv-verdict`, `data-verdict` on the
+Rate field), suggestion lists are `inv-menu` in an `inv-combo` (the cursor is `aria-selected`), optional details fold,
+and Create invoice sits in the sticky action bar. A chosen client's **unbilled challans are tick boxes** that bring their
+lines in; only the challan lines the invoice still carries are marked invoiced on save (P67).
+**Clients / Items / Performance is built:** view tabs, one Add per view in its toolbar (the floating + that doubled it on
+the phone is gone — the survey's doubled Add buttons), rows on the phone, and on the desktop the Register's table and
+on-demand pane (the resizable split, its drag handle and `_dragState` are deleted). The items sort `<select>` lost its
+`data-action` and speaks through `change`; a client's cards are flush panels of rows; Performance's measure is `inv-seg` (P68).
+**Staff is built:** six view tabs that scroll the open one into view (the survey's cut-off sub-tabs), Paste message the one
+primary on Overview and Day and a sub-view with its way back; Day's P / H / A an `inv-seg` pressed in its tone, in dark as in
+light; Week an `inv-table-grid`; the labour, extra, payout and due cards flush panels of tiles and rows (`data-card`); the
+attendance paste on the stock check's pieces. The `inv-att-`, `inv-lab-`, `inv-area-`, `inv-rl-` and last `inv-stk-` families are
+deleted (P72); the two tone classes Stats' tiles borrowed went with Stats.
+**Stats is built:** five view tabs and the period an `inv-seg`; every card a flush panel named by `data-card` (tiles, rows,
+callouts, `inv-table`s), the live cost's components rows that fold open (`inv-row-fold`), the drill-down tiles and rows; the
+`inv-stats-*`, `inv-kpi*`, `inv-ov-*`, `inv-cost-*` families are deleted, and "below cost" is still judged at the live cost (P73).
+**History is built:** a toolbar (search, client, labelled dates) and the kind of event as pressed chips, which closes the survey's
+filter bar (chips stretched to the filters' height and clipped off the phone); rows grouped by day ending in a dot and a word, a table
+on the desktop; a void is a plain row, and the exception ledger's row now says `recorded`. The `inv-history-*` family is deleted (P74).
+**To-do is built:** Open / Done are view tabs (the Done fold's `invTodoFoldDone` action carries `data-v`), the add field
+sits in a toolbar with Add as the one primary, *From your data* and *Mine* are flush panels of rows (two across on the
+desktop), a task of your own is ticked through a real tick box, and status is a dot and a word (an app task is led by
+`inv-dot-mark`). Its `inv-td-*` family is deleted; the Home card draws the same rows (P69).
+**Stock is built:** Paste message is the page's one primary; the Lines tiles filter (`aria-pressed`); lines are rows
+grouped by status on the phone and one table beside a detail pane on the desktop; a line's page is tiles, *Price and
+pattern* rows with the bill form in place, its settings and its entries; the paste check is rows with the text as sent
+(`inv-quote`) and Save in the action bar; the reorder list is a table by supplier; More is an `inv-sheet` of rows (P71).
 
-⚠ **Until the migration in its §9 completes, the stylesheet still carries the v1.0 families** (`inv-card`,
-`inv-stk-*`, `inv-stats-card`, the domain colours). New work uses the v2.0 components; never extend a v1.0
-family. **v1.0's dark mode was never reachable** — `.dark` was styled and nothing set it.
+**Settings is built:** each section an `inv-panel-fold` of `inv-field`s, the desktop group list `inv-side-item`s in an
+`inv-dialog-wide`, an unsaved edit `data-dirty` and a dot and a word; the `inv-set-*` family is deleted, and the phone's
+head stays put while the groups scroll (it used to scroll away with the close button). P75.
+
+**Step 4, the clean-up, is done (26 Sep 2026): the stylesheet carries no v1.0 class and no alias token.** `styles.css` went
+from 1,870 lines to 1,553. What it took, so nobody reintroduces it:
+- **Every dialog is one shell** (§6.16): `dialogOpen(html, {dismiss, replace})` and `dialogHeadHtml(title, …)` in `state.js`
+  draw an `inv-dialog` in an `inv-scrim-dialog` (a sheet on the phone, centred on the desktop) with a sticky
+  `inv-dialog-foot`; twenty hand-built copies of the scrim, head and focus plumbing are gone, and with them three bugs —
+  *Explain this exception* never pushed focus or locked the page, the To-do dialogs left the page scrolling behind them,
+  and closing the last dialog by its scrim never ran a layout switch deferred while it was open. The More sheet is an
+  `inv-scrim` but not a dialog, so closing dialogs never takes it along.
+- **The desktop list and pane** are `inv-pane-host` / `inv-pane-list` / `inv-pane` with one `paneHeadHtml()` (four screens had
+  their own copy).
+- **The credit note, number audit and invoice delete/cancel dialogs** moved onto fields, rows, callouts and dots; cancel is a
+  danger button now, and every dialog title is sentence case.
+- **No v1.0 token is left**: the `--fs-xs…3xl`, `--shadow-sm/md/lg`, `--anim-*`, domain colours, `--header-h`, `--tab-h` and
+  `--card-padding` aliases are gone and every rule reads the v2.0 name. Raw values outside the §3.9 exceptions are tokens,
+  hairlines included (`--hair`, `--rule`); a container query's width is the one thing written out, because a query's
+  condition cannot read a custom property.
+- **A `<select>` never carries `data-action`**, the line editor's unit included (it now answers to `data-change`), and a
+  toolbar's filter or sort `<select>` is as wide as its choices on the desktop, not the row.
+- **P76 sweeps the whole app** — every page, every view tab and every dialog, phone and desktop, light and dark — for a
+  retired class, an unstyled class, a select with an action, a duplicate id, a blank page, a second primary, a dialog foot
+  that is not last, and a page wider than the screen; and reads every template for a select with an action.
 
 ## Business Domain
 
@@ -1604,6 +1651,11 @@ is self-contained so it can move to `sep-dashboard` whole.
   deliberately coarse where a figure moves on its own: a stock line's is its colour, so it does not
   come back every time a litre is used.
 - One rule failing on an unexpected shape is caught; it must not take the list with it.
+- **Your own tasks lead** (owner, 26 Sep 2026: *"once I add a todo of my own, it still stays at the end of all the
+  system generated one, that makes it easy to miss"*). The page draws *Mine* before *From your data* (on the left on
+  the desktop), and `todoRanked()` — the Home card, the widget — puts every open task of yours ahead of every raised
+  one that is not red. Only a red task outranks yours; between two red ones, yours comes first. Ranked by tone alone,
+  an undated task of yours had no tone and fell below every info task the data raised (P69).
 
 **The widget cannot be the app's HTML.** Windows draws an Adaptive Card (`widgets/todo-template.json`)
 from data the service worker hands it. The rows are worked out **by the app** (the app tasks need the

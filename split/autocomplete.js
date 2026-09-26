@@ -36,13 +36,11 @@ function partLineDesc(part) {
 var AC_MIN_NEW = 2;
 
 function renderAddPartOption(idx, idPrefix, query, kind) {
-  return '<div class="inv-autocomplete-item inv-ac-add" role="option" id="' + idPrefix + idx + '_new"' +
+  return '<div class="inv-menu-item inv-menu-add" role="option" id="' + idPrefix + idx + '_new"' +
     ' data-ac-new="1" data-action="invAddItemInline" data-kind="' + kind + '"' +
     ' data-idx="' + idx + '" data-q="' + escHtml(query) + '">' +
-    '<svg class="inv-ac-add-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">' +
-    '<line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>' +
-    '<span class="inv-autocomplete-part">Add &ldquo;' + escHtml(query) + '&rdquo;</span>' +
-    '<span class="inv-autocomplete-desc">new item in the master</span></div>';
+    '<span class="inv-menu-title">Add &ldquo;' + escHtml(query) + '&rdquo;</span>' +
+    '<span class="inv-menu-meta">New item in the master</span></div>';
 }
 
 /* Render the suggestion rows for one part input. Shared by the invoice form
@@ -51,11 +49,11 @@ function renderPartOptions(acEl, matches, action, idx, idPrefix, query, kind) {
   // The gauge is shown as its own badge: several clamp part numbers exist in
   // more than one gauge, and it is the only thing telling those rows apart.
   var html = matches.map((m, i) =>
-    '<div class="inv-autocomplete-item" role="option" id="' + idPrefix + idx + '_' + i + '"' +
+    '<div class="inv-menu-item" role="option" id="' + idPrefix + idx + '_' + i + '"' +
     ' data-action="' + action + '" data-idx="' + idx + '" data-part-id="' + m.id + '">' +
-    '<span class="inv-autocomplete-part">' + escHtml(m.partNumber) + '</span>' +
-    (m.gauge ? '<span class="inv-gauge-badge">' + escHtml(m.gauge) + '</span>' : '') +
-    '<span class="inv-autocomplete-desc">' + escHtml(m.desc || '') + '</span></div>'
+    '<span class="inv-menu-title inv-id">' + escHtml(m.partNumber) +
+    (m.gauge ? ' <span class="inv-badge inv-badge-neutral">' + escHtml(m.gauge) + '</span>' : '') + '</span>' +
+    '<span class="inv-menu-meta">' + escHtml(m.desc || '') + '</span></div>'
   ).join('');
   // Offered even when there are matches: a new gauge of an existing clamp
   // matches the part number but is a different part, and that is precisely the
@@ -98,7 +96,7 @@ function showChallanPartAutocomplete(idx, query) {
 }
 
 function dismissAllAutocomplete() {
-  document.querySelectorAll('.inv-autocomplete-list').forEach(el => el.classList.add('inv-hidden'));
+  document.querySelectorAll('.inv-combo > .inv-menu').forEach(el => el.classList.add('inv-hidden'));
   document.querySelectorAll('[role="combobox"]').forEach(el => el.setAttribute('aria-expanded', 'false'));
   acReset();
 }
@@ -116,22 +114,15 @@ function acReset() { _acCursor = -1; }
 /* The open suggestion list belonging to an input, or null. */
 function acListFor(input) {
   if (!input || !input.closest) return null;
-  const wrap = input.closest('.inv-autocomplete-wrap');
-  if (wrap) {
-    const list = wrap.querySelector('.inv-autocomplete-list');
-    return list && !list.classList.contains('inv-hidden') ? list : null;
-  }
-  const searchWrap = input.closest('.inv-search-wrap');
-  if (searchWrap) {
-    const results = searchWrap.querySelector('.inv-search-results');
-    return results && !results.classList.contains('inv-hidden') ? results : null;
-  }
-  return null;
+  const combo = input.closest('.inv-combo');
+  if (!combo) return null;
+  const list = combo.querySelector('.inv-menu');
+  return list && !list.classList.contains('inv-hidden') ? list : null;
 }
 
 function acOptions(list) {
   if (!list) return [];
-  return Array.prototype.slice.call(list.querySelectorAll('.inv-autocomplete-item, .inv-search-item'));
+  return Array.prototype.slice.call(list.querySelectorAll('.inv-menu-item'));
 }
 
 /* Move the highlight, wrapping at both ends. */
@@ -142,19 +133,16 @@ function acMoveCursor(list, delta) {
   if (next < 0) next = opts.length - 1;
   if (next >= opts.length) next = 0;
   _acCursor = next;
+  // The cursor is aria-selected; the menu draws it from that (§6.16), so the
+  // position is announced and shown by the one attribute.
   opts.forEach((opt, i) => {
-    if (i === next) {
-      opt.classList.add('inv-ac-active');
-      opt.setAttribute('aria-selected', 'true');
-    } else {
-      opt.classList.remove('inv-ac-active');
-      opt.removeAttribute('aria-selected');
-    }
+    if (i === next) opt.setAttribute('aria-selected', 'true');
+    else opt.removeAttribute('aria-selected');
   });
   const active = opts[next];
   if (active) {
     if (active.scrollIntoView) active.scrollIntoView({ block: 'nearest' });
-    const input = list.closest('.inv-autocomplete-wrap, .inv-search-wrap');
+    const input = list.closest('.inv-combo');
     const combo = input ? input.querySelector('[role="combobox"]') : null;
     if (combo && active.id) combo.setAttribute('aria-activedescendant', active.id);
   }

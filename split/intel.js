@@ -34,9 +34,8 @@ function statsSetTab(t) {
 }
 function statsTabsHtml() {
   var cur = statsTab();
-  return '<div class="inv-stats-tabs" role="tablist">' + STATS_TABS.map(function(t) {
-    return '<button class="inv-stats-tab' + (cur === t[0] ? ' inv-stats-tab-on' : '') + '" role="tab" aria-selected="' + (cur === t[0]) +
-      '" data-action="invStatsTab" data-tab="' + t[0] + '">' + t[1] + '</button>';
+  return '<div class="inv-viewtabs" role="tablist" aria-label="Stats">' + STATS_TABS.map(function(t) {
+    return '<button class="inv-viewtab" role="tab" aria-selected="' + (cur === t[0]) + '" data-action="invStatsTab" data-tab="' + t[0] + '">' + t[1] + '</button>';
   }).join('') + '</div>';
 }
 
@@ -73,28 +72,36 @@ function statsOverviewHtml(period, filtered, tonnage) {
   var cap = STATS_CAPACITY_KG_DAY * statsWorkingDays(r.from, r.to);
   var capPct = cap > 0 ? kg / cap : null;
   var measured = Math.round(c.measuredShare * 100);
-  var h = '<div class="inv-stats-card inv-stats-card-full" id="statsOverview"><div class="inv-stats-title">' + escHtml(PERIOD_LABELS[period] || '') +
-    ' In one line<span class="inv-stats-title-sub">against the live cost, ' + measured + '% of it measured</span></div>';
-  if (!(kg > 0)) return h + '<div class="inv-stats-caveat">No weighed tonnage in this period, so no ₹/kg to compare.</div></div>';
-  h += '<div class="inv-ov-grid">' +
-    '<div class="inv-ov-tile inv-pay-blue"><div class="inv-ov-l">Realisation</div><div class="inv-ov-v">' + statsMoney(real) + '<small>/kg</small></div><div class="inv-ov-s">' + statsMoney(tonnage.revKnown) + ' on ' + formatNum(kg / 1000, 1) + ' t</div></div>' +
-    '<div class="inv-ov-tile inv-pay-green"><div class="inv-ov-l">Live cost</div><div class="inv-ov-v">' + statsMoney(c.perKg) + '<small>/kg</small></div><div class="inv-ov-s">typed ' + statsMoney(S.defaultCostPerKg || 0) + '</div></div>' +
-    '<div class="inv-ov-tile ' + (contrib >= 0 ? 'inv-pay-green' : 'inv-area-gap-over') + '"><div class="inv-ov-l">Contribution</div><div class="inv-ov-v" id="statsContrib">' + statsSigned(contrib) + '<small>/kg</small></div><div class="inv-ov-s">' + statsSigned(gstRound(contrib * kg)) + ' on the period</div></div>' +
-    '<div class="inv-ov-tile inv-area-gap-under"><div class="inv-ov-l">Capacity</div><div class="inv-ov-v">' + (capPct != null ? Math.round(capPct * 100) + '%' : '&mdash;') + '</div><div class="inv-ov-s">' + formatNum(kg / 1000, 1) + ' t of ~' + formatNum(cap / 1000, 0) + ' t (2 shifts)</div></div>' +
-    '</div>';
+  var perKg = '<span class="inv-tile-of">/kg</span>';
+  var h = statsPanel('overview', escHtml(PERIOD_LABELS[period] || '') + ' in one line', 'against the live cost, ' + measured + '% of it measured',
+    { wide: true, id: 'statsOverview' });
+  if (!(kg > 0)) return h + statsCallout('No weighed tonnage in this period, so no ₹/kg to compare.') + '</div>';
+  h += statsTiles(
+    statsTile('realisation', 'Realisation', statsMoney(real) + perKg, statsTileSub(statsMoney(tonnage.revKnown) + ' on ' + formatNum(kg / 1000, 1) + ' t')) +
+    statsTile('cost', 'Live cost', statsMoney(c.perKg) + perKg, statsTileSub('typed ' + statsMoney(S.defaultCostPerKg || 0))) +
+    statsTile('contrib', 'Contribution', statsSigned(contrib) + perKg, statsTileSub(statsSigned(gstRound(contrib * kg)) + ' on the period'),
+      contrib >= 0 ? 'ok' : 'danger', 'statsContrib') +
+    statsTile('capacity', 'Capacity', capPct != null ? Math.round(capPct * 100) + '%' : '&mdash;',
+      statsTileSub(formatNum(kg / 1000, 1) + ' t of ~' + formatNum(cap / 1000, 0) + ' t (2 shifts)')), true);
   if (finHasBank()) {
     var bRows = bankRows(), bLast = bRows[bRows.length - 1], bRecv = finCtx().recv(), bBook = bankBookDaysToPay(bankPayHistory(bRecv));
-    h += '<div class="inv-stats-row" id="statsCash"><span class="inv-stats-name">Cash<span class="inv-cost-note">bank on ' + escHtml(formatDate(bLast.date)) + ' · owed to us' +
-      (bBook ? ' · clients pay in ' + Math.round(bBook.median) + ' days' : '') + '</span></span><span class="inv-stats-val">' + statsMoney(bLast.balance) + ' · ' +
-      statsMoney(gstRound(bRecv.reduce(function(s, r) { return s + Math.max(0, r.owed); }, 0))) +
-      ' <button class="inv-btn inv-btn-link inv-btn-sm" data-action="invFinGo" data-tab="overview">Finance</button></span></div>';
+    h += '<div class="inv-row inv-row-2 inv-row-flow" id="statsCash"><span class="inv-row-main"><span class="inv-row-title">Cash</span>' +
+      '<span class="inv-row-meta inv-row-wrap">bank on ' + escHtml(formatDate(bLast.date)) + ' · owed to us' +
+      (bBook ? ' · clients pay in ' + Math.round(bBook.median) + ' days' : '') + '</span></span><span class="inv-row-end"><span class="inv-num">' + statsMoney(bLast.balance) + ' · ' +
+      statsMoney(gstRound(bRecv.reduce(function(s, r) { return s + Math.max(0, r.owed); }, 0))) + '</span>' +
+      '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invFinGo" data-tab="overview">Finance</button></span></div>';
   }
   var parts = c.rows.filter(function(x) { return x.source !== 'measured' && x.source !== 'bank'; }).map(function(x) { return x.label.toLowerCase() + ' (' + COST_SRC_LABEL[x.source] + ')'; });
   if (parts.length) {
-    h += '<div class="inv-stats-caveat"><strong>Read with care:</strong> ' + escHtml(parts.join(', ')) + ' ' + (parts.length === 1 ? 'is' : 'are') +
-      ' not fully measured, so the contribution is only as good as ' + (parts.length === 1 ? 'that figure' : 'those figures') + '. Cost tab &rarr; Live cost shows each one.</div>';
+    h += statsCallout('<strong>Read with care:</strong> ' + escHtml(parts.join(', ')) + ' ' + (parts.length === 1 ? 'is' : 'are') +
+      ' not fully measured, so the contribution is only as good as ' + (parts.length === 1 ? 'that figure' : 'those figures') + '. Cost tab &rarr; Live cost shows each one.', '', 'model');
   }
   return h + '</div>';
+}
+
+/* A signed figure in a table: the sign carries the tone (§5.4, DR-1). */
+function statsSignedCell(v, text) {
+  return '<td class="inv-num' + (v == null ? '' : v >= 0 ? ' inv-num-pos' : ' inv-num-neg') + '">' + text + '</td>';
 }
 
 /* ---------- Overview: six months side by side ---------- */
@@ -113,16 +120,17 @@ function statsMonthsHtml() {
       contrib: real != null && c.perKg != null ? real - c.perKg : null, labour: lab && w.kg > 0 ? lab.amount / w.kg : null, labCov: lab ? Math.max(lab.coverage || 0, lab.bankShare || 0) : 0, measured: c.measuredShare });
   }
   if (!rows.some(function(r) { return r.kg > 0; })) return '';
-  var h = '<div class="inv-stats-card inv-stats-card-full" id="statsMonths"><div class="inv-stats-title">Six months<span class="inv-stats-title-sub">each at its own live cost</span></div>' +
-    '<table class="inv-ov-table"><thead><tr><th>Month</th><th>t</th><th>₹/kg</th><th>Cost</th><th>Contrib.</th><th>Labour</th><th>Measured</th></tr></thead><tbody>';
+  var h = statsPanel('months', 'Six months', 'each at its own live cost', { wide: true, id: 'statsMonths' }) +
+    '<div class="inv-scroll-x"><table class="inv-table"><thead><tr><th>Month</th><th class="inv-num">t</th><th class="inv-num">₹/kg</th><th class="inv-num">Cost</th>' +
+    '<th class="inv-num">Contrib.</th><th class="inv-num">Labour</th><th class="inv-num">Measured</th></tr></thead><tbody>';
   rows.forEach(function(r) {
-    h += '<tr><td>' + escHtml(r.label) + '</td><td>' + formatNum(r.kg / 1000, 1) + '</td><td>' + (r.real != null ? formatNum(r.real, 2) : '&mdash;') + '</td><td>' +
-      (r.cost != null ? formatNum(r.cost, 2) : '&mdash;') + '</td><td class="' + (r.contrib == null ? '' : r.contrib >= 0 ? 'inv-ov-pos' : 'inv-ov-neg') + '">' +
-      (r.contrib != null ? (r.contrib >= 0 ? '+' : '&minus;') + formatNum(Math.abs(r.contrib), 2) : '&mdash;') + '</td><td>' +
-      (r.labour != null && r.labCov >= 0.9 ? formatNum(r.labour, 2) : '&mdash;') + '</td><td>' + Math.round(r.measured * 100) + '%</td></tr>';
+    h += '<tr><td class="inv-nowrap">' + escHtml(r.label) + '</td><td class="inv-num">' + formatNum(r.kg / 1000, 1) + '</td><td class="inv-num">' + (r.real != null ? formatNum(r.real, 2) : '&mdash;') + '</td>' +
+      '<td class="inv-num">' + (r.cost != null ? formatNum(r.cost, 2) : '&mdash;') + '</td>' +
+      statsSignedCell(r.contrib, r.contrib != null ? (r.contrib >= 0 ? '+' : '&minus;') + formatNum(Math.abs(r.contrib), 2) : '&mdash;') +
+      '<td class="inv-num">' + (r.labour != null && r.labCov >= 0.9 ? formatNum(r.labour, 2) : '&mdash;') + '</td><td class="inv-num">' + Math.round(r.measured * 100) + '%</td></tr>';
   });
-  h += '</tbody></table><div class="inv-stats-note">₹ per kg. Labour shows only where the days are recorded, or the bank statement covers what paid them (90% or more); a month with less is withheld rather than read low. ' +
-    'Measured is the share of that month&rsquo;s cost from the app&rsquo;s own records.</div></div>';
+  h += '</tbody></table></div>' + statsBody(statsNote('₹ per kg. Labour shows only where the days are recorded, or the bank statement covers what paid them (90% or more); a month with less is withheld rather than read low. ' +
+    'Measured is the share of that month&rsquo;s cost from the app&rsquo;s own records.')) + '</div>';
   return h;
 }
 
@@ -151,46 +159,47 @@ function statsClientMargins(period, filtered, tonnage, range) {
 
 function statsMarginHtml(period, filtered, tonnage) {
   var m = statsClientMargins(period, filtered, tonnage);
-  var h = '<div class="inv-stats-card inv-stats-card-full" id="statsMargin"><div class="inv-stats-title">' + escHtml(PERIOD_LABELS[period] || '') +
-    ' Contribution by client<span class="inv-stats-title-sub">worst first, at the live cost</span></div>';
-  if (!m) return h + '<div class="inv-stats-caveat">No weighed tonnage in this period, so no margin to work out.</div></div>';
-  h += '<div class="inv-stats-note">Variable cost ' + statsMoney(m.varKg) + '/kg · fixed (monthly crew) ' + statsMoney(m.fixedKg) + '/kg · full ' + statsMoney(m.fullKg) + '/kg, ' +
-    Math.round(m.c.measuredShare * 100) + '% measured.</div>';
+  var h = statsPanel('margin', escHtml(PERIOD_LABELS[period] || '') + ' contribution by client', 'worst first, at the live cost', { wide: true, id: 'statsMargin' });
+  if (!m) return h + statsCallout('No weighed tonnage in this period, so no margin to work out.') + '</div>';
+  h += statsBody(statsNote('Variable cost ' + statsMoney(m.varKg) + '/kg · fixed (monthly crew) ' + statsMoney(m.fixedKg) + '/kg · full ' + statsMoney(m.fullKg) + '/kg, ' +
+    Math.round(m.c.measuredShare * 100) + '% measured.'));
   // Owed and days to pay beside the margin: a client below cost that also pays in 120 days is two problems.
   var money = {};
   if (finHasBank()) {
     var mh = bankPayHistory(finCtx().recv());
     finCtx().recv().forEach(function(r) { var d = bankDaysToPay(r.client.id, mh); money[String(r.client.id)] = { owed: r.owed, days: d && d.median != null ? Math.round(d.median) : null }; });
   }
-  h += '<table class="inv-ov-table"><thead><tr><th>Client</th><th>₹/kg</th><th>t</th><th>vs var.</th><th>vs full</th><th>₹ on period</th></tr></thead><tbody>';
+  h += '<div class="inv-scroll-x"><table class="inv-table"><thead><tr><th>Client</th><th class="inv-num">₹/kg</th><th class="inv-num">t</th><th class="inv-num">vs var.</th>' +
+    '<th class="inv-num">vs full</th><th class="inv-num">₹ on period</th></tr></thead><tbody>';
   m.ranked.forEach(function(x) {
-    var cls = function(v) { return v >= 0 ? 'inv-ov-pos' : 'inv-ov-neg'; };
-    h += '<tr data-action="invStatsClientDrill" data-client-id="' + escHtml(x.id) + '"><td>' + escHtml(x.name) + (x.cn ? '<span class="inv-cost-note">net of ' + statsMoney(x.cn) + ' credit notes</span>' : '') +
-      (money[String(x.id)] ? '<span class="inv-cost-note" data-client-owed>owes ' + statsMoney(Math.max(0, money[String(x.id)].owed)) + (money[String(x.id)].days != null ? ' · pays in ' + money[String(x.id)].days + ' d' : '') + '</span>' : '') + '</td>' +
-      '<td>' + formatNum(x.net, 2) + '</td><td>' + formatNum(x.kg / 1000, 1) + '</td>' +
-      '<td class="' + cls(x.vsVar) + '">' + (x.vsVar >= 0 ? '+' : '&minus;') + formatNum(Math.abs(x.vsVar), 2) + '</td>' +
-      '<td class="' + cls(x.vsFull) + '">' + (x.vsFull >= 0 ? '+' : '&minus;') + formatNum(Math.abs(x.vsFull), 2) + '</td>' +
-      '<td class="' + cls(x.money) + '">' + statsSigned(x.money) + '</td></tr>';
+    var sign = function(v) { return (v >= 0 ? '+' : '&minus;') + formatNum(Math.abs(v), 2); };
+    h += '<tr data-action="invStatsClientDrill" data-client-id="' + escHtml(x.id) + '"><td><div class="inv-row-title">' + escHtml(x.name) + '</div>' +
+      (x.cn ? '<div class="inv-row-meta">net of ' + statsMoney(x.cn) + ' credit notes</div>' : '') +
+      (money[String(x.id)] ? '<div class="inv-row-meta" data-client-owed>owes ' + statsMoney(Math.max(0, money[String(x.id)].owed)) + (money[String(x.id)].days != null ? ' · pays in ' + money[String(x.id)].days + ' d' : '') + '</div>' : '') + '</td>' +
+      '<td class="inv-num">' + formatNum(x.net, 2) + '</td><td class="inv-num">' + formatNum(x.kg / 1000, 1) + '</td>' +
+      statsSignedCell(x.vsVar, sign(x.vsVar)) + statsSignedCell(x.vsFull, sign(x.vsFull)) + statsSignedCell(x.money, statsSigned(x.money)) + '</tr>';
   });
-  h += '</tbody></table>';
-  if (m.apart.length) h += '<div class="inv-stats-note">Listed apart, not ranked (under 90% of their revenue weighed): ' +
-    m.apart.map(function(x) { return escHtml(x.name) + ' (' + Math.round(x.coverage * 100) + '%)'; }).join(', ') + '.</div>';
-  h += '<div class="inv-stats-note">Cost is spread per kg: a thin clamp and a heavy bracket cost the same per kg here, which is the one assumption this table cannot check. ' +
-    '&ldquo;vs var.&rdquo; is what a kilo leaves after its variable cost; &ldquo;vs full&rdquo; also carries the monthly crew.</div>';
+  h += '</tbody></table></div>';
+  var notes = '';
+  if (m.apart.length) notes += statsNote('Listed apart, not ranked (under 90% of their revenue weighed): ' +
+    m.apart.map(function(x) { return escHtml(x.name) + ' (' + Math.round(x.coverage * 100) + '%)'; }).join(', ') + '.');
+  notes += statsNote('Cost is spread per kg: a thin clamp and a heavy bracket cost the same per kg here, which is the one assumption this table cannot check. ' +
+    '&ldquo;vs var.&rdquo; is what a kilo leaves after its variable cost; &ldquo;vs full&rdquo; also carries the monthly crew.');
+  h += statsBody(notes);
 
   // The worst-placed large account, settled both ways.
   var worst = m.ranked.filter(function(x) { return x.kg >= m.kg * 0.1; })[0];
   if (worst && worst.vsFull < 0) {
-    h += '<div class="inv-ov-case" id="statsWorst"><div class="inv-stats-name"><strong>' + escHtml(worst.name) + '</strong>, settled on the live cost</div>' +
-      '<div class="inv-ov-grid inv-ov-grid-2">' +
-      '<div class="inv-ov-tile ' + (worst.vsVar >= 0 ? 'inv-pay-green' : 'inv-area-gap-over') + '"><div class="inv-ov-l">If labour is fixed</div><div class="inv-ov-v">' + statsSigned(worst.vsVar) + '<small>/kg</small></div><div class="inv-ov-s">' +
-        (worst.vsVar >= 0 ? 'contributes ' + statsMoney(gstRound(worst.vsVar * worst.kg)) : 'below its variable cost') + '</div></div>' +
-      '<div class="inv-ov-tile inv-area-gap-over"><div class="inv-ov-l">If labour scales</div><div class="inv-ov-v">' + statsSigned(worst.vsFull) + '<small>/kg</small></div><div class="inv-ov-s">' + statsSigned(worst.money) + ' on the period</div></div></div>' +
-      '<div class="inv-stats-row"><span class="inv-stats-name">Price that breaks even<span class="inv-cost-note">on variable · on full cost</span></span><span class="inv-stats-val">' + statsMoney(m.varKg) + ' · ' + statsMoney(m.fullKg) + '</span></div>' +
-      '<div class="inv-stats-row"><span class="inv-stats-name">Share of the plant<span class="inv-cost-note">tonnage · revenue</span></span><span class="inv-stats-val">' +
-        Math.round(worst.kg / m.kg * 100) + '% · ' + (m.rev > 0 ? Math.round(worst.total / m.rev * 100) : 0) + '%</span></div>' +
-      '<div class="inv-stats-caveat">' + (worst.vsVar < 0 ? 'It does not cover its variable cost either way' : 'It contributes only if labour is fixed') +
-      ', <strong>if</strong> its parts cost the same per kg as the rest of the book. That is the question to take to the floor before repricing.</div></div>';
+    var perKg = '<span class="inv-tile-of">/kg</span>';
+    h += '<div id="statsWorst"><div class="inv-row-group"><span><strong>' + escHtml(worst.name) + '</strong>, settled on the live cost</span></div>' +
+      statsTiles(
+        statsTile('fixed', 'If labour is fixed', statsSigned(worst.vsVar) + perKg,
+          statsTileSub(worst.vsVar >= 0 ? 'contributes ' + statsMoney(gstRound(worst.vsVar * worst.kg)) : 'below its variable cost'), worst.vsVar >= 0 ? 'ok' : 'danger') +
+        statsTile('scales', 'If labour scales', statsSigned(worst.vsFull) + perKg, statsTileSub(statsSigned(worst.money) + ' on the period'), 'danger')) +
+      statsRow('Price that breaks even', 'on variable · on full cost', statsNum(statsMoney(m.varKg) + ' · ' + statsMoney(m.fullKg))) +
+      statsRow('Share of the plant', 'tonnage · revenue', statsNum(Math.round(worst.kg / m.kg * 100) + '% · ' + (m.rev > 0 ? Math.round(worst.total / m.rev * 100) : 0) + '%')) +
+      statsCallout((worst.vsVar < 0 ? 'It does not cover its variable cost either way' : 'It contributes only if labour is fixed') +
+        ', <strong>if</strong> its parts cost the same per kg as the rest of the book. That is the question to take to the floor before repricing.') + '</div>';
   }
   return h + '</div>';
 }

@@ -163,7 +163,7 @@ export async function readStoredState(page: Page): Promise<any> {
 export async function openStatsTab(page: Page, tab: string): Promise<void> {
   await switchTab(page, 'pageStats');
   await page.locator(`[data-action="invStatsTab"][data-tab="${tab}"]`).click();
-  await page.locator(`.inv-stats-tab-on[data-tab="${tab}"]`).waitFor();
+  await page.locator(`#statsToolbar .inv-viewtab[aria-selected="true"][data-tab="${tab}"]`).waitFor();
 }
 
 export async function switchTab(page: Page, tabId: string): Promise<void> {
@@ -183,8 +183,8 @@ export async function switchTab(page: Page, tabId: string): Promise<void> {
  *  A section's Save keeps Settings open, so an open Settings is reused. */
 export async function openSettingsAt(page: Page, sec: string): Promise<void> {
   if (!(await page.locator('#settingsScrim').count())) await page.locator('[data-action="invOpenSettings"]').first().click();
-  const details = page.locator(`details.inv-set-sec[data-sec="${sec}"]`);
-  const group = await details.evaluate(d => (d.closest('.inv-set-group') as HTMLElement).dataset.group);
+  const details = page.locator(`details[data-sec="${sec}"]`);
+  const group = await details.evaluate(d => (d.closest('section[data-group]') as HTMLElement).dataset.group);
   const nav = page.locator(`[data-action="invSettingsGroup"][data-group="${group}"]`);
   if (await nav.isVisible()) await nav.click();
   if (!(await details.evaluate(d => (d as HTMLDetailsElement).open))) await details.locator(':scope > summary').click();

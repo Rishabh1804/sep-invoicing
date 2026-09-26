@@ -564,19 +564,61 @@ var STOCK_KIND_LABEL = { count: 'Count', received: 'Received', used: 'Used', cha
 function stockBy() { try { return localStorage.getItem(STOCK_BY_KEY) || ''; } catch (e) { return ''; } }
 function setStockBy(v) { try { localStorage.setItem(STOCK_BY_KEY, v); } catch (e) { /* per-device convenience only */ } }
 
+// The stock tones in the five status words of the design system (§3.3): a line
+// charged into a bath is information, not a warning, and one with no rate yet is neutral.
+var STOCK_TONE = { red: 'danger', amber: 'warning', ok: 'ok', bath: 'info', none: 'neutral' };
+var _stockFilter = null;   // a Lines tile pressed: 'out' | 'low' | 'ok' | 'none' (none takes the bath lines too)
+var STOCK_BACK_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="15 18 9 12 15 6"/></svg>';
+
 function stockQtyUnit(v, unit) {
-  return '<span class="inv-stk-num">' + escHtml(stockFmtQty(v)) + '</span>' + (unit ? '<span class="inv-stk-unit">' + escHtml(unit) + '</span>' : '');
+  return '<span class="inv-num">' + escHtml(stockFmtQty(v)) + (unit ? '<span class="inv-unit">' + escHtml(unit) + '</span>' : '') + '</span>';
 }
+/* A sub-view (a form, the check, one line on the phone) leads with the way back and its own title. */
 function stockBackBar(label, title) {
-  return '<div class="inv-stk-bar"><button class="inv-stk-back" data-action="invStockBack">' +
-    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>' +
-    escHtml(label) + '</button><div class="inv-stk-h2">' + escHtml(title) + '</div></div>';
+  return '<div class="inv-pagehead"><button class="inv-btn inv-btn-ghost inv-btn-sm inv-pagehead-back" data-action="invStockBack">' +
+    STOCK_BACK_ICON + escHtml(label) + '</button><h2 class="inv-pagehead-title">' + escHtml(title) + '</h2></div>';
 }
 function stockDaysText(d, tentative) {
   // Below ten days the half day matters: 7.5 must not read as the amber line's 7.
   var n = d < 10 ? Math.floor(d * 10) / 10 : Math.floor(d);
   var t = d < 1 ? 'under 1 day' : n + (n === 1 ? ' day' : ' days');
   return t + (tentative ? '?' : '');
+}
+/* The word beside a line's dot: the same on the list, the table and the line's own page. */
+function stockStatusWord(s, long) {
+  if (s.group === 'bath') return s.level > 0 ? 'On shelf' : 'Shelf empty';
+  if (s.group === 'out') return 'Out';
+  if (s.daysLeft != null) return stockDaysText(s.daysLeft, s.rate.tentative) + (long ? ' left' : '');
+  return 'No rate';
+}
+function stockStatusDot(s, long) {
+  return '<span class="inv-dot inv-dot-' + STOCK_TONE[s.tone] + '">' + escHtml(stockStatusWord(s, long)) + '</span>';
+}
+/* What a row says under the name: the rate and what it rests on, or the last charge or count. */
+function stockRowSub(item, s) {
+  var unit = item.unit || '';
+  if (s.group === 'bath') {
+    var lc = stockItemEntries(item.id).filter(function(e) { return e.kind === 'charged'; }).pop();
+    return lc ? 'charged ' + stockFmtQty(lc.qty) + ' ' + unit + ' on ' + stockShortDate(lc.date) + (lc.note ? ' · ' + lc.note : '') : 'no charge recorded';
+  }
+  if (s.rate && s.rate.rate) return stockFmtRate(s.rate.rate) + ' ' + unit + '/day · over ' + s.rate.days + (s.rate.days === 1 ? ' day' : ' days');
+  var lcnt = stockItemEntries(item.id).filter(function(e) { return e.kind === 'count'; }).pop();
+  return lcnt ? 'counted ' + stockShortDate(lcnt.date) : 'not counted yet';
+}
+function stockUnsettled(item) {
+  var last = stockItemEntries(item.id).filter(function(e) { return e.kind === 'count'; }).pop();
+  return !!(last && last.unsettled);
+}
+
+/* The view tabs, and the toolbar under them: Paste message is the page's one primary. */
+function stockToolbarHtml() {
+  var lines = _stockView !== 'overview';
+  return '<div class="inv-toolbar"><button class="inv-btn inv-btn-primary" data-action="invStockPaste">Paste message</button>' +
+    '<button class="inv-btn inv-btn-secondary" data-action="invStockManual">Enter by hand</button>' +
+    (lines ? '<button class="inv-btn inv-btn-ghost" data-action="invStockReorder">Reorder list</button>' +
+      '<button class="inv-btn inv-btn-ghost" data-action="invStockExport">Export</button>' +
+      '<button class="inv-btn inv-btn-ghost" data-action="invStockImport">Import</button>' +
+      '<input type="file" accept=".json,application/json" id="stockFileInput" class="inv-hidden">' : '') + '</div>';
 }
 
 function renderStock() {
@@ -586,10 +628,11 @@ function renderStock() {
   if (_stockView === 'paste') el.innerHTML = renderStockPaste();
   else if (_stockView === 'review' && _stockReview) el.innerHTML = renderStockReview();
   else if (_stockView === 'manual' && _stockManual) el.innerHTML = renderStockManual();
-  else if (_stockView === 'item' && stockItem(_stockItemId)) el.innerHTML = renderStockItem(stockItem(_stockItemId));
+  // On the desktop a line opens in the pane beside the table; on the phone it is a page of its own.
+  else if (_stockView === 'item' && stockItem(_stockItemId)) el.innerHTML = _isDesktop ? stockViewTabsHtml() + renderStockList(stockItem(_stockItemId)) : renderStockItem(stockItem(_stockItemId));
   else if (_stockView === 'reorder' && _stockReorder) el.innerHTML = renderStockReorder();
-  else if (_stockView === 'overview') { _stockHome = 'overview'; el.innerHTML = stockViewTabsHtml() + stockOverviewHtml(); }
-  else { _stockView = _stockHome = 'list'; el.innerHTML = stockViewTabsHtml() + renderStockList(); }
+  else if (_stockView === 'overview') { _stockHome = 'overview'; el.innerHTML = stockViewTabsHtml() + stockToolbarHtml() + stockOverviewHtml(); }
+  else { _stockView = _stockHome = 'list'; el.innerHTML = stockViewTabsHtml() + renderStockList(null); }
   updateStockBadge();
 }
 
@@ -600,25 +643,18 @@ function stockSetView(v) {
   window.scrollTo(0, 0);
 }
 
-function renderStockList() {
+function renderStockList(open) {
   var st = stockData();
   var items = st.items.filter(function(i) { return i.active !== false; });
   var lastCount = null;
   st.entries.forEach(function(e) { if (!e.voided && e.kind === 'count' && (!lastCount || e.date > lastCount.date || (e.date === lastCount.date && e.at > lastCount.at))) lastCount = e; });
-  var h = '<div class="inv-stk-top"><div>' +
-    (lastCount ? '<div class="inv-stk-meta">Last count <strong>' + escHtml(stockShortDate(lastCount.date)) + '</strong>' +
-      (lastCount.sentBy ? ' &middot; ' + escHtml(lastCount.sentBy) : '') + '</div>' : '') +
-    '</div><div class="inv-stk-tools">' +
-    '<button class="inv-stk-tool" data-action="invStockReorder">Reorder list</button>' +
-    '<button class="inv-stk-tool" data-action="invStockExport">Export</button>' +
-    '<button class="inv-stk-tool" data-action="invStockImport">Import</button>' +
-    '<input type="file" accept=".json,application/json" id="stockFileInput" class="inv-hidden"></div></div>' +
-    '<div class="inv-stk-cta"><button class="inv-stk-btn inv-stk-btn-pri" data-action="invStockPaste">Paste message</button>' +
-    '<button class="inv-stk-btn" data-action="invStockManual">Enter by hand</button></div>';
+  var h = '<div class="inv-pagehead"><span class="inv-pagehead-meta">' + items.length + (items.length === 1 ? ' line' : ' lines') +
+    (lastCount ? ' · last count ' + escHtml(stockShortDate(lastCount.date)) + (lastCount.sentBy ? ', ' + escHtml(lastCount.sentBy) : '') : '') + '</span></div>' +
+    stockToolbarHtml();
 
   if (!items.length) {
-    return h + '<div class="inv-stk-empty"><strong>No stock recorded yet.</strong> Paste the supervisor\'s stock message: ' +
-      'its lines become the list, and every figure keeps the text it came from. Or import a stock file.</div>';
+    return h + '<div class="inv-panel"><div class="inv-empty">No stock recorded yet. Paste the supervisor\'s stock message: ' +
+      'its lines become the list, and every figure keeps the text it came from. Or import a stock file.</div></div>';
   }
   var groups = { out: [], low: [], ok: [], bath: [], none: [] };
   items.forEach(function(i) { var s = stockStatus(i); groups[s.group].push({ item: i, st: s }); });
@@ -626,54 +662,69 @@ function renderStockList() {
   groups.ok.sort(function(a, b) { return a.st.daysLeft - b.st.daysLeft; });
   ['out', 'bath', 'none'].forEach(function(g) { groups[g].sort(function(a, b) { return a.item.name < b.item.name ? -1 : 1; }); });
 
-  h += '<div class="inv-stk-sum">' +
-    '<div class="inv-stk-tile inv-stk-tile-red"><span class="inv-stk-tile-n">' + groups.out.length + '</span>Out</div>' +
-    '<div class="inv-stk-tile inv-stk-tile-amber"><span class="inv-stk-tile-n">' + groups.low.length + '</span>' + stockCfg().amberDays + ' days or less</div>' +
-    '<div class="inv-stk-tile"><span class="inv-stk-tile-n">' + groups.ok.length + '</span>OK</div>' +
-    '<div class="inv-stk-tile"><span class="inv-stk-tile-n">' + (groups.none.length + groups.bath.length) + '</span>No rate</div></div>';
+  // Each tile filters the list to its lines; pressed again, it lets them all back.
+  var amber = stockCfg().amberDays;
+  var tile = function(g, n, label, tone) {
+    return '<button class="inv-tile' + (n && tone ? ' inv-tile-' + tone : '') + '" data-action="invStockFilter" data-v="' + g + '" aria-pressed="' + (_stockFilter === g) + '">' +
+      '<div class="inv-tile-label">' + label + '</div><div class="inv-tile-value">' + n + '</div></button>';
+  };
+  h += '<div class="inv-tiles inv-tiles-4" id="stockTiles">' + tile('out', groups.out.length, 'Out', 'danger') + tile('low', groups.low.length, amber + ' days or less', 'warning') +
+    tile('ok', groups.ok.length, 'OK', '') + tile('none', groups.none.length + groups.bath.length, 'No rate', '') + '</div>';
 
-  var titles = { out: 'Out', low: stockCfg().amberDays + ' days or less', ok: 'OK', bath: 'Charged to the bath', none: 'No daily rate yet' };
-  ['out', 'low', 'ok', 'bath', 'none'].forEach(function(g) {
-    if (!groups[g].length) return;
-    h += '<div class="inv-stk-sec">' + escHtml(titles[g]) + '<span>' + groups[g].length + '</span></div>';
-    groups[g].forEach(function(x) { h += renderStockRow(x.item, x.st); });
+  var titles = { out: 'Out', low: amber + ' days or less', ok: 'OK', bath: 'Charged to the bath', none: 'No daily rate yet' };
+  var shown = ['out', 'low', 'ok', 'bath', 'none'].filter(function(g) {
+    return groups[g].length && (!_stockFilter || _stockFilter === g || (_stockFilter === 'none' && g === 'bath'));
   });
-  return h;
+  if (!shown.length) return h + '<div class="inv-panel"><div class="inv-empty">No line in this group. Press the tile again to see every line.</div></div>';
+  if (_isDesktop) return h + stockLinesTableHtml(groups, shown, titles, open);
+  h += '<div class="inv-panel inv-panel-flush" id="stockLines">';
+  shown.forEach(function(g) {
+    h += '<div class="inv-row-group"><span>' + escHtml(titles[g]) + '</span><span class="inv-num">' + groups[g].length + '</span></div>';
+    groups[g].forEach(function(x) { h += stockRowHtml(x.item, x.st); });
+  });
+  return h + '</div>';
 }
 
-function renderStockRow(item, s) {
-  var unit = item.unit || '';
-  var sub = '', chip = '', tone = s.tone;
-  if (s.group === 'bath') {
-    var lc = stockItemEntries(item.id).filter(function(e) { return e.kind === 'charged'; }).pop();
-    sub = lc ? 'charged ' + stockFmtQty(lc.qty) + ' ' + unit + ' on ' + stockShortDate(lc.date) + (lc.note ? ' · ' + lc.note : '') : 'no charge recorded';
-    chip = s.level > 0 ? 'On shelf' : 'Shelf empty';
-  } else if (s.rate && s.rate.rate) {
-    sub = stockFmtRate(s.rate.rate) + ' ' + unit + '/day · over ' + s.rate.days + (s.rate.days === 1 ? ' day' : ' days');
-    chip = s.group === 'out' ? 'Out' : stockDaysText(s.daysLeft, s.rate.tentative);
-  } else {
-    var lcnt = stockItemEntries(item.id).filter(function(e) { return e.kind === 'count'; }).pop();
-    sub = lcnt ? 'counted ' + stockShortDate(lcnt.date) : 'not counted yet';
-    chip = s.group === 'out' ? 'Out' : 'No rate';
+function stockRowHtml(item, s) {
+  return '<button class="inv-row inv-row-2" data-action="invStockOpen" data-id="' + escHtml(item.id) + '" data-tone="' + s.tone + '">' +
+    '<span class="inv-row-main"><span class="inv-row-title">' + escHtml(item.name) + '</span>' +
+    '<span class="inv-row-meta">' + escHtml(stockRowSub(item, s)) + (stockUnsettled(item) ? ' <span class="inv-badge inv-badge-warning">Count unsettled</span>' : '') + '</span></span>' +
+    '<span class="inv-row-end inv-row-stack">' + stockQtyUnit(s.level, item.unit || '') + stockStatusDot(s) + '</span></button>';
+}
+
+/* The desktop: one table grouped by status, and the open line in the pane beside it. */
+function stockLinesTableHtml(groups, shown, titles, open) {
+  var h = '<div class="inv-pane-host' + (open ? ' inv-pane-open' : '') + '" id="stockMasterDetail"><div class="inv-pane-list" id="stockLines">' +
+    '<table class="inv-table"><thead><tr><th class="inv-col-grow">Line</th><th class="inv-num">On hand</th><th class="inv-col-opt1">Record</th>' +
+    '<th>Status</th></tr></thead><tbody>';
+  shown.forEach(function(g) {
+    h += '<tr class="inv-table-group"><td colspan="4">' + escHtml(titles[g]) + ' <span class="inv-panel-count">' + groups[g].length + '</span></td></tr>';
+    groups[g].forEach(function(x) {
+      var it = x.item, id = escHtml(it.id);
+      h += '<tr data-action="invStockOpen" data-id="' + id + '" data-tone="' + x.st.tone + '"' + (open && open.id === it.id ? ' aria-current="true"' : '') + '>' +
+        '<td class="inv-col-grow"><button class="inv-btn-link" data-action="invStockOpen" data-id="' + id + '">' + escHtml(it.name) + '</button></td>' +
+        '<td class="inv-num">' + stockQtyUnit(x.st.level, it.unit || '') + '</td>' +
+        '<td class="inv-col-opt1 inv-col-grow-sm" title="' + escHtml(stockRowSub(it, x.st)) + '">' + escHtml(stockRowSub(it, x.st)) + '</td>' +
+        '<td>' + stockStatusDot(x.st) + (stockUnsettled(it) ? ' <span class="inv-badge inv-badge-warning">Count unsettled</span>' : '') + '</td></tr>';
+    });
+  });
+  h += '</tbody></table></div><div class="inv-pane" id="stockDetail">';
+  if (open) {
+    h += paneHeadHtml('<span class="inv-panel-title">' + escHtml(open.name) + '</span>', 'invStockPaneClose') + stockItemBodyHtml(open);
   }
-  var last = stockItemEntries(item.id).filter(function(e) { return e.kind === 'count'; }).pop();
-  var flag = last && last.unsettled ? '<span class="inv-stk-flag">count unsettled</span>' : '';
-  return '<button class="inv-stk-row inv-stk-tone-' + tone + '" data-action="invStockOpen" data-id="' + escHtml(item.id) + '">' +
-    '<span class="inv-stk-row-main"><span class="inv-stk-row-name">' + escHtml(item.name) + '</span>' +
-    '<span class="inv-stk-row-sub">' + escHtml(sub) + flag + '</span></span>' +
-    '<span class="inv-stk-row-lv">' + stockQtyUnit(s.level, unit) + '</span>' +
-    '<span class="inv-stk-chip inv-stk-chip-' + tone + '">' + escHtml(chip) + '</span></button>';
+  return h + '</div></div>';
 }
 
 function renderStockPaste() {
   return stockBackBar('Stock', 'Paste message') +
-    '<label class="inv-stk-label" for="stockPasteText">The supervisor\'s message, as sent</label>' +
-    '<textarea id="stockPasteText" class="inv-stk-paste" spellcheck="false" placeholder="Copy the stock message in WhatsApp and paste it here">' +
-    escHtml(_stockPasteDraft) + '</textarea>' +
-    '<div class="inv-stk-fields"><div class="inv-stk-field"><label class="inv-stk-label" for="stockBy">Entered by</label>' +
-    '<input id="stockBy" class="inv-form-input" value="' + escHtml(stockBy()) + '" placeholder="Your name"></div></div>' +
-    '<button class="inv-stk-btn inv-stk-btn-pri inv-stk-btn-block" data-action="invStockRead">Read message</button>' +
-    '<div class="inv-stk-hint">Copy the WhatsApp time line with it and the sender is read from it. Nothing is saved until you check what was read.</div>';
+    '<div class="inv-panel">' +
+    '<div class="inv-field"><label class="inv-field-label" for="stockPasteText">The supervisor\'s message, as sent</label>' +
+    '<textarea id="stockPasteText" class="inv-textarea inv-textarea-mono" rows="12" spellcheck="false" placeholder="Copy the stock message in WhatsApp and paste it here">' +
+    escHtml(_stockPasteDraft) + '</textarea></div>' +
+    '<div class="inv-field"><label class="inv-field-label" for="stockBy">Entered by</label>' +
+    '<input id="stockBy" class="inv-input" value="' + escHtml(stockBy()) + '" placeholder="Your name" autocomplete="off"></div>' +
+    '<button class="inv-btn inv-btn-primary inv-btn-block" data-action="invStockRead">Read message</button>' +
+    '<div class="inv-note inv-mt-8">Copy the WhatsApp time line with it and the sender is read from it. Nothing is saved until you check what was read.</div></div>';
 }
 
 function stockReadPaste() {
@@ -700,6 +751,8 @@ function stockResultText(r, unit) {
   return parts.join(' · ') + (end ? ' → ' + end : '');
 }
 
+/* The check before saving (§7, Paste message): every line beside the text it came from and what was
+   read, its verdict a badge, its questions callouts, its answers chips. */
 function renderStockReview() {
   var rv = _stockReview, p = rv.parsed;
   var res = resolveStockParse(p, rv.choices);
@@ -707,79 +760,86 @@ function renderStockReview() {
   var st = stockData();
   var h = stockBackBar('Edit text', 'Check before saving');
   if (res.dup) {
-    h += '<div class="inv-stk-banner inv-stk-banner-red">This message was already saved on ' +
+    h += '<div class="inv-callout inv-callout-danger inv-mb-8" id="stockDupNote">This message was already saved on ' +
       escHtml(new Date(res.dup.at).toLocaleDateString('en-IN')) + '. Saving it again would count every figure twice.</div>';
   }
-  h += '<div class="inv-stk-metabox">' +
-    '<div><span>Covers</span><strong>' + escHtml(stockShortDate(p.from)) + (p.to !== p.from ? ' – ' + escHtml(stockShortDate(p.to)) : '') + '</strong></div>' +
-    '<div><span>Count dated</span><strong>' + escHtml(stockShortDate(p.to)) + (p.noDate ? ' (no date in the message: today)' : '') + '</strong></div>' +
-    '<div><label for="stockSentBy">Sent by</label><input id="stockSentBy" class="inv-form-input" value="' + escHtml(rv.sentBy) + '" placeholder="Who counted"></div>' +
-    '<div><label for="stockBy">Entered by</label><input id="stockBy" class="inv-form-input" value="' + escHtml(stockBy()) + '" placeholder="Your name"></div></div>';
-  h += '<div class="inv-stk-sum">' +
-    '<div class="inv-stk-tile inv-stk-tile-red"><span class="inv-stk-tile-n">' + res.counts.red + '</span>Needs you</div>' +
-    '<div class="inv-stk-tile inv-stk-tile-amber"><span class="inv-stk-tile-n">' + res.counts.amber + '</span>Check</div>' +
-    '<div class="inv-stk-tile"><span class="inv-stk-tile-n">' + res.counts.clear + '</span>Clear</div></div>';
+  h += '<div class="inv-panel"><div class="inv-kv inv-mb-8">' +
+    '<div><div class="inv-kv-k">Covers</div><div>' + escHtml(stockShortDate(p.from)) + (p.to !== p.from ? ' – ' + escHtml(stockShortDate(p.to)) : '') + '</div></div>' +
+    '<div><div class="inv-kv-k">Count dated</div><div>' + escHtml(stockShortDate(p.to)) + (p.noDate ? ' (no date in the message: today)' : '') + '</div></div></div>' +
+    '<div class="inv-fields">' +
+    '<div class="inv-field"><label class="inv-field-label" for="stockSentBy">Sent by</label><input id="stockSentBy" class="inv-input" value="' + escHtml(rv.sentBy) + '" placeholder="Who counted" autocomplete="off"></div>' +
+    '<div class="inv-field"><label class="inv-field-label" for="stockBy">Entered by</label><input id="stockBy" class="inv-input" value="' + escHtml(stockBy()) + '" placeholder="Your name" autocomplete="off"></div></div></div>';
+  h += '<div class="inv-tiles inv-tiles-3" id="stockReviewTiles">' +
+    '<div class="inv-tile' + (res.counts.red ? ' inv-tile-danger' : '') + '"><div class="inv-tile-label">Needs you</div><div class="inv-tile-value">' + res.counts.red + '</div></div>' +
+    '<div class="inv-tile' + (res.counts.amber ? ' inv-tile-warning' : '') + '"><div class="inv-tile-label">Check</div><div class="inv-tile-value">' + res.counts.amber + '</div></div>' +
+    '<div class="inv-tile"><div class="inv-tile-label">Clear</div><div class="inv-tile-value">' + res.counts.clear + '</div></div></div>';
   if (p.unread.length) {
-    h += '<div class="inv-stk-banner">Not read: ' + p.unread.map(escHtml).join(' / ') + '</div>';
+    h += '<div class="inv-callout inv-callout-warning inv-mb-8">Not read: ' + p.unread.map(escHtml).join(' / ') + '</div>';
   }
   var order = { red: 0, amber: 1, clear: 2 };
   var sorted = res.lines.slice().sort(function(a, b) { return order[a.tone] - order[b.tone] || a.idx - b.idx; });
   var nEntries = 0, nLines = 0, nSkip = 0;
+  h += '<div class="inv-panel inv-panel-flush" id="stockReview"><div class="inv-panel-head"><span class="inv-panel-title">Lines read <span class="inv-panel-count">' + res.lines.length + '</span></span></div>';
   sorted.forEach(function(r) {
     if (r.skip) nSkip++; else if (r.entries.length) { nLines++; nEntries += r.entries.length; }
-    var item = r.item || r.newItem;
-    var name = item ? item.name : (r.src.name || 'No name');
-    var unit = item ? item.unit : r.src.unit;
-    var chip = r.tone === 'red' ? 'Needs you' : r.tone === 'amber' ? 'Check' : (r.newItem ? 'New line' : 'Clear');
-    h += '<div class="inv-stk-pr inv-stk-pr-' + r.tone + '"><div class="inv-stk-pr-top"><span class="inv-stk-pr-name">' +
-      r.src.n + ' &middot; ' + escHtml(name) + '</span><span class="inv-stk-chip inv-stk-chip-' + (r.tone === 'clear' ? (r.newItem ? 'bath' : 'ok') : r.tone === 'red' ? 'red' : 'amber') + '">' + chip + '</span></div>' +
-      '<div class="inv-stk-raw">' + escHtml(r.src.raw) + '</div>' +
-      '<div class="inv-stk-res">' + escHtml(stockResultText(r, unit)) + '</div>';
-    r.issues.forEach(function(is) {
-      if (is.code === 'new' && r.tone !== 'clear') return;
-      h += '<div class="inv-stk-issue inv-stk-issue-' + is.level + '">' + escHtml(is.text) + '</div>';
-      if (is.code === 'balance') {
-        var cur = rv.choices['bal' + r.idx] || 'unsettled';
-        var opts = [['working', 'Use the working: ' + stockFmtQty(is.expected)], ['written', 'Use the figure written: ' + stockFmtQty(is.written)], ['unsettled', 'Save as unsettled, ask']];
-        h += '<div class="inv-stk-choices">';
-        opts.forEach(function(o) {
-          h += '<button class="inv-stk-choice' + (cur === o[0] ? ' inv-stk-choice-on' : '') + '" data-action="invStockBal" data-i="' + r.idx + '" data-v="' + o[0] + '">' + escHtml(o[1]) + '</button>';
-        });
-        h += '</div>';
-      }
-    });
-    // Nothing to pick from on the first message, so a new line needs no picker there.
-    if ((r.via === 'new' && st.items.length) || !r.src.key || r.via === 'position' || r.via === 'chosen' || (r.skip && !r.item)) {
-      var sel = rv.choices['name' + r.idx] ? '' : (rv.choices['map' + r.idx] || (r.item ? r.item.id : (r.src.key ? 'new' : '')));
-      h += '<div class="inv-stk-map"><label class="inv-stk-label" for="stockMap' + r.idx + '">This line is</label>' +
-        '<select id="stockMap' + r.idx + '" class="inv-form-input" data-stock-map="' + r.idx + '">' +
-        (r.src.key ? '' : '<option value=""' + (sel === '' ? ' selected' : '') + '>Pick a line</option>') +
-        (r.src.key ? '<option value="new"' + (sel === 'new' ? ' selected' : '') + '>A new line: ' + escHtml(stockDisplayName(r.src.key)) + '</option>' : '');
-      st.items.forEach(function(i) {
-        h += '<option value="' + escHtml(i.id) + '"' + (sel === i.id ? ' selected' : '') + '>' + escHtml(i.name) + '</option>';
+    h += stockReviewRowHtml(r, rv, res, st);
+  });
+  h += '</div>';
+  h += '<div class="inv-actionbar"><div class="inv-actionbar-total"><div class="inv-actionbar-label">Across ' + nLines + (nLines === 1 ? ' line' : ' lines') +
+    (nSkip ? ' · <strong>' + nSkip + ' not saved</strong>' : '') + '</div><div class="inv-actionbar-value">' + nEntries + (nEntries === 1 ? ' entry' : ' entries') + '</div></div>' +
+    '<button class="inv-btn inv-btn-primary" data-action="invStockSavePaste"' + (res.dup ? ' disabled' : '') + '>Save</button></div>';
+  return h;
+}
+
+function stockReviewRowHtml(r, rv, res, st) {
+  var item = r.item || r.newItem;
+  var name = item ? item.name : (r.src.name || 'No name');
+  var unit = item ? item.unit : r.src.unit;
+  var badge = r.tone === 'red' ? ['danger', 'Needs you'] : r.tone === 'amber' ? ['warning', 'Check'] : r.newItem ? ['info', 'New line'] : ['ok', 'Clear'];
+  var h = '<div class="inv-row inv-row-auto inv-row-top" data-line="' + r.src.n + '" data-tone="' + r.tone + '"><div class="inv-row-main">' +
+    '<div class="inv-row-title">' + r.src.n + ' &middot; ' + escHtml(name) + '</div>' +
+    '<div class="inv-quote inv-mt-4">' + escHtml(r.src.raw) + '</div>' +
+    (stockResultText(r, unit) ? '<div class="inv-verdict-text inv-mt-4">' + escHtml(stockResultText(r, unit)) + '</div>' : '');
+  r.issues.forEach(function(is) {
+    if (is.code === 'new' && r.tone !== 'clear') return;
+    h += '<div class="inv-callout inv-callout-' + uiTone(is.level) + ' inv-mt-8">' + escHtml(is.text) + '</div>';
+    if (is.code === 'balance') {
+      var cur = rv.choices['bal' + r.idx] || 'unsettled';
+      var opts = [['working', 'Use the working: ' + stockFmtQty(is.expected)], ['written', 'Use the figure written: ' + stockFmtQty(is.written)], ['unsettled', 'Save as unsettled, ask']];
+      h += '<div class="inv-toolbar inv-mt-8" role="group" aria-label="Which figure">';
+      opts.forEach(function(o) {
+        h += '<button class="inv-chip" data-action="invStockBal" data-i="' + r.idx + '" data-v="' + o[0] + '" aria-pressed="' + (cur === o[0]) + '">' + escHtml(o[1]) + '</button>';
       });
-      // Lines this message is adding, so the first message can map to them too.
-      var seen = {};
-      res.lines.forEach(function(o) {
-        var k = o.src.key;
-        if (!k || k === r.src.key || seen[k] || stockFindByKey(k)) return;
-        seen[k] = true;
-        h += '<option value="key:' + escHtml(k) + '"' + (sel === 'key:' + k ? ' selected' : '') + '>' + escHtml(stockDisplayName(k)) + ' (new in this message)</option>';
-      });
-      h += '</select>';
-      if (!r.src.key) {
-        h += '<label class="inv-stk-label inv-stk-label-gap" for="stockName' + r.idx + '">Or type its name</label>' +
-          '<input id="stockName' + r.idx + '" class="inv-form-input" data-stock-name="' + r.idx + '" value="' +
-          escHtml(rv.choices['name' + r.idx] || '') + '" placeholder="e.g. Nitric acid" autocomplete="off">';
-      }
       h += '</div>';
     }
-    h += '</div>';
   });
-  h += '<div class="inv-stk-foot"><span>' + nEntries + ' entries across ' + nLines + ' lines' +
-    (nSkip ? ' &middot; <strong>' + nSkip + ' not saved</strong>' : '') + '</span>' +
-    '<button class="inv-stk-btn inv-stk-btn-pri" data-action="invStockSavePaste"' + (res.dup ? ' disabled' : '') + '>Save</button></div>';
-  return h;
+  // Nothing to pick from on the first message, so a new line needs no picker there.
+  if ((r.via === 'new' && st.items.length) || !r.src.key || r.via === 'position' || r.via === 'chosen' || (r.skip && !r.item)) {
+    var sel = rv.choices['name' + r.idx] ? '' : (rv.choices['map' + r.idx] || (r.item ? r.item.id : (r.src.key ? 'new' : '')));
+    h += '<div class="inv-fields inv-mt-8"><div class="inv-field"><label class="inv-field-label" for="stockMap' + r.idx + '">This line is</label>' +
+      '<select id="stockMap' + r.idx + '" class="inv-select" data-stock-map="' + r.idx + '">' +
+      (r.src.key ? '' : '<option value=""' + (sel === '' ? ' selected' : '') + '>Pick a line</option>') +
+      (r.src.key ? '<option value="new"' + (sel === 'new' ? ' selected' : '') + '>A new line: ' + escHtml(stockDisplayName(r.src.key)) + '</option>' : '');
+    st.items.forEach(function(i) {
+      h += '<option value="' + escHtml(i.id) + '"' + (sel === i.id ? ' selected' : '') + '>' + escHtml(i.name) + '</option>';
+    });
+    // Lines this message is adding, so the first message can map to them too.
+    var seen = {};
+    res.lines.forEach(function(o) {
+      var k = o.src.key;
+      if (!k || k === r.src.key || seen[k] || stockFindByKey(k)) return;
+      seen[k] = true;
+      h += '<option value="key:' + escHtml(k) + '"' + (sel === 'key:' + k ? ' selected' : '') + '>' + escHtml(stockDisplayName(k)) + ' (new in this message)</option>';
+    });
+    h += '</select></div>';
+    if (!r.src.key) {
+      h += '<div class="inv-field"><label class="inv-field-label" for="stockName' + r.idx + '">Or type its name</label>' +
+        '<input id="stockName' + r.idx + '" class="inv-input" data-stock-name="' + r.idx + '" value="' +
+        escHtml(rv.choices['name' + r.idx] || '') + '" placeholder="e.g. Nitric acid" autocomplete="off"></div>';
+    }
+    h += '</div>';
+  }
+  return h + '</div><div class="inv-row-end"><span class="inv-badge inv-badge-' + badge[0] + '">' + badge[1] + '</span></div></div>';
 }
 
 function stockSavePaste() {
@@ -803,43 +863,45 @@ function stockOpenManual() {
 
 function renderStockManual() {
   var m = _stockManual, st = stockData();
+  var field = function(id, label, input) { return '<div class="inv-field"><label class="inv-field-label" for="' + id + '">' + label + '</label>' + input + '</div>'; };
   var h = stockBackBar('Stock', 'Enter by hand');
-  h += '<div class="inv-stk-seg">';
+  h += '<div class="inv-seg inv-mb-8" role="group" aria-label="What is entered">';
   [['count', 'Count'], ['received', 'Received'], ['used', 'Used'], ['charged', 'Charged']].forEach(function(o) {
-    h += '<button class="inv-stk-seg-btn' + (m.mode === o[0] ? ' inv-stk-seg-on' : '') + '" data-action="invStockMode" data-mode="' + o[0] + '">' + o[1] + '</button>';
+    h += '<button type="button" class="inv-seg-btn" data-action="invStockMode" data-mode="' + o[0] + '" aria-pressed="' + (m.mode === o[0]) + '">' + o[1] + '</button>';
   });
-  h += '</div><div class="inv-stk-fields">' +
-    '<div class="inv-stk-field"><label class="inv-stk-label" for="stockManDate">Date</label><input type="date" id="stockManDate" class="inv-form-input" value="' + escHtml(m.date) + '"></div>';
+  h += '</div><div class="inv-panel"><div class="inv-fields">' +
+    field('stockManDate', 'Date', '<input type="date" id="stockManDate" class="inv-input" value="' + escHtml(m.date) + '">');
   if (m.mode === 'received') {
-    h += '<div class="inv-stk-field"><label class="inv-stk-label" for="stockManSupplier">Company</label><input id="stockManSupplier" class="inv-form-input" list="stockSupplierList" value="' + escHtml(m.supplier) + '" placeholder="Who billed it"></div>' +
-      '<div class="inv-stk-field"><label class="inv-stk-label" for="stockManBill">Invoice no.</label><input id="stockManBill" class="inv-form-input" value="' + escHtml(m.billNo) + '"></div>' +
-      '<div class="inv-stk-field"><label class="inv-stk-label" for="stockManBillDate">Invoice date</label><input type="date" id="stockManBillDate" class="inv-form-input" value="' + escHtml(m.billDate || m.date) + '"></div>' +
+    h += field('stockManSupplier', 'Company', '<input id="stockManSupplier" class="inv-input" list="stockSupplierList" value="' + escHtml(m.supplier) + '" placeholder="Who billed it" autocomplete="off">') +
+      field('stockManBill', 'Invoice no.', '<input id="stockManBill" class="inv-input" value="' + escHtml(m.billNo) + '" autocomplete="off">') +
+      field('stockManBillDate', 'Invoice date', '<input type="date" id="stockManBillDate" class="inv-input" value="' + escHtml(m.billDate || m.date) + '">') +
       stockSupplierDatalist();
   }
   if (m.mode === 'charged') {
-    h += '<div class="inv-stk-field"><label class="inv-stk-label" for="stockManBath">Into</label><input id="stockManBath" class="inv-form-input" value="' + escHtml(m.bath) + '" placeholder="VAT A1, Barrel…"></div>';
+    h += field('stockManBath', 'Into', '<input id="stockManBath" class="inv-input" value="' + escHtml(m.bath) + '" placeholder="VAT A1, Barrel…" autocomplete="off">');
   }
-  h += '<div class="inv-stk-field"><label class="inv-stk-label" for="stockBy">Entered by</label><input id="stockBy" class="inv-form-input" value="' + escHtml(stockBy()) + '"></div></div>';
+  h += field('stockBy', 'Entered by', '<input id="stockBy" class="inv-input" value="' + escHtml(stockBy()) + '" autocomplete="off">') + '</div>';
   var hints = { count: 'What is on the shelf now. The app compares it with its own level.', received: 'A delivery, with its bill. The price per unit is what the live cost is worked out at.',
     used: 'Drawn from stock. Sets the daily rate.', charged: 'Put into a bath, e.g. zinc or salts.' };
-  h += '<div class="inv-stk-hint">' + hints[m.mode] + ' Fill only the lines that changed.</div>';
-  h += '<div class="inv-stk-mlist">';
-  if (m.mode === 'received') h += '<div class="inv-stk-mrow inv-stk-mhead"><div class="inv-stk-mname">Line</div><span>Quantity</span><span>&#8377; per unit, before GST</span></div>';
+  h += '<div class="inv-note">' + hints[m.mode] + ' Fill only the lines that changed.</div></div>';
+  h += '<div class="inv-panel inv-panel-flush" id="stockManualList"><div class="inv-panel-head"><span class="inv-panel-title">Lines</span></div>';
+  if (m.mode === 'received') h += '<div class="inv-row-group"><span>Line</span><span>Quantity · &#8377; per unit, before GST</span></div>';
   st.items.filter(function(i) { return i.active !== false; }).forEach(function(i) {
     var v = m.vals[i.id] || {}, lv = stockReplay(i.id).level;
-    h += '<div class="inv-stk-mrow"><div class="inv-stk-mname">' + escHtml(i.name) +
-      '<span>' + (m.mode === 'count' ? 'app has ' : 'now ') + escHtml(stockFmtQty(lv)) + ' ' + escHtml(i.unit || '') + '</span></div>' +
-      '<input type="number" inputmode="decimal" step="any" min="0" class="inv-stk-in" data-stock-qty="' + escHtml(i.id) + '" value="' + escHtml(v.qty != null ? v.qty : '') + '" aria-label="' + escHtml(i.name) + ' quantity">' +
-      '<span class="inv-stk-munit">' + escHtml(i.unit || '') + '</span>' +
-      (m.mode === 'received' ? '<input type="number" inputmode="decimal" step="any" min="0" class="inv-stk-in inv-stk-in-price" data-stock-price="' + escHtml(i.id) + '" value="' + escHtml(v.price != null ? v.price : '') + '" placeholder="₹/' + escHtml(i.unit || 'unit') + '" aria-label="' + escHtml(i.name) + ' price per unit">' : '') +
-      '</div>';
+    h += '<div class="inv-row inv-row-2 inv-row-flow"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(i.name) + '</span>' +
+      '<span class="inv-row-meta">' + (m.mode === 'count' ? 'app has ' : 'now ') + escHtml(stockFmtQty(lv)) + ' ' + escHtml(i.unit || '') + '</span></span>' +
+      '<span class="inv-row-end"><input type="number" inputmode="decimal" step="any" min="0" class="inv-input inv-input-sm inv-input-num" data-stock-qty="' + escHtml(i.id) + '" value="' + escHtml(v.qty != null ? v.qty : '') + '" aria-label="' + escHtml(i.name) + ' quantity">' +
+      '<span class="inv-unit">' + escHtml(i.unit || '') + '</span>' +
+      (m.mode === 'received' ? '<input type="number" inputmode="decimal" step="any" min="0" class="inv-input inv-input-sm inv-input-num" data-stock-price="' + escHtml(i.id) + '" value="' + escHtml(v.price != null ? v.price : '') + '" placeholder="₹/' + escHtml(i.unit || 'unit') + '" aria-label="' + escHtml(i.name) + ' price per unit">' : '') +
+      '</span></div>';
   });
-  h += '</div><div class="inv-stk-newline"><div class="inv-stk-label">Add a line</div><div class="inv-stk-newrow">' +
-    '<input id="stockNewName" class="inv-form-input" placeholder="Name, e.g. Chromic acid">' +
-    '<select id="stockNewUnit" class="inv-form-input"><option value="kg">kg</option><option value="L">L</option><option value="nos">nos</option></select>' +
-    '<button class="inv-stk-btn" data-action="invStockAddLine">Add</button></div></div>';
-  h += '<div class="inv-stk-foot"><span>' + escHtml(STOCK_KIND_LABEL[m.mode]) + ' on ' + escHtml(stockShortDate(m.date)) + '</span>' +
-    '<button class="inv-stk-btn inv-stk-btn-pri" data-action="invStockSaveManual">Save</button></div>';
+  h += '<div class="inv-panel-body"><div class="inv-field-label">Add a line</div><div class="inv-toolbar inv-toolbar-flush">' +
+    '<input id="stockNewName" class="inv-input inv-toolbar-item" placeholder="Name, e.g. Chromic acid" aria-label="New line name" autocomplete="off">' +
+    '<select id="stockNewUnit" class="inv-select inv-select-sm" aria-label="Unit"><option value="kg">kg</option><option value="L">L</option><option value="nos">nos</option></select>' +
+    '<button class="inv-btn inv-btn-secondary" data-action="invStockAddLine">Add</button></div></div></div>';
+  h += '<div class="inv-actionbar"><div class="inv-actionbar-total"><div class="inv-actionbar-label">' + escHtml(STOCK_KIND_LABEL[m.mode]) + ' on</div>' +
+    '<div class="inv-actionbar-value">' + escHtml(stockShortDate(m.date)) + '</div></div>' +
+    '<button class="inv-btn inv-btn-primary" data-action="invStockSaveManual">Save</button></div>';
   return h;
 }
 
@@ -914,65 +976,79 @@ function stockPriceAt(itemId, date) {
   return { price: hit.e.price, date: hit.date, supplier: hit.e.supplier || '', billNo: hit.e.billNo || '', entry: hit.e };
 }
 
+/* One line: on the phone a page with the way back; on the desktop the same body in the pane. */
 function renderStockItem(item) {
-  var s = stockStatus(item), unit = item.unit || '';
-  var h = stockBackBar('Stock', item.name);
-  var chip = s.group === 'bath' ? (s.level > 0 ? 'On shelf' : 'Shelf empty') : s.group === 'out' ? 'Out'
-    : s.daysLeft != null ? stockDaysText(s.daysLeft, s.rate.tentative) + ' left' : 'No rate';
-  h += '<div class="inv-stk-hero inv-stk-tone-' + s.tone + '"><div class="inv-stk-hero-lv">' + stockQtyUnit(s.level, unit) + '</div>' +
-    '<span class="inv-stk-chip inv-stk-chip-' + s.tone + '">' + escHtml(chip) + '</span>';
-  if (s.rate && s.rate.rate) {
-    h += '<div class="inv-stk-hero-sub">' + escHtml(stockFmtRate(s.rate.rate) + ' ' + unit + '/day, from what was ' + (item.basis === 'charge' ? 'charged' : 'used') + ' over ' + s.rate.days + ' days of record') +
-      (s.rate.tentative ? '. Under three days: not a firm rate yet.' : '.') + '</div>';
-  } else {
-    h += '<div class="inv-stk-hero-sub">No use recorded yet, so no daily rate.</div>';
-  }
-  var lp = stockPriceAt(item.id, '9999-12-31');
-  if (lp) h += '<div class="inv-stk-hero-sub">Last paid ' + formatCurrency(lp.price) + '/' + escHtml(unit || 'unit') + ' on ' + escHtml(stockShortDate(lp.date)) + (lp.supplier ? ' &middot; ' + escHtml(lp.supplier) : '') + '</div>';
-  else h += '<div class="inv-stk-hero-sub">No price yet. Add a bill below and the live cost can use this line.</div>';
-  h += '</div>';
-  h += stockPatternHtml(item);
+  return stockBackBar('Stock', item.name) + stockItemBodyHtml(item);
+}
 
-  h += '<div class="inv-stk-props"><div class="inv-stk-label">How it is used</div><div class="inv-stk-seg">' +
-    '<button class="inv-stk-seg-btn' + (item.basis !== 'charge' ? ' inv-stk-seg-on' : '') + '" data-action="invStockBasis" data-v="draw">Drawn daily</button>' +
-    '<button class="inv-stk-seg-btn' + (item.basis === 'charge' ? ' inv-stk-seg-on' : '') + '" data-action="invStockBasis" data-v="charge">Charged to a bath</button></div>' +
-    '</div>' + stockEditHtml(item);
+function stockItemBodyHtml(item) {
+  var s = stockStatus(item), unit = item.unit || '';
+  var tone = STOCK_TONE[s.tone];
+  var lp = stockPriceAt(item.id, '9999-12-31');
+  var lcnt = stockItemEntries(item.id).filter(function(e) { return e.kind === 'count'; }).pop();
+  var h = '<div class="inv-panel inv-panel-flush" id="stockSummary"><div class="inv-tiles inv-tiles-flush">' +
+    '<div class="inv-tile"><div class="inv-tile-label">On hand</div>' +
+      '<div class="inv-tile-value" id="stockLevel">' + escHtml(stockFmtQty(s.level)) + (unit ? ' <span class="inv-tile-of">' + escHtml(unit) + '</span>' : '') + '</div>' +
+      '<div class="inv-tile-sub">' + (lcnt ? 'counted ' + escHtml(stockShortDate(lcnt.date)) : 'not counted yet') + '</div></div>' +
+    '<div class="inv-tile' + (tone === 'danger' || tone === 'warning' ? ' inv-tile-' + tone : '') + '"><div class="inv-tile-label">' + (s.group === 'bath' ? 'Shelf' : 'Days left') + '</div>' +
+      '<div class="inv-tile-value">' + (s.daysLeft != null ? escHtml(stockDaysText(s.daysLeft, s.rate.tentative)) : '&mdash;') + '</div>' +
+      '<div class="inv-tile-sub"><span class="inv-dot inv-dot-' + tone + '">' + escHtml(s.group === 'low' ? stockCfg().amberDays + ' days or less' : s.group === 'ok' ? 'OK' : stockStatusWord(s)) + '</span></div></div>' +
+    '<div class="inv-tile"><div class="inv-tile-label">Use a day</div>' +
+      '<div class="inv-tile-value">' + (s.rate && s.rate.rate ? escHtml(stockFmtRate(s.rate.rate)) + (unit ? ' <span class="inv-tile-of">' + escHtml(unit) + '</span>' : '') : '&mdash;') + '</div>' +
+      '<div class="inv-tile-sub">' + (s.rate && s.rate.rate ? 'over ' + s.rate.days + (s.rate.days === 1 ? ' day' : ' days') + (s.rate.tentative ? ', not firm' : '') : 'no use recorded') + '</div></div>' +
+    '<div class="inv-tile"><div class="inv-tile-label">Last paid</div>' +
+      '<div class="inv-tile-value">' + (lp ? escHtml(formatCurrency(lp.price)) + ' <span class="inv-tile-of">/' + escHtml(unit || 'unit') + '</span>' : '&mdash;') + '</div>' +
+      '<div class="inv-tile-sub">' + (lp ? escHtml(stockShortDate(lp.date)) + (lp.supplier ? ' &middot; ' + escHtml(lp.supplier) : '') : 'No price yet') + '</div></div>' +
+    '</div><div class="inv-panel-body"><div class="inv-note">';
+  if (s.rate && s.rate.rate) {
+    h += escHtml(stockFmtRate(s.rate.rate) + ' ' + unit + '/day, from what was ' + (item.basis === 'charge' ? 'charged' : 'used') + ' over ' + s.rate.days + ' days of record') +
+      (s.rate.tentative ? '. Under three days: not a firm rate yet.' : '.');
+  } else {
+    h += 'No use recorded yet, so no daily rate.';
+  }
+  if (!lp) h += ' No price yet. Add a bill below and the live cost can use this line.';
+  h += '</div></div></div>';
+  h += stockPatternHtml(item) + stockEditHtml(item);
 
   var replay = stockReplay(item.id).rows;
   var byId = {};
   replay.forEach(function(r) { byId[r.e.id] = r; });
   var all = stockData().entries.filter(function(e) { return e.itemId === item.id; });
   all = stockSortEntries(all).reverse();
-  h += '<div class="inv-stk-sec">Entries<span>' + all.length + '</span></div><div class="inv-stk-hist">';
-  all.forEach(function(e) {
-    var r = byId[e.id];
-    var when = e.from && e.from !== e.date ? stockShortDate(e.from) + ' – ' + stockShortDate(e.date) : stockShortDate(e.date);
-    var src = e.source === 'paste' ? 'pasted' + (e.sentBy ? ', sent by ' + e.sentBy : '') : e.source === 'import' ? 'imported' : 'by hand';
-    if (e.by) src += ' · entered by ' + e.by;
-    var extra = [];
-    if (e.kind === 'received' || e.kind === 'bill') {
-      if (e.price != null) extra.push(formatCurrency(e.price) + '/' + (unit || 'unit'));
-      if (e.supplier) extra.push(e.supplier);
-      if (e.billNo) extra.push('invoice ' + e.billNo + (e.billDate && e.billDate !== e.date ? ' of ' + stockShortDate(e.billDate) : ''));
-    }
-    if (e.note) extra.push(e.note);
-    var gap = '';
-    if (e.kind === 'count' && r && r.before != null && stockRound(r.before) !== stockRound(e.qty)) {
-      var d = stockRound(e.qty - r.before);
-      gap = '<div class="inv-stk-issue inv-stk-issue-amber">The app expected ' + escHtml(stockFmtQty(r.before)) + ' (' + (d > 0 ? '+' : '') + escHtml(stockFmtQty(d)) + ' unexplained)</div>';
-    }
-    h += '<div class="inv-stk-hrow' + (e.voided ? ' inv-stk-voided' : '') + '"><div class="inv-stk-hmain"><div class="inv-stk-hkind">' +
-      escHtml(STOCK_KIND_LABEL[e.kind] || e.kind) + ' <strong>' + escHtml(stockFmtQty(e.qty)) + ' ' + escHtml(unit) + '</strong>' +
-      (e.unsettled ? '<span class="inv-stk-flag">unsettled</span>' : '') + (e.voided ? '<span class="inv-stk-flag">voided</span>' : '') + '</div>' +
-      '<div class="inv-stk-hsub">' + escHtml(when + ' · ' + src) + (extra.length ? '<br>' + escHtml(extra.join(' · ')) : '') + '</div>' + gap +
-      (e.raw ? '<details class="inv-stk-src"><summary>Message text</summary><div class="inv-stk-raw">' + escHtml(e.raw) + '</div></details>' : '') +
-      (e.kind === 'received' && e.price == null && !e.voided ? '<button class="inv-stk-btn inv-stk-btn-sm" data-action="invStockBillOpen" data-entry="' + escHtml(e.id) + '">Add its bill</button>' : '') +
-      '</div>' +
-      (e.voided ? '' : '<button class="inv-stk-void' + (_stockVoidArm === e.id ? ' inv-stk-void-arm' : '') + '" data-action="invStockVoid" data-id="' + escHtml(e.id) + '">' + (_stockVoidArm === e.id ? 'Tap again to void' : 'Void') + '</button>') +
-      '</div>';
-  });
-  h += '</div>';
-  return h;
+  h += '<div class="inv-panel inv-panel-flush" id="stockEntries"><div class="inv-panel-head"><span class="inv-panel-title">Entries <span class="inv-panel-count">' + all.length + '</span></span></div>';
+  if (!all.length) h += '<div class="inv-empty">Nothing recorded on this line yet.</div>';
+  all.forEach(function(e) { h += stockEntryRowHtml(e, byId[e.id], unit); });
+  return h + '</div>';
+}
+
+function stockEntryRowHtml(e, r, unit) {
+  var when = e.from && e.from !== e.date ? stockShortDate(e.from) + ' – ' + stockShortDate(e.date) : stockShortDate(e.date);
+  var src = e.source === 'paste' ? 'pasted' + (e.sentBy ? ', sent by ' + e.sentBy : '') : e.source === 'import' ? 'imported' : 'by hand';
+  if (e.by) src += ' · entered by ' + e.by;
+  var extra = [];
+  if (e.kind === 'received' || e.kind === 'bill') {
+    if (e.price != null) extra.push(formatCurrency(e.price) + '/' + (unit || 'unit'));
+    if (e.supplier) extra.push(e.supplier);
+    if (e.billNo) extra.push('invoice ' + e.billNo + (e.billDate && e.billDate !== e.date ? ' of ' + stockShortDate(e.billDate) : ''));
+  }
+  if (e.note) extra.push(e.note);
+  var gap = '';
+  if (e.kind === 'count' && r && r.before != null && stockRound(r.before) !== stockRound(e.qty)) {
+    var d = stockRound(e.qty - r.before);
+    gap = '<div class="inv-callout inv-callout-warning inv-mt-8">The app expected ' + escHtml(stockFmtQty(r.before)) + ' (' + (d > 0 ? '+' : '') + escHtml(stockFmtQty(d)) + ' unexplained)</div>';
+  }
+  var armed = _stockVoidArm === e.id;
+  return '<div class="inv-row inv-row-auto inv-row-top' + (e.voided ? ' inv-row-muted' : '') + '" data-entry="' + escHtml(e.id) + '"><div class="inv-row-main">' +
+    '<div class="inv-row-title">' + escHtml(STOCK_KIND_LABEL[e.kind] || e.kind) + ' <strong class="inv-num">' + escHtml(stockFmtQty(e.qty)) + ' ' + escHtml(unit) + '</strong>' +
+    (e.unsettled ? ' <span class="inv-badge inv-badge-warning">Unsettled</span>' : '') + (e.voided ? ' <span class="inv-badge inv-badge-neutral">Voided</span>' : '') + '</div>' +
+    '<div class="inv-row-meta inv-row-wrap">' + escHtml(when + ' · ' + src) + '</div>' +
+    (extra.length ? '<div class="inv-row-meta inv-row-wrap">' + escHtml(extra.join(' · ')) + '</div>' : '') + gap +
+    (e.raw ? '<details class="inv-mt-4"><summary class="inv-btn-link inv-summary">Message text</summary><div class="inv-quote inv-mt-4">' + escHtml(e.raw) + '</div></details>' : '') +
+    (e.kind === 'received' && e.price == null && !e.voided ? '<button class="inv-btn inv-btn-secondary inv-btn-sm inv-mt-8" data-action="invStockBillOpen" data-entry="' + escHtml(e.id) + '">Add its bill</button>' : '') +
+    '</div>' +
+    (e.voided ? '' : '<div class="inv-row-end"><button class="inv-btn inv-btn-sm inv-btn-danger' + (armed ? ' inv-btn-solid' : '') + '" data-action="invStockVoid" data-id="' + escHtml(e.id) + '"' +
+      (armed ? ' aria-pressed="true"' : '') + '>' + (armed ? 'Tap again to void' : 'Void') + '</button></div>') +
+    '</div>';
 }
 
 /* A wrong entry is voided, never deleted: the export is the record's source,
@@ -1087,22 +1163,23 @@ function openMoreSheet() {
     ['pageHistory', 'History', 'The audit trail', '<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>']
   ];
   var cur = (document.querySelector('.inv-page-active') || {}).id;
-  var h = '<div class="inv-more-sheet" data-action="invMoreStay" role="dialog" aria-label="More"><div class="inv-more-grab"></div>';
+  // A sheet from the bottom (§6.16), its entries rows; the open one is the current page.
+  var h = '<div class="inv-sheet" data-action="invMoreStay" role="dialog" aria-label="More"><div class="inv-sheet-grab"></div>';
   items.forEach(function(it) {
-    h += '<button class="inv-more-item' + (cur === it[0] ? ' inv-more-item-on' : '') + '" data-action="invSwitchTab" data-tab="' + it[0] + '">' +
-      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">' + it[3] + '</svg>' +
-      '<span class="inv-more-text"><span class="inv-more-label">' + it[1] + '</span><span class="inv-more-sub">' + escHtml(it[2]) + '</span></span>' +
-      (it[0] === 'pageStock' && out ? '<span class="inv-stk-chip inv-stk-chip-red">' + out + ' out</span>' : '') +
-      (it[0] === 'pageTodo' && tdLate ? '<span class="inv-stk-chip inv-stk-chip-red">' + tdLate + ' late</span>' : '') + '</button>';
+    h += '<button class="inv-row inv-row-2" data-action="invSwitchTab" data-tab="' + it[0] + '"' + (cur === it[0] ? ' aria-current="page"' : '') + '>' +
+      '<span class="inv-row-lead"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + it[3] + '</svg></span>' +
+      '<span class="inv-row-main"><span class="inv-row-title">' + it[1] + '</span><span class="inv-row-meta">' + escHtml(it[2]) + '</span></span>' +
+      (it[0] === 'pageStock' && out ? '<span class="inv-row-end"><span class="inv-badge inv-badge-danger">' + out + ' out</span></span>' : '') +
+      (it[0] === 'pageTodo' && tdLate ? '<span class="inv-row-end"><span class="inv-badge inv-badge-danger">' + tdLate + ' late</span></span>' : '') + '</button>';
   });
   h += '</div>';
   var scrim = document.createElement('div');
   scrim.id = 'moreSheet';
-  scrim.className = 'inv-more-scrim';
+  scrim.className = 'inv-scrim';
   scrim.setAttribute('data-action', 'invCloseMore');
   scrim.innerHTML = h;
   document.body.appendChild(scrim);
-  var first = scrim.querySelector('.inv-more-item');
+  var first = scrim.querySelector('.inv-row');
   if (first) first.focus();
 }
 
@@ -1116,6 +1193,8 @@ function stockAction(action, btn) {
       if (_stockView === 'review') { stockSetView('paste'); break; }
       _stockReview = null; _stockManual = null; _stockReorder = null; stockSetView(_stockHome); break;
     case 'invStockOpen': _stockItemId = btn.dataset.id; stockSetView('item'); break;
+    case 'invStockPaneClose': stockSetView('list'); break;
+    case 'invStockFilter': _stockFilter = _stockFilter === btn.dataset.v ? null : btn.dataset.v; stockSetView('list'); break;
     case 'invStockBal':
       if (_stockReview) { _stockReview.choices['bal' + btn.dataset.i] = btn.dataset.v; renderStock(); }
       break;

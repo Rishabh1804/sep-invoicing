@@ -6,9 +6,10 @@
 
 var DASH_STAFF_RULES = ['insLabour', 'insAttGap', 'wageVsSlip', 'cashSwing', 'costGap'];
 
-function _dashPanel(id, title, body, head) {
-  return '<div class="inv-panel" id="' + id + '"><div class="inv-panel-head"><span class="inv-panel-title">' + title + '</span>' + (head || '') + '</div>' +
-    '<div class="inv-panel-body">' + body + '</div></div>';
+/* A flush panel: the head ruled off, the body padded once (a padded panel around a padded body indented it twice). */
+function _dashPanel(id, title, body, head, rows) {
+  return '<div class="inv-panel inv-panel-flush" id="' + id + '"><div class="inv-panel-head"><span class="inv-panel-title">' + title + '</span>' + (head || '') + '</div>' +
+    '<div class="inv-panel-body">' + body + '</div>' + (rows || '') + '</div>';
 }
 function _dashWeekLabel(sat) { return stockShortDate(sat); }
 
@@ -180,17 +181,18 @@ function stockOverviewHtml() {
   var sp = dashSupplierSpend(6), sel = sp.list.find(function(x) { return x.name === _dashSupplier; });
   var body = chartPieTap(sp.list.map(function(x) { return { key: x.name, label: x.name, value: x.amount }; }),
     { action: 'invDashSupplier', selected: _dashSupplier, ariaLabel: 'Spend by supplier', emptyText: 'No priced bill in six months', readHint: 'Tap a supplier to list its bills' });
+  var rows = '';
   if (sel) {
     var bp = sel.named ? finSupplierPaid(sel.name) : null;
     // Newest first across every line the supplier sold, not line by line.
     var bills = sel.bills.slice().sort(function(a, b) { return a.b.date < b.b.date ? 1 : a.b.date > b.b.date ? -1 : 0; });
-    body += '<div class="inv-rows" data-dash-supplier="' + escHtml(sel.name) + '">' + bills.map(function(x) {
+    rows = '<div data-dash-supplier="' + escHtml(sel.name) + '">' + bills.map(function(x) {
       return '<div class="inv-row inv-row-2"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(x.it.name) + '</span><span class="inv-row-meta">' + escHtml(formatDate(x.b.date)) +
         ' · ' + escHtml(stockFmtQty(x.b.e.qty)) + ' ' + escHtml(x.it.unit || '') + ' × ' + escHtml(formatCurrency(x.b.e.price)) + (x.b.e.billNo ? ' · ' + escHtml(x.b.e.billNo) : '') + '</span></span>' +
         '<span class="inv-row-end inv-num">' + formatCurrency(gstRound((x.b.e.price || 0) * (x.b.e.qty || 0))) + '</span></div>';
     }).join('') + (bp ? '<div class="inv-row"><span class="inv-row-main inv-row-meta">The bank paid them ' + escHtml(formatCurrency(bp.paid)) + ' in ' + bp.n + ' payment' + (bp.n === 1 ? '' : 's') + '</span></div>' : '') + '</div>';
   }
-  h += _dashPanel('dashSupplier', 'Spend by supplier, six months', body + '<div class="inv-note">Bills before GST from ' + escHtml(formatDate(sp.from)) + '.</div>');
+  h += _dashPanel('dashSupplier', 'Spend by supplier, six months', body + '<div class="inv-note">Bills before GST from ' + escHtml(formatDate(sp.from)) + '.</div>', '', rows);
 
   var u = dashUsedByWeek(12), labs = u.weeks.map(function(w) { return _dashWeekLabel(attAddDays(w, 6)); });
   h += _dashPanel('dashUsed', 'Used, in rupees, by week', chartLines(labs, [{ label: 'All lines', values: u.total }].concat(u.top.map(function(l, i) {
@@ -200,18 +202,18 @@ function stockOverviewHtml() {
 
   var priced = stockData().items.filter(function(i) { return i.active !== false && stockPurchases(i.id).length; });
   if (!priced.some(function(i) { return i.id === _dashPriceItem; })) _dashPriceItem = priced.length ? priced[0].id : null;
-  h += _dashPanel('dashPrice', 'Price trend', priced.length ? '<select class="inv-select inv-select-sm" id="dashPriceLine" aria-label="Line">' +
-    priced.map(function(i) { return '<option value="' + escHtml(i.id) + '"' + (i.id === _dashPriceItem ? ' selected' : '') + '>' + escHtml(i.name) + '</option>'; }).join('') + '</select>' +
-    '<div id="dashPriceChart">' + dashPriceChart() + '</div>' : '<div class="inv-empty">No bill with a price yet.</div>');
+  h += _dashPanel('dashPrice', 'Price trend', priced.length ? '<div id="dashPriceChart">' + dashPriceChart() + '</div>' : '<div class="inv-empty">No bill with a price yet.</div>',
+    priced.length ? '<select class="inv-select inv-select-sm" id="dashPriceLine" aria-label="Line">' +
+      priced.map(function(i) { return '<option value="' + escHtml(i.id) + '"' + (i.id === _dashPriceItem ? ' selected' : '') + '>' + escHtml(i.name) + '</option>'; }).join('') + '</select>' : '');
 
   var L = stockReorderList(), fc = finHasBank() ? finForecast(45) : null;
   var need = gstRound(L.total * 1.18);
   h += '<div class="inv-panel inv-panel-flush" id="dashReorder"><div class="inv-panel-head"><span class="inv-panel-title">Reorder cash</span>' +
     '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invStockReorder">Open the reorder list</button></div><div class="inv-tiles inv-tiles-flush">' +
-    '<div class="inv-tile"><div class="inv-tile-label">Order, with GST</div><div class="inv-tile-value inv-tile-value-sm inv-num">' + escHtml(formatCurrency(need)) + '</div><div class="inv-tile-sub">' +
+    '<div class="inv-tile"><div class="inv-tile-label">Order, with GST</div><div class="inv-tile-value inv-tile-value-sm">' + escHtml(formatCurrency(need)) + '</div><div class="inv-tile-sub">' +
       (L.unpriced ? L.unpriced + ' line' + (L.unpriced === 1 ? '' : 's') + ' without a price' : 'at the last prices') + '</div></div>' +
-    (fc ? '<div class="inv-tile"><div class="inv-tile-label">Forecast lowest</div><div class="inv-tile-value inv-tile-value-sm inv-num">' + escHtml(formatCurrency(fc.min.bal)) + '</div><div class="inv-tile-sub">on ' + escHtml(stockShortDate(fc.min.date)) + '</div></div>' +
-      '<div class="inv-tile' + (fc.min.bal - need < 0 ? ' inv-tile-danger' : '') + '"><div class="inv-tile-label">After the order</div><div class="inv-tile-value inv-tile-value-sm inv-num">' + escHtml(formatCurrency(gstRound(fc.min.bal - need))) + '</div><div class="inv-tile-sub">at the lowest point</div></div>'
+    (fc ? '<div class="inv-tile"><div class="inv-tile-label">Forecast lowest</div><div class="inv-tile-value inv-tile-value-sm">' + escHtml(formatCurrency(fc.min.bal)) + '</div><div class="inv-tile-sub">on ' + escHtml(stockShortDate(fc.min.date)) + '</div></div>' +
+      '<div class="inv-tile' + (fc.min.bal - need < 0 ? ' inv-tile-danger' : '') + '"><div class="inv-tile-label">After the order</div><div class="inv-tile-value inv-tile-value-sm">' + escHtml(formatCurrency(gstRound(fc.min.bal - need))) + '</div><div class="inv-tile-sub">at the lowest point</div></div>'
       : '<div class="inv-tile"><div class="inv-tile-label">Forecast</div><div class="inv-tile-value inv-tile-value-sm">&mdash;</div><div class="inv-tile-sub">import a bank statement</div></div>') +
     '</div></div>';
   return '<div class="inv-panels">' + h + '</div>';
@@ -224,10 +226,10 @@ function dashPriceChart() {
     { unit: 'money', ariaLabel: 'Price trend', emptyText: it.name + ': one bill so far, ' + (b[0] ? formatCurrency(b[0].e.price) + ' on ' + stockShortDate(b[0].date) : '') });
 }
 function stockViewTabsHtml() {
-  var t = function(k, l) { return '<button class="inv-viewtab" role="tab" aria-selected="' + (_stockView === k) + '" data-action="invDashStockView" data-view="' + k + '">' + l + '</button>'; };
-  return '<div class="inv-viewtabs" role="tablist">' + t('overview', 'Overview') + t('list', 'Lines') + '</div>' +
-    (_stockView === 'overview' ? '<div class="inv-toolbar"><button class="inv-btn inv-btn-primary" data-action="invStockPaste">Paste message</button>' +
-      '<button class="inv-btn" data-action="invStockManual">Enter by hand</button></div>' : '');
+  // A line open in the desktop pane belongs to Lines.
+  var cur = _stockView === 'overview' ? 'overview' : 'list';
+  var t = function(k, l) { return '<button class="inv-viewtab" role="tab" aria-selected="' + (cur === k) + '" data-action="invDashStockView" data-view="' + k + '">' + l + '</button>'; };
+  return '<div class="inv-viewtabs" role="tablist">' + t('overview', 'Overview') + t('list', 'Lines') + '</div>';
 }
 
 /* ---------- Doing ---------- */

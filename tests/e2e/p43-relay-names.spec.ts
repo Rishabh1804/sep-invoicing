@@ -85,14 +85,14 @@ test.describe('P43: names on the roll', () => {
     await load(page);
     const a = when(-2), b = when(-1);
     await paste(page, roll(a.dmy));
-    await expect(page.locator('.inv-stk-tile-red .inv-stk-tile-n')).toHaveText('1');
-    await expect(page.locator('.inv-stk-tile-amber .inv-stk-tile-n')).toHaveText('2');
+    await expect(page.locator('#relayReviewTiles [data-tile="red"] .inv-tile-value')).toHaveText('1');
+    await expect(page.locator('#relayReviewTiles [data-tile="amber"] .inv-tile-value')).toHaveText('2');
     // A guess comes with the picker, already on the guess.
     await expect(page.locator('[data-relay-map="CHAAND"]')).toHaveValue('3');
 
     // Placed: on the worker straight away, before any Save. Ids are numbers.
     await page.locator('[data-relay-map="ZORO"]').selectOption('6');
-    await expect(page.locator('.inv-stk-tile-red .inv-stk-tile-n')).toHaveText('0');
+    await expect(page.locator('#relayReviewTiles [data-tile="red"] .inv-tile-value')).toHaveText('0');
     await expect.poll(async () => (await readStoredState(page)).staff.find((w: any) => w.id === 6).relayNames).toEqual(['ZORO']);
 
     await page.locator('[data-action="invRelaySave"]').click();
@@ -105,9 +105,9 @@ test.describe('P43: names on the roll', () => {
     expect(s.staff.find((w: any) => w.id === 4).relayNames).toEqual(['ESHAA']);
 
     await paste(page, roll(b.dmy));
-    await expect(page.locator('.inv-stk-tile-red .inv-stk-tile-n')).toHaveText('0');
-    await expect(page.locator('.inv-stk-tile-amber .inv-stk-tile-n')).toHaveText('0');
-    await expect(page.locator('.inv-rl-row')).toHaveCount(6);
+    await expect(page.locator('#relayReviewTiles [data-tile="red"] .inv-tile-value')).toHaveText('0');
+    await expect(page.locator('#relayReviewTiles [data-tile="amber"] .inv-tile-value')).toHaveText('0');
+    await expect(page.locator('[data-relay-row]')).toHaveCount(6);
   });
 
   test('a wrong guess is put right, and a name can be left out', async ({ page }) => {
@@ -116,9 +116,9 @@ test.describe('P43: names on the roll', () => {
     // CHAAND is really Kiran; ZORO is nobody.
     await page.locator('[data-relay-map="CHAAND"]').selectOption('5');
     await page.locator('[data-relay-map="ZORO"]').selectOption('');
-    await expect(page.locator('.inv-stk-tile-red .inv-stk-tile-n')).toHaveText('0');
-    await expect(page.locator('.inv-stk-issue-info').filter({ hasText: '"ZORO" left out' })).toHaveCount(1);
-    await expect(page.locator('.inv-rl-row').filter({ hasText: 'Chand' })).toHaveCount(0);
+    await expect(page.locator('#relayReviewTiles [data-tile="red"] .inv-tile-value')).toHaveText('0');
+    await expect(page.locator('[data-issue="info"]').filter({ hasText: '"ZORO" left out' })).toHaveCount(1);
+    await expect(page.locator('[data-relay-row]').filter({ hasText: 'Chand' })).toHaveCount(0);
     const s = await readStoredState(page);
     expect(s.staff.find((w: any) => w.id === 5).relayNames).toEqual(['CHAAND']);
     expect(s.staff.find((w: any) => w.id === 3).relayNames || []).toEqual([]);

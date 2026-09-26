@@ -75,13 +75,13 @@ test('P21: the trend switches between revenue, tonnage and material arriving', a
   await loadAppWithState(page, s);
   await openStats(page);
 
-  await expect(page.locator('.inv-stats-card', { hasText: 'Revenue Trend' })).toBeVisible();
+  await expect(page.locator('[data-card="trend"]', { hasText: 'Revenue trend' })).toBeVisible();
 
   await page.locator('[data-action="invStatsTrendSeries"][data-series="tonnage"]').click();
-  await expect(page.locator('.inv-stats-card', { hasText: 'Tonnage Trend' })).toBeVisible();
+  await expect(page.locator('[data-card="trend"]', { hasText: 'Tonnage trend' })).toBeVisible();
 
   await page.locator('[data-action="invStatsTrendSeries"][data-series="im"]').click();
-  const imCard = page.locator('.inv-stats-card', { hasText: 'Incoming Material Trend' });
+  const imCard = page.locator('[data-card="trend"]', { hasText: 'Incoming material trend' });
   await expect(imCard).toBeVisible();
   // IM is the other spine and is dated by its challan, not by an invoice.
   await expect(imCard).toContainText('by challan date');
@@ -118,10 +118,10 @@ test('P21: line and bar draw the same series, and neither distorts its aspect', 
   await loadAppWithState(page, s);
   await openStats(page);
 
-  await expect(page.locator('.inv-chart-svg polyline.inv-svg-line')).toBeVisible();
+  await expect(page.locator('.inv-chart-svg polyline.inv-chart-line')).toBeVisible();
   await page.locator('[data-action="invStatsTrendType"][data-type="bar"]').click();
   await expect(page.locator('.inv-chart-svg rect.inv-chart-bar').first()).toBeVisible();
-  await expect(page.locator('.inv-chart-svg polyline.inv-svg-line')).toHaveCount(0);
+  await expect(page.locator('.inv-chart-svg polyline.inv-chart-line')).toHaveCount(0);
 
   // The old chart stretched with preserveAspectRatio="none", which is why a
   // marker could never be a circle.
@@ -143,7 +143,7 @@ test('P21: every point carries its own value, not just the endpoints', async ({ 
   // labelled. The count follows the series — which now includes the quiet
   // months between January and today, each as an explicit zero.
   const series = await page.evaluate(() => (window as any).buildTrendSeries('month', 'revenue'));
-  const titles = await page.locator('.inv-chart-svg circle.inv-svg-dot title').allTextContents();
+  const titles = await page.locator('.inv-chart-svg circle.inv-chart-dot title').allTextContents();
   expect(titles).toHaveLength(series.length);
   expect(titles.length).toBeGreaterThan(3);
   expect(titles.join(' ')).toContain('₹3,000.00');
@@ -195,15 +195,15 @@ test('P21: top items rank by value, tonnage and price — three different orders
   await openStats(page);
 
   const first = () => page.locator('.inv-chart-ranked-row').first();
-  await expect(page.locator('.inv-stats-card', { hasText: 'Top Items by Value' })).toBeVisible();
+  await expect(page.locator('[data-card="top"]', { hasText: 'Top items by value' })).toBeVisible();
   await expect(first()).toContainText('RICH');
 
   await page.locator('[data-action="invStatsTopBy"][data-by="tonnage"]').click();
-  await expect(page.locator('.inv-stats-card', { hasText: 'Top Items by Tonnage' })).toBeVisible();
+  await expect(page.locator('[data-card="top"]', { hasText: 'Top items by tonnage' })).toBeVisible();
   await expect(first()).toContainText('HEAVY');
 
   await page.locator('[data-action="invStatsTopBy"][data-by="rate"]').click();
-  await expect(page.locator('.inv-stats-card', { hasText: 'Worst Priced Items' })).toBeVisible();
+  await expect(page.locator('[data-card="top"]', { hasText: 'Worst priced items' })).toBeVisible();
   await expect(first()).toContainText('HEAVY');
 });
 
@@ -221,7 +221,7 @@ test('P21: a weight ranking says how many parts it could not rank', async ({ pag
   await page.locator('[data-action="invStatsTopBy"][data-by="tonnage"]').click();
   // Stated, not silently dropped: the excluded parts are the piece-billed end,
   // so a ranking that hides them reads better than the truth.
-  await expect(page.locator('.inv-stats-note', { hasText: 'left out' })).toContainText('1 of 2');
+  await expect(page.locator('[data-card="top"] .inv-note', { hasText: 'left out' })).toContainText('1 of 2');
 });
 
 test('P21: parts plated below cost are marked against the cost line', async ({ page }) => {
@@ -240,7 +240,7 @@ test('P21: parts plated below cost are marked against the cost line', async ({ p
   await expect(page.locator('.inv-chart-ranked-fill-good')).toHaveCount(1);
   // The mark is the period's live cost: nothing recorded here, so every part is its model figure.
   const live = await page.evaluate(() => (0, eval)(`(function(){ var r = statsRangeIso(_statsPeriod); return formatCurrency(liveCost(r.from, r.to, weighLines(S.invoices.filter(function(i){ return i.status === 'active'; })).kg).perKg); })()`));
-  await expect(page.locator('.inv-stats-note', { hasText: 'Mark is full cost' })).toContainText(live as string);
+  await expect(page.locator('[data-card="top"] .inv-note', { hasText: 'Mark is full cost' })).toContainText(live as string);
 });
 
 test('P21: a period with no work is a zero, not a gap the chart closes over', async ({ page }) => {

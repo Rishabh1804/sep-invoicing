@@ -91,7 +91,7 @@ async function previewOne(page: Page, invId: string) {
   await page.locator(`#regList [data-action="invViewInvoiceDetail"][data-id="${invId}"]`).first().click();
   // Scoped to the detail overlay: Home's recent list renders the same action
   // as a hidden print button, and it sits earlier in the DOM.
-  await page.locator('.inv-overlay-scrim [data-action="invPreviewInvoice"]').first().click();
+  await page.locator('.inv-scrim-dialog [data-action="invPreviewInvoice"]').first().click();
   await page.locator('.inv-print-view-active').waitFor();
 }
 

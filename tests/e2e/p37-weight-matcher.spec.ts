@@ -70,7 +70,7 @@ test.describe('P37: weight per piece — the kilograms checked', () => {
     await switchTab(page, 'pageIM');
     await g(page, `_applyScanResult({ clientName: 'DORABJI AUTO', challanNo: '86', challanDate: '${todayIso()}',
       items: [{ partNumber: '2525 2015 8202', desc: '2525 2015 8202', unit: 'KG', qty: 106, nosQty: 500, rate: 13, amount: 1378 }] })`);
-    const note = page.locator('#imWeightMatch0 .inv-rm-chip');
+    const note = page.locator('#imWeightMatch0 .inv-verdict .inv-dot');
     await expect(note).toHaveText('Weight matches');
     await page.locator('#imQty0').fill('10.4');
     await expect(note).toHaveText('Weight ×10');
@@ -85,8 +85,8 @@ test.describe('P37: weight per piece — the kilograms checked', () => {
     await loadAppWithState(page, s);
     await page.evaluate(() => (window as any).openInvoiceDetail('I086'));
     const rows = page.locator('[data-lines]').first().locator('[data-line]');
-    await expect(rows.nth(0).locator('.inv-rm-chip')).toHaveText('Weight ×10');
-    await expect(rows.nth(1).locator('.inv-rm-chip')).toHaveCount(0);
+    await expect(rows.nth(0).locator('.inv-verdict .inv-dot')).toHaveText('Weight ×10');
+    await expect(rows.nth(1).locator('.inv-verdict .inv-dot')).toHaveCount(0);
 
     await page.evaluate(() => (window as any).closeOverlay && (window as any).closeOverlay());
     await page.evaluate(() => (window as any).openClientEdit(1));

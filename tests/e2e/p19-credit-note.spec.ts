@@ -279,7 +279,7 @@ test('P19: a batch under a week warns but is not blocked', async ({ page }) => {
 
   // The discount is for batches of seven days or more. Split batches are the
   // operator's call, so this states the fact and leaves the decision.
-  await expect(page.locator('.inv-confirm-warn')).toContainText('spans 2 days');
+  await expect(page.locator('[data-cn-warn]')).toContainText('spans 2 days');
   await expect(page.locator('[data-action="invCnSave"]')).toBeEnabled();
 });
 
@@ -322,9 +322,9 @@ test('P19: the discount rate is editable and restates the totals live', async ({
   await loadForBatch(page, mehtaState([invoice(1, { taxableValue: 100000, date: daysAgoIso(10) })]));
   await openCnForm(page);
 
-  await expect(page.locator('.inv-total-grand')).toContainText('2,360.00');
+  await expect(page.locator('[data-cn-total]')).toContainText('2,360.00');
   await page.locator('#cnPct').fill('3');
-  await expect(page.locator('.inv-total-grand')).toContainText('3,540.00');
+  await expect(page.locator('[data-cn-total]')).toContainText('3,540.00');
 
   await page.locator('[data-action="invCnSave"]').click();
   const s = await stored(page);
@@ -545,10 +545,10 @@ test('P19: the reference can be set by hand, and the headroom rule still binds',
   await page.evaluate(async (cnId) => {
     (window as unknown as { cnSetAgainstInvoice: (c: string) => void }).cnSetAgainstInvoice(cnId);
   }, id);
-  const offered = await page.locator('.inv-overlay-scrim [data-invnum]').allInnerTexts();
+  const offered = await page.locator('.inv-scrim-dialog [data-invnum]').allInnerTexts();
   expect(offered.sort()).toEqual(['SEP/TEST-00001', 'SEP/TEST-00002', 'SEP/TEST-00003']);
   // And the one that cannot carry the credit is shown as unpickable, with why.
-  await expect(page.locator('.inv-overlay-scrim [data-unavailable]')).toContainText('SEP/TEST-00003');
+  await expect(page.locator('.inv-scrim-dialog [data-unavailable]')).toContainText('SEP/TEST-00003');
 });
 
 test('P19: a cancelled note is neither stamped nor editable', async ({ page }) => {
@@ -574,7 +574,7 @@ test('P19: a cancelled note is neither stamped nor editable', async ({ page }) =
   await page.evaluate(async () => {
     (window as unknown as { cnSetAgainstInvoice: (c: string) => void }).cnSetAgainstInvoice('CN-x');
   });
-  await expect(page.locator('.inv-overlay-scrim')).toHaveCount(0);
+  await expect(page.locator('.inv-scrim-dialog')).toHaveCount(0);
   expect((await stored(page)).creditNotes[0].againstInvoice).toBeUndefined();
 });
 

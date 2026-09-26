@@ -71,7 +71,7 @@ async function openPerf(page: Page) {
 
 /** Every part in one cadence group. */
 function group(page: Page, title: string) {
-  return page.locator('.inv-cp-group').filter({ has: page.locator('.inv-cp-group-title', { hasText: title }) });
+  return page.locator('[data-cp-group]').filter({ has: page.locator('.inv-row-group', { hasText: title }) });
 }
 
 test('P22: a part that fell out of its rhythm is named, with how overdue it is', async ({ page }) => {
@@ -169,8 +169,8 @@ test('P22: a part that only ever arrived says so instead of showing zero revenue
   await openPerf(page);
 
   // ₹0.00 would read as worthless work rather than unbilled work.
-  await expect(page.locator('.inv-cp-mat', { hasText: 'NEVER BILLED' })).toContainText('challan only');
-  await expect(page.locator('.inv-cp-mat', { hasText: 'NEVER BILLED' })).not.toContainText('₹0.00');
+  await expect(page.locator('[data-cp-mat]', { hasText: 'NEVER BILLED' })).toContainText('Challan only');
+  await expect(page.locator('[data-cp-mat]', { hasText: 'NEVER BILLED' })).not.toContainText('₹0.00');
 });
 
 test('P22: the view is scoped to one client and switches between them', async ({ page }) => {
@@ -196,12 +196,13 @@ test('P22: month on month can be read as revenue, tonnage or realisation', async
   await loadAppWithState(page, perfState(invoices));
   await openPerf(page);
 
-  await expect(page.locator('.inv-stats-card', { hasText: 'Month on Month' })).toBeVisible();
+  await expect(page.locator('[data-cp-trend]', { hasText: 'Month on month' })).toBeVisible();
   await expect(page.locator('.inv-chart-svg rect.inv-chart-bar').first()).toBeVisible();
 
   await page.locator('[data-action="invPerfSeries"][data-series="rate"]').click();
   // Realisation is the contract rate for a weight-billed client.
-  await expect(page.locator('.inv-kpi', { hasText: 'Realisation' })).toContainText('5.40');
+  await expect(page.locator('[data-action="invPerfSeries"][data-series="rate"]')).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.locator('[data-cp-trend] .inv-tile', { hasText: 'Realisation' })).toContainText('5.40');
 });
 
 test('P22: a quiet month is kept — the silence is the finding', async ({ page }) => {

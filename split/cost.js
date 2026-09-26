@@ -55,17 +55,19 @@ function stockBillOnInput(t) {
 }
 function stockBillFormHtml(item) {
   var b = _stockBill, unit = item.unit || 'unit';
-  return '<div class="inv-stk-billform" id="stockBillForm"><div class="inv-stk-label">' + (b.entryId ? 'The bill for this delivery' : 'A bill') + '</div>' +
-    '<div class="inv-stk-fields">' +
-    '<div class="inv-stk-field"><label class="inv-stk-label" for="stockBillSupplier">Company</label><input id="stockBillSupplier" class="inv-form-input" list="stockSupplierList" value="' + escHtml(b.supplier) + '"></div>' +
-    '<div class="inv-stk-field"><label class="inv-stk-label" for="stockBillNo">Invoice no.</label><input id="stockBillNo" class="inv-form-input" value="' + escHtml(b.billNo) + '"></div>' +
-    '<div class="inv-stk-field"><label class="inv-stk-label" for="stockBillDate">Invoice date</label><input type="date" id="stockBillDate" class="inv-form-input" value="' + escHtml(b.date) + '"></div>' +
-    '<div class="inv-stk-field"><label class="inv-stk-label" for="stockBillQty">Quantity (' + escHtml(unit) + ')</label><input type="number" inputmode="decimal" step="any" min="0" id="stockBillQty" class="inv-form-input"' + (b.entryId ? ' disabled' : '') + ' value="' + escHtml(b.qty) + '"></div>' +
-    '<div class="inv-stk-field"><label class="inv-stk-label" for="stockBillPrice">&#8377; per ' + escHtml(unit) + ', before GST</label><input type="number" inputmode="decimal" step="any" min="0" id="stockBillPrice" class="inv-form-input" value="' + escHtml(b.price) + '"></div>' +
-    '<div class="inv-stk-field"><label class="inv-stk-label" for="stockBillAmount">or the bill amount, before GST</label><input type="number" inputmode="decimal" step="any" min="0" id="stockBillAmount" class="inv-form-input" value="' + escHtml(b.amount) + '"></div>' +
+  var field = function(id, label, input) { return '<div class="inv-field"><label class="inv-field-label" for="' + id + '">' + label + '</label>' + input + '</div>'; };
+  var num = function(id, v, dis) { return '<input type="number" inputmode="decimal" step="any" min="0" id="' + id + '" class="inv-input inv-input-num"' + (dis ? ' disabled' : '') + ' value="' + escHtml(v) + '">'; };
+  return '<div class="inv-panel-body" id="stockBillForm"><div class="inv-panel-title inv-mb-8">' + (b.entryId ? 'The bill for this delivery' : 'A bill') + '</div>' +
+    '<div class="inv-fields">' +
+    field('stockBillSupplier', 'Company', '<input id="stockBillSupplier" class="inv-input" list="stockSupplierList" value="' + escHtml(b.supplier) + '" autocomplete="off">') +
+    field('stockBillNo', 'Invoice no.', '<input id="stockBillNo" class="inv-input" value="' + escHtml(b.billNo) + '" autocomplete="off">') +
+    field('stockBillDate', 'Invoice date', '<input type="date" id="stockBillDate" class="inv-input" value="' + escHtml(b.date) + '">') +
+    field('stockBillQty', 'Quantity (' + escHtml(unit) + ')', num('stockBillQty', b.qty, !!b.entryId)) +
+    field('stockBillPrice', '&#8377; per ' + escHtml(unit) + ', before GST', num('stockBillPrice', b.price)) +
+    field('stockBillAmount', 'or the bill amount, before GST', num('stockBillAmount', b.amount)) +
     '</div>' + stockSupplierDatalist() +
-    '<div class="inv-stk-foot"><button class="inv-stk-btn" data-action="invStockBillCancel">Cancel</button>' +
-    '<button class="inv-stk-btn inv-stk-btn-pri" data-action="invStockBillSave">Save bill</button></div></div>';
+    '<div class="inv-toolbar inv-toolbar-tight"><button class="inv-btn inv-btn-secondary" data-action="invStockBillCancel">Cancel</button>' +
+    '<button class="inv-btn inv-btn-primary" data-action="invStockBillSave">Save bill</button></div></div>';
 }
 function stockBillSave() {
   var b = _stockBill;
@@ -149,9 +151,17 @@ function stockPattern(item) {
   return out;
 }
 
+/* Price and pattern, a flush panel of rows on the line's page (Stock → a line). */
 function stockPatternHtml(item) {
-  var p = stockPattern(item), unit = item.unit || 'unit', h = '<div class="inv-stk-sec">Price and pattern</div><div class="inv-stk-pattern">';
-  var row = function(label, sub, val) { return '<div class="inv-lab-row"><span class="inv-lab-label">' + label + (sub ? '<span class="inv-lab-sub">' + sub + '</span>' : '') + '</span><span class="inv-lab-value inv-mono">' + val + '</span></div>'; };
+  var p = stockPattern(item), unit = item.unit || 'unit';
+  var open = _stockBill && _stockBill.itemId === item.id;
+  var h = '<div class="inv-panel inv-panel-flush" id="stockPattern"><div class="inv-panel-head"><span class="inv-panel-title">Price and pattern</span>' +
+    (open ? '' : '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invStockBillOpen">Add a bill</button>') + '</div>';
+  if (open) h += stockBillFormHtml(item);
+  var row = function(label, sub, val) {
+    return '<div class="inv-row inv-row-2 inv-row-flow"><span class="inv-row-main"><span class="inv-row-title">' + label + '</span>' + (sub ? '<span class="inv-row-meta inv-row-wrap">' + sub + '</span>' : '') + '</span>' +
+      '<span class="inv-row-end inv-num">' + val + '</span></div>';
+  };
   if (p.last) {
     h += row('Price', 'last paid, ' + escHtml(stockShortDate(p.last.date)) + (p.last.e.supplier ? ' · ' + escHtml(p.last.e.supplier) : '') + (p.last.e.billNo ? ' · invoice ' + escHtml(p.last.e.billNo) : ''),
       formatCurrency(p.last.e.price) + '/' + escHtml(unit));
@@ -165,16 +175,13 @@ function stockPatternHtml(item) {
         (bp ? ' · the bank paid them ' + formatCurrency(bp.paid) + ' in ' + bp.n + ' payment' + (bp.n === 1 ? '' : 's') + ', last ' + escHtml(stockShortDate(bp.last.date)) : ''), formatCurrency(gstRound(s.spent)));
     });
   } else {
-    h += '<div class="inv-stk-hint">No price recorded. Add the bill for a delivery (on the entry below) or a past bill here.</div>';
+    h += '<div class="inv-row inv-row-auto"><span class="inv-note">No price recorded. Add the bill for a delivery (on its entry below) or a past bill here.</span></div>';
   }
   if (p.lastBought) h += row('Bought', p.cadence != null ? 'every ' + formatNum(p.cadence, 0) + ' days (median) · ' + (p.avgQty != null ? 'about ' + escHtml(stockFmtQty(p.avgQty)) + ' ' + escHtml(unit) + ' a time' : '') : 'once on record',
     'last ' + escHtml(stockShortDate(p.lastBought)) + (p.nextDue ? ', next ~' + escHtml(stockShortDate(p.nextDue)) : ''));
   if (p.rate && p.rate.rate) h += row('Use', escHtml(stockFmtQty(p.used30)) + ' ' + escHtml(unit) + ' in the last 30 days', escHtml(stockFmtRate(p.rate.rate)) + ' ' + escHtml(unit) + '/day');
   if (p.costDay != null) h += row('Costs', 'at the last price', formatCurrency(p.costDay) + '/day · ' + formatCurrency(p.costMonth) + '/month');
-  h += '</div>';
-  if (_stockBill && _stockBill.itemId === item.id) h += stockBillFormHtml(item);
-  else h += '<button class="inv-stk-btn" data-action="invStockBillOpen">Add a bill</button>';
-  return h;
+  return h + '</div>';
 }
 
 /* ---------- The live cost ---------- */
@@ -425,13 +432,14 @@ function liveCostPaidCheck(from, to) {
 function _costPaidHtml(from, to) {
   var chk = liveCostPaidCheck(from, to);
   if (!chk.length) return '';
-  return '<div class="inv-cost-bills" id="liveCostPaid"><div class="inv-stk-label">Recorded against paid</div>' + chk.map(function(r) {
+  return '<div id="liveCostPaid"><div class="inv-row-group"><span>Recorded against paid</span></div>' + chk.map(function(r) {
     // The gap on the right; what it is the gap between leads the note, so a phone keeps one figure per column.
     var fig = r.recorded == null ? '&mdash;' : (r.delta >= 0 ? '+' : '&minus;') + formatCurrency(Math.abs(r.delta)) +
       (r.pct != null ? ' (' + (r.pct >= 0 ? '+' : '&minus;') + formatNum(Math.abs(r.pct) * 100, 0) + '%)' : '');
     var note = (r.recorded == null ? '' : 'recorded ' + formatCurrency(r.recorded) + ' · paid ' + formatCurrency(r.paid) + ' · ') + r.note;
-    return '<div class="inv-cost-dline" data-paid="' + r.key + '"><span>' + escHtml(r.label) + (r.flag ? ' <span class="inv-dot inv-dot-danger">over 10% apart</span>' : '') +
-      '<span class="inv-cost-note">' + escHtml(note) + '</span></span><span class="inv-mono inv-nowrap">' + fig + '</span></div>';
+    return '<div class="inv-row inv-row-2 inv-row-top" data-paid="' + r.key + '"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(r.label) + '</span>' +
+      (r.flag ? '<span class="inv-row-meta"><span class="inv-dot inv-dot-danger">over 10% apart</span></span>' : '') +
+      '<span class="inv-row-meta inv-row-wrap">' + escHtml(note) + '</span></span><span class="inv-row-end"><span class="inv-num">' + fig + '</span></span></div>';
   }).join('') + '</div>';
 }
 
@@ -467,21 +475,24 @@ function costDeriveCompute(keys) {
   });
   return res;
 }
+/* The working drawn into a neutral callout in Settings: a row per month (the month, then paid ÷ tonnage in
+   mono), and what it offers with its Use button. */
 function _costDerivedHtml(res) {
-  if (res.none) return '<div class="inv-text-muted inv-storage-text">' + escHtml(res.none) + '</div>';
+  if (res.none) return '<p class="inv-note">' + escHtml(res.none) + '</p>';
   var set = { labour: labourCfg().modelPerKg, power: costModelCfg().power, other: costModelCfg().other };
   return Object.keys(res).map(function(key) {
     var d = res[key], f = COST_DERIVE_FIELDS[key];
-    var h = '<div class="inv-set-derive-rows" data-derive="' + key + '"><div class="inv-set-derive-row"><strong>' + escHtml(f[1]) + '</strong></div>' + d.rows.map(function(r) {
-      return '<div class="inv-set-derive-row"><span>' + escHtml(billsMonthLabel(r.month)) + '</span><span class="inv-mono">' + (r.skip ? escHtml(r.skip)
-        : formatCurrency(r.paid) + ' &divide; ' + formatNum(r.kg / 1000, 1) + ' t = ' + formatCurrency(r.perKg) + '/kg') + '</span></div>';
+    var h = '<div data-derive="' + key + '"><div class="inv-row-group">' + escHtml(f[1]) + '</div>' + d.rows.map(function(r) {
+      return '<div class="inv-row inv-row-auto"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(billsMonthLabel(r.month)) + '</span>' +
+        '<span class="inv-row-meta inv-row-wrap' + (r.skip ? '' : ' inv-id') + '">' + (r.skip ? escHtml(r.skip)
+        : formatCurrency(r.paid) + ' &divide; ' + formatNum(r.kg / 1000, 1) + ' t = ' + formatCurrency(r.perKg) + '/kg') + '</span></span></div>';
     }).join('') + '</div>';
-    if (d.perKg == null) return h + '<div class="inv-text-muted inv-storage-text">No month the statement covers has tonnage beside it, so nothing to offer.</div>';
+    if (d.perKg == null) return h + '<p class="inv-note inv-mt-4">No month the statement covers has tonnage beside it, so nothing to offer.</p>';
     var n = d.rows.filter(function(r) { return !r.skip; }).length;
-    return h + '<div class="inv-set-derive-foot"><span>' + n + ' month' + (n === 1 ? '' : 's') + ': ' + formatCurrency(d.paid) + ' &divide; ' + formatNum(d.kg / 1000, 1) + ' t = <strong class="inv-mono">' +
+    return h + '<div class="inv-toolbar inv-toolbar-flush inv-mt-8"><span class="inv-row-main">' + n + ' month' + (n === 1 ? '' : 's') + ': ' + formatCurrency(d.paid) + ' &divide; ' + formatNum(d.kg / 1000, 1) + ' t = <strong class="inv-id">' +
       formatCurrency(d.perKg) + '/kg</strong> against ' + formatCurrency(set[key] || 0) + ' set</span>' +
-      '<button type="button" class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invCostUseDerived" data-field="' + f[0] + '" data-val="' + d.perKg + '">Use ' + formatCurrency(d.perKg) + '</button></div>';
-  }).join('') + (res.labour ? '<div class="inv-text-muted inv-storage-text">Paid covers every wage leg on the statement: salaries for the month before, and cash by pay week, the EXTRA pool with it.</div>' : '');
+      '<button type="button" class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invCostUseDerived" data-field="' + f[0] + '" data-val="' + d.perKg + '">Use ' + formatCurrency(d.perKg) + '</button></div>';
+  }).join('') + (res.labour ? '<p class="inv-note inv-mt-8">Paid covers every wage leg on the statement: salaries for the month before, and cash by pay week, the EXTRA pool with it.</p>' : '');
 }
 function costUseDerived(field, val) {
   var el = document.getElementById(field);
@@ -493,6 +504,12 @@ function costUseDerived(field, val) {
 var COST_SRC_LABEL = { measured: 'measured', bank: 'paid, bank', partial: 'part-recorded', rate: 'market rate', model: 'model', none: 'nothing recorded' };
 var _costBillOpen = false;
 
+/* A component's source, as a badge (§6.13): the tone says how far the figure can be trusted. */
+var COST_SRC_TONE = { measured: 'ok', bank: 'ok', partial: 'warning', rate: 'info', model: 'neutral', none: 'neutral' };
+function costSrcBadge(src) {
+  return '<span class="inv-badge inv-badge-' + (COST_SRC_TONE[src] || 'neutral') + '" data-src="' + src + '">' + COST_SRC_LABEL[src] + '</span>';
+}
+
 function renderLiveCostCard(period, tonnage) {
   var range = periodRange(period, 0);
   var iso = function(ts) { var d = new Date(ts); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
@@ -500,44 +517,50 @@ function renderLiveCostCard(period, tonnage) {
   var to = range ? iso(range.end) : localDateStr();
   var kg = tonnage ? tonnage.kg : 0;
   var c = liveCost(from, to, kg);
-  var h = '<div class="inv-stats-card inv-stats-card-full" id="liveCost"><div class="inv-stats-title">' + escHtml(PERIOD_LABELS[period] || '') + ' Live cost' +
-    '<span class="inv-stats-title-sub">every figure with where it came from</span></div>';
-  h += '<div class="inv-stats-row"><span class="inv-stats-name"><strong>Full cost</strong><span class="inv-cost-note">' + formatNum(kg / 1000, 1) + ' t plated · ' +
-    Math.round(c.measuredShare * 100) + '% of it measured</span></span><span class="inv-stats-val"><strong>' + (c.perKg != null ? formatCurrency(c.perKg) + '/kg' : '&mdash;') + '</strong><span class="inv-cost-note">' + formatCurrency(c.total) + '</span></span></div>';
+  var money = function(v) { return '<span class="inv-row-stack"><span class="inv-num">' + (v.perKg != null ? formatCurrency(v.perKg) + '<span class="inv-unit">/kg</span>' : '&mdash;') +
+    '</span><span class="inv-row-meta inv-num">' + formatCurrency(v.amount != null ? v.amount : v.total) + '</span></span>'; };
+  var h = '<div class="inv-panel inv-panel-flush inv-panels-wide" id="liveCost" data-card="livecost"><div class="inv-panel-head"><span class="inv-panel-title">' +
+    escHtml(PERIOD_LABELS[period] || '') + ' live cost <span class="inv-note">every figure with where it came from</span></span></div>';
+  h += '<div class="inv-row inv-row-2 inv-row-strong" data-cost-total><span class="inv-row-main"><span class="inv-row-title">Full cost</span><span class="inv-row-meta">' +
+    formatNum(kg / 1000, 1) + ' t plated · ' + Math.round(c.measuredShare * 100) + '% of it measured</span></span><span class="inv-row-end">' + money(c) + '</span></div>';
   var partial = c.rows.filter(function(r) { return r.source === 'partial'; }).map(function(r) { return r.label.toLowerCase(); });
-  if (partial.length) h += '<div class="inv-stats-alert">This period reads LOW: ' + escHtml(partial.join(' and ')) + (partial.length === 1 ? ' is' : ' are') + ' only part-recorded. Open a line to see what is missing.</div>';
+  if (partial.length) h += '<div class="inv-panel-body"><div class="inv-callout inv-callout-danger">This period reads LOW: ' + escHtml(partial.join(' and ')) + (partial.length === 1 ? ' is' : ' are') + ' only part-recorded. Open a line to see what is missing.</div></div>';
+  // Each component folds open to its parts: labour by tier, chemicals line by line, each bill's share.
   c.rows.forEach(function(r) {
-    h += '<details class="inv-cost-row"><summary class="inv-stats-row"><span class="inv-stats-name">' + escHtml(r.label) +
-      ' <span class="inv-cost-src inv-cost-src-' + r.source + '">' + COST_SRC_LABEL[r.source] + '</span><span class="inv-cost-note">' + escHtml(r.note) + '</span></span>' +
-      '<span class="inv-stats-val">' + (r.perKg != null ? formatCurrency(r.perKg) + '/kg' : '&mdash;') + '<span class="inv-cost-note">' + formatCurrency(r.amount) + '</span></span></summary>';
+    h += '<details class="inv-row-fold" data-cost="' + r.key + '"><summary class="inv-row inv-row-2"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(r.label) +
+      ' ' + costSrcBadge(r.source) + '</span><span class="inv-row-meta inv-row-wrap">' + escHtml(r.note) + '</span></span>' +
+      '<span class="inv-row-end">' + money(r) + '</span></summary>';
     if (r.detail.length) {
-      h += '<div class="inv-cost-detail">' + r.detail.map(function(d) {
-        return '<div class="inv-cost-dline"><span>' + escHtml(d.label) + (d.sub ? '<span class="inv-cost-note">' + escHtml(d.sub) + '</span>' : '') + '</span><span class="inv-mono">' + (d.amount != null ? formatCurrency(gstRound(d.amount)) : '&mdash;') + '</span></div>';
+      h += '<div class="inv-row-children">' + r.detail.map(function(d) {
+        return '<div class="inv-row' + (d.sub ? ' inv-row-2' : '') + '"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(d.label) + '</span>' +
+          (d.sub ? '<span class="inv-row-meta inv-row-wrap">' + escHtml(d.sub) + '</span>' : '') + '</span>' +
+          '<span class="inv-row-end"><span class="inv-num">' + (d.amount != null ? formatCurrency(gstRound(d.amount)) : '&mdash;') + '</span></span></div>';
       }).join('') + '</div>';
     }
     h += '</details>';
   });
   h += _costPaidHtml(from, to);
   var typed = S.defaultCostPerKg || 0;
-  if (typed && c.perKg != null) h += '<div class="inv-stats-caveat">The figure typed in Settings is ' + formatCurrency(typed) + '/kg; this period measures ' + formatCurrency(c.perKg) + '/kg. ' +
-    'Anything marked model is a Settings fallback until the record exists: add bills to Stock lines, and power and other bills below.</div>';
+  if (typed && c.perKg != null) h += '<div class="inv-panel-body"><div class="inv-callout">The figure typed in Settings is ' + formatCurrency(typed) + '/kg; this period measures ' + formatCurrency(c.perKg) + '/kg. ' +
+    'Anything marked model is a Settings fallback until the record exists: add bills to Stock lines, and power and other bills below.</div></div>';
   h += _costBillHtml();
   return h + '</div>';
 }
 
+/* The bills on the card: a group of rows, Add a bill in its heading, the form in place below them. */
 function _costBillHtml() {
   var bills = costBills().slice().sort(function(a, b) { return a.month < b.month ? 1 : -1; });
-  var h = '<div class="inv-cost-bills"><div class="inv-stk-label">Electricity and other bills</div>';
+  var open = _costBillOpen && _costBillOpen.where === 'stats';
+  var h = '<div data-cost-bills><div class="inv-row-group"><span>Electricity and other bills</span>' +
+    (open ? '' : '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invCostBillOpen" data-where="stats">Add a bill</button>') + '</div>';
   bills.slice(0, 12).forEach(function(b) {
-    h += '<div class="inv-cost-dline' + (b.voided ? ' inv-pay-void' : '') + '"><span>' + escHtml((b.label || COST_BILL_KINDS[b.kind]) + ' · ' + b.month) +
-      '<span class="inv-cost-note">' + escHtml([b.units ? b.units + ' units' : '', b.note || '', b.voided ? 'void: ' + (b.voidReason || '') : ''].filter(Boolean).join(' · ')) + '</span></span>' +
-      '<span class="inv-mono">' + formatCurrency(b.amount) + (b.voided ? '' : ' <button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invCostBillVoid" data-id="' + escHtml(b.id) + '">Void</button>') + '</span></div>';
+    var meta = [b.units ? b.units + ' units' : '', b.note || '', b.voided ? 'void: ' + (b.voidReason || '') : ''].filter(Boolean).join(' · ');
+    h += '<div class="inv-row' + (meta ? ' inv-row-2' : '') + (b.voided ? ' inv-row-muted' : '') + '"><span class="inv-row-main"><span class="inv-row-title">' + escHtml((b.label || COST_BILL_KINDS[b.kind]) + ' · ' + b.month) + '</span>' +
+      (meta ? '<span class="inv-row-meta inv-row-wrap">' + escHtml(meta) + '</span>' : '') + '</span>' +
+      '<span class="inv-row-end"><span class="inv-num">' + formatCurrency(b.amount) + '</span>' + (b.voided ? '' : '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invCostBillVoid" data-id="' + escHtml(b.id) + '">Void</button>') + '</span></div>';
   });
-  if (!_costBillOpen || _costBillOpen.where !== 'stats') {
-    return h + '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invCostBillOpen" data-where="stats">Add a bill</button>' +
-      '<div class="inv-note">Bills are also kept under Finance &rarr; Bills &amp; notes.</div></div>';
-  }
-  return h + costBillFormHtml() + '</div>';
+  if (!open) return h + '<div class="inv-panel-body"><div class="inv-note">Bills are also kept under Finance &rarr; Bills &amp; notes.</div></div></div>';
+  return h + '<div class="inv-panel-body">' + costBillFormHtml() + '</div></div>';
 }
 
 /* One form, drawn wherever it was opened: Stats → Live cost, or Finance → Bills & notes. */
@@ -665,49 +688,81 @@ function stockReorderText(L) {
   });
   return lines.join('\n');
 }
+/* The reorder list (§7 Stock): grouped by the supplier each line last came from, the order
+   quantity typed in place. A table on the desktop, rows on the phone; one set of inputs either way. */
 function renderStockReorder() {
   var L = stockReorderList(), cfg = L.cfg;
   var h = stockBackBar('Stock', 'Reorder list');
-  h += '<div class="inv-stk-fields"><div class="inv-stk-field"><label class="inv-stk-label" for="stockLeadDays">Lead time (days)</label>' +
-    '<input type="number" min="1" step="1" inputmode="numeric" id="stockLeadDays" class="inv-form-input" value="' + cfg.leadDays + '"></div>' +
-    '<div class="inv-stk-field"><label class="inv-stk-label" for="stockCoverDays">Days to cover after it lands</label>' +
-    '<input type="number" min="1" step="1" inputmode="numeric" id="stockCoverDays" class="inv-form-input" value="' + cfg.coverDays + '"></div></div>' +
-    '<div class="inv-stk-hint">Suggested = daily use × (' + cfg.leadDays + ' + ' + cfg.coverDays + ' days) less what is on the shelf, rounded up to the pack it is bought in. Type a quantity to change it; 0 leaves the line out.</div>';
+  h += '<div class="inv-panel"><div class="inv-fields">' +
+    '<div class="inv-field"><label class="inv-field-label" for="stockLeadDays">Lead time (days)</label>' +
+    '<input type="number" min="1" step="1" inputmode="numeric" id="stockLeadDays" class="inv-input inv-input-num" value="' + cfg.leadDays + '"></div>' +
+    '<div class="inv-field"><label class="inv-field-label" for="stockCoverDays">Days to cover after it lands</label>' +
+    '<input type="number" min="1" step="1" inputmode="numeric" id="stockCoverDays" class="inv-input inv-input-num" value="' + cfg.coverDays + '"></div></div>' +
+    '<div class="inv-note">Suggested = daily use × (' + cfg.leadDays + ' + ' + cfg.coverDays + ' days) less what is on the shelf, rounded up to the pack it is bought in. Type a quantity to change it; 0 leaves the line out.</div></div>';
   if (!L.groups.length) {
-    h += '<div class="inv-stk-empty">Nothing to order: every line with a daily use covers ' + (cfg.leadDays + cfg.coverDays) + ' days.</div>';
+    h += '<div class="inv-panel"><div class="inv-empty">Nothing to order: every line with a daily use covers ' + (cfg.leadDays + cfg.coverDays) + ' days.</div></div>';
+  } else {
+    h += '<div class="inv-panel inv-panel-flush" id="stockReorder">' + (_isDesktop ? stockReorderTableHtml(L) : stockReorderRowsHtml(L)) + '</div>';
   }
-  L.groups.forEach(function(g) {
-    var sub = g.rows.reduce(function(s, r) { return s + (r.amount || 0); }, 0);
-    h += '<div class="inv-stk-sec">' + escHtml(g.supplier) + '<span>' + (sub ? escHtml(formatCurrency(gstRound(sub))) : '') + '</span></div><div class="inv-stk-reorder">';
-    g.rows.forEach(function(r) {
-      var unit = r.item.unit || '';
-      var why = r.noRate ? 'out, and no daily use on record: enter a quantity'
-        : stockFmtQty(r.level) + ' ' + unit + ' on hand · ' + stockFmtRate(r.rate) + ' ' + unit + '/day' + (r.daysLeft != null ? ' · ' + stockDaysText(r.daysLeft, false) + ' left' : '') +
-          ' · needs ' + stockFmtQty(Math.max(0, r.need)) + (r.pack ? ' · packs of ' + stockFmtQty(r.pack) : '') + (r.tentative ? ' · rate from under 3 days of record: check' : '');
-      h += '<div class="inv-stk-mrow"><div class="inv-stk-mname">' + escHtml(r.item.name) + '<span>' + escHtml(why) + '</span></div>' +
-        '<input type="number" inputmode="decimal" step="any" min="0" class="inv-stk-in" data-stock-reorder="' + escHtml(r.item.id) + '" value="' + escHtml(stockFmtQty(r.qty)) + '" aria-label="' + escHtml(r.item.name) + ' quantity to order">' +
-        '<span class="inv-stk-munit">' + escHtml(unit) + '</span>' +
-        '<span class="inv-stk-rprice">' + (r.amount != null ? escHtml(formatCurrency(r.amount)) : 'no price') + '</span></div>';
-    });
-    h += '</div>';
-  });
   if (L.skipped.enough || L.skipped.norate.length) {
-    h += '<div class="inv-stk-hint">' + (L.skipped.enough ? L.skipped.enough + ' line' + (L.skipped.enough === 1 ? ' has' : 's have') + ' enough on hand. ' : '') +
+    h += '<div class="inv-note inv-mb-8">' + (L.skipped.enough ? L.skipped.enough + ' line' + (L.skipped.enough === 1 ? ' has' : 's have') + ' enough on hand. ' : '') +
       (L.skipped.norate.length ? 'No daily use yet, so nothing suggested: ' + escHtml(L.skipped.norate.join(', ')) + '.' : '') + '</div>';
   }
   if (L.groups.length) {
-    h += '<div class="inv-stk-foot"><span id="stockReorderTotal">' + escHtml(formatCurrency(L.total)) + ' at the last prices, before GST' + (L.unpriced ? ' · ' + L.unpriced + ' without a price' : '') + '</span>' +
-      '<button class="inv-stk-btn inv-stk-btn-pri" data-action="invStockReorderCopy">Copy as message</button></div>';
     // The cash it needs, against the forecast: an order is a payment in a few weeks.
     var fc = typeof finForecast === 'function' && finHasBank() ? finForecast(45) : null;
     if (fc && L.total > 0) {
       var after = gstRound(fc.min.bal - L.total * 1.18);
-      h += '<div class="inv-stk-hint" id="stockReorderCash">With GST about ' + escHtml(formatCurrency(gstRound(L.total * 1.18))) + '. The cash forecast’s lowest point in 45 days is ' +
+      h += '<div class="inv-callout inv-callout-info inv-mb-8" id="stockReorderCash">With GST about ' + escHtml(formatCurrency(gstRound(L.total * 1.18))) + '. The cash forecast’s lowest point in 45 days is ' +
         escHtml(formatCurrency(fc.min.bal)) + ' (' + escHtml(stockShortDate(fc.min.date)) + '), ' + escHtml(formatCurrency(after)) + ' after this order. ' +
         '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invFinGo" data-tab="overview" data-anchor="finForecast">Open the forecast</button></div>';
     }
+    h += '<div class="inv-actionbar"><div class="inv-actionbar-total"><div class="inv-actionbar-label" id="stockReorderNote">' + escHtml(stockReorderNote(L)) + '</div>' +
+      '<div class="inv-actionbar-value" id="stockReorderTotal">' + escHtml(formatCurrency(L.total)) + '</div></div>' +
+      '<button class="inv-btn inv-btn-primary" data-action="invStockReorderCopy">Copy as message</button></div>';
   }
   return h;
+}
+function stockReorderNote(L) { return 'At the last prices, before GST' + (L.unpriced ? ' · ' + L.unpriced + ' without a price' : ''); }
+function stockReorderWhy(r, full) {
+  var unit = r.item.unit || '';
+  if (r.noRate) return 'out, and no daily use on record: enter a quantity';
+  return (full ? stockFmtQty(r.level) + ' ' + unit + ' on hand · ' + stockFmtRate(r.rate) + ' ' + unit + '/day' + (r.daysLeft != null ? ' · ' + stockDaysText(r.daysLeft, false) + ' left' : '') + ' · ' : '') +
+    'needs ' + stockFmtQty(Math.max(0, r.need)) + (r.pack ? ' · packs of ' + stockFmtQty(r.pack) : '') + (r.tentative ? ' · rate from under 3 days of record: check' : '');
+}
+function stockReorderInput(r) {
+  return '<input type="number" inputmode="decimal" step="any" min="0" class="inv-input inv-input-sm inv-input-num" data-stock-reorder="' + escHtml(r.item.id) + '" value="' + escHtml(stockFmtQty(r.qty)) + '" aria-label="' + escHtml(r.item.name) + ' quantity to order">';
+}
+function stockReorderSub(g) { var sub = g.rows.reduce(function(s, r) { return s + (r.amount || 0); }, 0); return sub ? formatCurrency(gstRound(sub)) : ''; }
+function stockReorderRowsHtml(L) {
+  var h = '';
+  L.groups.forEach(function(g) {
+    h += '<div class="inv-row-group"><span>' + escHtml(g.supplier) + '</span><span class="inv-num">' + escHtml(stockReorderSub(g)) + '</span></div>';
+    g.rows.forEach(function(r) {
+      h += '<div class="inv-row inv-row-2 inv-row-flow"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(r.item.name) + '</span>' +
+        '<span class="inv-row-meta inv-row-wrap">' + escHtml(stockReorderWhy(r, true)) + '</span></span>' +
+        '<span class="inv-row-end">' + stockReorderInput(r) + '<span class="inv-unit">' + escHtml(r.item.unit || '') + '</span>' +
+        '<span class="inv-num">' + (r.amount != null ? escHtml(formatCurrency(r.amount)) : '<span class="inv-dot inv-dot-neutral">No price</span>') + '</span></span></div>';
+    });
+  });
+  return h;
+}
+function stockReorderTableHtml(L) {
+  var h = '<table class="inv-table"><thead><tr><th class="inv-col-grow">Line</th><th class="inv-num">On hand</th><th class="inv-num">Use a day</th><th>Days left</th>' +
+    '<th class="inv-num">Order</th><th class="inv-num">Amount</th></tr></thead><tbody>';
+  L.groups.forEach(function(g) {
+    h += '<tr class="inv-table-group"><td colspan="5">' + escHtml(g.supplier) + '</td><td class="inv-num">' + escHtml(stockReorderSub(g)) + '</td></tr>';
+    g.rows.forEach(function(r) {
+      var unit = r.item.unit || '';
+      h += '<tr><td class="inv-col-grow" title="' + escHtml(stockReorderWhy(r, false)) + '"><div>' + escHtml(r.item.name) + '</div><div class="inv-row-meta">' + escHtml(stockReorderWhy(r, false)) + '</div></td>' +
+        '<td class="inv-num">' + stockQtyUnit(r.level, unit) + '</td>' +
+        '<td class="inv-num">' + (r.rate ? escHtml(stockFmtRate(r.rate)) + '<span class="inv-unit">' + escHtml(unit) + '</span>' : '&mdash;') + '</td>' +
+        '<td class="inv-nowrap">' + (r.daysLeft != null ? escHtml(stockDaysText(r.daysLeft, r.tentative)) : r.noRate ? '<span class="inv-dot inv-dot-danger">Out</span>' : '&mdash;') + '</td>' +
+        '<td class="inv-num">' + stockReorderInput(r) + '<span class="inv-unit">' + escHtml(unit) + '</span></td>' +
+        '<td class="inv-num">' + (r.amount != null ? escHtml(formatCurrency(r.amount)) : '<span class="inv-dot inv-dot-neutral">No price</span>') + '</td></tr>';
+    });
+  });
+  return h + '</tbody></table>';
 }
 function stockReorderCopy() {
   var text = stockReorderText(stockReorderList());
@@ -719,7 +774,13 @@ function stockReorderCopy() {
 }
 function stockReorderOnInput(t) {
   var id = t.getAttribute && t.getAttribute('data-stock-reorder');
-  if (id && _stockReorder) { _stockReorder.qty[id] = t.value; var tot = document.getElementById('stockReorderTotal'); if (tot) { var L = stockReorderList(); tot.textContent = formatCurrency(L.total) + ' at the last prices, before GST' + (L.unpriced ? ' · ' + L.unpriced + ' without a price' : ''); } return true; }
+  if (id && _stockReorder) {
+    _stockReorder.qty[id] = t.value;
+    // Only the total moves as a figure is typed: redrawing would take the field from under the cursor.
+    var tot = document.getElementById('stockReorderTotal'), note = document.getElementById('stockReorderNote');
+    if (tot) { var L = stockReorderList(); tot.textContent = formatCurrency(L.total); if (note) note.textContent = stockReorderNote(L); }
+    return true;
+  }
   if (t.id === 'stockLeadDays' || t.id === 'stockCoverDays') {
     var v = parseInt(t.value, 10);
     if (v > 0) { if (!S.stockCheck) S.stockCheck = {}; S.stockCheck[t.id === 'stockLeadDays' ? 'leadDays' : 'coverDays'] = v; saveState(); }

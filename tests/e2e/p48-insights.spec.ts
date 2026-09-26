@@ -72,7 +72,7 @@ test.describe('P48: insights, predictions and the reorder list', () => {
     await openStatsTab(page, 'overview');
     await expect(page.locator('#statsInsights')).toContainText('QUIET WORKS: no challan for 40 days');
     await page.locator('#statsInsights [data-action="invTodoOpenApp"]').filter({ hasText: 'QUIET WORKS' }).click();
-    await expect(page.locator('.inv-td-facts')).toContainText('Usual gap');
+    await expect(page.locator('[data-todo-facts]')).toContainText('Usual gap');
     // Switched off in Settings, it is gone.
     await g(page, `(function(){ S.todoCheck = Object.assign({}, S.todoCheck, { insQuiet: false }); })()`);
     expect(await g(page, `todoAppAll().some(function(t){ return t.rule === 'insQuiet'; })`)).toBe(false);
@@ -96,7 +96,7 @@ test.describe('P48: insights, predictions and the reorder list', () => {
     await g(page, `selectClient(83)`);
     await expect(page.locator('#invPONumber')).toHaveValue('SA/0046');
     await expect(page.locator('#invTransport')).toHaveValue('JH 05AB 1234');
-    await expect(page.locator('.inv-pred-hint').first()).toContainText('next in sequence after SA/0045');
+    await expect(page.locator('[data-pred]').first()).toContainText('next in sequence after SA/0045');
     // Rising but skipping: only the prefix is offered.
     expect(await g(page, `(function(){ S.invoices.filter(function(i){ return i.clientId === 83; }).forEach(function(i, n){ i.poNumber = 'SA/0' + (100 + n * 9); }); return predPO(83); })()`)).toMatchObject({ value: 'SA/', prefixOnly: true });
   });
@@ -112,7 +112,7 @@ test.describe('P48: insights, predictions and the reorder list', () => {
     // Brightener: 5 L/day × 30 days = 150; the shelf is empty (40 counted, 50 used); packs of 30 → 150 at ₹166.
     const br = page.locator('[data-stock-reorder="B"]');
     await expect(br).toHaveValue('150');
-    await expect(page.locator('.inv-stk-sec').filter({ hasText: 'ALPHA' })).toContainText('₹24,900.00');
+    await expect(page.locator('#stockReorder .inv-row-group').filter({ hasText: 'ALPHA' })).toContainText('₹24,900.00');
     // HCl: 4 L/day × 30 = 120 against 480 on hand: enough.
     await expect(page.locator('[data-stock-reorder="H"]')).toHaveCount(0);
     await br.fill('60');

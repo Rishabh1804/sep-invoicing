@@ -40,9 +40,9 @@ test.describe('P46: prices, purchases and the live cost', () => {
     await loadAppWithState(page, stockState());
     await switchTab(page, 'pageStock');
     await page.locator('[data-action="invDashStockView"][data-view="list"]').click();
-    await page.locator('.inv-stk-row').filter({ hasText: 'Q558' }).click();
-    await expect(page.locator('.inv-stk-hero-lv')).toContainText('88');
-    await expect(page.locator('.inv-stk-hero')).toContainText('No price yet');
+    await page.locator('#stockLines [data-action="invStockOpen"]').filter({ hasText: 'Q558' }).click();
+    await expect(page.locator('#stockLevel')).toContainText('88');
+    await expect(page.locator('#stockSummary')).toContainText('No price yet');
 
     // Price the delivery from its own entry.
     await page.locator('[data-action="invStockBillOpen"][data-entry="r1"]').click();
@@ -64,12 +64,12 @@ test.describe('P46: prices, purchases and the live cost', () => {
     await page.locator('#stockBillQty').fill('50');
     await page.locator('#stockBillPrice').fill('280');
     await page.locator('[data-action="invStockBillSave"]').click();
-    await expect(page.locator('.inv-stk-hero-lv')).toContainText('88');
+    await expect(page.locator('#stockLevel')).toContainText('88');
     st = (await readStoredState(page)).stock;
     expect(st.entries.find((e: any) => e.kind === 'bill')).toMatchObject({ qty: 50, price: 280, amount: 14000, supplier: 'Beta Chem', billNo: 'B-7', date: iso(-42) });
 
     // The pattern: last price and its change, both suppliers, cadence, use and cost.
-    const pat = page.locator('.inv-stk-pattern');
+    const pat = page.locator('#stockPattern');
     await expect(pat).toContainText('₹300.00/kg');
     await expect(pat).toContainText('+7.1%');
     await expect(pat).toContainText('Alpha Traders');
@@ -86,7 +86,7 @@ test.describe('P46: prices, purchases and the live cost', () => {
     await page.locator('[data-action="invDashStockView"][data-view="list"]').click();
     await page.locator('[data-action="invStockManual"]').click();
     await page.locator('[data-action="invStockMode"][data-mode="received"]').click();
-    await expect(page.locator('.inv-stk-mhead')).toContainText('per unit, before GST');
+    await expect(page.locator('#stockManualList .inv-row-group')).toContainText('per unit, before GST');
     await page.locator('[data-stock-qty="M"]').fill('10');
     await page.locator('[data-action="invStockSaveManual"]').click();
     await expect(page.locator('.inv-toast')).toContainText('Enter the company');
@@ -136,9 +136,9 @@ test.describe('P46: prices, purchases and the live cost', () => {
 
     await openStatsTab(page, 'cost');
     const card = page.locator('#liveCost');
-    await expect(card).toContainText('Live cost');
-    await expect(card.locator('.inv-cost-row').filter({ hasText: 'Zinc' }).locator('.inv-cost-src')).toHaveText('market rate');
-    await expect(card.locator('.inv-cost-row').filter({ hasText: 'Electricity' }).locator('.inv-cost-src')).toHaveText('measured');
+    await expect(card).toContainText('live cost');
+    await expect(card.locator('[data-cost]').filter({ hasText: 'Zinc' }).locator('[data-src]')).toHaveText('market rate');
+    await expect(card.locator('[data-cost]').filter({ hasText: 'Electricity' }).locator('[data-src]')).toHaveText('measured');
 
     // A bill for the other costs replaces the model figure.
     await card.locator('[data-action="invCostBillOpen"]').click();
@@ -146,7 +146,7 @@ test.describe('P46: prices, purchases and the live cost', () => {
     await page.locator('#costBillMonth').fill(month);
     await page.locator('#costBillAmount').fill('9000');
     await page.locator('[data-action="invCostBillSave"]').click();
-    await expect(page.locator('#liveCost .inv-cost-row').filter({ hasText: 'Consumables' }).locator('.inv-cost-src')).toHaveText('measured');
+    await expect(page.locator('#liveCost [data-cost]').filter({ hasText: 'Consumables' }).locator('[data-src]')).toHaveText('measured');
     expect((await readStoredState(page)).costBills).toHaveLength(2);
   });
 

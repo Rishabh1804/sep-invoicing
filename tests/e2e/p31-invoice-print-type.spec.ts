@@ -58,7 +58,7 @@ async function printPreview(page: Page) {
   await page.locator('#regList [data-action="invViewInvoiceDetail"][data-id="INV-1"]').first().click();
   // Scoped to the overlay: Home's recent list renders the same action as a
   // hidden print button, earlier in the DOM.
-  await page.locator('.inv-overlay-scrim [data-action="invPreviewInvoice"]').first().click();
+  await page.locator('.inv-scrim-dialog [data-action="invPreviewInvoice"]').first().click();
   await page.locator('.inv-print-view-active').waitFor();
   await page.emulateMedia({ media: 'print' });
 }
@@ -132,7 +132,7 @@ test('P31: the certificate and the credit note keep their own scales', async ({ 
   await loadAppWithState(page, stateWith(2));
   await switchTab(page, 'pageRegister');
   await page.locator('#regList [data-action="invViewInvoiceDetail"][data-id="INV-1"]').first().click();
-  await page.locator('.inv-overlay-scrim [data-action="invQualityCert"]').first().click();
+  await page.locator('.inv-scrim-dialog [data-action="invQualityCert"]').first().click();
   await page.locator('.inv-print-view-active').waitFor();
   await page.emulateMedia({ media: 'print' });
 

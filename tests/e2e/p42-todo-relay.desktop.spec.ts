@@ -35,10 +35,10 @@ test.describe('P42 desktop: to-do, quick actions, attendance paste', () => {
     await expect(page.locator('.inv-navbar-more')).toBeHidden();
     await switchTab(page, 'pageTodo');
     await expect(page.locator('.inv-side-item[data-tab="pageTodo"]:not([data-sub])')).toHaveClass(/inv-side-item-on/);
-    await expect(page.locator('#todoContent .inv-td-tone-red')).toContainText('Late one');
+    await expect(page.locator('#todoContent [data-todo][data-tone="red"]')).toContainText('Late one');
     await page.locator('#todoNew').fill('Desk task');
     await page.locator('#todoNew').press('Enter');
-    await expect(page.locator('#todoContent .inv-td-row').filter({ hasText: 'Desk task' })).toHaveCount(1);
+    await expect(page.locator('#todoContent [data-todo="mine"]').filter({ hasText: 'Desk task' })).toHaveCount(1);
     expect((await readStoredState(page)).todo.tasks).toHaveLength(2);
   });
 
@@ -51,7 +51,7 @@ test.describe('P42 desktop: to-do, quick actions, attendance paste', () => {
 
     await page.locator('[data-action="invHomeQuick"][data-go="challan"]').click();
     await expect(page.locator('#pageIM.inv-page-active')).toBeVisible();
-    await expect(page.locator('.inv-im-form-active').first()).toBeVisible();
+    await expect(page.locator('[data-form="challan"]').first()).toBeVisible();
 
     await switchTab(page, 'pageHome');
     await page.locator('[data-action="invHomeQuick"][data-go="stock"]').click();
@@ -68,7 +68,7 @@ test.describe('P42 desktop: to-do, quick actions, attendance paste', () => {
     await expect(page.locator('.inv-side-item[data-tab="pageStaff"]:not([data-sub])')).toHaveClass(/inv-side-item-on/);
     await page.locator('#relayPasteText').fill(`${dmy(-1)}/ in time\n----6:00 AM---\n---VAT A 1---\n1) ARUN\nEXTRA 3 HOURS\n----8:30 AM---\n---VAT A 1---\n1) ARUN\n---berral---\n2) BALA`);
     await page.locator('[data-action="invRelayRead"]').click();
-    await expect(page.locator('.inv-rl-row').filter({ hasText: 'Arun' })).toContainText('6 AM – 5 PM · 11 h · OT 3 h');
+    await expect(page.locator('[data-relay-row]').filter({ hasText: 'Arun' })).toContainText('6 AM – 5 PM · 11 h · OT 3 h');
     await page.locator('[data-action="invRelaySave"]').click();
     await expect(page.locator('#attDate')).toHaveValue(iso(-1));
     const day = (await readStoredState(page)).attendance[iso(-1)];

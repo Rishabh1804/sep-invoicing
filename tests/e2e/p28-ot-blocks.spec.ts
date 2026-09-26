@@ -64,7 +64,7 @@ async function openAreas(page: Page) {
 }
 
 function extraCard(page: Page) {
-  return page.locator('.inv-lab-card', { hasText: 'The extra, checked' });
+  return page.locator('[data-card="extra"]');
 }
 
 /* The BLOCK section, and every block assertion must be scoped to it.
@@ -74,7 +74,7 @@ function extraCard(page: Page) {
    that panel is 0 against 0), while the block's own verdict on the same card
    read "not the predicted amount". Both Governors caught it independently. */
 function blocks(page: Page) {
-  return page.locator('.inv-area-blocks');
+  return page.locator('#areaBlocks');
 }
 
 /* ===== THE RECORDED TAGS ===== */
@@ -476,7 +476,7 @@ test('the entry row shows the clock span and the credited length', async ({ page
   }]));
   await switchTab(page, 'pageStaff');
   await page.locator('[data-action="invAttView"][data-view="day"]').click();
-  const len = page.locator('.inv-att-block-len').first();
+  const len = page.locator('[data-block-len]').first();
   await expect(len).toContainText('2.5');
   await expect(len).toContainText('3');
   await expect(len).toContainText('credited');
@@ -491,12 +491,12 @@ test('the entry row shows the block’s own check as it is typed', async ({ page
   await switchTab(page, 'pageStaff');
   await page.locator('[data-action="invAttView"][data-view="day"]').click();
 
-  const block = page.locator('.inv-att-block').first();
+  const block = page.locator('[data-block]').first();
   await expect(block).toBeVisible();
-  await expect(block.locator('.inv-att-block-len')).toContainText('2.5');
+  await expect(block.locator('[data-block-len]')).toContainText('2.5');
   // 5 of 6, short 1, x 2.5 h = 2.5 — and the row says so where it is typed
   // rather than making the operator leave for the Areas view to find out.
-  await expect(block.locator('.inv-att-block-check')).toContainText('5 of 6');
+  await expect(block.locator('[data-block-check]')).toContainText('5 of 6');
 });
 
 test('the entry preview agrees with the card about the pickling fold', async ({ page }) => {
@@ -514,7 +514,7 @@ test('the entry preview agrees with the card about the pickling fold', async ({ 
   await switchTab(page, 'pageStaff');
   await page.locator('[data-action="invAttView"][data-view="day"]').click();
   // 3 of 4, not 3 of 6 — pickling is carrying its own norm on the next row.
-  await expect(page.locator('.inv-att-block-check').first()).toContainText('3 of 4');
+  await expect(page.locator('[data-block-check]').first()).toContainText('3 of 4');
 });
 
 test('toggling an area off leaves the row booked somewhere real', async ({ page }) => {
@@ -527,7 +527,7 @@ test('toggling an area off leaves the row booked somewhere real', async ({ page 
   }]));
   await switchTab(page, 'pageStaff');
   await page.locator('[data-action="invAttView"][data-view="day"]').click();
-  await page.locator('.inv-att-block-areas .inv-att-chip-on').first().click();
+  await page.locator('[data-block-areas] .inv-chip[aria-pressed="true"]').first().click();
 
   const x = await page.evaluate(async (iso) => {
     const s = JSON.parse((await (window as any).readPersistedStateRaw())!);

@@ -123,8 +123,8 @@ test('the heads a pulled state carries are counted, not dropped on the floor', a
   await switchTab(page, 'pageStaff');
   await page.locator('[data-action="invAttView"][data-view="areas"]').click();
 
-  await expect(page.locator('.inv-area-row', { hasText: 'Pickling A1+A2' })).toContainText('1');
-  const card = page.locator('.inv-lab-card', { hasText: 'The extra, checked' });
+  await expect(page.locator('[data-area-row]', { hasText: 'Pickling A1+A2' })).toContainText('1');
+  const card = page.locator('[data-card="extra"]');
   // 1 of 3 present, so short 2 → 16 h expected against 8 booked. The point is
   // that the hand is SEEN; unmigrated it was short 3 and expected 24.
   await expect(card).toContainText('16.0');

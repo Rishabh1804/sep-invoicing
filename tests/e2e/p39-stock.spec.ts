@@ -97,21 +97,21 @@ test.describe('P39: stock', () => {
   test('a pasted message is checked, then saved with who sent it and where it came from', async ({ page }) => {
     await loadAppWithState(page, state());
     await openStock(page);
-    await expect(page.locator('.inv-stk-empty')).toBeVisible();
+    await expect(page.locator('#stockContent .inv-empty')).toBeVisible();
     await paste(page, MSG1());
 
     // Nitric contradicts itself: 20 + 50 − 24 is 46, the message says 70.
-    const nitric = page.locator('.inv-stk-pr-red');
+    const nitric = page.locator('#stockReview [data-tone="red"]');
     await expect(nitric).toHaveCount(1);
     await expect(nitric).toContainText('20 + 50 − 24 is 46. The message says 70.');
     // HCl's delivery carries no date on a week-long take.
-    await expect(page.locator('.inv-stk-pr-amber')).toContainText('Delivery date not stated');
+    await expect(page.locator('#stockReview [data-tone="amber"]')).toContainText('Delivery date not stated');
     await expect(page.locator('#stockSentBy')).toHaveValue('Supervisor One');
 
     // Warn, never block: Save works before the question is answered.
     await expect(page.locator('[data-action="invStockSavePaste"]')).toBeEnabled();
     await page.locator('[data-action="invStockBal"][data-v="working"]').click();
-    await expect(page.locator('.inv-stk-pr-red')).toHaveCount(0);
+    await expect(page.locator('#stockReview [data-tone="red"]')).toHaveCount(0);
     await page.locator('[data-action="invStockSavePaste"]').click();
 
     const st = (await readStoredState(page)).stock;
@@ -125,10 +125,10 @@ test.describe('P39: stock', () => {
     expect(e.raw).toContain('available 70 LTR');
 
     // The list: Zinc is charged to the bath, not "out"; Q558 is out.
-    await expect(page.locator('.inv-stk-sec').first()).toContainText('Out');
-    await expect(page.locator('.inv-stk-row').filter({ hasText: 'Q558' })).toContainText('Out');
-    await expect(page.locator('.inv-stk-row').filter({ hasText: 'Zinc' })).toContainText('Shelf empty');
-    await expect(page.locator('.inv-stk-row').filter({ hasText: 'Brightener' })).toContainText('4 L/day');
+    await expect(page.locator('#stockLines .inv-row-group').first()).toContainText('Out');
+    await expect(page.locator('#stockLines [data-action="invStockOpen"]').filter({ hasText: 'Q558' })).toContainText('Out');
+    await expect(page.locator('#stockLines [data-action="invStockOpen"]').filter({ hasText: 'Zinc' })).toContainText('Shelf empty');
+    await expect(page.locator('#stockLines [data-action="invStockOpen"]').filter({ hasText: 'Brightener' })).toContainText('4 L/day');
     // More's badge is every red row: each stock line out or under its red line.
     const red = await g(page, `stockData().items.filter(function(i){ return stockStatus(i).tone === 'red'; }).map(function(i){ return i.name; })`) as string[];
     expect(red).toContain('Q558');
@@ -136,7 +136,7 @@ test.describe('P39: stock', () => {
 
     // The same message twice is caught, and nothing is saved twice.
     await paste(page, MSG1());
-    await expect(page.locator('.inv-stk-banner-red')).toContainText('already saved');
+    await expect(page.locator('#stockDupNote')).toContainText('already saved');
     await expect(page.locator('[data-action="invStockSavePaste"]')).toBeDisabled();
   });
 
@@ -148,7 +148,7 @@ test.describe('P39: stock', () => {
     await page.locator('[data-action="invStockSavePaste"]').click();
     await paste(page, MSG2());
 
-    const amber = page.locator('.inv-stk-pr-amber');
+    const amber = page.locator('#stockReview [data-tone="amber"]');
     await expect(amber.filter({ hasText: '6 · Nitric Acid' })).toContainText('No name on this line. Read as Nitric Acid');
     await expect(amber.filter({ hasText: '3 · 16 Salt' })).toContainText('Up 15 kg from the app\'s 40, with no delivery recorded.');
     // 46 carried from the chosen reading: the opening agrees, so no second question.
@@ -181,22 +181,22 @@ test.describe('P39: stock', () => {
     await expect(page.locator('.inv-toast')).toContainText('Enter the invoice number');
     await page.locator('#stockManBill').fill('SA/101');
     await page.locator('[data-action="invStockSaveManual"]').click();
-    await expect(page.locator('.inv-stk-row').filter({ hasText: 'Q558' })).toContainText('60');
+    await expect(page.locator('#stockLines [data-action="invStockOpen"]').filter({ hasText: 'Q558' })).toContainText('60');
 
     await page.locator('[data-action="invStockManual"]').click();
     await page.locator(`[data-stock-qty="${q558}"]`).fill('55');
     await page.locator('[data-action="invStockSaveManual"]').click();
     await expect(page.locator('.inv-toast')).toContainText('1 count differs from the app');
 
-    await page.locator('.inv-stk-row').filter({ hasText: 'Q558' }).click();
-    await expect(page.locator('.inv-stk-hrow').first()).toContainText('The app expected 60 (-5 unexplained)');
-    await expect(page.locator('.inv-stk-hero')).toContainText('Last paid');
+    await page.locator('#stockLines [data-action="invStockOpen"]').filter({ hasText: 'Q558' }).click();
+    await expect(page.locator('#stockEntries [data-entry]').first()).toContainText('The app expected 60 (-5 unexplained)');
+    await expect(page.locator('#stockSummary')).toContainText('Last paid');
 
     // A wrong entry is voided, never deleted, and stops counting.
-    const voidBtn = page.locator('.inv-stk-hrow').first().locator('[data-action="invStockVoid"]');
+    const voidBtn = page.locator('#stockEntries [data-entry]').first().locator('[data-action="invStockVoid"]');
     await voidBtn.click();
-    await page.locator('.inv-stk-void-arm').click();
-    await expect(page.locator('.inv-stk-hero-lv')).toContainText('60');
+    await page.locator('[data-action="invStockVoid"][aria-pressed="true"]').click();
+    await expect(page.locator('#stockLevel')).toContainText('60');
     const st = (await readStoredState(page)).stock;
     expect(st.entries.filter((e: any) => e.voided)).toHaveLength(1);
   });
@@ -225,24 +225,24 @@ test.describe('P39: stock', () => {
     };
     await loadAppWithState(page, s);
     await openStatsTab(page, 'cost');
-    const chem = page.locator('#liveCost .inv-cost-row').filter({ hasText: 'Chemicals' });
+    const chem = page.locator('#liveCost [data-cost]').filter({ hasText: 'Chemicals' });
     await expect(chem).toContainText('₹2,000.00');
     // Q558 was used but never priced: part-recorded, and named in the breakdown.
-    await expect(chem.locator('.inv-cost-src')).toHaveText('part-recorded');
+    await expect(chem.locator('[data-src]')).toHaveText('part-recorded');
     await expect(chem).toContainText('1 of 2 lines used are priced');
     await chem.locator('summary').click();
-    await expect(chem.locator('.inv-cost-detail')).toContainText('Q558');
-    await expect(chem.locator('.inv-cost-detail')).toContainText('5 kg used, no price');
+    await expect(chem.locator('.inv-row-children')).toContainText('Q558');
+    await expect(chem.locator('.inv-row-children')).toContainText('5 kg used, no price');
     // The days before the stock record began are filled at the model, and say so.
-    await expect(chem.locator('.inv-cost-detail')).toContainText('Not recorded');
+    await expect(chem.locator('.inv-row-children')).toContainText('Not recorded');
   });
 
   test('More holds To-do, Finance, Stock, Staff, Stats and History, and lights up while one is open', async ({ page }) => {
     await loadAppWithState(page, state());
     await expect(page.locator('.inv-navbar .inv-navbar-item')).toHaveCount(6);
     await page.locator('.inv-navbar-more').click();
-    await expect(page.locator('.inv-more-item')).toHaveText([/To-do/, /Finance/, /Stock/, /Staff/, /Stats/, /History/]);
-    await page.locator('.inv-more-item[data-tab="pageStaff"]').click();
+    await expect(page.locator('#moreSheet .inv-row')).toHaveText([/To-do/, /Finance/, /Stock/, /Staff/, /Stats/, /History/]);
+    await page.locator('#moreSheet .inv-row[data-tab="pageStaff"]').click();
     await expect(page.locator('#moreSheet')).toHaveCount(0);
     await expect(page.locator('#pageStaff')).toHaveClass(/inv-page-active/);
     await expect(page.locator('.inv-navbar-more')).toHaveClass(/inv-navbar-item-on/);
@@ -276,19 +276,19 @@ test.describe('P39: stock', () => {
     expect(JSON.parse(added)).toEqual({ items: 1, entries: 1, pastes: 0, bills: 0 });
     expect(await g(page, `stockData().entries[0].price`)).toBeUndefined();
     await openStock(page);
-    await page.locator('.inv-stk-row').filter({ hasText: 'Boric Acid' }).click();
-    await expect(page.locator('.inv-stk-hero-lv')).toContainText('10');
+    await page.locator('#stockLines [data-action="invStockOpen"]').filter({ hasText: 'Boric Acid' }).click();
+    await expect(page.locator('#stockLevel')).toContainText('10');
   });
 
   test('on the very first message, a nameless line can be pointed at a line that message creates', async ({ page }) => {
     await loadAppWithState(page, state());
     await openStock(page);
     await paste(page, MSG1() + `\n\n8) 70-10=60 LTR`);
-    const pick = page.locator('.inv-stk-pr-red').locator('select');
+    const pick = page.locator('#stockReview [data-tone="red"]').locator('select');
     // Nothing is saved yet, so the choices are the lines this message adds.
     await expect(pick.locator('option')).toContainText(['Pick a line', 'Nitric Acid (new in this message)']);
     await pick.selectOption({ label: 'Nitric Acid (new in this message)' });
-    await expect(page.locator('.inv-stk-pr-red')).toHaveCount(1);   // nitric's own arithmetic still asks
+    await expect(page.locator('#stockReview [data-tone="red"]')).toHaveCount(1);   // nitric's own arithmetic still asks
     await page.locator('[data-action="invStockSavePaste"]').click();
     const nitric = await g(page, `stockData().items.filter(function(i){ return i.key === 'NITRIC ACID'; }).length`);
     expect(nitric).toBe(1);
@@ -301,12 +301,12 @@ test.describe('P39: stock', () => {
     await openStock(page);
     // The 24 Sep shape: line 14 is the only nitric line, and it has no name.
     await paste(page, `Chemical stock ${dmy(-1)} ${dmy(0)}\n\n1) ZINK NIL 00\n\n2) HCL 360-200=160 LTR\n\n3) 70-10=60 LTR`);
-    const card = page.locator('.inv-stk-pr-red');
+    const card = page.locator('#stockReview [data-tone="red"]');
     await expect(card.locator('option')).not.toContainText(['Nitric']);
     await card.locator('[data-stock-name]').fill('Nitric acid');
     await card.locator('[data-stock-name]').press('Enter');
-    await expect(page.locator('.inv-stk-pr-red')).toHaveCount(0);
-    await expect(page.locator('.inv-stk-pr').filter({ hasText: '3 · Nitric Acid' })).toContainText('New line: added as Nitric Acid');
+    await expect(page.locator('#stockReview [data-tone="red"]')).toHaveCount(0);
+    await expect(page.locator('#stockReview [data-line]').filter({ hasText: '3 · Nitric Acid' })).toContainText('New line: added as Nitric Acid');
     await page.locator('[data-action="invStockSavePaste"]').click();
     expect(await g(page, `stockReplay(stockFindByKey('NITRIC ACID').id).level`)).toBe(60);
     // Next time, the same position is read as nitric without asking.
@@ -333,12 +333,12 @@ test.describe('P39: stock', () => {
     // A nameless line with nothing at its position is not saved until picked.
     const lone = `Chemical stock ${dmy(1)}\n\n9) 12 KG`;
     await paste(page, lone);
-    await expect(page.locator('.inv-stk-pr-red')).toContainText('No name on this line');
+    await expect(page.locator('#stockReview [data-tone="red"]')).toContainText('No name on this line');
     await page.locator('[data-action="invStockSavePaste"]').click();
     await expect(page.locator('.inv-toast')).toContainText('Nothing to save');
     const zinc = await g(page, `stockFindByKey('ZINC').id`);
     await page.locator('[data-stock-map="0"]').selectOption(zinc);
-    await expect(page.locator('.inv-stk-banner-red')).toHaveCount(0);
+    await expect(page.locator('#stockDupNote')).toHaveCount(0);
     await page.locator('[data-action="invStockSavePaste"]').click();
     expect(await g(page, `stockReplay(stockFindByKey('ZINC').id).level`)).toBe(12);
   });

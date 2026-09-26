@@ -125,6 +125,7 @@ function homeQuick(go) {
   else if (go === 'attendance') { _attView = 'day'; _attDate = localDateStr(); switchTab('pageStaff'); }
   else if (go === 'paste') relayOpen();
   else if (go === 'task') {
+    _todoShowDone = false;  // the add field is on the Open tab
     switchTab('pageTodo');
     var inp = document.getElementById('todoNew');
     if (inp) inp.focus();
@@ -133,6 +134,8 @@ function homeQuick(go) {
 
 /* A status is one of five tone words (design principles §6.13); the modules keep their own. */
 var UI_TONE = { red: 'danger', amber: 'warning', info: 'info', green: 'ok' };
+/* Status as a dot and a word (§6.13, DR-8). `word` is HTML: the caller escapes what came from the user. */
+function uiDot(tone, word) { return '<span class="inv-dot inv-dot-' + uiTone(tone) + '">' + word + '</span>'; }
 function uiTone(t) { return UI_TONE[t] || (/^(danger|warning|ok|info|neutral)$/.test(t) ? t : 'neutral'); }
 
 var ICON_SEARCH = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>';

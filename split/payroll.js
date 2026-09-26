@@ -130,15 +130,8 @@ function paySigned(n) { return (n > 0 ? '+' : n < 0 ? '&minus;' : '') + escHtml(
 
 function _attPayView() {
   var ws = _attWeekStart, sat = attAddDays(ws, 6);
-  var html = '<div class="inv-att-nav">' +
-    '<button class="inv-att-nav-btn" data-action="invAttWeekStep" data-step="-1" aria-label="Previous week">' +
-    '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg></button>' +
-    '<div class="inv-att-nav-label"><span class="inv-att-week-num">Week ' + attPayWeekNumber(ws) + '</span>' +
-    '<span class="inv-att-nav-day">Paid Sat ' + formatDate(sat) + '</span></div>' +
-    '<button class="inv-att-nav-btn" data-action="invAttWeekStep" data-step="1" aria-label="Next week">' +
-    '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg></button>' +
-    '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invAttThisWeek">This week</button>' +
-    '</div>';
+  var html = _attStepper('invAttWeekStep', _attWeekLabel('Week ' + attPayWeekNumber(ws), 'Paid Sat ' + formatDate(sat)),
+    'invAttThisWeek', 'This week', 'Previous week', 'Next week');
   html += _payForecastCard(ws);
   html += _payDueCard(ws);
   html += _payHistoryCard(ws);
@@ -148,61 +141,69 @@ function _attPayView() {
   return html;
 }
 
+/* A worker's or a week's figure on a pay card (§6.10): who or what, what it rests on, the money at the end. */
+function _payRow(title, sub, end, attrs, cls) {
+  var tag = attrs && attrs.indexOf('data-action') >= 0 ? 'button' : 'div';
+  return '<' + tag + ' class="inv-row' + (sub ? ' inv-row-2' : '') + (cls ? ' ' + cls : '') + '"' + (attrs || '') + '>' +
+    '<span class="inv-row-main"><span class="inv-row-title inv-row-wrap">' + title + '</span>' +
+    (sub ? '<span class="inv-row-meta inv-row-wrap">' + sub + '</span>' : '') + '</span>' +
+    '<span class="inv-row-end">' + end + '</span></' + tag + '>';
+}
+
 function _payForecastCard(ws) {
   var f = payForecast(ws), wk = f.week;
-  var tone = f.swing == null ? 'inv-pay-blue' : (f.swingPct != null && f.swingPct > 0.15 ? 'inv-area-gap-over'
-    : (f.swingPct != null && f.swingPct < -0.15 ? 'inv-area-gap-under' : 'inv-pay-blue'));
-  var h = '<div class="inv-card inv-pay-card" id="payForecast"><div class="inv-card-header"><span class="inv-card-title">Weekly payout</span>' +
-    '<span class="inv-lab-total inv-mono">' + payMoney(f.open ? f.predicted : wk.total) + '</span></div>' +
-    '<div class="inv-lab-split">' +
-    '<div class="inv-lab-half inv-pay-green"><div class="inv-lab-half-label">' + (f.open ? 'So far' : 'The week') + '</div>' +
-    '<div class="inv-lab-half-value inv-mono">' + payMoney(wk.total) + '</div>' +
-    '<div class="inv-lab-half-sub">' + wk.recordedDays + ' of 6 working days recorded' + (wk.sundays ? ' + Sunday' : '') + '</div></div>' +
-    '<div class="inv-lab-half ' + tone + '"><div class="inv-lab-half-label">' + (f.open ? 'Predicted' : 'Against the median') + '</div>' +
-    '<div class="inv-lab-half-value inv-mono">' + (f.open ? payMoney(f.predicted) : (f.swing == null ? '&mdash;' : paySigned(f.swing))) + '</div>' +
-    '<div class="inv-lab-half-sub">' + (f.open
-      ? (f.basis === 'pace' ? f.missing + ' day' + (f.missing === 1 ? '' : 's') + ' at this week&rsquo;s pace, ' + payMoney(f.pace) + '/day'
-        : f.basis === 'median' ? 'nothing recorded yet: the median stands in' : 'every working day recorded')
-      : (f.swingPct == null ? 'no earlier weeks to compare' : (f.swing >= 0 ? '+' : '&minus;') + formatNum(Math.abs(f.swingPct) * 100, 0) + '% of the median')) + '</div></div></div>';
-  h += '<div class="inv-lab-row"><span class="inv-lab-label">Median week<span class="inv-lab-sub">' +
-    (f.medianWeeks ? 'of the ' + f.medianWeeks + ' recorded week' + (f.medianWeeks === 1 ? '' : 's') + ' in the ' + PAY_HISTORY_WEEKS + ' before' : 'no recorded weeks before this one') +
-    '</span></span><span class="inv-lab-value inv-mono">' + (f.median == null ? '&mdash;' : payMoney(f.median)) + '</span></div>';
+  // A week well above the usual is a caution, not an error; one well below says nothing on its own.
+  var tone = f.swingPct != null && f.swingPct > 0.15 ? 'warning' : '';
+  var h = _labPanelHead('payout', 'Weekly payout', payMoney(f.open ? f.predicted : wk.total), '', 'payForecast');
+  h += '<div class="inv-tiles inv-tiles-flush">' +
+    _labTile('sofar', f.open ? 'So far' : 'The week', payMoney(wk.total),
+      wk.recordedDays + ' of 6 working days recorded' + (wk.sundays ? ' + Sunday' : '')) +
+    _labTile('predicted', f.open ? 'Predicted' : 'Against the median', f.open ? payMoney(f.predicted) : (f.swing == null ? '&mdash;' : paySigned(f.swing)),
+      f.open
+        ? (f.basis === 'pace' ? f.missing + ' day' + (f.missing === 1 ? '' : 's') + ' at this week&rsquo;s pace, ' + payMoney(f.pace) + '/day'
+          : f.basis === 'median' ? 'nothing recorded yet: the median stands in' : 'every working day recorded')
+        : (f.swingPct == null ? 'no earlier weeks to compare' : (f.swing >= 0 ? '+' : '&minus;') + formatNum(Math.abs(f.swingPct) * 100, 0) + '% of the median'),
+      tone) + '</div>';
+  h += _payRow('Median week', f.medianWeeks ? 'of the ' + f.medianWeeks + ' recorded week' + (f.medianWeeks === 1 ? '' : 's') + ' in the ' + PAY_HISTORY_WEEKS + ' before' : 'no recorded weeks before this one',
+    '<span class="inv-num">' + (f.median == null ? '&mdash;' : payMoney(f.median)) + '</span>');
   if (f.open && f.swing != null) {
-    h += '<div class="inv-lab-row"><span class="inv-lab-label">Swing from the median<span class="inv-lab-sub">predicted less median</span></span>' +
-      '<span class="inv-lab-value inv-mono" id="paySwing">' + paySigned(f.swing) + ' (' + (f.swing >= 0 ? '+' : '&minus;') + formatNum(Math.abs(f.swingPct) * 100, 0) + '%)</span></div>';
+    h += _payRow('Swing from the median', 'predicted less median',
+      '<span class="inv-num" id="paySwing">' + paySigned(f.swing) + ' (' + (f.swing >= 0 ? '+' : '&minus;') + formatNum(Math.abs(f.swingPct) * 100, 0) + '%)</span>');
   }
-  h += '<div class="inv-lab-row"><span class="inv-lab-label">Hourly and daily tiers<span class="inv-lab-sub">their pay, OT and rest credit</span></span><span class="inv-lab-value inv-mono">' + payMoney(wk.workers) + '</span></div>' +
-    '<div class="inv-lab-row"><span class="inv-lab-label">EXTRA pool<span class="inv-lab-sub">' + formatNum(wk.lab.extraHours, 1) + ' h, disbursed by the supervisor</span></span><span class="inv-lab-value inv-mono">' + payMoney(wk.extra) + '</span></div>' +
-    '<div class="inv-stats-note">The weekly tiers and the EXTRA pool, as recorded. The monthly tier is paid by the month and is in the due list below, not here. A day nobody typed is not a day nobody worked: the prediction fills unrecorded days at the week&rsquo;s pace, and the figure so far reads low until they are in.</div>';
+  h += _payRow('Hourly and daily tiers', 'their pay, OT and rest credit', '<span class="inv-num">' + payMoney(wk.workers) + '</span>') +
+    _payRow('EXTRA pool', formatNum(wk.lab.extraHours, 1) + ' h, disbursed by the supervisor', '<span class="inv-num">' + payMoney(wk.extra) + '</span>') +
+    _labNote('The weekly tiers and the EXTRA pool, as recorded. The monthly tier is paid by the month and is in the due list below, not here. A day nobody typed is not a day nobody worked: the prediction fills unrecorded days at the week&rsquo;s pace, and the figure so far reads low until they are in.');
   return h + '</div>';
 }
 
 function _payDueCard(ws) {
   var d = payDue(ws);
   var monthName = attParseIso(d.mFrom).toLocaleString('en-IN', { month: 'long', year: 'numeric' });
-  var h = '<div class="inv-card inv-pay-card" id="payDue"><div class="inv-card-header"><span class="inv-card-title">Due by worker</span></div>';
+  var h = _labPanelHead('due', 'Due by worker', null, '', 'payDue');
   var group = function(title, rows) {
     if (!rows.length) return '';
     var tot = rows.reduce(function(s, r) { return s + r.due; }, 0);
-    var g = '<div class="inv-stk-label inv-mt-8">' + title + '</div>';
+    var g = '<div class="inv-row-group">' + title + '</div>';
     rows.forEach(function(r) {
       var e = r.earned, bits = [];
       if (e.days) bits.push(formatNum(e.days, 1) + ' day' + (e.days === 1 ? '' : 's'));
       if (r.w.comp === 'hourly' && e.hours) bits.push(formatNum(e.hours, 1) + ' h');
       if (e.otHours) bits.push('OT ' + formatNum(e.otHours, 1) + ' h');
       if (e.rest) bits.push('rest ' + payMoney(e.rest));
-      g += '<button class="inv-lab-row inv-pay-row" data-action="invPayPick" data-id="' + escHtml(r.w.id) + '" data-due="' + r.due + '">' +
-        '<span class="inv-lab-label">' + escHtml(r.w.name) + '<span class="inv-lab-sub">' +
+      // A negative due is an advance not yet worked off: said in a word beside the figure.
+      g += _payRow(escHtml(r.w.name),
         (bits.length ? bits.join(' · ') + ' · ' : 'nothing recorded · ') + 'earned ' + payMoney(e.total) +
-        (r.asPaid ? ' · as paid, from the slip' : r.paid ? ' &minus; paid ' + payMoney(r.paid) : '') + '</span></span>' +
-        '<span class="inv-lab-value inv-mono' + (r.due < 0 ? ' inv-pay-over' : '') + '">' + payMoney(r.due) + '</span></button>';
+          (r.asPaid ? ' · as paid, from the slip' : r.paid ? ' &minus; paid ' + payMoney(r.paid) : ''),
+        r.due < 0 ? '<span class="inv-row-stack"><span class="inv-num">' + payMoney(r.due) + '</span><span class="inv-dot inv-dot-warning">Advance</span></span>'
+          : '<span class="inv-num">' + payMoney(r.due) + '</span>',
+        ' data-action="invPayPick" data-id="' + escHtml(r.w.id) + '" data-due="' + r.due + '"');
     });
-    g += '<div class="inv-lab-row inv-pay-total"><span class="inv-lab-label">Total due</span><span class="inv-lab-value inv-mono">' + payMoney(gstRound(tot)) + '</span></div>';
+    g += _payRow('Total due', '', '<span class="inv-num">' + payMoney(gstRound(tot)) + '</span>', '', 'inv-row-strong');
     return g;
   };
   h += group('Weekly &middot; paid Sat ' + formatDate(d.sat), d.rows.filter(function(r) { return r.weekly; }));
   h += group('Monthly &middot; ' + escHtml(monthName), d.rows.filter(function(r) { return !r.weekly; }));
-  h += '<div class="inv-stats-note">Earned is worked out from the days recorded, on the labour card&rsquo;s own rates. A negative due is an advance not yet worked off. Tap a worker to pay what is due.</div>';
+  h += _labNote('Earned is worked out from the days recorded, on the labour card&rsquo;s own rates. A negative due is an advance not yet worked off. Tap a worker to pay what is due.');
   h += _payFormHtml(d);
   h += _payListHtml(d);
   return h + '</div>';
@@ -211,19 +212,15 @@ function _payDueCard(ws) {
 function _payFormHtml(d) {
   var today = localDateStr();
   var defDate = today >= d.weekStart && today <= d.sat ? today : d.sat;
-  return '<div class="inv-stk-label inv-mt-8">Record a payment</div>' +
-    '<div class="inv-form-row"><div class="inv-form-group"><label class="inv-form-label" for="payWorker">Worker</label>' +
-    '<select class="inv-form-select" id="payWorker"><option value="">Select&hellip;</option>' +
-    staffActive().map(function(w) { return '<option value="' + escHtml(w.id) + '">' + escHtml(w.name) + '</option>'; }).join('') + '</select></div>' +
-    '<div class="inv-form-group"><label class="inv-form-label" for="payKind">Kind</label>' +
-    '<select class="inv-form-select" id="payKind"><option value="payment">Payment</option><option value="advance">Advance</option></select></div></div>' +
-    '<div class="inv-form-row"><div class="inv-form-group"><label class="inv-form-label" for="payAmount">Amount</label>' +
-    '<input class="inv-form-input inv-mono" id="payAmount" type="number" step="0.01" min="0" inputmode="decimal"></div>' +
-    '<div class="inv-form-group"><label class="inv-form-label" for="payDate">Date</label>' +
-    '<input class="inv-form-input" id="payDate" type="date" value="' + defDate + '"></div></div>' +
-    '<div class="inv-form-group"><label class="inv-form-label" for="payNote">Note</label>' +
-    '<input class="inv-form-input" id="payNote" placeholder="optional"></div>' +
-    '<button class="inv-btn inv-btn-primary inv-btn-sm" data-action="invPaySave">Save payment</button>';
+  var f = function(id, label, control) { return '<div class="inv-field"><label class="inv-field-label" for="' + id + '">' + label + '</label>' + control + '</div>'; };
+  return '<div class="inv-row-group">Record a payment</div><div class="inv-panel-body" id="payForm"><div class="inv-fields">' +
+    f('payWorker', 'Worker', '<select class="inv-select" id="payWorker"><option value="">Select&hellip;</option>' +
+      staffActive().map(function(w) { return '<option value="' + escHtml(w.id) + '">' + escHtml(w.name) + '</option>'; }).join('') + '</select>') +
+    f('payKind', 'Kind', '<select class="inv-select" id="payKind"><option value="payment">Payment</option><option value="advance">Advance</option></select>') +
+    f('payAmount', 'Amount', '<input class="inv-input inv-input-num" id="payAmount" type="number" step="0.01" min="0" inputmode="decimal">') +
+    f('payDate', 'Date', '<input class="inv-input inv-id" id="payDate" type="date" value="' + defDate + '">') +
+    '</div>' + f('payNote', 'Note', '<input class="inv-input" id="payNote" placeholder="optional">') +
+    '<button class="inv-btn inv-btn-primary" data-action="invPaySave">Save payment</button></div>';
 }
 
 function _payListHtml(d) {
@@ -233,14 +230,15 @@ function _payListHtml(d) {
     return weekly ? (p.date >= d.weekStart && p.date <= d.sat) : (p.date >= d.mFrom && p.date <= d.mTo);
   }).sort(function(a, b) { return a.date < b.date ? 1 : a.date > b.date ? -1 : (b.at || 0) - (a.at || 0); });
   if (!list.length) return '';
-  var h = '<div class="inv-stk-label inv-mt-8">Payments in these periods</div>';
+  var h = '<div class="inv-row-group">Payments in these periods</div>';
   list.forEach(function(p) {
     var w = (S.staff || []).find(function(x) { return String(x.id) === String(p.staffId); });
-    h += '<div class="inv-lab-row' + (p.voidedAt ? ' inv-pay-void' : '') + '"><span class="inv-lab-label">' + escHtml(w ? w.name : 'Removed worker') +
-      '<span class="inv-lab-sub">' + escHtml(formatDate(p.date)) + ' · ' + (p.kind === 'advance' ? 'Advance' : 'Payment') +
-      (p.note ? ' · ' + escHtml(p.note) : '') + (p.voidedAt ? ' · void: ' + escHtml(p.voidReason || '') : '') + '</span></span>' +
-      '<span class="inv-lab-value inv-mono">' + payMoney(Number(p.amount) || 0) +
-      (p.voidedAt ? '' : ' <button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invPayVoid" data-id="' + escHtml(p.id) + '">Void</button>') + '</span></div>';
+    h += _payRow(escHtml(w ? w.name : 'Removed worker'),
+      escHtml(formatDate(p.date)) + ' · ' + (p.kind === 'advance' ? 'Advance' : 'Payment') +
+        (p.note ? ' · ' + escHtml(p.note) : '') + (p.voidedAt ? ' · void: ' + escHtml(p.voidReason || '') : ''),
+      '<span class="inv-num">' + payMoney(Number(p.amount) || 0) + '</span>' +
+        (p.voidedAt ? '' : '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invPayVoid" data-id="' + escHtml(p.id) + '">Void</button>'),
+      ' data-payment="' + escHtml(p.id) + '"', p.voidedAt ? 'inv-row-muted' : '');
   });
   return h;
 }
@@ -250,16 +248,16 @@ function _payHistoryCard(ws) {
   for (var i = PAY_HISTORY_WEEKS - 1; i >= 0; i--) weeks.push(payWeek(attAddDays(ws, -7 * i)));
   // The same median the forecast reads: the twelve weeks before this one.
   var median = payForecast(ws).median;
-  var h = '<div class="inv-card inv-pay-card" id="payHistory"><div class="inv-card-header"><span class="inv-card-title">Weekly payouts</span>' +
-    '<span class="inv-lab-sub">median ' + (median == null ? '&mdash;' : payMoney(median)) + '</span></div>';
-  h += '<div class="inv-pay-chart">' + chartBars(weeks.map(function(w) { return { label: 'W' + attPayWeekNumber(w.start), value: w.total }; }), { ariaLabel: 'Weekly payout' }) + '</div>';
+  var h = '<div class="inv-panel inv-panel-flush" id="payHistory"><div class="inv-panel-head"><span class="inv-panel-title">Weekly payouts</span>' +
+    '<span class="inv-panel-count">median ' + (median == null ? '&mdash;' : payMoney(median)) + '</span></div>';
+  h += '<div class="inv-panel-body">' + chartBars(weeks.map(function(w) { return { label: 'W' + attPayWeekNumber(w.start), value: w.total }; }), { ariaLabel: 'Weekly payout' }) + '</div>';
   weeks.slice().reverse().forEach(function(w) {
     var swing = median != null && w.recordedDays > 0 ? gstRound(w.total - median) : null;
-    h += '<div class="inv-lab-row inv-pay-week"><span class="inv-lab-label">Week ' + attPayWeekNumber(w.start) + ' &middot; Sat ' + escHtml(formatDate(w.sat)) +
-      '<span class="inv-lab-sub">' + (w.recordedDays ? w.recordedDays + ' day' + (w.recordedDays === 1 ? '' : 's') + ' recorded' : 'nothing recorded') +
-      (w.paid ? ' · paid ' + payMoney(w.paid) : '') +
-      (swing != null ? ' · ' + paySigned(swing) + ' against the median' : '') + '</span></span>' +
-      '<span class="inv-lab-value inv-mono">' + payMoney(w.total) + '</span></div>';
+    h += _payRow('Week ' + attPayWeekNumber(w.start) + ' &middot; Sat ' + escHtml(formatDate(w.sat)),
+      (w.recordedDays ? w.recordedDays + ' day' + (w.recordedDays === 1 ? '' : 's') + ' recorded' : 'nothing recorded') +
+        (w.paid ? ' · paid ' + payMoney(w.paid) : '') +
+        (swing != null ? ' · ' + paySigned(swing) + ' against the median' : ''),
+      '<span class="inv-num">' + payMoney(w.total) + '</span>', ' data-week="' + w.start + '"');
   });
   return h + '</div>';
 }
@@ -383,31 +381,31 @@ function _monthLabel(month) {
 }
 function _payrollPaidCard() {
   var recs = payrollPaidRecords().slice().sort(function(a, b) { return a.month < b.month ? 1 : a.month > b.month ? -1 : (b.at || 0) - (a.at || 0); });
-  var h = '<div class="inv-card inv-pay-card" id="payrollPaid"><div class="inv-card-header"><span class="inv-card-title">Monthly payroll as paid</span>' +
+  var h = '<div class="inv-panel inv-panel-flush" id="payrollPaid"><div class="inv-panel-head"><span class="inv-panel-title">Monthly payroll as paid</span>' +
     '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invPayrollImport">Import</button>' +
     '<input type="file" accept=".json,application/json" id="payrollFileInput" class="inv-hidden"></div>';
   if (!recs.length) {
-    h += '<div class="inv-stats-note">No closed month is on record, so every month of the monthly tier is worked out from ' +
-      'the attendance marks. Import the payroll file built from the slips and a closed month is read as it was paid.</div>';
-    return h + '</div>';
+    return h + _labNote('No closed month is on record, so every month of the monthly tier is worked out from ' +
+      'the attendance marks. Import the payroll file built from the slips and a closed month is read as it was paid.') + '</div>';
   }
   recs.forEach(function(r) {
     var gross = r.rows.reduce(function(s, x) { return s + (Number(x.dayPay) || 0) + (Number(x.ot) || 0); }, 0);
     var otH = r.rows.reduce(function(s, x) { return s + (Number(x.otHours) || 0); }, 0);
     var unmatched = r.rows.filter(function(x) { return !payrollWorker(x); }).map(function(x) { return x.name; });
-    h += '<div class="inv-lab-row' + (r.voidedAt ? ' inv-pay-void' : '') + '"><span class="inv-lab-label">' + escHtml(_monthLabel(r.month)) +
-      '<span class="inv-lab-sub">' + r.rows.length + ' hand' + (r.rows.length === 1 ? '' : 's') +
-      (otH ? ' · OT ' + formatNum(otH, 1) + ' h' : '') + (r.status === 'computed' ? ' · computed, not confirmed paid' : ' · as paid') +
-      (r.source ? ' · ' + escHtml(r.source) : '') +
-      (unmatched.length ? ' · not on the roster: ' + escHtml(unmatched.join(', ')) : '') +
-      (r.note ? ' · ' + escHtml(r.note) : '') +
-      (r.voidedAt ? ' · void: ' + escHtml(r.voidReason || '') : '') + '</span></span>' +
-      '<span class="inv-lab-value inv-mono">' + payMoney(gstRound(gross)) +
-      (r.voidedAt ? '' : ' <button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invPayrollVoid" data-id="' + escHtml(r.id) + '">Void</button>') + '</span></div>';
+    h += _payRow(escHtml(_monthLabel(r.month)),
+      r.rows.length + ' hand' + (r.rows.length === 1 ? '' : 's') +
+        (otH ? ' · OT ' + formatNum(otH, 1) + ' h' : '') + (r.status === 'computed' ? ' · computed, not confirmed paid' : ' · as paid') +
+        (r.source ? ' · ' + escHtml(r.source) : '') +
+        (unmatched.length ? ' · not on the roster: ' + escHtml(unmatched.join(', ')) : '') +
+        (r.note ? ' · ' + escHtml(r.note) : '') +
+        (r.voidedAt ? ' · void: ' + escHtml(r.voidReason || '') : ''),
+      '<span class="inv-num">' + payMoney(gstRound(gross)) + '</span>' +
+        (r.voidedAt ? '' : '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invPayrollVoid" data-id="' + escHtml(r.id) + '">Void</button>'),
+      '', r.voidedAt ? 'inv-row-muted' : '');
   });
-  h += '<div class="inv-stats-note">A closed month on record replaces the attendance model for the monthly tier &mdash; ' +
+  h += _labNote('A closed month on record replaces the attendance model for the monthly tier &mdash; ' +
     'here, on the labour card and in the live cost &mdash; for the hands it names; a monthly hand it does not name is still modelled. ' +
-    'The month in progress is always modelled.</div>';
+    'The month in progress is always modelled.');
   return h + '</div>';
 }
 
@@ -491,17 +489,15 @@ function areaHoursForRange(from, to) {
 function areaHoursCard(from, to) {
   var r = areaHoursForRange(from, to);
   if (!r.rows.length) return '';
-  var h = '<div class="inv-card inv-pay-card" id="areaHours"><div class="inv-card-header"><span class="inv-card-title">Hours by area</span>' +
-    '<span class="inv-lab-total inv-mono">' + formatNum(r.total, 1) + ' h</span></div>';
+  var h = _labPanelHead('hours', 'Hours by area', formatNum(r.total, 1) + ' h', '', 'areaHours');
   r.rows.forEach(function(a) {
     var bits = [formatNum(a.workerDays, 1) + ' worker-day' + (a.workerDays === 1 ? '' : 's'), formatNum(a.hours, 1) + ' h worked'];
     if (a.ot) bits.push('OT ' + formatNum(a.ot, 1) + ' h of it');
     if (a.extra) bits.push('EXTRA ' + formatNum(a.extra, 1) + ' h');
-    h += '<div class="inv-lab-row"><span class="inv-lab-label">' + escHtml(a.label) + '<span class="inv-lab-sub">' + bits.join(' · ') + '</span></span>' +
-      '<span class="inv-lab-value inv-mono">' + formatNum(a.total, 1) + ' h</span></div>';
+    h += _payRow(escHtml(a.label), bits.join(' · '), '<span class="inv-num">' + formatNum(a.total, 1) + ' h</span>');
   });
-  h += '<div class="inv-stats-note">Every tier together: the hours on each day&rsquo;s mark, where the worker stood that day, plus the EXTRA booked to the area.' +
-    (r.assumed ? ' <strong>' + r.assumed + ' mark' + (r.assumed === 1 ? '' : 's') + '</strong> carried no hours and ' + (r.assumed === 1 ? 'is' : 'are') + ' counted as 8 (a half day as 4).' : '') + '</div>';
+  h += _labNote('Every tier together: the hours on each day&rsquo;s mark, where the worker stood that day, plus the EXTRA booked to the area.' +
+    (r.assumed ? ' <strong>' + r.assumed + ' mark' + (r.assumed === 1 ? '' : 's') + '</strong> carried no hours and ' + (r.assumed === 1 ? 'is' : 'are') + ' counted as 8 (a half day as 4).' : ''));
   return h + '</div>';
 }
 

@@ -18,7 +18,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <!-- Appearance before first paint (§3.2): the device's theme and palette, so nothing flashes in the wrong colours. -->
 <script>(function(){try{var d=document.documentElement,t=localStorage.getItem("sep_inv_theme"),p=localStorage.getItem("sep_inv_palette");if(t==="light"||t==="dark")d.dataset.theme=t;d.dataset.palette=(p==="zinc"||p==="terracotta")?p:"teal";}catch(e){document.documentElement.dataset.palette="teal";}})();</script>
-<meta name="app-build" content="61a1e7a8">
+<meta name="app-build" content="dd6a4643">
 <style>
 /* ===== DESIGN TOKENS (design system v2.0 — docs/SEP_INVOICING_DESIGN_PRINCIPLES.md §3) ===== */
 /* Theme: colour-scheme decides every light-dark() below. <html data-theme> is set before first paint
@@ -351,7 +351,6 @@ body.inv-desktop .inv-seg-btn[aria-pressed="true"] { background: var(--surface-2
 }
 .inv-line-num {
   font-size: var(--fs-xs); font-weight: 600; color: var(--text-3);
-  text-transform: uppercase; letter-spacing: 0.05em;
 }
 .inv-line-remove {
   min-width: 44px; min-height: 44px; display: flex;
@@ -1118,8 +1117,7 @@ table.inv-qc-grid.inv-qc-no-top { border-top: 0; }
   margin-bottom: var(--sp-12);
 }
 .inv-stats-title {
-  font-size: var(--fs-sm); font-weight: 700; text-transform: uppercase;
-  letter-spacing: 0.06em; color: var(--text-3); margin-bottom: var(--sp-12);
+  font-size: var(--fs-sm); font-weight: 700; color: var(--text-3); margin-bottom: var(--sp-12);
 }
 .inv-stats-row {
   display: flex; justify-content: space-between; align-items: center;
@@ -1185,7 +1183,7 @@ table.inv-qc-grid.inv-qc-no-top { border-top: 0; }
   border-radius: var(--r-md); min-width: 0;
 }
 .inv-kpi-label {
-  font-size: var(--fs-2xs); text-transform: uppercase; letter-spacing: 0.06em;
+  font-size: var(--fs-2xs);
   color: var(--text-3); font-weight: 600;
 }
 .inv-kpi-value {
@@ -1284,16 +1282,6 @@ table.inv-qc-grid.inv-qc-no-top { border-top: 0; }
   display: flex; gap: var(--sp-8); padding: var(--sp-8) 0 var(--sp-16) 0;
   overflow-x: auto; -webkit-overflow-scrolling: touch;
 }
-.inv-chip {
-  padding: var(--sp-6) var(--sp-16); border-radius: var(--r-full);
-  border: 1px solid var(--border); background: var(--surface);
-  color: var(--text-2); font-size: var(--fs-sm); font-weight: 600;
-  cursor: pointer; white-space: nowrap;
-  transition: all var(--anim-fast) ease;
-}
-.inv-chip-active { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
-.dark .inv-chip { border-color: var(--border); background: var(--surface-2); }
-.dark .inv-chip-active { background: var(--accent-dark); border-color: var(--accent-dark); }
 
 /* P9: Compact chip variant for in-card toolbars (e.g. trend granularity) */
 .inv-stats-chips-sm { padding: 0; gap: var(--sp-4); flex: 0 0 auto; }
@@ -1471,8 +1459,7 @@ table.inv-qc-grid.inv-qc-no-top { border-top: 0; }
 .inv-stats-table-header {
   display: flex; gap: var(--sp-4); padding: var(--sp-6) 0;
   border-bottom: 2px solid var(--border); font-size: var(--fs-xs);
-  font-weight: 700; color: var(--text-3); text-transform: uppercase;
-  letter-spacing: 0.05em;
+  font-weight: 700; color: var(--text-3);
 }
 .inv-stats-table-row {
   display: flex; gap: var(--sp-4); padding: var(--sp-8) 0;
@@ -1506,8 +1493,7 @@ table.inv-qc-grid.inv-qc-no-top { border-top: 0; }
   100% { transform: perspective(1200px) rotateY(0deg); opacity: 1; }
 }
 .inv-flip-period-label {
-  font-size: var(--fs-xs); font-weight: 700; color: var(--accent);
-  text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: var(--sp-12);
+  font-size: var(--fs-xs); font-weight: 700; color: var(--accent); margin-bottom: var(--sp-12);
 }
 .dark .inv-flip-period-label { color: var(--accent-dark); }
 .inv-flip-kpis {
@@ -1519,8 +1505,7 @@ table.inv-qc-grid.inv-qc-no-top { border-top: 0; }
   background: var(--surface-2); border-radius: var(--r-lg);
 }
 .inv-flip-kpi-label {
-  display: block; font-size: var(--fs-xs); color: var(--text-3);
-  text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: var(--sp-4);
+  display: block; font-size: var(--fs-xs); color: var(--text-3); margin-bottom: var(--sp-4);
 }
 .inv-flip-kpi-value {
   display: block; font-family: var(--ff-display); font-size: var(--fs-lg);
@@ -1530,7 +1515,6 @@ table.inv-qc-grid.inv-qc-no-top { border-top: 0; }
 .inv-flip-meta { font-size: var(--fs-sm); color: var(--text-3); margin-bottom: var(--sp-16); }
 .inv-flip-section-title {
   font-size: var(--fs-sm); font-weight: 700; color: var(--text-3);
-  text-transform: uppercase; letter-spacing: 0.05em;
   margin: var(--sp-16) 0 var(--sp-8) 0;
 }
 .inv-flip-section-title:first-child { margin-top: 0; }
@@ -1558,8 +1542,7 @@ table.inv-qc-grid.inv-qc-no-top { border-top: 0; }
 .inv-history-item[data-action] { cursor: pointer; }
 .inv-history-item[data-action]:active { background: var(--surface-2); }
 .inv-settings-title {
-  font-size: var(--fs-sm); font-weight: 700; text-transform: uppercase;
-  letter-spacing: 0.08em; color: var(--text-3);
+  font-size: var(--fs-sm); font-weight: 700; color: var(--text-3);
   margin-bottom: var(--sp-12); padding-bottom: var(--sp-6);
   border-bottom: 1px solid var(--border);
 }
@@ -1601,13 +1584,6 @@ table.inv-qc-grid.inv-qc-no-top { border-top: 0; }
 }
 .inv-quick-action:active { opacity: 0.7; }
 .inv-flex-between { display: flex; justify-content: space-between; align-items: center; }
-.inv-chip {
-  display: inline-flex; align-items: center; padding: var(--sp-6) var(--sp-12);
-  border: 1.5px solid var(--border); border-radius: var(--r-full);
-  font-size: var(--fs-sm); font-weight: 500; cursor: pointer;
-  min-height: 44px; transition: all var(--anim-fast);
-}
-.inv-chip-active { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
 .inv-empty-state {
   text-align: center; padding: var(--sp-32) var(--sp-16);
   color: var(--text-3); font-size: var(--fs-base);
@@ -1724,13 +1700,11 @@ table.inv-qc-grid.inv-qc-no-top { border-top: 0; }
   display: inline-block; padding: var(--sp-2) var(--sp-8);
   border-radius: var(--r-full); font-size: var(--fs-2xs); font-weight: 700;
   background: var(--danger-bg); color: var(--danger-text);
-  text-transform: uppercase; letter-spacing: 0.05em;
 }
 /* Invoice lifecycle state badges */
 .inv-state-badge {
   display: inline-block; padding: var(--sp-2) var(--sp-8);
   border-radius: var(--r-full); font-size: var(--fs-2xs); font-weight: 600;
-  text-transform: uppercase; letter-spacing: 0.05em;
 }
 .inv-state-created { background: var(--neutral-bg); color: var(--neutral-text); }
 .inv-state-dispatched { background: var(--warning-bg); color: var(--warning-text); }
@@ -1776,7 +1750,6 @@ table.inv-qc-grid.inv-qc-no-top { border-top: 0; }
 }
 .inv-detail-label {
   font-size: var(--fs-2xs); font-weight: 600;
-  text-transform: uppercase; letter-spacing: 0.08em;
   color: var(--text-3); margin-bottom: var(--sp-4);
 }
 .inv-detail-value {
@@ -1799,8 +1772,7 @@ table.inv-qc-grid.inv-qc-no-top { border-top: 0; }
 .inv-detail-items-table th {
   text-align: left; padding: var(--sp-6) var(--sp-4);
   border-bottom: 2px solid var(--border-2);
-  font-size: var(--fs-2xs); text-transform: uppercase;
-  letter-spacing: 0.05em; color: var(--text-3); font-weight: 600;
+  font-size: var(--fs-2xs); color: var(--text-3); font-weight: 600;
 }
 .inv-detail-items-table td {
   padding: var(--sp-6) var(--sp-4);
@@ -1902,8 +1874,7 @@ table.inv-qc-grid.inv-qc-no-top { border-top: 0; }
 .inv-im-status {
   display: inline-block; padding: var(--sp-2) var(--sp-8);
   border-radius: var(--r-full); font-size: var(--fs-2xs);
-  font-weight: 600; text-transform: uppercase;
-  letter-spacing: 0.05em;
+  font-weight: 600;
 }
 .inv-im-status-pending { background: var(--warning-bg); color: var(--warning-text); }
 .inv-im-status-partial { background: var(--prod-bg); color: var(--prod-text); }
@@ -1946,7 +1917,7 @@ table.inv-qc-grid.inv-qc-no-top { border-top: 0; }
 .inv-dupe-verdict {
   display: inline-block; padding: var(--sp-2) var(--sp-8);
   border-radius: var(--r-full); font-size: var(--fs-2xs);
-  font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;
+  font-weight: 600;
   white-space: nowrap;
 }
 .inv-dupe-verdict-billed { background: var(--danger-bg); color: var(--danger-text); }
@@ -2001,7 +1972,7 @@ table.inv-qc-grid.inv-qc-no-top { border-top: 0; }
 .inv-numaudit-kind {
   display: inline-block; padding: var(--sp-2) var(--sp-8);
   border-radius: var(--r-full); font-size: var(--fs-2xs);
-  font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;
+  font-weight: 600;
   white-space: nowrap; flex-shrink: 0;
 }
 .inv-numaudit-active { background: var(--attend-bg); color: var(--attend-text); }
@@ -2203,7 +2174,7 @@ table.inv-qc-grid.inv-qc-no-top { border-top: 0; }
 .inv-sync-stale {
   padding: var(--sp-2) var(--sp-6); border-radius: var(--r-sm);
   background: var(--warning-bg); color: var(--warning-text);
-  font-size: var(--fs-2xs); font-weight: 600; text-transform: uppercase;
+  font-size: var(--fs-2xs); font-weight: 600;
 }
 .inv-sync-repo {
   font-size: var(--fs-xs); color: var(--text-2);
@@ -2749,8 +2720,7 @@ body.inv-desktop #itemsSelBar {
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .inv-att-badge {
-  font-size: var(--fs-2xs); font-weight: 700; text-transform: uppercase;
-  letter-spacing: 0.04em; padding: var(--sp-2) var(--sp-6);
+  font-size: var(--fs-2xs); font-weight: 700; padding: var(--sp-2) var(--sp-6);
   border-radius: var(--r-sm); flex-shrink: 0;
 }
 .inv-att-badge-perm { background: var(--prod-bg); color: var(--prod-text); }
@@ -2804,8 +2774,8 @@ body.inv-desktop #itemsSelBar {
   vertical-align: middle;
 }
 .inv-att-grid-day {
-  font-size: var(--fs-2xs); font-weight: 600; text-transform: uppercase;
-  color: var(--text-3); text-align: center; letter-spacing: 0.04em;
+  font-size: var(--fs-2xs); font-weight: 600;
+  color: var(--text-3); text-align: center;
 }
 .inv-att-grid-today { color: var(--accent); }
 .inv-att-grid-date { display: block; font-family: var(--ff-mono); font-size: var(--fs-xs); }
@@ -2840,8 +2810,7 @@ body.inv-desktop #itemsSelBar {
 .inv-lab-fixed { background: var(--prod-bg); }
 .inv-lab-variable { background: var(--attend-bg); }
 .inv-lab-half-label {
-  font-size: var(--fs-2xs); font-weight: 700; text-transform: uppercase;
-  letter-spacing: 0.06em; color: var(--text-2);
+  font-size: var(--fs-2xs); font-weight: 700; color: var(--text-2);
 }
 .inv-lab-half-value {
   font-family: var(--ff-display); font-size: var(--fs-lg); color: var(--text-1);
@@ -2879,12 +2848,12 @@ body.inv-desktop #itemsSelBar {
 .inv-ov-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-8); margin: var(--sp-8) 0; }
 @media (min-width: 900px) { .inv-ov-grid { grid-template-columns: repeat(4, 1fr); } .inv-ov-grid-2 { grid-template-columns: 1fr 1fr; } }
 .inv-ov-tile { border-radius: var(--r-md); padding: var(--sp-10); }
-.inv-ov-l { font-size: var(--fs-2xs); font-weight: 700; text-transform: uppercase; color: var(--text-2); }
+.inv-ov-l { font-size: var(--fs-2xs); font-weight: 700; color: var(--text-2); }
 .inv-ov-v { font-family: var(--ff-mono); font-weight: 700; font-size: var(--fs-lg); color: var(--text-1); }
 .inv-ov-v small { font-size: var(--fs-xs); font-weight: 400; }
 .inv-ov-s { font-size: var(--fs-2xs); color: var(--text-2); }
 .inv-ov-table { width: 100%; border-collapse: collapse; font-size: var(--fs-sm); }
-.inv-ov-table th { font-size: var(--fs-2xs); text-transform: uppercase; color: var(--text-3); text-align: right; padding: var(--sp-4) var(--sp-2); }
+.inv-ov-table th { font-size: var(--fs-2xs); color: var(--text-3); text-align: right; padding: var(--sp-4) var(--sp-2); }
 .inv-ov-table td { text-align: right; padding: var(--sp-6) var(--sp-2); border-top: 1px solid var(--border); font-family: var(--ff-mono); color: var(--text-1); }
 .inv-ov-table th:first-child, .inv-ov-table td:first-child { text-align: left; font-family: inherit; }
 .inv-ov-table tr[data-action] { cursor: pointer; }
@@ -2904,7 +2873,7 @@ body.inv-desktop #itemsSelBar {
 .inv-cost-detail { padding: 0 0 var(--sp-8) var(--sp-12); }
 .inv-cost-dline { display: flex; justify-content: space-between; gap: var(--sp-8); padding: var(--sp-4) 0; font-size: var(--fs-sm); border-bottom: 1px solid var(--border); }
 .inv-cost-bills { margin-top: var(--sp-12); }
-.inv-stk-mhead { min-height: 0; font-size: var(--fs-2xs); color: var(--text-3); font-weight: 700; text-transform: uppercase; }
+.inv-stk-mhead { min-height: 0; font-size: var(--fs-2xs); color: var(--text-3); font-weight: 700; }
 .inv-stk-mhead .inv-stk-mname { font-size: var(--fs-2xs); color: var(--text-3); }
 .inv-stk-pattern { margin-bottom: var(--sp-8); }
 .inv-stk-billform { border: 1px solid var(--border); border-radius: var(--r-md); padding: var(--sp-10); margin: var(--sp-8) 0; background: var(--surface); }
@@ -2939,8 +2908,7 @@ body.inv-desktop #itemsSelBar {
 }
 .inv-lab-perkg-value { font-family: var(--ff-display); font-size: var(--fs-2xl); color: var(--cost); }
 .inv-lab-perkg-label {
-  font-size: var(--fs-2xs); font-weight: 700; text-transform: uppercase;
-  letter-spacing: 0.06em; color: var(--text-2);
+  font-size: var(--fs-2xs); font-weight: 700; color: var(--text-2);
 }
 .inv-lab-perkg-model { font-size: var(--fs-xs); color: var(--text-2); }
 .inv-lab-perkg-none { background: var(--surface-2); }
@@ -2973,8 +2941,7 @@ body.inv-desktop #itemsSelBar {
 
 .inv-lab-area-title {
   margin-top: var(--sp-16); margin-bottom: var(--sp-8);
-  font-size: var(--fs-2xs); font-weight: 700; text-transform: uppercase;
-  letter-spacing: 0.06em; color: var(--text-3);
+  font-size: var(--fs-2xs); font-weight: 700; color: var(--text-3);
 }
 
 /* Desktop: the controls are sized for a thumb, not for a 1280px row. Left to
@@ -2999,7 +2966,7 @@ body.inv-desktop .inv-att-extra-row { max-width: calc(var(--sp-32) * 15); }
 .inv-area-name { font-size: var(--fs-base); font-weight: 700; color: var(--text-1); }
 .inv-area-offfloor {
   margin-left: var(--sp-6); font-size: var(--fs-2xs); font-weight: 500;
-  color: var(--text-3); text-transform: uppercase; letter-spacing: 0.04em;
+  color: var(--text-3);
 }
 .inv-area-badge {
   font-size: var(--fs-2xs); font-weight: 700; white-space: nowrap;
@@ -3018,7 +2985,6 @@ body.inv-desktop .inv-att-extra-row { max-width: calc(var(--sp-32) * 15); }
 .inv-area-stat-value { font-size: var(--fs-md); font-weight: 700; color: var(--text-1); }
 .inv-area-stat-label {
   font-size: var(--fs-2xs); color: var(--text-3);
-  text-transform: uppercase; letter-spacing: 0.04em;
 }
 .inv-area-foot {
   display: flex; justify-content: space-between; align-items: baseline;
@@ -3027,8 +2993,7 @@ body.inv-desktop .inv-att-extra-row { max-width: calc(var(--sp-32) * 15); }
 .inv-area-detail { min-width: 0; }
 .inv-area-cost { font-weight: 600; color: var(--cost-text); white-space: nowrap; }
 .inv-area-cost-basis {
-  display: block; font-size: var(--fs-2xs); font-weight: 500; color: var(--text-3);
-  text-transform: uppercase; letter-spacing: 0.04em; text-align: right;
+  display: block; font-size: var(--fs-2xs); font-weight: 500; color: var(--text-3); text-align: right;
 }
 /* Dark mode for this block is carried by the tokens (--cost-text, --text-3,
    --danger-bg, --warning-bg all flip under .dark), so there are deliberately
@@ -3037,7 +3002,7 @@ body.inv-desktop .inv-att-extra-row { max-width: calc(var(--sp-32) * 15); }
 .inv-area-target {
   display: flex; align-items: center; gap: var(--sp-8); margin-top: var(--sp-8);
 }
-.inv-area-target-label { font-size: var(--fs-2xs); color: var(--text-3); text-transform: uppercase; letter-spacing: 0.04em; }
+.inv-area-target-label { font-size: var(--fs-2xs); color: var(--text-3); }
 .inv-area-target-input { width: calc(var(--sp-32) + var(--sp-24)); text-align: center; padding: var(--sp-4) var(--sp-6); }
 
 .inv-area-flags { margin: var(--sp-8) 0; }
@@ -3079,7 +3044,6 @@ body.inv-desktop .inv-att-extra-row { max-width: calc(var(--sp-32) * 15); }
 .inv-att-block-times input { flex: 0 1 auto; min-width: 0; }
 .inv-att-block-label {
   font-size: var(--fs-2xs); color: var(--text-3);
-  text-transform: uppercase; letter-spacing: 0.04em;
 }
 .inv-att-block-len { font-weight: 700; color: var(--text-2); margin-left: auto; white-space: nowrap; }
 .inv-att-block-areas, .inv-att-block-names { display: flex; flex-wrap: wrap; gap: var(--sp-4); }
@@ -3242,7 +3206,7 @@ body.inv-desktop .inv-att-extra-row { max-width: calc(var(--sp-32) * 15); }
 .inv-stk-tile-amber .inv-stk-tile-n { color: var(--warning-text); }
 .inv-stk-sec {
   display: flex; justify-content: space-between; margin: var(--sp-16) var(--sp-2) var(--sp-6);
-  font-size: var(--fs-xs); font-weight: 700; color: var(--text-2); text-transform: uppercase; letter-spacing: 0.06em;
+  font-size: var(--fs-xs); font-weight: 700; color: var(--text-2);
 }
 .inv-stk-row {
   display: flex; align-items: center; gap: var(--sp-10); width: 100%; min-height: calc(var(--sp-32) + var(--sp-24));
@@ -3412,12 +3376,12 @@ body.inv-desktop .inv-stk-foot { bottom: var(--sp-8); }
 .inv-td-in:focus { outline: 2px solid var(--accent); outline-offset: 0; border-color: var(--accent); }
 .inv-td-sec {
   display: flex; align-items: center; gap: var(--sp-8); margin: var(--sp-16) var(--sp-2) var(--sp-6);
-  font-size: var(--fs-xs); font-weight: 700; color: var(--text-2); text-transform: uppercase; letter-spacing: 0.06em;
+  font-size: var(--fs-xs); font-weight: 700; color: var(--text-2);
 }
 .inv-td-count { font-weight: 500; letter-spacing: 0; text-transform: none; color: var(--text-2); }
 .inv-td-lbl {
   display: inline-block; flex: none; padding: 0 var(--sp-6); border-radius: var(--r-sm);
-  font-size: var(--fs-xs); font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; line-height: 1.6;
+  font-size: var(--fs-xs); font-weight: 700; line-height: 1.6;
 }
 .inv-td-lbl-app { background: var(--todo-bg); color: var(--todo-text); border: 1px solid var(--todo); }
 .inv-td-lbl-mine { background: var(--neutral-bg); color: var(--neutral-text); border: 1px solid var(--neutral); }
@@ -3561,8 +3525,7 @@ body.inv-desktop .inv-qa-grid { grid-template-columns: repeat(6, 1fr); }
 .inv-set-nav { display: none; }
 .inv-set-group { margin-bottom: var(--sp-20); }
 .inv-set-group-title {
-  font-size: var(--fs-xs); font-weight: 700; text-transform: uppercase;
-  letter-spacing: 0.08em; color: var(--text-3); margin: 0 0 var(--sp-8);
+  font-size: var(--fs-xs); font-weight: 700; color: var(--text-3); margin: 0 0 var(--sp-8);
 }
 .inv-set-sec {
   border: 1px solid var(--border); border-radius: var(--r-md);
@@ -3646,6 +3609,281 @@ body.inv-desktop .inv-set-group-on { display: block; }
   background: var(--warning-bg); color: var(--warning-text); font-size: var(--fs-sm);
 }
 .dark .inv-reissue-note { background: var(--warning-bg); color: var(--warning-text); }
+
+/* ======================================================================
+   COMPONENTS v2.0 (docs/SEP_INVOICING_DESIGN_PRINCIPLES.md §6)
+   Declared last so that, until each screen is re-assembled (§9 step 3), the v1.0
+   families listed beside each component render the same way — one look per job.
+   ====================================================================== */
+
+/* §6.3 Buttons. Secondary (surface + border) is the default; one primary per view. */
+.inv-btn, .inv-stk-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: var(--sp-6);
+  min-height: var(--ctl-h); padding: 0 var(--sp-16); border-radius: var(--r-md);
+  border: 1px solid var(--border); background: var(--surface); color: var(--text-1);
+  font-size: var(--fs-14); font-weight: 500; line-height: 1.2; cursor: pointer;
+  transition: background var(--dur-1), border-color var(--dur-1), color var(--dur-1);
+}
+.inv-btn:hover, .inv-stk-btn:hover { background: var(--surface-2); }
+.inv-btn:active, .inv-stk-btn:active { background: var(--surface-3); }
+.inv-btn-primary, .inv-stk-btn-pri { background: var(--accent); border-color: var(--accent); color: var(--on-accent); font-weight: 600; }
+.inv-btn-primary:hover, .inv-stk-btn-pri:hover { background: color-mix(in srgb, var(--accent) 88%, var(--text-1)); }
+.inv-btn-primary:active, .inv-stk-btn-pri:active { background: color-mix(in srgb, var(--accent) 78%, var(--text-1)); }
+.inv-btn-secondary { background: var(--surface); border-color: var(--border); color: var(--text-1); }
+.inv-btn-ghost { background: transparent; border-color: transparent; color: var(--text-2); }
+.inv-btn-ghost:hover { background: var(--surface-2); color: var(--text-1); }
+.inv-btn-danger { background: var(--surface); border-color: var(--border); color: var(--danger); }
+.inv-confirm-actions .inv-btn-danger, .inv-btn-danger.inv-btn-solid { background: var(--danger); border-color: var(--danger); color: var(--surface); }
+.inv-btn-link, .inv-stk-tool, .inv-link-btn {
+  min-height: auto; padding: 0; border: none; background: none;
+  color: var(--accent); font-weight: 600; text-decoration: none; cursor: pointer;
+}
+.inv-btn-link:hover, .inv-stk-tool:hover, .inv-link-btn:hover { text-decoration: underline; background: none; color: var(--accent); }
+.inv-btn-icon { width: var(--ctl-h); padding: 0; flex-shrink: 0; }
+.inv-btn-icon svg { width: 20px; height: 20px; }
+.inv-btn-sm { min-height: var(--ctl-h-sm); padding: 0 var(--sp-12); font-size: var(--fs-13); }
+.inv-btn-block, .inv-stk-btn-block { width: 100%; }
+.inv-btn:disabled, .inv-btn-disabled, .inv-stk-btn:disabled { opacity: 0.45; cursor: not-allowed; pointer-events: none; }
+
+/* §6.4 View tabs — underline. The one control for switching views. v1.0: the Clients segment, the Stats tabs. */
+.inv-viewtabs, .inv-stats-tabs, .inv-subview-toggle {
+  display: flex; gap: 0; overflow-x: auto; scrollbar-width: none;
+  margin-bottom: var(--sp-12); padding: 0; border: none; border-radius: 0; background: none;
+  box-shadow: inset 0 -1px 0 var(--border);
+}
+.inv-viewtabs::-webkit-scrollbar, .inv-stats-tabs::-webkit-scrollbar, .inv-subview-toggle::-webkit-scrollbar { display: none; }
+.inv-viewtab, .inv-stats-tab, .inv-subview-btn {
+  flex: 0 0 auto; min-height: var(--touch); padding: 0 var(--sp-12);
+  border: none; border-radius: 0; background: none; box-shadow: none; cursor: pointer;
+  color: var(--text-2); font-size: var(--fs-14); font-weight: 500; white-space: nowrap;
+}
+.inv-viewtab:hover, .inv-stats-tab:hover, .inv-subview-btn:hover { color: var(--text-1); }
+.inv-viewtab-on, .inv-viewtab[aria-selected="true"], .inv-stats-tab-on, .inv-subview-active {
+  color: var(--text-1); font-weight: 600; background: none; box-shadow: inset 0 -2px 0 var(--accent);
+}
+body.inv-desktop .inv-viewtab, body.inv-desktop .inv-stats-tab, body.inv-desktop .inv-subview-btn { min-height: var(--ctl-h); font-size: var(--fs-13); }
+
+/* §6.6 Chips: a choice among options (and, until step 3, the period and Staff view pickers). */
+.inv-chip {
+  display: inline-flex; align-items: center; justify-content: center; gap: var(--sp-4);
+  min-height: var(--ctl-h); padding: 0 var(--sp-12); border-radius: var(--r-md);
+  border: 1px solid var(--border); background: var(--surface); color: var(--text-2);
+  font-size: var(--fs-13); font-weight: 500; white-space: nowrap; cursor: pointer;
+  transition: background var(--dur-1), color var(--dur-1), border-color var(--dur-1);
+}
+.inv-chip:hover { background: var(--surface-2); color: var(--text-1); }
+.inv-chip-active, .inv-chip-on, .inv-chip[aria-pressed="true"] {
+  background: var(--accent-soft); border-color: var(--accent); color: var(--accent-soft-text); font-weight: 600;
+}
+.inv-token {
+  display: inline-flex; align-items: center; gap: var(--sp-6); min-height: var(--ctl-h-sm); padding: 0 var(--sp-8);
+  border-radius: var(--r-md); background: var(--surface-2); color: var(--text-1); font-size: var(--fs-12); font-weight: 500; white-space: nowrap;
+}
+.inv-token-key { color: var(--text-3); font-weight: 400; }
+.inv-token-on { background: var(--accent-soft); color: var(--accent-soft-text); }
+.inv-token-add { background: none; border: 1px dashed var(--border); color: var(--text-2); cursor: pointer; }
+
+/* §6.7 Toolbar and search */
+.inv-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-8); margin-bottom: var(--sp-12); }
+.inv-search {
+  display: flex; align-items: center; gap: var(--sp-8); flex: 1 1 16rem; min-width: 0;
+  min-height: var(--ctl-h); padding: 0 var(--sp-10);
+  border: 1px solid var(--border); border-radius: var(--r-md); background: var(--surface); color: var(--text-3);
+}
+.inv-search:focus-within { border-color: var(--accent); box-shadow: var(--focus-ring); }
+.inv-search svg { width: 16px; height: 16px; flex-shrink: 0; }
+.inv-search input { flex: 1; min-width: 0; border: none; outline: none; background: none; color: var(--text-1); font-size: var(--fs-14); }
+.inv-search input:focus-visible { box-shadow: none; }
+
+/* §6.8 Panel. v1.0: every card family. */
+.inv-panel, .inv-card, .inv-card-list, .inv-stats-card, .inv-im-challan {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-xl); box-shadow: none;
+}
+body.inv-desktop :is(.inv-panel, .inv-card, .inv-card-list, .inv-stats-card, .inv-im-challan) { border-radius: var(--r-lg); }
+.inv-card-hero { background: var(--surface); }
+.inv-panel { padding: var(--card-padding); margin-bottom: var(--gap); }
+.inv-panel-flush { padding: 0; overflow: hidden; }
+.inv-panel-head, .inv-card-header {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--sp-8);
+}
+.inv-panel-flush > .inv-panel-head { padding: var(--pad-y) var(--pad-x); border-bottom: 1px solid var(--border); }
+.inv-panel-title, .inv-card-title, .inv-stats-title, .inv-settings-title {
+  font-size: var(--fs-14); font-weight: 600; line-height: 1.4; color: var(--text-1);
+}
+.inv-panel-count { font-family: var(--ff-mono); font-size: var(--fs-12); color: var(--text-3); font-weight: 400; }
+
+/* §6.9 Stat tiles: one bordered strip, tiles separated by 1px gaps. v1.0: KPI and stock tiles. */
+.inv-tiles {
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1px;
+  background: var(--border); border: 1px solid var(--border); border-radius: var(--r-lg); overflow: hidden; margin-bottom: var(--gap);
+}
+body.inv-desktop .inv-tiles { grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr)); }
+.inv-tile { background: var(--surface); padding: var(--sp-10) var(--sp-12); min-width: 0; text-align: left; border: none; font: inherit; color: var(--text-1); }
+button.inv-tile { cursor: pointer; }
+button.inv-tile:hover { background: var(--surface-2); }
+.inv-tile-label, .inv-kpi-label, .inv-ov-l, .inv-lab-half-label, .inv-lab-perkg-label, .inv-area-stat-label {
+  font-size: var(--fs-12); font-weight: 500; color: var(--text-3);
+}
+.inv-tile-value, .inv-kpi-value, .inv-stk-tile-n, .inv-ov-v, .inv-stat-value, .inv-lab-half-value, .inv-area-stat-value, .inv-stats-metric-value {
+  font-family: var(--ff-mono); font-size: var(--fs-19); font-weight: 600; letter-spacing: var(--ls-tight); line-height: 1.2; color: var(--text-1);
+}
+body.inv-desktop :is(.inv-tile-value, .inv-kpi-value, .inv-stk-tile-n, .inv-ov-v, .inv-stat-value, .inv-lab-half-value, .inv-area-stat-value, .inv-stats-metric-value) { font-size: var(--fs-22); }
+.inv-lab-perkg-value { font-family: var(--ff-mono); font-weight: 600; letter-spacing: var(--ls-tight); color: var(--text-1); }
+.inv-tile-sub { font-size: var(--fs-12); color: var(--text-3); margin-top: var(--sp-2); }
+.inv-tile-danger .inv-tile-value { color: var(--danger); }
+.inv-tile-warning .inv-tile-value { color: var(--warning); }
+.inv-tile-ok .inv-tile-value { color: var(--ok); }
+.inv-tile-info .inv-tile-value { color: var(--info); }
+.inv-kpi, .inv-stk-tile { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg); box-shadow: none; }
+.inv-stk-tile-red, .inv-stk-tile-amber { background: var(--surface); }
+.inv-stk-tile-red .inv-stk-tile-n { color: var(--danger); }
+.inv-stk-tile-amber .inv-stk-tile-n { color: var(--warning); }
+
+/* §6.10 Rows */
+.inv-row {
+  display: flex; align-items: center; gap: var(--sp-10); min-height: var(--row-h);
+  padding: var(--sp-6) var(--pad-x); border-bottom: 1px solid var(--border); color: var(--text-1);
+}
+.inv-row:last-child { border-bottom: none; }
+.inv-row-2 { min-height: var(--row-h-2); }
+button.inv-row, a.inv-row { width: 100%; border-left: none; border-right: none; border-top: none; background: none; text-align: left; font: inherit; cursor: pointer; }
+button.inv-row:hover, a.inv-row:hover { background: var(--surface-2); }
+.inv-row-lead { flex-shrink: 0; display: flex; align-items: center; }
+.inv-row-main { flex: 1; min-width: 0; }
+.inv-row-title { font-size: var(--fs-14); font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.inv-row-meta { font-size: var(--fs-12); color: var(--text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.inv-row-end { flex-shrink: 0; display: flex; align-items: center; gap: var(--sp-8); text-align: right; }
+.inv-row-group {
+  display: flex; justify-content: space-between; align-items: center; min-height: var(--sp-32);
+  padding: 0 var(--pad-x); background: var(--bg); border-bottom: 1px solid var(--border);
+  font-size: var(--fs-12); color: var(--text-3);
+}
+.inv-row-selected, .inv-row[aria-selected="true"] { background: var(--accent-soft); }
+
+/* §6.11 Table */
+.inv-table { width: 100%; border-collapse: collapse; font-size: var(--fs-13); color: var(--text-1); }
+.inv-table thead th {
+  position: sticky; top: 0; z-index: 1; height: var(--row-h); padding: 0 var(--pad-x);
+  background: var(--bg); border-bottom: 1px solid var(--border);
+  font-size: var(--fs-12); font-weight: 500; color: var(--text-3); text-align: left; white-space: nowrap;
+}
+.inv-table td { height: var(--row-h); padding: 0 var(--pad-x); border-bottom: 1px solid var(--border); vertical-align: middle; }
+.inv-table tbody tr:hover td { background: var(--surface-2); }
+.inv-table tr.inv-row-selected td { background: var(--accent-soft); }
+.inv-table tfoot td { font-weight: 600; border-bottom: none; border-top: 1px solid var(--border); }
+.inv-num { font-family: var(--ff-mono); text-align: right; white-space: nowrap; }
+.inv-table th.inv-num { font-family: var(--ff-base); }
+.inv-id { font-family: var(--ff-mono); white-space: nowrap; }
+.inv-table-check { width: var(--sp-32); }
+.inv-cell {
+  display: flex; align-items: center; justify-content: center; min-height: var(--ctl-h-sm);
+  border-radius: var(--r-sm); font-family: var(--ff-mono); font-size: var(--fs-12);
+}
+.inv-cell-ok { background: var(--ok-bg); color: var(--ok); }
+.inv-cell-warning { background: var(--warning-bg); color: var(--warning); font-weight: 600; }
+.inv-cell-danger { background: var(--danger-bg); color: var(--danger); font-weight: 600; }
+.inv-cell-empty { color: var(--text-3); }
+.inv-cell-future { box-shadow: inset 0 0 0 1px var(--border); }
+
+/* §6.12 Selection bar */
+.inv-selbar {
+  position: sticky; bottom: 0; z-index: var(--z-bar); display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-8) var(--sp-12);
+  min-height: var(--row-h); padding: var(--sp-6) var(--pad-x);
+  background: var(--surface-2); border-top: 1px solid var(--border); font-size: var(--fs-13);
+}
+.inv-selbar-count { font-weight: 600; }
+.inv-selbar-sum { font-family: var(--ff-mono); color: var(--text-2); }
+
+/* §6.13 Status: dot + word, and the soft badge. v1.0: every badge family. */
+.inv-dot { display: inline-flex; align-items: center; gap: var(--sp-6); color: var(--text-2); font-size: var(--fs-13); white-space: nowrap; }
+.inv-dot::before { content: ''; width: 0.4375rem; height: 0.4375rem; border-radius: 50%; background: var(--text-3); flex-shrink: 0; }
+.inv-dot-danger::before { background: var(--danger); }
+.inv-dot-warning::before { background: var(--warning); }
+.inv-dot-ok::before { background: var(--ok); }
+.inv-dot-info::before { background: var(--info); }
+.inv-dot-neutral::before { background: var(--surface-3); }
+.inv-badge, .inv-state-badge, .inv-cancelled-badge, .inv-im-status, .inv-att-badge, .inv-area-badge, .inv-client-badge, .inv-stk-chip, .inv-td-lbl, .inv-cost-src, .inv-kpi-delta {
+  display: inline-flex; align-items: center; gap: var(--sp-4); padding: var(--sp-2) var(--sp-6);
+  border-radius: var(--r-sm); font-family: var(--ff-base); font-size: var(--fs-12); font-weight: 500; line-height: 1.35; white-space: nowrap;
+}
+.inv-badge { background: var(--surface-2); color: var(--text-2); }
+.inv-badge-danger { background: var(--danger-bg); color: var(--danger); }
+.inv-badge-warning { background: var(--warning-bg); color: var(--warning); }
+.inv-badge-ok { background: var(--ok-bg); color: var(--ok); }
+.inv-badge-info { background: var(--info-bg); color: var(--info); }
+.inv-badge-neutral { background: var(--surface-2); color: var(--text-2); }
+.inv-kpi-delta { font-family: var(--ff-mono); }
+
+/* §6.14 Detail pane and key/value grid */
+.inv-pane { background: var(--surface); border-left: 1px solid var(--border); padding: var(--sp-16); display: flex; flex-direction: column; gap: var(--sp-12); }
+.inv-kv { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--sp-8) var(--sp-16); font-size: var(--fs-13); }
+.inv-kv-k { font-size: var(--fs-12); color: var(--text-3); }
+
+/* §6.15 Fields and the sticky action bar. v1.0 inv-form-* read these same rules. */
+.inv-field { margin-bottom: var(--sp-12); }
+.inv-field-label { display: block; font-size: var(--fs-12); font-weight: 500; line-height: 1.35; color: var(--text-2); margin-bottom: var(--sp-4); }
+.inv-field-hint, .inv-form-hint { font-size: var(--fs-12); color: var(--text-3); margin-top: var(--sp-4); }
+.inv-field-error { font-size: var(--fs-12); color: var(--danger); margin-top: var(--sp-4); }
+.inv-input, .inv-select, .inv-textarea, .inv-form-input, .inv-form-select {
+  width: 100%; min-height: var(--ctl-h); padding: 0 var(--sp-12);
+  border: 1px solid var(--border); border-radius: var(--r-md); background: var(--surface); color: var(--text-1);
+  font-size: var(--fs-14); transition: border-color var(--dur-1);
+}
+.inv-textarea, textarea.inv-form-input { padding: var(--sp-8) var(--sp-12); min-height: 5rem; }
+:is(.inv-input, .inv-select, .inv-textarea, .inv-form-input, .inv-form-select):focus { outline: none; border-color: var(--accent); box-shadow: var(--focus-ring); }
+:is(.inv-input, .inv-form-input)[readonly] { background: var(--surface-2); color: var(--text-2); }
+.inv-input-num { font-family: var(--ff-mono); text-align: right; }
+.inv-field-invalid :is(.inv-input, .inv-select, .inv-form-input) { border-color: var(--danger); }
+.inv-fields { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0 var(--sp-12); }
+body.inv-desktop .inv-fields { grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr)); }
+.inv-actionbar {
+  position: sticky; bottom: var(--nav-h); z-index: var(--z-bar); display: flex; align-items: center; gap: var(--sp-8);
+  min-height: calc(var(--row-h) + var(--sp-16)); padding: var(--sp-8) var(--sp-12);
+  background: var(--surface); border-top: 1px solid var(--border);
+}
+body.inv-desktop .inv-actionbar { bottom: 0; }
+.inv-actionbar-total { flex: 1; min-width: 0; }
+.inv-actionbar-label { font-size: var(--fs-12); color: var(--text-3); }
+.inv-actionbar-value { font-family: var(--ff-mono); font-size: var(--fs-18); font-weight: 600; }
+
+/* §6.16 Overlays. v1.0 inv-overlay-* is the dialog (desktop) and the sheet (phone). */
+.inv-overlay-scrim, .inv-more-scrim { background: var(--scrim); }
+.inv-overlay-card, .inv-dialog, .inv-sheet { background: var(--surface); border: 1px solid var(--border); box-shadow: var(--shadow-dialog); }
+.inv-overlay-header, .inv-dialog-head { border-bottom: 1px solid var(--border); }
+.inv-overlay-title, .inv-dialog-title, .inv-td-otitle { font-family: var(--ff-base); font-size: var(--fs-16); font-weight: 600; letter-spacing: 0; }
+.inv-menu, .inv-autocomplete-list, .inv-search-results { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-md); box-shadow: var(--shadow-pop); }
+.inv-toast { background: var(--text-1); color: var(--surface); border: none; border-radius: var(--r-lg); box-shadow: var(--shadow-pop); font-size: var(--fs-14); }
+.inv-toast-success, .inv-toast-error, .inv-toast-warning { background: var(--text-1); color: var(--surface); border: none; }
+.inv-toast-success::before, .inv-toast-error::before, .inv-toast-warning::before {
+  content: ''; display: inline-block; width: 0.5rem; height: 0.5rem; border-radius: 50%; margin-right: var(--sp-8); vertical-align: middle;
+}
+.inv-toast-success::before { background: var(--ok); }
+.inv-toast-error::before { background: var(--danger); }
+.inv-toast-warning::before { background: var(--warning); }
+
+/* §6.18 Callouts, notes, empty states */
+.inv-callout, .inv-stats-caveat, .inv-stats-alert, .inv-stk-banner, .inv-confirm-warn, .inv-reissue-note, .inv-merge-warn, .inv-reg-scope-note {
+  display: block; padding: var(--sp-10) var(--sp-12); border: none; border-radius: var(--r-lg);
+  font-size: var(--fs-13); line-height: 1.5;
+}
+.inv-callout, .inv-callout-neutral, .inv-stats-caveat { background: var(--surface-2); color: var(--text-2); }
+.inv-callout-info { background: var(--info-bg); color: var(--info); }
+.inv-callout-warning, .inv-stk-banner, .inv-confirm-warn, .inv-reissue-note, .inv-merge-warn, .inv-reg-scope-note { background: var(--warning-bg); color: var(--warning); }
+.inv-callout-danger, .inv-stats-alert, .inv-stk-banner-red { background: var(--danger-bg); color: var(--danger); }
+.inv-note { font-size: var(--fs-12); color: var(--text-3); line-height: 1.5; }
+.inv-empty, .inv-empty-state, .inv-stk-empty, .inv-td-empty, .inv-chart-empty {
+  padding: var(--sp-24) var(--sp-16); text-align: center; color: var(--text-3); font-size: var(--fs-13);
+  border: none; background: none;
+}
+
+/* Tiles that borrowed tone classes for decoration (v1.0): neutral unless they state a status (DR-1).
+   A predicted payout well above the median is a caution, not an error. */
+.inv-lab-half, .inv-lab-half.inv-pay-green, .inv-lab-half.inv-pay-blue, .inv-lab-fixed, .inv-lab-variable,
+.inv-ov-tile.inv-pay-green, .inv-ov-tile.inv-pay-blue, .inv-lab-half.inv-area-gap-under { background: var(--surface-2); }
+.inv-lab-half.inv-area-gap-over { background: var(--warning-bg); }
+.inv-lab-half.inv-area-gap-over .inv-lab-half-value, .inv-lab-half.inv-area-gap-over .inv-lab-half-label { color: var(--warning); }
+.inv-stk-tools { display: flex; align-items: center; gap: var(--sp-16); }
+.inv-stk-tool { min-height: var(--touch); }
 </style>
 </head>
 <body>
@@ -10277,11 +10515,11 @@ function deleteInvoice(invId) {
       (pastDeadline ? ', and it may already sit in a filed return' : '') +
       '. A credit note is usually the right instrument. The number stays spent either way.</div>';
     bodyText = 'Permanently delete invoice <strong>' + escHtml(inv.displayNumber) + '</strong>? This cannot be undone.';
-    btnClass = 'inv-btn-danger';
+    btnClass = 'inv-btn-danger inv-btn-solid';
   } else if (pastDeadline) {
     warnHtml = '<div class="inv-confirm-warn">This invoice may have been included in a filed GST return. Cancelling (not deleting) is recommended.</div>';
     bodyText = 'Permanently delete invoice <strong>' + escHtml(inv.displayNumber) + '</strong>? This cannot be undone.';
-    btnClass = 'inv-btn-danger';
+    btnClass = 'inv-btn-danger inv-btn-solid';
   } else {
     bodyText = 'Delete invoice <strong>' + escHtml(inv.displayNumber) + '</strong>? It never left the building, so this number returns to the series.';
     btnClass = 'inv-btn-primary';

@@ -1096,11 +1096,11 @@ function deleteInvoice(invId) {
       (pastDeadline ? ', and it may already sit in a filed return' : '') +
       '. A credit note is usually the right instrument. The number stays spent either way.</div>';
     bodyText = 'Permanently delete invoice <strong>' + escHtml(inv.displayNumber) + '</strong>? This cannot be undone.';
-    btnClass = 'inv-btn-danger';
+    btnClass = 'inv-btn-danger inv-btn-solid';
   } else if (pastDeadline) {
     warnHtml = '<div class="inv-confirm-warn">This invoice may have been included in a filed GST return. Cancelling (not deleting) is recommended.</div>';
     bodyText = 'Permanently delete invoice <strong>' + escHtml(inv.displayNumber) + '</strong>? This cannot be undone.';
-    btnClass = 'inv-btn-danger';
+    btnClass = 'inv-btn-danger inv-btn-solid';
   } else {
     bodyText = 'Delete invoice <strong>' + escHtml(inv.displayNumber) + '</strong>? It never left the building, so this number returns to the series.';
     btnClass = 'inv-btn-primary';

@@ -588,6 +588,7 @@ function renderStock() {
   else if (_stockView === 'item' && stockItem(_stockItemId)) el.innerHTML = renderStockItem(stockItem(_stockItemId));
   else if (_stockView === 'reorder' && _stockReorder) el.innerHTML = renderStockReorder();
   else if (_stockView === 'bills') el.innerHTML = renderBillsNotes();
+  else if (_stockView === 'bank') el.innerHTML = renderBank();
   else { _stockView = 'list'; el.innerHTML = renderStockList(); }
   updateStockBadge();
 }

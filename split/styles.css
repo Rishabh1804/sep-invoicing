@@ -3295,6 +3295,8 @@ body.inv-desktop .inv-master-detail-pane > .inv-master { container: list / inlin
 .inv-field-hint, .inv-form-hint { font-size: var(--fs-12); color: var(--text-3); margin-top: var(--sp-4); }
 .inv-field-error { font-size: var(--fs-12); color: var(--danger); margin-top: var(--sp-4); }
 .inv-input, .inv-select, .inv-textarea { width: 100%; min-height: var(--ctl-h); padding: 0 var(--sp-12); }
+/* A picker or figure that sits in a row's end, beside the value it acts on. */
+.inv-select-sm, .inv-input-sm { width: var(--col-sm-w); min-height: var(--ctl-h-sm); padding: 0 var(--sp-8); font-size: var(--fs-13); }
 /* The v1.0 names take the look only: width, padding and height stay with the screen that set them. */
 .inv-input, .inv-select, .inv-textarea, .inv-form-input, .inv-form-select {
   border: 1px solid var(--border); border-radius: var(--r-md); background-color: var(--surface); color: var(--text-1);

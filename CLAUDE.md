@@ -23,7 +23,7 @@ Workforce management and invoicing PWA for **Soma Electro Products**, a zinc ele
 
 ## Architecture
 
-Split-file PWA. 42 modules, ~25,100 lines total.
+Split-file PWA. 44 modules, ~25,900 lines total.
 
 ```
 split/
@@ -57,6 +57,8 @@ split/
 ├── stock.js           ← Stock: WhatsApp message parser, event replay, More sheet, chemicals ₹/kg (1,189 lines)
 ├── cost.js            ← Prices, bills and patterns per stock line; Stats → Live cost with every source shown (~390 lines)
 ├── bills.js           ← Stock → Bills & notes: electricity bills by month, credit notes recorded or issued, stock line edit (~400 lines)
+├── xls.js             ← Excel 97–2003 reader: OLE compound file + BIFF8 records, first sheet's values (~190 lines)
+├── bank.js            ← Stock → Bank: statement import, categories, receipts vs invoices, payments vs bills and Pay (~560 lines)
 ├── todo.js            ← To-do: your tasks + tasks raised from the data, Home card, Windows widget payload (726 lines)
 ├── relay.js           ← Attendance rolls: in/out-time WhatsApp parser, review, merge into the day (795 lines)
 ├── stats.js           ← Stats dashboard + History activity log (1,195 lines)
@@ -72,7 +74,7 @@ split/
 └── init.js            ← Migrations + app bootstrap (567 lines)
 ```
 
-**Concat order defined in build.sh.** Dependencies: data → state → appearance → zinc → tabs → clients → items → create → settings → github-sync → invoice-ops → number-audit → exports → im → autocomplete → print → quality-cert → credit-note → charts → staff → labour → areas → payroll → stock → cost → bills → todo → relay → stats → intel → insights → client-perf → im-form → im-dupe → scanner → events → swipe → seed → init.
+**Concat order defined in build.sh.** Dependencies: data → state → appearance → zinc → tabs → clients → items → create → settings → github-sync → invoice-ops → number-audit → exports → im → autocomplete → print → quality-cert → credit-note → charts → staff → labour → areas → payroll → stock → cost → bills → xls → bank → todo → relay → stats → intel → insights → client-perf → im-form → im-dupe → scanner → events → swipe → seed → init.
 
 **Every module shares one global scope.** A top-level `var` or `function` in a later module silently replaces one of
 the same name in an earlier one; nothing warns. `bills.js` shipped a `STOCK_UNITS` array over `stock.js`'s unit map
@@ -102,7 +104,7 @@ every session start — nothing to set up by hand. CI (`build-sync`) is the back
 ### Tests
 
 ```bash
-pnpm exec playwright test          # 466 tests, both layouts
+pnpm exec playwright test          # 474 tests, both layouts
 ```
 
 Some sandboxes ship a Chromium build Playwright does not expect and block downloading
@@ -1319,6 +1321,42 @@ batch rebate.
 - **A stock line's name and unit are edited on its page.** A rename keeps the old spelling as an alias, so a
   message in the old name still finds the line; a unit change on a line with entries asks first and converts
   nothing.
+
+### Bank
+More → Stock → **Bank** (`bank.js`; owner, 26 Sep 2026: *"We have the bank statement as well right? There is no way
+to read it in the app yet"* — all three of receipts, payments and the ledger, reading the bank's `.xls` as it is).
+
+- **The file is read as the bank exports it.** Bank of Baroda's `OpTransactionHistoryUX5.xls` is real Excel 97–2003
+  (BIFF8 in an OLE compound file), not HTML under another name, so `xls.js` reads it with no library. Checked
+  cell for cell against `xlrd` on the real statement: **7,018 cells, 0 different.** Columns are found by their
+  labels; the bank writes newest first and `dayIdx` keeps its order inside a day (soma-internal's 20-Aug ingest
+  sorted by date alone and published a closing balance ₹1,20,000 wrong).
+- **Rows merge by id** — a hash of the row's own fields, balance included — so an overlapping statement adds only
+  what is new. **Every balance is checked against the row before it**; a break (rows missing between two
+  statements) is reported with its date and the figure expected.
+- **A category is worked out from the narration every time it is read**, then overridden: for a payee
+  (`S.bank.parties`, keyed on the name) or for one row (`row.set`). **Every SELF / TO SELF / TO CASH draw is wages**
+  (owner, 26 Sep 2026: *"All kind of Self should also count towards wages, unless stated otherwise"*); a draw has
+  no payee, so a draw set otherwise is set on its row. A salary transfer is matched to the roster by the relay's
+  own name matcher (either side of a dash, a unique first name, the spelling folds); a folded match reads `?`, and
+  a payee that reads like a firm (`TRADERS`, `LTD`, `NIGAM` …) is never a person. On the real statement: 42 of
+  the salary legs matched, 6 before the relay matcher was used.
+- **Receipts against invoices, from the statement's first day.** Per client: invoices − credit notes − receipts,
+  plus what was owed on that day if set (a client reading *paid ahead* is almost always April money for March
+  invoices, and the card says so). A receipt equal **to the rupee** to one open invoice or a run of them is
+  *Exact*; any other is set oldest first and says so. soma-internal's tolerant sweep hit every credit and proved
+  nothing, so nothing looser is ever called a match.
+- **A cheque deposit names nobody** (21 of the real statement's credits). Where its amount equals a run of one
+  client's open invoices — and only one client's — that client is **offered**; placing it is a tap. Placed on
+  the row, never remembered as a payee, because `BY INST` is not a name.
+- **Payments.** An electricity payment defaults to the month before it and becomes that month's bill on a tap
+  (`bankId` on the bill); Bills & notes offers it on the missing month too. Transfers to a hand are set against
+  the **payroll as paid** for the month before, per worker — the check that would have shown the crossed Behra
+  legs of 14 Sep. Cash draws are set against the weekly payout by pay week. Suppliers are totalled beside the
+  stock bills recorded from them.
+- **Owned by soma-internal**, like stock: Export writes `sep-bank` JSON (rows with their resolved category,
+  payee rules, openings). The statement is never committed here; the specs read two fake statements in the
+  bank's layout, `tests/fixtures/bank-*.xls`.
 
 ### Stock reorder list
 More → Stock → **Reorder list** (owner, 25 Sep 2026). For each line with a daily use:

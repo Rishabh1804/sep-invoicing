@@ -112,7 +112,7 @@ test.describe('P48: insights, predictions and the reorder list', () => {
     // Brightener: 5 L/day × 30 days = 150; the shelf is empty (40 counted, 50 used); packs of 30 → 150 at ₹166.
     const br = page.locator('[data-stock-reorder="B"]');
     await expect(br).toHaveValue('150');
-    await expect(page.locator('.inv-stk-sec').filter({ hasText: 'ALPHA' })).toContainText('₹24,900.00');
+    await expect(page.locator('#stockReorder .inv-row-group').filter({ hasText: 'ALPHA' })).toContainText('₹24,900.00');
     // HCl: 4 L/day × 30 = 120 against 480 on hand: enough.
     await expect(page.locator('[data-stock-reorder="H"]')).toHaveCount(0);
     await br.fill('60');

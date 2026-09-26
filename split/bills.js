@@ -361,17 +361,22 @@ function stockEditSave(itemId) {
   showToast(it.name + ' saved');
 }
 
+/* The line's own settings on its page: how it is used (a setting of the line, applied at once),
+   and its name and unit (saved together). */
 function stockEditHtml(item) {
   var units = STOCK_UNIT_CHOICES.slice();
   if (item.unit && units.indexOf(item.unit) < 0) units.unshift(item.unit);
-  return '<div class="inv-panel" id="stockEdit"><div class="inv-panel-head inv-mb-8"><span class="inv-panel-title">Name and unit</span></div>' +
+  var seg = function(v, l, on) { return '<button type="button" class="inv-seg-btn" data-action="invStockBasis" data-v="' + v + '" aria-pressed="' + on + '">' + l + '</button>'; };
+  return '<div class="inv-panel inv-panel-flush" id="stockEdit"><div class="inv-panel-head"><span class="inv-panel-title">The line</span></div><div class="inv-panel-body">' +
+    '<div class="inv-field"><span class="inv-field-label" id="stockBasisLabel">How it is used</span><div class="inv-seg" role="group" aria-labelledby="stockBasisLabel">' +
+    seg('draw', 'Drawn daily', item.basis !== 'charge') + seg('charge', 'Charged to a bath', item.basis === 'charge') + '</div></div>' +
     '<div class="inv-fields">' +
     '<label class="inv-field"><span class="inv-field-label">Name</span><input class="inv-input" id="stockEditName" value="' + escHtml(item.name) + '" autocomplete="off"></label>' +
     '<label class="inv-field"><span class="inv-field-label">Unit</span><select class="inv-select" id="stockEditUnit">' +
     '<option value=""' + (!item.unit ? ' selected' : '') + '>not set</option>' +
     units.map(function(u) { return '<option' + (item.unit === u ? ' selected' : '') + '>' + escHtml(u) + '</option>'; }).join('') + '</select></label></div>' +
     ((item.aliases || []).length ? '<div class="inv-note inv-mb-8">Messages are also read as: ' + item.aliases.map(escHtml).join(', ') + '</div>' : '') +
-    '<button class="inv-btn inv-btn-secondary" data-action="invStockEditSave" data-id="' + escHtml(item.id) + '">Save name and unit</button></div>';
+    '<button class="inv-btn inv-btn-secondary" data-action="invStockEditSave" data-id="' + escHtml(item.id) + '">Save name and unit</button></div></div>';
 }
 
 /* ---------- Actions ---------- */

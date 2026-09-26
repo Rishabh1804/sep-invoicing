@@ -1,4 +1,4 @@
-/* ===== BILLS & NOTES (Stock → Bills & notes) =====
+/* ===== BILLS & NOTES (Finance → Bills & notes) =====
  * Two records that had no findable door (owner, 26 Sep 2026: "We don't have a place to enter
  * electricity bills anywhere in the app … And even credit notes").
  *
@@ -46,16 +46,9 @@ function billsMissingPower(n) {
   });
 }
 
-/* Stock's two views: the chemicals, and the bills and notes that cost the plant and credit its customers. */
-function stockTabsHtml(active) {
-  var tab = function(key, label) {
-    return '<button class="inv-viewtab" role="tab" aria-selected="' + (active === key) + '" data-action="invStockTab" data-tab="' + key + '">' + label + '</button>';
-  };
-  return '<div class="inv-viewtabs" role="tablist" aria-label="Stock views">' + tab('list', 'Chemicals') + tab('bills', 'Bills & notes') + tab('bank', 'Bank') + '</div>';
-}
 
 function renderBillsNotes() {
-  return stockTabsHtml('bills') + _billsPowerHtml() + _billsNotesHtml();
+  return _billsPowerHtml() + _billsNotesHtml();
 }
 
 /* ---------- Electricity and other bills ---------- */
@@ -66,9 +59,9 @@ function _billsPowerHtml() {
     (bills.length ? ' <span class="inv-panel-count">' + bills.length + '</span>' : '') + '</span>' +
     // Hidden only while the form is open HERE: a form left open on Stats must not take this door away.
     // Primary only while no credit-note form is open, which carries the view's one primary then.
-    (_costBillOpen && _costBillOpen.where === 'stock' ? '' : '<button class="inv-btn ' + (_billForm ? 'inv-btn-secondary' : 'inv-btn-primary') +
-      ' inv-btn-sm" data-action="invCostBillOpen" data-where="stock">Add bill</button>') + '</div>';
-  if (_costBillOpen && _costBillOpen.where === 'stock') h += '<div class="inv-panel-body">' + costBillFormHtml() + '</div>';
+    (_costBillOpen && _costBillOpen.where === 'finance' ? '' : '<button class="inv-btn ' + (_billForm ? 'inv-btn-secondary' : 'inv-btn-primary') +
+      ' inv-btn-sm" data-action="invCostBillOpen" data-where="finance">Add bill</button>') + '</div>';
+  if (_costBillOpen && _costBillOpen.where === 'finance') h += '<div class="inv-panel-body">' + costBillFormHtml() + '</div>';
   /* One list in month order: a missing month sits where its bill would. */
   var rows = missing.map(function(m) { return { month: m, missing: true }; }).concat(bills.map(function(b) { return { month: b.month, bill: b }; }));
   rows.sort(function(a, b) { return a.month < b.month ? 1 : a.month > b.month ? -1 : (a.missing ? -1 : b.missing ? 1 : 0); });
@@ -83,7 +76,7 @@ function _billsPowerHtml() {
       var paid = bankPower.find(function(v) { return bankBillMonth(v.row) === m; });
       h += '<div class="inv-row" data-missing="' + m + '"><span class="inv-row-main"><span class="inv-dot inv-dot-warning">No electricity bill for ' + escHtml(billsMonthLabel(m)) + '</span></span>' +
         '<span class="inv-row-end">' + (paid ? '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invBankAddBill" data-id="' + escHtml(paid.row.id) + '">Add ' + escHtml(formatCurrency(paid.row.dr)) + ' paid ' + escHtml(formatDate(paid.row.date)) + '</button>' : '') +
-        '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invCostBillOpen" data-where="stock" data-month="' + m + '">Add</button></span></div>';
+        '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invCostBillOpen" data-where="finance" data-month="' + m + '">Add</button></span></div>';
       return;
     }
     var b = r.bill;
@@ -222,7 +215,7 @@ function billsCnFormOpen(mode) {
   _billForm = { mode: mode === 'record' ? 'record' : 'new', date: localDateStr(), clientId: '', invId: '', reason: mode === 'record' ? 'rebate' : 'rate',
     note: '', taxable: '', qty: '', unit: 'KG', num: '', fy: cnFyShort(), pct: CN_DEFAULT_PCT, from: '', to: '', invNo: '', invDate: '',
     cgst: '', sgst: '', igst: '' };
-  renderStock();
+  renderFinance();
 }
 
 /* Read the form back into _billForm. A field that changes what the form shows redraws it; the
@@ -237,7 +230,7 @@ function billsCnFormInput(t) {
   if (!k) return false;
   _billForm[k] = ['taxable', 'qty', 'pct', 'cgst', 'sgst', 'igst'].indexOf(k) >= 0 ? (t.value === '' ? '' : parseFloat(t.value)) : t.value;
   if (k === 'clientId') _billForm.invId = '';
-  if (['clientId', 'invId', 'reason'].indexOf(k) >= 0) { renderStock(); return true; }
+  if (['clientId', 'invId', 'reason'].indexOf(k) >= 0) { renderFinance(); return true; }
   if (['taxable', 'cgst', 'sgst', 'igst'].indexOf(k) >= 0) {
     var box = document.querySelector('[data-cn-figures]'), c = _billsCnFigures();
     if (box) { box.innerHTML = _billsFiguresHtml(c); box.classList.toggle('inv-hidden', !c); }
@@ -332,7 +325,7 @@ function billsCnFormSave() {
   recomputeNextCnNumber();
   saveState();
   _billForm = null;
-  renderStock();
+  renderFinance();
   showToast(cn.displayNumber + (rec ? ' recorded — ' : ' issued — ') + formatCurrency(cn.grandTotal));
   if (!rec) showCreditNotePreview(cn.id);
 }
@@ -384,9 +377,8 @@ function stockEditHtml(item) {
 /* ---------- Actions ---------- */
 function billsAction(action, btn) {
   switch (action) {
-    case 'invStockTab': stockSetView(btn.dataset.tab === 'bills' || btn.dataset.tab === 'bank' ? btn.dataset.tab : 'list'); return true;
     case 'invCnFormOpen': billsCnFormOpen(btn.dataset.mode); return true;
-    case 'invCnFormCancel': _billForm = null; renderStock(); return true;
+    case 'invCnFormCancel': _billForm = null; renderFinance(); return true;
     case 'invCnFormSave': billsCnFormSave(); return true;
     case 'invStockEditSave': stockEditSave(btn.dataset.id); return true;
   }

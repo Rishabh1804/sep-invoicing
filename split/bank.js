@@ -1,4 +1,4 @@
-/* ===== BANK (Stock → Bank) =====
+/* ===== BANK (Finance → Receivables, Payments, Bank) =====
  * The bank statement read in the app (owner, 26 Sep 2026: "We have the bank statement as well
  * right? There is no way to read it in the app yet"). Three jobs, all three asked for:
  *   - RECEIPTS: which invoices each customer credit pays, and what each customer still owes;
@@ -28,7 +28,6 @@ var BANK_CATS = [
 var BANK_CAT_TONE = { receipt: 'ok', wages: 'info', power: 'warning', supplier: 'neutral', gst: 'neutral', tax: 'neutral', charges: 'neutral', reversal: 'neutral', other: 'neutral' };
 function bankCatLabel(k) { var c = BANK_CATS.find(function(x) { return x[0] === k; }); return c ? c[1] : k; }
 
-var _bankTab = 'receipts';     // receipts | payments | statement
 var _bankFilter = { cat: '', q: '' };
 var _bankEdit = null;          // the statement row being categorised
 var _bankOpen = null;          // the client whose receipts are open
@@ -311,22 +310,23 @@ function bankAddPowerBill(rowId) {
   costBills().push({ id: 'CB-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), kind: 'power', month: m, amount: row.dr,
     units: null, note: 'Paid ' + formatDate(row.date) + ' (bank)', bankId: row.id, at: Date.now() });
   saveState();
-  renderStock();
+  renderFinance();
   showToast('Electricity bill for ' + billsMonthLabel(m) + ' added from the bank');
 }
 
 /* ---------- Views ---------- */
-function renderBank() {
-  var b = bankData(), rows = bankRows();
-  var h = stockTabsHtml('bank') + _bankHeadHtml(rows);
-  if (!rows.length) return h;
-  var tab = function(k, l) { return '<button class="inv-viewtab" role="tab" aria-selected="' + (_bankTab === k) + '" data-action="invBankTab" data-tab="' + k + '">' + l + '</button>'; };
-  h += '<div class="inv-viewtabs" role="tablist" aria-label="Bank views">' + tab('receipts', 'Receipts') + tab('payments', 'Payments') + tab('statement', 'Statement') + '</div>';
+/* One Finance tab: 'receipts' (Receivables), 'payments', or 'bank' (the statement itself, with its
+   import and export). Receivables and Payments read the statement, so without one they say where
+   to bring it in. */
+function renderBank(tab) {
+  var rows = bankRows();
+  if (tab === 'bank') return _bankHeadHtml(rows) + (rows.length ? _bankStatementHtml(bankClassify(rows)) : '');
+  if (!rows.length) {
+    return '<div class="inv-panel"><div class="inv-empty">' + (tab === 'payments' ? 'Payments read' : 'Receivables read') +
+      ' the bank statement, and none is imported yet. <button class="inv-btn inv-btn-link inv-btn-sm" data-action="invBankImport">Import the statement</button></div></div>';
+  }
   var cls = bankClassify(rows);
-  if (_bankTab === 'payments') h += _bankPaymentsHtml(cls);
-  else if (_bankTab === 'statement') h += _bankStatementHtml(cls);
-  else h += _bankReceiptsHtml(cls);
-  return h;
+  return tab === 'payments' ? _bankPaymentsHtml(cls) : _bankReceiptsHtml(cls);
 }
 
 function _bankHeadHtml(rows) {
@@ -334,7 +334,7 @@ function _bankHeadHtml(rows) {
   var h = '<div class="inv-panel inv-panel-flush" id="bankHead"><div class="inv-panel-head"><span class="inv-panel-title">Bank statement</span>' +
     '<span class="inv-toolbar inv-toolbar-tight">' + (rows.length ? '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invBankExport">Export Excel</button>' : '') +
     '<button class="inv-btn ' + (rows.length ? 'inv-btn-secondary' : 'inv-btn-primary') + ' inv-btn-sm" data-action="invBankImport">Import</button></span>' +
-    '<input type="file" accept=".xls,application/vnd.ms-excel" id="bankFileInput" class="inv-hidden"></div>';
+    '</div>';
   if (!rows.length) {
     return h + '<div class="inv-empty">No statement yet. Download the account statement from Bank of Baroda as Excel (.xls) and import it as it is; ' +
       'a later statement that overlaps it adds only the rows that are new.</div></div>';
@@ -576,7 +576,7 @@ function bankSaveEdit(id) {
   else row.set = set;
   _bankEdit = null;
   saveState();
-  renderStock();
+  renderFinance();
   showToast(all && all.checked ? 'Saved for every row under ' + v.party : 'Saved');
 }
 /* The picker hands back text; ids are numbers on real books. */
@@ -590,7 +590,7 @@ function bankSetClient(rowId, clientId) {
   if (v.key && !/^BY INST\b/i.test(row.narration)) b.parties[v.key] = { cat: 'receipt', clientId: id };
   else row.set = { cat: 'receipt', clientId: id };
   saveState();
-  renderStock();
+  renderFinance();
 }
 
 function bankImportFile() {
@@ -611,7 +611,7 @@ function bankImportFile() {
         res = bankImport(parsed, f.name);
       } catch (err) { showToast(err.message || 'That file could not be read', 'error'); return; }
       saveState();
-      renderStock();
+      renderFinance();
       showToast(res.added + ' row' + (res.added === 1 ? '' : 's') + ' added' + (res.same ? ' · ' + res.same + ' already held' : ''));
     };
     reader.readAsArrayBuffer(f);
@@ -688,10 +688,10 @@ function bankExportJson() {
 
 function bankInput(t) {
   if (!t) return false;
-  if (t.id === 'bankCatFilter') { _bankFilter.cat = t.value; renderStock(); return true; }
+  if (t.id === 'bankCatFilter') { _bankFilter.cat = t.value; renderFinance(); return true; }
   if (t.id === 'bankSearch') {
     _bankFilter.q = t.value;
-    renderStock();
+    renderFinance();
     var s = document.getElementById('bankSearch');
     if (s) { s.focus(); s.setSelectionRange(s.value.length, s.value.length); }
     return true;
@@ -699,14 +699,14 @@ function bankInput(t) {
   if (t.dataset && t.dataset.bankClient) { bankSetClient(t.dataset.bankClient, t.value); return true; }
   if (t.dataset && t.dataset.bankMonth) {
     var row = bankData().rows.find(function(x) { return x.id === t.dataset.bankMonth; });
-    if (row) { row.billMonth = t.value; saveState(); renderStock(); }
+    if (row) { row.billMonth = t.value; saveState(); renderFinance(); }
     return true;
   }
   if (t.id === 'bankOpening') {
     var amt = gstRound(parseFloat(t.value) || 0), o = bankData().opening;
     if (amt > 0) o[t.dataset.client] = { amount: amt, at: Date.now() }; else delete o[t.dataset.client];
     saveState();
-    renderStock();
+    renderFinance();
     return true;
   }
   if (t.id === 'bankEditCat') {
@@ -715,7 +715,7 @@ function bankInput(t) {
     if (!r) return true;
     var keep = r.set, v = bankClassify([r])[0];
     r.set = Object.assign({}, v.row.set || {}, { cat: t.value });
-    renderStock();
+    renderFinance();
     r.set = keep;
     return true;
   }
@@ -724,15 +724,14 @@ function bankInput(t) {
 
 function bankAction(action, btn) {
   switch (action) {
-    case 'invBankTab': _bankTab = btn.dataset.tab; _bankEdit = null; renderStock(); return true;
     case 'invBankImport': bankImportFile(); return true;
     case 'invBankExport': bankExportXlsx(); return true;
     case 'invBankExportJson': bankExportJson(); return true;
-    case 'invBankClient': _bankOpen = _bankOpen === btn.dataset.id ? null : btn.dataset.id; renderStock(); return true;
+    case 'invBankClient': _bankOpen = _bankOpen === btn.dataset.id ? null : btn.dataset.id; renderFinance(); return true;
     case 'invBankAddBill': bankAddPowerBill(btn.dataset.id); return true;
     case 'invBankPlace': bankSetClient(btn.dataset.id, btn.dataset.client); return true;
-    case 'invBankEdit': _bankEdit = _bankEdit === btn.dataset.id ? null : btn.dataset.id; renderStock(); return true;
-    case 'invBankEditCancel': _bankEdit = null; renderStock(); return true;
+    case 'invBankEdit': _bankEdit = _bankEdit === btn.dataset.id ? null : btn.dataset.id; renderFinance(); return true;
+    case 'invBankEditCancel': _bankEdit = null; renderFinance(); return true;
     case 'invBankEditSave': bankSaveEdit(btn.dataset.id); return true;
   }
   return false;

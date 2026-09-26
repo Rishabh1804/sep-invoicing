@@ -1,7 +1,7 @@
 /* ===== TAB SWITCHING (DP v0.2 9-step) ===== */
 const PAGE_TITLES = {
   pageHome: 'Home', pageCreate: 'Create invoice', pageIM: 'Challans', pageRegister: 'Register',
-  pageClients: 'Clients', pageTodo: 'To-do', pageStock: 'Stock', pageStaff: 'Staff',
+  pageClients: 'Clients', pageFinance: 'Finance', pageTodo: 'To-do', pageStock: 'Stock', pageStaff: 'Staff',
   pageStats: 'Stats', pageHistory: 'History'
 };
 
@@ -35,7 +35,7 @@ function switchTab(tabId) {
   document.querySelectorAll('.inv-navbar-item').forEach(t => {
     if (t.dataset.tab === tabId) t.classList.add('inv-navbar-item-on');
   });
-  // To-do, Stock, Staff, Stats and History live behind More on the phone bar.
+  // To-do, Finance, Stock, Staff, Stats and History live behind More on the phone bar.
   document.querySelectorAll('.inv-navbar-more').forEach(t => t.classList.toggle('inv-navbar-item-on', MORE_TABS.indexOf(tabId) >= 0));
   // The top bar names the screen (§4); the desktop sidebar marks it.
   const title = document.getElementById('topbarTitle');
@@ -85,6 +85,8 @@ function switchTab(tabId) {
     renderTodo();
   } else if (tabId === 'pageStaff') {
     renderAttendance();
+  } else if (tabId === 'pageFinance') {
+    renderFinance();
   } else if (tabId === 'pageStats') {
     renderStats();
   } else if (tabId === 'pageHistory') {

@@ -3,7 +3,7 @@ import type { Page } from '@playwright/test';
 import path from 'path';
 import { emptyState, loadAppWithState, noSeedIM, readStoredState, recentTs, switchTab, type SepState } from './fixtures';
 
-// P57: Stock → Bank. The bank's own .xls export read as it is, rows merged across overlapping
+// P57: Finance → Receivables, Payments and Bank (moved from Stock, 26 Sep 2026). The bank's own .xls export read as it is, rows merged across overlapping
 // statements, receipts set against invoices, and the payments set against what the app records.
 // The fixtures are FAKE statements in Bank of Baroda's layout (every name and figure invented);
 // their dates are fixed because a file cannot carry todayIso(), so nothing here reads the clock.
@@ -45,12 +45,19 @@ function state(): SepState {
 }
 
 async function openBank(page: Page) {
-  await switchTab(page, 'pageStock');
-  await page.locator('[data-action="invStockTab"][data-tab="bank"]').click();
+  await switchTab(page, 'pageFinance');
+  await finTab(page, 'bank');
+}
+async function finTab(page: Page, tab: string) {
+  await page.locator(`[data-action="invFinTab"][data-tab="${tab}"]`).click();
 }
 async function importXls(page: Page, file: string) {
   const [chooser] = await Promise.all([page.waitForEvent('filechooser'), page.locator('[data-action="invBankImport"]').click()]);
+  // The file is read asynchronously: wait for the import's own word that it landed, or the next
+  // step races the reader (it did, under a loaded run, on a test that read state straight after).
+  const before = await page.evaluate(() => ((window as any).bankData().imports || []).length);
   await chooser.setFiles(file);
+  await page.waitForFunction(n => (window as any).bankData().imports.length > n, before);
 }
 
 test('the bank\'s own .xls is read as it is, and every balance follows from the row before', async ({ page }) => {
@@ -113,6 +120,7 @@ test('a receipt that equals a run of invoices is exact; a cheque with no name is
   await openBank(page);
   await importXls(page, JUL);
   await importXls(page, JUL_AUG);
+  await finTab(page, 'receipts');
   const alpha = page.locator('[data-recv="1"]');
   await expect(alpha).toContainText('₹2,360.00');
   await alpha.locator('[data-action="invBankClient"]').click();
@@ -136,7 +144,7 @@ test('an electricity payment becomes the month\'s bill, and wages are set agains
   await loadAppWithState(page, state());
   await openBank(page);
   await importXls(page, JUL);
-  await page.locator('[data-action="invBankTab"][data-tab="payments"]').click();
+  await finTab(page, 'payments');
   const pay = page.locator('#bankPower [data-power]');
   await expect(pay).toHaveCount(1);
   await expect(pay.locator('select')).toHaveValue('2026-06');
@@ -157,7 +165,7 @@ test('a SELF draw set to Other leaves the wages, and a payee setting reaches eve
   await loadAppWithState(page, state());
   await openBank(page);
   await importXls(page, JUL);
-  await page.locator('[data-action="invBankTab"][data-tab="statement"]').click();
+  await finTab(page, 'bank');
   await page.locator('#bankSearch').fill('SELF');
   const selfRow = page.locator('[data-bank-row]').filter({ hasText: '5,000.00' });
   await selfRow.locator('[data-action="invBankEdit"]').click();

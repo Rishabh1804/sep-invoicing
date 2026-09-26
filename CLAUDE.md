@@ -23,7 +23,7 @@ Workforce management and invoicing PWA for **Soma Electro Products**, a zinc ele
 
 ## Architecture
 
-Split-file PWA. 45 modules, ~26,100 lines total.
+Split-file PWA. 46 modules, ~26,400 lines total.
 
 ```
 split/
@@ -56,10 +56,11 @@ split/
 ├── payroll.js         ← Pay: due by worker, payments, weekly payout + forecast, monthly payroll as paid, hours by area, Home attendance (547 lines)
 ├── stock.js           ← Stock: WhatsApp message parser, event replay, More sheet, chemicals ₹/kg (1,189 lines)
 ├── cost.js            ← Prices, bills and patterns per stock line; Stats → Live cost with every source shown (~390 lines)
-├── bills.js           ← Stock → Bills & notes: electricity bills by month, credit notes recorded or issued, stock line edit (~400 lines)
+├── bills.js           ← Finance → Bills & notes: electricity bills by month, credit notes recorded or issued, stock line edit (~400 lines)
 ├── xls.js             ← Excel 97–2003 reader: OLE compound file + BIFF8 records, first sheet's values (~190 lines)
 ├── xlsx.js            ← .xlsx writer: typed cells, dates, number formats, frozen header, filter; a stored zip (~170 lines)
-├── bank.js            ← Stock → Bank: statement import, categories, receipts vs invoices, payments vs bills and Pay (~560 lines)
+├── bank.js            ← Finance → Receivables, Payments, Bank: statement import, categories, receipts vs invoices, payments vs bills and Pay (~560 lines)
+├── finance.js         ← Finance: the page, its six tabs, and the Overview read across them (~230 lines)
 ├── todo.js            ← To-do: your tasks + tasks raised from the data, Home card, Windows widget payload (726 lines)
 ├── relay.js           ← Attendance rolls: in/out-time WhatsApp parser, review, merge into the day (795 lines)
 ├── stats.js           ← Stats dashboard + History activity log (1,195 lines)
@@ -75,7 +76,7 @@ split/
 └── init.js            ← Migrations + app bootstrap (567 lines)
 ```
 
-**Concat order defined in build.sh.** Dependencies: data → state → appearance → zinc → tabs → clients → items → create → settings → github-sync → invoice-ops → number-audit → exports → im → autocomplete → print → quality-cert → credit-note → charts → staff → labour → areas → payroll → stock → cost → bills → xls → xlsx → bank → todo → relay → stats → intel → insights → client-perf → im-form → im-dupe → scanner → events → swipe → seed → init.
+**Concat order defined in build.sh.** Dependencies: data → state → appearance → zinc → tabs → clients → items → create → settings → github-sync → invoice-ops → number-audit → exports → im → autocomplete → print → quality-cert → credit-note → charts → staff → labour → areas → payroll → stock → cost → bills → xls → xlsx → bank → finance → todo → relay → stats → intel → insights → client-perf → im-form → im-dupe → scanner → events → swipe → seed → init.
 
 **Every module shares one global scope.** A top-level `var` or `function` in a later module silently replaces one of
 the same name in an earlier one; nothing warns. `bills.js` shipped a `STOCK_UNITS` array over `stock.js`'s unit map
@@ -105,7 +106,7 @@ every session start — nothing to set up by hand. CI (`build-sync`) is the back
 ### Tests
 
 ```bash
-pnpm exec playwright test          # 476 tests, both layouts
+pnpm exec playwright test          # 480 tests, both layouts
 ```
 
 Some sandboxes ship a Chromium build Playwright does not expect and block downloading
@@ -1238,7 +1239,7 @@ the stock (price, usage, cadence, etc.)"*). `cost.js`.
 - **Past purchases come from `soma-internal`** through Stock → Import: a `sep-stock` file of `bill` entries
   (and `costBills`), merged by id. The file is built from the private records and never committed here.
 
-**The phone bar is six tabs**: Home, Create, IM, Register, Clients, **More** (To-do, Stock, Staff,
+**The phone bar is six tabs**: Home, Create, IM, Register, Clients, **More** (To-do, Finance, Stock, Staff,
 Stats, History). More lights up while one of those is open and carries a red count of **every red row**
 — stock out or under its red line, and your own tasks overdue. The test fixture's `switchTab` opens
 More when the target is behind it.
@@ -1293,8 +1294,31 @@ Parts three and four of the intelligence engine (owner, 25 Sep 2026). `insights.
     says so. An empty vehicle field is filled **only where one vehicle carries 60%+** of the client's last
     30; otherwise the usual ones are offered as chips and nothing is typed.
 
+### Finance
+Sidebar **Money → Finance**; More → **Finance** on the phone (`finance.js`; owner, 26 Sep 2026: *"The entire finance
+sector of our app needs a dashboard"* — a page of its own, leading with cash, what is owed, where money went and GST).
+Bank and Bills & notes lived under Stock, where they never belonged; they are tabs here: **Overview · Receivables ·
+Payments · Bank · Bills & notes · GST**. The open tab is remembered on the device (`sep_inv_fin_tab`).
+
+- **Overview**, whole rupees at a glance (every tab behind it keeps the paise, and a figure's title carries them):
+  - tiles: the **bank balance** with the day it is from — amber once the statement is over a week old, red when
+    overdrawn — **owed to us**, **paid out** in the last month on the statement, and **GST** for last month;
+  - **cash by month**: in, out, and the balance each month closed at, with the balance line drawn only when every
+    month closed in credit (the line chart has no negative axis);
+  - **owed to us** by age (0–30 · 31–60 · 61–90 · over 90 days, from the invoice date) and the five largest
+    debtors, each opening Receivables with its client expanded; receipts with no client are said, not counted;
+  - **where money went**: one month's outflow by category, SELF draws as *Wages (cash)*, beside what was invoiced
+    and received that month;
+  - **GST due and paid**, the last six months.
+- **GST due** is the output tax on the month's invoices (active, by invoice date) less the tax on its credit notes
+  (not cancelled, by note date). **Paid** is the GST the statement sent the month after, since a return is paid by the
+  20th of the next month. Cash paid is output tax *less input credit*, so paying less than is due is the normal
+  shape; the tab says so and never calls the gap a shortfall. The GST tab reads twelve months.
+- With no statement the Overview says what reads from it and still shows GST due, which reads from the invoices.
+- The To-do's missing electricity bill opens Finance → Bills & notes on the month (`todoGo` kind `bills`).
+
 ### Bills & notes
-More → Stock → **Bills & notes** (`bills.js`; owner, 26 Sep 2026: *"We don't have a place to enter electricity
+More → Finance → **Bills & notes** (`bills.js`, moved from Stock 26 Sep 2026; owner, 26 Sep 2026: *"We don't have a place to enter electricity
 bills anywhere in the app. And even credit notes"*). The bill form existed, labelled *Power*, at the foot of
 Stats → Cost → Live cost; nobody found it. Credit notes could only be raised from a Register selection as a
 batch rebate.
@@ -1324,7 +1348,7 @@ batch rebate.
   nothing.
 
 ### Bank
-More → Stock → **Bank** (`bank.js`; owner, 26 Sep 2026: *"We have the bank statement as well right? There is no way
+More → Finance → **Receivables**, **Payments** and **Bank** (`bank.js`, moved from Stock 26 Sep 2026; owner, 26 Sep 2026: *"We have the bank statement as well right? There is no way
 to read it in the app yet"* — all three of receipts, payments and the ledger, reading the bank's `.xls` as it is).
 
 - **The file is read as the bank exports it.** Bank of Baroda's `OpTransactionHistoryUX5.xls` is real Excel 97–2003

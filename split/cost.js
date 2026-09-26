@@ -381,7 +381,7 @@ function _costBillHtml() {
   return h + costBillFormHtml() + '</div>';
 }
 
-/* One form, drawn wherever it was opened: Stats → Live cost, or Stock → Bills & notes. */
+/* One form, drawn wherever it was opened: Stats → Live cost, or Finance → Bills & notes. */
 function costBillFormHtml() {
   var o = _costBillOpen || {}, m = o.month || localDateStr().slice(0, 7);
   return '<div class="inv-fields">' +
@@ -394,11 +394,11 @@ function costBillFormHtml() {
     '<div class="inv-toolbar"><button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invCostBillCancel">Cancel</button>' +
     '<button class="inv-btn inv-btn-primary inv-btn-sm" data-action="invCostBillSave">Save bill</button></div>';
 }
-function costBillRedraw(where) { if (where === 'stock') renderStock(); else renderStats(); }
+function costBillRedraw(where) { if (where === 'finance') renderFinance(); else renderStats(); }
 /* The page a form or a button sits on. Both pages stay in the DOM when hidden, so a form left open
    on Stats still holds the same ids as one opened on Stock, and a bare getElementById reads the
    hidden one (Stats comes first). Every lookup is scoped to the page the form was opened on. */
-function costBillRoot(where) { return document.getElementById(where === 'stock' ? 'pageStock' : 'pageStats') || document; }
+function costBillRoot(where) { return document.getElementById(where === 'finance' ? 'pageFinance' : 'pageStats') || document; }
 
 function costBillSave() {
   var root = costBillRoot((_costBillOpen || {}).where);
@@ -429,7 +429,7 @@ function costBillVoid(id, where) {
 function costAction(action, btn) {
   switch (action) {
     case 'invCostBillOpen': {
-      var where = btn.dataset.where === 'stock' ? 'stock' : 'stats';
+      var where = btn.dataset.where === 'finance' ? 'finance' : 'stats';
       _costBillOpen = { where: where, month: btn.dataset.month || '' };
       costBillRedraw(where);
       var a = costBillRoot(where).querySelector('#costBillAmount'); if (a) a.focus();

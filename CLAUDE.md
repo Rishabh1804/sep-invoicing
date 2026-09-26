@@ -205,7 +205,12 @@ expands to its lines (`inv-row-expander`). The desktop table and pane are the Re
 (`_mdFocusKey` / `_mdRestoreFocus`). **Add challan is the page's one primary, in the toolbar** — the floating + and camera
 buttons are gone. The survey's last IM bug is closed: the filter `<select>`s carried `data-action="invFilterIM"`, so the
 click that opened one ran the filter; they speak through `change` only now (P55 asserts no select carries an action).
-The challan add/edit form is untouched and moves with Create, which shares its line editor.
+The challan add/edit form moved with Create.
+**Create is built:** the invoice and challan forms share one line editor (`inv-lines` / `inv-line`, a grid of fields on the
+phone and a row under a column head on the desktop), verdicts are a dot and a word (`inv-verdict`, `data-verdict` on the
+Rate field), suggestion lists are `inv-menu` in an `inv-combo` (the cursor is `aria-selected`), optional details fold,
+and Create invoice sits in the sticky action bar. A chosen client's **unbilled challans are tick boxes** that bring their
+lines in; only the challan lines the invoice still carries are marked invoiced on save (P67).
 
 ⚠ **Until the migration in its §9 completes, the stylesheet still carries the v1.0 families** (`inv-card`,
 `inv-stk-*`, `inv-stats-card`, the domain colours). New work uses the v2.0 components; never extend a v1.0

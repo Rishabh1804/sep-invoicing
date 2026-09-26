@@ -35,16 +35,16 @@ test.describe('IM challan form — keyboard navigation', () => {
     await openChallanForm(page);
 
     await page.locator('#imChallanClientSearch').fill('TEST');
-    await expect(page.locator('#imChallanClientResults .inv-search-item')).toHaveCount(1);
+    await expect(page.locator('#imChallanClientResults .inv-menu-item')).toHaveCount(1);
 
     await page.keyboard.press('ArrowDown');
-    await expect(page.locator('#imChallanClientResults .inv-ac-active')).toHaveCount(1);
+    await expect(page.locator('#imChallanClientResults [aria-selected="true"]')).toHaveCount(1);
 
     await page.keyboard.press('Enter');
 
     // Client committed, and focus moved on to the next thing that gets typed
     // rather than being dropped by the re-render.
-    await expect(page.locator('.inv-selected-client')).toContainText('TEST CLIENT KG');
+    await expect(page.locator('[data-chosen-client]')).toContainText('TEST CLIENT KG');
     await expect(page.locator('#imChallanNo')).toBeFocused();
   });
 
@@ -55,7 +55,7 @@ test.describe('IM challan form — keyboard navigation', () => {
     await page.locator('#imChallanClientSearch').fill('TEST');
     await page.keyboard.press('Enter');
 
-    await expect(page.locator('.inv-selected-client')).toContainText('TEST CLIENT KG');
+    await expect(page.locator('[data-chosen-client]')).toContainText('TEST CLIENT KG');
   });
 
   test('part autocomplete is navigable and hands focus to the quantity', async ({ page }) => {
@@ -67,12 +67,12 @@ test.describe('IM challan form — keyboard navigation', () => {
     await page.locator('#imPart0').fill('CLAMP');
     // The list also ends with a "create this part" action row, so suggestions
     // are counted apart from it.
-    await expect(page.locator('#imPartAC0 .inv-autocomplete-item:not(.inv-ac-add)')).toHaveCount(2);
+    await expect(page.locator('#imPartAC0 .inv-menu-item:not(.inv-menu-add)')).toHaveCount(2);
 
     // Second match, reached by keyboard only.
     await page.keyboard.press('ArrowDown');
     await page.keyboard.press('ArrowDown');
-    await expect(page.locator('#imPartAC0 .inv-autocomplete-item').nth(1)).toHaveClass(/inv-ac-active/);
+    await expect(page.locator('#imPartAC0 .inv-menu-item').nth(1)).toHaveAttribute('aria-selected', 'true');
 
     await page.keyboard.press('Enter');
 
@@ -94,11 +94,11 @@ test.describe('IM challan form — keyboard navigation', () => {
     // keyboard has to be able to reach — the last option is now that row. Every
     // option sits in one ring; there is no second class the wrap skips over.
     await page.keyboard.press('ArrowUp');
-    await expect(page.locator('#imPartAC0 .inv-autocomplete-item').last()).toHaveClass(/inv-ac-active/);
-    await expect(page.locator('#imPartAC0 .inv-ac-add')).toHaveClass(/inv-ac-active/);
+    await expect(page.locator('#imPartAC0 .inv-menu-item').last()).toHaveAttribute('aria-selected', 'true');
+    await expect(page.locator('#imPartAC0 .inv-menu-add')).toHaveAttribute('aria-selected', 'true');
     // And down from there wraps back to the first suggestion.
     await page.keyboard.press('ArrowDown');
-    await expect(page.locator('#imPartAC0 .inv-autocomplete-item').nth(0)).toHaveClass(/inv-ac-active/);
+    await expect(page.locator('#imPartAC0 .inv-menu-item').nth(0)).toHaveAttribute('aria-selected', 'true');
   });
 
   test('Escape closes the suggestion list and leaves the typed text alone', async ({ page }) => {
@@ -120,11 +120,11 @@ test.describe('IM challan form — keyboard navigation', () => {
     await page.locator('#imChallanClientSearch').fill('TEST');
     await page.keyboard.press('Enter');
 
-    await expect(page.locator('.inv-line-item')).toHaveCount(1);
+    await expect(page.locator('.inv-line')).toHaveCount(1);
     await page.locator('#imChallanNo').focus();
     await page.keyboard.press('Alt+n');
 
-    await expect(page.locator('.inv-line-item')).toHaveCount(2);
+    await expect(page.locator('.inv-line')).toHaveCount(2);
     await expect(page.locator('#imPart1')).toBeFocused();
   });
 
@@ -141,7 +141,7 @@ test.describe('IM challan form — keyboard navigation', () => {
 
     // And activating it from the keyboard makes the next line.
     await page.keyboard.press('Enter');
-    await expect(page.locator('.inv-line-item')).toHaveCount(2);
+    await expect(page.locator('.inv-line')).toHaveCount(2);
   });
 
   test('changing the unit keeps focus in the form', async ({ page }) => {
@@ -208,10 +208,10 @@ test.describe('IM challan form — keyboard navigation', () => {
     await page.keyboard.press('Enter');
 
     await page.keyboard.press('Alt+n');
-    await expect(page.locator('.inv-line-item')).toHaveCount(2);
+    await expect(page.locator('.inv-line')).toHaveCount(2);
 
     await page.locator('[data-k="remove-0"]').click();
-    await expect(page.locator('.inv-line-item')).toHaveCount(1);
+    await expect(page.locator('.inv-line')).toHaveCount(1);
     await expect(page.locator('#imPart0')).toBeFocused();
   });
 });

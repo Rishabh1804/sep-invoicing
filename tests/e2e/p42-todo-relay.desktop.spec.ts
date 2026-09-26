@@ -51,7 +51,7 @@ test.describe('P42 desktop: to-do, quick actions, attendance paste', () => {
 
     await page.locator('[data-action="invHomeQuick"][data-go="challan"]').click();
     await expect(page.locator('#pageIM.inv-page-active')).toBeVisible();
-    await expect(page.locator('.inv-im-form-active').first()).toBeVisible();
+    await expect(page.locator('[data-form="challan"]').first()).toBeVisible();
 
     await switchTab(page, 'pageHome');
     await page.locator('[data-action="invHomeQuick"][data-go="stock"]').click();

@@ -31,9 +31,9 @@ test.describe('P38: an invoice correction reaches its challan', () => {
     await g(page, "editInvoice('INV-830')");
     const pcs = page.locator('input[data-field="nosQty"][data-idx="0"]');
     await expect(pcs).toHaveValue('33');
-    await expect(page.locator('#invWeightMatch0 .inv-rm-chip')).toHaveText('Weight ×10');
+    await expect(page.locator('#invWeightMatch0 .inv-verdict .inv-dot')).toHaveText('Weight ×10');
     await pcs.fill('330');
-    await expect(page.locator('#invWeightMatch0 .inv-rm-chip')).toHaveText('Weight matches');
+    await expect(page.locator('#invWeightMatch0 .inv-verdict .inv-dot')).toHaveText('Weight matches');
     await page.locator('#invSaveBtn').click();
     // Shown after the tab switch, so it stays on screen (switchTab clears toasts).
     await expect(page.locator('.inv-toast')).toContainText('challan 1115 corrected to match (1 line)');

@@ -56,88 +56,71 @@ function renderAddChallanForm() {
   var focusTarget = _challanFocusNext || _challanCaptureFocus();
   _challanFocusNext = null;
 
-  var html = '<div class="inv-im-form inv-im-form-active">' +
-    '<div class="inv-im-form-header"><span class="inv-im-form-title">' + (_challanForm._editingId ? 'Edit Challan' : 'Add Challan') + '</span></div>' +
-    '<div class="inv-kbd-hint">' +
-      '<span class="inv-kbd-hint-item"><kbd class="inv-kbd">Enter</kbd> next field</span>' +
-      '<span class="inv-kbd-hint-item"><kbd class="inv-kbd">&uarr;</kbd><kbd class="inv-kbd">&darr;</kbd> pick suggestion</span>' +
-      '<span class="inv-kbd-hint-item"><kbd class="inv-kbd">Alt</kbd>+<kbd class="inv-kbd">N</kbd> add line</span>' +
-      '<span class="inv-kbd-hint-item"><kbd class="inv-kbd">Ctrl</kbd>+<kbd class="inv-kbd">Enter</kbd> save</span>' +
-    '</div>';
+  var date = _challanForm.challanDate || localDateStr();
+  var total = gstRound(_challanForm.items.reduce(function(t, it) { return t + (it.amount || 0); }, 0));
+  var html = '<div data-form="challan">' +
+    '<p class="inv-keys">' +
+      '<span><kbd class="inv-kbd">Enter</kbd> next field</span>' +
+      '<span><kbd class="inv-kbd">&uarr;</kbd><kbd class="inv-kbd">&darr;</kbd> pick suggestion</span>' +
+      '<span><kbd class="inv-kbd">Alt</kbd>+<kbd class="inv-kbd">N</kbd> add line</span>' +
+      '<span><kbd class="inv-kbd">Ctrl</kbd>+<kbd class="inv-kbd">Enter</kbd> save</span>' +
+    '</p><div class="inv-panels">';
 
-  // Client selector
-  html += '<div class="inv-card"><div class="inv-card-header"><span class="inv-card-title">Challan Details</span></div>';
-  html += '<div class="inv-form-group"><label class="inv-form-label" for="imChallanClientSearch">Client</label>';
-  if (client) {
-    html += '<div class="inv-flex-between inv-selected-client">' +
-      '<div><div class="inv-client-name">' + escHtml(client.name) + '</div>' +
-      '<div class="inv-client-meta">' + escHtml(client.gstin || 'No GSTIN') + '</div></div>' +
-      '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-k="client-change" data-action="invClearChallanClient">Change</button></div>';
-  } else {
-    html += '<div class="inv-search-wrap inv-search-no-mb">' +
-      '<svg class="inv-search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>' +
-      '<input type="text" class="inv-search-input" id="imChallanClientSearch" data-k="client-search" placeholder="Search client" autocomplete="off"' +
-      ' role="combobox" aria-expanded="false" aria-autocomplete="list" aria-controls="imChallanClientResults">' +
-      '<div id="imChallanClientResults" class="inv-search-results inv-hidden" role="listbox"></div></div>';
-  }
-  html += '</div>';
+  // Challan: client, number, date, vehicle.
+  html += '<div class="inv-panel inv-panel-flush inv-panels-wide"><div class="inv-panel-head"><span class="inv-panel-title">' +
+    (_challanForm._editingId ? 'Edit challan' : 'Add challan') + '</span></div>';
+  if (client) html += chosenClientHtml(client, client.gstin || 'No GSTIN', 'invClearChallanClient', 'client-change');
+  html += '<div class="inv-panel-body"><div class="inv-fields">' +
+    (client ? '' : clientSearchHtml('imChallanClientSearch', 'imChallanClientResults', 'client-search')) +
+    '<div class="inv-field"><label class="inv-field-label" for="imChallanNo">Challan no.</label>' +
+    '<input class="inv-input inv-id" id="imChallanNo" data-k="challanNo" value="' + escHtml(_challanForm.challanNo) + '"></div>' +
+    '<div class="inv-field"><label class="inv-field-label" for="imChallanDate">Challan date</label>' +
+    '<input type="date" class="inv-input inv-id" id="imChallanDate" data-k="challanDate" value="' + escHtml(_challanForm.challanDate) + '"></div>' +
+    '<div class="inv-field"><label class="inv-field-label" for="imVehicleNo">Vehicle no.</label>' +
+    '<input class="inv-input inv-id" id="imVehicleNo" data-k="vehicleNo" value="' + escHtml(_challanForm.vehicleNo) + '" list="imVehicleList" autocomplete="off">' +
+    '<datalist id="imVehicleList">' + getVehicleSuggestions(_challanForm.clientId) + '</datalist></div></div></div></div>';
 
-  // Challan fields
-  html += '<div class="inv-form-row">' +
-    '<div class="inv-form-group"><label class="inv-form-label" for="imChallanNo">Challan No</label>' +
-    '<input class="inv-form-input inv-mono" id="imChallanNo" data-k="challanNo" value="' + escHtml(_challanForm.challanNo) + '"></div>' +
-    '<div class="inv-form-group"><label class="inv-form-label" for="imChallanDate">Challan Date</label>' +
-    '<input type="date" class="inv-form-input inv-mono" id="imChallanDate" data-k="challanDate" value="' + escHtml(_challanForm.challanDate) + '"></div></div>' +
-    '<div class="inv-form-group"><label class="inv-form-label" for="imVehicleNo">Vehicle No</label>' +
-    '<input class="inv-form-input" id="imVehicleNo" data-k="vehicleNo" value="' + escHtml(_challanForm.vehicleNo) + '" list="imVehicleList" autocomplete="off">' +
-    '<datalist id="imVehicleList">' + getVehicleSuggestions(_challanForm.clientId) + '</datalist></div></div>';
-
-  // Line items
-  html += '<div class="inv-card"><div class="inv-card-header"><span class="inv-card-title">Line Items</span></div>';
+  // Lines, on the invoice form's line editor.
+  html += '<div class="inv-panel inv-panel-flush inv-panels-wide"><div class="inv-panel-head"><span class="inv-panel-title">Lines</span>' +
+    '<span class="inv-panel-count">' + _challanForm.items.length + '</span></div><div class="inv-lines">' +
+    (_challanForm.items.length ? linesHeadHtml('Qty') : '');
   _challanForm.items.forEach(function(item, idx) {
     var isPieceNOS = client && client.billingMode === 'piece' && item.unit === 'NOS';
     var rateDisplay = (item.rate != null && !isNaN(item.rate) && item.rate !== 0) ? formatNum(item.rate) : '';
     var amtDisplay = (item.amount != null && !isNaN(item.amount) && item.amount !== 0) ? formatNum(item.amount) : '';
 
-    var rm = client ? rateMatch(client, _challanForm.challanDate || localDateStr(), item) : null;
-    html += '<div class="inv-line-item">' +
-      '<div class="inv-line-header"><span class="inv-line-num" id="imLineLbl' + idx + '">Item ' + (idx + 1) + '</span>' +
-      '<button class="inv-line-remove" data-k="remove-' + idx + '" data-action="invRemoveChallanLine" data-idx="' + idx + '" aria-label="Remove item ' + (idx + 1) + '">&times;</button></div>' +
-      '<div class="inv-form-group"><label class="inv-form-label" for="imPart' + idx + '">Part / Description</label>' +
-      '<div class="inv-autocomplete-wrap">' +
-      '<input class="inv-form-input" id="imPart' + idx + '" data-k="part-' + idx + '" value="' + escHtml(item.desc || item.partNumber) + '" data-action="invEditChallanPart" data-idx="' + idx + '" placeholder="Part name or number" autocomplete="off"' +
-      ' role="combobox" aria-expanded="false" aria-autocomplete="list" aria-controls="imPartAC' + idx + '">' +
-      '<div class="inv-autocomplete-list inv-hidden" id="imPartAC' + idx + '" role="listbox"></div></div></div>' +
-      '<div class="inv-form-row">' +
-      '<div class="inv-form-group"><label class="inv-form-label" for="imQty' + idx + '">Qty (Weight)</label>' +
-      '<input type="number" class="inv-form-input inv-mono" id="imQty' + idx + '" data-k="qty-' + idx + '" value="' + (item.qty || '') + '" data-field="qty" data-idx="' + idx + '" data-action="invUpdateChallanLine" step="any" min="0"></div>' +
-      '<div class="inv-form-group"><label class="inv-form-label" for="imUnit' + idx + '">Unit</label>' +
-      '<select class="inv-form-select" id="imUnit' + idx + '" data-k="unit-' + idx + '" data-field="unit" data-idx="' + idx + '" data-action="invUpdateChallanLine">' +
-      '<option value="KG"' + (item.unit === 'KG' ? ' selected' : '') + '>KG</option>' +
-      '<option value="NOS"' + (item.unit === 'NOS' ? ' selected' : '') + '>NOS</option></select></div>' +
-      '<div class="inv-form-group"><label class="inv-form-label" for="imNos' + idx + '">NOS Qty</label>' +
-      '<input type="number" class="inv-form-input inv-mono" id="imNos' + idx + '" data-k="nos-' + idx + '" value="' + (item.nosQty || '') + '" data-field="nosQty" data-idx="' + idx + '" data-action="invUpdateChallanLine" step="1" min="0" placeholder="Pcs"></div></div>' +
-      '<div id="imWeightMatch' + idx + '">' + (client ? weightMatchNote(weightMatch(client, _challanForm.challanDate || localDateStr(), item)) : '') + '</div>' +
-      '<div class="inv-form-row">' +
-      '<div class="inv-form-group"><label class="inv-form-label" for="imRate' + idx + '">Rate</label>' +
-      '<input type="number" class="inv-form-input inv-mono' + rateMatchInputClass(rm) + '" id="imRate' + idx + '" data-k="rate-' + idx + '" value="' + rateDisplay + '" data-field="rate" data-idx="' + idx + '" data-action="invUpdateChallanLine" step="any" min="0"' +
-      (isPieceNOS ? ' readonly' : '') + '></div>' +
-      '<div class="inv-form-group"><label class="inv-form-label" for="imAmt' + idx + '">Amount</label>' +
-      '<input type="number" class="inv-form-input inv-mono" id="imAmt' + idx + '" data-k="amount-' + idx + '" value="' + amtDisplay + '" data-field="amount" data-idx="' + idx + '" data-action="invUpdateChallanLine" step="any" min="0"' +
-      (isPieceNOS ? '' : ' readonly') + '></div></div>' +
+    var rm = client ? rateMatch(client, date, item) : null;
+    html += '<div class="inv-line"><span class="inv-line-num" id="imLineLbl' + idx + '">' + (idx + 1) + '</span>' +
+      lineField('Part', '<div class="inv-combo">' +
+        '<input class="inv-input" id="imPart' + idx + '" data-k="part-' + idx + '" value="' + escHtml(item.desc || item.partNumber) + '" data-action="invEditChallanPart" data-idx="' + idx + '" placeholder="Part name or number" autocomplete="off"' +
+        ' role="combobox" aria-expanded="false" aria-autocomplete="list" aria-controls="imPartAC' + idx + '">' +
+        '<div class="inv-menu inv-hidden" id="imPartAC' + idx + '" role="listbox"></div></div>', 'imPart' + idx, 'inv-line-part') +
+      lineField('Qty', '<input type="number" class="inv-input inv-input-num" id="imQty' + idx + '" data-k="qty-' + idx + '" value="' + (item.qty || '') + '" data-field="qty" data-idx="' + idx + '" data-action="invUpdateChallanLine" step="any" min="0">', 'imQty' + idx) +
+      lineField('Unit', '<select class="inv-select" id="imUnit' + idx + '" data-k="unit-' + idx + '" data-field="unit" data-idx="' + idx + '" data-action="invUpdateChallanLine">' +
+        '<option value="KG"' + (item.unit === 'KG' ? ' selected' : '') + '>KG</option>' +
+        '<option value="NOS"' + (item.unit === 'NOS' ? ' selected' : '') + '>NOS</option></select>', 'imUnit' + idx) +
+      lineField('Pcs', '<input type="number" class="inv-input inv-input-num" id="imNos' + idx + '" data-k="nos-' + idx + '" value="' + (item.nosQty || '') + '" data-field="nosQty" data-idx="' + idx + '" data-action="invUpdateChallanLine" step="1" min="0" placeholder="Pcs">', 'imNos' + idx) +
+      lineField('Rate', '<input type="number" class="inv-input inv-input-num" id="imRate' + idx + '" data-k="rate-' + idx + '" value="' + rateDisplay + '" data-field="rate" data-idx="' + idx + '" data-action="invUpdateChallanLine" step="any" min="0"' +
+        rateMatchInputAttr(rm) + (isPieceNOS ? ' readonly' : '') + '>', 'imRate' + idx) +
+      lineField('Amount', '<input type="number" class="inv-input inv-input-num" id="imAmt' + idx + '" data-k="amount-' + idx + '" value="' + amtDisplay + '" data-field="amount" data-idx="' + idx + '" data-action="invUpdateChallanLine" step="any" min="0"' +
+        (isPieceNOS ? '' : ' readonly') + '>', 'imAmt' + idx, 'inv-line-amt') +
+      '<button type="button" class="inv-btn inv-btn-ghost inv-btn-icon inv-line-rm" data-k="remove-' + idx + '" data-action="invRemoveChallanLine" data-idx="' + idx + '" aria-label="Remove line ' + (idx + 1) + '">' + LINE_X_ICON + '</button>' +
+      '<div class="inv-line-notes">' +
+      '<div id="imWeightMatch' + idx + '">' + (client ? weightMatchNote(weightMatch(client, date, item)) : '') + '</div>' +
       '<div id="imRateMatch' + idx + '">' + rateMatchNote(rm) + '</div>' +
       '<div id="imFill' + idx + '">' + challanFillNote(item, client) + '</div>' +
-      '<div id="imFlag' + idx + '">' + (client ? challanFlagHtml(client, item, idx) : '') + '</div></div>';
+      '<div id="imFlag' + idx + '">' + (client ? challanFlagHtml(client, item, idx) : '') + '</div></div></div>';
   });
   // data-kbd-ring puts these two in the Enter-to-next-field chain, so the last
-  // field of the last line steps onto "Add Line Item" instead of dead-ending.
+  // field of the last line steps onto "Add line" instead of dead-ending.
   // The per-line remove buttons are deliberately left out of that chain.
-  html += '<button class="inv-btn inv-btn-ghost inv-btn-block" data-k="addline" data-kbd-ring data-action="invAddChallanLine">+ Add Line Item</button></div>';
+  html += '</div><div class="inv-panel-body"><button type="button" class="inv-btn inv-btn-secondary inv-btn-block" data-k="addline" data-kbd-ring data-action="invAddChallanLine">Add line</button></div></div></div>';
 
-  // Save/Cancel
-  html += '<div class="inv-btn-bar inv-save-bar">' +
-    '<button class="inv-btn inv-btn-ghost" data-k="cancel" data-action="invCancelChallan">Cancel</button>' +
-    '<button class="inv-btn inv-btn-primary" data-k="save" data-kbd-ring data-action="invSaveChallan">' + (_challanForm._editingId ? 'Update Challan' : 'Save Challan') + '</button></div></div>';
+  // The action bar: the challan's amount, Cancel, and the one primary.
+  html += '<div class="inv-actionbar"><div class="inv-actionbar-total"><div class="inv-actionbar-label">Challan amount</div>' +
+    '<div class="inv-actionbar-value" id="imChallanTotal">' + formatCurrency(total) + '</div></div>' +
+    '<button type="button" class="inv-btn inv-btn-secondary" data-k="cancel" data-action="invCancelChallan">Cancel</button>' +
+    '<button type="button" class="inv-btn inv-btn-primary" data-k="save" data-kbd-ring data-action="invSaveChallan">' + (_challanForm._editingId ? 'Update challan' : 'Save challan') + '</button></div></div>';
 
   area.innerHTML = html;
 
@@ -173,17 +156,13 @@ function renderChallanClientResults(query) {
 
   acReset();
   if (matches.length === 0) {
-    res.className = 'inv-search-results inv-hidden';
+    res.classList.add('inv-hidden');
     res.innerHTML = '';
     if (input) input.setAttribute('aria-expanded', 'false');
     return;
   }
-  res.className = 'inv-search-results';
-  res.innerHTML = matches.map(function(c, i) {
-    return '<div class="inv-search-item" role="option" id="imClientOpt' + i + '" data-action="invSelectChallanClient" data-id="' + c.id + '">' +
-      '<div><div class="inv-client-name">' + escHtml(c.name) + '</div>' +
-      '<div class="inv-client-meta">' + escHtml(c.gstin || '') + '</div></div></div>';
-  }).join('');
+  res.classList.remove('inv-hidden');
+  res.innerHTML = clientMenuHtml(matches, 'invSelectChallanClient', 'imClientOpt');
   if (input) input.setAttribute('aria-expanded', 'true');
 }
 
@@ -502,4 +481,6 @@ function refreshChallanLineMatch(idx) {
   if (fn) fn.innerHTML = challanFillNote(item, client);
   var fl = document.getElementById('imFlag' + idx);
   if (fl && !fl.contains(document.activeElement)) fl.innerHTML = challanFlagHtml(client, item, idx);
+  var tot = document.getElementById('imChallanTotal');
+  if (tot) tot.textContent = formatCurrency(gstRound(_challanForm.items.reduce(function(t, it) { return t + (it.amount || 0); }, 0)));
 }

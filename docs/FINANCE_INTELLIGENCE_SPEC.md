@@ -37,7 +37,7 @@ needs one it does not define).
 | **Phase 4** — bank-paid cost by month, `notCost`, unsorted payees, precedence, recorded vs paid, Derive from the bank | merged (#84); P61 | `bank.js`, `cost.js`, `settings.js` |
 | **Phase 5** — eleven finance To-do rules, days to pay, the 60-day cash forecast | merged (#84); P62 | `finintel.js` |
 | **Phase 6** — finance linked into Home, Stats, Clients, Register, Pay, Stock and back from Payments | merged (#85); P64 | `finlinks.js` |
-| **Phase 7** — Staff and Stock open on an Overview (7a, 7b) | built; P65 | `dash.js` |
+| **Phase 7** — Staff and Stock open on an Overview (7a, 7b) | merged (#86); P65 | `dash.js` |
 
 Data already available to build on — **use these, do not re-derive**:
 

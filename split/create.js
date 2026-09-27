@@ -126,6 +126,7 @@ function renderCreateForm() {
   });
   html += '</div><div class="inv-panel-body"><button type="button" class="inv-btn inv-btn-secondary inv-btn-block" data-action="invAddLineItem">Add line</button></div></div>';
 
+  createSyncPoDate();
   // Optional details: folded until something is in them. The fields stay in the
   // page while folded, so every capture by id still reads them.
   const optSummary = [invoiceForm.challanNo && 'Challan ' + invoiceForm.challanNo, invoiceForm.poNumber && 'PO ' + invoiceForm.poNumber,
@@ -139,7 +140,8 @@ function renderCreateForm() {
     '<div class="inv-field"><label class="inv-field-label" for="invChallanDate">Challan date</label><input type="date" class="inv-input inv-id" id="invChallanDate" value="' + escHtml(invoiceForm.challanDate) + '"></div>' +
     '<div class="inv-field"><label class="inv-field-label" for="invPONumber">P.O. no.</label><input class="inv-input inv-id" id="invPONumber" value="' + escHtml(invoiceForm.poNumber) + '">' +
       '<div id="invPoHint">' + createFieldHintHtml('po') + '</div></div>' +
-    '<div class="inv-field"><label class="inv-field-label" for="invPODate">P.O. date</label><input type="date" class="inv-input inv-id" id="invPODate" value="' + escHtml(invoiceForm.poDate) + '"></div>' +
+    '<div class="inv-field"><label class="inv-field-label" for="invPODate">P.O. date</label><input type="date" class="inv-input inv-id" id="invPODate" value="' + escHtml(invoiceForm.poDate) + '">' +
+      '<div id="invPoDateHint">' + createPoDateHintHtml() + '</div></div>' +
     '<div class="inv-field"><label class="inv-field-label" for="invTransport">Vehicle no.</label><input class="inv-input inv-id" id="invTransport" value="' + escHtml(invoiceForm.transport) + '" placeholder="JH 05XX 0000" list="invVehicleList" autocomplete="off">' +
     '<datalist id="invVehicleList">' + getVehicleSuggestions(invoiceForm.clientId) + '</datalist>' +
       '<div id="invVeHint">' + createFieldHintHtml('ve') + '</div></div>' +
@@ -251,6 +253,32 @@ function createRefreshDefaults() {
   if (vh) vh.innerHTML = createFieldHintHtml('ve');
 }
 
+/* The P.O. date is not printed on the invoice, and it is almost always the challan's date (owner, 27 Sep
+   2026). So it follows the challan date — picked by hand, filled from the challans ticked, or IM → Create
+   invoice — until somebody types a different one (`invoiceForm._pdTyped`); clearing it, or typing the challan
+   date, hands it back. An invoice opened for editing keeps a P.O. date that differs from its challan date. */
+function createSyncPoDate() {
+  if (invoiceForm && !invoiceForm._pdTyped) invoiceForm.poDate = invoiceForm.challanDate || '';
+}
+function createPoDateHintHtml() {
+  const t = invoiceForm && invoiceForm._pdTyped ? 'Typed here · not printed on the invoice' : 'Follows the challan date · not printed on the invoice';
+  return '<div class="inv-field-hint">' + escHtml(t) + '</div>';
+}
+/* The challan date or the P.O. date changed by hand: the P.O. date follows in place (no redraw, so focus stays). */
+function createRefreshPoDate(changed) {
+  if (!invoiceForm) return;
+  const cd = document.getElementById('invChallanDate'), pd = document.getElementById('invPODate');
+  if (cd) invoiceForm.challanDate = cd.value;
+  if (changed === 'po' && pd) {
+    invoiceForm.poDate = pd.value;
+    invoiceForm._pdTyped = !!pd.value && pd.value !== invoiceForm.challanDate;
+  }
+  createSyncPoDate();
+  if (pd) pd.value = invoiceForm.poDate || '';
+  const h = document.getElementById('invPoDateHint');
+  if (h) h.innerHTML = createPoDateHintHtml();
+}
+
 /* The invoice's tax, worked the one way both the render and the live update read. */
 function createTotals(client) {
   const taxable = gstRound(invoiceForm.items.reduce((s,i) => s + (i.amount || 0), 0));
@@ -338,6 +366,7 @@ function createPickChallan(imId) {
     invoiceForm.challanNo = after.no;
     if (after.date) invoiceForm.challanDate = after.date;
   }
+  createSyncPoDate();
   if (!invoiceForm.transport || invoiceForm.transport === before.ve) {
     invoiceForm.transport = after.ve;
     // Filled from the ticks, so still the app's: a client's own vehicle may replace it.
@@ -685,6 +714,7 @@ function saveInvoice() {
   invoiceForm.transport = (document.getElementById('invTransport') || {}).value || '';
   invoiceForm.poNumber = (document.getElementById('invPONumber') || {}).value || '';
   invoiceForm.poDate = (document.getElementById('invPODate') || {}).value || '';
+  createSyncPoDate();
   invoiceForm.despatchDate = (document.getElementById('invDespatchDate') || {}).value || '';
   invoiceForm.remarks = (document.getElementById('invRemarks') || {}).value || '';
   invoiceForm.date = document.getElementById('invDate').value;

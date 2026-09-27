@@ -823,7 +823,9 @@ function invoiceFormFrom(inv, extra) {
     date: inv.date,
     items: items,
     poNumber: inv.poNumber || '',
-    poDate: inv.poDate || localDateStr(),
+    poDate: inv.poDate || inv.challanDate || localDateStr(),
+    // A P.O. date the invoice was saved with, other than its challan date, was typed: it stays.
+    _pdTyped: !!inv.poDate && inv.poDate !== (inv.challanDate || ''),
     challanNo: inv.challanNo || '',
     challanDate: inv.challanDate || localDateStr(),
     despatchDate: inv.despatchDate || localDateStr(),

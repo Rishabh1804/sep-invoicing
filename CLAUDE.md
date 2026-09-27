@@ -114,7 +114,7 @@ every session start — nothing to set up by hand. CI (`build-sync`) is the back
 ### Tests
 
 ```bash
-pnpm exec playwright test          # 621 tests, both layouts
+pnpm exec playwright test          # 625 tests, both layouts
 ```
 
 Some sandboxes ship a Chromium build Playwright does not expect and block downloading
@@ -183,7 +183,7 @@ filter on; a literal date in a fixture is a time bomb, not a constant.
 |----|------|
 | HR-1 | No inline styles. CSS classes + design tokens. |
 | HR-2 | No inline onclick. data-action delegation only. |
-| HR-3 | inv- CSS prefix on every class. 433 classes, all of them (distinct class selectors in `split/styles.css`, comments stripped, 27 Sep 2026); P76 asserts every class the app draws is one of them or a named hook. |
+| HR-3 | inv- CSS prefix on every class. 437 classes, all of them (distinct class selectors in `split/styles.css`, comments stripped, 27 Sep 2026); P76 asserts every class the app draws is one of them or a named hook. |
 | HR-4 | No emojis. Inline SVGs in HTML template. |
 | HR-5 | escHtml() on all user-data innerHTML. |
 | HR-6 | CSS design tokens only. No raw px/rem/hex/timing. |
@@ -521,10 +521,20 @@ introduced. **The evidence that settled it was not a reproduction at all: the op
 symptom before the change and both after, on an unchanged browser and dialog.** A print bug lives in
 the print dialog, and nothing that bypasses the dialog can see it.
 
-**The continuation-page gutter is therefore an OPEN limitation, not a solved problem.** Closing it
-needs a technique that reserves the band *in flow* — a repeating `<tfoot>` spacer — never a page
-margin. Note the trap in the obvious version: the line-items `<thead>` repeats only on pages the
-table itself spans, and the tail routinely lands alone on a page the table never reaches.
+**The continuation-page gutter is CLOSED (27 Sep 2026), in flow, with no page margin.** Each copy is one
+**frame table** (`.inv-pi-frame`, `_invoiceFrameHtml` in print.js): the whole copy is its one body cell, its
+`<thead>` row carries the invoice number and the copy label, and its `<tfoot>` row is empty. Both repeat on
+every printed page, and in print the header's top padding and the footer's height ARE the top and bottom
+gutters (`--pi-gutter-top` 10mm, `--pi-gutter-bottom` 8mm; the sides stay padding, `--pi-gutter-side` 12mm).
+The trap named here before is avoided by construction: the frame spans every page the copy does, so a tail
+that lands alone on a page gets the band and the label too. Measured on A4 through `page.pdf()`, the old
+build against the new at 2, 22, 23, 30, 40 and 120 lines: **the same page count at every length**
+(3 · 3 · 3 · 6 · 6 · 9), a continuation page's first ink at **10mm from the top where it was 0–1mm**, and
+its last at 10–11mm from the bottom where it was 3–6mm. The line items' column headings still repeat inside
+the frame (the nested `<thead>`). ⚠ **The same instrument caveat as above holds**: `page.pdf()` cannot show
+the print dialog, so the owner's first long print from the dialog is the check that counts. What changed is
+safe on the axis that burned us: no `@page` margin was added, so the browser still has no room to stamp its
+header, and a spec still asserts every `@page` margin is 0.
 
 **A running header must reserve its own room.** The quality declaration was `position: fixed` at the
 bottom of every sheet. Fixed takes an element out of flow *without* reserving the band it occupies,
@@ -538,10 +548,15 @@ left the page free to break between the totals and the signature attesting them.
 and kept whole; the inner `avoid`s stay as the fallback for a tail that ever outgrows a page,
 because a browser drops an `avoid` it cannot honour.
 
-**A continuation page has to say which invoice it is.** The letterhead is on page one only. The
-caption row carrying `Invoice <number> · <copy label>` lives inside the line-items `<thead>`, which
-is the one box every browser repeats on each printed page — the same reason it is not another fixed
-element. Rows also stop being sliced through the middle.
+**A continuation page has to say which invoice it is — once.** The letterhead is on page one only. The
+label went first into a caption row in the line items' `<thead>`, the one box every browser repeats — and so
+printed twice on page one, under the top-right label (owner, 27 Sep 2026: *"Original for recipient is
+mentioned twice in the page"*). The frame's header row replaces both: `Invoice <number>` on the left, the copy
+on the right, at the top of every page, page one included. Rows also stop being sliced through the middle.
+
+**The three copies are CGST rule 48's** (`INVOICE_COPIES`): *Original for recipient*, *Duplicate for
+transporter*, *Triplicate for supplier*. The third read *Duplicate for transporter* until 27 Sep 2026; the shop
+keeps it, so it is the supplier's (owner).
 
 ### The invoice's type is its own
 The invoice was the last printed document borrowing the app's UI `--fs-*` rem tokens — **24
@@ -1507,6 +1522,13 @@ Parts three and four of the intelligence engine (owner, 25 Sep 2026). `insights.
     moves it in place. The hint says where it came from (*from DORABJI AUTO's settings*). Where a client has one,
     insights.js does not predict that field. A once-only migration (`_clientDocDefaults1`, travelling with the
     state) sets both on DORABJI AUTO **only where both are empty**, so a value the owner typed or cleared stays.
+  - **The P.O. date follows the challan date** (owner, 27 Sep 2026: *"we have to enter the PO date, which is
+    redundant as almost always it's the same as challan date - that field should be prefilled as it's not
+    printed on the invoice"*). Picked by hand, filled from the challans ticked, or IM → Create invoice, the
+    challan date carries the P.O. date with it (`createSyncPoDate`, create.js) until a different one is typed
+    (`invoiceForm._pdTyped`); clearing it, or typing the challan date, hands it back. An invoice opened for
+    editing keeps a P.O. date that differs from its challan date. The field says which (*Follows the challan
+    date · not printed on the invoice*). P81.
 
 ### Finance
 Sidebar **Money → Finance**; More → **Finance** on the phone (`finance.js`; owner, 26 Sep 2026: *"The entire finance

@@ -417,6 +417,7 @@ function captureOptionalFields() {
   if (pd) invoiceForm.poDate = pd.value;
   if (dd) invoiceForm.despatchDate = dd.value;
   if (dt) invoiceForm.date = dt.value;
+  createSyncPoDate();
 }
 
 /* Update totals section only (no full re-render) */
@@ -472,6 +473,9 @@ function onDocChange(e) {
   if (e.target.id === 'imChallanNo') { refreshChallanNoWarn(); return; }
   // The invoice's challan number by hand: a PO made from it (a client setting) follows.
   if (e.target.id === 'invChallanNo') { createRefreshDefaults(); return; }
+  // The P.O. date follows the challan date until it is typed (createSyncPoDate).
+  if (e.target.id === 'invChallanDate') { createRefreshPoDate('challan'); return; }
+  if (e.target.id === 'invPODate') { createRefreshPoDate('po'); return; }
   if (e.target.id === 'invDate') {
     invoiceForm.date = e.target.value;
     // The rate on record is dated, so a new invoice date can change every verdict.

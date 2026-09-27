@@ -78,9 +78,6 @@ function _buildInvoiceCopyHtml(d, inv, copyLabel) {
      invoice. */
   html += '<div class="inv-pi-head-block">';
 
-  // Copy label
-  html += '<div class="inv-pi-copy-label">' + escHtml(copyLabel) + '</div>';
-
   // TAX INVOICE heading
   html += '<div class="inv-pi-title">TAX INVOICE</div>';
 
@@ -138,15 +135,9 @@ function _buildInvoiceCopyHtml(d, inv, copyLabel) {
 
   html += '</div>';
 
-  /* Line items table.
-     The caption row sits inside the <thead> on purpose. A tax invoice running
-     to a second page must still say which invoice and which copy the page
-     belongs to, and a <thead> is the only box every browser repeats on each
-     printed page — a `position: fixed` running header prints over the rows
-     instead of reserving room for itself, which is what it was doing here. */
+  /* Line items table. Its column headings repeat on every page it spans; which
+     invoice and which copy a page belongs to is the frame's header (below). */
   html += '<table class="inv-pi-table"><thead>' +
-    '<tr class="inv-pi-caption"><th colspan="8">Invoice ' + escHtml(d.invoiceNumber) +
-    '  \u00b7  ' + escHtml(copyLabel) + '</th></tr>' +
     '<tr>' +
     '<th>Sl.No.</th><th>Product Description</th><th>Part Number</th><th>HSN/SAC</th><th>Qty</th><th>UOM</th><th>Rate</th><th>Value</th></tr></thead><tbody>';
   d.items.forEach(function(item) {
@@ -210,19 +201,42 @@ function _buildInvoiceCopyHtml(d, inv, copyLabel) {
 
   html += '</div>';
 
-  return html;
+  return _invoiceFrameHtml(d, copyLabel, html);
 }
+
+/* Each copy is one table whose header and footer rows the browser repeats on
+   every printed page (owner, 27 Sep 2026: the copy label printed twice on page
+   one — at the top and again in a caption row over the line items, which was
+   the only way a continuation page said which copy it was).
+   - The header carries the invoice number and the copy label, once per page,
+     at the top of every page, page one included.
+   - The header and footer are also the top and bottom gutters. The page has no
+     margin (a margin box is where the browser stamps its own date and title),
+     so the gutters used to be padding on the copy, which applies once to the
+     whole flow: a continuation page began hard against the paper edge. A band
+     in a repeating row is reserved on every page.
+   - The copy's content is one cell, so the frame spans every page the copy
+     does, including a tail that lands alone on its own page. */
+function _invoiceFrameHtml(d, copyLabel, body) {
+  return '<table class="inv-pi-frame">' +
+    '<thead><tr><th class="inv-pi-frame-head"><div class="inv-pi-copy-label">' +
+    '<span class="inv-pi-copy-inv">Invoice ' + escHtml(d.invoiceNumber) + '</span>' +
+    '<span>' + escHtml(copyLabel) + '</span></div></th></tr></thead>' +
+    '<tfoot><tr><td class="inv-pi-frame-foot"></td></tr></tfoot>' +
+    '<tbody><tr><td class="inv-pi-frame-body">' + body + '</td></tr></tbody></table>';
+}
+
+/* The three copies of a tax invoice (CGST rule 48): one for each party. The
+   third read DUPLICATE FOR TRANSPORTER, the same as the second, until 27 Sep
+   2026; the shop keeps it, so it is the supplier's. */
+var INVOICE_COPIES = ['ORIGINAL FOR RECIPIENT', 'DUPLICATE FOR TRANSPORTER', 'TRIPLICATE FOR SUPPLIER'];
 
 function showPrintPreview(invId) {
   var inv = S.invoices.find(function(i) { return i.id === invId; });
   if (!inv) return;
   var d = formatInvoiceData(inv);
 
-  var copies = [
-    'ORIGINAL FOR RECIPIENT',
-    'DUPLICATE FOR TRANSPORTER',
-    'DUPLICATE FOR TRANSPORTER'
-  ];
+  var copies = INVOICE_COPIES;
   var fullHtml = '';
   copies.forEach(function(label, ci) {
     fullHtml += '<div class="inv-print-invoice' + (ci < copies.length - 1 ? ' inv-pi-page-break' : '') + '">';

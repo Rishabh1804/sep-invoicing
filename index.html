@@ -18,7 +18,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <!-- Appearance before first paint (§3.2): the device's theme and palette, so nothing flashes in the wrong colours. -->
 <script>(function(){try{var d=document.documentElement,t=localStorage.getItem("sep_inv_theme"),p=localStorage.getItem("sep_inv_palette");if(t==="light"||t==="dark")d.dataset.theme=t;d.dataset.palette=(p==="zinc"||p==="terracotta")?p:"teal";}catch(e){document.documentElement.dataset.palette="teal";}})();</script>
-<meta name="app-build" content="8fc9659d">
+<meta name="app-build" content="9b1f1868">
 <style>
 /* ===== DESIGN TOKENS (design system v2.0 — docs/SEP_INVOICING_DESIGN_PRINCIPLES.md §3) ===== */
 /* Theme: colour-scheme decides every light-dark() below. <html data-theme> is set before first paint
@@ -283,6 +283,11 @@ body:not(.inv-booted) { pointer-events: none; }
      customer being billed. Raised to 9pt because 6.75pt is below what reads
      across a desk, and these are the fields a recipient looks for first. */
   --pi-fs-ref: 9pt;
+  /* The sheet's gutters. The sides are the copy's padding; the top and bottom
+     are the frame's repeating header and footer, so every page gets them. */
+  --pi-gutter-top: 10mm;
+  --pi-gutter-side: 12mm;
+  --pi-gutter-bottom: 8mm;
 
   background: #fff; color: #000; padding: var(--sp-16);
   font-family: var(--ff-base); font-size: var(--pi-fs-md);
@@ -360,19 +365,18 @@ body:not(.inv-booted) { pointer-events: none; }
 .inv-pi-sig-company { font-weight: 700; }
 .inv-pi-sig-bottom { margin-top: var(--sp-24); }
 
-/* Repeating caption row. Carries the invoice's identity onto every printed
-   page of a long line-items table; on screen it reads as the table's caption. */
-.inv-pi-table .inv-pi-caption th {
-  background: #fff; text-align: left; font-weight: 700;
-  letter-spacing: 0.06em; padding: var(--sp-4) var(--sp-6);
-}
-
-/* Copy label + page break for multi-copy print */
+/* The frame: one table per copy, whose header row (the invoice number and the
+   copy label) and footer row repeat on every printed page. On paper they are
+   also the top and bottom gutters (print block below). */
+.inv-pi-frame { width: 100%; border-collapse: collapse; }
+.inv-pi-frame-head, .inv-pi-frame-foot, .inv-pi-frame-body { padding: 0; font: inherit; text-align: left; vertical-align: top; }
 .inv-pi-copy-label {
-  font-size: var(--pi-fs-sm); font-weight: 700; text-align: right;
+  display: flex; justify-content: space-between; gap: var(--sp-8);
+  font-size: var(--pi-fs-sm); font-weight: 700;
   text-transform: uppercase; letter-spacing: 0.08em;
   color: #555; margin-bottom: var(--sp-4);
 }
+.inv-pi-copy-inv { font-weight: 600; letter-spacing: normal; text-transform: none; }
 .inv-pi-page-break { page-break-after: always; }
 
 /* Quality declaration */
@@ -671,12 +675,11 @@ table.inv-qc-grid.inv-qc-no-top { border-top: 0; }
    every sheet came out stamped `9/1/26, 2:47 PM` and the document title, and
    a long invoice grew a trailing blank page. Reported from production on
    Chrome 151 against invoice 00866, seven pages for three two-page copies.
-   The invoice's own gutters are padding on `.inv-print-invoice` below.
-   Horizontal padding applies on every page; vertical padding applies once to
-   the whole flow, so a continuation page still starts near the paper edge —
-   a known limitation, and the lesser of the two evils. Solving it needs a
-   technique that reserves the band in flow (a repeating table footer), not a
-   page margin. */
+   The invoice's side gutters are padding on `.inv-print-invoice`, which applies
+   on every page. Its top and bottom gutters are the repeating header and footer
+   rows of its frame (`.inv-pi-frame`), reserved in flow on every page: padding
+   there applied once to the whole flow, and a continuation page began hard
+   against the paper edge until 27 Sep 2026. */
 @media print {
   /* Nothing animates on paper. The desktop body offset carries a 300ms
      margin-left transition, so a print taken while it is still running
@@ -695,7 +698,11 @@ table.inv-qc-grid.inv-qc-no-top { border-top: 0; }
   .inv-scrim, .inv-print-toolbar, #imSelBar, .inv-side { display: none !important; }
   .inv-print-view { position: static; display: block !important; overflow: visible; }
   .inv-print-body { padding: 0; }
-  .inv-print-invoice { border: none; max-width: none; padding: 10mm 12mm 8mm 12mm; }
+  .inv-print-invoice { border: none; max-width: none; padding: 0 var(--pi-gutter-side); }
+  .inv-pi-frame > thead { display: table-header-group; }
+  .inv-pi-frame > tfoot { display: table-footer-group; }
+  .inv-pi-frame-head { padding-top: var(--pi-gutter-top); }
+  .inv-pi-frame-foot { height: var(--pi-gutter-bottom); }
   .inv-pi-table th, .inv-pi-table td { border-color: #000; }
 
   /* Where the page may break, and where it may not.
@@ -5932,6 +5939,7 @@ function renderCreateForm() {
   });
   html += '</div><div class="inv-panel-body"><button type="button" class="inv-btn inv-btn-secondary inv-btn-block" data-action="invAddLineItem">Add line</button></div></div>';
 
+  createSyncPoDate();
   // Optional details: folded until something is in them. The fields stay in the
   // page while folded, so every capture by id still reads them.
   const optSummary = [invoiceForm.challanNo && 'Challan ' + invoiceForm.challanNo, invoiceForm.poNumber && 'PO ' + invoiceForm.poNumber,
@@ -5945,7 +5953,8 @@ function renderCreateForm() {
     '<div class="inv-field"><label class="inv-field-label" for="invChallanDate">Challan date</label><input type="date" class="inv-input inv-id" id="invChallanDate" value="' + escHtml(invoiceForm.challanDate) + '"></div>' +
     '<div class="inv-field"><label class="inv-field-label" for="invPONumber">P.O. no.</label><input class="inv-input inv-id" id="invPONumber" value="' + escHtml(invoiceForm.poNumber) + '">' +
       '<div id="invPoHint">' + createFieldHintHtml('po') + '</div></div>' +
-    '<div class="inv-field"><label class="inv-field-label" for="invPODate">P.O. date</label><input type="date" class="inv-input inv-id" id="invPODate" value="' + escHtml(invoiceForm.poDate) + '"></div>' +
+    '<div class="inv-field"><label class="inv-field-label" for="invPODate">P.O. date</label><input type="date" class="inv-input inv-id" id="invPODate" value="' + escHtml(invoiceForm.poDate) + '">' +
+      '<div id="invPoDateHint">' + createPoDateHintHtml() + '</div></div>' +
     '<div class="inv-field"><label class="inv-field-label" for="invTransport">Vehicle no.</label><input class="inv-input inv-id" id="invTransport" value="' + escHtml(invoiceForm.transport) + '" placeholder="JH 05XX 0000" list="invVehicleList" autocomplete="off">' +
     '<datalist id="invVehicleList">' + getVehicleSuggestions(invoiceForm.clientId) + '</datalist>' +
       '<div id="invVeHint">' + createFieldHintHtml('ve') + '</div></div>' +
@@ -6057,6 +6066,32 @@ function createRefreshDefaults() {
   if (vh) vh.innerHTML = createFieldHintHtml('ve');
 }
 
+/* The P.O. date is not printed on the invoice, and it is almost always the challan's date (owner, 27 Sep
+   2026). So it follows the challan date — picked by hand, filled from the challans ticked, or IM → Create
+   invoice — until somebody types a different one (`invoiceForm._pdTyped`); clearing it, or typing the challan
+   date, hands it back. An invoice opened for editing keeps a P.O. date that differs from its challan date. */
+function createSyncPoDate() {
+  if (invoiceForm && !invoiceForm._pdTyped) invoiceForm.poDate = invoiceForm.challanDate || '';
+}
+function createPoDateHintHtml() {
+  const t = invoiceForm && invoiceForm._pdTyped ? 'Typed here · not printed on the invoice' : 'Follows the challan date · not printed on the invoice';
+  return '<div class="inv-field-hint">' + escHtml(t) + '</div>';
+}
+/* The challan date or the P.O. date changed by hand: the P.O. date follows in place (no redraw, so focus stays). */
+function createRefreshPoDate(changed) {
+  if (!invoiceForm) return;
+  const cd = document.getElementById('invChallanDate'), pd = document.getElementById('invPODate');
+  if (cd) invoiceForm.challanDate = cd.value;
+  if (changed === 'po' && pd) {
+    invoiceForm.poDate = pd.value;
+    invoiceForm._pdTyped = !!pd.value && pd.value !== invoiceForm.challanDate;
+  }
+  createSyncPoDate();
+  if (pd) pd.value = invoiceForm.poDate || '';
+  const h = document.getElementById('invPoDateHint');
+  if (h) h.innerHTML = createPoDateHintHtml();
+}
+
 /* The invoice's tax, worked the one way both the render and the live update read. */
 function createTotals(client) {
   const taxable = gstRound(invoiceForm.items.reduce((s,i) => s + (i.amount || 0), 0));
@@ -6144,6 +6179,7 @@ function createPickChallan(imId) {
     invoiceForm.challanNo = after.no;
     if (after.date) invoiceForm.challanDate = after.date;
   }
+  createSyncPoDate();
   if (!invoiceForm.transport || invoiceForm.transport === before.ve) {
     invoiceForm.transport = after.ve;
     // Filled from the ticks, so still the app's: a client's own vehicle may replace it.
@@ -6491,6 +6527,7 @@ function saveInvoice() {
   invoiceForm.transport = (document.getElementById('invTransport') || {}).value || '';
   invoiceForm.poNumber = (document.getElementById('invPONumber') || {}).value || '';
   invoiceForm.poDate = (document.getElementById('invPODate') || {}).value || '';
+  createSyncPoDate();
   invoiceForm.despatchDate = (document.getElementById('invDespatchDate') || {}).value || '';
   invoiceForm.remarks = (document.getElementById('invRemarks') || {}).value || '';
   invoiceForm.date = document.getElementById('invDate').value;
@@ -8740,7 +8777,9 @@ function invoiceFormFrom(inv, extra) {
     date: inv.date,
     items: items,
     poNumber: inv.poNumber || '',
-    poDate: inv.poDate || localDateStr(),
+    poDate: inv.poDate || inv.challanDate || localDateStr(),
+    // A P.O. date the invoice was saved with, other than its challan date, was typed: it stays.
+    _pdTyped: !!inv.poDate && inv.poDate !== (inv.challanDate || ''),
     challanNo: inv.challanNo || '',
     challanDate: inv.challanDate || localDateStr(),
     despatchDate: inv.despatchDate || localDateStr(),
@@ -10148,7 +10187,7 @@ function createInvoiceFromIM() {
     date: localDateStr(),
     // A line part-invoiced already comes in at what is left of it (imLineFormItem).
     items: selectedItems.map(imLineFormItem),
-    poNumber: '', poDate: localDateStr(),
+    poNumber: '', poDate: selectedItems[0]._challanDate || localDateStr(),
     challanNo: selectedItems.map(it => it._challanNo).filter(Boolean).filter((v,i,a) => a.indexOf(v) === i).join(', '),
     challanDate: selectedItems[0]._challanDate || localDateStr(),
     despatchDate: localDateStr(), transport: selectedItems.map(it => it._vehicleNo).filter(Boolean).filter((v,i,a) => a.indexOf(v) === i).join(', '), eWayBill: '',
@@ -10511,9 +10550,6 @@ function _buildInvoiceCopyHtml(d, inv, copyLabel) {
      invoice. */
   html += '<div class="inv-pi-head-block">';
 
-  // Copy label
-  html += '<div class="inv-pi-copy-label">' + escHtml(copyLabel) + '</div>';
-
   // TAX INVOICE heading
   html += '<div class="inv-pi-title">TAX INVOICE</div>';
 
@@ -10571,15 +10607,9 @@ function _buildInvoiceCopyHtml(d, inv, copyLabel) {
 
   html += '</div>';
 
-  /* Line items table.
-     The caption row sits inside the <thead> on purpose. A tax invoice running
-     to a second page must still say which invoice and which copy the page
-     belongs to, and a <thead> is the only box every browser repeats on each
-     printed page — a `position: fixed` running header prints over the rows
-     instead of reserving room for itself, which is what it was doing here. */
+  /* Line items table. Its column headings repeat on every page it spans; which
+     invoice and which copy a page belongs to is the frame's header (below). */
   html += '<table class="inv-pi-table"><thead>' +
-    '<tr class="inv-pi-caption"><th colspan="8">Invoice ' + escHtml(d.invoiceNumber) +
-    '  \u00b7  ' + escHtml(copyLabel) + '</th></tr>' +
     '<tr>' +
     '<th>Sl.No.</th><th>Product Description</th><th>Part Number</th><th>HSN/SAC</th><th>Qty</th><th>UOM</th><th>Rate</th><th>Value</th></tr></thead><tbody>';
   d.items.forEach(function(item) {
@@ -10643,19 +10673,42 @@ function _buildInvoiceCopyHtml(d, inv, copyLabel) {
 
   html += '</div>';
 
-  return html;
+  return _invoiceFrameHtml(d, copyLabel, html);
 }
+
+/* Each copy is one table whose header and footer rows the browser repeats on
+   every printed page (owner, 27 Sep 2026: the copy label printed twice on page
+   one — at the top and again in a caption row over the line items, which was
+   the only way a continuation page said which copy it was).
+   - The header carries the invoice number and the copy label, once per page,
+     at the top of every page, page one included.
+   - The header and footer are also the top and bottom gutters. The page has no
+     margin (a margin box is where the browser stamps its own date and title),
+     so the gutters used to be padding on the copy, which applies once to the
+     whole flow: a continuation page began hard against the paper edge. A band
+     in a repeating row is reserved on every page.
+   - The copy's content is one cell, so the frame spans every page the copy
+     does, including a tail that lands alone on its own page. */
+function _invoiceFrameHtml(d, copyLabel, body) {
+  return '<table class="inv-pi-frame">' +
+    '<thead><tr><th class="inv-pi-frame-head"><div class="inv-pi-copy-label">' +
+    '<span class="inv-pi-copy-inv">Invoice ' + escHtml(d.invoiceNumber) + '</span>' +
+    '<span>' + escHtml(copyLabel) + '</span></div></th></tr></thead>' +
+    '<tfoot><tr><td class="inv-pi-frame-foot"></td></tr></tfoot>' +
+    '<tbody><tr><td class="inv-pi-frame-body">' + body + '</td></tr></tbody></table>';
+}
+
+/* The three copies of a tax invoice (CGST rule 48): one for each party. The
+   third read DUPLICATE FOR TRANSPORTER, the same as the second, until 27 Sep
+   2026; the shop keeps it, so it is the supplier's. */
+var INVOICE_COPIES = ['ORIGINAL FOR RECIPIENT', 'DUPLICATE FOR TRANSPORTER', 'TRIPLICATE FOR SUPPLIER'];
 
 function showPrintPreview(invId) {
   var inv = S.invoices.find(function(i) { return i.id === invId; });
   if (!inv) return;
   var d = formatInvoiceData(inv);
 
-  var copies = [
-    'ORIGINAL FOR RECIPIENT',
-    'DUPLICATE FOR TRANSPORTER',
-    'DUPLICATE FOR TRANSPORTER'
-  ];
+  var copies = INVOICE_COPIES;
   var fullHtml = '';
   copies.forEach(function(label, ci) {
     fullHtml += '<div class="inv-print-invoice' + (ci < copies.length - 1 ? ' inv-pi-page-break' : '') + '">';
@@ -27012,6 +27065,7 @@ function captureOptionalFields() {
   if (pd) invoiceForm.poDate = pd.value;
   if (dd) invoiceForm.despatchDate = dd.value;
   if (dt) invoiceForm.date = dt.value;
+  createSyncPoDate();
 }
 
 /* Update totals section only (no full re-render) */
@@ -27067,6 +27121,9 @@ function onDocChange(e) {
   if (e.target.id === 'imChallanNo') { refreshChallanNoWarn(); return; }
   // The invoice's challan number by hand: a PO made from it (a client setting) follows.
   if (e.target.id === 'invChallanNo') { createRefreshDefaults(); return; }
+  // The P.O. date follows the challan date until it is typed (createSyncPoDate).
+  if (e.target.id === 'invChallanDate') { createRefreshPoDate('challan'); return; }
+  if (e.target.id === 'invPODate') { createRefreshPoDate('po'); return; }
   if (e.target.id === 'invDate') {
     invoiceForm.date = e.target.value;
     // The rate on record is dated, so a new invoice date can change every verdict.

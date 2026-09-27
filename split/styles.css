@@ -261,6 +261,11 @@ body:not(.inv-booted) { pointer-events: none; }
      customer being billed. Raised to 9pt because 6.75pt is below what reads
      across a desk, and these are the fields a recipient looks for first. */
   --pi-fs-ref: 9pt;
+  /* The sheet's gutters. The sides are the copy's padding; the top and bottom
+     are the frame's repeating header and footer, so every page gets them. */
+  --pi-gutter-top: 10mm;
+  --pi-gutter-side: 12mm;
+  --pi-gutter-bottom: 8mm;
 
   background: #fff; color: #000; padding: var(--sp-16);
   font-family: var(--ff-base); font-size: var(--pi-fs-md);
@@ -338,19 +343,18 @@ body:not(.inv-booted) { pointer-events: none; }
 .inv-pi-sig-company { font-weight: 700; }
 .inv-pi-sig-bottom { margin-top: var(--sp-24); }
 
-/* Repeating caption row. Carries the invoice's identity onto every printed
-   page of a long line-items table; on screen it reads as the table's caption. */
-.inv-pi-table .inv-pi-caption th {
-  background: #fff; text-align: left; font-weight: 700;
-  letter-spacing: 0.06em; padding: var(--sp-4) var(--sp-6);
-}
-
-/* Copy label + page break for multi-copy print */
+/* The frame: one table per copy, whose header row (the invoice number and the
+   copy label) and footer row repeat on every printed page. On paper they are
+   also the top and bottom gutters (print block below). */
+.inv-pi-frame { width: 100%; border-collapse: collapse; }
+.inv-pi-frame-head, .inv-pi-frame-foot, .inv-pi-frame-body { padding: 0; font: inherit; text-align: left; vertical-align: top; }
 .inv-pi-copy-label {
-  font-size: var(--pi-fs-sm); font-weight: 700; text-align: right;
+  display: flex; justify-content: space-between; gap: var(--sp-8);
+  font-size: var(--pi-fs-sm); font-weight: 700;
   text-transform: uppercase; letter-spacing: 0.08em;
   color: #555; margin-bottom: var(--sp-4);
 }
+.inv-pi-copy-inv { font-weight: 600; letter-spacing: normal; text-transform: none; }
 .inv-pi-page-break { page-break-after: always; }
 
 /* Quality declaration */
@@ -649,12 +653,11 @@ table.inv-qc-grid.inv-qc-no-top { border-top: 0; }
    every sheet came out stamped `9/1/26, 2:47 PM` and the document title, and
    a long invoice grew a trailing blank page. Reported from production on
    Chrome 151 against invoice 00866, seven pages for three two-page copies.
-   The invoice's own gutters are padding on `.inv-print-invoice` below.
-   Horizontal padding applies on every page; vertical padding applies once to
-   the whole flow, so a continuation page still starts near the paper edge —
-   a known limitation, and the lesser of the two evils. Solving it needs a
-   technique that reserves the band in flow (a repeating table footer), not a
-   page margin. */
+   The invoice's side gutters are padding on `.inv-print-invoice`, which applies
+   on every page. Its top and bottom gutters are the repeating header and footer
+   rows of its frame (`.inv-pi-frame`), reserved in flow on every page: padding
+   there applied once to the whole flow, and a continuation page began hard
+   against the paper edge until 27 Sep 2026. */
 @media print {
   /* Nothing animates on paper. The desktop body offset carries a 300ms
      margin-left transition, so a print taken while it is still running
@@ -673,7 +676,11 @@ table.inv-qc-grid.inv-qc-no-top { border-top: 0; }
   .inv-scrim, .inv-print-toolbar, #imSelBar, .inv-side { display: none !important; }
   .inv-print-view { position: static; display: block !important; overflow: visible; }
   .inv-print-body { padding: 0; }
-  .inv-print-invoice { border: none; max-width: none; padding: 10mm 12mm 8mm 12mm; }
+  .inv-print-invoice { border: none; max-width: none; padding: 0 var(--pi-gutter-side); }
+  .inv-pi-frame > thead { display: table-header-group; }
+  .inv-pi-frame > tfoot { display: table-footer-group; }
+  .inv-pi-frame-head { padding-top: var(--pi-gutter-top); }
+  .inv-pi-frame-foot { height: var(--pi-gutter-bottom); }
   .inv-pi-table th, .inv-pi-table td { border-color: #000; }
 
   /* Where the page may break, and where it may not.

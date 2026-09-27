@@ -592,7 +592,7 @@ function createInvoiceFromIM() {
     date: localDateStr(),
     // A line part-invoiced already comes in at what is left of it (imLineFormItem).
     items: selectedItems.map(imLineFormItem),
-    poNumber: '', poDate: localDateStr(),
+    poNumber: '', poDate: selectedItems[0]._challanDate || localDateStr(),
     challanNo: selectedItems.map(it => it._challanNo).filter(Boolean).filter((v,i,a) => a.indexOf(v) === i).join(', '),
     challanDate: selectedItems[0]._challanDate || localDateStr(),
     despatchDate: localDateStr(), transport: selectedItems.map(it => it._vehicleNo).filter(Boolean).filter((v,i,a) => a.indexOf(v) === i).join(', '), eWayBill: '',

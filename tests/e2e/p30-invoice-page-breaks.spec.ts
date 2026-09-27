@@ -21,7 +21,10 @@ import { emptyState, loadAppWithState, switchTab, todayIso, recentTs, SepState }
  *  - Nothing stopped a break falling inside a row, inside the letterhead box,
  *    or between the totals and the signature that attests them.
  *  - A continuation page carried no invoice number and no copy label — the
- *    letterhead is on page one only.
+ *    letterhead is on page one only. A caption row in the line items' <thead>
+ *    fixed that and printed the label twice on page one; each copy is now a
+ *    frame table whose repeating header carries it once per page, and whose
+ *    header and footer are the top and bottom gutters on every page.
  *
  * These assertions read the computed print styles rather than a rendered PDF:
  * the break rules are the contract, and a PDF pixel diff would pin the page
@@ -106,21 +109,58 @@ async function printStyle(page: Page, selector: string, prop: string): Promise<s
 
 const LONG = manyLines(40);
 
-test('P30: a continuation page still names its invoice and its copy', async ({ page }) => {
+test('P30: every page names its invoice and its copy once, at the top', async ({ page }) => {
   await loadAppWithState(page, stateWith([invoice(1, LONG)]));
   await previewOne(page, 'INV-1');
 
-  // The caption rides in the <thead>, the one box browsers repeat on every
-  // printed page. One per copy, and each states which copy it belongs to.
-  const captions = page.locator('.inv-print-invoice .inv-pi-table thead .inv-pi-caption');
-  await expect(captions).toHaveCount(3);
-  await expect(captions.nth(0)).toContainText('SEP/TEST-00001');
-  await expect(captions.nth(0)).toContainText('ORIGINAL FOR RECIPIENT');
-  await expect(captions.nth(1)).toContainText('DUPLICATE FOR TRANSPORTER');
+  /* Each copy is one frame table whose header row the browser repeats on every
+     printed page: page one included, so the label prints once per page. It
+     used to print twice on page one — at the top, and again in a caption row
+     over the line items, the only box that repeated (owner, 27 Sep 2026). */
+  const labels = page.locator('.inv-print-invoice > .inv-pi-frame > thead .inv-pi-copy-label');
+  await expect(labels).toHaveCount(3);
+  await expect(labels.nth(0)).toContainText('SEP/TEST-00001');
+  await expect(labels.nth(0)).toContainText('ORIGINAL FOR RECIPIENT');
+  await expect(labels.nth(1)).toContainText('DUPLICATE FOR TRANSPORTER');
+  // CGST rule 48: the third copy is the supplier's, not a second transporter's.
+  await expect(labels.nth(2)).toContainText('TRIPLICATE FOR SUPPLIER');
+  await expect(page.locator('.inv-pi-copy-label')).toHaveCount(3);
+  await expect(page.locator('.inv-print-invoice', { hasText: 'ORIGINAL FOR RECIPIENT' })).toHaveCount(1);
+  await expect(page.locator('.inv-pi-caption')).toHaveCount(0);
 
-  // It sits inside the header group, above the column headings — not in the
-  // body, where it would scroll away with the rows.
-  await expect(page.locator('.inv-pi-table tbody .inv-pi-caption')).toHaveCount(0);
+  // The whole copy is the frame's one body cell, so the frame spans every page
+  // the copy does — a tail alone on its own page still gets the label.
+  await expect(page.locator('.inv-pi-frame-body .inv-pi-head-block')).toHaveCount(3);
+  await expect(page.locator('.inv-pi-frame-body .inv-pi-tail')).toHaveCount(3);
+  expect(await printStyle(page, '.inv-pi-frame > thead', 'display')).toBe('table-header-group');
+  expect(await printStyle(page, '.inv-pi-frame > tfoot', 'display')).toBe('table-footer-group');
+});
+
+test('P30: a continuation page has its own top and bottom gutter', async ({ page }) => {
+  await loadAppWithState(page, stateWith([invoice(1, LONG)]));
+  await previewOne(page, 'INV-1');
+
+  /* The page has no margin, and padding on the copy applied once to the whole
+     flow: page two began hard against the paper edge. The gutters are the
+     frame's repeating header and footer rows now, reserved on every page. */
+  const px = (v: string) => parseFloat(v);
+  expect(px(await printStyle(page, '.inv-pi-frame-head', 'padding-top'))).toBeGreaterThan(30);
+  expect(px(await printStyle(page, '.inv-pi-frame-foot', 'height'))).toBeGreaterThan(20);
+  expect(await printStyle(page, '.inv-print-invoice', 'padding-top')).toBe('0px');
+  expect(await printStyle(page, '.inv-print-invoice', 'padding-bottom')).toBe('0px');
+
+  // On A4 the pages are what they were: three one-page copies at 2 lines, two
+  // pages each at 40 — the bands took the room the padding used to take.
+  const pages = async () => {
+    const pdf = (await page.pdf({ format: 'A4', printBackground: true })).toString('latin1');
+    return (pdf.match(/\/Type\s*\/Page(?!s)/g) || []).length;
+  };
+  expect(await pages()).toBe(6);
+  await loadAppWithState(page, stateWith([invoice(1, manyLines(22))]));
+  await page.emulateMedia({ media: 'screen' });
+  await previewOne(page, 'INV-1');
+  await page.emulateMedia({ media: 'print' });
+  expect(await pages()).toBe(3);
 });
 
 test('P30: the letterhead and the totals/signature block each stay whole', async ({ page }) => {
@@ -149,7 +189,7 @@ test('P30: a line item is never sliced across the page boundary', async ({ page 
   await previewOne(page, 'INV-1');
 
   expect(await printStyle(page, '.inv-pi-table tbody tr', 'break-inside')).toBe('avoid');
-  // The column headings repeat with the caption.
+  // The column headings repeat on every page the table spans.
   expect(await printStyle(page, '.inv-pi-table thead', 'display')).toBe('table-header-group');
 });
 

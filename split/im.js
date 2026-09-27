@@ -71,12 +71,14 @@ function imRefWhole(it, r) {
   return r.whole || (!!r.unit && !!it.unit && r.unit !== it.unit);
 }
 function imRefsBilled(it, refs) {
-  var qty = 0, nos = 0;
+  var qty = 0, nos = 0, whole = false;
   refs.forEach(function(r) {
-    var whole = imRefWhole(it, r);
-    qty += whole ? (it.qty || 0) : r.qty;
-    nos += whole ? (it.nosQty || 0) : r.nosQty;
+    if (imRefWhole(it, r)) { whole = true; return; }
+    qty += r.qty;
+    nos += r.nosQty;
   });
+  // A ref that bills the line whole closes it: what is billed is the line, or more if the parts say so.
+  if (whole) { qty = Math.max(qty, it.qty || 0); nos = Math.max(nos, it.nosQty || 0); }
   return { qty: parseFloat(qty.toFixed(3)), nos: nos };
 }
 

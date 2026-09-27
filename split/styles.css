@@ -1425,6 +1425,8 @@ body.inv-desktop .inv-line .inv-field-label { position: absolute; width: var(--h
 .inv-input[data-verdict="match"] { border-color: var(--ok); }
 /* A question asked in a callout (a ₹0 line's reason, a red flag's): its chips, then its note. */
 .inv-callout .inv-toolbar { margin: var(--sp-8) 0; }
+/* A reason chip in a callout wraps rather than run past it on a phone (the over-bill's longest reason). */
+.inv-callout .inv-chip { max-width: 100%; white-space: normal; text-align: left; }
 /* Errors that hold a form's Save, above its action bar. */
 #invErrorsArea:not(:empty) { margin-bottom: var(--sp-8); }
 /* Key hints for a keyboard-first form. Desktop only: a phone has no keys to hint at. */

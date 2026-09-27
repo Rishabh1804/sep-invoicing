@@ -452,6 +452,8 @@ document.addEventListener('change', function(e) {
       if (client && client.billingMode === 'piece' && el.value === 'NOS') {
         item.rate = 0;
         item.amount = 0;
+        // A challan line's pieces put back: its share of the challan's own amount, not ₹0.
+        createPieceShare(item);
       }
       recalcLineItem(item, client);
       captureOptionalFields();

@@ -565,7 +565,8 @@ function uiNoticeDismiss() {
 }
 
 function _uiAskText(o) {
-  return (o.title ? o.title + (o.body ? ': ' : '') : '') + (o.body || '').replace(/\s*\n+\s*/g, ' ');
+  var t = o.title || '';
+  return (t ? t + (o.body ? (/[?.!:]$/.test(t) ? ' ' : ': ') : '') : '') + (o.body || '').replace(/\s*\n+\s*/g, ' ');
 }
 
 function _uiAsk(kind, o) {

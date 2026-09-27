@@ -145,7 +145,7 @@ const HOOKS = ['inv-booted', 'inv-desktop', 'inv-tablet', 'inv-lines', 'inv-navb
   'inv-disk-summary', 'inv-save-status'];
 
 export type Stop = { where: string; v1: string[]; unstyled: string[]; selectAction: number; dupIds: string[]; blank: boolean; footNotLast: number; primaries: string[]; overflowX: number;
-  offscreen: string[]; smallTargets: string[]; cutFigures: string[] };
+  offscreen: string[]; smallTargets: string[]; cutFigures: string[]; brokenFigures: string[]; cutMeta: string[]; untitled: string[] };
 
 /* Everything checked at one stop, read from the rendered DOM (the page and whatever dialog is open). */
 export async function sweep(page: Page, where: string): Promise<Stop> {
@@ -205,12 +205,47 @@ export async function sweep(page: Page, where: string): Promise<Stop> {
       // row's tick box, is a 44px touch target (§3.5).
       smallTargets: document.body.classList.contains('inv-desktop') ? [] : Array.from(document.querySelectorAll(
         ':is(.inv-navbar, .inv-topbar, .inv-viewtabs, .inv-toolbar, .inv-seg, .inv-panel-head, .inv-dialog-foot, .inv-pagehead) :is(button, a[href], select, input:not([type=checkbox]):not([type=radio]):not(.inv-search input)), ' +
-        '.inv-row-tick, summary.inv-panel-head')).filter(el => {
+        '.inv-row-tick, summary.inv-panel-head, button.inv-chart-legend-row, .inv-chart-legend-row[data-action]')).filter(el => {
         const h = el as HTMLElement;
         if (!h.checkVisibility()) return false;
         const b = h.getBoundingClientRect();
         return b.width > 0 && b.height < 43.5;
       }).map(el => el.tagName.toLowerCase() + '.' + (el as HTMLElement).className + ' "' + ((el as HTMLElement).innerText || el.getAttribute('aria-label') || '').trim().slice(0, 30) + '" ' + Math.round(el.getBoundingClientRect().height) + 'px'),
+      // The open items (27 Sep 2026). A tile's or the action bar's figure breaks only after a comma group, never inside it
+      // or its paise: a line may not end in a digit or a point when the next begins with one ("655." / "51").
+      brokenFigures: Array.from(document.querySelectorAll('.inv-tile-value, .inv-actionbar-value')).filter(el => (el as HTMLElement).checkVisibility()).flatMap(el => {
+        const chars: Array<{ c: string; top: number }> = [];
+        const tw = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+        for (let n = tw.nextNode(); n; n = tw.nextNode()) {
+          for (let i = 0; i < n.textContent!.length; i++) {
+            const r = document.createRange(); r.setStart(n, i); r.setEnd(n, i + 1);
+            const b = r.getClientRects()[0];
+            if (b) chars.push({ c: n.textContent![i], top: Math.round(b.top) });
+          }
+        }
+        const bad: string[] = [];
+        for (let i = 1; i < chars.length; i++) {
+          if (chars[i].top > chars[i - 1].top + 2 && /[\d.]/.test(chars[i - 1].c) && /[\d.]/.test(chars[i].c)) bad.push((el as HTMLElement).innerText.trim());
+        }
+        return bad;
+      }),
+      // On the phone a row's meta line takes up to two lines; none is cut past them on the sweep book (a date or an
+      // amount after a long name was the thing hidden).
+      cutMeta: document.body.classList.contains('inv-desktop') ? [] : Array.from((() => {
+        const dlg = document.querySelectorAll('.inv-scrim');
+        const root = dlg.length ? dlg[dlg.length - 1] : active;
+        return root ? root.querySelectorAll('.inv-row-meta:not(.inv-row-wrap)') : [];
+      })()).filter(el => {
+        const h = el as HTMLElement;
+        return h.checkVisibility() && h.clientWidth > 0 && (h.scrollHeight > h.clientHeight + 1 || h.scrollWidth > h.clientWidth + 1);
+      }).map(el => (el as HTMLElement).innerText.trim().slice(0, 80)),
+      // Whatever an ellipsis still cuts carries its full text in a title (§5.3), anywhere on screen.
+      untitled: Array.from(document.querySelectorAll('body *')).filter(el => {
+        const h = el as HTMLElement;
+        if (getComputedStyle(h).textOverflow !== 'ellipsis' || !h.checkVisibility() || !h.clientWidth) return false;
+        const cut = h.scrollWidth > h.clientWidth + 1 || h.scrollHeight > h.clientHeight + 1;
+        return cut && !h.closest('[title]');
+      }).map(el => el.tagName.toLowerCase() + '.' + (el as HTMLElement).className + ' "' + (el as HTMLElement).innerText.trim().slice(0, 50) + '"'),
     };
   }, [V1_PREFIX, V1_EXACT, HOOKS] as const);
   return { where, ...r };
@@ -286,9 +321,12 @@ export async function walkDialogs(page: Page, tag: string, stops: Stop[]) {
   }
 }
 
-export function problems(stops: Stop[]) {
+/* `cutMeta: false` for the crore book: its 80-character client name fills a meta line's two lines on a phone by itself,
+   and what the clamp cuts there must carry a title (untitled), which is still checked. */
+export function problems(stops: Stop[], opts: { cutMeta?: boolean } = {}) {
+  const meta = opts.cutMeta !== false;
   return stops.filter(s => s.v1.length || s.unstyled.length || s.selectAction || s.dupIds.length || s.blank || s.footNotLast || s.primaries.length > 1 || s.overflowX > 0 ||
-      s.offscreen.length || s.smallTargets.length || s.cutFigures.length)
+      s.offscreen.length || s.smallTargets.length || s.cutFigures.length || s.brokenFigures.length || (meta && s.cutMeta.length) || s.untitled.length)
     .map(s => `${s.where}: ${JSON.stringify({ v1: s.v1, unstyled: s.unstyled, selectAction: s.selectAction, dupIds: s.dupIds, blank: s.blank, footNotLast: s.footNotLast, primaries: s.primaries.length > 1 ? s.primaries : [], overflowX: s.overflowX,
-      offscreen: s.offscreen, smallTargets: s.smallTargets, cutFigures: s.cutFigures })}`);
+      offscreen: s.offscreen, smallTargets: s.smallTargets, cutFigures: s.cutFigures, brokenFigures: s.brokenFigures, cutMeta: s.cutMeta, untitled: s.untitled })}`);
 }

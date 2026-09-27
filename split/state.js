@@ -784,6 +784,111 @@ function formatCurrency(n) {
   return (neg ? '-' : '') + '\u20B9' + int + '.' + dec;
 }
 
+/* Rupees said short, the Indian way: \u20B9950, \u20B912.5K, \u20B98.4L, \u20B912.0Cr \u2014 thousands up to 99.9K, lakh up to 99.9L,
+   then crore (a \u20B912 crore axis used to read \u20B91200.0L). For a chart's axis, keys, legend and centre only: a readout,
+   a <title>, a table and a tile carry the exact formatCurrency() figure. The unit steps up where one decimal would
+   round to 100, so 99,960 reads \u20B91.0L, never \u20B9100.0K. */
+function formatInrShort(v) {
+  v = Number(v) || 0;
+  if (v < 0) return '\u2212' + formatInrShort(-v);
+  if (v < 999.5) return '\u20B9' + Math.round(v);
+  if (v < 99950) return '\u20B9' + (v / 1e3).toFixed(1) + 'K';
+  if (v < 9995000) return '\u20B9' + (v / 1e5).toFixed(1) + 'L';
+  return '\u20B9' + (v / 1e7).toFixed(1) + 'Cr';
+}
+
+/* A figure in a tile breaks only after a comma group, never inside its paise: \u20B910,46,48,655.51 wraps as
+   "\u20B910,46,48," / "655.51". Every "d,dd" in the TEXT of an html string gets a <wbr> after its comma, and the last
+   group with its decimals is kept whole (inv-nowrap); tags and their attributes (a title carrying the same figure)
+   are left alone. The tile value keeps overflow-wrap: anywhere only as the last resort for a figure with no commas. */
+function figWrapHtml(html) {
+  return String(html == null ? '' : html).split(/(<[^>]*>)/).map(function(part) {
+    if (part.charAt(0) === '<') return part;
+    return part.replace(/\d{1,3}(?:,\d{2,3})+(?:\.\d+)?/g, function(m) {
+      var groups = m.split(','), last = groups.pop();
+      return groups.join(',<wbr>') + ',<wbr><span class="inv-nowrap">' + last + '</span>';
+    });
+  }).join('');
+}
+
+/* ===== OVERFLOW CUES =====
+   What a screen cuts, it says (§5.3, §6.11; the polish pass's open items, 27 Sep 2026). Two cues, kept by one pass
+   that runs after every render rather than in each of the fifty places that draw a name into a row or a cell:
+   - an element the stylesheet ellipsises (a row's title, a meta line past its two lines on the phone, a growing table
+     cell, a legend label) that is ACTUALLY cut carries a `title` with its full text. The title is marked
+     data-auto-title so it is dropped again when the text fits; a title a template wrote is never touched.
+   - a table wrapper that scrolls sideways (`inv-scroll-x`) carries data-more = start | end | both, which fades that
+     edge, and while it overflows a note under it reads "Scroll for more". A grid with a sticky name column fades at
+     its end only. The note stays while the table overflows: removing it on a scroll would move the page.
+   The pass reads the stylesheet once for which selectors ellipsise, so a new one is covered without a list here. */
+var _ovEllipsisSel = '';
+function _ovEllipsisSelector() {
+  if (_ovEllipsisSel) return _ovEllipsisSel;
+  var sels = [];
+  var walk = function(rules) {
+    Array.prototype.forEach.call(rules, function(r) {
+      if (r.type === 4 && r.media && /print/.test(r.media.mediaText) && !/screen/.test(r.media.mediaText)) return;
+      if (r.style && r.selectorText && r.style.textOverflow === 'ellipsis') sels.push(r.selectorText);
+      if (r.cssRules) walk(r.cssRules);
+    });
+  };
+  Array.prototype.forEach.call(document.styleSheets, function(sh) { try { walk(sh.cssRules); } catch (e) { /* cross-origin font CSS */ } });
+  _ovEllipsisSel = sels.join(', ');
+  return _ovEllipsisSel;
+}
+
+function _ovScrollCue(sc) {
+  var w = sc.clientWidth;
+  if (!w) return;
+  var max = sc.scrollWidth - w, over = max > 1, more = '';
+  if (over) {
+    var l = sc.scrollLeft > 1 && !sc.querySelector('.inv-table-grid'), r = sc.scrollLeft < max - 1;
+    more = l && r ? 'both' : l ? 'start' : r ? 'end' : '';
+  }
+  if (more) { if (sc.getAttribute('data-more') !== more) sc.setAttribute('data-more', more); }
+  else if (sc.hasAttribute('data-more')) sc.removeAttribute('data-more');
+  var next = sc.nextElementSibling, has = !!(next && next.classList.contains('inv-scroll-hint'));
+  if (over && !has) sc.insertAdjacentHTML('afterend', '<p class="inv-note inv-scroll-hint">Scroll for more &rarr;</p>');
+  else if (!over && has) next.remove();
+}
+
+function uiOverflowCues() {
+  var sel = _ovEllipsisSelector();
+  if (sel) document.querySelectorAll(sel).forEach(function(el) {
+    var auto = el.hasAttribute('data-auto-title');
+    if (!auto && el.hasAttribute('title')) return;
+    var w = el.clientWidth;
+    if (!w) return;
+    var cut = el.scrollWidth > w + 1 || el.scrollHeight > el.clientHeight + 1;
+    var owned = el.parentElement && el.parentElement.closest('[title]:not([data-auto-title])');
+    var text = cut && !owned ? (el.innerText || el.textContent || '').replace(/\s+/g, ' ').trim() : '';
+    if (text) {
+      if (el.getAttribute('title') !== text) el.setAttribute('title', text);
+      if (!auto) el.setAttribute('data-auto-title', '');
+    } else if (auto) { el.removeAttribute('title'); el.removeAttribute('data-auto-title'); }
+  });
+  document.querySelectorAll('.inv-scroll-x').forEach(_ovScrollCue);
+}
+
+var _ovObserver = null;
+function uiOverflowCuesStart() {
+  if (_ovObserver || typeof MutationObserver === 'undefined') return;
+  var queued = false;
+  var run = function() { queued = false; try { uiOverflowCues(); } catch (e) { /* a cue must never take a render with it */ } };
+  var later = function() { if (!queued) { queued = true; requestAnimationFrame(run); } };
+  // After a render, before it is painted: the observer's callback is a microtask. What the pass itself writes (a title,
+  // data-more) is not watched; the note it inserts is, and the pass after it changes nothing.
+  _ovObserver = new MutationObserver(run);
+  _ovObserver.observe(document.body, { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: ['class', 'open', 'hidden'] });
+  window.addEventListener('resize', later);
+  document.addEventListener('scroll', function(e) {
+    var t = e.target;
+    if (t && t.classList && t.classList.contains('inv-scroll-x')) _ovScrollCue(t);
+  }, true);
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(later);
+  run();
+}
+
 function localDateStr() {
   const d = new Date();
   return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');

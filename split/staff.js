@@ -401,7 +401,7 @@ function _attDayView() {
 
   var tile = function(id, label, value, sub, tone) {
     return '<div class="inv-tile' + (tone ? ' inv-tile-' + tone : '') + '"><div class="inv-tile-label">' + label + '</div>' +
-      '<div class="inv-tile-value" id="' + id + '">' + value + '</div>' + (sub ? '<div class="inv-tile-sub">' + sub + '</div>' : '') + '</div>';
+      '<div class="inv-tile-value" id="' + id + '">' + figWrapHtml(value) + '</div>' + (sub ? '<div class="inv-tile-sub">' + sub + '</div>' : '') + '</div>';
   };
   html += '<div class="inv-tiles inv-tiles-4" id="attDayTiles">' +
     '<div class="inv-tile"><div class="inv-tile-label">On site</div><div class="inv-tile-value"><span id="attOnSite">' + onSite + '</span>' +

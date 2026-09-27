@@ -179,7 +179,7 @@ function finOverviewHtml() {
 
   var tile = function(label, value, sub, tone, key) {
     return '<div class="inv-tile' + (tone ? ' inv-tile-' + tone : '') + '" data-fin-tile="' + key + '"><div class="inv-tile-label">' + label + '</div>' +
-      '<div class="inv-tile-value">' + value + '</div><div class="inv-tile-sub">' + sub + '</div></div>';
+      '<div class="inv-tile-value">' + figWrapHtml(value) + '</div><div class="inv-tile-sub">' + sub + '</div></div>';
   };
   var h = '<div class="inv-tiles">' +
     tile('Bank balance', last ? formatCurrency(last.balance) : '&mdash;', last ? 'on ' + escHtml(formatDate(last.date)) + (stale > 7 ? ' · statement ' + stale + ' days old' : '') : 'no statement imported',
@@ -289,7 +289,7 @@ function finOverviewHtml() {
   h += '<div class="inv-panel inv-panel-flush" id="finOwed"><div class="inv-panel-head"><span class="inv-panel-title">Owed to us</span><span class="inv-panel-count inv-num">' + formatCurrency(owed) + '</span></div>' +
     '<div class="inv-tiles inv-tiles-flush inv-tiles-4">' + bands.map(function(b, i) {
       return '<div class="inv-tile' + (i === 3 && b.amount > 0 ? ' inv-tile-danger' : i === 2 && b.amount > 0 ? ' inv-tile-warning' : '') + '" data-age="' + i + '"><div class="inv-tile-label">' + b.label + '</div>' +
-        '<div class="inv-tile-value inv-tile-value-sm" title="' + escHtml(formatCurrency(b.amount)) + '">' + finRs(b.amount) + '</div><div class="inv-tile-sub">' + finPl(b.n, 'invoice') + '</div></div>';
+        '<div class="inv-tile-value inv-tile-value-sm" title="' + escHtml(formatCurrency(b.amount)) + '">' + figWrapHtml(finRs(b.amount)) + '</div><div class="inv-tile-sub">' + finPl(b.n, 'invoice') + '</div></div>';
     }).join('') + '</div>';
   var payHist = bankPayHistory(recv);
   top.forEach(function(r) {

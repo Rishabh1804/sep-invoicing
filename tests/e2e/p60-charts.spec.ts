@@ -36,7 +36,7 @@ test('a line that goes overdrawn draws below a zero line, and several series sha
   expect(lowY).toBeGreaterThan(zeroY);
   // The keys carry each series' last value.
   await expect(page.locator('#chartTest .inv-chart-keys')).toContainText('Balance');
-  await expect(page.locator('#chartTest .inv-chart-keys')).toContainText('₹15K');
+  await expect(page.locator('#chartTest .inv-chart-keys')).toContainText('₹15.0K');
 });
 
 test('a line with no negative draws no zero line, and a band draws a range', async ({ page }) => {

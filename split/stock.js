@@ -1000,7 +1000,7 @@ function stockItemBodyHtml(item) {
       '<div class="inv-tile-value">' + (s.rate && s.rate.rate ? escHtml(stockFmtRate(s.rate.rate)) + (unit ? ' <span class="inv-tile-of">' + escHtml(unit) + '</span>' : '') : '&mdash;') + '</div>' +
       '<div class="inv-tile-sub">' + (s.rate && s.rate.rate ? 'over ' + s.rate.days + (s.rate.days === 1 ? ' day' : ' days') + (s.rate.tentative ? ', not firm' : '') : 'no use recorded') + '</div></div>' +
     '<div class="inv-tile"><div class="inv-tile-label">Last paid</div>' +
-      '<div class="inv-tile-value">' + (lp ? escHtml(formatCurrency(lp.price)) + ' <span class="inv-tile-of">/' + escHtml(unit || 'unit') + '</span>' : '&mdash;') + '</div>' +
+      '<div class="inv-tile-value">' + (lp ? figWrapHtml(escHtml(formatCurrency(lp.price))) + ' <span class="inv-tile-of">/' + escHtml(unit || 'unit') + '</span>' : '&mdash;') + '</div>' +
       '<div class="inv-tile-sub">' + (lp ? escHtml(stockShortDate(lp.date)) + (lp.supplier ? ' &middot; ' + escHtml(lp.supplier) : '') : 'No price yet') + '</div></div>' +
     '</div><div class="inv-panel-body"><div class="inv-note">';
   if (s.rate && s.rate.rate) {

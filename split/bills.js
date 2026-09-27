@@ -106,15 +106,16 @@ function _billsNotesHtml() {
   notes.forEach(function(cn) {
     var cancelled = cn.status === 'cancelled';
     var kind = cnIsRebate(cn) ? 'Batch rebate' + (cn.discountPct ? ' ' + cn.discountPct + '%' : '') : (cn.reason || 'Credit note');
-    h += '<div class="inv-row inv-row-2' + (cancelled ? ' inv-row-muted' : '') + '" data-cn="' + escHtml(cn.id) + '">' +
+    // Cancel is an end of its own, so on a phone it drops under the figures rather than squeezing the lines.
+    h += '<div class="inv-row inv-row-2 inv-row-flow' + (cancelled ? ' inv-row-muted' : '') + '" data-cn="' + escHtml(cn.id) + '">' +
       '<button class="inv-row-main" data-action="invCnPreview" data-id="' + escHtml(cn.id) + '">' +
       '<span class="inv-row-title"><span class="inv-id" title="' + escHtml(cn.displayNumber) + '">CN/' + escHtml(cn.cnNumber) + '</span> · ' + escHtml(cn.clientName) + '</span>' +
       '<span class="inv-row-meta">' + escHtml(formatDate(cn.date)) + ' · ' + escHtml(kind) + ' · against ' + escHtml(cnAgainstInvoiceLabel(cn)) +
       (cn.recorded ? ' · recorded' : '') + '</span></button>' +
       '<span class="inv-row-end"><span class="inv-row-stack"><span class="inv-num">' + formatCurrency(cn.grandTotal) + '</span>' +
-      (cancelled ? '<span class="inv-dot inv-dot-danger">Cancelled</span>' : '<span class="inv-row-meta inv-num">' + formatCurrency(cn.taxableValue) + ' taxable</span>') + '</span>' +
+      (cancelled ? '<span class="inv-dot inv-dot-danger">Cancelled</span>' : '<span class="inv-row-meta inv-num">' + formatCurrency(cn.taxableValue) + ' taxable</span>') + '</span></span>' +
       // A form open above the list has its own Cancel; the list's would cancel a GST note at a tap.
-      (cancelled || _billForm ? '' : '<button class="inv-btn inv-btn-danger inv-btn-sm" data-action="invCnCancel" data-id="' + escHtml(cn.id) + '">Cancel</button>') + '</span></div>';
+      (cancelled || _billForm ? '' : '<span class="inv-row-end inv-row-actions"><button class="inv-btn inv-btn-danger inv-btn-sm" data-action="invCnCancel" data-id="' + escHtml(cn.id) + '">Cancel</button></span>') + '</div>';
   });
   if (notes.length) h += '<div class="inv-row"><button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invExportCreditNotes">Credit notes CSV</button></div>';
   return h + '</div>';

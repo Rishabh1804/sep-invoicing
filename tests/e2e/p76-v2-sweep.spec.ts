@@ -37,7 +37,37 @@ test('a crore-sized figure and a long client name fit every screen on the phone'
     recalcLineItem(invoiceForm.items[0], S.clients[1]); renderCreateForm();`);
   await expect(page.locator('#invGrandTotal')).toContainText('₹12,32,');
   stops.push(await sweep(page, 'create, a crore total'));
-  expect(problems(stops)).toEqual([]);
+  expect(problems(stops, { cutMeta: false })).toEqual([]);
+});
+
+test('a crore in a tile breaks after a comma group, and a cut meta line keeps its date and its full text', async ({ page }) => {
+  // The open items (27 Sep 2026): Home's revenue tile broke "₹10,46,48,655." / "51". A figure breaks only after a comma
+  // (figWrapHtml), its last group and paise kept whole; the sweep's brokenFigures reads every tile the same way.
+  await loadAppWithState(page, bigSweepState());
+  const lines = await page.evaluate(() => {
+    const el = document.getElementById('mtdRevenue')!;
+    const out: string[] = [];
+    let top = -1;
+    const tw = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+    for (let n = tw.nextNode(); n; n = tw.nextNode()) {
+      for (let i = 0; i < n.textContent!.length; i++) {
+        const r = document.createRange(); r.setStart(n, i); r.setEnd(n, i + 1);
+        const t = Math.round(r.getClientRects()[0].top);
+        if (t > top + 2) { out.push(''); top = t; }
+        out[out.length - 1] += n.textContent![i];
+      }
+    }
+    return out;
+  });
+  expect(lines.join('')).toMatch(/^₹\d{1,2},\d\d,\d\d,\d{3}\.\d\d$/);
+  expect(lines.length).toBeGreaterThan(1);
+  for (const l of lines.slice(0, -1)) expect(l).toMatch(/,$/);
+  expect(lines[lines.length - 1]).toMatch(/^\d{3}\.\d\d$/);
+  // Recent invoices: the date leads the meta line, so an 80-character name cannot push it out of sight, and the cut
+  // line carries its full text.
+  const meta = page.locator('#pageHome .inv-row-meta', { hasText: 'ALPHA FORGINGS AND HEAVY' }).first();
+  await expect(meta).toHaveText(/^\d\d \w{3} \d{4} · ALPHA/);
+  await expect(meta).toHaveAttribute('title', /UNIT II, GAMHARIA\)$/);
 });
 
 test('no browser pop-up is called anywhere in the source: every message has an in-app path', async ({ page }) => {

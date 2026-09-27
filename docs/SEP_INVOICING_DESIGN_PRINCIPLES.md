@@ -247,7 +247,7 @@ their **own** paddings and heights — they read density aliases, so one attribu
 `--bar-h: 3.25rem (52)` phone top bar · `--bar-h-desk: 3rem (48)` · `--fill-h: calc(100dvh - --bar-h-desk)` the room under the desktop bar · `--pane-host-min: 20rem` the least a list-and-pane host is squeezed to · `--nav-h: 3.625rem (58)` phone bottom
 bar · `--side-w: 13.5rem (216)` desktop sidebar · `--content-max: 80rem` desktop content cap ·
 `--max-w: 32.5rem (520)` phone column (unchanged) · `--pane-w: 22rem` desktop detail pane · `--filter-w: 9rem`
-a toolbar filter's basis · `--col-sm-w: 8rem` a short ellipsized table column (`inv-col-grow-sm`) · `--scroll-max: 55vh`
+a toolbar filter's basis · `--fade-w: var(--sp-24)` the edge fade of a sideways-scrolling table · `--col-sm-w: 8rem` a short ellipsized table column (`inv-col-grow-sm`) · `--scroll-max: 55vh`
 a list scrolling inside a dialog · `--line-fig-w: 7rem` / `--line-unit-w: 5.5rem` the line editor's columns · `--menu-max: 17.5rem`
 a suggestion menu's height. Settings' dialog: `--set-card-w: 55rem`, `--set-nav-w: 12.5rem`. Dialogs: `--dialog-w: 40rem`,
 `--dialog-max-h: 90vh` (phone) / `--dialog-max-h-desk: 85vh`; `--toast-max: 30rem`; `--busy-w: 17.5rem`. Grid minimums:
@@ -350,12 +350,18 @@ Row dividers are `1px solid var(--border)`. The last row in a panel has none. He
 ### 5.3 Text in rows
 Primary line `--t-body-strong`; meta line `--t-caption` in `--text-3`, mono when it is identifiers and
 quantities (`ch 834, 835 · 348.09 kg`). Truncate with an ellipsis on one line; a truncated cell carries a
-`title` with the full text.
+`title` with the full text. **On the phone and tablet a meta line takes up to two lines before it is cut** (line-clamp 2; the
+title keeps one), and where a date or an amount follows a long name, the date leads (`25 Sep 2026 · GAMMA PRESS WORKS`). The
+titles are not written per template: `uiOverflowCues()` (`state.js`) runs after every render, reads from the stylesheet which
+selectors ellipsise, and gives each element that is actually cut a `title` with its text (`data-auto-title`, dropped again when
+it fits; a title a template wrote is never touched).
 
 ### 5.4 Figures
 `formatCurrency()` output, mono, right-aligned. Negative money is `−₹` (U+2212) and `--danger`; positive
 deltas that matter are `--ok`. Units after a figure are `--text-3` (`54 L`, `12 kg`). Deltas read
-"+12% on Aug", not arrows alone.
+"+12% on Aug", not arrows alone. **A figure breaks only after a comma group, never inside it or its paise**: a tile's value
+goes through `figWrapHtml()` (`state.js`), which puts a `<wbr>` after each comma and keeps the last group and its decimals
+`inv-nowrap`, so ₹10,46,48,655.51 wraps as "₹10,46,48," / "655.51".
 
 ### 5.5 States
 Hover `--surface-2` (pointer only) · pressed `--surface-3` · selected `--accent-soft` · disabled 45% opacity
@@ -425,7 +431,8 @@ buttons (`--ctl-h-sm`), for a card's head or toolbar (Stats' Ranked / Share, the
 `inv-search`: bordered field with the search icon inside and, on the desktop, a `/` key hint.
 Every searchable list uses it. `inv-stepper` is a period stepper: an `inv-btn-icon` back, the period in
 `inv-stepper-label` (a date field, or `inv-stepper-title` over `inv-stepper-sub`), forward, and a ghost *Today* / *This week*. Filters beside it are `inv-toolbar-item` (a select, a month, a labelled date field),
-sharing the line and wrapping two to a row on the phone. Replaces `inv-reg-toolbar`, `inv-im-toolbar`, `inv-items-toolbar`,
+sharing the line and wrapping two to a row on the phone; on the desktop a select, a month and a labelled date field are as
+wide as their control, not a share of the row (Register's and History's From / To). Replaces `inv-reg-toolbar`, `inv-im-toolbar`, `inv-items-toolbar`,
 `inv-cp-toolbar`, `inv-history-filters`, `inv-search-wrap`, `inv-reg-search`.
 
 ### 6.8 Panel — `inv-panel`
@@ -459,7 +466,8 @@ holding the full `--touch` target (it reaches the row's top and bottom edges, an
 stacks a figure over its badge in `inv-row-end`; `inv-row-wrap` lets a meta line wrap (a list of names);
 `inv-row-muted` is a cancelled or inactive row (a voided stock entry); `inv-row-top` keeps the end at the top of a
 row holding blocks (a quoted line, a callout, a field); `inv-row-flow` lets a row's end — fields, a long figure — drop
-under its main on a narrow screen, right-aligned; `inv-row-fields` is an end that is a line of controls (P/H/A, an area, hours),
+under its main on a narrow screen, right-aligned; in a flow row, `inv-row-actions` is an end of buttons that takes a line of its
+own under the row on the phone (a credit note's Reference / Cancel), so buttons never squeeze the title and meta; `inv-row-fields` is an end that is a line of controls (P/H/A, an area, hours),
 the row's width under the name on the phone and beside it on the desktop; a navigation row for the page on screen is `aria-current="page"`
 (accent title and icon); `inv-row-done` a task ticked done (struck through, never deleted). `inv-row-fold` is a `<details>` whose `<summary>` is the row
 (chevron drawn in CSS) and whose parts are `inv-row-children` (a live cost component folding open to labour by tier, chemicals by line). A row that opens its own lines beneath it (a challan's items) has an
@@ -484,7 +492,11 @@ A unit after a figure is `inv-unit` (`--text-3`, §5.4). A signed figure is `inv
 `+` / `−` is the symbol the tone travels with (DR-1).
 Modifier `inv-table-grid` for the week grid: cells are `inv-cell` chips (`-ok|warning|danger|empty|future`)
 showing hours; a tappable cell is `button.inv-cell`. The grid scrolls sideways in its panel (`inv-scroll-x`) with the name
-column sticky; Sunday's column is `data-sun`, today's head `aria-current="date"`, a day's date under its name
+column sticky. **Every table that scrolls sideways says so** (`inv-scroll-x`, any table — Six months, contribution by client, the
+week grid): `uiOverflowCues()` sets `data-more` (`start`, `end`, `both`) on render and on scroll, which fades that edge by a
+mask `--fade-w` wide (it works over opaque cells and in either theme; a grid with a sticky name column fades at its end only),
+and while it overflows an `inv-note inv-scroll-hint` under it reads "Scroll for more →" (kept while it overflows, so removing it
+never moves the page); Sunday's column is `data-sun`, today's head `aria-current="date"`, a day's date under its name
 `inv-table-grid-date`. Replaces `inv-desktop-table`/`inv-th`/`inv-tr`/`inv-td*` (**ending the `inv-td-` collision
 with To-do**), `inv-stats-table*`, `inv-ov-table`, `inv-detail-items-table`, `inv-att-grid`.
 
@@ -584,7 +596,13 @@ Same module, restyled: axis text mono `--text-3`, gridlines `--border`, baseline
 `inv-svg-*`); an empty chart is an `inv-empty`.
 **Single series:** bars `--surface-3`, the current or selected bar `--accent`, value labels mono above bars.
 **Second measure** (e.g. ₹/kg over revenue): a 1.5px `--text-2` line. **Categorical:** `--chart-*`.
-Legend is inline in the panel head. Every datum keeps its `<title>`. SVG `font-size` attributes become the
+Legend is inline in the panel head. Every datum keeps its `<title>`.
+**Axis, keys, legend and a pie's centre abbreviate money the Indian way** through one helper, `formatInrShort()` (`state.js`,
+read by `chartShort`): ₹950, ₹12.5K, ₹8.4L, ₹12.0Cr — thousands to 99.9K, lakh to 99.9L, then crore; negative `−₹`. A readout,
+a `<title>`, a table and a tile keep `formatCurrency()`'s exact figure. **An x-axis label stays inside the drawing**
+(`_chartXLabel`): centred under its datum unless that would cut it at the edge, where it is anchored inward (`end` at the right,
+`start` at the left) — every line and bar chart. **A legend row that takes a tap is a touch target**: at least `--ctl-h-sm`
+(44px comfortable, 26px on the compact desktop, so the desktop legend stays dense). SVG `font-size` attributes become the
 `--fs-*` tokens via `var()` on the text elements' class.
 
 **Charts that answer questions** (26 Sep 2026, finance spec Phase 2). Each is drawn into an `inv-chart-box`: the

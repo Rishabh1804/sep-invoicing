@@ -153,11 +153,11 @@ function renderHomeTiles(active) {
   var month = TREND_MONTH_LABELS[new Date().getMonth()];
   set('mtdCount', String(active.length));
   set('mtdCountSub', escHtml(month) + ' to date');
-  set('mtdRevenue', formatCurrency(sumTaxable(active)));
+  set('mtdRevenue', figWrapHtml(formatCurrency(sumTaxable(active))));
   // Two places, as Stats shows it: one place read 40 kg as '0.0 t'.
   set('mtdKg', w.kg > 0 ? formatNum(w.kg / 1000, 2) + ' t' : '&mdash;');
   set('mtdKgSub', w.kg > 0 ? Math.round(w.kg).toLocaleString('en-IN') + ' kg' : 'nothing weighed yet');
-  set('mtdPerKg', w.kg > 0 ? formatCurrency(w.revKnown / w.kg) + '<span class="inv-tile-of">/kg</span>' : '&mdash;');
+  set('mtdPerKg', w.kg > 0 ? figWrapHtml(formatCurrency(w.revKnown / w.kg)) + '<span class="inv-tile-of">/kg</span>' : '&mdash;');
   // A partial figure always reads better than the blend: the unweighed lines are the piece-billed end.
   // "All" only when nothing priced is unweighed, and a partial share never rounds up to 100%.
   set('mtdPerKgSub', !(w.kg > 0) ? '&nbsp;' : w.revUnknown < 0.005 ? 'all revenue weighed'
@@ -195,7 +195,7 @@ function renderHome() {
         ub += '<div class="inv-tiles inv-tiles-flush">' +
           '<div class="inv-tile"><div class="inv-tile-label">Pending challans</div><div class="inv-tile-value">' + pendingChallans + '</div>' +
           '<div class="inv-tile-sub">' + pendingItemCount + ' item' + (pendingItemCount === 1 ? '' : 's') + ' awaiting invoicing</div></div>' +
-          '<div class="inv-tile"><div class="inv-tile-label">Pending amount</div><div class="inv-tile-value">' + formatCurrency(pendingAmount) + '</div>' +
+          '<div class="inv-tile"><div class="inv-tile-label">Pending amount</div><div class="inv-tile-value">' + figWrapHtml(formatCurrency(pendingAmount)) + '</div>' +
           '<div class="inv-tile-sub">at the challans&rsquo; rates</div></div></div>';
       } else {
         ub += '<div class="inv-row"><span class="inv-row-main"><span class="inv-dot inv-dot-ok">All items invoiced</span></span></div>';
@@ -225,7 +225,8 @@ function renderHome() {
     return '<div class="inv-row inv-row-2' + (inv.status === 'cancelled' ? ' inv-row-muted' : '') + '">' +
       '<button class="inv-row-main" data-action="invViewInvoiceDetail" data-id="' + escHtml(inv.id) + '">' +
       '<span class="inv-row-title inv-id">' + escHtml(inv.displayNumber) + '</span>' +
-      '<span class="inv-row-meta">' + escHtml(inv.clientName) + ' &middot; ' + escHtml(formatDate(inv.date)) + '</span></button>' +
+      // The date leads: after a long client name it was the part cut off.
+      '<span class="inv-row-meta">' + escHtml(formatDate(inv.date)) + ' &middot; ' + escHtml(inv.clientName) + '</span></button>' +
       '<span class="inv-row-end"><span class="inv-row-stack"><span class="inv-num">' + formatCurrency(inv.grandTotal) + '</span>' + getStateBadgeHtml(inv) + '</span>' +
       '<button class="inv-btn inv-btn-icon" data-action="invPreviewInvoice" data-id="' + escHtml(inv.id) + '" aria-label="Print">' + ICON_PRINT + '</button></span></div>';
   }).join('');

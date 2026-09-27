@@ -114,7 +114,7 @@ every session start — nothing to set up by hand. CI (`build-sync`) is the back
 ### Tests
 
 ```bash
-pnpm exec playwright test          # 620 tests, both layouts
+pnpm exec playwright test          # 621 tests, both layouts
 ```
 
 Some sandboxes ship a Chromium build Playwright does not expect and block downloading
@@ -183,7 +183,7 @@ filter on; a literal date in a fixture is a time bomb, not a constant.
 |----|------|
 | HR-1 | No inline styles. CSS classes + design tokens. |
 | HR-2 | No inline onclick. data-action delegation only. |
-| HR-3 | inv- CSS prefix on every class. 431 classes, all of them (distinct class selectors in `split/styles.css`, comments stripped, 27 Sep 2026); P76 asserts every class the app draws is one of them or a named hook. |
+| HR-3 | inv- CSS prefix on every class. 433 classes, all of them (distinct class selectors in `split/styles.css`, comments stripped, 27 Sep 2026); P76 asserts every class the app draws is one of them or a named hook. |
 | HR-4 | No emojis. Inline SVGs in HTML template. |
 | HR-5 | escHtml() on all user-data innerHTML. |
 | HR-6 | CSS design tokens only. No raw px/rem/hex/timing. |
@@ -304,6 +304,25 @@ touch target under 44px in the bars, tabs, toolbars, segmented controls, heads a
 action-bar figure cut by its box, and walks the crore book. Left for the owner: clipped client names and dates in row meta
 lines (they need a `title` or a reordered meta, per screen), chart legend rows (24px tall), the forecast's x labels cut at
 the drawing's edge, and the crore-scale axis labels (`₹1200.0L`).
+
+**The open items were done next (27 Sep 2026)**, each on the components and the sweep:
+- **A row's meta line takes two lines on the phone** (line-clamp 2; the title keeps one), and a date leads a long name where
+  the name hid it (Home's recent invoices, the credit-note list). **What an ellipsis still cuts carries its full text in a
+  `title`**: `uiOverflowCues()` (`state.js`, started in `bootApp`) runs after every render, reads from the stylesheet which
+  selectors ellipsise, and titles only what is actually cut. A credit note's buttons are `inv-row-actions`, a line of their
+  own under the row on the phone; Receivables' figures meta wraps whole.
+- **Tapped legend rows are 44px on the phone** (`--ctl-h-sm`; 26px on the compact desktop).
+- **An x-axis label is anchored inward at the drawing's edge** (`_chartXLabel`, every line and bar chart: "26 No" was cut).
+- **Chart money is `formatInrShort()`**: ₹950, ₹12.5K, ₹8.4L, ₹12.0Cr (was `₹1200.0L`, and `₹15K` is now `₹15.0K`); readouts,
+  titles, tables and tiles stay exact.
+- **A tile's figure breaks only after a comma group** (`figWrapHtml()`): ₹10,46,48, / 655.51, never "655." / "51".
+- **Register and History's From / To are as wide as their control on the desktop.**
+- **A table that scrolls sideways fades on the side with more and says "Scroll for more →"** (`inv-scroll-x`, `data-more`).
+- The vehicle chip's "last" is prose; the Register pane and sheet name the invoice once, in the head.
+
+P76's sweep now also fails on a figure broken inside a group (`brokenFigures`), a phone meta line cut past its two lines on
+the sweep book (`cutMeta`), anything an ellipsis cuts without a `title` (`untitled`), and a tapped legend row under 44px; and
+the crore book asserts Home's revenue breaks after a comma and its recent invoices lead with the date.
 
 ## Business Domain
 

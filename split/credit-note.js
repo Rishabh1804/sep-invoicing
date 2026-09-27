@@ -795,24 +795,25 @@ function renderCreditNoteList() {
       var basis = batch
         ? escHtml(cn.discountPct) + '% of ' + formatCurrency(cn.batchTaxable) + ' over ' + n + ' invoice' + (n !== 1 ? 's' : '')
         : escHtml((cn.reason || 'Credit note') + (cn.recorded ? ' · recorded' : ''));
-      html += '<div class="inv-row inv-row-auto' + (cancelled ? ' inv-row-muted' : '') + '"' + (cancelled ? ' data-cancelled' : '') + '>' +
+      // The actions are an end of their own, so on a phone they drop under the figures rather than squeezing the lines.
+      html += '<div class="inv-row inv-row-auto inv-row-flow' + (cancelled ? ' inv-row-muted' : '') + '"' + (cancelled ? ' data-cancelled' : '') + '>' +
         '<button class="inv-row-main" data-action="invCnPreview" data-id="' + escHtml(cn.id) + '">' +
         '<span class="inv-row-title"><span class="inv-id" data-invnum>' + escHtml(cn.displayNumber) + '</span> ' +
         (cancelled ? '<span class="inv-dot inv-dot-danger">Cancelled</span>' : '') + '</span>' +
-        '<span class="inv-row-meta">' + escHtml(cn.clientName) + ' · ' + escHtml(formatDate(cn.date)) + '</span>' +
+        '<span class="inv-row-meta">' + escHtml(formatDate(cn.date)) + ' · ' + escHtml(cn.clientName) + '</span>' +
         '<span class="inv-row-meta">' + basis + '</span>' +
         // The customer identifies this note by ONE invoice number now, so that
         // number belongs on the row rather than behind a preview.
         '<span class="inv-row-meta">Against ' + escHtml(cnAgainstInvoiceLabel(cn)) + '</span></button>' +
         '<span class="inv-row-end"><span class="inv-row-stack"><span class="inv-num">' + formatCurrency(cn.grandTotal) + '</span>' +
-        '<span class="inv-row-meta inv-num">' + formatCurrency(cn.taxableValue) + ' taxable</span>' +
+        '<span class="inv-row-meta inv-num">' + formatCurrency(cn.taxableValue) + ' taxable</span></span></span>' +
         (cancelled ? '' :
-          '<span class="inv-toolbar inv-toolbar-tight">' +
+          '<span class="inv-row-end inv-row-actions inv-toolbar inv-toolbar-tight">' +
           // Only a batch has invoices to choose among. A recorded note carries the number
           // printed on the customer's copy, and "Clear" would erase it for good.
           (batch ? '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invCnSetAgainst" data-id="' + escHtml(cn.id) + '">Reference</button>' : '') +
           '<button class="inv-btn inv-btn-danger inv-btn-sm" data-action="invCnCancel" data-id="' + escHtml(cn.id) + '">Cancel</button></span>') +
-        '</span></span></div>';
+        '</div>';
     });
     html += '</div>';
     html += '<div class="inv-toolbar inv-mt-16"><button class="inv-btn inv-btn-secondary" data-action="invExportCreditNotes">Credit notes CSV</button></div>';

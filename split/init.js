@@ -738,6 +738,8 @@ function bootApp() {
   }
 
   document.body.classList.add('inv-booted');
+  // A cut name or date carries its full text, a table that scrolls sideways says so (state.js).
+  uiOverflowCuesStart();
 }
 
 /* ===== BUILD IDENTITY + UPDATE CHECK =====

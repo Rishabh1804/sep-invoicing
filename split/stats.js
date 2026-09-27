@@ -233,7 +233,7 @@ function statsPanel(card, title, note, opts) {
 /* A tile (§6.9). `valueId` names the value for whoever reads it back. */
 function statsTile(key, label, value, sub, tone, valueId) {
   return '<div class="inv-tile' + (tone ? ' inv-tile-' + tone : '') + '" data-tile="' + key + '"><div class="inv-tile-label">' + label + '</div>' +
-    '<div class="inv-tile-value"' + (valueId ? ' id="' + valueId + '"' : '') + '>' + value + '</div>' + (sub || '') + '</div>';
+    '<div class="inv-tile-value"' + (valueId ? ' id="' + valueId + '"' : '') + '>' + figWrapHtml(value) + '</div>' + (sub || '') + '</div>';
 }
 function statsTileSub(html) { return html ? '<div class="inv-tile-sub">' + html + '</div>' : ''; }
 function statsTiles(tiles, four) {

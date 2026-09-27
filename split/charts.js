@@ -26,11 +26,12 @@ function chartNiceMax(v) {
   return step * mag;
 }
 
-/* Axis and tooltip formatting per unit. Rupees get lakh/thousand shortening
-   because a job-work month runs to seven figures and the axis is 40px wide. */
+/* Axis, key and legend formatting per unit. Rupees get the Indian compact form (formatInrShort)
+   because a job-work month runs to seven figures and the axis is 40px wide; a <title> and a
+   readout carry chartFull's exact figure. */
 function chartShort(v, unit) {
-  // The sign leads the currency: -₹25K, not ₹-25K.
-  if (v < 0) return '-' + chartShort(-v, unit);
+  // The sign leads the currency: −₹25.0K, not ₹-25.0K (U+2212, §5.4).
+  if (v < 0) return '\u2212' + chartShort(-v, unit);
   if (unit === 'kg') {
     return Math.abs(v) >= 1000 ? formatNum(v / 1000, 1) + 't' : formatNum(v, 0) + 'kg';
   }
@@ -38,9 +39,8 @@ function chartShort(v, unit) {
   if (unit === 'pct') return formatNum(v, 0) + '%';
   if (unit === 'rate') return '₹' + formatNum(v, 2);
   if (unit === 'h') return formatNum(v, 0) + 'h';
-  if (Math.abs(v) >= 100000) return '₹' + formatNum(v / 100000, 1) + 'L';
-  if (Math.abs(v) >= 1000) return '₹' + formatNum(v / 1000, 0) + 'K';
-  return '₹' + formatNum(v, 0);
+  // Money in the Indian compact form (state.js): ₹12.5K, ₹8.4L, ₹12.0Cr.
+  return formatInrShort(v);
 }
 
 function chartFull(v, unit) {
@@ -55,6 +55,16 @@ function chartFull(v, unit) {
 /* How many x labels fit without overlapping, given the width the chart gets. */
 function _chartLabelStride(n, maxLabels) {
   return Math.max(1, Math.ceil(n / (maxLabels || 6)));
+}
+
+/* An x-axis label, centred under its datum unless that would run it past the drawing's edge: the last label
+   of a line chart sits on the right edge and was cut in half ("26 No"), so an end label is anchored inward instead.
+   The width is estimated from the axis face (mono, --chart-fs-axis 9 units, about 0.62 of that a character). */
+function _chartXLabel(x, y, label, W) {
+  var half = String(label).length * 2.8, anchor = 'middle', at = x;
+  if (x + half > W - 2) { anchor = 'end'; at = W - 2; }
+  else if (x - half < 2) { anchor = 'start'; at = 2; }
+  return '<text x="' + at + '" y="' + y + '" text-anchor="' + anchor + '" class="inv-chart-axis">' + escHtml(label) + '</text>';
 }
 
 function _chartEmpty(msg) {
@@ -112,8 +122,7 @@ function chartLine(data, opts) {
     svg += '<circle cx="' + p.x + '" cy="' + p.y + '" r="3" class="inv-chart-dot">' +
       '<title>' + escHtml(p.d.label + ': ' + chartFull(p.d.value, unit)) + '</title></circle>';
     if (i % stride === 0 || i === points.length - 1) {
-      svg += '<text x="' + p.x + '" y="' + (pad.t + f.chartH + 14) + '" text-anchor="middle" class="inv-chart-axis">' +
-        escHtml(p.d.label) + '</text>';
+      svg += _chartXLabel(p.x, pad.t + f.chartH + 14, p.d.label, W);
     }
   });
   svg += '</svg>';
@@ -142,8 +151,7 @@ function chartBars(data, opts) {
       '" rx="1.5" class="inv-chart-bar">' +
       '<title>' + escHtml(d.label + ': ' + chartFull(d.value, unit)) + '</title></rect>';
     if (i % stride === 0 || i === data.length - 1) {
-      svg += '<text x="' + (x + barW / 2) + '" y="' + (pad.t + f.chartH + 14) +
-        '" text-anchor="middle" class="inv-chart-axis">' + escHtml(d.label) + '</text>';
+      svg += _chartXLabel(x + barW / 2, pad.t + f.chartH + 14, d.label, W);
     }
   });
   svg += '</svg>';
@@ -323,7 +331,7 @@ function chartLines(labels, series, opts) {
   });
   var stride = _chartLabelStride(labels.length, opts.maxLabels);
   labels.forEach(function(l, i) {
-    if (i % stride === 0 || i === labels.length - 1) svg += '<text x="' + x(i) + '" y="' + (pad.t + ch + 14) + '" text-anchor="middle" class="inv-chart-axis">' + escHtml(l) + '</text>';
+    if (i % stride === 0 || i === labels.length - 1) svg += _chartXLabel(x(i), pad.t + ch + 14, l, W);
   });
   svg += '</svg>';
   var last = function(s) { for (var i = s.values.length - 1; i >= 0; i--) if (s.values[i] != null) return s.values[i]; return null; };
@@ -359,7 +367,7 @@ function chartStack(labels, series, opts) {
         (opts.selected != null && String(opts.selected) === String(key) ? ' aria-current="true"' : '') + '><title>' + escHtml(read) + '</title></rect>';
       if (!group) base -= h;
     });
-    if (i % stride === 0 || i === labels.length - 1) svg += '<text x="' + (x0 + barW / 2) + '" y="' + (pad.t + f.chartH + 14) + '" text-anchor="middle" class="inv-chart-axis">' + escHtml(l) + '</text>';
+    if (i % stride === 0 || i === labels.length - 1) svg += _chartXLabel(x0 + barW / 2, pad.t + f.chartH + 14, l, W);
   });
   svg += '</svg>';
   if (!opts.readHint) opts.readHint = 'Tap a bar to read it';

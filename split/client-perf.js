@@ -283,7 +283,7 @@ function renderClientPerformance(container) {
 
   if (last) {
     var tile = function(label, value, sub, delta) {
-      return '<div class="inv-tile"><div class="inv-tile-label">' + label + '</div><div class="inv-tile-value">' + value + '</div>' +
+      return '<div class="inv-tile"><div class="inv-tile-label">' + label + '</div><div class="inv-tile-value">' + figWrapHtml(value) + '</div>' +
         (sub ? '<div class="inv-tile-sub">' + sub + '</div>' : '') + (delta ? '<div class="inv-tile-sub">' + delta + '</div>' : '') + '</div>';
     };
     var p = function(v) { return prev ? { v: v, label: prev.label } : null; };

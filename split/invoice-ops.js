@@ -708,8 +708,8 @@ function invoiceDetailHtml(inv) {
   if (d.cancelled) {
     h += '<div class="inv-callout inv-callout-danger inv-mb-8">This invoice was cancelled on ' + escHtml(d.cancelledAt || 'unknown date') + '. It cannot be edited.</div>';
   }
+  // The number is the pane's and the sheet's head (paneHeadHtml / dialogHeadHtml); it is not said twice here.
   h += '<div class="inv-kv inv-mb-8">' +
-    '<div><div class="inv-kv-k">Invoice</div><div class="inv-id">' + escHtml(d.invoiceNumber) + '</div></div>' +
     '<div><div class="inv-kv-k">Date</div><div class="inv-id">' + escHtml(d.date) + '</div></div>' +
     '<div class="inv-kv-wide"><div class="inv-kv-k">Client</div><div>' + escHtml(d.clientName) + '</div>' +
     (d.clientGSTIN ? '<div class="inv-id inv-note">' + escHtml(d.clientGSTIN) + '</div>' : '') + '</div>' +

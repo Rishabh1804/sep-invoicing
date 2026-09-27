@@ -86,7 +86,7 @@ function renderZincCard() {
 
   el.innerHTML = head + '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invRefreshZinc">Refresh</button></div>' +
     '<div class="inv-tiles inv-tiles-flush">' +
-    '<div class="inv-tile"><div class="inv-tile-label">Landed per kg</div><div class="inv-tile-value">' + formatCurrency(landed) + '</div></div>' +
+    '<div class="inv-tile"><div class="inv-tile-label">Landed per kg</div><div class="inv-tile-value">' + figWrapHtml(formatCurrency(landed)) + '</div></div>' +
     '<div class="inv-tile"><div class="inv-tile-label">' + (z.basis === 'lme' ? 'MCX est. + premium' : 'MCX + premium') + '</div>' +
     '<div class="inv-tile-value inv-tile-value-sm">' + formatCurrency(zincMcxRate()) + ' + ' + formatCurrency(z.premiumPerKg || 0) + '</div></div></div>' +
     '<div class="inv-row inv-row-auto"><span class="inv-row-main">' +

@@ -214,15 +214,15 @@ function finForecastHtml() {
   var fc = finForecast(60);
   if (!fc) return '';
   var pts = fc.days.filter(function(x, i) { return i % 3 === 2 || i === fc.days.length - 1; });
-  var h = '<div class="inv-panel inv-panels-wide" id="finForecast"><div class="inv-panel-head"><span class="inv-panel-title">Cash forecast, 60 days</span></div><div class="inv-panel-body">';
+  var h = '<div class="inv-panel inv-panel-flush inv-panels-wide" id="finForecast"><div class="inv-panel-head"><span class="inv-panel-title">Cash forecast, 60 days</span></div>';
   var at = function(n) { return fc.days[Math.min(n, fc.days.length) - 1]; };
   var tiles = [['Now', fc.start, 'on the statement, ' + finShortDate(fc.asOf)], ['Lowest', fc.min.bal, 'on ' + finShortDate(fc.min.date)],
     ['In 30 days', at(30).bal, at(30).lo < 0 && at(30).bal >= 0 ? 'could dip below zero' : 'P25–P75 ' + finRs(at(30).lo) + ' to ' + finRs(at(30).hi)],
     ['In 60 days', at(60).bal, 'P25–P75 ' + finRs(at(60).lo) + ' to ' + finRs(at(60).hi)]];
-  h += '<div class="inv-tiles inv-tiles-4">' + tiles.map(function(t) {
+  h += '<div class="inv-tiles inv-tiles-4 inv-tiles-flush">' + tiles.map(function(t) {
     return '<div class="inv-tile' + (t[1] < 0 ? ' inv-tile-danger' : '') + '" data-fc="' + t[0] + '"><div class="inv-tile-label">' + t[0] + '</div>' +
       '<div class="inv-tile-value inv-tile-value-sm inv-nowrap" title="' + escHtml(formatCurrency(t[1])) + '">' + finRs(t[1]) + '</div><div class="inv-tile-sub">' + escHtml(t[2]) + '</div></div>';
-  }).join('') + '</div>';
+  }).join('') + '</div><div class="inv-panel-body">';
   if (fc.cross) h += '<div class="inv-callout inv-callout-danger">At this pace the account goes below zero on ' + escHtml(formatDate(fc.cross)) + '.</div>';
   h += chartLines(pts.map(function(x) { return finShortDate(x.date); }), [{ label: 'Balance', values: pts.map(function(x) { return x.bal; }) }],
     { band: pts.map(function(x) { return { lo: x.lo, hi: x.hi }; }), ariaLabel: 'Cash forecast' });

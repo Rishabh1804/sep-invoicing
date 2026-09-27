@@ -267,7 +267,7 @@ function renderClientPerformance(container) {
     return '<button type="button" class="inv-seg-btn" data-action="invPerfSeries" data-series="' + k + '" aria-pressed="' + (_cpSeries === k) + '">' + l + '</button>';
   };
   html += '<div class="inv-panel" data-cp-trend>' +
-    '<div class="inv-panel-head inv-mb-8"><span class="inv-panel-title">Month on month <span class="inv-panel-count">last ' + monthly.length + ' month' + (monthly.length !== 1 ? 's' : '') + '</span></span></div>' +
+    '<div class="inv-panel-head inv-mb-8"><span class="inv-panel-title">Month on month <span class="inv-note">last ' + monthly.length + ' month' + (monthly.length !== 1 ? 's' : '') + '</span></span></div>' +
     '<div class="inv-seg inv-mb-8" role="group" aria-label="Measure">' + seg('revenue', '₹') + seg('tonnage', 'Tonnes') + seg('rate', '₹/kg') + '</div>';
 
   var series = monthly.map(function(r) {

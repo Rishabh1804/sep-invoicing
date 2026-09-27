@@ -18,7 +18,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <!-- Appearance before first paint (§3.2): the device's theme and palette, so nothing flashes in the wrong colours. -->
 <script>(function(){try{var d=document.documentElement,t=localStorage.getItem("sep_inv_theme"),p=localStorage.getItem("sep_inv_palette");if(t==="light"||t==="dark")d.dataset.theme=t;d.dataset.palette=(p==="zinc"||p==="terracotta")?p:"teal";}catch(e){document.documentElement.dataset.palette="teal";}})();</script>
-<meta name="app-build" content="6a5206d6">
+<meta name="app-build" content="a1846b45">
 <style>
 /* ===== DESIGN TOKENS (design system v2.0 — docs/SEP_INVOICING_DESIGN_PRINCIPLES.md §3) ===== */
 /* Theme: colour-scheme decides every light-dark() below. <html data-theme> is set before first paint
@@ -753,7 +753,7 @@ table.inv-qc-grid.inv-qc-no-top { border-top: 0; }
 /* Phase 2 charts (docs/FINANCE_INTELLIGENCE_SPEC.md). A box holds the drawing, its keys and a readout
    line: on a phone there is no hover to raise a <title>, so a tap writes the figure there. */
 .inv-chart-box { display: flex; flex-direction: column; gap: var(--sp-6); }
-.inv-chart-readout { min-height: var(--row-h); display: flex; align-items: center; padding: 0 var(--sp-4); font-size: var(--fs-13); color: var(--text-2); font-family: var(--ff-mono); }
+.inv-chart-readout { min-height: var(--row-h); display: flex; align-items: center; padding: 0; font-size: var(--fs-13); color: var(--text-2); }
 .inv-chart-keys { display: flex; flex-wrap: wrap; gap: var(--sp-6) var(--sp-16); font-size: var(--fs-12); color: var(--text-2); }
 .inv-chart-key { display: inline-flex; align-items: center; gap: var(--sp-6); }
 .inv-chart-zero { stroke: var(--text-3); stroke-width: var(--hair); }
@@ -1015,6 +1015,8 @@ body.inv-desktop :is(#regSelBar, #imSelBar) { position: sticky; bottom: 0; z-ind
 .inv-btn-icon { width: var(--ctl-h); padding: 0; flex-shrink: 0; }
 .inv-btn-icon svg { width: 20px; height: 20px; }
 .inv-btn-sm { min-height: var(--ctl-h-sm); padding: 0 var(--sp-12); font-size: var(--fs-13); }
+/* A small link keeps the small height (its touch target) but no side padding, so it lines up with the text and figures around it. */
+.inv-btn-link.inv-btn-sm { padding: 0; }
 .inv-btn-block { width: 100%; }
 .inv-btn:disabled, .inv-btn-disabled { opacity: 0.45; cursor: not-allowed; pointer-events: none; }
 /* A grid of launch buttons (Home's quick actions): three across on the phone, one row on the desktop. */
@@ -1103,7 +1105,7 @@ body.inv-desktop .inv-stepper-label { flex: 0 1 auto; min-width: calc(var(--col-
 /* §6.8 Panel */
 .inv-panel {
   background: var(--surface); border: var(--hair) solid var(--border); border-radius: var(--r-xl);
-  padding: var(--sp-16); margin-bottom: var(--gap);
+  padding: var(--sp-16) var(--pad-x); margin-bottom: var(--gap);
 }
 body.inv-desktop .inv-panel { border-radius: var(--r-lg); }
 .inv-panel-flush { padding: 0; overflow: hidden; }
@@ -1120,7 +1122,7 @@ body.inv-desktop .inv-panel { border-radius: var(--r-lg); }
 /* A card's total in its head (labour, a payout): the figure the card adds up to. */
 .inv-panel-head > .inv-num { font-weight: 600; }
 /* A padded stretch inside a flush panel (a form opened in place), set off from the rows below it. */
-.inv-panel-body { padding: var(--sp-16); border-bottom: var(--hair) solid var(--border); }
+.inv-panel-body { padding: var(--sp-16) var(--pad-x); border-bottom: var(--hair) solid var(--border); }
 /* Panels laid out: one column on the phone, two on the desktop; a -wide panel spans both. */
 .inv-panels { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--gap); }
 .inv-panels > :empty { display: none; }
@@ -1153,7 +1155,7 @@ button.inv-tile[aria-pressed="true"] .inv-tile-label { color: var(--accent-soft-
   font-size: var(--fs-12); font-weight: 500; color: var(--text-3);
 }
 .inv-tile-value {
-  font-family: var(--ff-mono); font-size: var(--fs-19); font-weight: 600; letter-spacing: var(--ls-tight); line-height: 1.2; color: var(--text-1);
+  overflow-wrap: anywhere; font-family: var(--ff-mono); font-size: var(--fs-19); font-weight: 600; letter-spacing: var(--ls-tight); line-height: 1.2; color: var(--text-1);
 }
 body.inv-desktop .inv-tile-value { font-size: var(--fs-22); }
 .inv-tile-sub { font-size: var(--fs-12); color: var(--text-3); margin-top: var(--sp-2); }
@@ -1397,9 +1399,13 @@ body.inv-desktop .inv-fields { grid-template-columns: repeat(auto-fit, minmax(va
   background: var(--surface); border-top: var(--hair) solid var(--border);
 }
 body.inv-desktop .inv-actionbar { bottom: 0; }
-.inv-actionbar-total { flex: 1; min-width: 0; }
+.inv-actionbar { flex-wrap: wrap; }
+/* The total keeps its figure whole: a figure too long for the row with its buttons (₹12,34,56,789.00 on a phone)
+   takes the row, and the buttons wrap under it, still at the right. */
+.inv-actionbar-total { flex: 1 1 0; min-width: min-content; }
+.inv-actionbar-total + * { margin-left: auto; }
 .inv-actionbar-label { font-size: var(--fs-12); color: var(--text-3); }
-.inv-actionbar-value { font-family: var(--ff-mono); font-size: var(--fs-18); font-weight: 600; }
+.inv-actionbar-value { font-family: var(--ff-mono); font-size: var(--fs-18); font-weight: 600; white-space: nowrap; }
 /* A tick box and its words on one line, the whole line its touch target (a To-do rule, auto backup). */
 .inv-field-check {
   display: flex; align-items: center; gap: var(--sp-8); min-height: var(--touch); margin-bottom: 0;
@@ -1570,6 +1576,8 @@ body.inv-desktop .inv-dialog-main > section:not([data-on]) { display: none; }
 .inv-callout:empty { display: none; }
 .inv-callout :is(.inv-row, .inv-row-group) { padding-left: 0; padding-right: 0; background: none; }
 .inv-note { font-size: var(--fs-12); color: var(--text-3); line-height: 1.5; }
+/* A note that is a list (what a forecast rests on): its bullets sit inside the panel, not in its margin. */
+ul.inv-note { padding-left: var(--sp-16); }
 /* Text quoted from its source as sent (a WhatsApp line), so a figure can be checked against it. */
 .inv-quote {
   margin-bottom: 0;
@@ -8440,7 +8448,7 @@ function invoiceDetailHtml(inv) {
       '<span class="inv-row-meta"><span class="inv-num">' + escHtml(item.qty) + '</span> ' + escHtml(item.unit) +
       (item.nosQtyRaw && item.nosQtyRaw > 0 ? ' (' + escHtml(item.nosQtyRaw) + ' NOS)' : '') + ' × <span class="inv-num">' + escHtml(item.rate) + '</span></span>' +
       zeroReasonTag(raw) + challanAckTag(raw) + detailRateMatch(inv, raw) + '</span>' +
-      '<span class="inv-row-end inv-num">' + escHtml(item.amount) + '</span></div>';
+      '<span class="inv-row-end inv-num">' + formatCurrency(Number(raw && raw.amount != null ? raw.amount : item.amount) || 0) + '</span></div>';
   });
   h += '</div>';
 
@@ -8949,7 +8957,7 @@ function _numAuditRowHtml(entry) {
       ' &middot; ' + formatCurrency(entry.inv.taxableValue || 0);
   }
 
-  return '<div class="inv-row inv-row-2" data-num-kind="' + entry.kind + '">' +
+  return '<div class="inv-row inv-row-2' + (entry.kind === 'unaccounted' ? ' inv-row-flow' : '') + '" data-num-kind="' + entry.kind + '">' +
     '<span class="inv-row-main"><span class="inv-row-title inv-id">' + escHtml(entry.display) + '</span>' +
     '<span class="inv-row-meta">' + detail + '</span></span>' +
     '<span class="inv-row-end"><span class="inv-dot inv-dot-' + NUM_AUDIT_TONE[entry.kind] + '">' + NUM_AUDIT_LABELS[entry.kind] + '</span>' +
@@ -12851,7 +12859,7 @@ function _attWeekView() {
     var cls = compClass(w.comp);
     var hourly = compIsHourly(w);
     html += '<tr><th scope="row" title="' + escHtml(w.name + ' · ' + cls.label) + '">' + escHtml(w.name) +
-      '<span class="inv-unit">' + cls.short + '</span></th>';
+      ' <span class="inv-unit">' + cls.short + '</span></th>';
     days.forEach(function(d) {
       var m = attMark(d, w.id);
       var st = m ? m.st : '';
@@ -16194,7 +16202,7 @@ function attDaySummary() {
 }
 function attDayPanelHtml(d, headBtn, id) {
   var h = '<div class="inv-panel inv-panel-flush"' + (id ? ' id="' + id + '"' : '') + '><div class="inv-panel-head"><span class="inv-panel-title">Attendance ' +
-    '<span class="inv-panel-count">' + (d.today ? 'today' : escHtml(attDayName(d.iso) + ' ' + formatDate(d.iso))) + '</span></span>' + (headBtn || '') + '</div>';
+    '<span class="inv-note">' + (d.today ? 'today' : escHtml(attDayName(d.iso) + ' ' + formatDate(d.iso))) + '</span></span>' + (headBtn || '') + '</div>';
   if (!d.marked) return h + '<div class="inv-empty">Nothing recorded yet.</div></div>';
   h += '<div class="inv-tiles inv-tiles-flush">' +
     '<div class="inv-tile"><div class="inv-tile-label">On site</div>' +
@@ -19607,7 +19615,7 @@ function _bankReceiptsHtml(cls) {
       var inst = bankInstrument(v.row), o = bankPlacementOffers(v.row, recv, series);
       // The cheque number is what the owner matches against the book, so it leads; a remitter's name leads where there is one.
       var chqDep = bankIsChequeDeposit(v.row) && inst;
-      h += '<div class="inv-row inv-row-2" data-loose="' + escHtml(v.row.id) + '"><span class="inv-row-main"><span class="inv-row-title">' +
+      h += '<div class="inv-row inv-row-2 inv-row-flow" data-loose="' + escHtml(v.row.id) + '"><span class="inv-row-main"><span class="inv-row-title">' +
         (chqDep ? '<span class="inv-id">' + escHtml(inst) + '</span>' : escHtml(v.party || v.row.narration)) + '</span>' +
         '<span class="inv-row-meta">' + (chqDep ? 'Cheque · ' : '') + escHtml(formatDate(v.row.date)) + (inst && !chqDep ? ' · chq ' + escHtml(inst) : '') + '</span></span>' +
         '<span class="inv-row-end"><span class="inv-num">' + formatCurrency(v.row.cr) + '</span>' + _bankClientSelect(v) + '</span></div>';
@@ -19707,7 +19715,7 @@ function _bankPaymentsHtml(cls) {
   var h = '';
   // Electricity: each payment is a month's bill.
   var power = bankPowerRows(cls).slice().reverse();
-  h += '<div class="inv-panel inv-panel-flush" id="bankPower"><div class="inv-panel-head"><span class="inv-panel-title">Electricity paid</span><span class="inv-panel-count">' + power.length + '</span>' +
+  h += '<div class="inv-panel inv-panel-flush" id="bankPower"><div class="inv-panel-head"><span class="inv-panel-title">Electricity paid <span class="inv-panel-count">' + power.length + '</span></span>' +
     '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invGoBills">Open Bills &amp; notes</button></div>';
   if (!power.length) h += '<div class="inv-empty">No payment to JBVNL on the statement.</div>';
   power.forEach(function(v) {
@@ -19733,7 +19741,7 @@ function _bankPaymentsHtml(cls) {
   var billed = {};
   (stockData().entries || []).forEach(function(e) { if (!e.voided && e.supplier && e.amount) billed[bankKey(e.supplier)] = gstRound((billed[bankKey(e.supplier)] || 0) + Number(e.amount)); });
   var sk = Object.keys(sup).sort(function(a, b) { return sup[b].paid - sup[a].paid; });
-  h += '<div class="inv-panel inv-panel-flush" id="bankSuppliers"><div class="inv-panel-head"><span class="inv-panel-title">Suppliers paid</span><span class="inv-panel-count">' + sk.length + '</span>' +
+  h += '<div class="inv-panel inv-panel-flush" id="bankSuppliers"><div class="inv-panel-head"><span class="inv-panel-title">Suppliers paid <span class="inv-panel-count">' + sk.length + '</span></span>' +
     '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invGoStock">Open Stock</button></div>';
   if (!sk.length) h += '<div class="inv-empty">No payment matched to a stock supplier. Set a payee to Supplier on the statement and it is remembered.</div>';
   sk.forEach(function(k) {
@@ -24372,15 +24380,15 @@ function finForecastHtml() {
   var fc = finForecast(60);
   if (!fc) return '';
   var pts = fc.days.filter(function(x, i) { return i % 3 === 2 || i === fc.days.length - 1; });
-  var h = '<div class="inv-panel inv-panels-wide" id="finForecast"><div class="inv-panel-head"><span class="inv-panel-title">Cash forecast, 60 days</span></div><div class="inv-panel-body">';
+  var h = '<div class="inv-panel inv-panel-flush inv-panels-wide" id="finForecast"><div class="inv-panel-head"><span class="inv-panel-title">Cash forecast, 60 days</span></div>';
   var at = function(n) { return fc.days[Math.min(n, fc.days.length) - 1]; };
   var tiles = [['Now', fc.start, 'on the statement, ' + finShortDate(fc.asOf)], ['Lowest', fc.min.bal, 'on ' + finShortDate(fc.min.date)],
     ['In 30 days', at(30).bal, at(30).lo < 0 && at(30).bal >= 0 ? 'could dip below zero' : 'P25–P75 ' + finRs(at(30).lo) + ' to ' + finRs(at(30).hi)],
     ['In 60 days', at(60).bal, 'P25–P75 ' + finRs(at(60).lo) + ' to ' + finRs(at(60).hi)]];
-  h += '<div class="inv-tiles inv-tiles-4">' + tiles.map(function(t) {
+  h += '<div class="inv-tiles inv-tiles-4 inv-tiles-flush">' + tiles.map(function(t) {
     return '<div class="inv-tile' + (t[1] < 0 ? ' inv-tile-danger' : '') + '" data-fc="' + t[0] + '"><div class="inv-tile-label">' + t[0] + '</div>' +
       '<div class="inv-tile-value inv-tile-value-sm inv-nowrap" title="' + escHtml(formatCurrency(t[1])) + '">' + finRs(t[1]) + '</div><div class="inv-tile-sub">' + escHtml(t[2]) + '</div></div>';
-  }).join('') + '</div>';
+  }).join('') + '</div><div class="inv-panel-body">';
   if (fc.cross) h += '<div class="inv-callout inv-callout-danger">At this pace the account goes below zero on ' + escHtml(formatDate(fc.cross)) + '.</div>';
   h += chartLines(pts.map(function(x) { return finShortDate(x.date); }), [{ label: 'Balance', values: pts.map(function(x) { return x.bal; }) }],
     { band: pts.map(function(x) { return { lo: x.lo, hi: x.hi }; }), ariaLabel: 'Cash forecast' });
@@ -25279,7 +25287,7 @@ function renderClientPerformance(container) {
     return '<button type="button" class="inv-seg-btn" data-action="invPerfSeries" data-series="' + k + '" aria-pressed="' + (_cpSeries === k) + '">' + l + '</button>';
   };
   html += '<div class="inv-panel" data-cp-trend>' +
-    '<div class="inv-panel-head inv-mb-8"><span class="inv-panel-title">Month on month <span class="inv-panel-count">last ' + monthly.length + ' month' + (monthly.length !== 1 ? 's' : '') + '</span></span></div>' +
+    '<div class="inv-panel-head inv-mb-8"><span class="inv-panel-title">Month on month <span class="inv-note">last ' + monthly.length + ' month' + (monthly.length !== 1 ? 's' : '') + '</span></span></div>' +
     '<div class="inv-seg inv-mb-8" role="group" aria-label="Measure">' + seg('revenue', '₹') + seg('tonnage', 'Tonnes') + seg('rate', '₹/kg') + '</div>';
 
   var series = monthly.map(function(r) {

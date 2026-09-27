@@ -731,7 +731,7 @@ table.inv-qc-grid.inv-qc-no-top { border-top: 0; }
 /* Phase 2 charts (docs/FINANCE_INTELLIGENCE_SPEC.md). A box holds the drawing, its keys and a readout
    line: on a phone there is no hover to raise a <title>, so a tap writes the figure there. */
 .inv-chart-box { display: flex; flex-direction: column; gap: var(--sp-6); }
-.inv-chart-readout { min-height: var(--row-h); display: flex; align-items: center; padding: 0 var(--sp-4); font-size: var(--fs-13); color: var(--text-2); font-family: var(--ff-mono); }
+.inv-chart-readout { min-height: var(--row-h); display: flex; align-items: center; padding: 0; font-size: var(--fs-13); color: var(--text-2); }
 .inv-chart-keys { display: flex; flex-wrap: wrap; gap: var(--sp-6) var(--sp-16); font-size: var(--fs-12); color: var(--text-2); }
 .inv-chart-key { display: inline-flex; align-items: center; gap: var(--sp-6); }
 .inv-chart-zero { stroke: var(--text-3); stroke-width: var(--hair); }
@@ -993,6 +993,8 @@ body.inv-desktop :is(#regSelBar, #imSelBar) { position: sticky; bottom: 0; z-ind
 .inv-btn-icon { width: var(--ctl-h); padding: 0; flex-shrink: 0; }
 .inv-btn-icon svg { width: 20px; height: 20px; }
 .inv-btn-sm { min-height: var(--ctl-h-sm); padding: 0 var(--sp-12); font-size: var(--fs-13); }
+/* A small link keeps the small height (its touch target) but no side padding, so it lines up with the text and figures around it. */
+.inv-btn-link.inv-btn-sm { padding: 0; }
 .inv-btn-block { width: 100%; }
 .inv-btn:disabled, .inv-btn-disabled { opacity: 0.45; cursor: not-allowed; pointer-events: none; }
 /* A grid of launch buttons (Home's quick actions): three across on the phone, one row on the desktop. */
@@ -1081,7 +1083,7 @@ body.inv-desktop .inv-stepper-label { flex: 0 1 auto; min-width: calc(var(--col-
 /* §6.8 Panel */
 .inv-panel {
   background: var(--surface); border: var(--hair) solid var(--border); border-radius: var(--r-xl);
-  padding: var(--sp-16); margin-bottom: var(--gap);
+  padding: var(--sp-16) var(--pad-x); margin-bottom: var(--gap);
 }
 body.inv-desktop .inv-panel { border-radius: var(--r-lg); }
 .inv-panel-flush { padding: 0; overflow: hidden; }
@@ -1098,7 +1100,7 @@ body.inv-desktop .inv-panel { border-radius: var(--r-lg); }
 /* A card's total in its head (labour, a payout): the figure the card adds up to. */
 .inv-panel-head > .inv-num { font-weight: 600; }
 /* A padded stretch inside a flush panel (a form opened in place), set off from the rows below it. */
-.inv-panel-body { padding: var(--sp-16); border-bottom: var(--hair) solid var(--border); }
+.inv-panel-body { padding: var(--sp-16) var(--pad-x); border-bottom: var(--hair) solid var(--border); }
 /* Panels laid out: one column on the phone, two on the desktop; a -wide panel spans both. */
 .inv-panels { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--gap); }
 .inv-panels > :empty { display: none; }
@@ -1131,7 +1133,7 @@ button.inv-tile[aria-pressed="true"] .inv-tile-label { color: var(--accent-soft-
   font-size: var(--fs-12); font-weight: 500; color: var(--text-3);
 }
 .inv-tile-value {
-  font-family: var(--ff-mono); font-size: var(--fs-19); font-weight: 600; letter-spacing: var(--ls-tight); line-height: 1.2; color: var(--text-1);
+  overflow-wrap: anywhere; font-family: var(--ff-mono); font-size: var(--fs-19); font-weight: 600; letter-spacing: var(--ls-tight); line-height: 1.2; color: var(--text-1);
 }
 body.inv-desktop .inv-tile-value { font-size: var(--fs-22); }
 .inv-tile-sub { font-size: var(--fs-12); color: var(--text-3); margin-top: var(--sp-2); }
@@ -1375,9 +1377,13 @@ body.inv-desktop .inv-fields { grid-template-columns: repeat(auto-fit, minmax(va
   background: var(--surface); border-top: var(--hair) solid var(--border);
 }
 body.inv-desktop .inv-actionbar { bottom: 0; }
-.inv-actionbar-total { flex: 1; min-width: 0; }
+.inv-actionbar { flex-wrap: wrap; }
+/* The total keeps its figure whole: a figure too long for the row with its buttons (₹12,34,56,789.00 on a phone)
+   takes the row, and the buttons wrap under it, still at the right. */
+.inv-actionbar-total { flex: 1 1 0; min-width: min-content; }
+.inv-actionbar-total + * { margin-left: auto; }
 .inv-actionbar-label { font-size: var(--fs-12); color: var(--text-3); }
-.inv-actionbar-value { font-family: var(--ff-mono); font-size: var(--fs-18); font-weight: 600; }
+.inv-actionbar-value { font-family: var(--ff-mono); font-size: var(--fs-18); font-weight: 600; white-space: nowrap; }
 /* A tick box and its words on one line, the whole line its touch target (a To-do rule, auto backup). */
 .inv-field-check {
   display: flex; align-items: center; gap: var(--sp-8); min-height: var(--touch); margin-bottom: 0;
@@ -1548,6 +1554,8 @@ body.inv-desktop .inv-dialog-main > section:not([data-on]) { display: none; }
 .inv-callout:empty { display: none; }
 .inv-callout :is(.inv-row, .inv-row-group) { padding-left: 0; padding-right: 0; background: none; }
 .inv-note { font-size: var(--fs-12); color: var(--text-3); line-height: 1.5; }
+/* A note that is a list (what a forecast rests on): its bullets sit inside the panel, not in its margin. */
+ul.inv-note { padding-left: var(--sp-16); }
 /* Text quoted from its source as sent (a WhatsApp line), so a figure can be checked against it. */
 .inv-quote {
   margin-bottom: 0;

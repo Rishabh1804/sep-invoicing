@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
 import { emptyState, loadAppWithState, noSeedIM, recentTs, switchTab, todayIso } from './fixtures';
 
-// P54 desktop: the register table fits the list beside its pane. The resizable split it
+// P54 desktop: the register table fits the list beside its pane, and the two fill the page without scrolling it. The resizable split it
 // replaced left the table in 40% of the screen, Total cut off and each client name wrapped
 // over three lines — and nothing in the suite measured it.
 
@@ -34,6 +34,8 @@ async function fit(page: Page) {
       // The client's name as laid out: one line box, however tall the row is.
       clientLines: (() => { const r = document.createRange(); r.selectNodeContents(cell); return new Set([...r.getClientRects()].map(x => Math.round(x.top))).size; })(),
       total: [...list.querySelectorAll('thead th')].some(th => (th as HTMLElement).offsetWidth > 0 && th.textContent!.startsWith('Total')),
+      // The list and pane fill the room under the toolbar, so the page itself has nothing to scroll (P80).
+      pageOver: document.scrollingElement!.scrollHeight - document.scrollingElement!.clientHeight,
     };
   });
 }
@@ -48,10 +50,12 @@ for (const width of [1280, 1024]) {
     expect(closed.overflow).toBeLessThanOrEqual(0);
     expect(closed.total).toBe(true);
     expect(closed.clientLines).toBe(1);
+    expect(closed.pageOver).toBeLessThanOrEqual(1);
 
     await page.locator('#regMaster [data-invnum]').first().click();
     await expect(page.locator('#regDetail')).toContainText('Grand total');
     const open = await fit(page);
+    expect(open.pageOver).toBeLessThanOrEqual(1);
     // 1280 holds both; only a narrower screen may give the list up to the pane.
     if (width >= 1280) expect(open.listShown).toBe(true);
     if (open.listShown) {

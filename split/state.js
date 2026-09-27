@@ -478,6 +478,55 @@ function focusFirstInteractive(container) {
   if (el) { try { el.focus(); } catch(e) {} }
 }
 
+/* ===== A CHANGE INSIDE A VIEW NEVER MOVES THE PAGE (P79) =====
+   Owner, 27 Sep 2026: picking a client in Receivables sent the page back to the top. The re-render brought the open
+   view tab into view with scrollIntoView, and with the tabs above the screen that scrolls the PAGE up to them.
+   - viewTabReveal(row): brings the open tab of a view-tab row into sight by scrolling the row sideways, never the page.
+   - viewTop(): the one way to send the page to the top, for a real navigation (a new page, a sub-page, a view tab).
+   - keepScroll(fn): runs a re-render and puts the page, its scrolling panes and dialogs back where they were, and
+     focus back on the control the re-render replaced (by id, else by its data- attributes). A viewTop() inside fn
+     is a navigation, and wins. */
+function viewTabReveal(row) {
+  if (!row) return;
+  var on = row.querySelector('.inv-viewtab[aria-selected="true"]');
+  if (!on) return;
+  var r = row.getBoundingClientRect(), t = on.getBoundingClientRect();
+  if (t.left < r.left) row.scrollLeft -= r.left - t.left;
+  else if (t.right > r.right) row.scrollLeft += t.right - r.right;
+}
+
+var _viewTopAt = 0;
+function viewTop() {
+  _viewTopAt++;
+  window.scrollTo(0, 0);
+}
+
+var KEEP_SCROLLERS = '.inv-pane-list, .inv-pane, .inv-dialog, .inv-dialog-main, .inv-dialog-panes';
+function _keepKey(el) {
+  if (!el || !el.tagName || el === document.body) return null;
+  if (el.id) return '#' + CSS.escape(el.id);
+  var attrs = Array.prototype.filter.call(el.attributes, function(a) { return /^data-/.test(a.name); });
+  if (!attrs.length) return null;
+  return el.tagName.toLowerCase() + attrs.map(function(a) { return '[' + a.name + '="' + CSS.escape(a.value) + '"]'; }).join('');
+}
+function keepScroll(fn) {
+  var y = window.scrollY, nav = _viewTopAt;
+  var inner = Array.prototype.map.call(document.querySelectorAll(KEEP_SCROLLERS), function(el) { return el.scrollTop; });
+  var act = document.activeElement, key = _keepKey(act);
+  try { return fn(); } finally {
+    if (_viewTopAt === nav) {
+      var now = document.querySelectorAll(KEEP_SCROLLERS);
+      if (now.length === inner.length) Array.prototype.forEach.call(now, function(el, i) { if (el.scrollTop !== inner[i]) el.scrollTop = inner[i]; });
+      if (window.scrollY !== y) window.scrollTo(0, y);
+      if (act && !act.isConnected && key) {
+        var back = null;
+        try { back = document.querySelector(key); } catch (e) { back = null; }
+        if (back && typeof back.focus === 'function') { try { back.focus({ preventScroll: true }); } catch (e) {} }
+      }
+    }
+  }
+}
+
 /* ===== DIALOG SHELL (design system §6.16) =====
    Every dialog is an inv-dialog in an inv-scrim-dialog: a sheet from the bottom on the phone, centred on the
    desktop. Its head is the title and a close button; its foot (inv-dialog-foot) the actions, primary last.

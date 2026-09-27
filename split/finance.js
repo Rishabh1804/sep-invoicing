@@ -12,6 +12,7 @@
 
 var FIN_TABS = [['overview', 'Overview'], ['receipts', 'Receivables'], ['payments', 'Payments'], ['bank', 'Bank'], ['bills', 'Bills & notes'], ['gst', 'GST']];
 var _finTab = (function() { try { var t = localStorage.getItem('sep_inv_fin_tab'); return FIN_TABS.some(function(x) { return x[0] === t; }) ? t : 'overview'; } catch (e) { return 'overview'; } })();
+var _finTabMoved = false;   // another tab was chosen: the next render is a navigation and starts at the top
 var _finGstEdit = null;   // the month whose GST note is open
 var _finMonth = null;   // the month "where money went" reads; null = the latest with a statement row
 var _finCat = null;     // the outflow category the pie has open
@@ -20,6 +21,7 @@ var _finRange = (function() { try { var r = localStorage.getItem('sep_inv_fin_ra
 
 function finSetTab(t) {
   if (!FIN_TABS.some(function(x) { return x[0] === t; })) t = 'overview';
+  if (t !== _finTab) _finTabMoved = true;
   _finTab = t;
   try { localStorage.setItem('sep_inv_fin_tab', t); } catch (e) { /* a per-device convenience only */ }
 }
@@ -37,9 +39,10 @@ function renderFinance() {
   else if (_finTab === 'overview') h += finOverviewHtml();
   else h += renderBank(_finTab);
   el.innerHTML = h;
-  // Six tabs overflow a phone's width; the one open is scrolled into view, never left off-screen.
-  var on = el.querySelector('.inv-viewtab[aria-selected="true"]');
-  if (on && on.scrollIntoView) on.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  // Six tabs overflow a phone's width; the one open is brought into view by scrolling the row sideways. Never
+  // scrollIntoView: with the tabs above the screen it scrolled the page back to them on every client picked (P79).
+  viewTabReveal(el.querySelector('.inv-viewtabs'));
+  if (_finTabMoved) { _finTabMoved = false; viewTop(); }
 }
 
 /* The overview is read at a glance: whole rupees. Every tab behind it keeps the paise. */

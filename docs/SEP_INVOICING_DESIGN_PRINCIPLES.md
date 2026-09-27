@@ -244,7 +244,7 @@ their **own** paddings and heights — they read density aliases, so one attribu
 
 ### 3.7 Layout tokens
 
-`--bar-h: 3.25rem (52)` phone top bar · `--bar-h-desk: 3rem (48)` · `--nav-h: 3.625rem (58)` phone bottom
+`--bar-h: 3.25rem (52)` phone top bar · `--bar-h-desk: 3rem (48)` · `--fill-h: calc(100dvh - --bar-h-desk)` the room under the desktop bar · `--pane-host-min: 20rem` the least a list-and-pane host is squeezed to · `--nav-h: 3.625rem (58)` phone bottom
 bar · `--side-w: 13.5rem (216)` desktop sidebar · `--content-max: 80rem` desktop content cap ·
 `--max-w: 32.5rem (520)` phone column (unchanged) · `--pane-w: 22rem` desktop detail pane · `--filter-w: 9rem`
 a toolbar filter's basis · `--col-sm-w: 8rem` a short ellipsized table column (`inv-col-grow-sm`) · `--scroll-max: 55vh`
@@ -513,6 +513,11 @@ mono, status badge, party), a key/value grid (`inv-kv`), a nested table, totals,
 On the phone the same content opens as a sheet (§6.16).
 The list and its pane sit in an `inv-pane-host` (the list is `inv-pane-list`), which carries `inv-pane-open` while something
 is open; the pane's head is `paneHeadHtml(title, closeAction)` in `state.js` — Register, IM, Clients / Items and Stock.
+**The host fills the viewport; the page does not scroll.** A page holding a visible `inv-pane-host` is a flex column
+`--fill-h` tall (`100dvh` less `--bar-h-desk`); its head, view tabs and toolbar keep their height, and the host and each
+wrapper between it and the page take the rest (`flex: 1 1 0`). The list and the pane scroll inside themselves. Nothing is
+subtracted by hand. Content above the host taller than the screen squeezes it only to `--pane-host-min` (20rem), and past
+that the page scrolls like any long page. A host hidden under a form leaves the page an ordinary document.
 
 ### 6.15 Forms — `inv-field`, `inv-input`, `inv-select`, `inv-actionbar`
 - `inv-field`: label **above** the control, `--t-label` `--text-2`, **sentence case** (DR-5); hint below

@@ -114,7 +114,7 @@ every session start — nothing to set up by hand. CI (`build-sync`) is the back
 ### Tests
 
 ```bash
-pnpm exec playwright test          # 614 tests, both layouts
+pnpm exec playwright test          # 619 tests, both layouts
 ```
 
 Some sandboxes ship a Chromium build Playwright does not expect and block downloading
@@ -147,6 +147,14 @@ back to the top). A view-tab row is brought into sight **sideways only** (`viewT
 chip, segment or tile (`[data-action][aria-pressed]`), re-renders inside `keepScroll`, which puts the page, its panes
 and dialogs back and focus on the replaced control. Only a navigation goes to the top, through `viewTop()` (another
 page, sub-page or view tab). P79 sweeps every select and filter chip on every page, view tab and form dialog.
+
+**A list-and-pane screen never scrolls the page on the desktop.** Register, IM, Clients → Clients / Items and Stock →
+Lines fill the room under their own head exactly: the page is a flex column `var(--fill-h)` tall (`100dvh` less the
+desktop bar), and the `inv-pane-host` and every wrapper above it take what is left, so the list and the pane each
+scroll inside themselves. The host used to be `100vh - --bar-h` — the *phone* bar, with the page's padding, tabs and
+toolbar ignored — so every one of those screens scrolled 78–222px on top of the list and the wheel moved the page.
+P80 measures each with the pane closed and open at 1280×800 and 1024×768; the long documents (Home, Stats, Finance,
+Staff, To-do, History) are meant to scroll and are not checked.
 
 **A selection must not outlive the filter that hid it.** Register and IM both had rows that
 stayed ticked after they left the screen, with every bulk action still reaching them.
@@ -267,7 +275,9 @@ from 1,870 lines to 1,553. What it took, so nobody reintroduces it:
   and closing the last dialog by its scrim never ran a layout switch deferred while it was open. The More sheet is an
   `inv-scrim` but not a dialog, so closing dialogs never takes it along.
 - **The desktop list and pane** are `inv-pane-host` / `inv-pane-list` / `inv-pane` with one `paneHeadHtml()` (four screens had
-  their own copy).
+  their own copy). The page holding a host is a flex column of `--fill-h` and the host takes what is left
+  (`flex: 1 1 0`, never below `--pane-host-min`), so the page never scrolls; a host hidden under a form (IM's challan
+  form) leaves the page a plain document (P80).
 - **The credit note, number audit and invoice delete/cancel dialogs** moved onto fields, rows, callouts and dots; cancel is a
   danger button now, and every dialog title is sentence case.
 - **No v1.0 token is left**: the `--fs-xs…3xl`, `--shadow-sm/md/lg`, `--anim-*`, domain colours, `--header-h`, `--tab-h` and

@@ -201,11 +201,11 @@ export async function sweep(page: Page, where: string): Promise<Stop> {
         const h = el as HTMLElement;
         return h.checkVisibility() && h.clientWidth > 0 && h.scrollWidth > h.clientWidth + 1;
       }).map(el => (el as HTMLElement).innerText.trim()),
-      // On the phone every control in the bars, tabs, toolbars, segmented controls, panel heads and dialog feet, and every
-      // row's tick box, is a 44px touch target (§3.5).
+      // On the phone every control in the bars, tabs, toolbars, segmented controls, panel heads and dialog feet, every
+      // row's tick box and button, and every search field, is a 44px touch target (§3.5).
       smallTargets: document.body.classList.contains('inv-desktop') ? [] : Array.from(document.querySelectorAll(
         ':is(.inv-navbar, .inv-topbar, .inv-viewtabs, .inv-toolbar, .inv-seg, .inv-panel-head, .inv-dialog-foot, .inv-pagehead) :is(button, a[href], select, input:not([type=checkbox]):not([type=radio]):not(.inv-search input)), ' +
-        '.inv-row-tick, summary.inv-panel-head, button.inv-chart-legend-row, .inv-chart-legend-row[data-action]')).filter(el => {
+        '.inv-row-tick, button.inv-row-main, .inv-search input, summary.inv-panel-head, button.inv-chart-legend-row, .inv-chart-legend-row[data-action]')).filter(el => {
         const h = el as HTMLElement;
         if (!h.checkVisibility()) return false;
         const b = h.getBoundingClientRect();

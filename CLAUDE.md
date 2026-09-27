@@ -320,6 +320,12 @@ the drawing's edge, and the crore-scale axis labels (`₹1200.0L`).
 - **A table that scrolls sideways fades on the side with more and says "Scroll for more →"** (`inv-scroll-x`, `data-more`).
 - The vehicle chip's "last" is prose; the Register pane and sheet name the invoice once, in the head.
 
+**The last phone controls under 44px were then raised (27 Sep 2026)**: a row's main button reaches the row's edges over
+its padding and is never under `--touch` on the phone (Home's tasks, IM's challans, Items, Receivables, the bank ledger were
+43px, a one-line row 31px), and a search field's input fills its box to the border (every search was a 16px line in a 44px
+box). The screenshot audit's list went from 18 to 0 in both themes with no visible change; P76's phone target check now reads
+`button.inv-row-main` and `.inv-search input` too.
+
 P76's sweep now also fails on a figure broken inside a group (`brokenFigures`), a phone meta line cut past its two lines on
 the sweep book (`cutMeta`), anything an ellipsis cuts without a `title` (`untitled`), and a tapped legend row under 44px; and
 the crore book asserts Home's revenue breaks after a comma and its recent invoices lead with the date.

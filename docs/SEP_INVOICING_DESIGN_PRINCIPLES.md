@@ -429,7 +429,8 @@ buttons (`--ctl-h-sm`), for a card's head or toolbar (Stats' Ranked / Share, the
 ### 6.7 Toolbar and search — `inv-toolbar`, `inv-search`
 `inv-toolbar`: search + tokens + view settings, one line on the desktop, wrapping to two on the phone.
 `inv-search`: bordered field with the search icon inside and, on the desktop, a `/` key hint.
-Every searchable list uses it. `inv-stepper` is a period stepper: an `inv-btn-icon` back, the period in
+Every searchable list uses it. Its field fills the box to the border, so the whole `--ctl-h` box is the tap that types
+(it was a 16px line of text in a 44px box). `inv-stepper` is a period stepper: an `inv-btn-icon` back, the period in
 `inv-stepper-label` (a date field, or `inv-stepper-title` over `inv-stepper-sub`), forward, and a ghost *Today* / *This week*. Filters beside it are `inv-toolbar-item` (a select, a month, a labelled date field),
 sharing the line and wrapping two to a row on the phone; on the desktop a select, a month and a labelled date field are as
 wide as their control, not a share of the row (Register's and History's From / To). Replaces `inv-reg-toolbar`, `inv-im-toolbar`, `inv-items-toolbar`,
@@ -461,7 +462,8 @@ One or two lines, `--row-h` / `--row-h-2`, divider below. Slots: `inv-row-lead` 
 `inv-row-main` (`inv-row-title` + `inv-row-meta`), `inv-row-end` (figure, status, chevron). A group header
 inside a list is `inv-row-group` (`--t-caption` on `--bg`, e.g. "25 Sep · 5 · ₹11,801.88").
 `inv-row-main` may be a `<button>` when the row has a second action (a print icon, a tick box) — otherwise the
-whole row is the `<button>`, so its figures open it too; a tick box's lead is a `<label class="inv-row-lead inv-row-tick">`
+whole row is the `<button>`, so its figures open it too; a main `<button>` reaches the row's top and bottom edges over its
+padding and is never under `--touch` on the phone (it stopped short by the padding: 43px on a two-line row); a tick box's lead is a `<label class="inv-row-lead inv-row-tick">`
 holding the full `--touch` target (it reaches the row's top and bottom edges, and a row that sizes to its content is never shorter than `--row-h` while it holds one); `inv-row-stack`
 stacks a figure over its badge in `inv-row-end`; `inv-row-wrap` lets a meta line wrap (a list of names);
 `inv-row-muted` is a cancelled or inactive row (a voided stock entry); `inv-row-top` keeps the end at the top of a

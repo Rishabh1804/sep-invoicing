@@ -1688,15 +1688,15 @@ function _markRicherThan(a, b) {
 /* The merge, from the worker-edit overlay. The row you have OPEN is the one
    that disappears, so choosing which of the two to open is how the operator
    picks which name survives — the app does not decide that for them. */
-function mergeWorkerInto(fromId) {
+async function mergeWorkerInto(fromId) {
   var sel = document.getElementById('wedMergeInto');
   if (!sel || !sel.value) return;
   var intoId = parseInt(sel.value, 10);
   var from = staffById(fromId), into = staffById(intoId);
   if (!from || !into) return;
-  if (!confirm('Merge "' + from.name + '" into "' + into.name + '"?\n\n' +
-      '"' + from.name + '" is removed. Every day and every block crew that named ' +
-      'them will name "' + into.name + '" instead. This cannot be undone.')) return;
+  if (!(await uiConfirm({ title: 'Merge "' + from.name + '" into "' + into.name + '"?',
+      body: '"' + from.name + '" is removed. Every day and every block crew that named ' +
+      'them will name "' + into.name + '" instead. This cannot be undone.', okLabel: 'Merge', danger: true }))) return;
 
   var res = mergeWorkers(fromId, intoId);
   if (res.error) { showToast(res.error, 'error'); return; }
@@ -1747,7 +1747,7 @@ function showCollisionReport(res) {
    silently drop that person's wage and no figure would say why. Deactivating
    keeps the history intact and takes them out of today's denominator, which is
    what "left" actually means here. */
-function deleteWorker(id) {
+async function deleteWorker(id) {
   var w = staffById(id);
   if (!w) return;
   var marks = _attMarkCount(id);
@@ -1756,7 +1756,7 @@ function deleteWorker(id) {
       (marks === 1 ? '' : 's') + '. Clear Active instead.', 'error');
     return;
   }
-  if (!confirm('Delete ' + w.name + ' from the roster?')) return;
+  if (!(await uiConfirm({ title: 'Delete ' + w.name + ' from the roster?', body: 'No day names them, so nothing is lost with the row.', okLabel: 'Delete', danger: true }))) return;
   S.staff = S.staff.filter(function(x) { return x.id !== id; });
   saveState();
   closeOverlay();

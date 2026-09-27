@@ -147,6 +147,7 @@ function _showClientOverlay(client, isAdd) {
     _cfield('ceditGstType', 'GST type', '<select class="inv-select" id="ceditGstType">' +
       opt('intra', c.gstType, 'Intra (CGST+SGST)') + opt('inter', c.gstType, 'Inter (IGST)') + '</select>') +
     '</div>' +
+    _clientDocDefaultsHtml(c) +
     _cfield('ceditNotes', 'Notes', '<textarea class="inv-textarea" id="ceditNotes" rows="2">' + escHtml(c.notes) + '</textarea>') +
     '<label class="inv-field inv-toolbar"><input type="checkbox" class="inv-check" id="ceditActive"' + (c.isActive ? ' checked' : '') + '> Active</label>' +
     // A new client takes an optional opening rate; an existing one keeps its dated cards.
@@ -154,6 +155,37 @@ function _showClientOverlay(client, isAdd) {
       : rates + _pieceRatesEditHtml(c) + _pieceWeightsEditHtml(c)) +
     '<div class="inv-dialog-foot"><button class="inv-btn inv-btn-secondary" data-action="invCloseOverlay">Cancel</button>' +
     '<button class="inv-btn inv-btn-primary" data-action="invSaveClient" data-client="' + c.id + '" data-mode="' + (isAdd ? 'add' : 'edit') + '">' + (isAdd ? 'Add client' : 'Save') + '</button></div></div>', { dismiss: true });
+}
+
+/* What every new invoice for this client carries (state.js, clientPoFromChallan; create.js fills them). */
+function _clientPoExampleNo(c) {
+  var last = (S.incomingMaterial || []).filter(function(im) { return im.clientId === c.id && poChallanDigits(im.challanNo); })
+    .sort(function(a, b) { return String(b.challanDate || '').localeCompare(String(a.challanDate || '')); })[0];
+  return last ? poChallanDigits(last.challanNo) : '1244';
+}
+function _clientPoExampleText(c, tpl) {
+  tpl = String(tpl || '').trim();
+  if (!tpl) return 'Empty: the P.O. is not filled for this client.';
+  if (!clientPoTemplateOk(tpl)) return 'Put {challan} where the number goes, or {challan:5} for five digits.';
+  var n = _clientPoExampleNo(c);
+  return 'Challan ' + n + ' gives ' + clientPoFromChallan({ poFromChallan: tpl }, n) + '.';
+}
+function _clientDocDefaultsHtml(c) {
+  return '<div class="inv-panel inv-panel-flush" data-client-defaults><div class="inv-panel-head"><span class="inv-panel-title">On every new invoice</span></div>' +
+    '<div class="inv-panel-body"><div class="inv-note">Filled in while the field is empty; anything typed on the invoice wins.</div><div class="inv-fields">' +
+    '<div class="inv-field"><label class="inv-field-label" for="ceditTransport">Vehicle no.</label>' +
+    _cinput('ceditTransport', c.defaultTransport || '', 'inv-id', ' placeholder="JH 05XX 0000" autocomplete="off"') + '</div>' +
+    '<div class="inv-field"><label class="inv-field-label" for="ceditPoTpl">P.O. from the challan no.</label>' +
+    _cinput('ceditPoTpl', c.poFromChallan || '', 'inv-id', ' placeholder="DA1/{challan:5}" autocomplete="off" data-client-id="' + c.id + '"') +
+    '<div class="inv-field-hint">{challan} is the challan number; {challan:5} pads it to five digits.</div>' +
+    '<div class="inv-field-hint inv-id" id="ceditPoEx">' + escHtml(_clientPoExampleText(c, c.poFromChallan)) + '</div></div>' +
+    '</div></div></div>';
+}
+function clientPoExampleRefresh(input) {
+  var ex = document.getElementById('ceditPoEx');
+  if (!ex) return;
+  var c = S.clients.find(function(x) { return String(x.id) === String(input.dataset.clientId); }) || { id: null };
+  ex.textContent = _clientPoExampleText(c, input.value);
 }
 
 /* The ₹/kg ladder, newest first; the rate in force today says so. */
@@ -184,6 +216,8 @@ function _readClientForm(excludeId) {
 
   const gstin = document.getElementById('ceditGstin').value.trim().toUpperCase();
   if (gstin && gstin.length !== 15) { showToast('GSTIN must be 15 characters', 'error'); return null; }
+  const poTpl = (document.getElementById('ceditPoTpl') || {}).value || '';
+  if (!clientPoTemplateOk(poTpl.trim())) { showToast('The P.O. pattern needs {challan} where the number goes', 'error'); return null; }
 
   return {
     name: name,
@@ -199,6 +233,8 @@ function _readClientForm(excludeId) {
     billingMode: document.getElementById('ceditMode').value,
     gstType: document.getElementById('ceditGstType').value,
     notes: document.getElementById('ceditNotes').value.trim(),
+    defaultTransport: ((document.getElementById('ceditTransport') || {}).value || '').trim().toUpperCase(),
+    poFromChallan: poTpl.trim(),
     isActive: document.getElementById('ceditActive').checked
   };
 }

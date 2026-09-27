@@ -865,13 +865,15 @@ function bankImportFile() {
     var f = ev.target.files[0];
     if (!f) return;
     var reader = new FileReader();
-    reader.onload = function(e2) {
-      var res;
+    reader.onload = async function(e2) {
+      var res, parsed, b;
       try {
-        var parsed = bankParseSheet(xlsRead(e2.target.result).rows);
-        var b = bankData();
-        if (b.account && parsed.account && parsed.account !== b.account &&
-          !confirm('This statement is for account ' + parsed.account + '; the rows held are for ' + b.account + '. Import it into the same record?')) return;
+        parsed = bankParseSheet(xlsRead(e2.target.result).rows);
+        b = bankData();
+      } catch (err) { showToast(err.message || 'That file could not be read', 'error'); return; }
+      if (b.account && parsed.account && parsed.account !== b.account &&
+        !(await uiConfirm({ title: 'A different account', body: 'This statement is for account ' + parsed.account + '; the rows held are for ' + b.account + '. Import it into the same record?', okLabel: 'Import' }))) return;
+      try {
         res = bankImport(parsed, f.name);
       } catch (err) { showToast(err.message || 'That file could not be read', 'error'); return; }
       saveState();

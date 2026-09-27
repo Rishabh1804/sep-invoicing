@@ -91,7 +91,7 @@ var SETTINGS_SECS = {
       return _sRow(_sfg('Prefix', 'setPrefix', '<input class="inv-input inv-id" id="setPrefix" value="' + escHtml(S.invPrefix) + '">'),
         _sfg('Next number', 'setNextNum', _sNum('setNextNum', S.invNextNum, 1, 1)));
     },
-    save: function() {
+    save: async function() {
       var prefix = _sVal('setPrefix').trim(), next = parseInt(_sVal('setNextNum'), 10);
       if (isNaN(next) || next < 1) { showToast('Enter the next invoice number', 'error'); return false; }
       // Never back over a number the customer holds under this prefix: an
@@ -104,8 +104,8 @@ var SETTINGS_SECS = {
       if (next <= used) {
         var chk = invReissueCheck(prefix, next);
         if (!chk.ok) { showToast(chk.why, 'error'); return false; }
-        if (!confirm('The next invoice will be issued as ' + chk.disp + ', a number used before. After it the series carries on from ' +
-          prefix + padInvNum(used + 1) + '. (Delete → "Delete and reissue" does this in one step.) Continue?')) return false;
+        if (!(await uiConfirm({ title: 'Reissue ' + chk.disp + '?', body: 'The next invoice will be issued as ' + chk.disp + ', a number used before. After it the series carries on from ' +
+          prefix + padInvNum(used + 1) + '. (Delete → "Delete and reissue" does this in one step.) Continue?', okLabel: 'Set next number' }))) return false;
       }
       S.invPrefix = prefix;
       S.invNextNum = next;
@@ -491,10 +491,11 @@ function _settingsDirty() {
   });
 }
 
-function saveSettingsSection(key) {
+/* A section's save may ask first (the invoice series before a reissue), so it may answer with a Promise. */
+async function saveSettingsSection(key) {
   var s = SETTINGS_SECS[key];
   if (!s || !s.save) return;
-  if (s.save() === false) return;
+  if ((await s.save()) === false) return;
   saveState();
   var d = document.querySelector('#settingsScrim details[data-sec="' + key + '"]');
   if (d) {
@@ -511,9 +512,10 @@ function saveSettingsSection(key) {
   showToast(s.title + ' saved');
 }
 
-function closeSettings() {
+async function closeSettings() {
   var dirty = _settingsDirty();
-  if (dirty.length && !confirm('Not saved: ' + dirty.join(', ') + '. Close without saving?')) return;
+  if (dirty.length && !(await uiConfirm({ title: 'Close without saving?', body: 'Not saved: ' + dirty.join(', ') + '. Close without saving?',
+    okLabel: 'Close without saving', cancelLabel: 'Keep editing', danger: true }))) return;
   closeOverlay();
 }
 
@@ -716,11 +718,17 @@ function importData() {
     const f = e.target.files[0];
     if (!f) return;
     const reader = new FileReader();
-    reader.onload = (ev) => {
+    reader.onload = async (ev) => {
+      let data;
       try {
-        const data = JSON.parse(ev.target.result);
+        data = JSON.parse(ev.target.result);
         if (!data.company || !data.clients) throw new Error('Invalid format');
-        if (!confirm('Import will replace ALL current data. Continue?')) return;
+      } catch(err) {
+        showToast('Invalid file: ' + err.message, 'error');
+        return;
+      }
+      if (!(await uiConfirm({ title: 'Replace all data?', body: 'Import will replace ALL current data. Continue?', okLabel: 'Import and replace', danger: true }))) return;
+      try {
         // This path carried NO repairs at all, which was the sharper half of
         // the same bug: a backup written before `staff` existed left it
         // undefined and the Staff tab threw the moment it was opened.

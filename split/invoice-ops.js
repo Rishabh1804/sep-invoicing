@@ -14,11 +14,15 @@
    same part, same quantities, each challan line claimed once — and a line that
    matches ambiguously is left unlinked rather than guessed. */
 var CHALLAN_SYNC_FIELDS = ['partNumber', 'desc', 'unit', 'qty', 'nosQty', 'rate', 'amount'];
+/* The fields that are an invoice's SHARE of a challan line, not a fact about it. */
+var CHALLAN_SHARE_FIELDS = ['qty', 'nosQty', 'amount'];
 
 function withChallanLinks(inv) {
   var pool = [];
   (S.incomingMaterial || []).forEach(function(im) {
-    (im.items || []).forEach(function(it) { if (it.invoiceId === inv.id) pool.push(it); });
+    (im.items || []).forEach(function(it) {
+      if (it.invoiceId === inv.id || (it.invoiceIds || []).indexOf(inv.id) >= 0) pool.push(it);
+    });
   });
   var taken = {};
   (inv.items || []).forEach(function(li) { if (li.imItemId) taken[li.imItemId] = true; });
@@ -34,7 +38,10 @@ function withChallanLinks(inv) {
     var pick = exact.length === 1 ? exact[0] : (exact.length === 0 && free.length === 1 ? free[0] : null);
     if (!pick) return Object.assign({}, li);
     taken[pick.id] = true;
-    return Object.assign({}, li, { _imItemId: pick.id });
+    // A looser match whose quantity differs billed the WHOLE challan line, as the
+    // all-or-nothing app did: linking it must not reopen what is left over.
+    var whole = pick.qty !== li.qty ? { imWhole: true } : {};
+    return Object.assign({}, li, { _imItemId: pick.id }, whole);
   });
 }
 
@@ -49,7 +56,7 @@ function withChallanLinks(inv) {
    trace would lose exactly what an audit asks: what did it say, and who changed
    it from which invoice. */
 function backCorrectChallans(inv, formItems) {
-  var now = Date.now(), lines = 0, touched = {};
+  var now = Date.now(), lines = 0, touched = {}, idx = imBilledIndex();
   (formItems || []).forEach(function(li) {
     if (!li._imItemId || !li._orig) return;
     var im = null, it = null;
@@ -59,8 +66,21 @@ function backCorrectChallans(inv, formItems) {
       return false;
     });
     if (!it) return;
+    // A line that is PART of the challan line — another invoice bills it too, or
+    // this line's quantity was not the challan's when the edit began — changes
+    // only this invoice's share: its quantity, pieces and amount never travel.
+    var others = (idx[it.id] || []).some(function(r) { return r.invoiceId !== inv.id; });
+    var part = others || li._orig.qty !== (it.qty == null ? null : it.qty);
+    // A line billed in another unit than its challan line's travels back only as a correction the
+    // operator named ("Challan unit was wrong"), and only on a whole line. Any other unit change is how
+    // the customer is billed, not what their paper said: the challan keeps its unit and its quantity.
+    var unitOff = (li.unit || null) !== (it.unit == null ? null : it.unit);
+    var carryUnit = unitOff && !part && li.unitReason === 'challan';
+    if (unitOff && !carryUnit) part = true;
     var from = {}, changed = false;
     CHALLAN_SYNC_FIELDS.forEach(function(f) {
+      if (part && CHALLAN_SHARE_FIELDS.indexOf(f) >= 0) return;
+      if (f === 'unit' && unitOff && !carryUnit) return;
       var now_ = li[f] == null ? null : li[f];
       if (now_ === li._orig[f]) return;            // not touched in this edit
       var was = it[f] == null ? null : it[f];
@@ -723,7 +743,7 @@ function invoiceDetailHtml(inv) {
       '<span class="inv-row-main"><span class="inv-row-title inv-row-wrap">' + escHtml(lineLabel(raw || item)) + '</span>' +
       '<span class="inv-row-meta"><span class="inv-num">' + escHtml(item.qty) + '</span> ' + escHtml(item.unit) +
       (item.nosQtyRaw && item.nosQtyRaw > 0 ? ' (' + escHtml(item.nosQtyRaw) + ' NOS)' : '') + ' × <span class="inv-num">' + escHtml(item.rate) + '</span></span>' +
-      zeroReasonTag(raw) + detailRateMatch(inv, raw) + '</span>' +
+      zeroReasonTag(raw) + challanAckTag(raw) + detailRateMatch(inv, raw) + '</span>' +
       '<span class="inv-row-end inv-num">' + escHtml(item.amount) + '</span></div>';
   });
   h += '</div>';
@@ -759,6 +779,23 @@ function zeroReasonTag(raw) {
   if (raw.zeroNote) text += ' \u2014 ' + raw.zeroNote;
   if (raw.zeroReasonBackfilled) text += ' (backfilled: owner ruling ' + raw.zeroReasonBackfilled + ')';
   return '<div class="inv-note"><span class="inv-badge inv-badge-' + (raw.zeroReason ? 'warning' : 'danger') + '">\u20B90</span> ' + escHtml(text) + '</div>';
+}
+
+/* A line the challan could not vouch for says why, where the invoice is read: more than was left
+   on its challan line, or billed in another unit. An over-bill accepted before reasons were asked
+   (`overBillAck: {at, left}`) says so rather than reading as explained. */
+function challanAckTag(raw) {
+  if (!raw) return '';
+  var out = '', tag = function(badge, text, ok) {
+    return '<div class="inv-note" data-ack-tag><span class="inv-badge inv-badge-' + (ok ? 'warning' : 'danger') + '">' + badge + '</span> ' + escHtml(text) + '</div>';
+  };
+  var o = raw.overBillAck;
+  if (o) out += tag('Over challan', 'Billed over the ' + imQtyText(o.left) + ' left on its challan line: ' +
+    (o.reason ? challanAckReasonLabel('over', o) + (o.note ? ' \u2014 ' + o.note : '') : 'accepted, no reason recorded'), !!o.reason);
+  var u = raw.unitChangeAck;
+  if (u) out += tag('Unit changed', 'Challan ' + (u.from || 'no unit') + ', billed ' + (u.to || 'no unit') + ', closing the challan line: ' +
+    (u.reason ? challanAckReasonLabel('unit', u) + (u.note ? ' \u2014 ' + u.note : '') : 'no reason recorded'), !!u.reason);
+  return out;
 }
 
 /* The matcher on a saved invoice: only what needs a second look. A matching
@@ -850,17 +887,12 @@ function confirmCancelInvoice(invId) {
   inv.status = 'cancelled';
   inv.cancelledAt = Date.now();
   inv.updatedAt = Date.now();
-  // Unlink IM items (item-level, not entry-level)
-  if (inv.linkedIMIds && inv.linkedIMIds.length > 0) {
-    inv.linkedIMIds.forEach(imId => {
-      const im = (S.incomingMaterial || []).find(m => m.id === imId);
-      if (im) {
-        im.items.forEach(it => {
-          if (it.invoiceId === inv.id) { it.invoiced = false; it.invoiceId = null; }
-        });
-      }
-    });
-  }
+  // A cancelled invoice bills nothing: its share of each challan line is free again.
+  // A line it billed before lines were linked is freed by its flag, as it always was.
+  (S.incomingMaterial || []).forEach(im => (im.items || []).forEach(it => {
+    if (it.billedLegacy && it.invoiceId === inv.id) { it.invoiced = false; it.invoiceId = null; delete it.billedLegacy; }
+  }));
+  imSyncBilled();
   saveState();
   closeOverlay();
   renderRegister();
@@ -945,20 +977,10 @@ function confirmDeleteInvoice(invId, reissue) {
   const reserved = getInvState(inv) !== 'created';
   recordVoidedNumber(inv, reason, reserved);
 
-  // Unlink IM items (item-level, not entry-level)
-  if (inv.linkedIMIds && inv.linkedIMIds.length > 0) {
-    inv.linkedIMIds.forEach(imId => {
-      const im = (S.incomingMaterial || []).find(m => m.id === imId);
-      if (im) {
-        im.items.forEach(it => {
-          if (it.invoiceId === inv.id) { it.invoiced = false; it.invoiceId = null; }
-        });
-      }
-    });
-  }
-  // Hard delete from array
+  // Hard delete from array; its share of each challan line is free again.
   const idx = S.invoices.indexOf(inv);
   if (idx > -1) S.invoices.splice(idx, 1);
+  imSyncBilled();
 
   // Recycle the number only if nothing holds it — live invoices and reserved
   // voids both count, so invNextNum can no longer walk back over an issued one.
@@ -968,6 +990,8 @@ function confirmDeleteInvoice(invId, reissue) {
   closeOverlay();
   if (reissueForm) {
     invoiceForm = reissueForm;
+    // The old invoice's PO and vehicle travel with it; the client's own fill only a field it left empty.
+    createApplyClientDefaults();
     _navReturnTab = 'pageRegister';
     renderCreateForm();
     switchTab('pageCreate');

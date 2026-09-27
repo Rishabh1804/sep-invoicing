@@ -1,5 +1,5 @@
 import { test, expect, Page } from '@playwright/test';
-import { emptyState, loadAppWithState, noSeedIM, switchTab, todayIso, openSettingsAt } from './fixtures';
+import { emptyState, loadAppWithState, noSeedIM, switchTab, todayIso, openSettingsAt, answerAsk } from './fixtures';
 
 /*
  * Replacing the whole state.
@@ -61,8 +61,8 @@ async function pull(page: Page, state: Record<string, unknown>) {
   });
   await loadAppWithState(page, emptyState());
   await openSettingsAt(page, 'sync');
-  page.once('dialog', (d) => d.accept());
   await page.locator('#ghPullBtn').click();
+  await answerAsk(page, 'ok');
   await expect(page.locator('.inv-toast')).toContainText('Pulled from GitHub');
 }
 
@@ -152,7 +152,6 @@ test('importing a backup written before the roster existed does not break the St
   // The file input is rendered by the Settings overlay, and Import is reached
   // through it — so the test walks the same path the operator does.
   await openSettingsAt(page, 'data');
-  page.once('dialog', (d) => d.accept());
   await page.evaluate(async (data) => {
     // Arm importData's own onchange handler, then hand it a real File, so what
     // is exercised is the handler rather than a re-implementation of it.
@@ -163,6 +162,7 @@ test('importing a backup written before the roster existed does not break the St
     inp.files = dt.files;
     inp.dispatchEvent(new Event('change'));
   }, older);
+  await answerAsk(page, 'ok');
 
   await expect(page.locator('.inv-toast')).toContainText('Data imported');
   const s = await readState(page);
@@ -211,7 +211,6 @@ test('a migration that throws leaves storage as it was, not half-migrated', asyn
   delete poisoned._staffAreas2;
 
   await openSettingsAt(page, 'data');
-  page.once('dialog', (d) => d.accept());
   await page.evaluate(async (data) => {
     (window as unknown as { importData: () => void }).importData();
     const inp = document.getElementById('importFileInput') as HTMLInputElement;
@@ -220,6 +219,7 @@ test('a migration that throws leaves storage as it was, not half-migrated', asyn
     inp.files = dt.files;
     inp.dispatchEvent(new Event('change'));
   }, poisoned);
+  await answerAsk(page, 'ok');
 
   // Whatever the app reports, what is ON DISK must be what was there before —
   // the foreign client must not survive in storage to be loaded next time.

@@ -551,6 +551,12 @@ Replaces `inv-form-group/label/input/select/row`, `inv-stk-label`, `inv-stk-fiel
   top dialog in place. `closeOverlay()` / `closeTopOverlay()` shut them and give the focus back. A two-faced dialog
   (Stats' client drill-down) shows `inv-flip-front` or `inv-flip-back`, turning over (`inv-flip-out` / `-in`, `--dur-2`).
 - Confirm dialogs for destructive actions: danger-filled primary, the consequence stated in the body.
+- **Asking, telling and prompting are dialogs too, never the browser's** (27 Sep 2026): `uiConfirm`, `uiAlert` and
+  `uiPrompt` (`state.js`) draw an `inv-dialog` in the shell — title, the words in `inv-ask-body` (line breaks kept), a
+  prompt's `inv-field`, and a foot of Cancel then the act (`inv-btn-danger inv-btn-solid` when it destroys, focus then
+  on Cancel). Esc, the scrim and × answer cancel. If the shell cannot draw, the text goes to the **notice banner**
+  (`inv-notice-bar`, a list of `inv-notice-text` under the top bar, beside the update and storage banners, until
+  Dismiss) and a question is answered cancel; an uncaught error reaches the same banner.
 - `inv-menu`: dropdowns and autocompletes, `--surface`, `--border`, `--shadow-pop`, keyboard as now. It hangs off its
   field in an `inv-combo` (max `--menu-max`); options are `inv-menu-item` (`inv-menu-title`, `inv-menu-meta`), the
   arrow-key cursor is the option's `aria-selected`, and the create-a-part row is `inv-menu-add`.

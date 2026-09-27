@@ -17,7 +17,8 @@ import { emptyState, loadAppWithState, noSeedIM, switchTab } from './fixtures';
 /** Monday of the current week, so the week nav lands on the seeded days. */
 function weekDays(): string[] {
   const mon = new Date();
-  mon.setDate(mon.getDate() - ((mon.getDay() + 6) % 7));
+  // Monday of the current PAY week (Sunday to Saturday): the ISO week's Monday is the wrong week on a Sunday.
+  mon.setDate(mon.getDate() - mon.getDay() + 1);
   return [...Array(6)].map((_, i) => {
     const d = new Date(mon);
     d.setDate(d.getDate() + i);

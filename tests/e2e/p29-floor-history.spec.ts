@@ -149,7 +149,7 @@ test.describe('P29: attendance through the roster door', () => {
       // and books the hours as evidence about staffing.
       await page.locator('[data-action="invAttView"][data-view="areas"]').first().click();
       // Walk the Areas card back to the seeded week.
-      for (let i = 0; i < 20; i++) {
+      for (let i = 0; i < 520; i++) {   // as many weeks back as it takes: a fixed 20 ran out 21 weeks after the seeded May
         const txt = await page.locator('#attContent').innerText();
         if (!txt.includes('No attendance recorded')) break;
         await page.locator('[data-action="invAttWeekStep"][data-step="-1"]').click();
@@ -247,7 +247,7 @@ test.describe('P29: attendance through the roster door', () => {
       expect(unresolved.crewUnknown).toBe(true);
 
       await page.locator('[data-action="invAttView"][data-view="areas"]').first().click();
-      for (let i = 0; i < 20; i++) {
+      for (let i = 0; i < 520; i++) {   // as many weeks back as it takes: a fixed 20 ran out 21 weeks after the seeded May
         const txt = await page.locator('#attContent').innerText();
         if (!txt.includes('No attendance recorded')) break;
         await page.locator('[data-action="invAttWeekStep"][data-step="-1"]').click();

@@ -1,5 +1,5 @@
 import { test, expect, Page } from '@playwright/test';
-import { emptyState, loadAppWithState, SepState, openSettingsAt } from './fixtures';
+import { emptyState, loadAppWithState, SepState, openSettingsAt, answerAsk } from './fixtures';
 import { readFile } from 'node:fs/promises';
 
 /*
@@ -127,27 +127,17 @@ test.describe('GitHub sync — push', () => {
     });
     await loadAppWithState(page, emptyState());
 
-    // Each step waits for its own dialog rather than arming a handler and
-    // hoping it fires before the next one is armed. Neither assertion after
-    // the first click depends on the dialog having appeared — #homeSyncCard is
-    // already on screen and putCount is trivially 0 — so a dialog arriving
-    // late was caught by both handlers, and the second one found it already
-    // dismissed. That is what "Cannot accept dialog which is already handled"
-    // meant when this went red on CI.
+    // Each step waits for the app's own dialog (answerAsk) and answers it.
 
     // Decline: nothing is written.
-    const declinePrompt = page.waitForEvent('dialog');
     await page.locator('[data-action="invGhPush"]').first().click();
-    const decline = await declinePrompt;
-    expect(decline.message()).toContain('has not seen');
-    await decline.dismiss();
+    expect(await answerAsk(page, 'cancel')).toContain('has not seen');
     await expect(page.locator('#homeSyncCard')).toBeVisible();
     expect(putCount).toBe(0);
 
     // Accept: the push carries the remote's current sha, not the stale one.
-    const acceptPrompt = page.waitForEvent('dialog');
     await page.locator('[data-action="invGhPush"]').first().click();
-    await (await acceptPrompt).accept();
+    await answerAsk(page, 'ok');
     await expect(page.locator('.inv-toast')).toContainText('Pushed to GitHub');
     expect(putCount).toBe(1);
   });
@@ -179,11 +169,8 @@ test.describe('GitHub sync — pull', () => {
     await loadAppWithState(page, emptyState());
 
     await openSettingsAt(page, 'sync');
-    page.once('dialog', (d) => {
-      expect(d.message()).toContain('Replace ALL data');
-      d.accept();
-    });
     await page.locator('#ghPullBtn').click();
+    expect(await answerAsk(page, 'ok')).toContain('Replace ALL data');
 
     await expect(page.locator('.inv-toast')).toContainText('Pulled from GitHub');
     const clients = await page.evaluate(async () => JSON.parse((await (window as any).readPersistedStateRaw())!).clients);
@@ -211,8 +198,8 @@ test.describe('GitHub sync — pull', () => {
     await loadAppWithState(page, emptyState());
 
     await openSettingsAt(page, 'sync');
-    page.once('dialog', (d) => { expect(d.message()).toContain('7 invoices'); d.accept(); });
     await page.locator('#ghPullBtn').click();
+    expect(await answerAsk(page, 'ok')).toContain('7 invoices');
 
     await expect(page.locator('.inv-toast')).toContainText('Pulled from GitHub');
     const clients = await page.evaluate(async () => JSON.parse((await (window as any).readPersistedStateRaw())!).clients);
@@ -260,8 +247,8 @@ test.describe('GitHub sync — pull', () => {
     });
     await loadAppWithState(page, emptyState());
     await openSettingsAt(page, 'sync');
-    page.once('dialog', (d) => d.accept());
     await page.locator('#ghPullBtn').click();
+    await answerAsk(page, 'ok');
     await expect(page.locator('.inv-toast')).toContainText('Pulled from GitHub');
     const modes = await page.evaluate(() => (window as any).__ghCache);
     expect(modes.length).toBe(2);

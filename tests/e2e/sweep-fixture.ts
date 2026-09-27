@@ -225,6 +225,9 @@ export const DIALOGS: Array<[string, string]> = [
   ['stats-drill', `openClientDrillOverlay(1)`],
   ['todo-new', `todoOpenEdit(null)`],
   ['todo-edit', `todoOpenEdit('T1')`],
+  ['ask-confirm', `uiConfirm({ title: 'Delete this challan?', body: 'Challan 301 from SAMARTH, 2 lines. This cannot be undone.', okLabel: 'Delete challan', danger: true })`],
+  ['ask-prompt', `uiPrompt({ title: 'Void this payment', body: 'It is kept on the record, not deleted.', label: 'Why is this payment void?', required: true })`],
+  ['ask-alert', `uiAlert({ title: 'Copy the order', body: 'Select the text below and copy it.' })`],
   ['more-sheet', `openMoreSheet()`],
 ];
 

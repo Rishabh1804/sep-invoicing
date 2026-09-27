@@ -23,6 +23,24 @@ for (const scheme of ['light', 'dark'] as const) {
   });
 }
 
+test('no browser pop-up is called anywhere in the source: every message has an in-app path', async ({ page }) => {
+  // Owner, 27 Sep 2026: a browser can block confirm(), alert() and prompt(), and a message that never appears was
+  // never given. Every one goes through uiConfirm / uiAlert / uiPrompt (state.js), which fall back to a banner.
+  // Comments are stripped first, so explaining the rule does not break it.
+  const fs = await import('fs');
+  const path = await import('path');
+  const dir = path.join(__dirname, '..', '..', 'split');
+  const hits: string[] = [];
+  for (const f of fs.readdirSync(dir).filter(f => /\.js$/.test(f))) {
+    const src = fs.readFileSync(path.join(dir, f), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:'"\\])\/\/.*$/gm, '$1');
+    src.split('\n').forEach((line, i) => {
+      if (/(^|[^\w.$])(window\.)?(confirm|alert|prompt)\s*\(/.test(line)) hits.push(f + ':' + (i + 1) + ': ' + line.trim());
+    });
+  }
+  expect(hits).toEqual([]);
+  await page.goto('about:blank');
+});
+
 test('no <select> anywhere carries a data-action, in the source either', async ({ page }) => {
   // The rendered sweep reads what is on screen; this reads every template, so a select on a screen the sweep did
   // not reach is caught too.

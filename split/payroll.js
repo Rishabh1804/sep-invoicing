@@ -363,11 +363,12 @@ function payrollImport() {
   };
   inp.click();
 }
-function payrollVoid(id) {
+async function payrollVoid(id) {
   var r = payrollPaidRecords().find(function(x) { return x.id === id; });
   if (!r || r.voidedAt) return;
-  var reason = prompt('Why is this month’s record void? (kept, not deleted — the month goes back to the attendance model)');
-  if (reason == null) return;
+  var reason = await uiPrompt({ title: 'Void this month’s record', body: 'It is kept, not deleted — the month goes back to the attendance model.',
+    label: 'Why is this month’s record void?', okLabel: 'Void record', required: true, requiredText: 'A void needs a reason.' });
+  if (reason == null || r.voidedAt) return;
   reason = reason.trim();
   if (!reason) { showToast('A void needs a reason', 'error'); return; }
   r.voidedAt = Date.now();
@@ -431,11 +432,12 @@ function paySave() {
   renderAttendance();
   showToast('Recorded ' + formatCurrency(amount) + ' to ' + w.name);
 }
-function payVoid(id) {
+async function payVoid(id) {
   var p = staffPayments().find(function(x) { return x.id === id; });
   if (!p || p.voidedAt) return;
-  var reason = prompt('Why is this payment void? (kept on the record, not deleted)');
-  if (reason == null) return;
+  var reason = await uiPrompt({ title: 'Void this payment', body: 'It is kept on the record, not deleted.', label: 'Why is this payment void?',
+    okLabel: 'Void payment', required: true, requiredText: 'A void needs a reason.' });
+  if (reason == null || p.voidedAt) return;
   reason = reason.trim();
   if (!reason) { showToast('A void needs a reason', 'error'); return; }
   p.voidedAt = Date.now();

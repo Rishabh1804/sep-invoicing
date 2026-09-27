@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
-import { emptyState, loadAppWithState, noSeedIM, readStoredState, switchTab, todayIso, type SepState } from './fixtures';
+import { emptyState, loadAppWithState, noSeedIM, readStoredState, switchTab, todayIso, answerAsk, type SepState } from './fixtures';
 
 // P44: pay. The pay week runs Sunday to Saturday (paid Saturday); what each
 // worker is due (earned minus paid); the week's payout, predicted at its own
@@ -113,8 +113,8 @@ test.describe('P44: pay', () => {
     expect(s.staffPayments).toHaveLength(2);
     expect(s.staffPayments[0]).toMatchObject({ staffId: 2, amount: 1100, kind: 'payment' });
 
-    page.once('dialog', d => d.accept('Paid twice by mistake'));
     await page.locator('[data-action="invPayVoid"]').first().click();
+    await answerAsk(page, 'ok', 'Paid twice by mistake');
     s = await readStoredState(page);
     expect(s.staffPayments).toHaveLength(2);
     expect(s.staffPayments.filter((p: any) => p.voidedAt)).toHaveLength(1);

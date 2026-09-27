@@ -694,7 +694,7 @@ function renderStats() {
   (S.incomingMaterial || []).forEach(function(im) {
     var pending = (im.items || []).filter(function(it) { return !it.invoiced; });
     if (pending.length === 0) return;
-    var amt = pending.reduce(function(s, it) { return s + (it.amount || 0); }, 0);
+    var amt = pending.reduce(function(s, it) { return s + imLineOpen(it).amount; }, 0);   // the open share of a part-invoiced line
 
     var key = im.clientId;
     if (!pendingByClient[key]) pendingByClient[key] = { clientId: key, name: im.clientName, total: 0, items: 0, oldest: null };
@@ -873,7 +873,7 @@ function openClientDrillOverlay(clientId) {
   (S.incomingMaterial || []).forEach(function(im) {
     if (im.clientId !== clientId) return;
     im.items.forEach(function(it) {
-      if (!it.invoiced) { pendingAmt += (it.amount || 0); pendingItems++; }
+      if (!it.invoiced) { pendingAmt += imLineOpen(it).amount; pendingItems++; }
     });
   });
 
@@ -908,7 +908,7 @@ function openClientDrillOverlay(clientId) {
   });
   var challanHtml = pendingChallans.length === 0 ? '<div class="inv-empty">No pending challans</div>' : pendingChallans.map(function(im) {
     var pItems = im.items.filter(function(it) { return !it.invoiced; });
-    var pAmt = pItems.reduce(function(s, it) { return s + (it.amount || 0); }, 0);
+    var pAmt = pItems.reduce(function(s, it) { return s + imLineOpen(it).amount; }, 0);
     return statsRow(im.challanNo ? 'Ch. <span class="inv-id">' + escHtml(im.challanNo) + '</span>' : 'No number',
       escHtml(formatDate(im.challanDate)) + ' · ' + pItems.length + ' items', statsNum(formatCurrency(pAmt)));
   }).join('');

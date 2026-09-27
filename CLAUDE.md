@@ -114,7 +114,7 @@ every session start — nothing to set up by hand. CI (`build-sync`) is the back
 ### Tests
 
 ```bash
-pnpm exec playwright test          # 576 tests, both layouts
+pnpm exec playwright test          # 611 tests, both layouts
 ```
 
 Some sandboxes ship a Chromium build Playwright does not expect and block downloading
@@ -122,6 +122,18 @@ the matching one. The session hook detects that and sets `PW_CHROMIUM_PATH`, whi
 `playwright.config.ts` reads; unset everywhere else. The suite finishes in under a minute
 on a CI runner and takes ~13 minutes in a constrained sandbox — don't read a slow local
 run as a hang.
+
+**No browser pop-ups: every message has an in-app path** (owner, 27 Sep 2026: *"make sure in case of browser
+pop-up failure there is another way that the message or error gets relayed - in all places in our app"*). Never
+call `confirm()`, `alert()` or `prompt()`: a browser can block them, an installed app can suppress them, and a test
+harness dismisses them unseen. Ask through `uiConfirm({title, body, okLabel, danger})`, `uiAlert({title, body})`
+or `uiPrompt({title, label, required})` in `state.js` — a dialog in the one shell, answering with a Promise (so the
+handler is `async` and `await`s it); Esc, the scrim, × and Cancel all answer cancel, and focus starts on Cancel
+before a destructive act. **If the dialog cannot be drawn, the message goes to a banner that stays until dismissed**
+(`uiNotice`, `.inv-notice-bar`), and a question that could not be asked is answered *cancel* and says so, so nothing
+destructive happens unseen. An error nothing caught reaches the same banner, not only the console. P76 reads every
+module's source for a call to any of the three; a spec answers the in-app one with `answerAsk(page, 'ok' | 'cancel',
+text?)` from the fixtures, and P78 makes the browser's own three throw and walks the flows that used them.
 
 **A `<select>` speaks through `change`, never `click`.** Giving a filter control a
 `data-action` meant the click that *opens* it ran the handler — and if that handler
@@ -156,7 +168,7 @@ filter on; a literal date in a fixture is a time bomb, not a constant.
 |----|------|
 | HR-1 | No inline styles. CSS classes + design tokens. |
 | HR-2 | No inline onclick. data-action delegation only. |
-| HR-3 | inv- CSS prefix on every class. 427 classes, all of them (distinct class selectors in `split/styles.css`, comments stripped, 26 Sep 2026); P76 asserts every class the app draws is one of them or a named hook. |
+| HR-3 | inv- CSS prefix on every class. 431 classes, all of them (distinct class selectors in `split/styles.css`, comments stripped, 27 Sep 2026); P76 asserts every class the app draws is one of them or a named hook. |
 | HR-4 | No emojis. Inline SVGs in HTML template. |
 | HR-5 | escHtml() on all user-data innerHTML. |
 | HR-6 | CSS design tokens only. No raw px/rem/hex/timing. |
@@ -278,6 +290,18 @@ aliased part number. A blank `challanNo` warns in its own right.
 operator's override is stamped on the entry as `dupeAck`, so an audit can distinguish an
 accepted duplicate from one nobody was shown. Duplicate records are never auto-deleted — they
 are the evidence of the pattern.
+
+**The challan NUMBER is checked as it is typed** (owner, 27 Sep 2026: *"instead of checking for duplicate challan
+at the end of entering the entire challan details, check for duplicate challan number when the challan number is
+typed for a particular client"*). The moment the number is entered in the challan form (on change, and when the
+client is chosen after it), the client's challans are searched for it — case, spaces and leading zeros ignored
+(`imChallanNoKey`: `0301` is 301), the challan being edited left out — and a match is said under the field:
+*Challan 301 is already recorded for … on 21 Sep 2026 (3 lines, not invoiced)*, with **Open it** reading that
+challan in a dialog while the form stays as typed. Warn, never block. **The fingerprint at save stays as the second
+net** (the blank number, the aliased part), but a challan the field already showed is not asked about again — seen
+means on screen for at least 1.2 s (`CHALLAN_WARN_READ_MS`), since a number typed and Save tapped at once draws the
+warning under the tap. The save dialog still asks for a content match on a *different* challan and says which one
+was already shown. Saving past the field's warning is an acceptance too: `dupeAck: {at, matchedIds, shownAsTyped: true}`.
 
 ### Key Business Data
 Rebuilt from owner-supplied cost inputs against Apr–Jul 2026 actuals (~79,850 kg/month).
@@ -1220,6 +1244,45 @@ final amount is more than the conditions we have for matches which raises a red 
   **Differs** asks nothing. Saved as `flagReason`, `flagNote` and `flagAt {kind, status, ref, value}` — the verdict it
   was given against — and dropped when a later edit puts the line right (`lineFlagFields`).
 
+### A challan invoiced in parts
+Owner, 26 Sep 2026: *"Samarth Engg sends 600 nos of an item, I should be able to invoice that challan multiple times
+till 600 is reached, so maybe we dispatch 200 in one day, then 300 and then 100."* A challan line was all-or-nothing.
+
+- **What a line has billed is DERIVED, never typed** (`im.js`): the sum of `qty` over invoice lines naming it
+  (`imItemId`) on invoices not cancelled — a deleted invoice frees its share by being gone. `imBilledIndex()` builds
+  that index; `imSyncBilled()` caches it on the line as `billedQty`, `billedNos`, `invoiceIds`, `invoiceId` (the
+  latest) and `invoiced` (nothing left, within `IM_QTY_EPS`), after every invoice save, edit, cancel, delete and
+  reissue and in `migrateState()` (it replaced the orphan repair). So `!it.invoiced` still means *open*, everywhere.
+- **Every unbilled amount is the open share** (`imLineOpen`: amount × left ÷ qty; pieces from `billedNos`, else in
+  proportion): Home, Stats, the To-do's unbilled rule, the month's pace, the IM selection. A challan with a line
+  part-billed reads **Part invoiced**; any share billed locks its edit and delete (`imLineBilled`).
+- **The Create picker and IM's Create invoice bring a line at what is LEFT** (`imLineFormItem`) and say so:
+  *600 on challan 301 · 200 invoiced (SEP/…/00012) · 400 left*. Typing 200 is dispatching 200 (a piece client's
+  amount follows as that share of the challan's amount; a KG line's untyped pieces follow the kilograms).
+- **More than is left asks for a reason** (owner, 27 Sep 2026: *"For both the limits, ask for a reason"*): the line
+  says *30 over what is left on challan 301*, and under it a one-tap picker — *Customer dispatched more than the
+  challan · Challan quantity was wrong · Other*, a note recommended — the red flag's and the ₹0 line's contract. The
+  invoice cannot be saved until one is picked (the error names the line), and the line keeps
+  `overBillAck: {at, left, reason, note}`; it goes when an edit brings the line back within what is left. The
+  confirm-era stamp `{at, left}` still loads and reads *accepted, no reason recorded* on the invoice, and is asked
+  for a reason only if the invoice is edited while still over.
+- **A unit changed on a linked line asks for a reason too, and closes the challan line.** A line billed in KG
+  against a NOS challan line (or the reverse) cannot be compared: it says *Cannot be compared with challan 301: it
+  holds 600 NOS … this line closes the challan line*, and asks *Customer bills this part by weight / by pieces now ·
+  Challan unit was wrong · Other*; `unitChangeAck: {at, from, to, reason, note}`, required to save, dropped when the
+  unit is put back. **Such a line bills its challan line WHOLE** (`imRefWhole` in `imRefsBilled`): 52.5 kg cannot be
+  netted against 400 pieces, and leaving the line open would show phantom unbilled material on Home, Stats and the
+  To-do for ever. The unit travels back to the challan only as a correction the operator named (*Challan unit was
+  wrong*, on a whole line); any other reason leaves the challan's unit and quantity as the customer's paper says.
+  P78.
+- **Editing counts the invoice's own share as left.** Back-correction never writes quantity, pieces or amount to a
+  challan line that is PART of one — billed by another invoice too, or not at the challan's quantity when the edit
+  began (`CHALLAN_SHARE_FIELDS`); part, description, unit and rate still travel. A whole, single-invoice line
+  corrects exactly as before.
+- **History is not reopened.** A line flagged invoiced by an existing invoice that names no challan line stays
+  billed whole (`billedLegacy`), until that invoice is linked, deleted or cancelled; a looser legacy link on a
+  different quantity is saved `imWhole` and counts as the whole line. P77.
+
 ### Billed at ₹0
 The history held **25 lines billed at ₹0 — 1,192.54 kg, ₹16,355.67 at the client's own rate —
 across 14 invoices**, mostly General Engineering, with nothing on any of them saying why. **The
@@ -1371,6 +1434,22 @@ Parts three and four of the intelligence engine (owner, 25 Sep 2026). `insights.
     across all its suppliers: Dorabji `DA1/01322 → 01333 → 01339`), only the prefix is filled and the hint
     says so. An empty vehicle field is filled **only where one vehicle carries 60%+** of the client's last
     30; otherwise the usual ones are offered as chips and nothing is typed.
+  - **A client's own vehicle and PO win over the prediction** (owner, 27 Sep 2026: *"Dorabji Auto generally is
+    despatched through only one way of transport … the field is already filled out along with PO number, which is
+    usually the same as their challan number with the suffix DA1/xxxxx"*). Measured on the book: one vehicle on
+    nearly every Dorabji invoice, and the PO equal to `DA1/` + the challan number in five digits on nearly every one
+    carrying a PO — a PO *made from the challan*, which is why the sequence prediction only ever found the prefix.
+    So it is a **client setting**, never a hard-code: `defaultTransport` and `poFromChallan`, a pattern where
+    `{challan}` is the challan number and `{challan:5}` the same padded to five digits (`clientPoFromChallan`,
+    state.js: the first cited challan, its first run of digits, so `0877/26-27` gives `DA1/00877`). Edited on the
+    client (*On every new invoice*, with a live example; a pattern without `{challan}` is refused). Every path to a
+    new invoice applies them (`createApplyClientDefaults`: choosing the client, ticking a challan, IM → Create
+    invoice, a reissue, a client preselected from Stats), **only into a field that is empty or was itself filled
+    that way** (`invoiceForm._auto`): a typed value is the operator's for good. An auto PO follows the challans
+    ticked (the first one's number, and the hint says *the first of N challans*), and a challan number typed by hand
+    moves it in place. The hint says where it came from (*from DORABJI AUTO's settings*). Where a client has one,
+    insights.js does not predict that field. A once-only migration (`_clientDocDefaults1`, travelling with the
+    state) sets both on DORABJI AUTO **only where both are empty**, so a value the owner typed or cleared stays.
 
 ### Finance
 Sidebar **Money → Finance**; More → **Finance** on the phone (`finance.js`; owner, 26 Sep 2026: *"The entire finance

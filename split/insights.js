@@ -90,7 +90,7 @@ function predMonthPace() {
   var mean = rev / done, sd = Math.sqrt(days.reduce(function(s, v) { return s + (v - mean) * (v - mean); }, 0) / Math.max(1, days.length - 1));
   var left = total - done, band = sd * Math.sqrt(left);
   var unbilled = 0;
-  (S.incomingMaterial || []).forEach(function(im) { (im.items || []).forEach(function(it) { if (!it.invoiced) unbilled += it.amount || 0; }); });
+  (S.incomingMaterial || []).forEach(function(im) { (im.items || []).forEach(function(it) { if (!it.invoiced) unbilled += imLineOpen(it).amount; }); });
   var prev = insMonthsBack(1)[0], pm = insMonthly([prev]);
   return { rev: rev, kg: kg, done: done, total: total, left: left,
     projRev: gstRound(rev / done * total), projKg: kg / done * total, low: gstRound(Math.max(rev, rev / done * total - band)), high: gstRound(rev / done * total + band),
@@ -140,7 +140,10 @@ function predVehicle(clientId) {
 /* Invoice form: fill on client choice, for a new invoice, only into an empty field. */
 function predApplyToInvoice() {
   if (!invoiceForm || invoiceForm.editingId || !invoiceForm.clientId) { if (invoiceForm) invoiceForm._pred = null; return; }
-  var po = predPO(invoiceForm.clientId), ve = predVehicle(invoiceForm.clientId);
+  // A client with its own vehicle or PO pattern (createApplyClientDefaults) is not predicted for that field.
+  var own = S.clients.find(function(c) { return c.id === invoiceForm.clientId; }) || {};
+  var po = String(own.poFromChallan || '').trim() ? null : predPO(invoiceForm.clientId);
+  var ve = String(own.defaultTransport || '').trim() ? null : predVehicle(invoiceForm.clientId);
   invoiceForm._pred = { po: po, ve: ve };
   if (po && !invoiceForm.poNumber) invoiceForm.poNumber = po.value;
   if (ve && ve.fill && !invoiceForm.transport) invoiceForm.transport = ve.fill;

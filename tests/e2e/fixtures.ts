@@ -1,4 +1,4 @@
-import { Page } from '@playwright/test';
+import { Page, expect } from '@playwright/test';
 
 export const STORAGE_KEY = 'sep_invoicing_state';
 
@@ -188,4 +188,18 @@ export async function openSettingsAt(page: Page, sec: string): Promise<void> {
   const nav = page.locator(`[data-action="invSettingsGroup"][data-group="${group}"]`);
   if (await nav.isVisible()) await nav.click();
   if (!(await details.evaluate(d => (d as HTMLDetailsElement).open))) await details.locator(':scope > summary').click();
+}
+
+/** The app asks and tells through its own dialog (uiConfirm / uiAlert / uiPrompt in state.js), never the
+ *  browser's confirm(), alert() or prompt(). Waits for the top one, answers it (typing `text` into a prompt
+ *  first) and returns what it said, title and body. */
+export async function answerAsk(page: Page, answer: 'ok' | 'cancel' = 'ok', text?: string): Promise<string> {
+  const dlg = page.locator('[data-ui-ask]').last();
+  await expect(dlg).toBeVisible();
+  const id = await dlg.getAttribute('data-ui-ask');
+  const said = await dlg.innerText();
+  if (text != null) await dlg.locator('[data-ui-ask-input]').fill(text);
+  await dlg.locator(`[data-ans="${answer}"]`).click();
+  await expect(page.locator(`[data-ui-ask="${id}"]`)).toHaveCount(0);
+  return said;
 }

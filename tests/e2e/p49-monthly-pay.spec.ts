@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
-import { emptyState, loadAppWithState, noSeedIM, readStoredState, switchTab, type SepState } from './fixtures';
+import { emptyState, loadAppWithState, noSeedIM, readStoredState, switchTab, answerAsk, type SepState } from './fixtures';
 
 // P49: the monthly tier on BM's model, the OT cap's start date, and a closed
 // month read AS PAID from the slip rather than re-modelled from the marks.
@@ -132,8 +132,8 @@ test.describe('P49: monthly pay', () => {
     await expect(card).toContainText('August 2026');
     await expect(card).toContainText('₹19,762.50');
     await expect(card).toContainText('test slip');
-    page.once('dialog', d => d.accept('Wrong month'));
     await card.locator('[data-action="invPayrollVoid"]').click();
+    await answerAsk(page, 'ok', 'Wrong month');
     const s = await readStoredState(page);
     expect(s.payrollPaid[0]).toMatchObject({ voidReason: 'Wrong month' });
     // Void, the month goes back to the model.

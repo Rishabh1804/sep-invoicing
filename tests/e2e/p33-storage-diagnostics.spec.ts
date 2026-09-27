@@ -1,5 +1,5 @@
 import { test, expect, Page } from '@playwright/test';
-import { emptyState, loadAppWithState, readStoredState, waitForBoot, todayIso, recentTs, STORAGE_KEY, openSettingsAt } from './fixtures';
+import { emptyState, loadAppWithState, readStoredState, waitForBoot, todayIso, recentTs, STORAGE_KEY, openSettingsAt, answerAsk } from './fixtures';
 
 /*
  * Storage health, on the IndexedDB store.
@@ -72,8 +72,6 @@ test.describe('a save that does not land is said so', () => {
   test('Settings → Import refuses to say "imported" when the copy only reached memory', async ({ page }) => {
     await loadAppWithState(page, emptyState());
     await breakStateWrites(page, 'throw');
-    page.on('dialog', d => d.accept());
-
     await openSettingsAt(page, 'data');
     const chooser = page.waitForEvent('filechooser');
     await page.locator('[data-action="invImportData"]').click();
@@ -83,6 +81,7 @@ test.describe('a save that does not land is said so', () => {
       name: 'backup.json', mimeType: 'application/json',
       buffer: Buffer.from(JSON.stringify(incoming)),
     });
+    await answerAsk(page, 'ok');
 
     // The data is in memory — the app renders it — but the toast says so.
     await expect(page.locator('.inv-toast-error')).toContainText('NOT saved');
@@ -102,13 +101,13 @@ test.describe('a save that does not land is said so', () => {
 
   test('a good import still says so', async ({ page }) => {
     await loadAppWithState(page, emptyState());
-    page.on('dialog', d => d.accept());
     await openSettingsAt(page, 'data');
     const chooser = page.waitForEvent('filechooser');
     await page.locator('[data-action="invImportData"]').click();
     const incoming = stateWithInvoice();
     incoming.company.name = 'IMPORTED CO';
     await (await chooser).setFiles({ name: 'b.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(incoming)) });
+    await answerAsk(page, 'ok');
     await expect(page.locator('.inv-toast-success')).toHaveText('Data imported');
     const fresh = await page.context().newPage();
     await fresh.goto('/');

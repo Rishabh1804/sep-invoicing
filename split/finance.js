@@ -370,8 +370,10 @@ function financeAction(action, btn) {
     case 'invFinGstCancel': _finGstEdit = null; renderFinance(); return true;
     case 'invFinGstSave': finGstNoteSave(btn.dataset.month); return true;
     case 'invFinGstRemove':
-      if (!confirm('Remove the note for ' + billsMonthLabel(btn.dataset.month) + '?')) return true;
-      delete bankData().gstNotes[btn.dataset.month]; _finGstEdit = null; saveState(); renderFinance(); return true;
+      var gm = btn.dataset.month;
+      uiConfirm({ title: 'Remove the note for ' + billsMonthLabel(gm) + '?', body: 'The month then reads from the bank alone.', okLabel: 'Remove note', danger: true })
+        .then(function(ok) { if (!ok) return; delete bankData().gstNotes[gm]; _finGstEdit = null; saveState(); renderFinance(); });
+      return true;
   }
   return false;
 }

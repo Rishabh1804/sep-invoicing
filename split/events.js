@@ -19,6 +19,8 @@ document.addEventListener('click', function(e) {
     case 'invOpenSettings': openSettings(); break;
     case 'invCloseOverlay': closeOverlay(); break;
     case 'invCloseConfirm': closeTopOverlay(); break;
+    case 'invUiAsk': uiAskAnswer(btn); break;
+    case 'invNoticeDismiss': uiNoticeDismiss(); break;
     case 'invEditClient': openClientEdit(parseInt(btn.dataset.id)); break;
     case 'invAddClient': openClientAdd(); break;
     case 'invSaveClient': saveClientEdit(parseInt(btn.dataset.client), btn.dataset.mode); break;
@@ -40,6 +42,19 @@ document.addEventListener('click', function(e) {
       if (zBox) zBox.innerHTML = zeroReasonHtml(zLine, zIdx);
       var zOn = zBox && zBox.querySelector('[data-reason="' + btn.dataset.reason + '"]');
       if (zOn) zOn.focus();
+      updateTotalsDisplay();
+      break;
+    }
+    case 'invOverReason':
+    case 'invUnitReason': {
+      var aIdx = parseInt(btn.dataset.idx), aLine = invoiceForm.items[aIdx];
+      if (!aLine) break;
+      createAckInit(aLine);
+      if (action === 'invOverReason') aLine.overReason = btn.dataset.reason; else aLine.unitReason = btn.dataset.reason;
+      refreshImShare();
+      var aBox = document.getElementById('invImShare' + aIdx);
+      var aOn = aBox && aBox.querySelector('[data-action="' + action + '"][data-reason="' + btn.dataset.reason + '"]');
+      if (aOn) aOn.focus();
       updateTotalsDisplay();
       break;
     }
@@ -172,6 +187,7 @@ document.addEventListener('click', function(e) {
     case 'invRunDupeScan': runIMDuplicateScan(); break;
     case 'invDupeSaveAnyway': acceptChallanDuplicates(); break;
     case 'invDupeLocate': imLocateChallan(btn.dataset.id); break;
+    case 'invChallanPeek': imChallanPeek(btn.dataset.id); break;
     // Phase 5: Invoice lifecycle states
     case 'invAdvanceState': advanceInvoiceState(btn.dataset.id); break;
     case 'invBulkMarkFiled': bulkMarkFiled(); break;
@@ -436,12 +452,18 @@ document.addEventListener('change', function(e) {
       if (client && client.billingMode === 'piece' && el.value === 'NOS') {
         item.rate = 0;
         item.amount = 0;
+        // A challan line's pieces put back: its share of the challan's own amount, not ₹0.
+        createPieceShare(item);
       }
       recalcLineItem(item, client);
       captureOptionalFields();
       renderCreateForm();
     }
   }
+  // The challan number, checked for this client the moment it is entered.
+  if (e.target.id === 'imChallanNo') { refreshChallanNoWarn(); return; }
+  // The invoice's challan number by hand: a PO made from it (a client setting) follows.
+  if (e.target.id === 'invChallanNo') { createRefreshDefaults(); return; }
   if (e.target.id === 'invDate') {
     invoiceForm.date = e.target.value;
     // The rate on record is dated, so a new invoice date can change every verdict.
@@ -571,6 +593,7 @@ document.addEventListener('input', function(e) {
   if (e.target.id === 'clientSearch') {
     renderClientList(e.target.value);
   }
+  if (e.target.id === 'ceditPoTpl') { clientPoExampleRefresh(e.target); return; }
   // Attendance hours. Written on every keystroke so nothing is lost, but never
   // re-rendered here: replacing the field mid-entry is what ended the keyboard
   // path in challan entry, and a number input is the same trap.
@@ -745,7 +768,7 @@ document.addEventListener('input', function(e) {
   const pcsEl = e.target.closest('[data-action="invUpdateLine"][data-field="nosQty"]');
   if (pcsEl) {
     const pItem = invoiceForm.items[parseInt(pcsEl.dataset.idx)];
-    if (pItem) { pItem.nosQty = parseInt(pcsEl.value, 10) || null; refreshInvoiceLineMatch(parseInt(pcsEl.dataset.idx)); }
+    if (pItem) { pItem.nosQty = parseInt(pcsEl.value, 10) || null; delete pItem._nosAuto; refreshInvoiceLineMatch(parseInt(pcsEl.dataset.idx)); }
     return;
   }
   // Numeric line item fields — update model + totals only, no full re-render
@@ -758,6 +781,12 @@ document.addEventListener('input', function(e) {
     item[el.dataset.field] = parseFloat(el.value) || 0;
 
     if (client && client.billingMode === 'piece' && item.unit === 'NOS') {
+      // A line taking PART of a challan: its amount is that share of the challan's
+      // own amount, so dispatching 200 of 600 is typing 200 (createPieceShare).
+      if (el.dataset.field === 'qty' && createPieceShare(item)) {
+        const amtInput = document.querySelector('[data-field="amount"][data-idx="' + idx + '"]');
+        if (amtInput) amtInput.value = formatNum(item.amount);
+      }
       // Piece mode NOS: amount is user-entered, rate is back-calculated
       if (el.dataset.field === 'amount' || el.dataset.field === 'qty') {
         if (item.qty > 0 && item.amount > 0) {
@@ -767,6 +796,11 @@ document.addEventListener('input', function(e) {
         }
       }
     } else {
+      // A KG line from a challan whose pieces nobody typed: they follow the kilograms.
+      if (el.dataset.field === 'qty' && createKgPieces(item)) {
+        const pcsInput = document.querySelector('[data-field="nosQty"][data-idx="' + idx + '"]');
+        if (pcsInput) pcsInput.value = item.nosQty || '';
+      }
       // All other modes: amount = qty * rate
       if (el.dataset.field !== 'amount') {
         recalcLineItem(item, client);
@@ -778,10 +812,15 @@ document.addEventListener('input', function(e) {
     updateTotalsDisplay();
     refreshZeroReason(idx);
     refreshInvoiceLineMatch(idx);
+    if (el.dataset.field === 'qty') refreshImShare();
   }
   if (e.target.dataset.action === 'invZeroNote') {
     var zItem = invoiceForm.items[parseInt(e.target.dataset.idx)];
     if (zItem) zItem.zeroNote = e.target.value;
+  }
+  if (e.target.dataset.action === 'invOverNote' || e.target.dataset.action === 'invUnitNote') {
+    var anItem = invoiceForm.items[parseInt(e.target.dataset.idx)];
+    if (anItem) { createAckInit(anItem); anItem[e.target.dataset.action === 'invOverNote' ? 'overNote' : 'unitNote'] = e.target.value; }
   }
   if (e.target.dataset.action === 'invFlagNote' && _challanForm) {
     var fnItem = _challanForm.items[parseInt(e.target.dataset.idx)];

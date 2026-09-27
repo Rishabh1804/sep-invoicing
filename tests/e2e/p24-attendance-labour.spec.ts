@@ -34,6 +34,20 @@ function staffState(extra: Record<string, unknown> = {}) {
 
 // Staff opens on its Overview (spec 7a); these tests are about the Day view, so they open it.
 const openStaff = async (page: Page) => { await switchTab(page, 'pageStaff'); await page.locator('[data-action="invAttView"][data-view="day"]').click(); };
+/** Today, unless today is a Sunday: then the Saturday before. A Sunday worked is paid as a day, never as OT, so a spec
+ *  about overtime that marks "today" only held six days a week. */
+function workdayIso(): string {
+  const d = new Date(todayIso() + 'T00:00:00');
+  if (d.getDay() === 0) d.setDate(d.getDate() - 1);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+/** The Day view on a given date, through the date field the operator uses. */
+const openStaffOn = async (page: Page, iso: string) => {
+  await openStaff(page);
+  if (iso === todayIso()) return;
+  await page.locator('#attDate').fill(iso);
+  await page.locator('#attDate').dispatchEvent('change');
+};
 
 test('an empty roster says so and offers the way in', async ({ page }) => {
   await loadAppWithState(page, { ...emptyState(), incomingMaterial: noSeedIM(), staff: [], attendance: {} });
@@ -131,11 +145,11 @@ test('the week grid cycles a monthly worker through the half day', async ({ page
 });
 
 test('monthly overtime derives from the day rate, at rate ÷ 8 × the multiplier, capped at ₹68.20 an hour', async ({ page }) => {
-  const day = todayIso();
+  const day = workdayIso();
   await loadAppWithState(page, staffState({
     attendance: { [day]: { marks: { [LEAD.id]: { st: 'P', ot: 4, hours: 0, area: 'vat-a1' } }, extra: [], note: '' } },
   }));
-  await openStaff(page);
+  await openStaffOn(page, day);
   // 500/8 x 1.1 = Rs68.75 an hour, above the owner's cap (25 Sep 2026: "Capped
   // at 68.2"), so 4 h pay 4 x 68.20 = Rs272.80.
   await expect(page.locator('[data-card="labour"]')).toContainText('272.80');
@@ -261,7 +275,7 @@ test('off-floor wages are split out of plating cost', async ({ page }) => {
 });
 
 test('variable labour is broken down by the area it was worked in', async ({ page }) => {
-  const day = todayIso();
+  const day = workdayIso();
   await loadAppWithState(page, staffState({
     attendance: {
       [day]: {
@@ -274,7 +288,7 @@ test('variable labour is broken down by the area it was worked in', async ({ pag
       },
     },
   }));
-  await openStaff(page);
+  await openStaffOn(page, day);
 
   const ranked = page.locator('[data-card="labour"] .inv-chart-ranked');
   await expect(ranked).toBeVisible();

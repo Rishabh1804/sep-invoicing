@@ -329,6 +329,7 @@ document.addEventListener('click', function(e) {
     case 'invClientsClosePane': closeClientsPane(); break;
     // Phase 6b: Register bulk operations
     case 'invRegToggleSort': toggleRegSortDir(); break;
+    case 'invRegSortBy': toggleRegSortBy(); break;
     case 'invRegToggleSelect': toggleRegSelectMode(); break;
     case 'invRegToggleInv': e.stopPropagation(); toggleRegInv(btn.dataset.id); break;
     case 'invRegBulkState': regBulkSetState(btn.dataset.state); break;

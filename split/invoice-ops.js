@@ -744,7 +744,7 @@ function invoiceDetailHtml(inv) {
       '<span class="inv-row-meta"><span class="inv-num">' + escHtml(item.qty) + '</span> ' + escHtml(item.unit) +
       (item.nosQtyRaw && item.nosQtyRaw > 0 ? ' (' + escHtml(item.nosQtyRaw) + ' NOS)' : '') + ' × <span class="inv-num">' + escHtml(item.rate) + '</span></span>' +
       zeroReasonTag(raw) + challanAckTag(raw) + detailRateMatch(inv, raw) + '</span>' +
-      '<span class="inv-row-end inv-num">' + escHtml(item.amount) + '</span></div>';
+      '<span class="inv-row-end inv-num">' + formatCurrency(Number(raw && raw.amount != null ? raw.amount : item.amount) || 0) + '</span></div>';
   });
   h += '</div>';
 

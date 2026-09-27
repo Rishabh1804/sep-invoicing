@@ -652,7 +652,7 @@ function _attWeekView() {
     var cls = compClass(w.comp);
     var hourly = compIsHourly(w);
     html += '<tr><th scope="row" title="' + escHtml(w.name + ' · ' + cls.label) + '">' + escHtml(w.name) +
-      '<span class="inv-unit">' + cls.short + '</span></th>';
+      ' <span class="inv-unit">' + cls.short + '</span></th>';
     days.forEach(function(d) {
       var m = attMark(d, w.id);
       var st = m ? m.st : '';

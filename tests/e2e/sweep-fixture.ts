@@ -117,6 +117,19 @@ export function sweepState(): SepState {
   return s;
 }
 
+/* The same book with a client name longer than any real one and one invoice of ₹12,34,56,789.00: the figures and
+   names that break a layout at 393px (the polish pass, 27 Sep 2026). */
+export function bigSweepState(): SepState {
+  const s = sweepState() as any;
+  const long = 'ALPHA FORGINGS AND HEAVY ENGINEERING COMPONENTS PRIVATE LIMITED (UNIT II, GAMHARIA)';
+  s.clients[0].name = long;
+  for (const x of [...s.invoices, ...s.incomingMaterial, ...s.creditNotes]) if (x.clientId === 1) x.clientName = long;
+  const big = s.invoices.find((x: any) => x.id === 'INV-16');
+  Object.assign(big.items[0], { qty: 9496676.07, amount: 104623430.51 });
+  Object.assign(big, { taxableValue: 104623430.51, cgstAmt: 9416108.75, sgstAmt: 9416108.75, grandTotal: 123456789.0 });
+  return s;
+}
+
 /* A v1.0 class is any the design system retired (§6's "Replaces" lists, and what step 4 removed). */
 const V1_PREFIX = ['inv-stk-', 'inv-td-', 'inv-kpi', 'inv-att-', 'inv-stats-', 'inv-overlay-', 'inv-form-', 'inv-card', 'inv-numaudit-',
   'inv-area-', 'inv-lab-', 'inv-pay-', 'inv-rl-', 'inv-client-', 'inv-im-', 'inv-reg-', 'inv-set-', 'inv-cp-', 'inv-confirm-', 'inv-detail-',
@@ -131,7 +144,8 @@ const V1_EXACT = ['inv-tab', 'inv-td', 'inv-th', 'inv-tr', 'inv-detail', 'inv-pr
 const HOOKS = ['inv-booted', 'inv-desktop', 'inv-tablet', 'inv-lines', 'inv-navbar-more', 'inv-flip-front', 'inv-row-note', 'inv-build-id',
   'inv-disk-summary', 'inv-save-status'];
 
-export type Stop = { where: string; v1: string[]; unstyled: string[]; selectAction: number; dupIds: string[]; blank: boolean; footNotLast: number; primaries: string[]; overflowX: number };
+export type Stop = { where: string; v1: string[]; unstyled: string[]; selectAction: number; dupIds: string[]; blank: boolean; footNotLast: number; primaries: string[]; overflowX: number;
+  offscreen: string[]; smallTargets: string[]; cutFigures: string[] };
 
 /* Everything checked at one stop, read from the rendered DOM (the page and whatever dialog is open). */
 export async function sweep(page: Page, where: string): Promise<Stop> {
@@ -167,6 +181,36 @@ export async function sweep(page: Page, where: string): Promise<Stop> {
       // Nothing pushes the page wider than the screen (a long name, a row of controls).
       overflowX: Math.max(0, document.documentElement.scrollWidth - document.documentElement.clientWidth),
       footNotLast: Array.from(document.querySelectorAll('.inv-dialog-foot')).filter(f => f.parentElement && f.parentElement.lastElementChild !== f).length,
+      // The polish pass (27 Sep 2026). Nothing on the view runs past the screen's right edge unless it sits in a scroller
+      // (a wide table, the view tabs): a figure or a name cut off by the glass, not by an ellipsis, says nothing.
+      offscreen: (() => {
+        const dlg = document.querySelectorAll('.inv-scrim');
+        const root = dlg.length ? dlg[dlg.length - 1] : active;
+        if (!root) return [];
+        const vw = document.documentElement.clientWidth;
+        const inScroller = (el: Element) => { for (let p = el.parentElement; p && p !== document.body; p = p.parentElement) if (getComputedStyle(p).overflowX !== 'visible') return true; return false; };
+        return Array.from(root.querySelectorAll('*')).filter(el => {
+          const h = el as HTMLElement;
+          if (!h.checkVisibility()) return false;
+          const b = h.getBoundingClientRect();
+          return b.width > 0 && (b.right > vw + 1 || b.left < -1) && !inScroller(h);
+        }).map(el => el.tagName.toLowerCase() + '.' + (el as HTMLElement).className + ' ' + ((el as HTMLElement).innerText || '').trim().slice(0, 40));
+      })(),
+      // A headline figure is never cut by its box: a tile's value or the action bar's total wraps or takes the row.
+      cutFigures: Array.from(document.querySelectorAll('.inv-tile-value, .inv-actionbar-value')).filter(el => {
+        const h = el as HTMLElement;
+        return h.checkVisibility() && h.clientWidth > 0 && h.scrollWidth > h.clientWidth + 1;
+      }).map(el => (el as HTMLElement).innerText.trim()),
+      // On the phone every control in the bars, tabs, toolbars, segmented controls, panel heads and dialog feet, and every
+      // row's tick box, is a 44px touch target (§3.5).
+      smallTargets: document.body.classList.contains('inv-desktop') ? [] : Array.from(document.querySelectorAll(
+        ':is(.inv-navbar, .inv-topbar, .inv-viewtabs, .inv-toolbar, .inv-seg, .inv-panel-head, .inv-dialog-foot, .inv-pagehead) :is(button, a[href], select, input:not([type=checkbox]):not([type=radio]):not(.inv-search input)), ' +
+        '.inv-row-tick, summary.inv-panel-head')).filter(el => {
+        const h = el as HTMLElement;
+        if (!h.checkVisibility()) return false;
+        const b = h.getBoundingClientRect();
+        return b.width > 0 && b.height < 43.5;
+      }).map(el => el.tagName.toLowerCase() + '.' + (el as HTMLElement).className + ' "' + ((el as HTMLElement).innerText || el.getAttribute('aria-label') || '').trim().slice(0, 30) + '" ' + Math.round(el.getBoundingClientRect().height) + 'px'),
     };
   }, [V1_PREFIX, V1_EXACT, HOOKS] as const);
   return { where, ...r };
@@ -243,6 +287,8 @@ export async function walkDialogs(page: Page, tag: string, stops: Stop[]) {
 }
 
 export function problems(stops: Stop[]) {
-  return stops.filter(s => s.v1.length || s.unstyled.length || s.selectAction || s.dupIds.length || s.blank || s.footNotLast || s.primaries.length > 1 || s.overflowX > 0)
-    .map(s => `${s.where}: ${JSON.stringify({ v1: s.v1, unstyled: s.unstyled, selectAction: s.selectAction, dupIds: s.dupIds, blank: s.blank, footNotLast: s.footNotLast, primaries: s.primaries.length > 1 ? s.primaries : [], overflowX: s.overflowX })}`);
+  return stops.filter(s => s.v1.length || s.unstyled.length || s.selectAction || s.dupIds.length || s.blank || s.footNotLast || s.primaries.length > 1 || s.overflowX > 0 ||
+      s.offscreen.length || s.smallTargets.length || s.cutFigures.length)
+    .map(s => `${s.where}: ${JSON.stringify({ v1: s.v1, unstyled: s.unstyled, selectAction: s.selectAction, dupIds: s.dupIds, blank: s.blank, footNotLast: s.footNotLast, primaries: s.primaries.length > 1 ? s.primaries : [], overflowX: s.overflowX,
+      offscreen: s.offscreen, smallTargets: s.smallTargets, cutFigures: s.cutFigures })}`);
 }

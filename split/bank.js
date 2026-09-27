@@ -615,7 +615,7 @@ function _bankReceiptsHtml(cls) {
       var inst = bankInstrument(v.row), o = bankPlacementOffers(v.row, recv, series);
       // The cheque number is what the owner matches against the book, so it leads; a remitter's name leads where there is one.
       var chqDep = bankIsChequeDeposit(v.row) && inst;
-      h += '<div class="inv-row inv-row-2" data-loose="' + escHtml(v.row.id) + '"><span class="inv-row-main"><span class="inv-row-title">' +
+      h += '<div class="inv-row inv-row-2 inv-row-flow" data-loose="' + escHtml(v.row.id) + '"><span class="inv-row-main"><span class="inv-row-title">' +
         (chqDep ? '<span class="inv-id">' + escHtml(inst) + '</span>' : escHtml(v.party || v.row.narration)) + '</span>' +
         '<span class="inv-row-meta">' + (chqDep ? 'Cheque · ' : '') + escHtml(formatDate(v.row.date)) + (inst && !chqDep ? ' · chq ' + escHtml(inst) : '') + '</span></span>' +
         '<span class="inv-row-end"><span class="inv-num">' + formatCurrency(v.row.cr) + '</span>' + _bankClientSelect(v) + '</span></div>';
@@ -715,7 +715,7 @@ function _bankPaymentsHtml(cls) {
   var h = '';
   // Electricity: each payment is a month's bill.
   var power = bankPowerRows(cls).slice().reverse();
-  h += '<div class="inv-panel inv-panel-flush" id="bankPower"><div class="inv-panel-head"><span class="inv-panel-title">Electricity paid</span><span class="inv-panel-count">' + power.length + '</span>' +
+  h += '<div class="inv-panel inv-panel-flush" id="bankPower"><div class="inv-panel-head"><span class="inv-panel-title">Electricity paid <span class="inv-panel-count">' + power.length + '</span></span>' +
     '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invGoBills">Open Bills &amp; notes</button></div>';
   if (!power.length) h += '<div class="inv-empty">No payment to JBVNL on the statement.</div>';
   power.forEach(function(v) {
@@ -741,7 +741,7 @@ function _bankPaymentsHtml(cls) {
   var billed = {};
   (stockData().entries || []).forEach(function(e) { if (!e.voided && e.supplier && e.amount) billed[bankKey(e.supplier)] = gstRound((billed[bankKey(e.supplier)] || 0) + Number(e.amount)); });
   var sk = Object.keys(sup).sort(function(a, b) { return sup[b].paid - sup[a].paid; });
-  h += '<div class="inv-panel inv-panel-flush" id="bankSuppliers"><div class="inv-panel-head"><span class="inv-panel-title">Suppliers paid</span><span class="inv-panel-count">' + sk.length + '</span>' +
+  h += '<div class="inv-panel inv-panel-flush" id="bankSuppliers"><div class="inv-panel-head"><span class="inv-panel-title">Suppliers paid <span class="inv-panel-count">' + sk.length + '</span></span>' +
     '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invGoStock">Open Stock</button></div>';
   if (!sk.length) h += '<div class="inv-empty">No payment matched to a stock supplier. Set a payee to Supplier on the statement and it is remembered.</div>';
   sk.forEach(function(k) {

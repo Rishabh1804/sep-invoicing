@@ -531,7 +531,7 @@ function attDaySummary() {
 }
 function attDayPanelHtml(d, headBtn, id) {
   var h = '<div class="inv-panel inv-panel-flush"' + (id ? ' id="' + id + '"' : '') + '><div class="inv-panel-head"><span class="inv-panel-title">Attendance ' +
-    '<span class="inv-panel-count">' + (d.today ? 'today' : escHtml(attDayName(d.iso) + ' ' + formatDate(d.iso))) + '</span></span>' + (headBtn || '') + '</div>';
+    '<span class="inv-note">' + (d.today ? 'today' : escHtml(attDayName(d.iso) + ' ' + formatDate(d.iso))) + '</span></span>' + (headBtn || '') + '</div>';
   if (!d.marked) return h + '<div class="inv-empty">Nothing recorded yet.</div></div>';
   h += '<div class="inv-tiles inv-tiles-flush">' +
     '<div class="inv-tile"><div class="inv-tile-label">On site</div>' +

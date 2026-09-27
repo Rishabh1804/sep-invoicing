@@ -249,7 +249,7 @@ function _numAuditRowHtml(entry) {
       ' &middot; ' + formatCurrency(entry.inv.taxableValue || 0);
   }
 
-  return '<div class="inv-row inv-row-2" data-num-kind="' + entry.kind + '">' +
+  return '<div class="inv-row inv-row-2' + (entry.kind === 'unaccounted' ? ' inv-row-flow' : '') + '" data-num-kind="' + entry.kind + '">' +
     '<span class="inv-row-main"><span class="inv-row-title inv-id">' + escHtml(entry.display) + '</span>' +
     '<span class="inv-row-meta">' + detail + '</span></span>' +
     '<span class="inv-row-end"><span class="inv-dot inv-dot-' + NUM_AUDIT_TONE[entry.kind] + '">' + NUM_AUDIT_LABELS[entry.kind] + '</span>' +

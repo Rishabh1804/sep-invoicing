@@ -187,6 +187,7 @@ document.addEventListener('click', function(e) {
     case 'invRunDupeScan': runIMDuplicateScan(); break;
     case 'invDupeSaveAnyway': acceptChallanDuplicates(); break;
     case 'invDupeLocate': imLocateChallan(btn.dataset.id); break;
+    case 'invChallanPeek': imChallanPeek(btn.dataset.id); break;
     // Phase 5: Invoice lifecycle states
     case 'invAdvanceState': advanceInvoiceState(btn.dataset.id); break;
     case 'invBulkMarkFiled': bulkMarkFiled(); break;
@@ -457,6 +458,10 @@ document.addEventListener('change', function(e) {
       renderCreateForm();
     }
   }
+  // The challan number, checked for this client the moment it is entered.
+  if (e.target.id === 'imChallanNo') { refreshChallanNoWarn(); return; }
+  // The invoice's challan number by hand: a PO made from it (a client setting) follows.
+  if (e.target.id === 'invChallanNo') { createRefreshDefaults(); return; }
   if (e.target.id === 'invDate') {
     invoiceForm.date = e.target.value;
     // The rate on record is dated, so a new invoice date can change every verdict.
@@ -586,6 +591,7 @@ document.addEventListener('input', function(e) {
   if (e.target.id === 'clientSearch') {
     renderClientList(e.target.value);
   }
+  if (e.target.id === 'ceditPoTpl') { clientPoExampleRefresh(e.target); return; }
   // Attendance hours. Written on every keystroke so nothing is lost, but never
   // re-rendered here: replacing the field mid-entry is what ended the keyboard
   // path in challan entry, and a number input is the same trap.

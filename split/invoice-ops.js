@@ -990,6 +990,8 @@ function confirmDeleteInvoice(invId, reissue) {
   closeOverlay();
   if (reissueForm) {
     invoiceForm = reissueForm;
+    // The old invoice's PO and vehicle travel with it; the client's own fill only a field it left empty.
+    createApplyClientDefaults();
     _navReturnTab = 'pageRegister';
     renderCreateForm();
     switchTab('pageCreate');

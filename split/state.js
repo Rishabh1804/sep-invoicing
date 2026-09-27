@@ -1168,6 +1168,30 @@ function lineFillFromCount(client, item) {
     item.amount = gstRound(item.qty * (item.rate || 0));
   }
 }
+/* ===== WHAT A CLIENT'S INVOICES ALWAYS CARRY (owner, 27 Sep 2026) =====
+   "Dorabji Auto generally is despatched through only one way of transport … it's the same for every
+   invoice, so let's make it so that the field is already filled out along with PO number, which is
+   usually the same as their challan number with the suffix DA1/xxxxx." A client SETTING, never a
+   hard-code: `defaultTransport` (the vehicle) and `poFromChallan`, a pattern where `{challan}` is the
+   challan number and `{challan:5}` the same padded to five digits — DA1/{challan:5} makes challan
+   1244 read DA1/01244. The invoice form applies both (create.js, createApplyClientDefaults). */
+var PO_TPL_RE = /\{challan(?::(\d{1,2}))?\}/g;
+function clientPoTemplateOk(tpl) { return !tpl || /\{challan(?::\d{1,2})?\}/.test(String(tpl)); }
+/* The challan number a PO is made from: the first challan an invoice cites, its first run of digits
+   ("0041/26-27" is 41), leading zeros off so the pattern pads it the one way. */
+function poChallanDigits(challanNo) {
+  var first = String(challanNo || '').split(/[,;]/)[0];
+  var m = first.match(/\d+/);
+  if (!m) return '';
+  return m[0].replace(/^0+(?=\d)/, '');
+}
+function clientPoFromChallan(client, challanNo) {
+  var tpl = client && String(client.poFromChallan || '').trim();
+  var n = poChallanDigits(challanNo);
+  if (!tpl || !n || !clientPoTemplateOk(tpl)) return '';
+  return tpl.replace(PO_TPL_RE, function(_, w) { return w ? n.padStart(parseInt(w, 10), '0') : n; });
+}
+
 /* A challan-linked invoice line the challan cannot vouch for (create.js): billing more than is left
    on it, or billing it in another unit. The red flag's contract — a tap, a note recommended. */
 var OVER_BILL_REASONS = [

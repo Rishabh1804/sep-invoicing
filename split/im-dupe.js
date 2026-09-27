@@ -46,6 +46,49 @@ function imHasQuantity(items) {
   });
 }
 
+/* A challan number as the dupe check compares it: case, spaces and leading zeros do not make a
+   different number ("0301" is 301, "dc 45" is DC45). Blank stays blank. */
+function imChallanNoKey(no) {
+  return String(no == null ? '' : no).trim().toLowerCase().replace(/\s+/g, '').replace(/(^|[^0-9])0+(?=[0-9])/g, '$1');
+}
+
+/* The client's challans already recorded under this number (the one being edited left out). */
+function imNumberMatches(clientId, challanNo, excludeId) {
+  var key = imChallanNoKey(challanNo);
+  if (!clientId || !key) return [];
+  return (S.incomingMaterial || []).filter(function(im) {
+    return im.id !== excludeId && im.clientId === clientId && imChallanNoKey(im.challanNo) === key;
+  }).sort(function(a, b) { return String(b.challanDate || '').localeCompare(String(a.challanDate || '')); });
+}
+
+/* "Challan 301 is already recorded for SAMARTH ENGG on 21 Sep 2026 (3 lines, not invoiced)" */
+function imNumberMatchText(im) {
+  var st = getIMStatus(im);
+  var word = st === 'invoiced' ? 'invoiced' : st === 'partial' ? 'part invoiced' : 'not invoiced';
+  return 'Challan ' + (im.challanNo || '') + ' is already recorded for ' + (im.clientName || 'this client') + ' on ' + formatDate(im.challanDate) +
+    ' (' + im.items.length + ' line' + (im.items.length === 1 ? '' : 's') + ', ' + word + ')';
+}
+
+/* A challan read, not edited: opened from the challan form's warning, so the form stays as it is. */
+function imChallanPeek(imId) {
+  var im = (S.incomingMaterial || []).find(function(m) { return m.id === imId; });
+  if (!im) { showToast('Challan not found', 'warning'); return; }
+  var rows = im.items.map(function(it) {
+    return '<div class="inv-row inv-row-auto"><span class="inv-row-main"><span class="inv-row-title inv-row-wrap">' + escHtml(lineLabel(it)) + '</span>' +
+      '<span class="inv-row-meta">' + escHtml(imQtyText(it.qty)) + ' ' + escHtml(it.unit || '') + (it.nosQty > 0 ? ' (' + escHtml(it.nosQty) + ' NOS)' : '') + '</span></span>' +
+      '<span class="inv-row-end inv-num">' + formatCurrency(it.amount) + '</span></div>';
+  }).join('');
+  dialogOpen('<div class="inv-dialog" data-challan-peek="' + escHtml(im.id) + '">' + dialogHeadHtml('Challan <span class="inv-id">' + escHtml(im.challanNo || '(no number)') + '</span>', 'invCloseConfirm') +
+    '<div class="inv-kv inv-mb-8">' +
+    '<div><div class="inv-kv-k">Date</div><div class="inv-id">' + escHtml(formatDate(im.challanDate)) + '</div></div>' +
+    '<div class="inv-kv-wide"><div class="inv-kv-k">Client</div><div>' + escHtml(im.clientName || '') + '</div></div>' +
+    (im.vehicleNo ? '<div><div class="inv-kv-k">Vehicle</div><div class="inv-id">' + escHtml(im.vehicleNo) + '</div></div>' : '') +
+    '<div><div class="inv-kv-k">Status</div><div>' + imStatusDotHtml(im) + '</div></div></div>' +
+    '<div class="inv-panel inv-panel-flush"><div class="inv-row-group"><span>Lines · ' + im.items.length + '</span></div>' + rows +
+    '<div class="inv-row inv-row-strong"><span class="inv-row-main">Total</span><span class="inv-row-end inv-num">' + formatCurrency(imChallanTotal(im)) + '</span></div></div>' +
+    '<div class="inv-dialog-foot"><button class="inv-btn inv-btn-secondary" data-action="invCloseConfirm">Back to the form</button></div></div>', { dismiss: true });
+}
+
 /*
  * Matches for one candidate challan against everything already stored.
  *   content — same client, same date, same quantity multiset
@@ -62,7 +105,7 @@ function findChallanDuplicates(candidate, excludeId) {
 
   var fp = imFingerprint(candidate.clientId, candidate.challanDate, candidate.items);
   var scorable = imHasQuantity(candidate.items);
-  var cnKey = challanNo.toLowerCase();
+  var cnKey = imChallanNoKey(challanNo);
 
   (S.incomingMaterial || []).forEach(function(im) {
     if (im.id === excludeId) return;
@@ -71,7 +114,7 @@ function findChallanDuplicates(candidate, excludeId) {
       out.content.push(im);
       return;
     }
-    if (cnKey && (im.challanNo || '').trim().toLowerCase() === cnKey) {
+    if (cnKey && imChallanNoKey(im.challanNo) === cnKey) {
       out.number.push(im);
     }
   });
@@ -180,12 +223,19 @@ function _dupeMatchRowHtml(im, showLocate) {
  * and the scanner, which fills the same _challanForm and calls the same save.
  */
 function showChallanDuplicateWarning(matches) {
+  var seen = matches.seen || [];
   if (_challanForm) {
-    _challanForm._dupeMatchedIds = matches.content.concat(matches.number).map(function(im) { return im.id; });
+    _challanForm._dupeMatchedIds = matches.content.concat(matches.number, seen).map(function(im) { return im.id; })
+      .filter(function(v, i, a) { return a.indexOf(v) === i; });
   }
 
   var html = '<div class="inv-dialog">' +
     dialogHeadHtml('Possible duplicate challan', 'invCloseConfirm');
+
+  if (seen.length > 0) {
+    html += '<div class="inv-note inv-mb-8" data-dupe-seen>Already shown as the number was typed: ' +
+      escHtml(seen.map(function(im) { return imChallanLabel(im) + ' (' + formatDate(im.challanDate) + ')'; }).join(', ')) + '. Not asked again.</div>';
+  }
 
   if (matches.content.length > 0) {
     html += '<div class="inv-callout inv-callout-warning inv-mb-8">This client already has ' +

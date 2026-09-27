@@ -600,6 +600,10 @@ function createInvoiceFromIM() {
     _linkedIMIds: [...linkedIMIds]
   };
 
+  // The vehicle came from the challans, so it is still the app's: the client's own may replace it.
+  invoiceForm._auto = { ve: invoiceForm.transport };
+  createApplyClientDefaults();
+
   // Clear selection
   _imSelected = {};
 

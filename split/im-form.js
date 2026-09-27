@@ -73,7 +73,8 @@ function renderAddChallanForm() {
   html += '<div class="inv-panel-body"><div class="inv-fields">' +
     (client ? '' : clientSearchHtml('imChallanClientSearch', 'imChallanClientResults', 'client-search')) +
     '<div class="inv-field"><label class="inv-field-label" for="imChallanNo">Challan no.</label>' +
-    '<input class="inv-input inv-id" id="imChallanNo" data-k="challanNo" value="' + escHtml(_challanForm.challanNo) + '"></div>' +
+    '<input class="inv-input inv-id" id="imChallanNo" data-k="challanNo" value="' + escHtml(_challanForm.challanNo) + '" aria-describedby="imChallanNoWarn">' +
+    '<div id="imChallanNoWarn" aria-live="polite">' + challanNoWarnHtml() + '</div></div>' +
     '<div class="inv-field"><label class="inv-field-label" for="imChallanDate">Challan date</label>' +
     '<input type="date" class="inv-input inv-id" id="imChallanDate" data-k="challanDate" value="' + escHtml(_challanForm.challanDate) + '"></div>' +
     '<div class="inv-field"><label class="inv-field-label" for="imVehicleNo">Vehicle no.</label>' +
@@ -145,6 +146,37 @@ function renderAddChallanForm() {
   }
 }
 
+/* ===== THE CHALLAN NUMBER, CHECKED AS IT IS TYPED =====
+   Owner, 27 Sep 2026: "instead of checking for duplicate challan at the end of entering the entire
+   challan details, check for duplicate challan number when the challan number is typed for a
+   particular client." So the moment the number is entered (on change, and when the client is chosen
+   after it) the client's challans are searched for it, and a match is said under the field with a
+   way to open it. Warn, never block: split challans against one consignment are real.
+   The content fingerprint at save (im-dupe.js) stays as the second net — it catches the blank number
+   and the aliased part — but a match already shown here is not asked about twice
+   (`_numWarnSeen`); the operator saving past it is still stamped on the entry as `dupeAck`. */
+var CHALLAN_WARN_READ_MS = 1200;
+function challanNoWarnHtml() {
+  if (!_challanForm || !_challanForm.clientId) return '';
+  var hits = imNumberMatches(_challanForm.clientId, _challanForm.challanNo, _challanForm._editingId || null);
+  var seen = _challanForm._numWarnSeen || (_challanForm._numWarnSeen = {});
+  var now = Date.now();
+  hits.forEach(function(im) { if (!seen[im.id]) seen[im.id] = now; });
+  if (!hits.length) return '';
+  return '<div class="inv-callout inv-callout-warning" data-challan-no-warn>' +
+    hits.map(function(im) {
+      return '<div>' + escHtml(imNumberMatchText(im)) + '. <button type="button" class="inv-btn-link" data-action="invChallanPeek" data-id="' + escHtml(im.id) + '">Open it</button></div>';
+    }).join('') +
+    '<div class="inv-note">Save it anyway if this is a separate receipt (a split consignment); the check is recorded against the entry.</div></div>';
+}
+function refreshChallanNoWarn() {
+  var box = document.getElementById('imChallanNoWarn');
+  if (!box || !_challanForm) return;
+  var cn = document.getElementById('imChallanNo');
+  if (cn) _challanForm.challanNo = cn.value.trim();
+  box.innerHTML = challanNoWarnHtml();
+}
+
 function renderChallanClientResults(query) {
   var res = document.getElementById('imChallanClientResults');
   var input = document.getElementById('imChallanClientSearch');
@@ -180,7 +212,8 @@ function selectChallanClient(clientId) {
   if (!_challanForm) return;
   captureChallanFields();
   _challanForm.clientId = clientId;
-  // Picking the client is the first step; Challan No is the next thing typed.
+  // Picking the client is the first step; Challan No is the next thing typed. A number typed before
+  // the client is checked by the render (challanNoWarnHtml), so the warning is there as focus arrives.
   _challanFocusNext = { k: 'challanNo', sel: null };
   var client = S.clients.find(function(c) { return c.id === clientId; });
   // Auto-fill rate on existing items
@@ -286,17 +319,27 @@ function saveChallan() {
   }
 
   // Duplicate guard: warn once, then let the operator decide. Covers both entry
-  // paths — the scanner fills this same form and comes through here.
+  // paths — the scanner fills this same form and comes through here. A challan
+  // the number check already showed under the field is not asked about again;
+  // a content match on a DIFFERENT challan, or a blank number, still is.
+  // Seen means on screen for a moment: typing the number and tapping Save at once draws the warning
+  // in the same instant as the tap (the field's change fires on the blur), and nobody read that.
+  var seenAt = _challanForm._numWarnSeen || {}, tNow = Date.now();
+  var dupes = findChallanDuplicates(_challanForm, _challanForm._editingId || null);
+  var wasSeen = function(im) { return !!seenAt[im.id] && tNow - seenAt[im.id] >= CHALLAN_WARN_READ_MS; };
+  var seen = dupes.content.concat(dupes.number).filter(wasSeen).filter(function(v, i, a) { return a.indexOf(v) === i; });
   if (!_challanForm._dupeAcked) {
-    var dupes = findChallanDuplicates(_challanForm, _challanForm._editingId || null);
-    if (dupes.any) { showChallanDuplicateWarning(dupes); return; }
+    var ask = { content: dupes.content.filter(function(im) { return !wasSeen(im); }), number: dupes.number.filter(function(im) { return !wasSeen(im); }),
+      blankNo: dupes.blankNo, seen: seen };
+    if (ask.content.length || ask.number.length || ask.blankNo) { showChallanDuplicateWarning(ask); return; }
   }
 
   var now = Date.now();
-  // Stamped so a later audit can tell an accepted duplicate from an unseen one.
+  // Stamped so a later audit can tell an accepted duplicate from an unseen one — saving past the
+  // number warning under the field is an acceptance too, of the challans it named.
   var dupeAck = _challanForm._dupeAcked
     ? { at: now, matchedIds: _challanForm._dupeMatchedIds || [] }
-    : null;
+    : seen.length ? { at: now, matchedIds: seen.map(function(im) { return im.id; }), shownAsTyped: true } : null;
 
   if (_challanForm._editingId) {
     // Phase 5: Edit mode — update existing entry

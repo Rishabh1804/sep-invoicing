@@ -13,6 +13,7 @@ function initCreateForm() {
     var pc = S.clients.find(function(c) { return c.id === parseInt(_preselectedClientId); });
     if (pc) invoiceForm.clientId = pc.id;
     _preselectedClientId = null;
+    createApplyClientDefaults();
   }
   renderCreateForm();
 }
@@ -136,10 +137,12 @@ function renderCreateForm() {
     '<div class="inv-panel-body"><div class="inv-fields">' +
     '<div class="inv-field"><label class="inv-field-label" for="invChallanNo">Challan no.</label><input class="inv-input inv-id" id="invChallanNo" value="' + escHtml(invoiceForm.challanNo) + '"></div>' +
     '<div class="inv-field"><label class="inv-field-label" for="invChallanDate">Challan date</label><input type="date" class="inv-input inv-id" id="invChallanDate" value="' + escHtml(invoiceForm.challanDate) + '"></div>' +
-    '<div class="inv-field"><label class="inv-field-label" for="invPONumber">P.O. no.</label><input class="inv-input inv-id" id="invPONumber" value="' + escHtml(invoiceForm.poNumber) + '">' + predHintHtml('po') + '</div>' +
+    '<div class="inv-field"><label class="inv-field-label" for="invPONumber">P.O. no.</label><input class="inv-input inv-id" id="invPONumber" value="' + escHtml(invoiceForm.poNumber) + '">' +
+      '<div id="invPoHint">' + createFieldHintHtml('po') + '</div></div>' +
     '<div class="inv-field"><label class="inv-field-label" for="invPODate">P.O. date</label><input type="date" class="inv-input inv-id" id="invPODate" value="' + escHtml(invoiceForm.poDate) + '"></div>' +
     '<div class="inv-field"><label class="inv-field-label" for="invTransport">Vehicle no.</label><input class="inv-input inv-id" id="invTransport" value="' + escHtml(invoiceForm.transport) + '" placeholder="JH 05XX 0000" list="invVehicleList" autocomplete="off">' +
-    '<datalist id="invVehicleList">' + getVehicleSuggestions(invoiceForm.clientId) + '</datalist>' + predHintHtml('ve') + '</div>' +
+    '<datalist id="invVehicleList">' + getVehicleSuggestions(invoiceForm.clientId) + '</datalist>' +
+      '<div id="invVeHint">' + createFieldHintHtml('ve') + '</div></div>' +
     '<div class="inv-field"><label class="inv-field-label" for="invDespatchDate">Despatch date</label><input type="date" class="inv-input inv-id" id="invDespatchDate" value="' + escHtml(invoiceForm.despatchDate) + '"></div>' +
     '</div><div class="inv-field"><label class="inv-field-label" for="invRemarks">Remarks</label><textarea class="inv-textarea" id="invRemarks" rows="2">' + escHtml(invoiceForm.remarks) + '</textarea></div></div></details>';
 
@@ -182,6 +185,70 @@ function renderCreateForm() {
     });
     setTimeout(() => cs.focus(), 100);
   }
+}
+
+/* ===== THE CLIENT'S OWN VEHICLE AND PO =====
+   A client whose invoices always carry the same vehicle, or a PO made from the challan number
+   (Dorabji Auto: DA1/ + the challan number in five digits), has them as settings on the client
+   (`defaultTransport`, `poFromChallan`; state.js). A new invoice for it — the client chosen, a challan
+   ticked, IM → Create invoice, a reissue — takes them into the field when it is empty or was itself
+   filled this way (`invoiceForm._auto`): a typed value is the operator's for good. An auto PO follows
+   the challan number when another challan is ticked; several challans give the first one's number,
+   and the hint says so. Where a client has one, it replaces insights.js's prediction for that field. */
+function createApplyClientDefaults() {
+  const f = invoiceForm;
+  if (!f) return;
+  const client = f.clientId ? S.clients.find(c => c.id === f.clientId) : null;
+  if (f.editingId || !client) { f._defaults = null; return; }
+  const auto = f._auto || (f._auto = {});
+  const d = { client: client.name };
+  const ve = String(client.defaultTransport || '').trim();
+  if (ve) {
+    d.ve = ve;
+    if (!f.transport || f.transport === auto.ve) { f.transport = ve; auto.ve = ve; }
+  }
+  const tpl = String(client.poFromChallan || '').trim();
+  if (tpl && clientPoTemplateOk(tpl)) {
+    const po = clientPoFromChallan(client, f.challanNo);
+    const nos = String(f.challanNo || '').split(/[,;]/).map(s => s.trim()).filter(Boolean);
+    d.po = { value: po, tpl: tpl, many: nos.length > 1, first: nos[0] || '', count: nos.length };
+    if (po && (!f.poNumber || f.poNumber === auto.po)) { f.poNumber = po; auto.po = po; }
+    // Every challan unticked: an auto PO has nothing left to be made from.
+    else if (!po && auto.po && f.poNumber === auto.po) { f.poNumber = ''; auto.po = ''; }
+  }
+  f._defaults = (d.ve || d.po) ? d : null;
+}
+
+/* The hint under the PO or vehicle field: the client's setting where it has one, else the prediction. */
+function createFieldHintHtml(field) {
+  const d = invoiceForm && invoiceForm._defaults;
+  const auto = (invoiceForm && invoiceForm._auto) || {};
+  const from = d ? 'from ' + d.client + '’s settings' : '';
+  if (field === 'po' && d && d.po) {
+    let t;
+    if (!d.po.value) t = 'Fills from the challan number once one is cited (' + from + ': ' + d.po.tpl + ')';
+    else if (invoiceForm.poNumber === auto.po) t = 'Challan ' + d.po.first + ' as ' + d.po.tpl + ', ' + from + (d.po.many ? ' — the first of ' + d.po.count + ' challans' : '');
+    else t = 'Typed here; ' + d.client + '’s settings would give ' + d.po.value;
+    return '<div class="inv-field-hint" data-client-default="po">' + escHtml(t) + '</div>';
+  }
+  if (field === 've' && d && d.ve) {
+    const t = invoiceForm.transport === auto.ve ? 'Filled ' + from : 'Typed here; ' + d.client + '’s settings would give ' + d.ve;
+    return '<div class="inv-field-hint" data-client-default="ve">' + escHtml(t) + '</div>';
+  }
+  return predHintHtml(field);
+}
+
+/* The challan number typed or changed by hand: an auto PO follows it, in place (no redraw, so focus stays). */
+function createRefreshDefaults() {
+  if (!invoiceForm || !invoiceForm._defaults) return;
+  captureOptionalFields();
+  createApplyClientDefaults();
+  const po = document.getElementById('invPONumber'), ve = document.getElementById('invTransport');
+  if (po) po.value = invoiceForm.poNumber || '';
+  if (ve) ve.value = invoiceForm.transport || '';
+  const ph = document.getElementById('invPoHint'), vh = document.getElementById('invVeHint');
+  if (ph) ph.innerHTML = createFieldHintHtml('po');
+  if (vh) vh.innerHTML = createFieldHintHtml('ve');
 }
 
 /* The invoice's tax, worked the one way both the render and the live update read. */
@@ -271,7 +338,12 @@ function createPickChallan(imId) {
     invoiceForm.challanNo = after.no;
     if (after.date) invoiceForm.challanDate = after.date;
   }
-  if (!invoiceForm.transport || invoiceForm.transport === before.ve) invoiceForm.transport = after.ve;
+  if (!invoiceForm.transport || invoiceForm.transport === before.ve) {
+    invoiceForm.transport = after.ve;
+    // Filled from the ticks, so still the app's: a client's own vehicle may replace it.
+    (invoiceForm._auto || (invoiceForm._auto = {})).ve = after.ve;
+  }
+  createApplyClientDefaults();
   renderCreateForm();
 }
 
@@ -537,6 +609,8 @@ function selectClient(id) {
   // PO and vehicle from the client's own history (insights.js): filled only
   // into an empty field, and only where the history clearly says what it is.
   predApplyToInvoice();
+  // A client's own vehicle and PO pattern (its settings) win over the prediction.
+  createApplyClientDefaults();
   const client = S.clients.find(c => c.id === id);
   // Auto-fill rate on existing items
   if (client) {

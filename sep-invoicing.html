@@ -18,7 +18,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <!-- Appearance before first paint (§3.2): the device's theme and palette, so nothing flashes in the wrong colours. -->
 <script>(function(){try{var d=document.documentElement,t=localStorage.getItem("sep_inv_theme"),p=localStorage.getItem("sep_inv_palette");if(t==="light"||t==="dark")d.dataset.theme=t;d.dataset.palette=(p==="zinc"||p==="terracotta")?p:"teal";}catch(e){document.documentElement.dataset.palette="teal";}})();</script>
-<meta name="app-build" content="64354cac">
+<meta name="app-build" content="335eeb48">
 <style>
 /* ===== DESIGN TOKENS (design system v2.0 — docs/SEP_INVOICING_DESIGN_PRINCIPLES.md §3) ===== */
 /* Theme: colour-scheme decides every light-dark() below. <html data-theme> is set before first paint
@@ -2923,6 +2923,30 @@ function lineFillFromCount(client, item) {
     item.amount = gstRound(item.qty * (item.rate || 0));
   }
 }
+/* ===== WHAT A CLIENT'S INVOICES ALWAYS CARRY (owner, 27 Sep 2026) =====
+   "Dorabji Auto generally is despatched through only one way of transport … it's the same for every
+   invoice, so let's make it so that the field is already filled out along with PO number, which is
+   usually the same as their challan number with the suffix DA1/xxxxx." A client SETTING, never a
+   hard-code: `defaultTransport` (the vehicle) and `poFromChallan`, a pattern where `{challan}` is the
+   challan number and `{challan:5}` the same padded to five digits — DA1/{challan:5} makes challan
+   1244 read DA1/01244. The invoice form applies both (create.js, createApplyClientDefaults). */
+var PO_TPL_RE = /\{challan(?::(\d{1,2}))?\}/g;
+function clientPoTemplateOk(tpl) { return !tpl || /\{challan(?::\d{1,2})?\}/.test(String(tpl)); }
+/* The challan number a PO is made from: the first challan an invoice cites, its first run of digits
+   ("0041/26-27" is 41), leading zeros off so the pattern pads it the one way. */
+function poChallanDigits(challanNo) {
+  var first = String(challanNo || '').split(/[,;]/)[0];
+  var m = first.match(/\d+/);
+  if (!m) return '';
+  return m[0].replace(/^0+(?=\d)/, '');
+}
+function clientPoFromChallan(client, challanNo) {
+  var tpl = client && String(client.poFromChallan || '').trim();
+  var n = poChallanDigits(challanNo);
+  if (!tpl || !n || !clientPoTemplateOk(tpl)) return '';
+  return tpl.replace(PO_TPL_RE, function(_, w) { return w ? n.padStart(parseInt(w, 10), '0') : n; });
+}
+
 /* A challan-linked invoice line the challan cannot vouch for (create.js): billing more than is left
    on it, or billing it in another unit. The red flag's contract — a tap, a note recommended. */
 var OVER_BILL_REASONS = [
@@ -3797,6 +3821,7 @@ function _showClientOverlay(client, isAdd) {
     _cfield('ceditGstType', 'GST type', '<select class="inv-select" id="ceditGstType">' +
       opt('intra', c.gstType, 'Intra (CGST+SGST)') + opt('inter', c.gstType, 'Inter (IGST)') + '</select>') +
     '</div>' +
+    _clientDocDefaultsHtml(c) +
     _cfield('ceditNotes', 'Notes', '<textarea class="inv-textarea" id="ceditNotes" rows="2">' + escHtml(c.notes) + '</textarea>') +
     '<label class="inv-field inv-toolbar"><input type="checkbox" class="inv-check" id="ceditActive"' + (c.isActive ? ' checked' : '') + '> Active</label>' +
     // A new client takes an optional opening rate; an existing one keeps its dated cards.
@@ -3804,6 +3829,37 @@ function _showClientOverlay(client, isAdd) {
       : rates + _pieceRatesEditHtml(c) + _pieceWeightsEditHtml(c)) +
     '<div class="inv-dialog-foot"><button class="inv-btn inv-btn-secondary" data-action="invCloseOverlay">Cancel</button>' +
     '<button class="inv-btn inv-btn-primary" data-action="invSaveClient" data-client="' + c.id + '" data-mode="' + (isAdd ? 'add' : 'edit') + '">' + (isAdd ? 'Add client' : 'Save') + '</button></div></div>', { dismiss: true });
+}
+
+/* What every new invoice for this client carries (state.js, clientPoFromChallan; create.js fills them). */
+function _clientPoExampleNo(c) {
+  var last = (S.incomingMaterial || []).filter(function(im) { return im.clientId === c.id && poChallanDigits(im.challanNo); })
+    .sort(function(a, b) { return String(b.challanDate || '').localeCompare(String(a.challanDate || '')); })[0];
+  return last ? poChallanDigits(last.challanNo) : '1244';
+}
+function _clientPoExampleText(c, tpl) {
+  tpl = String(tpl || '').trim();
+  if (!tpl) return 'Empty: the P.O. is not filled for this client.';
+  if (!clientPoTemplateOk(tpl)) return 'Put {challan} where the number goes, or {challan:5} for five digits.';
+  var n = _clientPoExampleNo(c);
+  return 'Challan ' + n + ' gives ' + clientPoFromChallan({ poFromChallan: tpl }, n) + '.';
+}
+function _clientDocDefaultsHtml(c) {
+  return '<div class="inv-panel inv-panel-flush" data-client-defaults><div class="inv-panel-head"><span class="inv-panel-title">On every new invoice</span></div>' +
+    '<div class="inv-panel-body"><div class="inv-note">Filled in while the field is empty; anything typed on the invoice wins.</div><div class="inv-fields">' +
+    '<div class="inv-field"><label class="inv-field-label" for="ceditTransport">Vehicle no.</label>' +
+    _cinput('ceditTransport', c.defaultTransport || '', 'inv-id', ' placeholder="JH 05XX 0000" autocomplete="off"') + '</div>' +
+    '<div class="inv-field"><label class="inv-field-label" for="ceditPoTpl">P.O. from the challan no.</label>' +
+    _cinput('ceditPoTpl', c.poFromChallan || '', 'inv-id', ' placeholder="DA1/{challan:5}" autocomplete="off" data-client-id="' + c.id + '"') +
+    '<div class="inv-field-hint">{challan} is the challan number; {challan:5} pads it to five digits.</div>' +
+    '<div class="inv-field-hint inv-id" id="ceditPoEx">' + escHtml(_clientPoExampleText(c, c.poFromChallan)) + '</div></div>' +
+    '</div></div></div>';
+}
+function clientPoExampleRefresh(input) {
+  var ex = document.getElementById('ceditPoEx');
+  if (!ex) return;
+  var c = S.clients.find(function(x) { return String(x.id) === String(input.dataset.clientId); }) || { id: null };
+  ex.textContent = _clientPoExampleText(c, input.value);
 }
 
 /* The ₹/kg ladder, newest first; the rate in force today says so. */
@@ -3834,6 +3890,8 @@ function _readClientForm(excludeId) {
 
   const gstin = document.getElementById('ceditGstin').value.trim().toUpperCase();
   if (gstin && gstin.length !== 15) { showToast('GSTIN must be 15 characters', 'error'); return null; }
+  const poTpl = (document.getElementById('ceditPoTpl') || {}).value || '';
+  if (!clientPoTemplateOk(poTpl.trim())) { showToast('The P.O. pattern needs {challan} where the number goes', 'error'); return null; }
 
   return {
     name: name,
@@ -3849,6 +3907,8 @@ function _readClientForm(excludeId) {
     billingMode: document.getElementById('ceditMode').value,
     gstType: document.getElementById('ceditGstType').value,
     notes: document.getElementById('ceditNotes').value.trim(),
+    defaultTransport: ((document.getElementById('ceditTransport') || {}).value || '').trim().toUpperCase(),
+    poFromChallan: poTpl.trim(),
     isActive: document.getElementById('ceditActive').checked
   };
 }
@@ -5535,6 +5595,7 @@ function initCreateForm() {
     var pc = S.clients.find(function(c) { return c.id === parseInt(_preselectedClientId); });
     if (pc) invoiceForm.clientId = pc.id;
     _preselectedClientId = null;
+    createApplyClientDefaults();
   }
   renderCreateForm();
 }
@@ -5658,10 +5719,12 @@ function renderCreateForm() {
     '<div class="inv-panel-body"><div class="inv-fields">' +
     '<div class="inv-field"><label class="inv-field-label" for="invChallanNo">Challan no.</label><input class="inv-input inv-id" id="invChallanNo" value="' + escHtml(invoiceForm.challanNo) + '"></div>' +
     '<div class="inv-field"><label class="inv-field-label" for="invChallanDate">Challan date</label><input type="date" class="inv-input inv-id" id="invChallanDate" value="' + escHtml(invoiceForm.challanDate) + '"></div>' +
-    '<div class="inv-field"><label class="inv-field-label" for="invPONumber">P.O. no.</label><input class="inv-input inv-id" id="invPONumber" value="' + escHtml(invoiceForm.poNumber) + '">' + predHintHtml('po') + '</div>' +
+    '<div class="inv-field"><label class="inv-field-label" for="invPONumber">P.O. no.</label><input class="inv-input inv-id" id="invPONumber" value="' + escHtml(invoiceForm.poNumber) + '">' +
+      '<div id="invPoHint">' + createFieldHintHtml('po') + '</div></div>' +
     '<div class="inv-field"><label class="inv-field-label" for="invPODate">P.O. date</label><input type="date" class="inv-input inv-id" id="invPODate" value="' + escHtml(invoiceForm.poDate) + '"></div>' +
     '<div class="inv-field"><label class="inv-field-label" for="invTransport">Vehicle no.</label><input class="inv-input inv-id" id="invTransport" value="' + escHtml(invoiceForm.transport) + '" placeholder="JH 05XX 0000" list="invVehicleList" autocomplete="off">' +
-    '<datalist id="invVehicleList">' + getVehicleSuggestions(invoiceForm.clientId) + '</datalist>' + predHintHtml('ve') + '</div>' +
+    '<datalist id="invVehicleList">' + getVehicleSuggestions(invoiceForm.clientId) + '</datalist>' +
+      '<div id="invVeHint">' + createFieldHintHtml('ve') + '</div></div>' +
     '<div class="inv-field"><label class="inv-field-label" for="invDespatchDate">Despatch date</label><input type="date" class="inv-input inv-id" id="invDespatchDate" value="' + escHtml(invoiceForm.despatchDate) + '"></div>' +
     '</div><div class="inv-field"><label class="inv-field-label" for="invRemarks">Remarks</label><textarea class="inv-textarea" id="invRemarks" rows="2">' + escHtml(invoiceForm.remarks) + '</textarea></div></div></details>';
 
@@ -5704,6 +5767,70 @@ function renderCreateForm() {
     });
     setTimeout(() => cs.focus(), 100);
   }
+}
+
+/* ===== THE CLIENT'S OWN VEHICLE AND PO =====
+   A client whose invoices always carry the same vehicle, or a PO made from the challan number
+   (Dorabji Auto: DA1/ + the challan number in five digits), has them as settings on the client
+   (`defaultTransport`, `poFromChallan`; state.js). A new invoice for it — the client chosen, a challan
+   ticked, IM → Create invoice, a reissue — takes them into the field when it is empty or was itself
+   filled this way (`invoiceForm._auto`): a typed value is the operator's for good. An auto PO follows
+   the challan number when another challan is ticked; several challans give the first one's number,
+   and the hint says so. Where a client has one, it replaces insights.js's prediction for that field. */
+function createApplyClientDefaults() {
+  const f = invoiceForm;
+  if (!f) return;
+  const client = f.clientId ? S.clients.find(c => c.id === f.clientId) : null;
+  if (f.editingId || !client) { f._defaults = null; return; }
+  const auto = f._auto || (f._auto = {});
+  const d = { client: client.name };
+  const ve = String(client.defaultTransport || '').trim();
+  if (ve) {
+    d.ve = ve;
+    if (!f.transport || f.transport === auto.ve) { f.transport = ve; auto.ve = ve; }
+  }
+  const tpl = String(client.poFromChallan || '').trim();
+  if (tpl && clientPoTemplateOk(tpl)) {
+    const po = clientPoFromChallan(client, f.challanNo);
+    const nos = String(f.challanNo || '').split(/[,;]/).map(s => s.trim()).filter(Boolean);
+    d.po = { value: po, tpl: tpl, many: nos.length > 1, first: nos[0] || '', count: nos.length };
+    if (po && (!f.poNumber || f.poNumber === auto.po)) { f.poNumber = po; auto.po = po; }
+    // Every challan unticked: an auto PO has nothing left to be made from.
+    else if (!po && auto.po && f.poNumber === auto.po) { f.poNumber = ''; auto.po = ''; }
+  }
+  f._defaults = (d.ve || d.po) ? d : null;
+}
+
+/* The hint under the PO or vehicle field: the client's setting where it has one, else the prediction. */
+function createFieldHintHtml(field) {
+  const d = invoiceForm && invoiceForm._defaults;
+  const auto = (invoiceForm && invoiceForm._auto) || {};
+  const from = d ? 'from ' + d.client + '’s settings' : '';
+  if (field === 'po' && d && d.po) {
+    let t;
+    if (!d.po.value) t = 'Fills from the challan number once one is cited (' + from + ': ' + d.po.tpl + ')';
+    else if (invoiceForm.poNumber === auto.po) t = 'Challan ' + d.po.first + ' as ' + d.po.tpl + ', ' + from + (d.po.many ? ' — the first of ' + d.po.count + ' challans' : '');
+    else t = 'Typed here; ' + d.client + '’s settings would give ' + d.po.value;
+    return '<div class="inv-field-hint" data-client-default="po">' + escHtml(t) + '</div>';
+  }
+  if (field === 've' && d && d.ve) {
+    const t = invoiceForm.transport === auto.ve ? 'Filled ' + from : 'Typed here; ' + d.client + '’s settings would give ' + d.ve;
+    return '<div class="inv-field-hint" data-client-default="ve">' + escHtml(t) + '</div>';
+  }
+  return predHintHtml(field);
+}
+
+/* The challan number typed or changed by hand: an auto PO follows it, in place (no redraw, so focus stays). */
+function createRefreshDefaults() {
+  if (!invoiceForm || !invoiceForm._defaults) return;
+  captureOptionalFields();
+  createApplyClientDefaults();
+  const po = document.getElementById('invPONumber'), ve = document.getElementById('invTransport');
+  if (po) po.value = invoiceForm.poNumber || '';
+  if (ve) ve.value = invoiceForm.transport || '';
+  const ph = document.getElementById('invPoHint'), vh = document.getElementById('invVeHint');
+  if (ph) ph.innerHTML = createFieldHintHtml('po');
+  if (vh) vh.innerHTML = createFieldHintHtml('ve');
 }
 
 /* The invoice's tax, worked the one way both the render and the live update read. */
@@ -5793,7 +5920,12 @@ function createPickChallan(imId) {
     invoiceForm.challanNo = after.no;
     if (after.date) invoiceForm.challanDate = after.date;
   }
-  if (!invoiceForm.transport || invoiceForm.transport === before.ve) invoiceForm.transport = after.ve;
+  if (!invoiceForm.transport || invoiceForm.transport === before.ve) {
+    invoiceForm.transport = after.ve;
+    // Filled from the ticks, so still the app's: a client's own vehicle may replace it.
+    (invoiceForm._auto || (invoiceForm._auto = {})).ve = after.ve;
+  }
+  createApplyClientDefaults();
   renderCreateForm();
 }
 
@@ -6059,6 +6191,8 @@ function selectClient(id) {
   // PO and vehicle from the client's own history (insights.js): filled only
   // into an empty field, and only where the history clearly says what it is.
   predApplyToInvoice();
+  // A client's own vehicle and PO pattern (its settings) win over the prediction.
+  createApplyClientDefaults();
   const client = S.clients.find(c => c.id === id);
   // Auto-fill rate on existing items
   if (client) {
@@ -8549,6 +8683,8 @@ function confirmDeleteInvoice(invId, reissue) {
   closeOverlay();
   if (reissueForm) {
     invoiceForm = reissueForm;
+    // The old invoice's PO and vehicle travel with it; the client's own fill only a field it left empty.
+    createApplyClientDefaults();
     _navReturnTab = 'pageRegister';
     renderCreateForm();
     switchTab('pageCreate');
@@ -9795,6 +9931,10 @@ function createInvoiceFromIM() {
     _linkedIMItemIds: selectedIds,
     _linkedIMIds: [...linkedIMIds]
   };
+
+  // The vehicle came from the challans, so it is still the app's: the client's own may replace it.
+  invoiceForm._auto = { ve: invoiceForm.transport };
+  createApplyClientDefaults();
 
   // Clear selection
   _imSelected = {};
@@ -23808,7 +23948,10 @@ function predVehicle(clientId) {
 /* Invoice form: fill on client choice, for a new invoice, only into an empty field. */
 function predApplyToInvoice() {
   if (!invoiceForm || invoiceForm.editingId || !invoiceForm.clientId) { if (invoiceForm) invoiceForm._pred = null; return; }
-  var po = predPO(invoiceForm.clientId), ve = predVehicle(invoiceForm.clientId);
+  // A client with its own vehicle or PO pattern (createApplyClientDefaults) is not predicted for that field.
+  var own = S.clients.find(function(c) { return c.id === invoiceForm.clientId; }) || {};
+  var po = String(own.poFromChallan || '').trim() ? null : predPO(invoiceForm.clientId);
+  var ve = String(own.defaultTransport || '').trim() ? null : predVehicle(invoiceForm.clientId);
   invoiceForm._pred = { po: po, ve: ve };
   if (po && !invoiceForm.poNumber) invoiceForm.poNumber = po.value;
   if (ve && ve.fill && !invoiceForm.transport) invoiceForm.transport = ve.fill;
@@ -25261,7 +25404,8 @@ function renderAddChallanForm() {
   html += '<div class="inv-panel-body"><div class="inv-fields">' +
     (client ? '' : clientSearchHtml('imChallanClientSearch', 'imChallanClientResults', 'client-search')) +
     '<div class="inv-field"><label class="inv-field-label" for="imChallanNo">Challan no.</label>' +
-    '<input class="inv-input inv-id" id="imChallanNo" data-k="challanNo" value="' + escHtml(_challanForm.challanNo) + '"></div>' +
+    '<input class="inv-input inv-id" id="imChallanNo" data-k="challanNo" value="' + escHtml(_challanForm.challanNo) + '" aria-describedby="imChallanNoWarn">' +
+    '<div id="imChallanNoWarn" aria-live="polite">' + challanNoWarnHtml() + '</div></div>' +
     '<div class="inv-field"><label class="inv-field-label" for="imChallanDate">Challan date</label>' +
     '<input type="date" class="inv-input inv-id" id="imChallanDate" data-k="challanDate" value="' + escHtml(_challanForm.challanDate) + '"></div>' +
     '<div class="inv-field"><label class="inv-field-label" for="imVehicleNo">Vehicle no.</label>' +
@@ -25333,6 +25477,37 @@ function renderAddChallanForm() {
   }
 }
 
+/* ===== THE CHALLAN NUMBER, CHECKED AS IT IS TYPED =====
+   Owner, 27 Sep 2026: "instead of checking for duplicate challan at the end of entering the entire
+   challan details, check for duplicate challan number when the challan number is typed for a
+   particular client." So the moment the number is entered (on change, and when the client is chosen
+   after it) the client's challans are searched for it, and a match is said under the field with a
+   way to open it. Warn, never block: split challans against one consignment are real.
+   The content fingerprint at save (im-dupe.js) stays as the second net — it catches the blank number
+   and the aliased part — but a match already shown here is not asked about twice
+   (`_numWarnSeen`); the operator saving past it is still stamped on the entry as `dupeAck`. */
+var CHALLAN_WARN_READ_MS = 1200;
+function challanNoWarnHtml() {
+  if (!_challanForm || !_challanForm.clientId) return '';
+  var hits = imNumberMatches(_challanForm.clientId, _challanForm.challanNo, _challanForm._editingId || null);
+  var seen = _challanForm._numWarnSeen || (_challanForm._numWarnSeen = {});
+  var now = Date.now();
+  hits.forEach(function(im) { if (!seen[im.id]) seen[im.id] = now; });
+  if (!hits.length) return '';
+  return '<div class="inv-callout inv-callout-warning" data-challan-no-warn>' +
+    hits.map(function(im) {
+      return '<div>' + escHtml(imNumberMatchText(im)) + '. <button type="button" class="inv-btn-link" data-action="invChallanPeek" data-id="' + escHtml(im.id) + '">Open it</button></div>';
+    }).join('') +
+    '<div class="inv-note">Save it anyway if this is a separate receipt (a split consignment); the check is recorded against the entry.</div></div>';
+}
+function refreshChallanNoWarn() {
+  var box = document.getElementById('imChallanNoWarn');
+  if (!box || !_challanForm) return;
+  var cn = document.getElementById('imChallanNo');
+  if (cn) _challanForm.challanNo = cn.value.trim();
+  box.innerHTML = challanNoWarnHtml();
+}
+
 function renderChallanClientResults(query) {
   var res = document.getElementById('imChallanClientResults');
   var input = document.getElementById('imChallanClientSearch');
@@ -25368,7 +25543,8 @@ function selectChallanClient(clientId) {
   if (!_challanForm) return;
   captureChallanFields();
   _challanForm.clientId = clientId;
-  // Picking the client is the first step; Challan No is the next thing typed.
+  // Picking the client is the first step; Challan No is the next thing typed. A number typed before
+  // the client is checked by the render (challanNoWarnHtml), so the warning is there as focus arrives.
   _challanFocusNext = { k: 'challanNo', sel: null };
   var client = S.clients.find(function(c) { return c.id === clientId; });
   // Auto-fill rate on existing items
@@ -25474,17 +25650,27 @@ function saveChallan() {
   }
 
   // Duplicate guard: warn once, then let the operator decide. Covers both entry
-  // paths — the scanner fills this same form and comes through here.
+  // paths — the scanner fills this same form and comes through here. A challan
+  // the number check already showed under the field is not asked about again;
+  // a content match on a DIFFERENT challan, or a blank number, still is.
+  // Seen means on screen for a moment: typing the number and tapping Save at once draws the warning
+  // in the same instant as the tap (the field's change fires on the blur), and nobody read that.
+  var seenAt = _challanForm._numWarnSeen || {}, tNow = Date.now();
+  var dupes = findChallanDuplicates(_challanForm, _challanForm._editingId || null);
+  var wasSeen = function(im) { return !!seenAt[im.id] && tNow - seenAt[im.id] >= CHALLAN_WARN_READ_MS; };
+  var seen = dupes.content.concat(dupes.number).filter(wasSeen).filter(function(v, i, a) { return a.indexOf(v) === i; });
   if (!_challanForm._dupeAcked) {
-    var dupes = findChallanDuplicates(_challanForm, _challanForm._editingId || null);
-    if (dupes.any) { showChallanDuplicateWarning(dupes); return; }
+    var ask = { content: dupes.content.filter(function(im) { return !wasSeen(im); }), number: dupes.number.filter(function(im) { return !wasSeen(im); }),
+      blankNo: dupes.blankNo, seen: seen };
+    if (ask.content.length || ask.number.length || ask.blankNo) { showChallanDuplicateWarning(ask); return; }
   }
 
   var now = Date.now();
-  // Stamped so a later audit can tell an accepted duplicate from an unseen one.
+  // Stamped so a later audit can tell an accepted duplicate from an unseen one — saving past the
+  // number warning under the field is an acceptance too, of the challans it named.
   var dupeAck = _challanForm._dupeAcked
     ? { at: now, matchedIds: _challanForm._dupeMatchedIds || [] }
-    : null;
+    : seen.length ? { at: now, matchedIds: seen.map(function(im) { return im.id; }), shownAsTyped: true } : null;
 
   if (_challanForm._editingId) {
     // Phase 5: Edit mode — update existing entry
@@ -25722,6 +25908,49 @@ function imHasQuantity(items) {
   });
 }
 
+/* A challan number as the dupe check compares it: case, spaces and leading zeros do not make a
+   different number ("0301" is 301, "dc 45" is DC45). Blank stays blank. */
+function imChallanNoKey(no) {
+  return String(no == null ? '' : no).trim().toLowerCase().replace(/\s+/g, '').replace(/(^|[^0-9])0+(?=[0-9])/g, '$1');
+}
+
+/* The client's challans already recorded under this number (the one being edited left out). */
+function imNumberMatches(clientId, challanNo, excludeId) {
+  var key = imChallanNoKey(challanNo);
+  if (!clientId || !key) return [];
+  return (S.incomingMaterial || []).filter(function(im) {
+    return im.id !== excludeId && im.clientId === clientId && imChallanNoKey(im.challanNo) === key;
+  }).sort(function(a, b) { return String(b.challanDate || '').localeCompare(String(a.challanDate || '')); });
+}
+
+/* "Challan 301 is already recorded for SAMARTH ENGG on 21 Sep 2026 (3 lines, not invoiced)" */
+function imNumberMatchText(im) {
+  var st = getIMStatus(im);
+  var word = st === 'invoiced' ? 'invoiced' : st === 'partial' ? 'part invoiced' : 'not invoiced';
+  return 'Challan ' + (im.challanNo || '') + ' is already recorded for ' + (im.clientName || 'this client') + ' on ' + formatDate(im.challanDate) +
+    ' (' + im.items.length + ' line' + (im.items.length === 1 ? '' : 's') + ', ' + word + ')';
+}
+
+/* A challan read, not edited: opened from the challan form's warning, so the form stays as it is. */
+function imChallanPeek(imId) {
+  var im = (S.incomingMaterial || []).find(function(m) { return m.id === imId; });
+  if (!im) { showToast('Challan not found', 'warning'); return; }
+  var rows = im.items.map(function(it) {
+    return '<div class="inv-row inv-row-auto"><span class="inv-row-main"><span class="inv-row-title inv-row-wrap">' + escHtml(lineLabel(it)) + '</span>' +
+      '<span class="inv-row-meta">' + escHtml(imQtyText(it.qty)) + ' ' + escHtml(it.unit || '') + (it.nosQty > 0 ? ' (' + escHtml(it.nosQty) + ' NOS)' : '') + '</span></span>' +
+      '<span class="inv-row-end inv-num">' + formatCurrency(it.amount) + '</span></div>';
+  }).join('');
+  dialogOpen('<div class="inv-dialog" data-challan-peek="' + escHtml(im.id) + '">' + dialogHeadHtml('Challan <span class="inv-id">' + escHtml(im.challanNo || '(no number)') + '</span>', 'invCloseConfirm') +
+    '<div class="inv-kv inv-mb-8">' +
+    '<div><div class="inv-kv-k">Date</div><div class="inv-id">' + escHtml(formatDate(im.challanDate)) + '</div></div>' +
+    '<div class="inv-kv-wide"><div class="inv-kv-k">Client</div><div>' + escHtml(im.clientName || '') + '</div></div>' +
+    (im.vehicleNo ? '<div><div class="inv-kv-k">Vehicle</div><div class="inv-id">' + escHtml(im.vehicleNo) + '</div></div>' : '') +
+    '<div><div class="inv-kv-k">Status</div><div>' + imStatusDotHtml(im) + '</div></div></div>' +
+    '<div class="inv-panel inv-panel-flush"><div class="inv-row-group"><span>Lines · ' + im.items.length + '</span></div>' + rows +
+    '<div class="inv-row inv-row-strong"><span class="inv-row-main">Total</span><span class="inv-row-end inv-num">' + formatCurrency(imChallanTotal(im)) + '</span></div></div>' +
+    '<div class="inv-dialog-foot"><button class="inv-btn inv-btn-secondary" data-action="invCloseConfirm">Back to the form</button></div></div>', { dismiss: true });
+}
+
 /*
  * Matches for one candidate challan against everything already stored.
  *   content — same client, same date, same quantity multiset
@@ -25738,7 +25967,7 @@ function findChallanDuplicates(candidate, excludeId) {
 
   var fp = imFingerprint(candidate.clientId, candidate.challanDate, candidate.items);
   var scorable = imHasQuantity(candidate.items);
-  var cnKey = challanNo.toLowerCase();
+  var cnKey = imChallanNoKey(challanNo);
 
   (S.incomingMaterial || []).forEach(function(im) {
     if (im.id === excludeId) return;
@@ -25747,7 +25976,7 @@ function findChallanDuplicates(candidate, excludeId) {
       out.content.push(im);
       return;
     }
-    if (cnKey && (im.challanNo || '').trim().toLowerCase() === cnKey) {
+    if (cnKey && imChallanNoKey(im.challanNo) === cnKey) {
       out.number.push(im);
     }
   });
@@ -25856,12 +26085,19 @@ function _dupeMatchRowHtml(im, showLocate) {
  * and the scanner, which fills the same _challanForm and calls the same save.
  */
 function showChallanDuplicateWarning(matches) {
+  var seen = matches.seen || [];
   if (_challanForm) {
-    _challanForm._dupeMatchedIds = matches.content.concat(matches.number).map(function(im) { return im.id; });
+    _challanForm._dupeMatchedIds = matches.content.concat(matches.number, seen).map(function(im) { return im.id; })
+      .filter(function(v, i, a) { return a.indexOf(v) === i; });
   }
 
   var html = '<div class="inv-dialog">' +
     dialogHeadHtml('Possible duplicate challan', 'invCloseConfirm');
+
+  if (seen.length > 0) {
+    html += '<div class="inv-note inv-mb-8" data-dupe-seen>Already shown as the number was typed: ' +
+      escHtml(seen.map(function(im) { return imChallanLabel(im) + ' (' + formatDate(im.challanDate) + ')'; }).join(', ')) + '. Not asked again.</div>';
+  }
 
   if (matches.content.length > 0) {
     html += '<div class="inv-callout inv-callout-warning inv-mb-8">This client already has ' +
@@ -26314,6 +26550,7 @@ document.addEventListener('click', function(e) {
     case 'invRunDupeScan': runIMDuplicateScan(); break;
     case 'invDupeSaveAnyway': acceptChallanDuplicates(); break;
     case 'invDupeLocate': imLocateChallan(btn.dataset.id); break;
+    case 'invChallanPeek': imChallanPeek(btn.dataset.id); break;
     // Phase 5: Invoice lifecycle states
     case 'invAdvanceState': advanceInvoiceState(btn.dataset.id); break;
     case 'invBulkMarkFiled': bulkMarkFiled(); break;
@@ -26584,6 +26821,10 @@ document.addEventListener('change', function(e) {
       renderCreateForm();
     }
   }
+  // The challan number, checked for this client the moment it is entered.
+  if (e.target.id === 'imChallanNo') { refreshChallanNoWarn(); return; }
+  // The invoice's challan number by hand: a PO made from it (a client setting) follows.
+  if (e.target.id === 'invChallanNo') { createRefreshDefaults(); return; }
   if (e.target.id === 'invDate') {
     invoiceForm.date = e.target.value;
     // The rate on record is dated, so a new invoice date can change every verdict.
@@ -26713,6 +26954,7 @@ document.addEventListener('input', function(e) {
   if (e.target.id === 'clientSearch') {
     renderClientList(e.target.value);
   }
+  if (e.target.id === 'ceditPoTpl') { clientPoExampleRefresh(e.target); return; }
   // Attendance hours. Written on every keystroke so nothing is lost, but never
   // re-rendered here: replacing the field mid-entry is what ended the keyboard
   // path in challan entry, and a number input is the same trap.
@@ -27547,6 +27789,29 @@ if (!S._cnSeriesStart1) {
       (tooSmall ? ', ' + tooSmall + ' with no invoice large enough' : '') +
       (gone ? ', ' + gone + ' whose batch is no longer in the register' : ''));
   }
+})();
+
+/* ===== DORABJI AUTO'S VEHICLE AND PO, AS CLIENT SETTINGS =====
+
+   Owner, 27 Sep 2026: Dorabji Auto is despatched through one vehicle, and its PO is its challan
+   number as DA1/xxxxx. Measured on the book: one vehicle on nearly every invoice, and the PO equal to
+   DA1/ + the challan number in five digits on nearly every invoice that has one. So the client gets
+   the two settings the invoice form reads (`defaultTransport`, `poFromChallan`).
+
+   A structural default on a record the state already holds, never business data: it is set ONLY
+   where both are empty, and once — the flag travels with the state, so a device (or a pulled copy)
+   where the owner cleared them keeps them cleared, and a value the owner typed is never touched.
+   Idempotent, so it runs on a pull and an import as well as the loader. */
+(function() {
+  if (S._clientDocDefaults1) return;
+  (S.clients || []).forEach(function(c) {
+    if (String(c.name || '').trim().toUpperCase() !== 'DORABJI AUTO') return;
+    if (String(c.defaultTransport || '').trim() || String(c.poFromChallan || '').trim()) return;
+    c.defaultTransport = 'JH 05DN 6730';
+    c.poFromChallan = 'DA1/{challan:5}';
+  });
+  S._clientDocDefaults1 = true;
+  saveJSON(STORAGE_KEY, S);
 })();
 
 /* ===== ₹0 LINES CARRY A REASON, RETROSPECTIVELY TOO =====

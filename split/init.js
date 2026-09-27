@@ -459,6 +459,29 @@ if (!S._cnSeriesStart1) {
   }
 })();
 
+/* ===== DORABJI AUTO'S VEHICLE AND PO, AS CLIENT SETTINGS =====
+
+   Owner, 27 Sep 2026: Dorabji Auto is despatched through one vehicle, and its PO is its challan
+   number as DA1/xxxxx. Measured on the book: one vehicle on nearly every invoice, and the PO equal to
+   DA1/ + the challan number in five digits on nearly every invoice that has one. So the client gets
+   the two settings the invoice form reads (`defaultTransport`, `poFromChallan`).
+
+   A structural default on a record the state already holds, never business data: it is set ONLY
+   where both are empty, and once — the flag travels with the state, so a device (or a pulled copy)
+   where the owner cleared them keeps them cleared, and a value the owner typed is never touched.
+   Idempotent, so it runs on a pull and an import as well as the loader. */
+(function() {
+  if (S._clientDocDefaults1) return;
+  (S.clients || []).forEach(function(c) {
+    if (String(c.name || '').trim().toUpperCase() !== 'DORABJI AUTO') return;
+    if (String(c.defaultTransport || '').trim() || String(c.poFromChallan || '').trim()) return;
+    c.defaultTransport = 'JH 05DN 6730';
+    c.poFromChallan = 'DA1/{challan:5}';
+  });
+  S._clientDocDefaults1 = true;
+  saveJSON(STORAGE_KEY, S);
+})();
+
 /* ===== ₹0 LINES CARRY A REASON, RETROSPECTIVELY TOO =====
 
    The owner ruled (24 Sep 2026) that the lines billed at ₹0 are replating —

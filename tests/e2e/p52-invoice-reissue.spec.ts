@@ -1,5 +1,5 @@
 import { test, expect, Page } from '@playwright/test';
-import { emptyState, loadAppWithState, switchTab, todayIso, recentTs, openSettingsAt, SepState } from './fixtures';
+import { emptyState, loadAppWithState, switchTab, todayIso, recentTs, openSettingsAt, answerAsk, SepState } from './fixtures';
 
 /*
  * P52: correcting an invoice under the number it already carries.
@@ -110,10 +110,9 @@ test('P52: Settings may point the series at a free, unfiled number, and the seri
   await save.click();
   await expect(page.locator('.inv-toast')).toContainText('SEP/TEST-00004 is held by a live invoice');
 
-  let asked = '';
-  page.once('dialog', d => { asked = d.message(); d.accept(); });
   await page.locator('#setNextNum').fill('3');
   await save.click();
+  const asked = await answerAsk(page, 'ok');
   expect(asked).toContain('SEP/TEST-00003');
   expect(asked).toContain('carries on from SEP/TEST-00006');
   await expect(page.locator('.inv-toast')).toContainText('Invoice series saved');

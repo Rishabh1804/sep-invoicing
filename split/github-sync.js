@@ -227,8 +227,8 @@ async function ghPush(opts) {
         ghSetStatus('Auto-push paused: GitHub has a newer copy (' + ghDescribeEnvelope(remote.envelope) + '). Push or pull by hand.');
         return false;
       }
-      var ok = confirm('GitHub already holds a copy this device has not seen — ' +
-        ghDescribeEnvelope(remote.envelope) + '.\n\nPushing replaces it with this device\'s data. Continue?');
+      var ok = await uiConfirm({ title: 'GitHub has a copy this device has not seen', body: 'GitHub already holds a copy this device has not seen — ' +
+        ghDescribeEnvelope(remote.envelope) + '.\n\nPushing replaces it with this device\'s data. Continue?', okLabel: 'Push and replace', danger: true });
       if (!ok) { ghSetBusy(false); ghSetStatus('Push cancelled.'); return false; }
     }
 
@@ -288,8 +288,8 @@ async function ghPull() {
     }
 
     var mine = (S.invoices || []).length + ' invoices, ' + (S.incomingMaterial || []).length + ' challans';
-    if (!confirm('Replace ALL data on this device with ' + ghDescribeEnvelope(env) + '?\n\n' +
-        'This device currently holds ' + mine + '. That is discarded.')) {
+    if (!(await uiConfirm({ title: 'Replace all data on this device?', body: 'Replace ALL data on this device with ' + ghDescribeEnvelope(env) + '?\n\n' +
+        'This device currently holds ' + mine + '. That is discarded.', okLabel: 'Replace', danger: true }))) {
       ghSetBusy(false);
       ghSetStatus('Pull cancelled.');
       return false;

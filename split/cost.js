@@ -597,12 +597,14 @@ function costBillSave() {
   costBillRedraw(where);
   showToast(COST_BILL_KINDS[kind] + ' bill saved for ' + month);
 }
-function costBillVoid(id, where) {
+async function costBillVoid(id, where) {
   var b = costBills().find(function(x) { return x.id === id; });
   if (!b || b.voided) return;
-  var reason = prompt('Why is this bill void? (kept on the record, not deleted)');
+  var reason = await uiPrompt({ title: 'Void this bill', body: 'It is kept on the record, not deleted.', label: 'Why is this bill void?',
+    okLabel: 'Void bill', required: true, requiredText: 'A void needs a reason.' });
   if (reason == null) return;
   if (!reason.trim()) { showToast('A void needs a reason', 'error'); return; }
+  if (b.voided) return;
   b.voided = Date.now();
   b.voidReason = reason.trim();
   saveState();
@@ -767,10 +769,12 @@ function stockReorderTableHtml(L) {
 function stockReorderCopy() {
   var text = stockReorderText(stockReorderList());
   var done = function() { showToast('Order copied: paste it into WhatsApp'); };
+  // The clipboard can refuse (no permission, not a secure page): the order is then shown to copy by hand.
+  var byHand = function() { uiAlert({ title: 'Copy the order', body: 'It could not be copied by itself. Select the text below and copy it.\n\n' + text, okLabel: 'Done' }); };
   try {
-    if (navigator.clipboard && navigator.clipboard.writeText) { navigator.clipboard.writeText(text).then(done, function() { prompt('Copy the order:', text); }); return; }
+    if (navigator.clipboard && navigator.clipboard.writeText) { navigator.clipboard.writeText(text).then(done, byHand); return; }
   } catch (e) { /* fall through */ }
-  prompt('Copy the order:', text);
+  byHand();
 }
 function stockReorderOnInput(t) {
   var id = t.getAttribute && t.getAttribute('data-stock-reorder');

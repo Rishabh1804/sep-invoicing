@@ -402,7 +402,7 @@ function cancelAddChallanUI() {
 }
 
 /* ===== IM DELETE CHALLAN (Phase 4 — Tier 2) ===== */
-function deleteChallan(imId) {
+async function deleteChallan(imId) {
   var im = (S.incomingMaterial || []).find(function(m) { return m.id === imId; });
   if (!im) return;
   // Check if any items are invoiced
@@ -412,8 +412,10 @@ function deleteChallan(imId) {
     return;
   }
   // Tier 1 confirm
-  if (!confirm('Delete this challan?')) return;
+  if (!(await uiConfirm({ title: 'Delete this challan?', body: 'Challan ' + (im.challanNo || '(no number)') + ' from ' + (im.clientName || 'this client') +
+    ', ' + im.items.length + ' line' + (im.items.length === 1 ? '' : 's') + '. This cannot be undone.', okLabel: 'Delete challan', danger: true }))) return;
   var idx = S.incomingMaterial.indexOf(im);
+  if (idx < 0) return;
   if (idx > -1) S.incomingMaterial.splice(idx, 1);
   // Clean up expanded/selected state
   delete _imExpanded[imId];

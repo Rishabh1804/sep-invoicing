@@ -113,25 +113,23 @@ test('editing the 200 invoice to 250 changes its share only, never the challan',
   expect(st.invoices[0].items[0]).toMatchObject({ qty: 250, amount: 625 });
 });
 
-test('billing more than is left warns, asks on save, and stamps the line', async ({ page }) => {
+test('billing more than is left warns, asks for a reason, and stamps the line', async ({ page }) => {
   await loadAppWithState(page, partStateBilled(200, 300));
   await pickChallan(page, 'samarth', 'IM-301');
   await page.locator('input[data-field="qty"][data-idx="0"]').fill('130');
   await expect(page.locator('#invImShare0 [data-im-over]')).toContainText('30 over what is left on challan 301');
 
-  // Dismissed: nothing is saved.
-  let asked = '';
-  page.once('dialog', d => { asked = d.message(); d.dismiss(); });
-  await page.locator('#invSaveBtn').click();
-  await expect.poll(() => asked).toContain('30 over what is left on challan 301');
+  // No reason yet: the save is held, and the error names the line.
+  await expect(page.locator('#invSaveBtn')).toBeDisabled();
+  await expect(page.locator('#invErrorsArea')).toContainText('Line 1: 30 over what is left on challan 301');
   expect((await readStoredState(page)).invoices).toHaveLength(2);
 
-  // Accepted: saved, and the line says it was accepted over what was left.
-  page.once('dialog', d => d.accept());
+  // A reason: saved, and the line says why it was billed over what was left.
+  await page.locator('#invImShare0 [data-action="invOverReason"][data-reason="dispatched"]').click();
   await page.locator('#invSaveBtn').click();
   await expect.poll(async () => (await readStoredState(page)).invoices.length).toBe(3);
   const st = await readStoredState(page);
-  expect(st.invoices[2].items[0].overBillAck).toMatchObject({ left: 100 });
+  expect(st.invoices[2].items[0].overBillAck).toMatchObject({ left: 100, reason: 'dispatched' });
   expect(typeof st.invoices[2].items[0].overBillAck.at).toBe('number');
   expect(await line(page)).toMatchObject({ billedQty: 630, invoiced: true });
 });

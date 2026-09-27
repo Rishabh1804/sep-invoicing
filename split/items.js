@@ -475,7 +475,7 @@ function saveItem(itemId, mode) {
   }
 }
 
-function deleteItem(itemId) {
+async function deleteItem(itemId) {
   var item = S.items.find(function(it) { return it.id === itemId; });
   if (!item) return;
 
@@ -492,13 +492,13 @@ function deleteItem(itemId) {
     });
   });
 
-  var msg = 'Delete ' + item.partNumber + '?';
+  var msg = '';
   if (invRefs + imRefs > 0) {
-    msg += '\n\nReferenced in ' + invRefs + ' invoice line' + (invRefs !== 1 ? 's' : '') +
+    msg += 'Referenced in ' + invRefs + ' invoice line' + (invRefs !== 1 ? 's' : '') +
       ' and ' + imRefs + ' challan line' + (imRefs !== 1 ? 's' : '') +
       '. Historical references will be kept as-is.';
   }
-  if (!confirm(msg)) return;
+  if (!(await uiConfirm({ title: 'Delete ' + item.partNumber + '?', body: msg || 'Nothing refers to it.', okLabel: 'Delete', danger: true }))) return;
 
   var idx = S.items.indexOf(item);
   if (idx > -1) S.items.splice(idx, 1);
@@ -810,8 +810,8 @@ function addPartWeight() {
   showToast('Weight added: ' + part + ' = ' + wt + ' kg');
 }
 
-function deletePartWeight(part) {
-  if (!confirm('Delete weight for ' + part + '?')) return;
+async function deletePartWeight(part) {
+  if (!(await uiConfirm({ title: 'Delete weight for ' + part + '?', body: 'Its NOS lines then have no weight to convert by.', okLabel: 'Delete weight', danger: true }))) return;
   delete S.partWeights[part];
   saveState();
   const list = document.getElementById('setPWList');
@@ -1158,10 +1158,10 @@ function clearItemSelection() {
   _renderItemsSelectionBar();
 }
 
-function batchDeleteItems() {
+async function batchDeleteItems() {
   var ids = Object.keys(_itemsSelected).filter(function(k) { return _itemsSelected[k]; }).map(Number);
   if (ids.length === 0) return;
-  if (!confirm('Delete ' + ids.length + ' item' + (ids.length !== 1 ? 's' : '') + '? Historical invoice/challan references will be kept.')) return;
+  if (!(await uiConfirm({ title: 'Delete ' + ids.length + ' item' + (ids.length !== 1 ? 's' : '') + '?', body: 'Historical invoice/challan references will be kept.', okLabel: 'Delete', danger: true }))) return;
   S.items = S.items.filter(function(it) { return ids.indexOf(it.id) < 0; });
   _itemsSelected = {};
   _invalidateUsageCache();

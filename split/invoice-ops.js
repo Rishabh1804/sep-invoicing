@@ -71,9 +71,16 @@ function backCorrectChallans(inv, formItems) {
     // only this invoice's share: its quantity, pieces and amount never travel.
     var others = (idx[it.id] || []).some(function(r) { return r.invoiceId !== inv.id; });
     var part = others || li._orig.qty !== (it.qty == null ? null : it.qty);
+    // A line billed in another unit than its challan line's travels back only as a correction the
+    // operator named ("Challan unit was wrong"), and only on a whole line. Any other unit change is how
+    // the customer is billed, not what their paper said: the challan keeps its unit and its quantity.
+    var unitOff = (li.unit || null) !== (it.unit == null ? null : it.unit);
+    var carryUnit = unitOff && !part && li.unitReason === 'challan';
+    if (unitOff && !carryUnit) part = true;
     var from = {}, changed = false;
     CHALLAN_SYNC_FIELDS.forEach(function(f) {
       if (part && CHALLAN_SHARE_FIELDS.indexOf(f) >= 0) return;
+      if (f === 'unit' && unitOff && !carryUnit) return;
       var now_ = li[f] == null ? null : li[f];
       if (now_ === li._orig[f]) return;            // not touched in this edit
       var was = it[f] == null ? null : it[f];
@@ -736,7 +743,7 @@ function invoiceDetailHtml(inv) {
       '<span class="inv-row-main"><span class="inv-row-title inv-row-wrap">' + escHtml(lineLabel(raw || item)) + '</span>' +
       '<span class="inv-row-meta"><span class="inv-num">' + escHtml(item.qty) + '</span> ' + escHtml(item.unit) +
       (item.nosQtyRaw && item.nosQtyRaw > 0 ? ' (' + escHtml(item.nosQtyRaw) + ' NOS)' : '') + ' × <span class="inv-num">' + escHtml(item.rate) + '</span></span>' +
-      zeroReasonTag(raw) + detailRateMatch(inv, raw) + '</span>' +
+      zeroReasonTag(raw) + challanAckTag(raw) + detailRateMatch(inv, raw) + '</span>' +
       '<span class="inv-row-end inv-num">' + escHtml(item.amount) + '</span></div>';
   });
   h += '</div>';
@@ -772,6 +779,23 @@ function zeroReasonTag(raw) {
   if (raw.zeroNote) text += ' \u2014 ' + raw.zeroNote;
   if (raw.zeroReasonBackfilled) text += ' (backfilled: owner ruling ' + raw.zeroReasonBackfilled + ')';
   return '<div class="inv-note"><span class="inv-badge inv-badge-' + (raw.zeroReason ? 'warning' : 'danger') + '">\u20B90</span> ' + escHtml(text) + '</div>';
+}
+
+/* A line the challan could not vouch for says why, where the invoice is read: more than was left
+   on its challan line, or billed in another unit. An over-bill accepted before reasons were asked
+   (`overBillAck: {at, left}`) says so rather than reading as explained. */
+function challanAckTag(raw) {
+  if (!raw) return '';
+  var out = '', tag = function(badge, text, ok) {
+    return '<div class="inv-note" data-ack-tag><span class="inv-badge inv-badge-' + (ok ? 'warning' : 'danger') + '">' + badge + '</span> ' + escHtml(text) + '</div>';
+  };
+  var o = raw.overBillAck;
+  if (o) out += tag('Over challan', 'Billed over the ' + imQtyText(o.left) + ' left on its challan line: ' +
+    (o.reason ? challanAckReasonLabel('over', o) + (o.note ? ' \u2014 ' + o.note : '') : 'accepted, no reason recorded'), !!o.reason);
+  var u = raw.unitChangeAck;
+  if (u) out += tag('Unit changed', 'Challan ' + (u.from || 'no unit') + ', billed ' + (u.to || 'no unit') + ', closing the challan line: ' +
+    (u.reason ? challanAckReasonLabel('unit', u) + (u.note ? ' \u2014 ' + u.note : '') : 'no reason recorded'), !!u.reason);
+  return out;
 }
 
 /* The matcher on a saved invoice: only what needs a second look. A matching

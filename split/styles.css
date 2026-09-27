@@ -194,7 +194,7 @@ body:not(.inv-booted) { pointer-events: none; }
    Persistent until answered, unlike a toast, so it sits under the top bar where
    the toast does but below it in the stack — a toast fired while the banner is
    up still reads. Every colour is a token, so it switches with the theme. */
-.inv-update-bar, .inv-storage-bar {
+.inv-update-bar, .inv-storage-bar, .inv-notice-bar {
   position: fixed; top: calc(var(--bar-h) + var(--sp-8));
   left: 50%; transform: translateX(-50%);
   display: flex; align-items: center; gap: var(--sp-12); flex-wrap: wrap;
@@ -210,6 +210,16 @@ body:not(.inv-booted) { pointer-events: none; }
 .inv-update-text { flex: 1 1 var(--field-min); line-height: 1.4; }
 .inv-update-actions { display: flex; gap: var(--sp-8); margin-left: auto; }
 .inv-update-btn { min-height: var(--touch); }
+/* A message the app could not show as a dialog, or an error nothing caught: it stays until dismissed,
+   above a failed save's banner, and every later one joins the list rather than covering it. */
+.inv-notice-bar { z-index: calc(var(--z-banner) + 2); }
+.inv-notice-bar[data-tone="danger"] { border-color: var(--danger); }
+.inv-notice-bar[data-tone="warning"] { border-color: var(--warning); }
+.inv-notice-list { flex: 1 1 var(--field-min); display: flex; flex-direction: column; gap: var(--sp-6); max-height: var(--menu-max); overflow-y: auto; }
+.inv-notice-text { line-height: 1.4; overflow-wrap: anywhere; }
+.inv-notice-text[data-tone="danger"] { color: var(--danger); }
+/* The words of an in-app confirm, alert or prompt (uiConfirm): as written, line breaks kept. */
+.inv-ask-body { white-space: pre-line; overflow-wrap: anywhere; margin-bottom: var(--sp-12); }
 
 /* ===== PRINT VIEW ===== */
 .inv-print-view {
@@ -658,7 +668,7 @@ table.inv-qc-grid.inv-qc-no-top { border-top: 0; }
      64px right — asymmetric margins, and 240px when the sidebar was expanded.
      One more element selector settles it without reaching for !important. */
   html body.inv-desktop { margin-left: 0; }
-  .inv-topbar, .inv-navbar, .inv-toast, .inv-update-bar, .inv-storage-bar, .inv-page,
+  .inv-topbar, .inv-navbar, .inv-toast, .inv-update-bar, .inv-storage-bar, .inv-notice-bar, .inv-page,
   .inv-scrim, .inv-print-toolbar, #imSelBar, .inv-side { display: none !important; }
   .inv-print-view { position: static; display: block !important; overflow: visible; }
   .inv-print-body { padding: 0; }

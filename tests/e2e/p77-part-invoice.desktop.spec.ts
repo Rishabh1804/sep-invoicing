@@ -38,7 +38,7 @@ test('the Create picker offers what is left, and a line over it says so', async 
   await expect(page.locator('#invImShare0 [data-im-share]')).toContainText('100 left');
   await page.locator('input[data-field="qty"][data-idx="0"]').fill('120');
   await expect(page.locator('#invImShare0 [data-im-over]')).toContainText('20 over what is left on challan 301');
-  page.once('dialog', d => d.accept());
+  await page.locator('#invImShare0 [data-action="invOverReason"][data-reason="challan"]').click();
   await page.locator('#invSaveBtn').click();
   await expect.poll(async () => (await readStoredState(page)).invoices.length).toBe(3);
   expect((await readStoredState(page)).invoices[2].items[0].overBillAck.left).toBe(100);

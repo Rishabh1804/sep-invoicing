@@ -519,6 +519,158 @@ function dialogOpen(html, opts) {
   return scrim;
 }
 
+/* ===== ASKING AND TELLING, IN THE APP (owner, 27 Sep 2026) =====
+   "Make sure in case of browser pop-up failure there is another way that the message or error gets
+   relayed — in all places in our app." The browser's own confirm, alert and prompt boxes are gone from
+   every module: a browser can block them, an installed app can suppress them, a test harness
+   dismisses them unseen, and each one reads nothing like the app. These three are dialogs in the
+   one shell (§6.16), and each returns a Promise:
+     uiConfirm({title, body, okLabel, cancelLabel, danger}) → true / false
+     uiAlert({title, body, okLabel, tone})                  → undefined, once read
+     uiPrompt({title, body, label, value, placeholder, okLabel, required}) → the text, or null
+   Esc, the scrim, the close button and Cancel all answer "cancel". A dialog shut by anything else
+   (closeOverlay() behind it) also answers "cancel", so no caller waits for ever.
+
+   The fallback is the other half of the ruling: if the dialog cannot be drawn, the message still
+   reaches the operator as a banner that stays until dismissed (uiNotice). A question that could not
+   be asked is answered "cancel" — and the banner SAYS so — so nothing destructive happens unseen. */
+var _uiAskSeq = 0;
+var _uiAskOpen = {};
+
+function uiNotice(text, tone) {
+  try {
+    var bar = document.querySelector('.inv-notice-bar');
+    if (!bar) {
+      bar = document.createElement('div');
+      bar.className = 'inv-notice-bar';
+      bar.setAttribute('role', 'alert');
+      bar.innerHTML = '<div class="inv-notice-list"></div><span class="inv-update-actions">' +
+        '<button class="inv-btn inv-btn-secondary inv-update-btn" data-action="invNoticeDismiss">Dismiss</button></span>';
+      document.body.appendChild(bar);
+    }
+    var line = document.createElement('div');
+    line.className = 'inv-notice-text';
+    line.dataset.tone = tone || 'danger';
+    line.textContent = text;
+    bar.querySelector('.inv-notice-list').appendChild(line);
+    bar.dataset.tone = bar.querySelector('[data-tone="danger"]') ? 'danger' : (tone || 'danger');
+    return true;
+  } catch (e) {
+    // The page itself is failing. A toast is the last in-app path; the console only if that fails too.
+    try { showToast(text, 'error'); return true; } catch (e2) { console.error(text); return false; }
+  }
+}
+function uiNoticeDismiss() {
+  document.querySelectorAll('.inv-notice-bar').forEach(function(b) { b.remove(); });
+}
+
+function _uiAskText(o) {
+  return (o.title ? o.title + (o.body ? ': ' : '') : '') + (o.body || '').replace(/\s*\n+\s*/g, ' ');
+}
+
+function _uiAsk(kind, o) {
+  o = o || {};
+  return new Promise(function(resolve) {
+    var id = 'ask' + (++_uiAskSeq), scrim = null, done = false;
+    var finish = function(ans) {
+      if (done) return;
+      done = true;
+      delete _uiAskOpen[id];
+      if (obs) obs.disconnect();
+      if (scrim && scrim.isConnected) {
+        var all = document.querySelectorAll('.inv-scrim-dialog');
+        if (all.length && all[all.length - 1] === scrim) closeTopOverlay();
+        else { scrim.remove(); if (!document.querySelector('.inv-scrim-dialog')) document.body.style.overflow = ''; }
+      }
+      resolve(ans);
+    };
+    var obs = null;
+    try {
+      var input = kind === 'prompt'
+        ? '<div class="inv-field"><label class="inv-field-label" for="' + id + 'In">' + escHtml(o.label || 'Reason') + '</label>' +
+          '<input class="inv-input" id="' + id + 'In" data-ui-ask-input value="' + escHtml(o.value || '') + '"' +
+          (o.placeholder ? ' placeholder="' + escHtml(o.placeholder) + '"' : '') + ' autocomplete="off">' +
+          '<div class="inv-field-error inv-hidden" data-ui-ask-err>' + escHtml(o.requiredText || 'This is needed to go on.') + '</div></div>'
+        : '';
+      var okCls = o.danger ? 'inv-btn inv-btn-danger inv-btn-solid' : 'inv-btn inv-btn-primary';
+      var foot = '<div class="inv-dialog-foot">' +
+        (kind === 'alert' ? '' : '<button type="button" class="inv-btn inv-btn-secondary" data-action="invUiAsk" data-ans="cancel">' + escHtml(o.cancelLabel || 'Cancel') + '</button>') +
+        '<button type="button" class="' + okCls + '" data-action="invUiAsk" data-ans="ok">' + escHtml(o.okLabel || 'OK') + '</button></div>';
+      var html = '<div class="inv-dialog" role="' + (kind === 'alert' ? 'alertdialog' : 'dialog') + '" aria-modal="true" aria-labelledby="' + id + 'T"' +
+        ' data-ui-ask="' + id + '" data-ui-kind="' + kind + '">' +
+        dialogHeadHtml('<span id="' + id + 'T">' + escHtml(o.title || (kind === 'alert' ? 'Note' : 'Are you sure?')) + '</span>', 'invUiAsk') +
+        (o.body ? '<div class="inv-ask-body' + (o.tone ? ' inv-callout inv-callout-' + o.tone : '') + '">' + escHtml(o.body) + '</div>' : '') +
+        input + foot + '</div>';
+      scrim = dialogOpen(html);
+      if (!scrim || !scrim.isConnected) throw new Error('the dialog did not open');
+      _uiAskOpen[id] = { kind: kind, o: o, finish: finish, scrim: scrim };
+      scrim.addEventListener('click', function(e) { if (e.target === scrim) finish(kind === 'prompt' ? null : kind === 'alert' ? undefined : false); });
+      scrim.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); uiAskAnswer(id, 'cancel'); }
+        else if (e.key === 'Enter' && e.target.hasAttribute && e.target.hasAttribute('data-ui-ask-input')) { e.preventDefault(); e.stopPropagation(); uiAskAnswer(id, 'ok'); }
+      });
+      // Shut by anything else (closeOverlay() closing every dialog): that is a cancel, never a hang.
+      obs = new MutationObserver(function() { if (!scrim.isConnected) finish(kind === 'prompt' ? null : kind === 'alert' ? undefined : false); });
+      obs.observe(document.body, { childList: true });
+      // Where the answer starts: the text to type, Cancel before a destructive act, else the act.
+      var focus = kind === 'prompt' ? scrim.querySelector('[data-ui-ask-input]')
+        : scrim.querySelector('[data-ans="' + (o.danger ? 'cancel' : 'ok') + '"]');
+      if (focus) { try { focus.focus(); if (focus.select) focus.select(); } catch (e) {} }
+    } catch (err) {
+      // The fallback: the message is still said, and a question not asked is not answered yes.
+      if (scrim && scrim.isConnected) scrim.remove();
+      var text = _uiAskText(o);
+      if (kind === 'alert') uiNotice(text, o.tone === 'danger' || !o.tone ? 'danger' : o.tone);
+      else uiNotice('Could not show this question, so nothing was done — ' + text, 'danger');
+      done = true;
+      resolve(kind === 'prompt' ? null : kind === 'alert' ? undefined : false);
+    }
+  });
+}
+
+/* A button in an ask dialog (or its close button): the answer, read against its dialog. */
+function uiAskAnswer(idOrBtn, ans) {
+  var id = idOrBtn;
+  if (typeof idOrBtn !== 'string') {
+    var dlg = idOrBtn.closest('[data-ui-ask]');
+    id = dlg ? dlg.dataset.uiAsk : null;
+    ans = idOrBtn.dataset.ans || 'cancel';
+  }
+  var a = id && _uiAskOpen[id];
+  if (!a) return;
+  if (a.kind === 'alert') { a.finish(undefined); return; }
+  if (a.kind === 'confirm') { a.finish(ans === 'ok'); return; }
+  if (ans !== 'ok') { a.finish(null); return; }
+  var inp = a.scrim.querySelector('[data-ui-ask-input]');
+  var v = inp ? inp.value.trim() : '';
+  if (a.o.required && !v) {
+    var err = a.scrim.querySelector('[data-ui-ask-err]');
+    if (err) err.classList.remove('inv-hidden');
+    if (inp) { inp.setAttribute('aria-invalid', 'true'); inp.focus(); }
+    return;
+  }
+  a.finish(v);
+}
+
+function uiConfirm(o) { return _uiAsk('confirm', o); }
+function uiAlert(o) { return _uiAsk('alert', o); }
+function uiPrompt(o) { return _uiAsk('prompt', o); }
+
+/* An error nobody caught still reaches the screen: before this it reached the console alone, and a
+   handler that threw simply did nothing the operator could see. */
+if (typeof window !== 'undefined' && window.addEventListener) {
+  window.addEventListener('error', function(e) {
+    var msg = (e && e.message) || '';
+    if (!msg || /ResizeObserver|Script error/.test(msg)) return;
+    uiNotice('Something went wrong: ' + msg + '. What was being done may not have finished — check it, and export a backup if in doubt.', 'danger');
+  });
+  window.addEventListener('unhandledrejection', function(e) {
+    var r = e && e.reason, msg = r && r.message ? r.message : String(r || '');
+    if (!msg) return;
+    uiNotice('Something went wrong: ' + msg + '. What was being done may not have finished — check it.', 'danger');
+  });
+}
+
 function getApiKey() { try { return localStorage.getItem(API_KEY_KEY) || ''; } catch(e) { return ''; } }
 function setApiKey(key) { try { localStorage.setItem(API_KEY_KEY, key); } catch(e) {} }
 
@@ -687,7 +839,7 @@ function advanceInvoiceState(invId) {
   showToast(inv.displayNumber + ' marked as ' + INV_STATE_LABELS[nextState]);
 }
 
-function bulkMarkFiled() {
+async function bulkMarkFiled() {
   var filtered = getFilteredInvoices();
   var eligible = filtered.filter(function(inv) {
     return inv.status === 'active' && getInvState(inv) === 'delivered';
@@ -696,7 +848,8 @@ function bulkMarkFiled() {
     showToast('No delivered invoices to mark as filed', 'warning');
     return;
   }
-  if (!confirm('Mark ' + eligible.length + ' delivered invoice' + (eligible.length > 1 ? 's' : '') + ' as filed?')) return;
+  if (!(await uiConfirm({ title: 'Mark ' + eligible.length + ' delivered invoice' + (eligible.length > 1 ? 's' : '') + ' as filed?',
+    body: 'A filed invoice cannot be deleted and reissued: its number is in a return.', okLabel: 'Mark as filed' }))) return;
   var now = Date.now();
   eligible.forEach(function(inv) {
     inv.invoiceState = 'filed';
@@ -1015,6 +1168,27 @@ function lineFillFromCount(client, item) {
     item.amount = gstRound(item.qty * (item.rate || 0));
   }
 }
+/* A challan-linked invoice line the challan cannot vouch for (create.js): billing more than is left
+   on it, or billing it in another unit. The red flag's contract — a tap, a note recommended. */
+var OVER_BILL_REASONS = [
+  { id: 'dispatched', label: 'Customer dispatched more than the challan' },
+  { id: 'challan', label: 'Challan quantity was wrong' },
+  { id: 'other', label: 'Other' }
+];
+function unitChangeReasons(to) {
+  return [
+    { id: 'billing', label: to === 'KG' ? 'Customer bills this part by weight now' : 'Customer bills this part by pieces now' },
+    { id: 'challan', label: 'Challan unit was wrong' },
+    { id: 'other', label: 'Other' }
+  ];
+}
+function challanAckReasonLabel(kind, ack) {
+  if (!ack || !ack.reason) return '';
+  var list = kind === 'over' ? OVER_BILL_REASONS : unitChangeReasons(ack.to);
+  var r = list.find(function(x) { return x.id === ack.reason; });
+  return r ? r.label : ack.reason;
+}
+
 var FLAG_REASONS = [
   { id: 'challan', label: 'Customer\'s challan says so' },
   { id: 'rate', label: 'Rate changed' },

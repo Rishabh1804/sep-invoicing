@@ -56,18 +56,26 @@ function imBilledIndex() {
     (inv.items || []).forEach(function(li) {
       if (!li.imItemId) return;
       (idx[li.imItemId] || (idx[li.imItemId] = [])).push({ invoiceId: inv.id, displayNumber: inv.displayNumber, invoiceNumber: inv.invoiceNumber,
-        date: inv.date, qty: li.qty || 0, nosQty: li.nosQty || 0, whole: !!li.imWhole });
+        date: inv.date, qty: li.qty || 0, nosQty: li.nosQty || 0, whole: !!li.imWhole, unit: li.unit || '' });
     });
   });
   return idx;
 }
 
-/* What a set of refs bills of one challan line. */
+/* What a set of refs bills of one challan line.
+   A ref billed in ANOTHER UNIT than the challan line's (a NOS challan line invoiced by the kilo, or
+   the reverse) bills it WHOLE: 120 kg cannot be netted against 600 pieces, and leaving the line open
+   would show phantom unbilled material on Home, Stats and the To-do for ever. The invoice line says
+   so as it is typed, and carries the reason it was given (`unitChangeAck`). */
+function imRefWhole(it, r) {
+  return r.whole || (!!r.unit && !!it.unit && r.unit !== it.unit);
+}
 function imRefsBilled(it, refs) {
   var qty = 0, nos = 0;
   refs.forEach(function(r) {
-    qty += r.whole ? (it.qty || 0) : r.qty;
-    nos += r.whole ? (it.nosQty || 0) : r.nosQty;
+    var whole = imRefWhole(it, r);
+    qty += whole ? (it.qty || 0) : r.qty;
+    nos += whole ? (it.nosQty || 0) : r.nosQty;
   });
   return { qty: parseFloat(qty.toFixed(3)), nos: nos };
 }

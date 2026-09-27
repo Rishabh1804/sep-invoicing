@@ -19,6 +19,8 @@ document.addEventListener('click', function(e) {
     case 'invOpenSettings': openSettings(); break;
     case 'invCloseOverlay': closeOverlay(); break;
     case 'invCloseConfirm': closeTopOverlay(); break;
+    case 'invUiAsk': uiAskAnswer(btn); break;
+    case 'invNoticeDismiss': uiNoticeDismiss(); break;
     case 'invEditClient': openClientEdit(parseInt(btn.dataset.id)); break;
     case 'invAddClient': openClientAdd(); break;
     case 'invSaveClient': saveClientEdit(parseInt(btn.dataset.client), btn.dataset.mode); break;
@@ -40,6 +42,19 @@ document.addEventListener('click', function(e) {
       if (zBox) zBox.innerHTML = zeroReasonHtml(zLine, zIdx);
       var zOn = zBox && zBox.querySelector('[data-reason="' + btn.dataset.reason + '"]');
       if (zOn) zOn.focus();
+      updateTotalsDisplay();
+      break;
+    }
+    case 'invOverReason':
+    case 'invUnitReason': {
+      var aIdx = parseInt(btn.dataset.idx), aLine = invoiceForm.items[aIdx];
+      if (!aLine) break;
+      createAckInit(aLine);
+      if (action === 'invOverReason') aLine.overReason = btn.dataset.reason; else aLine.unitReason = btn.dataset.reason;
+      refreshImShare();
+      var aBox = document.getElementById('invImShare' + aIdx);
+      var aOn = aBox && aBox.querySelector('[data-action="' + action + '"][data-reason="' + btn.dataset.reason + '"]');
+      if (aOn) aOn.focus();
       updateTotalsDisplay();
       break;
     }
@@ -794,6 +809,10 @@ document.addEventListener('input', function(e) {
   if (e.target.dataset.action === 'invZeroNote') {
     var zItem = invoiceForm.items[parseInt(e.target.dataset.idx)];
     if (zItem) zItem.zeroNote = e.target.value;
+  }
+  if (e.target.dataset.action === 'invOverNote' || e.target.dataset.action === 'invUnitNote') {
+    var anItem = invoiceForm.items[parseInt(e.target.dataset.idx)];
+    if (anItem) { createAckInit(anItem); anItem[e.target.dataset.action === 'invOverNote' ? 'overNote' : 'unitNote'] = e.target.value; }
   }
   if (e.target.dataset.action === 'invFlagNote' && _challanForm) {
     var fnItem = _challanForm.items[parseInt(e.target.dataset.idx)];

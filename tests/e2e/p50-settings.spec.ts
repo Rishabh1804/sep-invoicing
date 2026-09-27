@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
-import { emptyState, loadAppWithState, noSeedIM, openSettingsAt, readStoredState, switchTab, type SepState } from './fixtures';
+import { emptyState, loadAppWithState, noSeedIM, openSettingsAt, readStoredState, switchTab, answerAsk, type SepState } from './fixtures';
 
 // P50: Settings in six groups, each section folded to a line that says what it
 // is set to, each section saved on its own; desktop two-pane. Part weights moved
@@ -47,13 +47,11 @@ test.describe('P50: Settings', () => {
     expect(s.company.name).toBe('Test Plating Works');
     expect(s.bankDetails).toBe(before);
 
-    let asked = '';
-    page.once('dialog', d => { asked = d.message(); d.dismiss(); });
     await page.locator('[data-action="invCloseSettings"]').click();
-    expect(asked).toContain('Bank details');
+    expect(await answerAsk(page, 'cancel')).toContain('Bank details');
     await expect(page.locator('#settingsScrim')).toHaveCount(1);
-    page.once('dialog', d => d.accept());
     await page.locator('[data-action="invCloseSettings"]').click();
+    await answerAsk(page, 'ok');
     await expect(page.locator('#settingsScrim')).toHaveCount(0);
     expect(await g(page, 'S.bankDetails')).toBe(before);
   });

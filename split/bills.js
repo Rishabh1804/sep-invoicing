@@ -238,7 +238,7 @@ function billsCnFormInput(t) {
   return true;
 }
 
-function billsCnFormSave() {
+async function billsCnFormSave() {
   var f = _billForm;
   if (!f) return;
   var rec = f.mode === 'record';
@@ -254,8 +254,9 @@ function billsCnFormSave() {
   // Warn, never block: a credit larger than what is left on the invoice is the operator's call.
   if (inv) {
     var room = cnInvoiceHeadroom(inv, null);
-    if (f.taxable > room + 0.005 && !confirm('This credits ' + formatCurrency(f.taxable) + ' taxable against ' + inv.displayNumber +
-        ', which has ' + formatCurrency(room) + ' left after the notes already taken against it.\n\nIssue it anyway?')) return;
+    if (f.taxable > room + 0.005 && !(await uiConfirm({ title: 'More than the invoice has left',
+        body: 'This credits ' + formatCurrency(f.taxable) + ' taxable against ' + inv.displayNumber +
+        ', which has ' + formatCurrency(room) + ' left after the notes already taken against it.\n\nIssue it anyway?', okLabel: 'Issue anyway' }))) return;
   }
 
   // The number: the next in the series for a new note; the printed one for a recorded note,
@@ -335,7 +336,7 @@ var STOCK_UNIT_CHOICES = ['kg', 'g', 'L', 'mL', 'nos', 'bag', 'drum', 'can'];
 
 /* A rename keeps every spelling the line was known by, so a pasted message written the old
    way still lands on it. A unit change converts nothing, and says so before it is made. */
-function stockEditSave(itemId) {
+async function stockEditSave(itemId) {
   var it = stockItem(itemId);
   if (!it) return;
   var nameEl = document.getElementById('stockEditName'), unitEl = document.getElementById('stockEditUnit');
@@ -346,8 +347,9 @@ function stockEditSave(itemId) {
   var clash = stockData().items.find(function(o) { return o.id !== it.id && (o.key === key || (o.aliases || []).indexOf(key) >= 0); });
   if (clash) { showToast('"' + name + '" is already read as ' + clash.name + '. Pick another name.', 'error'); return; }
   var used = stockData().entries.some(function(e) { return e.itemId === it.id && !e.voided; });
-  if (unit !== (it.unit || '') && used && !confirm('Change the unit from ' + (it.unit || 'not set') + ' to ' + (unit || 'not set') + '?\n\n' +
-      'The figures already recorded are not converted: 40 ' + (it.unit || 'units') + ' will read as 40 ' + (unit || 'units') + '. Change it only if the unit was wrong.')) return;
+  if (unit !== (it.unit || '') && used && !(await uiConfirm({ title: 'Change the unit from ' + (it.unit || 'not set') + ' to ' + (unit || 'not set') + '?',
+      body: 'The figures already recorded are not converted: 40 ' + (it.unit || 'units') + ' will read as 40 ' + (unit || 'units') + '. Change it only if the unit was wrong.',
+      okLabel: 'Change unit' }))) return;
   if (name !== it.name) {
     var old = stockKey(it.name);
     it.aliases = (it.aliases || []).slice();

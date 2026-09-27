@@ -92,6 +92,7 @@ function renderCreateForm() {
   html += '<div class="inv-panel inv-panel-flush inv-panels-wide"><div class="inv-panel-head"><span class="inv-panel-title">Lines</span>' +
     '<span class="inv-panel-count">' + invoiceForm.items.length + '</span></div><div class="inv-lines">' +
     (invoiceForm.items.length ? linesHeadHtml('Qty') : '');
+  const shareIdx = invoiceForm.items.some(i => i._imItemId) ? imBilledIndex() : null;
   invoiceForm.items.forEach((item, idx) => {
     const isPieceNOS = client && client.billingMode==='piece' && item.unit==='NOS';
     const rateDisplay = (item.rate != null && !isNaN(item.rate) && item.rate !== 0) ? formatNum(item.rate) : (item.qty > 0 && isPieceNOS ? '—' : (item.rate === 0 && item.qty > 0 ? '0.00' : ''));
@@ -119,7 +120,7 @@ function renderCreateForm() {
       '<div id="invRateMatch' + idx + '">' + rateMatchNote(rm) + '</div>' +
       '<div id="invWeightMatch' + idx + '">' + (client ? weightMatchNote(weightMatch(client, invoiceForm.date, item)) : '') + '</div>' +
       '<div id="invZeroReason' + idx + '">' + zeroReasonHtml(item, idx) + '</div>' +
-      '<div id="invImShare' + idx + '">' + imShareNoteHtml(idx) + '</div>' +
+      '<div id="invImShare' + idx + '">' + imShareNoteHtml(idx, shareIdx) + '</div>' +
       '</div></div>';
   });
   html += '</div><div class="inv-panel-body"><button type="button" class="inv-btn inv-btn-secondary inv-btn-block" data-action="invAddLineItem">Add line</button></div></div>';
@@ -317,17 +318,24 @@ function refreshZeroReason(idx) {
 /* ===== A LINE THAT IS PART OF A CHALLAN =====
    What the challan holds, what other invoices billed of it and what is left,
    under a line that takes only part of it; and a line billing more than is
-   left says by how much. Warn, never block — the Save asks once and stamps the
-   line (`overBillAck`), so an audit can tell an accepted over-bill from one
-   nobody was shown. While an invoice is edited its own share counts as left. */
+   left says by how much. While an invoice is edited its own share counts as left.
+
+   Two things the challan cannot vouch for ask for a REASON under the line, the
+   red flag's and the ₹0 line's contract (owner, 27 Sep 2026: "for both the
+   limits, ask for a reason"): billing MORE than is left, and billing it in a
+   different UNIT from the challan's. A tap on a reason, a note recommended; the
+   invoice cannot be saved without one, and the line keeps it — `overBillAck:
+   {at, left, reason, note}` or `unitChangeAck: {at, from, to, reason, note}` —
+   so an audit can tell an accepted over-bill or unit change from one nobody was
+   shown. Warn, never block: a reason is one tap. */
 function invFormImQty(itemId) {
   return invoiceForm.items.reduce((s, i) => s + (i._imItemId === itemId ? (i.qty || 0) : 0), 0);
 }
 
-function createImShare(idx) {
+function createImShare(idx, bIdx) {
   const item = invoiceForm.items[idx];
   if (!item || !item._imItemId) return null;
-  const sh = imLineShare(item._imItemId, invoiceForm.editingId || null);
+  const sh = imLineShare(item._imItemId, invoiceForm.editingId || null, bIdx);
   if (!sh || (item.unit || '') !== (sh.it.unit || '')) return null;
   const inForm = invFormImQty(item._imItemId);
   const over = parseFloat((inForm - Math.max(0, sh.left)).toFixed(3));
@@ -338,29 +346,132 @@ function createOverText(o) {
   return imQtyText(o.over) + (o.sh.it.unit === 'KG' ? ' kg' : '') + ' over what is left on challan ' + (o.sh.im.challanNo || '(no number)');
 }
 
-function imShareNoteHtml(idx) {
-  const o = createImShare(idx);
+/* A line linked to a challan line and billed in a different unit (NOS ↔ KG). The two quantities
+   cannot be netted, so the line bills the challan line WHOLE: it closes it (imRefsBilled). */
+function createUnitChange(idx, bIdx) {
+  const item = invoiceForm.items[idx];
+  if (!item || !item._imItemId) return null;
+  const sh = imLineShare(item._imItemId, invoiceForm.editingId || null, bIdx);
+  if (!sh || (item.unit || '') === (sh.it.unit || '')) return null;
+  return { sh: sh, from: sh.it.unit || '', to: item.unit || '' };
+}
+
+function createUnitText(u) {
+  const ch = 'challan ' + (u.sh.im.challanNo || '(no number)');
+  return 'Cannot be compared with ' + ch + ': it holds ' + imQtyText(u.sh.qty) + ' ' + (u.from || 'with no unit') +
+    (u.sh.refs.length ? ', ' + imQtyText(u.sh.billed) + ' invoiced' : '') + ', and this line bills it in ' + (u.to || 'no unit') +
+    '. Saved, this line closes the challan line: nothing is left on it after this invoice.';
+}
+
+/* The reason a line's form holds, read once from what the line was saved with. */
+function createAckInit(item) {
+  if (item.overReason === undefined) { item.overReason = (item.overBillAck && item.overBillAck.reason) || null; item.overNote = (item.overBillAck && item.overBillAck.note) || ''; }
+  if (item.unitReason === undefined) { item.unitReason = (item.unitChangeAck && item.unitChangeAck.reason) || null; item.unitNote = (item.unitChangeAck && item.unitChangeAck.note) || ''; }
+  return item;
+}
+
+/* The chips and the note under a line the challan cannot vouch for (kind: 'over' | 'unit'). */
+function createAckPickerHtml(kind, item, idx, reasons, question) {
+  const on = kind === 'over' ? item.overReason : item.unitReason;
+  const note = kind === 'over' ? item.overNote : item.unitNote;
+  const act = kind === 'over' ? 'invOverReason' : 'invUnitReason';
+  let h = '<div class="inv-callout inv-callout-warning" data-ack="' + kind + '">' + escHtml(question) +
+    '<div class="inv-toolbar" role="radiogroup" aria-label="' + escHtml(question) + '">';
+  reasons.forEach(r => {
+    const sel = on === r.id;
+    h += '<button type="button" class="inv-chip' + (sel ? ' inv-chip-on' : '') + '" role="radio" aria-checked="' + sel + '"' +
+      ' data-action="' + act + '" data-idx="' + idx + '" data-reason="' + r.id + '" data-k="' + kind + 'r-' + idx + '-' + r.id + '">' + escHtml(r.label) + '</button>';
+  });
+  return h + '</div><input class="inv-input" data-action="' + (kind === 'over' ? 'invOverNote' : 'invUnitNote') + '" data-idx="' + idx + '" data-k="' + kind + 'note-' + idx + '"' +
+    ' value="' + escHtml(note || '') + '" placeholder="' + (on === 'other' ? 'What was it? (recommended)' : 'Note (recommended)') + '"' +
+    ' aria-label="Note on the reason"></div>';
+}
+
+function imShareNoteHtml(idx, bIdx) {
+  const item = invoiceForm.items[idx];
+  if (!item) return '';
+  const u = createUnitChange(idx, bIdx);
+  if (u) {
+    createAckInit(item);
+    return '<div class="inv-verdict" data-im-unit><span class="inv-dot inv-dot-warning">Unit changed</span>' +
+      '<span class="inv-verdict-text">' + escHtml(createUnitText(u)) + '</span></div>' +
+      createAckPickerHtml('unit', item, idx, unitChangeReasons(u.to), 'Why is this line billed in ' + (u.to || 'another unit') + ' when the challan says ' + (u.from || 'no unit') + '?');
+  }
+  const o = createImShare(idx, bIdx);
   if (!o || (!o.part && !o.over)) return '';
-  return '<div class="inv-verdict" data-im-share><span class="inv-dot inv-dot-info">Part of challan</span>' +
-    '<span class="inv-verdict-text">' + escHtml(imShareText(o.sh)) + '</span></div>' +
-    (o.over ? '<div class="inv-verdict" data-im-over><span class="inv-dot inv-dot-warning">More than left</span>' +
-      '<span class="inv-verdict-text">' + escHtml(createOverText(o)) + '</span></div>' : '');
+  let h = '<div class="inv-verdict" data-im-share><span class="inv-dot inv-dot-info">Part of challan</span>' +
+    '<span class="inv-verdict-text">' + escHtml(imShareText(o.sh)) + '</span></div>';
+  if (o.over) {
+    createAckInit(item);
+    const old = item.overBillAck && !item.overBillAck.reason && !item.overReason;
+    h += '<div class="inv-verdict" data-im-over><span class="inv-dot inv-dot-warning">More than left</span>' +
+      '<span class="inv-verdict-text">' + escHtml(createOverText(o)) + '</span></div>' +
+      createAckPickerHtml('over', item, idx, OVER_BILL_REASONS, old
+        ? 'Accepted earlier with no reason recorded. Why does this line bill more than is left?'
+        : 'Why does this line bill more than is left?');
+  }
+  return h;
 }
 
 /* Every line's note, since two lines may draw on one challan line. */
 function refreshImShare() {
+  const bIdx = invoiceForm.items.some(i => i._imItemId) ? imBilledIndex() : null;
   invoiceForm.items.forEach((item, idx) => {
     const box = document.getElementById('invImShare' + idx);
-    if (box) box.innerHTML = imShareNoteHtml(idx);
+    if (!box) return;
+    // Redrawn only when it changes, so a note being typed in keeps its caret.
+    const html = imShareNoteHtml(idx, bIdx);
+    if (box.dataset.drawn !== html) { box.innerHTML = html; box.dataset.drawn = html; }
   });
 }
 
 /* The lines billing more than is left, each with what was left. */
-function createOverBills() {
+function createOverBills(bIdx) {
+  if (!bIdx && invoiceForm.items.some(i => i._imItemId)) bIdx = imBilledIndex();
   return invoiceForm.items.map((item, idx) => {
-    const o = createImShare(idx);
+    const o = createImShare(idx, bIdx);
     return o && o.over ? { idx: idx, item: item, over: o.over, left: Math.max(0, o.sh.left), sh: o.sh } : null;
   }).filter(Boolean);
+}
+
+/* The lines billed in another unit than their challan line's. */
+function createUnitChanges(bIdx) {
+  if (!bIdx && invoiceForm.items.some(i => i._imItemId)) bIdx = imBilledIndex();
+  return invoiceForm.items.map((item, idx) => {
+    const u = createUnitChange(idx, bIdx);
+    return u ? Object.assign({ idx: idx, item: item }, u) : null;
+  }).filter(Boolean);
+}
+
+/* Stamp each line with the reason it carries (or take a stale one off), just before it is saved. */
+function createStampAcks() {
+  const bIdx = invoiceForm.items.some(i => i._imItemId) ? imBilledIndex() : null;
+  const now = Date.now();
+  const overs = createOverBills(bIdx), units = createUnitChanges(bIdx);
+  invoiceForm.items.forEach(i => {
+    createAckInit(i);
+    const o = overs.find(x => x.item === i);
+    if (!o) delete i.overBillAck;
+    else {
+      const prev = i.overBillAck;
+      const same = prev && prev.reason === i.overReason && Math.abs((prev.left || 0) - o.left) <= IM_QTY_EPS;
+      const note = (i.overNote || '').trim();
+      i.overBillAck = { at: same && prev.at ? prev.at : now, left: o.left, reason: i.overReason };
+      if (note) i.overBillAck.note = note;
+    }
+    const u = units.find(x => x.item === i);
+    if (u) {
+      const prev = i.unitChangeAck;
+      const same = prev && prev.reason === i.unitReason && prev.from === u.from && prev.to === u.to;
+      const note = (i.unitNote || '').trim();
+      i.unitChangeAck = { at: same && prev.at ? prev.at : now, from: u.from, to: u.to, reason: i.unitReason };
+      if (note) i.unitChangeAck.note = note;
+    } else if (!(i.unitChangeAck && i.unitChangeAck.to === i.unit && i.unitChangeAck.from !== i.unit)) {
+      // The unit put back: nothing to explain. (A change carried back to the challan as a correction keeps
+      // its record — the line still bills in the unit the reason was given for.)
+      delete i.unitChangeAck;
+    }
+  });
 }
 
 /* A piece client's line from a challan, re-priced for a new quantity at the
@@ -392,7 +503,8 @@ function invSavedLine(i) {
     ...zeroReasonFields(i),
     ...(i._imItemId ? { imItemId: i._imItemId } : {}),
     ...(i._imItemId && i.imWhole ? { imWhole: true } : {}),
-    ...(i._imItemId && i.overBillAck ? { overBillAck: i.overBillAck } : {}) };
+    ...(i._imItemId && i.overBillAck ? { overBillAck: i.overBillAck } : {}),
+    ...(i._imItemId && i.unitChangeAck ? { unitChangeAck: i.unitChangeAck } : {}) };
 }
 
 function validateInvoice() {
@@ -405,6 +517,17 @@ function validateInvoice() {
     if (item.amount < 0) errors.push('Line ' + (i+1) + ': Amount cannot be negative');
     if (isZeroBilledLine(item) && !item.zeroReason) errors.push('Line ' + (i+1) + ': billed at \u20B90 \u2014 pick a reason');
   });
+  // A line the challan cannot vouch for: more than is left on it, or in another unit.
+  if (invoiceForm.items.some(i => i._imItemId)) {
+    const bIdx = imBilledIndex();
+    createUnitChanges(bIdx).forEach(u => {
+      if (!createAckInit(u.item).unitReason) errors.push('Line ' + (u.idx + 1) + ': billed in ' + (u.to || 'another unit') + ', challan ' +
+        (u.sh.im.challanNo || '(no number)') + ' says ' + (u.from || 'no unit') + ' \u2014 pick a reason');
+    });
+    createOverBills(bIdx).forEach(o => {
+      if (!createAckInit(o.item).overReason) errors.push('Line ' + (o.idx + 1) + ': ' + createOverText(o) + ' \u2014 pick a reason');
+    });
+  }
   return errors;
 }
 
@@ -480,19 +603,8 @@ function saveInvoice() {
   const client = S.clients.find(c => c.id === invoiceForm.clientId);
   if (!client) return;
 
-  // Billing more than is left on a challan line: asked once, then stamped on the line.
-  const overs = createOverBills();
-  const ackedAt = (o) => o.item.overBillAck && Math.abs((o.item.overBillAck.left || 0) - o.left) <= IM_QTY_EPS;
-  const ask = overs.filter(o => !ackedAt(o));
-  if (ask.length && !confirm('Bill more than is left on the challan?\n\n' +
-      ask.map(o => 'Line ' + (o.idx + 1) + ' (' + lineLabel(o.item) + '): ' + createOverText(o)).join('\n') +
-      '\n\nSave anyway? Each line is marked on the invoice as accepted over what was left.')) return;
-  const ackNow = Date.now();
-  invoiceForm.items.forEach(i => {
-    const o = overs.find(x => x.item === i);
-    if (!o) delete i.overBillAck;
-    else if (!ackedAt(o)) i.overBillAck = { at: ackNow, left: o.left };
-  });
+  // More than is left on a challan line, or another unit than its: each carries the reason picked under it.
+  createStampAcks();
 
   invoiceForm.challanNo = (document.getElementById('invChallanNo') || {}).value || '';
   invoiceForm.challanDate = (document.getElementById('invChallanDate') || {}).value || '';

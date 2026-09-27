@@ -270,7 +270,7 @@ function captureCnForm() {
   if (v) _cnForm.vehicleNo = v.value;
 }
 
-function saveCreditNote() {
+async function saveCreditNote() {
   if (!_cnForm) return;
   captureCnForm();
   if (!(_cnForm.pct > 0)) { showToast('Discount must be more than zero', 'error'); return; }
@@ -291,9 +291,10 @@ function saveCreditNote() {
   // solve (split the batch, or raise against a later one), and refusing outright
   // would leave them with a discount they owe and no document to issue it on.
   var against = cnPickAgainstInvoice(invoices, c.taxable, null, c.gstType);
-  if (!against && !confirm('No invoice in this batch is as large as the credit (\u20b9' +
+  if (!against && !(await uiConfirm({ title: 'No invoice large enough', body: 'No invoice in this batch is as large as the credit (\u20b9' +
       formatNum(c.taxable, 2) + ' taxable).\n\nThe note will print without an invoice ' +
-      'reference. Raise it anyway?')) return;
+      'reference. Raise it anyway?', okLabel: 'Raise anyway' }))) return;
+  num = recomputeNextCnNumber();
 
   var cn = {
     id: 'CN-' + Date.now(),

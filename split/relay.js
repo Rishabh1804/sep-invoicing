@@ -783,7 +783,7 @@ function relayRead() {
   _relayView = 'review';
   _relayShowLines = false;
   renderAttendance();
-  window.scrollTo(0, 0);
+  viewTop();
 }
 
 function relayMarkText(m) {
@@ -933,7 +933,7 @@ function relaySave() {
   _relay = null; _relayDraft = ''; _relayView = 'paste';
   _attDate = first; _attView = 'day';
   renderAttendance();
-  window.scrollTo(0, 0);
+  viewTop();
   showToast('Saved ' + todoPlural(plan.days.length, 'day') + ': ' + todoPlural(marks, 'mark') + ', ' + todoPlural(extras, 'EXTRA row'));
 }
 

@@ -637,10 +637,13 @@ function renderStock() {
 }
 
 function stockSetView(v) {
+  // Only a new view goes to the top: a Lines tile filtering the list it is on is a change inside the view (P79).
+  // On the desktop a line opens in the pane beside the table, which stays put: that is not a new view either.
+  var moved = v !== _stockView && !(_isDesktop && /^(list|item)$/.test(v) && /^(list|item)$/.test(_stockView));
   _stockView = v;
   _stockVoidArm = null;
   renderStock();
-  window.scrollTo(0, 0);
+  if (moved) viewTop();
 }
 
 function renderStockList(open) {

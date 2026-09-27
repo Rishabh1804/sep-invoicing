@@ -18,7 +18,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <!-- Appearance before first paint (§3.2): the device's theme and palette, so nothing flashes in the wrong colours. -->
 <script>(function(){try{var d=document.documentElement,t=localStorage.getItem("sep_inv_theme"),p=localStorage.getItem("sep_inv_palette");if(t==="light"||t==="dark")d.dataset.theme=t;d.dataset.palette=(p==="zinc"||p==="terracotta")?p:"teal";}catch(e){document.documentElement.dataset.palette="teal";}})();</script>
-<meta name="app-build" content="09fc1a72">
+<meta name="app-build" content="3c070d3a">
 <style>
 /* ===== DESIGN TOKENS (design system v2.0 — docs/SEP_INVOICING_DESIGN_PRINCIPLES.md §3) ===== */
 /* Theme: colour-scheme decides every light-dark() below. <html data-theme> is set before first paint
@@ -98,7 +98,7 @@
   --info: light-dark(#1d5ea6, #8dbaf0); --info-bg: light-dark(#e6effa, #15263a);
 
   /* Layout (§3.7) */
-  --bar-h: 3.25rem; --bar-h-desk: 3rem; --nav-h: 3.625rem; --side-w: 13.5rem; --content-max: 80rem; --pane-w: 22rem; --scroll-max: 55vh;
+  --bar-h: 3.25rem; --bar-h-desk: 3rem; --fill-h: calc(100dvh - var(--bar-h-desk)); --pane-host-min: 20rem; --nav-h: 3.625rem; --side-w: 13.5rem; --content-max: 80rem; --pane-w: 22rem; --scroll-max: 55vh;
   --filter-w: 9rem; --col-sm-w: 8rem; --line-fig-w: 7rem; --line-unit-w: 5.5rem; --menu-max: 17.5rem;
   --max-w: 32.5rem; --set-card-w: 55rem; --set-nav-w: 12.5rem;
   --dialog-w: 40rem; --dialog-max-h: 90vh; --dialog-max-h-desk: 85vh; --toast-max: 30rem; --busy-w: 17.5rem;
@@ -903,9 +903,26 @@ body.inv-desktop {
 body.inv-desktop .inv-navbar { display: none; }
 
 /* A list and its detail pane (§6.14), desktop only: the list takes the room, the pane a fixed column on the right
-   while something is open. Register, IM, Clients / Items and Stock. */
+   while something is open. Register, IM, Clients / Items and Stock.
+   The page holding one fills the viewport under the desktop bar exactly, as a flex column: its head, view tabs and
+   toolbar keep their height, and the host (with every wrapper between it and the page) takes what is left, so the
+   page itself never scrolls; the list and the pane scroll inside themselves. No height is subtracted by hand: the
+   host was once `100vh - the phone bar`, which ignored everything above it, and the page scrolled on top of the list.
+   Content above the host taller than the screen (a filter that opens) squeezes it only to --pane-host-min; past
+   that the page scrolls, as any long page does. A host hidden under a form (IM's challan form) leaves the page a
+   plain document. */
+body.inv-desktop .inv-page-active:has(.inv-pane-host):not(:has(.inv-hidden .inv-pane-host)) {
+  display: flex; flex-direction: column; height: var(--fill-h);
+}
+body.inv-desktop .inv-page-active:has(.inv-pane-host):not(:has(.inv-hidden .inv-pane-host)) :has(.inv-pane-host) {
+  display: flex; flex-direction: column; flex: 1 1 0; min-height: var(--pane-host-min);
+}
+body.inv-desktop .inv-page-active:has(.inv-pane-host):not(:has(.inv-hidden .inv-pane-host)) > :not(:has(.inv-pane-host)),
+body.inv-desktop .inv-page-active:has(.inv-pane-host):not(:has(.inv-hidden .inv-pane-host)) :has(.inv-pane-host) > :not(:has(.inv-pane-host), .inv-pane-host) {
+  flex-shrink: 0;
+}
 body.inv-desktop .inv-pane-host {
-  display: flex; height: calc(100vh - var(--bar-h)); overflow: hidden; container: masterdetail / inline-size;
+  display: flex; flex: 1 1 0; min-height: var(--pane-host-min); overflow: hidden; container: masterdetail / inline-size;
 }
 body.inv-desktop .inv-pane-list { flex: 1; min-width: 0; overflow-y: auto; container: list / inline-size; }
 
@@ -2252,6 +2269,55 @@ function focusFirstInteractive(container) {
   if (el) { try { el.focus(); } catch(e) {} }
 }
 
+/* ===== A CHANGE INSIDE A VIEW NEVER MOVES THE PAGE (P79) =====
+   Owner, 27 Sep 2026: picking a client in Receivables sent the page back to the top. The re-render brought the open
+   view tab into view with scrollIntoView, and with the tabs above the screen that scrolls the PAGE up to them.
+   - viewTabReveal(row): brings the open tab of a view-tab row into sight by scrolling the row sideways, never the page.
+   - viewTop(): the one way to send the page to the top, for a real navigation (a new page, a sub-page, a view tab).
+   - keepScroll(fn): runs a re-render and puts the page, its scrolling panes and dialogs back where they were, and
+     focus back on the control the re-render replaced (by id, else by its data- attributes). A viewTop() inside fn
+     is a navigation, and wins. */
+function viewTabReveal(row) {
+  if (!row) return;
+  var on = row.querySelector('.inv-viewtab[aria-selected="true"]');
+  if (!on) return;
+  var r = row.getBoundingClientRect(), t = on.getBoundingClientRect();
+  if (t.left < r.left) row.scrollLeft -= r.left - t.left;
+  else if (t.right > r.right) row.scrollLeft += t.right - r.right;
+}
+
+var _viewTopAt = 0;
+function viewTop() {
+  _viewTopAt++;
+  window.scrollTo(0, 0);
+}
+
+var KEEP_SCROLLERS = '.inv-pane-list, .inv-pane, .inv-dialog, .inv-dialog-main, .inv-dialog-panes';
+function _keepKey(el) {
+  if (!el || !el.tagName || el === document.body) return null;
+  if (el.id) return '#' + CSS.escape(el.id);
+  var attrs = Array.prototype.filter.call(el.attributes, function(a) { return /^data-/.test(a.name); });
+  if (!attrs.length) return null;
+  return el.tagName.toLowerCase() + attrs.map(function(a) { return '[' + a.name + '="' + CSS.escape(a.value) + '"]'; }).join('');
+}
+function keepScroll(fn) {
+  var y = window.scrollY, nav = _viewTopAt;
+  var inner = Array.prototype.map.call(document.querySelectorAll(KEEP_SCROLLERS), function(el) { return el.scrollTop; });
+  var act = document.activeElement, key = _keepKey(act);
+  try { return fn(); } finally {
+    if (_viewTopAt === nav) {
+      var now = document.querySelectorAll(KEEP_SCROLLERS);
+      if (now.length === inner.length) Array.prototype.forEach.call(now, function(el, i) { if (el.scrollTop !== inner[i]) el.scrollTop = inner[i]; });
+      if (window.scrollY !== y) window.scrollTo(0, y);
+      if (act && !act.isConnected && key) {
+        var back = null;
+        try { back = document.querySelector(key); } catch (e) { back = null; }
+        if (back && typeof back.focus === 'function') { try { back.focus({ preventScroll: true }); } catch (e) {} }
+      }
+    }
+  }
+}
+
 /* ===== DIALOG SHELL (design system §6.16) =====
    Every dialog is an inv-dialog in an inv-scrim-dialog: a sheet from the bottom on the phone, centred on the
    desktop. Its head is the title and a close button; its foot (inv-dialog-foot) the actions, primary last.
@@ -3484,6 +3550,9 @@ function switchTab(tabId) {
   if (currentPage) {
     _tabScroll[currentPage.id] = currentPage.scrollTop || window.scrollY;
   }
+
+  // Another page is a navigation: a keepScroll around whatever called this does not hold the old place (P79).
+  _viewTopAt++;
 
   // Step 3: Deactivate all tabs and pages
   document.querySelectorAll('.inv-page').forEach(p => p.classList.remove('inv-page-active'));
@@ -12546,12 +12615,7 @@ function renderAttendance() {
     toolbar.innerHTML = _attView === 'paste' ? '' : _attTabsHtml();
     // Six tabs overflow a phone; the open one is scrolled into view sideways only, so a tap lower on the
     // page (a P/H/A, an hour) never jumps the page back up to the tabs.
-    var list = toolbar.querySelector('.inv-viewtabs'), on = toolbar.querySelector('.inv-viewtab[aria-selected="true"]');
-    if (list && on) {
-      var left = on.offsetLeft - list.offsetLeft, right = left + on.offsetWidth;
-      if (left < list.scrollLeft) list.scrollLeft = left;
-      else if (right > list.scrollLeft + list.clientWidth) list.scrollLeft = right - list.clientWidth;
-    }
+    viewTabReveal(toolbar.querySelector('.inv-viewtabs'));
   }
 
   var area = document.getElementById('attContent');
@@ -16869,10 +16933,13 @@ function renderStock() {
 }
 
 function stockSetView(v) {
+  // Only a new view goes to the top: a Lines tile filtering the list it is on is a change inside the view (P79).
+  // On the desktop a line opens in the pane beside the table, which stays put: that is not a new view either.
+  var moved = v !== _stockView && !(_isDesktop && /^(list|item)$/.test(v) && /^(list|item)$/.test(_stockView));
   _stockView = v;
   _stockVoidArm = null;
   renderStock();
-  window.scrollTo(0, 0);
+  if (moved) viewTop();
 }
 
 function renderStockList(open) {
@@ -20034,6 +20101,7 @@ function bankAction(action, btn) {
 
 var FIN_TABS = [['overview', 'Overview'], ['receipts', 'Receivables'], ['payments', 'Payments'], ['bank', 'Bank'], ['bills', 'Bills & notes'], ['gst', 'GST']];
 var _finTab = (function() { try { var t = localStorage.getItem('sep_inv_fin_tab'); return FIN_TABS.some(function(x) { return x[0] === t; }) ? t : 'overview'; } catch (e) { return 'overview'; } })();
+var _finTabMoved = false;   // another tab was chosen: the next render is a navigation and starts at the top
 var _finGstEdit = null;   // the month whose GST note is open
 var _finMonth = null;   // the month "where money went" reads; null = the latest with a statement row
 var _finCat = null;     // the outflow category the pie has open
@@ -20042,6 +20110,7 @@ var _finRange = (function() { try { var r = localStorage.getItem('sep_inv_fin_ra
 
 function finSetTab(t) {
   if (!FIN_TABS.some(function(x) { return x[0] === t; })) t = 'overview';
+  if (t !== _finTab) _finTabMoved = true;
   _finTab = t;
   try { localStorage.setItem('sep_inv_fin_tab', t); } catch (e) { /* a per-device convenience only */ }
 }
@@ -20059,9 +20128,10 @@ function renderFinance() {
   else if (_finTab === 'overview') h += finOverviewHtml();
   else h += renderBank(_finTab);
   el.innerHTML = h;
-  // Six tabs overflow a phone's width; the one open is scrolled into view, never left off-screen.
-  var on = el.querySelector('.inv-viewtab[aria-selected="true"]');
-  if (on && on.scrollIntoView) on.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  // Six tabs overflow a phone's width; the one open is brought into view by scrolling the row sideways. Never
+  // scrollIntoView: with the tabs above the screen it scrolled the page back to them on every client picked (P79).
+  viewTabReveal(el.querySelector('.inv-viewtabs'));
+  if (_finTabMoved) { _finTabMoved = false; viewTop(); }
 }
 
 /* The overview is read at a glance: whole rupees. Every tab behind it keeps the paise. */
@@ -22048,7 +22118,7 @@ function relayRead() {
   _relayView = 'review';
   _relayShowLines = false;
   renderAttendance();
-  window.scrollTo(0, 0);
+  viewTop();
 }
 
 function relayMarkText(m) {
@@ -22198,7 +22268,7 @@ function relaySave() {
   _relay = null; _relayDraft = ''; _relayView = 'paste';
   _attDate = first; _attView = 'day';
   renderAttendance();
-  window.scrollTo(0, 0);
+  viewTop();
   showToast('Saved ' + todoPlural(plan.days.length, 'day') + ': ' + todoPlural(marks, 'mark') + ', ' + todoPlural(extras, 'EXTRA row'));
 }
 
@@ -22688,12 +22758,7 @@ function renderStats() {
     toolbar.innerHTML = statsTabsHtml() + '<div class="inv-toolbar">' +
       statsSeg('invStatsPeriod', 'period', { mtd: 'MTD', qtd: 'QTD', ytd: 'YTD', all: 'All' }, _statsPeriod, 'Period', false) + '</div>';
     // The open tab is scrolled into view sideways only, as Staff's: never cut off at a phone's edge.
-    var list = toolbar.querySelector('.inv-viewtabs'), on = toolbar.querySelector('.inv-viewtab[aria-selected="true"]');
-    if (list && on) {
-      var left = on.offsetLeft - list.offsetLeft, right = left + on.offsetWidth;
-      if (left < list.scrollLeft) list.scrollLeft = left;
-      else if (right > list.scrollLeft + list.clientWidth) list.scrollLeft = right - list.clientWidth;
-    }
+    viewTabReveal(toolbar.querySelector('.inv-viewtabs'));
   }
 
   var activeInvs = S.invoices.filter(function(i) { return i.status === 'active'; });
@@ -23655,7 +23720,7 @@ function statsTab() {
 function statsSetTab(t) {
   try { localStorage.setItem(STATS_TAB_KEY, t); } catch (e) { /* per-device convenience only */ }
   renderStats();
-  window.scrollTo(0, 0);
+  viewTop();   // another view tab: a navigation
 }
 function statsTabsHtml() {
   var cur = statsTab();
@@ -26384,7 +26449,13 @@ function _applyScanResult(parsed) {
 }
 
 /* ===== EVENT DELEGATION ===== */
+// A pressed chip, segment or tile (aria-pressed) is a choice inside the view — a filter, a period, a P/H/A — so it
+// re-renders inside keepScroll (state.js), like a pick in a drop-down: the page stays where it was (P79).
 document.addEventListener('click', function(e) {
+  const pressed = e.target.closest && e.target.closest('[data-action][aria-pressed]');
+  if (pressed) keepScroll(function() { onDocClick(e); }); else onDocClick(e);
+});
+function onDocClick(e) {
   // Dismiss any open suggestion menu (part or client) when clicking outside its field
   if (!e.target.closest('.inv-combo')) {
     dismissAllAutocomplete();
@@ -26776,7 +26847,7 @@ document.addEventListener('click', function(e) {
       else if (action.indexOf('invCost') === 0) costAction(action, btn);
       else if (action.indexOf('invPred') === 0) predAction(action, btn);
   }
-});
+}
 
 /* Capture optional fields from DOM into invoiceForm before any re-render */
 function captureOptionalFields() {
@@ -26814,7 +26885,9 @@ function updateTotalsDisplay() {
   if (saveBtn) saveBtn.disabled = errors.length > 0;
 }
 
-document.addEventListener('change', function(e) {
+// Every change re-renders inside keepScroll (state.js): a pick in a drop-down never moves the page (P79).
+document.addEventListener('change', function(e) { keepScroll(function() { onDocChange(e); }); });
+function onDocChange(e) {
   if (stockOnChange(e.target)) return;
   if (billsCnFormInput(e.target)) return;
   if (e.target.id !== 'bankSearch' && bankInput(e.target)) return;
@@ -26967,7 +27040,7 @@ document.addEventListener('change', function(e) {
       renderAddChallanForm();
     }
   }
-});
+}
 
 document.addEventListener('input', function(e) {
   if (stockOnInput(e.target)) return;

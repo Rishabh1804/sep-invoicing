@@ -335,12 +335,7 @@ function renderAttendance() {
     toolbar.innerHTML = _attView === 'paste' ? '' : _attTabsHtml();
     // Six tabs overflow a phone; the open one is scrolled into view sideways only, so a tap lower on the
     // page (a P/H/A, an hour) never jumps the page back up to the tabs.
-    var list = toolbar.querySelector('.inv-viewtabs'), on = toolbar.querySelector('.inv-viewtab[aria-selected="true"]');
-    if (list && on) {
-      var left = on.offsetLeft - list.offsetLeft, right = left + on.offsetWidth;
-      if (left < list.scrollLeft) list.scrollLeft = left;
-      else if (right > list.scrollLeft + list.clientWidth) list.scrollLeft = right - list.clientWidth;
-    }
+    viewTabReveal(toolbar.querySelector('.inv-viewtabs'));
   }
 
   var area = document.getElementById('attContent');

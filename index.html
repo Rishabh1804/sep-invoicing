@@ -18,7 +18,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <!-- Appearance before first paint (§3.2): the device's theme and palette, so nothing flashes in the wrong colours. -->
 <script>(function(){try{var d=document.documentElement,t=localStorage.getItem("sep_inv_theme"),p=localStorage.getItem("sep_inv_palette");if(t==="light"||t==="dark")d.dataset.theme=t;d.dataset.palette=(p==="zinc"||p==="terracotta")?p:"teal";}catch(e){document.documentElement.dataset.palette="teal";}})();</script>
-<meta name="app-build" content="44121e20">
+<meta name="app-build" content="8fc9659d">
 <style>
 /* ===== DESIGN TOKENS (design system v2.0 — docs/SEP_INVOICING_DESIGN_PRINCIPLES.md §3) ===== */
 /* Theme: colour-scheme decides every light-dark() below. <html data-theme> is set before first paint
@@ -1095,7 +1095,9 @@ body.inv-desktop .inv-viewtab { min-height: var(--ctl-h); font-size: var(--fs-13
 }
 .inv-search:focus-within { border-color: var(--accent); box-shadow: var(--focus-ring); }
 .inv-search svg { width: 16px; height: 16px; flex-shrink: 0; }
-.inv-search input { flex: 1; min-width: 0; border: none; outline: none; background: none; color: var(--text-1); font-size: var(--fs-14); }
+.inv-search input { flex: 1; min-width: 0; border: none; outline: none; background: none; color: var(--text-1); font-size: var(--fs-14);
+  align-self: stretch; margin-block: calc(-1 * var(--hair)); }
+/* The field fills its box to the border, so the whole 44px box is the tap that types (it was a 16px line of text). */
 .inv-search input:focus-visible { box-shadow: none; }
 /* Filters in a toolbar share the line, wrapping two to a row on the phone; a labelled one keeps its label above. */
 .inv-toolbar > .inv-toolbar-item { flex: 1 1 var(--filter-w); min-width: 0; width: auto; }
@@ -1211,6 +1213,10 @@ button.inv-row:hover, a.inv-row:hover { background: var(--surface-2); }
 .inv-row-end { flex-shrink: 0; display: flex; align-items: center; gap: var(--sp-8); text-align: right; }
 .inv-row-end .inv-btn-link { font-size: var(--fs-13); }
 button.inv-row-main { display: block; padding: 0; border: none; background: none; font: inherit; color: inherit; text-align: left; cursor: pointer; align-self: stretch; }
+/* A row's button reaches the row's top and bottom edges, over its padding, so the row's full height is the tap: it stopped
+   short by the padding and was 43px on a two-line row, 31px on a one-line one. */
+.inv-row > button.inv-row-main { margin-block: calc(-1 * var(--sp-6)); padding-block: var(--sp-6); }
+body:not(.inv-desktop) button.inv-row-main { min-height: var(--touch); }
 .inv-row-main > .inv-row-title, .inv-row-main > .inv-row-meta { display: block; }
 .inv-row-stack { display: flex; flex-direction: column; align-items: flex-end; gap: var(--sp-2); }
 .inv-row-wrap { display: block; white-space: normal; }

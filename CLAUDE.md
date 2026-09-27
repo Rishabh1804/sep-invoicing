@@ -114,7 +114,7 @@ every session start — nothing to set up by hand. CI (`build-sync`) is the back
 ### Tests
 
 ```bash
-pnpm exec playwright test          # 611 tests, both layouts
+pnpm exec playwright test          # 612 tests, both layouts
 ```
 
 Some sandboxes ship a Chromium build Playwright does not expect and block downloading
@@ -272,6 +272,21 @@ from 1,870 lines to 1,553. What it took, so nobody reintroduces it:
 - **P76 sweeps the whole app** — every page, every view tab and every dialog, phone and desktop, light and dark — for a
   retired class, an unstyled class, a select with an action, a duplicate id, a blank page, a second primary, a dialog foot
   that is not last, and a page wider than the screen; and reads every template for a select with an action.
+
+**A polish pass followed (27 Sep 2026)**: every page, view tab and dialog shot at 393px and 1280px in both themes, on the
+sweep book and on one with a ₹12,34,56,789.00 invoice and an 80-character client name, and looked at. What it fixed, all on
+the §6 components: `--ctl-h-sm` is 44px while the density is comfortable (§3.5 promised it; small buttons, segmented
+controls and small selects were 36px on the phone), a row's tick box reaches the row's edges, a folded panel's head and a
+head's link are touch targets; padded panels and `inv-panel-body` use `--pad-x`, so their text starts where a flush panel's
+does; a small link lost the side padding that set it 12px in from the figures (Finance → GST's status column, every
+*Open …* link); a crore in a tile wraps instead of being cut, and the action bar's total takes the row rather than spilling;
+the invoice detail's line amount is money (it printed `13000.00`); prose qualifiers and the chart readout are no longer mono;
+the forecast is a flush panel; a head's count sits in its title; the number audit's and unplaced receipts' rows let their
+end drop under the number on a phone. P76 now also fails on anything past the screen's right edge outside a scroller, a
+touch target under 44px in the bars, tabs, toolbars, segmented controls, heads and dialog feet on the phone, and a tile or
+action-bar figure cut by its box, and walks the crore book. Left for the owner: clipped client names and dates in row meta
+lines (they need a `title` or a reordered meta, per screen), chart legend rows (24px tall), the forecast's x labels cut at
+the drawing's edge, and the crore-scale axis labels (`₹1200.0L`).
 
 ## Business Domain
 

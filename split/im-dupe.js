@@ -94,13 +94,17 @@ function imDuplicateVerdict(group) {
   group.forEach(function(im) {
     var hit = false;
     im.items.forEach(function(it) {
-      if (it.invoiced && it.invoiceId) { invoiceIds[it.invoiceId] = true; hit = true; }
-      else if (it.invoiced) { hit = true; }
+      // Every invoice a line went on, a line invoiced in parts included.
+      var ids = it.invoiceIds && it.invoiceIds.length ? it.invoiceIds : (it.invoiceId ? [it.invoiceId] : []);
+      if (imLineBilled(it) && ids.length) { ids.forEach(function(iid) { invoiceIds[iid] = true; }); hit = true; }
+      else if (imLineBilled(it)) { hit = true; }
     });
     if (hit) invoicedCopies++;
   });
   var distinct = Object.keys(invoiceIds).length;
-  if (distinct > 1) return { key: 'billed', label: 'Billed twice', tone: 'danger' };
+  // Two copies each reaching a bill, on different invoices. One copy invoiced in
+  // parts reaches several invoices by design and bills nothing twice.
+  if (distinct > 1 && invoicedCopies > 1) return { key: 'billed', label: 'Billed twice', tone: 'danger' };
   if (invoicedCopies === 0) return { key: 'open', label: 'Unbilled — still preventable', tone: 'warning' };
   return { key: 'collapsed', label: 'Collapsed into one invoice', tone: 'info' };
 }

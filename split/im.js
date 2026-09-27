@@ -19,10 +19,160 @@ function getIMSortConfig() {
   return null; // mobile uses inline sort logic, not config-driven
 }
 
+/* ===== A CHALLAN INVOICED IN PARTS =====
+
+   Owner, 26 Sep 2026: "Samarth Engg sends 600 nos of an item, I should be able
+   to invoice that challan multiple times till 600 is reached — 200 one day,
+   then 300 and then 100." A challan line used to be all-or-nothing.
+
+   What a line has been billed is DERIVED from the invoices, never typed: the
+   sum of `qty` over every invoice line naming it (`imItemId`) on an invoice
+   that is not cancelled. A deleted invoice is gone from S.invoices, so it frees
+   its share by itself. The flags on the line (`invoiced`, `invoiceId`, and now
+   `billedQty`, `billedNos`, `invoiceIds`) are a CACHE of that, written by
+   imSyncBilled() after every invoice save, edit, cancel, delete and reissue and
+   in migrateState(), so every reader of `it.invoiced` keeps working.
+
+   Two older shapes are kept whole rather than reopened:
+   - a line flagged invoiced whose invoice exists but names no challan line
+     (saved before `imItemId` existed): fully billed by that invoice
+     (`billedLegacy`), until the invoice is opened and linked, deleted, or
+     cancelled (confirmCancelInvoice frees it, as it always did) — the same
+     test the old orphan repair made, so nothing old is reopened;
+   - an invoice line linked to it on a looser match whose quantity differed
+     (`imWhole`, set by withChallanLinks): it billed the whole challan line, as
+     the all-or-nothing app did. */
+var IM_QTY_EPS = 0.0005;
+
+function imQtyText(n) { return String(parseFloat(Number(n || 0).toFixed(3))); }
+
+/* imItemId → the invoice lines billing it, oldest invoice first. */
+function imBilledIndex() {
+  var idx = {};
+  (S.invoices || []).slice().sort(function(a, b) {
+    return String(a.date || '').localeCompare(String(b.date || '')) || (a.createdAt || 0) - (b.createdAt || 0);
+  }).forEach(function(inv) {
+    if (inv.status === 'cancelled') return;
+    (inv.items || []).forEach(function(li) {
+      if (!li.imItemId) return;
+      (idx[li.imItemId] || (idx[li.imItemId] = [])).push({ invoiceId: inv.id, displayNumber: inv.displayNumber, invoiceNumber: inv.invoiceNumber,
+        date: inv.date, qty: li.qty || 0, nosQty: li.nosQty || 0, whole: !!li.imWhole });
+    });
+  });
+  return idx;
+}
+
+/* What a set of refs bills of one challan line. */
+function imRefsBilled(it, refs) {
+  var qty = 0, nos = 0;
+  refs.forEach(function(r) {
+    qty += r.whole ? (it.qty || 0) : r.qty;
+    nos += r.whole ? (it.nosQty || 0) : r.nosQty;
+  });
+  return { qty: parseFloat(qty.toFixed(3)), nos: nos };
+}
+
+/* Write the derived billing onto every challan line. Returns how many changed. */
+function imSyncBilled() {
+  var idx = imBilledIndex(), held = {}, changed = 0;
+  (S.invoices || []).forEach(function(inv) { held[inv.id] = true; });
+  (S.incomingMaterial || []).forEach(function(im) {
+    (im.items || []).forEach(function(it) {
+      var before = JSON.stringify([it.invoiced, it.invoiceId, it.billedQty, it.billedNos, it.invoiceIds, it.billedLegacy]);
+      var refs = idx[it.id] || [];
+      if (!refs.length && it.invoiced && it.invoiceId && held[it.invoiceId] && (it.billedLegacy || it.billedQty == null)) {
+        it.billedLegacy = true;
+        it.invoiced = true;
+        it.billedQty = it.qty || 0;
+        if (it.nosQty) it.billedNos = it.nosQty; else delete it.billedNos;
+        it.invoiceIds = [it.invoiceId];
+      } else {
+        delete it.billedLegacy;
+        if (!refs.length) {
+          it.invoiced = false; it.invoiceId = null;
+          delete it.billedQty; delete it.billedNos; delete it.invoiceIds;
+        } else {
+          var b = imRefsBilled(it, refs), ids = [];
+          refs.forEach(function(r) { if (ids.indexOf(r.invoiceId) < 0) ids.push(r.invoiceId); });
+          it.billedQty = b.qty;
+          if (b.nos > 0) it.billedNos = b.nos; else delete it.billedNos;
+          it.invoiceIds = ids;
+          it.invoiceId = ids[ids.length - 1];
+          it.invoiced = (it.qty || 0) - b.qty <= IM_QTY_EPS;
+        }
+      }
+      if (JSON.stringify([it.invoiced, it.invoiceId, it.billedQty, it.billedNos, it.invoiceIds, it.billedLegacy]) !== before) changed++;
+    });
+  });
+  return changed;
+}
+
+/* Has any of this line been billed? (The edit/delete lock.) */
+function imLineBilled(it) { return !!it.invoiced || (it.billedQty || 0) > 0; }
+
+/* The share of a challan line still to bill: quantity, pieces and amount.
+   An unbilled amount anywhere in the app is this share, never the whole line. */
+function imLineOpen(it) {
+  var q = it.qty || 0;
+  if (it.invoiced) return { qty: 0, nos: 0, amount: 0 };
+  var billed = it.billedQty || 0;
+  var left = q - billed;
+  if (left <= IM_QTY_EPS) left = 0;
+  left = parseFloat(left.toFixed(3));
+  if (!billed) return { qty: q, nos: it.nosQty || 0, amount: it.amount || 0 };
+  var nos = 0;
+  if (it.nosQty) nos = it.billedNos > 0 ? Math.max(0, it.nosQty - it.billedNos) : Math.round(it.nosQty * left / (q || 1));
+  var amount = q > 0 ? gstRound((it.amount || 0) * left / q) : 0;
+  return { qty: left, nos: nos, amount: amount };
+}
+
+/* One challan line against the invoices, leaving one invoice out (the one being
+   edited: its own share is still available to it). */
+function imLineShare(itemId, exceptInvoiceId, idx) {
+  var im = null, it = null;
+  (S.incomingMaterial || []).some(function(m) {
+    var hit = (m.items || []).find(function(x) { return x.id === itemId; });
+    if (hit) { im = m; it = hit; return true; }
+    return false;
+  });
+  if (!it) return null;
+  var refs = ((idx || imBilledIndex())[itemId] || []).filter(function(r) { return r.invoiceId !== exceptInvoiceId; });
+  var billed = imRefsBilled(it, refs);
+  if (!refs.length && it.billedLegacy && it.invoiceId !== exceptInvoiceId) {
+    var legacy = S.invoices.find(function(i) { return i.id === it.invoiceId; });
+    if (legacy) { refs = [{ invoiceId: legacy.id, displayNumber: legacy.displayNumber, qty: it.qty || 0 }]; billed = { qty: it.qty || 0, nos: it.nosQty || 0 }; }
+  }
+  var left = (it.qty || 0) - billed.qty;
+  if (Math.abs(left) <= IM_QTY_EPS) left = 0;
+  return { im: im, it: it, refs: refs, qty: it.qty || 0, billed: billed.qty, billedNos: billed.nos, left: parseFloat(left.toFixed(3)) };
+}
+
+/* "600 on challan 301 · 200 invoiced (SEP/…/00012) · 400 left" */
+function imShareText(sh) {
+  var ch = 'challan ' + (sh.im.challanNo || '(no number)');
+  var unit = sh.it.unit === 'KG' ? ' kg' : '';
+  return imQtyText(sh.qty) + unit + ' on ' + ch +
+    (sh.refs.length ? ' · ' + imQtyText(sh.billed) + unit + ' invoiced (' + sh.refs.map(function(r) { return r.displayNumber; })
+      .filter(function(v, i, a) { return a.indexOf(v) === i; }).join(', ') + ')' : '') +
+    ' · ' + imQtyText(Math.max(0, sh.left)) + unit + ' left';
+}
+
+/* A challan line as an invoice line: at what is LEFT of it, linked by imItemId.
+   The amount is the open share of the challan's own amount (for a line whose
+   amount is its quantity × rate that is the same figure; for a piece client's
+   passthrough amount it is the only one). The quantity stays editable. */
+function imLineFormItem(it) {
+  var open = imLineOpen(it), part = imLineBilled(it);
+  return { partNumber: it.partNumber, desc: it.desc, hsn: it.hsn || '998873', unit: it.unit, qty: open.qty,
+    rate: it.rate || 0, amount: open.amount, nosQty: (part ? open.nos : it.nosQty) || null,
+    _override: false, _label: '', _imItemId: it.id, _nosAuto: !!(it.unit === 'KG' && it.nosQty) };
+}
+
 function getIMStatus(im) {
   const total = im.items.length;
   const invoicedCount = im.items.filter(it => it.invoiced).length;
-  if (invoicedCount === 0) return 'pending';
+  const touched = im.items.filter(imLineBilled).length;
+  if (touched === 0) return 'pending';
   if (invoicedCount < total) return 'partial';
   return 'invoiced';
 }
@@ -165,7 +315,7 @@ function renderIMSelBar() {
   const clientIds = new Set();
   (S.incomingMaterial || []).forEach(im => {
     im.items.forEach(it => {
-      if (_imSelected[it.id]) { total += (it.amount || 0); clientIds.add(im.clientId); }
+      if (_imSelected[it.id]) { total += imLineOpen(it).amount; clientIds.add(im.clientId); }
     });
   });
   // An invoice is addressed to one customer: a two-client selection says so on the button.
@@ -281,29 +431,39 @@ function _imSummaryHtml(filtered) {
     (filtered.length !== 1 ? 's' : '') + ' · ' + pending + ' awaiting invoice</span></div>';
 }
 
-/* A challan line. A line still to bill carries its tick box; a billed one names its invoice. */
+/* A challan line. A line with anything left to bill carries its tick box; a billed
+   share names the invoices it went on, each one a link that opens it. */
 function _imItemRowHtml(it) {
-  var lead = '', tag = '';
+  var lead = '', tag = '', share = '';
   if (!it.invoiced) {
     lead = '<label class="inv-row-lead inv-row-tick"><input type="checkbox" class="inv-check" data-action="invCheckIMItem" data-item-id="' + escHtml(it.id) + '"' +
       (_imSelected[it.id] ? ' checked' : '') + ' aria-label="Select ' + escHtml(lineLabel(it)) + '"></label>';
-  } else {
-    var linked = it.invoiceId ? S.invoices.find(function(iv) { return iv.id === it.invoiceId; }) : null;
-    tag = linked
-      ? '<span class="inv-badge inv-badge-ok" title="' + escHtml(linked.displayNumber) + '">Invoice ' + escHtml(linked.invoiceNumber || linked.displayNumber) + '</span>'
-      : '<span class="inv-badge inv-badge-danger" title="Invoice deleted">Invoice missing</span>';
+  }
+  var ids = it.invoiceIds && it.invoiceIds.length ? it.invoiceIds : (it.invoiceId ? [it.invoiceId] : []);
+  if (imLineBilled(it)) {
+    tag = ids.map(function(iid) {
+      var linked = S.invoices.find(function(iv) { return iv.id === iid; });
+      return linked
+        ? '<button class="inv-btn-link inv-id" data-action="invViewInvoiceDetail" data-id="' + escHtml(linked.id) + '" title="' + escHtml(linked.displayNumber) + '">Invoice ' + escHtml(linked.invoiceNumber || linked.displayNumber) + '</button>'
+        : '<span class="inv-badge inv-badge-danger" title="Invoice deleted">Invoice missing</span>';
+    }).join(' · ');
+    if (!it.invoiced) {
+      var open = imLineOpen(it), unit = it.unit === 'KG' ? ' kg' : '';
+      share = '<span class="inv-row-meta inv-row-wrap" data-im-share><span class="inv-dot inv-dot-info">Part invoiced</span> ' +
+        '<span>' + escHtml(imQtyText(it.billedQty)) + unit + ' billed · ' + escHtml(imQtyText(open.qty)) + unit + ' left</span></span>';
+    }
   }
   return '<div class="inv-row inv-row-auto' + (it.invoiced ? ' inv-row-sub' : '') + '" data-im-item>' + lead +
     '<span class="inv-row-main"><span class="inv-row-title inv-row-wrap" data-im-desc>' + escHtml(lineLabel(it)) + '</span>' +
     '<span class="inv-row-meta inv-row-wrap" data-im-detail>' + escHtml(it.qty) + ' ' + escHtml(it.unit) +
     (it.nosQty && it.nosQty > 0 ? ' (' + escHtml(it.nosQty) + ' NOS)' : '') +
-    ' @ ' + formatCurrency(it.rate) + '/' + escHtml(it.unit) + '</span>' + (tag ? '<span class="inv-row-meta">' + tag + '</span>' : '') + '</span>' +
+    ' @ ' + formatCurrency(it.rate) + '/' + escHtml(it.unit) + '</span>' + share + (tag ? '<span class="inv-row-meta inv-row-wrap" data-im-invoices>' + tag + '</span>' : '') + '</span>' +
     '<span class="inv-row-end inv-num">' + formatCurrency(it.amount) + '</span></div>';
 }
 
 /* Edit and delete while nothing on the challan is billed; once a line is, the edit says why not. */
 function _imActionsHtml(im, primary) {
-  var status = getIMStatus(im), billed = im.items.filter(function(it) { return it.invoiced; }).length, id = escHtml(im.id);
+  var status = getIMStatus(im), billed = im.items.filter(imLineBilled).length, id = escHtml(im.id);
   if (billed === 0) {
     // Secondary: the page's one primary is Add challan (DR-3).
     return '<button class="inv-btn inv-btn-secondary' + (primary ? '' : ' inv-btn-sm') + '" data-action="invEditChallan" data-id="' + id + '">Edit</button>' +
@@ -420,19 +580,8 @@ function createInvoiceFromIM() {
   invoiceForm = {
     clientId: clientId,
     date: localDateStr(),
-    items: selectedItems.map(it => ({
-      partNumber: it.partNumber,
-      desc: it.desc,
-      hsn: it.hsn || '998873',
-      unit: it.unit,
-      qty: it.qty,
-      rate: it.rate || 0,
-      amount: it.amount || 0,
-      nosQty: it.nosQty || null,
-      _override: false,
-      _label: '',
-      _imItemId: it.id
-    })),
+    // A line part-invoiced already comes in at what is left of it (imLineFormItem).
+    items: selectedItems.map(imLineFormItem),
     poNumber: '', poDate: localDateStr(),
     challanNo: selectedItems.map(it => it._challanNo).filter(Boolean).filter((v,i,a) => a.indexOf(v) === i).join(', '),
     challanDate: selectedItems[0]._challanDate || localDateStr(),

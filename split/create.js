@@ -119,6 +119,7 @@ function renderCreateForm() {
       '<div id="invRateMatch' + idx + '">' + rateMatchNote(rm) + '</div>' +
       '<div id="invWeightMatch' + idx + '">' + (client ? weightMatchNote(weightMatch(client, invoiceForm.date, item)) : '') + '</div>' +
       '<div id="invZeroReason' + idx + '">' + zeroReasonHtml(item, idx) + '</div>' +
+      '<div id="invImShare' + idx + '">' + imShareNoteHtml(idx) + '</div>' +
       '</div></div>';
   });
   html += '</div><div class="inv-panel-body"><button type="button" class="inv-btn inv-btn-secondary inv-btn-block" data-action="invAddLineItem">Add line</button></div></div>';
@@ -217,15 +218,19 @@ function createUnbilledHtml(client) {
   open.forEach(im => {
     const lines = im.items.filter(it => !it.invoiced);
     const on = lines.some(it => inForm[it.id]);
-    const kg = lines.reduce((s, it) => s + (it.unit === 'KG' ? (it.qty || 0) : 0), 0);
-    const amt = gstRound(lines.reduce((s, it) => s + (it.amount || 0), 0));
+    // What is LEFT: a challan invoiced in parts offers only its open share.
+    const kg = lines.reduce((s, it) => s + (it.unit === 'KG' ? imLineOpen(it).qty : 0), 0);
+    const amt = gstRound(lines.reduce((s, it) => s + imLineOpen(it).amount, 0));
+    const parts = lines.filter(imLineBilled);
     const name = 'Challan ' + (im.challanNo || '(no number)');
     html += '<div class="inv-row inv-row-2' + (on ? ' inv-row-selected' : '') + '">' +
       '<label class="inv-row-lead inv-row-tick"><input type="checkbox" class="inv-check" data-action="invCreatePickChallan" data-id="' + escHtml(im.id) + '"' +
       (on ? ' checked' : '') + ' aria-label="' + escHtml(name) + '"></label>' +
       '<div class="inv-row-main"><div class="inv-row-title inv-id">' + escHtml(name) + '</div>' +
       '<div class="inv-row-meta">' + escHtml(formatDate(im.challanDate)) + ' · ' + lines.length + ' line' + (lines.length === 1 ? '' : 's') +
-      (kg > 0 ? ' · <span class="inv-id">' + formatNum(kg, 2) + ' kg</span>' : '') + '</div></div>' +
+      (kg > 0 ? ' · <span class="inv-id">' + formatNum(kg, 2) + ' kg</span>' : '') + '</div>' +
+      parts.map(it => { const sh = imLineShare(it.id); return sh ? '<div class="inv-row-meta inv-row-wrap" data-im-share><span class="inv-dot inv-dot-info">Part invoiced</span> ' +
+        '<span>' + escHtml(lineLabel(it)) + ': ' + escHtml(imShareText(sh)) + '</span></div>' : ''; }).join('') + '</div>' +
       '<div class="inv-row-end inv-num">' + formatCurrency(amt) + '</div></div>';
   });
   return html + '</div></div>';
@@ -254,10 +259,8 @@ function createPickChallan(imId) {
   } else {
     // An untouched blank line would only sit above the challan's lines.
     invoiceForm.items = invoiceForm.items.filter(i => i._imItemId || i.partNumber || i.desc || i.qty || i.amount);
-    lines.forEach(it => invoiceForm.items.push({
-      partNumber: it.partNumber, desc: it.desc, hsn: it.hsn || '998873', unit: it.unit, qty: it.qty,
-      rate: it.rate || 0, amount: it.amount || 0, nosQty: it.nosQty || null, _override: false, _label: '', _imItemId: it.id
-    }));
+    // Each line at what is left of it; dispatching 200 of 600 is typing 200.
+    lines.forEach(it => invoiceForm.items.push(imLineFormItem(it)));
     invoiceForm._linkedIMItemIds = (invoiceForm._linkedIMItemIds || []).concat(ids);
     invoiceForm._linkedIMIds = (invoiceForm._linkedIMIds || []).concat([imId]);
   }
@@ -309,6 +312,87 @@ function refreshZeroReason(idx) {
   var want = isZeroBilledLine(item);
   var has = !!box.firstChild;
   if (want !== has) box.innerHTML = zeroReasonHtml(item, idx);
+}
+
+/* ===== A LINE THAT IS PART OF A CHALLAN =====
+   What the challan holds, what other invoices billed of it and what is left,
+   under a line that takes only part of it; and a line billing more than is
+   left says by how much. Warn, never block — the Save asks once and stamps the
+   line (`overBillAck`), so an audit can tell an accepted over-bill from one
+   nobody was shown. While an invoice is edited its own share counts as left. */
+function invFormImQty(itemId) {
+  return invoiceForm.items.reduce((s, i) => s + (i._imItemId === itemId ? (i.qty || 0) : 0), 0);
+}
+
+function createImShare(idx) {
+  const item = invoiceForm.items[idx];
+  if (!item || !item._imItemId) return null;
+  const sh = imLineShare(item._imItemId, invoiceForm.editingId || null);
+  if (!sh || (item.unit || '') !== (sh.it.unit || '')) return null;
+  const inForm = invFormImQty(item._imItemId);
+  const over = parseFloat((inForm - Math.max(0, sh.left)).toFixed(3));
+  return { sh: sh, over: over > IM_QTY_EPS ? over : 0, part: sh.refs.length > 0 || Math.abs(inForm - sh.left) > IM_QTY_EPS };
+}
+
+function createOverText(o) {
+  return imQtyText(o.over) + (o.sh.it.unit === 'KG' ? ' kg' : '') + ' over what is left on challan ' + (o.sh.im.challanNo || '(no number)');
+}
+
+function imShareNoteHtml(idx) {
+  const o = createImShare(idx);
+  if (!o || (!o.part && !o.over)) return '';
+  return '<div class="inv-verdict" data-im-share><span class="inv-dot inv-dot-info">Part of challan</span>' +
+    '<span class="inv-verdict-text">' + escHtml(imShareText(o.sh)) + '</span></div>' +
+    (o.over ? '<div class="inv-verdict" data-im-over><span class="inv-dot inv-dot-warning">More than left</span>' +
+      '<span class="inv-verdict-text">' + escHtml(createOverText(o)) + '</span></div>' : '');
+}
+
+/* Every line's note, since two lines may draw on one challan line. */
+function refreshImShare() {
+  invoiceForm.items.forEach((item, idx) => {
+    const box = document.getElementById('invImShare' + idx);
+    if (box) box.innerHTML = imShareNoteHtml(idx);
+  });
+}
+
+/* The lines billing more than is left, each with what was left. */
+function createOverBills() {
+  return invoiceForm.items.map((item, idx) => {
+    const o = createImShare(idx);
+    return o && o.over ? { idx: idx, item: item, over: o.over, left: Math.max(0, o.sh.left), sh: o.sh } : null;
+  }).filter(Boolean);
+}
+
+/* A piece client's line from a challan, re-priced for a new quantity at the
+   challan's own amount per piece. Not on an edit of a line that billed the
+   whole challan line: there a changed count is a correction, and the amount
+   the customer's paper carried stays (the passthrough). */
+function createPieceShare(item) {
+  if (!item._imItemId) return false;
+  const sh = imLineShare(item._imItemId, invoiceForm.editingId || null);
+  if (!sh || sh.it.unit !== item.unit || !(sh.qty > 0) || !(sh.it.amount > 0)) return false;
+  if (invoiceForm.editingId && item._orig && item._orig.qty === sh.qty && !sh.refs.length) return false;
+  item.amount = gstRound(sh.it.amount * (item.qty || 0) / sh.qty);
+  return true;
+}
+
+/* A KG line from a challan: pieces nobody typed are the challan's, in proportion
+   to the kilograms this line takes of it. */
+function createKgPieces(item) {
+  if (!item._imItemId || !item._nosAuto || item.unit !== 'KG') return false;
+  const sh = imLineShare(item._imItemId, invoiceForm.editingId || null);
+  if (!sh || !(sh.qty > 0) || !sh.it.nosQty) return false;
+  item.nosQty = Math.round(sh.it.nosQty * (item.qty || 0) / sh.qty) || null;
+  return true;
+}
+
+/* A form line as the invoice keeps it. */
+function invSavedLine(i) {
+  return { partNumber: i.partNumber, desc: i.desc, hsn: i.hsn || '998873', unit: i.unit, qty: i.qty, rate: i.rate, amount: i.amount, nosQty: i.nosQty || null,
+    ...zeroReasonFields(i),
+    ...(i._imItemId ? { imItemId: i._imItemId } : {}),
+    ...(i._imItemId && i.imWhole ? { imWhole: true } : {}),
+    ...(i._imItemId && i.overBillAck ? { overBillAck: i.overBillAck } : {}) };
 }
 
 function validateInvoice() {
@@ -396,6 +480,20 @@ function saveInvoice() {
   const client = S.clients.find(c => c.id === invoiceForm.clientId);
   if (!client) return;
 
+  // Billing more than is left on a challan line: asked once, then stamped on the line.
+  const overs = createOverBills();
+  const ackedAt = (o) => o.item.overBillAck && Math.abs((o.item.overBillAck.left || 0) - o.left) <= IM_QTY_EPS;
+  const ask = overs.filter(o => !ackedAt(o));
+  if (ask.length && !confirm('Bill more than is left on the challan?\n\n' +
+      ask.map(o => 'Line ' + (o.idx + 1) + ' (' + lineLabel(o.item) + '): ' + createOverText(o)).join('\n') +
+      '\n\nSave anyway? Each line is marked on the invoice as accepted over what was left.')) return;
+  const ackNow = Date.now();
+  invoiceForm.items.forEach(i => {
+    const o = overs.find(x => x.item === i);
+    if (!o) delete i.overBillAck;
+    else if (!ackedAt(o)) i.overBillAck = { at: ackNow, left: o.left };
+  });
+
   invoiceForm.challanNo = (document.getElementById('invChallanNo') || {}).value || '';
   invoiceForm.challanDate = (document.getElementById('invChallanDate') || {}).value || '';
   invoiceForm.transport = (document.getElementById('invTransport') || {}).value || '';
@@ -429,14 +527,21 @@ function saveInvoice() {
       date: invoiceForm.date, clientId: client.id, clientName: client.name,
       clientGSTIN: client.gstin, clientAddress: {add1:client.add1,add2:client.add2,add3:client.add3,state:client.state,stateCode:client.stateCode},
       gstType: client.gstType,
-      items: invoiceForm.items.map(i => ({partNumber:i.partNumber,desc:i.desc,hsn:i.hsn||'998873',unit:i.unit,qty:i.qty,rate:i.rate,amount:i.amount,nosQty:i.nosQty||null,...zeroReasonFields(i),...(i._imItemId ? {imItemId:i._imItemId} : {})})),
+      items: invoiceForm.items.map(invSavedLine),
       taxableValue: taxable, cgstPer, cgstAmt, sgstPer, sgstAmt, igstPer, igstAmt,
       grandTotal: grand, amountInWords: numberToWords(grand),
       challanNo: invoiceForm.challanNo, challanDate: invoiceForm.challanDate,
       poNumber: invoiceForm.poNumber, poDate: invoiceForm.poDate,
       despatchDate: invoiceForm.despatchDate, transport: invoiceForm.transport, remarks: invoiceForm.remarks, updatedAt: now
     });
+    // A challan line brought in while editing is linked to the invoice too.
+    invoiceForm.items.forEach(i => {
+      if (!i._imItemId) return;
+      const im = (S.incomingMaterial || []).find(m => (m.items || []).some(it => it.id === i._imItemId));
+      if (im) { if (!inv.linkedIMIds) inv.linkedIMIds = []; if (inv.linkedIMIds.indexOf(im.id) < 0) inv.linkedIMIds.push(im.id); }
+    });
     const synced = backCorrectChallans(inv, invoiceForm.items);
+    imSyncBilled();
     const syncNote = synced.lines ? ' — challan ' + synced.challans.join(', ') + ' corrected to match (' + synced.lines + ' line' + (synced.lines === 1 ? '' : 's') + ')' : '';
     doneToast = gstTypeChanged
       ? ['Invoice updated — GST type changed, verify tax amounts' + syncNote, 'warning']
@@ -471,7 +576,7 @@ function saveInvoice() {
       clientGSTIN: client.gstin,
       clientAddress: {add1:client.add1,add2:client.add2,add3:client.add3,state:client.state,stateCode:client.stateCode},
       gstType: client.gstType,
-      items: invoiceForm.items.map(i => ({partNumber:i.partNumber,desc:i.desc,hsn:i.hsn||'998873',unit:i.unit,qty:i.qty,rate:i.rate,amount:i.amount,nosQty:i.nosQty||null,...zeroReasonFields(i),...(i._imItemId ? {imItemId:i._imItemId} : {})})),
+      items: invoiceForm.items.map(invSavedLine),
       taxableValue: taxable, cgstPer, cgstAmt, sgstPer, sgstAmt, igstPer, igstAmt,
       grandTotal: grand, amountInWords: numberToWords(grand),
       poNumber: invoiceForm.poNumber, poDate: invoiceForm.poDate, challanNo: invoiceForm.challanNo, challanDate: invoiceForm.challanDate,
@@ -485,17 +590,8 @@ function saveInvoice() {
     // a second time.
     S.invNextNum = Math.max(S.invNextNum + (reissue ? 0 : 1), invHighestIssued(S.invPrefix) + 1);
 
-    // Mark IM items as invoiced
-    if (linkedItemIds.length > 0) {
-      (S.incomingMaterial || []).forEach(function(im) {
-        im.items.forEach(function(it) {
-          if (linkedItemIds.indexOf(it.id) >= 0) {
-            it.invoiced = true;
-            it.invoiceId = inv.id;
-          }
-        });
-      });
-    }
+    // What each challan line has been billed is derived from the invoices.
+    imSyncBilled();
 
     doneToast = ['Invoice ' + inv.displayNumber + ' saved'];
   }

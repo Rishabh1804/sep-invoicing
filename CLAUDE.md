@@ -114,7 +114,7 @@ every session start — nothing to set up by hand. CI (`build-sync`) is the back
 ### Tests
 
 ```bash
-pnpm exec playwright test          # 576 tests, both layouts
+pnpm exec playwright test          # 585 tests, both layouts
 ```
 
 Some sandboxes ship a Chromium build Playwright does not expect and block downloading
@@ -1219,6 +1219,31 @@ final amount is more than the conditions we have for matches which raises a red 
   line's contract, for the same reason: an audit must tell a figure somebody examined from one nobody was shown.
   **Differs** asks nothing. Saved as `flagReason`, `flagNote` and `flagAt {kind, status, ref, value}` — the verdict it
   was given against — and dropped when a later edit puts the line right (`lineFlagFields`).
+
+### A challan invoiced in parts
+Owner, 26 Sep 2026: *"Samarth Engg sends 600 nos of an item, I should be able to invoice that challan multiple times
+till 600 is reached, so maybe we dispatch 200 in one day, then 300 and then 100."* A challan line was all-or-nothing.
+
+- **What a line has billed is DERIVED, never typed** (`im.js`): the sum of `qty` over invoice lines naming it
+  (`imItemId`) on invoices not cancelled — a deleted invoice frees its share by being gone. `imBilledIndex()` builds
+  that index; `imSyncBilled()` caches it on the line as `billedQty`, `billedNos`, `invoiceIds`, `invoiceId` (the
+  latest) and `invoiced` (nothing left, within `IM_QTY_EPS`), after every invoice save, edit, cancel, delete and
+  reissue and in `migrateState()` (it replaced the orphan repair). So `!it.invoiced` still means *open*, everywhere.
+- **Every unbilled amount is the open share** (`imLineOpen`: amount × left ÷ qty; pieces from `billedNos`, else in
+  proportion): Home, Stats, the To-do's unbilled rule, the month's pace, the IM selection. A challan with a line
+  part-billed reads **Part invoiced**; any share billed locks its edit and delete (`imLineBilled`).
+- **The Create picker and IM's Create invoice bring a line at what is LEFT** (`imLineFormItem`) and say so:
+  *600 on challan 301 · 200 invoiced (SEP/…/00012) · 400 left*. Typing 200 is dispatching 200 (a piece client's
+  amount follows as that share of the challan's amount; a KG line's untyped pieces follow the kilograms).
+- **More than is left warns, never blocks**: the line says *30 over what is left on challan 301*, Save asks naming
+  each line, and an accepted one is stamped `overBillAck: {at, left}` on the invoice line.
+- **Editing counts the invoice's own share as left.** Back-correction never writes quantity, pieces or amount to a
+  challan line that is PART of one — billed by another invoice too, or not at the challan's quantity when the edit
+  began (`CHALLAN_SHARE_FIELDS`); part, description, unit and rate still travel. A whole, single-invoice line
+  corrects exactly as before.
+- **History is not reopened.** A line flagged invoiced by an existing invoice that names no challan line stays
+  billed whole (`billedLegacy`), until that invoice is linked, deleted or cancelled; a looser legacy link on a
+  different quantity is saved `imWhole` and counts as the whole line. P77.
 
 ### Billed at ₹0
 The history held **25 lines billed at ₹0 — 1,192.54 kg, ₹16,355.67 at the client's own rate —

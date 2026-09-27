@@ -745,7 +745,7 @@ document.addEventListener('input', function(e) {
   const pcsEl = e.target.closest('[data-action="invUpdateLine"][data-field="nosQty"]');
   if (pcsEl) {
     const pItem = invoiceForm.items[parseInt(pcsEl.dataset.idx)];
-    if (pItem) { pItem.nosQty = parseInt(pcsEl.value, 10) || null; refreshInvoiceLineMatch(parseInt(pcsEl.dataset.idx)); }
+    if (pItem) { pItem.nosQty = parseInt(pcsEl.value, 10) || null; delete pItem._nosAuto; refreshInvoiceLineMatch(parseInt(pcsEl.dataset.idx)); }
     return;
   }
   // Numeric line item fields — update model + totals only, no full re-render
@@ -758,6 +758,12 @@ document.addEventListener('input', function(e) {
     item[el.dataset.field] = parseFloat(el.value) || 0;
 
     if (client && client.billingMode === 'piece' && item.unit === 'NOS') {
+      // A line taking PART of a challan: its amount is that share of the challan's
+      // own amount, so dispatching 200 of 600 is typing 200 (createPieceShare).
+      if (el.dataset.field === 'qty' && createPieceShare(item)) {
+        const amtInput = document.querySelector('[data-field="amount"][data-idx="' + idx + '"]');
+        if (amtInput) amtInput.value = formatNum(item.amount);
+      }
       // Piece mode NOS: amount is user-entered, rate is back-calculated
       if (el.dataset.field === 'amount' || el.dataset.field === 'qty') {
         if (item.qty > 0 && item.amount > 0) {
@@ -767,6 +773,11 @@ document.addEventListener('input', function(e) {
         }
       }
     } else {
+      // A KG line from a challan whose pieces nobody typed: they follow the kilograms.
+      if (el.dataset.field === 'qty' && createKgPieces(item)) {
+        const pcsInput = document.querySelector('[data-field="nosQty"][data-idx="' + idx + '"]');
+        if (pcsInput) pcsInput.value = item.nosQty || '';
+      }
       // All other modes: amount = qty * rate
       if (el.dataset.field !== 'amount') {
         recalcLineItem(item, client);
@@ -778,6 +789,7 @@ document.addEventListener('input', function(e) {
     updateTotalsDisplay();
     refreshZeroReason(idx);
     refreshInvoiceLineMatch(idx);
+    if (el.dataset.field === 'qty') refreshImShare();
   }
   if (e.target.dataset.action === 'invZeroNote') {
     var zItem = invoiceForm.items[parseInt(e.target.dataset.idx)];

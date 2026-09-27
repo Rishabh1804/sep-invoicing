@@ -180,7 +180,7 @@ function renderHome() {
     (S.incomingMaterial || []).forEach(function(im) {
       var hasPending = false;
       im.items.forEach(function(it) {
-        if (!it.invoiced) { hasPending = true; pendingAmount += (it.amount || 0); pendingItemCount++; }
+        if (!it.invoiced) { hasPending = true; pendingAmount += imLineOpen(it).amount; pendingItemCount++; }
       });
       if (hasPending) pendingChallans++;
       if (!latestChallan || (im.createdAt || 0) > (latestChallan.createdAt || 0)) latestChallan = im;

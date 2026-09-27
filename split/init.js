@@ -106,23 +106,18 @@ function migrateState() {
   if (seeded) saveJSON(STORAGE_KEY, S);
 })();
 
-/* Phase 5: Orphan detection — reset IM items pointing to deleted invoices */
+/* What each challan line has been billed, derived from the invoices (im.js,
+   imSyncBilled). This used to be the orphan repair — a line pointing at a
+   deleted invoice reset to unbilled — which is now the special case of a line
+   no live invoice names. A line flagged invoiced by an invoice that exists but
+   names no challan line (saved before imItemId) stays fully billed by it:
+   history is not reopened. Structural and idempotent, so it runs on a pull and
+   an import as well as at load. */
 (function() {
-  var invoiceIds = {};
-  (S.invoices || []).forEach(function(inv) { invoiceIds[inv.id] = true; });
-  var repaired = 0;
-  (S.incomingMaterial || []).forEach(function(im) {
-    im.items.forEach(function(it) {
-      if (it.invoiced && (!it.invoiceId || !invoiceIds[it.invoiceId])) {
-        it.invoiced = false;
-        it.invoiceId = null;
-        repaired++;
-      }
-    });
-  });
-  if (repaired > 0) {
+  var changed = imSyncBilled();
+  if (changed > 0) {
     saveJSON(STORAGE_KEY, S);
-    console.log('Orphan repair: reset ' + repaired + ' IM item(s) pointing to deleted invoices');
+    console.log('[migrate] challan billing synced on ' + changed + ' line(s)');
   }
 })();
 

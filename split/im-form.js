@@ -406,7 +406,7 @@ function deleteChallan(imId) {
   var im = (S.incomingMaterial || []).find(function(m) { return m.id === imId; });
   if (!im) return;
   // Check if any items are invoiced
-  var invoicedCount = im.items.filter(function(it) { return it.invoiced; }).length;
+  var invoicedCount = im.items.filter(imLineBilled).length;   // any share billed locks the challan
   if (invoicedCount > 0) {
     showToast('Cannot delete: ' + invoicedCount + ' item' + (invoicedCount > 1 ? 's' : '') + ' already invoiced', 'warning');
     return;
@@ -432,7 +432,7 @@ function editChallan(imId) {
   var im = (S.incomingMaterial || []).find(function(m) { return m.id === imId; });
   if (!im) return;
   // Guard: if any items invoiced, show toast
-  var invoicedCount = im.items.filter(function(it) { return it.invoiced; }).length;
+  var invoicedCount = im.items.filter(imLineBilled).length;   // any share billed locks the challan
   if (invoicedCount > 0) {
     showToast('Cannot edit: ' + invoicedCount + ' item' + (invoicedCount > 1 ? 's' : '') + ' already invoiced', 'warning');
     return;

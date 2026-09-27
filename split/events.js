@@ -1,5 +1,11 @@
 /* ===== EVENT DELEGATION ===== */
+// A pressed chip, segment or tile (aria-pressed) is a choice inside the view — a filter, a period, a P/H/A — so it
+// re-renders inside keepScroll (state.js), like a pick in a drop-down: the page stays where it was (P79).
 document.addEventListener('click', function(e) {
+  const pressed = e.target.closest && e.target.closest('[data-action][aria-pressed]');
+  if (pressed) keepScroll(function() { onDocClick(e); }); else onDocClick(e);
+});
+function onDocClick(e) {
   // Dismiss any open suggestion menu (part or client) when clicking outside its field
   if (!e.target.closest('.inv-combo')) {
     dismissAllAutocomplete();
@@ -391,7 +397,7 @@ document.addEventListener('click', function(e) {
       else if (action.indexOf('invCost') === 0) costAction(action, btn);
       else if (action.indexOf('invPred') === 0) predAction(action, btn);
   }
-});
+}
 
 /* Capture optional fields from DOM into invoiceForm before any re-render */
 function captureOptionalFields() {
@@ -429,7 +435,9 @@ function updateTotalsDisplay() {
   if (saveBtn) saveBtn.disabled = errors.length > 0;
 }
 
-document.addEventListener('change', function(e) {
+// Every change re-renders inside keepScroll (state.js): a pick in a drop-down never moves the page (P79).
+document.addEventListener('change', function(e) { keepScroll(function() { onDocChange(e); }); });
+function onDocChange(e) {
   if (stockOnChange(e.target)) return;
   if (billsCnFormInput(e.target)) return;
   if (e.target.id !== 'bankSearch' && bankInput(e.target)) return;
@@ -582,7 +590,7 @@ document.addEventListener('change', function(e) {
       renderAddChallanForm();
     }
   }
-});
+}
 
 document.addEventListener('input', function(e) {
   if (stockOnInput(e.target)) return;

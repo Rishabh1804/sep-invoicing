@@ -114,7 +114,7 @@ every session start — nothing to set up by hand. CI (`build-sync`) is the back
 ### Tests
 
 ```bash
-pnpm exec playwright test          # 611 tests, both layouts
+pnpm exec playwright test          # 614 tests, both layouts
 ```
 
 Some sandboxes ship a Chromium build Playwright does not expect and block downloading
@@ -140,6 +140,13 @@ text?)` from the fixtures, and P78 makes the browser's own three throw and walks
 re-renders the toolbar, the element the native popup hangs off is replaced and the list
 shuts before anything can be picked. Same for an `<input type="date">` on `input`: only
 re-render for the field that actually changes what is displayed.
+
+**A change inside a view never moves the page** (owner, 27 Sep 2026: picking a client in Receivables sent the page
+back to the top). A view-tab row is brought into sight **sideways only** (`viewTabReveal`, state.js), never by
+`scrollIntoView`, which scrolls the page up to tabs above the screen. Every `change`, and every click on a pressed
+chip, segment or tile (`[data-action][aria-pressed]`), re-renders inside `keepScroll`, which puts the page, its panes
+and dialogs back and focus on the replaced control. Only a navigation goes to the top, through `viewTop()` (another
+page, sub-page or view tab). P79 sweeps every select and filter chip on every page, view tab and form dialog.
 
 **A selection must not outlive the filter that hid it.** Register and IM both had rows that
 stayed ticked after they left the screen, with every bulk action still reaching them.

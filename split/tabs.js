@@ -21,6 +21,9 @@ function switchTab(tabId) {
     _tabScroll[currentPage.id] = currentPage.scrollTop || window.scrollY;
   }
 
+  // Another page is a navigation: a keepScroll around whatever called this does not hold the old place (P79).
+  _viewTopAt++;
+
   // Step 3: Deactivate all tabs and pages
   document.querySelectorAll('.inv-page').forEach(p => p.classList.remove('inv-page-active'));
   document.querySelectorAll('.inv-navbar-item').forEach(t => t.classList.remove('inv-navbar-item-on'));

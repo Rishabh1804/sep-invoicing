@@ -30,7 +30,7 @@ function statsTab() {
 function statsSetTab(t) {
   try { localStorage.setItem(STATS_TAB_KEY, t); } catch (e) { /* per-device convenience only */ }
   renderStats();
-  window.scrollTo(0, 0);
+  viewTop();   // another view tab: a navigation
 }
 function statsTabsHtml() {
   var cur = statsTab();

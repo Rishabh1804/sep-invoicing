@@ -11,10 +11,12 @@ import { emptyState, loadAppWithState, noSeedIM, switchTab } from './fixtures';
  * cross-checked without the check being dressed up as more than it is.
  */
 
-/** Monday of the current week, so the week nav lands on the seeded days. */
+/** Monday to Saturday of the current PAY week (Sunday to Saturday, as the app counts it), so the week nav lands
+ *  on the seeded days. The ISO week's Monday was a time bomb: on a Sunday it is the Monday of the pay week
+ *  that just ended, and every spec here failed on Sundays. */
 function weekDays(): string[] {
   const mon = new Date();
-  mon.setDate(mon.getDate() - ((mon.getDay() + 6) % 7));
+  mon.setDate(mon.getDate() - mon.getDay() + 1);
   return [...Array(6)].map((_, i) => {
     const d = new Date(mon);
     d.setDate(d.getDate() + i);

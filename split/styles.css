@@ -83,7 +83,8 @@
   --tile-min: 10rem; --field-min: 12rem; --search-min: 16rem; --textarea-h: 5rem; --dot: 0.4375rem; --spinner: 2.25rem;
 
   /* Density (§3.5): comfortable here, compact below. */
-  --row-h: 2.75rem; --row-h-2: 3.5rem; --ctl-h: 2.75rem; --ctl-h-sm: 2.25rem;
+  /* A small control is still a 44px touch target while the density is comfortable (§3.5); only compact shrinks it. */
+  --row-h: 2.75rem; --row-h-2: 3.5rem; --ctl-h: 2.75rem; --ctl-h-sm: 2.75rem;
   --pad-x: var(--sp-12); --pad-y: var(--sp-10); --gap: var(--sp-12);
 
   --z-bar: 20; --z-dropdown: 50; --z-scrim: 100; --z-dialog: 200; --z-busy: 250; --z-banner: 300; --z-toast: 500; --z-print: 510;
@@ -1090,6 +1091,8 @@ body.inv-desktop .inv-panel { border-radius: var(--r-lg); }
 .inv-panel-head {
   display: flex; align-items: center; justify-content: space-between; gap: var(--sp-8);
 }
+/* A head's link (See all, Open in Finance) is one phrase and a touch target: it never wraps, and it is as tall as a small button. */
+.inv-panel-head .inv-btn-link { white-space: nowrap; min-height: var(--ctl-h-sm); }
 .inv-panel-flush > .inv-panel-head { padding: var(--pad-y) var(--pad-x); border-bottom: var(--hair) solid var(--border); }
 .inv-panel-title {
   font-size: var(--fs-14); font-weight: 600; line-height: 1.4; color: var(--text-1);
@@ -1176,6 +1179,12 @@ button.inv-row-main { display: block; padding: 0; border: none; background: none
 .inv-check { width: var(--sp-20); height: var(--sp-20); accent-color: var(--accent); cursor: pointer; flex-shrink: 0; }
 /* A row's tick box is tapped through its label, which holds the full touch target. */
 .inv-row-tick { min-width: var(--touch); align-self: stretch; justify-content: center; cursor: pointer; }
+/* In a row that sizes to its content (a task), the tick box and the task's button still reach the row's edges, and the
+   row is never shorter than a touch target. */
+.inv-row > .inv-row-tick { margin-block: calc(-1 * var(--sp-6)); }
+.inv-row-auto:has(> .inv-row-tick) { min-height: var(--row-h); }
+.inv-row-auto > .inv-row-tick, .inv-row-auto > button.inv-row-main { margin-block: calc(-1 * var(--sp-8)); }
+.inv-row-auto > button.inv-row-main { padding-block: var(--sp-8); }
 /* A row that opens its own lines beneath it (a challan's items): the lines are indented and sit on the page colour. */
 button.inv-row-expander { position: relative; padding-right: var(--sp-16); }
 button.inv-row-expander::after { content: ''; position: absolute; right: 0; top: 50%; width: var(--sp-6); height: var(--sp-6);
@@ -1444,7 +1453,7 @@ body.inv-desktop .inv-keys { display: flex; flex-wrap: wrap; gap: var(--sp-4) va
   background: var(--surface); border: var(--hair) solid var(--border); border-radius: var(--r-sm);
 }
 /* A panel that folds (Optional details): the head is the summary; closed, only the head shows. */
-.inv-panel-fold > summary.inv-panel-head { list-style: none; cursor: pointer; position: relative; padding-right: calc(var(--pad-x) + var(--sp-16)); }
+.inv-panel-fold > summary.inv-panel-head { list-style: none; cursor: pointer; min-height: var(--ctl-h); position: relative; padding-right: calc(var(--pad-x) + var(--sp-16)); }
 .inv-panel-fold > summary::-webkit-details-marker { display: none; }
 .inv-panel-fold > summary::after { content: ''; position: absolute; right: var(--pad-x); top: 50%; width: var(--sp-6); height: var(--sp-6);
   border-right: var(--rule) solid var(--text-3); border-bottom: var(--rule) solid var(--text-3); transform: translateY(-75%) rotate(45deg); transition: transform var(--dur-1); }

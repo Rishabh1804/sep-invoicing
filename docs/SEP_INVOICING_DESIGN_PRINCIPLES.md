@@ -213,7 +213,7 @@ their **own** paddings and heights — they read density aliases, so one attribu
 | `--row-h` (table/list row) | 2.75rem (44) | 2rem (32) |
 | `--row-h-2` (two-line row) | 3.5rem (56) | 2.75rem (44) |
 | `--ctl-h` (button, input, select) | 2.75rem (44) | 1.875rem (30) |
-| `--ctl-h-sm` | 2.25rem (36) | 1.625rem (26) |
+| `--ctl-h-sm` | 2.75rem (44) — a touch target (polish pass, 27 Sep 2026; was 36) | 1.625rem (26) |
 | `--pad-x` (cell, panel side) | `--sp-12` | `--sp-12` |
 | `--pad-y` (panel head) | `--sp-10` | `--sp-8` |
 | `--gap` (between panels) | `--sp-12` | `--sp-12` |
@@ -430,7 +430,7 @@ sharing the line and wrapping two to a row on the phone. Replaces `inv-reg-toolb
 
 ### 6.8 Panel — `inv-panel`
 `inv-panel-head` (`--t-heading` title · optional count in mono `--text-3` · spacer · actions as
-`inv-btn-link`/`-sm`, with no side padding so it lines up with the figures below it), then body. A panel's sides and an `inv-panel-body`'s are `--pad-x`, the same as a flush panel's head and rows, so text in padded and flush panels starts on one line. `inv-panel-flush` for a panel whose body is rows or a table (no padding); inside one, `inv-panel-body` is a padded block (a form or a note) ruled off from the rows below it. A card's total sits in its head as `inv-num`. A picker or figure in a row's end is `inv-select-sm` / `inv-input-sm` (`--col-sm-w`, `--ctl-h-sm`). A set of four tiles that must read as one row on the desktop, even in a half-width panel, is `inv-tiles-4`; a cell that is one token to the reader (a month, a date) is `inv-nowrap`. `inv-panels` lays panels out: one column
+`inv-btn-link`/`-sm`: one phrase that never wraps, as tall as a small button, and with no side padding so it lines up with the figures below it), then body. A panel's sides and an `inv-panel-body`'s are `--pad-x`, the same as a flush panel's head and rows, so text in padded and flush panels starts on one line. `inv-panel-flush` for a panel whose body is rows or a table (no padding); inside one, `inv-panel-body` is a padded block (a form or a note) ruled off from the rows below it. A card's total sits in its head as `inv-num`. A picker or figure in a row's end is `inv-select-sm` / `inv-input-sm` (`--col-sm-w`, `--ctl-h-sm`). A set of four tiles that must read as one row on the desktop, even in a half-width panel, is `inv-tiles-4`; a cell that is one token to the reader (a month, a date) is `inv-nowrap`. `inv-panels` lays panels out: one column
 on the phone, two on the desktop, `inv-panels-wide` spanning both; an empty host is not drawn. `inv-panels-dense` lets a half panel
 fill the gap beside another (a dashboard of half and wide cards: Stats). A panel's qualifier ("worst first", "by invoice date") is an
 `inv-note` inside its `inv-panel-title`.
@@ -455,7 +455,7 @@ One or two lines, `--row-h` / `--row-h-2`, divider below. Slots: `inv-row-lead` 
 inside a list is `inv-row-group` (`--t-caption` on `--bg`, e.g. "25 Sep · 5 · ₹11,801.88").
 `inv-row-main` may be a `<button>` when the row has a second action (a print icon, a tick box) — otherwise the
 whole row is the `<button>`, so its figures open it too; a tick box's lead is a `<label class="inv-row-lead inv-row-tick">`
-holding the full `--touch` target; `inv-row-stack`
+holding the full `--touch` target (it reaches the row's top and bottom edges, and a row that sizes to its content is never shorter than `--row-h` while it holds one); `inv-row-stack`
 stacks a figure over its badge in `inv-row-end`; `inv-row-wrap` lets a meta line wrap (a list of names);
 `inv-row-muted` is a cancelled or inactive row (a voided stock entry); `inv-row-top` keeps the end at the top of a
 row holding blocks (a quoted line, a callout, a field); `inv-row-flow` lets a row's end — fields, a long figure — drop

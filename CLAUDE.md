@@ -114,7 +114,7 @@ every session start — nothing to set up by hand. CI (`build-sync`) is the back
 ### Tests
 
 ```bash
-pnpm exec playwright test          # 629 tests, both layouts
+pnpm exec playwright test          # 630 tests, both layouts
 ```
 
 Some sandboxes ship a Chromium build Playwright does not expect and block downloading
@@ -1643,7 +1643,16 @@ to read it in the app yet"* — all three of receipts, payments and the ledger, 
   days into the book, paid invoices raised to the end of April and days to pay read short. What a receipt cannot
   place is **on account** (`onAccount`); it is carried forward to settle what is still open, oldest first
   (`credits`), so the open list and its ageing still add up to what is owed, and the invoice detail says
-  *Settled from money on account* rather than naming a receipt dated before the invoice. A receipt equal **to the rupee** to one open invoice or a run of them is
+  *Settled from money on account* rather than naming a receipt dated before the invoice.
+  **What each client owed at the start is offered** (`bankOpeningSuggest`, never applied until **Use**): the
+  receipts that reached the bank before the client's first invoice in the book was 20 days old, since the fastest
+  payer settles 15–20 days after the invoice and the rest monthly. A receipt before the client's first invoice
+  counts whenever it came; one after it only for a client already billing when the book began (first invoice within
+  45 days of the start), since a new client's first payment pays its first invoice. Measured on the real book, 20
+  days is the one window that takes every such receipt (SSS Mehta ₹2,98,770 on 13 Apr, Dorabji 18 Apr, HighCo 29 Apr,
+  RG before its first invoice) and none that paid April (SSS Mehta's 5 May, day 20): 30 days took that one too, and
+  the leftover-money floor only half of Dorabji's. It is a floor: money owed then and never paid is in no receipt,
+  so the row says to check it against the ledger. A used figure is stored `suggested: true`. A receipt equal **to the rupee** to one open invoice or a run of them is
   *Exact*; any other is set oldest first and says so. soma-internal's tolerant sweep hit every credit and proved
   nothing, so nothing looser is ever called a match.
 - **A cheque deposit names nobody** (21 of the real statement's credits). Where its amount equals a run of one

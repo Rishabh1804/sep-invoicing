@@ -103,3 +103,32 @@ test('a receipt never pays an invoice raised after it: what it cannot place stay
   await expect(page.locator('[data-on-account]')).toContainText('more than was open to pay');
   await expect(page.locator('[data-alloc]')).toContainText('more than was open by then');
 });
+
+test('what a client owed at the start is offered from its first weeks’ receipts, and applied only on Use', async ({ page }) => {
+  seq = 0;
+  const s: any = state([
+    row(day(-70), 'NEFT-UTR7-ALPHA FORGINGS', 20000, ALPHA),                  // 3 days into the book: last month's work
+    row(day(-40), 'NEFT-UTR8-ALPHA FORGINGS', 3000, ALPHA),                   // past the window: pays the book
+    row(day(-12), 'NEFT-UTR9-BETA AUTO', 2360, { cat: 'receipt', clientId: 2 }), // a client new since: pays its first invoice
+  ], [inv(1, day(-73), 1000), inv(2, day(-60), 5900)]);
+  s.clients.push({ id: 2, name: 'BETA AUTO', billingMode: 'weight', gstType: 'intra', gstin: '', address: '', isActive: true, rates: [], itemRates: [] });
+  s.invoices.push(Object.assign(inv(3, day(-20), 2360), { clientId: 2, clientName: 'BETA AUTO' }));
+  await loadAppWithState(page, s);
+  const sg = await ev(page, `bankReceivables().map(function(r) { return [r.client.id, r.openingSuggest && r.openingSuggest.amount]; })`);
+  expect(sg).toEqual(expect.arrayContaining([[1, 20000], [2, null]]));
+
+  await switchTab(page, 'pageFinance');
+  await page.locator('[data-action="invFinTab"][data-tab="receipts"]').click();
+  await expect(page.locator('[data-opening-hint="1"]')).toBeVisible();
+  await expect(page.locator('[data-recv="1"]')).toContainText('owed at start not set');
+  await page.locator('[data-recv="1"] [data-action="invBankClient"]').click();
+  // Offered, never applied: nothing is stored until Use.
+  expect(await ev(page, `JSON.stringify(bankData().opening)`)).toBe('{}');
+  await page.locator('[data-opening-suggest="1"] [data-action="invBankOpeningUse"]').click();
+  expect(await ev(page, `bankData().opening[1].amount`)).toBe(20000);
+  expect(await ev(page, `bankData().opening[1].date`)).toBe(day(-70));   // the statement's first day: T/1 is before it and not read
+  await expect(page.locator('[data-opening-suggest]')).toHaveCount(0);
+  // The first receipt now pays what was owed at the start; the later one pays the book, and nothing is on account.
+  const r = await ev(page, `(function() { var r = bankReceivables().find(function(x) { return x.client.id === 1; }); return { owed: r.owed, onAccount: r.onAccount, open: r.open.map(function(o) { return o.label; }) }; })()`);
+  expect(r).toEqual({ owed: 2900, onAccount: 0, open: ['T/2'] });
+});

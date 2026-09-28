@@ -631,7 +631,7 @@ function prodFromRegisterRead(json, ctx, photoDate, choices) {
       var q = prodRegisterQty(written);
       if (q) {
         row.qty = q.qty; if (q.working) row.qtySrc = 'working'; if (q.rackSize) { row.rackSize = row.rackSize || q.rackSize; row.rounds = row.rounds || q.rounds; }
-        if (q.grouped) row.issues.push({ tone: 'amber', code: 'grouped', text: '"' + written + '" read as ' + q.rounds + ' racks of ' + q.rackSize + ' = ' + q.qty + '. Read as plain arithmetic it is ' + q.arithmetic + '. Check it.' });
+        if (q.grouped) row.issues.push({ tone: 'info', code: 'grouped', text: '"' + written + '" read as ' + q.rounds + ' racks of ' + q.rackSize + ' = ' + q.qty + ' (racks counted in two goes, the owner\u2019s reading of 28 Sep 2026). Plain arithmetic would give ' + q.arithmetic + '.' });
       }
       else { row.legible = false; row.issues.push({ tone: 'amber', code: 'figure', text: '"' + written + '" could not be added up. Enter the figure by hand if it matters.' }); }
     } else if (r.qty != null && isFinite(r.qty)) row.qty = +r.qty;

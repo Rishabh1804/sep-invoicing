@@ -159,17 +159,22 @@ function prodPlantHtml() {
   if (!ids.length) h += '<div class="inv-empty">Nothing open on the challans.</div>';
   ids.forEach(function(cid) {
     var list = byClient[cid], amt = list.reduce(function(s, x) { return s + x.amount; }, 0);
-    h += '<div class="inv-row-group"><span>' + escHtml(prodClientName(cid) || 'Client ' + cid) + '</span><span class="inv-num">' + escHtml(formatCurrency(amt)) + '</span></div>';
+    var open = { NOS: 0, KG: 0 }, worked = 0;
+    list.forEach(function(x) { open[x.unit] += x.open; if (x.derived) worked++; });
+    h += '<div class="inv-row-group" data-prod-plant-client="' + escHtml(cid) + '"><span>' + escHtml(prodClientName(cid) || 'Client ' + cid) + '</span><span class="inv-num">' +
+      escHtml(q(open) + (worked ? ' (' + worked + ' worked out from kg)' : '') + ' · ' + formatCurrency(amt)) + '</span></div>';
     list.forEach(function(x) {
       var st = x.platedNotInvoiced > 0 ? ['warning', 'Plated, not invoiced'] : x.pickledNotPlated > 0 ? ['info', 'Pickled'] : x.floorRecorded ? ['neutral', 'Waiting'] : ['neutral', 'No floor record'];
       var u = x.unit;
       h += '<div class="inv-row inv-row-2" data-prod-plant="' + escHtml(x.r.it.id || '') + '"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(lineLabel(x.r.it)) + '</span>' +
-        '<span class="inv-row-meta inv-row-wrap">' + escHtml('Challan ' + (x.r.m.challanNo || '?') + ' · ' + stockShortDate(x.r.date) + ' · received ' + prodQtyText(x.R, u) + ' · invoiced ' + prodQtyText(x.I, u) +
+        '<span class="inv-row-meta inv-row-wrap">' + escHtml('Challan ' + (x.r.m.challanNo || '?') + ' · ' + stockShortDate(x.r.date) + ' · received ' +
+          (x.derived ? prodQtyText(x.r.R.KG, 'KG') + ' ≈ ' + prodQtyText(x.R, u) + ' at ' + String(parseFloat(x.kpp.kg.toFixed(4))) + ' kg/pc (' + x.kpp.src + ')' : prodQtyText(x.R, u)) + ' · invoiced ' + prodQtyText(x.I, u) +
           ' · plated ' + prodQtyText(Math.min(x.R, x.L), u) + (x.P ? ' · pickled ' + prodQtyText(Math.min(x.R, x.P), u) : '')) + '</span></span>' +
         '<span class="inv-row-end"><span class="inv-row-stack"><span class="inv-num">' + escHtml(prodQtyText(x.open, u)) + '</span><span class="inv-dot inv-dot-' + st[0] + '">' + st[1] + '</span></span></span></div>';
     });
   });
-  h += '<div class="inv-panel-body inv-note">Each open line’s share is split by what the floor recorded: plating and pickling of a part are set against its challans oldest first. Rework is left out: it is work done, not billing.</div></div>';
+  h += (plant.unweighed ? '<div class="inv-panel-body inv-note" data-prod-unweighed>' + escHtml(todoPlural(plant.unweighed, 'open line') + ' (' + formatNum(plant.unweighedKg, 1) + ' kg) came by the kilo with no kg per piece known, so the floor’s piece counts cannot be set against ' + (plant.unweighed === 1 ? 'it' : 'them') + '. Put the weight on the client’s card (Clients → Edit → Piece weights).') + '</div>' : '') +
+    '<div class="inv-panel-body inv-note">A line received by the kilo is counted in pieces where the part’s kg per piece is known: the client’s card, then part weights, then the Items Master. Each open line’s share is split by what the floor recorded: plating and pickling of a part are set against its challans oldest first. Rework is left out: it is work done, not billing.</div></div>';
   if (plant.noChallan.length) {
     h += '<div class="inv-panel inv-panel-flush" id="prodNoChallan"><div class="inv-panel-head"><span class="inv-panel-title">On the floor, no challan open</span><span class="inv-panel-count">' + plant.noChallan.length + '</span></div>';
     plant.noChallan.forEach(function(x) {

@@ -118,7 +118,7 @@ every session start — nothing to set up by hand. CI (`build-sync`) is the back
 ### Tests
 
 ```bash
-pnpm exec playwright test          # 679 tests, both layouts
+pnpm exec playwright test          # 680 tests, both layouts
 ```
 
 Some sandboxes ship a Chromium build Playwright does not expect and block downloading
@@ -1410,6 +1410,14 @@ reads a photo. **Owned by `soma-internal`, like stock** (owner): a view and an i
   invoice's day**, so a plating recorded after it is of other material (without that, April's challans took this week's
   plating and this week's read as waiting). The waiting figure is **withheld below 90% of line-days recorded**, and says
   why. Rework counts as work (plated kg, capacity, labour ₹/kg), never as billing (owner).
+- **A challan received by the kilo is counted in pieces** (owner, 28 Sep 2026: General Engineering and the other kg
+  clients send kilograms, the floor counts pieces, and *"as we know the weight/pc it should be calculated"*). The pieces
+  are worked out from the part's kg per piece (`prodKgPerPiece`: the client's own card, then part weights, then the
+  Items Master for a part held by one gauge; a kilo line that also counts its pieces uses its own kg ÷ pieces first), and
+  every floor entry is set against a line **in the unit the line is shown in**, a kilo figure for a counted part
+  included. The row says *100 kg ≈ 400 NOS at 0.25 kg/pc (client card)*, each client's head says how many lines were
+  worked out, and a line with no weight known stays in kg and is named with where to put the weight. Before this a
+  kilo line with no count took none of the floor's piece counts, which all read *on the floor, no challan open*.
 - **Linked in.** Stats → Overview gets *Plated (floor)*, only on **complete days** (attendance recorded and every
   staffed line with a general-shift record), never a zero. Lines shows labour ₹/kg by line: variable labour of the
   line's areas over the same days as its kilograms, the VAT side's pickling hands shared by each day's kg. Two To-do
@@ -1433,7 +1441,7 @@ reads a photo. **Owned by `soma-internal`, like stock** (owner): a view and an i
     counted START as a round of the next figure, the rule for A1's round-by-round pages, and **doubled every A2 run**
     (1,930 for a page that says 1,145). The rule now applies only to a page with no END row.
   - **Figures are written as sums and products** and are added up in code (`prodRegisterQty`), never by Gemini.
-    "3+4×156" is racks counted in two goes: read as 7 × 156 = 1,092, with the plain-arithmetic 627 said beside it (amber).
+    "3+4×156" is racks counted in two goes: read as 7 × 156 = 1,092 (**confirmed by the owner, 28 Sep 2026**), with the plain-arithmetic 627 said beside it as info, no longer a warning.
   - **The register keeps a power log** ("Power cut - 10:26 AM / Power in - 10:36 AM", a date on every row): read as
     power cuts. A cut the pickling hand also reported is counted once (`prodDowntimeDay`): cuts from different sources
     that overlap or begin within ten minutes are joined; two cuts in one log are two, however close.

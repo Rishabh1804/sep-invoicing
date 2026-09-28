@@ -92,17 +92,23 @@ function prodKg(e) {
   if (e.unit === 'KG') return { kg: e.qty, src: 'kg' };
   if (e.unit2 === 'KG' && e.qty2 != null) return { kg: e.qty2, src: 'kg' };
   if (e.qty == null || e.unit !== 'NOS' || e.clientId == null) return { kg: null, src: null };
-  var client = (S.clients || []).find(function(c) { return String(c.id) === String(e.clientId); });
-  var part = e.partNumber || e.part, desc = (e.part || '') + (e.gauge ? ' (' + e.gauge + ')' : '');
-  var pw = client ? getPieceWeight(client, e.date, part, desc) : null;
-  if (pw && pw.kg) return { kg: e.qty * pw.kg, src: 'client card' };
-  var pk = String(part || '').toUpperCase();
-  if (S.partWeights && S.partWeights[pk]) return { kg: e.qty * S.partWeights[pk], src: 'part weights' };
+  var w = prodKgPerPiece(e.clientId, e.date, e.partNumber || e.part, (e.part || '') + (e.gauge ? ' (' + e.gauge + ')' : ''));
+  return w ? { kg: e.qty * w.kg, src: w.src } : { kg: null, src: null };
+}
+/* A part's kg per piece for one client on one day: the client's own card, then Settings' part weights, then the
+   Items Master where the part number is held by one gauge. Null when unknown, never a guess. */
+function prodKgPerPiece(clientId, date, part, desc) {
+  if (clientId == null || !part) return null;
+  var client = (S.clients || []).find(function(c) { return String(c.id) === String(clientId); });
+  var pw = client ? getPieceWeight(client, date, part, desc) : null;
+  if (pw && pw.kg) return { kg: pw.kg, src: 'client card' };
+  var pk = String(part).toUpperCase();
+  if (S.partWeights && S.partWeights[pk]) return { kg: S.partWeights[pk], src: 'part weights' };
   var rows = (S.items || []).filter(function(i) { return rateKey(i.partNumber) === rateKey(part); });
   var gauges = {};
   rows.forEach(function(i) { gauges[rateKey(i.gauge || '')] = true; });
-  if (rows.length && Object.keys(gauges).length === 1 && rows[0].stdWeightKg) return { kg: e.qty * rows[0].stdWeightKg, src: 'items' };
-  return { kg: null, src: null };
+  if (rows.length && Object.keys(gauges).length === 1 && rows[0].stdWeightKg) return { kg: rows[0].stdWeightKg, src: 'items' };
+  return null;
 }
 
 /* ---------- The index (derived on read, never stored) ---------- */
@@ -386,11 +392,21 @@ function prodInPlant(opts) {
     (m.items || []).forEach(function(it) {
       var o = imLineOpen(it);
       var k = prodChallanKey(m, it), fam = prodFamilyKey(m.clientId, it.partNumber || it.desc, prodGaugeOf(it.partNumber, it.desc));
-      var nosLine = it.unit === 'NOS', hasNos = nosLine || it.nosQty > 0;
+      var nosLine = it.unit === 'NOS', kgLine = it.unit === 'KG', hasNos = nosLine || it.nosQty > 0;
       var rec = { m: m, it: it, key: k, fam: fam, date: m.challanDate || '', open: o, amount: o.amount,
-        R: { NOS: hasNos ? (nosLine ? (it.qty || 0) : (it.nosQty || 0)) : null, KG: it.unit === 'KG' ? (it.qty || 0) : null },
-        openQ: { NOS: hasNos ? (nosLine ? o.qty : o.nos) : null, KG: it.unit === 'KG' ? o.qty : null },
+        R: { NOS: hasNos ? (nosLine ? (it.qty || 0) : (it.nosQty || 0)) : null, KG: kgLine ? (it.qty || 0) : null },
+        openQ: { NOS: hasNos ? (nosLine ? o.qty : o.nos) : null, KG: kgLine ? o.qty : null },
         P: { NOS: 0, KG: 0 }, L: { NOS: 0, KG: 0 } };
+      // Received by the kilo with no count, and the part's kg per piece known: the pieces are worked out, because the
+      // floor counts pieces. Said as worked out, with the weight and where it came from.
+      // A kilo line that also counts its pieces carries its own kg per piece; that wins over any card.
+      var kpp = kgLine && it.nosQty > 0 && it.qty > 0 ? { kg: it.qty / it.nosQty, src: 'challan' } : prodKgPerPiece(m.clientId, m.challanDate, it.partNumber || it.desc, it.desc);
+      if (kpp && kpp.kg > 0) rec.kpp = kpp;
+      if (kgLine && !hasNos && rec.kpp) {
+        rec.R.NOS = Math.round((it.qty || 0) / kpp.kg);
+        rec.openQ.NOS = Math.round(o.qty / kpp.kg);
+        rec.derived = true;
+      }
       // A line billed whole is closed on its last invoice's day: plating recorded after that is of other material.
       if (it.invoiced) {
         var ids = it.invoiceIds && it.invoiceIds.length ? it.invoiceIds : (it.invoiceId ? [it.invoiceId] : []);
@@ -415,13 +431,18 @@ function prodInPlant(opts) {
     }
     var left = e.qty, u = e.unit;
     (pool || []).forEach(function(r) {
-      if (left <= 0 || r.R[u] == null) return;
+      if (left <= 0) return;
+      // A line held in the other unit takes the entry through the part's kg per piece: kilograms plated of a part
+      // the challan counts, or pieces of one it weighs. With no weight known it cannot be compared, and is left.
+      // Everything is set against the line in the unit it is shown in: pieces wherever it has a count.
+      var lu = r.R.NOS != null ? 'NOS' : 'KG', f = 1;
+      if (lu !== u) { if (!r.kpp) return; f = u === 'KG' ? 1 / r.kpp.kg : r.kpp.kg; }
       if (r.date && r.date > stockIsoAdd(e.date, 1)) return;
       if (r.closedOn !== undefined && (!r.closedOn || r.closedOn < e.date)) return;
-      var room = r.R[u] - r[field][u];
+      var room = r.R[lu] - r[field][lu];
       if (room <= 0) return;
-      var take = Math.min(room, left);
-      r[field][u] += take; left -= take;
+      var take = Math.min(room, left * f);
+      r[field][lu] += take; left -= take / f;
     });
     if (left > 0.0005) { var nk = (e.clientId == null ? '?' : e.clientId) + '|' + (e.part || ''); var nc = noChallan[nk] || (noChallan[nk] = { clientId: e.clientId, client: e.client, part: e.part, qty: 0, unit: u, field: field, oldest: e.date }); nc.qty += left; if (e.date < nc.oldest) nc.oldest = e.date; }
   };
@@ -444,11 +465,12 @@ function prodInPlant(opts) {
     var waiting = Math.max(0, openQ - platedNotInvoiced - pickledNotPlated);
     if (openQ <= 0.0005 && platedNotInvoiced <= 0) return;
     rows.push({ r: r, unit: u, R: R, I: I, L: r.L[u], P: r.P[u], open: openQ, amount: r.amount, platedNotInvoiced: platedNotInvoiced, pickledNotPlated: pickledNotPlated, waiting: waiting,
-      floorRecorded: r.L[u] > 0 || r.P[u] > 0 });
+      floorRecorded: r.L[u] > 0 || r.P[u] > 0, derived: !!r.derived, kpp: r.kpp || null, openKg: r.openQ.KG });
   });
   var cov = prodCoverage(since, today), covShare = Math.min.apply(null, PROD_LINES.map(function(l) { return cov[l].share; }));
   var book = rows.reduce(function(s, x) { return s + x.amount; }, 0);
-  return { rows: rows, noChallan: Object.keys(noChallan).map(function(k) { return noChallan[k]; }), arrived: arrived, famUsed: famUsed,
+  var unweighed = rows.filter(function(x) { return x.unit === 'KG'; });
+  return { rows: rows, unweighed: unweighed.length, unweighedKg: unweighed.reduce(function(s, x) { return s + x.open; }, 0), noChallan: Object.keys(noChallan).map(function(k) { return noChallan[k]; }), arrived: arrived, famUsed: famUsed,
     book: gstRound(book), coverage: cov, coverShare: covShare, floorOk: covShare >= PROD_COVER_OK, since: since };
 }
 

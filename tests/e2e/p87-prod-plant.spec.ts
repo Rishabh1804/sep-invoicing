@@ -74,6 +74,30 @@ test.describe('P87: material in the plant', () => {
     expect(im).not.toMatch(/plated|pickled/i);
   });
 
+  test('a challan received by the kilo is counted in pieces where the kg per piece is known', async ({ page }) => {
+    const s: any = state(false);
+    s.clients = [CLIENTS[0], { ...CLIENTS[1], pieceWeights: [{ partNumber: 'BRKT 9', gauge: '', kgPerPiece: 0.25, effectiveFrom: '' }] }];
+    const kg = (id: string, part: string, qty: number) => ({ id, partNumber: part, desc: part, hsn: '998873', unit: 'KG', qty, rate: 10, amount: qty * 10, invoiced: false, invoiceId: null });
+    s.incomingMaterial.push({ id: 'C4', challanNo: '401', challanDate: day(-4), clientId: 12, clientName: CLIENTS[1].name, receivedDate: day(-4), createdAt: 1,
+      items: [kg('K1', 'BRKT 9', 100), kg('K2', 'PLATE 7', 30)] });
+    // The floor counts BRKT 9 in pieces (50, from the base state); a kilo figure for a part the challan counts goes through the same weight.
+    s.production.entries.forEach((e: any) => { if (e.part === 'BRKT 9') delete e.gauge; });
+    s.production.entries.push(P('pickled', day(-2), 'BRKT 9', 30, { clientId: 12, unit: 'KG', gauge: undefined }));
+    await loadAppWithState(page, s as SepState);
+    const r = await g(page, `(function(){ var p = prodInPlant(); return { rows: p.rows.filter(function(x){ return x.r.m.clientId === 12; })
+      .map(function(x){ return [x.r.it.id, x.unit, x.R, x.open, x.platedNotInvoiced, x.pickledNotPlated, x.derived]; }), unweighed: p.unweighed,
+      noChallan: p.noChallan.map(function(x){ return x.part; }) }; })()`);
+    // 100 kg at 0.25 kg/pc = 400 pieces: 50 plated, 120 − 50 = 70 more pickled (30 kg); PLATE 7 has no weight and stays kg.
+    expect(r.rows).toEqual([['K1', 'NOS', 400, 400, 50, 70, true], ['K2', 'KG', 30, 30, 0, 0, false]]);
+    expect(r.unweighed).toBe(1);
+    expect(r.noChallan).not.toContain('BRKT 9');
+    await switchTab(page, 'pageProduction');
+    await page.locator('[data-action="invProdTab"][data-tab="plant"]').click();
+    await expect(page.locator('[data-prod-plant="K1"]')).toContainText('100 kg ≈ 400 NOS at 0.25 kg/pc (client card)');
+    await expect(page.locator('[data-prod-plant-client="12"]')).toContainText('400 NOS + 30.0 kg (1 worked out from kg)');
+    await expect(page.locator('[data-prod-unweighed]')).toContainText('1 open line (30.0 kg)');
+  });
+
   test('with the record complete, what waits is shown', async ({ page }) => {
     await loadAppWithState(page, state(true));
     await switchTab(page, 'pageProduction');

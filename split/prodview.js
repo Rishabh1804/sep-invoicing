@@ -457,14 +457,16 @@ function prodPhotoFiles(files) {
 function prodPhotoNext() {
   var file = _prodPhotoQueue.shift();
   if (!file) return;
-  var proc = document.getElementById('scanProcessing');
+  var proc = document.getElementById('prodProcessing');
   if (proc) proc.innerHTML = '<div class="inv-scan-processing"><div class="inv-scan-processing-card"><div class="inv-scan-spinner"></div><div class="inv-scan-processing-text">Reading the register</div>' +
     '<div class="inv-scan-processing-sub">Gemini is transcribing ' + escHtml(file.name || 'the photo') + '</div></div></div>';
   var done = function() { if (proc) proc.innerHTML = ''; };
   file.arrayBuffer().then(function(buf) { return prodPhotoSha(buf).then(function(sha) { return { buf: buf, sha: sha }; }); }).then(function(b) {
     var p = prodData(), seen = p.photos.find(function(x) { return x.sha === b.sha; });
     var seenLive = seen && p.entries.some(function(e) { return e.photoId === seen.id && !e.voidedAt; });
-    var photoDate = file.lastModified ? new Date(file.lastModified).toISOString().slice(0, 10) : null;
+    // The day the photo was taken, on this device's clock (UTC would put an evening photo in India on the next day).
+    var lm = file.lastModified ? new Date(file.lastModified) : null;
+    var photoDate = lm ? lm.getFullYear() + '-' + String(lm.getMonth() + 1).padStart(2, '0') + '-' + String(lm.getDate()).padStart(2, '0') : null;
     var draft = null;
     try { draft = JSON.parse(localStorage.getItem(PROD_DRAFT_KEY) || 'null'); } catch (e) { draft = null; }
     var start = function(json, meta) {
@@ -534,6 +536,8 @@ function prodSavePhoto() {
   p.photos.push({ id: id, at: at, by: by, sha: ph.sha, name: ph.name, bytes: ph.bytes, w: ph.meta.w || 0, h: ph.meta.h || 0, model: GEMINI_MODEL, promptVer: PROD_REGISTER_PROMPT_VER,
     readDate: date, readLine: line || null, rows: rd.rows.length, fp: rd.fp });
   rd.runs.forEach(function(e, i) {
+    // A run every row of which was struck and cancelled was never plated.
+    if (e.rows.length && e.rows.every(function(x) { return x.struck && !x.counted && ph.choices['struck' + x.i] === 'cancelled'; })) return;
     var cc = ph.choices['client' + i];
     var rec = Object.assign({}, e, { id: prodUid('PE'), date: date, line: line || null, lineSrc: line ? (line === rd.line ? 'written' : 'set') : null,
       clientId: cc !== undefined ? (cc === 'asWritten' ? null : cc) : e.clientId, photoId: id, by: by, at: at });
@@ -659,7 +663,13 @@ function prodImport() {
 function prodAction(action, btn) {
   switch (action) {
     case 'invProdTab': prodSetTab(btn.dataset.tab); _prodView = 'main'; renderProduction(); return true;
-    case 'invProdBack': _prodReview = null; _prodHand = null; if (_prodPhoto) { try { URL.revokeObjectURL(_prodPhoto.url); } catch (e) { /* none */ } _prodPhoto = null; } prodSetView('main'); return true;
+    case 'invProdBack': {
+      var wasPhoto = !!_prodPhoto;
+      _prodReview = null; _prodHand = null; if (_prodPhoto) { try { URL.revokeObjectURL(_prodPhoto.url); } catch (e) { /* none */ } _prodPhoto = null; }
+      prodSetView('main');
+      if (wasPhoto) prodPhotoNext();   // the next photo picked with it is read, not left waiting
+      return true;
+    }
     case 'invProdPaste': prodSetView('paste'); return true;
     case 'invProdRead': prodReadPaste(); return true;
     case 'invProdSaveReview': prodSaveReview(); return true;

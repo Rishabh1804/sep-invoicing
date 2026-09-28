@@ -548,7 +548,9 @@ function prodFromRegisterRead(json, ctx, photoDate, choices) {
     var partText = (first.part + (first.dim && !lineGauge(first.part.replace(/[×✕]/g, 'X')) ? ' (' + first.dim + ')' : '')).trim();
     var counted = run.rows.filter(function(x) { return x.counted && x.qty != null; });
     var qty = counted.reduce(function(s, x) { return s + x.qty; }, 0);
-    var mins = run.rows.map(function(x) { return x.min; }).filter(function(x) { return x != null; });
+    // A struck row cancelled does not stretch the run's hours (one not yet answered still does).
+    var timed = run.rows.filter(function(x) { return !(x.struck && choices['struck' + x.i] === 'cancelled'); });
+    var mins = (timed.length ? timed : run.rows).map(function(x) { return x.min; }).filter(function(x) { return x != null; });
     var e = { kind: 'plated', date: out.date, time: prodHhmm(mins.length ? Math.min.apply(null, mins) : null), to: prodHhmm(mins.length ? Math.max.apply(null, mins) : null),
       line: out.line, lineSrc: out.line ? 'written' : null, client: first.cust, clientId: it.clientId != null ? it.clientId : null, clientName: it.clientName || '',
       part: partText, gauge: lineGauge(partText.replace(/[×✕]/g, 'X')), qty: counted.length ? qty : null, unit: 'NOS', basis: 'register', src: 'photo',

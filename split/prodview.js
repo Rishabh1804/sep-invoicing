@@ -498,7 +498,8 @@ function prodPhotoNext() {
     geminiReadImage(file, PROD_REGISTER_PROMPT, { schema: PROD_REGISTER_SCHEMA, maxEdge: 2000, thinkingBudget: 0 }).then(function(res) {
       if (res.ok) { start(res.json, res.meta); return; }
       done();
-      var msg = { key: 'No Gemini key is set (Settings → Connections).', quota: 'Gemini says too many requests. Wait a minute and read the photo again.', timeout: res.error, truncated: 'The reply was cut off: the page may have too many rows. Try a photo of half the page.',
+      if (/credit|billing|prepay/i.test(res.error || '')) res.code = 'billing';
+      var msg = { billing: 'The Gemini key\u2019s Google project is on prepaid billing and its credits have run out. Add credit to it, or make a new key in a project with no billing (free) and put it in Settings \u2192 Connections.', key: 'No Gemini key is set (Settings → Connections).', quota: 'Gemini says too many requests. Wait a minute and read the photo again.', timeout: res.error, truncated: 'The reply was cut off: the page may have too many rows. Try a photo of half the page.',
         json: 'Gemini did not return the table asked for. Read it again, or enter the page by hand.', blocked: res.error, empty: 'Gemini returned nothing for this photo.' }[res.code] || ('Reading failed: ' + res.error);
       uiNotice('Register photo: ' + msg, 'error');
       prodPhotoNext();
@@ -567,7 +568,7 @@ function prodSavePhoto() {
   var line = ph.choices.line !== undefined ? ph.choices.line : rd.line, date = ph.choices.date || rd.date;
   var id = prodUid('PF'), n = 0;
   if (rd.page === 'other' || rd.page === 'challan') return;
-  p.photos.push({ id: id, at: at, by: by, sha: ph.sha, name: ph.name, bytes: ph.bytes, w: ph.meta.w || 0, h: ph.meta.h || 0, model: GEMINI_MODEL, promptVer: PROD_REGISTER_PROMPT_VER,
+  p.photos.push({ id: id, at: at, by: by, sha: ph.sha, name: ph.name, bytes: ph.bytes, w: ph.meta.w || 0, h: ph.meta.h || 0, model: ph.meta.model || geminiModel(), promptVer: PROD_REGISTER_PROMPT_VER,
     readDate: date, readLine: rd.page === 'power' ? null : line || null, page: rd.page, rows: rd.page === 'power' ? rd.downtime.length : rd.rows.length, fp: rd.fp });
   rd.downtime.forEach(function(x) {
     p.entries.push(prodSparse({ id: prodUid('PE'), kind: 'downtime', date: x.date, time: x.time, to: x.to, downtime: { cause: 'power', open: !!x.open },

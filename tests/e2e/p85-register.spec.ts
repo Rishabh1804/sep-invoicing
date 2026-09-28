@@ -80,7 +80,7 @@ test.describe('P85: the register photo', () => {
     expect(e[0].date).toBe(todayIso());
     expect(s.production.photos).toHaveLength(1);
     const ph = s.production.photos[0];
-    expect(ph).toMatchObject({ model: 'gemini-2.5-flash', promptVer: 'reg-v2', readLine: 'vat-a1', rows: 4, name: 'register.png' });
+    expect(ph).toMatchObject({ model: 'gemini-3.8-flash', promptVer: 'reg-v2', readLine: 'vat-a1', rows: 4, name: 'register.png' });
     expect(ph.sha).toMatch(/^[0-9a-f]{64}$/);
     // The image is never kept: no data URL anywhere in the stored state.
     expect(JSON.stringify(s.production)).not.toContain('data:image');
@@ -126,6 +126,15 @@ test.describe('P85: the register photo', () => {
     await expect(page.locator('.inv-notice-bar')).toContainText('too many requests');
     await expect(page.locator('#prodPhotoRuns')).toBeVisible();
     expect(n).toBe(2);
+  });
+
+  test('a key whose prepaid credits ran out is named as billing, not as a busy minute', async ({ page }) => {
+    await boot(page);
+    await page.route('https://generativelanguage.googleapis.com/**', route => route.fulfill({ status: 429, contentType: 'application/json',
+      body: JSON.stringify({ error: { message: 'Your prepayment credits are depleted. Please go to AI Studio to manage your project and billing.' } }) }));
+    await page.setInputFiles('#prodPhotoInput', { name: 'a.png', mimeType: 'image/png', buffer: PNG });
+    await expect(page.locator('.inv-notice-bar')).toContainText('prepaid billing and its credits have run out');
+    await expect(page.locator('.inv-notice-bar')).not.toContainText('Wait a minute');
   });
 
   test('no key: the app says where to set it, and hand entry needs none', async ({ page }) => {

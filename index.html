@@ -18,7 +18,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <!-- Appearance before first paint (§3.2): the device's theme and palette, so nothing flashes in the wrong colours. -->
 <script>(function(){try{var d=document.documentElement,t=localStorage.getItem("sep_inv_theme"),p=localStorage.getItem("sep_inv_palette");if(t==="light"||t==="dark")d.dataset.theme=t;d.dataset.palette=(p==="zinc"||p==="terracotta")?p:"teal";}catch(e){document.documentElement.dataset.palette="teal";}})();</script>
-<meta name="app-build" content="9b1f1868">
+<meta name="app-build" content="e7e7d254">
 <style>
 /* ===== DESIGN TOKENS (design system v2.0 — docs/SEP_INVOICING_DESIGN_PRINCIPLES.md §3) ===== */
 /* Theme: colour-scheme decides every light-dark() below. <html data-theme> is set before first paint
@@ -19619,21 +19619,47 @@ function bankClearBounce(revId) {
 /* ---------- Receipts against invoices ---------- */
 function _bankInvLabel(inv) { return inv.displayNumber || inv.invoiceNumber; }
 
-/* Per client, from the statement's first day: what was invoiced, what was credited, what came in,
+/* Receivables start on the later of the statement's first day and the book's first invoice. A statement
+   that reaches back before the invoices do (January against a book from April) carries receipts for
+   invoices this app never held: read against the book they pay April's invoices early and a client reads
+   paid ahead. Before this day nothing is set against anything, and what was owed on it is the opening. */
+function bankRecvFrom(rows) {
+  rows = rows || bankRows();
+  if (!rows.length) return '';
+  var from = rows[0].date, book = '';
+  (S.invoices || []).forEach(function(i) { if (i.date && (!book || i.date < book)) book = i.date; });
+  return book > from ? book : from;
+}
+/* An opening is what was owed on a particular day. One set against another day (the statement's first,
+   before the book was taken into account) no longer describes the start and is not applied. */
+function bankOpeningFor(clientId, from) {
+  var o = bankData().opening[clientId];
+  if (!o) return { amount: 0, stale: null };
+  var rows = bankRows(), day = o.date || (rows.length ? rows[0].date : ''), amt = gstRound(Number(o.amount) || 0);
+  return day === from ? { amount: amt, stale: null } : { amount: 0, stale: { amount: amt, date: day } };
+}
+/* Receipts nobody has placed, from the day receivables start: an earlier one paid an invoice this app
+   does not hold, so it cannot make what is owed read high. */
+function bankLooseReceipts(cls, from) {
+  from = from == null ? bankRecvFrom() : from;
+  return cls.filter(function(v) { return v.cat === 'receipt' && v.clientId == null && v.row.cr > 0 && v.row.date >= from; });
+}
+
+/* Per client, from bankRecvFrom(): what was invoiced, what was credited, what came in,
    and which invoices each receipt paid. A receipt is set against invoices EXACTLY when one open
    invoice, or a run of consecutive open ones, adds up to it within ₹1 — otherwise oldest first,
    and it says which. soma-internal's tolerant sweep hit every credit and proved nothing; a
    receipt is only ever called a match to the rupee. */
 function bankReceivables(cls) {
   cls = cls || bankClassify();
-  var rows = bankRows(), from = rows.length ? rows[0].date : '', b = bankData();
+  var from = bankRecvFrom();
   var out = [];
   (S.clients || []).forEach(function(c) {
     var invs = (S.invoices || []).filter(function(i) { return i.status === 'active' && String(i.clientId) === String(c.id) && i.date >= from; })
       .sort(function(x, y) { return x.date < y.date ? -1 : x.date > y.date ? 1 : String(x.invoiceNumber).localeCompare(String(y.invoiceNumber)); });
-    var recs = cls.filter(function(v) { return v.cat === 'receipt' && v.clientId != null && String(v.clientId) === String(c.id); });
-    var opening = gstRound(Number((b.opening[c.id] || {}).amount) || 0);
-    if (!invs.length && !recs.length && !opening) return;
+    var recs = cls.filter(function(v) { return v.cat === 'receipt' && v.clientId != null && String(v.clientId) === String(c.id) && v.row.date >= from; });
+    var op = bankOpeningFor(c.id, from), opening = op.amount;
+    if (!invs.length && !recs.length && !opening && !op.stale) return;
     var open = [];
     if (opening) open.push({ label: 'Owed at ' + formatDate(from), date: from, amount: opening, due: opening });
     invs.forEach(function(i) { open.push({ inv: i, label: _bankInvLabel(i), date: i.date, amount: gstRound(i.grandTotal || 0), due: gstRound(i.grandTotal || 0) }); });
@@ -19681,7 +19707,7 @@ function bankReceivables(cls) {
     var owed = gstRound(opening + invoiced - notesTotal - received);
     var stillOpen = open.filter(function(o) { return o.due > 0.005; });
     var today = localDateStr();
-    out.push({ client: c, opening: opening, invoiced: invoiced, notes: gstRound(notesTotal), received: received, owed: owed,
+    out.push({ client: c, opening: opening, openingStale: op.stale, invoiced: invoiced, notes: gstRound(notesTotal), received: received, owed: owed,
       open: stillOpen, allocs: allocs, oldestDays: stillOpen.length ? Math.max(0, todoDaysBetween(stillOpen[0].date, today)) : null });
   });
   return out.sort(function(a, b) { return b.owed - a.owed; });
@@ -19839,13 +19865,14 @@ function _bankHeadHtml(rows) {
 }
 
 function _bankReceiptsHtml(cls) {
-  var recv = bankReceivables(cls), rows = bankRows();
+  var recv = bankReceivables(cls), rows = bankRows(), from = bankRecvFrom(rows), fromTxt = escHtml(formatDate(from));
   var totalOwed = recv.reduce(function(s, r) { return s + Math.max(0, r.owed); }, 0);
   var h = '<div class="inv-panel inv-panel-flush" id="bankReceipts"><div class="inv-panel-head"><span class="inv-panel-title">Owed by client</span>' +
     '<span class="inv-panel-count inv-num">' + formatCurrency(totalOwed) + '</span></div>' +
-    '<div class="inv-panel-body inv-note">From ' + escHtml(formatDate(rows[0].date)) + ', the statement\'s first day: invoices less credit notes less receipts, ' +
-    'plus whatever was owed on that day if you set it. A receipt that equals one invoice, or a run of them, to the rupee is marked exact; any other is set against the oldest first.</div>';
-  if (!recv.length) h += '<div class="inv-empty">No invoices or receipts since the statement starts.</div>';
+    '<div class="inv-panel-body inv-note">From ' + fromTxt + (from === rows[0].date ? ', the statement\'s first day' :
+      ', the first invoice in the book (the statement starts ' + escHtml(formatDate(rows[0].date)) + '; receipts before ' + fromTxt + ' paid invoices this app does not hold, and are left out)') +
+    ': invoices less credit notes less receipts, plus whatever was owed on that day if you set it. A receipt that equals one invoice, or a run of them, to the rupee is marked exact; any other is set against the oldest first.</div>';
+  if (!recv.length) h += '<div class="inv-empty">No invoices or receipts since ' + fromTxt + '.</div>';
   var payHist = typeof bankPayHistory === 'function' ? bankPayHistory(recv) : {};
   recv.forEach(function(r) {
     var open = _bankOpen === String(r.client.id), dtp = typeof bankDaysToPay === 'function' ? bankDaysToPay(r.client.id, payHist) : null;
@@ -19857,8 +19884,10 @@ function _bankReceiptsHtml(cls) {
       '<span class="inv-row-end"><span class="inv-row-stack"><span class="inv-num">' + formatCurrency(r.owed) + '</span><span class="inv-row-meta">' + (r.owed < -0.005 ? 'paid ahead' : 'owed') + '</span></span></span></div>';
     if (!open) return;
     h += '<div class="inv-row-children">';
-    if (r.owed < -0.005) h += '<div class="inv-callout inv-callout-info">More came in than was invoiced since ' + escHtml(formatDate(rows[0].date)) + '. The early receipts most likely paid invoices from before the statement: set what was owed on that day.</div>';
-    h += '<div class="inv-row"><span class="inv-row-main"><label class="inv-field-label" for="bankOpening">Owed at ' + escHtml(formatDate(rows[0].date)) + '</label></span>' +
+    if (r.openingStale) h += '<div class="inv-callout inv-callout-warning" data-opening-stale>' + escHtml(formatCurrency(r.openingStale.amount)) + ' was set as owed at ' +
+      escHtml(formatDate(r.openingStale.date)) + ', but receivables start at ' + fromTxt + ' now, so it is not counted. Set what was owed on ' + fromTxt + '.</div>';
+    else if (r.owed < -0.005) h += '<div class="inv-callout inv-callout-info">More came in than was invoiced since ' + fromTxt + '. The early receipts most likely paid invoices from before then: set what was owed on that day.</div>';
+    h += '<div class="inv-row"><span class="inv-row-main"><label class="inv-field-label" for="bankOpening">Owed at ' + fromTxt + '</label></span>' +
       '<span class="inv-row-end"><input class="inv-input inv-input-sm inv-num" type="number" step="0.01" min="0" inputmode="decimal" id="bankOpening" data-client="' + escHtml(String(r.client.id)) + '" value="' + (r.opening || '') + '" placeholder="0.00"></span></div>';
     r.allocs.forEach(function(a) {
       h += '<div class="inv-row inv-row-2" data-alloc="' + escHtml(a.v.row.id) + '"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(formatDate(a.v.row.date)) + ' · ' +
@@ -19881,7 +19910,10 @@ function _bankReceiptsHtml(cls) {
   });
   h += '</div>';
   // Receipts nobody can name: cheques deposited, a remitter the client list does not recognise.
-  var loose = cls.filter(function(v) { return v.cat === 'receipt' && v.clientId == null; }), series = bankChequeSeries(cls);
+  var loose = bankLooseReceipts(cls, from), series = bankChequeSeries(cls);
+  var early = cls.filter(function(v) { return v.cat === 'receipt' && v.clientId == null && v.row.cr > 0 && v.row.date < from; }).length;
+  if (early) h += '<div class="inv-panel-body inv-note" data-loose-early="' + early + '">' + finPl(early, 'receipt') + ' with no client from before ' + fromTxt +
+    ' ' + (early === 1 ? 'is' : 'are') + ' not listed: ' + (early === 1 ? 'it' : 'they') + ' paid invoices from before the book starts. Place one from the Statement if you want its cheque in a client\'s series.</div>';
   if (loose.length) {
     h += '<div class="inv-panel inv-panel-flush" id="bankLoose"><div class="inv-panel-head"><span class="inv-panel-title">Receipts with no client</span><span class="inv-panel-count">' + loose.length + '</span></div>' +
       '<div class="inv-panel-body inv-note">Cheques deposited carry no name. Pick the client; a remitter\'s name is remembered for its next receipt.</div>';
@@ -20244,7 +20276,7 @@ function bankInput(t) {
   }
   if (t.id === 'bankOpening') {
     var amt = gstRound(parseFloat(t.value) || 0), o = bankData().opening;
-    if (amt > 0) o[t.dataset.client] = { amount: amt, at: Date.now() }; else delete o[t.dataset.client];
+    if (amt > 0) o[t.dataset.client] = { amount: amt, date: bankRecvFrom(), at: Date.now() }; else delete o[t.dataset.client];
     saveState();
     renderFinance();
     return true;
@@ -20316,7 +20348,7 @@ function finSetTab(t) {
 function renderFinance() {
   var el = document.getElementById('financeContent');
   if (!el) return;
-  var looseN = bankData().rows.length ? bankClassify().filter(function(v) { return v.cat === 'receipt' && v.clientId == null; }).length : 0;
+  var looseN = bankData().rows.length ? bankLooseReceipts(bankClassify()).length : 0;
   var tab = function(k, l) { return '<button class="inv-viewtab" role="tab" aria-selected="' + (_finTab === k) + '" data-action="invFinTab" data-tab="' + k + '">' + l +
     (k === 'receipts' && looseN ? ' <span class="inv-badge inv-badge-warning" title="Receipts with no client">' + looseN + '</span>' : '') + '</button>'; };
   var h = '<div class="inv-viewtabs" role="tablist" aria-label="Finance">' + FIN_TABS.map(function(t) { return tab(t[0], t[1]); }).join('') + '</div>' +
@@ -20462,7 +20494,7 @@ function finOverviewHtml() {
   var months = finCashByMonth(rows);
   var paidMonth = months.length ? months[months.length - 1] : null;
   var gst = finGstByMonth(insMonthsBack(1), cls)[0];
-  var loose = cls.filter(function(v) { return v.cat === 'receipt' && v.clientId == null; }).length;
+  var from = has ? bankRecvFrom(rows) : '', loose = has ? bankLooseReceipts(cls, from).length : 0;
 
   var tile = function(label, value, sub, tone, key) {
     return '<div class="inv-tile' + (tone ? ' inv-tile-' + tone : '') + '" data-fin-tile="' + key + '"><div class="inv-tile-label">' + label + '</div>' +
@@ -20472,7 +20504,7 @@ function finOverviewHtml() {
     tile('Bank balance', last ? formatCurrency(last.balance) : '&mdash;', last ? 'on ' + escHtml(formatDate(last.date)) + (stale > 7 ? ' · statement ' + stale + ' days old' : '') : 'no statement imported',
       last && last.balance < 0 ? 'danger' : last && stale > 7 ? 'warning' : '', 'balance') +
     // Unplaced receipts are money in that no client is credited with, so the figure reads HIGH until they are placed.
-    tile('Owed to us', has ? formatCurrency(owed) : '&mdash;', has ? (loose ? finPl(loose, 'receipt') + ' not placed: reads high' : finPl(recv.filter(function(r) { return r.owed > 0.005; }).length, 'client') + ' · since ' + escHtml(formatDate(rows[0].date))) : 'needs a statement',
+    tile('Owed to us', has ? formatCurrency(owed) : '&mdash;', has ? (loose ? finPl(loose, 'receipt') + ' not placed: reads high' : finPl(recv.filter(function(r) { return r.owed > 0.005; }).length, 'client') + ' · since ' + escHtml(formatDate(from))) : 'needs a statement',
       loose ? 'warning' : '', 'owed') +
     tile('Paid out', paidMonth ? formatCurrency(paidMonth.dr) : '&mdash;', paidMonth ? 'in ' + escHtml(billsMonthLabel(paidMonth.month)) + ' · ' + finRs(paidMonth.cr) + ' came in' : 'needs a statement', '', 'out') +
     tile('GST for ' + escHtml(billsMonthLabel(gst.month)), formatCurrency(gst.due), (function() {
@@ -20586,7 +20618,7 @@ function finOverviewHtml() {
       (dtp && dtp.median != null ? ' · pays in ' + Math.round(dtp.median) + ' d' : '') + '</span></button>' +
       '<span class="inv-row-end inv-num">' + formatCurrency(r.owed) + '</span></div>';
   });
-  if (!top.length) h += '<div class="inv-empty">Nothing owed since the statement starts.</div>';
+  if (!top.length) h += '<div class="inv-empty">Nothing owed since ' + escHtml(formatDate(bankRecvFrom())) + '.</div>';
   if (loose) h += '<div class="inv-panel-body inv-note">' + finPl(loose, 'receipt') + ' with no client ' + (loose === 1 ? 'is' : 'are') + ' not counted yet, so what is owed reads high. ' +
     '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invFinLoose">Place them</button></div>';
   h += '</div>';
@@ -24558,7 +24590,7 @@ function finForecast(days) {
   else rests.push(todoPlural(nOpen, 'open invoice') + ', ' + formatCurrency(gstRound(amtOpen)) + ', each at its client’s usual days to pay (the book’s ' + Math.round(bookMed) + ' days where a client has under three receipts)' +
     (late ? '; ' + late + ' a little past it (' + formatCurrency(gstRound(lateAmt)) + ') spread over four weeks, and not counted at the low end' : '') + '.');
   if (stale) rests.push(todoPlural(stale, 'invoice') + ' long past their usual day, ' + formatCurrency(gstRound(staleAmt)) + ', not expected: chase them, do not plan on them.');
-  var loose = ctx.cls.filter(function(v) { return v.cat === 'receipt' && v.clientId == null && v.row.cr > 0; });
+  var loose = bankLooseReceipts(ctx.cls, bankRecvFrom(ctx.rows));
   if (loose.length && bookMed != null) rests.push(todoPlural(loose.length, 'receipt') + ' not placed on a client: the invoices they paid still read as open, so money in reads high.');
 
   // In: billing at its recent pace, paid at the book's lag. Without it every future week would carry
@@ -24697,7 +24729,7 @@ TODO_RULE_FNS.bankStale = function() {
     clears: 'Clears itself when a newer statement is imported.', go: finGo('bank'), goLabel: 'Open the statement', sig: last }];
 };
 TODO_RULE_FNS.bankLoose = function() {
-  var today = localDateStr(), loose = finCtx().cls.filter(function(v) { return v.cat === 'receipt' && v.clientId == null && v.row.cr > 0 && todoDaysBetween(v.row.date, today) >= 7; });
+  var today = localDateStr(), loose = bankLooseReceipts(finCtx().cls, bankRecvFrom(finCtx().rows)).filter(function(v) { return todoDaysBetween(v.row.date, today) >= 7; });
   if (!loose.length) return [];
   var sum = gstRound(loose.reduce(function(s, v) { return s + v.row.cr; }, 0));
   return [{ key: 'bankLoose', rule: 'bankLoose', tone: loose.length >= 10 || sum >= 100000 ? 'red' : 'amber',
@@ -24708,7 +24740,7 @@ TODO_RULE_FNS.bankLoose = function() {
 TODO_RULE_FNS.owed90 = function() {
   var today = localDateStr(), recv = finCtx().recv(), book = recv.reduce(function(s, r) { return s + Math.max(0, r.owed); }, 0);
   // Unplaced receipts may have paid these: until they are placed the figure is an upper bound, never red.
-  var loose = finCtx().cls.filter(function(v) { return v.cat === 'receipt' && v.clientId == null && v.row.cr > 0; }).length;
+  var loose = bankLooseReceipts(finCtx().cls, bankRecvFrom(finCtx().rows)).length;
   return recv.map(function(r) {
     var old = r.open.filter(function(o) { return o.inv && todoDaysBetween(o.date, today) > 90; });
     if (!old.length) return null;
@@ -24876,7 +24908,7 @@ function finClientMoney(clientId) {
   var last = null;
   ctx.cls.forEach(function(v) { if (v.cat === 'receipt' && v.clientId != null && String(v.clientId) === String(clientId) && v.row.cr > 0) last = v.row; });
   return { r: r || null, dtp: bankDaysToPay(clientId, bankPayHistory(ctx.recv())), series: bankChequeSeries(ctx.cls)[String(clientId)] || [], last: last,
-    bands: r ? finAgeing([r]) : null, from: ctx.rows[0].date };
+    bands: r ? finAgeing([r]) : null, from: bankRecvFrom(ctx.rows) };
 }
 /* One panel, drawn on the client's detail, its edit sheet and its Performance view. */
 function finClientMoneyHtml(clientId) {
@@ -24884,7 +24916,7 @@ function finClientMoneyHtml(clientId) {
   if (!m) return '';
   var h = '<div class="inv-panel inv-panel-flush" data-client-money="' + escHtml(String(clientId)) + '"><div class="inv-panel-head"><span class="inv-panel-title">Money</span>' +
     '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invFinGo" data-tab="receipts" data-client="' + escHtml(String(clientId)) + '">Open in Finance</button></div>';
-  if (!m.r) return h + '<div class="inv-empty">Nothing invoiced or received since ' + escHtml(formatDate(m.from)) + ', the statement’s first day.</div></div>';
+  if (!m.r) return h + '<div class="inv-empty">Nothing invoiced or received since ' + escHtml(formatDate(m.from)) + ', when receivables start.</div></div>';
   var row = function(k, v, sub) {
     return '<div class="inv-row inv-row-2"><span class="inv-row-main"><span class="inv-row-title">' + k + '</span>' + (sub ? '<span class="inv-row-meta">' + sub + '</span>' : '') + '</span><span class="inv-row-end inv-num">' + v + '</span></div>';
   };
@@ -24903,7 +24935,7 @@ function finClientMoneyHtml(clientId) {
    first day is not read at all: its payment may be on a statement nobody imported. */
 function finInvoicePayment(inv) {
   if (!finHasBank() || !inv || inv.status !== 'active') return null;
-  var ctx = finCtx(), from = ctx.rows[0].date;
+  var ctx = finCtx(), from = bankRecvFrom(ctx.rows);
   if (inv.date < from) return { before: from };
   var r = ctx.recv().find(function(x) { return String(x.client.id) === String(inv.clientId); });
   if (!r) return null;
@@ -24954,7 +24986,7 @@ function renderFinHomeCard() {
   var rows = bankRows(), last = rows[rows.length - 1], recv = finCtx().recv(), fc = finForecast(45);
   var owed = recv.reduce(function(s, r) { return s + Math.max(0, r.owed); }, 0);
   var book = bankBookDaysToPay(bankPayHistory(recv));
-  var loose = finCtx().cls.filter(function(v) { return v.cat === 'receipt' && v.clientId == null && v.row.cr > 0; }).length;
+  var loose = bankLooseReceipts(finCtx().cls, bankRecvFrom(finCtx().rows)).length;
   var age = todoDaysBetween(last.date, localDateStr());
   var tile = function(tab, anchor, label, value, sub, tone) {
     return '<button class="inv-tile' + (tone ? ' inv-tile-' + tone : '') + '" data-action="invFinGo" data-tab="' + tab + '"' + (anchor ? ' data-anchor="' + anchor + '"' : '') + ' data-home-fin="' + label + '">' +
@@ -24962,7 +24994,7 @@ function renderFinHomeCard() {
   };
   h += '<div class="inv-tiles inv-tiles-flush">' +
     tile('bank', '', 'Balance', last.balance, 'on ' + escHtml(finShortDate(last.date)) + (age > 7 ? ', ' + age + ' days ago' : ''), last.balance < 0 ? 'danger' : age > 7 ? 'warning' : '') +
-    tile('receipts', loose ? 'bankLoose' : '', 'Owed to us', owed, loose ? loose + ' receipt' + (loose === 1 ? '' : 's') + ' not placed' : 'since ' + escHtml(finShortDate(rows[0].date)), loose ? 'warning' : '') +
+    tile('receipts', loose ? 'bankLoose' : '', 'Owed to us', owed, loose ? loose + ' receipt' + (loose === 1 ? '' : 's') + ' not placed' : 'since ' + escHtml(finShortDate(bankRecvFrom(rows))), loose ? 'warning' : '') +
     (book && book.median != null ? '<button class="inv-tile" data-action="invFinGo" data-tab="receipts" data-home-fin="Pays in"><div class="inv-tile-label">Pays in</div>' +
       '<div class="inv-tile-value inv-tile-value-sm">' + Math.round(book.median) + ' days</div><div class="inv-tile-sub">the book, invoice to receipt</div></button>' : '') +
     tile('overview', 'finForecast', 'Runway', fc ? fc.min.bal : last.balance, fc && fc.cross ? 'below zero on ' + escHtml(finShortDate(fc.cross)) : fc ? 'lowest in 45 days, ' + escHtml(finShortDate(fc.min.date)) : '', fc && fc.cross ? 'danger' : '') +

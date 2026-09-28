@@ -29,7 +29,7 @@ function finSetTab(t) {
 function renderFinance() {
   var el = document.getElementById('financeContent');
   if (!el) return;
-  var looseN = bankData().rows.length ? bankClassify().filter(function(v) { return v.cat === 'receipt' && v.clientId == null; }).length : 0;
+  var looseN = bankData().rows.length ? bankLooseReceipts(bankClassify()).length : 0;
   var tab = function(k, l) { return '<button class="inv-viewtab" role="tab" aria-selected="' + (_finTab === k) + '" data-action="invFinTab" data-tab="' + k + '">' + l +
     (k === 'receipts' && looseN ? ' <span class="inv-badge inv-badge-warning" title="Receipts with no client">' + looseN + '</span>' : '') + '</button>'; };
   var h = '<div class="inv-viewtabs" role="tablist" aria-label="Finance">' + FIN_TABS.map(function(t) { return tab(t[0], t[1]); }).join('') + '</div>' +
@@ -175,7 +175,7 @@ function finOverviewHtml() {
   var months = finCashByMonth(rows);
   var paidMonth = months.length ? months[months.length - 1] : null;
   var gst = finGstByMonth(insMonthsBack(1), cls)[0];
-  var loose = cls.filter(function(v) { return v.cat === 'receipt' && v.clientId == null; }).length;
+  var from = has ? bankRecvFrom(rows) : '', loose = has ? bankLooseReceipts(cls, from).length : 0;
 
   var tile = function(label, value, sub, tone, key) {
     return '<div class="inv-tile' + (tone ? ' inv-tile-' + tone : '') + '" data-fin-tile="' + key + '"><div class="inv-tile-label">' + label + '</div>' +
@@ -185,7 +185,7 @@ function finOverviewHtml() {
     tile('Bank balance', last ? formatCurrency(last.balance) : '&mdash;', last ? 'on ' + escHtml(formatDate(last.date)) + (stale > 7 ? ' · statement ' + stale + ' days old' : '') : 'no statement imported',
       last && last.balance < 0 ? 'danger' : last && stale > 7 ? 'warning' : '', 'balance') +
     // Unplaced receipts are money in that no client is credited with, so the figure reads HIGH until they are placed.
-    tile('Owed to us', has ? formatCurrency(owed) : '&mdash;', has ? (loose ? finPl(loose, 'receipt') + ' not placed: reads high' : finPl(recv.filter(function(r) { return r.owed > 0.005; }).length, 'client') + ' · since ' + escHtml(formatDate(rows[0].date))) : 'needs a statement',
+    tile('Owed to us', has ? formatCurrency(owed) : '&mdash;', has ? (loose ? finPl(loose, 'receipt') + ' not placed: reads high' : finPl(recv.filter(function(r) { return r.owed > 0.005; }).length, 'client') + ' · since ' + escHtml(formatDate(from))) : 'needs a statement',
       loose ? 'warning' : '', 'owed') +
     tile('Paid out', paidMonth ? formatCurrency(paidMonth.dr) : '&mdash;', paidMonth ? 'in ' + escHtml(billsMonthLabel(paidMonth.month)) + ' · ' + finRs(paidMonth.cr) + ' came in' : 'needs a statement', '', 'out') +
     tile('GST for ' + escHtml(billsMonthLabel(gst.month)), formatCurrency(gst.due), (function() {
@@ -299,7 +299,7 @@ function finOverviewHtml() {
       (dtp && dtp.median != null ? ' · pays in ' + Math.round(dtp.median) + ' d' : '') + '</span></button>' +
       '<span class="inv-row-end inv-num">' + formatCurrency(r.owed) + '</span></div>';
   });
-  if (!top.length) h += '<div class="inv-empty">Nothing owed since the statement starts.</div>';
+  if (!top.length) h += '<div class="inv-empty">Nothing owed since ' + escHtml(formatDate(bankRecvFrom())) + '.</div>';
   if (loose) h += '<div class="inv-panel-body inv-note">' + finPl(loose, 'receipt') + ' with no client ' + (loose === 1 ? 'is' : 'are') + ' not counted yet, so what is owed reads high. ' +
     '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invFinLoose">Place them</button></div>';
   h += '</div>';

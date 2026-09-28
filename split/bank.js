@@ -345,21 +345,47 @@ function bankClearBounce(revId) {
 /* ---------- Receipts against invoices ---------- */
 function _bankInvLabel(inv) { return inv.displayNumber || inv.invoiceNumber; }
 
-/* Per client, from the statement's first day: what was invoiced, what was credited, what came in,
+/* Receivables start on the later of the statement's first day and the book's first invoice. A statement
+   that reaches back before the invoices do (January against a book from April) carries receipts for
+   invoices this app never held: read against the book they pay April's invoices early and a client reads
+   paid ahead. Before this day nothing is set against anything, and what was owed on it is the opening. */
+function bankRecvFrom(rows) {
+  rows = rows || bankRows();
+  if (!rows.length) return '';
+  var from = rows[0].date, book = '';
+  (S.invoices || []).forEach(function(i) { if (i.date && (!book || i.date < book)) book = i.date; });
+  return book > from ? book : from;
+}
+/* An opening is what was owed on a particular day. One set against another day (the statement's first,
+   before the book was taken into account) no longer describes the start and is not applied. */
+function bankOpeningFor(clientId, from) {
+  var o = bankData().opening[clientId];
+  if (!o) return { amount: 0, stale: null };
+  var rows = bankRows(), day = o.date || (rows.length ? rows[0].date : ''), amt = gstRound(Number(o.amount) || 0);
+  return day === from ? { amount: amt, stale: null } : { amount: 0, stale: { amount: amt, date: day } };
+}
+/* Receipts nobody has placed, from the day receivables start: an earlier one paid an invoice this app
+   does not hold, so it cannot make what is owed read high. */
+function bankLooseReceipts(cls, from) {
+  from = from == null ? bankRecvFrom() : from;
+  return cls.filter(function(v) { return v.cat === 'receipt' && v.clientId == null && v.row.cr > 0 && v.row.date >= from; });
+}
+
+/* Per client, from bankRecvFrom(): what was invoiced, what was credited, what came in,
    and which invoices each receipt paid. A receipt is set against invoices EXACTLY when one open
    invoice, or a run of consecutive open ones, adds up to it within ₹1 — otherwise oldest first,
    and it says which. soma-internal's tolerant sweep hit every credit and proved nothing; a
    receipt is only ever called a match to the rupee. */
 function bankReceivables(cls) {
   cls = cls || bankClassify();
-  var rows = bankRows(), from = rows.length ? rows[0].date : '', b = bankData();
+  var from = bankRecvFrom();
   var out = [];
   (S.clients || []).forEach(function(c) {
     var invs = (S.invoices || []).filter(function(i) { return i.status === 'active' && String(i.clientId) === String(c.id) && i.date >= from; })
       .sort(function(x, y) { return x.date < y.date ? -1 : x.date > y.date ? 1 : String(x.invoiceNumber).localeCompare(String(y.invoiceNumber)); });
-    var recs = cls.filter(function(v) { return v.cat === 'receipt' && v.clientId != null && String(v.clientId) === String(c.id); });
-    var opening = gstRound(Number((b.opening[c.id] || {}).amount) || 0);
-    if (!invs.length && !recs.length && !opening) return;
+    var recs = cls.filter(function(v) { return v.cat === 'receipt' && v.clientId != null && String(v.clientId) === String(c.id) && v.row.date >= from; });
+    var op = bankOpeningFor(c.id, from), opening = op.amount;
+    if (!invs.length && !recs.length && !opening && !op.stale) return;
     var open = [];
     if (opening) open.push({ label: 'Owed at ' + formatDate(from), date: from, amount: opening, due: opening });
     invs.forEach(function(i) { open.push({ inv: i, label: _bankInvLabel(i), date: i.date, amount: gstRound(i.grandTotal || 0), due: gstRound(i.grandTotal || 0) }); });
@@ -407,7 +433,7 @@ function bankReceivables(cls) {
     var owed = gstRound(opening + invoiced - notesTotal - received);
     var stillOpen = open.filter(function(o) { return o.due > 0.005; });
     var today = localDateStr();
-    out.push({ client: c, opening: opening, invoiced: invoiced, notes: gstRound(notesTotal), received: received, owed: owed,
+    out.push({ client: c, opening: opening, openingStale: op.stale, invoiced: invoiced, notes: gstRound(notesTotal), received: received, owed: owed,
       open: stillOpen, allocs: allocs, oldestDays: stillOpen.length ? Math.max(0, todoDaysBetween(stillOpen[0].date, today)) : null });
   });
   return out.sort(function(a, b) { return b.owed - a.owed; });
@@ -565,13 +591,14 @@ function _bankHeadHtml(rows) {
 }
 
 function _bankReceiptsHtml(cls) {
-  var recv = bankReceivables(cls), rows = bankRows();
+  var recv = bankReceivables(cls), rows = bankRows(), from = bankRecvFrom(rows), fromTxt = escHtml(formatDate(from));
   var totalOwed = recv.reduce(function(s, r) { return s + Math.max(0, r.owed); }, 0);
   var h = '<div class="inv-panel inv-panel-flush" id="bankReceipts"><div class="inv-panel-head"><span class="inv-panel-title">Owed by client</span>' +
     '<span class="inv-panel-count inv-num">' + formatCurrency(totalOwed) + '</span></div>' +
-    '<div class="inv-panel-body inv-note">From ' + escHtml(formatDate(rows[0].date)) + ', the statement\'s first day: invoices less credit notes less receipts, ' +
-    'plus whatever was owed on that day if you set it. A receipt that equals one invoice, or a run of them, to the rupee is marked exact; any other is set against the oldest first.</div>';
-  if (!recv.length) h += '<div class="inv-empty">No invoices or receipts since the statement starts.</div>';
+    '<div class="inv-panel-body inv-note">From ' + fromTxt + (from === rows[0].date ? ', the statement\'s first day' :
+      ', the first invoice in the book (the statement starts ' + escHtml(formatDate(rows[0].date)) + '; receipts before ' + fromTxt + ' paid invoices this app does not hold, and are left out)') +
+    ': invoices less credit notes less receipts, plus whatever was owed on that day if you set it. A receipt that equals one invoice, or a run of them, to the rupee is marked exact; any other is set against the oldest first.</div>';
+  if (!recv.length) h += '<div class="inv-empty">No invoices or receipts since ' + fromTxt + '.</div>';
   var payHist = typeof bankPayHistory === 'function' ? bankPayHistory(recv) : {};
   recv.forEach(function(r) {
     var open = _bankOpen === String(r.client.id), dtp = typeof bankDaysToPay === 'function' ? bankDaysToPay(r.client.id, payHist) : null;
@@ -583,8 +610,10 @@ function _bankReceiptsHtml(cls) {
       '<span class="inv-row-end"><span class="inv-row-stack"><span class="inv-num">' + formatCurrency(r.owed) + '</span><span class="inv-row-meta">' + (r.owed < -0.005 ? 'paid ahead' : 'owed') + '</span></span></span></div>';
     if (!open) return;
     h += '<div class="inv-row-children">';
-    if (r.owed < -0.005) h += '<div class="inv-callout inv-callout-info">More came in than was invoiced since ' + escHtml(formatDate(rows[0].date)) + '. The early receipts most likely paid invoices from before the statement: set what was owed on that day.</div>';
-    h += '<div class="inv-row"><span class="inv-row-main"><label class="inv-field-label" for="bankOpening">Owed at ' + escHtml(formatDate(rows[0].date)) + '</label></span>' +
+    if (r.openingStale) h += '<div class="inv-callout inv-callout-warning" data-opening-stale>' + escHtml(formatCurrency(r.openingStale.amount)) + ' was set as owed at ' +
+      escHtml(formatDate(r.openingStale.date)) + ', but receivables start at ' + fromTxt + ' now, so it is not counted. Set what was owed on ' + fromTxt + '.</div>';
+    else if (r.owed < -0.005) h += '<div class="inv-callout inv-callout-info">More came in than was invoiced since ' + fromTxt + '. The early receipts most likely paid invoices from before then: set what was owed on that day.</div>';
+    h += '<div class="inv-row"><span class="inv-row-main"><label class="inv-field-label" for="bankOpening">Owed at ' + fromTxt + '</label></span>' +
       '<span class="inv-row-end"><input class="inv-input inv-input-sm inv-num" type="number" step="0.01" min="0" inputmode="decimal" id="bankOpening" data-client="' + escHtml(String(r.client.id)) + '" value="' + (r.opening || '') + '" placeholder="0.00"></span></div>';
     r.allocs.forEach(function(a) {
       h += '<div class="inv-row inv-row-2" data-alloc="' + escHtml(a.v.row.id) + '"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(formatDate(a.v.row.date)) + ' · ' +
@@ -607,7 +636,10 @@ function _bankReceiptsHtml(cls) {
   });
   h += '</div>';
   // Receipts nobody can name: cheques deposited, a remitter the client list does not recognise.
-  var loose = cls.filter(function(v) { return v.cat === 'receipt' && v.clientId == null; }), series = bankChequeSeries(cls);
+  var loose = bankLooseReceipts(cls, from), series = bankChequeSeries(cls);
+  var early = cls.filter(function(v) { return v.cat === 'receipt' && v.clientId == null && v.row.cr > 0 && v.row.date < from; }).length;
+  if (early) h += '<div class="inv-panel-body inv-note" data-loose-early="' + early + '">' + finPl(early, 'receipt') + ' with no client from before ' + fromTxt +
+    ' ' + (early === 1 ? 'is' : 'are') + ' not listed: ' + (early === 1 ? 'it' : 'they') + ' paid invoices from before the book starts. Place one from the Statement if you want its cheque in a client\'s series.</div>';
   if (loose.length) {
     h += '<div class="inv-panel inv-panel-flush" id="bankLoose"><div class="inv-panel-head"><span class="inv-panel-title">Receipts with no client</span><span class="inv-panel-count">' + loose.length + '</span></div>' +
       '<div class="inv-panel-body inv-note">Cheques deposited carry no name. Pick the client; a remitter\'s name is remembered for its next receipt.</div>';
@@ -970,7 +1002,7 @@ function bankInput(t) {
   }
   if (t.id === 'bankOpening') {
     var amt = gstRound(parseFloat(t.value) || 0), o = bankData().opening;
-    if (amt > 0) o[t.dataset.client] = { amount: amt, at: Date.now() }; else delete o[t.dataset.client];
+    if (amt > 0) o[t.dataset.client] = { amount: amt, date: bankRecvFrom(), at: Date.now() }; else delete o[t.dataset.client];
     saveState();
     renderFinance();
     return true;

@@ -114,7 +114,7 @@ every session start — nothing to set up by hand. CI (`build-sync`) is the back
 ### Tests
 
 ```bash
-pnpm exec playwright test          # 625 tests, both layouts
+pnpm exec playwright test          # 628 tests, both layouts
 ```
 
 Some sandboxes ship a Chromium build Playwright does not expect and block downloading
@@ -1629,9 +1629,15 @@ to read it in the app yet"* — all three of receipts, payments and the ledger, 
   own name matcher (either side of a dash, a unique first name, the spelling folds); a folded match reads `?`, and
   a payee that reads like a firm (`TRADERS`, `LTD`, `NIGAM` …) is never a person. On the real statement: 42 of
   the salary legs matched, 6 before the relay matcher was used.
-- **Receipts against invoices, from the statement's first day.** Per client: invoices − credit notes − receipts,
-  plus what was owed on that day if set (a client reading *paid ahead* is almost always April money for March
-  invoices, and the card says so). A receipt equal **to the rupee** to one open invoice or a run of them is
+- **Receipts against invoices, from the later of the statement's first day and the book's first invoice**
+  (`bankRecvFrom`). Per client: invoices − credit notes − receipts, plus what was owed on that day if set (a client
+  reading *paid ahead* is almost always April money for March invoices, and the card says so). The statement used
+  to set the start alone, and it reached back to January while the invoices start in April (owner, 28 Sep 2026:
+  *"we are checking against clients from January while we only have invoice data from April, that is creating a
+  mismatch"*): three months of receipts for invoices the app never held paid April's invoices early. A receipt
+  before the start is not read, and an unplaced one does not count toward *not placed: reads high* (the list says
+  how many it left out). **An opening is stored with its day** (`opening[id].date`); one set against another day
+  (an older build's, against the statement's first) is not counted and the client asks for the new one (P82). A receipt equal **to the rupee** to one open invoice or a run of them is
   *Exact*; any other is set oldest first and says so. soma-internal's tolerant sweep hit every credit and proved
   nothing, so nothing looser is ever called a match.
 - **A cheque deposit names nobody** (21 of the real statement's credits). Where its amount equals a run of one

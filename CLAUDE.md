@@ -28,7 +28,7 @@ Workforce management and invoicing PWA for **Soma Electro Products**, a zinc ele
 
 ## Architecture
 
-Split-file PWA. 49 modules, ~27,200 lines total.
+Split-file PWA. 54 modules, ~30,600 lines total.
 
 ```
 split/
@@ -67,16 +67,20 @@ split/
 ├── bank.js            ← Finance → Receivables, Payments, Bank: statement import, categories, receipts vs invoices, payments vs bills and Pay (~560 lines)
 ├── finance.js         ← Finance: the page, its six tabs, and the Overview read across them (~230 lines)
 ├── todo.js            ← To-do: your tasks + tasks raised from the data, Home card, Windows widget payload (726 lines)
-├── relay.js           ← Attendance rolls: in/out-time WhatsApp parser, review, merge into the day (795 lines)
+├── relay.js           ← Attendance rolls: in/out-time WhatsApp parser, review, merge into the day; the one paste box (~800 lines)
+├── prodparse.js       ← Production messages read (pure): pickling loads, barrel list, a roll's block, the register (~570 lines)
 ├── stats.js           ← Stats dashboard + History activity log (1,195 lines)
 ├── intel.js           ← Stats tabs; Overview at the live cost; six months; contribution by client (~230 lines)
 ├── insights.js        ← Insights (as To-do rules), predictions, invoice PO/vehicle prefill (~330 lines)
 ├── finintel.js        ← Finance intelligence: eleven bank To-do rules, days to pay, the cash forecast (~400 lines)
 ├── finlinks.js        ← Finance linked into Home, Stats, Clients, Register, Pay, Stock (~200 lines)
 ├── dash.js            ← Staff and Stock Overviews: attendance, labour ₹/kg, OT by area, payroll vs bank; days left, supplier spend, use, prices (~230 lines)
+├── production.js      ← Production store; derived index (which figure counts, usual line, matches, racks); in plant; rules; export (~580 lines)
+├── prodview.js        ← Production page: Overview, In plant, Lines, Entries; paste, photo and hand sub-views (~750 lines)
 ├── client-perf.js     ← Client performance: month on month + material cadence (314 lines)
 ├── im-form.js         ← IM add/edit/delete challan form (450 lines)
 ├── im-dupe.js         ← IM duplicate guard: fingerprint + pre-save warn + scan (305 lines)
+├── vision.js          ← One Gemini photo read: the scanner's request unchanged, a schema for the register (~100 lines)
 ├── scanner.js         ← Challan scanner (Gemini AI vision) (146 lines)
 ├── events.js          ← Event delegation + input handlers (774 lines)
 ├── swipe.js           ← Swipe navigation (38 lines)
@@ -84,7 +88,7 @@ split/
 └── init.js            ← Migrations + app bootstrap (567 lines)
 ```
 
-**Concat order defined in build.sh.** Dependencies: data → state → appearance → zinc → tabs → clients → items → create → settings → github-sync → invoice-ops → number-audit → exports → im → autocomplete → print → quality-cert → credit-note → charts → staff → labour → areas → payroll → stock → cost → bills → xls → xlsx → bank → finance → todo → relay → stats → intel → insights → finintel → finlinks → dash → client-perf → im-form → im-dupe → scanner → events → swipe → seed → init.
+**Concat order defined in build.sh.** Dependencies: data → state → appearance → zinc → tabs → clients → items → create → settings → github-sync → invoice-ops → number-audit → exports → im → autocomplete → print → quality-cert → credit-note → charts → staff → labour → areas → payroll → stock → cost → bills → xls → xlsx → bank → finance → todo → relay → prodparse → stats → intel → insights → finintel → finlinks → dash → production → prodview → client-perf → im-form → im-dupe → vision → scanner → events → swipe → seed → init.
 
 **Every module shares one global scope.** A top-level `var` or `function` in a later module silently replaces one of
 the same name in an earlier one; nothing warns. `bills.js` shipped a `STOCK_UNITS` array over `stock.js`'s unit map
@@ -114,7 +118,7 @@ every session start — nothing to set up by hand. CI (`build-sync`) is the back
 ### Tests
 
 ```bash
-pnpm exec playwright test          # 630 tests, both layouts
+pnpm exec playwright test          # 670 tests, both layouts
 ```
 
 Some sandboxes ship a Chromium build Playwright does not expect and block downloading
@@ -183,7 +187,7 @@ filter on; a literal date in a fixture is a time bomb, not a constant.
 |----|------|
 | HR-1 | No inline styles. CSS classes + design tokens. |
 | HR-2 | No inline onclick. data-action delegation only. |
-| HR-3 | inv- CSS prefix on every class. 437 classes, all of them (distinct class selectors in `split/styles.css`, comments stripped, 27 Sep 2026); P76 asserts every class the app draws is one of them or a named hook. |
+| HR-3 | inv- CSS prefix on every class. 438 classes, all of them (distinct class selectors in `split/styles.css`, comments stripped, 28 Sep 2026: `inv-prod-photo` added); P76 asserts every class the app draws is one of them or a named hook. |
 | HR-4 | No emojis. Inline SVGs in HTML template. |
 | HR-5 | escHtml() on all user-data innerHTML. |
 | HR-6 | CSS design tokens only. No raw px/rem/hex/timing. |
@@ -1367,6 +1371,65 @@ register can tell a reason the ruling supplied from one an operator chose. The m
 to invoices dated on or before the ruling — a ₹0 line written later by a device on an older build
 reads *No reason recorded* rather than the migration inventing one forever.
 
+### Production
+More → **Production** (sidebar Floor → Production; owner, 28 Sep 2026: *"This will give us a clearer picture of what's
+actually happening in the plant daily"*). What each line (VAT A1, VAT A2, barrel) plated each day, pickling as a stage
+before it, and **material in the plant two ways** — by the book and by the floor. `prodparse.js` reads the messages
+(pure), `production.js` holds the store and everything derived from it, `prodview.js` draws the page, `vision.js`
+reads a photo. **Owned by `soma-internal`, like stock** (owner): a view and an input; Entries → Export writes
+`sep-production` v1 whole, Import merges by id and never overwrites.
+
+- **Three voices, three doors.** The pickling hand's loads (*"SSS MEHTA / CLAMP133×83(35×6)-774 nos / PICKLING TIME
+  9:00AM"*, incoming material under its own head) and the supervisor's barrel list and a roll's `----production----`
+  block come through **Paste message** — Production's own, or the one box on Home and Staff, which sends them here and
+  keeps a roll's attendance exactly as it was (P90 compares the saved day with and without a block). The register
+  clerk's **VAT register photos** are read by Gemini. **Enter by hand** is the fallback. Every message is shown beside
+  what was read before anything is saved (Stock's contract); the same message is refused, unless every entry it made was
+  voided.
+- **The record is events** (`S.production.entries`: arrived / pickled / plated / downtime), stored sparse. A figure is
+  corrected by a new entry that names the old one (`replaces`), never edited; a wrong one is voided with a reason.
+- **One figure per line and shift.** Per (day, line, general | overtime) the register counts, else the supervisor's
+  relay, else an entry by hand; the others are shown **also reported**, never added — they count the same work a
+  different way. On a day with the supervisor's whole-day barrel list, the roll's barrel OT blocks are *also reported*
+  beside it (the owner could not say which the list covers: recorded as unknown).
+- **A pickling message never names the line.** A load's line is read from the plating it became (the same part, the
+  same day from half an hour before, or the next working day before noon), shown and **never stored**; a load with no
+  plating offers the part's **usual line** (5+ days at 80%+, learnt only from lines written or set, so the pattern
+  cannot feed itself) as a chip the owner taps. A load naming only the kind and gauge (*"CLAMP(40×6)"*, over half the
+  loads since August) is matched at the family level; **a named part only ever matches its own challans** (CLAMP 90X81
+  was once set against CLAMP 165X83's).
+- **The register** (Gemini, a schema, the image shrunk to 2,000 px, no client list sent): a transcription, never a
+  reading — times, rack arithmetic, the START rule (a START takes the next round's figure, the owner's rule of 26 Jun),
+  the day's total, are this app's, in code. **A struck row is asked each time** (owner): red until counted or cancelled.
+  A rack size never seen for the part on that line is amber. **Only facts are kept** — hash, size, model and prompt
+  version, the date and line read, the row count — never the image; the read is kept on the device until saved, so
+  reopening the photo costs no second request.
+- **In plant.** **Book** = Σ the open share of every challan line (`imLineOpen`), the same figure as Home's unbilled.
+  **Floor** splits each open line into *waiting to pickle*, *pickled, not plated* and *plated, not invoiced*, setting a
+  part's plating and pickling against its challans oldest first — and **a line billed whole is closed on its last
+  invoice's day**, so a plating recorded after it is of other material (without that, April's challans took this week's
+  plating and this week's read as waiting). The waiting figure is **withheld below 90% of line-days recorded**, and says
+  why. Rework counts as work (plated kg, capacity, labour ₹/kg), never as billing (owner).
+- **Linked in.** Stats → Overview gets *Plated (floor)*, only on **complete days** (attendance recorded and every
+  staffed line with a general-shift record), never a zero. Lines shows labour ₹/kg by line: variable labour of the
+  line's areas over the same days as its kilograms, the VAT side's pickling hands shared by each day's kg. Two To-do
+  rules, both blind to imported history and rework: **plated, not invoiced** (amber at 3 working days, red at 6,
+  Settings → Checks & alerts → To-do) and **pickled with no open challan** (amber after a day, red at 3; a client not in the book is its
+  own task).
+- **Scored, 28 Sep 2026, and short of the plan's targets — said so.** Instrument: the parser over the two real chat
+  exports in `soma-internal/data/raw/relays/` (12 Sep Android, 23 Sep export tool; 1,310 messages), in a scratch harness
+  never committed. Every message classified (pickling 647, roll 203, production 78, power 35, stock 99, other 248), none
+  dropped; 1,604 loads and runs with a quantity, 331 without; 184 rows red on the client, 143 of them with no client
+  written at all (they ask, as they should). Against the hand-kept `operations/pickling-input-log.md` (310 rows,
+  19 May – Jul), on the 235 whose figure is in the text export (75 were read from photos): **quantity found 215 (91%),
+  time exact on 207 of those (96%), client agreeing on 203 (94%)** — against targets of 95–97%. What is left is mostly
+  the log's own work (several lines summed into one figure, a time taken from a later message), but that is a reading of
+  the misses, not a measurement. Two slips found and fixed on the way: a PM written for a morning load posted at 9:28,
+  and an AM written for an afternoon one (*"2:00am"* posted at 3 PM), both now read from when the message was sent and
+  flagged.
+- **The workers' names box on a register photo goes to Google with the page** (Settings → Connections → Photo reading
+  says so); only what is read is kept.
+
 ### Stock
 More → **Stock**. Chemical stock, **owned by `soma-internal`** (owner, 24 Sep 2026): this tab is a view
 and an input, never the ledger. Everything it captures is copied there at each compile and stays here.
@@ -1452,8 +1515,8 @@ the stock (price, usage, cadence, etc.)"*). `cost.js`.
 - **Past purchases come from `soma-internal`** through Stock → Import: a `sep-stock` file of `bill` entries
   (and `costBills`), merged by id. The file is built from the private records and never committed here.
 
-**The phone bar is six tabs**: Home, Create, IM, Register, Clients, **More** (To-do, Finance, Stock, Staff,
-Stats, History). More lights up while one of those is open and carries a red count of **every red row**
+**The phone bar is six tabs**: Home, Create, IM, Register, Clients, **More** (To-do, Finance, Production, Stock,
+Staff, Stats, History). More lights up while one of those is open and carries a red count of **every red row**
 — stock out or under its red line, and your own tasks overdue. The test fixture's `switchTab` opens
 More when the target is behind it.
 
@@ -1809,7 +1872,8 @@ message** gives a WhatsApp-ready order by supplier. Nothing is ordered from the 
 ### Home quick actions
 Six buttons under Month to Date, each opening its screen **already on the job**: New invoice, New
 challan (the form open), Stock entry (the by-hand form), Attendance (today's day), Paste message (the
-one box for WhatsApp rolls — a stock message pasted there is handed to the Stock check), Add task (the
+one box for WhatsApp rolls — a stock message pasted there is handed to the Stock check, and the pickling and production
+messages to Production's; it opens without a roster), Add task (the
 box focused). Three across on the phone, six on the desktop.
 
 ### To-do

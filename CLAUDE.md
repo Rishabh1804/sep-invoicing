@@ -20,6 +20,11 @@ When in QA mode, switch to **Cipher** (The Codewright): precise, minimalist, cat
 dashboard, a live cost that uses the bank statement, the intelligence rules and forecast, and the tabs linked into
 one picture — in seven phases, one PR each. Its §0 says what is built.
 
+**UX overhaul 2 is planned — read `docs/UX_OVERHAUL_2.md`.** Agreed with the owner, 28 Sep 2026: navigation with a
+back trail, a version guard so two windows can edit safely, every screen openable in a new window, search (a chatbot
+later), keyboard shortcuts, a pass on the screens that scroll too far, and desktop layouts — one PR each, in its order.
+Step 0 (the phone's selection bars) is built.
+
 ## What SEP Invoicing Is
 
 Workforce management and invoicing PWA for **Soma Electro Products**, a zinc electroplating job-work operation in Adityapur Industrial Area, Jamshedpur. Handles client management, incoming material tracking, invoice creation (3 billing modes), GST-compliant exports, and business analytics.
@@ -118,7 +123,7 @@ every session start — nothing to set up by hand. CI (`build-sync`) is the back
 ### Tests
 
 ```bash
-pnpm exec playwright test          # 683 tests, both layouts
+pnpm exec playwright test          # 685 tests, both layouts
 ```
 
 Some sandboxes ship a Chromium build Playwright does not expect and block downloading

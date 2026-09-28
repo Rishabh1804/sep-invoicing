@@ -914,8 +914,11 @@ body.inv-desktop .inv-pane-host {
 }
 body.inv-desktop .inv-pane-list { flex: 1; min-width: 0; overflow-y: auto; container: list / inline-size; }
 
-/* A list's selection bar stays in view at the foot of the page on the desktop. */
-body.inv-desktop :is(#regSelBar, #imSelBar) { position: sticky; bottom: 0; z-index: var(--z-bar); }
+/* A list's selection bar stays in view at the foot of the page: above the bottom bar on the phone, at the edge on the
+   desktop. The bar inside is sticky too, but its wrapper is only as tall as the bar, so it held nothing up: on the
+   phone Create invoice drew after the last of 1,163 invoiced challans, 97 screens down (owner, 28 Sep 2026). */
+:is(#regSelBar, #imSelBar) { position: sticky; bottom: var(--nav-h); z-index: var(--z-bar); }
+body.inv-desktop :is(#regSelBar, #imSelBar) { bottom: 0; }
 
 /* Tablet and desktop: the column is uncapped and the page has more air. */
 :is(body.inv-tablet, body.inv-desktop) { max-width: none; }

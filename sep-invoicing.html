@@ -18,7 +18,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <!-- Appearance before first paint (§3.2): the device's theme and palette, so nothing flashes in the wrong colours. -->
 <script>(function(){try{var d=document.documentElement,t=localStorage.getItem("sep_inv_theme"),p=localStorage.getItem("sep_inv_palette");if(t==="light"||t==="dark")d.dataset.theme=t;d.dataset.palette=(p==="zinc"||p==="terracotta")?p:"teal";}catch(e){document.documentElement.dataset.palette="teal";}})();</script>
-<meta name="app-build" content="7b43ea5b">
+<meta name="app-build" content="3c6824cf">
 <style>
 /* ===== DESIGN TOKENS (design system v2.0 — docs/SEP_INVOICING_DESIGN_PRINCIPLES.md §3) ===== */
 /* Theme: colour-scheme decides every light-dark() below. <html data-theme> is set before first paint
@@ -26560,6 +26560,105 @@ function imLocateChallan(imId) {
   var target = document.querySelector('[data-id="' + imId + '"]');
   if (target && target.scrollIntoView) target.scrollIntoView({ block: 'center' });
 }
+/* ===== VISION — one way to ask Gemini to read a photo ===== */
+/* The challan scanner and the production register both send a photo and a prompt to Gemini with the key from
+   Settings (sep_inv_gemini_key, never on S). geminiReadImage() is that one request. Called with no schema it sends
+   exactly what the challan scanner always sent: the original bytes and the prompt, nothing else. A register read
+   adds a JSON schema, a smaller image and a low thinking budget.
+
+   It always resolves, never rejects: {ok, json, text, error, code}. `code` names what went wrong so each caller can
+   say it in its own words: 'key' (no key), 'timeout', 'network', 'http' (with status), 'quota' (429), 'api' (Gemini's
+   own error), 'blocked', 'truncated' (MAX_TOKENS), 'empty' (no text), 'json' (text that is not JSON). */
+var GEMINI_MODEL = 'gemini-2.5-flash';
+var GEMINI_TIMEOUT_MS = 90000;
+
+function _geminiDataUrl(file) {
+  return new Promise(function(resolve, reject) {
+    var r = new FileReader();
+    r.onload = function(ev) { resolve(ev.target.result); };
+    r.onerror = function() { reject(r.error || new Error('Could not read the file')); };
+    r.readAsDataURL(file);
+  });
+}
+
+/* A photo from a phone is 3–5 MB; the register's handwriting reads as well at 2,000 px on the long edge and the
+   request is a fifth of the size. Only a register read asks for this; the challan scanner sends its bytes as they are. */
+function _geminiShrink(dataUrl, maxEdge) {
+  return new Promise(function(resolve) {
+    var img = new Image();
+    img.onload = function() {
+      var w = img.naturalWidth, h = img.naturalHeight, k = Math.min(1, maxEdge / Math.max(w, h || 1));
+      try {
+        var c = document.createElement('canvas');
+        c.width = Math.max(1, Math.round(w * k)); c.height = Math.max(1, Math.round(h * k));
+        c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+        resolve({ url: c.toDataURL('image/jpeg', 0.85), w: w, h: h });
+      } catch (e) { resolve({ url: dataUrl, w: w, h: h }); }
+    };
+    img.onerror = function() { resolve({ url: dataUrl, w: 0, h: 0 }); };
+    img.src = dataUrl;
+  });
+}
+
+function geminiReadImage(file, prompt, opts) {
+  opts = opts || {};
+  var key = typeof getApiKey === 'function' ? getApiKey() : '';
+  if (!key) return Promise.resolve({ ok: false, code: 'key', error: 'No Gemini key is set (Settings → Connections).' });
+  var meta = { w: 0, h: 0, mime: file.type || 'image/jpeg' };
+  return _geminiDataUrl(file).then(function(url) {
+    return opts.maxEdge ? _geminiShrink(url, opts.maxEdge).then(function(s) { meta.w = s.w; meta.h = s.h; return s.url; }) : url;
+  }).then(function(url) {
+    var comma = url.indexOf(','), head = url.slice(0, comma);
+    if (opts.maxEdge) meta.mime = (head.match(/^data:([^;]+)/) || [])[1] || meta.mime;
+    var body = { contents: [{ parts: [{ inline_data: { mime_type: meta.mime, data: url.slice(comma + 1) } }, { text: prompt }] }] };
+    if (opts.schema) {
+      body.generationConfig = { responseMimeType: 'application/json', responseSchema: opts.schema, temperature: 0 };
+      if (opts.thinkingBudget != null) body.generationConfig.thinkingConfig = { thinkingBudget: opts.thinkingBudget };
+    }
+    var ctl = typeof AbortController === 'function' ? new AbortController() : null;
+    var ms = (typeof window !== 'undefined' && window.GEMINI_TIMEOUT_MS) || GEMINI_TIMEOUT_MS;
+    var timedOut = false, timer = setTimeout(function() { timedOut = true; if (ctl) ctl.abort(); }, ms);
+    return fetch('https://generativelanguage.googleapis.com/v1beta/models/' + (opts.model || GEMINI_MODEL) + ':generateContent?key=' + encodeURIComponent(key), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+      signal: ctl ? ctl.signal : undefined
+    }).then(function(resp) {
+      clearTimeout(timer);
+      return resp.text().then(function(t) {
+        var data = null;
+        try { data = JSON.parse(t); } catch (e) { data = null; }
+        if (resp.status === 429) return { ok: false, code: 'quota', status: 429, error: (data && data.error && data.error.message) || 'Too many requests' };
+        if (data && data.error) return { ok: false, code: 'api', status: resp.status, error: data.error.message || 'Unknown' };
+        if (!resp.ok) return { ok: false, code: 'http', status: resp.status, error: 'HTTP ' + resp.status };
+        return geminiReadReply(data, !!opts.schema);
+      });
+    }, function(err) {
+      clearTimeout(timer);
+      return timedOut ? { ok: false, code: 'timeout', error: 'Gemini did not answer in ' + Math.round(ms / 1000) + ' s' }
+        : { ok: false, code: 'network', error: (err && err.message) || 'Network error' };
+    });
+  }).then(function(res) { res.meta = meta; return res; }, function(err) {
+    return { ok: false, code: 'network', error: (err && err.message) || 'Could not read the file', meta: meta };
+  });
+}
+
+/* A reply's text and its JSON. The challan scanner's replies came back fenced as ```json … ``` before any schema was
+   asked for, so the fence is stripped either way. */
+function geminiReadReply(data, wantJson) {
+  var cand = data && data.candidates && data.candidates[0];
+  if (!cand) {
+    var block = data && data.promptFeedback && data.promptFeedback.blockReason;
+    return block ? { ok: false, code: 'blocked', error: 'Gemini declined the image (' + block + ')' } : { ok: false, code: 'empty', error: 'No response from Gemini' };
+  }
+  var text = '';
+  ((cand.content && cand.content.parts) || []).forEach(function(p) { if (p.text) text += p.text; });
+  if (cand.finishReason === 'MAX_TOKENS') return { ok: false, code: 'truncated', text: text, error: 'The reply was cut off before it finished' };
+  if (!text) return { ok: false, code: 'empty', error: 'No response from Gemini' };
+  var clean = text.replace(/```json|```/g, '').trim(), json = null;
+  try { json = JSON.parse(clean); } catch (e) { return { ok: false, code: 'json', text: text, error: 'The reply was not the table asked for' }; }
+  return { ok: true, json: json, text: text };
+}
 /* ===== CHALLAN SCANNER (Phase 4 — AI Vision) ===== */
 var _scanExtractionPrompt = 'You are parsing an Indian delivery challan image for a zinc electroplating job work factory.\n\nExtract ALL data into this exact JSON structure. Return ONLY valid JSON, no markdown, no backticks, no explanation.\n\n{"challanNo":"string - just digits, strip leading zeros and FY suffix like /26-27","challanDate":"YYYY-MM-DD format","clientName":"string","vehicleNo":"string","items":[{"partNumber":"string","desc":"string","unit":"KG or NOS","qty":0,"nosQty":null,"rate":0,"amount":0}]}\n\nRULES for Dorabji Auto challans (printed white paper with DELIVERY CHALLAN header):\n- Qty column = NOS count -> put in nosQty\n- Wt.(Kgs.) column = weight in KG -> put in qty\n- Rate and Total columns = Dorabji internal pricing -> IGNORE\n- Set rate to 13, amount = qty * 13, unit = KG\n- Strip TRIVALENT YELLOW, FE, DO from description\n\nRULES for SSS Mehta challans (pink handwritten paper):\n- Qty = NOS count -> put in both qty AND nosQty\n- Amount column -> put in amount, Rate = amount/qty\n- unit = NOS\n\nFor other clients: KG billing, extract weight as qty.\nChallan number: just numeric part e.g. 0041/26-27 -> 41';
 
@@ -26612,55 +26711,16 @@ function _processScanImage(file, apiKey) {
       '<div class="inv-scan-processing-sub">Gemini is extracting the data</div></div></div>';
   }
 
-  var reader = new FileReader();
-  reader.onload = function(ev) {
-    var base64 = ev.target.result.split(',')[1];
-    var mediaType = file.type || 'image/jpeg';
-
-    fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=' + encodeURIComponent(apiKey), {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{
-          parts: [
-            { inline_data: { mime_type: mediaType, data: base64 } },
-            { text: _scanExtractionPrompt }
-          ]
-        }]
-      })
-    })
-    .then(function(resp) { return resp.json(); })
-    .then(function(data) {
-      if (proc) proc.innerHTML = '';
-      if (data.error) {
-        showToast('API error: ' + (data.error.message || 'Unknown'), 'error');
-        return;
-      }
-      // Extract text from Gemini response
-      var text = '';
-      try {
-        var parts = data.candidates[0].content.parts;
-        for (var p = 0; p < parts.length; p++) {
-          if (parts[p].text) text += parts[p].text;
-        }
-      } catch(ex) {
-        showToast('No response from Gemini', 'error');
-        return;
-      }
-      var clean = text.replace(/```json|```/g, '').trim();
-      var parsed;
-      try { parsed = JSON.parse(clean); } catch(err) {
-        showToast('Failed to parse response', 'error');
-        return;
-      }
-      _applyScanResult(parsed);
-    })
-    .catch(function(err) {
-      if (proc) proc.innerHTML = '';
-      showToast('Scan failed: ' + err.message, 'error');
-    });
-  };
-  reader.readAsDataURL(file);
+  // The request is vision.js's, sent exactly as this scanner always sent it (the original bytes and the prompt, no
+  // schema); the messages below are the scanner's own, unchanged.
+  geminiReadImage(file, _scanExtractionPrompt).then(function(res) {
+    if (proc) proc.innerHTML = '';
+    if (res.ok) { _applyScanResult(res.json); return; }
+    if (res.code === 'api' || res.code === 'quota') showToast('API error: ' + (res.error || 'Unknown'), 'error');
+    else if (res.code === 'json') showToast('Failed to parse response', 'error');
+    else if (res.code === 'empty' || res.code === 'blocked' || res.code === 'truncated') showToast('No response from Gemini', 'error');
+    else showToast('Scan failed: ' + res.error, 'error');
+  });
 }
 
 function _applyScanResult(parsed) {

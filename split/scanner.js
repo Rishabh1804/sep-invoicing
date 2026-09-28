@@ -50,55 +50,16 @@ function _processScanImage(file, apiKey) {
       '<div class="inv-scan-processing-sub">Gemini is extracting the data</div></div></div>';
   }
 
-  var reader = new FileReader();
-  reader.onload = function(ev) {
-    var base64 = ev.target.result.split(',')[1];
-    var mediaType = file.type || 'image/jpeg';
-
-    fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=' + encodeURIComponent(apiKey), {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{
-          parts: [
-            { inline_data: { mime_type: mediaType, data: base64 } },
-            { text: _scanExtractionPrompt }
-          ]
-        }]
-      })
-    })
-    .then(function(resp) { return resp.json(); })
-    .then(function(data) {
-      if (proc) proc.innerHTML = '';
-      if (data.error) {
-        showToast('API error: ' + (data.error.message || 'Unknown'), 'error');
-        return;
-      }
-      // Extract text from Gemini response
-      var text = '';
-      try {
-        var parts = data.candidates[0].content.parts;
-        for (var p = 0; p < parts.length; p++) {
-          if (parts[p].text) text += parts[p].text;
-        }
-      } catch(ex) {
-        showToast('No response from Gemini', 'error');
-        return;
-      }
-      var clean = text.replace(/```json|```/g, '').trim();
-      var parsed;
-      try { parsed = JSON.parse(clean); } catch(err) {
-        showToast('Failed to parse response', 'error');
-        return;
-      }
-      _applyScanResult(parsed);
-    })
-    .catch(function(err) {
-      if (proc) proc.innerHTML = '';
-      showToast('Scan failed: ' + err.message, 'error');
-    });
-  };
-  reader.readAsDataURL(file);
+  // The request is vision.js's, sent exactly as this scanner always sent it (the original bytes and the prompt, no
+  // schema); the messages below are the scanner's own, unchanged.
+  geminiReadImage(file, _scanExtractionPrompt).then(function(res) {
+    if (proc) proc.innerHTML = '';
+    if (res.ok) { _applyScanResult(res.json); return; }
+    if (res.code === 'api' || res.code === 'quota') showToast('API error: ' + (res.error || 'Unknown'), 'error');
+    else if (res.code === 'json') showToast('Failed to parse response', 'error');
+    else if (res.code === 'empty' || res.code === 'blocked' || res.code === 'truncated') showToast('No response from Gemini', 'error');
+    else showToast('Scan failed: ' + res.error, 'error');
+  });
 }
 
 function _applyScanResult(parsed) {

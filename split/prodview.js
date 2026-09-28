@@ -474,7 +474,7 @@ function prodPhotoNext() {
     });
   }).catch(function(err) { done(); uiNotice('Register photo: ' + ((err && err.message) || 'could not read the file'), 'error'); prodPhotoNext(); });
 }
-function prodPhotoRead() { var ph = _prodPhoto; return prodFromRegisterRead(ph.json, prodCtx(), ph.photoDate, ph.choices); }
+function prodPhotoRead() { var ph = _prodPhoto; var rd = prodFromRegisterRead(ph.json, prodCtx(), ph.photoDate, ph.choices); return prodRackCheck(rd, ph.choices.line !== undefined ? ph.choices.line : rd.line); }
 function prodPhotoHtml() {
   var ph = _prodPhoto, rd = prodPhotoRead(), p = prodData();
   var line = ph.choices.line !== undefined ? ph.choices.line : rd.line;

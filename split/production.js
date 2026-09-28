@@ -61,6 +61,10 @@ function prodEntryKey(e) {
   if (map && map.partNumber) return prodKey(e.clientId, map.partNumber, map.gauge != null ? map.gauge : e.gauge);
   return prodKey(e.clientId, e.partNumber || e.part, e.gauge);
 }
+/* A part named only by its kind and gauge ("CLAMP(40X6)", "BOX CLAMP"): no figure in it once the gauge is out. Such
+   a load is matched, and its usual line read, at the family level. */
+function prodIsGeneric(part) { return !/\d/.test(prodPartBase(part)); }
+function prodEntryFamily(e) { return e.clientId == null ? null : prodFamilyKey(e.clientId, e.partNumber || e.part, e.gauge); }
 function prodChallanKey(m, it) { return prodKey(m.clientId, it.partNumber || it.desc, prodGaugeOf(it.partNumber, it.desc)); }
 
 /* ---------- Weight ---------- */
@@ -141,10 +145,11 @@ function prodUsualLines(idx) {
   var days = {};
   idx.counted.forEach(function(e) {
     if (!e.line || (e.lineSrc !== 'written' && e.lineSrc !== 'set')) return;
-    var k = prodEntryKey(e);
-    if (!k) return;
-    var d = days[k] || (days[k] = {});
-    (d[e.line] = d[e.line] || {})[e.date] = true;
+    [prodEntryKey(e), prodEntryFamily(e) && 'F:' + prodEntryFamily(e)].forEach(function(k) {
+      if (!k) return;
+      var d = days[k] || (days[k] = {});
+      (d[e.line] = d[e.line] || {})[e.date] = true;
+    });
   });
   var out = {};
   Object.keys(days).forEach(function(k) {
@@ -171,17 +176,50 @@ function prodRackSizes(idx) {
   return out;
 }
 
+/* A register read against the rack sizes this book has seen on that line for that part. A size never counted
+   there (with three or more rounds on record) is amber: a misread figure or a new jig, the photo decides. A round of
+   half the usual rack on VAT A2 is only said (the line runs half racks of the long parts). Adds to each row's issues. */
+function prodRackCheck(rd, line) {
+  line = line !== undefined ? line : rd && rd.line;
+  if (!rd || !line) return rd;
+  var racks = prodIndex().racks;
+  rd.runs.forEach(function(run) {
+    if (run.clientId == null) return;
+    var seen = racks[line + '|' + prodEntryKey(run)] || {}, sizes = Object.keys(seen).map(Number), total = 0, top = null;
+    sizes.forEach(function(z) { total += seen[z]; if (top == null || seen[z] > seen[top]) top = z; });
+    if (total < 3) return;
+    (run.rows || []).forEach(function(row) {
+      var z = row.rackSize || row.qty;
+      if (!z || row.start || seen[z] || (row.rackSize == null && row.rounds == null && row.qty != null && row.qty !== Math.round(row.qty))) return;
+      if (line === 'vat-a2' && top && Math.abs(z * 2 - top) < 0.5) row.issues.push({ tone: 'info', code: 'halfrack', text: 'Half the usual rack of ' + top + ' on VAT A2.' });
+      else if (!row.rackSize && !row.rounds) row.issues.push({ tone: 'amber', code: 'rack', text: z + ' has not been seen as a round of this part on ' + PROD_LINE_LABEL[line] + ' (usually ' + top + '). Check it against the photo.' });
+      else if (row.rackSize && !seen[row.rackSize]) row.issues.push({ tone: 'amber', code: 'rack', text: 'A rack of ' + row.rackSize + ' has not been seen for this part on ' + PROD_LINE_LABEL[line] + ' (usually ' + top + ').' });
+    });
+  });
+  return rd;
+}
+
 /* A pickled load → the plating it became: the same part, plated the same day at or after the pickling time (less
    half an hour), or the next working day before noon; earliest first until the load's quantity is reached, or up
    to the next load of the part when no quantity was written. What this infers — the line, a missing quantity — is
    SHOWN, never stored; `set.matchIds` is the owner's own answer and wins. */
 function prodMatchAll(idx) {
-  var plated = {}, pickled = {}, out = {};
-  idx.counted.forEach(function(e) { var k = prodEntryKey(e); if (k) (plated[k] = plated[k] || []).push(e); });
-  idx.live.forEach(function(e) { if (e.kind === 'pickled' && !idx.replaced[e.id]) { var k = prodEntryKey(e); if (k) (pickled[k] = pickled[k] || []).push(e); } });
+  var plated = {}, pickled = {}, out = {}, used = {};
+  // A plated entry sits in its part's pool and its family's; a load draws from its part's, or its family's when it
+  // names only the kind of part. One `used` across both, so no plating is claimed twice. Named parts go first.
+  idx.counted.forEach(function(e) {
+    var k = prodEntryKey(e), f = prodEntryFamily(e);
+    if (k) (plated[k] = plated[k] || []).push(e);
+    if (f) (plated['F:' + f] = plated['F:' + f] || []).push(e);
+  });
+  idx.live.forEach(function(e) {
+    if (e.kind !== 'pickled' || idx.replaced[e.id]) return;
+    var k = prodIsGeneric(e.partNumber || e.part) ? (prodEntryFamily(e) && 'F:' + prodEntryFamily(e)) : prodEntryKey(e);
+    if (k) (pickled[k] = pickled[k] || []).push(e);
+  });
   var cmp = function(a, b) { return a.date < b.date ? -1 : a.date > b.date ? 1 : String(a.time || '').localeCompare(String(b.time || '')); };
-  Object.keys(pickled).forEach(function(k) {
-    var loads = pickled[k].sort(cmp), pool = (plated[k] || []).slice().sort(cmp), used = {};
+  Object.keys(pickled).sort(function(a, b) { return (a.indexOf('F:') === 0) - (b.indexOf('F:') === 0); }).forEach(function(k) {
+    var loads = pickled[k].sort(cmp), pool = (plated[k] || []).slice().sort(cmp);
     loads.forEach(function(load, li) {
       if (load.set && load.set.matchIds !== undefined) {
         var ids = load.set.matchIds || [];
@@ -220,8 +258,9 @@ function prodLoadLine(e) {
   var m = prodIndex().match[e.id];
   if (m && m.line) return { line: m.line, how: 'plating' };
   if (m && m.split) return { line: null, how: 'split', lines: m.lines };
-  var k = prodEntryKey(e), u = k ? prodUsualLine(k) : null;
-  return { line: null, how: 'unknown', hint: u && u.kind === 'usual' ? u : null };
+  var k = prodIsGeneric(e.partNumber || e.part) ? (prodEntryFamily(e) && 'F:' + prodEntryFamily(e)) : prodEntryKey(e);
+  var u = k ? prodUsualLine(k) : null;
+  return { line: null, how: 'unknown', hint: u && u.kind === 'usual' ? u : null, family: !!(k && k.indexOf('F:') === 0) };
 }
 
 /* ---------- Record coverage ---------- */

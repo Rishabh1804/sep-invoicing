@@ -580,6 +580,12 @@ function todoGo(go) {
     case 'audit': switchTab('pageRegister'); showNumberAudit(); break;
     case 'settings': openSettings(go.sec); break;
     case 'home': switchTab('pageHome'); break;
+    case 'production':
+      prodSetTab(go.tab || 'overview'); _prodView = 'main';
+      if (go.client != null) { if (go.tab === 'plant') _prodPlantClient = String(go.client); else _prodFilter = { kind: '', flag: go.flag || '', client: String(go.client) }; }
+      else if (go.flag) _prodFilter = { kind: '', flag: go.flag, client: '' };
+      switchTab('pageProduction');
+      break;
     case 'finance':
       finSetTab(go.tab || 'overview');
       if (go.client != null) _bankOpen = String(go.client);
@@ -618,6 +624,8 @@ function todoSettingsFields() {
   }).join('') +
     '<div class="inv-fields inv-mt-8"><div class="inv-field"><label class="inv-field-label" for="setTodoChallan">Challan unbilled after (days)</label>' +
     '<input type="number" step="1" min="1" class="inv-input inv-input-num" id="setTodoChallan" value="' + c.challanDays + '"></div>' +
+    '<div class="inv-field"><label class="inv-field-label" for="setTodoProdPlated">Plated, not invoiced after (working days)</label>' +
+    '<input type="number" step="1" min="1" class="inv-input inv-input-num" id="setTodoProdPlated" value="' + (c.prodPlatedDays || 3) + '"></div>' +
     '<div class="inv-field"><label class="inv-field-label" for="setTodoBackup">Backup older than (days)</label>' +
     '<input type="number" step="1" min="1" class="inv-input inv-input-num" id="setTodoBackup" value="' + c.backupDays + '"></div></div>' +
     '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invTodoWidgetCheck">Check Windows widget</button>' +
@@ -687,6 +695,8 @@ function todoSettingsSave() {
   });
   var ch = parseFloat((document.getElementById('setTodoChallan') || {}).value);
   if (ch > 0) S.todoCheck.challanDays = ch;
+  var pp = parseFloat((document.getElementById('setTodoProdPlated') || {}).value);
+  if (pp > 0) S.todoCheck.prodPlatedDays = pp;
   var bk = parseFloat((document.getElementById('setTodoBackup') || {}).value);
   if (bk > 0) S.todoCheck.backupDays = bk;
 }

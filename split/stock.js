@@ -1148,7 +1148,7 @@ function stockImport() {
 }
 
 /* ---------- The More sheet ---------- */
-var MORE_TABS = ['pageTodo', 'pageFinance', 'pageStock', 'pageStaff', 'pageStats', 'pageHistory'];
+var MORE_TABS = ['pageTodo', 'pageFinance', 'pageProduction', 'pageStock', 'pageStaff', 'pageStats', 'pageHistory'];
 function closeMoreSheet() {
   var el = document.getElementById('moreSheet');
   if (el) el.remove();
@@ -1160,6 +1160,7 @@ function openMoreSheet() {
   var items = [
     ['pageTodo', 'To-do', tdOpen ? tdOpen + ' open' + (tdLate ? ', ' + tdLate + ' late' : '') : 'Nothing due', '<path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/>'],
     ['pageFinance', 'Finance', 'Bank, receivables, bills, GST', '<rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/><path d="M6 12h.01M18 12h.01"/>'],
+    ['pageProduction', 'Production', 'Lines, material in plant', '<path d="M3 20h18M5 20V10l4 3V10l4 3V6l6 4v10"/>'],
     ['pageStock', 'Stock', out ? out + ' out' : 'Chemicals on the shelf', '<path d="M9 3h6"/><path d="M10 3v6L4.5 19a1.5 1.5 0 001.3 2h12.4a1.5 1.5 0 001.3-2L14 9V3"/><path d="M7 15h10"/>'],
     ['pageStaff', 'Staff', 'Attendance, labour, areas', '<path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><polyline points="17 11 19 13 23 9"/>'],
     ['pageStats', 'Stats', 'Realisation, tonnage, cost', '<path d="M18 20V10"/><path d="M12 20V4"/><path d="M6 20v-6"/>'],

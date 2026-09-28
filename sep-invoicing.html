@@ -18,7 +18,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <!-- Appearance before first paint (§3.2): the device's theme and palette, so nothing flashes in the wrong colours. -->
 <script>(function(){try{var d=document.documentElement,t=localStorage.getItem("sep_inv_theme"),p=localStorage.getItem("sep_inv_palette");if(t==="light"||t==="dark")d.dataset.theme=t;d.dataset.palette=(p==="zinc"||p==="terracotta")?p:"teal";}catch(e){document.documentElement.dataset.palette="teal";}})();</script>
-<meta name="app-build" content="3c6824cf">
+<meta name="app-build" content="c3b6862b">
 <style>
 /* ===== DESIGN TOKENS (design system v2.0 — docs/SEP_INVOICING_DESIGN_PRINCIPLES.md §3) ===== */
 /* Theme: colour-scheme decides every light-dark() below. <html data-theme> is set before first paint
@@ -1655,6 +1655,9 @@ summary.inv-summary::-webkit-details-marker { display: none; }
 }
 .inv-empty { display: flex; flex-direction: column; align-items: center; gap: var(--sp-12); }
 .inv-empty-icon { width: var(--sp-32); height: var(--sp-32); color: var(--text-3); }
+
+/* Production: the register photo under review, as wide as its panel and never wider. */
+.inv-prod-photo { display: block; max-width: 100%; height: auto; border-radius: var(--r-md); }
 </style>
 </head>
 <body>
@@ -1733,6 +1736,10 @@ summary.inv-summary::-webkit-details-marker { display: none; }
   <div id="statsContent" class="inv-panels inv-panels-dense"></div>
 </div>
 
+<div id="pageProduction" class="inv-page">
+  <div id="productionContent"></div>
+</div>
+
 <div id="pageStock" class="inv-page">
   <div id="stockContent"></div>
 </div>
@@ -1772,7 +1779,7 @@ summary.inv-summary::-webkit-details-marker { display: none; }
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
     Clients
   </button>
-  <button class="inv-navbar-item inv-navbar-more" data-action="invOpenMore" aria-label="More: To-do, Finance, Stock, Staff, Stats, History">
+  <button class="inv-navbar-item inv-navbar-more" data-action="invOpenMore" aria-label="More: To-do, Finance, Production, Stock, Staff, Stats, History">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
     More
     <span id="moreBadge" class="inv-navbar-count inv-hidden"></span>
@@ -1879,6 +1886,7 @@ function getDefaultState() {
     // Chemical stock: lines, the events that move them, and each pasted
     // message whole. Ships empty — the lines arrive with the first message.
     stock: { items: [], entries: [], pastes: [] },
+    production: { entries: [], pastes: [], photos: [], imports: [], learn: { clients: {}, parts: {} } },
     // The bank statement as imported (bank.js): rows merged by id, and what the operator set.
     bank: { rows: [], imports: [], parties: {}, opening: {} },
     // Days of cover at which a line turns red / amber, and the cost model's
@@ -2196,7 +2204,7 @@ function hideStorageBanner(kind) {
 // Containers hold the user's records, so a missing one is filled EMPTY — the
 // app must never invent business data to repair a shape.
 var STATE_CONTAINERS = ['clients', 'items', 'invoices', 'incomingMaterial', 'partWeights',
-  'voidedNumbers', 'creditNotes', 'extraExceptions', 'staff', 'attendance', 'areaTargets', 'stock', 'todo', 'relayPastes', 'staffPayments', 'costBills', 'payrollPaid', 'bank'];
+  'voidedNumbers', 'creditNotes', 'extraExceptions', 'staff', 'attendance', 'areaTargets', 'stock', 'todo', 'relayPastes', 'staffPayments', 'costBills', 'payrollPaid', 'bank', 'production'];
 // Config objects are the opposite: a missing one is filled from the defaults,
 // and so is a missing KEY inside one. `labourCfg()` reads `extraRate || 0`, so
 // a backup predating a constant would silently price the extra at nothing
@@ -3672,7 +3680,7 @@ function zincUseUplift(pct) {
 /* ===== TAB SWITCHING (DP v0.2 9-step) ===== */
 const PAGE_TITLES = {
   pageHome: 'Home', pageCreate: 'Create invoice', pageIM: 'Challans', pageRegister: 'Register',
-  pageClients: 'Clients', pageFinance: 'Finance', pageTodo: 'To-do', pageStock: 'Stock', pageStaff: 'Staff',
+  pageClients: 'Clients', pageFinance: 'Finance', pageTodo: 'To-do', pageProduction: 'Production', pageStock: 'Stock', pageStaff: 'Staff',
   pageStats: 'Stats', pageHistory: 'History'
 };
 
@@ -3753,6 +3761,8 @@ function switchTab(tabId) {
     }
   } else if (tabId === 'pageCreate') {
     if (!document.getElementById('createFormArea').innerHTML) initCreateForm();
+  } else if (tabId === 'pageProduction') {
+    renderProduction();
   } else if (tabId === 'pageStock') {
     renderStock();
   } else if (tabId === 'pageTodo') {
@@ -17641,7 +17651,7 @@ function stockImport() {
 }
 
 /* ---------- The More sheet ---------- */
-var MORE_TABS = ['pageTodo', 'pageFinance', 'pageStock', 'pageStaff', 'pageStats', 'pageHistory'];
+var MORE_TABS = ['pageTodo', 'pageFinance', 'pageProduction', 'pageStock', 'pageStaff', 'pageStats', 'pageHistory'];
 function closeMoreSheet() {
   var el = document.getElementById('moreSheet');
   if (el) el.remove();
@@ -17653,6 +17663,7 @@ function openMoreSheet() {
   var items = [
     ['pageTodo', 'To-do', tdOpen ? tdOpen + ' open' + (tdLate ? ', ' + tdLate + ' late' : '') : 'Nothing due', '<path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/>'],
     ['pageFinance', 'Finance', 'Bank, receivables, bills, GST', '<rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/><path d="M6 12h.01M18 12h.01"/>'],
+    ['pageProduction', 'Production', 'Lines, material in plant', '<path d="M3 20h18M5 20V10l4 3V10l4 3V6l6 4v10"/>'],
     ['pageStock', 'Stock', out ? out + ' out' : 'Chemicals on the shelf', '<path d="M9 3h6"/><path d="M10 3v6L4.5 19a1.5 1.5 0 001.3 2h12.4a1.5 1.5 0 001.3-2L14 9V3"/><path d="M7 15h10"/>'],
     ['pageStaff', 'Staff', 'Attendance, labour, areas', '<path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><polyline points="17 11 19 13 23 9"/>'],
     ['pageStats', 'Stats', 'Realisation, tonnage, cost', '<path d="M18 20V10"/><path d="M12 20V4"/><path d="M6 20v-6"/>'],
@@ -21328,6 +21339,12 @@ function todoGo(go) {
     case 'audit': switchTab('pageRegister'); showNumberAudit(); break;
     case 'settings': openSettings(go.sec); break;
     case 'home': switchTab('pageHome'); break;
+    case 'production':
+      prodSetTab(go.tab || 'overview'); _prodView = 'main';
+      if (go.client != null) { if (go.tab === 'plant') _prodPlantClient = String(go.client); else _prodFilter = { kind: '', flag: go.flag || '', client: String(go.client) }; }
+      else if (go.flag) _prodFilter = { kind: '', flag: go.flag, client: '' };
+      switchTab('pageProduction');
+      break;
     case 'finance':
       finSetTab(go.tab || 'overview');
       if (go.client != null) _bankOpen = String(go.client);
@@ -21366,6 +21383,8 @@ function todoSettingsFields() {
   }).join('') +
     '<div class="inv-fields inv-mt-8"><div class="inv-field"><label class="inv-field-label" for="setTodoChallan">Challan unbilled after (days)</label>' +
     '<input type="number" step="1" min="1" class="inv-input inv-input-num" id="setTodoChallan" value="' + c.challanDays + '"></div>' +
+    '<div class="inv-field"><label class="inv-field-label" for="setTodoProdPlated">Plated, not invoiced after (working days)</label>' +
+    '<input type="number" step="1" min="1" class="inv-input inv-input-num" id="setTodoProdPlated" value="' + (c.prodPlatedDays || 3) + '"></div>' +
     '<div class="inv-field"><label class="inv-field-label" for="setTodoBackup">Backup older than (days)</label>' +
     '<input type="number" step="1" min="1" class="inv-input inv-input-num" id="setTodoBackup" value="' + c.backupDays + '"></div></div>' +
     '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invTodoWidgetCheck">Check Windows widget</button>' +
@@ -21435,6 +21454,8 @@ function todoSettingsSave() {
   });
   var ch = parseFloat((document.getElementById('setTodoChallan') || {}).value);
   if (ch > 0) S.todoCheck.challanDays = ch;
+  var pp = parseFloat((document.getElementById('setTodoProdPlated') || {}).value);
+  if (pp > 0) S.todoCheck.prodPlatedDays = pp;
   var bk = parseFloat((document.getElementById('setTodoBackup') || {}).value);
   if (bk > 0) S.todoCheck.backupDays = bk;
 }
@@ -22571,6 +22592,573 @@ function relayOnInput(t) {
   if (!t || t.id !== 'relayPasteText') return false;
   _relayDraft = t.value;
   return true;
+}
+/* ===== PRODUCTION — reading the floor's messages (pure: nothing here reads S) =====
+ * Three voices report production into the daily WhatsApp group (census of the real exports, 28 Sep 2026):
+ *   - the pickling hand, one message per load: "SSS MEHTA / CLAMP133×83(35×6)-774 nos / PICKLING TIME 9:00AM";
+ *     several clients under one time; incoming material under "Incoming material time"; since August over half
+ *     the loads carry no quantity ("SSS MEHTA / CLAMP(40×6)"); a line is never named.
+ *   - the supervisor: a daily "berral production" list, and short "----production----" blocks inside his in/out
+ *     rolls, which report the overtime slot above them.
+ *   - the register clerk: photos of the VAT register (read by Gemini, production.js).
+ * Everything read here is shown beside the text it came from before anything is saved (Stock's contract). A line
+ * that cannot be read is listed, never dropped. The client list and the roster are passed in, so the census can
+ * replay the real exports through the same functions.
+ */
+
+/* The WhatsApp header, with the post time (RELAY_WA_RE drops it, and attendance depends on its groups). */
+var PROD_WA_RE = /^\s*\[?(\d{1,2})\/(\d{1,2})\/(\d{2,4}),?\s+(\d{1,2}):(\d{2})(?::\d{2})?\s*([AaPp]\.?[Mm]\.?)?\]?\s*(?:-\s*)?([^:]{1,40}):\s?(.*)$/;
+var PROD_LIST_HEAD_RE = /^\s*(\d{1,2})\/(\d{1,2})\/(\d{2,4})\/*\s*(?:ka\s+update\s+)?b[ae]r+[ae]*l+\.?\s*(?:production|update)/i;
+var PROD_FIRM_RE = /\b(ENTERPRISES?|INDUSTR(Y|IES)|AUTO|PRESS|METALS?|ENGG|ENGINEER(S|ING)?|CORPORATION|PVT|LTD|CO\.)\b/i;
+var PROD_UNIT_OF = { NO: 'NOS', NOS: 'NOS', MOS: 'NOS', PC: 'NOS', PCS: 'NOS', PIECE: 'NOS', PIECES: 'NOS', KG: 'KG', KGS: 'KG', K: 'KG', KY: 'KG', BAG: 'BAG', BAGS: 'BAG' };
+var PROD_QTY_TOKEN_RE = /(\d+(?:\.\d+)?(?:\s*\+\s*\d+(?:\.\d+)?)*)\s*(nos|no|mos|pcs|pc|pieces|piece|kgs|kg|ky|k|bags|bag)\b\.?/gi;
+var PROD_LINES = ['vat-a1', 'vat-a2', 'barrel'];
+var PROD_LINE_LABEL = { 'vat-a1': 'VAT A1', 'vat-a2': 'VAT A2', barrel: 'Barrel' };
+
+function prodHhmm(min) { return min == null ? null : relayHhmm(min); }
+function prodMin(hhmm) { var m = /^(\d{1,2}):(\d{2})$/.exec(hhmm || ''); return m ? +m[1] * 60 + +m[2] : null; }
+
+/* One pasted text → messages, each with who sent it, the day and the minute it was posted. A paste of one message
+   with no header is one message, dated by the caller (today, and said so). */
+function prodSplit(text) {
+  var msgs = [], cur = null;
+  String(text || '').replace(/\r/g, '').replace(/‎|‏/g, '').split('\n').forEach(function(line) {
+    var wa = line.match(PROD_WA_RE);
+    if (wa) {
+      var a = +wa[1], b = +wa[2], h = +wa[4] % 12, ap = wa[6] ? (/p/i.test(wa[6]) ? 12 : 0) : (+wa[4] === 12 ? 0 : 0);
+      var monthFirst = /^\s*\[/.test(line) ? a <= 12 : (a <= 12 && b > 12);
+      var at = wa[6] ? (h + ap) * 60 + +wa[5] : +wa[4] * 60 + +wa[5];
+      cur = { sentBy: wa[7].trim(), sentOn: monthFirst ? relayIso(b, a, wa[3]) : relayIso(a, b, wa[3]), sentAt: at, lines: [wa[8]] };
+      msgs.push(cur);
+      return;
+    }
+    // Pasted without its WhatsApp line, a roll or a barrel list still opens with its own dated head.
+    var head = /^\s*\d{1,2}\/\d{1,2}\/\d{2,4}\/*\s*((in|out)\s*-*\s*time|c[ae]mical|chemical)/i.test(line) || PROD_LIST_HEAD_RE.test(line);
+    if (!cur || (head && cur.lines.some(function(l) { return l.trim(); }))) {
+      cur = { sentBy: cur && head ? cur.sentBy : '', sentOn: null, sentAt: null, lines: [] };
+      msgs.push(cur);
+    }
+    cur.lines.push(line);
+  });
+  return msgs.map(function(m) {
+    // The chat-export tool keeps a photo's caption after its marker; the Android export drops both.
+    m.text = m.lines.join('\n').replace(/<This message was edited>/gi, '').replace(/^\s*<(image|media|video) omitted>\s*/i, '').trim();
+    delete m.lines;
+    m.kind = prodKind(m.text);
+    m.hash = relayHash(m.text);
+    return m;
+  }).filter(function(m) { return m.text && !/omitted>$/i.test(m.text) && !/^this message was deleted$/i.test(m.text) && !/end-to-end encrypted/i.test(m.text); });
+}
+
+/* What a message is. A roll goes to attendance (its production block comes here as well); chemicals go to Stock. */
+function prodKind(text) {
+  var t = String(text || ''), head = t.split('\n').slice(0, 2).join(' ');
+  var rk = relayKind(t);
+  // "28/5/26/ in time6:00 am morning ot": the roll's own dated head, even with no space before the time.
+  if (rk === 'in' || rk === 'out' || /^\s*\d{1,2}\/\d{1,2}\/\d{2,4}\/*\s*(in|out)\s*-*\s*time/i.test(t)) return 'roll';
+  if (rk === 'stock') return 'stock';
+  if (/p\w{0,2}[ckx]{1,2}l\w*[ \t]*t\w*me|in[ \t]*c?o?ming[ \t]*ma|i+n?x?o?coming|incoming[ \t]*time/i.test(t)) return 'pickling';
+  if (PROD_LIST_HEAD_RE.test(head) || /^\s*b[ae]r+[ae]*l+\.?\s*production/im.test(t)) return 'production';
+  if (/p[ao]w[ae]r\s*(cut|cat|cute|in|out|no)|pawar\s*cut|single\s*ph[ae]se/i.test(t)) return 'power';
+  if (/^\s*-*\s*(production|work)\s*-*\s*$/im.test(t)) return 'production';
+  return 'other';
+}
+
+/* A time as the floor writes it, in minutes. Three-digit hours ("109:00AM") are a slip, never read as 9:00; a
+   time with no AM/PM takes the reading closest before the moment it was posted. */
+function prodTimeOf(frag, sentAt) {
+  var s = String(frag || '').replace(/\d{1,2}\/\d{1,2}\/\d{2,4}\/?/g, ' ');
+  var m = /(\d{1,3})\s*(?:[:.;]\s*(\d{1,2}))?\s*(a\.?\s?m\.?|p\.?\s?m\.?)?/i.exec(s);
+  if (!m) return { min: null };
+  var h = +m[1], mm = m[2] != null ? +m[2] : 0, ap = m[3] ? (/p/i.test(m[3]) ? 'pm' : 'am') : '';
+  if (m[1].length === 3 || h > 23 || mm > 59) return { min: null, issue: { tone: 'amber', code: 'time', text: 'The time "' + m[0].trim() + '" could not be read; enter it by hand if it matters.' } };
+  if (!ap && m[2] == null && !/\d\s*(?:a|p)/i.test(m[0])) {
+    // A bare number beside "time" is still a time ("Pickling Time 9") only when nothing else was written.
+  }
+  if (h > 12) return { min: h * 60 + mm };
+  if (ap) {
+    var min = (h % 12 + (ap === 'pm' ? 12 : 0)) * 60 + mm, other = ap === 'pm' ? min - 720 : min + 720;
+    // A slipped AM/PM: "9:00pm" posted at 9:28 in the morning, "2:00am" posted at 3 in the afternoon (nothing is
+    // pickled before the 6 AM start). The other reading is taken when it fits before the post, and said so.
+    var slip = sentAt != null && other >= 360 && other <= sentAt + 30 && (min > sentAt + 30 || (ap === 'am' && h % 12 < 6));
+    if (slip) return { min: other, issue: { tone: 'amber', code: 'meridiem', text: 'Written ' + relayClockLabel(min) + ', read as ' + relayClockLabel(other) + ' from when it was sent (' + relayClockLabel(sentAt) + ').' } };
+    if (sentAt != null && min > sentAt + 30) return { min: min, issue: { tone: 'amber', code: 'later', text: relayClockLabel(min) + ' is later than the message was sent (' + relayClockLabel(sentAt) + ').' } };
+    return { min: min };
+  }
+  var am = (h % 12) * 60 + mm, pm = am + 720;
+  if (sentAt != null) {
+    var pick = pm <= sentAt + 15 ? pm : am;
+    return { min: pick, issue: { tone: 'info', code: 'meridiem', text: relayClockLabel(pick) + ': no AM or PM written, read from when it was sent.' } };
+  }
+  var guess = h >= 6 && h <= 11 ? am : pm;
+  return { min: guess, issue: { tone: 'amber', code: 'meridiem', text: relayClockLabel(guess) + ': no AM or PM written.' } };
+}
+
+/* ---------- Clients ---------- */
+var PROD_NAME_NOISE = { PVT: 1, LTD: 1, LIMITED: 1, P: 1, CO: 1, THE: 1, AND: 1, M: 1, S: 1 };
+function prodClientIndex(clients, learnt) {
+  var byKey = {}, byFold = {}, bySkel = {}, list = [];
+  var put = function(map, k, c) { if (!k) return; if (!(k in map)) map[k] = c; else if (map[k] && map[k].id !== c.id) map[k] = null; };
+  (clients || []).forEach(function(c) {
+    var words = String(c.name || '').toUpperCase().replace(/[^A-Z0-9 ]+/g, ' ').split(/\s+/).filter(Boolean);
+    var clean = words.filter(function(w) { return !PROD_NAME_NOISE[w]; });
+    var full = relayKey(c.name), v = [full, relayKey(clean.join(''))];
+    for (var n = 1; n <= Math.min(3, clean.length); n++) v.push(relayKey(clean.slice(0, n).join('')));
+    var rec = { id: c.id, name: c.name, full: full, keys: [] };
+    v.forEach(function(k) { if (k && k.length >= 3 && rec.keys.indexOf(k) < 0) rec.keys.push(k); });
+    rec.keys.forEach(function(k) { put(byKey, k, rec); });
+    list.push(rec);
+  });
+  Object.keys(byKey).forEach(function(k) { if (byKey[k]) { put(byFold, relayFold(k), byKey[k]); if (k.length >= 5) put(bySkel, relaySkel(k), byKey[k]); } });
+  var learn = {};
+  Object.keys(learnt || {}).forEach(function(k) { learn[k] = learnt[k]; });
+  return { byKey: byKey, byFold: byFold, bySkel: bySkel, list: list, learnt: learn };
+}
+
+/* A written name → {id, name, how: 'exact' | 'learnt' | 'read-as'} or null. "read-as" is shown on the review with
+   a picker on the guess, and remembered once saved; a key two clients share matches neither. */
+function prodMatchClient(written, idx) {
+  var k = relayKey(written);
+  if (!k || !idx) return null;
+  if (k in idx.learnt) {
+    var lid = idx.learnt[k], lrec = idx.list.find(function(c) { return String(c.id) === String(lid); });
+    if (lrec) return { id: lrec.id, name: lrec.name, how: 'learnt' };
+  }
+  if (idx.byKey[k]) return { id: idx.byKey[k].id, name: idx.byKey[k].name, how: 'exact' };
+  if (k.length < 4) return null;
+  var hits = [];
+  var add = function(rec) { if (rec && hits.indexOf(rec) < 0) hits.push(rec); };
+  if (k.length >= 5) idx.list.forEach(function(c) { if (c.full.indexOf(k) >= 0) add(c); });
+  if (hits.length === 1) return { id: hits[0].id, name: hits[0].name, how: 'read-as' };
+  if (hits.length > 1) return null;
+  add(idx.byFold[relayFold(k)]);
+  if (!hits.length && k.length >= 5) add(idx.bySkel[relaySkel(k)]);
+  if (!hits.length) {
+    // One letter off only for a name of six letters or more ("SIYA" is not "SITA"), two from eight.
+    var lim = k.length >= 8 ? 2 : k.length >= 6 ? 1 : 0;
+    if (lim) Object.keys(idx.byKey).forEach(function(key) {
+      var rec = idx.byKey[key];
+      if (rec && key.length >= 6 && key[0] === k[0] && relayEdit(k, key) <= lim) add(rec);
+    });
+  }
+  return hits.length === 1 ? { id: hits[0].id, name: hits[0].name, how: 'read-as' } : null;
+}
+
+/* ---------- One item line ---------- */
+/* "Dorabji 0140- 300 nos", "CLAMP133×83(35×6)-774 nos", "188 CD--995 NOS ,96.970Kg", "Higco Nat ....",
+   "80×81=297nos", "BOLT--1800+450 Nos", "Eye bolt--20.640kg" → {client, part, gauge, qty, unit, qty2, unit2}. */
+function prodReadItem(line, idx) {
+  var raw = String(line || '');
+  var s = raw.replace(/[×✕]/g, 'X').replace(/(\d),(\d{3})\b/g, '$1$2').replace(/^[\s\-_=*•.]+/, '').trim();
+  var out = { part: '', gauge: '', qty: null, unit: null, qty2: null, unit2: null, qtySrc: null, rework: false, dots: false };
+  if (/\bre[-\s]*(work|pickl|plat)/i.test(s)) out.rework = true;
+  var toks = [], m;
+  PROD_QTY_TOKEN_RE.lastIndex = 0;
+  while ((m = PROD_QTY_TOKEN_RE.exec(s))) {
+    // "35X6" or "M 14X2" is a size, never a count; a token must not sit inside one.
+    var before = s.slice(0, m.index);
+    if (/X\s*$/i.test(before)) continue;
+    toks.push({ at: m.index, end: m.index + m[0].length, num: m[1], unit: PROD_UNIT_OF[m[2].toUpperCase()] || null });
+  }
+  var partText = s;
+  if (toks.length) {
+    var t = toks[0];
+    partText = s.slice(0, t.at);
+    var nums = t.num.split('+').map(function(x) { return parseFloat(x); });
+    out.qty = nums.reduce(function(a, b) { return a + b; }, 0);
+    out.qtySrc = nums.length > 1 ? 'working' : 'written';
+    out.unit = t.unit;
+    if (toks[1]) { out.qty2 = parseFloat(toks[1].num); out.unit2 = toks[1].unit; }
+  } else {
+    var tail = /^(.*?[A-Za-z0-9)\]])\s*(?:-{1,3}|_{2}|=)\s*(\d+(?:\.\d+)?)\s*$/.exec(s);
+    // No unit written: a figure with decimals is weighed ("188CD-45.240"), a whole one counted. Said on the review.
+    if (tail) { partText = tail[1]; out.qty = parseFloat(tail[2]); out.qtySrc = 'written'; out.unit = /\.\d/.test(tail[2]) ? 'KG' : 'NOS'; out.unitGuess = true; }
+    else if (/\.{3,}\s*$/.test(s)) { partText = s.replace(/\.{3,}\s*$/, ''); out.dots = true; }
+  }
+  partText = partText.replace(/\s*(?:-{1,3}|_{2}|=|,)\s*$/, '').replace(/\(\s*now\s*\)/i, '').trim();
+  // A client written at the front: the longest run of up to three words that names one.
+  var words = partText.split(/\s+/).filter(Boolean), alpha = 0;
+  while (alpha < words.length && alpha < 3 && /^[A-Za-z][A-Za-z.&]*$/.test(words[alpha])) alpha++;
+  var peel = function(exact) {
+    for (var n = alpha; n >= 1 && idx; n--) {
+      var head = words.slice(0, n).join(' '), hit = prodMatchClient(head, idx);
+      if (hit && (!exact || hit.how !== 'read-as')) return { n: n, head: head, hit: hit };
+    }
+    return null;
+  };
+  var got = peel(true) || peel(false);
+  if (got) {
+    out.client = got.head; out.clientId = got.hit.id; out.clientName = got.hit.name; out.clientHow = got.hit.how;
+    var rest = words.slice(got.n);
+    // "KHURANA INDUSTRY", "SIYA ENTERPRISES": what is left is the rest of the firm's name, not a part.
+    while (rest.length && (PROD_FIRM_RE.test(rest[0]) || PROD_NAME_NOISE[rest[0].toUpperCase().replace(/[^A-Z]/g, '')]) && !/\d/.test(rest[0])) { out.client += ' ' + rest[0]; rest = rest.slice(1); }
+    partText = rest.join(' ').replace(/^[\s\-_,]+/, '');
+  }
+  var g = lineGauge(partText);
+  out.gauge = g;
+  out.part = partText.trim();
+  return out;
+}
+/* The part with its gauge text taken out, so a floor line and a challan line key alike: "CLAMP 165X83(40X6)" and
+   "CLAMP165X83 (40×6)" are one part at one gauge. */
+function prodPartBase(part) {
+  return String(part || '').replace(/[×✕]/g, 'X').replace(/\(\s*\d{2}\s*X\s*\d\s*\)|(?:^|[^0-9A-Z])\d{2}\s*X\s*\d(?![0-9X])/gi, ' ')
+    .replace(/\((NT|UT)\)/gi, ' ').trim();
+}
+
+/* ---------- The pickling hand's message ---------- */
+function prodIsTimeLine(s) { return /p\w{0,2}[ckx]{1,2}l\w*[ \t]*t\w*me/i.test(s); }
+function prodIsIncomingLine(s) { return /in\s*c?o?m\w*\s*(ma\w*\s*)?(t\w*me|rime)|i+n?x?o?coming|incoming\s*time|evening\s*incoming/i.test(s); }
+function prodIsPowerLine(s) { return /p[ao]w[ae]r|pawar|single\s*ph[ae]se/i.test(s) && /cut|cat|in\b|out|no\s*in|ph[ae]se/i.test(s); }
+
+function parsePickling(msg, ctx) {
+  var lines = String(msg.text || '').split('\n'), items = [], unread = [], notes = [];
+  var date = msg.sentOn || ctx.today, noDate = !msg.sentOn;
+  var mode = 'pickled', reworkOn = false, group = null, lastGroup = null, pendingParts = [], family = null, arrivedAt = null, cutAt = null;
+  var flush = function(kind, t) {
+    pendingParts.forEach(function(it) { it.kind = kind; if (t) { it.time = prodHhmm(t.min); if (t.issue) it.issues.push(t.issue); } items.push(it); });
+    pendingParts = [];
+  };
+  lines.forEach(function(raw, i) {
+    var line = raw.trim(), n = i + 1;
+    if (!line) return;
+    var dm = line.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})\/?/);
+    if (dm && relayIso(dm[1], dm[2], dm[3])) { date = relayIso(dm[1], dm[2], dm[3]); noDate = false; line = line.slice(dm[0].length).trim(); if (!line) return; }
+    if (prodIsPowerLine(line)) {
+      var pt = prodTimeOf(line.replace(/^.*?(cut|cat|cute|in|out)\b/i, ''), msg.sentAt);
+      if (/cut|cat|out/i.test(line) && !/\bin\b/i.test(line.replace(/cut|cat/i, ''))) { cutAt = { min: pt.min, n: n, raw: raw }; }
+      else if (cutAt) { items.push(prodDowntime(date, cutAt, pt.min, /no\s*in/i.test(line), raw, n)); cutAt = null; }
+      else notes.push({ n: n, raw: raw, text: 'A power line with no cut before it' });
+      return;
+    }
+    if (prodIsIncomingLine(line)) {
+      if (pendingParts.length) flush(mode, null);
+      mode = 'arrived';
+      var afterHead = line.replace(/^.*?(t\w*me|rime)/i, '');
+      arrivedAt = prodTimeOf(afterHead, msg.sentAt);
+      // "IncomingMaterial time 4:15 pm SUPPORT(3319)--1000 Nos": a part written on the head line itself.
+      var tail = afterHead.replace(/^\s*\d{1,2}\s*(?:[:.]\s*\d{2})?\s*(?:a\.?\s?m\.?|p\.?\s?m\.?)?/i, '').trim();
+      if (/[A-Za-z]/.test(tail) && /\d/.test(tail)) pendingParts.push(prodItemRecord(prodReadItem(tail, ctx.clients), group || lastGroup, raw, n, date, noDate));
+      return;
+    }
+    if (prodIsTimeLine(line)) {
+      var t = prodTimeOf(line.replace(/^.*?t\w*me/i, ''), msg.sentAt);
+      var re = /\bre[-\s]*p/i.test(line);
+      if (mode === 'arrived') {
+        // "Incoming … / parts / And Pickling Time 9:00" — the same material arrived and went in.
+        var arrived = pendingParts.map(function(it) { return Object.assign({}, it, { issues: it.issues.slice() }); });
+        pendingParts.forEach(function(it) { it.rework = it.rework || re; });
+        flush('pickled', t);
+        arrived.forEach(function(it) { it.kind = 'arrived'; it.time = prodHhmm(arrivedAt && arrivedAt.min); if (arrivedAt && arrivedAt.issue) it.issues.push(arrivedAt.issue); items.push(it); });
+        mode = 'pickled';
+      } else {
+        if (re) pendingParts.forEach(function(it) { it.rework = true; });
+        if (!pendingParts.length) notes.push({ n: n, raw: raw, text: 'A pickling time with nothing listed above it' });
+        flush('pickled', t);
+      }
+      lastGroup = group || lastGroup; group = null; family = null; reworkOn = false;
+      return;
+    }
+    if (!/[A-Za-z0-9]/.test(line) || /^[\d\/\s.\-]+$/.test(line)) return;
+    // "RE-PICKLING" on a line of its own marks the loads of this group as rework, above it and below it.
+    if (/^\s*re[-\s]*(work|pickl\w*|plat\w*)\s*$/i.test(line)) { pendingParts.forEach(function(x) { x.rework = true; }); reworkOn = true; return; }
+    if (/^\s*b[ae]r+[ae]*l+\.?\s*(production)?\s*$/i.test(line) || /unlo?a?d|lo?a?ding/i.test(line)) { notes.push({ n: n, raw: raw, text: 'A barrel note, not a pickling load; not read' }); return; }
+    var it = prodReadItem(line, ctx.clients);
+    var clientLine = !it.part && it.qty == null && it.clientId != null;
+    var firmy = it.qty == null && !it.clientId && PROD_FIRM_RE.test(line) && !/\d/.test(line);
+    if (clientLine || firmy || (!group && it.qty == null && !it.clientId && /^[A-Za-z]/.test(line) && !/\d/.test(line) && lines.slice(i + 1).some(function(l) { return l.trim(); }))) {
+      group = { client: it.client || line, clientId: it.clientId != null ? it.clientId : null, clientName: it.clientName || '', how: it.clientHow || (firmy ? 'firm' : 'first') };
+      family = null;
+      return;
+    }
+    if (it.clientId != null) group = { client: it.client, clientId: it.clientId, clientName: it.clientName, how: it.clientHow };
+    // A part under a second pickling time with no client written again: the client above it, said so.
+    var carried = false;
+    if (!group && lastGroup) { group = lastGroup; carried = true; }
+    if (!it.part && it.qty != null && pendingParts.length && pendingParts[pendingParts.length - 1].qty == null) {
+      var last = pendingParts[pendingParts.length - 1];
+      last.qty = it.qty; last.unit = it.unit; last.qtySrc = it.qtySrc; last.raw += '\n' + raw;
+      return;
+    }
+    if (family && /^\d/.test(it.part)) it.part = family + ' ' + it.part;
+    var rec = prodItemRecord(it, group, raw, n, date, noDate);
+    if (reworkOn) rec.rework = true;
+    if (carried) rec.issues.push({ tone: 'amber', code: 'carried', text: 'No client written for this load: ' + (group.clientName || group.client) + ', from the load above.' });
+    if (it.qty == null && /^[A-Za-z][A-Za-z .]*$/.test(it.part) && /^\s*[\d(]/.test((lines[i + 1] || '').replace(/[×✕]/g, 'X')) && prodReadItem(lines[i + 1], null).qty != null) {
+      family = it.part;   // "CLAMP" over "165×83(35×6)--420 NOS": the lines below are its sizes
+      return;
+    }
+    pendingParts.push(rec);
+  });
+  if (pendingParts.length) {
+    pendingParts.forEach(function(it) { if (mode !== 'arrived' || !arrivedAt || arrivedAt.min == null) it.issues.push({ tone: 'amber', code: 'notime', text: mode === 'arrived' ? 'Arrived: no time written.' : 'No pickling time written under it.' }); });
+    flush(mode, mode === 'arrived' ? arrivedAt : null);
+  }
+  if (cutAt) items.push(prodDowntime(date, cutAt, null, true, cutAt.raw, cutAt.n));
+  return { items: items, notes: notes, unread: unread, date: date, noDate: noDate };
+}
+
+function prodDowntime(date, cut, inMin, open, raw, n) {
+  return { kind: 'downtime', date: date, time: prodHhmm(cut.min), to: prodHhmm(inMin), downtime: { cause: 'power', open: !!open || inMin == null }, raw: raw, n: n, issues: [] };
+}
+
+function prodItemRecord(it, group, raw, n, date, noDate) {
+  var rec = { kind: 'pickled', date: date, time: null, client: group ? group.client : (it.client || ''), clientId: group ? group.clientId : (it.clientId != null ? it.clientId : null),
+    clientName: group ? group.clientName : (it.clientName || ''), part: it.part, gauge: it.gauge, qty: it.qty, unit: it.unit, qty2: it.qty2, unit2: it.unit2, qtySrc: it.qtySrc,
+    rework: it.rework, raw: raw, n: n, issues: [] };
+  if (noDate) rec.issues.push({ tone: 'amber', code: 'nodate', text: 'No date in the message: read as ' + date + '.' });
+  var how = group ? group.how : it.clientHow;
+  if (rec.clientId == null) rec.issues.push({ tone: 'red', code: 'client', text: rec.client ? '"' + rec.client + '" is not a client in the book. Pick the client, or keep it as written.' : 'No client written above this line. Pick the client.' });
+  else if (how === 'read-as') rec.issues.push({ tone: 'amber', code: 'readas', text: '"' + rec.client + '" read as ' + rec.clientName + '.' });
+  if (it.qty != null && (!it.unit || it.unitGuess)) rec.issues.push({ tone: 'amber', code: 'unit', text: 'No unit written: ' + it.qty + ' read as ' + (it.unit === 'KG' ? 'kg' : 'pieces') + '.' });
+  if (it.dots) rec.issues.push({ tone: 'info', code: 'dots', text: 'Quantity left as dots in the message.' });
+  if (!it.part) rec.issues.push({ tone: 'info', code: 'nopart', text: 'No part named: counted for the client, in no part\u2019s figures.' });
+  return rec;
+}
+
+/* ---------- The supervisor's barrel list ---------- */
+function parseProductionList(msg, ctx) {
+  var lines = String(msg.text || '').split('\n'), items = [], notes = [];
+  // Before 19 May the list was a timed log of unload and load cycles counted in barrels ("Unlod time 10:00am /
+  // 90 CD ganral 120k ×4"): barrels, not pieces or kilograms. It is listed, not read.
+  if (/unlo?a?d/i.test(msg.text) || /\d\s*b[ae]r+[ae]*l+\b/i.test(msg.text)) {
+    lines.forEach(function(raw, i) { if (raw.trim()) notes.push({ n: i + 1, raw: raw, text: 'An older timed barrel log, in barrels; not read' }); });
+    return { items: [], notes: notes, unread: [], date: msg.sentOn || ctx.today };
+  }
+  var date = msg.sentOn || ctx.today, noDate = !msg.sentOn, group = null, family = null, cutAt = null;
+  lines.forEach(function(raw, i) {
+    var line = raw.trim(), n = i + 1;
+    if (!line) return;
+    var hm = line.match(PROD_LIST_HEAD_RE);
+    if (hm) { if (relayIso(hm[1], hm[2], hm[3])) { date = relayIso(hm[1], hm[2], hm[3]); noDate = false; } line = line.slice(hm[0].length).trim(); if (!line) return; }
+    else if (/^\s*b[ae]r+[ae]*l+\.?\s*production\s*$/i.test(line) || /^\s*-*\s*(production|work)\s*-*\s*$/i.test(line)) return;
+    var dm = line.replace(/\s+/g, '').match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})\/*$/);
+    if (dm) { date = relayIso(dm[1], dm[2], dm[3]) || date; noDate = false; return; }
+    if (prodIsPowerLine(line)) {
+      var pt = prodTimeOf(line.replace(/^.*?(cut|cat|cute|in|out)\b/i, ''), null);
+      if (/cut|cat|out/i.test(line) && !cutAt) cutAt = { min: pt.min, n: n, raw: raw };
+      else if (cutAt) { items.push(prodDowntime(date, cutAt, pt.min, /no\s*in/i.test(line), raw, n)); cutAt = null; }
+      return;
+    }
+    if (/unlo?a?d|lo?ding\s*time|^\s*\d{1,2}:\d{2}\s*[ap]m.*[}{]/i.test(line)) { notes.push({ n: n, raw: raw, text: 'An older timed barrel cycle; not read' }); return; }
+    if (!/[A-Za-z0-9]/.test(line)) return;
+    var cont = /^\s*-{3,}/.test(raw);
+    var it = prodReadItem(line, ctx.clients);
+    if (!it.part && it.qty == null && it.clientId != null) { group = { client: it.client, clientId: it.clientId, clientName: it.clientName, how: it.clientHow }; family = null; return; }
+    if (!it.part && it.qty != null && items.length && items[items.length - 1].qty == null && items[items.length - 1].kind === 'plated') {
+      var last = items[items.length - 1];
+      last.qty = it.qty; last.unit = it.unit; last.qtySrc = it.qtySrc; last.raw += '\n' + raw;
+      last.issues = last.issues.filter(function(x) { return x.code !== 'dots'; });
+      return;
+    }
+    if (it.clientId != null) { group = { client: it.client, clientId: it.clientId, clientName: it.clientName, how: it.clientHow }; family = null; }
+    else if (!cont && !group && /^[A-Za-z]/.test(line)) {
+      // A first word that names nobody the book holds: the client or the part? Asked.
+      var w0 = line.split(/\s+/)[0];
+      group = { client: w0, clientId: null, clientName: '', how: 'unknown' };
+      it.part = it.part.replace(new RegExp('^' + w0.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\s*'), '');
+    }
+    if (family && /^\d/.test(it.part)) it.part = family + ' ' + it.part;
+    if (it.qty == null && !it.dots && /^[A-Za-z][A-Za-z .-]*$/.test(it.part) && /^\s*\d/.test((lines[i + 1] || '').replace(/[×✕]/g, 'X')) && /=|nos|kg/i.test(lines[i + 1] || '')) {
+      family = it.part; return;
+    }
+    var rec = prodItemRecord(it, group, raw, n, date, false);
+    rec.kind = 'plated'; rec.line = 'barrel'; rec.lineSrc = 'written'; rec.slot = 'day'; rec.basis = 'relay';
+    items.push(rec);
+  });
+  if (noDate) items.forEach(function(it) { it.issues.push({ tone: 'amber', code: 'nodate', text: 'No date on the list: read as ' + date + '.' }); });
+  if (cutAt) items.push(prodDowntime(date, cutAt, null, true, cutAt.raw, cutAt.n));
+  return { items: items, notes: notes, unread: [], date: date, noDate: noDate };
+}
+
+/* ---------- The production block inside a roll ---------- */
+/* The roll parser already knows which lines are names; the block is the lines it read as notes under a
+   "----production----" head. The block reports the overtime slot above it, and its line is the nearest area
+   header above: a guess, so it is amber on the review and saved only once confirmed. */
+function prodFromRoll(msg, ctx) {
+  var rr = parseRelayRoll(msg.text, ctx.roster || [], msg.sentOn);
+  var date = rr.date || msg.sentOn || ctx.today, items = [], notes = [], inBlock = false, lineHint = null, from = null, to = null, cutAt = null;
+  var textLines = String(msg.text || '').split('\n');
+  rr.lines.forEach(function(ln, k) {
+    if (ln.role === 'head' && ln.read === 'Production notes') {
+      inBlock = true;
+      lineHint = null; from = null; to = null;
+      for (var j = k - 1; j >= 0; j--) {
+        var up = rr.lines[j];
+        if (up.role !== 'head') continue;
+        if (up.read === 'Production notes') break;
+        if (/^Slot from|^Out at/.test(up.read)) {
+          var tt = relayTimes(up.raw);
+          // An out-time roll's head is when the slot ended; an in-time roll's, when it began.
+          if (from == null && to == null && tt.length) {
+            if (/^Out at/.test(up.read)) to = tt[tt.length - 1].min; else { from = tt[0].min; to = tt.length > 1 ? tt[1].min : null; }
+          }
+          break;   // the slot's own head: a line header above it belongs to another slot
+        }
+        var areas = relayHeaderAreas(up.raw).filter(function(a) { return PROD_LINES.indexOf(a) >= 0; });
+        if (areas.length && !lineHint) lineHint = areas[0];
+      }
+      return;
+    }
+    if (!inBlock) return;
+    if (ln.role !== 'note') { inBlock = false; return; }
+    var line = ln.raw.trim();
+    if (prodIsPowerLine(line)) {
+      var pt = prodTimeOf(line.replace(/^.*?(cut|cat|cute|in|out)\b/i, ''), null);
+      if (/cut|cat|out/i.test(line) && !cutAt) cutAt = { min: pt.min, n: ln.n, raw: ln.raw };
+      else if (cutAt) { items.push(prodDowntime(date, cutAt, pt.min, false, ln.raw, ln.n)); cutAt = null; }
+      return;
+    }
+    if (/no\s*work/i.test(line)) { notes.push({ n: ln.n, raw: ln.raw, text: 'No work in this block' }); return; }
+    var it = prodReadItem(line, ctx.clients);
+    if (!it.part && it.qty == null && it.clientId == null) { notes.push({ n: ln.n, raw: ln.raw, text: 'Not read as production' }); return; }
+    var rec = prodItemRecord(it, null, ln.raw, ln.n, date, !rr.date && !msg.sentOn);
+    rec.kind = 'plated'; rec.slot = 'ot'; rec.basis = 'relay'; rec.line = null; rec.lineHint = lineHint;
+    rec.time = prodHhmm(from); rec.to = prodHhmm(to);
+    rec.issues.push(lineHint ? { tone: 'amber', code: 'linehint', text: 'Line read from the header above: ' + PROD_LINE_LABEL[lineHint] + '. Confirm it.' }
+      : { tone: 'amber', code: 'noline', text: 'No line written above this block. Pick the line, or leave it unknown.' });
+    items.push(rec);
+  });
+  void textLines;
+  return { items: items, notes: notes, unread: [], date: date, noDate: !rr.date };
+}
+
+/* ---------- A paste: every message read, none dropped ---------- */
+function parseProdPaste(text, ctx) {
+  var msgs = prodSplit(text);
+  return msgs.map(function(m) {
+    var r;
+    if (m.kind === 'pickling' || m.kind === 'power') r = parsePickling(m, ctx);
+    else if (m.kind === 'production') r = parseProductionList(m, ctx);
+    else if (m.kind === 'roll') r = prodFromRoll(m, ctx);
+    else r = { items: [], notes: [], unread: [], date: m.sentOn || ctx.today };
+    m.read = r;
+    return m;
+  });
+}
+
+/* ---------- The VAT register, read from a photo by Gemini ---------- */
+/* The prompt asks for a TRANSCRIPTION, never a reading: times as written, customers and parts as spelt, every row
+   the clerk wrote, struck rows and figures written over marked as such. No client list is sent (the model would
+   "correct" the floor's spellings to legal names), and the workers' box is not asked for. Converting times, the
+   START rule, rack arithmetic and the day's total are this app's, in code, where they can be tested. */
+var PROD_REGISTER_PROMPT_VER = 'reg-v1';
+var PROD_REGISTER_PROMPT = 'This is a photo of one page of a handwritten production register from a zinc electroplating plant in India. ' +
+  'Each row records a batch (a round, a rack or a jig load) plated on one line.\n\n' +
+  'TRANSCRIBE the page exactly as written. Do not correct spellings, do not convert times, do not add rows that are not written, do not invent figures.\n' +
+  '- date: the date written on the page, exactly as written (e.g. "08/07/26"), or null.\n' +
+  '- line: "VAT A1", "VAT A2" or "BARREL" if the page names it, else null.\n' +
+  '- dayTotal: a day total written on the page, else null.\n' +
+  '- rows: one per written entry, top to bottom. For each: time as written (e.g. "9:20", "1:45 PM", "START"); customer and part as written ' +
+  '(a row that only repeats the one above with ditto marks takes the same customer and part, and ditto is true); dim (a size such as "35x6") if written; ' +
+  'rackSize, rounds and short if the row is written as rack size times rounds minus short (e.g. "4×108", "12×120+78"); qty: the pieces figure written for the row; ' +
+  'start: true if the row says START; struck: true if the row or its figure is struck through; over: the figure a correction was written over, as written; ' +
+  'bracket: true if the row is inside a bracket that carries one total for several rows; legible: false if you cannot read the figure.\n' +
+  'Ignore the workers\' names box. Return only the JSON.';
+var PROD_REGISTER_SCHEMA = {
+  type: 'OBJECT',
+  properties: {
+    date: { type: 'STRING', nullable: true },
+    line: { type: 'STRING', nullable: true },
+    dayTotal: { type: 'NUMBER', nullable: true },
+    rows: { type: 'ARRAY', items: { type: 'OBJECT', properties: {
+      time: { type: 'STRING', nullable: true }, customer: { type: 'STRING', nullable: true }, part: { type: 'STRING', nullable: true }, dim: { type: 'STRING', nullable: true },
+      rackSize: { type: 'NUMBER', nullable: true }, rounds: { type: 'NUMBER', nullable: true }, short: { type: 'NUMBER', nullable: true }, qty: { type: 'NUMBER', nullable: true },
+      start: { type: 'BOOLEAN', nullable: true }, struck: { type: 'BOOLEAN', nullable: true }, over: { type: 'STRING', nullable: true },
+      bracket: { type: 'BOOLEAN', nullable: true }, ditto: { type: 'BOOLEAN', nullable: true }, legible: { type: 'BOOLEAN', nullable: true } } } }
+  },
+  required: ['rows']
+};
+
+/* A register time: the shift runs 8:30 to 5, so a bare 1–6 is the afternoon and 7–12 as written. */
+function prodRegisterTime(s) {
+  var m = /(\d{1,2})\s*(?:[:.;]\s*(\d{2}))?\s*(a\.?\s?m\.?|p\.?\s?m\.?)?/i.exec(String(s || ''));
+  if (!m || (m[2] == null && !m[3])) return null;
+  var h = +m[1], mm = m[2] != null ? +m[2] : 0, ap = (m[3] || '').toLowerCase();
+  if (h > 23 || mm > 59) return null;
+  if (/p/.test(ap)) h = h % 12 + 12; else if (/a/.test(ap)) h = h % 12; else if (h >= 1 && h <= 6) h += 12;
+  return h * 60 + mm;
+}
+function prodRegisterDate(s, near) {
+  var m = /(\d{1,2})\s*[\/.\-]\s*(\d{1,2})\s*[\/.\-]\s*(\d{2,4})/.exec(String(s || ''));
+  return m ? relayIso(m[1], m[2], m[3]) : null;
+}
+var PROD_LINE_OF_READ = { 'VAT A1': 'vat-a1', 'VATA1': 'vat-a1', 'A1': 'vat-a1', 'VAT A2': 'vat-a2', 'VATA2': 'vat-a2', 'A2': 'vat-a2', BARREL: 'barrel' };
+
+/* The read → runs of one part (consecutive rows of one customer and part), each a plated entry with its rounds.
+   Nothing is decided that the owner has not seen: a struck row is red until counted or cancelled; a START takes the
+   next round's figure (owner's ruling, 26 Jun), shown; rack × rounds − short against the figure written, and the
+   rows against the day's total, are checked and a disagreement said. */
+function prodFromRegisterRead(json, ctx, photoDate, choices) {
+  choices = choices || {};
+  var out = { date: null, line: null, dayTotal: null, runs: [], issues: [], rows: [] };
+  if (!json || !Array.isArray(json.rows)) { out.issues.push({ tone: 'red', text: 'Gemini did not return any rows for this photo.' }); return out; }
+  out.date = prodRegisterDate(json.date) || null;
+  if (!out.date) { out.date = photoDate || ctx.today; out.issues.push({ tone: 'amber', code: 'date', text: 'No date read on the page: taken as ' + out.date + '. Check it.' }); }
+  else if (photoDate && Math.abs(todoDaysBetween(out.date, photoDate)) > 4) out.issues.push({ tone: 'amber', code: 'date', text: 'The page reads ' + out.date + ', ' + Math.abs(todoDaysBetween(out.date, photoDate)) + ' days from when the photo was taken. Check the date (day and month can swap).' });
+  var ln = String(json.line || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+  out.line = ln ? (PROD_LINE_OF_READ[ln] || (/A1/.test(ln) ? 'vat-a1' : /A2/.test(ln) ? 'vat-a2' : /BAR|BER/.test(ln) ? 'barrel' : null)) : null;
+  if (!out.line) out.issues.push({ tone: 'amber', code: 'line', text: 'The page does not name its line. Pick it below.' });
+  out.dayTotal = json.dayTotal != null && isFinite(json.dayTotal) ? +json.dayTotal : null;
+  var lastCust = '', lastPart = '';
+  json.rows.forEach(function(r0, i) {
+    var r = r0 || {};
+    var cust = (r.customer || '').trim(), part = (r.part || '').trim();
+    if (r.ditto || (!cust && !part)) { cust = cust || lastCust; part = part || lastPart; }
+    lastCust = cust || lastCust; lastPart = part || lastPart;
+    var row = { i: i, time: r.time || '', min: prodRegisterTime(r.time), cust: cust, part: part, dim: r.dim || '', rackSize: r.rackSize, rounds: r.rounds, short: r.short,
+      qty: r.qty != null && isFinite(r.qty) ? +r.qty : null, start: !!r.start || /start/i.test(r.time || ''), struck: !!r.struck, over: r.over || '', bracket: !!r.bracket,
+      legible: r.legible !== false, issues: [] };
+    row.raw = [row.time, cust, part, row.dim, row.rackSize && row.rounds ? row.rackSize + '×' + row.rounds + (row.short ? '−' + row.short : '') : '', row.qty != null ? String(row.qty) : '',
+      row.struck ? '(struck)' : '', row.over ? '(over ' + row.over + ')' : ''].filter(Boolean).join(' · ');
+    if (row.rackSize && row.rounds) {
+      var calc = row.rackSize * row.rounds - (row.short || 0);
+      if (row.qty == null) { row.qty = calc; row.qtySrc = 'working'; }
+      else if (Math.abs(calc - row.qty) > 0.5) row.issues.push({ tone: 'amber', code: 'rack', text: row.rackSize + ' × ' + row.rounds + (row.short ? ' − ' + row.short : '') + ' = ' + calc + ', but ' + row.qty + ' is written. The written figure is used.' });
+    }
+    if (!row.legible || (row.qty == null && !row.start && !row.bracket)) row.issues.push({ tone: 'amber', code: 'illegible', text: 'No figure read for this row. Check it against the photo.' });
+    if (row.struck) {
+      var pick = choices['struck' + i];
+      if (!pick) row.issues.push({ tone: 'red', code: 'struck', text: 'Struck through on the register. Counted or cancelled?' });
+      row.counted = pick === 'counted';
+    } else row.counted = true;
+    if (row.over) row.issues.push({ tone: 'info', code: 'over', text: 'Written over ' + row.over + '; ' + (row.qty != null ? row.qty : 'the new figure') + ' is used.' });
+    out.rows.push(row);
+  });
+  // START counts as a batch of the next round's figure.
+  out.rows.forEach(function(row, k) {
+    if (!row.start || row.qty != null) return;
+    var nx = out.rows.slice(k + 1).find(function(x) { return x.qty != null && !x.start; });
+    if (nx) { row.qty = nx.qty; row.qtySrc = 'start-rule'; row.issues.push({ tone: 'info', code: 'start', text: 'START counted as a round of ' + nx.qty + ', the next round’s figure (the owner’s rule, 26 Jun).' }); }
+  });
+  // Runs: consecutive rows of one customer and part.
+  var cur = null;
+  out.rows.forEach(function(row) {
+    var ck = relayKey(row.cust) + '|' + rateKey(prodPartBase(row.part + ' ' + row.dim));
+    if (!cur || cur.ck !== ck) { cur = { ck: ck, rows: [] }; out.runs.push(cur); }
+    cur.rows.push(row);
+  });
+  out.runs = out.runs.map(function(run) {
+    var first = run.rows[0], it = prodReadItem(first.cust, ctx.clients);
+    var partText = (first.part + (first.dim && !lineGauge(first.part.replace(/[×✕]/g, 'X')) ? ' (' + first.dim + ')' : '')).trim();
+    var counted = run.rows.filter(function(x) { return x.counted && x.qty != null; });
+    var qty = counted.reduce(function(s, x) { return s + x.qty; }, 0);
+    var mins = run.rows.map(function(x) { return x.min; }).filter(function(x) { return x != null; });
+    var e = { kind: 'plated', date: out.date, time: prodHhmm(mins.length ? Math.min.apply(null, mins) : null), to: prodHhmm(mins.length ? Math.max.apply(null, mins) : null),
+      line: out.line, lineSrc: out.line ? 'written' : null, client: first.cust, clientId: it.clientId != null ? it.clientId : null, clientName: it.clientName || '',
+      part: partText, gauge: lineGauge(partText.replace(/[×✕]/g, 'X')), qty: counted.length ? qty : null, unit: 'NOS', basis: 'register', src: 'photo',
+      rounds: run.rows.map(function(x) { var o = { time: x.time || null, qty: x.qty }; if (x.start) o.start = true; if (x.struck) o.struck = !x.counted; if (x.over) o.over = x.over; return o; }),
+      raw: run.rows.map(function(x) { return x.raw; }).join('\n'), n: first.i + 1, issues: [], rows: run.rows };
+    e.slot = e.time && (prodMin(e.time) < 510 || prodMin(e.time) >= 1020) ? 'ot' : 'general';
+    if (e.clientId == null) e.issues.push({ tone: 'red', code: 'client', text: first.cust ? '"' + first.cust + '" is not a client in the book. Pick the client, or keep it as written.' : 'No customer written. Pick the client.' });
+    else if (it.clientHow === 'read-as') e.issues.push({ tone: 'amber', code: 'readas', text: '"' + first.cust + '" read as ' + it.clientName + '.' });
+    return e;
+  });
+  var counted = out.rows.filter(function(x) { return x.counted && x.qty != null; }).reduce(function(s, x) { return s + x.qty; }, 0);
+  out.counted = counted;
+  if (out.dayTotal != null && Math.abs(out.dayTotal - counted) > 0.5) out.issues.push({ tone: 'amber', code: 'total', text: 'The page’s day total is ' + out.dayTotal + '; the rows counted add to ' + counted + '. A row may be missed or misread.' });
+  out.fp = out.date + '|' + (out.line || '-') + '|' + out.rows.map(function(x) { return (x.time || '') + ':' + (x.qty == null ? '' : x.qty); }).sort().join(',');
+  return out;
 }
 /* ===== STATS (Phase 7 — Analytics Rework) =====
  *
@@ -24058,6 +24646,7 @@ function statsOverviewHtml(period, filtered, tonnage) {
       statsMoney(gstRound(bRecv.reduce(function(s, r) { return s + Math.max(0, r.owed); }, 0))) + '</span>' +
       '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invFinGo" data-tab="overview">Finance</button></span></div>';
   }
+  h += prodStatsRowHtml(r.from, r.to);
   var parts = c.rows.filter(function(x) { return x.source !== 'measured' && x.source !== 'bank'; }).map(function(x) { return x.label.toLowerCase() + ' (' + COST_SRC_LABEL[x.source] + ')'; });
   if (parts.length) {
     h += statsCallout('<strong>Read with care:</strong> ' + escHtml(parts.join(', ')) + ' ' + (parts.length === 1 ? 'is' : 'are') +
@@ -25374,6 +25963,1248 @@ function dashInput(t) {
   var el = document.getElementById('dashPriceChart');
   if (el) el.innerHTML = dashPriceChart();
   return true;
+}
+/* ===== PRODUCTION — the record, what it measures, and what it links to =====
+ * What each line (VAT A1, VAT A2, Barrel; pickling as the stage before them) produced each day, and the material
+ * in the plant, read two ways (owner, 28 Sep 2026: "This will give us a clearer picture of whats actually happening
+ * in the plant daily"). OWNED BY soma-internal, like stock: this tab is a view and an input. Export is always whole,
+ * import merges by id and never overwrites, and the history W18–W35 arrives as a private import.
+ *
+ * The record is events, never levels: pickled, plated, arrived, downtime. A figure is corrected by voiding it (with a
+ * reason, never deleted) and entering it again; a hand entry that corrects a record names it (`replaces`).
+ * Everything that can be counted is DERIVED on read — the usual line of a part, rack sizes, which plating a pickled
+ * load became — so an import that merges by id can never double a counter, and a guess is never saved as a fact.
+ */
+
+var PROD_KINDS = ['arrived', 'pickled', 'plated', 'downtime'];
+var PROD_BASIS_RANK = { register: 3, relay: 2, hand: 1 };
+var PROD_USUAL_DAYS = 5, PROD_USUAL_SHARE = 0.8;
+var PROD_COVER_OK = 0.9;
+
+function prodData() {
+  if (!S.production || typeof S.production !== 'object' || Array.isArray(S.production)) S.production = {};
+  var p = S.production;
+  ['entries', 'pastes', 'photos', 'imports'].forEach(function(k) { if (!Array.isArray(p[k])) p[k] = []; });
+  if (!p.learn || typeof p.learn !== 'object') p.learn = {};
+  if (!p.learn.clients || typeof p.learn.clients !== 'object') p.learn.clients = {};
+  if (!p.learn.parts || typeof p.learn.parts !== 'object') p.learn.parts = {};
+  return p;
+}
+function prodUid(p) { return stockUid(p); }
+/* Stored sparsely: an empty field is left out, so a year of entries stays small on a book written whole on every save. */
+function prodSparse(e) {
+  var o = {};
+  Object.keys(e).forEach(function(k) {
+    var v = e[k];
+    if (v == null || v === '' || v === false || (Array.isArray(v) && !v.length) || k === 'issues' || k === 'clientName' || k === 'lineHint' || k === 'dots') return;
+    o[k] = v;
+  });
+  return o;
+}
+function prodLive(e) { return !e.voidedAt; }
+function prodClientName(id) { var c = (S.clients || []).find(function(x) { return String(x.id) === String(id); }); return c ? c.name : ''; }
+/* A picker hands back text; the book's own id is what a key and a match compare against. */
+function prodHeldId(v) { var c = (S.clients || []).find(function(x) { return String(x.id) === String(v); }); return c ? c.id : v; }
+function prodCtx() {
+  return { clients: prodClientIndex(S.clients || [], prodData().learn.clients), roster: (S.staff || []).filter(function(w) { return w.active !== false; }), today: localDateStr() };
+}
+
+/* ---------- Keys ---------- */
+/* One key for a floor line and a challan line: the client, the part with its gauge text taken out, and the gauge.
+   "CLAMP 165X83(40X6)" on a challan and "CLAMP165×83 (40×6)" on the floor are the same part at the same gauge. */
+function prodPartKey(part) { return rateKey(prodPartBase(part)); }
+function prodGaugeOf(part, desc) { var n = function(s) { return String(s || '').replace(/[×✕]/g, 'X'); }; return lineGauge(n(desc)) || lineGauge(n(part)); }
+function prodKey(clientId, part, gauge) { return String(clientId) + '|' + prodPartKey(part) + '|' + (gauge || ''); }
+/* The family level serves a line that names only the kind of part and its gauge ("SSS MEHTA / CLAMP(40×6)"): its
+   first word ("CLAMP") and the gauge. Coverage at this level is stated wherever it is used. */
+function prodFamilyKey(clientId, part, gauge) {
+  var w = (prodPartBase(part).toUpperCase().match(/[A-Z]+/) || [''])[0];
+  return String(clientId) + '|' + w + '|' + (gauge || '');
+}
+function prodEntryKey(e) {
+  if (e.clientId == null) return null;
+  var map = prodData().learn.parts[prodKey(e.clientId, e.part, e.gauge)];
+  if (map && map.partNumber) return prodKey(e.clientId, map.partNumber, map.gauge != null ? map.gauge : e.gauge);
+  return prodKey(e.clientId, e.partNumber || e.part, e.gauge);
+}
+function prodChallanKey(m, it) { return prodKey(m.clientId, it.partNumber || it.desc, prodGaugeOf(it.partNumber, it.desc)); }
+
+/* ---------- Weight ---------- */
+/* An entry's kilograms and where they came from. The client's own card first; the Items Master only for a part
+   number held by one gauge (a two-gauge part averaged is right for neither); unknown is null, never 0. */
+function prodKg(e) {
+  if (e.unit === 'KG') return { kg: e.qty, src: 'kg' };
+  if (e.unit2 === 'KG' && e.qty2 != null) return { kg: e.qty2, src: 'kg' };
+  if (e.qty == null || e.unit !== 'NOS' || e.clientId == null) return { kg: null, src: null };
+  var client = (S.clients || []).find(function(c) { return String(c.id) === String(e.clientId); });
+  var part = e.partNumber || e.part, desc = (e.part || '') + (e.gauge ? ' (' + e.gauge + ')' : '');
+  var pw = client ? getPieceWeight(client, e.date, part, desc) : null;
+  if (pw && pw.kg) return { kg: e.qty * pw.kg, src: 'client card' };
+  var pk = String(part || '').toUpperCase();
+  if (S.partWeights && S.partWeights[pk]) return { kg: e.qty * S.partWeights[pk], src: 'part weights' };
+  var rows = (S.items || []).filter(function(i) { return rateKey(i.partNumber) === rateKey(part); });
+  var gauges = {};
+  rows.forEach(function(i) { gauges[rateKey(i.gauge || '')] = true; });
+  if (rows.length && Object.keys(gauges).length === 1 && rows[0].stdWeightKg) return { kg: e.qty * rows[0].stdWeightKg, src: 'items' };
+  return { kg: null, src: null };
+}
+
+/* ---------- The index (derived on read, never stored) ---------- */
+/* Keyed on the version bumped by every write AND the identity of S.production, so a GitHub pull or a Settings
+   import (adoptState replaces S whole) can never leave a stale index behind. */
+var _prodVer = 0, _prodIdx = null;
+function prodTouch() { _prodVer++; _prodIdx = null; }
+function prodIndex() {
+  var p = prodData();
+  if (_prodIdx && _prodIdx.ver === _prodVer && _prodIdx.store === p && _prodIdx.n === p.entries.length) return _prodIdx;
+  var live = p.entries.filter(prodLive);
+  var replaced = {};
+  live.forEach(function(e) { if (e.replaces) replaced[e.replaces] = e.id; });
+  var byId = {};
+  p.entries.forEach(function(e) { byId[e.id] = e; });
+  var counted = prodCountPlated(live, replaced, byId);
+  var idx = { ver: _prodVer, store: p, n: p.entries.length, live: live, byId: byId, replaced: replaced, counted: counted.counted, also: counted.also, countedSet: counted.set };
+  idx.usual = prodUsualLines(idx);
+  idx.racks = prodRackSizes(idx);
+  idx.match = prodMatchAll(idx);
+  _prodIdx = idx;
+  return idx;
+}
+
+/* Which plated entries measure a line's output. Per (date, line, general|ot) the complete records are ranked
+   register → relay; a standalone hand entry fills only a slot neither covers, and a hand entry that `replaces`
+   one takes that record's basis and place. The others are ALSO REPORTED: shown, never added or netted — the
+   register is one row per jig load on one line, the relay one figure per block, and they measure different
+   populations. On a day with the supervisor's whole-day barrel list, an in-roll barrel OT block is also reported
+   beside it (the owner could not say which the list covers, 28 Sep 2026). */
+function prodCountPlated(live, replaced, byId) {
+  var groups = {}, counted = [], also = [], set = {};
+  live.forEach(function(e) {
+    if (e.kind !== 'plated' || replaced[e.id]) return;
+    var basis = e.replaces && byId[e.replaces] ? (byId[e.replaces].basis || 'hand') : (e.basis || 'hand');
+    var sg = e.slot === 'ot' ? 'ot' : 'general';
+    var k = e.date + '|' + (e.line || '-') + '|' + sg;
+    (groups[k] = groups[k] || []).push({ e: e, basis: basis, standalone: basis === 'hand' && !e.replaces });
+  });
+  var barrelDay = {};
+  live.forEach(function(e) { if (e.kind === 'plated' && e.line === 'barrel' && e.slot === 'day' && !replaced[e.id]) barrelDay[e.date] = true; });
+  Object.keys(groups).forEach(function(k) {
+    var g = groups[k], best = 0;
+    g.forEach(function(x) { if (!x.standalone) best = Math.max(best, PROD_BASIS_RANK[x.basis] || 1); });
+    var parts = k.split('|');
+    g.forEach(function(x) {
+      var keep = best ? (!x.standalone && (PROD_BASIS_RANK[x.basis] || 1) === best) : true;
+      if (keep && parts[1] === 'barrel' && parts[2] === 'ot' && barrelDay[parts[0]] && x.basis === 'relay') keep = false;
+      if (keep) { counted.push(x.e); set[x.e.id] = true; } else also.push(x.e);
+    });
+  });
+  return { counted: counted, also: also, set: set };
+}
+
+/* The usual line of a part: distinct days on each line, from plated entries whose line was WRITTEN or SET — never
+   an inferred one, so the pattern cannot feed itself. Usual at 5+ days with 80%+ on one line. */
+function prodUsualLines(idx) {
+  var days = {};
+  idx.counted.forEach(function(e) {
+    if (!e.line || (e.lineSrc !== 'written' && e.lineSrc !== 'set')) return;
+    var k = prodEntryKey(e);
+    if (!k) return;
+    var d = days[k] || (days[k] = {});
+    (d[e.line] = d[e.line] || {})[e.date] = true;
+  });
+  var out = {};
+  Object.keys(days).forEach(function(k) {
+    var counts = {}, total = 0, top = null;
+    Object.keys(days[k]).forEach(function(l) { counts[l] = Object.keys(days[k][l]).length; total += counts[l]; if (!top || counts[l] > counts[top]) top = l; });
+    var share = total ? counts[top] / total : 0;
+    out[k] = { line: top, days: counts[top], total: total, share: share, counts: counts,
+      kind: total >= PROD_USUAL_DAYS && share >= PROD_USUAL_SHARE ? 'usual' : share >= 0.6 ? 'mostly' : 'moves' };
+  });
+  return out;
+}
+function prodUsualLine(key) { return (prodIndex().usual || {})[key] || null; }
+
+/* Rack sizes seen per line and part, counted over rounds actually counted (a START or struck round is not). */
+function prodRackSizes(idx) {
+  var out = {};
+  idx.counted.forEach(function(e) {
+    if (!e.line) return;
+    var k = e.line + '|' + (prodEntryKey(e) || '');
+    var o = out[k] || (out[k] = {});
+    (e.rounds || []).forEach(function(r) { if (!r.struck && r.qty > 0) o[r.qty] = (o[r.qty] || 0) + 1; });
+    if (e.rackSize && e.racks) o[e.rackSize] = (o[e.rackSize] || 0) + e.racks;
+  });
+  return out;
+}
+
+/* A pickled load → the plating it became: the same part, plated the same day at or after the pickling time (less
+   half an hour), or the next working day before noon; earliest first until the load's quantity is reached, or up
+   to the next load of the part when no quantity was written. What this infers — the line, a missing quantity — is
+   SHOWN, never stored; `set.matchIds` is the owner's own answer and wins. */
+function prodMatchAll(idx) {
+  var plated = {}, pickled = {}, out = {};
+  idx.counted.forEach(function(e) { var k = prodEntryKey(e); if (k) (plated[k] = plated[k] || []).push(e); });
+  idx.live.forEach(function(e) { if (e.kind === 'pickled' && !idx.replaced[e.id]) { var k = prodEntryKey(e); if (k) (pickled[k] = pickled[k] || []).push(e); } });
+  var cmp = function(a, b) { return a.date < b.date ? -1 : a.date > b.date ? 1 : String(a.time || '').localeCompare(String(b.time || '')); };
+  Object.keys(pickled).forEach(function(k) {
+    var loads = pickled[k].sort(cmp), pool = (plated[k] || []).slice().sort(cmp), used = {};
+    loads.forEach(function(load, li) {
+      if (load.set && load.set.matchIds !== undefined) {
+        var ids = load.set.matchIds || [];
+        out[load.id] = prodMatchResult(ids.map(function(id) { return idx.byId[id]; }).filter(Boolean), load, true);
+        ids.forEach(function(id) { used[id] = true; });
+        return;
+      }
+      var next = loads[li + 1], nextWd = stockIsoAdd(load.date, new Date(load.date + 'T00:00:00').getDay() === 6 ? 2 : 1);
+      var got = [], sum = 0;
+      pool.forEach(function(p) {
+        if (used[p.id]) return;
+        if (load.qty != null && load.unit === p.unit && sum >= load.qty) return;
+        var sameDay = p.date === load.date && (!p.time || !load.time || prodMin(p.time) >= prodMin(load.time) - 30);
+        var nextDay = p.date === nextWd && (!p.time || prodMin(p.time) < 720);
+        if (!sameDay && !nextDay) return;
+        if (load.qty == null && next && cmp(p, next) >= 0 && (next.date === p.date)) return;
+        got.push(p); used[p.id] = true;
+        if (p.unit === load.unit && p.qty != null) sum += p.qty;
+      });
+      out[load.id] = prodMatchResult(got, load, false);
+    });
+  });
+  return out;
+}
+function prodMatchResult(list, load, set) {
+  var lines = {}, qty = 0, unitOk = true;
+  list.forEach(function(p) { if (p.line) lines[p.line] = true; if (p.qty != null && p.unit === load.unit) qty += p.qty; else unitOk = false; });
+  var ls = Object.keys(lines);
+  return { ids: list.map(function(p) { return p.id; }), lines: ls, line: ls.length === 1 ? ls[0] : null, split: ls.length > 1, qty: list.length && unitOk ? qty : null, set: set };
+}
+
+/* A pickled load's line as the page shows it: written or set, else inferred from its plating, else unknown with
+   the usual line of its part as a hint (a chip the owner taps; never applied by itself). */
+function prodLoadLine(e) {
+  if (e.line) return { line: e.line, how: e.lineSrc === 'set' ? 'set' : 'written' };
+  var m = prodIndex().match[e.id];
+  if (m && m.line) return { line: m.line, how: 'plating' };
+  if (m && m.split) return { line: null, how: 'split', lines: m.lines };
+  var k = prodEntryKey(e), u = k ? prodUsualLine(k) : null;
+  return { line: null, how: 'unknown', hint: u && u.kind === 'usual' ? u : null };
+}
+
+/* ---------- Record coverage ---------- */
+/* A line-day is recorded when a counted plated entry exists for it. A day nobody recorded is a gap, never 0. */
+function prodLineDays(from, to) {
+  var out = {};
+  PROD_LINES.forEach(function(l) { out[l] = {}; });
+  prodIndex().counted.forEach(function(e) { if (e.line && out[e.line] && e.date >= from && e.date <= to) out[e.line][e.date] = true; });
+  return out;
+}
+function prodCoverage(from, to) {
+  var wd = statsWorkingDays(from, to), ld = prodLineDays(from, to), res = {};
+  PROD_LINES.forEach(function(l) {
+    var n = Object.keys(ld[l]).length, last = Object.keys(ld[l]).sort().pop() || null;
+    res[l] = { days: n, of: wd, share: wd ? n / wd : 0, last: last };
+  });
+  return res;
+}
+/* A complete day: attendance recorded, and every line that had heads that day has a general-shift record. */
+function prodCompleteDays(from, to) {
+  var att = S.attendance || {}, out = [];
+  var gen = {};
+  prodIndex().counted.forEach(function(e) { if (e.slot !== 'ot' && e.line) (gen[e.date] = gen[e.date] || {})[e.line] = true; });
+  for (var d = from, g = 0; d <= to && g < 400; d = stockIsoAdd(d, 1), g++) {
+    var day = att[d];
+    if (!day || !day.marks) continue;
+    var staffed = {};
+    Object.keys(day.marks).forEach(function(id) {
+      var mk = day.marks[id];
+      if (!mk || (mk.st && mk.st !== 'P' && mk.st !== 'H')) return;
+      var a = mk.area || '';
+      if (a === 'vat-a1' || a === 'vat-a2' || a === 'barrel') staffed[a] = true;
+    });
+    var lines = Object.keys(staffed);
+    if (!lines.length) continue;
+    if (lines.every(function(l) { return gen[d] && gen[d][l]; })) out.push(d);
+  }
+  return out;
+}
+
+/* Plated output of a line on a day: NOS and kg, how much of it was weighed, rework named apart (it counts as work). */
+function prodDayLine(date, line) {
+  var r = { nos: 0, kgKnown: 0, kg: 0, pieces: 0, weighedPieces: 0, rounds: 0, entries: [], rework: 0 };
+  prodIndex().counted.forEach(function(e) {
+    if (e.date !== date || e.line !== line || e.qty == null) return;
+    r.entries.push(e);
+    if (e.rework) r.rework++;
+    var w = prodKg(e);
+    if (e.unit === 'NOS') { r.nos += e.qty; r.pieces += e.qty; if (w.kg != null) { r.weighedPieces += e.qty; r.kg += w.kg; } }
+    else if (e.unit === 'KG') r.kg += e.qty;
+    (e.rounds || []).forEach(function(x) { if (!x.struck) r.rounds++; });
+    if (!e.rounds && e.racks) r.rounds += e.racks;
+  });
+  r.weighedShare = r.pieces ? r.weighedPieces / r.pieces : 1;
+  return r;
+}
+
+/* ---------- Material in plant ---------- */
+/* Two readings of what is in the plant, and the gap between them.
+   BOOK = Σ the open share of every challan line (imLineOpen), unwindowed: the same figure as Home's unbilled.
+   FLOOR = the same open lines, split by what the floor recorded: plating and pickling of a part are attributed to
+   its challan lines OLDEST OPEN FIRST, carried-in lines included (numerator and denominator from one population).
+   Per line: waiting to pickle, pickled and not plated, plated and not invoiced. The unit is the floor's: pieces
+   where the challan counts them (a KG line's nosQty), else kilograms. Rework is work, never billing, and is left
+   out. Arrived entries (the pickling hand's incoming messages) are a floor receipt count of their own, shown
+   beside the book's receipts, never merged into them. */
+function prodInPlant(opts) {
+  opts = opts || {};
+  var idx = prodIndex(), today = localDateStr(), since = opts.since || stockIsoAdd(today, -30);
+  var lines = [], byKey = {};
+  (S.incomingMaterial || []).forEach(function(m) {
+    if (opts.clientId != null && String(m.clientId) !== String(opts.clientId)) return;
+    (m.items || []).forEach(function(it) {
+      var o = imLineOpen(it);
+      var k = prodChallanKey(m, it), fam = prodFamilyKey(m.clientId, it.partNumber || it.desc, prodGaugeOf(it.partNumber, it.desc));
+      var nosLine = it.unit === 'NOS', hasNos = nosLine || it.nosQty > 0;
+      var rec = { m: m, it: it, key: k, fam: fam, date: m.challanDate || '', open: o, amount: o.amount,
+        R: { NOS: hasNos ? (nosLine ? (it.qty || 0) : (it.nosQty || 0)) : null, KG: it.unit === 'KG' ? (it.qty || 0) : null },
+        openQ: { NOS: hasNos ? (nosLine ? o.qty : o.nos) : null, KG: it.unit === 'KG' ? o.qty : null },
+        P: { NOS: 0, KG: 0 }, L: { NOS: 0, KG: 0 } };
+      lines.push(rec);
+      (byKey[k] = byKey[k] || []).push(rec);
+    });
+  });
+  Object.keys(byKey).forEach(function(k) { byKey[k].sort(function(a, b) { return a.date < b.date ? -1 : a.date > b.date ? 1 : 0; }); });
+  var noChallan = {}, famUsed = 0, arrived = {};
+  var alloc = function(e, field) {
+    var k = prodEntryKey(e);
+    if (!k || e.qty == null || !e.unit || e.unit === 'BAG') return;
+    var pool = byKey[k];
+    if (!pool) {
+      var fk = prodFamilyKey(e.clientId, e.partNumber || e.part, e.gauge);
+      pool = lines.filter(function(r) { return r.fam === fk; });
+      if (pool.length) famUsed++;
+    }
+    var left = e.qty, u = e.unit;
+    (pool || []).forEach(function(r) {
+      if (left <= 0 || r.R[u] == null) return;
+      if (r.date && r.date > stockIsoAdd(e.date, 1)) return;
+      var room = r.R[u] - r[field][u];
+      if (room <= 0) return;
+      var take = Math.min(room, left);
+      r[field][u] += take; left -= take;
+    });
+    if (left > 0.0005) { var nk = (e.clientId == null ? '?' : e.clientId) + '|' + (e.part || ''); var nc = noChallan[nk] || (noChallan[nk] = { clientId: e.clientId, client: e.client, part: e.part, qty: 0, unit: u, field: field, oldest: e.date }); nc.qty += left; if (e.date < nc.oldest) nc.oldest = e.date; }
+  };
+  var sortE = function(a, b) { return a.date < b.date ? -1 : a.date > b.date ? 1 : String(a.time || '').localeCompare(String(b.time || '')); };
+  idx.counted.slice().sort(sortE).forEach(function(e) { if (!e.rework && (opts.clientId == null || String(e.clientId) === String(opts.clientId))) alloc(e, 'L'); });
+  idx.live.filter(function(e) { return e.kind === 'pickled' && !e.rework && !idx.replaced[e.id]; }).sort(sortE)
+    .forEach(function(e) { if (opts.clientId == null || String(e.clientId) === String(opts.clientId)) alloc(e, 'P'); });
+  idx.live.forEach(function(e) {
+    if (e.kind !== 'arrived' || e.date < since) return;
+    var k = prodEntryKey(e); if (!k || e.qty == null) return;
+    var a = arrived[k] || (arrived[k] = { NOS: 0, KG: 0 }); if (e.unit === 'NOS' || e.unit === 'KG') a[e.unit] += e.qty;
+  });
+  // Per open line, in its floor unit.
+  var rows = [];
+  lines.forEach(function(r) {
+    var u = r.R.NOS != null ? 'NOS' : 'KG';
+    var R = r.R[u] || 0, openQ = r.openQ[u] || 0, I = Math.max(0, R - openQ), L = Math.min(R, r.L[u]), P = Math.min(R, Math.max(r.P[u], L));
+    var platedNotInvoiced = Math.max(0, Math.min(openQ, L - I));
+    var pickledNotPlated = Math.max(0, Math.min(openQ - platedNotInvoiced, P - Math.max(L, I)));
+    var waiting = Math.max(0, openQ - platedNotInvoiced - pickledNotPlated);
+    if (openQ <= 0.0005 && platedNotInvoiced <= 0) return;
+    rows.push({ r: r, unit: u, R: R, I: I, L: r.L[u], P: r.P[u], open: openQ, amount: r.amount, platedNotInvoiced: platedNotInvoiced, pickledNotPlated: pickledNotPlated, waiting: waiting,
+      floorRecorded: r.L[u] > 0 || r.P[u] > 0 });
+  });
+  var cov = prodCoverage(since, today), covShare = Math.min.apply(null, PROD_LINES.map(function(l) { return cov[l].share; }));
+  var book = rows.reduce(function(s, x) { return s + x.amount; }, 0);
+  return { rows: rows, noChallan: Object.keys(noChallan).map(function(k) { return noChallan[k]; }), arrived: arrived, famUsed: famUsed,
+    book: gstRound(book), coverage: cov, coverShare: covShare, floorOk: covShare >= PROD_COVER_OK, since: since };
+}
+
+/* ---------- Links: Stats, labour by line, the To-do ---------- */
+/* Stats → In one line: the floor's plated tonnage on complete days against ~2 t a shift. Nothing is said with no
+   production in the range — never a zero. */
+function prodPlatedSummary(from, to) {
+  var days = prodCompleteDays(from, to);
+  if (!days.length) return null;
+  var kg = 0, pieces = 0, weighed = 0;
+  days.forEach(function(d) { PROD_LINES.forEach(function(l) { var r = prodDayLine(d, l); kg += r.kg; pieces += r.pieces; weighed += r.weighedPieces; }); });
+  return { days: days.length, working: statsWorkingDays(from, to), kg: kg, perDay: kg / days.length, capacity: STATS_CAPACITY_KG_DAY, weighedShare: pieces ? weighed / pieces : 1 };
+}
+function prodStatsRowHtml(from, to) {
+  var s = prodPlatedSummary(from, to);
+  if (!s) return '';
+  return '<div class="inv-row inv-row-2 inv-row-flow" id="statsPlated"><span class="inv-row-main"><span class="inv-row-title">Plated (floor)</span>' +
+    '<span class="inv-row-meta inv-row-wrap">' + escHtml(formatNum(s.kg / 1000, 1) + ' t on ' + s.days + ' complete day' + (s.days === 1 ? '' : 's') + ' of ' + s.working + ' working · ' +
+      Math.round(s.perDay / s.capacity * 100) + '% of ~2 t per shift · kg known for ' + Math.round(s.weighedShare * 100) + '% of pieces') + '</span></span>' +
+    '<span class="inv-row-end"><button class="inv-btn inv-btn-link inv-btn-sm" data-action="invSwitchTab" data-tab="pageProduction">Production</button></span></div>';
+}
+
+/* Labour ₹/kg by line: variable labour (the pool, the daily tier, OT, the EXTRA) of each area, divided by the kg
+   that line plated, over the SAME days — days with attendance and a usable production record (kg weighed on 90% of
+   its pieces). The VAT side's pickling hands are split between A1 and A2 by that day's kg. The monthly crew is the
+   standing crew and is not by line. What was excluded is said: a one-day range credits no weekly rest, and a closed
+   month paid on a slip puts monthly OT on the hand's home area, so neither is a line's figure here. */
+var PROD_LINE_AREAS = { 'vat-a1': ['vat-a1'], 'vat-a2': ['vat-a2'], barrel: ['barrel', 'pickling-barrel'] };
+function prodLabourByLine(from, to) {
+  var res = {}, skipped = 0, skippedCost = 0, days = 0;
+  PROD_LINES.forEach(function(l) { res[l] = { cost: 0, kg: 0, days: 0 }; });
+  for (var d = from, g = 0; d <= to && g < 120; d = stockIsoAdd(d, 1), g++) {
+    if (!S.attendance || !S.attendance[d]) continue;
+    var lab = labourForRange(d, d), areas = lab.byArea || {}, used = false;
+    var dayKg = {};
+    PROD_LINES.forEach(function(l) { var r = prodDayLine(d, l); if (r.entries.length && r.weighedShare >= 0.9 && r.kg > 0) dayKg[l] = r.kg; });
+    var vatKg = (dayKg['vat-a1'] || 0) + (dayKg['vat-a2'] || 0);
+    PROD_LINES.forEach(function(l) {
+      var cost = 0;
+      PROD_LINE_AREAS[l].forEach(function(a) { cost += (areas[a] || {}).cost || 0; });
+      if ((l === 'vat-a1' || l === 'vat-a2') && areas['pickling-vat'] && vatKg > 0 && dayKg[l]) cost += areas['pickling-vat'].cost * dayKg[l] / vatKg;
+      if (dayKg[l]) { res[l].cost += cost; res[l].kg += dayKg[l]; res[l].days++; used = true; }
+      else { skippedCost += cost; }
+    });
+    if (used) days++; else skipped++;
+  }
+  PROD_LINES.forEach(function(l) { res[l].perKg = res[l].kg > 0 && res[l].days >= 5 ? res[l].cost / res[l].kg : null; res[l].cost = gstRound(res[l].cost); });
+  return { lines: res, days: days, skipped: skipped, skippedCost: gstRound(skippedCost) };
+}
+
+/* The two To-do rules. Both read only what was captured here (never the imported history, which would raise a
+   flood on the first day), leave rework out (replating is not billed twice), and carry the tone in their sig so a
+   snoozed amber task comes back when it turns red. */
+var PROD_RULES = [['prodPlatedUnbilled', 'Production: plated and not invoiced'], ['prodPickledNoChallan', 'Production: pickled with no open challan']];
+PROD_RULES.forEach(function(r) { TODO_RULES.push(r); TODO_CHECK_DEFAULTS[r[0]] = true; });
+TODO_CHECK_DEFAULTS.prodPlatedDays = 3;
+function prodGo(tab, extra) { return Object.assign({ kind: 'production', tab: tab }, extra || {}); }
+function prodWorkingDaysBetween(a, b) { var n = 0; for (var d = stockIsoAdd(a, 1), g = 0; d <= b && g < 400; d = stockIsoAdd(d, 1), g++) if (new Date(d + 'T00:00:00').getDay() !== 0) n++; return n; }
+
+TODO_RULE_FNS.prodPlatedUnbilled = function() {
+  var cfg = todoCfg(), N = cfg.prodPlatedDays || 3, today = localDateStr(), since = stockIsoAdd(today, -45);
+  var idx = prodIndex(), byClient = {};
+  var own = idx.counted.filter(function(e) { return e.src !== 'import' && !e.rework && e.date >= since && e.qty != null && e.clientId != null; });
+  if (!own.length) return [];
+  var plant = prodInPlant({ since: since });
+  plant.rows.forEach(function(x) {
+    if (x.platedNotInvoiced <= 0) return;
+    var cid = x.r.m.clientId;
+    // The oldest capture-sourced plating of this part decides the age.
+    var k = x.r.key, mine = own.filter(function(e) { return prodEntryKey(e) === k; });
+    if (!mine.length) return;
+    var oldest = mine.map(function(e) { return e.date; }).sort()[0];
+    var age = prodWorkingDaysBetween(oldest, today);
+    if (age < N) return;
+    var c = byClient[cid] || (byClient[cid] = { nos: 0, kg: 0, parts: {}, oldest: oldest, age: age });
+    if (x.unit === 'NOS') c.nos += x.platedNotInvoiced; else c.kg += x.platedNotInvoiced;
+    c.parts[x.r.it.partNumber || x.r.it.desc] = true;
+    if (oldest < c.oldest) { c.oldest = oldest; c.age = age; }
+  });
+  return Object.keys(byClient).map(function(cid) {
+    var c = byClient[cid], n = Object.keys(c.parts).length, tone = c.age >= 2 * N ? 'red' : 'amber', name = prodClientName(cid) || 'Client ' + cid;
+    var what = (c.nos ? Math.round(c.nos).toLocaleString('en-IN') + ' NOS' : '') + (c.nos && c.kg ? ' + ' : '') + (c.kg ? formatNum(c.kg, 1) + ' kg' : '');
+    return { key: 'prodPlatedUnbilled:' + cid, rule: 'prodPlatedUnbilled', tone: tone, title: name + ': ' + what + ' plated, not invoiced',
+      sub: todoPlural(n, 'part') + ' · oldest plated ' + formatDate(c.oldest) + ' (' + todoPlural(c.age, 'working day') + ')',
+      why: 'Production · rule: ' + N + ' working days', facts: [['Plated, not invoiced', what], ['Parts', String(n)], ['Oldest', formatDate(c.oldest)]],
+      clears: 'Invoice these parts, or void a plated entry that was wrong.', go: prodGo('plant', { client: cid }), goLabel: 'Open in plant',
+      sig: tone + '|' + cid + '|' + c.oldest + '|' + n };
+  });
+};
+TODO_RULE_FNS.prodPickledNoChallan = function() {
+  var today = localDateStr(), since = stockIsoAdd(today, -30), idx = prodIndex();
+  var own = idx.live.filter(function(e) { return e.kind === 'pickled' && e.src !== 'import' && !e.rework && e.date >= since && prodWorkingDaysBetween(e.date, today) >= 1; });
+  if (!own.length) return [];
+  var byClient = {}, outside = [];
+  own.forEach(function(e) {
+    if (e.clientId == null) { outside.push(e); return; }
+    var k = prodEntryKey(e), fk = prodFamilyKey(e.clientId, e.partNumber || e.part, e.gauge), found = false;
+    (S.incomingMaterial || []).some(function(m) {
+      if (String(m.clientId) !== String(e.clientId) || (m.challanDate || '') > stockIsoAdd(e.date, 1)) return false;
+      return (m.items || []).some(function(it) {
+        var ck = prodChallanKey(m, it);
+        var match = e.part ? (ck === k || prodFamilyKey(m.clientId, it.partNumber || it.desc, prodGaugeOf(it.partNumber, it.desc)) === fk) : true;
+        if (!match) return false;
+        var open = imLineOpen(it).qty > 0;
+        var billedAfter = (it.invoiceIds || []).some(function(id) { var inv = S.invoices.find(function(x) { return x.id === id; }); return inv && inv.date >= e.date; });
+        if (open || billedAfter) { found = true; return true; }
+        return false;
+      });
+    });
+    if (found) return;
+    var c = byClient[e.clientId] || (byClient[e.clientId] = { n: 0, oldest: e.date });
+    c.n++; if (e.date < c.oldest) c.oldest = e.date;
+  });
+  var tasks = Object.keys(byClient).map(function(cid) {
+    var c = byClient[cid], age = prodWorkingDaysBetween(c.oldest, today), tone = age >= 3 ? 'red' : 'amber';
+    return { key: 'prodPickledNoChallan:' + cid, rule: 'prodPickledNoChallan', tone: tone, title: (prodClientName(cid) || 'Client ' + cid) + ': ' + todoPlural(c.n, 'load') + ' pickled with no open challan',
+      sub: 'Oldest ' + formatDate(c.oldest), why: 'Production · pickled, and no challan of that part open on the day',
+      facts: [['Loads', String(c.n)], ['Oldest', formatDate(c.oldest)]], clears: 'Enter the challan (Challans → Add challan), map the part to the challan’s part, or void the load.',
+      go: prodGo('entries', { client: cid, flag: 'nochallan' }), goLabel: 'Open the loads', sig: tone + '|' + cid + '|' + c.oldest + '|' + c.n };
+  });
+  if (outside.length) {
+    var names = {}; outside.forEach(function(e) { names[e.client || '?'] = true; });
+    tasks.push({ key: 'prodPickledNoChallan:outside', rule: 'prodPickledNoChallan', tone: 'amber', title: todoPlural(outside.length, 'load') + ' pickled for a client not in the book',
+      sub: Object.keys(names).slice(0, 3).join(', '), why: 'Production · the client named is not in Clients', facts: [['Loads', String(outside.length)]],
+      clears: 'Add the client, or pick the client on the load.', go: prodGo('entries', { flag: 'noclient' }), goLabel: 'Open the loads', sig: 'amber|' + outside.length });
+  }
+  return tasks;
+};
+
+/* ---------- Export and import (sep-production v1) ---------- */
+function prodExport() {
+  var p = prodData();
+  var meta = document.querySelector('meta[name="app-build"]');
+  var obj = { format: 'sep-production', version: 1, exportedAt: new Date().toISOString(), build: meta ? meta.getAttribute('content') : '',
+    entries: p.entries, pastes: p.pastes, photos: p.photos, imports: p.imports, learn: p.learn };
+  var blob = new Blob([JSON.stringify(obj, null, 1)], { type: 'application/json' });
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'sep-production-' + localDateStr() + '.json';
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(function() { URL.revokeObjectURL(a.href); }, 1000);
+}
+/* Merge by id, never overwrite. A client is kept by id only when the book holds that id under the same name;
+   otherwise it is found by name, and a name the book does not hold is counted, never invented. */
+function prodMergeImport(obj, fileName) {
+  var src = obj && obj.format === 'sep-production' ? obj : (obj && obj.production) || null;
+  if (!src || !Array.isArray(src.entries)) return { ok: false };
+  var p = prodData(), have = {}, ctx = prodCtx(), added = 0, skipped = 0, unknown = 0, bad = 0;
+  p.entries.forEach(function(e) { have[e.id] = true; });
+  var imp = { id: prodUid('PI'), at: Date.now(), by: stockBy(), file: fileName || '', exportedAt: src.exportedAt || '', build: src.build || '' };
+  src.entries.forEach(function(e0) {
+    if (!e0 || typeof e0 !== 'object' || !e0.id || have[e0.id]) { skipped++; return; }
+    if (PROD_KINDS.indexOf(e0.kind) < 0 || !/^\d{4}-\d{2}-\d{2}$/.test(e0.date || '') || (e0.qty != null && !isFinite(e0.qty)) ||
+      (e0.unit != null && ['NOS', 'KG', 'BAG'].indexOf(e0.unit) < 0) || (e0.line != null && PROD_LINES.indexOf(e0.line) < 0)) { bad++; return; }
+    var e = {};
+    Object.keys(e0).forEach(function(k) { e[k] = e0[k]; });
+    if (e.clientId != null) {
+      var held = (S.clients || []).find(function(c) { return String(c.id) === String(e.clientId); });
+      if (!held || (e.client && relayKey(held.name) !== relayKey(e.client) && !prodMatchClient(e.client, ctx.clients))) e.clientId = null;
+    }
+    if (e.clientId == null && e.client) { var hit = prodMatchClient(e.client, ctx.clients); if (hit) e.clientId = hit.id; }
+    if (e.clientId == null && e.kind !== 'downtime' && (e.client || e.part)) unknown++;
+    if (!e.src) e.src = 'import';
+    e.importId = e.importId || imp.id;
+    p.entries.push(prodSparse(e));
+    have[e.id] = true;
+    added++;
+  });
+  var ph = {}; p.pastes.forEach(function(x) { ph[x.id] = true; ph['h' + x.hash] = true; });
+  (src.pastes || []).forEach(function(x) { if (x && x.id && !ph[x.id] && !ph['h' + x.hash]) { p.pastes.push(x); ph[x.id] = true; } });
+  var fh = {}; p.photos.forEach(function(x) { fh[x.id] = true; fh['s' + x.sha] = true; });
+  (src.photos || []).forEach(function(x) { if (x && x.id && !fh[x.id] && !fh['s' + x.sha]) { p.photos.push(x); fh[x.id] = true; } });
+  ['clients', 'parts'].forEach(function(k) { var from = (src.learn || {})[k] || {}; Object.keys(from).forEach(function(key) { if (!(key in p.learn[k])) p.learn[k][key] = from[key]; }); });
+  imp.counts = { entries: added, skipped: skipped, unknownClient: unknown, refused: bad };
+  if (added) p.imports.push(imp);
+  prodTouch();
+  return { ok: true, added: added, skipped: skipped, unknown: unknown, bad: bad };
+}
+/* ===== PRODUCTION — the page (Floor → Production; More → Production on the phone) =====
+ * Overview · In plant · Lines · Entries, over one record (production.js). Paste message is the page's one primary;
+ * reading a register photo and entering by hand sit beside it. The sub-views (paste, review, photo, hand) lead with
+ * a way back and end in the action bar, and draw no toolbar (DR-3).
+ */
+var PROD_TABS = [['overview', 'Overview'], ['plant', 'In plant'], ['lines', 'Lines'], ['entries', 'Entries']];
+var _prodTab = (function() { try { var t = localStorage.getItem('sep_inv_prod_tab'); return PROD_TABS.some(function(x) { return x[0] === t; }) ? t : 'overview'; } catch (e) { return 'overview'; } })();
+var _prodTabMoved = false;
+var _prodView = 'main';          // main · paste · review · photo · hand
+var _prodPasteDraft = '';
+var _prodReview = null;          // {msgs, choices}
+var _prodPhoto = null;           // {name, bytes, url, sha, res, read, choices, dupSha, dupFp, photoDate}
+var _prodHand = null;            // the hand form
+var _prodLine = 'vat-a1';        // Lines: which line
+var _prodDay = null;             // Lines: which day (null = the last recorded)
+var _prodFilter = { kind: '', flag: '', client: '' };
+var _prodPlantClient = '';
+var PROD_DRAFT_KEY = 'sep_inv_prod_photo_draft';
+
+function prodSetTab(t) {
+  if (!PROD_TABS.some(function(x) { return x[0] === t; })) t = 'overview';
+  if (t !== _prodTab) _prodTabMoved = true;
+  _prodTab = t;
+  try { localStorage.setItem('sep_inv_prod_tab', t); } catch (e) { /* a per-device convenience only */ }
+}
+function prodSetView(v) { var moved = v !== _prodView; _prodView = v; renderProduction(); if (moved) viewTop(); }
+
+function prodBackBar(title) {
+  return '<div class="inv-pagehead"><button class="inv-btn inv-btn-ghost inv-btn-sm inv-pagehead-back" data-action="invProdBack">' + STOCK_BACK_ICON + 'Production</button>' +
+    '<h2 class="inv-pagehead-title">' + escHtml(title) + '</h2></div>';
+}
+function prodToolbarHtml() {
+  return '<div class="inv-toolbar"><button class="inv-btn inv-btn-primary" data-action="invProdPaste">Paste message</button>' +
+    '<button class="inv-btn inv-btn-secondary" data-action="invProdPhoto">Read register photo</button>' +
+    '<button class="inv-btn inv-btn-secondary" data-action="invProdHand">Enter by hand</button>' +
+    (_prodTab === 'entries' ? '<button class="inv-btn inv-btn-ghost" data-action="invProdExport">Export</button><button class="inv-btn inv-btn-ghost" data-action="invProdImport">Import</button>' +
+      '<input type="file" accept=".json,application/json" id="prodFileInput" class="inv-hidden">' : '') +
+    '<input type="file" accept="image/*" id="prodPhotoInput" class="inv-hidden" multiple></div>';
+}
+
+function renderProduction() {
+  var el = document.getElementById('productionContent');
+  if (!el) return;
+  prodData();
+  var h;
+  if (_prodView === 'paste') h = prodPasteHtml();
+  else if (_prodView === 'review' && _prodReview) h = prodReviewHtml();
+  else if (_prodView === 'photo' && _prodPhoto) h = prodPhotoHtml();
+  else if (_prodView === 'hand' && _prodHand) h = prodHandHtml();
+  else {
+    _prodView = 'main';
+    h = '<div class="inv-viewtabs" role="tablist" aria-label="Production">' + PROD_TABS.map(function(t) {
+      return '<button class="inv-viewtab" role="tab" aria-selected="' + (_prodTab === t[0]) + '" data-action="invProdTab" data-tab="' + t[0] + '">' + t[1] + '</button>';
+    }).join('') + '</div>' + prodToolbarHtml();
+    var p = prodData();
+    if (!p.entries.length && _prodTab !== 'plant') h += '<div class="inv-empty">No production recorded yet. Paste a pickling or production message, read a register photo, or import the history from soma-internal.</div>';
+    else if (_prodTab === 'plant') h += prodPlantHtml();
+    else if (_prodTab === 'lines') h += prodLinesHtml();
+    else if (_prodTab === 'entries') h += prodEntriesHtml();
+    else h += prodOverviewHtml();
+  }
+  el.innerHTML = h;
+  viewTabReveal(el.querySelector('.inv-viewtabs'));
+  if (_prodTabMoved) { _prodTabMoved = false; viewTop(); }
+}
+
+/* ---------- Shared bits ---------- */
+function prodQtyText(q, u) { if (q == null) return 'no quantity'; return (u === 'KG' ? formatNum(q, q % 1 ? 2 : 0) + ' kg' : Math.round(q).toLocaleString('en-IN') + (u ? ' ' + u : '')); }
+function prodLineName(l) { return l ? PROD_LINE_LABEL[l] || l : 'Line unknown'; }
+function prodEntryTitle(e) { return (e.clientId != null ? prodClientName(e.clientId) || e.client : e.client || 'No client') + (e.part ? ' · ' + e.part : ''); }
+function prodSrcWord(e) { return { paste: 'message', photo: 'register photo', hand: 'by hand', 'import': 'history' }[e.src] || e.src || ''; }
+
+/* ---------- Overview ---------- */
+function prodOverviewHtml() {
+  var today = localDateStr(), from = stockIsoAdd(today, -27), idx = prodIndex();
+  var lastDay = idx.counted.map(function(e) { return e.date; }).sort().pop() || null;
+  var lastKg = 0, lastNos = 0, lastLines = {};
+  if (lastDay) PROD_LINES.forEach(function(l) { var r = prodDayLine(lastDay, l); lastKg += r.kg; lastNos += r.nos; if (r.entries.length) lastLines[l] = true; });
+  var wk = stockIsoAdd(today, -((new Date(today + 'T00:00:00').getDay() + 6) % 7)), wkSum = prodPlatedSummary(wk, today);
+  var plant = prodInPlant({});
+  var pni = plant.rows.reduce(function(s, x) { if (x.unit === 'NOS') s.nos += x.platedNotInvoiced; else s.kg += x.platedNotInvoiced; return s; }, { nos: 0, kg: 0 });
+  var tile = function(label, value, sub, tone, key) {
+    return '<div class="inv-tile' + (tone ? ' inv-tile-' + tone : '') + '" data-prod-tile="' + key + '"><div class="inv-tile-label">' + label + '</div><div class="inv-tile-value">' + figWrapHtml(value) + '</div><div class="inv-tile-sub">' + sub + '</div></div>';
+  };
+  var h = '<div class="inv-tiles">' +
+    tile('Plated, last recorded day', lastDay ? escHtml(formatNum(lastKg / 1000, 2) + ' t') : '&mdash;', lastDay ? escHtml(stockShortDate(lastDay) + ' · ' + Object.keys(lastLines).map(prodLineName).join(', ') + ' · ' + Math.round(lastNos).toLocaleString('en-IN') + ' NOS') : 'nothing recorded', '', 'last') +
+    tile('This week against capacity', wkSum ? Math.round(wkSum.perDay / wkSum.capacity * 100) + '%' : '&mdash;', wkSum ? escHtml('on ' + wkSum.days + ' complete day' + (wkSum.days === 1 ? '' : 's') + ' · ~2 t per shift') : 'no complete day this week', '', 'week') +
+    tile('In plant (book)', escHtml(formatCurrency(plant.book)), 'open on challans, not invoiced', '', 'book') +
+    tile('Plated, not invoiced', escHtml((pni.nos ? Math.round(pni.nos).toLocaleString('en-IN') + ' NOS' : '') + (pni.nos && pni.kg ? ' + ' : '') + (pni.kg ? formatNum(pni.kg, 1) + ' kg' : '') || '0'), 'recorded plated, still open on its challan', pni.nos || pni.kg ? 'warning' : '', 'pni') +
+    '</div>';
+  // Plated by line, four weeks, kg by day. A day not recorded, or under 90% weighed, is a gap — never a zero.
+  var labels = [], series = PROD_LINES.map(function(l) { return { label: PROD_LINE_LABEL[l], values: [] }; });
+  for (var d = from; d <= today; d = stockIsoAdd(d, 1)) {
+    if (new Date(d + 'T00:00:00').getDay() === 0) continue;
+    labels.push(stockShortDate(d));
+    PROD_LINES.forEach(function(l, i) { var r = prodDayLine(d, l); series[i].values.push(r.entries.length && r.weighedShare >= 0.9 ? Math.round(r.kg) : null); });
+  }
+  h += '<div class="inv-panels"><div class="inv-panel" id="prodChart"><div class="inv-panel-head"><span class="inv-panel-title">Plated by line, 4 weeks</span></div>' +
+    chartLines(labels, series, { unit: 'kg', ariaLabel: 'Plated by line', emptyText: 'No plated day in four weeks with its pieces weighed' }) +
+    '<div class="inv-note">Kilograms by day. A day with no record for a line, or with under 90% of its pieces weighed, is a gap in its line, not a zero.</div></div>';
+  var cov = prodCoverage(from, today);
+  h += '<div class="inv-panel inv-panel-flush" id="prodCoverage"><div class="inv-panel-head"><span class="inv-panel-title">Record coverage, 4 weeks</span></div>';
+  PROD_LINES.forEach(function(l) {
+    var c = cov[l], ok = c.share >= PROD_COVER_OK;
+    h += '<div class="inv-row inv-row-2"><span class="inv-row-main"><span class="inv-row-title">' + PROD_LINE_LABEL[l] + '</span><span class="inv-row-meta">' +
+      (c.last ? 'last recorded ' + escHtml(stockShortDate(c.last)) : 'never recorded') + '</span></span><span class="inv-row-end"><span class="inv-num">' + c.days + ' of ' + c.of + '</span>' +
+      '<span class="inv-dot inv-dot-' + (ok ? 'ok' : 'warning') + '">' + (ok ? 'Recorded' : 'Gaps') + '</span></span></div>';
+  });
+  h += '<div class="inv-panel-body inv-note">Working days with a plated record for the line. Figures that rest on the floor record read low where it has gaps, and the In plant tab says so.</div></div>';
+  var unknown = idx.live.filter(function(e) { return e.kind === 'pickled' && !idx.replaced[e.id] && e.date >= from && prodLoadLine(e).how === 'unknown'; });
+  h += '<div class="inv-panel inv-panel-flush" id="prodUnknown"><div class="inv-panel-head"><span class="inv-panel-title">Line unknown</span><span class="inv-panel-count">' + unknown.length + '</span></div>' +
+    (unknown.length ? unknown.slice(-6).reverse().map(prodLoadRowHtml).join('') + (unknown.length > 6 ? '<div class="inv-panel-body"><button class="inv-btn inv-btn-link inv-btn-sm" data-action="invProdFilter" data-flag="unknown">All ' + unknown.length + '</button></div>' : '')
+      : '<div class="inv-empty">Every pickled load in four weeks has its line, from its plating or set by you.</div>') +
+    '<div class="inv-panel-body inv-note">The pickling message never names the line. It is read from the plating the load became, and where there is none a part’s usual line is offered, never applied by itself.</div></div>';
+  var raised = todoApp(PROD_RULES.map(function(r) { return r[0]; }));
+  h += '<div class="inv-panel inv-panel-flush" id="prodRaised"><div class="inv-panel-head"><span class="inv-panel-title">Raised</span><span class="inv-panel-count">' + raised.length + '</span></div>' +
+    (raised.length ? raised.map(function(t) {
+      return '<div class="inv-row inv-row-2"><button class="inv-row-main" data-action="invProdTask" data-key="' + escHtml(t.key) + '"><span class="inv-row-title"><span class="inv-dot inv-dot-' + uiTone(t.tone) + '">' + escHtml(t.title) + '</span></span><span class="inv-row-meta">' + escHtml(t.sub || '') + '</span></button></div>';
+    }).join('') : '<div class="inv-empty">Nothing raised about production.</div>') + '</div>';
+  return h + '</div>';
+}
+
+/* A pickled load: its line as written, from plating, set, or unknown with its usual-line chip. */
+function prodLoadRowHtml(e) {
+  var L = prodLoadLine(e), m = prodIndex().match[e.id];
+  var lineTxt = L.line ? prodLineName(L.line) + (L.how === 'plating' ? ' · from plating' : L.how === 'set' ? ' · set by you' : '') : L.how === 'split' ? 'split: ' + L.lines.map(prodLineName).join(' + ') : 'Line unknown';
+  var qty = e.qty != null ? prodQtyText(e.qty, e.unit) : (m && m.qty != null ? '~' + prodQtyText(m.qty, e.unit) + ' from plating' : 'no quantity');
+  var h = '<div class="inv-row inv-row-2 inv-row-flow" data-prod-entry="' + escHtml(e.id) + '"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(prodEntryTitle(e)) + '</span>' +
+    '<span class="inv-row-meta">' + escHtml(stockShortDate(e.date) + (e.time ? ' ' + e.time : '') + ' · ' + qty + ' · ' + lineTxt) + '</span></span><span class="inv-row-end">';
+  if (L.how === 'unknown' && L.hint) h += '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invProdUseLine" data-id="' + escHtml(e.id) + '" data-line="' + L.hint.line + '" title="' + escHtml('Usually ' + prodLineName(L.hint.line) + ' (' + L.hint.days + ' of ' + L.hint.total + ' days)') + '">Use ' + escHtml(prodLineName(L.hint.line)) + '</button>';
+  return h + '</span></div>';
+}
+
+/* ---------- In plant ---------- */
+function prodPlantHtml() {
+  var plant = prodInPlant({ clientId: _prodPlantClient || null });
+  var clients = {};
+  (S.incomingMaterial || []).forEach(function(m) { clients[m.clientId] = true; });
+  var h = '<div class="inv-toolbar"><select id="prodPlantClient" class="inv-select inv-select-sm" aria-label="Client"><option value="">All clients</option>' +
+    Object.keys(clients).map(function(id) { return '<option value="' + escHtml(id) + '"' + (String(_prodPlantClient) === String(id) ? ' selected' : '') + '>' + escHtml(prodClientName(id) || 'Client ' + id) + '</option>'; }).join('') + '</select></div>';
+  var sum = { pni: { NOS: 0, KG: 0 }, pnp: { NOS: 0, KG: 0 }, wait: { NOS: 0, KG: 0 } };
+  plant.rows.forEach(function(x) { sum.pni[x.unit] += x.platedNotInvoiced; sum.pnp[x.unit] += x.pickledNotPlated; sum.wait[x.unit] += x.waiting; });
+  var q = function(o) { var t = []; if (o.NOS) t.push(Math.round(o.NOS).toLocaleString('en-IN') + ' NOS'); if (o.KG) t.push(formatNum(o.KG, 1) + ' kg'); return t.join(' + ') || '0'; };
+  var covTxt = PROD_LINES.map(function(l) { return PROD_LINE_LABEL[l] + ' ' + plant.coverage[l].days + '/' + plant.coverage[l].of; }).join(' · ');
+  h += '<div class="inv-tiles">' +
+    '<div class="inv-tile" data-prod-tile="plantBook"><div class="inv-tile-label">Book</div><div class="inv-tile-value">' + figWrapHtml(escHtml(formatCurrency(plant.book))) + '</div><div class="inv-tile-sub">open on challans, not invoiced</div></div>' +
+    '<div class="inv-tile' + (sum.pni.NOS || sum.pni.KG ? ' inv-tile-warning' : '') + '" data-prod-tile="plantPni"><div class="inv-tile-label">Plated, not invoiced</div><div class="inv-tile-value">' + escHtml(q(sum.pni)) + '</div><div class="inv-tile-sub">at least: plating recorded</div></div>' +
+    '<div class="inv-tile" data-prod-tile="plantPnp"><div class="inv-tile-label">Pickled, not plated</div><div class="inv-tile-value">' + escHtml(q(sum.pnp)) + '</div><div class="inv-tile-sub">loads with a quantity</div></div>' +
+    '<div class="inv-tile" data-prod-tile="plantWait"><div class="inv-tile-label">Waiting to pickle</div><div class="inv-tile-value">' + (plant.floorOk ? escHtml(q(sum.wait)) : '&mdash;') + '</div><div class="inv-tile-sub">' +
+      (plant.floorOk ? 'no floor record yet' : 'withheld: the floor record has gaps') + '</div></div></div>';
+  if (!plant.floorOk) h += '<div class="inv-callout inv-callout-warning" data-prod-cover>The floor record covers ' + escHtml(covTxt) + ' working days in the last 30. Plating on the days not recorded would read as still waiting, so that figure is withheld until every line is recorded on 90% of days. Plated, not invoiced is shown: it rests on plating that was recorded, and reads low, never high.</div>';
+  var noQty = prodIndex().live.filter(function(e) { return e.kind === 'pickled' && e.qty == null && e.date >= plant.since; }).length;
+  if (noQty) h += '<div class="inv-callout inv-callout-info">' + todoPlural(noQty, 'pickled load') + ' in 30 days carry no quantity (usual since August); pickled counts only the loads that do.</div>';
+  if (plant.famUsed) h += '<div class="inv-callout inv-callout-info">' + todoPlural(plant.famUsed, 'floor entry', 'floor entries') + ' named only the kind of part and its gauge, and were set against that client’s challans of the same kind and gauge.</div>';
+  var byClient = {};
+  plant.rows.forEach(function(x) { (byClient[x.r.m.clientId] = byClient[x.r.m.clientId] || []).push(x); });
+  var ids = Object.keys(byClient).sort(function(a, b) { return prodClientName(a).localeCompare(prodClientName(b)); });
+  h += '<div class="inv-panel inv-panel-flush" id="prodPlantList"><div class="inv-panel-head"><span class="inv-panel-title">Open challan lines</span><span class="inv-panel-count">' + plant.rows.length + '</span></div>';
+  if (!ids.length) h += '<div class="inv-empty">Nothing open on the challans.</div>';
+  ids.forEach(function(cid) {
+    var list = byClient[cid], amt = list.reduce(function(s, x) { return s + x.amount; }, 0);
+    h += '<div class="inv-row-group"><span>' + escHtml(prodClientName(cid) || 'Client ' + cid) + '</span><span class="inv-num">' + escHtml(formatCurrency(amt)) + '</span></div>';
+    list.forEach(function(x) {
+      var st = x.platedNotInvoiced > 0 ? ['warning', 'Plated, not invoiced'] : x.pickledNotPlated > 0 ? ['info', 'Pickled'] : x.floorRecorded ? ['neutral', 'Waiting'] : ['neutral', 'No floor record'];
+      var u = x.unit;
+      h += '<div class="inv-row inv-row-2" data-prod-plant="' + escHtml(x.r.it.id || '') + '"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(lineLabel(x.r.it)) + '</span>' +
+        '<span class="inv-row-meta inv-row-wrap">' + escHtml('Challan ' + (x.r.m.challanNo || '?') + ' · ' + stockShortDate(x.r.date) + ' · received ' + prodQtyText(x.R, u) + ' · invoiced ' + prodQtyText(x.I, u) +
+          ' · plated ' + prodQtyText(Math.min(x.R, x.L), u) + (x.P ? ' · pickled ' + prodQtyText(Math.min(x.R, x.P), u) : '')) + '</span></span>' +
+        '<span class="inv-row-end"><span class="inv-row-stack"><span class="inv-num">' + escHtml(prodQtyText(x.open, u)) + '</span><span class="inv-dot inv-dot-' + st[0] + '">' + st[1] + '</span></span></span></div>';
+    });
+  });
+  h += '<div class="inv-panel-body inv-note">Each open line’s share is split by what the floor recorded: plating and pickling of a part are set against its challans oldest first. Rework is left out: it is work done, not billing.</div></div>';
+  if (plant.noChallan.length) {
+    h += '<div class="inv-panel inv-panel-flush" id="prodNoChallan"><div class="inv-panel-head"><span class="inv-panel-title">On the floor, no challan open</span><span class="inv-panel-count">' + plant.noChallan.length + '</span></div>';
+    plant.noChallan.forEach(function(x) {
+      h += '<div class="inv-row inv-row-2"><span class="inv-row-main"><span class="inv-row-title">' + escHtml((x.clientId != null ? prodClientName(x.clientId) : x.client || 'No client') + (x.part ? ' · ' + x.part : '')) + '</span>' +
+        '<span class="inv-row-meta">' + escHtml((x.field === 'L' ? 'plated' : 'pickled') + ' from ' + stockShortDate(x.oldest)) + '</span></span><span class="inv-row-end inv-num">' + escHtml(prodQtyText(x.qty, x.unit)) + '</span></div>';
+    });
+    h += '<div class="inv-panel-body inv-note">More was recorded on the floor than any open challan of the part holds: a challan not entered, a part named differently, or plating of material billed already.</div></div>';
+  }
+  var ar = Object.keys(plant.arrived);
+  if (ar.length) h += '<div class="inv-callout inv-callout-info">' + todoPlural(ar.length, 'part') + ' carry arrivals from the pickling hand’s incoming messages in 30 days: a floor count of receipts, shown in Entries beside the challans, never added to them.</div>';
+  return h;
+}
+
+/* ---------- Lines ---------- */
+function prodLinesHtml() {
+  var idx = prodIndex(), line = _prodLine;
+  var days = idx.live.filter(function(e) { return line === 'pickling' ? e.kind === 'pickled' : e.kind === 'plated' && e.line === line; }).map(function(e) { return e.date; }).sort();
+  var day = _prodDay || days[days.length - 1] || localDateStr();
+  var h = '<div class="inv-seg inv-mb-8" role="group" aria-label="Line">' + PROD_LINES.concat(['pickling']).map(function(l) {
+    return '<button type="button" class="inv-seg-btn" data-action="invProdLine" data-line="' + l + '" aria-pressed="' + (line === l) + '">' + (l === 'pickling' ? 'Pickling' : PROD_LINE_LABEL[l]) + '</button>';
+  }).join('') + '</div>';
+  h += '<div class="inv-toolbar inv-stepper"><button class="inv-btn inv-btn-icon inv-btn-ghost" data-action="invProdDay" data-step="-1" aria-label="Day before">' + STAFF_BACK_ICON + '</button>' +
+    '<div class="inv-stepper-label"><span class="inv-stepper-title">' + escHtml(formatDate(day)) + '</span><span class="inv-stepper-sub">' + escHtml(new Date(day + 'T00:00:00').toLocaleDateString('en-IN', { weekday: 'long' })) + '</span></div>' +
+    '<button class="inv-btn inv-btn-icon inv-btn-ghost" data-action="invProdDay" data-step="1" aria-label="Day after">' + STAFF_NEXT_ICON + '</button>' +
+    '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invProdDayLast">Last recorded</button></div>';
+  if (line === 'pickling') {
+    var loads = idx.live.filter(function(e) { return e.kind === 'pickled' && e.date === day && !idx.replaced[e.id]; }).sort(function(a, b) { return String(a.time || '').localeCompare(String(b.time || '')); });
+    h += '<div class="inv-panel inv-panel-flush" id="prodLoads"><div class="inv-panel-head"><span class="inv-panel-title">Pickled</span><span class="inv-panel-count">' + loads.length + '</span></div>' +
+      (loads.length ? loads.map(prodLoadRowHtml).join('') : '<div class="inv-empty">No pickling recorded this day.</div>') + '</div>';
+    return h;
+  }
+  var r = prodDayLine(day, line), downtime = idx.live.filter(function(e) { return e.kind === 'downtime' && e.date === day; });
+  var mins = downtime.reduce(function(s, e) { var a = prodMin(e.time), b = prodMin(e.to); return s + (a != null && b != null && b > a ? b - a : 0); }, 0);
+  h += '<div class="inv-tiles">' +
+    '<div class="inv-tile"><div class="inv-tile-label">Plated</div><div class="inv-tile-value">' + escHtml(Math.round(r.nos).toLocaleString('en-IN')) + ' <span class="inv-tile-of">NOS</span></div><div class="inv-tile-sub">' + todoPlural(r.entries.length, 'run') + '</div></div>' +
+    '<div class="inv-tile"><div class="inv-tile-label">Weight</div><div class="inv-tile-value">' + (r.kg ? escHtml(formatNum(r.kg, 0)) + ' <span class="inv-tile-of">kg</span>' : '&mdash;') + '</div><div class="inv-tile-sub">' + Math.round(r.weighedShare * 100) + '% of pieces weighed</div></div>' +
+    '<div class="inv-tile"><div class="inv-tile-label">Rounds</div><div class="inv-tile-value">' + r.rounds + '</div><div class="inv-tile-sub">racks or rounds counted</div></div>' +
+    '<div class="inv-tile"><div class="inv-tile-label">Power cuts</div><div class="inv-tile-value">' + (downtime.length ? mins + ' min' : '&mdash;') + '</div><div class="inv-tile-sub">' + todoPlural(downtime.length, 'cut') + ' this day</div></div></div>';
+  var groups = { general: [], ot: [] };
+  r.entries.forEach(function(e) { groups[e.slot === 'ot' ? 'ot' : 'general'].push(e); });
+  var also = idx.also.filter(function(e) { return e.date === day && e.line === line; });
+  h += '<div class="inv-panel inv-panel-flush" id="prodRuns"><div class="inv-panel-head"><span class="inv-panel-title">Runs</span></div>';
+  if (!r.entries.length && !also.length) h += '<div class="inv-empty">No plating recorded on ' + escHtml(PROD_LINE_LABEL[line]) + ' this day. A day nobody recorded is a gap, not a zero.</div>';
+  ['general', 'ot'].forEach(function(g) {
+    if (!groups[g].length) return;
+    h += '<div class="inv-row-group"><span>' + (g === 'ot' ? 'Overtime' : 'General shift') + '</span></div>';
+    groups[g].forEach(function(e) { h += prodRunRowHtml(e, false); });
+  });
+  if (also.length) { h += '<div class="inv-row-group"><span>Also reported</span></div>'; also.forEach(function(e) { h += prodRunRowHtml(e, true); }); }
+  h += '<div class="inv-panel-body inv-note">One record counts per shift: the register, else the supervisor’s relay, else an entry by hand. The others are shown as also reported and never added: they count the same work a different way.</div></div>';
+  var lab = prodLabourByLine(stockIsoAdd(localDateStr(), -29), localDateStr()), L = lab.lines[line];
+  h += '<div class="inv-panel inv-panel-flush" id="prodLabour"><div class="inv-panel-head"><span class="inv-panel-title">Labour per kg, 30 days</span></div>' +
+    '<div class="inv-row inv-row-2"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(PROD_LINE_LABEL[line]) + '</span><span class="inv-row-meta">' +
+    escHtml(L.days + ' day' + (L.days === 1 ? '' : 's') + ' with attendance and a weighed record · ' + formatCurrency(L.cost) + ' on ' + formatNum(L.kg, 0) + ' kg') + '</span></span>' +
+    '<span class="inv-row-end inv-num">' + (L.perKg != null ? escHtml('₹' + formatNum(L.perKg, 2) + '/kg') : '&mdash;') + '</span></div>' +
+    '<div class="inv-panel-body inv-note">Variable labour of the line’s areas (the pool, the daily tier, overtime and the EXTRA), with the VAT side’s pickling hands shared by each day’s kg, over the same days as the kg. The monthly crew is the standing crew and is not by line. Withheld under five days. ' +
+    escHtml(lab.skipped ? lab.skipped + ' day' + (lab.skipped === 1 ? '' : 's') + ' with attendance and no usable production record are left out.' : '') + '</div></div>';
+  return h;
+}
+function prodRunRowHtml(e, muted) {
+  var rounds = (e.rounds || []).filter(function(x) { return !x.struck; });
+  var meta = (e.time ? e.time + (e.to && e.to !== e.time ? '–' + e.to : '') + ' · ' : '') + (rounds.length ? rounds.length + ' round' + (rounds.length === 1 ? '' : 's') + ' · ' : e.racks ? e.rackSize + ' × ' + e.racks + ' · ' : '') + prodSrcWord(e) + (e.rework ? ' · rework' : '');
+  return '<div class="inv-row inv-row-2' + (muted ? ' inv-row-muted' : '') + '" data-prod-entry="' + escHtml(e.id) + '"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(prodEntryTitle(e)) + '</span>' +
+    '<span class="inv-row-meta">' + escHtml(meta) + '</span></span><span class="inv-row-end inv-num">' + escHtml(prodQtyText(e.qty, e.unit)) + '</span></div>';
+}
+
+/* ---------- Entries ---------- */
+function prodEntriesHtml() {
+  var idx = prodIndex(), f = _prodFilter, from = stockIsoAdd(localDateStr(), -60);
+  var chips = [['', 'All'], ['pickled', 'Pickled'], ['plated', 'Plated'], ['arrived', 'Arrived'], ['downtime', 'Power cuts']];
+  var flags = [['unknown', 'Line unknown'], ['noclient', 'No client'], ['nochallan', 'No challan']];
+  var h = '<div class="inv-toolbar" role="group" aria-label="Show">' + chips.map(function(c) {
+    return '<button class="inv-chip" data-action="invProdFilter" data-kind="' + c[0] + '" aria-pressed="' + (f.kind === c[0] && !f.flag) + '">' + c[1] + '</button>';
+  }).join('') + flags.map(function(c) {
+    return '<button class="inv-chip" data-action="invProdFilter" data-flag="' + c[0] + '" aria-pressed="' + (f.flag === c[0]) + '">' + c[1] + '</button>';
+  }).join('') + '</div>';
+  var list = prodData().entries.filter(function(e) {
+    if (e.date < from) return false;
+    if (f.client && String(e.clientId) !== String(f.client)) return false;
+    if (f.flag === 'unknown') return e.kind === 'pickled' && !e.voidedAt && prodLoadLine(e).how === 'unknown';
+    if (f.flag === 'noclient') return e.clientId == null && e.kind !== 'downtime';
+    if (f.flag === 'nochallan') return e.kind === 'pickled' && !e.voidedAt && e.clientId != null && !prodHasChallan(e);
+    return !f.kind || e.kind === f.kind;
+  }).sort(function(a, b) { return a.date < b.date ? 1 : a.date > b.date ? -1 : String(b.time || '').localeCompare(String(a.time || '')); });
+  h += '<div class="inv-panel inv-panel-flush" id="prodEntries"><div class="inv-panel-head"><span class="inv-panel-title">Entries, 60 days</span><span class="inv-panel-count">' + list.length + '</span></div>';
+  if (!list.length) h += '<div class="inv-empty">Nothing here.</div>';
+  var last = '';
+  list.slice(0, 300).forEach(function(e) {
+    if (e.date !== last) { last = e.date; h += '<div class="inv-row-group"><span>' + escHtml(formatDate(e.date)) + '</span></div>'; }
+    h += prodEntryRowHtml(e, idx);
+  });
+  if (list.length > 300) h += '<div class="inv-panel-body inv-note">The latest 300 of ' + list.length + ' are shown.</div>';
+  return h + '</div>';
+}
+function prodHasChallan(e) {
+  var k = prodEntryKey(e), fk = prodFamilyKey(e.clientId, e.partNumber || e.part, e.gauge);
+  return (S.incomingMaterial || []).some(function(m) {
+    return String(m.clientId) === String(e.clientId) && (m.challanDate || '') <= stockIsoAdd(e.date, 1) && (m.items || []).some(function(it) {
+      return prodChallanKey(m, it) === k || prodFamilyKey(m.clientId, it.partNumber || it.desc, prodGaugeOf(it.partNumber, it.desc)) === fk;
+    });
+  });
+}
+function prodEntryRowHtml(e, idx) {
+  var kindWord = { pickled: 'Pickled', plated: 'Plated', arrived: 'Arrived', downtime: 'Power cut' }[e.kind];
+  var line = e.kind === 'pickled' ? prodLoadLine(e) : null;
+  var meta = [kindWord, e.time ? e.time + (e.to ? '–' + e.to : '') : '', e.kind === 'plated' ? prodLineName(e.line) : line ? (line.line ? prodLineName(line.line) + (line.how === 'plating' ? ' (from plating)' : '') : line.how === 'split' ? 'split' : 'line unknown') : '',
+    prodSrcWord(e), e.rework ? 'rework' : '', idx.replaced[e.id] ? 'corrected' : '', e.kind === 'plated' && !idx.countedSet[e.id] && !e.voidedAt && !idx.replaced[e.id] ? 'also reported' : ''].filter(Boolean).join(' · ');
+  var title = e.kind === 'downtime' ? (e.downtime && e.downtime.open ? 'Power cut, no time back' : 'Power cut') : prodEntryTitle(e);
+  var h = '<div class="inv-row inv-row-2 inv-row-flow' + (e.voidedAt ? ' inv-row-muted' : '') + '" data-prod-entry="' + escHtml(e.id) + '"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(title) + '</span>' +
+    '<span class="inv-row-meta">' + escHtml(meta + (e.voidedAt ? ' · void: ' + (e.voidReason || '') : '')) + '</span></span><span class="inv-row-end">' +
+    (e.kind !== 'downtime' ? '<span class="inv-num">' + escHtml(prodQtyText(e.qty, e.unit)) + '</span>' : '');
+  if (!e.voidedAt) {
+    if (line && line.how === 'unknown' && line.hint) h += '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invProdUseLine" data-id="' + escHtml(e.id) + '" data-line="' + line.hint.line + '">Use ' + escHtml(prodLineName(line.hint.line)) + '</button>';
+    if (e.kind !== 'downtime' && !idx.replaced[e.id]) h += '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invProdCorrect" data-id="' + escHtml(e.id) + '">Correct</button>';
+    h += '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invProdVoid" data-id="' + escHtml(e.id) + '">Void</button>';
+  }
+  return h + '</span></div>';
+}
+
+/* ---------- Paste and review ---------- */
+function prodPasteHtml() {
+  return prodBackBar('Paste message') + '<div class="inv-panel">' +
+    '<div class="inv-field"><label class="inv-field-label" for="prodPasteText">The messages, as sent</label>' +
+    '<textarea id="prodPasteText" class="inv-textarea inv-textarea-mono" rows="12" spellcheck="false" placeholder="Copy the pickling messages, the barrel production list, or a roll with its production notes, and paste them here">' + escHtml(_prodPasteDraft) + '</textarea></div>' +
+    '<div class="inv-field"><label class="inv-field-label" for="prodBy">Entered by</label><input id="prodBy" class="inv-input" value="' + escHtml(stockBy()) + '" placeholder="Your name" autocomplete="off"></div>' +
+    '<button class="inv-btn inv-btn-primary inv-btn-block" data-action="invProdRead">Read messages</button>' +
+    '<div class="inv-note inv-mt-8">Copy the WhatsApp time lines with them: the sender, the day and the minute each was sent are read from them. Nothing is saved until you check what was read.</div></div>';
+}
+function prodReadPaste(text) {
+  if (text != null) _prodPasteDraft = text;
+  var ta = document.getElementById('prodPasteText');
+  if (ta && text == null) _prodPasteDraft = ta.value;
+  if (!_prodPasteDraft.trim()) { showToast('Paste the messages first', 'error'); return; }
+  var msgs = parseProdPaste(_prodPasteDraft, prodCtx());
+  var useful = msgs.filter(function(m) { return m.read.items.length; });
+  if (!useful.length) { showToast('No pickling or production lines found in that text', 'error'); return; }
+  _prodReview = { msgs: msgs, choices: {} };
+  prodSetView('review');
+}
+/* A message already saved is refused, unless every entry it made has since been voided (read it again). */
+function prodPasteSeen(hash) {
+  var p = prodData(), paste = p.pastes.find(function(x) { return x.hash === hash; });
+  if (!paste) return null;
+  var live = p.entries.some(function(e) { return e.pasteId === paste.id && !e.voidedAt; });
+  return live ? paste : null;
+}
+function prodReviewResolve() {
+  var rv = _prodReview, ch = rv.choices, out = { rows: [], red: 0, amber: 0, save: 0, dup: 0 };
+  rv.msgs.forEach(function(m, mi) {
+    m.dup = !!prodPasteSeen(m.hash);
+    if (m.dup) out.dup++;
+    m.read.items.forEach(function(it, ii) {
+      var key = mi + ':' + ii, row = { m: m, mi: mi, ii: ii, key: key, it: it, issues: it.issues.slice(), tone: 'clear' };
+      var cc = ch['client' + key];
+      if (cc !== undefined) {
+        row.issues = row.issues.filter(function(x) { return x.code !== 'client' && x.code !== 'readas'; });
+        if (cc === 'asWritten') row.clientId = null; else row.clientId = cc;
+      } else row.clientId = it.clientId;
+      var lc = ch['line' + key];
+      if (it.lineHint !== undefined || (it.kind === 'plated' && it.basis === 'relay' && it.slot === 'ot')) {
+        if (lc !== undefined) { row.issues = row.issues.filter(function(x) { return x.code !== 'linehint' && x.code !== 'noline'; }); row.line = lc || null; }
+        else row.line = null;
+      } else row.line = it.line || null;
+      row.issues.forEach(function(x) { if (x.tone === 'red') row.tone = 'red'; else if (x.tone === 'amber' && row.tone !== 'red') row.tone = 'amber'; });
+      if (!m.dup) { if (row.tone === 'red') out.red++; else if (row.tone === 'amber') out.amber++; out.save++; }
+      out.rows.push(row);
+    });
+  });
+  return out;
+}
+function prodReviewHtml() {
+  var rv = _prodReview, res = prodReviewResolve(), idx = prodCtx().clients;
+  var h = prodBackBar('Check what was read');
+  h += '<div class="inv-tiles"><div class="inv-tile' + (res.red ? ' inv-tile-danger' : '') + '"><div class="inv-tile-label">Needs you</div><div class="inv-tile-value">' + res.red + '</div></div>' +
+    '<div class="inv-tile' + (res.amber ? ' inv-tile-warning' : '') + '"><div class="inv-tile-label">Check</div><div class="inv-tile-value">' + res.amber + '</div></div>' +
+    '<div class="inv-tile"><div class="inv-tile-label">To save</div><div class="inv-tile-value">' + res.save + '</div></div></div>';
+  if (res.dup) h += '<div class="inv-callout inv-callout-danger" id="prodDupNote">' + todoPlural(res.dup, 'message') + ' in this paste ' + (res.dup === 1 ? 'was' : 'were') + ' saved before and ' + (res.dup === 1 ? 'is' : 'are') + ' left out, so nothing counts twice.</div>';
+  rv.msgs.forEach(function(m, mi) {
+    var kindWord = { pickling: 'Pickling', production: 'Barrel production', roll: 'Roll: production notes', power: 'Power cut', stock: 'Stock (read in Stock)', other: 'Not production' }[m.kind];
+    h += '<div class="inv-panel inv-panel-flush' + (m.dup ? ' inv-row-muted' : '') + '" data-prod-msg="' + mi + '"><div class="inv-panel-head"><span class="inv-panel-title">' + escHtml(kindWord + (m.sentBy ? ' · ' + m.sentBy : '')) + '</span>' +
+      '<span class="inv-panel-count">' + escHtml((m.sentOn ? stockShortDate(m.sentOn) : 'no date') + (m.sentAt != null ? ' ' + relayHhmm(m.sentAt) : '')) + '</span></div>';
+    if (m.dup) h += '<div class="inv-panel-body inv-note">Saved before: left out.</div>';
+    if (m.kind === 'roll' && !m.read.items.length) h += '<div class="inv-panel-body inv-note">An attendance roll with no production notes: read it in Staff → Paste message.</div>';
+    if (m.kind === 'stock') h += '<div class="inv-panel-body inv-note">A chemical stock message: read it in Stock → Paste message.</div>';
+    if (m.kind === 'other') h += '<div class="inv-panel-body"><div class="inv-quote">' + escHtml(m.text.slice(0, 400)) + '</div><div class="inv-note inv-mt-4">Not read: not a pickling, production or power message.</div></div>';
+    res.rows.filter(function(r) { return r.mi === mi; }).forEach(function(r) { h += prodReviewRowHtml(r, idx); });
+    (m.read.notes || []).forEach(function(nt) { h += '<div class="inv-row inv-row-auto inv-row-top"><div class="inv-row-main"><div class="inv-quote">' + escHtml(nt.raw) + '</div><div class="inv-note inv-mt-4">' + escHtml(nt.text) + '</div></div></div>'; });
+    h += '</div>';
+  });
+  h += '<div class="inv-actionbar"><div class="inv-actionbar-total"><div class="inv-actionbar-label">To save</div><div class="inv-actionbar-value">' + todoPlural(res.save, 'entry', 'entries') + '</div></div>' +
+    '<button class="inv-btn inv-btn-primary" data-action="invProdSaveReview"' + (res.red || !res.save ? ' disabled' : '') + '>Save</button></div>';
+  return h;
+}
+function prodReviewRowHtml(r, idx) {
+  var it = r.it, badge = r.m.dup ? ['neutral', 'Saved before'] : r.tone === 'red' ? ['danger', 'Needs you'] : r.tone === 'amber' ? ['warning', 'Check'] : ['ok', 'Clear'];
+  var kindWord = { pickled: 'Pickled', plated: 'Plated', arrived: 'Arrived', downtime: 'Power cut' }[it.kind];
+  var reading = it.kind === 'downtime' ? 'Power cut ' + (it.time || '?') + ' to ' + (it.to || 'not back') :
+    kindWord + (it.time ? ' ' + it.time : '') + ' · ' + (r.clientId != null ? prodClientName(r.clientId) : it.client ? it.client + ' (as written)' : 'no client') +
+    (it.part ? ' · ' + it.part : '') + (it.gauge ? ' [' + it.gauge + ']' : '') + ' · ' + prodQtyText(it.qty, it.unit) + (it.qty2 != null ? ' + ' + prodQtyText(it.qty2, it.unit2) : '') +
+    (it.kind === 'plated' ? ' · ' + (r.line ? prodLineName(r.line) : it.line ? prodLineName(it.line) : 'line unknown') : '') + (it.rework ? ' · rework' : '');
+  var h = '<div class="inv-row inv-row-auto inv-row-top" data-prod-row="' + r.key + '" data-tone="' + r.tone + '"><div class="inv-row-main"><div class="inv-quote">' + escHtml(it.raw) + '</div>' +
+    '<div class="inv-verdict-text inv-mt-4">' + escHtml(reading) + '</div>';
+  r.issues.forEach(function(x) { h += '<div class="inv-callout inv-callout-' + uiTone(x.tone) + ' inv-mt-8">' + escHtml(x.text) + '</div>'; });
+  if (!r.m.dup && it.kind !== 'downtime' && (it.clientId == null || it.issues.some(function(x) { return x.code === 'readas'; }) || _prodReview.choices['client' + r.key] !== undefined)) {
+    var cur = _prodReview.choices['client' + r.key];
+    var sel = cur !== undefined ? String(cur) : (it.clientId != null ? String(it.clientId) : '');
+    h += '<div class="inv-fields inv-mt-8"><div class="inv-field"><label class="inv-field-label" for="prodClient' + r.key.replace(':', '_') + '">Client</label>' +
+      '<select id="prodClient' + r.key.replace(':', '_') + '" class="inv-select" data-prod-client="' + r.key + '">' + (sel === '' ? '<option value="" selected>Pick the client</option>' : '') +
+      '<option value="asWritten"' + (sel === 'asWritten' ? ' selected' : '') + '>Not in the book: keep "' + escHtml(it.client || '') + '" as written</option>' +
+      idx.list.slice().sort(function(a, b) { return a.name.localeCompare(b.name); }).map(function(c) { return '<option value="' + escHtml(String(c.id)) + '"' + (sel === String(c.id) ? ' selected' : '') + '>' + escHtml(c.name) + '</option>'; }).join('') + '</select></div></div>';
+  }
+  if (!r.m.dup && it.kind === 'plated' && it.basis === 'relay' && it.slot === 'ot') {
+    var lc = _prodReview.choices['line' + r.key];
+    h += '<div class="inv-toolbar inv-mt-8" role="group" aria-label="Which line">' + [['', 'Unknown']].concat(PROD_LINES.map(function(l) { return [l, PROD_LINE_LABEL[l]]; })).map(function(o) {
+      var pressed = lc !== undefined ? lc === o[0] : false;
+      return '<button class="inv-chip" data-action="invProdRevLine" data-key="' + r.key + '" data-line="' + o[0] + '" aria-pressed="' + pressed + '">' + escHtml(o[1] + (it.lineHint === o[0] && o[0] ? ' (header above)' : '')) + '</button>';
+    }).join('') + '</div>';
+  }
+  return h + '</div><div class="inv-row-end"><span class="inv-badge inv-badge-' + badge[0] + '">' + badge[1] + '</span></div></div>';
+}
+function prodSaveReview() {
+  var rv = _prodReview;
+  if (!rv) return;
+  var res = prodReviewResolve();
+  if (res.red) { showToast('Answer the rows marked Needs you first', 'error'); return; }
+  var p = prodData(), at = Date.now(), byEl = document.getElementById('prodBy'), by = byEl ? byEl.value.trim() : stockBy(), n = 0, pasteIds = {};
+  var learnt = 0;
+  res.rows.forEach(function(r) {
+    if (r.m.dup) return;
+    var it = r.it;
+    if (!pasteIds[r.mi]) {
+      pasteIds[r.mi] = prodUid('PP');
+      p.pastes.push({ id: pasteIds[r.mi], at: at, by: by, sentBy: r.m.sentBy || '', sentOn: r.m.sentOn || '', kind: r.m.kind, hash: r.m.hash, text: r.m.text });
+    }
+    var e = { id: prodUid('PE'), kind: it.kind, date: it.date, time: it.time, to: it.to, slot: it.slot || (it.kind === 'plated' ? 'general' : null),
+      line: it.kind === 'plated' ? (r.line || it.line || null) : null, clientId: r.clientId != null ? r.clientId : null, client: it.client, part: it.part, gauge: it.gauge,
+      qty: it.qty, unit: it.unit, qty2: it.qty2, unit2: it.unit2, qtySrc: it.qtySrc, rework: it.rework, downtime: it.downtime,
+      basis: it.basis || (it.kind === 'pickled' ? 'pickling' : it.kind === 'arrived' ? 'floor-in' : 'relay'), src: 'paste', raw: it.raw, n: it.n,
+      pasteId: pasteIds[r.mi], msgHash: r.m.hash, sentBy: r.m.sentBy || '', by: by, at: at };
+    if (e.kind === 'plated') e.lineSrc = e.line ? (it.line ? 'written' : 'set') : null;
+    // A client picked for a written name is remembered for the next message; a keep-as-written is not.
+    var pick = rv.choices['client' + r.key];
+    if (pick !== undefined && pick !== 'asWritten' && it.client) { var k = relayKey(it.client); if (k && p.learn.clients[k] !== pick) { p.learn.clients[k] = pick; learnt++; } }
+    else if (it.issues.some(function(x) { return x.code === 'readas'; }) && it.client && it.clientId != null) { var k2 = relayKey(it.client); if (k2 && !(k2 in p.learn.clients)) { p.learn.clients[k2] = it.clientId; learnt++; } }
+    p.entries.push(prodSparse(e));
+    n++;
+  });
+  if (!n) { showToast('Nothing new to save', 'error'); return; }
+  prodTouch();
+  saveState();
+  _prodReview = null; _prodPasteDraft = '';
+  prodSetView('main');
+  showToast(todoPlural(n, 'entry', 'entries') + ' saved' + (res.dup ? ' · ' + todoPlural(res.dup, 'message') + ' saved before, left out' : '') + (learnt ? ' · ' + todoPlural(learnt, 'spelling') + ' remembered' : ''), 'success');
+}
+
+/* ---------- Register photo ---------- */
+function prodPhotoPick() {
+  // The key is checked before the picker opens: an awaited step before click() loses the picker on iOS.
+  if (!getApiKey()) { uiAlert({ title: 'Gemini key needed', body: 'Reading a register photo uses the Gemini key in Settings → Connections (free from aistudio.google.com). Enter by hand needs no key.' }); return; }
+  var inp = document.getElementById('prodPhotoInput');
+  if (!inp) return;
+  inp.value = '';
+  inp.click();
+}
+function prodPhotoSha(buf) {
+  if (!(window.crypto && crypto.subtle)) return Promise.resolve('n' + buf.byteLength);
+  return crypto.subtle.digest('SHA-256', buf).then(function(d) { return Array.from(new Uint8Array(d)).map(function(b) { return b.toString(16).padStart(2, '0'); }).join(''); });
+}
+/* Photos are read one at a time: the free tier limits requests a minute, and one failing does not stop the rest. */
+var _prodPhotoQueue = [];
+function prodPhotoFiles(files) {
+  _prodPhotoQueue = Array.prototype.slice.call(files || []);
+  prodPhotoNext();
+}
+function prodPhotoNext() {
+  var file = _prodPhotoQueue.shift();
+  if (!file) return;
+  var proc = document.getElementById('scanProcessing');
+  if (proc) proc.innerHTML = '<div class="inv-scan-processing"><div class="inv-scan-processing-card"><div class="inv-scan-spinner"></div><div class="inv-scan-processing-text">Reading the register</div>' +
+    '<div class="inv-scan-processing-sub">Gemini is transcribing ' + escHtml(file.name || 'the photo') + '</div></div></div>';
+  var done = function() { if (proc) proc.innerHTML = ''; };
+  file.arrayBuffer().then(function(buf) { return prodPhotoSha(buf).then(function(sha) { return { buf: buf, sha: sha }; }); }).then(function(b) {
+    var p = prodData(), seen = p.photos.find(function(x) { return x.sha === b.sha; });
+    var seenLive = seen && p.entries.some(function(e) { return e.photoId === seen.id && !e.voidedAt; });
+    var photoDate = file.lastModified ? new Date(file.lastModified).toISOString().slice(0, 10) : null;
+    var draft = null;
+    try { draft = JSON.parse(localStorage.getItem(PROD_DRAFT_KEY) || 'null'); } catch (e) { draft = null; }
+    var start = function(json, meta) {
+      done();
+      _prodPhoto = { name: file.name || '', bytes: file.size, url: URL.createObjectURL(file), sha: b.sha, json: json, meta: meta || {}, choices: {}, photoDate: photoDate, dupSha: seenLive ? seen : null };
+      try { localStorage.setItem(PROD_DRAFT_KEY, JSON.stringify({ sha: b.sha, json: json, name: file.name, at: Date.now() })); } catch (e) { /* a convenience only */ }
+      prodSetView('photo');
+    };
+    if (draft && draft.sha === b.sha && draft.json) { start(draft.json, { draft: true }); return; }
+    geminiReadImage(file, PROD_REGISTER_PROMPT, { schema: PROD_REGISTER_SCHEMA, maxEdge: 2000, thinkingBudget: 0 }).then(function(res) {
+      if (res.ok) { start(res.json, res.meta); return; }
+      done();
+      var msg = { key: 'No Gemini key is set (Settings → Connections).', quota: 'Gemini says too many requests. Wait a minute and read the photo again.', timeout: res.error, truncated: 'The reply was cut off: the page may have too many rows. Try a photo of half the page.',
+        json: 'Gemini did not return the table asked for. Read it again, or enter the page by hand.', blocked: res.error, empty: 'Gemini returned nothing for this photo.' }[res.code] || ('Reading failed: ' + res.error);
+      uiNotice('Register photo: ' + msg, 'error');
+      prodPhotoNext();
+    });
+  }).catch(function(err) { done(); uiNotice('Register photo: ' + ((err && err.message) || 'could not read the file'), 'error'); prodPhotoNext(); });
+}
+function prodPhotoRead() { var ph = _prodPhoto; return prodFromRegisterRead(ph.json, prodCtx(), ph.photoDate, ph.choices); }
+function prodPhotoHtml() {
+  var ph = _prodPhoto, rd = prodPhotoRead(), p = prodData();
+  var line = ph.choices.line !== undefined ? ph.choices.line : rd.line;
+  var date = ph.choices.date || rd.date;
+  var dupFp = p.photos.find(function(x) { return x.fp === rd.fp && p.entries.some(function(e) { return e.photoId === x.id && !e.voidedAt; }); });
+  var red = 0;
+  rd.rows.forEach(function(r) { r.issues.forEach(function(x) { if (x.tone === 'red') red++; }); });
+  rd.runs.forEach(function(e, i) { if (e.clientId == null && ph.choices['client' + i] === undefined) red++; });
+  var h = prodBackBar('Check the register');
+  h += '<div class="inv-panel"><div class="inv-scroll-x"><img class="inv-prod-photo" src="' + escHtml(ph.url) + '" alt="The register photo"></div>' +
+    '<div class="inv-fields inv-mt-8"><div class="inv-field"><label class="inv-field-label" for="prodPhotoDate">Date on the page</label><input type="date" id="prodPhotoDate" class="inv-input" value="' + escHtml(date) + '"></div>' +
+    '<div class="inv-field"><label class="inv-field-label" for="prodPhotoLine">Line</label><select id="prodPhotoLine" class="inv-select">' +
+      '<option value=""' + (!line ? ' selected' : '') + '>Unknown</option>' + PROD_LINES.map(function(l) { return '<option value="' + l + '"' + (line === l ? ' selected' : '') + '>' + PROD_LINE_LABEL[l] + '</option>'; }).join('') + '</select></div></div>' +
+    '<div class="inv-note inv-mt-8">Read by Gemini' + (ph.meta.draft ? ' (kept from the last read of this photo)' : '') + '. Check every row against the photo: nothing is saved until you do.</div></div>';
+  if (ph.dupSha) h += '<div class="inv-callout inv-callout-danger" id="prodPhotoDup">This photo was saved before. Saving it again would count the page twice.</div>';
+  else if (dupFp) h += '<div class="inv-callout inv-callout-warning" id="prodPhotoDup">A photo with the same rows for this day and line was saved before (a retake or a forward?). Saving would count the page twice.</div>';
+  rd.issues.forEach(function(x) { if (x.code === 'line' && line) return; h += '<div class="inv-callout inv-callout-' + uiTone(x.tone) + '">' + escHtml(x.text) + '</div>'; });
+  h += '<div class="inv-panel inv-panel-flush" id="prodPhotoRuns"><div class="inv-panel-head"><span class="inv-panel-title">Runs read</span><span class="inv-panel-count">' + rd.runs.length + '</span></div>';
+  rd.runs.forEach(function(e, i) {
+    var cc = ph.choices['client' + i], cid = cc !== undefined ? (cc === 'asWritten' ? null : cc) : e.clientId;
+    h += '<div class="inv-row inv-row-auto inv-row-top" data-prod-run="' + i + '"><div class="inv-row-main"><div class="inv-row-title">' + escHtml((cid != null ? prodClientName(cid) : e.client || 'No client') + (e.part ? ' · ' + e.part : '')) + '</div>';
+    e.rows.forEach(function(r) {
+      h += '<div class="inv-quote inv-mt-4">' + escHtml(r.raw || '(empty row)') + '</div>';
+      r.issues.forEach(function(x) { h += '<div class="inv-callout inv-callout-' + uiTone(x.tone) + ' inv-mt-4">' + escHtml(x.text) + '</div>'; });
+      if (r.struck) h += '<div class="inv-toolbar inv-mt-4" role="group" aria-label="Struck row">' + [['counted', 'Counted'], ['cancelled', 'Cancelled']].map(function(o) {
+        return '<button class="inv-chip" data-action="invProdStruck" data-i="' + r.i + '" data-v="' + o[0] + '" aria-pressed="' + (ph.choices['struck' + r.i] === o[0]) + '">' + o[1] + '</button>'; }).join('') + '</div>';
+    });
+    e.issues.forEach(function(x) { if (x.code === 'client' && cc !== undefined) return; h += '<div class="inv-callout inv-callout-' + uiTone(x.tone) + ' inv-mt-8">' + escHtml(x.text) + '</div>'; });
+    if (e.clientId == null || cc !== undefined || e.issues.some(function(x) { return x.code === 'readas'; })) {
+      var sel = cc !== undefined ? String(cc) : (e.clientId != null ? String(e.clientId) : '');
+      h += '<div class="inv-fields inv-mt-8"><div class="inv-field"><label class="inv-field-label" for="prodRunClient' + i + '">Client</label><select id="prodRunClient' + i + '" class="inv-select" data-prod-run-client="' + i + '">' +
+        (sel === '' ? '<option value="" selected>Pick the client</option>' : '') + '<option value="asWritten"' + (sel === 'asWritten' ? ' selected' : '') + '>Not in the book: keep as written</option>' +
+        (S.clients || []).slice().sort(function(a, b) { return a.name.localeCompare(b.name); }).map(function(c) { return '<option value="' + escHtml(String(c.id)) + '"' + (sel === String(c.id) ? ' selected' : '') + '>' + escHtml(c.name) + '</option>'; }).join('') + '</select></div></div>';
+    }
+    h += '</div><div class="inv-row-end"><span class="inv-num">' + escHtml(prodQtyText(e.qty, 'NOS')) + '</span></div></div>';
+  });
+  h += '</div><div class="inv-actionbar"><div class="inv-actionbar-total"><div class="inv-actionbar-label">Counted</div><div class="inv-actionbar-value">' + escHtml(Math.round(rd.counted || 0).toLocaleString('en-IN') + ' NOS') + '</div></div>' +
+    '<button class="inv-btn inv-btn-primary" data-action="invProdSavePhoto"' + (red || ph.dupSha || !rd.runs.length ? ' disabled' : '') + '>Save</button></div>';
+  return h;
+}
+function prodSavePhoto() {
+  var ph = _prodPhoto;
+  if (!ph) return;
+  var rd = prodPhotoRead(), p = prodData(), at = Date.now(), by = stockBy();
+  var line = ph.choices.line !== undefined ? ph.choices.line : rd.line, date = ph.choices.date || rd.date;
+  var id = prodUid('PF'), n = 0;
+  p.photos.push({ id: id, at: at, by: by, sha: ph.sha, name: ph.name, bytes: ph.bytes, w: ph.meta.w || 0, h: ph.meta.h || 0, model: GEMINI_MODEL, promptVer: PROD_REGISTER_PROMPT_VER,
+    readDate: date, readLine: line || null, rows: rd.rows.length, fp: rd.fp });
+  rd.runs.forEach(function(e, i) {
+    var cc = ph.choices['client' + i];
+    var rec = Object.assign({}, e, { id: prodUid('PE'), date: date, line: line || null, lineSrc: line ? (line === rd.line ? 'written' : 'set') : null,
+      clientId: cc !== undefined ? (cc === 'asWritten' ? null : cc) : e.clientId, photoId: id, by: by, at: at });
+    delete rec.rows; delete rec.issues; delete rec.clientName;
+    if (cc !== undefined && cc !== 'asWritten' && e.client) p.learn.clients[relayKey(e.client)] = cc;
+    p.entries.push(prodSparse(rec));
+    n++;
+  });
+  prodTouch();
+  saveState();
+  try { localStorage.removeItem(PROD_DRAFT_KEY); } catch (e) { /* a convenience only */ }
+  try { URL.revokeObjectURL(ph.url); } catch (e) { /* nothing held */ }
+  _prodPhoto = null;
+  prodSetView('main');
+  showToast(todoPlural(n, 'run') + ' saved from the register', 'success');
+  prodPhotoNext();
+}
+
+/* ---------- By hand ---------- */
+function prodOpenHand(fromId) {
+  var src = fromId ? prodIndex().byId[fromId] : null;
+  _prodHand = src ? { kind: src.kind, date: src.date, time: src.time || '', to: src.to || '', line: src.line || '', clientId: src.clientId != null ? String(src.clientId) : '', part: src.part || '',
+    qty: src.qty != null ? String(src.qty) : '', unit: src.unit || 'NOS', rework: !!src.rework, slot: src.slot === 'ot' ? 'ot' : 'general', replaces: src.id }
+    : { kind: 'plated', date: localDateStr(), time: '', to: '', line: 'vat-a1', clientId: '', part: '', qty: '', unit: 'NOS', rework: false, slot: 'general', replaces: null };
+  prodSetView('hand');
+}
+function prodHandHtml() {
+  var f = _prodHand;
+  var field = function(id, label, input) { return '<div class="inv-field"><label class="inv-field-label" for="' + id + '">' + label + '</label>' + input + '</div>'; };
+  var h = prodBackBar(f.replaces ? 'Correct an entry' : 'Enter by hand');
+  if (f.replaces) h += '<div class="inv-callout inv-callout-info">This entry takes the place of the one corrected, which stays on the record, marked corrected.</div>';
+  else h += '<div class="inv-seg inv-mb-8" role="group" aria-label="What is entered">' + [['plated', 'Plated'], ['pickled', 'Pickled'], ['arrived', 'Arrived'], ['downtime', 'Power cut']].map(function(o) {
+    return '<button type="button" class="inv-seg-btn" data-action="invProdHandKind" data-kind="' + o[0] + '" aria-pressed="' + (f.kind === o[0]) + '">' + o[1] + '</button>'; }).join('') + '</div>';
+  h += '<div class="inv-panel"><div class="inv-fields">' + field('prodHandDate', 'Date', '<input type="date" id="prodHandDate" class="inv-input" data-prod-hand="date" value="' + escHtml(f.date) + '">') +
+    field('prodHandTime', f.kind === 'downtime' ? 'Power cut at' : 'Time', '<input type="time" id="prodHandTime" class="inv-input" data-prod-hand="time" value="' + escHtml(f.time) + '">');
+  if (f.kind === 'downtime') h += field('prodHandTo', 'Power back at', '<input type="time" id="prodHandTo" class="inv-input" data-prod-hand="to" value="' + escHtml(f.to) + '">');
+  if (f.kind === 'plated') h += field('prodHandLine', 'Line', '<select id="prodHandLine" class="inv-select" data-prod-hand="line">' + PROD_LINES.map(function(l) { return '<option value="' + l + '"' + (f.line === l ? ' selected' : '') + '>' + PROD_LINE_LABEL[l] + '</option>'; }).join('') + '</select>') +
+    field('prodHandSlot', 'Shift', '<select id="prodHandSlot" class="inv-select" data-prod-hand="slot"><option value="general"' + (f.slot !== 'ot' ? ' selected' : '') + '>General shift</option><option value="ot"' + (f.slot === 'ot' ? ' selected' : '') + '>Overtime</option></select>');
+  if (f.kind !== 'downtime') {
+    h += field('prodHandClient', 'Client', '<select id="prodHandClient" class="inv-select" data-prod-hand="clientId"><option value="">Pick the client</option>' +
+      (S.clients || []).slice().sort(function(a, b) { return a.name.localeCompare(b.name); }).map(function(c) { return '<option value="' + escHtml(String(c.id)) + '"' + (f.clientId === String(c.id) ? ' selected' : '') + '>' + escHtml(c.name) + '</option>'; }).join('') + '</select>') +
+      field('prodHandPart', 'Part', '<input id="prodHandPart" class="inv-input" data-prod-hand="part" value="' + escHtml(f.part) + '" placeholder="e.g. CLAMP 165X83 (40X6)" autocomplete="off">') +
+      field('prodHandQty', 'Quantity', '<input type="number" inputmode="decimal" step="any" min="0" id="prodHandQty" class="inv-input inv-input-num" data-prod-hand="qty" value="' + escHtml(f.qty) + '">') +
+      field('prodHandUnit', 'Unit', '<select id="prodHandUnit" class="inv-select" data-prod-hand="unit"><option value="NOS"' + (f.unit === 'NOS' ? ' selected' : '') + '>NOS</option><option value="KG"' + (f.unit === 'KG' ? ' selected' : '') + '>kg</option></select>') +
+      '<label class="inv-field-check"><input type="checkbox" class="inv-check" id="prodHandRework" data-prod-hand="rework"' + (f.rework ? ' checked' : '') + '><span>Rework (counted as work, never as billing)</span></label>';
+  }
+  h += '</div></div><div class="inv-actionbar"><div class="inv-actionbar-total"><div class="inv-actionbar-label">' + escHtml({ plated: 'Plated', pickled: 'Pickled', arrived: 'Arrived', downtime: 'Power cut' }[f.kind]) + ' on</div>' +
+    '<div class="inv-actionbar-value">' + escHtml(stockShortDate(f.date)) + '</div></div><button class="inv-btn inv-btn-primary" data-action="invProdSaveHand">Save</button></div>';
+  return h;
+}
+function prodSaveHand() {
+  var f = _prodHand;
+  if (!f) return;
+  if (!f.date) { showToast('Pick a date', 'error'); return; }
+  var q = parseFloat(f.qty);
+  if (f.kind !== 'downtime' && !f.clientId) { showToast('Pick the client', 'error'); return; }
+  if (f.kind !== 'downtime' && !f.part.trim()) { showToast('Name the part', 'error'); return; }
+  if (f.kind === 'downtime' && !f.time) { showToast('Enter when the power went', 'error'); return; }
+  var p = prodData(), src = f.replaces ? prodIndex().byId[f.replaces] : null;
+  var e = { id: prodUid('PE'), kind: f.kind, date: f.date, time: f.time || null, to: f.kind === 'downtime' ? (f.to || null) : null, src: 'hand', by: stockBy(), at: Date.now(),
+    basis: src ? (src.basis || 'hand') : 'hand', replaces: f.replaces || null };
+  if (f.kind === 'downtime') e.downtime = { cause: 'power', open: !f.to };
+  else {
+    // The picker hands back text; the book's own id is kept, so a floor key and a challan key agree.
+    e.clientId = prodHeldId(f.clientId); e.client = prodClientName(e.clientId); e.part = f.part.trim(); e.gauge = prodGaugeOf(e.part, e.part);
+    e.qty = isNaN(q) ? null : q; e.unit = f.unit; e.rework = !!f.rework;
+    if (f.kind === 'plated') { e.line = f.line; e.lineSrc = 'set'; e.slot = f.slot === 'ot' ? 'ot' : 'general'; }
+  }
+  p.entries.push(prodSparse(e));
+  prodTouch();
+  saveState();
+  _prodHand = null;
+  prodSetView('main');
+  showToast(src ? 'Correction saved; the entry it corrects is kept, marked corrected' : 'Saved', 'success');
+}
+
+/* ---------- Void, set a line ---------- */
+async function prodVoid(id) {
+  var e = prodIndex().byId[id];
+  if (!e || e.voidedAt) return;
+  var why = await uiPrompt({ title: 'Void this entry?', body: 'It is kept on the record, not deleted.', label: 'Why is it void?', okLabel: 'Void', required: true, requiredText: 'A void needs a reason.' });
+  if (why == null) return;
+  e = prodIndex().byId[id];
+  if (!e || e.voidedAt) return;
+  e.voidedAt = Date.now(); e.voidReason = String(why).trim(); e.voidBy = stockBy();
+  prodTouch();
+  saveState();
+  renderProduction();
+}
+function prodUseLine(id, line) {
+  var e = prodIndex().byId[id];
+  if (!e || PROD_LINES.indexOf(line) < 0) return;
+  e.line = line; e.lineSrc = 'set'; e.setAt = Date.now(); e.setBy = stockBy();
+  prodTouch();
+  saveState();
+  renderProduction();
+}
+
+/* ---------- Import ---------- */
+function prodImport() {
+  var inp = document.getElementById('prodFileInput');
+  if (!inp) return;
+  inp.onchange = function(ev) {
+    var file = ev.target.files[0];
+    inp.value = '';
+    if (!file) return;
+    var rd = new FileReader();
+    rd.onload = function(e2) {
+      var obj = null;
+      try { obj = JSON.parse(e2.target.result); } catch (err) { obj = null; }
+      var res = obj ? prodMergeImport(obj, file.name) : { ok: false };
+      if (!res.ok) { uiNotice('Not a production file: ' + (file.name || ''), 'error'); return; }
+      saveState();
+      renderProduction();
+      showToast(res.added ? todoPlural(res.added, 'entry', 'entries') + ' added' + (res.skipped ? ' · ' + res.skipped + ' already held' : '') + (res.unknown ? ' · ' + res.unknown + ' name a client this book does not hold' : '') + (res.bad ? ' · ' + res.bad + ' refused' : '') : 'Nothing new in that file', res.added ? 'success' : 'warning');
+    };
+    rd.readAsText(file);
+  };
+  inp.click();
+}
+
+/* ---------- Events ---------- */
+function prodAction(action, btn) {
+  switch (action) {
+    case 'invProdTab': prodSetTab(btn.dataset.tab); _prodView = 'main'; renderProduction(); return true;
+    case 'invProdBack': _prodReview = null; _prodHand = null; if (_prodPhoto) { try { URL.revokeObjectURL(_prodPhoto.url); } catch (e) { /* none */ } _prodPhoto = null; } prodSetView('main'); return true;
+    case 'invProdPaste': prodSetView('paste'); return true;
+    case 'invProdRead': prodReadPaste(); return true;
+    case 'invProdSaveReview': prodSaveReview(); return true;
+    case 'invProdRevLine': _prodReview.choices['line' + btn.dataset.key] = btn.dataset.line; renderProduction(); return true;
+    case 'invProdPhoto': prodPhotoPick(); return true;
+    case 'invProdStruck': _prodPhoto.choices['struck' + btn.dataset.i] = btn.dataset.v; renderProduction(); return true;
+    case 'invProdSavePhoto': prodSavePhoto(); return true;
+    case 'invProdHand': prodOpenHand(null); return true;
+    case 'invProdCorrect': prodOpenHand(btn.dataset.id); return true;
+    case 'invProdHandKind': _prodHand.kind = btn.dataset.kind; renderProduction(); return true;
+    case 'invProdSaveHand': prodSaveHand(); return true;
+    case 'invProdVoid': prodVoid(btn.dataset.id); return true;
+    case 'invProdUseLine': prodUseLine(btn.dataset.id, btn.dataset.line); return true;
+    case 'invProdExport': prodExport(); return true;
+    case 'invProdImport': prodImport(); return true;
+    case 'invProdLine': _prodLine = btn.dataset.line; renderProduction(); return true;
+    case 'invProdDay': {
+      var base = _prodDay || localDateStr();
+      _prodDay = stockIsoAdd(base, +btn.dataset.step);
+      renderProduction(); return true;
+    }
+    case 'invProdDayLast': _prodDay = null; renderProduction(); return true;
+    case 'invProdFilter':
+      if (btn.dataset.flag !== undefined) _prodFilter = { kind: '', flag: _prodFilter.flag === btn.dataset.flag ? '' : btn.dataset.flag, client: '' };
+      else _prodFilter = { kind: btn.dataset.kind || '', flag: '', client: '' };
+      if (_prodTab !== 'entries') prodSetTab('entries');
+      renderProduction(); return true;
+    case 'invProdTask': {
+      var t = todoAppAll(PROD_RULES.map(function(r) { return r[0]; })).find(function(x) { return x.key === btn.dataset.key; });
+      if (t) todoGo(t.go);
+      return true;
+    }
+  }
+  return false;
+}
+function prodOnChange(t) {
+  if (!t) return false;
+  if (t.id === 'prodPlantClient') { _prodPlantClient = t.value; renderProduction(); return true; }
+  if (t.id === 'prodPhotoInput') { prodPhotoFiles(t.files); return true; }
+  if (t.dataset && t.dataset.prodClient !== undefined) { _prodReview.choices['client' + t.dataset.prodClient] = t.value === 'asWritten' ? t.value : prodHeldId(t.value); if (t.value === '') delete _prodReview.choices['client' + t.dataset.prodClient]; renderProduction(); return true; }
+  if (t.dataset && t.dataset.prodRunClient !== undefined) { if (t.value === '') delete _prodPhoto.choices['client' + t.dataset.prodRunClient]; else _prodPhoto.choices['client' + t.dataset.prodRunClient] = t.value === 'asWritten' ? t.value : prodHeldId(t.value); renderProduction(); return true; }
+  if (t.id === 'prodPhotoLine') { _prodPhoto.choices.line = t.value; renderProduction(); return true; }
+  if (t.id === 'prodPhotoDate') { _prodPhoto.choices.date = t.value; renderProduction(); return true; }
+  if (t.dataset && t.dataset.prodHand) {
+    var k = t.dataset.prodHand;
+    _prodHand[k] = t.type === 'checkbox' ? t.checked : t.value;
+    if (k === 'date' || k === 'line' || k === 'slot') renderProduction();
+    return true;
+  }
+  if (t.id === 'prodBy') { try { localStorage.setItem(STOCK_BY_KEY, t.value.trim()); } catch (e) { /* per device */ } return true; }
+  return false;
+}
+function prodOnInput(t) {
+  if (!t) return false;
+  if (t.id === 'prodPasteText') { _prodPasteDraft = t.value; return true; }
+  if (t.dataset && t.dataset.prodHand && t.type !== 'checkbox') { _prodHand[t.dataset.prodHand] = t.value; return true; }
+  return false;
 }
 /* ===== CLIENT PERFORMANCE =====
  *
@@ -27183,6 +29014,7 @@ function onDocClick(e) {
       if (financeAction(action, btn)) break;
       if (finLinkAction(action, btn)) break;
       if (dashAction(action, btn)) break;
+      if (prodAction(action, btn)) break;
       if (action.indexOf('invStock') === 0) stockAction(action, btn);
       else if (action.indexOf('invTodo') === 0) todoAction(action, btn);
       else if (action.indexOf('invRelay') === 0) relayAction(action, btn);
@@ -27239,6 +29071,7 @@ function onDocChange(e) {
   if (dashInput(e.target)) return;
   if (todoOnChange(e.target)) return;
   if (relayOnChange(e.target)) return;
+  if (prodOnChange(e.target)) return;
   // A line's fields answer to their data-action; its unit <select> to data-change, since a select carrying an
   // action would run it on the click that opens it.
   const el = e.target.closest('[data-action="invUpdateLine"], [data-change="invUpdateLine"]');
@@ -27395,6 +29228,7 @@ document.addEventListener('input', function(e) {
   if (e.target.tagName === 'INPUT' && /^cnf/.test(e.target.id) && billsCnFormInput(e.target)) return;
   if (e.target.id === 'bankSearch' && bankInput(e.target)) return;
   if (relayOnInput(e.target)) return;
+  if (prodOnInput(e.target)) return;
   if (e.target.id === 'clientSearch') {
     renderClientList(e.target.value);
   }
@@ -27729,7 +29563,7 @@ document.addEventListener('focusout', function(e) {
 /* ===== SWIPE NAVIGATION ===== */
 (function() {
   var _swipeX = 0, _swipeY = 0;
-  var TAB_ORDER = ['pageHome','pageCreate','pageIM','pageRegister','pageClients','pageTodo','pageStock','pageStaff','pageStats','pageHistory'];
+  var TAB_ORDER = ['pageHome','pageCreate','pageIM','pageRegister','pageClients','pageTodo','pageProduction','pageStock','pageStaff','pageStats','pageHistory'];
 
   document.addEventListener('touchstart', function(e) {
     _swipeX = e.touches[0].clientX;
@@ -28342,6 +30176,7 @@ var SIDE_ICONS = {
   register: '<path d="M14 3H6a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8zM14 3v5h5M9 13h6M9 17h6"/>',
   clients: '<path d="M16 20v-1.5a3.5 3.5 0 0 0-3.5-3.5h-5A3.5 3.5 0 0 0 4 18.5V20M10 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7M20 20v-1.5a3.5 3.5 0 0 0-2.5-3.35M15.5 4.2a3.5 3.5 0 0 1 0 6.6"/>',
   items: '<path d="M4 7h16M4 12h16M4 17h10"/>',
+  production: '<path d="M3 20h18M5 20V10l4 3V10l4 3V6l6 4v10M8 16h1M12 16h1M16 16h1"/>',
   stock: '<path d="M9 3h6M10 3v6L4.5 19a1.3 1.3 0 0 0 1.1 2h12.8a1.3 1.3 0 0 0 1.1-2L14 9V3M7.5 14h9"/>',
   staff: '<path d="M15 20v-1.5a3.5 3.5 0 0 0-3.5-3.5h-5A3.5 3.5 0 0 0 3 18.5V20M9 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7M16 11l2 2 4-4"/>',
   pay: '<path d="M3 7h18v10H3zM12 14.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5"/>',
@@ -28355,7 +30190,7 @@ var SIDE_NAV = [
   ['Daily', [['pageHome', 'Home', 'home'], ['pageCreate', 'Create invoice', 'create'], ['pageIM', 'Challans', 'im'], ['pageRegister', 'Register', 'register']]],
   ['Book', [['pageClients', 'Clients', 'clients'], ['pageClients', 'Items', 'items', 'items']]],
   ['Money', [['pageFinance', 'Finance', 'finance']]],
-  ['Floor', [['pageStock', 'Stock', 'stock'], ['pageStaff', 'Staff', 'staff'], ['pageStaff', 'Pay', 'pay', 'pay']]],
+  ['Floor', [['pageProduction', 'Production', 'production'], ['pageStock', 'Stock', 'stock'], ['pageStaff', 'Staff', 'staff'], ['pageStaff', 'Pay', 'pay', 'pay']]],
   ['Review', [['pageTodo', 'To-do', 'todo'], ['pageStats', 'Stats', 'stats'], ['pageHistory', 'History', 'history']]]
 ];
 function _sideSvg(k) { return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + SIDE_ICONS[k] + '</svg>'; }

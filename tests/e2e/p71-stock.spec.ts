@@ -143,7 +143,7 @@ test.describe('P71: Stock', () => {
     await switchTab(page, 'pageStock');
     await page.locator('.inv-navbar-more').click();
     const sheet = page.locator('#moreSheet.inv-scrim .inv-sheet[role="dialog"]');
-    await expect(sheet.locator('.inv-row')).toHaveCount(6);
+    await expect(sheet.locator('.inv-row')).toHaveCount(7);
     await expect(sheet.locator('.inv-row[data-tab="pageStock"]')).toHaveAttribute('aria-current', 'page');
     await expect(sheet.locator('.inv-row[data-tab="pageStock"] .inv-badge-danger')).toHaveText('1 out');
     await expect(page.locator('[class*="inv-more-"]')).toHaveCount(0);

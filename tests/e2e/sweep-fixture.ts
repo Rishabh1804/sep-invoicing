@@ -110,6 +110,21 @@ export function sweepState(): SepState {
     { id: 'R5', date: dayOff(-1), valueDate: dayOff(-1), narration: 'TO SELF', chq: '', dr: 20000, cr: 0, balance: 112499, dayIdx: 0 }];
   s.bank = { rows, imports: [{ id: 'BI', at: 1, file: 'fake.xls', account: '', from: rows[0].date, to: rows[4].date, rows: 5, added: 5, closing: 112499 }],
     parties: {}, opening: {}, gstNotes: {} };
+  // A floor record: VAT A1 plated from a register photo, a barrel list, pickled loads with no line yet, a power cut.
+  const pe: any[] = [];
+  for (let k = 1; k <= 6; k++) {
+    const d = dayOff(-k);
+    if (new Date(d + 'T00:00:00').getDay() === 0) continue;
+    pe.push({ id: 'PA' + k, kind: 'plated', date: d, time: '09:20', to: '16:40', slot: 'general', line: 'vat-a1', lineSrc: 'written', clientId: 1, client: 'Alpha',
+      part: 'BRKT-1', qty: 110 + k, unit: 'KG', basis: 'register', src: 'photo', at: 1 });
+    pe.push({ id: 'PB' + k, kind: 'plated', date: d, slot: 'day', line: 'barrel', lineSrc: 'written', clientId: 2, client: 'Beta auto', part: 'CLAMP 66X42 (30X6)',
+      gauge: '30X6', qty: 150, unit: 'NOS', basis: 'relay', src: 'paste', raw: 'Beta auto CLAMP 66X42(30X6)--150 nos', at: 1 });
+    pe.push({ id: 'PP' + k, kind: 'pickled', date: d, time: '08:40', clientId: 1, client: 'ALPHA FORGINGS', part: 'BRKT-1', qty: 400, unit: 'NOS',
+      basis: 'pickling', src: 'paste', raw: 'BRKT-1--400 nos', at: 1 });
+  }
+  pe.push({ id: 'PD1', kind: 'downtime', date: dayOff(-2), time: '10:55', to: '11:15', downtime: { cause: 'power' }, basis: 'pickling', src: 'paste', at: 1 });
+  pe.push({ id: 'PX1', kind: 'pickled', date: dayOff(-1), time: '10:40', client: 'SIYA ENTERPRISES', part: 'Buckle hook', qty: 200, unit: 'NOS', basis: 'pickling', src: 'paste', at: 1 });
+  s.production = { entries: pe, pastes: [], photos: [], imports: [], learn: { clients: {}, parts: {} } };
   s.todo = { tasks: [
     { id: 'T1', text: 'Call Beta about the June payment', due: dayOff(-1), note: '', link: null, createdAt: recentTs(), doneAt: null },
     { id: 'T2', text: 'Order nitric acid', due: '', note: '', link: null, createdAt: recentTs(), doneAt: null },
@@ -258,7 +273,7 @@ export async function shot(page: Page, name: string) {
   await page.screenshot({ path: `${dir}/${name}.png`, fullPage: !(await page.locator('.inv-scrim-dialog').count()) });
 }
 
-export const PAGES = ['pageHome', 'pageCreate', 'pageIM', 'pageRegister', 'pageClients', 'pageTodo', 'pageFinance', 'pageStock', 'pageStaff', 'pageStats', 'pageHistory'];
+export const PAGES = ['pageHome', 'pageCreate', 'pageIM', 'pageRegister', 'pageClients', 'pageTodo', 'pageFinance', 'pageProduction', 'pageStock', 'pageStaff', 'pageStats', 'pageHistory'];
 
 /* Every page, then every view tab on it (re-read after each click, since a tab can redraw the row). */
 export async function walkPages(page: Page, tag: string, stops: Stop[]) {

@@ -113,4 +113,16 @@ test.describe('P84: the paste check', () => {
     s = await readStoredState(page);
     expect(s.production.entries[0]).toMatchObject({ line: 'barrel', lineSrc: 'set', qty: 300 });
   });
+
+  test('a message posted twice in one paste (the supervisor reposts a roll) is read once', async ({ page }) => {
+    await load(page);
+    const one = `${dmy(-1)}, 9:40 am - Pickler: NOVA CLAMPS\nLiner--600 nos\nPickling Time 9:00AM`;
+    await paste(page, one + '\n' + one.replace('9:40 am', '11:02 am'));
+    await expect(page.locator('#prodDupNote')).toContainText('sent twice');
+    await expect(page.locator('[data-prod-msg="1"]')).toContainText('earlier in this paste');
+    await page.locator('[data-action="invProdSaveReview"]').click();
+    const s = await readStoredState(page);
+    expect(s.production.entries).toHaveLength(1);
+    expect(s.production.pastes).toHaveLength(1);
+  });
 });

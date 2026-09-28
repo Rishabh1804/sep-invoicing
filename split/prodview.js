@@ -201,8 +201,8 @@ function prodLinesHtml() {
       (loads.length ? loads.map(prodLoadRowHtml).join('') : '<div class="inv-empty">No pickling recorded this day.</div>') + '</div>';
     return h;
   }
-  var r = prodDayLine(day, line), downtime = idx.live.filter(function(e) { return e.kind === 'downtime' && e.date === day; });
-  var mins = downtime.reduce(function(s, e) { var a = prodMin(e.time), b = prodMin(e.to); return s + (a != null && b != null && b > a ? b - a : 0); }, 0);
+  var r = prodDayLine(day, line), downtime = prodDowntimeDay(day);
+  var mins = downtime.reduce(function(s, x) { return s + x.min; }, 0);
   h += '<div class="inv-tiles">' +
     '<div class="inv-tile"><div class="inv-tile-label">Plated</div><div class="inv-tile-value">' + escHtml(Math.round(r.nos).toLocaleString('en-IN')) + ' <span class="inv-tile-of">NOS</span></div><div class="inv-tile-sub">' + todoPlural(r.entries.length, 'run') + '</div></div>' +
     '<div class="inv-tile"><div class="inv-tile-label">Weight</div><div class="inv-tile-value">' + (r.kg ? escHtml(formatNum(r.kg, 0)) + ' <span class="inv-tile-of">kg</span>' : '&mdash;') + '</div><div class="inv-tile-sub">' + Math.round(r.weighedShare * 100) + '% of pieces weighed</div></div>' +
@@ -335,9 +335,12 @@ function prodPasteSeen(hash) {
   return live ? paste : null;
 }
 function prodReviewResolve() {
-  var rv = _prodReview, ch = rv.choices, out = { rows: [], red: 0, amber: 0, save: 0, dup: 0 };
+  var rv = _prodReview, ch = rv.choices, out = { rows: [], red: 0, amber: 0, save: 0, dup: 0 }, inPaste = {};
   rv.msgs.forEach(function(m, mi) {
-    m.dup = !!prodPasteSeen(m.hash);
+    // Saved before, or the same message earlier in this paste (the supervisor reposts a roll): read once.
+    m.twice = !!(m.read.items.length && inPaste[m.hash]);
+    if (m.read.items.length) inPaste[m.hash] = true;
+    m.dup = !!prodPasteSeen(m.hash) || m.twice;
     if (m.dup) out.dup++;
     m.read.items.forEach(function(it, ii) {
       var key = mi + ':' + ii, row = { m: m, mi: mi, ii: ii, key: key, it: it, issues: it.issues.slice(), tone: 'clear' };
@@ -367,12 +370,12 @@ function prodReviewHtml() {
   h += '<div class="inv-tiles"><div class="inv-tile' + (res.red ? ' inv-tile-danger' : '') + '"><div class="inv-tile-label">Needs you</div><div class="inv-tile-value">' + res.red + '</div></div>' +
     '<div class="inv-tile' + (res.amber ? ' inv-tile-warning' : '') + '"><div class="inv-tile-label">Check</div><div class="inv-tile-value">' + res.amber + '</div></div>' +
     '<div class="inv-tile"><div class="inv-tile-label">To save</div><div class="inv-tile-value">' + res.save + '</div></div></div>';
-  if (res.dup) h += '<div class="inv-callout inv-callout-danger" id="prodDupNote">' + todoPlural(res.dup, 'message') + ' in this paste ' + (res.dup === 1 ? 'was' : 'were') + ' saved before and ' + (res.dup === 1 ? 'is' : 'are') + ' left out, so nothing counts twice.</div>';
+  if (res.dup) h += '<div class="inv-callout inv-callout-danger" id="prodDupNote">' + todoPlural(res.dup, 'message') + ' in this paste ' + (res.dup === 1 ? 'was' : 'were') + ' saved before, or sent twice, and ' + (res.dup === 1 ? 'is' : 'are') + ' left out, so nothing counts twice.</div>';
   rv.msgs.forEach(function(m, mi) {
     var kindWord = { pickling: 'Pickling', production: 'Barrel production', roll: 'Roll: production notes', power: 'Power cut', stock: 'Stock (read in Stock)', other: 'Not production' }[m.kind];
     h += '<div class="inv-panel inv-panel-flush' + (m.dup ? ' inv-row-muted' : '') + '" data-prod-msg="' + mi + '"><div class="inv-panel-head"><span class="inv-panel-title">' + escHtml(kindWord + (m.sentBy ? ' · ' + m.sentBy : '')) + '</span>' +
       '<span class="inv-panel-count">' + escHtml((m.sentOn ? stockShortDate(m.sentOn) : 'no date') + (m.sentAt != null ? ' ' + relayHhmm(m.sentAt) : '')) + '</span></div>';
-    if (m.dup) h += '<div class="inv-panel-body inv-note">Saved before: left out.</div>';
+    if (m.dup) h += '<div class="inv-panel-body inv-note">' + (m.twice ? 'The same message is earlier in this paste: read once, left out here.' : 'Saved before: left out.') + '</div>';
     if (m.kind === 'roll' && !m.read.items.length) h += '<div class="inv-panel-body inv-note">An attendance roll with no production notes: read it in Staff → Paste message.</div>';
     if (m.kind === 'stock') h += '<div class="inv-panel-body inv-note">A chemical stock message: read it in Stock → Paste message.</div>';
     if (m.kind === 'other') h += '<div class="inv-panel-body"><div class="inv-quote">' + escHtml(m.text.slice(0, 400)) + '</div><div class="inv-note inv-mt-4">Not read: not a pickling, production or power message.</div></div>';
@@ -482,7 +485,7 @@ function prodPhotoNext() {
     try { draft = JSON.parse(localStorage.getItem(PROD_DRAFT_KEY) || 'null'); } catch (e) { draft = null; }
     var start = function(json, meta) {
       done();
-      _prodPhoto = { name: file.name || '', bytes: file.size, url: URL.createObjectURL(file), sha: b.sha, json: json, meta: meta || {}, choices: {}, photoDate: photoDate, dupSha: seenLive ? seen : null };
+      _prodPhoto = { file: file, name: file.name || '', bytes: file.size, url: URL.createObjectURL(file), sha: b.sha, json: json, meta: meta || {}, choices: {}, photoDate: photoDate, dupSha: seenLive ? seen : null };
       try { localStorage.setItem(PROD_DRAFT_KEY, JSON.stringify({ sha: b.sha, json: json, name: file.name, at: Date.now() })); } catch (e) { /* a convenience only */ }
       prodSetView('photo');
     };
@@ -503,18 +506,32 @@ function prodPhotoHtml() {
   var line = ph.choices.line !== undefined ? ph.choices.line : rd.line;
   var date = ph.choices.date || rd.date;
   var dupFp = p.photos.find(function(x) { return x.fp === rd.fp && p.entries.some(function(e) { return e.photoId === x.id && !e.voidedAt; }); });
-  var red = 0;
+  var red = rd.issues.filter(function(x) { return x.tone === 'red'; }).length, power = rd.page === 'power';
   rd.rows.forEach(function(r) { r.issues.forEach(function(x) { if (x.tone === 'red') red++; }); });
   rd.runs.forEach(function(e, i) { if (e.clientId == null && ph.choices['client' + i] === undefined) red++; });
   var h = prodBackBar('Check the register');
   h += '<div class="inv-panel"><div class="inv-scroll-x"><img class="inv-prod-photo" src="' + escHtml(ph.url) + '" alt="The register photo"></div>' +
     '<div class="inv-fields inv-mt-8"><div class="inv-field"><label class="inv-field-label" for="prodPhotoDate">Date on the page</label><input type="date" id="prodPhotoDate" class="inv-input" value="' + escHtml(date) + '"></div>' +
-    '<div class="inv-field"><label class="inv-field-label" for="prodPhotoLine">Line</label><select id="prodPhotoLine" class="inv-select">' +
-      '<option value=""' + (!line ? ' selected' : '') + '>Unknown</option>' + PROD_LINES.map(function(l) { return '<option value="' + l + '"' + (line === l ? ' selected' : '') + '>' + PROD_LINE_LABEL[l] + '</option>'; }).join('') + '</select></div></div>' +
+    (power || rd.page === 'other' ? '' : '<div class="inv-field"><label class="inv-field-label" for="prodPhotoLine">Line</label><select id="prodPhotoLine" class="inv-select">' +
+      '<option value=""' + (!line ? ' selected' : '') + '>Unknown</option>' + PROD_LINES.map(function(l) { return '<option value="' + l + '"' + (line === l ? ' selected' : '') + '>' + PROD_LINE_LABEL[l] + '</option>'; }).join('') + '</select></div>') + '</div>' +
     '<div class="inv-note inv-mt-8">Read by Gemini' + (ph.meta.draft ? ' (kept from the last read of this photo)' : '') + '. Check every row against the photo: nothing is saved until you do.</div></div>';
   if (ph.dupSha) h += '<div class="inv-callout inv-callout-danger" id="prodPhotoDup">This photo was saved before. Saving it again would count the page twice.</div>';
   else if (dupFp) h += '<div class="inv-callout inv-callout-warning" id="prodPhotoDup">A photo with the same rows for this day and line was saved before (a retake or a forward?). Saving would count the page twice.</div>';
   rd.issues.forEach(function(x) { if (x.code === 'line' && line) return; h += '<div class="inv-callout inv-callout-' + uiTone(x.tone) + '">' + escHtml(x.text) + '</div>'; });
+  if (power) {
+    // The register's power log: each cut with its return, as written.
+    h += '<div class="inv-panel inv-panel-flush" id="prodPhotoPower"><div class="inv-panel-head"><span class="inv-panel-title">Power cuts read</span><span class="inv-panel-count">' + rd.downtime.length + '</span></div>' +
+      rd.downtime.map(function(x, i) {
+        var mins = x.to ? prodMin(x.to) - prodMin(x.time) : null;
+        return '<div class="inv-row inv-row-2" data-prod-cut="' + i + '"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(stockShortDate(x.date) + ' · ' + x.time + (x.to ? ' – ' + x.to : ', no return written')) + '</span>' +
+          '<span class="inv-row-meta">' + escHtml(x.raw.replace(/\n/g, ' / ')) + '</span></span><span class="inv-row-end inv-num">' + (mins != null ? escHtml(mins + ' min') : '&mdash;') + '</span></div>';
+      }).join('') + '<div class="inv-panel-body inv-note">A cut the pickling messages also reported is counted once: the two are joined when they overlap or begin within ten minutes.</div></div>';
+    return h + '<div class="inv-actionbar"><div class="inv-actionbar-total"><div class="inv-actionbar-label">Power cuts</div><div class="inv-actionbar-value">' + rd.downtime.length + '</div></div>' +
+      '<button class="inv-btn inv-btn-primary" data-action="invProdSavePhoto"' + (red || ph.dupSha || !rd.downtime.length ? ' disabled' : '') + '>Save</button></div>';
+  }
+  if (rd.page === 'challan') h += '<div class="inv-panel"><button class="inv-btn inv-btn-secondary inv-btn-block" data-action="invProdToScanner">Read it as a challan</button></div>';
+  if (rd.page === 'other' || rd.page === 'challan') return h + '<div class="inv-actionbar"><div class="inv-actionbar-total"><div class="inv-actionbar-label">Nothing to save</div><div class="inv-actionbar-value">0</div></div>' +
+    '<button class="inv-btn inv-btn-primary" data-action="invProdSavePhoto" disabled>Save</button></div>';
   h += '<div class="inv-panel inv-panel-flush" id="prodPhotoRuns"><div class="inv-panel-head"><span class="inv-panel-title">Runs read</span><span class="inv-panel-count">' + rd.runs.length + '</span></div>';
   rd.runs.forEach(function(e, i) {
     var cc = ph.choices['client' + i], cid = cc !== undefined ? (cc === 'asWritten' ? null : cc) : e.clientId;
@@ -544,8 +561,14 @@ function prodSavePhoto() {
   var rd = prodPhotoRead(), p = prodData(), at = Date.now(), by = stockBy();
   var line = ph.choices.line !== undefined ? ph.choices.line : rd.line, date = ph.choices.date || rd.date;
   var id = prodUid('PF'), n = 0;
+  if (rd.page === 'other' || rd.page === 'challan') return;
   p.photos.push({ id: id, at: at, by: by, sha: ph.sha, name: ph.name, bytes: ph.bytes, w: ph.meta.w || 0, h: ph.meta.h || 0, model: GEMINI_MODEL, promptVer: PROD_REGISTER_PROMPT_VER,
-    readDate: date, readLine: line || null, rows: rd.rows.length, fp: rd.fp });
+    readDate: date, readLine: rd.page === 'power' ? null : line || null, page: rd.page, rows: rd.page === 'power' ? rd.downtime.length : rd.rows.length, fp: rd.fp });
+  rd.downtime.forEach(function(x) {
+    p.entries.push(prodSparse({ id: prodUid('PE'), kind: 'downtime', date: x.date, time: x.time, to: x.to, downtime: { cause: 'power', open: !!x.open },
+      basis: 'register', src: 'photo', raw: x.raw, photoId: id, by: by, at: at }));
+    n++;
+  });
   rd.runs.forEach(function(e, i) {
     // A run every row of which was struck and cancelled was never plated.
     if (e.rows.length && e.rows.every(function(x) { return x.struck && !x.counted && ph.choices['struck' + x.i] === 'cancelled'; })) return;
@@ -563,7 +586,7 @@ function prodSavePhoto() {
   try { URL.revokeObjectURL(ph.url); } catch (e) { /* nothing held */ }
   _prodPhoto = null;
   prodSetView('main');
-  showToast(todoPlural(n, 'run') + ' saved from the register', 'success');
+  showToast(rd.page === 'power' ? todoPlural(n, 'power cut') + ' saved from the register' : todoPlural(n, 'run') + ' saved from the register', 'success');
   prodPhotoNext();
 }
 
@@ -695,6 +718,15 @@ function prodAction(action, btn) {
     case 'invProdVoid': prodVoid(btn.dataset.id); return true;
     case 'invProdUseLine': prodUseLine(btn.dataset.id, btn.dataset.line); return true;
     case 'invProdExport': prodExport(); return true;
+    case 'invProdToScanner': {
+      // A customer's challan photographed into the register reader: the challan scanner reads the same file.
+      var f = _prodPhoto && _prodPhoto.file;
+      if (_prodPhoto) { try { URL.revokeObjectURL(_prodPhoto.url); } catch (e) { /* none */ } _prodPhoto = null; }
+      _prodView = 'main';
+      switchTab('pageIM'); showAddChallanForm();
+      if (f) _processScanImage(f, getApiKey());
+      return true;
+    }
     case 'invProdImport': prodImport(); return true;
     case 'invProdLine': _prodLine = btn.dataset.line; renderProduction(); return true;
     case 'invProdDay': {

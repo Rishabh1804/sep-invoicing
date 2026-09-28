@@ -47,7 +47,8 @@ function prodSplit(text) {
   });
   return msgs.map(function(m) {
     // The chat-export tool keeps a photo's caption after its marker; the Android export drops both.
-    m.text = m.lines.join('\n').replace(/<This message was edited>/gi, '').replace(/^\s*<(image|media|video) omitted>\s*/i, '').trim();
+    m.text = m.lines.join('\n').replace(/<This message was edited>/gi, '').replace(/^\s*<(image|media|video) omitted>\s*/i, '')
+      .replace(/^\s*[\w.-]+\.(jpe?g|png|webp|heic|pdf|opus|mp4|3gp)\s*\(file attached\)\s*/i, '').trim();
     delete m.lines;
     m.kind = prodKind(m.text);
     m.hash = relayHash(m.text);
@@ -55,6 +56,8 @@ function prodSplit(text) {
   }).filter(function(m) { return m.text && !/omitted>$/i.test(m.text) && !/^this message was deleted$/i.test(m.text) && !/end-to-end encrypted/i.test(m.text); });
 }
 
+/* A chemical delivery is Stock's, not incoming material: "Incoming spray 22/09/26", "incoming camical local". */
+var PROD_CHEM_IN_RE = /c[ae]mical|chemical|spray|acid|sollt|salt|zink|zinc|nitric|hcl|brightner|cyn[ei]de|passivat/i;
 /* What a message is. A roll goes to attendance (its production block comes here as well); chemicals go to Stock. */
 function prodKind(text) {
   var t = String(text || ''), head = t.split('\n').slice(0, 2).join(' ');
@@ -62,7 +65,7 @@ function prodKind(text) {
   // "28/5/26/ in time6:00 am morning ot": the roll's own dated head, even with no space before the time.
   if (rk === 'in' || rk === 'out' || /^\s*\d{1,2}\/\d{1,2}\/\d{2,4}\/*\s*(in|out)\s*-*\s*time/i.test(t)) return 'roll';
   if (rk === 'stock') return 'stock';
-  if (/p\w{0,2}[ckx]{1,2}l\w*[ \t]*t\w*me|in[ \t]*c?o?ming[ \t]*ma|i+n?x?o?coming|incoming[ \t]*time/i.test(t)) return 'pickling';
+  if (/p\w{0,2}[ckx]{1,2}l\w*[ \t]*t\w*me|in[ \t]*c?o?ming[ \t]*ma|i+n?x?o?coming|incoming[ \t]*time/i.test(t) && !PROD_CHEM_IN_RE.test(head)) return 'pickling';
   if (PROD_LIST_HEAD_RE.test(head) || /^\s*b[ae]r+[ae]*l+\.?\s*production/im.test(t)) return 'production';
   if (/p[ao]w[ae]r\s*(cut|cat|cute|in|out|no)|pawar\s*cut|single\s*ph[ae]se/i.test(t)) return 'power';
   if (/^\s*-*\s*(production|work)\s*-*\s*$/im.test(t)) return 'production';
@@ -181,7 +184,8 @@ function prodReadItem(line, idx) {
     else if (/\.{3,}\s*$/.test(s)) { partText = s.replace(/\.{3,}\s*$/, ''); out.dots = true; }
   }
   partText = partText.replace(/\s*(?:-{1,3}|_{2}|=|,)\s*$/, '').replace(/\(\s*now\s*\)/i, '').trim();
-  // A client written at the front: the longest run of up to three words that names one.
+  // A client written at the front: the longest run of up to three words that names one ("Dorabji--4206" is two).
+  partText = partText.replace(/^([A-Za-z][A-Za-z.&]*)-{2,3}(?=[A-Za-z0-9])/, '$1 ');
   var words = partText.split(/\s+/).filter(Boolean), alpha = 0;
   while (alpha < words.length && alpha < 3 && /^[A-Za-z][A-Za-z.&]*$/.test(words[alpha])) alpha++;
   var peel = function(exact) {
@@ -213,7 +217,7 @@ function prodPartBase(part) {
 
 /* ---------- The pickling hand's message ---------- */
 function prodIsTimeLine(s) { return /p\w{0,2}[ckx]{1,2}l\w*[ \t]*t\w*me/i.test(s); }
-function prodIsIncomingLine(s) { return /in\s*c?o?m\w*\s*(ma\w*\s*)?(t\w*me|rime)|i+n?x?o?coming|incoming\s*time|evening\s*incoming/i.test(s); }
+function prodIsIncomingLine(s) { return /in\s*c?o?m\w*\s*(ma\w*\s*)?(t\w*me|rime)|i+n?x?o?coming|incoming\s*time|evening\s*incoming/i.test(s) && !PROD_CHEM_IN_RE.test(s); }
 function prodIsPowerLine(s) { return /p[ao]w[ae]r|pawar|single\s*ph[ae]se/i.test(s) && /cut|cat|in\b|out|no\s*in|ph[ae]se/i.test(s); }
 
 function parsePickling(msg, ctx) {
@@ -382,31 +386,34 @@ function parseProductionList(msg, ctx) {
    header above: a guess, so it is amber on the review and saved only once confirmed. */
 function prodFromRoll(msg, ctx) {
   var rr = parseRelayRoll(msg.text, ctx.roster || [], msg.sentOn);
-  var date = rr.date || msg.sentOn || ctx.today, items = [], notes = [], inBlock = false, lineHint = null, from = null, to = null, cutAt = null;
-  var textLines = String(msg.text || '').split('\n');
-  rr.lines.forEach(function(ln, k) {
-    if (ln.role === 'head' && ln.read === 'Production notes') {
-      inBlock = true;
-      lineHint = null; from = null; to = null;
-      for (var j = k - 1; j >= 0; j--) {
-        var up = rr.lines[j];
-        if (up.role !== 'head') continue;
-        if (up.read === 'Production notes') break;
-        if (/^Slot from|^Out at/.test(up.read)) {
-          var tt = relayTimes(up.raw);
-          // An out-time roll's head is when the slot ended; an in-time roll's, when it began.
-          if (from == null && to == null && tt.length) {
-            if (/^Out at/.test(up.read)) to = tt[tt.length - 1].min; else { from = tt[0].min; to = tt.length > 1 ? tt[1].min : null; }
-          }
-          break;   // the slot's own head: a line header above it belongs to another slot
-        }
-        var areas = relayHeaderAreas(up.raw).filter(function(a) { return PROD_LINES.indexOf(a) >= 0; });
-        if (areas.length && !lineHint) lineHint = areas[0];
+  var date = rr.date || msg.sentOn || ctx.today, items = [], notes = [], cutAt = null;
+  // One pass down the roll. The supervisor writes a slot's work under the slot, sometimes under a "----production----"
+  // or "----work----" head and sometimes straight under the line it ran on ("---hold night-6:00am--- / crew /
+  // Dilip press material / VAT A 2 / 3301-600 nos"): a line with a quantity under a slot is that slot's production
+  // either way, and a client named on a line of its own is the client of the lines under it.
+  var from = null, to = null, hint = null, inProd = false, group = null, pending = null;
+  rr.lines.forEach(function(ln) {
+    if (ln.role !== 'note') pending = null;
+    if (ln.role === 'head') {
+      if (ln.read === 'Production notes') {
+        inProd = true; group = null;
+        var pa = relayHeaderAreas(ln.raw).filter(function(a) { return PROD_LINES.indexOf(a) >= 0; });
+        if (pa.length) hint = pa[0];
+        return;
       }
+      if (/^Slot from|^Out at/.test(ln.read)) {
+        var tt = relayTimes(ln.raw);
+        from = null; to = null;
+        // An out-time roll's head is when the slot ended; an in-time roll's, when it began.
+        if (tt.length) { if (/^Out at/.test(ln.read)) to = tt[tt.length - 1].min; else { from = tt[0].min; to = tt.length > 1 ? tt[1].min : null; } }
+        hint = null; inProd = false; group = null;
+        return;
+      }
+      var areas = relayHeaderAreas(ln.raw).filter(function(a) { return PROD_LINES.indexOf(a) >= 0; });
+      hint = areas.length ? areas[0] : null; inProd = false;
       return;
     }
-    if (!inBlock) return;
-    if (ln.role !== 'note') { inBlock = false; return; }
+    if (ln.role !== 'note') return;
     var line = ln.raw.trim();
     if (prodIsPowerLine(line)) {
       var pt = prodTimeOf(line.replace(/^.*?(cut|cat|cute|in|out)\b/i, ''), null);
@@ -416,19 +423,48 @@ function prodFromRoll(msg, ctx) {
     }
     if (/no\s*work/i.test(line)) { notes.push({ n: ln.n, raw: ln.raw, text: 'No work in this block' }); return; }
     var it = prodReadItem(line, ctx.clients);
-    if (!it.part && it.qty == null && it.clientId == null) { notes.push({ n: ln.n, raw: ln.raw, text: 'Not read as production' }); return; }
-    var rec = prodItemRecord(it, null, ln.raw, ln.n, date, !rr.date && !msg.sentOn);
-    rec.kind = 'plated'; rec.slot = 'ot'; rec.basis = 'relay'; rec.line = null; rec.lineHint = lineHint;
+    // "Dilip press material", "Mehta ka maal": the client of the lines below.
+    if (it.clientId != null && it.qty == null && (!it.part || /^(material|maal|mal|ka\s*maal|others?|work|ka)$/i.test(it.part.trim()))) {
+      group = { client: it.client, clientId: it.clientId, clientName: it.clientName, how: it.clientHow };
+      return;
+    }
+    // "MEHTA CLAMP / 1360 NOS": the figure on the line below the part it counts.
+    if (it.qty != null && !it.part && it.clientId == null && pending) {
+      var joined = prodReadItem(pending.raw.trim() + ' ' + line, ctx.clients);
+      if (joined.qty != null) {
+        if (pending.rec) items.splice(items.indexOf(pending.rec), 1);   // the part line, saved empty inside a block, is this one
+        it = joined; it.rawJoined = pending.raw + '\n' + ln.raw; pending = null;
+      }
+    }
+    if (it.qty == null) {
+      if (it.part || it.clientId != null) pending = { raw: ln.raw, n: ln.n };
+      if (!(inProd && (it.part || it.clientId != null))) { notes.push({ n: ln.n, raw: ln.raw, text: 'Not read as production' }); return; }
+    } else pending = null;
+    var rec = prodItemRecord(it, it.clientId == null ? group : null, it.rawJoined || ln.raw, ln.n, date, !rr.date && !msg.sentOn);
+    rec.kind = 'plated'; rec.slot = 'ot'; rec.basis = 'relay'; rec.line = null; rec.lineHint = hint;
     rec.time = prodHhmm(from); rec.to = prodHhmm(to);
-    rec.issues.push(lineHint ? { tone: 'amber', code: 'linehint', text: 'Line read from the header above: ' + PROD_LINE_LABEL[lineHint] + '. Confirm it.' }
-      : { tone: 'amber', code: 'noline', text: 'No line written above this block. Pick the line, or leave it unknown.' });
+    rec.issues.push(hint ? { tone: 'amber', code: 'linehint', text: 'Line read from the header above: ' + PROD_LINE_LABEL[hint] + '. Confirm it.' }
+      : { tone: 'amber', code: 'noline', text: 'No line written above this work. Pick the line, or leave it unknown.' });
     items.push(rec);
+    if (it.qty == null && pending) pending.rec = rec;
   });
-  void textLines;
   return { items: items, notes: notes, unread: [], date: date, noDate: !rr.date };
 }
 
 /* ---------- A paste: every message read, none dropped ---------- */
+/* A load with no client written, whose part only one client has ever sent: that client, read as, never silently. */
+function prodOwnerFill(items, ctx) {
+  if (!ctx.partOwners) return;
+  items.forEach(function(it) {
+    if (it.kind === 'downtime' || it.clientId != null || it.client || !it.part) return;
+    var cid = ctx.partOwners[rateKey(prodPartBase(it.part))];
+    var rec = cid != null && ctx.clients && ctx.clients.list.find(function(c) { return String(c.id) === String(cid); });
+    if (!rec) return;
+    it.clientId = rec.id; it.clientName = rec.name;
+    it.issues = it.issues.filter(function(x) { return x.code !== 'client'; });
+    it.issues.push({ tone: 'amber', code: 'readas', text: 'No client written: ' + it.part + ' has only ever come from ' + rec.name + '.' });
+  });
+}
 function parseProdPaste(text, ctx) {
   var msgs = prodSplit(text);
   return msgs.map(function(m) {
@@ -437,6 +473,7 @@ function parseProdPaste(text, ctx) {
     else if (m.kind === 'production') r = parseProductionList(m, ctx);
     else if (m.kind === 'roll') r = prodFromRoll(m, ctx);
     else r = { items: [], notes: [], unread: [], date: m.sentOn || ctx.today };
+    prodOwnerFill(r.items, ctx);
     m.read = r;
     return m;
   });
@@ -444,33 +481,45 @@ function parseProdPaste(text, ctx) {
 
 /* ---------- The VAT register, read from a photo by Gemini ---------- */
 /* The prompt asks for a TRANSCRIPTION, never a reading: times as written, customers and parts as spelt, every row
-   the clerk wrote, struck rows and figures written over marked as such. No client list is sent (the model would
-   "correct" the floor's spellings to legal names), and the workers' box is not asked for. Converting times, the
-   START rule, rack arithmetic and the day's total are this app's, in code, where they can be tested. */
-var PROD_REGISTER_PROMPT_VER = 'reg-v1';
-var PROD_REGISTER_PROMPT = 'This is a photo of one page of a handwritten production register from a zinc electroplating plant in India. ' +
-  'Each row records a batch (a round, a rack or a jig load) plated on one line.\n\n' +
-  'TRANSCRIBE the page exactly as written. Do not correct spellings, do not convert times, do not add rows that are not written, do not invent figures.\n' +
-  '- date: the date written on the page, exactly as written (e.g. "08/07/26"), or null.\n' +
-  '- line: "VAT A1", "VAT A2" or "BARREL" if the page names it, else null.\n' +
+   the clerk wrote, figures exactly as written ("72+10", "98×8+1"), struck rows and figures written over marked as such.
+   No client list is sent (the model would "correct" the floor's spellings to legal names), and the workers' box is not
+   asked for. Converting times, adding up a figure, the START and END rules, rack arithmetic and the day's total are
+   this app's, in code, where they can be tested.
+
+   Two page shapes, both seen on the real register (photos of 24–26 Sep 2026, owner):
+   - ROUNDS (VAT A1): one row per round, "9:45 AM - 72", a START row first. A START counts as a round of the next
+     round's figure (the owner's rule, 26 Jun).
+   - START / END (VAT A2): a run opens on a START row and its END row carries the run's whole figure ("98×8+1"); an
+     END with no START of its own starts where the one before ended. A START here is only the run's start: counting it
+     as a round, as the first build did, doubled every A2 run.
+   The register also keeps a POWER LOG ("25/09/26 Power cut - 10:26 AM / Power in - 10:36 AM"), read as power cuts. A
+   photo of anything else (the weekly hours sheet) is said so and nothing is read. */
+var PROD_REGISTER_PROMPT_VER = 'reg-v2';
+var PROD_REGISTER_PROMPT = 'This is a photo of one page from the handwritten registers of a zinc electroplating plant in India.\n\n' +
+  'TRANSCRIBE the page exactly as written. Do not correct spellings, do not convert times, do not add up figures, do not add rows that are not written, do not invent anything.\n' +
+  '- page: "production" if it lists batches plated (customer, part, times, figures); "power" if it is a log of power cuts and power coming back; "challan" if it is a customer\'s printed delivery challan; "other" for anything else (a wages or hours sheet, a list of names).\n' +
+  '- date: the date written at the top, exactly as written (e.g. "24/09/26"), or null. weekday: the day name written at the top (e.g. "Thursday"), or null.\n' +
+  '- line: the line named at the top exactly as written (e.g. "VAT-A1", "VAT-A2", "BARREL"), or null.\n' +
   '- dayTotal: a day total written on the page, else null.\n' +
-  '- rows: one per written entry, top to bottom. For each: time as written (e.g. "9:20", "1:45 PM", "START"); customer and part as written ' +
-  '(a row that only repeats the one above with ditto marks takes the same customer and part, and ditto is true); dim (a size such as "35x6") if written; ' +
-  'rackSize, rounds and short if the row is written as rack size times rounds minus short (e.g. "4×108", "12×120+78"); qty: the pieces figure written for the row; ' +
-  'start: true if the row says START; struck: true if the row or its figure is struck through; over: the figure a correction was written over, as written; ' +
-  'bracket: true if the row is inside a bracket that carries one total for several rows; legible: false if you cannot read the figure.\n' +
-  'Ignore the workers\' names box. Return only the JSON.';
+  '- rows: one per written row, top to bottom, skipping rows with nothing written but ditto marks. For each: time exactly as written without START or END (e.g. "9:45 AM", "3:00 PM"); ' +
+  'mark: "START" or "END" if the row says so, else null; customer and part as written (when a column holds only ditto marks, leave it null and set ditto true); dim (a size such as "35x6") if written; ' +
+  'qtyText: the figure written for the row, exactly as written with its signs (e.g. "72", "72+10", "98×8+1", "50+52+30", "3+4×156"), else null; when the only figure on the row is written in the part column (e.g. "(25 NOS) TINA"), put it in qtyText too; struck: true if the row or its figure is struck through; ' +
+  'over: what a correction was written over, as written; bracket: true if the row is inside a bracket carrying one total for several rows; legible: false if you cannot read the figure.\n' +
+  '- On a power page, each row: date as written on the row, event "power cut" or "power in" (also "power on"), and time as written.\n' +
+  'Ignore any box of workers\' names. Return only the JSON.';
 var PROD_REGISTER_SCHEMA = {
   type: 'OBJECT',
   properties: {
+    page: { type: 'STRING', nullable: true },
     date: { type: 'STRING', nullable: true },
+    weekday: { type: 'STRING', nullable: true },
     line: { type: 'STRING', nullable: true },
     dayTotal: { type: 'NUMBER', nullable: true },
     rows: { type: 'ARRAY', items: { type: 'OBJECT', properties: {
-      time: { type: 'STRING', nullable: true }, customer: { type: 'STRING', nullable: true }, part: { type: 'STRING', nullable: true }, dim: { type: 'STRING', nullable: true },
-      rackSize: { type: 'NUMBER', nullable: true }, rounds: { type: 'NUMBER', nullable: true }, short: { type: 'NUMBER', nullable: true }, qty: { type: 'NUMBER', nullable: true },
-      start: { type: 'BOOLEAN', nullable: true }, struck: { type: 'BOOLEAN', nullable: true }, over: { type: 'STRING', nullable: true },
-      bracket: { type: 'BOOLEAN', nullable: true }, ditto: { type: 'BOOLEAN', nullable: true }, legible: { type: 'BOOLEAN', nullable: true } } } }
+      time: { type: 'STRING', nullable: true }, mark: { type: 'STRING', nullable: true }, customer: { type: 'STRING', nullable: true }, part: { type: 'STRING', nullable: true },
+      dim: { type: 'STRING', nullable: true }, qtyText: { type: 'STRING', nullable: true }, struck: { type: 'BOOLEAN', nullable: true }, over: { type: 'STRING', nullable: true },
+      bracket: { type: 'BOOLEAN', nullable: true }, ditto: { type: 'BOOLEAN', nullable: true }, legible: { type: 'BOOLEAN', nullable: true },
+      event: { type: 'STRING', nullable: true }, date: { type: 'STRING', nullable: true } } } }
   },
   required: ['rows']
 };
@@ -484,58 +533,142 @@ function prodRegisterTime(s) {
   if (/p/.test(ap)) h = h % 12 + 12; else if (/a/.test(ap)) h = h % 12; else if (h >= 1 && h <= 6) h += 12;
   return h * 60 + mm;
 }
+/* "12:45 AM" between 11:30 AM and 1:05 PM, "Power cut 12:05 AM" with power back at 1 PM: the register is kept in the
+   day, so twelve-something AM is noon, and said so. */
+function prodRegisterNoonSlip(s) { return /\b12\s*[:.;]\s*\d{2}\s*a\.?\s?m/i.test(String(s || '')); }
+function prodRegisterNoon(s) { var m = prodRegisterTime(s); return m != null && prodRegisterNoonSlip(s) ? m + 720 : m; }
 function prodRegisterDate(s, near) {
   var m = /(\d{1,2})\s*[\/.\-]\s*(\d{1,2})\s*[\/.\-]\s*(\d{2,4})/.exec(String(s || ''));
   return m ? relayIso(m[1], m[2], m[3]) : null;
 }
+/* A figure as the clerk writes it: "72", "72+10", "98×8+1", "8x156+68", "50+52+30", "4×108−3". Sums of products, added
+   up here. The first product's larger factor is the rack and the smaller the rounds ("98×8": 8 rounds of 98), which is
+   what rack sizes are learnt from; a plain sum carries no rack. Anything else is null: unread, never guessed. */
+function prodRegisterQty(text) {
+  var t = String(text == null ? '' : text).replace(/[×✕*X]/g, 'x').replace(/[–—−]/g, '-').replace(/\s+/g, '').replace(/,/g, '').replace(/^\+/, '');
+  t = t.replace(/(nos|pcs|pc)\.?$/i, '').replace(/^\((\d+)\)$/, '$1');
+  // "3+4×156": racks counted in two goes, then the rack. The clerk's arithmetic is (3 + 4) × 156, not 3 + 624; read
+  // it that way and say so, with the other reading beside it.
+  var g = /^((?:\d+\+)+\d+)x(\d+(?:\.\d+)?)((?:[+-][\d.x]+)*)$/i.exec(t);
+  if (g && g[1].split('+').every(function(v) { return +v <= 20; })) {
+    var racks = g[1].split('+').reduce(function(a, v) { return a + +v; }, 0), rest = g[3] ? prodRegisterQty(g[3].replace(/^\+/, '')) : null;
+    if (g[3] && !rest) return null;
+    var sgn = g[3] && /^-/.test(g[3]) ? -1 : 1;
+    return { qty: racks * +g[2] + (rest ? sgn * rest.qty : 0), rackSize: +g[2], rounds: racks, working: true, grouped: true,
+      arithmetic: g[1].split('+').slice(0, -1).reduce(function(a, v) { return a + +v; }, 0) + +g[1].split('+').pop() * +g[2] + (rest ? sgn * rest.qty : 0) };
+  }
+  if (!/^\d+(\.\d+)?(x\d+(\.\d+)?)*([+-]\d+(\.\d+)?(x\d+(\.\d+)?)*)*$/i.test(t)) return null;
+  var total = 0, first = null;
+  t.replace(/([+-]?)([\d.x]+)/gi, function(all, sign, term) {
+    var f = term.split(/x/i).map(Number), v = f.reduce(function(a, b) { return a * b; }, 1);
+    if (first == null) first = f;
+    total += sign === '-' ? -v : v;
+    return all;
+  });
+  var out = { qty: total };
+  if (first && first.length === 2) { out.rackSize = Math.max(first[0], first[1]); out.rounds = Math.min(first[0], first[1]); }
+  if (/[+-]/.test(t.replace(/^[\d.x]+/i, '')) || (first && first.length > 1)) out.working = true;
+  return out;
+}
 var PROD_LINE_OF_READ = { 'VAT A1': 'vat-a1', 'VATA1': 'vat-a1', 'A1': 'vat-a1', 'VAT A2': 'vat-a2', 'VATA2': 'vat-a2', 'A2': 'vat-a2', BARREL: 'barrel' };
+var PROD_WEEKDAYS = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
 
-/* The read → runs of one part (consecutive rows of one customer and part), each a plated entry with its rounds.
-   Nothing is decided that the owner has not seen: a struck row is red until counted or cancelled; a START takes the
-   next round's figure (owner's ruling, 26 Jun), shown; rack × rounds − short against the figure written, and the
-   rows against the day's total, are checked and a disagreement said. */
+/* The read → runs of one part (consecutive rows of one customer and part), each a plated entry with its rounds, and
+   the power log's cuts. Nothing is decided that the owner has not seen: a struck row is red until counted or cancelled;
+   the START rule, rack × rounds against the figure written, the rows against the day's total and the day name against
+   the date are checked and a disagreement said. */
 function prodFromRegisterRead(json, ctx, photoDate, choices) {
   choices = choices || {};
-  var out = { date: null, line: null, dayTotal: null, runs: [], issues: [], rows: [] };
-  if (!json || !Array.isArray(json.rows)) { out.issues.push({ tone: 'red', text: 'Gemini did not return any rows for this photo.' }); return out; }
+  var out = { date: null, line: null, dayTotal: null, runs: [], issues: [], rows: [], downtime: [], page: 'production', style: 'rounds' };
+  if (!json || !Array.isArray(json.rows)) { out.issues.push({ tone: 'red', code: 'rows', text: 'Gemini did not return any rows for this photo.' }); return out; }
+  var pg = String(json.page || '').toLowerCase();
+  var events = json.rows.filter(function(r) { return r && r.event; }).length;
+  out.page = /challan/.test(pg) ? 'challan' : /other/.test(pg) ? 'other' : /power/.test(pg) || (events && events === json.rows.filter(Boolean).length) ? 'power' : 'production';
   out.date = prodRegisterDate(json.date) || null;
+  if (out.page === 'challan') {
+    out.issues.push({ tone: 'red', code: 'challan', text: 'This photo is a customer\u2019s challan, not a page of the register. Read it in Challans instead.' });
+    out.fp = 'challan';
+    return out;
+  }
+  if (out.page === 'other') {
+    out.issues.push({ tone: 'red', code: 'page', text: 'This photo is not a page of the production register or its power log (a wages or hours sheet, perhaps). Nothing is read from it.' });
+    out.fp = 'other';
+    return out;
+  }
+  if (!out.date && out.page === 'power') {
+    var rowDate = json.rows.map(function(r) { return r && prodRegisterDate(r.date); }).filter(Boolean)[0];
+    if (rowDate) out.date = rowDate;
+  }
   if (!out.date) { out.date = photoDate || ctx.today; out.issues.push({ tone: 'amber', code: 'date', text: 'No date read on the page: taken as ' + out.date + '. Check it.' }); }
   else if (photoDate && Math.abs(todoDaysBetween(out.date, photoDate)) > 4) out.issues.push({ tone: 'amber', code: 'date', text: 'The page reads ' + out.date + ', ' + Math.abs(todoDaysBetween(out.date, photoDate)) + ' days from when the photo was taken. Check the date (day and month can swap).' });
+  // The day name the clerk writes beside the date is a second reading of it.
+  var wd = String(json.weekday || '').toUpperCase().replace(/[^A-Z]/g, '').slice(0, 3);
+  if (wd && PROD_WEEKDAYS.indexOf(wd) >= 0) {
+    var actual = PROD_WEEKDAYS[new Date(out.date + 'T00:00:00').getDay()];
+    if (actual !== wd) out.issues.push({ tone: 'amber', code: 'weekday', text: 'The page says ' + json.weekday + ', but ' + out.date + ' is a ' + new Date(out.date + 'T00:00:00').toLocaleDateString('en-IN', { weekday: 'long' }) + '. Check the date.' });
+  }
+  if (out.page === 'power') return prodRegisterPower(json, out);
   var ln = String(json.line || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
-  out.line = ln ? (PROD_LINE_OF_READ[ln] || (/A1/.test(ln) ? 'vat-a1' : /A2/.test(ln) ? 'vat-a2' : /BAR|BER/.test(ln) ? 'barrel' : null)) : null;
+  // "VAT-A2", "VAT A 2", and the clerk's shorter "VAT-2" on 16 Sep.
+  out.line = ln ? (PROD_LINE_OF_READ[ln] || (/A1|VAT1$/.test(ln) ? 'vat-a1' : /A2|VAT2$/.test(ln) ? 'vat-a2' : /BAR|BER/.test(ln) ? 'barrel' : null)) : null;
   if (!out.line) out.issues.push({ tone: 'amber', code: 'line', text: 'The page does not name its line. Pick it below.' });
   out.dayTotal = json.dayTotal != null && isFinite(json.dayTotal) ? +json.dayTotal : null;
+  var markOf = function(r) { var m = String(r.mark || '').toUpperCase(); return /END/.test(m) || /\bend\b/i.test(r.time || '') ? 'END' : /START/.test(m) || r.start || /start/i.test(r.time || '') ? 'START' : ''; };
+  out.style = json.rows.some(function(r) { return r && markOf(r) === 'END'; }) ? 'startend' : 'rounds';
   var lastCust = '', lastPart = '';
   json.rows.forEach(function(r0, i) {
     var r = r0 || {};
+    var mark = markOf(r), written = r.qtyText != null && String(r.qtyText).trim() !== '' ? String(r.qtyText).trim() : null;
+    // A row with nothing on it but ditto marks (the clerk's next line, begun and not used) is not a row.
+    if (!r.time && !mark && written == null && r.qty == null && !r.customer && !r.part && !r.struck) return;
     var cust = (r.customer || '').trim(), part = (r.part || '').trim();
     if (r.ditto || (!cust && !part)) { cust = cust || lastCust; part = part || lastPart; }
     lastCust = cust || lastCust; lastPart = part || lastPart;
-    var row = { i: i, time: r.time || '', min: prodRegisterTime(r.time), cust: cust, part: part, dim: r.dim || '', rackSize: r.rackSize, rounds: r.rounds, short: r.short,
-      qty: r.qty != null && isFinite(r.qty) ? +r.qty : null, start: !!r.start || /start/i.test(r.time || ''), struck: !!r.struck, over: r.over || '', bracket: !!r.bracket,
-      legible: r.legible !== false, issues: [] };
-    row.raw = [row.time, cust, part, row.dim, row.rackSize && row.rounds ? row.rackSize + '×' + row.rounds + (row.short ? '−' + row.short : '') : '', row.qty != null ? String(row.qty) : '',
-      row.struck ? '(struck)' : '', row.over ? '(over ' + row.over + ')' : ''].filter(Boolean).join(' · ');
-    if (row.rackSize && row.rounds) {
+    var row = { i: i, time: String(r.time || '').replace(/\s*-?\s*(start|end)\s*$/i, ''), min: prodRegisterNoon(r.time), cust: cust, part: part, dim: r.dim || '',
+      mark: mark, start: mark === 'START', end: mark === 'END', rackSize: r.rackSize, rounds: r.rounds, short: r.short,
+      qty: null, written: written, struck: !!r.struck, over: r.over || '', bracket: !!r.bracket, legible: r.legible !== false, issues: [] };
+    if (written != null) {
+      var q = prodRegisterQty(written);
+      if (q) {
+        row.qty = q.qty; if (q.working) row.qtySrc = 'working'; if (q.rackSize) { row.rackSize = row.rackSize || q.rackSize; row.rounds = row.rounds || q.rounds; }
+        if (q.grouped) row.issues.push({ tone: 'amber', code: 'grouped', text: '"' + written + '" read as ' + q.rounds + ' racks of ' + q.rackSize + ' = ' + q.qty + '. Read as plain arithmetic it is ' + q.arithmetic + '. Check it.' });
+      }
+      else { row.legible = false; row.issues.push({ tone: 'amber', code: 'figure', text: '"' + written + '" could not be added up. Enter the figure by hand if it matters.' }); }
+    } else if (r.qty != null && isFinite(r.qty)) row.qty = +r.qty;
+    if (row.rackSize && row.rounds && written == null) {
       var calc = row.rackSize * row.rounds - (row.short || 0);
       if (row.qty == null) { row.qty = calc; row.qtySrc = 'working'; }
       else if (Math.abs(calc - row.qty) > 0.5) row.issues.push({ tone: 'amber', code: 'rack', text: row.rackSize + ' × ' + row.rounds + (row.short ? ' − ' + row.short : '') + ' = ' + calc + ', but ' + row.qty + ' is written. The written figure is used.' });
     }
-    if (!row.legible || (row.qty == null && !row.start && !row.bracket)) row.issues.push({ tone: 'amber', code: 'illegible', text: 'No figure read for this row. Check it against the photo.' });
+    row.raw = [row.time, cust, part, row.dim, written != null ? written : row.rackSize && row.rounds ? row.rackSize + '×' + row.rounds + (row.short ? '−' + row.short : '') : '',
+      written == null && row.qty != null ? String(row.qty) : '', mark, row.struck ? '(struck)' : '', row.over ? '(over ' + row.over + ')' : ''].filter(Boolean).join(' · ');
+    // A START row carries no figure on either shape; a batch row with none is checked against the photo.
+    if ((!row.legible && !row.issues.length) || (row.qty == null && !row.start && !row.bracket && row.legible)) row.issues.push({ tone: 'amber', code: 'illegible', text: 'No figure read for this row. Check it against the photo.' });
     if (row.struck) {
       var pick = choices['struck' + i];
       if (!pick) row.issues.push({ tone: 'red', code: 'struck', text: 'Struck through on the register. Counted or cancelled?' });
       row.counted = pick === 'counted';
     } else row.counted = true;
-    if (row.over) row.issues.push({ tone: 'info', code: 'over', text: 'Written over ' + row.over + '; ' + (row.qty != null ? row.qty : 'the new figure') + ' is used.' });
+    if (row.over) row.issues.push({ tone: 'info', code: 'over', text: 'Written over ' + row.over + '; ' + (row.qty != null ? row.qty : 'what is written now') + ' is used.' });
+    if (prodRegisterNoonSlip(r.time)) row.issues.push({ tone: 'amber', code: 'meridiem', text: r.time + ' read as ' + relayClockLabel(row.min) + ': the register runs in the day.' });
     out.rows.push(row);
   });
-  // START counts as a batch of the next round's figure.
-  out.rows.forEach(function(row, k) {
-    if (!row.start || row.qty != null) return;
-    var nx = out.rows.slice(k + 1).find(function(x) { return x.qty != null && !x.start; });
-    if (nx) { row.qty = nx.qty; row.qtySrc = 'start-rule'; row.issues.push({ tone: 'info', code: 'start', text: 'START counted as a round of ' + nx.qty + ', the next round’s figure (the owner’s rule, 26 Jun).' }); }
-  });
+  if (out.style === 'rounds') {
+    // START counts as a batch of the next round's figure.
+    out.rows.forEach(function(row, k) {
+      if (!row.start || row.qty != null) return;
+      var nx = out.rows.slice(k + 1).find(function(x) { return x.qty != null && !x.start; });
+      if (nx) { row.qty = nx.qty; row.qtySrc = 'start-rule'; row.issues.push({ tone: 'info', code: 'start', text: 'START counted as a round of ' + nx.qty + ', the next round’s figure (the owner’s rule, 26 Jun).' }); }
+    });
+  } else {
+    // START / END: the END carries the run's figure; a START is where it began and is never a round of its own.
+    out.rows.forEach(function(row, k) {
+      if (row.start) { row.qty = null; return; }
+      if (row.end) row.batch = true;
+      if (row.end && !out.rows.slice(0, k).some(function(x) { return x.start && x.cust === row.cust && x.part === row.part; }))
+        row.issues.push({ tone: 'info', code: 'nostart', text: 'An END with no START of its own: taken as starting where the batch before it ended.' });
+    });
+  }
   // Runs: consecutive rows of one customer and part.
   var cur = null;
   out.rows.forEach(function(row) {
@@ -554,7 +687,11 @@ function prodFromRegisterRead(json, ctx, photoDate, choices) {
     var e = { kind: 'plated', date: out.date, time: prodHhmm(mins.length ? Math.min.apply(null, mins) : null), to: prodHhmm(mins.length ? Math.max.apply(null, mins) : null),
       line: out.line, lineSrc: out.line ? 'written' : null, client: first.cust, clientId: it.clientId != null ? it.clientId : null, clientName: it.clientName || '',
       part: partText, gauge: lineGauge(partText.replace(/[×✕]/g, 'X')), qty: counted.length ? qty : null, unit: 'NOS', basis: 'register', src: 'photo',
-      rounds: run.rows.map(function(x) { var o = { time: x.time || null, qty: x.qty }; if (x.start) o.start = true; if (x.struck) o.struck = !x.counted; if (x.over) o.over = x.over; return o; }),
+      rounds: run.rows.filter(function(x) { return !(out.style === 'startend' && x.start); }).map(function(x) {
+        var o = { time: x.time || null, qty: x.qty };
+        if (x.start) o.start = true; if (x.batch) o.batch = true; if (x.written != null) o.written = x.written;
+        if (x.rackSize && x.rounds) { o.rack = x.rackSize; o.n = x.rounds; }
+        if (x.struck) o.struck = !x.counted; if (x.over) o.over = x.over; return o; }),
       raw: run.rows.map(function(x) { return x.raw; }).join('\n'), n: first.i + 1, issues: [], rows: run.rows };
     e.slot = e.time && (prodMin(e.time) < 510 || prodMin(e.time) >= 1020) ? 'ot' : 'general';
     if (e.clientId == null) e.issues.push({ tone: 'red', code: 'client', text: first.cust ? '"' + first.cust + '" is not a client in the book. Pick the client, or keep it as written.' : 'No customer written. Pick the client.' });
@@ -565,5 +702,32 @@ function prodFromRegisterRead(json, ctx, photoDate, choices) {
   out.counted = counted;
   if (out.dayTotal != null && Math.abs(out.dayTotal - counted) > 0.5) out.issues.push({ tone: 'amber', code: 'total', text: 'The page’s day total is ' + out.dayTotal + '; the rows counted add to ' + counted + '. A row may be missed or misread.' });
   out.fp = out.date + '|' + (out.line || '-') + '|' + out.rows.map(function(x) { return (x.time || '') + ':' + (x.qty == null ? '' : x.qty); }).sort().join(',');
+  return out;
+}
+
+/* The power log: each "power cut" paired with the next "power in" on its day. A cut with nothing after it is open;
+   a "power in" with no cut before it is said, not invented into a cut. */
+function prodRegisterPower(json, out) {
+  var byDay = {};
+  json.rows.forEach(function(r, i) {
+    if (!r || !r.event) return;
+    var d = prodRegisterDate(r.date) || out.date, cut = /cut|off|gone/i.test(r.event), min = prodRegisterNoon(r.time);
+    if (prodRegisterNoonSlip(r.time)) out.issues.push({ tone: 'amber', code: 'meridiem', text: 'Power ' + (cut ? 'cut' : 'in') + ' "' + r.time + '" on ' + d + ' read as ' + relayClockLabel(min) + ': the register runs in the day.' });
+    (byDay[d] = byDay[d] || []).push({ i: i, cut: cut, min: min, raw: [r.date || '', r.event, r.time || ''].filter(Boolean).join(' · ') });
+  });
+  Object.keys(byDay).sort().forEach(function(d) {
+    var open = null;
+    byDay[d].forEach(function(x) {
+      if (x.min == null) { out.issues.push({ tone: 'amber', code: 'time', text: 'A power row with no time read: ' + x.raw + '.' }); return; }
+      if (x.cut) {
+        if (open) out.downtime.push({ date: d, time: prodHhmm(open.min), to: null, open: true, raw: open.raw });
+        open = x;
+      } else if (open) { out.downtime.push({ date: d, time: prodHhmm(open.min), to: prodHhmm(x.min), open: false, raw: open.raw + '\n' + x.raw }); open = null; }
+      else out.issues.push({ tone: 'info', code: 'powerin', text: 'Power in at ' + relayClockLabel(x.min) + ' with no cut before it on the page (the cut may be on the page before).' });
+    });
+    if (open) out.downtime.push({ date: d, time: prodHhmm(open.min), to: null, open: true, raw: open.raw });
+  });
+  if (!out.downtime.length) out.issues.push({ tone: 'red', code: 'rows', text: 'No power cut read on this page.' });
+  out.fp = 'power|' + out.downtime.map(function(x) { return x.date + x.time + '-' + (x.to || ''); }).join(',');
   return out;
 }

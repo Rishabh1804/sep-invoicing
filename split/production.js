@@ -40,7 +40,25 @@ function prodClientName(id) { var c = (S.clients || []).find(function(x) { retur
 /* A picker hands back text; the book's own id is what a key and a match compare against. */
 function prodHeldId(v) { var c = (S.clients || []).find(function(x) { return String(x.id) === String(v); }); return c ? c.id : v; }
 function prodCtx() {
-  return { clients: prodClientIndex(S.clients || [], prodData().learn.clients), roster: (S.staff || []).filter(function(w) { return w.active !== false; }), today: localDateStr() };
+  return { clients: prodClientIndex(S.clients || [], prodData().learn.clients), roster: (S.staff || []).filter(function(w) { return w.active !== false; }), today: localDateStr(),
+    partOwners: prodPartOwners() };
+}
+/* Which clients a part has come from, off the challans and invoices of the last year: part key → client ids. A load
+   with no client written whose part only one client has ever sent ("LINER", "188 CD") is read as that client, amber. */
+function prodPartOwners() {
+  var since = stockIsoAdd(localDateStr(), -365), out = {};
+  var add = function(cid, part) {
+    if (cid == null || !part) return;
+    var k = prodPartKey(part);
+    if (!k || k.length < 3) return;
+    var o = out[k] || (out[k] = {});
+    o[cid] = true;
+  };
+  (S.incomingMaterial || []).forEach(function(m) { if ((m.challanDate || '') >= since) (m.items || []).forEach(function(it) { add(m.clientId, it.partNumber); add(m.clientId, it.desc); }); });
+  (S.invoices || []).forEach(function(v) { if ((v.date || '') >= since && v.status !== 'cancelled') (v.items || []).forEach(function(it) { add(v.clientId, it.partNumber); }); });
+  var single = {};
+  Object.keys(out).forEach(function(k) { var ids = Object.keys(out[k]); if (ids.length === 1) single[k] = ids[0]; });
+  return single;
 }
 
 /* ---------- Keys ---------- */
@@ -170,7 +188,12 @@ function prodRackSizes(idx) {
     if (!e.line) return;
     var k = e.line + '|' + (prodEntryKey(e) || '');
     var o = out[k] || (out[k] = {});
-    (e.rounds || []).forEach(function(r) { if (!r.struck && r.qty > 0) o[r.qty] = (o[r.qty] || 0) + 1; });
+    // A round's own figure is a rack; a batch's (an END row's "98×8+1") is a total, whose rack is its written factor.
+    (e.rounds || []).forEach(function(r) {
+      if (r.struck || r.start) return;
+      if (r.rack) o[r.rack] = (o[r.rack] || 0) + (r.n || 1);
+      else if (!r.batch && r.qty > 0) o[r.qty] = (o[r.qty] || 0) + 1;
+    });
     if (e.rackSize && e.racks) o[e.rackSize] = (o[e.rackSize] || 0) + e.racks;
   });
   return out;
@@ -189,7 +212,7 @@ function prodRackCheck(rd, line) {
     sizes.forEach(function(z) { total += seen[z]; if (top == null || seen[z] > seen[top]) top = z; });
     if (total < 3) return;
     (run.rows || []).forEach(function(row) {
-      var z = row.rackSize || row.qty;
+      var z = row.rackSize || (row.batch ? null : row.qty);
       if (!z || row.start || seen[z] || (row.rackSize == null && row.rounds == null && row.qty != null && row.qty !== Math.round(row.qty))) return;
       if (line === 'vat-a2' && top && Math.abs(z * 2 - top) < 0.5) row.issues.push({ tone: 'info', code: 'halfrack', text: 'Half the usual rack of ' + top + ' on VAT A2.' });
       else if (!row.rackSize && !row.rounds) row.issues.push({ tone: 'amber', code: 'rack', text: z + ' has not been seen as a round of this part on ' + PROD_LINE_LABEL[line] + ' (usually ' + top + '). Check it against the photo.' });
@@ -261,6 +284,32 @@ function prodLoadLine(e) {
   var k = prodIsGeneric(e.partNumber || e.part) ? (prodEntryFamily(e) && 'F:' + prodEntryFamily(e)) : prodEntryKey(e);
   var u = k ? prodUsualLine(k) : null;
   return { line: null, how: 'unknown', hint: u && u.kind === 'usual' ? u : null, family: !!(k && k.indexOf('F:') === 0) };
+}
+
+/* A day's power cuts, as one list. The pickling hand's messages and the register's power log report the same cut
+   twice, a minute or two apart. A cut from one source is joined to a cut from ANOTHER source that overlaps it or began
+   within ten minutes of it (the earliest cut, the latest return); two cuts in one source are two cuts, however close
+   (25 Sep's log: 11:16–11:21 and 11:26–12:00). So a cut is never counted twice, and never merged away. */
+function prodDowntimeDay(date) {
+  var list = prodIndex().live.filter(function(e) { return e.kind === 'downtime' && e.date === date && prodMin(e.time) != null; })
+    .map(function(e) { return { from: prodMin(e.time), to: prodMin(e.to), ids: [e.id], srcs: [e.photoId || e.pasteId || e.importId || e.id] }; })
+    .sort(function(a, b) { return a.from - b.from; });
+  var out = [];
+  list.forEach(function(x) {
+    var hit = out.find(function(y) {
+      return y.srcs.indexOf(x.srcs[0]) < 0 && (Math.abs(x.from - y.from) <= 10 || (y.to != null && x.from <= y.to && (x.to == null || x.to >= y.from)));
+    });
+    if (hit) {
+      hit.ids = hit.ids.concat(x.ids); hit.srcs = hit.srcs.concat(x.srcs);
+      if (x.from < hit.from) hit.from = x.from;
+      if (x.to != null && (hit.to == null || x.to > hit.to)) hit.to = x.to;
+      return;
+    }
+    out.push(x);
+  });
+  return out.sort(function(a, b) { return a.from - b.from; }).map(function(x) {
+    return { time: prodHhmm(x.from), to: x.to == null ? null : prodHhmm(x.to), min: x.to != null && x.to > x.from ? x.to - x.from : 0, ids: x.ids, reports: x.srcs.length };
+  });
 }
 
 /* ---------- Record coverage ---------- */

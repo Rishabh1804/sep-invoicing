@@ -118,7 +118,7 @@ every session start — nothing to set up by hand. CI (`build-sync`) is the back
 ### Tests
 
 ```bash
-pnpm exec playwright test          # 670 tests, both layouts
+pnpm exec playwright test          # 679 tests, both layouts
 ```
 
 Some sandboxes ship a Chromium build Playwright does not expect and block downloading
@@ -1427,6 +1427,33 @@ reads a photo. **Owned by `soma-internal`, like stock** (owner): a view and an i
   the misses, not a measurement. Two slips found and fixed on the way: a PM written for a morning load posted at 9:28,
   and an AM written for an afternoon one (*"2:00am"* posted at 3 PM), both now read from when the message was sent and
   flagged.
+- **The register as it is really kept** (photos of 16–26 Sep 2026, owner). The first reader was built without a page
+  in hand, and the pages broke it three ways:
+  - **VAT A2 writes START and END, and the END carries the batch** ("98×8+1", "3×156", "50+52+30"). The first build
+    counted START as a round of the next figure, the rule for A1's round-by-round pages, and **doubled every A2 run**
+    (1,930 for a page that says 1,145). The rule now applies only to a page with no END row.
+  - **Figures are written as sums and products** and are added up in code (`prodRegisterQty`), never by Gemini.
+    "3+4×156" is racks counted in two goes: read as 7 × 156 = 1,092, with the plain-arithmetic 627 said beside it (amber).
+  - **The register keeps a power log** ("Power cut - 10:26 AM / Power in - 10:36 AM", a date on every row): read as
+    power cuts. A cut the pickling hand also reported is counted once (`prodDowntimeDay`): cuts from different sources
+    that overlap or begin within ten minutes are joined; two cuts in one log are two, however close.
+  - Smaller shapes: "VAT-2" names VAT A2; "12:45 AM" between 11:30 and 1:05 is noon (said); a day name is checked against
+    the date; a ditto-only last row is not a row; an END with no START starts where the batch before ended.
+  - **A photo that is not a register page is refused**: the weekly hours sheet ("other"), and a customer's challan, which
+    is offered to the challan scanner with the same file.
+  **Instrument, and its limit:** the 20 pages were transcribed by hand into the shape the prompt asks Gemini for (scratch,
+  never committed) and every page's runs and cuts match what the page means, 20 of 20. That scores the code after the
+  read; **Gemini's own transcription is not scored**: there is no key in the build sandbox. The owner's first real read
+  is that check.
+- **The chat export of 16–28 Sep** (owner) showed the roll side too: **the supervisor writes a slot's work straight under
+  its line**, with no `----production----` head ("---hold night-6:00am--- / crew / Dilip press material / VAT A 2 /
+  3301-600 nos"), so a quantity line under any slot is that slot's production, a client on a line of its own is the client
+  of the lines below, and a figure on the line under its part joins it (rolls went from 4 lines read to 45 over the week).
+  **A roll reposted days later is read once** within a paste. "Incoming spray" is a chemical delivery, not incoming
+  material (named chemicals are excluded; the broad incoming match stays, since "Incoming mtearial" and "Mk incoming" are
+  real). An export made with media writes "IMG-… (file attached)" lines, dropped like "<Media omitted>". **A load with no
+  client written, whose part only one client has sent in a year** ("LINER", "188 CD"), is read as that client, amber:
+  197 → 172 rows asking for a client on the old exports.
 - **The workers' names box on a register photo goes to Google with the page** (Settings → Connections → Photo reading
   says so); only what is read is kept.
 

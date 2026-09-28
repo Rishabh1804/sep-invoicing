@@ -254,4 +254,51 @@ Durga auto 0101--400 nos`);
     expect(r.pageB).toContain('amber:total');
     expect(r.fpSame).toBe(true);
   });
+
+  test('a roll: work written straight under its slot and line, a client on a line of its own, a figure on the line below', async ({ page }) => {
+    await load(page);
+    const d = when(-1);
+    const msgs = await read(page, `${d.dmy}, 5:08 pm - Supervisor: ${d.dmy}/ out time
+-----8:00 PM----
+1) ARUN
+LINER 1000 NOS
+---hold night-6:00am---
+2) BALA
+Nova clamps material
+VAT A 2
+3301-600 nos
+0102-700 nos
+Durga auto CLAMP
+1360 NOS
+------berral---extra--work
+Durga--4206-1000 nos`);
+    expect(msgs[0].kind).toBe('roll');
+    const it = msgs[0].items.map(x => [x.clientId, x.part, x.qty, x.to, x.lineHint || null, x.slot]);
+    expect(it).toEqual([
+      [null, 'LINER', 1000, '20:00', null, 'ot'],
+      [11, '3301', 600, '06:00', 'vat-a2', 'ot'],
+      [11, '0102', 700, '06:00', 'vat-a2', 'ot'],
+      [12, 'CLAMP', 1360, '06:00', 'vat-a2', 'ot'],
+      [12, '4206', 1000, '06:00', 'barrel', 'ot'],
+    ]);
+  });
+
+  test('a chemical delivery is not incoming material; attached-file lines are not messages; a part only one client sends names it', async ({ page }) => {
+    await loadAppWithState(page, { ...emptyState(), clients: CLIENTS, staff: STAFF, attendance: {},
+      incomingMaterial: [{ id: 'IM1', challanNo: '1', challanDate: when(-20).iso, clientId: 13, clientName: CLIENTS[2].name, receivedDate: when(-20).iso, createdAt: 1,
+        items: [{ id: 'IM1-0', partNumber: 'BIG LINER', desc: 'BIG LINER', unit: 'NOS', qty: 100, rate: 1, amount: 100, invoiced: false }] }] } as SepState);
+    const d = when(-1);
+    const msgs = await read(page, `${d.dmy}, 4:53 pm - Supervisor: Incoming spray ${d.dmy}
+${d.dmy}, 4:54 pm - Pickler: IMG-20260922-WA0002.jpg (file attached)
+${d.dmy}, 9:40 am - Pickler: Incoming Material time 9:00Am
+Durga auto
+0140--300 Nos
+${d.dmy}, 10:40 am - Pickler: BIG LINER--200 nos
+Pickling time 10:30am`);
+    expect(msgs.map(m => m.kind)).toEqual(['other', 'pickling', 'pickling']);
+    expect(msgs[1].items[0]).toMatchObject({ kind: 'arrived', clientId: 12, qty: 300 });
+    expect(msgs[2].items[0]).toMatchObject({ clientId: 13, part: 'BIG LINER', qty: 200 });
+    expect(msgs[2].items[0].codes).toContain('amber:readas');
+    expect(msgs[2].items[0].codes).not.toContain('red:client');
+  });
 });

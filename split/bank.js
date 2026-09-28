@@ -398,9 +398,12 @@ function bankReceivables(cls) {
       if (o) { var k = Math.min(o.due, amt); o.due = gstRound(o.due - k); amt = gstRound(amt - k); }
       looseNotes = gstRound(looseNotes + amt);
     });
-    var fifo = function(amt, parts) {
+    // Oldest first, but never against an invoice raised after the money came in: a receipt cannot pay an
+    // invoice not yet issued. What a receipt cannot place stays on account (most often money for work from
+    // before the book, which the opening is for), rather than quietly paying invoices raised weeks later.
+    var fifo = function(amt, parts, upto) {
       open.forEach(function(o) {
-        if (amt <= 0 || o.due <= 0) return;
+        if (amt <= 0 || o.due <= 0 || (upto && o.date > upto)) return;
         var k = Math.min(o.due, amt);
         o.due = gstRound(o.due - k); amt = gstRound(amt - k);
         if (parts) parts.push({ label: o.label, amount: gstRound(k), whole: o.due === 0, date: o.date, inv: !!o.inv });
@@ -426,14 +429,19 @@ function bankReceivables(cls) {
           if (sum > amt + 1) break;
         }
       }
-      var left = how === 'exact' ? 0 : fifo(amt, parts);
+      var left = how === 'exact' ? 0 : fifo(amt, parts, v.row.date);
       allocs.push({ v: v, how: how, parts: parts, unapplied: gstRound(left) });
     });
+    // Money on account is carried forward: at the end it settles what is still open, oldest first, so the
+    // open list and its ageing add up to what is owed. It is kept apart from the receipts' own parts, which
+    // only ever name an invoice raised by the day the money came in.
+    var credits = [], carry = gstRound(allocs.reduce(function(t, a) { return t + a.unapplied; }, 0));
+    if (carry > 0) fifo(carry, credits);
     var invoiced = gstRound(invs.reduce(function(s, i) { return s + (i.grandTotal || 0); }, 0));
     var owed = gstRound(opening + invoiced - notesTotal - received);
     var stillOpen = open.filter(function(o) { return o.due > 0.005; });
     var today = localDateStr();
-    out.push({ client: c, opening: opening, openingStale: op.stale, invoiced: invoiced, notes: gstRound(notesTotal), received: received, owed: owed,
+    out.push({ client: c, opening: opening, openingStale: op.stale, onAccount: carry, credits: credits, invoiced: invoiced, notes: gstRound(notesTotal), received: received, owed: owed,
       open: stillOpen, allocs: allocs, oldestDays: stillOpen.length ? Math.max(0, todoDaysBetween(stillOpen[0].date, today)) : null });
   });
   return out.sort(function(a, b) { return b.owed - a.owed; });
@@ -605,13 +613,15 @@ function _bankReceiptsHtml(cls) {
     h += '<div class="inv-row inv-row-2" data-recv="' + escHtml(String(r.client.id)) + '"><button class="inv-row-main inv-row-expander" aria-expanded="' + open + '" data-action="invBankClient" data-id="' + escHtml(String(r.client.id)) + '">' +
       '<span class="inv-row-title">' + escHtml(r.client.name) + '</span><span class="inv-row-meta inv-row-wrap">' +
       escHtml(formatCurrency(r.invoiced)) + ' invoiced' + (r.notes ? ' · ' + escHtml(formatCurrency(r.notes)) + ' credited' : '') + ' · ' + escHtml(formatCurrency(r.received)) + ' received' +
-      (r.open.length ? ' · oldest open ' + r.oldestDays + ' d' : '') +
+      (r.open.length ? ' · oldest open ' + r.oldestDays + ' d' : '') + (r.onAccount > 0.005 ? ' · ' + escHtml(formatCurrency(r.onAccount)) + ' on account' : '') +
       (dtp && dtp.median != null ? ' · pays in ' + Math.round(dtp.median) + ' d' + (dtp.n < 3 ? ' (' + dtp.n + ' receipt' + (dtp.n === 1 ? '' : 's') + ')' : '') : '') + '</span></button>' +
       '<span class="inv-row-end"><span class="inv-row-stack"><span class="inv-num">' + formatCurrency(r.owed) + '</span><span class="inv-row-meta">' + (r.owed < -0.005 ? 'paid ahead' : 'owed') + '</span></span></span></div>';
     if (!open) return;
     h += '<div class="inv-row-children">';
     if (r.openingStale) h += '<div class="inv-callout inv-callout-warning" data-opening-stale>' + escHtml(formatCurrency(r.openingStale.amount)) + ' was set as owed at ' +
       escHtml(formatDate(r.openingStale.date)) + ', but receivables start at ' + fromTxt + ' now, so it is not counted. Set what was owed on ' + fromTxt + '.</div>';
+    else if (r.onAccount > 0.005) h += '<div class="inv-callout inv-callout-info" data-on-account>' + escHtml(formatCurrency(r.onAccount)) + ' came in with more than was open to pay on the day it arrived. It is on account, and settles the invoices raised after it, oldest first. ' +
+      'It most likely paid work from before ' + fromTxt + ': set what was owed on that day.</div>';
     else if (r.owed < -0.005) h += '<div class="inv-callout inv-callout-info">More came in than was invoiced since ' + fromTxt + '. The early receipts most likely paid invoices from before then: set what was owed on that day.</div>';
     h += '<div class="inv-row"><span class="inv-row-main"><label class="inv-field-label" for="bankOpening">Owed at ' + fromTxt + '</label></span>' +
       '<span class="inv-row-end"><input class="inv-input inv-input-sm inv-num" type="number" step="0.01" min="0" inputmode="decimal" id="bankOpening" data-client="' + escHtml(String(r.client.id)) + '" value="' + (r.opening || '') + '" placeholder="0.00"></span></div>';
@@ -619,7 +629,7 @@ function _bankReceiptsHtml(cls) {
       h += '<div class="inv-row inv-row-2" data-alloc="' + escHtml(a.v.row.id) + '"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(formatDate(a.v.row.date)) + ' · ' +
         '<span class="inv-badge inv-badge-' + (a.how === 'exact' ? 'ok' : 'neutral') + '">' + (a.how === 'exact' ? 'Exact' : 'Oldest first') + '</span></span>' +
         '<span class="inv-row-meta">' + escHtml(a.parts.map(function(p) { return p.label + (p.whole ? '' : ' (part ' + formatCurrency(p.amount) + ')'); }).join(', ') || 'nothing open to set it against') +
-        (a.unapplied > 0 ? ' · ' + escHtml(formatCurrency(a.unapplied)) + ' more than was owed' : '') + '</span></span>' +
+        (a.unapplied > 0 ? ' · ' + escHtml(formatCurrency(a.unapplied)) + (a.parts.length ? ' more than was open by then' : ' with nothing open by then') : '') + '</span></span>' +
         '<span class="inv-row-end"><span class="inv-num">' + formatCurrency(a.v.row.cr) + '</span>' +
         (_bankChange === a.v.row.id ? _bankClientSelect(a.v, { empty: 'No client' })
           : '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invBankChange" data-id="' + escHtml(a.v.row.id) + '">Change</button>') + '</span></div>';

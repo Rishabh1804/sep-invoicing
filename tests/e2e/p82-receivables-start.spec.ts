@@ -81,3 +81,25 @@ test('a book that reaches back before the statement starts on the statement, and
   expect(await ev(page, `bankReceivables()[0].owed`)).toBe(1500);
   expect(await ev(page, `bankReceivables()[0].openingStale`)).toBeNull();
 });
+
+test('a receipt never pays an invoice raised after it: what it cannot place stays on account', async ({ page }) => {
+  seq = 0;
+  // March money for SSS-shaped work: it lands three days after the book's first invoice, far more than was open then.
+  await loadAppWithState(page, state([row(day(-27), 'NEFT-UTR6-ALPHA FORGINGS', 20000, ALPHA)],
+    [inv(1, day(-27), 1000), inv(2, day(-20), 5900), inv(3, day(-10), 11800)]));
+  const r = await ev(page, `(function() { var r = bankReceivables()[0]; return { owed: r.owed, onAccount: r.onAccount, open: r.open.map(function(o) { return o.label; }),
+    parts: r.allocs[0].parts.map(function(p) { return p.label; }), credits: r.credits.map(function(p) { return p.label; }) }; })()`);
+  // The receipt pays T/1 (raised by its day) and names nothing else: T/2 and T/3 were not issued yet. What it could
+  // not place is on account, and settles them afterwards, so the open list still adds up to what is owed.
+  expect(r).toEqual({ owed: -1300, onAccount: 19000, open: [], parts: ['T/1'], credits: ['T/2', 'T/3'] });
+  // Days to pay reads only what the receipt paid (T/1, the same day), never an invoice raised after it.
+  expect(await ev(page, `bankPayHistory(bankReceivables())[1].map(function(x) { return [x.days, x.amount]; })`)).toEqual([[0, 1000]]);
+  // The invoice detail says T/3 was settled from money on account, not paid by a receipt dated before it.
+  expect(await ev(page, `finInvoicePayment(S.invoices[2]).paid.map(function(p) { return p.how; })`)).toEqual(['account']);
+  await switchTab(page, 'pageFinance');
+  await page.locator('[data-action="invFinTab"][data-tab="receipts"]').click();
+  await expect(page.locator('[data-recv="1"]')).toContainText('on account');
+  await page.locator('[data-recv="1"] [data-action="invBankClient"]').click();
+  await expect(page.locator('[data-on-account]')).toContainText('more than was open to pay');
+  await expect(page.locator('[data-alloc]')).toContainText('more than was open by then');
+});

@@ -50,6 +50,7 @@ function finInvoicePayment(inv) {
   r.allocs.forEach(function(a) {
     a.parts.forEach(function(p) { if (p.inv && p.label === label) paid.push({ date: a.v.row.date, amount: p.amount, how: a.how, chq: bankInstrument(a.v.row) }); });
   });
+  (r.credits || []).forEach(function(p) { if (p.inv && p.label === label) paid.push({ date: '', amount: p.amount, how: 'account' }); });
   var open = r.open.find(function(o) { return o.inv && o.inv.id === inv.id; });
   return { paid: paid, open: open ? gstRound(open.due) : 0, days: todoDaysBetween(inv.date, localDateStr()) };
 }
@@ -57,8 +58,13 @@ function finInvoicePaymentHtml(inv) {
   var p = finInvoicePayment(inv);
   if (!p) return '';
   var h = '<div class="inv-row-group" data-inv-payment><span>Payment</span><button class="inv-btn inv-btn-link inv-btn-sm" data-action="invFinGo" data-tab="receipts" data-client="' + escHtml(String(inv.clientId)) + '">Open in Finance</button></div>';
-  if (p.before) return h + '<div class="inv-row"><span class="inv-row-main inv-row-meta">Dated before the statement’s first day, ' + escHtml(formatDate(p.before)) + ': its payment is not read.</span></div>';
+  if (p.before) return h + '<div class="inv-row"><span class="inv-row-main inv-row-meta">Dated before receivables start, ' + escHtml(formatDate(p.before)) + ': its payment is not read.</span></div>';
   p.paid.forEach(function(x) {
+    if (x.how === 'account') {
+      h += '<div class="inv-row inv-row-2"><span class="inv-row-main"><span class="inv-row-title"><span class="inv-dot inv-dot-info">Settled from money on account</span></span>' +
+        '<span class="inv-row-meta">paid before this invoice was raised</span></span><span class="inv-row-end inv-num">' + escHtml(formatCurrency(x.amount)) + '</span></div>';
+      return;
+    }
     h += '<div class="inv-row inv-row-2"><span class="inv-row-main"><span class="inv-row-title"><span class="inv-dot inv-dot-' + (x.how === 'exact' ? 'ok' : 'info') + '">' + (x.how === 'exact' ? 'Paid, exact' : 'Paid, oldest first') + '</span></span>' +
       '<span class="inv-row-meta">' + escHtml(formatDate(x.date)) + (x.chq ? ' · chq ' + escHtml(x.chq) : '') + '</span></span><span class="inv-row-end inv-num">' + escHtml(formatCurrency(x.amount)) + '</span></div>';
   });

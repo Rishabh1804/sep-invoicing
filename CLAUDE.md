@@ -114,7 +114,7 @@ every session start — nothing to set up by hand. CI (`build-sync`) is the back
 ### Tests
 
 ```bash
-pnpm exec playwright test          # 628 tests, both layouts
+pnpm exec playwright test          # 629 tests, both layouts
 ```
 
 Some sandboxes ship a Chromium build Playwright does not expect and block downloading
@@ -1637,7 +1637,13 @@ to read it in the app yet"* — all three of receipts, payments and the ledger, 
   mismatch"*): three months of receipts for invoices the app never held paid April's invoices early. A receipt
   before the start is not read, and an unplaced one does not count toward *not placed: reads high* (the list says
   how many it left out). **An opening is stored with its day** (`opening[id].date`); one set against another day
-  (an older build's, against the statement's first) is not counted and the client asks for the new one (P82). A receipt equal **to the rupee** to one open invoice or a run of them is
+  (an older build's, against the statement's first) is not counted and the client asks for the new one (P82).
+  **A receipt never pays an invoice raised after it** (owner, 28 Sep 2026: *"most of April payment is actually of
+  March job work"*): oldest-first used to reach past the receipt's own day, so SSS Mehta's ₹2.99L of 13 Apr, three
+  days into the book, paid invoices raised to the end of April and days to pay read short. What a receipt cannot
+  place is **on account** (`onAccount`); it is carried forward to settle what is still open, oldest first
+  (`credits`), so the open list and its ageing still add up to what is owed, and the invoice detail says
+  *Settled from money on account* rather than naming a receipt dated before the invoice. A receipt equal **to the rupee** to one open invoice or a run of them is
   *Exact*; any other is set oldest first and says so. soma-internal's tolerant sweep hit every credit and proved
   nothing, so nothing looser is ever called a match.
 - **A cheque deposit names nobody** (21 of the real statement's credits). Where its amount equals a run of one

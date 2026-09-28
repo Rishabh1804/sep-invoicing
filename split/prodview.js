@@ -147,7 +147,7 @@ function prodPlantHtml() {
     '<div class="inv-tile' + (sum.pni.NOS || sum.pni.KG ? ' inv-tile-warning' : '') + '" data-prod-tile="plantPni"><div class="inv-tile-label">Plated, not invoiced</div><div class="inv-tile-value">' + escHtml(q(sum.pni)) + '</div><div class="inv-tile-sub">at least: plating recorded</div></div>' +
     '<div class="inv-tile" data-prod-tile="plantPnp"><div class="inv-tile-label">Pickled, not plated</div><div class="inv-tile-value">' + escHtml(q(sum.pnp)) + '</div><div class="inv-tile-sub">loads with a quantity</div></div>' +
     '<div class="inv-tile" data-prod-tile="plantWait"><div class="inv-tile-label">Waiting to pickle</div><div class="inv-tile-value">' + (plant.floorOk ? escHtml(q(sum.wait)) : '&mdash;') + '</div><div class="inv-tile-sub">' +
-      (plant.floorOk ? 'no floor record yet' : 'withheld: the floor record has gaps') + '</div></div></div>';
+      (plant.floorOk ? 'on open challans, not on the floor yet' : 'withheld: the floor record has gaps') + '</div></div></div>';
   if (!plant.floorOk) h += '<div class="inv-callout inv-callout-warning" data-prod-cover>The floor record covers ' + escHtml(covTxt) + ' working days in the last 30. Plating on the days not recorded would read as still waiting, so that figure is withheld until every line is recorded on 90% of days. Plated, not invoiced is shown: it rests on plating that was recorded, and reads low, never high.</div>';
   var noQty = prodIndex().live.filter(function(e) { return e.kind === 'pickled' && e.qty == null && e.date >= plant.since; }).length;
   if (noQty) h += '<div class="inv-callout inv-callout-info">' + todoPlural(noQty, 'pickled load') + ' in 30 days carry no quantity (usual since August); pickled counts only the loads that do.</div>';

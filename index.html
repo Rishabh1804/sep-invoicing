@@ -18,7 +18,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <!-- Appearance before first paint (§3.2): the device's theme and palette, so nothing flashes in the wrong colours. -->
 <script>(function(){try{var d=document.documentElement,t=localStorage.getItem("sep_inv_theme"),p=localStorage.getItem("sep_inv_palette");if(t==="light"||t==="dark")d.dataset.theme=t;d.dataset.palette=(p==="zinc"||p==="terracotta")?p:"teal";}catch(e){document.documentElement.dataset.palette="teal";}})();</script>
-<meta name="app-build" content="dc9f46f3">
+<meta name="app-build" content="d259f6de">
 <style>
 /* ===== DESIGN TOKENS (design system v2.0 — docs/SEP_INVOICING_DESIGN_PRINCIPLES.md §3) ===== */
 /* Theme: colour-scheme decides every light-dark() below. <html data-theme> is set before first paint
@@ -26307,7 +26307,8 @@ function prodDayLine(date, line) {
 function prodInPlant(opts) {
   opts = opts || {};
   var idx = prodIndex(), today = localDateStr(), since = opts.since || stockIsoAdd(today, -30);
-  var lines = [], byKey = {};
+  var lines = [], byKey = {}, invDate = {};
+  (S.invoices || []).forEach(function(v) { if (v && v.id) invDate[v.id] = v.date || ''; });
   (S.incomingMaterial || []).forEach(function(m) {
     if (opts.clientId != null && String(m.clientId) !== String(opts.clientId)) return;
     (m.items || []).forEach(function(it) {
@@ -26318,6 +26319,11 @@ function prodInPlant(opts) {
         R: { NOS: hasNos ? (nosLine ? (it.qty || 0) : (it.nosQty || 0)) : null, KG: it.unit === 'KG' ? (it.qty || 0) : null },
         openQ: { NOS: hasNos ? (nosLine ? o.qty : o.nos) : null, KG: it.unit === 'KG' ? o.qty : null },
         P: { NOS: 0, KG: 0 }, L: { NOS: 0, KG: 0 } };
+      // A line billed whole is closed on its last invoice's day: plating recorded after that is of other material.
+      if (it.invoiced) {
+        var ids = it.invoiceIds && it.invoiceIds.length ? it.invoiceIds : (it.invoiceId ? [it.invoiceId] : []);
+        rec.closedOn = ids.map(function(id) { return invDate[id] || ''; }).sort().pop() || '';
+      }
       lines.push(rec);
       (byKey[k] = byKey[k] || []).push(rec);
     });
@@ -26337,6 +26343,7 @@ function prodInPlant(opts) {
     (pool || []).forEach(function(r) {
       if (left <= 0 || r.R[u] == null) return;
       if (r.date && r.date > stockIsoAdd(e.date, 1)) return;
+      if (r.closedOn !== undefined && (!r.closedOn || r.closedOn < e.date)) return;
       var room = r.R[u] - r[field][u];
       if (room <= 0) return;
       var take = Math.min(room, left);
@@ -26695,7 +26702,7 @@ function prodPlantHtml() {
     '<div class="inv-tile' + (sum.pni.NOS || sum.pni.KG ? ' inv-tile-warning' : '') + '" data-prod-tile="plantPni"><div class="inv-tile-label">Plated, not invoiced</div><div class="inv-tile-value">' + escHtml(q(sum.pni)) + '</div><div class="inv-tile-sub">at least: plating recorded</div></div>' +
     '<div class="inv-tile" data-prod-tile="plantPnp"><div class="inv-tile-label">Pickled, not plated</div><div class="inv-tile-value">' + escHtml(q(sum.pnp)) + '</div><div class="inv-tile-sub">loads with a quantity</div></div>' +
     '<div class="inv-tile" data-prod-tile="plantWait"><div class="inv-tile-label">Waiting to pickle</div><div class="inv-tile-value">' + (plant.floorOk ? escHtml(q(sum.wait)) : '&mdash;') + '</div><div class="inv-tile-sub">' +
-      (plant.floorOk ? 'no floor record yet' : 'withheld: the floor record has gaps') + '</div></div></div>';
+      (plant.floorOk ? 'on open challans, not on the floor yet' : 'withheld: the floor record has gaps') + '</div></div></div>';
   if (!plant.floorOk) h += '<div class="inv-callout inv-callout-warning" data-prod-cover>The floor record covers ' + escHtml(covTxt) + ' working days in the last 30. Plating on the days not recorded would read as still waiting, so that figure is withheld until every line is recorded on 90% of days. Plated, not invoiced is shown: it rests on plating that was recorded, and reads low, never high.</div>';
   var noQty = prodIndex().live.filter(function(e) { return e.kind === 'pickled' && e.qty == null && e.date >= plant.since; }).length;
   if (noQty) h += '<div class="inv-callout inv-callout-info">' + todoPlural(noQty, 'pickled load') + ' in 30 days carry no quantity (usual since August); pickled counts only the loads that do.</div>';

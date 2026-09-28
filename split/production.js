@@ -330,7 +330,8 @@ function prodDayLine(date, line) {
 function prodInPlant(opts) {
   opts = opts || {};
   var idx = prodIndex(), today = localDateStr(), since = opts.since || stockIsoAdd(today, -30);
-  var lines = [], byKey = {};
+  var lines = [], byKey = {}, invDate = {};
+  (S.invoices || []).forEach(function(v) { if (v && v.id) invDate[v.id] = v.date || ''; });
   (S.incomingMaterial || []).forEach(function(m) {
     if (opts.clientId != null && String(m.clientId) !== String(opts.clientId)) return;
     (m.items || []).forEach(function(it) {
@@ -341,6 +342,11 @@ function prodInPlant(opts) {
         R: { NOS: hasNos ? (nosLine ? (it.qty || 0) : (it.nosQty || 0)) : null, KG: it.unit === 'KG' ? (it.qty || 0) : null },
         openQ: { NOS: hasNos ? (nosLine ? o.qty : o.nos) : null, KG: it.unit === 'KG' ? o.qty : null },
         P: { NOS: 0, KG: 0 }, L: { NOS: 0, KG: 0 } };
+      // A line billed whole is closed on its last invoice's day: plating recorded after that is of other material.
+      if (it.invoiced) {
+        var ids = it.invoiceIds && it.invoiceIds.length ? it.invoiceIds : (it.invoiceId ? [it.invoiceId] : []);
+        rec.closedOn = ids.map(function(id) { return invDate[id] || ''; }).sort().pop() || '';
+      }
       lines.push(rec);
       (byKey[k] = byKey[k] || []).push(rec);
     });
@@ -360,6 +366,7 @@ function prodInPlant(opts) {
     (pool || []).forEach(function(r) {
       if (left <= 0 || r.R[u] == null) return;
       if (r.date && r.date > stockIsoAdd(e.date, 1)) return;
+      if (r.closedOn !== undefined && (!r.closedOn || r.closedOn < e.date)) return;
       var room = r.R[u] - r[field][u];
       if (room <= 0) return;
       var take = Math.min(room, left);

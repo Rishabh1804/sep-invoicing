@@ -335,10 +335,10 @@ var SETTINGS_SECS = {
     save: function() { setMetalsKey(_sVal('setMetalsKey').trim()); renderZincCard(); }
   },
   geminiKey: {
-    title: 'Challan scanner (Gemini)',
+    title: 'Photo reading (Gemini)',
     summary: function() { return getApiKey() ? 'key saved on this device' : 'no key'; },
     body: function() { return _sfg('Google Gemini API key', 'setApiKey', _sKey('setApiKey', getApiKey(), 'AIza...', 'invToggleApiKey')); },
-    why: 'Free from aistudio.google.com (Google account only, no card). The key stays on this device.',
+    why: 'Reads a challan photo (IM → Scan) and a page of the VAT register (Production → Read register photo). Free from aistudio.google.com (Google account only, no card). The key stays on this device. A register photo is sent to Google as it is, the workers\u2019 names box included; only what is read is kept here, never the image.',
     save: function() { setApiKey(_sVal('setApiKey').trim()); }
   },
   sync: {

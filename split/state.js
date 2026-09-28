@@ -52,6 +52,7 @@ function getDefaultState() {
     // Chemical stock: lines, the events that move them, and each pasted
     // message whole. Ships empty — the lines arrive with the first message.
     stock: { items: [], entries: [], pastes: [] },
+    production: { entries: [], pastes: [], photos: [], imports: [], learn: { clients: {}, parts: {} } },
     // The bank statement as imported (bank.js): rows merged by id, and what the operator set.
     bank: { rows: [], imports: [], parties: {}, opening: {} },
     // Days of cover at which a line turns red / amber, and the cost model's
@@ -369,7 +370,7 @@ function hideStorageBanner(kind) {
 // Containers hold the user's records, so a missing one is filled EMPTY — the
 // app must never invent business data to repair a shape.
 var STATE_CONTAINERS = ['clients', 'items', 'invoices', 'incomingMaterial', 'partWeights',
-  'voidedNumbers', 'creditNotes', 'extraExceptions', 'staff', 'attendance', 'areaTargets', 'stock', 'todo', 'relayPastes', 'staffPayments', 'costBills', 'payrollPaid', 'bank'];
+  'voidedNumbers', 'creditNotes', 'extraExceptions', 'staff', 'attendance', 'areaTargets', 'stock', 'todo', 'relayPastes', 'staffPayments', 'costBills', 'payrollPaid', 'bank', 'production'];
 // Config objects are the opposite: a missing one is filled from the defaults,
 // and so is a missing KEY inside one. `labourCfg()` reads `extraRate || 0`, so
 // a backup predating a constant would silently price the extra at nothing

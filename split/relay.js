@@ -749,7 +749,7 @@ function relayRenderView() {
   if (_relayView === 'review' && _relay) return relayRenderReview();
   return relayBackBar('invAttView', 'Staff', 'Paste message') +
     '<div class="inv-panel">' +
-    '<div class="inv-field"><label class="inv-field-label" for="relayPasteText">The in-time or out-time roll, as sent (the stock message works here too)</label>' +
+    '<div class="inv-field"><label class="inv-field-label" for="relayPasteText">The message as sent: an in-time or out-time roll, a chemical stock message, or the pickling and barrel production</label>' +
     '<textarea id="relayPasteText" class="inv-textarea inv-textarea-mono" rows="12" spellcheck="false" placeholder="Copy the message in WhatsApp and paste it here. Several at once is fine.">' +
     escHtml(_relayDraft) + '</textarea></div>' +
     '<button class="inv-btn inv-btn-primary inv-btn-block" data-action="invRelayRead">Read message</button>' +
@@ -761,7 +761,6 @@ function relayRead() {
   var text = ta ? ta.value : _relayDraft;
   _relayDraft = text;
   if (!text.trim()) { showToast('Paste the message first', 'error'); return; }
-  if (!(S.staff || []).length) { showToast('Add the roster first: Staff → Roster', 'error'); return; }
   var msgs = relaySplit(text);
   var rolls = [], stock = [], other = [];
   msgs.forEach(function(m) {
@@ -770,6 +769,11 @@ function relayRead() {
     else if (k === 'stock') stock.push(m);
     else other.push(m);
   });
+  // Production: the pickling hand's loads, the barrel list, a roll's production block (production.js reads them).
+  var prod = typeof parseProdPaste === 'function' ? parseProdPaste(text, prodCtx()).filter(function(m) { return m.read.items.length; }) : [];
+  var prodLoose = prod.filter(function(m) { return m.kind !== 'roll'; }).length;
+  if (!rolls.length && prod.length) { prodOpenPaste(text); return; }
+  if (!(S.staff || []).length) { showToast('Add the roster first: Staff → Roster', 'error'); return; }
   if (!rolls.length && stock.length) {
     // A stock message belongs to Stock's own review.
     _stockPasteDraft = text;
@@ -779,7 +783,7 @@ function relayRead() {
     return;
   }
   if (!rolls.length) { showToast('No in-time or out-time roll found in that text', 'error'); return; }
-  _relay = { text: text, msgs: rolls, choices: {}, stock: stock.length, other: other.length };
+  _relay = { text: text, msgs: rolls, choices: {}, stock: stock.length, other: Math.max(0, other.length - prodLoose), prod: prod.length };
   _relayView = 'review';
   _relayShowLines = false;
   renderAttendance();
@@ -805,7 +809,9 @@ function relayRenderReview() {
   var h = relayBackBar('invRelayBack', 'Edit text', 'Check before saving');
   if (plan.dupes) h += '<div class="inv-callout inv-callout-danger inv-mb-8" id="relayDupNote">' + todoPlural(plan.dupes, 'message was', 'messages were') + ' already saved and ' + (plan.dupes === 1 ? 'is' : 'are') + ' left out: saving again would count every hour twice.</div>';
   if (rv.stock) h += '<div class="inv-callout inv-callout-warning inv-mb-8">The stock message in this paste was not read here. Paste it in More → Stock.</div>';
-  if (rv.other) h += '<div class="inv-callout inv-callout-warning inv-mb-8">' + todoPlural(rv.other, 'other message') + ' (pickling log, notes) not read.</div>';
+  if (rv.prod) h += '<div class="inv-callout inv-callout-info inv-mb-8" id="relayProdNote"><div>' + todoPlural(rv.prod, 'message carries', 'messages carry') + ' production (pickling loads, the barrel list, a production block). Attendance is read here; the production is read in Production.</div>' +
+    '<button class="inv-btn inv-btn-secondary inv-btn-sm inv-mt-8" data-action="invRelayToProd">Read in Production</button></div>';
+  if (rv.other) h += '<div class="inv-callout inv-callout-warning inv-mb-8">' + todoPlural(rv.other, 'other message') + ' (notes) not read.</div>';
   h += '<div class="inv-tiles inv-tiles-3" id="relayReviewTiles">' +
     '<div class="inv-tile' + (plan.counts.red ? ' inv-tile-danger' : '') + '" data-tile="red"><div class="inv-tile-label">Needs you</div><div class="inv-tile-value">' + plan.counts.red + '</div></div>' +
     '<div class="inv-tile' + (plan.counts.amber ? ' inv-tile-warning' : '') + '" data-tile="amber"><div class="inv-tile-label">Check</div><div class="inv-tile-value">' + plan.counts.amber + '</div></div>' +
@@ -940,6 +946,7 @@ function relaySave() {
 function relayAction(action, btn) {
   switch (action) {
     case 'invRelayRead': relayRead(); break;
+    case 'invRelayToProd': prodOpenPaste(_relay ? _relay.text : _relayDraft); break;
     case 'invRelayBack': _relayView = 'paste'; renderAttendance(); break;
     case 'invRelaySave': relaySave(); break;
     case 'invRelayLines': _relayShowLines = !_relayShowLines; renderAttendance(); break;

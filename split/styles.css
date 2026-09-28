@@ -1633,3 +1633,6 @@ summary.inv-summary::-webkit-details-marker { display: none; }
 }
 .inv-empty { display: flex; flex-direction: column; align-items: center; gap: var(--sp-12); }
 .inv-empty-icon { width: var(--sp-32); height: var(--sp-32); color: var(--text-3); }
+
+/* Production: the register photo under review, as wide as its panel and never wider. */
+.inv-prod-photo { display: block; max-width: 100%; height: auto; border-radius: var(--r-md); }

@@ -390,6 +390,7 @@ function onDocClick(e) {
       if (financeAction(action, btn)) break;
       if (finLinkAction(action, btn)) break;
       if (dashAction(action, btn)) break;
+      if (prodAction(action, btn)) break;
       if (action.indexOf('invStock') === 0) stockAction(action, btn);
       else if (action.indexOf('invTodo') === 0) todoAction(action, btn);
       else if (action.indexOf('invRelay') === 0) relayAction(action, btn);
@@ -446,6 +447,7 @@ function onDocChange(e) {
   if (dashInput(e.target)) return;
   if (todoOnChange(e.target)) return;
   if (relayOnChange(e.target)) return;
+  if (prodOnChange(e.target)) return;
   // A line's fields answer to their data-action; its unit <select> to data-change, since a select carrying an
   // action would run it on the click that opens it.
   const el = e.target.closest('[data-action="invUpdateLine"], [data-change="invUpdateLine"]');
@@ -602,6 +604,7 @@ document.addEventListener('input', function(e) {
   if (e.target.tagName === 'INPUT' && /^cnf/.test(e.target.id) && billsCnFormInput(e.target)) return;
   if (e.target.id === 'bankSearch' && bankInput(e.target)) return;
   if (relayOnInput(e.target)) return;
+  if (prodOnInput(e.target)) return;
   if (e.target.id === 'clientSearch') {
     renderClientList(e.target.value);
   }

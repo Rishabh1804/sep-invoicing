@@ -566,6 +566,7 @@ var SIDE_ICONS = {
   register: '<path d="M14 3H6a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8zM14 3v5h5M9 13h6M9 17h6"/>',
   clients: '<path d="M16 20v-1.5a3.5 3.5 0 0 0-3.5-3.5h-5A3.5 3.5 0 0 0 4 18.5V20M10 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7M20 20v-1.5a3.5 3.5 0 0 0-2.5-3.35M15.5 4.2a3.5 3.5 0 0 1 0 6.6"/>',
   items: '<path d="M4 7h16M4 12h16M4 17h10"/>',
+  production: '<path d="M3 20h18M5 20V10l4 3V10l4 3V6l6 4v10M8 16h1M12 16h1M16 16h1"/>',
   stock: '<path d="M9 3h6M10 3v6L4.5 19a1.3 1.3 0 0 0 1.1 2h12.8a1.3 1.3 0 0 0 1.1-2L14 9V3M7.5 14h9"/>',
   staff: '<path d="M15 20v-1.5a3.5 3.5 0 0 0-3.5-3.5h-5A3.5 3.5 0 0 0 3 18.5V20M9 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7M16 11l2 2 4-4"/>',
   pay: '<path d="M3 7h18v10H3zM12 14.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5"/>',
@@ -579,7 +580,7 @@ var SIDE_NAV = [
   ['Daily', [['pageHome', 'Home', 'home'], ['pageCreate', 'Create invoice', 'create'], ['pageIM', 'Challans', 'im'], ['pageRegister', 'Register', 'register']]],
   ['Book', [['pageClients', 'Clients', 'clients'], ['pageClients', 'Items', 'items', 'items']]],
   ['Money', [['pageFinance', 'Finance', 'finance']]],
-  ['Floor', [['pageStock', 'Stock', 'stock'], ['pageStaff', 'Staff', 'staff'], ['pageStaff', 'Pay', 'pay', 'pay']]],
+  ['Floor', [['pageProduction', 'Production', 'production'], ['pageStock', 'Stock', 'stock'], ['pageStaff', 'Staff', 'staff'], ['pageStaff', 'Pay', 'pay', 'pay']]],
   ['Review', [['pageTodo', 'To-do', 'todo'], ['pageStats', 'Stats', 'stats'], ['pageHistory', 'History', 'history']]]
 ];
 function _sideSvg(k) { return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + SIDE_ICONS[k] + '</svg>'; }

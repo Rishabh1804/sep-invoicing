@@ -41,10 +41,15 @@ split/
 ├── staff.js              ← Roster master + attendance + roster import: day, week grid, extra hours
 ├── labour.js             ← Labour cost model: three pay tiers, fixed/variable, ₹/kg with gates
 ├── areas.js              ← Areas: staffing vs norms, extra reconciled, pro-rata absorption
+├── relay.js              ← Attendance rolls from WhatsApp; the one paste box routes production to Production
+├── prodparse.js          ← Production messages read (pure): pickling loads, the barrel list, a roll's block, the register
 ├── stats.js              ← Stats (tonnage, realisation, margin) + History audit log
+├── production.js         ← Production store, derived index (which figure counts, usual line, matches, racks), in plant, rules
+├── prodview.js           ← Production page: Overview, In plant, Lines, Entries; paste, photo and hand sub-views
 ├── client-perf.js        ← Client performance: month on month + material cadence
 ├── im-form.js            ← IM challan form + focus survival across re-renders
 ├── im-dupe.js            ← IM duplicate guard: fingerprint, pre-save warning, scan
+├── vision.js             ← One Gemini photo read (the scanner's request unchanged; a schema for the register)
 ├── scanner.js            ← Challan scanner (Gemini AI vision)
 ├── events.js             ← Event delegation + change/input/keydown handlers
 ├── swipe.js              ← Swipe navigation between tabs

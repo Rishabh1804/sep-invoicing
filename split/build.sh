@@ -54,15 +54,19 @@ JS_SOURCES=(
     "$DIR/finance.js" \
     "$DIR/todo.js" \
     "$DIR/relay.js" \
+    "$DIR/prodparse.js" \
     "$DIR/stats.js" \
     "$DIR/intel.js" \
     "$DIR/insights.js" \
     "$DIR/finintel.js" \
     "$DIR/finlinks.js" \
     "$DIR/dash.js" \
+    "$DIR/production.js" \
+    "$DIR/prodview.js" \
     "$DIR/client-perf.js" \
     "$DIR/im-form.js" \
     "$DIR/im-dupe.js" \
+    "$DIR/vision.js" \
     "$DIR/scanner.js" \
     "$DIR/events.js" \
     "$DIR/swipe.js" \

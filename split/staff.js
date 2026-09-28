@@ -341,7 +341,8 @@ function renderAttendance() {
   var area = document.getElementById('attContent');
   if (!area) return;
 
-  if ((S.staff || []).length === 0 && _attView !== 'roster') {
+  // The paste box takes every message the floor sends, not only rolls, so it opens without a roster (a roll asks).
+  if ((S.staff || []).length === 0 && _attView !== 'roster' && _attView !== 'paste') {
     area.innerHTML = _attEmptyRoster();
     _attRestoreFocus(focusSel);
     return;

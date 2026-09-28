@@ -18,7 +18,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <!-- Appearance before first paint (§3.2): the device's theme and palette, so nothing flashes in the wrong colours. -->
 <script>(function(){try{var d=document.documentElement,t=localStorage.getItem("sep_inv_theme"),p=localStorage.getItem("sep_inv_palette");if(t==="light"||t==="dark")d.dataset.theme=t;d.dataset.palette=(p==="zinc"||p==="terracotta")?p:"teal";}catch(e){document.documentElement.dataset.palette="teal";}})();</script>
-<meta name="app-build" content="31086c2d">
+<meta name="app-build" content="134fb6b8">
 <style>
 /* ===== DESIGN TOKENS (design system v2.0 — docs/SEP_INVOICING_DESIGN_PRINCIPLES.md §3) ===== */
 /* Theme: colour-scheme decides every light-dark() below. <html data-theme> is set before first paint
@@ -12828,7 +12828,8 @@ function renderAttendance() {
   var area = document.getElementById('attContent');
   if (!area) return;
 
-  if ((S.staff || []).length === 0 && _attView !== 'roster') {
+  // The paste box takes every message the floor sends, not only rolls, so it opens without a roster (a roll asks).
+  if ((S.staff || []).length === 0 && _attView !== 'roster' && _attView !== 'paste') {
     area.innerHTML = _attEmptyRoster();
     _attRestoreFocus(focusSel);
     return;
@@ -22382,7 +22383,7 @@ function relayRenderView() {
   if (_relayView === 'review' && _relay) return relayRenderReview();
   return relayBackBar('invAttView', 'Staff', 'Paste message') +
     '<div class="inv-panel">' +
-    '<div class="inv-field"><label class="inv-field-label" for="relayPasteText">The in-time or out-time roll, as sent (the stock message works here too)</label>' +
+    '<div class="inv-field"><label class="inv-field-label" for="relayPasteText">The message as sent: an in-time or out-time roll, a chemical stock message, or the pickling and barrel production</label>' +
     '<textarea id="relayPasteText" class="inv-textarea inv-textarea-mono" rows="12" spellcheck="false" placeholder="Copy the message in WhatsApp and paste it here. Several at once is fine.">' +
     escHtml(_relayDraft) + '</textarea></div>' +
     '<button class="inv-btn inv-btn-primary inv-btn-block" data-action="invRelayRead">Read message</button>' +
@@ -22394,7 +22395,6 @@ function relayRead() {
   var text = ta ? ta.value : _relayDraft;
   _relayDraft = text;
   if (!text.trim()) { showToast('Paste the message first', 'error'); return; }
-  if (!(S.staff || []).length) { showToast('Add the roster first: Staff → Roster', 'error'); return; }
   var msgs = relaySplit(text);
   var rolls = [], stock = [], other = [];
   msgs.forEach(function(m) {
@@ -22403,6 +22403,11 @@ function relayRead() {
     else if (k === 'stock') stock.push(m);
     else other.push(m);
   });
+  // Production: the pickling hand's loads, the barrel list, a roll's production block (production.js reads them).
+  var prod = typeof parseProdPaste === 'function' ? parseProdPaste(text, prodCtx()).filter(function(m) { return m.read.items.length; }) : [];
+  var prodLoose = prod.filter(function(m) { return m.kind !== 'roll'; }).length;
+  if (!rolls.length && prod.length) { prodOpenPaste(text); return; }
+  if (!(S.staff || []).length) { showToast('Add the roster first: Staff → Roster', 'error'); return; }
   if (!rolls.length && stock.length) {
     // A stock message belongs to Stock's own review.
     _stockPasteDraft = text;
@@ -22412,7 +22417,7 @@ function relayRead() {
     return;
   }
   if (!rolls.length) { showToast('No in-time or out-time roll found in that text', 'error'); return; }
-  _relay = { text: text, msgs: rolls, choices: {}, stock: stock.length, other: other.length };
+  _relay = { text: text, msgs: rolls, choices: {}, stock: stock.length, other: Math.max(0, other.length - prodLoose), prod: prod.length };
   _relayView = 'review';
   _relayShowLines = false;
   renderAttendance();
@@ -22438,7 +22443,9 @@ function relayRenderReview() {
   var h = relayBackBar('invRelayBack', 'Edit text', 'Check before saving');
   if (plan.dupes) h += '<div class="inv-callout inv-callout-danger inv-mb-8" id="relayDupNote">' + todoPlural(plan.dupes, 'message was', 'messages were') + ' already saved and ' + (plan.dupes === 1 ? 'is' : 'are') + ' left out: saving again would count every hour twice.</div>';
   if (rv.stock) h += '<div class="inv-callout inv-callout-warning inv-mb-8">The stock message in this paste was not read here. Paste it in More → Stock.</div>';
-  if (rv.other) h += '<div class="inv-callout inv-callout-warning inv-mb-8">' + todoPlural(rv.other, 'other message') + ' (pickling log, notes) not read.</div>';
+  if (rv.prod) h += '<div class="inv-callout inv-callout-info inv-mb-8" id="relayProdNote"><div>' + todoPlural(rv.prod, 'message carries', 'messages carry') + ' production (pickling loads, the barrel list, a production block). Attendance is read here; the production is read in Production.</div>' +
+    '<button class="inv-btn inv-btn-secondary inv-btn-sm inv-mt-8" data-action="invRelayToProd">Read in Production</button></div>';
+  if (rv.other) h += '<div class="inv-callout inv-callout-warning inv-mb-8">' + todoPlural(rv.other, 'other message') + ' (notes) not read.</div>';
   h += '<div class="inv-tiles inv-tiles-3" id="relayReviewTiles">' +
     '<div class="inv-tile' + (plan.counts.red ? ' inv-tile-danger' : '') + '" data-tile="red"><div class="inv-tile-label">Needs you</div><div class="inv-tile-value">' + plan.counts.red + '</div></div>' +
     '<div class="inv-tile' + (plan.counts.amber ? ' inv-tile-warning' : '') + '" data-tile="amber"><div class="inv-tile-label">Check</div><div class="inv-tile-value">' + plan.counts.amber + '</div></div>' +
@@ -22573,6 +22580,7 @@ function relaySave() {
 function relayAction(action, btn) {
   switch (action) {
     case 'invRelayRead': relayRead(); break;
+    case 'invRelayToProd': prodOpenPaste(_relay ? _relay.text : _relayDraft); break;
     case 'invRelayBack': _relayView = 'paste'; renderAttendance(); break;
     case 'invRelaySave': relaySave(); break;
     case 'invRelayLines': _relayShowLines = !_relayShowLines; renderAttendance(); break;
@@ -26846,6 +26854,13 @@ function prodReadPaste(text) {
   _prodReview = { msgs: msgs, choices: {} };
   prodSetView('review');
 }
+/* From Home → Paste message or a roll's review: the text opens on Production's own check. */
+function prodOpenPaste(text) {
+  _prodPasteDraft = text || '';
+  _prodReview = null; _prodView = 'paste';
+  switchTab('pageProduction');
+  prodReadPaste(_prodPasteDraft);
+}
 /* A message already saved is refused, unless every entry it made has since been voided (read it again). */
 function prodPasteSeen(hash) {
   var p = prodData(), paste = p.pastes.find(function(x) { return x.hash === hash; });
@@ -26860,7 +26875,10 @@ function prodReviewResolve() {
     if (m.dup) out.dup++;
     m.read.items.forEach(function(it, ii) {
       var key = mi + ':' + ii, row = { m: m, mi: mi, ii: ii, key: key, it: it, issues: it.issues.slice(), tone: 'clear' };
-      var cc = ch['client' + key];
+      // A pick answers for every row of this paste with the same written name; a row picked on its own wins.
+      var nk = it.client ? relayKey(it.client) : '', cc = ch['client' + key];
+      if (cc === undefined && nk && ch['name:' + nk] !== undefined) cc = ch['name:' + nk];
+      row.clientPick = cc;
       if (cc !== undefined) {
         row.issues = row.issues.filter(function(x) { return x.code !== 'client' && x.code !== 'readas'; });
         if (cc === 'asWritten') row.clientId = null; else row.clientId = cc;
@@ -26910,8 +26928,8 @@ function prodReviewRowHtml(r, idx) {
   var h = '<div class="inv-row inv-row-auto inv-row-top" data-prod-row="' + r.key + '" data-tone="' + r.tone + '"><div class="inv-row-main"><div class="inv-quote">' + escHtml(it.raw) + '</div>' +
     '<div class="inv-verdict-text inv-mt-4">' + escHtml(reading) + '</div>';
   r.issues.forEach(function(x) { h += '<div class="inv-callout inv-callout-' + uiTone(x.tone) + ' inv-mt-8">' + escHtml(x.text) + '</div>'; });
-  if (!r.m.dup && it.kind !== 'downtime' && (it.clientId == null || it.issues.some(function(x) { return x.code === 'readas'; }) || _prodReview.choices['client' + r.key] !== undefined)) {
-    var cur = _prodReview.choices['client' + r.key];
+  if (!r.m.dup && it.kind !== 'downtime' && (it.clientId == null || it.issues.some(function(x) { return x.code === 'readas'; }) || r.clientPick !== undefined)) {
+    var cur = r.clientPick;
     var sel = cur !== undefined ? String(cur) : (it.clientId != null ? String(it.clientId) : '');
     h += '<div class="inv-fields inv-mt-8"><div class="inv-field"><label class="inv-field-label" for="prodClient' + r.key.replace(':', '_') + '">Client</label>' +
       '<select id="prodClient' + r.key.replace(':', '_') + '" class="inv-select" data-prod-client="' + r.key + '">' + (sel === '' ? '<option value="" selected>Pick the client</option>' : '') +
@@ -26948,7 +26966,7 @@ function prodSaveReview() {
       pasteId: pasteIds[r.mi], msgHash: r.m.hash, sentBy: r.m.sentBy || '', by: by, at: at };
     if (e.kind === 'plated') e.lineSrc = e.line ? (it.line ? 'written' : 'set') : null;
     // A client picked for a written name is remembered for the next message; a keep-as-written is not.
-    var pick = rv.choices['client' + r.key];
+    var pick = r.clientPick;
     if (pick !== undefined && pick !== 'asWritten' && it.client) { var k = relayKey(it.client); if (k && p.learn.clients[k] !== pick) { p.learn.clients[k] = pick; learnt++; } }
     else if (it.issues.some(function(x) { return x.code === 'readas'; }) && it.client && it.clientId != null) { var k2 = relayKey(it.client); if (k2 && !(k2 in p.learn.clients)) { p.learn.clients[k2] = it.clientId; learnt++; } }
     p.entries.push(prodSparse(e));
@@ -27226,7 +27244,15 @@ function prodOnChange(t) {
   if (!t) return false;
   if (t.id === 'prodPlantClient') { _prodPlantClient = t.value; renderProduction(); return true; }
   if (t.id === 'prodPhotoInput') { prodPhotoFiles(t.files); return true; }
-  if (t.dataset && t.dataset.prodClient !== undefined) { _prodReview.choices['client' + t.dataset.prodClient] = t.value === 'asWritten' ? t.value : prodHeldId(t.value); if (t.value === '') delete _prodReview.choices['client' + t.dataset.prodClient]; renderProduction(); return true; }
+  if (t.dataset && t.dataset.prodClient !== undefined) {
+    var key = t.dataset.prodClient, v = t.value === 'asWritten' ? t.value : prodHeldId(t.value), rc = _prodReview.choices;
+    var mi = +key.split(':')[0], ii = +key.split(':')[1], it = (_prodReview.msgs[mi] && _prodReview.msgs[mi].read.items[ii]) || {}, nk = it.client ? relayKey(it.client) : '';
+    // A row still on the name's answer (or none yet) changes the answer for every row of that name; a row given its
+    // own client keeps it.
+    if (nk && rc['client' + key] === undefined) rc['name:' + nk] = v; else rc['client' + key] = v;
+    if (t.value === '') { delete rc['client' + key]; if (nk) delete rc['name:' + nk]; }
+    renderProduction(); return true;
+  }
   if (t.dataset && t.dataset.prodRunClient !== undefined) { if (t.value === '') delete _prodPhoto.choices['client' + t.dataset.prodRunClient]; else _prodPhoto.choices['client' + t.dataset.prodRunClient] = t.value === 'asWritten' ? t.value : prodHeldId(t.value); renderProduction(); return true; }
   if (t.id === 'prodPhotoLine') { _prodPhoto.choices.line = t.value; renderProduction(); return true; }
   if (t.id === 'prodPhotoDate') { _prodPhoto.choices.date = t.value; renderProduction(); return true; }

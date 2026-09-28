@@ -309,6 +309,13 @@ function prodReadPaste(text) {
   _prodReview = { msgs: msgs, choices: {} };
   prodSetView('review');
 }
+/* From Home → Paste message or a roll's review: the text opens on Production's own check. */
+function prodOpenPaste(text) {
+  _prodPasteDraft = text || '';
+  _prodReview = null; _prodView = 'paste';
+  switchTab('pageProduction');
+  prodReadPaste(_prodPasteDraft);
+}
 /* A message already saved is refused, unless every entry it made has since been voided (read it again). */
 function prodPasteSeen(hash) {
   var p = prodData(), paste = p.pastes.find(function(x) { return x.hash === hash; });
@@ -323,7 +330,10 @@ function prodReviewResolve() {
     if (m.dup) out.dup++;
     m.read.items.forEach(function(it, ii) {
       var key = mi + ':' + ii, row = { m: m, mi: mi, ii: ii, key: key, it: it, issues: it.issues.slice(), tone: 'clear' };
-      var cc = ch['client' + key];
+      // A pick answers for every row of this paste with the same written name; a row picked on its own wins.
+      var nk = it.client ? relayKey(it.client) : '', cc = ch['client' + key];
+      if (cc === undefined && nk && ch['name:' + nk] !== undefined) cc = ch['name:' + nk];
+      row.clientPick = cc;
       if (cc !== undefined) {
         row.issues = row.issues.filter(function(x) { return x.code !== 'client' && x.code !== 'readas'; });
         if (cc === 'asWritten') row.clientId = null; else row.clientId = cc;
@@ -373,8 +383,8 @@ function prodReviewRowHtml(r, idx) {
   var h = '<div class="inv-row inv-row-auto inv-row-top" data-prod-row="' + r.key + '" data-tone="' + r.tone + '"><div class="inv-row-main"><div class="inv-quote">' + escHtml(it.raw) + '</div>' +
     '<div class="inv-verdict-text inv-mt-4">' + escHtml(reading) + '</div>';
   r.issues.forEach(function(x) { h += '<div class="inv-callout inv-callout-' + uiTone(x.tone) + ' inv-mt-8">' + escHtml(x.text) + '</div>'; });
-  if (!r.m.dup && it.kind !== 'downtime' && (it.clientId == null || it.issues.some(function(x) { return x.code === 'readas'; }) || _prodReview.choices['client' + r.key] !== undefined)) {
-    var cur = _prodReview.choices['client' + r.key];
+  if (!r.m.dup && it.kind !== 'downtime' && (it.clientId == null || it.issues.some(function(x) { return x.code === 'readas'; }) || r.clientPick !== undefined)) {
+    var cur = r.clientPick;
     var sel = cur !== undefined ? String(cur) : (it.clientId != null ? String(it.clientId) : '');
     h += '<div class="inv-fields inv-mt-8"><div class="inv-field"><label class="inv-field-label" for="prodClient' + r.key.replace(':', '_') + '">Client</label>' +
       '<select id="prodClient' + r.key.replace(':', '_') + '" class="inv-select" data-prod-client="' + r.key + '">' + (sel === '' ? '<option value="" selected>Pick the client</option>' : '') +
@@ -411,7 +421,7 @@ function prodSaveReview() {
       pasteId: pasteIds[r.mi], msgHash: r.m.hash, sentBy: r.m.sentBy || '', by: by, at: at };
     if (e.kind === 'plated') e.lineSrc = e.line ? (it.line ? 'written' : 'set') : null;
     // A client picked for a written name is remembered for the next message; a keep-as-written is not.
-    var pick = rv.choices['client' + r.key];
+    var pick = r.clientPick;
     if (pick !== undefined && pick !== 'asWritten' && it.client) { var k = relayKey(it.client); if (k && p.learn.clients[k] !== pick) { p.learn.clients[k] = pick; learnt++; } }
     else if (it.issues.some(function(x) { return x.code === 'readas'; }) && it.client && it.clientId != null) { var k2 = relayKey(it.client); if (k2 && !(k2 in p.learn.clients)) { p.learn.clients[k2] = it.clientId; learnt++; } }
     p.entries.push(prodSparse(e));
@@ -689,7 +699,15 @@ function prodOnChange(t) {
   if (!t) return false;
   if (t.id === 'prodPlantClient') { _prodPlantClient = t.value; renderProduction(); return true; }
   if (t.id === 'prodPhotoInput') { prodPhotoFiles(t.files); return true; }
-  if (t.dataset && t.dataset.prodClient !== undefined) { _prodReview.choices['client' + t.dataset.prodClient] = t.value === 'asWritten' ? t.value : prodHeldId(t.value); if (t.value === '') delete _prodReview.choices['client' + t.dataset.prodClient]; renderProduction(); return true; }
+  if (t.dataset && t.dataset.prodClient !== undefined) {
+    var key = t.dataset.prodClient, v = t.value === 'asWritten' ? t.value : prodHeldId(t.value), rc = _prodReview.choices;
+    var mi = +key.split(':')[0], ii = +key.split(':')[1], it = (_prodReview.msgs[mi] && _prodReview.msgs[mi].read.items[ii]) || {}, nk = it.client ? relayKey(it.client) : '';
+    // A row still on the name's answer (or none yet) changes the answer for every row of that name; a row given its
+    // own client keeps it.
+    if (nk && rc['client' + key] === undefined) rc['name:' + nk] = v; else rc['client' + key] = v;
+    if (t.value === '') { delete rc['client' + key]; if (nk) delete rc['name:' + nk]; }
+    renderProduction(); return true;
+  }
   if (t.dataset && t.dataset.prodRunClient !== undefined) { if (t.value === '') delete _prodPhoto.choices['client' + t.dataset.prodRunClient]; else _prodPhoto.choices['client' + t.dataset.prodRunClient] = t.value === 'asWritten' ? t.value : prodHeldId(t.value); renderProduction(); return true; }
   if (t.id === 'prodPhotoLine') { _prodPhoto.choices.line = t.value; renderProduction(); return true; }
   if (t.id === 'prodPhotoDate') { _prodPhoto.choices.date = t.value; renderProduction(); return true; }

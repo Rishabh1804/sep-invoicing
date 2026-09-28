@@ -336,9 +336,9 @@ var SETTINGS_SECS = {
   },
   geminiKey: {
     title: 'Photo reading (Gemini)',
-    summary: function() { return getApiKey() ? 'key saved on this device' : 'no key'; },
+    summary: function() { return (getApiKey() ? 'key saved on this device' : 'no key') + ' · ' + geminiModel(); },
     body: function() { return _sfg('Google Gemini API key', 'setApiKey', _sKey('setApiKey', getApiKey(), 'AIza...', 'invToggleApiKey')); },
-    why: 'Reads a challan photo (IM → Scan) and a page of the VAT register (Production → Read register photo). Free from aistudio.google.com (Google account only, no card). The key stays on this device. A register photo is sent to Google as it is, the workers\u2019 names box included; only what is read is kept here, never the image.',
+    why: 'Reads a challan photo (IM → Scan) and a page of the VAT register (Production → Read register photo). Free from aistudio.google.com (Google account only, no card) when the key is made in a project with no billing: a project on prepaid billing refuses every read once its credits run out. The key stays on this device. The model is ' + GEMINI_MODEL + ' unless Google has retired it, in which case the app moves to the one Google names and keeps it on this device. A register photo is sent to Google as it is, the workers\u2019 names box included; only what is read is kept here, never the image.',
     save: function() { setApiKey(_sVal('setApiKey').trim()); }
   },
   sync: {

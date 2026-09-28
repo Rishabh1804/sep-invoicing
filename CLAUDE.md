@@ -118,7 +118,7 @@ every session start — nothing to set up by hand. CI (`build-sync`) is the back
 ### Tests
 
 ```bash
-pnpm exec playwright test          # 680 tests, both layouts
+pnpm exec playwright test          # 683 tests, both layouts
 ```
 
 Some sandboxes ship a Chromium build Playwright does not expect and block downloading
@@ -1462,6 +1462,15 @@ reads a photo. **Owned by `soma-internal`, like stock** (owner): a view and an i
   real). An export made with media writes "IMG-… (file attached)" lines, dropped like "<Media omitted>". **A load with no
   client written, whose part only one client has sent in a year** ("LINER", "188 CD"), is read as that client, amber:
   197 → 172 rows asking for a client on the old exports.
+- **The model follows Google's retirements** (owner, 28 Sep 2026: a new free key was refused *"models/gemini-2.5-flash is
+  no longer available to new users. Please update your code to use models/gemini-3.8-flash"*). The default is
+  `gemini-3.8-flash`; a refusal that names a replacement is retried **once** on the model it names, and on success that
+  model is kept on the device (`sep_inv_gemini_model`, `geminiModel()`), so the next retirement needs no release. A
+  thinking setting the model refuses is dropped and sent once more. A photo's facts record the model that read it.
+  Settings → Connections → Photo reading shows the model in use. **A key whose project is on prepaid billing with no
+  credit** is named as that (make a key in a project with no billing, which is free, or add credit), never as a busy
+  minute. Nothing here has been run against the live API from the build sandbox: the retries are pinned on mocked
+  refusals in the shape Google sent (P85).
 - **The workers' names box on a register photo goes to Google with the page** (Settings → Connections → Photo reading
   says so); only what is read is kept.
 

@@ -18,7 +18,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <!-- Appearance before first paint (§3.2): the device's theme and palette, so nothing flashes in the wrong colours. -->
 <script>(function(){try{var d=document.documentElement,t=localStorage.getItem("sep_inv_theme"),p=localStorage.getItem("sep_inv_palette");if(t==="light"||t==="dark")d.dataset.theme=t;d.dataset.palette=(p==="zinc"||p==="terracotta")?p:"teal";}catch(e){document.documentElement.dataset.palette="teal";}})();</script>
-<meta name="app-build" content="a2e69d0f">
+<meta name="app-build" content="7ac83d4c">
 <style>
 /* ===== DESIGN TOKENS (design system v2.0 — docs/SEP_INVOICING_DESIGN_PRINCIPLES.md §3) ===== */
 /* Theme: colour-scheme decides every light-dark() below. <html data-theme> is set before first paint
@@ -7063,9 +7063,9 @@ var SETTINGS_SECS = {
   },
   geminiKey: {
     title: 'Photo reading (Gemini)',
-    summary: function() { return getApiKey() ? 'key saved on this device' : 'no key'; },
+    summary: function() { return (getApiKey() ? 'key saved on this device' : 'no key') + ' · ' + geminiModel(); },
     body: function() { return _sfg('Google Gemini API key', 'setApiKey', _sKey('setApiKey', getApiKey(), 'AIza...', 'invToggleApiKey')); },
-    why: 'Reads a challan photo (IM → Scan) and a page of the VAT register (Production → Read register photo). Free from aistudio.google.com (Google account only, no card). The key stays on this device. A register photo is sent to Google as it is, the workers\u2019 names box included; only what is read is kept here, never the image.',
+    why: 'Reads a challan photo (IM → Scan) and a page of the VAT register (Production → Read register photo). Free from aistudio.google.com (Google account only, no card) when the key is made in a project with no billing: a project on prepaid billing refuses every read once its credits run out. The key stays on this device. The model is ' + GEMINI_MODEL + ' unless Google has retired it, in which case the app moves to the one Google names and keeps it on this device. A register photo is sent to Google as it is, the workers\u2019 names box included; only what is read is kept here, never the image.',
     save: function() { setApiKey(_sVal('setApiKey').trim()); }
   },
   sync: {
@@ -27291,7 +27291,8 @@ function prodPhotoNext() {
     geminiReadImage(file, PROD_REGISTER_PROMPT, { schema: PROD_REGISTER_SCHEMA, maxEdge: 2000, thinkingBudget: 0 }).then(function(res) {
       if (res.ok) { start(res.json, res.meta); return; }
       done();
-      var msg = { key: 'No Gemini key is set (Settings → Connections).', quota: 'Gemini says too many requests. Wait a minute and read the photo again.', timeout: res.error, truncated: 'The reply was cut off: the page may have too many rows. Try a photo of half the page.',
+      if (/credit|billing|prepay/i.test(res.error || '')) res.code = 'billing';
+      var msg = { billing: 'The Gemini key\u2019s Google project is on prepaid billing and its credits have run out. Add credit to it, or make a new key in a project with no billing (free) and put it in Settings \u2192 Connections.', key: 'No Gemini key is set (Settings → Connections).', quota: 'Gemini says too many requests. Wait a minute and read the photo again.', timeout: res.error, truncated: 'The reply was cut off: the page may have too many rows. Try a photo of half the page.',
         json: 'Gemini did not return the table asked for. Read it again, or enter the page by hand.', blocked: res.error, empty: 'Gemini returned nothing for this photo.' }[res.code] || ('Reading failed: ' + res.error);
       uiNotice('Register photo: ' + msg, 'error');
       prodPhotoNext();
@@ -27360,7 +27361,7 @@ function prodSavePhoto() {
   var line = ph.choices.line !== undefined ? ph.choices.line : rd.line, date = ph.choices.date || rd.date;
   var id = prodUid('PF'), n = 0;
   if (rd.page === 'other' || rd.page === 'challan') return;
-  p.photos.push({ id: id, at: at, by: by, sha: ph.sha, name: ph.name, bytes: ph.bytes, w: ph.meta.w || 0, h: ph.meta.h || 0, model: GEMINI_MODEL, promptVer: PROD_REGISTER_PROMPT_VER,
+  p.photos.push({ id: id, at: at, by: by, sha: ph.sha, name: ph.name, bytes: ph.bytes, w: ph.meta.w || 0, h: ph.meta.h || 0, model: ph.meta.model || geminiModel(), promptVer: PROD_REGISTER_PROMPT_VER,
     readDate: date, readLine: rd.page === 'power' ? null : line || null, page: rd.page, rows: rd.page === 'power' ? rd.downtime.length : rd.rows.length, fp: rd.fp });
   rd.downtime.forEach(function(x) {
     p.entries.push(prodSparse({ id: prodUid('PE'), kind: 'downtime', date: x.date, time: x.time, to: x.to, downtime: { cause: 'power', open: !!x.open },
@@ -28771,8 +28772,21 @@ function imLocateChallan(imId) {
    It always resolves, never rejects: {ok, json, text, error, code}. `code` names what went wrong so each caller can
    say it in its own words: 'key' (no key), 'timeout', 'network', 'http' (with status), 'quota' (429), 'api' (Gemini's
    own error), 'blocked', 'truncated' (MAX_TOKENS), 'empty' (no text), 'json' (text that is not JSON). */
-var GEMINI_MODEL = 'gemini-2.5-flash';
+var GEMINI_MODEL = 'gemini-3.8-flash';
 var GEMINI_TIMEOUT_MS = 90000;
+/* Google retires models, and closes old ones to new keys first ("gemini-2.5-flash is no longer available to new
+   users. Please update your code to use models/gemini-3.8-flash", owner's new key, 28 Sep 2026). The model a device
+   uses is kept on the device: the default above, or the one Google named the last time it refused a model. */
+var GEMINI_MODEL_KEY = 'sep_inv_gemini_model';
+function geminiModel() { try { return localStorage.getItem(GEMINI_MODEL_KEY) || GEMINI_MODEL; } catch (e) { return GEMINI_MODEL; } }
+function geminiSetModel(m) { try { if (m && m !== GEMINI_MODEL) localStorage.setItem(GEMINI_MODEL_KEY, m); else localStorage.removeItem(GEMINI_MODEL_KEY); } catch (e) { /* the default serves */ } }
+/* The model Google's refusal names instead, when it refuses the one asked for as retired or unknown. */
+function geminiModelMoved(error, asked) {
+  var m = String(error || '');
+  if (!/no longer available|not found|not supported|deprecated|retired|update your code/i.test(m)) return null;
+  var to = (m.match(/use (?:models\/)?(gemini-[\w.-]*\w)/i) || [])[1];
+  return to && to !== asked ? to : null;
+}
 
 function _geminiDataUrl(file) {
   return new Promise(function(resolve, reject) {
@@ -28817,10 +28831,32 @@ function geminiReadImage(file, prompt, opts) {
       body.generationConfig = { responseMimeType: 'application/json', responseSchema: opts.schema, temperature: 0 };
       if (opts.thinkingBudget != null) body.generationConfig.thinkingConfig = { thinkingBudget: opts.thinkingBudget };
     }
+    // One retry each, never a loop: a model Google names in place of a retired one (kept on the device), and a
+    // request whose thinking setting the model will not take (sent again without it).
+    var model = opts.model || geminiModel(), moved = false, thinkDropped = false;
+    var go = function() {
+      return _geminiSend(key, model, body).then(function(res) {
+        if (res.code !== 'api' && res.code !== 'http') return res;
+        var to = !moved && !opts.model ? geminiModelMoved(res.error, model) : null;
+        if (to) { moved = true; res.movedFrom = model; model = to; return go().then(function(r2) { if (r2.ok) geminiSetModel(to); r2.movedFrom = res.movedFrom; return r2; }); }
+        if (!thinkDropped && body.generationConfig && body.generationConfig.thinkingConfig && /thinking/i.test(res.error || '')) {
+          thinkDropped = true; delete body.generationConfig.thinkingConfig; return go();
+        }
+        return res;
+      });
+    };
+    return go().then(function(res) { meta.model = model; return geminiParse(res, !!opts.schema); });
+  }).then(function(res) { res.meta = meta; return res; }, function(err) {
+    return { ok: false, code: 'network', error: (err && err.message) || 'Could not read the file', meta: meta };
+  });
+}
+
+/* One request to one model. Resolves with Gemini's reply ({data}) or what went wrong, never rejects. */
+function _geminiSend(key, model, body) {
     var ctl = typeof AbortController === 'function' ? new AbortController() : null;
     var ms = (typeof window !== 'undefined' && window.GEMINI_TIMEOUT_MS) || GEMINI_TIMEOUT_MS;
     var timedOut = false, timer = setTimeout(function() { timedOut = true; if (ctl) ctl.abort(); }, ms);
-    return fetch('https://generativelanguage.googleapis.com/v1beta/models/' + (opts.model || GEMINI_MODEL) + ':generateContent?key=' + encodeURIComponent(key), {
+    return fetch('https://generativelanguage.googleapis.com/v1beta/models/' + model + ':generateContent?key=' + encodeURIComponent(key), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
@@ -28833,16 +28869,19 @@ function geminiReadImage(file, prompt, opts) {
         if (resp.status === 429) return { ok: false, code: 'quota', status: 429, error: (data && data.error && data.error.message) || 'Too many requests' };
         if (data && data.error) return { ok: false, code: 'api', status: resp.status, error: data.error.message || 'Unknown' };
         if (!resp.ok) return { ok: false, code: 'http', status: resp.status, error: 'HTTP ' + resp.status };
-        return geminiReadReply(data, !!opts.schema);
+        return { ok: true, data: data };
       });
     }, function(err) {
       clearTimeout(timer);
       return timedOut ? { ok: false, code: 'timeout', error: 'Gemini did not answer in ' + Math.round(ms / 1000) + ' s' }
         : { ok: false, code: 'network', error: (err && err.message) || 'Network error' };
     });
-  }).then(function(res) { res.meta = meta; return res; }, function(err) {
-    return { ok: false, code: 'network', error: (err && err.message) || 'Could not read the file', meta: meta };
-  });
+}
+function geminiParse(res, wantJson) {
+  if (!res.ok) return res;
+  var out = geminiReadReply(res.data, wantJson);
+  if (res.movedFrom) out.movedFrom = res.movedFrom;
+  return out;
 }
 
 /* A reply's text and its JSON. The challan scanner's replies came back fenced as ```json … ``` before any schema was

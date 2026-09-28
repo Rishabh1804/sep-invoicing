@@ -18,7 +18,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <!-- Appearance before first paint (§3.2): the device's theme and palette, so nothing flashes in the wrong colours. -->
 <script>(function(){try{var d=document.documentElement,t=localStorage.getItem("sep_inv_theme"),p=localStorage.getItem("sep_inv_palette");if(t==="light"||t==="dark")d.dataset.theme=t;d.dataset.palette=(p==="zinc"||p==="terracotta")?p:"teal";}catch(e){document.documentElement.dataset.palette="teal";}})();</script>
-<meta name="app-build" content="d259f6de">
+<meta name="app-build" content="a54da703">
 <style>
 /* ===== DESIGN TOKENS (design system v2.0 — docs/SEP_INVOICING_DESIGN_PRINCIPLES.md §3) ===== */
 /* Theme: colour-scheme decides every light-dark() below. <html data-theme> is set before first paint
@@ -26334,7 +26334,9 @@ function prodInPlant(opts) {
     var k = prodEntryKey(e);
     if (!k || e.qty == null || !e.unit || e.unit === 'BAG') return;
     var pool = byKey[k];
-    if (!pool) {
+    if (!pool && prodIsGeneric(e.partNumber || e.part)) {
+      // Only a record naming just the kind and gauge is set against the family; a named part with no challan of its
+      // own is on the floor with no challan, never someone else's.
       var fk = prodFamilyKey(e.clientId, e.partNumber || e.part, e.gauge);
       pool = lines.filter(function(r) { return r.fam === fk; });
       if (pool.length) famUsed++;
@@ -26393,7 +26395,7 @@ function prodStatsRowHtml(from, to) {
   if (!s) return '';
   return '<div class="inv-row inv-row-2 inv-row-flow" id="statsPlated"><span class="inv-row-main"><span class="inv-row-title">Plated (floor)</span>' +
     '<span class="inv-row-meta inv-row-wrap">' + escHtml(formatNum(s.kg / 1000, 1) + ' t on ' + s.days + ' complete day' + (s.days === 1 ? '' : 's') + ' of ' + s.working + ' working · ' +
-      Math.round(s.perDay / s.capacity * 100) + '% of ~2 t per shift · kg known for ' + Math.round(s.weighedShare * 100) + '% of pieces') + '</span></span>' +
+      Math.round(s.perDay / s.capacity * 100) + '% of capacity (~2 t a shift, two shifts) · kg known for ' + Math.round(s.weighedShare * 100) + '% of pieces') + '</span></span>' +
     '<span class="inv-row-end"><button class="inv-btn inv-btn-link inv-btn-sm" data-action="invSwitchTab" data-tab="pageProduction">Production</button></span></div>';
 }
 
@@ -26476,7 +26478,8 @@ TODO_RULE_FNS.prodPickledNoChallan = function() {
       if (String(m.clientId) !== String(e.clientId) || (m.challanDate || '') > stockIsoAdd(e.date, 1)) return false;
       return (m.items || []).some(function(it) {
         var ck = prodChallanKey(m, it);
-        var match = e.part ? (ck === k || prodFamilyKey(m.clientId, it.partNumber || it.desc, prodGaugeOf(it.partNumber, it.desc)) === fk) : true;
+        // A named part must be on the challan by name; only a load naming just the kind and gauge matches by family.
+        var match = !e.part ? true : prodIsGeneric(e.partNumber || e.part) ? prodFamilyKey(m.clientId, it.partNumber || it.desc, prodGaugeOf(it.partNumber, it.desc)) === fk : ck === k;
         if (!match) return false;
         var open = imLineOpen(it).qty > 0;
         var billedAfter = (it.invoiceIds || []).some(function(id) { var inv = S.invoices.find(function(x) { return x.id === id; }); return inv && inv.date >= e.date; });
@@ -26631,7 +26634,7 @@ function prodOverviewHtml() {
   var lastDay = idx.counted.map(function(e) { return e.date; }).sort().pop() || null;
   var lastKg = 0, lastNos = 0, lastLines = {};
   if (lastDay) PROD_LINES.forEach(function(l) { var r = prodDayLine(lastDay, l); lastKg += r.kg; lastNos += r.nos; if (r.entries.length) lastLines[l] = true; });
-  var wk = stockIsoAdd(today, -((new Date(today + 'T00:00:00').getDay() + 6) % 7)), wkSum = prodPlatedSummary(wk, today);
+  var wk = attWeekStartOf(today), wkSum = prodPlatedSummary(wk, today);   // the pay week, Sunday to Saturday
   var plant = prodInPlant({});
   var pni = plant.rows.reduce(function(s, x) { if (x.unit === 'NOS') s.nos += x.platedNotInvoiced; else s.kg += x.platedNotInvoiced; return s; }, { nos: 0, kg: 0 });
   var tile = function(label, value, sub, tone, key) {
@@ -26639,7 +26642,7 @@ function prodOverviewHtml() {
   };
   var h = '<div class="inv-tiles">' +
     tile('Plated, last recorded day', lastDay ? escHtml(formatNum(lastKg / 1000, 2) + ' t') : '&mdash;', lastDay ? escHtml(stockShortDate(lastDay) + ' · ' + Object.keys(lastLines).map(prodLineName).join(', ') + ' · ' + Math.round(lastNos).toLocaleString('en-IN') + ' NOS') : 'nothing recorded', '', 'last') +
-    tile('This week against capacity', wkSum ? Math.round(wkSum.perDay / wkSum.capacity * 100) + '%' : '&mdash;', wkSum ? escHtml('on ' + wkSum.days + ' complete day' + (wkSum.days === 1 ? '' : 's') + ' · ~2 t per shift') : 'no complete day this week', '', 'week') +
+    tile('This week against capacity', wkSum ? Math.round(wkSum.perDay / wkSum.capacity * 100) + '%' : '&mdash;', wkSum ? escHtml('on ' + wkSum.days + ' complete day' + (wkSum.days === 1 ? '' : 's') + ' · of ~2 t a shift, two shifts') : 'no complete day this week', '', 'week') +
     tile('In plant (book)', escHtml(formatCurrency(plant.book)), 'open on challans, not invoiced', '', 'book') +
     tile('Plated, not invoiced', escHtml((pni.nos ? Math.round(pni.nos).toLocaleString('en-IN') + ' NOS' : '') + (pni.nos && pni.kg ? ' + ' : '') + (pni.kg ? formatNum(pni.kg, 1) + ' kg' : '') || '0'), 'recorded plated, still open on its challan', pni.nos || pni.kg ? 'warning' : '', 'pni') +
     '</div>';
@@ -26775,6 +26778,17 @@ function prodLinesHtml() {
   });
   if (also.length) { h += '<div class="inv-row-group"><span>Also reported</span></div>'; also.forEach(function(e) { h += prodRunRowHtml(e, true); }); }
   h += '<div class="inv-panel-body inv-note">One record counts per shift: the register, else the supervisor’s relay, else an entry by hand. The others are shown as also reported and never added: they count the same work a different way.</div></div>';
+  // The pay week around the day: what each line plated, a gap where nothing was recorded.
+  var ws = attWeekStartOf(day), wd = [];
+  for (var k = 0; k < 7; k++) wd.push(stockIsoAdd(ws, k));
+  h += '<div class="inv-panel inv-panel-flush" id="prodWeek"><div class="inv-panel-head"><span class="inv-panel-title">The week, plated</span></div><div class="inv-scroll-x"><table class="inv-table"><thead><tr><th class="inv-col-grow">Line</th>' +
+    wd.map(function(d) { return '<th class="inv-num">' + escHtml(new Date(d + 'T00:00:00').toLocaleDateString('en-IN', { weekday: 'short' })) + '</th>'; }).join('') + '</tr></thead><tbody>' +
+    PROD_LINES.map(function(l) {
+      return '<tr><td>' + escHtml(PROD_LINE_LABEL[l]) + '</td>' + wd.map(function(d) {
+        var x = prodDayLine(d, l);
+        return '<td class="inv-num">' + (x.entries.length ? escHtml(x.nos ? Math.round(x.nos).toLocaleString('en-IN') : formatNum(x.kg, 0) + ' kg') : '&mdash;') + '</td>';
+      }).join('') + '</tr>';
+    }).join('') + '</tbody></table></div><div class="inv-panel-body inv-note">Pieces plated (kilograms where the line was weighed, not counted). A dash is a day with no record for the line.</div></div>';
   var lab = prodLabourByLine(stockIsoAdd(localDateStr(), -29), localDateStr()), L = lab.lines[line];
   h += '<div class="inv-panel inv-panel-flush" id="prodLabour"><div class="inv-panel-head"><span class="inv-panel-title">Labour per kg, 30 days</span></div>' +
     '<div class="inv-row inv-row-2"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(PROD_LINE_LABEL[line]) + '</span><span class="inv-row-meta">' +

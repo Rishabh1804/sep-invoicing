@@ -293,6 +293,32 @@ export async function walkPages(page: Page, tag: string, stops: Stop[]) {
       await shot(page, `${tag}-${id}-${label}`);
     }
   }
+  await walkProduction(page, tag, stops);
+}
+
+/* Production's sub-views, which no view tab reaches: the paste check (a red row among them), the register photo's
+   check (a struck row, a picker) and the form by hand. */
+const PNG_URL = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
+export async function walkProduction(page: Page, tag: string, stops: Stop[]) {
+  const d = todayIso().split('-');
+  const dmy = `${d[2]}/${d[1]}/${d[0].slice(2)}`;
+  const paste = `${dmy}, 9:40 am - Pickler: ALPHA FORGINGS\nBRKT-1--400 nos\nPickling Time 9:00AM\n${dmy}, 11:05 am - Pickler: SIYA ENTERPRISES\nBuckle hook--200 nos\nPickling time 10:40am\n` +
+    `${dmy}, 8:21 pm - Supervisor: ${dmy}/berral production\nBeta auto CLAMP 66X42(30X6)--150 nos`;
+  const photo = JSON.stringify({ date: dmy, line: null, dayTotal: 999, rows: [
+    { time: '9:20', customer: 'Alpha', part: 'BRKT-1', rackSize: 4, rounds: 25, qty: 108 },
+    { time: '2:30', customer: 'Unknown works', part: 'CLAMP 66x42', dim: '30x6', qty: 300, struck: true }] });
+  const views: Array<[string, string]> = [
+    ['paste-check', `prodOpenPaste(${JSON.stringify(paste)})`],
+    ['photo-check', `_prodPhoto = { name: 'register.png', bytes: 68, url: '${PNG_URL}', sha: 'sweep', json: ${photo}, meta: {}, choices: {}, photoDate: '${todayIso()}', dupSha: null }; switchTab('pageProduction'); prodSetView('photo')`],
+    ['hand', `switchTab('pageProduction'); prodOpenHand(null)`],
+  ];
+  for (const [name, js] of views) {
+    await page.evaluate(src => (0, eval)(src), js);
+    await expect(page.locator('#productionContent .inv-pagehead')).toBeVisible();
+    stops.push(await sweep(page, 'pageProduction › ' + name));
+    await shot(page, `${tag}-pageProduction-${name}`);
+    await page.evaluate(() => (0, eval)(`_prodReview = null; _prodPhoto = null; _prodHand = null; prodSetView('main')`));
+  }
 }
 
 /* Every dialog, opened the way its button does. */

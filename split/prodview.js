@@ -76,7 +76,7 @@ function prodOverviewHtml() {
   var lastDay = idx.counted.map(function(e) { return e.date; }).sort().pop() || null;
   var lastKg = 0, lastNos = 0, lastLines = {};
   if (lastDay) PROD_LINES.forEach(function(l) { var r = prodDayLine(lastDay, l); lastKg += r.kg; lastNos += r.nos; if (r.entries.length) lastLines[l] = true; });
-  var wk = stockIsoAdd(today, -((new Date(today + 'T00:00:00').getDay() + 6) % 7)), wkSum = prodPlatedSummary(wk, today);
+  var wk = attWeekStartOf(today), wkSum = prodPlatedSummary(wk, today);   // the pay week, Sunday to Saturday
   var plant = prodInPlant({});
   var pni = plant.rows.reduce(function(s, x) { if (x.unit === 'NOS') s.nos += x.platedNotInvoiced; else s.kg += x.platedNotInvoiced; return s; }, { nos: 0, kg: 0 });
   var tile = function(label, value, sub, tone, key) {
@@ -84,7 +84,7 @@ function prodOverviewHtml() {
   };
   var h = '<div class="inv-tiles">' +
     tile('Plated, last recorded day', lastDay ? escHtml(formatNum(lastKg / 1000, 2) + ' t') : '&mdash;', lastDay ? escHtml(stockShortDate(lastDay) + ' · ' + Object.keys(lastLines).map(prodLineName).join(', ') + ' · ' + Math.round(lastNos).toLocaleString('en-IN') + ' NOS') : 'nothing recorded', '', 'last') +
-    tile('This week against capacity', wkSum ? Math.round(wkSum.perDay / wkSum.capacity * 100) + '%' : '&mdash;', wkSum ? escHtml('on ' + wkSum.days + ' complete day' + (wkSum.days === 1 ? '' : 's') + ' · ~2 t per shift') : 'no complete day this week', '', 'week') +
+    tile('This week against capacity', wkSum ? Math.round(wkSum.perDay / wkSum.capacity * 100) + '%' : '&mdash;', wkSum ? escHtml('on ' + wkSum.days + ' complete day' + (wkSum.days === 1 ? '' : 's') + ' · of ~2 t a shift, two shifts') : 'no complete day this week', '', 'week') +
     tile('In plant (book)', escHtml(formatCurrency(plant.book)), 'open on challans, not invoiced', '', 'book') +
     tile('Plated, not invoiced', escHtml((pni.nos ? Math.round(pni.nos).toLocaleString('en-IN') + ' NOS' : '') + (pni.nos && pni.kg ? ' + ' : '') + (pni.kg ? formatNum(pni.kg, 1) + ' kg' : '') || '0'), 'recorded plated, still open on its challan', pni.nos || pni.kg ? 'warning' : '', 'pni') +
     '</div>';
@@ -220,6 +220,17 @@ function prodLinesHtml() {
   });
   if (also.length) { h += '<div class="inv-row-group"><span>Also reported</span></div>'; also.forEach(function(e) { h += prodRunRowHtml(e, true); }); }
   h += '<div class="inv-panel-body inv-note">One record counts per shift: the register, else the supervisor’s relay, else an entry by hand. The others are shown as also reported and never added: they count the same work a different way.</div></div>';
+  // The pay week around the day: what each line plated, a gap where nothing was recorded.
+  var ws = attWeekStartOf(day), wd = [];
+  for (var k = 0; k < 7; k++) wd.push(stockIsoAdd(ws, k));
+  h += '<div class="inv-panel inv-panel-flush" id="prodWeek"><div class="inv-panel-head"><span class="inv-panel-title">The week, plated</span></div><div class="inv-scroll-x"><table class="inv-table"><thead><tr><th class="inv-col-grow">Line</th>' +
+    wd.map(function(d) { return '<th class="inv-num">' + escHtml(new Date(d + 'T00:00:00').toLocaleDateString('en-IN', { weekday: 'short' })) + '</th>'; }).join('') + '</tr></thead><tbody>' +
+    PROD_LINES.map(function(l) {
+      return '<tr><td>' + escHtml(PROD_LINE_LABEL[l]) + '</td>' + wd.map(function(d) {
+        var x = prodDayLine(d, l);
+        return '<td class="inv-num">' + (x.entries.length ? escHtml(x.nos ? Math.round(x.nos).toLocaleString('en-IN') : formatNum(x.kg, 0) + ' kg') : '&mdash;') + '</td>';
+      }).join('') + '</tr>';
+    }).join('') + '</tbody></table></div><div class="inv-panel-body inv-note">Pieces plated (kilograms where the line was weighed, not counted). A dash is a day with no record for the line.</div></div>';
   var lab = prodLabourByLine(stockIsoAdd(localDateStr(), -29), localDateStr()), L = lab.lines[line];
   h += '<div class="inv-panel inv-panel-flush" id="prodLabour"><div class="inv-panel-head"><span class="inv-panel-title">Labour per kg, 30 days</span></div>' +
     '<div class="inv-row inv-row-2"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(PROD_LINE_LABEL[line]) + '</span><span class="inv-row-meta">' +

@@ -36,6 +36,7 @@ function state(fill: boolean) {
     P('pickled', day(-1), 'CLAMP 133X83', 300),
     P('plated', day(-1), 'CLAMP 165X83', 999, { rework: true }),   // rework: work, never billing
     P('plated', day(-1), 'BRKT 9', 50, { clientId: 12, line: 'barrel' }),  // nothing open for it
+    P('plated', day(-1), 'CLAMP 90X81', 40),                 // a named part with no challan: never another CLAMP's
   ];
   // A full record on every line for 31 days, as rework so it moves no challan.
   if (fill) for (let k = -30; k <= 0; k++) for (const l of ['vat-a1', 'vat-a2', 'barrel']) e.push(P('plated', day(k), 'FILL', 1, { clientId: 12, line: l, rework: true }));
@@ -55,7 +56,7 @@ test.describe('P87: material in the plant', () => {
     expect(r.book).toBe(1400.5);
     expect(r.book).toBe(r.home);
     expect(r.rows).toEqual([['L2', 1000, 700, 200, 100], ['L3', 500, 0, 300, 200]]);
-    expect(r.noChallan).toEqual([[12, 'BRKT 9', 50, 'L']]);
+    expect(r.noChallan).toEqual([[11, 'CLAMP 90X81', 40, 'L'], [12, 'BRKT 9', 50, 'L']]);
     expect(r.floorOk).toBe(false);
 
     await switchTab(page, 'pageProduction');
@@ -81,7 +82,8 @@ test.describe('P87: material in the plant', () => {
     await expect(page.locator('[data-prod-tile="plantWait"] .inv-tile-value')).toHaveText('300 NOS');
     // One client at a time.
     await page.locator('#prodPlantClient').selectOption('11');
-    await expect(page.locator('#prodNoChallan')).toHaveCount(0);
+    await expect(page.locator('#prodNoChallan')).toContainText('CLAMP 90X81');
+    await expect(page.locator('#prodNoChallan')).not.toContainText('BRKT 9');
     await expect(page.locator('[data-prod-tile="plantPni"] .inv-tile-value')).toHaveText('700 NOS');
   });
 });

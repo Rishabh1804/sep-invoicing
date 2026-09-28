@@ -357,7 +357,9 @@ function prodInPlant(opts) {
     var k = prodEntryKey(e);
     if (!k || e.qty == null || !e.unit || e.unit === 'BAG') return;
     var pool = byKey[k];
-    if (!pool) {
+    if (!pool && prodIsGeneric(e.partNumber || e.part)) {
+      // Only a record naming just the kind and gauge is set against the family; a named part with no challan of its
+      // own is on the floor with no challan, never someone else's.
       var fk = prodFamilyKey(e.clientId, e.partNumber || e.part, e.gauge);
       pool = lines.filter(function(r) { return r.fam === fk; });
       if (pool.length) famUsed++;
@@ -416,7 +418,7 @@ function prodStatsRowHtml(from, to) {
   if (!s) return '';
   return '<div class="inv-row inv-row-2 inv-row-flow" id="statsPlated"><span class="inv-row-main"><span class="inv-row-title">Plated (floor)</span>' +
     '<span class="inv-row-meta inv-row-wrap">' + escHtml(formatNum(s.kg / 1000, 1) + ' t on ' + s.days + ' complete day' + (s.days === 1 ? '' : 's') + ' of ' + s.working + ' working · ' +
-      Math.round(s.perDay / s.capacity * 100) + '% of ~2 t per shift · kg known for ' + Math.round(s.weighedShare * 100) + '% of pieces') + '</span></span>' +
+      Math.round(s.perDay / s.capacity * 100) + '% of capacity (~2 t a shift, two shifts) · kg known for ' + Math.round(s.weighedShare * 100) + '% of pieces') + '</span></span>' +
     '<span class="inv-row-end"><button class="inv-btn inv-btn-link inv-btn-sm" data-action="invSwitchTab" data-tab="pageProduction">Production</button></span></div>';
 }
 
@@ -499,7 +501,8 @@ TODO_RULE_FNS.prodPickledNoChallan = function() {
       if (String(m.clientId) !== String(e.clientId) || (m.challanDate || '') > stockIsoAdd(e.date, 1)) return false;
       return (m.items || []).some(function(it) {
         var ck = prodChallanKey(m, it);
-        var match = e.part ? (ck === k || prodFamilyKey(m.clientId, it.partNumber || it.desc, prodGaugeOf(it.partNumber, it.desc)) === fk) : true;
+        // A named part must be on the challan by name; only a load naming just the kind and gauge matches by family.
+        var match = !e.part ? true : prodIsGeneric(e.partNumber || e.part) ? prodFamilyKey(m.clientId, it.partNumber || it.desc, prodGaugeOf(it.partNumber, it.desc)) === fk : ck === k;
         if (!match) return false;
         var open = imLineOpen(it).qty > 0;
         var billedAfter = (it.invoiceIds || []).some(function(id) { var inv = S.invoices.find(function(x) { return x.id === id; }); return inv && inv.date >= e.date; });

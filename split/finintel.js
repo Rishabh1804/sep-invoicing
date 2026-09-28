@@ -120,7 +120,7 @@ function finForecast(days) {
   else rests.push(todoPlural(nOpen, 'open invoice') + ', ' + formatCurrency(gstRound(amtOpen)) + ', each at its client’s usual days to pay (the book’s ' + Math.round(bookMed) + ' days where a client has under three receipts)' +
     (late ? '; ' + late + ' a little past it (' + formatCurrency(gstRound(lateAmt)) + ') spread over four weeks, and not counted at the low end' : '') + '.');
   if (stale) rests.push(todoPlural(stale, 'invoice') + ' long past their usual day, ' + formatCurrency(gstRound(staleAmt)) + ', not expected: chase them, do not plan on them.');
-  var loose = ctx.cls.filter(function(v) { return v.cat === 'receipt' && v.clientId == null && v.row.cr > 0; });
+  var loose = bankLooseReceipts(ctx.cls, bankRecvFrom(ctx.rows));
   if (loose.length && bookMed != null) rests.push(todoPlural(loose.length, 'receipt') + ' not placed on a client: the invoices they paid still read as open, so money in reads high.');
 
   // In: billing at its recent pace, paid at the book's lag. Without it every future week would carry
@@ -259,7 +259,7 @@ TODO_RULE_FNS.bankStale = function() {
     clears: 'Clears itself when a newer statement is imported.', go: finGo('bank'), goLabel: 'Open the statement', sig: last }];
 };
 TODO_RULE_FNS.bankLoose = function() {
-  var today = localDateStr(), loose = finCtx().cls.filter(function(v) { return v.cat === 'receipt' && v.clientId == null && v.row.cr > 0 && todoDaysBetween(v.row.date, today) >= 7; });
+  var today = localDateStr(), loose = bankLooseReceipts(finCtx().cls, bankRecvFrom(finCtx().rows)).filter(function(v) { return todoDaysBetween(v.row.date, today) >= 7; });
   if (!loose.length) return [];
   var sum = gstRound(loose.reduce(function(s, v) { return s + v.row.cr; }, 0));
   return [{ key: 'bankLoose', rule: 'bankLoose', tone: loose.length >= 10 || sum >= 100000 ? 'red' : 'amber',
@@ -270,7 +270,7 @@ TODO_RULE_FNS.bankLoose = function() {
 TODO_RULE_FNS.owed90 = function() {
   var today = localDateStr(), recv = finCtx().recv(), book = recv.reduce(function(s, r) { return s + Math.max(0, r.owed); }, 0);
   // Unplaced receipts may have paid these: until they are placed the figure is an upper bound, never red.
-  var loose = finCtx().cls.filter(function(v) { return v.cat === 'receipt' && v.clientId == null && v.row.cr > 0; }).length;
+  var loose = bankLooseReceipts(finCtx().cls, bankRecvFrom(finCtx().rows)).length;
   return recv.map(function(r) {
     var old = r.open.filter(function(o) { return o.inv && todoDaysBetween(o.date, today) > 90; });
     if (!old.length) return null;

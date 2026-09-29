@@ -561,12 +561,52 @@ function dialogOpen(html, opts) {
   var scrim = document.createElement('div');
   scrim.className = 'inv-scrim inv-scrim-dialog';
   scrim.innerHTML = html;
-  if (opts.dismiss) scrim.addEventListener('click', function(e) { if (e.target === scrim) closeTopOverlay(); });
+  if (opts.dismiss) scrim.addEventListener('click', function(e) {
+    if (e.target !== scrim) return;
+    dialogLeaveOk(scrim).then(function(ok) { if (ok) dialogCloseScrim(scrim); });
+  });
   pushFocus();
   document.body.appendChild(scrim);
   document.body.style.overflow = 'hidden';
   focusFirstInteractive(scrim.querySelector('.inv-dialog'));
   return scrim;
+}
+
+/* A dialog holding what somebody typed is never shut unasked (owner, 29 Sep 2026: "if I am entering something in
+   that and I click outside the box, it just closes without a warning and all the info I entered is gone"). Any
+   field changed in a dialog marks its scrim typed; a tap on the scrim or the head's × then asks before anything is
+   thrown away, Keep editing first. Cancel is a discard somebody chose and asks nothing; a save closes it as before.
+   Settings keeps its own per-section check (data-nodirty), and a question's own field (uiPrompt) is not a form. */
+function _dialogMarkTyped(e) {
+  var t = e.target;
+  if (!t || !t.closest || !t.matches || !t.matches('input, textarea, select')) return;
+  if (t.closest('.inv-search, [data-nodirty], [data-ui-ask]')) return;
+  var scrim = t.closest('.inv-scrim-dialog');
+  if (scrim) scrim.dataset.typed = '1';
+}
+document.addEventListener('input', _dialogMarkTyped, true);
+document.addEventListener('change', _dialogMarkTyped, true);
+
+function dialogTyped(scrim) { return !!(scrim && scrim.isConnected && scrim.dataset.typed === '1'); }
+
+/* Resolves true when the dialog may close: nothing typed, or the discard was confirmed. */
+function dialogLeaveOk(scrim) {
+  if (!dialogTyped(scrim)) return Promise.resolve(true);
+  if (scrim._leaveAsk) return scrim._leaveAsk.then(function() { return false; });
+  scrim._leaveAsk = uiConfirm({ title: 'Discard what you typed?',
+    body: 'What you entered here has not been saved. Keep editing to finish and save it, or discard it.',
+    okLabel: 'Discard', cancelLabel: 'Keep editing', danger: true });
+  return scrim._leaveAsk.then(function(ok) { scrim._leaveAsk = null; return ok; });
+}
+
+/* Closes one dialog wherever it sits in the stack (normally the top one). */
+function dialogCloseScrim(scrim) {
+  if (!scrim || !scrim.isConnected) return;
+  var all = document.querySelectorAll('.inv-scrim-dialog');
+  if (all.length && all[all.length - 1] === scrim) { closeTopOverlay(); return; }
+  scrim.remove();
+  popFocus();
+  if (!document.querySelector('.inv-scrim-dialog')) document.body.style.overflow = '';
 }
 
 /* ===== ASKING AND TELLING, IN THE APP (owner, 27 Sep 2026) =====

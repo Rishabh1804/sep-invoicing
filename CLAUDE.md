@@ -23,7 +23,8 @@ one picture — in seven phases, one PR each. Its §0 says what is built.
 **UX overhaul 2 is planned — read `docs/UX_OVERHAUL_2.md`.** Agreed with the owner, 28 Sep 2026: navigation with a
 back trail, a version guard so two windows can edit safely, every screen openable in a new window, search (a chatbot
 later), keyboard shortcuts, a pass on the screens that scroll too far, and desktop layouts — one PR each, in its order.
-Step 0 (the phone's selection bars) is built.
+Step 0 (the phone's selection bars) is built, and so is the dialog guard that runs before step 1. The owner reordered the
+steps on 29 Sep 2026: the version guard comes before navigation.
 
 ## What SEP Invoicing Is
 
@@ -123,7 +124,7 @@ every session start — nothing to set up by hand. CI (`build-sync`) is the back
 ### Tests
 
 ```bash
-pnpm exec playwright test          # 685 tests, both layouts
+pnpm exec playwright test          # 689 tests, both layouts
 ```
 
 Some sandboxes ship a Chromium build Playwright does not expect and block downloading
@@ -149,6 +150,14 @@ text?)` from the fixtures, and P78 makes the browser's own three throw and walks
 re-renders the toolbar, the element the native popup hangs off is replaced and the list
 shuts before anything can be picked. Same for an `<input type="date">` on `input`: only
 re-render for the field that actually changes what is displayed.
+
+**A dialog holding typed work is never shut unasked** (owner, 29 Sep 2026: *"if I am entering something in that and I
+click outside the box, it just closes without a warning and all the info I entered is gone"*). Seven form dialogs (client,
+item, worker, part weights, both credit notes, a task) closed on a tap outside, and every dialog's × closed at once. Now
+any field changed in a dialog marks its scrim typed (`_dialogMarkTyped`, state.js), and the scrim tap and the head's ×
+ask *Discard what you typed?* with **Keep editing** first (`dialogLeaveOk`); with nothing typed they close at once, as
+before. Cancel is a discard somebody chose and asks nothing. Settings keeps its own per-section check (`data-nodirty`).
+The navigation step's Back will use the same check. P92.
 
 **A change inside a view never moves the page** (owner, 27 Sep 2026: picking a client in Receivables sent the page
 back to the top). A view-tab row is brought into sight **sideways only** (`viewTabReveal`, state.js), never by

@@ -415,6 +415,7 @@ function openSettings(target) {
   var scrim = document.createElement('div');
   scrim.className = 'inv-scrim inv-scrim-dialog';
   scrim.id = 'settingsScrim';
+  scrim.dataset.nodirty = '';   // Settings asks about its own unsaved sections (closeSettings)
   scrim.innerHTML = '<div class="inv-dialog inv-dialog-wide">' +
     dialogHeadHtml('Settings', 'invCloseSettings', 'Close settings') +
     '<div class="inv-dialog-panes">' +

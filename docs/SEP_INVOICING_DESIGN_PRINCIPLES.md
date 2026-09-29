@@ -567,7 +567,9 @@ Replaces `inv-form-group/label/input/select/row`, `inv-stk-label`, `inv-stk-fiel
   at the dialog's foot, so it is always its last child**. Every dialog is opened through `dialogOpen(html, {dismiss,
   replace})` and headed by `dialogHeadHtml(title, closeAction, closeLabel, actionsHtml)` (`state.js`): it pushes focus,
   locks the page and moves focus in; `dismiss` lets a tap on the scrim close a view (never an act); `replace` redraws the
-  top dialog in place. `closeOverlay()` / `closeTopOverlay()` shut them and give the focus back. A two-faced dialog
+  top dialog in place. `closeOverlay()` / `closeTopOverlay()` shut them and give the focus back. **A dialog holding typed work is never shut
+  unasked**: any field changed marks its scrim `data-typed`, and a tap on the scrim or the head's × then asks *Discard what
+  you typed?* with Keep editing first (`dialogLeaveOk`); Cancel and a save close as before (P92). A two-faced dialog
   (Stats' client drill-down) shows `inv-flip-front` or `inv-flip-back`, turning over (`inv-flip-out` / `-in`, `--dur-2`).
 - Confirm dialogs for destructive actions: danger-filled primary, the consequence stated in the body.
 - **Asking, telling and prompting are dialogs too, never the browser's** (27 Sep 2026): `uiConfirm`, `uiAlert` and

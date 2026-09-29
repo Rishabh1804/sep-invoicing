@@ -124,7 +124,7 @@ every session start — nothing to set up by hand. CI (`build-sync`) is the back
 ### Tests
 
 ```bash
-pnpm exec playwright test          # 700 tests, both layouts
+pnpm exec playwright test          # 703 tests, both layouts
 ```
 
 Some sandboxes ship a Chromium build Playwright does not expect and block downloading
@@ -802,6 +802,18 @@ the instrument — `soma-internal/operations/credit-notes/README.md:82-83` — s
 unchallenged across three backups and eight surfaces, **one of them this file** — which a fold run
 entirely inside `soma-internal` cannot reach. ⭐⭐ *A sister repo is an out-of-tree surface, and unlike
 a commit message it is editable, so immutability is no defence.*
+
+**An invoice shows its credit notes** (owner, 29 Sep 2026: *"see quickly if a credit note has been raised against an
+invoice and hovering could show the reason why … makes the app tabs more interlinked, which makes it easier to look for
+patterns and data errors, so the issue can be flagged early"*). A note touches an invoice two ways, and both are said:
+taken **against** it (the one number on the customer's copy) or the invoice is **in its batch** (a rebate's annex)
+(`cnLinksForInvoice`, credit-note.js; a cancelled note is left out). A register row, phone and desktop, carries a **CN**
+badge (`cnInvoiceMarkHtml`, `data-cn-mark`) whose title reads each note as *CN/007/26-27 · against this invoice · Batch
+rebate 2% on 14 invoices, 3 Aug – 18 Aug 2026 · ₹4,493.96* (`cnWhy`: a rebate's batch, else the note's reason); the
+invoice detail lists them as rows that open the note (`cnInvoiceDetailHtml`), and the credit note list has an
+**Invoice** button to the invoice it is against. To-do rule **`cnMatch`** flags a note against an invoice since
+cancelled or deleted (red), and notes against one invoice crediting more taxable than it billed (amber); a note recorded
+against a number typed from outside the book names no invoice here and is not judged. P95.
 
 **CN/006 is cancelled**, superseded by CN/007 twenty-six seconds later (`cancelledAt`
 1787222938914 against `createdAt` 1787222964835), both naming the same 14 invoices. Cancelled

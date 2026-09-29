@@ -400,7 +400,7 @@ function renderRegisterList() {
         var main = '<span class="inv-row-title inv-id" data-invnum>' + escHtml(inv.displayNumber) + '</span>' +
           '<span class="inv-row-meta">' + escHtml(inv.clientName) + '</span>';
         var end = '<span class="inv-row-end"><span class="inv-row-stack"><span class="inv-num">' + formatCurrency(inv.grandTotal) + '</span>' +
-          getStateDotHtml(inv) + '</span></span>';
+          getStateDotHtml(inv) + cnInvoiceMarkHtml(inv) + '</span></span>';
         // With no tick box the whole row opens the invoice, figures included; with
         // one, the box is its own full-height touch target beside the row.
         html += tickable
@@ -455,7 +455,7 @@ function _buildRegisterTableHtml() {
       '<td class="inv-num inv-col-opt3">' + formatCurrency(inv.taxableValue) + '</td>' +
       '<td class="inv-num inv-col-opt1">' + formatCurrency(gst) + '</td>' +
       '<td class="inv-num">' + formatCurrency(inv.grandTotal) + '</td>' +
-      '<td>' + getStateDotHtml(inv) + '</td></tr>';
+      '<td>' + getStateDotHtml(inv) + ' ' + cnInvoiceMarkHtml(inv) + '</td></tr>';
   });
   return html + '</tbody></table>' + _regExportHtml();
 }
@@ -738,6 +738,8 @@ function invoiceDetailHtml(inv) {
       h += '<div class="inv-row"><span class="inv-row-actions">' + adv(INV_STATES[curIdx + 1]) + (cur === 'created' ? adv('dispatched') : '') + '</span></div>';
     }
   }
+
+  h += cnInvoiceDetailHtml(inv);
 
   h += '<div class="inv-row-group"><span>Lines · ' + d.items.length + '</span></div><div data-lines>';
   d.items.forEach(function(item, li) {

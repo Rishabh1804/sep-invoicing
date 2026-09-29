@@ -57,7 +57,7 @@ And the v2.0 rules, which carry the same weight:
 | DR-5 | **Sentence case everywhere** — titles, labels, buttons, column heads, tabs. No uppercase letter-spaced labels. |
 | DR-6 | **No shadows on content.** Surfaces are separated by a 1px `--border` hairline or by the surface tier. Shadows exist only on floating layers (menus, dialogs, toasts). |
 | DR-7 | **Components, not one-offs.** A screen is assembled from §6. A module may add a modifier (`inv-table-week`), never a parallel family (`inv-stk-row` beside `inv-row`). |
-| DR-8 | **Status is a dot + a word** in rows and tables (`● Dispatched`); a soft badge only where the state needs more weight than the row around it. |
+| DR-8 | **Status is a dot + a word** in rows and tables (`● Dispatched`); a soft badge only where the state needs more weight than the row around it. **A figure the app judges is coloured in its status tone** (`inv-fig-ok/warning/danger`, or the tile's `inv-tile-<tone>`), always beside the words that give the reason (*below cost ₹8.56*, *owed, over 90 d*, *+12.3% on Aug*); a plain fact — a count, a date — stays in the text colour (owner, 29 Sep 2026). |
 
 ---
 
@@ -525,6 +525,13 @@ strips. The rule stands: **a selection never outlives the filter that hid it.**
 
 ### 6.13 Status — `inv-dot`, `inv-badge`
 - `inv-dot` + text: 7px dot in the tone, word in `--text-2`. Default in rows and tables (DR-8).
+- **A judged figure** (`figHtml`, state.js): the figure's text in `--ok`, `--warning` or `--danger` (`inv-fig-*`); a tile
+  takes the tone on its value (`inv-tile-ok/warning/danger`). The rules live in one place, state.js: a figure against the
+  line it must clear (`figToneAgainst`: ok past it, warning within 5%, danger beyond — realisation against cost), a
+  debt's age (`figToneAge`: 60 / 90 days), days to pay (`figTonePaysIn`: 30 / 60), capacity used (`figToneCapacity`:
+  80% / 60%), a gated share (`figTonePct`: attendance at 90% / 80%). **A headline figure carries a change line**
+  (`figDeltaHtml`): *+12.3% on same days last month*, level within 2%, coloured ok when it moved the good way, warning
+  the wrong way up to 10% and danger past it; a count's change is said and never coloured.
 - `inv-dot-mark`: a 20px filled dot carrying its own symbol (`!` to act on, `i` to know), `-danger|-warning|-ok|-info`; the lead of a row that has no room for the word (an app task).
 - `inv-badge`: soft pill, `--t-label` 500–600, tone bg + tone fg, `--r-sm`. For states that need weight:
   "Needs you", "Check", "No rate on record", a rate-check verdict on a line.

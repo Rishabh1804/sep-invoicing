@@ -202,13 +202,12 @@ function sumTaxable(invoices) {
    figures are tiles (§6.9) and rows (§6.10); caveats are callouts (§6.18). intel.js, insights.js and
    cost.js draw their cards with the same pieces. */
 
-/* A change against the prior period in words (§5.4): "+12.3% on same days last month". A
-   percentage against no prior activity is noise dressed as a signal, so it says so instead. */
-function statsDeltaText(cur, prev, label) {
+/* A change against the prior period in words (§5.4): "+12.3% on same days last month", coloured by whether it moved
+   the good way (figDeltaHtml, state.js). A percentage against no prior activity is noise dressed as a signal, so it
+   says so instead. */
+function statsDeltaText(cur, prev, label, better) {
   if (prev == null || !isFinite(prev) || prev === 0) return 'no prior period';
-  var pct = ((cur - prev) / Math.abs(prev)) * 100;
-  if (Math.abs(pct) <= 0.5) return 'level with ' + escHtml(label);
-  return (pct > 0 ? '+' : '&minus;') + formatNum(Math.abs(pct), 1) + '% on ' + escHtml(label);
+  return figDeltaHtml(cur, prev, label, better);
 }
 
 /* A segmented control for a setting of the card it sits in (§6.5). `inv-seg-fit` keeps it the width
@@ -495,7 +494,7 @@ function renderStats() {
   /* ===== Card 1: the four numbers that decide the month ===== */
   var comparable = _statsPeriod !== 'all' && prior.length > 0;
   var priorLabel = PERIOD_PRIOR_LABELS[_statsPeriod] || '';
-  var delta = function(cur, prev) { return comparable ? statsTileSub(statsDeltaText(cur, prev, priorLabel)) : ''; };
+  var delta = function(cur, prev) { return comparable ? statsTileSub(statsDeltaText(cur, prev, priorLabel, 'up')) : ''; };
   html += statsPanel('headline', escHtml(PERIOD_LABELS[_statsPeriod] || '') + ' performance',
     comparable ? 'vs ' + escHtml(priorLabel) : '', { wide: true }) +
     statsTiles(
@@ -507,10 +506,11 @@ function renderStats() {
       statsTile('realisation', 'Realisation', realisation != null ? formatCurrency(realisation) + '<span class="inv-tile-of">/kg</span>' : '&mdash;',
         statsTileSub(costPerKg > 0 ? costLabel + formatCurrency(costPerKg) + '/kg' : 'set a cost in Settings') +
         ((realisation != null && priorRealisation != null) ? delta(realisation, priorRealisation) : ''),
-        contribution != null && contribution < 0 ? 'danger' : '') +
+        // Against the cost it must clear: ok past it, warning within 5% under, danger below that.
+        costPerKg > 0 ? figToneAgainst(realisation, costPerKg, 5) : '') +
       statsTile('margin', 'Gross margin', grossMargin != null ? statsMoney(grossMargin) : '&mdash;',
         statsTileSub(contribution != null ? statsMoney(contribution) + '/kg contribution' : 'needs tonnage and cost'),
-        grossMargin != null && grossMargin < 0 ? 'danger' : ''), true);
+        grossMargin == null ? '' : grossMargin < 0 ? 'danger' : 'ok'), true);
 
   // Tonnage is only ever as good as the weights behind it — and the lines that
   // lack weights are not a random sample, they are the piece-billed work. Say
@@ -603,10 +603,10 @@ function renderStats() {
 
       // The worst-priced ten; the rest one tap away (UX overhaul 2, step 6).
       html += uiMoreHtml('stats-realisation', comparableRows.map(function(r) {
-        var below = costPerKg > 0 && r.realisation < costPerKg;
+        var below = costPerKg > 0 && r.realisation < costPerKg, tone = costPerKg > 0 ? figToneAgainst(r.realisation, costPerKg, 5) : null;
         return statsRow(escHtml(r.name), formatNum(r.kg / 1000, 2) + ' t · ' + formatCurrency(r.total),
-          '<span class="inv-row-stack">' + statsNum(formatCurrency(r.realisation) + statsUnit('/kg')) +
-          (below ? uiDot('danger', 'Below cost') : '') + '</span>',
+          '<span class="inv-row-stack">' + statsNum(figHtml(formatCurrency(r.realisation), tone) + statsUnit('/kg')) +
+          (below ? uiDot(tone, tone === 'danger' ? 'Below cost' : 'Just under cost') : '') + '</span>',
           ' data-action="invStatsClientDrill" data-client-id="' + r.clientId + '" data-client-row');
       }), { n: 10, noun: 'clients' });
 

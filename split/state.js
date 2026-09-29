@@ -1076,6 +1076,48 @@ function formatInrShort(v) {
   return '\u20B9' + (v / 1e7).toFixed(1) + 'Cr';
 }
 
+/* ===== A FIGURE SAYS WHETHER IT IS GOOD (owner, 29 Sep 2026) =====
+   "most numbers in our app don't convey any kind of meaning, as in is it a good number or is it something of an issue,
+   all are in default black". The owner chose both: a figure the app can judge is coloured by the status tones (DR-1:
+   colour means status, ok / warning / danger), and a headline figure carries a change line against its benchmark,
+   coloured by whether the move is the good way. A plain fact (a count of invoices, a date) stays in the text colour.
+   Every colour sits beside the words that give its reason (DR-8): the tile's sub-line, the row's meta, the column head.
+   The judgements are here, in one place, so a threshold is one edit. */
+var FIG_FLAT_PCT = 2;     // a change within this is level, not a move
+var FIG_BAD_PCT = 10;     // a move the wrong way past this is danger, below it warning
+
+/* A figure against the line it must clear: higher is better (realisation against cost, attendance against its gate)
+   unless lowerBetter (labour ₹/kg against the model). ok at or past it; warning within warnPct of it; danger beyond. */
+function figToneAgainst(v, ref, warnPct, lowerBetter) {
+  if (v == null || ref == null || !isFinite(v) || !isFinite(ref) || ref === 0) return null;
+  var gap = (lowerBetter ? ref - v : v - ref) / Math.abs(ref) * 100;
+  return gap >= 0 ? 'ok' : gap >= -(warnPct || 5) ? 'warning' : 'danger';
+}
+/* Days since an invoice was raised, as a debt: past 90 danger, past 60 warning. */
+function figToneAge(days) { return days == null ? null : days > 90 ? 'danger' : days > 60 ? 'warning' : null; }
+/* How long a client takes to pay: a month is fine, two a warning, more danger. */
+function figTonePaysIn(days) { return days == null ? null : days <= 30 ? 'ok' : days <= 60 ? 'warning' : 'danger'; }
+/* A share that has a gate (attendance at the rest-day gate's 90 / 80): ok at or over okAt, warning over warnAt. */
+function figTonePct(pct, okAt, warnAt) { return pct == null || !isFinite(pct) ? null : pct >= okAt ? 'ok' : pct >= warnAt ? 'warning' : 'danger'; }
+/* Share of capacity used: the plant's cost is mostly fixed, so an idle shift is the problem. */
+function figToneCapacity(pct) { return pct == null ? null : pct >= 80 ? 'ok' : pct >= 60 ? 'warning' : 'danger'; }
+
+/* The figure's html in its tone's colour (or as it is, with no tone). */
+function figHtml(html, tone) { return tone ? '<span class="inv-fig-' + tone + '">' + html + '</span>' : html; }
+
+/* A change against the period before in words (§5.4), "+12.3% on Aug", coloured by whether it moved the good way:
+   better 'up' (revenue, tonnage, realisation) or 'down' (cost, days to pay); null leaves it uncoloured (a count).
+   Level within FIG_FLAT_PCT; the wrong way is warning up to FIG_BAD_PCT and danger past it. Against nothing it says so. */
+function figDeltaHtml(cur, prev, label, better) {
+  if (prev == null || !isFinite(prev) || prev === 0 || cur == null || !isFinite(cur)) return 'no figure for ' + escHtml(label);
+  var pct = ((cur - prev) / Math.abs(prev)) * 100;
+  if (Math.abs(pct) <= FIG_FLAT_PCT) return 'level with ' + escHtml(label);
+  var text = (pct > 0 ? '+' : '&minus;') + formatNum(Math.abs(pct), 1) + '% on ' + escHtml(label);
+  if (!better) return text;
+  var good = better === 'up' ? pct > 0 : pct < 0;
+  return figHtml(text, good ? 'ok' : Math.abs(pct) <= FIG_BAD_PCT ? 'warning' : 'danger');
+}
+
 /* A figure in a tile breaks only after a comma group, never inside its paise: \u20B910,46,48,655.51 wraps as
    "\u20B910,46,48," / "655.51". Every "d,dd" in the TEXT of an html string gets a <wbr> after its comma, and the last
    group with its decimals is kept whole (inv-nowrap); tags and their attributes (a title carrying the same figure)

@@ -296,8 +296,8 @@ function finOverviewHtml() {
     var dtp = bankDaysToPay(r.client.id, payHist);
     h += '<div class="inv-row inv-row-2" data-debtor="' + escHtml(String(r.client.id)) + '"><button class="inv-row-main" data-action="invFinClient" data-id="' + escHtml(String(r.client.id)) + '">' +
       '<span class="inv-row-title">' + escHtml(r.client.name) + '</span><span class="inv-row-meta">' + r.open.length + ' open' + (r.oldestDays != null ? ' · oldest ' + r.oldestDays + ' d' : '') +
-      (dtp && dtp.median != null ? ' · pays in ' + Math.round(dtp.median) + ' d' : '') + '</span></button>' +
-      '<span class="inv-row-end inv-num">' + formatCurrency(r.owed) + '</span></div>';
+      (dtp && dtp.median != null ? ' · pays in ' + figHtml(Math.round(dtp.median) + ' d', figTonePaysIn(dtp.median)) : '') + '</span></button>' +
+      '<span class="inv-row-end inv-num">' + figHtml(formatCurrency(r.owed), figToneAge(r.oldestDays)) + '</span></div>';
   });
   if (!top.length) h += '<div class="inv-empty">Nothing owed since ' + escHtml(formatDate(bankRecvFrom())) + '.</div>';
   if (loose) h += '<div class="inv-panel-body inv-note">' + finPl(loose, 'receipt') + ' with no client ' + (loose === 1 ? 'is' : 'are') + ' not counted yet, so what is owed reads high. ' +

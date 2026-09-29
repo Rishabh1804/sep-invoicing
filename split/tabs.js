@@ -178,6 +178,34 @@ function renderHomeTiles(active) {
   // "All" only when nothing priced is unweighed, and a partial share never rounds up to 100%.
   set('mtdPerKgSub', !(w.kg > 0) ? '&nbsp;' : w.revUnknown < 0.005 ? 'all revenue weighed'
     : 'on the ' + Math.min(99, Math.round(w.coverage * 100)) + '% of revenue weighed');
+
+  // Whether each is good (owner, 29 Sep 2026): against the same days last month, and realisation against the month's
+  // live cost, the cost Stats judges it by.
+  var p = homePriorSameDays(), pw = weighLines(p.invoices), lbl = 'same days last month';
+  var real = w.kg > 0 ? w.revKnown / w.kg : null, preal = pw.kg > 0 ? pw.revKnown / pw.kg : null;
+  var has = p.invoices.length > 0;
+  set('mtdCountDelta', has ? figDeltaHtml(active.length, p.invoices.length, lbl, null) : '');
+  set('mtdRevenueDelta', has ? figDeltaHtml(sumTaxable(active), sumTaxable(p.invoices), lbl, 'up') : '');
+  set('mtdKgDelta', has && w.kg > 0 && pw.kg > 0 ? figDeltaHtml(w.kg, pw.kg, lbl, 'up') : '');
+  var cost = null;
+  if (real != null) { try { var lc = liveCost(p.monthStart, localDateStr(), w.kg); cost = lc && lc.perKg > 0 ? lc.perKg : null; } catch (e) { cost = null; } }
+  if (cost == null && S.defaultCostPerKg > 0) cost = S.defaultCostPerKg;
+  var tone = real != null && cost != null ? figToneAgainst(real, cost, 5) : null;
+  var tileEl = document.getElementById('mtdPerKgTile');
+  if (tileEl) tileEl.className = 'inv-tile' + (tone ? ' inv-tile-' + tone : '');
+  set('mtdPerKgDelta', real == null ? '' : (cost != null ? (real >= cost ? 'clears' : 'below') + ' cost ' + formatCurrency(cost) + ' · ' : '') +
+    (preal != null ? figDeltaHtml(real, preal, lbl, 'up') : ''));
+}
+
+/* Last month's invoices over the same days this month has run (the 1st to today's date, capped at last month's length),
+   and this month's first day: the fair comparison part-way through a month. */
+function homePriorSameDays() {
+  var t = new Date(), y = t.getFullYear(), m = t.getMonth(), d = t.getDate();
+  var py = m === 0 ? y - 1 : y, pm = m === 0 ? 11 : m - 1, plen = new Date(py, pm + 1, 0).getDate();
+  var pad = function(n) { return String(n).padStart(2, '0'); };
+  var from = py + '-' + pad(pm + 1) + '-01', to = py + '-' + pad(pm + 1) + '-' + pad(Math.min(d, plen));
+  return { from: from, to: to, monthStart: y + '-' + pad(m + 1) + '-01',
+    invoices: S.invoices.filter(function(i) { return i.status === 'active' && i.date && i.date >= from && i.date <= to; }) };
 }
 
 function renderHome() {

@@ -18,7 +18,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <!-- Appearance before first paint (§3.2): the device's theme and palette, so nothing flashes in the wrong colours. -->
 <script>(function(){try{var d=document.documentElement,t=localStorage.getItem("sep_inv_theme"),p=localStorage.getItem("sep_inv_palette");if(t==="light"||t==="dark")d.dataset.theme=t;d.dataset.palette=(p==="zinc"||p==="terracotta")?p:"teal";}catch(e){document.documentElement.dataset.palette="teal";}})();</script>
-<meta name="app-build" content="2269f1e0">
+<meta name="app-build" content="aa188a6e">
 <style>
 /* ===== DESIGN TOKENS (design system v2.0 — docs/SEP_INVOICING_DESIGN_PRINCIPLES.md §3) ===== */
 /* Theme: colour-scheme decides every light-dark() below. <html data-theme> is set before first paint
@@ -1374,6 +1374,10 @@ body.inv-desktop .inv-row-fields > .inv-seg .inv-seg-btn { min-width: var(--ctl-
 .inv-num { font-family: var(--ff-mono); text-align: right; white-space: nowrap; }
 /* A signed figure: its sign is the symbol, the tone follows it (§5.4). */
 .inv-num-pos { color: var(--ok); }
+/* A judged figure in its status tone (figHtml, state.js): the words beside it say why (DR-8). */
+.inv-fig-ok { color: var(--ok); }
+.inv-fig-warning { color: var(--warning); }
+.inv-fig-danger { color: var(--danger); }
 .inv-num-neg { color: var(--danger); }
 .inv-table th.inv-num { font-family: var(--ff-base); text-align: right; }
 .inv-id { font-family: var(--ff-mono); white-space: nowrap; }
@@ -1743,10 +1747,10 @@ summary.inv-summary::-webkit-details-marker { display: none; }
 <!-- PAGES -->
 <div id="pageHome" class="inv-page inv-page-active">
   <div class="inv-tiles" id="homeTiles">
-    <div class="inv-tile"><div class="inv-tile-label">Invoices</div><div class="inv-tile-value" id="mtdCount">0</div><div class="inv-tile-sub" id="mtdCountSub">&nbsp;</div></div>
-    <div class="inv-tile"><div class="inv-tile-label">Revenue</div><div class="inv-tile-value" id="mtdRevenue">&#8377;0</div><div class="inv-tile-sub">taxable</div></div>
-    <div class="inv-tile"><div class="inv-tile-label">Plated</div><div class="inv-tile-value" id="mtdKg">&mdash;</div><div class="inv-tile-sub" id="mtdKgSub">&nbsp;</div></div>
-    <div class="inv-tile"><div class="inv-tile-label">Realisation</div><div class="inv-tile-value" id="mtdPerKg">&mdash;</div><div class="inv-tile-sub" id="mtdPerKgSub">&nbsp;</div></div>
+    <div class="inv-tile"><div class="inv-tile-label">Invoices</div><div class="inv-tile-value" id="mtdCount">0</div><div class="inv-tile-sub" id="mtdCountSub">&nbsp;</div><div class="inv-tile-sub" id="mtdCountDelta"></div></div>
+    <div class="inv-tile"><div class="inv-tile-label">Revenue</div><div class="inv-tile-value" id="mtdRevenue">&#8377;0</div><div class="inv-tile-sub">taxable</div><div class="inv-tile-sub" id="mtdRevenueDelta"></div></div>
+    <div class="inv-tile"><div class="inv-tile-label">Plated</div><div class="inv-tile-value" id="mtdKg">&mdash;</div><div class="inv-tile-sub" id="mtdKgSub">&nbsp;</div><div class="inv-tile-sub" id="mtdKgDelta"></div></div>
+    <div class="inv-tile" id="mtdPerKgTile"><div class="inv-tile-label">Realisation</div><div class="inv-tile-value" id="mtdPerKg">&mdash;</div><div class="inv-tile-sub" id="mtdPerKgSub">&nbsp;</div><div class="inv-tile-sub" id="mtdPerKgDelta"></div></div>
   </div>
   <div class="inv-btn-grid" role="group" aria-label="Quick actions">
     <button class="inv-btn inv-btn-primary" data-action="invCreateNew"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg><span>New invoice</span></button>
@@ -2977,6 +2981,48 @@ function formatInrShort(v) {
   if (v < 99950) return '\u20B9' + (v / 1e3).toFixed(1) + 'K';
   if (v < 9995000) return '\u20B9' + (v / 1e5).toFixed(1) + 'L';
   return '\u20B9' + (v / 1e7).toFixed(1) + 'Cr';
+}
+
+/* ===== A FIGURE SAYS WHETHER IT IS GOOD (owner, 29 Sep 2026) =====
+   "most numbers in our app don't convey any kind of meaning, as in is it a good number or is it something of an issue,
+   all are in default black". The owner chose both: a figure the app can judge is coloured by the status tones (DR-1:
+   colour means status, ok / warning / danger), and a headline figure carries a change line against its benchmark,
+   coloured by whether the move is the good way. A plain fact (a count of invoices, a date) stays in the text colour.
+   Every colour sits beside the words that give its reason (DR-8): the tile's sub-line, the row's meta, the column head.
+   The judgements are here, in one place, so a threshold is one edit. */
+var FIG_FLAT_PCT = 2;     // a change within this is level, not a move
+var FIG_BAD_PCT = 10;     // a move the wrong way past this is danger, below it warning
+
+/* A figure against the line it must clear: higher is better (realisation against cost, attendance against its gate)
+   unless lowerBetter (labour ₹/kg against the model). ok at or past it; warning within warnPct of it; danger beyond. */
+function figToneAgainst(v, ref, warnPct, lowerBetter) {
+  if (v == null || ref == null || !isFinite(v) || !isFinite(ref) || ref === 0) return null;
+  var gap = (lowerBetter ? ref - v : v - ref) / Math.abs(ref) * 100;
+  return gap >= 0 ? 'ok' : gap >= -(warnPct || 5) ? 'warning' : 'danger';
+}
+/* Days since an invoice was raised, as a debt: past 90 danger, past 60 warning. */
+function figToneAge(days) { return days == null ? null : days > 90 ? 'danger' : days > 60 ? 'warning' : null; }
+/* How long a client takes to pay: a month is fine, two a warning, more danger. */
+function figTonePaysIn(days) { return days == null ? null : days <= 30 ? 'ok' : days <= 60 ? 'warning' : 'danger'; }
+/* A share that has a gate (attendance at the rest-day gate's 90 / 80): ok at or over okAt, warning over warnAt. */
+function figTonePct(pct, okAt, warnAt) { return pct == null || !isFinite(pct) ? null : pct >= okAt ? 'ok' : pct >= warnAt ? 'warning' : 'danger'; }
+/* Share of capacity used: the plant's cost is mostly fixed, so an idle shift is the problem. */
+function figToneCapacity(pct) { return pct == null ? null : pct >= 80 ? 'ok' : pct >= 60 ? 'warning' : 'danger'; }
+
+/* The figure's html in its tone's colour (or as it is, with no tone). */
+function figHtml(html, tone) { return tone ? '<span class="inv-fig-' + tone + '">' + html + '</span>' : html; }
+
+/* A change against the period before in words (§5.4), "+12.3% on Aug", coloured by whether it moved the good way:
+   better 'up' (revenue, tonnage, realisation) or 'down' (cost, days to pay); null leaves it uncoloured (a count).
+   Level within FIG_FLAT_PCT; the wrong way is warning up to FIG_BAD_PCT and danger past it. Against nothing it says so. */
+function figDeltaHtml(cur, prev, label, better) {
+  if (prev == null || !isFinite(prev) || prev === 0 || cur == null || !isFinite(cur)) return 'no figure for ' + escHtml(label);
+  var pct = ((cur - prev) / Math.abs(prev)) * 100;
+  if (Math.abs(pct) <= FIG_FLAT_PCT) return 'level with ' + escHtml(label);
+  var text = (pct > 0 ? '+' : '&minus;') + formatNum(Math.abs(pct), 1) + '% on ' + escHtml(label);
+  if (!better) return text;
+  var good = better === 'up' ? pct > 0 : pct < 0;
+  return figHtml(text, good ? 'ok' : Math.abs(pct) <= FIG_BAD_PCT ? 'warning' : 'danger');
 }
 
 /* A figure in a tile breaks only after a comma group, never inside its paise: \u20B910,46,48,655.51 wraps as
@@ -4330,6 +4376,34 @@ function renderHomeTiles(active) {
   // "All" only when nothing priced is unweighed, and a partial share never rounds up to 100%.
   set('mtdPerKgSub', !(w.kg > 0) ? '&nbsp;' : w.revUnknown < 0.005 ? 'all revenue weighed'
     : 'on the ' + Math.min(99, Math.round(w.coverage * 100)) + '% of revenue weighed');
+
+  // Whether each is good (owner, 29 Sep 2026): against the same days last month, and realisation against the month's
+  // live cost, the cost Stats judges it by.
+  var p = homePriorSameDays(), pw = weighLines(p.invoices), lbl = 'same days last month';
+  var real = w.kg > 0 ? w.revKnown / w.kg : null, preal = pw.kg > 0 ? pw.revKnown / pw.kg : null;
+  var has = p.invoices.length > 0;
+  set('mtdCountDelta', has ? figDeltaHtml(active.length, p.invoices.length, lbl, null) : '');
+  set('mtdRevenueDelta', has ? figDeltaHtml(sumTaxable(active), sumTaxable(p.invoices), lbl, 'up') : '');
+  set('mtdKgDelta', has && w.kg > 0 && pw.kg > 0 ? figDeltaHtml(w.kg, pw.kg, lbl, 'up') : '');
+  var cost = null;
+  if (real != null) { try { var lc = liveCost(p.monthStart, localDateStr(), w.kg); cost = lc && lc.perKg > 0 ? lc.perKg : null; } catch (e) { cost = null; } }
+  if (cost == null && S.defaultCostPerKg > 0) cost = S.defaultCostPerKg;
+  var tone = real != null && cost != null ? figToneAgainst(real, cost, 5) : null;
+  var tileEl = document.getElementById('mtdPerKgTile');
+  if (tileEl) tileEl.className = 'inv-tile' + (tone ? ' inv-tile-' + tone : '');
+  set('mtdPerKgDelta', real == null ? '' : (cost != null ? (real >= cost ? 'clears' : 'below') + ' cost ' + formatCurrency(cost) + ' · ' : '') +
+    (preal != null ? figDeltaHtml(real, preal, lbl, 'up') : ''));
+}
+
+/* Last month's invoices over the same days this month has run (the 1st to today's date, capped at last month's length),
+   and this month's first day: the fair comparison part-way through a month. */
+function homePriorSameDays() {
+  var t = new Date(), y = t.getFullYear(), m = t.getMonth(), d = t.getDate();
+  var py = m === 0 ? y - 1 : y, pm = m === 0 ? 11 : m - 1, plen = new Date(py, pm + 1, 0).getDate();
+  var pad = function(n) { return String(n).padStart(2, '0'); };
+  var from = py + '-' + pad(pm + 1) + '-01', to = py + '-' + pad(pm + 1) + '-' + pad(Math.min(d, plen));
+  return { from: from, to: to, monthStart: y + '-' + pad(m + 1) + '-01',
+    invoices: S.invoices.filter(function(i) { return i.status === 'active' && i.date && i.date >= from && i.date <= to; }) };
 }
 
 function renderHome() {
@@ -17326,11 +17400,13 @@ function attDayPanelHtml(d, headBtn, id) {
   var h = '<div class="inv-panel inv-panel-flush"' + (id ? ' id="' + id + '"' : '') + '><div class="inv-panel-head"><span class="inv-panel-title">Attendance ' +
     '<span class="inv-note">' + (d.today ? 'today' : escHtml(attDayName(d.iso) + ' ' + formatDate(d.iso))) + '</span></span>' + (headBtn || '') + '</div>';
   if (!d.marked) return h + '<div class="inv-empty">Nothing recorded yet.</div></div>';
+  // On site against the roster, judged at the rest-day gate's 90% and 80% (a day nobody typed judges nothing).
+  var onPct = d.roster.length && !d.unmarked ? (d.p + d.half) / d.roster.length * 100 : null, onTone = figTonePct(onPct, 90, 80);
   h += '<div class="inv-tiles inv-tiles-flush">' +
-    '<div class="inv-tile"><div class="inv-tile-label">On site</div>' +
+    '<div class="inv-tile' + (onTone ? ' inv-tile-' + onTone : '') + '" data-att-onsite><div class="inv-tile-label">On site</div>' +
     '<div class="inv-tile-value"' + (id === 'homeAtt' ? ' id="homeAttOnSite"' : '') + '>' + (d.p + d.half) + '<span class="inv-tile-of">/' + d.roster.length + '</span></div>' +
     '<div class="inv-tile-sub">' + (d.half ? d.half + ' half day' + (d.half === 1 ? '' : 's') + ' · ' : '') + d.absent.length + ' absent' + (d.unmarked ? ' · ' + d.unmarked + ' unmarked' : '') + '</div></div>' +
-    '<div class="inv-tile' + (d.short ? ' inv-tile-warning' : '') + '"><div class="inv-tile-label">On the floor</div>' +
+    '<div class="inv-tile' + (d.short ? ' inv-tile-warning' : d.complement ? ' inv-tile-ok' : '') + '"><div class="inv-tile-label">On the floor</div>' +
     '<div class="inv-tile-value">' + d.floorHeads + (d.complement ? '<span class="inv-tile-of">/' + d.complement + '</span>' : '') + '</div>' +
     '<div class="inv-tile-sub">' + (d.complement ? (d.short ? (d.complement - d.floorHeads) + ' short of the complement' : 'against the complement') : 'no complement set') + '</div></div></div>';
   if (d.absent.length) h += '<div class="inv-row inv-row-2"><span class="inv-row-main"><span class="inv-row-meta">Absent</span><span class="inv-row-wrap">' + escHtml(d.absent.join(', ')) + '</span></span></div>';
@@ -20769,8 +20845,10 @@ function _bankReceiptsHtml(cls) {
       '<span class="inv-row-title">' + escHtml(r.client.name) + '</span><span class="inv-row-meta inv-row-wrap">' +
       escHtml(formatCurrency(r.invoiced)) + ' invoiced' + (r.notes ? ' · ' + escHtml(formatCurrency(r.notes)) + ' credited' : '') + ' · ' + escHtml(formatCurrency(r.received)) + ' received' +
       (r.open.length ? ' · oldest open ' + r.oldestDays + ' d' : '') + (r.onAccount > 0.005 ? ' · ' + escHtml(formatCurrency(r.onAccount)) + ' on account' : '') + (r.openingSuggest ? ' · owed at start not set' : '') +
-      (dtp && dtp.median != null ? ' · pays in ' + Math.round(dtp.median) + ' d' + (dtp.n < 3 ? ' (' + dtp.n + ' receipt' + (dtp.n === 1 ? '' : 's') + ')' : '') : '') + '</span></button>' +
-      '<span class="inv-row-end"><span class="inv-row-stack"><span class="inv-num">' + formatCurrency(r.owed) + '</span><span class="inv-row-meta">' + (r.owed < -0.005 ? 'paid ahead' : 'owed') + '</span></span></span></div>';
+      (dtp && dtp.median != null ? ' · pays in ' + figHtml(Math.round(dtp.median) + ' d', figTonePaysIn(dtp.median)) + (dtp.n < 3 ? ' (' + dtp.n + ' receipt' + (dtp.n === 1 ? '' : 's') + ')' : '') : '') + '</span></button>' +
+      // Owed is coloured by how old its oldest open invoice is, and the word under it says so.
+      '<span class="inv-row-end"><span class="inv-row-stack"><span class="inv-num">' + figHtml(formatCurrency(r.owed), r.owed > 0.005 ? figToneAge(r.oldestDays) : null) + '</span><span class="inv-row-meta">' +
+      (r.owed < -0.005 ? 'paid ahead' : r.owed > 0.005 && r.oldestDays > 90 ? 'owed, over 90 d' : r.owed > 0.005 && r.oldestDays > 60 ? 'owed, over 60 d' : 'owed') + '</span></span></span></div>';
     if (!open) return;
     h += '<div class="inv-row-children">';
     if (r.openingStale) h += '<div class="inv-callout inv-callout-warning" data-opening-stale>' + escHtml(formatCurrency(r.openingStale.amount)) + ' was set as owed at ' +
@@ -21528,8 +21606,8 @@ function finOverviewHtml() {
     var dtp = bankDaysToPay(r.client.id, payHist);
     h += '<div class="inv-row inv-row-2" data-debtor="' + escHtml(String(r.client.id)) + '"><button class="inv-row-main" data-action="invFinClient" data-id="' + escHtml(String(r.client.id)) + '">' +
       '<span class="inv-row-title">' + escHtml(r.client.name) + '</span><span class="inv-row-meta">' + r.open.length + ' open' + (r.oldestDays != null ? ' · oldest ' + r.oldestDays + ' d' : '') +
-      (dtp && dtp.median != null ? ' · pays in ' + Math.round(dtp.median) + ' d' : '') + '</span></button>' +
-      '<span class="inv-row-end inv-num">' + formatCurrency(r.owed) + '</span></div>';
+      (dtp && dtp.median != null ? ' · pays in ' + figHtml(Math.round(dtp.median) + ' d', figTonePaysIn(dtp.median)) : '') + '</span></button>' +
+      '<span class="inv-row-end inv-num">' + figHtml(formatCurrency(r.owed), figToneAge(r.oldestDays)) + '</span></div>';
   });
   if (!top.length) h += '<div class="inv-empty">Nothing owed since ' + escHtml(formatDate(bankRecvFrom())) + '.</div>';
   if (loose) h += '<div class="inv-panel-body inv-note">' + finPl(loose, 'receipt') + ' with no client ' + (loose === 1 ? 'is' : 'are') + ' not counted yet, so what is owed reads high. ' +
@@ -24897,13 +24975,12 @@ function sumTaxable(invoices) {
    figures are tiles (§6.9) and rows (§6.10); caveats are callouts (§6.18). intel.js, insights.js and
    cost.js draw their cards with the same pieces. */
 
-/* A change against the prior period in words (§5.4): "+12.3% on same days last month". A
-   percentage against no prior activity is noise dressed as a signal, so it says so instead. */
-function statsDeltaText(cur, prev, label) {
+/* A change against the prior period in words (§5.4): "+12.3% on same days last month", coloured by whether it moved
+   the good way (figDeltaHtml, state.js). A percentage against no prior activity is noise dressed as a signal, so it
+   says so instead. */
+function statsDeltaText(cur, prev, label, better) {
   if (prev == null || !isFinite(prev) || prev === 0) return 'no prior period';
-  var pct = ((cur - prev) / Math.abs(prev)) * 100;
-  if (Math.abs(pct) <= 0.5) return 'level with ' + escHtml(label);
-  return (pct > 0 ? '+' : '&minus;') + formatNum(Math.abs(pct), 1) + '% on ' + escHtml(label);
+  return figDeltaHtml(cur, prev, label, better);
 }
 
 /* A segmented control for a setting of the card it sits in (§6.5). `inv-seg-fit` keeps it the width
@@ -25190,7 +25267,7 @@ function renderStats() {
   /* ===== Card 1: the four numbers that decide the month ===== */
   var comparable = _statsPeriod !== 'all' && prior.length > 0;
   var priorLabel = PERIOD_PRIOR_LABELS[_statsPeriod] || '';
-  var delta = function(cur, prev) { return comparable ? statsTileSub(statsDeltaText(cur, prev, priorLabel)) : ''; };
+  var delta = function(cur, prev) { return comparable ? statsTileSub(statsDeltaText(cur, prev, priorLabel, 'up')) : ''; };
   html += statsPanel('headline', escHtml(PERIOD_LABELS[_statsPeriod] || '') + ' performance',
     comparable ? 'vs ' + escHtml(priorLabel) : '', { wide: true }) +
     statsTiles(
@@ -25202,10 +25279,11 @@ function renderStats() {
       statsTile('realisation', 'Realisation', realisation != null ? formatCurrency(realisation) + '<span class="inv-tile-of">/kg</span>' : '&mdash;',
         statsTileSub(costPerKg > 0 ? costLabel + formatCurrency(costPerKg) + '/kg' : 'set a cost in Settings') +
         ((realisation != null && priorRealisation != null) ? delta(realisation, priorRealisation) : ''),
-        contribution != null && contribution < 0 ? 'danger' : '') +
+        // Against the cost it must clear: ok past it, warning within 5% under, danger below that.
+        costPerKg > 0 ? figToneAgainst(realisation, costPerKg, 5) : '') +
       statsTile('margin', 'Gross margin', grossMargin != null ? statsMoney(grossMargin) : '&mdash;',
         statsTileSub(contribution != null ? statsMoney(contribution) + '/kg contribution' : 'needs tonnage and cost'),
-        grossMargin != null && grossMargin < 0 ? 'danger' : ''), true);
+        grossMargin == null ? '' : grossMargin < 0 ? 'danger' : 'ok'), true);
 
   // Tonnage is only ever as good as the weights behind it — and the lines that
   // lack weights are not a random sample, they are the piece-billed work. Say
@@ -25298,10 +25376,10 @@ function renderStats() {
 
       // The worst-priced ten; the rest one tap away (UX overhaul 2, step 6).
       html += uiMoreHtml('stats-realisation', comparableRows.map(function(r) {
-        var below = costPerKg > 0 && r.realisation < costPerKg;
+        var below = costPerKg > 0 && r.realisation < costPerKg, tone = costPerKg > 0 ? figToneAgainst(r.realisation, costPerKg, 5) : null;
         return statsRow(escHtml(r.name), formatNum(r.kg / 1000, 2) + ' t · ' + formatCurrency(r.total),
-          '<span class="inv-row-stack">' + statsNum(formatCurrency(r.realisation) + statsUnit('/kg')) +
-          (below ? uiDot('danger', 'Below cost') : '') + '</span>',
+          '<span class="inv-row-stack">' + statsNum(figHtml(formatCurrency(r.realisation), tone) + statsUnit('/kg')) +
+          (below ? uiDot(tone, tone === 'danger' ? 'Below cost' : 'Just under cost') : '') + '</span>',
           ' data-action="invStatsClientDrill" data-client-id="' + r.clientId + '" data-client-row');
       }), { n: 10, noun: 'clients' });
 
@@ -26168,12 +26246,16 @@ function statsOverviewHtml(period, filtered, tonnage) {
     { wide: true, id: 'statsOverview' });
   if (!(kg > 0)) return h + statsCallout('No weighed tonnage in this period, so no ₹/kg to compare.') + '</div>';
   h += statsTiles(
-    statsTile('realisation', 'Realisation', statsMoney(real) + perKg, statsTileSub(statsMoney(tonnage.revKnown) + ' on ' + formatNum(kg / 1000, 1) + ' t')) +
+    statsTile('realisation', 'Realisation', statsMoney(real) + perKg, statsTileSub(statsMoney(tonnage.revKnown) + ' on ' + formatNum(kg / 1000, 1) + ' t'),
+      c.perKg != null ? figToneAgainst(real, c.perKg, 5) : '') +
     statsTile('cost', 'Live cost', statsMoney(c.perKg) + perKg, statsTileSub('typed ' + statsMoney(S.defaultCostPerKg || 0))) +
     statsTile('contrib', 'Contribution', statsSigned(contrib) + perKg, statsTileSub(statsSigned(gstRound(contrib * kg)) + ' on the period'),
       contrib >= 0 ? 'ok' : 'danger', 'statsContrib') +
+    // The plant's cost is mostly fixed, so an idle shift is the problem: under 80% used is room to fill, under 60% a hole.
     statsTile('capacity', 'Capacity', capPct != null ? Math.round(capPct * 100) + '%' : '&mdash;',
-      statsTileSub(formatNum(kg / 1000, 1) + ' t of ~' + formatNum(cap / 1000, 0) + ' t (2 shifts)')), true);
+      statsTileSub(formatNum(kg / 1000, 1) + ' t of ~' + formatNum(cap / 1000, 0) + ' t (2 shifts)' +
+        (capPct != null && capPct < 0.8 ? ' · ' + formatNum((cap - kg) / 1000, 1) + ' t spare' : '')),
+      capPct != null ? figToneCapacity(capPct * 100) : ''), true);
   if (finHasBank()) {
     var bRows = bankRows(), bLast = bRows[bRows.length - 1], bRecv = finCtx().recv(), bBook = bankBookDaysToPay(bankPayHistory(bRecv));
     h += '<div class="inv-row inv-row-2 inv-row-flow" id="statsCash"><span class="inv-row-main"><span class="inv-row-title">Cash</span>' +
@@ -26268,7 +26350,7 @@ function statsMarginHtml(period, filtered, tonnage) {
     var sign = function(v) { return (v >= 0 ? '+' : '&minus;') + formatNum(Math.abs(v), 2); };
     return '<tr data-action="invStatsClientDrill" data-client-id="' + escHtml(x.id) + '"><td><div class="inv-row-title">' + escHtml(x.name) + '</div>' +
       (x.cn ? '<div class="inv-row-meta">net of ' + statsMoney(x.cn) + ' credit notes</div>' : '') +
-      (money[String(x.id)] ? '<div class="inv-row-meta" data-client-owed>owes ' + statsMoney(Math.max(0, money[String(x.id)].owed)) + (money[String(x.id)].days != null ? ' · pays in ' + money[String(x.id)].days + ' d' : '') + '</div>' : '') + '</td>' +
+      (money[String(x.id)] ? '<div class="inv-row-meta" data-client-owed>owes ' + statsMoney(Math.max(0, money[String(x.id)].owed)) + (money[String(x.id)].days != null ? ' · pays in ' + figHtml(money[String(x.id)].days + ' d', figTonePaysIn(money[String(x.id)].days)) : '') + '</div>' : '') + '</td>' +
       '<td class="inv-num">' + formatNum(x.net, 2) + '</td><td class="inv-num">' + formatNum(x.kg / 1000, 1) + '</td>' +
       statsSignedCell(x.vsVar, sign(x.vsVar)) + statsSignedCell(x.vsFull, sign(x.vsFull)) + statsSignedCell(x.money, statsSigned(x.money)) + '</tr>';
   }), { n: 10, noun: 'clients', tr: 6 });
@@ -27168,15 +27250,20 @@ function renderFinHomeCard() {
   var book = bankBookDaysToPay(bankPayHistory(recv));
   var loose = bankLooseReceipts(finCtx().cls, bankRecvFrom(finCtx().rows)).length;
   var age = todoDaysBetween(last.date, localDateStr());
+  // What is owed is judged by its age: any of it past 90 days is danger, past 60 warning (figToneAge).
+  var over = finAgeing(recv), old90 = over[3] ? over[3].amount : 0, old60 = over[2] ? over[2].amount : 0;
   var tile = function(tab, anchor, label, value, sub, tone) {
     return '<button class="inv-tile' + (tone ? ' inv-tile-' + tone : '') + '" data-action="invFinGo" data-tab="' + tab + '"' + (anchor ? ' data-anchor="' + anchor + '"' : '') + ' data-home-fin="' + label + '">' +
       '<div class="inv-tile-label">' + label + '</div><div class="inv-tile-value inv-tile-value-sm inv-nowrap" title="' + escHtml(formatCurrency(value)) + '">' + finRs(value) + '</div><div class="inv-tile-sub">' + sub + '</div></button>';
   };
   h += '<div class="inv-tiles inv-tiles-flush">' +
     tile('bank', '', 'Balance', last.balance, 'on ' + escHtml(finShortDate(last.date)) + (age > 7 ? ', ' + age + ' days ago' : ''), last.balance < 0 ? 'danger' : age > 7 ? 'warning' : '') +
-    tile('receipts', loose ? 'bankLoose' : '', 'Owed to us', owed, loose ? loose + ' receipt' + (loose === 1 ? '' : 's') + ' not placed' : 'since ' + escHtml(finShortDate(bankRecvFrom(rows))), loose ? 'warning' : '') +
-    (book && book.median != null ? '<button class="inv-tile" data-action="invFinGo" data-tab="receipts" data-home-fin="Pays in"><div class="inv-tile-label">Pays in</div>' +
-      '<div class="inv-tile-value inv-tile-value-sm">' + Math.round(book.median) + ' days</div><div class="inv-tile-sub">the book, invoice to receipt</div></button>' : '') +
+    tile('receipts', loose ? 'bankLoose' : '', 'Owed to us', owed, loose ? loose + ' receipt' + (loose === 1 ? '' : 's') + ' not placed'
+      : old90 > 0 ? finRs(old90) + ' over 90 days' : old60 > 0 ? finRs(old60) + ' over 60 days' : 'since ' + escHtml(finShortDate(bankRecvFrom(rows))),
+      old90 > 0 ? 'danger' : loose || old60 > 0 ? 'warning' : '') +
+    (book && book.median != null ? '<button class="inv-tile' + (figTonePaysIn(book.median) ? ' inv-tile-' + figTonePaysIn(book.median) : '') + '" data-action="invFinGo" data-tab="receipts" data-home-fin="Pays in"><div class="inv-tile-label">Pays in</div>' +
+      '<div class="inv-tile-value inv-tile-value-sm">' + Math.round(book.median) + ' days</div><div class="inv-tile-sub">the book, invoice to receipt' +
+      (book.median > 60 ? ' · over two months' : book.median > 30 ? ' · over a month' : '') + '</div></button>' : '') +
     tile('overview', 'finForecast', 'Runway', fc ? fc.min.bal : last.balance, fc && fc.cross ? 'below zero on ' + escHtml(finShortDate(fc.cross)) : fc ? 'lowest in 45 days, ' + escHtml(finShortDate(fc.min.date)) : '', fc && fc.cross ? 'danger' : '') +
     '</div>';
   el.innerHTML = h + '</div>';
@@ -29270,13 +29357,10 @@ function _cpMaterialRowList(list, renames) {
   });
 }
 
-/* "+12.3% on Aug", never an arrow alone (§5.4). */
-function _cpDelta(cur, prev) {
+/* "+12.3% on Aug", never an arrow alone (§5.4), coloured by whether it moved the good way (figDeltaHtml). */
+function _cpDelta(cur, prev, better) {
   if (!prev) return '';
-  if (!isFinite(prev.v) || prev.v === 0) return 'no figure for ' + escHtml(prev.label);
-  var pct = ((cur - prev.v) / Math.abs(prev.v)) * 100;
-  if (Math.abs(pct) <= 0.5) return 'level with ' + escHtml(prev.label);
-  return (pct > 0 ? '+' : '−') + formatNum(Math.abs(pct), 1) + '% on ' + escHtml(prev.label);
+  return figDeltaHtml(cur, prev.v, prev.label, better || 'up');
 }
 
 function renderClientPerformance(container) {
@@ -29359,7 +29443,7 @@ function renderClientPerformance(container) {
       tile('Latest month · ' + escHtml(last.label), formatCurrency(last.revenue),
         last.count + ' invoice' + (last.count !== 1 ? 's' : ''), _cpDelta(last.revenue, p(prev && prev.revenue))) +
       tile('Tonnage', formatNum(last.kg / 1000, 2) + '<span class="inv-tile-of"> t</span>', formatNum(last.kg, 0) + ' kg', _cpDelta(last.kg, p(prev && prev.kg))) +
-      tile('Realisation', last.realisation != null ? formatCurrency(last.realisation) + '<span class="inv-tile-of">/kg</span>' : '&mdash;',
+      tile('Realisation', last.realisation != null ? figHtml(formatCurrency(last.realisation), S.defaultCostPerKg > 0 ? figToneAgainst(last.realisation, S.defaultCostPerKg, 5) : null) + '<span class="inv-tile-of">/kg</span>' : '&mdash;',
         (S.defaultCostPerKg > 0 ? 'cost ' + formatCurrency(S.defaultCostPerKg) + '/kg' : ''),
         (prev && prev.realisation != null && last.realisation != null) ? _cpDelta(last.realisation, p(prev.realisation)) : '') +
       // The months shown, quiet ones included: the level the latest month is read against.

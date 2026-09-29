@@ -127,7 +127,7 @@ every session start — nothing to set up by hand. CI (`build-sync`) is the back
 ### Tests
 
 ```bash
-pnpm exec playwright test          # 732 tests, both layouts
+pnpm exec playwright test          # 739 tests, both layouts
 ```
 
 Some sandboxes ship a Chromium build Playwright does not expect and block downloading
@@ -185,6 +185,23 @@ wage legs live in Staff → Pay (folded, open when a leg is off its slip), and F
 them (the To-do's wage tasks go there too, `todoGo` kind `payWages`). The before-and-after table is in
 `docs/UX_OVERHAUL_2.md` step 6. P101.
 
+**A figure says whether it is good** (owner, 29 Sep 2026: *"most numbers in our app don't convey any kind of meaning, as
+in is it a good number or is it something of an issue, all are in default black"*; the owner chose both of the options put to
+them). A figure the app can judge is coloured in its status tone, always beside the words that give the reason (DR-8), and
+a headline figure carries a change line against its benchmark, coloured by whether it moved the good way; a count stays
+uncoloured. The judgements are in one place, state.js (`figToneAgainst`, `figToneAge`, `figTonePaysIn`,
+`figToneCapacity`, `figTonePct`, `figDeltaHtml`; `inv-fig-*`), and read by:
+- **Home**: every month-to-date tile against the same days last month (`homePriorSameDays`), and realisation against the
+  month's live cost (*below cost ₹8.56*); the Money strip's *Owed to us* by age (*₹5,900 over 90 days*) and *Pays in*;
+  the attendance card's *On site* at the rest-day gate's 90 / 80%.
+- **Stats**: the headline's change lines and realisation against the live cost (warning within 5% under it), gross margin
+  ok or danger, *In one line*'s realisation and capacity (80 / 60% of two shifts, with the tonnes spare), realisation by
+  client (*Just under cost* / *Below cost*), and days to pay under each client.
+- **Clients → Performance**: the change lines and the latest month's realisation against the cost.
+- **Finance → Receivables and Overview**: what a client owes by the age of its oldest open invoice (*owed, over 90 d*),
+  and *pays in N d*.
+P102.
+
 **A `<select>` speaks through `change`, never `click`.** Giving a filter control a
 `data-action` meant the click that *opens* it ran the handler — and if that handler
 re-renders the toolbar, the element the native popup hangs off is replaced and the list
@@ -241,7 +258,7 @@ filter on; a literal date in a fixture is a time bomb, not a constant.
 |----|------|
 | HR-1 | No inline styles. CSS classes + design tokens. |
 | HR-2 | No inline onclick. data-action delegation only. |
-| HR-3 | inv- CSS prefix on every class. 459 classes, all of them (distinct class selectors in `split/styles.css`, comments stripped, 29 Sep 2026: the eighteen `inv-as-*` of the attendance and stock sheets added, then `inv-topbar-back` and `inv-topbar-trail`); P76 asserts every class the app draws is one of them or a named hook. |
+| HR-3 | inv- CSS prefix on every class. 462 classes, all of them (distinct class selectors in `split/styles.css`, comments stripped, 29 Sep 2026: the eighteen `inv-as-*` of the attendance and stock sheets added, then `inv-topbar-back` and `inv-topbar-trail`, then `inv-fig-ok/warning/danger`: 462); P76 asserts every class the app draws is one of them or a named hook. |
 | HR-4 | No emojis. Inline SVGs in HTML template. |
 | HR-5 | escHtml() on all user-data innerHTML. |
 | HR-6 | CSS design tokens only. No raw px/rem/hex/timing. |

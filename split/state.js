@@ -207,6 +207,83 @@ function writePersistedStateRaw(str) {
   });
 }
 
+/* ===== THE VERSION GUARD (UX overhaul 2, step 2; owner, 28 Sep 2026: every screen opens in a new window, and
+   windows may edit) =====
+   Each window holds the whole book and saves it whole, so a second window used to overwrite the first one's save
+   without a word: the installed app and a browser tab open side by side already did. So the saved copy carries a
+   revision (`rev`, beside `current` in the same store), a window remembers the revision it last read or wrote
+   (_diskRev), and a save is written only if the revision on disk is still that one: read and write happen in ONE
+   IndexedDB transaction, which the browser runs one at a time across every window of the origin. A save from a
+   window holding an older copy is refused (StaleCopy); the window loads the current copy and says so. After every
+   save the other windows are told (BroadcastChannel) and load it at once, so a refusal is left for a true race or a
+   window that slept through the message; one coming back into view checks the revision too. */
+var IDB_REV_KEY = 'rev';
+var LS_REV_KEY = 'sep_invoicing_rev';
+var _diskRev = null;
+function newRev() { return Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 8); }
+function staleCopy(rev) { var e = new Error('another window saved the book after this one loaded it'); e.name = 'StaleCopy'; e.rev = rev; return e; }
+
+// The stored copy and its revision, read together: {raw, rev}.
+function readStoredWithRev() {
+  if (_storeMode === 'localStorage' || _idbFailed) {
+    return new Promise(function(resolve, reject) {
+      try { resolve({ raw: localStorage.getItem(STORAGE_KEY), rev: localStorage.getItem(LS_REV_KEY) }); } catch (e) { reject(e); }
+    });
+  }
+  return idbOpen().then(function(db) {
+    if (!db) return { raw: null, rev: null };
+    return new Promise(function(resolve, reject) {
+      try {
+        var tx = db.transaction(IDB_STORE, 'readonly'), st = tx.objectStore(IDB_STORE), out = { raw: null, rev: null };
+        st.get(IDB_KEY).onsuccess = function(ev) { out.raw = typeof ev.target.result === 'string' ? ev.target.result : null; };
+        st.get(IDB_REV_KEY).onsuccess = function(ev) { out.rev = typeof ev.target.result === 'string' ? ev.target.result : null; };
+        tx.oncomplete = function() { resolve(out); };
+        tx.onabort = function() { reject(tx.error || new Error('read transaction aborted')); };
+        tx.onerror = function() { reject(tx.error); };
+      } catch (e) { reject(e); }
+    });
+  });
+}
+
+// Writes the book only if the revision on disk is still `expect`; resolves once written, rejects StaleCopy if not.
+function writeGuarded(str, expect, next) {
+  if (_storeMode === 'localStorage') {
+    return new Promise(function(resolve, reject) {
+      try {
+        var cur = localStorage.getItem(LS_REV_KEY);
+        if ((cur || null) !== (expect || null)) { reject(staleCopy(cur)); return; }
+        lsPutVerified(STORAGE_KEY, str);
+        localStorage.setItem(LS_REV_KEY, next);
+        resolve();
+      } catch (e) { reject(e); }
+    });
+  }
+  return idbOpen().then(function(db) {
+    if (!db) throw new DOMException('IndexedDB unavailable', 'InvalidStateError');
+    return new Promise(function(resolve, reject) {
+      var stale = null, isStale = false, failed = null;
+      try {
+        var tx = db.transaction(IDB_STORE, 'readwrite'), st = tx.objectStore(IDB_STORE);
+        var get = st.get(IDB_REV_KEY);
+        get.onsuccess = function() {
+          var cur = typeof get.result === 'string' ? get.result : null;
+          if (cur !== (expect || null)) { isStale = true; stale = cur; tx.abort(); return; }
+          // The browser's own error (QuotaExceededError …) is what the banner names, not the abort it causes.
+          try {
+            var put = st.put(str, IDB_KEY);
+            put.onerror = function() { failed = failed || put.error; };
+            st.put(next, IDB_REV_KEY);
+          } catch (e) { failed = e; tx.abort(); }
+        };
+        tx.oncomplete = function() { resolve(); };
+        tx.onabort = function() {
+          reject(isStale ? staleCopy(stale) : (failed || tx.error || new Error('write transaction aborted')));
+        };
+      } catch (e) { reject(e); }
+    });
+  });
+}
+
 function legacyRaw() {
   try {
     var raw = localStorage.getItem(STORAGE_KEY);
@@ -220,8 +297,11 @@ function legacyRaw() {
 
 // Resolves to the parsed state or null. Sets _storeMode and _loadedFrom.
 function loadState() {
-  return idbGetRaw().then(function(raw) {
-    if (_idbFailed) { _storeMode = 'localStorage'; var lr = legacyRaw(); _loadedFrom = lr != null ? 'legacy' : 'none'; return lr; }
+  return readStoredWithRev().then(function(both) {
+    _diskRev = both.rev;
+    return both.raw;
+  }).then(function(raw) {
+    if (_idbFailed) { _storeMode = 'localStorage'; try { _diskRev = localStorage.getItem(LS_REV_KEY); } catch (e) {} var lr = legacyRaw(); _loadedFrom = lr != null ? 'legacy' : 'none'; return lr; }
     _storeMode = 'idb';
     // Note whether the pre-IndexedDB copy is still occupying the shared pool,
     // so a verified write can hand that space back.
@@ -278,7 +358,20 @@ function writeStateNow() {
   var str;
   try { str = JSON.stringify(S); }
   catch (e) { return Promise.resolve(noteSaveFailure(STORAGE_KEY, describeStorageError(e))); }
-  return writePersistedStateRaw(str).then(function() {
+  var next = newRev(), expect = _diskRev;
+  return writeGuarded(str, expect, next).then(function() {
+    // Read back, so a store that drops a write without a word is caught.
+    return readStoredWithRev().then(function(back) {
+      // Still the old revision: the write never landed. Another revision: another window has saved since, which is
+      // its copy to answer for.
+      var ours = back.rev === next || back.rev === (expect || null);
+      if (ours && (back.rev !== next || back.raw === null || back.raw.length !== str.length)) {
+        throw notPersisted('write not persisted (read back ' + (back.raw === null ? 'nothing' : back.raw.length + ' of ' + str.length + ' chars') + ')');
+      }
+      _diskRev = next;
+    });
+  }).then(function() {
+    bookAnnounce(next);
     _storageHealth.lastSaveOk = true;
     _storageHealth.lastSaveAt = Date.now();
     _storageHealth.lastSaveChars = str.length;
@@ -291,6 +384,7 @@ function writeStateNow() {
     requestPersistentStorage();
     return true;
   }, function(e) {
+    if (e && e.name === 'StaleCopy') return bookStaleSave();
     return noteSaveFailure(STORAGE_KEY, describeStorageError(e));
   });
 }
@@ -438,6 +532,7 @@ function bootState(loaded) {
   // the new store. A copy that exists but would not read is never written
   // over at boot — the banner says so instead.
   if (_loadedFrom !== 'idb' && !_storageHealth.readError) persistState();
+  bookChannel();
 }
 
 /* ===== LAYOUT MODE (Phase 8A) ===== */
@@ -499,6 +594,7 @@ function viewTabReveal(row) {
 var _viewTopAt = 0;
 function viewTop() {
   _viewTopAt++;
+  _pageTyped = false;
   window.scrollTo(0, 0);
 }
 
@@ -582,8 +678,12 @@ function _dialogMarkTyped(e) {
   if (!t || !t.closest || !t.matches || !t.matches('input, textarea, select')) return;
   if (t.closest('.inv-search, [data-nodirty], [data-ui-ask]')) return;
   var scrim = t.closest('.inv-scrim-dialog');
-  if (scrim) scrim.dataset.typed = '1';
+  if (scrim) { scrim.dataset.typed = '1'; return; }
+  // A field typed on the page itself (not a toolbar's filter or a segmented choice) makes the page a form in
+  // progress: a book loaded from another window then waits to be drawn (bookRedraw).
+  if (t.closest('.inv-page-active') && !t.closest('.inv-toolbar, .inv-seg')) _pageTyped = true;
 }
+var _pageTyped = false;
 document.addEventListener('input', _dialogMarkTyped, true);
 document.addEventListener('change', _dialogMarkTyped, true);
 
@@ -607,6 +707,86 @@ function dialogCloseScrim(scrim) {
   scrim.remove();
   popFocus();
   if (!document.querySelector('.inv-scrim-dialog')) document.body.style.overflow = '';
+}
+
+/* ===== THE OTHER WINDOWS =====
+   After a save, the other windows are told the new revision and load it at once; a window coming back into view
+   checks the revision too (a frozen tab hears nothing). Loading replaces S whole and runs no migration, since a
+   migration saves and the windows would then answer each other for ever; the next boot runs them. What is being
+   typed is kept: with a dialog open, a field typed on the page, or a challan form in progress, the screen is not
+   redrawn until that is saved or left, and the toast says so. */
+var _bookChan = null;
+var _bookReloading = null;
+var _bookRedrawPending = false;
+function bookChannel() {
+  if (_bookChan === null) {
+    try {
+      _bookChan = new BroadcastChannel('sep-invoicing-book');
+      _bookChan.onmessage = function(ev) { bookOnMessage(ev.data); };
+    } catch (e) { _bookChan = false; }
+  }
+  return _bookChan;
+}
+function bookPost(msg) { var c = bookChannel(); if (c) { try { c.postMessage(msg); } catch (e) {} } }
+function bookAnnounce(rev) { bookPost({ type: 'saved', rev: rev }); }
+function bookOnMessage(m) {
+  if (!m || !S) return;
+  if (m.type === 'saved' && m.rev !== _diskRev) bookReload('saved');
+  // Another window pushed this same book to GitHub: nothing is left for this one's pending push to send.
+  if (m.type === 'pushed' && m.rev === _diskRev && typeof ghCancelPending === 'function') ghCancelPending();
+}
+// A window back in view: has another saved meanwhile?
+function bookCheck() {
+  if (!S || _storageHealth.readError) return Promise.resolve(false);
+  return readStoredWithRev().then(function(b) { return b.rev && b.rev !== _diskRev ? bookReload('saved') : false; }, function() { return false; });
+}
+function bookReload(why) {
+  if (_bookReloading) return _bookReloading;
+  _bookReloading = readStoredWithRev().then(function(b) {
+    if (b.raw == null || b.rev === _diskRev) return false;
+    var next = JSON.parse(b.raw);
+    S = next;
+    ensureStateShape(S);
+    _diskRev = b.rev;
+    if (typeof prodTouch === 'function') prodTouch();
+    if (typeof _invalidateUsageCache === 'function') _invalidateUsageCache();
+    bookRedraw(why);
+    return true;
+  }).then(null, function(e) {
+    uiNotice('This window could not load the book another window saved (' + describeStorageError(e) + '). Close this window and reopen the app before editing here.', 'warning');
+    return false;
+  }).then(function(r) { _bookReloading = null; return r; });
+  return _bookReloading;
+}
+function bookBusy() {
+  return !!(document.querySelector('.inv-scrim-dialog') || _pageTyped || (typeof _challanForm !== 'undefined' && _challanForm));
+}
+function bookRedraw(why) {
+  _tabDirty.home = true;
+  _tabDirty.register = true;
+  var seen = document.visibilityState !== 'hidden';
+  if (bookBusy()) {
+    _bookRedrawPending = true;
+    if (seen && why === 'saved') showToast('Another window saved the book. What you are typing here is kept; this screen shows the changes once you save or move on.', 'info');
+    return;
+  }
+  _bookRedrawPending = false;
+  if (typeof tabRedrawActive === 'function') tabRedrawActive();
+  if (seen && why === 'saved') showToast('Updated from another window', 'info');
+}
+// A save refused because another window saved first: this window takes the saved book and says what was lost.
+function bookStaleSave() {
+  _storageHealth.lastSaveOk = false;
+  _storageHealth.lastSaveAt = Date.now();
+  _storageHealth.lastError = 'not written: another window had saved the book first';
+  // A save refused while the window is still starting (its migrations) lost nothing anybody did: taken quietly.
+  var booting = !document.body.classList.contains('inv-booted');
+  return bookReload('stale').then(function() {
+    if (booting) return false;
+    uiNotice('Another window saved the book after this window loaded it, so the last change made here was not saved. ' +
+      'This window now shows the saved book: make that change again.', 'warning');
+    return false;
+  });
 }
 
 /* ===== ASKING AND TELLING, IN THE APP (owner, 27 Sep 2026) =====

@@ -316,7 +316,7 @@ function onDocClick(e) {
     }
     case 'invRefreshZinc': refreshZincRate(); break;
     // GitHub sync
-    case 'invGhPush': ghPush(); break;
+    case 'invGhPush': ghPushLocked(); break;
     case 'invGhPull': ghPull(); break;
     case 'invToggleGhToken': {
       var gtEl = document.getElementById('setGhToken');

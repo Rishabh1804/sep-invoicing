@@ -23,7 +23,7 @@ one picture — in seven phases, one PR each. Its §0 says what is built.
 **UX overhaul 2 is planned — read `docs/UX_OVERHAUL_2.md`.** Agreed with the owner, 28 Sep 2026: navigation with a
 back trail, a version guard so two windows can edit safely, every screen openable in a new window, search (a chatbot
 later), keyboard shortcuts, a pass on the screens that scroll too far, and desktop layouts — one PR each, in its order.
-Step 0 (the phone's selection bars) is built, and so is the dialog guard that runs before step 1. The owner reordered the
+Step 0 (the phone's selection bars) is built, so is the dialog guard (0b), and so is the version guard (step 2). The owner reordered the
 steps on 29 Sep 2026: the version guard comes before navigation.
 
 ## What SEP Invoicing Is
@@ -124,7 +124,7 @@ every session start — nothing to set up by hand. CI (`build-sync`) is the back
 ### Tests
 
 ```bash
-pnpm exec playwright test          # 689 tests, both layouts
+pnpm exec playwright test          # 694 tests, both layouts
 ```
 
 Some sandboxes ship a Chromium build Playwright does not expect and block downloading
@@ -201,7 +201,7 @@ filter on; a literal date in a fixture is a time bomb, not a constant.
 |----|------|
 | HR-1 | No inline styles. CSS classes + design tokens. |
 | HR-2 | No inline onclick. data-action delegation only. |
-| HR-3 | inv- CSS prefix on every class. 438 classes, all of them (distinct class selectors in `split/styles.css`, comments stripped, 28 Sep 2026: `inv-prod-photo` added); P76 asserts every class the app draws is one of them or a named hook. |
+| HR-3 | inv- CSS prefix on every class. 439 classes, all of them (distinct class selectors in `split/styles.css`, comments stripped, 29 Sep 2026: `inv-toast-info` added); P76 asserts every class the app draws is one of them or a named hook. |
 | HR-4 | No emojis. Inline SVGs in HTML template. |
 | HR-5 | escHtml() on all user-data innerHTML. |
 | HR-6 | CSS design tokens only. No raw px/rem/hex/timing. |
@@ -2440,6 +2440,29 @@ carries the latest `S`. That is what makes `adoptState()`'s rollback sound on an
 after `S = prev` the queued write is `prev`, whatever a half-migrated write in flight carried.
 `saveState()` returns a `Promise<boolean>` that resolves once the copy is verified on disk; the
 import waits on it before saying *imported*.
+
+🔴 **Two windows on one book: the version guard** (UX overhaul 2, step 2; owner, 28–29 Sep 2026). Each window holds the
+whole book and saves it whole, so a second window used to overwrite the first one's save **without a word** — measured on
+the build before this: window A adds a client, window B (open on the older copy) adds another, and the stored book holds
+only B's. The installed app and a browser tab open side by side already did this. Now:
+- **The saved copy carries a revision** (`rev`, a second key beside `current` in the same IndexedDB store;
+  `sep_invoicing_rev` on the localStorage path). A window keeps the revision it last read or wrote (`_diskRev`), and
+  `writeGuarded()` checks it and writes **in one readwrite transaction**, which the browser runs one at a time across
+  every window of the origin. A save from a window holding an older copy is **refused** (`StaleCopy`): the window loads
+  the current copy and says so in the notice banner (*the last change made here was not saved … make that change again*).
+- **After every save the other windows are told** (`BroadcastChannel('sep-invoicing-book')`) and load the book at once
+  (`bookReload`), redrawing the page in place (`tabRedrawActive`, switchTab's drawing as `tabRender`) with an *Updated from
+  another window* toast. A window coming back into view checks the revision too (`bookCheck`), since a frozen tab hears
+  nothing. A load replaces `S` and runs **no migration**: a migration saves, and the windows would answer each other for ever.
+- **What is being typed is kept**: with a dialog open, a field typed on the page (not a toolbar filter), or a challan form in
+  progress, the screen is not redrawn (`bookBusy`), the toast says the typing is kept, and the save lands on top of the
+  newer book, since forms save by id into the `S` that is there.
+- **GitHub pushes hold one lock across windows** (`ghPushLocked`, Web Locks), reading the config fresh inside it, and a
+  window that pushed tells the others which revision went up, so a push still pending elsewhere for that same book is
+  dropped (`ghCancelPending`). Without it the second window's push met the first's SHA and auto-push paused itself on a
+  copy its own device wrote.
+- A copy written straight to the store without a revision (the p16 spec does) is simply the copy on disk; the next load
+  reads its revision, whatever it is. P93.
 
 **The legacy localStorage copy is migrated on the first boot that finds the store empty, and
 REMOVED once a verified write has landed** — that removal is what hands the shared pool back to

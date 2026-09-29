@@ -52,7 +52,35 @@ function switchTab(tabId) {
   // Step 6: Check dirty flag and re-render if needed
   const tabKey = tabId === 'pageHome' ? 'home' : tabId === 'pageRegister' ? 'register' : null;
   const isDirty = tabKey ? _tabDirty[tabKey] : true;
+  _pageTyped = false;
+  _bookRedrawPending = false;
+  tabRender(tabId, isDirty);
 
+  // Step 7: Scroll restoration
+  if (returnTab) {
+    // Edit-return: restore scroll position
+    const saved = _tabScroll[tabId];
+    if (saved != null) {
+      window.scrollTo(0, saved);
+    }
+  } else if (isDirty) {
+    // New data: scroll to top
+    window.scrollTo(0, 0);
+  } else {
+    // Clean reveal: restore saved position
+    const saved = _tabScroll[tabId];
+    if (saved != null) {
+      window.scrollTo(0, saved);
+    }
+  }
+
+  // Step 8: Focus first interactive element in target tab
+  var targetPage = document.getElementById(tabId);
+  if (targetPage) focusFirstInteractive(targetPage);
+}
+
+/* Draws one page from S (switchTab's step 6). Also what another window's save redraws, in place (tabRedrawActive). */
+function tabRender(tabId, isDirty) {
   if (tabId === 'pageHome') {
     if (isDirty) { renderHome(); _tabDirty.home = false; }
   } else if (tabId === 'pageRegister') {
@@ -97,28 +125,14 @@ function switchTab(tabId) {
   } else if (tabId === 'pageHistory') {
     renderHistory();
   }
+}
 
-  // Step 7: Scroll restoration
-  if (returnTab) {
-    // Edit-return: restore scroll position
-    const saved = _tabScroll[tabId];
-    if (saved != null) {
-      window.scrollTo(0, saved);
-    }
-  } else if (isDirty) {
-    // New data: scroll to top
-    window.scrollTo(0, 0);
-  } else {
-    // Clean reveal: restore saved position
-    const saved = _tabScroll[tabId];
-    if (saved != null) {
-      window.scrollTo(0, saved);
-    }
-  }
-
-  // Step 8: Focus first interactive element in target tab
-  var targetPage = document.getElementById(tabId);
-  if (targetPage) focusFirstInteractive(targetPage);
+/* The page on screen, drawn again from S where it stands: the page, its panes and dialogs keep their scroll. */
+function tabRedrawActive() {
+  var page = document.querySelector('.inv-page-active');
+  if (!page) return;
+  keepScroll(function() { tabRender(page.id, true); });
+  if (typeof updateStockBadge === 'function') updateStockBadge();
 }
 
 /* ===== HOME ===== */

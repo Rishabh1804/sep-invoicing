@@ -816,6 +816,7 @@ document.addEventListener('visibilitychange', function() {
   if (document.visibilityState === 'visible') {
     checkForUpdate(false);
     if (S) todoApplyWidgetQueue();
+    if (S) bookCheck();
   } else if (S) {
     todoWidgetPublish();
   }

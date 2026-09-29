@@ -233,6 +233,7 @@ async function ghPush(opts) {
     }
 
     var envelope = ghBuildEnvelope(cfg);
+    var pushedRev = _diskRev;
     var body = {
       message: 'SEP Invoicing backup — ' + envelope.counts.invoices + ' invoices, ' +
         envelope.counts.challans + ' challans (' + envelope.device + ')',
@@ -245,6 +246,7 @@ async function ghPush(opts) {
     cfg.sha = result && result.content ? result.content.sha : null;
     cfg.lastPushAt = Date.now();
     setGhConfig(cfg);
+    if (pushedRev) bookPost({ type: 'pushed', rev: pushedRev });
     ghSetBusy(false);
     ghSetStatus('Pushed ' + formatTimestamp(cfg.lastPushAt) + '.');
     ghRenderCard();
@@ -348,13 +350,25 @@ function ghNotifyChange() {
   if (typeof navigator !== 'undefined' && navigator.onLine === false) return;
   clearTimeout(_ghPushTimer);
   _ghPushTimer = setTimeout(function() {
-    ghPush({ silent: true }).then(function(ok) {
+    ghPushLocked({ silent: true }).then(function(ok) {
       // One failure stops the timer re-arming forever in the background;
       // a manual push clears it.
       if (!ok) _ghAutoBackoff = true;
     });
   }, GH_AUTOPUSH_DELAY);
 }
+
+/* Two windows of the app must never push against each other: each would read the file's SHA, the second PUT would
+   meet the first's, and auto-push would pause itself on a copy its own device wrote. So every push holds one lock
+   across the origin's windows (Web Locks), reads the config fresh inside it, and a window that pushed tells the others
+   which revision went up, so a push still pending in another window for that same book is dropped. */
+function ghPushLocked(opts) {
+  if (typeof navigator !== 'undefined' && navigator.locks && navigator.locks.request) {
+    return navigator.locks.request('sep-invoicing-gh-push', function() { return ghPush(opts); });
+  }
+  return ghPush(opts);
+}
+function ghCancelPending() { clearTimeout(_ghPushTimer); _ghPushTimer = null; }
 
 /* ===== STATUS SURFACE ===== */
 var _ghStatusText = '';

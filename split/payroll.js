@@ -524,7 +524,7 @@ function attDaySummary() {
     if (m.st === 'H') out.half++; else out.p++;
     if (w.onFloor !== false && _areaIsFloor(m.area || w.area)) out.floorHeads++;
   });
-  out.complement = STAFF_AREAS.reduce(function(s, a) { var t = areaTarget(a.id); return s + (t != null ? t : 0); }, 0);
+  out.complement = STAFF_AREAS.reduce(function(s, a) { var t = areaNeedOn(iso, a.id); return s + (t != null ? t : 0); }, 0);
   out.extraH = (rec.extra || []).reduce(function(s, x) { return s + (x.hours || 0); }, 0);
   out.short = !!out.complement && out.floorHeads < out.complement;
   return out;

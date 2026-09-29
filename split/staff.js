@@ -263,7 +263,7 @@ var ATT_FOCUS_ATTRS = ['data-action', 'data-id', 'data-st', 'data-date', 'data-i
   'data-area', 'data-worker'];
 var ATT_FOCUS_FLAGS = ['data-att-area', 'data-att-ot', 'data-att-hours',
   'data-att-extra-area', 'data-att-extra-hours', 'data-att-extra-kind',
-  'data-att-block-from', 'data-att-block-to'];
+  'data-att-block-from', 'data-att-block-to', 'data-att-need', 'data-att-block-need'];
 
 function _attFocusSelector() {
   var page = document.getElementById('pageStaff');
@@ -458,6 +458,7 @@ function _attDayView() {
   });
   html += '</div>';
 
+  html += _attNeedCard(iso, rec);
   html += _attExtraCard(iso, rec);
   html += renderLabourCard(iso, iso, 'Day cost');
   return html;
@@ -513,6 +514,11 @@ function _attBlockFields(x, i, siblings) {
     // Both lengths, whenever they differ: the clock span the operator typed
     // and the credited length the tag is judged against. Nothing is rounded
     // behind their back.
+    // What this block needed: its own number, else the complement of the areas it covers (the fold included).
+    '<div class="inv-field inv-toolbar-item"><label class="inv-field-label" for="blkNeed-' + i + '">Needed</label>' +
+    '<input type="number" class="inv-input inv-input-num" id="blkNeed-' + i + '" data-att-block-need data-idx="' + i + '" step="1" min="0"' +
+    ' placeholder="' + (function() { var c = {}; for (var k in x) c[k] = x[k]; delete c.need; var n = blockNorm(c, [c].concat(siblings || [])); return n != null ? formatNum(n, 1).replace(/\.0$/, '') : '—'; })() +
+    '" value="' + (typeof x.need === 'number' ? x.need : '') + '" aria-label="Heads the block needed"></div>' +
     '<span class="inv-num inv-toolbar-end" data-block-len>' + (hrs == null ? '&mdash;'
       : (span != null && span !== hrs
         ? formatNum(span, 1) + ' h &rarr; ' + formatNum(hrs, 1) + ' credited'
@@ -574,6 +580,40 @@ function _attBlockFields(x, i, siblings) {
   }
 
   return html + '</div>';
+}
+
+/* Needed today: the heads each floor area stood on the general shift against what the shift needed (areaNeedOn). The
+   box starts at the area's usual complement and takes the day's own number; blank goes back to the usual. */
+function _attNeedCard(iso, rec) {
+  var heads = {};
+  (rec ? staffActive() : []).forEach(function(w) {
+    var m = rec.marks[w.id];
+    if (!m || (m.st !== 'P' && m.st !== 'H')) return;
+    var a = m.area || w.area || 'flex';
+    heads[a] = (heads[a] || 0) + 1;
+  });
+  var html = '<div class="inv-panel inv-panel-flush" id="attNeed"><div class="inv-panel-head"><span class="inv-panel-title">Needed today</span></div>' +
+    '<div class="inv-panel-body inv-note">The general shift: who stood in each area against what the shift needed. The box starts at the area&rsquo;s usual number ' +
+    '(Areas); type the day&rsquo;s own, 0 when the line did not need anyone, or clear it for the usual. The shortfall and the extra are judged against it. ' +
+    'An OT or night block takes its own number under Extra hours.</div>';
+  STAFF_AREAS.filter(function(a) { return a.floor && a.id !== 'flex'; }).forEach(function(a) {
+    var need = areaNeedOn(iso, a.id), usual = areaTarget(a.id), h = heads[a.id] || 0, set = areaNeedSet(iso, a.id);
+    var dot = need == null ? uiDot('neutral', 'No number') : h < need ? uiDot('warning', 'Short ' + (need - h)) : h > need ? uiDot('info', (h - need) + ' over') : uiDot('ok', 'Met');
+    html += '<div class="inv-row inv-row-2" data-need-area="' + a.id + '"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(a.label) + '</span>' +
+      '<span class="inv-row-meta">' + h + ' on the floor' + (set && usual != null ? ' · usually ' + usual : '') + '</span></span>' +
+      '<span class="inv-row-end"><input type="number" class="inv-input inv-input-sm inv-input-num" data-att-need data-area="' + a.id + '" step="1" min="0"' +
+      ' placeholder="' + (usual != null ? usual : '—') + '" value="' + (set ? need : '') + '" aria-label="Needed in ' + escHtml(a.label) + '">' + dot + '</span></div>';
+  });
+  return html + '</div>';
+}
+
+/* A block's own number (blockNorm reads it first); blank goes back to the areas' complement. */
+function setAttBlockNeed(idx, v) {
+  var rec = attDay(_attDate, false);
+  if (!rec || !rec.extra[idx]) return;
+  var n = String(v).trim() === '' ? NaN : Math.floor(Number(v));
+  if (!isNaN(n) && n >= 0) rec.extra[idx].need = n; else delete rec.extra[idx].need;
+  saveState();
 }
 
 function _attExtraCard(iso, rec) {
@@ -900,10 +940,28 @@ function attRemoveExtra(idx) {
   renderAttendance();
 }
 
+/* A correction to a row the roll made is a lesson for the next roll with the same heading (relay.js). Put back as it
+   was read, the lesson goes. */
+function relayLearnFromRow(x) {
+  if (!x) return;
+  var L = relayLearnData(), at = Date.now();
+  if (x.srcHead) {
+    var k = relayHeadKey(x.srcHead), now = extraAreas(x), was = x.srcAreas || [];
+    if (now.slice().sort().join() === was.slice().sort().join()) delete L.heads[k];
+    else L.heads[k] = { areas: now, was: was, text: x.srcHead, at: at, day: _attDate };
+  }
+  if (x.srcSlot && x.kind === 'block') {
+    var ks = relayHeadKey(x.srcSlot);
+    if (x.from === x.srcFrom && x.to === x.srcTo) delete L.slots[ks];
+    else if (x.from && x.to) L.slots[ks] = { from: x.from, to: x.to, wasFrom: x.srcFrom || '', wasTo: x.srcTo || '', text: x.srcSlot, at: at, day: _attDate };
+  }
+}
+
 function setAttExtraArea(idx, areaId) {
   var rec = attDay(_attDate, false);
   if (!rec || !rec.extra[idx]) return;
   rec.extra[idx].area = areaId;
+  relayLearnFromRow(rec.extra[idx]);
   saveState();
 }
 
@@ -927,6 +985,7 @@ function setAttBlockTime(idx, which, value) {
   var rec = attDay(_attDate, false);
   if (!rec || !rec.extra[idx]) return;
   rec.extra[idx][which === 'to' ? 'to' : 'from'] = String(value || '');
+  relayLearnFromRow(rec.extra[idx]);
   saveState();
 }
 
@@ -947,6 +1006,7 @@ function toggleAttBlockArea(idx, areaId) {
   // cost tallies bucket on, and a row that lost its last area would otherwise
   // keep booking against whichever one it used to name.
   x.area = list.length ? list[0] : 'flex';
+  relayLearnFromRow(x);
   saveState();
 }
 

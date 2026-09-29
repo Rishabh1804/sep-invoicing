@@ -228,7 +228,7 @@ body:not(.inv-booted) { pointer-events: none; }
 .inv-as-page {
   --as-fs: 9pt; --as-fs-sm: 7.5pt; --as-fs-h: 14pt; --as-fs-slot: 10.5pt;
   --as-line: 6.5mm; --as-line-tall: 8.5mm; --as-gap: 3mm; --as-pad: 10mm 12mm; --as-rule: 0.5pt; --as-num-w: 6mm;
-  --as-sheet-w: 210mm; --as-sheet-h: 297mm; --as-sign-gap: 10mm;
+  --as-sheet-w: 210mm; --as-sheet-h: 297mm; --as-sign-gap: 10mm; --as-ink: #1a3a8f;
   background: #fff; color: #000; font-family: var(--ff-base); font-size: var(--as-fs); line-height: 1.2;
   width: var(--as-sheet-w); min-height: var(--as-sheet-h); padding: var(--as-pad); margin: 0 auto var(--sp-16);
   border: 1px solid var(--border); page-break-after: always; break-after: page;
@@ -258,6 +258,8 @@ body:not(.inv-booted) { pointer-events: none; }
 .inv-as-sign { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--as-gap); margin-top: var(--as-sign-gap); font-size: var(--as-fs-sm); }
 .inv-as-sign > div { border-top: var(--as-rule) solid #000; padding-top: 1mm; }
 .inv-as-note { font-size: var(--as-fs-sm); color: #444; margin-top: 2mm; }
+/* What a worked example carries, in the ink of a filled form. */
+.inv-as-fill { color: var(--as-ink); font-weight: 600; }
 
 /* ===== PRINT VIEW ===== */
 .inv-print-view {

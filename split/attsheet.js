@@ -46,34 +46,100 @@ function _asClock(t) {
   return m ? _asHm(parseInt(m[1], 10) * 60 + parseInt(m[2], 10)) : String(t || '');
 }
 
-/* Shyam's roll: In time (front) and Out time (back). Numbers run on within a slot, as he writes them. */
-function attSheetShyamHtml(iso) {
-  var n = 1, boxes = '';
-  ATT_SHEET_IN_AREAS.forEach(function(a) {
-    boxes += '<div class="inv-as-box"><div class="inv-as-box-h">' + a[0] + '</div>' + _asLines(a[1], n) +
-      (a[2] ? _asField('EXTRA', 'hours') : '') + '</div>';
-    n += a[1];
+/* A line or field carrying what was recorded: printed in the ink colour of a filled form (inv-as-fill). */
+function _asFillLines(texts, min, from) {
+  var h = '', n = Math.max(min, texts.length);
+  for (var i = 0; i < n; i++) {
+    h += '<div class="inv-as-line">' + (from != null ? '<span class="inv-as-num">' + (from + i) + ')</span>' : '') +
+      (texts[i] ? '<span class="inv-as-fill">' + escHtml(texts[i]) + '</span>' : '') + '</div>';
+  }
+  return h;
+}
+function _asFillField(label, value, after) {
+  return '<div class="inv-as-field"><span>' + label + '</span><span class="inv-as-blank">' + (value ? '<span class="inv-as-fill">' + escHtml(value) + '</span>' : '') + '</span>' +
+    (after ? '<span>' + after + '</span>' : '') + '</div>';
+}
+function _asName(id) { var w = staffById(id) || staffById(Number(id)); return w ? w.name : String(id); }
+function _asBlockMin(t) { var m = /^(\d{1,2}):(\d{2})$/.exec(String(t || '')); return m ? +m[1] * 60 + +m[2] : null; }
+
+/* Shyam's roll: In time (front) and Out time (back). Numbers run on within a slot, as he writes them. With `rec` (an
+   earlier day the app holds; owner, 29 Sep 2026: "if we have previous day's data ... that should be printed when
+   printing out Shyam's sheet for any previous day, that way giving them a tutorial becomes easy") the same sheet comes
+   out filled in his own shape: names under their area, the absent by tier, each block's area, crew and EXTRA, who left
+   at 5 and who later, with their own times. */
+function attSheetShyamHtml(iso, rec) {
+  var marks = rec ? rec.marks || {} : {}, extra = rec ? rec.extra || [] : [];
+  var byBox = {}, absM = [], absW = [], flex = [];
+  var boxOf = { 'vat-a1': 0, 'vat-a2': 1, 'barrel': 2, 'pickling-barrel': 2, 'pickling-vat': 3, 'office': 4, 'gate': 4 };
+  Object.keys(marks).forEach(function(id) {
+    var m = marks[id], w = staffById(id) || staffById(Number(id));
+    if (!m || !m.st) return;
+    if (m.st === 'A') { (w && w.comp === 'monthly' ? absM : absW).push(_asName(id)); return; }
+    var b = boxOf[m.area || (w && w.area) || 'flex'];
+    if (b == null) flex.push(_asName(id)); else (byBox[b] = byBox[b] || []).push(_asName(id));
   });
-  boxes += '<div class="inv-as-box"><div class="inv-as-box-h">Monthly absent</div>' + _asLines(3, n) +
-    '<div class="inv-as-box-h">Weekly absent</div>' + _asLines(3, n + 3) + '</div>';
-  var block = function(title, lines) {
-    return '<div class="inv-as-box">' + '<div class="inv-as-box-h">' + title + '</div>' + _asField('Area') + _asLines(lines, 1) +
-      _asField('EXTRA', 'hours') + _asField('Work done') + '</div>';
+  var cover = {};
+  extra.forEach(function(x) { if ((x.kind || 'coverage') === 'coverage') { var b = boxOf[x.area]; if (b != null) cover[b] = (cover[b] || 0) + (x.hours || 0); } });
+  var blocks = extra.filter(function(x) { return x.kind === 'block'; }).sort(function(a, b) { return (_asBlockMin(a.from) || 0) - (_asBlockMin(b.from) || 0); });
+  var morning = blocks.filter(function(x) { var f = _asBlockMin(x.from); return f != null && f < 510; });
+  var evening = blocks.filter(function(x) { var f = _asBlockMin(x.from); return f == null || f >= 510; });
+
+  var n = 1, boxes = '';
+  ATT_SHEET_IN_AREAS.forEach(function(a, i) {
+    var names = byBox[i] || [];
+    boxes += '<div class="inv-as-box"><div class="inv-as-box-h">' + a[0] + '</div>' + _asFillLines(names, a[1], n) +
+      (a[2] ? _asFillField('EXTRA', cover[i] ? formatNum(cover[i], 1).replace(/\.0$/, '') : '', 'hours') : '') + '</div>';
+    n += Math.max(a[1], names.length);
+  });
+  if (flex.length) { boxes += '<div class="inv-as-box"><div class="inv-as-box-h">No line written</div>' + _asFillLines(flex, 1, n) + '</div>'; n += flex.length; }
+  boxes += '<div class="inv-as-box"><div class="inv-as-box-h">Monthly absent</div>' + _asFillLines(absM, 3, n) +
+    '<div class="inv-as-box-h">Weekly absent</div>' + _asFillLines(absW, 3, n + Math.max(3, absM.length)) + '</div>';
+  var block = function(title, x, lines) {
+    var area = x ? extraAreas(x).map(areaLabel).join(' + ') : '';
+    var crew = x && Array.isArray(x.crew) ? x.crew.map(_asName) : [];
+    return '<div class="inv-as-box"><div class="inv-as-box-h">' + title + '</div>' + _asFillField('Area', area) + _asFillLines(crew, lines, 1) +
+      _asFillField('EXTRA', x && x.hours ? formatNum(x.hours, 1).replace(/\.0$/, '') : '', 'hours') + _asFillField('Work done', '') + '</div>';
   };
-  var front = '<div class="inv-as-page" data-sheet="shyam-in">' + _asHead('In time', iso, 'Shyam') +
-    '<div class="inv-as-slot">6:00 AM</div><div class="inv-as-grid">' + block('Block 1', 3) + block('Block 2', 3) + '</div>' +
+  var mBoxes = '';
+  for (var k = 0; k < Math.max(2, morning.length); k++) mBoxes += block('Block ' + (k + 1) + (morning[k] ? ' · ' + _asClock(morning[k].from) + ' – ' + _asClock(morning[k].to) : ''), morning[k], 3);
+  var worked = rec ? '<div class="inv-as-note">Filled from the app&rsquo;s record of this day, as a worked example.</div>' : '';
+  var front = '<div class="inv-as-page" data-sheet="shyam-in"' + (rec ? ' data-filled' : '') + '>' + _asHead('In time', iso, 'Shyam') + worked +
+    '<div class="inv-as-slot">6:00 AM</div><div class="inv-as-grid">' + mBoxes + '</div>' +
     '<div class="inv-as-slot">8:30 AM</div><div class="inv-as-grid">' + boxes + '</div>' +
     '<div class="inv-as-note">Write each name as on WhatsApp. EXTRA is the hours booked to the area for a hand short.</div></div>';
-  var later = function() {
-    return '<div class="inv-as-box"><div class="inv-as-box-h">Out at ____________</div>' + _asField('Area') + _asLines(5, 1) +
-      _asField('EXTRA', 'hours') + _asField('Work done') + '</div>';
+
+  // Out time: whoever is on no evening block leaves in the 5 PM list, with their own time when it is not 5.
+  var onBlock = {};
+  evening.forEach(function(x) { (x.crew || []).forEach(function(id) { onBlock[String(id)] = true; }); });
+  var five = [];
+  Object.keys(marks).forEach(function(id) {
+    var m = marks[id];
+    if (!m || (m.st !== 'P' && m.st !== 'H') || onBlock[String(id)]) return;
+    five.push(_asName(id) + (m.outMin != null && m.outMin !== 1020 ? ' ' + _asHm(m.outMin) : ''));
+  });
+  var fiveA = five.slice(0, Math.max(8, Math.ceil(five.length / 2))), fiveB = five.slice(fiveA.length);
+  var later = function(x) {
+    var area = x ? extraAreas(x).map(areaLabel).join(' + ') : '';
+    var crew = x && Array.isArray(x.crew) ? x.crew.map(_asName) : [];
+    return '<div class="inv-as-box"><div class="inv-as-box-h">Out at ' + (x && x.to ? '<span class="inv-as-fill">' + escHtml(_asClock(x.to)) + '</span>' +
+      (x.from ? ' <span class="inv-as-num">from ' + escHtml(_asClock(x.from)) + '</span>' : '') : '____________') + '</div>' +
+      _asFillField('Area', area) + _asFillLines(crew, 5, 1) +
+      _asFillField('EXTRA', x && x.hours ? formatNum(x.hours, 1).replace(/\.0$/, '') : '', 'hours') + _asFillField('Work done', '') + '</div>';
   };
-  var back = '<div class="inv-as-page" data-sheet="shyam-out">' + _asHead('Out time', iso, 'Shyam') +
-    '<div class="inv-as-slot">5:00 PM</div><div class="inv-as-grid"><div class="inv-as-box">' + _asLines(8, 1) + '</div>' +
-    '<div class="inv-as-box">' + _asLines(8, 9) + '</div></div>' +
-    '<div class="inv-as-slot">Later</div><div class="inv-as-grid">' + later() + later() + later() + later() + '</div>' +
+  var lBoxes = '';
+  for (var j = 0; j < Math.max(4, evening.length); j++) lBoxes += later(evening[j]);
+  var back = '<div class="inv-as-page" data-sheet="shyam-out"' + (rec ? ' data-filled' : '') + '>' + _asHead('Out time', iso, 'Shyam') + worked +
+    '<div class="inv-as-slot">5:00 PM</div><div class="inv-as-grid"><div class="inv-as-box">' + _asFillLines(fiveA, 8, 1) + '</div>' +
+    '<div class="inv-as-box">' + _asFillLines(fiveB, 8, Math.max(8, fiveA.length) + 1) + '</div></div>' +
+    '<div class="inv-as-slot">Later</div><div class="inv-as-grid">' + lBoxes + '</div>' +
     '<div class="inv-as-sign"><div>Filled by Shyam</div><div>Sent on WhatsApp at</div><div>Handed to Deepak at</div></div></div>';
   return front + back;
+}
+
+// An earlier day the app holds is printed filled on Shyam's sheet; today and any day with nothing recorded, blank.
+function attSheetFillFor(iso) {
+  var rec = attDay(iso, false);
+  return rec && iso < localDateStr() && Object.keys(rec.marks || {}).length ? rec : null;
 }
 
 /* The roster in the Day view's order, and anyone marked that day who has since left it. */
@@ -134,7 +200,7 @@ function attSheetOpen() {
   };
   dialogOpen('<div class="inv-dialog">' + dialogHeadHtml('Print sheets · ' + escHtml(formatDate(_attDate))) +
     '<div class="inv-field">' +
-    c('shyam', 'Shyam\'s sheet', 'In time and Out time, as his WhatsApp roll (2 pages)') +
+    c('shyam', 'Shyam\'s sheet', attSheetFillFor(_attDate) ? 'In time and Out time, filled with this day\'s record as a worked example (2 pages)' : 'In time and Out time, as his WhatsApp roll (2 pages)') +
     c('deepak', 'Deepak\'s sheet', 'the Day entry: the roster, P / H / A, area, in, out, hours, OT, EXTRA') +
     c('filled', 'Filled copy', rec ? 'what the app holds for this day' : 'nothing entered for this day yet', !rec) +
     '</div><div class="inv-dialog-foot"><button class="inv-btn inv-btn-secondary" data-action="invCloseOverlay">Cancel</button>' +
@@ -144,7 +210,7 @@ function attSheetOpen() {
 function attSheetPreview() {
   document.querySelectorAll('[data-as-pick]').forEach(function(el) { if (!el.disabled) _attSheetPick[el.dataset.asPick] = el.checked; });
   var rec = attDay(_attDate, false);
-  var h = (_attSheetPick.shyam ? attSheetShyamHtml(_attDate) : '') + (_attSheetPick.deepak ? attSheetDeepakHtml(_attDate, false) : '') +
+  var h = (_attSheetPick.shyam ? attSheetShyamHtml(_attDate, attSheetFillFor(_attDate)) : '') + (_attSheetPick.deepak ? attSheetDeepakHtml(_attDate, false) : '') +
     (_attSheetPick.filled && rec ? attSheetDeepakHtml(_attDate, true) : '');
   if (!h) { showToast('Pick at least one sheet', 'error'); return; }
   closeOverlay();

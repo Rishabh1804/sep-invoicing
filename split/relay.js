@@ -26,6 +26,7 @@ var RELAY_GENERAL = 510;   // 8:30 AM, the general shift's start
 var RELAY_GENERAL_OUT = 1020;  // 5:00 PM
 var RELAY_GATE = [420, 1140];  // 7 AM – 7 PM, the gate keeper's standing hours
 var RELAY_MORNING = 360;   // 6:00 AM
+var RELAY_NIGHT = 1200;    // 8:00 PM, the night hold's start (owner, 29 Sep 2026: "night hold here means night shift … 8 pm to 6 am")
 
 function relayIso(d, m, y) {
   d = +d; m = +m; y = +y;
@@ -33,6 +34,25 @@ function relayIso(d, m, y) {
   if (!(d >= 1 && d <= 31 && m >= 1 && m <= 12)) return null;
   return y + '-' + String(m).padStart(2, '0') + '-' + String(d).padStart(2, '0');
 }
+/* ===== LEARNT FROM YOUR CORRECTIONS (owner, 29 Sep 2026: "The parser should learn from feedback and it generates
+   feedback by reading if the data was changed after the paste or save") =====
+   A row the roll made remembers the heading it came from and what was read (`srcHead`, `srcAreas`, `srcSlot`, `srcFrom`,
+   `srcTo`). Changing its areas, or a block's in and out, on the Day view records the correction against that heading
+   (relayLearnFromRow, staff.js), and the next roll with the same heading reads it that way and says so. Put back as
+   read, the lesson is forgotten; the paste view lists every one with Forget. Times are learnt only for a heading with
+   words in it ("night hold"): a bare "8:00 PM" is when the crew went home, and one day's exception must not move every
+   day's block. `S.relayLearn = {heads: {KEY: {areas, was, text, at, day}}, slots: {KEY: {from, to, wasFrom, wasTo, …}}}`. */
+function relayHeadKey(t) { return String(t || '').toUpperCase().replace(/[^A-Z0-9]+/g, ' ').trim(); }
+function relayHeadHasWords(t) { return /[A-Z]{2,}/.test(relayHeadKey(t).replace(/\b(AM|PM|OUT|TIME|IN)\b/g, '')); }
+function relayLearnData() {
+  if (!S.relayLearn || typeof S.relayLearn !== 'object' || Array.isArray(S.relayLearn)) S.relayLearn = {};
+  if (!S.relayLearn.heads || typeof S.relayLearn.heads !== 'object') S.relayLearn.heads = {};
+  if (!S.relayLearn.slots || typeof S.relayLearn.slots !== 'object') S.relayLearn.slots = {};
+  return S.relayLearn;
+}
+function _relayHm(t) { var m = /^(\d{1,2}):(\d{2})$/.exec(String(t || '')); return m ? +m[1] * 60 + +m[2] : null; }
+function _relayLearntNote(l) { return 'learnt from your correction' + (l && l.day ? ' on ' + formatDate(l.day) : ''); }
+
 function relayKey(s) { return String(s || '').toUpperCase().replace(/[^A-Z]/g, ''); }
 function relayHhmm(min) {
   if (min == null) return '';
@@ -89,6 +109,12 @@ function relayHeaderAreas(text) {
   // "pickling VA 1 & berral" is the VAT side's pickling that also serves the
   // barrel; "pickling & berral" is the barrel unit.
   if (pick && /PICK\w*\s+(VAT|V\s?A)\b/.test(k)) return ['pickling-vat'];
+  // "pickling 2 SIDE": one pickling crew serving both sides, the barrel and whichever VAT line runs (owner, 29 Sep
+  // 2026) — judged against both pickling areas, never a third area.
+  if (pick && /\b(2|TWO|BOTH)\s*SIDE/.test(k)) return ['pickling-vat', 'pickling-barrel'];
+  // "berral & V A 2": the barrel and a VAT line in one block (the night hold). It used to stop at the barrel and
+  // judge the whole crew against the barrel's complement alone.
+  if (barrel && !pick && (a1 || a2)) return ['barrel'].concat(a1 ? ['vat-a1'] : []).concat(a2 ? ['vat-a2'] : []);
   if (barrel) return pick ? ['barrel', 'pickling-barrel'] : ['barrel'];
   if (pick && vat) {
     var vatFirst = /^\s*(VAT|V\s?A)\b/.test(k) && k.indexOf('PICK') > k.search(/VAT|V\s?A/);
@@ -282,6 +308,7 @@ function relayKind(text) {
    review can show the message beside the reading. */
 function parseRelayRoll(text, roster, sentOn) {
   var idx = relayRosterIndex(roster);
+  var learn = (roster && roster.learn) || { heads: {}, slots: {} };
   var lines = String(text || '').split('\n');
   var out = { kind: relayKind(text), date: null, days: {}, lines: [], issues: [] };
   var first = lines[0] || '';
@@ -363,9 +390,11 @@ function parseRelayRoll(text, roster, sentOn) {
       var row;
       if (general && sec.areas.length) {
         row = { kind: 'coverage', area: sec.areas[0], hours: hrs };
+        if (sec.srcHead) { row.srcHead = sec.srcHead; row.srcAreas = [sec.areas[0]]; }
         ln.read = 'EXTRA ' + hrs + ' h booked to ' + relayAreaName(sec.areas[0]);
       } else {
-        var from = st.mode === 'out' || (st.slot && st.slot.start >= RELAY_GENERAL_OUT) ? RELAY_GENERAL_OUT : (st.slot && st.slot.start != null ? st.slot.start : RELAY_MORNING);
+        var from = st.mode === 'out' ? (st.slot && st.slot.rangeStart != null ? st.slot.rangeStart : RELAY_GENERAL_OUT)
+          : (st.slot && st.slot.start >= RELAY_GENERAL_OUT) ? RELAY_GENERAL_OUT : (st.slot && st.slot.start != null ? st.slot.start : RELAY_MORNING);
         var to = st.mode === 'out' ? (st.slot && st.slot.end) : (st.slot && st.slot.end != null && st.slot.end !== st.slot.start ? st.slot.end : (from === RELAY_MORNING ? RELAY_GENERAL : null));
         // Barrel and its pickling are one unit to the reconciler; the shop's own
         // decodes name a morning block there as the pickling side.
@@ -383,8 +412,11 @@ function parseRelayRoll(text, roster, sentOn) {
           }
         }
         var crewNames = crewIds.map(function(id) { return day(st.iso).people[id].name; });
-        var bAreas = sec.areas.length === 2 && sec.areas[0] === 'barrel' ? ['pickling-barrel'] : sec.areas.slice();
+        var bAreas = sec.learnt ? sec.learnt.areas.slice()
+          : sec.areas.length === 2 && sec.areas[0] === 'barrel' && sec.areas[1] === 'pickling-barrel' ? ['pickling-barrel'] : sec.areas.slice();
         row = { kind: 'block', areas: bAreas, crew: crewNames, hours: hrs, from: relayHhmm(from), to: to == null ? '' : relayHhmm(to) };
+        if (sec.srcHead) { row.srcHead = sec.srcHead; row.srcAreas = bAreas.slice(); }
+        if (st.slot && st.slot.label && relayHeadHasWords(st.slot.label)) { row.srcSlot = st.slot.label; row.srcFrom = row.from; row.srcTo = row.to; }
         ln.read = 'EXTRA ' + hrs + ' h, block ' + relayClockLabel(from) + ' – ' + (to == null ? '?' : relayClockLabel(to)) +
           (row.areas.length ? ', ' + row.areas.map(relayAreaName).join(' + ') : ', no line named') + ', crew ' + (row.crew.length ? row.crew.length : 'not named');
         if (!row.crew.length) out.issues.push({ tone: 'amber', n: ln.n, text: 'EXTRA ' + hrs + ' h has no crew named under it; it is kept, and reads Not checkable on the Areas card.' });
@@ -393,8 +425,8 @@ function parseRelayRoll(text, roster, sentOn) {
       ln.role = 'extra';
       day(st.iso).extra.push(row);
       // The tag closes its group: names after it are the next crew.
-      var keep = sec.areas.slice(), was = sec.slotOnly;
-      newSection(keep, null); st.sec.slotOnly = was; st.sec.headText = '';
+      var keep = sec.areas.slice(), was = sec.slotOnly, srcHead = sec.srcHead, lrn = sec.learnt;
+      newSection(keep, null); st.sec.slotOnly = was; st.sec.headText = ''; st.sec.srcHead = srcHead; st.sec.learnt = lrn;
       return;
     }
 
@@ -426,7 +458,10 @@ function parseRelayRoll(text, roster, sentOn) {
     if (!hit && !numbered && isHeaderish) {
       var kindH = isHeaderish;
       if (kindH.slot) {
-        if (st.mode === 'out') st.slot = { start: null, end: kindH.end != null ? kindH.end : (kindH.single != null ? kindH.single : null), label: bare, rangeStart: kindH.start };
+        // A heading that writes both ends ("night hold-8 pm to 6 am") gives its block both: the start is no longer
+        // taken to be 5 PM. A single time is only when the crew under it went home.
+        if (st.mode === 'out') st.slot = { start: null, end: kindH.end != null ? kindH.end : (kindH.single != null ? kindH.single : null), label: bare,
+          rangeStart: kindH.end != null || kindH.night ? kindH.start : null };
         else {
           var sStart = kindH.start;
           // A slot ahead of the 8:30 shift on an in-time roll is the morning: the
@@ -438,6 +473,14 @@ function parseRelayRoll(text, roster, sentOn) {
           if (sStart === RELAY_GENERAL) st.sawGeneral = true;
           st.slot = { start: sStart, end: kindH.end, label: bare };
           kindH.start = sStart;
+        }
+        var ls = relayHeadHasWords(bare) ? learn.slots[relayHeadKey(bare)] : null;
+        if (ls && _relayHm(ls.from) != null && _relayHm(ls.to) != null) {
+          var lf = _relayHm(ls.from), lt = _relayHm(ls.to);
+          if (lt <= lf) lt += 1440;
+          if (st.mode === 'out') { st.slot.rangeStart = lf; st.slot.end = lt; } else { st.slot.start = lf; st.slot.end = lt; kindH.start = lf; }
+          st.slot.learnt = ls;
+          out.issues.push({ tone: 'info', n: ln.n, text: '"' + bare + '" read as ' + relayClockLabel(lf) + ' – ' + relayClockLabel(lt) + ', ' + _relayLearntNote(ls) + '.' });
         }
         newSection(kindH.areas || [], null);
         st.sec.slotOnly = !(kindH.areas && kindH.areas.length);
@@ -460,12 +503,19 @@ function parseRelayRoll(text, roster, sentOn) {
       var prevLn = out.lines[out.lines.length - 2];
       var lastRow = day(st.iso).extra[day(st.iso).extra.length - 1];
       if (prevLn && prevLn.role === 'extra' && lastRow && lastRow.kind === 'block' && !lastRow.areas.length && (kindH.areas || []).length) {
-        lastRow.areas = kindH.areas.length === 2 && kindH.areas[0] === 'barrel' ? ['pickling-barrel'] : kindH.areas.slice();
+        lastRow.areas = kindH.areas.length === 2 && kindH.areas[0] === 'barrel' && kindH.areas[1] === 'pickling-barrel' ? ['pickling-barrel'] : kindH.areas.slice();
         ln.role = 'head'; ln.read = 'The block above ran on ' + lastRow.areas.map(relayAreaName).join(' + ');
         return;
       }
+      var lh = !kindH.absent ? learn.heads[relayHeadKey(bare)] : null;
+      if (lh && Array.isArray(lh.areas)) {
+        kindH.areas = lh.areas.slice();
+        out.issues.push({ tone: 'info', n: ln.n, text: '"' + bare + '" read as ' + (lh.areas.map(relayAreaName).join(' + ') || 'no line') + ', ' + _relayLearntNote(lh) + '.' });
+      }
       newSection(kindH.areas || [], { absent: kindH.absent });
       st.sec.headText = bare;
+      st.sec.srcHead = bare;
+      st.sec.learnt = lh || null;
       ln.role = 'head';
       ln.read = kindH.absent ? 'Absent' : (kindH.areas.length ? kindH.areas.map(relayAreaName).join(' + ') : 'Section');
       return;
@@ -556,7 +606,7 @@ function relaySlotOrArea(bare) {
   if (/\b(WORK|PRODUCTION)\b/.test(up) && !/\d/.test(up)) return { prod: true };
   var times = relayTimes(bare);
   var words = up.replace(/\d{1,2}\s*:?\s*\d{0,2}\s*(AM|PM)?/g, ' ').replace(/[^A-Z&]+/g, ' ').trim().split(/\s+/).filter(Boolean);
-  var slotWords = ['OUT', 'TIME', 'IN', 'AM', 'PM', 'NIGHT', 'HOLD', 'MORNING', 'OT', 'GENERAL', 'GANRAL', 'SHIFT', 'SHIPT', 'EVENING', 'M', 'P', 'A'];
+  var slotWords = ['OUT', 'TIME', 'IN', 'AM', 'PM', 'NIGHT', 'HOLD', 'TO', 'FROM', 'TILL', 'MORNING', 'OT', 'GENERAL', 'GANRAL', 'SHIFT', 'SHIPT', 'EVENING', 'M', 'P', 'A'];
   var areas = relayHeaderAreas(bare);
   var absent = /ABSENT/.test(up);
   if (times.length && !absent) {
@@ -565,7 +615,8 @@ function relaySlotOrArea(bare) {
   }
   if (/MORNING/.test(up)) return { slot: true, start: RELAY_MORNING, end: RELAY_GENERAL, areas: areas };
   if (/G[AE]N[AE]?RAL/.test(up)) return { slot: true, start: RELAY_GENERAL, end: RELAY_GENERAL_OUT, areas: areas };
-  if (/NIGHT/.test(up)) return { slot: true, start: RELAY_GENERAL_OUT, end: 1440 + RELAY_MORNING, areas: areas };
+  // The night hold runs 8 PM to 6 AM (owner, 29 Sep 2026); times written on the heading win over this.
+  if (/NIGHT/.test(up)) return { slot: true, start: RELAY_NIGHT, end: 1440 + RELAY_MORNING, areas: areas, night: true };
   if (absent) return { absent: true, areas: [] };
   if (/\b(MONTHLY|WEEKLY)\b/.test(up) && words.length <= 2) return { areas: [] };
   if (areas.length) return { areas: areas };
@@ -619,6 +670,7 @@ function relayRoster(choices) {
       relayNames: (w.relayNames || []).filter(function(n) { return !(relayKey(n) in choices); }).concat(extra[String(w.id)] || []) };
   });
   r.skip = skip;
+  r.learn = relayLearnData();
   return r;
 }
 function relayWorker(id) {
@@ -713,6 +765,8 @@ function relayPlan(rv) {
         ? { kind: 'block', areas: x.areas, crew: x.crew.map(function(n) { var w = roster.find(function(r) { return r.name === n; }); return w ? w.id : null; }).filter(function(v) { return v != null; }),
             hours: x.hours, from: x.from, to: x.to, area: x.areas[0] || 'flex', src: 'relay' }
         : { kind: 'coverage', area: x.area, hours: x.hours, src: 'relay' };
+      // Where the row came from travels with it, so a correction on the saved day can teach the next roll.
+      ['srcHead', 'srcAreas', 'srcSlot', 'srcFrom', 'srcTo'].forEach(function(k) { if (x[k] != null) row[k] = Array.isArray(x[k]) ? x[k].slice() : x[k]; });
       var dup = rec && (rec.extra || []).some(function(e) { return relayExtraSame(e, row); });
       return { row: row, dup: !!dup };
     });
@@ -753,7 +807,30 @@ function relayRenderView() {
     '<textarea id="relayPasteText" class="inv-textarea inv-textarea-mono" rows="12" spellcheck="false" placeholder="Copy the message in WhatsApp and paste it here. Several at once is fine.">' +
     escHtml(_relayDraft) + '</textarea></div>' +
     '<button class="inv-btn inv-btn-primary inv-btn-block" data-action="invRelayRead">Read message</button>' +
-    '<div class="inv-note inv-mt-8">Nothing is saved until you check what was read. Names are matched to the roster; a name it cannot place is asked about once and remembered.</div></div>';
+    '<div class="inv-note inv-mt-8">Nothing is saved until you check what was read. Names are matched to the roster; a name it cannot place is asked about once and remembered.</div></div>' +
+    relayLearntHtml();
+}
+
+/* What the reader has learnt from your corrections, each with what it was read as before, and Forget. */
+function relayLearntHtml() {
+  var L = relayLearnData(), rows = '';
+  Object.keys(L.heads).sort().forEach(function(k) {
+    var l = L.heads[k];
+    rows += '<div class="inv-row inv-row-2" data-learnt="head"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(l.text || k) + '</span>' +
+      '<span class="inv-row-meta">' + escHtml((l.areas || []).map(relayAreaName).join(' + ') || 'no line') + ' · was ' + escHtml((l.was || []).map(relayAreaName).join(' + ') || 'no line') +
+      (l.day ? ' · ' + escHtml(formatDate(l.day)) : '') + '</span></span>' +
+      '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invRelayForget" data-kind="heads" data-key="' + escHtml(k) + '">Forget</button></div>';
+  });
+  Object.keys(L.slots).sort().forEach(function(k) {
+    var l = L.slots[k];
+    rows += '<div class="inv-row inv-row-2" data-learnt="slot"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(l.text || k) + '</span>' +
+      '<span class="inv-row-meta">' + escHtml(l.from + ' – ' + l.to) + ' · was ' + escHtml((l.wasFrom || '?') + ' – ' + (l.wasTo || '?')) +
+      (l.day ? ' · ' + escHtml(formatDate(l.day)) : '') + '</span></span>' +
+      '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invRelayForget" data-kind="slots" data-key="' + escHtml(k) + '">Forget</button></div>';
+  });
+  if (!rows) return '';
+  return '<div class="inv-panel inv-panel-flush" id="relayLearnt"><div class="inv-panel-head"><span class="inv-panel-title">Learnt from your corrections</span></div>' +
+    '<div class="inv-panel-body inv-note">A heading you corrected on the Day view is read your way on every roll after it. Forget one to go back to how it is read by default.</div>' + rows + '</div>';
 }
 
 function relayRead() {
@@ -950,6 +1027,11 @@ function relayAction(action, btn) {
     case 'invRelayBack': _relayView = 'paste'; renderAttendance(); break;
     case 'invRelaySave': relaySave(); break;
     case 'invRelayLines': _relayShowLines = !_relayShowLines; renderAttendance(); break;
+    case 'invRelayForget': {
+      var L = relayLearnData();
+      if (L[btn.dataset.kind]) { delete L[btn.dataset.kind][btn.dataset.key]; saveState(); showToast('Forgotten'); renderAttendance(); }
+      break;
+    }
   }
 }
 function relayOnChange(t) {

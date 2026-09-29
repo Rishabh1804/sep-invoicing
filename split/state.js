@@ -37,6 +37,7 @@ function getDefaultState() {
     // is not a complement of zero, and the Areas view says so rather than
     // reporting every area as overstaffed on day one.
     areaTargets: {},
+    shiftNeeds: {},
     // Attendance, keyed by ISO date. One entry per day the plant was recorded;
     // a day with no key is a day nobody typed, which is not the same fact as a
     // day nobody worked — labour coverage is stated on that distinction.
@@ -65,6 +66,7 @@ function getDefaultState() {
     // Every attendance roll pasted in, whole, with a fingerprint so the same
     // roll twice is refused (it would count every hour twice).
     relayPastes: [],
+    relayLearn: { heads: {}, slots: {} },
     // Payments and advances made to workers, voided with a reason, never deleted.
     staffPayments: [],
     // Power and other monthly bills, for the live cost (voided, never deleted).
@@ -465,7 +467,7 @@ function hideStorageBanner(kind) {
 // Containers hold the user's records, so a missing one is filled EMPTY — the
 // app must never invent business data to repair a shape.
 var STATE_CONTAINERS = ['clients', 'items', 'invoices', 'incomingMaterial', 'partWeights',
-  'voidedNumbers', 'creditNotes', 'extraExceptions', 'staff', 'attendance', 'areaTargets', 'stock', 'todo', 'relayPastes', 'staffPayments', 'costBills', 'payrollPaid', 'bank', 'production'];
+  'voidedNumbers', 'creditNotes', 'extraExceptions', 'staff', 'attendance', 'areaTargets', 'shiftNeeds', 'stock', 'todo', 'relayPastes', 'relayLearn', 'staffPayments', 'costBills', 'payrollPaid', 'bank', 'production'];
 // Config objects are the opposite: a missing one is filled from the defaults,
 // and so is a missing KEY inside one. `labourCfg()` reads `extraRate || 0`, so
 // a backup predating a constant would silently price the extra at nothing

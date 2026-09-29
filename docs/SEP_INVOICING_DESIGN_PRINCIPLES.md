@@ -590,7 +590,7 @@ Replaces `inv-form-group/label/input/select/row`, `inv-stk-label`, `inv-stk-fiel
   open one `data-on`; the phone stacks them all under an `inv-pagehead-title`).
 - `inv-scroll`: a list inside a dialog scrolls within `--scroll-max` rather than pushing the dialog's buttons off screen.
 - `inv-toast`: under the top bar, centred (clear of the action bar and the bottom bar), `--text-1` background with
-  `--surface` text (it inverts with the theme), `--shadow-pop`, tone shown by a leading dot (`inv-toast-success|warning|error`).
+  `--surface` text (it inverts with the theme), `--shadow-pop`, tone shown by a leading dot (`inv-toast-success|info|warning|error`; info says what another window did, *Updated from another window*).
 Replaces `inv-overlay-scrim/card/header/title/close`, `inv-more-scrim` (the duplicate scrim),
 `inv-confirm-*`, the To-do overlay's Fraunces title.
 

@@ -1604,6 +1604,7 @@ body.inv-desktop .inv-dialog-main > section:not([data-on]) { display: none; }
 .inv-toast-success::before { background: var(--ok); }
 .inv-toast-error::before { background: var(--danger); }
 .inv-toast-warning::before { background: var(--warning); }
+.inv-toast-info::before { background: var(--info); }
 
 /* §6.18 Callouts, notes, empty states */
 .inv-callout {

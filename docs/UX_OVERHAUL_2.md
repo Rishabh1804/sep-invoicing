@@ -1,6 +1,6 @@
 # UX overhaul 2: desktop use, search, how much each screen shows
 
-Agreed with the owner, 28 Sep 2026. **Planning document: steps 0 and 0b are built, nothing else is.** One PR per step, in
+Agreed with the owner, 28 Sep 2026. **Planning document: steps 0, 0b and 2 are built, nothing else is.** One PR per step, in
 this order: **the version guard (2) now comes before navigation (1)** (owner, 29 Sep 2026), since two copies of the app
 open today (the installed app and a tab) already overwrite each other's saves; and IM's view tabs move into navigation. After it, the second batch: Home previews (parked in `NEXT_SESSION.md`) and the daily flow.
 
@@ -58,7 +58,7 @@ reopened the tab last used); measure it at step 6.
      Backspace all walk one trail. Today moving between screens records nothing, so the phone's back leaves the app.
    - Backspace counts only when no field has focus; leaving a form with unsaved changes asks first (`uiConfirm`).
    - A back arrow in the top bar, and on the desktop the trail beside it (`Home › IM › Challan 301`), each part a link.
-2. **The version guard.** Each window holds the whole book and saves it whole, so today a second window would silently
+2. **The version guard. Built** (P93; CLAUDE.md → Persistence says how). Each window holds the whole book and saves it whole, so today a second window would silently
    overwrite the first window's save.
    - The saved copy carries a version. A save from a window holding an older version is refused, the window reloads
      the current copy, and it says so (`uiNotice`). The same guard GitHub sync already gives a blind overwrite.

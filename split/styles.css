@@ -142,6 +142,8 @@ body.inv-desktop .inv-topbar { height: var(--bar-h-desk); padding: 0 var(--sp-16
 body.inv-desktop .inv-topbar-title { font-size: var(--fs-14); }
 body.inv-desktop .inv-topbar-ctx::before { content: '/'; color: var(--text-3); margin-right: var(--sp-8); }
 body.inv-desktop .inv-topbar-btn { display: none; }
+/* A row held back by uiMoreHtml (state.js) until "Show n more": hidden whatever display its class sets. */
+[data-more-of][hidden] { display: none !important; }
 /* Back (nav.js): the arrow on both layouts; on the desktop the trail of earlier steps before the page's name. */
 .inv-topbar-back { margin-left: calc(-1 * var(--sp-8)); }
 .inv-topbar-back[hidden] { display: none; }

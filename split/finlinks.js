@@ -125,15 +125,30 @@ function finWagesHtml(cls, where) {
     if (v.cash || v.staffId == null) e.cash = gstRound(e.cash + v.row.dr);
     else { var k = String(v.staffId); e.named[k] = gstRound((e.named[k] || 0) + v.row.dr); }
   });
-  var link = where === 'pay' ? '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invFinGo" data-tab="payments" data-anchor="bankWages">Open in Finance</button>'
-    : '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invGoPay">Open Staff &rarr; Pay</button>';
-  var h = '<div class="inv-panel inv-panel-flush" id="' + (where === 'pay' ? 'payBankWages' : 'bankWages') + '"><div class="inv-panel-head"><span class="inv-panel-title">Wages paid, from the bank</span>' + link + '</div>' +
-    '<div class="inv-panel-body inv-note">Every cash draw (SELF, TO SELF, TO CASH) counts as wages unless a row is set otherwise. Transfers to a hand on the roster are set against the payroll as paid for the month before; cash is set against the weekly payout.</div>';
   var months = Object.keys(byMonth).sort().reverse();
-  if (!months.length) h += '<div class="inv-empty">No wages on the statement.</div>';
+  // One fact, one screen (UX overhaul 2, owner 28 Sep 2026): the card lives in Staff → Pay beside the payroll it checks;
+  // Finance → Payments keeps one line that says what it holds and opens it.
+  var off = 0;
   months.forEach(function(m) {
+    var e = byMonth[m], slip = payrollPaidFor(bankPrevMonth(m + '-01'));
+    if (slip) Object.keys(e.named).forEach(function(id) {
+      var row = slip.rows.find(function(r) { var pw = payrollWorker(r); return pw && String(pw.id) === id; });
+      var owedW = row ? gstRound(row.paid != null ? Number(row.paid) : (Number(row.dayPay) || 0) + (Number(row.ot) || 0)) : null;
+      if (owedW != null && Math.abs(e.named[id] - owedW) >= 1) off++;
+    });
+  });
+  var sum = months.length ? 'Latest: ' + escHtml(billsMonthLabel(months[0])) + ' <span class="inv-num">' + formatCurrency(byMonth[months[0]].total) + '</span>' +
+    (off ? ' · <span class="inv-dot inv-dot-danger">' + off + ' off the slip</span>' : '') : 'No wages on the statement';
+  if (where !== 'pay') {
+    return '<div class="inv-panel inv-panel-flush" id="bankWages"><div class="inv-row inv-row-2"><span class="inv-row-main"><span class="inv-row-title">Wages paid, from the bank</span>' +
+      '<span class="inv-row-meta">' + sum + '</span></span><span class="inv-row-end"><button class="inv-btn inv-btn-link inv-btn-sm" data-action="invGoPay">Open Staff &rarr; Pay</button></span></div></div>';
+  }
+  var h = '<div class="inv-panel-body inv-note">Every cash draw (SELF, TO SELF, TO CASH) counts as wages unless a row is set otherwise. Transfers to a hand on the roster are set against the payroll as paid for the month before; cash is set against the weekly payout.</div>';
+  if (!months.length) h += '<div class="inv-empty">No wages on the statement.</div>';
+  // The latest three months; the rest one tap away.
+  h += uiMoreHtml('pay-wages-months', months.map(function(m) {
     var e = byMonth[m], slip = payrollPaidFor(bankPrevMonth(m + '-01')), named = Object.keys(e.named);
-    h += '<div class="inv-row inv-row-group"><span class="inv-row-main">Paid in ' + escHtml(billsMonthLabel(m)) + '</span><span class="inv-row-end inv-num">' + formatCurrency(e.total) + '</span></div>';
+    var h = '<div class="inv-row inv-row-group"><span class="inv-row-main">Paid in ' + escHtml(billsMonthLabel(m)) + '</span><span class="inv-row-end inv-num">' + formatCurrency(e.total) + '</span></div>';
     named.forEach(function(id) {
       var w = (S.staff || []).find(function(x) { return String(x.id) === id; }) || { name: '?' };
       var row = slip ? slip.rows.find(function(r) { var pw = payrollWorker(r); return pw && String(pw.id) === id; }) : null;
@@ -146,20 +161,24 @@ function finWagesHtml(cls, where) {
     });
     if (named.length && !slip) h += '<div class="inv-row"><span class="inv-row-main inv-row-meta">No payroll as paid for ' + escHtml(billsMonthLabel(bankPrevMonth(m + '-01'))) + ' to set these against.</span></div>';
     if (e.cash) h += '<div class="inv-row"><span class="inv-row-main">Cash drawn</span><span class="inv-row-end inv-num">' + formatCurrency(e.cash) + '</span></div>';
-  });
+    // A month is its heading and its rows, each a flat row of its own: held back together.
+    return { parts: h.split(/(?=<div class="inv-row)/) };
+  }), { n: 3, noun: 'months' });
   var weeks = {};
   wages.forEach(function(v) { if (v.cash || v.staffId == null) { var ws = attWeekStartOf(v.row.date); weeks[ws] = gstRound((weeks[ws] || 0) + v.row.dr); } });
   var wk = Object.keys(weeks).sort().reverse().slice(0, 12);
   if (wk.length) {
     h += '<div class="inv-row inv-row-group"><span class="inv-row-main">Cash by pay week, against the weekly payout</span></div>';
-    wk.forEach(function(ws) {
+    h += uiMoreHtml('pay-wages-weeks', wk.map(function(ws) {
       var pw = payWeek(ws), d = gstRound(weeks[ws] - pw.total);
-      h += '<div class="inv-row inv-row-2" data-cashweek="' + ws + '"><span class="inv-row-main"><span class="inv-row-title">Week to ' + escHtml(formatDate(pw.sat)) + '</span>' +
+      return '<div class="inv-row inv-row-2" data-cashweek="' + ws + '"><span class="inv-row-main"><span class="inv-row-title">Week to ' + escHtml(formatDate(pw.sat)) + '</span>' +
         '<span class="inv-row-meta">payout ' + escHtml(formatCurrency(pw.total)) + (pw.recordedDays ? '' : ' (no attendance recorded)') + ' · ' + (d >= 0 ? 'drawn ' + formatCurrency(d) + ' more' : 'drawn ' + formatCurrency(-d) + ' less') + '</span></span>' +
         '<span class="inv-row-end inv-num">' + formatCurrency(weeks[ws]) + '</span></div>';
-    });
+    }), { n: 4, noun: 'weeks' });
   }
-  return h + '</div>';
+  // Folded to its head, which says the latest month and whether any leg is off its slip (open when one is).
+  return uiFoldHtml('pay-bank-wages', '<span class="inv-row-main"><span class="inv-row-title inv-row-strong">Wages paid, from the bank</span><span class="inv-row-meta">' + sum + '</span></span>',
+    h, off > 0, ' id="payBankWages"');
 }
 
 /* ---------- Doing ---------- */

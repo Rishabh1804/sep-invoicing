@@ -108,10 +108,14 @@ test('Staff → Pay shows the bank’s salary legs, and Payments links to it and
   await loadAppWithState(page, state());
   await ev(page, `_attView = 'pay'`);
   await switchTab(page, 'pageStaff');
+  // Folded to its head, which says the latest month; opened, the legs.
+  await expect(page.locator('#payBankWages > summary')).toContainText('Latest:');
+  await page.locator('#payBankWages > summary').click();
   await expect(page.locator('#payBankWages')).toContainText('Ramu Kumar');
   await expect(page.locator('#payBankWages')).toContainText('₹12,000.00');
-  await page.locator('#payBankWages [data-action="invFinGo"]').click();
-  await onFinanceTab(page, 'payments');
+  // Payments keeps one line that opens it.
+  await switchTab(page, 'pageFinance');
+  await page.locator('[data-action="invFinTab"][data-tab="payments"]').click();
   await page.locator('#bankWages [data-action="invGoPay"]').click();
   await expect(page.locator('#pageStaff')).toHaveClass(/inv-page-active/);
   await expect(page.locator('#payBankWages')).toBeVisible();

@@ -388,10 +388,12 @@ function renderRegisterList() {
       if (!a || !b) return (!a) - (!b);
       return a === b ? 0 : ((a < b) === desc ? 1 : -1);
     });
+    // The latest thirty invoices; the rest one tap away (UX overhaul 2, step 6). The summary above counts them all.
+    var regRows = [];
     groups.forEach(function(k) {
       var list = byDate[k], live = list.filter(function(i) { return i.status === 'active'; });
-      html += '<div class="inv-row-group"><span>' + (byNum ? (k ? escHtml(k.replace(/\/$/, '')) : 'No number') : (k ? escHtml(formatDate(k)) : 'No date')) + ' · ' + list.length + '</span>' +
-        '<span class="inv-num">' + formatCurrency(gstRound(sumTaxable(live))) + '</span></div>';
+      regRows.push({ head: true, parts: ['<div class="inv-row-group"><span>' + (byNum ? (k ? escHtml(k.replace(/\/$/, '')) : 'No number') : (k ? escHtml(formatDate(k)) : 'No date')) + ' · ' + list.length + '</span>' +
+        '<span class="inv-num">' + formatCurrency(gstRound(sumTaxable(live))) + '</span></div>'] });
       list.forEach(function(inv) {
         var cancelled = inv.status === 'cancelled';
         var tickable = _regSelectMode && !cancelled;
@@ -403,13 +405,13 @@ function renderRegisterList() {
           getStateDotHtml(inv) + cnInvoiceMarkHtml(inv) + '</span></span>';
         // With no tick box the whole row opens the invoice, figures included; with
         // one, the box is its own full-height touch target beside the row.
-        html += tickable
+        regRows.push(tickable
           ? '<div class="' + cls + '"><label class="inv-row-lead inv-row-tick">' + _regCheckHtml(inv) + '</label>' +
             '<button class="inv-row-main"' + open + '>' + main + '</button>' + end + '</div>'
-          : '<button class="' + cls + '"' + open + (cancelled ? ' data-cancelled' : '') + '><span class="inv-row-main">' + main + '</span>' + end + '</button>';
+          : '<button class="' + cls + '"' + open + (cancelled ? ' data-cancelled' : '') + '><span class="inv-row-main">' + main + '</span>' + end + '</button>');
       });
     });
-    html += '</div>';
+    html += uiMoreHtml('reg-list', regRows, { noun: 'invoices' }) + '</div>';
   }
 
   area.innerHTML = html + _regExportHtml();

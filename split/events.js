@@ -305,8 +305,8 @@ function onDocClick(e) {
       break;
     }
     // Phase 7: History load more
-    case 'invHistoryLoadMore': _historyShowCount += 50; renderHistory(); break;
-    case 'invHistoryType': _historyType = btn.dataset.type; _historyShowCount = 50; renderHistory(); break;
+    case 'invHistoryLoadMore': _historyShowCount += UI_MORE_ROWS; renderHistory(); break;
+    case 'invHistoryType': _historyType = btn.dataset.type; _historyShowCount = UI_MORE_ROWS; renderHistory(); break;
     case 'invHistoryExport': exportHistoryCSV(); break;
     // Phase 4: Challan Scanner
     case 'invScanChallan': scanChallan(); break;
@@ -405,6 +405,7 @@ function onDocClick(e) {
     default:
       // A chart datum: its figure goes into the chart's readout line (a phone has no hover).
       if (action === 'invChartRead') { chartShowRead(btn); break; }
+      if (action === 'invShowMore') { uiShowMore(btn.dataset.key); break; }
       if (billsAction(action, btn)) break;
       if (bankAction(action, btn)) break;
       if (financeAction(action, btn)) break;
@@ -594,17 +595,17 @@ function onDocChange(e) {
   // Phase 7: History filter changes (client + date range)
   if (e.target.id === 'historyClientFilter') {
     _historyClientFilter = e.target.value;
-    _historyShowCount = 50;
+    _historyShowCount = UI_MORE_ROWS;
     renderHistory();
   }
   if (e.target.id === 'historyDateFrom') {
     _historyDateFrom = e.target.value;
-    _historyShowCount = 50;
+    _historyShowCount = UI_MORE_ROWS;
     renderHistory();
   }
   if (e.target.id === 'historyDateTo') {
     _historyDateTo = e.target.value;
-    _historyShowCount = 50;
+    _historyShowCount = UI_MORE_ROWS;
     renderHistory();
   }
   // Phase 4: IM challan line unit change
@@ -676,7 +677,7 @@ document.addEventListener('input', function(e) {
       var caret = null;
       var el = document.getElementById('historySearch');
       if (el) { try { caret = el.selectionStart; } catch (err) { caret = null; } }
-      _historyShowCount = 50;
+      _historyShowCount = UI_MORE_ROWS;
       renderHistory();
       var restored = document.getElementById('historySearch');
       if (restored) {

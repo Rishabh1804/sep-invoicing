@@ -179,6 +179,9 @@ function cpMonthly(clientId, months) {
 /* A material row: the part, how often and when it was last handled, and what it earned. A stopped
    part says how long it has been gone; a possible rename says so. */
 function _cpMaterialRows(list, renames) {
+  return _cpMaterialRowList(list, renames).join('');
+}
+function _cpMaterialRowList(list, renames) {
   return list.map(function(m) {
     var meta = m.times + '× · last ' + formatDate(m.lastSeen) +
       (m.typicalGap > 0 ? ' · usually every ' + Math.round(m.typicalGap) + 'd' : '') +
@@ -199,7 +202,7 @@ function _cpMaterialRows(list, renames) {
       '<span class="inv-row-end">' +
       (m.invoiced > 0 ? '<span class="inv-num">' + formatCurrency(m.revenue) + '</span>' : '<span class="inv-badge inv-badge-neutral">Challan only</span>') +
       '</span></div>';
-  }).join('');
+  });
 }
 
 /* "+12.3% on Aug", never an arrow alone (§5.4). */
@@ -301,23 +304,26 @@ function renderClientPerformance(container) {
   }
   html += '</div>';
 
-  // Stopped first. It is the only one of the four that is a question.
-  var group = function(key, title, tone, list, emptyText, note, renamesFor) {
+  // Stopped first: it is the only one of the four that is a question. Each group shows its first ten (the count is on its
+  // head) and One-off (handled once, long ago) shows none until asked: SSS Mehta's card ran 23 phone screens with 101
+  // stopped parts and every part it ever sent (UX overhaul 2, step 6).
+  var group = function(key, title, tone, list, emptyText, note, renamesFor, n) {
+    var rows = list.length ? _cpMaterialRowList(list, renamesFor) : [];
     return '<div data-cp-group="' + key + '">' +
       '<div class="inv-row-group"><span class="inv-dot inv-dot-' + tone + '">' + title + ' · ' + list.length + '</span></div>' +
       (list.length === 0
         ? '<div class="inv-row"><span class="inv-row-main inv-row-meta">' + emptyText + '</span></div>'
         : (note ? '<div class="inv-row inv-row-auto"><span class="inv-row-main inv-note inv-row-wrap">' + note + '</span></div>' : '') +
-          _cpMaterialRows(list, renamesFor)) +
+          uiMoreHtml('cp-' + key + '-' + clientId, rows, { n: n == null ? 10 : n, noun: 'parts' })) +
       '</div>';
   };
-  html += '<div class="inv-panel inv-panel-flush">' +
+  html += '<div class="inv-panel inv-panel-flush" data-card="materials">' +
     '<div class="inv-panel-head"><span class="inv-panel-title">Materials</span><span class="inv-note">cadence across invoices and challans</span></div>' +
     group('stopped', 'Stopped', 'danger', stopped, 'Nothing has fallen out of its rhythm.',
       'Overdue against the gap each part usually keeps, not a fixed cut-off — a quarterly part is not called stopped in month two.', renames) +
     group('new', 'New', 'info', fresh, 'Nothing new in the last ' + CP_NEW_DAYS + ' days.', '', null) +
     group('steady', 'Steady', 'ok', steady, 'No part is running to a regular cadence.', '', null) +
-    (oneoff.length > 0 ? group('oneoff', 'One-off', 'neutral', oneoff, '', 'Handled once and long ago. Never had a cadence to fall out of.', null) : '') +
+    (oneoff.length > 0 ? group('oneoff', 'One-off', 'neutral', oneoff, '', 'Handled once and long ago. Never had a cadence to fall out of.', null, 0) : '') +
     '</div>';
 
   container.innerHTML = html;

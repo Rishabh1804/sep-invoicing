@@ -7,7 +7,7 @@ var _itemsSorted = [];
 var _mergeBackupWarned = false;
 var _itemsSelected = {};
 var _itemsUsageCache = null;
-var ITEMS_BATCH = 50;
+var ITEMS_BATCH = UI_MORE_ROWS;   // thirty at a time, as every long list (UX overhaul 2, step 6)
 var _itemsActiveId = null;
 
 function getItemsSubView() {

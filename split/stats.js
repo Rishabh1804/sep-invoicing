@@ -601,13 +601,14 @@ function renderStats() {
     if (comparableRows.length > 0 || partial.length > 0) {
       html += statsPanel('realisation', 'Realisation by client', 'worst priced first', { wide: true });
 
-      comparableRows.forEach(function(r) {
+      // The worst-priced ten; the rest one tap away (UX overhaul 2, step 6).
+      html += uiMoreHtml('stats-realisation', comparableRows.map(function(r) {
         var below = costPerKg > 0 && r.realisation < costPerKg;
-        html += statsRow(escHtml(r.name), formatNum(r.kg / 1000, 2) + ' t · ' + formatCurrency(r.total),
+        return statsRow(escHtml(r.name), formatNum(r.kg / 1000, 2) + ' t · ' + formatCurrency(r.total),
           '<span class="inv-row-stack">' + statsNum(formatCurrency(r.realisation) + statsUnit('/kg')) +
           (below ? uiDot('danger', 'Below cost') : '') + '</span>',
           ' data-action="invStatsClientDrill" data-client-id="' + r.clientId + '" data-client-row');
-      });
+      }), { n: 10, noun: 'clients' });
 
       if (partial.length > 0) {
         html += '<div class="inv-row-group"><span>Not ranked: weights on under ' + Math.round(REALISATION_MIN_COVERAGE * 100) + '% of revenue</span></div>';
@@ -956,7 +957,7 @@ function openClientDrillOverlay(clientId) {
 var _historyClientFilter = '';
 var _historyDateFrom = '';
 var _historyDateTo = '';
-var _historyShowCount = 50;
+var _historyShowCount = UI_MORE_ROWS;   // the latest thirty, then thirty more at a time (UX overhaul 2, step 6)
 var _historyType = 'all';
 var _historySearch = '';
 var _historySearchTimer = null;

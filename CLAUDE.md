@@ -23,7 +23,7 @@ one picture — in seven phases, one PR each. Its §0 says what is built.
 **UX overhaul 2 is planned — read `docs/UX_OVERHAUL_2.md`.** Agreed with the owner, 28 Sep 2026: navigation with a
 back trail, a version guard so two windows can edit safely, every screen openable in a new window, search (a chatbot
 later), keyboard shortcuts, a pass on the screens that scroll too far, and desktop layouts — one PR each, in its order.
-Step 0 (the phone's selection bars) is built, so is the dialog guard (0b), the version guard (step 2) and navigation (step 1). The owner reordered the
+Step 0 (the phone's selection bars) is built, so is the dialog guard (0b), the version guard (step 2), navigation (step 1) and the length pass (step 6, brought forward by the owner on 29 Sep 2026). The owner reordered the
 steps on 29 Sep 2026: the version guard comes before navigation.
 
 ## What SEP Invoicing Is
@@ -127,7 +127,7 @@ every session start — nothing to set up by hand. CI (`build-sync`) is the back
 ### Tests
 
 ```bash
-pnpm exec playwright test          # 729 tests, both layouts
+pnpm exec playwright test          # 732 tests, both layouts
 ```
 
 Some sandboxes ship a Chromium build Playwright does not expect and block downloading
@@ -172,6 +172,18 @@ the app from anywhere. `nav.js`:
   which goes back a month at a time by challan date (`imSetTab`, `imMonthShown`). A link to a challan opens the tab and
   month it is under (`imShowChallanTab`). **Swiping** follows the phone bar and then More in its order
   (`MORE_TABS`): its own list had left Finance out. P100, P55.
+
+**A long list shows its first rows, and a card taller than a screen folds** (UX overhaul 2, step 6; owner, 29 Sep 2026:
+*"clients detail is also one of those screens - Mehta and Dorabji scroll too far because they have many material IDs"*).
+Measured on the real book, the long screens were long because each put a finished or historical list at full length:
+SSS Mehta's Materials ran 23.5 phone screens (101 stopped parts), the bank statement 18. `uiMoreHtml` (state.js) draws a
+list's first thirty rows (ten where each row is a question) and one row, *Show 71 more parts · 101 in all*, that shows the
+rest in place; the rest are drawn `hidden` and never wrapped (a wrapper makes every row its container's last child and
+the dividers vanish), a group head goes with the row under it, and the head's count and every total cover the whole.
+`uiFoldHtml` folds a card to its head, remembered per device (`sep_inv_folds`). **One fact, one screen**: the bank's
+wage legs live in Staff → Pay (folded, open when a leg is off its slip), and Finance → Payments keeps one line that opens
+them (the To-do's wage tasks go there too, `todoGo` kind `payWages`). The before-and-after table is in
+`docs/UX_OVERHAUL_2.md` step 6. P101.
 
 **A `<select>` speaks through `change`, never `click`.** Giving a filter control a
 `data-action` meant the click that *opens* it ran the handler — and if that handler

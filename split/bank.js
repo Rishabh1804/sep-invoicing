@@ -685,7 +685,10 @@ function _bankReceiptsHtml(cls) {
   if (loose.length) {
     h += '<div class="inv-panel inv-panel-flush" id="bankLoose"><div class="inv-panel-head"><span class="inv-panel-title">Receipts with no client</span><span class="inv-panel-count">' + loose.length + '</span></div>' +
       '<div class="inv-panel-body inv-note">Cheques deposited carry no name. Pick the client; a remitter\'s name is remembered for its next receipt.</div>';
+    // The latest ten, newest first; the rest one tap away (UX overhaul 2, step 6: this list ran three phone screens).
+    var looseRows = [];
     loose.slice().reverse().forEach(function(v) {
+      var h = '', parts = [];
       var inst = bankInstrument(v.row), o = bankPlacementOffers(v.row, recv, series);
       // The cheque number is what the owner matches against the book, so it leads; a remitter's name leads where there is one.
       var chqDep = bankIsChequeDeposit(v.row) && inst;
@@ -693,6 +696,7 @@ function _bankReceiptsHtml(cls) {
         (chqDep ? '<span class="inv-id">' + escHtml(inst) + '</span>' : escHtml(v.party || v.row.narration)) + '</span>' +
         '<span class="inv-row-meta">' + (chqDep ? 'Cheque · ' : '') + escHtml(formatDate(v.row.date)) + (inst && !chqDep ? ' · chq ' + escHtml(inst) : '') + '</span></span>' +
         '<span class="inv-row-end"><span class="inv-num">' + formatCurrency(v.row.cr) + '</span>' + _bankClientSelect(v) + '</span></div>';
+      parts.push(h); h = '';
       // Each offer is a line of its own under the cheque, its button at the row's end: inside the
       // one-line meta it was clipped by the ellipsis on a phone and could not be tapped.
       var offer = function(c, why, text) {
@@ -706,8 +710,10 @@ function _bankReceiptsHtml(cls) {
           (o.series ? offer(o.series.client, 'series', 'series ' + o.series.from + '–' + o.series.to) : '') +
           (o.amount ? offer(o.amount.client, 'amount', 'equals ' + o.amount.labels.join(' + ')) : '') + '</div>';
       }
+      if (h) parts.push(h);
+      looseRows.push({ parts: parts });
     });
-    h += '</div>';
+    h += uiMoreHtml('bank-loose', looseRows, { n: 10, noun: 'receipts' }) + '</div>';
   }
   return h + _bankBouncesHtml(cls);
 }
@@ -864,7 +870,12 @@ function _bankStatementHtml(cls) {
     BANK_CATS.map(function(c) { return '<option value="' + c[0] + '"' + (_bankFilter.cat === c[0] ? ' selected' : '') + '>' + c[1] + '</option>'; }).join('') + '</select>' +
     '<input class="inv-input inv-toolbar-item" type="search" id="bankSearch" placeholder="Search narration" value="' + escHtml(_bankFilter.q) + '"></div>';
   if (!list.length) h += '<div class="inv-empty">No row matches.</div>';
+  // The latest thirty, newest first; the rest one tap away (UX overhaul 2, step 6: the statement ran 18 phone screens).
+  // The count in the head and every total read the whole statement. A row being edited is always shown.
+  var rows = [];
+  if (_bankEdit && list.findIndex(function(v) { return v.row.id === _bankEdit; }) >= UI_MORE_ROWS) _uiMoreShown['bank-statement'] = true;
   list.forEach(function(v) {
+    var h = '';
     var r = v.row, out = r.dr > 0, who = v.cat === 'receipt' && v.clientId != null ? ((S.clients || []).find(function(c) { return String(c.id) === String(v.clientId); }) || {}).name
       : v.cat === 'wages' && v.staffId != null ? ((staffById(v.staffId) || {}).name || '') + (v.guess ? '?' : '') : '';
     h += '<div class="inv-row inv-row-2" data-bank-row="' + escHtml(r.id) + '"><button class="inv-row-main" data-action="invBankEdit" data-id="' + escHtml(r.id) + '" aria-expanded="' + (_bankEdit === r.id) + '">' +
@@ -874,9 +885,9 @@ function _bankStatementHtml(cls) {
       (v.bounceOf ? ' · bounce of ' + escHtml(formatDate(v.bounceOf.date)) + ' deposit' : '') + '</span></button>' +
       '<span class="inv-row-end"><span class="inv-row-stack"><span class="inv-num">' + (out ? '−' : '+') + formatCurrency(out ? r.dr : r.cr) + '</span>' +
       '<span class="inv-row-meta inv-num">' + formatCurrency(r.balance) + '</span></span></span></div>';
-    if (_bankEdit === r.id) h += _bankEditHtml(v);
+    rows.push({ parts: _bankEdit === r.id ? [h, _bankEditHtml(v)] : [h] });
   });
-  return h + '</div>';
+  return h + uiMoreHtml('bank-statement', rows, { noun: 'rows' }) + '</div>';
 }
 
 function _bankEditHtml(v) {

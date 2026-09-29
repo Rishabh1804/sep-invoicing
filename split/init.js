@@ -89,20 +89,19 @@ function migrateState() {
   if (migrated > 0) saveJSON(STORAGE_KEY, S);
 })();
 
-/* Phase 5: Seed recentVehicles on clients from IM challan data */
+/* Phase 5: Seed recentVehicles on clients from IM challan data, once per client: a client that has a list keeps it.
+   It re-appended every vehicle the cap of ten had dropped, at every start, so every start wrote the whole book (the QA
+   sweep, 29 Sep 2026). The newest challan's vehicle first, ten at most, as rememberVehicle keeps them. */
 (function() {
-  var seeded = false;
-  (S.incomingMaterial || []).forEach(function(im) {
-    if (!im.vehicleNo || !im.vehicleNo.trim()) return;
-    var v = im.vehicleNo.trim().toUpperCase();
+  var seeded = false, lists = {};
+  (S.incomingMaterial || []).slice().sort(function(a, b) { return String(b.challanDate || '').localeCompare(String(a.challanDate || '')); }).forEach(function(im) {
+    if (!im.vehicleNo || !String(im.vehicleNo).trim()) return;
     var client = S.clients.find(function(c) { return c.id === im.clientId; });
-    if (!client) return;
-    if (!client.recentVehicles) { client.recentVehicles = []; seeded = true; }
-    if (client.recentVehicles.indexOf(v) < 0) {
-      client.recentVehicles.push(v);
-      seeded = true;
-    }
+    if (!client || client.recentVehicles) return;
+    var list = lists[client.id] || (lists[client.id] = []), v = String(im.vehicleNo).trim().toUpperCase();
+    if (list.indexOf(v) < 0 && list.length < 10) list.push(v);
   });
+  S.clients.forEach(function(c) { if (!c.recentVehicles && lists[c.id]) { c.recentVehicles = lists[c.id]; seeded = true; } });
   if (seeded) saveJSON(STORAGE_KEY, S);
 })();
 
@@ -832,8 +831,9 @@ function checkForUpdateManually() {
 document.addEventListener('visibilitychange', function() {
   if (document.visibilityState === 'visible') {
     checkForUpdate(false);
-    if (S) todoApplyWidgetQueue();
-    if (S) bookCheck();
+    // The book first, then the widget's ticks onto it. Applied to a copy another window had since replaced, their save
+    // was refused, the reload dropped them, and the queue they came from was already empty (the QA sweep, 29 Sep 2026).
+    if (S) bookCheck().then(function() { if (S) todoApplyWidgetQueue(); });
   } else if (S) {
     todoWidgetPublish();
   }

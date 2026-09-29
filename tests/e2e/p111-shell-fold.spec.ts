@@ -1,6 +1,7 @@
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
-import { answerAsk, emptyState, loadAppWithState, switchTab } from './fixtures';
+import { answerAsk, emptyState, loadAppWithState, readStoredState, switchTab } from './fixtures';
+import { readFileSync } from 'fs';
 
 // P111: the shell's share of the QA sweep of 29 Sep 2026 — the frame every screen sits in.
 const g = (p: Page, e: string) => p.evaluate(x => (0, eval)(x), e);
@@ -85,4 +86,172 @@ test.describe('P111: one screen that cannot be drawn never bricks the app', () =
     await switchTab(page, 'pageClients');
     await expect(page.locator('#pageClients')).toHaveClass(/inv-page-active/);
   });
+});
+
+test('a swipe over an open dialog does nothing: the typed form stays', async ({ page }) => {
+  await loadAppWithState(page, emptyState());
+  await switchTab(page, 'pageClients');
+  await page.locator('.inv-page-active [data-action="invAddClient"]').click();
+  const field = page.locator('.inv-scrim-dialog input.inv-input').first();
+  await field.fill('HALF TYPED');
+  await page.evaluate(() => {
+    const el = document.querySelector('.inv-scrim-dialog .inv-dialog') as HTMLElement;
+    const t = (x: number) => new Touch({ identifier: 1, target: el, clientX: x, clientY: 400 });
+    el.dispatchEvent(new TouchEvent('touchstart', { touches: [t(300)], changedTouches: [t(300)], bubbles: true }));
+    el.dispatchEvent(new TouchEvent('touchend', { touches: [], changedTouches: [t(100)], bubbles: true }));
+  });
+  await page.waitForTimeout(200);
+  await expect(page.locator('#pageClients')).toHaveClass(/inv-page-active/);
+  await expect(field).toHaveValue('HALF TYPED');
+});
+
+test.describe('P111: a jump shows what it names, with nothing left over', () => {
+  // History's links and the To-do's kept the Register's month, dates and selection, and ignored which Challans tab a
+  // challan is under: a link to last quarter's invoice opened on this month and showed nothing.
+  const iso = (d: Date) => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  const old = (() => { const d = new Date(); d.setDate(15); d.setMonth(d.getMonth() - 3); return iso(d); })();
+  const today = iso(new Date());
+  const line = { partNumber: 'CLAMP 100X83', desc: 'CLAMP 100X83', hsn: '998873', unit: 'KG', qty: 10, rate: 13, amount: 130, nosQty: null };
+  const inv = (id: string, date: string, o: any = {}) => ({ id, invoiceNumber: id.slice(4).padStart(5, '0'), displayNumber: 'SEP/TEST-' + id.slice(4).padStart(5, '0'),
+    date, status: 'active', invoiceState: 'created', clientId: 1, clientName: 'TEST CLIENT KG', clientGSTIN: '', gstType: 'intra',
+    clientAddress: { add1: 'A', add2: '', add3: '', state: 'JHARKHAND', stateCode: '20' }, items: [line], taxableValue: 130,
+    cgstPer: 9, cgstAmt: 11.7, sgstPer: 9, sgstAmt: 11.7, igstPer: 0, igstAmt: 0, grandTotal: 153.4, amountInWords: '', challanNo: '301',
+    challanDate: date, remarks: '', linkedIMIds: [], createdAt: new Date(date + 'T10:00:00').getTime(), ...o });
+  const book = () => {
+    const s: any = emptyState();
+    s.incomingMaterial = [{ id: 'IM-1', clientId: 1, clientName: 'TEST CLIENT KG', challanNo: '301', challanDate: old, createdAt: new Date(old + 'T09:00:00').getTime(),
+      items: [{ ...line, id: 'L1' }] }];
+    s.invoices = [inv('INV-1', old, { items: [{ ...line, imItemId: 'L1' }], linkedIMIds: ['IM-1'] }), inv('INV-2', today)];
+    s.invNextNum = 3;
+    return s;
+  };
+
+  test("History's invoice link clears the month and the selection", async ({ page }) => {
+    await loadAppWithState(page, book());
+    await switchTab(page, 'pageRegister');
+    await page.locator('.inv-page-active [data-action="invRegToggleSelect"]').click();
+    await page.locator('.inv-page-active [data-action="invRegToggleInv"][data-id="INV-2"]').check();
+    expect(await g(page, 'Object.keys(_regSelected).length')).toBe(1);
+    await switchTab(page, 'pageHistory');
+    await page.locator('.inv-page-active [data-action="invHistoryJumpInvoice"][data-id="INV-1"]').first().click();
+    await expect(page.locator('#pageRegister')).toHaveClass(/inv-page-active/);
+    await expect(page.locator('#pageRegister [data-action="invViewInvoiceDetail"][data-id="INV-1"]')).toBeVisible();
+    expect(await g(page, 'Object.keys(_regSelected).length')).toBe(0);
+  });
+
+  test("History's challan link opens the tab and month the challan is under", async ({ page }) => {
+    await loadAppWithState(page, book());
+    await switchTab(page, 'pageHistory');
+    await page.locator('.inv-page-active [data-action="invHistoryJumpChallan"][data-id="IM-1"]').first().click();
+    await expect(page.locator('#pageIM')).toHaveClass(/inv-page-active/);
+    await expect(page.locator('#pageIM [data-action="invIMTab"][data-tab="invoiced"]')).toHaveAttribute('aria-selected', 'true');
+    await expect(page.locator('#pageIM [data-im="IM-1"]').first()).toBeVisible();
+  });
+
+  test("a task's challan link shows the challan rather than a refused edit", async ({ page }) => {
+    await loadAppWithState(page, book());
+    await g(page, 'todoGo({ kind: "challan", id: "IM-1" })');
+    await expect(page.locator('#pageIM')).toHaveClass(/inv-page-active/);
+    expect(await g(page, '_challanForm')).toBeNull();
+    await expect(page.locator('#pageIM [data-im="IM-1"]').first()).toBeVisible();
+  });
+});
+
+test("a device whose book is in IndexedDB never works on another copy when the database won't open", async ({ page }) => {
+  // The localStorage path took over, the session's work was saved there, and the next start (the database open
+  // again) lost it without a word.
+  const st: any = emptyState();
+  st.clients[0].name = 'KEPT CLIENT';
+  await loadAppWithState(page, st);
+  await expect.poll(() => g(page, 'localStorage.getItem("sep_inv_idb_used")')).toBe('1');
+  await page.addInitScript(() => {
+    if (!sessionStorage.getItem('breakIdb')) return;
+    (indexedDB as any).open = function() { const r: any = {}; setTimeout(() => r.onerror && r.onerror(), 0); return r; };
+  });
+  await g(page, 'sessionStorage.setItem("breakIdb", "1")');
+  await page.reload();
+  await page.waitForSelector('body.inv-booted', { state: 'attached' });
+  await expect(page.locator('.inv-storage-bar[data-kind="read"]')).toContainText('database would not open');
+  expect(await g(page, 'saveState()')).toBe(false);
+  await g(page, 'sessionStorage.removeItem("breakIdb")');
+  await page.reload();
+  await page.waitForSelector('body.inv-booted', { state: 'attached' });
+  expect(await g(page, 'S.clients[0].name')).toBe('KEPT CLIENT');
+  await expect(page.locator('.inv-storage-bar')).toHaveCount(0);
+});
+
+test("the widget's worker reaches only this app's windows", async () => {
+  // Every project on the account is served from one origin: an uncontrolled match returned a sister app's windows too,
+  // so a widget tap could focus one and post it this app's message.
+  const sw = readFileSync('sw.js', 'utf8');
+  const src = sw.slice(sw.indexOf('async function appWindows()'), sw.indexOf('// Open the app on the To-do tab'));
+  const self = { registration: { scope: 'https://example.github.io/sep-invoicing/' },
+    clients: { matchAll: async () => [{ url: 'https://example.github.io/sep-dashboard/' }, { url: 'https://example.github.io/sep-invoicing/?tab=pageTodo' }] } };
+  const appWindows = new Function('self', src + '\nreturn appWindows;')(self);
+  expect((await appWindows()).map((c: any) => c.url)).toEqual(['https://example.github.io/sep-invoicing/?tab=pageTodo']);
+  expect((sw.match(/clients\.matchAll/g) || []).length).toBe(1);
+});
+
+test("a save refused while the window was starting says nothing; one refused after, says so", async ({ page }) => {
+  // The quiet branch read "starting" when the refusal came back, which is always after the start: a window whose
+  // start-up migration lost to another window's save said "the last change made here was not saved" of no change.
+  await loadAppWithState(page, emptyState());
+  const refused = (boot: boolean) => g(page, `(function() {
+    _diskRev = 'another-window';
+    ${boot ? "document.body.classList.remove('inv-booted');" : ''}
+    var p = saveState();
+    document.body.classList.add('inv-booted');
+    return p;
+  })()`);
+  expect(await refused(true)).toBe(false);
+  await expect(page.locator('.inv-notice-bar')).toHaveCount(0);
+  expect(await refused(false)).toBe(false);
+  await expect(page.locator('.inv-notice-bar')).toContainText('the last change made here was not saved');
+});
+
+test('a start that changes nothing writes nothing: the vehicles seed keeps the ten it has', async ({ page }) => {
+  // The seed re-appended every vehicle the cap of ten had dropped, so every start rewrote the whole book.
+  const st: any = emptyState();
+  st.clients[0].recentVehicles = Array.from({ length: 10 }, (_, i) => 'JH 05 A ' + (1000 + i));
+  st.incomingMaterial = Array.from({ length: 12 }, (_, i) => ({ id: 'IM-' + i, clientId: 1, clientName: 'TEST CLIENT KG', challanNo: String(100 + i),
+    challanDate: '2026-09-' + String(1 + i).padStart(2, '0'), vehicleNo: 'JH 05 B ' + (2000 + i), items: [] }));
+  await loadAppWithState(page, st);
+  await page.reload();
+  await page.waitForSelector('body.inv-booted', { state: 'attached' });
+  await page.waitForTimeout(300);
+  expect(await g(page, 'S.clients[0].recentVehicles.length')).toBe(10);
+  expect(await g(page, '_storageHealth.lastSaveAt')).toBe(0);
+});
+
+test("a Done tapped on the widget survives another window's save made meanwhile", async ({ page }) => {
+  const st: any = emptyState();
+  st.todo = { tasks: [{ id: 'TD-a', text: 'Count the nitric drums', at: Date.now() }], snoozes: {} };
+  await loadAppWithState(page, st);
+  // Another window saves while this one is hidden: its copy carries a change this window has not seen.
+  await g(page, `(function() {
+    var other = JSON.parse(JSON.stringify(S)); other.clients[0].name = 'RENAMED ELSEWHERE';
+    return writeGuarded(JSON.stringify(other), _diskRev, 'other-window-rev');
+  })()`);
+  await g(page, `todoWidgetPut('queue', [{ id: 'TD-a', at: 12345 }])`);
+  await g(page, `Object.defineProperty(document, 'visibilityState', { value: 'visible', configurable: true }); document.dispatchEvent(new Event('visibilitychange'))`);
+  await expect.poll(async () => (await readStoredState(page)).todo.tasks[0].doneAt).toBe(12345);
+  expect((await readStoredState(page)).clients[0].name).toBe('RENAMED ELSEWHERE');
+});
+
+test("the offline shell is the app's own page, and a copy that cannot be stored never serves an old one", async () => {
+  const sw = readFileSync('sw.js', 'utf8');
+  const src = sw.slice(sw.indexOf('function isShellUrl(url)'), sw.indexOf('async function assetResponse'));
+  const self = { registration: { scope: 'https://example.github.io/sep-invoicing/' } };
+  const isShellUrl = new Function('self', src + '\nreturn isShellUrl;')(self);
+  const is = (u: string) => isShellUrl(new URL(u));
+  expect(is('https://example.github.io/sep-invoicing/')).toBe(true);
+  expect(is('https://example.github.io/sep-invoicing/?tab=pageTodo&todo=add')).toBe(true);
+  expect(is('https://example.github.io/sep-invoicing/index.html')).toBe(true);
+  expect(is('https://example.github.io/sep-invoicing/sep-invoicing.html')).toBe(true);
+  expect(is('https://example.github.io/sep-invoicing/version.json')).toBe(false);
+  expect(is('https://example.github.io/sep-invoicing/docs/test-certificates/cert.html')).toBe(false);
+  expect(is('https://example.github.io/sep-dashboard/')).toBe(false);
+  // The store is its own try: a put that throws is not the network failing.
+  const nav = sw.slice(sw.indexOf('async function navigationResponse'), sw.indexOf('function isShellUrl(url)'));
+  expect(nav).toMatch(/try \{ await shell\.put\(SHELL_KEY, fresh\.clone\(\)\); \} catch/);
 });

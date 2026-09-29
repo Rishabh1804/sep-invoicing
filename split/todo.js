@@ -593,27 +593,10 @@ function todoGo(go) {
       switchTab('pageFinance');
       break;
     case 'cnList': switchTab('pageRegister'); renderCreditNoteList(); break;
-    case 'cnBatch':
-      regFilter.clientId = String(go.clientId); regFilter.month = ''; regFilter.search = ''; regFilter.state = '';
-      regFilter.dateFrom = go.from; regFilter.dateTo = go.to;
-      saveRegFilter();
-      _regSelected = {};
-      go.ids.forEach(function(id) { _regSelected[id] = true; });
-      _regSelectMode = true;
-      _regToolbarRendered = false;
-      _tabDirty.register = true;
-      switchTab('pageRegister');
-      _renderRegSelBar();
-      break;
-    case 'regState':
-      regFilter.clientId = ''; regFilter.month = ''; regFilter.dateFrom = ''; regFilter.dateTo = ''; regFilter.search = ''; regFilter.state = go.state;
-      saveRegFilter(); _regSelected = {}; _regToolbarRendered = false; _tabDirty.register = true;
-      switchTab('pageRegister');
-      break;
-    case 'im':
-      imSetTab('awaiting'); _imFilter.clientId = String(go.clientId); _imFilter.status = 'pending'; _imToolbarRendered = false;
-      switchTab('pageIM');
-      break;
+    case 'cnBatch': regJump({ clientId: go.clientId, dateFrom: go.from, dateTo: go.to, select: go.ids }); break;
+    case 'regState': regJump({ state: go.state }); break;
+    // Awaiting shows a challan invoiced in part too; the status 'pending' it set hid exactly those (the QA sweep).
+    case 'im': imJumpClient(go.clientId); break;
     case 'audit': switchTab('pageRegister'); showNumberAudit(); break;
     case 'settings': openSettings(go.sec); break;
     case 'home': switchTab('pageHome'); break;
@@ -643,7 +626,13 @@ function todoGo(go) {
     case 'stockList': _stockView = 'list'; switchTab('pageStock'); break;
     case 'client': switchTab('pageClients'); openClientEdit(parseInt(go.id, 10)); break;
     case 'invoice': openInvoiceDetail(go.id); break;
-    case 'challan': switchTab('pageIM'); editChallan(go.id); break;
+    // A linked challan is shown where it is, not opened for editing: a billed one refuses an edit, and the task
+    // ended on that refusal.
+    case 'challan': {
+      var tim = (S.incomingMaterial || []).find(function(c) { return c.id === go.id; });
+      if (tim) imJump(tim); else showToast('That challan is no longer in the book', 'warning');
+      break;
+    }
   }
 }
 function todoGoLink(id) {

@@ -1,3 +1,52 @@
+/* ===== JUMPS INTO THE REGISTER AND CHALLANS =====
+   A jump from another screen (Stats' drill-down, History, the To-do) shows what it names and nothing else: a filter it
+   does not set is cleared, and a selection made under the old filters is dropped (a selection must not outlive the
+   filter that hid it). The month, the dates and the selection used to stay, so History's link to an invoice from
+   another month opened on a Register that did not show it, and a bulk action still reached rows off the screen (the QA
+   sweep, 29 Sep 2026). */
+function regJump(f) {
+  f = f || {};
+  regFilter.clientId = f.clientId != null ? String(f.clientId) : '';
+  regFilter.search = f.search || '';
+  regFilter.state = f.state || '';
+  regFilter.month = f.month || '';
+  regFilter.dateFrom = f.dateFrom || '';
+  regFilter.dateTo = f.dateTo || '';
+  saveRegFilter();
+  // f.select ticks a batch (a credit-note batch from the To-do); anything else starts with nothing ticked.
+  _regSelected = {};
+  (f.select || []).forEach(function(id) { _regSelected[id] = true; });
+  _regSelectMode = !!(f.select && f.select.length);
+  _regToolbarRendered = false;
+  _tabDirty.register = true;
+  closeOverlay();
+  switchTab('pageRegister');
+  if (_regSelectMode) _renderRegSelBar();
+}
+/* A client's challans: the Awaiting tab, only that client, nothing ticked. */
+function imJumpClient(clientId) {
+  _imFilter.clientId = clientId != null ? String(clientId) : '';
+  _imFilter.status = '';
+  _imSelected = {};
+  imSetTab('awaiting');
+  _imToolbarRendered = false;
+  closeOverlay();
+  switchTab('pageIM');
+}
+/* One challan: the tab and month it is under, its client, and the row in sight (open in the pane on the desktop). It
+   ignored the tab, so a challan already invoiced was looked for under Awaiting, and not found. */
+function imJump(im) {
+  _imFilter.clientId = String(im.clientId);
+  _imFilter.status = '';
+  _imSelected = {};
+  imShowChallanTab(im);
+  _imToolbarRendered = false;
+  closeOverlay();
+  switchTab('pageIM');
+  if (_isDesktop) _renderIMDetail(im.id);
+  uiRevealEl(document.querySelector('.inv-page-active [data-im="' + String(im.id).replace(/["\\]/g, '\\$&') + '"]'));
+}
+
 /* ===== EVENT DELEGATION ===== */
 // A pressed chip, segment or tile (aria-pressed) is a choice inside the view — a filter, a period, a P/H/A — so it
 // re-renders inside keepScroll (state.js), like a pick in a drop-down: the page stays where it was (P79).
@@ -261,48 +310,20 @@ function onDocClick(e) {
       switchTab('pageCreate');
       break;
     }
-    case 'invStatsJumpRegister': {
-      closeOverlay();
-      regFilter.clientId = btn.dataset.clientId;
-      regFilter.search = '';
-      regFilter.state = '';
-      saveRegFilter();
-      _tabDirty.register = true;
-      _regToolbarRendered = false;
-      switchTab('pageRegister');
-      break;
-    }
-    case 'invStatsJumpIM': {
-      closeOverlay();
-      _imFilter.clientId = btn.dataset.clientId;
-      _imToolbarRendered = false;
-      switchTab('pageIM');
-      break;
-    }
+    case 'invStatsJumpRegister': regJump({ clientId: btn.dataset.clientId }); break;
+    case 'invStatsJumpIM': imJumpClient(btn.dataset.clientId); break;
     // Phase 7: History navigation
     case 'invHistoryJumpInvoice': {
       var inv = S.invoices.find(function(i) { return i.id === btn.dataset.id; });
       if (!inv) { showToast('Invoice not found', 'warning'); break; }
-      regFilter.clientId = '';
-      regFilter.search = inv.displayNumber || '';
-      regFilter.state = '';
-      saveRegFilter();
-      _tabDirty.register = true;
-      _regToolbarRendered = false;
-      switchTab('pageRegister');
+      regJump({ search: inv.displayNumber || '' });
+      if (_isDesktop) _renderRegDetail(inv.id);
       break;
     }
     case 'invHistoryJumpChallan': {
-      var imId = btn.dataset.id;
-      var im = (S.incomingMaterial || []).find(function(c) { return c.id === imId; });
+      var im = (S.incomingMaterial || []).find(function(c) { return c.id === btn.dataset.id; });
       if (!im) { showToast('Challan not found', 'warning'); break; }
-      _imFilter.clientId = String(im.clientId);
-      _imToolbarRendered = false;
-      switchTab('pageIM');
-      setTimeout(function() {
-        var card = document.querySelector('[data-im="' + imId + '"]');
-        if (card) card.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      }, 100);
+      imJump(im);
       break;
     }
     // Phase 7: History load more

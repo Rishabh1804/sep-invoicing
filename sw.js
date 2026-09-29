@@ -163,13 +163,9 @@ function isCacheable(url) {
 // keeps the promise Canon 0034 was written to protect.
 async function navigationResponse(req) {
   const shell = await caches.open(SHELL_CACHE);
+  let fresh;
   try {
-    const fresh = await fetch(req);
-    // Only a genuine 200 is an app shell; a 404 page is not worth keeping.
-    if (fresh && fresh.ok && fresh.type === 'basic') {
-      await shell.put(SHELL_KEY, fresh.clone());
-    }
-    return fresh;
+    fresh = await fetch(req);
   } catch (err) {
     const cached = await shell.match(SHELL_KEY);
     if (cached) return cached;
@@ -178,6 +174,22 @@ async function navigationResponse(req) {
       headers: { 'Content-Type': 'text/html; charset=utf-8' }
     });
   }
+  // Only a genuine 200 of the app's own page is the shell (a 404 page is not worth keeping). Any page under the scope
+  // used to overwrite it, a document in the repo or version.json opened by hand, and offline the app opened as that
+  // page; and a copy that could not be stored (a full disk) fell into the offline branch and served the old shell with
+  // the fresh one in hand (the QA sweep, 29 Sep 2026).
+  if (fresh && fresh.ok && fresh.type === 'basic' && isShellUrl(new URL(req.url))) {
+    try { await shell.put(SHELL_KEY, fresh.clone()); } catch (err) { /* the fresh page is served all the same */ }
+  }
+  return fresh;
+}
+
+// The app's own page: the scope itself, index.html or sep-invoicing.html, with any query.
+function isShellUrl(url) {
+  const scope = new URL(self.registration.scope);
+  if (url.origin !== scope.origin || url.pathname.indexOf(scope.pathname) !== 0) return false;
+  const rest = url.pathname.slice(scope.pathname.length);
+  return rest === '' || rest === 'index.html' || rest === 'sep-invoicing.html';
 }
 
 async function assetResponse(e, req) {
@@ -299,13 +311,20 @@ async function widgetDone(id) {
     tx.oncomplete = tx.onerror = tx.onabort = function() { db.close(); resolve(); };
   });
   await widgetRender();
-  const open = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+  const open = await appWindows();
   open.forEach(function(c) { c.postMessage({ type: 'sep-todo-done' }); });
+}
+
+// This app's windows only. Every project on the account is served from one origin, and an uncontrolled match returns
+// all of its windows, so a widget tap could focus a sister app's window and talk to it (the QA sweep, 29 Sep 2026).
+async function appWindows() {
+  const all = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+  return all.filter(function(c) { return String(c.url || '').indexOf(self.registration.scope) === 0; });
 }
 
 // Open the app on the To-do tab, or bring an open window forward and tell it.
 async function widgetOpen(action) {
-  const open = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+  const open = await appWindows();
   if (open.length) {
     try {
       await open[0].focus();

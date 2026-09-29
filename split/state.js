@@ -113,6 +113,11 @@ var IDB_STORE = 'state';
 var IDB_KEY = 'current';
 var _idb = null;
 var _idbFailed = false;            // open refused: this browser gets the localStorage path
+// Set once this device's book has been read from or written to IndexedDB: a later open that fails is then a copy that
+// would not read, never an empty device (loadState).
+var IDB_USED_KEY = 'sep_inv_idb_used';
+function idbHeldBook() { try { return localStorage.getItem(IDB_USED_KEY) === '1'; } catch (e) { return false; } }
+function idbMarkHeld() { try { localStorage.setItem(IDB_USED_KEY, '1'); } catch (e) { /* a marker only */ } }
 var _storeMode = 'unknown';        // 'idb' | 'localStorage', settled by loadState()
 var _loadedFrom = 'none';          // 'idb' | 'legacy' | 'none'
 var _legacyKeyPresent = false;
@@ -240,7 +245,7 @@ function readStoredWithRev() {
         var tx = db.transaction(IDB_STORE, 'readonly'), st = tx.objectStore(IDB_STORE), out = { raw: null, rev: null };
         st.get(IDB_KEY).onsuccess = function(ev) { out.raw = typeof ev.target.result === 'string' ? ev.target.result : null; };
         st.get(IDB_REV_KEY).onsuccess = function(ev) { out.rev = typeof ev.target.result === 'string' ? ev.target.result : null; };
-        tx.oncomplete = function() { resolve(out); };
+        tx.oncomplete = function() { if (out.raw != null) idbMarkHeld(); resolve(out); };
         tx.onabort = function() { reject(tx.error || new Error('read transaction aborted')); };
         tx.onerror = function() { reject(tx.error); };
       } catch (e) { reject(e); }
@@ -278,7 +283,7 @@ function writeGuarded(str, expect, next) {
             st.put(next, IDB_REV_KEY);
           } catch (e) { failed = e; tx.abort(); }
         };
-        tx.oncomplete = function() { resolve(); };
+        tx.oncomplete = function() { idbMarkHeld(); resolve(); };
         tx.onabort = function() {
           reject(isStale ? staleCopy(stale) : (failed || tx.error || new Error('write transaction aborted')));
         };
@@ -304,6 +309,15 @@ function loadState() {
     _diskRev = both.rev;
     return both.raw;
   }).then(function(raw) {
+    if (_idbFailed && idbHeldBook()) {
+      // This device keeps its book in IndexedDB and the database would not open this time: a copy that would not read,
+      // not an empty device. The localStorage path used to take over, showing no book (or the one from before the move)
+      // and saving the session's work there, and the next start, with the database open again, lost it without a word
+      // (the QA sweep, 29 Sep 2026). Nothing is written until it opens; the boot banner says so.
+      _storeMode = 'idb';
+      _storageHealth.readError = 'its database would not open; close the app in every other window and reload';
+      return null;
+    }
     if (_idbFailed) { _storeMode = 'localStorage'; try { _diskRev = localStorage.getItem(LS_REV_KEY); } catch (e) {} var lr = legacyRaw(); _loadedFrom = lr != null ? 'legacy' : 'none'; return lr; }
     _storeMode = 'idb';
     // Note whether the pre-IndexedDB copy is still occupying the shared pool,
@@ -336,6 +350,7 @@ function loadState() {
    flight was carrying. */
 var _persistChain = Promise.resolve(true);
 var _persistQueued = null;
+var _persistQueuedBoot = false;
 
 function persistState() {
   // A copy that exists but would not read is never written over: seeding a
@@ -347,17 +362,23 @@ function persistState() {
     _storageHealth.lastError = 'not written: the stored copy could not be read (' + _storageHealth.readError + ')';
     return Promise.resolve(false);
   }
-  if (_persistQueued) return _persistQueued;
+  // A write asked for only while the window was starting (its migrations) changes nothing anybody did: a refusal of it
+  // is taken quietly (bookStaleSave). Read when the save is asked for, not when the refusal comes back, which is always
+  // after the start has finished (the QA sweep, 29 Sep 2026: the quiet branch never ran).
+  var booting = !document.body.classList.contains('inv-booted');
+  if (_persistQueued) { if (!booting) _persistQueuedBoot = false; return _persistQueued; }
+  _persistQueuedBoot = booting;
   var queued = _persistChain.then(function() {
+    var boot = _persistQueuedBoot;
     _persistQueued = null;
-    return writeStateNow();
+    return writeStateNow(boot);
   });
   _persistQueued = queued;
   _persistChain = queued.then(null, function() { return false; });
   return queued;
 }
 
-function writeStateNow() {
+function writeStateNow(boot) {
   var str;
   try { str = JSON.stringify(S); }
   catch (e) { return Promise.resolve(noteSaveFailure(STORAGE_KEY, describeStorageError(e))); }
@@ -387,7 +408,7 @@ function writeStateNow() {
     requestPersistentStorage();
     return true;
   }, function(e) {
-    if (e && e.name === 'StaleCopy') return bookStaleSave();
+    if (e && e.name === 'StaleCopy') return bookStaleSave(boot);
     return noteSaveFailure(STORAGE_KEY, describeStorageError(e));
   });
 }
@@ -648,6 +669,14 @@ function uiShowMore(key) {
   document.querySelectorAll('[data-more-of="' + key + '"]').forEach(function(el) { el.hidden = false; });
   document.querySelectorAll('[data-more-btn="' + key + '"]').forEach(function(el) { el.remove(); });
 }
+/* Brings one row into sight, showing the rest of its list first when it is under "Show N more": a jump to a challan
+   used to scroll to a row drawn hidden, and so to nowhere. */
+function uiRevealEl(el) {
+  if (!el) return;
+  var hid = el.closest && el.closest('[data-more-of]');
+  if (hid) uiShowMore(hid.getAttribute('data-more-of'));
+  if (el.scrollIntoView) el.scrollIntoView({ block: 'center' });
+}
 
 /* A panel that folds to its head. head: the summary row's inner html; dflt: open when nothing is remembered. */
 function uiFoldOpen(key, dflt) { return Object.prototype.hasOwnProperty.call(_uiFolds, key) ? !!_uiFolds[key] : !!dflt; }
@@ -839,14 +868,13 @@ function bookRedraw(why) {
   if (seen && why === 'saved') showToast('Updated from another window', 'info');
 }
 // A save refused because another window saved first: this window takes the saved book and says what was lost.
-function bookStaleSave() {
+function bookStaleSave(boot) {
   _storageHealth.lastSaveOk = false;
   _storageHealth.lastSaveAt = Date.now();
   _storageHealth.lastError = 'not written: another window had saved the book first';
-  // A save refused while the window is still starting (its migrations) lost nothing anybody did: taken quietly.
-  var booting = !document.body.classList.contains('inv-booted');
+  // A save asked for only while the window was starting (its migrations) lost nothing anybody did: taken quietly.
   return bookReload('stale').then(function() {
-    if (booting) return false;
+    if (boot) return false;
     uiNotice('Another window saved the book after this window loaded it, so the last change made here was not saved. ' +
       'This window now shows the saved book: make that change again.', 'warning');
     return false;
@@ -1018,7 +1046,8 @@ function setMetalsKey(key) { try { localStorage.setItem(METALS_KEY_KEY, key); } 
 // A reserved number in the void ledger still holds its slot — the document
 // left the building, so the number is spent even though no invoice remains.
 function resetSeriesIfEmpty() {
-  if (S.invoices.length === 0 && !S.voidedNumbers.some(function(v) { return v.reserved; })) {
+  // Only when it changes something: it rewrote the whole book at every start of an empty one.
+  if (S.invoices.length === 0 && S.invNextNum !== 1 && !S.voidedNumbers.some(function(v) { return v.reserved; })) {
     S.invNextNum = 1;
     saveJSON(STORAGE_KEY, S);
   }
@@ -1424,13 +1453,14 @@ async function bulkMarkFiled() {
     showToast('No delivered invoices to mark as filed', 'warning');
     return;
   }
+  var ids = eligible.map(function(inv) { return inv.id; });
   if (!(await uiConfirm({ title: 'Mark ' + eligible.length + ' delivered invoice' + (eligible.length > 1 ? 's' : '') + ' as filed?',
     body: 'A filed invoice cannot be deleted and reissued: its number is in a return.', okLabel: 'Mark as filed' }))) return;
+  // Found again by id after the question: another window's save can replace the book while it is open, and the objects
+  // read before it would be filed in a book no longer on screen (the QA sweep, 29 Sep 2026). One place sets a state.
   var now = Date.now();
-  eligible.forEach(function(inv) {
-    inv.invoiceState = 'filed';
-    inv.filedAt = now;
-  });
+  eligible = S.invoices.filter(function(inv) { return ids.indexOf(inv.id) >= 0 && inv.status === 'active' && getInvState(inv) === 'delivered'; });
+  eligible.forEach(function(inv) { invSetState(inv, 'filed', now); });
   saveState();
   _renderRegView();
   showToast(eligible.length + ' invoice' + (eligible.length > 1 ? 's' : '') + ' marked as filed');

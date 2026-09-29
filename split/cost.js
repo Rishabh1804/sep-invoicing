@@ -695,7 +695,9 @@ function stockReorderText(L) {
 function renderStockReorder() {
   var L = stockReorderList(), cfg = L.cfg;
   var h = stockBackBar('Stock', 'Reorder list');
-  h += '<div class="inv-panel"><div class="inv-fields">' +
+  // Not a form: lead and cover save as they change, and a typed quantity is a working figure for the message copied
+  // from it (the list starts afresh each time it opens). Leaving asks nothing.
+  h += '<div class="inv-panel" data-nodirty><div class="inv-fields">' +
     '<div class="inv-field"><label class="inv-field-label" for="stockLeadDays">Lead time (days)</label>' +
     '<input type="number" min="1" step="1" inputmode="numeric" id="stockLeadDays" class="inv-input inv-input-num" value="' + cfg.leadDays + '"></div>' +
     '<div class="inv-field"><label class="inv-field-label" for="stockCoverDays">Days to cover after it lands</label>' +
@@ -704,7 +706,7 @@ function renderStockReorder() {
   if (!L.groups.length) {
     h += '<div class="inv-panel"><div class="inv-empty">Nothing to order: every line with a daily use covers ' + (cfg.leadDays + cfg.coverDays) + ' days.</div></div>';
   } else {
-    h += '<div class="inv-panel inv-panel-flush" id="stockReorder">' + (_isDesktop ? stockReorderTableHtml(L) : stockReorderRowsHtml(L)) + '</div>';
+    h += '<div class="inv-panel inv-panel-flush" id="stockReorder" data-nodirty>' + (_isDesktop ? stockReorderTableHtml(L) : stockReorderRowsHtml(L)) + '</div>';
   }
   if (L.skipped.enough || L.skipped.norate.length) {
     h += '<div class="inv-note inv-mb-8">' + (L.skipped.enough ? L.skipped.enough + ' line' + (L.skipped.enough === 1 ? ' has' : 's have') + ' enough on hand. ' : '') +

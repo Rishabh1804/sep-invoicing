@@ -127,4 +127,34 @@ test.describe('P99: zinc, the market against bills', () => {
     await expect(page.locator('#dashPrice [data-action="invDashZincLookup"]')).toHaveCount(0);
     expect(await g(page, `S.zinc.lmeHistory['${iso(-40)}']`)).toBe(290);
   });
+
+  // metals.dev refusing (a spent key) or unreachable (no signal): the reason is said, nothing is kept, the bill still
+  // counts as having no market, and Look up LME is offered again for another try.
+  for (const [how, reply, said] of [
+    ['refuses', { json: { status: 'failure', error_message: 'API key is invalid' } }, 'metals.dev: API key is invalid.'],
+    ['is unreachable', null, 'metals.dev:'],
+  ] as const) {
+    test(`a lookup metals.dev ${how} says so, keeps nothing, and can be tried again`, async ({ page }) => {
+      await loadAppWithState(page, state());
+      await page.evaluate(() => localStorage.setItem('sep_inv_metals_key', 'test-key'));
+      let asked = 0;
+      await page.route('https://api.metals.dev/v1/timeseries**', route => { asked++; return reply ? route.fulfill(reply as any) : route.abort('internetdisconnected'); });
+      await switchTab(page, 'pageStock');
+      await page.locator('#dashPriceLine').selectOption('Z');
+      await page.locator('#dashPrice [data-action="invDashZincLookup"]').click();
+      await expect(page.locator('.inv-toast')).toContainText(said);
+      expect(asked).toBe(1);
+      expect(await g(page, `S.zinc.lmeHistory['${iso(-40)}'] === undefined`)).toBe(true);
+      await expect(page.locator('#dashPrice [data-zinc-supplier="Gamma"] .inv-dot')).toHaveText('No market');
+      await expect(page.locator('#dashPrice [data-action="invDashZincLookup"]')).toBeEnabled();
+    });
+  }
+
+  test('with no metals.dev key the panel says where to add one, and offers no lookup', async ({ page }) => {
+    await loadAppWithState(page, state());
+    await switchTab(page, 'pageStock');
+    await page.locator('#dashPriceLine').selectOption('Z');
+    await expect(page.locator('#dashPrice [data-zinc-nomarket]')).toContainText('add a metals.dev key in Settings → Connections');
+    await expect(page.locator('#dashPrice [data-action="invDashZincLookup"]')).toHaveCount(0);
+  });
 });

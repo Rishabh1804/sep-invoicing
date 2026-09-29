@@ -18,10 +18,10 @@
 <!-- PAGES -->
 <div id="pageHome" class="inv-page inv-page-active">
   <div class="inv-tiles" id="homeTiles">
-    <div class="inv-tile"><div class="inv-tile-label">Invoices</div><div class="inv-tile-value" id="mtdCount">0</div><div class="inv-tile-sub" id="mtdCountSub">&nbsp;</div></div>
-    <div class="inv-tile"><div class="inv-tile-label">Revenue</div><div class="inv-tile-value" id="mtdRevenue">&#8377;0</div><div class="inv-tile-sub">taxable</div></div>
-    <div class="inv-tile"><div class="inv-tile-label">Plated</div><div class="inv-tile-value" id="mtdKg">&mdash;</div><div class="inv-tile-sub" id="mtdKgSub">&nbsp;</div></div>
-    <div class="inv-tile"><div class="inv-tile-label">Realisation</div><div class="inv-tile-value" id="mtdPerKg">&mdash;</div><div class="inv-tile-sub" id="mtdPerKgSub">&nbsp;</div></div>
+    <div class="inv-tile"><div class="inv-tile-label">Invoices</div><div class="inv-tile-value" id="mtdCount">0</div><div class="inv-tile-sub" id="mtdCountSub">&nbsp;</div><div class="inv-tile-sub" id="mtdCountDelta"></div></div>
+    <div class="inv-tile"><div class="inv-tile-label">Revenue</div><div class="inv-tile-value" id="mtdRevenue">&#8377;0</div><div class="inv-tile-sub">taxable</div><div class="inv-tile-sub" id="mtdRevenueDelta"></div></div>
+    <div class="inv-tile"><div class="inv-tile-label">Plated</div><div class="inv-tile-value" id="mtdKg">&mdash;</div><div class="inv-tile-sub" id="mtdKgSub">&nbsp;</div><div class="inv-tile-sub" id="mtdKgDelta"></div></div>
+    <div class="inv-tile" id="mtdPerKgTile"><div class="inv-tile-label">Realisation</div><div class="inv-tile-value" id="mtdPerKg">&mdash;</div><div class="inv-tile-sub" id="mtdPerKgSub">&nbsp;</div><div class="inv-tile-sub" id="mtdPerKgDelta"></div></div>
   </div>
   <div class="inv-btn-grid" role="group" aria-label="Quick actions">
     <button class="inv-btn inv-btn-primary" data-action="invCreateNew"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg><span>New invoice</span></button>

@@ -94,14 +94,22 @@ export function sweepState(): SepState {
       3: { st: k === 5 ? 'H' : 'P', ot: 0, hours: k === 5 ? 4 : 8, area: 'barrel' } }, extra: k === 2 ? [{ area: 'vat-a2', hours: 8, kind: 'general' }] : [], note: '' };
   }
   s.attendance = att;
-  s.stock = { items: [{ id: 'N', name: 'Nitric acid', key: 'NITRIC', unit: 'L', active: true }, { id: 'Z', name: 'Caustic soda', key: 'CAUSTIC', unit: 'kg', active: true }],
+  s.stock = { items: [{ id: 'N', name: 'Nitric acid', key: 'NITRIC', unit: 'L', active: true }, { id: 'Z', name: 'Caustic soda', key: 'CAUSTIC', unit: 'kg', active: true },
+    { id: 'ZN', name: 'Zinc', key: 'ZINC', unit: 'kg', basis: 'charge', active: true }],
     entries: [
+      // Zinc from two suppliers, one bill on a day with no LME kept: the market-against-bills panel with every part drawn.
+      { id: 'zb1', itemId: 'ZN', kind: 'bill', qty: 1000, price: 352, date: dayOff(-9), supplier: 'Alpha Metals', billNo: 'AM/1', at: 1 },
+      { id: 'zb2', itemId: 'ZN', kind: 'bill', qty: 500, price: 356, date: dayOff(-4), supplier: 'Beta Zinc Traders Private Limited', billNo: 'BZ/1', at: 1 },
+      { id: 'zb3', itemId: 'ZN', kind: 'bill', qty: 200, price: 340, date: dayOff(-40), supplier: 'Alpha Metals', billNo: 'AM/0', at: 1 },
       { id: 'c1', itemId: 'N', kind: 'count', qty: 12, date: dayOff(-7), at: 1 },
       { id: 'b1', itemId: 'N', kind: 'bill', qty: 50, price: 150, date: dayOff(-40), billDate: dayOff(-40), supplier: 'Delta Chemicals', billNo: 'A1', at: 1 },
       { id: 'b2', itemId: 'N', kind: 'bill', qty: 50, price: 165, date: dayOff(-20), billDate: dayOff(-20), supplier: 'Delta Chemicals', billNo: 'A2', at: 1 },
       { id: 'c2', itemId: 'Z', kind: 'count', qty: 500, date: dayOff(-7), at: 1 },
       ...[6, 5, 4, 3, 2, 1].flatMap(k => [{ id: 'u' + k, itemId: 'N', kind: 'used', qty: 2, date: dayOff(-k), at: 2 }, { id: 'z' + k, itemId: 'Z', kind: 'used', qty: 3, date: dayOff(-k), at: 2 }]),
     ], pastes: [] };
+  // The market on the ten days before today, as Refresh keeps it (INR/kg).
+  s.zinc = { ratePerKg: 300, premiumPerKg: 15, upliftPct: 10, basis: 'lme', updatedAt: Date.now(), source: 'metals.dev · metals.zinc',
+    lmeHistory: Object.fromEntries([300, 304, 308, 312, 316, 320, 316, 310, 304, 300].map((v, k) => [dayOff(-10 + k), v])) };
   const rows = [
     { id: 'R1', date: monthOff(-2, 1), valueDate: monthOff(-2, 1), narration: 'SMS CHARGES', chq: '', dr: 1, cr: 0, balance: 90000, dayIdx: 0 },
     { id: 'R2', date: monthOff(-1, 14), valueDate: monthOff(-1, 14), narration: 'NEFT-RAMU KUMAR', chq: '', dr: 12500, cr: 0, balance: 77499, dayIdx: 0, set: { cat: 'wages', staffId: 1 } },
@@ -294,6 +302,22 @@ export async function walkPages(page: Page, tag: string, stops: Stop[]) {
     }
   }
   await walkProduction(page, tag, stops);
+  await walkZinc(page, tag, stops);
+}
+
+/* Stock → Overview's price trend on Zinc: the market against the bills, which the page opens on another line. Drawn as it
+   opens, then with a supplier's bills listed under it. */
+export async function walkZinc(page: Page, tag: string, stops: Stop[]) {
+  await switchTab(page, 'pageStock');
+  await page.locator('[data-action="invDashStockView"][data-view="overview"]').first().click();
+  await page.locator('#dashPriceLine').selectOption('ZN');
+  await expect(page.locator('#dashPrice [data-zinc-suppliers]')).toBeVisible();
+  stops.push(await sweep(page, 'pageStock › zinc market'));
+  await shot(page, `${tag}-pageStock-zinc`);
+  await page.locator('#dashPrice [data-action="invDashZincSupplier"]').first().click();
+  await expect(page.locator('#dashPrice [data-zinc-bill]').first()).toBeVisible();
+  stops.push(await sweep(page, 'pageStock › zinc market › a supplier open'));
+  await shot(page, `${tag}-pageStock-zinc-supplier`);
 }
 
 /* Production's sub-views, which no view tab reaches: the paste check (a red row among them), the register photo's

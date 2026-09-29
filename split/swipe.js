@@ -33,7 +33,8 @@
     var next = dx < 0 ? idx + 1 : idx - 1;
     if (next < 0 || next >= TAB_ORDER.length) return;
 
-    switchTab(TAB_ORDER[next]);
+    // A swipe leaves the screen like a tap on the bar does: unsaved work asks first (nav.js).
+    navLeaveOk().then(function(ok) { if (ok) switchTab(TAB_ORDER[next]); });
   }, { passive: true });
 })();
 

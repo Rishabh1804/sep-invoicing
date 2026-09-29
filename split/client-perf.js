@@ -205,13 +205,10 @@ function _cpMaterialRowList(list, renames) {
   });
 }
 
-/* "+12.3% on Aug", never an arrow alone (§5.4). */
-function _cpDelta(cur, prev) {
+/* "+12.3% on Aug", never an arrow alone (§5.4), coloured by whether it moved the good way (figDeltaHtml). */
+function _cpDelta(cur, prev, better) {
   if (!prev) return '';
-  if (!isFinite(prev.v) || prev.v === 0) return 'no figure for ' + escHtml(prev.label);
-  var pct = ((cur - prev.v) / Math.abs(prev.v)) * 100;
-  if (Math.abs(pct) <= 0.5) return 'level with ' + escHtml(prev.label);
-  return (pct > 0 ? '+' : '−') + formatNum(Math.abs(pct), 1) + '% on ' + escHtml(prev.label);
+  return figDeltaHtml(cur, prev.v, prev.label, better || 'up');
 }
 
 function renderClientPerformance(container) {
@@ -294,7 +291,7 @@ function renderClientPerformance(container) {
       tile('Latest month · ' + escHtml(last.label), formatCurrency(last.revenue),
         last.count + ' invoice' + (last.count !== 1 ? 's' : ''), _cpDelta(last.revenue, p(prev && prev.revenue))) +
       tile('Tonnage', formatNum(last.kg / 1000, 2) + '<span class="inv-tile-of"> t</span>', formatNum(last.kg, 0) + ' kg', _cpDelta(last.kg, p(prev && prev.kg))) +
-      tile('Realisation', last.realisation != null ? formatCurrency(last.realisation) + '<span class="inv-tile-of">/kg</span>' : '&mdash;',
+      tile('Realisation', last.realisation != null ? figHtml(formatCurrency(last.realisation), S.defaultCostPerKg > 0 ? figToneAgainst(last.realisation, S.defaultCostPerKg, 5) : null) + '<span class="inv-tile-of">/kg</span>' : '&mdash;',
         (S.defaultCostPerKg > 0 ? 'cost ' + formatCurrency(S.defaultCostPerKg) + '/kg' : ''),
         (prev && prev.realisation != null && last.realisation != null) ? _cpDelta(last.realisation, p(prev.realisation)) : '') +
       // The months shown, quiet ones included: the level the latest month is read against.

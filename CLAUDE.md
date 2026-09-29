@@ -127,7 +127,7 @@ every session start — nothing to set up by hand. CI (`build-sync`) is the back
 ### Tests
 
 ```bash
-pnpm exec playwright test          # 732 tests, both layouts
+pnpm exec playwright test          # 751 tests, both layouts
 ```
 
 Some sandboxes ship a Chromium build Playwright does not expect and block downloading
@@ -164,10 +164,13 @@ the app from anywhere. `nav.js`:
 - **A layer is one step over the screen**: a dialog, the More sheet, a print preview. Back closes the top one; a dialog
   holding typed work asks first (`dialogLeaveOk`), Settings asks its own way (`closeSettings`). Shut any other way, its
   step is marked `skip` and back passes over it.
-- **A form with unsaved work asks before back leaves it** (*Leave without saving?*, **Stay** first): a field typed on a
-  screen that shows its Save in the action bar (Create, the challan form, a paste check, Enter by hand). Stay puts the
-  browser back on the form's step. A sidebar or tab tap still leaves as before (the Create form keeps its lines; the
-  challan form is dropped): that guard is not built.
+- **A form with unsaved work asks before anything leaves it** (*Leave without saving?*, **Stay** first): a field typed on a
+  screen that shows its Save in the action bar (the challan form, a paste check, Enter by hand, the register photo's
+  check). Back asks (Stay puts the browser back on the form's step), and so does a **tap that leaves** — the phone bar
+  (the form's own screen included, whose redraw drops the form), the sidebar, a screen in the More sheet, a view tab, a
+  sub-view's back button — and a swipe (owner, 29 Sep 2026: *"that's a real bug"*; only Back asked, and a tap dropped a
+  half-typed challan). The tap is caught before `events.js` sees it (`NAV_LEAVE_ACTIONS`, a capture listener in nav.js)
+  and runs again on Leave. **Create asks nothing**: its form stays as typed when the app leaves it. P103.
 - **IM's two lists are view tabs**: *Awaiting invoice* (the default, a part-invoiced challan included) and *Invoiced*,
   which goes back a month at a time by challan date (`imSetTab`, `imMonthShown`). A link to a challan opens the tab and
   month it is under (`imShowChallanTab`). **Swiping** follows the phone bar and then More in its order
@@ -184,6 +187,23 @@ the dividers vanish), a group head goes with the row under it, and the head's co
 wage legs live in Staff → Pay (folded, open when a leg is off its slip), and Finance → Payments keeps one line that opens
 them (the To-do's wage tasks go there too, `todoGo` kind `payWages`). The before-and-after table is in
 `docs/UX_OVERHAUL_2.md` step 6. P101.
+
+**A figure says whether it is good** (owner, 29 Sep 2026: *"most numbers in our app don't convey any kind of meaning, as
+in is it a good number or is it something of an issue, all are in default black"*; the owner chose both of the options put to
+them). A figure the app can judge is coloured in its status tone, always beside the words that give the reason (DR-8), and
+a headline figure carries a change line against its benchmark, coloured by whether it moved the good way; a count stays
+uncoloured. The judgements are in one place, state.js (`figToneAgainst`, `figToneAge`, `figTonePaysIn`,
+`figToneCapacity`, `figTonePct`, `figDeltaHtml`; `inv-fig-*`), and read by:
+- **Home**: every month-to-date tile against the same days last month (`homePriorSameDays`), and realisation against the
+  month's live cost (*below cost ₹8.56*); the Money strip's *Owed to us* by age (*₹5,900 over 90 days*) and *Pays in*;
+  the attendance card's *On site* at the rest-day gate's 90 / 80%.
+- **Stats**: the headline's change lines and realisation against the live cost (warning within 5% under it), gross margin
+  ok or danger, *In one line*'s realisation and capacity (80 / 60% of two shifts, with the tonnes spare), realisation by
+  client (*Just under cost* / *Below cost*), and days to pay under each client.
+- **Clients → Performance**: the change lines and the latest month's realisation against the cost.
+- **Finance → Receivables and Overview**: what a client owes by the age of its oldest open invoice (*owed, over 90 d*),
+  and *pays in N d*.
+P102.
 
 **A `<select>` speaks through `change`, never `click`.** Giving a filter control a
 `data-action` meant the click that *opens* it ran the handler — and if that handler
@@ -241,7 +261,7 @@ filter on; a literal date in a fixture is a time bomb, not a constant.
 |----|------|
 | HR-1 | No inline styles. CSS classes + design tokens. |
 | HR-2 | No inline onclick. data-action delegation only. |
-| HR-3 | inv- CSS prefix on every class. 459 classes, all of them (distinct class selectors in `split/styles.css`, comments stripped, 29 Sep 2026: the eighteen `inv-as-*` of the attendance and stock sheets added, then `inv-topbar-back` and `inv-topbar-trail`); P76 asserts every class the app draws is one of them or a named hook. |
+| HR-3 | inv- CSS prefix on every class. 462 classes, all of them (distinct class selectors in `split/styles.css`, comments stripped, 29 Sep 2026: the eighteen `inv-as-*` of the attendance and stock sheets added, then `inv-topbar-back` and `inv-topbar-trail`, then `inv-fig-ok/warning/danger`: 462); P76 asserts every class the app draws is one of them or a named hook. |
 | HR-4 | No emojis. Inline SVGs in HTML template. |
 | HR-5 | escHtml() on all user-data innerHTML. |
 | HR-6 | CSS design tokens only. No raw px/rem/hex/timing. |

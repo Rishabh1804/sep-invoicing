@@ -1,5 +1,5 @@
 import { test, expect, Page } from '@playwright/test';
-import { emptyState, loadAppWithState, switchTab, todayIso, SepState } from './fixtures';
+import { answerAsk, emptyState, loadAppWithState, switchTab, todayIso, SepState } from './fixtures';
 
 /*
  * Creating a missing part without leaving the line being typed.
@@ -179,8 +179,11 @@ test('P20: an abandoned inline add cannot redirect a later ordinary one', async 
   // does, so name the one in the header.)
   await page.locator('.inv-dialog-close').click();
 
-  // Now add an item the ordinary way, from the Items tab.
-  await switchTab(page, 'pageClients');
+  // Now add an item the ordinary way, from the Items tab. The challan form still holds the typed line, so leaving it
+  // asks first (P103): Leave.
+  await page.locator('[data-action="invSwitchTab"][data-tab="pageClients"]:visible').first().click();
+  await answerAsk(page, 'ok');
+  await page.locator('#pageClients.inv-page-active').waitFor();
   await page.locator('[data-action="invSwitchSubView"][data-view="items"]').first().click();
   await page.locator('[data-action="invAddItem"]').first().click();
   await page.locator('#itemEditPN').fill('PLAIN ITEM');

@@ -1352,6 +1352,10 @@ body.inv-desktop .inv-row-fields > .inv-seg .inv-seg-btn { min-width: var(--ctl-
 .inv-num { font-family: var(--ff-mono); text-align: right; white-space: nowrap; }
 /* A signed figure: its sign is the symbol, the tone follows it (§5.4). */
 .inv-num-pos { color: var(--ok); }
+/* A judged figure in its status tone (figHtml, state.js): the words beside it say why (DR-8). */
+.inv-fig-ok { color: var(--ok); }
+.inv-fig-warning { color: var(--warning); }
+.inv-fig-danger { color: var(--danger); }
 .inv-num-neg { color: var(--danger); }
 .inv-table th.inv-num { font-family: var(--ff-base); text-align: right; }
 .inv-id { font-family: var(--ff-mono); white-space: nowrap; }

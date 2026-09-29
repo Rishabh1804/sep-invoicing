@@ -101,15 +101,21 @@ function renderFinHomeCard() {
   var book = bankBookDaysToPay(bankPayHistory(recv));
   var loose = bankLooseReceipts(finCtx().cls, bankRecvFrom(finCtx().rows)).length;
   var age = todoDaysBetween(last.date, localDateStr());
+  // What is owed is judged by its age: any of it past 90 days is danger, past 60 warning (figToneAge).
+  var over = finAgeing(recv), old90 = over[3] ? over[3].amount : 0, old60 = over[2] ? over[2].amount : 0;
   var tile = function(tab, anchor, label, value, sub, tone) {
     return '<button class="inv-tile' + (tone ? ' inv-tile-' + tone : '') + '" data-action="invFinGo" data-tab="' + tab + '"' + (anchor ? ' data-anchor="' + anchor + '"' : '') + ' data-home-fin="' + label + '">' +
       '<div class="inv-tile-label">' + label + '</div><div class="inv-tile-value inv-tile-value-sm inv-nowrap" title="' + escHtml(formatCurrency(value)) + '">' + finRs(value) + '</div><div class="inv-tile-sub">' + sub + '</div></button>';
   };
   h += '<div class="inv-tiles inv-tiles-flush">' +
     tile('bank', '', 'Balance', last.balance, 'on ' + escHtml(finShortDate(last.date)) + (age > 7 ? ', ' + age + ' days ago' : ''), last.balance < 0 ? 'danger' : age > 7 ? 'warning' : '') +
-    tile('receipts', loose ? 'bankLoose' : '', 'Owed to us', owed, loose ? loose + ' receipt' + (loose === 1 ? '' : 's') + ' not placed' : 'since ' + escHtml(finShortDate(bankRecvFrom(rows))), loose ? 'warning' : '') +
-    (book && book.median != null ? '<button class="inv-tile" data-action="invFinGo" data-tab="receipts" data-home-fin="Pays in"><div class="inv-tile-label">Pays in</div>' +
-      '<div class="inv-tile-value inv-tile-value-sm">' + Math.round(book.median) + ' days</div><div class="inv-tile-sub">the book, invoice to receipt</div></button>' : '') +
+    tile('receipts', loose ? 'bankLoose' : '', 'Owed to us', owed, loose ? loose + ' receipt' + (loose === 1 ? '' : 's') + ' not placed'
+      : old90 > 0 ? finRs(old90) + ' over 90 days' : old60 > 0 ? finRs(old60) + ' over 60 days' : 'since ' + escHtml(finShortDate(bankRecvFrom(rows))),
+      // Never red while a receipt is unplaced: that money may be in already, and the sub line names the receipts (owed90).
+      loose ? 'warning' : old90 > 0 ? 'danger' : old60 > 0 ? 'warning' : '') +
+    (book && book.median != null ? '<button class="inv-tile' + (figTonePaysIn(book.median) ? ' inv-tile-' + figTonePaysIn(book.median) : '') + '" data-action="invFinGo" data-tab="receipts" data-home-fin="Pays in"><div class="inv-tile-label">Pays in</div>' +
+      '<div class="inv-tile-value inv-tile-value-sm">' + Math.round(book.median) + ' days</div><div class="inv-tile-sub">the book, invoice to receipt' +
+      (book.median > 60 ? ' · over two months' : book.median > 30 ? ' · over a month' : '') + '</div></button>' : '') +
     tile('overview', 'finForecast', 'Runway', fc ? fc.min.bal : last.balance, fc && fc.cross ? 'below zero on ' + escHtml(finShortDate(fc.cross)) : fc ? 'lowest in 45 days, ' + escHtml(finShortDate(fc.min.date)) : '', fc && fc.cross ? 'danger' : '') +
     '</div>';
   el.innerHTML = h + '</div>';

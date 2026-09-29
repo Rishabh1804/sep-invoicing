@@ -640,8 +640,10 @@ function _bankReceiptsHtml(cls) {
       '<span class="inv-row-title">' + escHtml(r.client.name) + '</span><span class="inv-row-meta inv-row-wrap">' +
       escHtml(formatCurrency(r.invoiced)) + ' invoiced' + (r.notes ? ' · ' + escHtml(formatCurrency(r.notes)) + ' credited' : '') + ' · ' + escHtml(formatCurrency(r.received)) + ' received' +
       (r.open.length ? ' · oldest open ' + r.oldestDays + ' d' : '') + (r.onAccount > 0.005 ? ' · ' + escHtml(formatCurrency(r.onAccount)) + ' on account' : '') + (r.openingSuggest ? ' · owed at start not set' : '') +
-      (dtp && dtp.median != null ? ' · pays in ' + Math.round(dtp.median) + ' d' + (dtp.n < 3 ? ' (' + dtp.n + ' receipt' + (dtp.n === 1 ? '' : 's') + ')' : '') : '') + '</span></button>' +
-      '<span class="inv-row-end"><span class="inv-row-stack"><span class="inv-num">' + formatCurrency(r.owed) + '</span><span class="inv-row-meta">' + (r.owed < -0.005 ? 'paid ahead' : 'owed') + '</span></span></span></div>';
+      (dtp && dtp.median != null ? ' · pays in ' + figHtml(Math.round(dtp.median) + ' d', figTonePaysIn(dtp.median)) + (dtp.n < 3 ? ' (' + dtp.n + ' receipt' + (dtp.n === 1 ? '' : 's') + ')' : '') : '') + '</span></button>' +
+      // Owed is coloured by how old its oldest open invoice is, and the word under it says so.
+      '<span class="inv-row-end"><span class="inv-row-stack"><span class="inv-num">' + figHtml(formatCurrency(r.owed), r.owed > 0.005 ? figToneAge(r.oldestDays) : null) + '</span><span class="inv-row-meta">' +
+      (r.owed < -0.005 ? 'paid ahead' : r.owed > 0.005 && r.oldestDays > 90 ? 'owed, over 90 d' : r.owed > 0.005 && r.oldestDays > 60 ? 'owed, over 60 d' : 'owed') + '</span></span></span></div>';
     if (!open) return;
     h += '<div class="inv-row-children">';
     if (r.openingStale) h += '<div class="inv-callout inv-callout-warning" data-opening-stale>' + escHtml(formatCurrency(r.openingStale.amount)) + ' was set as owed at ' +

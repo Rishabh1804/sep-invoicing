@@ -533,11 +533,13 @@ function attDayPanelHtml(d, headBtn, id) {
   var h = '<div class="inv-panel inv-panel-flush"' + (id ? ' id="' + id + '"' : '') + '><div class="inv-panel-head"><span class="inv-panel-title">Attendance ' +
     '<span class="inv-note">' + (d.today ? 'today' : escHtml(attDayName(d.iso) + ' ' + formatDate(d.iso))) + '</span></span>' + (headBtn || '') + '</div>';
   if (!d.marked) return h + '<div class="inv-empty">Nothing recorded yet.</div></div>';
+  // On site against the roster, judged at the rest-day gate's 90% and 80% (a day nobody typed judges nothing).
+  var onPct = d.roster.length && !d.unmarked ? (d.p + d.half) / d.roster.length * 100 : null, onTone = figTonePct(onPct, 90, 80);
   h += '<div class="inv-tiles inv-tiles-flush">' +
-    '<div class="inv-tile"><div class="inv-tile-label">On site</div>' +
+    '<div class="inv-tile' + (onTone ? ' inv-tile-' + onTone : '') + '" data-att-onsite><div class="inv-tile-label">On site</div>' +
     '<div class="inv-tile-value"' + (id === 'homeAtt' ? ' id="homeAttOnSite"' : '') + '>' + (d.p + d.half) + '<span class="inv-tile-of">/' + d.roster.length + '</span></div>' +
     '<div class="inv-tile-sub">' + (d.half ? d.half + ' half day' + (d.half === 1 ? '' : 's') + ' · ' : '') + d.absent.length + ' absent' + (d.unmarked ? ' · ' + d.unmarked + ' unmarked' : '') + '</div></div>' +
-    '<div class="inv-tile' + (d.short ? ' inv-tile-warning' : '') + '"><div class="inv-tile-label">On the floor</div>' +
+    '<div class="inv-tile' + (d.short ? ' inv-tile-warning' : d.complement ? ' inv-tile-ok' : '') + '"><div class="inv-tile-label">On the floor</div>' +
     '<div class="inv-tile-value">' + d.floorHeads + (d.complement ? '<span class="inv-tile-of">/' + d.complement + '</span>' : '') + '</div>' +
     '<div class="inv-tile-sub">' + (d.complement ? (d.short ? (d.complement - d.floorHeads) + ' short of the complement' : 'against the complement') : 'no complement set') + '</div></div></div>';
   if (d.absent.length) h += '<div class="inv-row inv-row-2"><span class="inv-row-main"><span class="inv-row-meta">Absent</span><span class="inv-row-wrap">' + escHtml(d.absent.join(', ')) + '</span></span></div>';

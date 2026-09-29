@@ -560,6 +560,16 @@ function onDocChange(e) {
     renderAttendance();
     return;
   }
+  if (e.target.hasAttribute && e.target.hasAttribute('data-att-need')) {
+    setAreaNeedOn(_attDate, e.target.dataset.area, e.target.value);
+    renderAttendance();
+    return;
+  }
+  if (e.target.hasAttribute && e.target.hasAttribute('data-att-block-need')) {
+    setAttBlockNeed(parseInt(e.target.dataset.idx, 10), e.target.value);
+    renderAttendance();
+    return;
+  }
   if (e.target.hasAttribute && e.target.hasAttribute('data-att-extra-hours')) {
     setAttExtraHours(parseInt(e.target.dataset.idx, 10), e.target.value);
     renderAttendance();
@@ -640,6 +650,14 @@ document.addEventListener('input', function(e) {
   }
   if (e.target.hasAttribute && e.target.hasAttribute('data-area-target')) {
     setAreaTarget(e.target.dataset.area, e.target.value);
+    return;
+  }
+  if (e.target.hasAttribute && e.target.hasAttribute('data-att-need')) {
+    setAreaNeedOn(_attDate, e.target.dataset.area, e.target.value);
+    return;
+  }
+  if (e.target.hasAttribute && e.target.hasAttribute('data-att-block-need')) {
+    setAttBlockNeed(parseInt(e.target.dataset.idx, 10), e.target.value);
     return;
   }
   if (e.target.hasAttribute && e.target.hasAttribute('data-att-extra-hours')) {

@@ -159,6 +159,8 @@ function extraAreas(x) {
    reduction cannot be derived — which is exactly why booking under the
    prediction is never reported as an error. */
 function blockNorm(row, blockRows) {
+  // The number entered for this block wins over everything below: it is what the shift actually needed.
+  if (row && typeof row.need === 'number' && row.need >= 0) return row.need;
   var areas = extraAreas(row);
   var rows = blockRows || [row];
 
@@ -299,6 +301,30 @@ function blockKey(x) { return (x && x.from ? x.from : '?') + '-' + (x && x.to ? 
 function areaTarget(areaId) {
   var t = (S.areaTargets || {})[areaId];
   return t > 0 ? t : null;
+}
+
+/* The heads a SHIFT needs (owner, 29 Sep 2026: "sometimes the barrel needs only 3 workers, or VAT A1 or A2 needs only 2.
+   The app still shows a deficit in these cases, so for every shift we assume and also input (as an option) the number
+   of workers needed"). The general shift's number for an area on a day is `S.shiftNeeds[iso][area]` when one was
+   entered, 0 included (nobody needed), else the area's usual complement. It is kept apart from S.attendance because a
+   stored day there is what "this day was recorded" means: a number entered for tomorrow must not claim a recording.
+   A block's own number is `need` on its row (blockNorm). */
+function areaNeedOn(iso, areaId) {
+  var day = iso && S.shiftNeeds ? S.shiftNeeds[iso] : null;
+  var n = day ? day[areaId] : null;
+  return typeof n === 'number' && n >= 0 ? n : areaTarget(areaId);
+}
+function areaNeedSet(iso, areaId) {
+  var day = iso && S.shiftNeeds ? S.shiftNeeds[iso] : null;
+  return !!(day && typeof day[areaId] === 'number');
+}
+function setAreaNeedOn(iso, areaId, v) {
+  if (!S.shiftNeeds) S.shiftNeeds = {};
+  var n = String(v).trim() === '' ? NaN : Math.floor(Number(v));
+  var day = S.shiftNeeds[iso] || (S.shiftNeeds[iso] = {});
+  if (!isNaN(n) && n >= 0) day[areaId] = n; else delete day[areaId];
+  if (!Object.keys(day).length) delete S.shiftNeeds[iso];
+  saveState();
 }
 
 function setAreaTarget(areaId, heads) {
@@ -495,7 +521,7 @@ function areaStats(fromIso, toIso) {
 
       var norm = 0, hasNorm = false, heads = 0, booked = 0;
       members.forEach(function(y) {
-        var t = areaTarget(y.id);
+        var t = areaNeedOn(iso, y.id);
         if (t != null) { norm += t; hasNorm = true; }
         heads += headsToday[y.id] || 0;
         booked += coverToday[y.id] || 0;

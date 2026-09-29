@@ -92,4 +92,29 @@ test.describe('P96: attendance sheets', () => {
     await page.locator('[data-action="invAttSheetPreview"]').click();
     await expect(page.locator('.inv-print-view-active .inv-as-page')).toHaveCount(3);
   });
+
+  test("Shyam's sheet for an earlier day with a record comes out filled in his shape, as a worked example", async ({ page }) => {
+    const y = (() => { const d = new Date(todayIso() + 'T00:00:00'); d.setDate(d.getDate() - 1); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; })();
+    const s: any = state(false);
+    s.attendance[y] = {
+      marks: { W1: { st: 'P', area: 'vat-a1' }, W3: { st: 'P', area: 'vat-a1', outMin: 1140 }, W2: { st: 'P', area: 'barrel' }, W4: { st: 'A' }, W5: { st: 'A' } },
+      extra: [{ kind: 'coverage', area: 'vat-a1', hours: 8 }, { kind: 'block', areas: ['barrel'], from: '17:00', to: '20:00', crew: ['W2'], hours: 3 }], note: '',
+    };
+    await loadAppWithState(page, s);
+    expect(await g(page, `!!attSheetFillFor('${y}') + '|' + !!attSheetFillFor('${todayIso()}')`)).toBe('true|false');
+    await g(page, `document.getElementById('invPrintBody').innerHTML = attSheetShyamHtml('${y}', attSheetFillFor('${y}'))`);
+    const front = page.locator('[data-sheet="shyam-in"]');
+    await expect(front).toHaveAttribute('data-filled', '');
+    const box = (h: string) => front.locator('.inv-as-box', { has: page.locator('.inv-as-box-h', { hasText: h }) });
+    expect(await box('VAT A1').locator('.inv-as-fill').allInnerTexts()).toEqual(['Arun', 'Chand', '8']);
+    expect(await box('Monthly absent').locator('.inv-as-fill').allInnerTexts()).toEqual(['Esha', 'Gopal']);
+    const back = page.locator('[data-sheet="shyam-out"]');
+    // Chand left at 7 with no block: in the 5 PM list with his own time; Bala stood the 5–8 PM barrel block.
+    await expect(back.locator('.inv-as-grid').first()).toContainText('Chand 7:00 PM');
+    await expect(back.locator('.inv-as-grid').first()).not.toContainText('Bala');
+    // The second 5 PM box numbers on from the first's eight lines.
+    await expect(back.locator('.inv-as-grid').first().locator('.inv-as-box').nth(1).locator('.inv-as-num').first()).toHaveText('9)');
+    const later = back.locator('.inv-as-grid').nth(1).locator('.inv-as-box').first();
+    expect(await later.locator('.inv-as-fill').allInnerTexts()).toEqual(['8:00 PM', 'Barrel', 'Bala', '3']);
+  });
 });

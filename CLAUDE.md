@@ -126,7 +126,7 @@ every session start — nothing to set up by hand. CI (`build-sync`) is the back
 ### Tests
 
 ```bash
-pnpm exec playwright test          # 710 tests, both layouts
+pnpm exec playwright test          # 716 tests, both layouts
 ```
 
 Some sandboxes ship a Chromium build Playwright does not expect and block downloading
@@ -203,7 +203,7 @@ filter on; a literal date in a fixture is a time bomb, not a constant.
 |----|------|
 | HR-1 | No inline styles. CSS classes + design tokens. |
 | HR-2 | No inline onclick. data-action delegation only. |
-| HR-3 | inv- CSS prefix on every class. 456 classes, all of them (distinct class selectors in `split/styles.css`, comments stripped, 29 Sep 2026: the seventeen `inv-as-*` of the attendance and stock sheets added); P76 asserts every class the app draws is one of them or a named hook. |
+| HR-3 | inv- CSS prefix on every class. 457 classes, all of them (distinct class selectors in `split/styles.css`, comments stripped, 29 Sep 2026: the eighteen `inv-as-*` of the attendance and stock sheets added); P76 asserts every class the app draws is one of them or a named hook. |
 | HR-4 | No emojis. Inline SVGs in HTML template. |
 | HR-5 | escHtml() on all user-data innerHTML. |
 | HR-6 | CSS design tokens only. No raw px/rem/hex/timing. |
@@ -1972,6 +1972,9 @@ sheets' page styles, each page one A4 sheet (P97):
   app by / on*.
 - **The filled copy** carries every entry the app holds for the day, pasted or by hand (a voided one never reaches paper),
   two on one line joined with +, the bills grouped by invoice, and the **level after** the day.
+- **An earlier day with stock recorded prints the supervisor's sheet filled, as a worked example** (`stockSheetFillFor`):
+  the window his message covered, and per line the opening, what was added, the use as *days × a day = total*, and what
+  was available after.
 
 ### Stock reorder list
 More → Stock → **Reorder list** (owner, 25 Sep 2026). For each line with a daily use:
@@ -2106,7 +2109,38 @@ on screen, three documents through the one print view, each page one A4 sheet (P
 - **The filled copy** is Deepak's form carrying what the app holds for the day (a worker marked that day who has since left
   the roster included), to staple behind the two. It cannot be picked for a day with nothing entered.
 Shyam writes, Deepak transcribes into the app's shape, the owner enters it and files all three: the paper checks the entry.
+**An earlier day the app holds prints Shyam's sheet filled, as a worked example** (owner, 29 Sep 2026: *"that way giving them
+a tutorial becomes easy"*; `attSheetFillFor`, never for today): the names under their area, the absent by tier (monthly or
+weekly), the 6 AM blocks and the evening blocks with area, crew and EXTRA, whoever is on no evening block in the 5 PM list
+with their own time when it is not 5 (*Chand 7:00 PM*, his *BIRSA 2 PM*), all in a filled form's ink (`inv-as-fill`).
 Names come from the roster on the device; none is written into the build, and the spec uses made-up ones. English only (owner).
+
+### Needed per shift, and the out-time roll read right (29 Sep 2026)
+**The heads a shift needs** (owner: *"sometimes the barrel needs only 3 worker, or VAT A1 or A2 needs only 2 … The app still
+shows a deficit in these cases, so for every shift we assume and also input (as an option) the number of workers needed"*).
+Staff → Day → **Needed today**: per floor area, who stood on the general shift against the shift's number, a box that starts
+at the area's usual complement (placeholder) and takes the day's own (0 = nobody needed; blank = the usual), and a dot
+(*Short n* / *Met* / *n over*). Stored in **`S.shiftNeeds[iso][area]`**, apart from `S.attendance`, because a stored day
+there is what "recorded" means and a number typed for tomorrow must not claim a recording. `areaNeedOn(iso, area)` is read
+wherever the complement was: the Areas card's unit-day shortfall and expected extra, and Home's floor-heads tile. Each OT
+or night block has its own **Needed** (`need` on its row), which `blockNorm` reads before the complement and the fold.
+
+**The out-time roll**, from one the owner sent (P98 uses made-up names in its shape):
+- *"night hold-8 pm to 6 am"* ran from 5 PM: every out-time block started at 5, and "to" was not a timing word, so the
+  heading's own times were skipped. A heading that writes both ends now gives its block both, and a bare *night* heading is
+  the night hold, **8 PM to 6 AM** (`RELAY_NIGHT`). A heading with a single time is still only when the crew went home.
+- *"----berral & V A 2----"* read as the barrel alone: the barrel check returned before looking for a VAT line. Barrel with
+  a VAT line (no pickling) is both, and the collapse to barrel pickling now applies only to barrel + barrel pickling.
+- *"pickling 2 SIDE"* is one pickling crew serving both sides (owner): `pickling-vat` + `pickling-barrel`, never a third area.
+
+**The reader learns from corrections** (owner: *"The parser should learn from feedback … by reading if the data was changed
+after the paste or save"*). A row the roll makes remembers the heading it came from and what was read (`srcHead`,
+`srcAreas`, `srcSlot`, `srcFrom`, `srcTo`); changing its areas, or a block's in and out, on the Day view records the
+correction against that heading (`relayLearnFromRow`, `S.relayLearn`), and the next roll with that heading reads it that
+way with an info line *… learnt from your correction on 28 Sep*. Put back as read, the lesson goes; Staff → Paste message
+lists every one with **Forget**. Times are learnt only for a heading with words (*night hold*): a bare *8:00 PM* is when a
+crew went home, and one day's exception must not move every day's block. The paste review has no area or time controls,
+so corrections are taken where they are made, on the saved day.
 
 ### Labour and attendance
 The Staff tab. Labour is ₹3.55/kg of an ₹8.55 cost and 42% of it — the largest line in the

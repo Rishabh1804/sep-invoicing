@@ -97,8 +97,9 @@ test.describe('P41: attendance rolls from WhatsApp', () => {
     expect(r.m.Esha).toMatchObject({ st: 'A', area: 'flex', hours: 0 });
     expect(r.issues.some((i: string) => i.startsWith('red:"ZORO"'))).toBe(true);
     expect(r.extra).toEqual([
-      { kind: 'block', areas: ['vat-a1'], crew: ['Arun', 'Bala'], hours: 3, from: '06:00', to: '08:30' },
-      { kind: 'coverage', area: 'vat-a1', hours: 8 },
+      // Each row keeps the heading it came from, for the reader to learn from a correction (P98).
+      { kind: 'block', areas: ['vat-a1'], crew: ['Arun', 'Bala'], hours: 3, from: '06:00', to: '08:30', srcHead: 'VAT A 1', srcAreas: ['vat-a1'] },
+      { kind: 'coverage', area: 'vat-a1', hours: 8, srcHead: 'VAT A 1', srcAreas: ['vat-a1'] },
     ]);
     expect(r.notes).toContain('MEHTA CLAMP 1000 NOS');
 
@@ -124,7 +125,8 @@ test.describe('P41: attendance rolls from WhatsApp', () => {
     expect(day.marks.W2).toMatchObject({ hours: 14, ot: 0 });
     expect(day.marks.W3).toMatchObject({ hours: 8 });
     expect(day.marks.W8).toMatchObject({ st: 'A', area: 'flex' });
-    expect(day.extra).toContainEqual({ kind: 'block', areas: ['vat-a1'], crew: ['W1', 'W2'], hours: 6, from: '17:00', to: '20:00', area: 'vat-a1', src: 'relay' });
+    expect(day.extra).toContainEqual({ kind: 'block', areas: ['vat-a1'], crew: ['W1', 'W2'], hours: 6, from: '17:00', to: '20:00', area: 'vat-a1', src: 'relay',
+      srcHead: 'VAT A 1', srcAreas: ['vat-a1'] });
     expect(day.extra).toHaveLength(3);
     // The placed spelling is remembered on the worker.
     expect(s.staff.find((w: any) => w.id === 'W8').relayNames).toEqual(['ZORO']);

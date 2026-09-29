@@ -77,4 +77,21 @@ test.describe('P97: stock sheets', () => {
     expect((await cells(bill))[1]).toBe('A/17');
     expect((await cells(bill))[3]).toBe('Q558');
   });
+
+  test("the supervisor's sheet for an earlier day with stock recorded comes out filled, as a worked example", async ({ page }) => {
+    const s: any = state();
+    s.stock.entries.push({ id: 'q9', itemId: 'Q', kind: 'used', qty: 12, days: 3, from: iso(-4), date: iso(-2), at: 5, seq: 2 });
+    s.stock.pastes = [{ id: 'P1', at: 1, from: iso(-4), to: iso(-2), text: '' }];
+    await loadAppWithState(page, s);
+    expect(await g(page, `!!stockSheetFillFor('${iso(-2)}') + '|' + !!stockSheetFillFor('${iso(-6)}')`)).toBe('true|false');
+    await g(page, `document.getElementById('invPrintBody').innerHTML = stockSheetSupHtml('${iso(-2)}', true)`);
+    const sheet = page.locator('[data-sheet="stock-sup"]');
+    await expect(sheet).toHaveAttribute('data-filled', '');
+    // From and To are the window the message covered.
+    expect(await sheet.locator('.inv-as-grid .inv-as-fill').count()).toBe(2);
+    // Q558: 40 counted on day −5, 12 used over 3 days: opening 40, 3 × 4 = 12, available 28.
+    expect(await sheet.locator('tbody tr', { hasText: 'Q558' }).locator('td').allInnerTexts()).toEqual(['2)', 'Q558', 'kg', '40', '', '3 × 4 = 12', '28', '']);
+    // A line with nothing that day stays blank.
+    expect(await sheet.locator('tbody tr', { hasText: 'Zinc' }).locator('.inv-as-fill').count()).toBe(0);
+  });
 });

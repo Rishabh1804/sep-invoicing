@@ -18,7 +18,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <!-- Appearance before first paint (§3.2): the device's theme and palette, so nothing flashes in the wrong colours. -->
 <script>(function(){try{var d=document.documentElement,t=localStorage.getItem("sep_inv_theme"),p=localStorage.getItem("sep_inv_palette");if(t==="light"||t==="dark")d.dataset.theme=t;d.dataset.palette=(p==="zinc"||p==="terracotta")?p:"teal";}catch(e){document.documentElement.dataset.palette="teal";}})();</script>
-<meta name="app-build" content="ecbc6d4c">
+<meta name="app-build" content="c6830b0c">
 <style>
 /* ===== DESIGN TOKENS (design system v2.0 — docs/SEP_INVOICING_DESIGN_PRINCIPLES.md §3) ===== */
 /* Theme: colour-scheme decides every light-dark() below. <html data-theme> is set before first paint
@@ -250,7 +250,7 @@ body:not(.inv-booted) { pointer-events: none; }
 .inv-as-page {
   --as-fs: 9pt; --as-fs-sm: 7.5pt; --as-fs-h: 14pt; --as-fs-slot: 10.5pt;
   --as-line: 6.5mm; --as-line-tall: 8.5mm; --as-gap: 3mm; --as-pad: 10mm 12mm; --as-rule: 0.5pt; --as-num-w: 6mm;
-  --as-sheet-w: 210mm; --as-sheet-h: 297mm; --as-sign-gap: 10mm;
+  --as-sheet-w: 210mm; --as-sheet-h: 297mm; --as-sign-gap: 10mm; --as-ink: #1a3a8f;
   background: #fff; color: #000; font-family: var(--ff-base); font-size: var(--as-fs); line-height: 1.2;
   width: var(--as-sheet-w); min-height: var(--as-sheet-h); padding: var(--as-pad); margin: 0 auto var(--sp-16);
   border: 1px solid var(--border); page-break-after: always; break-after: page;
@@ -280,6 +280,8 @@ body:not(.inv-booted) { pointer-events: none; }
 .inv-as-sign { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--as-gap); margin-top: var(--as-sign-gap); font-size: var(--as-fs-sm); }
 .inv-as-sign > div { border-top: var(--as-rule) solid #000; padding-top: 1mm; }
 .inv-as-note { font-size: var(--as-fs-sm); color: #444; margin-top: 2mm; }
+/* What a worked example carries, in the ink of a filled form. */
+.inv-as-fill { color: var(--as-ink); font-weight: 600; }
 
 /* ===== PRINT VIEW ===== */
 .inv-print-view {
@@ -1924,6 +1926,7 @@ function getDefaultState() {
     // is not a complement of zero, and the Areas view says so rather than
     // reporting every area as overstaffed on day one.
     areaTargets: {},
+    shiftNeeds: {},
     // Attendance, keyed by ISO date. One entry per day the plant was recorded;
     // a day with no key is a day nobody typed, which is not the same fact as a
     // day nobody worked — labour coverage is stated on that distinction.
@@ -1952,6 +1955,7 @@ function getDefaultState() {
     // Every attendance roll pasted in, whole, with a fingerprint so the same
     // roll twice is refused (it would count every hour twice).
     relayPastes: [],
+    relayLearn: { heads: {}, slots: {} },
     // Payments and advances made to workers, voided with a reason, never deleted.
     staffPayments: [],
     // Power and other monthly bills, for the live cost (voided, never deleted).
@@ -2352,7 +2356,7 @@ function hideStorageBanner(kind) {
 // Containers hold the user's records, so a missing one is filled EMPTY — the
 // app must never invent business data to repair a shape.
 var STATE_CONTAINERS = ['clients', 'items', 'invoices', 'incomingMaterial', 'partWeights',
-  'voidedNumbers', 'creditNotes', 'extraExceptions', 'staff', 'attendance', 'areaTargets', 'stock', 'todo', 'relayPastes', 'staffPayments', 'costBills', 'payrollPaid', 'bank', 'production'];
+  'voidedNumbers', 'creditNotes', 'extraExceptions', 'staff', 'attendance', 'areaTargets', 'shiftNeeds', 'stock', 'todo', 'relayPastes', 'relayLearn', 'staffPayments', 'costBills', 'payrollPaid', 'bank', 'production'];
 // Config objects are the opposite: a missing one is filled from the defaults,
 // and so is a missing KEY inside one. `labourCfg()` reads `extraRate || 0`, so
 // a backup predating a constant would silently price the extra at nothing
@@ -13238,7 +13242,7 @@ var ATT_FOCUS_ATTRS = ['data-action', 'data-id', 'data-st', 'data-date', 'data-i
   'data-area', 'data-worker'];
 var ATT_FOCUS_FLAGS = ['data-att-area', 'data-att-ot', 'data-att-hours',
   'data-att-extra-area', 'data-att-extra-hours', 'data-att-extra-kind',
-  'data-att-block-from', 'data-att-block-to'];
+  'data-att-block-from', 'data-att-block-to', 'data-att-need', 'data-att-block-need'];
 
 function _attFocusSelector() {
   var page = document.getElementById('pageStaff');
@@ -13433,6 +13437,7 @@ function _attDayView() {
   });
   html += '</div>';
 
+  html += _attNeedCard(iso, rec);
   html += _attExtraCard(iso, rec);
   html += renderLabourCard(iso, iso, 'Day cost');
   return html;
@@ -13488,6 +13493,11 @@ function _attBlockFields(x, i, siblings) {
     // Both lengths, whenever they differ: the clock span the operator typed
     // and the credited length the tag is judged against. Nothing is rounded
     // behind their back.
+    // What this block needed: its own number, else the complement of the areas it covers (the fold included).
+    '<div class="inv-field inv-toolbar-item"><label class="inv-field-label" for="blkNeed-' + i + '">Needed</label>' +
+    '<input type="number" class="inv-input inv-input-num" id="blkNeed-' + i + '" data-att-block-need data-idx="' + i + '" step="1" min="0"' +
+    ' placeholder="' + (function() { var c = {}; for (var k in x) c[k] = x[k]; delete c.need; var n = blockNorm(c, [c].concat(siblings || [])); return n != null ? formatNum(n, 1).replace(/\.0$/, '') : '—'; })() +
+    '" value="' + (typeof x.need === 'number' ? x.need : '') + '" aria-label="Heads the block needed"></div>' +
     '<span class="inv-num inv-toolbar-end" data-block-len>' + (hrs == null ? '&mdash;'
       : (span != null && span !== hrs
         ? formatNum(span, 1) + ' h &rarr; ' + formatNum(hrs, 1) + ' credited'
@@ -13549,6 +13559,40 @@ function _attBlockFields(x, i, siblings) {
   }
 
   return html + '</div>';
+}
+
+/* Needed today: the heads each floor area stood on the general shift against what the shift needed (areaNeedOn). The
+   box starts at the area's usual complement and takes the day's own number; blank goes back to the usual. */
+function _attNeedCard(iso, rec) {
+  var heads = {};
+  (rec ? staffActive() : []).forEach(function(w) {
+    var m = rec.marks[w.id];
+    if (!m || (m.st !== 'P' && m.st !== 'H')) return;
+    var a = m.area || w.area || 'flex';
+    heads[a] = (heads[a] || 0) + 1;
+  });
+  var html = '<div class="inv-panel inv-panel-flush" id="attNeed"><div class="inv-panel-head"><span class="inv-panel-title">Needed today</span></div>' +
+    '<div class="inv-panel-body inv-note">The general shift: who stood in each area against what the shift needed. The box starts at the area&rsquo;s usual number ' +
+    '(Areas); type the day&rsquo;s own, 0 when the line did not need anyone, or clear it for the usual. The shortfall and the extra are judged against it. ' +
+    'An OT or night block takes its own number under Extra hours.</div>';
+  STAFF_AREAS.filter(function(a) { return a.floor && a.id !== 'flex'; }).forEach(function(a) {
+    var need = areaNeedOn(iso, a.id), usual = areaTarget(a.id), h = heads[a.id] || 0, set = areaNeedSet(iso, a.id);
+    var dot = need == null ? uiDot('neutral', 'No number') : h < need ? uiDot('warning', 'Short ' + (need - h)) : h > need ? uiDot('info', (h - need) + ' over') : uiDot('ok', 'Met');
+    html += '<div class="inv-row inv-row-2" data-need-area="' + a.id + '"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(a.label) + '</span>' +
+      '<span class="inv-row-meta">' + h + ' on the floor' + (set && usual != null ? ' · usually ' + usual : '') + '</span></span>' +
+      '<span class="inv-row-end"><input type="number" class="inv-input inv-input-sm inv-input-num" data-att-need data-area="' + a.id + '" step="1" min="0"' +
+      ' placeholder="' + (usual != null ? usual : '—') + '" value="' + (set ? need : '') + '" aria-label="Needed in ' + escHtml(a.label) + '">' + dot + '</span></div>';
+  });
+  return html + '</div>';
+}
+
+/* A block's own number (blockNorm reads it first); blank goes back to the areas' complement. */
+function setAttBlockNeed(idx, v) {
+  var rec = attDay(_attDate, false);
+  if (!rec || !rec.extra[idx]) return;
+  var n = String(v).trim() === '' ? NaN : Math.floor(Number(v));
+  if (!isNaN(n) && n >= 0) rec.extra[idx].need = n; else delete rec.extra[idx].need;
+  saveState();
 }
 
 function _attExtraCard(iso, rec) {
@@ -13875,10 +13919,28 @@ function attRemoveExtra(idx) {
   renderAttendance();
 }
 
+/* A correction to a row the roll made is a lesson for the next roll with the same heading (relay.js). Put back as it
+   was read, the lesson goes. */
+function relayLearnFromRow(x) {
+  if (!x) return;
+  var L = relayLearnData(), at = Date.now();
+  if (x.srcHead) {
+    var k = relayHeadKey(x.srcHead), now = extraAreas(x), was = x.srcAreas || [];
+    if (now.slice().sort().join() === was.slice().sort().join()) delete L.heads[k];
+    else L.heads[k] = { areas: now, was: was, text: x.srcHead, at: at, day: _attDate };
+  }
+  if (x.srcSlot && x.kind === 'block') {
+    var ks = relayHeadKey(x.srcSlot);
+    if (x.from === x.srcFrom && x.to === x.srcTo) delete L.slots[ks];
+    else if (x.from && x.to) L.slots[ks] = { from: x.from, to: x.to, wasFrom: x.srcFrom || '', wasTo: x.srcTo || '', text: x.srcSlot, at: at, day: _attDate };
+  }
+}
+
 function setAttExtraArea(idx, areaId) {
   var rec = attDay(_attDate, false);
   if (!rec || !rec.extra[idx]) return;
   rec.extra[idx].area = areaId;
+  relayLearnFromRow(rec.extra[idx]);
   saveState();
 }
 
@@ -13902,6 +13964,7 @@ function setAttBlockTime(idx, which, value) {
   var rec = attDay(_attDate, false);
   if (!rec || !rec.extra[idx]) return;
   rec.extra[idx][which === 'to' ? 'to' : 'from'] = String(value || '');
+  relayLearnFromRow(rec.extra[idx]);
   saveState();
 }
 
@@ -13922,6 +13985,7 @@ function toggleAttBlockArea(idx, areaId) {
   // cost tallies bucket on, and a row that lost its last area would otherwise
   // keep booking against whichever one it used to name.
   x.area = list.length ? list[0] : 'flex';
+  relayLearnFromRow(x);
   saveState();
 }
 
@@ -15463,6 +15527,8 @@ function extraAreas(x) {
    reduction cannot be derived — which is exactly why booking under the
    prediction is never reported as an error. */
 function blockNorm(row, blockRows) {
+  // The number entered for this block wins over everything below: it is what the shift actually needed.
+  if (row && typeof row.need === 'number' && row.need >= 0) return row.need;
   var areas = extraAreas(row);
   var rows = blockRows || [row];
 
@@ -15603,6 +15669,30 @@ function blockKey(x) { return (x && x.from ? x.from : '?') + '-' + (x && x.to ? 
 function areaTarget(areaId) {
   var t = (S.areaTargets || {})[areaId];
   return t > 0 ? t : null;
+}
+
+/* The heads a SHIFT needs (owner, 29 Sep 2026: "sometimes the barrel needs only 3 workers, or VAT A1 or A2 needs only 2.
+   The app still shows a deficit in these cases, so for every shift we assume and also input (as an option) the number
+   of workers needed"). The general shift's number for an area on a day is `S.shiftNeeds[iso][area]` when one was
+   entered, 0 included (nobody needed), else the area's usual complement. It is kept apart from S.attendance because a
+   stored day there is what "this day was recorded" means: a number entered for tomorrow must not claim a recording.
+   A block's own number is `need` on its row (blockNorm). */
+function areaNeedOn(iso, areaId) {
+  var day = iso && S.shiftNeeds ? S.shiftNeeds[iso] : null;
+  var n = day ? day[areaId] : null;
+  return typeof n === 'number' && n >= 0 ? n : areaTarget(areaId);
+}
+function areaNeedSet(iso, areaId) {
+  var day = iso && S.shiftNeeds ? S.shiftNeeds[iso] : null;
+  return !!(day && typeof day[areaId] === 'number');
+}
+function setAreaNeedOn(iso, areaId, v) {
+  if (!S.shiftNeeds) S.shiftNeeds = {};
+  var n = String(v).trim() === '' ? NaN : Math.floor(Number(v));
+  var day = S.shiftNeeds[iso] || (S.shiftNeeds[iso] = {});
+  if (!isNaN(n) && n >= 0) day[areaId] = n; else delete day[areaId];
+  if (!Object.keys(day).length) delete S.shiftNeeds[iso];
+  saveState();
 }
 
 function setAreaTarget(areaId, heads) {
@@ -15799,7 +15889,7 @@ function areaStats(fromIso, toIso) {
 
       var norm = 0, hasNorm = false, heads = 0, booked = 0;
       members.forEach(function(y) {
-        var t = areaTarget(y.id);
+        var t = areaNeedOn(iso, y.id);
         if (t != null) { norm += t; hasNorm = true; }
         heads += headsToday[y.id] || 0;
         booked += coverToday[y.id] || 0;
@@ -16966,7 +17056,7 @@ function attDaySummary() {
     if (m.st === 'H') out.half++; else out.p++;
     if (w.onFloor !== false && _areaIsFloor(m.area || w.area)) out.floorHeads++;
   });
-  out.complement = STAFF_AREAS.reduce(function(s, a) { var t = areaTarget(a.id); return s + (t != null ? t : 0); }, 0);
+  out.complement = STAFF_AREAS.reduce(function(s, a) { var t = areaNeedOn(iso, a.id); return s + (t != null ? t : 0); }, 0);
   out.extraH = (rec.extra || []).reduce(function(s, x) { return s + (x.hours || 0); }, 0);
   out.short = !!out.complement && out.floorHeads < out.complement;
   return out;
@@ -22192,6 +22282,7 @@ var RELAY_GENERAL = 510;   // 8:30 AM, the general shift's start
 var RELAY_GENERAL_OUT = 1020;  // 5:00 PM
 var RELAY_GATE = [420, 1140];  // 7 AM – 7 PM, the gate keeper's standing hours
 var RELAY_MORNING = 360;   // 6:00 AM
+var RELAY_NIGHT = 1200;    // 8:00 PM, the night hold's start (owner, 29 Sep 2026: "night hold here means night shift … 8 pm to 6 am")
 
 function relayIso(d, m, y) {
   d = +d; m = +m; y = +y;
@@ -22199,6 +22290,25 @@ function relayIso(d, m, y) {
   if (!(d >= 1 && d <= 31 && m >= 1 && m <= 12)) return null;
   return y + '-' + String(m).padStart(2, '0') + '-' + String(d).padStart(2, '0');
 }
+/* ===== LEARNT FROM YOUR CORRECTIONS (owner, 29 Sep 2026: "The parser should learn from feedback and it generates
+   feedback by reading if the data was changed after the paste or save") =====
+   A row the roll made remembers the heading it came from and what was read (`srcHead`, `srcAreas`, `srcSlot`, `srcFrom`,
+   `srcTo`). Changing its areas, or a block's in and out, on the Day view records the correction against that heading
+   (relayLearnFromRow, staff.js), and the next roll with the same heading reads it that way and says so. Put back as
+   read, the lesson is forgotten; the paste view lists every one with Forget. Times are learnt only for a heading with
+   words in it ("night hold"): a bare "8:00 PM" is when the crew went home, and one day's exception must not move every
+   day's block. `S.relayLearn = {heads: {KEY: {areas, was, text, at, day}}, slots: {KEY: {from, to, wasFrom, wasTo, …}}}`. */
+function relayHeadKey(t) { return String(t || '').toUpperCase().replace(/[^A-Z0-9]+/g, ' ').trim(); }
+function relayHeadHasWords(t) { return /[A-Z]{2,}/.test(relayHeadKey(t).replace(/\b(AM|PM|OUT|TIME|IN)\b/g, '')); }
+function relayLearnData() {
+  if (!S.relayLearn || typeof S.relayLearn !== 'object' || Array.isArray(S.relayLearn)) S.relayLearn = {};
+  if (!S.relayLearn.heads || typeof S.relayLearn.heads !== 'object') S.relayLearn.heads = {};
+  if (!S.relayLearn.slots || typeof S.relayLearn.slots !== 'object') S.relayLearn.slots = {};
+  return S.relayLearn;
+}
+function _relayHm(t) { var m = /^(\d{1,2}):(\d{2})$/.exec(String(t || '')); return m ? +m[1] * 60 + +m[2] : null; }
+function _relayLearntNote(l) { return 'learnt from your correction' + (l && l.day ? ' on ' + formatDate(l.day) : ''); }
+
 function relayKey(s) { return String(s || '').toUpperCase().replace(/[^A-Z]/g, ''); }
 function relayHhmm(min) {
   if (min == null) return '';
@@ -22255,6 +22365,12 @@ function relayHeaderAreas(text) {
   // "pickling VA 1 & berral" is the VAT side's pickling that also serves the
   // barrel; "pickling & berral" is the barrel unit.
   if (pick && /PICK\w*\s+(VAT|V\s?A)\b/.test(k)) return ['pickling-vat'];
+  // "pickling 2 SIDE": one pickling crew serving both sides, the barrel and whichever VAT line runs (owner, 29 Sep
+  // 2026) — judged against both pickling areas, never a third area.
+  if (pick && /\b(2|TWO|BOTH)\s*SIDE/.test(k)) return ['pickling-vat', 'pickling-barrel'];
+  // "berral & V A 2": the barrel and a VAT line in one block (the night hold). It used to stop at the barrel and
+  // judge the whole crew against the barrel's complement alone.
+  if (barrel && !pick && (a1 || a2)) return ['barrel'].concat(a1 ? ['vat-a1'] : []).concat(a2 ? ['vat-a2'] : []);
   if (barrel) return pick ? ['barrel', 'pickling-barrel'] : ['barrel'];
   if (pick && vat) {
     var vatFirst = /^\s*(VAT|V\s?A)\b/.test(k) && k.indexOf('PICK') > k.search(/VAT|V\s?A/);
@@ -22448,6 +22564,7 @@ function relayKind(text) {
    review can show the message beside the reading. */
 function parseRelayRoll(text, roster, sentOn) {
   var idx = relayRosterIndex(roster);
+  var learn = (roster && roster.learn) || { heads: {}, slots: {} };
   var lines = String(text || '').split('\n');
   var out = { kind: relayKind(text), date: null, days: {}, lines: [], issues: [] };
   var first = lines[0] || '';
@@ -22529,9 +22646,11 @@ function parseRelayRoll(text, roster, sentOn) {
       var row;
       if (general && sec.areas.length) {
         row = { kind: 'coverage', area: sec.areas[0], hours: hrs };
+        if (sec.srcHead) { row.srcHead = sec.srcHead; row.srcAreas = [sec.areas[0]]; }
         ln.read = 'EXTRA ' + hrs + ' h booked to ' + relayAreaName(sec.areas[0]);
       } else {
-        var from = st.mode === 'out' || (st.slot && st.slot.start >= RELAY_GENERAL_OUT) ? RELAY_GENERAL_OUT : (st.slot && st.slot.start != null ? st.slot.start : RELAY_MORNING);
+        var from = st.mode === 'out' ? (st.slot && st.slot.rangeStart != null ? st.slot.rangeStart : RELAY_GENERAL_OUT)
+          : (st.slot && st.slot.start >= RELAY_GENERAL_OUT) ? RELAY_GENERAL_OUT : (st.slot && st.slot.start != null ? st.slot.start : RELAY_MORNING);
         var to = st.mode === 'out' ? (st.slot && st.slot.end) : (st.slot && st.slot.end != null && st.slot.end !== st.slot.start ? st.slot.end : (from === RELAY_MORNING ? RELAY_GENERAL : null));
         // Barrel and its pickling are one unit to the reconciler; the shop's own
         // decodes name a morning block there as the pickling side.
@@ -22549,8 +22668,11 @@ function parseRelayRoll(text, roster, sentOn) {
           }
         }
         var crewNames = crewIds.map(function(id) { return day(st.iso).people[id].name; });
-        var bAreas = sec.areas.length === 2 && sec.areas[0] === 'barrel' ? ['pickling-barrel'] : sec.areas.slice();
+        var bAreas = sec.learnt ? sec.learnt.areas.slice()
+          : sec.areas.length === 2 && sec.areas[0] === 'barrel' && sec.areas[1] === 'pickling-barrel' ? ['pickling-barrel'] : sec.areas.slice();
         row = { kind: 'block', areas: bAreas, crew: crewNames, hours: hrs, from: relayHhmm(from), to: to == null ? '' : relayHhmm(to) };
+        if (sec.srcHead) { row.srcHead = sec.srcHead; row.srcAreas = bAreas.slice(); }
+        if (st.slot && st.slot.label && relayHeadHasWords(st.slot.label)) { row.srcSlot = st.slot.label; row.srcFrom = row.from; row.srcTo = row.to; }
         ln.read = 'EXTRA ' + hrs + ' h, block ' + relayClockLabel(from) + ' – ' + (to == null ? '?' : relayClockLabel(to)) +
           (row.areas.length ? ', ' + row.areas.map(relayAreaName).join(' + ') : ', no line named') + ', crew ' + (row.crew.length ? row.crew.length : 'not named');
         if (!row.crew.length) out.issues.push({ tone: 'amber', n: ln.n, text: 'EXTRA ' + hrs + ' h has no crew named under it; it is kept, and reads Not checkable on the Areas card.' });
@@ -22559,8 +22681,8 @@ function parseRelayRoll(text, roster, sentOn) {
       ln.role = 'extra';
       day(st.iso).extra.push(row);
       // The tag closes its group: names after it are the next crew.
-      var keep = sec.areas.slice(), was = sec.slotOnly;
-      newSection(keep, null); st.sec.slotOnly = was; st.sec.headText = '';
+      var keep = sec.areas.slice(), was = sec.slotOnly, srcHead = sec.srcHead, lrn = sec.learnt;
+      newSection(keep, null); st.sec.slotOnly = was; st.sec.headText = ''; st.sec.srcHead = srcHead; st.sec.learnt = lrn;
       return;
     }
 
@@ -22592,7 +22714,10 @@ function parseRelayRoll(text, roster, sentOn) {
     if (!hit && !numbered && isHeaderish) {
       var kindH = isHeaderish;
       if (kindH.slot) {
-        if (st.mode === 'out') st.slot = { start: null, end: kindH.end != null ? kindH.end : (kindH.single != null ? kindH.single : null), label: bare, rangeStart: kindH.start };
+        // A heading that writes both ends ("night hold-8 pm to 6 am") gives its block both: the start is no longer
+        // taken to be 5 PM. A single time is only when the crew under it went home.
+        if (st.mode === 'out') st.slot = { start: null, end: kindH.end != null ? kindH.end : (kindH.single != null ? kindH.single : null), label: bare,
+          rangeStart: kindH.end != null || kindH.night ? kindH.start : null };
         else {
           var sStart = kindH.start;
           // A slot ahead of the 8:30 shift on an in-time roll is the morning: the
@@ -22604,6 +22729,14 @@ function parseRelayRoll(text, roster, sentOn) {
           if (sStart === RELAY_GENERAL) st.sawGeneral = true;
           st.slot = { start: sStart, end: kindH.end, label: bare };
           kindH.start = sStart;
+        }
+        var ls = relayHeadHasWords(bare) ? learn.slots[relayHeadKey(bare)] : null;
+        if (ls && _relayHm(ls.from) != null && _relayHm(ls.to) != null) {
+          var lf = _relayHm(ls.from), lt = _relayHm(ls.to);
+          if (lt <= lf) lt += 1440;
+          if (st.mode === 'out') { st.slot.rangeStart = lf; st.slot.end = lt; } else { st.slot.start = lf; st.slot.end = lt; kindH.start = lf; }
+          st.slot.learnt = ls;
+          out.issues.push({ tone: 'info', n: ln.n, text: '"' + bare + '" read as ' + relayClockLabel(lf) + ' – ' + relayClockLabel(lt) + ', ' + _relayLearntNote(ls) + '.' });
         }
         newSection(kindH.areas || [], null);
         st.sec.slotOnly = !(kindH.areas && kindH.areas.length);
@@ -22626,12 +22759,19 @@ function parseRelayRoll(text, roster, sentOn) {
       var prevLn = out.lines[out.lines.length - 2];
       var lastRow = day(st.iso).extra[day(st.iso).extra.length - 1];
       if (prevLn && prevLn.role === 'extra' && lastRow && lastRow.kind === 'block' && !lastRow.areas.length && (kindH.areas || []).length) {
-        lastRow.areas = kindH.areas.length === 2 && kindH.areas[0] === 'barrel' ? ['pickling-barrel'] : kindH.areas.slice();
+        lastRow.areas = kindH.areas.length === 2 && kindH.areas[0] === 'barrel' && kindH.areas[1] === 'pickling-barrel' ? ['pickling-barrel'] : kindH.areas.slice();
         ln.role = 'head'; ln.read = 'The block above ran on ' + lastRow.areas.map(relayAreaName).join(' + ');
         return;
       }
+      var lh = !kindH.absent ? learn.heads[relayHeadKey(bare)] : null;
+      if (lh && Array.isArray(lh.areas)) {
+        kindH.areas = lh.areas.slice();
+        out.issues.push({ tone: 'info', n: ln.n, text: '"' + bare + '" read as ' + (lh.areas.map(relayAreaName).join(' + ') || 'no line') + ', ' + _relayLearntNote(lh) + '.' });
+      }
       newSection(kindH.areas || [], { absent: kindH.absent });
       st.sec.headText = bare;
+      st.sec.srcHead = bare;
+      st.sec.learnt = lh || null;
       ln.role = 'head';
       ln.read = kindH.absent ? 'Absent' : (kindH.areas.length ? kindH.areas.map(relayAreaName).join(' + ') : 'Section');
       return;
@@ -22722,7 +22862,7 @@ function relaySlotOrArea(bare) {
   if (/\b(WORK|PRODUCTION)\b/.test(up) && !/\d/.test(up)) return { prod: true };
   var times = relayTimes(bare);
   var words = up.replace(/\d{1,2}\s*:?\s*\d{0,2}\s*(AM|PM)?/g, ' ').replace(/[^A-Z&]+/g, ' ').trim().split(/\s+/).filter(Boolean);
-  var slotWords = ['OUT', 'TIME', 'IN', 'AM', 'PM', 'NIGHT', 'HOLD', 'MORNING', 'OT', 'GENERAL', 'GANRAL', 'SHIFT', 'SHIPT', 'EVENING', 'M', 'P', 'A'];
+  var slotWords = ['OUT', 'TIME', 'IN', 'AM', 'PM', 'NIGHT', 'HOLD', 'TO', 'FROM', 'TILL', 'MORNING', 'OT', 'GENERAL', 'GANRAL', 'SHIFT', 'SHIPT', 'EVENING', 'M', 'P', 'A'];
   var areas = relayHeaderAreas(bare);
   var absent = /ABSENT/.test(up);
   if (times.length && !absent) {
@@ -22731,7 +22871,8 @@ function relaySlotOrArea(bare) {
   }
   if (/MORNING/.test(up)) return { slot: true, start: RELAY_MORNING, end: RELAY_GENERAL, areas: areas };
   if (/G[AE]N[AE]?RAL/.test(up)) return { slot: true, start: RELAY_GENERAL, end: RELAY_GENERAL_OUT, areas: areas };
-  if (/NIGHT/.test(up)) return { slot: true, start: RELAY_GENERAL_OUT, end: 1440 + RELAY_MORNING, areas: areas };
+  // The night hold runs 8 PM to 6 AM (owner, 29 Sep 2026); times written on the heading win over this.
+  if (/NIGHT/.test(up)) return { slot: true, start: RELAY_NIGHT, end: 1440 + RELAY_MORNING, areas: areas, night: true };
   if (absent) return { absent: true, areas: [] };
   if (/\b(MONTHLY|WEEKLY)\b/.test(up) && words.length <= 2) return { areas: [] };
   if (areas.length) return { areas: areas };
@@ -22785,6 +22926,7 @@ function relayRoster(choices) {
       relayNames: (w.relayNames || []).filter(function(n) { return !(relayKey(n) in choices); }).concat(extra[String(w.id)] || []) };
   });
   r.skip = skip;
+  r.learn = relayLearnData();
   return r;
 }
 function relayWorker(id) {
@@ -22879,6 +23021,8 @@ function relayPlan(rv) {
         ? { kind: 'block', areas: x.areas, crew: x.crew.map(function(n) { var w = roster.find(function(r) { return r.name === n; }); return w ? w.id : null; }).filter(function(v) { return v != null; }),
             hours: x.hours, from: x.from, to: x.to, area: x.areas[0] || 'flex', src: 'relay' }
         : { kind: 'coverage', area: x.area, hours: x.hours, src: 'relay' };
+      // Where the row came from travels with it, so a correction on the saved day can teach the next roll.
+      ['srcHead', 'srcAreas', 'srcSlot', 'srcFrom', 'srcTo'].forEach(function(k) { if (x[k] != null) row[k] = Array.isArray(x[k]) ? x[k].slice() : x[k]; });
       var dup = rec && (rec.extra || []).some(function(e) { return relayExtraSame(e, row); });
       return { row: row, dup: !!dup };
     });
@@ -22919,7 +23063,30 @@ function relayRenderView() {
     '<textarea id="relayPasteText" class="inv-textarea inv-textarea-mono" rows="12" spellcheck="false" placeholder="Copy the message in WhatsApp and paste it here. Several at once is fine.">' +
     escHtml(_relayDraft) + '</textarea></div>' +
     '<button class="inv-btn inv-btn-primary inv-btn-block" data-action="invRelayRead">Read message</button>' +
-    '<div class="inv-note inv-mt-8">Nothing is saved until you check what was read. Names are matched to the roster; a name it cannot place is asked about once and remembered.</div></div>';
+    '<div class="inv-note inv-mt-8">Nothing is saved until you check what was read. Names are matched to the roster; a name it cannot place is asked about once and remembered.</div></div>' +
+    relayLearntHtml();
+}
+
+/* What the reader has learnt from your corrections, each with what it was read as before, and Forget. */
+function relayLearntHtml() {
+  var L = relayLearnData(), rows = '';
+  Object.keys(L.heads).sort().forEach(function(k) {
+    var l = L.heads[k];
+    rows += '<div class="inv-row inv-row-2" data-learnt="head"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(l.text || k) + '</span>' +
+      '<span class="inv-row-meta">' + escHtml((l.areas || []).map(relayAreaName).join(' + ') || 'no line') + ' · was ' + escHtml((l.was || []).map(relayAreaName).join(' + ') || 'no line') +
+      (l.day ? ' · ' + escHtml(formatDate(l.day)) : '') + '</span></span>' +
+      '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invRelayForget" data-kind="heads" data-key="' + escHtml(k) + '">Forget</button></div>';
+  });
+  Object.keys(L.slots).sort().forEach(function(k) {
+    var l = L.slots[k];
+    rows += '<div class="inv-row inv-row-2" data-learnt="slot"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(l.text || k) + '</span>' +
+      '<span class="inv-row-meta">' + escHtml(l.from + ' – ' + l.to) + ' · was ' + escHtml((l.wasFrom || '?') + ' – ' + (l.wasTo || '?')) +
+      (l.day ? ' · ' + escHtml(formatDate(l.day)) : '') + '</span></span>' +
+      '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invRelayForget" data-kind="slots" data-key="' + escHtml(k) + '">Forget</button></div>';
+  });
+  if (!rows) return '';
+  return '<div class="inv-panel inv-panel-flush" id="relayLearnt"><div class="inv-panel-head"><span class="inv-panel-title">Learnt from your corrections</span></div>' +
+    '<div class="inv-panel-body inv-note">A heading you corrected on the Day view is read your way on every roll after it. Forget one to go back to how it is read by default.</div>' + rows + '</div>';
 }
 
 function relayRead() {
@@ -23116,6 +23283,11 @@ function relayAction(action, btn) {
     case 'invRelayBack': _relayView = 'paste'; renderAttendance(); break;
     case 'invRelaySave': relaySave(); break;
     case 'invRelayLines': _relayShowLines = !_relayShowLines; renderAttendance(); break;
+    case 'invRelayForget': {
+      var L = relayLearnData();
+      if (L[btn.dataset.kind]) { delete L[btn.dataset.kind][btn.dataset.key]; saveState(); showToast('Forgotten'); renderAttendance(); }
+      break;
+    }
   }
 }
 function relayOnChange(t) {
@@ -23181,34 +23353,100 @@ function _asClock(t) {
   return m ? _asHm(parseInt(m[1], 10) * 60 + parseInt(m[2], 10)) : String(t || '');
 }
 
-/* Shyam's roll: In time (front) and Out time (back). Numbers run on within a slot, as he writes them. */
-function attSheetShyamHtml(iso) {
-  var n = 1, boxes = '';
-  ATT_SHEET_IN_AREAS.forEach(function(a) {
-    boxes += '<div class="inv-as-box"><div class="inv-as-box-h">' + a[0] + '</div>' + _asLines(a[1], n) +
-      (a[2] ? _asField('EXTRA', 'hours') : '') + '</div>';
-    n += a[1];
+/* A line or field carrying what was recorded: printed in the ink colour of a filled form (inv-as-fill). */
+function _asFillLines(texts, min, from) {
+  var h = '', n = Math.max(min, texts.length);
+  for (var i = 0; i < n; i++) {
+    h += '<div class="inv-as-line">' + (from != null ? '<span class="inv-as-num">' + (from + i) + ')</span>' : '') +
+      (texts[i] ? '<span class="inv-as-fill">' + escHtml(texts[i]) + '</span>' : '') + '</div>';
+  }
+  return h;
+}
+function _asFillField(label, value, after) {
+  return '<div class="inv-as-field"><span>' + label + '</span><span class="inv-as-blank">' + (value ? '<span class="inv-as-fill">' + escHtml(value) + '</span>' : '') + '</span>' +
+    (after ? '<span>' + after + '</span>' : '') + '</div>';
+}
+function _asName(id) { var w = staffById(id) || staffById(Number(id)); return w ? w.name : String(id); }
+function _asBlockMin(t) { var m = /^(\d{1,2}):(\d{2})$/.exec(String(t || '')); return m ? +m[1] * 60 + +m[2] : null; }
+
+/* Shyam's roll: In time (front) and Out time (back). Numbers run on within a slot, as he writes them. With `rec` (an
+   earlier day the app holds; owner, 29 Sep 2026: "if we have previous day's data ... that should be printed when
+   printing out Shyam's sheet for any previous day, that way giving them a tutorial becomes easy") the same sheet comes
+   out filled in his own shape: names under their area, the absent by tier, each block's area, crew and EXTRA, who left
+   at 5 and who later, with their own times. */
+function attSheetShyamHtml(iso, rec) {
+  var marks = rec ? rec.marks || {} : {}, extra = rec ? rec.extra || [] : [];
+  var byBox = {}, absM = [], absW = [], flex = [];
+  var boxOf = { 'vat-a1': 0, 'vat-a2': 1, 'barrel': 2, 'pickling-barrel': 2, 'pickling-vat': 3, 'office': 4, 'gate': 4 };
+  Object.keys(marks).forEach(function(id) {
+    var m = marks[id], w = staffById(id) || staffById(Number(id));
+    if (!m || !m.st) return;
+    if (m.st === 'A') { (w && w.comp === 'monthly' ? absM : absW).push(_asName(id)); return; }
+    var b = boxOf[m.area || (w && w.area) || 'flex'];
+    if (b == null) flex.push(_asName(id)); else (byBox[b] = byBox[b] || []).push(_asName(id));
   });
-  boxes += '<div class="inv-as-box"><div class="inv-as-box-h">Monthly absent</div>' + _asLines(3, n) +
-    '<div class="inv-as-box-h">Weekly absent</div>' + _asLines(3, n + 3) + '</div>';
-  var block = function(title, lines) {
-    return '<div class="inv-as-box">' + '<div class="inv-as-box-h">' + title + '</div>' + _asField('Area') + _asLines(lines, 1) +
-      _asField('EXTRA', 'hours') + _asField('Work done') + '</div>';
+  var cover = {};
+  extra.forEach(function(x) { if ((x.kind || 'coverage') === 'coverage') { var b = boxOf[x.area]; if (b != null) cover[b] = (cover[b] || 0) + (x.hours || 0); } });
+  var blocks = extra.filter(function(x) { return x.kind === 'block'; }).sort(function(a, b) { return (_asBlockMin(a.from) || 0) - (_asBlockMin(b.from) || 0); });
+  var morning = blocks.filter(function(x) { var f = _asBlockMin(x.from); return f != null && f < 510; });
+  var evening = blocks.filter(function(x) { var f = _asBlockMin(x.from); return f == null || f >= 510; });
+
+  var n = 1, boxes = '';
+  ATT_SHEET_IN_AREAS.forEach(function(a, i) {
+    var names = byBox[i] || [];
+    boxes += '<div class="inv-as-box"><div class="inv-as-box-h">' + a[0] + '</div>' + _asFillLines(names, a[1], n) +
+      (a[2] ? _asFillField('EXTRA', cover[i] ? formatNum(cover[i], 1).replace(/\.0$/, '') : '', 'hours') : '') + '</div>';
+    n += Math.max(a[1], names.length);
+  });
+  if (flex.length) { boxes += '<div class="inv-as-box"><div class="inv-as-box-h">No line written</div>' + _asFillLines(flex, 1, n) + '</div>'; n += flex.length; }
+  boxes += '<div class="inv-as-box"><div class="inv-as-box-h">Monthly absent</div>' + _asFillLines(absM, 3, n) +
+    '<div class="inv-as-box-h">Weekly absent</div>' + _asFillLines(absW, 3, n + Math.max(3, absM.length)) + '</div>';
+  var block = function(title, x, lines) {
+    var area = x ? extraAreas(x).map(areaLabel).join(' + ') : '';
+    var crew = x && Array.isArray(x.crew) ? x.crew.map(_asName) : [];
+    return '<div class="inv-as-box"><div class="inv-as-box-h">' + title + '</div>' + _asFillField('Area', area) + _asFillLines(crew, lines, 1) +
+      _asFillField('EXTRA', x && x.hours ? formatNum(x.hours, 1).replace(/\.0$/, '') : '', 'hours') + _asFillField('Work done', '') + '</div>';
   };
-  var front = '<div class="inv-as-page" data-sheet="shyam-in">' + _asHead('In time', iso, 'Shyam') +
-    '<div class="inv-as-slot">6:00 AM</div><div class="inv-as-grid">' + block('Block 1', 3) + block('Block 2', 3) + '</div>' +
+  var mBoxes = '';
+  for (var k = 0; k < Math.max(2, morning.length); k++) mBoxes += block('Block ' + (k + 1) + (morning[k] ? ' · ' + _asClock(morning[k].from) + ' – ' + _asClock(morning[k].to) : ''), morning[k], 3);
+  var worked = rec ? '<div class="inv-as-note">Filled from the app&rsquo;s record of this day, as a worked example.</div>' : '';
+  var front = '<div class="inv-as-page" data-sheet="shyam-in"' + (rec ? ' data-filled' : '') + '>' + _asHead('In time', iso, 'Shyam') + worked +
+    '<div class="inv-as-slot">6:00 AM</div><div class="inv-as-grid">' + mBoxes + '</div>' +
     '<div class="inv-as-slot">8:30 AM</div><div class="inv-as-grid">' + boxes + '</div>' +
     '<div class="inv-as-note">Write each name as on WhatsApp. EXTRA is the hours booked to the area for a hand short.</div></div>';
-  var later = function() {
-    return '<div class="inv-as-box"><div class="inv-as-box-h">Out at ____________</div>' + _asField('Area') + _asLines(5, 1) +
-      _asField('EXTRA', 'hours') + _asField('Work done') + '</div>';
+
+  // Out time: whoever is on no evening block leaves in the 5 PM list, with their own time when it is not 5.
+  var onBlock = {};
+  evening.forEach(function(x) { (x.crew || []).forEach(function(id) { onBlock[String(id)] = true; }); });
+  var five = [];
+  Object.keys(marks).forEach(function(id) {
+    var m = marks[id];
+    if (!m || (m.st !== 'P' && m.st !== 'H') || onBlock[String(id)]) return;
+    five.push(_asName(id) + (m.outMin != null && m.outMin !== 1020 ? ' ' + _asHm(m.outMin) : ''));
+  });
+  var fiveA = five.slice(0, Math.max(8, Math.ceil(five.length / 2))), fiveB = five.slice(fiveA.length);
+  var later = function(x) {
+    var area = x ? extraAreas(x).map(areaLabel).join(' + ') : '';
+    var crew = x && Array.isArray(x.crew) ? x.crew.map(_asName) : [];
+    return '<div class="inv-as-box"><div class="inv-as-box-h">Out at ' + (x && x.to ? '<span class="inv-as-fill">' + escHtml(_asClock(x.to)) + '</span>' +
+      (x.from ? ' <span class="inv-as-num">from ' + escHtml(_asClock(x.from)) + '</span>' : '') : '____________') + '</div>' +
+      _asFillField('Area', area) + _asFillLines(crew, 5, 1) +
+      _asFillField('EXTRA', x && x.hours ? formatNum(x.hours, 1).replace(/\.0$/, '') : '', 'hours') + _asFillField('Work done', '') + '</div>';
   };
-  var back = '<div class="inv-as-page" data-sheet="shyam-out">' + _asHead('Out time', iso, 'Shyam') +
-    '<div class="inv-as-slot">5:00 PM</div><div class="inv-as-grid"><div class="inv-as-box">' + _asLines(8, 1) + '</div>' +
-    '<div class="inv-as-box">' + _asLines(8, 9) + '</div></div>' +
-    '<div class="inv-as-slot">Later</div><div class="inv-as-grid">' + later() + later() + later() + later() + '</div>' +
+  var lBoxes = '';
+  for (var j = 0; j < Math.max(4, evening.length); j++) lBoxes += later(evening[j]);
+  var back = '<div class="inv-as-page" data-sheet="shyam-out"' + (rec ? ' data-filled' : '') + '>' + _asHead('Out time', iso, 'Shyam') + worked +
+    '<div class="inv-as-slot">5:00 PM</div><div class="inv-as-grid"><div class="inv-as-box">' + _asFillLines(fiveA, 8, 1) + '</div>' +
+    '<div class="inv-as-box">' + _asFillLines(fiveB, 8, Math.max(8, fiveA.length) + 1) + '</div></div>' +
+    '<div class="inv-as-slot">Later</div><div class="inv-as-grid">' + lBoxes + '</div>' +
     '<div class="inv-as-sign"><div>Filled by Shyam</div><div>Sent on WhatsApp at</div><div>Handed to Deepak at</div></div></div>';
   return front + back;
+}
+
+// An earlier day the app holds is printed filled on Shyam's sheet; today and any day with nothing recorded, blank.
+function attSheetFillFor(iso) {
+  var rec = attDay(iso, false);
+  return rec && iso < localDateStr() && Object.keys(rec.marks || {}).length ? rec : null;
 }
 
 /* The roster in the Day view's order, and anyone marked that day who has since left it. */
@@ -23269,7 +23507,7 @@ function attSheetOpen() {
   };
   dialogOpen('<div class="inv-dialog">' + dialogHeadHtml('Print sheets · ' + escHtml(formatDate(_attDate))) +
     '<div class="inv-field">' +
-    c('shyam', 'Shyam\'s sheet', 'In time and Out time, as his WhatsApp roll (2 pages)') +
+    c('shyam', 'Shyam\'s sheet', attSheetFillFor(_attDate) ? 'In time and Out time, filled with this day\'s record as a worked example (2 pages)' : 'In time and Out time, as his WhatsApp roll (2 pages)') +
     c('deepak', 'Deepak\'s sheet', 'the Day entry: the roster, P / H / A, area, in, out, hours, OT, EXTRA') +
     c('filled', 'Filled copy', rec ? 'what the app holds for this day' : 'nothing entered for this day yet', !rec) +
     '</div><div class="inv-dialog-foot"><button class="inv-btn inv-btn-secondary" data-action="invCloseOverlay">Cancel</button>' +
@@ -23279,7 +23517,7 @@ function attSheetOpen() {
 function attSheetPreview() {
   document.querySelectorAll('[data-as-pick]').forEach(function(el) { if (!el.disabled) _attSheetPick[el.dataset.asPick] = el.checked; });
   var rec = attDay(_attDate, false);
-  var h = (_attSheetPick.shyam ? attSheetShyamHtml(_attDate) : '') + (_attSheetPick.deepak ? attSheetDeepakHtml(_attDate, false) : '') +
+  var h = (_attSheetPick.shyam ? attSheetShyamHtml(_attDate, attSheetFillFor(_attDate)) : '') + (_attSheetPick.deepak ? attSheetDeepakHtml(_attDate, false) : '') +
     (_attSheetPick.filled && rec ? attSheetDeepakHtml(_attDate, true) : '');
   if (!h) { showToast('Pick at least one sheet', 'error'); return; }
   closeOverlay();
@@ -23318,15 +23556,40 @@ function stockSheetLines() {
 }
 function _ssQty(v) { return v == null ? '' : stockFmtQty(v); }
 
-function stockSheetSupHtml(iso) {
+/* An earlier day with stock recorded is printed filled on the supervisor's sheet, as a worked example (owner, 29 Sep
+   2026); today and a day with nothing recorded, blank. */
+function stockSheetFillFor(iso) {
+  return iso < localDateStr() && (stockData().entries || []).some(function(e) { return e.date === iso && !e.voided && e.kind !== 'bill'; });
+}
+
+function stockSheetSupHtml(iso, filled) {
   var lines = stockSheetLines();
   var next = lines.reduce(function(m, l) { return Math.max(m, l.n); }, 0);
+  var day = filled ? (stockData().entries || []).filter(function(e) { return e.date === iso && !e.voided && e.kind !== 'bill'; }) : [];
+  var f = function(v) { return v ? '<span class="inv-as-fill">' + escHtml(v) + '</span>' : ''; };
   var rows = lines.map(function(l) {
-    return '<tr><td class="inv-as-tick">' + l.n + ')</td><td>' + escHtml(l.item.name) + '</td><td>' + escHtml(l.item.unit || '') + '</td><td></td><td></td><td></td><td></td><td></td></tr>';
+    var cells = ['', '', '', ''];
+    if (filled) {
+      var mine = day.filter(function(e) { return e.itemId === l.item.id; });
+      if (mine.length) {
+        cells[0] = _ssQty(stockReplay(l.item.id, iso).level);
+        cells[1] = mine.filter(function(e) { return e.kind === 'received'; }).map(function(e) { return stockShortDate(e.date) + ' · ' + _ssQty(e.qty); }).join(', ');
+        cells[2] = mine.filter(function(e) { return e.kind === 'used' || e.kind === 'charged'; }).map(function(e) {
+          var d = e.days > 1 ? e.days : 0;
+          return d ? d + ' × ' + _ssQty(stockRound(e.qty / d)) + ' = ' + _ssQty(e.qty) : _ssQty(e.qty) + (e.kind === 'charged' && e.note ? ' (' + e.note + ')' : '');
+        }).join(', ');
+        cells[3] = _ssQty(stockReplay(l.item.id, attAddDays(iso, 1)).level);
+      }
+    }
+    return '<tr><td class="inv-as-tick">' + l.n + ')</td><td>' + escHtml(l.item.name) + '</td><td>' + escHtml(l.item.unit || '') + '</td>' +
+      cells.map(function(c) { return '<td>' + f(c) + '</td>'; }).join('') + '<td></td></tr>';
   }).join('');
   for (var k = 1; k <= 3; k++) rows += '<tr><td class="inv-as-tick">' + (next + k) + ')</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>';
-  return '<div class="inv-as-page" data-sheet="stock-sup">' + _asHead('Chemical use · chemical stock', iso, 'Supervisor') +
-    '<div class="inv-as-grid">' + _asField('From') + _asField('To') + '</div>' +
+  // The window the message covered: the paste that recorded the day, else the day itself.
+  var paste = filled ? (stockData().pastes || []).find(function(p) { return p.from && p.to && p.from <= iso && iso <= p.to; }) : null;
+  return '<div class="inv-as-page" data-sheet="stock-sup"' + (filled ? ' data-filled' : '') + '>' + _asHead('Chemical use · chemical stock', iso, 'Supervisor') +
+    (filled ? '<div class="inv-as-note">Filled from the app&rsquo;s record of this day, as a worked example.</div>' : '') +
+    '<div class="inv-as-grid">' + _asFillField('From', filled ? formatDate(paste ? paste.from : iso) : '') + _asFillField('To', filled ? formatDate(paste ? paste.to : iso) : '') + '</div>' +
     '<table class="inv-as-table inv-as-tall"><thead><tr><th class="inv-as-tick">#</th><th>Line</th><th>Unit</th><th>Opening</th>' +
     '<th>Added (date · qty)</th><th>Used (days × a day = total)</th><th>Available</th><th>Note</th></tr></thead><tbody>' + rows + '</tbody></table>' +
     '<div class="inv-as-note">Write each line against its number, as in the WhatsApp message. Used: the days it covers × the use a day, and the total.</div>' +
@@ -23395,7 +23658,7 @@ function stockSheetOpen() {
   dialogOpen('<div class="inv-dialog">' + dialogHeadHtml('Print stock sheets') +
     '<div class="inv-field"><label class="inv-field-label" for="stockSheetDate">Day</label><input type="date" id="stockSheetDate" class="inv-input" data-nodirty value="' + escHtml(_stockSheetDate) + '"></div>' +
     '<div class="inv-field">' +
-    c('sup', 'Supervisor\'s sheet', 'his WhatsApp stock message, numbered as he sends it') +
+    c('sup', 'Supervisor\'s sheet', 'his WhatsApp stock message, numbered as he sends it; an earlier day with stock recorded comes out filled, as a worked example') +
     c('deepak', 'Deepak\'s sheet', 'Enter by hand: count, received, used, charged, the bill') +
     c('filled', 'Filled copy', 'what the app holds for the day') +
     '</div><div class="inv-dialog-foot"><button class="inv-btn inv-btn-secondary" data-action="invCloseOverlay">Cancel</button>' +
@@ -23407,7 +23670,7 @@ function stockSheetPreview() {
   if (d && d.value) _stockSheetDate = d.value;
   document.querySelectorAll('[data-ss-pick]').forEach(function(el) { _stockSheetPick[el.dataset.ssPick] = el.checked; });
   var iso = _stockSheetDate || localDateStr();
-  var h = (_stockSheetPick.sup ? stockSheetSupHtml(iso) : '') + (_stockSheetPick.deepak ? stockSheetDeepakHtml(iso, false) : '') +
+  var h = (_stockSheetPick.sup ? stockSheetSupHtml(iso, stockSheetFillFor(iso)) : '') + (_stockSheetPick.deepak ? stockSheetDeepakHtml(iso, false) : '') +
     (_stockSheetPick.filled ? stockSheetDeepakHtml(iso, true) : '');
   if (!h) { showToast('Pick at least one sheet', 'error'); return; }
   closeOverlay();
@@ -30413,6 +30676,16 @@ function onDocChange(e) {
     renderAttendance();
     return;
   }
+  if (e.target.hasAttribute && e.target.hasAttribute('data-att-need')) {
+    setAreaNeedOn(_attDate, e.target.dataset.area, e.target.value);
+    renderAttendance();
+    return;
+  }
+  if (e.target.hasAttribute && e.target.hasAttribute('data-att-block-need')) {
+    setAttBlockNeed(parseInt(e.target.dataset.idx, 10), e.target.value);
+    renderAttendance();
+    return;
+  }
   if (e.target.hasAttribute && e.target.hasAttribute('data-att-extra-hours')) {
     setAttExtraHours(parseInt(e.target.dataset.idx, 10), e.target.value);
     renderAttendance();
@@ -30493,6 +30766,14 @@ document.addEventListener('input', function(e) {
   }
   if (e.target.hasAttribute && e.target.hasAttribute('data-area-target')) {
     setAreaTarget(e.target.dataset.area, e.target.value);
+    return;
+  }
+  if (e.target.hasAttribute && e.target.hasAttribute('data-att-need')) {
+    setAreaNeedOn(_attDate, e.target.dataset.area, e.target.value);
+    return;
+  }
+  if (e.target.hasAttribute && e.target.hasAttribute('data-att-block-need')) {
+    setAttBlockNeed(parseInt(e.target.dataset.idx, 10), e.target.value);
     return;
   }
   if (e.target.hasAttribute && e.target.hasAttribute('data-att-extra-hours')) {

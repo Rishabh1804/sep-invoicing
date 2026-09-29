@@ -25,15 +25,40 @@ function stockSheetLines() {
 }
 function _ssQty(v) { return v == null ? '' : stockFmtQty(v); }
 
-function stockSheetSupHtml(iso) {
+/* An earlier day with stock recorded is printed filled on the supervisor's sheet, as a worked example (owner, 29 Sep
+   2026); today and a day with nothing recorded, blank. */
+function stockSheetFillFor(iso) {
+  return iso < localDateStr() && (stockData().entries || []).some(function(e) { return e.date === iso && !e.voided && e.kind !== 'bill'; });
+}
+
+function stockSheetSupHtml(iso, filled) {
   var lines = stockSheetLines();
   var next = lines.reduce(function(m, l) { return Math.max(m, l.n); }, 0);
+  var day = filled ? (stockData().entries || []).filter(function(e) { return e.date === iso && !e.voided && e.kind !== 'bill'; }) : [];
+  var f = function(v) { return v ? '<span class="inv-as-fill">' + escHtml(v) + '</span>' : ''; };
   var rows = lines.map(function(l) {
-    return '<tr><td class="inv-as-tick">' + l.n + ')</td><td>' + escHtml(l.item.name) + '</td><td>' + escHtml(l.item.unit || '') + '</td><td></td><td></td><td></td><td></td><td></td></tr>';
+    var cells = ['', '', '', ''];
+    if (filled) {
+      var mine = day.filter(function(e) { return e.itemId === l.item.id; });
+      if (mine.length) {
+        cells[0] = _ssQty(stockReplay(l.item.id, iso).level);
+        cells[1] = mine.filter(function(e) { return e.kind === 'received'; }).map(function(e) { return stockShortDate(e.date) + ' · ' + _ssQty(e.qty); }).join(', ');
+        cells[2] = mine.filter(function(e) { return e.kind === 'used' || e.kind === 'charged'; }).map(function(e) {
+          var d = e.days > 1 ? e.days : 0;
+          return d ? d + ' × ' + _ssQty(stockRound(e.qty / d)) + ' = ' + _ssQty(e.qty) : _ssQty(e.qty) + (e.kind === 'charged' && e.note ? ' (' + e.note + ')' : '');
+        }).join(', ');
+        cells[3] = _ssQty(stockReplay(l.item.id, attAddDays(iso, 1)).level);
+      }
+    }
+    return '<tr><td class="inv-as-tick">' + l.n + ')</td><td>' + escHtml(l.item.name) + '</td><td>' + escHtml(l.item.unit || '') + '</td>' +
+      cells.map(function(c) { return '<td>' + f(c) + '</td>'; }).join('') + '<td></td></tr>';
   }).join('');
   for (var k = 1; k <= 3; k++) rows += '<tr><td class="inv-as-tick">' + (next + k) + ')</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>';
-  return '<div class="inv-as-page" data-sheet="stock-sup">' + _asHead('Chemical use · chemical stock', iso, 'Supervisor') +
-    '<div class="inv-as-grid">' + _asField('From') + _asField('To') + '</div>' +
+  // The window the message covered: the paste that recorded the day, else the day itself.
+  var paste = filled ? (stockData().pastes || []).find(function(p) { return p.from && p.to && p.from <= iso && iso <= p.to; }) : null;
+  return '<div class="inv-as-page" data-sheet="stock-sup"' + (filled ? ' data-filled' : '') + '>' + _asHead('Chemical use · chemical stock', iso, 'Supervisor') +
+    (filled ? '<div class="inv-as-note">Filled from the app&rsquo;s record of this day, as a worked example.</div>' : '') +
+    '<div class="inv-as-grid">' + _asFillField('From', filled ? formatDate(paste ? paste.from : iso) : '') + _asFillField('To', filled ? formatDate(paste ? paste.to : iso) : '') + '</div>' +
     '<table class="inv-as-table inv-as-tall"><thead><tr><th class="inv-as-tick">#</th><th>Line</th><th>Unit</th><th>Opening</th>' +
     '<th>Added (date · qty)</th><th>Used (days × a day = total)</th><th>Available</th><th>Note</th></tr></thead><tbody>' + rows + '</tbody></table>' +
     '<div class="inv-as-note">Write each line against its number, as in the WhatsApp message. Used: the days it covers × the use a day, and the total.</div>' +
@@ -102,7 +127,7 @@ function stockSheetOpen() {
   dialogOpen('<div class="inv-dialog">' + dialogHeadHtml('Print stock sheets') +
     '<div class="inv-field"><label class="inv-field-label" for="stockSheetDate">Day</label><input type="date" id="stockSheetDate" class="inv-input" data-nodirty value="' + escHtml(_stockSheetDate) + '"></div>' +
     '<div class="inv-field">' +
-    c('sup', 'Supervisor\'s sheet', 'his WhatsApp stock message, numbered as he sends it') +
+    c('sup', 'Supervisor\'s sheet', 'his WhatsApp stock message, numbered as he sends it; an earlier day with stock recorded comes out filled, as a worked example') +
     c('deepak', 'Deepak\'s sheet', 'Enter by hand: count, received, used, charged, the bill') +
     c('filled', 'Filled copy', 'what the app holds for the day') +
     '</div><div class="inv-dialog-foot"><button class="inv-btn inv-btn-secondary" data-action="invCloseOverlay">Cancel</button>' +
@@ -114,7 +139,7 @@ function stockSheetPreview() {
   if (d && d.value) _stockSheetDate = d.value;
   document.querySelectorAll('[data-ss-pick]').forEach(function(el) { _stockSheetPick[el.dataset.ssPick] = el.checked; });
   var iso = _stockSheetDate || localDateStr();
-  var h = (_stockSheetPick.sup ? stockSheetSupHtml(iso) : '') + (_stockSheetPick.deepak ? stockSheetDeepakHtml(iso, false) : '') +
+  var h = (_stockSheetPick.sup ? stockSheetSupHtml(iso, stockSheetFillFor(iso)) : '') + (_stockSheetPick.deepak ? stockSheetDeepakHtml(iso, false) : '') +
     (_stockSheetPick.filled ? stockSheetDeepakHtml(iso, true) : '');
   if (!h) { showToast('Pick at least one sheet', 'error'); return; }
   closeOverlay();

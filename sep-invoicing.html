@@ -18,7 +18,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <!-- Appearance before first paint (§3.2): the device's theme and palette, so nothing flashes in the wrong colours. -->
 <script>(function(){try{var d=document.documentElement,t=localStorage.getItem("sep_inv_theme"),p=localStorage.getItem("sep_inv_palette");if(t==="light"||t==="dark")d.dataset.theme=t;d.dataset.palette=(p==="zinc"||p==="terracotta")?p:"teal";}catch(e){document.documentElement.dataset.palette="teal";}})();</script>
-<meta name="app-build" content="0d860e59">
+<meta name="app-build" content="2269f1e0">
 <style>
 /* ===== DESIGN TOKENS (design system v2.0 — docs/SEP_INVOICING_DESIGN_PRINCIPLES.md §3) ===== */
 /* Theme: colour-scheme decides every light-dark() below. <html data-theme> is set before first paint
@@ -164,6 +164,8 @@ body.inv-desktop .inv-topbar { height: var(--bar-h-desk); padding: 0 var(--sp-16
 body.inv-desktop .inv-topbar-title { font-size: var(--fs-14); }
 body.inv-desktop .inv-topbar-ctx::before { content: '/'; color: var(--text-3); margin-right: var(--sp-8); }
 body.inv-desktop .inv-topbar-btn { display: none; }
+/* A row held back by uiMoreHtml (state.js) until "Show n more": hidden whatever display its class sets. */
+[data-more-of][hidden] { display: none !important; }
 /* Back (nav.js): the arrow on both layouts; on the desktop the trail of earlier steps before the page's name. */
 .inv-topbar-back { margin-left: calc(-1 * var(--sp-8)); }
 .inv-topbar-back[hidden] { display: none; }
@@ -2502,6 +2504,61 @@ function viewTop() {
   window.scrollTo(0, 0);
 }
 
+/* ===== HOW MUCH A SCREEN SHOWS (UX overhaul 2, step 6) =====
+   Measured on the real book, the long screens were long because each put a finished or historical list at full length
+   under the few rows that need the owner: a client's Materials ran 23 phone screens, the bank statement 18. Two tools,
+   used by the four rules in docs/UX_OVERHAUL_2.md:
+   - uiMoreHtml: a long list shows its first rows and one row saying how many more, which shows them in place (the rows
+     are drawn and hidden, so it works the same on a page, in a pane or in a dialog). Totals always cover the whole.
+     Shown lists stay shown until the page is reloaded.
+   - uiFoldHtml: a card taller than a screen folds to its head, which says what is in it; open or shut is remembered on
+     the device. */
+var UI_MORE_ROWS = 30;
+var UI_FOLDS_KEY = 'sep_inv_folds';
+var _uiMoreShown = {};
+var _uiFolds = (function() { try { return JSON.parse(localStorage.getItem(UI_FOLDS_KEY) || '{}') || {}; } catch (e) { return {}; } })();
+
+/* rows: one entry per row, each an html string of top-level elements, or {parts: [html, …]} for a row drawn as several
+   (a row and its open editor, a challan and its lines), or {parts, head: true} for a group heading, which does not
+   count toward n and is held back with the row after it. Nothing is wrapped: a wrapper would make every row its
+   container's last child and drop the rules between rows. opts: {n (UI_MORE_ROWS), noun, tr: colspan for <tr> rows}. */
+function uiMoreHtml(key, rows, opts) {
+  opts = opts || {};
+  var n = opts.n != null ? opts.n : UI_MORE_ROWS;
+  var items = rows.map(function(r) { return typeof r === 'string' ? { parts: [r] } : r; });
+  var total = items.filter(function(r) { return !r.head; }).length;
+  if (total <= n || _uiMoreShown[key]) return items.map(function(r) { return r.parts.join(''); }).join('');
+  var hide = function(h) { return h.replace(/^(\s*<[a-z]+)(\s|>)/i, '$1 data-more-of="' + escHtml(key) + '" hidden$2'); };
+  var seen = 0, out = '';
+  items.forEach(function(r, i) {
+    // A heading goes with the row after it.
+    var counts = r.head ? (items.slice(i + 1).find(function(x) { return !x.head; }) ? seen : n) : seen++;
+    out += counts < n ? r.parts.join('') : r.parts.map(hide).join('');
+  });
+  var btn = '<button type="button" class="inv-btn inv-btn-link inv-btn-sm" data-action="invShowMore" data-key="' + escHtml(key) + '">Show ' + (total - n) + ' more' +
+    (opts.noun ? ' ' + opts.noun : '') + ' · ' + total + ' in all</button>';
+  return out + (opts.tr ? '<tr data-more-btn="' + escHtml(key) + '"><td colspan="' + opts.tr + '">' + btn + '</td></tr>'
+    : '<div class="inv-row" data-more-btn="' + escHtml(key) + '">' + btn + '</div>');
+}
+function uiShowMore(key) {
+  _uiMoreShown[key] = true;
+  document.querySelectorAll('[data-more-of="' + key + '"]').forEach(function(el) { el.hidden = false; });
+  document.querySelectorAll('[data-more-btn="' + key + '"]').forEach(function(el) { el.remove(); });
+}
+
+/* A panel that folds to its head. head: the summary row's inner html; dflt: open when nothing is remembered. */
+function uiFoldOpen(key, dflt) { return Object.prototype.hasOwnProperty.call(_uiFolds, key) ? !!_uiFolds[key] : !!dflt; }
+function uiFoldHtml(key, headHtml, bodyHtml, dflt, attrs) {
+  return '<details class="inv-panel inv-panel-flush inv-panel-fold" data-fold="' + escHtml(key) + '"' + (attrs || '') + (uiFoldOpen(key, dflt) ? ' open' : '') + '>' +
+    '<summary class="inv-panel-head">' + headHtml + '</summary>' + bodyHtml + '</details>';
+}
+document.addEventListener('toggle', function(e) {
+  var d = e.target;
+  if (!d || !d.dataset || !d.dataset.fold) return;
+  _uiFolds[d.dataset.fold] = d.open;
+  try { localStorage.setItem(UI_FOLDS_KEY, JSON.stringify(_uiFolds)); } catch (err) { /* a per-device convenience only */ }
+}, true);
+
 var KEEP_SCROLLERS = '.inv-pane-list, .inv-pane, .inv-dialog, .inv-dialog-main, .inv-dialog-panes';
 function _keepKey(el) {
   if (!el || !el.tagName || el === document.body) return null;
@@ -4442,8 +4499,16 @@ function _cinput(id, value, cls, extra) {
   return '<input class="inv-input' + (cls ? ' ' + cls : '') + '" id="' + id + '" value="' + escHtml(value == null ? '' : value) + '"' + (extra || '') + '>';
 }
 
-/* A card on the client (rates, piece rates, piece weights): its rows, then the form that adds to it. */
+/* A card on the client (rates, piece rates, piece weights): its rows, then the form that adds to it. A card of more
+   than CLIENT_CARD_FOLD rows folds to its head, which gives its count (open or shut remembered on the device): SSS
+   Mehta's piece rates and Dorabji's piece weights, one row per part, ran the sheet far past a screen (owner, 29 Sep
+   2026; UX overhaul 2, step 6). */
+var CLIENT_CARD_FOLD = 5;
 function _clientCardHtml(title, count, rowsHtml, bodyHtml, id) {
+  if (id && count > CLIENT_CARD_FOLD) {
+    return uiFoldHtml('client-' + id, '<span class="inv-panel-title">' + title + ' <span class="inv-panel-count">' + count + '</span></span>',
+      '<div id="' + id + '">' + rowsHtml + '</div>' + bodyHtml, false);
+  }
   return '<div class="inv-panel inv-panel-flush">' +
     '<div class="inv-panel-head"><span class="inv-panel-title">' + title + (count != null ? ' <span class="inv-panel-count">' + count + '</span>' : '') + '</span></div>' +
     '<div' + (id ? ' id="' + id + '"' : '') + '>' + rowsHtml + '</div>' + bodyHtml + '</div>';
@@ -4711,15 +4776,16 @@ function _renderClientDetail(clientId, skipMasterRefresh) {
           '<span class="inv-row-end inv-num">' + formatCurrency(ir.rate) + '/' + escHtml(ir.unit || 'kg') + '</span></div>';
       }).join('');
     }
+    // Ten of each card here; the rest one tap away (Edit holds them all, folded).
     if (c.pieceRates && c.pieceRates.length) {
-      cards += group('Piece rates', c.pieceRates.length) + _sortedPieceRates(c).map(function(pr) {
+      cards += group('Piece rates', c.pieceRates.length) + uiMoreHtml('cpane-pr-' + c.id, _sortedPieceRates(c).map(function(pr) {
         return _cardRowHtml(_partGaugeHtml(pr), formatCurrency(pr.rate) + '/pc', pr.effectiveFrom, '');
-      }).join('');
+      }), { n: 10, noun: 'piece rates' });
     }
     if (c.pieceWeights && c.pieceWeights.length) {
-      cards += group('Piece weights', c.pieceWeights.length) + _sortedCard(c.pieceWeights).map(function(pw) {
+      cards += group('Piece weights', c.pieceWeights.length) + uiMoreHtml('cpane-pw-' + c.id, _sortedCard(c.pieceWeights).map(function(pw) {
         return _cardRowHtml(_partGaugeHtml(pw), escHtml(pw.kgPerPiece) + ' kg/pc', pw.effectiveFrom, '');
-      }).join('');
+      }), { n: 10, noun: 'piece weights' });
     }
     var recent = (S.invoices || []).filter(function(i) { return i.clientId === c.id; })
       .sort(function(a, b) { return (b.date || '').localeCompare(a.date || ''); }).slice(0, 5);
@@ -5072,7 +5138,7 @@ var _itemsSorted = [];
 var _mergeBackupWarned = false;
 var _itemsSelected = {};
 var _itemsUsageCache = null;
-var ITEMS_BATCH = 50;
+var ITEMS_BATCH = UI_MORE_ROWS;   // thirty at a time, as every long list (UX overhaul 2, step 6)
 var _itemsActiveId = null;
 
 function getItemsSubView() {
@@ -8825,10 +8891,12 @@ function renderRegisterList() {
       if (!a || !b) return (!a) - (!b);
       return a === b ? 0 : ((a < b) === desc ? 1 : -1);
     });
+    // The latest thirty invoices; the rest one tap away (UX overhaul 2, step 6). The summary above counts them all.
+    var regRows = [];
     groups.forEach(function(k) {
       var list = byDate[k], live = list.filter(function(i) { return i.status === 'active'; });
-      html += '<div class="inv-row-group"><span>' + (byNum ? (k ? escHtml(k.replace(/\/$/, '')) : 'No number') : (k ? escHtml(formatDate(k)) : 'No date')) + ' · ' + list.length + '</span>' +
-        '<span class="inv-num">' + formatCurrency(gstRound(sumTaxable(live))) + '</span></div>';
+      regRows.push({ head: true, parts: ['<div class="inv-row-group"><span>' + (byNum ? (k ? escHtml(k.replace(/\/$/, '')) : 'No number') : (k ? escHtml(formatDate(k)) : 'No date')) + ' · ' + list.length + '</span>' +
+        '<span class="inv-num">' + formatCurrency(gstRound(sumTaxable(live))) + '</span></div>'] });
       list.forEach(function(inv) {
         var cancelled = inv.status === 'cancelled';
         var tickable = _regSelectMode && !cancelled;
@@ -8840,13 +8908,13 @@ function renderRegisterList() {
           getStateDotHtml(inv) + cnInvoiceMarkHtml(inv) + '</span></span>';
         // With no tick box the whole row opens the invoice, figures included; with
         // one, the box is its own full-height touch target beside the row.
-        html += tickable
+        regRows.push(tickable
           ? '<div class="' + cls + '"><label class="inv-row-lead inv-row-tick">' + _regCheckHtml(inv) + '</label>' +
             '<button class="inv-row-main"' + open + '>' + main + '</button>' + end + '</div>'
-          : '<button class="' + cls + '"' + open + (cancelled ? ' data-cancelled' : '') + '><span class="inv-row-main">' + main + '</span>' + end + '</button>';
+          : '<button class="' + cls + '"' + open + (cancelled ? ' data-cancelled' : '') + '><span class="inv-row-main">' + main + '</span>' + end + '</button>');
       });
     });
-    html += '</div>';
+    html += uiMoreHtml('reg-list', regRows, { noun: 'invoices' }) + '</div>';
   }
 
   area.innerHTML = html + _regExportHtml();
@@ -10442,32 +10510,36 @@ function renderIMList() {
     (function(list) {
       html += '<div class="inv-panel inv-panel-flush"><div class="inv-panel-head"><span class="inv-panel-title">' + title +
         ' <span class="inv-panel-count">' + list.length + '</span></span></div>';
-      var day = null;
+      // The first thirty challans; the rest one tap away (UX overhaul 2, step 6: a month of billed challans ran 7.5 screens).
+      var day = null, imRows = [];
       list.forEach(function(im, idx) {
         if (im.challanDate !== day) {
           day = im.challanDate;
           var same = list.filter(function(x) { return x.challanDate === day; });
-          html += '<div class="inv-row-group"><span>' + (day ? escHtml(formatDate(day)) : 'No date') + ' · ' + same.length + '</span>' +
-            '<span class="inv-num">' + formatCurrency(same.reduce(function(s, x) { return s + imChallanTotal(x); }, 0)) + '</span></div>';
+          imRows.push({ head: true, parts: ['<div class="inv-row-group"><span>' + (day ? escHtml(formatDate(day)) : 'No date') + ' · ' + same.length + '</span>' +
+            '<span class="inv-num">' + formatCurrency(same.reduce(function(s, x) { return s + imChallanTotal(x); }, 0)) + '</span></div>'] });
         }
         var status = getIMStatus(im), expanded = !!_imExpanded[im.id];
         var pendingItems = im.items.filter(function(it) { return !it.invoiced; });
         var allChecked = pendingItems.length > 0 && pendingItems.every(function(it) { return _imSelected[it.id]; });
         var id = escHtml(im.id);
-        html += '<div class="inv-row inv-row-2' + (allChecked ? ' inv-row-selected' : '') + '" data-im="' + id + '">' +
+        var parts = [];
+        parts.push('<div class="inv-row inv-row-2' + (allChecked ? ' inv-row-selected' : '') + '" data-im="' + id + '">' +
           (status !== 'invoiced' ? '<label class="inv-row-lead inv-row-tick"><input type="checkbox" class="inv-check" data-action="invCheckIMChallan" data-id="' + id + '"' +
             (allChecked ? ' checked' : '') + ' aria-label="Select all of ' + escHtml(imChallanLabel(im)) + '"></label>' : '') +
           '<button class="inv-row-main inv-row-expander" data-action="invToggleIM" data-id="' + id + '" aria-expanded="' + expanded + '">' +
           '<span class="inv-row-title"><span class="inv-id">' + escHtml(imChallanLabel(im)) + '</span> · ' + escHtml(im.clientName) + '</span>' +
           '<span class="inv-row-meta">' + (im.vehicleNo ? escHtml(im.vehicleNo) + ' · ' : '') + im.items.length + ' item' + (im.items.length !== 1 ? 's' : '') + '</span></button>' +
-          '<span class="inv-row-end"><span class="inv-row-stack"><span class="inv-num">' + formatCurrency(imChallanTotal(im)) + '</span>' + imStatusDotHtml(im) + '</span></span></div>';
+          '<span class="inv-row-end"><span class="inv-row-stack"><span class="inv-num">' + formatCurrency(imChallanTotal(im)) + '</span>' + imStatusDotHtml(im) + '</span></span></div>');
         if (expanded) {
-          html += '<div class="inv-row-children">' + im.items.map(_imItemRowHtml).join('');
+          var kids = '<div class="inv-row-children">' + im.items.map(_imItemRowHtml).join('');
           var acts = _imActionsHtml(im, false);
-          if (acts) html += '<div class="inv-row inv-row-auto"><span class="inv-toolbar inv-toolbar-tight">' + acts + '</span></div>';
-          html += '</div>';
+          if (acts) kids += '<div class="inv-row inv-row-auto"><span class="inv-toolbar inv-toolbar-tight">' + acts + '</span></div>';
+          parts.push(kids + '</div>');
         }
+        imRows.push({ parts: parts });
       });
+      html += uiMoreHtml('im-list-' + _imTab, imRows, { noun: 'challans' });
       html += '</div>';
     })(filtered);
   }
@@ -20742,7 +20814,10 @@ function _bankReceiptsHtml(cls) {
   if (loose.length) {
     h += '<div class="inv-panel inv-panel-flush" id="bankLoose"><div class="inv-panel-head"><span class="inv-panel-title">Receipts with no client</span><span class="inv-panel-count">' + loose.length + '</span></div>' +
       '<div class="inv-panel-body inv-note">Cheques deposited carry no name. Pick the client; a remitter\'s name is remembered for its next receipt.</div>';
+    // The latest ten, newest first; the rest one tap away (UX overhaul 2, step 6: this list ran three phone screens).
+    var looseRows = [];
     loose.slice().reverse().forEach(function(v) {
+      var h = '', parts = [];
       var inst = bankInstrument(v.row), o = bankPlacementOffers(v.row, recv, series);
       // The cheque number is what the owner matches against the book, so it leads; a remitter's name leads where there is one.
       var chqDep = bankIsChequeDeposit(v.row) && inst;
@@ -20750,6 +20825,7 @@ function _bankReceiptsHtml(cls) {
         (chqDep ? '<span class="inv-id">' + escHtml(inst) + '</span>' : escHtml(v.party || v.row.narration)) + '</span>' +
         '<span class="inv-row-meta">' + (chqDep ? 'Cheque · ' : '') + escHtml(formatDate(v.row.date)) + (inst && !chqDep ? ' · chq ' + escHtml(inst) : '') + '</span></span>' +
         '<span class="inv-row-end"><span class="inv-num">' + formatCurrency(v.row.cr) + '</span>' + _bankClientSelect(v) + '</span></div>';
+      parts.push(h); h = '';
       // Each offer is a line of its own under the cheque, its button at the row's end: inside the
       // one-line meta it was clipped by the ellipsis on a phone and could not be tapped.
       var offer = function(c, why, text) {
@@ -20763,8 +20839,10 @@ function _bankReceiptsHtml(cls) {
           (o.series ? offer(o.series.client, 'series', 'series ' + o.series.from + '–' + o.series.to) : '') +
           (o.amount ? offer(o.amount.client, 'amount', 'equals ' + o.amount.labels.join(' + ')) : '') + '</div>';
       }
+      if (h) parts.push(h);
+      looseRows.push({ parts: parts });
     });
-    h += '</div>';
+    h += uiMoreHtml('bank-loose', looseRows, { n: 10, noun: 'receipts' }) + '</div>';
   }
   return h + _bankBouncesHtml(cls);
 }
@@ -20921,7 +20999,12 @@ function _bankStatementHtml(cls) {
     BANK_CATS.map(function(c) { return '<option value="' + c[0] + '"' + (_bankFilter.cat === c[0] ? ' selected' : '') + '>' + c[1] + '</option>'; }).join('') + '</select>' +
     '<input class="inv-input inv-toolbar-item" type="search" id="bankSearch" placeholder="Search narration" value="' + escHtml(_bankFilter.q) + '"></div>';
   if (!list.length) h += '<div class="inv-empty">No row matches.</div>';
+  // The latest thirty, newest first; the rest one tap away (UX overhaul 2, step 6: the statement ran 18 phone screens).
+  // The count in the head and every total read the whole statement. A row being edited is always shown.
+  var rows = [];
+  if (_bankEdit && list.findIndex(function(v) { return v.row.id === _bankEdit; }) >= UI_MORE_ROWS) _uiMoreShown['bank-statement'] = true;
   list.forEach(function(v) {
+    var h = '';
     var r = v.row, out = r.dr > 0, who = v.cat === 'receipt' && v.clientId != null ? ((S.clients || []).find(function(c) { return String(c.id) === String(v.clientId); }) || {}).name
       : v.cat === 'wages' && v.staffId != null ? ((staffById(v.staffId) || {}).name || '') + (v.guess ? '?' : '') : '';
     h += '<div class="inv-row inv-row-2" data-bank-row="' + escHtml(r.id) + '"><button class="inv-row-main" data-action="invBankEdit" data-id="' + escHtml(r.id) + '" aria-expanded="' + (_bankEdit === r.id) + '">' +
@@ -20931,9 +21014,9 @@ function _bankStatementHtml(cls) {
       (v.bounceOf ? ' · bounce of ' + escHtml(formatDate(v.bounceOf.date)) + ' deposit' : '') + '</span></button>' +
       '<span class="inv-row-end"><span class="inv-row-stack"><span class="inv-num">' + (out ? '−' : '+') + formatCurrency(out ? r.dr : r.cr) + '</span>' +
       '<span class="inv-row-meta inv-num">' + formatCurrency(r.balance) + '</span></span></span></div>';
-    if (_bankEdit === r.id) h += _bankEditHtml(v);
+    rows.push({ parts: _bankEdit === r.id ? [h, _bankEditHtml(v)] : [h] });
   });
-  return h + '</div>';
+  return h + uiMoreHtml('bank-statement', rows, { noun: 'rows' }) + '</div>';
 }
 
 function _bankEditHtml(v) {
@@ -22167,6 +22250,12 @@ function todoGo(go) {
       break;
     case 'stats': try { localStorage.setItem(STATS_TAB_KEY, go.tab); } catch (e) { /* per-device */ } switchTab('pageStats'); break;
     case 'staffRoster': _attView = 'roster'; switchTab('pageStaff'); break;
+    case 'payWages': {
+      _attView = 'pay'; switchTab('pageStaff');
+      var pw = document.getElementById('payBankWages');
+      if (pw) { pw.open = true; pw.scrollIntoView({ block: 'start' }); }
+      break;
+    }
     case 'staffPaste': _attView = 'paste'; switchTab('pageStaff'); break;
     case 'stockList': _stockView = 'list'; switchTab('pageStock'); break;
     case 'client': switchTab('pageClients'); openClientEdit(parseInt(go.id, 10)); break;
@@ -25207,13 +25296,14 @@ function renderStats() {
     if (comparableRows.length > 0 || partial.length > 0) {
       html += statsPanel('realisation', 'Realisation by client', 'worst priced first', { wide: true });
 
-      comparableRows.forEach(function(r) {
+      // The worst-priced ten; the rest one tap away (UX overhaul 2, step 6).
+      html += uiMoreHtml('stats-realisation', comparableRows.map(function(r) {
         var below = costPerKg > 0 && r.realisation < costPerKg;
-        html += statsRow(escHtml(r.name), formatNum(r.kg / 1000, 2) + ' t · ' + formatCurrency(r.total),
+        return statsRow(escHtml(r.name), formatNum(r.kg / 1000, 2) + ' t · ' + formatCurrency(r.total),
           '<span class="inv-row-stack">' + statsNum(formatCurrency(r.realisation) + statsUnit('/kg')) +
           (below ? uiDot('danger', 'Below cost') : '') + '</span>',
           ' data-action="invStatsClientDrill" data-client-id="' + r.clientId + '" data-client-row');
-      });
+      }), { n: 10, noun: 'clients' });
 
       if (partial.length > 0) {
         html += '<div class="inv-row-group"><span>Not ranked: weights on under ' + Math.round(REALISATION_MIN_COVERAGE * 100) + '% of revenue</span></div>';
@@ -25562,7 +25652,7 @@ function openClientDrillOverlay(clientId) {
 var _historyClientFilter = '';
 var _historyDateFrom = '';
 var _historyDateTo = '';
-var _historyShowCount = 50;
+var _historyShowCount = UI_MORE_ROWS;   // the latest thirty, then thirty more at a time (UX overhaul 2, step 6)
 var _historyType = 'all';
 var _historySearch = '';
 var _historySearchTimer = null;
@@ -26173,14 +26263,15 @@ function statsMarginHtml(period, filtered, tonnage) {
   }
   h += '<div class="inv-scroll-x"><table class="inv-table"><thead><tr><th>Client</th><th class="inv-num">₹/kg</th><th class="inv-num">t</th><th class="inv-num">vs var.</th>' +
     '<th class="inv-num">vs full</th><th class="inv-num">₹ on period</th></tr></thead><tbody>';
-  m.ranked.forEach(function(x) {
+  // The worst ten; the rest one tap away (UX overhaul 2, step 6).
+  h += uiMoreHtml('stats-margin', m.ranked.map(function(x) {
     var sign = function(v) { return (v >= 0 ? '+' : '&minus;') + formatNum(Math.abs(v), 2); };
-    h += '<tr data-action="invStatsClientDrill" data-client-id="' + escHtml(x.id) + '"><td><div class="inv-row-title">' + escHtml(x.name) + '</div>' +
+    return '<tr data-action="invStatsClientDrill" data-client-id="' + escHtml(x.id) + '"><td><div class="inv-row-title">' + escHtml(x.name) + '</div>' +
       (x.cn ? '<div class="inv-row-meta">net of ' + statsMoney(x.cn) + ' credit notes</div>' : '') +
       (money[String(x.id)] ? '<div class="inv-row-meta" data-client-owed>owes ' + statsMoney(Math.max(0, money[String(x.id)].owed)) + (money[String(x.id)].days != null ? ' · pays in ' + money[String(x.id)].days + ' d' : '') + '</div>' : '') + '</td>' +
       '<td class="inv-num">' + formatNum(x.net, 2) + '</td><td class="inv-num">' + formatNum(x.kg / 1000, 1) + '</td>' +
       statsSignedCell(x.vsVar, sign(x.vsVar)) + statsSignedCell(x.vsFull, sign(x.vsFull)) + statsSignedCell(x.money, statsSigned(x.money)) + '</tr>';
-  });
+  }), { n: 10, noun: 'clients', tr: 6 });
   h += '</tbody></table></div>';
   var notes = '';
   if (m.apart.length) notes += statsNote('Listed apart, not ranked (under 90% of their revenue weighed): ' +
@@ -26543,11 +26634,12 @@ function nextChallanCardHtml() {
   if (!list.length) return '';
   var today = localDateStr();
   var h = statsPanel('next', 'Next challan expected', 'from each client&rsquo;s own rhythm', { id: 'statsNextChallan' });
-  list.sort(function(a, b) { return (b.late - a.late) || (a.next < b.next ? -1 : 1); }).forEach(function(c) {
+  // The ten most overdue; the rest one tap away (UX overhaul 2, step 6).
+  h += uiMoreHtml('stats-next', list.sort(function(a, b) { return (b.late - a.late) || (a.next < b.next ? -1 : 1); }).map(function(c) {
     var when = c.quiet ? uiDot('danger', c.late + ' days late · quiet') : c.late ? uiDot('warning', c.late + ' day' + (c.late === 1 ? '' : 's') + ' late')
       : '<span class="inv-nowrap">' + (c.next === today ? 'today' : escHtml(formatDate(c.next))) + '</span>';
-    h += statsRow(escHtml(c.name), 'every ' + formatNum(c.median, 0) + ' day' + (c.median === 1 ? '' : 's') + ' · last ' + escHtml(formatDate(c.last)), when);
-  });
+    return statsRow(escHtml(c.name), 'every ' + formatNum(c.median, 0) + ' day' + (c.median === 1 ? '' : 's') + ' · last ' + escHtml(formatDate(c.last)), when);
+  }), { n: 10, noun: 'clients' });
   return h + statsBody(statsNote('The median gap between each client&rsquo;s challans, counted from the last one. Late is past that; quiet is past both 1.75 times the gap and three weeks beyond it.')) + '</div>';
 }
 /* ===== FINANCE INTELLIGENCE =====
@@ -26925,7 +27017,7 @@ TODO_RULE_FNS.wageVsSlip = function() {
     return { key: 'wageVsSlip:' + m, rule: 'wageVsSlip', tone: 'amber', title: todoPlural(off.length, 'salary', 'salaries') + ' for ' + billsMonthLabel(pm) + ' differ from the slip',
       sub: off.slice(0, 3).map(function(o) { return o[0] + ' ' + (o[1] > 0 ? 'over' : 'short') + ' ' + formatCurrency(Math.abs(o[1])); }).join(' · '),
       why: 'Payments · wages against payroll as paid', facts: off.map(function(o) { return [o[0], (o[1] > 0 ? '+' : '−') + formatCurrency(Math.abs(o[1]))]; }),
-      clears: 'Clears itself when the amounts agree; snooze it if a note explains them.', go: finGo('payments', { anchor: 'bankWages' }), goLabel: 'Open wages paid', sig: off.map(function(o) { return o[1]; }).join('|') };
+      clears: 'Clears itself when the amounts agree; snooze it if a note explains them.', go: { kind: 'payWages' }, goLabel: 'Open wages paid', sig: off.map(function(o) { return o[1]; }).join('|') };
   }).filter(Boolean);
 };
 TODO_RULE_FNS.cashSwing = function() {
@@ -26942,7 +27034,7 @@ TODO_RULE_FNS.cashSwing = function() {
   return [{ key: 'cashSwing:' + ws, rule: 'cashSwing', tone: 'amber', title: 'Cash drawn for the week to ' + formatDate(sat) + ' is ' + (d > 0 ? 'over' : 'under') + ' its payout',
     sub: formatCurrency(drawn) + ' drawn against a payout of ' + formatCurrency(pw.total), why: 'Payments · cash by pay week',
     facts: [['Drawn', formatCurrency(drawn)], ['Payout', formatCurrency(pw.total)], ['Gap', (d > 0 ? '+' : '−') + formatCurrency(Math.abs(d))]],
-    clears: 'Clears itself when the next week is within a quarter of its payout.', go: finGo('payments', { anchor: 'bankWages' }), goLabel: 'Open wages paid', sig: drawn + '|' + pw.total }];
+    clears: 'Clears itself when the next week is within a quarter of its payout.', go: { kind: 'payWages' }, goLabel: 'Open wages paid', sig: drawn + '|' + pw.total }];
 };
 TODO_RULE_FNS.costGap = function() {
   var closed = finClosedMonths(3);
@@ -27100,15 +27192,30 @@ function finWagesHtml(cls, where) {
     if (v.cash || v.staffId == null) e.cash = gstRound(e.cash + v.row.dr);
     else { var k = String(v.staffId); e.named[k] = gstRound((e.named[k] || 0) + v.row.dr); }
   });
-  var link = where === 'pay' ? '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invFinGo" data-tab="payments" data-anchor="bankWages">Open in Finance</button>'
-    : '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invGoPay">Open Staff &rarr; Pay</button>';
-  var h = '<div class="inv-panel inv-panel-flush" id="' + (where === 'pay' ? 'payBankWages' : 'bankWages') + '"><div class="inv-panel-head"><span class="inv-panel-title">Wages paid, from the bank</span>' + link + '</div>' +
-    '<div class="inv-panel-body inv-note">Every cash draw (SELF, TO SELF, TO CASH) counts as wages unless a row is set otherwise. Transfers to a hand on the roster are set against the payroll as paid for the month before; cash is set against the weekly payout.</div>';
   var months = Object.keys(byMonth).sort().reverse();
-  if (!months.length) h += '<div class="inv-empty">No wages on the statement.</div>';
+  // One fact, one screen (UX overhaul 2, owner 28 Sep 2026): the card lives in Staff → Pay beside the payroll it checks;
+  // Finance → Payments keeps one line that says what it holds and opens it.
+  var off = 0;
   months.forEach(function(m) {
+    var e = byMonth[m], slip = payrollPaidFor(bankPrevMonth(m + '-01'));
+    if (slip) Object.keys(e.named).forEach(function(id) {
+      var row = slip.rows.find(function(r) { var pw = payrollWorker(r); return pw && String(pw.id) === id; });
+      var owedW = row ? gstRound(row.paid != null ? Number(row.paid) : (Number(row.dayPay) || 0) + (Number(row.ot) || 0)) : null;
+      if (owedW != null && Math.abs(e.named[id] - owedW) >= 1) off++;
+    });
+  });
+  var sum = months.length ? 'Latest: ' + escHtml(billsMonthLabel(months[0])) + ' <span class="inv-num">' + formatCurrency(byMonth[months[0]].total) + '</span>' +
+    (off ? ' · <span class="inv-dot inv-dot-danger">' + off + ' off the slip</span>' : '') : 'No wages on the statement';
+  if (where !== 'pay') {
+    return '<div class="inv-panel inv-panel-flush" id="bankWages"><div class="inv-row inv-row-2"><span class="inv-row-main"><span class="inv-row-title">Wages paid, from the bank</span>' +
+      '<span class="inv-row-meta">' + sum + '</span></span><span class="inv-row-end"><button class="inv-btn inv-btn-link inv-btn-sm" data-action="invGoPay">Open Staff &rarr; Pay</button></span></div></div>';
+  }
+  var h = '<div class="inv-panel-body inv-note">Every cash draw (SELF, TO SELF, TO CASH) counts as wages unless a row is set otherwise. Transfers to a hand on the roster are set against the payroll as paid for the month before; cash is set against the weekly payout.</div>';
+  if (!months.length) h += '<div class="inv-empty">No wages on the statement.</div>';
+  // The latest three months; the rest one tap away.
+  h += uiMoreHtml('pay-wages-months', months.map(function(m) {
     var e = byMonth[m], slip = payrollPaidFor(bankPrevMonth(m + '-01')), named = Object.keys(e.named);
-    h += '<div class="inv-row inv-row-group"><span class="inv-row-main">Paid in ' + escHtml(billsMonthLabel(m)) + '</span><span class="inv-row-end inv-num">' + formatCurrency(e.total) + '</span></div>';
+    var h = '<div class="inv-row inv-row-group"><span class="inv-row-main">Paid in ' + escHtml(billsMonthLabel(m)) + '</span><span class="inv-row-end inv-num">' + formatCurrency(e.total) + '</span></div>';
     named.forEach(function(id) {
       var w = (S.staff || []).find(function(x) { return String(x.id) === id; }) || { name: '?' };
       var row = slip ? slip.rows.find(function(r) { var pw = payrollWorker(r); return pw && String(pw.id) === id; }) : null;
@@ -27121,20 +27228,24 @@ function finWagesHtml(cls, where) {
     });
     if (named.length && !slip) h += '<div class="inv-row"><span class="inv-row-main inv-row-meta">No payroll as paid for ' + escHtml(billsMonthLabel(bankPrevMonth(m + '-01'))) + ' to set these against.</span></div>';
     if (e.cash) h += '<div class="inv-row"><span class="inv-row-main">Cash drawn</span><span class="inv-row-end inv-num">' + formatCurrency(e.cash) + '</span></div>';
-  });
+    // A month is its heading and its rows, each a flat row of its own: held back together.
+    return { parts: h.split(/(?=<div class="inv-row)/) };
+  }), { n: 3, noun: 'months' });
   var weeks = {};
   wages.forEach(function(v) { if (v.cash || v.staffId == null) { var ws = attWeekStartOf(v.row.date); weeks[ws] = gstRound((weeks[ws] || 0) + v.row.dr); } });
   var wk = Object.keys(weeks).sort().reverse().slice(0, 12);
   if (wk.length) {
     h += '<div class="inv-row inv-row-group"><span class="inv-row-main">Cash by pay week, against the weekly payout</span></div>';
-    wk.forEach(function(ws) {
+    h += uiMoreHtml('pay-wages-weeks', wk.map(function(ws) {
       var pw = payWeek(ws), d = gstRound(weeks[ws] - pw.total);
-      h += '<div class="inv-row inv-row-2" data-cashweek="' + ws + '"><span class="inv-row-main"><span class="inv-row-title">Week to ' + escHtml(formatDate(pw.sat)) + '</span>' +
+      return '<div class="inv-row inv-row-2" data-cashweek="' + ws + '"><span class="inv-row-main"><span class="inv-row-title">Week to ' + escHtml(formatDate(pw.sat)) + '</span>' +
         '<span class="inv-row-meta">payout ' + escHtml(formatCurrency(pw.total)) + (pw.recordedDays ? '' : ' (no attendance recorded)') + ' · ' + (d >= 0 ? 'drawn ' + formatCurrency(d) + ' more' : 'drawn ' + formatCurrency(-d) + ' less') + '</span></span>' +
         '<span class="inv-row-end inv-num">' + formatCurrency(weeks[ws]) + '</span></div>';
-    });
+    }), { n: 4, noun: 'weeks' });
   }
-  return h + '</div>';
+  // Folded to its head, which says the latest month and whether any leg is off its slip (open when one is).
+  return uiFoldHtml('pay-bank-wages', '<span class="inv-row-main"><span class="inv-row-title inv-row-strong">Wages paid, from the bank</span><span class="inv-row-meta">' + sum + '</span></span>',
+    h, off > 0, ' id="payBankWages"');
 }
 
 /* ---------- Doing ---------- */
@@ -29133,6 +29244,9 @@ function cpMonthly(clientId, months) {
 /* A material row: the part, how often and when it was last handled, and what it earned. A stopped
    part says how long it has been gone; a possible rename says so. */
 function _cpMaterialRows(list, renames) {
+  return _cpMaterialRowList(list, renames).join('');
+}
+function _cpMaterialRowList(list, renames) {
   return list.map(function(m) {
     var meta = m.times + '× · last ' + formatDate(m.lastSeen) +
       (m.typicalGap > 0 ? ' · usually every ' + Math.round(m.typicalGap) + 'd' : '') +
@@ -29153,7 +29267,7 @@ function _cpMaterialRows(list, renames) {
       '<span class="inv-row-end">' +
       (m.invoiced > 0 ? '<span class="inv-num">' + formatCurrency(m.revenue) + '</span>' : '<span class="inv-badge inv-badge-neutral">Challan only</span>') +
       '</span></div>';
-  }).join('');
+  });
 }
 
 /* "+12.3% on Aug", never an arrow alone (§5.4). */
@@ -29255,23 +29369,26 @@ function renderClientPerformance(container) {
   }
   html += '</div>';
 
-  // Stopped first. It is the only one of the four that is a question.
-  var group = function(key, title, tone, list, emptyText, note, renamesFor) {
+  // Stopped first: it is the only one of the four that is a question. Each group shows its first ten (the count is on its
+  // head) and One-off (handled once, long ago) shows none until asked: SSS Mehta's card ran 23 phone screens with 101
+  // stopped parts and every part it ever sent (UX overhaul 2, step 6).
+  var group = function(key, title, tone, list, emptyText, note, renamesFor, n) {
+    var rows = list.length ? _cpMaterialRowList(list, renamesFor) : [];
     return '<div data-cp-group="' + key + '">' +
       '<div class="inv-row-group"><span class="inv-dot inv-dot-' + tone + '">' + title + ' · ' + list.length + '</span></div>' +
       (list.length === 0
         ? '<div class="inv-row"><span class="inv-row-main inv-row-meta">' + emptyText + '</span></div>'
         : (note ? '<div class="inv-row inv-row-auto"><span class="inv-row-main inv-note inv-row-wrap">' + note + '</span></div>' : '') +
-          _cpMaterialRows(list, renamesFor)) +
+          uiMoreHtml('cp-' + key + '-' + clientId, rows, { n: n == null ? 10 : n, noun: 'parts' })) +
       '</div>';
   };
-  html += '<div class="inv-panel inv-panel-flush">' +
+  html += '<div class="inv-panel inv-panel-flush" data-card="materials">' +
     '<div class="inv-panel-head"><span class="inv-panel-title">Materials</span><span class="inv-note">cadence across invoices and challans</span></div>' +
     group('stopped', 'Stopped', 'danger', stopped, 'Nothing has fallen out of its rhythm.',
       'Overdue against the gap each part usually keeps, not a fixed cut-off — a quarterly part is not called stopped in month two.', renames) +
     group('new', 'New', 'info', fresh, 'Nothing new in the last ' + CP_NEW_DAYS + ' days.', '', null) +
     group('steady', 'Steady', 'ok', steady, 'No part is running to a regular cadence.', '', null) +
-    (oneoff.length > 0 ? group('oneoff', 'One-off', 'neutral', oneoff, '', 'Handled once and long ago. Never had a cadence to fall out of.', null) : '') +
+    (oneoff.length > 0 ? group('oneoff', 'One-off', 'neutral', oneoff, '', 'Handled once and long ago. Never had a cadence to fall out of.', null, 0) : '') +
     '</div>';
 
   container.innerHTML = html;
@@ -30714,8 +30831,8 @@ function onDocClick(e) {
       break;
     }
     // Phase 7: History load more
-    case 'invHistoryLoadMore': _historyShowCount += 50; renderHistory(); break;
-    case 'invHistoryType': _historyType = btn.dataset.type; _historyShowCount = 50; renderHistory(); break;
+    case 'invHistoryLoadMore': _historyShowCount += UI_MORE_ROWS; renderHistory(); break;
+    case 'invHistoryType': _historyType = btn.dataset.type; _historyShowCount = UI_MORE_ROWS; renderHistory(); break;
     case 'invHistoryExport': exportHistoryCSV(); break;
     // Phase 4: Challan Scanner
     case 'invScanChallan': scanChallan(); break;
@@ -30814,6 +30931,7 @@ function onDocClick(e) {
     default:
       // A chart datum: its figure goes into the chart's readout line (a phone has no hover).
       if (action === 'invChartRead') { chartShowRead(btn); break; }
+      if (action === 'invShowMore') { uiShowMore(btn.dataset.key); break; }
       if (billsAction(action, btn)) break;
       if (bankAction(action, btn)) break;
       if (financeAction(action, btn)) break;
@@ -31003,17 +31121,17 @@ function onDocChange(e) {
   // Phase 7: History filter changes (client + date range)
   if (e.target.id === 'historyClientFilter') {
     _historyClientFilter = e.target.value;
-    _historyShowCount = 50;
+    _historyShowCount = UI_MORE_ROWS;
     renderHistory();
   }
   if (e.target.id === 'historyDateFrom') {
     _historyDateFrom = e.target.value;
-    _historyShowCount = 50;
+    _historyShowCount = UI_MORE_ROWS;
     renderHistory();
   }
   if (e.target.id === 'historyDateTo') {
     _historyDateTo = e.target.value;
-    _historyShowCount = 50;
+    _historyShowCount = UI_MORE_ROWS;
     renderHistory();
   }
   // Phase 4: IM challan line unit change
@@ -31085,7 +31203,7 @@ document.addEventListener('input', function(e) {
       var caret = null;
       var el = document.getElementById('historySearch');
       if (el) { try { caret = el.selectionStart; } catch (err) { caret = null; } }
-      _historyShowCount = 50;
+      _historyShowCount = UI_MORE_ROWS;
       renderHistory();
       var restored = document.getElementById('historySearch');
       if (restored) {

@@ -357,32 +357,36 @@ function renderIMList() {
     (function(list) {
       html += '<div class="inv-panel inv-panel-flush"><div class="inv-panel-head"><span class="inv-panel-title">' + title +
         ' <span class="inv-panel-count">' + list.length + '</span></span></div>';
-      var day = null;
+      // The first thirty challans; the rest one tap away (UX overhaul 2, step 6: a month of billed challans ran 7.5 screens).
+      var day = null, imRows = [];
       list.forEach(function(im, idx) {
         if (im.challanDate !== day) {
           day = im.challanDate;
           var same = list.filter(function(x) { return x.challanDate === day; });
-          html += '<div class="inv-row-group"><span>' + (day ? escHtml(formatDate(day)) : 'No date') + ' · ' + same.length + '</span>' +
-            '<span class="inv-num">' + formatCurrency(same.reduce(function(s, x) { return s + imChallanTotal(x); }, 0)) + '</span></div>';
+          imRows.push({ head: true, parts: ['<div class="inv-row-group"><span>' + (day ? escHtml(formatDate(day)) : 'No date') + ' · ' + same.length + '</span>' +
+            '<span class="inv-num">' + formatCurrency(same.reduce(function(s, x) { return s + imChallanTotal(x); }, 0)) + '</span></div>'] });
         }
         var status = getIMStatus(im), expanded = !!_imExpanded[im.id];
         var pendingItems = im.items.filter(function(it) { return !it.invoiced; });
         var allChecked = pendingItems.length > 0 && pendingItems.every(function(it) { return _imSelected[it.id]; });
         var id = escHtml(im.id);
-        html += '<div class="inv-row inv-row-2' + (allChecked ? ' inv-row-selected' : '') + '" data-im="' + id + '">' +
+        var parts = [];
+        parts.push('<div class="inv-row inv-row-2' + (allChecked ? ' inv-row-selected' : '') + '" data-im="' + id + '">' +
           (status !== 'invoiced' ? '<label class="inv-row-lead inv-row-tick"><input type="checkbox" class="inv-check" data-action="invCheckIMChallan" data-id="' + id + '"' +
             (allChecked ? ' checked' : '') + ' aria-label="Select all of ' + escHtml(imChallanLabel(im)) + '"></label>' : '') +
           '<button class="inv-row-main inv-row-expander" data-action="invToggleIM" data-id="' + id + '" aria-expanded="' + expanded + '">' +
           '<span class="inv-row-title"><span class="inv-id">' + escHtml(imChallanLabel(im)) + '</span> · ' + escHtml(im.clientName) + '</span>' +
           '<span class="inv-row-meta">' + (im.vehicleNo ? escHtml(im.vehicleNo) + ' · ' : '') + im.items.length + ' item' + (im.items.length !== 1 ? 's' : '') + '</span></button>' +
-          '<span class="inv-row-end"><span class="inv-row-stack"><span class="inv-num">' + formatCurrency(imChallanTotal(im)) + '</span>' + imStatusDotHtml(im) + '</span></span></div>';
+          '<span class="inv-row-end"><span class="inv-row-stack"><span class="inv-num">' + formatCurrency(imChallanTotal(im)) + '</span>' + imStatusDotHtml(im) + '</span></span></div>');
         if (expanded) {
-          html += '<div class="inv-row-children">' + im.items.map(_imItemRowHtml).join('');
+          var kids = '<div class="inv-row-children">' + im.items.map(_imItemRowHtml).join('');
           var acts = _imActionsHtml(im, false);
-          if (acts) html += '<div class="inv-row inv-row-auto"><span class="inv-toolbar inv-toolbar-tight">' + acts + '</span></div>';
-          html += '</div>';
+          if (acts) kids += '<div class="inv-row inv-row-auto"><span class="inv-toolbar inv-toolbar-tight">' + acts + '</span></div>';
+          parts.push(kids + '</div>');
         }
+        imRows.push({ parts: parts });
       });
+      html += uiMoreHtml('im-list-' + _imTab, imRows, { noun: 'challans' });
       html += '</div>';
     })(filtered);
   }

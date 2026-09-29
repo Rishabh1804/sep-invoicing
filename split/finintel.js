@@ -373,7 +373,7 @@ TODO_RULE_FNS.wageVsSlip = function() {
     return { key: 'wageVsSlip:' + m, rule: 'wageVsSlip', tone: 'amber', title: todoPlural(off.length, 'salary', 'salaries') + ' for ' + billsMonthLabel(pm) + ' differ from the slip',
       sub: off.slice(0, 3).map(function(o) { return o[0] + ' ' + (o[1] > 0 ? 'over' : 'short') + ' ' + formatCurrency(Math.abs(o[1])); }).join(' · '),
       why: 'Payments · wages against payroll as paid', facts: off.map(function(o) { return [o[0], (o[1] > 0 ? '+' : '−') + formatCurrency(Math.abs(o[1]))]; }),
-      clears: 'Clears itself when the amounts agree; snooze it if a note explains them.', go: finGo('payments', { anchor: 'bankWages' }), goLabel: 'Open wages paid', sig: off.map(function(o) { return o[1]; }).join('|') };
+      clears: 'Clears itself when the amounts agree; snooze it if a note explains them.', go: { kind: 'payWages' }, goLabel: 'Open wages paid', sig: off.map(function(o) { return o[1]; }).join('|') };
   }).filter(Boolean);
 };
 TODO_RULE_FNS.cashSwing = function() {
@@ -390,7 +390,7 @@ TODO_RULE_FNS.cashSwing = function() {
   return [{ key: 'cashSwing:' + ws, rule: 'cashSwing', tone: 'amber', title: 'Cash drawn for the week to ' + formatDate(sat) + ' is ' + (d > 0 ? 'over' : 'under') + ' its payout',
     sub: formatCurrency(drawn) + ' drawn against a payout of ' + formatCurrency(pw.total), why: 'Payments · cash by pay week',
     facts: [['Drawn', formatCurrency(drawn)], ['Payout', formatCurrency(pw.total)], ['Gap', (d > 0 ? '+' : '−') + formatCurrency(Math.abs(d))]],
-    clears: 'Clears itself when the next week is within a quarter of its payout.', go: finGo('payments', { anchor: 'bankWages' }), goLabel: 'Open wages paid', sig: drawn + '|' + pw.total }];
+    clears: 'Clears itself when the next week is within a quarter of its payout.', go: { kind: 'payWages' }, goLabel: 'Open wages paid', sig: drawn + '|' + pw.total }];
 };
 TODO_RULE_FNS.costGap = function() {
   var closed = finClosedMonths(3);

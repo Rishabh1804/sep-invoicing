@@ -601,6 +601,61 @@ function viewTop() {
   window.scrollTo(0, 0);
 }
 
+/* ===== HOW MUCH A SCREEN SHOWS (UX overhaul 2, step 6) =====
+   Measured on the real book, the long screens were long because each put a finished or historical list at full length
+   under the few rows that need the owner: a client's Materials ran 23 phone screens, the bank statement 18. Two tools,
+   used by the four rules in docs/UX_OVERHAUL_2.md:
+   - uiMoreHtml: a long list shows its first rows and one row saying how many more, which shows them in place (the rows
+     are drawn and hidden, so it works the same on a page, in a pane or in a dialog). Totals always cover the whole.
+     Shown lists stay shown until the page is reloaded.
+   - uiFoldHtml: a card taller than a screen folds to its head, which says what is in it; open or shut is remembered on
+     the device. */
+var UI_MORE_ROWS = 30;
+var UI_FOLDS_KEY = 'sep_inv_folds';
+var _uiMoreShown = {};
+var _uiFolds = (function() { try { return JSON.parse(localStorage.getItem(UI_FOLDS_KEY) || '{}') || {}; } catch (e) { return {}; } })();
+
+/* rows: one entry per row, each an html string of top-level elements, or {parts: [html, …]} for a row drawn as several
+   (a row and its open editor, a challan and its lines), or {parts, head: true} for a group heading, which does not
+   count toward n and is held back with the row after it. Nothing is wrapped: a wrapper would make every row its
+   container's last child and drop the rules between rows. opts: {n (UI_MORE_ROWS), noun, tr: colspan for <tr> rows}. */
+function uiMoreHtml(key, rows, opts) {
+  opts = opts || {};
+  var n = opts.n != null ? opts.n : UI_MORE_ROWS;
+  var items = rows.map(function(r) { return typeof r === 'string' ? { parts: [r] } : r; });
+  var total = items.filter(function(r) { return !r.head; }).length;
+  if (total <= n || _uiMoreShown[key]) return items.map(function(r) { return r.parts.join(''); }).join('');
+  var hide = function(h) { return h.replace(/^(\s*<[a-z]+)(\s|>)/i, '$1 data-more-of="' + escHtml(key) + '" hidden$2'); };
+  var seen = 0, out = '';
+  items.forEach(function(r, i) {
+    // A heading goes with the row after it.
+    var counts = r.head ? (items.slice(i + 1).find(function(x) { return !x.head; }) ? seen : n) : seen++;
+    out += counts < n ? r.parts.join('') : r.parts.map(hide).join('');
+  });
+  var btn = '<button type="button" class="inv-btn inv-btn-link inv-btn-sm" data-action="invShowMore" data-key="' + escHtml(key) + '">Show ' + (total - n) + ' more' +
+    (opts.noun ? ' ' + opts.noun : '') + ' · ' + total + ' in all</button>';
+  return out + (opts.tr ? '<tr data-more-btn="' + escHtml(key) + '"><td colspan="' + opts.tr + '">' + btn + '</td></tr>'
+    : '<div class="inv-row" data-more-btn="' + escHtml(key) + '">' + btn + '</div>');
+}
+function uiShowMore(key) {
+  _uiMoreShown[key] = true;
+  document.querySelectorAll('[data-more-of="' + key + '"]').forEach(function(el) { el.hidden = false; });
+  document.querySelectorAll('[data-more-btn="' + key + '"]').forEach(function(el) { el.remove(); });
+}
+
+/* A panel that folds to its head. head: the summary row's inner html; dflt: open when nothing is remembered. */
+function uiFoldOpen(key, dflt) { return Object.prototype.hasOwnProperty.call(_uiFolds, key) ? !!_uiFolds[key] : !!dflt; }
+function uiFoldHtml(key, headHtml, bodyHtml, dflt, attrs) {
+  return '<details class="inv-panel inv-panel-flush inv-panel-fold" data-fold="' + escHtml(key) + '"' + (attrs || '') + (uiFoldOpen(key, dflt) ? ' open' : '') + '>' +
+    '<summary class="inv-panel-head">' + headHtml + '</summary>' + bodyHtml + '</details>';
+}
+document.addEventListener('toggle', function(e) {
+  var d = e.target;
+  if (!d || !d.dataset || !d.dataset.fold) return;
+  _uiFolds[d.dataset.fold] = d.open;
+  try { localStorage.setItem(UI_FOLDS_KEY, JSON.stringify(_uiFolds)); } catch (err) { /* a per-device convenience only */ }
+}, true);
+
 var KEEP_SCROLLERS = '.inv-pane-list, .inv-pane, .inv-dialog, .inv-dialog-main, .inv-dialog-panes';
 function _keepKey(el) {
   if (!el || !el.tagName || el === document.body) return null;

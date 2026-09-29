@@ -486,6 +486,15 @@ indented on the page colour. **The phone form of every table.** Replaces `inv-cl
 `inv-pay-row`, `inv-rate-row`, `inv-cost-dline`, `inv-td-hrow`, `inv-more-item`, `inv-stk-row`,
 `inv-stk-hrow`, `inv-stk-mrow`, `inv-td-row`.
 
+**A long list shows its first rows** (`uiMoreHtml`, state.js; UX overhaul 2, step 6): thirty by default, ten where each
+row is a question (a client's Materials, the Stats client tables, unplaced receipts), then one row with a link button,
+*Show 71 more parts · 101 in all*, that shows the rest in place. The rest are drawn and `hidden` (never wrapped: a wrapper
+would make every row its container's last child and drop the dividers), so it works alike on a page, in a pane and in a
+dialog; a group head is held back with the row under it; a list shown stays shown until a reload. The head's count and
+every total always cover the whole list. **A card taller than a screen folds** (`uiFoldHtml`: an `inv-panel-fold` whose
+summary is the head saying what is in it, `data-fold` naming it; open or shut is remembered on the device), open by
+default when it holds a problem (a wage leg off its slip).
+
 ### 6.11 Table — `inv-table`
 A real `<table>`. `thead` sticky, `--t-label` `--text-3` on `--bg` with a bottom hairline; rows `--row-h`
 with hairlines; numeric columns `inv-num` (mono, right); identifier columns `inv-id` (mono); status column

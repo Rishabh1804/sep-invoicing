@@ -154,11 +154,15 @@ test('an electricity payment becomes the month\'s bill, and wages are set agains
   expect(bills).toHaveLength(1);
   expect(bills[0]).toMatchObject({ kind: 'power', month: '2026-06', amount: 61234.5 });
 
-  // July's transfers pay June's slip: Ramu as the slip, Gita ₹500 short of it.
+  // Payments says it in one line (one fact, one screen) and opens Staff → Pay, where the card lives.
+  await expect(page.locator('#bankWages')).toContainText('1 off the slip');
+  await expect(page.locator('#bankSuppliers')).toContainText('stock bills recorded ₹15,000.00');
+  await page.locator('#bankWages [data-action="invGoPay"]').click();
+  // July's transfers pay June's slip: Ramu as the slip, Gita ₹500 short of it; a leg off its slip opens the card.
+  await expect(page.locator('#payBankWages')).toHaveAttribute('open', '');
   await expect(page.locator('[data-wage="2026-07:7"]')).toContainText('as the slip');
   await expect(page.locator('[data-wage="2026-07:8"]')).toContainText('short ₹500.00');
-  await expect(page.locator('#bankWages')).toContainText('Cash drawn');
-  await expect(page.locator('#bankSuppliers')).toContainText('stock bills recorded ₹15,000.00');
+  await expect(page.locator('#payBankWages')).toContainText('Cash drawn');
 });
 
 test('a SELF draw set to Other leaves the wages, and a payee setting reaches every row under that name', async ({ page }) => {

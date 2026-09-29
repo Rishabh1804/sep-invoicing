@@ -1,6 +1,6 @@
 # UX overhaul 2: desktop use, search, how much each screen shows
 
-Agreed with the owner, 28 Sep 2026. **Planning document: steps 0, 0b, 2 and 1 are built, nothing else is.** One PR per step, in
+Agreed with the owner, 28 Sep 2026. **Planning document: steps 0, 0b, 2, 1 and 6 are built, nothing else is.** One PR per step, in
 this order: **the version guard (2) now comes before navigation (1)** (owner, 29 Sep 2026), since two copies of the app
 open today (the installed app and a tab) already overwrite each other's saves; and IM's view tabs move into navigation. After it, the second batch: Home previews (parked in `NEXT_SESSION.md`) and the daily flow.
 
@@ -75,7 +75,27 @@ reopened the tab last used); measure it at step 6.
    - Results grouped by kind, arrow keys and Enter, recent items before anything is typed.
 5. **Keyboard.** `N` new invoice, `C` new challan, `G` then a letter to jump (`G R` Register), `J`/`K` through a list,
    Enter to open, Esc to close a pane, `?` for the list. None of them fire while a field has focus.
-6. **The length pass**, on the screens in the table, by the four rules; Finance → Overview measured first.
+6. **The length pass. Built** (P101; owner, 29 Sep 2026, brought forward: *"clients detail is also one of those screens -
+   Mehta and Dorabji scroll too far because they have many material IDs"*). Measured again on the 11 Sep book and the 18 Sep
+   statement, locally, counts only (phone screens; desktop in brackets):
+
+   | Screen | Before | After | What changed |
+   |---|---:|---:|---|
+   | Clients → Performance, SSS Mehta | 23.5 (15.8) | 5.3 (4.2) | Materials: ten of each group (Mehta has 101 stopped parts), One-off none until asked |
+   | Clients → Performance, Dorabji | 8.3 (6.3) | 4.6 (3.9) | the same |
+   | Finance → Bank | 18.4 (18.2) | 3.3 (3.1) | the statement's latest thirty rows |
+   | Staff → Pay | 10.1 (9.7) | 5.4 (5.0) | *Wages paid, from the bank* folds, open when a leg is off its slip; three months, four weeks |
+   | Finance → Payments | 7.1 (6.8) | one line | the wages card is one line that opens Staff → Pay (one fact, one screen) |
+   | IM → Invoiced (a month) | 7.5 (pane 5.1) | 3.2 | thirty challans |
+   | Register | 6.0 | 3.4 | thirty invoices |
+   | Finance → Receivables | 5.5 | 4.3 | unplaced receipts: the latest ten |
+   | History | 5.6 | 3.7 | thirty events a page (was fifty) |
+   | Clients → Items | 4.7 | 3.2 | thirty items a page (was fifty) |
+   | A client's sheet and pane | — | — | a card of more than five rows (piece rates, piece weights) folds; the pane shows ten |
+
+   Left as they are, each for a reason: **Finance → Overview (8)** is eight charts the owner asked for, no one longer than
+   two screens; **Stats → Clients (6)** is four tables of ten or fewer clients this month (each now caps at ten); Staff →
+   Day and To-do are the day's work, every row of which needs the owner.
 7. **Desktop layout.** List and pane on Finance → Receivables, Production → Entries, Staff → Roster and History; two or
    three columns on Home, Stats and Finance above about 1,600px.
 

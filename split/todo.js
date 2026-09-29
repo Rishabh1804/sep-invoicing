@@ -636,6 +636,12 @@ function todoGo(go) {
       break;
     case 'stats': try { localStorage.setItem(STATS_TAB_KEY, go.tab); } catch (e) { /* per-device */ } switchTab('pageStats'); break;
     case 'staffRoster': _attView = 'roster'; switchTab('pageStaff'); break;
+    case 'payWages': {
+      _attView = 'pay'; switchTab('pageStaff');
+      var pw = document.getElementById('payBankWages');
+      if (pw) { pw.open = true; pw.scrollIntoView({ block: 'start' }); }
+      break;
+    }
     case 'staffPaste': _attView = 'paste'; switchTab('pageStaff'); break;
     case 'stockList': _stockView = 'list'; switchTab('pageStock'); break;
     case 'client': switchTab('pageClients'); openClientEdit(parseInt(go.id, 10)); break;

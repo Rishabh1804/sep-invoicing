@@ -97,8 +97,16 @@ function _cinput(id, value, cls, extra) {
   return '<input class="inv-input' + (cls ? ' ' + cls : '') + '" id="' + id + '" value="' + escHtml(value == null ? '' : value) + '"' + (extra || '') + '>';
 }
 
-/* A card on the client (rates, piece rates, piece weights): its rows, then the form that adds to it. */
+/* A card on the client (rates, piece rates, piece weights): its rows, then the form that adds to it. A card of more
+   than CLIENT_CARD_FOLD rows folds to its head, which gives its count (open or shut remembered on the device): SSS
+   Mehta's piece rates and Dorabji's piece weights, one row per part, ran the sheet far past a screen (owner, 29 Sep
+   2026; UX overhaul 2, step 6). */
+var CLIENT_CARD_FOLD = 5;
 function _clientCardHtml(title, count, rowsHtml, bodyHtml, id) {
+  if (id && count > CLIENT_CARD_FOLD) {
+    return uiFoldHtml('client-' + id, '<span class="inv-panel-title">' + title + ' <span class="inv-panel-count">' + count + '</span></span>',
+      '<div id="' + id + '">' + rowsHtml + '</div>' + bodyHtml, false);
+  }
   return '<div class="inv-panel inv-panel-flush">' +
     '<div class="inv-panel-head"><span class="inv-panel-title">' + title + (count != null ? ' <span class="inv-panel-count">' + count + '</span>' : '') + '</span></div>' +
     '<div' + (id ? ' id="' + id + '"' : '') + '>' + rowsHtml + '</div>' + bodyHtml + '</div>';
@@ -366,15 +374,16 @@ function _renderClientDetail(clientId, skipMasterRefresh) {
           '<span class="inv-row-end inv-num">' + formatCurrency(ir.rate) + '/' + escHtml(ir.unit || 'kg') + '</span></div>';
       }).join('');
     }
+    // Ten of each card here; the rest one tap away (Edit holds them all, folded).
     if (c.pieceRates && c.pieceRates.length) {
-      cards += group('Piece rates', c.pieceRates.length) + _sortedPieceRates(c).map(function(pr) {
+      cards += group('Piece rates', c.pieceRates.length) + uiMoreHtml('cpane-pr-' + c.id, _sortedPieceRates(c).map(function(pr) {
         return _cardRowHtml(_partGaugeHtml(pr), formatCurrency(pr.rate) + '/pc', pr.effectiveFrom, '');
-      }).join('');
+      }), { n: 10, noun: 'piece rates' });
     }
     if (c.pieceWeights && c.pieceWeights.length) {
-      cards += group('Piece weights', c.pieceWeights.length) + _sortedCard(c.pieceWeights).map(function(pw) {
+      cards += group('Piece weights', c.pieceWeights.length) + uiMoreHtml('cpane-pw-' + c.id, _sortedCard(c.pieceWeights).map(function(pw) {
         return _cardRowHtml(_partGaugeHtml(pw), escHtml(pw.kgPerPiece) + ' kg/pc', pw.effectiveFrom, '');
-      }).join('');
+      }), { n: 10, noun: 'piece weights' });
     }
     var recent = (S.invoices || []).filter(function(i) { return i.clientId === c.id; })
       .sort(function(a, b) { return (b.date || '').localeCompare(a.date || ''); }).slice(0, 5);

@@ -175,6 +175,8 @@ function onDocClick(e) {
     // Phase 4: Print preview
     case 'invPreviewInvoice': closeOverlay(); showPrintPreview(btn.dataset.id); break;
     case 'invClosePrint': closePrintPreview(); break;
+    case 'invAttSheetOpen': attSheetOpen(); break;
+    case 'invAttSheetPreview': attSheetPreview(); break;
     case 'invPrint': printMarkPrinted(); window.print(); break;
     // Quality certificate — one page per invoice line, single or bulk
     case 'invQualityCert': closeOverlay(); showQualityCertificates([btn.dataset.id]); break;

@@ -1,0 +1,95 @@
+import { test, expect } from '@playwright/test';
+import type { Page } from '@playwright/test';
+import { emptyState, loadAppWithState, noSeedIM, switchTab, todayIso, type SepState } from './fixtures';
+
+// P96: the attendance paper route (owner, 29 Sep 2026). Staff → Day → Print sheets gives, for the day on screen:
+// Shyam's sheet (his WhatsApp roll on paper: In time with the 6 AM blocks and the 8:30 AM areas in his order, numbered
+// blank lines, EXTRA boxes and the absent; Out time on the back), Deepak's sheet (the Day entry: the roster in the Day
+// view's order, P / H / A, area, in, out, hours, OT, the EXTRA table, three signatures), and a copy filled from what the
+// app holds. Every page is one A4 sheet. Names here are made up.
+
+const STAFF = [
+  { id: 'W1', name: 'Arun', comp: 'monthly', area: 'vat-a1', dayRate: 500, active: true, onFloor: true },
+  { id: 'W2', name: 'Bala', comp: 'hourly', area: 'barrel', hourRate: 50, active: true, onFloor: true },
+  { id: 'W3', name: 'Chand', comp: 'hourly', area: 'vat-a1', hourRate: 50, active: true, onFloor: true },
+  { id: 'W4', name: 'Esha', comp: 'monthly', area: 'vat-a2', dayRate: 500, active: true, onFloor: true },
+  { id: 'W5', name: 'Gopal', comp: 'hourly', area: 'pickling-vat', hourRate: 50, active: true, onFloor: true },
+];
+function state(withDay: boolean): SepState {
+  const s: any = { ...emptyState(), incomingMaterial: noSeedIM(), staff: STAFF, attendance: {} };
+  if (withDay) s.attendance[todayIso()] = {
+    marks: {
+      W1: { st: 'P', area: 'vat-a1', hours: 0, ot: 2, inMin: 510, outMin: 1140, src: 'relay' },
+      W2: { st: 'P', area: 'barrel', hours: 11, ot: 0, inMin: 360, outMin: 1020 },
+      W4: { st: 'A', area: 'flex', hours: 0, ot: 0 },
+    },
+    extra: [{ area: 'vat-a1', hours: 8, kind: 'coverage' }, { area: 'barrel', hours: 3, kind: 'block', from: '17:00', to: '20:00', crew: ['W2'] }],
+    note: '',
+  };
+  return s as SepState;
+}
+const g = (p: Page, expr: string) => p.evaluate(e => (0, eval)(e), expr);
+async function openDay(page: Page) {
+  await switchTab(page, 'pageStaff');
+  await page.locator('[data-action="invAttView"][data-view="day"]').first().click();
+}
+
+test.describe('P96: attendance sheets', () => {
+  test('Print sheets on the Day view offers the three and previews them, each page one A4 sheet', async ({ page }) => {
+    await loadAppWithState(page, state(true));
+    await openDay(page);
+    await page.locator('[data-action="invAttSheetOpen"]').click();
+    await expect(page.locator('[data-as-pick="filled"]')).toBeEnabled();
+    await page.locator('[data-action="invAttSheetPreview"]').click();
+    const pages = page.locator('.inv-print-view-active .inv-as-page');
+    await expect(pages).toHaveCount(4);
+    expect(await pages.evaluateAll(ps => ps.map(p => (p as HTMLElement).dataset.sheet))).toEqual(['shyam-in', 'shyam-out', 'deepak', 'filled']);
+    // On paper each page fits one A4 sheet (297mm, less nothing: the gutters are its own padding).
+    await page.emulateMedia({ media: 'print' });
+    const mm = await pages.evaluateAll(ps => ps.map(p => p.getBoundingClientRect().height / (96 / 25.4)));
+    for (const h of mm) expect(h).toBeLessThanOrEqual(297);
+  });
+
+  test("Shyam's In time follows his roll: 6 AM blocks, then the 8:30 AM areas in his order, numbered on, EXTRA and the absent", async ({ page }) => {
+    await loadAppWithState(page, state(false));
+    await g(page, `document.getElementById('invPrintBody').innerHTML = attSheetShyamHtml('${todayIso()}')`);
+    const front = page.locator('[data-sheet="shyam-in"]');
+    const heads = await front.locator('.inv-as-box-h').allInnerTexts();
+    expect(heads).toEqual(['Block 1', 'Block 2', 'VAT A1', 'VAT A2', 'Barrel & pickling', 'Pickling A1 & A2', 'Office & gate', 'Monthly absent', 'Weekly absent']);
+    expect(await front.locator('.inv-as-slot').allInnerTexts()).toEqual(['6:00 AM', '8:30 AM']);
+    // Numbers run on across the areas, as he writes them: VAT A1 1–6, VAT A2 7–12 …
+    const nums = await front.locator('.inv-as-grid').nth(1).locator('.inv-as-num').allInnerTexts();
+    expect(nums.slice(0, 8)).toEqual(['1)', '2)', '3)', '4)', '5)', '6)', '7)', '8)']);
+    // No names are printed on his sheet (blank lines, owner).
+    await expect(front).not.toContainText('Arun');
+    await expect(page.locator('[data-sheet="shyam-out"] .inv-as-slot')).toHaveText(['5:00 PM', 'Later']);
+  });
+
+  test("Deepak's sheet is the Day entry blank; the filled copy carries what the app holds", async ({ page }) => {
+    await loadAppWithState(page, state(true));
+    await g(page, `document.getElementById('invPrintBody').innerHTML = attSheetDeepakHtml('${todayIso()}', false) + attSheetDeepakHtml('${todayIso()}', true)`);
+    const blank = page.locator('[data-sheet="deepak"]');
+    // The roster in the Day view's order, then three rows for anyone not on it.
+    const names = await blank.locator('tbody').first().locator('tr td:nth-child(2)').allInnerTexts();
+    const order = await g(page, 'staffActive().map(function(w){ return w.name; })') as string[];
+    expect(names).toEqual([...order, '', '', '']);
+    await expect(blank.locator('.inv-as-sign')).toContainText('Checked by Deepak');
+    await expect(blank.locator('tbody').first()).not.toContainText('7:00 PM');
+
+    const filled = page.locator('[data-sheet="filled"]');
+    const arun = filled.locator('tbody').first().locator('tr', { hasText: 'Arun' });
+    await expect(arun.locator('td')).toHaveText(['1', 'Arun', 'M', 'P', '', '', 'VAT A1', '8:30 AM', '7:00 PM', '', '2.0']);
+    await expect(filled.locator('tbody').first().locator('tr', { hasText: 'Esha' }).locator('td').nth(5)).toHaveText('A');
+    const ex = filled.locator('tbody').nth(1);
+    await expect(ex.locator('tr').nth(1).locator('td')).toHaveText(['Barrel', '5:00 PM', '8:00 PM', 'Bala', '3.0']);
+  });
+
+  test('with nothing entered for the day, the filled copy cannot be picked', async ({ page }) => {
+    await loadAppWithState(page, state(false));
+    await openDay(page);
+    await page.locator('[data-action="invAttSheetOpen"]').click();
+    await expect(page.locator('[data-as-pick="filled"]')).toBeDisabled();
+    await page.locator('[data-action="invAttSheetPreview"]').click();
+    await expect(page.locator('.inv-print-view-active .inv-as-page')).toHaveCount(3);
+  });
+});

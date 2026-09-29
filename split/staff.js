@@ -398,7 +398,9 @@ function _attDayView() {
   var html = _attStepper('invAttStep',
     '<input type="date" class="inv-input inv-id" id="attDate" value="' + escHtml(iso) + '" aria-label="Day">' +
     '<span class="inv-stepper-sub">' + attDayName(iso) + '</span>',
-    'invAttToday', 'Today', 'Previous day', 'Next day') + _attPasteBar();
+    'invAttToday', 'Today', 'Previous day', 'Next day') +
+    // Paste message stays the one primary; the paper forms for the day sit beside it (attsheet.js).
+    _attPasteBar().replace('</div>', '<button class="inv-btn inv-btn-secondary" data-action="invAttSheetOpen">Print sheets</button></div>');
 
   var tile = function(id, label, value, sub, tone) {
     return '<div class="inv-tile' + (tone ? ' inv-tile-' + tone : '') + '"><div class="inv-tile-label">' + label + '</div>' +

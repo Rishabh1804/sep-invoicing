@@ -18,7 +18,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <!-- Appearance before first paint (§3.2): the device's theme and palette, so nothing flashes in the wrong colours. -->
 <script>(function(){try{var d=document.documentElement,t=localStorage.getItem("sep_inv_theme"),p=localStorage.getItem("sep_inv_palette");if(t==="light"||t==="dark")d.dataset.theme=t;d.dataset.palette=(p==="zinc"||p==="terracotta")?p:"teal";}catch(e){document.documentElement.dataset.palette="teal";}})();</script>
-<meta name="app-build" content="4f665586">
+<meta name="app-build" content="65363039">
 <style>
 /* ===== DESIGN TOKENS (design system v2.0 — docs/SEP_INVOICING_DESIGN_PRINCIPLES.md §3) ===== */
 /* Theme: colour-scheme decides every light-dark() below. <html data-theme> is set before first paint
@@ -243,6 +243,40 @@ body:not(.inv-booted) { pointer-events: none; }
 .inv-notice-text[data-tone="danger"] { color: var(--danger); }
 /* The words of an in-app confirm, alert or prompt (uiConfirm): as written, line breaks kept. */
 .inv-ask-body { white-space: pre-line; overflow-wrap: anywhere; margin-bottom: var(--sp-12); }
+
+/* ===== ATTENDANCE SHEETS (attsheet.js): printed forms, so the HR-6 print exception — the type, lines and gutters are
+   declared once here in pt and mm and read as var() below. Each page is an A4 sheet that fits one page, so its padding
+   is its gutter on paper too (the @page margin stays 0). ===== */
+.inv-as-page {
+  --as-fs: 9pt; --as-fs-sm: 7.5pt; --as-fs-h: 14pt; --as-fs-slot: 10.5pt;
+  --as-line: 6.5mm; --as-gap: 3mm; --as-pad: 10mm 12mm; --as-rule: 0.5pt; --as-num-w: 6mm;
+  --as-sheet-w: 210mm; --as-sheet-h: 297mm; --as-sign-gap: 10mm;
+  background: #fff; color: #000; font-family: var(--ff-base); font-size: var(--as-fs); line-height: 1.2;
+  width: var(--as-sheet-w); min-height: var(--as-sheet-h); padding: var(--as-pad); margin: 0 auto var(--sp-16);
+  border: 1px solid var(--border); page-break-after: always; break-after: page;
+}
+.inv-as-page:last-child { page-break-after: auto; break-after: auto; }
+.inv-as-head { display: flex; justify-content: space-between; align-items: baseline; border-bottom: var(--as-rule) solid #000; padding-bottom: 2mm; margin-bottom: var(--as-gap); }
+.inv-as-title { font-size: var(--as-fs-h); font-weight: 700; }
+.inv-as-meta { font-size: var(--as-fs); font-weight: 600; }
+.inv-as-slot { font-size: var(--as-fs-slot); font-weight: 700; margin: var(--as-gap) 0 1.5mm; }
+.inv-as-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--as-gap); }
+.inv-as-box { border: var(--as-rule) solid #000; padding: 1.5mm 2.5mm 2mm; break-inside: avoid; page-break-inside: avoid; }
+.inv-as-box-h { font-weight: 700; border-bottom: var(--as-rule) solid #000; padding-bottom: 1mm; }
+.inv-as-line + .inv-as-box-h { margin-top: var(--as-gap); }
+.inv-as-line { display: flex; align-items: flex-end; height: var(--as-line); border-bottom: var(--as-rule) dotted #000; }
+.inv-as-num { width: var(--as-num-w); font-size: var(--as-fs-sm); color: #444; }
+.inv-as-field { display: flex; gap: 2mm; align-items: flex-end; height: var(--as-line); }
+.inv-as-blank { flex: 1; border-bottom: var(--as-rule) solid #000; }
+.inv-as-table { width: 100%; border-collapse: collapse; }
+.inv-as-table th, .inv-as-table td { border: var(--as-rule) solid #000; padding: 0 1.5mm; height: var(--as-line); text-align: left; }
+.inv-as-table th { font-size: var(--as-fs-sm); }
+.inv-as-table tr { break-inside: avoid; page-break-inside: avoid; }
+.inv-as-table thead { display: table-header-group; }
+.inv-as-table .inv-as-tick { width: var(--as-num-w); text-align: center; font-weight: 700; }
+.inv-as-sign { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--as-gap); margin-top: var(--as-sign-gap); font-size: var(--as-fs-sm); }
+.inv-as-sign > div { border-top: var(--as-rule) solid #000; padding-top: 1mm; }
+.inv-as-note { font-size: var(--as-fs-sm); color: #444; margin-top: 2mm; }
 
 /* ===== PRINT VIEW ===== */
 .inv-print-view {
@@ -708,6 +742,7 @@ table.inv-qc-grid.inv-qc-no-top { border-top: 0; }
   .inv-print-view { position: static; display: block !important; overflow: visible; }
   .inv-print-body { padding: 0; }
   .inv-print-body > * { zoom: 1; }
+  .inv-as-page { border: none; width: auto; min-height: 0; margin: 0; }
   .inv-print-invoice { border: none; width: auto; min-height: 0; margin: 0; padding: 0 var(--pi-gutter-side); }
   .inv-pi-frame > thead { display: table-header-group; }
   .inv-pi-frame > tfoot { display: table-footer-group; }
@@ -13335,7 +13370,9 @@ function _attDayView() {
   var html = _attStepper('invAttStep',
     '<input type="date" class="inv-input inv-id" id="attDate" value="' + escHtml(iso) + '" aria-label="Day">' +
     '<span class="inv-stepper-sub">' + attDayName(iso) + '</span>',
-    'invAttToday', 'Today', 'Previous day', 'Next day') + _attPasteBar();
+    'invAttToday', 'Today', 'Previous day', 'Next day') +
+    // Paste message stays the one primary; the paper forms for the day sit beside it (attsheet.js).
+    _attPasteBar().replace('</div>', '<button class="inv-btn inv-btn-secondary" data-action="invAttSheetOpen">Print sheets</button></div>');
 
   var tile = function(id, label, value, sub, tone) {
     return '<div class="inv-tile' + (tone ? ' inv-tile-' + tone : '') + '"><div class="inv-tile-label">' + label + '</div>' +
@@ -23091,6 +23128,164 @@ function relayOnInput(t) {
   _relayDraft = t.value;
   return true;
 }
+/* ===== ATTENDANCE SHEETS: the paper route (owner, 29 Sep 2026) =====
+   "I want 2 printable sheet generator from the attendance sheet, one for Shyam and one for Deepak aka Champai. The one
+   for Shyam should be generated using his whatsapp text in mind, that way he can easily fill the same on a sheet and
+   then he gives it to Deepak whose sheet is generated by how we enter data by hand on the app ... This gives us a
+   verification route for the attendance and physical copy that I can file for every day for record keeping."
+
+   Three documents for one day, printed through the one print view:
+   - SHYAM'S SHEET, the supervisor's roll on paper: In time on the front (the 6 AM block, then the 8:30 AM shift by area
+     in his order, numbered lines he writes names on, an EXTRA box per area, the absent by tier) and Out time on the
+     back (who left at 5, then the later blocks with their area, EXTRA and the work done). Blank lines only (owner):
+     he writes the names as he does on WhatsApp.
+   - DEEPAK'S SHEET, the app's Staff → Day on paper: the active roster in the Day view's order, P / H / A, area, in, out,
+     hours, OT, a few rows for anyone not on it, the EXTRA table, and the three signatures that make the route a check.
+   - THE FILLED COPY: the same form carrying what was entered in the app for the day, to staple behind the two.
+   Names come from the roster on this device; nothing about a worker is written into the build. */
+
+var ATT_SHEET_IN_AREAS = [
+  ['VAT A1', 6, true], ['VAT A2', 6, true], ['Barrel & pickling', 6, true], ['Pickling A1 & A2', 5, true], ['Office & gate', 4, false]
+];
+var _attSheetPick = { shyam: true, deepak: true, filled: true };
+
+function _asLines(n, from) {
+  var h = '';
+  for (var i = 0; i < n; i++) {
+    h += '<div class="inv-as-line">' + (from != null ? '<span class="inv-as-num">' + (from + i) + ')</span>' : '') + '</div>';
+  }
+  return h;
+}
+function _asField(label, after) {
+  return '<div class="inv-as-field"><span>' + label + '</span><span class="inv-as-blank"></span>' + (after ? '<span>' + after + '</span>' : '') + '</div>';
+}
+function _asHead(title, iso, right) {
+  return '<div class="inv-as-head"><span class="inv-as-title">' + title + '</span>' +
+    '<span class="inv-as-meta">' + escHtml(formatDate(iso) + ' · ' + attDayName(iso)) + (right ? ' · ' + right : '') + '</span></div>';
+}
+function _asHm(min) {
+  if (min == null || isNaN(min)) return '';
+  var h = Math.floor(min / 60), m = Math.round(min % 60);
+  var ap = h >= 12 && h < 24 ? 'PM' : 'AM', h12 = h % 12 === 0 ? 12 : h % 12;
+  return h12 + ':' + String(m).padStart(2, '0') + ' ' + ap;
+}
+
+// A block's "17:00" read the way the rest of the sheet writes a time.
+function _asClock(t) {
+  var m = /^(\d{1,2}):(\d{2})$/.exec(String(t || ''));
+  return m ? _asHm(parseInt(m[1], 10) * 60 + parseInt(m[2], 10)) : String(t || '');
+}
+
+/* Shyam's roll: In time (front) and Out time (back). Numbers run on within a slot, as he writes them. */
+function attSheetShyamHtml(iso) {
+  var n = 1, boxes = '';
+  ATT_SHEET_IN_AREAS.forEach(function(a) {
+    boxes += '<div class="inv-as-box"><div class="inv-as-box-h">' + a[0] + '</div>' + _asLines(a[1], n) +
+      (a[2] ? _asField('EXTRA', 'hours') : '') + '</div>';
+    n += a[1];
+  });
+  boxes += '<div class="inv-as-box"><div class="inv-as-box-h">Monthly absent</div>' + _asLines(3, n) +
+    '<div class="inv-as-box-h">Weekly absent</div>' + _asLines(3, n + 3) + '</div>';
+  var block = function(title, lines) {
+    return '<div class="inv-as-box">' + '<div class="inv-as-box-h">' + title + '</div>' + _asField('Area') + _asLines(lines, 1) +
+      _asField('EXTRA', 'hours') + _asField('Work done') + '</div>';
+  };
+  var front = '<div class="inv-as-page" data-sheet="shyam-in">' + _asHead('In time', iso, 'Shyam') +
+    '<div class="inv-as-slot">6:00 AM</div><div class="inv-as-grid">' + block('Block 1', 3) + block('Block 2', 3) + '</div>' +
+    '<div class="inv-as-slot">8:30 AM</div><div class="inv-as-grid">' + boxes + '</div>' +
+    '<div class="inv-as-note">Write each name as on WhatsApp. EXTRA is the hours booked to the area for a hand short.</div></div>';
+  var later = function() {
+    return '<div class="inv-as-box"><div class="inv-as-box-h">Out at ____________</div>' + _asField('Area') + _asLines(5, 1) +
+      _asField('EXTRA', 'hours') + _asField('Work done') + '</div>';
+  };
+  var back = '<div class="inv-as-page" data-sheet="shyam-out">' + _asHead('Out time', iso, 'Shyam') +
+    '<div class="inv-as-slot">5:00 PM</div><div class="inv-as-grid"><div class="inv-as-box">' + _asLines(8, 1) + '</div>' +
+    '<div class="inv-as-box">' + _asLines(8, 9) + '</div></div>' +
+    '<div class="inv-as-slot">Later</div><div class="inv-as-grid">' + later() + later() + later() + later() + '</div>' +
+    '<div class="inv-as-sign"><div>Filled by Shyam</div><div>Sent on WhatsApp at</div><div>Handed to Deepak at</div></div></div>';
+  return front + back;
+}
+
+/* The roster in the Day view's order, and anyone marked that day who has since left it. */
+function _asRoster(rec) {
+  var list = staffActive().slice();
+  if (rec) Object.keys(rec.marks || {}).forEach(function(id) {
+    if (!list.some(function(w) { return String(w.id) === String(id); })) { var w = staffById(id) || staffById(Number(id)); if (w) list.push(w); }
+  });
+  return list;
+}
+
+/* Deepak's sheet: blank, or filled with what the app holds for the day. */
+function attSheetDeepakHtml(iso, filled) {
+  var rec = filled ? attDay(iso, false) : null;
+  var roster = _asRoster(rec);
+  var rows = roster.map(function(w, i) {
+    var m = rec && rec.marks ? rec.marks[w.id] : null;
+    var st = m ? m.st : '';
+    var tick = function(k) { return '<td class="inv-as-tick">' + (st === k ? k : '') + '</td>'; };
+    return '<tr><td class="inv-as-tick">' + (i + 1) + '</td><td>' + escHtml(w.name || '') + '</td>' +
+      '<td class="inv-as-tick">' + (compIsHourly(w) ? 'H' : w.comp === 'monthly' ? 'M' : 'D') + '</td>' +
+      tick('P') + tick('H') + tick('A') +
+      '<td>' + (m && m.st !== 'A' ? escHtml(areaLabel(m.area || w.area || 'flex')) : '') + '</td>' +
+      '<td>' + (m ? escHtml(_asHm(m.inMin)) : '') + '</td><td>' + (m ? escHtml(_asHm(m.outMin)) : '') + '</td>' +
+      '<td>' + (m && m.hours ? escHtml(formatNum(m.hours, 1)) : '') + '</td><td>' + (m && m.ot ? escHtml(formatNum(m.ot, 1)) : '') + '</td></tr>';
+  }).join('');
+  if (!filled) for (var k = 0; k < 3; k++) rows += '<tr><td class="inv-as-tick">' + (roster.length + k + 1) + '</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>';
+
+  var extras = rec ? (rec.extra || []) : [];
+  var exRows = extras.map(function(x) {
+    var crew = (Array.isArray(x.crew) ? x.crew : []).map(function(id) { var w = staffById(id); return w ? w.name : ''; }).filter(Boolean).join(', ');
+    return '<tr><td>' + escHtml(areaLabel(x.area || 'flex')) + '</td><td>' + escHtml(_asClock(x.from)) + '</td><td>' + escHtml(_asClock(x.to)) + '</td>' +
+      '<td>' + escHtml(crew) + '</td><td>' + (x.hours ? escHtml(formatNum(x.hours, 1)) : '') + '</td></tr>';
+  }).join('');
+  if (!filled || !extras.length) for (var j = 0; j < (filled ? 1 : 4); j++) exRows += '<tr><td></td><td></td><td></td><td></td><td></td></tr>';
+
+  var title = filled ? 'Attendance as entered in the app' : 'Attendance entry';
+  return '<div class="inv-as-page" data-sheet="' + (filled ? 'filled' : 'deepak') + '">' + _asHead(title, iso, filled ? '' : 'Deepak') +
+    (filled && !rec ? '<div class="inv-as-note">Nothing is entered in the app for this day yet.</div>' : '') +
+    '<table class="inv-as-table"><thead><tr><th class="inv-as-tick">#</th><th>Worker</th><th class="inv-as-tick">Tier</th>' +
+    '<th class="inv-as-tick">P</th><th class="inv-as-tick">H</th><th class="inv-as-tick">A</th><th>Area</th><th>In</th><th>Out</th><th>Hours</th><th>OT</th></tr></thead>' +
+    '<tbody>' + rows + '</tbody></table>' +
+    '<div class="inv-as-slot">EXTRA</div>' +
+    '<table class="inv-as-table"><thead><tr><th>Area</th><th>From</th><th>To</th><th>Crew</th><th>Hours</th></tr></thead><tbody>' + exRows + '</tbody></table>' +
+    '<div class="inv-as-note">Tier: M monthly, H hourly, D daily. P present, H half day, A absent. Hours for an hourly hand; OT for the rest.</div>' +
+    (filled
+      ? '<div class="inv-as-note">Printed from the app ' + escHtml(formatTimestamp(Date.now())) + '. Staple behind Shyam\'s and Deepak\'s sheets for the day.</div>'
+      : '<div class="inv-as-sign"><div>Filled by Shyam</div><div>Checked by Deepak</div><div>Entered in the app by / on</div></div>') +
+    '</div>';
+}
+
+/* Staff → Day → Print sheets: which of the three, then the preview. */
+function attSheetOpen() {
+  var rec = attDay(_attDate, false);
+  var c = function(k, label, sub, off) {
+    return '<label class="inv-field-check"><input type="checkbox" class="inv-check" data-as-pick="' + k + '"' + (_attSheetPick[k] && !off ? ' checked' : '') + (off ? ' disabled' : '') + '> ' +
+      label + (sub ? ' <span class="inv-note">' + sub + '</span>' : '') + '</label>';
+  };
+  dialogOpen('<div class="inv-dialog">' + dialogHeadHtml('Print sheets · ' + escHtml(formatDate(_attDate))) +
+    '<div class="inv-field">' +
+    c('shyam', 'Shyam\'s sheet', 'In time and Out time, as his WhatsApp roll (2 pages)') +
+    c('deepak', 'Deepak\'s sheet', 'the Day entry: the roster, P / H / A, area, in, out, hours, OT, EXTRA') +
+    c('filled', 'Filled copy', rec ? 'what the app holds for this day' : 'nothing entered for this day yet', !rec) +
+    '</div><div class="inv-dialog-foot"><button class="inv-btn inv-btn-secondary" data-action="invCloseOverlay">Cancel</button>' +
+    '<button class="inv-btn inv-btn-primary" data-action="invAttSheetPreview">Preview</button></div></div>', { dismiss: true });
+}
+
+function attSheetPreview() {
+  document.querySelectorAll('[data-as-pick]').forEach(function(el) { if (!el.disabled) _attSheetPick[el.dataset.asPick] = el.checked; });
+  var rec = attDay(_attDate, false);
+  var h = (_attSheetPick.shyam ? attSheetShyamHtml(_attDate) : '') + (_attSheetPick.deepak ? attSheetDeepakHtml(_attDate, false) : '') +
+    (_attSheetPick.filled && rec ? attSheetDeepakHtml(_attDate, true) : '');
+  if (!h) { showToast('Pick at least one sheet', 'error'); return; }
+  closeOverlay();
+  document.getElementById('invPrintBody').innerHTML = h;
+  document.getElementById('invPrintView').classList.add('inv-print-view-active');
+  _printInvId = null;
+  printFit();
+  document.body.style.overflow = 'hidden';
+  document._savedTitle = document.title;
+  document.title = 'Attendance ' + _attDate;
+}
 /* ===== PRODUCTION — reading the floor's messages (pure: nothing here reads S) =====
  * Three voices report production into the daily WhatsApp group (census of the real exports, 28 Sep 2026):
  *   - the pickling hand, one message per load: "SSS MEHTA / CLAMP133×83(35×6)-774 nos / PICKLING TIME 9:00AM";
@@ -29700,6 +29895,8 @@ function onDocClick(e) {
     // Phase 4: Print preview
     case 'invPreviewInvoice': closeOverlay(); showPrintPreview(btn.dataset.id); break;
     case 'invClosePrint': closePrintPreview(); break;
+    case 'invAttSheetOpen': attSheetOpen(); break;
+    case 'invAttSheetPreview': attSheetPreview(); break;
     case 'invPrint': printMarkPrinted(); window.print(); break;
     // Quality certificate — one page per invoice line, single or bulk
     case 'invQualityCert': closeOverlay(); showQualityCertificates([btn.dataset.id]); break;

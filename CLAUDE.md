@@ -34,7 +34,7 @@ Workforce management and invoicing PWA for **Soma Electro Products**, a zinc ele
 
 ## Architecture
 
-Split-file PWA. 54 modules, ~30,600 lines total.
+Split-file PWA. 55 modules, ~30,600 lines total.
 
 ```
 split/
@@ -74,6 +74,7 @@ split/
 ├── finance.js         ← Finance: the page, its six tabs, and the Overview read across them (~230 lines)
 ├── todo.js            ← To-do: your tasks + tasks raised from the data, Home card, Windows widget payload (726 lines)
 ├── relay.js           ← Attendance rolls: in/out-time WhatsApp parser, review, merge into the day; the one paste box (~800 lines)
+├── attsheet.js        ← Attendance sheets to print: Shyam's roll, Deepak's Day entry, the day as entered (~170 lines)
 ├── prodparse.js       ← Production messages read (pure): pickling loads, barrel list, a roll's block, the register (~570 lines)
 ├── stats.js           ← Stats dashboard + History activity log (1,195 lines)
 ├── intel.js           ← Stats tabs; Overview at the live cost; six months; contribution by client (~230 lines)
@@ -94,7 +95,7 @@ split/
 └── init.js            ← Migrations + app bootstrap (567 lines)
 ```
 
-**Concat order defined in build.sh.** Dependencies: data → state → appearance → zinc → tabs → clients → items → create → settings → github-sync → invoice-ops → number-audit → exports → im → autocomplete → print → quality-cert → credit-note → charts → staff → labour → areas → payroll → stock → cost → bills → xls → xlsx → bank → finance → todo → relay → prodparse → stats → intel → insights → finintel → finlinks → dash → production → prodview → client-perf → im-form → im-dupe → vision → scanner → events → swipe → seed → init.
+**Concat order defined in build.sh.** Dependencies: data → state → appearance → zinc → tabs → clients → items → create → settings → github-sync → invoice-ops → number-audit → exports → im → autocomplete → print → quality-cert → credit-note → charts → staff → labour → areas → payroll → stock → cost → bills → xls → xlsx → bank → finance → todo → relay → attsheet → prodparse → stats → intel → insights → finintel → finlinks → dash → production → prodview → client-perf → im-form → im-dupe → vision → scanner → events → swipe → seed → init.
 
 **Every module shares one global scope.** A top-level `var` or `function` in a later module silently replaces one of
 the same name in an earlier one; nothing warns. `bills.js` shipped a `STOCK_UNITS` array over `stock.js`'s unit map
@@ -124,7 +125,7 @@ every session start — nothing to set up by hand. CI (`build-sync`) is the back
 ### Tests
 
 ```bash
-pnpm exec playwright test          # 703 tests, both layouts
+pnpm exec playwright test          # 707 tests, both layouts
 ```
 
 Some sandboxes ship a Chromium build Playwright does not expect and block downloading
@@ -201,7 +202,7 @@ filter on; a literal date in a fixture is a time bomb, not a constant.
 |----|------|
 | HR-1 | No inline styles. CSS classes + design tokens. |
 | HR-2 | No inline onclick. data-action delegation only. |
-| HR-3 | inv- CSS prefix on every class. 439 classes, all of them (distinct class selectors in `split/styles.css`, comments stripped, 29 Sep 2026: `inv-toast-info` added); P76 asserts every class the app draws is one of them or a named hook. |
+| HR-3 | inv- CSS prefix on every class. 455 classes, all of them (distinct class selectors in `split/styles.css`, comments stripped, 29 Sep 2026: the sixteen `inv-as-*` of the attendance sheets added); P76 asserts every class the app draws is one of them or a named hook. |
 | HR-4 | No emojis. Inline SVGs in HTML template. |
 | HR-5 | escHtml() on all user-data innerHTML. |
 | HR-6 | CSS design tokens only. No raw px/rem/hex/timing. |
@@ -2073,6 +2074,23 @@ rate ÷ 8 × 1.1, capped at ₹68.20/h), so the older seed understates it.
   same roll twice is refused** by fingerprint (`S.relayPastes` keeps each roll whole). A roll with a
   second message pasted on its end stops there and says so.
 
+
+### The attendance on paper
+Staff → Day → **Print sheets** (`attsheet.js`; owner, 29 Sep 2026: *"one for Shyam and one for Deepak aka Champai … a
+verification route for the attendance and physical copy that I can file for every day for record keeping"*). For the day
+on screen, three documents through the one print view, each page one A4 sheet (P96 measures them under print media):
+- **Shyam's sheet** is his WhatsApp roll on paper. **In time** (front): the 6:00 AM blocks (area, three lines, EXTRA, work
+  done), then the 8:30 AM shift by area in his order (VAT A1, VAT A2, Barrel & pickling, Pickling A1 & A2, Office & gate)
+  with numbered lines running on as he numbers them, an EXTRA box per floor area, and Monthly / Weekly absent. **Out time**
+  (back): who left at 5:00 PM, then four later blocks (out at, area, names, EXTRA, work done), and *Filled by Shyam · Sent
+  on WhatsApp at · Handed to Deepak at*. **Blank lines only** (owner): he writes names as he does on WhatsApp.
+- **Deepak's sheet** is the Day entry on paper: the active roster in the Day view's order (`staffActive`), tier, P / H / A,
+  area, in, out, hours, OT, three rows for anyone not on it, the EXTRA table (area, from, to, crew, hours), and *Filled by
+  Shyam · Checked by Deepak · Entered in the app by / on*.
+- **The filled copy** is Deepak's form carrying what the app holds for the day (a worker marked that day who has since left
+  the roster included), to staple behind the two. It cannot be picked for a day with nothing entered.
+Shyam writes, Deepak transcribes into the app's shape, the owner enters it and files all three: the paper checks the entry.
+Names come from the roster on the device; none is written into the build, and the spec uses made-up ones. English only (owner).
 
 ### Labour and attendance
 The Staff tab. Labour is ₹3.55/kg of an ₹8.55 cost and 42% of it — the largest line in the

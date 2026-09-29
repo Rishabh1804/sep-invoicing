@@ -377,6 +377,8 @@ function showQualityCertificates(invIds) {
   body.innerHTML = html + '</div>';
 
   document.getElementById('invPrintView').classList.add('inv-print-view-active');
+  _printInvId = null;
+  printFit();
   document.body.style.overflow = 'hidden';
 
   // Drives the filename when the browser saves the preview as a PDF.

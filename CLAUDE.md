@@ -124,7 +124,7 @@ every session start — nothing to set up by hand. CI (`build-sync`) is the back
 ### Tests
 
 ```bash
-pnpm exec playwright test          # 694 tests, both layouts
+pnpm exec playwright test          # 700 tests, both layouts
 ```
 
 Some sandboxes ship a Chromium build Playwright does not expect and block downloading
@@ -241,7 +241,22 @@ carry the month's tonnage and ₹/kg next to the revenue, on the same `weighLine
 the status timeline twice); the phone list is grouped by day with each day's taxable; the desktop table drops columns
 in priority by container query and the pane opens on demand, which fixes the survey's squeezed list (40% of the screen,
 Total cut off, client names over three lines — P54 measures it at 1024 and 1280). States read through
-`INV_STATE_TONE` in `state.js`.
+`invStateTone()` in `state.js` (below).
+
+**An invoice's state is Created → Printed → Dispatched → Delivered → Filed, and its dot is coloured by how long it has
+sat there** (owner, 29 Sep 2026: *"an intermediate state between Created and Dispatched that will be printed, which
+changes severity colour for how long it has been on the same state, do the same for every state till they reach the
+final state of Filed"*). **Printed** is set by Print on the invoice's preview (`printMarkPrinted`; only from Created — the
+print dialog cannot say whether paper came out), or by hand; `printedAt` stamps it, like every state
+(`invSetState`, `INV_STATE_AT`). Created may still be dispatched straight away (printed outside the app), from the detail
+or the bulk bar, which now also offers *Printed (n)*. **The tone** (`invStateTone`): Created, Printed and Dispatched turn
+amber, then red, at the days in Settings → Checks & alerts → Invoice states (1/2, 1/2, 3/7), counted from the state's own
+stamp, else the one before it, else the invoice date. **Delivered waits on the return, not a clock**: GSTR-1 for the
+invoice's month is due on the 11th of the next, so it is amber 3 days before and red once past; a delivered invoice from
+the 2nd of the month is not late at day 20. Filed is ok, cancelled danger. The row's dot carries the age in its title,
+the detail's timeline says it (*Printed · 3 days*, *Delivered · GSTR-1 due 11 Oct 2026*), and History logs *printed*.
+Stats' state tiles keep one tone per state (`INV_STATE_TONE`), since they count many invoices. A number is spent from
+Dispatched on, not from Printed. P94.
 **The register sorts by invoice number too** (owner, 26 Sep 2026): the desktop's Invoice column head, and *By date / By
 number* on the phone, where a number sort is grouped by series rather than by day. The order is the series prefix, so
 25-26 comes before 26-27, then the number read as a number, so `100` follows `00099` however it was padded (P70).
@@ -441,8 +456,9 @@ reason, and what the invoice was. The register's **Number audit** walks the whol
 and classifies every number: live / cancelled / voided-with-reason / reissued / **unaccounted**.
 A historical gap is explained in place — no invoice is invented to hang the explanation on.
 
-**`reserved` decides the numbering.** An invoice still in `created` state never left the
-building, so its number returns to the series (the ordinary typo-and-redo flow). Once
+**`reserved` decides the numbering.** An invoice still in `created` or `printed` state never left the
+building, so its number returns to the series (the ordinary typo-and-redo flow; a printed sheet not yet sent is paper
+in the office, not a document the customer holds). Once
 `dispatched`, `delivered` or `filed`, the customer holds a document bearing that number:
 it is spent, `invNextNum` may never walk back over it, and the hole in rule 46's consecutive
 series is what the ledger exists to explain. Reserved voids export at ₹0 in both CSVs — the
@@ -513,6 +529,16 @@ make them differ.
 
 The observations (`10-12` thickness, `TRIYELLOW`) are still the reference's constants, not per-batch
 measurements.
+
+### The print preview is the page
+The preview drew the tax invoice in the phone's column (`--max-w`, 520px) against a layout that needs the page's 186mm:
+on a phone the totals, the challan date and the copy label were cut off, and on the desktop the grid ran past the
+sheet's border, while the printout itself was right (owner, 29 Sep 2026, Android and the Edge app). The invoice is now
+laid out on screen as it is on paper, **210mm across with its gutters as padding** (`--pi-sheet-w`, `--pi-sheet-h`), and
+**every document in the preview is zoomed to fit the screen as a whole** (`printFit()`, print.js, on open and on resize;
+`zoom` on `.inv-print-body > *`, never above life size), the credit note, certificate and sales register included (they
+were A4 already and ran off a phone's edge). In print the zoom is 1 and the sheet's screen width, height and margin are
+reset, so the printed page is unchanged. P94.
 
 ### A tax invoice that runs past one page
 The printed invoice is three copies, each `page-break-after: always`. An invoice with enough line
@@ -1943,7 +1969,7 @@ is self-contained so it can move to `sep-dashboard` whole.
   line. **Ticked, never deleted**: Done keeps them and can reopen one.
 - **App** — raised from the book (`TODO_RULE_FNS`): a stock line red or amber, no stock figure for 2
   working days, a credit-note batch past 7 days since the client's last note, challans unbilled after 5
-  days (one task per client), invoices still Created after 2 days (last 30 days only), the number audit
+  days (one task per client), invoices not yet dispatched after 2 days (Created or Printed, last 30 days only), the number audit
   finding a gap, no backup (export or GitHub push) for 7 days, and — off by default — a stale zinc rate.
   Each is switchable in Settings → Checks & alerts → To-do. **App tasks cannot be ticked: they clear themselves** when the
   thing is fixed, and every one shows the figures it was raised on and what clears it.
@@ -2389,7 +2415,7 @@ Paid holidays count as rest days in the coverage, not as working days nobody typ
 
 ## Settings
 Six groups (owner, 25 Sep 2026: *"Too many things all in one place, no markers, no subdivisions"*):
-**Business** (company, bank, invoice and credit note series), **Checks & alerts** (rate & weight check, stock
+**Business** (company, bank, invoice and credit note series), **Checks & alerts** (rate & weight check, invoice states, stock
 alerts, To-do), **Costing** (full cost, live-cost fallbacks with the chemicals model, zinc rate), **Labour**
 (overtime, rest days & attendance, the extra, modelled labour), **Connections** (metals.dev, Gemini, GitHub sync)
 and **Data & device** (backup, storage, build). The groups are `SETTINGS_GROUPS`, the sections `SETTINGS_SECS`

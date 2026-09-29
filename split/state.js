@@ -49,6 +49,7 @@ function getDefaultState() {
     labour: { otMult: 1.1, otCap: 68.2, otCapFrom: '2026-09-01', holidays: ['01-26', '08-15', '10-02'], restCreditMinDays: 6, extraRate: 47.5, modelPerKg: 3.55, gateFull: 0.9, gateHalf: 0.8, extraHoursPerHead: 8 },
     // Rate matcher thresholds (option E): Check at ≥ pct% off OR ≥ ₹stake on the line.
     rateCheck: { pct: 10, stake: 100, weightTol: 3 },
+    invStateCheck: { createdAmber: 1, createdRed: 2, printedAmber: 1, printedRed: 2, dispatchedAmber: 3, dispatchedRed: 7, fileWarnDays: 3 },
     // Chemical stock: lines, the events that move them, and each pasted
     // message whole. Ships empty — the lines arrive with the first message.
     stock: { items: [], entries: [], pastes: [] },
@@ -469,7 +470,7 @@ var STATE_CONTAINERS = ['clients', 'items', 'invoices', 'incomingMaterial', 'par
 // and so is a missing KEY inside one. `labourCfg()` reads `extraRate || 0`, so
 // a backup predating a constant would silently price the extra at nothing
 // rather than at ₹47.50 — a wrong number, not a visible gap.
-var STATE_CONFIGS = ['labour', 'rateCheck', 'stockCheck', 'todoCheck'];
+var STATE_CONFIGS = ['labour', 'rateCheck', 'stockCheck', 'todoCheck', 'invStateCheck'];
 
 function ensureStateShape(s) {
   if (!s) return s;
@@ -1175,40 +1176,100 @@ function showToast(msg, type='success') {
 }
 
 /* ===== INVOICE LIFECYCLE STATES (Phase 5) ===== */
-var INV_STATES = ['created', 'dispatched', 'delivered', 'filed'];
-var INV_STATE_LABELS = { created: 'Created', dispatched: 'Dispatched', delivered: 'Delivered', filed: 'Filed' };
+var INV_STATES = ['created', 'printed', 'dispatched', 'delivered', 'filed'];
+var INV_STATE_LABELS = { created: 'Created', printed: 'Printed', dispatched: 'Dispatched', delivered: 'Delivered', filed: 'Filed' };
+// Where each state's start is kept on the invoice.
+var INV_STATE_AT = { created: 'createdAt', printed: 'printedAt', dispatched: 'dispatchedAt', delivered: 'deliveredAt', filed: 'filedAt' };
 
 function getInvState(inv) {
   return inv.invoiceState || 'created';
 }
+function invStateIdx(st) { return INV_STATES.indexOf(st); }
+// Moves an invoice to a state and stamps when (the one place a state is set).
+function invSetState(inv, st, now) {
+  inv.invoiceState = st;
+  inv[INV_STATE_AT[st]] = now || Date.now();
+}
 
-/* An invoice's state as a status tone (design principles §6.13): waiting on the
-   floor is a caution, in the customer's hands is information, filed is done. */
-var INV_STATE_TONE = { created: 'neutral', dispatched: 'warning', delivered: 'info', filed: 'ok', cancelled: 'danger' };
+/* A state's summary tone where invoices are counted by state (Stats' tiles): what each state is. On one invoice the
+   dot is its age in that state instead (invStateTone). */
+var INV_STATE_TONE = { created: 'neutral', printed: 'neutral', dispatched: 'warning', delivered: 'info', filed: 'ok', cancelled: 'danger' };
 function invStateOf(inv) { return inv.status === 'cancelled' ? 'cancelled' : getInvState(inv); }
 function invStateWord(inv) { var st = invStateOf(inv); return st === 'cancelled' ? 'Cancelled' : (INV_STATE_LABELS[st] || st); }
-/* A state this build does not know (an older or newer backup) reads neutral rather than untoned. */
-function invStateTone(inv) { return INV_STATE_TONE[invStateOf(inv)] || 'neutral'; }
+
+/* How long an invoice has sat in its state, and the colour that earns (owner, 29 Sep 2026: "changes severity colour
+   for how long it has been on the same state, do the same for every state till they reach the final state of
+   Filed"). Created, Printed and Dispatched turn amber, then red, at the days set in Settings → Checks & alerts →
+   Invoice states. Delivered waits on the return, not on a clock: GSTR-1 for a month is due on the 11th of the next,
+   so it turns amber that many days before the due date and red once it has passed. Filed is done. */
+var INV_STATE_CHECK_DEFAULTS = { createdAmber: 1, createdRed: 2, printedAmber: 1, printedRed: 2, dispatchedAmber: 3, dispatchedRed: 7, fileWarnDays: 3 };
+function invStateCheckCfg() {
+  var c = (S && S.invStateCheck) || {}, out = {};
+  Object.keys(INV_STATE_CHECK_DEFAULTS).forEach(function(k) {
+    var v = parseFloat(c[k]);
+    out[k] = v > 0 ? v : INV_STATE_CHECK_DEFAULTS[k];
+  });
+  return out;
+}
+// When the invoice entered its state: its own stamp, else the latest earlier one, else its date.
+function invStateSince(inv) {
+  var i = invStateIdx(getInvState(inv));
+  for (var k = i; k >= 0; k--) { var t = inv[INV_STATE_AT[INV_STATES[k]]]; if (t) return t; }
+  var d = inv.date ? new Date(inv.date + 'T00:00:00').getTime() : NaN;
+  return isNaN(d) ? Date.now() : d;
+}
+function invStateDays(inv, now) { return Math.max(0, Math.floor(((now || Date.now()) - invStateSince(inv)) / 86400000)); }
+// GSTR-1 for the invoice's month is due on the 11th of the month after.
+function invFileDue(inv) {
+  if (!inv.date) return null;
+  var d = new Date(inv.date + 'T00:00:00');
+  if (isNaN(d.getTime())) return null;
+  return new Date(d.getFullYear(), d.getMonth() + 1, 11);
+}
+function invStateTone(inv, now) {
+  var st = invStateOf(inv);
+  if (st === 'cancelled') return 'danger';
+  if (st === 'filed') return 'ok';
+  if (invStateIdx(st) < 0) return 'neutral';   // a state this build does not know (an older or newer backup)
+  var c = invStateCheckCfg();
+  if (st === 'delivered') {
+    var due = invFileDue(inv);
+    if (!due) return 'neutral';
+    var today = new Date(now || Date.now()); today.setHours(0, 0, 0, 0);
+    var left = Math.round((due - today) / 86400000);
+    return left < 0 ? 'danger' : left <= c.fileWarnDays ? 'warning' : 'neutral';
+  }
+  var days = invStateDays(inv, now);
+  return days >= c[st + 'Red'] ? 'danger' : days >= c[st + 'Amber'] ? 'warning' : 'neutral';
+}
+// What the dot's colour is measuring, in words: "3 days" / "GSTR-1 due 11 Oct 2026".
+function invStateAgeText(inv) {
+  var st = invStateOf(inv);
+  if (st === 'cancelled' || st === 'filed') return '';
+  if (st === 'delivered') { var due = invFileDue(inv); return due ? 'GSTR-1 due ' + formatDate(due.getFullYear() + '-' + String(due.getMonth() + 1).padStart(2, '0') + '-11') : ''; }
+  var d = invStateDays(inv);
+  return d === 0 ? 'today' : d + (d === 1 ? ' day' : ' days');
+}
 function getStateBadgeHtml(inv) {
   return '<span class="inv-badge inv-badge-' + invStateTone(inv) + '">' + escHtml(invStateWord(inv)) + '</span>';
 }
 /* The default in rows and tables (DR-8): a dot and the word. */
 function getStateDotHtml(inv) {
-  return '<span class="inv-dot inv-dot-' + invStateTone(inv) + '">' + escHtml(invStateWord(inv)) + '</span>';
+  var age = invStateAgeText(inv);
+  return '<span class="inv-dot inv-dot-' + invStateTone(inv) + '"' + (age ? ' title="' + escHtml(invStateWord(inv) + ' · ' + age) + '"' : '') + '>' +
+    escHtml(invStateWord(inv)) + '</span>';
 }
 
-function advanceInvoiceState(invId) {
+/* The next state, or a named one further on: an invoice printed outside the app goes from Created straight to
+   Dispatched. Never backwards. */
+function advanceInvoiceState(invId, target) {
   var inv = S.invoices.find(function(i) { return i.id === invId; });
   if (!inv || inv.status === 'cancelled') return;
   var state = getInvState(inv);
   var idx = INV_STATES.indexOf(state);
   if (idx < 0 || idx >= INV_STATES.length - 1) return;
-  var nextState = INV_STATES[idx + 1];
-  inv.invoiceState = nextState;
-  var now = Date.now();
-  if (nextState === 'dispatched') inv.dispatchedAt = now;
-  else if (nextState === 'delivered') inv.deliveredAt = now;
-  else if (nextState === 'filed') inv.filedAt = now;
+  var nextState = target && invStateIdx(target) > idx ? target : INV_STATES[idx + 1];
+  invSetState(inv, nextState);
   saveState();
   closeOverlay();
   _renderRegView();

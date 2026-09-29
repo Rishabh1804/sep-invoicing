@@ -289,6 +289,8 @@ function showSalesRegisterPreview() {
 
   body.innerHTML = banner + buildSalesRegisterHtml(scope);
   document.getElementById('invPrintView').classList.add('inv-print-view-active');
+  _printInvId = null;
+  printFit();
   document.body.style.overflow = 'hidden';
   document._savedTitle = document.title;
   document.title = 'Sales Register - ' + (n === 1 ? Object.keys(names)[0] : scope.label);

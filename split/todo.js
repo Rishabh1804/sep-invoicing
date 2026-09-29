@@ -191,7 +191,7 @@ var TODO_RULE_FNS = {
   dispatch: function() {
     var today = todoToday(), cfg = todoCfg();
     var list = S.invoices.filter(function(i) {
-      if (i.status === 'cancelled' || getInvState(i) !== 'created' || !i.date) return false;
+      if (i.status === 'cancelled' || invStateIdx(getInvState(i)) >= invStateIdx('dispatched') || !i.date) return false;
       var age = todoDaysBetween(i.date, today);
       return age >= cfg.dispatchDays && age <= 30;
     }).sort(function(a, b) { return String(a.date).localeCompare(String(b.date)); });
@@ -199,11 +199,11 @@ var TODO_RULE_FNS = {
     var nums = list.map(function(i) { return String(i.displayNumber || '').split('/').pop(); });
     return [{ key: 'dispatch', rule: 'dispatch', tone: 'info',
       title: list.length === 1 ? 'Mark invoice ' + nums[0] + ' dispatched' : 'Mark ' + list.length + ' invoices dispatched',
-      sub: 'Still Created: ' + nums.slice(0, 4).join(', ') + (nums.length > 4 ? '…' : ''),
+      sub: 'Not yet dispatched: ' + nums.slice(0, 4).join(', ') + (nums.length > 4 ? '…' : ''),
       why: 'Register · rule: ' + cfg.dispatchDays + ' days, last 30 days only',
       facts: [['Invoices', nums.join(', ')], ['Oldest', formatDate(list[0].date)]],
-      clears: 'Clears itself when these invoices move past Created.',
-      go: { kind: 'regState', state: 'created' }, goLabel: 'Open register', sig: list.map(function(i) { return i.id; }).join(',') }];
+      clears: 'Clears itself when these invoices are dispatched.',
+      go: { kind: 'regState', state: list.every(function(i) { return getInvState(i) === 'printed'; }) ? 'printed' : 'created' }, goLabel: 'Open register', sig: list.map(function(i) { return i.id; }).join(',') }];
   },
   audit: function() {
     var a = analyseInvoiceNumbers(), n = (a.unaccounted || []).length;

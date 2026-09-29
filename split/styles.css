@@ -242,6 +242,9 @@ body:not(.inv-booted) { pointer-events: none; }
 }
 .inv-print-toolbar-btn:active { opacity: 0.7; }
 .inv-print-body { padding: var(--sp-8); }
+/* Every document in the preview is laid out at its paper width and scaled to the screen as a whole
+   (printFit(), print.js), so what is seen is what prints, on a phone as on the desktop. */
+.inv-print-body > * { zoom: var(--pp-zoom, 1); }
 .inv-print-invoice {
   /* The invoice's own type scale, in points, declared once and read as var()
      by every rule below — the same treatment .inv-qc-page and .inv-cn-doc get,
@@ -266,10 +269,16 @@ body:not(.inv-booted) { pointer-events: none; }
   --pi-gutter-top: 10mm;
   --pi-gutter-side: 12mm;
   --pi-gutter-bottom: 8mm;
+  /* The sheet on screen is the sheet on paper: A4 across, its gutters as padding. It was the phone's column
+     (--max-w, 520px) against a layout that needs the page's 186mm, so the preview cut the totals off on the phone
+     and ran past its own border on the desktop, while the print was right (owner, 29 Sep 2026). */
+  --pi-sheet-w: 210mm;
+  --pi-sheet-h: 297mm;
 
-  background: #fff; color: #000; padding: var(--sp-16);
+  background: #fff; color: #000;
+  padding: var(--pi-gutter-top) var(--pi-gutter-side) var(--pi-gutter-bottom);
   font-family: var(--ff-base); font-size: var(--pi-fs-md);
-  max-width: var(--max-w); margin: 0 auto;
+  width: var(--pi-sheet-w); min-height: var(--pi-sheet-h); margin: 0 auto var(--sp-16);
   border: 1px solid var(--border);
 }
 /* Print invoice structure */
@@ -676,7 +685,8 @@ table.inv-qc-grid.inv-qc-no-top { border-top: 0; }
   .inv-scrim, .inv-print-toolbar, #imSelBar, .inv-side { display: none !important; }
   .inv-print-view { position: static; display: block !important; overflow: visible; }
   .inv-print-body { padding: 0; }
-  .inv-print-invoice { border: none; max-width: none; padding: 0 var(--pi-gutter-side); }
+  .inv-print-body > * { zoom: 1; }
+  .inv-print-invoice { border: none; width: auto; min-height: 0; margin: 0; padding: 0 var(--pi-gutter-side); }
   .inv-pi-frame > thead { display: table-header-group; }
   .inv-pi-frame > tfoot { display: table-footer-group; }
   .inv-pi-frame-head { padding-top: var(--pi-gutter-top); }

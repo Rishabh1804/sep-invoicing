@@ -175,7 +175,7 @@ function onDocClick(e) {
     // Phase 4: Print preview
     case 'invPreviewInvoice': closeOverlay(); showPrintPreview(btn.dataset.id); break;
     case 'invClosePrint': closePrintPreview(); break;
-    case 'invPrint': window.print(); break;
+    case 'invPrint': printMarkPrinted(); window.print(); break;
     // Quality certificate — one page per invoice line, single or bulk
     case 'invQualityCert': closeOverlay(); showQualityCertificates([btn.dataset.id]); break;
     case 'invRegQualityCerts': showQualityCertificates(_regSelectedIds()); break;
@@ -209,7 +209,7 @@ function onDocClick(e) {
     case 'invDupeLocate': imLocateChallan(btn.dataset.id); break;
     case 'invChallanPeek': imChallanPeek(btn.dataset.id); break;
     // Phase 5: Invoice lifecycle states
-    case 'invAdvanceState': advanceInvoiceState(btn.dataset.id); break;
+    case 'invAdvanceState': advanceInvoiceState(btn.dataset.id, btn.dataset.state); break;
     case 'invBulkMarkFiled': bulkMarkFiled(); break;
     // Phase 7: Stats period chips
     case 'invStatsPeriod': _statsPeriod = btn.dataset.period; renderStats(); break;

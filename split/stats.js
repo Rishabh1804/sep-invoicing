@@ -565,7 +565,7 @@ function renderStats() {
     '</div>';
 
   /* ===== Card 3: Invoice states ===== */
-  var stateCount = { created: 0, dispatched: 0, delivered: 0, filed: 0 };
+  var stateCount = { created: 0, printed: 0, dispatched: 0, delivered: 0, filed: 0 };
   filtered.forEach(function(inv) {
     var s = getInvState(inv);
     if (stateCount[s] != null) stateCount[s]++;
@@ -872,7 +872,7 @@ function openClientDrillOverlay(clientId) {
     });
   });
 
-  var stateCounts = { created: 0, dispatched: 0, delivered: 0, filed: 0 };
+  var stateCounts = { created: 0, printed: 0, dispatched: 0, delivered: 0, filed: 0 };
   clientInvs.forEach(function(inv) {
     var s = getInvState(inv);
     if (stateCounts[s] != null) stateCounts[s]++;
@@ -1014,6 +1014,8 @@ function buildHistoryEvents() {
     if (_historyClientFilter && inv.clientId != _historyClientFilter) return;
     events.push({ ts: inv.createdAt, type: 'invoice', kind: 'invoice', sourceId: inv.id, jump: 'invoice',
       text: 'Invoice ' + (inv.displayNumber || '') + ' created for ' + (inv.clientName || ''), amount: inv.grandTotal });
+    if (inv.printedAt) events.push({ ts: inv.printedAt, type: 'state', kind: 'state', sourceId: inv.id, jump: 'invoice',
+      text: (inv.displayNumber || '') + ' printed' });
     if (inv.dispatchedAt) events.push({ ts: inv.dispatchedAt, type: 'state', kind: 'state', sourceId: inv.id, jump: 'invoice',
       text: (inv.displayNumber || '') + ' dispatched' });
     if (inv.deliveredAt) events.push({ ts: inv.deliveredAt, type: 'state', kind: 'state', sourceId: inv.id, jump: 'invoice',

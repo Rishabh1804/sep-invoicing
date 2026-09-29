@@ -126,7 +126,7 @@ every session start — nothing to set up by hand. CI (`build-sync`) is the back
 ### Tests
 
 ```bash
-pnpm exec playwright test          # 716 tests, both layouts
+pnpm exec playwright test          # 720 tests, both layouts
 ```
 
 Some sandboxes ship a Chromium build Playwright does not expect and block downloading
@@ -447,6 +447,21 @@ row's arithmetic, and **offers** the median: it fills the field and marks the se
 LME for a past date comes from `S.zinc.lmeHistory` (every Refresh is kept by day, INR/kg) and, where that is
 empty, from metals.dev's `timeseries` with the same key — converted from whatever currency and unit it answers
 in, and kept, so asking twice costs no request.
+
+**The market against what each bill paid** (owner, 29 Sep 2026: *"we have the data to show the Zinc rate calculated per
+refresh too - that way we can see how much variation we are paying when buying and from which supplier … This can show us
+opportunities or risk of buying the particular stock at a particular time"*). Stock → Overview → Price trend, on Zinc
+(`zincTrend`, zinc.js; `dashZincHtml`, dash.js). The **market** is every day `S.zinc.lmeHistory` holds, landed as a bill is
+priced: LME × (1 + uplift) + premium, **at the uplift and premium set now**, since neither is kept per day (the chart says
+so). Each bill is set against the market on its day (the last LME up to four days before, the derivation's rule); **over**
+is price − market, per kg before GST, and a supplier's over is **weighted by kilos**, so a 25 kg top-up does not count
+like a tonne. **Timing** places the market on the bill's day within the 30 days before it (≥ 5 market days): near the
+low, the middle or the high. The panel: range chips, four tiles (market now, last bill, paid over market, the range's
+low–high), the market dashed beside each supplier's bills on a **time axis** (`opts.xs`; spaced by count, a bill from
+August sat beside one from September) with a frame round the prices (`opts.fit`), the market now against the last bill,
+and suppliers as rows (*Lowest* / *Highest* over the market) that open their bills. A bill with no LME for its day is
+counted, and **Look up LME** asks metals.dev with the derivation's own lookup (`_zincFetchMissing`, shared), keeping the
+answer. Other stock lines keep their plain price line: no market feed exists for chemicals. P99.
 
 ### Invoice numbers outlive invoices
 A deleted invoice used to vanish outright, leaving a number gap indistinguishable from one

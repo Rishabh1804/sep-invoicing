@@ -2,6 +2,20 @@
 // A pressed chip, segment or tile (aria-pressed) is a choice inside the view — a filter, a period, a P/H/A — so it
 // re-renders inside keepScroll (state.js), like a pick in a drop-down: the page stays where it was (P79).
 document.addEventListener('click', function(e) {
+  // The head's × on a dialog holding typed work asks first (dialogLeaveOk, state.js); on Discard the same click
+  // runs again with the question answered.
+  const x = e.target.closest && e.target.closest('.inv-dialog-close');
+  const xScrim = x && x.closest('.inv-scrim-dialog');
+  if (xScrim && !xScrim._leaving && dialogTyped(xScrim)) {
+    e.preventDefault();
+    dialogLeaveOk(xScrim).then(function(ok) {
+      if (!ok || !x.isConnected) return;
+      xScrim._leaving = true;
+      x.click();
+      xScrim._leaving = false;
+    });
+    return;
+  }
   const pressed = e.target.closest && e.target.closest('[data-action][aria-pressed]');
   if (pressed) keepScroll(function() { onDocClick(e); }); else onDocClick(e);
 });

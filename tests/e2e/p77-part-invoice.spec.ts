@@ -27,6 +27,8 @@ async function invoiceQty(page: Page, qty: number | null, count: number) {
 
 async function imStatus(page: Page) {
   await switchTab(page, 'pageIM');
+  // A challan billed whole is listed under Invoiced.
+  if (!(await page.locator('[data-im="IM-301"]').count())) await page.locator('[data-action="invIMTab"][data-tab="invoiced"]').click();
   return page.locator('[data-im="IM-301"] .inv-row-end .inv-dot');
 }
 

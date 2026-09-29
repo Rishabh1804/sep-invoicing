@@ -71,6 +71,7 @@ test('a unit changed on a challan line says it cannot be compared, asks why, and
   // The challan is the customer's paper: a new invoice never rewrites it.
   expect((await line(page)).corrections).toBeUndefined();
   await switchTab(page, 'pageIM');
+  await page.locator('[data-action="invIMTab"][data-tab="invoiced"]').click();
   await expect(page.locator('[data-im="IM-301"] .inv-row-end .inv-dot')).toHaveText('Invoiced');
 });
 

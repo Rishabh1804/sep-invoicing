@@ -1,7 +1,8 @@
 /* ===== SWIPE NAVIGATION ===== */
 (function() {
   var _swipeX = 0, _swipeY = 0;
-  var TAB_ORDER = ['pageHome','pageCreate','pageIM','pageRegister','pageClients','pageTodo','pageProduction','pageStock','pageStaff','pageStats','pageHistory'];
+  // The phone bar's five, then the More sheet's in its order: a list of its own left Finance out when it was added.
+  var TAB_ORDER = ['pageHome', 'pageCreate', 'pageIM', 'pageRegister', 'pageClients'].concat(MORE_TABS);
 
   document.addEventListener('touchstart', function(e) {
     _swipeX = e.touches[0].clientX;

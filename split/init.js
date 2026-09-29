@@ -667,22 +667,22 @@ new ResizeObserver(function() {
   _resizeTimer = setTimeout(updateLayoutMode, 150);
 }).observe(document.documentElement);
 
-/* Manifest app shortcuts land here as ?tab=<pageId>[&new=1]. Writing the target
-   into regFilter before the first layout pass means both the desktop and the
-   mobile restore paths pick it up without a second switchTab, and the query is
-   stripped so a later refresh returns to the ordinary saved tab. */
+/* An address opens its screen: ?tab=<pageId>[&v=<view>][&id=<record>] (nav.js), and the manifest's shortcuts land
+   here as ?tab=<pageId>[&new=1]. Writing the target into regFilter before the first layout pass means both the desktop
+   and the mobile restore paths pick it up without a second switchTab; the view and the record are applied at the end
+   of boot (navBoot), which writes the address back without the shortcut's one-off parameters. */
 var _launchNew = false;
 var _launchTodo = '';   // the widget's action when it opened the app: 'open', 'add', 'open:m:<id>', 'open:a:<key>'
+var _launchLoc = null;
 (function() {
   var params;
   try { params = new URLSearchParams(window.location.search); } catch (e) { return; }
-  var wanted = params.get('tab');
-  if (!wanted || !document.getElementById(wanted)) return;
-  regFilter.activeTab = wanted;
+  _launchLoc = navLocFromUrl(window.location.search);
+  if (!_launchLoc) return;
+  regFilter.activeTab = _launchLoc.tab;
   saveRegFilter();
   _launchNew = params.get('new') === '1';
   _launchTodo = params.get('todo') || '';
-  try { history.replaceState(null, '', window.location.pathname); } catch (e) {}
 })();
 
 if ('serviceWorker' in navigator) {
@@ -728,6 +728,9 @@ function bootApp() {
   if (_launchTodo) todoHandleLaunch(_launchTodo);
   else todoApplyWidgetQueue();
   todoWidgetPublish();
+
+  // The address and this tab's trail (nav.js). A shortcut or widget launch has already put the app where it asked.
+  navBoot(_launchNew || _launchTodo ? null : _launchLoc);
 
   /* A read that threw at load used to fall through to a fresh default state
      and say nothing. It is the one storage failure the operator most needs to

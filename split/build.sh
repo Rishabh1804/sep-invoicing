@@ -72,6 +72,7 @@ JS_SOURCES=(
     "$DIR/scanner.js" \
     "$DIR/events.js" \
     "$DIR/swipe.js" \
+    "$DIR/nav.js" \
   "$DIR/seed.js"
   "$DIR/init.js"
 )

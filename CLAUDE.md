@@ -23,7 +23,7 @@ one picture — in seven phases, one PR each. Its §0 says what is built.
 **UX overhaul 2 is planned — read `docs/UX_OVERHAUL_2.md`.** Agreed with the owner, 28 Sep 2026: navigation with a
 back trail, a version guard so two windows can edit safely, every screen openable in a new window, search (a chatbot
 later), keyboard shortcuts, a pass on the screens that scroll too far, and desktop layouts — one PR each, in its order.
-Step 0 (the phone's selection bars) is built, so is the dialog guard (0b), and so is the version guard (step 2). The owner reordered the
+Step 0 (the phone's selection bars) is built, so is the dialog guard (0b), the version guard (step 2) and navigation (step 1). The owner reordered the
 steps on 29 Sep 2026: the version guard comes before navigation.
 
 ## What SEP Invoicing Is
@@ -34,7 +34,7 @@ Workforce management and invoicing PWA for **Soma Electro Products**, a zinc ele
 
 ## Architecture
 
-Split-file PWA. 56 modules, ~30,600 lines total.
+Split-file PWA. 57 modules, ~30,900 lines total.
 
 ```
 split/
@@ -91,12 +91,13 @@ split/
 ├── vision.js          ← One Gemini photo read: the scanner's request unchanged, a schema for the register (~100 lines)
 ├── scanner.js         ← Challan scanner (Gemini AI vision) (146 lines)
 ├── events.js          ← Event delegation + input handlers (774 lines)
-├── swipe.js           ← Swipe navigation (38 lines)
+├── swipe.js           ← Swipe navigation: the phone bar's order, then More's (38 lines)
+├── nav.js             ← Navigation: an address per screen, view and record; one history trail; back arrow and trail (~330 lines)
 ├── seed.js            ← seedIncomingMaterial(), called from boot (10 lines)
 └── init.js            ← Migrations + app bootstrap (567 lines)
 ```
 
-**Concat order defined in build.sh.** Dependencies: data → state → appearance → zinc → tabs → clients → items → create → settings → github-sync → invoice-ops → number-audit → exports → im → autocomplete → print → quality-cert → credit-note → charts → staff → labour → areas → payroll → stock → cost → bills → xls → xlsx → bank → finance → todo → relay → attsheet → stocksheet → prodparse → stats → intel → insights → finintel → finlinks → dash → production → prodview → client-perf → im-form → im-dupe → vision → scanner → events → swipe → seed → init.
+**Concat order defined in build.sh.** Dependencies: data → state → appearance → zinc → tabs → clients → items → create → settings → github-sync → invoice-ops → number-audit → exports → im → autocomplete → print → quality-cert → credit-note → charts → staff → labour → areas → payroll → stock → cost → bills → xls → xlsx → bank → finance → todo → relay → attsheet → stocksheet → prodparse → stats → intel → insights → finintel → finlinks → dash → production → prodview → client-perf → im-form → im-dupe → vision → scanner → events → swipe → nav → seed → init.
 
 **Every module shares one global scope.** A top-level `var` or `function` in a later module silently replaces one of
 the same name in an earlier one; nothing warns. `bills.js` shipped a `STOCK_UNITS` array over `stock.js`'s unit map
@@ -126,7 +127,7 @@ every session start — nothing to set up by hand. CI (`build-sync`) is the back
 ### Tests
 
 ```bash
-pnpm exec playwright test          # 720 tests, both layouts
+pnpm exec playwright test          # 729 tests, both layouts
 ```
 
 Some sandboxes ship a Chromium build Playwright does not expect and block downloading
@@ -146,6 +147,31 @@ before a destructive act. **If the dialog cannot be drawn, the message goes to a
 destructive happens unseen. An error nothing caught reaches the same banner, not only the console. P76 reads every
 module's source for a call to any of the three; a spec answers the in-app one with `answerAsk(page, 'ok' | 'cancel',
 text?)` from the fixtures, and P78 makes the browser's own three throw and walks the flows that used them.
+
+**Every screen has an address, and one trail goes back** (UX overhaul 2, step 1; owner, 28 Sep 2026: *"Backspace goes back
+through the screens visited, with a trail on screen"*). Moving between screens recorded nothing, so the phone's back left
+the app from anywhere. `nav.js`:
+- **A place** (`navLoc`) is the page, its view tab or sub-view, and the record open in the desktop's pane, read off each
+  screen's own state: `?tab=pageIM&v=invoiced/2026-08&id=IM-301`. The address stays in the bar (it used to be stripped),
+  a launch or a reload opens it (`navApply`, from `navBoot` at the end of boot), and the manifest's `new=1` and the
+  widget's `todo=` still work first. Filters, sorts, pagers and a phone row expanding are not places.
+- **Every move is a history step, taken after it** (`navSync`, after any click, change or key and on any node added to
+  `<body>`): no screen announces itself, so a screen added later is covered by adding its line to `navLoc` /
+  `navApply`. The browser's back, `Alt+←`, the phone's back gesture, **Backspace** (only with no field focused) and the
+  top bar's arrow all walk it; on the desktop the bar also names up to three earlier steps, each a link
+  (`inv-topbar-trail`), and the page's name is followed by the view and the record (`#topbarCtx`). The trail survives
+  a reload (sessionStorage).
+- **A layer is one step over the screen**: a dialog, the More sheet, a print preview. Back closes the top one; a dialog
+  holding typed work asks first (`dialogLeaveOk`), Settings asks its own way (`closeSettings`). Shut any other way, its
+  step is marked `skip` and back passes over it.
+- **A form with unsaved work asks before back leaves it** (*Leave without saving?*, **Stay** first): a field typed on a
+  screen that shows its Save in the action bar (Create, the challan form, a paste check, Enter by hand). Stay puts the
+  browser back on the form's step. A sidebar or tab tap still leaves as before (the Create form keeps its lines; the
+  challan form is dropped): that guard is not built.
+- **IM's two lists are view tabs**: *Awaiting invoice* (the default, a part-invoiced challan included) and *Invoiced*,
+  which goes back a month at a time by challan date (`imSetTab`, `imMonthShown`). A link to a challan opens the tab and
+  month it is under (`imShowChallanTab`). **Swiping** follows the phone bar and then More in its order
+  (`MORE_TABS`): its own list had left Finance out. P100, P55.
 
 **A `<select>` speaks through `change`, never `click`.** Giving a filter control a
 `data-action` meant the click that *opens* it ran the handler — and if that handler
@@ -203,7 +229,7 @@ filter on; a literal date in a fixture is a time bomb, not a constant.
 |----|------|
 | HR-1 | No inline styles. CSS classes + design tokens. |
 | HR-2 | No inline onclick. data-action delegation only. |
-| HR-3 | inv- CSS prefix on every class. 457 classes, all of them (distinct class selectors in `split/styles.css`, comments stripped, 29 Sep 2026: the eighteen `inv-as-*` of the attendance and stock sheets added); P76 asserts every class the app draws is one of them or a named hook. |
+| HR-3 | inv- CSS prefix on every class. 459 classes, all of them (distinct class selectors in `split/styles.css`, comments stripped, 29 Sep 2026: the eighteen `inv-as-*` of the attendance and stock sheets added, then `inv-topbar-back` and `inv-topbar-trail`); P76 asserts every class the app draws is one of them or a named hook. |
 | HR-4 | No emojis. Inline SVGs in HTML template. |
 | HR-5 | escHtml() on all user-data innerHTML. |
 | HR-6 | CSS design tokens only. No raw px/rem/hex/timing. |

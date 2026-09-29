@@ -614,7 +614,7 @@ function todoGo(go) {
       switchTab('pageRegister');
       break;
     case 'im':
-      _imFilter.clientId = String(go.clientId); _imFilter.status = 'pending'; _imToolbarRendered = false;
+      imSetTab('awaiting'); _imFilter.clientId = String(go.clientId); _imFilter.status = 'pending'; _imToolbarRendered = false;
       switchTab('pageIM');
       break;
     case 'audit': switchTab('pageRegister'); showNumberAudit(); break;

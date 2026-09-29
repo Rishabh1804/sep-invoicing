@@ -1,6 +1,6 @@
 # UX overhaul 2: desktop use, search, how much each screen shows
 
-Agreed with the owner, 28 Sep 2026. **Planning document: steps 0, 0b and 2 are built, nothing else is.** One PR per step, in
+Agreed with the owner, 28 Sep 2026. **Planning document: steps 0, 0b, 2 and 1 are built, nothing else is.** One PR per step, in
 this order: **the version guard (2) now comes before navigation (1)** (owner, 29 Sep 2026), since two copies of the app
 open today (the installed app and a tab) already overwrite each other's saves; and IM's view tabs move into navigation. After it, the second batch: Home previews (parked in `NEXT_SESSION.md`) and the daily flow.
 
@@ -50,8 +50,8 @@ reopened the tab last used); measure it at step 6.
    bar now (P91).
 0b. **Built.** A dialog holding typed work asks before a tap outside or its × closes it (owner, 29 Sep 2026: a tap
    outside the box lost everything entered). Keep editing is the default; Cancel and a save close as before (P92).
-1. **Navigation** (after step 2), with IM's *Awaiting invoice* / *Invoiced* view tabs. Swiping between screens skips
-   Finance today; fixed here.
+1. **Navigation. Built** (P100, P55; CLAUDE.md → Navigation says how), with IM's *Awaiting invoice* / *Invoiced* view
+   tabs. Swiping between screens skipped Finance; the swipe order is now the phone bar's then More's.
    - Every screen and record gets an address: `?tab=`, which the app already reads at launch, extended to view tabs
      and records.
    - Every move is a step in the browser's history, so the browser's back, `Alt+←`, the phone's back gesture and

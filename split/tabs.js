@@ -83,7 +83,9 @@ function switchTab(tabId) {
 
   // Step 8: Focus first interactive element in target tab
   var targetPage = document.getElementById(tabId);
-  if (targetPage) focusFirstInteractive(targetPage);
+  // Where a keyboard continues from; on a touch screen never a field, which raised the keyboard over every screen
+  // opened whose first control was a search (the QA sweep, 29 Sep 2026).
+  if (targetPage) focusFirstInteractive(targetPage, { noText: touchScreen() });
 }
 
 /* Draws one page from S (switchTab's step 6). Also what another window's save redraws, in place (tabRedrawActive). */

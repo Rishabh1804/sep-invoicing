@@ -598,11 +598,16 @@ function drainFocusStack() {
   _focusStack = [];
 }
 
-function focusFirstInteractive(container) {
+function focusFirstInteractive(container, opts) {
   if (!container) return;
-  var el = container.querySelector('button, input:not([type="hidden"]):not([readonly]), select, textarea, [tabindex]:not([tabindex="-1"])');
-  if (el) { try { el.focus(); } catch(e) {} }
+  // opts.noText: a button or a choice, never a field (a screen opened on a touch screen, where a focused field raises
+  // the keyboard). Never scrolls: the caller has put the page where it belongs.
+  var el = container.querySelector(opts && opts.noText ? 'button, select, [tabindex]:not([tabindex="-1"])'
+    : 'button, input:not([type="hidden"]):not([readonly]), select, textarea, [tabindex]:not([tabindex="-1"])');
+  if (el) { try { el.focus({ preventScroll: true }); } catch(e) {} }
 }
+/* A touch screen, where focusing a field raises the keyboard over the screen. */
+function touchScreen() { try { return window.matchMedia('(pointer: coarse)').matches; } catch (e) { return false; } }
 
 /* ===== A CHANGE INSIDE A VIEW NEVER MOVES THE PAGE (P79) =====
    Owner, 27 Sep 2026: picking a client in Receivables sent the page back to the top. The re-render brought the open

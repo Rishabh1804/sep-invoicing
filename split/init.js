@@ -656,7 +656,6 @@ function sideGo(tabId, sub) {
   if (tabId === 'pageClients') setItemsSubView(sub);
   if (tabId === 'pageStaff') _attView = sub;
   switchTab(tabId);
-  if (tabId === 'pageClients') renderClientsPage();
   markSideActive(tabId);
 }
 
@@ -729,8 +728,9 @@ function bootApp() {
   }
 
   /* The "Add Challan" app shortcut opens the form, not just the tab. Runs after
-     the tab restore above so the IM view exists to render into. */
-  if (_launchNew && regFilter.activeTab === 'pageIM' && !_isDesktop) {
+     the tab restore above so the IM view exists to render into. On the desktop too: the installed app's shortcut
+     opened the list there, with no form (the QA sweep, 29 Sep 2026). */
+  if (_launchNew && regFilter.activeTab === 'pageIM') {
     bootStep('the challan form', showAddChallanForm);
   }
 

@@ -255,3 +255,149 @@ test("the offline shell is the app's own page, and a copy that cannot be stored 
   const nav = sw.slice(sw.indexOf('async function navigationResponse'), sw.indexOf('function isShellUrl(url)'));
   expect(nav).toMatch(/try \{ await shell\.put\(SHELL_KEY, fresh\.clone\(\)\); \} catch/);
 });
+
+test.describe('P111: GitHub sync keeps what Settings saved', () => {
+  const CONTENTS = 'https://api.github.com/repos/testowner/testrepo/contents/**';
+  const seed = (page: Page) => page.addInitScript(() => {
+    localStorage.setItem('sep_inv_github_sync', JSON.stringify({ owner: 'testowner', repo: 'testrepo', branch: 'main',
+      path: 'sep-invoicing-data.json', deviceId: 'dev-test', deviceName: 'Test Bench', autoPush: true }));
+    localStorage.setItem('sep_inv_github_token', 'github_pat_TESTTOKEN');
+  });
+
+  test('a push that lands after Settings changed the config keeps the change', async ({ page }) => {
+    // The push read the config before the network and wrote that copy back after it.
+    await seed(page);
+    await page.route(CONTENTS, async route => {
+      if (route.request().method() === 'GET') { await route.fulfill({ status: 404, contentType: 'application/json', body: '{"message":"Not Found"}' }); return; }
+      await new Promise(r => setTimeout(r, 400));
+      await route.fulfill({ status: 201, contentType: 'application/json', body: JSON.stringify({ content: { sha: 'newsha123' } }) });
+    });
+    await loadAppWithState(page, emptyState());
+    const pushed = g(page, 'ghPush({ silent: true })');
+    await page.waitForTimeout(150);
+    await g(page, 'setGhConfig(Object.assign(getGhConfig(), { autoPush: false }))');
+    expect(await pushed).toBe(true);
+    const cfg: any = await g(page, 'getGhConfig()');
+    expect(cfg.autoPush).toBe(false);
+    expect(cfg.sha).toBe('newsha123');
+  });
+
+  test('Push with the section edited but not saved says so, and sends nothing', async ({ page }) => {
+    await seed(page);
+    let calls = 0;
+    await page.route(CONTENTS, async route => { calls++; await route.fulfill({ status: 404, body: '{}' }); });
+    await loadAppWithState(page, emptyState());
+    await g(page, 'openSettings("sync")');
+    await page.locator('#settingsScrim details[data-sec="sync"] input').first().fill('otherowner');
+    await expect(page.locator('#settingsScrim details[data-sec="sync"][data-dirty]')).toHaveCount(1);
+    await page.locator('#settingsScrim [data-action="invGhPush"]').first().click();
+    await expect(page.locator('.inv-toast')).toContainText('Save the GitHub sync section first');
+    expect(calls).toBe(0);
+  });
+});
+
+test("another window's save made while a dialog is open shows as soon as it closes", async ({ page }) => {
+  // The redraw waited while the dialog was open, as it should, and then waited for the next screen.
+  await loadAppWithState(page, emptyState());
+  await switchTab(page, 'pageClients');
+  await page.locator('.inv-page-active [data-action="invAddClient"]').click();
+  await g(page, `(function() {
+    var other = JSON.parse(JSON.stringify(S)); other.clients[0].name = 'RENAMED ELSEWHERE';
+    return writeGuarded(JSON.stringify(other), _diskRev, 'other-window-rev').then(function() { return bookReload('saved'); });
+  })()`);
+  await expect(page.locator('#pageClients')).not.toContainText('RENAMED ELSEWHERE');
+  await page.locator('.inv-scrim-dialog .inv-dialog-close').click();
+  await expect(page.locator('#pageClients')).toContainText('RENAMED ELSEWHERE');
+});
+
+test('an import draws every screen from the new book, and the same file can be chosen again', async ({ page }) => {
+  await loadAppWithState(page, emptyState());
+  await switchTab(page, 'pageRegister');
+  const next: any = emptyState();
+  next.clients.push({ id: 2, name: 'IMPORTED CLIENT', billingMode: 'kg', gstType: 'intra', gstin: '', address: '' });
+  const d = new Date(), today = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  next.invoices = [{ id: 'INV-9', invoiceNumber: '00009', displayNumber: 'SEP/TEST-00009', date: today, status: 'active', invoiceState: 'created',
+    clientId: 2, clientName: 'IMPORTED CLIENT', gstType: 'intra', items: [], taxableValue: 100, cgstPer: 9, cgstAmt: 9, sgstPer: 9, sgstAmt: 9,
+    igstPer: 0, igstAmt: 0, grandTotal: 118, createdAt: Date.now() }];
+  next.invNextNum = 10;
+  await g(page, 'openSettings("data")');
+  const chooser = page.waitForEvent('filechooser');
+  await page.locator('#settingsScrim [data-action="invImportData"]').click();
+  await (await chooser).setFiles({ name: 'backup.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(next)) });
+  await answerAsk(page, 'ok');
+  await expect(page.locator('#pageHome')).toHaveClass(/inv-page-active/);
+  expect(await g(page, 'document.getElementById("importFileInput") ? document.getElementById("importFileInput").value : ""')).toBe('');
+  await switchTab(page, 'pageRegister');
+  await expect(page.locator('#pageRegister select option', { hasText: 'IMPORTED CLIENT' })).toHaveCount(1);
+});
+
+test('opening a screen on a touch screen never focuses a field, so no keyboard rises', async ({ page }) => {
+  await loadAppWithState(page, emptyState());
+  for (const tab of ['pageRegister', 'pageIM', 'pageHistory', 'pageClients']) {
+    await switchTab(page, tab);
+    const tag = await g(page, 'document.activeElement ? document.activeElement.tagName + "." + (document.activeElement.type || "") : ""');
+    expect(tag, tab).not.toMatch(/^(INPUT\.(text|search|number|date|tel)|TEXTAREA)/);
+  }
+});
+
+test.describe("P111: the To-do's own list", () => {
+  const task = (id: string, text: string, o: any = {}) => ({ id, text, due: '', note: '', link: null, createdAt: Date.now(), doneAt: null, ...o });
+
+  test('every done task can be reached, not only the latest fifty', async ({ page }) => {
+    const st: any = emptyState();
+    st.todo = { tasks: Array.from({ length: 60 }, (_, i) => task('TD-' + i, 'Task ' + i, { doneAt: Date.now() - i * 1000 })), snoozes: {} };
+    await loadAppWithState(page, st);
+    await switchTab(page, 'pageTodo');
+    await page.locator('.inv-page-active [data-action="invTodoFoldDone"][data-v="done"]').click();
+    const rows = page.locator('[data-todo-sec="done"] [data-action="invTodoToggle"]');
+    await expect(rows.filter({ visible: true })).toHaveCount(30);
+    await page.locator('[data-todo-sec="done"] [data-action="invShowMore"]').click();
+    await expect(rows.filter({ visible: true })).toHaveCount(60);
+  });
+
+  test("Mark done in a task's dialog keeps what was typed there", async ({ page }) => {
+    const st: any = emptyState();
+    st.todo = { tasks: [task('TD-a', 'Call the supplier')], snoozes: {} };
+    await loadAppWithState(page, st);
+    await g(page, 'todoOpenEdit("TD-a")');
+    await page.locator('#todoText').fill('Call the supplier about the nitric price');
+    await page.locator('.inv-scrim-dialog [data-action="invTodoSaveDone"]').click();
+    const t: any = await g(page, 'S.todo.tasks[0]');
+    expect(t.text).toBe('Call the supplier about the nitric price');
+    expect(t.doneAt).toBeTruthy();
+  });
+
+  test("a snooze outlives its rule being switched off while another task is snoozed", async ({ page }) => {
+    const st: any = emptyState();
+    st.todo = { tasks: [], snoozes: { 'zinc': { sig: 'x', until: '', at: Date.now(), rule: 'zinc' } } };
+    await loadAppWithState(page, st);
+    // Any live task will do for the second snooze; the zinc rule (off by default) must not lose its snooze.
+    const key = await g(page, '(todoAppAll()[0] || {}).key || ""');
+    test.skip(!key, 'no live task in this book to snooze');
+    await g(page, `todoSnooze(${JSON.stringify(key)}, 'sig')`);
+    expect(await g(page, 'Object.keys(S.todo.snoozes).sort()')).toContain('zinc');
+  });
+});
+
+test("the register photo's check has an address of its own, so Back returns to Production", async ({ page }) => {
+  await loadAppWithState(page, emptyState());
+  await switchTab(page, 'pageProduction');
+  const loc: any = await g(page, `(function() { var was = _prodView; _prodView = 'photo'; var l = navLoc(); _prodView = was; return l; })()`);
+  expect(loc.v).toMatch(/\/photo$/);
+  expect(await g(page, `navLabel(${JSON.stringify(loc)}).sub || navLabel(${JSON.stringify(loc)})`)).toBeTruthy();
+  // With no photo in hand (a reload), the address opens the page rather than an empty check.
+  await g(page, `navApply(${JSON.stringify(loc)})`);
+  expect(await g(page, '_prodView')).toBe('main');
+});
+
+test('a bill entered today does not silence "paste the stock message"', async ({ page }) => {
+  // A bill records what was paid and moves no level: it is not a stock figure.
+  const iso = (d: Date) => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  const ago = (n: number) => { const d = new Date(); d.setDate(d.getDate() - n); return iso(d); };
+  const st: any = emptyState();
+  st.stock = { items: [{ id: 'N', name: 'Nitric acid', key: 'NITRIC ACID', unit: 'L', basis: 'draw', aliases: [] }],
+    entries: [{ id: 'E1', itemId: 'N', kind: 'count', qty: 40, date: ago(10), seq: 0, at: Date.now() - 10 * 86400000 },
+      { id: 'E2', itemId: 'N', kind: 'bill', qty: 50, date: ago(0), seq: 0, at: Date.now(), price: 30, supplier: 'A SUPPLIER', billNo: 'B-1' }], pastes: [] };
+  await loadAppWithState(page, st);
+  expect(await g(page, 'TODO_RULE_FNS.paste().length')).toBe(1);
+});

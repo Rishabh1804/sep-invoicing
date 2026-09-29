@@ -49,7 +49,8 @@ function navLoc() {
     case 'pageStats': v = statsTab(); break;
     case 'pageProduction':
       // The paste box and its check are one place: back from the check goes where the paste came from.
-      v = _prodTab + (/^(paste|review)$/.test(_prodView) ? '/paste' : _prodView === 'hand' ? '/hand' : '');
+      // The register photo's check is a place of its own: it shared the page's address, so Back left Production.
+      v = _prodTab + (/^(paste|review)$/.test(_prodView) ? '/paste' : _prodView === 'hand' ? '/hand' : _prodView === 'photo' ? '/photo' : '');
       break;
     case 'pageStaff': v = _attView; break;
     case 'pageStock':
@@ -94,7 +95,7 @@ function navLabel(loc) {
       break;
     case 'pageFinance': sub.push(_navFind(FIN_TABS, parts[0])); break;
     case 'pageStats': sub.push(_navFind(STATS_TABS, parts[0])); break;
-    case 'pageProduction': sub.push(_navFind(PROD_TABS, parts[0])); sub.push({ paste: 'Paste message', hand: 'Enter by hand' }[parts[1]] || ''); break;
+    case 'pageProduction': sub.push(_navFind(PROD_TABS, parts[0])); sub.push({ paste: 'Paste message', hand: 'Enter by hand', photo: 'Register photo' }[parts[1]] || ''); break;
     case 'pageStaff': sub.push(parts[0] === 'paste' ? 'Paste message' : _navFind(ATT_VIEWS, parts[0])); break;
     case 'pageStock':
       sub.push({ overview: 'Overview', list: 'Lines', item: 'Lines', paste: 'Paste message', manual: 'Enter by hand', reorder: 'Reorder list' }[parts[0]] || '');
@@ -125,7 +126,7 @@ function navApply(loc) {
       case 'pageClients': setItemsSubView(/^(clients|items|performance)$/.test(parts[0]) ? parts[0] : 'clients'); break;
       case 'pageFinance': finSetTab(parts[0]); _bankEdit = null; break;
       case 'pageStats': try { localStorage.setItem(STATS_TAB_KEY, parts[0] || 'overview'); } catch (e) { /* per device only */ } break;
-      case 'pageProduction': prodSetTab(parts[0]); _prodView = parts[1] === 'paste' || parts[1] === 'hand' ? parts[1] : 'main'; break;
+      case 'pageProduction': prodSetTab(parts[0]); _prodView = parts[1] === 'paste' || parts[1] === 'hand' || parts[1] === 'photo' ? parts[1] : 'main'; break;
       case 'pageStaff': _attView = parts[0] === 'paste' || ATT_VIEWS.some(function(x) { return x[0] === parts[0]; }) ? parts[0] : 'overview'; break;
       case 'pageStock':
         var sv = /^(overview|list|item|paste|manual|reorder)$/.test(parts[0]) ? parts[0] : 'overview';
@@ -183,6 +184,9 @@ function navPush(loc, extra) {
    without back marks its entry to be passed over. */
 function navSync() {
   _navTimer = null;
+  // A book another window saved while this one was busy (a dialog open, a form typed) is drawn as soon as it is not:
+  // the toast promised it, and nothing drew it before the next screen (the QA sweep, 29 Sep 2026).
+  if (_bookRedrawPending && !bookBusy()) { _bookRedrawPending = false; tabRedrawActive(); }
   if (_navHold || _navIgnore || !_navBooted) return;
   var st = history.state, loc = navLoc(), layer = navLayerOpen();
   if (!st || !st.sep) { history.replaceState(navState(loc), '', navUrl(loc)); _navCur = history.state; navTrailPut(loc); navBarDraw(); return; }

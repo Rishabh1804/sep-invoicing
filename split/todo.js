@@ -118,8 +118,10 @@ var TODO_RULE_FNS = {
   paste: function() {
     var st = stockData();
     if (!st.items.length) return [];
+    // A figure is a count, a delivery, a use or a charge. A bill records what was paid and moves no level, so entering
+    // one (dated today, or imported) silenced the rule with no stock figure taken (the QA sweep, 29 Sep 2026).
     var last = '';
-    st.entries.forEach(function(e) { if (!e.voided && e.date > last) last = e.date; });
+    st.entries.forEach(function(e) { if (!e.voided && e.kind !== 'bill' && e.date > last) last = e.date; });
     if (!last) return [];
     var today = todoToday(), cfg = todoCfg();
     if (last >= today) return [];
@@ -274,12 +276,12 @@ var TODO_RULE_FNS = {
 
 /* `only` (optional): the rule ids to run, for a screen that shows a few of them — every rule reads the
    whole book, and the finance ones classify the statement and run the forecast. */
-function todoAppAll(only) {
+function todoAppAll(only, ran) {
   var cfg = todoCfg(), out = [];
   TODO_RULES.forEach(function(r) {
     if (!cfg[r[0]] || (only && only.indexOf(r[0]) < 0)) return;
     // One rule failing on a shape nobody anticipated must not take the list with it.
-    try { out = out.concat(TODO_RULE_FNS[r[0]]() || []); } catch (e) { /* skipped */ }
+    try { out = out.concat(TODO_RULE_FNS[r[0]]() || []); if (ran) ran[r[0]] = true; } catch (e) { /* skipped */ }
   });
   return out.sort(function(a, b) { return TODO_TONE_RANK[a.tone] - TODO_TONE_RANK[b.tone]; });
 }
@@ -336,8 +338,8 @@ function renderTodo() {
     h += '<div class="inv-panel inv-panel-flush" data-todo-sec="done"><div class="inv-panel-head"><span class="inv-panel-title">Done' +
       (done.length ? ' <span class="inv-panel-count">' + done.length + '</span>' : '') + '</span></div>';
     if (!done.length) h += '<div class="inv-empty">Nothing ticked yet. A task you tick moves here, and can be reopened.</div>';
-    done.slice(0, 50).forEach(function(t) { h += todoMineRowHtml(t); });
-    if (done.length > 50) h += '<div class="inv-row inv-row-auto"><span class="inv-note">The 50 most recent of ' + done.length + '.</span></div>';
+    // Every one can be reached (it stopped at fifty, with no way to the rest), the newest first.
+    h += uiMoreHtml('todoDone', done.map(function(t) { return todoMineRowHtml(t); }), { noun: 'done' });
     el.innerHTML = h + '</div>';
     updateStockBadge();
     return;
@@ -518,11 +520,12 @@ function todoOpenEdit(id, text) {
     '<select class="inv-select" id="todoLinkId"' + (kind ? '' : ' disabled') + '>' + todoLinkOptions(kind, v.link ? v.link.id : '') + '</select></div></div>' +
     '<div class="inv-field"><label class="inv-field-label" for="todoNote">Note</label>' +
     '<textarea class="inv-textarea" id="todoNote" rows="2">' + escHtml(v.note || '') + '</textarea></div>' +
-    '<div class="inv-dialog-foot">' + (t && !t.doneAt ? '<button class="inv-btn inv-btn-secondary" data-action="invTodoToggle" data-id="' + escHtml(t.id) + '">Mark done</button>' : '') +
+    // Mark done keeps what was typed here: it ticked the task and shut the dialog, losing an edited text or date.
+    '<div class="inv-dialog-foot">' + (t && !t.doneAt ? '<button class="inv-btn inv-btn-secondary" data-action="invTodoSaveDone" data-id="' + escHtml(t.id) + '">Mark done</button>' : '') +
     '<button class="inv-btn inv-btn-primary" data-action="invTodoSave" data-id="' + escHtml(t ? t.id : '') + '">Save</button></div>';
   todoOverlay(t ? 'Task' : 'New task', h);
 }
-function todoSaveEdit(id) {
+function todoSaveEdit(id, done) {
   var text = (document.getElementById('todoText') || {}).value || '';
   text = text.trim();
   if (!text) { showToast('A task needs some words', 'error'); return; }
@@ -541,10 +544,11 @@ function todoSaveEdit(id) {
   t.note = ((document.getElementById('todoNote') || {}).value || '').trim();
   t.link = link;
   t.updatedAt = Date.now();
+  if (done && !t.doneAt) { t.doneAt = Date.now(); t.doneBy = 'app'; }
   saveState();
   closeOverlay();
   todoRefreshViews();
-  showToast('Saved');
+  showToast(done ? 'Saved and done' : 'Saved');
 }
 function todoQuickAdd() {
   var inp = document.getElementById('todoNew');
@@ -566,14 +570,20 @@ function todoToggle(id, by) {
   todoRefreshViews();
 }
 function todoSnooze(key, v) {
-  var t = todoAppAll().find(function(x) { return x.key === key; });
+  var ran = {}, all = todoAppAll(null, ran);
+  var t = all.find(function(x) { return x.key === key; });
   if (!t) return;
   var td = todoData();
-  // A snooze whose task has cleared describes nothing; drop those while writing.
+  // A snooze whose task has cleared describes nothing; drop those while writing, but only where the task's rule ran
+  // this time. A rule switched off, or one that failed on some shape of data, had every snooze of its dropped, and its
+  // tasks were back the day it ran again (the QA sweep, 29 Sep 2026).
   var live = {};
-  todoAppAll().forEach(function(x) { live[x.key] = true; });
-  Object.keys(td.snoozes).forEach(function(k) { if (!live[k]) delete td.snoozes[k]; });
-  td.snoozes[key] = v === 'sig' ? { sig: t.sig, until: '', at: Date.now() } : { sig: t.sig, until: isoAddDays(todoToday(), parseInt(v, 10) || 7), at: Date.now() };
+  all.forEach(function(x) { live[x.key] = true; });
+  Object.keys(td.snoozes).forEach(function(k) {
+    var s = td.snoozes[k], rule = (s && s.rule) || k.split(':')[0];
+    if (!live[k] && ran[rule]) delete td.snoozes[k];
+  });
+  td.snoozes[key] = v === 'sig' ? { sig: t.sig, until: '', at: Date.now(), rule: t.rule } : { sig: t.sig, until: isoAddDays(todoToday(), parseInt(v, 10) || 7), at: Date.now(), rule: t.rule };
   saveState();
   closeOverlay();
   todoRefreshViews();
@@ -876,6 +886,7 @@ function todoAction(action, btn) {
     case 'invTodoNew': todoOpenEdit('', (document.getElementById('todoNew') || {}).value || ''); break;
     case 'invTodoEdit': todoOpenEdit(btn.dataset.id); break;
     case 'invTodoSave': todoSaveEdit(btn.dataset.id); break;
+    case 'invTodoSaveDone': todoSaveEdit(btn.dataset.id, true); break;
     case 'invTodoToggle': todoToggle(btn.dataset.id); break;
     case 'invTodoOpenApp': todoOpenApp(btn.dataset.key); break;
     case 'invTodoGoApp': {

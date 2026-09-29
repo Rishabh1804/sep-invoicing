@@ -344,8 +344,8 @@ function onDocClick(e) {
     }
     case 'invRefreshZinc': refreshZincRate(); break;
     // GitHub sync
-    case 'invGhPush': ghPushLocked(); break;
-    case 'invGhPull': ghPull(); break;
+    case 'invGhPush': if (!ghFieldsUnsaved()) ghPushLocked(); break;
+    case 'invGhPull': if (!ghFieldsUnsaved()) ghPull(); break;
     case 'invToggleGhToken': {
       var gtEl = document.getElementById('setGhToken');
       if (gtEl) gtEl.type = gtEl.type === 'password' ? 'text' : 'password';

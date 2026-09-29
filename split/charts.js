@@ -279,6 +279,25 @@ function chartNiceRange(lo, hi) {
   return { lo: niceLo, hi: niceHi };
 }
 
+/* A frame round the data alone, for a price that moves a few percent: from zero, ₹380 against ₹395 is two lines on top
+   of each other. Four steps of 1, 2, 2.5 or 5 × a power of ten, the lowest a multiple of the step at or under the data. */
+function _chartFitStep(v) {
+  var mag = Math.pow(10, Math.floor(Math.log10(v))), n = v / mag;
+  return ([1, 2, 2.5, 5, 10].find(function(x) { return n <= x + 1e-9; }) || 10) * mag;
+}
+function chartFitRange(lo, hi) {
+  var span = hi - lo;
+  if (!(span > 0)) span = Math.abs(hi) * 0.1 || 1;
+  var step = _chartFitStep(span / 4), a = 0;
+  for (var k = 0; k < 6; k++) {
+    a = Math.floor(lo / step + 1e-9) * step;
+    if (a + 4 * step >= hi - 1e-9) break;
+    step = _chartFitStep(step * 1.01);
+  }
+  a = Math.floor(lo / step + 1e-9) * step;
+  return { lo: a, hi: a + 4 * step };
+}
+
 function _chartBox(inner, opts) {
   return '<div class="inv-chart-box"' + (opts && opts.id ? ' id="' + escHtml(opts.id) + '"' : '') + '>' + inner +
     '<div class="inv-chart-readout" aria-live="polite">' + escHtml((opts && opts.readHint) || 'Tap a point to read it') + '</div></div>';
@@ -292,7 +311,10 @@ function _chartSeriesLegend(series, unit, lastOf) {
 }
 
 /* Several series over the same labels, crossing zero when they must, with an optional band.
-   labels: ['Apr', …]; series: [{label, values: [n|null], tone?}]; opts: {unit, band: [{lo, hi}|null], ariaLabel}. */
+   labels: ['Apr', …]; series: [{label, values: [n|null], tone?}]; opts: {unit, band: [{lo, hi}|null], ariaLabel, fit}.
+   fit: the frame hugs the data (chartFitRange) instead of starting at zero, for a price.
+   xs: a number per label (a day count) placing each at its distance in time rather than evenly: bills weeks apart and
+   market days side by side on one axis. Its labels are thinned by room rather than by count. */
 function chartLines(labels, series, opts) {
   opts = opts || {};
   var unit = opts.unit || 'money';
@@ -302,9 +324,13 @@ function chartLines(labels, series, opts) {
   (opts.band || []).forEach(function(b) { if (b) { all.push(b.lo); all.push(b.hi); } });
   if (!all.length) return _chartEmpty(opts.emptyText || 'No data in this period');
   var W = 480, H = 220, pad = { l: 50, r: 12, t: 14, b: 30 };
-  var r = chartNiceRange(Math.min.apply(null, all), Math.max.apply(null, all));
+  var r = (opts.fit ? chartFitRange : chartNiceRange)(Math.min.apply(null, all), Math.max.apply(null, all));
   var cw = W - pad.l - pad.r, ch = H - pad.t - pad.b;
-  var x = function(i) { return pad.l + (labels.length === 1 ? cw / 2 : (i / (labels.length - 1)) * cw); };
+  var xs = opts.xs, x0 = xs ? xs[0] : 0, xw = xs ? xs[xs.length - 1] - x0 : 0;
+  var x = function(i) {
+    if (xs) return pad.l + (xw > 0 ? (xs[i] - x0) / xw : 0.5) * cw;
+    return pad.l + (labels.length === 1 ? cw / 2 : (i / (labels.length - 1)) * cw);
+  };
   var y = function(v) { return pad.t + ch - ((v - r.lo) / (r.hi - r.lo)) * ch; };
   var svg = '<svg class="inv-chart-svg" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="' + escHtml(opts.ariaLabel || 'Trend') + '">';
   for (var g = 0; g <= 4; g++) {
@@ -329,10 +355,20 @@ function chartLines(labels, series, opts) {
         '><title>' + escHtml(read) + '</title></circle>';
     });
   });
-  var stride = _chartLabelStride(labels.length, opts.maxLabels);
-  labels.forEach(function(l, i) {
-    if (i % stride === 0 || i === labels.length - 1) svg += _chartXLabel(x(i), pad.t + ch + 14, l, W);
-  });
+  if (xs) {
+    // By room: a label only where the one before is at least a label's width away, and the last always.
+    var room = cw / (opts.maxLabels || 6);
+    var lastX = x(labels.length - 1), prev = -Infinity;
+    labels.forEach(function(l, i) {
+      var at = x(i), isLast = i === labels.length - 1;
+      if (isLast || (at - prev >= room && lastX - at >= room)) { svg += _chartXLabel(at, pad.t + ch + 14, l, W); prev = at; }
+    });
+  } else {
+    var stride = _chartLabelStride(labels.length, opts.maxLabels);
+    labels.forEach(function(l, i) {
+      if (i % stride === 0 || i === labels.length - 1) svg += _chartXLabel(x(i), pad.t + ch + 14, l, W);
+    });
+  }
   svg += '</svg>';
   var last = function(s) { for (var i = s.values.length - 1; i >= 0; i--) if (s.values[i] != null) return s.values[i]; return null; };
   return _chartBox(svg + _chartSeriesLegend(series, unit, last), opts);

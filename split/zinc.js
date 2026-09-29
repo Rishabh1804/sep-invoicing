@@ -269,6 +269,25 @@ function _zincFetchLme(from, to) {
     });
 }
 
+/* Looks up LME on each bill date with none on record, one request per date (two bills on one day, TT/92 and /93 both
+   on 8 Jul, must not spend two of the free tier's requests on the same answer), each a five-day window well inside any
+   range limit, and keeps every answer. Resolves {note}: what could not be looked up, or ''. */
+function _zincFetchMissing(bills, onStart) {
+  var missing = bills.filter(function(b, i) {
+    return !_zincLmeOn(b.date) && bills.findIndex(function(x) { return x.date === b.date; }) === i;
+  });
+  if (!missing.length) return Promise.resolve({ note: '', n: 0 });
+  if (!getMetalsKey()) {
+    return Promise.resolve({ note: missing.length + ' bill' + (missing.length === 1 ? ' has' : 's have') + ' no LME on record, and there is no metals.dev key to look it up.', n: 0 });
+  }
+  if (onStart) onStart(missing.length);
+  return missing.reduce(function(chain, b) {
+    return chain.then(function() { return _zincFetchLme(_zincIsoAdd(b.date, -ZINC_LME_LOOKBACK), b.date); });
+  }, Promise.resolve()).then(function() { saveState(); return { note: '', n: missing.length }; }, function(err) {
+    return { note: 'metals.dev: ' + (err && err.message ? err.message : 'could not be reached') + '.', n: 0 };
+  });
+}
+
 function zincDeriveUplift() {
   var out = document.getElementById('zincUpliftOut');
   var bills = zincUpliftBills();
@@ -276,28 +295,11 @@ function zincDeriveUplift() {
     if (out) out.innerHTML = '<p class="inv-note">No priced zinc bill on record. Add one under Stock &rarr; Zinc &rarr; Add its bill, or import past purchases.</p>';
     return Promise.resolve(null);
   }
-  // One lookup per date: two bills on one day (TT/92 and /93 both on 8 Jul)
-  // must not spend two of the free tier's requests on the same answer.
-  var missing = bills.filter(function(b, i) {
-    return !_zincLmeOn(b.date) && bills.findIndex(function(x) { return x.date === b.date; }) === i;
+  var fetching = _zincFetchMissing(bills, function(n) {
+    if (out) out.innerHTML = '<p class="inv-note">Looking up LME on ' + n + ' bill date' + (n === 1 ? '' : 's') + '&hellip;</p>';
   });
-  var fetching = Promise.resolve();
-  var note = '';
-  if (missing.length) {
-    if (!getMetalsKey()) {
-      note = missing.length + ' bill' + (missing.length === 1 ? ' has' : 's have') + ' no LME on record, and there is no metals.dev key to look it up.';
-    } else {
-      if (out) out.innerHTML = '<p class="inv-note">Looking up LME on ' + missing.length + ' bill date' + (missing.length === 1 ? '' : 's') + '&hellip;</p>';
-      // One request per bill window: a window is five days, well inside any
-      // range limit, and each answer is kept.
-      fetching = missing.reduce(function(chain, b) {
-        return chain.then(function() { return _zincFetchLme(_zincIsoAdd(b.date, -ZINC_LME_LOOKBACK), b.date); });
-      }, Promise.resolve()).then(function() { saveState(); }, function(err) {
-        note = 'metals.dev: ' + (err && err.message ? err.message : 'could not be reached') + '.';
-      });
-    }
-  }
-  return fetching.then(function() {
+  return fetching.then(function(r) {
+    var note = r.note;
     var premEl = document.getElementById('setZincPremium');
     var prem = premEl && premEl.value !== '' ? parseFloat(premEl.value) : (getZinc().premiumPerKg || 0);
     if (isNaN(prem)) prem = 0;
@@ -336,4 +338,68 @@ function zincUseUplift(pct) {
   if (!el) return;
   el.value = pct;
   el.dispatchEvent(new Event('input', { bubbles: true }));
+}
+
+/* ---------- The market against what each bill paid ----------
+   Owner, 29 Sep 2026: "we have the data to show the Zinc rate calculated per refresh too - that way we can see how much
+   variation we are paying when buying and from which supplier … This can show us opportunities or risk of buying the
+   particular stock at a particular time." The market is every day a Refresh kept (S.zinc.lmeHistory, and the dates the
+   uplift derivation looked up), landed as a bill is priced: LME × (1 + uplift) + premium, at the uplift and premium SET
+   NOW, since neither is kept per day (said under the chart). A bill is set against the market standing on its date
+   (the last LME up to four days before, as the derivation reads it): over is what it paid above the market, per kg,
+   before GST. Timing is where the market stood that day within the 30 days before it. */
+var ZINC_TIMING_DAYS = 30;
+var ZINC_TIMING_MIN = 5;   // market days in the window before a position means anything
+
+function zincTrend(from) {
+  var z = getZinc(), h = z.lmeHistory || {}, up = z.upliftPct || 0, prem = z.premiumPerKg || 0;
+  var landed = function(r) { return gstRound(r * (1 + up / 100) + prem); };
+  var days = Object.keys(h).filter(function(d) { return h[d] > 0; }).sort();
+  var market = days.filter(function(d) { return !from || d >= from; }).map(function(d) { return { date: d, lme: h[d], landed: landed(h[d]) }; });
+  var item = typeof stockData === 'function' ? stockData().items.find(function(i) { return i.key === 'ZINC'; }) : null;
+  var all = item ? stockPurchases(item.id).filter(function(p) { return p.e.price > 0; }) : [];
+  var bills = all.filter(function(p) { return !from || p.date >= from; }).map(function(p) {
+    var l = _zincLmeOn(p.date), b = { date: p.date, price: p.e.price, qty: p.e.qty || 0, supplier: (p.e.supplier || '').trim(), billNo: p.e.billNo || '', market: null, over: null, timing: null };
+    if (l) {
+      b.market = landed(l.rate); b.lmeDate = l.date;
+      b.over = gstRound(b.price - b.market);
+      var lo = _zincIsoAdd(p.date, -ZINC_TIMING_DAYS), win = days.filter(function(d) { return d >= lo && d <= p.date; }).map(function(d) { return landed(h[d]); });
+      if (win.length >= ZINC_TIMING_MIN) {
+        var mn = Math.min.apply(null, win), mx = Math.max.apply(null, win), pos = mx > mn ? (b.market - mn) / (mx - mn) : 0.5;
+        b.timing = { low: mn, high: mx, pos: pos, band: pos <= 1 / 3 ? 'low' : pos >= 2 / 3 ? 'high' : 'mid' };
+      }
+    }
+    return b;
+  });
+  var bySup = {};
+  bills.forEach(function(b) {
+    var k = b.supplier || 'Supplier not named';
+    var s = bySup[k] || (bySup[k] = { name: k, named: !!b.supplier, n: 0, kg: 0, spend: 0, overKg: 0, overSum: 0, nOver: 0, low: 0, mid: 0, high: 0, last: null });
+    s.n++; s.kg += b.qty; s.spend += b.qty * b.price; s.last = b;
+    // Over the market weighted by the kilos, so a 25 kg top-up does not count like a tonne.
+    if (b.over != null) { s.nOver++; s.overSum += b.over * (b.qty || 1); s.overKg += b.qty || 1; }
+    if (b.timing) s[b.timing.band]++;
+  });
+  var suppliers = Object.keys(bySup).map(function(k) {
+    var s = bySup[k];
+    s.avg = s.kg > 0 ? gstRound(s.spend / s.kg) : null;
+    s.over = s.nOver ? gstRound(s.overSum / s.overKg) : null;
+    s.kg = Math.round(s.kg * 1000) / 1000; s.spend = gstRound(s.spend);
+    return s;
+  }).sort(function(a, b) { return b.kg - a.kg || (a.name < b.name ? -1 : 1); });
+  var lastDay = days[days.length - 1];
+  return { market: market, bills: bills, suppliers: suppliers, uplift: up, premium: prem, item: item,
+    now: lastDay ? { date: lastDay, landed: landed(h[lastDay]) } : null,
+    lastBill: all.length ? all[all.length - 1] : null,
+    noMarket: bills.filter(function(b) { return b.market == null; }).length };
+}
+
+/* Looks up LME for the bills in the chart that have none, then redraws it. */
+function zincLookupBillLme(from) {
+  var bills = zincTrend(from).bills.filter(function(b) { return b.market == null; });
+  return _zincFetchMissing(bills).then(function(r) {
+    if (r.note) showToast(r.note, 'error');
+    else if (r.n) showToast('LME looked up for ' + r.n + ' bill date' + (r.n === 1 ? '' : 's'));
+    return r;
+  });
 }

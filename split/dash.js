@@ -120,6 +120,8 @@ function _dashTaskRow(t) {
 /* ---------- 7b. Stock ---------- */
 var _dashSupplier = null;     // the supplier slice open on the pie
 var _dashPriceItem = null;    // the line on the price chart
+var _dashZincRange = '6M';     // the zinc chart's range
+var _dashZincSupplier = null;  // the zinc supplier whose bills are listed
 
 function dashStockDays() {
   var rows = [], none = [];
@@ -200,11 +202,7 @@ function stockOverviewHtml() {
   })), { ariaLabel: 'Stock used by week in rupees', emptyText: 'Needs two weeks of use recorded' }) +
     '<div class="inv-note">Each use at the price paid for that line on the day.' + (u.unpriced.length ? ' Not counted, no price: ' + escHtml(u.unpriced.join(', ')) + '.' : '') + '</div>');
 
-  var priced = stockData().items.filter(function(i) { return i.active !== false && stockPurchases(i.id).length; });
-  if (!priced.some(function(i) { return i.id === _dashPriceItem; })) _dashPriceItem = priced.length ? priced[0].id : null;
-  h += _dashPanel('dashPrice', 'Price trend', priced.length ? '<div id="dashPriceChart">' + dashPriceChart() + '</div>' : '<div class="inv-empty">No bill with a price yet.</div>',
-    priced.length ? '<select class="inv-select inv-select-sm" id="dashPriceLine" aria-label="Line">' +
-      priced.map(function(i) { return '<option value="' + escHtml(i.id) + '"' + (i.id === _dashPriceItem ? ' selected' : '') + '>' + escHtml(i.name) + '</option>'; }).join('') + '</select>' : '');
+  h += dashPricePanelHtml();
 
   var L = stockReorderList(), fc = finHasBank() ? finForecast(45) : null;
   var need = gstRound(L.total * 1.18);
@@ -218,12 +216,115 @@ function stockOverviewHtml() {
     '</div></div>';
   return '<div class="inv-panels">' + h + '</div>';
 }
+/* The price trend panel, drawn whole so a change of line redraws it alone. Zinc gets the market beside its bills. */
+function dashPricePanelHtml() {
+  var priced = stockData().items.filter(function(i) { return i.active !== false && stockPurchases(i.id).length; });
+  if (!priced.some(function(i) { return i.id === _dashPriceItem; })) _dashPriceItem = priced.length ? priced[0].id : null;
+  var it = stockItem(_dashPriceItem), zinc = !!(it && it.key === 'ZINC'), z = zinc ? dashZincHtml() : null;
+  return _dashPanel('dashPrice', zinc ? 'Price trend: market against bills' : 'Price trend',
+    priced.length ? '<div id="dashPriceChart">' + (zinc ? z.body : dashPriceChart()) + '</div>' : '<div class="inv-empty">No bill with a price yet.</div>',
+    priced.length ? '<select class="inv-select inv-select-sm" id="dashPriceLine" aria-label="Line">' +
+      priced.map(function(i) { return '<option value="' + escHtml(i.id) + '"' + (i.id === _dashPriceItem ? ' selected' : '') + '>' + escHtml(i.name) + '</option>'; }).join('') + '</select>' : '',
+    zinc ? z.rows : '');
+}
 function dashPriceChart() {
   var it = stockItem(_dashPriceItem);
   if (!it) return '';
   var b = stockPurchases(it.id);
   return chartLines(b.map(function(x) { return stockShortDate(x.date); }), [{ label: it.name + ' ₹/' + (it.unit || 'unit'), values: b.map(function(x) { return x.e.price; }) }],
     { unit: 'money', ariaLabel: 'Price trend', emptyText: it.name + ': one bill so far, ' + (b[0] ? formatCurrency(b[0].e.price) + ' on ' + stockShortDate(b[0].date) : '') });
+}
+
+/* Zinc: the market on every day it was refreshed, landed as a bill is priced, against each bill by supplier (zincTrend,
+   zinc.js). Owner, 29 Sep 2026: how much over the market each supplier charges, and whether a bill was bought when the
+   market was low or high. The frame hugs the prices, since from zero a few percent is invisible. */
+var DASH_ZINC_SUPPLIERS = 4;   // named in the chart; the rest are one series
+function _dashZincFrom(range) {
+  if (range === 'ALL') return null;
+  var t = localDateStr(), y = +t.slice(0, 4), m = +t.slice(5, 7);
+  if (range === 'FY') return (m >= 4 ? y : y - 1) + '-04-01';
+  var d = new Date(t + 'T00:00:00');
+  d.setMonth(d.getMonth() - (range === '3M' ? 3 : 6));
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
+function _dashZincOver(v) {
+  return (v > 0 ? '+' : v < 0 ? '\u2212' : '') + formatCurrency(Math.abs(v));
+}
+function dashZincHtml() {
+  var T = zincTrend(_dashZincFrom(_dashZincRange)), unit = (T.item && T.item.unit) || 'kg';
+  var dates = {};
+  T.market.forEach(function(m) { dates[m.date] = 1; });
+  T.bills.forEach(function(b) { dates[b.date] = 1; });
+  var keys = Object.keys(dates).sort(), at = {};
+  keys.forEach(function(d, i) { at[d] = i; });
+  var blank = function() { return keys.map(function() { return null; }); };
+  var mk = blank();
+  T.market.forEach(function(m) { mk[at[m.date]] = m.landed; });
+  var shown = T.suppliers.slice(0, DASH_ZINC_SUPPLIERS), rest = T.suppliers.length > DASH_ZINC_SUPPLIERS ? T.suppliers.slice(DASH_ZINC_SUPPLIERS) : [];
+  var series = [{ label: 'Market, landed', values: mk, tone: 0, dashed: true }];
+  var seriesOf = function(names, label, tone) {
+    var v = blank();
+    // Two bills on one day: the later in stockPurchases' order is the larger, the one that set the price.
+    T.bills.forEach(function(b) { if (names.indexOf(b.supplier || 'Supplier not named') >= 0) v[at[b.date]] = b.price; });
+    series.push({ label: label, values: v, tone: tone });
+  };
+  shown.forEach(function(s, i) { seriesOf([s.name], s.name, i + 1); });
+  if (rest.length) seriesOf(rest.map(function(s) { return s.name; }), rest.length + ' other suppliers', DASH_ZINC_SUPPLIERS + 1);
+  var day = function(d) { return Math.round(new Date(d + 'T00:00:00').getTime() / 86400000); };
+  var chart = chartLines(keys.map(stockShortDate), series, { unit: 'rate', fit: true, keys: keys, xs: keys.map(day), ariaLabel: 'Zinc: the market against bills by supplier',
+    emptyText: T.market.length || T.bills.length ? 'Needs two days, a market day or a bill, in this range' : 'No market day and no bill in this range. Refresh the zinc rate on Home to start the market line.' });
+
+  var set = T.bills.filter(function(b) { return b.over != null; });
+  var wkg = set.reduce(function(a, b) { return a + (b.qty || 1); }, 0);
+  var over = set.length ? gstRound(set.reduce(function(a, b) { return a + b.over * (b.qty || 1); }, 0) / wkg) : null;
+  var last = T.lastBill, ml = T.market.map(function(m) { return m.landed; });
+  var mLo = ml.length ? Math.min.apply(null, ml) : null, mHi = ml.length ? Math.max.apply(null, ml) : null;
+  var tiles = '<div class="inv-tiles inv-tiles-flush">' +
+    '<div class="inv-tile"><div class="inv-tile-label">Market now, landed</div><div class="inv-tile-value inv-tile-value-sm">' + (T.now ? escHtml(formatCurrency(T.now.landed)) : '&mdash;') + '</div>' +
+      '<div class="inv-tile-sub">' + (T.now ? 'LME of ' + escHtml(stockShortDate(T.now.date)) : 'no refresh kept') + '</div></div>' +
+    '<div class="inv-tile"><div class="inv-tile-label">Last bill</div><div class="inv-tile-value inv-tile-value-sm">' + (last ? escHtml(formatCurrency(last.e.price)) : '&mdash;') + '</div>' +
+      '<div class="inv-tile-sub">' + (last ? escHtml(stockShortDate(last.date) + (last.e.supplier ? ' · ' + last.e.supplier : '')) : 'no priced bill') + '</div></div>' +
+    '<div class="inv-tile"><div class="inv-tile-label">Paid over market</div><div class="inv-tile-value inv-tile-value-sm">' + (over != null ? escHtml(_dashZincOver(over)) : '&mdash;') + '</div>' +
+      '<div class="inv-tile-sub">' + (set.length ? 'a ' + escHtml(unit) + ', ' + set.length + ' of ' + T.bills.length + ' bill' + (T.bills.length === 1 ? '' : 's') : 'no bill set against the market') + '</div></div>' +
+    '<div class="inv-tile"><div class="inv-tile-label">Market in this range</div><div class="inv-tile-value inv-tile-value-sm">' +
+      (mLo != null ? escHtml(formatCurrency(mLo)) + '&ndash;' + escHtml(formatCurrency(mHi)) : '&mdash;') + '</div>' +
+      '<div class="inv-tile-sub">' + (T.market.length ? 'low to high, ' + T.market.length + ' day' + (T.market.length === 1 ? '' : 's') + ' kept' : 'no refresh in this range') + '</div></div></div>';
+
+  var timed = T.bills.filter(function(b) { return b.timing; }), band = { low: 0, mid: 0, high: 0 };
+  timed.forEach(function(b) { band[b.timing.band]++; });
+  var notes = '<div class="inv-note">Market = LME × (1 + ' + escHtml(formatNum(T.uplift, 1)) + '%) + ' + escHtml(formatCurrency(T.premium)) + ' premium, at the uplift and premium set now (Settings → Costing → Zinc rate), on every day a Refresh kept. ' +
+    'A bill is its price before GST, set against the market on its day (the last LME up to four days before). Over is weighted by the kilos.</div>';
+  if (timed.length) notes += '<div class="inv-note" data-zinc-timing>Timing, against the market in the 30 days before each bill: ' + band.low + ' bought near the low, ' + band.mid + ' in the middle, ' + band.high + ' near the high.</div>';
+  if (T.now && last && T.now.landed < last.e.price) notes += '<div class="inv-note">The market now is ' + escHtml(formatCurrency(gstRound(last.e.price - T.now.landed))) + ' a ' + escHtml(unit) + ' under the last bill.</div>';
+  if (T.noMarket) notes += '<div class="inv-note" data-zinc-nomarket>' + T.noMarket + ' bill' + (T.noMarket === 1 ? ' has' : 's have') + ' no LME on record for its day' +
+    (getMetalsKey() ? '.</div><div class="inv-toolbar inv-toolbar-flush"><button type="button" class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invDashZincLookup">Look up LME</button></div>'
+      : '; add a metals.dev key in Settings → Connections to look it up.</div>');
+
+  var compared = T.suppliers.filter(function(s) { return s.over != null; });
+  var lo = compared.length > 1 ? Math.min.apply(null, compared.map(function(s) { return s.over; })) : null;
+  var hi = compared.length > 1 ? Math.max.apply(null, compared.map(function(s) { return s.over; })) : null;
+  var rows = T.suppliers.map(function(s) {
+    var tone = s.over == null ? null : lo != null && lo !== hi && s.over === lo ? ['ok', 'Lowest'] : hi != null && lo !== hi && s.over === hi ? ['warning', 'Highest'] : s.over > 0 ? ['info', 'Over market'] : ['ok', 'At or under'];
+    var open = _dashZincSupplier === s.name;
+    var h = '<div class="inv-row inv-row-2" data-zinc-supplier="' + escHtml(s.name) + '"><button type="button" class="inv-row-main" data-action="invDashZincSupplier" data-key="' + escHtml(s.name) + '" aria-pressed="' + open + '">' +
+      '<span class="inv-row-title">' + escHtml(s.name) + '</span><span class="inv-row-meta">' + s.n + ' bill' + (s.n === 1 ? '' : 's') + ' · ' + escHtml(stockFmtQty(s.kg)) + ' ' + escHtml(unit) +
+      (s.avg != null ? ' · avg ' + escHtml(formatCurrency(s.avg)) : '') + (s.low + s.mid + s.high ? ' · timing low ' + s.low + ' · mid ' + s.mid + ' · high ' + s.high : '') + '</span></button>' +
+      '<span class="inv-row-end"><span class="inv-row-stack"><span class="inv-num">' + (s.over != null ? escHtml(_dashZincOver(s.over)) : '&mdash;') + '</span>' +
+      (tone ? '<span class="inv-dot inv-dot-' + tone[0] + '">' + tone[1] + '</span>' : '<span class="inv-dot inv-dot-info">No market</span>') + '</span></span></div>';
+    if (open) h += T.bills.filter(function(b) { return (b.supplier || 'Supplier not named') === s.name; }).slice().reverse().map(function(b) {
+      return '<div class="inv-row inv-row-2" data-zinc-bill><span class="inv-row-main"><span class="inv-row-title">' + escHtml(formatDate(b.date)) + (b.billNo ? ' · ' + escHtml(b.billNo) : '') + '</span>' +
+        '<span class="inv-row-meta">' + escHtml(stockFmtQty(b.qty)) + ' ' + escHtml(unit) + ' × ' + escHtml(formatCurrency(b.price)) +
+        (b.market != null ? ' · market ' + escHtml(formatCurrency(b.market)) : ' · no LME for this day') +
+        (b.timing ? ' · ' + { low: 'near its 30-day low', mid: 'mid-range for 30 days', high: 'near its 30-day high' }[b.timing.band] : '') + '</span></span>' +
+        '<span class="inv-row-end inv-num">' + (b.over != null ? escHtml(_dashZincOver(b.over)) : '&mdash;') + '</span></div>';
+    }).join('');
+    return h;
+  }).join('');
+  return { body: chartRangeHtml(_dashZincRange, 'invDashZincRange') + tiles + chart + notes, rows: rows ? '<div data-zinc-suppliers>' + rows + '</div>' : '' };
+}
+function _dashZincRedraw() {
+  var el = document.getElementById('dashPrice');
+  if (el) el.outerHTML = dashPricePanelHtml();
 }
 function stockViewTabsHtml() {
   // A line open in the desktop pane belongs to Lines.
@@ -244,13 +345,15 @@ function dashAction(action, btn) {
     case 'invDashStockView': stockSetView(btn.dataset.view); return true;
     case 'invDashStockLine': _stockItemId = btn.dataset.clientId; stockSetView('item'); return true;
     case 'invDashSupplier': _dashSupplier = _dashSupplier === btn.dataset.key ? null : btn.dataset.key; renderStock(); return true;
+    case 'invDashZincRange': _dashZincRange = btn.dataset.range; _dashZincRedraw(); return true;
+    case 'invDashZincSupplier': _dashZincSupplier = _dashZincSupplier === btn.dataset.key ? null : btn.dataset.key; _dashZincRedraw(); return true;
+    case 'invDashZincLookup': btn.disabled = true; zincLookupBillLme(_dashZincFrom(_dashZincRange)).then(_dashZincRedraw); return true;
   }
   return false;
 }
 function dashInput(t) {
   if (t.id !== 'dashPriceLine') return false;
   _dashPriceItem = t.value;
-  var el = document.getElementById('dashPriceChart');
-  if (el) el.innerHTML = dashPriceChart();
+  _dashZincRedraw();
   return true;
 }

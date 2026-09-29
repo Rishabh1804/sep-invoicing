@@ -307,6 +307,11 @@ one file is also a valid **maskable** icon. Masters are SVG, one per palette
 
 ### 4.1 Phone and tablet
 
+- **Back** (nav.js, UX overhaul 2 step 1): an arrow at the top bar's start (`inv-topbar-back`) once there is a step
+  to go back to. Every screen, view tab, sub-view and pane record is a step in the browser's history, so the arrow,
+  the phone's back gesture, the browser's back, `Alt+←` and Backspace (never from a field) walk one trail. A dialog,
+  the More sheet and a print preview are one step over the screen, so back closes them; a form with unsaved work (a
+  field typed on a screen showing its action bar) asks *Leave without saving?* with **Stay** first.
 - **Top bar** (`--bar-h`, `--surface`, bottom hairline): page title (`--t-title`), then at most **two**
   actions on the right — the view's primary action and one secondary (or an icon button) — then the
   Settings icon button, on every screen (built 26 Sep 2026; a Settings reachable from Home only cost a
@@ -330,8 +335,10 @@ one file is also a valid **maskable** icon. Masters are SVG, one per palette
   - Settings, pinned to the bottom.
   Items and Pay open their parent tab on that sub-view. Counts are `--t-micro` mono; a count is toned only
   when it is a problem count.
-- **Top bar** (`--bar-h-desk`): title (`--t-title-desk`) · `/` · context (period, date, week) · underline tabs
-  inline when the view has them · spacer · search · secondary actions · one primary.
+- **Top bar** (`--bar-h-desk`): the back arrow · the trail (`inv-topbar-trail`: up to three earlier steps, each a
+  link back to it, `Home › Challans · Awaiting invoice ›`) · title (`--t-title-desk`) · `/` · context (the view and the
+  record open: *Awaiting invoice · Ch. 102*) · underline tabs inline when the view has them · spacer · search ·
+  secondary actions · one primary.
 - **Content** fills the rest; tables run edge to edge of the content area; a detail pane (§6.14) may take
   the right 22rem. The old 64px icon rail is retired.
 
@@ -663,7 +670,7 @@ its tone through `uiTone()`, which also maps the red / amber / info words the ru
 |---|---|---|
 | Home | stat strip (invoices, revenue, plated, ₹/kg) · quick actions (3×2 `inv-btn-grid`, first primary) · Money (`button.inv-tile` ×4 into Finance: balance, owed, pays in, runway; *Import statement* in its head) · To-do, Attendance, Unbilled, Sync and Zinc panels · recent invoices as rows | same strip ×4 · quick actions in one row · panels two across · recent invoices spanning both. *Built.* The six-month chart and contribution table move here with Stats (they are Stats' renderers). |
 | Create | fields · unbilled-challan rows with checkboxes (ticking one brings its open lines in) · line editor · collapsible optional details (`inv-panel-fold`) · action bar (grand total, Clear, Create invoice) | same, two-column fields, lines as a table. *Built.* The add/edit challan form is assembled the same way, on the same line editor. |
-| IM | toolbar (filters, Duplicate check, Scan, **Add challan** — the page's one primary, replacing the floating buttons) · *Awaiting invoice* then *Invoiced*, each grouped by date with the day's value; a challan expands to its lines · selection bar | table (challan, client, date, vehicle, items, amount, status) + detail pane, as the Register. *Built.* The add/edit challan form moves with Create, whose line editor it shares. |
+| IM | view tabs *Awaiting invoice* (the default) · *Invoiced*, each with its count · toolbar (filters, Duplicate check, Scan, **Add challan** — the page's one primary, replacing the floating buttons; the status filter only on Awaiting) · on Invoiced a month `inv-stepper` (the latest month first, back a month at a time) · the tab's challans grouped by date with the day's value; a challan expands to its lines · selection bar | table (challan, client, date, vehicle, items, amount, status) + detail pane, as the Register. *Built.* The add/edit challan form moves with Create, whose line editor it shares. |
 | Register | toolbar (search + filter selects; `inv-token` filters to come) · rows grouped by day with subtotal · selection bar | table (invoice, client, date, challans, kg, taxable, GST, total, state) · selection bar · detail pane. *Built.* |
 | Clients / Items / Performance | tabs · toolbar (search, the view's one primary: **Add client** / **Add item** — the floating + is gone) · rows (a client opens its edit sheet, which leads with its Money panel: owed, by age, pays in, last receipt, cheques; its rate, piece-rate and piece-weight cards are flush panels of rows with the add form in an `inv-panel-body`, and a fill from history reports what it left out as rows under the reason) · Items: filter chips (`aria-pressed`), sort `<select>` on `change`, tick boxes and a selection bar · Performance: client select, month on month (`inv-seg` ₹ / Tonnes / ₹/kg, chart, four tiles with "+12% on Aug" deltas), materials grouped Stopped / New / Steady / One-off under dotted `inv-row-group`s | tabs · table · detail pane on demand with the Money panel (as the Register's; the resizable split and its drag handle are gone). *Built.* |
 | To-do | tabs (Open / Done, with counts) · summary line (open, late) · toolbar (the add field, **Add** the one primary, Details) · two flush panels, *From your data* (a whole-row button led by its `inv-dot-mark` ! / i, red and amber also a dot and a word) and *Mine* (a tick box, the text opening the task, its due date a dot and a word, its link) · Snoozed as a panel with Show / Hide · the task dialogs on `inv-field`s, the figures as rows, what clears it a callout · Done: ticked rows struck through (`inv-row-done`), reopened by the tick | same; the two panels side by side. *Built.* The Home card draws the same rows. |

@@ -5,6 +5,76 @@ let _imFilter = { clientId: '', status: '' }; // '' = all
 let _imToolbarRendered = false;
 var _imActiveChallanId = null;
 
+/* Awaiting invoice and Invoiced are view tabs (UX overhaul 2, owner 28 Sep 2026): the eight challans still to bill led a
+   list of 1,163 billed ones, 97 phone screens long. Awaiting is the default; Invoiced goes back month by month, by
+   challan date, the latest month with one first. A challan part-invoiced still awaits. */
+var IM_TABS = [['awaiting', 'Awaiting invoice'], ['invoiced', 'Invoiced']];
+var _imTab = 'awaiting';
+var _imMonth = null;   // YYYY-MM on Invoiced; null = the latest month with an invoiced challan
+
+function imIsBilled(im) { return getIMStatus(im) === 'invoiced'; }
+function imInvoicedMonths() {
+  var m = {};
+  (S.incomingMaterial || []).forEach(function(im) { if (imIsBilled(im)) m[String(im.challanDate || '').slice(0, 7)] = 1; });
+  return Object.keys(m).sort();
+}
+function imMonthShown() {
+  var ms = imInvoicedMonths();
+  if (_imMonth && ms.indexOf(_imMonth) >= 0) return _imMonth;
+  return ms.length ? ms[ms.length - 1] : null;
+}
+function imMonthLabel(ym) {
+  var m = /^(\d{4})-(\d{2})$/.exec(ym || '');
+  if (!m) return 'No date';
+  return ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][+m[2] - 1] + ' ' + m[1];
+}
+function imSetTab(t, month) {
+  if (!IM_TABS.some(function(x) { return x[0] === t; })) t = 'awaiting';
+  var moved = t !== _imTab || (month !== undefined && month !== _imMonth);
+  _imTab = t;
+  if (month !== undefined) _imMonth = month;
+  // The filters and the selection belong to what was on screen.
+  if (moved) { _imSelected = {}; if (t === 'invoiced') _imFilter.status = ''; }
+  _imToolbarRendered = false;
+  return moved;
+}
+/* The tab (and month) a challan is listed under, so a link to it lands where it is. */
+function imShowChallanTab(im) {
+  if (!im) return;
+  if (imIsBilled(im)) imSetTab('invoiced', String(im.challanDate || '').slice(0, 7));
+  else imSetTab('awaiting');
+}
+function imMonthStep(n) {
+  var ms = imInvoicedMonths(), i = ms.indexOf(imMonthShown()) + n;
+  if (i < 0 || i >= ms.length) return;
+  imSetTab('invoiced', ms[i]);
+  imRedraw();
+}
+/* The tabs, the toolbar and the list together: a tab or a month changes all three. */
+function imRedraw() {
+  renderIMToolbar();
+  _imToolbarRendered = true;
+  _renderIMView();
+}
+function imViewTabsHtml() {
+  var all = S.incomingMaterial || [], billed = all.filter(imIsBilled).length;
+  var n = { awaiting: all.length - billed, invoiced: billed };
+  return '<div class="inv-viewtabs" role="tablist" aria-label="Challans">' + IM_TABS.map(function(t) {
+    return '<button class="inv-viewtab" role="tab" aria-selected="' + (_imTab === t[0]) + '" data-action="invIMTab" data-tab="' + t[0] + '">' + t[1] +
+      ' <span class="inv-panel-count">' + n[t[0]] + '</span></button>';
+  }).join('') + '</div>';
+}
+function imMonthPagerHtml() {
+  var ms = imInvoicedMonths(), cur = imMonthShown(), i = ms.indexOf(cur);
+  if (!cur) return '';
+  var inMonth = (S.incomingMaterial || []).filter(function(im) { return imIsBilled(im) && String(im.challanDate || '').slice(0, 7) === cur; });
+  var n = inMonth.length, total = inMonth.reduce(function(s, im) { return s + imChallanTotal(im); }, 0);
+  return '<div class="inv-toolbar inv-stepper" data-im-month="' + escHtml(cur) + '">' +
+    '<button class="inv-btn inv-btn-icon inv-btn-ghost" data-action="invIMMonth" data-step="-1" aria-label="Month before"' + (i <= 0 ? ' disabled' : '') + '>' + STAFF_BACK_ICON + '</button>' +
+    '<div class="inv-stepper-label"><span class="inv-stepper-title">' + escHtml(imMonthLabel(cur)) + '</span><span class="inv-stepper-sub">' + n + ' challan' + (n === 1 ? '' : 's') + ' · <span class="inv-num">' + formatCurrency(gstRound(total)) + '</span></span></div>' +
+    '<button class="inv-btn inv-btn-icon inv-btn-ghost" data-action="invIMMonth" data-step="1" aria-label="Month after"' + (i >= ms.length - 1 ? ' disabled' : '') + '>' + STAFF_NEXT_ICON + '</button></div>';
+}
+
 /* A challan's billing state as a status (design principles §6.13): material waiting on an
    invoice is the caution; part-billed is information; fully invoiced is done. */
 var IM_STATUS_UI = {
@@ -188,7 +258,11 @@ function getIMStatus(im) {
 }
 
 function getFilteredIM() {
-  let list = [...(S.incomingMaterial || [])];
+  var month = _imTab === 'invoiced' ? imMonthShown() : null;
+  let list = (S.incomingMaterial || []).filter(function(im) {
+    if (_imTab !== 'invoiced') return !imIsBilled(im);
+    return imIsBilled(im) && String(im.challanDate || '').slice(0, 7) === month;
+  });
   if (_imFilter.clientId) {
     const cid = parseInt(_imFilter.clientId);
     list = list.filter(im => im.clientId === cid);
@@ -255,16 +329,18 @@ function renderIMToolbar() {
 
   // The filters speak through change (events.js), never click: a click that re-rendered
   // the toolbar replaced the element the native list hangs off, and it shut unpicked.
-  area.innerHTML = '<div class="inv-toolbar">' +
+  // Invoiced holds one status, so its status filter would only ever offer itself.
+  area.innerHTML = imViewTabsHtml() + '<div class="inv-toolbar">' +
     '<select class="inv-select inv-toolbar-item" id="imClientFilter" aria-label="Filter by client">' +
     '<option value="">All clients</option>' + clientOpts + '</select>' +
-    '<select class="inv-select inv-toolbar-item" id="imStatusFilter" aria-label="Filter by status">' +
-    opt('', 'All statuses') + opt('pending', 'Pending') + opt('partial', 'Part invoiced') + opt('invoiced', 'Invoiced') + '</select>' +
+    (_imTab === 'invoiced' ? '' : '<select class="inv-select inv-toolbar-item" id="imStatusFilter" aria-label="Filter by status">' +
+    opt('', 'All statuses') + opt('pending', 'Pending') + opt('partial', 'Part invoiced') + '</select>') +
     '<button class="inv-btn inv-btn-secondary" id="imDupeCheck" data-action="invRunDupeScan">Duplicate check' +
     (dupeCount > 0 ? '<span class="inv-badge inv-badge-warning" data-dupes>' + dupeCount + '</span>' : '') + '</button>' +
     '<button class="inv-btn inv-btn-secondary" data-action="invScanChallan">' + ICON_CAMERA + 'Scan</button>' +
     '<button class="inv-btn inv-btn-primary" data-action="invShowAddChallan">Add challan</button>' +
-    '</div>';
+    '</div>' + (_imTab === 'invoiced' ? imMonthPagerHtml() : '');
+  viewTabReveal(area.querySelector('.inv-viewtabs'));
 }
 
 function renderIMList() {
@@ -274,14 +350,12 @@ function renderIMList() {
   let html = _imSummaryHtml(filtered);
 
   if (filtered.length === 0) {
-    html += '<div class="inv-panel"><div class="inv-empty">No incoming material found</div></div>';
+    html += '<div class="inv-panel"><div class="inv-empty">' + (_imTab === 'invoiced' ? 'No challan invoiced' : 'Nothing awaiting invoice') + (_imFilter.clientId || _imFilter.status ? ' for this filter' : '') + '</div></div>';
   } else {
-    // The list is the worklist: material still to bill first, then what is billed —
-    // each grouped by challan date with the day's value (§7).
-    [['open', 'Awaiting invoice'], ['done', 'Invoiced']].forEach(function(sec) {
-      var list = filtered.filter(function(im) { return (getIMStatus(im) === 'invoiced') === (sec[0] === 'done'); });
-      if (!list.length) return;
-      html += '<div class="inv-panel inv-panel-flush"><div class="inv-panel-head"><span class="inv-panel-title">' + sec[1] +
+    // Grouped by challan date with the day's value (§7): the tab says whether it is billed.
+    var title = _imTab === 'invoiced' ? 'Invoiced' : 'Awaiting invoice';
+    (function(list) {
+      html += '<div class="inv-panel inv-panel-flush"><div class="inv-panel-head"><span class="inv-panel-title">' + title +
         ' <span class="inv-panel-count">' + list.length + '</span></span></div>';
       var day = null;
       list.forEach(function(im, idx) {
@@ -310,7 +384,7 @@ function renderIMList() {
         }
       });
       html += '</div>';
-    });
+    })(filtered);
   }
   area.innerHTML = html;
   renderIMSelBar();
@@ -343,7 +417,7 @@ function renderIMSelBar() {
 function _buildIMTableHtml() {
   var filtered = getFilteredIM();
   var html = _imSummaryHtml(filtered);
-  if (filtered.length === 0) return html + '<div class="inv-empty">No incoming material found</div>';
+  if (filtered.length === 0) return html + '<div class="inv-empty">' + (_imTab === 'invoiced' ? 'No challan invoiced' : 'Nothing awaiting invoice') + (_imFilter.clientId || _imFilter.status ? ' for this filter' : '') + '</div>';
 
   var sc = getIMSortConfig();
   var th = function(key, label, cls) {
@@ -436,9 +510,10 @@ function imStatusDotHtml(im) {
 function imChallanTotal(im) { return im.items.reduce(function(s, it) { return s + (it.amount || 0); }, 0); }
 
 function _imSummaryHtml(filtered) {
-  var pending = filtered.filter(function(im) { return getIMStatus(im) !== 'invoiced'; }).length;
-  return '<div class="inv-pagehead"><span class="inv-pagehead-meta" data-im-summary>' + filtered.length + ' challan' +
-    (filtered.length !== 1 ? 's' : '') + ' · ' + pending + ' awaiting invoice</span></div>';
+  if (_imTab === 'invoiced') return '';   // the month's pager says how many and how much
+  var open = filtered.reduce(function(s, im) { return s + im.items.reduce(function(a, it) { return a + imLineOpen(it).amount; }, 0); }, 0);
+  return '<div class="inv-pagehead"><span class="inv-pagehead-meta" data-im-summary>' + filtered.length + ' challan' + (filtered.length !== 1 ? 's' : '') +
+    ' awaiting invoice · <span class="inv-num">' + formatCurrency(gstRound(open)) + '</span> to bill</span></div>';
 }
 
 /* A challan line. A line with anything left to bill carries its tick box; a billed

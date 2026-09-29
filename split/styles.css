@@ -142,6 +142,14 @@ body.inv-desktop .inv-topbar { height: var(--bar-h-desk); padding: 0 var(--sp-16
 body.inv-desktop .inv-topbar-title { font-size: var(--fs-14); }
 body.inv-desktop .inv-topbar-ctx::before { content: '/'; color: var(--text-3); margin-right: var(--sp-8); }
 body.inv-desktop .inv-topbar-btn { display: none; }
+/* Back (nav.js): the arrow on both layouts; on the desktop the trail of earlier steps before the page's name. */
+.inv-topbar-back { margin-left: calc(-1 * var(--sp-8)); }
+.inv-topbar-back[hidden] { display: none; }
+body.inv-desktop .inv-topbar-back:not([hidden]) { display: flex; width: var(--ctl-h); height: var(--ctl-h); }
+.inv-topbar-trail { display: none; }
+body.inv-desktop .inv-topbar-trail { display: flex; align-items: center; gap: var(--sp-6); min-width: 0; color: var(--text-3); font-size: var(--fs-13); }
+body.inv-desktop .inv-topbar-trail:empty { display: none; }
+.inv-topbar-trail .inv-btn-link { max-width: calc(var(--col-sm-w) * 2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--fs-13); font-weight: 400; }
 
 .inv-navbar {
   position: fixed; bottom: 0; left: 0; right: 0; z-index: var(--z-bar);

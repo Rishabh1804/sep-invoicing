@@ -169,6 +169,8 @@ function onDocClick(e) {
     case 'invCnCancel': e.stopPropagation(); cancelCreditNote(btn.dataset.id); break;
     case 'invExportCreditNotes': exportCreditNotesCSV(); break;
     case 'invToggleIM': toggleIMExpand(btn.dataset.id); break;
+    case 'invIMTab': if (imSetTab(btn.dataset.tab)) { _imActiveChallanId = null; imRedraw(); viewTop(); } break;
+    case 'invIMMonth': imMonthStep(+btn.dataset.step); break;
     case 'invCheckIMItem': toggleIMItem(btn.dataset.itemId); break;
     case 'invCheckIMChallan': toggleIMChallan(btn.dataset.id); break;
     case 'invCreateFromIM': createInvoiceFromIM(); break;
@@ -408,6 +410,7 @@ function onDocClick(e) {
       if (financeAction(action, btn)) break;
       if (finLinkAction(action, btn)) break;
       if (dashAction(action, btn)) break;
+      if (navAction(action, btn)) break;
       if (prodAction(action, btn)) break;
       if (action.indexOf('invStock') === 0) stockAction(action, btn);
       else if (action.indexOf('invTodo') === 0) todoAction(action, btn);

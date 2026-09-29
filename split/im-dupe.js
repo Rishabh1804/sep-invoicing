@@ -317,6 +317,7 @@ function imLocateChallan(imId) {
 
   _imFilter.clientId = String(im.clientId);
   _imFilter.status = '';
+  imShowChallanTab(im);
   _imExpanded[imId] = true;
   _imActiveChallanId = imId;
 

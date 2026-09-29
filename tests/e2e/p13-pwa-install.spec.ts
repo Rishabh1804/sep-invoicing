@@ -79,8 +79,9 @@ test.describe('PWA manifest', () => {
     await page.goto('/?tab=pageStats');
     await page.waitForSelector('body.inv-booted', { state: 'attached' });
     await expect(page.locator('#pageStats')).toHaveClass(/inv-page-active/);
-    // The query is consumed, so a later refresh is an ordinary load.
-    expect(new URL(page.url()).search).toBe('');
+    // The address stays live (UX overhaul 2, navigation): it names the screen and its view, so a refresh returns there.
+    expect(new URL(page.url()).searchParams.get('tab')).toBe('pageStats');
+    expect(new URL(page.url()).searchParams.get('v')).toBe('overview');
   });
 });
 

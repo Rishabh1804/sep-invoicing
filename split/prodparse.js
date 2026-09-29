@@ -33,7 +33,7 @@ function prodSplit(text) {
       var a = +wa[1], b = +wa[2], h = +wa[4] % 12, ap = wa[6] ? (/p/i.test(wa[6]) ? 12 : 0) : (+wa[4] === 12 ? 0 : 0);
       var monthFirst = /^\s*\[/.test(line) ? a <= 12 : (a <= 12 && b > 12);
       var at = wa[6] ? (h + ap) * 60 + +wa[5] : +wa[4] * 60 + +wa[5];
-      cur = { sentBy: wa[7].trim(), sentOn: monthFirst ? relayIso(b, a, wa[3]) : relayIso(a, b, wa[3]), sentAt: at, lines: [wa[8]] };
+      cur = { sentBy: wa[7].trim(), sentOn: monthFirst ? isoFromDmy(b, a, wa[3]) : isoFromDmy(a, b, wa[3]), sentAt: at, lines: [wa[8]] };
       msgs.push(cur);
       return;
     }
@@ -232,7 +232,7 @@ function parsePickling(msg, ctx) {
     var line = raw.trim(), n = i + 1;
     if (!line) return;
     var dm = line.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})\/?/);
-    if (dm && relayIso(dm[1], dm[2], dm[3])) { date = relayIso(dm[1], dm[2], dm[3]); noDate = false; line = line.slice(dm[0].length).trim(); if (!line) return; }
+    if (dm && isoFromDmy(dm[1], dm[2], dm[3])) { date = isoFromDmy(dm[1], dm[2], dm[3]); noDate = false; line = line.slice(dm[0].length).trim(); if (!line) return; }
     if (prodIsPowerLine(line)) {
       var pt = prodTimeOf(line.replace(/^.*?(cut|cat|cute|in|out)\b/i, ''), msg.sentAt);
       if (/cut|cat|out/i.test(line) && !/\bin\b/i.test(line.replace(/cut|cat/i, ''))) { cutAt = { min: pt.min, n: n, raw: raw }; }
@@ -339,10 +339,10 @@ function parseProductionList(msg, ctx) {
     var line = raw.trim(), n = i + 1;
     if (!line) return;
     var hm = line.match(PROD_LIST_HEAD_RE);
-    if (hm) { if (relayIso(hm[1], hm[2], hm[3])) { date = relayIso(hm[1], hm[2], hm[3]); noDate = false; } line = line.slice(hm[0].length).trim(); if (!line) return; }
+    if (hm) { if (isoFromDmy(hm[1], hm[2], hm[3])) { date = isoFromDmy(hm[1], hm[2], hm[3]); noDate = false; } line = line.slice(hm[0].length).trim(); if (!line) return; }
     else if (/^\s*b[ae]r+[ae]*l+\.?\s*production\s*$/i.test(line) || /^\s*-*\s*(production|work)\s*-*\s*$/i.test(line)) return;
     var dm = line.replace(/\s+/g, '').match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})\/*$/);
-    if (dm) { date = relayIso(dm[1], dm[2], dm[3]) || date; noDate = false; return; }
+    if (dm) { date = isoFromDmy(dm[1], dm[2], dm[3]) || date; noDate = false; return; }
     if (prodIsPowerLine(line)) {
       var pt = prodTimeOf(line.replace(/^.*?(cut|cat|cute|in|out)\b/i, ''), null);
       if (/cut|cat|out/i.test(line) && !cutAt) cutAt = { min: pt.min, n: n, raw: raw };
@@ -539,7 +539,7 @@ function prodRegisterNoonSlip(s) { return /\b12\s*[:.;]\s*\d{2}\s*a\.?\s?m/i.tes
 function prodRegisterNoon(s) { var m = prodRegisterTime(s); return m != null && prodRegisterNoonSlip(s) ? m + 720 : m; }
 function prodRegisterDate(s, near) {
   var m = /(\d{1,2})\s*[\/.\-]\s*(\d{1,2})\s*[\/.\-]\s*(\d{2,4})/.exec(String(s || ''));
-  return m ? relayIso(m[1], m[2], m[3]) : null;
+  return m ? isoFromDmy(m[1], m[2], m[3]) : null;
 }
 /* A figure as the clerk writes it: "72", "72+10", "98×8+1", "8x156+68", "50+52+30", "4×108−3". Sums of products, added
    up here. The first product's larger factor is the rack and the smaller the rounds ("98×8": 8 rounds of 98), which is
@@ -600,7 +600,7 @@ function prodFromRegisterRead(json, ctx, photoDate, choices) {
     if (rowDate) out.date = rowDate;
   }
   if (!out.date) { out.date = photoDate || ctx.today; out.issues.push({ tone: 'amber', code: 'date', text: 'No date read on the page: taken as ' + out.date + '. Check it.' }); }
-  else if (photoDate && Math.abs(todoDaysBetween(out.date, photoDate)) > 4) out.issues.push({ tone: 'amber', code: 'date', text: 'The page reads ' + out.date + ', ' + Math.abs(todoDaysBetween(out.date, photoDate)) + ' days from when the photo was taken. Check the date (day and month can swap).' });
+  else if (photoDate && Math.abs(isoDaysBetween(out.date, photoDate)) > 4) out.issues.push({ tone: 'amber', code: 'date', text: 'The page reads ' + out.date + ', ' + Math.abs(isoDaysBetween(out.date, photoDate)) + ' days from when the photo was taken. Check the date (day and month can swap).' });
   // The day name the clerk writes beside the date is a second reading of it.
   var wd = String(json.weekday || '').toUpperCase().replace(/[^A-Z]/g, '').slice(0, 3);
   if (wd && PROD_WEEKDAYS.indexOf(wd) >= 0) {

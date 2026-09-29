@@ -37,13 +37,7 @@ function payMonthEnd(iso) {
   var d = attParseIso(payMonthStart(iso));
   d.setMonth(d.getMonth() + 1);
   d.setDate(0);
-  return attIso(d);
-}
-function payMedian(nums) {
-  var a = nums.slice().sort(function(x, y) { return x - y; });
-  if (!a.length) return null;
-  var m = Math.floor(a.length / 2);
-  return a.length % 2 ? a[m] : (a[m - 1] + a[m]) / 2;
+  return isoOf(d);
 }
 function payPaidBetween(staffId, from, to) {
   return gstRound(staffPayments().reduce(function(s, p) {
@@ -54,7 +48,7 @@ function payPaidBetween(staffId, from, to) {
 
 /* One pay week's payout: the weekly tiers' earnings plus the EXTRA pool. */
 function payWeek(weekStart) {
-  var sat = attAddDays(weekStart, 6);
+  var sat = isoAddDays(weekStart, 6);
   var lab = labourForRange(weekStart, sat);
   var workers = 0;
   Object.keys(lab.byWorker).forEach(function(id) {
@@ -77,10 +71,10 @@ function payForecast(weekStart) {
   var wk = payWeek(weekStart);
   var past = [];
   for (var i = 1; i <= PAY_HISTORY_WEEKS; i++) {
-    var p = payWeek(attAddDays(weekStart, -7 * i));
+    var p = payWeek(isoAddDays(weekStart, -7 * i));
     if (p.recordedDays > 0) past.push(p.total);
   }
-  var median = payMedian(past);
+  var median = numMedian(past);
   var open = wk.sat >= today;
   var out = { week: wk, median: median, medianWeeks: past.length, open: open, predicted: wk.total, basis: 'recorded' };
   if (open) {
@@ -108,7 +102,7 @@ function payForecast(weekStart) {
    period the selected week sits in. */
 function payDue(weekStart) {
   var today = localDateStr();
-  var sat = attAddDays(weekStart, 6);
+  var sat = isoAddDays(weekStart, 6);
   var mFrom = payMonthStart(sat), mTo = payMonthEnd(sat);
   var wk = labourForRange(weekStart, sat);
   var mo = labourForRange(mFrom, mTo > today && mFrom <= today ? today : mTo);
@@ -129,7 +123,7 @@ function payMoney(n) { return escHtml(formatCurrency(n)); }
 function paySigned(n) { return (n > 0 ? '+' : n < 0 ? '&minus;' : '') + escHtml(formatCurrency(Math.abs(n))); }
 
 function _attPayView() {
-  var ws = _attWeekStart, sat = attAddDays(ws, 6);
+  var ws = _attWeekStart, sat = isoAddDays(ws, 6);
   var html = _attStepper('invAttWeekStep', _attWeekLabel('Week ' + attPayWeekNumber(ws), 'Paid Sat ' + formatDate(sat)),
     'invAttThisWeek', 'This week', 'Previous week', 'Next week');
   html += _payForecastCard(ws);
@@ -245,7 +239,7 @@ function _payListHtml(d) {
 
 function _payHistoryCard(ws) {
   var weeks = [];
-  for (var i = PAY_HISTORY_WEEKS - 1; i >= 0; i--) weeks.push(payWeek(attAddDays(ws, -7 * i)));
+  for (var i = PAY_HISTORY_WEEKS - 1; i >= 0; i--) weeks.push(payWeek(isoAddDays(ws, -7 * i)));
   // The same median the forecast reads: the twelve weeks before this one.
   var median = payForecast(ws).median;
   var h = '<div class="inv-panel inv-panel-flush" id="payHistory"><div class="inv-panel-head"><span class="inv-panel-title">Weekly payouts</span>' +

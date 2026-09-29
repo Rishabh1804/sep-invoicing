@@ -54,9 +54,6 @@ function todoCfg() {
 }
 function todoUid() { return 'TD-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
 function todoToday() { return localDateStr(); }
-function todoDaysBetween(a, b) {
-  return Math.round((new Date(b + 'T00:00:00') - new Date(a + 'T00:00:00')) / 86400000);
-}
 function todoPlural(n, one, many) { return n + ' ' + (n === 1 ? one : (many || one + 's')); }
 
 /* ---------- Mine ---------- */
@@ -65,12 +62,12 @@ function todoMineOpen() {
 }
 function todoMineTone(t) {
   if (!t.due || t.doneAt) return '';
-  var d = todoDaysBetween(todoToday(), t.due);
+  var d = isoDaysBetween(todoToday(), t.due);
   return d < 0 ? 'red' : d === 0 ? 'amber' : '';
 }
 function todoDueLabel(iso) {
   if (!iso) return '';
-  var d = todoDaysBetween(todoToday(), iso);
+  var d = isoDaysBetween(todoToday(), iso);
   if (d === 0) return 'Today';
   if (d === -1) return 'Yesterday';
   if (d === 1) return 'Tomorrow';
@@ -126,7 +123,7 @@ var TODO_RULE_FNS = {
     if (!last) return [];
     var today = todoToday(), cfg = todoCfg();
     if (last >= today) return [];
-    var gap = stockWorkingDays(stockIsoAdd(last, 1), today);
+    var gap = stockWorkingDays(isoAddDays(last, 1), today);
     if (gap < cfg.pasteDays) return [];
     return [{ key: 'paste', rule: 'paste', tone: gap >= cfg.pasteDays * 2 ? 'amber' : 'info',
       title: 'Paste the stock message', sub: 'Nothing recorded since ' + stockShortDate(last),
@@ -210,12 +207,12 @@ var TODO_RULE_FNS = {
     var today = todoToday(), cfg = todoCfg(), byClient = {};
     (S.incomingMaterial || []).forEach(function(im) {
       if (!im.challanDate || !(im.items || []).some(function(it) { return !it.invoiced; })) return;
-      if (todoDaysBetween(im.challanDate, today) < cfg.challanDays) return;
+      if (isoDaysBetween(im.challanDate, today) < cfg.challanDays) return;
       (byClient[im.clientId] || (byClient[im.clientId] = [])).push(im);
     });
     return Object.keys(byClient).map(function(cid) {
       var list = byClient[cid].sort(function(a, b) { return String(a.challanDate).localeCompare(String(b.challanDate)); });
-      var oldest = list[0], age = todoDaysBetween(oldest.challanDate, today);
+      var oldest = list[0], age = isoDaysBetween(oldest.challanDate, today);
       var nums = list.map(function(im) { return im.challanNo ? String(im.challanNo) : 'no number'; });
       return { key: 'challan:' + cid, rule: 'challan', tone: 'info',
         title: 'Bill ' + (oldest.clientName || 'challans') + ': ' + (list.length === 1 ? 'challan ' + nums[0] : todoPlural(list.length, 'challan')),
@@ -231,7 +228,7 @@ var TODO_RULE_FNS = {
     var today = todoToday(), cfg = todoCfg();
     var list = S.invoices.filter(function(i) {
       if (i.status === 'cancelled' || invStateIdx(getInvState(i)) >= invStateIdx('dispatched') || !i.date) return false;
-      var age = todoDaysBetween(i.date, today);
+      var age = isoDaysBetween(i.date, today);
       return age >= cfg.dispatchDays && age <= 30;
     }).sort(function(a, b) { return String(a.date).localeCompare(String(b.date)); });
     if (!list.length) return [];
@@ -576,7 +573,7 @@ function todoSnooze(key, v) {
   var live = {};
   todoAppAll().forEach(function(x) { live[x.key] = true; });
   Object.keys(td.snoozes).forEach(function(k) { if (!live[k]) delete td.snoozes[k]; });
-  td.snoozes[key] = v === 'sig' ? { sig: t.sig, until: '', at: Date.now() } : { sig: t.sig, until: stockIsoAdd(todoToday(), parseInt(v, 10) || 7), at: Date.now() };
+  td.snoozes[key] = v === 'sig' ? { sig: t.sig, until: '', at: Date.now() } : { sig: t.sig, until: isoAddDays(todoToday(), parseInt(v, 10) || 7), at: Date.now() };
   saveState();
   closeOverlay();
   todoRefreshViews();
@@ -905,7 +902,7 @@ function todoAction(action, btn) {
     case 'invTodoFoldSnoozed': _todoShowSnoozed = !_todoShowSnoozed; renderTodo(); break;
     case 'invTodoDue': {
       var inp = document.getElementById('todoDue');
-      if (inp) inp.value = btn.dataset.v === '' ? '' : stockIsoAdd(todoToday(), parseInt(btn.dataset.v, 10));
+      if (inp) inp.value = btn.dataset.v === '' ? '' : isoAddDays(todoToday(), parseInt(btn.dataset.v, 10));
       break;
     }
   }

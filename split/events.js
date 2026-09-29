@@ -216,6 +216,7 @@ function onDocClick(e) {
     case 'invChallanPeek': imChallanPeek(btn.dataset.id); break;
     // Phase 5: Invoice lifecycle states
     case 'invAdvanceState': advanceInvoiceState(btn.dataset.id, btn.dataset.state); break;
+    case 'invNotPrinted': invNotPrinted(btn.dataset.id); break;
     case 'invBulkMarkFiled': bulkMarkFiled(); break;
     // Phase 7: Stats period chips
     case 'invStatsPeriod': _statsPeriod = btn.dataset.period; renderStats(); break;
@@ -908,12 +909,18 @@ document.addEventListener('keydown', function(e) {
   }
 
   if (e.key === 'Escape') {
-    closeMoreSheet();
+    // An open suggestion list or search result closes first, and that is all the key does.
+    var listOpen = !!document.querySelector('.inv-combo > .inv-menu:not(.inv-hidden), #invClientResults:not(.inv-hidden), #imChallanClientResults:not(.inv-hidden)');
     dismissAllAutocomplete();
     var searchRes = document.getElementById('invClientResults');
     if (searchRes) searchRes.classList.add('inv-hidden');
     var imSearchRes = document.getElementById('imChallanClientResults');
     if (imSearchRes) imSearchRes.classList.add('inv-hidden');
+    if (listOpen) return;
+    // Otherwise it closes the top layer the way Back does (the QA sweep, 29 Sep 2026: every dialog but a question
+    // ignored Escape): a dialog holding typed work asks first, Settings asks its own way, then the print preview and
+    // the More sheet. A question answers cancel (its scrim's own handler, or its observer when shut this way).
+    if (navLayerOpen()) { e.preventDefault(); navCloseLayer(); }
     return;
   }
 

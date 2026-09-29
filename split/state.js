@@ -487,6 +487,12 @@ function ensureStateShape(s) {
     });
   });
   if (!s.cnNextNum) s.cnNextNum = 1;
+  // A record's lines are read as an array in some 150 places: an invoice or challan written without one (a
+  // hand-edited backup, an older scanner) made the first screen to read it throw, Home at launch (the QA sweep,
+  // 29 Sep 2026). An empty list is a shape, not invented business data.
+  ['invoices', 'incomingMaterial'].forEach(function(k) {
+    (s[k] || []).forEach(function(r) { if (r && !Array.isArray(r.items)) r.items = []; });
+  });
   return s;
 }
 
@@ -1215,6 +1221,27 @@ function localDateStr() {
   return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
 }
 
+/* ===== ONE SET OF DATE AND NUMBER HELPERS (the QA sweep, 29 Sep 2026) =====
+   The sweep found four copies of "add days to a date", three of "days between", two day-month-year readers (one of
+   which took 31/09 for a date) and five medians, each module with its own. They live here once. */
+function isoOf(d) { return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
+function isoAddDays(iso, n) { var d = new Date(iso + 'T00:00:00'); d.setDate(d.getDate() + n); return isoOf(d); }
+function isoDaysBetween(a, b) { return Math.round((new Date(b + 'T00:00:00') - new Date(a + 'T00:00:00')) / 86400000); }
+/* A date as written, day first; a two-digit year is this century. Null for a day the calendar has not got (31/09). */
+function isoFromDmy(d, m, y) {
+  d = +d; m = +m; y = +y;
+  if (y < 100) y += 2000;
+  if (!(d >= 1 && d <= 31 && m >= 1 && m <= 12)) return null;
+  var t = new Date(y, m - 1, d);
+  return t.getMonth() === m - 1 ? isoOf(t) : null;
+}
+/* The middle of a list of numbers; null for an empty one (a caller that wants 0 says so). */
+function numMedian(nums) {
+  if (!nums || !nums.length) return null;
+  var s = nums.slice().sort(function(a, b) { return a - b; }), m = Math.floor(s.length / 2);
+  return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
+}
+
 function gstRound(val) { return Math.round(val * 100) / 100; }
 
 function formatNum(n, dec) {
@@ -1360,19 +1387,32 @@ function getStateDotHtml(inv) {
 }
 
 /* The next state, or a named one further on: an invoice printed outside the app goes from Created straight to
-   Dispatched. Never backwards. */
+   Dispatched. Never backwards, but for a print that never came out (invNotPrinted). */
 function advanceInvoiceState(invId, target) {
   var inv = S.invoices.find(function(i) { return i.id === invId; });
   if (!inv || inv.status === 'cancelled') return;
-  var state = getInvState(inv);
-  var idx = INV_STATES.indexOf(state);
-  if (idx < 0 || idx >= INV_STATES.length - 1) return;
-  var nextState = target && invStateIdx(target) > idx ? target : INV_STATES[idx + 1];
+  var idx = INV_STATES.indexOf(getInvState(inv));
+  var nextState = target || INV_STATES[idx + 1];
+  // A button drawn before the state moved on (a print, another window) names a step already reached: it only shows
+  // where the invoice is. It used to fall through to the step after, so Mark printed on a printed invoice dispatched it.
+  if (idx < 0 || !nextState || invStateIdx(nextState) <= idx) { invStateShown(invId); return; }
   invSetState(inv, nextState);
   saveState();
-  closeOverlay();
-  _renderRegView();
+  invStateShown(invId);
   showToast(inv.displayNumber + ' marked as ' + INV_STATE_LABELS[nextState]);
+}
+
+/* Print marks a Created invoice Printed, but the print dialog cannot say whether the paper came out: a print cancelled
+   or jammed is put back here, and its stamp goes with it (History logs a print from printedAt). */
+function invNotPrinted(invId) {
+  var inv = S.invoices.find(function(i) { return i.id === invId; });
+  if (inv && inv.status !== 'cancelled' && getInvState(inv) === 'printed') {
+    inv.invoiceState = 'created';
+    delete inv.printedAt;
+    saveState();
+    showToast(inv.displayNumber + ' is back to Created');
+  }
+  invStateShown(invId);
 }
 
 async function bulkMarkFiled() {
@@ -1586,8 +1626,40 @@ function defaultLineRate(client, onDate, item) {
   if (item.unit === 'NOS') {
     var pr = getPieceRate(client, onDate, item.partNumber, item.desc);
     if (pr && pr.rate != null) return pr.rate;
+    // A piece line with no piece rate has no rate on record: a ₹/kg figure is not a price per piece (5.40 against a
+    // ₹1.49 pad). Only a client billed by weight from pieces prices a NOS line at its ₹/kg, through the part's weight.
+    return client && client.billingMode === 'nos_to_weight' ? (info.ratePerKg || 0) : 0;
   }
   return info.ratePerKg || 0;
+}
+
+/* What a line comes to: the one place the invoice and the challan form price it (the QA sweep, 29 Sep 2026). The
+   challan form had its own copy without the nos_to_weight branch, so a NOS line of a client billed by weight from
+   pieces was priced pieces × ₹/kg and carried that into the invoice raised off it. `onDate` is the form's date, since
+   the rate on record is dated. */
+function linePrice(item, client, onDate) {
+  if (!client) { item.amount = gstRound((item.qty || 0) * (item.rate || 0)); return; }
+  if (client.billingMode === 'piece' && item.unit === 'NOS') {
+    // Challan passthrough: the amount is entered as the challan says, and the rate is read back from it.
+    if (item.qty > 0 && item.amount > 0) item.rate = gstRound(item.amount / item.qty);
+  } else if (client.billingMode === 'nos_to_weight' && item.unit === 'NOS') {
+    var pwKey = (item.partNumber || '').toUpperCase();
+    var rateInfo = getLineItemRate(client, onDate, item.partNumber);
+    // A part with no weight on record cannot be converted; it is billed per piece off the client's card (Samarth's
+    // brackets), or an override. Before this the line priced itself at weight 0 × ₹/kg = ₹0.
+    var perPiece = rateInfo._override ? { rate: rateInfo.rate }
+      : (S.partWeights[pwKey] ? null : getPieceRate(client, onDate, item.partNumber, item.desc));
+    if (perPiece && perPiece.rate != null) {
+      item.rate = perPiece.rate;
+      item.amount = gstRound((item.qty || 0) * item.rate);
+      return;
+    }
+    var w = (item.qty || 0) * (S.partWeights[pwKey] || 0);
+    item.rate = rateInfo.ratePerKg || 0;
+    item.amount = gstRound(w * item.rate);
+  } else {
+    item.amount = gstRound((item.qty || 0) * (item.rate || 0));
+  }
 }
 
 /* How a line names its part on screen. `desc` used to win outright, and for a

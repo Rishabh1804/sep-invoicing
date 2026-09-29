@@ -551,7 +551,7 @@ function renderLabourCard(fromIso, toIso, title, tonnage, extraClass) {
 function labourRangeForPeriod(period) {
   var range = periodRange(period, 0);
   if (range) {
-    return { from: attIso(new Date(range.start)), to: attIso(new Date(range.end)) };
+    return { from: isoOf(new Date(range.start)), to: isoOf(new Date(range.end)) };
   }
   var keys = Object.keys(S.attendance || {}).sort();
   if (keys.length === 0) return null;

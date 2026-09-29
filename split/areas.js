@@ -335,13 +335,6 @@ function setAreaTarget(areaId, heads) {
   saveState();
 }
 
-function _median(nums) {
-  if (!nums.length) return 0;
-  var s = nums.slice().sort(function(a, b) { return a - b; });
-  var mid = Math.floor(s.length / 2);
-  return s.length % 2 ? s[mid] : (s[mid - 1] + s[mid]) / 2;
-}
-
 /* Per-area totals over an inclusive ISO range.
 
    Heads are counted per day from the marks, so a worker who was moved to
@@ -567,7 +560,7 @@ function areaStats(fromIso, toIso) {
   var rows = STAFF_AREAS.map(function(x) {
     var a = byId[x.id];
     a.avgHeads = totalRecorded > 0 ? a.headDays / totalRecorded : 0;
-    a.medianHeads = _median(a.headsPerDay);
+    a.medianHeads = (numMedian(a.headsPerDay) || 0);
     a.target = areaTarget(a.id);
     a.variance = a.target != null ? a.avgHeads - a.target : null;
     a.paidHours = a.hours + a.otHours;
@@ -784,7 +777,7 @@ function reopenAreaExplain(key) {
 /* ===== VIEW ===== */
 function _attAreasView() {
   var from = _attWeekStart;
-  var to = attAddDays(_attWeekStart, _areaSpan * 7 - 1);
+  var to = isoAddDays(_attWeekStart, _areaSpan * 7 - 1);
   var stats = areaStats(from, to);
 
   var html = _attStepper('invAttWeekStep', _attWeekLabel(_areaSpan === 1 ? 'Week ' + attPayWeekNumber(from) : _areaSpan + ' weeks',

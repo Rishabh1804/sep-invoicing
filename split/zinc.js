@@ -214,17 +214,12 @@ function _zincRememberLme(date, rate) {
   while (keys.length > 400) delete z.lmeHistory[keys.shift()];
 }
 
-function _zincIsoAdd(iso, n) {
-  var d = new Date(iso + 'T00:00:00');
-  d.setDate(d.getDate() + n);
-  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
-}
 
 /* {rate, date} for the LME standing on `date`, or null. */
 function _zincLmeOn(date) {
   var h = getZinc().lmeHistory || {};
   for (var i = 0; i <= ZINC_LME_LOOKBACK; i++) {
-    var d = _zincIsoAdd(date, -i);
+    var d = isoAddDays(date, -i);
     if (h[d] > 0) return { rate: h[d], date: d };
   }
   return null;
@@ -282,7 +277,7 @@ function _zincFetchMissing(bills, onStart) {
   }
   if (onStart) onStart(missing.length);
   return missing.reduce(function(chain, b) {
-    return chain.then(function() { return _zincFetchLme(_zincIsoAdd(b.date, -ZINC_LME_LOOKBACK), b.date); });
+    return chain.then(function() { return _zincFetchLme(isoAddDays(b.date, -ZINC_LME_LOOKBACK), b.date); });
   }, Promise.resolve()).then(function() { saveState(); return { note: '', n: missing.length }; }, function(err) {
     return { note: 'metals.dev: ' + (err && err.message ? err.message : 'could not be reached') + '.', n: 0 };
   });
@@ -363,7 +358,7 @@ function zincTrend(from) {
     if (l) {
       b.market = landed(l.rate); b.lmeDate = l.date;
       b.over = gstRound(b.price - b.market);
-      var lo = _zincIsoAdd(p.date, -ZINC_TIMING_DAYS), win = days.filter(function(d) { return d >= lo && d <= p.date; }).map(function(d) { return landed(h[d]); });
+      var lo = isoAddDays(p.date, -ZINC_TIMING_DAYS), win = days.filter(function(d) { return d >= lo && d <= p.date; }).map(function(d) { return landed(h[d]); });
       if (win.length >= ZINC_TIMING_MIN) {
         var mn = Math.min.apply(null, win), mx = Math.max.apply(null, win), pos = mx > mn ? (b.market - mn) / (mx - mn) : 0.5;
         b.timing = { low: mn, high: mx, pos: pos, band: pos <= 1 / 3 ? 'low' : pos >= 2 / 3 ? 'high' : 'mid' };

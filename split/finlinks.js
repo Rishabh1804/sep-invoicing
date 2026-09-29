@@ -52,7 +52,7 @@ function finInvoicePayment(inv) {
   });
   (r.credits || []).forEach(function(p) { if (p.inv && p.label === label) paid.push({ date: '', amount: p.amount, how: 'account' }); });
   var open = r.open.find(function(o) { return o.inv && o.inv.id === inv.id; });
-  return { paid: paid, open: open ? gstRound(open.due) : 0, days: todoDaysBetween(inv.date, localDateStr()) };
+  return { paid: paid, open: open ? gstRound(open.due) : 0, days: isoDaysBetween(inv.date, localDateStr()) };
 }
 function finInvoicePaymentHtml(inv) {
   var p = finInvoicePayment(inv);
@@ -100,7 +100,7 @@ function renderFinHomeCard() {
   var owed = recv.reduce(function(s, r) { return s + Math.max(0, r.owed); }, 0);
   var book = bankBookDaysToPay(bankPayHistory(recv));
   var loose = bankLooseReceipts(finCtx().cls, bankRecvFrom(finCtx().rows)).length;
-  var age = todoDaysBetween(last.date, localDateStr());
+  var age = isoDaysBetween(last.date, localDateStr());
   // What is owed is judged by its age: any of it past 90 days is danger, past 60 warning (figToneAge).
   var over = finAgeing(recv), old90 = over[3] ? over[3].amount : 0, old60 = over[2] ? over[2].amount : 0;
   var tile = function(tab, anchor, label, value, sub, tone) {

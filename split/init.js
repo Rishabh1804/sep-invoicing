@@ -696,14 +696,26 @@ if ('serviceWorker' in navigator) {
    so this runs from loadState().then(...) at the end of the file, and
    `body.inv-booted` is the signal that it has. Until then the shell is
    visible but inert. */
+/* One step of the start that throws must not take the rest with it (the QA sweep, 29 Sep 2026). The shell is inert
+   until `inv-booted` is set at the end, so a step that threw left an app nothing could be done in, not even an export,
+   and a launch reopening a screen that threw did it every time. Each failure is said in the banner. */
+function bootStep(what, fn) {
+  try { fn(); return true; }
+  catch (e) {
+    console.error(e);
+    uiNotice('Starting up, ' + what + ' failed: ' + ((e && e.message) || e) + '. The rest of the app works; export a backup from Settings if this keeps happening.', 'danger');
+    return false;
+  }
+}
+
 function bootApp() {
-  seedIncomingMaterial();
-  runBootstrapSeeds();
-  migrateState();
+  bootStep('the demo challans', seedIncomingMaterial);
+  bootStep('the first-run records', runBootstrapSeeds);
+  bootStep('bringing the book up to date', migrateState);
 
   // Initial layout detection (no debounce)
-  updateLayoutMode();
-  updateStockBadge();
+  bootStep('the layout', updateLayoutMode);
+  bootStep('the More count', updateStockBadge);
 
   /* Phase 6b: Restore active tab on refresh */
   // If updateLayoutMode triggered _applyModeSwitch, it already called switchTab.
@@ -711,26 +723,28 @@ function bootApp() {
   if (!_isDesktop) {
     var _savedTab = regFilter.activeTab || 'pageHome';
     if (_savedTab !== 'pageHome' && document.getElementById(_savedTab)) {
-      switchTab(_savedTab);
+      bootStep('the screen last open', function() { switchTab(_savedTab); });
     } else {
-      renderHome();
+      bootStep('Home', renderHome);
     }
   }
 
   /* The "Add Challan" app shortcut opens the form, not just the tab. Runs after
      the tab restore above so the IM view exists to render into. */
   if (_launchNew && regFilter.activeTab === 'pageIM' && !_isDesktop) {
-    showAddChallanForm();
+    bootStep('the challan form', showAddChallanForm);
   }
 
   /* The widget: apply the Done taps it queued while the app was shut, open
      what it asked for, and hand it a fresh payload. */
-  if (_launchTodo) todoHandleLaunch(_launchTodo);
-  else todoApplyWidgetQueue();
-  todoWidgetPublish();
+  bootStep('the To-do widget', function() {
+    if (_launchTodo) todoHandleLaunch(_launchTodo);
+    else todoApplyWidgetQueue();
+    todoWidgetPublish();
+  });
 
   // The address and this tab's trail (nav.js). A shortcut or widget launch has already put the app where it asked.
-  navBoot(_launchNew || _launchTodo ? null : _launchLoc);
+  bootStep('the address', function() { navBoot(_launchNew || _launchTodo ? null : _launchLoc); });
 
   /* A read that threw at load used to fall through to a fresh default state
      and say nothing. It is the one storage failure the operator most needs to

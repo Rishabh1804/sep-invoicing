@@ -22,9 +22,9 @@ function dashAttendanceByWeek(n) {
   var active = staffActive(), ids = {}, today = localDateStr(), out = [], ws = attWeekStartOf(today);
   active.forEach(function(w) { ids[String(w.id)] = true; });
   for (var k = n - 1; k >= 0; k--) {
-    var start = attAddDays(ws, -7 * k), sat = attAddDays(start, 6), present = 0, marked = 0, days = 0;
+    var start = isoAddDays(ws, -7 * k), sat = isoAddDays(start, 6), present = 0, marked = 0, days = 0;
     for (var d = 1; d <= 6; d++) {
-      var iso = attAddDays(start, d), rec = (S.attendance || {})[iso];
+      var iso = isoAddDays(start, d), rec = (S.attendance || {})[iso];
       if (iso > today || !rec || !Object.keys(rec.marks || {}).length) continue;
       days++;
       Object.keys(rec.marks).forEach(function(id) {
@@ -91,7 +91,7 @@ function staffOverviewHtml() {
   ], { unit: 'rate', ariaLabel: 'Labour per kg by month', emptyText: 'Needs two months with tonnage' }) +
     '<div class="inv-note">Recorded is attendance priced by the wage model, shown where 90% of the month’s working days are recorded; paid is the salaries and cash the bank statement set against the month; model is Settings → Labour.</div>');
 
-  var ws = attWeekStartOf(localDateStr()), from = attAddDays(ws, -21), ah = areaHoursForRange(from, localDateStr());
+  var ws = attWeekStartOf(localDateStr()), from = isoAddDays(ws, -21), ah = areaHoursForRange(from, localDateStr());
   h += _dashPanel('dashAreaHours', 'OT and EXTRA by area, four weeks', chartStack(ah.rows.map(function(r) { return r.label; }), [
     { label: 'OT', values: ah.rows.map(function(r) { return Math.round(r.ot * 10) / 10; }) },
     { label: 'EXTRA', values: ah.rows.map(function(r) { return Math.round(r.extra * 10) / 10; }) }
@@ -149,7 +149,7 @@ function dashSupplierSpend(months) {
    the line, never ₹0. A week that was typed and used nothing priced is a real zero. */
 function dashUsedByWeek(n) {
   var ws = attWeekStartOf(localDateStr()), weeks = [], byItem = {}, unpriced = {}, typed = [];
-  for (var k = n - 1; k >= 0; k--) { weeks.push(attAddDays(ws, -7 * k)); typed.push(false); }
+  for (var k = n - 1; k >= 0; k--) { weeks.push(isoAddDays(ws, -7 * k)); typed.push(false); }
   var first = weeks[0];
   stockData().entries.forEach(function(e) {
     if (e.voided || e.kind === 'bill' || e.date < first) return;
@@ -196,7 +196,7 @@ function stockOverviewHtml() {
   }
   h += _dashPanel('dashSupplier', 'Spend by supplier, six months', body + '<div class="inv-note">Bills before GST from ' + escHtml(formatDate(sp.from)) + '.</div>', '', rows);
 
-  var u = dashUsedByWeek(12), labs = u.weeks.map(function(w) { return _dashWeekLabel(attAddDays(w, 6)); });
+  var u = dashUsedByWeek(12), labs = u.weeks.map(function(w) { return _dashWeekLabel(isoAddDays(w, 6)); });
   h += _dashPanel('dashUsed', 'Used, in rupees, by week', chartLines(labs, [{ label: 'All lines', values: u.total }].concat(u.top.map(function(l, i) {
     return { label: l.name, values: l.v, tone: i + 2 };
   })), { ariaLabel: 'Stock used by week in rupees', emptyText: 'Needs two weeks of use recorded' }) +

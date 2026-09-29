@@ -19,16 +19,6 @@ var ATT_SHEET_IN_AREAS = [
 ];
 var _attSheetPick = { shyam: true, deepak: true, filled: true };
 
-function _asLines(n, from) {
-  var h = '';
-  for (var i = 0; i < n; i++) {
-    h += '<div class="inv-as-line">' + (from != null ? '<span class="inv-as-num">' + (from + i) + ')</span>' : '') + '</div>';
-  }
-  return h;
-}
-function _asField(label, after) {
-  return '<div class="inv-as-field"><span>' + label + '</span><span class="inv-as-blank"></span>' + (after ? '<span>' + after + '</span>' : '') + '</div>';
-}
 function _asHead(title, iso, right) {
   return '<div class="inv-as-head"><span class="inv-as-title">' + title + '</span>' +
     '<span class="inv-as-meta">' + escHtml(formatDate(iso) + ' · ' + attDayName(iso)) + (right ? ' · ' + right : '') + '</span></div>';

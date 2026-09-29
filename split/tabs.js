@@ -45,16 +45,23 @@ function switchTab(tabId) {
   if (title) title.textContent = PAGE_TITLES[tabId] || 'SEP Invoicing';
   markSideActive(tabId);
 
-  // Step 5b: Persist active tab for refresh recovery (Phase 6b)
-  regFilter.activeTab = tabId;
-  saveRegFilter();
-
   // Step 6: Check dirty flag and re-render if needed
   const tabKey = tabId === 'pageHome' ? 'home' : tabId === 'pageRegister' ? 'register' : null;
   const isDirty = tabKey ? _tabDirty[tabKey] : true;
   _pageTyped = false;
   _bookRedrawPending = false;
-  tabRender(tabId, isDirty);
+  // Step 6b: remembered for a reload only once it has been drawn (Phase 6b). It was saved before the drawing, so a
+  // screen that threw on some shape of data was reopened, and threw, at every launch, with the app never finishing its
+  // start (the QA sweep, 29 Sep 2026). A screen that cannot be drawn says so and the rest of the app stays in reach.
+  try {
+    tabRender(tabId, isDirty);
+    regFilter.activeTab = tabId;
+    saveRegFilter();
+  } catch (err) {
+    console.error(err);
+    uiNotice('The ' + (PAGE_TITLES[tabId] || 'screen') + ' screen could not be drawn: ' + ((err && err.message) || err) +
+      '. The rest of the app works; export a backup from Settings if this keeps happening.', 'danger');
+  }
 
   // Step 7: Scroll restoration
   if (returnTab) {

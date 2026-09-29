@@ -285,14 +285,14 @@ function bankLinkBounces(list) {
     if (!nums.length) return;
     var hit = list.filter(function(d) {
       var inst = String(bankInstrument(d.row) || '').replace(/^0+/, '');
-      return isDeposit(d) && !taken[d.row.id] && inst && nums.indexOf(inst) >= 0 && d.row.date <= r.row.date && todoDaysBetween(d.row.date, r.row.date) <= BANK_BOUNCE_CHQ_DAYS;
+      return isDeposit(d) && !taken[d.row.id] && inst && nums.indexOf(inst) >= 0 && d.row.date <= r.row.date && isoDaysBetween(d.row.date, r.row.date) <= BANK_BOUNCE_CHQ_DAYS;
     }).pop();
     if (hit) link(r, hit, 'cheque');
   });
   revs.forEach(function(r) {
     if (r.bounceSet || r.bounceOf) return;
     r.bounceOffers = list.filter(function(d) {
-      return isDeposit(d) && !taken[d.row.id] && Math.abs(d.row.cr - r.row.dr) < 0.005 && d.row.date <= r.row.date && todoDaysBetween(d.row.date, r.row.date) <= BANK_BOUNCE_DAYS;
+      return isDeposit(d) && !taken[d.row.id] && Math.abs(d.row.cr - r.row.dr) < 0.005 && d.row.date <= r.row.date && isoDaysBetween(d.row.date, r.row.date) <= BANK_BOUNCE_DAYS;
     }).map(function(d) { return d.row.id; });
   });
   return list;
@@ -376,15 +376,11 @@ function bankOpeningFor(clientId, from) {
 var BANK_OPENING_WINDOW = 20, BANK_OPENING_NEAR = 45;
 function bankOpeningSuggest(recs, invs, from) {
   var anchor = invs.length ? invs[0].date : '', until = anchor ? isoAddDays(anchor, BANK_OPENING_WINDOW) : '';
-  var early = anchor && todoDaysBetween(from, anchor) <= BANK_OPENING_NEAR;
+  var early = anchor && isoDaysBetween(from, anchor) <= BANK_OPENING_NEAR;
   var rows = recs.filter(function(v) { return !anchor || v.row.date < anchor || (early && v.row.date < until); })
     .map(function(v) { return { date: v.row.date, amount: v.row.cr }; });
   var amount = gstRound(rows.reduce(function(t, x) { return t + x.amount; }, 0));
   return amount > 0 ? { amount: amount, rows: rows, anchor: anchor, until: early ? until : anchor } : null;
-}
-function isoAddDays(iso, n) {
-  var d = new Date(iso + 'T00:00:00'); d.setDate(d.getDate() + n);
-  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
 }
 
 /* Receipts nobody has placed, from the day receivables start: an earlier one paid an invoice this app
@@ -465,7 +461,7 @@ function bankReceivables(cls) {
     var stillOpen = open.filter(function(o) { return o.due > 0.005; });
     var today = localDateStr();
     out.push({ client: c, opening: opening, openingStale: op.stale, openingSuggest: opening ? null : bankOpeningSuggest(recs, invs, from), onAccount: carry, credits: credits, invoiced: invoiced, notes: gstRound(notesTotal), received: received, owed: owed,
-      open: stillOpen, allocs: allocs, oldestDays: stillOpen.length ? Math.max(0, todoDaysBetween(stillOpen[0].date, today)) : null });
+      open: stillOpen, allocs: allocs, oldestDays: stillOpen.length ? Math.max(0, isoDaysBetween(stillOpen[0].date, today)) : null });
   });
   return out.sort(function(a, b) { return b.owed - a.owed; });
 }
@@ -525,9 +521,9 @@ function bankCostByMonth(cls) {
         var ws = attWeekStartOf(r.date), seen = {};
         for (var k = 0; k < 7; k++) {
           var d = attParseIso(ws); d.setDate(d.getDate() + k);
-          var C = at(attIso(d).slice(0, 7)).labour;
+          var C = at(isoOf(d).slice(0, 7)).labour;
           C.amount += r.dr / 7; C.cash += r.dr / 7;
-          if (!seen[attIso(d).slice(0, 7)]) { seen[attIso(d).slice(0, 7)] = 1; C.rows.push(v); }
+          if (!seen[isoOf(d).slice(0, 7)]) { seen[isoOf(d).slice(0, 7)] = 1; C.rows.push(v); }
         }
       }
     } else if (v.cat === 'power') { var P = at(bankBillMonth(r)).power; P.amount += r.dr; P.rows.push(v); }
@@ -559,14 +555,14 @@ function bankCostByMonthMemo() {
   return _bankCostMemo;
 }
 function bankCostForRange(from, to, byMonth) {
-  var bm = byMonth || bankCostByMonthMemo(), days = stockDaysApart(from, to) + 1;
+  var bm = byMonth || bankCostByMonthMemo(), days = isoDaysBetween(from, to) + 1;
   var res = { cover: bm.cover };
   ['labour', 'power', 'other', 'supplies'].forEach(function(k) { res[k] = { amount: 0, known: 0, months: [] }; });
   res.unsorted = { amount: 0, payees: {} };
   if (!bm.cover) return res;
   for (var ym = from.slice(0, 7), g = 0; ym <= to.slice(0, 7) && g < 240; ym = bankNextMonth(ym), g++) {
     var start = ym + '-01', end = payMonthEnd(start), a = from > start ? from : start, z = to < end ? to : end;
-    var share = costMonthShare(ym, from, to), rangeShare = (stockDaysApart(a, z) + 1) / days, e = bm.months[ym];
+    var share = costMonthShare(ym, from, to), rangeShare = (isoDaysBetween(a, z) + 1) / days, e = bm.months[ym];
     if (e) e.unsorted.rows.forEach(function(v) { if (v.row.date >= from && v.row.date <= to) { res.unsorted.amount += v.row.dr; res.unsorted.payees[v.party || v.row.narration] = 1; } });
     ['labour', 'power', 'other', 'supplies'].forEach(function(k) {
       var c = e && e[k];
@@ -630,7 +626,7 @@ function _bankReceiptsHtml(cls) {
       ', the first invoice in the book (the statement starts ' + escHtml(formatDate(rows[0].date)) + '; receipts before ' + fromTxt + ' paid invoices this app does not hold, and are left out)') +
     ': invoices less credit notes less receipts, plus whatever was owed on that day if you set it. A receipt that equals one invoice, or a run of them, to the rupee is marked exact; any other is set against the oldest first.</div>';
   var sgN = recv.filter(function(r) { return r.openingSuggest; }).length;
-  if (sgN) h += '<div class="inv-callout inv-callout-info" data-opening-hint="' + sgN + '">' + finPl(sgN, 'client') + ' paid money in the first weeks that most likely settled work from before ' + fromTxt +
+  if (sgN) h += '<div class="inv-callout inv-callout-info" data-opening-hint="' + sgN + '">' + todoPlural(sgN, 'client') + ' paid money in the first weeks that most likely settled work from before ' + fromTxt +
     '. Open ' + (sgN === 1 ? 'it' : 'each') + ' to check the figure offered for what ' + (sgN === 1 ? 'it' : 'each') + ' owed on that day.</div>';
   if (!recv.length) h += '<div class="inv-empty">No invoices or receipts since ' + fromTxt + '.</div>';
   var payHist = typeof bankPayHistory === 'function' ? bankPayHistory(recv) : {};
@@ -682,7 +678,7 @@ function _bankReceiptsHtml(cls) {
   // Receipts nobody can name: cheques deposited, a remitter the client list does not recognise.
   var loose = bankLooseReceipts(cls, from), series = bankChequeSeries(cls);
   var early = cls.filter(function(v) { return v.cat === 'receipt' && v.clientId == null && v.row.cr > 0 && v.row.date < from; }).length;
-  if (early) h += '<div class="inv-panel-body inv-note" data-loose-early="' + early + '">' + finPl(early, 'receipt') + ' with no client from before ' + fromTxt +
+  if (early) h += '<div class="inv-panel-body inv-note" data-loose-early="' + early + '">' + todoPlural(early, 'receipt') + ' with no client from before ' + fromTxt +
     ' ' + (early === 1 ? 'is' : 'are') + ' not listed: ' + (early === 1 ? 'it' : 'they') + ' paid invoices from before the book starts. Place one from the Statement if you want its cheque in a client\'s series.</div>';
   if (loose.length) {
     h += '<div class="inv-panel inv-panel-flush" id="bankLoose"><div class="inv-panel-head"><span class="inv-panel-title">Receipts with no client</span><span class="inv-panel-count">' + loose.length + '</span></div>' +

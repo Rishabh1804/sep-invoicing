@@ -57,19 +57,13 @@ function stockDisplayName(key) {
 }
 
 // dd/mm/yy as the shop writes it → yyyy-mm-dd.
-function stockIsoFromDmy(d, m, y) {
-  d = +d; m = +m; y = +y;
-  if (y < 100) y += 2000;
-  if (!(d >= 1 && d <= 31 && m >= 1 && m <= 12)) return null;
-  return y + '-' + String(m).padStart(2, '0') + '-' + String(d).padStart(2, '0');
-}
 
 function stockTokens(text) {
   var src = String(text).replace(/(\d)\s*[x×*X]\s*(\d)/g, '$1×$2');
   var re = /(\d{1,2})\/(\d{1,2})\/(\d{2,4})\/?|(\d+(?:\.\d+)?)\s*(days?)\b|(\d+(?:\.\d+)?)|([+\-=×])|([A-Za-z][A-Za-z0-9.]*)|(\S)/gi;
   var out = [], m;
   while ((m = re.exec(src))) {
-    if (m[1]) out.push({ t: 'date', v: stockIsoFromDmy(m[1], m[2], m[3]) });
+    if (m[1]) out.push({ t: 'date', v: isoFromDmy(m[1], m[2], m[3]) });
     else if (m[4]) out.push({ t: 'days', v: +m[4] });
     else if (m[6]) out.push({ t: 'num', v: +m[6], s: m[6] });
     else if (m[7]) out.push({ t: 'op', v: m[7] });
@@ -238,7 +232,7 @@ function parseStockMessage(text) {
         out.sentBy = wa[4].trim();
         // Copied timestamps follow the phone's locale; day-first unless impossible.
         var a = +wa[1], b = +wa[2];
-        out.sentOn = a > 12 ? stockIsoFromDmy(a, b, wa[3]) : b > 12 ? stockIsoFromDmy(b, a, wa[3]) : stockIsoFromDmy(a, b, wa[3]);
+        out.sentOn = a > 12 ? isoFromDmy(a, b, wa[3]) : b > 12 ? isoFromDmy(b, a, wa[3]) : isoFromDmy(a, b, wa[3]);
       }
       line = wa[5];
     }
@@ -252,7 +246,7 @@ function parseStockMessage(text) {
     if (cur) { cur.raw += '\n' + line.trim(); return; }
     out.header.push(line.trim());
     var dre = /(\d{1,2})\/(\d{1,2})\/(\d{2,4})/g, dm, found = false;
-    while ((dm = dre.exec(line))) { var iso = stockIsoFromDmy(dm[1], dm[2], dm[3]); if (iso) { dates.push(iso); found = true; } }
+    while ((dm = dre.exec(line))) { var iso = isoFromDmy(dm[1], dm[2], dm[3]); if (iso) { dates.push(iso); found = true; } }
     var rest = line.replace(/\d{1,2}\/\d{1,2}\/\d{2,4}\/?/g, '').replace(/[\s\-–\/]+/g, ' ').trim();
     if (!found && !/(STOCK|USE)/.test(stockKey(rest)) && rest) out.unread.push(line.trim());
   });
@@ -283,17 +277,13 @@ function stockCfg() {
 }
 function stockUid(p) { return p + Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
 function stockItem(id) { return stockData().items.find(function(i) { return i.id === id; }) || null; }
-function stockIsoAdd(iso, days) {
-  var d = new Date(iso + 'T00:00:00'); d.setDate(d.getDate() + days);
-  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
-}
 // Days in a window, Sundays out — the shop's own divisor (16–22 Sep is "6 day").
 function stockWorkingDays(from, to) {
   if (!from || !to || to < from) return 1;
   var n = 0, d = from;
   for (var guard = 0; d <= to && guard < 400; guard++) {
     if (new Date(d + 'T00:00:00').getDay() !== 0) n++;
-    d = stockIsoAdd(d, 1);
+    d = isoAddDays(d, 1);
   }
   return Math.max(1, n);
 }
@@ -348,7 +338,7 @@ function stockRate(item) {
   var kinds = item.basis === 'charge' ? ['charged', 'used'] : ['used'];
   var list = stockItemEntries(item.id).filter(function(e) { return kinds.indexOf(e.kind) >= 0; });
   if (!list.length) return null;
-  var last = list[list.length - 1].date, cut = stockIsoAdd(last, -20);
+  var last = list[list.length - 1].date, cut = isoAddDays(last, -20);
   var qty = 0, days = 0;
   list.forEach(function(e) { if (e.date >= cut) { qty += e.qty; days += (e.days || 1); } });
   if (!days) return null;
@@ -936,7 +926,7 @@ function stockSaveManual() {
     if (m.mode === 'used' || m.mode === 'charged') { rec.days = 1; rec.from = m.date; }
     if (m.mode === 'charged' && m.bath) rec.note = m.bath;
     if (m.mode === 'count') {
-      var before = stockReplay(id, stockIsoAdd(m.date, 1)).level;
+      var before = stockReplay(id, isoAddDays(m.date, 1)).level;
       if (before != null && stockRound(before) !== stockRound(q)) gaps++;
     }
     st.entries.push(rec);

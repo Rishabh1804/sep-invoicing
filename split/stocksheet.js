@@ -47,7 +47,7 @@ function stockSheetSupHtml(iso, filled) {
           var d = e.days > 1 ? e.days : 0;
           return d ? d + ' × ' + _ssQty(stockRound(e.qty / d)) + ' = ' + _ssQty(e.qty) : _ssQty(e.qty) + (e.kind === 'charged' && e.note ? ' (' + e.note + ')' : '');
         }).join(', ');
-        cells[3] = _ssQty(stockReplay(l.item.id, attAddDays(iso, 1)).level);
+        cells[3] = _ssQty(stockReplay(l.item.id, isoAddDays(iso, 1)).level);
       }
     }
     return '<tr><td class="inv-as-tick">' + l.n + ')</td><td>' + escHtml(l.item.name) + '</td><td>' + escHtml(l.item.unit || '') + '</td>' +
@@ -67,7 +67,7 @@ function stockSheetSupHtml(iso, filled) {
 
 /* Deepak's form, blank or filled with the day's entries. */
 function stockSheetDeepakHtml(iso, filled) {
-  var lines = stockSheetLines(), next = attAddDays(iso, 1), bills = [];
+  var lines = stockSheetLines(), next = isoAddDays(iso, 1), bills = [];
   var dayEntries = filled ? (stockData().entries || []).filter(function(e) { return e.date === iso && !e.voided; }) : [];
   var rows = lines.map(function(l) {
     var start = stockReplay(l.item.id, iso).level;

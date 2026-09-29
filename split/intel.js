@@ -49,7 +49,7 @@ function statsRangeIso(period) {
 }
 function statsWorkingDays(from, to) {
   var n = 0, d = from;
-  for (var g = 0; d <= to && g < 4000; g++) { if (new Date(d + 'T00:00:00').getDay() !== 0) n++; d = stockIsoAdd(d, 1); }
+  for (var g = 0; d <= to && g < 4000; g++) { if (new Date(d + 'T00:00:00').getDay() !== 0) n++; d = isoAddDays(d, 1); }
   return n;
 }
 /* Fixed and variable, from the live cost: fixed is the monthly crew's days and

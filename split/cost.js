@@ -101,13 +101,6 @@ function stockBillSave() {
 }
 
 /* ---------- The pattern of a line ---------- */
-function stockMedian(a) {
-  var s = a.slice().sort(function(x, y) { return x - y; });
-  if (!s.length) return null;
-  var m = Math.floor(s.length / 2);
-  return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
-}
-function stockDaysApart(a, b) { return Math.round((new Date(b + 'T00:00:00') - new Date(a + 'T00:00:00')) / 86400000); }
 
 function stockPattern(item) {
   var buys = stockPurchases(item.id);
@@ -134,15 +127,15 @@ function stockPattern(item) {
   var dates = stockItemEntries(item.id).filter(function(e) { return e.kind === 'received' || e.kind === 'bill'; })
     .map(function(e) { return e.billDate || e.date; }).sort();
   var events = [];
-  dates.forEach(function(d) { if (!events.length || stockDaysApart(events[events.length - 1], d) > 3) events.push(d); });
+  dates.forEach(function(d) { if (!events.length || isoDaysBetween(events[events.length - 1], d) > 3) events.push(d); });
   if (events.length) out.lastBought = events[events.length - 1];
   if (events.length >= 2) {
     var gaps = [];
-    for (var i = 1; i < events.length; i++) gaps.push(stockDaysApart(events[i - 1], events[i]));
-    out.cadence = stockMedian(gaps);
-    out.nextDue = stockIsoAdd(out.lastBought, Math.round(out.cadence));
+    for (var i = 1; i < events.length; i++) gaps.push(isoDaysBetween(events[i - 1], events[i]));
+    out.cadence = numMedian(gaps);
+    out.nextDue = isoAddDays(out.lastBought, Math.round(out.cadence));
   }
-  var today = localDateStr(), cut = stockIsoAdd(today, -30);
+  var today = localDateStr(), cut = isoAddDays(today, -30);
   stockItemEntries(item.id).forEach(function(e) { if ((e.kind === 'used' || e.kind === 'charged') && e.date > cut) out.used30 += e.qty; });
   if (out.rate && out.rate.rate && out.last) {
     out.costDay = gstRound(out.rate.rate * out.last.e.price);
@@ -202,7 +195,7 @@ function costMonthShare(month, from, to) {
   var start = month + '-01', end = payMonthEnd(start);
   var a = from > start ? from : start, b = to < end ? to : end;
   if (a > b) return 0;
-  return (stockDaysApart(a, b) + 1) / (stockDaysApart(start, end) + 1);
+  return (isoDaysBetween(a, b) + 1) / (isoDaysBetween(start, end) + 1);
 }
 
 /* Every row is MEASURED where the record exists and FILLED from its model rate
@@ -212,7 +205,7 @@ function costMonthShare(month, from, to) {
    stretch as zero made the plant look cheapest exactly where least was known:
    a quarter with one power bill read as a quarter that used one month's power. */
 function liveCost(from, to, kg) {
-  var cfg = costModelCfg(), days = stockDaysApart(from, to) + 1, rows = [];
+  var cfg = costModelCfg(), days = isoDaysBetween(from, to) + 1, rows = [];
   // What the bank paid, the second instrument (bank.js loads after this file; read at call time).
   var bk = typeof bankCostForRange === 'function' && bankData().rows.length ? bankCostForRange(from, to) : null;
   var per = function(v) { return kg > 0 ? v / kg : null; };
@@ -288,7 +281,7 @@ function liveCost(from, to, kg) {
   // How much of the period the stock record covers.
   var firstStock = null;
   stockData().entries.forEach(function(e) { if (!e.voided && e.kind !== 'bill' && (!firstStock || e.date < firstStock)) firstStock = e.date; });
-  var coveredDays = !firstStock || firstStock > to ? 0 : firstStock <= from ? days : stockDaysApart(firstStock, to) + 1;
+  var coveredDays = !firstStock || firstStock > to ? 0 : firstStock <= from ? days : isoDaysBetween(firstStock, to) + 1;
   var stockMissing = 1 - coveredDays / days;
   var stockWhat = coveredDays ? (days - coveredDays) + ' of ' + days + ' days before the stock record starts (' + stockShortDate(firstStock) + ')' : 'no stock record in this period';
 
@@ -342,7 +335,7 @@ function liveCost(from, to, kg) {
     months.forEach(function(mo) {
       var start = mo + '-01', end = payMonthEnd(start);
       var a = from > start ? from : start, z = to < end ? to : end;
-      var rangeShare = (stockDaysApart(a, z) + 1) / days;
+      var rangeShare = (isoDaysBetween(a, z) + 1) / days;
       var mine = bills.filter(function(b) { return b.month === mo; });
       var bm = !mine.length && bk ? bk[kind].months.find(function(x) { return x.month === mo; }) : null;
       if (bm) {

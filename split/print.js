@@ -269,13 +269,15 @@ function printFit() {
 }
 window.addEventListener('resize', printFit);
 
-/* Print on a Created invoice's preview moves it to Printed; the print dialog cannot say whether the paper came out,
-   so a sheet never printed is put back by hand (the state is only a step forward). */
+/* Print on a Created invoice's preview moves it to Printed, and the screen under the preview shows it at once (the
+   row, the pane, Home's recent invoices). The print dialog cannot say whether the paper came out, so a print that
+   never came out is put back with Not printed on the invoice (invNotPrinted). */
 function printMarkPrinted() {
   var inv = _printInvId && S.invoices.find(function(i) { return i.id === _printInvId; });
   if (!inv || inv.status === 'cancelled' || getInvState(inv) !== 'created') return;
   invSetState(inv, 'printed');
   saveState();
+  invStateShown(inv.id);
 }
 
 function closePrintPreview() {

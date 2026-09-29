@@ -260,17 +260,7 @@ function challanFlagHtml(client, item, idx) {
     ' placeholder="' + (item.flagReason === 'other' ? 'What was it? (recommended)' : 'Note (optional)') + '" aria-label="Note on the flag"></div>';
 }
 
-function recalcChallanLine(item, client) {
-  if (!client) { item.amount = gstRound((item.qty || 0) * (item.rate || 0)); return; }
-  if (client.billingMode === 'piece' && item.unit === 'NOS') {
-    // Amount entered directly for NOS piece mode
-    if (item.qty > 0 && item.amount > 0) {
-      item.rate = gstRound(item.amount / item.qty);
-    }
-  } else {
-    item.amount = gstRound((item.qty || 0) * (item.rate || 0));
-  }
-}
+function recalcChallanLine(item, client) { linePrice(item, client, (_challanForm && _challanForm.challanDate) || localDateStr()); }
 
 function addChallanLine() {
   if (!_challanForm) return;

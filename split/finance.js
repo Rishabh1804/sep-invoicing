@@ -47,14 +47,12 @@ function renderFinance() {
 
 /* The overview is read at a glance: whole rupees. Every tab behind it keeps the paise. */
 function finRs(v) { var n = Math.round(Number(v) || 0); return (n < 0 ? '-' : '') + '₹' + Math.abs(n).toLocaleString('en-IN'); }
-function finPl(n, one, many) { return n + ' ' + (n === 1 ? one : (many || one + 's')); }
 
 /* ---------- Months ---------- */
 function finYm(iso) { return String(iso || '').slice(0, 7); }
 function finNextMonth(ym) { var d = new Date(ym + '-01T00:00:00'); d.setMonth(d.getMonth() + 1); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0'); }
 /* The last n months, this one included, oldest first. */
 function finMonths(n) { return insMonthsBack(n - 1).concat([localDateStr().slice(0, 7)]); }
-function finDaysAgo(iso) { return Math.round((new Date(localDateStr() + 'T00:00:00') - new Date(iso + 'T00:00:00')) / 86400000); }
 
 /* ---------- Cash ---------- */
 /* Per month on the statement: money in, money out, and the balance the month closed on. */
@@ -75,7 +73,7 @@ function finAgeing(recv) {
   recv.forEach(function(r) {
     r.open.forEach(function(o) {
       // An invoice dated ahead of today (raised for tomorrow's despatch) is not yet owed at all, never "over 90".
-      var age = Math.max(0, finDaysAgo(o.date)), b = bands.find(function(x) { return age >= x.lo && age <= x.hi; }) || bands[bands.length - 1];
+      var age = Math.max(0, isoDaysBetween(o.date, localDateStr())), b = bands.find(function(x) { return age >= x.lo && age <= x.hi; }) || bands[bands.length - 1];
       b.amount = gstRound(b.amount + o.due); b.n++;
     });
   });
@@ -171,7 +169,7 @@ function finOverviewHtml() {
   var rows = bankRows(), cls = bankClassify(rows), has = rows.length > 0;
   var recv = has ? bankReceivables(cls) : [];
   var owed = gstRound(recv.reduce(function(s, r) { return s + Math.max(0, r.owed); }, 0));
-  var last = has ? rows[rows.length - 1] : null, stale = last ? finDaysAgo(last.date) : 0;
+  var last = has ? rows[rows.length - 1] : null, stale = last ? isoDaysBetween(last.date, localDateStr()) : 0;
   var months = finCashByMonth(rows);
   var paidMonth = months.length ? months[months.length - 1] : null;
   var gst = finGstByMonth(insMonthsBack(1), cls)[0];
@@ -185,7 +183,7 @@ function finOverviewHtml() {
     tile('Bank balance', last ? formatCurrency(last.balance) : '&mdash;', last ? 'on ' + escHtml(formatDate(last.date)) + (stale > 7 ? ' · statement ' + stale + ' days old' : '') : 'no statement imported',
       last && last.balance < 0 ? 'danger' : last && stale > 7 ? 'warning' : '', 'balance') +
     // Unplaced receipts are money in that no client is credited with, so the figure reads HIGH until they are placed.
-    tile('Owed to us', has ? formatCurrency(owed) : '&mdash;', has ? (loose ? finPl(loose, 'receipt') + ' not placed: reads high' : finPl(recv.filter(function(r) { return r.owed > 0.005; }).length, 'client') + ' · since ' + escHtml(formatDate(from))) : 'needs a statement',
+    tile('Owed to us', has ? formatCurrency(owed) : '&mdash;', has ? (loose ? todoPlural(loose, 'receipt') + ' not placed: reads high' : todoPlural(recv.filter(function(r) { return r.owed > 0.005; }).length, 'client') + ' · since ' + escHtml(formatDate(from))) : 'needs a statement',
       loose ? 'warning' : '', 'owed') +
     tile('Paid out', paidMonth ? formatCurrency(paidMonth.dr) : '&mdash;', paidMonth ? 'in ' + escHtml(billsMonthLabel(paidMonth.month)) + ' · ' + finRs(paidMonth.cr) + ' came in' : 'needs a statement', '', 'out') +
     tile('GST for ' + escHtml(billsMonthLabel(gst.month)), formatCurrency(gst.due), (function() {
@@ -265,7 +263,7 @@ function finOverviewHtml() {
       h += '<div class="inv-row inv-row-2" data-went-row="' + escHtml(v.row.id) + '"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(v.party || v.row.narration) + '</span>' +
         '<span class="inv-row-meta">' + escHtml(formatDate(v.row.date)) + '</span></span><span class="inv-row-end inv-num">' + formatCurrency(v.row.dr) + '</span></div>';
     });
-    h += '<div class="inv-row"><span class="inv-row-main inv-row-meta">' + finPl(list.length, 'payment') + '</span><span class="inv-row-end">' +
+    h += '<div class="inv-row"><span class="inv-row-main inv-row-meta">' + todoPlural(list.length, 'payment') + '</span><span class="inv-row-end">' +
       '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invFinStatementCat" data-cat="' + escHtml(k.split(':')[0]) + '">Open in the statement</button></span></div></div>';
   });
   h += [['Invoiced', invoiced, 'incl. GST, by invoice date'], ['Received', received, 'from clients'], ['Paid out', Object.keys(byCat).reduce(function(s, k) { return gstRound(s + byCat[k]); }, 0), 'every category']].map(function(x) {
@@ -289,7 +287,7 @@ function finOverviewHtml() {
   h += '<div class="inv-panel inv-panel-flush" id="finOwed"><div class="inv-panel-head"><span class="inv-panel-title">Owed to us</span><span class="inv-panel-count inv-num">' + formatCurrency(owed) + '</span></div>' +
     '<div class="inv-tiles inv-tiles-flush inv-tiles-4">' + bands.map(function(b, i) {
       return '<div class="inv-tile' + (i === 3 && b.amount > 0 ? ' inv-tile-danger' : i === 2 && b.amount > 0 ? ' inv-tile-warning' : '') + '" data-age="' + i + '"><div class="inv-tile-label">' + b.label + '</div>' +
-        '<div class="inv-tile-value inv-tile-value-sm" title="' + escHtml(formatCurrency(b.amount)) + '">' + figWrapHtml(finRs(b.amount)) + '</div><div class="inv-tile-sub">' + finPl(b.n, 'invoice') + '</div></div>';
+        '<div class="inv-tile-value inv-tile-value-sm" title="' + escHtml(formatCurrency(b.amount)) + '">' + figWrapHtml(finRs(b.amount)) + '</div><div class="inv-tile-sub">' + todoPlural(b.n, 'invoice') + '</div></div>';
     }).join('') + '</div>';
   var payHist = bankPayHistory(recv);
   top.forEach(function(r) {
@@ -300,7 +298,7 @@ function finOverviewHtml() {
       '<span class="inv-row-end inv-num">' + figHtml(formatCurrency(r.owed), figToneAge(r.oldestDays)) + '</span></div>';
   });
   if (!top.length) h += '<div class="inv-empty">Nothing owed since ' + escHtml(formatDate(bankRecvFrom())) + '.</div>';
-  if (loose) h += '<div class="inv-panel-body inv-note">' + finPl(loose, 'receipt') + ' with no client ' + (loose === 1 ? 'is' : 'are') + ' not counted yet, so what is owed reads high. ' +
+  if (loose) h += '<div class="inv-panel-body inv-note">' + todoPlural(loose, 'receipt') + ' with no client ' + (loose === 1 ? 'is' : 'are') + ' not counted yet, so what is owed reads high. ' +
     '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invFinLoose">Place them</button></div>';
   h += '</div>';
 

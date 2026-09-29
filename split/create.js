@@ -670,34 +670,7 @@ function addLineItem() {
   renderCreateForm();
 }
 
-function recalcLineItem(item, client) {
-  if (!client) { item.amount = gstRound((item.qty||0) * (item.rate||0)); return; }
-  if (client.billingMode === 'piece' && item.unit === 'NOS') {
-    // Challan passthrough: amount entered directly, rate back-calculated
-    if (item.qty > 0 && item.amount > 0) {
-      item.rate = gstRound(item.amount / item.qty);
-    }
-    // Don't auto-calc amount for NOS piece mode
-  } else if (client.billingMode === 'nos_to_weight' && item.unit === 'NOS') {
-    const pwKey = (item.partNumber || '').toUpperCase();
-    const rateInfo = getLineItemRate(client, invoiceForm.date, item.partNumber);
-    // A part with no weight on record cannot be converted; it is billed per
-    // piece off the client's card (Samarth's brackets), or an override. Before
-    // this the line priced itself at weight 0 × ₹/kg = ₹0.
-    const perPiece = rateInfo._override ? {rate: rateInfo.rate}
-      : (S.partWeights[pwKey] ? null : getPieceRate(client, invoiceForm.date, item.partNumber, item.desc));
-    if (perPiece && perPiece.rate != null) {
-      item.rate = perPiece.rate;
-      item.amount = gstRound((item.qty || 0) * item.rate);
-      return;
-    }
-    const w = (item.qty || 0) * (S.partWeights[pwKey] || 0);
-    item.rate = rateInfo.ratePerKg || 0;
-    item.amount = gstRound(w * item.rate);
-  } else {
-    item.amount = gstRound((item.qty || 0) * (item.rate || 0));
-  }
-}
+function recalcLineItem(item, client) { linePrice(item, client, invoiceForm.date); }
 
 function saveInvoice() {
   const errors = validateInvoice();

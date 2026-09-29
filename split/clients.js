@@ -632,12 +632,6 @@ function _weightFillReportHtml(r) {
        rows: r.mixed.map(function(m) { return [_partGaugeHtml(m), m.lines + ' lines, ' + m.far + ' more than 10% from the middle (' + m.median + ' kg/pc)']; }) }]);
 }
 
-function _median(a) {
-  var v = a.slice().sort(function(x, y) { return x - y; });
-  var h = Math.floor(v.length / 2);
-  return v.length % 2 ? v[h] : (v[h - 1] + v[h]) / 2;
-}
-
 /* A weight is set only where the part was weighed on two or more invoices —
    one weighing is a reading, not a norm. A part where more than a quarter of
    its lines (and at least two) sit 10%+ from the middle is two products under
@@ -667,7 +661,7 @@ function pieceWeightsFromHistory(client) {
     var gr = groups[key];
     if (have[key]) { skippedExisting++; return; }
     if (Object.keys(gr.invs).length < 2) { single++; return; }
-    var m = _median(gr.hits);
+    var m = (numMedian(gr.hits) || 0);
     var far = gr.hits.filter(function(x) {
       var r = x / m, k = Math.round(Math.log10(r));
       if (k !== 0 && Math.abs(r / Math.pow(10, k) - 1) < 0.05) return false;

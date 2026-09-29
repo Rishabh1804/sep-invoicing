@@ -39,13 +39,6 @@ function cpDaysBetween(aIso, bIso) {
   return Math.round((b - a) / 86400000);
 }
 
-function cpMedian(nums) {
-  if (nums.length === 0) return 0;
-  var s = nums.slice().sort(function(a, b) { return a - b; });
-  var m = Math.floor(s.length / 2);
-  return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
-}
-
 /* Every part this client has handled, with the dates it appeared on either
    spine, the weight and the revenue it carried. */
 function cpBuildHistory(clientId) {
@@ -103,7 +96,7 @@ function cpClassify(entry, todayIso) {
 
   var gaps = [];
   for (var i = 1; i < d.length; i++) gaps.push(cpDaysBetween(d[i - 1], d[i]));
-  var typical = cpMedian(gaps);
+  var typical = (numMedian(gaps) || 0);
 
   var out = {
     part: entry.name, key: entry.key, kg: entry.kg, revenue: entry.revenue,
@@ -178,9 +171,6 @@ function cpMonthly(clientId, months) {
 /* ===== VIEW ===== */
 /* A material row: the part, how often and when it was last handled, and what it earned. A stopped
    part says how long it has been gone; a possible rename says so. */
-function _cpMaterialRows(list, renames) {
-  return _cpMaterialRowList(list, renames).join('');
-}
 function _cpMaterialRowList(list, renames) {
   return list.map(function(m) {
     var meta = m.times + '× · last ' + formatDate(m.lastSeen) +

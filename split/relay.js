@@ -28,12 +28,6 @@ var RELAY_GATE = [420, 1140];  // 7 AM – 7 PM, the gate keeper's standing hour
 var RELAY_MORNING = 360;   // 6:00 AM
 var RELAY_NIGHT = 1200;    // 8:00 PM, the night hold's start (owner, 29 Sep 2026: "night hold here means night shift … 8 pm to 6 am")
 
-function relayIso(d, m, y) {
-  d = +d; m = +m; y = +y;
-  if (y < 100) y += 2000;
-  if (!(d >= 1 && d <= 31 && m >= 1 && m <= 12)) return null;
-  return y + '-' + String(m).padStart(2, '0') + '-' + String(d).padStart(2, '0');
-}
 /* ===== LEARNT FROM YOUR CORRECTIONS (owner, 29 Sep 2026: "The parser should learn from feedback and it generates
    feedback by reading if the data was changed after the paste or save") =====
    A row the roll made remembers the heading it came from and what was read (`srcHead`, `srcAreas`, `srcSlot`, `srcFrom`,
@@ -273,7 +267,7 @@ function relaySplit(text) {
       // Copied timestamps follow the phone's locale: day-first unless impossible,
       // and the bracketed iOS export is month-first.
       var monthFirst = /^\s*\[/.test(line) ? a <= 12 : (a <= 12 && b > 12);
-      cur = { sentBy: wa[4].trim(), sentOn: monthFirst ? relayIso(b, a, wa[3]) : relayIso(a, b, wa[3]), lines: [wa[5]] };
+      cur = { sentBy: wa[4].trim(), sentOn: monthFirst ? isoFromDmy(b, a, wa[3]) : isoFromDmy(a, b, wa[3]), lines: [wa[5]] };
       msgs.push(cur);
       return;
     }
@@ -313,7 +307,7 @@ function parseRelayRoll(text, roster, sentOn) {
   var out = { kind: relayKind(text), date: null, days: {}, lines: [], issues: [] };
   var first = lines[0] || '';
   var dm = first.match(/(\d{1,2})\/(\d{1,2})\/(\d{2,4})/);
-  out.date = dm ? relayIso(dm[1], dm[2], dm[3]) : (sentOn || null);
+  out.date = dm ? isoFromDmy(dm[1], dm[2], dm[3]) : (sentOn || null);
   if (!dm) out.issues.push({ tone: 'amber', text: 'The roll carries no date; read as the day it was sent.' });
   var headTimes = relayTimes(first.replace(/\d{1,2}\/\d{1,2}\/\d{2,4}\/?/, ''));
   var st = {
@@ -353,7 +347,7 @@ function parseRelayRoll(text, roster, sentOn) {
     // A date inside the roll: a holiday, or a second day's block ("16/08/26/ Sunday").
     var dd = bare.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})\/?\s*(.*)$/);
     if (dd) {
-      var iso2 = relayIso(dd[1], dd[2], dd[3]);
+      var iso2 = isoFromDmy(dd[1], dd[2], dd[3]);
       if (iso2) {
         // Another message pasted on the end (the chemical stock, say): stop here.
         if (/c[ae]mical|chemical|stock|in\s*-*\s*time|out\s*-*\s*time/i.test(dd[4])) {

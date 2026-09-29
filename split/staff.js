@@ -141,16 +141,6 @@ function attParseIso(iso) {
   return new Date(Number(p[0]), Number(p[1]) - 1, Number(p[2]));
 }
 
-function attIso(d) {
-  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') +
-    '-' + String(d.getDate()).padStart(2, '0');
-}
-
-function attAddDays(iso, n) {
-  var d = attParseIso(iso);
-  d.setDate(d.getDate() + n);
-  return attIso(d);
-}
 
 /* Sunday of the PAY WEEK containing iso. The plant runs Mon–Sat and pays the
    weekly tiers on Saturday; a Sunday worked is paid that coming Saturday, so the
@@ -158,12 +148,12 @@ function attAddDays(iso, n) {
 function attWeekStartOf(iso) {
   var d = attParseIso(iso);
   d.setDate(d.getDate() - d.getDay());   // 0 = Sunday
-  return attIso(d);
+  return isoOf(d);
 }
 /* A pay week is numbered by its Saturday, the payout day — the ISO week the
    payout files are named after (`2026-W38-payout-2026-09-19`). */
 function attPayWeekNumber(weekStartIso) {
-  return attWeekNumber(attAddDays(weekStartIso, 6));
+  return attWeekNumber(isoAddDays(weekStartIso, 6));
 }
 
 /* ISO-8601 week number, so a week here is the same week soma-internal's
@@ -184,7 +174,7 @@ function attDayName(iso) {
    sundays"). */
 function attWeekDays(weekStartIso) {
   var out = [];
-  for (var i = 0; i < 7; i++) out.push(attAddDays(weekStartIso, i));
+  for (var i = 0; i < 7; i++) out.push(isoAddDays(weekStartIso, i));
   return out;
 }
 
@@ -193,7 +183,7 @@ function attDatesInRange(fromIso, toIso) {
   var out = [], cur = fromIso;
   if (!fromIso || !toIso || fromIso > toIso) return out;
   var guard = 0;
-  while (cur <= toIso && guard++ < 4000) { out.push(cur); cur = attAddDays(cur, 1); }
+  while (cur <= toIso && guard++ < 4000) { out.push(cur); cur = isoAddDays(cur, 1); }
   return out;
 }
 
@@ -724,7 +714,7 @@ function _attWeekView() {
       return '<td class="inv-num"' + (attParseIso(d).getDay() === 0 ? ' data-sun' : '') + '>' + n + '<span class="inv-unit">/' + roster.length + '</span></td>';
     }).join('') + '</tr></tfoot></table></div></div>';
 
-  html += renderLabourCard(_attWeekStart, attAddDays(_attWeekStart, 6), 'Week cost');
+  html += renderLabourCard(_attWeekStart, isoAddDays(_attWeekStart, 6), 'Week cost');
   return html;
 }
 
@@ -820,7 +810,7 @@ function attSetView(view) {
 }
 
 function attStepDay(n) {
-  _attDate = attAddDays(_attDate || localDateStr(), n);
+  _attDate = isoAddDays(_attDate || localDateStr(), n);
   renderAttendance();
 }
 
@@ -831,7 +821,7 @@ function attGoToday() {
 }
 
 function attStepWeek(n) {
-  _attWeekStart = attAddDays(_attWeekStart || attWeekStartOf(localDateStr()), n * 7);
+  _attWeekStart = isoAddDays(_attWeekStart || attWeekStartOf(localDateStr()), n * 7);
   renderAttendance();
 }
 

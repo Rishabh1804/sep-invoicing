@@ -72,7 +72,7 @@ function prodSrcWord(e) { return { paste: 'message', photo: 'register photo', ha
 
 /* ---------- Overview ---------- */
 function prodOverviewHtml() {
-  var today = localDateStr(), from = stockIsoAdd(today, -27), idx = prodIndex();
+  var today = localDateStr(), from = isoAddDays(today, -27), idx = prodIndex();
   var lastDay = idx.counted.map(function(e) { return e.date; }).sort().pop() || null;
   var lastKg = 0, lastNos = 0, lastLines = {};
   if (lastDay) PROD_LINES.forEach(function(l) { var r = prodDayLine(lastDay, l); lastKg += r.kg; lastNos += r.nos; if (r.entries.length) lastLines[l] = true; });
@@ -90,7 +90,7 @@ function prodOverviewHtml() {
     '</div>';
   // Plated by line, four weeks, kg by day. A day not recorded, or under 90% weighed, is a gap — never a zero.
   var labels = [], series = PROD_LINES.map(function(l) { return { label: PROD_LINE_LABEL[l], values: [] }; });
-  for (var d = from; d <= today; d = stockIsoAdd(d, 1)) {
+  for (var d = from; d <= today; d = isoAddDays(d, 1)) {
     if (new Date(d + 'T00:00:00').getDay() === 0) continue;
     labels.push(stockShortDate(d));
     PROD_LINES.forEach(function(l, i) { var r = prodDayLine(d, l); series[i].values.push(r.entries.length && r.weighedShare >= 0.9 ? Math.round(r.kg) : null); });
@@ -227,7 +227,7 @@ function prodLinesHtml() {
   h += '<div class="inv-panel-body inv-note">One record counts per shift: the register, else the supervisor’s relay, else an entry by hand. The others are shown as also reported and never added: they count the same work a different way.</div></div>';
   // The pay week around the day: what each line plated, a gap where nothing was recorded.
   var ws = attWeekStartOf(day), wd = [];
-  for (var k = 0; k < 7; k++) wd.push(stockIsoAdd(ws, k));
+  for (var k = 0; k < 7; k++) wd.push(isoAddDays(ws, k));
   h += '<div class="inv-panel inv-panel-flush" id="prodWeek"><div class="inv-panel-head"><span class="inv-panel-title">The week, plated</span></div><div class="inv-scroll-x"><table class="inv-table"><thead><tr><th class="inv-col-grow">Line</th>' +
     wd.map(function(d) { return '<th class="inv-num">' + escHtml(new Date(d + 'T00:00:00').toLocaleDateString('en-IN', { weekday: 'short' })) + '</th>'; }).join('') + '</tr></thead><tbody>' +
     PROD_LINES.map(function(l) {
@@ -236,7 +236,7 @@ function prodLinesHtml() {
         return '<td class="inv-num">' + (x.entries.length ? escHtml(x.nos ? Math.round(x.nos).toLocaleString('en-IN') : formatNum(x.kg, 0) + ' kg') : '&mdash;') + '</td>';
       }).join('') + '</tr>';
     }).join('') + '</tbody></table></div><div class="inv-panel-body inv-note">Pieces plated (kilograms where the line was weighed, not counted). A dash is a day with no record for the line.</div></div>';
-  var lab = prodLabourByLine(stockIsoAdd(localDateStr(), -29), localDateStr()), L = lab.lines[line];
+  var lab = prodLabourByLine(isoAddDays(localDateStr(), -29), localDateStr()), L = lab.lines[line];
   h += '<div class="inv-panel inv-panel-flush" id="prodLabour"><div class="inv-panel-head"><span class="inv-panel-title">Labour per kg, 30 days</span></div>' +
     '<div class="inv-row inv-row-2"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(PROD_LINE_LABEL[line]) + '</span><span class="inv-row-meta">' +
     escHtml(L.days + ' day' + (L.days === 1 ? '' : 's') + ' with attendance and a weighed record · ' + formatCurrency(L.cost) + ' on ' + formatNum(L.kg, 0) + ' kg') + '</span></span>' +
@@ -254,7 +254,7 @@ function prodRunRowHtml(e, muted) {
 
 /* ---------- Entries ---------- */
 function prodEntriesHtml() {
-  var idx = prodIndex(), f = _prodFilter, from = stockIsoAdd(localDateStr(), -60);
+  var idx = prodIndex(), f = _prodFilter, from = isoAddDays(localDateStr(), -60);
   var chips = [['', 'All'], ['pickled', 'Pickled'], ['plated', 'Plated'], ['arrived', 'Arrived'], ['downtime', 'Power cuts']];
   var flags = [['unknown', 'Line unknown'], ['noclient', 'No client'], ['nochallan', 'No challan']];
   var h = '<div class="inv-toolbar" role="group" aria-label="Show">' + chips.map(function(c) {
@@ -283,7 +283,7 @@ function prodEntriesHtml() {
 function prodHasChallan(e) {
   var k = prodEntryKey(e), fk = prodFamilyKey(e.clientId, e.partNumber || e.part, e.gauge);
   return (S.incomingMaterial || []).some(function(m) {
-    return String(m.clientId) === String(e.clientId) && (m.challanDate || '') <= stockIsoAdd(e.date, 1) && (m.items || []).some(function(it) {
+    return String(m.clientId) === String(e.clientId) && (m.challanDate || '') <= isoAddDays(e.date, 1) && (m.items || []).some(function(it) {
       return prodChallanKey(m, it) === k || prodFamilyKey(m.clientId, it.partNumber || it.desc, prodGaugeOf(it.partNumber, it.desc)) === fk;
     });
   });
@@ -737,7 +737,7 @@ function prodAction(action, btn) {
     case 'invProdLine': _prodLine = btn.dataset.line; renderProduction(); return true;
     case 'invProdDay': {
       var base = _prodDay || localDateStr();
-      _prodDay = stockIsoAdd(base, +btn.dataset.step);
+      _prodDay = isoAddDays(base, +btn.dataset.step);
       renderProduction(); return true;
     }
     case 'invProdDayLast': _prodDay = null; renderProduction(); return true;

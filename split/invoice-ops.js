@@ -675,8 +675,40 @@ function toggleRegSortDir() {
 function openInvoiceDetail(invId) {
   const inv = S.invoices.find(i => i.id === invId);
   if (!inv) return;
-  dialogOpen('<div class="inv-dialog">' + dialogHeadHtml('Invoice <span class="inv-id">' + escHtml(inv.displayNumber) + '</span>') +
-    invoiceDetailHtml(inv) + '</div>', { dismiss: true });
+  dialogOpen(_invDetailSheetHtml(inv), { dismiss: true });
+}
+function _invDetailSheetHtml(inv) {
+  return '<div class="inv-dialog" data-inv-detail="' + escHtml(inv.id) + '">' + dialogHeadHtml('Invoice <span class="inv-id">' + escHtml(inv.displayNumber) + '</span>') +
+    invoiceDetailHtml(inv) + '</div>';
+}
+
+/* A state set anywhere shows at once wherever the invoice is drawn (owner, 29 Sep 2026: "the invoice state change to
+   printed should be immediately once the invoice is printed and when I mark it dispatched the state should change
+   immediately, right now I have to refresh or switch tabs"). After Print nothing was redrawn, and a mark redrew only
+   the Register, so Home's recent invoices, a client, a challan or the To-do kept the old state under the sheet. The
+   page is redrawn in place, and a sheet open on the invoice is redrawn on its new step rather than closed. A page
+   holding typed work (a form in progress, IM's challan form) keeps it and shows the change on the next move. */
+function invStateShown(invId) {
+  var inv = S.invoices.find(function(i) { return i.id === invId; });
+  _tabDirty.home = true;
+  _tabDirty.register = true;
+  var sheets = Array.prototype.filter.call(document.querySelectorAll('.inv-scrim-dialog [data-inv-detail]'), function(d) { return d.getAttribute('data-inv-detail') === invId; });
+  var hadFocus = sheets.some(function(d) { return d.contains(document.activeElement); });
+  keepScroll(function() {
+    if (!_pageTyped && !(typeof _challanForm !== 'undefined' && _challanForm)) tabRedrawActive();
+    if (inv) sheets.forEach(function(d) {
+      var tmp = document.createElement('div');
+      tmp.innerHTML = _invDetailSheetHtml(inv);
+      d.parentNode.replaceChild(tmp.firstChild, d);
+    });
+  });
+  // The button pressed is gone with the step it named: focus goes to the next one, else the sheet's close.
+  var act = document.activeElement;
+  if (hadFocus && !(act && act.closest && act.closest('[data-inv-detail]'))) {
+    var sheet = Array.prototype.find.call(document.querySelectorAll('.inv-scrim-dialog [data-inv-detail]'), function(d) { return d.getAttribute('data-inv-detail') === invId; });
+    var to = sheet && (sheet.querySelector('[data-action="invAdvanceState"]') || sheet.querySelector('.inv-dialog-close'));
+    if (to) to.focus({ preventScroll: true });
+  }
 }
 
 /* The count and the taxable of what the filter shows (cancelled invoices bill nothing). */
@@ -737,7 +769,10 @@ function invoiceDetailHtml(inv) {
         return '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invAdvanceState" data-id="' + escHtml(inv.id) + '" data-state="' + st + '">Mark ' +
           escHtml(INV_STATE_LABELS[st]).toLowerCase() + '</button>';
       };
-      h += '<div class="inv-row"><span class="inv-row-actions">' + adv(INV_STATES[curIdx + 1]) + (cur === 'created' ? adv('dispatched') : '') + '</span></div>';
+      // Print cannot tell whether the paper came out: a Printed invoice can be put back (invNotPrinted).
+      h += '<div class="inv-row"><span class="inv-row-actions">' + adv(INV_STATES[curIdx + 1]) + (cur === 'created' ? adv('dispatched') : '') +
+        (cur === 'printed' ? '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invNotPrinted" data-id="' + escHtml(inv.id) + '">Not printed</button>' : '') +
+        '</span></div>';
     }
   }
 

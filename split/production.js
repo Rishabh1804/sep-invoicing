@@ -46,7 +46,7 @@ function prodCtx() {
 /* Which clients a part has come from, off the challans and invoices of the last year: part key → client ids. A load
    with no client written whose part only one client has ever sent ("LINER", "188 CD") is read as that client, amber. */
 function prodPartOwners() {
-  var since = stockIsoAdd(localDateStr(), -365), out = {};
+  var since = isoAddDays(localDateStr(), -365), out = {};
   var add = function(cid, part) {
     if (cid == null || !part) return;
     var k = prodPartKey(part);
@@ -256,7 +256,7 @@ function prodMatchAll(idx) {
         ids.forEach(function(id) { used[id] = true; });
         return;
       }
-      var next = loads[li + 1], nextWd = stockIsoAdd(load.date, new Date(load.date + 'T00:00:00').getDay() === 6 ? 2 : 1);
+      var next = loads[li + 1], nextWd = isoAddDays(load.date, new Date(load.date + 'T00:00:00').getDay() === 6 ? 2 : 1);
       var got = [], sum = 0;
       pool.forEach(function(p) {
         if (used[p.id]) return;
@@ -339,7 +339,7 @@ function prodCompleteDays(from, to) {
   var att = S.attendance || {}, out = [];
   var gen = {};
   prodIndex().counted.forEach(function(e) { if (e.slot !== 'ot' && e.line) (gen[e.date] = gen[e.date] || {})[e.line] = true; });
-  for (var d = from, g = 0; d <= to && g < 400; d = stockIsoAdd(d, 1), g++) {
+  for (var d = from, g = 0; d <= to && g < 400; d = isoAddDays(d, 1), g++) {
     var day = att[d];
     if (!day || !day.marks) continue;
     var staffed = {};
@@ -384,7 +384,7 @@ function prodDayLine(date, line) {
    beside the book's receipts, never merged into them. */
 function prodInPlant(opts) {
   opts = opts || {};
-  var idx = prodIndex(), today = localDateStr(), since = opts.since || stockIsoAdd(today, -30);
+  var idx = prodIndex(), today = localDateStr(), since = opts.since || isoAddDays(today, -30);
   var lines = [], byKey = {}, invDate = {};
   (S.invoices || []).forEach(function(v) { if (v && v.id) invDate[v.id] = v.date || ''; });
   (S.incomingMaterial || []).forEach(function(m) {
@@ -437,7 +437,7 @@ function prodInPlant(opts) {
       // Everything is set against the line in the unit it is shown in: pieces wherever it has a count.
       var lu = r.R.NOS != null ? 'NOS' : 'KG', f = 1;
       if (lu !== u) { if (!r.kpp) return; f = u === 'KG' ? 1 / r.kpp.kg : r.kpp.kg; }
-      if (r.date && r.date > stockIsoAdd(e.date, 1)) return;
+      if (r.date && r.date > isoAddDays(e.date, 1)) return;
       if (r.closedOn !== undefined && (!r.closedOn || r.closedOn < e.date)) return;
       var room = r.R[lu] - r[field][lu];
       if (room <= 0) return;
@@ -502,7 +502,7 @@ var PROD_LINE_AREAS = { 'vat-a1': ['vat-a1'], 'vat-a2': ['vat-a2'], barrel: ['ba
 function prodLabourByLine(from, to) {
   var res = {}, skipped = 0, skippedCost = 0, days = 0;
   PROD_LINES.forEach(function(l) { res[l] = { cost: 0, kg: 0, days: 0 }; });
-  for (var d = from, g = 0; d <= to && g < 120; d = stockIsoAdd(d, 1), g++) {
+  for (var d = from, g = 0; d <= to && g < 120; d = isoAddDays(d, 1), g++) {
     if (!S.attendance || !S.attendance[d]) continue;
     var lab = labourForRange(d, d), areas = lab.byArea || {}, used = false;
     var dayKg = {};
@@ -528,10 +528,10 @@ var PROD_RULES = [['prodPlatedUnbilled', 'Production: plated and not invoiced'],
 PROD_RULES.forEach(function(r) { TODO_RULES.push(r); TODO_CHECK_DEFAULTS[r[0]] = true; });
 TODO_CHECK_DEFAULTS.prodPlatedDays = 3;
 function prodGo(tab, extra) { return Object.assign({ kind: 'production', tab: tab }, extra || {}); }
-function prodWorkingDaysBetween(a, b) { var n = 0; for (var d = stockIsoAdd(a, 1), g = 0; d <= b && g < 400; d = stockIsoAdd(d, 1), g++) if (new Date(d + 'T00:00:00').getDay() !== 0) n++; return n; }
+function prodWorkingDaysBetween(a, b) { var n = 0; for (var d = isoAddDays(a, 1), g = 0; d <= b && g < 400; d = isoAddDays(d, 1), g++) if (new Date(d + 'T00:00:00').getDay() !== 0) n++; return n; }
 
 TODO_RULE_FNS.prodPlatedUnbilled = function() {
-  var cfg = todoCfg(), N = cfg.prodPlatedDays || 3, today = localDateStr(), since = stockIsoAdd(today, -45);
+  var cfg = todoCfg(), N = cfg.prodPlatedDays || 3, today = localDateStr(), since = isoAddDays(today, -45);
   var idx = prodIndex(), byClient = {};
   var own = idx.counted.filter(function(e) { return e.src !== 'import' && !e.rework && e.date >= since && e.qty != null && e.clientId != null; });
   if (!own.length) return [];
@@ -561,7 +561,7 @@ TODO_RULE_FNS.prodPlatedUnbilled = function() {
   });
 };
 TODO_RULE_FNS.prodPickledNoChallan = function() {
-  var today = localDateStr(), since = stockIsoAdd(today, -30), idx = prodIndex();
+  var today = localDateStr(), since = isoAddDays(today, -30), idx = prodIndex();
   var own = idx.live.filter(function(e) { return e.kind === 'pickled' && e.src !== 'import' && !e.rework && e.date >= since && prodWorkingDaysBetween(e.date, today) >= 1; });
   if (!own.length) return [];
   var byClient = {}, outside = [];
@@ -569,7 +569,7 @@ TODO_RULE_FNS.prodPickledNoChallan = function() {
     if (e.clientId == null) { outside.push(e); return; }
     var k = prodEntryKey(e), fk = prodFamilyKey(e.clientId, e.partNumber || e.part, e.gauge), found = false;
     (S.incomingMaterial || []).some(function(m) {
-      if (String(m.clientId) !== String(e.clientId) || (m.challanDate || '') > stockIsoAdd(e.date, 1)) return false;
+      if (String(m.clientId) !== String(e.clientId) || (m.challanDate || '') > isoAddDays(e.date, 1)) return false;
       return (m.items || []).some(function(it) {
         var ck = prodChallanKey(m, it);
         // A named part must be on the challan by name; only a load naming just the kind and gauge matches by family.

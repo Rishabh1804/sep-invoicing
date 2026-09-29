@@ -142,7 +142,11 @@ function renderAddChallanForm() {
   // Focus last, so nothing above can steal it back. Auto-focusing the client
   // search is only right on a fresh open — restoring beats it every other time.
   if (!_challanRestoreFocus(focusTarget) && cs) {
-    setTimeout(function() { cs.focus(); }, 100);
+    // Never from a field somebody is already in: a tap within the delay would have its typing moved to the search.
+    setTimeout(function() {
+      var a = document.activeElement;
+      if (cs.isConnected && !(a && a !== cs && a.matches && a.matches('input, textarea, select'))) cs.focus();
+    }, 100);
   }
 }
 

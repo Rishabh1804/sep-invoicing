@@ -18,7 +18,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <!-- Appearance before first paint (§3.2): the device's theme and palette, so nothing flashes in the wrong colours. -->
 <script>(function(){try{var d=document.documentElement,t=localStorage.getItem("sep_inv_theme"),p=localStorage.getItem("sep_inv_palette");if(t==="light"||t==="dark")d.dataset.theme=t;d.dataset.palette=(p==="zinc"||p==="terracotta")?p:"teal";}catch(e){document.documentElement.dataset.palette="teal";}})();</script>
-<meta name="app-build" content="aa188a6e">
+<meta name="app-build" content="fb7bd236">
 <style>
 /* ===== DESIGN TOKENS (design system v2.0 — docs/SEP_INVOICING_DESIGN_PRINCIPLES.md §3) ===== */
 /* Theme: colour-scheme decides every light-dark() below. <html data-theme> is set before first paint
@@ -29621,7 +29621,11 @@ function renderAddChallanForm() {
   // Focus last, so nothing above can steal it back. Auto-focusing the client
   // search is only right on a fresh open — restoring beats it every other time.
   if (!_challanRestoreFocus(focusTarget) && cs) {
-    setTimeout(function() { cs.focus(); }, 100);
+    // Never from a field somebody is already in: a tap within the delay would have its typing moved to the search.
+    setTimeout(function() {
+      var a = document.activeElement;
+      if (cs.isConnected && !(a && a !== cs && a.matches && a.matches('input, textarea, select'))) cs.focus();
+    }, 100);
   }
 }
 
@@ -31621,7 +31625,8 @@ document.addEventListener('focusout', function(e) {
     var next = dx < 0 ? idx + 1 : idx - 1;
     if (next < 0 || next >= TAB_ORDER.length) return;
 
-    switchTab(TAB_ORDER[next]);
+    // A swipe leaves the screen like a tap on the bar does: unsaved work asks first (nav.js).
+    navLeaveOk().then(function(ok) { if (ok) switchTab(TAB_ORDER[next]); });
   }, { passive: true });
 })();
 
@@ -31825,13 +31830,38 @@ function navSoon() {
   _navTimer = setTimeout(navSync, 0);
 }
 
-/* Leaving a form with unsaved work asks first. A form is a screen showing its Save in the sticky action bar. */
-function navFormDirty() { return !!_pageTyped && !!document.querySelector('.inv-page-active .inv-actionbar'); }
+/* Leaving a form with unsaved work asks first. A form is a screen showing its Save in the sticky action bar: the challan
+   form, Stock's and Production's paste checks and hand entry, the register photo's check. Create is not asked for: its
+   form stays as typed when the app leaves it, and is there on coming back. */
+function navFormDirty() {
+  return !!_pageTyped && navPageOf() !== 'pageCreate' && !!document.querySelector('.inv-page-active .inv-actionbar');
+}
 function navLeaveOk() {
   if (!navFormDirty()) return Promise.resolve(true);
   return uiConfirm({ title: 'Leave without saving?', body: 'What you typed on this screen has not been saved. Stay to finish and save it, or leave it.',
     okLabel: 'Leave', cancelLabel: 'Stay', danger: true }).then(function(ok) { if (ok) _pageTyped = false; return ok; });
 }
+
+/* A tap that leaves the screen: the phone bar, the sidebar, the More sheet, a view tab, a sub-view's back button. With
+   unsaved work on screen it asks first (owner, 29 Sep 2026: "that's a real bug" — only the browser's Back asked, and a
+   tap on another screen dropped a half-typed challan). On Leave the same tap runs again with nothing typed left to lose.
+   Caught before events.js sees it (capture), so the screen is never left and then asked about. */
+var NAV_LEAVE_ACTIONS = { invSwitchTab: 1, invSideGo: 1, invStockBack: 1, invProdBack: 1, invAttView: 1, invDashStockView: 1 };
+function navIsLeave(el) {
+  // A tab inside a dialog moves within the dialog, not off the screen.
+  return !!(el && el.dataset && !el.closest('.inv-scrim-dialog') && (NAV_LEAVE_ACTIONS[el.dataset.action] || el.getAttribute('role') === 'tab'));
+}
+document.addEventListener('click', function(e) {
+  var el = e.target && e.target.closest ? e.target.closest('[data-action]') : null;
+  if (!navIsLeave(el) || !navFormDirty()) return;
+  e.preventDefault();
+  e.stopPropagation();
+  _navHold++;
+  navLeaveOk().then(function(ok) {
+    _navHold--;
+    if (ok && el.isConnected) el.click();
+  });
+}, true);
 
 /* Back over a layer: the top one closes, a dialog holding typed work asking first. */
 function navCloseLayer() {

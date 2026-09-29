@@ -311,7 +311,8 @@ one file is also a valid **maskable** icon. Masters are SVG, one per palette
   to go back to. Every screen, view tab, sub-view and pane record is a step in the browser's history, so the arrow,
   the phone's back gesture, the browser's back, `Alt+←` and Backspace (never from a field) walk one trail. A dialog,
   the More sheet and a print preview are one step over the screen, so back closes them; a form with unsaved work (a
-  field typed on a screen showing its action bar) asks *Leave without saving?* with **Stay** first.
+  field typed on a screen showing its action bar) asks *Leave without saving?* with **Stay** first, on Back and on any
+  tap or swipe that leaves it (the bars, a view tab, a sub-view's back button). Create's form stays as typed and asks nothing.
 - **Top bar** (`--bar-h`, `--surface`, bottom hairline): page title (`--t-title`), then at most **two**
   actions on the right — the view's primary action and one secondary (or an icon button) — then the
   Settings icon button, on every screen (built 26 Sep 2026; a Settings reachable from Home only cost a

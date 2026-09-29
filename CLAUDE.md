@@ -127,7 +127,7 @@ every session start — nothing to set up by hand. CI (`build-sync`) is the back
 ### Tests
 
 ```bash
-pnpm exec playwright test          # 742 tests, both layouts
+pnpm exec playwright test          # 750 tests, both layouts
 ```
 
 Some sandboxes ship a Chromium build Playwright does not expect and block downloading
@@ -164,10 +164,13 @@ the app from anywhere. `nav.js`:
 - **A layer is one step over the screen**: a dialog, the More sheet, a print preview. Back closes the top one; a dialog
   holding typed work asks first (`dialogLeaveOk`), Settings asks its own way (`closeSettings`). Shut any other way, its
   step is marked `skip` and back passes over it.
-- **A form with unsaved work asks before back leaves it** (*Leave without saving?*, **Stay** first): a field typed on a
-  screen that shows its Save in the action bar (Create, the challan form, a paste check, Enter by hand). Stay puts the
-  browser back on the form's step. A sidebar or tab tap still leaves as before (the Create form keeps its lines; the
-  challan form is dropped): that guard is not built.
+- **A form with unsaved work asks before anything leaves it** (*Leave without saving?*, **Stay** first): a field typed on a
+  screen that shows its Save in the action bar (the challan form, a paste check, Enter by hand, the register photo's
+  check). Back asks (Stay puts the browser back on the form's step), and so does a **tap that leaves** — the phone bar
+  (the form's own screen included, whose redraw drops the form), the sidebar, a screen in the More sheet, a view tab, a
+  sub-view's back button — and a swipe (owner, 29 Sep 2026: *"that's a real bug"*; only Back asked, and a tap dropped a
+  half-typed challan). The tap is caught before `events.js` sees it (`NAV_LEAVE_ACTIONS`, a capture listener in nav.js)
+  and runs again on Leave. **Create asks nothing**: its form stays as typed when the app leaves it. P103.
 - **IM's two lists are view tabs**: *Awaiting invoice* (the default, a part-invoiced challan included) and *Invoiced*,
   which goes back a month at a time by challan date (`imSetTab`, `imMonthShown`). A link to a challan opens the tab and
   month it is under (`imShowChallanTab`). **Swiping** follows the phone bar and then More in its order

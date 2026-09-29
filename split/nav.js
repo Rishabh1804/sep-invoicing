@@ -198,13 +198,38 @@ function navSoon() {
   _navTimer = setTimeout(navSync, 0);
 }
 
-/* Leaving a form with unsaved work asks first. A form is a screen showing its Save in the sticky action bar. */
-function navFormDirty() { return !!_pageTyped && !!document.querySelector('.inv-page-active .inv-actionbar'); }
+/* Leaving a form with unsaved work asks first. A form is a screen showing its Save in the sticky action bar: the challan
+   form, Stock's and Production's paste checks and hand entry, the register photo's check. Create is not asked for: its
+   form stays as typed when the app leaves it, and is there on coming back. */
+function navFormDirty() {
+  return !!_pageTyped && navPageOf() !== 'pageCreate' && !!document.querySelector('.inv-page-active .inv-actionbar');
+}
 function navLeaveOk() {
   if (!navFormDirty()) return Promise.resolve(true);
   return uiConfirm({ title: 'Leave without saving?', body: 'What you typed on this screen has not been saved. Stay to finish and save it, or leave it.',
     okLabel: 'Leave', cancelLabel: 'Stay', danger: true }).then(function(ok) { if (ok) _pageTyped = false; return ok; });
 }
+
+/* A tap that leaves the screen: the phone bar, the sidebar, the More sheet, a view tab, a sub-view's back button. With
+   unsaved work on screen it asks first (owner, 29 Sep 2026: "that's a real bug" — only the browser's Back asked, and a
+   tap on another screen dropped a half-typed challan). On Leave the same tap runs again with nothing typed left to lose.
+   Caught before events.js sees it (capture), so the screen is never left and then asked about. */
+var NAV_LEAVE_ACTIONS = { invSwitchTab: 1, invSideGo: 1, invStockBack: 1, invProdBack: 1, invAttView: 1, invDashStockView: 1 };
+function navIsLeave(el) {
+  // A tab inside a dialog moves within the dialog, not off the screen.
+  return !!(el && el.dataset && !el.closest('.inv-scrim-dialog') && (NAV_LEAVE_ACTIONS[el.dataset.action] || el.getAttribute('role') === 'tab'));
+}
+document.addEventListener('click', function(e) {
+  var el = e.target && e.target.closest ? e.target.closest('[data-action]') : null;
+  if (!navIsLeave(el) || !navFormDirty()) return;
+  e.preventDefault();
+  e.stopPropagation();
+  _navHold++;
+  navLeaveOk().then(function(ok) {
+    _navHold--;
+    if (ok && el.isConnected) el.click();
+  });
+}, true);
 
 /* Back over a layer: the top one closes, a dialog holding typed work asking first. */
 function navCloseLayer() {

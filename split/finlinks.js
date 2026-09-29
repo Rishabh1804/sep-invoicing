@@ -111,7 +111,8 @@ function renderFinHomeCard() {
     tile('bank', '', 'Balance', last.balance, 'on ' + escHtml(finShortDate(last.date)) + (age > 7 ? ', ' + age + ' days ago' : ''), last.balance < 0 ? 'danger' : age > 7 ? 'warning' : '') +
     tile('receipts', loose ? 'bankLoose' : '', 'Owed to us', owed, loose ? loose + ' receipt' + (loose === 1 ? '' : 's') + ' not placed'
       : old90 > 0 ? finRs(old90) + ' over 90 days' : old60 > 0 ? finRs(old60) + ' over 60 days' : 'since ' + escHtml(finShortDate(bankRecvFrom(rows))),
-      old90 > 0 ? 'danger' : loose || old60 > 0 ? 'warning' : '') +
+      // Never red while a receipt is unplaced: that money may be in already, and the sub line names the receipts (owed90).
+      loose ? 'warning' : old90 > 0 ? 'danger' : old60 > 0 ? 'warning' : '') +
     (book && book.median != null ? '<button class="inv-tile' + (figTonePaysIn(book.median) ? ' inv-tile-' + figTonePaysIn(book.median) : '') + '" data-action="invFinGo" data-tab="receipts" data-home-fin="Pays in"><div class="inv-tile-label">Pays in</div>' +
       '<div class="inv-tile-value inv-tile-value-sm">' + Math.round(book.median) + ' days</div><div class="inv-tile-sub">the book, invoice to receipt' +
       (book.median > 60 ? ' · over two months' : book.median > 30 ? ' · over a month' : '') + '</div></button>' : '') +

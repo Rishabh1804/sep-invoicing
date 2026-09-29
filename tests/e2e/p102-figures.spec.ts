@@ -123,6 +123,21 @@ test.describe('P102: on the screens', () => {
     await expect(recv.locator('.inv-row-meta .inv-fig-ok')).toHaveText('20 d');
   });
 
+  test('Money: with a receipt not placed, owed over 90 days is amber, and says why', async ({ page }) => {
+    const s = base();
+    s.invoices = [inv(1, day(-100), 5000, 500)];
+    const row = (id: number, date: string, narration: string, dr: number, cr: number) =>
+      ({ id: 'BK-' + id, date, valueDate: date, narration, chq: '', dr, cr, balance: 250000, dayIdx: id, importId: 'BI' });
+    // A deposit nobody has placed: it may be this client's money, so the debt is not called red yet (owed90's rule).
+    const rows = [row(1, day(-120), 'SMS CHARGES', 10, 0), row(2, day(-10), 'NEFT-UNKNOWN TRADERS', 0, 3000), row(3, day(-1), 'SMS CHARGES', 10, 0)];
+    s.bank = { rows, imports: [{ id: 'BI', at: 1, file: 't.xls', account: '', from: rows[0].date, to: rows[2].date, rows: 3, added: 3, closing: 250000 }], parties: {}, opening: {}, gstNotes: {} };
+    await loadAppWithState(page, s as SepState);
+    const owed = page.locator('#homeFin [data-home-fin="Owed to us"]');
+    await expect(owed).toContainText('not placed');
+    await expect(owed).toHaveClass(/inv-tile-warning/);
+    await expect(owed).not.toHaveClass(/inv-tile-danger/);
+  });
+
   test('Attendance: on site against the rest-day gate', async ({ page }) => {
     const s = base();
     s.staff = [{ id: 1, name: 'Arun', comp: 'hourly', hourRate: 50, area: 'barrel', onFloor: true, active: true },

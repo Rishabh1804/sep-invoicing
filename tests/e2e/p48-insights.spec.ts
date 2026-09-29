@@ -121,5 +121,9 @@ test.describe('P48: insights, predictions and the reorder list', () => {
     const text = await g(page, `stockReorderText(stockReorderList())`);
     expect(text).toContain('Alpha:');
     expect(text).toContain('1) Brightener 60 L');
+    // Not a form: its fields saved as they changed, so leaving it asks nothing (P103's guard).
+    await page.locator('[data-action="invStockBack"]').click();
+    await expect(page.locator('#stockLeadDays')).toHaveCount(0);
+    await expect(page.locator('[data-ui-ask]')).toHaveCount(0);
   });
 });

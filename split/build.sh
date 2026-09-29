@@ -55,6 +55,7 @@ JS_SOURCES=(
     "$DIR/todo.js" \
     "$DIR/relay.js" \
     "$DIR/attsheet.js" \
+    "$DIR/stocksheet.js" \
     "$DIR/prodparse.js" \
     "$DIR/stats.js" \
     "$DIR/intel.js" \

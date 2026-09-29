@@ -177,6 +177,8 @@ function onDocClick(e) {
     case 'invClosePrint': closePrintPreview(); break;
     case 'invAttSheetOpen': attSheetOpen(); break;
     case 'invAttSheetPreview': attSheetPreview(); break;
+    case 'invStockSheetOpen': stockSheetOpen(); break;
+    case 'invStockSheetPreview': stockSheetPreview(); break;
     case 'invPrint': printMarkPrinted(); window.print(); break;
     // Quality certificate — one page per invoice line, single or bulk
     case 'invQualityCert': closeOverlay(); showQualityCertificates([btn.dataset.id]); break;

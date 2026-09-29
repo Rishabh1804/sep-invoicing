@@ -34,7 +34,7 @@ Workforce management and invoicing PWA for **Soma Electro Products**, a zinc ele
 
 ## Architecture
 
-Split-file PWA. 55 modules, ~30,600 lines total.
+Split-file PWA. 56 modules, ~30,600 lines total.
 
 ```
 split/
@@ -75,6 +75,7 @@ split/
 ├── todo.js            ← To-do: your tasks + tasks raised from the data, Home card, Windows widget payload (726 lines)
 ├── relay.js           ← Attendance rolls: in/out-time WhatsApp parser, review, merge into the day; the one paste box (~800 lines)
 ├── attsheet.js        ← Attendance sheets to print: Shyam's roll, Deepak's Day entry, the day as entered (~170 lines)
+├── stocksheet.js      ← Stock sheets to print: the supervisor's message, Enter by hand, the day as entered (~150 lines)
 ├── prodparse.js       ← Production messages read (pure): pickling loads, barrel list, a roll's block, the register (~570 lines)
 ├── stats.js           ← Stats dashboard + History activity log (1,195 lines)
 ├── intel.js           ← Stats tabs; Overview at the live cost; six months; contribution by client (~230 lines)
@@ -95,7 +96,7 @@ split/
 └── init.js            ← Migrations + app bootstrap (567 lines)
 ```
 
-**Concat order defined in build.sh.** Dependencies: data → state → appearance → zinc → tabs → clients → items → create → settings → github-sync → invoice-ops → number-audit → exports → im → autocomplete → print → quality-cert → credit-note → charts → staff → labour → areas → payroll → stock → cost → bills → xls → xlsx → bank → finance → todo → relay → attsheet → prodparse → stats → intel → insights → finintel → finlinks → dash → production → prodview → client-perf → im-form → im-dupe → vision → scanner → events → swipe → seed → init.
+**Concat order defined in build.sh.** Dependencies: data → state → appearance → zinc → tabs → clients → items → create → settings → github-sync → invoice-ops → number-audit → exports → im → autocomplete → print → quality-cert → credit-note → charts → staff → labour → areas → payroll → stock → cost → bills → xls → xlsx → bank → finance → todo → relay → attsheet → stocksheet → prodparse → stats → intel → insights → finintel → finlinks → dash → production → prodview → client-perf → im-form → im-dupe → vision → scanner → events → swipe → seed → init.
 
 **Every module shares one global scope.** A top-level `var` or `function` in a later module silently replaces one of
 the same name in an earlier one; nothing warns. `bills.js` shipped a `STOCK_UNITS` array over `stock.js`'s unit map
@@ -125,7 +126,7 @@ every session start — nothing to set up by hand. CI (`build-sync`) is the back
 ### Tests
 
 ```bash
-pnpm exec playwright test          # 707 tests, both layouts
+pnpm exec playwright test          # 710 tests, both layouts
 ```
 
 Some sandboxes ship a Chromium build Playwright does not expect and block downloading
@@ -202,7 +203,7 @@ filter on; a literal date in a fixture is a time bomb, not a constant.
 |----|------|
 | HR-1 | No inline styles. CSS classes + design tokens. |
 | HR-2 | No inline onclick. data-action delegation only. |
-| HR-3 | inv- CSS prefix on every class. 455 classes, all of them (distinct class selectors in `split/styles.css`, comments stripped, 29 Sep 2026: the sixteen `inv-as-*` of the attendance sheets added); P76 asserts every class the app draws is one of them or a named hook. |
+| HR-3 | inv- CSS prefix on every class. 456 classes, all of them (distinct class selectors in `split/styles.css`, comments stripped, 29 Sep 2026: the seventeen `inv-as-*` of the attendance and stock sheets added); P76 asserts every class the app draws is one of them or a named hook. |
 | HR-4 | No emojis. Inline SVGs in HTML template. |
 | HR-5 | escHtml() on all user-data innerHTML. |
 | HR-6 | CSS design tokens only. No raw px/rem/hex/timing. |
@@ -1956,6 +1957,21 @@ on an Overview built from the Phase 2 charts.
   - one line's price trend;
   - the reorder list's cash against the forecast.
 - Entry keeps its doors. Home → Attendance opens Day, and Paste message and Enter by hand sit on both Stock tabs.
+
+### Stock on paper
+Stock → **Print sheets** (`stocksheet.js`; owner, 29 Sep 2026: *"the same for Stock as that has enter by hand option as
+well. Plus, we need physical copy for record keeping"*), for a day picked in the dialog (today first), on the attendance
+sheets' page styles, each page one A4 sheet (P97):
+- **The supervisor's sheet** is his WhatsApp stock message on paper: *From / To*, then one row per line **numbered as his
+  last message numbered it** (`lastPos`; a line never in a message follows on, then three spare numbers), with Opening,
+  Added (date · qty), Used (days × a day = total), Available and a note. **The names are printed** (they are the shop's
+  chemicals, not people), and a fixed number beside each settles the line his message sometimes sends with no name.
+- **Deepak's sheet** is Enter by hand on paper, the four kinds as columns: the **app's level at the start of the day**
+  (`stockReplay(id, day)`, so a count is checked on the spot), Count, Received and its ₹ per unit, Used, Charged (into),
+  the delivery bill (company, invoice no., date, lines), and *Filled by the supervisor · Checked by Deepak · Entered in the
+  app by / on*.
+- **The filled copy** carries every entry the app holds for the day, pasted or by hand (a voided one never reaches paper),
+  two on one line joined with +, the bills grouped by invoice, and the **level after** the day.
 
 ### Stock reorder list
 More → Stock → **Reorder list** (owner, 25 Sep 2026). For each line with a daily use:

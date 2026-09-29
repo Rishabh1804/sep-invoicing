@@ -615,6 +615,8 @@ function stockToolbarHtml() {
   var lines = _stockView !== 'overview';
   return '<div class="inv-toolbar"><button class="inv-btn inv-btn-primary" data-action="invStockPaste">Paste message</button>' +
     '<button class="inv-btn inv-btn-secondary" data-action="invStockManual">Enter by hand</button>' +
+    // The paper route for the day: the supervisor's message, Deepak's entry, the day as entered (stocksheet.js).
+    '<button class="inv-btn inv-btn-secondary" data-action="invStockSheetOpen">Print sheets</button>' +
     (lines ? '<button class="inv-btn inv-btn-ghost" data-action="invStockReorder">Reorder list</button>' +
       '<button class="inv-btn inv-btn-ghost" data-action="invStockExport">Export</button>' +
       '<button class="inv-btn inv-btn-ghost" data-action="invStockImport">Import</button>' +

@@ -770,9 +770,68 @@ function showCreditNotePreview(cnId) {
     : '';
   body.innerHTML = banner + buildCreditNoteHtml(cn);
   document.getElementById('invPrintView').classList.add('inv-print-view-active');
+  _printInvId = null;
+  printFit();
   document.body.style.overflow = 'hidden';
   document._savedTitle = document.title;
   document.title = cn.displayNumber.replace(/\//g, '-') + ' - ' + (cn.clientName || 'SEP');
+}
+
+/* ===== AN INVOICE'S CREDIT NOTES (owner, 29 Sep 2026: "see quickly if a credit note has been raised against an
+   invoice and hovering could show the reason why … makes the app tabs more interlinked, which makes it easier to look
+   for patterns and data errors, so the issue can be flagged early") =====
+   A note touches an invoice two ways: it is taken AGAINST it (the one number on the customer's copy), or the invoice is
+   IN ITS BATCH (a rebate's annex). A cancelled note credits nothing and is left out. */
+function cnLinksForInvoice(inv) {
+  if (!inv) return [];
+  var out = [];
+  getCreditNotes().forEach(function(cn) {
+    if (cn.status === 'cancelled') return;
+    var against = cn.againstInvoiceId ? cn.againstInvoiceId === inv.id
+      : !!(cn.againstInvoice && cn.againstInvoice === inv.displayNumber);
+    var inBatch = (cn.invoiceIds || []).indexOf(inv.id) >= 0;
+    if (against || inBatch) out.push({ cn: cn, role: against ? 'against' : 'batch' });
+  });
+  return out;
+}
+// Why the note was raised, in words.
+function cnWhy(cn) {
+  if (cnIsRebate(cn) && !cn.recorded && cn.discountPct) {
+    var n = (cn.invoiceIds || []).length;
+    return 'Batch rebate ' + cn.discountPct + '% on ' + n + ' invoice' + (n === 1 ? '' : 's') +
+      (cn.periodFrom ? ', ' + formatDate(cn.periodFrom) + (cn.periodTo && cn.periodTo !== cn.periodFrom ? ' – ' + formatDate(cn.periodTo) : '') : '');
+  }
+  return cn.reason || (cnIsRebate(cn) ? 'Batch rebate' : 'Credit note');
+}
+function cnLinkLine(l) {
+  return l.cn.displayNumber + ' · ' + (l.role === 'against' ? 'against this invoice' : 'in its batch') + ' · ' + cnWhy(l.cn) +
+    ' · ' + formatCurrency(l.cn.grandTotal);
+}
+// The mark on an invoice's row: "CN", its notes and reasons on hover (and read out).
+function cnInvoiceMarkHtml(inv) {
+  var links = cnLinksForInvoice(inv);
+  if (!links.length) return '';
+  var text = links.map(cnLinkLine).join('\n');
+  return '<span class="inv-badge inv-badge-info" data-cn-mark title="' + escHtml(text) + '" aria-label="' + escHtml('Credit notes: ' + text) + '">CN' +
+    (links.length > 1 ? ' ' + links.length : '') + '</span>';
+}
+// The invoice detail's own list: each note, why, and the way to open it.
+function cnInvoiceDetailHtml(inv) {
+  var links = cnLinksForInvoice(inv);
+  if (!links.length) return '';
+  return '<div class="inv-row-group"><span>Credit notes · ' + links.length + '</span></div>' + links.map(function(l) {
+    return '<div class="inv-row" data-cn-link="' + escHtml(l.cn.id) + '"><button class="inv-row-main" data-action="invCnPreview" data-id="' + escHtml(l.cn.id) + '">' +
+      '<span class="inv-row-title"><span class="inv-id">' + escHtml(l.cn.displayNumber) + '</span> · ' + (l.role === 'against' ? 'against this invoice' : 'in its batch') + '</span>' +
+      '<span class="inv-row-meta">' + escHtml(formatDate(l.cn.date) + ' · ' + cnWhy(l.cn)) + '</span></button>' +
+      '<span class="inv-row-end inv-num">' + formatCurrency(l.cn.grandTotal) + '</span></div>';
+  }).join('');
+}
+
+// The live invoice a note is taken against, if it is still in the register.
+function cnAgainstLive(cn) {
+  return (S.invoices || []).find(function(i) {
+    return cn.againstInvoiceId ? i.id === cn.againstInvoiceId : !!(cn.againstInvoice && i.displayNumber === cn.againstInvoice);
+  }) || null;
 }
 
 /* ===== LIST ===== */
@@ -812,6 +871,8 @@ function renderCreditNoteList() {
           // Only a batch has invoices to choose among. A recorded note carries the number
           // printed on the customer's copy, and "Clear" would erase it for good.
           (batch ? '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invCnSetAgainst" data-id="' + escHtml(cn.id) + '">Reference</button>' : '') +
+          // The invoice it is taken against, one tap away (the invoice shows its notes back).
+          (cnAgainstLive(cn) ? '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invViewInvoiceDetail" data-id="' + escHtml(cnAgainstLive(cn).id) + '">Invoice</button>' : '') +
           '<button class="inv-btn inv-btn-danger inv-btn-sm" data-action="invCnCancel" data-id="' + escHtml(cn.id) + '">Cancel</button></span>') +
         '</div>';
     });

@@ -222,6 +222,40 @@ body:not(.inv-booted) { pointer-events: none; }
 /* The words of an in-app confirm, alert or prompt (uiConfirm): as written, line breaks kept. */
 .inv-ask-body { white-space: pre-line; overflow-wrap: anywhere; margin-bottom: var(--sp-12); }
 
+/* ===== ATTENDANCE SHEETS (attsheet.js): printed forms, so the HR-6 print exception — the type, lines and gutters are
+   declared once here in pt and mm and read as var() below. Each page is an A4 sheet that fits one page, so its padding
+   is its gutter on paper too (the @page margin stays 0). ===== */
+.inv-as-page {
+  --as-fs: 9pt; --as-fs-sm: 7.5pt; --as-fs-h: 14pt; --as-fs-slot: 10.5pt;
+  --as-line: 6.5mm; --as-gap: 3mm; --as-pad: 10mm 12mm; --as-rule: 0.5pt; --as-num-w: 6mm;
+  --as-sheet-w: 210mm; --as-sheet-h: 297mm; --as-sign-gap: 10mm;
+  background: #fff; color: #000; font-family: var(--ff-base); font-size: var(--as-fs); line-height: 1.2;
+  width: var(--as-sheet-w); min-height: var(--as-sheet-h); padding: var(--as-pad); margin: 0 auto var(--sp-16);
+  border: 1px solid var(--border); page-break-after: always; break-after: page;
+}
+.inv-as-page:last-child { page-break-after: auto; break-after: auto; }
+.inv-as-head { display: flex; justify-content: space-between; align-items: baseline; border-bottom: var(--as-rule) solid #000; padding-bottom: 2mm; margin-bottom: var(--as-gap); }
+.inv-as-title { font-size: var(--as-fs-h); font-weight: 700; }
+.inv-as-meta { font-size: var(--as-fs); font-weight: 600; }
+.inv-as-slot { font-size: var(--as-fs-slot); font-weight: 700; margin: var(--as-gap) 0 1.5mm; }
+.inv-as-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--as-gap); }
+.inv-as-box { border: var(--as-rule) solid #000; padding: 1.5mm 2.5mm 2mm; break-inside: avoid; page-break-inside: avoid; }
+.inv-as-box-h { font-weight: 700; border-bottom: var(--as-rule) solid #000; padding-bottom: 1mm; }
+.inv-as-line + .inv-as-box-h { margin-top: var(--as-gap); }
+.inv-as-line { display: flex; align-items: flex-end; height: var(--as-line); border-bottom: var(--as-rule) dotted #000; }
+.inv-as-num { width: var(--as-num-w); font-size: var(--as-fs-sm); color: #444; }
+.inv-as-field { display: flex; gap: 2mm; align-items: flex-end; height: var(--as-line); }
+.inv-as-blank { flex: 1; border-bottom: var(--as-rule) solid #000; }
+.inv-as-table { width: 100%; border-collapse: collapse; }
+.inv-as-table th, .inv-as-table td { border: var(--as-rule) solid #000; padding: 0 1.5mm; height: var(--as-line); text-align: left; }
+.inv-as-table th { font-size: var(--as-fs-sm); }
+.inv-as-table tr { break-inside: avoid; page-break-inside: avoid; }
+.inv-as-table thead { display: table-header-group; }
+.inv-as-table .inv-as-tick { width: var(--as-num-w); text-align: center; font-weight: 700; }
+.inv-as-sign { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--as-gap); margin-top: var(--as-sign-gap); font-size: var(--as-fs-sm); }
+.inv-as-sign > div { border-top: var(--as-rule) solid #000; padding-top: 1mm; }
+.inv-as-note { font-size: var(--as-fs-sm); color: #444; margin-top: 2mm; }
+
 /* ===== PRINT VIEW ===== */
 .inv-print-view {
   display: none; position: fixed; inset: 0; z-index: var(--z-print);
@@ -242,6 +276,9 @@ body:not(.inv-booted) { pointer-events: none; }
 }
 .inv-print-toolbar-btn:active { opacity: 0.7; }
 .inv-print-body { padding: var(--sp-8); }
+/* Every document in the preview is laid out at its paper width and scaled to the screen as a whole
+   (printFit(), print.js), so what is seen is what prints, on a phone as on the desktop. */
+.inv-print-body > * { zoom: var(--pp-zoom, 1); }
 .inv-print-invoice {
   /* The invoice's own type scale, in points, declared once and read as var()
      by every rule below — the same treatment .inv-qc-page and .inv-cn-doc get,
@@ -266,10 +303,16 @@ body:not(.inv-booted) { pointer-events: none; }
   --pi-gutter-top: 10mm;
   --pi-gutter-side: 12mm;
   --pi-gutter-bottom: 8mm;
+  /* The sheet on screen is the sheet on paper: A4 across, its gutters as padding. It was the phone's column
+     (--max-w, 520px) against a layout that needs the page's 186mm, so the preview cut the totals off on the phone
+     and ran past its own border on the desktop, while the print was right (owner, 29 Sep 2026). */
+  --pi-sheet-w: 210mm;
+  --pi-sheet-h: 297mm;
 
-  background: #fff; color: #000; padding: var(--sp-16);
+  background: #fff; color: #000;
+  padding: var(--pi-gutter-top) var(--pi-gutter-side) var(--pi-gutter-bottom);
   font-family: var(--ff-base); font-size: var(--pi-fs-md);
-  max-width: var(--max-w); margin: 0 auto;
+  width: var(--pi-sheet-w); min-height: var(--pi-sheet-h); margin: 0 auto var(--sp-16);
   border: 1px solid var(--border);
 }
 /* Print invoice structure */
@@ -676,7 +719,9 @@ table.inv-qc-grid.inv-qc-no-top { border-top: 0; }
   .inv-scrim, .inv-print-toolbar, #imSelBar, .inv-side { display: none !important; }
   .inv-print-view { position: static; display: block !important; overflow: visible; }
   .inv-print-body { padding: 0; }
-  .inv-print-invoice { border: none; max-width: none; padding: 0 var(--pi-gutter-side); }
+  .inv-print-body > * { zoom: 1; }
+  .inv-as-page { border: none; width: auto; min-height: 0; margin: 0; }
+  .inv-print-invoice { border: none; width: auto; min-height: 0; margin: 0; padding: 0 var(--pi-gutter-side); }
   .inv-pi-frame > thead { display: table-header-group; }
   .inv-pi-frame > tfoot { display: table-footer-group; }
   .inv-pi-frame-head { padding-top: var(--pi-gutter-top); }

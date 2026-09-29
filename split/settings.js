@@ -14,7 +14,7 @@ var SETTINGS_UI_KEY = 'sep_inv_settings_ui';
 
 var SETTINGS_GROUPS = [
   { key: 'business', label: 'Business', secs: ['company', 'bank', 'invoice', 'cn'] },
-  { key: 'checks', label: 'Checks & alerts', secs: ['rateCheck', 'stockAlerts', 'todo'] },
+  { key: 'checks', label: 'Checks & alerts', secs: ['rateCheck', 'invStates', 'stockAlerts', 'todo'] },
   { key: 'costing', label: 'Costing', secs: ['fullCost', 'fallbacks', 'zinc'] },
   { key: 'labour', label: 'Labour', secs: ['overtime', 'rest', 'extra', 'labModel'] },
   { key: 'connections', label: 'Connections', secs: ['metalsKey', 'geminiKey', 'sync'] },
@@ -143,6 +143,34 @@ var SETTINGS_SECS = {
       if (p) S.rateCheck.pct = p;
       if (s) S.rateCheck.stake = gstRound(s);
       if (w) S.rateCheck.weightTol = w;
+    }
+  },
+  invStates: {
+    title: 'Invoice states',
+    summary: function() {
+      var c = invStateCheckCfg();
+      return escHtml('Created ' + c.createdAmber + '/' + c.createdRed + ' d · Printed ' + c.printedAmber + '/' + c.printedRed +
+        ' d · Dispatched ' + c.dispatchedAmber + '/' + c.dispatchedRed + ' d · filing ' + c.fileWarnDays + ' d before due');
+    },
+    body: function() {
+      var c = invStateCheckCfg();
+      var pair = function(st, label) {
+        return _sRow(_sfg(label + ': amber after days', 'setIs' + st + 'A', _sNum('setIs' + st + 'A', c[st + 'Amber'], 1, 1)),
+          _sfg(label + ': red after days', 'setIs' + st + 'R', _sNum('setIs' + st + 'R', c[st + 'Red'], 1, 1)));
+      };
+      return pair('created', 'Created') + pair('printed', 'Printed') + pair('dispatched', 'Dispatched') +
+        _sfg('Delivered: amber this many days before GSTR-1 is due', 'setIsFile', _sNum('setIsFile', c.fileWarnDays, 1, 1));
+    },
+    why: 'An invoice goes Created, Printed, Dispatched, Delivered, Filed. Its dot turns amber, then red, the longer it sits in one state, counted from when it got there. Delivered waits on the return rather than a clock: GSTR-1 for a month is due on the 11th of the next, so it turns amber this many days before and red once the date has passed. Filed is done. Printing an invoice from its preview marks it Printed. Set 29 Sep 2026 at 1/2, 1/2 and 3/7 days, and 3 days before filing.',
+    save: function() {
+      if (!S.invStateCheck) S.invStateCheck = {};
+      ['created', 'printed', 'dispatched'].forEach(function(st) {
+        var a = _sPos('setIs' + st + 'A'), r = _sPos('setIs' + st + 'R');
+        if (a) S.invStateCheck[st + 'Amber'] = a;
+        if (r) S.invStateCheck[st + 'Red'] = r;
+      });
+      var f = _sPos('setIsFile');
+      if (f) S.invStateCheck.fileWarnDays = f;
     }
   },
   stockAlerts: {

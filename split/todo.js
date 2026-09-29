@@ -18,15 +18,16 @@
    queue the app applies. Both directions run on open AND on close: the queue is
    read when the app is shown, the payload is written when it is hidden. */
 
-var TODO_CHECK_DEFAULTS = { stock: true, paste: true, cn: true, power: true, challan: true, dispatch: true, audit: true,
+var TODO_CHECK_DEFAULTS = { stock: true, paste: true, cn: true, cnMatch: true, power: true, challan: true, dispatch: true, audit: true,
   backup: true, zinc: false, pasteDays: 2, challanDays: 5, dispatchDays: 2, backupDays: 7 };
 var TODO_RULES = [
   ['stock', 'A stock line turns red or amber'],
   ['paste', 'No stock message for a while'],
   ['cn', 'A credit-note batch reaches 7 days'],
+  ['cnMatch', 'A credit note does not match its invoice'],
   ['power', 'A month closes without an electricity bill'],
   ['challan', 'A challan is waiting to be billed'],
-  ['dispatch', 'An invoice is still Created'],
+  ['dispatch', 'An invoice is not yet dispatched'],
   ['audit', 'The number audit finds a gap'],
   ['backup', 'No backup for a while'],
   ['zinc', 'The zinc rate is stale']
@@ -167,6 +168,44 @@ var TODO_RULE_FNS = {
     });
     return out;
   },
+  /* A note and its invoice disagree (owner, 29 Sep 2026: link the notes to their invoices so data errors are flagged
+     early). A note linked to an invoice that was cancelled or deleted credits a supply that no longer stands; notes
+     against one invoice that credit more than it billed cannot all be right. A note recorded against a number typed from
+     outside the book (an earlier year) names no invoice here and is not judged. */
+  cnMatch: function() {
+    var out = [], byInv = {};
+    getCreditNotes().forEach(function(cn) {
+      if (cn.status === 'cancelled' || !cn.againstInvoiceId) return;
+      var inv = cnAgainstLive(cn);
+      if (!inv || inv.status === 'cancelled') {
+        out.push({ key: 'cnMatch:' + cn.id, rule: 'cnMatch', tone: 'red',
+          title: cn.displayNumber + ' is against ' + (inv ? 'a cancelled invoice' : 'an invoice no longer in the register'),
+          sub: (cn.againstInvoice || '') + ' · ' + cnWhy(cn),
+          why: 'Credit note ' + cn.displayNumber + ' · ' + formatCurrency(cn.grandTotal),
+          facts: [['Note', cn.displayNumber + ' · ' + formatDate(cn.date)], ['Against', (cn.againstInvoice || '—') + (inv ? ' (cancelled)' : ' (deleted)')],
+            ['Why', cnWhy(cn)], ['Credit', formatCurrency(cn.grandTotal)]],
+          clears: 'Clears itself when the note is set against a live invoice or cancelled.',
+          go: { kind: 'cnList' }, goLabel: 'Open credit notes', sig: cn.id + '|' + (inv ? 'cancelled' : 'gone') });
+        return;
+      }
+      var b = byInv[inv.id] || (byInv[inv.id] = { inv: inv, notes: [], taxable: 0 });
+      b.notes.push(cn);
+      b.taxable = gstRound(b.taxable + (cn.taxableValue || 0));
+    });
+    Object.keys(byInv).forEach(function(id) {
+      var b = byInv[id], billed = b.inv.taxableValue || 0;
+      if (b.taxable <= billed + 0.005) return;
+      out.push({ key: 'cnOver:' + id, rule: 'cnMatch', tone: 'amber',
+        title: 'Credit notes exceed invoice ' + String(b.inv.displayNumber || '').split('/').pop(),
+        sub: b.notes.map(function(c) { return c.displayNumber; }).join(', ') + ' credit ' + formatCurrency(b.taxable) + ' of ' + formatCurrency(billed) + ' taxable',
+        why: 'Credit notes against one invoice · ' + b.inv.clientName,
+        facts: [['Invoice', b.inv.displayNumber + ' · ' + formatCurrency(billed) + ' taxable']].concat(b.notes.map(function(c) {
+          return [c.displayNumber, formatCurrency(c.taxableValue || 0) + ' · ' + cnWhy(c)]; })),
+        clears: 'Clears itself when the notes against it credit no more than it billed.',
+        go: { kind: 'cnList' }, goLabel: 'Open credit notes', sig: id + '|' + b.taxable + '|' + billed });
+    });
+    return out;
+  },
   challan: function() {
     var today = todoToday(), cfg = todoCfg(), byClient = {};
     (S.incomingMaterial || []).forEach(function(im) {
@@ -191,7 +230,7 @@ var TODO_RULE_FNS = {
   dispatch: function() {
     var today = todoToday(), cfg = todoCfg();
     var list = S.invoices.filter(function(i) {
-      if (i.status === 'cancelled' || getInvState(i) !== 'created' || !i.date) return false;
+      if (i.status === 'cancelled' || invStateIdx(getInvState(i)) >= invStateIdx('dispatched') || !i.date) return false;
       var age = todoDaysBetween(i.date, today);
       return age >= cfg.dispatchDays && age <= 30;
     }).sort(function(a, b) { return String(a.date).localeCompare(String(b.date)); });
@@ -199,11 +238,11 @@ var TODO_RULE_FNS = {
     var nums = list.map(function(i) { return String(i.displayNumber || '').split('/').pop(); });
     return [{ key: 'dispatch', rule: 'dispatch', tone: 'info',
       title: list.length === 1 ? 'Mark invoice ' + nums[0] + ' dispatched' : 'Mark ' + list.length + ' invoices dispatched',
-      sub: 'Still Created: ' + nums.slice(0, 4).join(', ') + (nums.length > 4 ? '…' : ''),
+      sub: 'Not yet dispatched: ' + nums.slice(0, 4).join(', ') + (nums.length > 4 ? '…' : ''),
       why: 'Register · rule: ' + cfg.dispatchDays + ' days, last 30 days only',
       facts: [['Invoices', nums.join(', ')], ['Oldest', formatDate(list[0].date)]],
-      clears: 'Clears itself when these invoices move past Created.',
-      go: { kind: 'regState', state: 'created' }, goLabel: 'Open register', sig: list.map(function(i) { return i.id; }).join(',') }];
+      clears: 'Clears itself when these invoices are dispatched.',
+      go: { kind: 'regState', state: list.every(function(i) { return getInvState(i) === 'printed'; }) ? 'printed' : 'created' }, goLabel: 'Open register', sig: list.map(function(i) { return i.id; }).join(',') }];
   },
   audit: function() {
     var a = analyseInvoiceNumbers(), n = (a.unaccounted || []).length;
@@ -556,6 +595,7 @@ function todoGo(go) {
       _costBillOpen = go.month ? { where: 'finance', month: go.month } : false;
       switchTab('pageFinance');
       break;
+    case 'cnList': switchTab('pageRegister'); renderCreditNoteList(); break;
     case 'cnBatch':
       regFilter.clientId = String(go.clientId); regFilter.month = ''; regFilter.search = ''; regFilter.state = '';
       regFilter.dateFrom = go.from; regFilter.dateTo = go.to;

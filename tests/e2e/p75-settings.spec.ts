@@ -21,7 +21,7 @@ test.describe('P75: Settings', () => {
     await load(page);
     await page.locator('[data-action="invOpenSettings"]').first().click();
     const secs = page.locator('#settingsScrim details.inv-panel.inv-panel-fold[data-sec]');
-    expect(await secs.count()).toBe(19);
+    expect(await secs.count()).toBe(20);   // 29 Sep 2026: Invoice states
     // Open every section, so each module's fields (To-do, GitHub sync, appearance, backup) are drawn.
     for (const d of await secs.all()) {
       if (!(await d.evaluate(x => (x as HTMLDetailsElement).open))) await d.locator(':scope > summary').click();

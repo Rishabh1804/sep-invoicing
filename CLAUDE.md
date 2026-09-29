@@ -34,7 +34,7 @@ Workforce management and invoicing PWA for **Soma Electro Products**, a zinc ele
 
 ## Architecture
 
-Split-file PWA. 54 modules, ~30,600 lines total.
+Split-file PWA. 55 modules, ~30,600 lines total.
 
 ```
 split/
@@ -74,6 +74,7 @@ split/
 ├── finance.js         ← Finance: the page, its six tabs, and the Overview read across them (~230 lines)
 ├── todo.js            ← To-do: your tasks + tasks raised from the data, Home card, Windows widget payload (726 lines)
 ├── relay.js           ← Attendance rolls: in/out-time WhatsApp parser, review, merge into the day; the one paste box (~800 lines)
+├── attsheet.js        ← Attendance sheets to print: Shyam's roll, Deepak's Day entry, the day as entered (~170 lines)
 ├── prodparse.js       ← Production messages read (pure): pickling loads, barrel list, a roll's block, the register (~570 lines)
 ├── stats.js           ← Stats dashboard + History activity log (1,195 lines)
 ├── intel.js           ← Stats tabs; Overview at the live cost; six months; contribution by client (~230 lines)
@@ -94,7 +95,7 @@ split/
 └── init.js            ← Migrations + app bootstrap (567 lines)
 ```
 
-**Concat order defined in build.sh.** Dependencies: data → state → appearance → zinc → tabs → clients → items → create → settings → github-sync → invoice-ops → number-audit → exports → im → autocomplete → print → quality-cert → credit-note → charts → staff → labour → areas → payroll → stock → cost → bills → xls → xlsx → bank → finance → todo → relay → prodparse → stats → intel → insights → finintel → finlinks → dash → production → prodview → client-perf → im-form → im-dupe → vision → scanner → events → swipe → seed → init.
+**Concat order defined in build.sh.** Dependencies: data → state → appearance → zinc → tabs → clients → items → create → settings → github-sync → invoice-ops → number-audit → exports → im → autocomplete → print → quality-cert → credit-note → charts → staff → labour → areas → payroll → stock → cost → bills → xls → xlsx → bank → finance → todo → relay → attsheet → prodparse → stats → intel → insights → finintel → finlinks → dash → production → prodview → client-perf → im-form → im-dupe → vision → scanner → events → swipe → seed → init.
 
 **Every module shares one global scope.** A top-level `var` or `function` in a later module silently replaces one of
 the same name in an earlier one; nothing warns. `bills.js` shipped a `STOCK_UNITS` array over `stock.js`'s unit map
@@ -124,7 +125,7 @@ every session start — nothing to set up by hand. CI (`build-sync`) is the back
 ### Tests
 
 ```bash
-pnpm exec playwright test          # 694 tests, both layouts
+pnpm exec playwright test          # 707 tests, both layouts
 ```
 
 Some sandboxes ship a Chromium build Playwright does not expect and block downloading
@@ -201,7 +202,7 @@ filter on; a literal date in a fixture is a time bomb, not a constant.
 |----|------|
 | HR-1 | No inline styles. CSS classes + design tokens. |
 | HR-2 | No inline onclick. data-action delegation only. |
-| HR-3 | inv- CSS prefix on every class. 439 classes, all of them (distinct class selectors in `split/styles.css`, comments stripped, 29 Sep 2026: `inv-toast-info` added); P76 asserts every class the app draws is one of them or a named hook. |
+| HR-3 | inv- CSS prefix on every class. 455 classes, all of them (distinct class selectors in `split/styles.css`, comments stripped, 29 Sep 2026: the sixteen `inv-as-*` of the attendance sheets added); P76 asserts every class the app draws is one of them or a named hook. |
 | HR-4 | No emojis. Inline SVGs in HTML template. |
 | HR-5 | escHtml() on all user-data innerHTML. |
 | HR-6 | CSS design tokens only. No raw px/rem/hex/timing. |
@@ -241,7 +242,22 @@ carry the month's tonnage and ₹/kg next to the revenue, on the same `weighLine
 the status timeline twice); the phone list is grouped by day with each day's taxable; the desktop table drops columns
 in priority by container query and the pane opens on demand, which fixes the survey's squeezed list (40% of the screen,
 Total cut off, client names over three lines — P54 measures it at 1024 and 1280). States read through
-`INV_STATE_TONE` in `state.js`.
+`invStateTone()` in `state.js` (below).
+
+**An invoice's state is Created → Printed → Dispatched → Delivered → Filed, and its dot is coloured by how long it has
+sat there** (owner, 29 Sep 2026: *"an intermediate state between Created and Dispatched that will be printed, which
+changes severity colour for how long it has been on the same state, do the same for every state till they reach the
+final state of Filed"*). **Printed** is set by Print on the invoice's preview (`printMarkPrinted`; only from Created — the
+print dialog cannot say whether paper came out), or by hand; `printedAt` stamps it, like every state
+(`invSetState`, `INV_STATE_AT`). Created may still be dispatched straight away (printed outside the app), from the detail
+or the bulk bar, which now also offers *Printed (n)*. **The tone** (`invStateTone`): Created, Printed and Dispatched turn
+amber, then red, at the days in Settings → Checks & alerts → Invoice states (1/2, 1/2, 3/7), counted from the state's own
+stamp, else the one before it, else the invoice date. **Delivered waits on the return, not a clock**: GSTR-1 for the
+invoice's month is due on the 11th of the next, so it is amber 3 days before and red once past; a delivered invoice from
+the 2nd of the month is not late at day 20. Filed is ok, cancelled danger. The row's dot carries the age in its title,
+the detail's timeline says it (*Printed · 3 days*, *Delivered · GSTR-1 due 11 Oct 2026*), and History logs *printed*.
+Stats' state tiles keep one tone per state (`INV_STATE_TONE`), since they count many invoices. A number is spent from
+Dispatched on, not from Printed. P94.
 **The register sorts by invoice number too** (owner, 26 Sep 2026): the desktop's Invoice column head, and *By date / By
 number* on the phone, where a number sort is grouped by series rather than by day. The order is the series prefix, so
 25-26 comes before 26-27, then the number read as a number, so `100` follows `00099` however it was padded (P70).
@@ -441,8 +457,9 @@ reason, and what the invoice was. The register's **Number audit** walks the whol
 and classifies every number: live / cancelled / voided-with-reason / reissued / **unaccounted**.
 A historical gap is explained in place — no invoice is invented to hang the explanation on.
 
-**`reserved` decides the numbering.** An invoice still in `created` state never left the
-building, so its number returns to the series (the ordinary typo-and-redo flow). Once
+**`reserved` decides the numbering.** An invoice still in `created` or `printed` state never left the
+building, so its number returns to the series (the ordinary typo-and-redo flow; a printed sheet not yet sent is paper
+in the office, not a document the customer holds). Once
 `dispatched`, `delivered` or `filed`, the customer holds a document bearing that number:
 it is spent, `invNextNum` may never walk back over it, and the hole in rule 46's consecutive
 series is what the ledger exists to explain. Reserved voids export at ₹0 in both CSVs — the
@@ -513,6 +530,16 @@ make them differ.
 
 The observations (`10-12` thickness, `TRIYELLOW`) are still the reference's constants, not per-batch
 measurements.
+
+### The print preview is the page
+The preview drew the tax invoice in the phone's column (`--max-w`, 520px) against a layout that needs the page's 186mm:
+on a phone the totals, the challan date and the copy label were cut off, and on the desktop the grid ran past the
+sheet's border, while the printout itself was right (owner, 29 Sep 2026, Android and the Edge app). The invoice is now
+laid out on screen as it is on paper, **210mm across with its gutters as padding** (`--pi-sheet-w`, `--pi-sheet-h`), and
+**every document in the preview is zoomed to fit the screen as a whole** (`printFit()`, print.js, on open and on resize;
+`zoom` on `.inv-print-body > *`, never above life size), the credit note, certificate and sales register included (they
+were A4 already and ran off a phone's edge). In print the zoom is 1 and the sheet's screen width, height and margin are
+reset, so the printed page is unchanged. P94.
 
 ### A tax invoice that runs past one page
 The printed invoice is three copies, each `page-break-after: always`. An invoice with enough line
@@ -776,6 +803,18 @@ the instrument — `soma-internal/operations/credit-notes/README.md:82-83` — s
 unchallenged across three backups and eight surfaces, **one of them this file** — which a fold run
 entirely inside `soma-internal` cannot reach. ⭐⭐ *A sister repo is an out-of-tree surface, and unlike
 a commit message it is editable, so immutability is no defence.*
+
+**An invoice shows its credit notes** (owner, 29 Sep 2026: *"see quickly if a credit note has been raised against an
+invoice and hovering could show the reason why … makes the app tabs more interlinked, which makes it easier to look for
+patterns and data errors, so the issue can be flagged early"*). A note touches an invoice two ways, and both are said:
+taken **against** it (the one number on the customer's copy) or the invoice is **in its batch** (a rebate's annex)
+(`cnLinksForInvoice`, credit-note.js; a cancelled note is left out). A register row, phone and desktop, carries a **CN**
+badge (`cnInvoiceMarkHtml`, `data-cn-mark`) whose title reads each note as *CN/007/26-27 · against this invoice · Batch
+rebate 2% on 14 invoices, 3 Aug – 18 Aug 2026 · ₹4,493.96* (`cnWhy`: a rebate's batch, else the note's reason); the
+invoice detail lists them as rows that open the note (`cnInvoiceDetailHtml`), and the credit note list has an
+**Invoice** button to the invoice it is against. To-do rule **`cnMatch`** flags a note against an invoice since
+cancelled or deleted (red), and notes against one invoice crediting more taxable than it billed (amber); a note recorded
+against a number typed from outside the book names no invoice here and is not judged. P95.
 
 **CN/006 is cancelled**, superseded by CN/007 twenty-six seconds later (`cancelledAt`
 1787222938914 against `createdAt` 1787222964835), both naming the same 14 invoices. Cancelled
@@ -1943,7 +1982,7 @@ is self-contained so it can move to `sep-dashboard` whole.
   line. **Ticked, never deleted**: Done keeps them and can reopen one.
 - **App** — raised from the book (`TODO_RULE_FNS`): a stock line red or amber, no stock figure for 2
   working days, a credit-note batch past 7 days since the client's last note, challans unbilled after 5
-  days (one task per client), invoices still Created after 2 days (last 30 days only), the number audit
+  days (one task per client), invoices not yet dispatched after 2 days (Created or Printed, last 30 days only), the number audit
   finding a gap, no backup (export or GitHub push) for 7 days, and — off by default — a stale zinc rate.
   Each is switchable in Settings → Checks & alerts → To-do. **App tasks cannot be ticked: they clear themselves** when the
   thing is fixed, and every one shows the figures it was raised on and what clears it.
@@ -2035,6 +2074,23 @@ rate ÷ 8 × 1.1, capped at ₹68.20/h), so the older seed understates it.
   same roll twice is refused** by fingerprint (`S.relayPastes` keeps each roll whole). A roll with a
   second message pasted on its end stops there and says so.
 
+
+### The attendance on paper
+Staff → Day → **Print sheets** (`attsheet.js`; owner, 29 Sep 2026: *"one for Shyam and one for Deepak aka Champai … a
+verification route for the attendance and physical copy that I can file for every day for record keeping"*). For the day
+on screen, three documents through the one print view, each page one A4 sheet (P96 measures them under print media):
+- **Shyam's sheet** is his WhatsApp roll on paper. **In time** (front): the 6:00 AM blocks (area, three lines, EXTRA, work
+  done), then the 8:30 AM shift by area in his order (VAT A1, VAT A2, Barrel & pickling, Pickling A1 & A2, Office & gate)
+  with numbered lines running on as he numbers them, an EXTRA box per floor area, and Monthly / Weekly absent. **Out time**
+  (back): who left at 5:00 PM, then four later blocks (out at, area, names, EXTRA, work done), and *Filled by Shyam · Sent
+  on WhatsApp at · Handed to Deepak at*. **Blank lines only** (owner): he writes names as he does on WhatsApp.
+- **Deepak's sheet** is the Day entry on paper: the active roster in the Day view's order (`staffActive`), tier, P / H / A,
+  area, in, out, hours, OT, three rows for anyone not on it, the EXTRA table (area, from, to, crew, hours), and *Filled by
+  Shyam · Checked by Deepak · Entered in the app by / on*.
+- **The filled copy** is Deepak's form carrying what the app holds for the day (a worker marked that day who has since left
+  the roster included), to staple behind the two. It cannot be picked for a day with nothing entered.
+Shyam writes, Deepak transcribes into the app's shape, the owner enters it and files all three: the paper checks the entry.
+Names come from the roster on the device; none is written into the build, and the spec uses made-up ones. English only (owner).
 
 ### Labour and attendance
 The Staff tab. Labour is ₹3.55/kg of an ₹8.55 cost and 42% of it — the largest line in the
@@ -2389,7 +2445,7 @@ Paid holidays count as rest days in the coverage, not as working days nobody typ
 
 ## Settings
 Six groups (owner, 25 Sep 2026: *"Too many things all in one place, no markers, no subdivisions"*):
-**Business** (company, bank, invoice and credit note series), **Checks & alerts** (rate & weight check, stock
+**Business** (company, bank, invoice and credit note series), **Checks & alerts** (rate & weight check, invoice states, stock
 alerts, To-do), **Costing** (full cost, live-cost fallbacks with the chemicals model, zinc rate), **Labour**
 (overtime, rest days & attendance, the extra, modelled labour), **Connections** (metals.dev, Gemini, GitHub sync)
 and **Data & device** (backup, storage, build). The groups are `SETTINGS_GROUPS`, the sections `SETTINGS_SECS`

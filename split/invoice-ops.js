@@ -176,9 +176,8 @@ function getFilteredInvoices() {
         case 'taxable': return dir * ((a.taxableValue || 0) - (b.taxableValue || 0));
         case 'total': return dir * ((a.grandTotal || 0) - (b.grandTotal || 0));
         case 'state': {
-          var so = { created: 0, dispatched: 1, delivered: 2, filed: 3 };
-          va = a.status === 'cancelled' ? -1 : (so[getInvState(a)] || 0);
-          vb = b.status === 'cancelled' ? -1 : (so[getInvState(b)] || 0);
+          va = a.status === 'cancelled' ? -1 : Math.max(0, invStateIdx(getInvState(a)));
+          vb = b.status === 'cancelled' ? -1 : Math.max(0, invStateIdx(getInvState(b)));
           return dir * (va - vb);
         }
         default: va = a.date || ''; vb = b.date || ''; return va < vb ? -dir : va > vb ? dir : 0;
@@ -300,7 +299,7 @@ function renderRegisterToolbar() {
     '<option value="">All clients</option>' + clientOpts + '</select>' +
     '<input type="month" class="inv-input inv-toolbar-item" id="regMonthFilter" value="' + escHtml(regFilter.month || '') + '" aria-label="Filter by month">' +
     '<select class="inv-select inv-toolbar-item" id="regStateFilter" aria-label="Filter by state">' +
-    stateOpt('', 'All states') + stateOpt('created', 'Created') + stateOpt('dispatched', 'Dispatched') +
+    stateOpt('', 'All states') + stateOpt('created', 'Created') + stateOpt('printed', 'Printed') + stateOpt('dispatched', 'Dispatched') +
     stateOpt('delivered', 'Delivered') + stateOpt('filed', 'Filed') + stateOpt('cancelled', 'Cancelled') + '</select>' +
     '</div>' +
     // Explicit range, for an export that does not line up with a calendar month.
@@ -401,7 +400,7 @@ function renderRegisterList() {
         var main = '<span class="inv-row-title inv-id" data-invnum>' + escHtml(inv.displayNumber) + '</span>' +
           '<span class="inv-row-meta">' + escHtml(inv.clientName) + '</span>';
         var end = '<span class="inv-row-end"><span class="inv-row-stack"><span class="inv-num">' + formatCurrency(inv.grandTotal) + '</span>' +
-          getStateDotHtml(inv) + '</span></span>';
+          getStateDotHtml(inv) + cnInvoiceMarkHtml(inv) + '</span></span>';
         // With no tick box the whole row opens the invoice, figures included; with
         // one, the box is its own full-height touch target beside the row.
         html += tickable
@@ -456,7 +455,7 @@ function _buildRegisterTableHtml() {
       '<td class="inv-num inv-col-opt3">' + formatCurrency(inv.taxableValue) + '</td>' +
       '<td class="inv-num inv-col-opt1">' + formatCurrency(gst) + '</td>' +
       '<td class="inv-num">' + formatCurrency(inv.grandTotal) + '</td>' +
-      '<td>' + getStateDotHtml(inv) + '</td></tr>';
+      '<td>' + getStateDotHtml(inv) + ' ' + cnInvoiceMarkHtml(inv) + '</td></tr>';
   });
   return html + '</tbody></table>' + _regExportHtml();
 }
@@ -585,13 +584,14 @@ function _renderRegSelBar() {
   if (ids.length === 0 || (!_isDesktop && !_regSelectMode)) { bar.innerHTML = ''; return; }
 
   // Determine what state transitions are available
-  var canDispatch = 0, canDeliver = 0, canFile = 0, taxable = 0;
+  var canPrint = 0, canDispatch = 0, canDeliver = 0, canFile = 0, taxable = 0;
   ids.forEach(function(id) {
     var inv = S.invoices.find(function(i) { return i.id === id; });
     if (!inv || inv.status !== 'active') return;
     taxable += inv.taxableValue || 0;
     var st = getInvState(inv);
-    if (st === 'created') canDispatch++;
+    if (st === 'created') canPrint++;
+    if (st === 'created' || st === 'printed') canDispatch++;
     if (st === 'dispatched') canDeliver++;
     if (st === 'delivered') canFile++;
   });
@@ -603,6 +603,7 @@ function _renderRegSelBar() {
     return '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="' + action + '"' + (extra || '') + '>' + label + '</button>';
   };
   var btns = '';
+  if (canPrint > 0) btns += b('invRegBulkState', 'Printed (' + canPrint + ')', ' data-state="printed"');
   if (canDispatch > 0) btns += b('invRegBulkState', 'Dispatch (' + canDispatch + ')', ' data-state="dispatched"');
   if (canDeliver > 0) btns += b('invRegBulkState', 'Deliver (' + canDeliver + ')', ' data-state="delivered"');
   if (canFile > 0) btns += b('invRegBulkState', 'File (' + canFile + ')', ' data-state="filed"');
@@ -625,21 +626,17 @@ function regBulkSetState(targetState) {
   var now = Date.now();
   var updated = 0;
 
-  var stateOrder = { created: 0, dispatched: 1, delivered: 2, filed: 3 };
-  var targetIdx = stateOrder[targetState];
-  if (targetIdx == null) return;
+  var targetIdx = invStateIdx(targetState);
+  if (targetIdx < 0) return;
 
   ids.forEach(function(id) {
     var inv = S.invoices.find(function(i) { return i.id === id; });
     if (!inv || inv.status !== 'active') return;
     var curState = getInvState(inv);
-    var curIdx = stateOrder[curState];
-    // Only advance by one step
-    if (curIdx != null && curIdx + 1 === targetIdx) {
-      inv.invoiceState = targetState;
-      if (targetState === 'dispatched') inv.dispatchedAt = now;
-      else if (targetState === 'delivered') inv.deliveredAt = now;
-      else if (targetState === 'filed') inv.filedAt = now;
+    var curIdx = invStateIdx(curState);
+    // One step at a time, except that Created may be dispatched straight away (printed outside the app).
+    if (curIdx >= 0 && (curIdx + 1 === targetIdx || (curState === 'created' && targetState === 'dispatched'))) {
+      invSetState(inv, targetState, now);
       updated++;
     }
   });
@@ -722,19 +719,27 @@ function invoiceDetailHtml(inv) {
   // The lifecycle, once (the phone sheet used to draw it twice).
   if (!d.cancelled) {
     var cur = getInvState(inv), curIdx = INV_STATES.indexOf(cur);
-    var ts = { created: inv.createdAt, dispatched: inv.dispatchedAt, delivered: inv.deliveredAt, filed: inv.filedAt };
     h += '<div class="inv-row-group"><span>Status</span></div>';
     INV_STATES.forEach(function(st, i) {
-      var tone = i < curIdx ? 'ok' : i === curIdx ? INV_STATE_TONE[st] : 'neutral';
-      h += '<div class="inv-row' + (i > curIdx ? ' inv-row-muted' : '') + '"' + (i === curIdx ? ' aria-current="step"' : '') + '>' +
-        '<span class="inv-row-main"><span class="inv-dot inv-dot-' + tone + '">' + escHtml(INV_STATE_LABELS[st]) + (i === curIdx ? ' · now' : '') + '</span></span>' +
-        '<span class="inv-row-end inv-row-meta">' + (ts[st] ? escHtml(formatTimestamp(ts[st])) : '') + '</span></div>';
+      // A step passed is done; the one it is in is coloured by how long it has sat there (invStateTone).
+      var tone = i < curIdx ? 'ok' : i === curIdx ? invStateTone(inv) : 'neutral';
+      var at = inv[INV_STATE_AT[st]];
+      var skipped = i < curIdx && !at && st === 'printed';
+      h += '<div class="inv-row' + (i > curIdx || skipped ? ' inv-row-muted' : '') + '"' + (i === curIdx ? ' aria-current="step"' : '') + '>' +
+        '<span class="inv-row-main"><span class="inv-dot inv-dot-' + (skipped ? 'neutral' : tone) + '">' + escHtml(INV_STATE_LABELS[st]) +
+        (i === curIdx && invStateAgeText(inv) ? ' · ' + escHtml(invStateAgeText(inv)) : i === curIdx ? ' · now' : '') + '</span></span>' +
+        '<span class="inv-row-end inv-row-meta">' + (at ? escHtml(formatTimestamp(at)) : skipped ? 'not recorded' : '') + '</span></div>';
     });
     if (curIdx < INV_STATES.length - 1) {
-      h += '<div class="inv-row"><button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invAdvanceState" data-id="' + escHtml(inv.id) + '">Mark ' +
-        escHtml(INV_STATE_LABELS[INV_STATES[curIdx + 1]]).toLowerCase() + '</button></div>';
+      var adv = function(st) {
+        return '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invAdvanceState" data-id="' + escHtml(inv.id) + '" data-state="' + st + '">Mark ' +
+          escHtml(INV_STATE_LABELS[st]).toLowerCase() + '</button>';
+      };
+      h += '<div class="inv-row"><span class="inv-row-actions">' + adv(INV_STATES[curIdx + 1]) + (cur === 'created' ? adv('dispatched') : '') + '</span></div>';
     }
   }
+
+  h += cnInvoiceDetailHtml(inv);
 
   h += '<div class="inv-row-group"><span>Lines · ' + d.items.length + '</span></div><div data-lines>';
   d.items.forEach(function(item, li) {
@@ -915,7 +920,7 @@ function deleteInvoice(invId) {
   // The lifecycle state is harder evidence than the date heuristic: once an
   // invoice is dispatched the customer holds a document bearing that number,
   // and deleting it here does not retract it there.
-  const issued = getInvState(inv) !== 'created';
+  const issued = invStateIdx(getInvState(inv)) >= invStateIdx('dispatched');
   const canReissue = inv.status !== 'cancelled' && getInvState(inv) !== 'filed';
 
   let warnHtml = '';
@@ -976,7 +981,7 @@ function confirmDeleteInvoice(invId, reissue) {
   const dispNum = inv.displayNumber;
   // A number the customer has seen is spent; one still in `created` returns to
   // the series. Recorded before the invoice is spliced out.
-  const reserved = getInvState(inv) !== 'created';
+  const reserved = invStateIdx(getInvState(inv)) >= invStateIdx('dispatched');
   recordVoidedNumber(inv, reason, reserved);
 
   // Hard delete from array; its share of each challan line is free again.

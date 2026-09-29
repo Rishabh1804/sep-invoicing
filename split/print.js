@@ -231,9 +231,11 @@ function _invoiceFrameHtml(d, copyLabel, body) {
    2026; the shop keeps it, so it is the supplier's. */
 var INVOICE_COPIES = ['ORIGINAL FOR RECIPIENT', 'DUPLICATE FOR TRANSPORTER', 'TRIPLICATE FOR SUPPLIER'];
 
+var _printInvId = null;   // the invoice in the preview; null for any other document
 function showPrintPreview(invId) {
   var inv = S.invoices.find(function(i) { return i.id === invId; });
   if (!inv) return;
+  _printInvId = invId;
   var d = formatInvoiceData(inv);
 
   var copies = INVOICE_COPIES;
@@ -247,12 +249,37 @@ function showPrintPreview(invId) {
   document.getElementById('invPrintBody').innerHTML = fullHtml;
   document.getElementById('invPrintView').classList.add('inv-print-view-active');
   document.body.style.overflow = 'hidden';
+  printFit();
   // Set page title for PDF filename (Phase 6b)
   document._savedTitle = document.title;
   document.title = (inv.displayNumber || 'Invoice') + ' - ' + (inv.clientName || 'SEP');
 }
 
+/* Scales the preview's documents to the screen: each is laid out at its paper width (an A4 sheet in mm), so the
+   preview shows the page exactly as it prints, and zoom fits the whole sheet in (never above life size). */
+function printFit() {
+  var view = document.getElementById('invPrintView'), body = document.getElementById('invPrintBody');
+  if (!view || !body || !view.classList.contains('inv-print-view-active')) return;
+  body.style.setProperty('--pp-zoom', '1');
+  var widest = 0;
+  Array.prototype.forEach.call(body.children, function(el) { widest = Math.max(widest, el.getBoundingClientRect().width); });
+  var cs = getComputedStyle(body);
+  var room = body.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+  body.style.setProperty('--pp-zoom', widest > room && widest > 0 ? String(Math.floor(room / widest * 1000) / 1000) : '1');
+}
+window.addEventListener('resize', printFit);
+
+/* Print on a Created invoice's preview moves it to Printed; the print dialog cannot say whether the paper came out,
+   so a sheet never printed is put back by hand (the state is only a step forward). */
+function printMarkPrinted() {
+  var inv = _printInvId && S.invoices.find(function(i) { return i.id === _printInvId; });
+  if (!inv || inv.status === 'cancelled' || getInvState(inv) !== 'created') return;
+  invSetState(inv, 'printed');
+  saveState();
+}
+
 function closePrintPreview() {
+  _printInvId = null;
   document.getElementById('invPrintView').classList.remove('inv-print-view-active');
   document.body.style.overflow = '';
   // Restore page title

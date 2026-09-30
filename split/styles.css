@@ -1356,8 +1356,6 @@ body:not(.inv-desktop) .inv-row-flow > .inv-row-actions { flex-basis: 100%; just
    board's rows lost the rule when the Day became a board, and P / H / A read "P.." on the phone. */
 .inv-row-end > .inv-seg { width: auto; flex: 0 0 auto; }
 .inv-row-end > .inv-seg .inv-seg-btn { flex: 0 0 auto; min-width: var(--touch); padding: 0 var(--sp-8); text-overflow: clip; }
-body.inv-desktop .inv-row-fields > .inv-select { flex: 0 0 var(--col-sm-w); width: var(--col-sm-w); }
-body.inv-desktop .inv-row-fields > .inv-seg .inv-seg-btn { min-width: var(--ctl-h); }
 .inv-row-end > .inv-field { margin-bottom: 0; }
 .inv-row-lead svg { width: 20px; height: 20px; color: var(--text-2); }
 /* The page a navigation row opens is the one on screen (the More sheet). */

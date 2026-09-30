@@ -258,6 +258,7 @@ test('hours for a worker with no rate are counted and named as unpriced', async 
     attendance: { [day]: { marks: { [NORATE.id]: { st: 'P', hours: 3, ot: 0, area: 'pickling-vat' } }, extra: [], note: '' } },
   }));
   await openStaff(page);
+  await page.locator('[data-fold="attDayCost"] > summary').click();   // the day's cost is folded on Day (P119)
   await expect(page.locator('[data-card="labour"] .inv-callout')).toBeVisible();
   await expect(page.locator('[data-card="labour"]')).toContainText('3.0 h');
   await expect(page.locator('[data-card="labour"]')).toContainText('UNRATED HAND');
@@ -289,6 +290,7 @@ test('variable labour is broken down by the area it was worked in', async ({ pag
     },
   }));
   await openStaffOn(page, day);
+  await page.locator('[data-fold="attDayCost"] > summary').click();
 
   const ranked = page.locator('[data-card="labour"] .inv-chart-ranked');
   await expect(ranked).toBeVisible();

@@ -189,10 +189,12 @@ function _attPayView() {
   var ws = _attWeekStart, sat = isoAddDays(ws, 6);
   var html = _attStepper('invAttWeekStep', _attWeekLabel('Week ' + attPayWeekNumber(ws), 'Paid Sat ' + formatDate(sat)),
     'invAttThisWeek', 'This week', 'Previous week', 'Next week');
+  // What is paid this week and what is due lead; the history and the slips as paid are one tap away (owner, 30 Sep 2026:
+  // the Staff views scrolled too far).
   html += _payForecastCard(ws);
   html += _payDueCard(ws);
-  html += _payHistoryCard(ws);
-  html += _payrollPaidCard();
+  html += uiFoldCard('payHistory', _payHistoryCard(ws), false);
+  html += uiFoldCard('payrollPaid', _payrollPaidCard(), false);
   // The bank's side of the same payroll (Finance → Payments draws the same panel).
   if (finHasBank()) html += finWagesHtml(finCtx().cls, 'pay');
   return html;
@@ -675,7 +677,7 @@ function attDaySummary() {
     var last = Object.keys(S.attendance || {}).filter(function(k) { return k < today && marked(S.attendance[k]); }).sort().pop();
     if (last) { iso = last; rec = S.attendance[last]; }
   }
-  var out = { roster: roster, iso: iso, today: iso === today, marked: marked(rec), p: 0, half: 0, absent: [], unmarked: 0, floorHeads: 0, complement: 0, extraH: 0, short: false };
+  var out = { roster: roster, iso: iso, today: iso === today, marked: marked(rec), p: 0, half: 0, absent: [], unmarked: 0, floorHeads: 0, complement: 0, extraH: 0, short: false, byArea: {} };
   if (!out.marked) return out;
   roster.forEach(function(w) {
     var m = rec.marks[w.id];
@@ -683,6 +685,8 @@ function attDaySummary() {
     if (m.st === 'A') { out.absent.push(w.name); return; }
     if (m.st === 'H') out.half++; else out.p++;
     if (w.onFloor !== false && _areaIsFloor(m.area || w.area)) out.floorHeads++;
+    var ar = m.area || w.area || 'flex';
+    out.byArea[ar] = (out.byArea[ar] || 0) + 1;
   });
   // The floor's complement against the floor's heads: an office or gate complement is not a head on the floor.
   out.complement = STAFF_AREAS.reduce(function(s, a) { var t = a.floor ? areaNeedOn(iso, a.id) : null; return s + (t != null ? t : 0); }, 0);
@@ -703,6 +707,18 @@ function attDayPanelHtml(d, headBtn, id) {
     '<div class="inv-tile' + (d.short ? ' inv-tile-warning' : d.complement ? ' inv-tile-ok' : '') + '"><div class="inv-tile-label">On the floor</div>' +
     '<div class="inv-tile-value">' + d.floorHeads + (d.complement ? '<span class="inv-tile-of">/' + d.complement + '</span>' : '') + '</div>' +
     '<div class="inv-tile-sub">' + (d.complement ? (d.short ? (d.complement - d.floorHeads) + ' short of the complement' : 'against the complement') : 'no complement set') + '</div></div></div>';
+  // Where everyone on site stood, every area the day has a hand in: the office, the gate, Flex and Civil as well as the
+  // floor (owner, 30 Sep 2026: "Overview doesn't show any staff allocation for Office, gate, flex, civil").
+  var alloc = STAFF_AREAS.filter(function(a) { return d.byArea[a.id] || (a.floor && a.id !== 'flex' && areaNeedOn(d.iso, a.id)); });
+  Object.keys(d.byArea).forEach(function(k) { if (!STAFF_AREAS.some(function(a) { return a.id === k; })) alloc.push({ id: k, label: areaLabel(k), floor: false }); });
+  if (alloc.length) {
+    h += '<div class="inv-row inv-row-auto" data-att-alloc><span class="inv-row-main"><span class="inv-row-meta">By area</span><span class="inv-row-wrap">' +
+      alloc.map(function(a) {
+        var n = d.byArea[a.id] || 0, need = a.floor && a.id !== 'flex' ? areaNeedOn(d.iso, a.id) : null;
+        var tone = need != null ? (n < need ? 'warning' : 'ok') : null;
+        return '<span data-alloc="' + escHtml(a.id) + '">' + escHtml(a.label) + ' ' + figHtml('<span class="inv-num">' + n + (need != null ? '/' + need : '') + '</span>', tone) + '</span>';
+      }).join(' · ') + '</span></span></div>';
+  }
   if (d.absent.length) h += '<div class="inv-row inv-row-2"><span class="inv-row-main"><span class="inv-row-meta">Absent</span><span class="inv-row-wrap">' + escHtml(d.absent.join(', ')) + '</span></span></div>';
   if (d.extraH) h += '<div class="inv-row"><span class="inv-row-main">EXTRA booked</span><span class="inv-row-end inv-num">' + formatNum(d.extraH, 1) + ' h</span></div>';
   return h + '</div>';

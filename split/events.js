@@ -184,6 +184,8 @@ function onDocClick(e) {
     case 'invAttSet': setAttState(parseInt(btn.dataset.id, 10), btn.dataset.st); break;
     case 'invAttCycle': cycleAttState(parseInt(btn.dataset.id, 10), btn.dataset.date); break;
     case 'invAttAllPresent': attAllPresent(); break;
+    case 'invAttEdit': attEditOpen(btn.dataset.id); break;
+    case 'invAttEditClose': _attEditId = null; closeOverlay(); break;
     case 'invAttAddExtra': attAddExtra(); break;
     case 'invAttRemoveExtra': attRemoveExtra(parseInt(btn.dataset.idx, 10)); break;
     case 'invAreaExplain': openAreaExplain(btn.dataset.ex); break;

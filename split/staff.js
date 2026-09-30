@@ -33,7 +33,8 @@ var STAFF_AREAS = [
   { id: 'pickling-vat',    label: 'Pickling A1+A2',  floor: true },
   { id: 'flex',            label: 'Flex',            floor: true },
   { id: 'office',          label: 'Office',          floor: false },
-  { id: 'gate',            label: 'Gate',            floor: false }
+  { id: 'gate',            label: 'Gate',            floor: false },
+  { id: 'civil',           label: 'Civil',           floor: false }
 ];
 
 /* Barrel and Barrel pickling are two areas for staffing and one block for the
@@ -388,6 +389,7 @@ function renderAttendance() {
   else area.innerHTML = _attDayView();
 
   _attRestoreFocus(focusSel);
+  attEditRefresh();
 }
 
 function _attEmptyRoster() {
@@ -451,49 +453,91 @@ function _attDayView() {
       tile('attExtraHours', 'Extra', formatNum(extraHours, 1) + '<span class="inv-tile-of"> h</span>', '', '') + '</div>';
   }
 
-  // The rows. One line per worker: who, what state, where, and the hours.
-  html += '<div class="inv-panel inv-panel-flush" id="attMarks"><div class="inv-panel-head"><span class="inv-panel-title">Mark the day ' +
-    '<span class="inv-panel-count">' + total + '</span></span>' +
-    '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invAttAllPresent">All present</button></div>';
+  // The day as a board (owner, 30 Sep 2026: "Attendance sheet for Day scrolls way too far"): a card per area, a line per
+  // hand with P / H / A one tap away; the area, hours and OT open on the name. Absent hands are one strip under the board.
+  html += '<div class="inv-toolbar inv-toolbar-flush"><button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invAttAllPresent">All present</button>' +
+    '<span class="inv-note">Tap a name for the area, hours and OT.</span></div>';
+  var byArea = {}, absentees = [];
   roster.forEach(function(w) {
     var m = rec ? rec.marks[w.id] : null;
-    var st = m ? m.st : '';
-    var wArea = m && m.area ? m.area : (w.area || 'flex');
-    var cls = compClass(w.comp);
-    var hourly = compIsHourly(w);
-    // Half a day is not a state an hourly worker can be in: the hours say it.
-    var states = hourly ? ['P', 'A'] : ATT_STATES;
-    var live = st && st !== 'A';
-    html += '<div class="inv-row inv-row-flow inv-row-auto" data-att-row="' + w.id + '">' +
-      '<span class="inv-row-main"><span class="inv-row-title">' + escHtml(w.name) + '</span>' +
-      '<span class="inv-row-meta">' + escHtml(cls.label) + (m ? ' · ' + escHtml(ATT_STATE_LABELS[st] || '') : ' · unmarked') + '</span></span>' +
-      '<span class="inv-row-end inv-row-fields">' +
-      '<span class="inv-seg" role="group" aria-label="Attendance for ' + escHtml(w.name) + '">' +
-      states.map(function(x) {
-        return '<button class="inv-seg-btn inv-seg-btn-' + ATT_STATE_TONE[x] + '" data-action="invAttSet" data-id="' + w.id +
-          '" data-st="' + x + '" aria-pressed="' + (st === x) + '" title="' + ATT_STATE_LABELS[x] + '">' + x + '</button>';
-      }).join('') +
-      '</span>' +
-      '<select class="inv-select inv-select-sm" data-att-area data-id="' + w.id + '" aria-label="Area for ' + escHtml(w.name) + '"' +
-      (live ? '' : ' disabled') + '>' + attAreaOptions(wArea) + '</select>' +
-      // Deliberately not mono: in the mono face the placeholders "OT" and
-      // "hrs" sit in a field whose whole content is otherwise numbers, and the
-      // mono O is indistinguishable from a zero.
-      (hourly
-        ? '<input type="number" class="inv-input inv-input-sm" data-att-hours data-id="' + w.id +
-          '" step="0.5" min="0" placeholder="hrs" value="' + (m && m.hours ? m.hours : '') + '"' +
-          (live ? '' : ' disabled') + ' aria-label="Hours worked by ' + escHtml(w.name) + '">'
-        : '<input type="number" class="inv-input inv-input-sm" data-att-ot data-id="' + w.id +
-          '" step="0.5" min="0" placeholder="OT" value="' + (m && m.ot ? m.ot : '') + '"' +
-          (live ? '' : ' disabled') + ' aria-label="OT hours for ' + escHtml(w.name) + '">') +
-      '</span></div>';
+    if (m && m.st === 'A') { absentees.push(w); return; }
+    var a = m && m.area ? m.area : (w.area || 'flex');
+    (byArea[a] = byArea[a] || []).push(w);
+  });
+  html += '<div class="inv-board" id="attMarks">';
+  STAFF_AREAS.forEach(function(a) {
+    var list = byArea[a.id] || [];
+    var need = a.floor && a.id !== 'flex' ? areaNeedOn(iso, a.id) : null;
+    if (!list.length && !need) return;
+    var on = list.filter(function(w) { var m = rec ? rec.marks[w.id] : null; return m && (m.st === 'P' || m.st === 'H'); }).length;
+    var dot = need == null ? '' : on < need ? uiDot('warning', 'Short ' + (need - on)) : on > need ? uiDot('info', (on - need) + ' over') : uiDot('ok', 'Met');
+    html += '<div class="inv-panel inv-panel-flush" data-att-area-card="' + a.id + '"><div class="inv-panel-head"><span class="inv-panel-title">' + escHtml(a.label) +
+      ' <span class="inv-panel-count">' + on + (need != null ? '/' + need : '') + '</span></span>' + dot + '</div>' +
+      (list.length ? list.map(function(w) { return _attBoardRow(w, rec ? rec.marks[w.id] : null); }).join('') : '<div class="inv-empty">Nobody here today.</div>') + '</div>';
+  });
+  // An area no longer on the list (a mark from an older build) still shows its hands.
+  Object.keys(byArea).forEach(function(k) {
+    if (STAFF_AREAS.some(function(a) { return a.id === k; })) return;
+    html += '<div class="inv-panel inv-panel-flush" data-att-area-card="' + escHtml(k) + '"><div class="inv-panel-head"><span class="inv-panel-title">' + escHtml(areaLabel(k)) + '</span></div>' +
+      byArea[k].map(function(w) { return _attBoardRow(w, rec ? rec.marks[w.id] : null); }).join('') + '</div>';
   });
   html += '</div>';
+  if (absentees.length) {
+    html += '<div class="inv-panel inv-panel-flush" id="attAbsentList"><div class="inv-panel-head"><span class="inv-panel-title">Absent <span class="inv-panel-count">' + absentees.length + '</span></span></div>' +
+      absentees.map(function(w) { return _attBoardRow(w, rec.marks[w.id]); }).join('') + '</div>';
+  }
 
   html += _attNeedCard(iso, rec);
   html += _attExtraCard(iso, rec);
-  html += renderLabourCard(iso, iso, 'Day cost');
+  html += uiFoldCard('attDayCost', renderLabourCard(iso, iso, 'Day cost'), false);
   return html;
+}
+
+/* One hand on the board: the name (opens the area, hours and OT), what is recorded, and P / H / A. */
+function _attBoardRow(w, m) {
+  var st = m ? m.st : '', hourly = compIsHourly(w);
+  var states = hourly ? ['P', 'A'] : ATT_STATES;
+  var hrs = m && st !== 'A' ? (hourly ? (m.hours ? m.hours + ' h' : 'no hours') : (m.ot ? 'OT ' + m.ot + ' h' : '')) : '';
+  return '<div class="inv-row" data-att-row="' + w.id + '">' +
+    '<button class="inv-row-main" data-action="invAttEdit" data-id="' + w.id + '"><span class="inv-row-title">' + escHtml(w.name) + '</span>' +
+    '<span class="inv-row-meta">' + escHtml(compClass(w.comp).label) + (m ? ' · ' + escHtml(ATT_STATE_LABELS[st] || '') + (hrs ? ' · ' + hrs : '') : ' · unmarked') + '</span></button>' +
+    '<span class="inv-row-end"><span class="inv-seg" role="group" aria-label="Attendance for ' + escHtml(w.name) + '">' +
+    states.map(function(x) {
+      return '<button class="inv-seg-btn inv-seg-btn-' + ATT_STATE_TONE[x] + '" data-action="invAttSet" data-id="' + w.id +
+        '" data-st="' + x + '" aria-pressed="' + (st === x) + '" title="' + ATT_STATE_LABELS[x] + '">' + x + '</button>';
+    }).join('') + '</span></span></div>';
+}
+
+/* A hand's day in a dialog: P / H / A, where they stood, and the hours (an hourly hand) or the overtime. Each change is
+   saved as it is made, as on the board. */
+var _attEditId = null;
+function attEditHtml() {
+  var w = staffById(_attEditId);
+  if (!w) return '';
+  var rec = attDay(_attDate, false), m = rec ? rec.marks[w.id] : null, st = m ? m.st : '', hourly = compIsHourly(w), live = st && st !== 'A';
+  var states = hourly ? ['P', 'A'] : ATT_STATES;
+  return '<div class="inv-dialog" role="dialog" aria-modal="true" aria-labelledby="attEditT" data-att-edit="' + w.id + '">' +
+    dialogHeadHtml('<span id="attEditT">' + escHtml(w.name) + ' · ' + escHtml(attDayName(_attDate) + ' ' + formatDate(_attDate)) + '</span>', 'invAttEditClose') +
+    '<div class="inv-dialog-body" data-nodirty><div class="inv-fields">' +
+    '<div class="inv-field"><span class="inv-field-label">Attendance</span><span class="inv-seg" role="group" aria-label="Attendance">' +
+    states.map(function(x) {
+      return '<button class="inv-seg-btn inv-seg-btn-' + ATT_STATE_TONE[x] + '" data-action="invAttSet" data-id="' + w.id + '" data-st="' + x + '" aria-pressed="' + (st === x) + '">' + ATT_STATE_LABELS[x] + '</button>';
+    }).join('') + '</span></div>' +
+    '<label class="inv-field"><span class="inv-field-label">Area</span><select class="inv-select" data-att-area data-id="' + w.id + '"' + (live ? '' : ' disabled') + '>' +
+    attAreaOptions(m && m.area ? m.area : (w.area || 'flex')) + '</select></label>' +
+    (hourly
+      ? '<label class="inv-field"><span class="inv-field-label">Hours worked</span><input type="number" class="inv-input inv-input-num" data-att-hours data-id="' + w.id + '" step="0.5" min="0" value="' + (m && m.hours ? m.hours : '') + '"' + (live ? '' : ' disabled') + '></label>'
+      : '<label class="inv-field"><span class="inv-field-label">Overtime, hours</span><input type="number" class="inv-input inv-input-num" data-att-ot data-id="' + w.id + '" step="0.5" min="0" value="' + (m && m.ot ? m.ot : '') + '"' + (live ? '' : ' disabled') + '></label>') +
+    '</div>' + (live ? '' : '<div class="inv-note">' + (st === 'A' ? 'Absent: no area or hours.' : 'Mark the day first.') + '</div>') + '</div>' +
+    '<div class="inv-dialog-foot"><button class="inv-btn inv-btn-primary" data-action="invAttEditClose">Done</button></div></div>';
+}
+function attEditOpen(id) { _attEditId = id; dialogOpen(attEditHtml()); }
+/* The dialog follows the day: after a change it is drawn again in place (the board behind it is redrawn too). */
+function attEditRefresh() {
+  if (!_attEditId || !document.querySelector('[data-att-edit]')) return;
+  var focus = document.activeElement, k = focus && focus.dataset ? (focus.hasAttribute('data-att-hours') ? '[data-att-hours]' : focus.hasAttribute('data-att-ot') ? '[data-att-ot]' : null) : null;
+  dialogOpen(attEditHtml(), { replace: true });
+  if (k) { var el = document.querySelector('[data-att-edit] ' + k); if (el) try { el.focus(); } catch (x) { /* a convenience */ } }
 }
 
 /* ===== EXTRA HOURS =====
@@ -626,7 +670,7 @@ function _attNeedCard(iso, rec) {
     var a = m.area || (w && w.area) || 'flex';
     heads[a] = (heads[a] || 0) + 1;
   });
-  var html = '<div class="inv-panel inv-panel-flush" id="attNeed"><div class="inv-panel-head"><span class="inv-panel-title">Needed today</span></div>' +
+  var html = '<details class="inv-panel inv-panel-flush inv-panel-fold" id="attNeed" data-fold="attNeed"' + (uiFoldOpen('attNeed', false) ? ' open' : '') + '><summary class="inv-panel-head"><span class="inv-panel-title">Needed today</span><span class="inv-note">the numbers on each card</span></summary>' +
     '<div class="inv-panel-body inv-note">The general shift: who stood in each area against what the shift needed. The box starts at the area&rsquo;s usual number ' +
     '(Areas); type the day&rsquo;s own, 0 when the line did not need anyone, or clear it for the usual. The shortfall and the extra are judged against it. ' +
     'An OT or night block takes its own number under Extra hours.</div>';
@@ -638,7 +682,7 @@ function _attNeedCard(iso, rec) {
       '<span class="inv-row-end"><input type="number" class="inv-input inv-input-sm inv-input-num" data-att-need data-area="' + a.id + '" step="1" min="0"' +
       ' placeholder="' + (usual != null ? usual : '—') + '" value="' + (set ? need : '') + '" aria-label="Needed in ' + escHtml(a.label) + '">' + dot + '</span></div>';
   });
-  return html + '</div>';
+  return html + '</details>';
 }
 
 /* A block's own number (blockNorm reads it first); blank goes back to the areas' complement. */

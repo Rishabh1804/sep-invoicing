@@ -804,7 +804,7 @@ function _attAreasView() {
       'No attendance recorded in this range. Mark some days and the floor appears here.</div></div>';
   }
 
-  html += areaHoursCard(from, to);
+  html += uiFoldCard('areaHours', areaHoursCard(from, to), false);
   html += _areaExtraCard(stats);
 
   // Ranked by the hours the area actually consumed, because that is what
@@ -834,7 +834,7 @@ function _attAreasView() {
   }
   html += '</div>';
 
-  html += _areaAbsorptionCard(stats);
+  html += uiFoldCard('areaAbsorb', _areaAbsorptionCard(stats), false);
   return html;
 }
 

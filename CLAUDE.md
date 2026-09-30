@@ -302,7 +302,7 @@ filter on; a literal date in a fixture is a time bomb, not a constant.
 |----|------|
 | HR-1 | No inline styles. CSS classes + design tokens. |
 | HR-2 | No inline onclick. data-action delegation only. |
-| HR-3 | inv- CSS prefix on every class. 466 classes, all of them (distinct class selectors in `split/styles.css`, comments stripped, 29 Sep 2026: the eighteen `inv-as-*` of the attendance and stock sheets added, then `inv-topbar-back` and `inv-topbar-trail`, then `inv-fig-ok/warning/danger`: 462; 30 Sep 2026, the QA sweep: `inv-pi-cancelled`, `inv-cn-cancelled`: 464; the power case's `inv-pc-sec`, `inv-pc-p`: 466); P76 asserts every class the app draws is one of them or a named hook. |
+| HR-3 | inv- CSS prefix on every class. 466 classes, all of them (distinct class selectors in `split/styles.css`, comments stripped, 29 Sep 2026: the eighteen `inv-as-*` of the attendance and stock sheets added, then `inv-topbar-back` and `inv-topbar-trail`, then `inv-fig-ok/warning/danger`: 462; 30 Sep 2026, the QA sweep: `inv-pi-cancelled`, `inv-cn-cancelled`: 464; the power case's `inv-pc-sec`, `inv-pc-p`: 466; Staff → Day's `inv-board`: 467); P76 asserts every class the app draws is one of them or a named hook. |
 | HR-4 | No emojis. Inline SVGs in HTML template. |
 | HR-5 | escHtml() on all user-data innerHTML. |
 | HR-6 | CSS design tokens only. No raw px/rem/hex/timing. |
@@ -2728,6 +2728,16 @@ cannot be gated away at any length, only stated, so a range under two months car
 caveat next to the figure. And a ₹/kg computed over partial tonnage coverage reads **high**
 here — the opposite direction from realisation, because tonnage is the denominator — which the
 card says rather than leaving the reader to work out.
+
+**Day is a board, a card per area** (owner, 30 Sep 2026: *"Attendance sheet for Day scrolls way too far for information … Overview doesn't
+show any staff allocation for Office, gate, flex, civil"*; they chose the area board). Every area with a hand or a number needed is a card
+(`data-att-area-card`, `inv-board`: one column on the phone, as many `--board-col` columns as fit on the desktop), its head the heads on
+it against the day's number (*Short 1 / Met / 1 over*). Each hand is one line, P / H / A one tap as before; **the name opens the hand's
+day** in a dialog (`attEditOpen`: state, area, hours or OT, saved as they change). The absent are one strip under the board
+(`attAbsentList`), *Needed today* and the day's cost fold (`uiFoldCard`, state.js, folds any panel whose head holds no button). Pay leads
+with the payout and dues, its history and the slips as paid folded; Areas folds its hours and the absorption. **Civil** is an area
+(a post, off the floor, like the office and the gate; a roll heading *civil* reads to it). **The attendance panel** (Staff → Overview,
+Home) says where everyone on site stood, by area, the floor against its number. P119.
 
 **A day's attendance is deleted only with a reason, and the deletion is logged** (owner, 30 Sep 2026: *"there is no way to
 delete a day's data after providing a reason that can be logged"*). Staff → Day → **Delete this day** asks why (required),

@@ -18,7 +18,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <!-- Appearance before first paint (§3.2): the device's theme and palette, so nothing flashes in the wrong colours. -->
 <script>(function(){try{var d=document.documentElement,t=localStorage.getItem("sep_inv_theme"),p=localStorage.getItem("sep_inv_palette");if(t==="light"||t==="dark")d.dataset.theme=t;d.dataset.palette=(p==="zinc"||p==="terracotta")?p:"teal";}catch(e){document.documentElement.dataset.palette="teal";}})();</script>
-<meta name="app-build" content="68863f50">
+<meta name="app-build" content="a0c09f9a">
 <style>
 /* ===== DESIGN TOKENS (design system v2.0 — docs/SEP_INVOICING_DESIGN_PRINCIPLES.md §3) ===== */
 /* Theme: colour-scheme decides every light-dark() below. <html data-theme> is set before first paint
@@ -98,7 +98,7 @@
   --info: light-dark(#1d5ea6, #8dbaf0); --info-bg: light-dark(#e6effa, #15263a);
 
   /* Layout (§3.7) */
-  --bar-h: 3.25rem; --bar-h-desk: 3rem; --fill-h: calc(100dvh - var(--bar-h-desk)); --pane-host-min: 20rem; --nav-h: 3.625rem; --side-w: 13.5rem; --content-max: 80rem; --pane-w: 22rem; --scroll-max: 55vh;
+  --bar-h: 3.25rem; --bar-h-desk: 3rem; --fill-h: calc(100dvh - var(--bar-h-desk)); --pane-host-min: 20rem; --nav-h: 3.625rem; --side-w: 13.5rem; --content-max: 80rem; --pane-w: 22rem; --scroll-max: 55vh; --board-col: 17rem;
   --filter-w: 9rem; --col-sm-w: 8rem; --fade-w: var(--sp-24); --line-fig-w: 7rem; --line-unit-w: 5.5rem; --menu-max: 17.5rem;
   --max-w: 32.5rem; --set-card-w: 55rem; --set-nav-w: 12.5rem;
   --dialog-w: 40rem; --dialog-max-h: 90vh; --dialog-max-h-desk: 85vh; --toast-max: 30rem; --busy-w: 17.5rem;
@@ -1746,6 +1746,12 @@ summary.inv-summary::-webkit-details-marker { display: none; }
 
 /* Production: the register photo under review, as wide as its panel and never wider. */
 .inv-prod-photo { display: block; max-width: 100%; height: auto; border-radius: var(--r-md); }
+
+/* The day as a board (Staff → Day): a card per area, a line per hand. One column on the phone; on the desktop as many
+   columns of --board-col as fit, so a day of twenty hands reads on one screen. */
+.inv-board { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--gap); align-items: start; margin-bottom: var(--gap); }
+.inv-board .inv-panel { margin-bottom: 0; }
+body.inv-desktop .inv-board { grid-template-columns: repeat(auto-fill, minmax(var(--board-col), 1fr)); }
 </style>
 </head>
 <body>
@@ -2643,6 +2649,16 @@ function uiFoldOpen(key, dflt) { return Object.prototype.hasOwnProperty.call(_ui
 function uiFoldHtml(key, headHtml, bodyHtml, dflt, attrs) {
   return '<details class="inv-panel inv-panel-flush inv-panel-fold" data-fold="' + escHtml(key) + '"' + (attrs || '') + (uiFoldOpen(key, dflt) ? ' open' : '') + '>' +
     '<summary class="inv-panel-head">' + headHtml + '</summary>' + bodyHtml + '</details>';
+}
+/* A card drawn as a panel, folded to its head: the same card, its head a summary. Only a card whose head holds no
+   button or block of its own is folded (a tap on a button in a summary would open and shut the card too); any other
+   is returned as it was. */
+function uiFoldCard(key, card, dflt) {
+  var m = /^(\s*)<div class="inv-panel inv-panel-flush([^"]*)"([^>]*)>\s*<div class="inv-panel-head">([\s\S]*?)<\/div>/.exec(card || '');
+  if (!m || /<button|<div/.test(m[4]) || !/<\/div>\s*$/.test(card)) return card;
+  var rest = card.slice(m[0].length).replace(/<\/div>\s*$/, '');
+  return m[1] + '<details class="inv-panel inv-panel-flush inv-panel-fold' + m[2] + '"' + m[3] + ' data-fold="' + escHtml(key) + '"' + (uiFoldOpen(key, dflt) ? ' open' : '') + '>' +
+    '<summary class="inv-panel-head">' + m[4] + '</summary>' + rest + '</details>';
 }
 document.addEventListener('toggle', function(e) {
   var d = e.target;
@@ -13987,7 +14003,8 @@ var STAFF_AREAS = [
   { id: 'pickling-vat',    label: 'Pickling A1+A2',  floor: true },
   { id: 'flex',            label: 'Flex',            floor: true },
   { id: 'office',          label: 'Office',          floor: false },
-  { id: 'gate',            label: 'Gate',            floor: false }
+  { id: 'gate',            label: 'Gate',            floor: false },
+  { id: 'civil',           label: 'Civil',           floor: false }
 ];
 
 /* Barrel and Barrel pickling are two areas for staffing and one block for the
@@ -14342,6 +14359,7 @@ function renderAttendance() {
   else area.innerHTML = _attDayView();
 
   _attRestoreFocus(focusSel);
+  attEditRefresh();
 }
 
 function _attEmptyRoster() {
@@ -14405,49 +14423,91 @@ function _attDayView() {
       tile('attExtraHours', 'Extra', formatNum(extraHours, 1) + '<span class="inv-tile-of"> h</span>', '', '') + '</div>';
   }
 
-  // The rows. One line per worker: who, what state, where, and the hours.
-  html += '<div class="inv-panel inv-panel-flush" id="attMarks"><div class="inv-panel-head"><span class="inv-panel-title">Mark the day ' +
-    '<span class="inv-panel-count">' + total + '</span></span>' +
-    '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invAttAllPresent">All present</button></div>';
+  // The day as a board (owner, 30 Sep 2026: "Attendance sheet for Day scrolls way too far"): a card per area, a line per
+  // hand with P / H / A one tap away; the area, hours and OT open on the name. Absent hands are one strip under the board.
+  html += '<div class="inv-toolbar inv-toolbar-flush"><button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invAttAllPresent">All present</button>' +
+    '<span class="inv-note">Tap a name for the area, hours and OT.</span></div>';
+  var byArea = {}, absentees = [];
   roster.forEach(function(w) {
     var m = rec ? rec.marks[w.id] : null;
-    var st = m ? m.st : '';
-    var wArea = m && m.area ? m.area : (w.area || 'flex');
-    var cls = compClass(w.comp);
-    var hourly = compIsHourly(w);
-    // Half a day is not a state an hourly worker can be in: the hours say it.
-    var states = hourly ? ['P', 'A'] : ATT_STATES;
-    var live = st && st !== 'A';
-    html += '<div class="inv-row inv-row-flow inv-row-auto" data-att-row="' + w.id + '">' +
-      '<span class="inv-row-main"><span class="inv-row-title">' + escHtml(w.name) + '</span>' +
-      '<span class="inv-row-meta">' + escHtml(cls.label) + (m ? ' · ' + escHtml(ATT_STATE_LABELS[st] || '') : ' · unmarked') + '</span></span>' +
-      '<span class="inv-row-end inv-row-fields">' +
-      '<span class="inv-seg" role="group" aria-label="Attendance for ' + escHtml(w.name) + '">' +
-      states.map(function(x) {
-        return '<button class="inv-seg-btn inv-seg-btn-' + ATT_STATE_TONE[x] + '" data-action="invAttSet" data-id="' + w.id +
-          '" data-st="' + x + '" aria-pressed="' + (st === x) + '" title="' + ATT_STATE_LABELS[x] + '">' + x + '</button>';
-      }).join('') +
-      '</span>' +
-      '<select class="inv-select inv-select-sm" data-att-area data-id="' + w.id + '" aria-label="Area for ' + escHtml(w.name) + '"' +
-      (live ? '' : ' disabled') + '>' + attAreaOptions(wArea) + '</select>' +
-      // Deliberately not mono: in the mono face the placeholders "OT" and
-      // "hrs" sit in a field whose whole content is otherwise numbers, and the
-      // mono O is indistinguishable from a zero.
-      (hourly
-        ? '<input type="number" class="inv-input inv-input-sm" data-att-hours data-id="' + w.id +
-          '" step="0.5" min="0" placeholder="hrs" value="' + (m && m.hours ? m.hours : '') + '"' +
-          (live ? '' : ' disabled') + ' aria-label="Hours worked by ' + escHtml(w.name) + '">'
-        : '<input type="number" class="inv-input inv-input-sm" data-att-ot data-id="' + w.id +
-          '" step="0.5" min="0" placeholder="OT" value="' + (m && m.ot ? m.ot : '') + '"' +
-          (live ? '' : ' disabled') + ' aria-label="OT hours for ' + escHtml(w.name) + '">') +
-      '</span></div>';
+    if (m && m.st === 'A') { absentees.push(w); return; }
+    var a = m && m.area ? m.area : (w.area || 'flex');
+    (byArea[a] = byArea[a] || []).push(w);
+  });
+  html += '<div class="inv-board" id="attMarks">';
+  STAFF_AREAS.forEach(function(a) {
+    var list = byArea[a.id] || [];
+    var need = a.floor && a.id !== 'flex' ? areaNeedOn(iso, a.id) : null;
+    if (!list.length && !need) return;
+    var on = list.filter(function(w) { var m = rec ? rec.marks[w.id] : null; return m && (m.st === 'P' || m.st === 'H'); }).length;
+    var dot = need == null ? '' : on < need ? uiDot('warning', 'Short ' + (need - on)) : on > need ? uiDot('info', (on - need) + ' over') : uiDot('ok', 'Met');
+    html += '<div class="inv-panel inv-panel-flush" data-att-area-card="' + a.id + '"><div class="inv-panel-head"><span class="inv-panel-title">' + escHtml(a.label) +
+      ' <span class="inv-panel-count">' + on + (need != null ? '/' + need : '') + '</span></span>' + dot + '</div>' +
+      (list.length ? list.map(function(w) { return _attBoardRow(w, rec ? rec.marks[w.id] : null); }).join('') : '<div class="inv-empty">Nobody here today.</div>') + '</div>';
+  });
+  // An area no longer on the list (a mark from an older build) still shows its hands.
+  Object.keys(byArea).forEach(function(k) {
+    if (STAFF_AREAS.some(function(a) { return a.id === k; })) return;
+    html += '<div class="inv-panel inv-panel-flush" data-att-area-card="' + escHtml(k) + '"><div class="inv-panel-head"><span class="inv-panel-title">' + escHtml(areaLabel(k)) + '</span></div>' +
+      byArea[k].map(function(w) { return _attBoardRow(w, rec ? rec.marks[w.id] : null); }).join('') + '</div>';
   });
   html += '</div>';
+  if (absentees.length) {
+    html += '<div class="inv-panel inv-panel-flush" id="attAbsentList"><div class="inv-panel-head"><span class="inv-panel-title">Absent <span class="inv-panel-count">' + absentees.length + '</span></span></div>' +
+      absentees.map(function(w) { return _attBoardRow(w, rec.marks[w.id]); }).join('') + '</div>';
+  }
 
   html += _attNeedCard(iso, rec);
   html += _attExtraCard(iso, rec);
-  html += renderLabourCard(iso, iso, 'Day cost');
+  html += uiFoldCard('attDayCost', renderLabourCard(iso, iso, 'Day cost'), false);
   return html;
+}
+
+/* One hand on the board: the name (opens the area, hours and OT), what is recorded, and P / H / A. */
+function _attBoardRow(w, m) {
+  var st = m ? m.st : '', hourly = compIsHourly(w);
+  var states = hourly ? ['P', 'A'] : ATT_STATES;
+  var hrs = m && st !== 'A' ? (hourly ? (m.hours ? m.hours + ' h' : 'no hours') : (m.ot ? 'OT ' + m.ot + ' h' : '')) : '';
+  return '<div class="inv-row" data-att-row="' + w.id + '">' +
+    '<button class="inv-row-main" data-action="invAttEdit" data-id="' + w.id + '"><span class="inv-row-title">' + escHtml(w.name) + '</span>' +
+    '<span class="inv-row-meta">' + escHtml(compClass(w.comp).label) + (m ? ' · ' + escHtml(ATT_STATE_LABELS[st] || '') + (hrs ? ' · ' + hrs : '') : ' · unmarked') + '</span></button>' +
+    '<span class="inv-row-end"><span class="inv-seg" role="group" aria-label="Attendance for ' + escHtml(w.name) + '">' +
+    states.map(function(x) {
+      return '<button class="inv-seg-btn inv-seg-btn-' + ATT_STATE_TONE[x] + '" data-action="invAttSet" data-id="' + w.id +
+        '" data-st="' + x + '" aria-pressed="' + (st === x) + '" title="' + ATT_STATE_LABELS[x] + '">' + x + '</button>';
+    }).join('') + '</span></span></div>';
+}
+
+/* A hand's day in a dialog: P / H / A, where they stood, and the hours (an hourly hand) or the overtime. Each change is
+   saved as it is made, as on the board. */
+var _attEditId = null;
+function attEditHtml() {
+  var w = staffById(_attEditId);
+  if (!w) return '';
+  var rec = attDay(_attDate, false), m = rec ? rec.marks[w.id] : null, st = m ? m.st : '', hourly = compIsHourly(w), live = st && st !== 'A';
+  var states = hourly ? ['P', 'A'] : ATT_STATES;
+  return '<div class="inv-dialog" role="dialog" aria-modal="true" aria-labelledby="attEditT" data-att-edit="' + w.id + '">' +
+    dialogHeadHtml('<span id="attEditT">' + escHtml(w.name) + ' · ' + escHtml(attDayName(_attDate) + ' ' + formatDate(_attDate)) + '</span>', 'invAttEditClose') +
+    '<div class="inv-dialog-body" data-nodirty><div class="inv-fields">' +
+    '<div class="inv-field"><span class="inv-field-label">Attendance</span><span class="inv-seg" role="group" aria-label="Attendance">' +
+    states.map(function(x) {
+      return '<button class="inv-seg-btn inv-seg-btn-' + ATT_STATE_TONE[x] + '" data-action="invAttSet" data-id="' + w.id + '" data-st="' + x + '" aria-pressed="' + (st === x) + '">' + ATT_STATE_LABELS[x] + '</button>';
+    }).join('') + '</span></div>' +
+    '<label class="inv-field"><span class="inv-field-label">Area</span><select class="inv-select" data-att-area data-id="' + w.id + '"' + (live ? '' : ' disabled') + '>' +
+    attAreaOptions(m && m.area ? m.area : (w.area || 'flex')) + '</select></label>' +
+    (hourly
+      ? '<label class="inv-field"><span class="inv-field-label">Hours worked</span><input type="number" class="inv-input inv-input-num" data-att-hours data-id="' + w.id + '" step="0.5" min="0" value="' + (m && m.hours ? m.hours : '') + '"' + (live ? '' : ' disabled') + '></label>'
+      : '<label class="inv-field"><span class="inv-field-label">Overtime, hours</span><input type="number" class="inv-input inv-input-num" data-att-ot data-id="' + w.id + '" step="0.5" min="0" value="' + (m && m.ot ? m.ot : '') + '"' + (live ? '' : ' disabled') + '></label>') +
+    '</div>' + (live ? '' : '<div class="inv-note">' + (st === 'A' ? 'Absent: no area or hours.' : 'Mark the day first.') + '</div>') + '</div>' +
+    '<div class="inv-dialog-foot"><button class="inv-btn inv-btn-primary" data-action="invAttEditClose">Done</button></div></div>';
+}
+function attEditOpen(id) { _attEditId = id; dialogOpen(attEditHtml()); }
+/* The dialog follows the day: after a change it is drawn again in place (the board behind it is redrawn too). */
+function attEditRefresh() {
+  if (!_attEditId || !document.querySelector('[data-att-edit]')) return;
+  var focus = document.activeElement, k = focus && focus.dataset ? (focus.hasAttribute('data-att-hours') ? '[data-att-hours]' : focus.hasAttribute('data-att-ot') ? '[data-att-ot]' : null) : null;
+  dialogOpen(attEditHtml(), { replace: true });
+  if (k) { var el = document.querySelector('[data-att-edit] ' + k); if (el) try { el.focus(); } catch (x) { /* a convenience */ } }
 }
 
 /* ===== EXTRA HOURS =====
@@ -14580,7 +14640,7 @@ function _attNeedCard(iso, rec) {
     var a = m.area || (w && w.area) || 'flex';
     heads[a] = (heads[a] || 0) + 1;
   });
-  var html = '<div class="inv-panel inv-panel-flush" id="attNeed"><div class="inv-panel-head"><span class="inv-panel-title">Needed today</span></div>' +
+  var html = '<details class="inv-panel inv-panel-flush inv-panel-fold" id="attNeed" data-fold="attNeed"' + (uiFoldOpen('attNeed', false) ? ' open' : '') + '><summary class="inv-panel-head"><span class="inv-panel-title">Needed today</span><span class="inv-note">the numbers on each card</span></summary>' +
     '<div class="inv-panel-body inv-note">The general shift: who stood in each area against what the shift needed. The box starts at the area&rsquo;s usual number ' +
     '(Areas); type the day&rsquo;s own, 0 when the line did not need anyone, or clear it for the usual. The shortfall and the extra are judged against it. ' +
     'An OT or night block takes its own number under Extra hours.</div>';
@@ -14592,7 +14652,7 @@ function _attNeedCard(iso, rec) {
       '<span class="inv-row-end"><input type="number" class="inv-input inv-input-sm inv-input-num" data-att-need data-area="' + a.id + '" step="1" min="0"' +
       ' placeholder="' + (usual != null ? usual : '—') + '" value="' + (set ? need : '') + '" aria-label="Needed in ' + escHtml(a.label) + '">' + dot + '</span></div>';
   });
-  return html + '</div>';
+  return html + '</details>';
 }
 
 /* A block's own number (blockNorm reads it first); blank goes back to the areas' complement. */
@@ -17276,7 +17336,7 @@ function _attAreasView() {
       'No attendance recorded in this range. Mark some days and the floor appears here.</div></div>';
   }
 
-  html += areaHoursCard(from, to);
+  html += uiFoldCard('areaHours', areaHoursCard(from, to), false);
   html += _areaExtraCard(stats);
 
   // Ranked by the hours the area actually consumed, because that is what
@@ -17306,7 +17366,7 @@ function _attAreasView() {
   }
   html += '</div>';
 
-  html += _areaAbsorptionCard(stats);
+  html += uiFoldCard('areaAbsorb', _areaAbsorptionCard(stats), false);
   return html;
 }
 
@@ -17829,10 +17889,12 @@ function _attPayView() {
   var ws = _attWeekStart, sat = isoAddDays(ws, 6);
   var html = _attStepper('invAttWeekStep', _attWeekLabel('Week ' + attPayWeekNumber(ws), 'Paid Sat ' + formatDate(sat)),
     'invAttThisWeek', 'This week', 'Previous week', 'Next week');
+  // What is paid this week and what is due lead; the history and the slips as paid are one tap away (owner, 30 Sep 2026:
+  // the Staff views scrolled too far).
   html += _payForecastCard(ws);
   html += _payDueCard(ws);
-  html += _payHistoryCard(ws);
-  html += _payrollPaidCard();
+  html += uiFoldCard('payHistory', _payHistoryCard(ws), false);
+  html += uiFoldCard('payrollPaid', _payrollPaidCard(), false);
   // The bank's side of the same payroll (Finance → Payments draws the same panel).
   if (finHasBank()) html += finWagesHtml(finCtx().cls, 'pay');
   return html;
@@ -18315,7 +18377,7 @@ function attDaySummary() {
     var last = Object.keys(S.attendance || {}).filter(function(k) { return k < today && marked(S.attendance[k]); }).sort().pop();
     if (last) { iso = last; rec = S.attendance[last]; }
   }
-  var out = { roster: roster, iso: iso, today: iso === today, marked: marked(rec), p: 0, half: 0, absent: [], unmarked: 0, floorHeads: 0, complement: 0, extraH: 0, short: false };
+  var out = { roster: roster, iso: iso, today: iso === today, marked: marked(rec), p: 0, half: 0, absent: [], unmarked: 0, floorHeads: 0, complement: 0, extraH: 0, short: false, byArea: {} };
   if (!out.marked) return out;
   roster.forEach(function(w) {
     var m = rec.marks[w.id];
@@ -18323,6 +18385,8 @@ function attDaySummary() {
     if (m.st === 'A') { out.absent.push(w.name); return; }
     if (m.st === 'H') out.half++; else out.p++;
     if (w.onFloor !== false && _areaIsFloor(m.area || w.area)) out.floorHeads++;
+    var ar = m.area || w.area || 'flex';
+    out.byArea[ar] = (out.byArea[ar] || 0) + 1;
   });
   // The floor's complement against the floor's heads: an office or gate complement is not a head on the floor.
   out.complement = STAFF_AREAS.reduce(function(s, a) { var t = a.floor ? areaNeedOn(iso, a.id) : null; return s + (t != null ? t : 0); }, 0);
@@ -18343,6 +18407,18 @@ function attDayPanelHtml(d, headBtn, id) {
     '<div class="inv-tile' + (d.short ? ' inv-tile-warning' : d.complement ? ' inv-tile-ok' : '') + '"><div class="inv-tile-label">On the floor</div>' +
     '<div class="inv-tile-value">' + d.floorHeads + (d.complement ? '<span class="inv-tile-of">/' + d.complement + '</span>' : '') + '</div>' +
     '<div class="inv-tile-sub">' + (d.complement ? (d.short ? (d.complement - d.floorHeads) + ' short of the complement' : 'against the complement') : 'no complement set') + '</div></div></div>';
+  // Where everyone on site stood, every area the day has a hand in: the office, the gate, Flex and Civil as well as the
+  // floor (owner, 30 Sep 2026: "Overview doesn't show any staff allocation for Office, gate, flex, civil").
+  var alloc = STAFF_AREAS.filter(function(a) { return d.byArea[a.id] || (a.floor && a.id !== 'flex' && areaNeedOn(d.iso, a.id)); });
+  Object.keys(d.byArea).forEach(function(k) { if (!STAFF_AREAS.some(function(a) { return a.id === k; })) alloc.push({ id: k, label: areaLabel(k), floor: false }); });
+  if (alloc.length) {
+    h += '<div class="inv-row inv-row-auto" data-att-alloc><span class="inv-row-main"><span class="inv-row-meta">By area</span><span class="inv-row-wrap">' +
+      alloc.map(function(a) {
+        var n = d.byArea[a.id] || 0, need = a.floor && a.id !== 'flex' ? areaNeedOn(d.iso, a.id) : null;
+        var tone = need != null ? (n < need ? 'warning' : 'ok') : null;
+        return '<span data-alloc="' + escHtml(a.id) + '">' + escHtml(a.label) + ' ' + figHtml('<span class="inv-num">' + n + (need != null ? '/' + need : '') + '</span>', tone) + '</span>';
+      }).join(' · ') + '</span></span></div>';
+  }
   if (d.absent.length) h += '<div class="inv-row inv-row-2"><span class="inv-row-main"><span class="inv-row-meta">Absent</span><span class="inv-row-wrap">' + escHtml(d.absent.join(', ')) + '</span></span></div>';
   if (d.extraH) h += '<div class="inv-row"><span class="inv-row-main">EXTRA booked</span><span class="inv-row-end inv-num">' + formatNum(d.extraH, 1) + ' h</span></div>';
   return h + '</div>';
@@ -23911,6 +23987,7 @@ function relayHeaderAreas(text) {
   if (!out.length && vat) out.push('vat-a1');
   if (/OFFICE/.test(k)) out.push('office');
   if (/GATE/.test(k)) out.push('gate');
+  if (/CIVIL/.test(k)) out.push('civil');
   if (/COLOU?R/.test(k) && !out.length) out.push('vat-a1');
   return out;
 }
@@ -24380,7 +24457,7 @@ function parseRelayRoll(text, roster, sentOn) {
         var a = areas.indexOf(w.area) >= 0 ? w.area : areas[0];
         // The office and the gate share a header ("office & gate keeper"); a
         // hand whose post is one of them stands at his own.
-        if ((a === 'office' || a === 'gate') && (w.area === 'office' || w.area === 'gate')) a = w.area;
+        if ((a === 'office' || a === 'gate' || a === 'civil') && (w.area === 'office' || w.area === 'gate' || w.area === 'civil')) a = w.area;
         if (st.slot && st.slot.start === RELAY_GENERAL) p.generalArea = a;
         else if (!p.areas) p.areas = a;
       }
@@ -24452,7 +24529,7 @@ function relaySlotOrArea(bare) {
 function relayPersonMark(p, w, restOut) {
   if (p.st === 'A') return { st: 'A', ot: 0, hours: 0, area: 'flex', inMin: null, outMin: null };
   // No line written: a floor hand floats (Flex); the office and the gate are posts.
-  var area = p.generalArea || p.areas || (w && (w.area === 'office' || w.area === 'gate') ? w.area : 'flex');
+  var area = p.generalArea || p.areas || (w && (w.area === 'office' || w.area === 'gate' || w.area === 'civil') ? w.area : 'flex');
   var gate = area === 'gate';
   var inMin, outMin;
   if (gate) {
@@ -33852,6 +33929,8 @@ function onDocClick(e) {
     case 'invAttSet': setAttState(parseInt(btn.dataset.id, 10), btn.dataset.st); break;
     case 'invAttCycle': cycleAttState(parseInt(btn.dataset.id, 10), btn.dataset.date); break;
     case 'invAttAllPresent': attAllPresent(); break;
+    case 'invAttEdit': attEditOpen(btn.dataset.id); break;
+    case 'invAttEditClose': _attEditId = null; closeOverlay(); break;
     case 'invAttAddExtra': attAddExtra(); break;
     case 'invAttRemoveExtra': attRemoveExtra(parseInt(btn.dataset.idx, 10)); break;
     case 'invAreaExplain': openAreaExplain(btn.dataset.ex); break;

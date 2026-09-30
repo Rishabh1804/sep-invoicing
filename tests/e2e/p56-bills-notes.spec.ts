@@ -194,6 +194,8 @@ test('a note recorded from an earlier year holds no number in this year\'s serie
     if (!(await page.locator('#cnfNum').count())) await page.locator('[data-action="invCnFormOpen"][data-mode="record"]').click();
     await page.locator('#cnfNum').fill(num);
     await page.locator('#cnfFy').fill(fy);
+    // Dated inside the year typed on it: a note dated outside its series' year is asked about (P123, G1-6).
+    await page.locator('#cnfDate').fill('20' + fy.slice(0, 2) + '-10-01');
     await page.locator('#cnfClient').selectOption('1');
     await page.locator('#cnfInv').selectOption('__typed');
     await page.locator('#cnfInvNo').fill(invNo);

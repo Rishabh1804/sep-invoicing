@@ -280,6 +280,10 @@ async function billsCnFormSave() {
     num = recomputeNextCnNumber();
     display = cnDisplayNumber(num);
   }
+  // Dated outside the financial year its number's series names (a recorded note's own year, as typed): asked, never
+  // refused (seriesFyAsk, number-audit.js).
+  var fyAsk = seriesFyAsk('This credit note', display, rec ? (String(f.fy || '').trim() || cnFyShort()) : cnFyShort(), f.date);
+  if (fyAsk && !(await uiConfirm(fyAsk))) return;
 
   var c = _billsCnFigures();
   var qty = f.qty > 0 ? f.qty : null;

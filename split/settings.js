@@ -104,11 +104,16 @@ var SETTINGS_SECS = {
       if (next <= used) {
         var chk = invReissueCheck(prefix, next);
         if (!chk.ok) { showToast(chk.why, 'error'); return false; }
-        if (!(await uiConfirm({ title: 'Reissue ' + chk.disp + '?', body: 'The next invoice will be issued as ' + chk.disp + ', a number used before. After it the series carries on from ' +
-          prefix + padInvNum(used + 1) + '. (Delete → "Delete and reissue" does this in one step.) Continue?', okLabel: 'Set next number' }))) return false;
+        // Deleted before it left the building, but its month's return was due: it may be in that GSTR-1 (at zero).
+        var dueSaid = chk.due ? 'The GSTR-1 it belongs to was due on ' + formatDate(isoOf(chk.due)) + ': if that return was filed with ' + chk.disp +
+          ' in it, the number is spent and must not be issued again. ' : '';
+        if (!(await uiConfirm({ title: 'Reissue ' + chk.disp + '?', body: dueSaid + 'The next invoice will be issued as ' + chk.disp + ', a number used before. After it the series carries on from ' +
+          prefix + padInvNum(used + 1) + '. (Delete → "Delete and reissue" does this in one step.) Continue?', okLabel: 'Set next number', tone: chk.due ? 'warning' : undefined }))) return false;
       }
       S.invPrefix = prefix;
       S.invNextNum = next;
+      // The operator's own Next: the start's reset of an empty book to 1 leaves it alone (resetSeriesIfEmpty).
+      S.invNextSetAt = Date.now();
     }
   },
   cn: {

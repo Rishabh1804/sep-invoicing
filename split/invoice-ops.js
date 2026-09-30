@@ -12,10 +12,19 @@
    An invoice line now carries `imItemId`. A line saved before that is matched
    to its challan line when the invoice is opened for editing: same invoice,
    same part, same quantities, each challan line claimed once — and a line that
-   matches ambiguously is left unlinked rather than guessed. */
+   matches ambiguously is left unlinked rather than guessed. Truly identical
+   lines are not ambiguous: N invoice lines alike against N challan lines alike
+   (part, description, unit, quantity, pieces, rate) are one another's whichever
+   way they pair, so they are linked in order (the QA audit, 30 Sep 2026: left
+   unlinked, a reissue freed them and the challan read unbilled). */
 var CHALLAN_SYNC_FIELDS = ['partNumber', 'desc', 'unit', 'qty', 'nosQty', 'rate', 'amount'];
 /* The fields that are an invoice's SHARE of a challan line, not a fact about it. */
 var CHALLAN_SHARE_FIELDS = ['qty', 'nosQty', 'amount'];
+
+/* What makes two lines alike for pairing: the part and every figure but the amount. */
+function challanLineSig(x) {
+  return JSON.stringify([rateKey(x.partNumber), String(x.desc || ''), x.unit || '', Number(x.qty) || 0, x.nosQty || null, Number(x.rate) || 0]);
+}
 
 function withChallanLinks(inv) {
   var pool = [];
@@ -26,6 +35,9 @@ function withChallanLinks(inv) {
   });
   var taken = {};
   (inv.items || []).forEach(function(li) { if (li.imItemId) taken[li.imItemId] = true; });
+  // How many unlinked lines of this invoice are alike, still to be paired.
+  var alike = {};
+  (inv.items || []).forEach(function(li) { if (!li.imItemId) alike[challanLineSig(li)] = (alike[challanLineSig(li)] || 0) + 1; });
   return (inv.items || []).map(function(li) {
     // What the line said when the edit began: only a field that moves from
     // this is a correction to carry back (see backCorrectChallans).
@@ -33,9 +45,14 @@ function withChallanLinks(inv) {
     CHALLAN_SYNC_FIELDS.forEach(function(f) { orig[f] = li[f] == null ? null : li[f]; });
     li = Object.assign({}, li, { _orig: orig });
     if (li.imItemId) return Object.assign({}, li, { _imItemId: li.imItemId });
+    var sig = challanLineSig(li), mates = alike[sig];
+    alike[sig]--;
     var free = pool.filter(function(it) { return !taken[it.id] && rateKey(it.partNumber) === rateKey(li.partNumber); });
     var exact = free.filter(function(it) { return it.qty === li.qty && (it.nosQty || null) === (li.nosQty || null); });
     var pick = exact.length === 1 ? exact[0] : (exact.length === 0 && free.length === 1 ? free[0] : null);
+    // As many alike invoice lines as alike challan lines: the first free one, in order.
+    if (!pick && exact.length > 1 && exact.length === mates &&
+        exact.every(function(it) { return challanLineSig(it) === challanLineSig(exact[0]); })) pick = exact[0];
     if (!pick) return Object.assign({}, li);
     taken[pick.id] = true;
     // A looser match whose quantity differs billed the WHOLE challan line, as the
@@ -57,6 +74,7 @@ function withChallanLinks(inv) {
    it from which invoice. */
 function backCorrectChallans(inv, formItems) {
   var now = Date.now(), lines = 0, touched = {}, idx = imBilledIndex();
+  var client = S.clients.find(function(c) { return c.id === inv.clientId; });
   (formItems || []).forEach(function(li) {
     if (!li._imItemId || !li._orig) return;
     var im = null, it = null;
@@ -71,18 +89,25 @@ function backCorrectChallans(inv, formItems) {
     // only this invoice's share: its quantity, pieces and amount never travel.
     var others = (idx[it.id] || []).some(function(r) { return r.invoiceId !== inv.id; });
     var part = others || li._orig.qty !== (it.qty == null ? null : it.qty);
+    var unitOff = (li.unit || null) !== (it.unit == null ? null : it.unit);
     // On a new invoice a quantity typed under the challan's is a dispatch of part of it, not a correction: the
-    // quantity travels only when the operator said the challan's was wrong.
-    if (li._fromNew && li.qty !== li._orig.qty && (li.overReason || (li.overBillAck && li.overBillAck.reason)) !== 'challan') part = true;
+    // quantity travels only when the operator said the challan's was wrong. So does a unit said to be the challan's
+    // mistake on a whole line (the QA audit, 30 Sep 2026: "Challan unit was wrong" never reached the challan from a new
+    // invoice, where the unit's new quantity always read as a dispatch).
+    var unitFix = unitOff && !part && li.unitReason === 'challan';
+    if (li._fromNew && !unitFix && li.qty !== li._orig.qty && (li.overReason || (li.overBillAck && li.overBillAck.reason)) !== 'challan') part = true;
     // A line billed in another unit than its challan line's travels back only as a correction the
     // operator named ("Challan unit was wrong"), and only on a whole line. Any other unit change is how
     // the customer is billed, not what their paper said: the challan keeps its unit and its quantity.
-    var unitOff = (li.unit || null) !== (it.unit == null ? null : it.unit);
     var carryUnit = unitOff && !part && li.unitReason === 'challan';
     if (unitOff && !carryUnit) part = true;
+    // A piece client's rate is its amount ÷ its quantity (the field is read-only): on a share of the line, that is the
+    // share's rounding, not the challan's rate corrected (₹33.34 for the last third of ₹100 at ₹33.33).
+    var shareRate = part && client && client.billingMode === 'piece' && li.unit === 'NOS';
     var from = {}, changed = false;
     CHALLAN_SYNC_FIELDS.forEach(function(f) {
       if (part && CHALLAN_SHARE_FIELDS.indexOf(f) >= 0) return;
+      if (f === 'rate' && shareRate) return;
       // A rate in another unit is not the challan's rate corrected: ₹14.50/kg is not a price for its pieces.
       if ((f === 'unit' || f === 'rate') && unitOff && !carryUnit) return;
       var now_ = li[f] == null ? null : li[f];
@@ -886,8 +911,59 @@ function invoiceFormFrom(inv, extra) {
     form._linkedIMIds = (inv.linkedIMIds || []).slice();
     form._linkedIMItemIds = items.map(i => i._imItemId).filter(Boolean);
     items.forEach(i => { delete i._orig; });
+    // What the old invoice held by its id alone and no line here names (saved before lines named their challan line,
+    // and matched to none): the delete frees it, and the reissue takes it back on save (invReissueCarry).
+    extra.reissue.legacyItemIds = imLegacyHeldBy(inv.id).filter(id => form._linkedIMItemIds.indexOf(id) < 0);
   }
+  // An edit keeps the challan lines matched to lines saved before lines named them: one taken off the invoice in this
+  // edit is freed on save (invFreeDropped), or its old hold by the invoice's id would read billed for ever.
+  if (extra && extra.editingId) form._legacyLinked = items.filter(i => i._imItemId && !i.imItemId).map(i => i._imItemId);
   return Object.assign(form, extra || {});
+}
+
+/* The challan lines an invoice bills whole by its id alone (billedLegacy, im.js). */
+function imLegacyHeldBy(invId) {
+  var out = [];
+  (S.incomingMaterial || []).forEach(function(im) {
+    (im.items || []).forEach(function(it) { if (it.billedLegacy && it.invoiceId === invId) out.push(it.id); });
+  });
+  return out;
+}
+
+/* Saving an edit: a line matched when the edit opened and taken off in it bills its challan line no more. Run before
+   imSyncBilled, which keeps a line held by a live invoice's id as billed. */
+function invFreeDropped(inv, form) {
+  var kept = {};
+  (form.items || []).forEach(function(i) { if (i._imItemId) kept[i._imItemId] = true; });
+  (form._legacyLinked || []).forEach(function(id) {
+    if (kept[id]) return;
+    (S.incomingMaterial || []).forEach(function(im) {
+      (im.items || []).forEach(function(it) {
+        if (it.id === id && it.billedLegacy && it.invoiceId === inv.id) { it.invoiced = false; it.invoiceId = null; delete it.billedLegacy; }
+      });
+    });
+  });
+}
+
+/* A reissue takes the place of the invoice it replaces, under a new id: what was keyed on the old id moves to it. The
+   challan lines the old one held by its id alone (a free one only: another invoice may have billed it since), and every
+   credit note taken against it or naming it in its batch (the QA audit, 30 Sep 2026: every link broke, cnMatch went red
+   and the invoice lost its headroom). A note's printed snapshot (number, date) is the customer's copy and stays. */
+function invReissueCarry(reissue, inv) {
+  var idx = imBilledIndex();
+  (reissue.legacyItemIds || []).forEach(function(id) {
+    (S.incomingMaterial || []).forEach(function(im) {
+      (im.items || []).forEach(function(it) {
+        if (it.id !== id || it.invoiced || (idx[id] || []).length) return;
+        it.invoiced = true; it.invoiceId = inv.id; it.billedLegacy = true;
+      });
+    });
+  });
+  if (!reissue.id) return;
+  getCreditNotes().forEach(function(cn) {
+    if (cn.againstInvoiceId === reissue.id) cn.againstInvoiceId = inv.id;
+    if ((cn.invoiceIds || []).indexOf(reissue.id) >= 0) cn.invoiceIds = cn.invoiceIds.map(function(id) { return id === reissue.id ? inv.id : id; });
+  });
 }
 
 async function editInvoice(invId) {
@@ -1052,8 +1128,9 @@ async function confirmDeleteInvoice(invId, reissue) {
   if (reissue && !(await createDiscardOk())) return;
   if (!S.invoices.includes(inv)) return;
 
-  // The replacement's form is read BEFORE the delete unlinks the challan lines.
-  const reissueForm = reissue ? invoiceFormFrom(inv, { reissue: { invoiceNumber: inv.invoiceNumber, displayNumber: inv.displayNumber } }) : null;
+  // The replacement's form is read BEFORE the delete unlinks the challan lines. It carries the old id, so what was keyed
+  // on it (challan lines held by it alone, credit notes) moves to the new invoice on save (invReissueCarry).
+  const reissueForm = reissue ? invoiceFormFrom(inv, { reissue: { id: inv.id, invoiceNumber: inv.invoiceNumber, displayNumber: inv.displayNumber } }) : null;
 
   const dispNum = inv.displayNumber;
   // A number the customer has seen is spent, and so is a cancelled one (the export already declared it at zero);
@@ -1066,9 +1143,9 @@ async function confirmDeleteInvoice(invId, reissue) {
   if (idx > -1) S.invoices.splice(idx, 1);
   imSyncBilled();
 
-  // Recycle the number only if nothing holds it — live invoices and reserved
-  // voids both count, so invNextNum can no longer walk back over an issued one.
-  recomputeNextInvoiceNumber();
+  // Next walks back onto the number only if it was the last handed out and nothing holds it: live invoices and
+  // reserved voids both count, and a Next set in Settings stays where it was set (invNextAfterDelete).
+  invNextAfterDelete(inv, reserved);
 
   saveState();
   closeOverlay();

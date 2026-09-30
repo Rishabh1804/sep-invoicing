@@ -443,12 +443,15 @@ function challanFormClosed() {
   }
 }
 
-/* What the form still lacks before it can be saved: the challan's date, or a line's part or quantity. */
+/* What the form still lacks before it can be saved: the challan's date, or a line's part or quantity; or a figure below
+   zero, which the fields take as nothing but a scanned challan could still bring (the invoice refuses one too). */
 function challanIncomplete() {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(String(_challanForm.challanDate || ''))) return { msg: 'Enter the challan date', k: 'challanDate' };
   for (var i = 0; i < _challanForm.items.length; i++) {
     var it = _challanForm.items[i];
     if (!String(it.partNumber || it.desc || '').trim()) return { msg: 'Line ' + (i + 1) + ' has no part: pick one, or remove the line', k: 'part-' + i };
+    var neg = [['rate', 'rate'], ['amount', 'amount'], ['nosQty', 'piece count', 'nos']].find(function(f) { return Number(it[f[0]]) < 0; });
+    if (neg) return { msg: 'Line ' + (i + 1) + ': the ' + neg[1] + ' cannot be negative', k: (neg[2] || neg[0]) + '-' + i };
     if (!(Number(it.qty) > 0)) return { msg: 'Line ' + (i + 1) + ' has no quantity', k: 'qty-' + i };
   }
   return null;

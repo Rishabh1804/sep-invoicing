@@ -1083,11 +1083,14 @@ function getMetalsKey() { try { return localStorage.getItem(METALS_KEY_KEY) || '
 function setMetalsKey(key) { try { localStorage.setItem(METALS_KEY_KEY, key); } catch(e) {} }
 
 // Phase 3: Reset invNextNum if no invoices exist.
-// A reserved number in the void ledger still holds its slot — the document
-// left the building, so the number is spent even though no invoice remains.
+// It is the delete's old recycling rule (a book emptied of its invoices starts again at 1) run at every start; a delete
+// now walks Next back itself (invNextAfterDelete). A reserved number in the void ledger still holds its slot — the
+// document left the building, so the number is spent even though no invoice remains — and a Next the operator set in
+// Settings is theirs (invNextSetAt): an empty book set to carry on a paper series at 500 went back to 1 at the next
+// start (the QA audit, 30 Sep 2026). A book nobody set stays at 1.
 function resetSeriesIfEmpty() {
   // Only when it changes something: it rewrote the whole book at every start of an empty one.
-  if (S.invoices.length === 0 && S.invNextNum !== 1 && !S.voidedNumbers.some(function(v) { return v.reserved; })) {
+  if (S.invoices.length === 0 && S.invNextNum !== 1 && !S.invNextSetAt && !S.voidedNumbers.some(function(v) { return v.reserved; })) {
     S.invNextNum = 1;
     saveJSON(STORAGE_KEY, S);
   }

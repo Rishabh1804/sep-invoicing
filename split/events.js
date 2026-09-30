@@ -754,8 +754,14 @@ document.addEventListener('input', function(e) {
     const idx = parseInt(e.target.dataset.idx);
     const item = invoiceForm.items[idx];
     if (item) {
-      item.desc = e.target.value;
+      // The field is the part number (the description shows under the line), as on the challan form below: what is
+      // typed takes the description too only where it was empty or said the same as the part it replaces. Both used to
+      // take every keystroke, so a challan line's description became its part number and was corrected back onto it.
+      const wasPart = item.partNumber;
       item.partNumber = e.target.value;
+      if (!item.desc || item.desc === wasPart) item.desc = e.target.value;
+      // Typed in, the line is named by what the field holds: emptied, it names no part, whatever its description says.
+      item._partTyped = true;
 
       // Show part autocomplete dropdown
       showPartAutocomplete(idx, e.target.value);
@@ -826,6 +832,9 @@ document.addEventListener('input', function(e) {
       var cclient2 = _challanForm.clientId ? S.clients.find(function(c) { return c.id === _challanForm.clientId; }) : null;
       var setVal = function(field, v) { var el = document.querySelector('[data-action="invUpdateChallanLine"][data-field="' + field + '"][data-idx="' + cidx2 + '"]'); if (el) el.value = v ? formatNum(v, field === 'qty' ? 3 : 2) : ''; };
       citem2._auto = citem2._auto || {};
+      // No figure on a challan is below zero: a negative typed is taken as nothing, and the field says so (the save
+      // refuses one that reached the form another way, challanIncomplete).
+      if (parseFloat(challanLineInput.value) < 0) challanLineInput.value = '';
       if (challanLineInput.dataset.field === 'nosQty') {
         citem2.nosQty = parseInt(challanLineInput.value) || null;
         // Pieces on a weight line fill the kilograms from kg/pc, into an empty field or one the record filled.
@@ -836,6 +845,8 @@ document.addEventListener('input', function(e) {
         return;
       }
       citem2[challanLineInput.dataset.field] = parseFloat(challanLineInput.value) || 0;
+      // Money to the paisa as it is typed (HR-8), as on the invoice line.
+      if (challanLineInput.dataset.field === 'amount') citem2.amount = gstRound(citem2.amount);
       // A figure typed is the operator's: the record never fills over it again.
       citem2._auto[challanLineInput.dataset.field] = false;
       if (cclient2 && cclient2.billingMode === 'piece' && citem2.unit === 'NOS') {
@@ -874,6 +885,9 @@ document.addEventListener('input', function(e) {
     if (!item) return;
     const client = invoiceForm.clientId ? S.clients.find(c => c.id === invoiceForm.clientId) : null;
     item[el.dataset.field] = parseFloat(el.value) || 0;
+    // Money is kept to the paisa as it is typed (HR-8), so the totals, the rate worked back from it and the saved line
+    // read one figure: an invoice was saved at ₹763.998.
+    if (el.dataset.field === 'amount') item.amount = gstRound(item.amount);
 
     if (client && client.billingMode === 'piece' && item.unit === 'NOS') {
       // A line taking PART of a challan: its amount is that share of the challan's

@@ -164,3 +164,40 @@ test('a round shared by two clients splits into each client’s run, and a ditto
   const bad = JSON.parse(await g(page, `JSON.stringify(prodFromRegisterRead(${JSON.stringify({ ...shared, rows: [shared.rows[0], { time: '9:20 AM', customer: 'MEHTA+DELTA', part: 'LINER+188CD', qtyText: '89' }] })}, prodCtx(), null, {}).rows.map(r => r.issues.map(i => i.code)))`) as string);
   expect(bad.flat()).toContain('shared');
 });
+
+// Owner, 30 Sep 2026: a round outside the gauge rules raises a flag that is resolved by picking the gauge; a code two parts
+// end in is matched with the recent challans; a figure for two parts is shared between them by the challans.
+test('a round no rule names is flagged until its gauge is picked, and a code two parts end in is matched with the latest challan', async ({ page }) => {
+  const s: any = book();
+  const day = (n: number) => { const d = new Date(T + 'T00:00:00'); d.setDate(d.getDate() - n); return d.toISOString().slice(0, 10); };
+  const line = (id: string, pn: string, nos: number) => ({ id, partNumber: pn, desc: 'BRACKET', hsn: '998873', unit: 'KG', qty: nos, nosQty: nos, rate: 1, amount: nos });
+  s.incomingMaterial.push(
+    { id: 'IM-7', challanNo: '71', challanDate: day(12), clientId: 1, clientName: 'DELTA AUTO', vehicleNo: '', receivedDate: day(12), createdAt: recentTs(), items: [line('IM-7-0', '5567 5450 0106', 20)] },
+    { id: 'IM-8', challanNo: '88', challanDate: day(1), clientId: 1, clientName: 'DELTA AUTO', vehicleNo: '', receivedDate: day(1), createdAt: recentTs(), items: [line('IM-8-0', '5206 4920 0106', 20), line('IM-8-1', '5206 4920 3313', 30)] });
+  await loadAppWithState(page, s);
+  // IM-1 holds both 0106 parts open; it is taken out so the match falls to the latest challan.
+  const pg = { page: 'production', date: dmy, line: 'VAT-A1', rows: [
+    { time: '9:00 AM', customer: 'MEHTA', part: 'CLAMP', qtyText: '94' },
+    { time: '9:40 AM', customer: 'DELTA', part: '(0106)', qtyText: '15' },
+    { time: '10:00 AM', customer: 'DELTA', part: '(0106+3313)', qtyText: '25' }] };
+  const runs = JSON.parse(await g(page, `(function(){ S.incomingMaterial = S.incomingMaterial.filter(function(m) { return m.id !== 'IM-1'; }); return JSON.stringify(prodFromRegisterRead(${JSON.stringify(pg)}, prodCtx(), null, {}).runs.map(e => [e.part, e.partNumber || null, e.qty, e.gaugeUnknown || null])); })()`) as string);
+  expect(runs).toEqual([
+    ['CLAMP', null, 94, 94],
+    ['(0106)', '5206 4920 0106', 15, null],             // on the latest challan (88), where the other 0106 was 12 days before
+    ['(0106+3313)', '5206 4920 0106', 10, null],        // 25 shared 20 : 30 by the latest challan's pieces
+    ['(0106+3313)', '5206 4920 3313', 15, null]]);
+  // The flagged run: in Entries under Gauge unknown, raised on the To-do, and cleared by picking its gauge.
+  await g(page, `(function(){ var p = prodData(); p.entries.push(prodSparse({ id: 'GU1', kind: 'plated', date: '${T}', line: 'vat-a1', clientId: 2, client: 'MEHTA', part: 'CLAMP', qty: 94, unit: 'NOS', slot: 'general', basis: 'register', src: 'import', time: '09:00', gaugeUnknown: 94, rounds: [{ time: '9:00 AM', qty: 94 }] })); prodTouch(); saveState(); })()`);
+  expect(await g(page, `todoAppAll(['prodGaugeUnknown']).length`)).toBe(1);
+  await switchTab(page, 'pageProduction');
+  await page.locator('[data-action="invProdTab"][data-tab="entries"]').click();
+  await page.locator('[data-action="invProdFilter"][data-flag="gauge"]').click();
+  await expect(page.locator('[data-prod-entry="GU1"]')).toContainText('gauge unknown: a round of 94');
+  await page.locator('[data-prod-entry="GU1"] [data-action="invProdGauge"]').click();
+  await page.locator('#prodGaugePick').selectOption('35X6');
+  await page.locator('[data-action="invProdGaugeSave"]').click();
+  await expect(page.locator('[data-prod-entry="GU1"]')).toHaveCount(0);
+  const st = await readStoredState(page);
+  expect(st.production.entries.find((e: any) => e.id === 'GU1')).toMatchObject({ gauge: '35X6', gaugeSrc: 'set', gaugeUnknown: 94 });
+  expect(await g(page, `todoAppAll(['prodGaugeUnknown']).length`)).toBe(0);
+});

@@ -860,7 +860,7 @@ function prodFromRegisterRead(json, ctx, photoDate, choices) {
       raw: run.rows.map(function(x) { return x.raw; }).join('\n'), n: first.i + 1, issues: [], rows: run.rows };
     e.slot = e.time && (relayParseHhmm(e.time) < 510 || relayParseHhmm(e.time) >= 1020) ? 'ot' : 'general';
     var racked = run.rows.find(function(x) { return x.gaugeRack; });
-    if (run.gs === 'none') { e.issues.push({ tone: 'amber', code: 'gauge', text: 'Gauge unknown: a round of ' + racked.gaugeRack + ' is in none of the owner’s rules for this part.' }); }
+    if (run.gs === 'none') { e.gaugeUnknown = racked.gaugeRack; e.issues.push({ tone: 'amber', code: 'gauge', text: 'Gauge unknown: a round of ' + racked.gaugeRack + ' is in none of the owner’s rules for this part. Flagged on the entry until its gauge is picked.' }); }
     else if (run.gs) { e.gaugeOptions = run.gs.split('/'); e.gaugeSrc = 'rack'; e.issues.push({ tone: 'info', code: 'gauge', text: 'Gauge read from the round of ' + racked.gaugeRack + ': ' + run.gs.replace(/\//g, ' or ') + ' (the owner’s rule). The challans say which.' }); }
     else if (racked && e.gauge) { e.gaugeSrc = 'rack'; e.issues.push({ tone: 'info', code: 'gauge', text: 'Gauge ' + e.gauge + ' read from the round of ' + racked.gaugeRack + ' (the owner’s rule).' }); }
     var ruled = run.rows.find(function(x) { return x.partRule; });
@@ -875,8 +875,39 @@ function prodFromRegisterRead(json, ctx, photoDate, choices) {
     }
     if (e.clientId == null) e.issues.push({ tone: 'red', code: 'client', text: first.cust ? '"' + first.cust + '" is not a client in the book. Pick the client, or keep it as written.' : 'No customer written. Pick the client.' });
     else if (it.clientHow === 'read-as') e.issues.push({ tone: 'amber', code: 'readas', text: '"' + first.cust + '" read as ' + it.clientName + '.' });
+    // A code two of the client's parts end in, or a group of codes in one figure ("(0106+3313)"): matched with the client's
+    // recent challans, then with the rounds each part has been plated at (owner, 30 Sep 2026).
+    if (!e.partNumber && e.clientId != null && ctx.resolvePart) {
+      var rack = Math.max.apply(null, [0].concat(run.rows.map(function(x) { return x.rackSize || (!x.batch && x.qty > 0 ? x.qty : 0); })));
+      var rs = ctx.resolvePart(e, rack || null);
+      if (rs && rs.partNumber) { e.partNumber = rs.partNumber; e.partSrc = rs.how; e.issues.push({ tone: 'info', code: 'part', text: 'Read as ' + rs.partNumber + ': ' + rs.why + '.' }); }
+      else if (rs && rs.split) { e.split = rs.split; e.splitBy = rs.by; }
+      else if (rs && rs.why) e.issues.push({ tone: 'amber', code: 'part', text: rs.why });
+    }
     return e;
   });
+  // A figure covering two parts is shared between them by their open challans: an estimate, and said so.
+  out.runs = [].concat.apply([], out.runs.map(function(e) {
+    if (!e.split) return [e];
+    var parts = e.split, sum = parts.reduce(function(a, x) { return a + x.open; }, 0), left = e.qty || 0;
+    var by = e.splitBy || 'the challans';
+    delete e.split; delete e.splitBy;
+    var text = (e.qty || 0) + ' of ' + e.part + ' shared by ' + by + ': ';
+    var shares = parts.map(function(x, j) {
+      var q = j === parts.length - 1 ? left : Math.round((e.qty || 0) * x.open / sum);
+      left -= q;
+      return q;
+    });
+    text += parts.map(function(x, j) { return shares[j] + ' of ' + x.partNumber; }).join(', ') + ' (an estimate).';
+    return parts.map(function(x, j) {
+      var o = {};
+      Object.keys(e).forEach(function(k) { o[k] = e[k]; });
+      o.partNumber = x.partNumber; o.partSrc = 'challan'; o.qty = shares[j]; o.qtySrc = 'split';
+      o.rounds = (e.rounds || []).map(function(r) { var c = {}; Object.keys(r).forEach(function(k) { c[k] = r[k]; }); if (c.qty != null && e.qty) c.qty = Math.round(c.qty * shares[j] / e.qty); return c; });
+      o.issues = e.issues.concat([{ tone: 'info', code: 'part', text: text }]);
+      return o;
+    });
+  }));
   var counted = out.rows.filter(function(x) { return x.counted && x.qty != null; }).reduce(function(s, x) { return s + x.qty; }, 0);
   out.counted = counted;
   if (out.dayTotal != null && Math.abs(out.dayTotal - counted) > 0.5) out.issues.push({ tone: 'amber', code: 'total', text: 'The page’s day total is ' + out.dayTotal + '; the rows counted add to ' + counted + '. A row may be missed or misread.' });

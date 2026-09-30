@@ -260,7 +260,7 @@ function prodRunRowHtml(e, muted) {
 function prodEntriesHtml() {
   var idx = prodIndex(), f = _prodFilter, from = isoAddDays(localDateStr(), -60);
   var chips = [['', 'All'], ['pickled', 'Pickled'], ['plated', 'Plated'], ['arrived', 'Arrived'], ['downtime', 'Power cuts']];
-  var flags = [['unknown', 'Line unknown'], ['noclient', 'No client'], ['nochallan', 'No challan']];
+  var flags = [['unknown', 'Line unknown'], ['noclient', 'No client'], ['nochallan', 'No challan'], ['gauge', 'Gauge unknown']];
   var h = '<div class="inv-toolbar" role="group" aria-label="Show">' + chips.map(function(c) {
     return '<button class="inv-chip" data-action="invProdFilter" data-kind="' + c[0] + '" aria-pressed="' + (f.kind === c[0] && !f.flag) + '">' + c[1] + '</button>';
   }).join('') + flags.map(function(c) {
@@ -272,6 +272,7 @@ function prodEntriesHtml() {
     if (f.flag === 'unknown') return e.kind === 'pickled' && !e.voidedAt && prodLoadLine(e).how === 'unknown';
     if (f.flag === 'noclient') return e.clientId == null && e.kind !== 'downtime';
     if (f.flag === 'nochallan') return e.clientId != null && prodLoadNoChallan(e, idx);
+    if (f.flag === 'gauge') return prodGaugeFlagged(e);
     return !f.kind || e.kind === f.kind;
   }).sort(function(a, b) { return a.date < b.date ? 1 : a.date > b.date ? -1 : String(b.time || '').localeCompare(String(a.time || '')); });
   h += '<div class="inv-panel inv-panel-flush" id="prodEntries"><div class="inv-panel-head"><span class="inv-panel-title">Entries, 60 days</span><span class="inv-panel-count">' + list.length + '</span></div>';
@@ -294,6 +295,9 @@ function prodEntryRowHtml(e, idx) {
   var alias = e.kind !== 'downtime' && e.clientId != null ? prodAliasShown(e) : null;
   if (alias && alias.pn) meta += ' · = ' + alias.pn + (alias.how === 'rack' && e.partRack ? ' by the round of ' + e.partRack : '');
   if (e.gaugeOptions && !e.gauge) meta += ' · ' + e.gaugeOptions.join(' or ') + ' by the round';
+  if (prodGaugeFlagged(e)) meta += ' · gauge unknown: a round of ' + e.gaugeUnknown;
+  else if (e.gaugeUnknown && e.gaugeSrc === 'set') meta += ' · gauge set (a round of ' + e.gaugeUnknown + ')';
+  if (e.qtySrc === 'split') meta += ' · shared by the challans (estimate)';
   var crew = (e.kind === 'plated' || e.kind === 'pickled') && !e.voidedAt ? prodCrew(e) : null;
   var h = '<div class="inv-row inv-row-2 inv-row-flow' + (e.voidedAt ? ' inv-row-muted' : '') + '" data-prod-entry="' + escHtml(e.id) + '"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(title) + '</span>' +
     '<span class="inv-row-meta">' + escHtml(meta + (e.voidedAt ? ' · void: ' + (e.voidReason || '') : '')) + '</span>' +
@@ -303,6 +307,7 @@ function prodEntryRowHtml(e, idx) {
   if (!e.voidedAt) {
     if (line && line.how === 'unknown' && line.hint) h += '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invProdUseLine" data-id="' + escHtml(e.id) + '" data-line="' + line.hint.line + '">Use ' + escHtml(prodLineName(line.hint.line)) + '</button>';
     if (alias && !alias.pn && !alias.generic) h += '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invProdAlias" data-id="' + escHtml(e.id) + '">Which part?</button>';
+    if (prodGaugeFlagged(e)) h += '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invProdGauge" data-id="' + escHtml(e.id) + '">Pick gauge</button>';
     if (e.kind !== 'downtime' && !idx.replaced[e.id]) h += '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invProdCorrect" data-id="' + escHtml(e.id) + '">Correct</button>';
     h += '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invProdVoid" data-id="' + escHtml(e.id) + '">Void</button>';
   }
@@ -353,6 +358,34 @@ function prodAliasSave(id) {
   closeOverlay();
   renderProduction();
   showToast('“' + e.part + '” is read as ' + sel.value + ' from now on');
+}
+
+/* A run whose round no gauge rule names: its gauge picked from the client's rules and challans for that kind of part. */
+function prodGaugeOpen(id) {
+  var e = prodIndex().byId[id];
+  if (!e) return;
+  var ch = prodGaugeChoices(e);
+  var h = '<div class="inv-dialog" role="dialog" aria-modal="true" aria-labelledby="prodGaugeT" data-prod-gauge="' + escHtml(id) + '">' +
+    dialogHeadHtml('<span id="prodGaugeT">Gauge of ' + escHtml(e.part) + '</span>') +
+    '<div class="inv-dialog-body"><div class="inv-note inv-mb-8">' + escHtml(prodEntryTitle(e) + ' · ' + formatDate(e.date) + (e.time ? ' ' + e.time : '') + ' · a round of ' + e.gaugeUnknown + ', which no gauge rule names.') + '</div>' +
+    '<label class="inv-field"><span class="inv-field-label">Gauge</span><select class="inv-select" id="prodGaugePick"><option value="">Pick the gauge</option>' +
+    ch.map(function(g) { return '<option value="' + escHtml(g) + '">' + escHtml(g) + '</option>'; }).join('') + '</select></label>' +
+    '<label class="inv-field"><span class="inv-field-label">Or type it</span><input class="inv-input" id="prodGaugeTyped" placeholder="40X6"></label></div>' +
+    '<div class="inv-dialog-foot"><button class="inv-btn inv-btn-secondary" data-action="invCloseOverlay">Cancel</button><button class="inv-btn inv-btn-primary" data-action="invProdGaugeSave" data-id="' + escHtml(id) + '">Save</button></div></div>';
+  dialogOpen(h);
+}
+function prodGaugeSave(id) {
+  var e = prodIndex().byId[id], sel = document.getElementById('prodGaugePick'), typed = document.getElementById('prodGaugeTyped');
+  if (!e) return;
+  var raw = String((typed && typed.value.trim()) || (sel && sel.value) || '').toUpperCase().replace(/[×✕*\s]/g, 'X').replace(/X+/g, 'X');
+  var g = lineGauge(raw);
+  if (!g) { showToast('Pick a gauge, or type one like 40X6', 'error'); return; }
+  e.gauge = g; e.gaugeSrc = 'set'; e.setAt = Date.now(); e.setBy = stockBy();
+  prodTouch();
+  saveState();
+  closeOverlay();
+  renderProduction();
+  showToast('Gauge ' + g + ' set on the run');
 }
 
 /* ---------- Paste and review ---------- */
@@ -824,6 +857,8 @@ function prodAction(action, btn) {
     case 'invProdSaveHand': prodSaveHand(); return true;
     case 'invProdHandDone': prodHandDone(); return true;
     case 'invProdAlias': prodAliasOpen(btn.dataset.id); return true;
+    case 'invProdGauge': prodGaugeOpen(btn.dataset.id); return true;
+    case 'invProdGaugeSave': prodGaugeSave(btn.dataset.id); return true;
     case 'invProdAliasSave': prodAliasSave(btn.dataset.id); return true;
     case 'invProdVoid': prodVoid(btn.dataset.id); return true;
     case 'invProdUseLine': prodUseLine(btn.dataset.id, btn.dataset.line); return true;

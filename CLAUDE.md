@@ -1719,6 +1719,17 @@ reads a photo. **Owned by `soma-internal`, like stock** (owner): a view and an i
     client's run: a shared round, and the first round after them, continue the run of their own client and part, and a shared START takes
     its own client's next figure. A ditto under one side carries that side (*〃 + DORABJI* under MEHTA+GENERAL), a ditto alone the whole
     row. A figure that does not split into as many shares is amber and the row kept whole.
+  - **A round outside the gauge rules is a flag, resolvable** (owner: *"The ones that fall outside the range, raise a flag -
+    resolvable"*): the run keeps `gaugeUnknown` (its round) until a gauge is picked on it (Entries → *Gauge unknown* → **Pick gauge**, from
+    the client's rules and challans for that kind, or typed; `gaugeSrc: 'set'`), and To-do rule **`prodGaugeUnknown`** asks per client,
+    imported runs included.
+  - **A code two parts end in is matched with the recent challans** (owner: *"Checked and matched with recent IM … After a few matches
+    it'll become clearer as both would have a different amount of them that can be plated in a round"*; `prodResolveCode`): the one with a
+    challan in the 45 days before, else the one with a challan open, else the one on the latest challan, else the one plated before at this
+    round on this line (`prodPartRacks`, which never reads a match it made itself). Set on the entry (`partSrc: 'challan' | 'round'`),
+    never learnt for the name. On the 30 Sep page, *(0106)* is 5206 4920 0106, on Dorabji's latest challan. **A figure for a group of codes**
+    (*(0106+3313)*, 25) is two entries, each code matched the same way and the figure shared by what is open on their challans, else by the
+    pieces on each part's latest challan (`qtySrc: 'split'`, said as an estimate).
   - **Who plated it** (owner: *"place workers on the specified production … we'll know who plated what and when, this can be useful
     later when we get replating issues"*): `prodCrew(e)`, read off the day's attendance and never stored: a general-shift run is the
     hands marked on its line, a run from 5 PM or before 8:30 the named crew of the OT block covering it, a pickling load the pickling

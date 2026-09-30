@@ -18,7 +18,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <!-- Appearance before first paint (§3.2): the device's theme and palette, so nothing flashes in the wrong colours. -->
 <script>(function(){try{var d=document.documentElement,t=localStorage.getItem("sep_inv_theme"),p=localStorage.getItem("sep_inv_palette");if(t==="light"||t==="dark")d.dataset.theme=t;d.dataset.palette=(p==="zinc"||p==="terracotta")?p:"teal";}catch(e){document.documentElement.dataset.palette="teal";}})();</script>
-<meta name="app-build" content="9db96312">
+<meta name="app-build" content="ea19cd5c">
 <style>
 /* ===== DESIGN TOKENS (design system v2.0 — docs/SEP_INVOICING_DESIGN_PRINCIPLES.md §3) ===== */
 /* Theme: colour-scheme decides every light-dark() below. <html data-theme> is set before first paint
@@ -26398,7 +26398,7 @@ function prodFromRegisterRead(json, ctx, photoDate, choices) {
       raw: run.rows.map(function(x) { return x.raw; }).join('\n'), n: first.i + 1, issues: [], rows: run.rows };
     e.slot = e.time && (relayParseHhmm(e.time) < 510 || relayParseHhmm(e.time) >= 1020) ? 'ot' : 'general';
     var racked = run.rows.find(function(x) { return x.gaugeRack; });
-    if (run.gs === 'none') { e.issues.push({ tone: 'amber', code: 'gauge', text: 'Gauge unknown: a round of ' + racked.gaugeRack + ' is in none of the owner’s rules for this part.' }); }
+    if (run.gs === 'none') { e.gaugeUnknown = racked.gaugeRack; e.issues.push({ tone: 'amber', code: 'gauge', text: 'Gauge unknown: a round of ' + racked.gaugeRack + ' is in none of the owner’s rules for this part. Flagged on the entry until its gauge is picked.' }); }
     else if (run.gs) { e.gaugeOptions = run.gs.split('/'); e.gaugeSrc = 'rack'; e.issues.push({ tone: 'info', code: 'gauge', text: 'Gauge read from the round of ' + racked.gaugeRack + ': ' + run.gs.replace(/\//g, ' or ') + ' (the owner’s rule). The challans say which.' }); }
     else if (racked && e.gauge) { e.gaugeSrc = 'rack'; e.issues.push({ tone: 'info', code: 'gauge', text: 'Gauge ' + e.gauge + ' read from the round of ' + racked.gaugeRack + ' (the owner’s rule).' }); }
     var ruled = run.rows.find(function(x) { return x.partRule; });
@@ -26413,8 +26413,39 @@ function prodFromRegisterRead(json, ctx, photoDate, choices) {
     }
     if (e.clientId == null) e.issues.push({ tone: 'red', code: 'client', text: first.cust ? '"' + first.cust + '" is not a client in the book. Pick the client, or keep it as written.' : 'No customer written. Pick the client.' });
     else if (it.clientHow === 'read-as') e.issues.push({ tone: 'amber', code: 'readas', text: '"' + first.cust + '" read as ' + it.clientName + '.' });
+    // A code two of the client's parts end in, or a group of codes in one figure ("(0106+3313)"): matched with the client's
+    // recent challans, then with the rounds each part has been plated at (owner, 30 Sep 2026).
+    if (!e.partNumber && e.clientId != null && ctx.resolvePart) {
+      var rack = Math.max.apply(null, [0].concat(run.rows.map(function(x) { return x.rackSize || (!x.batch && x.qty > 0 ? x.qty : 0); })));
+      var rs = ctx.resolvePart(e, rack || null);
+      if (rs && rs.partNumber) { e.partNumber = rs.partNumber; e.partSrc = rs.how; e.issues.push({ tone: 'info', code: 'part', text: 'Read as ' + rs.partNumber + ': ' + rs.why + '.' }); }
+      else if (rs && rs.split) { e.split = rs.split; e.splitBy = rs.by; }
+      else if (rs && rs.why) e.issues.push({ tone: 'amber', code: 'part', text: rs.why });
+    }
     return e;
   });
+  // A figure covering two parts is shared between them by their open challans: an estimate, and said so.
+  out.runs = [].concat.apply([], out.runs.map(function(e) {
+    if (!e.split) return [e];
+    var parts = e.split, sum = parts.reduce(function(a, x) { return a + x.open; }, 0), left = e.qty || 0;
+    var by = e.splitBy || 'the challans';
+    delete e.split; delete e.splitBy;
+    var text = (e.qty || 0) + ' of ' + e.part + ' shared by ' + by + ': ';
+    var shares = parts.map(function(x, j) {
+      var q = j === parts.length - 1 ? left : Math.round((e.qty || 0) * x.open / sum);
+      left -= q;
+      return q;
+    });
+    text += parts.map(function(x, j) { return shares[j] + ' of ' + x.partNumber; }).join(', ') + ' (an estimate).';
+    return parts.map(function(x, j) {
+      var o = {};
+      Object.keys(e).forEach(function(k) { o[k] = e[k]; });
+      o.partNumber = x.partNumber; o.partSrc = 'challan'; o.qty = shares[j]; o.qtySrc = 'split';
+      o.rounds = (e.rounds || []).map(function(r) { var c = {}; Object.keys(r).forEach(function(k) { c[k] = r[k]; }); if (c.qty != null && e.qty) c.qty = Math.round(c.qty * shares[j] / e.qty); return c; });
+      o.issues = e.issues.concat([{ tone: 'info', code: 'part', text: text }]);
+      return o;
+    });
+  }));
   var counted = out.rows.filter(function(x) { return x.counted && x.qty != null; }).reduce(function(s, x) { return s + x.qty; }, 0);
   out.counted = counted;
   if (out.dayTotal != null && Math.abs(out.dayTotal - counted) > 0.5) out.issues.push({ tone: 'amber', code: 'total', text: 'The page’s day total is ' + out.dayTotal + '; the rows counted add to ' + counted + '. A row may be missed or misread.' });
@@ -29785,6 +29816,98 @@ function prodCarryCheck(clientId, part, rack) {
   return c ? { family: w, clientId: c.id, name: c.name } : { family: w, clientId: null };
 }
 
+/* ---------- A code two parts end in, matched with the challans ----------
+   Owner, 30 Sep 2026: a code two of the client's parts end in ("(0106)") is "checked and matched with recent IM, if
+   available in the app. After a few matches it'll become clearer as both would have a different amount of them that can be
+   plated in a round"; a group of codes in one figure ("(0106+3313)") is matched the same way. The client's challan lines
+   ending in the code, with what is open on them and the last challan's date: the one with a challan open, or received in
+   the 45 days before the day, where only one has; else the one plated before at this round on this line. Never learnt for
+   the name, since the name is two parts. */
+function prodCodeParts(clientId, code, date) {
+  var out = {};
+  (S.incomingMaterial || []).forEach(function(m) {
+    if (String(m.clientId) !== String(clientId) || (date && m.challanDate > date)) return;
+    (m.items || []).forEach(function(it) {
+      var pn = String(it.partNumber || '').trim(), k = rateKey(pn);
+      if (!pn || k.slice(-code.length) !== code) return;
+      var o = out[k] || (out[k] = { partNumber: pn, open: 0, last: '', lastNo: '', lastQty: 0 });
+      o.open += imLineOpen(it).qty;
+      if (m.challanDate > o.last) { o.last = m.challanDate; o.lastNo = m.challanNo || ''; o.lastQty = 0; }
+      if (m.challanDate === o.last) o.lastQty += Number(it.nosQty) || Number(it.qty) || 0;
+    });
+  });
+  return Object.keys(out).map(function(k) { return out[k]; });
+}
+function prodPartRacks(clientId, partNumber, line) {
+  var set = {}, k = rateKey(partNumber);
+  prodData().entries.forEach(function(e) {
+    if (e.voidedAt || e.kind !== 'plated' || e.line !== line || String(e.clientId) !== String(clientId) || !e.partNumber || rateKey(e.partNumber) !== k || e.partSrc === 'round') return;
+    (e.rounds || []).forEach(function(r) { var n = r.rack || (!r.batch ? r.qty : null); if (n > 0) set[n] = true; });
+  });
+  return set;
+}
+function prodResolveCode(clientId, code, date, line, rack) {
+  var c = prodCodeParts(clientId, code, date);
+  if (c.length === 1) return { partNumber: c[0].partNumber, how: 'challan', open: c[0].open, lastQty: c[0].lastQty, why: 'the only part of the client’s ending in ' + code };
+  if (!c.length) return null;
+  var since = isoAddDays(date || localDateStr(), -45);
+  var recent = c.filter(function(x) { return x.open > 0 || x.last >= since; });
+  if (recent.length === 1) return { partNumber: recent[0].partNumber, how: 'challan', open: recent[0].open, lastQty: recent[0].lastQty, why: 'the one of ' + c.length + ' parts ending in ' + code + ' with a challan open or in the 45 days before' };
+  var pool = recent.length ? recent : c;
+  var withOpen = pool.filter(function(x) { return x.open > 0; });
+  if (withOpen.length === 1) return { partNumber: withOpen[0].partNumber, how: 'challan', open: withOpen[0].open, lastQty: withOpen[0].lastQty, why: 'the one of ' + c.length + ' parts ending in ' + code + ' with a challan open' };
+  // The part on the latest challan before the day (owner: "checked and matched with recent IM").
+  var latest = pool.reduce(function(a, x) { return x.last > a ? x.last : a; }, '');
+  var onLatest = pool.filter(function(x) { return x.last === latest; });
+  if (onLatest.length === 1) return { partNumber: onLatest[0].partNumber, how: 'challan', open: onLatest[0].open, lastQty: onLatest[0].lastQty, why: 'the one of ' + c.length + ' parts ending in ' + code + ' on the latest challan' + (onLatest[0].lastNo ? ' (' + onLatest[0].lastNo + ', ' + formatDate(latest) + ')' : '') };
+  if (rack > 0 && line) {
+    var hit = pool.filter(function(x) { return prodPartRacks(clientId, x.partNumber, line)[rack]; });
+    if (hit.length === 1) return { partNumber: hit[0].partNumber, how: 'round', open: hit[0].open, why: 'the one of ' + c.length + ' parts ending in ' + code + ' plated before at a round of ' + rack + ' on this line' };
+  }
+  return null;
+}
+function prodCodeGroup(part) {
+  var m = /\(\s*(\d{3,5}(?:\s*\+\s*\d{3,5})+)\s*\)/.exec(String(part || ''));
+  return m ? m[1].split('+').map(function(x) { return x.trim(); }) : null;
+}
+function prodEntryRack(e) {
+  if (e.partRack) return e.partRack;
+  var n = 0;
+  (e.rounds || []).forEach(function(r) { var q = r.rack || (!r.batch ? r.qty : 0); if (q > n) n = q; });
+  return n || e.rackSize || null;
+}
+/* For an entry with no part number yet: {partNumber, how, why}, {split: [{partNumber, open}]} for a group, or {why} to ask. */
+function prodResolveEntryPart(e, rack) {
+  if (e.clientId == null || e.partNumber || !e.part || e.kind === 'downtime') return null;
+  var grp = prodCodeGroup(e.part);
+  if (grp) {
+    var parts = grp.map(function(code) { return prodResolveCode(e.clientId, code, e.date, e.line, null); });
+    if (parts.some(function(x) { return !x; })) return { why: 'A figure for ' + e.part + ': not every code matched one of the client’s parts with a recent challan. Pick the parts by hand.' };
+    // Shared by what is open on the challans, else by the pieces on each part's latest challan.
+    var byOpen = parts.reduce(function(a, x) { return a + x.open; }, 0) > 0;
+    if (!byOpen && !parts.reduce(function(a, x) { return a + x.lastQty; }, 0)) return { why: 'A figure for ' + e.part + ', and no challan of its parts to share it by. Enter each part by hand.' };
+    return { split: parts.map(function(x) { return { partNumber: x.partNumber, open: byOpen ? x.open : x.lastQty }; }), by: byOpen ? 'the open challans' : 'the latest challans' };
+  }
+  var code = prodAliasCode(e.part);
+  if (!code || prodCodeParts(e.clientId, code, e.date).length < 2) return null;
+  return prodResolveCode(e.clientId, code, e.date, e.line, rack != null ? rack : prodEntryRack(e));
+}
+
+/* ---------- A round no rule names: flagged until its gauge is picked ----------
+   Owner, 30 Sep 2026: "The ones that fall outside the range, raise a flag - resolvable." A run whose round size no gauge rule
+   names keeps `gaugeUnknown` (the round) until a gauge is picked on it (Entries → Pick gauge). */
+function prodGaugeFlagged(e) { return e && e.kind === 'plated' && !e.voidedAt && e.gaugeUnknown && !e.gauge; }
+function prodGaugeChoices(e) {
+  var w = (prodPartBase(e.part).toUpperCase().match(/[A-Z]+/) || [''])[0], out = [];
+  var add = function(g) { g = String(g || '').toUpperCase().replace(/[×✕]/g, 'X'); if (g && out.indexOf(g) < 0) out.push(g); };
+  prodData().gaugeRules.forEach(function(r) { if (String(r.clientId) === String(e.clientId) && r.family === w) (r.gauges || []).forEach(add); });
+  (S.incomingMaterial || []).forEach(function(m) {
+    if (String(m.clientId) !== String(e.clientId)) return;
+    (m.items || []).forEach(function(it) { if ((String(it.partNumber || '') + ' ' + (it.desc || '')).toUpperCase().indexOf(w) >= 0) add(prodGaugeOf(it.partNumber, it.desc)); });
+  });
+  return out;
+}
+
 /* ---------- A floor name and the part it is ----------
    The register writes a part by its floor name, often with its code in brackets ("TINA(0160)", "KUDAL(0106)",
    "TINA(3303)"). A code that ends exactly one of the client's part numbers on its challans and invoices is that part: the
@@ -29837,7 +29960,10 @@ function prodLearnAliases(entries) {
     if (known && known.partNumber) return;
     var c = prodAliasCandidates(e.clientId, e.part);
     var one = c.byCode.length === 1 ? c.byCode[0] : c.byCodeWords.length === 1 ? c.byCodeWords[0] : null;
-    if (one) { prodLearnAlias(e.clientId, e.part, e.gauge, one.partNumber, c.byCode.length === 1 ? 'code' : 'code+name'); e.partNumber = one.partNumber; n++; }
+    if (one) { prodLearnAlias(e.clientId, e.part, e.gauge, one.partNumber, c.byCode.length === 1 ? 'code' : 'code+name'); e.partNumber = one.partNumber; n++; return; }
+    // Two parts end in the code: the recent challans, then the rounds, say which for this entry alone.
+    var rs = prodResolveEntryPart(e);
+    if (rs && rs.partNumber) { e.partNumber = rs.partNumber; e.partSrc = rs.how; n++; }
   });
   return n;
 }
@@ -29858,7 +29984,7 @@ function prodClientName(id) { var c = (S.clients || []).find(function(x) { retur
 function prodHeldId(v) { var c = (S.clients || []).find(function(x) { return String(x.id) === String(v); }); return c ? c.id : v; }
 function prodCtx() {
   return { clients: prodClientIndex(S.clients || [], prodData().learn.clients), roster: (S.staff || []).filter(function(w) { return w.active !== false; }), today: localDateStr(),
-    partOwners: prodPartOwners(), gaugeRule: prodGaugeRuleFor, gaugeHas: prodGaugeRuleHas, partRule: prodPartRuleRead, partRuleOther: prodPartRuleOther, carryCheck: prodCarryCheck };
+    partOwners: prodPartOwners(), gaugeRule: prodGaugeRuleFor, gaugeHas: prodGaugeRuleHas, partRule: prodPartRuleRead, partRuleOther: prodPartRuleOther, carryCheck: prodCarryCheck, resolvePart: prodResolveEntryPart };
 }
 /* Which clients a part has come from, off the challans and invoices of the last year: part key → client ids. A load
    with no client written whose part only one client has ever sent ("LINER", "188 CD") is read as that client, amber. */
@@ -30390,7 +30516,7 @@ function prodLabourByLine(from, to) {
 /* The two To-do rules. Both read only what was captured here (never the imported history, which would raise a
    flood on the first day), leave rework out (replating is not billed twice), and carry the tone in their sig so a
    snoozed amber task comes back when it turns red. */
-var PROD_RULES = [['prodPlatedUnbilled', 'Production: plated and not invoiced'], ['prodPickledNoChallan', 'Production: pickled with no open challan']];
+var PROD_RULES = [['prodPlatedUnbilled', 'Production: plated and not invoiced'], ['prodPickledNoChallan', 'Production: pickled with no open challan'], ['prodGaugeUnknown', 'Production: a round no gauge rule names']];
 PROD_RULES.forEach(function(r) { TODO_RULES.push(r); TODO_CHECK_DEFAULTS[r[0]] = true; });
 TODO_CHECK_DEFAULTS.prodPlatedDays = 3;
 function prodGo(tab, extra) { return Object.assign({ kind: 'production', tab: tab }, extra || {}); }
@@ -30456,6 +30582,21 @@ function prodLoadNoChallan(e, idx, today) {
     });
   });
 }
+TODO_RULE_FNS.prodGaugeUnknown = function() {
+  var by = {};
+  prodData().entries.forEach(function(e) {
+    if (!prodGaugeFlagged(e)) return;
+    var k = e.clientId == null ? '-' : String(e.clientId), c = by[k] || (by[k] = { n: 0, rounds: {}, oldest: e.date });
+    c.n++; c.rounds[e.gaugeUnknown] = true; if (e.date < c.oldest) c.oldest = e.date;
+  });
+  return Object.keys(by).map(function(k) {
+    var c = by[k], sizes = Object.keys(c.rounds).map(Number).sort(function(a, b) { return a - b; }).join(', ');
+    return { key: 'prodGaugeUnknown:' + k, rule: 'prodGaugeUnknown', tone: 'amber', title: (k === '-' ? 'No client' : prodClientName(k) || 'Client ' + k) + ': ' + todoPlural(c.n, 'run') + ' with the gauge unknown',
+      sub: 'Rounds of ' + sizes + ', none in the gauge rules', why: 'Production · a round of a size no gauge rule names',
+      facts: [['Runs', String(c.n)], ['Rounds', sizes], ['Oldest', formatDate(c.oldest)]], clears: 'Pick the gauge on each run (Production → Entries → Gauge unknown → Pick gauge), or void it.',
+      go: prodGo('entries', { flag: 'gauge' }), goLabel: 'Open the runs', sig: 'amber|' + k + '|' + c.n };
+  });
+};
 TODO_RULE_FNS.prodPickledNoChallan = function() {
   var today = localDateStr(), idx = prodIndex();
   var own = idx.live.filter(function(e) { return prodLoadNoChallan(e, idx, today); });
@@ -30794,7 +30935,7 @@ function prodRunRowHtml(e, muted) {
 function prodEntriesHtml() {
   var idx = prodIndex(), f = _prodFilter, from = isoAddDays(localDateStr(), -60);
   var chips = [['', 'All'], ['pickled', 'Pickled'], ['plated', 'Plated'], ['arrived', 'Arrived'], ['downtime', 'Power cuts']];
-  var flags = [['unknown', 'Line unknown'], ['noclient', 'No client'], ['nochallan', 'No challan']];
+  var flags = [['unknown', 'Line unknown'], ['noclient', 'No client'], ['nochallan', 'No challan'], ['gauge', 'Gauge unknown']];
   var h = '<div class="inv-toolbar" role="group" aria-label="Show">' + chips.map(function(c) {
     return '<button class="inv-chip" data-action="invProdFilter" data-kind="' + c[0] + '" aria-pressed="' + (f.kind === c[0] && !f.flag) + '">' + c[1] + '</button>';
   }).join('') + flags.map(function(c) {
@@ -30806,6 +30947,7 @@ function prodEntriesHtml() {
     if (f.flag === 'unknown') return e.kind === 'pickled' && !e.voidedAt && prodLoadLine(e).how === 'unknown';
     if (f.flag === 'noclient') return e.clientId == null && e.kind !== 'downtime';
     if (f.flag === 'nochallan') return e.clientId != null && prodLoadNoChallan(e, idx);
+    if (f.flag === 'gauge') return prodGaugeFlagged(e);
     return !f.kind || e.kind === f.kind;
   }).sort(function(a, b) { return a.date < b.date ? 1 : a.date > b.date ? -1 : String(b.time || '').localeCompare(String(a.time || '')); });
   h += '<div class="inv-panel inv-panel-flush" id="prodEntries"><div class="inv-panel-head"><span class="inv-panel-title">Entries, 60 days</span><span class="inv-panel-count">' + list.length + '</span></div>';
@@ -30828,6 +30970,9 @@ function prodEntryRowHtml(e, idx) {
   var alias = e.kind !== 'downtime' && e.clientId != null ? prodAliasShown(e) : null;
   if (alias && alias.pn) meta += ' · = ' + alias.pn + (alias.how === 'rack' && e.partRack ? ' by the round of ' + e.partRack : '');
   if (e.gaugeOptions && !e.gauge) meta += ' · ' + e.gaugeOptions.join(' or ') + ' by the round';
+  if (prodGaugeFlagged(e)) meta += ' · gauge unknown: a round of ' + e.gaugeUnknown;
+  else if (e.gaugeUnknown && e.gaugeSrc === 'set') meta += ' · gauge set (a round of ' + e.gaugeUnknown + ')';
+  if (e.qtySrc === 'split') meta += ' · shared by the challans (estimate)';
   var crew = (e.kind === 'plated' || e.kind === 'pickled') && !e.voidedAt ? prodCrew(e) : null;
   var h = '<div class="inv-row inv-row-2 inv-row-flow' + (e.voidedAt ? ' inv-row-muted' : '') + '" data-prod-entry="' + escHtml(e.id) + '"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(title) + '</span>' +
     '<span class="inv-row-meta">' + escHtml(meta + (e.voidedAt ? ' · void: ' + (e.voidReason || '') : '')) + '</span>' +
@@ -30837,6 +30982,7 @@ function prodEntryRowHtml(e, idx) {
   if (!e.voidedAt) {
     if (line && line.how === 'unknown' && line.hint) h += '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invProdUseLine" data-id="' + escHtml(e.id) + '" data-line="' + line.hint.line + '">Use ' + escHtml(prodLineName(line.hint.line)) + '</button>';
     if (alias && !alias.pn && !alias.generic) h += '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invProdAlias" data-id="' + escHtml(e.id) + '">Which part?</button>';
+    if (prodGaugeFlagged(e)) h += '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invProdGauge" data-id="' + escHtml(e.id) + '">Pick gauge</button>';
     if (e.kind !== 'downtime' && !idx.replaced[e.id]) h += '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invProdCorrect" data-id="' + escHtml(e.id) + '">Correct</button>';
     h += '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invProdVoid" data-id="' + escHtml(e.id) + '">Void</button>';
   }
@@ -30887,6 +31033,34 @@ function prodAliasSave(id) {
   closeOverlay();
   renderProduction();
   showToast('“' + e.part + '” is read as ' + sel.value + ' from now on');
+}
+
+/* A run whose round no gauge rule names: its gauge picked from the client's rules and challans for that kind of part. */
+function prodGaugeOpen(id) {
+  var e = prodIndex().byId[id];
+  if (!e) return;
+  var ch = prodGaugeChoices(e);
+  var h = '<div class="inv-dialog" role="dialog" aria-modal="true" aria-labelledby="prodGaugeT" data-prod-gauge="' + escHtml(id) + '">' +
+    dialogHeadHtml('<span id="prodGaugeT">Gauge of ' + escHtml(e.part) + '</span>') +
+    '<div class="inv-dialog-body"><div class="inv-note inv-mb-8">' + escHtml(prodEntryTitle(e) + ' · ' + formatDate(e.date) + (e.time ? ' ' + e.time : '') + ' · a round of ' + e.gaugeUnknown + ', which no gauge rule names.') + '</div>' +
+    '<label class="inv-field"><span class="inv-field-label">Gauge</span><select class="inv-select" id="prodGaugePick"><option value="">Pick the gauge</option>' +
+    ch.map(function(g) { return '<option value="' + escHtml(g) + '">' + escHtml(g) + '</option>'; }).join('') + '</select></label>' +
+    '<label class="inv-field"><span class="inv-field-label">Or type it</span><input class="inv-input" id="prodGaugeTyped" placeholder="40X6"></label></div>' +
+    '<div class="inv-dialog-foot"><button class="inv-btn inv-btn-secondary" data-action="invCloseOverlay">Cancel</button><button class="inv-btn inv-btn-primary" data-action="invProdGaugeSave" data-id="' + escHtml(id) + '">Save</button></div></div>';
+  dialogOpen(h);
+}
+function prodGaugeSave(id) {
+  var e = prodIndex().byId[id], sel = document.getElementById('prodGaugePick'), typed = document.getElementById('prodGaugeTyped');
+  if (!e) return;
+  var raw = String((typed && typed.value.trim()) || (sel && sel.value) || '').toUpperCase().replace(/[×✕*\s]/g, 'X').replace(/X+/g, 'X');
+  var g = lineGauge(raw);
+  if (!g) { showToast('Pick a gauge, or type one like 40X6', 'error'); return; }
+  e.gauge = g; e.gaugeSrc = 'set'; e.setAt = Date.now(); e.setBy = stockBy();
+  prodTouch();
+  saveState();
+  closeOverlay();
+  renderProduction();
+  showToast('Gauge ' + g + ' set on the run');
 }
 
 /* ---------- Paste and review ---------- */
@@ -31358,6 +31532,8 @@ function prodAction(action, btn) {
     case 'invProdSaveHand': prodSaveHand(); return true;
     case 'invProdHandDone': prodHandDone(); return true;
     case 'invProdAlias': prodAliasOpen(btn.dataset.id); return true;
+    case 'invProdGauge': prodGaugeOpen(btn.dataset.id); return true;
+    case 'invProdGaugeSave': prodGaugeSave(btn.dataset.id); return true;
     case 'invProdAliasSave': prodAliasSave(btn.dataset.id); return true;
     case 'invProdVoid': prodVoid(btn.dataset.id); return true;
     case 'invProdUseLine': prodUseLine(btn.dataset.id, btn.dataset.line); return true;

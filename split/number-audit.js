@@ -46,7 +46,14 @@ function displayForNumber(num) {
    'SEP/2026-27/00012'). Taken off by the number's own length, since a prefix may end in digits. */
 function invSeriesOf(rec) {
   var d = String((rec && rec.displayNumber) || ''), n = String((rec && rec.invoiceNumber) || '');
-  if (n && d.length >= n.length && d.slice(d.length - n.length) === n) return d.slice(0, d.length - n.length);
+  // The series in use, followed by digits, is that series however the stored number is padded: '812' under
+  // 'SEP/2026-27/00812' cut to 'SEP/2026-27/00', dropping the invoice out of Next and the audit (the review, 30 Sep 2026).
+  var cur = typeof S !== 'undefined' && S && S.invPrefix ? String(S.invPrefix) : '';
+  if (cur && d.indexOf(cur) === 0 && /^\d+$/.test(d.slice(cur.length))) return cur;
+  if (n && d.length >= n.length && d.slice(d.length - n.length) === n) {
+    var pre = d.slice(0, d.length - n.length);
+    return /0$/.test(pre) ? d.replace(/\d+$/, '') : pre;
+  }
   return d.replace(/\d+$/, '');
 }
 

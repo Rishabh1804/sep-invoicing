@@ -1194,7 +1194,7 @@ function saveWorker(id, mode) {
   if (!name) { showToast('Worker name is required', 'error'); return; }
   var comp = document.getElementById('wedComp').value;
   var dup = (S.staff || []).find(function(x) {
-    return x.id !== id && relayKey(x.name) === relayKey(name);
+    return x.id !== id && staffNameKey(x.name) === staffNameKey(name);
   });
   if (dup) { showToast('Already on the roster: ' + dup.name, 'error'); return; }
 
@@ -1234,7 +1234,14 @@ function saveWorker(id, mode) {
   } else {
     var w = staffById(id);
     if (!w) return;
+    // A renamed worker keeps the old name as a spelling, as a merge keeps the retired row's: rolls and payroll slips
+    // written under it are matched by name alone, and a rename cut the worker off from every slip (the review, 30 Sep 2026).
+    var oldName = w.name;
     Object.keys(fields).forEach(function(k) { w[k] = fields[k]; });
+    if (oldName && relayKey(oldName) && relayKey(oldName) !== relayKey(w.name)) {
+      w.relayNames = w.relayNames || [];
+      if (!w.relayNames.some(function(x) { return relayKey(x) === relayKey(oldName); })) w.relayNames.push(String(oldName).toUpperCase());
+    }
   }
   saveState();
   closeOverlay();
@@ -1398,7 +1405,14 @@ function buildNameAliases(aliases) {
    carrying no aliases resolves exactly as before. */
 function aliasKey(name, al) {
   var n = relayKey(name);
-  return (al && al.key[n]) || n;
+  return (al && al.key[n]) || staffNameKey(name);
+}
+/* Who a roster name is: its letters as a roll reads them, with its digits, or the name itself when it has no Latin
+   letters. relayKey alone keeps A-Z only, so 'Ramu 1' and 'Ramu 2' were one worker to the roster (the second refused,
+   an import merging it into the first) and every name written in Devanagari keyed to nothing (the review, 30 Sep 2026). */
+function staffNameKey(name) {
+  var k = relayKey(name), d = String(name || '').replace(/\D/g, '');
+  return (k || String(name || '').trim().toLowerCase().replace(/\s+/g, ' ')) + (d ? '#' + d : '');
 }
 
 /* The merge itself, split out so it can be tested without a file picker. */
@@ -1575,14 +1589,23 @@ function applyAttendanceImport(data, al) {
   // it for free, which matters: a crew name that failed to match makes the whole
   // row Not checkable, so an unbridged alias would take real booked hours out
   // of the reconciler as well as out of the wage.
-  var byName = {};
+  var byName = {}, byExact = {}, shared = {};
   (S.staff || []).forEach(function(w) {
     var n = relayKey(w.name);
+    byExact[staffNameKey(w.name)] = w.id;
+    // A letters-only key two workers share names neither ('Ramu 1', 'Ramu 2'): the exact key has to decide.
+    if (byName[n] != null && byName[n] !== w.id) shared[n] = true;
     byName[n] = w.id;
     ((al.spellings[aliasKey(n, al)]) || []).forEach(function(sp) {
       if (byName[sp] == null) byName[sp] = w.id;
     });
   });
+  function importWorkerId(name) {
+    var e = byExact[staffNameKey(name)];
+    if (e != null) return e;
+    var k = relayKey(name);
+    return shared[k] ? null : byName[k];
+  }
 
   Object.keys(src).forEach(function(iso) {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(iso)) { out.daysDropped++; return; }
@@ -1592,7 +1615,7 @@ function applyAttendanceImport(data, al) {
     var rec = { marks: {}, extra: [], note: String(day.note || '') };
 
     (Array.isArray(day.marks) ? day.marks : []).forEach(function(m) {
-      var id = byName[relayKey(m && m.name)];
+      var id = importWorkerId(m && m.name);
       if (id == null) { out.marksDropped++; return; }
       // The state is normalised before it is judged, and an unrecognised one is
       // DROPPED AND COUNTED, never coerced: the old fallback turned a mistyped
@@ -1613,7 +1636,7 @@ function applyAttendanceImport(data, al) {
     });
 
     (Array.isArray(day.extra) ? day.extra : []).forEach(function(x) {
-      var e = importedExtra(x, byName, out);
+      var e = importedExtra(x, importWorkerId, out);
       // A refused row is COUNTED, never silently dropped — booked hours leaving
       // the bill with nothing on screen saying why is the failure the marks
       // side already refuses, applied to money instead of people.
@@ -1632,7 +1655,7 @@ function applyAttendanceImport(data, al) {
    as "Not checkable" when any is missing. That refusal is the point: a block
    whose crew was never written down is honestly unverifiable, and the hours are
    still counted in the bill, because unverifiable is not unpaid. */
-function importedExtra(x, byName, counters) {
+function importedExtra(x, workerId, counters) {
   if (!x || typeof x !== 'object') return null;
   var hours = Math.max(0, Number(x.hours) || 0);
   var kind = EXTRA_KINDS.some(function(k) { return k.id === x.kind; }) ? x.kind : 'coverage';
@@ -1657,7 +1680,7 @@ function importedExtra(x, byName, counters) {
     var crew = [];
     var unresolved = false;
     (Array.isArray(x.crew) ? x.crew : []).forEach(function(n) {
-      var id = byName[relayKey(n)];
+      var id = workerId(n);
       if (id == null) { unresolved = true; return; }
       if (crew.indexOf(id) === -1) crew.push(id);
     });

@@ -1,6 +1,11 @@
 import { test, expect, Page } from '@playwright/test';
 import { emptyState, loadAppWithState, switchTab, todayIso, recentTs, answerAsk, SepState } from './fixtures';
 
+/* The financial year today falls in: the prefix and the notes' 'NN-NN' follow it, so a note dated today is in its series. */
+const FY0 = (() => { const t = todayIso(); return +t.slice(5, 7) >= 4 ? +t.slice(0, 4) : +t.slice(0, 4) - 1; })();
+const FYS = `${String(FY0).slice(2)}-${String(FY0 + 1).slice(2)}`;
+const PREFIX = `SEP/${FY0}-${String(FY0 + 1).slice(2)}/`;
+
 /*
  * Credit notes.
  *
@@ -57,7 +62,7 @@ function mehtaState(invoices: unknown[]): SepState {
     itemRates: [],
   } as never];
   s.invoices = invoices;
-  s.invPrefix = 'SEP/2026-27/';
+  s.invPrefix = PREFIX;
   return s;
 }
 
@@ -120,12 +125,12 @@ test('P19: the series is its own, formatted off the invoice prefix', async ({ pa
   await openCnForm(page);
   // Named on the button before it is raised, so the number is never a surprise.
   // 006, not 001: CN/001–005 of this year were issued by hand before the app.
-  await expect(page.locator('[data-action="invCnSave"]')).toContainText('CN/006/26-27');
+  await expect(page.locator('[data-action="invCnSave"]')).toContainText(`CN/006/${FYS}`);
   await page.locator('[data-action="invCnSave"]').click();
   await page.locator('.inv-cn-doc').waitFor();
 
   const s = await stored(page);
-  expect(s.creditNotes[0].displayNumber).toBe('CN/006/26-27');
+  expect(s.creditNotes[0].displayNumber).toBe(`CN/006/${FYS}`);
   expect(s.cnNextNum).toBe(7);
 });
 
@@ -144,7 +149,7 @@ test('P19: the series start never walks over a note the app already issued', asy
   const st = mehtaState([invoice(1, { date: daysAgoIso(10) })]);
   // Already at 009 with one raised — the migration must not drag it back to 6.
   (st as unknown as { creditNotes: unknown[]; cnNextNum: number }).creditNotes = [{
-    id: 'CN-x', cnNumber: '008', displayNumber: 'CN/008/26-27', date: todayIso(),
+    id: 'CN-x', cnNumber: '008', displayNumber: `CN/008/${FYS}`, date: todayIso(),
     clientId: 1, clientName: 'SSSMEHTA INDUSTRIES LTD.', invoiceIds: [], invoiceNumbers: [],
     discountPct: 2, batchTaxable: 0, taxableValue: 0, grandTotal: 0, status: 'active',
     gstType: 'intra', cgstPer: 9, cgstAmt: 0, sgstPer: 9, sgstAmt: 0, igstPer: 0, igstAmt: 0,
@@ -213,11 +218,11 @@ test('P19: the named invoice must be able to absorb the credit, net of notes alr
     invoice(2, { date: daysAgoIso(14), taxableValue: 9000 }),
   ]);
   (st as SepState & { creditNotes: unknown[] }).creditNotes = [
-    { id: 'CN-a', displayNumber: 'CN/001/26-27', status: 'active',
+    { id: 'CN-a', displayNumber: `CN/001/${FYS}`, status: 'active',
       againstInvoiceId: 'INV-2', taxableValue: 8900 },
     // A CANCELLED note consumes nothing — it exports at zero and credits
     // nothing, which is the whole reason a note is cancelled and not deleted.
-    { id: 'CN-b', displayNumber: 'CN/002/26-27', status: 'cancelled',
+    { id: 'CN-b', displayNumber: `CN/002/${FYS}`, status: 'cancelled',
       againstInvoiceId: 'INV-2', taxableValue: 5000 },
   ];
   await loadForBatch(page, st);
@@ -254,7 +259,7 @@ test('P19: a note raised before the rule names one invoice when reprinted', asyn
     invoice(2, { date: daysAgoIso(14), taxableValue: 9000 }),
   ]);
   (st as SepState & { creditNotes: unknown[] }).creditNotes = [{
-    id: 'CN-old', cnNumber: '007', displayNumber: 'CN/007/26-27', date: todayIso(),
+    id: 'CN-old', cnNumber: '007', displayNumber: `CN/007/${FYS}`, date: todayIso(),
     status: 'active', clientId: 1, clientName: 'SSSMEHTA INDUSTRIES LTD.',
     invoiceIds: ['INV-1', 'INV-2'],
     invoiceNumbers: ['SEP/TEST-00001', 'SEP/TEST-00002'],
@@ -473,10 +478,10 @@ test('P19: a batch that is present but too small says so, not that it vanished',
     invoice(2, { date: daysAgoIso(14), taxableValue: 1000 }),
   ]);
   (st as SepState & { creditNotes: unknown[] }).creditNotes = [
-    { id: 'CN-small', displayNumber: 'CN/006/26-27', status: 'active',
+    { id: 'CN-small', displayNumber: `CN/006/${FYS}`, status: 'active',
       invoiceIds: ['INV-1', 'INV-2'],
       invoiceNumbers: ['SEP/TEST-00001', 'SEP/TEST-00002'], taxableValue: 5000 },
-    { id: 'CN-gone', displayNumber: 'CN/007/26-27', status: 'active',
+    { id: 'CN-gone', displayNumber: `CN/007/${FYS}`, status: 'active',
       invoiceIds: ['INV-99'], invoiceNumbers: ['SEP/TEST-00099'], taxableValue: 100 },
   ];
   await loadForBatch(page, st);
@@ -564,7 +569,7 @@ test('P19: a cancelled note is neither stamped nor editable', async ({ page }) =
     invoice(2, { date: daysAgoIso(2), taxableValue: 9000 }),
   ]);
   (st as SepState & { creditNotes: unknown[] }).creditNotes = [
-    { id: 'CN-x', displayNumber: 'CN/006/26-27', status: 'cancelled',
+    { id: 'CN-x', displayNumber: `CN/006/${FYS}`, status: 'cancelled',
       invoiceIds: ['INV-1', 'INV-2'],
       invoiceNumbers: ['SEP/TEST-00001', 'SEP/TEST-00002'], taxableValue: 100 },
   ];

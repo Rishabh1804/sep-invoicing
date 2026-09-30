@@ -52,6 +52,9 @@ function renderProduction() {
     h = '<div class="inv-viewtabs" role="tablist" aria-label="Production">' + PROD_TABS.map(function(t) {
       return '<button class="inv-viewtab" role="tab" aria-selected="' + (_prodTab === t[0]) + '" data-action="invProdTab" data-tab="' + t[0] + '">' + t[1] + '</button>';
     }).join('') + '</div>' + prodToolbarHtml();
+    // Photos picked with a challan handed to the challan scanner wait here, and are read on from here (P127).
+    if (_prodPhotoQueue.length) h += '<div class="inv-callout inv-callout-info" id="prodPhotoWaiting">' + escHtml(todoPlural(_prodPhotoQueue.length, 'register photo') + ' picked with the challan sent to the scanner ' + (_prodPhotoQueue.length === 1 ? 'is' : 'are') + ' waiting to be read.') +
+      '<div class="inv-mt-4"><button class="inv-btn inv-btn-link inv-btn-sm" data-action="invProdPhotoNext">Read the next</button></div></div>';
     var p = prodData();
     if (!p.entries.length && _prodTab !== 'plant') h += '<div class="inv-empty">No production recorded yet. Paste a pickling or production message, read a register photo, or import the history from soma-internal.</div>';
     else if (_prodTab === 'plant') h += prodPlantHtml();
@@ -267,7 +270,8 @@ function prodEntriesHtml() {
     return '<button class="inv-chip" data-action="invProdFilter" data-flag="' + c[0] + '" aria-pressed="' + (f.flag === c[0]) + '">' + c[1] + '</button>';
   }).join('') + '</div>';
   var list = prodData().entries.filter(function(e) {
-    if (e.date < from) return false;
+    // A flag lists every entry it names, whatever its date: the To-do counts them all (P127: an older one was unreachable).
+    if (!f.flag && e.date < from) return false;
     if (f.client && String(e.clientId) !== String(f.client)) return false;
     if (f.flag === 'unknown') return e.kind === 'pickled' && !e.voidedAt && prodLoadLine(e).how === 'unknown';
     if (f.flag === 'noclient') return e.clientId == null && e.kind !== 'downtime';
@@ -275,7 +279,7 @@ function prodEntriesHtml() {
     if (f.flag === 'gauge') return prodGaugeFlagged(e);
     return !f.kind || e.kind === f.kind;
   }).sort(function(a, b) { return a.date < b.date ? 1 : a.date > b.date ? -1 : String(b.time || '').localeCompare(String(a.time || '')); });
-  h += '<div class="inv-panel inv-panel-flush" id="prodEntries"><div class="inv-panel-head"><span class="inv-panel-title">Entries, 60 days</span><span class="inv-panel-count">' + list.length + '</span></div>';
+  h += '<div class="inv-panel inv-panel-flush" id="prodEntries"><div class="inv-panel-head"><span class="inv-panel-title">' + (f.flag ? 'Entries, every date' : 'Entries, 60 days') + '</span><span class="inv-panel-count">' + list.length + '</span></div>';
   if (!list.length) h += '<div class="inv-empty">Nothing here.</div>';
   var last = '';
   list.slice(0, 300).forEach(function(e) {
@@ -419,15 +423,21 @@ function prodOpenPaste(text) {
    day a message reports and its text (prodMsgKey); one saved before the key carried its day is keyed on its text alone,
    and is matched by its entries' day. */
 function prodPasteSeen(m) {
-  var p = prodData(), paste = p.pastes.find(function(x) {
+  var p = prodData();
+  // Every copy saved, not the first: a message saved, voided and saved again is held by its second copy (P127).
+  return p.pastes.filter(function(x) {
     if (x.hash === m.hash) return true;
     if (x.day || x.hash !== relayHash(x.text || '')) return false;
     var e = p.entries.find(function(y) { return y.pasteId === x.id; });
     return prodMsgKey(e ? e.date : x.sentOn, x.text) === m.hash;
-  });
-  if (!paste) return null;
-  var live = p.entries.some(function(e) { return e.pasteId === paste.id && !e.voidedAt; });
-  return live ? paste : null;
+  }).find(function(paste) { return p.entries.some(function(e) { return e.pasteId === paste.id && !e.voidedAt; }); }) || null;
+}
+/* The open cut stored from a message saved before, that a power back in this paste closes (P127). */
+function prodStoredOpenCut(m, it) {
+  var seen = prodPasteSeen(m);
+  return seen ? prodData().entries.find(function(e) {
+    return e.pasteId === seen.id && e.kind === 'downtime' && !e.voidedAt && e.date === it.date && e.time === it.time && e.to == null;
+  }) || null : null;
 }
 function prodReviewResolve() {
   var rv = _prodReview, ch = rv.choices, out = { rows: [], red: 0, amber: 0, save: 0, dup: 0 }, inPaste = {};
@@ -444,7 +454,9 @@ function prodReviewResolve() {
       if (cc === undefined && nk && ch['name:' + nk] !== undefined) cc = ch['name:' + nk];
       row.clientPick = cc;
       if (cc !== undefined) {
-        row.issues = row.issues.filter(function(x) { return x.code !== 'client' && x.code !== 'readas'; });
+        // A load given its own client is answered: whose it is, and whether the client carried to it was right.
+        var own = ch['client' + key] !== undefined;
+        row.issues = row.issues.filter(function(x) { return x.code !== 'client' && x.code !== 'readas' && !(own && x.code === 'carried'); });
         if (cc === 'asWritten') row.clientId = null; else row.clientId = cc;
       } else row.clientId = it.clientId;
       var lc = ch['line' + key];
@@ -455,6 +467,15 @@ function prodReviewResolve() {
       row.issues.forEach(function(x) { if (x.tone === 'red') row.tone = 'red'; else if (x.tone === 'amber' && row.tone !== 'red') row.tone = 'amber'; });
       if (!m.dup) { if (row.tone === 'red') out.red++; else if (row.tone === 'amber') out.amber++; out.save++; }
       out.rows.push(row);
+    });
+  });
+  // A power back that closes a cut in a message left out closes the cut stored from it (P127): that is something to save.
+  out.close = 0;
+  rv.msgs.forEach(function(m) {
+    if (m.dup) return;
+    (m.read.notes || []).forEach(function(nt) {
+      var cm = nt.closes && rv.msgs[nt.closes.mi];
+      if (cm && cm.dup && (cm.twice || prodStoredOpenCut(cm, cm.read.items[nt.closes.ii]))) out.close++;
     });
   });
   return out;
@@ -475,11 +496,14 @@ function prodReviewHtml() {
     if (m.kind === 'stock') h += '<div class="inv-panel-body inv-note">A chemical stock message: read it in Stock → Paste message.</div>';
     if (m.kind === 'other') h += '<div class="inv-panel-body"><div class="inv-quote">' + escHtml(m.text.slice(0, 400)) + '</div><div class="inv-note inv-mt-4">Not read: not a pickling, production or power message.</div></div>';
     res.rows.filter(function(r) { return r.mi === mi; }).forEach(function(r) { h += prodReviewRowHtml(r, idx); });
-    (m.read.notes || []).forEach(function(nt) { h += '<div class="inv-row inv-row-auto inv-row-top"><div class="inv-row-main"><div class="inv-quote">' + escHtml(nt.raw) + '</div><div class="inv-note inv-mt-4">' + escHtml(nt.text) + '</div></div></div>'; });
+    (m.read.notes || []).forEach(function(nt) {
+      var cm = nt.closes && rv.msgs[nt.closes.mi], txt = nt.text + (cm && cm.dup && !m.dup ? ': that message is left out, so its time back is put on the cut saved from it' : '');
+      h += '<div class="inv-row inv-row-auto inv-row-top"><div class="inv-row-main"><div class="inv-quote">' + escHtml(nt.raw) + '</div><div class="inv-note inv-mt-4">' + escHtml(txt) + '</div></div></div>';
+    });
     h += '</div>';
   });
   h += '<div class="inv-actionbar"><div class="inv-actionbar-total"><div class="inv-actionbar-label">To save</div><div class="inv-actionbar-value">' + todoPlural(res.save, 'entry', 'entries') + '</div></div>' +
-    '<button class="inv-btn inv-btn-primary" data-action="invProdSaveReview"' + (res.red || !res.save ? ' disabled' : '') + '>Save</button></div>';
+    '<button class="inv-btn inv-btn-primary" data-action="invProdSaveReview"' + (res.red || !(res.save || res.close) ? ' disabled' : '') + '>Save</button></div>';
   return h;
 }
 function prodReviewRowHtml(r, idx) {
@@ -537,18 +561,40 @@ function prodSaveReview() {
     // turns down is forgotten. A name read by its place alone (the barrel list's first word, how 'unknown') or matched
     // exactly (the client's own name) is never re-pointed: the pick answers whose the load is, not how a name is spelt.
     var pick = r.clientPick, k = it.client ? relayKey(it.client) : '', how = it.clientHow || '';
+    // A load carried from the one above never teaches the name: the name was written over other loads (P127).
+    if (it.issues.some(function(x) { return x.code === 'carried'; })) k = '';
     if (k && pick !== undefined && pick !== 'asWritten' && how !== 'unknown' && how !== 'exact') { if (p.learn.clients[k] !== pick) { p.learn.clients[k] = pick; learnt++; } }
     else if (k && pick === 'asWritten' && how === 'learnt') delete p.learn.clients[k];
     else if (k && pick === undefined && it.issues.some(function(x) { return x.code === 'readas'; }) && it.clientId != null) { if (!(k in p.learn.clients)) { p.learn.clients[k] = it.clientId; learnt++; } }
+    // A code the floor writes ("4206", "TINA(0160)") is matched to the client's part, as a register's or a hand entry's is.
+    if (e.clientId != null && e.kind !== 'downtime') prodLearnAliases([e]);
     p.entries.push(prodSparse(e));
     n++;
   });
-  if (!n) { showToast('Nothing new to save', 'error'); return; }
+  // A power back that closed a cut in a message left out: the cut stored from that message is closed (P127).
+  var closed = 0;
+  rv.msgs.forEach(function(m, mi) {
+    if (m.dup) return;
+    (m.read.notes || []).forEach(function(nt) {
+      var cm = nt.closes && rv.msgs[nt.closes.mi];
+      if (!cm || !cm.dup) return;
+      var cut = cm.read.items[nt.closes.ii], st = cut && prodStoredOpenCut(cm, cut);
+      if (!st) return;
+      if (!pasteIds[mi]) {
+        pasteIds[mi] = prodUid('PP');
+        p.pastes.push({ id: pasteIds[mi], at: at, by: by, sentBy: m.sentBy || '', sentOn: m.sentOn || '', day: m.read.date, kind: m.kind, hash: m.hash, text: m.text });
+      }
+      st.to = cut.to; st.downtime = Object.assign({}, st.downtime, { open: false }); st.raw = (st.raw ? st.raw + '\n' : '') + nt.raw;
+      st.closedBy = pasteIds[mi]; st.closedAt = at;
+      closed++;
+    });
+  });
+  if (!n && !closed) { showToast('Nothing new to save', 'error'); return; }
   prodTouch();
   saveState();
   _prodReview = null; _prodPasteDraft = '';
   prodSetView('main');
-  showToast(todoPlural(n, 'entry', 'entries') + ' saved' + (res.dup ? ' · ' + todoPlural(res.dup, 'message') + ' saved before, left out' : '') + (learnt ? ' · ' + todoPlural(learnt, 'spelling') + ' remembered' : ''), 'success');
+  showToast(todoPlural(n, 'entry', 'entries') + ' saved' + (closed ? ' · ' + todoPlural(closed, 'cut saved before', 'cuts saved before') + ' given its time back' : '') + (res.dup ? ' · ' + todoPlural(res.dup, 'message') + ' saved before, left out' : '') + (learnt ? ' · ' + todoPlural(learnt, 'spelling') + ' remembered' : ''), 'success');
 }
 
 /* ---------- Register photo ---------- */
@@ -578,8 +624,9 @@ function prodPhotoNext() {
     '<div class="inv-scan-processing-sub">Gemini is transcribing ' + escHtml(file.name || 'the photo') + '</div></div></div>';
   var done = function() { if (proc) proc.innerHTML = ''; };
   file.arrayBuffer().then(function(buf) { return prodPhotoSha(buf).then(function(sha) { return { buf: buf, sha: sha }; }); }).then(function(b) {
-    var p = prodData(), seen = p.photos.find(function(x) { return x.sha === b.sha; });
-    var seenLive = seen && p.entries.some(function(e) { return e.photoId === seen.id && !e.voidedAt; });
+    // Any copy of the photo with an entry still live, not the first saved: one voided and saved again is held by the second (P127).
+    var p = prodData(), seen = p.photos.filter(function(x) { return x.sha === b.sha; }).find(function(x) { return p.entries.some(function(e) { return e.photoId === x.id && !e.voidedAt; }); });
+    var seenLive = !!seen;
     // The day the photo was taken, on this device's clock (UTC would put an evening photo in India on the next day).
     var lm = file.lastModified ? new Date(file.lastModified) : null;
     var photoDate = lm ? lm.getFullYear() + '-' + String(lm.getMonth() + 1).padStart(2, '0') + '-' + String(lm.getDate()).padStart(2, '0') : null;
@@ -603,7 +650,7 @@ function prodPhotoNext() {
     });
   }).catch(function(err) { done(); uiNotice('Register photo: ' + ((err && err.message) || 'could not read the file'), 'error'); prodPhotoNext(); });
 }
-function prodPhotoRead() { var ph = _prodPhoto; var rd = prodFromRegisterRead(ph.json, prodCtx(), ph.photoDate, ph.choices); return prodRackCheck(rd, ph.choices.line !== undefined ? ph.choices.line : rd.line); }
+function prodPhotoRead() { var ph = _prodPhoto; return prodRackCheck(prodFromRegisterRead(ph.json, prodCtx(), ph.photoDate, ph.choices)); }
 function prodPhotoHtml() {
   var ph = _prodPhoto, rd = prodPhotoRead(), p = prodData();
   var line = ph.choices.line !== undefined ? ph.choices.line : rd.line;
@@ -646,7 +693,12 @@ function prodPhotoHtml() {
         return '<button class="inv-chip" data-action="invProdStruck" data-i="' + r.i + '" data-v="' + o[0] + '" aria-pressed="' + (ph.choices['struck' + r.i] === o[0]) + '">' + o[1] + '</button>'; }).join('') + '</div>';
     });
     e.issues.forEach(function(x) { if (x.code === 'client' && cc !== undefined) return; h += '<div class="inv-callout inv-callout-' + uiTone(x.tone) + ' inv-mt-8">' + escHtml(x.text) + '</div>'; });
-    if (e.clientId == null || cc !== undefined || e.issues.some(function(x) { return x.code === 'readas'; })) {
+    // Every run's client can be changed, as on the paste check (P127): a run read exactly, one the ditto rule moved, one whose
+    // round the rules give to another client. The last two open on the picker.
+    var moved = e.rows.some(function(r) { return r.issues.some(function(x) { return x.code === 'carried' || x.code === 'whose'; }); });
+    if (!(e.clientId == null || cc !== undefined || moved || ph.choices['open' + i] || e.issues.some(function(x) { return x.code === 'readas'; })))
+      h += '<div class="inv-mt-4"><button class="inv-btn inv-btn-link inv-btn-sm" data-action="invProdRunClient" data-i="' + i + '">Change client</button></div>';
+    else {
       var sel = cc !== undefined ? String(cc) : (e.clientId != null ? String(e.clientId) : '');
       h += '<div class="inv-fields inv-mt-8"><div class="inv-field"><label class="inv-field-label" for="prodRunClient' + i + '">Client</label><select id="prodRunClient' + i + '" class="inv-select" data-prod-run-client="' + i + '">' +
         (sel === '' ? '<option value="" selected>Pick the client</option>' : '') + '<option value="asWritten"' + (sel === 'asWritten' ? ' selected' : '') + '>Not in the book: keep as written</option>' +
@@ -676,10 +728,15 @@ function prodSavePhoto() {
     // A run every row of which was struck and cancelled was never plated.
     if (e.rows.length && e.rows.every(function(x) { return x.struck && !x.counted && ph.choices['struck' + x.i] === 'cancelled'; })) return;
     var cc = ph.choices['client' + i];
-    var rec = Object.assign({}, e, { id: prodUid('PE'), date: date, line: line || null, lineSrc: line ? (line === rd.line ? 'written' : 'set') : null,
+    var rec = Object.assign({}, e, { id: prodUid('PE'), date: date, line: line || null, lineSrc: line ? (line === rd.readLine ? 'written' : 'set') : null,
       clientId: cc !== undefined ? (cc === 'asWritten' ? null : cc) : e.clientId, photoId: id, by: by, at: at });
     delete rec.rows; delete rec.issues; delete rec.clientName;
-    if (cc !== undefined && cc !== 'asWritten' && e.client) p.learn.clients[relayKey(e.client)] = cc;
+    // A pick is learnt for the name only where the name was not read as a client (unknown, or read as one): a name read
+    // exactly, a customer carried from a ditto, or a round the rules give another client says whose the run is, not how
+    // the name is spelt (the paste check's rule, P127).
+    var named = e.issues.some(function(x) { return x.code === 'client' || x.code === 'readas'; });
+    var moved = e.rows.some(function(r) { return r.issues.some(function(x) { return x.code === 'carried' || x.code === 'whose'; }); });
+    if (cc !== undefined && cc !== 'asWritten' && e.client && named && !moved) p.learn.clients[relayKey(e.client)] = cc;
     prodLearnAliases([rec]);
     p.entries.push(prodSparse(rec));
     n++;
@@ -747,7 +804,7 @@ function prodHandDone() {
   if (from === 'power') { _prodView = 'main'; switchTab('pagePower'); return; }
   prodSetView('main');
 }
-function prodSaveHand() {
+async function prodSaveHand() {
   var f = _prodHand;
   if (!f) return;
   if (!f.date) { showToast('Pick a date', 'error'); return; }
@@ -755,6 +812,13 @@ function prodSaveHand() {
   if (f.kind !== 'downtime' && !f.clientId) { showToast('Pick the client', 'error'); return; }
   if (f.kind !== 'downtime' && !f.part.trim()) { showToast('Name the part', 'error'); return; }
   if (f.kind === 'downtime' && !f.time) { showToast('Enter when the power went', 'error'); return; }
+  // A power back earlier on the clock than the cut ran overnight, or is a slip: asked, never assumed (P127).
+  if (f.kind === 'downtime' && f.to && f.to < f.time) {
+    var a = relayParseHhmm(f.time), b = relayParseHhmm(f.to);
+    var ok = await uiConfirm({ title: 'Did the power stay off overnight?', body: 'The power came back at ' + relayClockLabel(b) + ', earlier on the clock than the cut at ' + relayClockLabel(a) +
+      '. Saved as it is, the cut ran overnight: ' + powerDur(b + 1440 - a) + '. Check the times if it did not.', okLabel: 'Yes, overnight' });
+    if (!ok || _prodHand !== f) return;
+  }
   var p = prodData(), src = f.replaces ? prodIndex().byId[f.replaces] : null;
   var e = { id: prodUid('PE'), kind: f.kind, date: f.date, time: f.time || null, to: f.kind === 'downtime' ? (f.to || null) : null, src: 'hand', by: stockBy(), at: Date.now(),
     basis: src ? (src.basis || 'hand') : 'hand', replaces: f.replaces || null };
@@ -764,6 +828,19 @@ function prodSaveHand() {
     e.clientId = prodHeldId(f.clientId); e.client = prodClientName(e.clientId); e.part = f.part.trim(); e.gauge = prodGaugeOf(e.part, e.part);
     e.qty = isNaN(q) ? null : q; e.unit = f.unit; e.rework = !!f.rework;
     if (f.kind === 'plated') { e.line = f.line || null; e.lineSrc = f.line ? 'set' : null; e.slot = f.slot === 'ot' || f.slot === 'day' ? f.slot : 'general'; }
+    // A correction keeps what the form does not show (P127): the run's end, its rounds, the second figure written and a
+    // load's line set by the owner. The part's own reading (its number, the gauges its round allows, a round no rule
+    // names) goes with it while the part and the client are as they were; the entry corrected is then no longer flagged.
+    if (src) {
+      if (f.kind === 'plated' && src.to) e.to = src.to;
+      ['rounds', 'qty2', 'unit2', 'set'].forEach(function(k) { if (src[k] != null) e[k] = src[k]; });
+      if (f.kind !== 'plated' && src.line) { e.line = src.line; e.lineSrc = src.lineSrc || null; if (src.setAt) { e.setAt = src.setAt; e.setBy = src.setBy; } }
+      if (src.qtySrc && e.qty === src.qty) e.qtySrc = src.qtySrc;
+      if (e.part === String(src.part || '').trim() && String(e.clientId) === String(src.clientId)) {
+        ['partNumber', 'partSrc', 'partRack', 'gaugeOptions', 'gaugeSrc', 'gaugeUnknown'].forEach(function(k) { if (src[k] != null) e[k] = src[k]; });
+        if (!e.gauge && src.gauge) e.gauge = src.gauge;
+      }
+    }
     // A name with a code ("Assy Bracket 3302") is matched to the client's part as a register's is.
     if (e.clientId != null) prodLearnAliases([e]);
   }
@@ -849,6 +926,8 @@ function prodAction(action, btn) {
     case 'invProdRevClient': _prodReview.choices['open' + btn.dataset.key] = true; renderProduction(); return true;
     case 'invProdRevLine': _prodReview.choices['line' + btn.dataset.key] = btn.dataset.line; renderProduction(); return true;
     case 'invProdPhoto': prodPhotoPick(); return true;
+    case 'invProdRunClient': _prodPhoto.choices['open' + btn.dataset.i] = true; renderProduction(); return true;
+    case 'invProdPhotoNext': prodPhotoNext(); return true;
     case 'invProdStruck': _prodPhoto.choices['struck' + btn.dataset.i] = btn.dataset.v; renderProduction(); return true;
     case 'invProdSavePhoto': prodSavePhoto(); return true;
     case 'invProdHand': prodOpenHand(null); return true;
@@ -870,6 +949,8 @@ function prodAction(action, btn) {
       _prodView = 'main';
       switchTab('pageIM'); showAddChallanForm();
       if (f) _processScanImage(f, getApiKey());
+      // The rest of the photos picked with it are not dropped: they wait in Production (P127).
+      if (_prodPhotoQueue.length) showToast(todoPlural(_prodPhotoQueue.length, 'more register photo', 'more register photos') + ' wait in Production', 'warning');
       return true;
     }
     case 'invProdImport': prodImport(); return true;
@@ -903,9 +984,10 @@ function prodOnChange(t) {
     var key = t.dataset.prodClient, v = t.value === 'asWritten' ? t.value : prodHeldId(t.value), rc = _prodReview.choices;
     var mi = +key.split(':')[0], ii = +key.split(':')[1], it = (_prodReview.msgs[mi] && _prodReview.msgs[mi].read.items[ii]) || {}, nk = it.client ? relayKey(it.client) : '';
     // A row still on the name's answer (or none yet) changes the answer for every row of that name; a row given its
-    // own client keeps it.
-    if (nk && rc['client' + key] === undefined) rc['name:' + nk] = v; else rc['client' + key] = v;
-    if (t.value === '') { delete rc['client' + key]; if (nk) delete rc['name:' + nk]; }
+    // own client keeps it, and so does a load carried from the one above, whose name was written over other loads (P127).
+    var byName = nk && rc['client' + key] === undefined && !(it.issues || []).some(function(x) { return x.code === 'carried'; });
+    if (t.value === '') { delete rc['client' + key]; if (byName) delete rc['name:' + nk]; }
+    else if (byName) rc['name:' + nk] = v; else rc['client' + key] = v;
     renderProduction(); return true;
   }
   if (t.dataset && t.dataset.prodRunClient !== undefined) { if (t.value === '') delete _prodPhoto.choices['client' + t.dataset.prodRunClient]; else _prodPhoto.choices['client' + t.dataset.prodRunClient] = t.value === 'asWritten' ? t.value : prodHeldId(t.value); renderProduction(); return true; }

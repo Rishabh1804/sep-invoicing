@@ -219,7 +219,9 @@ function prodIsPowerLine(s) { return /p[ao]w[ae]r|pawar|single\s*ph[ae]se/i.test
 function parsePickling(msg, ctx) {
   var lines = String(msg.text || '').split('\n'), items = [], notes = [];
   var date = msg.sentOn || ctx.today, noDate = !msg.sentOn;
-  var mode = 'pickled', reworkOn = false, group = null, lastGroup = null, pendingParts = [], family = null, arrivedAt = null, power = {};
+  var mode = 'pickled', reworkOn = false, group = null, lastGroup = null, carriedGroup = false, pendingParts = [], family = null, arrivedAt = null, power = {};
+  // A line that is only a figure and its unit ("1000 NOS"): the quantity of the load written above it, never a part.
+  var bareQty = function(l) { var r = prodReadItem(l || '', null); return !r.part && r.qty != null; };
   var flush = function(kind, t) {
     pendingParts.forEach(function(it) { it.kind = kind; if (t) { it.time = prodHhmm(t.min); if (t.issue) it.issues.push(t.issue); } items.push(it); });
     pendingParts = [];
@@ -237,6 +239,15 @@ function parsePickling(msg, ctx) {
     if (!line) return;
     var dm = line.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})\/?/);
     if (dm && isoFromDmy(dm[1], dm[2], dm[3])) { date = isoFromDmy(dm[1], dm[2], dm[3]); noDate = false; line = line.slice(dm[0].length).trim(); if (!line) return; }
+    // A date written with dots or dashes ("22.09.26") is the date as well; one with no year ("16/9") names no day a load
+    // can take, and is listed. Any other line of figures is a load ("8201/8202", "4206-1000", "0160--30"): those were
+    // dropped unseen with the dates (P127).
+    var dd = line.match(/^(\d{1,2})\s*[.\-\/]\s*(\d{1,2})(?:\s*[.\-\/]\s*(\d{2,4}))?\s*[.\-\/]?$/);
+    if (dd && isoFromDmy(dd[1], dd[2], dd[3] || 2000)) {
+      if (dd[3]) { date = isoFromDmy(dd[1], dd[2], dd[3]); noDate = false; }
+      else notes.push({ n: n, raw: raw, text: 'A date with no year: the loads keep the message’s date' });
+      return;
+    }
     if (prodIsPowerLine(line)) { prodPowerStep(power, line, raw, n, date, msg.sentAt, items, notes); return; }
     if (prodIsIncomingLine(line)) {
       flushOpen();
@@ -263,10 +274,10 @@ function parsePickling(msg, ctx) {
         if (!pendingParts.length) notes.push({ n: n, raw: raw, text: 'A pickling time with nothing listed above it' });
         flush('pickled', t);
       }
-      lastGroup = group || lastGroup; group = null; family = null; reworkOn = false;
+      lastGroup = group || lastGroup; group = null; carriedGroup = false; family = null; reworkOn = false;
       return;
     }
-    if (!/[A-Za-z0-9]/.test(line) || /^[\d\/\s.\-]+$/.test(line)) return;
+    if (!/[A-Za-z0-9]/.test(line)) return;
     // "RE-PICKLING" on a line of its own marks the loads of this group as rework, above it and below it.
     if (/^\s*re[-\s]*(work|pickl\w*|plat\w*)\s*$/i.test(line)) { pendingParts.forEach(function(x) { x.rework = true; }); reworkOn = true; return; }
     if (/^\s*b[ae]r+[ae]*l+\.?\s*(production)?\s*$/i.test(line) || /unlo?a?d|lo?a?ding/i.test(line)) { notes.push({ n: n, raw: raw, text: 'A barrel note, not a pickling load; not read' }); return; }
@@ -274,17 +285,18 @@ function parsePickling(msg, ctx) {
     var clientLine = !it.part && it.qty == null && it.clientId != null;
     var firmy = it.qty == null && !it.clientId && PROD_FIRM_RE.test(line) && !/\d/.test(line);
     // A name with lines under it heads them; one with nothing under it but its pickling time is the load itself
-    // ("BIG LINER / Pickling time 10:30": no client written, no quantity), which was taken as a client and lost.
+    // ("BIG LINER / Pickling time 10:30": no client written, no quantity), which was taken as a client and lost. So is one
+    // with only its figure under it ("LINER / 1000 NOS"): the figure is the load's.
     var below = (lines.slice(i + 1).find(function(l) { return l.trim(); }) || '').trim();
-    if (clientLine || firmy || (!group && it.qty == null && !it.clientId && /^[A-Za-z]/.test(line) && !/\d/.test(line) && below && !prodIsTimeLine(below))) {
+    if (clientLine || firmy || (!group && it.qty == null && !it.clientId && /^[A-Za-z]/.test(line) && !/\d/.test(line) && below && !prodIsTimeLine(below) && !bareQty(below))) {
       group = { client: it.client || line, clientId: it.clientId != null ? it.clientId : null, clientName: it.clientName || '', how: it.clientHow || (firmy ? 'firm' : 'first') };
-      family = null;
+      carriedGroup = false; family = null;
       return;
     }
-    if (it.clientId != null) group = { client: it.client, clientId: it.clientId, clientName: it.clientName, how: it.clientHow };
-    // A part under a second pickling time with no client written again: the client above it, said so.
-    var carried = false;
-    if (!group && lastGroup) { group = lastGroup; carried = true; }
+    if (it.clientId != null) { group = { client: it.client, clientId: it.clientId, clientName: it.clientName, how: it.clientHow }; carriedGroup = false; }
+    // A part under a second pickling time with no client written again: the client above it, said so on every load it is
+    // carried to (the check then takes a pick on such a load as that load's own, and never learns the name from it).
+    if (!group && lastGroup) { group = lastGroup; carriedGroup = true; }
     if (!it.part && it.qty != null && pendingParts.length && pendingParts[pendingParts.length - 1].qty == null) {
       var last = pendingParts[pendingParts.length - 1];
       last.qty = it.qty; last.unit = it.unit; last.qtySrc = it.qtySrc; last.raw += '\n' + raw;
@@ -293,9 +305,12 @@ function parsePickling(msg, ctx) {
     if (family && /^\d/.test(it.part)) it.part = family + ' ' + it.part;
     var rec = prodItemRecord(it, group, raw, n, date, noDate);
     if (reworkOn) rec.rework = true;
-    if (carried) rec.issues.push({ tone: 'amber', code: 'carried', text: 'No client written for this load: ' + (group.clientName || group.client) + ', from the load above.' });
-    if (it.qty == null && /^[A-Za-z][A-Za-z .]*$/.test(it.part) && /^\s*[\d(]/.test((lines[i + 1] || '').replace(/[×✕]/g, 'X')) && prodReadItem(lines[i + 1], null).qty != null) {
-      family = it.part;   // "CLAMP" over "165×83(35×6)--420 NOS": the lines below are its sizes
+    if (carriedGroup) rec.issues.push({ tone: 'amber', code: 'carried', text: 'No client written for this load: ' + (group.clientName || group.client) + ', from the load above.' });
+    // "CLAMP" over "165×83(35×6)--420 NOS": the lines below are its sizes. Over a line with only its figure ("LINER / 1000
+    // NOS") it is the load itself: taken for a family, the 1000 was saved with no part.
+    var next = /^\s*[\d(]/.test((lines[i + 1] || '').replace(/[×✕]/g, 'X')) ? prodReadItem(lines[i + 1], null) : null;
+    if (it.qty == null && /^[A-Za-z][A-Za-z .]*$/.test(it.part) && next && next.qty != null && next.part) {
+      family = it.part;
       return;
     }
     pendingParts.push(rec);
@@ -305,8 +320,13 @@ function parsePickling(msg, ctx) {
   return { items: items, notes: notes, date: date, noDate: noDate };
 }
 
-function prodDowntime(date, cut, inMin, open, raw, n) {
-  return { kind: 'downtime', date: date, time: prodHhmm(cut.min), to: prodHhmm(inMin), downtime: { cause: 'power', open: !!open || inMin == null }, raw: raw, n: n, issues: [] };
+function prodDowntime(date, cut, inMin, open, raw, n, inIssue) {
+  var it = { kind: 'downtime', date: date, time: prodHhmm(cut.min), to: prodHhmm(inMin), downtime: { cause: 'power', open: !!open || inMin == null }, raw: raw, n: n, issues: [] };
+  // What the time reader said is kept (P127): a cut with no time read was saved as none, unsaid, and counted in no day.
+  if (cut.min == null) it.issues.push({ tone: 'amber', code: 'time', text: 'No time read for this power cut: it is kept, but a cut with no time counts in no day’s power. Enter it by hand if it matters.' });
+  else if (cut.issue) it.issues.push(cut.issue);
+  if (inIssue) it.issues.push(inIssue);
+  return it;
 }
 /* A power line, the same in every message that carries one. A cut opens one; the power back closes it; a second cut
    while one is open keeps the first as open rather than dropping it (or, in the barrel list, reading the second cut
@@ -316,11 +336,13 @@ function prodPowerStep(pw, line, raw, n, date, sentAt, items, notes) {
   var pt = prodTimeOf(line.replace(/^.*?(cut|cat|cute|in|out)\b/i, ''), sentAt);
   if (/cut|cat|out/i.test(line) && !/\bin\b/i.test(line.replace(/cut|cat/i, ''))) {
     prodPowerEnd(pw, date, items);
-    pw.cutAt = { min: pt.min, n: n, raw: raw, date: date };
+    pw.cutAt = { min: pt.min, issue: pt.issue || null, n: n, raw: raw, date: date };
   } else if (pw.cutAt) {
-    items.push(prodDowntime(pw.cutAt.date, pw.cutAt, pt.min, /no\s*in/i.test(line), pw.cutAt.raw + '\n' + raw, pw.cutAt.n));
+    var notBack = /no\s*in/i.test(line);
+    var inIssue = !notBack && pt.min == null ? { tone: 'amber', code: 'time', text: 'No time read for the power back: the cut is kept with no time back.' } : pt.issue;
+    items.push(prodDowntime(pw.cutAt.date, pw.cutAt, pt.min, notBack, pw.cutAt.raw + '\n' + raw, pw.cutAt.n, inIssue));
     pw.cutAt = null;
-  } else notes.push({ n: n, raw: raw, text: 'The power back, with no cut above it in this message', powerIn: { date: date, min: pt.min } });
+  } else notes.push({ n: n, raw: raw, text: 'The power back, with no cut above it in this message', powerIn: { date: date, min: pt.min, issue: pt.issue || null } });
 }
 function prodPowerEnd(pw, date, items) {
   if (pw.cutAt) items.push(prodDowntime(pw.cutAt.date || date, pw.cutAt, null, true, pw.cutAt.raw, pw.cutAt.n));
@@ -514,16 +536,21 @@ function prodMsgKey(day, text) { return relayHash((day || '') + '\n' + String(te
    closed. Both used to be kept apart, the cut saved as open and its return a note that went nowhere. */
 function prodPairPower(msgs) {
   var open = [];
-  msgs.forEach(function(m) {
+  msgs.forEach(function(m, mi) {
     (m.read.notes || []).forEach(function(nt) {
       if (!nt.powerIn || nt.powerIn.min == null) return;
-      var cut = open.filter(function(c) { var at = relayParseHhmm(c.time); return c.date === nt.powerIn.date && at != null && at <= nt.powerIn.min; }).pop();
-      if (!cut) return;
-      open.splice(open.indexOf(cut), 1);
+      var hit = open.filter(function(c) { var at = relayParseHhmm(c.it.time); return c.it.date === nt.powerIn.date && at != null && at <= nt.powerIn.min; }).pop();
+      if (!hit) return;
+      open.splice(open.indexOf(hit), 1);
+      var cut = hit.it;
       cut.to = prodHhmm(nt.powerIn.min); cut.downtime.open = false; cut.raw += '\n' + nt.raw;
+      if (nt.powerIn.issue) cut.issues.push(nt.powerIn.issue);
+      // Which cut it closed: a cut whose message is left out (saved before, or sent twice) is closed where it is stored,
+      // on save (P127). It used to be closed here only, and the cut stayed open in the book.
+      nt.closes = { mi: hit.mi, ii: hit.ii };
       nt.text = 'The power back: the end of the cut at ' + relayClockLabel(relayParseHhmm(cut.time)) + ' in the message above';
     });
-    m.read.items.forEach(function(it) { if (it.kind === 'downtime' && it.to == null) open.push(it); });
+    m.read.items.forEach(function(it, ii) { if (it.kind === 'downtime' && it.to == null) open.push({ it: it, mi: mi, ii: ii }); });
   });
 }
 
@@ -676,11 +703,26 @@ function prodFromRegisterRead(json, ctx, photoDate, choices) {
   if (out.page === 'power') return prodRegisterPower(json, out);
   var ln = String(json.line || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
   // "VAT-A2", "VAT A 2", and the clerk's shorter "VAT-2" on 16 Sep.
-  out.line = ln ? (PROD_LINE_OF_READ[ln] || (/A1|VAT1$/.test(ln) ? 'vat-a1' : /A2|VAT2$/.test(ln) ? 'vat-a2' : /BAR|BER/.test(ln) ? 'barrel' : null)) : null;
+  var readLine = ln ? (PROD_LINE_OF_READ[ln] || (/A1|VAT1$/.test(ln) ? 'vat-a1' : /A2|VAT2$/.test(ln) ? 'vat-a2' : /BAR|BER/.test(ln) ? 'barrel' : null)) : null;
+  // The line picked on the check is the page's (P127): the part rules, the whose-round check and a code's round are read on
+  // the line the page ran on. The line as read is kept apart, for the photo's fingerprint and to say a line was set.
+  out.readLine = readLine;
+  out.line = choices.line !== undefined ? (choices.line || null) : readLine;
   if (!out.line) out.issues.push({ tone: 'amber', code: 'line', text: 'The page does not name its line. Pick it below.' });
   out.dayTotal = json.dayTotal != null && isFinite(json.dayTotal) ? +json.dayTotal : null;
   var markOf = function(r) { var m = String(r.mark || '').toUpperCase(); return /END/.test(m) || /\bend\b/i.test(r.time || '') ? 'END' : /START/.test(m) || r.start || /start/i.test(r.time || '') ? 'START' : ''; };
   out.style = json.rows.some(function(r) { return r && markOf(r) === 'END'; }) ? 'startend' : 'rounds';
+  // The round a START begins is the next one written: its size is the START's (the START rule's own reading).
+  var nextRack = function(k) {
+    for (var j = k + 1; j < json.rows.length; j++) {
+      var nr = json.rows[j] || {};
+      if (markOf(nr) === 'START') continue;
+      var nq = nr.qtyText != null && String(nr.qtyText).trim() !== '' ? prodRegisterQty(String(nr.qtyText).trim()) : null;
+      if (nq) return nq.rackSize || nq.qty;
+      if (nr.qty != null && isFinite(nr.qty)) return +nr.qty;
+    }
+    return null;
+  };
   var lastCust = '', lastPart = '', lastDim = '';
   json.rows.forEach(function(r0, i) {
     var r = r0 || {};
@@ -724,7 +766,7 @@ function prodFromRegisterRead(json, ctx, photoDate, choices) {
     // A new part carried onto the customer above it, of a kind that customer has never sent (the clerk's labels a row out,
     // a CLAMP under SAMARTH's ditto): the customer whose rule covers that kind at this round, where exactly one does.
     if (carried && ctx.carryCheck) {
-      var cit = prodReadItem(cust, ctx.clients), crack = row.rackSize || row.qty;
+      var cit = prodReadItem(cust, ctx.clients), crack = row.rackSize || row.qty || (row.start ? nextRack(i) : null);
       var cc = cit.clientId != null ? ctx.carryCheck(cit.clientId, part, crack) : null;
       if (cc) {
         var who = cit.clientName || cust;
@@ -829,13 +871,17 @@ function prodFromRegisterRead(json, ctx, photoDate, choices) {
   // with no gauge of its own continues the run above it.
   // Rounds shared by two clients interleave their runs: a shared round, and the first round after them, continue the run
   // of their own client and part rather than the row above.
+  // A run is also split at the shift's edges (8:30 AM, 5 PM), each round on the side it fell: the register's evening rounds
+  // are overtime, and counted in the general shift they stood beside the relay's figure for the same block (P127). A row
+  // with no figure (a START on a START / END page) takes the side of the rounds beside it.
+  var sideOf = function(row) { return row.min == null || (row.qty == null && row.written == null) ? '' : row.min < RELAY_GENERAL ? 'am' : row.min >= RELAY_GENERAL_OUT ? 'pm' : 'gen'; };
   var cur = null, open = {}, inShared = false;
   out.rows.forEach(function(row) {
     var pd = row.part + ' ' + row.dim, ck = relayKey(row.cust) + '|' + rateKey(prodPartBase(pd)), g = lineGauge(pd.replace(/[×✕]/g, 'X'));
-    var gs = row.gaugeSet || '', rp = row.rulePn || '';
+    var gs = row.gaugeSet || '', rp = row.rulePn || '', sd = sideOf(row);
     var run = row.shared != null || inShared ? open[ck] || null : cur;
-    if (!run || run.ck !== ck || (g && run.g && g !== run.g) || (gs && run.gs && gs !== run.gs) || (gs && run.g) || (g && run.gs) || (rp && run.rp && rp !== run.rp)) { run = { ck: ck, g: g, gs: gs, rp: rp, rows: [] }; out.runs.push(run); }
-    else { if (g && !run.g) run.g = g; if (gs && !run.gs) run.gs = gs; if (rp && !run.rp) run.rp = rp; }
+    if (!run || run.ck !== ck || (g && run.g && g !== run.g) || (gs && run.gs && gs !== run.gs) || (gs && run.g) || (g && run.gs) || (rp && run.rp && rp !== run.rp) || (sd && run.sd && sd !== run.sd)) { run = { ck: ck, g: g, gs: gs, rp: rp, sd: sd, rows: [] }; out.runs.push(run); }
+    else { if (g && !run.g) run.g = g; if (gs && !run.gs) run.gs = gs; if (rp && !run.rp) run.rp = rp; if (sd && !run.sd) run.sd = sd; }
     run.rows.push(row);
     if (row.shared != null) { open[ck] = run; inShared = true; }
     else { open = {}; open[ck] = run; inShared = false; }
@@ -850,7 +896,7 @@ function prodFromRegisterRead(json, ctx, photoDate, choices) {
     var timed = run.rows.filter(function(x) { return !(x.struck && choices['struck' + x.i] === 'cancelled'); });
     var mins = (timed.length ? timed : run.rows).map(function(x) { return x.min; }).filter(function(x) { return x != null; });
     var e = { kind: 'plated', date: out.date, time: prodHhmm(mins.length ? Math.min.apply(null, mins) : null), to: prodHhmm(mins.length ? Math.max.apply(null, mins) : null),
-      line: out.line, lineSrc: out.line ? 'written' : null, client: first.cust, clientId: it.clientId != null ? it.clientId : null, clientName: it.clientName || '',
+      line: out.line, lineSrc: out.line ? (out.line === readLine ? 'written' : 'set') : null, client: first.cust, clientId: it.clientId != null ? it.clientId : null, clientName: it.clientName || '',
       part: partText, gauge: lineGauge(partText.replace(/[×✕]/g, 'X')), qty: counted.length ? qty : null, unit: 'NOS', basis: 'register', src: 'photo',
       rounds: run.rows.filter(function(x) { return !(out.style === 'startend' && x.start); }).map(function(x) {
         var o = { time: x.time || null, qty: x.qty };
@@ -858,7 +904,7 @@ function prodFromRegisterRead(json, ctx, photoDate, choices) {
         if (x.rackSize && x.rounds) { o.rack = x.rackSize; o.n = x.rounds; }
         if (x.struck) o.struck = !x.counted; if (x.over) o.over = x.over; return o; }),
       raw: run.rows.map(function(x) { return x.raw; }).join('\n'), n: first.i + 1, issues: [], rows: run.rows };
-    e.slot = e.time && (relayParseHhmm(e.time) < 510 || relayParseHhmm(e.time) >= 1020) ? 'ot' : 'general';
+    e.slot = run.sd ? (run.sd === 'gen' ? 'general' : 'ot') : e.time && (relayParseHhmm(e.time) < RELAY_GENERAL || relayParseHhmm(e.time) >= RELAY_GENERAL_OUT) ? 'ot' : 'general';
     var racked = run.rows.find(function(x) { return x.gaugeRack; });
     if (run.gs === 'none') { e.gaugeUnknown = racked.gaugeRack; e.issues.push({ tone: 'amber', code: 'gauge', text: 'Gauge unknown: a round of ' + racked.gaugeRack + ' is in none of the owner’s rules for this part. Flagged on the entry until its gauge is picked.' }); }
     else if (run.gs) { e.gaugeOptions = run.gs.split('/'); e.gaugeSrc = 'rack'; e.issues.push({ tone: 'info', code: 'gauge', text: 'Gauge read from the round of ' + racked.gaugeRack + ': ' + run.gs.replace(/\//g, ' or ') + ' (the owner’s rule). The challans say which.' }); }
@@ -911,7 +957,7 @@ function prodFromRegisterRead(json, ctx, photoDate, choices) {
   var counted = out.rows.filter(function(x) { return x.counted && x.qty != null; }).reduce(function(s, x) { return s + x.qty; }, 0);
   out.counted = counted;
   if (out.dayTotal != null && Math.abs(out.dayTotal - counted) > 0.5) out.issues.push({ tone: 'amber', code: 'total', text: 'The page’s day total is ' + out.dayTotal + '; the rows counted add to ' + counted + '. A row may be missed or misread.' });
-  out.fp = out.date + '|' + (out.line || '-') + '|' + out.rows.map(function(x) { return (x.time || '') + ':' + (x.qty == null ? '' : x.qty); }).sort().join(',');
+  out.fp = out.date + '|' + (readLine || '-') + '|' + out.rows.map(function(x) { return (x.time || '') + ':' + (x.qty == null ? '' : x.qty); }).sort().join(',');
   return out;
 }
 

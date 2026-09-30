@@ -86,6 +86,8 @@ test('every run names its crew from the day’s attendance, the OT block’s aft
   await page.locator('[data-action="invSwitchSubView"][data-view="performance"]').click();
   await page.locator('#cpClientSelect').selectOption('2');
   const card = page.locator('[data-card="worked"]');
+  // Folded to its head on the phone (P128, UX-5).
+  if (await card.evaluate(e => e.tagName === 'DETAILS' && !(e as HTMLDetailsElement).open)) await card.locator(':scope > summary').click();
   await card.locator('[data-action="invCpPeriod"][data-p="mtd"]').click();
   const plated = page.locator('[data-card="worked"] [data-cp-plated]');
   await expect(plated.first()).toContainText('Crew: Alfa, Bravo');

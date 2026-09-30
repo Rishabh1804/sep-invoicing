@@ -18,7 +18,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <!-- Appearance before first paint (§3.2): the device's theme and palette, so nothing flashes in the wrong colours. -->
 <script>(function(){try{var d=document.documentElement,t=localStorage.getItem("sep_inv_theme"),p=localStorage.getItem("sep_inv_palette");if(t==="light"||t==="dark")d.dataset.theme=t;d.dataset.palette=(p==="zinc"||p==="terracotta")?p:"teal";}catch(e){document.documentElement.dataset.palette="teal";}})();</script>
-<meta name="app-build" content="fa391cab">
+<meta name="app-build" content="0a4e503d">
 <style>
 /* ===== DESIGN TOKENS (design system v2.0 — docs/SEP_INVOICING_DESIGN_PRINCIPLES.md §3) ===== */
 /* Theme: colour-scheme decides every light-dark() below. <html data-theme> is set before first paint
@@ -1110,6 +1110,8 @@ body.inv-desktop :is(#regSelBar, #imSelBar) { bottom: 0; }
 .inv-btn-link.inv-btn-sm { padding: 0; }
 .inv-btn-block { width: 100%; }
 .inv-btn:disabled, .inv-btn-disabled { opacity: 0.45; cursor: not-allowed; pointer-events: none; }
+/* Looks disabled, still takes a tap: a button whose tap explains why it cannot act (a challan with a line invoiced). */
+.inv-btn[aria-disabled="true"] { opacity: 0.45; cursor: not-allowed; }
 /* A grid of launch buttons (Home's quick actions): three across on the phone, one row on the desktop. */
 .inv-btn-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--sp-8); margin-bottom: var(--gap); }
 .inv-btn-grid > .inv-btn { flex-direction: column; gap: var(--sp-4); min-height: calc(var(--ctl-h) * 1.75); padding: var(--sp-8); text-align: center; }
@@ -4564,6 +4566,13 @@ function _clientStatusDot(c) {
   return '<span class="inv-dot inv-dot-' + (c.isActive ? 'ok' : 'neutral') + '">' + (c.isActive ? 'Active' : 'Inactive') + '</span>';
 }
 
+/* Does a client answer a search? Its name or its GSTIN, case ignored on both: a GSTIN is stored in capitals, and the
+   challan form's search lower-cased what was typed and compared it with them, so "20aaack" found nobody. */
+function clientMatchesQuery(c, q) {
+  q = String(q || '').trim().toLowerCase();
+  return !q || String(c.name || '').toLowerCase().indexOf(q) >= 0 || String(c.gstin || '').toLowerCase().indexOf(q) >= 0;
+}
+
 /* Phone: a row per client that opens its edit sheet. Desktop: a table beside the pane. */
 function renderClientList(filter) {
   const q = (filter || '').toLowerCase();
@@ -4571,7 +4580,7 @@ function renderClientList(filter) {
     if (a.isActive !== b.isActive) return a.isActive ? -1 : 1;
     return a.name.localeCompare(b.name);
   });
-  const filtered = q ? sorted.filter(c => c.name.toLowerCase().includes(q) || (c.gstin||'').toLowerCase().includes(q)) : sorted;
+  const filtered = q ? sorted.filter(c => clientMatchesQuery(c, q)) : sorted;
   const el = document.getElementById('clientList');
   if (!el) return;
   const countEl = document.getElementById('clientsCount');
@@ -5274,13 +5283,13 @@ function removePieceWeight(clientId, idx) {
 /* ===== ITEMS MASTER (Phase 6) ===== */
 
 /* --- Subview state --- */
-var _itemsRendered = 0;
+var _itemsRendered = 0;   // no longer read: the list shows its rows through uiMoreHtml; events.js still resets it
 var _itemsSearchTimer = null;
 var _itemsSorted = [];
 var _mergeBackupWarned = false;
 var _itemsSelected = {};
+var _itemsSelView = null;   // the filter and search the selection was made under
 var _itemsUsageCache = null;
-var ITEMS_BATCH = UI_MORE_ROWS;   // thirty at a time, as every long list (UX overhaul 2, step 6)
 var _itemsActiveId = null;
 
 function getItemsSubView() {
@@ -5327,7 +5336,7 @@ function renderClientsPage() {
   // The pane belongs to the view it was opened in.
   if (isItems) _clientsActiveId = null; else _itemsActiveId = null;
   var listHtml = isItems
-    ? '<div id="itemsList"></div><div id="itemsLoadMore"></div><div id="itemsSelBar"></div>'
+    ? '<div id="itemsList"></div><div id="itemsSelBar"></div>'
     : '<div id="clientList"></div>';
   container.innerHTML = _buildSubViewToggle(subView) +
     (isItems ? _buildItemsSubViewHtml() : _buildClientsSubViewHtml()) +
@@ -5340,7 +5349,6 @@ function renderClientsPage() {
 
   if (isItems) {
     _bindItemsSearch();
-    _itemsRendered = 0;
     _renderItemsList();
     if (_isDesktop) _renderItemDetail(_itemsActiveId && S.items.some(function(it) { return it.id === _itemsActiveId; }) ? _itemsActiveId : null, true);
   } else {
@@ -5360,6 +5368,7 @@ function _buildClientsSubViewHtml() {
 }
 
 function _buildItemsSubViewHtml() {
+  _invalidateUsageCache();
   var search = getItemsSearch();
   var sort = getItemsSort();
   var filter = getItemsFilter();
@@ -5440,18 +5449,13 @@ function _renderItemDetail(itemId, skipMasterRefresh) {
       '</div>';
 
     // Usage
+    _invalidateUsageCache();
     var usage = _buildUsageCache()[item.partNumber];
     html += '<div class="inv-panel inv-panel-flush"><div class="inv-panel-head"><span class="inv-panel-title">Usage</span></div>';
     if (usage) {
-      var invLines = 0, imLines = 0;
-      (S.invoices || []).forEach(function(inv) {
-        inv.items.forEach(function(li) { if (li.partNumber === item.partNumber) invLines++; });
-      });
-      (S.incomingMaterial || []).forEach(function(im) {
-        im.items.forEach(function(li) { if (li.partNumber === item.partNumber) imLines++; });
-      });
+      var refs = _itemRefCounts(item.partNumber);
       html += '<div class="inv-row inv-row-2"><span class="inv-row-main"><span class="inv-row-title">References</span>' +
-        '<span class="inv-row-meta">' + invLines + ' invoice line' + (invLines !== 1 ? 's' : '') + ', ' + imLines + ' challan line' + (imLines !== 1 ? 's' : '') + '</span></span>' +
+        '<span class="inv-row-meta">' + refs.inv + ' invoice line' + (refs.inv !== 1 ? 's' : '') + ', ' + refs.im + ' challan line' + (refs.im !== 1 ? 's' : '') + '</span></span>' +
         '<span class="inv-row-end inv-num">' + usage.total + '</span></div>' +
         '<div class="inv-row"><span class="inv-row-main">In the last 30 days</span><span class="inv-row-end inv-num">' + usage.recent + '</span></div>';
     } else {
@@ -5467,7 +5471,6 @@ function _renderItemDetail(itemId, skipMasterRefresh) {
   }
 
   if (!skipMasterRefresh) {
-    _itemsRendered = 0;
     _renderItemsList();
     _clientsRestoreFocus(focusKey);
   }
@@ -5480,10 +5483,7 @@ function _bindItemsSearch() {
     regFilter.itemsSearch = el.value;
     saveRegFilter();
     clearTimeout(_itemsSearchTimer);
-    _itemsSearchTimer = setTimeout(function() {
-      _itemsRendered = 0;
-      _renderItemsList();
-    }, 300);
+    _itemsSearchTimer = setTimeout(_renderItemsList, 300);
   });
 }
 
@@ -5549,15 +5549,16 @@ function _itemRowHtml(it) {
     '</div>';
 }
 
-/* The desktop table: the part number is a real button, so the row opens from the keyboard. */
-function _itemsTableHtml(list) {
+/* The desktop table: the part number is a real button, so the row opens from the keyboard. Its first thirty rows, and
+   the rest one tap away, as every long list (uiMoreHtml, keyed on what the list shows). */
+function _itemsTableHtml(list, moreKey) {
   var html = '<table class="inv-table"><thead><tr>' +
     '<th class="inv-table-check"><span class="inv-visually-hidden">Select</span></th><th>Part</th><th class="inv-col-grow">Description</th>' +
     '<th class="inv-col-opt2">Gauge</th><th class="inv-col-opt1">Unit</th><th class="inv-num inv-col-opt3">kg / pc</th>' +
     '<th class="inv-num inv-col-opt2">Refs</th><th class="inv-num">Rate</th></tr></thead><tbody>';
-  list.forEach(function(it) {
+  return html + uiMoreHtml(moreKey, list.map(function(it) {
     var usageCount = _getUsageCount(it.partNumber);
-    html += '<tr class="' + (_itemsSelected[it.id] ? 'inv-row-selected' : '') + '"' + (_itemsActiveId === it.id ? ' aria-current="true"' : '') +
+    return '<tr class="' + (_itemsSelected[it.id] ? 'inv-row-selected' : '') + '"' + (_itemsActiveId === it.id ? ' aria-current="true"' : '') +
       ' data-item-row="' + it.id + '" data-action="invSelectItemRow" data-id="' + it.id + '">' +
       '<td class="inv-table-check">' + _itemCheckHtml(it) + '</td>' +
       '<td><button class="inv-btn-link inv-id" data-action="invSelectItemRow" data-id="' + it.id + '">' + escHtml(it.partNumber) + '</button></td>' +
@@ -5567,39 +5568,35 @@ function _itemsTableHtml(list) {
       '<td class="inv-num inv-col-opt3">' + (it.stdWeightKg != null ? formatNum(it.stdWeightKg, 3) : '&mdash;') + '</td>' +
       '<td class="inv-num inv-col-opt2">' + (usageCount > 0 ? usageCount : '<span class="inv-dot inv-dot-neutral">Unused</span>') + '</td>' +
       '<td class="inv-num">' + (it.rate > 0 ? formatCurrency(it.rate) : '&mdash;') + '</td></tr>';
-  });
-  return html + '</tbody></table>';
+  }), { noun: 'items', tr: 8 }) + '</tbody></table>';
 }
 
+/* Every item the filter and search let through, its first thirty drawn and the rest one tap away (uiMoreHtml). A search
+   used to draw its first thirty with no way to the rest: the Load more row was left off whenever something was typed. */
 function _renderItemsList() {
   var listEl = document.getElementById('itemsList');
-  var moreEl = document.getElementById('itemsLoadMore');
   var countEl = document.getElementById('itemsCount');
   if (!listEl) return;
 
+  // What is and is not used is read fresh for each drawing: a part put on a challan since is no longer Unused, and
+  // Select unused must not reach it.
+  _invalidateUsageCache();
+  // A selection belongs to the list it was made on: a search or a filter that hides a ticked row drops the ticks,
+  // or Delete would reach rows nobody can see.
+  var view = getItemsFilter() + '|' + getItemsSearch().trim().toLowerCase();
+  if (_itemsSelView !== null && _itemsSelView !== view) _itemsSelected = {};
+  _itemsSelView = view;
+
   _itemsSorted = _getSortedFilteredItems();
   var total = _itemsSorted.length;
-  var search = getItemsSearch();
-
   if (countEl) countEl.textContent = total + ' item' + (total !== 1 ? 's' : '');
 
   if (total === 0) {
     listEl.innerHTML = _isDesktop ? '<div class="inv-empty">No items found</div>' : '<div class="inv-panel"><div class="inv-empty">No items found</div></div>';
-    if (moreEl) moreEl.innerHTML = '';
   } else {
-    // For search results, render up to 100; otherwise batch
-    var limit = search.length > 0 ? Math.min(total, 100) : Math.min(total, _itemsRendered + ITEMS_BATCH);
-    if (_itemsRendered === 0) limit = Math.min(total, ITEMS_BATCH);
-    var shown = _itemsSorted.slice(0, limit);
-    listEl.innerHTML = _isDesktop ? _itemsTableHtml(shown)
-      : '<div class="inv-panel inv-panel-flush">' + shown.map(_itemRowHtml).join('') + '</div>';
-    _itemsRendered = limit;
-
-    if (moreEl) {
-      moreEl.innerHTML = limit < total && search.length === 0
-        ? '<div class="inv-toolbar"><button class="inv-btn inv-btn-secondary" data-action="invLoadMoreItems">Load more (' + (total - limit) + ' remaining)</button></div>'
-        : '';
-    }
+    var moreKey = 'items-' + view;
+    listEl.innerHTML = _isDesktop ? _itemsTableHtml(_itemsSorted, moreKey)
+      : '<div class="inv-panel inv-panel-flush">' + uiMoreHtml(moreKey, _itemsSorted.map(_itemRowHtml), { noun: 'items' }) + '</div>';
   }
 
   _renderItemsSelectionBar();
@@ -5740,7 +5737,6 @@ function saveItem(itemId, mode) {
 
   saveState();
   closeOverlay();
-  _itemsRendered = 0;
   _renderItemsList();
   // Phase 8E: Refresh detail panel if active item was edited
   if (_isDesktop && _itemsActiveId === itemId) {
@@ -5779,7 +5775,6 @@ async function deleteItem(itemId) {
   closeOverlay();
   // Phase 8E: Clear detail panel if active item was deleted
   if (_isDesktop && _itemsActiveId === itemId) _renderItemDetail(null, true);
-  _itemsRendered = 0;
   _renderItemsList();
   showToast('Item deleted');
 }
@@ -6206,7 +6201,6 @@ function saveWeights() {
 
   saveState();
   closeOverlay();
-  _itemsRendered = 0;
   renderClientsPage();
   showToast('Saved ' + saved + ' weight' + (saved !== 1 ? 's' : '') +
     (invalid > 0 ? ' (' + invalid + ' skipped)' : ''));
@@ -6289,7 +6283,6 @@ function deriveWeightsFromRates() {
 
   saveState();
   closeOverlay();
-  _itemsRendered = 0;
   renderClientsPage();
   var notes = [];
   if (highVariance > 0) notes.push(highVariance + ' with inconsistent rates');
@@ -6341,7 +6334,6 @@ function calculateStdWeights() {
 
   if (calculated > 0) {
     saveState();
-    _itemsRendered = 0;
     _renderItemsList();
   }
 
@@ -6417,7 +6409,6 @@ function selectAllUnused() {
   S.items.forEach(function(it) {
     if (!cache[it.partNumber]) _itemsSelected[it.id] = true;
   });
-  _itemsRendered = 0;
   _renderItemsList();
   _renderItemsSelectionBar();
   var count = Object.keys(_itemsSelected).length;
@@ -6426,7 +6417,6 @@ function selectAllUnused() {
 
 function clearItemSelection() {
   _itemsSelected = {};
-  _itemsRendered = 0;
   _renderItemsList();
   _renderItemsSelectionBar();
 }
@@ -6439,7 +6429,6 @@ async function batchDeleteItems() {
   _itemsSelected = {};
   _invalidateUsageCache();
   saveState();
-  _itemsRendered = 0;
   _renderItemsList();
   _renderItemsSelectionBar();
   showToast(ids.length + ' item' + (ids.length !== 1 ? 's' : '') + ' deleted');
@@ -10428,8 +10417,10 @@ function imBilledIndex() {
     if (inv.status === 'cancelled') return;
     (inv.items || []).forEach(function(li) {
       if (!li.imItemId) return;
+      // Read as numbers: a quantity stored as text (a scanned challan's "282.70") added up as text and threw at the
+      // toFixed below, in the invoice save and in the billing sync at every boot.
       (idx[li.imItemId] || (idx[li.imItemId] = [])).push({ invoiceId: inv.id, displayNumber: inv.displayNumber, invoiceNumber: inv.invoiceNumber,
-        date: inv.date, qty: li.qty || 0, nosQty: li.nosQty || 0, whole: !!li.imWhole, unit: li.unit || '' });
+        date: inv.date, qty: Number(li.qty) || 0, nosQty: Number(li.nosQty) || 0, whole: !!li.imWhole, unit: li.unit || '' });
     });
   });
   return idx;
@@ -10451,7 +10442,7 @@ function imRefsBilled(it, refs) {
     nos += r.nosQty;
   });
   // A ref that bills the line whole closes it: what is billed is the line, or more if the parts say so.
-  if (whole) { qty = Math.max(qty, it.qty || 0); nos = Math.max(nos, it.nosQty || 0); }
+  if (whole) { qty = Math.max(qty, Number(it.qty) || 0); nos = Math.max(nos, Number(it.nosQty) || 0); }
   return { qty: parseFloat(qty.toFixed(3)), nos: nos };
 }
 
@@ -10466,7 +10457,7 @@ function imSyncBilled() {
       if (!refs.length && it.invoiced && it.invoiceId && held[it.invoiceId] && (it.billedLegacy || it.billedQty == null)) {
         it.billedLegacy = true;
         it.invoiced = true;
-        it.billedQty = it.qty || 0;
+        it.billedQty = Number(it.qty) || 0;
         if (it.nosQty) it.billedNos = it.nosQty; else delete it.billedNos;
         it.invoiceIds = [it.invoiceId];
       } else {
@@ -10496,16 +10487,16 @@ function imLineBilled(it) { return !!it.invoiced || (it.billedQty || 0) > 0; }
 /* The share of a challan line still to bill: quantity, pieces and amount.
    An unbilled amount anywhere in the app is this share, never the whole line. */
 function imLineOpen(it) {
-  var q = it.qty || 0;
+  var q = Number(it.qty) || 0;
   if (it.invoiced) return { qty: 0, nos: 0, amount: 0 };
-  var billed = it.billedQty || 0;
+  var billed = Number(it.billedQty) || 0;
   var left = q - billed;
   if (left <= IM_QTY_EPS) left = 0;
   left = parseFloat(left.toFixed(3));
-  if (!billed) return { qty: q, nos: it.nosQty || 0, amount: it.amount || 0 };
+  if (!billed) return { qty: q, nos: Number(it.nosQty) || 0, amount: Number(it.amount) || 0 };
   var nos = 0;
   if (it.nosQty) nos = it.billedNos > 0 ? Math.max(0, it.nosQty - it.billedNos) : Math.round(it.nosQty * left / (q || 1));
-  var amount = q > 0 ? gstRound((it.amount || 0) * left / q) : 0;
+  var amount = q > 0 ? gstRound((Number(it.amount) || 0) * left / q) : 0;
   return { qty: left, nos: nos, amount: amount };
 }
 
@@ -10525,9 +10516,9 @@ function imLineShare(itemId, exceptInvoiceId, idx) {
     var legacy = S.invoices.find(function(i) { return i.id === it.invoiceId; });
     if (legacy) { refs = [{ invoiceId: legacy.id, displayNumber: legacy.displayNumber, qty: it.qty || 0 }]; billed = { qty: it.qty || 0, nos: it.nosQty || 0 }; }
   }
-  var left = (it.qty || 0) - billed.qty;
+  var left = (Number(it.qty) || 0) - billed.qty;
   if (Math.abs(left) <= IM_QTY_EPS) left = 0;
-  return { im: im, it: it, refs: refs, qty: it.qty || 0, billed: billed.qty, billedNos: billed.nos, left: parseFloat(left.toFixed(3)) };
+  return { im: im, it: it, refs: refs, qty: Number(it.qty) || 0, billed: billed.qty, billedNos: billed.nos, left: parseFloat(left.toFixed(3)) };
 }
 
 /* "600 on challan 301 · 200 invoiced (SEP/…/00012) · 400 left" */
@@ -10598,23 +10589,13 @@ function getFilteredIM() {
           default: va = a.challanDate || ''; vb = b.challanDate || ''; return va < vb ? -dir : va > vb ? dir : 0;
         }
       });
-    } else {
-      // Desktop with no explicit sort: same as mobile default
-      list.sort(function(a, b) {
-        var sa = getIMStatus(a) === 'invoiced' ? 1 : 0;
-        var sb = getIMStatus(b) === 'invoiced' ? 1 : 0;
-        if (sa !== sb) return sa - sb;
-        return (b.challanDate || '').localeCompare(a.challanDate || '') || (b.createdAt || 0) - (a.createdAt || 0);
-      });
+      return list;
     }
-  } else {
-    list.sort(function(a, b) {
-      var sa = getIMStatus(a) === 'invoiced' ? 1 : 0;
-      var sb = getIMStatus(b) === 'invoiced' ? 1 : 0;
-      if (sa !== sb) return sa - sb;
-      return (b.challanDate || '').localeCompare(a.challanDate || '') || (b.createdAt || 0) - (a.createdAt || 0);
-    });
   }
+  // The default, both layouts: newest challan first. (It also put invoiced challans last; each tab holds one kind.)
+  list.sort(function(a, b) {
+    return (b.challanDate || '').localeCompare(a.challanDate || '') || (b.createdAt || 0) - (a.createdAt || 0);
+  });
   return list;
 }
 
@@ -10646,9 +10627,20 @@ function renderIMToolbar() {
   viewTabReveal(area.querySelector('.inv-viewtabs'));
 }
 
+/* A selection belongs to the list it was made on. A jump that opens IM on one client — History's, Stats', the duplicate
+   check's Locate — changes the filter without passing captureIMFilters, and the ticks it hid stayed live for Create
+   invoice. Whatever changed the view (tab, month, client, status), the selection made on the old one is dropped. */
+var _imSelView = null;
+function imSelectionGuard() {
+  var k = [_imTab, _imTab === 'invoiced' ? imMonthShown() : '', _imFilter.clientId || '', _imFilter.status || ''].join('|');
+  if (_imSelView !== null && _imSelView !== k) _imSelected = {};
+  _imSelView = k;
+}
+
 function renderIMList() {
   const area = document.getElementById('imList');
   if (!area) return;
+  imSelectionGuard();
   const filtered = getFilteredIM();
   let html = _imSummaryHtml(filtered);
 
@@ -10794,6 +10786,7 @@ function renderIMTable() {
 
   var master = document.getElementById('imMaster');
   if (!master) return;
+  imSelectionGuard();
   var focusKey = _mdFocusKey('imMasterDetail', _imActiveChallanId);
   master.innerHTML = _buildIMTableHtml();
 
@@ -10814,7 +10807,7 @@ function imStatusDotHtml(im) {
   return '<span class="inv-dot inv-dot-' + s.tone + '">' + escHtml(s.word) + '</span>';
 }
 
-function imChallanTotal(im) { return im.items.reduce(function(s, it) { return s + (it.amount || 0); }, 0); }
+function imChallanTotal(im) { return im.items.reduce(function(s, it) { return s + (Number(it.amount) || 0); }, 0); }
 
 function _imSummaryHtml(filtered) {
   if (_imTab === 'invoiced') return '';   // the month's pager says how many and how much
@@ -10862,7 +10855,10 @@ function _imActionsHtml(im, primary) {
       '<button class="inv-btn inv-btn-danger' + (primary ? '' : ' inv-btn-sm') + '" data-action="invDeleteChallan" data-id="' + id + '">Delete challan</button>';
   }
   if (status !== 'invoiced') {
-    return '<button class="inv-btn inv-btn-secondary inv-btn-disabled' + (primary ? '' : ' inv-btn-sm') + '" data-action="invEditChallanGuard" data-count="' + billed + '">Edit</button>';
+    // Shown as disabled, yet a tap or a click still says why: a button that took no pointer (inv-btn-disabled) told
+    // only somebody on a keyboard.
+    var why = 'Cannot edit: ' + billed + ' item' + (billed > 1 ? 's' : '') + ' already invoiced';
+    return '<button class="inv-btn inv-btn-secondary' + (primary ? '' : ' inv-btn-sm') + '" aria-disabled="true" title="' + why + '" data-action="invEditChallanGuard" data-count="' + billed + '">Edit</button>';
   }
   return '';
 }
@@ -29591,22 +29587,25 @@ function renderAddChallanForm() {
     var amtDisplay = (item.amount != null && !isNaN(item.amount) && item.amount !== 0) ? formatNum(item.amount) : '';
 
     var rm = client ? rateMatch(client, date, item) : null;
+    // The field holds the PART NUMBER: a keystroke makes the whole text the part number, and for a piece client the
+    // description is often only the gauge ("40X6"), which showed in its place and became the part number when edited.
+    // The description, when it says more than the number, is said under the line.
     html += '<div class="inv-line"><span class="inv-line-num" id="imLineLbl' + idx + '">' + (idx + 1) + '</span>' +
       lineField('Part', '<div class="inv-combo">' +
-        '<input class="inv-input" id="imPart' + idx + '" data-k="part-' + idx + '" value="' + escHtml(item.desc || item.partNumber) + '" data-action="invEditChallanPart" data-idx="' + idx + '" placeholder="Part name or number" autocomplete="off"' +
+        '<input class="inv-input" id="imPart' + idx + '" data-k="part-' + idx + '" value="' + escHtml(item.partNumber || item.desc) + '" data-action="invEditChallanPart" data-idx="' + idx + '" placeholder="Part name or number" autocomplete="off"' +
         ' role="combobox" aria-expanded="false" aria-autocomplete="list" aria-controls="imPartAC' + idx + '">' +
         '<div class="inv-menu inv-hidden" id="imPartAC' + idx + '" role="listbox"></div></div>', 'imPart' + idx, 'inv-line-part') +
-      lineField('Qty', '<input type="number" class="inv-input inv-input-num" id="imQty' + idx + '" data-k="qty-' + idx + '" value="' + (item.qty || '') + '" data-field="qty" data-idx="' + idx + '" data-action="invUpdateChallanLine" step="any" min="0">', 'imQty' + idx) +
+      lineField('Qty', '<input type="number" class="inv-input inv-input-num" id="imQty' + idx + '" data-k="qty-' + idx + '" value="' + escHtml(item.qty || '') + '" data-field="qty" data-idx="' + idx + '" data-action="invUpdateChallanLine" step="any" min="0">', 'imQty' + idx) +
       lineField('Unit', '<select class="inv-select" id="imUnit' + idx + '" data-k="unit-' + idx + '" data-field="unit" data-idx="' + idx + '" data-change="invUpdateChallanLine">' +
         '<option value="KG"' + (item.unit === 'KG' ? ' selected' : '') + '>KG</option>' +
         '<option value="NOS"' + (item.unit === 'NOS' ? ' selected' : '') + '>NOS</option></select>', 'imUnit' + idx) +
-      lineField('Pcs', '<input type="number" class="inv-input inv-input-num" id="imNos' + idx + '" data-k="nos-' + idx + '" value="' + (item.nosQty || '') + '" data-field="nosQty" data-idx="' + idx + '" data-action="invUpdateChallanLine" step="1" min="0" placeholder="Pcs">', 'imNos' + idx) +
+      lineField('Pcs', '<input type="number" class="inv-input inv-input-num" id="imNos' + idx + '" data-k="nos-' + idx + '" value="' + escHtml(item.nosQty || '') + '" data-field="nosQty" data-idx="' + idx + '" data-action="invUpdateChallanLine" step="1" min="0" placeholder="Pcs">', 'imNos' + idx) +
       lineField('Rate', '<input type="number" class="inv-input inv-input-num" id="imRate' + idx + '" data-k="rate-' + idx + '" value="' + rateDisplay + '" data-field="rate" data-idx="' + idx + '" data-action="invUpdateChallanLine" step="any" min="0"' +
         rateMatchInputAttr(rm) + (isPieceNOS ? ' readonly' : '') + '>', 'imRate' + idx) +
       lineField('Amount', '<input type="number" class="inv-input inv-input-num" id="imAmt' + idx + '" data-k="amount-' + idx + '" value="' + amtDisplay + '" data-field="amount" data-idx="' + idx + '" data-action="invUpdateChallanLine" step="any" min="0"' +
         (isPieceNOS ? '' : ' readonly') + '>', 'imAmt' + idx, 'inv-line-amt') +
       '<button type="button" class="inv-btn inv-btn-ghost inv-btn-icon inv-line-rm" data-k="remove-' + idx + '" data-action="invRemoveChallanLine" data-idx="' + idx + '" aria-label="Remove line ' + (idx + 1) + '">' + LINE_X_ICON + '</button>' +
-      '<div class="inv-line-notes">' +
+      '<div class="inv-line-notes"><div id="imDesc' + idx + '">' + challanDescNote(item) + '</div>' +
       '<div id="imWeightMatch' + idx + '">' + (client ? weightMatchNote(weightMatch(client, date, item)) : '') + '</div>' +
       '<div id="imRateMatch' + idx + '">' + rateMatchNote(rm) + '</div>' +
       '<div id="imFill' + idx + '">' + challanFillNote(item, client) + '</div>' +
@@ -29686,9 +29685,7 @@ function renderChallanClientResults(query) {
   var input = document.getElementById('imChallanClientSearch');
   if (!res) return;
   var q = (query || '').trim().toLowerCase();
-  var matches = q.length < 1 ? [] : S.clients.filter(function(c) {
-    return c.isActive && (c.name.toLowerCase().includes(q) || (c.gstin || '').includes(q));
-  }).slice(0, 8);
+  var matches = q.length < 1 ? [] : S.clients.filter(function(c) { return c.isActive && clientMatchesQuery(c, q); }).slice(0, 8);
 
   acReset();
   if (matches.length === 0) {
@@ -29720,14 +29717,25 @@ function selectChallanClient(clientId) {
   // the client is checked by the render (challanNoWarnHtml), so the warning is there as focus arrives.
   _challanFocusNext = { k: 'challanNo', sel: null };
   var client = S.clients.find(function(c) { return c.id === clientId; });
-  // Auto-fill rate on existing items
+  // The lines already there take the client's record, into what is empty or was itself filled from a record
+  // (lineFillFromRecord): a rate somebody typed stays theirs, whichever client is chosen after it.
   if (client) {
+    var onDate = _challanForm.challanDate || localDateStr();
     _challanForm.items.forEach(function(item) {
-      item.rate = defaultLineRate(client, _challanForm.challanDate || localDateStr(), item);
+      lineFillFromRecord(client, onDate, item, S.items.find(function(p) { return p.partNumber === item.partNumber; }));
+      lineFillFromCount(client, item);
       recalcChallanLine(item, client);
     });
   }
   renderAddChallanForm();
+}
+
+/* The line's description, when it says more than its part number: the gauge a chosen part folds in, or the whole of
+   what a piece client's challan writes ("40X6"). The Part field shows the number, so this is where the rest is read. */
+function challanDescNote(item) {
+  var pn = String(item.partNumber || '').trim(), d = String(item.desc || '').trim();
+  if (!pn || !d || rateKey(pn).indexOf(rateKey(d)) >= 0) return '';
+  return '<div class="inv-note" data-line-desc>Description: ' + escHtml(d) + '</div>';
 }
 
 /* What the record put into the line, so tabbing through it is a check rather than a re-type. */
@@ -29801,6 +29809,17 @@ function saveChallan() {
   var client = S.clients.find(function(c) { return c.id === _challanForm.clientId; });
   if (!client) return;
 
+  // A challan names its date, and every line its part and its quantity (the QA sweep, 29 Sep 2026): a line saved
+  // without them could never be invoiced, so its challan read Part invoiced and the To-do raised it for ever. Records
+  // already saved load as they are; this asks only of what is being saved now.
+  var gap = challanIncomplete();
+  if (gap) {
+    showToast(gap.msg, 'error');
+    var gapEl = document.querySelector('#imAddForm [data-k="' + gap.k + '"]');
+    if (gapEl) gapEl.focus();
+    return;
+  }
+
   // A red-flagged line is saved only with a reason, the ₹0 line's contract.
   var fDate = _challanForm.challanDate || localDateStr();
   for (var fi = 0; fi < _challanForm.items.length; fi++) {
@@ -29847,25 +29866,18 @@ function saveChallan() {
     existing.receivedDate = _challanForm.challanDate || localDateStr();
     existing.notes = _challanForm.notes || '';
     if (dupeAck) existing.dupeAck = dupeAck;
-    existing.items = _challanForm.items.map(function(item, idx) {
-      return Object.assign({
-        id: existing.id + '-' + idx,
-        partNumber: item.partNumber,
-        desc: item.desc || item.partNumber,
-        hsn: item.hsn || '998873',
-        unit: item.unit || 'KG',
-        qty: item.qty || 0,
-        rate: item.rate || 0,
-        amount: item.amount || 0,
-        nosQty: item.nosQty || null,
-        invoiced: false,
-        invoiceId: null
-      }, lineFlagFields(client, _challanForm.challanDate || localDateStr(), item));
+    // A line keeps its id and what the form does not hold (the corrections an invoice made to it); a line added in the
+    // edit takes an id no line of this challan has ever had, so nothing pointing at a removed line finds another.
+    var oldById = {}, used = {}, seq = 0;
+    existing.items.forEach(function(x) { oldById[x.id] = x; used[x.id] = true; });
+    var freshId = function() { while (used[existing.id + '-' + seq]) seq++; used[existing.id + '-' + seq] = true; return existing.id + '-' + seq; };
+    existing.items = _challanForm.items.map(function(item) {
+      var old = item._id ? oldById[item._id] : null;
+      return challanLineSaved(client, item, old ? old.id : freshId(), old);
     });
     saveVehicleToClient(_challanForm.clientId, _challanForm.vehicleNo);
     saveState();
-    _challanForm = null;
-    cancelAddChallanUI();
+    challanFormClosed();
     _imToolbarRendered = false;
     renderIMToolbar();
     _imToolbarRendered = true;
@@ -29883,21 +29895,7 @@ function saveChallan() {
     clientId: client.id,
     clientName: client.name,
     vehicleNo: _challanForm.vehicleNo,
-    items: _challanForm.items.map(function(item, idx) {
-      return Object.assign({
-        id: imId + '-' + idx,
-        partNumber: item.partNumber,
-        desc: item.desc || item.partNumber,
-        hsn: item.hsn || '998873',
-        unit: item.unit || 'KG',
-        qty: item.qty || 0,
-        rate: item.rate || 0,
-        amount: item.amount || 0,
-        nosQty: item.nosQty || null,
-        invoiced: false,
-        invoiceId: null
-      }, lineFlagFields(client, _challanForm.challanDate || localDateStr(), item));
-    }),
+    items: _challanForm.items.map(function(item, idx) { return challanLineSaved(client, item, imId + '-' + idx, null); }),
     receivedDate: _challanForm.challanDate || localDateStr(),
     notes: '',
     createdAt: now,
@@ -29908,8 +29906,7 @@ function saveChallan() {
   saveVehicleToClient(_challanForm.clientId, _challanForm.vehicleNo);
   saveState();
 
-  _challanForm = null;
-  cancelAddChallanUI();
+  challanFormClosed();
   _imToolbarRendered = false;
   renderIMToolbar();
   _imToolbarRendered = true;
@@ -29918,13 +29915,50 @@ function saveChallan() {
 }
 
 function cancelAddChallan() {
+  challanFormClosed();
+}
+
+/* The form is gone, saved or left: nothing typed is on the page any more (a book from another window may be drawn),
+   and a layout switch that waited for the form runs now, as closeOverlay runs one that waited for a dialog. */
+function challanFormClosed() {
   _challanForm = null;
+  _pageTyped = false;
   cancelAddChallanUI();
-  // Phase 8A: Drain deferred mode switch
   if (_pendingModeSwitch) {
     _pendingModeSwitch = false;
     updateLayoutMode();
   }
+}
+
+/* What the form still lacks before it can be saved: the challan's date, or a line's part or quantity. */
+function challanIncomplete() {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(_challanForm.challanDate || ''))) return { msg: 'Enter the challan date', k: 'challanDate' };
+  for (var i = 0; i < _challanForm.items.length; i++) {
+    var it = _challanForm.items[i];
+    if (!String(it.partNumber || it.desc || '').trim()) return { msg: 'Line ' + (i + 1) + ' has no part: pick one, or remove the line', k: 'part-' + i };
+    if (!(Number(it.qty) > 0)) return { msg: 'Line ' + (i + 1) + ' has no quantity', k: 'qty-' + i };
+  }
+  return null;
+}
+
+/* A line as saved: the form's figures on the line's id, over what the stored line held that the form does not (an
+   edited line's corrections). A flag's reason goes with the line only while the line still needs one. */
+function challanLineSaved(client, item, id, old) {
+  var line = Object.assign({}, old || {}, {
+    id: id,
+    partNumber: item.partNumber,
+    desc: item.desc || item.partNumber,
+    hsn: item.hsn || '998873',
+    unit: item.unit || 'KG',
+    qty: item.qty || 0,
+    rate: item.rate || 0,
+    amount: item.amount || 0,
+    nosQty: item.nosQty || null,
+    invoiced: false,
+    invoiceId: null
+  });
+  delete line.flagReason; delete line.flagNote; delete line.flagAt;
+  return Object.assign(line, lineFlagFields(client, _challanForm.challanDate || localDateStr(), item));
 }
 
 function cancelAddChallanUI() {
@@ -29951,9 +29985,12 @@ async function deleteChallan(imId) {
   // Tier 1 confirm
   if (!(await uiConfirm({ title: 'Delete this challan?', body: 'Challan ' + (im.challanNo || '(no number)') + ' from ' + (im.clientName || 'this client') +
     ', ' + im.items.length + ' line' + (im.items.length === 1 ? '' : 's') + '. This cannot be undone.', okLabel: 'Delete challan', danger: true }))) return;
-  var idx = S.incomingMaterial.indexOf(im);
-  if (idx < 0) return;
-  if (idx > -1) S.incomingMaterial.splice(idx, 1);
+  // Another window's save loads the book whole while the question is open (bookReload), so the challan asked about may
+  // be an object of the old book: the one deleted is the challan as the book holds it now, if it may still be deleted.
+  im = (S.incomingMaterial || []).find(function(m) { return m.id === imId; });
+  if (!im) { showToast('Challan already deleted', 'warning'); _renderIMView(); return; }
+  if (im.items.some(imLineBilled)) { showToast('Not deleted: a line of it was invoiced meanwhile', 'warning'); _renderIMView(); return; }
+  S.incomingMaterial.splice(S.incomingMaterial.indexOf(im), 1);
   // Clean up expanded/selected state
   delete _imExpanded[imId];
   if (_imActiveChallanId === imId) _imActiveChallanId = null;
@@ -29984,6 +30021,7 @@ function editChallan(imId) {
     vehicleNo: im.vehicleNo || '',
     items: im.items.map(function(it) {
       return {
+        _id: it.id,   // the line's own id, kept by the save (challanLineSaved)
         partNumber: it.partNumber || '',
         desc: it.desc || it.partNumber || '',
         hsn: it.hsn || '998873',
@@ -30011,11 +30049,14 @@ function refreshChallanLineMatch(idx) {
   if (!_challanForm) return;
   var item = _challanForm.items[idx];
   var client = _challanForm.clientId ? S.clients.find(function(c) { return c.id === _challanForm.clientId; }) : null;
-  if (!item || !client) return;
+  if (!item) return;
+  // The notes are redrawn on their own, so the field being typed in keeps focus.
+  var dn = document.getElementById('imDesc' + idx);
+  if (dn) dn.innerHTML = challanDescNote(item);
+  if (!client) return;
   refreshRateMatch('imRateMatch' + idx, document.getElementById('imRate' + idx), client,
     _challanForm.challanDate || localDateStr(), item);
   refreshWeightMatch('imWeightMatch' + idx, client, _challanForm.challanDate || localDateStr(), item);
-  // The fill note and the flag are redrawn on their own, so the field being typed in keeps focus.
   var fn = document.getElementById('imFill' + idx);
   if (fn) fn.innerHTML = challanFillNote(item, client);
   var fl = document.getElementById('imFlag' + idx);
@@ -30155,6 +30196,15 @@ function findChallanDuplicates(candidate, excludeId) {
  * ch 248 and ch 110 collapsed into a single invoice and cost nothing, while
  * ch 47 and ch 932 became real output tax. The collection-level check cannot
  * tell those apart; following the line items into `invoices` can.
+ *
+ * Each verdict says only what the links show (the QA sweep, 29 Sep 2026: "Collapsed into one invoice" was said of a
+ * group with a copy still open, and of two copies on one invoice without looking at what that invoice billed):
+ *   - copies on different invoices: billed twice;
+ *   - one invoice whose lines name the lines of two copies: billed twice on it;
+ *   - nothing billed: still preventable;
+ *   - a copy billed and another still open: the open one is what can still reach a bill;
+ *   - copies marked billed by one invoice that names no challan line (saved before lines were linked): that invoice
+ *     is read for the group's quantities — once is collapsed, twice is billed twice, neither is left to check.
  */
 function imDuplicateVerdict(group) {
   var invoiceIds = {};
@@ -30169,12 +30219,42 @@ function imDuplicateVerdict(group) {
     });
     if (hit) invoicedCopies++;
   });
-  var distinct = Object.keys(invoiceIds).length;
+  var distinct = Object.keys(invoiceIds);
+  var open = group.length - invoicedCopies;
   // Two copies each reaching a bill, on different invoices. One copy invoiced in
   // parts reaches several invoices by design and bills nothing twice.
-  if (distinct > 1 && invoicedCopies > 1) return { key: 'billed', label: 'Billed twice', tone: 'danger' };
+  if (distinct.length > 1 && invoicedCopies > 1) return { key: 'billed', label: 'Billed twice', tone: 'danger' };
   if (invoicedCopies === 0) return { key: 'open', label: 'Unbilled — still preventable', tone: 'warning' };
-  return { key: 'collapsed', label: 'Collapsed into one invoice', tone: 'info' };
+  if (open > 0) return { key: 'partOpen', label: invoicedCopies + ' billed, ' + open + ' still open — still preventable', tone: 'warning' };
+  var inv = distinct.length === 1 ? (S.invoices || []).find(function(i) { return i.id === distinct[0]; }) : null;
+  var times = inv ? imDupeTimesOnInvoice(group, inv) : 0;
+  if (times > 1) return { key: 'billedOne', label: 'Billed twice on one invoice', tone: 'danger' };
+  if (times === 1) return { key: 'collapsed', label: 'Collapsed into one invoice', tone: 'info' };
+  return { key: 'oneInvoice', label: 'On one invoice — check it bills them once', tone: 'warning' };
+}
+
+/* How many copies of the group one invoice bills: lines linked to a copy's lines count by the link, lines saved before
+   links by their unit and quantity. The fewest times any of one copy's lines is met. */
+function imDupeTimesOnInvoice(group, inv) {
+  var own = {}, linked = {};
+  group.forEach(function(im) { im.items.forEach(function(it) { own[it.id] = im.id; }); });
+  var have = {};
+  (inv.items || []).forEach(function(li) {
+    if (li.imItemId) { if (own[li.imItemId]) linked[own[li.imItemId]] = true; return; }
+    var k = (li.unit || 'KG') + ':' + Math.round((Number(li.qty) || 0) * 1000) / 1000;
+    have[k] = (have[k] || 0) + 1;
+  });
+  var copies = Object.keys(linked).length;
+  if (copies > 1) return copies;
+  var need = {};
+  group[0].items.forEach(function(it) {
+    if (!(Number(it.qty) > 0)) return;
+    var k = (it.unit || 'KG') + ':' + Math.round(Number(it.qty) * 1000) / 1000;
+    need[k] = (need[k] || 0) + 1;
+  });
+  var times = Infinity;
+  Object.keys(need).forEach(function(k) { times = Math.min(times, Math.floor((have[k] || 0) / need[k])); });
+  return copies + (isFinite(times) ? times : 0);
 }
 
 /* Value of the surplus copies: everything beyond the first. */
@@ -30334,7 +30414,9 @@ function runIMDuplicateScan() {
   dialogOpen(html);
 }
 
-/* Close the scan, filter the list down to that client, and open the challan. */
+/* Open one challan on the IM page: filtered to its client, on the tab and month it is listed under, expanded, and
+   brought into view. The duplicate check's Locate and History's jump both come here. A row the list keeps under
+   "Show more" is shown first: scrolling to a hidden row did nothing, and a big client's month holds more than thirty. */
 function imLocateChallan(imId) {
   var im = (S.incomingMaterial || []).find(function(m) { return m.id === imId; });
   if (!im) { showToast('Challan not found', 'warning'); return; }
@@ -30347,12 +30429,18 @@ function imLocateChallan(imId) {
   _imActiveChallanId = imId;
 
   _imToolbarRendered = false;
-  renderIMToolbar();
-  _imToolbarRendered = true;
-  _renderIMView();
+  var page = document.getElementById('pageIM');
+  if (page && !page.classList.contains('inv-page-active')) switchTab('pageIM');
+  else {
+    renderIMToolbar();
+    _imToolbarRendered = true;
+    _renderIMView();
+  }
 
-  var target = document.querySelector('[data-id="' + imId + '"]');
-  if (target && target.scrollIntoView) target.scrollIntoView({ block: 'center' });
+  var row = document.querySelector('#imList [data-im="' + imId + '"]');
+  var hidden = row && row.closest('[data-more-of]');
+  if (hidden) uiShowMore(hidden.getAttribute('data-more-of'));
+  if (row && row.scrollIntoView) row.scrollIntoView({ block: 'center' });
 }
 /* ===== VISION — one way to ask Gemini to read a photo ===== */
 /* The challan scanner and the production register both send a photo and a prompt to Gemini with the key from
@@ -30495,25 +30583,65 @@ function geminiReadReply(data, wantJson) {
 var _scanExtractionPrompt = 'You are parsing an Indian delivery challan image for a zinc electroplating job work factory.\n\nExtract ALL data into this exact JSON structure. Return ONLY valid JSON, no markdown, no backticks, no explanation.\n\n{"challanNo":"string - just digits, strip leading zeros and FY suffix like /26-27","challanDate":"YYYY-MM-DD format","clientName":"string","vehicleNo":"string","items":[{"partNumber":"string","desc":"string","unit":"KG or NOS","qty":0,"nosQty":null,"rate":0,"amount":0}]}\n\nRULES for Dorabji Auto challans (printed white paper with DELIVERY CHALLAN header):\n- Qty column = NOS count -> put in nosQty\n- Wt.(Kgs.) column = weight in KG -> put in qty\n- Rate and Total columns = Dorabji internal pricing -> IGNORE\n- Set rate to 13, amount = qty * 13, unit = KG\n- Strip TRIVALENT YELLOW, FE, DO from description\n\nRULES for SSS Mehta challans (pink handwritten paper):\n- Qty = NOS count -> put in both qty AND nosQty\n- Amount column -> put in amount, Rate = amount/qty\n- unit = NOS\n\nFor other clients: KG billing, extract weight as qty.\nChallan number: just numeric part e.g. 0041/26-27 -> 41';
 
 var _scanClientMap = {
-  'DORABJI': {id:1, name:'DORABJI AUTO', rate:13},
-  'SSSMEHTA': {id:2, name:'SSSMEHTA ENTERPRISES AND INDUSTRIES PVT LTD', rate:5.40},
-  'SAMARTH': {id:3, name:'SAMARTH ENGG. CO. PVT. LTD.', rate:14.50},
-  'HIGHCO': {id:4, name:'HIGHCO ENGINEERS PVT. LTD.', rate:11},
-  'PARAKH': {id:5, name:'PARAKH INDUSTRIES', rate:10},
-  'PAWAN': {id:6, name:'PAWAN AUTO P LTD', rate:10.50},
-  'OM SHEET': {id:7, name:'OM SHEET METALS', rate:14.25},
-  'GENERAL': {id:8, name:'GENERAL ENGINEERING CORPORATION', rate:14.25},
-  'DILIP': {id:9, name:'DILIP PRESS METAL & AGROTECH P LTD', rate:13.50},
-  'KHURANA': {id:13, name:'KHURANA INDUSTRIES', rate:14.25}
+  'DORABJI': {name:'DORABJI AUTO', rate:13},
+  'SSSMEHTA': {name:'SSSMEHTA ENTERPRISES AND INDUSTRIES PVT LTD', rate:5.40},
+  'SAMARTH': {name:'SAMARTH ENGG. CO. PVT. LTD.', rate:14.50},
+  'HIGHCO': {name:'HIGHCO ENGINEERS PVT. LTD.', rate:11},
+  'PARAKH': {name:'PARAKH INDUSTRIES', rate:10},
+  'PAWAN': {name:'PAWAN AUTO P LTD', rate:10.50},
+  'OM SHEET': {name:'OM SHEET METALS', rate:14.25},
+  'GENERAL': {name:'GENERAL ENGINEERING CORPORATION', rate:14.25},
+  'DILIP': {name:'DILIP PRESS METAL & AGROTECH P LTD', rate:13.50},
+  'KHURANA': {name:'KHURANA INDUSTRIES', rate:14.25}
 };
 
+/* The client a challan names, as {id, name, rate}. Names are compared with case, spaces and punctuation ignored
+   (rateKey), and only against the book's own clients: the one named exactly, else the one whose name contains the
+   challan's or is contained in it ("S.S.S. Mehta" is the book's SSSMEHTA ENTERPRISES …) — and only when one client
+   fits, never a guess between two. The map below is kept for its rates alone, for a client the book does not hold:
+   its ids are the seed's and name nobody on another book, and matching its short names by raw substring read
+   "GENERAL AUTO PARTS" as General Engineering and missed "SSS MEHTA" for want of the space. Such a client has no id,
+   so the operator picks it; the rate prices the lines until then. */
+function _scanFindClient(key) {
+  if (key.length < 5) return null;
+  var exact = null, near = [];
+  (S.clients || []).forEach(function(c) {
+    var ck = rateKey(c.name);
+    if (!ck) return;
+    if (ck === key) exact = c;
+    else if (ck.length >= 5 && (ck.indexOf(key) >= 0 || key.indexOf(ck) >= 0)) near.push(c);
+  });
+  return exact || (near.length === 1 ? near[0] : null);
+}
 function _scanMatchClient(name) {
-  if (!name) return null;
-  var upper = name.toUpperCase();
-  for (var key in _scanClientMap) {
-    if (upper.indexOf(key) >= 0) return _scanClientMap[key];
+  var key = rateKey(name);
+  var held = _scanFindClient(key);
+  if (held) return { id: held.id, name: held.name, rate: null };
+  for (var short in _scanClientMap) {
+    if (key.length >= 5 && key.indexOf(rateKey(short)) >= 0) return { id: null, name: _scanClientMap[short].name, rate: _scanClientMap[short].rate };
   }
   return null;
+}
+
+/* A figure as Gemini wrote it — a number, or text such as "282.70" or "1,234.5" — as a number; unreadable is 0.
+   A string reaching the billing arithmetic threw (imRefsBilled's toFixed), at the save and at every boot after it. */
+function _scanNum(v) {
+  if (typeof v === 'number') return isFinite(v) ? v : 0;
+  var n = parseFloat(String(v == null ? '' : v).replace(/[,\s\u20B9]/g, ''));
+  return isFinite(n) ? n : 0;
+}
+/* "Kg", "KGS", "kgs." are kilograms; "Nos", "NOS.", "pcs" are pieces. The prompt asks for KG or NOS. */
+function _scanUnit(u) {
+  var k = String(u || '').toUpperCase().replace(/[^A-Z]/g, '');
+  return /^(NOS?|NUMBERS?|PCS?|PIECES?)$/.test(k) ? 'NOS' : 'KG';
+}
+/* The challan's date as YYYY-MM-DD: as asked, or as a date is written on paper (04/08/2026, 4-8-26). Anything else is
+   left blank for the operator to enter — a day guessed would file the receipt, and its duplicate check, on the wrong date. */
+function _scanDate(v) {
+  var s = String(v == null ? '' : v).trim(), m;
+  if ((m = /^(\d{4})-(\d{1,2})-(\d{1,2})$/.exec(s))) return isoFromDmy(+m[3], +m[2], +m[1]) || '';
+  if ((m = /^(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{2}|\d{4})$/.exec(s))) return isoFromDmy(+m[1], +m[2], +m[3]) || '';
+  return '';
 }
 
 function scanChallan() {
@@ -30528,12 +30656,12 @@ function scanChallan() {
     var file = e.target.files[0];
     if (!file) return;
     inp.value = '';
-    _processScanImage(file, apiKey);
+    _processScanImage(file);
   };
   inp.click();
 }
 
-function _processScanImage(file, apiKey) {
+function _processScanImage(file) {
   // Show processing overlay
   var proc = document.getElementById('scanProcessing');
   if (proc) {
@@ -30556,24 +30684,35 @@ function _processScanImage(file, apiKey) {
 }
 
 function _applyScanResult(parsed) {
+  parsed = parsed && typeof parsed === 'object' ? parsed : {};
+  // What Gemini wrote, made into what the form and the book hold: numbers as numbers, the unit as KG or NOS, the date
+  // as YYYY-MM-DD (blank when it could not be read), text as text.
+  var challanDate = _scanDate(parsed.challanDate);
+  var items = (Array.isArray(parsed.items) ? parsed.items : []).map(function(it) {
+    it = it && typeof it === 'object' ? it : {};
+    var nos = Math.round(_scanNum(it.nosQty));
+    return { partNumber: String(it.partNumber == null ? '' : it.partNumber).trim(), desc: String(it.desc == null ? '' : it.desc).trim(),
+      unit: _scanUnit(it.unit), qty: _scanNum(it.qty), nosQty: nos > 0 ? nos : null, rate: _scanNum(it.rate), amount: _scanNum(it.amount), _auto: {} };
+  });
   // Match client
   var client = _scanMatchClient(parsed.clientName);
   if (client) {
-    parsed.clientId = client.id;
-    parsed.clientName = client.name;
     // T-HC: the rate comes from the client's own records, never from the rate
     // frozen into _scanClientMap. That map's figures are only its fallback for
     // a client the app does not hold — the scanner used to price every KG line
     // off them, so a rate change or an itemRates override never reached a
     // scanned challan, and a matcher would read the scanner's lines as wrong
     // against a correct rate card.
-    var appClient = S.clients.find(function(c) { return c.id === client.id; }) || null;
-    var onDate = parsed.challanDate || localDateStr();
-    (parsed.items || []).forEach(function(item) {
+    // A rate the record put in is marked the record's (_auto), so choosing another client re-prices it; the challan's
+    // own figures (a piece client's amount) are not.
+    var appClient = client.id != null ? S.clients.find(function(c) { return c.id === client.id; }) || null : null;
+    var onDate = challanDate || localDateStr();
+    items.forEach(function(item) {
       if (!appClient) {
         if (item.unit === 'KG' && client.rate) {
           item.rate = client.rate;
-          item.amount = gstRound((item.qty || 0) * client.rate);
+          item.amount = gstRound(item.qty * client.rate);
+          item._auto.rate = true;
         }
         return;
       }
@@ -30581,35 +30720,40 @@ function _applyScanResult(parsed) {
       var piece = item.unit === 'NOS' ? getPieceRate(appClient, onDate, item.partNumber, item.desc) : null;
       if (info._override) {
         item.rate = info.rate;
-        item.amount = gstRound((item.qty || 0) * info.rate);
+        item.amount = gstRound(item.qty * info.rate);
+        item._auto.rate = true;
       } else if (item.unit === 'KG') {
         item.rate = info.ratePerKg || 0;
-        item.amount = gstRound((item.qty || 0) * item.rate);
-      } else if (piece && piece.rate != null && !(appClient.billingMode === 'piece' && (item.amount || 0) > 0)) {
+        item.amount = gstRound(item.qty * item.rate);
+        item._auto.rate = item.rate > 0;
+      } else if (piece && piece.rate != null && !(appClient.billingMode === 'piece' && item.amount > 0)) {
         // A piece client's challan states its own amount; that figure is the
         // passthrough and is kept. The card fills only what the challan left out.
         item.rate = piece.rate;
-        item.amount = gstRound((item.qty || 0) * piece.rate);
+        item.amount = gstRound(item.qty * piece.rate);
+        item._auto.rate = true;
+        item._auto.amount = true;
       }
     });
   }
 
   // Pre-fill the Add Challan form
   _challanForm = {
-    clientId: parsed.clientId || null,
-    challanNo: parsed.challanNo || '',
-    challanDate: parsed.challanDate || localDateStr(),
-    vehicleNo: parsed.vehicleNo || '',
-    items: (parsed.items || []).map(function(item) {
+    clientId: client && client.id != null ? client.id : null,
+    challanNo: String(parsed.challanNo == null ? '' : parsed.challanNo).trim(),
+    challanDate: challanDate,
+    vehicleNo: String(parsed.vehicleNo == null ? '' : parsed.vehicleNo).trim(),
+    items: items.map(function(item) {
       return {
-        partNumber: item.partNumber || '',
-        desc: item.desc || item.partNumber || '',
+        partNumber: item.partNumber,
+        desc: item.desc || item.partNumber,
         hsn: '998873',
-        unit: item.unit || 'KG',
-        qty: item.qty || 0,
-        rate: item.rate || 0,
-        amount: item.amount || 0,
-        nosQty: item.nosQty || null
+        unit: item.unit,
+        qty: item.qty,
+        rate: item.rate,
+        amount: item.amount,
+        nosQty: item.nosQty,
+        _auto: item._auto
       };
     }),
     notes: ''
@@ -30620,7 +30764,12 @@ function _applyScanResult(parsed) {
   }
 
   renderAddChallanForm();
-  showToast('Challan scanned: ' + (parsed.items || []).length + ' item' + ((parsed.items || []).length !== 1 ? 's' : '') + ' found');
+  // What the scan could not settle is said, so the operator knows where to look before saving.
+  var unread = [];
+  if (!_challanForm.clientId) unread.push('pick the client' + (client ? ' (read as ' + client.name + ')' : ''));
+  if (!challanDate) unread.push('enter the date');
+  showToast('Challan scanned: ' + items.length + ' item' + (items.length !== 1 ? 's' : '') + ' found' +
+    (unread.length ? ' · ' + unread.join(', ') : ''), unread.length ? 'warning' : 'success');
 }
 
 /* ===== EVENT DELEGATION ===== */
@@ -30917,19 +31066,8 @@ function onDocClick(e) {
       switchTab('pageRegister');
       break;
     }
-    case 'invHistoryJumpChallan': {
-      var imId = btn.dataset.id;
-      var im = (S.incomingMaterial || []).find(function(c) { return c.id === imId; });
-      if (!im) { showToast('Challan not found', 'warning'); break; }
-      _imFilter.clientId = String(im.clientId);
-      _imToolbarRendered = false;
-      switchTab('pageIM');
-      setTimeout(function() {
-        var card = document.querySelector('[data-im="' + imId + '"]');
-        if (card) card.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      }, 100);
-      break;
-    }
+    // The challan's own tab and month, its row shown even if the list keeps it under "Show more" (im-dupe.js).
+    case 'invHistoryJumpChallan': imLocateChallan(btn.dataset.id); break;
     // Phase 7: History load more
     case 'invHistoryLoadMore': _historyShowCount += UI_MORE_ROWS; renderHistory(); break;
     case 'invHistoryType': _historyType = btn.dataset.type; _historyShowCount = UI_MORE_ROWS; renderHistory(); break;

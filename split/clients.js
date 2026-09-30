@@ -14,6 +14,13 @@ function _clientStatusDot(c) {
   return '<span class="inv-dot inv-dot-' + (c.isActive ? 'ok' : 'neutral') + '">' + (c.isActive ? 'Active' : 'Inactive') + '</span>';
 }
 
+/* Does a client answer a search? Its name or its GSTIN, case ignored on both: a GSTIN is stored in capitals, and the
+   challan form's search lower-cased what was typed and compared it with them, so "20aaack" found nobody. */
+function clientMatchesQuery(c, q) {
+  q = String(q || '').trim().toLowerCase();
+  return !q || String(c.name || '').toLowerCase().indexOf(q) >= 0 || String(c.gstin || '').toLowerCase().indexOf(q) >= 0;
+}
+
 /* Phone: a row per client that opens its edit sheet. Desktop: a table beside the pane. */
 function renderClientList(filter) {
   const q = (filter || '').toLowerCase();
@@ -21,7 +28,7 @@ function renderClientList(filter) {
     if (a.isActive !== b.isActive) return a.isActive ? -1 : 1;
     return a.name.localeCompare(b.name);
   });
-  const filtered = q ? sorted.filter(c => c.name.toLowerCase().includes(q) || (c.gstin||'').toLowerCase().includes(q)) : sorted;
+  const filtered = q ? sorted.filter(c => clientMatchesQuery(c, q)) : sorted;
   const el = document.getElementById('clientList');
   if (!el) return;
   const countEl = document.getElementById('clientsCount');

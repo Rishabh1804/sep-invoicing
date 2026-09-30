@@ -292,19 +292,8 @@ function onDocClick(e) {
       switchTab('pageRegister');
       break;
     }
-    case 'invHistoryJumpChallan': {
-      var imId = btn.dataset.id;
-      var im = (S.incomingMaterial || []).find(function(c) { return c.id === imId; });
-      if (!im) { showToast('Challan not found', 'warning'); break; }
-      _imFilter.clientId = String(im.clientId);
-      _imToolbarRendered = false;
-      switchTab('pageIM');
-      setTimeout(function() {
-        var card = document.querySelector('[data-im="' + imId + '"]');
-        if (card) card.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      }, 100);
-      break;
-    }
+    // The challan's own tab and month, its row shown even if the list keeps it under "Show more" (im-dupe.js).
+    case 'invHistoryJumpChallan': imLocateChallan(btn.dataset.id); break;
     // Phase 7: History load more
     case 'invHistoryLoadMore': _historyShowCount += UI_MORE_ROWS; renderHistory(); break;
     case 'invHistoryType': _historyType = btn.dataset.type; _historyShowCount = UI_MORE_ROWS; renderHistory(); break;

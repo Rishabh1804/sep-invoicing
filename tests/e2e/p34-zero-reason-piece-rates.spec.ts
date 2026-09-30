@@ -211,7 +211,7 @@ test.describe('P34: T-HC — the scanner reads the client\'s own rates', () => {
   test('a piece client keeps the challan\'s own amount; the card fills what it left out', async ({ page }) => {
     await loadAppWithState(page, pieceState());
     const r = await g(page, `(function(){
-      _applyScanResult({ clientName: 'SSSMEHTA ENTERPRISES', challanNo: '42', challanDate: '2026-08-01',
+      _applyScanResult({ clientName: 'PIECE CLIENT', challanNo: '42', challanDate: '2026-08-01',
         items: [
           { partNumber: '150X88X3', desc: 'L.C.Pad', unit: 'NOS', qty: 100, nosQty: 100, rate: 1.6, amount: 160 },
           { partNumber: 'CLAMP 165X83 (NT)', desc: '40X6', unit: 'NOS', qty: 100, nosQty: 100, rate: 0, amount: 0 }

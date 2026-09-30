@@ -1,13 +1,13 @@
 /* ===== ITEMS MASTER (Phase 6) ===== */
 
 /* --- Subview state --- */
-var _itemsRendered = 0;
+var _itemsRendered = 0;   // no longer read: the list shows its rows through uiMoreHtml; events.js still resets it
 var _itemsSearchTimer = null;
 var _itemsSorted = [];
 var _mergeBackupWarned = false;
 var _itemsSelected = {};
+var _itemsSelView = null;   // the filter and search the selection was made under
 var _itemsUsageCache = null;
-var ITEMS_BATCH = UI_MORE_ROWS;   // thirty at a time, as every long list (UX overhaul 2, step 6)
 var _itemsActiveId = null;
 
 function getItemsSubView() {
@@ -54,7 +54,7 @@ function renderClientsPage() {
   // The pane belongs to the view it was opened in.
   if (isItems) _clientsActiveId = null; else _itemsActiveId = null;
   var listHtml = isItems
-    ? '<div id="itemsList"></div><div id="itemsLoadMore"></div><div id="itemsSelBar"></div>'
+    ? '<div id="itemsList"></div><div id="itemsSelBar"></div>'
     : '<div id="clientList"></div>';
   container.innerHTML = _buildSubViewToggle(subView) +
     (isItems ? _buildItemsSubViewHtml() : _buildClientsSubViewHtml()) +
@@ -67,7 +67,6 @@ function renderClientsPage() {
 
   if (isItems) {
     _bindItemsSearch();
-    _itemsRendered = 0;
     _renderItemsList();
     if (_isDesktop) _renderItemDetail(_itemsActiveId && S.items.some(function(it) { return it.id === _itemsActiveId; }) ? _itemsActiveId : null, true);
   } else {
@@ -87,6 +86,7 @@ function _buildClientsSubViewHtml() {
 }
 
 function _buildItemsSubViewHtml() {
+  _invalidateUsageCache();
   var search = getItemsSearch();
   var sort = getItemsSort();
   var filter = getItemsFilter();
@@ -167,18 +167,13 @@ function _renderItemDetail(itemId, skipMasterRefresh) {
       '</div>';
 
     // Usage
+    _invalidateUsageCache();
     var usage = _buildUsageCache()[item.partNumber];
     html += '<div class="inv-panel inv-panel-flush"><div class="inv-panel-head"><span class="inv-panel-title">Usage</span></div>';
     if (usage) {
-      var invLines = 0, imLines = 0;
-      (S.invoices || []).forEach(function(inv) {
-        inv.items.forEach(function(li) { if (li.partNumber === item.partNumber) invLines++; });
-      });
-      (S.incomingMaterial || []).forEach(function(im) {
-        im.items.forEach(function(li) { if (li.partNumber === item.partNumber) imLines++; });
-      });
+      var refs = _itemRefCounts(item.partNumber);
       html += '<div class="inv-row inv-row-2"><span class="inv-row-main"><span class="inv-row-title">References</span>' +
-        '<span class="inv-row-meta">' + invLines + ' invoice line' + (invLines !== 1 ? 's' : '') + ', ' + imLines + ' challan line' + (imLines !== 1 ? 's' : '') + '</span></span>' +
+        '<span class="inv-row-meta">' + refs.inv + ' invoice line' + (refs.inv !== 1 ? 's' : '') + ', ' + refs.im + ' challan line' + (refs.im !== 1 ? 's' : '') + '</span></span>' +
         '<span class="inv-row-end inv-num">' + usage.total + '</span></div>' +
         '<div class="inv-row"><span class="inv-row-main">In the last 30 days</span><span class="inv-row-end inv-num">' + usage.recent + '</span></div>';
     } else {
@@ -194,7 +189,6 @@ function _renderItemDetail(itemId, skipMasterRefresh) {
   }
 
   if (!skipMasterRefresh) {
-    _itemsRendered = 0;
     _renderItemsList();
     _clientsRestoreFocus(focusKey);
   }
@@ -207,10 +201,7 @@ function _bindItemsSearch() {
     regFilter.itemsSearch = el.value;
     saveRegFilter();
     clearTimeout(_itemsSearchTimer);
-    _itemsSearchTimer = setTimeout(function() {
-      _itemsRendered = 0;
-      _renderItemsList();
-    }, 300);
+    _itemsSearchTimer = setTimeout(_renderItemsList, 300);
   });
 }
 
@@ -276,15 +267,16 @@ function _itemRowHtml(it) {
     '</div>';
 }
 
-/* The desktop table: the part number is a real button, so the row opens from the keyboard. */
-function _itemsTableHtml(list) {
+/* The desktop table: the part number is a real button, so the row opens from the keyboard. Its first thirty rows, and
+   the rest one tap away, as every long list (uiMoreHtml, keyed on what the list shows). */
+function _itemsTableHtml(list, moreKey) {
   var html = '<table class="inv-table"><thead><tr>' +
     '<th class="inv-table-check"><span class="inv-visually-hidden">Select</span></th><th>Part</th><th class="inv-col-grow">Description</th>' +
     '<th class="inv-col-opt2">Gauge</th><th class="inv-col-opt1">Unit</th><th class="inv-num inv-col-opt3">kg / pc</th>' +
     '<th class="inv-num inv-col-opt2">Refs</th><th class="inv-num">Rate</th></tr></thead><tbody>';
-  list.forEach(function(it) {
+  return html + uiMoreHtml(moreKey, list.map(function(it) {
     var usageCount = _getUsageCount(it.partNumber);
-    html += '<tr class="' + (_itemsSelected[it.id] ? 'inv-row-selected' : '') + '"' + (_itemsActiveId === it.id ? ' aria-current="true"' : '') +
+    return '<tr class="' + (_itemsSelected[it.id] ? 'inv-row-selected' : '') + '"' + (_itemsActiveId === it.id ? ' aria-current="true"' : '') +
       ' data-item-row="' + it.id + '" data-action="invSelectItemRow" data-id="' + it.id + '">' +
       '<td class="inv-table-check">' + _itemCheckHtml(it) + '</td>' +
       '<td><button class="inv-btn-link inv-id" data-action="invSelectItemRow" data-id="' + it.id + '">' + escHtml(it.partNumber) + '</button></td>' +
@@ -294,39 +286,35 @@ function _itemsTableHtml(list) {
       '<td class="inv-num inv-col-opt3">' + (it.stdWeightKg != null ? formatNum(it.stdWeightKg, 3) : '&mdash;') + '</td>' +
       '<td class="inv-num inv-col-opt2">' + (usageCount > 0 ? usageCount : '<span class="inv-dot inv-dot-neutral">Unused</span>') + '</td>' +
       '<td class="inv-num">' + (it.rate > 0 ? formatCurrency(it.rate) : '&mdash;') + '</td></tr>';
-  });
-  return html + '</tbody></table>';
+  }), { noun: 'items', tr: 8 }) + '</tbody></table>';
 }
 
+/* Every item the filter and search let through, its first thirty drawn and the rest one tap away (uiMoreHtml). A search
+   used to draw its first thirty with no way to the rest: the Load more row was left off whenever something was typed. */
 function _renderItemsList() {
   var listEl = document.getElementById('itemsList');
-  var moreEl = document.getElementById('itemsLoadMore');
   var countEl = document.getElementById('itemsCount');
   if (!listEl) return;
 
+  // What is and is not used is read fresh for each drawing: a part put on a challan since is no longer Unused, and
+  // Select unused must not reach it.
+  _invalidateUsageCache();
+  // A selection belongs to the list it was made on: a search or a filter that hides a ticked row drops the ticks,
+  // or Delete would reach rows nobody can see.
+  var view = getItemsFilter() + '|' + getItemsSearch().trim().toLowerCase();
+  if (_itemsSelView !== null && _itemsSelView !== view) _itemsSelected = {};
+  _itemsSelView = view;
+
   _itemsSorted = _getSortedFilteredItems();
   var total = _itemsSorted.length;
-  var search = getItemsSearch();
-
   if (countEl) countEl.textContent = total + ' item' + (total !== 1 ? 's' : '');
 
   if (total === 0) {
     listEl.innerHTML = _isDesktop ? '<div class="inv-empty">No items found</div>' : '<div class="inv-panel"><div class="inv-empty">No items found</div></div>';
-    if (moreEl) moreEl.innerHTML = '';
   } else {
-    // For search results, render up to 100; otherwise batch
-    var limit = search.length > 0 ? Math.min(total, 100) : Math.min(total, _itemsRendered + ITEMS_BATCH);
-    if (_itemsRendered === 0) limit = Math.min(total, ITEMS_BATCH);
-    var shown = _itemsSorted.slice(0, limit);
-    listEl.innerHTML = _isDesktop ? _itemsTableHtml(shown)
-      : '<div class="inv-panel inv-panel-flush">' + shown.map(_itemRowHtml).join('') + '</div>';
-    _itemsRendered = limit;
-
-    if (moreEl) {
-      moreEl.innerHTML = limit < total && search.length === 0
-        ? '<div class="inv-toolbar"><button class="inv-btn inv-btn-secondary" data-action="invLoadMoreItems">Load more (' + (total - limit) + ' remaining)</button></div>'
-        : '';
-    }
+    var moreKey = 'items-' + view;
+    listEl.innerHTML = _isDesktop ? _itemsTableHtml(_itemsSorted, moreKey)
+      : '<div class="inv-panel inv-panel-flush">' + uiMoreHtml(moreKey, _itemsSorted.map(_itemRowHtml), { noun: 'items' }) + '</div>';
   }
 
   _renderItemsSelectionBar();
@@ -467,7 +455,6 @@ function saveItem(itemId, mode) {
 
   saveState();
   closeOverlay();
-  _itemsRendered = 0;
   _renderItemsList();
   // Phase 8E: Refresh detail panel if active item was edited
   if (_isDesktop && _itemsActiveId === itemId) {
@@ -506,7 +493,6 @@ async function deleteItem(itemId) {
   closeOverlay();
   // Phase 8E: Clear detail panel if active item was deleted
   if (_isDesktop && _itemsActiveId === itemId) _renderItemDetail(null, true);
-  _itemsRendered = 0;
   _renderItemsList();
   showToast('Item deleted');
 }
@@ -933,7 +919,6 @@ function saveWeights() {
 
   saveState();
   closeOverlay();
-  _itemsRendered = 0;
   renderClientsPage();
   showToast('Saved ' + saved + ' weight' + (saved !== 1 ? 's' : '') +
     (invalid > 0 ? ' (' + invalid + ' skipped)' : ''));
@@ -1016,7 +1001,6 @@ function deriveWeightsFromRates() {
 
   saveState();
   closeOverlay();
-  _itemsRendered = 0;
   renderClientsPage();
   var notes = [];
   if (highVariance > 0) notes.push(highVariance + ' with inconsistent rates');
@@ -1068,7 +1052,6 @@ function calculateStdWeights() {
 
   if (calculated > 0) {
     saveState();
-    _itemsRendered = 0;
     _renderItemsList();
   }
 
@@ -1144,7 +1127,6 @@ function selectAllUnused() {
   S.items.forEach(function(it) {
     if (!cache[it.partNumber]) _itemsSelected[it.id] = true;
   });
-  _itemsRendered = 0;
   _renderItemsList();
   _renderItemsSelectionBar();
   var count = Object.keys(_itemsSelected).length;
@@ -1153,7 +1135,6 @@ function selectAllUnused() {
 
 function clearItemSelection() {
   _itemsSelected = {};
-  _itemsRendered = 0;
   _renderItemsList();
   _renderItemsSelectionBar();
 }
@@ -1166,7 +1147,6 @@ async function batchDeleteItems() {
   _itemsSelected = {};
   _invalidateUsageCache();
   saveState();
-  _itemsRendered = 0;
   _renderItemsList();
   _renderItemsSelectionBar();
   showToast(ids.length + ' item' + (ids.length !== 1 ? 's' : '') + ' deleted');

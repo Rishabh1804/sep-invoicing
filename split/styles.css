@@ -1088,6 +1088,8 @@ body.inv-desktop :is(#regSelBar, #imSelBar) { bottom: 0; }
 .inv-btn-link.inv-btn-sm { padding: 0; }
 .inv-btn-block { width: 100%; }
 .inv-btn:disabled, .inv-btn-disabled { opacity: 0.45; cursor: not-allowed; pointer-events: none; }
+/* Looks disabled, still takes a tap: a button whose tap explains why it cannot act (a challan with a line invoiced). */
+.inv-btn[aria-disabled="true"] { opacity: 0.45; cursor: not-allowed; }
 /* A grid of launch buttons (Home's quick actions): three across on the phone, one row on the desktop. */
 .inv-btn-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--sp-8); margin-bottom: var(--gap); }
 .inv-btn-grid > .inv-btn { flex-direction: column; gap: var(--sp-4); min-height: calc(var(--ctl-h) * 1.75); padding: var(--sp-8); text-align: center; }

@@ -125,8 +125,10 @@ function imBilledIndex() {
     if (inv.status === 'cancelled') return;
     (inv.items || []).forEach(function(li) {
       if (!li.imItemId) return;
+      // Read as numbers: a quantity stored as text (a scanned challan's "282.70") added up as text and threw at the
+      // toFixed below, in the invoice save and in the billing sync at every boot.
       (idx[li.imItemId] || (idx[li.imItemId] = [])).push({ invoiceId: inv.id, displayNumber: inv.displayNumber, invoiceNumber: inv.invoiceNumber,
-        date: inv.date, qty: li.qty || 0, nosQty: li.nosQty || 0, whole: !!li.imWhole, unit: li.unit || '' });
+        date: inv.date, qty: Number(li.qty) || 0, nosQty: Number(li.nosQty) || 0, whole: !!li.imWhole, unit: li.unit || '' });
     });
   });
   return idx;
@@ -148,7 +150,7 @@ function imRefsBilled(it, refs) {
     nos += r.nosQty;
   });
   // A ref that bills the line whole closes it: what is billed is the line, or more if the parts say so.
-  if (whole) { qty = Math.max(qty, it.qty || 0); nos = Math.max(nos, it.nosQty || 0); }
+  if (whole) { qty = Math.max(qty, Number(it.qty) || 0); nos = Math.max(nos, Number(it.nosQty) || 0); }
   return { qty: parseFloat(qty.toFixed(3)), nos: nos };
 }
 
@@ -163,7 +165,7 @@ function imSyncBilled() {
       if (!refs.length && it.invoiced && it.invoiceId && held[it.invoiceId] && (it.billedLegacy || it.billedQty == null)) {
         it.billedLegacy = true;
         it.invoiced = true;
-        it.billedQty = it.qty || 0;
+        it.billedQty = Number(it.qty) || 0;
         if (it.nosQty) it.billedNos = it.nosQty; else delete it.billedNos;
         it.invoiceIds = [it.invoiceId];
       } else {
@@ -193,16 +195,16 @@ function imLineBilled(it) { return !!it.invoiced || (it.billedQty || 0) > 0; }
 /* The share of a challan line still to bill: quantity, pieces and amount.
    An unbilled amount anywhere in the app is this share, never the whole line. */
 function imLineOpen(it) {
-  var q = it.qty || 0;
+  var q = Number(it.qty) || 0;
   if (it.invoiced) return { qty: 0, nos: 0, amount: 0 };
-  var billed = it.billedQty || 0;
+  var billed = Number(it.billedQty) || 0;
   var left = q - billed;
   if (left <= IM_QTY_EPS) left = 0;
   left = parseFloat(left.toFixed(3));
-  if (!billed) return { qty: q, nos: it.nosQty || 0, amount: it.amount || 0 };
+  if (!billed) return { qty: q, nos: Number(it.nosQty) || 0, amount: Number(it.amount) || 0 };
   var nos = 0;
   if (it.nosQty) nos = it.billedNos > 0 ? Math.max(0, it.nosQty - it.billedNos) : Math.round(it.nosQty * left / (q || 1));
-  var amount = q > 0 ? gstRound((it.amount || 0) * left / q) : 0;
+  var amount = q > 0 ? gstRound((Number(it.amount) || 0) * left / q) : 0;
   return { qty: left, nos: nos, amount: amount };
 }
 
@@ -222,9 +224,9 @@ function imLineShare(itemId, exceptInvoiceId, idx) {
     var legacy = S.invoices.find(function(i) { return i.id === it.invoiceId; });
     if (legacy) { refs = [{ invoiceId: legacy.id, displayNumber: legacy.displayNumber, qty: it.qty || 0 }]; billed = { qty: it.qty || 0, nos: it.nosQty || 0 }; }
   }
-  var left = (it.qty || 0) - billed.qty;
+  var left = (Number(it.qty) || 0) - billed.qty;
   if (Math.abs(left) <= IM_QTY_EPS) left = 0;
-  return { im: im, it: it, refs: refs, qty: it.qty || 0, billed: billed.qty, billedNos: billed.nos, left: parseFloat(left.toFixed(3)) };
+  return { im: im, it: it, refs: refs, qty: Number(it.qty) || 0, billed: billed.qty, billedNos: billed.nos, left: parseFloat(left.toFixed(3)) };
 }
 
 /* "600 on challan 301 · 200 invoiced (SEP/…/00012) · 400 left" */
@@ -295,23 +297,13 @@ function getFilteredIM() {
           default: va = a.challanDate || ''; vb = b.challanDate || ''; return va < vb ? -dir : va > vb ? dir : 0;
         }
       });
-    } else {
-      // Desktop with no explicit sort: same as mobile default
-      list.sort(function(a, b) {
-        var sa = getIMStatus(a) === 'invoiced' ? 1 : 0;
-        var sb = getIMStatus(b) === 'invoiced' ? 1 : 0;
-        if (sa !== sb) return sa - sb;
-        return (b.challanDate || '').localeCompare(a.challanDate || '') || (b.createdAt || 0) - (a.createdAt || 0);
-      });
+      return list;
     }
-  } else {
-    list.sort(function(a, b) {
-      var sa = getIMStatus(a) === 'invoiced' ? 1 : 0;
-      var sb = getIMStatus(b) === 'invoiced' ? 1 : 0;
-      if (sa !== sb) return sa - sb;
-      return (b.challanDate || '').localeCompare(a.challanDate || '') || (b.createdAt || 0) - (a.createdAt || 0);
-    });
   }
+  // The default, both layouts: newest challan first. (It also put invoiced challans last; each tab holds one kind.)
+  list.sort(function(a, b) {
+    return (b.challanDate || '').localeCompare(a.challanDate || '') || (b.createdAt || 0) - (a.createdAt || 0);
+  });
   return list;
 }
 
@@ -343,9 +335,20 @@ function renderIMToolbar() {
   viewTabReveal(area.querySelector('.inv-viewtabs'));
 }
 
+/* A selection belongs to the list it was made on. A jump that opens IM on one client — History's, Stats', the duplicate
+   check's Locate — changes the filter without passing captureIMFilters, and the ticks it hid stayed live for Create
+   invoice. Whatever changed the view (tab, month, client, status), the selection made on the old one is dropped. */
+var _imSelView = null;
+function imSelectionGuard() {
+  var k = [_imTab, _imTab === 'invoiced' ? imMonthShown() : '', _imFilter.clientId || '', _imFilter.status || ''].join('|');
+  if (_imSelView !== null && _imSelView !== k) _imSelected = {};
+  _imSelView = k;
+}
+
 function renderIMList() {
   const area = document.getElementById('imList');
   if (!area) return;
+  imSelectionGuard();
   const filtered = getFilteredIM();
   let html = _imSummaryHtml(filtered);
 
@@ -491,6 +494,7 @@ function renderIMTable() {
 
   var master = document.getElementById('imMaster');
   if (!master) return;
+  imSelectionGuard();
   var focusKey = _mdFocusKey('imMasterDetail', _imActiveChallanId);
   master.innerHTML = _buildIMTableHtml();
 
@@ -511,7 +515,7 @@ function imStatusDotHtml(im) {
   return '<span class="inv-dot inv-dot-' + s.tone + '">' + escHtml(s.word) + '</span>';
 }
 
-function imChallanTotal(im) { return im.items.reduce(function(s, it) { return s + (it.amount || 0); }, 0); }
+function imChallanTotal(im) { return im.items.reduce(function(s, it) { return s + (Number(it.amount) || 0); }, 0); }
 
 function _imSummaryHtml(filtered) {
   if (_imTab === 'invoiced') return '';   // the month's pager says how many and how much
@@ -559,7 +563,10 @@ function _imActionsHtml(im, primary) {
       '<button class="inv-btn inv-btn-danger' + (primary ? '' : ' inv-btn-sm') + '" data-action="invDeleteChallan" data-id="' + id + '">Delete challan</button>';
   }
   if (status !== 'invoiced') {
-    return '<button class="inv-btn inv-btn-secondary inv-btn-disabled' + (primary ? '' : ' inv-btn-sm') + '" data-action="invEditChallanGuard" data-count="' + billed + '">Edit</button>';
+    // Shown as disabled, yet a tap or a click still says why: a button that took no pointer (inv-btn-disabled) told
+    // only somebody on a keyboard.
+    var why = 'Cannot edit: ' + billed + ' item' + (billed > 1 ? 's' : '') + ' already invoiced';
+    return '<button class="inv-btn inv-btn-secondary' + (primary ? '' : ' inv-btn-sm') + '" aria-disabled="true" title="' + why + '" data-action="invEditChallanGuard" data-count="' + billed + '">Edit</button>';
   }
   return '';
 }

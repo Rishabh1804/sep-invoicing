@@ -254,7 +254,12 @@ function bankRulesDirected(b, ctx) {
   b.rows.forEach(function(row) { if (row.dr > 0) paysOut[bankKey(bankGuess(row, ctx).party)] = true; });
   legacy.forEach(function(k) {
     var r = b.parties[k];
-    if (r.cat !== 'receipt' && paysOut[k]) { r.dir = 'out'; return; }
+    // A category that is only ever money out (wages, electricity, a supplier, GST, tax, charges) or a hand's wage rule
+    // stays out whatever this statement holds: read off the statement alone, a wage rule for a hand with no row on it was
+    // turned into a money-in rule (the QA sweep's review, 30 Sep 2026). A receipt is money in; "other" and the rest
+    // follow the statement, as before.
+    var outOnly = r.staffId != null || ['wages', 'power', 'supplier', 'gst', 'tax', 'charges'].indexOf(r.cat) >= 0;
+    if (outOnly || (r.cat !== 'receipt' && paysOut[k])) { r.dir = 'out'; return; }
     if (!b.parties[k + BANK_RULE_IN]) b.parties[k + BANK_RULE_IN] = Object.assign({}, r, { dir: 'in' });
     delete b.parties[k];
   });

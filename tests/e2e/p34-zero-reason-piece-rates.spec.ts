@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
-import { emptyState, loadAppWithState, noSeedIM, readStoredState, todayIso, type SepState } from './fixtures';
+import { answerAsk, emptyState, loadAppWithState, noSeedIM, readStoredState, todayIso, type SepState } from './fixtures';
 
 // P34: a line billed at ₹0 carries a reason; piece rates are the client's,
 // dated and keyed on part + gauge; the scanner reads the client's own rates.
@@ -191,6 +191,7 @@ test.describe('P34: piece rates on record', () => {
 
     await expect(page.locator('#ceditPieceRates .inv-row')).toHaveCount(5);
     await page.locator('[data-action="invRemovePieceRate"][data-idx="4"]').click();
+    await answerAsk(page, 'ok');   // a removal asks first (P106, C9)
     st = await readStoredState(page);
     pr = st.clients.find((c: any) => c.id === 2).pieceRates;
     expect(pr).toHaveLength(4);
@@ -213,7 +214,7 @@ test.describe('P34: T-HC — the scanner reads the client\'s own rates', () => {
   test('a piece client keeps the challan\'s own amount; the card fills what it left out', async ({ page }) => {
     await loadAppWithState(page, pieceState());
     const r = await g(page, `(function(){
-      _applyScanResult({ clientName: 'SSSMEHTA ENTERPRISES', challanNo: '42', challanDate: '2026-08-01',
+      _applyScanResult({ clientName: 'PIECE CLIENT', challanNo: '42', challanDate: '2026-08-01',
         items: [
           { partNumber: '150X88X3', desc: 'L.C.Pad', unit: 'NOS', qty: 100, nosQty: 100, rate: 1.6, amount: 160 },
           { partNumber: 'CLAMP 165X83 (NT)', desc: '40X6', unit: 'NOS', qty: 100, nosQty: 100, rate: 0, amount: 0 }

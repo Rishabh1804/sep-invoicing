@@ -78,7 +78,9 @@ test.describe('IM challan form — keyboard navigation', () => {
 
     // The gauge is folded into the line description: two clamp rows can share a
     // part number and differ only by gauge, so the line text has to carry it.
-    await expect(page.locator('#imPart0')).toHaveValue('BOX CLAMP WIDE (32X6)');
+    // The Part field holds the part number; the description is said under the line (P106, C4).
+    await expect(page.locator('#imPart0')).toHaveValue('CLAMP 45X90');
+    await expect(page.locator('#imDesc0')).toContainText('BOX CLAMP WIDE (32X6)');
     await expect(page.locator('#imQty0')).toBeFocused();
   });
 

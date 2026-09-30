@@ -1,13 +1,13 @@
 /* ===== ITEMS MASTER (Phase 6) ===== */
 
 /* --- Subview state --- */
-var _itemsRendered = 0;
+var _itemsRendered = 0;   // no longer read: the list shows its rows through uiMoreHtml; events.js still resets it
 var _itemsSearchTimer = null;
 var _itemsSorted = [];
 var _mergeBackupWarned = false;
 var _itemsSelected = {};
+var _itemsSelView = null;   // the filter and search the selection was made under
 var _itemsUsageCache = null;
-var ITEMS_BATCH = UI_MORE_ROWS;   // thirty at a time, as every long list (UX overhaul 2, step 6)
 var _itemsActiveId = null;
 
 function getItemsSubView() {
@@ -54,7 +54,7 @@ function renderClientsPage() {
   // The pane belongs to the view it was opened in.
   if (isItems) _clientsActiveId = null; else _itemsActiveId = null;
   var listHtml = isItems
-    ? '<div id="itemsList"></div><div id="itemsLoadMore"></div><div id="itemsSelBar"></div>'
+    ? '<div id="itemsList"></div><div id="itemsSelBar"></div>'
     : '<div id="clientList"></div>';
   container.innerHTML = _buildSubViewToggle(subView) +
     (isItems ? _buildItemsSubViewHtml() : _buildClientsSubViewHtml()) +
@@ -67,7 +67,6 @@ function renderClientsPage() {
 
   if (isItems) {
     _bindItemsSearch();
-    _itemsRendered = 0;
     _renderItemsList();
     if (_isDesktop) _renderItemDetail(_itemsActiveId && S.items.some(function(it) { return it.id === _itemsActiveId; }) ? _itemsActiveId : null, true);
   } else {
@@ -87,6 +86,7 @@ function _buildClientsSubViewHtml() {
 }
 
 function _buildItemsSubViewHtml() {
+  _invalidateUsageCache();
   var search = getItemsSearch();
   var sort = getItemsSort();
   var filter = getItemsFilter();
@@ -167,18 +167,13 @@ function _renderItemDetail(itemId, skipMasterRefresh) {
       '</div>';
 
     // Usage
+    _invalidateUsageCache();
     var usage = _buildUsageCache()[item.partNumber];
     html += '<div class="inv-panel inv-panel-flush"><div class="inv-panel-head"><span class="inv-panel-title">Usage</span></div>';
     if (usage) {
-      var invLines = 0, imLines = 0;
-      (S.invoices || []).forEach(function(inv) {
-        inv.items.forEach(function(li) { if (li.partNumber === item.partNumber) invLines++; });
-      });
-      (S.incomingMaterial || []).forEach(function(im) {
-        im.items.forEach(function(li) { if (li.partNumber === item.partNumber) imLines++; });
-      });
+      var refs = _itemRefCounts(item.partNumber);
       html += '<div class="inv-row inv-row-2"><span class="inv-row-main"><span class="inv-row-title">References</span>' +
-        '<span class="inv-row-meta">' + invLines + ' invoice line' + (invLines !== 1 ? 's' : '') + ', ' + imLines + ' challan line' + (imLines !== 1 ? 's' : '') + '</span></span>' +
+        '<span class="inv-row-meta">' + refs.inv + ' invoice line' + (refs.inv !== 1 ? 's' : '') + ', ' + refs.im + ' challan line' + (refs.im !== 1 ? 's' : '') + '</span></span>' +
         '<span class="inv-row-end inv-num">' + usage.total + '</span></div>' +
         '<div class="inv-row"><span class="inv-row-main">In the last 30 days</span><span class="inv-row-end inv-num">' + usage.recent + '</span></div>';
     } else {
@@ -194,7 +189,6 @@ function _renderItemDetail(itemId, skipMasterRefresh) {
   }
 
   if (!skipMasterRefresh) {
-    _itemsRendered = 0;
     _renderItemsList();
     _clientsRestoreFocus(focusKey);
   }
@@ -207,10 +201,7 @@ function _bindItemsSearch() {
     regFilter.itemsSearch = el.value;
     saveRegFilter();
     clearTimeout(_itemsSearchTimer);
-    _itemsSearchTimer = setTimeout(function() {
-      _itemsRendered = 0;
-      _renderItemsList();
-    }, 300);
+    _itemsSearchTimer = setTimeout(_renderItemsList, 300);
   });
 }
 
@@ -276,15 +267,16 @@ function _itemRowHtml(it) {
     '</div>';
 }
 
-/* The desktop table: the part number is a real button, so the row opens from the keyboard. */
-function _itemsTableHtml(list) {
+/* The desktop table: the part number is a real button, so the row opens from the keyboard. Its first thirty rows, and
+   the rest one tap away, as every long list (uiMoreHtml, keyed on what the list shows). */
+function _itemsTableHtml(list, moreKey) {
   var html = '<table class="inv-table"><thead><tr>' +
     '<th class="inv-table-check"><span class="inv-visually-hidden">Select</span></th><th>Part</th><th class="inv-col-grow">Description</th>' +
     '<th class="inv-col-opt2">Gauge</th><th class="inv-col-opt1">Unit</th><th class="inv-num inv-col-opt3">kg / pc</th>' +
     '<th class="inv-num inv-col-opt2">Refs</th><th class="inv-num">Rate</th></tr></thead><tbody>';
-  list.forEach(function(it) {
+  return html + uiMoreHtml(moreKey, list.map(function(it) {
     var usageCount = _getUsageCount(it.partNumber);
-    html += '<tr class="' + (_itemsSelected[it.id] ? 'inv-row-selected' : '') + '"' + (_itemsActiveId === it.id ? ' aria-current="true"' : '') +
+    return '<tr class="' + (_itemsSelected[it.id] ? 'inv-row-selected' : '') + '"' + (_itemsActiveId === it.id ? ' aria-current="true"' : '') +
       ' data-item-row="' + it.id + '" data-action="invSelectItemRow" data-id="' + it.id + '">' +
       '<td class="inv-table-check">' + _itemCheckHtml(it) + '</td>' +
       '<td><button class="inv-btn-link inv-id" data-action="invSelectItemRow" data-id="' + it.id + '">' + escHtml(it.partNumber) + '</button></td>' +
@@ -294,39 +286,35 @@ function _itemsTableHtml(list) {
       '<td class="inv-num inv-col-opt3">' + (it.stdWeightKg != null ? formatNum(it.stdWeightKg, 3) : '&mdash;') + '</td>' +
       '<td class="inv-num inv-col-opt2">' + (usageCount > 0 ? usageCount : '<span class="inv-dot inv-dot-neutral">Unused</span>') + '</td>' +
       '<td class="inv-num">' + (it.rate > 0 ? formatCurrency(it.rate) : '&mdash;') + '</td></tr>';
-  });
-  return html + '</tbody></table>';
+  }), { noun: 'items', tr: 8 }) + '</tbody></table>';
 }
 
+/* Every item the filter and search let through, its first thirty drawn and the rest one tap away (uiMoreHtml). A search
+   used to draw its first thirty with no way to the rest: the Load more row was left off whenever something was typed. */
 function _renderItemsList() {
   var listEl = document.getElementById('itemsList');
-  var moreEl = document.getElementById('itemsLoadMore');
   var countEl = document.getElementById('itemsCount');
   if (!listEl) return;
 
+  // What is and is not used is read fresh for each drawing: a part put on a challan since is no longer Unused, and
+  // Select unused must not reach it.
+  _invalidateUsageCache();
+  // A selection belongs to the list it was made on: a search or a filter that hides a ticked row drops the ticks,
+  // or Delete would reach rows nobody can see.
+  var view = getItemsFilter() + '|' + getItemsSearch().trim().toLowerCase();
+  if (_itemsSelView !== null && _itemsSelView !== view) _itemsSelected = {};
+  _itemsSelView = view;
+
   _itemsSorted = _getSortedFilteredItems();
   var total = _itemsSorted.length;
-  var search = getItemsSearch();
-
   if (countEl) countEl.textContent = total + ' item' + (total !== 1 ? 's' : '');
 
   if (total === 0) {
     listEl.innerHTML = _isDesktop ? '<div class="inv-empty">No items found</div>' : '<div class="inv-panel"><div class="inv-empty">No items found</div></div>';
-    if (moreEl) moreEl.innerHTML = '';
   } else {
-    // For search results, render up to 100; otherwise batch
-    var limit = search.length > 0 ? Math.min(total, 100) : Math.min(total, _itemsRendered + ITEMS_BATCH);
-    if (_itemsRendered === 0) limit = Math.min(total, ITEMS_BATCH);
-    var shown = _itemsSorted.slice(0, limit);
-    listEl.innerHTML = _isDesktop ? _itemsTableHtml(shown)
-      : '<div class="inv-panel inv-panel-flush">' + shown.map(_itemRowHtml).join('') + '</div>';
-    _itemsRendered = limit;
-
-    if (moreEl) {
-      moreEl.innerHTML = limit < total && search.length === 0
-        ? '<div class="inv-toolbar"><button class="inv-btn inv-btn-secondary" data-action="invLoadMoreItems">Load more (' + (total - limit) + ' remaining)</button></div>'
-        : '';
-    }
+    var moreKey = 'items-' + view;
+    listEl.innerHTML = _isDesktop ? _itemsTableHtml(_itemsSorted, moreKey)
+      : '<div class="inv-panel inv-panel-flush">' + uiMoreHtml(moreKey, _itemsSorted.map(_itemRowHtml), { noun: 'items' }) + '</div>';
   }
 
   _renderItemsSelectionBar();
@@ -364,20 +352,8 @@ function _showItemOverlay(item, isAdd) {
   var itemId = item ? item.id : 0;
 
   // Reference count for delete warning
-  var invRefs = 0;
-  var imRefs = 0;
-  if (item) {
-    (S.invoices || []).forEach(function(inv) {
-      inv.items.forEach(function(li) {
-        if (li.partNumber === item.partNumber) invRefs++;
-      });
-    });
-    (S.incomingMaterial || []).forEach(function(im) {
-      im.items.forEach(function(li) {
-        if (li.partNumber === item.partNumber) imRefs++;
-      });
-    });
-  }
+  var refs = item ? _itemRefCounts(item.partNumber) : { inv: 0, im: 0 };
+  var invRefs = refs.inv, imRefs = refs.im;
   var refCount = invRefs + imRefs;
 
   dialogOpen('<div class="inv-dialog">' +
@@ -406,6 +382,14 @@ function _showItemOverlay(item, isAdd) {
     '<button class="inv-btn inv-btn-primary" data-action="invSaveItem" data-id="' + itemId + '" data-mode="' + (isAdd ? 'add' : 'edit') + '">Save</button></div></div>', { dismiss: true });
 }
 
+/* The invoice and challan lines naming a part number: the pane, the edit sheet and a delete all say it. */
+function _itemRefCounts(partNumber) {
+  var out = { inv: 0, im: 0 };
+  (S.invoices || []).forEach(function(inv) { (inv.items || []).forEach(function(li) { if (li.partNumber === partNumber) out.inv++; }); });
+  (S.incomingMaterial || []).forEach(function(im) { (im.items || []).forEach(function(li) { if (li.partNumber === partNumber) out.im++; }); });
+  return out;
+}
+
 function saveItem(itemId, mode) {
   var pn = document.getElementById('itemEditPN').value.trim();
   if (!pn) { showToast('Part number is required', 'error'); return; }
@@ -419,17 +403,20 @@ function saveItem(itemId, mode) {
   var stdW = wVal !== '' ? parseFloat(wVal) : null;
   if (stdW !== null && (isNaN(stdW) || stdW < 0)) stdW = null;
 
+  // A part number may legitimately repeat across gauges — the clamp lines
+  // carry the same number in 30X6, 35X6 and 40X6. Identity is part + gauge, and an edit
+  // may not make a row the twin of another any more than an add may.
+  var dup = S.items.find(function(it) {
+    return (mode === 'add' || it.id !== itemId) &&
+           (it.partNumber || '').trim().toLowerCase() === pn.toLowerCase() &&
+           (it.gauge || '').trim().toUpperCase() === gauge;
+  });
+  if (dup) {
+    showToast('Already exists: ' + dup.partNumber + (dup.gauge ? ' (' + dup.gauge + ')' : ''), 'error');
+    return;
+  }
+
   if (mode === 'add') {
-    // A part number may legitimately repeat across gauges — the clamp lines
-    // carry the same number in 30X6, 35X6 and 40X6. Identity is part + gauge.
-    var dup = S.items.find(function(it) {
-      return (it.partNumber || '').trim().toLowerCase() === pn.toLowerCase() &&
-             (it.gauge || '').trim().toUpperCase() === gauge;
-    });
-    if (dup) {
-      showToast('Already exists: ' + dup.partNumber + (dup.gauge ? ' (' + dup.gauge + ')' : ''), 'error');
-      return;
-    }
     var maxId = S.items.reduce(function(mx, it) { return Math.max(mx, it.id); }, 0);
     var added = {
       id: maxId + 1,
@@ -467,7 +454,6 @@ function saveItem(itemId, mode) {
 
   saveState();
   closeOverlay();
-  _itemsRendered = 0;
   _renderItemsList();
   // Phase 8E: Refresh detail panel if active item was edited
   if (_isDesktop && _itemsActiveId === itemId) {
@@ -479,18 +465,7 @@ async function deleteItem(itemId) {
   var item = S.items.find(function(it) { return it.id === itemId; });
   if (!item) return;
 
-  var invRefs = 0;
-  var imRefs = 0;
-  (S.invoices || []).forEach(function(inv) {
-    inv.items.forEach(function(li) {
-      if (li.partNumber === item.partNumber) invRefs++;
-    });
-  });
-  (S.incomingMaterial || []).forEach(function(im) {
-    im.items.forEach(function(li) {
-      if (li.partNumber === item.partNumber) imRefs++;
-    });
-  });
+  var refs = _itemRefCounts(item.partNumber), invRefs = refs.inv, imRefs = refs.im;
 
   var msg = '';
   if (invRefs + imRefs > 0) {
@@ -500,22 +475,29 @@ async function deleteItem(itemId) {
   }
   if (!(await uiConfirm({ title: 'Delete ' + item.partNumber + '?', body: msg || 'Nothing refers to it.', okLabel: 'Delete', danger: true }))) return;
 
-  var idx = S.items.indexOf(item);
-  if (idx > -1) S.items.splice(idx, 1);
+  // Another window's save loads the book whole while the question is open (bookReload): the row deleted is the one the
+  // book holds now, found again by its id.
+  item = S.items.find(function(it) { return it.id === itemId; });
+  if (!item) { closeOverlay(); _renderItemsList(); showToast('Item already deleted', 'warning'); return; }
+  S.items.splice(S.items.indexOf(item), 1);
+  // A deleted row takes its tick with it, or the selection bar counts a row that is gone.
+  delete _itemsSelected[itemId];
   saveState();
   closeOverlay();
   // Phase 8E: Clear detail panel if active item was deleted
   if (_isDesktop && _itemsActiveId === itemId) _renderItemDetail(null, true);
-  _itemsRendered = 0;
   _renderItemsList();
   showToast('Item deleted');
 }
 
-/* --- Merge Duplicates Tool --- */
+/* --- Merge Duplicates Tool ---
+   Candidates share a part number's figures AND its gauge. Two gauges of one clamp are two parts, priced and weighed
+   apart (CLAMP 165X83 (NT) at 35X6 and 40X6), and grouping them by the figures alone offered to merge one into the other:
+   the other gauge's row deleted, and the description — which carries the gauge — rewritten on every line of both. */
 function openMergeTool() {
   if (!_mergeBackupWarned) {
     _mergeBackupWarned = true;
-    showToast('Back up your data before merging. Settings \u2192 Export Data.', 'warning');
+    showToast('Back up your data before merging. Settings → Export Data.', 'warning');
   }
 
   var groups = findDuplicateGroups(S.items);
@@ -526,12 +508,13 @@ function openMergeTool() {
   if (groups.length === 0) {
     html += '<div class="inv-empty">No duplicate groups found</div>';
   } else {
-    html += '<p class="inv-note">' + groups.length + ' candidate group' + (groups.length !== 1 ? 's' : '') + ' found. Pick the item to keep in each group, then merge.</p>' +
+    html += '<p class="inv-note">' + groups.length + ' candidate group' + (groups.length !== 1 ? 's' : '') + ' found, each of one gauge. Pick the item to keep in each group, then merge.</p>' +
       '<div class="inv-scroll">';
     // Each group is a panel of radio rows; Merge on its head opens a preview whose Confirm is the one primary.
     groups.forEach(function(group, gi) {
       html += '<div class="inv-panel inv-panel-flush" id="mergeGroup' + gi + '">' +
-        '<div class="inv-panel-head"><span class="inv-panel-title">Group ' + (gi + 1) + ' <span class="inv-panel-count">' + group.items.length + ' items</span></span>' +
+        '<div class="inv-panel-head"><span class="inv-panel-title">Group ' + (gi + 1) + ' · ' + (group.gauge ? '<span class="inv-id">' + escHtml(group.gauge) + '</span>' : 'no gauge') +
+        ' <span class="inv-panel-count">' + group.items.length + ' items</span></span>' +
         '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invMergeGroup" data-group="' + gi + '">Merge</button>' +
         '</div>';
       if (group._warn) {
@@ -540,7 +523,8 @@ function openMergeTool() {
       group.items.forEach(function(it, ii) {
         html += '<label class="inv-row inv-row-2">' +
           '<span class="inv-row-lead inv-row-tick"><input type="radio" class="inv-check" name="mergePrimary' + gi + '" value="' + it.id + '"' + (ii === 0 ? ' checked' : '') + '></span>' +
-          '<span class="inv-row-main"><span class="inv-row-title inv-id">' + escHtml(it.partNumber) + '</span>' +
+          '<span class="inv-row-main"><span class="inv-row-title inv-id">' + escHtml(it.partNumber) +
+          (it.gauge ? ' <span class="inv-badge inv-badge-neutral" data-gauge>' + escHtml(it.gauge) + '</span>' : '') + '</span>' +
           '<span class="inv-row-meta">' + escHtml([it.unit, it.desc].filter(Boolean).join(' · ')) + '</span></span>' +
           '<span class="inv-row-end">' + (it.rate > 0 ? '<span class="inv-num">' + formatCurrency(it.rate) + '</span>' : '<span class="inv-row-meta">No rate</span>') + '</span>' +
           '</label>';
@@ -551,36 +535,29 @@ function openMergeTool() {
   }
 
   html += '<div class="inv-dialog-foot"><button class="inv-btn inv-btn-secondary" data-action="invCloseOverlay">Close</button></div></div>';
-  dialogOpen(html, { dismiss: true })._mergeGroups = groups;
+  // The dialog keeps the groups' ids, not the rows: a book loaded from another window meanwhile is read afresh.
+  dialogOpen(html, { dismiss: true })._mergeGroups = groups.map(function(g) { return g.items.map(function(it) { return it.id; }); });
 }
 
 function findDuplicateGroups(items) {
-  var groups = [];
-  var used = {};
-
-  var coreMap = {};
+  var byKey = {};
   items.forEach(function(it) {
     var core = _extractNumericCore(it.partNumber);
     if (!core || core.replace(/\s/g, '').length < 4) return;
-    if (!coreMap[core]) coreMap[core] = [];
-    coreMap[core].push(it);
+    var k = core + '|' + rateKey(it.gauge);
+    (byKey[k] = byKey[k] || []).push(it);
   });
 
-  Object.keys(coreMap).forEach(function(core) {
-    if (coreMap[core].length < 2) return;
-    var ids = coreMap[core].map(function(it) { return it.id; }).sort().join(',');
-    if (used[ids]) return;
-    used[ids] = true;
-
+  var groups = [];
+  Object.keys(byKey).forEach(function(k) {
+    var list = byKey[k];
+    if (list.length < 2) return;
     var descs = {};
-    coreMap[core].forEach(function(it) {
+    list.forEach(function(it) {
       var d = (it.desc || '').toUpperCase().trim();
-      if (d && d !== (it.partNumber || '').toUpperCase().trim()) {
-        descs[d] = true;
-      }
+      if (d && d !== (it.partNumber || '').toUpperCase().trim()) descs[d] = true;
     });
-
-    groups.push({ items: coreMap[core], _warn: Object.keys(descs).length > 1 });
+    groups.push({ items: list, gauge: list[0].gauge || '', _warn: Object.keys(descs).length > 1 });
   });
 
   groups.sort(function(a, b) {
@@ -598,48 +575,91 @@ function _extractNumericCore(partNumber) {
   return digits.join(' ');
 }
 
+/* What merging a group into the row kept changes, worked out the same way for the preview and for the merge:
+   - the part numbers the other rows spell become the kept row's, on challan lines and on invoices not yet sent
+     (created or printed). An invoice dispatched, delivered, filed or cancelled is a document the customer holds or a
+     return has counted: it is left exactly as issued. A description is never touched: it carries the gauge.
+   - a spelling a row of another gauge also uses changes only on lines whose own description names this group's gauge;
+     a line that names none cannot be told apart, and is left and counted.
+   - what is keyed on a spelling follows it: the clients' piece rates and piece weights (by part and gauge), part
+     weights (copied to the kept spelling where it has none, the old key dropped once nothing spells it), and what
+     Production has learnt a floor name to mean (its record is left as written). */
+function _mergePlan(ids, primaryId) {
+  var items = ids.map(function(id) { return S.items.find(function(it) { return it.id === id; }); }).filter(Boolean);
+  var primary = items.find(function(it) { return it.id === primaryId; });
+  if (!primary || items.length < 2) return null;
+  var secondaries = items.filter(function(it) { return it !== primary; });
+  var inGroup = {}; items.forEach(function(it) { inGroup[it.id] = true; });
+  var gg = rateKey(primary.gauge), pk = rateKey(primary.partNumber);
+  var spell = {}, keys = {}, shared = {};
+  secondaries.forEach(function(it) {
+    if (it.partNumber !== primary.partNumber) spell[it.partNumber] = true;
+    if (rateKey(it.partNumber) !== pk) keys[rateKey(it.partNumber)] = true;
+  });
+  S.items.forEach(function(it) { if (!inGroup[it.id]) shared[rateKey(it.partNumber)] = true; });
+  var fits = function(k, g) { return g === gg || (!shared[k] && (!g || !gg)); };
+  var lineFits = function(li) { return fits(rateKey(li.partNumber), rateKey(lineGauge(li.desc) || lineGauge(li.partNumber))); };
+
+  var plan = { primary: primary, secondaries: secondaries, invLines: [], invIds: {}, issued: 0, imLines: [], imIds: {}, left: 0, cards: [], weights: [] };
+  (S.invoices || []).forEach(function(inv) {
+    var issued = inv.status === 'cancelled' || invStateIdx(getInvState(inv)) >= invStateIdx('dispatched');
+    (inv.items || []).forEach(function(li) {
+      if (!spell[li.partNumber]) return;
+      if (issued) { plan.issued++; return; }
+      if (!lineFits(li)) { plan.left++; return; }
+      plan.invLines.push(li); plan.invIds[inv.id] = true;
+    });
+  });
+  (S.incomingMaterial || []).forEach(function(im) {
+    (im.items || []).forEach(function(it) {
+      if (!spell[it.partNumber]) return;
+      if (!lineFits(it)) { plan.left++; return; }
+      plan.imLines.push(it); plan.imIds[im.id] = true;
+    });
+  });
+  (S.clients || []).forEach(function(c) {
+    ['pieceRates', 'pieceWeights'].forEach(function(list) {
+      (c[list] || []).forEach(function(e) {
+        var k = rateKey(e.partNumber), g = rateKey(e.gauge);
+        if (!keys[k] || !fits(k, g)) return;
+        // An entry the kept spelling already has, at this gauge and date, stays where it is rather than become a twin.
+        var twin = (c[list] || []).some(function(x) { return rateKey(x.partNumber) === pk && rateKey(x.gauge) === g && x.effectiveFrom === e.effectiveFrom; });
+        if (!twin) plan.cards.push(e);
+      });
+    });
+  });
+  var P = String(primary.partNumber).toUpperCase();
+  Object.keys(spell).forEach(function(sp) {
+    var U = String(sp).toUpperCase();
+    if (U !== P && S.partWeights && S.partWeights[U] != null) plan.weights.push(U);
+  });
+  return plan;
+}
+
 function mergeGroup(groupIdx) {
   var scrim = document.querySelector('.inv-scrim-dialog');
-  if (!scrim || !scrim._mergeGroups) return;
-  var group = scrim._mergeGroups[groupIdx];
-  if (!group) return;
+  if (!scrim || !scrim._mergeGroups || !scrim._mergeGroups[groupIdx]) return;
 
   var radios = document.querySelectorAll('input[name="mergePrimary' + groupIdx + '"]');
   var primaryId = null;
   radios.forEach(function(r) { if (r.checked) primaryId = parseInt(r.value); });
   if (primaryId == null) return;
 
-  var primary = group.items.find(function(it) { return it.id === primaryId; });
-  if (!primary) return;
-  var secondaries = group.items.filter(function(it) { return it.id !== primaryId; });
-  if (secondaries.length === 0) return;
-
-  var secondaryPNs = secondaries.map(function(it) { return it.partNumber; });
-
-  var invCount = 0;
-  var imCount = 0;
-  (S.invoices || []).forEach(function(inv) {
-    var affected = false;
-    inv.items.forEach(function(li) {
-      if (secondaryPNs.indexOf(li.partNumber) >= 0) affected = true;
-    });
-    if (affected) invCount++;
-  });
-  (S.incomingMaterial || []).forEach(function(im) {
-    var affected = false;
-    im.items.forEach(function(li) {
-      if (secondaryPNs.indexOf(li.partNumber) >= 0) affected = true;
-    });
-    if (affected) imCount++;
-  });
+  var plan = _mergePlan(scrim._mergeGroups[groupIdx], primaryId);
+  if (!plan) { showToast('The list changed: open Merge again', 'warning'); return; }
 
   var groupEl = document.getElementById('mergeGroup' + groupIdx);
   if (!groupEl) return;
 
-  groupEl.innerHTML = '<div class="inv-panel-head"><span class="inv-panel-title">Merge into <span class="inv-id">' + escHtml(primary.partNumber) + '</span></span></div>' +
-    '<div class="inv-row"><span class="inv-row-main">Duplicates removed</span><span class="inv-row-end inv-num">' + secondaries.length + '</span></div>' +
-    '<div class="inv-row"><span class="inv-row-main">Invoices updated</span><span class="inv-row-end inv-num">' + invCount + '</span></div>' +
-    '<div class="inv-row"><span class="inv-row-main">Challans updated</span><span class="inv-row-end inv-num">' + imCount + '</span></div>' +
+  var row = function(label, n) { return '<div class="inv-row"><span class="inv-row-main">' + label + '</span><span class="inv-row-end inv-num">' + n + '</span></div>'; };
+  groupEl.innerHTML = '<div class="inv-panel-head"><span class="inv-panel-title">Merge into <span class="inv-id">' + escHtml(plan.primary.partNumber) + '</span>' +
+    (plan.primary.gauge ? ' <span class="inv-badge inv-badge-neutral">' + escHtml(plan.primary.gauge) + '</span>' : '') + '</span></div>' +
+    row('Duplicates removed', plan.secondaries.length) +
+    row('Invoice lines renamed (' + Object.keys(plan.invIds).length + ' invoices not yet sent)', plan.invLines.length) +
+    row('Challan lines renamed (' + Object.keys(plan.imIds).length + ' challans)', plan.imLines.length) +
+    row('Lines left as issued: dispatched, delivered, filed or cancelled', plan.issued) +
+    (plan.left ? row('Lines left: another gauge holds the name, and the line does not say which', plan.left) : '') +
+    row('Client rates and weights, part weights moved to the kept name', plan.cards.length + plan.weights.length) +
     '<div class="inv-panel-body inv-toolbar inv-toolbar-tight">' +
     '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invMergeCancelPreview" data-group="' + groupIdx + '">Cancel</button>' +
     '<button class="inv-btn inv-btn-primary inv-btn-sm" data-action="invMergeConfirm" data-group="' + groupIdx + '" data-primary="' + primaryId + '">Confirm merge</button>' +
@@ -648,40 +668,47 @@ function mergeGroup(groupIdx) {
 
 function confirmMerge(groupIdx, primaryId) {
   var scrim = document.querySelector('.inv-scrim-dialog');
-  if (!scrim || !scrim._mergeGroups) return;
-  var group = scrim._mergeGroups[groupIdx];
-  if (!group) return;
+  if (!scrim || !scrim._mergeGroups || !scrim._mergeGroups[groupIdx]) return;
+  var plan = _mergePlan(scrim._mergeGroups[groupIdx], primaryId);
+  if (!plan) { showToast('The list changed: open Merge again', 'warning'); return; }
+  var primary = plan.primary, now = Date.now();
 
-  var primary = group.items.find(function(it) { return it.id === primaryId; });
-  if (!primary) return;
-  var secondaries = group.items.filter(function(it) { return it.id !== primaryId; });
-  var secondaryPNs = secondaries.map(function(it) { return it.partNumber; });
-
-  var invUpdated = 0;
-  (S.invoices || []).forEach(function(inv) {
-    inv.items.forEach(function(li) {
-      if (secondaryPNs.indexOf(li.partNumber) >= 0) {
-        li.partNumber = primary.partNumber;
-        li.desc = primary.desc;
-        invUpdated++;
-      }
-    });
+  plan.invLines.forEach(function(li) { li.partNumber = primary.partNumber; });
+  // A challan line is the record of the customer's paper: the rename is kept on it, as an invoice's correction is.
+  plan.imLines.forEach(function(it) {
+    if (!it.corrections) it.corrections = [];
+    it.corrections.push({ at: now, invoice: 'the Items merge', from: { partNumber: it.partNumber }, to: { partNumber: primary.partNumber } });
+    it.partNumber = primary.partNumber;
   });
-
-  var imUpdated = 0;
-  (S.incomingMaterial || []).forEach(function(im) {
-    im.items.forEach(function(li) {
-      if (secondaryPNs.indexOf(li.partNumber) >= 0) {
-        li.partNumber = primary.partNumber;
-        li.desc = primary.desc;
-        imUpdated++;
-      }
+  plan.cards.forEach(function(e) { e.partNumber = primary.partNumber; });
+  var P = String(primary.partNumber).toUpperCase();
+  plan.weights.forEach(function(U) {
+    if (S.partWeights[P] == null) S.partWeights[P] = S.partWeights[U];
+    var stillSpelt = (S.invoices || []).concat(S.incomingMaterial || []).some(function(d) {
+      return (d.items || []).some(function(li) { return String(li.partNumber || '').toUpperCase() === U; });
     });
+    if (!stillSpelt) delete S.partWeights[U];
   });
-
-  secondaries.forEach(function(sec) {
+  // What Production has learnt a floor name to mean follows the kept spelling; its entries are its record, left as written.
+  var learnt = S.production && S.production.learn && S.production.learn.parts;
+  if (learnt) {
+    var old = {};
+    plan.secondaries.forEach(function(it) { old[rateKey(it.partNumber)] = true; });
+    Object.keys(learnt).forEach(function(k) {
+      var v = learnt[k];
+      if (v && v.partNumber && old[rateKey(v.partNumber)] && rateKey(v.gauge || primary.gauge) === rateKey(primary.gauge)) v.partNumber = primary.partNumber;
+    });
+    if (typeof prodTouch === 'function') prodTouch();
+  }
+  // The kept row takes a weight only a removed row had: same part, same gauge, same weight.
+  if (primary.stdWeightKg == null) {
+    var w = plan.secondaries.find(function(it) { return it.stdWeightKg != null; });
+    if (w) primary.stdWeightKg = w.stdWeightKg;
+  }
+  plan.secondaries.forEach(function(sec) {
     var idx = S.items.indexOf(sec);
     if (idx > -1) S.items.splice(idx, 1);
+    delete _itemsSelected[sec.id];
   });
 
   saveState();
@@ -689,8 +716,11 @@ function confirmMerge(groupIdx, primaryId) {
   var groupEl = document.getElementById('mergeGroup' + groupIdx);
   if (groupEl) groupEl.remove();
   scrim._mergeGroups[groupIdx] = null;
+  // The list behind the dialog still showed the rows just removed.
+  renderClientsPage();
 
-  showToast('Merged ' + (secondaries.length + 1) + ' \u2192 1. Updated ' + invUpdated + ' invoice line' + (invUpdated !== 1 ? 's' : '') + ', ' + imUpdated + ' challan line' + (imUpdated !== 1 ? 's' : '') + '.');
+  showToast('Merged ' + (plan.secondaries.length + 1) + ' → 1. Renamed ' + plan.invLines.length + ' invoice line' + (plan.invLines.length !== 1 ? 's' : '') + ', ' +
+    plan.imLines.length + ' challan line' + (plan.imLines.length !== 1 ? 's' : '') + (plan.issued ? '; ' + plan.issued + ' on issued invoices left as they are' : '') + '.');
 }
 
 function cancelMergePreview(groupIdx) {
@@ -834,7 +864,12 @@ function openWeightEntry() {
   });
 
   var weightMap = _buildDerivedWeightMap();
-  var derivable = missing.filter(function(it) { return !!weightMap[it.partNumber]; }).length;
+  // A part number held in two gauges is skipped by the derivation (applyDerivedWeights), so it is not promised here:
+  // the button offered them and the toast then said there was nothing to derive from.
+  var twoGauge = _partsInTwoGauges();
+  var fromRates = missing.filter(function(it) { return !!weightMap[it.partNumber]; });
+  var derivable = fromRates.filter(function(it) { return !twoGauge[it.partNumber]; }).length;
+  var pairs = fromRates.length - derivable;
 
   var html = '<div class="inv-dialog">' +
     dialogHeadHtml('Enter weights') +
@@ -850,6 +885,10 @@ function openWeightEntry() {
         'recoverable from the pricing itself — no weighing needed. Note that a weight ' +
         'derived this way prices back at exactly that rate, so it measures tonnage, not margin.' +
         '</div>'
+      : '') +
+    (pairs > 0
+      ? '<div class="inv-callout inv-callout-warning" data-two-gauge>' + pairs + ' more ' + (pairs === 1 ? 'is a part number' : 'are part numbers') +
+        ' held in two gauges: an invoice line does not say which gauge its pieces were, so their weight is left for you to enter.</div>'
       : '');
 
   // One row per part: what it is and what rides on it, then the weight field and what that weight
@@ -933,7 +972,6 @@ function saveWeights() {
 
   saveState();
   closeOverlay();
-  _itemsRendered = 0;
   renderClientsPage();
   showToast('Saved ' + saved + ' weight' + (saved !== 1 ? 's' : '') +
     (invalid > 0 ? ' (' + invalid + ' skipped)' : ''));
@@ -959,6 +997,18 @@ function saveWeights() {
    implementations that can drift. Fills only empty weights — a weight already
    on file, whether typed or previously derived, is never overwritten.
    Returns what it did; persisting is the caller's business. */
+/* Part numbers the Items Master holds at more than one gauge: a weight read off lines by part number alone would be
+   the two gauges averaged, right for neither. */
+function _partsInTwoGauges() {
+  var gaugesFor = {}, out = {};
+  (S.items || []).forEach(function(it) {
+    var g = gaugesFor[it.partNumber] || (gaugesFor[it.partNumber] = {});
+    g[it.gauge || ''] = true;
+    if (Object.keys(g).length > 1) out[it.partNumber] = true;
+  });
+  return out;
+}
+
 function applyDerivedWeights() {
   var derived = 0;
   var highVariance = 0;
@@ -975,12 +1025,7 @@ function applyDerivedWeights() {
      This costs no tonnage. Stats derives a piece-billed line's weight from the
      line's own amount, which is correct whichever gauge it was. What is
      withheld is only the catalogue's per-part figure. */
-  var gaugesFor = {};
-  (S.items || []).forEach(function(it) {
-    var key = it.partNumber;
-    if (!gaugesFor[key]) gaugesFor[key] = {};
-    gaugesFor[key][it.gauge || ''] = true;
-  });
+  var twoGauge = _partsInTwoGauges();
 
   (S.items || []).forEach(function(item) {
     if (item.stdWeightKg != null) return;
@@ -988,7 +1033,7 @@ function applyDerivedWeights() {
     var weights = weightMap[item.partNumber];
     if (!weights || weights.length === 0) return;
 
-    if (Object.keys(gaugesFor[item.partNumber] || {}).length > 1) { ambiguous++; return; }
+    if (twoGauge[item.partNumber]) { ambiguous++; return; }
 
     var avg = weights.reduce(function(s, w) { return s + w; }, 0) / weights.length;
     if (weights.length > 1) {
@@ -1010,13 +1055,12 @@ function deriveWeightsFromRates() {
   var highVariance = result.highVariance;
 
   if (derived === 0) {
-    showToast('No piece-billed lines to derive weights from', 'error');
+    showToast(result.ambiguous > 0 ? 'Nothing derived: ' + result.ambiguous + ' left for you, the same part in two gauges' : 'No piece-billed lines to derive weights from', 'error');
     return;
   }
 
   saveState();
   closeOverlay();
-  _itemsRendered = 0;
   renderClientsPage();
   var notes = [];
   if (highVariance > 0) notes.push(highVariance + ' with inconsistent rates');
@@ -1029,9 +1073,12 @@ function deriveWeightsFromRates() {
 function calculateStdWeights() {
   var calculated = 0;
   var highVariance = 0;
+  var twoGauge = _partsInTwoGauges(), skipped = 0;
 
   S.items.forEach(function(item) {
     if (item.stdWeightKg != null) return;
+    // The lines name a part number, not a gauge: two gauges' pieces would be averaged into both rows.
+    if (twoGauge[item.partNumber]) { skipped++; return; }
 
     var pairs = [];
 
@@ -1068,12 +1115,12 @@ function calculateStdWeights() {
 
   if (calculated > 0) {
     saveState();
-    _itemsRendered = 0;
     _renderItemsList();
   }
 
   var msg = 'Calculated weights for ' + calculated + ' item' + (calculated !== 1 ? 's' : '') + ' from invoice/challan history';
   if (highVariance > 0) msg += '. ' + highVariance + ' with high variance (>20% CV)';
+  if (skipped > 0) msg += '. ' + skipped + ' skipped: same part in two gauges';
   if (calculated === 0) msg = 'No items with calculable weights found. Need invoice/challan data with both KG qty and NOS count.';
   showToast(msg, calculated > 0 ? 'success' : 'warning');
 }
@@ -1140,11 +1187,12 @@ function toggleItemSelect(itemId) {
 
 function selectAllUnused() {
   _itemsSelected = {};
+  // Read fresh, and only among the rows the search and filter show: a tick nobody can see is a row Delete would reach.
+  _invalidateUsageCache();
   var cache = _buildUsageCache();
-  S.items.forEach(function(it) {
+  _getSortedFilteredItems().forEach(function(it) {
     if (!cache[it.partNumber]) _itemsSelected[it.id] = true;
   });
-  _itemsRendered = 0;
   _renderItemsList();
   _renderItemsSelectionBar();
   var count = Object.keys(_itemsSelected).length;
@@ -1153,7 +1201,6 @@ function selectAllUnused() {
 
 function clearItemSelection() {
   _itemsSelected = {};
-  _itemsRendered = 0;
   _renderItemsList();
   _renderItemsSelectionBar();
 }
@@ -1161,12 +1208,17 @@ function clearItemSelection() {
 async function batchDeleteItems() {
   var ids = Object.keys(_itemsSelected).filter(function(k) { return _itemsSelected[k]; }).map(Number);
   if (ids.length === 0) return;
-  if (!(await uiConfirm({ title: 'Delete ' + ids.length + ' item' + (ids.length !== 1 ? 's' : '') + '?', body: 'Historical invoice/challan references will be kept.', okLabel: 'Delete', danger: true }))) return;
+  // Ticked as unused a while ago is not unused now: say how many have since reached an invoice or a challan.
+  _invalidateUsageCache();
+  var cache = _buildUsageCache();
+  var used = S.items.filter(function(it) { return ids.indexOf(it.id) >= 0 && cache[it.partNumber]; }).length;
+  if (!(await uiConfirm({ title: 'Delete ' + ids.length + ' item' + (ids.length !== 1 ? 's' : '') + '?',
+    body: (used ? used + ' of them ' + (used === 1 ? 'is' : 'are') + ' on an invoice or challan now. ' : '') + 'Historical invoice/challan references will be kept.',
+    okLabel: 'Delete', danger: true }))) return;
   S.items = S.items.filter(function(it) { return ids.indexOf(it.id) < 0; });
   _itemsSelected = {};
   _invalidateUsageCache();
   saveState();
-  _itemsRendered = 0;
   _renderItemsList();
   _renderItemsSelectionBar();
   showToast(ids.length + ' item' + (ids.length !== 1 ? 's' : '') + ' deleted');

@@ -99,7 +99,8 @@ test.describe('P102: on the screens', () => {
     await switchTab(page, 'pageClients');
     const tile = page.locator('#pageClients .inv-tile', { hasText: 'Realisation' });
     await expect(tile.locator('.inv-tile-value .inv-fig-danger')).toHaveText('₹2.00');
-    await expect(tile).toContainText('cost ₹8.55/kg');
+    // Judged at the month's live cost, as Stats and Home judge it (P106, CB8), not the typed ₹8.55.
+    await expect(tile).toContainText('live cost ₹8.56/kg');
   });
 
   test('Money: what is owed is coloured by its age, and days to pay by one and two months', async ({ page }) => {

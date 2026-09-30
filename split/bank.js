@@ -957,7 +957,11 @@ function _bankPaymentsHtml(cls) {
   var sup = {};
   cls.forEach(function(v) { if (v.cat === 'supplier' && v.row.dr > 0) { var k = v.party || v.row.narration; (sup[k] = sup[k] || { paid: 0, n: 0, name: v.supplier || v.party, written: bankSupplierWritten(v) }); sup[k].paid = gstRound(sup[k].paid + v.row.dr); sup[k].n++; } });
   var billed = {};
-  (stockData().entries || []).forEach(function(e) { if (!e.voided && e.supplier && e.amount) billed[bankKey(e.supplier)] = gstRound((billed[bankKey(e.supplier)] || 0) + Number(e.amount)); });
+  // A delivery typed by hand before its amount was kept carries its price: price × quantity is its bill.
+  (stockData().entries || []).forEach(function(e) {
+    var amt = e.amount ? Number(e.amount) : e.price > 0 && e.qty > 0 ? gstRound(e.price * e.qty) : 0;
+    if (!e.voided && e.supplier && amt) billed[bankKey(e.supplier)] = gstRound((billed[bankKey(e.supplier)] || 0) + amt);
+  });
   var sk = Object.keys(sup).sort(function(a, b) { return sup[b].paid - sup[a].paid; });
   h += '<div class="inv-panel inv-panel-flush" id="bankSuppliers"><div class="inv-panel-head"><span class="inv-panel-title">Suppliers paid <span class="inv-panel-count">' + sk.length + '</span></span>' +
     '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invGoStock">Open Stock</button></div>';

@@ -300,20 +300,32 @@ function liveCost(from, to, kg) {
   var boughtLine = function(t, what) {
     return t.bills ? [{ label: 'Bought in the period, for reference', sub: t.bills + ' bill line' + (t.bills === 1 ? '' : 's') + (what ? ' · ' + what : '') + ' · purchases are not use, so not in the figure', amount: t.amount, ref: true }] : [];
   };
-  // How much of the period the stock record covers.
+  // How much of the period the stock record covers: from the first USE or CHARGE (its window's first day). Use is read
+  // from nothing else, so a count or a delivery before it says nothing about what was used: one past purchase entered by
+  // hand, dated 6 Jul, marked the whole quarter recorded and read its chemicals and zinc as ₹0 (the QA audit, 30 Sep 2026).
   var firstStock = null;
-  stockData().entries.forEach(function(e) { if (!e.voided && e.kind !== 'bill' && (!firstStock || e.date < firstStock)) firstStock = e.date; });
+  stockData().entries.forEach(function(e) {
+    if (e.voided || (e.kind !== 'used' && e.kind !== 'charged')) return;
+    var d = /^\d{4}-\d{2}-\d{2}$/.test(e.from || '') && e.from < e.date ? e.from : e.date;
+    if (!firstStock || d < firstStock) firstStock = d;
+  });
   var coveredDays = !firstStock || firstStock > to ? 0 : firstStock <= from ? days : isoDaysBetween(firstStock, to) + 1;
   var stockMissing = 1 - coveredDays / days;
   var stockWhat = coveredDays ? (days - coveredDays) + ' of ' + days + ' days before the stock record starts (' + stockShortDate(firstStock) + ')' : 'no stock record in this period';
 
   var chemModel = stockCfg().chemModel;
   var chemDetail = chem.detail.sort(function(a, b) { return b.amount - a.amount; }).concat(chem.unpriced);
-  if (stockMissing > 0.001) chemDetail.push(fillLine(chemModel, stockMissing, stockWhat));
+  // Zinc's rule for chemicals: a period with nothing drawn in it, or drawn only from lines with no price, measured
+  // nothing, and is filled whole at the model; it read ₹0 as "model" (August on the real book).
+  var chemMeasured = chem.detail.some(function(d) { return d.amount > 0; });
+  var chemMissing = chemMeasured ? stockMissing : 1;
+  var chemWhat = chemMeasured || !coveredDays ? stockWhat : 'no chemical used in this period';
+  if (chemMissing > 0.001) chemDetail.push(fillLine(chemModel, chemMissing, chemWhat));
   var chemLines = chem.detail.length + chem.unpriced.length;
-  push({ key: 'chem', label: 'Chemicals', amount: chem.amount + (stockMissing > 0.001 ? chemModel * kg * stockMissing : 0), low: chem.unpriced.length > 0,
-    note: (chemLines ? chem.detail.length + ' of ' + chemLines + ' lines used are priced' + (chem.unpriced.length ? ', so the measured part reads low' : '') : 'no chemical use recorded') +
-      (stockMissing > 0.001 && coveredDays ? ' · ' + (days - coveredDays) + ' days at the model' : ''),
+  push({ key: 'chem', label: 'Chemicals', amount: chem.amount + (chemMissing > 0.001 ? chemModel * kg * chemMissing : 0), low: chem.unpriced.length > 0,
+    note: (chemMeasured || (chemLines && !coveredDays) ? chem.detail.length + ' of ' + chemLines + ' lines used are priced' + (chem.unpriced.length ? ', so the measured part reads low' : '')
+      : coveredDays ? 'no chemical used in this period' : 'no chemical use recorded') +
+      (chemMeasured ? (chemMissing > 0.001 && coveredDays ? ' · ' + (days - coveredDays) + ' days at the model' : '') : coveredDays ? ' · filled at the model' : ''),
     detail: chemDetail.concat(boughtLine(bought.chem)).concat(bk && bk.supplies.months.length ? [{ label: 'Paid to suppliers, for reference', ref: true, amount: bk.supplies.amount,
       sub: 'chemicals and zinc together, from the bank · ' + Math.round(bk.supplies.known * 100) + '% of the period on the statement · a payment is not use, so not in the figure' }] : []) });
 

@@ -80,12 +80,34 @@ function stockTokens(text) {
 
 function stockRound(v) { return Math.round(v * 1000) / 1000; }
 
+/* An area written with its line's number apart ("VAT A 2", "V A 1", "VAT 1", "VAT-2") is read as one word, VAT A1 or
+   VAT A2, before the line is: its digit is not a quantity. The 25–28 Sep message's zinc line ("use VAT A 2 / 25/09/26/
+   150 kg VAT 1 / 28/09/26/ 175 kg berral use 75 kg") saved 2 kg charged, the 2 of "A 2", where it says 150 + 175 + 75.
+   A figure with its unit after it ("VAT 2 kg") stays a figure, and "VAT A1", one word already, is left as written. The
+   barrel is not numbered in the shop's messages (a quantity, a time or a part follows it), so it is left alone. */
+var STOCK_UNIT_AFTER = '(?![\\s-]*(?:' + Object.keys(STOCK_UNITS).join('|') + ')\\b)';
+var STOCK_AREA_RES = [new RegExp('\\bV[\\s-]*A[\\s-]*([12])\\b' + STOCK_UNIT_AFTER, 'gi'),
+  new RegExp('\\bVAT(?:[\\s-]*A[\\s-]+|[\\s-]+)([12])\\b' + STOCK_UNIT_AFTER, 'gi')];
+function stockFoldAreas(text) {
+  return STOCK_AREA_RES.reduce(function(t, re) { return t.replace(re, 'VAT A$1'); }, String(text || ''));
+}
+/* Whether the figure at s stands in a use clause: after "use", with only areas, dates and days between (and a minus
+   straight before it, "-25kg =150"). */
+function stockInUse(sig, s) {
+  for (var b = s - 1; b >= 0; b--) {
+    var t = sig[b];
+    if (t.t === 'kw') return t.v === 'use';
+    if (t.t === 'num' || (t.t === 'op' && !(b === s - 1 && t.v === '-'))) return false;
+  }
+  return false;
+}
+
 /* One numbered line → its name, and the four figures a take can state:
    O opening, A received, U used, C left. Anything it cannot place is reported,
    never dropped: a number the parser does not understand is a question. */
 function parseStockLine(body) {
-  var toks = stockTokens(body);
-  var r = { name: '', unit: '', O: null, A: null, U: null, C: null, addDate: null, useDate: null,
+  var toks = stockTokens(stockFoldAreas(body));
+  var r = { name: '', unit: '', O: null, A: null, U: null, C: null, addDate: null, useDate: null, useFrom: null,
     days: null, rate: null, note: '', issues: [], unread: [] };
 
   // The name runs until a keyword or a number that is doing arithmetic. Names
@@ -124,10 +146,31 @@ function parseStockLine(body) {
   var sig = toks.filter(function(tk) { return tk.t !== 'unit' && tk.t !== 'sym'; });
   var claimed = [];
 
-  // Chains: n (op n)+, where "=" states the running total.
-  var chainResult = null;
+  // Chains: n (op n)+, where "=" states the running total. In a use clause a sum is what was used, and its total the use
+  // ("54 LTR use 3+3+9=15": read as a chain, 3 was the opening, 3 + 9 a delivery and 54 the use). A use and the balance
+  // after it ("75 kg=175", "-25kg =150") are the clause's own, below; "use 25/09/26/ 30-20" is still an opening less a use.
+  var chainResult = null, minusU = false;
   for (var s = 0; s < sig.length; s++) {
     if (sig[s].t !== 'num' || claimed[s] || !(sig[s + 1] && sig[s + 1].t === 'op' && sig[s + 2] && sig[s + 2].t === 'num')) continue;
+    if (stockInUse(sig, s)) {
+      if (sig[s + 1].v === '=' || (sig[s - 1] && sig[s - 1].t === 'op')) continue;
+      if (sig[s + 1].v === '+') {
+        var sum = sig[s].v, js = s + 1;
+        claimed[s] = true;
+        while (sig[js] && (sig[js].v === '+' || sig[js].v === '=') && sig[js + 1] && sig[js + 1].t === 'num') {
+          claimed[js + 1] = true;
+          if (sig[js].v === '+') sum = stockRound(sum + sig[js + 1].v);
+          else {
+            if (stockRound(sig[js + 1].v) !== sum) r.issues.push({ level: 'red', code: 'footing', text: 'Works out to ' + sum + ', written as ' + sig[js + 1].v });
+            sum = sig[js + 1].v;
+          }
+          js += 2;
+        }
+        if (!minusU) r.U = stockRound((r.U || 0) + sum);
+        s = js - 1;
+        continue;
+      }
+    }
     var prev = sig[s - 1];
     var startsWithAdd = prev && prev.t === 'kw' && prev.v === 'add';
     if (!startsWithAdd && prev && prev.t === 'date' && sig[s - 2] && sig[s - 2].v === 'add') startsWithAdd = true;
@@ -138,7 +181,7 @@ function parseStockLine(body) {
       var op = sig[j].v, n = sig[j + 1];
       claimed[j + 1] = true;
       if (op === '+') { var role = first === 'A' ? 'O' : 'A'; r[role] = (r[role] || 0) + n.v; total = stockRound(total + n.v); }
-      else if (op === '-') { r.U = stockRound((r.U || 0) + n.v); total = stockRound(total - n.v); if (n.days) { r.days = n.days; r.rate = n.rate; } }
+      else if (op === '-') { r.U = stockRound((r.U || 0) + n.v); total = stockRound(total - n.v); minusU = true; if (n.days) { r.days = n.days; r.rate = n.rate; } }
       else if (op === '=') {
         if (stockRound(n.v) !== total) r.issues.push({ level: 'red', code: 'footing', text: 'Works out to ' + total + ', written as ' + n.v });
         total = n.v; chainResult = { v: n.v, idx: j + 1 };
@@ -157,6 +200,7 @@ function parseStockLine(body) {
     return -1;
   }
 
+  var useDates = [], balance = null;
   for (var p = 0; p < sig.length; p++) {
     var tp = sig[p];
     if (tp.t !== 'kw') continue;
@@ -168,20 +212,29 @@ function parseStockLine(body) {
       if (sig[q0] && sig[q0].t === 'date') { r.addDate = sig[q0].v; q0++; }
       if (r.A == null && sig[q0] && sig[q0].t === 'num' && !claimed[q0]) { r.A = sig[q0].v; claimed[q0] = true; }
     } else if (tp.v === 'use') {
-      var notes = [];
+      // A use clause runs to the next keyword, a part at a time: an area and a date, then what was used there, and every
+      // part counts. "n = m" is a use and the balance after it, and so is "-n = m". A figure straight after a quantity
+      // is not a part ("use 12 KG 00 KG" is 12 used and none left), and a use already written as an opening less a use
+      // ("55-25=30 KG use V A 1 15KG V A 2 10 KG") is not counted again.
+      var notes = [], parts = 0;
       for (var q1 = p + 1; q1 < sig.length; q1++) {
         var tq1 = sig[q1];
-        if (tq1.t === 'date') { r.useDate = tq1.v; continue; }
+        if (tq1.t === 'date') { useDates.push(tq1.v); continue; }
         if (tq1.t === 'days') { r.days = tq1.v; continue; }
         if (tq1.t === 'text') { notes.push(tq1.v); continue; }
+        if (tq1.t === 'op' && tq1.v === '-' && sig[q1 + 1] && sig[q1 + 1].t === 'num' && !claimed[q1 + 1]) continue;
+        if (tq1.t === 'num' && !claimed[q1] && sig[q1 - 1].t !== 'num') {
+          claimed[q1] = true; parts++;
+          if (!minusU) { r.U = stockRound((r.U || 0) + tq1.v); if (tq1.days) { r.days = tq1.days; r.rate = tq1.rate; } }
+          if (sig[q1 + 1] && sig[q1 + 1].v === '=' && sig[q1 + 2] && sig[q1 + 2].t === 'num') {
+            claimed[q1 + 2] = true; balance = { v: sig[q1 + 2].v, idx: q1 + 2 }; q1 += 2;
+          }
+          continue;
+        }
         break;
       }
-      if (notes.length) r.note = notes.join(' ');
-      var after = sig[q1] && sig[q1].t === 'num' ? q1 : -1;
-      if (after >= 0 && !claimed[after]) {
-        if (r.U == null) { r.U = sig[after].v; if (sig[after].days) { r.days = sig[after].days; r.rate = sig[after].rate; } }
-        claimed[after] = true;
-      } else {
+      if (notes.length) r.note = (r.note ? r.note + ' ' : '') + notes.join(' ');
+      if (!parts) {
         var before = prevNum(p - 1);
         if (before >= 0 && !claimed[before] && r.U == null) {
           r.U = sig[before].v; claimed[before] = true;
@@ -197,7 +250,12 @@ function parseStockLine(body) {
       }
     }
   }
-  if (r.C == null && chainResult) r.C = chainResult.v;
+  // Left: the last total the line states, a chain's or a use clause's balance.
+  var stated = balance && (!chainResult || balance.idx > chainResult.idx) ? balance : chainResult;
+  if (r.C == null && stated) r.C = stated.v;
+  // Used on one day, or over the days its parts name (25 and 28 Sep: the use spans them).
+  var ud = useDates.filter(Boolean).sort().filter(function(d, i, a) { return !i || d !== a[i - 1]; });
+  if (ud.length) { r.useDate = ud[ud.length - 1]; if (ud.length > 1) r.useFrom = ud[0]; }
 
   var loose = [];
   sig.forEach(function(tk, idx) { if (tk.t === 'num' && !claimed[idx]) loose.push(idx); });
@@ -263,9 +321,12 @@ function stockData() {
 }
 function stockCfg() {
   var c = S.stockCheck || {}, d = STOCK_CHECK_DEFAULTS;
+  var red = c.redDays > 0 ? c.redDays : d.redDays, amber = c.amberDays > 0 ? c.amberDays : d.amberDays;
   return {
-    redDays: c.redDays > 0 ? c.redDays : d.redDays,
-    amberDays: c.amberDays > 0 ? c.amberDays : d.amberDays,
+    redDays: red,
+    // Never under the red line: red 10 with amber 7 drew an 8-day line red under the OK tile. Settings refuses it now;
+    // a pair saved before reads amber at the red line.
+    amberDays: Math.max(amber, red),
     chemModel: c.chemModel > 0 ? c.chemModel : d.chemModel
   };
 }
@@ -292,11 +353,25 @@ function stockShortDate(iso) {
   var p = iso.split('-');
   return (+p[2]) + ' ' + m[+p[1] - 1];
 }
+// A day with its year when the year is not this one: a message dated a year off must not read like this week's.
+function stockDayLabel(iso) {
+  return stockShortDate(iso) + (iso && iso.slice(0, 4) !== localDateStr().slice(0, 4) ? ' ' + iso.slice(0, 4) : '');
+}
 var STOCK_KIND_RANK = { count: 3, received: 1, used: 2, charged: 2, bill: 0 };
+/* In the order they happened: by day, then when typed. A correction replays where the entry it corrects stood (its own
+   `at` is when the correction was typed): after the day's closing count, opening 100, used 30, count 70 with the use
+   corrected to 25 read 45 where the count says 70. */
 function stockSortEntries(list) {
+  var byId = {};
+  stockData().entries.forEach(function(e) { byId[e.id] = e; });
+  var at = function(e) {
+    for (var n = 0; e.corrects && byId[e.corrects.id] && n < 50; n++) e = byId[e.corrects.id];
+    return e.at || 0;
+  };
   return list.slice().sort(function(a, b) {
     if (a.date !== b.date) return a.date < b.date ? -1 : 1;
-    if ((a.at || 0) !== (b.at || 0)) return (a.at || 0) - (b.at || 0);
+    var d = at(a) - at(b);
+    if (d) return d;
     return (a.seq != null ? a.seq : STOCK_KIND_RANK[a.kind]) - (b.seq != null ? b.seq : STOCK_KIND_RANK[b.kind]);
   });
 }
@@ -316,8 +391,10 @@ function stockReplay(itemId, beforeDate) {
     var before = level;
     if (e.kind === 'count') level = e.qty;
     else if (e.kind === 'received') level = (level || 0) + e.qty;
-    else level = (level || 0) - e.qty;
-    level = stockRound(level);
+    // A use or a charge takes from a level the app knows. Before any count or delivery the level is unknown and stays
+    // so: read from 0, a line with bills and a "used 0" typed by hand was Out, red on the To-do and first to reorder.
+    else if (level != null) level = level - e.qty;
+    if (level != null) level = stockRound(level);
     rows.push({ e: e, before: before, after: level });
   });
   return { level: level, rows: rows };
@@ -379,9 +456,13 @@ function stockHash(text) {
   var body = String(text || '').split('\n').map(function(l) { var m = l.match(RELAY_WA_RE); return m ? m[5] : l; }).join(' ');
   return 'h' + relayHash(body).slice(1);
 }
+/* A line's other spellings, whole names only: a string there (from a file) matched any fragment of itself. */
+function stockAliases(item) {
+  return Array.isArray(item && item.aliases) ? item.aliases.filter(function(a) { return typeof a === 'string' && a; }) : [];
+}
 function stockFindByKey(key) {
   if (!key) return null;
-  return stockData().items.find(function(i) { return i.key === key || (i.aliases || []).indexOf(key) >= 0; }) || null;
+  return stockData().items.find(function(i) { return i.key === key || stockAliases(i).indexOf(key) >= 0; }) || null;
 }
 function stockFindByPos(n) {
   return stockData().items.find(function(i) { return i.lastPos === n; }) || null;
@@ -478,9 +559,10 @@ function resolveStockParse(parsed, choices) {
       }
       if (A != null) r.entries.push({ kind: 'received', qty: A, date: addDate, seq: 1 });
       if (U != null) {
-        var uFrom = l.useDate || from;
+        // A use on one day is that day's; one whose parts name several days covers them (useFrom … useDate).
+        var uFrom = l.useFrom || l.useDate || from;
         r.entries.push({ kind: basis === 'charge' ? 'charged' : 'used', qty: U, date: l.useDate || to, from: uFrom, seq: 2,
-          days: l.useDate ? 1 : (l.days || stockWorkingDays(from, to)), rate: l.rate, note: l.note ? stockKey(l.note) : '' });
+          days: l.useFrom ? stockWorkingDays(l.useFrom, l.useDate) : l.useDate ? 1 : (l.days || stockWorkingDays(from, to)), rate: l.rate, note: l.note ? stockKey(l.note) : '' });
       }
       if (closing != null) {
         var ce = { kind: 'count', qty: closing, date: to, seq: 3 };
@@ -517,8 +599,8 @@ function stockCommitPaste(parsed, res, meta) {
         st.items.push(item);
       }
     }
-    if (r.via === 'chosen' && r.src.key && item.key !== r.src.key && (item.aliases || []).indexOf(r.src.key) < 0) {
-      item.aliases = (item.aliases || []).concat([r.src.key]);
+    if (r.via === 'chosen' && r.src.key && item.key !== r.src.key && stockAliases(item).indexOf(r.src.key) < 0) {
+      item.aliases = stockAliases(item).concat([r.src.key]);
     }
     if (!item.unit && r.src.unit) item.unit = r.src.unit;
     st.items.forEach(function(i) { if (i.lastPos === r.src.n && i !== item) delete i.lastPos; });
@@ -581,6 +663,8 @@ function stockStatusWord(s, long) {
   if (s.group === 'bath') return s.level > 0 ? 'On shelf' : 'Shelf empty';
   if (s.group === 'out') return 'Out';
   if (s.daysLeft != null) return stockDaysText(s.daysLeft, s.rate.tentative) + (long ? ' left' : '');
+  // Used, but never counted or delivered: the rate is known, the level is not.
+  if (s.level == null && s.rate && s.rate.rate) return 'Not counted';
   return 'No rate';
 }
 function stockStatusDot(s, long) {
@@ -742,7 +826,7 @@ function stockResultText(r, unit) {
   if (r.O != null) parts.push('opening ' + stockFmtQty(r.O));
   else if (r.prev != null && (r.A != null || r.U != null)) parts.push('app had ' + stockFmtQty(r.prev));
   if (r.A != null) parts.push('+' + stockFmtQty(r.A) + ' in');
-  if (r.U != null) parts.push('−' + stockFmtQty(r.U) + ' used' + (r.src.days ? ' (' + r.src.days + ' days)' : ''));
+  if (r.U != null) parts.push('−' + stockFmtQty(r.U) + ' used' + (r.src.useFrom ? ' (' + stockShortDate(r.src.useFrom) + ' – ' + stockShortDate(r.src.useDate) + ')' : r.src.days ? ' (' + r.src.days + ' days)' : ''));
   var end = r.closing != null ? stockFmtQty(r.closing) + (unit ? ' ' + unit : '') : '';
   if (!parts.length) return end ? 'Count ' + end : '';
   return parts.join(' · ') + (end ? ' → ' + end : '');
@@ -760,9 +844,19 @@ function renderStockReview() {
     h += '<div class="inv-callout inv-callout-danger inv-mb-8" id="stockDupNote">This message was already saved on ' +
       escHtml(new Date(res.dup.at).toLocaleDateString('en-IN')) + '. Saving it again would count every figure twice.</div>';
   }
+  // A window far from the day the message was sent (or today, pasted without its WhatsApp line) is most likely a year
+  // typed wrong in its first line: saved as read, every entry lands on those days (the QA audit, 30 Sep 2026).
+  var ref = p.sentOn || localDateStr();
+  var early = p.from < ref ? isoDaysBetween(p.from, ref) : 0, late = p.to > ref ? isoDaysBetween(ref, p.to) : 0;
+  if (!p.noDate && Math.max(early, late) > 30) {
+    h += '<div class="inv-callout inv-callout-warning inv-mb-8" id="stockWindowNote">' + escHtml((early >= late
+      ? 'This message starts ' + stockDayLabel(p.from) + ', ' + early + ' days before '
+      : 'This message ends ' + stockDayLabel(p.to) + ', ' + late + ' days after ') +
+      (p.sentOn ? 'it was sent (' + stockDayLabel(p.sentOn) + ')' : 'today') + '. Check the dates in its first line: every entry is saved on the days it names.') + '</div>';
+  }
   h += '<div class="inv-panel"><div class="inv-kv inv-mb-8">' +
-    '<div><div class="inv-kv-k">Covers</div><div>' + escHtml(stockShortDate(p.from)) + (p.to !== p.from ? ' – ' + escHtml(stockShortDate(p.to)) : '') + '</div></div>' +
-    '<div><div class="inv-kv-k">Count dated</div><div>' + escHtml(stockShortDate(p.to)) + (p.noDate ? ' (no date in the message: today)' : '') + '</div></div></div>' +
+    '<div><div class="inv-kv-k">Covers</div><div>' + escHtml(stockDayLabel(p.from)) + (p.to !== p.from ? ' – ' + escHtml(stockDayLabel(p.to)) : '') + '</div></div>' +
+    '<div><div class="inv-kv-k">Count dated</div><div>' + escHtml(stockDayLabel(p.to)) + (p.noDate ? ' (no date in the message: today)' : '') + '</div></div></div>' +
     '<div class="inv-fields">' +
     '<div class="inv-field"><label class="inv-field-label" for="stockSentBy">Sent by</label><input id="stockSentBy" class="inv-input" value="' + escHtml(rv.sentBy) + '" placeholder="Who counted" autocomplete="off"></div>' +
     '<div class="inv-field"><label class="inv-field-label" for="stockBy">Entered by</label><input id="stockBy" class="inv-input" value="' + escHtml(stockBy()) + '" placeholder="Your name" autocomplete="off"></div></div></div>';
@@ -853,9 +947,18 @@ function stockSavePaste() {
   showToast(out.entries + ' entries saved from ' + out.lines + ' lines' + (out.skipped ? ' · ' + out.skipped + ' not saved' : ''));
 }
 
+// The hand form as it opens: its toolbar button, Home's Stock entry, and an address that names it (nav.js).
+function stockManualNew() {
+  return { mode: 'count', date: localDateStr(), supplier: '', billNo: '', billDate: '', bath: '', vals: {} };
+}
 function stockOpenManual() {
-  _stockManual = { mode: 'count', date: localDateStr(), supplier: '', billNo: '', billDate: '', bath: '', vals: {} };
+  _stockManual = stockManualNew();
   stockSetView('manual');
+}
+// A figure typed on the hand form and not yet saved (what repeats, the company and the invoice, is not work to lose).
+function stockManualTyped() {
+  var m = _stockManual;
+  return !!m && Object.keys(m.vals).some(function(id) { var v = m.vals[id]; return (v.qty != null && v.qty !== '') || (v.price != null && v.price !== ''); });
 }
 
 function renderStockManual() {
@@ -883,10 +986,14 @@ function renderStockManual() {
   h += '<div class="inv-note">' + hints[m.mode] + ' Fill only the lines that changed.</div></div>';
   h += '<div class="inv-panel inv-panel-flush" id="stockManualList"><div class="inv-panel-head"><span class="inv-panel-title">Lines</span></div>';
   if (m.mode === 'received') h += '<div class="inv-row-group"><span>Line</span><span>Quantity · &#8377; per unit, before GST</span></div>';
+  // A count is set against the level at the end of its own day, the figure Save compares it with; it said today's level
+  // whatever day was picked.
+  var today = localDateStr(), past = m.mode === 'count' && m.date && m.date !== today;
   st.items.filter(function(i) { return i.active !== false; }).forEach(function(i) {
-    var v = m.vals[i.id] || {}, lv = stockReplay(i.id).level;
+    var v = m.vals[i.id] || {}, lv = m.mode === 'count' && m.date ? stockReplay(i.id, isoAddDays(m.date, 1)).level : stockReplay(i.id).level;
     h += '<div class="inv-row inv-row-2 inv-row-flow"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(i.name) + '</span>' +
-      '<span class="inv-row-meta">' + (m.mode === 'count' ? 'app has ' : 'now ') + escHtml(stockFmtQty(lv)) + ' ' + escHtml(i.unit || '') + '</span></span>' +
+      '<span class="inv-row-meta">' + (m.mode === 'count' ? (past ? 'app had ' : 'app has ') : 'now ') + escHtml(stockFmtQty(lv)) + ' ' + escHtml(i.unit || '') +
+      (past ? ' on ' + escHtml(stockDayLabel(m.date)) : '') + '</span></span>' +
       '<span class="inv-row-end"><input type="number" inputmode="decimal" step="any" min="0" class="inv-input inv-input-sm inv-input-num" data-stock-qty="' + escHtml(i.id) + '" value="' + escHtml(v.qty != null ? v.qty : '') + '" aria-label="' + escHtml(i.name) + ' quantity">' +
       '<span class="inv-unit">' + escHtml(i.unit || '') + '</span>' +
       (m.mode === 'received' ? '<input type="number" inputmode="decimal" step="any" min="0" class="inv-input inv-input-sm inv-input-num" data-stock-price="' + escHtml(i.id) + '" value="' + escHtml(v.price != null ? v.price : '') + '" placeholder="₹/' + escHtml(i.unit || 'unit') + '" aria-label="' + escHtml(i.name) + ' price per unit">' : '') +
@@ -922,6 +1029,11 @@ function stockDayEntriesHtml(date) {
     h += '<div class="inv-row-group"><span>' + escHtml(it ? it.name : 'A line since removed') + '</span>' +
       (r && r.after != null && !e.voided ? '<span class="inv-num">left ' + escHtml(stockFmtQty(r.after)) + ' ' + escHtml(it ? it.unit || '' : '') + '</span>' : '') + '</div>' +
       stockEntryRowHtml(e, r, it ? it.unit || '' : '');
+    // "Add its bill" opens the bill here, under its delivery, and the hand form stays (it opened on the line's page
+    // only, so the tap did nothing on this form). The action bar's Save stays the one primary.
+    if (it && _stockBill && _stockBill.entryId === e.id && !e.voided) {
+      h += stockBillFormHtml(it).replace('inv-btn inv-btn-primary" data-action="invStockBillSave"', 'inv-btn inv-btn-secondary" data-action="invStockBillSave"');
+    }
   });
   return h + '</div>';
 }
@@ -943,8 +1055,10 @@ function stockSaveManual() {
     if (!stockItem(id)) return;
     var rec = { id: stockUid('SE'), itemId: id, kind: m.mode, qty: q, date: m.date, seq: STOCK_KIND_RANK[m.mode], at: at, source: 'manual', by: by, sentBy: '' };
     if (m.mode === 'received') {
+      // A price is above 0, or there is none: a 0 became the line's last price and costed its use at nothing, as priced.
+      // The amount is kept with it, as the bill form keeps it (Finance → Payments reads a supplier's bills by it).
       var pr = parseFloat(v.price);
-      if (v.price !== '' && v.price != null && !isNaN(pr) && pr >= 0) rec.price = pr; else unpriced++;
+      if (v.price !== '' && v.price != null && pr > 0) { rec.price = pr; rec.amount = gstRound(pr * q); } else unpriced++;
       rec.supplier = m.supplier;
       rec.billNo = m.billNo;
       rec.billDate = m.billDate || m.date;
@@ -1112,6 +1226,13 @@ async function stockCorrect(id) {
   var copy = JSON.parse(JSON.stringify(e));
   copy.id = stockUid('SE'); copy.qty = q; copy.at = at; copy.by = by; copy.source = 'manual';
   copy.corrects = { id: e.id, qty: e.qty };
+  // A priced entry keeps its price and amount in step with the quantity: the price per unit typed stays and the amount
+  // follows; a price past the paisa was worked out from a bill's amount, so that amount stays and the price follows.
+  if (copy.price != null && isFinite(copy.price) && q > 0) {
+    var derived = copy.amount > 0 && Math.abs(copy.price * 100 - Math.round(copy.price * 100)) > 1e-6;
+    if (derived) copy.price = Math.round(copy.amount / q * 10000) / 10000;
+    else copy.amount = gstRound(copy.price * q);
+  }
   delete copy.raw; delete copy.pasteId; delete copy.unsettled;
   e.voided = { at: at, by: by, reason: 'Corrected to ' + stockFmtQty(q) + ' ' + unit, correctedBy: copy.id };
   stockData().entries.push(copy);
@@ -1154,6 +1275,10 @@ function stockMergeImport(src) {
     if (mine) { idMap[it.id] = mine.id; return; }
     var copy = JSON.parse(JSON.stringify(it));
     copy.key = copy.key || stockKey(copy.name);
+    // A position is printed on the sheets and a spelling is matched as a whole name: anything else from a file is
+    // dropped rather than left to reach the page as markup or match a fragment.
+    if (!(Number.isInteger(copy.lastPos) && copy.lastPos > 0)) delete copy.lastPos;
+    copy.aliases = stockAliases(copy);
     st.items.push(copy); idMap[it.id] = copy.id; added.items++;
   });
   var have = {};
@@ -1258,6 +1383,8 @@ function stockAction(action, btn) {
     case 'invStockManual': stockOpenManual(); break;
     case 'invStockBack':
       if (_stockView === 'review') { stockSetView('paste'); break; }
+      // A bill left open under a delivery on the hand form goes with it (it would reappear on the line's page).
+      if (_stockView === 'manual') _stockBill = null;
       _stockReview = null; _stockManual = null; _stockReorder = null; stockSetView(_stockHome); break;
     case 'invStockOpen': _stockItemId = btn.dataset.id; stockSetView('item'); break;
     case 'invStockPaneClose': stockSetView('list'); break;
@@ -1280,8 +1407,9 @@ function stockAction(action, btn) {
     case 'invStockBillOpen': stockBillOpen(btn.dataset.entry || ''); break;
     case 'invStockReorder': _stockReorder = { qty: {} }; stockSetView('reorder'); break;
     case 'invStockReorderCopy': stockReorderCopy(); break;
-    case 'invStockBillSave': stockBillSave(); break;
-    case 'invStockBillCancel': _stockBill = null; renderStock(); break;
+    // On the hand form, a bill saved or cancelled leaves it typed only if a figure is still waiting in it.
+    case 'invStockBillSave': stockBillSave(); if (!_stockBill && _stockView === 'manual') _pageTyped = stockManualTyped(); break;
+    case 'invStockBillCancel': _stockBill = null; renderStock(); if (_stockView === 'manual') _pageTyped = stockManualTyped(); break;
     case 'invStockImport': stockImport(); break;
   }
 }

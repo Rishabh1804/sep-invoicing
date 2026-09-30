@@ -62,7 +62,7 @@ function cnNoteFy(cn) {
    year as printed) holds a number in THAT year's series, never in this one's. */
 function cnInSeries(cn) {
   var fy = cnNoteFy(cn);
-  return !fy || fy === cnFyShort();
+  return !fy || billsCnFy(fy) === cnFyShort();   // a year stored as typed (2026-27) is this series' 26-27 (bills.js)
 }
 /* The highest number issued in the current series. */
 function cnSeriesHighest() {

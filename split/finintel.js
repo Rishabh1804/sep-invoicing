@@ -101,10 +101,11 @@ function finForecast(days) {
   // An invoice a little past its usual day is spread over the next four weeks; one long past it (twice
   // the usual and a month, or over 90 days) is not expected at all: on a book with unplaced receipts it is
   // most likely already paid, and otherwise it is a debt to chase, not cash to plan on.
-  var nOpen = 0, amtOpen = 0, late = 0, lateAmt = 0, stale = 0, staleAmt = 0;
+  var nOpen = 0, amtOpen = 0, late = 0, lateAmt = 0, stale = 0, staleAmt = 0, unread = 0, unreadAmt = 0;
   recv.forEach(function(r) {
     var d = bankDaysToPay(r.client.id, hist), med = d && d.n >= 3 ? d.median : bookMed;
-    if (med == null) return;
+    // Nothing yet says when clients pay (no receipt set against an invoice): the invoice is owed, and not counted in.
+    if (med == null) { r.open.forEach(function(o) { if (o.inv && o.due > 0.005) { unread++; unreadAmt += o.due; } }); return; }
     r.open.forEach(function(o) {
       if (!o.inv) return;
       var age = isoDaysBetween(o.date, today), due = isoAddDays(o.date, Math.round(med));
@@ -116,22 +117,33 @@ function finForecast(days) {
       nOpen++; amtOpen += o.due;
     });
   });
-  if (bookMed == null) rests.push('No receipt is placed against an invoice yet, so nothing is expected in: the forecast is outflows only.');
+  // In: billing at its recent pace, paid at the book's lag. Without it every future week would carry
+  // wages and no sales.
+  var from60 = isoAddDays(today, -56), billed = 0, wk = {};
+  (S.invoices || []).forEach(function(i) {
+    if (i.status !== 'active' || !i.date || i.date <= from60 || i.date > today) return;
+    billed += i.grandTotal || 0;
+    var ws = attWeekStartOf(i.date); wk[ws] = (wk[ws] || 0) + (i.grandTotal || 0);
+  });
+  // With no receipt set against an invoice the forecast cannot tell when clients pay, so what is owed and what will be
+  // billed are left out and it counts money going out only. Where there is something it left out, it says so wherever
+  // it is read (the runway task, the Home tile, the Overview), and a fall below zero is a warning, never red: owed90's
+  // rule, for the same reason (unplaced receipts may be money already in).
+  var noInflow = null;
+  if (bookMed == null && (unread || billed > 0)) {
+    var left = (unread ? [todoPlural(unread, 'open invoice') + ' (' + formatCurrency(gstRound(unreadAmt)) + ')'] : []).concat(billed > 0 ? ['new billing'] : []);
+    noInflow = { open: unread, amount: gstRound(unreadAmt),
+      why: 'no receipt is placed against an invoice yet, so it cannot tell when clients pay, and ' + left.join(' and ') + (unread > 1 || left.length > 1 ? ' are' : ' is') + ' not counted in' };
+  }
+  if (noInflow) rests.push('Outflows only: ' + noInflow.why + '.');
+  else if (bookMed == null) rests.push('No receipt is placed against an invoice yet, so nothing is expected in: the forecast is outflows only.');
   else rests.push(todoPlural(nOpen, 'open invoice') + ', ' + formatCurrency(gstRound(amtOpen)) + ', each at its client’s usual days to pay (the book’s ' + Math.round(bookMed) + ' days where a client has under three receipts)' +
     (late ? '; ' + late + ' a little past it (' + formatCurrency(gstRound(lateAmt)) + ') spread over four weeks, and not counted at the low end' : '') + '.');
   if (stale) rests.push(todoPlural(stale, 'invoice') + ' long past their usual day, ' + formatCurrency(gstRound(staleAmt)) + ', not expected: chase them, do not plan on them.');
   var loose = bankLooseReceipts(ctx.cls, bankRecvFrom(ctx.rows));
   if (loose.length && bookMed != null) rests.push(todoPlural(loose.length, 'receipt') + ' not placed on a client: the invoices they paid still read as open, so money in reads high.');
 
-  // In: billing at its recent pace, paid at the book's lag. Without it every future week would carry
-  // wages and no sales.
   if (bookMed != null) {
-    var from60 = isoAddDays(today, -56), billed = 0, wk = {};
-    (S.invoices || []).forEach(function(i) {
-      if (i.status !== 'active' || !i.date || i.date <= from60 || i.date > today) return;
-      billed += i.grandTotal || 0;
-      var ws = attWeekStartOf(i.date); wk[ws] = (wk[ws] || 0) + (i.grandTotal || 0);
-    });
     var weeks = [];
     for (var w = 1; w <= 8; w++) weeks.push(wk[attWeekStartOf(isoAddDays(today, -7 * w))] || 0);
     var perDay = [finPct(weeks, 0.25) / 6, billed / 48, finPct(weeks, 0.75) / 6];
@@ -144,6 +156,9 @@ function finForecast(days) {
 
   // Out: from the closed months the statement covers.
   var closed = finClosedMonths(3), wages = {}, days1 = [], other = {}, power = [], powerDays = [], cashWk = {};
+  // The months a salary run or an electricity payment is on the statement already: an early one (the 8th, where the
+  // usual day is the 14th) is in the balance the forecast starts from, and adding the month's again counted it twice.
+  var paidIn = { wages: {}, power: {} }, thisMonth = today.slice(0, 7);
   closed.forEach(function(m) { wages[m] = 0; other[m] = 0; });
   ctx.cls.forEach(function(v) {
     var r = v.row;
@@ -151,17 +166,18 @@ function finForecast(days) {
     // recur, and counted as "every other payment" it put a month's bounces into every month to come.
     if (!(r.dr > 0) || v.cat === 'reversal') return;
     var m = r.date.slice(0, 7);
-    if (v.cat === 'wages' && !v.cash && v.staffId != null) { if (m in wages) { wages[m] += r.dr; days1.push(+r.date.slice(8, 10)); } }
+    if (v.cat === 'wages' && !v.cash && v.staffId != null) { paidIn.wages[m] = true; if (m in wages) { wages[m] += r.dr; days1.push(+r.date.slice(8, 10)); } }
     else if (v.cat === 'wages') { var ws = attWeekStartOf(r.date); cashWk[ws] = (cashWk[ws] || 0) + r.dr; }
-    else if (v.cat === 'power') { power.push(r.dr); powerDays.push(+r.date.slice(8, 10)); }
+    else if (v.cat === 'power') { paidIn.power[m] = true; power.push(r.dr); powerDays.push(+r.date.slice(8, 10)); }
     else if (v.cat !== 'gst' && m in other) other[m] += r.dr;
   });
   if (!closed.length) rests.push('The statement covers no whole month yet, so salaries, suppliers and other payments are not forecast.');
   if (closed.length) {
     var wv = closed.map(function(m) { return wages[m]; }), sd = Math.round(finPct(days1, 0.5) || 14);
     if (finPct(wv, 0.5) > 0) {
-      months.forEach(function(mm) { add(onDay(mm, sd), 'out', finPct(wv, 0.25), finPct(wv, 0.5), finPct(wv, 0.75)); });
-      rests.push('Salaries to named hands, ' + formatCurrency(gstRound(finPct(wv, 0.5))) + ' a month around the ' + finOrd(sd) + '.');
+      months.forEach(function(mm) { if (!paidIn.wages[mm]) add(onDay(mm, sd), 'out', finPct(wv, 0.25), finPct(wv, 0.5), finPct(wv, 0.75)); });
+      rests.push('Salaries to named hands, ' + formatCurrency(gstRound(finPct(wv, 0.5))) + ' a month around the ' + finOrd(sd) +
+        (paidIn.wages[thisMonth] ? '; this month’s are on the statement already' : '') + '.');
     }
     var ov = closed.map(function(m) { return other[m]; });
     months.forEach(function(mm) {
@@ -181,8 +197,9 @@ function finForecast(days) {
   }
   if (power.length) {
     var pv = power.slice(-6), pd = Math.round(finPct(powerDays.slice(-6), 0.5));
-    months.forEach(function(mm) { add(onDay(mm, pd), 'out', finPct(pv, 0.25), finPct(pv, 0.5), finPct(pv, 0.75)); });
-    rests.push('Electricity, ' + formatCurrency(gstRound(finPct(pv, 0.5))) + ' around the ' + finOrd(pd) + '.');
+    months.forEach(function(mm) { if (!paidIn.power[mm]) add(onDay(mm, pd), 'out', finPct(pv, 0.25), finPct(pv, 0.5), finPct(pv, 0.75)); });
+    rests.push('Electricity, ' + formatCurrency(gstRound(finPct(pv, 0.5))) + ' around the ' + finOrd(pd) +
+      (paidIn.power[thisMonth] ? '; this month’s is on the statement already' : '') + '.');
   }
   // GST by the 20th: the month's own due where it is closed, else the last closed month's, at the share of
   // due the bank has paid (input credit takes the rest).
@@ -199,17 +216,20 @@ function finForecast(days) {
     rests.push('GST by the 20th at ' + Math.round(ratio * 100) + '% of the output tax due, the share the bank has paid.');
   }
 
-  var bal = [last.balance, last.balance, last.balance], out = [], cross = null, min = { bal: last.balance, date: today };
+  var bal = [last.balance, last.balance, last.balance], out = [], cross = null, min = { bal: last.balance, date: today }, was = last.balance;
   for (var dd = isoAddDays(today, 1); dd <= end; dd = isoAddDays(dd, 1)) {
     var e = ev[dd] || { in: [0, 0, 0], out: [0, 0, 0] };
     bal = [bal[0] + e.in[0] - e.out[2], bal[1] + e.in[1] - e.out[1], bal[2] + e.in[2] - e.out[0]];
     out.push({ date: dd, lo: gstRound(bal[0]), bal: gstRound(bal[1]), hi: gstRound(bal[2]), in: gstRound(e.in[1]), out: gstRound(e.out[1]) });
     if (bal[1] < min.bal) min = { bal: gstRound(bal[1]), date: dd };
-    if (!cross && bal[1] < 0) cross = dd;
+    // Below zero is a move from credit into overdraft. An account overdrawn on the statement's last day is overdrawn
+    // (`overdrawn`), and read as "below zero tomorrow" it was told a date that had already passed.
+    if (!cross && bal[1] < 0 && was >= 0) cross = dd;
+    was = bal[1];
   }
   var stale = isoDaysBetween(last.date, today);
   if (stale > 3) rests.unshift('Starts from the balance on ' + formatDate(last.date) + ', the statement’s last day: ' + stale + ' days of payments since are not on it.');
-  return { asOf: last.date, start: last.balance, days: out, cross: cross, min: min, rests: rests };
+  return { asOf: last.date, start: last.balance, overdrawn: last.balance < 0, days: out, cross: cross, min: min, rests: rests, noInflow: noInflow };
 }
 
 function finForecastHtml() {
@@ -218,14 +238,21 @@ function finForecastHtml() {
   var pts = fc.days.filter(function(x, i) { return i % 3 === 2 || i === fc.days.length - 1; });
   var h = '<div class="inv-panel inv-panel-flush inv-panels-wide" id="finForecast"><div class="inv-panel-head"><span class="inv-panel-title">Cash forecast, 60 days</span></div>';
   var at = function(n) { return fc.days[Math.min(n, fc.days.length) - 1]; };
-  var tiles = [['Now', fc.start, 'on the statement, ' + stockShortDate(fc.asOf)], ['Lowest', fc.min.bal, 'on ' + stockShortDate(fc.min.date)],
-    ['In 30 days', at(30).bal, at(30).lo < 0 && at(30).bal >= 0 ? 'could dip below zero' : 'P25–P75 ' + finRs(at(30).lo) + ' to ' + finRs(at(30).hi)],
-    ['In 60 days', at(60).bal, 'P25–P75 ' + finRs(at(60).lo) + ' to ' + finRs(at(60).hi)]];
-  h += '<div class="inv-tiles inv-tiles-4 inv-tiles-flush">' + tiles.map(function(t) {
-    return '<div class="inv-tile' + (t[1] < 0 ? ' inv-tile-danger' : '') + '" data-fc="' + t[0] + '"><div class="inv-tile-label">' + t[0] + '</div>' +
+  // Counting outflows only, a figure the forecast made is a warning below zero, never a danger, and says why beside it
+  // (DR-8). What the statement itself says (Now) keeps its own tone.
+  var only = fc.noInflow ? 'outflows only · ' : '';
+  var tiles = [['Now', fc.start, (fc.overdrawn ? 'overdrawn on the statement, ' : 'on the statement, ') + stockShortDate(fc.asOf)], ['Lowest', fc.min.bal, only + 'on ' + stockShortDate(fc.min.date)],
+    ['In 30 days', at(30).bal, only + (at(30).lo < 0 && at(30).bal >= 0 ? 'could dip below zero' : 'P25–P75 ' + finRs(at(30).lo) + ' to ' + finRs(at(30).hi))],
+    ['In 60 days', at(60).bal, only + 'P25–P75 ' + finRs(at(60).lo) + ' to ' + finRs(at(60).hi)]];
+  h += '<div class="inv-tiles inv-tiles-4 inv-tiles-flush">' + tiles.map(function(t, i) {
+    return '<div class="inv-tile' + (t[1] < 0 ? (fc.noInflow && i > 0 ? ' inv-tile-warning' : ' inv-tile-danger') : '') + '" data-fc="' + t[0] + '"><div class="inv-tile-label">' + t[0] + '</div>' +
       '<div class="inv-tile-value inv-tile-value-sm inv-nowrap" title="' + escHtml(formatCurrency(t[1])) + '">' + finRs(t[1]) + '</div><div class="inv-tile-sub">' + escHtml(t[2]) + '</div></div>';
   }).join('') + '</div><div class="inv-panel-body">';
-  if (fc.cross) h += '<div class="inv-callout inv-callout-danger">At this pace the account goes below zero on ' + escHtml(formatDate(fc.cross)) + '.</div>';
+  var why = fc.noInflow ? ' Outflows only: ' + fc.noInflow.why + '.' : '';
+  if (fc.overdrawn) h += '<div class="inv-callout inv-callout-danger">' + escHtml('The account is overdrawn: ' + formatCurrency(fc.start) + ' on ' + formatDate(fc.asOf) + ', the statement’s last day.' +
+    (fc.cross ? ' At this pace it comes back into credit and goes below zero again on ' + formatDate(fc.cross) + '.' : '') + why) + '</div>';
+  else if (fc.cross) h += '<div class="inv-callout inv-callout-' + (fc.noInflow ? 'warning' : 'danger') + '">' + escHtml('At this pace the account goes below zero on ' + formatDate(fc.cross) + '.' + why) + '</div>';
+  else if (fc.noInflow) h += '<div class="inv-callout inv-callout-warning">' + escHtml(why.trim()) + '</div>';
   h += chartLines(pts.map(function(x) { return stockShortDate(x.date); }), [{ label: 'Balance', values: pts.map(function(x) { return x.bal; }) }],
     { band: pts.map(function(x) { return { lo: x.lo, hi: x.hi }; }), ariaLabel: 'Cash forecast' });
   h += '<div class="inv-note">What it rests on:</div><ul class="inv-note">' + fc.rests.map(function(r) { return '<li>' + escHtml(r) + '</li>'; }).join('') + '</ul>';
@@ -327,9 +354,17 @@ TODO_RULE_FNS.gstNotInBank = function() {
   });
 };
 TODO_RULE_FNS.powerPaidNoBill = function() {
+  // Only the book's months: a payment for a month before the first invoice pays a bill Bills & notes never asks for
+  // (billsMissingPower) and nothing reads. Nor a month the power rule already asks for: one task per bill.
+  var first = '';
+  (S.invoices || []).forEach(function(i) { if (i.date && (!first || i.date < first)) first = i.date; });
+  if (!first) return [];
+  var asked = {};
+  try { if (todoCfg().power) (TODO_RULE_FNS.power() || []).forEach(function(t) { if (t.go && t.go.month) asked[t.go.month] = true; }); } catch (e) { /* the power rule's own */ }
   var miss = {};
   bankPowerRows(finCtx().cls).forEach(function(v) {
     var m = bankBillMonth(v.row);
+    if (m < first.slice(0, 7) || asked[m]) return;
     if (costBills().some(function(b) { return b.kind === 'power' && !b.voided && b.month === m; })) return;
     miss[m] = gstRound((miss[m] || 0) + v.row.dr);
   });
@@ -434,9 +469,19 @@ TODO_RULE_FNS.bankBounce = function() {
 };
 TODO_RULE_FNS.runway = function() {
   var fc = finForecast(45);
-  if (!fc || !fc.cross) return [];
-  return [{ key: 'runway', rule: 'runway', tone: 'red', title: 'Cash goes below zero on ' + formatDate(fc.cross),
-    sub: 'At the forecast’s pace; the lowest point is ' + formatCurrency(fc.min.bal) + ' on ' + formatDate(fc.min.date),
-    why: 'Finance · cash forecast', facts: [['Balance on ' + formatDate(fc.asOf), formatCurrency(fc.start)], ['Below zero', formatDate(fc.cross)], ['Lowest', formatCurrency(fc.min.bal)]],
-    clears: 'Clears itself when the forecast stays above zero for 45 days.', go: finGo('overview', { anchor: 'finForecast' }), goLabel: 'Open the forecast', sig: fc.cross }];
+  if (!fc || !(fc.cross || fc.overdrawn)) return [];
+  var go = finGo('overview', { anchor: 'finForecast' });
+  // Overdrawn on the statement's last day is a fact, said as one: not "below zero tomorrow".
+  if (fc.overdrawn) return [{ key: 'runway', rule: 'runway', tone: 'red', title: 'The account is overdrawn: ' + formatCurrency(fc.start) + ' on ' + formatDate(fc.asOf),
+    sub: 'The balance on the statement’s last day' + (fc.cross ? '; at the forecast’s pace it comes back into credit and goes below zero again on ' + formatDate(fc.cross)
+      : '; the forecast’s lowest point is ' + formatCurrency(fc.min.bal) + ' on ' + formatDate(fc.min.date)) + (fc.noInflow ? ' (outflows only)' : ''),
+    why: 'Finance · the statement', facts: [['Balance on ' + formatDate(fc.asOf), formatCurrency(fc.start)], ['Lowest', formatCurrency(fc.min.bal)]],
+    clears: 'Clears itself when a statement shows the account in credit and the forecast stays above zero for 45 days.', go: go, goLabel: 'Open the forecast', sig: 'overdrawn|' + fc.asOf }];
+  // Counting outflows only (nothing yet says when clients pay) it is a warning, never red: owed90's rule, for the same reason.
+  var only = !!fc.noInflow;
+  return [{ key: 'runway', rule: 'runway', tone: only ? 'amber' : 'red', title: (only ? 'Outflows only: cash goes below zero on ' : 'Cash goes below zero on ') + formatDate(fc.cross),
+    sub: only ? 'The forecast counts money out and nothing in: ' + fc.noInflow.why : 'At the forecast’s pace; the lowest point is ' + formatCurrency(fc.min.bal) + ' on ' + formatDate(fc.min.date),
+    why: 'Finance · cash forecast' + (only ? ', outflows only' : ''), facts: [['Balance on ' + formatDate(fc.asOf), formatCurrency(fc.start)], ['Below zero', formatDate(fc.cross)], ['Lowest', formatCurrency(fc.min.bal)]],
+    clears: 'Clears itself when the forecast stays above zero for 45 days.' + (only ? ' Placing receipts on their clients lets it count money in.' : ''),
+    go: go, goLabel: 'Open the forecast', sig: (only ? 'out|' : '') + fc.cross }];
 };

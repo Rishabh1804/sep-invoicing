@@ -251,7 +251,7 @@ test('B5: a month the statement covers but whose payees are not sorted says so i
   rows.push(row(todayIso(), 'NEFT-UTRZ-ALPHA FORGINGS', 0, 1, { cat: 'receipt', clientId: 1 }));
   await loadAppWithState(page, state({ bank: bank(rows) }));
   const skips = await ev(page, `costDeriveCompute(['other']).other.rows.filter(function(r) { return r.skip && r.skip !== 'no tonnage invoiced'; }).map(function(r) { return [r.month, r.skip]; })`);
-  expect(skips).toEqual([[ym(-3), 'payees not yet sorted (Finance → Payments)']]);
+  expect(skips).toEqual([[ym(-3), 'payees not yet sorted (Finance → Payments → Not yet sorted)']]);
   await openSettingsAt(page, 'fallbacks');
   await page.locator('[data-action="invCostDeriveBank"][data-which="fallbacks"]').click();
   await expect(page.locator('#costDeriveOut [data-derive="other"]')).toContainText('payees not yet sorted');

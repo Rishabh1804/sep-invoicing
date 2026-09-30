@@ -1686,6 +1686,24 @@ reads a photo. **Owned by `soma-internal`, like stock** (owner): a view and an i
   credit** is named as that (make a key in a project with no billing, which is free, or add credit), never as a busy
   minute. Nothing here has been run against the live API from the build sandbox: the retries are pinned on mocked
   refusals in the shape Google sent (P85).
+- **The register's own shorthand, from the owner's pages of 23–29 Sep 2026** (P122):
+  - **A clamp's gauge from its round** (owner: *"Mehta's clamp gauge is 25x6 or 30x6 if 150 pieces are done on VAT A1 and 100 pieces on
+    VAT A2 and 35x6 or 35x8 or 40x6 if 120 pieces and 72 pieces are done in VAT A1"*). The register writes Mehta's clamps as CLAMP; a
+    rule (`S.production.gaugeRules`: client, the part's first word, rack sizes, gauges; Mehta's two set once, `_prodGaugeRules1`) reads a
+    round of 150 or 100 as 25X6 or 30X6 and of 120 or 72 as 35X6, 35X8 or 40X6 (`prodGaugeRuleFor`). The lines named are kept on the
+    rule, not required: the pages show 150 and 120 on A2 as well. One gauge is written in; two or three are kept as the entry's
+    `gaugeOptions`, set against the family's challans at any of them. A round of a size no rule names (108, 98, 82) is its own run,
+    *gauge unknown*, so it never takes a neighbouring run's gauge.
+  - **A floor name is matched to the client's part** (`prodLearnAliases`): a code in brackets (*TINA(0160)*, *TINA(3303)*) that ends
+    exactly one of the client's part numbers is that part, and the name alone is learnt for the client (`learn.parts`, now written), on
+    a register save and on an import. A code ending two parts (*KUDAL(0106)*) is asked: Entries → **Which part?** lists the parts
+    ending in it, then those named like it, then all of the client's (`prodAliasOpen`).
+  - **A new part under the customer's ditto is the same customer's**: *LINER* under MEHTA's ditto had read as no customer written.
+  - **Who plated it** (owner: *"place workers on the specified production … we'll know who plated what and when, this can be useful
+    later when we get replating issues"*): `prodCrew(e)`, read off the day's attendance and never stored: a general-shift run is the
+    hands marked on its line, a run from 5 PM or before 8:30 the named crew of the OT block covering it, a pickling load the pickling
+    hands; a day with no attendance says so. Entries show it under each run, and Clients → Performance → Materials worked lists each
+    plating of a part with its line, time and crew beside its challans and invoices.
 - **The workers' names box on a register photo goes to Google with the page** (Settings → Connections → Photo reading
   says so); only what is read is kept.
 

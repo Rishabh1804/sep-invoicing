@@ -22,7 +22,101 @@ function prodData() {
   if (!p.learn || typeof p.learn !== 'object') p.learn = {};
   if (!p.learn.clients || typeof p.learn.clients !== 'object') p.learn.clients = {};
   if (!p.learn.parts || typeof p.learn.parts !== 'object') p.learn.parts = {};
+  if (!Array.isArray(p.gaugeRules)) p.gaugeRules = [];
   return p;
+}
+
+/* ---------- The gauge a round's size gives ----------
+   Owner, 30 Sep 2026: "Mehta's clamp gauge is 25x6 or 30x6 if 150 pieces are done on VAT A1 and 100 pieces on VAT A2, and
+   35x6 or 35x8 or 40x6 if 120 pieces and 72 pieces are done in VAT A1." The register writes SSS Mehta's clamps as
+   CLAMP with no gauge; the pieces on a round say which gauges it can be. A rule is a client, the part's first word, the
+   rack sizes and the gauges they mean (`S.production.gaugeRules`, travelling with the book). The lines the owner named
+   are kept on the rule but not required: the pages show 150 on A2 and 120 on A2 as well. A rack in no rule leaves the
+   gauge unread. */
+function prodGaugeRuleFor(clientId, part, rack) {
+  if (clientId == null || !(rack > 0)) return null;
+  var w = (prodPartBase(part).toUpperCase().match(/[A-Z]+/) || [''])[0];
+  var r = prodData().gaugeRules.find(function(x) { return String(x.clientId) === String(clientId) && x.family === w && (x.racks || []).indexOf(rack) >= 0; });
+  return r ? r.gauges.slice() : null;
+}
+
+/* ---------- Who plated it ----------
+   Owner, 30 Sep 2026: "place workers on the specified production … we'll know who plated what and when, this can be useful
+   later when we get replating issues." Read off the day's attendance, never stored: a run in the general shift is the hands
+   marked present on its line that day (where they stood, the mark's area); a run outside it (before 8:30 or from 5 PM) is
+   the named crew of the OT or night block on its line whose times cover it. A pickling load is the pickling hands present.
+   A day with no attendance, or a line nobody stood on, says so rather than naming anyone. */
+function prodCrew(e) {
+  var rec = e && e.date ? (S.attendance || {})[e.date] : null;
+  if (!rec || !rec.marks) return { known: false, why: 'no attendance recorded that day' };
+  var areas = e.kind === 'pickled' ? ['pickling-vat', 'pickling-barrel'] : e.line ? [e.line].concat(e.line === 'barrel' ? ['pickling-barrel'] : []) : null;
+  if (!areas) return { known: false, why: 'line not known' };
+  var t = e.time ? _hhmm(e.time) : null, ot = e.slot === 'ot' || (t != null && (t < 510 || t >= 1020));
+  var ids = [], src = 'marks';
+  if (ot) {
+    (rec.extra || []).forEach(function(x) {
+      if (!Array.isArray(x.crew) || !x.crew.length || !x.from || !x.to) return;
+      var xa = typeof extraAreas === 'function' ? extraAreas(x) : (x.areas || []);
+      if (!xa.some(function(a) { return areas.indexOf(a) >= 0; })) return;
+      var a = _hhmm(x.from), b = _hhmm(x.to); if (b <= a) b += 1440;
+      var tt = t != null && t < a ? t + 1440 : t;
+      if (tt == null || (tt >= a && tt <= b)) x.crew.forEach(function(id) { if (ids.indexOf(String(id)) < 0) ids.push(String(id)); });
+    });
+    src = 'block';
+  } else {
+    Object.keys(rec.marks).forEach(function(id) {
+      var m = rec.marks[id], w = staffById(id);
+      if (!m || (m.st !== 'P' && m.st !== 'H')) return;
+      if (areas.indexOf(m.area || (w && w.area) || 'flex') >= 0) ids.push(String(id));
+    });
+  }
+  if (!ids.length) return { known: false, why: ot ? 'no OT block on the line names its crew' : 'nobody marked on the line that day' };
+  return { known: true, src: src, ids: ids, names: ids.map(function(id) { var w = staffById(id); return w ? w.name : 'a hand since removed'; }) };
+}
+
+function prodGaugeRuleHas(clientId, part) {
+  var w = (prodPartBase(part).toUpperCase().match(/[A-Z]+/) || [''])[0];
+  return prodData().gaugeRules.some(function(x) { return String(x.clientId) === String(clientId) && x.family === w; });
+}
+
+/* ---------- A floor name and the part it is ----------
+   The register writes a part by its floor name, often with its code in brackets ("TINA(0160)", "KUDAL(0106)",
+   "TINA(3303)"). A code that ends exactly one of the client's part numbers on its challans and invoices is that part: the
+   entry takes it (`partNumber`) and the floor name is learnt for the client (`learn.parts`), so the name alone finds it
+   next time. Two parts ending in the code are left for the owner to pick (Entries → Which part?). */
+function prodClientParts(clientId) {
+  var out = {};
+  var add = function(it) { var pn = String(it.partNumber || it.desc || '').trim(); if (!pn) return; var k = rateKey(pn); out[k] = out[k] || { partNumber: pn, desc: it.desc || '', n: 0 }; out[k].n++; };
+  (S.incomingMaterial || []).forEach(function(m) { if (String(m.clientId) === String(clientId)) (m.items || []).forEach(add); });
+  (S.invoices || []).forEach(function(v) { if (v.status === 'active' && String(v.clientId) === String(clientId)) (v.items || []).forEach(add); });
+  return Object.keys(out).map(function(k) { return out[k]; }).sort(function(a, b) { return b.n - a.n; });
+}
+function prodAliasCode(part) { var m = /\(\s*(\d{3,5})\s*\)|[-\s](\d{4})\s*$/.exec(String(part || '')); return m ? (m[1] || m[2]) : null; }
+function prodAliasName(part) { return String(part || '').replace(/[-\s]*\(\s*\d{3,5}\s*\)/, '').replace(/[-\s]+\d{4}\s*$/, '').trim(); }
+function prodAliasCandidates(clientId, part) {
+  var parts = prodClientParts(clientId), code = prodAliasCode(part), name = prodAliasName(part).toUpperCase();
+  var byCode = code ? parts.filter(function(x) { return rateKey(x.partNumber).slice(-code.length) === code; }) : [];
+  var byWord = name ? parts.filter(function(x) { return byCode.indexOf(x) < 0 && (String(x.partNumber) + ' ' + x.desc).toUpperCase().indexOf(name) >= 0; }) : [];
+  return { code: code, byCode: byCode, byWord: byWord, all: parts };
+}
+function prodLearnAlias(clientId, part, gauge, partNumber, how) {
+  var p = prodData(), rec = { partNumber: partNumber, gauge: gauge || '', how: how || 'set', at: Date.now() };
+  p.learn.parts[prodKey(clientId, part, gauge)] = rec;
+  var nm = prodAliasName(part);
+  if (nm && nm !== part) p.learn.parts[prodKey(clientId, nm, gauge)] = rec;
+  prodTouch();
+}
+/* On entries just saved or imported: a bracketed code that names one part is learnt and taken. Returns how many. */
+function prodLearnAliases(entries) {
+  var n = 0, p = prodData();
+  (entries || []).forEach(function(e) {
+    if (e.clientId == null || !e.part || e.partNumber || e.kind === 'downtime') return;
+    var known = p.learn.parts[prodKey(e.clientId, e.part, e.gauge)];
+    if (known && known.partNumber) return;
+    var c = prodAliasCandidates(e.clientId, e.part);
+    if (c.byCode.length === 1) { prodLearnAlias(e.clientId, e.part, e.gauge, c.byCode[0].partNumber, 'code'); e.partNumber = c.byCode[0].partNumber; n++; }
+  });
+  return n;
 }
 function prodUid(p) { return stockUid(p); }
 /* Stored sparsely: an empty field is left out, so a year of entries stays small on a book written whole on every save. */
@@ -41,7 +135,7 @@ function prodClientName(id) { var c = (S.clients || []).find(function(x) { retur
 function prodHeldId(v) { var c = (S.clients || []).find(function(x) { return String(x.id) === String(v); }); return c ? c.id : v; }
 function prodCtx() {
   return { clients: prodClientIndex(S.clients || [], prodData().learn.clients), roster: (S.staff || []).filter(function(w) { return w.active !== false; }), today: localDateStr(),
-    partOwners: prodPartOwners() };
+    partOwners: prodPartOwners(), gaugeRule: prodGaugeRuleFor, gaugeHas: prodGaugeRuleHas };
 }
 /* Which clients a part has come from, off the challans and invoices of the last year: part key → client ids. A load
    with no client written whose part only one client has ever sent ("LINER", "188 CD") is read as that client, amber. */
@@ -463,7 +557,9 @@ function prodInPlant(opts) {
       // Only a record naming just the kind and gauge is set against the family; a named part with no challan of its
       // own is on the floor with no challan, never someone else's.
       var fk = prodFamilyKey(e.clientId, e.partNumber || e.part, e.gauge);
-      pool = lines.filter(function(r) { return r.fam === fk; });
+      // A gauge read only as one of a few (the rack's rule) is set against the family's challans at any of them.
+      var fks = !e.gauge && e.gaugeOptions ? e.gaugeOptions.map(function(g) { return prodFamilyKey(e.clientId, e.partNumber || e.part, g); }) : [fk];
+      pool = lines.filter(function(r) { return fks.indexOf(r.fam) >= 0; });
       if (pool.length) famUsed++;
     }
     var left = e.qty, u = e.unit;
@@ -696,6 +792,7 @@ function prodMergeImport(obj, fileName) {
     if (e.clientId == null && e.kind !== 'downtime' && (e.client || e.part)) unknown++;
     if (!e.src) e.src = 'import';
     e.importId = e.importId || imp.id;
+    prodLearnAliases([e]);
     p.entries.push(prodSparse(e));
     have[e.id] = true;
     added++;

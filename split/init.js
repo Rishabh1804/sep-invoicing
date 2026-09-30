@@ -481,6 +481,24 @@ if (!S._cnSeriesStart1) {
   saveJSON(STORAGE_KEY, S);
 })();
 
+/* ===== SSS MEHTA'S CLAMP GAUGE BY THE ROUND, RECORDED ONCE =====
+   Owner, 30 Sep 2026: "Mehta's clamp gauge is 25x6 or 30x6 if 150 pieces are done on VAT A1 and 100 pieces on VAT A2, and
+   35x6 or 35x8 or 40x6 if 120 pieces and 72 pieces are done in VAT A1." Set on the client whose name reads Mehta, where it
+   has no rule, and once: the flag travels with the state, so a rule the owner changed stays so. */
+(function() {
+  if (S._prodGaugeRules1) return;
+  var c = (S.clients || []).find(function(x) { return /MEHTA/i.test(String(x.name || '')); });
+  if (!c) return;
+  var p = prodData();
+  if (!p.gaugeRules.some(function(r) { return String(r.clientId) === String(c.id); })) {
+    var at = Date.now(), note = 'owner, 30 Sep 2026';
+    p.gaugeRules.push({ id: 'GR-seed1', clientId: c.id, family: 'CLAMP', racks: [150, 100], gauges: ['25X6', '30X6'], lines: { 150: 'vat-a1', 100: 'vat-a2' }, note: note, at: at });
+    p.gaugeRules.push({ id: 'GR-seed2', clientId: c.id, family: 'CLAMP', racks: [120, 72], gauges: ['35X6', '35X8', '40X6'], lines: { 120: 'vat-a1', 72: 'vat-a1' }, note: note, at: at });
+  }
+  S._prodGaugeRules1 = true;
+  saveJSON(STORAGE_KEY, S);
+})();
+
 /* ===== SAMARTH'S PARTS BY THE ROUND, RECORDED ONCE =====
    Owner, 30 Sep 2026: "3302 at 9/pc takes about 30 mins/piece and we can only do 24 pcs at a time in VAT A2; 3303 at 3/pc
    takes about 30 minutes and we can do 80 pcs at a time in VAT A2." Set on the client whose name reads Samarth, only where

@@ -495,6 +495,21 @@ function cpMaterials(clientId, from, to) {
       r.events.push({ date: d, kind: 'invoice', id: inv.id, ref: inv.invoiceNumber || inv.displayNumber || '', qty: q, unit: unit, amount: Number(it.amount) || 0 });
     });
   });
+  // What the floor plated of it, each with its line and crew (owner, 30 Sep 2026: "we'll know who plated what and when …
+  // useful when we get replating issues"). Shown among the part's events; the figures above stay what was sent and billed.
+  if (typeof prodIndex === 'function') {
+    var pidx = prodIndex();
+    pidx.counted.forEach(function(e) {
+      var d = e.date;
+      if (e.voidedAt || !d || d < from || d > to || e.clientId == null || (clientId != null && String(e.clientId) !== String(clientId))) return;
+      var shown = prodAliasShown ? prodAliasShown(e) : null;
+      var r = row(e.clientId, { partNumber: shown && shown.pn ? shown.pn : (e.partNumber || e.part), desc: e.part });
+      if (!r) return;
+      var crew = prodCrew(e);
+      r.plated = (r.plated || 0) + 1;
+      r.events.push({ date: d, kind: 'plated', id: e.id, ref: prodLineName(e.line), qty: e.qty || 0, unit: e.unit || 'NOS', crew: crew, rework: !!e.rework, time: e.time || '' });
+    });
+  }
   // A line naming no gauge joins its part's only gauge (for that client); with two it stays apart, said as such.
   var gauges = {};
   Object.keys(rows).forEach(function(k) { var r = rows[k]; if (r.gauge) (gauges[r.clientId + '|' + r.base] = gauges[r.clientId + '|' + r.base] || []).push(r); });
@@ -503,6 +518,7 @@ function cpMaterials(clientId, from, to) {
     if (r.gauge || !only || only.length !== 1) return;
     var t = only[0];
     ['nos', 'kg', 'kgUnknown', 'billedNos', 'billedKg', 'revenue'].forEach(function(f) { t[f] += r[f]; });
+    t.plated = (t.plated || 0) + (r.plated || 0);
     Object.keys(r.challans).forEach(function(x) { t.challans[x] = true; });
     Object.keys(r.invoices).forEach(function(x) { t.invoices[x] = true; });
     Object.keys(r.texts).forEach(function(x) { t.texts[x] = true; });
@@ -558,9 +574,14 @@ function cpWorkedListHtml(clientId) {
   if (!list.length) return h + '<div class="inv-empty">' + (all.length ? 'No part matches that search in ' + escHtml(rg.label) + '.' : 'Nothing was sent or billed in ' + escHtml(rg.label) + '.') + '</div>';
   var rows = list.map(function(r) {
     var others = Object.keys(owners[r.base] || {}).filter(function(c) { return String(c) !== String(r.clientId); }).map(function(c) { return names[c] || 'another client'; });
-    var meta = [todoPlural(r.nChallans, 'challan'), r.nInvoices ? todoPlural(r.nInvoices, 'invoice') : 'not invoiced',
+    var meta = [todoPlural(r.nChallans, 'challan'), r.nInvoices ? todoPlural(r.nInvoices, 'invoice') : 'not invoiced', r.plated ? todoPlural(r.plated, 'plating') : '',
       r.first ? (r.first === r.last ? formatDate(r.first) : formatDate(r.first) + ' – ' + formatDate(r.last)) : ''].filter(Boolean).join(' · ');
     var ev = r.events.map(function(e) {
+      if (e.kind === 'plated') {
+        return '<div class="inv-row inv-row-2" data-cp-plated><span class="inv-row-main"><span class="inv-row-title">' + escHtml(formatDate(e.date)) + ' · Plated on ' + escHtml(e.ref) + (e.time ? ' from ' + escHtml(e.time) : '') + (e.rework ? ' · rework' : '') + '</span>' +
+          '<span class="inv-row-meta inv-row-wrap">' + escHtml(e.crew.known ? (e.crew.src === 'block' ? 'OT crew: ' : 'Crew: ') + e.crew.names.join(', ') : 'Crew not known: ' + e.crew.why) + '</span></span>' +
+          '<span class="inv-row-end inv-num">' + escHtml(cpNum(e.qty) + ' ' + (e.unit === 'KG' ? 'kg' : 'NOS')) + '</span></div>';
+      }
       var what = e.kind === 'challan' ? 'Challan ' + (e.ref || '—') : 'Invoice ' + (e.ref || '');
       var q = cpNum(e.qty, e.unit === 'KG' && e.qty % 1 ? 2 : 0) + ' ' + (e.unit === 'KG' ? 'kg' : 'NOS') + (e.nos ? ' (' + cpNum(e.nos) + ' NOS)' : '');
       var act = e.kind === 'invoice' ? ' data-action="invViewInvoiceDetail" data-id="' + escHtml(e.id) + '"' : ' data-action="invHistoryJumpChallan" data-id="' + escHtml(e.id) + '"';

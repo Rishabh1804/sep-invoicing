@@ -83,7 +83,8 @@ function backCorrectChallans(inv, formItems) {
     var from = {}, changed = false;
     CHALLAN_SYNC_FIELDS.forEach(function(f) {
       if (part && CHALLAN_SHARE_FIELDS.indexOf(f) >= 0) return;
-      if (f === 'unit' && unitOff && !carryUnit) return;
+      // A rate in another unit is not the challan's rate corrected: ₹14.50/kg is not a price for its pieces.
+      if ((f === 'unit' || f === 'rate') && unitOff && !carryUnit) return;
       var now_ = li[f] == null ? null : li[f];
       if (now_ === li._orig[f]) return;            // not touched in this edit
       var was = it[f] == null ? null : it[f];

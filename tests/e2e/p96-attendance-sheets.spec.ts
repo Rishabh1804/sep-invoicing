@@ -55,7 +55,8 @@ test.describe('P96: attendance sheets', () => {
     await g(page, `document.getElementById('invPrintBody').innerHTML = attSheetShyamHtml('${todayIso()}')`);
     const front = page.locator('[data-sheet="shyam-in"]');
     const heads = await front.locator('.inv-as-box-h').allInnerTexts();
-    expect(heads).toEqual(['Block 1', 'Block 2', 'VAT A1', 'VAT A2', 'Barrel & pickling', 'Pickling A1 & A2', 'Office & gate', 'Monthly absent', 'Weekly absent']);
+    // Civil under its own heading in the office's box (P124: a civil hand printed under "No line written").
+    expect(heads).toEqual(['Block 1', 'Block 2', 'VAT A1', 'VAT A2', 'Barrel & pickling', 'Pickling A1 & A2', 'Office & gate', 'Civil', 'Monthly absent', 'Weekly absent']);
     expect(await front.locator('.inv-as-slot').allInnerTexts()).toEqual(['6:00 AM', '8:30 AM']);
     // Numbers run on across the areas, as he writes them: VAT A1 1–6, VAT A2 7–12 …
     const nums = await front.locator('.inv-as-grid').nth(1).locator('.inv-as-num').allInnerTexts();

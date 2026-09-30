@@ -1294,23 +1294,31 @@ function pushFloorEvents(events) {
      and says so. */
   // A deleted attendance day: on the recorded clock, the day it was about and why it went.
   (S.attendanceDeletes || []).forEach(function(x) {
+    var what = ' (' + x.marks + ' mark' + (x.marks === 1 ? '' : 's') + ', ' + x.extra + ' EXTRA row' + (x.extra === 1 ? '' : 's') + ')';
     events.push({
       ts: x.at, type: 'audit', kind: 'attDelete', sourceId: null, jump: null, clock: 'recorded',
-      text: 'Attendance day deleted \u2014 ' + (x.iso ? formatDate(x.iso) : 'saved under no date ("' + x.key + '")') +
-        ' (' + x.marks + ' mark' + (x.marks === 1 ? '' : 's') + ', ' + x.extra + ' EXTRA row' + (x.extra === 1 ? '' : 's') + ')' +
-        (x.how === 'migration' ? ', by the app on the owner\u2019s instruction' : '') + ' \u2014 ' + (x.reason || 'no reason recorded')
+      // A day read again from its rolls (relay.js) is logged the same way, and is not a day deleted.
+      text: x.how === 'reread'
+        ? 'Attendance day read again from its rolls \u2014 ' + formatDate(x.iso) + ' as it was' + what + ' kept in the log'
+        : 'Attendance day deleted \u2014 ' + (x.iso ? formatDate(x.iso) : 'saved under no date ("' + x.key + '")') + what +
+          (x.how === 'migration' ? ', by the app on the owner\u2019s instruction' : '') + ' \u2014 ' + (x.reason || 'no reason recorded')
     });
   });
 
+  // An explanation explained again or reopened is kept (areas.js, recordExtraException): each is its own event.
   (S.extraExceptions || []).forEach(function(x) {
+    var about = (x.label || x.key || '') + ' on ' + formatDate(x.iso);
     events.push({
       ts: x.at || floorTs(x.iso), type: 'audit', kind: 'except', sourceId: null, jump: null,
       clock: x.at ? 'recorded' : 'floor',
-      text: 'Extra-hours exception explained \u2014 ' + (x.label || x.key || '') +
-        ' on ' + formatDate(x.iso) +
+      text: 'Extra-hours exception explained \u2014 ' + about +
         (x.expected == null ? '' : ' (expected ' + formatNum(x.expected, 1) + ' h, booked ' +
           formatNum(x.booked || 0, 1) + ' h)') +
-        ' \u2014 ' + (x.reason || 'no reason recorded')
+        ' \u2014 ' + (x.reason || 'no reason recorded') + (x.supersededAt ? ' (explained again since)' : '')
+    });
+    if (x.reopenedAt) events.push({
+      ts: x.reopenedAt, type: 'audit', kind: 'except', sourceId: null, jump: null, clock: 'recorded',
+      text: 'Extra-hours exception reopened \u2014 ' + about + ' \u2014 the explanation "' + (x.reason || '') + '" no longer stands'
     });
   });
 }

@@ -45,6 +45,28 @@ function payPaidBetween(staffId, from, to) {
     return s + (Number(p.amount) || 0);
   }, 0));
 }
+/* The month a monthly hand's payment pays for. A salary goes out around the 14th for the month before (the bank reads a
+   salary leg the same way), so a payment dated on or before the 20th pays the month before; an advance, or a payment
+   after the 20th, pays the month it is dated in. Counted by its date, a salary paid on the 14th read as an advance
+   against the new month, and a month on a slip, skipped whole, took with it the salary paid in it for the month before
+   (the QA of 30 Sep 2026: −₹12,000 "Advance" where ₹1,000 was due, or a salary owed for ever). */
+var PAY_SALARY_BY_DAY = 20;
+function payMonthPaidFor(p) {
+  var d = String((p && p.date) || '');
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(d)) return '';
+  return p.kind !== 'advance' && +d.slice(8, 10) <= PAY_SALARY_BY_DAY ? payMonthStart(isoAddDays(payMonthStart(d), -1)) : payMonthStart(d);
+}
+/* What was paid for a worker's own period: the weekly tiers' by the date (a week is paid on its Saturday), a monthly
+   hand's by the month each payment pays for. */
+function payPaidFor(w, from, to) {
+  if (payIsWeekly(w)) return payPaidBetween(w.id, from, to);
+  var id = String(w.id);
+  return gstRound(staffPayments().reduce(function(s, p) {
+    if (p.voidedAt || String(p.staffId) !== id) return s;
+    var m = payMonthPaidFor(p);
+    return m && m >= payMonthStart(from) && m <= to ? s + (Number(p.amount) || 0) : s;
+  }, 0));
+}
 
 /* ===== What carries from one period to the next =====
    A balance carries (owner, 30 Sep 2026: WB2, "yes, unless stated otherwise and notification cleared"). A due left
@@ -82,9 +104,11 @@ function payCarried(w, periodFrom, lab) {
   if (clear) { var next = payPeriodOf(w, isoAddDays(clear.through, 1)); if (next > start) start = next; }
   var amt = 0, periods = 0;
   for (var p = start, guard = 0; p < periodFrom && guard < 260; guard++) {
-    var end = payPeriodEnd(w, p), e = lab(p, end).byWorker[w.id];
+    var end = payPeriodEnd(w, p), lr = lab(p, end), e = lr.byWorker[w.id];
     periods++;
-    if (!(!payIsWeekly(w) && e && e.asPaid)) amt += (e ? e.total : 0) - payPaidBetween(w.id, p, end);
+    // A month on a slip is settled: its own earnings and the salary paid for it. What was paid in it for the month
+    // before counts for that month (payPaidFor). A slip row only guessed to be this hand settles it too (labourForRange).
+    if (!(!payIsWeekly(w) && ((e && e.asPaid) || (lr.paidGuess || {})[w.id]))) amt += (e ? e.total : 0) - payPaidFor(w, p, end);
     p = isoAddDays(end, 1);
   }
   return { amount: gstRound(amt), from: start, periods: periods, clear: clear };
@@ -165,7 +189,7 @@ function payDue(weekStart) {
     var weekly = payIsWeekly(w), from = weekly ? weekStart : mFrom, to = weekly ? sat : mTo;
     var e = (weekly ? wk : mo).byWorker[w.id];
     if ((e && (e.total || e.days || e.hours || e.hourless)) || staffPayments().some(function(p) { return !p.voidedAt && String(p.staffId) === String(w.id) && p.date >= from && p.date <= to; })
-      || Math.abs(payCarried(w, from, poolLab).amount) >= 1) pool.push(w);
+      || payPaidFor(w, from, to) || Math.abs(payCarried(w, from, poolLab).amount) >= 1) pool.push(w);
   });
   var lab = payLabMemo();
   var rows = pool.map(function(w) {
@@ -173,10 +197,12 @@ function payDue(weekStart) {
     var carry = payCarried(w, weekly ? weekStart : mFrom, lab), c = Math.abs(carry.amount) >= 1 ? carry.amount : 0;
     var e = (weekly ? wk : mo).byWorker[w.id] || { total: 0, days: 0, hours: 0, otHours: 0, base: 0, ot: 0, rest: 0 };
     var from = weekly ? weekStart : mFrom, to = weekly ? sat : mTo;
-    var paid = payPaidBetween(w.id, from, to);
+    var paid = payPaidFor(w, from, to);
     // A closed month on record as paid is settled by the slip: what it paid is
-    // what was earned, so nothing is due on it however the marks read.
-    if (!weekly && e.asPaid) return { w: w, weekly: weekly, earned: e, paid: e.total, due: c, carried: c, carry: carry, from: from, to: to, asPaid: true };
+    // what was earned, so nothing is due on it however the marks read. So is one
+    // whose slip row is only guessed to be this hand (its money stays on the row).
+    var guess = !weekly && (mo.paidGuess || {})[w.id];
+    if (!weekly && (e.asPaid || guess)) return { w: w, weekly: weekly, earned: e, paid: e.total, due: c, carried: c, carry: carry, from: from, to: to, asPaid: true, asPaidAs: guess || '' };
     return { w: w, weekly: weekly, earned: e, paid: paid, due: gstRound(e.total - paid + c), carried: c, carry: carry, from: from, to: to };
   });
   return { rows: rows, extra: wk.extra, extraHours: wk.extraHours, weekStart: weekStart, sat: sat, mFrom: mFrom, mTo: mTo };
@@ -256,7 +282,8 @@ function _payDueCard(ws) {
       // A negative due is an advance not yet worked off: said in a word beside the figure.
       g += _payRow(escHtml(r.w.name),
         (bits.length ? bits.join(' · ') + ' · ' : 'nothing recorded · ') + 'earned ' + payMoney(e.total) +
-          (r.asPaid ? ' · as paid, from the slip' : r.paid ? ' &minus; paid ' + payMoney(r.paid) : '') +
+          (r.asPaid ? ' · as paid, from the slip' + (r.asPaidAs ? ' (its row &ldquo;' + escHtml(r.asPaidAs) + '&rdquo;, only read as this hand)' : '')
+            : r.paid ? ' &minus; paid ' + payMoney(r.paid) : '') +
           (r.carried ? (r.carried > 0 ? ' + ' + payMoney(r.carried) + ' owed from before' : ' &minus; ' + payMoney(-r.carried) + ' advanced before') : ''),
         r.due < 0 ? '<span class="inv-row-stack"><span class="inv-num">' + payMoney(r.due) + '</span><span class="inv-dot inv-dot-warning">Advance</span></span>'
           : '<span class="inv-num">' + payMoney(r.due) + '</span>',
@@ -318,17 +345,19 @@ function _payFormHtml(d) {
 }
 
 function _payListHtml(d) {
+  // A monthly hand's payment is listed in the month it is dated in and in the month it pays for, and says which it pays.
   var list = staffPayments().filter(function(p) {
     var w = staffById(p.staffId);
     var weekly = payIsWeekly(w);
-    return weekly ? (p.date >= d.weekStart && p.date <= d.sat) : (p.date >= d.mFrom && p.date <= d.mTo);
+    return weekly ? (p.date >= d.weekStart && p.date <= d.sat) : (p.date >= d.mFrom && p.date <= d.mTo) || payMonthPaidFor(p) === d.mFrom;
   }).sort(function(a, b) { return a.date < b.date ? 1 : a.date > b.date ? -1 : (b.at || 0) - (a.at || 0); });
   if (!list.length) return '';
   var h = '<div class="inv-row-group">Payments in these periods</div>';
   list.forEach(function(p) {
-    var w = staffById(p.staffId);
+    var w = staffById(p.staffId), forM = payIsWeekly(w) ? '' : payMonthPaidFor(p);
     h += _payRow(escHtml(w ? w.name : 'Removed worker'),
       escHtml(formatDate(p.date)) + ' · ' + (p.kind === 'advance' ? 'Advance' : 'Payment') +
+        (forM && forM !== payMonthStart(p.date) ? ' · for ' + escHtml(_monthLabel(forM.slice(0, 7))) : '') +
         (p.note ? ' · ' + escHtml(p.note) : '') + (p.voidedAt ? ' · void: ' + escHtml(p.voidReason || '') : ''),
       '<span class="inv-num">' + payMoney(Number(p.amount) || 0) + '</span>' +
         (p.voidedAt ? '' : '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invPayVoid" data-id="' + escHtml(p.id) + '">Void</button>'),

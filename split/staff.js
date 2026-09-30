@@ -209,14 +209,23 @@ async function attDeleteDay(iso) {
   var rec = (S.attendance || {})[iso];
   if (!rec) return;
   var marks = Object.keys(rec.marks || {}).length, extra = (rec.extra || []).length;
+  // The rolls the day was saved from (relayPastes) go into the log with it: left on record, the same roll pasted again
+  // was refused as already saved though nothing it saved was left (the QA of 30 Sep 2026).
+  var rolls = function() { return (S.relayPastes || []).filter(function(p) { return p && (p.date === iso || (Array.isArray(p.days) && p.days.indexOf(iso) >= 0)); }); };
+  var nRolls = rolls().length;
   var reason = await uiPrompt({ title: 'Delete ' + formatDate(iso), danger: true, okLabel: 'Delete day',
     body: 'All of this day\u2019s attendance goes: ' + marks + ' mark' + (marks === 1 ? '' : 's') + ' and ' + extra + ' EXTRA row' + (extra === 1 ? '' : 's') +
-      '. It is kept in the log with the reason, and History lists it.',
+      '. It is kept in the log with the reason, and History lists it.' +
+      (nRolls ? ' The ' + (nRolls === 1 ? 'roll it was saved from goes' : nRolls + ' rolls it was saved from go') + ' into the log with it, so ' + (nRolls === 1 ? 'it' : 'they') + ' can be pasted again.' : ''),
     label: 'Why is this day being deleted?', required: true, requiredText: 'A deleted day needs a reason.' });
   if (reason == null) return;
   if (!reason.trim()) { showToast('A deleted day needs a reason', 'error'); return; }
   if (!(S.attendance || {})[iso]) return;
-  attDeleteRecord(iso, reason.trim(), 'by hand');
+  var entry = attDeleteRecord(iso, reason.trim(), 'by hand'), gone = rolls();
+  if (entry && gone.length) {
+    entry.pastes = gone;
+    S.relayPastes = S.relayPastes.filter(function(p) { return gone.indexOf(p) < 0; });
+  }
   saveState();
   renderAttendance();
   showToast(formatDate(iso) + ' deleted; the reason is in History');
@@ -257,6 +266,17 @@ function staffActive() {
     if (ai !== bi) return ai - bi;
     return (a.name || '').localeCompare(b.name || '');
   });
+}
+
+/* The roster of a day: the active hands, and anyone marked that day who has since left. A left hand's mark is priced on
+   the day's cost and counted in Needed today, so the Day board and the Week grid must show it, and let it be corrected
+   (the QA of 30 Sep 2026: it was on neither). The paper sheets read the same list (attsheet.js). */
+function attDayRoster(rec) {
+  var list = staffActive().slice();
+  if (rec) Object.keys(rec.marks || {}).forEach(function(id) {
+    if (!list.some(function(w) { return String(w.id) === String(id); })) { var w = staffById(id); if (w) list.push(w); }
+  });
+  return list;
 }
 
 function areaLabel(id) {
@@ -358,6 +378,8 @@ function renderAttendance() {
   if (_attDate !== _attDateSeen) { _attWeekStart = attWeekStartOf(_attDate); _attDateSeen = _attDate; }
   if (!_attWeekStart) _attWeekStart = attWeekStartOf(_attDate);
   if (_attView !== 'paste') _attPrevView = _attView;
+  // A day's rolls read again are for that check only: left by any way (a tab, back), Paste message opens empty after.
+  if (_attView !== 'paste' && _relay && _relay.reread) { _relay = null; _relayView = 'paste'; }
 
   var focusSel = _attFocusSelector();
 
@@ -412,7 +434,7 @@ var ATT_STATE_TONE = { P: 'ok', H: 'warning', A: 'danger' };
 function _attDayView() {
   var iso = _attDate;
   var rec = attDay(iso, false);
-  var roster = staffActive();
+  var roster = attDayRoster(rec);
   var total = roster.length;
 
   var present = 0, half = 0, absent = 0, unmarked = 0, otHours = 0, poolHours = 0;
@@ -434,6 +456,8 @@ function _attDayView() {
     'invAttToday', 'Today', 'Previous day', 'Next day') +
     // Paste message stays the one primary; the paper forms for the day sit beside it (attsheet.js).
     _attPasteBar().replace('</div>', '<button class="inv-btn inv-btn-secondary" data-action="invAttSheetOpen">Print sheets</button>' +
+      // The day's rolls, read again by the reader as it reads now (relay.js, relayRereadOpen).
+      (relayDayHasRolls(iso) ? '<button class="inv-btn inv-btn-secondary" data-action="invRelayReread">Read the rolls again</button>' : '') +
       (rec ? '<button class="inv-btn inv-btn-danger" data-action="invAttDayDelete">Delete this day</button>' : '') + '</div>');
 
   var tile = function(id, label, value, sub, tone) {
@@ -501,7 +525,8 @@ function _attBoardRow(w, m) {
   var hrs = m && st !== 'A' ? (hourly ? (m.hours ? m.hours + ' h' : 'no hours') : (m.ot ? 'OT ' + m.ot + ' h' : '')) : '';
   return '<div class="inv-row" data-att-row="' + w.id + '">' +
     '<button class="inv-row-main" data-action="invAttEdit" data-id="' + w.id + '"><span class="inv-row-title">' + escHtml(w.name) + '</span>' +
-    '<span class="inv-row-meta">' + escHtml(compClass(w.comp).label) + (m ? ' · ' + escHtml(ATT_STATE_LABELS[st] || '') + (hrs ? ' · ' + hrs : '') : ' · unmarked') + '</span></button>' +
+    '<span class="inv-row-meta">' + escHtml(compClass(w.comp).label) + (w.active === false ? ' · left' : '') +
+    (m ? ' · ' + escHtml(ATT_STATE_LABELS[st] || '') + (hrs ? ' · ' + hrs : '') : ' · unmarked') + '</span></button>' +
     '<span class="inv-row-end"><span class="inv-seg" role="group" aria-label="Attendance for ' + escHtml(w.name) + '">' +
     states.map(function(x) {
       return '<button class="inv-seg-btn inv-seg-btn-' + ATT_STATE_TONE[x] + '" data-action="invAttSet" data-id="' + w.id +
@@ -752,7 +777,9 @@ function _attExtraCard(iso, rec) {
 
 function _attWeekView() {
   var days = attWeekDays(_attWeekStart);
-  var roster = staffActive();
+  // The active roster, and anyone marked in the week who has since left (attDayRoster).
+  var roster = staffActive().slice();
+  days.forEach(function(d) { attDayRoster(attDay(d, false)).forEach(function(w) { if (roster.indexOf(w) < 0) roster.push(w); }); });
   var last = days[days.length - 1];
   var today = localDateStr();
 
@@ -774,8 +801,9 @@ function _attWeekView() {
   roster.forEach(function(w) {
     var cls = compClass(w.comp);
     var hourly = compIsHourly(w);
-    html += '<tr><th scope="row" title="' + escHtml(w.name + ' · ' + cls.label) + '">' + escHtml(w.name) +
-      ' <span class="inv-unit">' + cls.short + '</span></th>';
+    var left = w.active === false;
+    html += '<tr' + (left ? ' data-left' : '') + '><th scope="row" title="' + escHtml(w.name + ' · ' + cls.label + (left ? ' · left' : '')) + '">' + escHtml(w.name) +
+      ' <span class="inv-unit">' + cls.short + (left ? ' · left' : '') + '</span></th>';
     days.forEach(function(d) {
       var m = attMark(d, w.id);
       var st = m ? m.st : '';
@@ -1044,7 +1072,8 @@ function relayLearnFromRow(x) {
     if (asRead) delete L.heads[k];
     else L.heads[k] = { areas: now, was: was, text: x.srcHead, slot: x.srcAt, at: at, day: _attDate };
   }
-  if (x.srcSlot && x.kind === 'block') {
+  // A row saved while "12:00AM--OUT TIME" still read as worded carries it as its slot: a time is no lesson (relayHeadHasWords).
+  if (x.srcSlot && x.kind === 'block' && relayHeadHasWords(x.srcSlot)) {
     var ks = relayHeadKey(x.srcSlot);
     if (x.from === x.srcFrom && x.to === x.srcTo) delete L.slots[ks];
     else if (x.from && x.to) L.slots[ks] = { from: x.from, to: x.to, wasFrom: x.srcFrom || '', wasTo: x.srcTo || '', text: x.srcSlot, at: at, day: _attDate };
@@ -1261,10 +1290,12 @@ function _attMarkCount(staffId) {
   return n;
 }
 
-/* Payments that name this worker: Pay's payments and advances, and the bank's wage rules and row settings. */
+/* Payments that name this worker: Pay's payments and advances, a balance cleared with a reason, and the bank's wage
+   rules and row settings. */
 function _attPayRefs(staffId) {
   var k = String(staffId), n = 0, bank = S.bank || {};
   (S.staffPayments || []).forEach(function(p) { if (String(p.staffId) === k) n++; });
+  (S.payCarryClears || []).forEach(function(c) { if (String(c.staffId) === k) n++; });
   Object.keys(bank.parties || {}).forEach(function(q) { var r = bank.parties[q]; if (r && r.staffId != null && String(r.staffId) === k) n++; });
   (bank.rows || []).forEach(function(r) { if (r.set && r.set.staffId != null && String(r.set.staffId) === k) n++; });
   return n;
@@ -1860,6 +1891,9 @@ function mergeWorkers(fromId, intoId) {
   Object.keys(bank.parties || {}).forEach(function(k) { var r = bank.parties[k]; if (r && same(r.staffId)) { r.staffId = intoId; payments++; } });
   (bank.rows || []).forEach(function(r) { if (r.set && same(r.set.staffId)) { r.set.staffId = intoId; payments++; } });
   (S.payrollPaid || []).forEach(function(rec) { (rec.rows || []).forEach(function(r) { if (same(r.staffId)) r.staffId = intoId; }); });
+  // A balance cleared with a reason is the worker's too: left on the merged-away id, the survivor carried it again.
+  var clears = 0;
+  (S.payCarryClears || []).forEach(function(c) { if (same(c.staffId)) { c.staffId = intoId; clears++; } });
 
   // The row going away was a spelling of this person; the roll may still use it.
   [from.name].concat(from.relayNames || []).forEach(function(n) {
@@ -1872,7 +1906,7 @@ function mergeWorkers(fromId, intoId) {
   var idx = (S.staff || []).findIndex(function(w) { return w.id === fromId; });
   if (idx !== -1) S.staff.splice(idx, 1);
 
-  return { moved: moved, collided: collided, crews: crews, payments: payments,
+  return { moved: moved, collided: collided, crews: crews, payments: payments, clears: clears,
            collisionDays: collisionDays.sort(), fromName: from.name, intoName: into.name };
 }
 
@@ -1915,7 +1949,8 @@ async function mergeWorkerInto(fromId) {
   showToast('Merged into ' + res.intoName + ' \u2014 ' + res.moved + ' day' +
     (res.moved === 1 ? '' : 's') + ' moved' +
     (res.crews ? ', ' + res.crews + ' block crew' + (res.crews === 1 ? '' : 's') + ' re-pointed' : '') +
-    (res.payments ? ', ' + res.payments + ' payment' + (res.payments === 1 ? '' : 's') + ' moved with them' : ''),
+    (res.payments ? ', ' + res.payments + ' payment' + (res.payments === 1 ? '' : 's') + ' moved with them' : '') +
+    (res.clears ? ', ' + res.clears + ' cleared balance' + (res.clears === 1 ? '' : 's') + ' with them' : ''),
     res.collided ? 'warning' : 'success');
 
   /* The collided days do not fit in a toast, and they are the half that costs

@@ -77,8 +77,17 @@ function prodSrcWord(e) { return { paste: 'message', photo: 'register photo', ha
 function prodOverviewHtml() {
   var today = localDateStr(), from = isoAddDays(today, -27), idx = prodIndex();
   var lastDay = idx.counted.map(function(e) { return e.date; }).sort().pop() || null;
-  var lastKg = 0, lastNos = 0, lastLines = {};
-  if (lastDay) PROD_LINES.forEach(function(l) { var r = prodDayLine(lastDay, l); lastKg += r.kg; lastNos += r.nos; if (r.entries.length) lastLines[l] = true; });
+  var lastKg = 0, lastNos = 0, lastWeighed = 0, lastKgLines = 0, lastLines = {};
+  if (lastDay) PROD_LINES.forEach(function(l) {
+    var r = prodDayLine(lastDay, l);
+    lastKg += r.kg; lastNos += r.nos; lastWeighed += r.weighedPieces;
+    r.entries.forEach(function(e) { if (e.unit === 'KG') lastKgLines += e.qty; });
+    if (r.entries.length) lastLines[l] = true;
+  });
+  // Tonnage is a whole figure only where the pieces are weighed: under 90% the pieces are the figure and the tonnes are
+  // said as what they are (on the real book, 0.03 t stood beside 3,600 NOS with nothing saying 2% were weighed).
+  var lastShare = lastNos ? lastWeighed / lastNos : 1, lastWhole = lastShare >= 0.9;
+  var lastWhere = lastDay ? stockShortDate(lastDay) + ' · ' + Object.keys(lastLines).map(prodLineName).join(', ') : '';
   var wk = attWeekStartOf(today), wkSum = prodPlatedSummary(wk, today);   // the pay week, Sunday to Saturday
   var plant = prodInPlant({});
   var pni = plant.rows.reduce(function(s, x) { if (x.unit === 'NOS') s.nos += x.platedNotInvoiced; else s.kg += x.platedNotInvoiced; return s; }, { nos: 0, kg: 0 });
@@ -86,7 +95,10 @@ function prodOverviewHtml() {
     return '<div class="inv-tile' + (tone ? ' inv-tile-' + tone : '') + '" data-prod-tile="' + key + '"><div class="inv-tile-label">' + label + '</div><div class="inv-tile-value">' + figWrapHtml(value) + '</div><div class="inv-tile-sub">' + sub + '</div></div>';
   };
   var h = '<div class="inv-tiles">' +
-    tile('Plated, last recorded day', lastDay ? escHtml(formatNum(lastKg / 1000, 2) + ' t') : '&mdash;', lastDay ? escHtml(stockShortDate(lastDay) + ' · ' + Object.keys(lastLines).map(prodLineName).join(', ') + ' · ' + Math.round(lastNos).toLocaleString('en-IN') + ' NOS') : 'nothing recorded', '', 'last') +
+    tile('Plated, last recorded day', !lastDay ? '&mdash;' : lastWhole ? escHtml(formatNum(lastKg / 1000, 2) + ' t')
+      : escHtml(Math.round(lastNos).toLocaleString('en-IN') + ' NOS' + (lastKgLines ? ' + ' + formatNum(lastKgLines, 0) + ' kg' : '')),
+      !lastDay ? 'nothing recorded' : escHtml(lastWhere + ' · ' + (lastWhole ? Math.round(lastNos).toLocaleString('en-IN') + ' NOS'
+        : formatNum(lastKg / 1000, 2) + ' t known, ' + Math.round(lastShare * 100) + '% of the pieces weighed')), '', 'last') +
     tile('This week against capacity', wkSum ? Math.round(wkSum.perDay / wkSum.capacity * 100) + '%' : '&mdash;', wkSum ? escHtml('on ' + wkSum.days + ' complete day' + (wkSum.days === 1 ? '' : 's') + ' · of ~2 t a shift, two shifts') : 'no complete day this week', '', 'week') +
     tile('In plant (book)', escHtml(formatCurrency(plant.book)), 'open on challans, not invoiced', '', 'book') +
     tile('Plated, not invoiced', escHtml((pni.nos ? Math.round(pni.nos).toLocaleString('en-IN') + ' NOS' : '') + (pni.nos && pni.kg ? ' + ' : '') + (pni.kg ? formatNum(pni.kg, 1) + ' kg' : '') || '0'), 'recorded plated, still open on its challan', pni.nos || pni.kg ? 'warning' : '', 'pni') +

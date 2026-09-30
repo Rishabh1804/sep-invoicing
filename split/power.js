@@ -563,28 +563,42 @@ function powerOverviewHtml(a) {
 
 function powerCutsHtml(a) {
   if (!a.cuts.length) return '<div class="inv-empty">No power cut on record. Cuts come in from the register photos and the WhatsApp messages Production reads, or Enter a cut; the history from soma-internal&rsquo;s log comes in through Import history.</div>';
+  // A cut is one line (the day and the clock, how long, the damage and its status) that opens to what the damage is
+  // made of; the newest month is open and every older one folds to its head (UX overhaul 2's length pass: this list
+  // ran 21.6 phone screens on the real book, a paragraph of arithmetic under every cut).
   var h = '<div class="inv-panels">';
-  a.months.slice().reverse().forEach(function(m) {
+  a.months.slice().reverse().forEach(function(m, mi) {
     var list = a.cuts.filter(function(c) { return c.date.slice(0, 7) === m.month; }).reverse();
     var rows = list.map(function(c) {
-      var k = c.cost, lay = [];
-      if (k.lost) lay.push('output ' + formatCurrency(k.lost) + ', its contribution ' + formatCurrency(k.contrib));
-      if (k.idleAll) lay.push('idle wages ' + formatCurrency(k.idle) + ' (' + k.hands + ' plater' + (k.hands === 1 ? '' : 's') + ')' + (k.idleAll > k.idle ? ', ' + formatCurrency(k.idleAll) + ' with everyone present' : ''));
-      if (k.recOt) lay.push('catch-up overtime ' + formatCurrency(k.recOt) + (k.recovered ? ', ' + Math.round(k.recovered * 100) + '% made up' : ''));
-      if (k.restart) lay.push('restart ' + formatCurrency(k.restart));
-      if (k.fixed) lay.push('fixed charge ' + formatCurrency(k.fixed) + ', paid anyway');
-      var when = powerClock(c.from) + ' – ' + (c.to != null ? (c.atLeast ? 'after ' : '') + powerClock(c.to) + (c.overnight ? ' next day' : '') : 'not back');
+      var k = c.cost, left = 1 - (k.recovered || 0), parts = [];
+      var part = function(label, meta, amount) { parts.push('<div class="inv-row inv-row-2"><span class="inv-row-main"><span class="inv-row-title">' + label + '</span>' +
+        '<span class="inv-row-meta inv-row-wrap">' + escHtml(meta) + '</span></span><span class="inv-row-end"><span class="inv-num">' + formatCurrency(amount) + '</span></span></div>'); };
+      if (k.restart) part('Restart', 'restart ' + formatCurrency(k.restart) + ', paid whether or not the work is made up', k.restart);
+      if (k.recOt) part('Catch-up overtime', 'catch-up overtime ' + formatCurrency(k.recOt) + (k.recovered ? ', ' + Math.round(k.recovered * 100) + '% made up' : ''), k.recOt);
+      if (k.lost) part('Output not made', 'output ' + formatCurrency(k.lost) + ', its contribution ' + formatCurrency(k.contrib) + (k.recovered ? ', the ' + Math.round(left * 100) + '% not made up' : ''), gstRound(left * k.contrib));
+      if (k.idleAll) part('Wages that bought nothing', 'idle wages ' + formatCurrency(k.idle) + ' (' + k.hands + ' plater' + (k.hands === 1 ? '' : 's') + ')' +
+        (k.idleAll > k.idle ? ', ' + formatCurrency(k.idleAll) + ' with everyone present' : '') + (k.recovered ? ', the ' + Math.round(left * 100) + '% not made up' : ''), gstRound(left * k.idle));
+      if (k.fixed) part('Fixed charge', 'fixed charge ' + formatCurrency(k.fixed) + ', paid anyway, so not added', k.fixed);
+      // The meridiem once where both ends share it (10:10 – 10:45 AM): the row's title is the one line a phone gives it.
+      var at = powerClock(c.from), back = c.to != null ? powerClock(c.to) : null;
+      var when = back == null ? at + ' – not back' : c.atLeast || c.overnight ? at + ' – ' + (c.atLeast ? 'after ' : '') + back + (c.overnight ? ' next day' : '')
+        : at.slice(-2) === back.slice(-2) ? at.slice(0, -3) + ' – ' + back : at + ' – ' + back;
       var tone = c.open ? 'warning' : k.inside ? 'danger' : 'neutral';
-      return '<div class="inv-row inv-row-2" data-power-cut="' + escHtml(c.date + '|' + c.from) + '"><span class="inv-row-main"><span class="inv-row-title">' +
-        escHtml(formatDate(c.date) + ' · ' + when) + '</span><span class="inv-row-meta inv-row-wrap">' +
-        escHtml([powerDur(c.min) + (c.atLeast ? ' at least' : '') + (c.inferred ? ', close inferred' : ''), c.phase === 'single' ? 'single-phase' : '', k.inside ? powerDur(k.inside) + ' in working hours' + (k.ot ? ', ' + powerDur(k.ot) + ' of it overtime' : '') : 'outside working hours', lay.join(' · '), c.reports > 1 ? c.reports + ' reports' : ''].filter(Boolean).join(' · ')) +
-        '</span></span><span class="inv-row-end"><span class="inv-num">' + formatCurrency(k.total) + '</span><span class="inv-dot inv-dot-' + tone + '">' + (c.open ? 'No time back' : k.inside ? 'Working hours' : 'Off hours') + '</span></span></div>';
+      var meta = [powerDur(c.min) + (c.atLeast ? ' at least' : '') + (c.inferred ? ', close inferred' : ''), c.phase === 'single' ? 'single-phase' : '',
+        k.inside ? (c.min != null && k.inside >= c.min ? 'all in working hours' : powerDur(k.inside) + ' in working hours') + (k.ot ? ', ' + powerDur(k.ot) + ' of it overtime' : '') : 'outside working hours',
+        k.hands ? k.hands + ' plater' + (k.hands === 1 ? '' : 's') + ' idle' : '', c.reports > 1 ? c.reports + ' reports' : ''].filter(Boolean).join(' · ');
+      return '<details class="inv-row-fold" data-power-cut="' + escHtml(c.date + '|' + c.from) + '"><summary class="inv-row inv-row-2"><span class="inv-row-main"><span class="inv-row-title">' +
+        escHtml(stockShortDate(c.date) + ' · ' + when) + '</span><span class="inv-row-meta">' + escHtml(meta) + '</span></span>' +
+        '<span class="inv-row-end inv-row-end-stack"><span class="inv-num">' + formatCurrency(k.total) + '</span><span class="inv-dot inv-dot-' + tone + '">' +
+        (c.open ? 'No time back' : k.inside ? 'Working hours' : 'Off hours') + '</span></span></summary>' +
+        (parts.length ? '<div class="inv-row-children">' + parts.join('') + '</div>' : '') + '</details>';
     });
-    h += '<div class="inv-panel inv-panel-flush" data-power-month="' + m.month + '"><div class="inv-panel-head"><span class="inv-panel-title">' + escHtml(billsMonthLabel(m.month)) +
-      ' <span class="inv-panel-count">' + m.cuts + '</span></span></div>' +
+    var head = '<span class="inv-panel-title">' + escHtml(billsMonthLabel(m.month)) + ' <span class="inv-panel-count">' + m.cuts + '</span></span>' +
+      '<span class="inv-num">' + formatCurrency(m.cost) + '</span>';
+    h += uiFoldHtml('power-' + m.month, head,
       '<div class="inv-panel-body inv-note">' + escHtml(powerHours(m.min) + ' dark' + (m.open ? ', ' + m.open + ' with no time back' : '') + ' · ' + formatCurrency(m.cost) + ' · ' +
         m.recorded + ' of ' + m.of + ' working days recorded' + (m.perDay != null ? ' · ' + formatNum(m.perDay, 2) + ' cuts a recorded day' : '')) + '</div>' +
-      uiMoreHtml('power-' + m.month, rows, { noun: 'cuts' }) + '</div>';
+      uiMoreHtml('power-' + m.month, rows, { n: 10, noun: 'cuts' }), mi === 0, ' data-power-month="' + m.month + '"');
   });
   return h + '</div>';
 }

@@ -390,7 +390,6 @@ function onDocClick(e) {
     case 'invToggleItemSelect': e.stopPropagation(); toggleItemSelect(parseInt(btn.dataset.id)); break;
     case 'invClearItemSelection': clearItemSelection(); break;
     case 'invBatchDeleteItems': batchDeleteItems(); break;
-    case 'invLoadMoreItems': _renderItemsList(); break;
     // Clients/Items desktop: a row opens the pane; its close button shuts it
     case 'invSelectClientRow': _renderClientDetail(parseInt(btn.dataset.id)); break;
     case 'invSelectItemRow': _renderItemDetail(parseInt(btn.dataset.id)); break;

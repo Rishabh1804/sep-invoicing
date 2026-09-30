@@ -1280,6 +1280,8 @@ button.inv-row:hover, a.inv-row:hover { background: var(--surface-2); }
 .inv-row-meta { font-size: var(--fs-12); color: var(--text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .inv-row-end { flex-shrink: 0; display: flex; align-items: center; gap: var(--sp-8); text-align: right; }
 .inv-row-end .inv-btn-link { font-size: var(--fs-13); }
+/* On the phone an end can stack its figure over its status, so the title keeps its room (Power → Cuts). */
+body:not(.inv-desktop) .inv-row-end-stack { flex-direction: column; align-items: flex-end; gap: var(--sp-2); }
 button.inv-row-main { display: block; padding: 0; border: none; background: none; font: inherit; color: inherit; text-align: left; cursor: pointer; align-self: stretch; }
 /* A row's button reaches the row's top and bottom edges, over its padding, so the row's full height is the tap: it stopped
    short by the padding and was 43px on a two-line row, 31px on a one-line one. */
@@ -1345,12 +1347,10 @@ body:not(.inv-desktop) .inv-row-flow > .inv-row-actions { flex-basis: 100%; just
 .inv-row-flow .inv-unit { min-width: var(--sp-20); }
 /* A row's end that is a line of controls (P/H/A, an area, hours): the width of the row under the name on the
    phone, beside the name on the desktop. */
-.inv-row-fields { flex: 1 1 100%; min-width: 0; }
-.inv-row-fields > .inv-seg { width: auto; flex: 0 0 auto; }
-.inv-row-fields > .inv-seg .inv-seg-btn { min-width: var(--touch); padding: 0 var(--sp-8); }
-.inv-row-fields > .inv-select { flex: 1 1 auto; width: auto; min-width: 0; }
-.inv-row-fields > .inv-input { flex: 0 0 var(--line-unit-w); width: var(--line-unit-w); }
-body.inv-desktop .inv-row-fields { flex: 0 1 auto; }
+/* A segmented control at a row's end (Staff → Day's P / H / A) is as wide as its buttons, each a touch target: the
+   board's rows lost the rule when the Day became a board, and P / H / A read "P.." on the phone. */
+.inv-row-end > .inv-seg { width: auto; flex: 0 0 auto; }
+.inv-row-end > .inv-seg .inv-seg-btn { flex: 0 0 auto; min-width: var(--touch); padding: 0 var(--sp-8); text-overflow: clip; }
 body.inv-desktop .inv-row-fields > .inv-select { flex: 0 0 var(--col-sm-w); width: var(--col-sm-w); }
 body.inv-desktop .inv-row-fields > .inv-seg .inv-seg-btn { min-width: var(--ctl-h); }
 .inv-row-end > .inv-field { margin-bottom: 0; }

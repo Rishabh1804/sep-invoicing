@@ -223,6 +223,19 @@ function ghFieldsUnsaved() {
   return true;
 }
 
+/* What this window holds, counted the way an envelope counts. */
+function ghCountsText() {
+  return (S.invoices || []).length + ' invoices, ' + (S.incomingMaterial || []).length + ' challans';
+}
+
+/* A book replaced by hand (Settings → Import) is not the copy this device last exchanged with GitHub. With the SHA still
+   matching, auto-push sent an older backup over GitHub's copy unasked (the QA audit of 30 Sep 2026); without it the next
+   push asks, and auto-push pauses. */
+function ghForgetSha() {
+  var c = loadJSON(GH_SYNC_KEY, null);
+  if (c && c.sha) { c.sha = null; setGhConfig(c); }
+}
+
 /* ===== PUSH ===== */
 async function ghPush(opts) {
   var silent = opts && opts.silent;
@@ -231,15 +244,31 @@ async function ghPush(opts) {
     if (!silent) showToast('Set the GitHub repo and token in Settings first', 'error');
     return false;
   }
+  // A stand-in (the stored book would not read, or is gone: bookStandIn) is never pushed unasked. The SHA guard below
+  // cannot see it, since GitHub's copy has not moved: auto-push sent the default book over the only other copy of the
+  // real one (the QA audit of 30 Sep 2026). By hand it asks, naming both sides.
+  var standIn = bookStandIn();
+  if (standIn && silent) {
+    ghSetStatus('Not pushed: ' + bookStandInWords() + '. Import a backup or pull from GitHub first.');
+    return false;
+  }
 
   ghSetBusy(true, 'Pushing');
   try {
-    var remote = await ghGetRemote(cfg, { body: false });
+    // The stand-in's question names GitHub's copy, so it is read whole; otherwise the SHA is enough.
+    var remote = await ghGetRemote(cfg, standIn ? null : { body: false });
 
+    if (standIn) {
+      var go = await uiConfirm({ title: 'Push a stand-in to GitHub?', body: 'This window holds a stand-in, not this device\'s book: ' +
+        bookStandInWords() + '. The stand-in holds ' + ghCountsText() + '.\n\nGitHub holds ' +
+        (remote ? ghDescribeEnvelope(remote.envelope) : 'no copy yet') + '.\n\nPushing replaces GitHub\'s copy with the stand-in. Continue?',
+        okLabel: 'Push the stand-in', danger: true });
+      if (!go) { ghSetBusy(false); ghSetStatus('Push cancelled.'); return false; }
+    }
     // The SHA moved since this device last exchanged: someone else wrote.
     // Never resolve that quietly — the operator is the only one who knows
     // which copy is the real one.
-    if (remote && remote.sha && remote.sha !== cfg.sha) {
+    else if (remote && remote.sha && remote.sha !== cfg.sha) {
       // Only now is the other copy worth downloading: to say whose it is.
       if (!remote.envelope) remote = await ghGetRemote(cfg) || remote;
       if (silent) {
@@ -264,12 +293,18 @@ async function ghPush(opts) {
 
     var result = await ghRequest(ghContentsUrl(cfg), { method: 'PUT', body: body });
     var pushedAt = Date.now();
-    ghRecord(cfg, { sha: result && result.content ? result.content.sha : null, lastPushAt: pushedAt });
-    if (pushedRev) bookPost({ type: 'pushed', rev: pushedRev });
+    // The remembered SHA says GitHub holds what this device holds. Not for a stand-in, and not for a book whose last save
+    // did not reach this device's disk: after a reload the device holds an older book than the one sent, and auto-push
+    // would send it over GitHub's unasked. Without the SHA the next push asks. A stand-in pushed is no backup either.
+    var ours = !standIn && _storageHealth.lastSaveOk !== false;
+    if (ours) ghRecord(cfg, { sha: result && result.content ? result.content.sha : null, lastPushAt: pushedAt });
+    else if (!standIn) ghRecord(cfg, { lastPushAt: pushedAt });
+    if (pushedRev && ours) bookPost({ type: 'pushed', rev: pushedRev });
     ghSetBusy(false);
-    ghSetStatus('Pushed ' + formatTimestamp(pushedAt) + '.');
+    ghSetStatus(standIn ? 'Pushed the stand-in ' + formatTimestamp(pushedAt) + '.'
+      : 'Pushed ' + formatTimestamp(pushedAt) + '.' + (ours ? '' : ' This device\'s last save did not land, so the next push asks first.'));
     ghRenderCard();
-    if (!silent) showToast('Pushed to GitHub');
+    if (!silent) showToast(standIn ? 'Pushed the stand-in to GitHub' : 'Pushed to GitHub');
     return true;
   } catch (err) {
     ghSetBusy(false);
@@ -283,6 +318,9 @@ async function ghPush(opts) {
 async function ghPull() {
   var cfg = getGhConfig();
   if (!ghIsConfigured()) { showToast('Set the GitHub repo and token in Settings first', 'error'); return false; }
+  // Where nothing can be written (a stored copy that cannot be set aside), a pull would only replace the stand-in in memory.
+  var blocked = bookStandInBlocker();
+  if (blocked) { ghSetStatus('Not pulled: ' + blocked + '.'); showToast('Not pulled: ' + blocked, 'error'); return false; }
 
   ghSetBusy(true, 'Pulling');
   try {
@@ -308,9 +346,8 @@ async function ghPull() {
       return false;
     }
 
-    var mine = (S.invoices || []).length + ' invoices, ' + (S.incomingMaterial || []).length + ' challans';
     if (!(await uiConfirm({ title: 'Replace all data on this device?', body: 'Replace ALL data on this device with ' + ghDescribeEnvelope(env) + '?\n\n' +
-        'This device currently holds ' + mine + '. That is discarded.', okLabel: 'Replace', danger: true }))) {
+        (bookStandIn() ? bookStandInReplaceText() : 'This device currently holds ' + ghCountsText() + '. That is discarded.'), okLabel: 'Replace', danger: true }))) {
       ghSetBusy(false);
       ghSetStatus('Pull cancelled.');
       return false;
@@ -331,21 +368,21 @@ async function ghPull() {
       showToast('Backup could not be read', 'error');
       return false;
     }
-    saveState();
+    bookReleaseStandIn();
+    // The SHA is this device's only once the pulled book is on its disk. Recorded after a save that did not land, the
+    // device went back to its older book on the next start, still "in step" with GitHub, and auto-push sent that older
+    // book over the one just pulled (the QA audit of 30 Sep 2026).
+    var landed = await saveState();
 
     var pulledAt = Date.now();
-    ghRecord(cfg, { sha: remote.sha, lastPullAt: pulledAt });
+    if (landed) ghRecord(cfg, { sha: remote.sha, lastPullAt: pulledAt });
 
     ghSetBusy(false);
-    ghSetStatus('Pulled ' + formatTimestamp(pulledAt) + '.');
-    closeOverlay();
-    _tabDirty.home = true;
-    _tabDirty.register = true;
-    _regToolbarRendered = false;
-    _imToolbarRendered = false;
-    switchTab('pageHome');
-    showToast('Pulled from GitHub');
-    return true;
+    ghSetStatus(landed ? 'Pulled ' + formatTimestamp(pulledAt) + '.' : 'Pulled, but NOT saved on this device: ' + saveFailText() + '.');
+    bookReplacedShow();
+    if (landed) showToast('Pulled from GitHub');
+    else showToast('NOT saved: ' + saveFailText() + '. The pulled book is in this window only and will be lost on reload.', 'error');
+    return landed;
   } catch (err) {
     ghSetBusy(false);
     ghSetStatus(err.message);
@@ -363,6 +400,8 @@ var _ghAutoBackoff = false;
 const GH_AUTOPUSH_DELAY = 45000;
 
 function ghNotifyChange() {
+  // A stand-in is not the book: saves of it are refused, and it is never pushed unasked (ghPush).
+  if (bookStandIn()) return;
   var cfg = getGhConfig();
   if (!cfg.autoPush || !ghIsConfigured() || _ghAutoBackoff) return;
   if (typeof navigator !== 'undefined' && navigator.onLine === false) return;

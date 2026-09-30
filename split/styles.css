@@ -241,7 +241,7 @@ body:not(.inv-booted) { pointer-events: none; }
   --as-sheet-w: 210mm; --as-sheet-h: 297mm; --as-sign-gap: 10mm; --as-ink: #1a3a8f;
   background: #fff; color: #000; font-family: var(--ff-base); font-size: var(--as-fs); line-height: 1.2;
   width: var(--as-sheet-w); min-height: var(--as-sheet-h); padding: var(--as-pad); margin: 0 auto var(--sp-16);
-  border: 1px solid var(--border); page-break-after: always; break-after: page;
+  border: var(--hair) solid var(--border); page-break-after: always; break-after: page;
 }
 .inv-as-page:last-child { page-break-after: auto; break-after: auto; }
 .inv-as-head { display: flex; justify-content: space-between; align-items: baseline; border-bottom: var(--as-rule) solid #000; padding-bottom: 2mm; margin-bottom: var(--as-gap); }
@@ -323,23 +323,28 @@ body:not(.inv-booted) { pointer-events: none; }
      and ran past its own border on the desktop, while the print was right (owner, 29 Sep 2026). */
   --pi-sheet-w: 210mm;
   --pi-sheet-h: 297mm;
+  /* Its rules, and the room the signature takes: declared here like the type, so every rule below reads a var(). */
+  --pi-rule-w: 1px;
+  --pi-rule-heavy-w: 2px;
+  --pi-addr-gap: 1px;
+  --pi-sig-min-h: 80px;
 
   background: #fff; color: #000;
   padding: var(--pi-gutter-top) var(--pi-gutter-side) var(--pi-gutter-bottom);
   font-family: var(--ff-base); font-size: var(--pi-fs-md);
   width: var(--pi-sheet-w); min-height: var(--pi-sheet-h); margin: 0 auto var(--sp-16);
-  border: 1px solid var(--border);
+  border: var(--hair) solid var(--border);
 }
 /* Print invoice structure */
 .inv-pi-title { font-size: var(--pi-fs-lg); font-weight: 700; text-align: center; text-decoration: underline; font-style: italic; margin-bottom: var(--sp-4); }
 .inv-pi-header { text-align: center; margin-bottom: var(--sp-4); }
 .inv-pi-company { font-size: var(--pi-fs-xl); font-weight: 700; text-transform: uppercase; }
-.inv-pi-address { font-size: var(--pi-fs-xs); color: #333; margin-top: 1px; }
+.inv-pi-address { font-size: var(--pi-fs-xs); color: #333; margin-top: var(--pi-addr-gap); }
 .inv-pi-tagline { font-size: var(--pi-fs-xs); font-weight: 600; margin-top: var(--sp-2); }
-.inv-pi-gstin-row { display: flex; justify-content: space-between; font-size: var(--pi-fs-sm); font-family: var(--ff-mono); font-weight: 600; border-top: 1px solid #000; border-bottom: 1px solid #000; padding: var(--sp-2) 0; margin-top: var(--sp-4); }
+.inv-pi-gstin-row { display: flex; justify-content: space-between; font-size: var(--pi-fs-sm); font-family: var(--ff-mono); font-weight: 600; border-top: var(--pi-rule-w) solid #000; border-bottom: var(--pi-rule-w) solid #000; padding: var(--sp-2) 0; margin-top: var(--sp-4); }
 /* Info grid — 2-column rows for invoice meta */
-.inv-pi-info-grid { border: 1px solid #000; border-collapse: collapse; width: 100%; font-size: var(--pi-fs-sm); margin-bottom: 0; }
-.inv-pi-info-grid td { border: 1px solid #000; padding: var(--sp-2) var(--sp-6); }
+.inv-pi-info-grid { border: var(--pi-rule-w) solid #000; border-collapse: collapse; width: 100%; font-size: var(--pi-fs-sm); margin-bottom: 0; }
+.inv-pi-info-grid td { border: var(--pi-rule-w) solid #000; padding: var(--sp-2) var(--sp-6); }
 /* Labels wrap. They are English phrases — "Your Challan. No." over two lines
    is ordinary on a form — and holding them on one line made the row's minimum
    width depend on the font's metrics: 6px of headroom with Inter, 83px of
@@ -363,17 +368,17 @@ body:not(.inv-booted) { pointer-events: none; }
    the invoice number stay atomic. */
 .inv-pi-info-grid .inv-pi-val-wrap { white-space: normal; }
 /* Bill To / Ship To */
-.inv-pi-parties { display: flex; border: 1px solid #000; border-top: none; font-size: var(--pi-fs-xs); }
+.inv-pi-parties { display: flex; border: var(--pi-rule-w) solid #000; border-top: none; font-size: var(--pi-fs-xs); }
 .inv-pi-party { flex: 1; padding: var(--sp-4) var(--sp-6); }
-.inv-pi-party + .inv-pi-party { border-left: 1px solid #000; }
+.inv-pi-party + .inv-pi-party { border-left: var(--pi-rule-w) solid #000; }
 .inv-pi-party-title { font-weight: 700; margin-bottom: var(--sp-2); }
 .inv-pi-party-name { font-weight: 700; font-size: var(--pi-fs-ref); }
 .inv-pi-party-gstin { font-family: var(--ff-mono); font-size: var(--pi-fs-xs); margin-top: var(--sp-2); }
 .inv-pi-party-state { font-size: var(--pi-fs-xs); }
-.inv-pi-disclaimer { font-size: var(--pi-fs-xs); text-align: center; padding: var(--sp-2); border: 1px solid #000; border-top: none; font-style: italic; }
+.inv-pi-disclaimer { font-size: var(--pi-fs-xs); text-align: center; padding: var(--sp-2); border: var(--pi-rule-w) solid #000; border-top: none; font-style: italic; }
 /* Line items table */
 .inv-pi-table { width: 100%; border-collapse: collapse; font-size: var(--pi-fs-sm); }
-.inv-pi-table th, .inv-pi-table td { border: 1px solid #000; padding: var(--sp-4) var(--sp-6); }
+.inv-pi-table th, .inv-pi-table td { border: var(--pi-rule-w) solid #000; padding: var(--sp-4) var(--sp-6); }
 .inv-pi-table th { background: #f0f0f0; font-weight: 600; text-align: center; font-size: var(--pi-fs-xs); }
 .inv-pi-table td { vertical-align: top; text-align: center; }
 .inv-pi-table td:nth-child(2) { text-align: left; }
@@ -381,21 +386,21 @@ body:not(.inv-booted) { pointer-events: none; }
 .inv-pi-table .inv-pi-num { text-align: right; font-family: var(--ff-mono); }
 .inv-pi-nos-sub { font-size: var(--pi-fs-xs); color: #555; display: block; }
 /* Footer area */
-.inv-pi-footer-grid { display: flex; font-size: var(--pi-fs-xs); border: 1px solid #000; border-top: none; }
+.inv-pi-footer-grid { display: flex; font-size: var(--pi-fs-xs); border: var(--pi-rule-w) solid #000; border-top: none; }
 .inv-pi-footer-left { flex: 1; padding: var(--sp-4) var(--sp-6); }
-.inv-pi-footer-right { width: 50%; border-left: 1px solid #000; }
+.inv-pi-footer-right { width: 50%; border-left: var(--pi-rule-w) solid #000; }
 .inv-pi-footer-right table { width: 100%; border-collapse: collapse; }
 .inv-pi-footer-right td { padding: var(--sp-2) var(--sp-6); font-size: var(--pi-fs-xs); }
 .inv-pi-footer-right .inv-pi-total-label { text-align: right; }
 .inv-pi-footer-right .inv-pi-total-value { text-align: right; font-family: var(--ff-mono); font-weight: 600; }
-.inv-pi-footer-right .inv-pi-grand { font-weight: 700; font-size: var(--pi-fs-md); border-top: 2px solid #000; }
+.inv-pi-footer-right .inv-pi-grand { font-weight: 700; font-size: var(--pi-fs-md); border-top: var(--pi-rule-heavy-w) solid #000; }
 .inv-pi-words { font-size: var(--pi-fs-xs); font-style: italic; color: #333; padding: var(--sp-2) var(--sp-6); }
-.inv-pi-bank { font-size: var(--pi-fs-xs); white-space: pre-line; padding: var(--sp-4) var(--sp-6); border: 1px solid #000; border-top: none; }
+.inv-pi-bank { font-size: var(--pi-fs-xs); white-space: pre-line; padding: var(--sp-4) var(--sp-6); border: var(--pi-rule-w) solid #000; border-top: none; }
 .inv-pi-bank-label { font-weight: 700; margin-bottom: var(--sp-2); }
 /* Signature block */
-.inv-pi-sig-grid { display: flex; border: 1px solid #000; border-top: none; font-size: var(--pi-fs-xs); min-height: 80px; }
-.inv-pi-sig-left { flex: 1; padding: var(--sp-6); display: flex; flex-direction: column; justify-content: space-between; border-right: 1px solid #000; }
-.inv-pi-sig-mid { flex: 1.5; padding: var(--sp-6); display: flex; flex-direction: column; justify-content: space-between; border-right: 1px solid #000; text-align: center; }
+.inv-pi-sig-grid { display: flex; border: var(--pi-rule-w) solid #000; border-top: none; font-size: var(--pi-fs-xs); min-height: var(--pi-sig-min-h); }
+.inv-pi-sig-left { flex: 1; padding: var(--sp-6); display: flex; flex-direction: column; justify-content: space-between; border-right: var(--pi-rule-w) solid #000; }
+.inv-pi-sig-mid { flex: 1.5; padding: var(--sp-6); display: flex; flex-direction: column; justify-content: space-between; border-right: var(--pi-rule-w) solid #000; text-align: center; }
 .inv-pi-sig-right { flex: 1; padding: var(--sp-6); display: flex; flex-direction: column; justify-content: space-between; text-align: right; }
 .inv-pi-sig-label { color: #555; }
 .inv-pi-sig-company { font-weight: 700; }
@@ -415,7 +420,7 @@ body:not(.inv-booted) { pointer-events: none; }
 .inv-pi-copy-inv { font-weight: 600; letter-spacing: normal; text-transform: none; }
 /* A cancelled invoice says so on every page of every copy (the frame's repeating header). Print ink, pinned. */
 .inv-pi-cancelled {
-  border: 2px solid #000; color: #000; text-align: center;
+  border: var(--pi-rule-heavy-w) solid #000; color: #000; text-align: center;
   font-size: var(--pi-fs-lg); font-weight: 700; letter-spacing: 0.3em;
   padding: var(--sp-2) 0; margin-bottom: var(--sp-4);
 }
@@ -425,7 +430,7 @@ body:not(.inv-booted) { pointer-events: none; }
 .inv-pi-declaration {
   font-size: var(--pi-fs-xs); color: #555; font-style: italic;
   text-align: center; padding: var(--sp-6) var(--sp-8);
-  margin-top: var(--sp-8); border-top: 1px solid #ccc;
+  margin-top: var(--sp-8); border-top: var(--pi-rule-w) solid #ccc;
 }
 
 /* ===== QUALITY CERTIFICATE (Test Certificate — ZN Plating) ===== */
@@ -479,7 +484,7 @@ body:not(.inv-booted) { pointer-events: none; }
   line-height: 1.25;
   width: var(--qc-sheet-w); margin: 0 auto var(--sp-16) auto;
   padding: var(--qc-page-pad);
-  border: 1px solid var(--border);
+  border: var(--hair) solid var(--border);
 }
 .inv-qc-page-break { page-break-after: always; }
 
@@ -601,7 +606,7 @@ table.inv-qc-grid.inv-qc-no-top { border-top: 0; }
   font-family: var(--ff-base); font-size: var(--cn-fs); line-height: 1.3;
   width: var(--cn-sheet-w); margin: 0 auto var(--sp-16) auto;
   padding: var(--cn-page-pad);
-  border: 1px solid var(--border);
+  border: var(--hair) solid var(--border);
 }
 /* A cancelled note says so on its face. */
 .inv-cn-cancelled {
@@ -771,7 +776,7 @@ table.inv-qc-grid.inv-qc-no-top { border-top: 0; }
   /* Flows with the tail rather than sitting `position: fixed` at the bottom of
      every sheet: fixed took it out of flow without reserving the band, so on a
      long invoice the line items printed straight through it. */
-  .inv-pi-declaration { border-top: 1px solid #999; }
+  .inv-pi-declaration { border-top: var(--pi-rule-w) solid #999; }
   .inv-pi-info-grid .inv-pi-val { text-transform: uppercase; }
   .inv-pi-table td:nth-child(2) { text-transform: uppercase; }
   .inv-pi-footer-left { text-transform: uppercase; }
@@ -945,7 +950,7 @@ body.inv-desktop .inv-side {
   border: none; border-radius: var(--r-md); background: none; cursor: pointer;
   color: var(--text-2); font-size: var(--fs-13); font-weight: 400; text-align: left;
 }
-.inv-side-item svg { width: 16px; height: 16px; flex-shrink: 0; }
+.inv-side-item svg { width: var(--sp-16); height: var(--sp-16); flex-shrink: 0; }
 .inv-side-item:hover { background: var(--surface-2); color: var(--text-1); }
 .inv-side-item-on { background: var(--surface-2); color: var(--text-1); font-weight: 600; }
 .inv-side-item-on svg { color: var(--accent); }
@@ -1023,7 +1028,7 @@ body.inv-desktop :is(#regSelBar, #imSelBar) { bottom: 0; }
   font-family: var(--ff-base); font-size: var(--sr-fs); line-height: 1.3;
   width: var(--sr-sheet-w); margin: 0 auto var(--sp-16) auto;
   padding: var(--sr-page-pad);
-  border: 1px solid var(--border);
+  border: var(--hair) solid var(--border);
 }
 .inv-sr-head { text-align: center; margin-bottom: var(--sp-8); }
 .inv-sr-co { font-weight: 700; font-size: var(--sr-fs-co); }
@@ -1162,7 +1167,7 @@ body.inv-desktop .inv-viewtab { min-height: var(--ctl-h); font-size: var(--fs-13
   border: var(--hair) solid var(--border); border-radius: var(--r-md); background: var(--surface); color: var(--text-3);
 }
 .inv-search:focus-within { border-color: var(--accent); box-shadow: var(--focus-ring); }
-.inv-search svg { width: 16px; height: 16px; flex-shrink: 0; }
+.inv-search svg { width: var(--sp-16); height: var(--sp-16); flex-shrink: 0; }
 .inv-search input { flex: 1; min-width: 0; border: none; outline: none; background: none; color: var(--text-1); font-size: var(--fs-14);
   align-self: stretch; margin-block: calc(-1 * var(--hair)); }
 /* The field fills its box to the border, so the whole 44px box is the tap that types (it was a 16px line of text). */

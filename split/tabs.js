@@ -5,7 +5,15 @@ const PAGE_TITLES = {
   pageStats: 'Stats', pageHistory: 'History'
 };
 
+/* A page is one of PAGE_TITLES' keys. An address or a remembered tab naming anything else (another element, a page another
+   build had) opens Home and is never remembered: ?tab=topbarTitle drew a blank page, and every launch after reopened it
+   (the QA audit of 30 Sep 2026). */
+function isPageId(id) {
+  return typeof id === 'string' && Object.prototype.hasOwnProperty.call(PAGE_TITLES, id) && !!document.getElementById(id);
+}
+
 function switchTab(tabId) {
+  if (!isPageId(tabId)) tabId = 'pageHome';
   // Step 1: Dismiss toasts and close overlays
   document.querySelectorAll('.inv-toast').forEach(t => t.remove());
   closeOverlay();
@@ -86,6 +94,7 @@ function switchTab(tabId) {
   // Where a keyboard continues from; on a touch screen never a field, which raised the keyboard over every screen
   // opened whose first control was a search (the QA sweep, 29 Sep 2026).
   if (targetPage) focusFirstInteractive(targetPage, { noText: touchScreen() });
+  navArrived();
 }
 
 /* Draws one page from S (switchTab's step 6). Also what another window's save redraws, in place (tabRedrawActive). */

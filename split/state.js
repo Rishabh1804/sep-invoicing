@@ -126,7 +126,15 @@ var _storeMode = 'unknown';        // 'idb' | 'localStorage', settled by loadSta
 var _loadedFrom = 'none';          // 'idb' | 'legacy' | 'none'
 var _legacyKeyPresent = false;
 var _persistRequested = false;
-var _storageHealth = { lastSaveOk: null, lastSaveAt: 0, lastSaveChars: 0, lastError: '', readError: '' };
+// readKind says why a copy could not be used ('' when it could): 'closed' (the database would not open), 'threw' (reading
+// the database failed), 'lsThrew' (reading the localStorage copy failed), 'unparsed' (read, but it is not JSON), 'gone'
+// (the database opened empty on a device that kept its book there). lastErrorOwn: the last save was refused by this app's
+// own rule, not by the browser.
+var _storageHealth = { lastSaveOk: null, lastSaveAt: 0, lastSaveChars: 0, lastError: '', lastErrorOwn: false, readError: '', readKind: '' };
+// A stored copy that was read but would not parse, as it was read: the read banner exports it, and an import or a pull sets
+// it aside (bookReleaseStandIn) before anything is written where it lay.
+var _unreadable = null;
+var _setAside = null;              // { raw, key }: to be written beside the book by the next save (writeGuarded)
 
 function describeStorageError(e) {
   if (!e) return 'Error';
@@ -275,14 +283,18 @@ function readStoredRev() {
 }
 
 // Writes the book only if the revision on disk is still `expect`; resolves once written, rejects StaleCopy if not.
+// A copy waiting to be set aside (_setAside) is written beside it first, in the same write: moved, never written over.
 function writeGuarded(str, expect, next) {
+  var aside = _setAside;
   if (_storeMode === 'localStorage') {
     return new Promise(function(resolve, reject) {
       try {
         var cur = localStorage.getItem(LS_REV_KEY);
         if ((cur || null) !== (expect || null)) { reject(staleCopy(cur)); return; }
+        if (aside) lsPutVerified(STORAGE_KEY + '_' + aside.key, aside.raw);
         lsPutVerified(STORAGE_KEY, str);
         localStorage.setItem(LS_REV_KEY, next);
+        if (_setAside === aside) _setAside = null;
         resolve();
       } catch (e) { reject(e); }
     });
@@ -299,12 +311,13 @@ function writeGuarded(str, expect, next) {
           if (cur !== (expect || null)) { isStale = true; stale = cur; tx.abort(); return; }
           // The browser's own error (QuotaExceededError …) is what the banner names, not the abort it causes.
           try {
+            if (aside) st.put(aside.raw, aside.key);
             var put = st.put(str, IDB_KEY);
             put.onerror = function() { failed = failed || put.error; };
             st.put(next, IDB_REV_KEY);
           } catch (e) { failed = e; tx.abort(); }
         };
-        tx.oncomplete = function() { idbMarkHeld(); resolve(); };
+        tx.oncomplete = function() { if (aside && _setAside === aside) _setAside = null; idbMarkHeld(); resolve(); };
         tx.onabort = function() {
           reject(isStale ? staleCopy(stale) : (failed || tx.error || new Error('write transaction aborted')));
         };
@@ -320,6 +333,7 @@ function legacyRaw() {
     return raw;
   } catch (e) {
     _storageHealth.readError = describeStorageError(e);
+    _storageHealth.readKind = 'lsThrew';
     return null;
   }
 }
@@ -337,6 +351,7 @@ function loadState() {
       // (the QA sweep, 29 Sep 2026). Nothing is written until it opens; the boot banner says so.
       _storeMode = 'idb';
       _storageHealth.readError = 'its database would not open; close the app in every other window and reload';
+      _storageHealth.readKind = 'closed';
       return null;
     }
     if (_idbFailed) { _storeMode = 'localStorage'; try { _diskRev = localStorage.getItem(LS_REV_KEY); } catch (e) {} var lr = legacyRaw(); _loadedFrom = lr != null ? 'legacy' : 'none'; return lr; }
@@ -345,6 +360,15 @@ function loadState() {
     // so a verified write can hand that space back.
     try { _legacyKeyPresent = localStorage.getItem(STORAGE_KEY) != null; } catch (e) {}
     if (raw != null) { _loadedFrom = 'idb'; return raw; }
+    // Open, and empty, on a device that has kept its book here: the book is gone (the browser evicted the database under
+    // storage pressure, or it was cleared on its own), not a new device. It was taken for one: the default book went on
+    // disk and, with auto-push on, to GitHub under the old SHA (the QA audit of 30 Sep 2026). A stand-in until a backup
+    // is imported or pulled; nothing is written meanwhile, or the next start would take the stand-in for the book.
+    if (idbHeldBook()) {
+      _storageHealth.readError = 'the book this device kept is gone: its database opened empty';
+      _storageHealth.readKind = 'gone';
+      return null;
+    }
     var legacy = legacyRaw();
     _loadedFrom = legacy != null ? 'legacy' : 'none';
     return legacy;
@@ -352,15 +376,67 @@ function loadState() {
     // The store exists but would not read. Nothing is written over it at boot.
     _storeMode = 'idb';
     _storageHealth.readError = describeStorageError(e);
+    _storageHealth.readKind = 'threw';
     return null;
   }).then(function(raw) {
     if (raw == null) return null;
     try { return JSON.parse(raw); }
     catch (e) {
       _storageHealth.readError = 'stored copy does not parse (' + describeStorageError(e) + ')';
+      _storageHealth.readKind = 'unparsed';
+      _unreadable = raw;
       return null;
     }
   });
+}
+
+/* ===== A STAND-IN BOOK =====
+   While the stored copy could not be used (_storageHealth.readError: it would not read, or it is gone), the book in memory
+   is the default the app starts on: a stand-in, not this device's book. Nothing is written over the stored copy
+   (persistState), and nothing from the stand-in leaves the device as if it were the book: auto-push does not arm, a push by
+   hand asks naming both sides (ghPush), the read banner exports the stored copy as it is and an export of the stand-in is
+   no backup (exportData), and the Windows widget's ticks wait (todoApplyWidgetQueue). The SHA guard could not see any of
+   it: GitHub's copy had not moved, so ~45 s after the start the stand-in went over it unasked (the QA audit of 30 Sep
+   2026). The way out is an import or a pull the owner confirms: a copy read but not parseable is set aside first, under
+   a key of its own that nothing reads or deletes, and the incoming book is written where it lay. */
+function bookStandIn() { return !!_storageHealth.readError; }
+function bookStandInWords() {
+  return _storageHealth.readKind === 'gone' ? 'the book this device kept is gone, and this window holds a stand-in'
+    : 'the stored copy could not be read (' + _storageHealth.readError + ')';
+}
+// Why an import or a pull cannot end the stand-in ('' when it can): where the stored copy cannot be set aside, writing
+// the incoming book would go over it.
+function bookStandInBlocker() {
+  var k = _storageHealth.readKind;
+  if (!bookStandIn() || k === 'gone' || (k === 'unparsed' && _unreadable != null)) return '';
+  // The copy that would not read is the old localStorage one; the book goes to the database beside it, and it stays.
+  if (k === 'lsThrew' && _storeMode === 'idb' && !_idbFailed) return '';
+  if (k === 'closed') return 'nothing can be written on this device: ' + _storageHealth.readError;
+  return 'nothing can be written on this device: the stored copy could not be read (' + _storageHealth.readError +
+    '), so it cannot be set aside first. Reload the app; if this keeps happening, run the storage diagnostics in Settings';
+}
+// What replacing the book does to the stand-in, for the question an import or a pull asks.
+function bookStandInReplaceText() {
+  if (_storageHealth.readKind === 'gone') return 'The book this device kept is gone, and this window holds a stand-in: this becomes the book on this device.';
+  return 'This device\'s stored copy could not be read (' + _storageHealth.readError + '). ' + (_unreadable != null
+    ? 'It is set aside, kept whole and never deleted, and this becomes the book on this device.'
+    : 'It is left where it is, and this becomes the book on this device.');
+}
+// After the owner confirmed an import or a pull, before its book is saved. Returns '' once over, else why it cannot be.
+function bookReleaseStandIn() {
+  var why = bookStandInBlocker();
+  if (why || !bookStandIn()) return why;
+  if (_unreadable != null) _setAside = { raw: _unreadable, key: 'unreadable-' + Date.now() };
+  _unreadable = null;
+  _storageHealth.readError = '';
+  _storageHealth.readKind = '';
+  hideStorageBanner('read');
+  return '';
+}
+// Why the last save did not land: the app's own refusal in its own words, a browser's error named as the browser's.
+function saveFailText() {
+  var h = _storageHealth;
+  return h.lastErrorOwn ? h.lastError : 'the browser refused to store it (' + h.lastError + ')';
 }
 
 /* Writes are coalesced and serialised. A call while a write is queued shares
@@ -377,10 +453,11 @@ function persistState() {
   // A copy that exists but would not read is never written over: seeding a
   // default book on top of it would turn an unreadable copy into a lost one.
   // The boot banner says so; every save this session reports false.
-  if (_storageHealth.readError) {
+  if (bookStandIn()) {
     _storageHealth.lastSaveOk = false;
     _storageHealth.lastSaveAt = Date.now();
-    _storageHealth.lastError = 'not written: the stored copy could not be read (' + _storageHealth.readError + ')';
+    _storageHealth.lastError = 'not written: ' + bookStandInWords();
+    _storageHealth.lastErrorOwn = true;
     return Promise.resolve(false);
   }
   // A write asked for only while the window was starting (its migrations) changes nothing anybody did: a refusal of it
@@ -421,6 +498,7 @@ function writeStateNow(boot) {
     _storageHealth.lastSaveAt = Date.now();
     _storageHealth.lastSaveChars = str.length;
     _storageHealth.lastError = '';
+    _storageHealth.lastErrorOwn = false;
     hideStorageBanner();
     if (_storeMode === 'idb' && _legacyKeyPresent) {
       // A verified copy is in the new store: hand the shared pool back.
@@ -463,6 +541,7 @@ function noteSaveFailure(key, why) {
     _storageHealth.lastSaveOk = false;
     _storageHealth.lastSaveAt = Date.now();
     _storageHealth.lastError = why;
+    _storageHealth.lastErrorOwn = false;
     showStorageBanner('This browser did not keep the last save (' + why + '). ' +
       'Anything entered now is in memory only and will be lost on reload. Export a backup.');
   } else {
@@ -472,8 +551,9 @@ function noteSaveFailure(key, why) {
 }
 
 // kind: 'save' (cleared by the next save that lands) or 'read' (a fact about
-// this load; stays for the session).
-function showStorageBanner(msg, kind) {
+// this load; stays for the session, or until an import or a pull ends it).
+// actionsHtml: the bar's buttons; a failed save's is Export JSON, since what was typed lives only in memory.
+function showStorageBanner(msg, kind, actionsHtml) {
   kind = kind || 'save';
   hideStorageBanner(kind);
   var bar = document.createElement('div');
@@ -481,8 +561,8 @@ function showStorageBanner(msg, kind) {
   bar.dataset.kind = kind;
   bar.setAttribute('role', 'alert');
   bar.innerHTML = '<span class="inv-update-text">' + escHtml(msg) + '</span>' +
-    '<span class="inv-update-actions">' +
-    '<button class="inv-btn inv-btn-primary inv-update-btn" data-action="invExportData">Export JSON</button></span>';
+    '<span class="inv-update-actions">' + (actionsHtml != null ? actionsHtml :
+    '<button class="inv-btn inv-btn-primary inv-update-btn" data-action="invExportData">Export JSON</button>') + '</span>';
   document.body.appendChild(bar);
 }
 function hideStorageBanner(kind) {
@@ -831,6 +911,21 @@ function dialogLeaveOk(scrim) {
   return scrim._leaveAsk.then(function(ok) { scrim._leaveAsk = null; return ok; });
 }
 
+/* Before something shuts every dialog on its way (closeOverlay: a jump to another screen, a tap on the Windows widget), the
+   top dialog holding typed work asks first, as its × does. Returns true when it asked: on Discard `again` runs with nothing
+   typed left to ask about, on Keep editing nothing moves (the QA audit of 30 Sep 2026: the client's edit sheet carries
+   "Open in Finance", and a typed GSTIN went with it). */
+function dialogsTypedAsk(again) {
+  var typed = Array.prototype.filter.call(document.querySelectorAll('.inv-scrim-dialog'), dialogTyped);
+  if (!typed.length) return false;
+  dialogLeaveOk(typed[typed.length - 1]).then(function(ok) {
+    if (!ok) return;
+    typed.forEach(function(s) { delete s.dataset.typed; });
+    again();
+  });
+  return true;
+}
+
 /* Closes one dialog wherever it sits in the stack (normally the top one). */
 function dialogCloseScrim(scrim) {
   if (!scrim || !scrim.isConnected) return;
@@ -881,6 +976,8 @@ function bookReload(why) {
     S = next;
     ensureStateShape(S);
     _diskRev = b.rev;
+    // Another window put a readable book on disk (it imported or pulled out of the same stand-in): this one holds it now.
+    if (bookStandIn() && !_idbFailed) { _unreadable = null; _storageHealth.readError = ''; _storageHealth.readKind = ''; hideStorageBanner('read'); }
     if (typeof prodTouch === 'function') prodTouch();
     if (typeof _invalidateUsageCache === 'function') _invalidateUsageCache();
     bookRedraw(why);
@@ -912,6 +1009,7 @@ function bookStaleSave(boot) {
   _storageHealth.lastSaveOk = false;
   _storageHealth.lastSaveAt = Date.now();
   _storageHealth.lastError = 'not written: another window had saved the book first';
+  _storageHealth.lastErrorOwn = true;
   // A save asked for only while the window was starting (its migrations) lost nothing anybody did: taken quietly.
   return bookReload('stale').then(function() {
     if (boot) return false;
@@ -1117,8 +1215,11 @@ function saveState() {
   return landed;
 }
 
+// Per-device view prefs, written quietly like the folds and Settings' own layout: with the origin's shared localStorage
+// pool full (a real condition, Persistence), every move between screens raised "Could not save sep_inv_view_prefs"
+// (the QA audit of 30 Sep 2026). A pref that did not stick costs a filter on the next start, nothing more.
 function saveRegFilter() {
-  saveJSON(VIEW_PREFS_KEY, regFilter);
+  try { localStorage.setItem(VIEW_PREFS_KEY, JSON.stringify(regFilter)); } catch (e) { /* per-device only */ }
 }
 
 /* ===== UTILITIES ===== */

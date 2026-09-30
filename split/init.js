@@ -830,7 +830,7 @@ function bootApp() {
   // Only do manual restore if we're still on mobile (no mode switch happened).
   if (!_isDesktop) {
     var _savedTab = regFilter.activeTab || 'pageHome';
-    if (_savedTab !== 'pageHome' && document.getElementById(_savedTab)) {
+    if (_savedTab !== 'pageHome' && isPageId(_savedTab)) {
       bootStep('the screen last open', function() { switchTab(_savedTab); });
     } else {
       bootStep('Home', renderHome);
@@ -860,8 +860,19 @@ function bootApp() {
      hear about: the store is read-only for this session (persistState refuses
      to write over a copy it could not open), so nothing entered here is kept. */
   if (_storageHealth.readError) {
-    showStorageBanner('This browser could not read the stored copy (' + _storageHealth.readError +
-      '). Nothing is written on this device until it can, so that copy is not lost \u2014 but nothing entered here is kept either.', 'read');
+    // The book in memory is a stand-in (bookStandIn). Its buttons: the stored copy as it is, where it was read (Export JSON
+    // here handed over the stand-in as a dated backup), and the way out, where an import or a pull can end it.
+    var readActs = '';
+    if (_unreadable != null) readActs += '<button class="inv-btn inv-btn-primary inv-update-btn" data-action="invExportStored">Export the stored copy</button>';
+    if (!bookStandInBlocker()) {
+      readActs += '<button class="inv-btn inv-btn-secondary inv-update-btn" data-action="invOpenSettings" data-sec="data">Import a backup</button>';
+      if (ghIsConfigured()) readActs += '<button class="inv-btn inv-btn-secondary inv-update-btn" data-action="invOpenSettings" data-sec="sync">Pull from GitHub</button>';
+    }
+    showStorageBanner(_storageHealth.readKind === 'gone'
+      ? 'The book this device kept is gone \u2014 import a backup or pull from GitHub. Until then this window holds a stand-in: nothing is written on this device, and nothing is sent to GitHub unasked.'
+      : 'This browser could not read the stored copy (' + _storageHealth.readError +
+        '). Nothing is written on this device until it can, so that copy is not lost \u2014 but nothing entered here is kept either.' +
+        (bookStandInBlocker() ? '' : ' Importing a backup or pulling from GitHub sets it aside and carries on.'), 'read', readActs);
   }
 
   document.body.classList.add('inv-booted');

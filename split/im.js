@@ -125,8 +125,10 @@ function imBilledIndex() {
     if (inv.status === 'cancelled') return;
     (inv.items || []).forEach(function(li) {
       if (!li.imItemId) return;
+      // Read as numbers: a quantity stored as text (a scanned challan's "282.70") added up as text and threw at the
+      // toFixed below, in the invoice save and in the billing sync at every boot.
       (idx[li.imItemId] || (idx[li.imItemId] = [])).push({ invoiceId: inv.id, displayNumber: inv.displayNumber, invoiceNumber: inv.invoiceNumber,
-        date: inv.date, qty: li.qty || 0, nosQty: li.nosQty || 0, whole: !!li.imWhole, unit: li.unit || '' });
+        date: inv.date, qty: Number(li.qty) || 0, nosQty: Number(li.nosQty) || 0, whole: !!li.imWhole, unit: li.unit || '' });
     });
   });
   return idx;
@@ -145,11 +147,13 @@ function imRefsBilled(it, refs) {
   refs.forEach(function(r) {
     if (imRefWhole(it, r)) { whole = true; return; }
     qty += r.qty;
-    nos += r.nosQty;
+    // A NOS line's pieces ARE its quantity: a share of it bills that share of the pieces, whatever pieces figure the
+    // invoice line carried (one saved from a part dispatch kept the challan's whole count, 600 under a 200 dispatch).
+    nos += it.unit === 'NOS' && it.nosQty && it.qty > 0 ? it.nosQty * r.qty / it.qty : r.nosQty;
   });
   // A ref that bills the line whole closes it: what is billed is the line, or more if the parts say so.
-  if (whole) { qty = Math.max(qty, it.qty || 0); nos = Math.max(nos, it.nosQty || 0); }
-  return { qty: parseFloat(qty.toFixed(3)), nos: nos };
+  if (whole) { qty = Math.max(qty, Number(it.qty) || 0); nos = Math.max(nos, Number(it.nosQty) || 0); }
+  return { qty: parseFloat(qty.toFixed(3)), nos: Math.round(nos) };
 }
 
 /* Write the derived billing onto every challan line. Returns how many changed. */
@@ -163,7 +167,7 @@ function imSyncBilled() {
       if (!refs.length && it.invoiced && it.invoiceId && held[it.invoiceId] && (it.billedLegacy || it.billedQty == null)) {
         it.billedLegacy = true;
         it.invoiced = true;
-        it.billedQty = it.qty || 0;
+        it.billedQty = Number(it.qty) || 0;
         if (it.nosQty) it.billedNos = it.nosQty; else delete it.billedNos;
         it.invoiceIds = [it.invoiceId];
       } else {
@@ -193,16 +197,16 @@ function imLineBilled(it) { return !!it.invoiced || (it.billedQty || 0) > 0; }
 /* The share of a challan line still to bill: quantity, pieces and amount.
    An unbilled amount anywhere in the app is this share, never the whole line. */
 function imLineOpen(it) {
-  var q = it.qty || 0;
+  var q = Number(it.qty) || 0;
   if (it.invoiced) return { qty: 0, nos: 0, amount: 0 };
-  var billed = it.billedQty || 0;
+  var billed = Number(it.billedQty) || 0;
   var left = q - billed;
   if (left <= IM_QTY_EPS) left = 0;
   left = parseFloat(left.toFixed(3));
-  if (!billed) return { qty: q, nos: it.nosQty || 0, amount: it.amount || 0 };
+  if (!billed) return { qty: q, nos: Number(it.nosQty) || 0, amount: Number(it.amount) || 0 };
   var nos = 0;
   if (it.nosQty) nos = it.billedNos > 0 ? Math.max(0, it.nosQty - it.billedNos) : Math.round(it.nosQty * left / (q || 1));
-  var amount = q > 0 ? gstRound((it.amount || 0) * left / q) : 0;
+  var amount = q > 0 ? gstRound((Number(it.amount) || 0) * left / q) : 0;
   return { qty: left, nos: nos, amount: amount };
 }
 
@@ -222,9 +226,9 @@ function imLineShare(itemId, exceptInvoiceId, idx) {
     var legacy = S.invoices.find(function(i) { return i.id === it.invoiceId; });
     if (legacy) { refs = [{ invoiceId: legacy.id, displayNumber: legacy.displayNumber, qty: it.qty || 0 }]; billed = { qty: it.qty || 0, nos: it.nosQty || 0 }; }
   }
-  var left = (it.qty || 0) - billed.qty;
+  var left = (Number(it.qty) || 0) - billed.qty;
   if (Math.abs(left) <= IM_QTY_EPS) left = 0;
-  return { im: im, it: it, refs: refs, qty: it.qty || 0, billed: billed.qty, billedNos: billed.nos, left: parseFloat(left.toFixed(3)) };
+  return { im: im, it: it, refs: refs, qty: Number(it.qty) || 0, billed: billed.qty, billedNos: billed.nos, left: parseFloat(left.toFixed(3)) };
 }
 
 /* "600 on challan 301 · 200 invoiced (SEP/…/00012) · 400 left" */
@@ -245,7 +249,16 @@ function imLineFormItem(it) {
   var open = imLineOpen(it), part = imLineBilled(it);
   return { partNumber: it.partNumber, desc: it.desc, hsn: it.hsn || '998873', unit: it.unit, qty: open.qty,
     rate: it.rate || 0, amount: open.amount, nosQty: (part ? open.nos : it.nosQty) || null,
-    _override: false, _label: '', _imItemId: it.id, _nosAuto: !!(it.unit === 'KG' && it.nosQty) };
+    _override: false, _label: '', _imItemId: it.id, _nosAuto: !!(it.unit === 'KG' && it.nosQty), _fromNew: true, _orig: imLineOrig(it, open) };
+}
+/* What a challan line said as it was brought into a new invoice: a field typed over it is a correction to carry back
+   (backCorrectChallans), the owner's ruling of 30 Sep 2026 — "correction on the invoice should be reflected in the
+   challan with a note". The quantity is the share brought (what is left), so typing less is dispatching part of it. */
+function imLineOrig(it, open) {
+  var o = {};
+  CHALLAN_SYNC_FIELDS.forEach(function(f) { o[f] = it[f] == null ? null : it[f]; });
+  o.qty = open.qty; o.amount = open.amount; o.nosQty = (imLineBilled(it) ? open.nos : it.nosQty) || null;
+  return o;
 }
 
 function getIMStatus(im) {
@@ -295,23 +308,13 @@ function getFilteredIM() {
           default: va = a.challanDate || ''; vb = b.challanDate || ''; return va < vb ? -dir : va > vb ? dir : 0;
         }
       });
-    } else {
-      // Desktop with no explicit sort: same as mobile default
-      list.sort(function(a, b) {
-        var sa = getIMStatus(a) === 'invoiced' ? 1 : 0;
-        var sb = getIMStatus(b) === 'invoiced' ? 1 : 0;
-        if (sa !== sb) return sa - sb;
-        return (b.challanDate || '').localeCompare(a.challanDate || '') || (b.createdAt || 0) - (a.createdAt || 0);
-      });
+      return list;
     }
-  } else {
-    list.sort(function(a, b) {
-      var sa = getIMStatus(a) === 'invoiced' ? 1 : 0;
-      var sb = getIMStatus(b) === 'invoiced' ? 1 : 0;
-      if (sa !== sb) return sa - sb;
-      return (b.challanDate || '').localeCompare(a.challanDate || '') || (b.createdAt || 0) - (a.createdAt || 0);
-    });
   }
+  // The default, both layouts: newest challan first. (It also put invoiced challans last; each tab holds one kind.)
+  list.sort(function(a, b) {
+    return (b.challanDate || '').localeCompare(a.challanDate || '') || (b.createdAt || 0) - (a.createdAt || 0);
+  });
   return list;
 }
 
@@ -343,9 +346,20 @@ function renderIMToolbar() {
   viewTabReveal(area.querySelector('.inv-viewtabs'));
 }
 
+/* A selection belongs to the list it was made on. A jump that opens IM on one client — History's, Stats', the duplicate
+   check's Locate — changes the filter without passing captureIMFilters, and the ticks it hid stayed live for Create
+   invoice. Whatever changed the view (tab, month, client, status), the selection made on the old one is dropped. */
+var _imSelView = null;
+function imSelectionGuard() {
+  var k = [_imTab, _imTab === 'invoiced' ? imMonthShown() : '', _imFilter.clientId || '', _imFilter.status || ''].join('|');
+  if (_imSelView !== null && _imSelView !== k) _imSelected = {};
+  _imSelView = k;
+}
+
 function renderIMList() {
   const area = document.getElementById('imList');
   if (!area) return;
+  imSelectionGuard();
   const filtered = getFilteredIM();
   let html = _imSummaryHtml(filtered);
 
@@ -491,6 +505,7 @@ function renderIMTable() {
 
   var master = document.getElementById('imMaster');
   if (!master) return;
+  imSelectionGuard();
   var focusKey = _mdFocusKey('imMasterDetail', _imActiveChallanId);
   master.innerHTML = _buildIMTableHtml();
 
@@ -511,7 +526,7 @@ function imStatusDotHtml(im) {
   return '<span class="inv-dot inv-dot-' + s.tone + '">' + escHtml(s.word) + '</span>';
 }
 
-function imChallanTotal(im) { return im.items.reduce(function(s, it) { return s + (it.amount || 0); }, 0); }
+function imChallanTotal(im) { return im.items.reduce(function(s, it) { return s + (Number(it.amount) || 0); }, 0); }
 
 function _imSummaryHtml(filtered) {
   if (_imTab === 'invoiced') return '';   // the month's pager says how many and how much
@@ -546,7 +561,11 @@ function _imItemRowHtml(it) {
     '<span class="inv-row-main"><span class="inv-row-title inv-row-wrap" data-im-desc>' + escHtml(lineLabel(it)) + '</span>' +
     '<span class="inv-row-meta inv-row-wrap" data-im-detail>' + escHtml(it.qty) + ' ' + escHtml(it.unit) +
     (it.nosQty && it.nosQty > 0 ? ' (' + escHtml(it.nosQty) + ' NOS)' : '') +
-    ' @ ' + formatCurrency(it.rate) + '/' + escHtml(it.unit) + '</span>' + share + (tag ? '<span class="inv-row-meta inv-row-wrap" data-im-invoices>' + tag + '</span>' : '') + '</span>' +
+    ' @ ' + formatCurrency(it.rate) + '/' + escHtml(it.unit) + '</span>' + share +
+    (it.corrections || []).map(function(cx) {
+      return '<span class="inv-row-meta inv-row-wrap" data-im-correction><span class="inv-dot inv-dot-info">Corrected</span> ' +
+        escHtml(challanCorrectionText(it, cx) + ' · ' + formatDate(isoOf(new Date(cx.at)))) + '</span>';
+    }).join('') + (tag ? '<span class="inv-row-meta inv-row-wrap" data-im-invoices>' + tag + '</span>' : '') + '</span>' +
     '<span class="inv-row-end inv-num">' + formatCurrency(it.amount) + '</span></div>';
 }
 
@@ -559,7 +578,10 @@ function _imActionsHtml(im, primary) {
       '<button class="inv-btn inv-btn-danger' + (primary ? '' : ' inv-btn-sm') + '" data-action="invDeleteChallan" data-id="' + id + '">Delete challan</button>';
   }
   if (status !== 'invoiced') {
-    return '<button class="inv-btn inv-btn-secondary inv-btn-disabled' + (primary ? '' : ' inv-btn-sm') + '" data-action="invEditChallanGuard" data-count="' + billed + '">Edit</button>';
+    // Shown as disabled, yet a tap or a click still says why: a button that took no pointer (inv-btn-disabled) told
+    // only somebody on a keyboard.
+    var why = 'Cannot edit: ' + billed + ' item' + (billed > 1 ? 's' : '') + ' already invoiced';
+    return '<button class="inv-btn inv-btn-secondary' + (primary ? '' : ' inv-btn-sm') + '" aria-disabled="true" title="' + why + '" data-action="invEditChallanGuard" data-count="' + billed + '">Edit</button>';
   }
   return '';
 }

@@ -32,10 +32,9 @@ async function setupRow(page: Page, billingMode: 'piece' | 'kg', unit: 'NOS' | '
   // Seed the preselect so initCreateForm() locks our client in. Stored as string
   // because the production code path reads from `btn.dataset.clientId` which is
   // always a string; `parseInt` happens inside initCreateForm.
-  await page.evaluate(() => { (window as unknown as Record<string, unknown>)._preselectedClientId = '99'; });
-
-  // Land on the Create form via the standard action.
-  await page.locator('[data-action="invCreateNew"]').first().click();
+  // The one door to a form for a client (createForClient, the Stats drill-down's), which replaced the
+  // `_preselectedClientId` global this used to set.
+  await page.evaluate(() => (0, eval)('createForClient(99)'));
   await expect(page.locator('#pageCreate.inv-page-active')).toBeVisible();
 
   // Add an empty line item (defaults to unit=KG, rate=0).

@@ -21,7 +21,7 @@ var PROD_LINES = ['vat-a1', 'vat-a2', 'barrel'];
 var PROD_LINE_LABEL = { 'vat-a1': 'VAT A1', 'vat-a2': 'VAT A2', barrel: 'Barrel' };
 
 function prodHhmm(min) { return min == null ? null : relayHhmm(min); }
-function prodMin(hhmm) { var m = /^(\d{1,2}):(\d{2})$/.exec(hhmm || ''); return m ? +m[1] * 60 + +m[2] : null; }
+/* A stored "HH:MM" in minutes is the relay's own reading (relayParseHhmm): one parser for a time the app wrote. */
 
 /* One pasted text → messages, each with who sent it, the day and the minute it was posted. A paste of one message
    with no header is one message, dated by the caller (today, and said so). */
@@ -30,10 +30,10 @@ function prodSplit(text) {
   String(text || '').replace(/\r/g, '').replace(/‎|‏/g, '').split('\n').forEach(function(line) {
     var wa = line.match(PROD_WA_RE);
     if (wa) {
-      var a = +wa[1], b = +wa[2], h = +wa[4] % 12, ap = wa[6] ? (/p/i.test(wa[6]) ? 12 : 0) : (+wa[4] === 12 ? 0 : 0);
+      var a = +wa[1], b = +wa[2], h = +wa[4] % 12, ap = /p/i.test(wa[6] || '') ? 12 : 0;
       var monthFirst = /^\s*\[/.test(line) ? a <= 12 : (a <= 12 && b > 12);
       var at = wa[6] ? (h + ap) * 60 + +wa[5] : +wa[4] * 60 + +wa[5];
-      cur = { sentBy: wa[7].trim(), sentOn: monthFirst ? relayIso(b, a, wa[3]) : relayIso(a, b, wa[3]), sentAt: at, lines: [wa[8]] };
+      cur = { sentBy: wa[7].trim(), sentOn: monthFirst ? isoFromDmy(b, a, wa[3]) : isoFromDmy(a, b, wa[3]), sentAt: at, lines: [wa[8]] };
       msgs.push(cur);
       return;
     }
@@ -51,7 +51,6 @@ function prodSplit(text) {
       .replace(/^\s*[\w.-]+\.(jpe?g|png|webp|heic|pdf|opus|mp4|3gp)\s*\(file attached\)\s*/i, '').trim();
     delete m.lines;
     m.kind = prodKind(m.text);
-    m.hash = relayHash(m.text);
     return m;
   }).filter(function(m) { return m.text && !/omitted>$/i.test(m.text) && !/^this message was deleted$/i.test(m.text) && !/end-to-end encrypted/i.test(m.text); });
 }
@@ -80,9 +79,6 @@ function prodTimeOf(frag, sentAt) {
   if (!m) return { min: null };
   var h = +m[1], mm = m[2] != null ? +m[2] : 0, ap = m[3] ? (/p/i.test(m[3]) ? 'pm' : 'am') : '';
   if (m[1].length === 3 || h > 23 || mm > 59) return { min: null, issue: { tone: 'amber', code: 'time', text: 'The time "' + m[0].trim() + '" could not be read; enter it by hand if it matters.' } };
-  if (!ap && m[2] == null && !/\d\s*(?:a|p)/i.test(m[0])) {
-    // A bare number beside "time" is still a time ("Pickling Time 9") only when nothing else was written.
-  }
   if (h > 12) return { min: h * 60 + mm };
   if (ap) {
     var min = (h % 12 + (ap === 'pm' ? 12 : 0)) * 60 + mm, other = ap === 'pm' ? min - 720 : min + 720;
@@ -221,27 +217,29 @@ function prodIsIncomingLine(s) { return /in\s*c?o?m\w*\s*(ma\w*\s*)?(t\w*me|rime
 function prodIsPowerLine(s) { return /p[ao]w[ae]r|pawar|single\s*ph[ae]se/i.test(s) && /cut|cat|in\b|out|no\s*in|ph[ae]se/i.test(s); }
 
 function parsePickling(msg, ctx) {
-  var lines = String(msg.text || '').split('\n'), items = [], unread = [], notes = [];
+  var lines = String(msg.text || '').split('\n'), items = [], notes = [];
   var date = msg.sentOn || ctx.today, noDate = !msg.sentOn;
-  var mode = 'pickled', reworkOn = false, group = null, lastGroup = null, pendingParts = [], family = null, arrivedAt = null, cutAt = null;
+  var mode = 'pickled', reworkOn = false, group = null, lastGroup = null, pendingParts = [], family = null, arrivedAt = null, power = {};
   var flush = function(kind, t) {
     pendingParts.forEach(function(it) { it.kind = kind; if (t) { it.time = prodHhmm(t.min); if (t.issue) it.issues.push(t.issue); } items.push(it); });
     pendingParts = [];
+  };
+  // What is still listed when the message ends or a new incoming block begins: arrived at its own block's time, or
+  // loads whose pickling time never came, and said so. An incoming head used to flush the block above it with no
+  // time at all, so material that arrived at 8:45 read as arriving at no time once a second block followed.
+  var flushOpen = function() {
+    if (!pendingParts.length) return;
+    pendingParts.forEach(function(it) { if (mode !== 'arrived' || !arrivedAt || arrivedAt.min == null) it.issues.push({ tone: 'amber', code: 'notime', text: mode === 'arrived' ? 'Arrived: no time written.' : 'No pickling time written under it.' }); });
+    flush(mode, mode === 'arrived' ? arrivedAt : null);
   };
   lines.forEach(function(raw, i) {
     var line = raw.trim(), n = i + 1;
     if (!line) return;
     var dm = line.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})\/?/);
-    if (dm && relayIso(dm[1], dm[2], dm[3])) { date = relayIso(dm[1], dm[2], dm[3]); noDate = false; line = line.slice(dm[0].length).trim(); if (!line) return; }
-    if (prodIsPowerLine(line)) {
-      var pt = prodTimeOf(line.replace(/^.*?(cut|cat|cute|in|out)\b/i, ''), msg.sentAt);
-      if (/cut|cat|out/i.test(line) && !/\bin\b/i.test(line.replace(/cut|cat/i, ''))) { cutAt = { min: pt.min, n: n, raw: raw }; }
-      else if (cutAt) { items.push(prodDowntime(date, cutAt, pt.min, /no\s*in/i.test(line), raw, n)); cutAt = null; }
-      else notes.push({ n: n, raw: raw, text: 'A power line with no cut before it' });
-      return;
-    }
+    if (dm && isoFromDmy(dm[1], dm[2], dm[3])) { date = isoFromDmy(dm[1], dm[2], dm[3]); noDate = false; line = line.slice(dm[0].length).trim(); if (!line) return; }
+    if (prodIsPowerLine(line)) { prodPowerStep(power, line, raw, n, date, msg.sentAt, items, notes); return; }
     if (prodIsIncomingLine(line)) {
-      if (pendingParts.length) flush(mode, null);
+      flushOpen();
       mode = 'arrived';
       var afterHead = line.replace(/^.*?(t\w*me|rime)/i, '');
       arrivedAt = prodTimeOf(afterHead, msg.sentAt);
@@ -275,7 +273,10 @@ function parsePickling(msg, ctx) {
     var it = prodReadItem(line, ctx.clients);
     var clientLine = !it.part && it.qty == null && it.clientId != null;
     var firmy = it.qty == null && !it.clientId && PROD_FIRM_RE.test(line) && !/\d/.test(line);
-    if (clientLine || firmy || (!group && it.qty == null && !it.clientId && /^[A-Za-z]/.test(line) && !/\d/.test(line) && lines.slice(i + 1).some(function(l) { return l.trim(); }))) {
+    // A name with lines under it heads them; one with nothing under it but its pickling time is the load itself
+    // ("BIG LINER / Pickling time 10:30": no client written, no quantity), which was taken as a client and lost.
+    var below = (lines.slice(i + 1).find(function(l) { return l.trim(); }) || '').trim();
+    if (clientLine || firmy || (!group && it.qty == null && !it.clientId && /^[A-Za-z]/.test(line) && !/\d/.test(line) && below && !prodIsTimeLine(below))) {
       group = { client: it.client || line, clientId: it.clientId != null ? it.clientId : null, clientName: it.clientName || '', how: it.clientHow || (firmy ? 'firm' : 'first') };
       family = null;
       return;
@@ -299,16 +300,31 @@ function parsePickling(msg, ctx) {
     }
     pendingParts.push(rec);
   });
-  if (pendingParts.length) {
-    pendingParts.forEach(function(it) { if (mode !== 'arrived' || !arrivedAt || arrivedAt.min == null) it.issues.push({ tone: 'amber', code: 'notime', text: mode === 'arrived' ? 'Arrived: no time written.' : 'No pickling time written under it.' }); });
-    flush(mode, mode === 'arrived' ? arrivedAt : null);
-  }
-  if (cutAt) items.push(prodDowntime(date, cutAt, null, true, cutAt.raw, cutAt.n));
-  return { items: items, notes: notes, unread: unread, date: date, noDate: noDate };
+  flushOpen();
+  prodPowerEnd(power, date, items);
+  return { items: items, notes: notes, date: date, noDate: noDate };
 }
 
 function prodDowntime(date, cut, inMin, open, raw, n) {
   return { kind: 'downtime', date: date, time: prodHhmm(cut.min), to: prodHhmm(inMin), downtime: { cause: 'power', open: !!open || inMin == null }, raw: raw, n: n, issues: [] };
+}
+/* A power line, the same in every message that carries one. A cut opens one; the power back closes it; a second cut
+   while one is open keeps the first as open rather than dropping it (or, in the barrel list, reading the second cut
+   as the first one's return). The power back with no cut above it is a note that keeps its day and minute, so a cut
+   in an earlier message of the same paste can take it (prodPairPower): the floor sends the two twenty minutes apart. */
+function prodPowerStep(pw, line, raw, n, date, sentAt, items, notes) {
+  var pt = prodTimeOf(line.replace(/^.*?(cut|cat|cute|in|out)\b/i, ''), sentAt);
+  if (/cut|cat|out/i.test(line) && !/\bin\b/i.test(line.replace(/cut|cat/i, ''))) {
+    prodPowerEnd(pw, date, items);
+    pw.cutAt = { min: pt.min, n: n, raw: raw, date: date };
+  } else if (pw.cutAt) {
+    items.push(prodDowntime(pw.cutAt.date, pw.cutAt, pt.min, /no\s*in/i.test(line), pw.cutAt.raw + '\n' + raw, pw.cutAt.n));
+    pw.cutAt = null;
+  } else notes.push({ n: n, raw: raw, text: 'The power back, with no cut above it in this message', powerIn: { date: date, min: pt.min } });
+}
+function prodPowerEnd(pw, date, items) {
+  if (pw.cutAt) items.push(prodDowntime(pw.cutAt.date || date, pw.cutAt, null, true, pw.cutAt.raw, pw.cutAt.n));
+  pw.cutAt = null;
 }
 
 function prodItemRecord(it, group, raw, n, date, noDate) {
@@ -317,6 +333,8 @@ function prodItemRecord(it, group, raw, n, date, noDate) {
     rework: it.rework, raw: raw, n: n, issues: [] };
   if (noDate) rec.issues.push({ tone: 'amber', code: 'nodate', text: 'No date in the message: read as ' + date + '.' });
   var how = group ? group.how : it.clientHow;
+  // How the client was found, for the check alone (never saved): what may be learnt from the owner's pick turns on it.
+  rec.clientHow = how || '';
   if (rec.clientId == null) rec.issues.push({ tone: 'red', code: 'client', text: rec.client ? '"' + rec.client + '" is not a client in the book. Pick the client, or keep it as written.' : 'No client written above this line. Pick the client.' });
   else if (how === 'read-as') rec.issues.push({ tone: 'amber', code: 'readas', text: '"' + rec.client + '" read as ' + rec.clientName + '.' });
   if (it.qty != null && (!it.unit || it.unitGuess)) rec.issues.push({ tone: 'amber', code: 'unit', text: 'No unit written: ' + it.qty + ' read as ' + (it.unit === 'KG' ? 'kg' : 'pieces') + '.' });
@@ -329,26 +347,23 @@ function prodItemRecord(it, group, raw, n, date, noDate) {
 function parseProductionList(msg, ctx) {
   var lines = String(msg.text || '').split('\n'), items = [], notes = [];
   // Before 19 May the list was a timed log of unload and load cycles counted in barrels ("Unlod time 10:00am /
-  // 90 CD ganral 120k ×4"): barrels, not pieces or kilograms. It is listed, not read.
-  if (/unlo?a?d/i.test(msg.text) || /\d\s*b[ae]r+[ae]*l+\b/i.test(msg.text)) {
+  // 90 CD ganral 120k ×4"): barrels, not pieces or kilograms. It is listed, not read. A count of barrels is a figure
+  // before the word; the list's own date is not one ("22/09/26 berral production", with no slash after the date, was
+  // taken for a count and the whole list thrown away).
+  if (/unlo?a?d/i.test(msg.text) || /\d\s*b[ae]r+[ae]*l+\b/i.test(String(msg.text || '').replace(/\d{1,2}\/\d{1,2}\/\d{2,4}\/*/g, ' '))) {
     lines.forEach(function(raw, i) { if (raw.trim()) notes.push({ n: i + 1, raw: raw, text: 'An older timed barrel log, in barrels; not read' }); });
-    return { items: [], notes: notes, unread: [], date: msg.sentOn || ctx.today };
+    return { items: [], notes: notes, date: msg.sentOn || ctx.today };
   }
-  var date = msg.sentOn || ctx.today, noDate = !msg.sentOn, group = null, family = null, cutAt = null;
+  var date = msg.sentOn || ctx.today, noDate = !msg.sentOn, group = null, family = null, power = {};
   lines.forEach(function(raw, i) {
     var line = raw.trim(), n = i + 1;
     if (!line) return;
     var hm = line.match(PROD_LIST_HEAD_RE);
-    if (hm) { if (relayIso(hm[1], hm[2], hm[3])) { date = relayIso(hm[1], hm[2], hm[3]); noDate = false; } line = line.slice(hm[0].length).trim(); if (!line) return; }
+    if (hm) { if (isoFromDmy(hm[1], hm[2], hm[3])) { date = isoFromDmy(hm[1], hm[2], hm[3]); noDate = false; } line = line.slice(hm[0].length).trim(); if (!line) return; }
     else if (/^\s*b[ae]r+[ae]*l+\.?\s*production\s*$/i.test(line) || /^\s*-*\s*(production|work)\s*-*\s*$/i.test(line)) return;
     var dm = line.replace(/\s+/g, '').match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})\/*$/);
-    if (dm) { date = relayIso(dm[1], dm[2], dm[3]) || date; noDate = false; return; }
-    if (prodIsPowerLine(line)) {
-      var pt = prodTimeOf(line.replace(/^.*?(cut|cat|cute|in|out)\b/i, ''), null);
-      if (/cut|cat|out/i.test(line) && !cutAt) cutAt = { min: pt.min, n: n, raw: raw };
-      else if (cutAt) { items.push(prodDowntime(date, cutAt, pt.min, /no\s*in/i.test(line), raw, n)); cutAt = null; }
-      return;
-    }
+    if (dm) { date = isoFromDmy(dm[1], dm[2], dm[3]) || date; noDate = false; return; }
+    if (prodIsPowerLine(line)) { prodPowerStep(power, line, raw, n, date, null, items, notes); return; }
     if (/unlo?a?d|lo?ding\s*time|^\s*\d{1,2}:\d{2}\s*[ap]m.*[}{]/i.test(line)) { notes.push({ n: n, raw: raw, text: 'An older timed barrel cycle; not read' }); return; }
     if (!/[A-Za-z0-9]/.test(line)) return;
     var cont = /^\s*-{3,}/.test(raw);
@@ -362,10 +377,13 @@ function parseProductionList(msg, ctx) {
     }
     if (it.clientId != null) { group = { client: it.client, clientId: it.clientId, clientName: it.clientName, how: it.clientHow }; family = null; }
     else if (!cont && !group && /^[A-Za-z]/.test(line)) {
-      // A first word that names nobody the book holds: the client or the part? Asked.
+      // A first word that names nobody the book holds: the client or the part? Asked. It is taken for the client
+      // only with a part written after it ("KUMAR 0140--300 NOS"); alone before its figure it is the part ("LINER
+      // 1000 NOS"), which read as a client with no part. Either way a name read by its place alone is never learnt
+      // (how 'unknown', prodSaveReview): the owner's pick says whose the load is, not that the word is their name.
       var w0 = line.split(/\s+/)[0];
-      group = { client: w0, clientId: null, clientName: '', how: 'unknown' };
-      it.part = it.part.replace(new RegExp('^' + w0.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\s*'), '');
+      var rest = it.part.replace(new RegExp('^' + w0.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\s*'), '');
+      if (rest) { group = { client: w0, clientId: null, clientName: '', how: 'unknown' }; it.part = rest; }
     }
     if (family && /^\d/.test(it.part)) it.part = family + ' ' + it.part;
     if (it.qty == null && !it.dots && /^[A-Za-z][A-Za-z .-]*$/.test(it.part) && /^\s*\d/.test((lines[i + 1] || '').replace(/[×✕]/g, 'X')) && /=|nos|kg/i.test(lines[i + 1] || '')) {
@@ -376,8 +394,8 @@ function parseProductionList(msg, ctx) {
     items.push(rec);
   });
   if (noDate) items.forEach(function(it) { it.issues.push({ tone: 'amber', code: 'nodate', text: 'No date on the list: read as ' + date + '.' }); });
-  if (cutAt) items.push(prodDowntime(date, cutAt, null, true, cutAt.raw, cutAt.n));
-  return { items: items, notes: notes, unread: [], date: date, noDate: noDate };
+  prodPowerEnd(power, date, items);
+  return { items: items, notes: notes, date: date, noDate: noDate };
 }
 
 /* ---------- The production block inside a roll ---------- */
@@ -386,7 +404,7 @@ function parseProductionList(msg, ctx) {
    header above: a guess, so it is amber on the review and saved only once confirmed. */
 function prodFromRoll(msg, ctx) {
   var rr = parseRelayRoll(msg.text, ctx.roster || [], msg.sentOn);
-  var date = rr.date || msg.sentOn || ctx.today, items = [], notes = [], cutAt = null;
+  var rollDate = rr.date || msg.sentOn || ctx.today, date = rollDate, items = [], notes = [], power = {};
   // One pass down the roll. The supervisor writes a slot's work under the slot, sometimes under a "----production----"
   // or "----work----" head and sometimes straight under the line it ran on ("---hold night-6:00am--- / crew /
   // Dilip press material / VAT A 2 / 3301-600 nos"): a line with a quantity under a slot is that slot's production
@@ -395,6 +413,14 @@ function prodFromRoll(msg, ctx) {
   rr.lines.forEach(function(ln) {
     if (ln.role !== 'note') pending = null;
     if (ln.role === 'head') {
+      // A second day's heading inside the roll ("22/09/26/ Sunday", read by the relay as a new day): the work under it
+      // is that day's. It was dated the roll's first day.
+      var dd = ln.raw.replace(/^[\s\-_=*.•]+/, '').match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})/);
+      if (dd && isoFromDmy(dd[1], dd[2], dd[3])) {
+        prodPowerEnd(power, date, items);
+        date = isoFromDmy(dd[1], dd[2], dd[3]); from = null; to = null; hint = null; inProd = false; group = null;
+        return;
+      }
       if (ln.read === 'Production notes') {
         inProd = true; group = null;
         var pa = relayHeaderAreas(ln.raw).filter(function(a) { return PROD_LINES.indexOf(a) >= 0; });
@@ -415,12 +441,7 @@ function prodFromRoll(msg, ctx) {
     }
     if (ln.role !== 'note') return;
     var line = ln.raw.trim();
-    if (prodIsPowerLine(line)) {
-      var pt = prodTimeOf(line.replace(/^.*?(cut|cat|cute|in|out)\b/i, ''), null);
-      if (/cut|cat|out/i.test(line) && !cutAt) cutAt = { min: pt.min, n: ln.n, raw: ln.raw };
-      else if (cutAt) { items.push(prodDowntime(date, cutAt, pt.min, false, ln.raw, ln.n)); cutAt = null; }
-      return;
-    }
+    if (prodIsPowerLine(line)) { prodPowerStep(power, line, ln.raw, ln.n, date, null, items, notes); return; }
     if (/no\s*work/i.test(line)) { notes.push({ n: ln.n, raw: ln.raw, text: 'No work in this block' }); return; }
     var it = prodReadItem(line, ctx.clients);
     // "Dilip press material", "Mehta ka maal": the client of the lines below.
@@ -448,7 +469,9 @@ function prodFromRoll(msg, ctx) {
     items.push(rec);
     if (it.qty == null && pending) pending.rec = rec;
   });
-  return { items: items, notes: notes, unread: [], date: date, noDate: !rr.date };
+  prodPowerEnd(power, date, items);
+  // The roll's own day: the same roll reposted days later is still the one roll (parseProdPaste).
+  return { items: items, notes: notes, date: rollDate, noDate: !rr.date };
 }
 
 /* ---------- A paste: every message read, none dropped ---------- */
@@ -466,16 +489,41 @@ function prodOwnerFill(items, ctx) {
   });
 }
 function parseProdPaste(text, ctx) {
-  var msgs = prodSplit(text);
-  return msgs.map(function(m) {
+  var msgs = prodSplit(text).map(function(m) {
     var r;
     if (m.kind === 'pickling' || m.kind === 'power') r = parsePickling(m, ctx);
     else if (m.kind === 'production') r = parseProductionList(m, ctx);
     else if (m.kind === 'roll') r = prodFromRoll(m, ctx);
-    else r = { items: [], notes: [], unread: [], date: m.sentOn || ctx.today };
+    else r = { items: [], notes: [], date: m.sentOn || ctx.today };
     prodOwnerFill(r.items, ctx);
     m.read = r;
+    m.hash = prodMsgKey(r.date, m.text);
     return m;
+  });
+  prodPairPower(msgs);
+  return msgs;
+}
+/* What makes two messages the same message: the day it reports and its words. The text alone refused the pickling
+   hand's "NOVA CLAMPS / CLAMP(40×6) / Pickling time 9:00AM" on every day after the first it was sent, and the load was
+   lost; a repost (the supervisor sends a roll again, days later) reports the same day in the same words, and is
+   still read once. The post's own time and sender are left out for that reason: they are all a repost changes. */
+function prodMsgKey(day, text) { return relayHash((day || '') + '\n' + String(text || '')); }
+
+/* A cut and its return sent as two messages ("Power cut 10:55" now, "Power in 11:15" twenty minutes later): the open
+   cut takes the first return after it on its day. The return stays listed in its own message, saying which cut it
+   closed. Both used to be kept apart, the cut saved as open and its return a note that went nowhere. */
+function prodPairPower(msgs) {
+  var open = [];
+  msgs.forEach(function(m) {
+    (m.read.notes || []).forEach(function(nt) {
+      if (!nt.powerIn || nt.powerIn.min == null) return;
+      var cut = open.filter(function(c) { var at = relayParseHhmm(c.time); return c.date === nt.powerIn.date && at != null && at <= nt.powerIn.min; }).pop();
+      if (!cut) return;
+      open.splice(open.indexOf(cut), 1);
+      cut.to = prodHhmm(nt.powerIn.min); cut.downtime.open = false; cut.raw += '\n' + nt.raw;
+      nt.text = 'The power back: the end of the cut at ' + relayClockLabel(relayParseHhmm(cut.time)) + ' in the message above';
+    });
+    m.read.items.forEach(function(it) { if (it.kind === 'downtime' && it.to == null) open.push(it); });
   });
 }
 
@@ -537,9 +585,9 @@ function prodRegisterTime(s) {
    day, so twelve-something AM is noon, and said so. */
 function prodRegisterNoonSlip(s) { return /\b12\s*[:.;]\s*\d{2}\s*a\.?\s?m/i.test(String(s || '')); }
 function prodRegisterNoon(s) { var m = prodRegisterTime(s); return m != null && prodRegisterNoonSlip(s) ? m + 720 : m; }
-function prodRegisterDate(s, near) {
+function prodRegisterDate(s) {
   var m = /(\d{1,2})\s*[\/.\-]\s*(\d{1,2})\s*[\/.\-]\s*(\d{2,4})/.exec(String(s || ''));
-  return m ? relayIso(m[1], m[2], m[3]) : null;
+  return m ? isoFromDmy(m[1], m[2], m[3]) : null;
 }
 /* A figure as the clerk writes it: "72", "72+10", "98×8+1", "8x156+68", "50+52+30", "4×108−3". Sums of products, added
    up here. The first product's larger factor is the rack and the smaller the rounds ("98×8": 8 rounds of 98), which is
@@ -548,14 +596,15 @@ function prodRegisterQty(text) {
   var t = String(text == null ? '' : text).replace(/[×✕*X]/g, 'x').replace(/[–—−]/g, '-').replace(/\s+/g, '').replace(/,/g, '').replace(/^\+/, '');
   t = t.replace(/(nos|pcs|pc)\.?$/i, '').replace(/^\((\d+)\)$/, '$1');
   // "3+4×156": racks counted in two goes, then the rack. The clerk's arithmetic is (3 + 4) × 156, not 3 + 624; read
-  // it that way and say so, with the other reading beside it.
+  // it that way and say so, with the other reading beside it. What follows the rack keeps its own sign: "3+4×156−3"
+  // is 3 short of seven racks (the tail used to be read without its leading minus, and the figure left unread).
   var g = /^((?:\d+\+)+\d+)x(\d+(?:\.\d+)?)((?:[+-][\d.x]+)*)$/i.exec(t);
   if (g && g[1].split('+').every(function(v) { return +v <= 20; })) {
-    var racks = g[1].split('+').reduce(function(a, v) { return a + +v; }, 0), rest = g[3] ? prodRegisterQty(g[3].replace(/^\+/, '')) : null;
+    var racks = g[1].split('+').reduce(function(a, v) { return a + +v; }, 0), rest = g[3] ? prodRegisterQty('0' + g[3]) : null;
     if (g[3] && !rest) return null;
-    var sgn = g[3] && /^-/.test(g[3]) ? -1 : 1;
-    return { qty: racks * +g[2] + (rest ? sgn * rest.qty : 0), rackSize: +g[2], rounds: racks, working: true, grouped: true,
-      arithmetic: g[1].split('+').slice(0, -1).reduce(function(a, v) { return a + +v; }, 0) + +g[1].split('+').pop() * +g[2] + (rest ? sgn * rest.qty : 0) };
+    var tail = rest ? rest.qty : 0;
+    return { qty: racks * +g[2] + tail, rackSize: +g[2], rounds: racks, working: true, grouped: true,
+      arithmetic: g[1].split('+').slice(0, -1).reduce(function(a, v) { return a + +v; }, 0) + +g[1].split('+').pop() * +g[2] + tail };
   }
   if (!/^\d+(\.\d+)?(x\d+(\.\d+)?)*([+-]\d+(\.\d+)?(x\d+(\.\d+)?)*)*$/i.test(t)) return null;
   var total = 0, first = null;
@@ -600,7 +649,13 @@ function prodFromRegisterRead(json, ctx, photoDate, choices) {
     if (rowDate) out.date = rowDate;
   }
   if (!out.date) { out.date = photoDate || ctx.today; out.issues.push({ tone: 'amber', code: 'date', text: 'No date read on the page: taken as ' + out.date + '. Check it.' }); }
-  else if (photoDate && Math.abs(todoDaysBetween(out.date, photoDate)) > 4) out.issues.push({ tone: 'amber', code: 'date', text: 'The page reads ' + out.date + ', ' + Math.abs(todoDaysBetween(out.date, photoDate)) + ' days from when the photo was taken. Check the date (day and month can swap).' });
+  else if (photoDate && Math.abs(isoDaysBetween(out.date, photoDate)) > 4) out.issues.push({ tone: 'amber', code: 'date', text: 'The page reads ' + out.date + ', ' + Math.abs(isoDaysBetween(out.date, photoDate)) + ' days from when the photo was taken. Check the date (day and month can swap).' });
+  // The date the owner set on the check is the page's, and a power log's rows read on the page's date move with it
+  // (prodRegisterPower). The power log's cuts were saved on the date read, whatever the check said.
+  if (choices.date) {
+    if (choices.date !== out.date) { out.readDate = out.date; out.date = choices.date; }
+    out.issues = out.issues.filter(function(x) { return x.code !== 'date'; });
+  }
   // The day name the clerk writes beside the date is a second reading of it.
   var wd = String(json.weekday || '').toUpperCase().replace(/[^A-Z]/g, '').slice(0, 3);
   if (wd && PROD_WEEKDAYS.indexOf(wd) >= 0) {
@@ -615,16 +670,18 @@ function prodFromRegisterRead(json, ctx, photoDate, choices) {
   out.dayTotal = json.dayTotal != null && isFinite(json.dayTotal) ? +json.dayTotal : null;
   var markOf = function(r) { var m = String(r.mark || '').toUpperCase(); return /END/.test(m) || /\bend\b/i.test(r.time || '') ? 'END' : /START/.test(m) || r.start || /start/i.test(r.time || '') ? 'START' : ''; };
   out.style = json.rows.some(function(r) { return r && markOf(r) === 'END'; }) ? 'startend' : 'rounds';
-  var lastCust = '', lastPart = '';
+  var lastCust = '', lastPart = '', lastDim = '';
   json.rows.forEach(function(r0, i) {
     var r = r0 || {};
     var mark = markOf(r), written = r.qtyText != null && String(r.qtyText).trim() !== '' ? String(r.qtyText).trim() : null;
     // A row with nothing on it but ditto marks (the clerk's next line, begun and not used) is not a row.
     if (!r.time && !mark && written == null && r.qty == null && !r.customer && !r.part && !r.struck) return;
-    var cust = (r.customer || '').trim(), part = (r.part || '').trim();
-    if (r.ditto || (!cust && !part)) { cust = cust || lastCust; part = part || lastPart; }
-    lastCust = cust || lastCust; lastPart = part || lastPart;
-    var row = { i: i, time: String(r.time || '').replace(/\s*-?\s*(start|end)\s*$/i, ''), min: prodRegisterNoon(r.time), cust: cust, part: part, dim: r.dim || '',
+    var cust = (r.customer || '').trim(), part = (r.part || '').trim(), dim = String(r.dim || '').trim();
+    // A ditto row carries the size above it too, so it stays in its run now that a run is one gauge.
+    var ditto = r.ditto || (!cust && !part);
+    if (ditto) { cust = cust || lastCust; part = part || lastPart; dim = dim || lastDim; }
+    lastCust = cust || lastCust; lastPart = part || lastPart; if (!ditto || dim) lastDim = dim;
+    var row = { i: i, time: String(r.time || '').replace(/\s*-?\s*(start|end)\s*$/i, ''), min: prodRegisterNoon(r.time), cust: cust, part: part, dim: dim,
       mark: mark, start: mark === 'START', end: mark === 'END', rackSize: r.rackSize, rounds: r.rounds, short: r.short,
       qty: null, written: written, struck: !!r.struck, over: r.over || '', bracket: !!r.bracket, legible: r.legible !== false, issues: [] };
     if (written != null) {
@@ -669,16 +726,19 @@ function prodFromRegisterRead(json, ctx, photoDate, choices) {
         row.issues.push({ tone: 'info', code: 'nostart', text: 'An END with no START of its own: taken as starting where the batch before it ended.' });
     });
   }
-  // Runs: consecutive rows of one customer and part.
+  // Runs: consecutive rows of one customer, part and gauge. Two gauges of one clamp are two parts at two rates, and the
+  // gauge used to be taken out of the key, so a 35X6 run following a 40X6 one was added into it under the 40X6. A row
+  // with no gauge of its own continues the run above it.
   var cur = null;
   out.rows.forEach(function(row) {
-    var ck = relayKey(row.cust) + '|' + rateKey(prodPartBase(row.part + ' ' + row.dim));
-    if (!cur || cur.ck !== ck) { cur = { ck: ck, rows: [] }; out.runs.push(cur); }
+    var pd = row.part + ' ' + row.dim, ck = relayKey(row.cust) + '|' + rateKey(prodPartBase(pd)), g = lineGauge(pd.replace(/[×✕]/g, 'X'));
+    if (!cur || cur.ck !== ck || (g && cur.g && g !== cur.g)) { cur = { ck: ck, g: g, rows: [] }; out.runs.push(cur); }
+    else if (g && !cur.g) cur.g = g;
     cur.rows.push(row);
   });
   out.runs = out.runs.map(function(run) {
-    var first = run.rows[0], it = prodReadItem(first.cust, ctx.clients);
-    var partText = (first.part + (first.dim && !lineGauge(first.part.replace(/[×✕]/g, 'X')) ? ' (' + first.dim + ')' : '')).trim();
+    var first = run.rows[0], it = prodReadItem(first.cust, ctx.clients), dimText = first.dim || run.g;
+    var partText = (first.part + (dimText && !lineGauge(first.part.replace(/[×✕]/g, 'X')) ? ' (' + dimText + ')' : '')).trim();
     var counted = run.rows.filter(function(x) { return x.counted && x.qty != null; });
     var qty = counted.reduce(function(s, x) { return s + x.qty; }, 0);
     // A struck row cancelled does not stretch the run's hours (one not yet answered still does).
@@ -693,7 +753,7 @@ function prodFromRegisterRead(json, ctx, photoDate, choices) {
         if (x.rackSize && x.rounds) { o.rack = x.rackSize; o.n = x.rounds; }
         if (x.struck) o.struck = !x.counted; if (x.over) o.over = x.over; return o; }),
       raw: run.rows.map(function(x) { return x.raw; }).join('\n'), n: first.i + 1, issues: [], rows: run.rows };
-    e.slot = e.time && (prodMin(e.time) < 510 || prodMin(e.time) >= 1020) ? 'ot' : 'general';
+    e.slot = e.time && (relayParseHhmm(e.time) < 510 || relayParseHhmm(e.time) >= 1020) ? 'ot' : 'general';
     if (e.clientId == null) e.issues.push({ tone: 'red', code: 'client', text: first.cust ? '"' + first.cust + '" is not a client in the book. Pick the client, or keep it as written.' : 'No customer written. Pick the client.' });
     else if (it.clientHow === 'read-as') e.issues.push({ tone: 'amber', code: 'readas', text: '"' + first.cust + '" read as ' + it.clientName + '.' });
     return e;
@@ -711,7 +771,7 @@ function prodRegisterPower(json, out) {
   var byDay = {};
   json.rows.forEach(function(r, i) {
     if (!r || !r.event) return;
-    var d = prodRegisterDate(r.date) || out.date, cut = /cut|off|gone/i.test(r.event), min = prodRegisterNoon(r.time);
+    var rd = prodRegisterDate(r.date), d = !rd || rd === out.readDate ? out.date : rd, cut = /cut|off|gone/i.test(r.event), min = prodRegisterNoon(r.time);
     if (prodRegisterNoonSlip(r.time)) out.issues.push({ tone: 'amber', code: 'meridiem', text: 'Power ' + (cut ? 'cut' : 'in') + ' "' + r.time + '" on ' + d + ' read as ' + relayClockLabel(min) + ': the register runs in the day.' });
     (byDay[d] = byDay[d] || []).push({ i: i, cut: cut, min: min, raw: [r.date || '', r.event, r.time || ''].filter(Boolean).join(' · ') });
   });

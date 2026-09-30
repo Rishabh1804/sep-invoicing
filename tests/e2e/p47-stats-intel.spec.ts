@@ -49,10 +49,10 @@ test.describe('P47: Stats tabs, the overview and the margin by client', () => {
     await loadAppWithState(page, state());
     await openStatsTab(page, 'overview');
     const ov = page.locator('#statsOverview');
-    await expect(ov).toContainText('₹7.00');           // ₹28,000 on 4 t
+    await expect(ov).toContainText('₹6.92');           // ₹28,000 less the ₹300 note, on 4 t (net of credit notes, owner 30 Sep 2026)
     await expect(ov).toContainText('₹8.56');           // every cost on its model figure
-    await expect(page.locator('#statsContrib')).toContainText('−₹1.56');
-    await expect(ov).toContainText('−₹6,240.00 on the period');
+    await expect(page.locator('#statsContrib')).toContainText('−₹1.64');   // ₹6.92 less the ₹8.56 live cost
+    await expect(ov).toContainText('−₹6,540.00 on the period');   // ₹27,700 less 4 t at ₹8.56
     await expect(ov).toContainText('0% of it measured');
     await expect(ov).toContainText('Read with care');
     await expect(ov).toContainText('labour (model)');
@@ -72,11 +72,12 @@ test.describe('P47: Stats tabs, the overview and the margin by client', () => {
     await expect(rows.nth(1)).toContainText('+4.44');
     const worst = page.locator('#statsWorst');
     await expect(worst).toContainText('BETA CLAMPS');
-    await expect(worst).toContainText('below its variable cost');
-    await expect(worst).toContainText('75% · 54%');
-    const m = await g(page, `(function(){ var r = statsClientMargins('mtd', S.invoices, weighLines(S.invoices)); return [r.fullKg, r.varKg, r.ranked[0].money]; })()`) as number[];
+    // Nothing recorded, so labour cannot be split into fixed and variable: it says so rather than calling it all variable.
+    await expect(worst).toContainText('split not known');
+    await expect(worst).toContainText('75% · 53%');   // BETA's revenue net of its note: 14,700 of 27,700
+    const m = await g(page, `(function(){ var r = statsClientMargins('mtd', statsInvoices(), weighLines(statsInvoices())); return [r.fullKg, r.varKg, r.ranked[0].money]; })()`) as number[];
     expect(m[0]).toBeCloseTo(8.56, 2);
-    expect(m[1]).toBeCloseTo(8.56, 2);
+    expect(m[1]).toBeNull();
     expect(m[2]).toBeCloseTo(-10980, 0);
   });
 });

@@ -37,13 +37,7 @@ function payMonthEnd(iso) {
   var d = attParseIso(payMonthStart(iso));
   d.setMonth(d.getMonth() + 1);
   d.setDate(0);
-  return attIso(d);
-}
-function payMedian(nums) {
-  var a = nums.slice().sort(function(x, y) { return x - y; });
-  if (!a.length) return null;
-  var m = Math.floor(a.length / 2);
-  return a.length % 2 ? a[m] : (a[m - 1] + a[m]) / 2;
+  return isoOf(d);
 }
 function payPaidBetween(staffId, from, to) {
   return gstRound(staffPayments().reduce(function(s, p) {
@@ -52,9 +46,53 @@ function payPaidBetween(staffId, from, to) {
   }, 0));
 }
 
+/* ===== What carries from one period to the next =====
+   A balance carries (owner, 30 Sep 2026: WB2, "yes, unless stated otherwise and notification cleared"). A due left
+   unpaid is still owed next period, an advance not worked off is still to be worked off, and a monthly salary paid
+   on the 14th of the next month pays the month it was for. The due had been per period only: the advance vanished
+   when the period turned, and September's salary paid in October read as an advance against October.
+
+   It is counted from the period of the worker's first payment recorded here (a monthly hand's, the month before,
+   since a salary pays the month before): before that no payment was typed in the app, so nothing is known of what
+   was settled and every past wage would read as owed. A month on record as paid (the slip) is settled whatever the
+   marks read. **Stated otherwise**: a balance is cleared with a reason (`S.payCarryClears`), which settles every
+   period up to the one before the clear and takes the To-do task with it; it is voided, never deleted. */
+function payCarryClears() {
+  if (!Array.isArray(S.payCarryClears)) S.payCarryClears = [];
+  return S.payCarryClears;
+}
+function payPeriodOf(w, iso) { return payIsWeekly(w) ? attWeekStartOf(iso) : payMonthStart(iso); }
+function payPeriodEnd(w, start) { return payIsWeekly(w) ? isoAddDays(start, 6) : payMonthEnd(start); }
+/* labourForRange once per range within one drawing: every worker's carry reads the same weeks and months. */
+function payLabMemo() {
+  var memo = {};
+  return function(from, to) { var k = from + '|' + to; return memo[k] || (memo[k] = labourForRange(from, to)); };
+}
+function payCarried(w, periodFrom, lab) {
+  var id = String(w.id);
+  // Any payment dates the start, one in this period included: a salary paid in October for September must carry
+  // September into October, not read as an advance against October.
+  var pays = staffPayments().filter(function(p) { return !p.voidedAt && String(p.staffId) === id; });
+  if (!pays.length) return { amount: 0, periods: 0 };
+  var first = pays.reduce(function(m, p) { return p.date < m ? p.date : m; }, pays[0].date);
+  var start = payPeriodOf(w, first);
+  if (!payIsWeekly(w)) start = payMonthStart(isoAddDays(start, -1));
+  var clear = payCarryClears().filter(function(c) { return !c.voidedAt && String(c.staffId) === id && c.through < periodFrom; })
+    .sort(function(a, b) { return a.through < b.through ? 1 : a.through > b.through ? -1 : (b.at || 0) - (a.at || 0); })[0] || null;
+  if (clear) { var next = payPeriodOf(w, isoAddDays(clear.through, 1)); if (next > start) start = next; }
+  var amt = 0, periods = 0;
+  for (var p = start, guard = 0; p < periodFrom && guard < 260; guard++) {
+    var end = payPeriodEnd(w, p), e = lab(p, end).byWorker[w.id];
+    periods++;
+    if (!(!payIsWeekly(w) && e && e.asPaid)) amt += (e ? e.total : 0) - payPaidBetween(w.id, p, end);
+    p = isoAddDays(end, 1);
+  }
+  return { amount: gstRound(amt), from: start, periods: periods, clear: clear };
+}
+
 /* One pay week's payout: the weekly tiers' earnings plus the EXTRA pool. */
 function payWeek(weekStart) {
-  var sat = attAddDays(weekStart, 6);
+  var sat = isoAddDays(weekStart, 6);
   var lab = labourForRange(weekStart, sat);
   var workers = 0;
   Object.keys(lab.byWorker).forEach(function(id) {
@@ -64,11 +102,11 @@ function payWeek(weekStart) {
   var paid = 0;
   staffPayments().forEach(function(p) {
     if (p.voidedAt || p.date < weekStart || p.date > sat) return;
-    if (payIsWeekly(staffById(p.staffId) || (S.staff || []).find(function(w) { return String(w.id) === String(p.staffId); }))) paid += Number(p.amount) || 0;
+    if (payIsWeekly(staffById(p.staffId))) paid += Number(p.amount) || 0;
   });
   return { start: weekStart, sat: sat, lab: lab, workers: gstRound(workers), extra: lab.extra,
     total: gstRound(workers + lab.extra), paid: gstRound(paid),
-    recordedDays: lab.daysRecorded, sundays: lab.sundaysRecorded };
+    recordedDays: lab.daysRecorded, workingDays: lab.workingDays, sundays: lab.sundaysRecorded };
 }
 
 /* The payout the week is heading for, and the usual it is read against. */
@@ -77,17 +115,23 @@ function payForecast(weekStart) {
   var wk = payWeek(weekStart);
   var past = [];
   for (var i = 1; i <= PAY_HISTORY_WEEKS; i++) {
-    var p = payWeek(attAddDays(weekStart, -7 * i));
+    var p = payWeek(isoAddDays(weekStart, -7 * i));
     if (p.recordedDays > 0) past.push(p.total);
   }
-  var median = payMedian(past);
+  var median = numMedian(past);
   var open = wk.sat >= today;
   var out = { week: wk, median: median, medianWeeks: past.length, open: open, predicted: wk.total, basis: 'recorded' };
   if (open) {
-    var sunOnly = labourForRange(weekStart, weekStart), sunPay = 0;
-    Object.keys(sunOnly.byWorker).forEach(function(id) { if (sunOnly.byWorker[id].comp !== 'monthly') sunPay += sunOnly.byWorker[id].total; });
-    sunPay += sunOnly.extra;
-    var missing = 6 - wk.recordedDays;
+    // The Sunday and a paid holiday are not working days: what they paid does not repeat, so it is out of the pace, and
+    // the days left to predict are the week's working days (five in a holiday week) less those recorded.
+    var sunPay = 0;
+    attWeekDays(weekStart).forEach(function(d) {
+      if (attParseIso(d).getDay() !== 0 && !labourIsHoliday(d)) return;
+      var one = labourForRange(d, d);
+      Object.keys(one.byWorker).forEach(function(id) { if (one.byWorker[id].comp !== 'monthly') sunPay += one.byWorker[id].total; });
+      sunPay += one.extra;
+    });
+    var missing = Math.max(0, wk.workingDays - wk.recordedDays);
     if (wk.recordedDays > 0) {
       var pace = (wk.total - sunPay) / wk.recordedDays;
       out.predicted = gstRound(wk.total + pace * missing);
@@ -108,19 +152,32 @@ function payForecast(weekStart) {
    period the selected week sits in. */
 function payDue(weekStart) {
   var today = localDateStr();
-  var sat = attAddDays(weekStart, 6);
-  var mFrom = payMonthStart(sat), mTo = payMonthEnd(sat);
+  var sat = isoAddDays(weekStart, 6);
+  // The monthly tier's month is the one the week's Sunday is in: a week that runs into the next month is the last pay
+  // week of the month it closes. Read off the Saturday, the last week of September showed October's due at nothing and
+  // hid September's, which is the one being settled.
+  var mFrom = payMonthStart(weekStart), mTo = payMonthEnd(weekStart);
   var wk = labourForRange(weekStart, sat);
   var mo = labourForRange(mFrom, mTo > today && mFrom <= today ? today : mTo);
-  var rows = staffActive().map(function(w) {
+  // The active roster, and anyone who has left but earned or was paid in the period: their final week must be payable.
+  var pool = staffActive().slice(), poolLab = payLabMemo();
+  (S.staff || []).filter(function(w) { return w.active === false; }).sort(function(a, b) { return String(a.name).localeCompare(String(b.name)); }).forEach(function(w) {
+    var weekly = payIsWeekly(w), from = weekly ? weekStart : mFrom, to = weekly ? sat : mTo;
+    var e = (weekly ? wk : mo).byWorker[w.id];
+    if ((e && (e.total || e.days || e.hours || e.hourless)) || staffPayments().some(function(p) { return !p.voidedAt && String(p.staffId) === String(w.id) && p.date >= from && p.date <= to; })
+      || Math.abs(payCarried(w, from, poolLab).amount) >= 1) pool.push(w);
+  });
+  var lab = payLabMemo();
+  var rows = pool.map(function(w) {
     var weekly = payIsWeekly(w);
+    var carry = payCarried(w, weekly ? weekStart : mFrom, lab), c = Math.abs(carry.amount) >= 1 ? carry.amount : 0;
     var e = (weekly ? wk : mo).byWorker[w.id] || { total: 0, days: 0, hours: 0, otHours: 0, base: 0, ot: 0, rest: 0 };
     var from = weekly ? weekStart : mFrom, to = weekly ? sat : mTo;
     var paid = payPaidBetween(w.id, from, to);
     // A closed month on record as paid is settled by the slip: what it paid is
     // what was earned, so nothing is due on it however the marks read.
-    if (!weekly && e.asPaid) return { w: w, weekly: weekly, earned: e, paid: e.total, due: 0, from: from, to: to, asPaid: true };
-    return { w: w, weekly: weekly, earned: e, paid: paid, due: gstRound(e.total - paid), from: from, to: to };
+    if (!weekly && e.asPaid) return { w: w, weekly: weekly, earned: e, paid: e.total, due: c, carried: c, carry: carry, from: from, to: to, asPaid: true };
+    return { w: w, weekly: weekly, earned: e, paid: paid, due: gstRound(e.total - paid + c), carried: c, carry: carry, from: from, to: to };
   });
   return { rows: rows, extra: wk.extra, extraHours: wk.extraHours, weekStart: weekStart, sat: sat, mFrom: mFrom, mTo: mTo };
 }
@@ -129,7 +186,7 @@ function payMoney(n) { return escHtml(formatCurrency(n)); }
 function paySigned(n) { return (n > 0 ? '+' : n < 0 ? '&minus;' : '') + escHtml(formatCurrency(Math.abs(n))); }
 
 function _attPayView() {
-  var ws = _attWeekStart, sat = attAddDays(ws, 6);
+  var ws = _attWeekStart, sat = isoAddDays(ws, 6);
   var html = _attStepper('invAttWeekStep', _attWeekLabel('Week ' + attPayWeekNumber(ws), 'Paid Sat ' + formatDate(sat)),
     'invAttThisWeek', 'This week', 'Previous week', 'Next week');
   html += _payForecastCard(ws);
@@ -157,7 +214,7 @@ function _payForecastCard(ws) {
   var h = _labPanelHead('payout', 'Weekly payout', payMoney(f.open ? f.predicted : wk.total), '', 'payForecast');
   h += '<div class="inv-tiles inv-tiles-flush">' +
     _labTile('sofar', f.open ? 'So far' : 'The week', payMoney(wk.total),
-      wk.recordedDays + ' of 6 working days recorded' + (wk.sundays ? ' + Sunday' : '')) +
+      wk.recordedDays + ' of ' + wk.workingDays + ' working days recorded' + (wk.sundays ? ' + Sunday' : '') + (wk.workingDays < 6 ? ', a paid holiday out' : '')) +
     _labTile('predicted', f.open ? 'Predicted' : 'Against the median', f.open ? payMoney(f.predicted) : (f.swing == null ? '&mdash;' : paySigned(f.swing)),
       f.open
         ? (f.basis === 'pace' ? f.missing + ' day' + (f.missing === 1 ? '' : 's') + ' at this week&rsquo;s pace, ' + payMoney(f.pace) + '/day'
@@ -182,7 +239,9 @@ function _payDueCard(ws) {
   var h = _labPanelHead('due', 'Due by worker', null, '', 'payDue');
   var group = function(title, rows) {
     if (!rows.length) return '';
-    var tot = rows.reduce(function(s, r) { return s + r.due; }, 0);
+    // What is due and what was advanced are two figures: netting one hand's advance against another's due read low.
+    var tot = rows.reduce(function(s, r) { return s + (r.due > 0 ? r.due : 0); }, 0);
+    var adv = rows.reduce(function(s, r) { return s + (r.due < 0 ? -r.due : 0); }, 0);
     var g = '<div class="inv-row-group">' + title + '</div>';
     rows.forEach(function(r) {
       var e = r.earned, bits = [];
@@ -190,23 +249,55 @@ function _payDueCard(ws) {
       if (r.w.comp === 'hourly' && e.hours) bits.push(formatNum(e.hours, 1) + ' h');
       if (e.otHours) bits.push('OT ' + formatNum(e.otHours, 1) + ' h');
       if (e.rest) bits.push('rest ' + payMoney(e.rest));
+      if (e.hourless) bits.push(e.hourless + ' day' + (e.hourless === 1 ? '' : 's') + ' present with no hours, priced at nothing');
+      if (r.w.active === false) bits.push('left');
       // A negative due is an advance not yet worked off: said in a word beside the figure.
       g += _payRow(escHtml(r.w.name),
         (bits.length ? bits.join(' · ') + ' · ' : 'nothing recorded · ') + 'earned ' + payMoney(e.total) +
-          (r.asPaid ? ' · as paid, from the slip' : r.paid ? ' &minus; paid ' + payMoney(r.paid) : ''),
+          (r.asPaid ? ' · as paid, from the slip' : r.paid ? ' &minus; paid ' + payMoney(r.paid) : '') +
+          (r.carried ? (r.carried > 0 ? ' + ' + payMoney(r.carried) + ' owed from before' : ' &minus; ' + payMoney(-r.carried) + ' advanced before') : ''),
         r.due < 0 ? '<span class="inv-row-stack"><span class="inv-num">' + payMoney(r.due) + '</span><span class="inv-dot inv-dot-warning">Advance</span></span>'
           : '<span class="inv-num">' + payMoney(r.due) + '</span>',
         ' data-action="invPayPick" data-id="' + escHtml(r.w.id) + '" data-due="' + r.due + '"');
     });
-    g += _payRow('Total due', '', '<span class="inv-num">' + payMoney(gstRound(tot)) + '</span>', '', 'inv-row-strong');
+    g += _payRow('Total due', '', '<span class="inv-num" data-pay-total="due">' + payMoney(gstRound(tot)) + '</span>', '', 'inv-row-strong');
+    if (adv > 0) g += _payRow('Advanced, not yet worked off', 'not taken off the total due',
+      '<span class="inv-row-stack"><span class="inv-num" data-pay-total="advanced">' + payMoney(gstRound(adv)) + '</span><span class="inv-dot inv-dot-warning">Advance</span></span>');
     return g;
   };
   h += group('Weekly &middot; paid Sat ' + formatDate(d.sat), d.rows.filter(function(r) { return r.weekly; }));
   h += group('Monthly &middot; ' + escHtml(monthName), d.rows.filter(function(r) { return !r.weekly; }));
-  h += _labNote('Earned is worked out from the days recorded, on the labour card&rsquo;s own rates. A negative due is an advance not yet worked off. Tap a worker to pay what is due.');
+  h += _payCarriedHtml(d);
+  h += _labNote('Earned is worked out from the days recorded, on the labour card&rsquo;s own rates. A negative due is an advance not yet worked off. What was owed or advanced in an earlier period carries into this one until it is paid, worked off or cleared with a reason. Tap a worker to pay what is due.');
   h += _payFormHtml(d);
   h += _payListHtml(d);
   return h + '</div>';
+}
+
+/* The balances brought forward, each clearable with a reason ("stated otherwise"). */
+function _payCarriedHtml(d) {
+  var rows = d.rows.filter(function(r) { return r.carried; }), h = '';
+  if (rows.length) h += '<div class="inv-row-group">Brought forward</div>';
+  rows.forEach(function(r) {
+    var owed = r.carried > 0;
+    h += _payRow(escHtml(r.w.name),
+      (owed ? 'Owed' : 'Advanced') + ' from before ' + escHtml(formatDate(r.from)) + ' · counted since ' + escHtml(formatDate(r.carry.from)) +
+        (r.carry.clear ? ' (cleared up to ' + escHtml(formatDate(r.carry.clear.through)) + ')' : ''),
+      '<span class="inv-row-stack"><span class="inv-num" data-pay-carried="' + escHtml(r.w.id) + '">' + payMoney(r.carried) + '</span><span class="inv-dot inv-dot-warning">' + (owed ? 'Owed' : 'Advance') + '</span></span>' +
+        '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invPayClear" data-id="' + escHtml(r.w.id) + '" data-through="' + escHtml(isoAddDays(r.from, -1)) + '" data-amount="' + r.carried + '">Clear</button>',
+      ' data-carried-row="' + escHtml(r.w.id) + '"');
+  });
+  var clears = payCarryClears().filter(function(c) { return !c.voidedAt && d.rows.some(function(r) { return String(r.w.id) === String(c.staffId); }); });
+  if (clears.length) {
+    h += '<div class="inv-row-group">Balances cleared</div>';
+    clears.slice().sort(function(a, b) { return (b.at || 0) - (a.at || 0); }).slice(0, 10).forEach(function(c) {
+      var w = staffById(c.staffId);
+      h += _payRow(escHtml(w ? w.name : 'Removed worker'), 'Up to ' + escHtml(formatDate(c.through)) + ' · ' + escHtml(c.reason || ''),
+        '<span class="inv-num">' + payMoney(c.amount || 0) + '</span><button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invPayClearVoid" data-id="' + escHtml(c.id) + '">Undo</button>',
+        ' data-pay-clear="' + escHtml(c.id) + '"', 'inv-row-muted');
+    });
+  }
+  return h;
 }
 
 function _payFormHtml(d) {
@@ -215,7 +306,7 @@ function _payFormHtml(d) {
   var f = function(id, label, control) { return '<div class="inv-field"><label class="inv-field-label" for="' + id + '">' + label + '</label>' + control + '</div>'; };
   return '<div class="inv-row-group">Record a payment</div><div class="inv-panel-body" id="payForm"><div class="inv-fields">' +
     f('payWorker', 'Worker', '<select class="inv-select" id="payWorker"><option value="">Select&hellip;</option>' +
-      staffActive().map(function(w) { return '<option value="' + escHtml(w.id) + '">' + escHtml(w.name) + '</option>'; }).join('') + '</select>') +
+      d.rows.map(function(r) { return '<option value="' + escHtml(r.w.id) + '">' + escHtml(r.w.name) + '</option>'; }).join('') + '</select>') +
     f('payKind', 'Kind', '<select class="inv-select" id="payKind"><option value="payment">Payment</option><option value="advance">Advance</option></select>') +
     f('payAmount', 'Amount', '<input class="inv-input inv-input-num" id="payAmount" type="number" step="0.01" min="0" inputmode="decimal">') +
     f('payDate', 'Date', '<input class="inv-input inv-id" id="payDate" type="date" value="' + defDate + '">') +
@@ -225,14 +316,14 @@ function _payFormHtml(d) {
 
 function _payListHtml(d) {
   var list = staffPayments().filter(function(p) {
-    var w = (S.staff || []).find(function(x) { return String(x.id) === String(p.staffId); });
+    var w = staffById(p.staffId);
     var weekly = payIsWeekly(w);
     return weekly ? (p.date >= d.weekStart && p.date <= d.sat) : (p.date >= d.mFrom && p.date <= d.mTo);
   }).sort(function(a, b) { return a.date < b.date ? 1 : a.date > b.date ? -1 : (b.at || 0) - (a.at || 0); });
   if (!list.length) return '';
   var h = '<div class="inv-row-group">Payments in these periods</div>';
   list.forEach(function(p) {
-    var w = (S.staff || []).find(function(x) { return String(x.id) === String(p.staffId); });
+    var w = staffById(p.staffId);
     h += _payRow(escHtml(w ? w.name : 'Removed worker'),
       escHtml(formatDate(p.date)) + ' · ' + (p.kind === 'advance' ? 'Advance' : 'Payment') +
         (p.note ? ' · ' + escHtml(p.note) : '') + (p.voidedAt ? ' · void: ' + escHtml(p.voidReason || '') : ''),
@@ -245,12 +336,15 @@ function _payListHtml(d) {
 
 function _payHistoryCard(ws) {
   var weeks = [];
-  for (var i = PAY_HISTORY_WEEKS - 1; i >= 0; i--) weeks.push(payWeek(attAddDays(ws, -7 * i)));
+  for (var i = PAY_HISTORY_WEEKS - 1; i >= 0; i--) weeks.push(payWeek(isoAddDays(ws, -7 * i)));
   // The same median the forecast reads: the twelve weeks before this one.
   var median = payForecast(ws).median;
   var h = '<div class="inv-panel inv-panel-flush" id="payHistory"><div class="inv-panel-head"><span class="inv-panel-title">Weekly payouts</span>' +
     '<span class="inv-panel-count">median ' + (median == null ? '&mdash;' : payMoney(median)) + '</span></div>';
-  h += '<div class="inv-panel-body">' + chartBars(weeks.map(function(w) { return { label: 'W' + attPayWeekNumber(w.start), value: w.total }; }), { ariaLabel: 'Weekly payout' }) + '</div>';
+  // A week nobody typed is a gap, not a ₹0 week: chartStack draws no bar (and no ₹0 reading) for it.
+  h += '<div class="inv-panel-body">' + chartStack(weeks.map(function(w) { return 'W' + attPayWeekNumber(w.start); }),
+    [{ label: 'Payout', values: weeks.map(function(w) { return w.recordedDays || w.sundays ? w.total : null; }) }],
+    { ariaLabel: 'Weekly payout', emptyText: 'No week recorded in the twelve' }) + '</div>';
   weeks.slice().reverse().forEach(function(w) {
     var swing = median != null && w.recordedDays > 0 ? gstRound(w.total - median) : null;
     h += _payRow('Week ' + attPayWeekNumber(w.start) + ' &middot; Sat ' + escHtml(formatDate(w.sat)),
@@ -294,22 +388,46 @@ function payrollPaidFor(month) {
   var gross = (rec.rows || []).reduce(function(s, r) { return s + (Number(r.dayPay) || 0) + (Number(r.ot) || 0); }, 0);
   return { rec: rec, rows: rec.rows || [], gross: gstRound(gross), source: rec.source || '' };
 }
-function payrollWorker(row) {
+/* A slip row's worker, by NAME the way a roll is read (relayRosterIndex / relayMatchName: the roster name and its
+   bracket or dash variants, a spelling kept on the worker, a first name nobody else shares), never by the id a file
+   carries: ids are per device. Only a sure match moves money; a spelling read only by its fold or one letter off is
+   offered on the card as a guess (payrollMatch) and not used. The index is kept while the roster's names stand. */
+var _payrollIdx = null, _payrollIdxSig = '';
+function payrollRosterIndex() {
   var staff = S.staff || [];
-  if (row.staffId != null) {
-    var byId = staff.find(function(w) { return String(w.id) === String(row.staffId); });
-    if (byId) return byId;
-  }
-  var k = relayKey(row.name || '');
-  if (!k) return null;
-  return staff.find(function(w) {
-    return relayKey(w.name) === k || (w.relayNames || []).some(function(n) { return relayKey(n) === k; });
-  }) || null;
+  var sig = staff.map(function(w) { return w.id + ':' + w.name + ':' + (w.relayNames || []).join('|') + ':' + (w.aliases || []).join('|'); }).join(',');
+  if (!_payrollIdx || sig !== _payrollIdxSig) { _payrollIdx = relayRosterIndex(staff); _payrollIdxSig = sig; }
+  return _payrollIdx;
 }
+function payrollMatch(row) {
+  var name = String((row && row.name) || '').trim();
+  if (!relayKey(name)) return null;
+  var idx = payrollRosterIndex(), whole = idx.byKey[relayKey(name)];
+  if (whole) return { w: whole, sure: true };
+  if (relayKey(name) in idx.byKey) return null;    // a name two workers share: neither
+  var words = name.split(/[\s\-–,]+/).filter(Boolean), m = relayMatchName(words, idx, false);
+  // On a roll the words after a name are the rest of the line; on a slip the field is all name, so a first name that
+  // leaves words unexplained ("Ramu Kumar" for the roster's Ramu Singh) is a guess, not a match.
+  return m && m.w ? { w: m.w, sure: !!m.sure && m.used >= words.length } : null;
+}
+function payrollWorker(row) {
+  var m = payrollMatch(row);
+  return m && m.sure ? m.w : null;
+}
+/* A slip's rows by the worker each names, worked out once (the wage check reads it per worker). */
+function payrollRowsByWorker(rows) {
+  var out = {};
+  (rows || []).forEach(function(r) { var w = payrollWorker(r); if (w && !out[w.id]) out[w.id] = r; });
+  return out;
+}
+/* Everything that makes one slip differ from another: each row's name as a roll reads it and every figure on it, the
+   amount actually paid and its note, and the month's status and source. Name, day pay and OT alone let a corrected
+   slip (a changed paid figure, a row's owed note) read as the one already on record and be skipped. */
 function _payrollFingerprint(m) {
-  return JSON.stringify((m.rows || []).map(function(r) {
-    return [String(r.name || '').toUpperCase(), gstRound(Number(r.dayPay) || 0), gstRound(Number(r.ot) || 0)];
-  }).sort());
+  var n = function(v) { return v == null || v === '' ? null : gstRound(Number(v) || 0); };
+  return JSON.stringify([m.status || 'paid', String(m.source || ''), String(m.note || ''), (m.rows || []).map(function(r) {
+    return [relayKey(r.name), n(r.rate), n(r.worked), n(r.restDays), n(r.dayPay), n(r.otHours), n(r.ot), n(r.paid), String(r.note || '')];
+  }).sort()]);
 }
 /* Merge an import file. A month already on record with the same figures is
    skipped; one with different figures supersedes it, and the old record is
@@ -326,7 +444,7 @@ function payrollPaidImport(data) {
         dayPay: gstRound(Number(r.dayPay) || 0), otHours: Number(r.otHours) || 0, ot: gstRound(Number(r.ot) || 0),
         paid: r.paid != null ? gstRound(Number(r.paid) || 0) : null, note: String(r.note || '') };
     });
-    var fp = _payrollFingerprint({ rows: rows });
+    var fp = _payrollFingerprint({ rows: rows, status: m.status === 'computed' ? 'computed' : 'paid', source: m.source, note: m.note });
     var live = payrollPaidRecords().filter(function(r) { return !r.voidedAt && r.month === m.month; });
     if (live.some(function(r) { return _payrollFingerprint(r) === fp; })) { out.same++; return; }
     live.forEach(function(r) {
@@ -392,7 +510,12 @@ function _payrollPaidCard() {
   recs.forEach(function(r) {
     var gross = r.rows.reduce(function(s, x) { return s + (Number(x.dayPay) || 0) + (Number(x.ot) || 0); }, 0);
     var otH = r.rows.reduce(function(s, x) { return s + (Number(x.otHours) || 0); }, 0);
-    var unmatched = r.rows.filter(function(x) { return !payrollWorker(x); }).map(function(x) { return x.name; });
+    // A name the roster does not hold is said, with the roll reader's guess where it has one: the guess moves no money
+    // until the spelling is kept on the worker.
+    var unmatched = r.rows.filter(function(x) { return !payrollWorker(x); }).map(function(x) {
+      var m = payrollMatch(x);
+      return x.name + (m ? ' (read as ' + m.w.name + '? keep the spelling on the worker to use it)' : '');
+    });
     h += _payRow(escHtml(_monthLabel(r.month)),
       r.rows.length + ' hand' + (r.rows.length === 1 ? '' : 's') +
         (otH ? ' · OT ' + formatNum(otH, 1) + ' h' : '') + (r.status === 'computed' ? ' · computed, not confirmed paid' : ' · as paid') +
@@ -419,7 +542,7 @@ function payPick(id, due) {
 }
 function paySave() {
   var id = (document.getElementById('payWorker') || {}).value;
-  var w = (S.staff || []).find(function(x) { return String(x.id) === String(id); });
+  var w = staffById(id);
   var amount = gstRound(parseFloat((document.getElementById('payAmount') || {}).value) || 0);
   var date = (document.getElementById('payDate') || {}).value;
   if (!w) { showToast('Pick a worker', 'error'); return; }
@@ -446,11 +569,39 @@ async function payVoid(id) {
   renderAttendance();
   showToast('Payment voided');
 }
+async function payClear(id, through, amount) {
+  var w = staffById(id);
+  if (!w || !/^\d{4}-\d{2}-\d{2}$/.test(through || '')) return;
+  var reason = await uiPrompt({ title: 'Clear ' + w.name + '’s balance',
+    body: (amount > 0 ? formatCurrency(amount) + ' owed' : formatCurrency(-amount) + ' advanced') + ' up to ' + formatDate(through) +
+      ' stops carrying forward. It is kept on the record, and can be undone.',
+    label: 'Why is it cleared?', okLabel: 'Clear balance', required: true, requiredText: 'Clearing a balance needs a reason.' });
+  if (reason == null) return;
+  reason = reason.trim();
+  if (!reason) { showToast('Clearing a balance needs a reason', 'error'); return; }
+  payCarryClears().push({ id: 'PCC-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), staffId: w.id, through: through,
+    amount: gstRound(amount), reason: reason, at: Date.now() });
+  saveState();
+  renderAttendance();
+  showToast('Balance cleared for ' + w.name);
+}
+async function payClearVoid(id) {
+  var c = payCarryClears().find(function(x) { return x.id === id; });
+  if (!c || c.voidedAt) return;
+  var ok = await uiConfirm({ title: 'Undo this clear?', body: 'The balance carries forward again.', okLabel: 'Undo clear' });
+  if (!ok || c.voidedAt) return;
+  c.voidedAt = Date.now();
+  saveState();
+  renderAttendance();
+  showToast('Clear undone');
+}
 function payAction(action, btn) {
   switch (action) {
     case 'invPayPick': payPick(btn.dataset.id, parseFloat(btn.dataset.due) || 0); return true;
     case 'invPaySave': paySave(); return true;
     case 'invPayVoid': payVoid(btn.dataset.id); return true;
+    case 'invPayClear': payClear(btn.dataset.id, btn.dataset.through, parseFloat(btn.dataset.amount) || 0); return true;
+    case 'invPayClearVoid': payClearVoid(btn.dataset.id); return true;
     case 'invPayOpenAtt': homeQuick('attendance'); return true;
     case 'invPayrollImport': payrollImport(); return true;
     case 'invPayrollVoid': payrollVoid(btn.dataset.id); return true;
@@ -472,15 +623,22 @@ function areaHoursForRange(from, to) {
     Object.keys(rec.marks || {}).forEach(function(id) {
       var m = rec.marks[id];
       if (!m || (m.st !== 'P' && m.st !== 'H')) return;
-      var w = (S.staff || []).find(function(x) { return String(x.id) === String(id); });
+      var w = staffById(id);
       var a = get(m.area || (w && w.area) || 'flex');
-      var hrs = m.hours > 0 ? m.hours : (m.st === 'H' ? 4 : 8);
+      // A mark with no hours counts the day (8, a half day 4) and its OT on top: OT is part of a day's hours.
+      var hrs = m.hours > 0 ? m.hours : (m.st === 'H' ? 4 : 8) + (m.ot || 0);
       if (!(m.hours > 0)) { a.assumed++; assumed++; }
       a.hours += hrs;
       a.ot += m.ot || 0;
       a.workerDays += m.st === 'H' ? 0.5 : 1;
     });
-    (rec.extra || []).forEach(function(x) { if (x.hours > 0) get(x.area || 'flex').extra += x.hours; });
+    // A block over several areas books to each of them evenly, as the Areas card splits it; it all went to the first.
+    (rec.extra || []).forEach(function(x) {
+      if (!(x.hours > 0)) return;
+      var ids = extraAreas(x).filter(function(id) { return STAFF_AREAS.some(function(a) { return a.id === id; }); });
+      if (!ids.length) ids = ['flex'];
+      ids.forEach(function(id) { get(id).extra += x.hours / ids.length; });
+    });
   });
   var rows = STAFF_AREAS.map(function(x) { var r = by[x.id]; if (r) r.label = x.label; return r; }).filter(Boolean);
   rows.forEach(function(r) { r.total = r.hours + r.extra; });
@@ -499,7 +657,7 @@ function areaHoursCard(from, to) {
     h += _payRow(escHtml(a.label), bits.join(' · '), '<span class="inv-num">' + formatNum(a.total, 1) + ' h</span>');
   });
   h += _labNote('Every tier together: the hours on each day&rsquo;s mark, where the worker stood that day, plus the EXTRA booked to the area.' +
-    (r.assumed ? ' <strong>' + r.assumed + ' mark' + (r.assumed === 1 ? '' : 's') + '</strong> carried no hours and ' + (r.assumed === 1 ? 'is' : 'are') + ' counted as 8 (a half day as 4).' : ''));
+    (r.assumed ? ' <strong>' + r.assumed + ' mark' + (r.assumed === 1 ? '' : 's') + '</strong> carried no hours and ' + (r.assumed === 1 ? 'is' : 'are') + ' counted as 8 (a half day as 4), with any OT on top.' : ''));
   return h + '</div>';
 }
 
@@ -524,7 +682,8 @@ function attDaySummary() {
     if (m.st === 'H') out.half++; else out.p++;
     if (w.onFloor !== false && _areaIsFloor(m.area || w.area)) out.floorHeads++;
   });
-  out.complement = STAFF_AREAS.reduce(function(s, a) { var t = areaNeedOn(iso, a.id); return s + (t != null ? t : 0); }, 0);
+  // The floor's complement against the floor's heads: an office or gate complement is not a head on the floor.
+  out.complement = STAFF_AREAS.reduce(function(s, a) { var t = a.floor ? areaNeedOn(iso, a.id) : null; return s + (t != null ? t : 0); }, 0);
   out.extraH = (rec.extra || []).reduce(function(s, x) { return s + (x.hours || 0); }, 0);
   out.short = !!out.complement && out.floorHeads < out.complement;
   return out;

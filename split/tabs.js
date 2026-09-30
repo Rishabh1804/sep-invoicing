@@ -1,7 +1,7 @@
 /* ===== TAB SWITCHING (DP v0.2 9-step) ===== */
 const PAGE_TITLES = {
   pageHome: 'Home', pageCreate: 'Create invoice', pageIM: 'Challans', pageRegister: 'Register',
-  pageClients: 'Clients', pageFinance: 'Finance', pageTodo: 'To-do', pageProduction: 'Production', pageStock: 'Stock', pageStaff: 'Staff',
+  pageClients: 'Clients', pageFinance: 'Finance', pageTodo: 'To-do', pageProduction: 'Production', pagePower: 'Power', pageStock: 'Stock', pageStaff: 'Staff',
   pageStats: 'Stats', pageHistory: 'History'
 };
 
@@ -45,16 +45,23 @@ function switchTab(tabId) {
   if (title) title.textContent = PAGE_TITLES[tabId] || 'SEP Invoicing';
   markSideActive(tabId);
 
-  // Step 5b: Persist active tab for refresh recovery (Phase 6b)
-  regFilter.activeTab = tabId;
-  saveRegFilter();
-
   // Step 6: Check dirty flag and re-render if needed
   const tabKey = tabId === 'pageHome' ? 'home' : tabId === 'pageRegister' ? 'register' : null;
   const isDirty = tabKey ? _tabDirty[tabKey] : true;
   _pageTyped = false;
   _bookRedrawPending = false;
-  tabRender(tabId, isDirty);
+  // Step 6b: remembered for a reload only once it has been drawn (Phase 6b). It was saved before the drawing, so a
+  // screen that threw on some shape of data was reopened, and threw, at every launch, with the app never finishing its
+  // start (the QA sweep, 29 Sep 2026). A screen that cannot be drawn says so and the rest of the app stays in reach.
+  try {
+    tabRender(tabId, isDirty);
+    regFilter.activeTab = tabId;
+    saveRegFilter();
+  } catch (err) {
+    console.error(err);
+    uiNotice('The ' + (PAGE_TITLES[tabId] || 'screen') + ' screen could not be drawn: ' + ((err && err.message) || err) +
+      '. The rest of the app works; export a backup from Settings if this keeps happening.', 'danger');
+  }
 
   // Step 7: Scroll restoration
   if (returnTab) {
@@ -76,7 +83,9 @@ function switchTab(tabId) {
 
   // Step 8: Focus first interactive element in target tab
   var targetPage = document.getElementById(tabId);
-  if (targetPage) focusFirstInteractive(targetPage);
+  // Where a keyboard continues from; on a touch screen never a field, which raised the keyboard over every screen
+  // opened whose first control was a search (the QA sweep, 29 Sep 2026).
+  if (targetPage) focusFirstInteractive(targetPage, { noText: touchScreen() });
 }
 
 /* Draws one page from S (switchTab's step 6). Also what another window's save redraws, in place (tabRedrawActive). */
@@ -112,6 +121,8 @@ function tabRender(tabId, isDirty) {
     if (!document.getElementById('createFormArea').innerHTML) initCreateForm();
   } else if (tabId === 'pageProduction') {
     renderProduction();
+  } else if (tabId === 'pagePower') {
+    renderPower();
   } else if (tabId === 'pageStock') {
     renderStock();
   } else if (tabId === 'pageTodo') {
@@ -170,6 +181,9 @@ function renderHomeTiles(active) {
   set('mtdCount', String(active.length));
   set('mtdCountSub', escHtml(month) + ' to date');
   set('mtdRevenue', figWrapHtml(formatCurrency(sumTaxable(active))));
+  // Net of credit notes, as Stats is (owner, 30 Sep 2026: "yes, it should and it should be mentioned").
+  var credited = gstRound(active.reduce(function(s, i) { return s + (i._credit || 0); }, 0));
+  set('mtdRevenueSub', credited > 0.005 ? 'taxable, net of ' + escHtml(formatCurrency(credited)) + ' in credit notes' : 'taxable, net of credit notes');
   // Two places, as Stats shows it: one place read 40 kg as '0.0 t'.
   set('mtdKg', w.kg > 0 ? formatNum(w.kg / 1000, 2) + ' t' : '&mdash;');
   set('mtdKgSub', w.kg > 0 ? Math.round(w.kg).toLocaleString('en-IN') + ' kg' : 'nothing weighed yet');
@@ -205,13 +219,14 @@ function homePriorSameDays() {
   var pad = function(n) { return String(n).padStart(2, '0'); };
   var from = py + '-' + pad(pm + 1) + '-01', to = py + '-' + pad(pm + 1) + '-' + pad(Math.min(d, plen));
   return { from: from, to: to, monthStart: y + '-' + pad(m + 1) + '-01',
-    invoices: S.invoices.filter(function(i) { return i.status === 'active' && i.date && i.date >= from && i.date <= to; }) };
+    invoices: statsInvoices().filter(function(i) { return i.date && i.date >= from && i.date <= to; }) };
 }
 
 function renderHome() {
   const now = new Date();
   const ym = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0');
-  const active = S.invoices.filter(i => i.status === 'active' && i.date && i.date.startsWith(ym));
+  // The month's invoices net of their credit notes (statsInvoices), so Home and Stats read one revenue.
+  const active = statsInvoices().filter(i => i.date && i.date.startsWith(ym));
   renderHomeTiles(active);
 
   renderZincCard();

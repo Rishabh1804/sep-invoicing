@@ -47,22 +47,17 @@ function renderFinance() {
 
 /* The overview is read at a glance: whole rupees. Every tab behind it keeps the paise. */
 function finRs(v) { var n = Math.round(Number(v) || 0); return (n < 0 ? '-' : '') + '₹' + Math.abs(n).toLocaleString('en-IN'); }
-function finPl(n, one, many) { return n + ' ' + (n === 1 ? one : (many || one + 's')); }
 
 /* ---------- Months ---------- */
-function finYm(iso) { return String(iso || '').slice(0, 7); }
-function finNextMonth(ym) { var d = new Date(ym + '-01T00:00:00'); d.setMonth(d.getMonth() + 1); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0'); }
 /* The last n months, this one included, oldest first. */
 function finMonths(n) { return insMonthsBack(n - 1).concat([localDateStr().slice(0, 7)]); }
-function finDaysAgo(iso) { return Math.round((new Date(localDateStr() + 'T00:00:00') - new Date(iso + 'T00:00:00')) / 86400000); }
 
 /* ---------- Cash ---------- */
 /* Per month on the statement: money in, money out, and the balance the month closed on. */
 function finCashByMonth(rows) {
   var out = {};
   rows.forEach(function(r) {
-    var m = finYm(r.date), e = out[m] = out[m] || { month: m, cr: 0, dr: 0, close: null, open: null };
-    if (e.open == null) e.open = gstRound(r.balance + r.dr - r.cr);
+    var m = insMonthKey(r.date), e = out[m] = out[m] || { month: m, cr: 0, dr: 0, close: null };
     e.cr = gstRound(e.cr + r.cr); e.dr = gstRound(e.dr + r.dr); e.close = r.balance;
   });
   return Object.keys(out).sort().map(function(k) { return out[k]; });
@@ -75,7 +70,7 @@ function finAgeing(recv) {
   recv.forEach(function(r) {
     r.open.forEach(function(o) {
       // An invoice dated ahead of today (raised for tomorrow's despatch) is not yet owed at all, never "over 90".
-      var age = Math.max(0, finDaysAgo(o.date)), b = bands.find(function(x) { return age >= x.lo && age <= x.hi; }) || bands[bands.length - 1];
+      var age = Math.max(0, isoDaysBetween(o.date, localDateStr())), b = bands.find(function(x) { return age >= x.lo && age <= x.hi; }) || bands[bands.length - 1];
       b.amount = gstRound(b.amount + o.due); b.n++;
     });
   });
@@ -91,11 +86,11 @@ function finGstByMonth(months, cls) {
   var due = {}, paid = {}, paidRows = {};
   months.forEach(function(m) { due[m] = 0; paid[m] = 0; paidRows[m] = []; });
   (S.invoices || []).forEach(function(i) {
-    var m = finYm(i.date);
+    var m = i.date ? insMonthKey(i.date) : '';
     if (i.status === 'active' && m in due) due[m] = gstRound(due[m] + (i.cgstAmt || 0) + (i.sgstAmt || 0) + (i.igstAmt || 0));
   });
   getCreditNotes().forEach(function(n) {
-    var m = finYm(n.date);
+    var m = n.date ? insMonthKey(n.date) : '';
     if (n.status !== 'cancelled' && m in due) due[m] = gstRound(due[m] - ((n.cgstAmt || 0) + (n.sgstAmt || 0) + (n.igstAmt || 0)));
   });
   (cls || []).forEach(function(v) {
@@ -105,7 +100,7 @@ function finGstByMonth(months, cls) {
   });
   var today = localDateStr(), notes = bankData().gstNotes, cover = bankCover();
   return months.map(function(m) {
-    var next = finNextMonth(m), dueBy = next + '-20', n = notes[m] || null;
+    var next = bankNextMonth(m), dueBy = next + '-20', n = notes[m] || null;
     // A return paid another way (owner, 26 Sep 2026: July went by another route) is recorded by hand
     // and counts as paid, but is never shown as what the bank saw.
     var other = n && Number(n.paidOther) > 0 ? gstRound(Number(n.paidOther)) : 0;
@@ -117,11 +112,11 @@ function finGstByMonth(months, cls) {
 }
 /* One reading of a month, shared by the table and the tile. */
 function finGstStatus(r) {
-  if (r.paidBank > 0) return { tone: 'ok', text: 'Paid ' + finShortDate(r.rows[r.rows.length - 1].date) };
+  if (r.paidBank > 0) return { tone: 'ok', text: 'Paid ' + stockShortDate(r.rows[r.rows.length - 1].date) };
   if (r.paidOther > 0) return { tone: 'info', text: 'Outside bank', title: 'Paid another way' + (r.note && r.note.via ? ' via ' + r.note.via : '') };
   if (r.note) return { tone: 'neutral', text: 'Noted', title: r.note.note };
   if (r.due <= 0) return { tone: 'neutral', text: 'Nil' };
-  if (r.open) return { tone: 'info', text: 'Due ' + finShortDate(r.dueBy) };
+  if (r.open) return { tone: 'info', text: 'Due ' + stockShortDate(r.dueBy) };
   // A month the statement does not reach says nothing either way: unknown is not unpaid.
   if (!r.seen) return { tone: 'neutral', text: 'No statement', title: 'The bank statement does not cover the days this was due by' };
   // Only the bank is read: a return paid another way is not on the statement, so this says what is known.
@@ -130,7 +125,6 @@ function finGstStatus(r) {
 
 /* "Jun '26": a month column that has to leave room for a status on a phone. */
 function finShortMonth(ym) { return TREND_MONTH_LABELS[parseInt(ym.slice(5, 7), 10) - 1] + " '" + ym.slice(2, 4); }
-function finShortDate(iso) { var d = new Date(iso + 'T00:00:00'); return d.getDate() + ' ' + TREND_MONTH_LABELS[d.getMonth()]; }
 function finGstHtml(n, wide, chartMonths, cls) {
   cls = cls || bankClassify();
   var rows = finGstByMonth(finMonths(n), cls).reverse();
@@ -171,7 +165,7 @@ function finOverviewHtml() {
   var rows = bankRows(), cls = bankClassify(rows), has = rows.length > 0;
   var recv = has ? bankReceivables(cls) : [];
   var owed = gstRound(recv.reduce(function(s, r) { return s + Math.max(0, r.owed); }, 0));
-  var last = has ? rows[rows.length - 1] : null, stale = last ? finDaysAgo(last.date) : 0;
+  var last = has ? rows[rows.length - 1] : null, stale = last ? isoDaysBetween(last.date, localDateStr()) : 0;
   var months = finCashByMonth(rows);
   var paidMonth = months.length ? months[months.length - 1] : null;
   var gst = finGstByMonth(insMonthsBack(1), cls)[0];
@@ -185,7 +179,7 @@ function finOverviewHtml() {
     tile('Bank balance', last ? formatCurrency(last.balance) : '&mdash;', last ? 'on ' + escHtml(formatDate(last.date)) + (stale > 7 ? ' · statement ' + stale + ' days old' : '') : 'no statement imported',
       last && last.balance < 0 ? 'danger' : last && stale > 7 ? 'warning' : '', 'balance') +
     // Unplaced receipts are money in that no client is credited with, so the figure reads HIGH until they are placed.
-    tile('Owed to us', has ? formatCurrency(owed) : '&mdash;', has ? (loose ? finPl(loose, 'receipt') + ' not placed: reads high' : finPl(recv.filter(function(r) { return r.owed > 0.005; }).length, 'client') + ' · since ' + escHtml(formatDate(from))) : 'needs a statement',
+    tile('Owed to us', has ? formatCurrency(owed) : '&mdash;', has ? (loose ? todoPlural(loose, 'receipt') + ' not placed: reads high' : todoPlural(recv.filter(function(r) { return r.owed > 0.005; }).length, 'client') + ' · since ' + escHtml(formatDate(from))) : 'needs a statement',
       loose ? 'warning' : '', 'owed') +
     tile('Paid out', paidMonth ? formatCurrency(paidMonth.dr) : '&mdash;', paidMonth ? 'in ' + escHtml(billsMonthLabel(paidMonth.month)) + ' · ' + finRs(paidMonth.cr) + ' came in' : 'needs a statement', '', 'out') +
     tile('GST for ' + escHtml(billsMonthLabel(gst.month)), formatCurrency(gst.due), (function() {
@@ -205,7 +199,7 @@ function finOverviewHtml() {
   // and the invoices together, so a month with invoices but no statement row still shows.
   var monthSet = {};
   months.forEach(function(m) { monthSet[m.month] = true; });
-  (S.invoices || []).forEach(function(i) { if (i.status === 'active' && i.date && i.date <= localDateStr()) monthSet[finYm(i.date)] = true; });
+  (S.invoices || []).forEach(function(i) { if (i.status === 'active' && i.date && i.date <= localDateStr()) monthSet[insMonthKey(i.date)] = true; });
   var inRange = chartRangeMonths(_finRange, Object.keys(monthSet));
   var byMonth = {};
   months.forEach(function(m) { byMonth[m.month] = m; });
@@ -238,34 +232,42 @@ function finOverviewHtml() {
   var outByMonthCat = {}, cats = {};
   cls.forEach(function(v) {
     if (!(v.row.dr > 0)) return;
-    var m = finYm(v.row.date), k = catKey(v);
+    var m = insMonthKey(v.row.date), k = catKey(v);
     (outByMonthCat[m] = outByMonthCat[m] || {})[k] = gstRound(((outByMonthCat[m] || {})[k] || 0) + v.row.dr);
     if (inRange.indexOf(m) >= 0) cats[k] = gstRound((cats[k] || 0) + v.row.dr);
   });
-  var catOrder = Object.keys(cats).sort(function(a, b) { return cats[b] - cats[a]; }).slice(0, CHART_SERIES_MAX);
+  // Past the eighth, the smallest categories fold into one series that names them, as the pie folds its tail: the
+  // stack used to drop a ninth, and its money with it.
+  var catAll = Object.keys(cats).sort(function(a, b) { return cats[b] - cats[a]; });
+  var catOrder = catAll.length > CHART_SERIES_MAX ? catAll.slice(0, CHART_SERIES_MAX - 1) : catAll, catTail = catAll.slice(catOrder.length);
+  var stackSeries = catOrder.map(function(k) {
+    return { label: catLabel(k), values: cashMonths.map(function(m) { return (outByMonthCat[m] || {})[k] || 0; }) };
+  });
+  if (catTail.length) stackSeries.push({ label: catTail.length + ' others: ' + catTail.map(catLabel).join(', '), tone: 'x',
+    values: cashMonths.map(function(m) { return gstRound(catTail.reduce(function(t, k) { return t + ((outByMonthCat[m] || {})[k] || 0); }, 0)); }) });
   var ym = _finMonth && byMonth[_finMonth] ? _finMonth : (cashMonths.length ? cashMonths[cashMonths.length - 1] : paidMonth.month);
   var byCat = outByMonthCat[ym] || {};
   var sel = _finCat && byCat[_finCat] ? _finCat : null;
-  var invoiced = gstRound((S.invoices || []).reduce(function(s, i) { return s + (i.status === 'active' && finYm(i.date) === ym ? (i.grandTotal || 0) : 0); }, 0));
-  var received = gstRound(cls.reduce(function(s, v) { return s + (v.cat === 'receipt' && finYm(v.row.date) === ym ? v.row.cr : 0); }, 0));
+  var invoiced = gstRound((S.invoices || []).reduce(function(s, i) { return s + (i.status === 'active' && i.date && insMonthKey(i.date) === ym ? (i.grandTotal || 0) : 0); }, 0));
+  var received = gstRound(cls.reduce(function(s, v) { return s + (v.cat === 'receipt' && insMonthKey(v.row.date) === ym ? v.row.cr : 0); }, 0));
   h += '<div class="inv-panel inv-panel-flush inv-panels-wide" id="finWent"><div class="inv-panel-head"><span class="inv-panel-title">Where money went</span>' +
     '<select class="inv-select inv-select-sm" id="finMonthPick" aria-label="Month">' + months.slice().reverse().map(function(m) {
       return '<option value="' + m.month + '"' + (m.month === ym ? ' selected' : '') + '>' + escHtml(billsMonthLabel(m.month)) + '</option>'; }).join('') + '</select></div>' +
-    '<div class="inv-panel-body">' + chartStack(cashMonths.map(lab), catOrder.map(function(k) {
-      return { label: catLabel(k), values: cashMonths.map(function(m) { return (outByMonthCat[m] || {})[k] || 0; }) };
-    }), { action: 'invFinMonth', keys: cashMonths, selected: ym, ariaLabel: 'Outflow by category', readHint: 'Tap a month to read it; the pie below follows' }) + '</div>' +
-    '<div class="inv-panel-body">' + chartPieTap(Object.keys(byCat).map(function(k) { var t = catOrder.indexOf(k); return { key: k, label: catLabel(k), value: byCat[k], tone: t >= 0 ? t : null }; }),
+    '<div class="inv-panel-body">' + chartStack(cashMonths.map(lab), stackSeries,
+      { action: 'invFinMonth', keys: cashMonths, selected: ym, ariaLabel: 'Outflow by category', readHint: 'Tap a month to read it; the pie below follows' }) + '</div>' +
+    // A category keeps its colour in both: one folded into the stack's others takes the others' colour here too.
+    '<div class="inv-panel-body">' + chartPieTap(Object.keys(byCat).map(function(k) { var t = catOrder.indexOf(k); return { key: k, label: catLabel(k), value: byCat[k], tone: t >= 0 ? t : catTail.indexOf(k) >= 0 ? 'x' : null }; }),
       { action: 'invFinCat', selected: sel, ariaLabel: 'Outflow in ' + billsMonthLabel(ym), emptyText: 'Nothing paid out in ' + billsMonthLabel(ym), readHint: 'Tap a slice to list its payments' }) + '</div>';
   Object.keys(byCat).sort(function(a, b) { return byCat[b] - byCat[a]; }).forEach(function(k) {
     h += '<div class="inv-row" data-went-cat="' + escHtml(k) + '"><span class="inv-row-main">' + escHtml(catLabel(k)) + '</span><span class="inv-row-end inv-num">' + formatCurrency(byCat[k]) + '</span></div>';
     if (k !== sel) return;
-    var list = cls.filter(function(v) { return catKey(v) === k && finYm(v.row.date) === ym && v.row.dr > 0; }).reverse();
+    var list = cls.filter(function(v) { return catKey(v) === k && insMonthKey(v.row.date) === ym && v.row.dr > 0; }).reverse();
     h += '<div class="inv-row-children">';
     list.slice(0, 8).forEach(function(v) {
       h += '<div class="inv-row inv-row-2" data-went-row="' + escHtml(v.row.id) + '"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(v.party || v.row.narration) + '</span>' +
         '<span class="inv-row-meta">' + escHtml(formatDate(v.row.date)) + '</span></span><span class="inv-row-end inv-num">' + formatCurrency(v.row.dr) + '</span></div>';
     });
-    h += '<div class="inv-row"><span class="inv-row-main inv-row-meta">' + finPl(list.length, 'payment') + '</span><span class="inv-row-end">' +
+    h += '<div class="inv-row"><span class="inv-row-main inv-row-meta">' + todoPlural(list.length, 'payment') + '</span><span class="inv-row-end">' +
       '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invFinStatementCat" data-cat="' + escHtml(k.split(':')[0]) + '">Open in the statement</button></span></div></div>';
   });
   h += [['Invoiced', invoiced, 'incl. GST, by invoice date'], ['Received', received, 'from clients'], ['Paid out', Object.keys(byCat).reduce(function(s, k) { return gstRound(s + byCat[k]); }, 0), 'every category']].map(function(x) {
@@ -275,7 +277,7 @@ function finOverviewHtml() {
   // Where money came from: receipts by client over the range; unplaced receipts are a wedge of their own, named.
   var from = {};
   cls.forEach(function(v) {
-    if (v.cat !== 'receipt' || !(v.row.cr > 0) || inRange.indexOf(finYm(v.row.date)) < 0) return;
+    if (v.cat !== 'receipt' || !(v.row.cr > 0) || inRange.indexOf(insMonthKey(v.row.date)) < 0) return;
     var k = v.clientId == null ? '__loose' : String(v.clientId);
     from[k] = gstRound((from[k] || 0) + v.row.cr);
   });
@@ -289,7 +291,7 @@ function finOverviewHtml() {
   h += '<div class="inv-panel inv-panel-flush" id="finOwed"><div class="inv-panel-head"><span class="inv-panel-title">Owed to us</span><span class="inv-panel-count inv-num">' + formatCurrency(owed) + '</span></div>' +
     '<div class="inv-tiles inv-tiles-flush inv-tiles-4">' + bands.map(function(b, i) {
       return '<div class="inv-tile' + (i === 3 && b.amount > 0 ? ' inv-tile-danger' : i === 2 && b.amount > 0 ? ' inv-tile-warning' : '') + '" data-age="' + i + '"><div class="inv-tile-label">' + b.label + '</div>' +
-        '<div class="inv-tile-value inv-tile-value-sm" title="' + escHtml(formatCurrency(b.amount)) + '">' + figWrapHtml(finRs(b.amount)) + '</div><div class="inv-tile-sub">' + finPl(b.n, 'invoice') + '</div></div>';
+        '<div class="inv-tile-value inv-tile-value-sm" title="' + escHtml(formatCurrency(b.amount)) + '">' + figWrapHtml(finRs(b.amount)) + '</div><div class="inv-tile-sub">' + todoPlural(b.n, 'invoice') + '</div></div>';
     }).join('') + '</div>';
   var payHist = bankPayHistory(recv);
   top.forEach(function(r) {
@@ -300,14 +302,14 @@ function finOverviewHtml() {
       '<span class="inv-row-end inv-num">' + figHtml(formatCurrency(r.owed), figToneAge(r.oldestDays)) + '</span></div>';
   });
   if (!top.length) h += '<div class="inv-empty">Nothing owed since ' + escHtml(formatDate(bankRecvFrom())) + '.</div>';
-  if (loose) h += '<div class="inv-panel-body inv-note">' + finPl(loose, 'receipt') + ' with no client ' + (loose === 1 ? 'is' : 'are') + ' not counted yet, so what is owed reads high. ' +
+  if (loose) h += '<div class="inv-panel-body inv-note">' + todoPlural(loose, 'receipt') + ' with no client ' + (loose === 1 ? 'is' : 'are') + ' not counted yet, so what is owed reads high. ' +
     '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invFinLoose">Place them</button></div>';
   h += '</div>';
 
   // Invoiced against received: the gap between the lines is what the book is lending its clients.
   var invBy = {}, recBy = {};
-  (S.invoices || []).forEach(function(i) { if (i.status === 'active' && i.date) invBy[finYm(i.date)] = gstRound((invBy[finYm(i.date)] || 0) + (i.grandTotal || 0)); });
-  cls.forEach(function(v) { if (v.cat === 'receipt' && v.row.cr > 0) recBy[finYm(v.row.date)] = gstRound((recBy[finYm(v.row.date)] || 0) + v.row.cr); });
+  (S.invoices || []).forEach(function(i) { if (i.status === 'active' && i.date) invBy[insMonthKey(i.date)] = gstRound((invBy[insMonthKey(i.date)] || 0) + (i.grandTotal || 0)); });
+  cls.forEach(function(v) { if (v.cat === 'receipt' && v.row.cr > 0) recBy[insMonthKey(v.row.date)] = gstRound((recBy[insMonthKey(v.row.date)] || 0) + v.row.cr); });
   h += '<div class="inv-panel inv-panel-flush inv-panels-wide" id="finInvRec"><div class="inv-panel-head"><span class="inv-panel-title">Invoiced against received</span></div>' +
     '<div class="inv-panel-body">' + chartLines(inRange.map(lab), [
       { label: 'Invoiced', values: inRange.map(function(m) { return invBy[m] || 0; }) },
@@ -349,6 +351,17 @@ function financeInput(t) {
   if (t && t.id === 'finMonthPick') { _finMonth = t.value; _finCat = null; renderFinance(); return true; }
   return false;
 }
+
+/* A chart datum that also moves the Overview (a month, a slice) redraws it under the tap, so the figure it carries
+   was never read out, where a plain tap writes it (charts.js). The same datum is found in the redrawn chart and read. */
+function finRedrawReading(btn) {
+  var read = btn.dataset.read, act = btn.dataset.action, host = btn.closest('.inv-panel[id]'), hostId = host ? host.id : '';
+  renderFinance();
+  var root = (hostId && document.getElementById(hostId)) || document.getElementById('financeContent');
+  if (!root || !read) return;
+  var hit = Array.prototype.find.call(root.querySelectorAll('[data-action="' + act + '"][data-read]'), function(el) { return el.dataset.read === read; });
+  if (hit) chartShowRead(hit);
+}
 function financeAction(action, btn) {
   switch (action) {
     case 'invFinTab': finSetTab(btn.dataset.tab); _bankEdit = null; renderFinance(); return true;
@@ -357,8 +370,8 @@ function financeAction(action, btn) {
       _finRange = btn.dataset.range;
       try { localStorage.setItem('sep_inv_fin_range', _finRange); } catch (e) { /* a per-device convenience only */ }
       renderFinance(); return true;
-    case 'invFinMonth': _finMonth = btn.dataset.key; _finCat = null; renderFinance(); return true;
-    case 'invFinCat': _finCat = _finCat === btn.dataset.key ? null : btn.dataset.key; renderFinance(); return true;
+    case 'invFinMonth': _finMonth = btn.dataset.key; _finCat = null; finRedrawReading(btn); return true;
+    case 'invFinCat': _finCat = _finCat === btn.dataset.key ? null : btn.dataset.key; finRedrawReading(btn); return true;
     case 'invFinFrom':
       if (btn.dataset.key === '__loose') return financeAction('invFinLoose', btn);
       if (btn.dataset.key === '__others') { chartShowRead(btn); return true; }

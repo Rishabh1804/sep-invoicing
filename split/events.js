@@ -1,3 +1,52 @@
+/* ===== JUMPS INTO THE REGISTER AND CHALLANS =====
+   A jump from another screen (Stats' drill-down, History, the To-do) shows what it names and nothing else: a filter it
+   does not set is cleared, and a selection made under the old filters is dropped (a selection must not outlive the
+   filter that hid it). The month, the dates and the selection used to stay, so History's link to an invoice from
+   another month opened on a Register that did not show it, and a bulk action still reached rows off the screen (the QA
+   sweep, 29 Sep 2026). */
+function regJump(f) {
+  f = f || {};
+  regFilter.clientId = f.clientId != null ? String(f.clientId) : '';
+  regFilter.search = f.search || '';
+  regFilter.state = f.state || '';
+  regFilter.month = f.month || '';
+  regFilter.dateFrom = f.dateFrom || '';
+  regFilter.dateTo = f.dateTo || '';
+  saveRegFilter();
+  // f.select ticks a batch (a credit-note batch from the To-do); anything else starts with nothing ticked.
+  _regSelected = {};
+  (f.select || []).forEach(function(id) { _regSelected[id] = true; });
+  _regSelectMode = !!(f.select && f.select.length);
+  _regToolbarRendered = false;
+  _tabDirty.register = true;
+  closeOverlay();
+  switchTab('pageRegister');
+  if (_regSelectMode) _renderRegSelBar();
+}
+/* A client's challans: the Awaiting tab, only that client, nothing ticked. */
+function imJumpClient(clientId) {
+  _imFilter.clientId = clientId != null ? String(clientId) : '';
+  _imFilter.status = '';
+  _imSelected = {};
+  imSetTab('awaiting');
+  _imToolbarRendered = false;
+  closeOverlay();
+  switchTab('pageIM');
+}
+/* One challan: the tab and month it is under, its client, and the row in sight (open in the pane on the desktop). It
+   ignored the tab, so a challan already invoiced was looked for under Awaiting, and not found. */
+function imJump(im) {
+  _imFilter.clientId = String(im.clientId);
+  _imFilter.status = '';
+  _imSelected = {};
+  imShowChallanTab(im);
+  _imToolbarRendered = false;
+  closeOverlay();
+  switchTab('pageIM');
+  if (_isDesktop) _renderIMDetail(im.id);
+  uiRevealEl(document.querySelector('.inv-page-active [data-im="' + String(im.id).replace(/["\\]/g, '\\$&') + '"]'));
+}
+
 /* ===== EVENT DELEGATION ===== */
 // A pressed chip, segment or tile (aria-pressed) is a choice inside the view — a filter, a period, a P/H/A — so it
 // re-renders inside keepScroll (state.js), like a pick in a drop-down: the page stays where it was (P79).
@@ -34,7 +83,7 @@ function onDocClick(e) {
     case 'invSideGo': sideGo(btn.dataset.tab, btn.dataset.sub); break;
     case 'invOpenMore': openMoreSheet(); break;
     case 'invCloseMore': closeMoreSheet(); break;
-    case 'invCreateNew': initCreateForm(); switchTab('pageCreate'); break;
+    case 'invCreateNew': createNew(); break;
     case 'invHomeQuick': homeQuick(btn.dataset.go); break;
     case 'invOpenSettings': openSettings(); break;
     case 'invCloseOverlay': closeOverlay(); break;
@@ -91,7 +140,7 @@ function onDocClick(e) {
     }
     case 'invSelectClient': selectClient(parseInt(btn.dataset.id)); break;
     case 'invCreatePickChallan': createPickChallan(btn.dataset.id); break;
-    case 'invClearClient': captureOptionalFields(); invoiceForm.clientId = null; renderCreateForm(); break;
+    case 'invClearClient': createClearClient(); break;
     case 'invAddLineItem': captureOptionalFields(); addLineItem(); break;
     case 'invRemoveLineItem': captureOptionalFields(); invoiceForm.items.splice(parseInt(btn.dataset.idx), 1); renderCreateForm(); break;
     case 'invSaveInvoice': saveInvoice(); break;
@@ -123,12 +172,7 @@ function onDocClick(e) {
     case 'invPrintSalesRegister': showSalesRegisterPreview(); break;
     case 'invExportGstr1': exportGSTR1CSV(); break;
     case 'invSelectPart': selectPartForLine(parseInt(btn.dataset.idx), parseInt(btn.dataset.partId)); break;
-    case 'invRegClearRange': {
-      regFilter.dateFrom = ''; regFilter.dateTo = '';
-      saveRegFilter();
-      captureRegFilters();
-      break;
-    }
+    case 'invRegClearRange': regClearRange(); break;
     case 'invRegSelectAll': toggleRegSelectAll(); break;
     // Staff & attendance
     case 'invAttView': attSetView(btn.dataset.view); markSideActive('pageStaff'); break;
@@ -173,11 +217,12 @@ function onDocClick(e) {
     case 'invIMMonth': imMonthStep(+btn.dataset.step); break;
     case 'invCheckIMItem': toggleIMItem(btn.dataset.itemId); break;
     case 'invCheckIMChallan': toggleIMChallan(btn.dataset.id); break;
-    case 'invCreateFromIM': createInvoiceFromIM(); break;
+    case 'invCreateFromIM': createDiscardOk().then(function(ok) { if (ok) { createInvoiceFromIM(); createMarkBase(); } }); break;
     // Phase 4: Print preview
     case 'invPreviewInvoice': closeOverlay(); showPrintPreview(btn.dataset.id); break;
     case 'invClosePrint': closePrintPreview(); break;
     case 'invAttSheetOpen': attSheetOpen(); break;
+    case 'invAttDayDelete': attDeleteDay(_attDate); break;
     case 'invAttSheetPreview': attSheetPreview(); break;
     case 'invStockSheetOpen': stockSheetOpen(); break;
     case 'invStockSheetPreview': stockSheetPreview(); break;
@@ -207,7 +252,7 @@ function onDocClick(e) {
     case 'invEditChallanGuard': showToast('Cannot edit: ' + btn.dataset.count + ' item' + (parseInt(btn.dataset.count) > 1 ? 's' : '') + ' already invoiced', 'warning'); break;
     // Invoice number ledger
     case 'invShowNumberAudit': showNumberAudit(); break;
-    case 'invAccountForNumber': openAccountForNumber(btn.dataset.num); break;
+    case 'invAccountForNumber': openAccountForNumber(btn.dataset.num, btn.dataset.display); break;
     case 'invSaveGapReason': saveGapReason(); break;
     // IM duplicate guard
     case 'invRunDupeScan': runIMDuplicateScan(); break;
@@ -216,6 +261,7 @@ function onDocClick(e) {
     case 'invChallanPeek': imChallanPeek(btn.dataset.id); break;
     // Phase 5: Invoice lifecycle states
     case 'invAdvanceState': advanceInvoiceState(btn.dataset.id, btn.dataset.state); break;
+    case 'invNotPrinted': invNotPrinted(btn.dataset.id); break;
     case 'invBulkMarkFiled': bulkMarkFiled(); break;
     // Phase 7: Stats period chips
     case 'invStatsPeriod': _statsPeriod = btn.dataset.period; renderStats(); break;
@@ -254,54 +300,21 @@ function onDocClick(e) {
       break;
     }
     // Phase 7: Stats actions
-    case 'invStatsCreateInvoice': {
-      closeOverlay();
-      _preselectedClientId = btn.dataset.clientId;
-      switchTab('pageCreate');
-      break;
-    }
-    case 'invStatsJumpRegister': {
-      closeOverlay();
-      regFilter.clientId = btn.dataset.clientId;
-      regFilter.search = '';
-      regFilter.state = '';
-      saveRegFilter();
-      _tabDirty.register = true;
-      _regToolbarRendered = false;
-      switchTab('pageRegister');
-      break;
-    }
-    case 'invStatsJumpIM': {
-      closeOverlay();
-      _imFilter.clientId = btn.dataset.clientId;
-      _imToolbarRendered = false;
-      switchTab('pageIM');
-      break;
-    }
+    case 'invStatsCreateInvoice': createForClient(btn.dataset.clientId); break;
+    case 'invStatsJumpRegister': regJump({ clientId: btn.dataset.clientId }); break;
+    case 'invStatsJumpIM': imJumpClient(btn.dataset.clientId); break;
     // Phase 7: History navigation
     case 'invHistoryJumpInvoice': {
       var inv = S.invoices.find(function(i) { return i.id === btn.dataset.id; });
       if (!inv) { showToast('Invoice not found', 'warning'); break; }
-      regFilter.clientId = '';
-      regFilter.search = inv.displayNumber || '';
-      regFilter.state = '';
-      saveRegFilter();
-      _tabDirty.register = true;
-      _regToolbarRendered = false;
-      switchTab('pageRegister');
+      regJump({ search: inv.displayNumber || '' });
+      if (_isDesktop) _renderRegDetail(inv.id);
       break;
     }
     case 'invHistoryJumpChallan': {
-      var imId = btn.dataset.id;
-      var im = (S.incomingMaterial || []).find(function(c) { return c.id === imId; });
+      var im = (S.incomingMaterial || []).find(function(c) { return c.id === btn.dataset.id; });
       if (!im) { showToast('Challan not found', 'warning'); break; }
-      _imFilter.clientId = String(im.clientId);
-      _imToolbarRendered = false;
-      switchTab('pageIM');
-      setTimeout(function() {
-        var card = document.querySelector('[data-im="' + imId + '"]');
-        if (card) card.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      }, 100);
+      imJump(im);
       break;
     }
     // Phase 7: History load more
@@ -322,8 +335,8 @@ function onDocClick(e) {
     }
     case 'invRefreshZinc': refreshZincRate(); break;
     // GitHub sync
-    case 'invGhPush': ghPushLocked(); break;
-    case 'invGhPull': ghPull(); break;
+    case 'invGhPush': if (!ghFieldsUnsaved()) ghPushLocked(); break;
+    case 'invGhPull': if (!ghFieldsUnsaved()) ghPull(); break;
     case 'invToggleGhToken': {
       var gtEl = document.getElementById('setGhToken');
       if (gtEl) gtEl.type = gtEl.type === 'password' ? 'text' : 'password';
@@ -413,6 +426,7 @@ function onDocClick(e) {
       if (dashAction(action, btn)) break;
       if (navAction(action, btn)) break;
       if (prodAction(action, btn)) break;
+      if (powerAction(action, btn)) break;
       if (action.indexOf('invStock') === 0) stockAction(action, btn);
       else if (action.indexOf('invTodo') === 0) todoAction(action, btn);
       else if (action.indexOf('invRelay') === 0) relayAction(action, btn);
@@ -755,8 +769,11 @@ document.addEventListener('input', function(e) {
     var cidx = parseInt(e.target.dataset.idx);
     var citem = _challanForm.items[cidx];
     if (citem) {
-      citem.desc = e.target.value;
+      // The field is the part number (the description shows under the line): what is typed takes the description too
+      // only where it was empty or said the same, or one keystroke erased a description holding the gauge (the review).
+      var wasPart = citem.partNumber;
       citem.partNumber = e.target.value;
+      if (!citem.desc || citem.desc === wasPart) citem.desc = e.target.value;
       // Show part autocomplete
       showChallanPartAutocomplete(cidx, e.target.value);
       // Auto-fill rate from client rate card
@@ -908,12 +925,18 @@ document.addEventListener('keydown', function(e) {
   }
 
   if (e.key === 'Escape') {
-    closeMoreSheet();
+    // An open suggestion list or search result closes first, and that is all the key does.
+    var listOpen = !!document.querySelector('.inv-combo > .inv-menu:not(.inv-hidden), #invClientResults:not(.inv-hidden), #imChallanClientResults:not(.inv-hidden)');
     dismissAllAutocomplete();
     var searchRes = document.getElementById('invClientResults');
     if (searchRes) searchRes.classList.add('inv-hidden');
     var imSearchRes = document.getElementById('imChallanClientResults');
     if (imSearchRes) imSearchRes.classList.add('inv-hidden');
+    if (listOpen) return;
+    // Otherwise it closes the top layer the way Back does (the QA sweep, 29 Sep 2026: every dialog but a question
+    // ignored Escape): a dialog holding typed work asks first, Settings asks its own way, then the print preview and
+    // the More sheet. A question answers cancel (its scrim's own handler, or its observer when shut this way).
+    if (navLayerOpen()) { e.preventDefault(); navCloseLayer(); }
     return;
   }
 

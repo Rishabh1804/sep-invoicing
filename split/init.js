@@ -89,20 +89,19 @@ function migrateState() {
   if (migrated > 0) saveJSON(STORAGE_KEY, S);
 })();
 
-/* Phase 5: Seed recentVehicles on clients from IM challan data */
+/* Phase 5: Seed recentVehicles on clients from IM challan data, once per client: a client that has a list keeps it.
+   It re-appended every vehicle the cap of ten had dropped, at every start, so every start wrote the whole book (the QA
+   sweep, 29 Sep 2026). The newest challan's vehicle first, ten at most, as rememberVehicle keeps them. */
 (function() {
-  var seeded = false;
-  (S.incomingMaterial || []).forEach(function(im) {
-    if (!im.vehicleNo || !im.vehicleNo.trim()) return;
-    var v = im.vehicleNo.trim().toUpperCase();
+  var seeded = false, lists = {};
+  (S.incomingMaterial || []).slice().sort(function(a, b) { return String(b.challanDate || '').localeCompare(String(a.challanDate || '')); }).forEach(function(im) {
+    if (!im.vehicleNo || !String(im.vehicleNo).trim()) return;
     var client = S.clients.find(function(c) { return c.id === im.clientId; });
-    if (!client) return;
-    if (!client.recentVehicles) { client.recentVehicles = []; seeded = true; }
-    if (client.recentVehicles.indexOf(v) < 0) {
-      client.recentVehicles.push(v);
-      seeded = true;
-    }
+    if (!client || client.recentVehicles) return;
+    var list = lists[client.id] || (lists[client.id] = []), v = String(im.vehicleNo).trim().toUpperCase();
+    if (list.indexOf(v) < 0 && list.length < 10) list.push(v);
   });
+  S.clients.forEach(function(c) { if (!c.recentVehicles && lists[c.id]) { c.recentVehicles = lists[c.id]; seeded = true; } });
   if (seeded) saveJSON(STORAGE_KEY, S);
 })();
 
@@ -482,6 +481,35 @@ if (!S._cnSeriesStart1) {
   saveJSON(STORAGE_KEY, S);
 })();
 
+/* ===== THE CONNECTION'S LOAD, RECORDED ONCE =====
+   Owner, 30 Sep 2026 ("Yes, record it"): the connection is billed at 25 kVA though 50 kVA was approved (decisions,
+   18 May 2026), and the over-limit penalty runs on (about ₹5,000 a month). Set only on a book with electricity bills,
+   only where no load is recorded, and once:
+   the flag travels with the state, so a load the owner corrected or cleared stays as they left it. */
+(function() {
+  if (S._powerLoad1) return;
+  var p = powerData();
+  // Only on a book that keeps electricity bills: the load is this connection's, and a book with none (a new device before
+  // its import, a test) has no connection to speak for yet. The flag waits until there is one.
+  if (!(S.costBills || []).some(function(b) { return b.kind === 'power' && !b.voided; })) return;
+  if (!(p.load.sanctioned || p.load.approved)) p.load = { sanctioned: 25, approved: 50, approvedOn: '2026-05-18', ref: '', note: 'Recorded as approved on 18 May 2026 (no approval letter or reference on file). Billed at 25 kVA on the May bill; owner, 30 Sep 2026: the bill still shows 25, and about ₹5,000 a month is paid over the limit (their statement, not a bill figure).', at: Date.now() };
+  S._powerLoad1 = true;
+  saveJSON(STORAGE_KEY, S);
+})();
+
+/* An attendance day saved under no date: the book held one keyed "null" (22 h of OT, 69 h of blocks), which no screen can
+   open and so no one could delete. The owner (30 Sep 2026): "delete the attendance day saved under null, the day it was
+   for was added correctly". Every key that is not a date is moved to the deletion log with that reason, never dropped
+   silently; History lists it. Structural, so it runs on a pulled or imported book too, and twice is a no-op. */
+(function() {
+  var bad = Object.keys(S.attendance || {}).filter(function(k) { return !/^\d{4}-\d{2}-\d{2}$/.test(k); });
+  if (!bad.length) return;
+  bad.forEach(function(k) {
+    attDeleteRecord(k, 'Saved under no date ("' + k + '"); the day it was for was entered correctly (owner, 30 Sep 2026: delete it)', 'migration');
+  });
+  saveJSON(STORAGE_KEY, S);
+})();
+
 /* ===== ₹0 LINES CARRY A REASON, RETROSPECTIVELY TOO =====
 
    The owner ruled (24 Sep 2026) that the lines billed at ₹0 are replating —
@@ -573,6 +601,7 @@ var SIDE_ICONS = {
   finance: '<path d="M4 21h16M5 10h14M12 3 4 7h16zM7 10v8M12 10v8M17 10v8"/>',
   todo: '<path d="M9 11l3 3 8-8M20 12v7a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h11"/>',
   stats: '<path d="M4 20V11M10 20V5M16 20v-6M3 20h18"/>',
+  power: '<path d="M13 2 4 14h7l-1 8 9-12h-7z"/>',
   history: '<path d="M12 7v5l3 2M3.5 12a8.5 8.5 0 1 0 2.5-6M3 4v4h4"/>',
   settings: '<path d="M4 6h9M17 6h3M4 12h3M11 12h9M4 18h11M19 18h1M15 4v4M9 10v4M17 16v4"/>'
 };
@@ -580,7 +609,7 @@ var SIDE_NAV = [
   ['Daily', [['pageHome', 'Home', 'home'], ['pageCreate', 'Create invoice', 'create'], ['pageIM', 'Challans', 'im'], ['pageRegister', 'Register', 'register']]],
   ['Book', [['pageClients', 'Clients', 'clients'], ['pageClients', 'Items', 'items', 'items']]],
   ['Money', [['pageFinance', 'Finance', 'finance']]],
-  ['Floor', [['pageProduction', 'Production', 'production'], ['pageStock', 'Stock', 'stock'], ['pageStaff', 'Staff', 'staff'], ['pageStaff', 'Pay', 'pay', 'pay']]],
+  ['Floor', [['pageProduction', 'Production', 'production'], ['pagePower', 'Power', 'power'], ['pageStock', 'Stock', 'stock'], ['pageStaff', 'Staff', 'staff'], ['pageStaff', 'Pay', 'pay', 'pay']]],
   ['Review', [['pageTodo', 'To-do', 'todo'], ['pageStats', 'Stats', 'stats'], ['pageHistory', 'History', 'history']]]
 ];
 function _sideSvg(k) { return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + SIDE_ICONS[k] + '</svg>'; }
@@ -657,7 +686,6 @@ function sideGo(tabId, sub) {
   if (tabId === 'pageClients') setItemsSubView(sub);
   if (tabId === 'pageStaff') _attView = sub;
   switchTab(tabId);
-  if (tabId === 'pageClients') renderClientsPage();
   markSideActive(tabId);
 }
 
@@ -696,14 +724,26 @@ if ('serviceWorker' in navigator) {
    so this runs from loadState().then(...) at the end of the file, and
    `body.inv-booted` is the signal that it has. Until then the shell is
    visible but inert. */
+/* One step of the start that throws must not take the rest with it (the QA sweep, 29 Sep 2026). The shell is inert
+   until `inv-booted` is set at the end, so a step that threw left an app nothing could be done in, not even an export,
+   and a launch reopening a screen that threw did it every time. Each failure is said in the banner. */
+function bootStep(what, fn) {
+  try { fn(); return true; }
+  catch (e) {
+    console.error(e);
+    uiNotice('Starting up, ' + what + ' failed: ' + ((e && e.message) || e) + '. The rest of the app works; export a backup from Settings if this keeps happening.', 'danger');
+    return false;
+  }
+}
+
 function bootApp() {
-  seedIncomingMaterial();
-  runBootstrapSeeds();
-  migrateState();
+  bootStep('the demo challans', seedIncomingMaterial);
+  bootStep('the first-run records', runBootstrapSeeds);
+  bootStep('bringing the book up to date', migrateState);
 
   // Initial layout detection (no debounce)
-  updateLayoutMode();
-  updateStockBadge();
+  bootStep('the layout', updateLayoutMode);
+  bootStep('the More count', updateStockBadge);
 
   /* Phase 6b: Restore active tab on refresh */
   // If updateLayoutMode triggered _applyModeSwitch, it already called switchTab.
@@ -711,26 +751,29 @@ function bootApp() {
   if (!_isDesktop) {
     var _savedTab = regFilter.activeTab || 'pageHome';
     if (_savedTab !== 'pageHome' && document.getElementById(_savedTab)) {
-      switchTab(_savedTab);
+      bootStep('the screen last open', function() { switchTab(_savedTab); });
     } else {
-      renderHome();
+      bootStep('Home', renderHome);
     }
   }
 
   /* The "Add Challan" app shortcut opens the form, not just the tab. Runs after
-     the tab restore above so the IM view exists to render into. */
-  if (_launchNew && regFilter.activeTab === 'pageIM' && !_isDesktop) {
-    showAddChallanForm();
+     the tab restore above so the IM view exists to render into. On the desktop too: the installed app's shortcut
+     opened the list there, with no form (the QA sweep, 29 Sep 2026). */
+  if (_launchNew && regFilter.activeTab === 'pageIM') {
+    bootStep('the challan form', showAddChallanForm);
   }
 
   /* The widget: apply the Done taps it queued while the app was shut, open
      what it asked for, and hand it a fresh payload. */
-  if (_launchTodo) todoHandleLaunch(_launchTodo);
-  else todoApplyWidgetQueue();
-  todoWidgetPublish();
+  bootStep('the To-do widget', function() {
+    if (_launchTodo) todoHandleLaunch(_launchTodo);
+    else todoApplyWidgetQueue();
+    todoWidgetPublish();
+  });
 
   // The address and this tab's trail (nav.js). A shortcut or widget launch has already put the app where it asked.
-  navBoot(_launchNew || _launchTodo ? null : _launchLoc);
+  bootStep('the address', function() { navBoot(_launchNew || _launchTodo ? null : _launchLoc); });
 
   /* A read that threw at load used to fall through to a fresh default state
      and say nothing. It is the one storage failure the operator most needs to
@@ -818,8 +861,9 @@ function checkForUpdateManually() {
 document.addEventListener('visibilitychange', function() {
   if (document.visibilityState === 'visible') {
     checkForUpdate(false);
-    if (S) todoApplyWidgetQueue();
-    if (S) bookCheck();
+    // The book first, then the widget's ticks onto it. Applied to a copy another window had since replaced, their save
+    // was refused, the reload dropped them, and the queue they came from was already empty (the QA sweep, 29 Sep 2026).
+    if (S) bookCheck().then(function() { if (S) todoApplyWidgetQueue(); });
   } else if (S) {
     todoWidgetPublish();
   }

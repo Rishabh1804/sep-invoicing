@@ -178,7 +178,8 @@ test('P10: two copies collapsed into one invoice are not reported as billed twic
   });
   orig.items[0].invoiced = true;
   orig.items[0].invoiceId = 'INV-A';
-  state.invoices = [invoiceStub('INV-A')];
+  // The invoice carries the material once: that is what makes the pair collapsed rather than billed twice.
+  state.invoices = [{ ...invoiceStub('INV-A'), items: [{ partNumber: '5181-3302', desc: '5181-3302', unit: 'KG', qty: 282.7, rate: 13, amount: 3675.1 }] }];
 
   await loadAppWithState(page, state);
   await switchTab(page, 'pageIM');

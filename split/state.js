@@ -29,6 +29,8 @@ function getDefaultState() {
     // here too, and is struck — tagged in the raw relay, under-booked, and
     // under-booking is never an error.)
     extraExceptions: [],
+    // A deleted attendance day, kept whole with its required reason (attDeleteDay): History lists it.
+    attendanceDeletes: [],
     // Workforce. The roster ships empty: names and wages are payroll data and
     // this repo is public, so the owner enters them once on the device. Areas
     // and comp classes are structure, not data, and live in staff.js.
@@ -55,6 +57,7 @@ function getDefaultState() {
     // message whole. Ships empty — the lines arrive with the first message.
     stock: { items: [], entries: [], pastes: [] },
     production: { entries: [], pastes: [], photos: [], imports: [], learn: { clients: {}, parts: {} } },
+    power: { load: {}, cfg: {}, items: {} },
     // The bank statement as imported (bank.js): rows merged by id, and what the operator set.
     bank: { rows: [], imports: [], parties: {}, opening: {} },
     // Days of cover at which a line turns red / amber, and the cost model's
@@ -69,6 +72,7 @@ function getDefaultState() {
     relayLearn: { heads: {}, slots: {} },
     // Payments and advances made to workers, voided with a reason, never deleted.
     staffPayments: [],
+    payCarryClears: [],
     // Power and other monthly bills, for the live cost (voided, never deleted).
     costBills: [],
     payrollPaid: [],
@@ -113,6 +117,11 @@ var IDB_STORE = 'state';
 var IDB_KEY = 'current';
 var _idb = null;
 var _idbFailed = false;            // open refused: this browser gets the localStorage path
+// Set once this device's book has been read from or written to IndexedDB: a later open that fails is then a copy that
+// would not read, never an empty device (loadState).
+var IDB_USED_KEY = 'sep_inv_idb_used';
+function idbHeldBook() { try { return localStorage.getItem(IDB_USED_KEY) === '1'; } catch (e) { return false; } }
+function idbMarkHeld() { try { localStorage.setItem(IDB_USED_KEY, '1'); } catch (e) { /* a marker only */ } }
 var _storeMode = 'unknown';        // 'idb' | 'localStorage', settled by loadState()
 var _loadedFrom = 'none';          // 'idb' | 'legacy' | 'none'
 var _legacyKeyPresent = false;
@@ -240,9 +249,26 @@ function readStoredWithRev() {
         var tx = db.transaction(IDB_STORE, 'readonly'), st = tx.objectStore(IDB_STORE), out = { raw: null, rev: null };
         st.get(IDB_KEY).onsuccess = function(ev) { out.raw = typeof ev.target.result === 'string' ? ev.target.result : null; };
         st.get(IDB_REV_KEY).onsuccess = function(ev) { out.rev = typeof ev.target.result === 'string' ? ev.target.result : null; };
-        tx.oncomplete = function() { resolve(out); };
+        tx.oncomplete = function() { if (out.raw != null) idbMarkHeld(); resolve(out); };
         tx.onabort = function() { reject(tx.error || new Error('read transaction aborted')); };
         tx.onerror = function() { reject(tx.error); };
+      } catch (e) { reject(e); }
+    });
+  });
+}
+
+// The revision on disk, without the book.
+function readStoredRev() {
+  if (_storeMode === 'localStorage' || _idbFailed) {
+    return new Promise(function(resolve, reject) { try { resolve(localStorage.getItem(LS_REV_KEY)); } catch (e) { reject(e); } });
+  }
+  return idbOpen().then(function(db) {
+    if (!db) return null;
+    return new Promise(function(resolve, reject) {
+      try {
+        var req = db.transaction(IDB_STORE, 'readonly').objectStore(IDB_STORE).get(IDB_REV_KEY);
+        req.onsuccess = function() { resolve(typeof req.result === 'string' ? req.result : null); };
+        req.onerror = function() { reject(req.error); };
       } catch (e) { reject(e); }
     });
   });
@@ -278,7 +304,7 @@ function writeGuarded(str, expect, next) {
             st.put(next, IDB_REV_KEY);
           } catch (e) { failed = e; tx.abort(); }
         };
-        tx.oncomplete = function() { resolve(); };
+        tx.oncomplete = function() { idbMarkHeld(); resolve(); };
         tx.onabort = function() {
           reject(isStale ? staleCopy(stale) : (failed || tx.error || new Error('write transaction aborted')));
         };
@@ -304,6 +330,15 @@ function loadState() {
     _diskRev = both.rev;
     return both.raw;
   }).then(function(raw) {
+    if (_idbFailed && idbHeldBook()) {
+      // This device keeps its book in IndexedDB and the database would not open this time: a copy that would not read,
+      // not an empty device. The localStorage path used to take over, showing no book (or the one from before the move)
+      // and saving the session's work there, and the next start, with the database open again, lost it without a word
+      // (the QA sweep, 29 Sep 2026). Nothing is written until it opens; the boot banner says so.
+      _storeMode = 'idb';
+      _storageHealth.readError = 'its database would not open; close the app in every other window and reload';
+      return null;
+    }
     if (_idbFailed) { _storeMode = 'localStorage'; try { _diskRev = localStorage.getItem(LS_REV_KEY); } catch (e) {} var lr = legacyRaw(); _loadedFrom = lr != null ? 'legacy' : 'none'; return lr; }
     _storeMode = 'idb';
     // Note whether the pre-IndexedDB copy is still occupying the shared pool,
@@ -336,6 +371,7 @@ function loadState() {
    flight was carrying. */
 var _persistChain = Promise.resolve(true);
 var _persistQueued = null;
+var _persistQueuedBoot = false;
 
 function persistState() {
   // A copy that exists but would not read is never written over: seeding a
@@ -347,17 +383,23 @@ function persistState() {
     _storageHealth.lastError = 'not written: the stored copy could not be read (' + _storageHealth.readError + ')';
     return Promise.resolve(false);
   }
-  if (_persistQueued) return _persistQueued;
+  // A write asked for only while the window was starting (its migrations) changes nothing anybody did: a refusal of it
+  // is taken quietly (bookStaleSave). Read when the save is asked for, not when the refusal comes back, which is always
+  // after the start has finished (the QA sweep, 29 Sep 2026: the quiet branch never ran).
+  var booting = !document.body.classList.contains('inv-booted');
+  if (_persistQueued) { if (!booting) _persistQueuedBoot = false; return _persistQueued; }
+  _persistQueuedBoot = booting;
   var queued = _persistChain.then(function() {
+    var boot = _persistQueuedBoot;
     _persistQueued = null;
-    return writeStateNow();
+    return writeStateNow(boot);
   });
   _persistQueued = queued;
   _persistChain = queued.then(null, function() { return false; });
   return queued;
 }
 
-function writeStateNow() {
+function writeStateNow(boot) {
   var str;
   try { str = JSON.stringify(S); }
   catch (e) { return Promise.resolve(noteSaveFailure(STORAGE_KEY, describeStorageError(e))); }
@@ -387,7 +429,7 @@ function writeStateNow() {
     requestPersistentStorage();
     return true;
   }, function(e) {
-    if (e && e.name === 'StaleCopy') return bookStaleSave();
+    if (e && e.name === 'StaleCopy') return bookStaleSave(boot);
     return noteSaveFailure(STORAGE_KEY, describeStorageError(e));
   });
 }
@@ -467,7 +509,7 @@ function hideStorageBanner(kind) {
 // Containers hold the user's records, so a missing one is filled EMPTY — the
 // app must never invent business data to repair a shape.
 var STATE_CONTAINERS = ['clients', 'items', 'invoices', 'incomingMaterial', 'partWeights',
-  'voidedNumbers', 'creditNotes', 'extraExceptions', 'staff', 'attendance', 'areaTargets', 'shiftNeeds', 'stock', 'todo', 'relayPastes', 'relayLearn', 'staffPayments', 'costBills', 'payrollPaid', 'bank', 'production'];
+  'voidedNumbers', 'creditNotes', 'extraExceptions', 'attendanceDeletes', 'staff', 'attendance', 'areaTargets', 'shiftNeeds', 'stock', 'todo', 'relayPastes', 'relayLearn', 'staffPayments', 'payCarryClears', 'costBills', 'payrollPaid', 'bank', 'production'];
 // Config objects are the opposite: a missing one is filled from the defaults,
 // and so is a missing KEY inside one. `labourCfg()` reads `extraRate || 0`, so
 // a backup predating a constant would silently price the extra at nothing
@@ -487,6 +529,12 @@ function ensureStateShape(s) {
     });
   });
   if (!s.cnNextNum) s.cnNextNum = 1;
+  // A record's lines are read as an array in some 150 places: an invoice or challan written without one (a
+  // hand-edited backup, an older scanner) made the first screen to read it throw, Home at launch (the QA sweep,
+  // 29 Sep 2026). An empty list is a shape, not invented business data.
+  ['invoices', 'incomingMaterial'].forEach(function(k) {
+    (s[k] || []).forEach(function(r) { if (r && !Array.isArray(r.items)) r.items = []; });
+  });
   return s;
 }
 
@@ -519,6 +567,10 @@ function adoptState(next) {
     persistState();
     throw e;
   }
+  // What is worked out from the book is worked out again, as when another window's save is loaded (bookReload): the
+  // two had drifted, and a pull or an import kept the old book's part usage (the QA sweep, 29 Sep 2026).
+  if (typeof prodTouch === 'function') prodTouch();
+  if (typeof _invalidateUsageCache === 'function') _invalidateUsageCache();
   return S;
 }
 
@@ -549,7 +601,6 @@ let _tabScroll = {};
 let _navReturnTab = null;
 let _regToolbarRendered = false;
 let _regSearchTimer = null;
-var _preselectedClientId = null;
 const VIEW_PREFS_KEY = 'sep_inv_view_prefs';
 const API_KEY_KEY = 'sep_inv_gemini_key';
 const METALS_KEY_KEY = 'sep_inv_metals_key';
@@ -571,11 +622,16 @@ function drainFocusStack() {
   _focusStack = [];
 }
 
-function focusFirstInteractive(container) {
+function focusFirstInteractive(container, opts) {
   if (!container) return;
-  var el = container.querySelector('button, input:not([type="hidden"]):not([readonly]), select, textarea, [tabindex]:not([tabindex="-1"])');
-  if (el) { try { el.focus(); } catch(e) {} }
+  // opts.noText: a button or a choice, never a field (a screen opened on a touch screen, where a focused field raises
+  // the keyboard). Never scrolls: the caller has put the page where it belongs.
+  var el = container.querySelector(opts && opts.noText ? 'button, select, [tabindex]:not([tabindex="-1"])'
+    : 'button, input:not([type="hidden"]):not([readonly]), select, textarea, [tabindex]:not([tabindex="-1"])');
+  if (el) { try { el.focus({ preventScroll: true }); } catch(e) {} }
 }
+/* A touch screen, where focusing a field raises the keyboard over the screen. */
+function touchScreen() { try { return window.matchMedia('(pointer: coarse)').matches; } catch (e) { return false; } }
 
 /* ===== A CHANGE INSIDE A VIEW NEVER MOVES THE PAGE (P79) =====
    Owner, 27 Sep 2026: picking a client in Receivables sent the page back to the top. The re-render brought the open
@@ -641,6 +697,14 @@ function uiShowMore(key) {
   _uiMoreShown[key] = true;
   document.querySelectorAll('[data-more-of="' + key + '"]').forEach(function(el) { el.hidden = false; });
   document.querySelectorAll('[data-more-btn="' + key + '"]').forEach(function(el) { el.remove(); });
+}
+/* Brings one row into sight, showing the rest of its list first when it is under "Show N more": a jump to a challan
+   used to scroll to a row drawn hidden, and so to nowhere. */
+function uiRevealEl(el) {
+  if (!el) return;
+  var hid = el.closest && el.closest('[data-more-of]');
+  if (hid) uiShowMore(hid.getAttribute('data-more-of'));
+  if (el.scrollIntoView) el.scrollIntoView({ block: 'center' });
 }
 
 /* A panel that folds to its head. head: the summary row's inner html; dflt: open when nothing is remembered. */
@@ -796,7 +860,8 @@ function bookOnMessage(m) {
 // A window back in view: has another saved meanwhile?
 function bookCheck() {
   if (!S || _storageHealth.readError) return Promise.resolve(false);
-  return readStoredWithRev().then(function(b) { return b.rev && b.rev !== _diskRev ? bookReload('saved') : false; }, function() { return false; });
+  // The revision alone: it read the whole book at every return to view only to compare this.
+  return readStoredRev().then(function(rev) { return rev && rev !== _diskRev ? bookReload('saved') : false; }, function() { return false; });
 }
 function bookReload(why) {
   if (_bookReloading) return _bookReloading;
@@ -833,14 +898,13 @@ function bookRedraw(why) {
   if (seen && why === 'saved') showToast('Updated from another window', 'info');
 }
 // A save refused because another window saved first: this window takes the saved book and says what was lost.
-function bookStaleSave() {
+function bookStaleSave(boot) {
   _storageHealth.lastSaveOk = false;
   _storageHealth.lastSaveAt = Date.now();
   _storageHealth.lastError = 'not written: another window had saved the book first';
-  // A save refused while the window is still starting (its migrations) lost nothing anybody did: taken quietly.
-  var booting = !document.body.classList.contains('inv-booted');
+  // A save asked for only while the window was starting (its migrations) lost nothing anybody did: taken quietly.
   return bookReload('stale').then(function() {
-    if (booting) return false;
+    if (boot) return false;
     uiNotice('Another window saved the book after this window loaded it, so the last change made here was not saved. ' +
       'This window now shows the saved book: make that change again.', 'warning');
     return false;
@@ -1012,7 +1076,8 @@ function setMetalsKey(key) { try { localStorage.setItem(METALS_KEY_KEY, key); } 
 // A reserved number in the void ledger still holds its slot — the document
 // left the building, so the number is spent even though no invoice remains.
 function resetSeriesIfEmpty() {
-  if (S.invoices.length === 0 && !S.voidedNumbers.some(function(v) { return v.reserved; })) {
+  // Only when it changes something: it rewrote the whole book at every start of an empty one.
+  if (S.invoices.length === 0 && S.invNextNum !== 1 && !S.voidedNumbers.some(function(v) { return v.reserved; })) {
     S.invNextNum = 1;
     saveJSON(STORAGE_KEY, S);
   }
@@ -1215,7 +1280,39 @@ function localDateStr() {
   return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
 }
 
-function gstRound(val) { return Math.round(val * 100) / 100; }
+/* ===== ONE SET OF DATE AND NUMBER HELPERS (the QA sweep, 29 Sep 2026) =====
+   The sweep found four copies of "add days to a date", three of "days between", two day-month-year readers (one of
+   which took 31/09 for a date) and five medians, each module with its own. They live here once. */
+function isoOf(d) { return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
+function isoAddDays(iso, n) { var d = new Date(iso + 'T00:00:00'); d.setDate(d.getDate() + n); return isoOf(d); }
+function isoDaysBetween(a, b) { return Math.round((new Date(b + 'T00:00:00') - new Date(a + 'T00:00:00')) / 86400000); }
+/* A date as written, day first; a two-digit year is this century. Null for a day the calendar has not got (31/09). */
+function isoFromDmy(d, m, y) {
+  d = +d; m = +m; y = +y;
+  if (y < 100) y += 2000;
+  if (!(d >= 1 && d <= 31 && m >= 1 && m <= 12)) return null;
+  var t = new Date(y, m - 1, d);
+  return t.getMonth() === m - 1 ? isoOf(t) : null;
+}
+/* The middle of a list of numbers; null for an empty one (a caller that wants 0 says so). */
+function numMedian(nums) {
+  if (!nums || !nums.length) return null;
+  var s = nums.slice().sort(function(a, b) { return a - b; }), m = Math.floor(s.length / 2);
+  return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
+}
+
+/* Round to the paisa, half away from zero, on the decimal the figure is written in (owner, 30 Sep 2026: "change it").
+   Math.round(val * 100) / 100 rounded on the binary copy: 1.005 is held as 1.00499999…, so it gave 1.00 where the paper
+   says 1.01, and 0.1 + 0.2 carried its noise into the paise. The figure is read to 15 significant digits (what a double
+   holds exactly), shifted two places in decimal, rounded, and shifted back. */
+function gstRound(val) {
+  var v = Number(val);
+  if (!isFinite(v) || v === 0) return 0;
+  var a = Math.abs(v), parts = a.toPrecision(15).split('e');
+  var shifted = Number(parts[0] + 'e' + ((Number(parts[1]) || 0) + 2));
+  var r = Number(Math.round(shifted) + 'e-2');
+  return v < 0 ? -r : r;
+}
 
 function formatNum(n, dec) {
   if (n == null || isNaN(n)) return '0';
@@ -1360,19 +1457,32 @@ function getStateDotHtml(inv) {
 }
 
 /* The next state, or a named one further on: an invoice printed outside the app goes from Created straight to
-   Dispatched. Never backwards. */
+   Dispatched. Never backwards, but for a print that never came out (invNotPrinted). */
 function advanceInvoiceState(invId, target) {
   var inv = S.invoices.find(function(i) { return i.id === invId; });
   if (!inv || inv.status === 'cancelled') return;
-  var state = getInvState(inv);
-  var idx = INV_STATES.indexOf(state);
-  if (idx < 0 || idx >= INV_STATES.length - 1) return;
-  var nextState = target && invStateIdx(target) > idx ? target : INV_STATES[idx + 1];
+  var idx = INV_STATES.indexOf(getInvState(inv));
+  var nextState = target || INV_STATES[idx + 1];
+  // A button drawn before the state moved on (a print, another window) names a step already reached: it only shows
+  // where the invoice is. It used to fall through to the step after, so Mark printed on a printed invoice dispatched it.
+  if (idx < 0 || !nextState || invStateIdx(nextState) <= idx) { invStateShown(invId); return; }
   invSetState(inv, nextState);
   saveState();
-  closeOverlay();
-  _renderRegView();
+  invStateShown(invId);
   showToast(inv.displayNumber + ' marked as ' + INV_STATE_LABELS[nextState]);
+}
+
+/* Print marks a Created invoice Printed, but the print dialog cannot say whether the paper came out: a print cancelled
+   or jammed is put back here, and its stamp goes with it (History logs a print from printedAt). */
+function invNotPrinted(invId) {
+  var inv = S.invoices.find(function(i) { return i.id === invId; });
+  if (inv && inv.status !== 'cancelled' && getInvState(inv) === 'printed') {
+    inv.invoiceState = 'created';
+    delete inv.printedAt;
+    saveState();
+    showToast(inv.displayNumber + ' is back to Created');
+  }
+  invStateShown(invId);
 }
 
 async function bulkMarkFiled() {
@@ -1384,13 +1494,14 @@ async function bulkMarkFiled() {
     showToast('No delivered invoices to mark as filed', 'warning');
     return;
   }
+  var ids = eligible.map(function(inv) { return inv.id; });
   if (!(await uiConfirm({ title: 'Mark ' + eligible.length + ' delivered invoice' + (eligible.length > 1 ? 's' : '') + ' as filed?',
     body: 'A filed invoice cannot be deleted and reissued: its number is in a return.', okLabel: 'Mark as filed' }))) return;
+  // Found again by id after the question: another window's save can replace the book while it is open, and the objects
+  // read before it would be filed in a book no longer on screen (the QA sweep, 29 Sep 2026). One place sets a state.
   var now = Date.now();
-  eligible.forEach(function(inv) {
-    inv.invoiceState = 'filed';
-    inv.filedAt = now;
-  });
+  eligible = S.invoices.filter(function(inv) { return ids.indexOf(inv.id) >= 0 && inv.status === 'active' && getInvState(inv) === 'delivered'; });
+  eligible.forEach(function(inv) { invSetState(inv, 'filed', now); });
   saveState();
   _renderRegView();
   showToast(eligible.length + ' invoice' + (eligible.length > 1 ? 's' : '') + ' marked as filed');
@@ -1586,8 +1697,43 @@ function defaultLineRate(client, onDate, item) {
   if (item.unit === 'NOS') {
     var pr = getPieceRate(client, onDate, item.partNumber, item.desc);
     if (pr && pr.rate != null) return pr.rate;
+    // A piece line with no piece rate has no rate on record: a ₹/kg figure is not a price per piece (5.40 against a
+    // ₹1.49 pad). Only a client billed by weight from pieces prices a NOS line at its ₹/kg, through the part's weight.
+    return client && client.billingMode === 'nos_to_weight' ? (info.ratePerKg || 0) : 0;
   }
   return info.ratePerKg || 0;
+}
+
+/* What a line comes to: the one place the invoice and the challan form price it (the QA sweep, 29 Sep 2026). The
+   challan form had its own copy without the nos_to_weight branch, so a NOS line of a client billed by weight from
+   pieces was priced pieces × ₹/kg and carried that into the invoice raised off it. `onDate` is the form's date, since
+   the rate on record is dated. */
+function linePrice(item, client, onDate) {
+  if (!client) { item.amount = gstRound((item.qty || 0) * (item.rate || 0)); return; }
+  if (client.billingMode === 'piece' && item.unit === 'NOS') {
+    // Challan passthrough: the amount is entered as the challan says, and the rate is read back from it.
+    if (item.qty > 0 && item.amount > 0) item.rate = gstRound(item.amount / item.qty);
+  } else if (client.billingMode === 'nos_to_weight' && item.unit === 'NOS') {
+    var pwKey = (item.partNumber || '').toUpperCase();
+    var rateInfo = getLineItemRate(client, onDate, item.partNumber);
+    // A part with no weight on record cannot be converted; it is billed per piece off the client's card (Samarth's
+    // brackets), or an override. Before this the line priced itself at weight 0 × ₹/kg = ₹0.
+    var perPiece = rateInfo._override ? { rate: rateInfo.rate }
+      : (S.partWeights[pwKey] ? null : getPieceRate(client, onDate, item.partNumber, item.desc));
+    // A rate somebody typed is theirs (item._auto.rate false, while the line still carries the figure typed): the
+    // record prices only an empty or a filled rate. It used to replace a typed rate silently.
+    var typed = item.rate > 0 && item._auto && item._auto.rate === false && item._auto.rateTyped === item.rate;
+    if (perPiece && perPiece.rate != null) {
+      if (!typed) item.rate = perPiece.rate;
+      item.amount = gstRound((item.qty || 0) * item.rate);
+      return;
+    }
+    var w = (item.qty || 0) * (S.partWeights[pwKey] || 0);
+    if (!typed) item.rate = rateInfo.ratePerKg || 0;
+    item.amount = gstRound(w * item.rate);
+  } else {
+    item.amount = gstRound((item.qty || 0) * (item.rate || 0));
+  }
 }
 
 /* How a line names its part on screen. `desc` used to win outright, and for a

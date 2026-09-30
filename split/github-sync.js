@@ -203,6 +203,26 @@ function ghDescribeEnvelope(env) {
   return (c.invoices != null ? c.invoices + ' invoices, ' + c.challans + ' challans' : 'a backup') + who + when;
 }
 
+/* What a push or a pull learnt, written onto the config as it is NOW. It was read before the network and the owner's
+   answer, and writing that copy back undid whatever Settings saved meanwhile: a new target, auto-push switched off (the
+   QA sweep, 29 Sep 2026). The remembered SHA belongs to the target it was read from, so a changed target takes none. */
+function ghRecord(from, fields) {
+  var now = getGhConfig();
+  var same = ['owner', 'repo', 'path', 'branch'].every(function(k) { return now[k] === from[k]; });
+  if (!same) return false;
+  Object.keys(fields).forEach(function(k) { now[k] = fields[k]; });
+  setGhConfig(now);
+  return true;
+}
+
+/* Push and Pull use the settings as saved: pressed with the section's edits unsaved, they reached the old target and
+   said nothing (the QA sweep, 29 Sep 2026). */
+function ghFieldsUnsaved() {
+  if (!document.querySelector('#settingsScrim details[data-sec="sync"][data-dirty]')) return false;
+  showToast('Save the GitHub sync section first: Push and Pull use what is saved', 'warning');
+  return true;
+}
+
 /* ===== PUSH ===== */
 async function ghPush(opts) {
   var silent = opts && opts.silent;
@@ -243,12 +263,11 @@ async function ghPush(opts) {
     if (remote && remote.sha) body.sha = remote.sha;
 
     var result = await ghRequest(ghContentsUrl(cfg), { method: 'PUT', body: body });
-    cfg.sha = result && result.content ? result.content.sha : null;
-    cfg.lastPushAt = Date.now();
-    setGhConfig(cfg);
+    var pushedAt = Date.now();
+    ghRecord(cfg, { sha: result && result.content ? result.content.sha : null, lastPushAt: pushedAt });
     if (pushedRev) bookPost({ type: 'pushed', rev: pushedRev });
     ghSetBusy(false);
-    ghSetStatus('Pushed ' + formatTimestamp(cfg.lastPushAt) + '.');
+    ghSetStatus('Pushed ' + formatTimestamp(pushedAt) + '.');
     ghRenderCard();
     if (!silent) showToast('Pushed to GitHub');
     return true;
@@ -314,12 +333,11 @@ async function ghPull() {
     }
     saveState();
 
-    cfg.sha = remote.sha;
-    cfg.lastPullAt = Date.now();
-    setGhConfig(cfg);
+    var pulledAt = Date.now();
+    ghRecord(cfg, { sha: remote.sha, lastPullAt: pulledAt });
 
     ghSetBusy(false);
-    ghSetStatus('Pulled ' + formatTimestamp(cfg.lastPullAt) + '.');
+    ghSetStatus('Pulled ' + formatTimestamp(pulledAt) + '.');
     closeOverlay();
     _tabDirty.home = true;
     _tabDirty.register = true;

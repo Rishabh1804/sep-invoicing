@@ -85,6 +85,7 @@ split/
 ├── dash.js            ← Staff and Stock Overviews: attendance, labour ₹/kg, OT by area, payroll vs bank; days left, supplier spend, use, prices (~230 lines)
 ├── production.js      ← Production store; derived index (which figure counts, usual line, matches, racks); in plant; rules; export (~580 lines)
 ├── prodview.js        ← Production page: Overview, In plant, Lines, Entries; paste, photo and hand sub-views (~750 lines)
+├── power.js           ← Power: cuts and what each costs, the connection's load and bills, the printable case for backup (~560 lines)
 ├── client-perf.js     ← Client performance: month on month + material cadence (314 lines)
 ├── im-form.js         ← IM add/edit/delete challan form (450 lines)
 ├── im-dupe.js         ← IM duplicate guard: fingerprint + pre-save warn + scan (305 lines)
@@ -97,7 +98,7 @@ split/
 └── init.js            ← Migrations + app bootstrap (567 lines)
 ```
 
-**Concat order defined in build.sh.** Dependencies: data → state → appearance → zinc → tabs → clients → items → create → settings → github-sync → invoice-ops → number-audit → exports → im → autocomplete → print → quality-cert → credit-note → charts → staff → labour → areas → payroll → stock → cost → bills → xls → xlsx → bank → finance → todo → relay → attsheet → stocksheet → prodparse → stats → intel → insights → finintel → finlinks → dash → production → prodview → client-perf → im-form → im-dupe → vision → scanner → events → swipe → nav → seed → init.
+**Concat order defined in build.sh.** Dependencies: data → state → appearance → zinc → tabs → clients → items → create → settings → github-sync → invoice-ops → number-audit → exports → im → autocomplete → print → quality-cert → credit-note → charts → staff → labour → areas → payroll → stock → cost → bills → xls → xlsx → bank → finance → todo → relay → attsheet → stocksheet → prodparse → stats → intel → insights → finintel → finlinks → dash → production → prodview → power → client-perf → im-form → im-dupe → vision → scanner → events → swipe → nav → seed → init.
 
 **Every module shares one global scope.** A top-level `var` or `function` in a later module silently replaces one of
 the same name in an earlier one; nothing warns. `bills.js` shipped a `STOCK_UNITS` array over `stock.js`'s unit map
@@ -127,7 +128,7 @@ every session start — nothing to set up by hand. CI (`build-sync`) is the back
 ### Tests
 
 ```bash
-pnpm exec playwright test          # 751 tests, both layouts
+pnpm exec playwright test          # 991 tests, both layouts
 ```
 
 Some sandboxes ship a Chromium build Playwright does not expect and block downloading
@@ -205,6 +206,30 @@ uncoloured. The judgements are in one place, state.js (`figToneAgainst`, `figTon
   and *pays in N d*.
 P102.
 
+**The QA sweep of 29–30 Sep 2026** (owner: *"sweep the codebase for dead and redundant code … sweep the app for bugs and
+behavioural issues. Do a QA chain and fix the issues"*). Governors audited seven areas (about 150 findings), a scratch harness
+pressed every action on every page and view (phone 249, desktop 247: no uncaught error) and the real book drew every page on both
+layouts; builders fixed each area with its spec (P104–P113). What it leaves as rules:
+- **One set of helpers** in state.js: `isoOf`, `isoAddDays`, `isoDaysBetween`, `isoFromDmy` (null for 31/09), `numMedian`; one
+  line-pricing function `linePrice(item, client, onDate)` for the invoice and the challan form (a typed rate is kept on both).
+- **The start never bricks**: each boot step is guarded (`bootStep`), a screen is remembered for a reload only once it has drawn,
+  records with no lines array are repaired on load, and a start that changes nothing writes nothing.
+- **A device whose book is in IndexedDB** (`sep_inv_idb_used`) never works on another copy when the database will not open: it is
+  read-only with the banner. A start-up save refused by another window's save is taken quietly.
+- **Escape closes the top layer** the way Back does (`navCloseLayer`), after closing an open suggestion list; a swipe does nothing
+  while a layer is open; opening a screen on a touch screen never focuses a field.
+- **A jump shows what it names**: `regJump` / `imJump` / `imJumpClient` clear the filters and selection they do not set, and a
+  challan opens on its tab and month with its row revealed (`uiRevealEl`).
+- **Bank payee rules have a direction** (money in under `KEY|in`); an old wage, supplier, electricity, GST, tax or charges rule
+  stays money-out. **The sep-bank export's `parties` carry `dir`** — a data flow soma-internal reads.
+- **The roster names a worker by `staffNameKey`** (letters, digits, or the name itself when not in Latin letters); a renamed worker
+  keeps the old name as a spelling, so payroll slips still find them.
+- **What the sweep left to the owner, and their rulings (30 Sep 2026)**, all built (P114): `gstRound` rounds the decimal figure
+  (*"change it"*, HR-8); a pay balance carries across periods until cleared with a reason (*"yes, unless stated otherwise and
+  notification cleared"*, Pay); a second electricity bill in a month is arrears plus a penalty (Bills & notes); *"night hold is
+  night shift"* on the in-time roll too; a correction on a new invoice reaches its challan with a note; Home nets credit notes and
+  says so.
+
 **A `<select>` speaks through `change`, never `click`.** Giving a filter control a
 `data-action` meant the click that *opens* it ran the handler — and if that handler
 re-renders the toolbar, the element the native popup hangs off is replaced and the list
@@ -261,12 +286,12 @@ filter on; a literal date in a fixture is a time bomb, not a constant.
 |----|------|
 | HR-1 | No inline styles. CSS classes + design tokens. |
 | HR-2 | No inline onclick. data-action delegation only. |
-| HR-3 | inv- CSS prefix on every class. 462 classes, all of them (distinct class selectors in `split/styles.css`, comments stripped, 29 Sep 2026: the eighteen `inv-as-*` of the attendance and stock sheets added, then `inv-topbar-back` and `inv-topbar-trail`, then `inv-fig-ok/warning/danger`: 462); P76 asserts every class the app draws is one of them or a named hook. |
+| HR-3 | inv- CSS prefix on every class. 466 classes, all of them (distinct class selectors in `split/styles.css`, comments stripped, 29 Sep 2026: the eighteen `inv-as-*` of the attendance and stock sheets added, then `inv-topbar-back` and `inv-topbar-trail`, then `inv-fig-ok/warning/danger`: 462; 30 Sep 2026, the QA sweep: `inv-pi-cancelled`, `inv-cn-cancelled`: 464; the power case's `inv-pc-sec`, `inv-pc-p`: 466); P76 asserts every class the app draws is one of them or a named hook. |
 | HR-4 | No emojis. Inline SVGs in HTML template. |
 | HR-5 | escHtml() on all user-data innerHTML. |
 | HR-6 | CSS design tokens only. No raw px/rem/hex/timing. |
 | HR-7 | Dark mode coverage on every new element — by reading tokens, which switch with `color-scheme`. No `.dark` class exists. |
-| HR-8 | gstRound() for all currency. `Math.round(val * 100) / 100`. Never Math.floor for financials. GST rules require proper rounding. |
+| HR-8 | gstRound() for all currency: to the paisa on the figure as written, half away from zero (read to 15 significant digits, shifted two places in decimal, rounded, shifted back). Never Math.floor for financials. GST rules require proper rounding. It was `Math.round(val * 100) / 100` until 30 Sep 2026, which rounded the binary copy: 1.005 gave 1.00 and 2.675 gave 2.67 (owner: *"change it"*). |
 
 **Known HR-6 exceptions (do not expand):** 44px min touch targets (WCAG), 20px SVG icons, print CSS
 raw colors, and the printed documents' physical measurements (mm/pt) — all three declare their type
@@ -315,6 +340,11 @@ stamp, else the one before it, else the invoice date. **Delivered waits on the r
 invoice's month is due on the 11th of the next, so it is amber 3 days before and red once past; a delivered invoice from
 the 2nd of the month is not late at day 20. Filed is ok, cancelled danger. The row's dot carries the age in its title,
 the detail's timeline says it (*Printed · 3 days*, *Delivered · GSTR-1 due 11 Oct 2026*), and History logs *printed*.
+**A state shows the moment it changes** (owner, 29 Sep 2026: *"the invoice state change to printed should be immediately once the invoice is
+printed and when I mark it dispatched the state should change immediately"*): `invStateShown` redraws the page in place and an open
+sheet on its new step, after Print and after a Mark, wherever the invoice was opened (Home, a client, the To-do). A Mark button
+drawn before a print names a step reached and never skips past it. **Not printed** on a Printed invoice puts back a print that
+never came out (`invNotPrinted`), stamp and all. P104.
 Stats' state tiles keep one tone per state (`INV_STATE_TONE`), since they count many invoices. A number is spent from
 Dispatched on, not from Printed. P94.
 **The register sorts by invoice number too** (owner, 26 Sep 2026): the desktop's Invoice column head, and *By date / By
@@ -1414,6 +1444,12 @@ piece count at all, and an invoice line did not record which challan line it cam
   `corrections: [{at, invoiceId, invoice, from, to}]`. The challan is the record of the customer's
   paper; overwriting it without trace would lose what an audit asks. History lists each one:
   *"Challan 1115 corrected from SEP/…/00830: CLAMP 5079 4920 4205 — pieces 33 → 330"*.
+- **A correction on a NEW invoice reaches the challan too** (owner, 30 Sep 2026: *"correction on the invoice should be reflected
+  in the challan with a note"*). A challan line brought into the form remembers what it said (`imLineOrig`, `_fromNew`), and on
+  save a field typed over it travels back like an edit's. The quantity is the exception: typing less than the challan is
+  dispatching part of it, so it travels only when the operator said *Challan quantity was wrong*. The challan line shows each
+  correction as a note (*Corrected · from SEP/…/00012: rate 13 → 13.2*, `challanCorrectionText`, History's wording), and the save
+  says which challan was corrected.
 - **KG lines on the invoice form have a Pcs field** — it prices nothing, but it is what the weight
   is checked against, and it was the field both slips were in.
 - ⚠ **Every save confirmation had been invisible.** `switchTab()` clears toasts, and `saveInvoice()`
@@ -1601,6 +1637,79 @@ reads a photo. **Owned by `soma-internal`, like stock** (owner): a view and an i
 - **The workers' names box on a register photo goes to Google with the page** (Settings → Connections → Photo reading
   says so); only what is read is kept.
 
+### Power
+More → **Power** (sidebar Floor → Power; `power.js`; owner, 30 Sep 2026: *"Make a power cut tab, we have built a business
+case for power cut and how to resolve it, find it, read it and update it"*). Four views: **Overview · Cuts · Load & bills ·
+Case**. The case was written once, on 30 May over 56 days (soma-internal `archives/2026-W21-W22-session/13-…`); this page
+keeps it current, and `soma-internal/reports/power-cut-case-2026-09-30.md` is the dated refresh.
+
+- **The cuts are Production's** downtime entries (the register's power log, the relayed messages, a cut entered by hand)
+  and the history imported from soma-internal's power-cut log. The same cut reported twice is one (`prodDowntimeDay`); a
+  power-back earlier on the clock than the cut ran overnight. Enter a cut opens Production's hand form on a power cut.
+- **What a cut costs is its damage, not its price** (Iuno's audit of the 30 Sep refresh, H-1; owner, 30 Sep 2026: *"also
+  take into assumption OT that we had to do following the power cut due to the backlog of material it creates"*). The work a
+  cut stops is either made up in overtime or never made. Made up, the cut cost that overtime; never made, it cost the
+  output's contribution and the wages that bought nothing. A restart (₹600 in a working window, the 30 May estimate) is paid
+  either way (**an estimate, not measured**, and said beside the total). So damage = restart + catch-up overtime + (1 − share made up) × (contribution + platers' idle wages).
+  - **Catch-up overtime** (`powerRecovery`): a cut in working hours puts its own day and the next working day at risk. Each
+    such day's overtime (`powerDayOt`: monthly and daily hands' OT at their overtime rate, an hourly hand's hours past eight,
+    and the EXTRA on OT blocks; the general shift's EXTRA covers a missing hand, not carried-over work, and is left out) is
+    set against the median of the clean recorded days **in the same month**, at least four. What is above it is shared
+    among the cuts by their dark working minutes, after taking off the idle wages already counted for a cut past the shift.
+    **The Governors' re-audit bounded it** (N-1, N-2):
+    - **Each cut's share is capped at the hand-hours it stood idle**: a 13-minute cut had been billed 30.
+    - **A night hold is a shift and never counts** (`powerIsNightBlock`: from 8 PM, or on past midnight into the morning;
+      owner, *"night hold is night shift"*).
+    - **Nor does the EXTRA of the block a cut fell in.**
+    - **The baseline is the cut's own month.** The record held different overtime from month to month: block EXTRA was 21 h
+      in May and 573 in August, and the monthly crew's OT was recorded only from September. A ±30-day baseline measured
+      that change.
+
+    It is still **an upper reading**: a day running late for an urgent order reads the same. The share made up is those
+    hand-hours over the platers the cut stood idle (everyone present where no plater is recorded).
+  - **Contribution**, not revenue: realisation less the variable cost (everything but the monthly crew) over the last 90
+    days, read at the live cost and at the typed full cost less the same crew; **the lower share is used** (`powerMargin`).
+    On the real book the live cost read ₹4.65/kg with chemicals recorded at ₹0.16/kg, which would have made a lost hour
+    worth 56% of its price; the typed cost gives 6%. Revenue at stake (minutes in a working window × revenue per scheduled
+    hour) is shown as the upper bound and never added; so is the fixed charge, paid whether the power is on or not.
+  - **Idle wages are a range** (Iuno H-5): platers (VAT A1, VAT A2, barrel) up to everyone present, since pickling runs
+    through a cut. A hand is placed **where they stood at the time**: an OT or night block's named crew on the block's line
+    (a pickling hand in a VAT evening block idles as a plater), the general shift on the mark's area. Before this an
+    evening block's crew read ₹0.
+  - **A cut with no time back is costed at the median length of those with one**, never to the end of the day; a power-back
+    the log gives only as a bound (`downtime.atLeast`, "after 7:16 PM") ends at the later of the bound and the median, and
+    stays out of the median. A close the record inferred (`downtime.inferred`) and a single-phase fault (`downtime.phase:
+    'single'`, counted as dark) are said on the row and in the case.
+  - **The options' gain is the year's damage × the share each covers + TSUISL's tariff saving − running and upkeep**, the
+    running hours being the dark working hours; the inverter's coverage is measured on the dark working minutes it would have
+    carried (Iuno M-3; on every dark minute the overnight cut pulled it to 84%).
+- **A day with no record is a gap, not a day without cuts.** A recorded day is a working day with attendance or a plated
+  entry; a cut alone does not record its day (April's handwritten log has no floor record around it and read 1.38 cuts a
+  day). A run of recorded days with no cut, long enough that at the record's rate three or more were expected, is read as
+  **possibly unreported** (`powerQuietRuns`): named in the case, left out of the year ahead, of each month's rate (a month
+  with under five days left reads a dash) and of the best and worst months. The rate counts only the cuts on recorded days
+  (Iuno H-3: April's cuts on days with no record had been divided by recorded days, which made 11–15 May look quiet), and a
+  cut on a Sunday worked ends a run. "Possibly unreported" is a fact about the app's record, not about what was sent: a
+  stretch no export has been read for yet reads the same.
+- **The load is recorded** (owner: *"Yes, record it"*): `S.power.load` {sanctioned, approved, approvedOn, ref, note}, set
+  once to 25 / 50 kVA approved 18 May 2026 where empty (`_powerLoad1`). A bill's own details are set on Load & bills
+  (`POWER_BILL_FIELDS`: billed at, peak, kWh, kVAh, fixed, energy, excess-CD penalty, fuel adjustment, duty, net), and a
+  bill's "billed at" wins over the typed load. To-do rule **`powerLoad`** asks while the approved load is not on the bill,
+  with the penalty on the bills since approval.
+- **The case is a document drawn from the data every time it is shown or printed** (owner: *"The case report should
+  always be printable, and it should be dynamic - updates data as soon as the data feeding it is updated"*;
+  `powerCaseHtml`). Case shows it on the page; Print the case sends the same document to the print view, and a save in
+  this or another window redraws both. Ten sections: in short, the record by month with its recorded days, when cuts come
+  (noon – 2 PM), what a cut costs with the ten costliest, a year at this rate, the connection, the options (TSUISL,
+  inverter, generator: one-time, coverage, running, gain, payback; the inverter's coverage measured off the cuts at its
+  hours), the recommendation, open items (set in Options' figures) and what is not counted. The options' figures are the
+  30 May case's estimates until a quote replaces them.
+- **Import history** takes one file: its cuts as `sep-production` (merged by id into Production) and under `power` the
+  bills' details by month and the load. A detail fills only an empty field; a bill the file records is added where the app
+  has none for that month, **at what was paid** (`paid`, else `amount`), with the bill's net payable kept as a detail and the
+  basis in its note (Iuno H-6: which of the bill's figures is "the" bill is still BM's question); a month described without
+  an amount is counted, never invented.
+
 ### Stock
 More → **Stock**. Chemical stock, **owned by `soma-internal`** (owner, 24 Sep 2026): this tab is a view
 and an input, never the ledger. Everything it captures is copied there at each compile and stays here.
@@ -1686,7 +1795,7 @@ the stock (price, usage, cadence, etc.)"*). `cost.js`.
 - **Past purchases come from `soma-internal`** through Stock → Import: a `sep-stock` file of `bill` entries
   (and `costBills`), merged by id. The file is built from the private records and never committed here.
 
-**The phone bar is six tabs**: Home, Create, IM, Register, Clients, **More** (To-do, Finance, Production, Stock,
+**The phone bar is six tabs**: Home, Create, IM, Register, Clients, **More** (To-do, Finance, Production, Power, Stock,
 Staff, Stats, History). More lights up while one of those is open and carries a red count of **every red row**
 — stock out or under its red line, and your own tasks overdue. The test fixture's `switchTab` opens
 More when the target is behind it.
@@ -1705,6 +1814,14 @@ the device. `renderStats()` still draws every card; `take()` files each into its
   ~2 t per shift × two shifts × working days. Whatever is not measured is named under it.
 - **Six months**: each month at its own live cost, with labour ₹/kg shown only where 90% of the days are
   recorded and the share of cost measured.
+- **Credit notes are netted across all of Stats** (owner, 30 Sep 2026): each note's credit is spread over the invoices it names in
+  proportion to their taxable (`statsInvoices`, `cnCreditByInvoice`), and the headline, realisation, clients, six months, the trend,
+  the insights and Clients → Performance read those net invoices; tonnage is untouched. A note naming no invoice in the book is
+  counted apart and said on the Overview. **Home's month to date is net of them too** (owner, 30 Sep 2026: *"yes, it should and
+  it should be mentioned"*): the Revenue tile reads *taxable, net of ₹200.00 in credit notes*, and its comparison with the same
+  days last month is net on both sides. The tile will link to the notes once the hover previews are built.
+- **The trend keeps its own reach** (the last 12 months, 26 weeks or 90 days) whatever the period chip, and shades the chosen
+  period on it (`opts.span`), saying so under the chart (owner, 30 Sep 2026).
 - **Contribution by client** (Clients tab), worst first: net realisation (credit notes whose batch ends in
   the period are taken off), against the variable cost (everything but the monthly crew) and the full cost,
   and the ₹ on the period. The worst account with 10%+ of the tonnage is settled both ways: if labour is
@@ -1824,6 +1941,12 @@ batch rebate.
   and no electricity bill is listed with an **Add** that opens the form on that month (`billsMissingPower()`). The
   same form serves the Stats card (`costBillFormHtml`, `_costBillOpen = {where, month}`).
   To-do rule **`power`**: from the 10th, last month without a bill; amber from the 20th, `sig` the month.
+- **A second electricity bill in a month is arrears and a penalty** (owner, 30 Sep 2026: it *"only happens when a bit or all of
+  a couple months ago was not paid in time, so it might include a penalty"*). A bill records the **arrears** in it (and the month
+  they are for) and the **penalty or extra charge** in it, both parts of its amount. The arrears were that month's cost on its
+  own bill, so a bill's cost is its amount less its arrears (`costBillCost`); the penalty stays in and is named on the bill and
+  in Live cost. A second bill with no arrears entered asks first, never refuses. The owner mentioned paying about ₹5,000 a month
+  since the load went to 50 while the bill still reads 25: that charge can be entered as the penalty or extra charge.
 - **Credit notes, two doors.** *Record an issued note* takes a note that already exists on paper, with its **own
   number** (refused if the series holds it) and **the GST as printed**: recomputing is not the same thing, and
   CN/004's 3,749.29 at 9% + 9% rounds each half to 337.44 = ₹4,424.17 where the customer holds ₹4,424.16. The
@@ -2205,6 +2328,9 @@ or night block has its own **Needed** (`need` on its row), which `blockNorm` rea
 - *"----berral & V A 2----"* read as the barrel alone: the barrel check returned before looking for a VAT line. Barrel with
   a VAT line (no pickling) is both, and the collapse to barrel pickling now applies only to barrel + barrel pickling.
 - *"pickling 2 SIDE"* is one pickling crew serving both sides (owner): `pickling-vat` + `pickling-barrel`, never a third area.
+- **"Night hold is night shift"** (owner, 30 Sep 2026) on an in-time roll as on an out-time one: a night heading with one time
+  keeps the other end, starts its block at its own time, and is never taken for a mislabelled morning (*"night hold 8 pm"* ahead
+  of the 8:30 shift read as 8 AM).
 
 **The reader learns from corrections** (owner: *"The parser should learn from feedback … by reading if the data was changed
 after the paste or save"*). A row the roll makes remembers the heading it came from and what was read (`srcHead`,
@@ -2239,9 +2365,17 @@ the ISO week of the Saturday, which is the week the payout files are named after
 Staff → **Pay** (`payroll.js`), for the selected pay week (owner, 25 Sep 2026).
 
 - **Due by worker = earned − paid**, over the worker's own period: the week for the hourly and
-  daily tiers, the calendar month of the week's Saturday for the monthly tier (to today while it
+  daily tiers, the calendar month of the week's **Sunday** for the monthly tier (the QA sweep, 30 Sep 2026: it was the Saturday's, so in a month's last pay week Pay showed the next month at 0 and hid this one's) (to today while it
   runs). Earned is `labourForRange().byWorker`, the labour card's own arithmetic, split per worker.
   **The EXTRA pool is in no one's due**: it is one line on the slip, disbursed by the supervisor.
+- **A balance carries from one period to the next** (owner, 30 Sep 2026: *"yes, unless stated otherwise and notification
+  cleared"*; `payCarried`). A due left unpaid is owed next period, an advance not worked off is still to be worked off, and a
+  monthly salary paid on the 14th of the next month pays the month it was for (it used to read as an advance against the new
+  month, and an advance vanished when its period turned). It is counted from the period of the worker's first payment recorded
+  in the app (a monthly hand's, the month before): before that nothing was typed here, and every past wage would read as owed. A
+  month on record as paid is settled. Staff → Pay lists **Brought forward**, each with **Clear**, which asks for a reason and
+  settles every period up to the one before (`S.payCarryClears`, undone, never deleted); the To-do rule **`payCarry`** asks until
+  each balance is paid, worked off or cleared.
 - **Payments and advances** are recorded here (`S.staffPayments: [{id, staffId, date, amount,
   kind: payment|advance, note, at, voidedAt?, voidReason?}]`). A wrong one is **voided with a
   reason, never deleted**. A negative due is an advance not yet worked off. Tapping a worker fills
@@ -2555,6 +2689,14 @@ cannot be gated away at any length, only stated, so a range under two months car
 caveat next to the figure. And a ₹/kg computed over partial tonnage coverage reads **high**
 here — the opposite direction from realisation, because tonnage is the denominator — which the
 card says rather than leaving the reader to work out.
+
+**A day's attendance is deleted only with a reason, and the deletion is logged** (owner, 30 Sep 2026: *"there is no way to
+delete a day's data after providing a reason that can be logged"*). Staff → Day → **Delete this day** asks why (required),
+moves the whole day to `S.attendanceDeletes` as it was (`attDeleteRecord`: key, reason, when, the marks and EXTRA counts,
+the day itself), and History lists it. A day saved under no date could not be opened, so a start-up pass moves every
+key that is not a date to the same log (the book held one keyed `"null"`, 23 marks; owner: *"delete the attendance day
+saved under null, the day it was for was added correctly"*). The day's heads-needed figures are not attendance and stay.
+P116.
 
 **Deletion is refused while attendance names the worker.** Removing the row would not remove
 the marks, it would orphan them: every past week's labour would quietly drop that wage and no

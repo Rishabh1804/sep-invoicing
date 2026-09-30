@@ -68,7 +68,8 @@ test('a unit changed on a challan line says it cannot be compared, asks why, and
   expect(st.invoices[1].items[0].unitChangeAck).toMatchObject({ from: 'NOS', to: 'KG', reason: 'billing' });
   // 52.5 kg cannot be netted against 400 pieces left: the line is billed whole, never left open for ever.
   expect(await line(page)).toMatchObject({ unit: 'NOS', qty: 600, billedQty: 600, invoiced: true });
-  // The challan is the customer's paper: a new invoice never rewrites it.
+  // The challan is the customer's paper: billing it in another unit is not a correction of it, so neither the unit nor
+  // the rate in that unit travels back (a correction does, owner 30 Sep 2026: P114).
   expect((await line(page)).corrections).toBeUndefined();
   await switchTab(page, 'pageIM');
   await page.locator('[data-action="invIMTab"][data-tab="invoiced"]').click();

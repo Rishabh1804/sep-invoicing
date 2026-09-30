@@ -745,6 +745,8 @@ function importData() {
   const inp = document.getElementById('importFileInput');
   inp.onchange = (e) => {
     const f = e.target.files[0];
+    // Cleared at once, so choosing the same file again (after a refused import) is a change and reads it again.
+    inp.value = '';
     if (!f) return;
     const reader = new FileReader();
     reader.onload = async (ev) => {
@@ -766,8 +768,16 @@ function importData() {
         // The success toast used to fire regardless, on top of — and therefore
         // instead of — the storage failure toast. A copy that only reached
         // memory is not imported, and the operator has to hear that.
+        // Every screen is drawn from the new book, as after a pull: only Home was redrawn, and the Register's and
+        // Challans' toolbars (client lists, selections) stayed the old book's (the QA sweep, 29 Sep 2026).
         closeOverlay();
-        renderHome();
+        _tabDirty.home = true;
+        _tabDirty.register = true;
+        _regToolbarRendered = false;
+        _imToolbarRendered = false;
+        _regSelected = {};
+        _imSelected = {};
+        switchTab('pageHome');
         saveState().then(function(saved) {
           if (saved) showToast('Data imported');
           else showToast('NOT saved: the browser refused to store it (' + _storageHealth.lastError + '). The data is in memory only and will be lost on reload.', 'error');

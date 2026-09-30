@@ -34,30 +34,23 @@ function cpNormPart(s) {
   return String(s || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
 }
 
-function cpDaysBetween(aIso, bIso) {
-  var a = new Date(aIso + 'T00:00:00'), b = new Date(bIso + 'T00:00:00');
-  return Math.round((b - a) / 86400000);
-}
-
-function cpMedian(nums) {
-  if (nums.length === 0) return 0;
-  var s = nums.slice().sort(function(a, b) { return a - b; });
-  var m = Math.floor(s.length / 2);
-  return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
-}
-
 /* Every part this client has handled, with the dates it appeared on either
-   spine, the weight and the revenue it carried. */
+   spine, the weight and the revenue it carried. A part is its number AND its gauge: two gauges of one clamp are two
+   parts, and keyed on the number alone one gauge could stop while the other hid it. A line that names no gauge joins
+   the part's one gauge when the client's lines show only one; with two it stays apart, as the gauge not stated. */
 function cpBuildHistory(clientId) {
   var byPart = {};
   var client = S.clients.find(function(c) { return c.id === clientId; }) || null;
 
-  function touch(rawPart, dateStr) {
+  function touch(it, dateStr) {
     if (!dateStr) return null;
-    var key = cpNormPart(rawPart);
-    if (!key) return null;
+    var rawPart = it.partNumber || it.desc;
+    var base = cpNormPart(rawPart);
+    if (!base) return null;
+    var gauge = lineGauge(it.desc) || lineGauge(it.partNumber);
+    var key = base + '|' + gauge;
     if (!byPart[key]) {
-      byPart[key] = { key: key, name: rawPart, dates: {}, kg: 0, revenue: 0, invoiced: 0, received: 0 };
+      byPart[key] = { key: key, base: base, gauge: gauge, name: rawPart, dates: {}, kg: 0, revenue: 0, invoiced: 0, received: 0 };
     }
     byPart[key].dates[dateStr] = true;
     // Keep the longest spelling seen: it is the one carrying the gauge.
@@ -68,7 +61,7 @@ function cpBuildHistory(clientId) {
   S.invoices.filter(function(i) { return i.status === 'active' && i.clientId === clientId; })
     .forEach(function(inv) {
       (inv.items || []).forEach(function(it) {
-        var e = touch(it.partNumber || it.desc, inv.date);
+        var e = touch(it, inv.date);
         if (!e) return;
         e.revenue += (it.amount || 0);
         e.invoiced++;
@@ -81,12 +74,26 @@ function cpBuildHistory(clientId) {
     .forEach(function(im) {
       var d = im.challanDate || im.receivedDate;
       (im.items || []).forEach(function(it) {
-        var e = touch(it.partNumber || it.desc, d);
+        var e = touch(it, d);
         if (e) e.received++;
       });
     });
 
+  // A gauge-less entry folds into the part's only gauge.
+  var gauges = {};
+  Object.keys(byPart).forEach(function(k) { var e = byPart[k]; if (e.gauge) (gauges[e.base] = gauges[e.base] || []).push(e); });
+  Object.keys(byPart).forEach(function(k) {
+    var e = byPart[k], only = gauges[e.base];
+    if (e.gauge || !only || only.length !== 1) return;
+    var t = only[0];
+    Object.keys(e.dates).forEach(function(d) { t.dates[d] = true; });
+    t.kg += e.kg; t.revenue += e.revenue; t.invoiced += e.invoiced; t.received += e.received;
+    delete byPart[k];
+  });
   return Object.values(byPart).map(function(e) {
+    // The gauge said beside a name that does not carry it.
+    if (e.gauge && lineGauge(e.name) !== e.gauge) e.name = e.name + ' (' + e.gauge + ')';
+    else if (!e.gauge && gauges[e.base]) e.name = e.name + ' (gauge not stated)';
     e.dateList = Object.keys(e.dates).sort();
     return e;
   });
@@ -98,15 +105,15 @@ function cpBuildHistory(clientId) {
 function cpClassify(entry, todayIso) {
   var d = entry.dateList;
   var first = d[0], last = d[d.length - 1];
-  var sinceLast = cpDaysBetween(last, todayIso);
-  var age = cpDaysBetween(first, todayIso);
+  var sinceLast = isoDaysBetween(last, todayIso);
+  var age = isoDaysBetween(first, todayIso);
 
   var gaps = [];
-  for (var i = 1; i < d.length; i++) gaps.push(cpDaysBetween(d[i - 1], d[i]));
-  var typical = cpMedian(gaps);
+  for (var i = 1; i < d.length; i++) gaps.push(isoDaysBetween(d[i - 1], d[i]));
+  var typical = (numMedian(gaps) || 0);
 
   var out = {
-    part: entry.name, key: entry.key, kg: entry.kg, revenue: entry.revenue,
+    part: entry.name, key: entry.key, gauge: entry.gauge || '', kg: entry.kg, revenue: entry.revenue,
     invoiced: entry.invoiced, received: entry.received,
     times: d.length, firstSeen: first, lastSeen: last,
     sinceLast: sinceLast, typicalGap: typical
@@ -134,7 +141,9 @@ function cpFindRenames(stopped, fresh) {
   var pairs = {};
   stopped.forEach(function(s) {
     fresh.forEach(function(n) {
-      var a = s.key, b = n.key;
+      // Two stated gauges are two parts, never a rename.
+      if (s.gauge && n.gauge && s.gauge !== n.gauge) return;
+      var a = s.key.split('|')[0], b = n.key.split('|')[0];
       var len = Math.min(a.length, b.length);
       var i = 0;
       while (i < len && a[i] === b[i]) i++;
@@ -149,7 +158,8 @@ function cpMonthly(clientId, months) {
   var by = {};
   var minDate = null, maxDate = null;
   var client = S.clients.find(function(c) { return c.id === clientId; }) || null;
-  S.invoices.filter(function(i) { return i.status === 'active' && i.clientId === clientId && i.date; })
+  // Net of credit notes, as Stats reads them (statsInvoices): the same client read ₹5.40 here and ₹5.29 on Stats.
+  statsInvoices().filter(function(i) { return i.clientId === clientId && i.date; })
     .forEach(function(inv) {
       if (!minDate || inv.date < minDate) minDate = inv.date;
       if (!maxDate || inv.date > maxDate) maxDate = inv.date;
@@ -164,8 +174,10 @@ function cpMonthly(clientId, months) {
     });
   if (!minDate) return [];
   // Months with nothing in them are kept. A client who went quiet for a quarter
-  // must not render as an unbroken run of bars — that silence is the finding.
-  return periodKeysBetween(minDate, maxDate, 'month')
+  // must not render as an unbroken run of bars — that silence is the finding. So the run goes on to this month: ending
+  // at the last invoice hid the quietest months of all, the ones since.
+  var today = localDateStr();
+  return periodKeysBetween(minDate, maxDate > today ? maxDate : today, 'month')
     .slice(-(months || CP_LOOKBACK_MONTHS))
     .map(function(k) {
       var r = by[k] || { month: k, revenue: 0, kg: 0, count: 0, revKnown: 0 };
@@ -175,12 +187,37 @@ function cpMonthly(clientId, months) {
     });
 }
 
+/* The plant's cost per kg for a month (to today while it runs): the live cost Stats judges by, else the typed figure. */
+function cpMonthCost(ym) {
+  var from = ym + '-01', to = payMonthEnd(from), today = localDateStr();
+  if (to > today) to = today;
+  try {
+    var w = weighLines(S.invoices.filter(function(i) { return i.status === 'active' && i.date && i.date >= from && i.date <= to; }));
+    var c = liveCost(from, to, w.kg);
+    if (c && c.perKg > 0) return { perKg: c.perKg, live: true };
+  } catch (e) { /* the typed figure below */ }
+  return S.defaultCostPerKg > 0 ? { perKg: S.defaultCostPerKg, live: false } : null;
+}
+
+/* This client over the same days of last month as this month has run: the fair benchmark part-way through a month. */
+function cpPriorSameDays(clientId) {
+  var p = homePriorSameDays(), client = S.clients.find(function(c) { return c.id === clientId; }) || null;
+  var out = { revenue: 0, kg: 0, revKnown: 0 }, net = {};
+  statsInvoices().forEach(function(i) { net[i.id] = i; });
+  p.invoices.filter(function(i) { return i.clientId === clientId; }).map(function(i) { return net[i.id] || i; }).forEach(function(inv) {
+    out.revenue += (inv.taxableValue || 0);
+    (inv.items || []).forEach(function(it) {
+      var w = lineWeightKg(it, client, inv.date);
+      if (w.known) { out.kg += w.kg; out.revKnown += (it.amount || 0); }
+    });
+  });
+  out.realisation = out.kg > 0 ? out.revKnown / out.kg : null;
+  return out;
+}
+
 /* ===== VIEW ===== */
 /* A material row: the part, how often and when it was last handled, and what it earned. A stopped
    part says how long it has been gone; a possible rename says so. */
-function _cpMaterialRows(list, renames) {
-  return _cpMaterialRowList(list, renames).join('');
-}
 function _cpMaterialRowList(list, renames) {
   return list.map(function(m) {
     var meta = m.times + '× · last ' + formatDate(m.lastSeen) +
@@ -286,17 +323,26 @@ function renderClientPerformance(container) {
       return '<div class="inv-tile"><div class="inv-tile-label">' + label + '</div><div class="inv-tile-value">' + figWrapHtml(value) + '</div>' +
         (sub ? '<div class="inv-tile-sub">' + sub + '</div>' : '') + (delta ? '<div class="inv-tile-sub">' + delta + '</div>' : '') + '</div>';
     };
-    var p = function(v) { return prev ? { v: v, label: prev.label } : null; };
+    // The month in progress is read against the same days of last month, never against a whole month: part of a month
+    // against a full one read red every month until its last days.
+    var thisYm = today.slice(0, 7), partial = last.month === thisYm;
+    var bench = partial ? cpPriorSameDays(clientId) : prev;
+    var bl = partial ? 'same days last month' : (prev && prev.label);
+    var p = function(v) { return bench ? { v: v, label: bl } : null; };
+    // Realisation is judged at the month's own live cost, the figure Stats and Home judge it by, not the typed one.
+    var cost = last.realisation != null ? cpMonthCost(last.month) : null;
+    var full = monthly.filter(function(r) { return r.month !== thisYm; });
     html += '<div class="inv-tiles inv-tiles-flush">' +
-      tile('Latest month · ' + escHtml(last.label), formatCurrency(last.revenue),
-        last.count + ' invoice' + (last.count !== 1 ? 's' : ''), _cpDelta(last.revenue, p(prev && prev.revenue))) +
-      tile('Tonnage', formatNum(last.kg / 1000, 2) + '<span class="inv-tile-of"> t</span>', formatNum(last.kg, 0) + ' kg', _cpDelta(last.kg, p(prev && prev.kg))) +
-      tile('Realisation', last.realisation != null ? figHtml(formatCurrency(last.realisation), S.defaultCostPerKg > 0 ? figToneAgainst(last.realisation, S.defaultCostPerKg, 5) : null) + '<span class="inv-tile-of">/kg</span>' : '&mdash;',
-        (S.defaultCostPerKg > 0 ? 'cost ' + formatCurrency(S.defaultCostPerKg) + '/kg' : ''),
-        (prev && prev.realisation != null && last.realisation != null) ? _cpDelta(last.realisation, p(prev.realisation)) : '') +
-      // The months shown, quiet ones included: the level the latest month is read against.
-      tile('Average month', formatCurrency(monthly.reduce(function(t, r) { return t + r.revenue; }, 0) / monthly.length),
-        'over ' + monthly.length + ' month' + (monthly.length !== 1 ? 's' : ''), '') +
+      tile((partial ? 'Month to date · ' : 'Latest month · ') + escHtml(last.label), formatCurrency(last.revenue),
+        last.count + ' invoice' + (last.count !== 1 ? 's' : ''), _cpDelta(last.revenue, p(bench && bench.revenue))) +
+      tile('Tonnage', formatNum(last.kg / 1000, 2) + '<span class="inv-tile-of"> t</span>', formatNum(last.kg, 0) + ' kg', _cpDelta(last.kg, p(bench && bench.kg))) +
+      tile('Realisation', last.realisation != null ? figHtml(formatCurrency(last.realisation), cost ? figToneAgainst(last.realisation, cost.perKg, 5) : null) + '<span class="inv-tile-of">/kg</span>' : '&mdash;',
+        cost ? (cost.live ? 'live cost ' : 'cost ') + formatCurrency(cost.perKg) + '/kg' : '',
+        (bench && bench.realisation != null && last.realisation != null) ? _cpDelta(last.realisation, p(bench.realisation)) : '') +
+      // The whole months shown, quiet ones included: the level the latest month is read against. A month in progress is
+      // not one of them.
+      tile('Average month', full.length ? formatCurrency(full.reduce(function(t, r) { return t + r.revenue; }, 0) / full.length) : '&mdash;',
+        full.length ? 'over ' + full.length + ' full month' + (full.length !== 1 ? 's' : '') : 'no full month yet', '') +
       '</div>';
   }
   html += '</div>';

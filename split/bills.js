@@ -80,7 +80,7 @@ function _billsPowerHtml() {
       return;
     }
     var b = r.bill;
-    var meta = [b.units ? formatNum(b.units, 0) + ' units' : '', b.note || '', b.voided ? 'void: ' + (b.voidReason || '') : ''].filter(Boolean).join(' · ');
+    var meta = [b.units ? formatNum(b.units, 0) + ' units' : ''].concat(costBillParts(b), [b.note || '', b.voided ? 'void: ' + (b.voidReason || '') : '']).filter(Boolean).join(' · ');
     h += '<div class="inv-row inv-row-2' + (b.voided ? ' inv-row-muted' : '') + '" data-bill="' + escHtml(b.id) + '"><span class="inv-row-main">' +
       '<span class="inv-row-title">' + escHtml((b.label || COST_BILL_KINDS[b.kind] || b.kind) + ' · ' + billsMonthLabel(b.month)) + '</span>' +
       (meta ? '<span class="inv-row-meta">' + escHtml(meta) + '</span>' : '') + '</span>' +
@@ -121,10 +121,13 @@ function _billsNotesHtml() {
   return h + '</div>';
 }
 
-function _billsClientOptions(sel) {
+/* A new note is against an invoice in the book, so it offers the clients that have one. A note being recorded may
+   be against an invoice typed from outside the book, so it offers every client: one with no invoice here could not
+   be picked, and its note could not be recorded at all. */
+function _billsClientOptions(sel, all) {
   var ids = {};
   (S.invoices || []).forEach(function(i) { ids[i.clientId] = true; });
-  return S.clients.filter(function(c) { return ids[c.id]; }).sort(function(a, b) { return a.name < b.name ? -1 : 1; })
+  return S.clients.filter(function(c) { return all || ids[c.id]; }).sort(function(a, b) { return a.name < b.name ? -1 : 1; })
     .map(function(c) { return '<option value="' + c.id + '"' + (String(sel) === String(c.id) ? ' selected' : '') + '>' + escHtml(c.name) + '</option>'; }).join('');
 }
 function _billsClientInvoices(clientId) {
@@ -149,7 +152,7 @@ function _billsCnFormHtml() {
     (rec ? field('Number', 'cnfNum', inp('cnfNum', 'number', f.num, ' min="1" step="1" inputmode="numeric"')) +
       field('Financial year', 'cnfFy', inp('cnfFy', 'text', f.fy, ' placeholder="26-27"')) : '') +
     field('Date', 'cnfDate', inp('cnfDate', 'date', f.date)) +
-    field('Client', 'cnfClient', '<select class="inv-select" id="cnfClient"><option value="">Choose a client</option>' + _billsClientOptions(f.clientId) + '</select>') +
+    field('Client', 'cnfClient', '<select class="inv-select" id="cnfClient"><option value="">Choose a client</option>' + _billsClientOptions(f.clientId, rec) + '</select>') +
     field('Against invoice', 'cnfInv', '<select class="inv-select" id="cnfInv"' + (f.clientId ? '' : ' disabled') + '>' +
       '<option value="">' + (f.clientId ? 'Choose an invoice' : 'Choose a client first') + '</option>' +
       invs.map(function(i) {

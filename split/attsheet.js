@@ -19,16 +19,6 @@ var ATT_SHEET_IN_AREAS = [
 ];
 var _attSheetPick = { shyam: true, deepak: true, filled: true };
 
-function _asLines(n, from) {
-  var h = '';
-  for (var i = 0; i < n; i++) {
-    h += '<div class="inv-as-line">' + (from != null ? '<span class="inv-as-num">' + (from + i) + ')</span>' : '') + '</div>';
-  }
-  return h;
-}
-function _asField(label, after) {
-  return '<div class="inv-as-field"><span>' + label + '</span><span class="inv-as-blank"></span>' + (after ? '<span>' + after + '</span>' : '') + '</div>';
-}
 function _asHead(title, iso, right) {
   return '<div class="inv-as-head"><span class="inv-as-title">' + title + '</span>' +
     '<span class="inv-as-meta">' + escHtml(formatDate(iso) + ' · ' + attDayName(iso)) + (right ? ' · ' + right : '') + '</span></div>';
@@ -42,8 +32,8 @@ function _asHm(min) {
 
 // A block's "17:00" read the way the rest of the sheet writes a time.
 function _asClock(t) {
-  var m = /^(\d{1,2}):(\d{2})$/.exec(String(t || ''));
-  return m ? _asHm(parseInt(m[1], 10) * 60 + parseInt(m[2], 10)) : String(t || '');
+  var m = relayParseHhmm(t);
+  return m != null ? _asHm(m) : String(t || '');
 }
 
 /* A line or field carrying what was recorded: printed in the ink colour of a filled form (inv-as-fill). */
@@ -59,8 +49,7 @@ function _asFillField(label, value, after) {
   return '<div class="inv-as-field"><span>' + label + '</span><span class="inv-as-blank">' + (value ? '<span class="inv-as-fill">' + escHtml(value) + '</span>' : '') + '</span>' +
     (after ? '<span>' + after + '</span>' : '') + '</div>';
 }
-function _asName(id) { var w = staffById(id) || staffById(Number(id)); return w ? w.name : String(id); }
-function _asBlockMin(t) { var m = /^(\d{1,2}):(\d{2})$/.exec(String(t || '')); return m ? +m[1] * 60 + +m[2] : null; }
+function _asName(id) { var w = staffById(id); return w ? w.name : String(id); }
 
 /* Shyam's roll: In time (front) and Out time (back). Numbers run on within a slot, as he writes them. With `rec` (an
    earlier day the app holds; owner, 29 Sep 2026: "if we have previous day's data ... that should be printed when
@@ -72,7 +61,7 @@ function attSheetShyamHtml(iso, rec) {
   var byBox = {}, absM = [], absW = [], flex = [];
   var boxOf = { 'vat-a1': 0, 'vat-a2': 1, 'barrel': 2, 'pickling-barrel': 2, 'pickling-vat': 3, 'office': 4, 'gate': 4 };
   Object.keys(marks).forEach(function(id) {
-    var m = marks[id], w = staffById(id) || staffById(Number(id));
+    var m = marks[id], w = staffById(id);
     if (!m || !m.st) return;
     if (m.st === 'A') { (w && w.comp === 'monthly' ? absM : absW).push(_asName(id)); return; }
     var b = boxOf[m.area || (w && w.area) || 'flex'];
@@ -80,9 +69,9 @@ function attSheetShyamHtml(iso, rec) {
   });
   var cover = {};
   extra.forEach(function(x) { if ((x.kind || 'coverage') === 'coverage') { var b = boxOf[x.area]; if (b != null) cover[b] = (cover[b] || 0) + (x.hours || 0); } });
-  var blocks = extra.filter(function(x) { return x.kind === 'block'; }).sort(function(a, b) { return (_asBlockMin(a.from) || 0) - (_asBlockMin(b.from) || 0); });
-  var morning = blocks.filter(function(x) { var f = _asBlockMin(x.from); return f != null && f < 510; });
-  var evening = blocks.filter(function(x) { var f = _asBlockMin(x.from); return f == null || f >= 510; });
+  var blocks = extra.filter(function(x) { return x.kind === 'block'; }).sort(function(a, b) { return (relayParseHhmm(a.from) || 0) - (relayParseHhmm(b.from) || 0); });
+  var morning = blocks.filter(function(x) { var f = relayParseHhmm(x.from); return f != null && f < 510; });
+  var evening = blocks.filter(function(x) { var f = relayParseHhmm(x.from); return f == null || f >= 510; });
 
   var n = 1, boxes = '';
   ATT_SHEET_IN_AREAS.forEach(function(a, i) {
@@ -146,7 +135,7 @@ function attSheetFillFor(iso) {
 function _asRoster(rec) {
   var list = staffActive().slice();
   if (rec) Object.keys(rec.marks || {}).forEach(function(id) {
-    if (!list.some(function(w) { return String(w.id) === String(id); })) { var w = staffById(id) || staffById(Number(id)); if (w) list.push(w); }
+    if (!list.some(function(w) { return String(w.id) === String(id); })) { var w = staffById(id); if (w) list.push(w); }
   });
   return list;
 }

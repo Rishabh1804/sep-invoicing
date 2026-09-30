@@ -40,7 +40,8 @@ function history() {
 }
 
 async function load(page: Page, extra: Partial<SepState> = {}) {
-  await loadAppWithState(page, { ...emptyState(), incomingMaterial: noSeedIM(), staff: STAFF, attendance: history(), ...extra } as SepState);
+  // No paid holidays: the pace below assumes six working days, whichever week the spec runs in (P107 counts a holiday out).
+  await loadAppWithState(page, { ...emptyState(), incomingMaterial: noSeedIM(), staff: STAFF, attendance: history(), labour: { holidays: [] }, ...extra } as SepState);
 }
 async function openPay(page: Page) {
   await switchTab(page, 'pageStaff');
@@ -103,7 +104,8 @@ test.describe('P44: pay', () => {
     await page.locator('#payWorker').selectOption('1');
     await page.locator('#payKind').selectOption('advance');
     await page.locator('#payAmount').fill('300');
-    await page.locator('#payDate').fill(wd(0, 6));
+    // Dated on the Sunday: the monthly tier's month is the one the week's Sunday is in (P107), so it always counts here.
+    await page.locator('#payDate').fill(wd(0, 0));
     await page.locator('[data-action="invPaySave"]').click();
     const arun = await g(page, `(function(){ var r = payDue('${wd(0, 0)}').rows.find(function(x){ return x.w.id === 1; }); return [r.earned.total, r.paid, r.due]; })()`) as number[];
     expect(arun[1]).toBe(300);

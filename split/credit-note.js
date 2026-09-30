@@ -138,13 +138,11 @@ function cnCompute(invoices, client, pct, rate) {
   var taxable = gstRound(batchTaxable * (pct || 0) / 100);
 
   var gstType = (client && client.gstType) || 'intra';
-  var cgstPer = gstType === 'intra' ? 9 : 0;
-  var sgstPer = gstType === 'intra' ? 9 : 0;
-  var igstPer = gstType === 'inter' ? 18 : 0;
-  var cgstAmt = gstRound(taxable * cgstPer / 100);
-  var sgstAmt = gstRound(taxable * sgstPer / 100);
-  var igstAmt = gstRound(taxable * igstPer / 100);
-  var grandTotal = gstRound(taxable + cgstAmt + sgstAmt + igstAmt);
+  // The one tax computation the invoice uses too (invTax, create.js).
+  var t = invTax(taxable, gstType);
+  var cgstPer = t.cgstPer, sgstPer = t.sgstPer, igstPer = t.igstPer;
+  var cgstAmt = t.cgstAmt, sgstAmt = t.sgstAmt, igstAmt = t.igstAmt;
+  var grandTotal = t.grand;
 
   // Quantity exists to make the document readable as a job-work credit; it is
   // the kilograms the credited rupees correspond to at the contract rate, not a
@@ -283,7 +281,6 @@ async function saveCreditNote() {
 
   var client = S.clients.find(function(c) { return c.id === _cnForm.clientId; });
   var c = cnCompute(invoices, client, _cnForm.pct, _cnForm.rate);
-  var num = recomputeNextCnNumber();
   var addr = invoices[0].clientAddress || {};
 
   // The note names ONE invoice, and it has to be big enough to carry the credit.
@@ -294,7 +291,7 @@ async function saveCreditNote() {
   if (!against && !(await uiConfirm({ title: 'No invoice large enough', body: 'No invoice in this batch is as large as the credit (\u20b9' +
       formatNum(c.taxable, 2) + ' taxable).\n\nThe note will print without an invoice ' +
       'reference. Raise it anyway?', okLabel: 'Raise anyway' }))) return;
-  num = recomputeNextCnNumber();
+  var num = recomputeNextCnNumber();
 
   var cn = {
     id: 'CN-' + Date.now(),
@@ -354,15 +351,20 @@ async function saveCreditNote() {
   _regSelected = {};
   _renderRegView();
   _renderRegSelBar();
-  showToast(cn.displayNumber + ' raised — ' + formatCurrency(cn.grandTotal));
-  showCreditNotePreview(cn.id);
+  // Said above the preview, where it is seen: a toast is painted under the print view.
+  showCreditNotePreview(cn.id, cn.displayNumber + ' raised — ' + formatCurrency(cn.grandTotal) + '. Print it, or close to go back to the register.');
 }
 
 /* Cancelled, never deleted: the customer holds a document bearing the number
    and a credit note is reversed by cancelling it, not by making it vanish. */
-function cancelCreditNote(cnId) {
+async function cancelCreditNote(cnId) {
   var cn = getCreditNotes().find(function(x) { return x.id === cnId; });
   if (!cn || cn.status === 'cancelled') return;
+  // Every other destructive act asks; this was one tap.
+  if (!(await uiConfirm({ title: 'Cancel ' + cn.displayNumber + '?',
+    body: 'The note stays in the series, cancelled, and exports at zero. The customer holds a copy: tell them it is withdrawn. This cannot be undone.',
+    okLabel: 'Cancel note', cancelLabel: 'Keep', danger: true }))) return;
+  if (cn.status === 'cancelled') return;
   cn.status = 'cancelled';
   cn.cancelledAt = Date.now();
   cn.updatedAt = Date.now();
@@ -383,6 +385,8 @@ function buildCreditNoteHtml(cn) {
     '<div>GST # ' + escHtml(cn.clientGSTIN || 'N/A') + '</div>';
 
   var html = '<div class="inv-cn-doc">';
+  // A cancelled note printed clean, the same as a live one.
+  if (cn.status === 'cancelled') html += '<div class="inv-cn-cancelled">CANCELLED' + (cn.cancelledAt ? ' on ' + escHtml(formatDateExport(isoOf(new Date(cn.cancelledAt)))) : '') + '</div>';
 
   // Identity block. Company details come from S.company so the header and the
   // footer are the same fact, not two transcriptions of it.
@@ -398,10 +402,11 @@ function buildCreditNoteHtml(cn) {
     // ONE invoice number, at the customer's request — the invoice the credit is
     // taken against. The batch it was COMPUTED from is still stated in full on
     // the annex below, which is what keeps a consolidated note auditable.
-    '<tr><td class="inv-cn-meta-l">Against Invoice</td><td class="inv-cn-meta-v"><strong>' +
-    escHtml(cnAgainstInvoiceLabel(cn)) + '</strong>' +
+    // The reference or nothing: the document printed the app's working ("— (none of the 3 large enough)").
+    (cnAgainstRef(cn) ? '<tr><td class="inv-cn-meta-l">Against Invoice</td><td class="inv-cn-meta-v"><strong>' +
+    escHtml(cnAgainstRef(cn)) + '</strong>' +
     (cnAgainstInvoiceDate(cn) ? ' <span class="inv-cn-meta-sub">dated ' +
-      escHtml(formatDateExport(cnAgainstInvoiceDate(cn))) + '</span>' : '') + '</td></tr>' +
+      escHtml(formatDateExport(cnAgainstInvoiceDate(cn))) + '</span>' : '') + '</td></tr>' : '') +
     '<tr><td class="inv-cn-meta-l">Period</td><td class="inv-cn-meta-v">' +
     escHtml(formatDateExport(cn.periodFrom)) + ' &ndash; ' + escHtml(formatDateExport(cn.periodTo)) + '</td></tr>' +
     '<tr><td class="inv-cn-meta-l">Reason</td><td class="inv-cn-meta-v">' + escHtml(cn.reason || '') + '</td></tr>' +
@@ -573,15 +578,24 @@ function cnInvoiceHeadroom(inv, exceptCnId) {
   (S.creditNotes || []).forEach(function(cn) {
     if (cn.status === 'cancelled') return;
     if (exceptCnId && cn.id === exceptCnId) return;
-    if (cn.againstInvoiceId ? cn.againstInvoiceId === inv.id
-                            : cn.againstInvoice === inv.displayNumber) {
-      taken += Number(cn.taxableValue) || 0;
-    }
+    if (cnAgainstIs(cn, inv)) taken += Number(cn.taxableValue) || 0;
   });
   return (Number(inv.taxableValue) || 0) - taken;
 }
 
-/* What the document prints in the "Against Invoice" box.
+/* Is this the invoice the note is taken against? By the stamped id, else by the number printed on it. The one test
+   the headroom, the note's date, an invoice's list of notes and the note's Invoice button read (it was four copies). */
+function cnAgainstIs(cn, inv) {
+  if (!cn || !inv) return false;
+  return cn.againstInvoiceId ? cn.againstInvoiceId === inv.id : !!(cn.againstInvoice && cn.againstInvoice === inv.displayNumber);
+}
+
+/* The reference a document or a working paper carries: the stamped number, else the rule's pick, else nothing. */
+function cnAgainstRef(cn) {
+  return cn.againstInvoice || (cnDeriveAgainstInvoice(cn) || {}).displayNumber || '';
+}
+
+/* What the note list says in its "Against" line (the screen, never the document: cnAgainstRef).
 
    Stamped at creation, so the number on the customer's copy cannot move if the
    register later changes. Notes raised before this existed carry no stamp, so
@@ -711,12 +725,8 @@ function cnPickAgainst(id, idx) {
 function cnAgainstInvoiceDate(cn) {
   if (cn.againstInvoiceDate) return cn.againstInvoiceDate;
   if (cn.againstInvoiceId || cn.againstInvoice) {
-    var inv = (S.invoices || []).find(function(i) {
-      return cn.againstInvoiceId ? i.id === cn.againstInvoiceId
-                                 : i.displayNumber === cn.againstInvoice;
-    });
-    if (inv) return inv.date || '';
-    return '';
+    var inv = cnAgainstLive(cn);
+    return inv ? inv.date || '' : '';
   }
   var d = cnDeriveAgainstInvoice(cn);
   return (d && d.date) || '';
@@ -760,14 +770,15 @@ function cnPanFromGstin(gstin) {
   return g.length >= 12 ? g.slice(2, 12) : '';
 }
 
-function showCreditNotePreview(cnId) {
+function showCreditNotePreview(cnId, said) {
   var cn = getCreditNotes().find(function(x) { return x.id === cnId; });
   if (!cn) return;
   var body = document.getElementById('invPrintBody');
   if (!body) return;
-  var banner = cn.status === 'cancelled'
+  // Screen-only notices (print drops .inv-qc-notice): a cancelled note, or what was just done.
+  var banner = (cn.status === 'cancelled'
     ? '<div class="inv-qc-notice inv-qc-notice-warn">' + escHtml(cn.displayNumber) + ' was cancelled. The number stays in the series.</div>'
-    : '';
+    : '') + (said ? '<div class="inv-qc-notice" role="status">' + escHtml(said) + '</div>' : '');
   body.innerHTML = banner + buildCreditNoteHtml(cn);
   document.getElementById('invPrintView').classList.add('inv-print-view-active');
   _printInvId = null;
@@ -787,8 +798,7 @@ function cnLinksForInvoice(inv) {
   var out = [];
   getCreditNotes().forEach(function(cn) {
     if (cn.status === 'cancelled') return;
-    var against = cn.againstInvoiceId ? cn.againstInvoiceId === inv.id
-      : !!(cn.againstInvoice && cn.againstInvoice === inv.displayNumber);
+    var against = cnAgainstIs(cn, inv);
     var inBatch = (cn.invoiceIds || []).indexOf(inv.id) >= 0;
     if (against || inBatch) out.push({ cn: cn, role: against ? 'against' : 'batch' });
   });
@@ -829,16 +839,19 @@ function cnInvoiceDetailHtml(inv) {
 
 // The live invoice a note is taken against, if it is still in the register.
 function cnAgainstLive(cn) {
-  return (S.invoices || []).find(function(i) {
-    return cn.againstInvoiceId ? i.id === cn.againstInvoiceId : !!(cn.againstInvoice && i.displayNumber === cn.againstInvoice);
-  }) || null;
+  return (S.invoices || []).find(function(i) { return cnAgainstIs(cn, i); }) || null;
 }
 
 /* ===== LIST ===== */
+/* A note's place in the series: its financial year, then its number (numbers start again each year). */
+function cnSerialCompare(a, b) {
+  var fa = cnNoteFy(a), fb = cnNoteFy(b);
+  if (fa !== fb) return fa < fb ? -1 : 1;
+  return (parseInt(a.cnNumber, 10) || 0) - (parseInt(b.cnNumber, 10) || 0);
+}
+
 function renderCreditNoteList() {
-  var notes = getCreditNotes().slice().sort(function(a, b) {
-    return (parseInt(b.cnNumber, 10) || 0) - (parseInt(a.cnNumber, 10) || 0);
-  });
+  var notes = getCreditNotes().slice().sort(function(a, b) { return cnSerialCompare(b, a); });
 
   var html = '<div class="inv-dialog">' + dialogHeadHtml('Credit notes');
 
@@ -890,13 +903,10 @@ function renderCreditNoteList() {
    shapes into one flat sheet would corrupt both. A cancelled note is declared
    at zero, the same treatment a cancelled invoice already gets. */
 function exportCreditNotesCSV() {
-  var notes = getCreditNotes().slice().sort(function(a, b) {
-    return (parseInt(a.cnNumber, 10) || 0) - (parseInt(b.cnNumber, 10) || 0);
-  });
+  var notes = getCreditNotes().slice().sort(cnSerialCompare);
   if (notes.length === 0) { showToast('No credit notes to export', 'warning'); return; }
 
-  var metaRow = ['SOMA ELECTRO PRODUCTS | GSTIN: ' + (S.company.gstin || '') +
-    ' | Export Date: ' + formatDateExport(localDateStr())];
+  var metaRow = _csvMetaRow();
   var header = ['GSTIN/UIN of Recipient', 'Receiver Name', 'Note Number', 'Note Date', 'Note Type',
     'Place Of Supply', 'Note Value', 'Rate', 'Taxable Value', 'CGST Amount', 'SGST Amount',
     'IGST Amount', 'Cess Amount', 'Against Invoice', 'Against Invoice Date', 'Period From', 'Period To', 'Discount %', 'Batch Taxable', 'Status'];
@@ -917,7 +927,7 @@ function exportCreditNotesCSV() {
       // — since the Sept-2020 de-linking, table 9B is keyed on the note alone —
       // so this and the FIVE columns after it (date, period from, period to,
       // discount %, batch taxable) are SEP's own working fields.
-      cn.againstInvoice || (cnDeriveAgainstInvoice(cn) || {}).displayNumber || '',
+      cnAgainstRef(cn),
       cnAgainstInvoiceDate(cn) ? formatDateExport(cnAgainstInvoiceDate(cn)) : '',
       formatDateExport(cn.periodFrom), formatDateExport(cn.periodTo),
       cn.discountPct != null ? cn.discountPct : '', cn.batchTaxable != null ? cn.batchTaxable : '', z ? 'Cancelled' : 'Active'

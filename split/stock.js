@@ -57,19 +57,13 @@ function stockDisplayName(key) {
 }
 
 // dd/mm/yy as the shop writes it → yyyy-mm-dd.
-function stockIsoFromDmy(d, m, y) {
-  d = +d; m = +m; y = +y;
-  if (y < 100) y += 2000;
-  if (!(d >= 1 && d <= 31 && m >= 1 && m <= 12)) return null;
-  return y + '-' + String(m).padStart(2, '0') + '-' + String(d).padStart(2, '0');
-}
 
 function stockTokens(text) {
   var src = String(text).replace(/(\d)\s*[x×*X]\s*(\d)/g, '$1×$2');
   var re = /(\d{1,2})\/(\d{1,2})\/(\d{2,4})\/?|(\d+(?:\.\d+)?)\s*(days?)\b|(\d+(?:\.\d+)?)|([+\-=×])|([A-Za-z][A-Za-z0-9.]*)|(\S)/gi;
   var out = [], m;
   while ((m = re.exec(src))) {
-    if (m[1]) out.push({ t: 'date', v: stockIsoFromDmy(m[1], m[2], m[3]) });
+    if (m[1]) out.push({ t: 'date', v: isoFromDmy(m[1], m[2], m[3]) });
     else if (m[4]) out.push({ t: 'days', v: +m[4] });
     else if (m[6]) out.push({ t: 'num', v: +m[6], s: m[6] });
     else if (m[7]) out.push({ t: 'op', v: m[7] });
@@ -221,27 +215,21 @@ function parseStockLine(body) {
   return r;
 }
 
-var STOCK_ITEM_RE = /^\s*(\d{1,2})\s*[).]\s*(.*)$/;
-var STOCK_WA_RE = /^\s*\[?(\d{1,2})\/(\d{1,2})\/(\d{2,4}),?\s+\d{1,2}:\d{2}(?::\d{2})?\s*(?:[AaPp]\.?[Mm]\.?)?\]?\s*(?:-\s*)?([^:]{1,40}):\s*(.*)$/;
+// "14) …" or "14. …"; a dot followed by a digit is a decimal, not a number's end ("80.5 LTR available", a wrapped
+// line, read as item 80).
+var STOCK_ITEM_RE = /^\s*(\d{1,2})\s*(?:\)|\.(?!\d))\s*(.*)$/;
 
 /* The whole message → its window, its sender if the WhatsApp line came with
    it, and one entry per numbered line. */
 function parseStockMessage(text) {
   var out = { from: null, to: null, sentBy: '', sentOn: null, header: [], lines: [], unread: [] };
-  var lines = String(text || '').replace(/\r/g, '').split('\n');
+  // The WhatsApp lines are read by the relay's reader, the one every paste box uses: day first, and month first in
+  // the bracketed iPhone export. Stock read them day first always, so [9/10/26, …] was 9 October, not 10 September.
+  var msgs = relaySplit(text), first = msgs.find(function(m) { return m.sentBy; });
+  if (first) { out.sentBy = first.sentBy; out.sentOn = first.sentOn; }
+  var lines = msgs.map(function(m) { return m.text; }).join('\n').split('\n');
   var cur = null, dates = [];
-  lines.forEach(function(raw) {
-    var line = raw;
-    var wa = line.match(STOCK_WA_RE);
-    if (wa) {
-      if (!out.sentBy) {
-        out.sentBy = wa[4].trim();
-        // Copied timestamps follow the phone's locale; day-first unless impossible.
-        var a = +wa[1], b = +wa[2];
-        out.sentOn = a > 12 ? stockIsoFromDmy(a, b, wa[3]) : b > 12 ? stockIsoFromDmy(b, a, wa[3]) : stockIsoFromDmy(a, b, wa[3]);
-      }
-      line = wa[5];
-    }
+  lines.forEach(function(line) {
     if (!line.trim() || /^[\s.\-_*]+$/.test(line)) return;
     var im = line.match(STOCK_ITEM_RE);
     if (im) {
@@ -252,7 +240,7 @@ function parseStockMessage(text) {
     if (cur) { cur.raw += '\n' + line.trim(); return; }
     out.header.push(line.trim());
     var dre = /(\d{1,2})\/(\d{1,2})\/(\d{2,4})/g, dm, found = false;
-    while ((dm = dre.exec(line))) { var iso = stockIsoFromDmy(dm[1], dm[2], dm[3]); if (iso) { dates.push(iso); found = true; } }
+    while ((dm = dre.exec(line))) { var iso = isoFromDmy(dm[1], dm[2], dm[3]); if (iso) { dates.push(iso); found = true; } }
     var rest = line.replace(/\d{1,2}\/\d{1,2}\/\d{2,4}\/?/g, '').replace(/[\s\-–\/]+/g, ' ').trim();
     if (!found && !/(STOCK|USE)/.test(stockKey(rest)) && rest) out.unread.push(line.trim());
   });
@@ -283,19 +271,11 @@ function stockCfg() {
 }
 function stockUid(p) { return p + Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
 function stockItem(id) { return stockData().items.find(function(i) { return i.id === id; }) || null; }
-function stockIsoAdd(iso, days) {
-  var d = new Date(iso + 'T00:00:00'); d.setDate(d.getDate() + days);
-  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
-}
 // Days in a window, Sundays out — the shop's own divisor (16–22 Sep is "6 day").
+// The one counter is statsWorkingDays; a window here is never under a day.
 function stockWorkingDays(from, to) {
   if (!from || !to || to < from) return 1;
-  var n = 0, d = from;
-  for (var guard = 0; d <= to && guard < 400; guard++) {
-    if (new Date(d + 'T00:00:00').getDay() !== 0) n++;
-    d = stockIsoAdd(d, 1);
-  }
-  return Math.max(1, n);
+  return Math.max(1, statsWorkingDays(from, to));
 }
 function stockFmtQty(v) {
   if (v == null || isNaN(v)) return '—';
@@ -344,13 +324,24 @@ function stockReplay(itemId, beforeDate) {
 }
 /* Daily rate: what was used over the last three weeks of record ÷ the days it
    covers. Fewer than three days is not a rate yet — the mark says so. */
+/* Every draw counts, a charge into a bath as much as a use (a line drawn by Charged had no rate at all), and a day is
+   counted once however many entries fall on it (two on one day read as two days and halved the rate). An entry
+   covering several days covers its own day and the working days before it, Sundays out. */
 function stockRate(item) {
-  var kinds = item.basis === 'charge' ? ['charged', 'used'] : ['used'];
-  var list = stockItemEntries(item.id).filter(function(e) { return kinds.indexOf(e.kind) >= 0; });
+  var list = stockItemEntries(item.id).filter(function(e) { return e.kind === 'used' || e.kind === 'charged'; });
   if (!list.length) return null;
-  var last = list[list.length - 1].date, cut = stockIsoAdd(last, -20);
-  var qty = 0, days = 0;
-  list.forEach(function(e) { if (e.date >= cut) { qty += e.qty; days += (e.days || 1); } });
+  var last = list[list.length - 1].date, cut = isoAddDays(last, -20);
+  var qty = 0, covered = {};
+  list.forEach(function(e) {
+    if (e.date < cut) return;
+    qty += e.qty;
+    covered[e.date] = true;
+    for (var n = (e.days || 1) - 1, d = e.date, g = 0; n > 0 && g < 60; g++) {
+      d = isoAddDays(d, -1);
+      if (new Date(d + 'T00:00:00').getDay() !== 0) { covered[d] = true; n--; }
+    }
+  });
+  var days = Object.keys(covered).length;
   if (!days) return null;
   return { rate: stockRound(qty / days), days: days, tentative: days < 3 };
 }
@@ -375,19 +366,18 @@ function updateStockBadge() {
   var b = document.getElementById('moreBadge');
   if (!b) return;
   // Every red row: stock out or under the red line, and your own tasks overdue.
-  var n = typeof todoRedCount === 'function' ? todoRedCount() : stockOutCount();
+  var n = todoRedCount();
   b.textContent = n ? String(n) : '';
   b.classList.toggle('inv-hidden', !n);
   if (typeof updateSideCounts === 'function') updateSideCounts();
 }
 
 /* ---------- Resolving a parsed message against the app's lines ---------- */
+/* The relay's fingerprint over the text without its WhatsApp lines, so the message copied with or without them is one
+   message. Marked 'h' as every stock message saved before it was, and equal to those to the character. */
 function stockHash(text) {
-  var src = String(text || '').split('\n').map(function(l) { var m = l.match(STOCK_WA_RE); return m ? m[5] : l; })
-    .join(' ').toUpperCase().replace(/\s+/g, ' ').trim();
-  var h = 5381;
-  for (var i = 0; i < src.length; i++) h = ((h << 5) + h + src.charCodeAt(i)) | 0;
-  return 'h' + (h >>> 0).toString(36) + src.length;
+  var body = String(text || '').split('\n').map(function(l) { var m = l.match(RELAY_WA_RE); return m ? m[5] : l; }).join(' ');
+  return 'h' + relayHash(body).slice(1);
 }
 function stockFindByKey(key) {
   if (!key) return null;
@@ -505,7 +495,9 @@ function resolveStockParse(parsed, choices) {
     res.counts[worst]++;
     res.lines.push(r);
   });
-  res.dup = stockData().pastes.find(function(p) { return p.hash === stockHash(parsed.text || ''); }) || null;
+  // Saved before, unless every entry it made has since been voided: then it may be read again (Production's rule).
+  var st0 = stockData(), h = stockHash(parsed.text || '');
+  res.dup = st0.pastes.find(function(p) { return p.hash === h && st0.entries.some(function(e) { return e.pasteId === p.id && !e.voided; }); }) || null;
   return res;
 }
 
@@ -936,7 +928,7 @@ function stockSaveManual() {
     if (m.mode === 'used' || m.mode === 'charged') { rec.days = 1; rec.from = m.date; }
     if (m.mode === 'charged' && m.bath) rec.note = m.bath;
     if (m.mode === 'count') {
-      var before = stockReplay(id, stockIsoAdd(m.date, 1)).level;
+      var before = stockReplay(id, isoAddDays(m.date, 1)).level;
       if (before != null && stockRound(before) !== stockRound(q)) gaps++;
     }
     st.entries.push(rec);
@@ -1078,12 +1070,18 @@ function stockExport() {
   var meta = document.querySelector('meta[name="app-build"]');
   var out = { format: 'sep-stock', version: 1, exportedAt: new Date().toISOString(), build: meta ? meta.content : '',
     items: st.items, entries: st.entries, pastes: st.pastes };
-  var blob = new Blob([JSON.stringify(out, null, 2)], { type: 'application/json' });
-  var a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = 'sep-stock-' + localDateStr() + '.json';
-  a.click();
+  downloadJson('sep-stock-' + localDateStr() + '.json', out, 2);
   showToast('Stock exported: ' + st.entries.length + ' entries');
+}
+
+/* A JSON file handed to the browser to save; its object URL is let go once the click has taken it. Stock's export and
+   Production's share it (stock's never let its URL go). */
+function downloadJson(name, obj, indent) {
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([JSON.stringify(obj, null, indent)], { type: 'application/json' }));
+  a.download = name;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(function() { URL.revokeObjectURL(a.href); }, 1000);
 }
 
 // Merges; never overwrites. A line matches by id, then by name.
@@ -1091,7 +1089,7 @@ function stockMergeImport(src) {
   if (!src || typeof src !== 'object') throw new Error('not a stock file');
   if (src.format !== 'sep-stock' && src.stock) src = src.stock;
   if (!Array.isArray(src.items) || !Array.isArray(src.entries)) throw new Error('not a stock file');
-  var st = stockData(), idMap = {}, added = { items: 0, entries: 0, pastes: 0 };
+  var st = stockData(), idMap = {}, added = { items: 0, entries: 0, pastes: 0, held: 0, differ: 0 };
   src.items.forEach(function(it) {
     if (!it || !it.id || typeof it.name !== 'string' || !it.name.trim()) return;
     var mine = stockItem(it.id) || stockFindByKey(it.key || stockKey(it.name));
@@ -1101,13 +1099,16 @@ function stockMergeImport(src) {
     st.items.push(copy); idMap[it.id] = copy.id; added.items++;
   });
   var have = {};
-  st.entries.forEach(function(e) { have[e.id] = true; });
+  st.entries.forEach(function(e) { have[e.id] = e; });
   var num = function(v) { return typeof v === 'number' && isFinite(v); };
+  var same = function(a, b) { var ka = Object.keys(a).sort(), kb = Object.keys(b).sort(); return ka.join() === kb.join() && ka.every(function(k) { return JSON.stringify(a[k]) === JSON.stringify(b[k]); }); };
   src.entries.forEach(function(e) {
-    if (!e || !e.id || have[e.id] || !idMap[e.itemId]) return;
+    if (!e || !e.id || !idMap[e.itemId]) return;
+    // Held here: never overwritten, but counted, and one the file carries changed (voided or priced elsewhere) is said.
+    if (have[e.id]) { added.held++; if (!same(have[e.id], Object.assign({}, e, { itemId: idMap[e.itemId] }))) added.differ++; return; }
     // A file is data from elsewhere: an entry must be a known kind with real
-    // numbers, or it is dropped rather than left to break the screens.
-    if (!STOCK_KIND_LABEL[e.kind] || !num(e.qty) || typeof e.date !== 'string') return;
+    // numbers and a real day, or it is dropped rather than left to break the screens.
+    if (!STOCK_KIND_LABEL[e.kind] || !num(e.qty) || typeof e.date !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(e.date)) return;
     var copy = JSON.parse(JSON.stringify(e));
     copy.itemId = idMap[e.itemId];
     ['price', 'amount', 'days', 'rate', 'at', 'seq'].forEach(function(k) { if (copy[k] != null && !num(copy[k])) delete copy[k]; });
@@ -1141,7 +1142,8 @@ function stockImport() {
         var added = stockMergeImport(JSON.parse(e2.target.result));
         saveState();
         renderStock();
-        showToast(added.entries || added.items || added.bills ? 'Imported ' + added.items + ' lines, ' + added.entries + ' entries' + (added.bills ? ', ' + added.bills + ' power/other bills' : '') : 'Nothing new in that file');
+        var held = (added.held ? ' · ' + added.held + ' already held' : '') + (added.differ ? ' (' + added.differ + ' differ in the file, kept as held)' : '');
+        showToast((added.entries || added.items || added.bills ? 'Imported ' + added.items + ' lines, ' + added.entries + ' entries' + (added.bills ? ', ' + added.bills + ' power/other bills' : '') : 'Nothing new in that file') + held, added.differ ? 'warning' : undefined);
       } catch (err) { showToast('Not a stock file', 'error'); }
     };
     reader.readAsText(f);
@@ -1150,7 +1152,7 @@ function stockImport() {
 }
 
 /* ---------- The More sheet ---------- */
-var MORE_TABS = ['pageTodo', 'pageFinance', 'pageProduction', 'pageStock', 'pageStaff', 'pageStats', 'pageHistory'];
+var MORE_TABS = ['pageTodo', 'pageFinance', 'pageProduction', 'pagePower', 'pageStock', 'pageStaff', 'pageStats', 'pageHistory'];
 function closeMoreSheet() {
   var el = document.getElementById('moreSheet');
   if (el) el.remove();
@@ -1163,6 +1165,7 @@ function openMoreSheet() {
     ['pageTodo', 'To-do', tdOpen ? tdOpen + ' open' + (tdLate ? ', ' + tdLate + ' late' : '') : 'Nothing due', '<path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/>'],
     ['pageFinance', 'Finance', 'Bank, receivables, bills, GST', '<rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/><path d="M6 12h.01M18 12h.01"/>'],
     ['pageProduction', 'Production', 'Lines, material in plant', '<path d="M3 20h18M5 20V10l4 3V10l4 3V6l6 4v10"/>'],
+    ['pagePower', 'Power', 'Cuts, the load, the case for backup', '<path d="M13 2 4 14h7l-1 8 9-12h-7z"/>'],
     ['pageStock', 'Stock', out ? out + ' out' : 'Chemicals on the shelf', '<path d="M9 3h6"/><path d="M10 3v6L4.5 19a1.5 1.5 0 001.3 2h12.4a1.5 1.5 0 001.3-2L14 9V3"/><path d="M7 15h10"/>'],
     ['pageStaff', 'Staff', 'Attendance, labour, areas', '<path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><polyline points="17 11 19 13 23 9"/>'],
     ['pageStats', 'Stats', 'Realisation, tonnage, cost', '<path d="M18 20V10"/><path d="M12 20V4"/><path d="M6 20v-6"/>'],
@@ -1265,7 +1268,8 @@ function stockOnChange(t) {
   // under the finger, so the tap was lost. Enter redraws (stockCommitName).
   var ni = t.getAttribute && t.getAttribute('data-stock-name');
   if (ni != null && _stockReview) { stockCommitName(t, false); return true; }
-  if (t.id === 'stockManDate' && _stockManual) { _stockManual.date = t.value; return true; }
+  // Redrawn: the invoice date (until typed) and the action bar follow the day; they kept the old one on screen.
+  if (t.id === 'stockManDate' && _stockManual) { _stockManual.date = t.value; renderStock(); return true; }
   if ((t.id === 'stockLeadDays' || t.id === 'stockCoverDays') && _stockReorder) { stockReorderOnInput(t); renderStock(); return true; }
   return false;
 }

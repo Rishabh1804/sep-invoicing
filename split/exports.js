@@ -24,16 +24,10 @@ function downloadCSV(filename, rows) {
    kept in, and it is the order a gap is spotted in. The on-screen sort is a
    browsing preference and deliberately does not reach the file. */
 function _exportRowsInSerialOrder(invoices, voided, invRow, voidRow) {
-  var rows = invoices.map(function(inv) {
-    return { num: invNumInt(inv.invoiceNumber), build: function() { return invRow(inv); } };
-  }).concat(voided.map(function(v) {
-    return { num: invNumInt(v.invoiceNumber), build: function() { return voidRow(v); } };
-  }));
-  rows.sort(function(a, b) {
-    if (a.num == null) return 1;
-    if (b.num == null) return -1;
-    return a.num - b.num;
-  });
+  // The one serial order (invSerialCompare): a new financial year's 00001 no longer sorts before last year's 00950.
+  var rows = invoices.map(function(inv) { return { rec: inv, build: function() { return invRow(inv); } }; })
+    .concat(voided.map(function(v) { return { rec: v, build: function() { return voidRow(v); } }; }));
+  rows.sort(function(a, b) { return invSerialCompare(a.rec, b.rec); });
   return rows.map(function(r) { return r.build(); });
 }
 
@@ -69,20 +63,32 @@ function getPlaceOfSupply(inv) {
   return code + '-' + name;
 }
 
-function exportSalesCSV() {
+/* The first row of every CSV: who files it, as Settings holds it. It was frozen as "SOMA ELECTRO PRODUCTS" with a
+   fallback GSTIN, a second copy of the identity that could drift from the invoice's (as the certificate's did). */
+function _csvMetaRow(scope) {
+  var co = S.company || {};
+  var row = [(co.name || '') + ' | GSTIN: ' + (co.gstin || '') + ' | Export Date: ' + formatDateExport(localDateStr())];
+  if (scope) row.push('Scope: ' + scope);
+  return row;
+}
+
+/* The register as a CSV, in serial order with the voids in their own slot: the sales register and GSTR-1 share
+   everything but their columns (they were two copies of this). */
+function _exportRegisterCSV(name, label, header, invRow, voidRow) {
   const invoices = getFilteredInvoices();
-  // Phase 5: Metadata row above column headers
-  var exportDate = formatDateExport(localDateStr());
-  var metaRow = ['SOMA ELECTRO PRODUCTS | GSTIN: ' + (S.company.gstin || '20AAPFS4718J2Z0') + ' | Export Date: ' + exportDate];
   var scope = exportScopeLabel();
-  metaRow.push('Scope: ' + scope);
-  const header = ['Inv. No.', 'Date', 'Customer', 'Status', 'Taxable Value', 'CGST%', 'CGST Amt', 'SGST%', 'SGST Amt', 'IGST%', 'IGST Amt', 'Invoice Amount'];
+  const voided = getVoidedForExport();
+  const rows = [_csvMetaRow(scope), header].concat(_exportRowsInSerialOrder(invoices, voided, invRow, voidRow));
+  downloadCSV(name + '_' + scope + '.csv', rows);
+  showToast(label + ' exported (' + (invoices.length + voided.length) + ' rows)');
+}
+
+function exportSalesCSV() {
   // Voided numbers ride along at zero. The number was issued, so the series
   // has to show it; the reason travels in the customer column so the internal
   // register explains its own gaps.
-  const voided = getVoidedForExport();
-  const rows = [metaRow, header].concat(_exportRowsInSerialOrder(
-    invoices, voided,
+  _exportRegisterCSV('SEP-Sales-Register', 'Sales Register',
+    ['Inv. No.', 'Date', 'Customer', 'Status', 'Taxable Value', 'CGST%', 'CGST Amt', 'SGST%', 'SGST Amt', 'IGST%', 'IGST Amt', 'Invoice Amount'],
     function(inv) {
       const cancelled = inv.status === 'cancelled';
       return [
@@ -108,26 +114,15 @@ function exportSalesCSV() {
         'Voided',
         0, 0, 0, 0, 0, 0, 0, 0
       ];
-    }
-  ));
-  downloadCSV('SEP-Sales-Register_' + scope + '.csv', rows);
-  showToast('Sales Register exported (' + (invoices.length + voided.length) + ' rows)');
+    });
 }
 
 function exportGSTR1CSV() {
-  const invoices = getFilteredInvoices();
-  // Phase 5: Metadata row above column headers
-  var exportDate = formatDateExport(localDateStr());
-  var metaRow = ['SOMA ELECTRO PRODUCTS | GSTIN: ' + (S.company.gstin || '20AAPFS4718J2Z0') + ' | Export Date: ' + exportDate];
-  var scope = exportScopeLabel();
-  metaRow.push('Scope: ' + scope);
-  const header = ['GSTIN/UIN of Recipient', 'Invoice Number', 'Invoice Date', 'Invoice Value', 'Place of Supply', 'Reverse Charge', 'Invoice Type', 'E-Commerce GSTIN', 'Rate', 'Taxable Value', 'CGST Amount', 'SGST Amount', 'IGST Amount', 'Cess Amount'];
   // Same treatment as a cancelled invoice, which this export already carries at
   // zero: the number is declared, the value is not. Without these rows the
   // return shows a hole the app cannot explain.
-  const voided = getVoidedForExport();
-  const rows = [metaRow, header].concat(_exportRowsInSerialOrder(
-    invoices, voided,
+  _exportRegisterCSV('SEP-GSTR1', 'GSTR1',
+    ['GSTIN/UIN of Recipient', 'Invoice Number', 'Invoice Date', 'Invoice Value', 'Place of Supply', 'Reverse Charge', 'Invoice Type', 'E-Commerce GSTIN', 'Rate', 'Taxable Value', 'CGST Amount', 'SGST Amount', 'IGST Amount', 'Cess Amount'],
     function(inv) {
       const cancelled = inv.status === 'cancelled';
       const gstRate = cancelled ? 0 : ((inv.cgstPer || 0) + (inv.sgstPer || 0) + (inv.igstPer || 0));
@@ -151,10 +146,7 @@ function exportGSTR1CSV() {
     function(v) {
       return ['', v.displayNumber, formatDateExport(v.date), 0,
         '20-Jharkhand', 'N', 'Regular', '', 0, 0, 0, 0, 0, 0];
-    }
-  ));
-  downloadCSV('SEP-GSTR1_' + scope + '.csv', rows);
-  showToast('GSTR1 exported (' + (invoices.length + voided.length) + ' rows)');
+    });
 }
 
 
@@ -237,7 +229,7 @@ function buildSalesRegisterHtml(scope) {
   var cols = anyIgst ? 9 : 8;
   return '<div class="inv-sr-doc">' +
     '<div class="inv-sr-head">' +
-      '<div class="inv-sr-co">' + escHtml(co.name || 'SOMA ELECTRO PRODUCTS') + '</div>' +
+      '<div class="inv-sr-co">' + escHtml(co.name || '') + '</div>' +
       '<div>' + escHtml([co.add1, co.add2, co.add3].filter(Boolean).join(', ')) + '</div>' +
       '<div>GSTIN: ' + escHtml(co.gstin || '') + '</div>' +
     '</div>' +

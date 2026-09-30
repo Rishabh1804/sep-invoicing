@@ -28,8 +28,10 @@ function insMonthsBack(n) {
   for (var i = n; i >= 1; i--) { var x = new Date(d); x.setMonth(x.getMonth() - i); out.push(x.getFullYear() + '-' + String(x.getMonth() + 1).padStart(2, '0')); }
   return out;
 }
-function insMonthLabel(m) { var d = new Date(m + '-01T00:00:00'); return d.toLocaleString('en-IN', { month: 'short' }); }
-function insActive() { return (S.invoices || []).filter(function(i) { return i.status === 'active' && i.date; }); }
+// A month's short name is insMonthLabel (stats.js), beside the labels it reads.
+function insClientActive(id) { var c = S.clients.find(function(x) { return String(x.id) === String(id); }); return !c || c.isActive !== false; }
+// Net of credit notes, as Stats reads them (statsInvoices): the insights judge the same revenue the cards show.
+function insActive() { return statsInvoices().filter(function(i) { return i.date; }); }
 
 /* Revenue, weighed kg and realisation per month, per client ('' = the book). */
 function insMonthly(months) {
@@ -63,15 +65,15 @@ function predCadence() {
   var today = localDateStr();
   return Object.keys(byC).map(function(id) {
     var d = Object.keys(byC[id]).sort(), gaps = [];
-    for (var i = 1; i < d.length; i++) gaps.push(stockDaysApart(d[i - 1], d[i]));
-    var med = gaps.length ? stockMedian(gaps) : null, last = d[d.length - 1];
-    var since = stockDaysApart(last, today);
-    var next = med != null ? stockIsoAdd(last, Math.max(1, Math.round(med))) : null;
+    for (var i = 1; i < d.length; i++) gaps.push(isoDaysBetween(d[i - 1], d[i]));
+    var med = gaps.length ? numMedian(gaps) : null, last = d[d.length - 1];
+    var since = isoDaysBetween(last, today);
+    var next = med != null ? isoAddDays(last, Math.max(1, Math.round(med))) : null;
     // Overdue against its own rhythm: well past its usual gap, and at least
     // three weeks past it, so a twice-a-week client is not flagged after nine.
     var quietAfter = med != null ? Math.max(med * 1.75, med + 21) : null;
     return { id: id, name: insClientName(id), count: d.length, last: last, median: med, since: since, next: next,
-      late: next && next < today ? stockDaysApart(next, today) : 0, quiet: quietAfter != null && d.length >= 5 && since > quietAfter, quietAfter: quietAfter };
+      late: next && next < today ? isoDaysBetween(next, today) : 0, quiet: quietAfter != null && d.length >= 5 && since > quietAfter, quietAfter: quietAfter };
   }).sort(function(a, b) { return b.count - a.count; });
 }
 
@@ -80,13 +82,12 @@ function predMonthPace() {
   var today = localDateStr(), from = today.slice(0, 7) + '-01', end = payMonthEnd(from);
   var inv = insActive().filter(function(i) { return i.date >= from && i.date <= today; });
   var rev = inv.reduce(function(s, i) { return s + (i.taxableValue || 0); }, 0), kg = weighLines(inv).kg;
-  var done = statsWorkingDays(from, today), total = statsWorkingDays(from, end);
+  var worked = statsWorkingDayList(from, today), done = worked.length, total = statsWorkingDays(from, end);
   if (!done) return null;
   // The spread of revenue per working day so far sets the band.
   var perDay = {};
   inv.forEach(function(i) { perDay[i.date] = (perDay[i.date] || 0) + (i.taxableValue || 0); });
-  var days = [], d = from;
-  for (var g = 0; d <= today && g < 40; g++) { if (new Date(d + 'T00:00:00').getDay() !== 0) days.push(perDay[d] || 0); d = stockIsoAdd(d, 1); }
+  var days = worked.map(function(d) { return perDay[d] || 0; });
   var mean = rev / done, sd = Math.sqrt(days.reduce(function(s, v) { return s + (v - mean) * (v - mean); }, 0) / Math.max(1, days.length - 1));
   var left = total - done, band = sd * Math.sqrt(left);
   var unbilled = 0;
@@ -111,15 +112,22 @@ function predPO(clientId) {
     steps++;
     if (b.n === a.n) same++; else if (b.n > a.n && b.n - a.n <= 3) seq++;
   }
+  // The latest PO is the one to continue: one with no number at its end ("VERBAL", "PO-104A") cannot be.
+  var last = parse(tail[tail.length - 1]);
+  if (!last) return null;
+  // A standing PO (one open order the customer quotes on every invoice) is the next one too.
+  if (steps >= 3 && same / steps >= 0.6) {
+    return { value: tail[tail.length - 1], last: tail[tail.length - 1], why: 'the same PO on ' + same + ' of the last ' + steps + ' invoices after the first' };
+  }
   if (steps < 3 || seq / steps < 0.6) {
     // Rising but not consecutive (the customer numbers POs across all its
     // suppliers): the number cannot be predicted, the shape can.
     var all = tail.map(parse).filter(Boolean), pre = all.length ? all[0].pre : '';
-    var rising = all.length >= 4 && all.every(function(x, i) { return x.pre === pre && (i === 0 || x.n >= all[i - 1].n); });
+    var rising = all.length >= 4 && all.every(function(x, i) { return x.pre === pre && (i === 0 || x.n >= all[i - 1].n); }) &&
+      all.some(function(x, i) { return i > 0 && x.n > all[i - 1].n; });
     if (!rising || !pre) return null;
     return { value: pre, prefixOnly: true, last: tail[tail.length - 1], why: 'the prefix only: numbers rise but skip, last ' + tail[tail.length - 1] };
   }
-  var last = parse(tail[tail.length - 1]);
   var next = last.pre + String(last.n + 1).padStart(last.w, '0');
   return { value: next, last: tail[tail.length - 1], why: 'next in sequence after ' + tail[tail.length - 1] + (same ? ' (the same PO repeats on ' + same + ' of the last ' + steps + ')' : '') };
 }
@@ -145,8 +153,12 @@ function predApplyToInvoice() {
   var po = String(own.poFromChallan || '').trim() ? null : predPO(invoiceForm.clientId);
   var ve = String(own.defaultTransport || '').trim() ? null : predVehicle(invoiceForm.clientId);
   invoiceForm._pred = { po: po, ve: ve };
-  if (po && !invoiceForm.poNumber) invoiceForm.poNumber = po.value;
-  if (ve && ve.fill && !invoiceForm.transport) invoiceForm.transport = ve.fill;
+  // What the app filled is the app's (invoiceForm._auto, shared with createApplyClientDefaults): another client
+  // replaces it, where a typed value is the operator's for good. A prediction left behind used to ride onto the
+  // next client's invoice and read as typed there.
+  var auto = invoiceForm._auto || (invoiceForm._auto = {});
+  if (!invoiceForm.poNumber || invoiceForm.poNumber === auto.po) { invoiceForm.poNumber = po ? po.value : ''; auto.po = invoiceForm.poNumber; }
+  if (!invoiceForm.transport || invoiceForm.transport === auto.ve) { invoiceForm.transport = ve && ve.fill ? ve.fill : ''; auto.ve = invoiceForm.transport; }
 }
 function predHintHtml(field) {
   var p = invoiceForm && invoiceForm._pred;
@@ -205,7 +217,7 @@ TODO_RULE_FNS.insRealLow = function() {
   var mm = insMonthly(prior.concat([cur])), now = mm('', cur);
   var reals = prior.map(function(m) { return mm('', m).real; }).filter(function(v) { return v != null; });
   if (now.real == null || reals.length < 3 || now.real >= Math.min.apply(null, reals)) return [];
-  var med = stockMedian(reals);
+  var med = numMedian(reals);
   // The mix: whose share of the month moved most.
   var prev = prior[prior.length - 1], moved = null;
   (S.clients || []).forEach(function(c) {
@@ -241,7 +253,7 @@ TODO_RULE_FNS.insLeak = function() {
     if (cur.real == null || cur.rev < 10000) return;
     var before = months.slice(0, 3).map(function(m) { return mm(String(c.id), m).real; }).filter(function(v) { return v != null; });
     if (before.length < 2) return;
-    var med = stockMedian(before);
+    var med = numMedian(before);
     if (cur.real >= med * 0.95) return;
     var gap = gstRound((med - cur.real) * cur.kg);
     out.push({ key: 'insLeak:' + c.id, rule: 'insLeak', tone: 'amber', title: c.name + ' realised ₹' + formatNum(cur.real, 2) + '/kg against its usual ₹' + formatNum(med, 2),
@@ -257,7 +269,8 @@ TODO_RULE_FNS.insBelowVar = function() {
   var last = insMonthsBack(1)[0], from = last + '-01', to = payMonthEnd(from);
   var inv = insActive().filter(function(i) { return i.date >= from && i.date <= to; });
   var m = statsClientMargins(null, inv, weighLines(inv), { from: from, to: to });
-  if (!m) return [];
+  // With labour not split into fixed and variable (statsCostSplit), there is no variable cost to be below.
+  if (!m || m.varKg == null) return [];
   return m.ranked.filter(function(x) { return x.kg >= m.kg * 0.1 && x.vsVar < 0; }).map(function(x) {
     return { key: 'insBelowVar:' + x.id, rule: 'insBelowVar', tone: 'red', title: x.name + ' is below its variable cost',
       sub: insMonthLabel(last) + ': ₹' + formatNum(x.net, 2) + '/kg against ₹' + formatNum(m.varKg, 2) + ' variable · loses ' + formatCurrency(gstRound(-x.vsVar * x.kg)) + ' even with labour fixed',
@@ -284,7 +297,7 @@ TODO_RULE_FNS.insLabour = function() {
 
 TODO_RULE_FNS.insAttGap = function() {
   if (!staffActive().length) return [];
-  var ws = attAddDays(attWeekStartOf(localDateStr()), -7), wk = payWeek(ws);
+  var ws = isoAddDays(attWeekStartOf(localDateStr()), -7), wk = payWeek(ws);
   if (wk.recordedDays > 0) return [];
   return [{ key: 'insAttGap:' + ws, rule: 'insAttGap', tone: 'info', title: 'Week ' + attPayWeekNumber(ws) + ' has no attendance',
     sub: 'The payout and labour read ₹0 for it until the rolls are pasted', why: 'Floor · data gap', go: { kind: 'staffPaste' }, goLabel: 'Paste the rolls',
@@ -292,7 +305,7 @@ TODO_RULE_FNS.insAttGap = function() {
 };
 
 TODO_RULE_FNS.insChemPrice = function() {
-  var cut = stockIsoAdd(localDateStr(), -30), names = {};
+  var cut = isoAddDays(localDateStr(), -30), names = {};
   stockData().entries.forEach(function(e) {
     if (e.voided || (e.kind !== 'used' && e.kind !== 'charged') || e.date < cut) return;
     var it = stockItem(e.itemId);
@@ -313,18 +326,20 @@ function insightsCardHtml() {
   if (!all.length) return h + '<div class="inv-empty">Nothing stands out right now. Each insight appears here and on the To-do list when its figures call for it.</div></div>';
   // The To-do's own rows: an insight is a task, and reads as one wherever it is listed.
   h += all.map(function(t) { return todoAppRowHtml(t); }).join('');
-  return h + statsBody(statsNote('Tap one for its figures and what clears it. They are on the To-do list too, and can be switched off in Settings &rarr; To-do.')) + '</div>';
+  return h + statsBody(statsNote('Tap one for its figures and what clears it. They are on the To-do list too, and can be switched off in Settings &rarr; Checks &amp; alerts &rarr; To-do.')) + '</div>';
 }
 
 function paceCardHtml() {
   var p = predMonthPace();
   if (!p) return '';
+  // The projection against last month, whole percent; nothing against a month with none.
+  var delta = function(cur, prev) { return prev > 0 ? ' · ' + (cur >= prev ? '+' : '&minus;') + Math.abs(Math.round((cur / prev - 1) * 100)) + '%' : ''; };
   var h = statsPanel('pace', 'This month at its pace', p.done + ' of ' + p.total + ' working days in', { wide: true, id: 'statsPace' });
   h += statsTiles(
     statsTile('revenue', 'Revenue', escHtml(formatCurrency(p.projRev)), statsTileSub(escHtml(p.prevLabel) + ' ' + escHtml(formatCurrency(p.prevRev)) +
-      (p.prevRev > 0 ? ' · ' + (p.projRev >= p.prevRev ? '+' : '&minus;') + Math.abs(Math.round((p.projRev / p.prevRev - 1) * 100)) + '%' : '')), '', 'paceRev') +
+      delta(p.projRev, p.prevRev)), '', 'paceRev') +
     statsTile('tonnage', 'Tonnage', formatNum(p.projKg / 1000, 1) + '<span class="inv-tile-of"> t</span>', statsTileSub(escHtml(p.prevLabel) + ' ' + formatNum(p.prevKg / 1000, 1) + ' t' +
-      (p.prevKg > 0 ? ' · ' + (p.projKg >= p.prevKg ? '+' : '&minus;') + Math.abs(Math.round((p.projKg / p.prevKg - 1) * 100)) + '%' : ''))));
+      delta(p.projKg, p.prevKg))));
   h += statsRow('So far', formatNum(p.kg / 1000, 1) + ' t billed', statsNum(escHtml(formatCurrency(p.rev)))) +
     statsRow('Likely range', 'from how much the working days so far have varied', statsNum(escHtml(formatCurrency(p.low)) + ' – ' + escHtml(formatCurrency(p.high))), '', 'inv-row-flow') +
     statsRow('Unbilled challans in hand', 'would lift the month if billed in it', statsNum(escHtml(formatCurrency(p.unbilled))));
@@ -332,7 +347,9 @@ function paceCardHtml() {
 }
 
 function nextChallanCardHtml() {
-  var list = predCadence().filter(function(c) { return c.median != null && c.count >= 3; }).slice(0, 12);
+  // Every client with a rhythm, most overdue first; uiMoreHtml shows the first ten. Cut to the twelve busiest
+  // before sorting, a late small client never appeared and the count was wrong. A client set inactive has left.
+  var list = predCadence().filter(function(c) { return c.median != null && c.count >= 3 && insClientActive(c.id); });
   if (!list.length) return '';
   var today = localDateStr();
   var h = statsPanel('next', 'Next challan expected', 'from each client&rsquo;s own rhythm', { id: 'statsNextChallan' });

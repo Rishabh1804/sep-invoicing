@@ -110,7 +110,7 @@ function labourForRange(fromIso, toIso) {
     ot: 0, otHours: 0, extra: 0, extraHours: 0,
     floorCost: 0,
     daysRecorded: 0, workingDays: 0, sundaysRecorded: 0,
-    rosterSize: roster.filter(function(w) { return w.active !== false; }).length, ratelessWorkers: [], byArea: {}, byWorker: {}
+    rosterSize: roster.filter(function(w) { return w.active !== false; }).length, ratelessWorkers: [], hourlessWorkers: [], hourlessMarks: 0, byArea: {}, byWorker: {}
   };
 
   // What each worker earned in the range, on the same arithmetic as the totals:
@@ -188,6 +188,13 @@ function labourForRange(fromIso, toIso) {
           bumpArea(areaId, pay, 0, hrs);
           bumpFloor(w, areaId, pay);
           if (!(w.hourRate > 0) && out.ratelessWorkers.indexOf(w.name) < 0) out.ratelessWorkers.push(w.name);
+        } else if (dayVal > 0) {
+          // Present with no hours typed: the pool pays hours, so this day prices nothing. Said on the card and on Pay,
+          // since Hours by area counts the same mark as 8.
+          out.hourlessMarks++;
+          if (out.hourlessWorkers.indexOf(w.name) < 0) out.hourlessWorkers.push(w.name);
+          var hb = bumpWorker(w, 'base', 0, 0, 0, 0);
+          hb.hourless = (hb.hourless || 0) + 1;
         }
         return;
       }
@@ -206,6 +213,8 @@ function labourForRange(fromIso, toIso) {
       var offDay = w.comp === 'monthly' && (dow === 0 || holiday);
       var fixedWage = w.comp === 'monthly' && w.monthWage > 0;
       var wage = offDay && fixedWage ? 0 : dayVal * workerDayRate(w, iso);
+      // A day worked with no day rate (and no contracted wage) prices nothing; the card names the hand.
+      if (dayVal > 0 && !(offDay && fixedWage) && !(workerDayRate(w, iso) > 0) && out.ratelessWorkers.indexOf(w.name) < 0) out.ratelessWorkers.push(w.name);
       bumpWorker(w, 'base', wage, dayVal, m.hours || 0, 0);
       if (w.comp === 'monthly') {
         out.monthlyDays += wage;
@@ -297,9 +306,7 @@ function labourForRange(fromIso, toIso) {
   if (cfg.restCreditMinDays > 0) {
     Object.keys(weekDaysWorked).forEach(function(key) {
       if (weekDaysWorked[key] < cfg.restCreditMinDays) return;
-      // Ids are numbers on a device and strings in some imports: match as text.
-      var idPart = key.split('|')[0];
-      var w = roster.find(function(x) { return String(x.id) === idPart; });
+      var w = staffById(key.split('|')[0]);
       if (!w) return;
       var pay = (w.dayRate || 0);
       out.dailyRest += pay;
@@ -309,6 +316,10 @@ function labourForRange(fromIso, toIso) {
     });
   }
 
+  // Fixed, variable and the total are each rounded ONCE from the unrounded parts, the rule the worker's total follows
+  // below: a contracted wage's 22 days and 6 credited read ₹6,387.10 + ₹1,741.94 = ₹8,129.04 when the parts were
+  // rounded first, where the slip's 28 × 9000 / 31 is ₹8,129.03.
+  var fixedRaw = out.monthlyDays + out.rest, variableRaw = out.pool + out.daily + out.dailyRest + out.ot + out.extra;
   ['monthlyDays', 'rest', 'pool', 'daily', 'dailyRest', 'ot', 'extra', 'floorCost'].forEach(function(k) {
     out[k] = gstRound(out[k]);
   });
@@ -325,9 +336,9 @@ function labourForRange(fromIso, toIso) {
   // Fixed is the standing crew — the monthly tier, days and gated rest days
   // together. It moves with their attendance but not with tonnage, which is the
   // distinction the split exists to draw.
-  out.fixed = gstRound(out.monthlyDays + out.rest);
-  out.variable = gstRound(out.pool + out.daily + out.dailyRest + out.ot + out.extra);
-  out.total = gstRound(out.fixed + out.variable);
+  out.fixed = gstRound(fixedRaw);
+  out.variable = gstRound(variableRaw);
+  out.total = gstRound(fixedRaw + variableRaw);
   out.floor = out.floorCost;
   out.offFloor = gstRound(out.total - out.floor);
   out.coverage = out.workingDays > 0 ? Math.min(1, out.daysRecorded / out.workingDays) : 0;
@@ -524,9 +535,14 @@ function renderLabourCard(fromIso, toIso, title, tonnage, extraClass) {
     (lab.dailyRest > 0 && lab.rangeDays > 7 ? ' Daily rest credit is gated on days inside this range, so a range cutting a week in half under-credits that week.' : ''));
 
   if (lab.ratelessWorkers.length > 0) {
-    html += _labCallout('Hours are recorded for <strong>' +
-      escHtml(lab.ratelessWorkers.join(', ')) + '</strong> with no rate to price them at, so those hours ' +
+    html += _labCallout('Days or hours are recorded for <strong>' +
+      escHtml(lab.ratelessWorkers.join(', ')) + '</strong> with no rate to price them at, so they ' +
       'are counted in the totals above and paid at zero. Set the rate in Roster to bring them into the bill.', 'warning');
+  }
+  if (lab.hourlessMarks > 0) {
+    html += _labCallout('<strong>' + lab.hourlessMarks + ' day' + (lab.hourlessMarks === 1 ? '' : 's') + '</strong> of the hourly pool ' +
+      '(' + escHtml(lab.hourlessWorkers.join(', ')) + ') ' + (lab.hourlessMarks === 1 ? 'is' : 'are') + ' marked present with no hours, and the pool is paid ' +
+      'for hours, so ' + (lab.hourlessMarks === 1 ? 'it prices' : 'they price') + ' at nothing. Type the hours on the Day view.', 'warning');
   }
 
   // The allocation answer sits last: it is a breakdown of a figure the reader
@@ -537,8 +553,9 @@ function renderLabourCard(fromIso, toIso, title, tonnage, extraClass) {
     var share = lab.total > 0 ? (lab.extra / lab.total) * 100 : 0;
     html += _labNote('<strong>' + formatNum(share, 1) + '% of this bill</strong> is extra hours ' +
       'booked to an area rather than to a person. That is what &ldquo;the extra&rdquo; on the daily sheet is: ' +
-      'real paid contract hours with no name against them. They are not spread across the men present, because ' +
-      'a per-worker cost invented that way would answer the fixed-versus-variable question by accident.');
+      'real paid contract hours with no name against them. In the bill they are one pooled line, counted once and never ' +
+      'in anyone&rsquo;s wage; the short area&rsquo;s present crew receive it pro-rata, disbursed by the supervisor ' +
+      '(owner, 28 Aug 2026), and Staff &rarr; Areas shows the split.');
   }
 
   return html + '</div>';
@@ -551,7 +568,7 @@ function renderLabourCard(fromIso, toIso, title, tonnage, extraClass) {
 function labourRangeForPeriod(period) {
   var range = periodRange(period, 0);
   if (range) {
-    return { from: attIso(new Date(range.start)), to: attIso(new Date(range.end)) };
+    return { from: isoOf(new Date(range.start)), to: isoOf(new Date(range.end)) };
   }
   var keys = Object.keys(S.attendance || {}).sort();
   if (keys.length === 0) return null;

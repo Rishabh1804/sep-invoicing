@@ -17,6 +17,9 @@
 
     // 80px threshold, 2:1 angle constraint
     if (absDx < 80 || absDx < absDy * 2) return;
+    // A swipe moves between screens, so it means nothing while a dialog, the More sheet or a print preview is over
+    // the screen: switching closed every dialog, a form holding typed work included (the QA sweep, 29 Sep 2026).
+    if (navLayerOpen()) return;
 
     // Don't swipe if inside a horizontally scrollable container
     var target = e.target;

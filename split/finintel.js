@@ -46,7 +46,7 @@ function bankPayHistory(recv) {
       var w = 0, d = 0;
       a.parts.forEach(function(p) {
         if (!p.inv || !p.date) return;
-        var days = todoDaysBetween(p.date, a.v.row.date);
+        var days = isoDaysBetween(p.date, a.v.row.date);
         if (days < 0) return;
         w += p.amount; d += days * p.amount;
       });
@@ -85,7 +85,7 @@ function finForecast(days) {
   days = days || 60;
   var ctx = finCtx(), rows = ctx.rows;
   if (!rows.length) return null;
-  var today = localDateStr(), last = rows[rows.length - 1], end = attAddDays(today, days);
+  var today = localDateStr(), last = rows[rows.length - 1], end = isoAddDays(today, days);
   var ev = {}, rests = [];
   var add = function(date, k, lo, mid, hi) {
     if (date <= today || date > end) return;
@@ -107,10 +107,10 @@ function finForecast(days) {
     if (med == null) return;
     r.open.forEach(function(o) {
       if (!o.inv) return;
-      var age = todoDaysBetween(o.date, today), due = attAddDays(o.date, Math.round(med));
+      var age = isoDaysBetween(o.date, today), due = isoAddDays(o.date, Math.round(med));
       if (age > 90 || age > Math.max(2 * med, med + 30)) { stale++; staleAmt += o.due; return; }
       if (due <= today) {
-        for (var k = 1; k <= 28; k++) add(attAddDays(today, k), 'in', 0, o.due / 28, o.due / 28);
+        for (var k = 1; k <= 28; k++) add(isoAddDays(today, k), 'in', 0, o.due / 28, o.due / 28);
         late++; lateAmt += o.due;
       } else add(due, 'in', o.due, o.due, o.due);
       nOpen++; amtOpen += o.due;
@@ -126,18 +126,18 @@ function finForecast(days) {
   // In: billing at its recent pace, paid at the book's lag. Without it every future week would carry
   // wages and no sales.
   if (bookMed != null) {
-    var from60 = attAddDays(today, -56), billed = 0, wk = {};
+    var from60 = isoAddDays(today, -56), billed = 0, wk = {};
     (S.invoices || []).forEach(function(i) {
       if (i.status !== 'active' || !i.date || i.date <= from60 || i.date > today) return;
       billed += i.grandTotal || 0;
       var ws = attWeekStartOf(i.date); wk[ws] = (wk[ws] || 0) + (i.grandTotal || 0);
     });
     var weeks = [];
-    for (var w = 1; w <= 8; w++) weeks.push(wk[attWeekStartOf(attAddDays(today, -7 * w))] || 0);
+    for (var w = 1; w <= 8; w++) weeks.push(wk[attWeekStartOf(isoAddDays(today, -7 * w))] || 0);
     var perDay = [finPct(weeks, 0.25) / 6, billed / 48, finPct(weeks, 0.75) / 6];
-    for (var d = attAddDays(today, 1); d <= end; d = attAddDays(d, 1)) {
+    for (var d = isoAddDays(today, 1); d <= end; d = isoAddDays(d, 1)) {
       if (attParseIso(d).getDay() === 0) continue;
-      add(attAddDays(d, Math.round(bookMed)), 'in', perDay[0], perDay[1], perDay[2]);
+      add(isoAddDays(d, Math.round(bookMed)), 'in', perDay[0], perDay[1], perDay[2]);
     }
     if (billed > 0) rests.push('New billing at the last eight weeks’ pace, ' + formatCurrency(gstRound(billed / 8)) + ' a week, paid ' + Math.round(bookMed) + ' days after it is invoiced.');
   }
@@ -147,7 +147,9 @@ function finForecast(days) {
   closed.forEach(function(m) { wages[m] = 0; other[m] = 0; });
   ctx.cls.forEach(function(v) {
     var r = v.row;
-    if (!(r.dr > 0)) return;
+    // A returned cheque, and a posting with its own reversal, is money that came in and went back out: it does not
+    // recur, and counted as "every other payment" it put a month's bounces into every month to come.
+    if (!(r.dr > 0) || v.cat === 'reversal') return;
     var m = r.date.slice(0, 7);
     if (v.cat === 'wages' && !v.cash && v.staffId != null) { if (m in wages) { wages[m] += r.dr; days1.push(+r.date.slice(8, 10)); } }
     else if (v.cat === 'wages') { var ws = attWeekStartOf(r.date); cashWk[ws] = (cashWk[ws] || 0) + r.dr; }
@@ -170,11 +172,11 @@ function finForecast(days) {
   }
   var cw = [], c0 = bankCover();
   for (var q = 1; q <= 8; q++) {
-    var s0 = attWeekStartOf(attAddDays(today, -7 * q));
-    if (c0 && s0 >= c0.from && attAddDays(s0, 6) <= c0.to) cw.push(cashWk[s0] || 0);
+    var s0 = attWeekStartOf(isoAddDays(today, -7 * q));
+    if (c0 && s0 >= c0.from && isoAddDays(s0, 6) <= c0.to) cw.push(cashWk[s0] || 0);
   }
   if (cw.length && finPct(cw, 0.5) > 0) {
-    for (var sat = attAddDays(attWeekStartOf(today), 6); sat <= end; sat = attAddDays(sat, 7)) add(sat, 'out', finPct(cw, 0.25), finPct(cw, 0.5), finPct(cw, 0.75));
+    for (var sat = isoAddDays(attWeekStartOf(today), 6); sat <= end; sat = isoAddDays(sat, 7)) add(sat, 'out', finPct(cw, 0.25), finPct(cw, 0.5), finPct(cw, 0.75));
     rests.push('Cash drawn for the weekly payout, ' + formatCurrency(gstRound(finPct(cw, 0.5))) + ' each Saturday (the median of ' + cw.length + ' weeks).');
   }
   if (power.length) {
@@ -198,16 +200,16 @@ function finForecast(days) {
   }
 
   var bal = [last.balance, last.balance, last.balance], out = [], cross = null, min = { bal: last.balance, date: today };
-  for (var dd = attAddDays(today, 1); dd <= end; dd = attAddDays(dd, 1)) {
+  for (var dd = isoAddDays(today, 1); dd <= end; dd = isoAddDays(dd, 1)) {
     var e = ev[dd] || { in: [0, 0, 0], out: [0, 0, 0] };
     bal = [bal[0] + e.in[0] - e.out[2], bal[1] + e.in[1] - e.out[1], bal[2] + e.in[2] - e.out[0]];
     out.push({ date: dd, lo: gstRound(bal[0]), bal: gstRound(bal[1]), hi: gstRound(bal[2]), in: gstRound(e.in[1]), out: gstRound(e.out[1]) });
     if (bal[1] < min.bal) min = { bal: gstRound(bal[1]), date: dd };
     if (!cross && bal[1] < 0) cross = dd;
   }
-  var stale = todoDaysBetween(last.date, today);
+  var stale = isoDaysBetween(last.date, today);
   if (stale > 3) rests.unshift('Starts from the balance on ' + formatDate(last.date) + ', the statement’s last day: ' + stale + ' days of payments since are not on it.');
-  return { asOf: last.date, start: last.balance, days: out, cross: cross, min: min, rests: rests, bookDays: bookMed };
+  return { asOf: last.date, start: last.balance, days: out, cross: cross, min: min, rests: rests };
 }
 
 function finForecastHtml() {
@@ -216,7 +218,7 @@ function finForecastHtml() {
   var pts = fc.days.filter(function(x, i) { return i % 3 === 2 || i === fc.days.length - 1; });
   var h = '<div class="inv-panel inv-panel-flush inv-panels-wide" id="finForecast"><div class="inv-panel-head"><span class="inv-panel-title">Cash forecast, 60 days</span></div>';
   var at = function(n) { return fc.days[Math.min(n, fc.days.length) - 1]; };
-  var tiles = [['Now', fc.start, 'on the statement, ' + finShortDate(fc.asOf)], ['Lowest', fc.min.bal, 'on ' + finShortDate(fc.min.date)],
+  var tiles = [['Now', fc.start, 'on the statement, ' + stockShortDate(fc.asOf)], ['Lowest', fc.min.bal, 'on ' + stockShortDate(fc.min.date)],
     ['In 30 days', at(30).bal, at(30).lo < 0 && at(30).bal >= 0 ? 'could dip below zero' : 'P25–P75 ' + finRs(at(30).lo) + ' to ' + finRs(at(30).hi)],
     ['In 60 days', at(60).bal, 'P25–P75 ' + finRs(at(60).lo) + ' to ' + finRs(at(60).hi)]];
   h += '<div class="inv-tiles inv-tiles-4 inv-tiles-flush">' + tiles.map(function(t) {
@@ -224,7 +226,7 @@ function finForecastHtml() {
       '<div class="inv-tile-value inv-tile-value-sm inv-nowrap" title="' + escHtml(formatCurrency(t[1])) + '">' + finRs(t[1]) + '</div><div class="inv-tile-sub">' + escHtml(t[2]) + '</div></div>';
   }).join('') + '</div><div class="inv-panel-body">';
   if (fc.cross) h += '<div class="inv-callout inv-callout-danger">At this pace the account goes below zero on ' + escHtml(formatDate(fc.cross)) + '.</div>';
-  h += chartLines(pts.map(function(x) { return finShortDate(x.date); }), [{ label: 'Balance', values: pts.map(function(x) { return x.bal; }) }],
+  h += chartLines(pts.map(function(x) { return stockShortDate(x.date); }), [{ label: 'Balance', values: pts.map(function(x) { return x.bal; }) }],
     { band: pts.map(function(x) { return { lo: x.lo, hi: x.hi }; }), ariaLabel: 'Cash forecast' });
   h += '<div class="inv-note">What it rests on:</div><ul class="inv-note">' + fc.rests.map(function(r) { return '<li>' + escHtml(r) + '</li>'; }).join('') + '</ul>';
   return h + '</div></div>';
@@ -246,20 +248,38 @@ var FIN_RULES = [
   ['bankBounce', 'Finance: a returned cheque is not matched to its deposit']
 ];
 FIN_RULES.forEach(function(r) { TODO_RULES.push(r); TODO_CHECK_DEFAULTS[r[0]] = true; });
+/* A worker's balance carried from an earlier pay period (payCarried): it asks until it is paid, worked off, or
+   cleared with a reason on Staff → Pay ("stated otherwise and notification cleared", owner, 30 Sep 2026). */
+TODO_RULES.push(['payCarry', 'Pay: a worker carries a balance from an earlier period']);
+TODO_CHECK_DEFAULTS.payCarry = true;
+TODO_RULE_FNS.payCarry = function() {
+  if (!staffPayments().some(function(p) { return !p.voidedAt; })) return [];
+  var ws = attWeekStartOf(localDateStr());
+  var rows = payDue(ws).rows.filter(function(r) { return r.carried; });
+  if (!rows.length) return [];
+  var owed = rows.filter(function(r) { return r.carried > 0; }), adv = rows.filter(function(r) { return r.carried < 0; });
+  var sum = function(list) { return gstRound(list.reduce(function(t, r) { return t + Math.abs(r.carried); }, 0)); };
+  return [{ key: 'payCarry', rule: 'payCarry', tone: 'amber',
+    title: todoPlural(rows.length, 'worker') + ' carry a balance from an earlier period',
+    sub: rows.slice(0, 3).map(function(r) { return r.w.name + ' ' + (r.carried > 0 ? 'owed ' : 'advanced ') + formatCurrency(Math.abs(r.carried)); }).join(' · '),
+    why: 'Pay · brought forward', facts: [['Owed from before', formatCurrency(sum(owed))], ['Advanced before', formatCurrency(sum(adv))]],
+    clears: 'Clears itself when each balance is paid or worked off, or cleared with a reason on Staff → Pay.',
+    go: { kind: 'payDue' }, goLabel: 'Open Pay', sig: rows.map(function(r) { return r.w.id + ':' + r.carried; }).join('|') }];
+};
 function finGo(tab, extra) { return Object.assign({ kind: 'finance', tab: tab }, extra || {}); }
 function _finRows() { return finCtx().rows; }
 
 TODO_RULE_FNS.bankStale = function() {
   var rows = _finRows();
   if (!rows.length) return [];
-  var last = rows[rows.length - 1].date, age = todoDaysBetween(last, localDateStr());
+  var last = rows[rows.length - 1].date, age = isoDaysBetween(last, localDateStr());
   if (age < 14) return [];
   return [{ key: 'bankStale', rule: 'bankStale', tone: age >= 30 ? 'red' : 'amber', title: 'Import the bank statement', sub: 'The last row is from ' + formatDate(last),
     why: 'Bank · ' + todoPlural(age, 'day') + ' old', facts: [['Last row', formatDate(last)], ['Age', todoPlural(age, 'day')]],
     clears: 'Clears itself when a newer statement is imported.', go: finGo('bank'), goLabel: 'Open the statement', sig: last }];
 };
 TODO_RULE_FNS.bankLoose = function() {
-  var today = localDateStr(), loose = bankLooseReceipts(finCtx().cls, bankRecvFrom(finCtx().rows)).filter(function(v) { return todoDaysBetween(v.row.date, today) >= 7; });
+  var today = localDateStr(), loose = bankLooseReceipts(finCtx().cls, bankRecvFrom(finCtx().rows)).filter(function(v) { return isoDaysBetween(v.row.date, today) >= 7; });
   if (!loose.length) return [];
   var sum = gstRound(loose.reduce(function(s, v) { return s + v.row.cr; }, 0));
   return [{ key: 'bankLoose', rule: 'bankLoose', tone: loose.length >= 10 || sum >= 100000 ? 'red' : 'amber',
@@ -272,7 +292,7 @@ TODO_RULE_FNS.owed90 = function() {
   // Unplaced receipts may have paid these: until they are placed the figure is an upper bound, never red.
   var loose = bankLooseReceipts(finCtx().cls, bankRecvFrom(finCtx().rows)).length;
   return recv.map(function(r) {
-    var old = r.open.filter(function(o) { return o.inv && todoDaysBetween(o.date, today) > 90; });
+    var old = r.open.filter(function(o) { return o.inv && isoDaysBetween(o.date, today) > 90; });
     if (!old.length) return null;
     var sum = gstRound(old.reduce(function(s, o) { return s + o.due; }, 0));
     return { key: 'owed90:' + r.client.id, rule: 'owed90', tone: !loose && book > 0 && sum >= book * 0.1 ? 'red' : 'amber',
@@ -331,15 +351,13 @@ TODO_RULE_FNS.supplierNoBill = function() {
   });
   var billKeys = Object.keys(bills).map(function(x) { return x.split('|')[0]; });
   finCtx().cls.forEach(function(v) {
-    if (v.cat !== 'supplier' || !(v.row.dr > 0) || todoDaysBetween(v.row.date, today) > 90) return;
-    var pk = bankKey(v.party || ''), nk = bankKey(v.row.narration || ''), m = v.row.date.slice(0, 7);
-    // The payee where the narration names one, else the supplier's name anywhere in the narration (as
-    // finSupplierPaid reads it). An empty or short payee key is a prefix of every supplier's name, and
-    // matched whichever bill came first.
-    var bk = billKeys.find(function(b) { return b.length >= 4 && (pk.length >= 4 ? pk.indexOf(b) === 0 || b.indexOf(pk) === 0 : nk.indexOf(b) >= 0); });
+    if (v.cat !== 'supplier' || !(v.row.dr > 0) || isoDaysBetween(v.row.date, today) > 90) return;
+    // The payee, or the narration where the payee is too short to read, read as finSupplierPaid reads it (one
+    // matcher, bank.js): prefix here and substring there made a payment covered on one screen and not the other.
+    var wk = bankSupplierWritten(v), m = v.row.date.slice(0, 7);
     // A bill dated that month or the one before covers the payment: a bill is paid after it is raised.
-    if (bk && (bills[bk + '|' + m] || bills[bk + '|' + bankPrevMonth(m + '-01')])) return;
-    var gk = (pk || nk) + '|' + m;
+    if (billKeys.some(function(b) { return bankSupplierIs(wk, b) && (bills[b + '|' + m] || bills[b + '|' + bankPrevMonth(m + '-01')]); })) return;
+    var gk = wk + '|' + m;
     var e = byKey[gk] || (byKey[gk] = { name: v.supplier || v.party || v.row.narration, month: m, paid: 0, n: 0 });
     e.paid = gstRound(e.paid + v.row.dr); e.n++;
   });
@@ -361,12 +379,13 @@ TODO_RULE_FNS.wageVsSlip = function() {
   return Object.keys(byMonth).map(function(m) {
     var slip = payrollPaidFor(bankPrevMonth(m + '-01'));
     if (!slip) return null;
-    var off = [];
+    // The slip's rows by worker, matched by name like a roll (payrollRowsByWorker), once per month.
+    var off = [], byW = payrollRowsByWorker(slip.rows);
     Object.keys(byMonth[m]).forEach(function(id) {
-      var row = slip.rows.find(function(r) { var pw = payrollWorker(r); return pw && String(pw.id) === id; });
+      var row = byW[id];
       if (!row) return;
       var owed = gstRound(row.paid != null ? Number(row.paid) : (Number(row.dayPay) || 0) + (Number(row.ot) || 0)), d = gstRound(byMonth[m][id] - owed);
-      if (Math.abs(d) >= 1) off.push([((S.staff || []).find(function(w) { return String(w.id) === id; }) || { name: '?' }).name, d]);
+      if (Math.abs(d) >= 1) off.push([(staffById(id) || { name: '?' }).name, d]);
     });
     if (!off.length) return null;
     var pm = bankPrevMonth(m + '-01');
@@ -379,7 +398,7 @@ TODO_RULE_FNS.wageVsSlip = function() {
 TODO_RULE_FNS.cashSwing = function() {
   var c = bankCover(), today = localDateStr();
   if (!c) return [];
-  var ws = attWeekStartOf(attAddDays(today, -7)), sat = attAddDays(ws, 6);
+  var ws = attWeekStartOf(isoAddDays(today, -7)), sat = isoAddDays(ws, 6);
   if (c.to < sat || c.from > ws) return [];
   var drawn = gstRound(finCtx().cls.reduce(function(s, v) {
     return s + (v.cat === 'wages' && (v.cash || v.staffId == null) && v.row.dr > 0 && attWeekStartOf(v.row.date) === ws ? v.row.dr : 0);

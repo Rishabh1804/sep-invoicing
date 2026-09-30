@@ -74,8 +74,9 @@ test.describe('P42 desktop: to-do, quick actions, attendance paste', () => {
     const day = (await readStoredState(page)).attendance[iso(-1)];
     expect(day.marks.W1).toMatchObject({ st: 'P', hours: 11, ot: 3, area: 'vat-a1' });
     expect(day.marks.W2).toMatchObject({ st: 'P', hours: 8, area: 'barrel' });
-    expect(day.extra).toEqual([{ kind: 'block', areas: ['vat-a1'], crew: ['W1'], hours: 3, from: '06:00', to: '08:30', area: 'vat-a1', src: 'relay',
-      srcHead: 'VAT A 1', srcAreas: ['vat-a1'] }]);   // the heading it came from, kept to learn from a correction (P98)
+    expect(day.extra).toHaveLength(1);
+    expect(day.extra[0]).toMatchObject({ kind: 'block', areas: ['vat-a1'], crew: ['W1'], hours: 3, from: '06:00', to: '08:30', area: 'vat-a1', src: 'relay',
+      srcHead: 'VAT A 1', srcAreas: ['vat-a1'] });   // the heading it came from, kept to learn from a correction (P98)
   });
 
   test('a credit-note task opens the register table with the batch ticked', async ({ page }) => {

@@ -141,16 +141,6 @@ function attParseIso(iso) {
   return new Date(Number(p[0]), Number(p[1]) - 1, Number(p[2]));
 }
 
-function attIso(d) {
-  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') +
-    '-' + String(d.getDate()).padStart(2, '0');
-}
-
-function attAddDays(iso, n) {
-  var d = attParseIso(iso);
-  d.setDate(d.getDate() + n);
-  return attIso(d);
-}
 
 /* Sunday of the PAY WEEK containing iso. The plant runs Mon–Sat and pays the
    weekly tiers on Saturday; a Sunday worked is paid that coming Saturday, so the
@@ -158,12 +148,12 @@ function attAddDays(iso, n) {
 function attWeekStartOf(iso) {
   var d = attParseIso(iso);
   d.setDate(d.getDate() - d.getDay());   // 0 = Sunday
-  return attIso(d);
+  return isoOf(d);
 }
 /* A pay week is numbered by its Saturday, the payout day — the ISO week the
    payout files are named after (`2026-W38-payout-2026-09-19`). */
 function attPayWeekNumber(weekStartIso) {
-  return attWeekNumber(attAddDays(weekStartIso, 6));
+  return attWeekNumber(isoAddDays(weekStartIso, 6));
 }
 
 /* ISO-8601 week number, so a week here is the same week soma-internal's
@@ -184,7 +174,7 @@ function attDayName(iso) {
    sundays"). */
 function attWeekDays(weekStartIso) {
   var out = [];
-  for (var i = 0; i < 7; i++) out.push(attAddDays(weekStartIso, i));
+  for (var i = 0; i < 7; i++) out.push(isoAddDays(weekStartIso, i));
   return out;
 }
 
@@ -193,11 +183,44 @@ function attDatesInRange(fromIso, toIso) {
   var out = [], cur = fromIso;
   if (!fromIso || !toIso || fromIso > toIso) return out;
   var guard = 0;
-  while (cur <= toIso && guard++ < 4000) { out.push(cur); cur = attAddDays(cur, 1); }
+  while (cur <= toIso && guard++ < 4000) { out.push(cur); cur = isoAddDays(cur, 1); }
   return out;
 }
 
 /* ===== STORE ===== */
+/* A day's data is deleted only with a reason, and never without trace (owner, 30 Sep 2026: "there is no way to delete a
+   day's data after providing a reason that can be logged"). The whole day goes to S.attendanceDeletes as it was, with the
+   reason and when, so History can say what was removed and why, and an audit can tell a day nobody typed from one
+   somebody deleted. The day's heads-needed figures (S.shiftNeeds) are not attendance and stay. */
+function attDeleteRecord(key, reason, how) {
+  var rec = (S.attendance || {})[key];
+  if (!rec) return null;
+  var marks = Object.keys(rec.marks || {}).length, extra = (rec.extra || []).length;
+  var entry = { id: 'AD-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), key: key,
+    iso: /^\d{4}-\d{2}-\d{2}$/.test(key) ? key : null, reason: reason, how: how || 'by hand', at: Date.now(),
+    marks: marks, extra: extra, day: JSON.parse(JSON.stringify(rec)) };
+  if (!Array.isArray(S.attendanceDeletes)) S.attendanceDeletes = [];
+  S.attendanceDeletes.push(entry);
+  delete S.attendance[key];
+  return entry;
+}
+async function attDeleteDay(iso) {
+  var rec = (S.attendance || {})[iso];
+  if (!rec) return;
+  var marks = Object.keys(rec.marks || {}).length, extra = (rec.extra || []).length;
+  var reason = await uiPrompt({ title: 'Delete ' + formatDate(iso), danger: true, okLabel: 'Delete day',
+    body: 'All of this day\u2019s attendance goes: ' + marks + ' mark' + (marks === 1 ? '' : 's') + ' and ' + extra + ' EXTRA row' + (extra === 1 ? '' : 's') +
+      '. It is kept in the log with the reason, and History lists it.',
+    label: 'Why is this day being deleted?', required: true, requiredText: 'A deleted day needs a reason.' });
+  if (reason == null) return;
+  if (!reason.trim()) { showToast('A deleted day needs a reason', 'error'); return; }
+  if (!(S.attendance || {})[iso]) return;
+  attDeleteRecord(iso, reason.trim(), 'by hand');
+  saveState();
+  renderAttendance();
+  showToast(formatDate(iso) + ' deleted; the reason is in History');
+}
+
 function attDay(iso, create) {
   if (!S.attendance) S.attendance = {};
   var rec = S.attendance[iso];
@@ -216,8 +239,12 @@ function attMark(iso, staffId) {
   return rec.marks[staffId] || null;
 }
 
+/* The one lookup of a worker by id. Ids are numbers on a device and text in a picker's value, a mark's key or some
+   imports, so they are compared as text. */
 function staffById(id) {
-  return (S.staff || []).find(function(w) { return w.id === id; });
+  if (id == null || id === '') return undefined;
+  var k = String(id);
+  return (S.staff || []).find(function(w) { return String(w.id) === k; });
 }
 
 /* Active roster, leads and permanents first so the week grid reads the way the
@@ -322,8 +349,12 @@ function _attPasteBar() {
   return '<div class="inv-toolbar"><button class="inv-btn inv-btn-primary" data-action="invAttView" data-view="paste">Paste message</button></div>';
 }
 
+var _attDateSeen = null;   // the day the week last followed
 function renderAttendance() {
   if (!_attDate) _attDate = localDateStr();
+  // The week follows the Day view's day whenever that day moves, by the stepper, Today, the Overview or a saved roll:
+  // Week, Pay and Areas then open on the week of the day just looked at. A week stepped to on its own view stays.
+  if (_attDate !== _attDateSeen) { _attWeekStart = attWeekStartOf(_attDate); _attDateSeen = _attDate; }
   if (!_attWeekStart) _attWeekStart = attWeekStartOf(_attDate);
   if (_attView !== 'paste') _attPrevView = _attView;
 
@@ -400,7 +431,8 @@ function _attDayView() {
     '<span class="inv-stepper-sub">' + attDayName(iso) + '</span>',
     'invAttToday', 'Today', 'Previous day', 'Next day') +
     // Paste message stays the one primary; the paper forms for the day sit beside it (attsheet.js).
-    _attPasteBar().replace('</div>', '<button class="inv-btn inv-btn-secondary" data-action="invAttSheetOpen">Print sheets</button></div>');
+    _attPasteBar().replace('</div>', '<button class="inv-btn inv-btn-secondary" data-action="invAttSheetOpen">Print sheets</button>' +
+      (rec ? '<button class="inv-btn inv-btn-danger" data-action="invAttDayDelete">Delete this day</button>' : '') + '</div>');
 
   var tile = function(id, label, value, sub, tone) {
     return '<div class="inv-tile' + (tone ? ' inv-tile-' + tone : '') + '"><div class="inv-tile-label">' + label + '</div>' +
@@ -473,12 +505,11 @@ function _attDayView() {
    barrel line, the 6 AM VAT slot — with no person attached. They are real paid
    hours at the contract tier, and the payout sheet settles them.
 
-   So they are recorded as what they are: hours booked to an area, unattributed.
-   Spreading them across the men present would produce a per-worker cost that
-   reads precise and is invented, and the one question this tab exists to answer
-   is which labour is fixed and which scales — a question that spreading would
-   silently answer for us. The labour card counts them in the bill and reports
-   them separately as unattributed. */
+   So they are recorded as what they are: hours booked to an area. In the bill they
+   are one pooled line, counted once, and never enter a per-worker wage, so the
+   fixed-versus-variable split does not turn on how they are shared. Who receives
+   them is ruled (28 Aug 2026): the short area's present crew, pro-rata, paid out
+   by the supervisor on the floor — the Areas card works out that split. */
 /* The three things a block row needs and a general-shift row does not.
 
    In and out give the multiplier; the areas give the complement; the crew
@@ -554,12 +585,14 @@ function _attBlockFields(x, i, siblings) {
 
   // The prediction, in place, so the operator sees the check as they type it
   // rather than having to leave for the Areas view to find out.
-  var norm = blockNorm({ areas: areas }, [{ areas: areas }].concat(siblings || []));
+  // The block itself, so its own Needed wins over the complement the way it does on the Areas card.
+  var norm = blockNorm(x, [x].concat(siblings || []));
   // The preview must refuse on exactly the conditions `areaStats` refuses on,
-  // or the two surfaces disagree about the same row. A MISSING crew key is not
-  // a crew of zero: zero heads is a real reading (the shop books a fully-short
-  // line that way), but nobody having typed the crew is not.
-  var hasCrew = Array.isArray(x.crew);
+  // or the two surfaces disagree about the same row. A crew nobody named is not
+  // a crew of zero: zero heads is a real reading only where a sibling row of the
+  // same block names its crew (the shop books a fully-short line that way), and
+  // never for a crew the import could not match.
+  var hasCrew = crew.length > 0 || (!x.crewUnknown && (siblings || []).some(function(r) { return Array.isArray(r.crew) && r.crew.length > 0; }));
   if (hrs != null && norm != null && hasCrew) {
     var short = Math.max(0, norm - crew.length);
     var expect = gstRound(short * hrs);
@@ -585,11 +618,12 @@ function _attBlockFields(x, i, siblings) {
 /* Needed today: the heads each floor area stood on the general shift against what the shift needed (areaNeedOn). The
    box starts at the area's usual complement and takes the day's own number; blank goes back to the usual. */
 function _attNeedCard(iso, rec) {
+  // Every hand marked that day counts where the mark says, one who has since left included (the Areas card's rule).
   var heads = {};
-  (rec ? staffActive() : []).forEach(function(w) {
-    var m = rec.marks[w.id];
+  Object.keys(rec ? rec.marks : {}).forEach(function(id) {
+    var m = rec.marks[id], w = staffById(id);
     if (!m || (m.st !== 'P' && m.st !== 'H')) return;
-    var a = m.area || w.area || 'flex';
+    var a = m.area || (w && w.area) || 'flex';
     heads[a] = (heads[a] || 0) + 1;
   });
   var html = '<div class="inv-panel inv-panel-flush" id="attNeed"><div class="inv-panel-head"><span class="inv-panel-title">Needed today</span></div>' +
@@ -613,6 +647,7 @@ function setAttBlockNeed(idx, v) {
   if (!rec || !rec.extra[idx]) return;
   var n = String(v).trim() === '' ? NaN : Math.floor(Number(v));
   if (!isNaN(n) && n >= 0) rec.extra[idx].need = n; else delete rec.extra[idx].need;
+  _attHandEdit(rec.extra[idx]);
   saveState();
 }
 
@@ -724,7 +759,7 @@ function _attWeekView() {
       return '<td class="inv-num"' + (attParseIso(d).getDay() === 0 ? ' data-sun' : '') + '>' + n + '<span class="inv-unit">/' + roster.length + '</span></td>';
     }).join('') + '</tr></tfoot></table></div></div>';
 
-  html += renderLabourCard(_attWeekStart, attAddDays(_attWeekStart, 6), 'Week cost');
+  html += renderLabourCard(_attWeekStart, isoAddDays(_attWeekStart, 6), 'Week cost');
   return html;
 }
 
@@ -802,15 +837,17 @@ function workerOtHourPay(w, cfg, iso) {
   return pay;
 }
 
+/* The OT figure is what one overtime hour pays going forward (workerOtHourPay): the rate × the multiplier, the monthly
+   tier capped. It showed the rate before either, so Shyam's ₹576 a day read ₹72.00/h where an hour pays ₹68.20. */
 function workerRateLabel(w) {
-  var cls = compClass(w.comp);
+  var cls = compClass(w.comp), cfg = labourCfg();
   if (cls.id === 'hourly') return formatCurrency(w.hourRate || 0) + '/h, every hour';
-  var ot = workerOtRate(w);
+  var pay = workerOtHourPay(w, cfg), capped = cls.id === 'monthly' && cfg.otCap > 0 && workerOtRate(w) * cfg.otMult > pay + 0.001;
+  var ot = 'OT ' + formatCurrency(pay) + '/h' + (capped ? ' (capped)' : cls.id === 'monthly' && !(w.hourRate > 0) ? ' (day rate ÷ 8 × ' + formatNum(cfg.otMult, 1) + ')' : '');
   if (cls.id === 'monthly' && w.monthWage > 0) {
-    return formatCurrency(w.monthWage) + '/month · ' + formatCurrency(workerDayRate(w)) + '/day this month · OT ' + formatCurrency(ot) + '/h';
+    return formatCurrency(w.monthWage) + '/month · ' + formatCurrency(workerDayRate(w)) + '/day this month · ' + ot;
   }
-  return formatCurrency(w.dayRate || 0) + '/day · OT ' + formatCurrency(ot) + '/h' +
-    (cls.id === 'monthly' && !(w.hourRate > 0) ? ' (derived)' : '');
+  return formatCurrency(w.dayRate || 0) + '/day · ' + ot;
 }
 
 /* ===== ACTIONS ===== */
@@ -820,7 +857,7 @@ function attSetView(view) {
 }
 
 function attStepDay(n) {
-  _attDate = attAddDays(_attDate || localDateStr(), n);
+  _attDate = isoAddDays(_attDate || localDateStr(), n);
   renderAttendance();
 }
 
@@ -831,7 +868,7 @@ function attGoToday() {
 }
 
 function attStepWeek(n) {
-  _attWeekStart = attAddDays(_attWeekStart || attWeekStartOf(localDateStr()), n * 7);
+  _attWeekStart = isoAddDays(_attWeekStart || attWeekStartOf(localDateStr()), n * 7);
   renderAttendance();
 }
 
@@ -858,6 +895,7 @@ function attSetState(iso, staffId, st) {
   } else {
     var m = rec.marks[staffId] || { ot: 0, hours: 0, area: w.area || 'flex' };
     m.st = st;
+    _attHandEdit(m);
     // Absent pays nothing and worked nothing: hours that nobody was here for
     // are not hours, in either tier.
     if (st === 'A') { m.ot = 0; m.hours = 0; }
@@ -888,6 +926,7 @@ function setAttOt(staffId, hours) {
   var m = attMark(_attDate, staffId);
   if (!m) return;                       // OT without a presence mark is not a fact
   m.ot = Math.max(0, Number(hours) || 0);
+  _attHandEdit(m);
   saveState();
 }
 
@@ -897,6 +936,7 @@ function setAttHours(staffId, hours) {
   var m = attMark(_attDate, staffId);
   if (!m) return;
   m.hours = Math.max(0, Number(hours) || 0);
+  _attHandEdit(m);
   saveState();
 }
 
@@ -904,6 +944,7 @@ function setAttArea(staffId, areaId) {
   var m = attMark(_attDate, staffId);
   if (!m) return;
   m.area = areaId;
+  _attHandEdit(m);
   saveState();
 }
 
@@ -945,10 +986,16 @@ function attRemoveExtra(idx) {
 function relayLearnFromRow(x) {
   if (!x) return;
   var L = relayLearnData(), at = Date.now();
-  if (x.srcHead) {
-    var k = relayHeadKey(x.srcHead), now = extraAreas(x), was = x.srcAreas || [];
-    if (now.slice().sort().join() === was.slice().sort().join()) delete L.heads[k];
-    else L.heads[k] = { areas: now, was: was, text: x.srcHead, at: at, day: _attDate };
+  // Kept under the heading AND its slot (relayLearnKey), so a correction to the evening block's "VAT A 1" never moves the
+  // 8:30 shift's. A row saved before the slot was kept on it teaches nothing: its lesson would have no slot to go to.
+  if (x.srcHead && x.srcAt) {
+    var k = relayLearnKey(x.srcHead, x.srcAt), was = x.srcAreas || [], cov = extraIsCoverage(x);
+    // A general-shift row books to one area of every area its heading read: the lesson keeps them all (each hand stays
+    // at his own) and puts the corrected one first, which is the one its EXTRA books to.
+    var now = cov ? [x.area].concat(was.filter(function(a) { return a !== x.area; })) : extraAreas(x);
+    var asRead = cov ? x.area === was[0] : now.slice().sort().join() === was.slice().sort().join();
+    if (asRead) delete L.heads[k];
+    else L.heads[k] = { areas: now, was: was, text: x.srcHead, slot: x.srcAt, at: at, day: _attDate };
   }
   if (x.srcSlot && x.kind === 'block') {
     var ks = relayHeadKey(x.srcSlot);
@@ -957,10 +1004,15 @@ function relayLearnFromRow(x) {
   }
 }
 
+/* A mark or an EXTRA row the roll wrote and somebody then changed by hand is the owner's from then on, like one entered
+   by hand: the next roll keeps it rather than writing over the correction (relayPlan reads `src`). */
+function _attHandEdit(o) { if (o && o.src === 'relay') delete o.src; }
+
 function setAttExtraArea(idx, areaId) {
   var rec = attDay(_attDate, false);
   if (!rec || !rec.extra[idx]) return;
   rec.extra[idx].area = areaId;
+  _attHandEdit(rec.extra[idx]);
   relayLearnFromRow(rec.extra[idx]);
   saveState();
 }
@@ -970,6 +1022,7 @@ function setAttExtraKind(idx, kind) {
   if (!rec || !rec.extra[idx]) return;
   var x = rec.extra[idx];
   x.kind = EXTRA_KINDS.some(function(k) { return k.id === kind; }) ? kind : 'coverage';
+  _attHandEdit(x);
   // Flipping back to a general shift must CLEAR the block-only fields. Left
   // behind, `areas[]` still splits the row's hours across areas the UI no
   // longer shows (the select renders `x.area` alone) while `_absorption`'s
@@ -985,6 +1038,7 @@ function setAttBlockTime(idx, which, value) {
   var rec = attDay(_attDate, false);
   if (!rec || !rec.extra[idx]) return;
   rec.extra[idx][which === 'to' ? 'to' : 'from'] = String(value || '');
+  _attHandEdit(rec.extra[idx]);
   relayLearnFromRow(rec.extra[idx]);
   saveState();
 }
@@ -1006,6 +1060,7 @@ function toggleAttBlockArea(idx, areaId) {
   // cost tallies bucket on, and a row that lost its last area would otherwise
   // keep booking against whichever one it used to name.
   x.area = list.length ? list[0] : 'flex';
+  _attHandEdit(x);
   relayLearnFromRow(x);
   saveState();
 }
@@ -1020,6 +1075,7 @@ function toggleAttBlockCrew(idx, workerId) {
   var at = list.indexOf(id);
   if (at >= 0) list.splice(at, 1); else list.push(id);
   x.crew = list;
+  _attHandEdit(x);
   saveState();
 }
 
@@ -1027,6 +1083,7 @@ function setAttExtraHours(idx, hours) {
   var rec = attDay(_attDate, false);
   if (!rec || !rec.extra[idx]) return;
   rec.extra[idx].hours = Math.max(0, Number(hours) || 0);
+  _attHandEdit(rec.extra[idx]);
   saveState();
 }
 
@@ -1157,12 +1214,21 @@ function _attMarkCount(staffId) {
   return n;
 }
 
+/* Payments that name this worker: Pay's payments and advances, and the bank's wage rules and row settings. */
+function _attPayRefs(staffId) {
+  var k = String(staffId), n = 0, bank = S.bank || {};
+  (S.staffPayments || []).forEach(function(p) { if (String(p.staffId) === k) n++; });
+  Object.keys(bank.parties || {}).forEach(function(q) { var r = bank.parties[q]; if (r && r.staffId != null && String(r.staffId) === k) n++; });
+  (bank.rows || []).forEach(function(r) { if (r.set && r.set.staffId != null && String(r.set.staffId) === k) n++; });
+  return n;
+}
+
 function saveWorker(id, mode) {
   var name = document.getElementById('wedName').value.trim();
   if (!name) { showToast('Worker name is required', 'error'); return; }
   var comp = document.getElementById('wedComp').value;
   var dup = (S.staff || []).find(function(x) {
-    return x.id !== id && (x.name || '').trim().toLowerCase() === name.toLowerCase();
+    return x.id !== id && staffNameKey(x.name) === staffNameKey(name);
   });
   if (dup) { showToast('Already on the roster: ' + dup.name, 'error'); return; }
 
@@ -1202,7 +1268,14 @@ function saveWorker(id, mode) {
   } else {
     var w = staffById(id);
     if (!w) return;
+    // A renamed worker keeps the old name as a spelling, as a merge keeps the retired row's: rolls and payroll slips
+    // written under it are matched by name alone, and a rename cut the worker off from every slip (the review, 30 Sep 2026).
+    var oldName = w.name;
     Object.keys(fields).forEach(function(k) { w[k] = fields[k]; });
+    if (oldName && relayKey(oldName) && relayKey(oldName) !== relayKey(w.name)) {
+      w.relayNames = w.relayNames || [];
+      if (!w.relayNames.some(function(x) { return relayKey(x) === relayKey(oldName); })) w.relayNames.push(String(oldName).toUpperCase());
+    }
   }
   saveState();
   closeOverlay();
@@ -1316,7 +1389,9 @@ function importRoster() {
 function buildNameAliases(aliases) {
   var out = { key: {}, spellings: {}, refused: {}, conflicts: 0 };
   if (!aliases || typeof aliases !== 'object' || Array.isArray(aliases)) return out;
-  var norm = function(v) { return String(v == null ? '' : v).trim().toLowerCase(); };
+  // Names are keyed the way a roll reads them (relayKey): case, spaces and punctuation aside. Trim and lower case alone
+  // read "Sarat  Mahato" and "SARAT MAHATO." as two people and added the second.
+  var norm = relayKey;
 
   // Canonicals first, so an alias can never claim a name that is somebody's
   // canonical spelling regardless of the order the file happens to list them.
@@ -1363,8 +1438,15 @@ function buildNameAliases(aliases) {
    Falling back to the name keeps this a strict widening of the old rule: a file
    carrying no aliases resolves exactly as before. */
 function aliasKey(name, al) {
-  var n = String(name == null ? '' : name).trim().toLowerCase();
-  return (al && al.key[n]) || n;
+  var n = relayKey(name);
+  return (al && al.key[n]) || staffNameKey(name);
+}
+/* Who a roster name is: its letters as a roll reads them, with its digits, or the name itself when it has no Latin
+   letters. relayKey alone keeps A-Z only, so 'Ramu 1' and 'Ramu 2' were one worker to the roster (the second refused,
+   an import merging it into the first) and every name written in Devanagari keyed to nothing (the review, 30 Sep 2026). */
+function staffNameKey(name) {
+  var k = relayKey(name), d = String(name || '').replace(/\D/g, '');
+  return (k || String(name || '').trim().toLowerCase().replace(/\s+/g, ' ')) + (d ? '#' + d : '');
 }
 
 /* The merge itself, split out so it can be tested without a file picker. */
@@ -1393,18 +1475,21 @@ function applyRosterImport(data) {
     // the comp migration has already run and cannot repair it. Retired ids are
     // translated; anything else unrecognised takes the fallback.
     var comp = compClass(STAFF_COMP_ALIASES[row.comp] || row.comp).id;
-    var fields = {
-      comp: comp,
-      dayRate: Math.max(0, Number(row.dayRate) || 0),
-      hourRate: Math.max(0, Number(row.hourRate) || 0),
-      monthWage: comp === 'monthly' ? Math.max(0, Number(row.monthWage) || 0) : 0,
-      area: STAFF_AREAS.some(function(a) { return a.id === rowArea; }) ? rowArea : 'flex',
-      onFloor: row.onFloor !== false,
-      active: row.active !== false
-    };
     var key = aliasKey(name, al);
     var group = S.staff.filter(function(x) { return aliasKey(x.name, al) === key; });
     var existing = group[0];
+    // A worker already on the roster takes only the fields the file carries: a file naming a hand's new area must not
+    // zero the rates it did not mention, nor set a hand the owner cleared Active back to active.
+    var has = function(k) { return row[k] !== undefined && row[k] !== null && row[k] !== ''; };
+    var nextComp = existing && !has('comp') ? existing.comp : comp;
+    var fields = {};
+    if (!existing || has('comp')) fields.comp = comp;
+    if (!existing || has('dayRate')) fields.dayRate = Math.max(0, Number(row.dayRate) || 0);
+    if (!existing || has('hourRate')) fields.hourRate = Math.max(0, Number(row.hourRate) || 0);
+    if (!existing || has('monthWage') || nextComp !== 'monthly') fields.monthWage = nextComp === 'monthly' ? Math.max(0, Number(row.monthWage) || 0) : 0;
+    if (!existing || has('area')) fields.area = STAFF_AREAS.some(function(a) { return a.id === rowArea; }) ? rowArea : 'flex';
+    if (!existing || has('onFloor')) fields.onFloor = row.onFloor !== false;
+    if (!existing || has('active')) fields.active = row.active !== false;
     // The roster ALREADY holding two rows for one person is the state this map
     // is meant to have prevented, and an import cannot repair it: collapsing
     // them here would destroy days without showing the operator which ones both
@@ -1538,14 +1623,23 @@ function applyAttendanceImport(data, al) {
   // it for free, which matters: a crew name that failed to match makes the whole
   // row Not checkable, so an unbridged alias would take real booked hours out
   // of the reconciler as well as out of the wage.
-  var byName = {};
+  var byName = {}, byExact = {}, shared = {};
   (S.staff || []).forEach(function(w) {
-    var n = String(w.name || '').trim().toLowerCase();
+    var n = relayKey(w.name);
+    byExact[staffNameKey(w.name)] = w.id;
+    // A letters-only key two workers share names neither ('Ramu 1', 'Ramu 2'): the exact key has to decide.
+    if (byName[n] != null && byName[n] !== w.id) shared[n] = true;
     byName[n] = w.id;
     ((al.spellings[aliasKey(n, al)]) || []).forEach(function(sp) {
       if (byName[sp] == null) byName[sp] = w.id;
     });
   });
+  function importWorkerId(name) {
+    var e = byExact[staffNameKey(name)];
+    if (e != null) return e;
+    var k = relayKey(name);
+    return shared[k] ? null : byName[k];
+  }
 
   Object.keys(src).forEach(function(iso) {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(iso)) { out.daysDropped++; return; }
@@ -1555,7 +1649,7 @@ function applyAttendanceImport(data, al) {
     var rec = { marks: {}, extra: [], note: String(day.note || '') };
 
     (Array.isArray(day.marks) ? day.marks : []).forEach(function(m) {
-      var id = byName[String((m && m.name) || '').trim().toLowerCase()];
+      var id = importWorkerId(m && m.name);
       if (id == null) { out.marksDropped++; return; }
       // The state is normalised before it is judged, and an unrecognised one is
       // DROPPED AND COUNTED, never coerced: the old fallback turned a mistyped
@@ -1576,7 +1670,7 @@ function applyAttendanceImport(data, al) {
     });
 
     (Array.isArray(day.extra) ? day.extra : []).forEach(function(x) {
-      var e = importedExtra(x, byName, out);
+      var e = importedExtra(x, importWorkerId, out);
       // A refused row is COUNTED, never silently dropped — booked hours leaving
       // the bill with nothing on screen saying why is the failure the marks
       // side already refuses, applied to money instead of people.
@@ -1595,7 +1689,7 @@ function applyAttendanceImport(data, al) {
    as "Not checkable" when any is missing. That refusal is the point: a block
    whose crew was never written down is honestly unverifiable, and the hours are
    still counted in the bill, because unverifiable is not unpaid. */
-function importedExtra(x, byName, counters) {
+function importedExtra(x, workerId, counters) {
   if (!x || typeof x !== 'object') return null;
   var hours = Math.max(0, Number(x.hours) || 0);
   var kind = EXTRA_KINDS.some(function(k) { return k.id === x.kind; }) ? x.kind : 'coverage';
@@ -1620,7 +1714,7 @@ function importedExtra(x, byName, counters) {
     var crew = [];
     var unresolved = false;
     (Array.isArray(x.crew) ? x.crew : []).forEach(function(n) {
-      var id = byName[String(n || '').trim().toLowerCase()];
+      var id = workerId(n);
       if (id == null) { unresolved = true; return; }
       if (crew.indexOf(id) === -1) crew.push(id);
     });
@@ -1710,6 +1804,16 @@ function mergeWorkers(fromId, intoId) {
     });
   });
 
+  // Money that names the worker follows the merge too: payments and advances, the bank's wage rules and the wage set on
+  // a statement row, and an as-paid slip row's id. Left behind, they named a worker who no longer exists.
+  var same = function(v) { return v != null && String(v) === String(fromId); };
+  var payments = 0;
+  (S.staffPayments || []).forEach(function(p) { if (same(p.staffId)) { p.staffId = intoId; payments++; } });
+  var bank = S.bank || {};
+  Object.keys(bank.parties || {}).forEach(function(k) { var r = bank.parties[k]; if (r && same(r.staffId)) { r.staffId = intoId; payments++; } });
+  (bank.rows || []).forEach(function(r) { if (r.set && same(r.set.staffId)) { r.set.staffId = intoId; payments++; } });
+  (S.payrollPaid || []).forEach(function(rec) { (rec.rows || []).forEach(function(r) { if (same(r.staffId)) r.staffId = intoId; }); });
+
   // The row going away was a spelling of this person; the roll may still use it.
   [from.name].concat(from.relayNames || []).forEach(function(n) {
     var k = relayKey(n);
@@ -1721,7 +1825,7 @@ function mergeWorkers(fromId, intoId) {
   var idx = (S.staff || []).findIndex(function(w) { return w.id === fromId; });
   if (idx !== -1) S.staff.splice(idx, 1);
 
-  return { moved: moved, collided: collided, crews: crews,
+  return { moved: moved, collided: collided, crews: crews, payments: payments,
            collisionDays: collisionDays.sort(), fromName: from.name, intoName: into.name };
 }
 
@@ -1763,7 +1867,8 @@ async function mergeWorkerInto(fromId) {
   renderAttendance();
   showToast('Merged into ' + res.intoName + ' \u2014 ' + res.moved + ' day' +
     (res.moved === 1 ? '' : 's') + ' moved' +
-    (res.crews ? ', ' + res.crews + ' block crew' + (res.crews === 1 ? '' : 's') + ' re-pointed' : ''),
+    (res.crews ? ', ' + res.crews + ' block crew' + (res.crews === 1 ? '' : 's') + ' re-pointed' : '') +
+    (res.payments ? ', ' + res.payments + ' payment' + (res.payments === 1 ? '' : 's') + ' moved with them' : ''),
     res.collided ? 'warning' : 'success');
 
   /* The collided days do not fit in a toast, and they are the half that costs
@@ -1812,6 +1917,13 @@ async function deleteWorker(id) {
   if (marks > 0) {
     showToast('Cannot delete: ' + w.name + ' is on ' + marks + ' recorded day' +
       (marks === 1 ? '' : 's') + '. Clear Active instead.', 'error');
+    return;
+  }
+  // A payment naming them is a record the same way a day is (a void one included: it is kept, not deleted), and so is a
+  // wage the bank statement sets against them. Deleting would leave each reading "Removed worker".
+  var pays = _attPayRefs(id);
+  if (pays > 0) {
+    showToast('Cannot delete: ' + pays + ' payment' + (pays === 1 ? ' names ' : 's name ') + w.name + '. Clear Active instead.', 'error');
     return;
   }
   if (!(await uiConfirm({ title: 'Delete ' + w.name + ' from the roster?', body: 'No day names them, so nothing is lost with the row.', okLabel: 'Delete', danger: true }))) return;

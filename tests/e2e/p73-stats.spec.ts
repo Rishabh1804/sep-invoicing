@@ -71,7 +71,8 @@ test.describe('P73: Stats', () => {
     await expect(rows).toHaveCount(2);
     await expect(rows.nth(0)).toContainText('BETA CLAMPS');
     await expect(rows.nth(0).locator('.inv-dot-danger')).toHaveText('Below cost');
-    await expect(page.locator('#statsMargin tbody tr').nth(0).locator('td.inv-num-neg')).toHaveCount(3);
+    // vs full and the ₹ on the period; vs var. is withheld while labour's split is not known (nothing recorded).
+    await expect(page.locator('#statsMargin tbody tr').nth(0).locator('td.inv-num-neg')).toHaveCount(2);
     await expect(page.locator('[data-card="revenue"] .inv-seg [data-chart="bar"]')).toHaveAttribute('aria-pressed', 'true');
     await rows.nth(0).click();
     const card = page.locator('.inv-dialog[data-drill="72"]');

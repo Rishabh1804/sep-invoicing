@@ -130,6 +130,15 @@ function findChallanDuplicates(candidate, excludeId) {
  * ch 248 and ch 110 collapsed into a single invoice and cost nothing, while
  * ch 47 and ch 932 became real output tax. The collection-level check cannot
  * tell those apart; following the line items into `invoices` can.
+ *
+ * Each verdict says only what the links show (the QA sweep, 29 Sep 2026: "Collapsed into one invoice" was said of a
+ * group with a copy still open, and of two copies on one invoice without looking at what that invoice billed):
+ *   - copies on different invoices: billed twice;
+ *   - one invoice whose lines name the lines of two copies: billed twice on it;
+ *   - nothing billed: still preventable;
+ *   - a copy billed and another still open: the open one is what can still reach a bill;
+ *   - copies marked billed by one invoice that names no challan line (saved before lines were linked): that invoice
+ *     is read for the group's quantities — once is collapsed, twice is billed twice, neither is left to check.
  */
 function imDuplicateVerdict(group) {
   var invoiceIds = {};
@@ -144,12 +153,42 @@ function imDuplicateVerdict(group) {
     });
     if (hit) invoicedCopies++;
   });
-  var distinct = Object.keys(invoiceIds).length;
+  var distinct = Object.keys(invoiceIds);
+  var open = group.length - invoicedCopies;
   // Two copies each reaching a bill, on different invoices. One copy invoiced in
   // parts reaches several invoices by design and bills nothing twice.
-  if (distinct > 1 && invoicedCopies > 1) return { key: 'billed', label: 'Billed twice', tone: 'danger' };
+  if (distinct.length > 1 && invoicedCopies > 1) return { key: 'billed', label: 'Billed twice', tone: 'danger' };
   if (invoicedCopies === 0) return { key: 'open', label: 'Unbilled — still preventable', tone: 'warning' };
-  return { key: 'collapsed', label: 'Collapsed into one invoice', tone: 'info' };
+  if (open > 0) return { key: 'partOpen', label: invoicedCopies + ' billed, ' + open + ' still open — still preventable', tone: 'warning' };
+  var inv = distinct.length === 1 ? (S.invoices || []).find(function(i) { return i.id === distinct[0]; }) : null;
+  var times = inv ? imDupeTimesOnInvoice(group, inv) : 0;
+  if (times > 1) return { key: 'billedOne', label: 'Billed twice on one invoice', tone: 'danger' };
+  if (times === 1) return { key: 'collapsed', label: 'Collapsed into one invoice', tone: 'info' };
+  return { key: 'oneInvoice', label: 'On one invoice — check it bills them once', tone: 'warning' };
+}
+
+/* How many copies of the group one invoice bills: lines linked to a copy's lines count by the link, lines saved before
+   links by their unit and quantity. The fewest times any of one copy's lines is met. */
+function imDupeTimesOnInvoice(group, inv) {
+  var own = {}, linked = {};
+  group.forEach(function(im) { im.items.forEach(function(it) { own[it.id] = im.id; }); });
+  var have = {};
+  (inv.items || []).forEach(function(li) {
+    if (li.imItemId) { if (own[li.imItemId]) linked[own[li.imItemId]] = true; return; }
+    var k = (li.unit || 'KG') + ':' + Math.round((Number(li.qty) || 0) * 1000) / 1000;
+    have[k] = (have[k] || 0) + 1;
+  });
+  var copies = Object.keys(linked).length;
+  if (copies > 1) return copies;
+  var need = {};
+  group[0].items.forEach(function(it) {
+    if (!(Number(it.qty) > 0)) return;
+    var k = (it.unit || 'KG') + ':' + Math.round(Number(it.qty) * 1000) / 1000;
+    need[k] = (need[k] || 0) + 1;
+  });
+  var times = Infinity;
+  Object.keys(need).forEach(function(k) { times = Math.min(times, Math.floor((have[k] || 0) / need[k])); });
+  return copies + (isFinite(times) ? times : 0);
 }
 
 /* Value of the surplus copies: everything beyond the first. */
@@ -309,7 +348,9 @@ function runIMDuplicateScan() {
   dialogOpen(html);
 }
 
-/* Close the scan, filter the list down to that client, and open the challan. */
+/* Open one challan on the IM page: filtered to its client, on the tab and month it is listed under, expanded, and
+   brought into view. The duplicate check's Locate and History's jump both come here. A row the list keeps under
+   "Show more" is shown first: scrolling to a hidden row did nothing, and a big client's month holds more than thirty. */
 function imLocateChallan(imId) {
   var im = (S.incomingMaterial || []).find(function(m) { return m.id === imId; });
   if (!im) { showToast('Challan not found', 'warning'); return; }
@@ -322,10 +363,16 @@ function imLocateChallan(imId) {
   _imActiveChallanId = imId;
 
   _imToolbarRendered = false;
-  renderIMToolbar();
-  _imToolbarRendered = true;
-  _renderIMView();
+  var page = document.getElementById('pageIM');
+  if (page && !page.classList.contains('inv-page-active')) switchTab('pageIM');
+  else {
+    renderIMToolbar();
+    _imToolbarRendered = true;
+    _renderIMView();
+  }
 
-  var target = document.querySelector('[data-id="' + imId + '"]');
-  if (target && target.scrollIntoView) target.scrollIntoView({ block: 'center' });
+  var row = document.querySelector('#imList [data-im="' + imId + '"]');
+  var hidden = row && row.closest('[data-more-of]');
+  if (hidden) uiShowMore(hidden.getAttribute('data-more-of'));
+  if (row && row.scrollIntoView) row.scrollIntoView({ block: 'center' });
 }

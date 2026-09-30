@@ -102,8 +102,9 @@ test('P20: creating it inline fills the line and never leaves the form', async (
 
   // And the line now carries it, gauge folded into the description the way
   // every other part-selection path does it.
-  const desc = page.locator('[data-action="invEditChallanPart"][data-idx="0"]');
-  await expect(desc).toHaveValue('BRACKET 990 (25X4)');
+  // The Part field holds the part number, the description is said under the line (P106, C4).
+  await expect(page.locator('[data-action="invEditChallanPart"][data-idx="0"]')).toHaveValue('BRACKET 990');
+  await expect(page.locator('#imDesc0')).toContainText('BRACKET 990 (25X4)');
 });
 
 test('P20: the same affordance exists on the invoice line', async ({ page }) => {
@@ -137,8 +138,8 @@ test('P20: a lone real match still commits on Enter with the add row present', a
   // must still take it without an arrow press first — the documented shortcut.
   await part.press('Enter');
 
-  await expect(page.locator('[data-action="invEditChallanPart"][data-idx="0"]'))
-    .toHaveValue('CLAMP 165X83 (NT) (40X6)');
+  await expect(page.locator('[data-action="invEditChallanPart"][data-idx="0"]')).toHaveValue('CLAMP 165X83');
+  await expect(page.locator('#imDesc0')).toContainText('CLAMP 165X83 (NT) (40X6)');
   await expect(page.locator('#itemEditPN')).toHaveCount(0);
 });
 

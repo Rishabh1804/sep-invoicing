@@ -1,6 +1,7 @@
 import { defineConfig, devices } from '@playwright/test';
 
-const PORT = 4173;
+// PW_PORT runs a second suite beside one already serving 4173 (each run owns its server; the first to finish stops it).
+const PORT = Number(process.env.PW_PORT) || 4173;
 const baseURL = `http://127.0.0.1:${PORT}`;
 
 // Some sandboxes ship a pre-installed Chromium whose build number does not match

@@ -91,22 +91,25 @@ function renderAddChallanForm() {
     var amtDisplay = (item.amount != null && !isNaN(item.amount) && item.amount !== 0) ? formatNum(item.amount) : '';
 
     var rm = client ? rateMatch(client, date, item) : null;
+    // The field holds the PART NUMBER: a keystroke makes the whole text the part number, and for a piece client the
+    // description is often only the gauge ("40X6"), which showed in its place and became the part number when edited.
+    // The description, when it says more than the number, is said under the line.
     html += '<div class="inv-line"><span class="inv-line-num" id="imLineLbl' + idx + '">' + (idx + 1) + '</span>' +
       lineField('Part', '<div class="inv-combo">' +
-        '<input class="inv-input" id="imPart' + idx + '" data-k="part-' + idx + '" value="' + escHtml(item.desc || item.partNumber) + '" data-action="invEditChallanPart" data-idx="' + idx + '" placeholder="Part name or number" autocomplete="off"' +
+        '<input class="inv-input" id="imPart' + idx + '" data-k="part-' + idx + '" value="' + escHtml(item.partNumber || item.desc) + '" data-action="invEditChallanPart" data-idx="' + idx + '" placeholder="Part name or number" autocomplete="off"' +
         ' role="combobox" aria-expanded="false" aria-autocomplete="list" aria-controls="imPartAC' + idx + '">' +
         '<div class="inv-menu inv-hidden" id="imPartAC' + idx + '" role="listbox"></div></div>', 'imPart' + idx, 'inv-line-part') +
-      lineField('Qty', '<input type="number" class="inv-input inv-input-num" id="imQty' + idx + '" data-k="qty-' + idx + '" value="' + (item.qty || '') + '" data-field="qty" data-idx="' + idx + '" data-action="invUpdateChallanLine" step="any" min="0">', 'imQty' + idx) +
+      lineField('Qty', '<input type="number" class="inv-input inv-input-num" id="imQty' + idx + '" data-k="qty-' + idx + '" value="' + escHtml(item.qty || '') + '" data-field="qty" data-idx="' + idx + '" data-action="invUpdateChallanLine" step="any" min="0">', 'imQty' + idx) +
       lineField('Unit', '<select class="inv-select" id="imUnit' + idx + '" data-k="unit-' + idx + '" data-field="unit" data-idx="' + idx + '" data-change="invUpdateChallanLine">' +
         '<option value="KG"' + (item.unit === 'KG' ? ' selected' : '') + '>KG</option>' +
         '<option value="NOS"' + (item.unit === 'NOS' ? ' selected' : '') + '>NOS</option></select>', 'imUnit' + idx) +
-      lineField('Pcs', '<input type="number" class="inv-input inv-input-num" id="imNos' + idx + '" data-k="nos-' + idx + '" value="' + (item.nosQty || '') + '" data-field="nosQty" data-idx="' + idx + '" data-action="invUpdateChallanLine" step="1" min="0" placeholder="Pcs">', 'imNos' + idx) +
+      lineField('Pcs', '<input type="number" class="inv-input inv-input-num" id="imNos' + idx + '" data-k="nos-' + idx + '" value="' + escHtml(item.nosQty || '') + '" data-field="nosQty" data-idx="' + idx + '" data-action="invUpdateChallanLine" step="1" min="0" placeholder="Pcs">', 'imNos' + idx) +
       lineField('Rate', '<input type="number" class="inv-input inv-input-num" id="imRate' + idx + '" data-k="rate-' + idx + '" value="' + rateDisplay + '" data-field="rate" data-idx="' + idx + '" data-action="invUpdateChallanLine" step="any" min="0"' +
         rateMatchInputAttr(rm) + (isPieceNOS ? ' readonly' : '') + '>', 'imRate' + idx) +
       lineField('Amount', '<input type="number" class="inv-input inv-input-num" id="imAmt' + idx + '" data-k="amount-' + idx + '" value="' + amtDisplay + '" data-field="amount" data-idx="' + idx + '" data-action="invUpdateChallanLine" step="any" min="0"' +
         (isPieceNOS ? '' : ' readonly') + '>', 'imAmt' + idx, 'inv-line-amt') +
       '<button type="button" class="inv-btn inv-btn-ghost inv-btn-icon inv-line-rm" data-k="remove-' + idx + '" data-action="invRemoveChallanLine" data-idx="' + idx + '" aria-label="Remove line ' + (idx + 1) + '">' + LINE_X_ICON + '</button>' +
-      '<div class="inv-line-notes">' +
+      '<div class="inv-line-notes"><div id="imDesc' + idx + '">' + challanDescNote(item) + '</div>' +
       '<div id="imWeightMatch' + idx + '">' + (client ? weightMatchNote(weightMatch(client, date, item)) : '') + '</div>' +
       '<div id="imRateMatch' + idx + '">' + rateMatchNote(rm) + '</div>' +
       '<div id="imFill' + idx + '">' + challanFillNote(item, client) + '</div>' +
@@ -186,9 +189,7 @@ function renderChallanClientResults(query) {
   var input = document.getElementById('imChallanClientSearch');
   if (!res) return;
   var q = (query || '').trim().toLowerCase();
-  var matches = q.length < 1 ? [] : S.clients.filter(function(c) {
-    return c.isActive && (c.name.toLowerCase().includes(q) || (c.gstin || '').includes(q));
-  }).slice(0, 8);
+  var matches = q.length < 1 ? [] : S.clients.filter(function(c) { return c.isActive && clientMatchesQuery(c, q); }).slice(0, 8);
 
   acReset();
   if (matches.length === 0) {
@@ -220,14 +221,25 @@ function selectChallanClient(clientId) {
   // the client is checked by the render (challanNoWarnHtml), so the warning is there as focus arrives.
   _challanFocusNext = { k: 'challanNo', sel: null };
   var client = S.clients.find(function(c) { return c.id === clientId; });
-  // Auto-fill rate on existing items
+  // The lines already there take the client's record, into what is empty or was itself filled from a record
+  // (lineFillFromRecord): a rate somebody typed stays theirs, whichever client is chosen after it.
   if (client) {
+    var onDate = _challanForm.challanDate || localDateStr();
     _challanForm.items.forEach(function(item) {
-      item.rate = defaultLineRate(client, _challanForm.challanDate || localDateStr(), item);
+      lineFillFromRecord(client, onDate, item, S.items.find(function(p) { return p.partNumber === item.partNumber; }));
+      lineFillFromCount(client, item);
       recalcChallanLine(item, client);
     });
   }
   renderAddChallanForm();
+}
+
+/* The line's description, when it says more than its part number: the gauge a chosen part folds in, or the whole of
+   what a piece client's challan writes ("40X6"). The Part field shows the number, so this is where the rest is read. */
+function challanDescNote(item) {
+  var pn = String(item.partNumber || '').trim(), d = String(item.desc || '').trim();
+  if (!pn || !d || rateKey(pn).indexOf(rateKey(d)) >= 0) return '';
+  return '<div class="inv-note" data-line-desc>Description: ' + escHtml(d) + '</div>';
 }
 
 /* What the record put into the line, so tabbing through it is a check rather than a re-type. */
@@ -260,17 +272,7 @@ function challanFlagHtml(client, item, idx) {
     ' placeholder="' + (item.flagReason === 'other' ? 'What was it? (recommended)' : 'Note (optional)') + '" aria-label="Note on the flag"></div>';
 }
 
-function recalcChallanLine(item, client) {
-  if (!client) { item.amount = gstRound((item.qty || 0) * (item.rate || 0)); return; }
-  if (client.billingMode === 'piece' && item.unit === 'NOS') {
-    // Amount entered directly for NOS piece mode
-    if (item.qty > 0 && item.amount > 0) {
-      item.rate = gstRound(item.amount / item.qty);
-    }
-  } else {
-    item.amount = gstRound((item.qty || 0) * (item.rate || 0));
-  }
-}
+function recalcChallanLine(item, client) { linePrice(item, client, (_challanForm && _challanForm.challanDate) || localDateStr()); }
 
 function addChallanLine() {
   if (!_challanForm) return;
@@ -310,6 +312,17 @@ function saveChallan() {
 
   var client = S.clients.find(function(c) { return c.id === _challanForm.clientId; });
   if (!client) return;
+
+  // A challan names its date, and every line its part and its quantity (the QA sweep, 29 Sep 2026): a line saved
+  // without them could never be invoiced, so its challan read Part invoiced and the To-do raised it for ever. Records
+  // already saved load as they are; this asks only of what is being saved now.
+  var gap = challanIncomplete();
+  if (gap) {
+    showToast(gap.msg, 'error');
+    var gapEl = document.querySelector('#imAddForm [data-k="' + gap.k + '"]');
+    if (gapEl) gapEl.focus();
+    return;
+  }
 
   // A red-flagged line is saved only with a reason, the ₹0 line's contract.
   var fDate = _challanForm.challanDate || localDateStr();
@@ -357,25 +370,18 @@ function saveChallan() {
     existing.receivedDate = _challanForm.challanDate || localDateStr();
     existing.notes = _challanForm.notes || '';
     if (dupeAck) existing.dupeAck = dupeAck;
-    existing.items = _challanForm.items.map(function(item, idx) {
-      return Object.assign({
-        id: existing.id + '-' + idx,
-        partNumber: item.partNumber,
-        desc: item.desc || item.partNumber,
-        hsn: item.hsn || '998873',
-        unit: item.unit || 'KG',
-        qty: item.qty || 0,
-        rate: item.rate || 0,
-        amount: item.amount || 0,
-        nosQty: item.nosQty || null,
-        invoiced: false,
-        invoiceId: null
-      }, lineFlagFields(client, _challanForm.challanDate || localDateStr(), item));
+    // A line keeps its id and what the form does not hold (the corrections an invoice made to it); a line added in the
+    // edit takes an id no line of this challan has ever had, so nothing pointing at a removed line finds another.
+    var oldById = {}, used = {}, seq = 0;
+    existing.items.forEach(function(x) { oldById[x.id] = x; used[x.id] = true; });
+    var freshId = function() { while (used[existing.id + '-' + seq]) seq++; used[existing.id + '-' + seq] = true; return existing.id + '-' + seq; };
+    existing.items = _challanForm.items.map(function(item) {
+      var old = item._id ? oldById[item._id] : null;
+      return challanLineSaved(client, item, old ? old.id : freshId(), old);
     });
     saveVehicleToClient(_challanForm.clientId, _challanForm.vehicleNo);
     saveState();
-    _challanForm = null;
-    cancelAddChallanUI();
+    challanFormClosed();
     _imToolbarRendered = false;
     renderIMToolbar();
     _imToolbarRendered = true;
@@ -393,21 +399,7 @@ function saveChallan() {
     clientId: client.id,
     clientName: client.name,
     vehicleNo: _challanForm.vehicleNo,
-    items: _challanForm.items.map(function(item, idx) {
-      return Object.assign({
-        id: imId + '-' + idx,
-        partNumber: item.partNumber,
-        desc: item.desc || item.partNumber,
-        hsn: item.hsn || '998873',
-        unit: item.unit || 'KG',
-        qty: item.qty || 0,
-        rate: item.rate || 0,
-        amount: item.amount || 0,
-        nosQty: item.nosQty || null,
-        invoiced: false,
-        invoiceId: null
-      }, lineFlagFields(client, _challanForm.challanDate || localDateStr(), item));
-    }),
+    items: _challanForm.items.map(function(item, idx) { return challanLineSaved(client, item, imId + '-' + idx, null); }),
     receivedDate: _challanForm.challanDate || localDateStr(),
     notes: '',
     createdAt: now,
@@ -418,8 +410,7 @@ function saveChallan() {
   saveVehicleToClient(_challanForm.clientId, _challanForm.vehicleNo);
   saveState();
 
-  _challanForm = null;
-  cancelAddChallanUI();
+  challanFormClosed();
   _imToolbarRendered = false;
   renderIMToolbar();
   _imToolbarRendered = true;
@@ -428,13 +419,50 @@ function saveChallan() {
 }
 
 function cancelAddChallan() {
+  challanFormClosed();
+}
+
+/* The form is gone, saved or left: nothing typed is on the page any more (a book from another window may be drawn),
+   and a layout switch that waited for the form runs now, as closeOverlay runs one that waited for a dialog. */
+function challanFormClosed() {
   _challanForm = null;
+  _pageTyped = false;
   cancelAddChallanUI();
-  // Phase 8A: Drain deferred mode switch
   if (_pendingModeSwitch) {
     _pendingModeSwitch = false;
     updateLayoutMode();
   }
+}
+
+/* What the form still lacks before it can be saved: the challan's date, or a line's part or quantity. */
+function challanIncomplete() {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(_challanForm.challanDate || ''))) return { msg: 'Enter the challan date', k: 'challanDate' };
+  for (var i = 0; i < _challanForm.items.length; i++) {
+    var it = _challanForm.items[i];
+    if (!String(it.partNumber || it.desc || '').trim()) return { msg: 'Line ' + (i + 1) + ' has no part: pick one, or remove the line', k: 'part-' + i };
+    if (!(Number(it.qty) > 0)) return { msg: 'Line ' + (i + 1) + ' has no quantity', k: 'qty-' + i };
+  }
+  return null;
+}
+
+/* A line as saved: the form's figures on the line's id, over what the stored line held that the form does not (an
+   edited line's corrections). A flag's reason goes with the line only while the line still needs one. */
+function challanLineSaved(client, item, id, old) {
+  var line = Object.assign({}, old || {}, {
+    id: id,
+    partNumber: item.partNumber,
+    desc: item.desc || item.partNumber,
+    hsn: item.hsn || '998873',
+    unit: item.unit || 'KG',
+    qty: item.qty || 0,
+    rate: item.rate || 0,
+    amount: item.amount || 0,
+    nosQty: item.nosQty || null,
+    invoiced: false,
+    invoiceId: null
+  });
+  delete line.flagReason; delete line.flagNote; delete line.flagAt;
+  return Object.assign(line, lineFlagFields(client, _challanForm.challanDate || localDateStr(), item));
 }
 
 function cancelAddChallanUI() {
@@ -461,9 +489,12 @@ async function deleteChallan(imId) {
   // Tier 1 confirm
   if (!(await uiConfirm({ title: 'Delete this challan?', body: 'Challan ' + (im.challanNo || '(no number)') + ' from ' + (im.clientName || 'this client') +
     ', ' + im.items.length + ' line' + (im.items.length === 1 ? '' : 's') + '. This cannot be undone.', okLabel: 'Delete challan', danger: true }))) return;
-  var idx = S.incomingMaterial.indexOf(im);
-  if (idx < 0) return;
-  if (idx > -1) S.incomingMaterial.splice(idx, 1);
+  // Another window's save loads the book whole while the question is open (bookReload), so the challan asked about may
+  // be an object of the old book: the one deleted is the challan as the book holds it now, if it may still be deleted.
+  im = (S.incomingMaterial || []).find(function(m) { return m.id === imId; });
+  if (!im) { showToast('Challan already deleted', 'warning'); _renderIMView(); return; }
+  if (im.items.some(imLineBilled)) { showToast('Not deleted: a line of it was invoiced meanwhile', 'warning'); _renderIMView(); return; }
+  S.incomingMaterial.splice(S.incomingMaterial.indexOf(im), 1);
   // Clean up expanded/selected state
   delete _imExpanded[imId];
   if (_imActiveChallanId === imId) _imActiveChallanId = null;
@@ -494,6 +525,7 @@ function editChallan(imId) {
     vehicleNo: im.vehicleNo || '',
     items: im.items.map(function(it) {
       return {
+        _id: it.id,   // the line's own id, kept by the save (challanLineSaved)
         partNumber: it.partNumber || '',
         desc: it.desc || it.partNumber || '',
         hsn: it.hsn || '998873',
@@ -521,11 +553,14 @@ function refreshChallanLineMatch(idx) {
   if (!_challanForm) return;
   var item = _challanForm.items[idx];
   var client = _challanForm.clientId ? S.clients.find(function(c) { return c.id === _challanForm.clientId; }) : null;
-  if (!item || !client) return;
+  if (!item) return;
+  // The notes are redrawn on their own, so the field being typed in keeps focus.
+  var dn = document.getElementById('imDesc' + idx);
+  if (dn) dn.innerHTML = challanDescNote(item);
+  if (!client) return;
   refreshRateMatch('imRateMatch' + idx, document.getElementById('imRate' + idx), client,
     _challanForm.challanDate || localDateStr(), item);
   refreshWeightMatch('imWeightMatch' + idx, client, _challanForm.challanDate || localDateStr(), item);
-  // The fill note and the flag are redrawn on their own, so the field being typed in keeps focus.
   var fn = document.getElementById('imFill' + idx);
   if (fn) fn.innerHTML = challanFillNote(item, client);
   var fl = document.getElementById('imFlag' + idx);

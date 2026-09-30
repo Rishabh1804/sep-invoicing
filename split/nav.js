@@ -52,6 +52,7 @@ function navLoc() {
       // The register photo's check is a place of its own: it shared the page's address, so Back left Production.
       v = _prodTab + (/^(paste|review)$/.test(_prodView) ? '/paste' : _prodView === 'hand' ? '/hand' : _prodView === 'photo' ? '/photo' : '');
       break;
+    case 'pagePower': v = _powerTab; break;
     case 'pageStaff': v = _attView; break;
     case 'pageStock':
       v = _stockView === 'review' ? 'paste' : _stockView;
@@ -96,6 +97,7 @@ function navLabel(loc) {
     case 'pageFinance': sub.push(_navFind(FIN_TABS, parts[0])); break;
     case 'pageStats': sub.push(_navFind(STATS_TABS, parts[0])); break;
     case 'pageProduction': sub.push(_navFind(PROD_TABS, parts[0])); sub.push({ paste: 'Paste message', hand: 'Enter by hand', photo: 'Register photo' }[parts[1]] || ''); break;
+    case 'pagePower': sub.push(_navFind(POWER_TABS, parts[0])); break;
     case 'pageStaff': sub.push(parts[0] === 'paste' ? 'Paste message' : _navFind(ATT_VIEWS, parts[0])); break;
     case 'pageStock':
       sub.push({ overview: 'Overview', list: 'Lines', item: 'Lines', paste: 'Paste message', manual: 'Enter by hand', reorder: 'Reorder list' }[parts[0]] || '');
@@ -127,6 +129,7 @@ function navApply(loc) {
       case 'pageFinance': finSetTab(parts[0]); _bankEdit = null; break;
       case 'pageStats': try { localStorage.setItem(STATS_TAB_KEY, parts[0] || 'overview'); } catch (e) { /* per device only */ } break;
       case 'pageProduction': prodSetTab(parts[0]); _prodView = parts[1] === 'paste' || parts[1] === 'hand' || parts[1] === 'photo' ? parts[1] : 'main'; break;
+      case 'pagePower': powerSetTab(parts[0]); break;
       case 'pageStaff': _attView = parts[0] === 'paste' || ATT_VIEWS.some(function(x) { return x[0] === parts[0]; }) ? parts[0] : 'overview'; break;
       case 'pageStock':
         var sv = /^(overview|list|item|paste|manual|reorder)$/.test(parts[0]) ? parts[0] : 'overview';

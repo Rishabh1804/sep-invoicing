@@ -1,7 +1,7 @@
 /* ===== TAB SWITCHING (DP v0.2 9-step) ===== */
 const PAGE_TITLES = {
   pageHome: 'Home', pageCreate: 'Create invoice', pageIM: 'Challans', pageRegister: 'Register',
-  pageClients: 'Clients', pageFinance: 'Finance', pageTodo: 'To-do', pageProduction: 'Production', pageStock: 'Stock', pageStaff: 'Staff',
+  pageClients: 'Clients', pageFinance: 'Finance', pageTodo: 'To-do', pageProduction: 'Production', pagePower: 'Power', pageStock: 'Stock', pageStaff: 'Staff',
   pageStats: 'Stats', pageHistory: 'History'
 };
 
@@ -121,6 +121,8 @@ function tabRender(tabId, isDirty) {
     if (!document.getElementById('createFormArea').innerHTML) initCreateForm();
   } else if (tabId === 'pageProduction') {
     renderProduction();
+  } else if (tabId === 'pagePower') {
+    renderPower();
   } else if (tabId === 'pageStock') {
     renderStock();
   } else if (tabId === 'pageTodo') {

@@ -632,6 +632,7 @@ function todoGo(go) {
       if (pw) { pw.open = true; pw.scrollIntoView({ block: 'start' }); }
       break;
     }
+    case 'power': powerSetTab(go.tab || 'overview'); switchTab('pagePower'); break;
     case 'payDue': _attView = 'pay'; _attDate = localDateStr(); switchTab('pageStaff'); break;
     case 'staffPaste': _attView = 'paste'; switchTab('pageStaff'); break;
     case 'stockList': _stockView = 'list'; switchTab('pageStock'); break;

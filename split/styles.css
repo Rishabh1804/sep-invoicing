@@ -1054,6 +1054,12 @@ body.inv-desktop :is(#regSelBar, #imSelBar) { bottom: 0; }
 .inv-sr-tot-l { font-weight: 700; text-align: right; }
 .inv-sr-table tfoot td { font-weight: 700; background: var(--sr-band); }
 .inv-sr-foot { margin-top: var(--sp-8); font-size: var(--sr-fs-sm); color: var(--sr-muted); }
+/* The power-cut case (power.js) is a document on the register's sheet and scale: a section head and its prose. */
+.inv-pc-sec {
+  font-weight: 700; font-size: var(--sr-fs-co); margin: var(--sp-12) 0 var(--sp-4);
+  border-bottom: var(--sr-rule-w) solid var(--sr-rule); break-after: avoid; page-break-after: avoid;
+}
+.inv-pc-p { margin: var(--sp-4) 0; line-height: 1.45; }
 
 /* ===== MORE (phone bar) ===== */
 .inv-navbar-count {

@@ -65,6 +65,7 @@ JS_SOURCES=(
     "$DIR/dash.js" \
     "$DIR/production.js" \
     "$DIR/prodview.js" \
+    "$DIR/power.js" \
     "$DIR/client-perf.js" \
     "$DIR/im-form.js" \
     "$DIR/im-dupe.js" \

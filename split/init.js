@@ -481,6 +481,18 @@ if (!S._cnSeriesStart1) {
   saveJSON(STORAGE_KEY, S);
 })();
 
+/* ===== THE CONNECTION'S LOAD, RECORDED ONCE =====
+   Owner, 30 Sep 2026 ("Yes, record it"): the connection is billed at 25 kVA though 50 kVA was approved (decisions,
+   18 May 2026), and the over-limit penalty runs on (about ₹5,000 a month). Set only where no load is recorded, and once:
+   the flag travels with the state, so a load the owner corrected or cleared stays as they left it. */
+(function() {
+  if (S._powerLoad1) return;
+  var p = powerData();
+  if (!(p.load.sanctioned || p.load.approved)) p.load = { sanctioned: 25, approved: 50, approvedOn: '2026-05-18', ref: '', note: 'Approved 18 May 2026; still billed at 25 kVA as of the June bill (owner, 30 Sep 2026: about ₹5,000 a month over-limit penalty).', at: Date.now() };
+  S._powerLoad1 = true;
+  saveJSON(STORAGE_KEY, S);
+})();
+
 /* ===== ₹0 LINES CARRY A REASON, RETROSPECTIVELY TOO =====
 
    The owner ruled (24 Sep 2026) that the lines billed at ₹0 are replating —
@@ -572,6 +584,7 @@ var SIDE_ICONS = {
   finance: '<path d="M4 21h16M5 10h14M12 3 4 7h16zM7 10v8M12 10v8M17 10v8"/>',
   todo: '<path d="M9 11l3 3 8-8M20 12v7a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h11"/>',
   stats: '<path d="M4 20V11M10 20V5M16 20v-6M3 20h18"/>',
+  power: '<path d="M13 2 4 14h7l-1 8 9-12h-7z"/>',
   history: '<path d="M12 7v5l3 2M3.5 12a8.5 8.5 0 1 0 2.5-6M3 4v4h4"/>',
   settings: '<path d="M4 6h9M17 6h3M4 12h3M11 12h9M4 18h11M19 18h1M15 4v4M9 10v4M17 16v4"/>'
 };
@@ -579,7 +592,7 @@ var SIDE_NAV = [
   ['Daily', [['pageHome', 'Home', 'home'], ['pageCreate', 'Create invoice', 'create'], ['pageIM', 'Challans', 'im'], ['pageRegister', 'Register', 'register']]],
   ['Book', [['pageClients', 'Clients', 'clients'], ['pageClients', 'Items', 'items', 'items']]],
   ['Money', [['pageFinance', 'Finance', 'finance']]],
-  ['Floor', [['pageProduction', 'Production', 'production'], ['pageStock', 'Stock', 'stock'], ['pageStaff', 'Staff', 'staff'], ['pageStaff', 'Pay', 'pay', 'pay']]],
+  ['Floor', [['pageProduction', 'Production', 'production'], ['pagePower', 'Power', 'power'], ['pageStock', 'Stock', 'stock'], ['pageStaff', 'Staff', 'staff'], ['pageStaff', 'Pay', 'pay', 'pay']]],
   ['Review', [['pageTodo', 'To-do', 'todo'], ['pageStats', 'Stats', 'stats'], ['pageHistory', 'History', 'history']]]
 ];
 function _sideSvg(k) { return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + SIDE_ICONS[k] + '</svg>'; }

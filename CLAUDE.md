@@ -85,6 +85,7 @@ split/
 ├── dash.js            ← Staff and Stock Overviews: attendance, labour ₹/kg, OT by area, payroll vs bank; days left, supplier spend, use, prices (~230 lines)
 ├── production.js      ← Production store; derived index (which figure counts, usual line, matches, racks); in plant; rules; export (~580 lines)
 ├── prodview.js        ← Production page: Overview, In plant, Lines, Entries; paste, photo and hand sub-views (~750 lines)
+├── power.js           ← Power: cuts and what each costs, the connection's load and bills, the printable case for backup (~560 lines)
 ├── client-perf.js     ← Client performance: month on month + material cadence (314 lines)
 ├── im-form.js         ← IM add/edit/delete challan form (450 lines)
 ├── im-dupe.js         ← IM duplicate guard: fingerprint + pre-save warn + scan (305 lines)
@@ -97,7 +98,7 @@ split/
 └── init.js            ← Migrations + app bootstrap (567 lines)
 ```
 
-**Concat order defined in build.sh.** Dependencies: data → state → appearance → zinc → tabs → clients → items → create → settings → github-sync → invoice-ops → number-audit → exports → im → autocomplete → print → quality-cert → credit-note → charts → staff → labour → areas → payroll → stock → cost → bills → xls → xlsx → bank → finance → todo → relay → attsheet → stocksheet → prodparse → stats → intel → insights → finintel → finlinks → dash → production → prodview → client-perf → im-form → im-dupe → vision → scanner → events → swipe → nav → seed → init.
+**Concat order defined in build.sh.** Dependencies: data → state → appearance → zinc → tabs → clients → items → create → settings → github-sync → invoice-ops → number-audit → exports → im → autocomplete → print → quality-cert → credit-note → charts → staff → labour → areas → payroll → stock → cost → bills → xls → xlsx → bank → finance → todo → relay → attsheet → stocksheet → prodparse → stats → intel → insights → finintel → finlinks → dash → production → prodview → power → client-perf → im-form → im-dupe → vision → scanner → events → swipe → nav → seed → init.
 
 **Every module shares one global scope.** A top-level `var` or `function` in a later module silently replaces one of
 the same name in an earlier one; nothing warns. `bills.js` shipped a `STOCK_UNITS` array over `stock.js`'s unit map
@@ -127,7 +128,7 @@ every session start — nothing to set up by hand. CI (`build-sync`) is the back
 ### Tests
 
 ```bash
-pnpm exec playwright test          # 967 tests, both layouts
+pnpm exec playwright test          # 983 tests, both layouts
 ```
 
 Some sandboxes ship a Chromium build Playwright does not expect and block downloading
@@ -285,7 +286,7 @@ filter on; a literal date in a fixture is a time bomb, not a constant.
 |----|------|
 | HR-1 | No inline styles. CSS classes + design tokens. |
 | HR-2 | No inline onclick. data-action delegation only. |
-| HR-3 | inv- CSS prefix on every class. 464 classes, all of them (distinct class selectors in `split/styles.css`, comments stripped, 29 Sep 2026: the eighteen `inv-as-*` of the attendance and stock sheets added, then `inv-topbar-back` and `inv-topbar-trail`, then `inv-fig-ok/warning/danger`: 462; 30 Sep 2026, the QA sweep: `inv-pi-cancelled`, `inv-cn-cancelled`: 464); P76 asserts every class the app draws is one of them or a named hook. |
+| HR-3 | inv- CSS prefix on every class. 466 classes, all of them (distinct class selectors in `split/styles.css`, comments stripped, 29 Sep 2026: the eighteen `inv-as-*` of the attendance and stock sheets added, then `inv-topbar-back` and `inv-topbar-trail`, then `inv-fig-ok/warning/danger`: 462; 30 Sep 2026, the QA sweep: `inv-pi-cancelled`, `inv-cn-cancelled`: 464; the power case's `inv-pc-sec`, `inv-pc-p`: 466); P76 asserts every class the app draws is one of them or a named hook. |
 | HR-4 | No emojis. Inline SVGs in HTML template. |
 | HR-5 | escHtml() on all user-data innerHTML. |
 | HR-6 | CSS design tokens only. No raw px/rem/hex/timing. |
@@ -1636,6 +1637,43 @@ reads a photo. **Owned by `soma-internal`, like stock** (owner): a view and an i
 - **The workers' names box on a register photo goes to Google with the page** (Settings → Connections → Photo reading
   says so); only what is read is kept.
 
+### Power
+More → **Power** (sidebar Floor → Power; `power.js`; owner, 30 Sep 2026: *"Make a power cut tab, we have built a business
+case for power cut and how to resolve it, find it, read it and update it"*). Four views: **Overview · Cuts · Load & bills ·
+Case**. The case was written once, on 30 May over 56 days (soma-internal `archives/2026-W21-W22-session/13-…`); this page
+keeps it current, and `soma-internal/reports/power-cut-case-2026-09-30.md` is the dated refresh.
+
+- **The cuts are Production's** downtime entries (the register's power log, the relayed messages, a cut entered by hand)
+  and the history imported from soma-internal's power-cut log. The same cut reported twice is one (`prodDowntimeDay`); a
+  power-back earlier on the clock than the cut ran overnight. Enter a cut opens Production's hand form on a power cut.
+- **Each cut is costed in four layers, each saying where it comes from**: output at stake (minutes inside a working
+  window, the 8:30–5:00 shift and any OT block recorded that day, × revenue per scheduled hour over the last 90 days, net of
+  credit notes; the case's ₹2,500 only when there are no invoices), wages paid idle (every hand marked present whose own
+  day covers the cut, at their hour rate), a restart (₹600 a cut in a working window, the case's figure), and the fixed
+  charge carried by no output (the bill's fixed charge per scheduled minute). **A cut with no time back is costed at the
+  median length of those with one**, never to the end of the day (28 Jul's open cut read 640 minutes that way).
+- **A day with no record is a gap, not a day without cuts.** A recorded day is a working day with attendance or a plated
+  entry; a cut alone does not record its day (April's handwritten log has no floor record around it and read 1.38 cuts a
+  day). A run of recorded days with no cut, long enough that at the record's rate three or more were expected, is read as
+  **possibly unreported** (`powerQuietRuns`): named in the case, left out of the year ahead and out of the best and worst
+  months. On the real book: 27 Aug – 21 Sep and, since the 22 Sep cut, 23 – 29 Sep.
+- **The load is recorded** (owner: *"Yes, record it"*): `S.power.load` {sanctioned, approved, approvedOn, ref, note}, set
+  once to 25 / 50 kVA approved 18 May 2026 where empty (`_powerLoad1`). A bill's own details are set on Load & bills
+  (`POWER_BILL_FIELDS`: billed at, peak, kWh, kVAh, fixed, energy, excess-CD penalty, fuel adjustment, duty, net), and a
+  bill's "billed at" wins over the typed load. To-do rule **`powerLoad`** asks while the approved load is not on the bill,
+  with the penalty on the bills since approval.
+- **The case is a document drawn from the data every time it is shown or printed** (owner: *"The case report should
+  always be printable, and it should be dynamic - updates data as soon as the data feeding it is updated"*;
+  `powerCaseHtml`). Case shows it on the page; Print the case sends the same document to the print view, and a save in
+  this or another window redraws both. Ten sections: in short, the record by month with its recorded days, when cuts come
+  (noon – 2 PM), what a cut costs with the ten costliest, a year at this rate, the connection, the options (TSUISL,
+  inverter, generator: one-time, coverage, running, gain, payback; the inverter's coverage measured off the cuts at its
+  hours), the recommendation, open items (set in Options' figures) and what is not counted. The options' figures are the
+  30 May case's estimates until a quote replaces them.
+- **Import history** takes one file: its cuts as `sep-production` (merged by id into Production) and under `power` the
+  bills' details by month and the load. A detail fills only an empty field; a bill the file records with its amount is
+  added where the app has none for that month; a month described without an amount is counted, never invented.
+
 ### Stock
 More → **Stock**. Chemical stock, **owned by `soma-internal`** (owner, 24 Sep 2026): this tab is a view
 and an input, never the ledger. Everything it captures is copied there at each compile and stays here.
@@ -1721,7 +1759,7 @@ the stock (price, usage, cadence, etc.)"*). `cost.js`.
 - **Past purchases come from `soma-internal`** through Stock → Import: a `sep-stock` file of `bill` entries
   (and `costBills`), merged by id. The file is built from the private records and never committed here.
 
-**The phone bar is six tabs**: Home, Create, IM, Register, Clients, **More** (To-do, Finance, Production, Stock,
+**The phone bar is six tabs**: Home, Create, IM, Register, Clients, **More** (To-do, Finance, Production, Power, Stock,
 Staff, Stats, History). More lights up while one of those is open and carries a red count of **every red row**
 — stock out or under its red line, and your own tasks overdue. The test fixture's `switchTab` opens
 More when the target is behind it.

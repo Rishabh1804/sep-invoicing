@@ -55,6 +55,7 @@ function getDefaultState() {
     // message whole. Ships empty — the lines arrive with the first message.
     stock: { items: [], entries: [], pastes: [] },
     production: { entries: [], pastes: [], photos: [], imports: [], learn: { clients: {}, parts: {} } },
+    power: { load: {}, cfg: {}, items: {} },
     // The bank statement as imported (bank.js): rows merged by id, and what the operator set.
     bank: { rows: [], imports: [], parties: {}, opening: {} },
     // Days of cover at which a line turns red / amber, and the cost model's

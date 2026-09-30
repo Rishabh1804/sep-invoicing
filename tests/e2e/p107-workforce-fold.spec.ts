@@ -290,3 +290,139 @@ test.describe('P107: the roster', () => {
     await expect(page.locator('[data-action="invAttEditWorker"][data-id="1"]')).toContainText('OT ₹68.20/h (capped)');
   });
 });
+
+// August 2026 on purpose, as P49: 15 Aug is the paid holiday BM's ruling was written against, and a past month does not move.
+function augDay(d: number): string { return `2026-08-${String(d).padStart(2, '0')}`; }
+
+test.describe('P107: labour and Areas', () => {
+  test('W15: the labour card rounds fixed and the total once from the unrounded parts (₹8,129.03, not .04)', async ({ page }) => {
+    const att: Record<string, any> = {};
+    const sundays = [2, 9, 16, 23, 30];
+    const working = Array.from({ length: 31 }, (_, i) => i + 1).filter(d => !sundays.includes(d) && d !== 15);
+    working.slice(0, 22).forEach(d => { att[augDay(d)] = { marks: { 2: { st: 'P', hours: 8, ot: 0, area: 'gate' } }, extra: [], note: '' }; });
+    att[augDay(23)] = { marks: { 2: { st: 'P', hours: 8, ot: 0, area: 'gate' } }, extra: [], note: '' };
+    await load(page, { staff: [{ id: 2, name: 'Gopal', comp: 'monthly', area: 'gate', dayRate: 0, monthWage: 9000, active: true, onFloor: false }], attendance: att });
+    const l = await g(page, `(function(){ var l = labourForRange('2026-08-01', '2026-08-31'); return [l.byWorker[2].total, l.fixed, l.total]; })()`);
+    expect(l).toEqual([8129.03, 8129.03, 8129.03]);
+  });
+
+  test('W16 and WB5: a day tier with no day rate, and the pool present with no hours, are named on the card', async ({ page }) => {
+    const t = todayIso();
+    await load(page, { staff: [
+      { id: 1, name: 'Norate Hand', comp: 'monthly', area: 'vat-a1', dayRate: 0, active: true, onFloor: true },
+      { id: 2, name: 'Nohours Hand', comp: 'hourly', area: 'barrel', hourRate: 50, active: true, onFloor: true }],
+      attendance: { [t]: { marks: { 1: { st: 'P', hours: 8, ot: 0, area: 'vat-a1' }, 2: { st: 'P', hours: 0, ot: 0, area: 'barrel' } }, extra: [], note: '' } } });
+    const l = await g(page, `(function(){ var l = labourForRange('${t}', '${t}'); return [l.ratelessWorkers, l.hourlessMarks, l.byWorker[2].hourless]; })()`);
+    expect(l).toEqual([['Norate Hand'], 1, 1]);
+    await switchTab(page, 'pageStaff');
+    await page.locator('[data-action="invAttView"][data-view="day"]').first().click();
+    const card = page.locator('[data-card="labour"]');
+    await expect(card).toContainText('no rate to price them at');
+    await expect(card).toContainText('Norate Hand');
+    await expect(card).toContainText('marked present with no hours');
+    await expect(card).toContainText('Nohours Hand');
+  });
+
+  test('W5 and W6: Areas counts a hand who has since left, and the barrel unit\'s extra reaches its crew on either side', async ({ page }) => {
+    const t = todayIso();
+    await load(page, { staff: [
+      { id: 1, name: 'Left Hand', comp: 'hourly', area: 'pickling-barrel', hourRate: 50, active: false, onFloor: true },
+      { id: 2, name: 'Stays Hand', comp: 'hourly', area: 'pickling-barrel', hourRate: 50, active: true, onFloor: true }],
+      attendance: { [t]: { marks: { 1: { st: 'P', hours: 8, area: 'pickling-barrel' }, 2: { st: 'P', hours: 8, area: 'pickling-barrel' } },
+        extra: [{ kind: 'coverage', area: 'barrel', hours: 8 }], note: '' } } });
+    const a = await g(page, `(function(){ var s = areaStats('${t}', '${t}'); return [s.rows.find(function(r){ return r.id === 'pickling-barrel'; }).headDays,
+      s.absorption.map(function(x){ return x.name + ' ' + x.hours; }).sort()]; })()`);
+    expect(a).toEqual([2, ['Left Hand 4', 'Stays Hand 4']]);
+  });
+
+  test('W19: the office\'s complement is staffing, never an EXTRA unit; Home\'s floor complement is the floor\'s', async ({ page }) => {
+    const t = todayIso();
+    await load(page, { staff: [{ id: 1, name: 'Desk Hand', comp: 'monthly', area: 'office', dayRate: 400, active: true, onFloor: false },
+      { id: 2, name: 'Line Hand', comp: 'hourly', area: 'vat-a1', hourRate: 50, active: true, onFloor: true }],
+      areaTargets: { office: 1, 'vat-a1': 1 },
+      attendance: { [t]: { marks: { 1: { st: 'A' }, 2: { st: 'P', hours: 8, area: 'vat-a1' } }, extra: [], note: '' } } });
+    const s = await g(page, `(function(){ var s = areaStats('${t}', '${t}'); return [s.units.map(function(u){ return u.id; }), s.expectedExtra]; })()`);
+    expect(s).toEqual([['vat-a1'], 0]);
+    expect(await g(page, `attDaySummary().complement`)).toBe(1);
+  });
+
+  test('W21: the Areas cost of a contracted wage\'s Sunday and its OT is nothing, as the labour card prices it', async ({ page }) => {
+    await load(page, { staff: [{ id: 2, name: 'Gopal', comp: 'monthly', area: 'gate', dayRate: 0, monthWage: 9000, active: true, onFloor: false }],
+      attendance: { [augDay(23)]: { marks: { 2: { st: 'P', hours: 12, ot: 4, area: 'gate' } }, extra: [], note: '' } } });
+    const c = await g(page, `(function(){ var s = areaStats('${augDay(23)}', '${augDay(23)}'); return [s.rows.find(function(r){ return r.id === 'gate'; }).cost, labourForRange('${augDay(23)}', '${augDay(23)}').byWorker[2].total]; })()`);
+    expect(c).toEqual([0, 0]);
+  });
+
+  test('WB8: Areas\' 4-week span runs back from the week shown', async ({ page }) => {
+    const t = todayIso();
+    await load(page, { staff: ROSTER, attendance: { [iso(-14)]: { marks: { 2: { st: 'P', hours: 8, area: 'barrel' } }, extra: [], note: '' } } });
+    await switchTab(page, 'pageStaff');
+    await page.locator('[data-action="invAttView"][data-view="areas"]').click();
+    await page.locator('[data-action="invAreaSpan"][data-span="4"]').click();
+    // The week shown and the three before it, so a day a fortnight back is in range.
+    await expect(page.locator('#areaHours')).toContainText('8.0 h');
+    expect(await g(page, `attWeekStartOf('${t}') >= attWeekStartOf('${iso(-14)}')`)).toBe(true);
+  });
+});
+
+/** Sunday of the pay week `weeks` from this one, plus `day` days (0 = Sunday). */
+function wd(weeks: number, day: number): string {
+  const d = new Date(todayIso() + 'T00:00:00');
+  d.setDate(d.getDate() - d.getDay() + weeks * 7 + day);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+test.describe('P107: Pay', () => {
+  const POOL = { id: 2, name: 'Bala', comp: 'hourly', area: 'barrel', hourRate: 50, active: true, onFloor: true };
+  const mark = (h: number, extra: Record<string, unknown> = {}) => ({ st: 'P', hours: h, ot: 0, area: 'barrel', ...extra });
+
+  test('W4: a paid holiday in the week is out of the pace and out of the days left to predict', async ({ page }) => {
+    const att: Record<string, any> = {};
+    [1, 2, 3].forEach(d => { att[wd(0, d)] = { marks: { 2: mark(8) }, extra: [], note: '' }; });
+    await load(page, { staff: [POOL], attendance: att, labour: { holidays: [wd(0, 3)] } });
+    const f = await g(page, `(function(){ var f = payForecast('${wd(0, 0)}'); return [f.week.total, f.week.recordedDays, f.week.workingDays, f.pace, f.missing, f.predicted]; })()`);
+    // Mon and Tue at ₹400 are the pace; Wednesday's holiday ₹400 is paid and does not repeat; three working days are left.
+    expect(f).toEqual([1200, 2, 5, 400, 3, 2400]);
+  });
+
+  test('WB3: a pay week running into the next month is the last pay week of the month it closes', async ({ page }) => {
+    await load(page, { staff: [POOL] });
+    expect(await g(page, `(function(){ var d = payDue('2026-08-30'); return [d.mFrom, d.mTo]; })()`)).toEqual(['2026-08-01', '2026-08-31']);
+  });
+
+  test('WB1 and WB4: an advance is not netted against another hand\'s due, and a hand who has left can still be paid', async ({ page }) => {
+    await load(page, {
+      staff: [POOL, { id: 3, name: 'Tara', comp: 'hourly', area: 'barrel', hourRate: 50, active: false, onFloor: true },
+        { id: 4, name: 'Mani', comp: 'hourly', area: 'barrel', hourRate: 50, active: true, onFloor: true }],
+      attendance: { [wd(0, 1)]: { marks: { 2: mark(8), 3: mark(8) }, extra: [], note: '' } },
+      staffPayments: [{ id: 'A', staffId: 4, date: wd(0, 1), amount: 300, kind: 'advance', at: 1 }],
+    });
+    await switchTab(page, 'pageStaff');
+    await page.locator('[data-action="invAttView"][data-view="pay"]').click();
+    await expect(page.locator('#payDue [data-action="invPayPick"][data-id="3"]')).toContainText('left');
+    await expect(page.locator('#payWorker option[value="3"]')).toHaveCount(1);
+    await expect(page.locator('#payDue [data-pay-total="due"]').first()).toHaveText('₹800.00');
+    await expect(page.locator('#payDue [data-pay-total="advanced"]').first()).toHaveText('₹300.00');
+  });
+
+  test('W20: hours by area count a mark\'s OT on top of its day, and split a block across its areas', async ({ page }) => {
+    const t = wd(0, 1);
+    await load(page, { staff: [{ id: 1, name: 'Arun', comp: 'monthly', area: 'vat-a1', dayRate: 500, active: true, onFloor: true }],
+      attendance: { [t]: { marks: { 1: { st: 'P', hours: 0, ot: 3, area: 'vat-a1' } }, note: '',
+        extra: [{ kind: 'block', areas: ['vat-a1', 'vat-a2'], area: 'vat-a1', from: '17:00', to: '20:00', hours: 6, crew: [1] }] } } });
+    const r = await g(page, `areaHoursForRange('${t}', '${t}').rows.map(function(a){ return [a.id, a.hours, a.extra]; })`);
+    expect(r).toEqual([['vat-a1', 11, 3], ['vat-a2', 0, 3]]);
+  });
+
+  test('WB9: a week or month nobody typed is a gap on Pay and on the Staff overview, not a zero', async ({ page }) => {
+    await load(page, { staff: [POOL, { id: 1, name: 'Arun', comp: 'monthly', area: 'vat-a1', dayRate: 500, active: true, onFloor: true }],
+      attendance: { [wd(-2, 1)]: { marks: { 2: mark(8) }, extra: [], note: '' }, [wd(-5, 1)]: { marks: { 2: mark(8) }, extra: [], note: '' } } });
+    await switchTab(page, 'pageStaff');
+    await page.locator('[data-action="invAttView"][data-view="pay"]').click();
+    await expect(page.locator('#payHistory .inv-chart-seg')).toHaveCount(2);
+    // Six months back, most with no attendance at all: each of those is null. A month that was typed keeps its reading.
+    const pb = await g(page, `dashPayrollVsBank().map(function(x){ return [Object.keys(S.attendance).some(function(k){ return k.slice(0, 7) === x.month; }), x.payroll]; })`) as any[];
+    expect(pb.filter(([typed]) => !typed).length).toBeGreaterThan(0);
+    expect(pb.filter(([typed, v]) => !typed && v !== null)).toEqual([]);
+  });
+});

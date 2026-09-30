@@ -18,7 +18,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <!-- Appearance before first paint (§3.2): the device's theme and palette, so nothing flashes in the wrong colours. -->
 <script>(function(){try{var d=document.documentElement,t=localStorage.getItem("sep_inv_theme"),p=localStorage.getItem("sep_inv_palette");if(t==="light"||t==="dark")d.dataset.theme=t;d.dataset.palette=(p==="zinc"||p==="terracotta")?p:"teal";}catch(e){document.documentElement.dataset.palette="teal";}})();</script>
-<meta name="app-build" content="23c84526">
+<meta name="app-build" content="713498ef">
 <style>
 /* ===== DESIGN TOKENS (design system v2.0 — docs/SEP_INVOICING_DESIGN_PRINCIPLES.md §3) ===== */
 /* Theme: colour-scheme decides every light-dark() below. <html data-theme> is set before first paint
@@ -15380,7 +15380,7 @@ function labourForRange(fromIso, toIso) {
     ot: 0, otHours: 0, extra: 0, extraHours: 0,
     floorCost: 0,
     daysRecorded: 0, workingDays: 0, sundaysRecorded: 0,
-    rosterSize: roster.filter(function(w) { return w.active !== false; }).length, ratelessWorkers: [], byArea: {}, byWorker: {}
+    rosterSize: roster.filter(function(w) { return w.active !== false; }).length, ratelessWorkers: [], hourlessWorkers: [], hourlessMarks: 0, byArea: {}, byWorker: {}
   };
 
   // What each worker earned in the range, on the same arithmetic as the totals:
@@ -15458,6 +15458,13 @@ function labourForRange(fromIso, toIso) {
           bumpArea(areaId, pay, 0, hrs);
           bumpFloor(w, areaId, pay);
           if (!(w.hourRate > 0) && out.ratelessWorkers.indexOf(w.name) < 0) out.ratelessWorkers.push(w.name);
+        } else if (dayVal > 0) {
+          // Present with no hours typed: the pool pays hours, so this day prices nothing. Said on the card and on Pay,
+          // since Hours by area counts the same mark as 8.
+          out.hourlessMarks++;
+          if (out.hourlessWorkers.indexOf(w.name) < 0) out.hourlessWorkers.push(w.name);
+          var hb = bumpWorker(w, 'base', 0, 0, 0, 0);
+          hb.hourless = (hb.hourless || 0) + 1;
         }
         return;
       }
@@ -15476,6 +15483,8 @@ function labourForRange(fromIso, toIso) {
       var offDay = w.comp === 'monthly' && (dow === 0 || holiday);
       var fixedWage = w.comp === 'monthly' && w.monthWage > 0;
       var wage = offDay && fixedWage ? 0 : dayVal * workerDayRate(w, iso);
+      // A day worked with no day rate (and no contracted wage) prices nothing; the card names the hand.
+      if (dayVal > 0 && !(offDay && fixedWage) && !(workerDayRate(w, iso) > 0) && out.ratelessWorkers.indexOf(w.name) < 0) out.ratelessWorkers.push(w.name);
       bumpWorker(w, 'base', wage, dayVal, m.hours || 0, 0);
       if (w.comp === 'monthly') {
         out.monthlyDays += wage;
@@ -15579,6 +15588,10 @@ function labourForRange(fromIso, toIso) {
     });
   }
 
+  // Fixed, variable and the total are each rounded ONCE from the unrounded parts, the rule the worker's total follows
+  // below: a contracted wage's 22 days and 6 credited read ₹6,387.10 + ₹1,741.94 = ₹8,129.04 when the parts were
+  // rounded first, where the slip's 28 × 9000 / 31 is ₹8,129.03.
+  var fixedRaw = out.monthlyDays + out.rest, variableRaw = out.pool + out.daily + out.dailyRest + out.ot + out.extra;
   ['monthlyDays', 'rest', 'pool', 'daily', 'dailyRest', 'ot', 'extra', 'floorCost'].forEach(function(k) {
     out[k] = gstRound(out[k]);
   });
@@ -15595,9 +15608,9 @@ function labourForRange(fromIso, toIso) {
   // Fixed is the standing crew — the monthly tier, days and gated rest days
   // together. It moves with their attendance but not with tonnage, which is the
   // distinction the split exists to draw.
-  out.fixed = gstRound(out.monthlyDays + out.rest);
-  out.variable = gstRound(out.pool + out.daily + out.dailyRest + out.ot + out.extra);
-  out.total = gstRound(out.fixed + out.variable);
+  out.fixed = gstRound(fixedRaw);
+  out.variable = gstRound(variableRaw);
+  out.total = gstRound(fixedRaw + variableRaw);
   out.floor = out.floorCost;
   out.offFloor = gstRound(out.total - out.floor);
   out.coverage = out.workingDays > 0 ? Math.min(1, out.daysRecorded / out.workingDays) : 0;
@@ -15794,9 +15807,14 @@ function renderLabourCard(fromIso, toIso, title, tonnage, extraClass) {
     (lab.dailyRest > 0 && lab.rangeDays > 7 ? ' Daily rest credit is gated on days inside this range, so a range cutting a week in half under-credits that week.' : ''));
 
   if (lab.ratelessWorkers.length > 0) {
-    html += _labCallout('Hours are recorded for <strong>' +
-      escHtml(lab.ratelessWorkers.join(', ')) + '</strong> with no rate to price them at, so those hours ' +
+    html += _labCallout('Days or hours are recorded for <strong>' +
+      escHtml(lab.ratelessWorkers.join(', ')) + '</strong> with no rate to price them at, so they ' +
       'are counted in the totals above and paid at zero. Set the rate in Roster to bring them into the bill.', 'warning');
+  }
+  if (lab.hourlessMarks > 0) {
+    html += _labCallout('<strong>' + lab.hourlessMarks + ' day' + (lab.hourlessMarks === 1 ? '' : 's') + '</strong> of the hourly pool ' +
+      '(' + escHtml(lab.hourlessWorkers.join(', ')) + ') ' + (lab.hourlessMarks === 1 ? 'is' : 'are') + ' marked present with no hours, and the pool is paid ' +
+      'for hours, so ' + (lab.hourlessMarks === 1 ? 'it prices' : 'they price') + ' at nothing. Type the hours on the Day view.', 'warning');
   }
 
   // The allocation answer sits last: it is a breakdown of a figure the reader
@@ -15807,8 +15825,9 @@ function renderLabourCard(fromIso, toIso, title, tonnage, extraClass) {
     var share = lab.total > 0 ? (lab.extra / lab.total) * 100 : 0;
     html += _labNote('<strong>' + formatNum(share, 1) + '% of this bill</strong> is extra hours ' +
       'booked to an area rather than to a person. That is what &ldquo;the extra&rdquo; on the daily sheet is: ' +
-      'real paid contract hours with no name against them. They are not spread across the men present, because ' +
-      'a per-worker cost invented that way would answer the fixed-versus-variable question by accident.');
+      'real paid contract hours with no name against them. In the bill they are one pooled line, counted once and never ' +
+      'in anyone&rsquo;s wage; the short area&rsquo;s present crew receive it pro-rata, disbursed by the supervisor ' +
+      '(owner, 28 Aug 2026), and Staff &rarr; Areas shows the split.');
   }
 
   return html + '</div>';
@@ -16180,7 +16199,9 @@ function setAreaTarget(areaId, heads) {
    day, not a gap to be filled by guesswork. */
 function areaStats(fromIso, toIso) {
   var dates = attDatesInRange(fromIso, toIso);
-  var roster = (S.staff || []).filter(function(w) { return w.active !== false; });
+  // Every worker, active or not, the labour card's rule: a hand who has since left still stood where the marks say,
+  // so the heads, the cost worked here and who received the extra count them.
+  var roster = S.staff || [];
   var cfg = labourCfg();
 
   var byId = {};
@@ -16206,9 +16227,13 @@ function areaStats(fromIso, toIso) {
     totalRecorded++;
 
     var headsToday = {};
+    var dow = attParseIso(iso).getDay(), holiday = dow !== 0 && labourIsHoliday(iso, cfg);
     roster.forEach(function(w) {
       var m = marks[w.id];
       if (!m || !m.st || m.st === 'A') return;
+      // Priced as the labour card prices it: a monthly hand's Sunday or paid holiday is a day, never OT as well, and on a
+      // contracted wage the day is inside the wage; the hourly pool carries no OT.
+      var offDay = w.comp === 'monthly' && (dow === 0 || holiday);
       var areaId = m.area || w.area || 'flex';
       var a = byId[areaId];
       if (!a) return;
@@ -16222,9 +16247,9 @@ function areaStats(fromIso, toIso) {
       } else {
         var dayVal = ATT_DAY_VALUE[m.st] || 0;
         a.dayTierDays += dayVal;
-        a.cost += dayVal * workerDayRate(w, iso);
+        if (!(offDay && w.monthWage > 0)) a.cost += dayVal * workerDayRate(w, iso);
       }
-      var oth = m.ot || 0;
+      var oth = offDay || w.comp === 'hourly' ? 0 : (m.ot || 0);
       if (oth > 0) {
         a.otHours += oth;
         a.cost += oth * workerOtHourPay(w, cfg, iso);
@@ -16342,7 +16367,9 @@ function areaStats(fromIso, toIso) {
     // barrel pickling are one block on the sheet and one shortfall in the
     // decode, whatever they are for staffing.
     var unitSeen = {};
-    STAFF_AREAS.forEach(function(x) {
+    // The EXTRA covers a hand short on the plant floor: the office and the gate carry a complement for staffing, and
+    // are never a unit the extra is expected on.
+    STAFF_AREAS.filter(function(x) { return x.floor; }).forEach(function(x) {
       var unit = areaUnitOf(x.id);
       if (unitSeen[unit]) return;
       unitSeen[unit] = true;
@@ -16513,12 +16540,14 @@ function _absorption(dates, roster, cfg) {
     var rec = (S.attendance || {})[iso];
     if (!rec) return;
     var marks = rec.marks || {};
+    // Present hands by UNIT: barrel and barrel pickling are one unit of five, so the extra booked to either is the
+    // unit's crew's. Keyed by area it went to nobody on a day the two sides were staffed apart.
     var present = {};
     roster.forEach(function(w) {
       var m = marks[w.id];
       if (!m || !m.st || m.st === 'A') return;
-      var areaId = m.area || w.area || 'flex';
-      (present[areaId] || (present[areaId] = [])).push(w);
+      var unit = areaUnitOf(m.area || w.area || 'flex');
+      (present[unit] || (present[unit] = [])).push(w);
     });
     (rec.extra || []).forEach(function(x) {
       var h = x.hours || 0;
@@ -16531,7 +16560,7 @@ function _absorption(dates, roster, cfg) {
         var ids = Array.isArray(x.crew) ? x.crew : [];
         crew = roster.filter(function(w) { return ids.indexOf(w.id) >= 0; });
       } else {
-        crew = present[x.area] || [];
+        crew = present[areaUnitOf(x.area || 'flex')] || [];
       }
       if (crew.length === 0) return;      // nobody to PAY it to; the flag covers that
       var each = h / crew.length;
@@ -16612,8 +16641,9 @@ function reopenAreaExplain(key) {
 
 /* ===== VIEW ===== */
 function _attAreasView() {
-  var from = _attWeekStart;
-  var to = isoAddDays(_attWeekStart, _areaSpan * 7 - 1);
+  // The span runs BACK from the week shown: 4 weeks is this one and the three before (it ran forward, into weeks to come).
+  var to = isoAddDays(_attWeekStart, 6);
+  var from = isoAddDays(_attWeekStart, -(_areaSpan - 1) * 7);
   var stats = areaStats(from, to);
 
   var html = _attStepper('invAttWeekStep', _attWeekLabel(_areaSpan === 1 ? 'Week ' + attPayWeekNumber(from) : _areaSpan + ' weeks',
@@ -17055,7 +17085,7 @@ function payWeek(weekStart) {
   });
   return { start: weekStart, sat: sat, lab: lab, workers: gstRound(workers), extra: lab.extra,
     total: gstRound(workers + lab.extra), paid: gstRound(paid),
-    recordedDays: lab.daysRecorded, sundays: lab.sundaysRecorded };
+    recordedDays: lab.daysRecorded, workingDays: lab.workingDays, sundays: lab.sundaysRecorded };
 }
 
 /* The payout the week is heading for, and the usual it is read against. */
@@ -17071,10 +17101,16 @@ function payForecast(weekStart) {
   var open = wk.sat >= today;
   var out = { week: wk, median: median, medianWeeks: past.length, open: open, predicted: wk.total, basis: 'recorded' };
   if (open) {
-    var sunOnly = labourForRange(weekStart, weekStart), sunPay = 0;
-    Object.keys(sunOnly.byWorker).forEach(function(id) { if (sunOnly.byWorker[id].comp !== 'monthly') sunPay += sunOnly.byWorker[id].total; });
-    sunPay += sunOnly.extra;
-    var missing = 6 - wk.recordedDays;
+    // The Sunday and a paid holiday are not working days: what they paid does not repeat, so it is out of the pace, and
+    // the days left to predict are the week's working days (five in a holiday week) less those recorded.
+    var sunPay = 0;
+    attWeekDays(weekStart).forEach(function(d) {
+      if (attParseIso(d).getDay() !== 0 && !labourIsHoliday(d)) return;
+      var one = labourForRange(d, d);
+      Object.keys(one.byWorker).forEach(function(id) { if (one.byWorker[id].comp !== 'monthly') sunPay += one.byWorker[id].total; });
+      sunPay += one.extra;
+    });
+    var missing = Math.max(0, wk.workingDays - wk.recordedDays);
     if (wk.recordedDays > 0) {
       var pace = (wk.total - sunPay) / wk.recordedDays;
       out.predicted = gstRound(wk.total + pace * missing);
@@ -17096,10 +17132,20 @@ function payForecast(weekStart) {
 function payDue(weekStart) {
   var today = localDateStr();
   var sat = isoAddDays(weekStart, 6);
-  var mFrom = payMonthStart(sat), mTo = payMonthEnd(sat);
+  // The monthly tier's month is the one the week's Sunday is in: a week that runs into the next month is the last pay
+  // week of the month it closes. Read off the Saturday, the last week of September showed October's due at nothing and
+  // hid September's, which is the one being settled.
+  var mFrom = payMonthStart(weekStart), mTo = payMonthEnd(weekStart);
   var wk = labourForRange(weekStart, sat);
   var mo = labourForRange(mFrom, mTo > today && mFrom <= today ? today : mTo);
-  var rows = staffActive().map(function(w) {
+  // The active roster, and anyone who has left but earned or was paid in the period: their final week must be payable.
+  var pool = staffActive().slice();
+  (S.staff || []).filter(function(w) { return w.active === false; }).sort(function(a, b) { return String(a.name).localeCompare(String(b.name)); }).forEach(function(w) {
+    var weekly = payIsWeekly(w), from = weekly ? weekStart : mFrom, to = weekly ? sat : mTo;
+    var e = (weekly ? wk : mo).byWorker[w.id];
+    if ((e && (e.total || e.days || e.hours || e.hourless)) || staffPayments().some(function(p) { return !p.voidedAt && String(p.staffId) === String(w.id) && p.date >= from && p.date <= to; })) pool.push(w);
+  });
+  var rows = pool.map(function(w) {
     var weekly = payIsWeekly(w);
     var e = (weekly ? wk : mo).byWorker[w.id] || { total: 0, days: 0, hours: 0, otHours: 0, base: 0, ot: 0, rest: 0 };
     var from = weekly ? weekStart : mFrom, to = weekly ? sat : mTo;
@@ -17144,7 +17190,7 @@ function _payForecastCard(ws) {
   var h = _labPanelHead('payout', 'Weekly payout', payMoney(f.open ? f.predicted : wk.total), '', 'payForecast');
   h += '<div class="inv-tiles inv-tiles-flush">' +
     _labTile('sofar', f.open ? 'So far' : 'The week', payMoney(wk.total),
-      wk.recordedDays + ' of 6 working days recorded' + (wk.sundays ? ' + Sunday' : '')) +
+      wk.recordedDays + ' of ' + wk.workingDays + ' working days recorded' + (wk.sundays ? ' + Sunday' : '') + (wk.workingDays < 6 ? ', a paid holiday out' : '')) +
     _labTile('predicted', f.open ? 'Predicted' : 'Against the median', f.open ? payMoney(f.predicted) : (f.swing == null ? '&mdash;' : paySigned(f.swing)),
       f.open
         ? (f.basis === 'pace' ? f.missing + ' day' + (f.missing === 1 ? '' : 's') + ' at this week&rsquo;s pace, ' + payMoney(f.pace) + '/day'
@@ -17169,7 +17215,9 @@ function _payDueCard(ws) {
   var h = _labPanelHead('due', 'Due by worker', null, '', 'payDue');
   var group = function(title, rows) {
     if (!rows.length) return '';
-    var tot = rows.reduce(function(s, r) { return s + r.due; }, 0);
+    // What is due and what was advanced are two figures: netting one hand's advance against another's due read low.
+    var tot = rows.reduce(function(s, r) { return s + (r.due > 0 ? r.due : 0); }, 0);
+    var adv = rows.reduce(function(s, r) { return s + (r.due < 0 ? -r.due : 0); }, 0);
     var g = '<div class="inv-row-group">' + title + '</div>';
     rows.forEach(function(r) {
       var e = r.earned, bits = [];
@@ -17177,6 +17225,8 @@ function _payDueCard(ws) {
       if (r.w.comp === 'hourly' && e.hours) bits.push(formatNum(e.hours, 1) + ' h');
       if (e.otHours) bits.push('OT ' + formatNum(e.otHours, 1) + ' h');
       if (e.rest) bits.push('rest ' + payMoney(e.rest));
+      if (e.hourless) bits.push(e.hourless + ' day' + (e.hourless === 1 ? '' : 's') + ' present with no hours, priced at nothing');
+      if (r.w.active === false) bits.push('left');
       // A negative due is an advance not yet worked off: said in a word beside the figure.
       g += _payRow(escHtml(r.w.name),
         (bits.length ? bits.join(' · ') + ' · ' : 'nothing recorded · ') + 'earned ' + payMoney(e.total) +
@@ -17185,7 +17235,9 @@ function _payDueCard(ws) {
           : '<span class="inv-num">' + payMoney(r.due) + '</span>',
         ' data-action="invPayPick" data-id="' + escHtml(r.w.id) + '" data-due="' + r.due + '"');
     });
-    g += _payRow('Total due', '', '<span class="inv-num">' + payMoney(gstRound(tot)) + '</span>', '', 'inv-row-strong');
+    g += _payRow('Total due', '', '<span class="inv-num" data-pay-total="due">' + payMoney(gstRound(tot)) + '</span>', '', 'inv-row-strong');
+    if (adv > 0) g += _payRow('Advanced, not yet worked off', 'not taken off the total due',
+      '<span class="inv-row-stack"><span class="inv-num" data-pay-total="advanced">' + payMoney(gstRound(adv)) + '</span><span class="inv-dot inv-dot-warning">Advance</span></span>');
     return g;
   };
   h += group('Weekly &middot; paid Sat ' + formatDate(d.sat), d.rows.filter(function(r) { return r.weekly; }));
@@ -17202,7 +17254,7 @@ function _payFormHtml(d) {
   var f = function(id, label, control) { return '<div class="inv-field"><label class="inv-field-label" for="' + id + '">' + label + '</label>' + control + '</div>'; };
   return '<div class="inv-row-group">Record a payment</div><div class="inv-panel-body" id="payForm"><div class="inv-fields">' +
     f('payWorker', 'Worker', '<select class="inv-select" id="payWorker"><option value="">Select&hellip;</option>' +
-      staffActive().map(function(w) { return '<option value="' + escHtml(w.id) + '">' + escHtml(w.name) + '</option>'; }).join('') + '</select>') +
+      d.rows.map(function(r) { return '<option value="' + escHtml(r.w.id) + '">' + escHtml(r.w.name) + '</option>'; }).join('') + '</select>') +
     f('payKind', 'Kind', '<select class="inv-select" id="payKind"><option value="payment">Payment</option><option value="advance">Advance</option></select>') +
     f('payAmount', 'Amount', '<input class="inv-input inv-input-num" id="payAmount" type="number" step="0.01" min="0" inputmode="decimal">') +
     f('payDate', 'Date', '<input class="inv-input inv-id" id="payDate" type="date" value="' + defDate + '">') +
@@ -17237,7 +17289,10 @@ function _payHistoryCard(ws) {
   var median = payForecast(ws).median;
   var h = '<div class="inv-panel inv-panel-flush" id="payHistory"><div class="inv-panel-head"><span class="inv-panel-title">Weekly payouts</span>' +
     '<span class="inv-panel-count">median ' + (median == null ? '&mdash;' : payMoney(median)) + '</span></div>';
-  h += '<div class="inv-panel-body">' + chartBars(weeks.map(function(w) { return { label: 'W' + attPayWeekNumber(w.start), value: w.total }; }), { ariaLabel: 'Weekly payout' }) + '</div>';
+  // A week nobody typed is a gap, not a ₹0 week: chartStack draws no bar (and no ₹0 reading) for it.
+  h += '<div class="inv-panel-body">' + chartStack(weeks.map(function(w) { return 'W' + attPayWeekNumber(w.start); }),
+    [{ label: 'Payout', values: weeks.map(function(w) { return w.recordedDays || w.sundays ? w.total : null; }) }],
+    { ariaLabel: 'Weekly payout', emptyText: 'No week recorded in the twelve' }) + '</div>';
   weeks.slice().reverse().forEach(function(w) {
     var swing = median != null && w.recordedDays > 0 ? gstRound(w.total - median) : null;
     h += _payRow('Week ' + attPayWeekNumber(w.start) + ' &middot; Sat ' + escHtml(formatDate(w.sat)),
@@ -17490,13 +17545,20 @@ function areaHoursForRange(from, to) {
       if (!m || (m.st !== 'P' && m.st !== 'H')) return;
       var w = staffById(id);
       var a = get(m.area || (w && w.area) || 'flex');
-      var hrs = m.hours > 0 ? m.hours : (m.st === 'H' ? 4 : 8);
+      // A mark with no hours counts the day (8, a half day 4) and its OT on top: OT is part of a day's hours.
+      var hrs = m.hours > 0 ? m.hours : (m.st === 'H' ? 4 : 8) + (m.ot || 0);
       if (!(m.hours > 0)) { a.assumed++; assumed++; }
       a.hours += hrs;
       a.ot += m.ot || 0;
       a.workerDays += m.st === 'H' ? 0.5 : 1;
     });
-    (rec.extra || []).forEach(function(x) { if (x.hours > 0) get(x.area || 'flex').extra += x.hours; });
+    // A block over several areas books to each of them evenly, as the Areas card splits it; it all went to the first.
+    (rec.extra || []).forEach(function(x) {
+      if (!(x.hours > 0)) return;
+      var ids = extraAreas(x).filter(function(id) { return STAFF_AREAS.some(function(a) { return a.id === id; }); });
+      if (!ids.length) ids = ['flex'];
+      ids.forEach(function(id) { get(id).extra += x.hours / ids.length; });
+    });
   });
   var rows = STAFF_AREAS.map(function(x) { var r = by[x.id]; if (r) r.label = x.label; return r; }).filter(Boolean);
   rows.forEach(function(r) { r.total = r.hours + r.extra; });
@@ -17515,7 +17577,7 @@ function areaHoursCard(from, to) {
     h += _payRow(escHtml(a.label), bits.join(' · '), '<span class="inv-num">' + formatNum(a.total, 1) + ' h</span>');
   });
   h += _labNote('Every tier together: the hours on each day&rsquo;s mark, where the worker stood that day, plus the EXTRA booked to the area.' +
-    (r.assumed ? ' <strong>' + r.assumed + ' mark' + (r.assumed === 1 ? '' : 's') + '</strong> carried no hours and ' + (r.assumed === 1 ? 'is' : 'are') + ' counted as 8 (a half day as 4).' : ''));
+    (r.assumed ? ' <strong>' + r.assumed + ' mark' + (r.assumed === 1 ? '' : 's') + '</strong> carried no hours and ' + (r.assumed === 1 ? 'is' : 'are') + ' counted as 8 (a half day as 4), with any OT on top.' : ''));
   return h + '</div>';
 }
 
@@ -17540,7 +17602,8 @@ function attDaySummary() {
     if (m.st === 'H') out.half++; else out.p++;
     if (w.onFloor !== false && _areaIsFloor(m.area || w.area)) out.floorHeads++;
   });
-  out.complement = STAFF_AREAS.reduce(function(s, a) { var t = areaNeedOn(iso, a.id); return s + (t != null ? t : 0); }, 0);
+  // The floor's complement against the floor's heads: an office or gate complement is not a head on the floor.
+  out.complement = STAFF_AREAS.reduce(function(s, a) { var t = a.floor ? areaNeedOn(iso, a.id) : null; return s + (t != null ? t : 0); }, 0);
   out.extraH = (rec.extra || []).reduce(function(s, x) { return s + (x.hours || 0); }, 0);
   out.short = !!out.complement && out.floorHeads < out.complement;
   return out;
@@ -27625,9 +27688,11 @@ function dashPayrollVsBank(labs) {
       src = 'model';
       var lab = labs && labs[m] || labourForRange(m + '-01', payMonthEnd(m + '-01'));
       Object.keys(lab.byWorker).forEach(function(id) { if (lab.byWorker[id].comp === 'monthly') payroll += lab.byWorker[id].total; });
+      // A month nobody typed is not a month that paid nothing: a gap, not ₹0.
+      if (!lab.daysRecorded && !lab.sundaysRecorded) payroll = null;
     }
     var named = bm && bankMonthKnown(bm, m, 'labour') ? (bm.months[m] ? bm.months[m].labour.named : 0) : null;
-    return { month: m, payroll: gstRound(payroll), src: src, bank: named == null ? null : gstRound(named) };
+    return { month: m, payroll: payroll == null ? null : gstRound(payroll), src: src, bank: named == null ? null : gstRound(named) };
   });
 }
 
@@ -27660,7 +27725,7 @@ function staffOverviewHtml() {
   var pb = dashPayrollVsBank(labs);
   h += _dashPanel('dashPayBank', 'Payroll against the bank', chartStack(pb.map(function(x) { return insMonthLabel(x.month); }), [
     { label: 'Payroll', values: pb.map(function(x) { return x.payroll; }) },
-    { label: 'Paid, bank', values: pb.map(function(x) { return x.bank == null ? 0 : x.bank; }) }
+    { label: 'Paid, bank', values: pb.map(function(x) { return x.bank; }) }
   ], { mode: 'group', ariaLabel: 'Payroll against the bank', emptyText: 'No monthly payroll in six months' }) +
     '<div class="inv-note">Payroll is the slip as paid where one is imported, else the wage model’s monthly tier (' +
     escHtml(pb.filter(function(x) { return x.src === 'model'; }).map(function(x) { return insMonthLabel(x.month); }).join(', ') || 'none') +

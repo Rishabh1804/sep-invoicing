@@ -66,9 +66,11 @@ function dashPayrollVsBank(labs) {
       src = 'model';
       var lab = labs && labs[m] || labourForRange(m + '-01', payMonthEnd(m + '-01'));
       Object.keys(lab.byWorker).forEach(function(id) { if (lab.byWorker[id].comp === 'monthly') payroll += lab.byWorker[id].total; });
+      // A month nobody typed is not a month that paid nothing: a gap, not ₹0.
+      if (!lab.daysRecorded && !lab.sundaysRecorded) payroll = null;
     }
     var named = bm && bankMonthKnown(bm, m, 'labour') ? (bm.months[m] ? bm.months[m].labour.named : 0) : null;
-    return { month: m, payroll: gstRound(payroll), src: src, bank: named == null ? null : gstRound(named) };
+    return { month: m, payroll: payroll == null ? null : gstRound(payroll), src: src, bank: named == null ? null : gstRound(named) };
   });
 }
 
@@ -101,7 +103,7 @@ function staffOverviewHtml() {
   var pb = dashPayrollVsBank(labs);
   h += _dashPanel('dashPayBank', 'Payroll against the bank', chartStack(pb.map(function(x) { return insMonthLabel(x.month); }), [
     { label: 'Payroll', values: pb.map(function(x) { return x.payroll; }) },
-    { label: 'Paid, bank', values: pb.map(function(x) { return x.bank == null ? 0 : x.bank; }) }
+    { label: 'Paid, bank', values: pb.map(function(x) { return x.bank; }) }
   ], { mode: 'group', ariaLabel: 'Payroll against the bank', emptyText: 'No monthly payroll in six months' }) +
     '<div class="inv-note">Payroll is the slip as paid where one is imported, else the wage model’s monthly tier (' +
     escHtml(pb.filter(function(x) { return x.src === 'model'; }).map(function(x) { return insMonthLabel(x.month); }).join(', ') || 'none') +

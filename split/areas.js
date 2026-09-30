@@ -344,7 +344,9 @@ function setAreaTarget(areaId, heads) {
    day, not a gap to be filled by guesswork. */
 function areaStats(fromIso, toIso) {
   var dates = attDatesInRange(fromIso, toIso);
-  var roster = (S.staff || []).filter(function(w) { return w.active !== false; });
+  // Every worker, active or not, the labour card's rule: a hand who has since left still stood where the marks say,
+  // so the heads, the cost worked here and who received the extra count them.
+  var roster = S.staff || [];
   var cfg = labourCfg();
 
   var byId = {};
@@ -370,9 +372,13 @@ function areaStats(fromIso, toIso) {
     totalRecorded++;
 
     var headsToday = {};
+    var dow = attParseIso(iso).getDay(), holiday = dow !== 0 && labourIsHoliday(iso, cfg);
     roster.forEach(function(w) {
       var m = marks[w.id];
       if (!m || !m.st || m.st === 'A') return;
+      // Priced as the labour card prices it: a monthly hand's Sunday or paid holiday is a day, never OT as well, and on a
+      // contracted wage the day is inside the wage; the hourly pool carries no OT.
+      var offDay = w.comp === 'monthly' && (dow === 0 || holiday);
       var areaId = m.area || w.area || 'flex';
       var a = byId[areaId];
       if (!a) return;
@@ -386,9 +392,9 @@ function areaStats(fromIso, toIso) {
       } else {
         var dayVal = ATT_DAY_VALUE[m.st] || 0;
         a.dayTierDays += dayVal;
-        a.cost += dayVal * workerDayRate(w, iso);
+        if (!(offDay && w.monthWage > 0)) a.cost += dayVal * workerDayRate(w, iso);
       }
-      var oth = m.ot || 0;
+      var oth = offDay || w.comp === 'hourly' ? 0 : (m.ot || 0);
       if (oth > 0) {
         a.otHours += oth;
         a.cost += oth * workerOtHourPay(w, cfg, iso);
@@ -506,7 +512,9 @@ function areaStats(fromIso, toIso) {
     // barrel pickling are one block on the sheet and one shortfall in the
     // decode, whatever they are for staffing.
     var unitSeen = {};
-    STAFF_AREAS.forEach(function(x) {
+    // The EXTRA covers a hand short on the plant floor: the office and the gate carry a complement for staffing, and
+    // are never a unit the extra is expected on.
+    STAFF_AREAS.filter(function(x) { return x.floor; }).forEach(function(x) {
       var unit = areaUnitOf(x.id);
       if (unitSeen[unit]) return;
       unitSeen[unit] = true;
@@ -677,12 +685,14 @@ function _absorption(dates, roster, cfg) {
     var rec = (S.attendance || {})[iso];
     if (!rec) return;
     var marks = rec.marks || {};
+    // Present hands by UNIT: barrel and barrel pickling are one unit of five, so the extra booked to either is the
+    // unit's crew's. Keyed by area it went to nobody on a day the two sides were staffed apart.
     var present = {};
     roster.forEach(function(w) {
       var m = marks[w.id];
       if (!m || !m.st || m.st === 'A') return;
-      var areaId = m.area || w.area || 'flex';
-      (present[areaId] || (present[areaId] = [])).push(w);
+      var unit = areaUnitOf(m.area || w.area || 'flex');
+      (present[unit] || (present[unit] = [])).push(w);
     });
     (rec.extra || []).forEach(function(x) {
       var h = x.hours || 0;
@@ -695,7 +705,7 @@ function _absorption(dates, roster, cfg) {
         var ids = Array.isArray(x.crew) ? x.crew : [];
         crew = roster.filter(function(w) { return ids.indexOf(w.id) >= 0; });
       } else {
-        crew = present[x.area] || [];
+        crew = present[areaUnitOf(x.area || 'flex')] || [];
       }
       if (crew.length === 0) return;      // nobody to PAY it to; the flag covers that
       var each = h / crew.length;
@@ -776,8 +786,9 @@ function reopenAreaExplain(key) {
 
 /* ===== VIEW ===== */
 function _attAreasView() {
-  var from = _attWeekStart;
-  var to = isoAddDays(_attWeekStart, _areaSpan * 7 - 1);
+  // The span runs BACK from the week shown: 4 weeks is this one and the three before (it ran forward, into weeks to come).
+  var to = isoAddDays(_attWeekStart, 6);
+  var from = isoAddDays(_attWeekStart, -(_areaSpan - 1) * 7);
   var stats = areaStats(from, to);
 
   var html = _attStepper('invAttWeekStep', _attWeekLabel(_areaSpan === 1 ? 'Week ' + attPayWeekNumber(from) : _areaSpan + ' weeks',

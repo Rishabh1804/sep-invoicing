@@ -202,5 +202,7 @@ test('picking a part on a challan keeps the gauge in the line description', asyn
   // The challan path used to assign part.desc raw. IM is the billing spine, so
   // dropping the gauge here carried the ambiguity into every invoice raised
   // off the challan.
-  await expect(page.locator('#imPart0')).toHaveValue('CLAMP (40X6)');
+  // The Part field holds the part number; the description, gauge folded in, is said under the line (P106, C4).
+  await expect(page.locator('#imPart0')).toHaveValue('CLAMP 165X83 (NT)');
+  await expect(page.locator('#imDesc0')).toContainText('CLAMP (40X6)');
 });

@@ -236,3 +236,103 @@ test.describe('P106: the duplicate check and a jump to a challan say what is tru
     await expect(page.locator('.inv-toast')).toContainText('Cannot edit: 1 item already invoiced');
   });
 });
+
+test.describe('P106: the Items Master merges one part at one gauge, and its list tells the truth', () => {
+  const inv = (id: string, state: string, lines: any[]) => ({ id, invoiceNumber: id, displayNumber: 'SEP/TEST-' + id, date: todayIso(), status: 'active',
+    invoiceState: state, clientId: 3, clientName: 'PIECE PLANT', items: lines, taxableValue: 1, grandTotal: 1, createdAt: recentTs() });
+  const mergeState = () => {
+    const s = base();
+    s.items = [
+      { id: 1, partNumber: 'CLAMP 165X83 (NT)', desc: 'CLAMP', gauge: '35X6', unit: 'NOS', hsn: '998873' },
+      { id: 2, partNumber: 'CLAMP 165X83 (NT)', desc: 'CLAMP', gauge: '40X6', unit: 'NOS', hsn: '998873' },
+      { id: 3, partNumber: 'CLMP 165X83 (NT)', desc: 'CLAMP', gauge: '40X6', unit: 'NOS', hsn: '998873', stdWeightKg: 0.3 },
+    ];
+    const L = { partNumber: 'CLMP 165X83 (NT)', desc: 'CLAMP (40X6)', unit: 'NOS', qty: 10, rate: 4.89, amount: 48.9 };
+    s.invoices = [inv('F1', 'filed', [{ ...L }]), inv('C1', 'created', [{ ...L }])];
+    s.incomingMaterial.push(challan('IM-M', 3, todayIso(), [{ ...L }], { clientName: 'PIECE PLANT' }));
+    s.partWeights = { 'CLMP 165X83 (NT)': 0.3 };
+    s.clients[2].pieceRates = [{ partNumber: 'CLMP 165X83 (NT)', gauge: '40X6', rate: 4.89, effectiveFrom: '2020-04-01' }];
+    return s;
+  };
+  async function openItems(page: Page) {
+    await switchTab(page, 'pageClients');
+    await page.locator('[data-action="invSwitchSubView"][data-view="items"]').first().click();
+  }
+
+  test('C1: two gauges are never a group, and a merge renames without touching a description or an issued invoice', async ({ page }) => {
+    await loadAppWithState(page, mergeState());
+    expect(await g(page, 'findDuplicateGroups(S.items).map(function(gr){ return gr.items.map(function(i){ return i.id; }); })')).toEqual([[2, 3]]);
+    await openItems(page);
+    await page.locator('[data-action="invOpenMergeTool"]').click();
+    await expect(page.locator('#mergeGroup0 [data-gauge]').first()).toHaveText('40X6');
+    await page.locator('[data-action="invMergeGroup"][data-group="0"]').click();
+    await expect(page.locator('#mergeGroup0')).toContainText('Lines left as issued');
+    await page.locator('[data-action="invMergeConfirm"]').click();
+    const st = await readStoredState(page);
+    expect(st.items.map((i: any) => i.id)).toEqual([1, 2]);
+    expect(st.items[1].stdWeightKg).toBe(0.3);
+    const f1 = st.invoices.find((i: any) => i.id === 'F1').items[0], c1 = st.invoices.find((i: any) => i.id === 'C1').items[0];
+    expect([f1.partNumber, f1.desc]).toEqual(['CLMP 165X83 (NT)', 'CLAMP (40X6)']);
+    expect([c1.partNumber, c1.desc]).toEqual(['CLAMP 165X83 (NT)', 'CLAMP (40X6)']);
+    const line = st.incomingMaterial.find((m: any) => m.id === 'IM-M').items[0];
+    expect(line.partNumber).toBe('CLAMP 165X83 (NT)');
+    expect(line.corrections[0].from.partNumber).toBe('CLMP 165X83 (NT)');
+    expect(st.partWeights['CLAMP 165X83 (NT)']).toBe(0.3);
+    expect(st.partWeights['CLMP 165X83 (NT)']).toBe(0.3);   // the filed invoice still spells it
+    expect(st.clients[2].pieceRates[0].partNumber).toBe('CLAMP 165X83 (NT)');
+    await expect(page.locator('#itemsList [data-item-row="3"]')).toHaveCount(0);
+  });
+
+  test('C8, C15, C14: usage is read fresh, a hidden tick is dropped, a delete takes its tick, an edit cannot make a twin', async ({ page }) => {
+    await loadAppWithState(page, mergeState());
+    await openItems(page);
+    await expect(page.locator('[data-action="invFilterUnused"]')).toHaveText('Unused (2)');
+    await g(page, 'S.incomingMaterial.push({ id: "IM-N", clientId: 1, challanDate: "2026-09-01", items: [{ id: "IM-N-0", partNumber: "CLAMP 165X83 (NT)", unit: "NOS", qty: 1 }] }); renderClientsPage(); 1');
+    await expect(page.locator('[data-action="invFilterUnused"]')).toHaveText('Unused (0)');
+    await page.locator('[data-item-row="1"] .inv-row-tick').click();
+    await page.locator('#itemsSearch').fill('CLMP');
+    await expect(page.locator('#itemsSelBar .inv-selbar')).toHaveCount(0);
+    await page.locator('#itemsSearch').fill('');
+    await page.locator('[data-item-row="3"] .inv-row-tick').click();
+    await g(page, 'deleteItem(3); 1');
+    await answerAsk(page, 'ok');
+    expect(await g(page, 'Object.keys(_itemsSelected).length')).toBe(0);
+    await g(page, 'openItemEdit(1)');
+    await page.locator('#itemEditGauge').fill('40x6');
+    await page.locator('[data-action="invSaveItem"]').click();
+    await expect(page.locator('.inv-toast')).toContainText('Already exists');
+    expect(await g(page, 'S.items.find(function(i){ return i.id === 1; }).gauge')).toBe('35X6');
+  });
+
+  test('CB6: a search that finds more than thirty shows the rest one tap away', async ({ page }) => {
+    const s = base();
+    s.items = Array.from({ length: 40 }, (_, i) => ({ id: 300 + i, partNumber: 'BRKT ' + (100 + i), desc: 'BRKT', unit: 'KG', hsn: '998873' }));
+    await loadAppWithState(page, s);
+    await openItems(page);
+    await page.locator('#itemsSearch').fill('BRKT');
+    const more = page.locator('#itemsList [data-action="invShowMore"][data-key="items-all|brkt"]');
+    await expect(more).toContainText('Show 10 more items · 40 in all');
+    await more.click();
+    await expect(page.locator('#itemsList [data-item-row]:visible')).toHaveCount(40);
+  });
+
+  test('H6: an item delete answered after another window reloaded the book removes it from the book now held', async ({ page }) => {
+    await loadAppWithState(page, mergeState());
+    await g(page, 'deleteItem(1); 1');
+    await expect(page.locator('[data-ui-ask]')).toBeVisible();
+    await g(page, 'S = JSON.parse(JSON.stringify(S)); 1');
+    await answerAsk(page, 'ok');
+    expect(await g(page, 'S.items.some(function(i){ return i.id === 1; })')).toBe(false);
+  });
+
+  test('C13: a part held in two gauges is not promised a derived weight, and says why', async ({ page }) => {
+    const s = mergeState();
+    s.clients[2].rates = [{ ratePerKg: 5.4, ratePerPiece: null, effectiveFrom: '2020-04-01' }];
+    s.invoices = [inv('D1', 'filed', [{ partNumber: 'CLAMP 165X83 (NT)', desc: 'CLAMP', unit: 'NOS', qty: 10, rate: 4.89, amount: 48.9 }])];
+    await loadAppWithState(page, s);
+    await openItems(page);
+    await page.locator('[data-action="invOpenWeightEntry"]').click();
+    await expect(page.locator('[data-two-gauge]')).toContainText('held in two gauges');
+    await expect(page.locator('[data-action="invDeriveWeights"]')).toHaveCount(0);
+  });
+});

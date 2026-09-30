@@ -157,7 +157,9 @@ function qcCertsForInvoice(inv) {
     .map(escHtml)
     .join('<br>');
 
+  // A line with no part and no quantity certifies nothing and is left out; the others keep their own line numbers.
   return (inv.items || []).map(function(item, idx) {
+    if (qcBlankLine(item)) return null;
     var partNo = item.partNumber || item.desc || '';
     // The gauge is part of a part's identity — two rows can share a part number
     // at different gauges and different weights. It is folded into `desc` at
@@ -178,7 +180,12 @@ function qcCertsForInvoice(inv) {
       quantity: qcQuantity(item),
       netWt: qcNetWeight(inv, item)
     };
-  });
+  }).filter(Boolean);
+}
+
+/* A line saved with nothing on it (before the invoice form refused one). */
+function qcBlankLine(item) {
+  return !String(item.partNumber || item.desc || '').trim() && !((item.qty || 0) > 0);
 }
 
 function _qcHeaderHtml() {
@@ -314,7 +321,7 @@ function buildQualityCertHtml(c) {
    silently goes missing from a stack of forty is not noticed until the customer
    asks for it. */
 function qcGatherCerts(invIds) {
-  var result = { certs: [], invoices: [], cancelled: 0, empty: 0, missing: 0 };
+  var result = { certs: [], invoices: [], cancelled: 0, empty: 0, missing: 0, blank: 0 };
 
   var invoices = (invIds || []).map(function(id) {
     return S.invoices.find(function(i) { return i.id === id; });
@@ -326,7 +333,9 @@ function qcGatherCerts(invIds) {
     // billed. Certifying against it would put a quality declaration behind a
     // number that appears in GSTR-1 at zero.
     if (inv.status === 'cancelled') { result.cancelled++; return; }
-    if (!(inv.items || []).length) { result.empty++; return; }
+    var blank = (inv.items || []).filter(qcBlankLine).length;
+    if (!(inv.items || []).length || blank === inv.items.length) { result.empty++; return; }
+    result.blank += blank;
     result.invoices.push(inv);
   });
 
@@ -334,14 +343,8 @@ function qcGatherCerts(invIds) {
   // numerically rather than as text: app-issued numbers are zero-padded and
   // would sort the same either way, but an imported one need not be, and 9
   // after 10 in a stack of certificates is a filing error waiting to happen.
-  result.invoices.sort(function(a, b) {
-    var na = invNumInt(a.invoiceNumber);
-    var nb = invNumInt(b.invoiceNumber);
-    if (na == null || nb == null) {
-      return String(a.displayNumber || '').localeCompare(String(b.displayNumber || ''));
-    }
-    return na - nb;
-  });
+  // The series first (invSerialCompare): last year's run before this year's.
+  result.invoices.sort(invSerialCompare);
 
   result.invoices.forEach(function(inv) {
     result.certs = result.certs.concat(qcCertsForInvoice(inv));
@@ -404,6 +407,7 @@ function _qcRunNoticeHtml(gathered) {
   if (gathered.cancelled > 0) reasons.push(gathered.cancelled + ' cancelled');
   if (gathered.empty > 0) reasons.push(gathered.empty + ' with no line items');
   if (gathered.missing > 0) reasons.push(gathered.missing + ' no longer in the register');
+  if (gathered.blank > 0) reasons.push(gathered.blank + ' line' + (gathered.blank !== 1 ? 's' : '') + ' with nothing on ' + (gathered.blank !== 1 ? 'them' : 'it'));
 
   if (reasons.length === 0) {
     return '<div class="inv-qc-notice">' + escHtml(msg) + '</div>';
@@ -420,6 +424,6 @@ function _qcRunNoticeHtml(gathered) {
 function qcEligibleCount(invIds) {
   return (invIds || []).filter(function(id) {
     var inv = S.invoices.find(function(i) { return i.id === id; });
-    return inv && inv.status !== 'cancelled' && (inv.items || []).length > 0;
+    return inv && inv.status !== 'cancelled' && (inv.items || []).some(function(it) { return !qcBlankLine(it); });
   }).length;
 }

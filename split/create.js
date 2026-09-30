@@ -8,13 +8,89 @@ let invoiceForm = {
 
 function initCreateForm() {
   invoiceForm = {clientId:null, date:localDateStr(), items:[], poNumber:'',poDate:localDateStr(),challanNo:'',challanDate:localDateStr(),despatchDate:localDateStr(),transport:'',eWayBill:'',remarks:'',editingId:null};
-  // Phase 7: Pre-select client from Stats drill-down
-  if (_preselectedClientId) {
-    var pc = S.clients.find(function(c) { return c.id === parseInt(_preselectedClientId); });
-    if (pc) invoiceForm.clientId = pc.id;
-    _preselectedClientId = null;
-    createApplyClientDefaults();
-  }
+  createMarkBase();
+  renderCreateForm();
+}
+
+/* ===== ONE DOOR TO A NEW FORM =====
+   New invoice, Edit, IM's Create invoice, a reissue and the Stats drill-down each replace the form, and each used
+   to throw away an invoice being typed without a word. A form holds work when it differs from what it was opened
+   as (`_base`, stamped by whoever built it); then the door asks first, Keep editing first. Clear is a discard
+   somebody chose and asks nothing. */
+function createFormSig(capture) {
+  const f = invoiceForm;
+  if (!f) return '';
+  // Read the fields on screen only for the form they belong to: the base is stamped before the new form is drawn.
+  if (capture && document.getElementById('invDate')) captureOptionalFields();
+  return JSON.stringify([f.clientId, f.date, f.poNumber, f.poDate, f.challanNo, f.challanDate, f.despatchDate, f.transport, f.remarks,
+    (f.items || []).map(i => [i.partNumber, i.desc, i.unit, i.qty, i.rate, i.amount, i.nosQty || null])]);
+}
+function createMarkBase() { if (invoiceForm) invoiceForm._base = createFormSig(); }
+function createFormHasWork() {
+  const f = invoiceForm;
+  if (!f || !document.getElementById('createFormArea') || !document.getElementById('createFormArea').innerHTML) return false;
+  return f._base !== undefined && createFormSig(true) !== f._base;
+}
+function createDiscardOk() {
+  if (!createFormHasWork()) return Promise.resolve(true);
+  const f = invoiceForm, c = f.clientId ? S.clients.find(x => x.id === f.clientId) : null;
+  const what = f.editingId ? 'Your changes to ' + ((S.invoices.find(i => i.id === f.editingId) || {}).displayNumber || 'an invoice')
+    : 'An invoice' + (c ? ' for ' + c.name : '') + ' with ' + todoPlural(f.items.length, 'line');
+  return uiConfirm({ title: 'Discard the invoice being typed?',
+    body: what + ' on Create ' + (f.editingId ? 'are' : 'is') + ' not saved. Keep editing to finish it first, or discard it and go on.',
+    okLabel: 'Discard', cancelLabel: 'Keep editing', danger: true });
+}
+/* New invoice. */
+async function createNew() {
+  if (!(await createDiscardOk())) return;
+  initCreateForm();
+  switchTab('pageCreate');
+}
+/* A new invoice for one client (the Stats drill-down): the client is chosen on a fresh form, whether or not a form
+   already existed. It used to be left in a global that only a form not yet drawn would read, so with Create open
+   it did nothing, and later leaked into the next New invoice. */
+async function createForClient(clientId) {
+  if (!(await createDiscardOk())) return;
+  closeOverlay();
+  initCreateForm();
+  const c = S.clients.find(x => x.id === parseInt(clientId));
+  if (c) { selectClient(c.id); createMarkBase(); }
+  switchTab('pageCreate');
+}
+
+/* Change: what the app filled for the old client goes with it — the lines from its challans, the challan no. and
+   date the ticks gave, a PO or vehicle filled for it. A field typed for it asks first, naming what would go. Kept
+   before, a line of client A's challan could be saved onto client B's invoice and mark A's challan billed. */
+async function createClearClient() {
+  captureOptionalFields();
+  const f = invoiceForm, auto = f._auto || {}, ticks = createChallanAuto();
+  const fromChallan = f.items.filter(i => i._imItemId);
+  const typed = [];
+  if (f.poNumber && f.poNumber !== auto.po) typed.push('P.O. no. ' + f.poNumber);
+  if (f.transport && f.transport !== auto.ve && f.transport !== ticks.ve) typed.push('vehicle ' + f.transport);
+  if (f.challanNo && f.challanNo !== ticks.no) typed.push('challan no. ' + f.challanNo);
+  // A challan line changed by hand is typed work too.
+  const edited = fromChallan.filter(i => {
+    let it = null;
+    (S.incomingMaterial || []).some(m => (it = (m.items || []).find(x => x.id === i._imItemId)));
+    if (!it) return false;
+    const fresh = imLineFormItem(it);
+    return Math.abs((fresh.qty || 0) - (i.qty || 0)) > IM_QTY_EPS || Math.abs((fresh.amount || 0) - (i.amount || 0)) > 0.005 || (fresh.rate || 0) !== (i.rate || 0);
+  });
+  if (edited.length) typed.push(todoPlural(edited.length, 'line') + ' from its challans, changed by hand');
+  const c = f.clientId ? S.clients.find(x => x.id === f.clientId) : null;
+  if (typed.length && !(await uiConfirm({ title: 'Change client?',
+    body: 'These were typed for ' + (c ? c.name : 'this client') + ' and go with it: ' + typed.join(', ') + '.',
+    okLabel: 'Change client', cancelLabel: 'Keep', danger: true }))) return;
+  f.clientId = null;
+  f.items = f.items.filter(i => !i._imItemId);
+  f._linkedIMIds = []; f._linkedIMItemIds = [];
+  if (f.challanNo === ticks.no || typed.length) f.challanNo = '';
+  if (ticks.date && f.challanDate === ticks.date) f.challanDate = localDateStr();
+  if (!f.poNumber || f.poNumber === auto.po || typed.length) f.poNumber = '';
+  if (!f.transport || f.transport === auto.ve || f.transport === ticks.ve || typed.length) f.transport = '';
+  f._auto = {}; f._pred = null; f._defaults = null;
+  createSyncPoDate();
   renderCreateForm();
 }
 
@@ -173,7 +249,7 @@ function renderCreateForm() {
       const q = cs.value.toLowerCase();
       const res = document.getElementById('invClientResults');
       const matches = q.length < 1 ? [] :
-        S.clients.filter(c => c.isActive && (c.name.toLowerCase().includes(q) || (c.gstin||'').includes(q))).slice(0, 8);
+        S.clients.filter(c => c.isActive && (c.name.toLowerCase().includes(q) || (c.gstin||'').toLowerCase().includes(q))).slice(0, 8);
       acReset();
       if (matches.length === 0) {
         res.classList.add('inv-hidden');
@@ -279,14 +355,20 @@ function createRefreshPoDate(changed) {
   if (h) h.innerHTML = createPoDateHintHtml();
 }
 
+/* The tax on a taxable value: the one computation the invoice form, the saved invoice and a credit note all read
+   (it was worked three ways). 9% + 9% within the state, 18% across. */
+function invTax(taxable, gstType) {
+  const intra = (gstType || 'intra') === 'intra';
+  const cgstPer = intra ? 9 : 0, sgstPer = intra ? 9 : 0, igstPer = gstType === 'inter' ? 18 : 0;
+  const cgstAmt = gstRound(taxable * cgstPer / 100), sgstAmt = gstRound(taxable * sgstPer / 100), igstAmt = gstRound(taxable * igstPer / 100);
+  return { gstType: gstType || 'intra', cgstPer, cgstAmt, sgstPer, sgstAmt, igstPer, igstAmt, grand: gstRound(taxable + cgstAmt + sgstAmt + igstAmt) };
+}
+
 /* The invoice's tax, worked the one way both the render and the live update read. */
 function createTotals(client) {
   const taxable = gstRound(invoiceForm.items.reduce((s,i) => s + (i.amount || 0), 0));
-  const gstType = client ? client.gstType : 'intra';
-  const cgst = gstType === 'intra' ? gstRound(taxable * 9 / 100) : 0;
-  const sgst = gstType === 'intra' ? gstRound(taxable * 9 / 100) : 0;
-  const igst = gstType === 'inter' ? gstRound(taxable * 18 / 100) : 0;
-  return { gstType, taxable, cgst, sgst, igst, grand: gstRound(taxable + cgst + sgst + igst) };
+  const t = invTax(taxable, client ? client.gstType : 'intra');
+  return { gstType: t.gstType, taxable, cgst: t.cgstAmt, sgst: t.sgstAmt, igst: t.igstAmt, grand: t.grand };
 }
 
 function createTotalsHtml(client) {
@@ -355,8 +437,14 @@ function createPickChallan(imId) {
   } else {
     // An untouched blank line would only sit above the challan's lines.
     invoiceForm.items = invoiceForm.items.filter(i => i._imItemId || i.partNumber || i.desc || i.qty || i.amount);
-    // Each line at what is left of it; dispatching 200 of 600 is typing 200.
-    lines.forEach(it => invoiceForm.items.push(imLineFormItem(it)));
+    // Each line at what is left of it; dispatching 200 of 600 is typing 200. A piece client's share is priced off the
+    // challan's own amount, the share that completes the line taking what is left of it (createPieceShare).
+    const pc = S.clients.find(c => c.id === invoiceForm.clientId);
+    lines.forEach(it => {
+      const item = imLineFormItem(it);
+      invoiceForm.items.push(item);
+      if (pc && pc.billingMode === 'piece' && item.unit === 'NOS') createPieceShare(item);
+    });
     invoiceForm._linkedIMItemIds = (invoiceForm._linkedIMItemIds || []).concat(ids);
     invoiceForm._linkedIMIds = (invoiceForm._linkedIMIds || []).concat([imId]);
   }
@@ -585,6 +673,19 @@ function createPieceShare(item) {
   if (!sh || sh.it.unit !== item.unit || !(sh.qty > 0) || !(sh.it.amount > 0)) return false;
   if (invoiceForm.editingId && item._orig && item._orig.qty === sh.qty && !sh.refs.length) return false;
   item.amount = gstRound(sh.it.amount * (item.qty || 0) / sh.qty);
+  // The share that completes the line takes what is left of its amount, so the shares add up to the challan to the
+  // paisa: three thirds of ₹100.00 billed ₹99.99. Only where every other share is a share (none bills it whole).
+  const others = invoiceForm.items.filter(i => i !== item && i._imItemId === item._imItemId);
+  const inForm = invFormImQty(item._imItemId);
+  if (!sh.refs.some(r => imRefWhole(sh.it, r)) && Math.abs(sh.billed + inForm - sh.qty) <= IM_QTY_EPS) {
+    let billedAmt = 0;
+    (S.invoices || []).forEach(inv => {
+      if (inv.status === 'cancelled' || inv.id === invoiceForm.editingId) return;
+      (inv.items || []).forEach(li => { if (li.imItemId === item._imItemId) billedAmt += li.amount || 0; });
+    });
+    const rest = gstRound(sh.it.amount - billedAmt - others.reduce((t, i) => t + (i.amount || 0), 0));
+    if (rest > 0) item.amount = rest;
+  }
   return true;
 }
 
@@ -598,9 +699,20 @@ function createKgPieces(item) {
   return true;
 }
 
+/* The pieces a saved line states. A NOS line's pieces ARE its quantity, and the form has no Pcs field for one: a line
+   from a NOS challan line takes its share of the challan's pieces. A 200 dispatch of a 600-piece line kept all 600,
+   printed "600 NOS" under a line billing 200, and billed the challan's every piece. */
+function createLinePieces(i) {
+  if (i.unit === 'NOS' && i._imItemId && i.nosQty) {
+    const sh = imLineShare(i._imItemId, invoiceForm.editingId || null);
+    if (sh && sh.it.unit === 'NOS' && sh.qty > 0 && sh.it.nosQty) return Math.round(sh.it.nosQty * (i.qty || 0) / sh.qty) || null;
+  }
+  return i.nosQty || null;
+}
+
 /* A form line as the invoice keeps it. */
 function invSavedLine(i) {
-  return { partNumber: i.partNumber, desc: i.desc, hsn: i.hsn || '998873', unit: i.unit, qty: i.qty, rate: i.rate, amount: i.amount, nosQty: i.nosQty || null,
+  return { partNumber: i.partNumber, desc: i.desc, hsn: i.hsn || '998873', unit: i.unit, qty: i.qty, rate: i.rate, amount: i.amount, nosQty: createLinePieces(i),
     ...zeroReasonFields(i),
     ...(i._imItemId ? { imItemId: i._imItemId } : {}),
     ...(i._imItemId && i.imWhole ? { imWhole: true } : {}),
@@ -611,9 +723,16 @@ function invSavedLine(i) {
 function validateInvoice() {
   const errors = [];
   if (!invoiceForm.clientId) errors.push('Select a client');
+  // Gone since the form was opened (another window, a merge): the save used to return without a word.
+  else if (!S.clients.some(c => c.id === invoiceForm.clientId)) errors.push('The client chosen is no longer in the client master — choose the client again');
+  if (invoiceForm.editingId && !S.invoices.some(i => i.id === invoiceForm.editingId)) errors.push('The invoice being edited is no longer in the register (deleted, or changed in another window) — nothing can be saved to it');
   if (!invoiceForm.date) errors.push('Enter invoice date');
   if (invoiceForm.items.length === 0) errors.push('Add at least one line item');
   invoiceForm.items.forEach((item, i) => {
+    // A line bills a part, some of it: a blank line saved a ₹0 invoice, reached a quality certificate, and an
+    // amount with no quantity printed 0.00 NOS.
+    if (!String(item.partNumber || item.desc || '').trim()) errors.push('Line ' + (i+1) + ': name the part');
+    if (!((item.qty || 0) > 0)) { if (!(item.qty < 0)) errors.push('Line ' + (i+1) + ': enter the quantity'); }
     if (item.qty < 0) errors.push('Line ' + (i+1) + ': Quantity cannot be negative');
     if (item.amount < 0) errors.push('Line ' + (i+1) + ': Amount cannot be negative');
     if (isZeroBilledLine(item) && !item.zeroReason) errors.push('Line ' + (i+1) + ': billed at \u20B90 \u2014 pick a reason');
@@ -652,6 +771,8 @@ function selectClient(id) {
       } else {
         item.rate = defaultLineRate(client, invoiceForm.date, item);
       }
+      // The new client's rate is the app's, not a typed one.
+      if (item._auto) item._auto.rate = true;
       recalcLineItem(item, client);
     });
   }
@@ -677,7 +798,7 @@ function saveInvoice() {
   if (errors.length > 0) { showToast(errors[0], 'error'); return; }
 
   const client = S.clients.find(c => c.id === invoiceForm.clientId);
-  if (!client) return;
+  if (!client) { showToast('The client chosen is no longer in the client master — nothing was saved', 'error'); return; }
 
   // More than is left on a challan line, or another unit than its: each carries the reason picked under it.
   createStampAcks();
@@ -693,24 +814,22 @@ function saveInvoice() {
   invoiceForm.date = document.getElementById('invDate').value;
 
   const taxable = gstRound(invoiceForm.items.reduce((s,i) => s + (i.amount || 0), 0));
-  const cgstPer = client.gstType === 'intra' ? 9 : 0;
-  const sgstPer = client.gstType === 'intra' ? 9 : 0;
-  const igstPer = client.gstType === 'inter' ? 18 : 0;
-  const cgstAmt = gstRound(taxable * cgstPer / 100);
-  const sgstAmt = gstRound(taxable * sgstPer / 100);
-  const igstAmt = gstRound(taxable * igstPer / 100);
-  const grand = gstRound(taxable + cgstAmt + sgstAmt + igstAmt);
+  const { cgstPer, cgstAmt, sgstPer, sgstAmt, igstPer, igstAmt, grand } = invTax(taxable, client.gstType);
 
   const now = Date.now();
   // Shown AFTER the tab switch below: switchTab() clears every toast, so a
   // confirmation raised before it was wiped the instant it appeared — "Invoice
   // updated" never reached the screen, and neither would the challan note.
   let doneToast = null;
+  // An edit or a reissue goes back to the Register on the invoice; a new one to Home. (The return tab set by Edit
+  // was cleared by the very switch to Create, so an update landed on Home.)
+  let backTo = null;
 
   if (invoiceForm.editingId) {
     // Update existing
     const inv = S.invoices.find(i => i.id === invoiceForm.editingId);
-    if (!inv) return;
+    if (!inv) { showToast('The invoice being edited is no longer in the register — nothing was saved', 'error'); return; }
+    backTo = inv.id;
     const gstTypeChanged = inv.gstType !== client.gstType;
     Object.assign(inv, {
       date: invoiceForm.date, clientId: client.id, clientName: client.name,
@@ -773,6 +892,7 @@ function saveInvoice() {
       linkedIMIds: linkedIMIds, createdAt: now, updatedAt: now, cancelledAt: null
     };
     S.invoices.push(inv);
+    if (reissue) backTo = inv.id;
     // Never leave the series pointing at a number already held: a number
     // reissued from Settings used to leave Next on the one after it (851 when
     // 993 had been issued), and the invoice after that would have taken 851
@@ -789,9 +909,12 @@ function saveInvoice() {
   saveVehicleToClient(invoiceForm.clientId, invoiceForm.transport);
 
   saveState();
-  const returnDest = _navReturnTab || 'pageHome';
   initCreateForm();
-  switchTab(returnDest);
+  if (backTo) {
+    _navReturnTab = 'pageRegister';
+    switchTab('pageRegister');
+    regShowInvoice(backTo);
+  } else switchTab(_navReturnTab || 'pageHome');
   if (doneToast) showToast(doneToast[0], doneToast[1]);
 }
 
@@ -848,6 +971,10 @@ function refreshInvoiceLineMatch(idx) {
   refreshRateMatch('invRateMatch' + idx, document.querySelector('[data-action="invUpdateLine"][data-field="rate"][data-idx="' + idx + '"]'),
     client, invoiceForm.date, item);
   refreshWeightMatch('invWeightMatch' + idx, client, invoiceForm.date, item);
+  // A part typed that prices the line at ₹0 (a nos_to_weight part with no weight) asks why, as a typed figure does.
+  refreshZeroReason(idx);
+  // And the form is judged again: a part named or a quantity cleared opens or holds the Save.
+  updateTotalsDisplay();
 }
 
 /* The weight verdict under a KG line that carries a piece count. Same chips as
@@ -874,3 +1001,16 @@ function refreshWeightMatch(boxId, client, onDate, item) {
   var box = document.getElementById(boxId);
   if (box) box.innerHTML = weightMatchNote(weightMatch(client, onDate, item));
 }
+
+/* A rate typed on an invoice line is the operator's for good (item._auto.rate false, and the figure it was typed as):
+   linePrice then never fills the record's rate over it. On a nos_to_weight line the card rate replaced a typed one
+   silently, the field still showing what was typed. Marked in the capture phase, before events.js prices the line. */
+document.addEventListener('input', function(e) {
+  var el = e.target;
+  if (!el || !el.matches || !el.matches('[data-action="invUpdateLine"][data-field="rate"]')) return;
+  var item = invoiceForm && invoiceForm.items[parseInt(el.dataset.idx, 10)];
+  if (!item) return;
+  item._auto = item._auto || {};
+  item._auto.rate = false;
+  item._auto.rateTyped = parseFloat(el.value) || 0;
+}, true);

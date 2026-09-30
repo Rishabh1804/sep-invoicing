@@ -555,7 +555,6 @@ let _tabScroll = {};
 let _navReturnTab = null;
 let _regToolbarRendered = false;
 let _regSearchTimer = null;
-var _preselectedClientId = null;
 const VIEW_PREFS_KEY = 'sep_inv_view_prefs';
 const API_KEY_KEY = 'sep_inv_gemini_key';
 const METALS_KEY_KEY = 'sep_inv_metals_key';
@@ -1649,13 +1648,16 @@ function linePrice(item, client, onDate) {
     // brackets), or an override. Before this the line priced itself at weight 0 × ₹/kg = ₹0.
     var perPiece = rateInfo._override ? { rate: rateInfo.rate }
       : (S.partWeights[pwKey] ? null : getPieceRate(client, onDate, item.partNumber, item.desc));
+    // A rate somebody typed is theirs (item._auto.rate false, while the line still carries the figure typed): the
+    // record prices only an empty or a filled rate. It used to replace a typed rate silently.
+    var typed = item.rate > 0 && item._auto && item._auto.rate === false && item._auto.rateTyped === item.rate;
     if (perPiece && perPiece.rate != null) {
-      item.rate = perPiece.rate;
+      if (!typed) item.rate = perPiece.rate;
       item.amount = gstRound((item.qty || 0) * item.rate);
       return;
     }
     var w = (item.qty || 0) * (S.partWeights[pwKey] || 0);
-    item.rate = rateInfo.ratePerKg || 0;
+    if (!typed) item.rate = rateInfo.ratePerKg || 0;
     item.amount = gstRound(w * item.rate);
   } else {
     item.amount = gstRound((item.qty || 0) * (item.rate || 0));

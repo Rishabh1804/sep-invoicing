@@ -1,19 +1,22 @@
 /* ===== SHARED RENDER LAYER (Phase 4 — Tier 2) ===== */
+/* A quantity as it is held: kilograms are kept to three places (pieces × kg/pc, 150.274 kg), so the third prints
+   when there is one. Two places otherwise, as every invoice has always printed. */
+function formatQtyHeld(q) {
+  var s = formatNum(q, 3);
+  return /\.\d\d0$/.test(s) ? formatNum(q, 2) : s;
+}
+
 function formatInvoiceData(inv) {
-  const client = S.clients.find(c => c.id === inv.clientId);
   const addr = inv.clientAddress || {};
   return {
     invoiceNumber: inv.displayNumber || '',
     date: formatDate(inv.date),
-    dateRaw: inv.date,
-    status: inv.status,
     cancelled: inv.status === 'cancelled',
     cancelledAt: inv.cancelledAt ? new Date(inv.cancelledAt).toLocaleDateString('en-IN') : null,
     // Company
     companyName: S.company.name,
     companyAdd1: S.company.add1,
     companyAdd2: S.company.add2,
-    companyAdd3: S.company.add3 || '',
     companyPhone: S.company.phone || '',
     companyMobile: S.company.mobile || '',
     companyEmail: S.company.email || '',
@@ -35,17 +38,15 @@ function formatInvoiceData(inv) {
         desc: item.desc || item.partNumber || '',
         partNumber: item.partNumber || '',
         hsn: item.hsn || '998873',
-        qty: formatNum(item.qty),
+        qty: formatQtyHeld(item.qty),
         unit: item.unit || 'KG',
         rate: formatNum(item.rate),
         amount: formatNum(item.amount),
-        amountRaw: item.amount || 0,
         nosQtyRaw: item.nosQty || null
       };
     }),
     // Totals
     taxableValue: formatCurrency(inv.taxableValue),
-    taxableValueRaw: inv.taxableValue || 0,
     gstType: inv.gstType || 'intra',
     cgstPer: inv.cgstPer || (inv.gstType === 'intra' ? 9 : 0),
     sgstPer: inv.sgstPer || (inv.gstType === 'intra' ? 9 : 0),
@@ -53,11 +54,7 @@ function formatInvoiceData(inv) {
     cgstAmt: formatCurrency(inv.cgstAmt),
     sgstAmt: formatCurrency(inv.sgstAmt),
     igstAmt: formatCurrency(inv.igstAmt),
-    cgstAmtRaw: inv.cgstAmt || 0,
-    sgstAmtRaw: inv.sgstAmt || 0,
-    igstAmtRaw: inv.igstAmt || 0,
     grandTotal: formatCurrency(inv.grandTotal),
-    grandTotalRaw: inv.grandTotal || 0,
     amountInWords: inv.amountInWords || numberToWords(inv.grandTotal || 0),
     // Optional
     challanNo: inv.challanNo || '',
@@ -221,7 +218,11 @@ function _invoiceFrameHtml(d, copyLabel, body) {
   return '<table class="inv-pi-frame">' +
     '<thead><tr><th class="inv-pi-frame-head"><div class="inv-pi-copy-label">' +
     '<span class="inv-pi-copy-inv">Invoice ' + escHtml(d.invoiceNumber) + '</span>' +
-    '<span>' + escHtml(copyLabel) + '</span></div></th></tr></thead>' +
+    '<span>' + escHtml(copyLabel) + '</span></div>' +
+    // A cancelled invoice printed clean, the same as a live one. The band is in the repeating header, so every page
+    // of every copy carries it.
+    (d.cancelled ? '<div class="inv-pi-cancelled">CANCELLED' + (d.cancelledAt ? ' on ' + escHtml(d.cancelledAt) : '') + '</div>' : '') +
+    '</th></tr></thead>' +
     '<tfoot><tr><td class="inv-pi-frame-foot"></td></tr></tfoot>' +
     '<tbody><tr><td class="inv-pi-frame-body">' + body + '</td></tr></tbody></table>';
 }

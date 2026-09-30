@@ -34,7 +34,7 @@ function onDocClick(e) {
     case 'invSideGo': sideGo(btn.dataset.tab, btn.dataset.sub); break;
     case 'invOpenMore': openMoreSheet(); break;
     case 'invCloseMore': closeMoreSheet(); break;
-    case 'invCreateNew': initCreateForm(); switchTab('pageCreate'); break;
+    case 'invCreateNew': createNew(); break;
     case 'invHomeQuick': homeQuick(btn.dataset.go); break;
     case 'invOpenSettings': openSettings(); break;
     case 'invCloseOverlay': closeOverlay(); break;
@@ -91,7 +91,7 @@ function onDocClick(e) {
     }
     case 'invSelectClient': selectClient(parseInt(btn.dataset.id)); break;
     case 'invCreatePickChallan': createPickChallan(btn.dataset.id); break;
-    case 'invClearClient': captureOptionalFields(); invoiceForm.clientId = null; renderCreateForm(); break;
+    case 'invClearClient': createClearClient(); break;
     case 'invAddLineItem': captureOptionalFields(); addLineItem(); break;
     case 'invRemoveLineItem': captureOptionalFields(); invoiceForm.items.splice(parseInt(btn.dataset.idx), 1); renderCreateForm(); break;
     case 'invSaveInvoice': saveInvoice(); break;
@@ -123,12 +123,7 @@ function onDocClick(e) {
     case 'invPrintSalesRegister': showSalesRegisterPreview(); break;
     case 'invExportGstr1': exportGSTR1CSV(); break;
     case 'invSelectPart': selectPartForLine(parseInt(btn.dataset.idx), parseInt(btn.dataset.partId)); break;
-    case 'invRegClearRange': {
-      regFilter.dateFrom = ''; regFilter.dateTo = '';
-      saveRegFilter();
-      captureRegFilters();
-      break;
-    }
+    case 'invRegClearRange': regClearRange(); break;
     case 'invRegSelectAll': toggleRegSelectAll(); break;
     // Staff & attendance
     case 'invAttView': attSetView(btn.dataset.view); markSideActive('pageStaff'); break;
@@ -173,7 +168,7 @@ function onDocClick(e) {
     case 'invIMMonth': imMonthStep(+btn.dataset.step); break;
     case 'invCheckIMItem': toggleIMItem(btn.dataset.itemId); break;
     case 'invCheckIMChallan': toggleIMChallan(btn.dataset.id); break;
-    case 'invCreateFromIM': createInvoiceFromIM(); break;
+    case 'invCreateFromIM': createDiscardOk().then(function(ok) { if (ok) { createInvoiceFromIM(); createMarkBase(); } }); break;
     // Phase 4: Print preview
     case 'invPreviewInvoice': closeOverlay(); showPrintPreview(btn.dataset.id); break;
     case 'invClosePrint': closePrintPreview(); break;
@@ -207,7 +202,7 @@ function onDocClick(e) {
     case 'invEditChallanGuard': showToast('Cannot edit: ' + btn.dataset.count + ' item' + (parseInt(btn.dataset.count) > 1 ? 's' : '') + ' already invoiced', 'warning'); break;
     // Invoice number ledger
     case 'invShowNumberAudit': showNumberAudit(); break;
-    case 'invAccountForNumber': openAccountForNumber(btn.dataset.num); break;
+    case 'invAccountForNumber': openAccountForNumber(btn.dataset.num, btn.dataset.display); break;
     case 'invSaveGapReason': saveGapReason(); break;
     // IM duplicate guard
     case 'invRunDupeScan': runIMDuplicateScan(); break;
@@ -255,12 +250,7 @@ function onDocClick(e) {
       break;
     }
     // Phase 7: Stats actions
-    case 'invStatsCreateInvoice': {
-      closeOverlay();
-      _preselectedClientId = btn.dataset.clientId;
-      switchTab('pageCreate');
-      break;
-    }
+    case 'invStatsCreateInvoice': createForClient(btn.dataset.clientId); break;
     case 'invStatsJumpRegister': {
       closeOverlay();
       regFilter.clientId = btn.dataset.clientId;

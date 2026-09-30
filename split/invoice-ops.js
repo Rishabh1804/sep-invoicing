@@ -109,58 +109,36 @@ function getRegSortConfig() {
   return { col: regFilter.regSortBy === 'number' ? 'number' : 'date', dir: regFilter.regSortDir || 'desc' };
 }
 
-/* An invoice's place in the series: its prefix (the financial year's, so
-   SEP/25-26/ sorts before SEP/26-27/), then the number under it as a number,
-   never as text — 00100 after 00099 however the zeros were padded. */
-function invNumPrefix(inv) {
-  return String(inv.displayNumber || '').replace(/\d+$/, '');
-}
-function regByNumber(a, b) {
-  var pa = invNumPrefix(a), pb = invNumPrefix(b);
-  if (pa !== pb) return pa < pb ? -1 : 1;
-  var na = invNumInt(a.invoiceNumber), nb = invNumInt(b.invoiceNumber);
-  if (na == null) na = -1;
-  if (nb == null) nb = -1;
-  return na - nb;
-}
-
-function getFilteredInvoices() {
-  let list = [...S.invoices];
-  if (regFilter.clientId) {
-    const cid = parseInt(regFilter.clientId);
-    list = list.filter(i => i.clientId === cid);
-  }
+/* One test of the register's filters, for an invoice and for a voided number alike (isVoid): the export's voids ran
+   their own copy, which ignored the State filter. A void is in no state, so a State filter leaves it out; a search
+   reaches the challan the deleted invoice billed, as it reaches an invoice's. */
+function regFilterMatch(rec, isVoid) {
+  if (regFilter.clientId && rec.clientId !== parseInt(regFilter.clientId)) return false;
   // A date range and a month are alternatives, never layered — whichever the
   // operator set last wins and the other is cleared, so there is no precedence
   // rule to remember. ISO dates compare lexically, so no parsing is needed.
   if (regFilter.dateFrom || regFilter.dateTo) {
-    list = list.filter(function(i) {
-      if (!i.date) return false;
-      if (regFilter.dateFrom && i.date < regFilter.dateFrom) return false;
-      if (regFilter.dateTo && i.date > regFilter.dateTo) return false;
-      return true;
-    });
-  } else if (regFilter.month) {
-    list = list.filter(i => i.date && i.date.startsWith(regFilter.month));
-  }
+    if (!rec.date) return false;
+    if (regFilter.dateFrom && rec.date < regFilter.dateFrom) return false;
+    if (regFilter.dateTo && rec.date > regFilter.dateTo) return false;
+  } else if (regFilter.month && !(rec.date && rec.date.startsWith(regFilter.month))) return false;
   if (regFilter.search) {
-    const q = regFilter.search.toLowerCase();
+    var q = regFilter.search.toLowerCase();
     // Challan numbers too: an invoice is found by the challan it billed as
     // often as by its own number, and matching only the invoice number made a
     // challan search land on whichever invoice's digits happened to contain it.
-    list = list.filter(i =>
-      (i.displayNumber || '').toLowerCase().includes(q) ||
-      (i.clientName || '').toLowerCase().includes(q) ||
-      regChallanMatch(i.challanNo, q)
-    );
+    if ((rec.displayNumber || '').toLowerCase().indexOf(q) < 0 && (rec.clientName || '').toLowerCase().indexOf(q) < 0 &&
+        !regChallanMatch(rec.challanNo, q)) return false;
   }
   if (regFilter.state) {
-    if (regFilter.state === 'cancelled') {
-      list = list.filter(i => i.status === 'cancelled');
-    } else {
-      list = list.filter(i => i.status === 'active' && getInvState(i) === regFilter.state);
-    }
+    if (isVoid) return false;
+    if (regFilter.state === 'cancelled' ? rec.status !== 'cancelled' : (rec.status !== 'active' || getInvState(rec) !== regFilter.state)) return false;
   }
+  return true;
+}
+
+function getFilteredInvoices() {
+  let list = S.invoices.filter(function(i) { return regFilterMatch(i, false); });
 
   /* Desktop: multi-column sort via getRegSortConfig().
      Mobile: preserve existing createdAt sort (no behavioral change). */
@@ -172,7 +150,7 @@ function getFilteredInvoices() {
       switch (sc.col) {
         case 'client': va = (a.clientName || '').toLowerCase(); vb = (b.clientName || '').toLowerCase(); return va < vb ? -dir : va > vb ? dir : 0;
         case 'date': va = a.date || ''; vb = b.date || ''; return va < vb ? -dir : va > vb ? dir : 0;
-        case 'number': return dir * regByNumber(a, b);
+        case 'number': return dir * invSerialCompare(a, b);
         case 'taxable': return dir * ((a.taxableValue || 0) - (b.taxableValue || 0));
         case 'total': return dir * ((a.grandTotal || 0) - (b.grandTotal || 0));
         case 'state': {
@@ -186,7 +164,7 @@ function getFilteredInvoices() {
   } else {
     var sortDir = regFilter.regSortDir || 'desc';
     if (regFilter.regSortBy === 'number') {
-      list.sort(function(a, b) { return (sortDir === 'asc' ? 1 : -1) * regByNumber(a, b); });
+      list.sort(function(a, b) { return (sortDir === 'asc' ? 1 : -1) * invSerialCompare(a, b); });
     } else if (sortDir === 'asc') {
       list.sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
     } else {
@@ -279,9 +257,6 @@ function renderRegisterToolbar() {
   var byNumber = regFilter.regSortBy === 'number';
   var unaccounted = unaccountedNumberCount();
   var rangeActive = !!(regFilter.dateFrom || regFilter.dateTo);
-  var selectable = regSelectableInvoices();
-  var selectableCount = selectable.length;
-  var allSelected = selectableCount > 0 && selectable.every(function(i) { return _regSelected[i.id]; });
   var cnCount = (S.creditNotes || []).filter(function(c) { return c.status !== 'cancelled'; }).length;
 
   // Build unique client list for filter dropdown
@@ -318,11 +293,8 @@ function renderRegisterToolbar() {
       '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invRegToggleSort">' +
       (byNumber ? (sortDir === 'asc' ? 'Lowest first' : 'Highest first') : (sortDir === 'asc' ? 'Oldest first' : 'Newest first')) + '</button>' +
       '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invRegToggleSelect" aria-pressed="' + _regSelectMode + '">' + (_regSelectMode ? 'Cancel select' : 'Select') + '</button>') +
-    // Offered wherever ticking is actually possible.
-    ((_isDesktop || _regSelectMode) && selectableCount > 0
-      ? '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invRegSelectAll">' +
-        (allSelected ? 'Clear selection' : 'Select all (' + selectableCount + ')') + '</button>'
-      : '') +
+    // Offered wherever ticking is actually possible; kept in step with the selection by _renderRegSelBar.
+    '<span id="regSelectAllSlot"' + (_regSelectAllHtml() ? '' : ' hidden') + '>' + _regSelectAllHtml() + '</span>' +
     '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invCnList">Credit notes' +
     (cnCount > 0 ? '<span class="inv-badge">' + cnCount + '</span>' : '') + '</button>' +
     '<button class="inv-btn inv-btn-secondary inv-btn-sm" id="regNumberAudit" data-action="invShowNumberAudit">Number audit' +
@@ -345,6 +317,24 @@ function renderRegisterToolbar() {
       _regSearchTimer = setTimeout(function() { _renderRegView(); _renderRegSelBar(); }, 200);
     });
   }
+}
+
+/* The select-all button, as the selection and the filter stand now. It was drawn with the toolbar only, so after a
+   bulk action or a tick cleared the selection it still said "Clear selection" and then selected everything. */
+function _regSelectAllHtml() {
+  var selectable = regSelectableInvoices();
+  if (!(_isDesktop || _regSelectMode) || !selectable.length) return '';
+  var allSelected = selectable.every(function(i) { return _regSelected[i.id]; });
+  return '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invRegSelectAll">' +
+    (allSelected ? 'Clear selection' : 'Select all (' + selectable.length + ')') + '</button>';
+}
+
+/* Clear range: the range goes from the filter and from its two fields. It read the fields back after clearing
+   the filter, so the range the fields still held came straight back. */
+function regClearRange() {
+  ['regDateFrom', 'regDateTo'].forEach(function(id) { var el = document.getElementById(id); if (el) el.value = ''; });
+  regFilter.dateFrom = ''; regFilter.dateTo = '';
+  captureRegFilters();
 }
 
 /* A challan field is a list ("834, 835, 838"). A number in the search matches
@@ -376,7 +366,7 @@ function renderRegisterList() {
     var byNum = regFilter.regSortBy === 'number';
     var groups = [], byDate = {};
     filtered.forEach(function(inv) {
-      var k = byNum ? invNumPrefix(inv) : (inv.date || '');
+      var k = byNum ? invSeriesOf(inv) : (inv.date || '');
       if (!byDate[k]) { byDate[k] = []; groups.push(k); }
       byDate[k].push(inv);
     });
@@ -580,6 +570,8 @@ function _regSelectedIds() {
 }
 
 function _renderRegSelBar() {
+  var slot = document.getElementById('regSelectAllSlot');
+  if (slot) { slot.innerHTML = _regSelectAllHtml(); slot.hidden = !slot.innerHTML; }
   var bar = document.getElementById('regSelBar');
   if (!bar) return;
   var ids = _regSelectedIds();
@@ -865,12 +857,13 @@ function invoiceFormFrom(inv, extra) {
     date: inv.date,
     items: items,
     poNumber: inv.poNumber || '',
-    poDate: inv.poDate || inv.challanDate || localDateStr(),
+    // A date the invoice was saved without stays blank: an edit or a reissue used to fill today into it.
+    poDate: inv.poDate || inv.challanDate || '',
     // A P.O. date the invoice was saved with, other than its challan date, was typed: it stays.
     _pdTyped: !!inv.poDate && inv.poDate !== (inv.challanDate || ''),
     challanNo: inv.challanNo || '',
-    challanDate: inv.challanDate || localDateStr(),
-    despatchDate: inv.despatchDate || localDateStr(),
+    challanDate: inv.challanDate || '',
+    despatchDate: inv.despatchDate || '',
     transport: inv.transport || '',
     eWayBill: inv.eWayBill || '',
     remarks: inv.remarks || '',
@@ -884,9 +877,11 @@ function invoiceFormFrom(inv, extra) {
   return Object.assign(form, extra || {});
 }
 
-function editInvoice(invId) {
+async function editInvoice(invId) {
   const inv = S.invoices.find(i => i.id === invId);
   if (!inv) return;
+  // An invoice being typed is not thrown away unasked (createDiscardOk, create.js).
+  if (!(await createDiscardOk())) return;
   if (inv.status === 'cancelled') {
     showToast('Cancelled invoices cannot be edited', 'warning');
     return;
@@ -906,8 +901,8 @@ function editInvoice(invId) {
 
   // Load into form
   invoiceForm = invoiceFormFrom(inv, { editingId: inv.id });
+  createMarkBase();
   closeOverlay();
-  _navReturnTab = 'pageRegister';
   renderCreateForm();
   switchTab('pageCreate');
   showToast(editToast, 'warning');
@@ -918,8 +913,12 @@ function cancelInvoice(invId) {
   const inv = S.invoices.find(i => i.id === invId);
   if (!inv || inv.status === 'cancelled') return;
 
+  // A filed invoice is in a return already: cancelling it here changes the book, not the return.
+  const filed = getInvState(inv) === 'filed';
   // An act: the consequence in the body, the danger button last; a tap on the scrim does nothing (DP 5.2).
   dialogOpen('<div class="inv-dialog">' + dialogHeadHtml('Cancel invoice', 'invCloseConfirm') +
+    (filed ? '<div class="inv-callout inv-callout-warning inv-mb-8" data-cancel-warn>This invoice is marked filed: its number and value are in a filed GSTR-1. ' +
+      'Cancelling it here does not change that return. The change has to be reported as an amendment in a later return, and a credit note is usually the right instrument for a filed invoice.</div>' : '') +
     '<p class="inv-mb-8">Cancel invoice <strong class="inv-id">' + escHtml(inv.displayNumber) + '</strong>? It will appear as cancelled in your GSTR-1 export. The customer should be notified. This cannot be undone.</p>' +
     '<div class="inv-dialog-foot"><button class="inv-btn inv-btn-secondary" data-action="invCloseConfirm">Keep active</button>' +
     '<button class="inv-btn inv-btn-danger inv-btn-solid" data-action="invConfirmCancel" data-id="' + escHtml(inv.id) + '">Cancel invoice</button></div></div>');
@@ -943,16 +942,39 @@ function confirmCancelInvoice(invId) {
   showToast('Invoice ' + inv.displayNumber + ' cancelled');
 }
 
+/* What deleting an invoice does to its number, and the words for it:
+   - spent: the customer holds it (dispatched or later), or it was cancelled, which the export already declared at
+     zero. It stays in the series and keeps exporting at zero, as voided.
+   - returns: nothing after it is held in its series, so the next invoice takes it.
+   - gap: a later number is already issued, so Next cannot walk back to it. It stays in the series as a gap, and the
+     returns carry it at zero as voided. The dialog said "returns to the series" in both of the last two cases. */
+function invDeleteOutcome(inv) {
+  var n = invNumInt(inv.invoiceNumber), series = invSeriesOf(inv);
+  if (invStateIdx(getInvState(inv)) >= invStateIdx('dispatched')) return { kind: 'spent', text: 'This cannot be undone.' };
+  if (inv.status === 'cancelled') return { kind: 'spent', text: 'It was cancelled, so its number is already declared at zero in the GSTR-1 export: the number stays spent and keeps exporting at zero, as voided. This cannot be undone.' };
+  var later = 0;
+  S.invoices.forEach(function(i) { var m = invNumInt(i.invoiceNumber); if (i !== inv && m != null && m > n && m > later && invSeriesOf(i) === series) later = m; });
+  getVoidedNumbers().forEach(function(v) { var m = invNumInt(v.invoiceNumber); if (v.reserved && m != null && m > n && m > later && invSeriesOf(v) === series) later = m; });
+  if (!later) return { kind: 'returns', text: 'It never left the building and nothing after it is issued, so the next invoice takes ' + escHtml(inv.displayNumber) + '.' };
+  return { kind: 'gap', text: 'It never left the building, but ' + escHtml(series + padInvNum(later)) + ' is already issued, so this number cannot return to the series: ' +
+    'it stays as a gap, and the sales register and GSTR-1 CSVs list it at zero, as voided.' };
+}
+
+/* Back on the Register with one invoice open: the desktop's pane, the phone's sheet. */
+function regShowInvoice(invId) {
+  if (!S.invoices.some(function(i) { return i.id === invId; })) return;
+  if (_isDesktop) _renderRegDetail(invId); else openInvoiceDetail(invId);
+}
+
 /* Delete invoice — hard delete with filing cutoff tiered warning */
 function deleteInvoice(invId) {
   const inv = S.invoices.find(i => i.id === invId);
   if (!inv) return;
 
-  // Filing cutoff: invoice month + 1 month + 5 days
-  const invDate = new Date(inv.date + 'T00:00:00');
-  const filingDeadline = new Date(invDate.getFullYear(), invDate.getMonth() + 2, 5);
-  const now = new Date();
-  const pastDeadline = now >= filingDeadline;
+  // Past GSTR-1's due day for its month (the 11th of the next, invFileDue — the date the Delivered state is judged by)
+  // the invoice may be in a filed return.
+  const due = invFileDue(inv);
+  const pastDeadline = !!due && new Date() >= due;
 
   // The lifecycle state is harder evidence than the date heuristic: once an
   // invoice is dispatched the customer holds a document bearing that number,
@@ -962,23 +984,21 @@ function deleteInvoice(invId) {
 
   let warnHtml = '';
   let bodyText = '';
-  let btnClass = '';
+  let btnClass = 'inv-btn-danger inv-btn-solid';
+  const num = '<strong class="inv-id">' + escHtml(inv.displayNumber) + '</strong>';
 
   if (issued) {
     warnHtml = '<div class="inv-callout inv-callout-warning inv-mb-8" data-delete-warn>This invoice was ' + escHtml(INV_STATE_LABELS[getInvState(inv)].toLowerCase()) +
       '. The customer may hold a copy and claim credit against this number, which deleting it here does not retract' +
       (pastDeadline ? ', and it may already sit in a filed return' : '') +
       '. A credit note is usually the right instrument. The number stays spent either way.</div>';
-    bodyText = 'Permanently delete invoice <strong>' + escHtml(inv.displayNumber) + '</strong>? This cannot be undone.';
-    btnClass = 'inv-btn-danger inv-btn-solid';
   } else if (pastDeadline) {
     warnHtml = '<div class="inv-callout inv-callout-warning inv-mb-8" data-delete-warn>This invoice may have been included in a filed GST return. Cancelling (not deleting) is recommended.</div>';
-    bodyText = 'Permanently delete invoice <strong>' + escHtml(inv.displayNumber) + '</strong>? This cannot be undone.';
-    btnClass = 'inv-btn-danger inv-btn-solid';
-  } else {
-    bodyText = 'Delete invoice <strong>' + escHtml(inv.displayNumber) + '</strong>? It never left the building, so this number returns to the series.';
-    btnClass = 'inv-btn-primary';
   }
+  // What happens to the number, said as it will happen (invDeleteOutcome).
+  const out = invDeleteOutcome(inv);
+  bodyText = 'Delete invoice ' + num + '? ' + out.text;
+  if (!issued && !pastDeadline && out.kind === 'returns') btnClass = 'inv-btn-primary';
 
   dialogOpen('<div class="inv-dialog">' + dialogHeadHtml('Delete invoice', 'invCloseConfirm') +
     warnHtml +
@@ -996,7 +1016,7 @@ function deleteInvoice(invId) {
     '<button class="inv-btn ' + btnClass + '" data-action="invConfirmDelete" data-id="' + escHtml(inv.id) + '">Delete</button></div></div>');
 }
 
-function confirmDeleteInvoice(invId, reissue) {
+async function confirmDeleteInvoice(invId, reissue) {
   const inv = S.invoices.find(i => i.id === invId);
   if (!inv) return;
   if (reissue && (inv.status === 'cancelled' || getInvState(inv) === 'filed')) {
@@ -1011,14 +1031,17 @@ function confirmDeleteInvoice(invId, reissue) {
     if (reasonEl) reasonEl.focus();
     return;
   }
+  // A reissue opens the create form: an invoice being typed there is asked about BEFORE anything is deleted.
+  if (reissue && !(await createDiscardOk())) return;
+  if (!S.invoices.includes(inv)) return;
 
   // The replacement's form is read BEFORE the delete unlinks the challan lines.
   const reissueForm = reissue ? invoiceFormFrom(inv, { reissue: { invoiceNumber: inv.invoiceNumber, displayNumber: inv.displayNumber } }) : null;
 
   const dispNum = inv.displayNumber;
-  // A number the customer has seen is spent; one still in `created` returns to
-  // the series. Recorded before the invoice is spliced out.
-  const reserved = invStateIdx(getInvState(inv)) >= invStateIdx('dispatched');
+  // A number the customer has seen is spent, and so is a cancelled one (the export already declared it at zero);
+  // any other returns to the series or stays as a gap (invDeleteOutcome). Recorded before the invoice is spliced out.
+  const reserved = invDeleteOutcome(inv).kind === 'spent';
   recordVoidedNumber(inv, reason, reserved);
 
   // Hard delete from array; its share of each challan line is free again.
@@ -1036,7 +1059,7 @@ function confirmDeleteInvoice(invId, reissue) {
     invoiceForm = reissueForm;
     // The old invoice's PO and vehicle travel with it; the client's own fill only a field it left empty.
     createApplyClientDefaults();
-    _navReturnTab = 'pageRegister';
+    createMarkBase();
     renderCreateForm();
     switchTab('pageCreate');
     showToast('Reissuing ' + dispNum + ' — correct it and save', 'warning');

@@ -413,6 +413,12 @@ body:not(.inv-booted) { pointer-events: none; }
   color: #555; margin-bottom: var(--sp-4);
 }
 .inv-pi-copy-inv { font-weight: 600; letter-spacing: normal; text-transform: none; }
+/* A cancelled invoice says so on every page of every copy (the frame's repeating header). Print ink, pinned. */
+.inv-pi-cancelled {
+  border: 2px solid #000; color: #000; text-align: center;
+  font-size: var(--pi-fs-lg); font-weight: 700; letter-spacing: 0.3em;
+  padding: var(--sp-2) 0; margin-bottom: var(--sp-4);
+}
 .inv-pi-page-break { page-break-after: always; }
 
 /* Quality declaration */
@@ -596,6 +602,12 @@ table.inv-qc-grid.inv-qc-no-top { border-top: 0; }
   width: var(--cn-sheet-w); margin: 0 auto var(--sp-16) auto;
   padding: var(--cn-page-pad);
   border: 1px solid var(--border);
+}
+/* A cancelled note says so on its face. */
+.inv-cn-cancelled {
+  border: var(--cn-rule-w) solid var(--cn-rule); border-bottom: 0;
+  text-align: center; font-weight: 700; font-size: var(--cn-fs-name); letter-spacing: 0.3em;
+  padding: var(--cn-pad);
 }
 .inv-cn-top, .inv-cn-parties, .inv-cn-words-row, .inv-cn-foot {
   display: flex; border: var(--cn-rule-w) solid var(--cn-rule);

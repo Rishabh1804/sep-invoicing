@@ -18,7 +18,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <!-- Appearance before first paint (§3.2): the device's theme and palette, so nothing flashes in the wrong colours. -->
 <script>(function(){try{var d=document.documentElement,t=localStorage.getItem("sep_inv_theme"),p=localStorage.getItem("sep_inv_palette");if(t==="light"||t==="dark")d.dataset.theme=t;d.dataset.palette=(p==="zinc"||p==="terracotta")?p:"teal";}catch(e){document.documentElement.dataset.palette="teal";}})();</script>
-<meta name="app-build" content="fa391cab">
+<meta name="app-build" content="1f7d8d1b">
 <style>
 /* ===== DESIGN TOKENS (design system v2.0 — docs/SEP_INVOICING_DESIGN_PRINCIPLES.md §3) ===== */
 /* Theme: colour-scheme decides every light-dark() below. <html data-theme> is set before first paint
@@ -435,6 +435,12 @@ body:not(.inv-booted) { pointer-events: none; }
   color: #555; margin-bottom: var(--sp-4);
 }
 .inv-pi-copy-inv { font-weight: 600; letter-spacing: normal; text-transform: none; }
+/* A cancelled invoice says so on every page of every copy (the frame's repeating header). Print ink, pinned. */
+.inv-pi-cancelled {
+  border: 2px solid #000; color: #000; text-align: center;
+  font-size: var(--pi-fs-lg); font-weight: 700; letter-spacing: 0.3em;
+  padding: var(--sp-2) 0; margin-bottom: var(--sp-4);
+}
 .inv-pi-page-break { page-break-after: always; }
 
 /* Quality declaration */
@@ -618,6 +624,12 @@ table.inv-qc-grid.inv-qc-no-top { border-top: 0; }
   width: var(--cn-sheet-w); margin: 0 auto var(--sp-16) auto;
   padding: var(--cn-page-pad);
   border: 1px solid var(--border);
+}
+/* A cancelled note says so on its face. */
+.inv-cn-cancelled {
+  border: var(--cn-rule-w) solid var(--cn-rule); border-bottom: 0;
+  text-align: center; font-weight: 700; font-size: var(--cn-fs-name); letter-spacing: 0.3em;
+  padding: var(--cn-pad);
 }
 .inv-cn-top, .inv-cn-parties, .inv-cn-words-row, .inv-cn-foot {
   display: flex; border: var(--cn-rule-w) solid var(--cn-rule);
@@ -2462,7 +2474,6 @@ let _tabScroll = {};
 let _navReturnTab = null;
 let _regToolbarRendered = false;
 let _regSearchTimer = null;
-var _preselectedClientId = null;
 const VIEW_PREFS_KEY = 'sep_inv_view_prefs';
 const API_KEY_KEY = 'sep_inv_gemini_key';
 const METALS_KEY_KEY = 'sep_inv_metals_key';
@@ -3556,13 +3567,16 @@ function linePrice(item, client, onDate) {
     // brackets), or an override. Before this the line priced itself at weight 0 × ₹/kg = ₹0.
     var perPiece = rateInfo._override ? { rate: rateInfo.rate }
       : (S.partWeights[pwKey] ? null : getPieceRate(client, onDate, item.partNumber, item.desc));
+    // A rate somebody typed is theirs (item._auto.rate false, while the line still carries the figure typed): the
+    // record prices only an empty or a filled rate. It used to replace a typed rate silently.
+    var typed = item.rate > 0 && item._auto && item._auto.rate === false && item._auto.rateTyped === item.rate;
     if (perPiece && perPiece.rate != null) {
-      item.rate = perPiece.rate;
+      if (!typed) item.rate = perPiece.rate;
       item.amount = gstRound((item.qty || 0) * item.rate);
       return;
     }
     var w = (item.qty || 0) * (S.partWeights[pwKey] || 0);
-    item.rate = rateInfo.ratePerKg || 0;
+    if (!typed) item.rate = rateInfo.ratePerKg || 0;
     item.amount = gstRound(w * item.rate);
   } else {
     item.amount = gstRound((item.qty || 0) * (item.rate || 0));
@@ -6469,13 +6483,89 @@ let invoiceForm = {
 
 function initCreateForm() {
   invoiceForm = {clientId:null, date:localDateStr(), items:[], poNumber:'',poDate:localDateStr(),challanNo:'',challanDate:localDateStr(),despatchDate:localDateStr(),transport:'',eWayBill:'',remarks:'',editingId:null};
-  // Phase 7: Pre-select client from Stats drill-down
-  if (_preselectedClientId) {
-    var pc = S.clients.find(function(c) { return c.id === parseInt(_preselectedClientId); });
-    if (pc) invoiceForm.clientId = pc.id;
-    _preselectedClientId = null;
-    createApplyClientDefaults();
-  }
+  createMarkBase();
+  renderCreateForm();
+}
+
+/* ===== ONE DOOR TO A NEW FORM =====
+   New invoice, Edit, IM's Create invoice, a reissue and the Stats drill-down each replace the form, and each used
+   to throw away an invoice being typed without a word. A form holds work when it differs from what it was opened
+   as (`_base`, stamped by whoever built it); then the door asks first, Keep editing first. Clear is a discard
+   somebody chose and asks nothing. */
+function createFormSig(capture) {
+  const f = invoiceForm;
+  if (!f) return '';
+  // Read the fields on screen only for the form they belong to: the base is stamped before the new form is drawn.
+  if (capture && document.getElementById('invDate')) captureOptionalFields();
+  return JSON.stringify([f.clientId, f.date, f.poNumber, f.poDate, f.challanNo, f.challanDate, f.despatchDate, f.transport, f.remarks,
+    (f.items || []).map(i => [i.partNumber, i.desc, i.unit, i.qty, i.rate, i.amount, i.nosQty || null])]);
+}
+function createMarkBase() { if (invoiceForm) invoiceForm._base = createFormSig(); }
+function createFormHasWork() {
+  const f = invoiceForm;
+  if (!f || !document.getElementById('createFormArea') || !document.getElementById('createFormArea').innerHTML) return false;
+  return f._base !== undefined && createFormSig(true) !== f._base;
+}
+function createDiscardOk() {
+  if (!createFormHasWork()) return Promise.resolve(true);
+  const f = invoiceForm, c = f.clientId ? S.clients.find(x => x.id === f.clientId) : null;
+  const what = f.editingId ? 'Your changes to ' + ((S.invoices.find(i => i.id === f.editingId) || {}).displayNumber || 'an invoice')
+    : 'An invoice' + (c ? ' for ' + c.name : '') + ' with ' + todoPlural(f.items.length, 'line');
+  return uiConfirm({ title: 'Discard the invoice being typed?',
+    body: what + ' on Create ' + (f.editingId ? 'are' : 'is') + ' not saved. Keep editing to finish it first, or discard it and go on.',
+    okLabel: 'Discard', cancelLabel: 'Keep editing', danger: true });
+}
+/* New invoice. */
+async function createNew() {
+  if (!(await createDiscardOk())) return;
+  initCreateForm();
+  switchTab('pageCreate');
+}
+/* A new invoice for one client (the Stats drill-down): the client is chosen on a fresh form, whether or not a form
+   already existed. It used to be left in a global that only a form not yet drawn would read, so with Create open
+   it did nothing, and later leaked into the next New invoice. */
+async function createForClient(clientId) {
+  if (!(await createDiscardOk())) return;
+  closeOverlay();
+  initCreateForm();
+  const c = S.clients.find(x => x.id === parseInt(clientId));
+  if (c) { selectClient(c.id); createMarkBase(); }
+  switchTab('pageCreate');
+}
+
+/* Change: what the app filled for the old client goes with it — the lines from its challans, the challan no. and
+   date the ticks gave, a PO or vehicle filled for it. A field typed for it asks first, naming what would go. Kept
+   before, a line of client A's challan could be saved onto client B's invoice and mark A's challan billed. */
+async function createClearClient() {
+  captureOptionalFields();
+  const f = invoiceForm, auto = f._auto || {}, ticks = createChallanAuto();
+  const fromChallan = f.items.filter(i => i._imItemId);
+  const typed = [];
+  if (f.poNumber && f.poNumber !== auto.po) typed.push('P.O. no. ' + f.poNumber);
+  if (f.transport && f.transport !== auto.ve && f.transport !== ticks.ve) typed.push('vehicle ' + f.transport);
+  if (f.challanNo && f.challanNo !== ticks.no) typed.push('challan no. ' + f.challanNo);
+  // A challan line changed by hand is typed work too.
+  const edited = fromChallan.filter(i => {
+    let it = null;
+    (S.incomingMaterial || []).some(m => (it = (m.items || []).find(x => x.id === i._imItemId)));
+    if (!it) return false;
+    const fresh = imLineFormItem(it);
+    return Math.abs((fresh.qty || 0) - (i.qty || 0)) > IM_QTY_EPS || Math.abs((fresh.amount || 0) - (i.amount || 0)) > 0.005 || (fresh.rate || 0) !== (i.rate || 0);
+  });
+  if (edited.length) typed.push(todoPlural(edited.length, 'line') + ' from its challans, changed by hand');
+  const c = f.clientId ? S.clients.find(x => x.id === f.clientId) : null;
+  if (typed.length && !(await uiConfirm({ title: 'Change client?',
+    body: 'These were typed for ' + (c ? c.name : 'this client') + ' and go with it: ' + typed.join(', ') + '.',
+    okLabel: 'Change client', cancelLabel: 'Keep', danger: true }))) return;
+  f.clientId = null;
+  f.items = f.items.filter(i => !i._imItemId);
+  f._linkedIMIds = []; f._linkedIMItemIds = [];
+  if (f.challanNo === ticks.no || typed.length) f.challanNo = '';
+  if (ticks.date && f.challanDate === ticks.date) f.challanDate = localDateStr();
+  if (!f.poNumber || f.poNumber === auto.po || typed.length) f.poNumber = '';
+  if (!f.transport || f.transport === auto.ve || f.transport === ticks.ve || typed.length) f.transport = '';
+  f._auto = {}; f._pred = null; f._defaults = null;
+  createSyncPoDate();
   renderCreateForm();
 }
 
@@ -6634,7 +6724,7 @@ function renderCreateForm() {
       const q = cs.value.toLowerCase();
       const res = document.getElementById('invClientResults');
       const matches = q.length < 1 ? [] :
-        S.clients.filter(c => c.isActive && (c.name.toLowerCase().includes(q) || (c.gstin||'').includes(q))).slice(0, 8);
+        S.clients.filter(c => c.isActive && (c.name.toLowerCase().includes(q) || (c.gstin||'').toLowerCase().includes(q))).slice(0, 8);
       acReset();
       if (matches.length === 0) {
         res.classList.add('inv-hidden');
@@ -6740,14 +6830,20 @@ function createRefreshPoDate(changed) {
   if (h) h.innerHTML = createPoDateHintHtml();
 }
 
+/* The tax on a taxable value: the one computation the invoice form, the saved invoice and a credit note all read
+   (it was worked three ways). 9% + 9% within the state, 18% across. */
+function invTax(taxable, gstType) {
+  const intra = (gstType || 'intra') === 'intra';
+  const cgstPer = intra ? 9 : 0, sgstPer = intra ? 9 : 0, igstPer = gstType === 'inter' ? 18 : 0;
+  const cgstAmt = gstRound(taxable * cgstPer / 100), sgstAmt = gstRound(taxable * sgstPer / 100), igstAmt = gstRound(taxable * igstPer / 100);
+  return { gstType: gstType || 'intra', cgstPer, cgstAmt, sgstPer, sgstAmt, igstPer, igstAmt, grand: gstRound(taxable + cgstAmt + sgstAmt + igstAmt) };
+}
+
 /* The invoice's tax, worked the one way both the render and the live update read. */
 function createTotals(client) {
   const taxable = gstRound(invoiceForm.items.reduce((s,i) => s + (i.amount || 0), 0));
-  const gstType = client ? client.gstType : 'intra';
-  const cgst = gstType === 'intra' ? gstRound(taxable * 9 / 100) : 0;
-  const sgst = gstType === 'intra' ? gstRound(taxable * 9 / 100) : 0;
-  const igst = gstType === 'inter' ? gstRound(taxable * 18 / 100) : 0;
-  return { gstType, taxable, cgst, sgst, igst, grand: gstRound(taxable + cgst + sgst + igst) };
+  const t = invTax(taxable, client ? client.gstType : 'intra');
+  return { gstType: t.gstType, taxable, cgst: t.cgstAmt, sgst: t.sgstAmt, igst: t.igstAmt, grand: t.grand };
 }
 
 function createTotalsHtml(client) {
@@ -6816,8 +6912,14 @@ function createPickChallan(imId) {
   } else {
     // An untouched blank line would only sit above the challan's lines.
     invoiceForm.items = invoiceForm.items.filter(i => i._imItemId || i.partNumber || i.desc || i.qty || i.amount);
-    // Each line at what is left of it; dispatching 200 of 600 is typing 200.
-    lines.forEach(it => invoiceForm.items.push(imLineFormItem(it)));
+    // Each line at what is left of it; dispatching 200 of 600 is typing 200. A piece client's share is priced off the
+    // challan's own amount, the share that completes the line taking what is left of it (createPieceShare).
+    const pc = S.clients.find(c => c.id === invoiceForm.clientId);
+    lines.forEach(it => {
+      const item = imLineFormItem(it);
+      invoiceForm.items.push(item);
+      if (pc && pc.billingMode === 'piece' && item.unit === 'NOS') createPieceShare(item);
+    });
     invoiceForm._linkedIMItemIds = (invoiceForm._linkedIMItemIds || []).concat(ids);
     invoiceForm._linkedIMIds = (invoiceForm._linkedIMIds || []).concat([imId]);
   }
@@ -7046,6 +7148,19 @@ function createPieceShare(item) {
   if (!sh || sh.it.unit !== item.unit || !(sh.qty > 0) || !(sh.it.amount > 0)) return false;
   if (invoiceForm.editingId && item._orig && item._orig.qty === sh.qty && !sh.refs.length) return false;
   item.amount = gstRound(sh.it.amount * (item.qty || 0) / sh.qty);
+  // The share that completes the line takes what is left of its amount, so the shares add up to the challan to the
+  // paisa: three thirds of ₹100.00 billed ₹99.99. Only where every other share is a share (none bills it whole).
+  const others = invoiceForm.items.filter(i => i !== item && i._imItemId === item._imItemId);
+  const inForm = invFormImQty(item._imItemId);
+  if (!sh.refs.some(r => imRefWhole(sh.it, r)) && Math.abs(sh.billed + inForm - sh.qty) <= IM_QTY_EPS) {
+    let billedAmt = 0;
+    (S.invoices || []).forEach(inv => {
+      if (inv.status === 'cancelled' || inv.id === invoiceForm.editingId) return;
+      (inv.items || []).forEach(li => { if (li.imItemId === item._imItemId) billedAmt += li.amount || 0; });
+    });
+    const rest = gstRound(sh.it.amount - billedAmt - others.reduce((t, i) => t + (i.amount || 0), 0));
+    if (rest > 0) item.amount = rest;
+  }
   return true;
 }
 
@@ -7059,9 +7174,20 @@ function createKgPieces(item) {
   return true;
 }
 
+/* The pieces a saved line states. A NOS line's pieces ARE its quantity, and the form has no Pcs field for one: a line
+   from a NOS challan line takes its share of the challan's pieces. A 200 dispatch of a 600-piece line kept all 600,
+   printed "600 NOS" under a line billing 200, and billed the challan's every piece. */
+function createLinePieces(i) {
+  if (i.unit === 'NOS' && i._imItemId && i.nosQty) {
+    const sh = imLineShare(i._imItemId, invoiceForm.editingId || null);
+    if (sh && sh.it.unit === 'NOS' && sh.qty > 0 && sh.it.nosQty) return Math.round(sh.it.nosQty * (i.qty || 0) / sh.qty) || null;
+  }
+  return i.nosQty || null;
+}
+
 /* A form line as the invoice keeps it. */
 function invSavedLine(i) {
-  return { partNumber: i.partNumber, desc: i.desc, hsn: i.hsn || '998873', unit: i.unit, qty: i.qty, rate: i.rate, amount: i.amount, nosQty: i.nosQty || null,
+  return { partNumber: i.partNumber, desc: i.desc, hsn: i.hsn || '998873', unit: i.unit, qty: i.qty, rate: i.rate, amount: i.amount, nosQty: createLinePieces(i),
     ...zeroReasonFields(i),
     ...(i._imItemId ? { imItemId: i._imItemId } : {}),
     ...(i._imItemId && i.imWhole ? { imWhole: true } : {}),
@@ -7072,9 +7198,16 @@ function invSavedLine(i) {
 function validateInvoice() {
   const errors = [];
   if (!invoiceForm.clientId) errors.push('Select a client');
+  // Gone since the form was opened (another window, a merge): the save used to return without a word.
+  else if (!S.clients.some(c => c.id === invoiceForm.clientId)) errors.push('The client chosen is no longer in the client master — choose the client again');
+  if (invoiceForm.editingId && !S.invoices.some(i => i.id === invoiceForm.editingId)) errors.push('The invoice being edited is no longer in the register (deleted, or changed in another window) — nothing can be saved to it');
   if (!invoiceForm.date) errors.push('Enter invoice date');
   if (invoiceForm.items.length === 0) errors.push('Add at least one line item');
   invoiceForm.items.forEach((item, i) => {
+    // A line bills a part, some of it: a blank line saved a ₹0 invoice, reached a quality certificate, and an
+    // amount with no quantity printed 0.00 NOS.
+    if (!String(item.partNumber || item.desc || '').trim()) errors.push('Line ' + (i+1) + ': name the part');
+    if (!((item.qty || 0) > 0)) { if (!(item.qty < 0)) errors.push('Line ' + (i+1) + ': enter the quantity'); }
     if (item.qty < 0) errors.push('Line ' + (i+1) + ': Quantity cannot be negative');
     if (item.amount < 0) errors.push('Line ' + (i+1) + ': Amount cannot be negative');
     if (isZeroBilledLine(item) && !item.zeroReason) errors.push('Line ' + (i+1) + ': billed at \u20B90 \u2014 pick a reason');
@@ -7113,6 +7246,8 @@ function selectClient(id) {
       } else {
         item.rate = defaultLineRate(client, invoiceForm.date, item);
       }
+      // The new client's rate is the app's, not a typed one.
+      if (item._auto) item._auto.rate = true;
       recalcLineItem(item, client);
     });
   }
@@ -7138,7 +7273,7 @@ function saveInvoice() {
   if (errors.length > 0) { showToast(errors[0], 'error'); return; }
 
   const client = S.clients.find(c => c.id === invoiceForm.clientId);
-  if (!client) return;
+  if (!client) { showToast('The client chosen is no longer in the client master — nothing was saved', 'error'); return; }
 
   // More than is left on a challan line, or another unit than its: each carries the reason picked under it.
   createStampAcks();
@@ -7154,24 +7289,22 @@ function saveInvoice() {
   invoiceForm.date = document.getElementById('invDate').value;
 
   const taxable = gstRound(invoiceForm.items.reduce((s,i) => s + (i.amount || 0), 0));
-  const cgstPer = client.gstType === 'intra' ? 9 : 0;
-  const sgstPer = client.gstType === 'intra' ? 9 : 0;
-  const igstPer = client.gstType === 'inter' ? 18 : 0;
-  const cgstAmt = gstRound(taxable * cgstPer / 100);
-  const sgstAmt = gstRound(taxable * sgstPer / 100);
-  const igstAmt = gstRound(taxable * igstPer / 100);
-  const grand = gstRound(taxable + cgstAmt + sgstAmt + igstAmt);
+  const { cgstPer, cgstAmt, sgstPer, sgstAmt, igstPer, igstAmt, grand } = invTax(taxable, client.gstType);
 
   const now = Date.now();
   // Shown AFTER the tab switch below: switchTab() clears every toast, so a
   // confirmation raised before it was wiped the instant it appeared — "Invoice
   // updated" never reached the screen, and neither would the challan note.
   let doneToast = null;
+  // An edit or a reissue goes back to the Register on the invoice; a new one to Home. (The return tab set by Edit
+  // was cleared by the very switch to Create, so an update landed on Home.)
+  let backTo = null;
 
   if (invoiceForm.editingId) {
     // Update existing
     const inv = S.invoices.find(i => i.id === invoiceForm.editingId);
-    if (!inv) return;
+    if (!inv) { showToast('The invoice being edited is no longer in the register — nothing was saved', 'error'); return; }
+    backTo = inv.id;
     const gstTypeChanged = inv.gstType !== client.gstType;
     Object.assign(inv, {
       date: invoiceForm.date, clientId: client.id, clientName: client.name,
@@ -7234,6 +7367,7 @@ function saveInvoice() {
       linkedIMIds: linkedIMIds, createdAt: now, updatedAt: now, cancelledAt: null
     };
     S.invoices.push(inv);
+    if (reissue) backTo = inv.id;
     // Never leave the series pointing at a number already held: a number
     // reissued from Settings used to leave Next on the one after it (851 when
     // 993 had been issued), and the invoice after that would have taken 851
@@ -7250,9 +7384,12 @@ function saveInvoice() {
   saveVehicleToClient(invoiceForm.clientId, invoiceForm.transport);
 
   saveState();
-  const returnDest = _navReturnTab || 'pageHome';
   initCreateForm();
-  switchTab(returnDest);
+  if (backTo) {
+    _navReturnTab = 'pageRegister';
+    switchTab('pageRegister');
+    regShowInvoice(backTo);
+  } else switchTab(_navReturnTab || 'pageHome');
   if (doneToast) showToast(doneToast[0], doneToast[1]);
 }
 
@@ -7309,6 +7446,10 @@ function refreshInvoiceLineMatch(idx) {
   refreshRateMatch('invRateMatch' + idx, document.querySelector('[data-action="invUpdateLine"][data-field="rate"][data-idx="' + idx + '"]'),
     client, invoiceForm.date, item);
   refreshWeightMatch('invWeightMatch' + idx, client, invoiceForm.date, item);
+  // A part typed that prices the line at ₹0 (a nos_to_weight part with no weight) asks why, as a typed figure does.
+  refreshZeroReason(idx);
+  // And the form is judged again: a part named or a quantity cleared opens or holds the Save.
+  updateTotalsDisplay();
 }
 
 /* The weight verdict under a KG line that carries a piece count. Same chips as
@@ -7335,6 +7476,19 @@ function refreshWeightMatch(boxId, client, onDate, item) {
   var box = document.getElementById(boxId);
   if (box) box.innerHTML = weightMatchNote(weightMatch(client, onDate, item));
 }
+
+/* A rate typed on an invoice line is the operator's for good (item._auto.rate false, and the figure it was typed as):
+   linePrice then never fills the record's rate over it. On a nos_to_weight line the card rate replaced a typed one
+   silently, the field still showing what was typed. Marked in the capture phase, before events.js prices the line. */
+document.addEventListener('input', function(e) {
+  var el = e.target;
+  if (!el || !el.matches || !el.matches('[data-action="invUpdateLine"][data-field="rate"]')) return;
+  var item = invoiceForm && invoiceForm.items[parseInt(el.dataset.idx, 10)];
+  if (!item) return;
+  item._auto = item._auto || {};
+  item._auto.rate = false;
+  item._auto.rateTyped = parseFloat(el.value) || 0;
+}, true);
 /* ===== SETTINGS =====
    Six groups, and every section folds to one line that says what it is set to,
    so the whole of Settings reads at a glance and only the section being changed
@@ -8727,58 +8881,36 @@ function getRegSortConfig() {
   return { col: regFilter.regSortBy === 'number' ? 'number' : 'date', dir: regFilter.regSortDir || 'desc' };
 }
 
-/* An invoice's place in the series: its prefix (the financial year's, so
-   SEP/25-26/ sorts before SEP/26-27/), then the number under it as a number,
-   never as text — 00100 after 00099 however the zeros were padded. */
-function invNumPrefix(inv) {
-  return String(inv.displayNumber || '').replace(/\d+$/, '');
-}
-function regByNumber(a, b) {
-  var pa = invNumPrefix(a), pb = invNumPrefix(b);
-  if (pa !== pb) return pa < pb ? -1 : 1;
-  var na = invNumInt(a.invoiceNumber), nb = invNumInt(b.invoiceNumber);
-  if (na == null) na = -1;
-  if (nb == null) nb = -1;
-  return na - nb;
-}
-
-function getFilteredInvoices() {
-  let list = [...S.invoices];
-  if (regFilter.clientId) {
-    const cid = parseInt(regFilter.clientId);
-    list = list.filter(i => i.clientId === cid);
-  }
+/* One test of the register's filters, for an invoice and for a voided number alike (isVoid): the export's voids ran
+   their own copy, which ignored the State filter. A void is in no state, so a State filter leaves it out; a search
+   reaches the challan the deleted invoice billed, as it reaches an invoice's. */
+function regFilterMatch(rec, isVoid) {
+  if (regFilter.clientId && rec.clientId !== parseInt(regFilter.clientId)) return false;
   // A date range and a month are alternatives, never layered — whichever the
   // operator set last wins and the other is cleared, so there is no precedence
   // rule to remember. ISO dates compare lexically, so no parsing is needed.
   if (regFilter.dateFrom || regFilter.dateTo) {
-    list = list.filter(function(i) {
-      if (!i.date) return false;
-      if (regFilter.dateFrom && i.date < regFilter.dateFrom) return false;
-      if (regFilter.dateTo && i.date > regFilter.dateTo) return false;
-      return true;
-    });
-  } else if (regFilter.month) {
-    list = list.filter(i => i.date && i.date.startsWith(regFilter.month));
-  }
+    if (!rec.date) return false;
+    if (regFilter.dateFrom && rec.date < regFilter.dateFrom) return false;
+    if (regFilter.dateTo && rec.date > regFilter.dateTo) return false;
+  } else if (regFilter.month && !(rec.date && rec.date.startsWith(regFilter.month))) return false;
   if (regFilter.search) {
-    const q = regFilter.search.toLowerCase();
+    var q = regFilter.search.toLowerCase();
     // Challan numbers too: an invoice is found by the challan it billed as
     // often as by its own number, and matching only the invoice number made a
     // challan search land on whichever invoice's digits happened to contain it.
-    list = list.filter(i =>
-      (i.displayNumber || '').toLowerCase().includes(q) ||
-      (i.clientName || '').toLowerCase().includes(q) ||
-      regChallanMatch(i.challanNo, q)
-    );
+    if ((rec.displayNumber || '').toLowerCase().indexOf(q) < 0 && (rec.clientName || '').toLowerCase().indexOf(q) < 0 &&
+        !regChallanMatch(rec.challanNo, q)) return false;
   }
   if (regFilter.state) {
-    if (regFilter.state === 'cancelled') {
-      list = list.filter(i => i.status === 'cancelled');
-    } else {
-      list = list.filter(i => i.status === 'active' && getInvState(i) === regFilter.state);
-    }
+    if (isVoid) return false;
+    if (regFilter.state === 'cancelled' ? rec.status !== 'cancelled' : (rec.status !== 'active' || getInvState(rec) !== regFilter.state)) return false;
   }
+  return true;
+}
+
+function getFilteredInvoices() {
+  let list = S.invoices.filter(function(i) { return regFilterMatch(i, false); });
 
   /* Desktop: multi-column sort via getRegSortConfig().
      Mobile: preserve existing createdAt sort (no behavioral change). */
@@ -8790,7 +8922,7 @@ function getFilteredInvoices() {
       switch (sc.col) {
         case 'client': va = (a.clientName || '').toLowerCase(); vb = (b.clientName || '').toLowerCase(); return va < vb ? -dir : va > vb ? dir : 0;
         case 'date': va = a.date || ''; vb = b.date || ''; return va < vb ? -dir : va > vb ? dir : 0;
-        case 'number': return dir * regByNumber(a, b);
+        case 'number': return dir * invSerialCompare(a, b);
         case 'taxable': return dir * ((a.taxableValue || 0) - (b.taxableValue || 0));
         case 'total': return dir * ((a.grandTotal || 0) - (b.grandTotal || 0));
         case 'state': {
@@ -8804,7 +8936,7 @@ function getFilteredInvoices() {
   } else {
     var sortDir = regFilter.regSortDir || 'desc';
     if (regFilter.regSortBy === 'number') {
-      list.sort(function(a, b) { return (sortDir === 'asc' ? 1 : -1) * regByNumber(a, b); });
+      list.sort(function(a, b) { return (sortDir === 'asc' ? 1 : -1) * invSerialCompare(a, b); });
     } else if (sortDir === 'asc') {
       list.sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
     } else {
@@ -8897,9 +9029,6 @@ function renderRegisterToolbar() {
   var byNumber = regFilter.regSortBy === 'number';
   var unaccounted = unaccountedNumberCount();
   var rangeActive = !!(regFilter.dateFrom || regFilter.dateTo);
-  var selectable = regSelectableInvoices();
-  var selectableCount = selectable.length;
-  var allSelected = selectableCount > 0 && selectable.every(function(i) { return _regSelected[i.id]; });
   var cnCount = (S.creditNotes || []).filter(function(c) { return c.status !== 'cancelled'; }).length;
 
   // Build unique client list for filter dropdown
@@ -8936,11 +9065,8 @@ function renderRegisterToolbar() {
       '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invRegToggleSort">' +
       (byNumber ? (sortDir === 'asc' ? 'Lowest first' : 'Highest first') : (sortDir === 'asc' ? 'Oldest first' : 'Newest first')) + '</button>' +
       '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invRegToggleSelect" aria-pressed="' + _regSelectMode + '">' + (_regSelectMode ? 'Cancel select' : 'Select') + '</button>') +
-    // Offered wherever ticking is actually possible.
-    ((_isDesktop || _regSelectMode) && selectableCount > 0
-      ? '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invRegSelectAll">' +
-        (allSelected ? 'Clear selection' : 'Select all (' + selectableCount + ')') + '</button>'
-      : '') +
+    // Offered wherever ticking is actually possible; kept in step with the selection by _renderRegSelBar.
+    '<span id="regSelectAllSlot"' + (_regSelectAllHtml() ? '' : ' hidden') + '>' + _regSelectAllHtml() + '</span>' +
     '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invCnList">Credit notes' +
     (cnCount > 0 ? '<span class="inv-badge">' + cnCount + '</span>' : '') + '</button>' +
     '<button class="inv-btn inv-btn-secondary inv-btn-sm" id="regNumberAudit" data-action="invShowNumberAudit">Number audit' +
@@ -8963,6 +9089,24 @@ function renderRegisterToolbar() {
       _regSearchTimer = setTimeout(function() { _renderRegView(); _renderRegSelBar(); }, 200);
     });
   }
+}
+
+/* The select-all button, as the selection and the filter stand now. It was drawn with the toolbar only, so after a
+   bulk action or a tick cleared the selection it still said "Clear selection" and then selected everything. */
+function _regSelectAllHtml() {
+  var selectable = regSelectableInvoices();
+  if (!(_isDesktop || _regSelectMode) || !selectable.length) return '';
+  var allSelected = selectable.every(function(i) { return _regSelected[i.id]; });
+  return '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invRegSelectAll">' +
+    (allSelected ? 'Clear selection' : 'Select all (' + selectable.length + ')') + '</button>';
+}
+
+/* Clear range: the range goes from the filter and from its two fields. It read the fields back after clearing
+   the filter, so the range the fields still held came straight back. */
+function regClearRange() {
+  ['regDateFrom', 'regDateTo'].forEach(function(id) { var el = document.getElementById(id); if (el) el.value = ''; });
+  regFilter.dateFrom = ''; regFilter.dateTo = '';
+  captureRegFilters();
 }
 
 /* A challan field is a list ("834, 835, 838"). A number in the search matches
@@ -8994,7 +9138,7 @@ function renderRegisterList() {
     var byNum = regFilter.regSortBy === 'number';
     var groups = [], byDate = {};
     filtered.forEach(function(inv) {
-      var k = byNum ? invNumPrefix(inv) : (inv.date || '');
+      var k = byNum ? invSeriesOf(inv) : (inv.date || '');
       if (!byDate[k]) { byDate[k] = []; groups.push(k); }
       byDate[k].push(inv);
     });
@@ -9198,6 +9342,8 @@ function _regSelectedIds() {
 }
 
 function _renderRegSelBar() {
+  var slot = document.getElementById('regSelectAllSlot');
+  if (slot) { slot.innerHTML = _regSelectAllHtml(); slot.hidden = !slot.innerHTML; }
   var bar = document.getElementById('regSelBar');
   if (!bar) return;
   var ids = _regSelectedIds();
@@ -9483,12 +9629,13 @@ function invoiceFormFrom(inv, extra) {
     date: inv.date,
     items: items,
     poNumber: inv.poNumber || '',
-    poDate: inv.poDate || inv.challanDate || localDateStr(),
+    // A date the invoice was saved without stays blank: an edit or a reissue used to fill today into it.
+    poDate: inv.poDate || inv.challanDate || '',
     // A P.O. date the invoice was saved with, other than its challan date, was typed: it stays.
     _pdTyped: !!inv.poDate && inv.poDate !== (inv.challanDate || ''),
     challanNo: inv.challanNo || '',
-    challanDate: inv.challanDate || localDateStr(),
-    despatchDate: inv.despatchDate || localDateStr(),
+    challanDate: inv.challanDate || '',
+    despatchDate: inv.despatchDate || '',
     transport: inv.transport || '',
     eWayBill: inv.eWayBill || '',
     remarks: inv.remarks || '',
@@ -9502,9 +9649,11 @@ function invoiceFormFrom(inv, extra) {
   return Object.assign(form, extra || {});
 }
 
-function editInvoice(invId) {
+async function editInvoice(invId) {
   const inv = S.invoices.find(i => i.id === invId);
   if (!inv) return;
+  // An invoice being typed is not thrown away unasked (createDiscardOk, create.js).
+  if (!(await createDiscardOk())) return;
   if (inv.status === 'cancelled') {
     showToast('Cancelled invoices cannot be edited', 'warning');
     return;
@@ -9524,8 +9673,8 @@ function editInvoice(invId) {
 
   // Load into form
   invoiceForm = invoiceFormFrom(inv, { editingId: inv.id });
+  createMarkBase();
   closeOverlay();
-  _navReturnTab = 'pageRegister';
   renderCreateForm();
   switchTab('pageCreate');
   showToast(editToast, 'warning');
@@ -9536,8 +9685,12 @@ function cancelInvoice(invId) {
   const inv = S.invoices.find(i => i.id === invId);
   if (!inv || inv.status === 'cancelled') return;
 
+  // A filed invoice is in a return already: cancelling it here changes the book, not the return.
+  const filed = getInvState(inv) === 'filed';
   // An act: the consequence in the body, the danger button last; a tap on the scrim does nothing (DP 5.2).
   dialogOpen('<div class="inv-dialog">' + dialogHeadHtml('Cancel invoice', 'invCloseConfirm') +
+    (filed ? '<div class="inv-callout inv-callout-warning inv-mb-8" data-cancel-warn>This invoice is marked filed: its number and value are in a filed GSTR-1. ' +
+      'Cancelling it here does not change that return. The change has to be reported as an amendment in a later return, and a credit note is usually the right instrument for a filed invoice.</div>' : '') +
     '<p class="inv-mb-8">Cancel invoice <strong class="inv-id">' + escHtml(inv.displayNumber) + '</strong>? It will appear as cancelled in your GSTR-1 export. The customer should be notified. This cannot be undone.</p>' +
     '<div class="inv-dialog-foot"><button class="inv-btn inv-btn-secondary" data-action="invCloseConfirm">Keep active</button>' +
     '<button class="inv-btn inv-btn-danger inv-btn-solid" data-action="invConfirmCancel" data-id="' + escHtml(inv.id) + '">Cancel invoice</button></div></div>');
@@ -9561,16 +9714,39 @@ function confirmCancelInvoice(invId) {
   showToast('Invoice ' + inv.displayNumber + ' cancelled');
 }
 
+/* What deleting an invoice does to its number, and the words for it:
+   - spent: the customer holds it (dispatched or later), or it was cancelled, which the export already declared at
+     zero. It stays in the series and keeps exporting at zero, as voided.
+   - returns: nothing after it is held in its series, so the next invoice takes it.
+   - gap: a later number is already issued, so Next cannot walk back to it. It stays in the series as a gap, and the
+     returns carry it at zero as voided. The dialog said "returns to the series" in both of the last two cases. */
+function invDeleteOutcome(inv) {
+  var n = invNumInt(inv.invoiceNumber), series = invSeriesOf(inv);
+  if (invStateIdx(getInvState(inv)) >= invStateIdx('dispatched')) return { kind: 'spent', text: 'This cannot be undone.' };
+  if (inv.status === 'cancelled') return { kind: 'spent', text: 'It was cancelled, so its number is already declared at zero in the GSTR-1 export: the number stays spent and keeps exporting at zero, as voided. This cannot be undone.' };
+  var later = 0;
+  S.invoices.forEach(function(i) { var m = invNumInt(i.invoiceNumber); if (i !== inv && m != null && m > n && m > later && invSeriesOf(i) === series) later = m; });
+  getVoidedNumbers().forEach(function(v) { var m = invNumInt(v.invoiceNumber); if (v.reserved && m != null && m > n && m > later && invSeriesOf(v) === series) later = m; });
+  if (!later) return { kind: 'returns', text: 'It never left the building and nothing after it is issued, so the next invoice takes ' + escHtml(inv.displayNumber) + '.' };
+  return { kind: 'gap', text: 'It never left the building, but ' + escHtml(series + padInvNum(later)) + ' is already issued, so this number cannot return to the series: ' +
+    'it stays as a gap, and the sales register and GSTR-1 CSVs list it at zero, as voided.' };
+}
+
+/* Back on the Register with one invoice open: the desktop's pane, the phone's sheet. */
+function regShowInvoice(invId) {
+  if (!S.invoices.some(function(i) { return i.id === invId; })) return;
+  if (_isDesktop) _renderRegDetail(invId); else openInvoiceDetail(invId);
+}
+
 /* Delete invoice — hard delete with filing cutoff tiered warning */
 function deleteInvoice(invId) {
   const inv = S.invoices.find(i => i.id === invId);
   if (!inv) return;
 
-  // Filing cutoff: invoice month + 1 month + 5 days
-  const invDate = new Date(inv.date + 'T00:00:00');
-  const filingDeadline = new Date(invDate.getFullYear(), invDate.getMonth() + 2, 5);
-  const now = new Date();
-  const pastDeadline = now >= filingDeadline;
+  // Past GSTR-1's due day for its month (the 11th of the next, invFileDue — the date the Delivered state is judged by)
+  // the invoice may be in a filed return.
+  const due = invFileDue(inv);
+  const pastDeadline = !!due && new Date() >= due;
 
   // The lifecycle state is harder evidence than the date heuristic: once an
   // invoice is dispatched the customer holds a document bearing that number,
@@ -9580,23 +9756,21 @@ function deleteInvoice(invId) {
 
   let warnHtml = '';
   let bodyText = '';
-  let btnClass = '';
+  let btnClass = 'inv-btn-danger inv-btn-solid';
+  const num = '<strong class="inv-id">' + escHtml(inv.displayNumber) + '</strong>';
 
   if (issued) {
     warnHtml = '<div class="inv-callout inv-callout-warning inv-mb-8" data-delete-warn>This invoice was ' + escHtml(INV_STATE_LABELS[getInvState(inv)].toLowerCase()) +
       '. The customer may hold a copy and claim credit against this number, which deleting it here does not retract' +
       (pastDeadline ? ', and it may already sit in a filed return' : '') +
       '. A credit note is usually the right instrument. The number stays spent either way.</div>';
-    bodyText = 'Permanently delete invoice <strong>' + escHtml(inv.displayNumber) + '</strong>? This cannot be undone.';
-    btnClass = 'inv-btn-danger inv-btn-solid';
   } else if (pastDeadline) {
     warnHtml = '<div class="inv-callout inv-callout-warning inv-mb-8" data-delete-warn>This invoice may have been included in a filed GST return. Cancelling (not deleting) is recommended.</div>';
-    bodyText = 'Permanently delete invoice <strong>' + escHtml(inv.displayNumber) + '</strong>? This cannot be undone.';
-    btnClass = 'inv-btn-danger inv-btn-solid';
-  } else {
-    bodyText = 'Delete invoice <strong>' + escHtml(inv.displayNumber) + '</strong>? It never left the building, so this number returns to the series.';
-    btnClass = 'inv-btn-primary';
   }
+  // What happens to the number, said as it will happen (invDeleteOutcome).
+  const out = invDeleteOutcome(inv);
+  bodyText = 'Delete invoice ' + num + '? ' + out.text;
+  if (!issued && !pastDeadline && out.kind === 'returns') btnClass = 'inv-btn-primary';
 
   dialogOpen('<div class="inv-dialog">' + dialogHeadHtml('Delete invoice', 'invCloseConfirm') +
     warnHtml +
@@ -9614,7 +9788,7 @@ function deleteInvoice(invId) {
     '<button class="inv-btn ' + btnClass + '" data-action="invConfirmDelete" data-id="' + escHtml(inv.id) + '">Delete</button></div></div>');
 }
 
-function confirmDeleteInvoice(invId, reissue) {
+async function confirmDeleteInvoice(invId, reissue) {
   const inv = S.invoices.find(i => i.id === invId);
   if (!inv) return;
   if (reissue && (inv.status === 'cancelled' || getInvState(inv) === 'filed')) {
@@ -9629,14 +9803,17 @@ function confirmDeleteInvoice(invId, reissue) {
     if (reasonEl) reasonEl.focus();
     return;
   }
+  // A reissue opens the create form: an invoice being typed there is asked about BEFORE anything is deleted.
+  if (reissue && !(await createDiscardOk())) return;
+  if (!S.invoices.includes(inv)) return;
 
   // The replacement's form is read BEFORE the delete unlinks the challan lines.
   const reissueForm = reissue ? invoiceFormFrom(inv, { reissue: { invoiceNumber: inv.invoiceNumber, displayNumber: inv.displayNumber } }) : null;
 
   const dispNum = inv.displayNumber;
-  // A number the customer has seen is spent; one still in `created` returns to
-  // the series. Recorded before the invoice is spliced out.
-  const reserved = invStateIdx(getInvState(inv)) >= invStateIdx('dispatched');
+  // A number the customer has seen is spent, and so is a cancelled one (the export already declared it at zero);
+  // any other returns to the series or stays as a gap (invDeleteOutcome). Recorded before the invoice is spliced out.
+  const reserved = invDeleteOutcome(inv).kind === 'spent';
   recordVoidedNumber(inv, reason, reserved);
 
   // Hard delete from array; its share of each challan line is free again.
@@ -9654,7 +9831,7 @@ function confirmDeleteInvoice(invId, reissue) {
     invoiceForm = reissueForm;
     // The old invoice's PO and vehicle travel with it; the client's own fill only a field it left empty.
     createApplyClientDefaults();
-    _navReturnTab = 'pageRegister';
+    createMarkBase();
     renderCreateForm();
     switchTab('pageCreate');
     showToast('Reissuing ' + dispNum + ' — correct it and save', 'warning');
@@ -9708,29 +9885,43 @@ function displayForNumber(num) {
   return (S.invPrefix || '') + padInvNum(num);
 }
 
-/* invNextNum may only advance. Live invoices and reserved voids both hold slots. */
+/* The series a number belongs to: its display number less the number itself ('SEP/2026-27/' of
+   'SEP/2026-27/00012'). Taken off by the number's own length, since a prefix may end in digits. */
+function invSeriesOf(rec) {
+  var d = String((rec && rec.displayNumber) || ''), n = String((rec && rec.invoiceNumber) || '');
+  if (n && d.length >= n.length && d.slice(d.length - n.length) === n) return d.slice(0, d.length - n.length);
+  return d.replace(/\d+$/, '');
+}
+
+/* The one serial order (the register, both CSVs, the printed register, a stack of certificates): the series first,
+   so last financial year's run comes before this one's, then the number read as a number. A copy that sorted by the
+   number alone put SEP/2026-27/00001 before SEP/2025-26/00950. */
+function invSerialCompare(a, b) {
+  var pa = invSeriesOf(a), pb = invSeriesOf(b);
+  if (pa !== pb) return pa < pb ? -1 : 1;
+  var na = invNumInt(a.invoiceNumber), nb = invNumInt(b.invoiceNumber);
+  if (na == null || nb == null) return (na == null) - (nb == null);
+  return na - nb;
+}
+
+/* invNextNum may only advance over what is held IN THE SERIES IN USE: live invoices and reserved voids under
+   S.invPrefix. It read every number of every year, so after the prefix moved to a new financial year last year's
+   00950 set this year's Next at 951. */
 function recomputeNextInvoiceNumber() {
-  var maxLive = S.invoices.reduce(function(max, inv) {
-    var n = invNumInt(inv.invoiceNumber);
-    return n != null && n > max ? n : max;
-  }, 0);
-  var maxHeld = getVoidedNumbers().reduce(function(max, v) {
-    var n = invNumInt(v.invoiceNumber);
-    return v.reserved && n != null && n > max ? n : max;
-  }, 0);
-  S.invNextNum = Math.max(maxLive, maxHeld) + 1;
+  S.invNextNum = invHighestIssued(S.invPrefix || '') + 1;
 }
 
 /* The highest number the customer holds under a prefix: a live invoice, or a
    deleted one whose number was spent. A new financial year's prefix has none. */
 function invHighestIssued(prefix) {
+  prefix = prefix || '';
   var hi = 0;
-  var take = function(display, num) {
-    var n = invNumInt(num);
-    if (n != null && String(display || '').indexOf(prefix) === 0 && n > hi) hi = n;
+  var take = function(rec) {
+    var n = invNumInt(rec.invoiceNumber);
+    if (n != null && n > hi && invSeriesOf(rec) === prefix) hi = n;
   };
-  S.invoices.forEach(function(inv) { take(inv.displayNumber, inv.invoiceNumber); });
-  getVoidedNumbers().forEach(function(v) { if (v.reserved) take(v.displayNumber, v.invoiceNumber); });
+  S.invoices.forEach(take);
+  getVoidedNumbers().forEach(function(v) { if (v.reserved) take(v); });
   return hi;
 }
 
@@ -9756,48 +9947,50 @@ function invReissueCheck(prefix, n) {
  * lost are exactly what this is looking for.
  */
 function analyseInvoiceNumbers() {
-  var byNum = {};
-  var voidByNum = {};
-  var known = [];
-
+  // Each financial year's series on its own: keyed by the number alone, last year's 00002 stood in for this year's
+  // missing one and the gap was never shown.
+  var series = {};
+  var of = function(p) { return series[p] || (series[p] = { byNum: {}, voidByNum: {}, known: [] }); };
   S.invoices.forEach(function(inv) {
     var n = invNumInt(inv.invoiceNumber);
     if (n == null) return;
-    byNum[n] = inv;
-    known.push(n);
+    var s = of(invSeriesOf(inv));
+    s.byNum[n] = inv;
+    s.known.push(n);
   });
   getVoidedNumbers().forEach(function(v) {
     var n = invNumInt(v.invoiceNumber);
     if (n == null) return;
-    voidByNum[n] = v;
-    known.push(n);
+    var s = of(invSeriesOf(v));
+    s.voidByNum[n] = v;
+    s.known.push(n);
   });
 
-  var out = { entries: [], unaccounted: [], counts: { active: 0, cancelled: 0, voided: 0, reissued: 0, unaccounted: 0 }, from: null, to: null };
-  if (known.length === 0) return out;
+  var out = { entries: [], unaccounted: [], counts: { active: 0, cancelled: 0, voided: 0, reissued: 0, unaccounted: 0 }, from: null, to: null, series: [] };
+  var cur = S.invPrefix || '', next = invNumInt(S.invNextNum);
+  Object.keys(series).sort().forEach(function(p) {
+    var s = series[p];
+    var lo = Math.min.apply(null, s.known);
+    var hi = Math.max.apply(null, s.known);
+    // The series in use runs to the number before Next: one handed out and lost is what this looks for.
+    if (p === cur && next != null && next - 1 > hi) hi = next - 1;
+    for (var n = lo; n <= hi; n++) {
+      var inv = s.byNum[n] || null;
+      var voided = s.voidByNum[n] || null;
+      var kind;
+      if (inv && voided) kind = 'reissued';
+      else if (inv) kind = inv.status === 'cancelled' ? 'cancelled' : 'active';
+      else if (voided) kind = 'voided';
+      else kind = 'unaccounted';
 
-  var lo = Math.min.apply(null, known);
-  var hi = Math.max.apply(null, known);
-  var next = invNumInt(S.invNextNum);
-  if (next != null && next - 1 > hi) hi = next - 1;
-
-  for (var n = lo; n <= hi; n++) {
-    var inv = byNum[n] || null;
-    var voided = voidByNum[n] || null;
-    var kind;
-    if (inv && voided) kind = 'reissued';
-    else if (inv) kind = inv.status === 'cancelled' ? 'cancelled' : 'active';
-    else if (voided) kind = 'voided';
-    else kind = 'unaccounted';
-
-    out.counts[kind]++;
-    var entry = { num: n, display: inv ? inv.displayNumber : displayForNumber(n), kind: kind, inv: inv, voided: voided };
-    out.entries.push(entry);
-    if (kind === 'unaccounted') out.unaccounted.push(entry);
-  }
-
-  out.from = lo;
-  out.to = hi;
+      out.counts[kind]++;
+      var entry = { num: n, display: inv ? inv.displayNumber : voided ? voided.displayNumber : p + padInvNum(n), kind: kind, inv: inv, voided: voided };
+      out.entries.push(entry);
+      if (kind === 'unaccounted') out.unaccounted.push(entry);
+    }
+    out.series.push({ prefix: p, from: lo, to: hi });
+    if (p === cur || out.from == null) { out.from = lo; out.to = hi; }
+  });
   return out;
 }
 
@@ -9816,6 +10009,8 @@ function recordVoidedNumber(inv, reason, reserved) {
     date: inv.date || '',
     clientId: inv.clientId != null ? inv.clientId : null,
     clientName: inv.clientName || '',
+    // The challan it billed, so a challan search finds the void as it found the invoice.
+    challanNo: inv.challanNo || '',
     taxableValue: inv.taxableValue || 0,
     grandTotal: inv.grandTotal || 0,
     lastState: getInvState(inv),
@@ -9832,14 +10027,17 @@ function recordVoidedNumber(inv, reason, reserved) {
 /* ===== ACCOUNT FOR A HISTORICAL GAP ===== */
 
 var _accountForNum = null;
+var _accountForDisplay = '';
 
-function openAccountForNumber(num) {
+/* `display` is the number as its series writes it: a gap in last year's series is recorded under last year's prefix. */
+function openAccountForNumber(num, display) {
   var n = invNumInt(num);
   if (n == null) return;
   _accountForNum = n;
+  _accountForDisplay = display || displayForNumber(n);
 
   // An act, not a view: a tap on the scrim does nothing.
-  dialogOpen('<div class="inv-dialog">' + dialogHeadHtml('Account for ' + escHtml(displayForNumber(n)), 'invCloseConfirm') +
+  dialogOpen('<div class="inv-dialog">' + dialogHeadHtml('Account for ' + escHtml(_accountForDisplay), 'invCloseConfirm') +
     '<p class="inv-mb-8">This number is missing from the register. Record what happened to it — a cancelled invoice filed at zero, a spoiled number, one deleted before this ledger existed. No invoice is created.</p>' +
     '<div class="inv-field"><label class="inv-field-label" for="invGapReason">What happened to this number</label>' +
     '<input class="inv-input" id="invGapReason" placeholder="e.g. cancelled, filed in GSTR-1 at zero" autocomplete="off"></div>' +
@@ -9861,11 +10059,11 @@ function saveGapReason() {
 
   var dateEl = document.getElementById('invGapDate');
   var clientEl = document.getElementById('invGapClient');
-  var n = _accountForNum;
+  var n = _accountForNum, disp = _accountForDisplay || displayForNumber(n);
 
   getVoidedNumbers().push({
     invoiceNumber: padInvNum(n),
-    displayNumber: displayForNumber(n),
+    displayNumber: disp,
     date: (dateEl && dateEl.value) || '',
     clientId: null,
     clientName: (clientEl && clientEl.value.trim()) || '',
@@ -9889,7 +10087,7 @@ function saveGapReason() {
   _regToolbarRendered = true;
   _renderRegView();
   showNumberAudit();
-  showToast(displayForNumber(n) + ' accounted for');
+  showToast(disp + ' accounted for');
 }
 
 /* ===== AUDIT OVERLAY ===== */
@@ -9908,7 +10106,9 @@ function _numAuditRowHtml(entry) {
   } else if (entry.voided) {
     detail = escHtml(entry.voided.reason) +
       (entry.voided.clientName ? ' &middot; ' + escHtml(entry.voided.clientName) : '') +
-      (entry.voided.date ? ' &middot; ' + escHtml(formatDate(entry.voided.date)) : '');
+      (entry.voided.date ? ' &middot; ' + escHtml(formatDate(entry.voided.date)) : '') +
+      // A number once cancelled says so: it was declared at zero before it was deleted.
+      (entry.voided.wasCancelled ? ' &middot; cancelled before it was deleted' : '');
   } else {
     detail = escHtml(entry.inv.clientName || '') +
       (entry.inv.date ? ' &middot; ' + escHtml(formatDate(entry.inv.date)) : '') +
@@ -9920,7 +10120,7 @@ function _numAuditRowHtml(entry) {
     '<span class="inv-row-meta">' + detail + '</span></span>' +
     '<span class="inv-row-end"><span class="inv-dot inv-dot-' + NUM_AUDIT_TONE[entry.kind] + '">' + NUM_AUDIT_LABELS[entry.kind] + '</span>' +
     (entry.kind === 'unaccounted'
-      ? '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invAccountForNumber" data-num="' + entry.num + '">Account for</button>'
+      ? '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invAccountForNumber" data-num="' + entry.num + '" data-display="' + escHtml(entry.display) + '">Account for</button>'
       : '') +
     '</span></div>';
 }
@@ -9938,8 +10138,11 @@ function showNumberAudit() {
   if (a.entries.length === 0) {
     html += '<div class="inv-empty">No invoice numbers issued yet.</div>';
   } else {
-    html += '<p class="inv-note inv-mb-8">Serial <span class="inv-id">' + escHtml(padInvNum(a.from)) + '</span> to <span class="inv-id">' +
-      escHtml(padInvNum(a.to)) + '</span>, every number accounted for or not. Rule 46 wants a consecutive series; a gap is fine, an <em>unexplained</em> gap is not.</p>';
+    // Each financial year's series is its own run.
+    html += '<p class="inv-note inv-mb-8">' + a.series.map(function(r) {
+      return (a.series.length > 1 ? '<span class="inv-id">' + escHtml(r.prefix) + '</span> ' : '') + 'Serial <span class="inv-id">' +
+        escHtml(padInvNum(r.from)) + '</span> to <span class="inv-id">' + escHtml(padInvNum(r.to)) + '</span>';
+    }).join(' &middot; ') + ', every number accounted for or not. Rule 46 wants a consecutive series; a gap is fine, an <em>unexplained</em> gap is not.</p>';
 
     // The tally, each class a dot and a word in its tone.
     var tally = function(kind, n, word) { return '<span class="inv-dot inv-dot-' + NUM_AUDIT_TONE[kind] + '">' + n + ' ' + word + '</span>'; };
@@ -9965,44 +10168,36 @@ function showNumberAudit() {
 /* ===== EXPORT ROWS ===== */
 
 /*
- * Reserved voids belong in the returns at zero — that is how SEP already files
- * them, and it is the disagreement between the app and the filing that made
- * these numbers look missing in the first place. Never-issued numbers are not
- * included: they were recycled, so a live invoice occupies the slot.
+ * A voided number the returns carry at zero: one whose document was spent (reserved — dispatched or later, or
+ * cancelled first), or one the series has moved past. A created invoice deleted below the last issued number
+ * never comes back (Next never walks back over a held number), so without its row GSTR-1's series showed a hole
+ * the audit called explained. A void above the last issued number returns to the series: the next invoice takes it.
  */
+function invVoidExported(v, hiOf) {
+  if (v.reserved) return true;
+  var n = invNumInt(v.invoiceNumber);
+  return n != null && n < hiOf(invSeriesOf(v));
+}
+
 function getVoidedForExport() {
   // A number reissued to a live invoice is that invoice's now: its deleted
   // copies are history, not rows. Listing them put 00862 in the GSTR-1 file
   // three times (two at zero and the live one), and the portal takes each
   // number once. A number deleted twice and never reissued is listed once.
-  var live = {};
+  var live = {}, hiBy = {};
+  var hiOf = function(p) { return Object.prototype.hasOwnProperty.call(hiBy, p) ? hiBy[p] : (hiBy[p] = invHighestIssued(p)); };
   S.invoices.forEach(function(i) { live[i.displayNumber] = true; });
   var latest = {};
   getVoidedNumbers().forEach(function(v) {
-    if (!v.reserved || live[v.displayNumber]) return;
+    if (live[v.displayNumber] || !invVoidExported(v, hiOf)) return;
     var k = v.displayNumber || v.invoiceNumber;
     if (!latest[k] || (v.voidedAt || 0) > (latest[k].voidedAt || 0)) latest[k] = v;
   });
+  // The register's own filter decides which voids ride along (regFilterMatch, invoice-ops.js): a copy of it here
+  // ignored the State filter.
   return getVoidedNumbers().filter(function(v) {
-    if (latest[v.displayNumber || v.invoiceNumber] !== v) return false;
-    if (regFilter.clientId && v.clientId !== parseInt(regFilter.clientId)) return false;
-    // A DATE RANGE scopes voids exactly as it scopes invoices. This honoured
-    // `month` and not `dateFrom`/`dateTo`, so a range-scoped register carried
-    // voids from outside its own range -- and the range is precisely how a
-    // credit-note batch is expressed ("03/08 to 18/08"). Mirrors
-    // getFilteredInvoices(): range and month are alternatives, never layered.
-    if (regFilter.dateFrom || regFilter.dateTo) {
-      if (!v.date) return false;
-      if (regFilter.dateFrom && v.date < regFilter.dateFrom) return false;
-      if (regFilter.dateTo && v.date > regFilter.dateTo) return false;
-    } else if (regFilter.month && !(v.date || '').startsWith(regFilter.month)) return false;
-    if (regFilter.search) {
-      var q = regFilter.search.toLowerCase();
-      if ((v.displayNumber || '').toLowerCase().indexOf(q) < 0 &&
-          (v.clientName || '').toLowerCase().indexOf(q) < 0) return false;
-    }
-    return true;
-  }).sort(function(a, b) { return (invNumInt(a.invoiceNumber) || 0) - (invNumInt(b.invoiceNumber) || 0); });
+    return latest[v.displayNumber || v.invoiceNumber] === v && regFilterMatch(v, true);
+  }).sort(invSerialCompare);
 }
 /* ===== GST EXPORT ===== */
 function csvEscape(val) {
@@ -10030,16 +10225,10 @@ function downloadCSV(filename, rows) {
    kept in, and it is the order a gap is spotted in. The on-screen sort is a
    browsing preference and deliberately does not reach the file. */
 function _exportRowsInSerialOrder(invoices, voided, invRow, voidRow) {
-  var rows = invoices.map(function(inv) {
-    return { num: invNumInt(inv.invoiceNumber), build: function() { return invRow(inv); } };
-  }).concat(voided.map(function(v) {
-    return { num: invNumInt(v.invoiceNumber), build: function() { return voidRow(v); } };
-  }));
-  rows.sort(function(a, b) {
-    if (a.num == null) return 1;
-    if (b.num == null) return -1;
-    return a.num - b.num;
-  });
+  // The one serial order (invSerialCompare): a new financial year's 00001 no longer sorts before last year's 00950.
+  var rows = invoices.map(function(inv) { return { rec: inv, build: function() { return invRow(inv); } }; })
+    .concat(voided.map(function(v) { return { rec: v, build: function() { return voidRow(v); } }; }));
+  rows.sort(function(a, b) { return invSerialCompare(a.rec, b.rec); });
   return rows.map(function(r) { return r.build(); });
 }
 
@@ -10075,20 +10264,32 @@ function getPlaceOfSupply(inv) {
   return code + '-' + name;
 }
 
-function exportSalesCSV() {
+/* The first row of every CSV: who files it, as Settings holds it. It was frozen as "SOMA ELECTRO PRODUCTS" with a
+   fallback GSTIN, a second copy of the identity that could drift from the invoice's (as the certificate's did). */
+function _csvMetaRow(scope) {
+  var co = S.company || {};
+  var row = [(co.name || '') + ' | GSTIN: ' + (co.gstin || '') + ' | Export Date: ' + formatDateExport(localDateStr())];
+  if (scope) row.push('Scope: ' + scope);
+  return row;
+}
+
+/* The register as a CSV, in serial order with the voids in their own slot: the sales register and GSTR-1 share
+   everything but their columns (they were two copies of this). */
+function _exportRegisterCSV(name, label, header, invRow, voidRow) {
   const invoices = getFilteredInvoices();
-  // Phase 5: Metadata row above column headers
-  var exportDate = formatDateExport(localDateStr());
-  var metaRow = ['SOMA ELECTRO PRODUCTS | GSTIN: ' + (S.company.gstin || '20AAPFS4718J2Z0') + ' | Export Date: ' + exportDate];
   var scope = exportScopeLabel();
-  metaRow.push('Scope: ' + scope);
-  const header = ['Inv. No.', 'Date', 'Customer', 'Status', 'Taxable Value', 'CGST%', 'CGST Amt', 'SGST%', 'SGST Amt', 'IGST%', 'IGST Amt', 'Invoice Amount'];
+  const voided = getVoidedForExport();
+  const rows = [_csvMetaRow(scope), header].concat(_exportRowsInSerialOrder(invoices, voided, invRow, voidRow));
+  downloadCSV(name + '_' + scope + '.csv', rows);
+  showToast(label + ' exported (' + (invoices.length + voided.length) + ' rows)');
+}
+
+function exportSalesCSV() {
   // Voided numbers ride along at zero. The number was issued, so the series
   // has to show it; the reason travels in the customer column so the internal
   // register explains its own gaps.
-  const voided = getVoidedForExport();
-  const rows = [metaRow, header].concat(_exportRowsInSerialOrder(
-    invoices, voided,
+  _exportRegisterCSV('SEP-Sales-Register', 'Sales Register',
+    ['Inv. No.', 'Date', 'Customer', 'Status', 'Taxable Value', 'CGST%', 'CGST Amt', 'SGST%', 'SGST Amt', 'IGST%', 'IGST Amt', 'Invoice Amount'],
     function(inv) {
       const cancelled = inv.status === 'cancelled';
       return [
@@ -10114,26 +10315,15 @@ function exportSalesCSV() {
         'Voided',
         0, 0, 0, 0, 0, 0, 0, 0
       ];
-    }
-  ));
-  downloadCSV('SEP-Sales-Register_' + scope + '.csv', rows);
-  showToast('Sales Register exported (' + (invoices.length + voided.length) + ' rows)');
+    });
 }
 
 function exportGSTR1CSV() {
-  const invoices = getFilteredInvoices();
-  // Phase 5: Metadata row above column headers
-  var exportDate = formatDateExport(localDateStr());
-  var metaRow = ['SOMA ELECTRO PRODUCTS | GSTIN: ' + (S.company.gstin || '20AAPFS4718J2Z0') + ' | Export Date: ' + exportDate];
-  var scope = exportScopeLabel();
-  metaRow.push('Scope: ' + scope);
-  const header = ['GSTIN/UIN of Recipient', 'Invoice Number', 'Invoice Date', 'Invoice Value', 'Place of Supply', 'Reverse Charge', 'Invoice Type', 'E-Commerce GSTIN', 'Rate', 'Taxable Value', 'CGST Amount', 'SGST Amount', 'IGST Amount', 'Cess Amount'];
   // Same treatment as a cancelled invoice, which this export already carries at
   // zero: the number is declared, the value is not. Without these rows the
   // return shows a hole the app cannot explain.
-  const voided = getVoidedForExport();
-  const rows = [metaRow, header].concat(_exportRowsInSerialOrder(
-    invoices, voided,
+  _exportRegisterCSV('SEP-GSTR1', 'GSTR1',
+    ['GSTIN/UIN of Recipient', 'Invoice Number', 'Invoice Date', 'Invoice Value', 'Place of Supply', 'Reverse Charge', 'Invoice Type', 'E-Commerce GSTIN', 'Rate', 'Taxable Value', 'CGST Amount', 'SGST Amount', 'IGST Amount', 'Cess Amount'],
     function(inv) {
       const cancelled = inv.status === 'cancelled';
       const gstRate = cancelled ? 0 : ((inv.cgstPer || 0) + (inv.sgstPer || 0) + (inv.igstPer || 0));
@@ -10157,10 +10347,7 @@ function exportGSTR1CSV() {
     function(v) {
       return ['', v.displayNumber, formatDateExport(v.date), 0,
         '20-Jharkhand', 'N', 'Regular', '', 0, 0, 0, 0, 0, 0];
-    }
-  ));
-  downloadCSV('SEP-GSTR1_' + scope + '.csv', rows);
-  showToast('GSTR1 exported (' + (invoices.length + voided.length) + ' rows)');
+    });
 }
 
 
@@ -10243,7 +10430,7 @@ function buildSalesRegisterHtml(scope) {
   var cols = anyIgst ? 9 : 8;
   return '<div class="inv-sr-doc">' +
     '<div class="inv-sr-head">' +
-      '<div class="inv-sr-co">' + escHtml(co.name || 'SOMA ELECTRO PRODUCTS') + '</div>' +
+      '<div class="inv-sr-co">' + escHtml(co.name || '') + '</div>' +
       '<div>' + escHtml([co.add1, co.add2, co.add3].filter(Boolean).join(', ')) + '</div>' +
       '<div>GSTIN: ' + escHtml(co.gstin || '') + '</div>' +
     '</div>' +
@@ -10448,11 +10635,13 @@ function imRefsBilled(it, refs) {
   refs.forEach(function(r) {
     if (imRefWhole(it, r)) { whole = true; return; }
     qty += r.qty;
-    nos += r.nosQty;
+    // A NOS line's pieces ARE its quantity: a share of it bills that share of the pieces, whatever pieces figure the
+    // invoice line carried (one saved from a part dispatch kept the challan's whole count, 600 under a 200 dispatch).
+    nos += it.unit === 'NOS' && it.nosQty && it.qty > 0 ? it.nosQty * r.qty / it.qty : r.nosQty;
   });
   // A ref that bills the line whole closes it: what is billed is the line, or more if the parts say so.
   if (whole) { qty = Math.max(qty, it.qty || 0); nos = Math.max(nos, it.nosQty || 0); }
-  return { qty: parseFloat(qty.toFixed(3)), nos: nos };
+  return { qty: parseFloat(qty.toFixed(3)), nos: Math.round(nos) };
 }
 
 /* Write the derived billing onto every challan line. Returns how many changed. */
@@ -11258,21 +11447,24 @@ function finishInlineItemAdd(newItem) {
   return true;
 }
 /* ===== SHARED RENDER LAYER (Phase 4 — Tier 2) ===== */
+/* A quantity as it is held: kilograms are kept to three places (pieces × kg/pc, 150.274 kg), so the third prints
+   when there is one. Two places otherwise, as every invoice has always printed. */
+function formatQtyHeld(q) {
+  var s = formatNum(q, 3);
+  return /\.\d\d0$/.test(s) ? formatNum(q, 2) : s;
+}
+
 function formatInvoiceData(inv) {
-  const client = S.clients.find(c => c.id === inv.clientId);
   const addr = inv.clientAddress || {};
   return {
     invoiceNumber: inv.displayNumber || '',
     date: formatDate(inv.date),
-    dateRaw: inv.date,
-    status: inv.status,
     cancelled: inv.status === 'cancelled',
     cancelledAt: inv.cancelledAt ? new Date(inv.cancelledAt).toLocaleDateString('en-IN') : null,
     // Company
     companyName: S.company.name,
     companyAdd1: S.company.add1,
     companyAdd2: S.company.add2,
-    companyAdd3: S.company.add3 || '',
     companyPhone: S.company.phone || '',
     companyMobile: S.company.mobile || '',
     companyEmail: S.company.email || '',
@@ -11294,17 +11486,15 @@ function formatInvoiceData(inv) {
         desc: item.desc || item.partNumber || '',
         partNumber: item.partNumber || '',
         hsn: item.hsn || '998873',
-        qty: formatNum(item.qty),
+        qty: formatQtyHeld(item.qty),
         unit: item.unit || 'KG',
         rate: formatNum(item.rate),
         amount: formatNum(item.amount),
-        amountRaw: item.amount || 0,
         nosQtyRaw: item.nosQty || null
       };
     }),
     // Totals
     taxableValue: formatCurrency(inv.taxableValue),
-    taxableValueRaw: inv.taxableValue || 0,
     gstType: inv.gstType || 'intra',
     cgstPer: inv.cgstPer || (inv.gstType === 'intra' ? 9 : 0),
     sgstPer: inv.sgstPer || (inv.gstType === 'intra' ? 9 : 0),
@@ -11312,11 +11502,7 @@ function formatInvoiceData(inv) {
     cgstAmt: formatCurrency(inv.cgstAmt),
     sgstAmt: formatCurrency(inv.sgstAmt),
     igstAmt: formatCurrency(inv.igstAmt),
-    cgstAmtRaw: inv.cgstAmt || 0,
-    sgstAmtRaw: inv.sgstAmt || 0,
-    igstAmtRaw: inv.igstAmt || 0,
     grandTotal: formatCurrency(inv.grandTotal),
-    grandTotalRaw: inv.grandTotal || 0,
     amountInWords: inv.amountInWords || numberToWords(inv.grandTotal || 0),
     // Optional
     challanNo: inv.challanNo || '',
@@ -11480,7 +11666,11 @@ function _invoiceFrameHtml(d, copyLabel, body) {
   return '<table class="inv-pi-frame">' +
     '<thead><tr><th class="inv-pi-frame-head"><div class="inv-pi-copy-label">' +
     '<span class="inv-pi-copy-inv">Invoice ' + escHtml(d.invoiceNumber) + '</span>' +
-    '<span>' + escHtml(copyLabel) + '</span></div></th></tr></thead>' +
+    '<span>' + escHtml(copyLabel) + '</span></div>' +
+    // A cancelled invoice printed clean, the same as a live one. The band is in the repeating header, so every page
+    // of every copy carries it.
+    (d.cancelled ? '<div class="inv-pi-cancelled">CANCELLED' + (d.cancelledAt ? ' on ' + escHtml(d.cancelledAt) : '') + '</div>' : '') +
+    '</th></tr></thead>' +
     '<tfoot><tr><td class="inv-pi-frame-foot"></td></tr></tfoot>' +
     '<tbody><tr><td class="inv-pi-frame-body">' + body + '</td></tr></tbody></table>';
 }
@@ -11706,7 +11896,9 @@ function qcCertsForInvoice(inv) {
     .map(escHtml)
     .join('<br>');
 
+  // A line with no part and no quantity certifies nothing and is left out; the others keep their own line numbers.
   return (inv.items || []).map(function(item, idx) {
+    if (qcBlankLine(item)) return null;
     var partNo = item.partNumber || item.desc || '';
     // The gauge is part of a part's identity — two rows can share a part number
     // at different gauges and different weights. It is folded into `desc` at
@@ -11727,7 +11919,12 @@ function qcCertsForInvoice(inv) {
       quantity: qcQuantity(item),
       netWt: qcNetWeight(inv, item)
     };
-  });
+  }).filter(Boolean);
+}
+
+/* A line saved with nothing on it (before the invoice form refused one). */
+function qcBlankLine(item) {
+  return !String(item.partNumber || item.desc || '').trim() && !((item.qty || 0) > 0);
 }
 
 function _qcHeaderHtml() {
@@ -11863,7 +12060,7 @@ function buildQualityCertHtml(c) {
    silently goes missing from a stack of forty is not noticed until the customer
    asks for it. */
 function qcGatherCerts(invIds) {
-  var result = { certs: [], invoices: [], cancelled: 0, empty: 0, missing: 0 };
+  var result = { certs: [], invoices: [], cancelled: 0, empty: 0, missing: 0, blank: 0 };
 
   var invoices = (invIds || []).map(function(id) {
     return S.invoices.find(function(i) { return i.id === id; });
@@ -11875,7 +12072,9 @@ function qcGatherCerts(invIds) {
     // billed. Certifying against it would put a quality declaration behind a
     // number that appears in GSTR-1 at zero.
     if (inv.status === 'cancelled') { result.cancelled++; return; }
-    if (!(inv.items || []).length) { result.empty++; return; }
+    var blank = (inv.items || []).filter(qcBlankLine).length;
+    if (!(inv.items || []).length || blank === inv.items.length) { result.empty++; return; }
+    result.blank += blank;
     result.invoices.push(inv);
   });
 
@@ -11883,14 +12082,8 @@ function qcGatherCerts(invIds) {
   // numerically rather than as text: app-issued numbers are zero-padded and
   // would sort the same either way, but an imported one need not be, and 9
   // after 10 in a stack of certificates is a filing error waiting to happen.
-  result.invoices.sort(function(a, b) {
-    var na = invNumInt(a.invoiceNumber);
-    var nb = invNumInt(b.invoiceNumber);
-    if (na == null || nb == null) {
-      return String(a.displayNumber || '').localeCompare(String(b.displayNumber || ''));
-    }
-    return na - nb;
-  });
+  // The series first (invSerialCompare): last year's run before this year's.
+  result.invoices.sort(invSerialCompare);
 
   result.invoices.forEach(function(inv) {
     result.certs = result.certs.concat(qcCertsForInvoice(inv));
@@ -11953,6 +12146,7 @@ function _qcRunNoticeHtml(gathered) {
   if (gathered.cancelled > 0) reasons.push(gathered.cancelled + ' cancelled');
   if (gathered.empty > 0) reasons.push(gathered.empty + ' with no line items');
   if (gathered.missing > 0) reasons.push(gathered.missing + ' no longer in the register');
+  if (gathered.blank > 0) reasons.push(gathered.blank + ' line' + (gathered.blank !== 1 ? 's' : '') + ' with nothing on ' + (gathered.blank !== 1 ? 'them' : 'it'));
 
   if (reasons.length === 0) {
     return '<div class="inv-qc-notice">' + escHtml(msg) + '</div>';
@@ -11969,7 +12163,7 @@ function _qcRunNoticeHtml(gathered) {
 function qcEligibleCount(invIds) {
   return (invIds || []).filter(function(id) {
     var inv = S.invoices.find(function(i) { return i.id === id; });
-    return inv && inv.status !== 'cancelled' && (inv.items || []).length > 0;
+    return inv && inv.status !== 'cancelled' && (inv.items || []).some(function(it) { return !qcBlankLine(it); });
   }).length;
 }
 /* ===== CREDIT NOTES ===== */
@@ -12112,13 +12306,11 @@ function cnCompute(invoices, client, pct, rate) {
   var taxable = gstRound(batchTaxable * (pct || 0) / 100);
 
   var gstType = (client && client.gstType) || 'intra';
-  var cgstPer = gstType === 'intra' ? 9 : 0;
-  var sgstPer = gstType === 'intra' ? 9 : 0;
-  var igstPer = gstType === 'inter' ? 18 : 0;
-  var cgstAmt = gstRound(taxable * cgstPer / 100);
-  var sgstAmt = gstRound(taxable * sgstPer / 100);
-  var igstAmt = gstRound(taxable * igstPer / 100);
-  var grandTotal = gstRound(taxable + cgstAmt + sgstAmt + igstAmt);
+  // The one tax computation the invoice uses too (invTax, create.js).
+  var t = invTax(taxable, gstType);
+  var cgstPer = t.cgstPer, sgstPer = t.sgstPer, igstPer = t.igstPer;
+  var cgstAmt = t.cgstAmt, sgstAmt = t.sgstAmt, igstAmt = t.igstAmt;
+  var grandTotal = t.grand;
 
   // Quantity exists to make the document readable as a job-work credit; it is
   // the kilograms the credited rupees correspond to at the contract rate, not a
@@ -12257,7 +12449,6 @@ async function saveCreditNote() {
 
   var client = S.clients.find(function(c) { return c.id === _cnForm.clientId; });
   var c = cnCompute(invoices, client, _cnForm.pct, _cnForm.rate);
-  var num = recomputeNextCnNumber();
   var addr = invoices[0].clientAddress || {};
 
   // The note names ONE invoice, and it has to be big enough to carry the credit.
@@ -12268,7 +12459,7 @@ async function saveCreditNote() {
   if (!against && !(await uiConfirm({ title: 'No invoice large enough', body: 'No invoice in this batch is as large as the credit (\u20b9' +
       formatNum(c.taxable, 2) + ' taxable).\n\nThe note will print without an invoice ' +
       'reference. Raise it anyway?', okLabel: 'Raise anyway' }))) return;
-  num = recomputeNextCnNumber();
+  var num = recomputeNextCnNumber();
 
   var cn = {
     id: 'CN-' + Date.now(),
@@ -12328,15 +12519,20 @@ async function saveCreditNote() {
   _regSelected = {};
   _renderRegView();
   _renderRegSelBar();
-  showToast(cn.displayNumber + ' raised — ' + formatCurrency(cn.grandTotal));
-  showCreditNotePreview(cn.id);
+  // Said above the preview, where it is seen: a toast is painted under the print view.
+  showCreditNotePreview(cn.id, cn.displayNumber + ' raised — ' + formatCurrency(cn.grandTotal) + '. Print it, or close to go back to the register.');
 }
 
 /* Cancelled, never deleted: the customer holds a document bearing the number
    and a credit note is reversed by cancelling it, not by making it vanish. */
-function cancelCreditNote(cnId) {
+async function cancelCreditNote(cnId) {
   var cn = getCreditNotes().find(function(x) { return x.id === cnId; });
   if (!cn || cn.status === 'cancelled') return;
+  // Every other destructive act asks; this was one tap.
+  if (!(await uiConfirm({ title: 'Cancel ' + cn.displayNumber + '?',
+    body: 'The note stays in the series, cancelled, and exports at zero. The customer holds a copy: tell them it is withdrawn. This cannot be undone.',
+    okLabel: 'Cancel note', cancelLabel: 'Keep', danger: true }))) return;
+  if (cn.status === 'cancelled') return;
   cn.status = 'cancelled';
   cn.cancelledAt = Date.now();
   cn.updatedAt = Date.now();
@@ -12357,6 +12553,8 @@ function buildCreditNoteHtml(cn) {
     '<div>GST # ' + escHtml(cn.clientGSTIN || 'N/A') + '</div>';
 
   var html = '<div class="inv-cn-doc">';
+  // A cancelled note printed clean, the same as a live one.
+  if (cn.status === 'cancelled') html += '<div class="inv-cn-cancelled">CANCELLED' + (cn.cancelledAt ? ' on ' + escHtml(formatDateExport(isoOf(new Date(cn.cancelledAt)))) : '') + '</div>';
 
   // Identity block. Company details come from S.company so the header and the
   // footer are the same fact, not two transcriptions of it.
@@ -12372,10 +12570,11 @@ function buildCreditNoteHtml(cn) {
     // ONE invoice number, at the customer's request — the invoice the credit is
     // taken against. The batch it was COMPUTED from is still stated in full on
     // the annex below, which is what keeps a consolidated note auditable.
-    '<tr><td class="inv-cn-meta-l">Against Invoice</td><td class="inv-cn-meta-v"><strong>' +
-    escHtml(cnAgainstInvoiceLabel(cn)) + '</strong>' +
+    // The reference or nothing: the document printed the app's working ("— (none of the 3 large enough)").
+    (cnAgainstRef(cn) ? '<tr><td class="inv-cn-meta-l">Against Invoice</td><td class="inv-cn-meta-v"><strong>' +
+    escHtml(cnAgainstRef(cn)) + '</strong>' +
     (cnAgainstInvoiceDate(cn) ? ' <span class="inv-cn-meta-sub">dated ' +
-      escHtml(formatDateExport(cnAgainstInvoiceDate(cn))) + '</span>' : '') + '</td></tr>' +
+      escHtml(formatDateExport(cnAgainstInvoiceDate(cn))) + '</span>' : '') + '</td></tr>' : '') +
     '<tr><td class="inv-cn-meta-l">Period</td><td class="inv-cn-meta-v">' +
     escHtml(formatDateExport(cn.periodFrom)) + ' &ndash; ' + escHtml(formatDateExport(cn.periodTo)) + '</td></tr>' +
     '<tr><td class="inv-cn-meta-l">Reason</td><td class="inv-cn-meta-v">' + escHtml(cn.reason || '') + '</td></tr>' +
@@ -12547,15 +12746,24 @@ function cnInvoiceHeadroom(inv, exceptCnId) {
   (S.creditNotes || []).forEach(function(cn) {
     if (cn.status === 'cancelled') return;
     if (exceptCnId && cn.id === exceptCnId) return;
-    if (cn.againstInvoiceId ? cn.againstInvoiceId === inv.id
-                            : cn.againstInvoice === inv.displayNumber) {
-      taken += Number(cn.taxableValue) || 0;
-    }
+    if (cnAgainstIs(cn, inv)) taken += Number(cn.taxableValue) || 0;
   });
   return (Number(inv.taxableValue) || 0) - taken;
 }
 
-/* What the document prints in the "Against Invoice" box.
+/* Is this the invoice the note is taken against? By the stamped id, else by the number printed on it. The one test
+   the headroom, the note's date, an invoice's list of notes and the note's Invoice button read (it was four copies). */
+function cnAgainstIs(cn, inv) {
+  if (!cn || !inv) return false;
+  return cn.againstInvoiceId ? cn.againstInvoiceId === inv.id : !!(cn.againstInvoice && cn.againstInvoice === inv.displayNumber);
+}
+
+/* The reference a document or a working paper carries: the stamped number, else the rule's pick, else nothing. */
+function cnAgainstRef(cn) {
+  return cn.againstInvoice || (cnDeriveAgainstInvoice(cn) || {}).displayNumber || '';
+}
+
+/* What the note list says in its "Against" line (the screen, never the document: cnAgainstRef).
 
    Stamped at creation, so the number on the customer's copy cannot move if the
    register later changes. Notes raised before this existed carry no stamp, so
@@ -12685,12 +12893,8 @@ function cnPickAgainst(id, idx) {
 function cnAgainstInvoiceDate(cn) {
   if (cn.againstInvoiceDate) return cn.againstInvoiceDate;
   if (cn.againstInvoiceId || cn.againstInvoice) {
-    var inv = (S.invoices || []).find(function(i) {
-      return cn.againstInvoiceId ? i.id === cn.againstInvoiceId
-                                 : i.displayNumber === cn.againstInvoice;
-    });
-    if (inv) return inv.date || '';
-    return '';
+    var inv = cnAgainstLive(cn);
+    return inv ? inv.date || '' : '';
   }
   var d = cnDeriveAgainstInvoice(cn);
   return (d && d.date) || '';
@@ -12734,14 +12938,15 @@ function cnPanFromGstin(gstin) {
   return g.length >= 12 ? g.slice(2, 12) : '';
 }
 
-function showCreditNotePreview(cnId) {
+function showCreditNotePreview(cnId, said) {
   var cn = getCreditNotes().find(function(x) { return x.id === cnId; });
   if (!cn) return;
   var body = document.getElementById('invPrintBody');
   if (!body) return;
-  var banner = cn.status === 'cancelled'
+  // Screen-only notices (print drops .inv-qc-notice): a cancelled note, or what was just done.
+  var banner = (cn.status === 'cancelled'
     ? '<div class="inv-qc-notice inv-qc-notice-warn">' + escHtml(cn.displayNumber) + ' was cancelled. The number stays in the series.</div>'
-    : '';
+    : '') + (said ? '<div class="inv-qc-notice" role="status">' + escHtml(said) + '</div>' : '');
   body.innerHTML = banner + buildCreditNoteHtml(cn);
   document.getElementById('invPrintView').classList.add('inv-print-view-active');
   _printInvId = null;
@@ -12761,8 +12966,7 @@ function cnLinksForInvoice(inv) {
   var out = [];
   getCreditNotes().forEach(function(cn) {
     if (cn.status === 'cancelled') return;
-    var against = cn.againstInvoiceId ? cn.againstInvoiceId === inv.id
-      : !!(cn.againstInvoice && cn.againstInvoice === inv.displayNumber);
+    var against = cnAgainstIs(cn, inv);
     var inBatch = (cn.invoiceIds || []).indexOf(inv.id) >= 0;
     if (against || inBatch) out.push({ cn: cn, role: against ? 'against' : 'batch' });
   });
@@ -12803,16 +13007,19 @@ function cnInvoiceDetailHtml(inv) {
 
 // The live invoice a note is taken against, if it is still in the register.
 function cnAgainstLive(cn) {
-  return (S.invoices || []).find(function(i) {
-    return cn.againstInvoiceId ? i.id === cn.againstInvoiceId : !!(cn.againstInvoice && i.displayNumber === cn.againstInvoice);
-  }) || null;
+  return (S.invoices || []).find(function(i) { return cnAgainstIs(cn, i); }) || null;
 }
 
 /* ===== LIST ===== */
+/* A note's place in the series: its financial year, then its number (numbers start again each year). */
+function cnSerialCompare(a, b) {
+  var fa = cnNoteFy(a), fb = cnNoteFy(b);
+  if (fa !== fb) return fa < fb ? -1 : 1;
+  return (parseInt(a.cnNumber, 10) || 0) - (parseInt(b.cnNumber, 10) || 0);
+}
+
 function renderCreditNoteList() {
-  var notes = getCreditNotes().slice().sort(function(a, b) {
-    return (parseInt(b.cnNumber, 10) || 0) - (parseInt(a.cnNumber, 10) || 0);
-  });
+  var notes = getCreditNotes().slice().sort(function(a, b) { return cnSerialCompare(b, a); });
 
   var html = '<div class="inv-dialog">' + dialogHeadHtml('Credit notes');
 
@@ -12864,13 +13071,10 @@ function renderCreditNoteList() {
    shapes into one flat sheet would corrupt both. A cancelled note is declared
    at zero, the same treatment a cancelled invoice already gets. */
 function exportCreditNotesCSV() {
-  var notes = getCreditNotes().slice().sort(function(a, b) {
-    return (parseInt(a.cnNumber, 10) || 0) - (parseInt(b.cnNumber, 10) || 0);
-  });
+  var notes = getCreditNotes().slice().sort(cnSerialCompare);
   if (notes.length === 0) { showToast('No credit notes to export', 'warning'); return; }
 
-  var metaRow = ['SOMA ELECTRO PRODUCTS | GSTIN: ' + (S.company.gstin || '') +
-    ' | Export Date: ' + formatDateExport(localDateStr())];
+  var metaRow = _csvMetaRow();
   var header = ['GSTIN/UIN of Recipient', 'Receiver Name', 'Note Number', 'Note Date', 'Note Type',
     'Place Of Supply', 'Note Value', 'Rate', 'Taxable Value', 'CGST Amount', 'SGST Amount',
     'IGST Amount', 'Cess Amount', 'Against Invoice', 'Against Invoice Date', 'Period From', 'Period To', 'Discount %', 'Batch Taxable', 'Status'];
@@ -12891,7 +13095,7 @@ function exportCreditNotesCSV() {
       // — since the Sept-2020 de-linking, table 9B is keyed on the note alone —
       // so this and the FIVE columns after it (date, period from, period to,
       // discount %, batch taxable) are SEP's own working fields.
-      cn.againstInvoice || (cnDeriveAgainstInvoice(cn) || {}).displayNumber || '',
+      cnAgainstRef(cn),
       cnAgainstInvoiceDate(cn) ? formatDateExport(cnAgainstInvoiceDate(cn)) : '',
       formatDateExport(cn.periodFrom), formatDateExport(cn.periodTo),
       cn.discountPct != null ? cn.discountPct : '', cn.batchTaxable != null ? cn.batchTaxable : '', z ? 'Cancelled' : 'Active'
@@ -30659,7 +30863,7 @@ function onDocClick(e) {
     case 'invSideGo': sideGo(btn.dataset.tab, btn.dataset.sub); break;
     case 'invOpenMore': openMoreSheet(); break;
     case 'invCloseMore': closeMoreSheet(); break;
-    case 'invCreateNew': initCreateForm(); switchTab('pageCreate'); break;
+    case 'invCreateNew': createNew(); break;
     case 'invHomeQuick': homeQuick(btn.dataset.go); break;
     case 'invOpenSettings': openSettings(); break;
     case 'invCloseOverlay': closeOverlay(); break;
@@ -30716,7 +30920,7 @@ function onDocClick(e) {
     }
     case 'invSelectClient': selectClient(parseInt(btn.dataset.id)); break;
     case 'invCreatePickChallan': createPickChallan(btn.dataset.id); break;
-    case 'invClearClient': captureOptionalFields(); invoiceForm.clientId = null; renderCreateForm(); break;
+    case 'invClearClient': createClearClient(); break;
     case 'invAddLineItem': captureOptionalFields(); addLineItem(); break;
     case 'invRemoveLineItem': captureOptionalFields(); invoiceForm.items.splice(parseInt(btn.dataset.idx), 1); renderCreateForm(); break;
     case 'invSaveInvoice': saveInvoice(); break;
@@ -30748,12 +30952,7 @@ function onDocClick(e) {
     case 'invPrintSalesRegister': showSalesRegisterPreview(); break;
     case 'invExportGstr1': exportGSTR1CSV(); break;
     case 'invSelectPart': selectPartForLine(parseInt(btn.dataset.idx), parseInt(btn.dataset.partId)); break;
-    case 'invRegClearRange': {
-      regFilter.dateFrom = ''; regFilter.dateTo = '';
-      saveRegFilter();
-      captureRegFilters();
-      break;
-    }
+    case 'invRegClearRange': regClearRange(); break;
     case 'invRegSelectAll': toggleRegSelectAll(); break;
     // Staff & attendance
     case 'invAttView': attSetView(btn.dataset.view); markSideActive('pageStaff'); break;
@@ -30798,7 +30997,7 @@ function onDocClick(e) {
     case 'invIMMonth': imMonthStep(+btn.dataset.step); break;
     case 'invCheckIMItem': toggleIMItem(btn.dataset.itemId); break;
     case 'invCheckIMChallan': toggleIMChallan(btn.dataset.id); break;
-    case 'invCreateFromIM': createInvoiceFromIM(); break;
+    case 'invCreateFromIM': createDiscardOk().then(function(ok) { if (ok) { createInvoiceFromIM(); createMarkBase(); } }); break;
     // Phase 4: Print preview
     case 'invPreviewInvoice': closeOverlay(); showPrintPreview(btn.dataset.id); break;
     case 'invClosePrint': closePrintPreview(); break;
@@ -30832,7 +31031,7 @@ function onDocClick(e) {
     case 'invEditChallanGuard': showToast('Cannot edit: ' + btn.dataset.count + ' item' + (parseInt(btn.dataset.count) > 1 ? 's' : '') + ' already invoiced', 'warning'); break;
     // Invoice number ledger
     case 'invShowNumberAudit': showNumberAudit(); break;
-    case 'invAccountForNumber': openAccountForNumber(btn.dataset.num); break;
+    case 'invAccountForNumber': openAccountForNumber(btn.dataset.num, btn.dataset.display); break;
     case 'invSaveGapReason': saveGapReason(); break;
     // IM duplicate guard
     case 'invRunDupeScan': runIMDuplicateScan(); break;
@@ -30880,12 +31079,7 @@ function onDocClick(e) {
       break;
     }
     // Phase 7: Stats actions
-    case 'invStatsCreateInvoice': {
-      closeOverlay();
-      _preselectedClientId = btn.dataset.clientId;
-      switchTab('pageCreate');
-      break;
-    }
+    case 'invStatsCreateInvoice': createForClient(btn.dataset.clientId); break;
     case 'invStatsJumpRegister': {
       closeOverlay();
       regFilter.clientId = btn.dataset.clientId;

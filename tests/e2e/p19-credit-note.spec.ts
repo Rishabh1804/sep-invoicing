@@ -1,5 +1,5 @@
 import { test, expect, Page } from '@playwright/test';
-import { emptyState, loadAppWithState, switchTab, todayIso, recentTs, SepState } from './fixtures';
+import { emptyState, loadAppWithState, switchTab, todayIso, recentTs, answerAsk, SepState } from './fixtures';
 
 /*
  * Credit notes.
@@ -340,6 +340,9 @@ test('P19: a credit note is cancelled, never deleted — the number stays spent'
 
   await page.locator('[data-action="invCnList"]').click();
   await page.locator('[data-action="invCnCancel"]').click();
+  // Destructive, so it asks first (P108 IB5).
+  await answerAsk(page, 'ok');
+  await expect.poll(async () => (await stored(page)).creditNotes[0].status).toBe('cancelled');
 
   const s = await stored(page);
   expect(s.creditNotes).toHaveLength(1);

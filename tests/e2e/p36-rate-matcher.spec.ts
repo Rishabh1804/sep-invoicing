@@ -60,9 +60,11 @@ test.describe('P36: rate matcher — option E', () => {
 
   test('the invoice form colours the rate as it is typed', async ({ page }) => {
     await loadAppWithState(page, state());
-    await page.evaluate(() => { (window as any)._preselectedClientId = '1'; });
-    await page.locator('[data-action="invCreateNew"]').first().click();
+    await g(page, 'createForClient(1)');
     await page.locator('[data-action="invAddLineItem"]').click();
+    // A line names its part (P108 I2); one with no rate on record, so the ladder is what it is judged against.
+    await page.locator('input[data-action="invEditLinePart"][data-idx="0"]').fill('TEST LADDER PART');
+    await g(page, 'dismissAllAutocomplete()');
     const qty = page.locator('input[data-field="qty"][data-idx="0"]');
     const rate = page.locator('input[data-field="rate"][data-idx="0"]');
     const note = page.locator('#invRateMatch0');

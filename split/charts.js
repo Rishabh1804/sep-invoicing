@@ -115,6 +115,12 @@ function chartLine(data, opts) {
   // Aspect is preserved, so a circle is a circle at any width.
   var svg = '<svg class="inv-chart-svg" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="' +
     escHtml(opts.ariaLabel || 'Trend') + '">' + f.svg;
+  // opts.span {i0, i1}: a stretch of the points shaded behind the line (the period chosen above a longer trend).
+  if (opts.span) {
+    var half = f.chartW / (data.length - 1) / 2;
+    var sx0 = Math.max(pad.l, points[opts.span.i0].x - half), sx1 = Math.min(W - pad.r, points[opts.span.i1].x + half);
+    svg += '<rect x="' + sx0 + '" y="' + pad.t + '" width="' + (sx1 - sx0) + '" height="' + f.chartH + '" class="inv-chart-band" data-span/>';
+  }
   svg += '<path d="' + area + '" class="inv-chart-area"/>';
   svg += '<polyline points="' + line + '" class="inv-chart-line"/>';
 
@@ -143,6 +149,9 @@ function chartBars(data, opts) {
 
   var svg = '<svg class="inv-chart-svg" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="' +
     escHtml(opts.ariaLabel || 'Trend') + '">' + f.svg;
+  // opts.span {i0, i1}: the slots of a stretch of bars shaded behind them, as chartLine does.
+  if (opts.span) svg += '<rect x="' + (pad.l + opts.span.i0 * slot) + '" y="' + pad.t + '" width="' + ((opts.span.i1 - opts.span.i0 + 1) * slot) +
+    '" height="' + f.chartH + '" class="inv-chart-band" data-span/>';
 
   var stride = _chartLabelStride(data.length, opts.maxLabels);
   data.forEach(function(d, i) {

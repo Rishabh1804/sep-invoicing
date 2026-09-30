@@ -18,7 +18,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <!-- Appearance before first paint (§3.2): the device's theme and palette, so nothing flashes in the wrong colours. -->
 <script>(function(){try{var d=document.documentElement,t=localStorage.getItem("sep_inv_theme"),p=localStorage.getItem("sep_inv_palette");if(t==="light"||t==="dark")d.dataset.theme=t;d.dataset.palette=(p==="zinc"||p==="terracotta")?p:"teal";}catch(e){document.documentElement.dataset.palette="teal";}})();</script>
-<meta name="app-build" content="8ae357ee">
+<meta name="app-build" content="d81951af">
 <style>
 /* ===== DESIGN TOKENS (design system v2.0 — docs/SEP_INVOICING_DESIGN_PRINCIPLES.md §3) ===== */
 /* Theme: colour-scheme decides every light-dark() below. <html data-theme> is set before first paint
@@ -13329,6 +13329,12 @@ function chartLine(data, opts) {
   // Aspect is preserved, so a circle is a circle at any width.
   var svg = '<svg class="inv-chart-svg" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="' +
     escHtml(opts.ariaLabel || 'Trend') + '">' + f.svg;
+  // opts.span {i0, i1}: a stretch of the points shaded behind the line (the period chosen above a longer trend).
+  if (opts.span) {
+    var half = f.chartW / (data.length - 1) / 2;
+    var sx0 = Math.max(pad.l, points[opts.span.i0].x - half), sx1 = Math.min(W - pad.r, points[opts.span.i1].x + half);
+    svg += '<rect x="' + sx0 + '" y="' + pad.t + '" width="' + (sx1 - sx0) + '" height="' + f.chartH + '" class="inv-chart-band" data-span/>';
+  }
   svg += '<path d="' + area + '" class="inv-chart-area"/>';
   svg += '<polyline points="' + line + '" class="inv-chart-line"/>';
 
@@ -13357,6 +13363,9 @@ function chartBars(data, opts) {
 
   var svg = '<svg class="inv-chart-svg" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="' +
     escHtml(opts.ariaLabel || 'Trend') + '">' + f.svg;
+  // opts.span {i0, i1}: the slots of a stretch of bars shaded behind them, as chartLine does.
+  if (opts.span) svg += '<rect x="' + (pad.l + opts.span.i0 * slot) + '" y="' + pad.t + '" width="' + ((opts.span.i1 - opts.span.i0 + 1) * slot) +
+    '" height="' + f.chartH + '" class="inv-chart-band" data-span/>';
 
   var stride = _chartLabelStride(data.length, opts.maxLabels);
   data.forEach(function(d, i) {
@@ -25716,7 +25725,7 @@ function buildTrendSeries(gran, series) {
   var cap = gran === 'day' ? 90 : gran === 'week' ? 26 : 12;
   if (!minDate) return [];
   var keys = periodKeysBetween(minDate, maxDate, gran).slice(-cap);
-  return keys.map(function(k) { return { label: formatTrendLabel(k, gran), value: by[k] || 0 }; });
+  return keys.map(function(k) { return { key: k, label: formatTrendLabel(k, gran), value: by[k] || 0 }; });
 }
 
 var TREND_SERIES_UNIT = { revenue: 'money', tonnage: 'kg', im: 'kg' };
@@ -26104,6 +26113,21 @@ function renderStats() {
   /* ===== Card 8: Trend — revenue, tonnage, or material arriving ===== */
   var trendData = buildTrendSeries(_statsTrendGran, _statsTrendSeries);
   var trendUnit = TREND_SERIES_UNIT[_statsTrendSeries] || 'money';
+  /* A trend is read against its history, so it keeps its own reach whatever the period above; the period is shaded on
+     it rather than cutting it to a few points (owner, 30 Sep 2026: the chart had ignored the period chip without a word). */
+  var trendReach = { day: 'the last 90 days', week: 'the last 26 weeks', month: 'the last 12 months' }[_statsTrendGran];
+  var trendRange = statsRangeIso(_statsPeriod);
+  var trendKey = function(iso) { return _statsTrendGran === 'day' ? iso : _statsTrendGran === 'week' ? isoWeekKey(iso) : iso.slice(0, 7); };
+  var tLo = trendKey(trendRange.from), tHi = trendKey(trendRange.to), trendSpan = null;
+  trendData.forEach(function(d, i) {
+    if (d.key < tLo || d.key > tHi) return;
+    if (!trendSpan) trendSpan = { i0: i, i1: i }; else trendSpan.i1 = i;
+  });
+  var spanAll = trendSpan && trendSpan.i0 === 0 && trendSpan.i1 === trendData.length - 1;
+  if (spanAll) trendSpan = null;
+  var periodName = escHtml(PERIOD_LABELS[_statsPeriod] || _statsPeriod);
+  var trendWhat = 'Shows ' + trendReach + ' whatever the period above' +
+    (spanAll ? '; ' + periodName + ' covers all of it.' : trendSpan ? '; the shaded part is ' + periodName + '.' : '; ' + periodName + ' is not within it.');
   var trendTitles = {
     revenue: 'Revenue trend',
     tonnage: 'Tonnage trend',
@@ -26116,8 +26140,9 @@ function renderStats() {
       statsSeg('invStatsTrendGran', 'gran', { day: 'Day', week: 'Week', month: 'Month' }, _statsTrendGran, 'Step') +
       statsSeg('invStatsTrendType', 'type', { line: 'Line', bar: 'Bar' }, _statsTrendType, 'Chart') + '</div>' +
       (_statsTrendType === 'bar'
-        ? chartBars(trendData, { unit: trendUnit, ariaLabel: trendTitles[_statsTrendSeries] })
-        : chartLine(trendData, { unit: trendUnit, ariaLabel: trendTitles[_statsTrendSeries] })) +
+        ? chartBars(trendData, { unit: trendUnit, ariaLabel: trendTitles[_statsTrendSeries], span: trendSpan })
+        : chartLine(trendData, { unit: trendUnit, ariaLabel: trendTitles[_statsTrendSeries], span: trendSpan })) +
+      statsNote(trendWhat) +
       // Incoming material is the leading indicator: it is what has arrived and
       // not yet been billed, so a fall here shows up in revenue weeks later.
       (_statsTrendSeries === 'im'

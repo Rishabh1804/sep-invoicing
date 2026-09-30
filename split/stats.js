@@ -411,7 +411,7 @@ function buildTrendSeries(gran, series) {
   var cap = gran === 'day' ? 90 : gran === 'week' ? 26 : 12;
   if (!minDate) return [];
   var keys = periodKeysBetween(minDate, maxDate, gran).slice(-cap);
-  return keys.map(function(k) { return { label: formatTrendLabel(k, gran), value: by[k] || 0 }; });
+  return keys.map(function(k) { return { key: k, label: formatTrendLabel(k, gran), value: by[k] || 0 }; });
 }
 
 var TREND_SERIES_UNIT = { revenue: 'money', tonnage: 'kg', im: 'kg' };
@@ -799,6 +799,21 @@ function renderStats() {
   /* ===== Card 8: Trend — revenue, tonnage, or material arriving ===== */
   var trendData = buildTrendSeries(_statsTrendGran, _statsTrendSeries);
   var trendUnit = TREND_SERIES_UNIT[_statsTrendSeries] || 'money';
+  /* A trend is read against its history, so it keeps its own reach whatever the period above; the period is shaded on
+     it rather than cutting it to a few points (owner, 30 Sep 2026: the chart had ignored the period chip without a word). */
+  var trendReach = { day: 'the last 90 days', week: 'the last 26 weeks', month: 'the last 12 months' }[_statsTrendGran];
+  var trendRange = statsRangeIso(_statsPeriod);
+  var trendKey = function(iso) { return _statsTrendGran === 'day' ? iso : _statsTrendGran === 'week' ? isoWeekKey(iso) : iso.slice(0, 7); };
+  var tLo = trendKey(trendRange.from), tHi = trendKey(trendRange.to), trendSpan = null;
+  trendData.forEach(function(d, i) {
+    if (d.key < tLo || d.key > tHi) return;
+    if (!trendSpan) trendSpan = { i0: i, i1: i }; else trendSpan.i1 = i;
+  });
+  var spanAll = trendSpan && trendSpan.i0 === 0 && trendSpan.i1 === trendData.length - 1;
+  if (spanAll) trendSpan = null;
+  var periodName = escHtml(PERIOD_LABELS[_statsPeriod] || _statsPeriod);
+  var trendWhat = 'Shows ' + trendReach + ' whatever the period above' +
+    (spanAll ? '; ' + periodName + ' covers all of it.' : trendSpan ? '; the shaded part is ' + periodName + '.' : '; ' + periodName + ' is not within it.');
   var trendTitles = {
     revenue: 'Revenue trend',
     tonnage: 'Tonnage trend',
@@ -811,8 +826,9 @@ function renderStats() {
       statsSeg('invStatsTrendGran', 'gran', { day: 'Day', week: 'Week', month: 'Month' }, _statsTrendGran, 'Step') +
       statsSeg('invStatsTrendType', 'type', { line: 'Line', bar: 'Bar' }, _statsTrendType, 'Chart') + '</div>' +
       (_statsTrendType === 'bar'
-        ? chartBars(trendData, { unit: trendUnit, ariaLabel: trendTitles[_statsTrendSeries] })
-        : chartLine(trendData, { unit: trendUnit, ariaLabel: trendTitles[_statsTrendSeries] })) +
+        ? chartBars(trendData, { unit: trendUnit, ariaLabel: trendTitles[_statsTrendSeries], span: trendSpan })
+        : chartLine(trendData, { unit: trendUnit, ariaLabel: trendTitles[_statsTrendSeries], span: trendSpan })) +
+      statsNote(trendWhat) +
       // Incoming material is the leading indicator: it is what has arrived and
       // not yet been billed, so a fall here shows up in revenue weeks later.
       (_statsTrendSeries === 'im'

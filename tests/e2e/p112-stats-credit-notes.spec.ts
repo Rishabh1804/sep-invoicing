@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
-import { emptyState, loadAppWithState, noSeedIM, switchTab, todayIso, recentTs } from './fixtures';
+import { emptyState, loadAppWithState, noSeedIM, openStatsTab, switchTab, todayIso, recentTs } from './fixtures';
 
 // P112: credit notes are netted across all of Stats (owner, 30 Sep 2026: "credit note should be netted across all of
 // stats"). Only contribution by client took them off; the headline, realisation, clients, six months and the trend read a
@@ -39,4 +39,20 @@ test("a note against one invoice comes off that one; one naming no invoice in th
   expect(net).toEqual([1000, 960]);
   await switchTab(page, 'pageStats');
   await expect(page.locator('#pageStats [data-callout="credit-notes"]')).toContainText('1 note (₹75.00) name no invoice in the book');
+});
+
+// The trend keeps its own reach whatever the period chip says, and shades the period on it (owner, 30 Sep 2026: option 1).
+test('the trend shades the chosen period on its longer history, and says what it shows', async ({ page }) => {
+  const d = new Date(); d.setDate(15); d.setMonth(d.getMonth() - 4);
+  const old = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-15';
+  const s = book([]);
+  s.invoices[1] = { ...s.invoices[1], date: old };
+  await loadAppWithState(page, s);
+  await openStatsTab(page, 'trends');
+  const card = page.locator('#pageStats [data-card="trend"]');
+  await expect(card.locator('[data-span]')).toHaveCount(1);
+  await expect(card).toContainText('Shows the last 12 months whatever the period above; the shaded part is MTD.');
+  await page.locator('#pageStats [data-action="invStatsPeriod"][data-period="all"]').click();
+  await expect(card.locator('[data-span]')).toHaveCount(0);
+  await expect(card).toContainText('All time covers all of it.');
 });

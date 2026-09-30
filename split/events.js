@@ -184,6 +184,8 @@ function onDocClick(e) {
     case 'invAttSet': setAttState(parseInt(btn.dataset.id, 10), btn.dataset.st); break;
     case 'invAttCycle': cycleAttState(parseInt(btn.dataset.id, 10), btn.dataset.date); break;
     case 'invAttAllPresent': attAllPresent(); break;
+    case 'invAttEdit': attEditOpen(btn.dataset.id); break;
+    case 'invAttEditClose': _attEditId = null; closeOverlay(); break;
     case 'invAttAddExtra': attAddExtra(); break;
     case 'invAttRemoveExtra': attRemoveExtra(parseInt(btn.dataset.idx, 10)); break;
     case 'invAreaExplain': openAreaExplain(btn.dataset.ex); break;
@@ -232,7 +234,8 @@ function onDocClick(e) {
     case 'invRegQualityCerts': showQualityCertificates(_regSelectedIds()); break;
     // Phase 4: IM Add Challan
     case 'invShowAddChallan': showAddChallanForm(); break;
-    case 'invSaveChallan': saveChallan(); break;
+    case 'invSaveChallan': if (_challanForm) _challanForm._another = false; saveChallan(); break;
+    case 'invSaveChallanNext': if (_challanForm) _challanForm._another = true; saveChallan(); break;
     case 'invCancelChallan': cancelAddChallan(); break;
     case 'invAddChallanLine': captureChallanFields(); addChallanLine(); break;
     case 'invRemoveChallanLine': captureChallanFields(); removeChallanLine(parseInt(btn.dataset.idx)); break;
@@ -266,6 +269,8 @@ function onDocClick(e) {
     // Phase 7: Stats period chips
     case 'invStatsPeriod': _statsPeriod = btn.dataset.period; renderStats(); break;
     case 'invStatsTab': statsSetTab(btn.dataset.tab); break;
+    case 'invStatsGo': statsSetTab(btn.dataset.tab); break;
+    case 'invStatsInsightsAll': uiRevealEl(document.getElementById('statsInsights')); break;
     // P9: Trend granularity chips (day/week/month)
     case 'invStatsTrendGran': _statsTrendGran = btn.dataset.gran; renderStats(); break;
     // Chart controls: what the trend plots, how it is drawn, and how the
@@ -276,6 +281,14 @@ function onDocClick(e) {
     case 'invStatsTopBy': _statsTopBy = btn.dataset.by; renderStats(); break;
     // Client performance sub-view
     case 'invPerfSeries': _cpSeries = btn.dataset.series; renderClientsPage(); break;
+    case 'invCpPeriod': _cpPeriod = btn.dataset.p; renderClientsPage(); break;
+    case 'invCpScope': _cpScope = btn.dataset.s; renderClientsPage(); break;
+    case 'invCpTimeAdd': cpTimeFormOpen(btn.dataset.key || ''); break;
+    case 'invCpTimeEdit': cpTimeFormOpen('', btn.dataset.id); break;
+    case 'invCpTimeUseMeasured': cpTimeUseMeasured(btn.dataset.id); break;
+    case 'invCpTimeCancel': _cpTimeForm = false; renderClientsPage(); break;
+    case 'invCpTimeSave': cpTimeSave(); break;
+    case 'invCpTimeRemove': cpTimeRemove(btn.dataset.id); break;
     // Phase 7: Client drill-down overlay
     case 'invStatsClientDrill': openClientDrillOverlay(btn.dataset.clientId); break;
     // Phase 7: Flippable card
@@ -426,6 +439,7 @@ function onDocClick(e) {
       if (dashAction(action, btn)) break;
       if (navAction(action, btn)) break;
       if (prodAction(action, btn)) break;
+      if (homeAction(action, btn)) break;
       if (powerAction(action, btn)) break;
       if (action.indexOf('invStock') === 0) stockAction(action, btn);
       else if (action.indexOf('invTodo') === 0) todoAction(action, btn);
@@ -596,6 +610,14 @@ function onDocChange(e) {
   // Client performance: which account is under the lens
   if (e.target.id === 'cpClientSelect') {
     setPerfClientId(e.target.value);
+    _cpTimeForm = false;
+    renderClientsPage();
+    return;
+  }
+  if (e.target.id === 'cpOverhead') { cpSetOverhead(e.target.value); return; }
+  if (e.target.dataset && e.target.dataset.homeShow) { homeShowToggle(e.target); return; }
+  if (e.target.id === 'cpFrom' || e.target.id === 'cpTo') {
+    if (e.target.id === 'cpFrom') _cpFrom = e.target.value; else _cpTo = e.target.value;
     renderClientsPage();
     return;
   }
@@ -655,6 +677,7 @@ document.addEventListener('input', function(e) {
     renderClientList(e.target.value);
   }
   if (e.target.id === 'ceditPoTpl') { clientPoExampleRefresh(e.target); return; }
+  if (e.target.id === 'cpMatSearch') { _cpQuery = e.target.value; cpWorkedRedraw(); return; }
   // Attendance hours. Written on every keystroke so nothing is lost, but never
   // re-rendered here: replacing the field mid-entry is what ended the keyboard
   // path in challan entry, and a number input is the same trap.

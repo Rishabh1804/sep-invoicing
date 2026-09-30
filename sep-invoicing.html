@@ -18,7 +18,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <!-- Appearance before first paint (§3.2): the device's theme and palette, so nothing flashes in the wrong colours. -->
 <script>(function(){try{var d=document.documentElement,t=localStorage.getItem("sep_inv_theme"),p=localStorage.getItem("sep_inv_palette");if(t==="light"||t==="dark")d.dataset.theme=t;d.dataset.palette=(p==="zinc"||p==="terracotta")?p:"teal";}catch(e){document.documentElement.dataset.palette="teal";}})();</script>
-<meta name="app-build" content="b27a9119">
+<meta name="app-build" content="de77ef90">
 <style>
 /* ===== DESIGN TOKENS (design system v2.0 — docs/SEP_INVOICING_DESIGN_PRINCIPLES.md §3) ===== */
 /* Theme: colour-scheme decides every light-dark() below. <html data-theme> is set before first paint
@@ -98,7 +98,7 @@
   --info: light-dark(#1d5ea6, #8dbaf0); --info-bg: light-dark(#e6effa, #15263a);
 
   /* Layout (§3.7) */
-  --bar-h: 3.25rem; --bar-h-desk: 3rem; --fill-h: calc(100dvh - var(--bar-h-desk)); --pane-host-min: 20rem; --nav-h: 3.625rem; --side-w: 13.5rem; --content-max: 80rem; --pane-w: 22rem; --scroll-max: 55vh;
+  --bar-h: 3.25rem; --bar-h-desk: 3rem; --fill-h: calc(100dvh - var(--bar-h-desk)); --pane-host-min: 20rem; --nav-h: 3.625rem; --side-w: 13.5rem; --content-max: 80rem; --pane-w: 22rem; --scroll-max: 55vh; --board-col: 17rem;
   --filter-w: 9rem; --col-sm-w: 8rem; --fade-w: var(--sp-24); --line-fig-w: 7rem; --line-unit-w: 5.5rem; --menu-max: 17.5rem;
   --max-w: 32.5rem; --set-card-w: 55rem; --set-nav-w: 12.5rem;
   --dialog-w: 40rem; --dialog-max-h: 90vh; --dialog-max-h-desk: 85vh; --toast-max: 30rem; --busy-w: 17.5rem;
@@ -1746,6 +1746,14 @@ summary.inv-summary::-webkit-details-marker { display: none; }
 
 /* Production: the register photo under review, as wide as its panel and never wider. */
 .inv-prod-photo { display: block; max-width: 100%; height: auto; border-radius: var(--r-md); }
+
+/* The day as a board (Staff → Day): a card per area, a line per hand. One column on the phone; on the desktop as many
+   columns of --board-col as fit, so a day of twenty hands reads on one screen. */
+.inv-board { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--gap); align-items: start; margin-bottom: var(--gap); }
+.inv-board .inv-panel { margin-bottom: 0; }
+body.inv-desktop .inv-board { grid-template-columns: repeat(auto-fill, minmax(var(--board-col), 1fr)); }
+/* Home's widgets sit in the page's one grid; the tiles and the quick actions carry no margin of their own there. */
+.inv-panels > [data-home-w] > .inv-tiles, .inv-panels > [data-home-w] > .inv-btn-grid { margin-bottom: 0; }
 </style>
 </head>
 <body>
@@ -1766,32 +1774,41 @@ summary.inv-summary::-webkit-details-marker { display: none; }
 
 <!-- PAGES -->
 <div id="pageHome" class="inv-page inv-page-active">
-  <div class="inv-tiles" id="homeTiles">
-    <div class="inv-tile"><div class="inv-tile-label">Invoices</div><div class="inv-tile-value" id="mtdCount">0</div><div class="inv-tile-sub" id="mtdCountSub">&nbsp;</div><div class="inv-tile-sub" id="mtdCountDelta"></div></div>
-    <div class="inv-tile"><div class="inv-tile-label">Revenue</div><div class="inv-tile-value" id="mtdRevenue">&#8377;0</div><div class="inv-tile-sub" id="mtdRevenueSub">taxable</div><div class="inv-tile-sub" id="mtdRevenueDelta"></div></div>
-    <div class="inv-tile"><div class="inv-tile-label">Tonnage billed</div><div class="inv-tile-value" id="mtdKg">&mdash;</div><div class="inv-tile-sub" id="mtdKgSub">&nbsp;</div><div class="inv-tile-sub" id="mtdKgDelta"></div></div>
-    <div class="inv-tile" id="mtdPerKgTile"><div class="inv-tile-label">Realisation</div><div class="inv-tile-value" id="mtdPerKg">&mdash;</div><div class="inv-tile-sub" id="mtdPerKgSub">&nbsp;</div><div class="inv-tile-sub" id="mtdPerKgDelta"></div></div>
-  </div>
-  <div class="inv-btn-grid" role="group" aria-label="Quick actions">
-    <button class="inv-btn inv-btn-primary" data-action="invCreateNew"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg><span>New invoice</span></button>
-    <button class="inv-btn inv-btn-secondary" data-action="invHomeQuick" data-go="challan"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg><span>New challan</span></button>
-    <button class="inv-btn inv-btn-secondary" data-action="invHomeQuick" data-go="stock"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M9 3h6"/><path d="M10 3v6L4.5 19a1.5 1.5 0 001.3 2h12.4a1.5 1.5 0 001.3-2L14 9V3"/><path d="M7 15h10"/></svg><span>Stock entry</span></button>
-    <button class="inv-btn inv-btn-secondary" data-action="invHomeQuick" data-go="attendance"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><polyline points="17 11 19 13 23 9"/></svg><span>Attendance</span></button>
-    <button class="inv-btn inv-btn-secondary" data-action="invHomeQuick" data-go="paste"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z"/></svg><span>Paste message</span></button>
-    <button class="inv-btn inv-btn-secondary" data-action="invHomeQuick" data-go="task"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg><span>Add task</span></button>
-  </div>
-  <div class="inv-panels">
-    <div id="homeFinCard"></div>
-    <div id="homeTodoCard"></div>
-    <div id="homeAttCard"></div>
-    <div id="homeUnbilledCard"></div>
-    <div id="homeSyncCard"></div>
-    <div id="homeZincCard"></div>
-    <div class="inv-panel inv-panel-flush inv-panels-wide">
+  <div id="homeEditArea"></div>
+  <div class="inv-panels" id="homeWidgets">
+    <div data-home-w="mtd" class="inv-panels-wide">
+      <div class="inv-tiles" id="homeTiles">
+        <div class="inv-tile"><div class="inv-tile-label">Invoices</div><div class="inv-tile-value" id="mtdCount">0</div><div class="inv-tile-sub" id="mtdCountSub">&nbsp;</div><div class="inv-tile-sub" id="mtdCountDelta"></div></div>
+        <div class="inv-tile"><div class="inv-tile-label">Revenue</div><div class="inv-tile-value" id="mtdRevenue">&#8377;0</div><div class="inv-tile-sub" id="mtdRevenueSub">taxable</div><div class="inv-tile-sub" id="mtdRevenueDelta"></div></div>
+        <div class="inv-tile"><div class="inv-tile-label">Tonnage billed</div><div class="inv-tile-value" id="mtdKg">&mdash;</div><div class="inv-tile-sub" id="mtdKgSub">&nbsp;</div><div class="inv-tile-sub" id="mtdKgDelta"></div></div>
+        <div class="inv-tile" id="mtdPerKgTile"><div class="inv-tile-label">Realisation</div><div class="inv-tile-value" id="mtdPerKg">&mdash;</div><div class="inv-tile-sub" id="mtdPerKgSub">&nbsp;</div><div class="inv-tile-sub" id="mtdPerKgDelta"></div></div>
+      </div>
+    </div>
+    <div data-home-w="quick" class="inv-panels-wide">
+      <div class="inv-btn-grid" role="group" aria-label="Quick actions">
+        <button class="inv-btn inv-btn-primary" data-action="invCreateNew"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg><span>New invoice</span></button>
+        <button class="inv-btn inv-btn-secondary" data-action="invHomeQuick" data-go="challan"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg><span>New challan</span></button>
+        <button class="inv-btn inv-btn-secondary" data-action="invHomeQuick" data-go="stock"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M9 3h6"/><path d="M10 3v6L4.5 19a1.5 1.5 0 001.3 2h12.4a1.5 1.5 0 001.3-2L14 9V3"/><path d="M7 15h10"/></svg><span>Stock entry</span></button>
+        <button class="inv-btn inv-btn-secondary" data-action="invHomeQuick" data-go="attendance"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><polyline points="17 11 19 13 23 9"/></svg><span>Attendance</span></button>
+        <button class="inv-btn inv-btn-secondary" data-action="invHomeQuick" data-go="paste"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z"/></svg><span>Paste message</span></button>
+        <button class="inv-btn inv-btn-secondary" data-action="invHomeQuick" data-go="task"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg><span>Add task</span></button>
+      </div>
+    </div>
+    <div data-home-w="money" id="homeFinCard"></div>
+    <div data-home-w="todo" id="homeTodoCard"></div>
+    <div data-home-w="attendance" id="homeAttCard"></div>
+    <div data-home-w="unbilled" id="homeUnbilledCard"></div>
+    <div data-home-w="production" id="homeProdCard"></div>
+    <div data-home-w="power" id="homePowerCard"></div>
+    <div data-home-w="stock" id="homeStockCard"></div>
+    <div data-home-w="sync" id="homeSyncCard"></div>
+    <div data-home-w="zinc" id="homeZincCard"></div>
+    <div data-home-w="recent" class="inv-panel inv-panel-flush inv-panels-wide">
       <div class="inv-panel-head"><span class="inv-panel-title">Recent invoices</span></div>
       <div id="recentInvoices"></div>
     </div>
   </div>
+  <div class="inv-toolbar" id="homeEditBar"><button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invHomeEdit">Edit Home</button></div>
 </div>
 
 <div id="pageCreate" class="inv-page">
@@ -2643,6 +2660,16 @@ function uiFoldOpen(key, dflt) { return Object.prototype.hasOwnProperty.call(_ui
 function uiFoldHtml(key, headHtml, bodyHtml, dflt, attrs) {
   return '<details class="inv-panel inv-panel-flush inv-panel-fold" data-fold="' + escHtml(key) + '"' + (attrs || '') + (uiFoldOpen(key, dflt) ? ' open' : '') + '>' +
     '<summary class="inv-panel-head">' + headHtml + '</summary>' + bodyHtml + '</details>';
+}
+/* A card drawn as a panel, folded to its head: the same card, its head a summary. Only a card whose head holds no
+   button or block of its own is folded (a tap on a button in a summary would open and shut the card too); any other
+   is returned as it was. */
+function uiFoldCard(key, card, dflt) {
+  var m = /^(\s*)<div class="inv-panel inv-panel-flush([^"]*)"([^>]*)>\s*<div class="inv-panel-head">([\s\S]*?)<\/div>/.exec(card || '');
+  if (!m || /<button|<div/.test(m[4]) || !/<\/div>\s*$/.test(card)) return card;
+  var rest = card.slice(m[0].length).replace(/<\/div>\s*$/, '');
+  return m[1] + '<details class="inv-panel inv-panel-flush inv-panel-fold' + m[2] + '"' + m[3] + ' data-fold="' + escHtml(key) + '"' + (uiFoldOpen(key, dflt) ? ' open' : '') + '>' +
+    '<summary class="inv-panel-head">' + m[4] + '</summary>' + rest + '</details>';
 }
 document.addEventListener('toggle', function(e) {
   var d = e.target;
@@ -4609,6 +4636,7 @@ function renderHome() {
   renderAttHomeCard();
   updateStockBadge();
   ghRenderCard();
+  homeApplyLayout();
 
   var unbilledEl = document.getElementById('homeUnbilledCard');
   if (unbilledEl) {
@@ -4665,6 +4693,162 @@ function renderHome() {
   }).join('');
 }
 
+
+/* ===== HOME, AS THE OWNER ARRANGES IT =====
+   Owner, 30 Sep 2026: "Home screen needs an overhaul with an option to select what widget to show on the home screen and
+   where: a dynamic home screen which user can adjust." They chose presets and an edit mode, kept per device (the phone
+   and the PC each keep their own Home, like the theme; a backup or a pull never rearranges another device).
+
+   Every card on Home is a widget (`data-home-w`). A layout is {preset, order, hidden, wide}: the order the widgets stand
+   in, which are hidden, and which take the page's width on the desktop (half otherwise; the phone is one column). A preset
+   is a starting layout; Edit Home shows each widget with a switch, up and down, and half or full. */
+var HOME_LAYOUT_KEY = 'sep_inv_home';
+var HOME_WIDGETS = [
+  ['mtd', 'Month to date'], ['quick', 'Quick actions'], ['money', 'Money'], ['todo', 'To-do'], ['attendance', 'Attendance'],
+  ['unbilled', 'Unbilled material'], ['production', 'Production'], ['power', 'Power cuts'], ['stock', 'Stock running low'],
+  ['sync', 'GitHub sync'], ['zinc', 'Zinc rate'], ['recent', 'Recent invoices']
+];
+var HOME_PRESETS = {
+  owner: { label: 'Owner', order: ['mtd', 'quick', 'money', 'todo', 'attendance', 'unbilled', 'sync', 'zinc', 'recent', 'production', 'power', 'stock'],
+    hidden: ['production', 'power', 'stock'], wide: ['mtd', 'quick', 'recent'] },
+  floor: { label: 'Floor', order: ['quick', 'attendance', 'production', 'stock', 'power', 'todo', 'unbilled', 'mtd', 'money', 'recent', 'sync', 'zinc'],
+    hidden: ['mtd', 'money', 'recent', 'sync', 'zinc'], wide: ['quick'] },
+  money: { label: 'Money', order: ['mtd', 'money', 'unbilled', 'recent', 'todo', 'zinc', 'quick', 'attendance', 'production', 'power', 'stock', 'sync'],
+    hidden: ['quick', 'attendance', 'production', 'power', 'stock', 'sync'], wide: ['mtd', 'recent'] }
+};
+var _homeEdit = false;
+function homePresetLayout(k) {
+  var p = HOME_PRESETS[k] || HOME_PRESETS.owner, hid = {}, wide = {};
+  p.hidden.forEach(function(x) { hid[x] = true; });
+  p.wide.forEach(function(x) { wide[x] = true; });
+  return { preset: HOME_PRESETS[k] ? k : 'owner', order: p.order.slice(), hidden: hid, wide: wide };
+}
+function homeLayout() {
+  var l = null;
+  try { l = JSON.parse(localStorage.getItem(HOME_LAYOUT_KEY) || 'null'); } catch (e) { l = null; }
+  if (!l || !Array.isArray(l.order)) return homePresetLayout('owner');
+  // A widget added since the layout was saved joins at the end, hidden, so a new build never rearranges a Home.
+  HOME_WIDGETS.forEach(function(w) { if (l.order.indexOf(w[0]) < 0) { l.order.push(w[0]); (l.hidden = l.hidden || {})[w[0]] = true; } });
+  l.order = l.order.filter(function(k) { return HOME_WIDGETS.some(function(w) { return w[0] === k; }); });
+  l.hidden = l.hidden || {}; l.wide = l.wide || {};
+  return l;
+}
+function homeLayoutSave(l) {
+  try { localStorage.setItem(HOME_LAYOUT_KEY, JSON.stringify(l)); } catch (e) { /* a per-device convenience only */ }
+}
+/* The layout onto the page: each widget moved to its place, hidden or shown, full or half. */
+function homeApplyLayout() {
+  var host = document.getElementById('homeWidgets');
+  if (!host) return;
+  var l = homeLayout();
+  renderHomeExtraCards();
+  l.order.forEach(function(k) {
+    var el = host.querySelector('[data-home-w="' + k + '"]');
+    if (!el) return;
+    host.appendChild(el);
+    el.classList.toggle('inv-hidden', !!l.hidden[k]);
+    el.classList.toggle('inv-panels-wide', !!l.wide[k]);
+  });
+  var area = document.getElementById('homeEditArea'), bar = document.getElementById('homeEditBar');
+  if (area) area.innerHTML = _homeEdit ? homeEditHtml(l) : '';
+  if (bar) bar.classList.toggle('inv-hidden', _homeEdit);
+}
+function homeEditHtml(l) {
+  var name = {}; HOME_WIDGETS.forEach(function(w) { name[w[0]] = w[1]; });
+  var h = '<div class="inv-panel inv-panel-flush" id="homeEdit" data-nodirty><div class="inv-panel-head"><span class="inv-panel-title">Edit Home</span>' +
+    '<button class="inv-btn inv-btn-primary inv-btn-sm" data-action="invHomeEditDone">Done</button></div>' +
+    '<div class="inv-panel-body"><div class="inv-field-label">Start from</div><div class="inv-seg" role="group" aria-label="Preset">' +
+    Object.keys(HOME_PRESETS).map(function(k) { return '<button class="inv-seg-btn" data-action="invHomePreset" data-preset="' + k + '" aria-pressed="' + (l.preset === k) + '">' + HOME_PRESETS[k].label + '</button>'; }).join('') +
+    '</div><div class="inv-note inv-mt-8">' + (l.preset === 'custom' ? 'Your own arrangement. ' : '') + 'Kept on this device only. Half or full is the width on a wide screen; a phone shows one column.</div></div>';
+  l.order.forEach(function(k, i) {
+    var on = !l.hidden[k];
+    h += '<div class="inv-row' + (on ? '' : ' inv-row-muted') + '" data-home-edit="' + k + '"><label class="inv-row-lead inv-row-tick"><input type="checkbox" class="inv-check" data-home-show="' + k + '"' + (on ? ' checked' : '') + ' aria-label="Show ' + escHtml(name[k]) + '"></label>' +
+      '<span class="inv-row-main"><span class="inv-row-title">' + escHtml(name[k]) + '</span></span><span class="inv-row-end">' +
+      '<span class="inv-seg" role="group" aria-label="Width of ' + escHtml(name[k]) + '">' +
+      '<button class="inv-seg-btn" data-action="invHomeWide" data-w="' + k + '" data-v="0" aria-pressed="' + !l.wide[k] + '">Half</button>' +
+      '<button class="inv-seg-btn" data-action="invHomeWide" data-w="' + k + '" data-v="1" aria-pressed="' + !!l.wide[k] + '">Full</button></span>' +
+      '<button class="inv-btn inv-btn-icon inv-btn-ghost" data-action="invHomeMove" data-w="' + k + '" data-d="-1" aria-label="Move ' + escHtml(name[k]) + ' up"' + (i === 0 ? ' disabled' : '') + '>&uarr;</button>' +
+      '<button class="inv-btn inv-btn-icon inv-btn-ghost" data-action="invHomeMove" data-w="' + k + '" data-d="1" aria-label="Move ' + escHtml(name[k]) + ' down"' + (i === l.order.length - 1 ? ' disabled' : '') + '>&darr;</button></span></div>';
+  });
+  return h + '</div>';
+}
+function homeEditChange(fn) {
+  var l = homeLayout();
+  fn(l);
+  l.preset = 'custom';
+  homeLayoutSave(l);
+  homeApplyLayout();
+}
+function homeAction(action, btn) {
+  switch (action) {
+    case 'invHomeEdit': _homeEdit = true; homeApplyLayout(); viewTop(); return true;
+    case 'invHomeEditDone': _homeEdit = false; homeApplyLayout(); return true;
+    case 'invHomePreset': homeLayoutSave(homePresetLayout(btn.dataset.preset)); homeApplyLayout(); return true;
+    case 'invHomeWide': homeEditChange(function(l) { l.wide[btn.dataset.w] = btn.dataset.v === '1'; }); return true;
+    case 'invHomeMove': homeEditChange(function(l) {
+      var i = l.order.indexOf(btn.dataset.w), j = i + parseInt(btn.dataset.d, 10);
+      if (i < 0 || j < 0 || j >= l.order.length) return;
+      l.order.splice(j, 0, l.order.splice(i, 1)[0]);
+    }); return true;
+  }
+  return false;
+}
+function homeShowToggle(el) {
+  homeEditChange(function(l) { if (el.checked) delete l.hidden[el.dataset.homeShow]; else l.hidden[el.dataset.homeShow] = true; });
+}
+
+/* The three widgets Home had no card for. Each is drawn only while shown, and says nothing rather than a zero. */
+function renderHomeExtraCards() {
+  var l = homeLayout(), set = function(id, html) { var e = document.getElementById(id); if (e) e.innerHTML = html; };
+  var head = function(title, go, label) { return '<div class="inv-panel inv-panel-flush"><div class="inv-panel-head"><span class="inv-panel-title">' + title + '</span>' +
+    '<button class="inv-btn-link" data-action="invSwitchTab" data-tab="' + go + '">' + label + '</button></div>'; };
+  // Production: the last day with plating on record, by line.
+  if (!l.hidden.production) {
+    var h = '';
+    try {
+      var last = null;
+      prodIndex().counted.forEach(function(e) { if (!last || e.date > last) last = e.date; });
+      h = head('Production', 'pageProduction', 'Open');
+      if (!last) h += '<div class="inv-empty">No plating on record yet.</div>';
+      else {
+        h += '<div class="inv-row-group"><span>' + escHtml(attDayName(last) + ' ' + formatDate(last)) + '</span></div>';
+        PROD_LINES.forEach(function(ln) {
+          var r = prodDayLine(last, ln);
+          if (!r.entries.length) return;
+          h += '<div class="inv-row"><span class="inv-row-main">' + escHtml(prodLineName(ln)) + '</span><span class="inv-row-end inv-num">' +
+            (r.kg > 0 ? cpNum(r.kg) + ' kg' : '') + (r.nos > 0 ? (r.kg > 0 ? ' · ' : '') + cpNum(r.nos) + ' NOS' : '') + '</span></div>';
+        });
+      }
+      h += '</div>';
+    } catch (e) { h = ''; }
+    set('homeProdCard', h);
+  } else set('homeProdCard', '');
+  // Power: this month's cuts and the last one.
+  if (!l.hidden.power) {
+    var ph = '';
+    try {
+      var today = localDateStr(), cuts = powerCuts(today.slice(0, 8) + '01', today), all = powerCuts(null, today);
+      var mins = cuts.reduce(function(s, c) { return s + (c.min || 0); }, 0), lastCut = all[all.length - 1];
+      ph = head('Power cuts', 'pagePower', 'Open') + '<div class="inv-tiles inv-tiles-flush"><div class="inv-tile' + (cuts.length ? ' inv-tile-warning' : '') + '"><div class="inv-tile-label">This month</div><div class="inv-tile-value">' + cuts.length + '</div>' +
+        '<div class="inv-tile-sub">' + (mins ? powerDur(mins) + ' dark' : 'none recorded') + '</div></div>' +
+        '<div class="inv-tile"><div class="inv-tile-label">Last cut</div><div class="inv-tile-value">' + (lastCut ? escHtml(formatDate(lastCut.date)) : '&mdash;') + '</div>' +
+        '<div class="inv-tile-sub">' + (lastCut ? escHtml(powerClock(lastCut.from) + (lastCut.open ? ', no time back' : ' – ' + powerClock(lastCut.to))) : '') + '</div></div></div></div>';
+    } catch (e) { ph = ''; }
+    set('homePowerCard', ph);
+  } else set('homePowerCard', '');
+  // Stock: the lines red or amber, soonest out first.
+  if (!l.hidden.stock) {
+    var sh = '';
+    try {
+      var rows = stockData().items.filter(function(i) { return i.active !== false; }).map(function(i) { return { i: i, s: stockStatus(i) }; })
+        .filter(function(x) { return x.s.tone === 'red' || x.s.tone === 'amber'; }).sort(function(a, b) { return (a.s.daysLeft == null ? -1 : a.s.daysLeft) - (b.s.daysLeft == null ? -1 : b.s.daysLeft); });
+      sh = head('Stock running low', 'pageStock', 'Open') + (rows.length ? rows.slice(0, 5).map(function(x) {
+        return '<div class="inv-row"><span class="inv-row-main">' + escHtml(x.i.name) + '</span><span class="inv-row-end">' + uiDot(x.s.tone === 'red' ? 'danger' : 'warning', escHtml(stockStatusWord(x.s, true))) + '</span></div>';
+      }).join('') + (rows.length > 5 ? '<div class="inv-row"><span class="inv-row-main inv-row-meta">and ' + (rows.length - 5) + ' more</span></div>' : '') : '<div class="inv-empty">No line is running low.</div>') + '</div>';
+    } catch (e) { sh = ''; }
+    set('homeStockCard', sh);
+  } else set('homeStockCard', '');
+}
 /* ===== CLIENT MASTER ===== */
 var _clientsActiveId = null;
 
@@ -11083,9 +11267,7 @@ function getFilteredIM() {
           case 'date': va = a.challanDate || ''; vb = b.challanDate || ''; return va < vb ? -dir : va > vb ? dir : 0;
           case 'items': return dir * (a.items.length - b.items.length);
           case 'amount': {
-            var ta = a.items.reduce(function(s, it) { return s + (it.amount || 0); }, 0);
-            var tb = b.items.reduce(function(s, it) { return s + (it.amount || 0); }, 0);
-            return dir * (ta - tb);
+            return dir * (imShownAmount(a) - imShownAmount(b));
           }
           case 'status': {
             var so = { pending: 0, partial: 1, invoiced: 2 };
@@ -11166,7 +11348,7 @@ function renderIMList() {
           day = im.challanDate;
           var same = list.filter(function(x) { return x.challanDate === day; });
           imRows.push({ head: true, parts: ['<div class="inv-row-group"><span>' + (day ? escHtml(formatDate(day)) : 'No date') + ' · ' + same.length + '</span>' +
-            '<span class="inv-num">' + formatCurrency(same.reduce(function(s, x) { return s + imChallanTotal(x); }, 0)) + '</span></div>'] });
+            '<span class="inv-num">' + formatCurrency(gstRound(same.reduce(function(s, x) { return s + imShownAmount(x); }, 0))) + '</span></div>'] });
         }
         var status = getIMStatus(im), expanded = !!_imExpanded[im.id];
         var pendingItems = im.items.filter(function(it) { return !it.invoiced; });
@@ -11179,7 +11361,7 @@ function renderIMList() {
           '<button class="inv-row-main inv-row-expander" data-action="invToggleIM" data-id="' + id + '" aria-expanded="' + expanded + '">' +
           '<span class="inv-row-title"><span class="inv-id">' + escHtml(imChallanLabel(im)) + '</span> · ' + escHtml(im.clientName) + '</span>' +
           '<span class="inv-row-meta">' + (im.vehicleNo ? escHtml(im.vehicleNo) + ' · ' : '') + im.items.length + ' item' + (im.items.length !== 1 ? 's' : '') + '</span></button>' +
-          '<span class="inv-row-end"><span class="inv-row-stack"><span class="inv-num">' + formatCurrency(imChallanTotal(im)) + '</span>' + imStatusDotHtml(im) + '</span></span></div>');
+          '<span class="inv-row-end"><span class="inv-row-stack">' + imAmountHtml(im) + imStatusDotHtml(im) + '</span></span></div>');
         if (expanded) {
           var kids = '<div class="inv-row-children">' + im.items.map(_imItemRowHtml).join('');
           var acts = _imActionsHtml(im, false);
@@ -11251,7 +11433,7 @@ function _buildIMTableHtml() {
       '<td class="inv-id inv-col-opt3">' + escHtml(formatDate(im.challanDate)) + '</td>' +
       '<td class="inv-id inv-col-opt2">' + escHtml(im.vehicleNo || '') + '</td>' +
       '<td class="inv-num inv-col-opt2">' + im.items.length + '</td>' +
-      '<td class="inv-num">' + formatCurrency(imChallanTotal(im)) + '</td>' +
+      '<td class="inv-num"><span class="inv-row-stack">' + imAmountHtml(im) + '</span></td>' +
       '<td>' + imStatusDotHtml(im) + '</td></tr>';
   });
   return html + '</tbody></table>';
@@ -11315,6 +11497,20 @@ function imStatusDotHtml(im) {
 }
 
 function imChallanTotal(im) { return im.items.reduce(function(s, it) { return s + (Number(it.amount) || 0); }, 0); }
+/* What a challan still has to bill: the open share of every line (owner, 30 Sep 2026: a part-invoiced challan showed the
+   whole challan's amount under Awaiting invoice). */
+function imChallanOpenTotal(im) { return gstRound(im.items.reduce(function(s, it) { return s + imLineOpen(it).amount; }, 0)); }
+/* The amount a challan shows in a list: on Awaiting invoice what is left to bill, and on a part-invoiced challan the
+   whole beside it; on Invoiced, the whole. */
+function imShownAmount(im) { return _imTab === 'invoiced' || imIsBilled(im) ? imChallanTotal(im) : imChallanOpenTotal(im); }
+function imPartInvoiced(im) { return !imIsBilled(im) && im.items.some(imLineBilled); }
+function imAmountHtml(im) {
+  if (_imTab !== 'invoiced' && imPartInvoiced(im)) {
+    return '<span class="inv-num" title="Left to bill, of ' + escHtml(formatCurrency(imChallanTotal(im))) + ' on the challan">' + formatCurrency(imChallanOpenTotal(im)) + '</span>' +
+      '<span class="inv-row-meta" data-im-of>left of ' + formatCurrency(imChallanTotal(im)) + '</span>';
+  }
+  return '<span class="inv-num">' + formatCurrency(imChallanTotal(im)) + '</span>';
+}
 
 function _imSummaryHtml(filtered) {
   if (_imTab === 'invoiced') return '';   // the month's pager says how many and how much
@@ -11354,7 +11550,9 @@ function _imItemRowHtml(it) {
       return '<span class="inv-row-meta inv-row-wrap" data-im-correction><span class="inv-dot inv-dot-info">Corrected</span> ' +
         escHtml(challanCorrectionText(it, cx) + ' · ' + formatDate(isoOf(new Date(cx.at)))) + '</span>';
     }).join('') + (tag ? '<span class="inv-row-meta inv-row-wrap" data-im-invoices>' + tag + '</span>' : '') + '</span>' +
-    '<span class="inv-row-end inv-num">' + formatCurrency(it.amount) + '</span></div>';
+    (imLineBilled(it) && !it.invoiced
+      ? '<span class="inv-row-end"><span class="inv-row-stack"><span class="inv-num" title="Left to bill">' + formatCurrency(imLineOpen(it).amount) + '</span><span class="inv-row-meta">left of ' + formatCurrency(it.amount) + '</span></span></span></div>'
+      : '<span class="inv-row-end inv-num">' + formatCurrency(it.amount) + '</span></div>');
 }
 
 /* Edit and delete while nothing on the challan is billed; once a line is, the edit says why not. */
@@ -11386,7 +11584,8 @@ function challanDetailHtml(im) {
     '</div>';
   h += '<div class="inv-panel inv-panel-flush"><div class="inv-row-group"><span>Lines · ' + im.items.length + '</span></div>' +
     im.items.map(_imItemRowHtml).join('') +
-    '<div class="inv-row inv-row-strong"><span class="inv-row-main">Total</span><span class="inv-row-end inv-num">' + formatCurrency(imChallanTotal(im)) + '</span></div></div>';
+    '<div class="inv-row inv-row-strong"><span class="inv-row-main">Total</span><span class="inv-row-end inv-num">' + formatCurrency(imChallanTotal(im)) + '</span></div>' +
+    (imPartInvoiced(im) ? '<div class="inv-row inv-row-strong" data-im-left><span class="inv-row-main">Left to bill</span><span class="inv-row-end inv-num">' + formatCurrency(imChallanOpenTotal(im)) + '</span></div>' : '') + '</div>';
   var acts = _imActionsHtml(im, true);
   return h + (acts ? '<div class="inv-toolbar">' + acts + '</div>' : '');
 }
@@ -13473,6 +13672,7 @@ function chartShort(v, unit) {
   if (unit === 'pct') return formatNum(v, 0) + '%';
   if (unit === 'rate') return '₹' + formatNum(v, 2);
   if (unit === 'h') return formatNum(v, 0) + 'h';
+  if (unit === 'min') return formatNum(v, 0) + 'm';
   // Money in the Indian compact form (state.js): ₹12.5K, ₹8.4L, ₹12.0Cr.
   return formatInrShort(v);
 }
@@ -13483,6 +13683,7 @@ function chartFull(v, unit) {
   if (unit === 'pct') return formatNum(v, 1) + '%';
   if (unit === 'rate') return formatCurrency(v) + '/kg';
   if (unit === 'h') return formatNum(v, 1) + ' h';
+  if (unit === 'min') return formatNum(v, 0) + ' min';
   return formatCurrency(v);
 }
 
@@ -13972,7 +14173,8 @@ var STAFF_AREAS = [
   { id: 'pickling-vat',    label: 'Pickling A1+A2',  floor: true },
   { id: 'flex',            label: 'Flex',            floor: true },
   { id: 'office',          label: 'Office',          floor: false },
-  { id: 'gate',            label: 'Gate',            floor: false }
+  { id: 'gate',            label: 'Gate',            floor: false },
+  { id: 'civil',           label: 'Civil',           floor: false }
 ];
 
 /* Barrel and Barrel pickling are two areas for staffing and one block for the
@@ -14327,6 +14529,7 @@ function renderAttendance() {
   else area.innerHTML = _attDayView();
 
   _attRestoreFocus(focusSel);
+  attEditRefresh();
 }
 
 function _attEmptyRoster() {
@@ -14390,49 +14593,92 @@ function _attDayView() {
       tile('attExtraHours', 'Extra', formatNum(extraHours, 1) + '<span class="inv-tile-of"> h</span>', '', '') + '</div>';
   }
 
-  // The rows. One line per worker: who, what state, where, and the hours.
-  html += '<div class="inv-panel inv-panel-flush" id="attMarks"><div class="inv-panel-head"><span class="inv-panel-title">Mark the day ' +
-    '<span class="inv-panel-count">' + total + '</span></span>' +
-    '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invAttAllPresent">All present</button></div>';
+  // The day as a board (owner, 30 Sep 2026: "Attendance sheet for Day scrolls way too far"): a card per area, a line per
+  // hand with P / H / A one tap away; the area, hours and OT open on the name. Absent hands are one strip under the board.
+  html += '<div class="inv-toolbar inv-toolbar-flush"><button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invAttAllPresent">All present</button>' +
+    '<span class="inv-note">Tap a name for the area, hours and OT.</span></div>';
+  var byArea = {}, absentees = [];
   roster.forEach(function(w) {
     var m = rec ? rec.marks[w.id] : null;
-    var st = m ? m.st : '';
-    var wArea = m && m.area ? m.area : (w.area || 'flex');
-    var cls = compClass(w.comp);
-    var hourly = compIsHourly(w);
-    // Half a day is not a state an hourly worker can be in: the hours say it.
-    var states = hourly ? ['P', 'A'] : ATT_STATES;
-    var live = st && st !== 'A';
-    html += '<div class="inv-row inv-row-flow inv-row-auto" data-att-row="' + w.id + '">' +
-      '<span class="inv-row-main"><span class="inv-row-title">' + escHtml(w.name) + '</span>' +
-      '<span class="inv-row-meta">' + escHtml(cls.label) + (m ? ' · ' + escHtml(ATT_STATE_LABELS[st] || '') : ' · unmarked') + '</span></span>' +
-      '<span class="inv-row-end inv-row-fields">' +
-      '<span class="inv-seg" role="group" aria-label="Attendance for ' + escHtml(w.name) + '">' +
-      states.map(function(x) {
-        return '<button class="inv-seg-btn inv-seg-btn-' + ATT_STATE_TONE[x] + '" data-action="invAttSet" data-id="' + w.id +
-          '" data-st="' + x + '" aria-pressed="' + (st === x) + '" title="' + ATT_STATE_LABELS[x] + '">' + x + '</button>';
-      }).join('') +
-      '</span>' +
-      '<select class="inv-select inv-select-sm" data-att-area data-id="' + w.id + '" aria-label="Area for ' + escHtml(w.name) + '"' +
-      (live ? '' : ' disabled') + '>' + attAreaOptions(wArea) + '</select>' +
-      // Deliberately not mono: in the mono face the placeholders "OT" and
-      // "hrs" sit in a field whose whole content is otherwise numbers, and the
-      // mono O is indistinguishable from a zero.
-      (hourly
-        ? '<input type="number" class="inv-input inv-input-sm" data-att-hours data-id="' + w.id +
-          '" step="0.5" min="0" placeholder="hrs" value="' + (m && m.hours ? m.hours : '') + '"' +
-          (live ? '' : ' disabled') + ' aria-label="Hours worked by ' + escHtml(w.name) + '">'
-        : '<input type="number" class="inv-input inv-input-sm" data-att-ot data-id="' + w.id +
-          '" step="0.5" min="0" placeholder="OT" value="' + (m && m.ot ? m.ot : '') + '"' +
-          (live ? '' : ' disabled') + ' aria-label="OT hours for ' + escHtml(w.name) + '">') +
-      '</span></div>';
+    if (m && m.st === 'A') absentees.push(w);
+    // An absent hand stays on their own area's card, so marking A never moves the line from under the tap.
+    var a = m && m.st !== 'A' && m.area ? m.area : (w.area || 'flex');
+    (byArea[a] = byArea[a] || []).push(w);
+  });
+  html += '<div class="inv-board" id="attMarks">';
+  STAFF_AREAS.forEach(function(a) {
+    var list = byArea[a.id] || [];
+    var need = a.floor && a.id !== 'flex' ? areaNeedOn(iso, a.id) : null;
+    if (!list.length && !need) return;
+    var on = list.filter(function(w) { var m = rec ? rec.marks[w.id] : null; return m && (m.st === 'P' || m.st === 'H'); }).length;
+    var dot = need == null ? '' : on < need ? uiDot('warning', 'Short ' + (need - on)) : on > need ? uiDot('info', (on - need) + ' over') : uiDot('ok', 'Met');
+    html += '<div class="inv-panel inv-panel-flush" data-att-area-card="' + a.id + '"><div class="inv-panel-head"><span class="inv-panel-title">' + escHtml(a.label) +
+      ' <span class="inv-panel-count">' + on + (need != null ? '/' + need : '') + '</span></span>' + dot + '</div>' +
+      (list.length ? list.map(function(w) { return _attBoardRow(w, rec ? rec.marks[w.id] : null); }).join('') : '<div class="inv-empty">Nobody here today.</div>') + '</div>';
+  });
+  // An area no longer on the list (a mark from an older build) still shows its hands.
+  Object.keys(byArea).forEach(function(k) {
+    if (STAFF_AREAS.some(function(a) { return a.id === k; })) return;
+    html += '<div class="inv-panel inv-panel-flush" data-att-area-card="' + escHtml(k) + '"><div class="inv-panel-head"><span class="inv-panel-title">' + escHtml(areaLabel(k)) + '</span></div>' +
+      byArea[k].map(function(w) { return _attBoardRow(w, rec ? rec.marks[w.id] : null); }).join('') + '</div>';
   });
   html += '</div>';
+  if (absentees.length) {
+    html += '<div class="inv-panel inv-panel-flush" id="attAbsentList"><div class="inv-row inv-row-auto"><span class="inv-row-main"><span class="inv-row-meta">Absent · ' + absentees.length + '</span>' +
+      '<span class="inv-row-wrap">' + escHtml(absentees.map(function(w) { return w.name; }).join(' · ')) + '</span></span></div></div>';
+  }
 
   html += _attNeedCard(iso, rec);
   html += _attExtraCard(iso, rec);
-  html += renderLabourCard(iso, iso, 'Day cost');
+  html += uiFoldCard('attDayCost', renderLabourCard(iso, iso, 'Day cost'), false);
   return html;
+}
+
+/* One hand on the board: the name (opens the area, hours and OT), what is recorded, and P / H / A. */
+function _attBoardRow(w, m) {
+  var st = m ? m.st : '', hourly = compIsHourly(w);
+  var states = hourly ? ['P', 'A'] : ATT_STATES;
+  var hrs = m && st !== 'A' ? (hourly ? (m.hours ? m.hours + ' h' : 'no hours') : (m.ot ? 'OT ' + m.ot + ' h' : '')) : '';
+  return '<div class="inv-row" data-att-row="' + w.id + '">' +
+    '<button class="inv-row-main" data-action="invAttEdit" data-id="' + w.id + '"><span class="inv-row-title">' + escHtml(w.name) + '</span>' +
+    '<span class="inv-row-meta">' + escHtml(compClass(w.comp).label) + (m ? ' · ' + escHtml(ATT_STATE_LABELS[st] || '') + (hrs ? ' · ' + hrs : '') : ' · unmarked') + '</span></button>' +
+    '<span class="inv-row-end"><span class="inv-seg" role="group" aria-label="Attendance for ' + escHtml(w.name) + '">' +
+    states.map(function(x) {
+      return '<button class="inv-seg-btn inv-seg-btn-' + ATT_STATE_TONE[x] + '" data-action="invAttSet" data-id="' + w.id +
+        '" data-st="' + x + '" aria-pressed="' + (st === x) + '" title="' + ATT_STATE_LABELS[x] + '">' + x + '</button>';
+    }).join('') + '</span></span></div>';
+}
+
+/* A hand's day in a dialog: P / H / A, where they stood, and the hours (an hourly hand) or the overtime. Each change is
+   saved as it is made, as on the board. */
+var _attEditId = null;
+function attEditHtml() {
+  var w = staffById(_attEditId);
+  if (!w) return '';
+  var rec = attDay(_attDate, false), m = rec ? rec.marks[w.id] : null, st = m ? m.st : '', hourly = compIsHourly(w), live = st && st !== 'A';
+  var states = hourly ? ['P', 'A'] : ATT_STATES;
+  return '<div class="inv-dialog" role="dialog" aria-modal="true" aria-labelledby="attEditT" data-att-edit="' + w.id + '">' +
+    dialogHeadHtml('<span id="attEditT">' + escHtml(w.name) + ' · ' + escHtml(attDayName(_attDate) + ' ' + formatDate(_attDate)) + '</span>', 'invAttEditClose') +
+    '<div class="inv-dialog-body" data-nodirty><div class="inv-fields">' +
+    '<div class="inv-field"><span class="inv-field-label">Attendance</span><span class="inv-seg" role="group" aria-label="Attendance">' +
+    states.map(function(x) {
+      return '<button class="inv-seg-btn inv-seg-btn-' + ATT_STATE_TONE[x] + '" data-action="invAttSet" data-id="' + w.id + '" data-st="' + x + '" aria-pressed="' + (st === x) + '">' + ATT_STATE_LABELS[x] + '</button>';
+    }).join('') + '</span></div>' +
+    '<label class="inv-field"><span class="inv-field-label">Area</span><select class="inv-select" data-att-area data-id="' + w.id + '"' + (live ? '' : ' disabled') + '>' +
+    attAreaOptions(m && m.area ? m.area : (w.area || 'flex')) + '</select></label>' +
+    (hourly
+      ? '<label class="inv-field"><span class="inv-field-label">Hours worked</span><input type="number" class="inv-input inv-input-num" data-att-hours data-id="' + w.id + '" step="0.5" min="0" value="' + (m && m.hours ? m.hours : '') + '"' + (live ? '' : ' disabled') + '></label>'
+      : '<label class="inv-field"><span class="inv-field-label">Overtime, hours</span><input type="number" class="inv-input inv-input-num" data-att-ot data-id="' + w.id + '" step="0.5" min="0" value="' + (m && m.ot ? m.ot : '') + '"' + (live ? '' : ' disabled') + '></label>') +
+    '</div>' + (live ? '' : '<div class="inv-note">' + (st === 'A' ? 'Absent: no area or hours.' : 'Mark the day first.') + '</div>') + '</div>' +
+    '<div class="inv-dialog-foot"><button class="inv-btn inv-btn-primary" data-action="invAttEditClose">Done</button></div></div>';
+}
+function attEditOpen(id) { _attEditId = id; dialogOpen(attEditHtml()); }
+/* The dialog follows the day: after a change it is drawn again in place (the board behind it is redrawn too). */
+function attEditRefresh() {
+  if (!_attEditId || !document.querySelector('[data-att-edit]')) return;
+  var focus = document.activeElement, k = focus && focus.dataset ? (focus.hasAttribute('data-att-hours') ? '[data-att-hours]' : focus.hasAttribute('data-att-ot') ? '[data-att-ot]' : null) : null;
+  dialogOpen(attEditHtml(), { replace: true });
+  if (k) { var el = document.querySelector('[data-att-edit] ' + k); if (el) try { el.focus(); } catch (x) { /* a convenience */ } }
 }
 
 /* ===== EXTRA HOURS =====
@@ -14565,7 +14811,7 @@ function _attNeedCard(iso, rec) {
     var a = m.area || (w && w.area) || 'flex';
     heads[a] = (heads[a] || 0) + 1;
   });
-  var html = '<div class="inv-panel inv-panel-flush" id="attNeed"><div class="inv-panel-head"><span class="inv-panel-title">Needed today</span></div>' +
+  var html = '<details class="inv-panel inv-panel-flush inv-panel-fold" id="attNeed" data-fold="attNeed"' + (uiFoldOpen('attNeed', false) ? ' open' : '') + '><summary class="inv-panel-head"><span class="inv-panel-title">Needed today</span><span class="inv-note">the numbers on each card</span></summary>' +
     '<div class="inv-panel-body inv-note">The general shift: who stood in each area against what the shift needed. The box starts at the area&rsquo;s usual number ' +
     '(Areas); type the day&rsquo;s own, 0 when the line did not need anyone, or clear it for the usual. The shortfall and the extra are judged against it. ' +
     'An OT or night block takes its own number under Extra hours.</div>';
@@ -14577,7 +14823,7 @@ function _attNeedCard(iso, rec) {
       '<span class="inv-row-end"><input type="number" class="inv-input inv-input-sm inv-input-num" data-att-need data-area="' + a.id + '" step="1" min="0"' +
       ' placeholder="' + (usual != null ? usual : '—') + '" value="' + (set ? need : '') + '" aria-label="Needed in ' + escHtml(a.label) + '">' + dot + '</span></div>';
   });
-  return html + '</div>';
+  return html + '</details>';
 }
 
 /* A block's own number (blockNorm reads it first); blank goes back to the areas' complement. */
@@ -14833,6 +15079,8 @@ function attSetState(iso, staffId, st) {
     delete rec.marks[staffId];
   } else {
     var m = rec.marks[staffId] || { ot: 0, hours: 0, area: w.area || 'flex' };
+    // An absence carries no place (a roll writes it Flex): back from absent, a hand stands at their own area.
+    if (m.st === 'A' && st !== 'A' && (!m.area || m.area === 'flex')) m.area = w.area || 'flex';
     m.st = st;
     _attHandEdit(m);
     // Absent pays nothing and worked nothing: hours that nobody was here for
@@ -17261,7 +17509,7 @@ function _attAreasView() {
       'No attendance recorded in this range. Mark some days and the floor appears here.</div></div>';
   }
 
-  html += areaHoursCard(from, to);
+  html += uiFoldCard('areaHours', areaHoursCard(from, to), false);
   html += _areaExtraCard(stats);
 
   // Ranked by the hours the area actually consumed, because that is what
@@ -17291,7 +17539,7 @@ function _attAreasView() {
   }
   html += '</div>';
 
-  html += _areaAbsorptionCard(stats);
+  html += uiFoldCard('areaAbsorb', _areaAbsorptionCard(stats), false);
   return html;
 }
 
@@ -17814,10 +18062,12 @@ function _attPayView() {
   var ws = _attWeekStart, sat = isoAddDays(ws, 6);
   var html = _attStepper('invAttWeekStep', _attWeekLabel('Week ' + attPayWeekNumber(ws), 'Paid Sat ' + formatDate(sat)),
     'invAttThisWeek', 'This week', 'Previous week', 'Next week');
+  // What is paid this week and what is due lead; the history and the slips as paid are one tap away (owner, 30 Sep 2026:
+  // the Staff views scrolled too far).
   html += _payForecastCard(ws);
   html += _payDueCard(ws);
-  html += _payHistoryCard(ws);
-  html += _payrollPaidCard();
+  html += uiFoldCard('payHistory', _payHistoryCard(ws), false);
+  html += uiFoldCard('payrollPaid', _payrollPaidCard(), false);
   // The bank's side of the same payroll (Finance → Payments draws the same panel).
   if (finHasBank()) html += finWagesHtml(finCtx().cls, 'pay');
   return html;
@@ -17925,14 +18175,15 @@ function _payCarriedHtml(d) {
   return h;
 }
 
+var _payLast = null;   // the kind and date of the last payment recorded, carried to the next (several go in at a sitting)
 function _payFormHtml(d) {
   var today = localDateStr();
-  var defDate = today >= d.weekStart && today <= d.sat ? today : d.sat;
+  var defDate = _payLast && _payLast.date >= d.weekStart && _payLast.date <= d.sat ? _payLast.date : today >= d.weekStart && today <= d.sat ? today : d.sat;
   var f = function(id, label, control) { return '<div class="inv-field"><label class="inv-field-label" for="' + id + '">' + label + '</label>' + control + '</div>'; };
   return '<div class="inv-row-group">Record a payment</div><div class="inv-panel-body" id="payForm"><div class="inv-fields">' +
     f('payWorker', 'Worker', '<select class="inv-select" id="payWorker"><option value="">Select&hellip;</option>' +
       d.rows.map(function(r) { return '<option value="' + escHtml(r.w.id) + '">' + escHtml(r.w.name) + '</option>'; }).join('') + '</select>') +
-    f('payKind', 'Kind', '<select class="inv-select" id="payKind"><option value="payment">Payment</option><option value="advance">Advance</option></select>') +
+    f('payKind', 'Kind', '<select class="inv-select" id="payKind"><option value="payment">Payment</option><option value="advance"' + (_payLast && _payLast.kind === 'advance' ? ' selected' : '') + '>Advance</option></select>') +
     f('payAmount', 'Amount', '<input class="inv-input inv-input-num" id="payAmount" type="number" step="0.01" min="0" inputmode="decimal">') +
     f('payDate', 'Date', '<input class="inv-input inv-id" id="payDate" type="date" value="' + defDate + '">') +
     '</div>' + f('payNote', 'Note', '<input class="inv-input" id="payNote" placeholder="optional">') +
@@ -18176,6 +18427,7 @@ function paySave() {
   staffPayments().push({ id: 'PAY-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), staffId: w.id, date: date, amount: amount,
     kind: (document.getElementById('payKind') || {}).value === 'advance' ? 'advance' : 'payment',
     note: ((document.getElementById('payNote') || {}).value || '').trim(), at: Date.now() });
+  _payLast = { date: date, kind: staffPayments()[staffPayments().length - 1].kind };
   saveState();
   renderAttendance();
   showToast('Recorded ' + formatCurrency(amount) + ' to ' + w.name);
@@ -18298,7 +18550,7 @@ function attDaySummary() {
     var last = Object.keys(S.attendance || {}).filter(function(k) { return k < today && marked(S.attendance[k]); }).sort().pop();
     if (last) { iso = last; rec = S.attendance[last]; }
   }
-  var out = { roster: roster, iso: iso, today: iso === today, marked: marked(rec), p: 0, half: 0, absent: [], unmarked: 0, floorHeads: 0, complement: 0, extraH: 0, short: false };
+  var out = { roster: roster, iso: iso, today: iso === today, marked: marked(rec), p: 0, half: 0, absent: [], unmarked: 0, floorHeads: 0, complement: 0, extraH: 0, short: false, byArea: {} };
   if (!out.marked) return out;
   roster.forEach(function(w) {
     var m = rec.marks[w.id];
@@ -18306,6 +18558,8 @@ function attDaySummary() {
     if (m.st === 'A') { out.absent.push(w.name); return; }
     if (m.st === 'H') out.half++; else out.p++;
     if (w.onFloor !== false && _areaIsFloor(m.area || w.area)) out.floorHeads++;
+    var ar = m.area || w.area || 'flex';
+    out.byArea[ar] = (out.byArea[ar] || 0) + 1;
   });
   // The floor's complement against the floor's heads: an office or gate complement is not a head on the floor.
   out.complement = STAFF_AREAS.reduce(function(s, a) { var t = a.floor ? areaNeedOn(iso, a.id) : null; return s + (t != null ? t : 0); }, 0);
@@ -18326,6 +18580,18 @@ function attDayPanelHtml(d, headBtn, id) {
     '<div class="inv-tile' + (d.short ? ' inv-tile-warning' : d.complement ? ' inv-tile-ok' : '') + '"><div class="inv-tile-label">On the floor</div>' +
     '<div class="inv-tile-value">' + d.floorHeads + (d.complement ? '<span class="inv-tile-of">/' + d.complement + '</span>' : '') + '</div>' +
     '<div class="inv-tile-sub">' + (d.complement ? (d.short ? (d.complement - d.floorHeads) + ' short of the complement' : 'against the complement') : 'no complement set') + '</div></div></div>';
+  // Where everyone on site stood, every area the day has a hand in: the office, the gate, Flex and Civil as well as the
+  // floor (owner, 30 Sep 2026: "Overview doesn't show any staff allocation for Office, gate, flex, civil").
+  var alloc = STAFF_AREAS.filter(function(a) { return d.byArea[a.id] || (a.floor && a.id !== 'flex' && areaNeedOn(d.iso, a.id)); });
+  Object.keys(d.byArea).forEach(function(k) { if (!STAFF_AREAS.some(function(a) { return a.id === k; })) alloc.push({ id: k, label: areaLabel(k), floor: false }); });
+  if (alloc.length) {
+    h += '<div class="inv-row inv-row-auto" data-att-alloc><span class="inv-row-main"><span class="inv-row-meta">By area</span><span class="inv-row-wrap">' +
+      alloc.map(function(a) {
+        var n = d.byArea[a.id] || 0, need = a.floor && a.id !== 'flex' ? areaNeedOn(d.iso, a.id) : null;
+        var tone = need != null ? (n < need ? 'warning' : 'ok') : null;
+        return '<span data-alloc="' + escHtml(a.id) + '">' + escHtml(a.label) + ' ' + figHtml('<span class="inv-num">' + n + (need != null ? '/' + need : '') + '</span>', tone) + '</span>';
+      }).join(' · ') + '</span></span></div>';
+  }
   if (d.absent.length) h += '<div class="inv-row inv-row-2"><span class="inv-row-main"><span class="inv-row-meta">Absent</span><span class="inv-row-wrap">' + escHtml(d.absent.join(', ')) + '</span></span></div>';
   if (d.extraH) h += '<div class="inv-row"><span class="inv-row-main">EXTRA booked</span><span class="inv-row-end inv-num">' + formatNum(d.extraH, 1) + ' h</span></div>';
   return h + '</div>';
@@ -19234,10 +19500,34 @@ function renderStockManual() {
     '<input id="stockNewName" class="inv-input inv-toolbar-item" placeholder="Name, e.g. Chromic acid" aria-label="New line name" autocomplete="off">' +
     '<select id="stockNewUnit" class="inv-select inv-select-sm" aria-label="Unit"><option value="kg">kg</option><option value="L">L</option><option value="nos">nos</option></select>' +
     '<button class="inv-btn inv-btn-secondary" data-action="invStockAddLine">Add</button></div></div></div>';
+  h += stockDayEntriesHtml(m.date);
   h += '<div class="inv-actionbar"><div class="inv-actionbar-total"><div class="inv-actionbar-label">' + escHtml(STOCK_KIND_LABEL[m.mode]) + ' on</div>' +
     '<div class="inv-actionbar-value">' + escHtml(stockShortDate(m.date)) + '</div></div>' +
     '<button class="inv-btn inv-btn-primary" data-action="invStockSaveManual">Save</button></div>';
   return h;
+}
+/* What the book holds for one day, every line and kind, pasted or by hand (owner, 30 Sep 2026: after entering the use by
+   hand "there is no way to see what we entered … without an option to edit, see or check anything"). Under the hand form,
+   for the day it is on: each entry with the level it left, Correct and Void. */
+function stockDayEntriesHtml(date) {
+  var st = stockData(), names = {};
+  st.items.forEach(function(i) { names[i.id] = i; });
+  var list = st.entries.filter(function(e) { return e.date === date && e.kind !== 'bill'; })
+    .sort(function(a, b) { return (a.voided ? 1 : 0) - (b.voided ? 1 : 0) || (STOCK_KIND_RANK[a.kind] || 0) - (STOCK_KIND_RANK[b.kind] || 0) || (a.at || 0) - (b.at || 0); });
+  var live = list.filter(function(e) { return !e.voided; }).length;
+  var h = '<div class="inv-panel inv-panel-flush inv-mt-8" id="stockDayEntries" data-card="stockDay"><div class="inv-panel-head"><span class="inv-panel-title">Entered for ' + escHtml(stockShortDate(date)) +
+    ' <span class="inv-panel-count">' + live + '</span></span></div>';
+  if (!list.length) return h + '<div class="inv-empty">Nothing entered for this day yet. Pick another date above to check it.</div></div>';
+  var replayed = {};
+  list.forEach(function(e) {
+    var it = names[e.itemId];
+    if (!replayed[e.itemId]) { replayed[e.itemId] = {}; stockReplay(e.itemId).rows.forEach(function(r) { replayed[e.itemId][r.e.id] = r; }); }
+    var r = replayed[e.itemId][e.id];
+    h += '<div class="inv-row-group"><span>' + escHtml(it ? it.name : 'A line since removed') + '</span>' +
+      (r && r.after != null && !e.voided ? '<span class="inv-num">left ' + escHtml(stockFmtQty(r.after)) + ' ' + escHtml(it ? it.unit || '' : '') + '</span>' : '') + '</div>' +
+      stockEntryRowHtml(e, r, it ? it.unit || '' : '');
+  });
+  return h + '</div>';
 }
 
 function stockSaveManual() {
@@ -19274,8 +19564,13 @@ function stockSaveManual() {
   });
   if (!n) { showToast('Nothing filled in', 'error'); return; }
   saveState();
-  _stockManual = null;
-  stockSetView('list');
+  // The form stays on the day, with what was saved listed under it: several entries go in at a sitting, and each is
+  // checked where it was made (it went to the list of lines before, and nothing showed what had been entered).
+  m.vals = {};
+  _pageTyped = false;
+  renderStock();
+  var dayEl = document.getElementById('stockDayEntries');
+  if (dayEl && dayEl.scrollIntoView) try { dayEl.scrollIntoView({ block: 'nearest' }); } catch (x) { /* a convenience */ }
   showToast(n + (n === 1 ? ' entry' : ' entries') + ' saved' + (gaps ? ' · ' + gaps + ' count' + (gaps === 1 ? ' differs' : 's differ') + ' from the app' : '') +
     (unpriced ? ' · ' + unpriced + ' without a price: add it on the line' : ''), gaps || unpriced ? 'warning' : 'success');
 }
@@ -19381,7 +19676,10 @@ function stockEntryRowHtml(e, r, unit) {
     (e.raw ? '<details class="inv-mt-4"><summary class="inv-btn-link inv-summary">Message text</summary><div class="inv-quote inv-mt-4">' + escHtml(e.raw) + '</div></details>' : '') +
     (e.kind === 'received' && e.price == null && !e.voided ? '<button class="inv-btn inv-btn-secondary inv-btn-sm inv-mt-8" data-action="invStockBillOpen" data-entry="' + escHtml(e.id) + '">Add its bill</button>' : '') +
     '</div>' +
-    (e.voided ? '' : '<div class="inv-row-end"><button class="inv-btn inv-btn-sm inv-btn-danger' + (armed ? ' inv-btn-solid' : '') + '" data-action="invStockVoid" data-id="' + escHtml(e.id) + '"' +
+    (e.corrects ? '<div class="inv-row-meta">Corrects an entry of ' + escHtml(stockFmtQty(e.corrects.qty)) + ' ' + escHtml(unit) + '</div>' : '') +
+    (e.voided && e.voided.reason ? '<div class="inv-row-meta">' + escHtml(e.voided.reason) + '</div>' : '') +
+    (e.voided ? '' : '<div class="inv-row-end"><button class="inv-btn inv-btn-sm inv-btn-ghost" data-action="invStockCorrect" data-id="' + escHtml(e.id) + '">Correct</button>' +
+      '<button class="inv-btn inv-btn-sm inv-btn-danger' + (armed ? ' inv-btn-solid' : '') + '" data-action="invStockVoid" data-id="' + escHtml(e.id) + '"' +
       (armed ? ' aria-pressed="true"' : '') + '>' + (armed ? 'Tap again to void' : 'Void') + '</button></div>') +
     '</div>';
 }
@@ -19398,6 +19696,32 @@ function stockVoid(id) {
   saveState();
   renderStock();
   showToast('Entry voided');
+}
+
+/* A figure entered wrong is corrected, never edited in place: the entry is voided, saying what it was corrected to, and a
+   copy with the right quantity takes its place (`corrects`), so the export still explains every figure it ever held. */
+async function stockCorrect(id) {
+  var e = stockData().entries.find(function(x) { return x.id === id; });
+  if (!e || e.voided) return;
+  var it = stockItem(e.itemId), unit = it ? it.unit || '' : '';
+  var v = await uiPrompt({ title: 'Correct this entry', body: (STOCK_KIND_LABEL[e.kind] || e.kind) + ' ' + stockFmtQty(e.qty) + ' ' + unit + (it ? ' of ' + it.name : '') + ' on ' + stockShortDate(e.date) + '.',
+    label: 'The right quantity' + (unit ? ' (' + unit + ')' : ''), value: String(e.qty), okLabel: 'Correct', required: true, requiredText: 'Enter the quantity.' });
+  if (v == null) return;
+  var q = parseFloat(String(v).replace(/,/g, ''));
+  if (isNaN(q) || q < 0) { showToast('Enter a quantity of 0 or more', 'error'); return; }
+  e = stockData().entries.find(function(x) { return x.id === id; });
+  if (!e || e.voided) return;
+  if (stockRound(q) === stockRound(e.qty)) { showToast('Same quantity: nothing changed'); return; }
+  var by = stockBy(), at = Date.now();
+  var copy = JSON.parse(JSON.stringify(e));
+  copy.id = stockUid('SE'); copy.qty = q; copy.at = at; copy.by = by; copy.source = 'manual';
+  copy.corrects = { id: e.id, qty: e.qty };
+  delete copy.raw; delete copy.pasteId; delete copy.unsettled;
+  e.voided = { at: at, by: by, reason: 'Corrected to ' + stockFmtQty(q) + ' ' + unit, correctedBy: copy.id };
+  stockData().entries.push(copy);
+  saveState();
+  renderStock();
+  showToast('Corrected: ' + stockFmtQty(e.qty) + ' → ' + stockFmtQty(q) + ' ' + unit, 'success');
 }
 
 /* ---------- Export and import ----------
@@ -19555,6 +19879,7 @@ function stockAction(action, btn) {
       break;
     }
     case 'invStockVoid': stockVoid(btn.dataset.id); break;
+    case 'invStockCorrect': stockCorrect(btn.dataset.id); break;
     case 'invStockExport': stockExport(); break;
     case 'invStockBillOpen': stockBillOpen(btn.dataset.entry || ''); break;
     case 'invStockReorder': _stockReorder = { qty: {} }; stockSetView('reorder'); break;
@@ -20208,7 +20533,7 @@ function costBillFormHtml() {
   var o = _costBillOpen || {}, m = o.month || localDateStr().slice(0, 7);
   return '<div class="inv-fields">' +
     '<label class="inv-field"><span class="inv-field-label">Kind</span><select class="inv-select" id="costBillKind">' +
-    '<option value="power">Electricity</option><option value="other">Consumables, ETP, maintenance</option></select></label>' +
+    '<option value="power">Electricity</option><option value="other"' + (o.kind === 'other' ? ' selected' : '') + '>Consumables, ETP, maintenance</option></select></label>' +
     '<label class="inv-field"><span class="inv-field-label">Month it covers</span><input class="inv-input" id="costBillMonth" type="month" value="' + escHtml(m) + '"></label>' +
     '<label class="inv-field"><span class="inv-field-label">Amount, before GST</span><input class="inv-input inv-input-num" id="costBillAmount" type="number" step="0.01" min="0" inputmode="decimal"></label>' +
     '<label class="inv-field"><span class="inv-field-label">Units (electricity)</span><input class="inv-input inv-input-num" id="costBillUnits" type="number" step="1" min="0" inputmode="numeric"></label>' +
@@ -20216,7 +20541,8 @@ function costBillFormHtml() {
     '<label class="inv-field"><span class="inv-field-label">Month the arrears are for</span><input class="inv-input" id="costBillArrearsOf" type="month"></label>' +
     '<label class="inv-field"><span class="inv-field-label">Penalty or extra charge in it</span><input class="inv-input inv-input-num" id="costBillPenalty" type="number" step="0.01" min="0" inputmode="decimal" placeholder="0"></label>' +
     '<label class="inv-field inv-kv-wide"><span class="inv-field-label">Note</span><input class="inv-input" id="costBillNote" placeholder="e.g. JBVNL bill, ETP sludge"></label></div>' +
-    '<div class="inv-toolbar"><button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invCostBillCancel">Cancel</button>' +
+    (o.saved ? '<div class="inv-note">' + o.saved + (o.saved === 1 ? ' bill' : ' bills') + ' saved from this form. The next month is filled in.</div>' : '') +
+    '<div class="inv-toolbar"><button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invCostBillCancel">' + (o.saved ? 'Close' : 'Cancel') + '</button>' +
     '<button class="inv-btn inv-btn-primary inv-btn-sm" data-action="invCostBillSave">Save bill</button></div>';
 }
 function costBillRedraw(where) { if (where === 'finance') renderFinance(); else renderStats(); }
@@ -20247,10 +20573,17 @@ async function costBillSave() {
   costBills().push({ id: 'CB-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), kind: kind, month: month, amount: amount,
     units: units > 0 ? units : null, arrears: arrears > 0 ? arrears : null, arrearsOf: arrears > 0 && arrearsOf ? arrearsOf : null,
     penalty: penalty > 0 ? penalty : null, note: v('costBillNote'), at: Date.now() });
-  var where = (_costBillOpen || {}).where;
-  _costBillOpen = false;
+  // The form stays open for the next bill (bills are back-filled a month at a time): the same kind, the next month with
+  // no bill of that kind, the figures cleared.
+  var was = _costBillOpen || {}, next = month;
+  for (var i = 0; i < 24; i++) {
+    next = isoAddDays(next + '-01', 32).slice(0, 7);
+    var nk = next;
+    if (!costBills().some(function(b) { return b.kind === kind && !b.voided && b.month === nk; })) break;
+  }
+  _costBillOpen = { where: was.where, month: next, kind: kind, saved: (was.saved || 0) + 1 };
   saveState();
-  costBillRedraw(where);
+  costBillRedraw(was.where);
   showToast(COST_BILL_KINDS[kind] + ' bill saved for ' + month);
 }
 async function costBillVoid(id, where) {
@@ -20627,7 +20960,7 @@ function _billsCnFormHtml() {
   // the form under the field being typed in.
   var c = _billsCnFigures();
   h += '<div class="inv-callout inv-mb-8' + (c ? '' : ' inv-hidden') + '" data-cn-figures>' + _billsFiguresHtml(c) + '</div>';
-  return h + '<div class="inv-toolbar"><button class="inv-btn inv-btn-secondary" data-action="invCnFormCancel">Cancel</button>' +
+  return h + '<div class="inv-toolbar"><button class="inv-btn inv-btn-secondary" data-action="invCnFormCancel">' + (f.saved ? 'Close' : 'Cancel') + '</button>' +
     '<button class="inv-btn inv-btn-primary" data-action="invCnFormSave">' + (rec ? 'Record note' : 'Issue note') + '</button></div>';
 }
 
@@ -20781,9 +21114,15 @@ async function billsCnFormSave() {
   getCreditNotes().push(cn);
   recomputeNextCnNumber();
   saveState();
-  _billForm = null;
+  // A note recorded from paper is one of several typed at a sitting: the form stays, on the same client and reason, with the
+  // figures cleared. A new note opens its preview, which is where it goes next.
+  if (rec) {
+    var keep = _billForm;
+    billsCnFormOpen('record');
+    _billForm.clientId = keep.clientId; _billForm.reason = keep.reason; _billForm.fy = keep.fy; _billForm.saved = (keep.saved || 0) + 1;
+  } else _billForm = null;
   renderFinance();
-  showToast(cn.displayNumber + (rec ? ' recorded — ' : ' issued — ') + formatCurrency(cn.grandTotal));
+  showToast(cn.displayNumber + (rec ? ' recorded — ' : ' issued — ') + formatCurrency(cn.grandTotal) + (rec ? ' · the form is ready for the next' : ''));
   if (!rec) showCreditNotePreview(cn.id);
 }
 
@@ -21206,6 +21545,7 @@ var BANK_CAT_TONE = { receipt: 'ok', wages: 'info', power: 'warning', supplier: 
 function bankCatLabel(k) { var c = BANK_CATS.find(function(x) { return x[0] === k; }); return c ? c[1] : k; }
 
 var _bankFilter = { cat: '', q: '' };
+var _bankSortFrom = null;   // the Finance tab a Sort was pressed on, returned to once the payee is set
 var _bankEdit = null;          // the statement row being categorised
 var _bankOpen = null;          // the client whose receipts are open
 var _bankChange = null;        // a placed receipt whose client is being changed
@@ -22174,7 +22514,17 @@ function bankSaveEdit(id) {
   else row.set = set;
   _bankEdit = null;
   saveState();
-  renderFinance();
+  // Sorted from Payments' Not yet sorted: back to that list for the next payee, which is how the list is worked through
+  // (it left the statement filtered to the one payee, and the list was a tab and a scroll away).
+  var from = _bankSortFrom;
+  _bankSortFrom = null;
+  if (from && from !== 'bank') {
+    _bankFilter = { cat: '', q: '' };
+    finSetTab(from);
+    renderFinance();
+    var un = document.getElementById('bankUnsorted');
+    if (un && un.scrollIntoView) try { un.scrollIntoView({ block: 'start' }); } catch (x) { /* a convenience */ }
+  } else renderFinance();
   showToast(all && all.checked ? 'Saved for every row under ' + v.party : 'Saved');
 }
 /* The picker hands back text; ids are numbers on real books. */
@@ -22348,7 +22698,7 @@ function bankAction(action, btn) {
     case 'invBankAddBill': bankAddPowerBill(btn.dataset.id); return true;
     case 'invBankBounce': bankSetBounce(btn.dataset.rev, btn.dataset.dep); return true;
     case 'invBankBounceClear': bankClearBounce(btn.dataset.rev); return true;
-    case 'invBankSort': _bankFilter = { cat: '', q: btn.dataset.q || '' }; _bankEdit = btn.dataset.id; finSetTab('bank'); renderFinance(); return true;
+    case 'invBankSort': _bankSortFrom = _finTab; _bankFilter = { cat: '', q: btn.dataset.q || '' }; _bankEdit = btn.dataset.id; finSetTab('bank'); renderFinance(); return true;
     case 'invBankPlace': bankSetClient(btn.dataset.id, btn.dataset.client); return true;
     case 'invBankChange': _bankChange = btn.dataset.id; renderFinance(); return true;
     case 'invBankOpeningUse': {
@@ -23810,6 +24160,7 @@ function relayHeaderAreas(text) {
   if (!out.length && vat) out.push('vat-a1');
   if (/OFFICE/.test(k)) out.push('office');
   if (/GATE/.test(k)) out.push('gate');
+  if (/CIVIL/.test(k)) out.push('civil');
   if (/COLOU?R/.test(k) && !out.length) out.push('vat-a1');
   return out;
 }
@@ -24279,7 +24630,7 @@ function parseRelayRoll(text, roster, sentOn) {
         var a = areas.indexOf(w.area) >= 0 ? w.area : areas[0];
         // The office and the gate share a header ("office & gate keeper"); a
         // hand whose post is one of them stands at his own.
-        if ((a === 'office' || a === 'gate') && (w.area === 'office' || w.area === 'gate')) a = w.area;
+        if ((a === 'office' || a === 'gate' || a === 'civil') && (w.area === 'office' || w.area === 'gate' || w.area === 'civil')) a = w.area;
         if (st.slot && st.slot.start === RELAY_GENERAL) p.generalArea = a;
         else if (!p.areas) p.areas = a;
       }
@@ -24351,7 +24702,7 @@ function relaySlotOrArea(bare) {
 function relayPersonMark(p, w, restOut) {
   if (p.st === 'A') return { st: 'A', ot: 0, hours: 0, area: 'flex', inMin: null, outMin: null };
   // No line written: a floor hand floats (Flex); the office and the gate are posts.
-  var area = p.generalArea || p.areas || (w && (w.area === 'office' || w.area === 'gate') ? w.area : 'flex');
+  var area = p.generalArea || p.areas || (w && (w.area === 'office' || w.area === 'gate' || w.area === 'civil') ? w.area : 'flex');
   var gate = area === 'gate';
   var inMin, outMin;
   if (gate) {
@@ -26414,10 +26765,13 @@ function buildTopItems(invoices, by) {
     var client = rowClient(inv);
     (inv.items || []).forEach(function(it) {
       var part = it.partNumber || it.desc || 'Unknown';
-      var gauge = lineGauge(it.desc) || lineGauge(it.partNumber);
-      var key = inv.clientId + '|' + part + '|' + gauge;
-      if (!byPart[key]) byPart[key] = { part: part, desc: it.desc || '', gauge: gauge, clientId: inv.clientId,
+      // One part however it was spelt (CLAMP 149X83(40X6) and 149X83 with the gauge in the description), and always one
+      // client's: a code two clients send is two rows, each saying so (cpPartIdentity, client-perf.js).
+      var idn = cpPartIdentity(it.partNumber, it.desc), gauge = idn.gauge;
+      var key = inv.clientId + '|' + (idn.base || part) + '|' + gauge;
+      if (!byPart[key]) byPart[key] = { part: part, base: idn.base, desc: it.desc || '', gauge: gauge, clientId: inv.clientId,
         clientName: (client && client.name) || inv.clientName || '', qty: 0, amount: 0, kg: 0, kgKnown: true };
+      else if (String(part).length > String(byPart[key].part).length) { byPart[key].part = part; byPart[key].desc = it.desc || ''; }
       byPart[key].qty += (it.qty || 0);
       byPart[key].amount += (it.amount || 0);
       var w = lineWeightKg(it, client, inv.date);
@@ -26840,7 +27194,7 @@ function renderStats() {
 
   take('billing');
   /* ===== Card 10: Top items — by value, tonnage, or price ===== */
-  var top = buildTopItems(filtered, _statsTopBy);
+  var top = buildTopItems(filtered, _statsTopBy), topOwners = top.total > 0 ? cpCodeOwners() : {};
   if (top.total > 0) {
     var topTitles = { value: 'Top items by value', tonnage: 'Top items by tonnage', rate: 'Worst priced items' };
     var topUnits = { value: 'money', tonnage: 'kg', rate: 'money' };
@@ -26872,8 +27226,10 @@ function renderStats() {
         // Every row carries the other two figures, so switching the ranking
         // is a change of order rather than a change of what can be seen, and
         // names its client: a part is that client's part.
+        var shared = Object.keys(topOwners[r.base] || {}).filter(function(c) { return String(c) !== String(r.clientId); });
         var sub = (r.clientName ? r.clientName + ' · ' : '') + formatCurrency(r.amount) +
-          (r.kgKnown && r.kg > 0 ? ' · ' + formatNum(r.kg, 0) + ' kg · ' + formatCurrency(r.perKg) + '/kg' : ' · weight unknown');
+          (r.kgKnown && r.kg > 0 ? ' · ' + formatNum(r.kg, 0) + ' kg · ' + formatCurrency(r.perKg) + '/kg' : ' · weight unknown') +
+          (shared.length ? ' · code also sent by ' + shared.map(function(c) { var cc = (S.clients || []).find(function(x) { return String(x.id) === String(c); }); return cc ? cc.name : 'another client'; }).join(', ') + ', counted apart' : '');
         var label = r.part + (r.desc && r.desc !== r.part ? ' — ' + r.desc : '');
         // The gauge is said where the part's own text does not already say it (partLineDesc folds it into desc).
         if (r.gauge && rateKey(label).indexOf(rateKey(r.gauge)) < 0) label += ' (' + r.gauge + ')';
@@ -26902,7 +27258,10 @@ function renderStats() {
 
   take('trends');
   if (filtered.length || activeInvs.length) {
-    sec.overview = insightsCardHtml() + sec.overview + statsOverviewHtml(_statsPeriod, filtered, tonnage) + paceCardHtml() + statsMonthsHtml();
+    // The questions first, each answered as a story (statsStoriesHtml); the figures behind them follow, and the whole
+    // insight list closes the page (owner, 30 Sep 2026: it had led the page).
+    sec.overview = statsStoriesHtml(_statsPeriod, filtered, prior, tonnage, periodCost) + sec.overview + statsOverviewHtml(_statsPeriod, filtered, tonnage) +
+      paceCardHtml() + statsMonthsHtml() + insightsCardHtml();
     sec.clients = statsMarginHtml(_statsPeriod, filtered, tonnage) + nextChallanCardHtml() + sec.clients;
   }
   html = sec[statsTab()];
@@ -27695,6 +28054,114 @@ function statsMarginHtml(period, filtered, tonnage) {
           ', <strong>if</strong> its parts cost the same per kg as the rest of the book. That is the question to take to the floor before repricing.') + '</div>';
   }
   return h + '</div>';
+}
+
+/* ---------- Overview: the questions, each answered as a story ----------
+   Owner, 30 Sep 2026: "Stats view needs an overhaul, it puts insights front and center and doesn't present itself in a
+   really engaging way"; they chose the Overview to be led by the questions the owner asks, each answered as a story card:
+   the figure, one sentence that says what it means and why, a small chart, and the way to the tab with the detail. The
+   cards read the same figures as the panels under them (statsOverviewHtml, statsMonthsHtml, the insights), never a second
+   arithmetic. */
+function statsMonthRows(n) {
+  var today = localDateStr(), rows = [], active = statsInvoices().filter(function(i) { return i.date; });
+  for (var k = (n || 6) - 1; k >= 0; k--) {
+    var d = new Date(today + 'T00:00:00'); d.setDate(1); d.setMonth(d.getMonth() - k);
+    var from = isoOf(d), to = payMonthEnd(from);
+    if (to > today) to = today;
+    var inv = active.filter(function(i) { return i.date >= from && i.date <= to; });
+    var w = weighLines(inv), c = w.kg > 0 ? liveCost(from, to, w.kg) : null;
+    rows.push({ month: from.slice(0, 7), label: insMonthLabel(from), kg: w.kg, real: w.kg > 0 ? w.revKnown / w.kg : null, cost: c ? c.perKg : null,
+      cap: STATS_CAPACITY_KG_DAY * statsWorkingDays(from, to), rev: inv.reduce(function(s, i) { return s + (i.taxableValue || 0); }, 0) });
+  }
+  return rows;
+}
+function statsStory(key, question, body, go, goLabel) {
+  return '<div class="inv-panel inv-panel-flush" data-card="story" data-story="' + key + '"><div class="inv-panel-head"><span class="inv-panel-title">' + question + '</span>' +
+    (go ? '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="' + go.action + '"' + (go.attrs || '') + '>' + goLabel + '</button>' : '') + '</div>' + body + '</div>';
+}
+function statsStorySay(tone, text) { return statsBody('<div class="inv-row-wrap" data-story-say>' + uiDot(tone, text) + '</div>'); }
+
+function statsStoriesHtml(period, filtered, prior, tonnage, periodCost) {
+  var out = '', r = statsRangeIso(period), plabel = PERIOD_LABELS[period] || '';
+  var months = statsMonthRows(6);
+  var perKg = '<span class="inv-tile-of">/kg</span>';
+  var tab = function(t) { return { action: 'invStatsGo', attrs: ' data-tab="' + t + '"' }; };
+
+  // 1. Are we making money?
+  var kg = tonnage.kg, real = kg > 0 ? tonnage.revKnown / kg : null, cost = periodCost.perKg > 0 ? periodCost.perKg : null;
+  var contrib = real != null && cost != null ? real - cost : null;
+  var body = statsTiles(statsTile('real', 'Realisation', real != null ? formatCurrency(real) + perKg : '&mdash;', statsTileSub(cost != null ? periodCost.label + formatCurrency(cost) + '/kg' : 'no cost to set it against'),
+      real != null && cost != null ? figToneAgainst(real, cost, 5) : '') +
+    statsTile('contrib', 'Left per kilo', contrib != null ? statsSigned(contrib) + perKg : '&mdash;', statsTileSub(contrib != null ? statsSigned(gstRound(contrib * kg)) + ' on ' + escHtml(plabel.toLowerCase() || 'the period') : ''),
+      contrib == null ? '' : contrib >= 0 ? 'ok' : 'danger'));
+  var mm = months.filter(function(x) { return x.real != null; });
+  if (mm.length >= 2) body += statsBody(chartLines(mm.map(function(x) { return x.label; }), [
+    { label: 'Realisation', values: mm.map(function(x) { return gstRound(x.real); }) },
+    { label: 'Cost', values: mm.map(function(x) { return x.cost != null ? gstRound(x.cost) : null; }), tone: 3 }], { unit: 'rate', ariaLabel: 'Realisation against cost by month' }));
+  body += contrib == null ? statsStorySay('neutral', kg > 0 ? 'No cost to judge the price against yet.' : 'No weighed tonnage in the period.')
+    : contrib >= 0 ? statsStorySay('ok', 'Yes: every kilo left ' + formatCurrency(contrib) + ' after the full cost, ' + formatCurrency(gstRound(contrib * kg)) + ' on the period.')
+    : statsStorySay('danger', 'Not yet: every kilo cost ' + formatCurrency(-contrib) + ' more than it was billed at, ' + formatCurrency(gstRound(-contrib * kg)) + ' on the period.');
+  out += statsStory('money', 'Are we making money?', body, tab('cost'), 'The cost');
+
+  // 2. Who is driving it? The worst-priced large account, and the biggest mover against the period before.
+  var m = null;
+  try { m = statsClientMargins(period, filtered, tonnage); } catch (e) { m = null; }
+  body = '';
+  var worst = m ? m.ranked.filter(function(x) { return x.kg >= m.kg * 0.1; })[0] : null;
+  var byC = {}, pc = {};
+  filtered.forEach(function(i) { byC[i.clientId] = (byC[i.clientId] || 0) + (i.taxableValue || 0); });
+  prior.forEach(function(i) { pc[i.clientId] = (pc[i.clientId] || 0) + (i.taxableValue || 0); });
+  var moves = Object.keys(Object.assign({}, byC, pc)).map(function(id) { return { id: id, d: (byC[id] || 0) - (pc[id] || 0) }; }).sort(function(a, b) { return Math.abs(b.d) - Math.abs(a.d); });
+  var nameOf = function(id) { var c = (S.clients || []).find(function(x) { return String(x.id) === String(id); }); return c ? c.name : 'A client'; };
+  if (m && m.ranked.length) {
+    var top = m.ranked.slice().sort(function(a, b) { return b.kg - a.kg; }).slice(0, 4);
+    body += statsBody(chartRankedBars(top.map(function(x) {
+      return { label: x.name, value: x.kg, display: formatNum(x.kg / 1000, 1) + ' t', sub: formatCurrency(x.net) + '/kg · ' + Math.round(x.kg / m.kg * 100) + '% of the plant',
+        tone: x.vsFull < 0 ? 'danger' : 'good', action: 'invStatsClientDrill', clientId: x.id };
+    }), { unit: 'kg' }));
+  }
+  if (worst && worst.vsFull < 0) body += statsStorySay('danger', worst.name + ' fills ' + Math.round(worst.kg / m.kg * 100) + '% of the plant at ' + formatCurrency(worst.net) + '/kg, ' + formatCurrency(-worst.vsFull) + ' under the full cost: ' + formatCurrency(-worst.money) + ' on the period.');
+  if (moves.length && prior.length && Math.abs(moves[0].d) > 0) body += statsStorySay(moves[0].d >= 0 ? 'ok' : 'warning', nameOf(moves[0].id) + ' billed ' + formatCurrency(Math.abs(moves[0].d)) + (moves[0].d >= 0 ? ' more' : ' less') + ' than in ' + (PERIOD_PRIOR_LABELS[period] || 'the period before') + ', the biggest change of any client.');
+  if (!body) body = statsStorySay('neutral', 'No weighed billing in the period to rank the clients by.');
+  out += statsStory('clients', 'Who is driving it?', body, tab('clients'), 'The clients');
+
+  // 3. Is the plant full?
+  var cap = STATS_CAPACITY_KG_DAY * statsWorkingDays(r.from, r.to), capPct = cap > 0 && kg > 0 ? kg / cap : null;
+  body = statsTiles(statsTile('cap', 'Used', capPct != null ? Math.round(capPct * 100) + '%' : '&mdash;', statsTileSub(formatNum(kg / 1000, 1) + ' t of ~' + formatNum(cap / 1000, 0) + ' t (2 shifts)'),
+    capPct != null ? figToneCapacity(capPct * 100) : ''));
+  var mk = months.filter(function(x) { return x.kg > 0; });
+  if (mk.length >= 2) body += statsBody(chartBars(mk.map(function(x) { return { label: x.label, value: gstRound(x.kg / 1000) }; }), { unit: 'count', ariaLabel: 'Tonnes plated by month' }));
+  var avg = real != null ? real : null;
+  body += capPct == null ? statsStorySay('neutral', 'No weighed tonnage in the period.')
+    : capPct >= 0.8 ? statsStorySay('ok', 'Busy: ' + Math.round(capPct * 100) + '% of two shifts. Growth now needs more hours or better-paying work, not more of the same.')
+    : statsStorySay(capPct >= 0.6 ? 'warning' : 'danger', formatNum((cap - kg) / 1000, 1) + ' t of the two shifts went unused' + (avg ? ': at ₹13/kg that is ' + formatCurrency(gstRound((cap - kg) * 13)) + ' of work the plant could have taken on its fixed cost' : '') + '.');
+  out += statsStory('plant', 'Is the plant full?', body, tab('trends'), 'The trend');
+
+  // 4. What changed? The most urgent insights, as sentences, and the month's pace.
+  var ins = [];
+  try { ins = todoAppAll().filter(function(t) { return t.rule.indexOf('ins') === 0; }); } catch (e) { ins = []; }
+  var rank = { red: 0, amber: 1, info: 2 };
+  ins.sort(function(a, b) { return (rank[a.tone] != null ? rank[a.tone] : 3) - (rank[b.tone] != null ? rank[b.tone] : 3); });
+  body = '';
+  var p = null;
+  try { p = predMonthPace(); } catch (e) { p = null; }
+  if (p) body += statsStorySay(p.prevRev > 0 && p.projRev < p.prevRev ? 'warning' : 'ok', 'This month is heading for ' + formatCurrency(p.projRev) + ' at its pace (' + p.done + ' of ' + p.total + ' working days in), against ' + formatCurrency(p.prevRev) + ' in ' + p.prevLabel + '.');
+  ins.slice(0, 3).forEach(function(t) { body += todoAppRowHtml(t); });
+  if (!body) body = statsStorySay('ok', 'Nothing stands out: no insight is raised on the book right now.');
+  out += statsStory('changed', 'What changed?', body, ins.length > 3 ? { action: 'invStatsInsightsAll' } : null, 'All ' + ins.length + ' insights');
+
+  // 5. Is cash coming in? Only with a statement.
+  if (finHasBank()) {
+    try {
+      var bRows = bankRows(), bLast = bRows[bRows.length - 1], recv = finCtx().recv(), owed = gstRound(recv.reduce(function(s, x) { return s + Math.max(0, x.owed); }, 0));
+      var bBook = bankBookDaysToPay(bankPayHistory(recv));
+      body = statsTiles(statsTile('bal', 'In the bank', statsMoney(bLast.balance), statsTileSub('on ' + escHtml(formatDate(bLast.date))), bLast.balance < 0 ? 'danger' : '') +
+        statsTile('owed', 'Owed to us', statsMoney(owed), statsTileSub(bBook ? 'clients pay in ' + Math.round(bBook.median) + ' days' : ''), bBook ? figTonePaysIn(Math.round(bBook.median)) : ''));
+      body += statsStorySay(bBook && bBook.median > 60 ? 'warning' : 'ok', 'Owed ' + formatCurrency(owed) + (bBook ? ', arriving in about ' + Math.round(bBook.median) + ' days at the usual pace' : '') + '.');
+      out += statsStory('cash', 'Is cash coming in?', body, { action: 'invFinGo', attrs: ' data-tab="overview"' }, 'Finance');
+    } catch (e) { /* no cash story without a readable statement */ }
+  }
+  return out;
 }
 /* ===== The intelligence engine, parts three and four: insights and predictions =====
 
@@ -30391,17 +30858,20 @@ function prodSavePhoto() {
 }
 
 /* ---------- By hand ---------- */
-function prodOpenHand(fromId) {
+function prodOpenHand(fromId, from) {
   var src = fromId ? prodIndex().byId[fromId] : null;
   _prodHand = src ? { kind: src.kind, date: src.date, time: src.time || '', to: src.to || '', line: src.line || '', clientId: src.clientId != null ? String(src.clientId) : '', part: src.part || '',
     qty: src.qty != null ? String(src.qty) : '', unit: src.unit || 'NOS', rework: !!src.rework, slot: src.slot === 'ot' || src.slot === 'day' ? src.slot : 'general', replaces: src.id }
     : { kind: 'plated', date: localDateStr(), time: '', to: '', line: 'vat-a1', clientId: '', part: '', qty: '', unit: 'NOS', rework: false, slot: 'general', replaces: null };
+  _prodHand.from = from || null;   // 'power': opened from Power's Enter a cut, and its way back is Power
+  _prodHand.saved = [];            // the entries saved from this form, listed under it
   prodSetView('hand');
 }
 function prodHandHtml() {
   var f = _prodHand;
   var field = function(id, label, input) { return '<div class="inv-field"><label class="inv-field-label" for="' + id + '">' + label + '</label>' + input + '</div>'; };
-  var h = prodBackBar(f.replaces ? 'Correct an entry' : 'Enter by hand');
+  var h = f.from === 'power' ? '<div class="inv-pagehead"><button class="inv-btn inv-btn-ghost inv-btn-sm inv-pagehead-back" data-action="invProdHandDone">' + STOCK_BACK_ICON + 'Power</button>' +
+      '<h2 class="inv-pagehead-title">Enter power cuts</h2></div>' : prodBackBar(f.replaces ? 'Correct an entry' : 'Enter by hand');
   if (f.replaces) h += '<div class="inv-callout inv-callout-info">This entry takes the place of the one corrected, which stays on the record, marked corrected.</div>';
   else h += '<div class="inv-seg inv-mb-8" role="group" aria-label="What is entered">' + [['plated', 'Plated'], ['pickled', 'Pickled'], ['arrived', 'Arrived'], ['downtime', 'Power cut']].map(function(o) {
     return '<button type="button" class="inv-seg-btn" data-action="invProdHandKind" data-kind="' + o[0] + '" aria-pressed="' + (f.kind === o[0]) + '">' + o[1] + '</button>'; }).join('') + '</div>';
@@ -30422,9 +30892,23 @@ function prodHandHtml() {
       field('prodHandUnit', 'Unit', '<select id="prodHandUnit" class="inv-select" data-prod-hand="unit"><option value="NOS"' + (f.unit === 'NOS' ? ' selected' : '') + '>NOS</option><option value="KG"' + (f.unit === 'KG' ? ' selected' : '') + '>kg</option></select>') +
       '<label class="inv-field-check"><input type="checkbox" class="inv-check" id="prodHandRework" data-prod-hand="rework"' + (f.rework ? ' checked' : '') + '><span>Rework (counted as work, never as billing)</span></label>';
   }
-  h += '</div></div><div class="inv-actionbar"><div class="inv-actionbar-total"><div class="inv-actionbar-label">' + escHtml({ plated: 'Plated', pickled: 'Pickled', arrived: 'Arrived', downtime: 'Power cut' }[f.kind]) + ' on</div>' +
+  h += '</div></div>';
+  // Entries are entered by hand several at a time (owner, 30 Sep 2026: the page went back to the base screen after every
+  // one), so the form stays open after a save and lists what was saved from it, each with its Correct and Void.
+  var idx = prodIndex(), saved = (f.saved || []).map(function(id) { return idx.byId[id]; }).filter(Boolean);
+  if (saved.length) h += '<div class="inv-panel inv-panel-flush inv-mt-8" data-card="prodHandSaved"><div class="inv-panel-head"><span class="inv-panel-title">Saved from this form</span><span class="inv-panel-count">' + saved.length + '</span>' +
+    '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invProdHandDone">Done</button></div>' +
+    saved.slice().reverse().map(function(e) { return prodEntryRowHtml(e, idx); }).join('') + '</div>';
+  h += '<div class="inv-actionbar"><div class="inv-actionbar-total"><div class="inv-actionbar-label">' + escHtml({ plated: 'Plated', pickled: 'Pickled', arrived: 'Arrived', downtime: 'Power cut' }[f.kind]) + ' on</div>' +
     '<div class="inv-actionbar-value">' + escHtml(stockShortDate(f.date)) + '</div></div><button class="inv-btn inv-btn-primary" data-action="invProdSaveHand">Save</button></div>';
   return h;
+}
+/* Leaving the hand form: back to where it was opened from. */
+function prodHandDone() {
+  var from = _prodHand && _prodHand.from;
+  _prodHand = null;
+  if (from === 'power') { _prodView = 'main'; switchTab('pagePower'); return; }
+  prodSetView('main');
 }
 function prodSaveHand() {
   var f = _prodHand;
@@ -30447,9 +30931,21 @@ function prodSaveHand() {
   p.entries.push(prodSparse(e));
   prodTouch();
   saveState();
-  _prodHand = null;
-  prodSetView('main');
-  showToast(src ? 'Correction saved; the entry it corrects is kept, marked corrected' : 'Saved', 'success');
+  if (src) {   // a correction is one entry: back to where it was opened from
+    var from = f.from; _prodHand = null;
+    if (from === 'power') { _prodView = 'main'; switchTab('pagePower'); }
+    else prodSetView('main');
+    showToast('Correction saved; the entry it corrects is kept, marked corrected', 'success');
+    return;
+  }
+  // The form stays for the next entry: the kind, day, line, shift, client and unit carry over; the figures clear.
+  f.saved.push(e.id);
+  f.time = ''; f.to = ''; f.part = ''; f.qty = ''; f.rework = false;
+  _pageTyped = false;
+  renderProduction();
+  var next = document.getElementById(f.kind === 'downtime' ? 'prodHandTime' : 'prodHandPart');
+  if (next && !('ontouchstart' in window)) try { next.focus(); } catch (x) { /* focus is a convenience */ }
+  showToast((f.kind === 'downtime' ? 'Power cut saved' : 'Saved') + ' · enter the next, or Done', 'success');
 }
 
 /* ---------- Void, set a line ---------- */
@@ -30520,6 +31016,7 @@ function prodAction(action, btn) {
     case 'invProdCorrect': prodOpenHand(btn.dataset.id); return true;
     case 'invProdHandKind': _prodHand.kind = btn.dataset.kind; renderProduction(); return true;
     case 'invProdSaveHand': prodSaveHand(); return true;
+    case 'invProdHandDone': prodHandDone(); return true;
     case 'invProdVoid': prodVoid(btn.dataset.id); return true;
     case 'invProdUseLine': prodUseLine(btn.dataset.id, btn.dataset.line); return true;
     case 'invProdExport': prodExport(); return true;
@@ -31450,7 +31947,7 @@ function powerCfgSave() {
 /* A cut is entered where every floor record is: Production's hand form, on a power cut. */
 function powerAddCut() {
   switchTab('pageProduction');
-  prodOpenHand(null);
+  prodOpenHand(null, 'power');
   if (_prodHand) { _prodHand.kind = 'downtime'; renderProduction(); }
 }
 /* The history from soma-internal, one file: its cuts as a `sep-production` file (merged by id into Production), and
@@ -31572,6 +32069,23 @@ function cpNormPart(s) {
   return String(s || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
 }
 
+/* A part's identity: its size where it names one (149X83, 150X80X3), else its number, with its gauge beside it.
+   The owner, 30 Sep 2026: "some items like 149x83 are still coming but the flag is being raised" — the same clamp was
+   written CLAMP 149X83(40X6) to July and 149X83 (the gauge in the description) from August, and keyed on the whole text
+   the older spelling read as stopped. A gauge (two digits × one) is never a size. A part with no digits of its own
+   (CLAMP) takes the size from its description. */
+function cpPartIdentity(part, desc) {
+  var n = function(x) { return String(x || '').toUpperCase().replace(/[×✕*]/g, 'X'); };
+  var p = n(part), d = n(desc);
+  var dims = function(x) {
+    var m = /(?:^|[^0-9])(\d{2,4})\s*X\s*(\d{2,4})(?:\s*X\s*(\d{1,4}))?(?![0-9])/.exec(x);
+    return m ? m[1] + 'X' + m[2] + (m[3] ? 'X' + m[3] : '') : '';
+  };
+  var own = p.replace(/\([^)]*\)/g, '');
+  var size = dims(p) || (!/\d/.test(own) ? dims(d) : '');
+  return { base: size || cpNormPart(part || desc), gauge: lineGauge(d) || lineGauge(p) };
+}
+
 /* Every part this client has handled, with the dates it appeared on either
    spine, the weight and the revenue it carried. A part is its number AND its gauge: two gauges of one clamp are two
    parts, and keyed on the number alone one gauge could stop while the other hid it. A line that names no gauge joins
@@ -31583,9 +32097,10 @@ function cpBuildHistory(clientId) {
   function touch(it, dateStr) {
     if (!dateStr) return null;
     var rawPart = it.partNumber || it.desc;
-    var base = cpNormPart(rawPart);
+    var idn = cpPartIdentity(it.partNumber, it.desc);
+    var base = idn.base;
     if (!base) return null;
-    var gauge = lineGauge(it.desc) || lineGauge(it.partNumber);
+    var gauge = idn.gauge;
     var key = base + '|' + gauge;
     if (!byPart[key]) {
       byPart[key] = { key: key, base: base, gauge: gauge, name: rawPart, dates: {}, kg: 0, revenue: 0, invoiced: 0, received: 0 };
@@ -31669,6 +32184,22 @@ function cpClassify(entry, todayIso) {
   out.overdueBy = sinceLast - Math.round(typical);
   out.state = sinceLast > threshold ? 'stopped' : 'steady';
   return out;
+}
+
+/* A part whose size still comes in another row is not simply gone. A row naming no gauge that has stopped while the same
+   size in a stated gauge still comes is that part written without its gauge: it reads steady, continuing in the other.
+   A stated gauge that stopped while another gauge of the size still comes stays stopped (it is a different part), and
+   says which one still comes. */
+function cpSiblings(classified) {
+  var byBase = {};
+  classified.forEach(function(m) { var b = m.key.split('|')[0]; (byBase[b] = byBase[b] || []).push(m); });
+  classified.forEach(function(m) {
+    if (m.state !== 'stopped') return;
+    var sib = (byBase[m.key.split('|')[0]] || []).filter(function(x) { return x !== m && x.state !== 'stopped' && x.lastSeen > m.lastSeen; });
+    if (!sib.length) return;
+    if (!m.gauge) { m.state = 'steady'; m.continuesAs = sib[0].part; }
+    else m.stillComes = sib[0].part;
+  });
 }
 
 /* A part renamed rather than dropped shows up as one stopped and one new, and
@@ -31769,6 +32300,8 @@ function _cpMaterialRowList(list, renames) {
         ? '<span class="inv-row-meta inv-row-wrap"><span class="inv-dot inv-dot-danger">' + m.sinceLast + ' days since the last one' +
           (m.overdueBy > 0 ? ', about ' + m.overdueBy + ' overdue' : '') + '</span></span>'
         : '') +
+      (m.continuesAs ? '<span class="inv-row-meta inv-row-wrap">No gauge written; still comes as ' + escHtml(m.continuesAs) + '</span>' : '') +
+      (m.stillComes ? '<span class="inv-note inv-row-wrap">The same size still comes as ' + escHtml(m.stillComes) + '.</span>' : '') +
       (rename ? '<span class="inv-note inv-row-wrap">Possibly renamed to &ldquo;' + escHtml(rename) +
         '&rdquo; — the spellings share a stem, so this may not be lost work.</span>' : '') +
       '</span>' +
@@ -31819,6 +32352,7 @@ function renderClientPerformance(container) {
   var today = localDateStr();
   var history = cpBuildHistory(clientId);
   var classified = history.map(function(e) { return cpClassify(e, today); });
+  cpSiblings(classified);
 
   var stopped = classified.filter(function(m) { return m.state === 'stopped'; })
     .sort(function(a, b) { return b.revenue - a.revenue; });
@@ -31898,8 +32432,9 @@ function renderClientPerformance(container) {
           uiMoreHtml('cp-' + key + '-' + clientId, rows, { n: n == null ? 10 : n, noun: 'parts' })) +
       '</div>';
   };
+  html += cpWorkedHtml(clientId) + cpHoursHtml(clientId);
   html += '<div class="inv-panel inv-panel-flush" data-card="materials">' +
-    '<div class="inv-panel-head"><span class="inv-panel-title">Materials</span><span class="inv-note">cadence across invoices and challans</span></div>' +
+    '<div class="inv-panel-head"><span class="inv-panel-title">Cadence</span><span class="inv-note">each part against its own rhythm, across invoices and challans</span></div>' +
     group('stopped', 'Stopped', 'danger', stopped, 'Nothing has fallen out of its rhythm.',
       'Overdue against the gap each part usually keeps, not a fixed cut-off — a quarterly part is not called stopped in month two.', renames) +
     group('new', 'New', 'info', fresh, 'Nothing new in the last ' + CP_NEW_DAYS + ' days.', '', null) +
@@ -31908,6 +32443,480 @@ function renderClientPerformance(container) {
     '</div>';
 
   container.innerHTML = html;
+}
+
+/* ===== MATERIALS WORKED =====
+ * Owner, 30 Sep 2026: "Performance under client should also show every material worked, how much and when. For eg, I
+ * should be able to check how many clamps were sent by SSS Mehta in any given period, how many clamps were sent by
+ * Dorabji. If two parties share the same material code, the distinction must be mentioned."
+ *
+ * Read off the challans (what was sent, the billing spine) and the invoices (what was billed), in a period, for this
+ * client or every client. A part is its size or number and its gauge (cpPartIdentity), and always one client's: a code
+ * two clients both send is two rows, each saying the other has it too. */
+var _cpPeriod = '3m', _cpFrom = '', _cpTo = '', _cpQuery = '', _cpScope = 'client';
+var CP_PERIODS = [['mtd', 'This month'], ['3m', '3 months'], ['6m', '6 months'], ['fy', 'This FY'], ['all', 'All'], ['custom', 'Dates']];
+
+function cpPeriodRange() {
+  var today = localDateStr(), y = +today.slice(0, 4), m = +today.slice(5, 7);
+  var back = function(k) { var d = new Date(y, m - 1 - k, +today.slice(8, 10)); return isoOf(d); };
+  switch (_cpPeriod) {
+    case 'mtd': return { from: today.slice(0, 8) + '01', to: today, label: 'this month' };
+    case '6m': return { from: back(6), to: today, label: 'the last 6 months' };
+    case 'fy': { var fy = m >= 4 ? y : y - 1; return { from: fy + '-04-01', to: today, label: 'this financial year' }; }
+    case 'all': return { from: '0000-01-01', to: '9999-12-31', label: 'the whole book' };
+    case 'custom': {
+      var f = /^\d{4}-\d{2}-\d{2}$/.test(_cpFrom) ? _cpFrom : back(3), t = /^\d{4}-\d{2}-\d{2}$/.test(_cpTo) ? _cpTo : today;
+      if (t < f) { var x = f; f = t; t = x; }
+      return { from: f, to: t, label: formatDate(f) + ' – ' + formatDate(t) };
+    }
+    default: return { from: back(3), to: today, label: 'the last 3 months' };
+  }
+}
+
+/* Who sends each code, over the whole book: a code more than one client sends is named as shared on every row. */
+function cpCodeOwners() {
+  var out = {};
+  var add = function(clientId, it) {
+    var b = cpPartIdentity(it.partNumber, it.desc).base;
+    if (!b) return;
+    (out[b] = out[b] || {})[clientId] = true;
+  };
+  (S.incomingMaterial || []).forEach(function(im) { (im.items || []).forEach(function(it) { add(im.clientId, it); }); });
+  (S.invoices || []).forEach(function(inv) { if (inv.status === 'active') (inv.items || []).forEach(function(it) { add(inv.clientId, it); }); });
+  return out;
+}
+
+/* Every part a client (or every client) sent and was billed for in a range: pieces, kilograms, challans, invoices and
+   each dated event, keyed client | size-or-number | gauge. A line naming no gauge joins its part's one gauge. */
+function cpMaterials(clientId, from, to) {
+  var rows = {}, clients = {};
+  (S.clients || []).forEach(function(c) { clients[c.id] = c; });
+  var row = function(cid, it) {
+    var idn = cpPartIdentity(it.partNumber, it.desc);
+    if (!idn.base) return null;
+    var k = cid + '|' + idn.base + '|' + idn.gauge;
+    var r = rows[k] || (rows[k] = { key: k, clientId: cid, base: idn.base, gauge: idn.gauge, name: it.partNumber || it.desc, texts: {},
+      challans: {}, invoices: {}, nos: 0, kg: 0, kgUnknown: 0, billedNos: 0, billedKg: 0, revenue: 0, first: null, last: null, events: [] });
+    var nm = String(it.partNumber || it.desc || '');
+    if (nm.length > String(r.name).length) r.name = nm;
+    r.texts[String(it.partNumber || '') + ' ' + String(it.desc || '')] = true;
+    return r;
+  };
+  var seen = function(r, d) { if (!r.first || d < r.first) r.first = d; if (!r.last || d > r.last) r.last = d; };
+  (S.incomingMaterial || []).forEach(function(im) {
+    var d = im.challanDate || im.receivedDate;
+    if (!d || d < from || d > to || (clientId != null && im.clientId !== clientId)) return;
+    (im.items || []).forEach(function(it) {
+      var r = row(im.clientId, it);
+      if (!r) return;
+      var q = Number(it.qty) || 0, unit = it.unit || 'KG', nos = unit === 'NOS' ? q : Number(it.nosQty) || 0;
+      var w = unit === 'KG' ? { kg: q, known: q > 0 } : lineWeightKg(it, clients[im.clientId], d);
+      r.nos += nos;
+      if (w.known) r.kg += w.kg; else r.kgUnknown++;
+      r.challans[im.id] = true; seen(r, d);
+      r.events.push({ date: d, kind: 'challan', id: im.id, ref: im.challanNo || '', qty: q, unit: unit, nos: unit === 'KG' ? nos : 0 });
+    });
+  });
+  (S.invoices || []).forEach(function(inv) {
+    var d = inv.date;
+    if (inv.status !== 'active' || !d || d < from || d > to || (clientId != null && inv.clientId !== clientId)) return;
+    (inv.items || []).forEach(function(it) {
+      var r = row(inv.clientId, it);
+      if (!r) return;
+      var q = Number(it.qty) || 0, unit = it.unit || 'KG';
+      if (unit === 'NOS') r.billedNos += q; else { r.billedKg += q; r.billedNos += Number(it.nosQty) || 0; }
+      r.revenue += Number(it.amount) || 0;
+      r.invoices[inv.id] = true; seen(r, d);
+      r.events.push({ date: d, kind: 'invoice', id: inv.id, ref: inv.invoiceNumber || inv.displayNumber || '', qty: q, unit: unit, amount: Number(it.amount) || 0 });
+    });
+  });
+  // A line naming no gauge joins its part's only gauge (for that client); with two it stays apart, said as such.
+  var gauges = {};
+  Object.keys(rows).forEach(function(k) { var r = rows[k]; if (r.gauge) (gauges[r.clientId + '|' + r.base] = gauges[r.clientId + '|' + r.base] || []).push(r); });
+  Object.keys(rows).forEach(function(k) {
+    var r = rows[k], only = gauges[r.clientId + '|' + r.base];
+    if (r.gauge || !only || only.length !== 1) return;
+    var t = only[0];
+    ['nos', 'kg', 'kgUnknown', 'billedNos', 'billedKg', 'revenue'].forEach(function(f) { t[f] += r[f]; });
+    Object.keys(r.challans).forEach(function(x) { t.challans[x] = true; });
+    Object.keys(r.invoices).forEach(function(x) { t.invoices[x] = true; });
+    Object.keys(r.texts).forEach(function(x) { t.texts[x] = true; });
+    t.events = t.events.concat(r.events);
+    if (r.first && (!t.first || r.first < t.first)) t.first = r.first;
+    if (r.last && (!t.last || r.last > t.last)) t.last = r.last;
+    delete rows[k];
+  });
+  return Object.keys(rows).map(function(k) {
+    var r = rows[k];
+    if (r.gauge && lineGauge(r.name) !== r.gauge) r.name += ' (' + r.gauge + ')';
+    else if (!r.gauge && gauges[r.clientId + '|' + r.base]) r.name += ' (gauge not stated)';
+    r.clientName = clients[r.clientId] ? clients[r.clientId].name : '';
+    r.nChallans = Object.keys(r.challans).length; r.nInvoices = Object.keys(r.invoices).length;
+    r.events.sort(function(a, b) { return a.date < b.date ? 1 : a.date > b.date ? -1 : a.kind < b.kind ? -1 : 1; });
+    return r;
+  });
+}
+
+/* A search matches every word typed, in the part's number, size or any description it was written with. */
+function cpMatches(r, q) {
+  var words = String(q || '').toUpperCase().split(/\s+/).filter(Boolean);
+  if (!words.length) return true;
+  var hay = (Object.keys(r.texts).join(' ') + ' ' + r.name + ' ' + r.base).toUpperCase().replace(/[×✕*]/g, 'X');
+  var fold = cpNormPart(hay);
+  return words.every(function(w) { return hay.indexOf(w) >= 0 || fold.indexOf(cpNormPart(w)) >= 0; });
+}
+
+/* A count or weight with the Indian grouping (8,000 NOS; 1,23,400 kg). */
+function cpNum(n, dec) { return Number(n || 0).toLocaleString('en-IN', { minimumFractionDigits: dec || 0, maximumFractionDigits: dec || 0 }); }
+function cpQtyText(nos, kg, kgUnknown) {
+  var a = [];
+  if (nos > 0) a.push(cpNum(nos) + ' NOS');
+  if (kg > 0) a.push(cpNum(kg, kg < 100 ? 1 : 0) + ' kg');
+  return a.join(' · ') || (kgUnknown ? 'weight unknown' : '—');
+}
+
+function cpWorkedListHtml(clientId) {
+  var rg = cpPeriodRange(), owners = cpCodeOwners();
+  var names = {};
+  (S.clients || []).forEach(function(c) { names[c.id] = c.name; });
+  var all = cpMaterials(_cpScope === 'all' ? null : clientId, rg.from, rg.to);
+  var list = all.filter(function(r) { return cpMatches(r, _cpQuery); })
+    .sort(function(a, b) { return (b.kg - a.kg) || (b.nos - a.nos) || (b.revenue - a.revenue); });
+  var tot = { nos: 0, kg: 0, rev: 0, ch: {}, parts: list.length, clients: {} };
+  list.forEach(function(r) { tot.nos += r.nos; tot.kg += r.kg; tot.rev += r.revenue; Object.keys(r.challans).forEach(function(x) { tot.ch[x] = 1; }); tot.clients[r.clientId] = 1; });
+  var nCh = Object.keys(tot.ch).length;
+  var h = '<div class="inv-row inv-row-strong" data-cp-worked-total><span class="inv-row-main"><span class="inv-row-title">' +
+    (_cpQuery ? '&ldquo;' + escHtml(_cpQuery) + '&rdquo;' : 'Everything') + ' · ' + todoPlural(tot.parts, 'part') +
+    (_cpScope === 'all' ? ' · ' + todoPlural(Object.keys(tot.clients).length, 'client') : '') + '</span>' +
+    '<span class="inv-row-meta inv-row-wrap">' + todoPlural(nCh, 'challan') + ' in ' + escHtml(rg.label) + (tot.rev > 0 ? ' · ' + formatCurrency(tot.rev) + ' invoiced' : '') + '</span></span>' +
+    '<span class="inv-row-end inv-num">' + escHtml(cpQtyText(tot.nos, tot.kg)) + '</span></div>';
+  if (!list.length) return h + '<div class="inv-empty">' + (all.length ? 'No part matches that search in ' + escHtml(rg.label) + '.' : 'Nothing was sent or billed in ' + escHtml(rg.label) + '.') + '</div>';
+  var rows = list.map(function(r) {
+    var others = Object.keys(owners[r.base] || {}).filter(function(c) { return String(c) !== String(r.clientId); }).map(function(c) { return names[c] || 'another client'; });
+    var meta = [todoPlural(r.nChallans, 'challan'), r.nInvoices ? todoPlural(r.nInvoices, 'invoice') : 'not invoiced',
+      r.first ? (r.first === r.last ? formatDate(r.first) : formatDate(r.first) + ' – ' + formatDate(r.last)) : ''].filter(Boolean).join(' · ');
+    var ev = r.events.map(function(e) {
+      var what = e.kind === 'challan' ? 'Challan ' + (e.ref || '—') : 'Invoice ' + (e.ref || '');
+      var q = cpNum(e.qty, e.unit === 'KG' && e.qty % 1 ? 2 : 0) + ' ' + (e.unit === 'KG' ? 'kg' : 'NOS') + (e.nos ? ' (' + cpNum(e.nos) + ' NOS)' : '');
+      var act = e.kind === 'invoice' ? ' data-action="invViewInvoiceDetail" data-id="' + escHtml(e.id) + '"' : ' data-action="invHistoryJumpChallan" data-id="' + escHtml(e.id) + '"';
+      return '<div class="inv-row inv-row-2"><button class="inv-row-main"' + act + '><span class="inv-row-title">' + escHtml(formatDate(e.date)) + ' · ' + escHtml(what) + '</span>' +
+        '<span class="inv-row-meta">' + (e.kind === 'challan' ? 'sent' : 'billed' + (e.amount ? ' · ' + formatCurrency(e.amount) : '')) + '</span></button>' +
+        '<span class="inv-row-end inv-num">' + escHtml(q) + '</span></div>';
+    }).join('');
+    return '<details class="inv-row-fold" data-cp-worked="' + escHtml(r.key) + '"><summary class="inv-row inv-row-2"><span class="inv-row-main">' +
+      '<span class="inv-row-title inv-row-wrap"><span class="inv-id">' + escHtml(r.name) + '</span>' + (_cpScope === 'all' ? ' · ' + escHtml(r.clientName) : '') + '</span>' +
+      '<span class="inv-row-meta inv-row-wrap">' + escHtml(meta) + '</span>' +
+      (others.length ? '<span class="inv-row-meta inv-row-wrap" data-cp-shared><span class="inv-dot inv-dot-info">Code shared</span> ' +
+        escHtml(others.join(', ')) + ' also ' + (others.length === 1 ? 'sends' : 'send') + ' it: counted apart, here and on Stats</span>' : '') +
+      '</span><span class="inv-row-end"><span class="inv-row-stack"><span class="inv-num">' + escHtml(cpQtyText(r.nos, r.kg, r.kgUnknown)) + '</span>' +
+      (r.revenue > 0 ? '<span class="inv-row-meta">' + formatCurrency(r.revenue) + '</span>' : '') + '</span></span></summary>' +
+      '<div class="inv-row-children">' + ev + '</div></details>';
+  });
+  return h + uiMoreHtml('cp-worked-' + (_cpScope === 'all' ? 'all' : clientId) + '-' + _cpPeriod, rows, { n: 30, noun: 'parts' });
+}
+
+function cpWorkedHtml(clientId) {
+  var seg = function(k, l, act, cur, attr) { return '<button type="button" class="inv-seg-btn" data-action="' + act + '" ' + attr + '="' + k + '" aria-pressed="' + (cur === k) + '">' + l + '</button>'; };
+  var rg = cpPeriodRange();
+  var h = '<div class="inv-panel inv-panel-flush" data-card="worked"><div class="inv-panel-head"><span class="inv-panel-title">Materials worked</span>' +
+    '<span class="inv-note">what was sent and billed, and when</span></div><div class="inv-panel-body">' +
+    '<div class="inv-seg inv-mb-8" role="group" aria-label="Period">' + CP_PERIODS.map(function(p) { return seg(p[0], p[1], 'invCpPeriod', _cpPeriod, 'data-p'); }).join('') + '</div>' +
+    (_cpPeriod === 'custom' ? '<div class="inv-fields inv-mb-8" data-nodirty><label class="inv-field"><span class="inv-field-label">From</span><input type="date" class="inv-input" id="cpFrom" value="' + escHtml(rg.from) + '"></label>' +
+      '<label class="inv-field"><span class="inv-field-label">To</span><input type="date" class="inv-input" id="cpTo" value="' + escHtml(rg.to) + '"></label></div>' : '') +
+    '<div class="inv-toolbar inv-toolbar-flush"><label class="inv-search inv-toolbar-item">' + ICON_SEARCH +
+    '<input id="cpMatSearch" type="search" value="' + escHtml(_cpQuery) + '" placeholder="Part, size or word, e.g. clamp" aria-label="Search the materials" autocomplete="off"></label>' +
+    '<div class="inv-seg" role="group" aria-label="Whose">' + seg('client', 'This client', 'invCpScope', _cpScope, 'data-s') + seg('all', 'All clients', 'invCpScope', _cpScope, 'data-s') + '</div></div>' +
+    '</div><div id="cpWorkedList">' + cpWorkedListHtml(clientId) + '</div></div>';
+  return h;
+}
+/* The search redraws the list only, so the field keeps its focus and caret. */
+function cpWorkedRedraw() {
+  var el = document.getElementById('cpWorkedList'), id = getPerfClientId();
+  if (el) el.innerHTML = cpWorkedListHtml(id != null ? id : null);
+}
+
+/* ===== BY THE HOUR =====
+ * Owner, 30 Sep 2026: "Samarth part is done in pieces: 3302 at ₹9/pc takes about 30 mins, and we can only do 24 pcs at a
+ * time in VAT A2; 3303 at ₹3/pc takes about 30 minutes and we can do 80 pcs at a time. This is how we can calculate its
+ * impact on our cost." And then: "have an option to update the time taken to pickle and plate + a constant 15 mins
+ * (logistics + other steps) for every material. Fill these out with the production data we already have and make sure
+ * the app learns from the data being entered, so we can evaluate if the time taken is increasing or decreasing, and what
+ * steps we can take to optimise setups."
+ *
+ * A round of a part takes pickling + plating + the constant for logistics and the other steps (Settings-free, on this
+ * panel, `S.perfCfg.overheadMin`, 15). Each is the owner's figure where set on the client (`client.partTimes`), else what
+ * the production record measures (`cpMeasure`): the register's round-by-round times on the line (the gap from one round
+ * to the next, 5 to 180 minutes) or a START–END batch's span over its rounds; the pickling hand's loads (the gap to the
+ * next load that day, 5 to 120 minutes, per piece). What a round earns (pieces × the rate) over its whole time is set
+ * against what an hour costs the plant and earns it on average: the last 90 days at the live cost, over working days × 3
+ * lines × 16 hours (`cpLineHourRef`). The measured times are kept by week, so a round getting slower or faster shows. */
+var CP_LINE_HOURS_DAY = 16;
+function cpOverheadMin() { var v = S.perfCfg && S.perfCfg.overheadMin; return typeof v === 'number' && v >= 0 ? v : 15; }
+function cpLineHourRef() {
+  var to = localDateStr(), from = isoAddDays(to, -90), days = statsWorkingDays(from, to);
+  var inv = statsInvoices().filter(function(i) { return i.date && i.date >= from && i.date <= to; });
+  var w = weighLines(inv), rev = inv.reduce(function(t, i) { return t + (i.taxableValue || 0); }, 0);
+  var perKg = null, live = false;
+  try { var c = liveCost(from, to, w.kg); if (c && c.perKg > 0) { perKg = c.perKg; live = true; } } catch (e) { /* the typed cost below */ }
+  if (!perKg && S.defaultCostPerKg > 0) perKg = S.defaultCostPerKg;
+  var hours = days * PROD_LINES.length * CP_LINE_HOURS_DAY;
+  if (!(hours > 0) || !(w.kg > 0) || !perKg) return null;
+  return { from: from, to: to, days: days, hours: hours, kg: w.kg, perKg: perKg, live: live, cost: perKg * w.kg / hours, revenue: rev / hours, kgPerHour: w.kg / hours };
+}
+function cpPartTimes(client) { return client && Array.isArray(client.partTimes) ? client.partTimes : []; }
+/* A set time's plating minutes: `plateMin`, or `minutes` as the first times were saved. */
+function cpPlateSet(t) { return t.plateMin != null ? t.plateMin : t.minutes != null ? t.minutes : null; }
+
+/* What the production record says about one part of one client: every plating round with its minutes and pieces, every
+   pickling load with its minutes a piece, by date. Only live entries that were not corrected. */
+function cpMeasure(clientId, base, gauge) {
+  var idx = prodIndex(), plate = [], pickle = [], byDay = {};
+  var mine = function(e) {
+    if (e.clientId == null || String(e.clientId) !== String(clientId)) return false;
+    var idn = cpPartIdentity(e.partNumber || e.part, e.part);
+    return idn.base === base && (!gauge || !idn.gauge || idn.gauge === gauge);
+  };
+  // A time as the register or a message wrote it: 9:20, 09.20, 2:05 PM.
+  var mm = function(t) {
+    var m = /^\s*(\d{1,2})[:.](\d{2})\s*([AP])?\.?M?\.?\s*$/i.exec(String(t || ''));
+    if (!m) return null;
+    var h = +m[1] % 12 + (m[3] && m[3].toUpperCase() === 'P' ? 12 : 0);
+    if (!m[3]) h = +m[1];
+    return h * 60 + +m[2];
+  };
+  // Round to round across noon written on a 12-hour clock (12:45 then 1:05) is twenty minutes, not minus eleven hours.
+  var gapOf = function(a, b) { var d = b - a; return d < 0 && d > -720 ? d + 720 : d; };
+  idx.live.forEach(function(e) {
+    if (idx.replaced[e.id]) return;
+    if (e.kind === 'pickled' && e.time) (byDay[e.date] = byDay[e.date] || []).push(e);
+    if (e.kind !== 'plated' || !mine(e) || e.rework) return;
+    var rs = (e.rounds || []).filter(function(r) { return !r.struck && !r.start && r.time; });
+    var batch = rs.filter(function(r) { return r.batch && r.n > 0; });
+    if (batch.length && e.time && e.to) {
+      // A START–END batch: its span over its rounds.
+      var span = gapOf(mm(e.time), mm(e.to)), n = batch.reduce(function(a, r) { return a + r.n; }, 0), rack = batch[0].rack || (batch[0].qty && n ? batch[0].qty / n : null);
+      if (span > 0 && n > 0 && span / n >= 5 && span / n <= 180) plate.push({ date: e.date, line: e.line, min: span / n, pcs: rack });
+      return;
+    }
+    rs = rs.filter(function(r) { return !r.batch; }).map(function(r) { return { m: mm(r.time), q: r.qty }; }).filter(function(r) { return r.m != null; });
+    for (var i = 0; i + 1 < rs.length; i++) {
+      var d = gapOf(rs[i].m, rs[i + 1].m);
+      if (d >= 5 && d <= 180) plate.push({ date: e.date, line: e.line, min: d, pcs: rs[i].q > 0 ? rs[i].q : null });
+    }
+  });
+  // Pickling: the gap from a load to the pickling hand's next load that day, over the load's pieces.
+  Object.keys(byDay).forEach(function(d) {
+    var list = byDay[d].map(function(e) { return { e: e, m: mm(e.time) }; }).filter(function(x) { return x.m != null; }).sort(function(a, b) { return a.m - b.m; });
+    for (var i = 0; i + 1 < list.length; i++) {
+      var x = list[i], gap = list[i + 1].m - x.m;
+      if (!mine(x.e) || !(x.e.qty > 0) || x.e.unit === 'KG' || gap < 5 || gap > 120) continue;
+      pickle.push({ date: d, perPc: gap / x.e.qty, pcs: x.e.qty, min: gap });
+    }
+  });
+  return { plate: plate, pickle: pickle };
+}
+/* The measure read: the median round and pieces over the last 90 days (all of it when the 90 days hold under three),
+   pickling as minutes a piece × the round's pieces, and the trend: the median of the last 30 days against the 60 before. */
+function cpMeasured(ms) {
+  var today = localDateStr(), since = isoAddDays(today, -90), mid = isoAddDays(today, -30);
+  var recent = function(list) { var r = list.filter(function(o) { return o.date >= since; }); return r.length >= 3 ? r : list; };
+  var pl = recent(ms.plate), pk = recent(ms.pickle);
+  var pcsList = pl.map(function(o) { return o.pcs; }).filter(function(v) { return v > 0; });
+  var out = { plateMin: pl.length ? numMedian(pl.map(function(o) { return o.min; })) : null, pcs: pcsList.length ? numMedian(pcsList) : null,
+    pcsMax: pcsList.length ? Math.max.apply(null, pcsList) : null, nPlate: ms.plate.length, nPickle: ms.pickle.length,
+    pickPerPc: pk.length ? numMedian(pk.map(function(o) { return o.perPc; })) : null, first: null, last: null };
+  ms.plate.concat(ms.pickle).forEach(function(o) { if (!out.first || o.date < out.first) out.first = o.date; if (!out.last || o.date > out.last) out.last = o.date; });
+  var a = ms.plate.filter(function(o) { return o.date >= mid; }), b = ms.plate.filter(function(o) { return o.date < mid && o.date >= since; });
+  if (a.length >= 3 && b.length >= 3) { out.trendNow = numMedian(a.map(function(o) { return o.min; })); out.trendBefore = numMedian(b.map(function(o) { return o.min; })); }
+  // By week, for the chart: the median round of each pay week with a round in it.
+  var wk = {};
+  ms.plate.forEach(function(o) { var k = attWeekStartOf(o.date); (wk[k] = wk[k] || []).push(o.min); });
+  out.weeks = Object.keys(wk).sort().slice(-12).map(function(k) { return { week: k, min: numMedian(wk[k]) }; });
+  return out;
+}
+/* The rate a part is billed at: its latest invoice line (and its unit), else the client's piece card. */
+function cpTimedRate(client, t) {
+  var best = null;
+  (S.invoices || []).forEach(function(inv) {
+    if (inv.status !== 'active' || inv.clientId !== client.id) return;
+    (inv.items || []).forEach(function(it) {
+      var idn = cpPartIdentity(it.partNumber, it.desc);
+      if (idn.base !== t.base || (t.gauge && idn.gauge && idn.gauge !== t.gauge)) return;
+      if (!best || inv.date > best.date) best = { rate: Number(it.rate) || 0, unit: it.unit || 'KG', date: inv.date, src: 'invoice ' + (inv.invoiceNumber || inv.displayNumber), part: it.partNumber, desc: it.desc };
+    });
+  });
+  if (best && best.rate > 0) return best;
+  var pr = getPieceRate(client, localDateStr(), t.name, t.name);
+  return pr && pr.rate > 0 ? { rate: pr.rate, unit: 'NOS', date: null, src: 'piece card' } : null;
+}
+/* One part's round, as used: each figure the owner's where set, else measured, and where it came from. */
+function cpRound(client, t) {
+  var m = cpMeasured(cpMeasure(client.id, t.base, t.gauge));
+  var pick = function(set, meas) { return set != null && set !== '' ? { v: +set, src: 'set' } : meas != null ? { v: meas, src: 'measured' } : { v: null, src: null }; };
+  var pcs = pick(t.pieces, m.pcs != null ? Math.round(m.pcs) : null);
+  var plate = pick(cpPlateSet(t), m.plateMin != null ? Math.round(m.plateMin) : null);
+  var pickle = pick(t.pickleMin, m.pickPerPc != null && pcs.v ? Math.round(m.pickPerPc * pcs.v) : null);
+  var over = cpOverheadMin();
+  var total = plate.v != null ? plate.v + (pickle.v || 0) + over : null;
+  var r = cpTimedRate(client, t);
+  // A kilo rate is turned into a round's worth with the part's kilograms a piece.
+  var perRound = null;
+  if (r && pcs.v) {
+    if (r.unit === 'NOS') perRound = pcs.v * r.rate;
+    else { var kpp = prodKgPerPiece(client.id, localDateStr(), r.part || t.name, r.desc || t.name); if (kpp && kpp.kg > 0) perRound = pcs.v * kpp.kg * r.rate; }
+  }
+  return { m: m, pcs: pcs, plate: plate, pickle: pickle, over: over, total: total, rate: r, perRound: perRound, perHour: perRound != null && total ? perRound / (total / 60) : null };
+}
+/* What to look at, read off the numbers: a slower round, racks run short of their fullest, the fixed steps' share of a
+   round, pickling slower than plating, and a set figure the record no longer bears out. */
+function cpRoundHints(rd, t) {
+  var h = [], m = rd.m;
+  if (m.trendNow != null && m.trendBefore > 0) {
+    var ch = (m.trendNow - m.trendBefore) / m.trendBefore;
+    if (ch >= 0.1) h.push({ tone: 'warning', text: 'Plating a round takes ' + Math.round(m.trendNow) + ' min in the last 30 days against ' + Math.round(m.trendBefore) + ' before (+' + Math.round(ch * 100) + '%). Look at the jig loading, the bath (current, temperature, concentration) and waits between rounds.' });
+    else if (ch <= -0.1) h.push({ tone: 'ok', text: 'Plating a round is faster: ' + Math.round(m.trendNow) + ' min in the last 30 days against ' + Math.round(m.trendBefore) + ' before (' + Math.round(ch * 100) + '%). Worth keeping whatever changed.' });
+  }
+  if (m.pcs && m.pcsMax && m.pcs < m.pcsMax * 0.9 && rd.total) {
+    var gain = (m.pcsMax / m.pcs - 1);
+    h.push({ tone: 'info', text: 'Rounds carry ' + Math.round(m.pcs) + ' pieces at the median against ' + m.pcsMax + ' at their fullest: full racks would earn about ' + Math.round(gain * 100) + '% more an hour on the same time.' });
+  }
+  if (rd.total && rd.over / rd.total >= 0.25) h.push({ tone: 'info', text: 'Logistics and the other steps are ' + Math.round(rd.over / rd.total * 100) + '% of every round (' + rd.over + ' of ' + Math.round(rd.total) + ' min): running this part in longer lots, with the next load staged before the round ends, spreads it thinner.' });
+  if (rd.pickle.v && rd.plate.v && rd.pickle.v > rd.plate.v) h.push({ tone: 'warning', text: 'Pickling a round (' + rd.pickle.v + ' min) takes longer than plating it (' + rd.plate.v + ' min): the line waits on pickling. Pickle the next load while this one plates.' });
+  if (t && cpPlateSet(t) != null && m.plateMin != null && m.nPlate >= 5 && Math.abs(m.plateMin - cpPlateSet(t)) / cpPlateSet(t) > 0.15)
+    h.push({ tone: 'warning', text: 'The record now measures ' + Math.round(m.plateMin) + ' min a round against the ' + cpPlateSet(t) + ' set.', use: true });
+  return h;
+}
+function cpSrcWord(x) { return x.src === 'set' ? 'set' : x.src === 'measured' ? 'measured' : 'not known'; }
+function cpRoundRowHtml(client, t, ref, rg, auto) {
+  var rd = cpRound(client, t), tone = rd.perHour != null && ref ? figToneAgainst(rd.perHour, ref.cost, 5) : null;
+  var fig = function(x, unit) { return x.v != null ? x.v + (unit || '') + ' (' + cpSrcWord(x) + ')' : '? (' + cpSrcWord(x) + ')'; };
+  var breakdown = 'Pickle ' + fig(rd.pickle, ' min') + ' + plate ' + fig(rd.plate, ' min') + ' + ' + rd.over + ' min logistics and other steps' + (rd.total ? ' = ' + Math.round(rd.total) + ' min a round' : '');
+  var mat = cpMaterials(client.id, rg.from, rg.to).filter(function(x) { return x.base === t.base && (!t.gauge || !x.gauge || x.gauge === t.gauge); });
+  var pcs = mat.reduce(function(a, x) { return a + x.billedNos; }, 0), rev = mat.reduce(function(a, x) { return a + x.revenue; }, 0);
+  var hrs = rd.pcs.v > 0 && rd.total ? pcs / rd.pcs.v * rd.total / 60 : 0;
+  var hints = cpRoundHints(rd, auto ? null : t);
+  var id = auto ? 'auto-' + t.base + '|' + t.gauge : t.id;
+  var h = '<details class="inv-row-fold" data-cp-time="' + escHtml(id) + '"><summary class="inv-row inv-row-2"><span class="inv-row-main">' +
+    '<span class="inv-row-title"><span class="inv-id">' + escHtml(t.name) + '</span>' + (t.line ? ' · ' + escHtml(prodLineName(t.line)) : '') + (auto ? ' · <span class="inv-note">from the record</span>' : '') + '</span>' +
+    '<span class="inv-row-meta inv-row-wrap">' + escHtml(fig(rd.pcs, ' pcs') + ' a round · ' + breakdown) + '</span>' +
+    (hints.length ? '<span class="inv-row-meta inv-row-wrap"><span class="inv-dot inv-dot-' + hints[0].tone + '">' + todoPlural(hints.length, 'thing', 'things') + ' to look at</span></span>' : '') +
+    '</span><span class="inv-row-end"><span class="inv-row-stack">' + (rd.perHour != null ? figHtml(formatCurrency(rd.perHour), tone) + '<span class="inv-row-meta">an hour</span>' : '<span class="inv-row-meta">—</span>') + '</span></span></summary>' +
+    '<div class="inv-panel-body">';
+  h += '<div class="inv-row-meta inv-row-wrap">' + escHtml((rd.rate ? formatCurrency(rd.rate.rate) + '/' + (rd.rate.unit === 'NOS' ? 'pc' : 'kg') + ' (' + rd.rate.src + ')' : 'No rate on record') +
+    (rd.perRound != null ? ' · ' + formatCurrency(rd.perRound) + ' a round' : '') +
+    (ref && rd.perHour != null ? ' · an hour of the plant costs ' + formatCurrency(ref.cost) + ' and earns ' + formatCurrency(ref.revenue) : '')) + '</div>';
+  h += '<div class="inv-row-meta inv-row-wrap" data-cp-measured>' + escHtml('The record: ' + (rd.m.nPlate ? rd.m.nPlate + ' plating round' + (rd.m.nPlate === 1 ? '' : 's') + ' timed' : 'no plating round timed') +
+    ', ' + (rd.m.nPickle ? rd.m.nPickle + ' pickling load' + (rd.m.nPickle === 1 ? '' : 's') : 'no pickling load') + ' timed' + (rd.m.first ? ', ' + formatDate(rd.m.first) + ' – ' + formatDate(rd.m.last) : '') +
+    '. The times fill in as the register photos and pickling messages come in.') + '</div>';
+  if (pcs > 0) h += '<div class="inv-row-meta inv-row-wrap">' + escHtml('In ' + rg.label + ': ' + cpNum(pcs) + ' pcs billed, about ' + formatNum(hrs, 1) + ' hours of rounds for ' + formatCurrency(rev) + (ref ? ', which cost the plant about ' + formatCurrency(hrs * ref.cost) : '')) + '</div>';
+  if (rd.m.weeks.length >= 2) h += chartLines(rd.m.weeks.map(function(w) { return formatDate(w.week).slice(0, 6); }), [{ label: 'Minutes a round', values: rd.m.weeks.map(function(w) { return Math.round(w.min); }) }], { unit: 'min', ariaLabel: 'Plating minutes a round by week' });
+  hints.forEach(function(x) {
+    h += '<div class="inv-callout inv-callout-' + (x.tone === 'ok' ? 'ok' : x.tone === 'warning' ? 'warning' : 'info') + ' inv-mt-8">' + escHtml(x.text) +
+      (x.use && !auto ? ' <button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invCpTimeUseMeasured" data-id="' + escHtml(t.id) + '">Use ' + Math.round(rd.m.plateMin) + ' min</button>' : '') + '</div>';
+  });
+  h += '<div class="inv-toolbar inv-mt-8">' + (auto
+    ? '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invCpTimeAdd" data-key="' + escHtml(t.base + '|' + t.gauge) + '">Set its times</button>'
+    : '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invCpTimeEdit" data-id="' + escHtml(t.id) + '">Edit</button><button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invCpTimeRemove" data-id="' + escHtml(t.id) + '">Remove</button>') + '</div>';
+  return h + '</div></details>';
+}
+function cpHoursHtml(clientId) {
+  var client = (S.clients || []).find(function(c) { return c.id === clientId; });
+  if (!client) return '';
+  var times = cpPartTimes(client), piece = client.billingMode === 'piece' || client.billingMode === 'nos_to_weight';
+  // Parts the production record has timed rounds for, not yet set: learnt from the record, listed after the set ones.
+  var setKeys = {}; times.forEach(function(t) { setKeys[t.base + '|' + (t.gauge || '')] = 1; });
+  var auto = cpMaterials(clientId, '0000-01-01', '9999-12-31').filter(function(p) { return !setKeys[p.base + '|' + p.gauge]; })
+    .map(function(p) { return { base: p.base, gauge: p.gauge, name: p.name, n: cpMeasure(clientId, p.base, p.gauge).plate.length }; })
+    .filter(function(p) { return p.n >= 2; }).sort(function(a, b) { return b.n - a.n; }).slice(0, 8);
+  if (!times.length && !piece && !auto.length && !_cpTimeForm) return '';
+  var ref = cpLineHourRef(), rg = cpPeriodRange();
+  var h = '<div class="inv-panel inv-panel-flush" data-card="hours"><div class="inv-panel-head"><span class="inv-panel-title">By the hour</span>' +
+    '<span class="inv-note">pickle + plate + ' + cpOverheadMin() + ' min a round</span></div>';
+  h += '<div class="inv-panel-body inv-note" data-cp-hour-ref>' + (ref ? 'An hour costs the plant <strong class="inv-num">' + formatCurrency(ref.cost) + '</strong> and earns it <strong class="inv-num">' + formatCurrency(ref.revenue) + '</strong> on average: the last 90 days at ' +
+    (ref.live ? 'the live cost' : 'the typed cost') + ' ' + formatCurrency(ref.perKg) + '/kg, ' + cpNum(ref.kg) + ' kg over ' + ref.days + ' working days × ' + PROD_LINES.length + ' lines × ' + CP_LINE_HOURS_DAY + ' hours.'
+    : 'No weighed billing in the last 90 days, so an hour has no cost to be set against yet.') +
+    ' <label data-nodirty>Logistics and other steps, every round <input type="number" min="0" step="1" class="inv-input inv-input-sm inv-input-num" id="cpOverhead" value="' + cpOverheadMin() + '" aria-label="Minutes of logistics and other steps a round"> min</label></div>';
+  times.forEach(function(t) { h += cpRoundRowHtml(client, t, ref, rg, false); });
+  auto.forEach(function(t) { h += cpRoundRowHtml(client, t, ref, rg, true); });
+  if (_cpTimeForm) {
+    var f = typeof _cpTimeForm === 'object' ? _cpTimeForm : {};
+    var parts = cpMaterials(clientId, '0000-01-01', '9999-12-31').sort(function(a, b) { return String(a.name).localeCompare(String(b.name)); });
+    var ms = f.key ? cpMeasured(cpMeasure(clientId, f.key.split('|')[0], f.key.split('|')[1] || '')) : null;
+    var ph = function(v) { return v != null ? ' placeholder="' + Math.round(v) + ' measured"' : ''; };
+    h += '<div class="inv-panel-body" id="cpTimeForm" data-nodirty><div class="inv-fields">' +
+      '<label class="inv-field"><span class="inv-field-label">Part</span><select class="inv-select" id="cpTimePart"' + (f.id ? ' disabled' : '') + '><option value="">Pick the part</option>' +
+      parts.map(function(p) { var k = p.base + '|' + p.gauge; return '<option value="' + escHtml(k) + '"' + (f.key === k ? ' selected' : '') + '>' + escHtml(p.name) + '</option>'; }).join('') + '</select></label>' +
+      '<label class="inv-field"><span class="inv-field-label">Line</span><select class="inv-select" id="cpTimeLine">' + PROD_LINES.map(function(l) { return '<option value="' + l + '"' + ((f.line || 'vat-a2') === l ? ' selected' : '') + '>' + escHtml(prodLineName(l)) + '</option>'; }).join('') + '</select></label>' +
+      '<label class="inv-field"><span class="inv-field-label">Pieces a round</span><input type="number" min="1" step="1" inputmode="numeric" class="inv-input inv-input-num" id="cpTimePieces" value="' + (f.pieces != null ? f.pieces : '') + '"' + ph(ms && ms.pcs) + '></label>' +
+      '<label class="inv-field"><span class="inv-field-label">Pickling, minutes a round</span><input type="number" min="0" step="1" inputmode="numeric" class="inv-input inv-input-num" id="cpTimePickle" value="' + (f.pickleMin != null ? f.pickleMin : '') + '"' + ph(ms && ms.pickPerPc && ms.pcs ? ms.pickPerPc * ms.pcs : null) + '></label>' +
+      '<label class="inv-field"><span class="inv-field-label">Plating, minutes a round</span><input type="number" min="1" step="1" inputmode="numeric" class="inv-input inv-input-num" id="cpTimePlate" value="' + (f.plateMin != null ? f.plateMin : '') + '"' + ph(ms && ms.plateMin) + '></label></div>' +
+      '<div class="inv-note">Leave a figure blank to use what the production record measures.</div>' +
+      '<div class="inv-toolbar"><button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invCpTimeCancel">Cancel</button><button class="inv-btn inv-btn-primary inv-btn-sm" data-action="invCpTimeSave">Save</button></div></div>';
+  } else {
+    h += '<div class="inv-panel-body">' + (times.length || auto.length ? '' : '<div class="inv-note inv-mb-8">No part of this client has its round timed yet, set or in the production record. A part plated by the round is judged here by what an hour of it earns.</div>') +
+      '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invCpTimeAdd">Set a part’s times</button></div>';
+  }
+  return h + '</div>';
+}
+var _cpTimeForm = false;
+function cpTimeFormOpen(key, id) {
+  var client = (S.clients || []).find(function(c) { return c.id === getPerfClientId(); });
+  var t = id && client ? cpPartTimes(client).find(function(x) { return x.id === id; }) : null;
+  _cpTimeForm = t ? { id: t.id, key: t.base + '|' + (t.gauge || ''), line: t.line, pieces: t.pieces, pickleMin: t.pickleMin, plateMin: cpPlateSet(t) } : { key: key || '' };
+  renderClientsPage();
+}
+function cpTimeSave() {
+  var client = (S.clients || []).find(function(c) { return c.id === getPerfClientId(); });
+  var v = function(id) { var el = document.getElementById(id); return el ? el.value : ''; };
+  if (!client) return;
+  var f = typeof _cpTimeForm === 'object' ? _cpTimeForm : {};
+  var key = f.id ? f.key : v('cpTimePart');
+  var num = function(id, min) { var x = v(id); if (String(x).trim() === '') return null; var n = parseFloat(x); return isNaN(n) || n < min ? NaN : n; };
+  var pieces = num('cpTimePieces', 1), pickleMin = num('cpTimePickle', 0), plateMin = num('cpTimePlate', 1);
+  if (!key) { showToast('Pick the part', 'error'); return; }
+  if ([pieces, pickleMin, plateMin].some(function(x) { return x !== null && isNaN(x); })) { showToast('Enter whole minutes and pieces, or leave them blank', 'error'); return; }
+  var sel = document.getElementById('cpTimePart'), name = sel && sel.selectedOptions[0] && sel.value ? sel.selectedOptions[0].textContent : key;
+  var kk = key.split('|');
+  if (!Array.isArray(client.partTimes)) client.partTimes = [];
+  var old = client.partTimes.find(function(t) { return t.base === kk[0] && (t.gauge || '') === (kk[1] || ''); });
+  client.partTimes = client.partTimes.filter(function(t) { return t !== old; });
+  var rec = { id: old ? old.id : 'PT-' + Date.now().toString(36), base: kk[0], gauge: kk[1] || '', name: old ? old.name : name, line: v('cpTimeLine') || 'vat-a2', at: Date.now() };
+  if (pieces != null) rec.pieces = pieces;
+  if (pickleMin != null) rec.pickleMin = pickleMin;
+  if (plateMin != null) rec.plateMin = plateMin;
+  // What the figures were before, so a change of time is on record.
+  if (old) rec.history = (old.history || []).concat([{ at: old.at || null, pieces: old.pieces, pickleMin: old.pickleMin, plateMin: cpPlateSet(old) }]);
+  client.partTimes.push(rec);
+  _cpTimeForm = false;
+  saveState();
+  renderClientsPage();
+  showToast('Times saved for ' + rec.name);
+}
+function cpTimeUseMeasured(id) {
+  var client = (S.clients || []).find(function(c) { return c.id === getPerfClientId(); });
+  var t = client ? cpPartTimes(client).find(function(x) { return x.id === id; }) : null;
+  if (!t) return;
+  var m = cpMeasured(cpMeasure(client.id, t.base, t.gauge));
+  if (m.plateMin == null) return;
+  t.history = (t.history || []).concat([{ at: t.at || null, pieces: t.pieces, pickleMin: t.pickleMin, plateMin: cpPlateSet(t) }]);
+  t.plateMin = Math.round(m.plateMin); delete t.minutes; t.at = Date.now();
+  saveState();
+  renderClientsPage();
+  showToast('Plating set to ' + t.plateMin + ' min a round, as measured');
+}
+function cpTimeRemove(id) {
+  var client = (S.clients || []).find(function(c) { return c.id === getPerfClientId(); });
+  if (!client || !Array.isArray(client.partTimes)) return;
+  client.partTimes = client.partTimes.filter(function(t) { return t.id !== id; });
+  saveState();
+  renderClientsPage();
+}
+function cpSetOverhead(v) {
+  var n = parseFloat(v);
+  if (isNaN(n) || n < 0) return;
+  S.perfCfg = Object.assign({}, S.perfCfg || {}, { overheadMin: n });
+  saveState();
+  renderClientsPage();
 }
 /* ===== IM ADD CHALLAN FORM (Phase 4 — Tier 1) ===== */
 var _challanForm = null;
@@ -32035,6 +33044,8 @@ function renderAddChallanForm() {
   html += '<div class="inv-actionbar"><div class="inv-actionbar-total"><div class="inv-actionbar-label">Challan amount</div>' +
     '<div class="inv-actionbar-value" id="imChallanTotal">' + formatCurrency(total) + '</div></div>' +
     '<button type="button" class="inv-btn inv-btn-secondary" data-k="cancel" data-action="invCancelChallan">Cancel</button>' +
+    // Challans come several to a delivery: this one saves and opens the next on the same client, date and vehicle.
+    (_challanForm._editingId ? '' : '<button type="button" class="inv-btn inv-btn-secondary" data-k="savenext" data-action="invSaveChallanNext">Save, add another</button>') +
     '<button type="button" class="inv-btn inv-btn-primary" data-k="save" data-kbd-ring data-action="invSaveChallan">' + (_challanForm._editingId ? 'Update challan' : 'Save challan') + '</button></div></div>';
 
   area.innerHTML = html;
@@ -32321,12 +33332,19 @@ function saveChallan() {
   saveVehicleToClient(_challanForm.clientId, _challanForm.vehicleNo);
   saveState();
 
+  var next = _challanForm._another ? { clientId: _challanForm.clientId, challanDate: _challanForm.challanDate, vehicleNo: _challanForm.vehicleNo } : null;
   challanFormClosed();
   _imToolbarRendered = false;
   renderIMToolbar();
   _imToolbarRendered = true;
   _renderIMView();
-  showToast('Challan saved (' + entry.items.length + ' item' + (entry.items.length > 1 ? 's' : '') + ')');
+  if (next) {
+    showAddChallanForm();
+    _challanForm.clientId = next.clientId; _challanForm.challanDate = next.challanDate; _challanForm.vehicleNo = next.vehicleNo;
+    _challanFocusNext = { k: 'challanNo', sel: null };
+    renderAddChallanForm();
+  }
+  showToast('Challan saved (' + entry.items.length + ' item' + (entry.items.length > 1 ? 's' : '') + ')' + (next ? ' · the next is on the same client and date' : ''));
 }
 
 function cancelAddChallan() {
@@ -33373,6 +34391,8 @@ function onDocClick(e) {
     case 'invAttSet': setAttState(parseInt(btn.dataset.id, 10), btn.dataset.st); break;
     case 'invAttCycle': cycleAttState(parseInt(btn.dataset.id, 10), btn.dataset.date); break;
     case 'invAttAllPresent': attAllPresent(); break;
+    case 'invAttEdit': attEditOpen(btn.dataset.id); break;
+    case 'invAttEditClose': _attEditId = null; closeOverlay(); break;
     case 'invAttAddExtra': attAddExtra(); break;
     case 'invAttRemoveExtra': attRemoveExtra(parseInt(btn.dataset.idx, 10)); break;
     case 'invAreaExplain': openAreaExplain(btn.dataset.ex); break;
@@ -33421,7 +34441,8 @@ function onDocClick(e) {
     case 'invRegQualityCerts': showQualityCertificates(_regSelectedIds()); break;
     // Phase 4: IM Add Challan
     case 'invShowAddChallan': showAddChallanForm(); break;
-    case 'invSaveChallan': saveChallan(); break;
+    case 'invSaveChallan': if (_challanForm) _challanForm._another = false; saveChallan(); break;
+    case 'invSaveChallanNext': if (_challanForm) _challanForm._another = true; saveChallan(); break;
     case 'invCancelChallan': cancelAddChallan(); break;
     case 'invAddChallanLine': captureChallanFields(); addChallanLine(); break;
     case 'invRemoveChallanLine': captureChallanFields(); removeChallanLine(parseInt(btn.dataset.idx)); break;
@@ -33455,6 +34476,8 @@ function onDocClick(e) {
     // Phase 7: Stats period chips
     case 'invStatsPeriod': _statsPeriod = btn.dataset.period; renderStats(); break;
     case 'invStatsTab': statsSetTab(btn.dataset.tab); break;
+    case 'invStatsGo': statsSetTab(btn.dataset.tab); break;
+    case 'invStatsInsightsAll': uiRevealEl(document.getElementById('statsInsights')); break;
     // P9: Trend granularity chips (day/week/month)
     case 'invStatsTrendGran': _statsTrendGran = btn.dataset.gran; renderStats(); break;
     // Chart controls: what the trend plots, how it is drawn, and how the
@@ -33465,6 +34488,14 @@ function onDocClick(e) {
     case 'invStatsTopBy': _statsTopBy = btn.dataset.by; renderStats(); break;
     // Client performance sub-view
     case 'invPerfSeries': _cpSeries = btn.dataset.series; renderClientsPage(); break;
+    case 'invCpPeriod': _cpPeriod = btn.dataset.p; renderClientsPage(); break;
+    case 'invCpScope': _cpScope = btn.dataset.s; renderClientsPage(); break;
+    case 'invCpTimeAdd': cpTimeFormOpen(btn.dataset.key || ''); break;
+    case 'invCpTimeEdit': cpTimeFormOpen('', btn.dataset.id); break;
+    case 'invCpTimeUseMeasured': cpTimeUseMeasured(btn.dataset.id); break;
+    case 'invCpTimeCancel': _cpTimeForm = false; renderClientsPage(); break;
+    case 'invCpTimeSave': cpTimeSave(); break;
+    case 'invCpTimeRemove': cpTimeRemove(btn.dataset.id); break;
     // Phase 7: Client drill-down overlay
     case 'invStatsClientDrill': openClientDrillOverlay(btn.dataset.clientId); break;
     // Phase 7: Flippable card
@@ -33615,6 +34646,7 @@ function onDocClick(e) {
       if (dashAction(action, btn)) break;
       if (navAction(action, btn)) break;
       if (prodAction(action, btn)) break;
+      if (homeAction(action, btn)) break;
       if (powerAction(action, btn)) break;
       if (action.indexOf('invStock') === 0) stockAction(action, btn);
       else if (action.indexOf('invTodo') === 0) todoAction(action, btn);
@@ -33785,6 +34817,14 @@ function onDocChange(e) {
   // Client performance: which account is under the lens
   if (e.target.id === 'cpClientSelect') {
     setPerfClientId(e.target.value);
+    _cpTimeForm = false;
+    renderClientsPage();
+    return;
+  }
+  if (e.target.id === 'cpOverhead') { cpSetOverhead(e.target.value); return; }
+  if (e.target.dataset && e.target.dataset.homeShow) { homeShowToggle(e.target); return; }
+  if (e.target.id === 'cpFrom' || e.target.id === 'cpTo') {
+    if (e.target.id === 'cpFrom') _cpFrom = e.target.value; else _cpTo = e.target.value;
     renderClientsPage();
     return;
   }
@@ -33844,6 +34884,7 @@ document.addEventListener('input', function(e) {
     renderClientList(e.target.value);
   }
   if (e.target.id === 'ceditPoTpl') { clientPoExampleRefresh(e.target); return; }
+  if (e.target.id === 'cpMatSearch') { _cpQuery = e.target.value; cpWorkedRedraw(); return; }
   // Attendance hours. Written on every keystroke so nothing is lost, but never
   // re-rendered here: replacing the field mid-entry is what ended the keyboard
   // path in challan entry, and a number input is the same trap.
@@ -34454,7 +35495,7 @@ function navLeaveOk() {
    unsaved work on screen it asks first (owner, 29 Sep 2026: "that's a real bug" — only the browser's Back asked, and a
    tap on another screen dropped a half-typed challan). On Leave the same tap runs again with nothing typed left to lose.
    Caught before events.js sees it (capture), so the screen is never left and then asked about. */
-var NAV_LEAVE_ACTIONS = { invSwitchTab: 1, invSideGo: 1, invStockBack: 1, invProdBack: 1, invAttView: 1, invDashStockView: 1 };
+var NAV_LEAVE_ACTIONS = { invSwitchTab: 1, invSideGo: 1, invStockBack: 1, invProdBack: 1, invProdHandDone: 1, invAttView: 1, invDashStockView: 1 };
 function navIsLeave(el) {
   // A tab inside a dialog moves within the dialog, not off the screen.
   return !!(el && el.dataset && !el.closest('.inv-scrim-dialog') && (NAV_LEAVE_ACTIONS[el.dataset.action] || el.getAttribute('role') === 'tab'));
@@ -35075,6 +36116,25 @@ if (!S._cnSeriesStart1) {
     c.poFromChallan = 'DA1/{challan:5}';
   });
   S._clientDocDefaults1 = true;
+  saveJSON(STORAGE_KEY, S);
+})();
+
+/* ===== SAMARTH'S PARTS BY THE ROUND, RECORDED ONCE =====
+   Owner, 30 Sep 2026: "3302 at 9/pc takes about 30 mins/piece and we can only do 24 pcs at a time in VAT A2; 3303 at 3/pc
+   takes about 30 minutes and we can do 80 pcs at a time in VAT A2." Set on the client whose name reads Samarth, only where
+   it has no part times, and once: the flag travels with the state, so a time the owner changed or removed stays so. */
+(function() {
+  if (S._partTimes1) return;
+  var c = (S.clients || []).find(function(x) { return /SAMARTH/i.test(String(x.name || '')); });
+  if (!c) return;
+  if (!Array.isArray(c.partTimes) || !c.partTimes.length) {
+    var at = Date.now();
+    c.partTimes = [['5174 5460 3302', 24], ['5166 5460 3303', 80]].map(function(p, i) {
+      var idn = cpPartIdentity(p[0], '');
+      return { id: 'PT-seed' + (i + 1), base: idn.base, gauge: idn.gauge, name: p[0], line: 'vat-a2', pieces: p[1], plateMin: 30, at: at, note: 'owner, 30 Sep 2026' };
+    });
+  }
+  S._partTimes1 = true;
   saveJSON(STORAGE_KEY, S);
 })();
 

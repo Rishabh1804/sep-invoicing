@@ -124,6 +124,8 @@ function renderAddChallanForm() {
   html += '<div class="inv-actionbar"><div class="inv-actionbar-total"><div class="inv-actionbar-label">Challan amount</div>' +
     '<div class="inv-actionbar-value" id="imChallanTotal">' + formatCurrency(total) + '</div></div>' +
     '<button type="button" class="inv-btn inv-btn-secondary" data-k="cancel" data-action="invCancelChallan">Cancel</button>' +
+    // Challans come several to a delivery: this one saves and opens the next on the same client, date and vehicle.
+    (_challanForm._editingId ? '' : '<button type="button" class="inv-btn inv-btn-secondary" data-k="savenext" data-action="invSaveChallanNext">Save, add another</button>') +
     '<button type="button" class="inv-btn inv-btn-primary" data-k="save" data-kbd-ring data-action="invSaveChallan">' + (_challanForm._editingId ? 'Update challan' : 'Save challan') + '</button></div></div>';
 
   area.innerHTML = html;
@@ -410,12 +412,19 @@ function saveChallan() {
   saveVehicleToClient(_challanForm.clientId, _challanForm.vehicleNo);
   saveState();
 
+  var next = _challanForm._another ? { clientId: _challanForm.clientId, challanDate: _challanForm.challanDate, vehicleNo: _challanForm.vehicleNo } : null;
   challanFormClosed();
   _imToolbarRendered = false;
   renderIMToolbar();
   _imToolbarRendered = true;
   _renderIMView();
-  showToast('Challan saved (' + entry.items.length + ' item' + (entry.items.length > 1 ? 's' : '') + ')');
+  if (next) {
+    showAddChallanForm();
+    _challanForm.clientId = next.clientId; _challanForm.challanDate = next.challanDate; _challanForm.vehicleNo = next.vehicleNo;
+    _challanFocusNext = { k: 'challanNo', sel: null };
+    renderAddChallanForm();
+  }
+  showToast('Challan saved (' + entry.items.length + ' item' + (entry.items.length > 1 ? 's' : '') + ')' + (next ? ' · the next is on the same client and date' : ''));
 }
 
 function cancelAddChallan() {

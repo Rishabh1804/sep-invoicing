@@ -308,8 +308,10 @@ test('S20: a part is its client\'s part at its gauge, and its row names the clie
   await expect(rows).toHaveCount(4);
   const plate = rows.filter({ hasText: 'BASE PLATE' });
   await expect(plate).toHaveCount(2);
-  await expect(plate.filter({ hasText: 'BETA CLAMPS' })).toContainText('₹20.00/kg');
-  await expect(plate.filter({ hasText: 'ALPHA WORKS' })).toContainText('₹10.00/kg');
+  await expect(plate.filter({ hasText: 'BETA CLAMPS · ₹' })).toContainText('₹20.00/kg');
+  await expect(plate.filter({ hasText: 'ALPHA WORKS · ₹' })).toContainText('₹10.00/kg');
+  // A code both clients send says so on each row, counted apart (P118).
+  await expect(plate.filter({ hasText: 'ALPHA WORKS · ₹' })).toContainText('code also sent by BETA CLAMPS, counted apart');
   await expect(rows.filter({ hasText: '35X6' })).toContainText('₹12.00/kg');
   await expect(rows.filter({ hasText: '40X6' })).toContainText('₹14.00/kg');
 });

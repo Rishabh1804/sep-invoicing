@@ -225,3 +225,111 @@ function statsMarginHtml(period, filtered, tonnage) {
   }
   return h + '</div>';
 }
+
+/* ---------- Overview: the questions, each answered as a story ----------
+   Owner, 30 Sep 2026: "Stats view needs an overhaul, it puts insights front and center and doesn't present itself in a
+   really engaging way"; they chose the Overview to be led by the questions the owner asks, each answered as a story card:
+   the figure, one sentence that says what it means and why, a small chart, and the way to the tab with the detail. The
+   cards read the same figures as the panels under them (statsOverviewHtml, statsMonthsHtml, the insights), never a second
+   arithmetic. */
+function statsMonthRows(n) {
+  var today = localDateStr(), rows = [], active = statsInvoices().filter(function(i) { return i.date; });
+  for (var k = (n || 6) - 1; k >= 0; k--) {
+    var d = new Date(today + 'T00:00:00'); d.setDate(1); d.setMonth(d.getMonth() - k);
+    var from = isoOf(d), to = payMonthEnd(from);
+    if (to > today) to = today;
+    var inv = active.filter(function(i) { return i.date >= from && i.date <= to; });
+    var w = weighLines(inv), c = w.kg > 0 ? liveCost(from, to, w.kg) : null;
+    rows.push({ month: from.slice(0, 7), label: insMonthLabel(from), kg: w.kg, real: w.kg > 0 ? w.revKnown / w.kg : null, cost: c ? c.perKg : null,
+      cap: STATS_CAPACITY_KG_DAY * statsWorkingDays(from, to), rev: inv.reduce(function(s, i) { return s + (i.taxableValue || 0); }, 0) });
+  }
+  return rows;
+}
+function statsStory(key, question, body, go, goLabel) {
+  return '<div class="inv-panel inv-panel-flush" data-card="story" data-story="' + key + '"><div class="inv-panel-head"><span class="inv-panel-title">' + question + '</span>' +
+    (go ? '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="' + go.action + '"' + (go.attrs || '') + '>' + goLabel + '</button>' : '') + '</div>' + body + '</div>';
+}
+function statsStorySay(tone, text) { return statsBody('<div class="inv-row-wrap" data-story-say>' + uiDot(tone, text) + '</div>'); }
+
+function statsStoriesHtml(period, filtered, prior, tonnage, periodCost) {
+  var out = '', r = statsRangeIso(period), plabel = PERIOD_LABELS[period] || '';
+  var months = statsMonthRows(6);
+  var perKg = '<span class="inv-tile-of">/kg</span>';
+  var tab = function(t) { return { action: 'invStatsGo', attrs: ' data-tab="' + t + '"' }; };
+
+  // 1. Are we making money?
+  var kg = tonnage.kg, real = kg > 0 ? tonnage.revKnown / kg : null, cost = periodCost.perKg > 0 ? periodCost.perKg : null;
+  var contrib = real != null && cost != null ? real - cost : null;
+  var body = statsTiles(statsTile('real', 'Realisation', real != null ? formatCurrency(real) + perKg : '&mdash;', statsTileSub(cost != null ? periodCost.label + formatCurrency(cost) + '/kg' : 'no cost to set it against'),
+      real != null && cost != null ? figToneAgainst(real, cost, 5) : '') +
+    statsTile('contrib', 'Left per kilo', contrib != null ? statsSigned(contrib) + perKg : '&mdash;', statsTileSub(contrib != null ? statsSigned(gstRound(contrib * kg)) + ' on ' + escHtml(plabel.toLowerCase() || 'the period') : ''),
+      contrib == null ? '' : contrib >= 0 ? 'ok' : 'danger'));
+  var mm = months.filter(function(x) { return x.real != null; });
+  if (mm.length >= 2) body += statsBody(chartLines(mm.map(function(x) { return x.label; }), [
+    { label: 'Realisation', values: mm.map(function(x) { return gstRound(x.real); }) },
+    { label: 'Cost', values: mm.map(function(x) { return x.cost != null ? gstRound(x.cost) : null; }), tone: 3 }], { unit: 'rate', ariaLabel: 'Realisation against cost by month' }));
+  body += contrib == null ? statsStorySay('neutral', kg > 0 ? 'No cost to judge the price against yet.' : 'No weighed tonnage in the period.')
+    : contrib >= 0 ? statsStorySay('ok', 'Yes: every kilo left ' + formatCurrency(contrib) + ' after the full cost, ' + formatCurrency(gstRound(contrib * kg)) + ' on the period.')
+    : statsStorySay('danger', 'Not yet: every kilo cost ' + formatCurrency(-contrib) + ' more than it was billed at, ' + formatCurrency(gstRound(-contrib * kg)) + ' on the period.');
+  out += statsStory('money', 'Are we making money?', body, tab('cost'), 'The cost');
+
+  // 2. Who is driving it? The worst-priced large account, and the biggest mover against the period before.
+  var m = null;
+  try { m = statsClientMargins(period, filtered, tonnage); } catch (e) { m = null; }
+  body = '';
+  var worst = m ? m.ranked.filter(function(x) { return x.kg >= m.kg * 0.1; })[0] : null;
+  var byC = {}, pc = {};
+  filtered.forEach(function(i) { byC[i.clientId] = (byC[i.clientId] || 0) + (i.taxableValue || 0); });
+  prior.forEach(function(i) { pc[i.clientId] = (pc[i.clientId] || 0) + (i.taxableValue || 0); });
+  var moves = Object.keys(Object.assign({}, byC, pc)).map(function(id) { return { id: id, d: (byC[id] || 0) - (pc[id] || 0) }; }).sort(function(a, b) { return Math.abs(b.d) - Math.abs(a.d); });
+  var nameOf = function(id) { var c = (S.clients || []).find(function(x) { return String(x.id) === String(id); }); return c ? c.name : 'A client'; };
+  if (m && m.ranked.length) {
+    var top = m.ranked.slice().sort(function(a, b) { return b.kg - a.kg; }).slice(0, 4);
+    body += statsBody(chartRankedBars(top.map(function(x) {
+      return { label: x.name, value: x.kg, display: formatNum(x.kg / 1000, 1) + ' t', sub: formatCurrency(x.net) + '/kg · ' + Math.round(x.kg / m.kg * 100) + '% of the plant',
+        tone: x.vsFull < 0 ? 'danger' : 'good', action: 'invStatsClientDrill', clientId: x.id };
+    }), { unit: 'kg' }));
+  }
+  if (worst && worst.vsFull < 0) body += statsStorySay('danger', worst.name + ' fills ' + Math.round(worst.kg / m.kg * 100) + '% of the plant at ' + formatCurrency(worst.net) + '/kg, ' + formatCurrency(-worst.vsFull) + ' under the full cost: ' + formatCurrency(-worst.money) + ' on the period.');
+  if (moves.length && prior.length && Math.abs(moves[0].d) > 0) body += statsStorySay(moves[0].d >= 0 ? 'ok' : 'warning', nameOf(moves[0].id) + ' billed ' + formatCurrency(Math.abs(moves[0].d)) + (moves[0].d >= 0 ? ' more' : ' less') + ' than in ' + (PERIOD_PRIOR_LABELS[period] || 'the period before') + ', the biggest change of any client.');
+  if (!body) body = statsStorySay('neutral', 'No weighed billing in the period to rank the clients by.');
+  out += statsStory('clients', 'Who is driving it?', body, tab('clients'), 'The clients');
+
+  // 3. Is the plant full?
+  var cap = STATS_CAPACITY_KG_DAY * statsWorkingDays(r.from, r.to), capPct = cap > 0 && kg > 0 ? kg / cap : null;
+  body = statsTiles(statsTile('cap', 'Used', capPct != null ? Math.round(capPct * 100) + '%' : '&mdash;', statsTileSub(formatNum(kg / 1000, 1) + ' t of ~' + formatNum(cap / 1000, 0) + ' t (2 shifts)'),
+    capPct != null ? figToneCapacity(capPct * 100) : ''));
+  var mk = months.filter(function(x) { return x.kg > 0; });
+  if (mk.length >= 2) body += statsBody(chartBars(mk.map(function(x) { return { label: x.label, value: gstRound(x.kg / 1000) }; }), { unit: 'count', ariaLabel: 'Tonnes plated by month' }));
+  var avg = real != null ? real : null;
+  body += capPct == null ? statsStorySay('neutral', 'No weighed tonnage in the period.')
+    : capPct >= 0.8 ? statsStorySay('ok', 'Busy: ' + Math.round(capPct * 100) + '% of two shifts. Growth now needs more hours or better-paying work, not more of the same.')
+    : statsStorySay(capPct >= 0.6 ? 'warning' : 'danger', formatNum((cap - kg) / 1000, 1) + ' t of the two shifts went unused' + (avg ? ': at ₹13/kg that is ' + formatCurrency(gstRound((cap - kg) * 13)) + ' of work the plant could have taken on its fixed cost' : '') + '.');
+  out += statsStory('plant', 'Is the plant full?', body, tab('trends'), 'The trend');
+
+  // 4. What changed? The most urgent insights, as sentences, and the month's pace.
+  var ins = [];
+  try { ins = todoAppAll().filter(function(t) { return t.rule.indexOf('ins') === 0; }); } catch (e) { ins = []; }
+  var rank = { red: 0, amber: 1, info: 2 };
+  ins.sort(function(a, b) { return (rank[a.tone] != null ? rank[a.tone] : 3) - (rank[b.tone] != null ? rank[b.tone] : 3); });
+  body = '';
+  var p = null;
+  try { p = predMonthPace(); } catch (e) { p = null; }
+  if (p) body += statsStorySay(p.prevRev > 0 && p.projRev < p.prevRev ? 'warning' : 'ok', 'This month is heading for ' + formatCurrency(p.projRev) + ' at its pace (' + p.done + ' of ' + p.total + ' working days in), against ' + formatCurrency(p.prevRev) + ' in ' + p.prevLabel + '.');
+  ins.slice(0, 3).forEach(function(t) { body += todoAppRowHtml(t); });
+  if (!body) body = statsStorySay('ok', 'Nothing stands out: no insight is raised on the book right now.');
+  out += statsStory('changed', 'What changed?', body, ins.length > 3 ? { action: 'invStatsInsightsAll' } : null, 'All ' + ins.length + ' insights');
+
+  // 5. Is cash coming in? Only with a statement.
+  if (finHasBank()) {
+    try {
+      var bRows = bankRows(), bLast = bRows[bRows.length - 1], recv = finCtx().recv(), owed = gstRound(recv.reduce(function(s, x) { return s + Math.max(0, x.owed); }, 0));
+      var bBook = bankBookDaysToPay(bankPayHistory(recv));
+      body = statsTiles(statsTile('bal', 'In the bank', statsMoney(bLast.balance), statsTileSub('on ' + escHtml(formatDate(bLast.date))), bLast.balance < 0 ? 'danger' : '') +
+        statsTile('owed', 'Owed to us', statsMoney(owed), statsTileSub(bBook ? 'clients pay in ' + Math.round(bBook.median) + ' days' : ''), bBook ? figTonePaysIn(Math.round(bBook.median)) : ''));
+      body += statsStorySay(bBook && bBook.median > 60 ? 'warning' : 'ok', 'Owed ' + formatCurrency(owed) + (bBook ? ', arriving in about ' + Math.round(bBook.median) + ' days at the usual pace' : '') + '.');
+      out += statsStory('cash', 'Is cash coming in?', body, { action: 'invFinGo', attrs: ' data-tab="overview"' }, 'Finance');
+    } catch (e) { /* no cash story without a readable statement */ }
+  }
+  return out;
+}

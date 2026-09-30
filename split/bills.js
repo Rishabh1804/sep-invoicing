@@ -175,7 +175,7 @@ function _billsCnFormHtml() {
   // the form under the field being typed in.
   var c = _billsCnFigures();
   h += '<div class="inv-callout inv-mb-8' + (c ? '' : ' inv-hidden') + '" data-cn-figures>' + _billsFiguresHtml(c) + '</div>';
-  return h + '<div class="inv-toolbar"><button class="inv-btn inv-btn-secondary" data-action="invCnFormCancel">Cancel</button>' +
+  return h + '<div class="inv-toolbar"><button class="inv-btn inv-btn-secondary" data-action="invCnFormCancel">' + (f.saved ? 'Close' : 'Cancel') + '</button>' +
     '<button class="inv-btn inv-btn-primary" data-action="invCnFormSave">' + (rec ? 'Record note' : 'Issue note') + '</button></div>';
 }
 
@@ -329,9 +329,15 @@ async function billsCnFormSave() {
   getCreditNotes().push(cn);
   recomputeNextCnNumber();
   saveState();
-  _billForm = null;
+  // A note recorded from paper is one of several typed at a sitting: the form stays, on the same client and reason, with the
+  // figures cleared. A new note opens its preview, which is where it goes next.
+  if (rec) {
+    var keep = _billForm;
+    billsCnFormOpen('record');
+    _billForm.clientId = keep.clientId; _billForm.reason = keep.reason; _billForm.fy = keep.fy; _billForm.saved = (keep.saved || 0) + 1;
+  } else _billForm = null;
   renderFinance();
-  showToast(cn.displayNumber + (rec ? ' recorded — ' : ' issued — ') + formatCurrency(cn.grandTotal));
+  showToast(cn.displayNumber + (rec ? ' recorded — ' : ' issued — ') + formatCurrency(cn.grandTotal) + (rec ? ' · the form is ready for the next' : ''));
   if (!rec) showCreditNotePreview(cn.id);
 }
 

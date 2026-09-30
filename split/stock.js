@@ -896,10 +896,34 @@ function renderStockManual() {
     '<input id="stockNewName" class="inv-input inv-toolbar-item" placeholder="Name, e.g. Chromic acid" aria-label="New line name" autocomplete="off">' +
     '<select id="stockNewUnit" class="inv-select inv-select-sm" aria-label="Unit"><option value="kg">kg</option><option value="L">L</option><option value="nos">nos</option></select>' +
     '<button class="inv-btn inv-btn-secondary" data-action="invStockAddLine">Add</button></div></div></div>';
+  h += stockDayEntriesHtml(m.date);
   h += '<div class="inv-actionbar"><div class="inv-actionbar-total"><div class="inv-actionbar-label">' + escHtml(STOCK_KIND_LABEL[m.mode]) + ' on</div>' +
     '<div class="inv-actionbar-value">' + escHtml(stockShortDate(m.date)) + '</div></div>' +
     '<button class="inv-btn inv-btn-primary" data-action="invStockSaveManual">Save</button></div>';
   return h;
+}
+/* What the book holds for one day, every line and kind, pasted or by hand (owner, 30 Sep 2026: after entering the use by
+   hand "there is no way to see what we entered … without an option to edit, see or check anything"). Under the hand form,
+   for the day it is on: each entry with the level it left, Correct and Void. */
+function stockDayEntriesHtml(date) {
+  var st = stockData(), names = {};
+  st.items.forEach(function(i) { names[i.id] = i; });
+  var list = st.entries.filter(function(e) { return e.date === date && e.kind !== 'bill'; })
+    .sort(function(a, b) { return (a.voided ? 1 : 0) - (b.voided ? 1 : 0) || (STOCK_KIND_RANK[a.kind] || 0) - (STOCK_KIND_RANK[b.kind] || 0) || (a.at || 0) - (b.at || 0); });
+  var live = list.filter(function(e) { return !e.voided; }).length;
+  var h = '<div class="inv-panel inv-panel-flush inv-mt-8" id="stockDayEntries" data-card="stockDay"><div class="inv-panel-head"><span class="inv-panel-title">Entered for ' + escHtml(stockShortDate(date)) +
+    ' <span class="inv-panel-count">' + live + '</span></span></div>';
+  if (!list.length) return h + '<div class="inv-empty">Nothing entered for this day yet. Pick another date above to check it.</div></div>';
+  var replayed = {};
+  list.forEach(function(e) {
+    var it = names[e.itemId];
+    if (!replayed[e.itemId]) { replayed[e.itemId] = {}; stockReplay(e.itemId).rows.forEach(function(r) { replayed[e.itemId][r.e.id] = r; }); }
+    var r = replayed[e.itemId][e.id];
+    h += '<div class="inv-row-group"><span>' + escHtml(it ? it.name : 'A line since removed') + '</span>' +
+      (r && r.after != null && !e.voided ? '<span class="inv-num">left ' + escHtml(stockFmtQty(r.after)) + ' ' + escHtml(it ? it.unit || '' : '') + '</span>' : '') + '</div>' +
+      stockEntryRowHtml(e, r, it ? it.unit || '' : '');
+  });
+  return h + '</div>';
 }
 
 function stockSaveManual() {
@@ -936,8 +960,13 @@ function stockSaveManual() {
   });
   if (!n) { showToast('Nothing filled in', 'error'); return; }
   saveState();
-  _stockManual = null;
-  stockSetView('list');
+  // The form stays on the day, with what was saved listed under it: several entries go in at a sitting, and each is
+  // checked where it was made (it went to the list of lines before, and nothing showed what had been entered).
+  m.vals = {};
+  _pageTyped = false;
+  renderStock();
+  var dayEl = document.getElementById('stockDayEntries');
+  if (dayEl && dayEl.scrollIntoView) try { dayEl.scrollIntoView({ block: 'nearest' }); } catch (x) { /* a convenience */ }
   showToast(n + (n === 1 ? ' entry' : ' entries') + ' saved' + (gaps ? ' · ' + gaps + ' count' + (gaps === 1 ? ' differs' : 's differ') + ' from the app' : '') +
     (unpriced ? ' · ' + unpriced + ' without a price: add it on the line' : ''), gaps || unpriced ? 'warning' : 'success');
 }
@@ -1043,7 +1072,10 @@ function stockEntryRowHtml(e, r, unit) {
     (e.raw ? '<details class="inv-mt-4"><summary class="inv-btn-link inv-summary">Message text</summary><div class="inv-quote inv-mt-4">' + escHtml(e.raw) + '</div></details>' : '') +
     (e.kind === 'received' && e.price == null && !e.voided ? '<button class="inv-btn inv-btn-secondary inv-btn-sm inv-mt-8" data-action="invStockBillOpen" data-entry="' + escHtml(e.id) + '">Add its bill</button>' : '') +
     '</div>' +
-    (e.voided ? '' : '<div class="inv-row-end"><button class="inv-btn inv-btn-sm inv-btn-danger' + (armed ? ' inv-btn-solid' : '') + '" data-action="invStockVoid" data-id="' + escHtml(e.id) + '"' +
+    (e.corrects ? '<div class="inv-row-meta">Corrects an entry of ' + escHtml(stockFmtQty(e.corrects.qty)) + ' ' + escHtml(unit) + '</div>' : '') +
+    (e.voided && e.voided.reason ? '<div class="inv-row-meta">' + escHtml(e.voided.reason) + '</div>' : '') +
+    (e.voided ? '' : '<div class="inv-row-end"><button class="inv-btn inv-btn-sm inv-btn-ghost" data-action="invStockCorrect" data-id="' + escHtml(e.id) + '">Correct</button>' +
+      '<button class="inv-btn inv-btn-sm inv-btn-danger' + (armed ? ' inv-btn-solid' : '') + '" data-action="invStockVoid" data-id="' + escHtml(e.id) + '"' +
       (armed ? ' aria-pressed="true"' : '') + '>' + (armed ? 'Tap again to void' : 'Void') + '</button></div>') +
     '</div>';
 }
@@ -1060,6 +1092,32 @@ function stockVoid(id) {
   saveState();
   renderStock();
   showToast('Entry voided');
+}
+
+/* A figure entered wrong is corrected, never edited in place: the entry is voided, saying what it was corrected to, and a
+   copy with the right quantity takes its place (`corrects`), so the export still explains every figure it ever held. */
+async function stockCorrect(id) {
+  var e = stockData().entries.find(function(x) { return x.id === id; });
+  if (!e || e.voided) return;
+  var it = stockItem(e.itemId), unit = it ? it.unit || '' : '';
+  var v = await uiPrompt({ title: 'Correct this entry', body: (STOCK_KIND_LABEL[e.kind] || e.kind) + ' ' + stockFmtQty(e.qty) + ' ' + unit + (it ? ' of ' + it.name : '') + ' on ' + stockShortDate(e.date) + '.',
+    label: 'The right quantity' + (unit ? ' (' + unit + ')' : ''), value: String(e.qty), okLabel: 'Correct', required: true, requiredText: 'Enter the quantity.' });
+  if (v == null) return;
+  var q = parseFloat(String(v).replace(/,/g, ''));
+  if (isNaN(q) || q < 0) { showToast('Enter a quantity of 0 or more', 'error'); return; }
+  e = stockData().entries.find(function(x) { return x.id === id; });
+  if (!e || e.voided) return;
+  if (stockRound(q) === stockRound(e.qty)) { showToast('Same quantity: nothing changed'); return; }
+  var by = stockBy(), at = Date.now();
+  var copy = JSON.parse(JSON.stringify(e));
+  copy.id = stockUid('SE'); copy.qty = q; copy.at = at; copy.by = by; copy.source = 'manual';
+  copy.corrects = { id: e.id, qty: e.qty };
+  delete copy.raw; delete copy.pasteId; delete copy.unsettled;
+  e.voided = { at: at, by: by, reason: 'Corrected to ' + stockFmtQty(q) + ' ' + unit, correctedBy: copy.id };
+  stockData().entries.push(copy);
+  saveState();
+  renderStock();
+  showToast('Corrected: ' + stockFmtQty(e.qty) + ' → ' + stockFmtQty(q) + ' ' + unit, 'success');
 }
 
 /* ---------- Export and import ----------
@@ -1217,6 +1275,7 @@ function stockAction(action, btn) {
       break;
     }
     case 'invStockVoid': stockVoid(btn.dataset.id); break;
+    case 'invStockCorrect': stockCorrect(btn.dataset.id); break;
     case 'invStockExport': stockExport(); break;
     case 'invStockBillOpen': stockBillOpen(btn.dataset.entry || ''); break;
     case 'invStockReorder': _stockReorder = { qty: {} }; stockSetView('reorder'); break;

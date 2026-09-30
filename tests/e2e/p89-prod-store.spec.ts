@@ -39,6 +39,7 @@ test.describe('P89: the production record', () => {
     await page.locator('#prodHandPart').fill('CLAMP 165X83 (40X6)');
     await page.locator('#prodHandQty').fill('420');
     await page.locator('[data-action="invProdSaveHand"]').click();
+    await page.locator('[data-card="prodHandSaved"] [data-action="invProdHandDone"]').click();
     let s = await readStoredState(page);
     expect(s.production.entries).toHaveLength(1);
     const e = s.production.entries[0];

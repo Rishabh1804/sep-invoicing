@@ -39,6 +39,7 @@ function chartShort(v, unit) {
   if (unit === 'pct') return formatNum(v, 0) + '%';
   if (unit === 'rate') return '₹' + formatNum(v, 2);
   if (unit === 'h') return formatNum(v, 0) + 'h';
+  if (unit === 'min') return formatNum(v, 0) + 'm';
   // Money in the Indian compact form (state.js): ₹12.5K, ₹8.4L, ₹12.0Cr.
   return formatInrShort(v);
 }
@@ -49,6 +50,7 @@ function chartFull(v, unit) {
   if (unit === 'pct') return formatNum(v, 1) + '%';
   if (unit === 'rate') return formatCurrency(v) + '/kg';
   if (unit === 'h') return formatNum(v, 1) + ' h';
+  if (unit === 'min') return formatNum(v, 0) + ' min';
   return formatCurrency(v);
 }
 

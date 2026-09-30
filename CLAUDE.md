@@ -230,6 +230,22 @@ layouts; builders fixed each area with its spec (P104–P113). What it leaves as
   night shift"* on the in-time roll too; a correction on a new invoice reaches its challan with a note; Home nets credit notes and
   says so.
 
+**Entering several at a sitting stays on the form** (owner, 30 Sep 2026: *"when entering by hand, the page reloads to the base screen
+after every entry, instead of staying there for multiple entry … Check for these page jumping back to the base page on some action bug
+across the app"*). A save on a form that is filled many times in a row keeps the form, carries over what repeats and clears the figures:
+- **Production and Power by hand** (`prodSaveHand`): the kind, day, line, shift, client and unit stay; what was saved is listed under the
+  form (*Saved from this form*) with Correct and Void; **Done** leaves, back to Power when it was opened from Power's *Enter a cut*. A
+  correction is one entry and still goes back.
+- **Stock by hand** (`stockSaveManual`): the form stays on its day and lists **everything the day holds** (`stockDayEntriesHtml`, pasted or
+  by hand, with the level each line was left at); another date is checked by picking it. **An entry is corrected, never edited**
+  (`stockCorrect`): it is voided saying what it became, and a copy with the right quantity names it (`corrects`).
+- **A challan**: *Save, add another* opens the next on the same client, date and vehicle. **An electricity or other bill** stays open on the
+  next month with no bill of its kind. **A credit note recorded from paper** stays on its client and reason (a new note still opens its
+  preview). **Staff → Pay** keeps the last payment's date (within the week) and kind. **Finance → Payments → Not yet sorted → Sort**
+  comes back to that list once the payee is set.
+- **A part-invoiced challan shows what is left to bill** on Awaiting invoice (`imChallanOpenTotal`), the whole beside it; its lines and its
+  detail say both. P117.
+
 **A `<select>` speaks through `change`, never `click`.** Giving a filter control a
 `data-action` meant the click that *opens* it ran the handler — and if that handler
 re-renders the toolbar, the element the native popup hangs off is replaced and the list
@@ -286,7 +302,7 @@ filter on; a literal date in a fixture is a time bomb, not a constant.
 |----|------|
 | HR-1 | No inline styles. CSS classes + design tokens. |
 | HR-2 | No inline onclick. data-action delegation only. |
-| HR-3 | inv- CSS prefix on every class. 466 classes, all of them (distinct class selectors in `split/styles.css`, comments stripped, 29 Sep 2026: the eighteen `inv-as-*` of the attendance and stock sheets added, then `inv-topbar-back` and `inv-topbar-trail`, then `inv-fig-ok/warning/danger`: 462; 30 Sep 2026, the QA sweep: `inv-pi-cancelled`, `inv-cn-cancelled`: 464; the power case's `inv-pc-sec`, `inv-pc-p`: 466); P76 asserts every class the app draws is one of them or a named hook. |
+| HR-3 | inv- CSS prefix on every class. 467 classes, all of them (distinct class selectors in `split/styles.css`, comments stripped, 29 Sep 2026: the eighteen `inv-as-*` of the attendance and stock sheets added, then `inv-topbar-back` and `inv-topbar-trail`, then `inv-fig-ok/warning/danger`: 462; 30 Sep 2026, the QA sweep: `inv-pi-cancelled`, `inv-cn-cancelled`: 464; the power case's `inv-pc-sec`, `inv-pc-p`: 466; Staff → Day's `inv-board`: 467); P76 asserts every class the app draws is one of them or a named hook. |
 | HR-4 | No emojis. Inline SVGs in HTML template. |
 | HR-5 | escHtml() on all user-data innerHTML. |
 | HR-6 | CSS design tokens only. No raw px/rem/hex/timing. |
@@ -1195,6 +1211,42 @@ documents (`Clamp 165x83` against `CLAMP 165X83(40X6)`), which would surface one
 one new one. Stopped/new pairs sharing a six-character stem are marked as possibly the same part —
 reporting a rename as lost work would discredit every other row on the card.
 
+**A part is its size or number, and its gauge** (`cpPartIdentity`; owner, 30 Sep 2026: *"some items like 149x83 are still coming but
+the flag is being raised"*). The same clamp was written `CLAMP 149X83(40X6)` to July and `149X83` (the gauge in the description) from
+August, and keyed on the whole text the older spelling read as stopped. A part naming a size (`149X83`, `150X80X3`) is that size, a part
+with no digits of its own (`CLAMP`) takes the size from its description, anything else is its number; the gauge (two digits × one) is
+never a size. Stats' top items read the same identity. A row naming no gauge that stopped while the same size still comes in a stated
+gauge reads steady (*no gauge written*); a stated gauge that stopped beside a live one stays stopped and says which still comes
+(`cpSiblings`). On the real book to 11 Sep, SSS Mehta's stopped parts went from 73 to 66 and 149X83 reads steady.
+
+**Materials worked** (owner: *"every material worked, how much and when … how many clamps were sent by SSS Mehta in any given period, how
+many by Dorabji. If two parties share the same material code, the distinction must be mentioned"*). Performance → *Materials worked*: a
+period (this month, 3 or 6 months, the FY, all, or dates), a search over part, size and description (*clamp*), and **This client / All
+clients**. Each part is one client's: pieces and kilograms sent (a kilo challan's counted pieces included), challans, invoices, what was
+billed, first and last; it opens to every challan and invoice by date, each a link. A code another client also sends says so (*Code
+shared · BETA AUTO also sends it: counted apart*), here and on Stats' top items (`cpCodeOwners`). P118.
+
+**By the hour** (owner: *"Samarth part is done in pieces, 3302 - 9/pc takes about 30 mins … 24 pcs at a time in VAT A2. 3303 - 3/pc …
+80 pcs at a time … there can be a different realisation and cost that is calculated on per hour basis"*, then *"have an option to update
+the time taken to pickle and plate + a constant 15 mins (logistics + other steps) for every material … fill these out with the production
+data … make sure the app learns from the data that is being entered, so we can evaluate if the time taken is increasing or decreasing, and
+what steps we can take to optimise setups"*). Performance → *By the hour*:
+- **A round is pickling + plating + the constant** for logistics and the other steps (`S.perfCfg.overheadMin`, 15, set on the panel). Each
+  figure is the owner's where set on the client (`client.partTimes`: pieces, `pickleMin`, `plateMin`, the line; Samarth's two set once,
+  plating 30, `_partTimes1`), else **what the production record measures** (`cpMeasure`, `cpMeasured`): the register's round-to-round
+  gaps on the line (5–180 min; across noon on a 12-hour clock), a START–END batch's span over its rounds, the pieces a round from the
+  rounds' own figures, and pickling as the gap from a load to the pickling hand's next load that day (5–120 min) a piece × the round's
+  pieces. Every figure says *set*, *measured* or *not known*.
+- **What an hour earns** is a round's pieces × the rate (a kilo rate through the part's kg a piece) over the round's whole time, against
+  what an hour **costs** the plant and **earns** it on average (the last 90 days at the live cost, over working days × 3 lines × 16 h,
+  `cpLineHourRef`, the assumption said on the card). The period's pieces billed become the hours of rounds they took.
+- **It learns as entries come in**: the measure is read afresh from the record every time; parts the record has timed and nobody has
+  set are listed too (*from the record*). A part opens to its record, a chart of the median round by pay week, and **what to look at**
+  (`cpRoundHints`): a round 10%+ slower (or faster) in the last 30 days than the 60 before, racks run short of their fullest, the fixed
+  steps a quarter or more of a round, pickling slower than plating, and a set plating time the record no longer bears out (15%+ off on
+  5+ rounds), with **Use** to take the measure. A changed time keeps what it was (`history`).
+On the real book to 11 Sep (before Production existed, so no round is timed yet): an hour costs the plant about ₹489 and earns ₹466.
+
 ### What the charts show
 The trend was one line drawn with `preserveAspectRatio="none"` — a 400×160 drawing smeared across
 whatever width it got, markers rendered as ellipses, and only the two endpoints labelled. `charts.js`
@@ -1807,6 +1859,13 @@ client, revenue, realisation, concentration), **Cost** (labour, live cost), **Bi
 states, unbilled, dispatch) and **Trends** (the trend chart, top items). The open tab is remembered on
 the device. `renderStats()` still draws every card; `take()` files each into its tab.
 
+- **The Overview opens on the owner's questions, each a story** (owner, 30 Sep 2026: *"Stats view needs an overhaul, it puts insights front
+  and center and doesn't present itself in a really engaging way"*; they chose question-led story cards, `statsStoriesHtml`, intel.js):
+  *Are we making money?* (realisation and what a kilo leaves, six months against the cost), *Who is driving it?* (the four largest
+  clients by tonnage, the worst-priced large account, the biggest mover against the period before), *Is the plant full?* (capacity and
+  tonnes by month), *What changed?* (the month's pace and the three most urgent insights) and, with a statement, *Is cash coming in?*.
+  Each says what it means in one sentence with its tone (`data-story-say`) and links to its tab (`invStatsGo`). They read the figures the
+  panels under them read; the headline, *In one line*, the pace and six months follow, and **the whole insight list closes the page**. P120.
 - **Every "below cost" on Stats is judged against the period's live cost**, not the typed ₹8.55, so the
   headline and the Overview cannot disagree. The typed figure is used only where there is no tonnage to
   divide by (and still by Items Master's break-even).
@@ -2180,6 +2239,18 @@ the **supplier it last came from**. Lead time (10) and cover (30) are set on the
 device's book (`S.stockCheck.leadDays/coverDays`). A rate from under three days of record is flagged
 *check*. Typed quantities win and 0 leaves a line out. Lines with no use yet are listed apart. **Copy as
 message** gives a WhatsApp-ready order by supplier. Nothing is ordered from the app.
+
+### Home, arranged by the owner
+Owner, 30 Sep 2026: *"Home screen needs an overhaul with an option to select what widget to show on the home screen and where — dynamic home
+screen which user can adjust"*; they chose **presets and an edit mode, kept per device** (`tabs.js`, `HOME_WIDGETS`, `sep_inv_home`).
+- Every card on Home is a widget (`data-home-w` in `#homeWidgets`): month to date, quick actions, money, to-do, attendance, unbilled,
+  **production** (the last day plated, by line), **power cuts** (this month's and the last), **stock running low** (red and amber lines,
+  soonest out first), GitHub sync, zinc, recent invoices. The three new ones are drawn only while shown (`renderHomeExtraCards`).
+- **Presets**: *Owner* is the Home there was (the three new widgets hidden), *Floor* leads with quick actions, attendance, production,
+  stock and power, *Money* with the month, money, unbilled and recent invoices.
+- **Edit Home** (at the foot of Home): each widget with a switch, up and down, and **Half / Full** (its width on a wide screen; a phone is
+  one column). Any change makes the layout *your own* (`preset: 'custom'`). A widget added by a later build joins at the end, hidden, so a
+  new build never rearranges a Home. Kept in localStorage, never in the book: a backup or a pull does not rearrange another device. P121.
 
 ### Home quick actions
 Six buttons under Month to Date, each opening its screen **already on the job**: New invoice, New
@@ -2689,6 +2760,16 @@ cannot be gated away at any length, only stated, so a range under two months car
 caveat next to the figure. And a ₹/kg computed over partial tonnage coverage reads **high**
 here — the opposite direction from realisation, because tonnage is the denominator — which the
 card says rather than leaving the reader to work out.
+
+**Day is a board, a card per area** (owner, 30 Sep 2026: *"Attendance sheet for Day scrolls way too far for information … Overview doesn't
+show any staff allocation for Office, gate, flex, civil"*; they chose the area board). Every area with a hand or a number needed is a card
+(`data-att-area-card`, `inv-board`: one column on the phone, as many `--board-col` columns as fit on the desktop), its head the heads on
+it against the day's number (*Short 1 / Met / 1 over*). Each hand is one line, P / H / A one tap as before; **the name opens the hand's
+day** in a dialog (`attEditOpen`: state, area, hours or OT, saved as they change). The absent are one strip under the board
+(`attAbsentList`), *Needed today* and the day's cost fold (`uiFoldCard`, state.js, folds any panel whose head holds no button). Pay leads
+with the payout and dues, its history and the slips as paid folded; Areas folds its hours and the absorption. **Civil** is an area
+(a post, off the floor, like the office and the gate; a roll heading *civil* reads to it). **The attendance panel** (Staff → Overview,
+Home) says where everyone on site stood, by area, the floor against its number. P119.
 
 **A day's attendance is deleted only with a reason, and the deletion is logged** (owner, 30 Sep 2026: *"there is no way to
 delete a day's data after providing a reason that can be logged"*). Staff → Day → **Delete this day** asks why (required),

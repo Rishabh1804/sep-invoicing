@@ -713,6 +713,16 @@ function uiFoldHtml(key, headHtml, bodyHtml, dflt, attrs) {
   return '<details class="inv-panel inv-panel-flush inv-panel-fold" data-fold="' + escHtml(key) + '"' + (attrs || '') + (uiFoldOpen(key, dflt) ? ' open' : '') + '>' +
     '<summary class="inv-panel-head">' + headHtml + '</summary>' + bodyHtml + '</details>';
 }
+/* A card drawn as a panel, folded to its head: the same card, its head a summary. Only a card whose head holds no
+   button or block of its own is folded (a tap on a button in a summary would open and shut the card too); any other
+   is returned as it was. */
+function uiFoldCard(key, card, dflt) {
+  var m = /^(\s*)<div class="inv-panel inv-panel-flush([^"]*)"([^>]*)>\s*<div class="inv-panel-head">([\s\S]*?)<\/div>/.exec(card || '');
+  if (!m || /<button|<div/.test(m[4]) || !/<\/div>\s*$/.test(card)) return card;
+  var rest = card.slice(m[0].length).replace(/<\/div>\s*$/, '');
+  return m[1] + '<details class="inv-panel inv-panel-flush inv-panel-fold' + m[2] + '"' + m[3] + ' data-fold="' + escHtml(key) + '"' + (uiFoldOpen(key, dflt) ? ' open' : '') + '>' +
+    '<summary class="inv-panel-head">' + m[4] + '</summary>' + rest + '</details>';
+}
 document.addEventListener('toggle', function(e) {
   var d = e.target;
   if (!d || !d.dataset || !d.dataset.fold) return;

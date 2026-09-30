@@ -307,6 +307,7 @@ test('a share past a shift is flagged as pay to check, not settled', async ({ pa
     [d1]: { marks: marksFor(staff), extra: [{ area: 'barrel', hours: 24 }], note: '' },
   }));
   await openAreas(page);
+  await page.locator('[data-fold="areaAbsorb"] > summary').click();   // folded on Areas (P119)
   const card = page.locator('[data-card="absorb"]');
   await expect(card.locator('[data-implausible]').first()).toBeVisible();
   await expect(card).toContainText('does not repeal arithmetic');

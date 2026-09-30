@@ -862,7 +862,7 @@ function powerCfgSave() {
 /* A cut is entered where every floor record is: Production's hand form, on a power cut. */
 function powerAddCut() {
   switchTab('pageProduction');
-  prodOpenHand(null);
+  prodOpenHand(null, 'power');
   if (_prodHand) { _prodHand.kind = 'downtime'; renderProduction(); }
 }
 /* The history from soma-internal, one file: its cuts as a `sep-production` file (merged by id into Production), and

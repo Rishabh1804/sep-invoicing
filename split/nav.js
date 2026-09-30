@@ -221,7 +221,7 @@ function navLeaveOk() {
    unsaved work on screen it asks first (owner, 29 Sep 2026: "that's a real bug" — only the browser's Back asked, and a
    tap on another screen dropped a half-typed challan). On Leave the same tap runs again with nothing typed left to lose.
    Caught before events.js sees it (capture), so the screen is never left and then asked about. */
-var NAV_LEAVE_ACTIONS = { invSwitchTab: 1, invSideGo: 1, invStockBack: 1, invProdBack: 1, invAttView: 1, invDashStockView: 1 };
+var NAV_LEAVE_ACTIONS = { invSwitchTab: 1, invSideGo: 1, invStockBack: 1, invProdBack: 1, invProdHandDone: 1, invAttView: 1, invDashStockView: 1 };
 function navIsLeave(el) {
   // A tab inside a dialog moves within the dialog, not off the screen.
   return !!(el && el.dataset && !el.closest('.inv-scrim-dialog') && (NAV_LEAVE_ACTIONS[el.dataset.action] || el.getAttribute('role') === 'tab'));

@@ -132,6 +132,7 @@ function relayHeaderAreas(text) {
   if (!out.length && vat) out.push('vat-a1');
   if (/OFFICE/.test(k)) out.push('office');
   if (/GATE/.test(k)) out.push('gate');
+  if (/CIVIL/.test(k)) out.push('civil');
   if (/COLOU?R/.test(k) && !out.length) out.push('vat-a1');
   return out;
 }
@@ -601,7 +602,7 @@ function parseRelayRoll(text, roster, sentOn) {
         var a = areas.indexOf(w.area) >= 0 ? w.area : areas[0];
         // The office and the gate share a header ("office & gate keeper"); a
         // hand whose post is one of them stands at his own.
-        if ((a === 'office' || a === 'gate') && (w.area === 'office' || w.area === 'gate')) a = w.area;
+        if ((a === 'office' || a === 'gate' || a === 'civil') && (w.area === 'office' || w.area === 'gate' || w.area === 'civil')) a = w.area;
         if (st.slot && st.slot.start === RELAY_GENERAL) p.generalArea = a;
         else if (!p.areas) p.areas = a;
       }
@@ -673,7 +674,7 @@ function relaySlotOrArea(bare) {
 function relayPersonMark(p, w, restOut) {
   if (p.st === 'A') return { st: 'A', ot: 0, hours: 0, area: 'flex', inMin: null, outMin: null };
   // No line written: a floor hand floats (Flex); the office and the gate are posts.
-  var area = p.generalArea || p.areas || (w && (w.area === 'office' || w.area === 'gate') ? w.area : 'flex');
+  var area = p.generalArea || p.areas || (w && (w.area === 'office' || w.area === 'gate' || w.area === 'civil') ? w.area : 'flex');
   var gate = area === 'gate';
   var inMin, outMin;
   if (gate) {

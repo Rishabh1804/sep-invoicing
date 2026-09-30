@@ -18,7 +18,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <!-- Appearance before first paint (§3.2): the device's theme and palette, so nothing flashes in the wrong colours. -->
 <script>(function(){try{var d=document.documentElement,t=localStorage.getItem("sep_inv_theme"),p=localStorage.getItem("sep_inv_palette");if(t==="light"||t==="dark")d.dataset.theme=t;d.dataset.palette=(p==="zinc"||p==="terracotta")?p:"teal";}catch(e){document.documentElement.dataset.palette="teal";}})();</script>
-<meta name="app-build" content="713498ef">
+<meta name="app-build" content="5ec66c8e">
 <style>
 /* ===== DESIGN TOKENS (design system v2.0 — docs/SEP_INVOICING_DESIGN_PRINCIPLES.md §3) ===== */
 /* Theme: colour-scheme decides every light-dark() below. <html data-theme> is set before first paint
@@ -15576,9 +15576,7 @@ function labourForRange(fromIso, toIso) {
   if (cfg.restCreditMinDays > 0) {
     Object.keys(weekDaysWorked).forEach(function(key) {
       if (weekDaysWorked[key] < cfg.restCreditMinDays) return;
-      // Ids are numbers on a device and strings in some imports: match as text.
-      var idPart = key.split('|')[0];
-      var w = roster.find(function(x) { return String(x.id) === idPart; });
+      var w = staffById(key.split('|')[0]);
       if (!w) return;
       var pay = (w.dayRate || 0);
       out.dailyRest += pay;

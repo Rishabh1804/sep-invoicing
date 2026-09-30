@@ -306,9 +306,7 @@ function labourForRange(fromIso, toIso) {
   if (cfg.restCreditMinDays > 0) {
     Object.keys(weekDaysWorked).forEach(function(key) {
       if (weekDaysWorked[key] < cfg.restCreditMinDays) return;
-      // Ids are numbers on a device and strings in some imports: match as text.
-      var idPart = key.split('|')[0];
-      var w = roster.find(function(x) { return String(x.id) === idPart; });
+      var w = staffById(key.split('|')[0]);
       if (!w) return;
       var pay = (w.dayRate || 0);
       out.dailyRest += pay;

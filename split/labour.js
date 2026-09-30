@@ -145,11 +145,20 @@ function labourForRange(fromIso, toIso) {
   function monthSeg(iso) {
     var k = iso.slice(0, 7);
     if (months[k]) return months[k];
-    var paid = payrollPaidFor(k), paidIds = {};
-    if (paid) paid.rows.forEach(function(r) { var pw = payrollWorker(r); if (pw) paidIds[pw.id] = true; });
-    return (months[k] = { key: k, sundays: 0, holidays: 0, working: 0, worked: {}, paid: paid, paidIds: paidIds });
+    // The hands the slip names. A row read only as a guess (one letter off, a folded spelling) costs under its own name,
+    // since only a sure match moves money to a worker; the hand it reads as is not modelled for the month as well, or
+    // the month's fixed labour counted that hand twice (the QA of 30 Sep 2026). Their month is settled by the slip.
+    var paid = payrollPaidFor(k), paidIds = {}, guessIds = {};
+    if (paid) paid.rows.forEach(function(r) {
+      var pm = payrollMatch(r);
+      if (!pm || !pm.w) return;
+      paidIds[pm.w.id] = true;
+      if (!pm.sure) guessIds[pm.w.id] = r.name;
+    });
+    return (months[k] = { key: k, sundays: 0, holidays: 0, working: 0, worked: {}, paid: paid, paidIds: paidIds, guessIds: guessIds });
   }
   out.paidMonths = [];
+  out.paidGuess = {};   // worker id → the slip row's name, for a hand a slip row is only guessed to be
 
   dates.forEach(function(iso) {
     var dow = attParseIso(iso).getDay();
@@ -297,6 +306,12 @@ function labourForRange(fromIso, toIso) {
       b.asPaid = true;
       if (ot) bumpArea(w.area || 'flex', ot, 0, (Number(r.otHours) || 0) * share);
       if (w.onFloor !== false) out.floorCost += dayPay + ot;
+    });
+    // The hand a row is only guessed to be is not modelled (monthSeg), and no money is moved to them: the row's stays under
+    // its own name. Pay reads their month as settled by the slip (paidGuess), not as nothing earned and a salary advanced.
+    Object.keys(seg.guessIds).forEach(function(id) {
+      var gw = staffById(id);
+      if (gw && gw.comp === 'monthly' && !(out.byWorker[id] && out.byWorker[id].asPaid)) out.paidGuess[id] = seg.guessIds[id];
     });
   });
 

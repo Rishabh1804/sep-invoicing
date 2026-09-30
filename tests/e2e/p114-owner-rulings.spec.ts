@@ -79,15 +79,25 @@ test.describe('P114: a balance carries from one pay period to the next', () => {
   });
 
   test("a monthly hand's salary paid next month pays the month it was for", async ({ page }) => {
-    const prev = monthsBack(1);
+    // The pay month is the one the week's Sunday is in (P107), and last month the one before it. Dates are pinned in the
+    // month (P124): a salary dated on or before the 20th pays the month before, so "today" would move the answer.
+    const ws = wd(0, 0), pm = ws.slice(0, 7);
+    const pd = new Date(pm + '-01T00:00:00'); pd.setMonth(pd.getMonth() - 1);
+    const prev = `${pd.getFullYear()}-${String(pd.getMonth() + 1).padStart(2, '0')}`;
     const att: Record<string, any> = {};
     ['-03', '-04', '-05'].forEach(d => { att[prev + d] = { marks: { 8: { st: 'P', hours: 8, ot: 0, area: 'vat-a1' } }, extra: [], note: '' }; });
     await loadAppWithState(page, { ...emptyState(), incomingMaterial: noSeedIM(), attendance: att, labour: { holidays: [] },
       staff: [{ id: 8, name: 'Arun', comp: 'monthly', area: 'vat-a1', dayRate: 500, active: true, onFloor: true }] } as unknown as SepState);
     const earned = await g(page, `labourForRange('${prev}-01', payMonthEnd('${prev}-01')).byWorker[8].total`);
-    await g(page, `S.staffPayments.push({ id: 'PM1', staffId: 8, date: localDateStr(), amount: ${earned}, kind: 'payment', note: '', at: 1 })`);
-    const r = await g(page, `(function(){ var r = payDue(attWeekStartOf(localDateStr())).rows.find(function(x){ return x.w.id === 8; }); return { due: r.due, carried: r.carried, earned: r.earned.total }; })()`);
-    // Last month's wage carries in, this month's payment settles it: what is due is only what this month has earned.
+    const row = () => g(page, `(function(){ var r = payDue('${ws}').rows.find(function(x){ return x.w.id === 8; }); return { due: r.due, carried: r.carried, earned: r.earned.total, paid: r.paid }; })()`);
+    // Paid on the 14th, as salaries go out: it pays last month, so nothing carries and nothing comes off this month.
+    await g(page, `S.staffPayments.push({ id: 'PM1', staffId: 8, date: '${pm}-14', amount: ${earned}, kind: 'payment', note: '', at: 1 })`);
+    let r = await row();
+    expect(r).toMatchObject({ carried: 0, paid: 0 });
+    expect(r.due).toBe(r.earned);
+    // Paid after the 20th it is counted in its own month: last month's wage carries in, and this payment settles it.
+    await g(page, `S.staffPayments[0].date = '${pm}-25'`);
+    r = await row();
     expect(r.carried).toBe(earned);
     expect(r.due).toBe(r.earned);
   });

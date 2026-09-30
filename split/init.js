@@ -590,6 +590,20 @@ if (!S._cnSeriesStart1) {
   saveJSON(STORAGE_KEY, S);
 })();
 
+/* A time lesson is kept only for a heading with words ("night hold"): a bare time is when a crew went home, and one day's
+   exception must not move every day's block. "12:00AM", "8:00PM" and "6AM" read as words until 30 Sep 2026 (the meridiem
+   on the digits hid it from the test), so a lesson learnt under such a heading is dropped, the heading's area lessons
+   untouched. Structural and idempotent: on a pulled or imported book too, and twice is a no-op. */
+(function() {
+  var slots = S.relayLearn && S.relayLearn.slots;
+  if (!slots || typeof slots !== 'object') return;
+  var gone = Object.keys(slots).filter(function(k) { var l = slots[k]; return !relayHeadHasWords((l && l.text) || k); });
+  if (!gone.length) return;
+  gone.forEach(function(k) { delete slots[k]; });
+  saveJSON(STORAGE_KEY, S);
+  console.log('[migrate] ' + gone.length + ' time lesson(s) under a heading with no words dropped');
+})();
+
 /* ===== ₹0 LINES CARRY A REASON, RETROSPECTIVELY TOO =====
 
    The owner ruled (24 Sep 2026) that the lines billed at ₹0 are replating —

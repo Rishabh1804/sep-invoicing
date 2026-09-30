@@ -18,7 +18,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <!-- Appearance before first paint (§3.2): the device's theme and palette, so nothing flashes in the wrong colours. -->
 <script>(function(){try{var d=document.documentElement,t=localStorage.getItem("sep_inv_theme"),p=localStorage.getItem("sep_inv_palette");if(t==="light"||t==="dark")d.dataset.theme=t;d.dataset.palette=(p==="zinc"||p==="terracotta")?p:"teal";}catch(e){document.documentElement.dataset.palette="teal";}})();</script>
-<meta name="app-build" content="ac695a73">
+<meta name="app-build" content="2433b9c5">
 <style>
 /* ===== DESIGN TOKENS (design system v2.0 — docs/SEP_INVOICING_DESIGN_PRINCIPLES.md §3) ===== */
 /* Theme: colour-scheme decides every light-dark() below. <html data-theme> is set before first paint
@@ -1762,7 +1762,7 @@ summary.inv-summary::-webkit-details-marker { display: none; }
 <div id="pageHome" class="inv-page inv-page-active">
   <div class="inv-tiles" id="homeTiles">
     <div class="inv-tile"><div class="inv-tile-label">Invoices</div><div class="inv-tile-value" id="mtdCount">0</div><div class="inv-tile-sub" id="mtdCountSub">&nbsp;</div><div class="inv-tile-sub" id="mtdCountDelta"></div></div>
-    <div class="inv-tile"><div class="inv-tile-label">Revenue</div><div class="inv-tile-value" id="mtdRevenue">&#8377;0</div><div class="inv-tile-sub">taxable</div><div class="inv-tile-sub" id="mtdRevenueDelta"></div></div>
+    <div class="inv-tile"><div class="inv-tile-label">Revenue</div><div class="inv-tile-value" id="mtdRevenue">&#8377;0</div><div class="inv-tile-sub" id="mtdRevenueSub">taxable</div><div class="inv-tile-sub" id="mtdRevenueDelta"></div></div>
     <div class="inv-tile"><div class="inv-tile-label">Tonnage billed</div><div class="inv-tile-value" id="mtdKg">&mdash;</div><div class="inv-tile-sub" id="mtdKgSub">&nbsp;</div><div class="inv-tile-sub" id="mtdKgDelta"></div></div>
     <div class="inv-tile" id="mtdPerKgTile"><div class="inv-tile-label">Realisation</div><div class="inv-tile-value" id="mtdPerKg">&mdash;</div><div class="inv-tile-sub" id="mtdPerKgSub">&nbsp;</div><div class="inv-tile-sub" id="mtdPerKgDelta"></div></div>
   </div>
@@ -1990,6 +1990,7 @@ function getDefaultState() {
     relayLearn: { heads: {}, slots: {} },
     // Payments and advances made to workers, voided with a reason, never deleted.
     staffPayments: [],
+    payCarryClears: [],
     // Power and other monthly bills, for the live cost (voided, never deleted).
     costBills: [],
     payrollPaid: [],
@@ -2426,7 +2427,7 @@ function hideStorageBanner(kind) {
 // Containers hold the user's records, so a missing one is filled EMPTY — the
 // app must never invent business data to repair a shape.
 var STATE_CONTAINERS = ['clients', 'items', 'invoices', 'incomingMaterial', 'partWeights',
-  'voidedNumbers', 'creditNotes', 'extraExceptions', 'staff', 'attendance', 'areaTargets', 'shiftNeeds', 'stock', 'todo', 'relayPastes', 'relayLearn', 'staffPayments', 'costBills', 'payrollPaid', 'bank', 'production'];
+  'voidedNumbers', 'creditNotes', 'extraExceptions', 'staff', 'attendance', 'areaTargets', 'shiftNeeds', 'stock', 'todo', 'relayPastes', 'relayLearn', 'staffPayments', 'payCarryClears', 'costBills', 'payrollPaid', 'bank', 'production'];
 // Config objects are the opposite: a missing one is filled from the defaults,
 // and so is a missing KEY inside one. `labourCfg()` reads `extraRate || 0`, so
 // a backup predating a constant would silently price the extra at nothing
@@ -3218,7 +3219,18 @@ function numMedian(nums) {
   return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
 }
 
-function gstRound(val) { return Math.round(val * 100) / 100; }
+/* Round to the paisa, half away from zero, on the decimal the figure is written in (owner, 30 Sep 2026: "change it").
+   Math.round(val * 100) / 100 rounded on the binary copy: 1.005 is held as 1.00499999…, so it gave 1.00 where the paper
+   says 1.01, and 0.1 + 0.2 carried its noise into the paise. The figure is read to 15 significant digits (what a double
+   holds exactly), shifted two places in decimal, rounded, and shifted back. */
+function gstRound(val) {
+  var v = Number(val);
+  if (!isFinite(v) || v === 0) return 0;
+  var a = Math.abs(v), parts = a.toPrecision(15).split('e');
+  var shifted = Number(parts[0] + 'e' + ((Number(parts[1]) || 0) + 2));
+  var r = Number(Math.round(shifted) + 'e-2');
+  return v < 0 ? -r : r;
+}
 
 function formatNum(n, dec) {
   if (n == null || isNaN(n)) return '0';
@@ -4528,6 +4540,9 @@ function renderHomeTiles(active) {
   set('mtdCount', String(active.length));
   set('mtdCountSub', escHtml(month) + ' to date');
   set('mtdRevenue', figWrapHtml(formatCurrency(sumTaxable(active))));
+  // Net of credit notes, as Stats is (owner, 30 Sep 2026: "yes, it should and it should be mentioned").
+  var credited = gstRound(active.reduce(function(s, i) { return s + (i._credit || 0); }, 0));
+  set('mtdRevenueSub', credited > 0.005 ? 'taxable, net of ' + escHtml(formatCurrency(credited)) + ' in credit notes' : 'taxable, net of credit notes');
   // Two places, as Stats shows it: one place read 40 kg as '0.0 t'.
   set('mtdKg', w.kg > 0 ? formatNum(w.kg / 1000, 2) + ' t' : '&mdash;');
   set('mtdKgSub', w.kg > 0 ? Math.round(w.kg).toLocaleString('en-IN') + ' kg' : 'nothing weighed yet');
@@ -4563,13 +4578,14 @@ function homePriorSameDays() {
   var pad = function(n) { return String(n).padStart(2, '0'); };
   var from = py + '-' + pad(pm + 1) + '-01', to = py + '-' + pad(pm + 1) + '-' + pad(Math.min(d, plen));
   return { from: from, to: to, monthStart: y + '-' + pad(m + 1) + '-01',
-    invoices: S.invoices.filter(function(i) { return i.status === 'active' && i.date && i.date >= from && i.date <= to; }) };
+    invoices: statsInvoices().filter(function(i) { return i.date && i.date >= from && i.date <= to; }) };
 }
 
 function renderHome() {
   const now = new Date();
   const ym = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0');
-  const active = S.invoices.filter(i => i.status === 'active' && i.date && i.date.startsWith(ym));
+  // The month's invoices net of their credit notes (statsInvoices), so Home and Stats read one revenue.
+  const active = statsInvoices().filter(i => i.date && i.date.startsWith(ym));
   renderHomeTiles(active);
 
   renderZincCard();
@@ -7580,10 +7596,14 @@ function saveInvoice() {
     // a second time.
     S.invNextNum = Math.max(S.invNextNum + (reissue ? 0 : 1), invHighestIssued(S.invPrefix) + 1);
 
+    // A field typed over what the challan said is a correction, and reaches the challan with a note (owner, 30 Sep 2026).
+    const syncedNew = backCorrectChallans(inv, invoiceForm.items);
     // What each challan line has been billed is derived from the invoices.
     imSyncBilled();
 
-    doneToast = ['Invoice ' + inv.displayNumber + ' saved'];
+    doneToast = syncedNew.lines
+      ? ['Invoice ' + inv.displayNumber + ' saved — challan ' + syncedNew.challans.join(', ') + ' corrected to match (' + syncedNew.lines + ' line' + (syncedNew.lines === 1 ? '' : 's') + ')', 'warning']
+      : ['Invoice ' + inv.displayNumber + ' saved'];
   }
 
   // Save vehicle number to client for autocomplete
@@ -9082,6 +9102,9 @@ function backCorrectChallans(inv, formItems) {
     // only this invoice's share: its quantity, pieces and amount never travel.
     var others = (idx[it.id] || []).some(function(r) { return r.invoiceId !== inv.id; });
     var part = others || li._orig.qty !== (it.qty == null ? null : it.qty);
+    // On a new invoice a quantity typed under the challan's is a dispatch of part of it, not a correction: the
+    // quantity travels only when the operator said the challan's was wrong.
+    if (li._fromNew && li.qty !== li._orig.qty && (li.overReason || (li.overBillAck && li.overBillAck.reason)) !== 'challan') part = true;
     // A line billed in another unit than its challan line's travels back only as a correction the
     // operator named ("Challan unit was wrong"), and only on a whole line. Any other unit change is how
     // the customer is billed, not what their paper said: the challan keeps its unit and its quantity.
@@ -9107,6 +9130,15 @@ function backCorrectChallans(inv, formItems) {
     lines++;
   });
   return { lines: lines, challans: Object.keys(touched).map(function(k) { return touched[k]; }) };
+}
+
+/* A correction as a note: "from SEP/…/00830: pieces 33 → 330". One wording for the challan line and History. */
+var CHALLAN_FIELD_NAMES = { partNumber: 'part', desc: 'description', unit: 'unit', qty: 'quantity', nosQty: 'pieces', rate: 'rate', amount: 'amount' };
+function challanCorrectionText(it, cx) {
+  var from = cx.from || {};
+  var what = Object.keys(from).filter(function(f) { return f !== 'amount' || Object.keys(from).length === 1; })
+    .map(function(f) { return CHALLAN_FIELD_NAMES[f] + ' ' + (from[f] == null ? '—' : from[f]) + ' \u2192 ' + ((cx.to || it)[f] == null ? '—' : (cx.to || it)[f]); });
+  return 'from ' + (cx.invoice || 'an invoice') + ': ' + what.join(', ');
 }
 
 /* ===== INVOICE REGISTER ===== */
@@ -10989,7 +11021,16 @@ function imLineFormItem(it) {
   var open = imLineOpen(it), part = imLineBilled(it);
   return { partNumber: it.partNumber, desc: it.desc, hsn: it.hsn || '998873', unit: it.unit, qty: open.qty,
     rate: it.rate || 0, amount: open.amount, nosQty: (part ? open.nos : it.nosQty) || null,
-    _override: false, _label: '', _imItemId: it.id, _nosAuto: !!(it.unit === 'KG' && it.nosQty) };
+    _override: false, _label: '', _imItemId: it.id, _nosAuto: !!(it.unit === 'KG' && it.nosQty), _fromNew: true, _orig: imLineOrig(it, open) };
+}
+/* What a challan line said as it was brought into a new invoice: a field typed over it is a correction to carry back
+   (backCorrectChallans), the owner's ruling of 30 Sep 2026 — "correction on the invoice should be reflected in the
+   challan with a note". The quantity is the share brought (what is left), so typing less is dispatching part of it. */
+function imLineOrig(it, open) {
+  var o = {};
+  CHALLAN_SYNC_FIELDS.forEach(function(f) { o[f] = it[f] == null ? null : it[f]; });
+  o.qty = open.qty; o.amount = open.amount; o.nosQty = (imLineBilled(it) ? open.nos : it.nosQty) || null;
+  return o;
 }
 
 function getIMStatus(im) {
@@ -11292,7 +11333,11 @@ function _imItemRowHtml(it) {
     '<span class="inv-row-main"><span class="inv-row-title inv-row-wrap" data-im-desc>' + escHtml(lineLabel(it)) + '</span>' +
     '<span class="inv-row-meta inv-row-wrap" data-im-detail>' + escHtml(it.qty) + ' ' + escHtml(it.unit) +
     (it.nosQty && it.nosQty > 0 ? ' (' + escHtml(it.nosQty) + ' NOS)' : '') +
-    ' @ ' + formatCurrency(it.rate) + '/' + escHtml(it.unit) + '</span>' + share + (tag ? '<span class="inv-row-meta inv-row-wrap" data-im-invoices>' + tag + '</span>' : '') + '</span>' +
+    ' @ ' + formatCurrency(it.rate) + '/' + escHtml(it.unit) + '</span>' + share +
+    (it.corrections || []).map(function(cx) {
+      return '<span class="inv-row-meta inv-row-wrap" data-im-correction><span class="inv-dot inv-dot-info">Corrected</span> ' +
+        escHtml(challanCorrectionText(it, cx) + ' · ' + formatDate(isoOf(new Date(cx.at)))) + '</span>';
+    }).join('') + (tag ? '<span class="inv-row-meta inv-row-wrap" data-im-invoices>' + tag + '</span>' : '') + '</span>' +
     '<span class="inv-row-end inv-num">' + formatCurrency(it.amount) + '</span></div>';
 }
 
@@ -17576,6 +17621,50 @@ function payPaidBetween(staffId, from, to) {
   }, 0));
 }
 
+/* ===== What carries from one period to the next =====
+   A balance carries (owner, 30 Sep 2026: WB2, "yes, unless stated otherwise and notification cleared"). A due left
+   unpaid is still owed next period, an advance not worked off is still to be worked off, and a monthly salary paid
+   on the 14th of the next month pays the month it was for. The due had been per period only: the advance vanished
+   when the period turned, and September's salary paid in October read as an advance against October.
+
+   It is counted from the period of the worker's first payment recorded here (a monthly hand's, the month before,
+   since a salary pays the month before): before that no payment was typed in the app, so nothing is known of what
+   was settled and every past wage would read as owed. A month on record as paid (the slip) is settled whatever the
+   marks read. **Stated otherwise**: a balance is cleared with a reason (`S.payCarryClears`), which settles every
+   period up to the one before the clear and takes the To-do task with it; it is voided, never deleted. */
+function payCarryClears() {
+  if (!Array.isArray(S.payCarryClears)) S.payCarryClears = [];
+  return S.payCarryClears;
+}
+function payPeriodOf(w, iso) { return payIsWeekly(w) ? attWeekStartOf(iso) : payMonthStart(iso); }
+function payPeriodEnd(w, start) { return payIsWeekly(w) ? isoAddDays(start, 6) : payMonthEnd(start); }
+/* labourForRange once per range within one drawing: every worker's carry reads the same weeks and months. */
+function payLabMemo() {
+  var memo = {};
+  return function(from, to) { var k = from + '|' + to; return memo[k] || (memo[k] = labourForRange(from, to)); };
+}
+function payCarried(w, periodFrom, lab) {
+  var id = String(w.id);
+  // Any payment dates the start, one in this period included: a salary paid in October for September must carry
+  // September into October, not read as an advance against October.
+  var pays = staffPayments().filter(function(p) { return !p.voidedAt && String(p.staffId) === id; });
+  if (!pays.length) return { amount: 0, periods: 0 };
+  var first = pays.reduce(function(m, p) { return p.date < m ? p.date : m; }, pays[0].date);
+  var start = payPeriodOf(w, first);
+  if (!payIsWeekly(w)) start = payMonthStart(isoAddDays(start, -1));
+  var clear = payCarryClears().filter(function(c) { return !c.voidedAt && String(c.staffId) === id && c.through < periodFrom; })
+    .sort(function(a, b) { return a.through < b.through ? 1 : a.through > b.through ? -1 : (b.at || 0) - (a.at || 0); })[0] || null;
+  if (clear) { var next = payPeriodOf(w, isoAddDays(clear.through, 1)); if (next > start) start = next; }
+  var amt = 0, periods = 0;
+  for (var p = start, guard = 0; p < periodFrom && guard < 260; guard++) {
+    var end = payPeriodEnd(w, p), e = lab(p, end).byWorker[w.id];
+    periods++;
+    if (!(!payIsWeekly(w) && e && e.asPaid)) amt += (e ? e.total : 0) - payPaidBetween(w.id, p, end);
+    p = isoAddDays(end, 1);
+  }
+  return { amount: gstRound(amt), from: start, periods: periods, clear: clear };
+}
+
 /* One pay week's payout: the weekly tiers' earnings plus the EXTRA pool. */
 function payWeek(weekStart) {
   var sat = isoAddDays(weekStart, 6);
@@ -17646,21 +17735,24 @@ function payDue(weekStart) {
   var wk = labourForRange(weekStart, sat);
   var mo = labourForRange(mFrom, mTo > today && mFrom <= today ? today : mTo);
   // The active roster, and anyone who has left but earned or was paid in the period: their final week must be payable.
-  var pool = staffActive().slice();
+  var pool = staffActive().slice(), poolLab = payLabMemo();
   (S.staff || []).filter(function(w) { return w.active === false; }).sort(function(a, b) { return String(a.name).localeCompare(String(b.name)); }).forEach(function(w) {
     var weekly = payIsWeekly(w), from = weekly ? weekStart : mFrom, to = weekly ? sat : mTo;
     var e = (weekly ? wk : mo).byWorker[w.id];
-    if ((e && (e.total || e.days || e.hours || e.hourless)) || staffPayments().some(function(p) { return !p.voidedAt && String(p.staffId) === String(w.id) && p.date >= from && p.date <= to; })) pool.push(w);
+    if ((e && (e.total || e.days || e.hours || e.hourless)) || staffPayments().some(function(p) { return !p.voidedAt && String(p.staffId) === String(w.id) && p.date >= from && p.date <= to; })
+      || Math.abs(payCarried(w, from, poolLab).amount) >= 1) pool.push(w);
   });
+  var lab = payLabMemo();
   var rows = pool.map(function(w) {
     var weekly = payIsWeekly(w);
+    var carry = payCarried(w, weekly ? weekStart : mFrom, lab), c = Math.abs(carry.amount) >= 1 ? carry.amount : 0;
     var e = (weekly ? wk : mo).byWorker[w.id] || { total: 0, days: 0, hours: 0, otHours: 0, base: 0, ot: 0, rest: 0 };
     var from = weekly ? weekStart : mFrom, to = weekly ? sat : mTo;
     var paid = payPaidBetween(w.id, from, to);
     // A closed month on record as paid is settled by the slip: what it paid is
     // what was earned, so nothing is due on it however the marks read.
-    if (!weekly && e.asPaid) return { w: w, weekly: weekly, earned: e, paid: e.total, due: 0, from: from, to: to, asPaid: true };
-    return { w: w, weekly: weekly, earned: e, paid: paid, due: gstRound(e.total - paid), from: from, to: to };
+    if (!weekly && e.asPaid) return { w: w, weekly: weekly, earned: e, paid: e.total, due: c, carried: c, carry: carry, from: from, to: to, asPaid: true };
+    return { w: w, weekly: weekly, earned: e, paid: paid, due: gstRound(e.total - paid + c), carried: c, carry: carry, from: from, to: to };
   });
   return { rows: rows, extra: wk.extra, extraHours: wk.extraHours, weekStart: weekStart, sat: sat, mFrom: mFrom, mTo: mTo };
 }
@@ -17737,7 +17829,8 @@ function _payDueCard(ws) {
       // A negative due is an advance not yet worked off: said in a word beside the figure.
       g += _payRow(escHtml(r.w.name),
         (bits.length ? bits.join(' · ') + ' · ' : 'nothing recorded · ') + 'earned ' + payMoney(e.total) +
-          (r.asPaid ? ' · as paid, from the slip' : r.paid ? ' &minus; paid ' + payMoney(r.paid) : ''),
+          (r.asPaid ? ' · as paid, from the slip' : r.paid ? ' &minus; paid ' + payMoney(r.paid) : '') +
+          (r.carried ? (r.carried > 0 ? ' + ' + payMoney(r.carried) + ' owed from before' : ' &minus; ' + payMoney(-r.carried) + ' advanced before') : ''),
         r.due < 0 ? '<span class="inv-row-stack"><span class="inv-num">' + payMoney(r.due) + '</span><span class="inv-dot inv-dot-warning">Advance</span></span>'
           : '<span class="inv-num">' + payMoney(r.due) + '</span>',
         ' data-action="invPayPick" data-id="' + escHtml(r.w.id) + '" data-due="' + r.due + '"');
@@ -17749,10 +17842,37 @@ function _payDueCard(ws) {
   };
   h += group('Weekly &middot; paid Sat ' + formatDate(d.sat), d.rows.filter(function(r) { return r.weekly; }));
   h += group('Monthly &middot; ' + escHtml(monthName), d.rows.filter(function(r) { return !r.weekly; }));
-  h += _labNote('Earned is worked out from the days recorded, on the labour card&rsquo;s own rates. A negative due is an advance not yet worked off. Tap a worker to pay what is due.');
+  h += _payCarriedHtml(d);
+  h += _labNote('Earned is worked out from the days recorded, on the labour card&rsquo;s own rates. A negative due is an advance not yet worked off. What was owed or advanced in an earlier period carries into this one until it is paid, worked off or cleared with a reason. Tap a worker to pay what is due.');
   h += _payFormHtml(d);
   h += _payListHtml(d);
   return h + '</div>';
+}
+
+/* The balances brought forward, each clearable with a reason ("stated otherwise"). */
+function _payCarriedHtml(d) {
+  var rows = d.rows.filter(function(r) { return r.carried; }), h = '';
+  if (rows.length) h += '<div class="inv-row-group">Brought forward</div>';
+  rows.forEach(function(r) {
+    var owed = r.carried > 0;
+    h += _payRow(escHtml(r.w.name),
+      (owed ? 'Owed' : 'Advanced') + ' from before ' + escHtml(formatDate(r.from)) + ' · counted since ' + escHtml(formatDate(r.carry.from)) +
+        (r.carry.clear ? ' (cleared up to ' + escHtml(formatDate(r.carry.clear.through)) + ')' : ''),
+      '<span class="inv-row-stack"><span class="inv-num" data-pay-carried="' + escHtml(r.w.id) + '">' + payMoney(r.carried) + '</span><span class="inv-dot inv-dot-warning">' + (owed ? 'Owed' : 'Advance') + '</span></span>' +
+        '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invPayClear" data-id="' + escHtml(r.w.id) + '" data-through="' + escHtml(isoAddDays(r.from, -1)) + '" data-amount="' + r.carried + '">Clear</button>',
+      ' data-carried-row="' + escHtml(r.w.id) + '"');
+  });
+  var clears = payCarryClears().filter(function(c) { return !c.voidedAt && d.rows.some(function(r) { return String(r.w.id) === String(c.staffId); }); });
+  if (clears.length) {
+    h += '<div class="inv-row-group">Balances cleared</div>';
+    clears.slice().sort(function(a, b) { return (b.at || 0) - (a.at || 0); }).slice(0, 10).forEach(function(c) {
+      var w = staffById(c.staffId);
+      h += _payRow(escHtml(w ? w.name : 'Removed worker'), 'Up to ' + escHtml(formatDate(c.through)) + ' · ' + escHtml(c.reason || ''),
+        '<span class="inv-num">' + payMoney(c.amount || 0) + '</span><button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invPayClearVoid" data-id="' + escHtml(c.id) + '">Undo</button>',
+        ' data-pay-clear="' + escHtml(c.id) + '"', 'inv-row-muted');
+    });
+  }
+  return h;
 }
 
 function _payFormHtml(d) {
@@ -18024,11 +18144,39 @@ async function payVoid(id) {
   renderAttendance();
   showToast('Payment voided');
 }
+async function payClear(id, through, amount) {
+  var w = staffById(id);
+  if (!w || !/^\d{4}-\d{2}-\d{2}$/.test(through || '')) return;
+  var reason = await uiPrompt({ title: 'Clear ' + w.name + '’s balance',
+    body: (amount > 0 ? formatCurrency(amount) + ' owed' : formatCurrency(-amount) + ' advanced') + ' up to ' + formatDate(through) +
+      ' stops carrying forward. It is kept on the record, and can be undone.',
+    label: 'Why is it cleared?', okLabel: 'Clear balance', required: true, requiredText: 'Clearing a balance needs a reason.' });
+  if (reason == null) return;
+  reason = reason.trim();
+  if (!reason) { showToast('Clearing a balance needs a reason', 'error'); return; }
+  payCarryClears().push({ id: 'PCC-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), staffId: w.id, through: through,
+    amount: gstRound(amount), reason: reason, at: Date.now() });
+  saveState();
+  renderAttendance();
+  showToast('Balance cleared for ' + w.name);
+}
+async function payClearVoid(id) {
+  var c = payCarryClears().find(function(x) { return x.id === id; });
+  if (!c || c.voidedAt) return;
+  var ok = await uiConfirm({ title: 'Undo this clear?', body: 'The balance carries forward again.', okLabel: 'Undo clear' });
+  if (!ok || c.voidedAt) return;
+  c.voidedAt = Date.now();
+  saveState();
+  renderAttendance();
+  showToast('Clear undone');
+}
 function payAction(action, btn) {
   switch (action) {
     case 'invPayPick': payPick(btn.dataset.id, parseFloat(btn.dataset.due) || 0); return true;
     case 'invPaySave': paySave(); return true;
     case 'invPayVoid': payVoid(btn.dataset.id); return true;
+    case 'invPayClear': payClear(btn.dataset.id, btn.dataset.through, parseFloat(btn.dataset.amount) || 0); return true;
+    case 'invPayClearVoid': payClearVoid(btn.dataset.id); return true;
     case 'invPayOpenAtt': homeQuick('attendance'); return true;
     case 'invPayrollImport': payrollImport(); return true;
     case 'invPayrollVoid': payrollVoid(btn.dataset.id); return true;
@@ -19603,6 +19751,17 @@ function costBills() {
   return S.costBills;
 }
 var COST_BILL_KINDS = { power: 'Electricity', other: 'Consumables, ETP, maintenance' };
+/* A second electricity bill in one month is not a mistake (owner, 30 Sep 2026: it "only happens when a bit or all of a
+   couple months ago was not paid in time, so it might include a penalty"). Such a bill carries the ARREARS of the month
+   that went unpaid, already counted as that month's cost by its own bill, and a PENALTY that is this month's. So a bill
+   records both (`arrears`, `penalty`, parts of `amount`), and the cost of a bill is its amount less the arrears: counting
+   them again would charge the late month twice. The penalty stays in and is named, as is any standing charge the owner
+   enters there (an excess-load charge while the connection still reads its old load). */
+function costBillCost(b) { return gstRound((Number(b.amount) || 0) - (Number(b.arrears) || 0)); }
+function costBillParts(b) {
+  return [b.arrears > 0 ? 'arrears ' + formatCurrency(b.arrears) + (b.arrearsOf ? ' of ' + billsMonthLabel(b.arrearsOf) : '') + ', not counted again' : '',
+    b.penalty > 0 ? 'penalty ' + formatCurrency(b.penalty) : ''].filter(Boolean);
+}
 
 /* The share of a month's bill that falls inside the range, by calendar days. */
 function costMonthShare(month, from, to) {
@@ -19778,8 +19937,10 @@ function liveCost(from, to, kg) {
       if (!mine.length) { unbilled += rangeShare; unbilledMonths.push(mo); return; }
       mine.forEach(function(b) {
         var share = costMonthShare(b.month, from, to);
-        amt += b.amount * share;
-        detail.push({ label: (b.label || COST_BILL_KINDS[kind]) + ' · ' + b.month, sub: formatCurrency(b.amount) + (share < 0.999 ? ' × ' + formatNum(share * 100, 0) + '% of the month' : '') + (b.units ? ' · ' + b.units + ' units' : '') + (b.note ? ' · ' + b.note : ''), amount: b.amount * share });
+        var cost = costBillCost(b);
+        amt += cost * share;
+        detail.push({ label: (b.label || COST_BILL_KINDS[kind]) + ' · ' + b.month, sub: formatCurrency(cost) + (share < 0.999 ? ' × ' + formatNum(share * 100, 0) + '% of the month' : '') + (b.units ? ' · ' + b.units + ' units' : '') +
+          costBillParts(b).map(function(x) { return ' · ' + x; }).join('') + (b.note ? ' · ' + b.note : ''), amount: cost * share });
       });
     });
     if (unbilled > 0.001) detail.push(fillLine(cfg[kind], unbilled, 'no bill for ' + unbilledMonths.join(', ')));
@@ -19839,7 +20000,7 @@ function liveCostPaidCheck(from, to) {
     bk[kind].months.forEach(function(mo) {
       var bills = costBills().filter(function(b) { return b.kind === kind && !b.voided && b.month === mo.month; });
       if (!bills.length) { t.skipped.push(mo.month); return; }
-      t.recorded += bills.reduce(function(s, b) { return s + b.amount; }, 0) * mo.share; t.paid += mo.amount; t.months.push(mo.month);
+      t.recorded += bills.reduce(function(s, b) { return s + costBillCost(b); }, 0) * mo.share; t.paid += mo.amount; t.months.push(mo.month);
     });
     finish(kind, COST_BILL_KINDS[kind], t, kind === 'power' ? 'a payment settles the month before unless set otherwise' : 'bills are before GST, a payment includes it', 'no bill entered');
   });
@@ -19896,7 +20057,7 @@ function costDeriveCompute(keys) {
       rows.push({ month: m, paid: p, kg: w, perKg: p / w });
       paid += p; kg += w;
     });
-    res[key] = { rows: rows, paid: paid, kg: kg, perKg: kg > 0 ? Math.round(paid / kg * 100) / 100 : null };
+    res[key] = { rows: rows, paid: paid, kg: kg, perKg: kg > 0 ? gstRound(paid / kg) : null };
   });
   return res;
 }
@@ -19982,7 +20143,7 @@ function _costBillHtml() {
   var h = '<div data-cost-bills><div class="inv-row-group"><span>Electricity and other bills</span>' +
     (open ? '' : '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invCostBillOpen" data-where="stats">Add a bill</button>') + '</div>';
   bills.slice(0, 12).forEach(function(b) {
-    var meta = [b.units ? b.units + ' units' : '', b.note || '', b.voided ? 'void: ' + (b.voidReason || '') : ''].filter(Boolean).join(' · ');
+    var meta = [b.units ? b.units + ' units' : ''].concat(costBillParts(b), [b.note || '', b.voided ? 'void: ' + (b.voidReason || '') : '']).filter(Boolean).join(' · ');
     h += '<div class="inv-row' + (meta ? ' inv-row-2' : '') + (b.voided ? ' inv-row-muted' : '') + '"><span class="inv-row-main"><span class="inv-row-title">' + escHtml((b.label || COST_BILL_KINDS[b.kind]) + ' · ' + b.month) + '</span>' +
       (meta ? '<span class="inv-row-meta inv-row-wrap">' + escHtml(meta) + '</span>' : '') + '</span>' +
       '<span class="inv-row-end"><span class="inv-num">' + formatCurrency(b.amount) + '</span>' + (b.voided ? '' : '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invCostBillVoid" data-id="' + escHtml(b.id) + '">Void</button>') + '</span></div>';
@@ -20000,6 +20161,9 @@ function costBillFormHtml() {
     '<label class="inv-field"><span class="inv-field-label">Month it covers</span><input class="inv-input" id="costBillMonth" type="month" value="' + escHtml(m) + '"></label>' +
     '<label class="inv-field"><span class="inv-field-label">Amount, before GST</span><input class="inv-input inv-input-num" id="costBillAmount" type="number" step="0.01" min="0" inputmode="decimal"></label>' +
     '<label class="inv-field"><span class="inv-field-label">Units (electricity)</span><input class="inv-input inv-input-num" id="costBillUnits" type="number" step="1" min="0" inputmode="numeric"></label>' +
+    '<label class="inv-field"><span class="inv-field-label">Arrears in it, of an earlier month</span><input class="inv-input inv-input-num" id="costBillArrears" type="number" step="0.01" min="0" inputmode="decimal" placeholder="0"></label>' +
+    '<label class="inv-field"><span class="inv-field-label">Month the arrears are for</span><input class="inv-input" id="costBillArrearsOf" type="month"></label>' +
+    '<label class="inv-field"><span class="inv-field-label">Penalty or extra charge in it</span><input class="inv-input inv-input-num" id="costBillPenalty" type="number" step="0.01" min="0" inputmode="decimal" placeholder="0"></label>' +
     '<label class="inv-field inv-kv-wide"><span class="inv-field-label">Note</span><input class="inv-input" id="costBillNote" placeholder="e.g. JBVNL bill, ETP sludge"></label></div>' +
     '<div class="inv-toolbar"><button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invCostBillCancel">Cancel</button>' +
     '<button class="inv-btn inv-btn-primary inv-btn-sm" data-action="invCostBillSave">Save bill</button></div>';
@@ -20010,15 +20174,28 @@ function costBillRedraw(where) { if (where === 'finance') renderFinance(); else 
    hidden one (Stats comes first). Every lookup is scoped to the page the form was opened on. */
 function costBillRoot(where) { return document.getElementById(where === 'finance' ? 'pageFinance' : 'pageStats') || document; }
 
-function costBillSave() {
+async function costBillSave() {
   var root = costBillRoot((_costBillOpen || {}).where);
   var v = function(id) { return ((root.querySelector('#' + id) || {}).value || '').trim(); };
   var kind = v('costBillKind') === 'other' ? 'other' : 'power', month = v('costBillMonth'), amount = gstRound(parseFloat(v('costBillAmount')) || 0);
   if (!/^\d{4}-\d{2}$/.test(month)) { showToast('Pick the month the bill covers', 'error'); return; }
   if (!(amount > 0)) { showToast('Enter the amount', 'error'); return; }
   var units = parseFloat(v('costBillUnits'));
+  var arrears = gstRound(parseFloat(v('costBillArrears')) || 0), penalty = gstRound(parseFloat(v('costBillPenalty')) || 0), arrearsOf = v('costBillArrearsOf');
+  if (arrears < 0 || penalty < 0 || gstRound(arrears + penalty) > amount) { showToast('Arrears and penalty are parts of the bill: together they cannot be more than its amount', 'error'); return; }
+  if (arrearsOf && !/^\d{4}-\d{2}$/.test(arrearsOf)) arrearsOf = '';
+  if (arrearsOf && arrearsOf >= month) { showToast('Arrears are for a month before the one the bill covers', 'error'); return; }
+  // A second electricity bill for the month is asked about, never refused: it is usually arrears and a penalty.
+  var twin = kind === 'power' && costBills().find(function(b) { return b.kind === 'power' && !b.voided && b.month === month; });
+  if (twin && !(arrears > 0)) {
+    var ok = await uiConfirm({ title: 'A second electricity bill for ' + billsMonthLabel(month) + '?',
+      body: 'There is already one for ' + formatCurrency(twin.amount) + '. A second bill in a month usually carries the arrears of an earlier month that was not paid in time, and a penalty. Enter the arrears so they are not counted twice; with none entered, all of this bill counts as ' + billsMonthLabel(month) + '’s cost.',
+      okLabel: 'Save as it is' });
+    if (!ok) return;
+  }
   costBills().push({ id: 'CB-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), kind: kind, month: month, amount: amount,
-    units: units > 0 ? units : null, note: v('costBillNote'), at: Date.now() });
+    units: units > 0 ? units : null, arrears: arrears > 0 ? arrears : null, arrearsOf: arrears > 0 && arrearsOf ? arrearsOf : null,
+    penalty: penalty > 0 ? penalty : null, note: v('costBillNote'), at: Date.now() });
   var where = (_costBillOpen || {}).where;
   _costBillOpen = false;
   saveState();
@@ -20304,7 +20481,7 @@ function _billsPowerHtml() {
       return;
     }
     var b = r.bill;
-    var meta = [b.units ? formatNum(b.units, 0) + ' units' : '', b.note || '', b.voided ? 'void: ' + (b.voidReason || '') : ''].filter(Boolean).join(' · ');
+    var meta = [b.units ? formatNum(b.units, 0) + ' units' : ''].concat(costBillParts(b), [b.note || '', b.voided ? 'void: ' + (b.voidReason || '') : '']).filter(Boolean).join(' · ');
     h += '<div class="inv-row inv-row-2' + (b.voided ? ' inv-row-muted' : '') + '" data-bill="' + escHtml(b.id) + '"><span class="inv-row-main">' +
       '<span class="inv-row-title">' + escHtml((b.label || COST_BILL_KINDS[b.kind] || b.kind) + ' · ' + billsMonthLabel(b.month)) + '</span>' +
       (meta ? '<span class="inv-row-meta">' + escHtml(meta) + '</span>' : '') + '</span>' +
@@ -23163,6 +23340,7 @@ function todoGo(go) {
       if (pw) { pw.open = true; pw.scrollIntoView({ block: 'start' }); }
       break;
     }
+    case 'payDue': _attView = 'pay'; _attDate = localDateStr(); switchTab('pageStaff'); break;
     case 'staffPaste': _attView = 'paste'; switchTab('pageStaff'); break;
     case 'stockList': _stockView = 'list'; switchTab('pageStock'); break;
     case 'client': switchTab('pageClients'); openClientEdit(parseInt(go.id, 10)); break;
@@ -23859,6 +24037,8 @@ function parseRelayRoll(text, roster, sentOn) {
         ln.read = 'EXTRA ' + hrs + ' h booked to ' + relayAreaName(sec.areas[0]);
       } else {
         var from = st.mode === 'out' ? (st.slot && st.slot.rangeStart != null ? st.slot.rangeStart : RELAY_GENERAL_OUT)
+          // The night shift starts when it starts (8 PM); any other evening slot on an in-time roll is read from 5 PM.
+          : (st.slot && st.slot.night && st.slot.start != null) ? st.slot.start
           : (st.slot && st.slot.start >= RELAY_GENERAL_OUT) ? RELAY_GENERAL_OUT : (st.slot && st.slot.start != null ? st.slot.start : RELAY_MORNING);
         var to = st.mode === 'out' ? (st.slot && st.slot.end) : (st.slot && st.slot.end != null && st.slot.end !== st.slot.start ? st.slot.end : (from === RELAY_MORNING ? RELAY_GENERAL : null));
         // Barrel and its pickling are one unit to the reconciler; the shop's own
@@ -23938,15 +24118,21 @@ function parseRelayRoll(text, roster, sentOn) {
           st.slot = { start: null, end: kindH.end != null ? kindH.end : (kindH.single != null ? kindH.single : null), label: bare,
             rangeStart: kindH.end != null || kindH.night ? kindH.start : null };
         } else {
+          // The night hold is the night shift, 8 PM to 6 AM (owner, 30 Sep 2026: "night hold is night shift"), on an
+          // in-time roll as on an out-time one: a heading with one time keeps the other end, and is never the morning.
+          if (kindH.night && kindH.end == null && kindH.single != null) {
+            if (kindH.single >= 1440) { kindH.start = RELAY_NIGHT; kindH.end = kindH.single; }
+            else { kindH.start = kindH.single; kindH.end = 1440 + RELAY_MORNING; }
+          }
           var sStart = kindH.start;
           // A slot ahead of the 8:30 shift on an in-time roll is the morning: the
           // relay has headed it "6:00 pm" before, and BM ruled that a mislabel.
-          if (sStart != null && sStart >= 960 && sStart <= 1200 && !st.sawGeneral && out.kind === 'in' && /8\s*:\s*30/.test(lines.slice(i + 2).join(' '))) {
+          if (!kindH.night && sStart != null && sStart >= 960 && sStart <= 1200 && !st.sawGeneral && out.kind === 'in' && /8\s*:\s*30/.test(lines.slice(i + 2).join(' '))) {
             sStart -= 720;
             out.issues.push({ tone: 'amber', n: ln.n, text: '"' + bare + '" comes before the 8:30 shift, so it is read as ' + relayClockLabel(sStart) + '.' });
           }
           if (sStart === RELAY_GENERAL) st.sawGeneral = true;
-          st.slot = { start: sStart, end: kindH.end, label: bare };
+          st.slot = { start: sStart, end: kindH.end, label: bare, night: !!kindH.night };
           kindH.start = sStart;
         }
         // Which slot this is, as the roll wrote it: taken before a learnt time moves it, so a heading's lesson keeps
@@ -26880,13 +27066,11 @@ function buildHistoryEvents() {
     // customer's paper, so a change to it is an audit event and says what moved.
     (im.items || []).forEach(function(it) {
       (it.corrections || []).forEach(function(cx) {
-        var names = { partNumber: 'part', desc: 'description', unit: 'unit', qty: 'quantity', nosQty: 'pieces', rate: 'rate', amount: 'amount' };
-        var what = Object.keys(cx.from || {}).filter(function(f) { return f !== 'amount' || Object.keys(cx.from).length === 1; })
-          .map(function(f) { return names[f] + ' ' + (cx.from[f] == null ? '—' : cx.from[f]) + ' \u2192 ' + ((cx.to || it)[f] == null ? '—' : (cx.to || it)[f]); });
+        var t = challanCorrectionText(it, cx), cut = t.indexOf(': ');
         events.push({
           ts: cx.at, type: 'audit', kind: 'challan', sourceId: im.id, jump: 'challan',
-          text: 'Challan' + (im.challanNo ? ' ' + im.challanNo : '') + ' corrected from ' + (cx.invoice || 'an invoice') +
-            ': ' + (it.partNumber || '') + ' \u2014 ' + what.join(', ')
+          text: 'Challan' + (im.challanNo ? ' ' + im.challanNo : '') + ' corrected ' + t.slice(0, cut) +
+            ': ' + (it.partNumber || '') + ' \u2014 ' + t.slice(cut + 2)
         });
       });
     });
@@ -28063,6 +28247,24 @@ var FIN_RULES = [
   ['bankBounce', 'Finance: a returned cheque is not matched to its deposit']
 ];
 FIN_RULES.forEach(function(r) { TODO_RULES.push(r); TODO_CHECK_DEFAULTS[r[0]] = true; });
+/* A worker's balance carried from an earlier pay period (payCarried): it asks until it is paid, worked off, or
+   cleared with a reason on Staff → Pay ("stated otherwise and notification cleared", owner, 30 Sep 2026). */
+TODO_RULES.push(['payCarry', 'Pay: a worker carries a balance from an earlier period']);
+TODO_CHECK_DEFAULTS.payCarry = true;
+TODO_RULE_FNS.payCarry = function() {
+  if (!staffPayments().some(function(p) { return !p.voidedAt; })) return [];
+  var ws = attWeekStartOf(localDateStr());
+  var rows = payDue(ws).rows.filter(function(r) { return r.carried; });
+  if (!rows.length) return [];
+  var owed = rows.filter(function(r) { return r.carried > 0; }), adv = rows.filter(function(r) { return r.carried < 0; });
+  var sum = function(list) { return gstRound(list.reduce(function(t, r) { return t + Math.abs(r.carried); }, 0)); };
+  return [{ key: 'payCarry', rule: 'payCarry', tone: 'amber',
+    title: todoPlural(rows.length, 'worker') + ' carry a balance from an earlier period',
+    sub: rows.slice(0, 3).map(function(r) { return r.w.name + ' ' + (r.carried > 0 ? 'owed ' : 'advanced ') + formatCurrency(Math.abs(r.carried)); }).join(' · '),
+    why: 'Pay · brought forward', facts: [['Owed from before', formatCurrency(sum(owed))], ['Advanced before', formatCurrency(sum(adv))]],
+    clears: 'Clears itself when each balance is paid or worked off, or cleared with a reason on Staff → Pay.',
+    go: { kind: 'payDue' }, goLabel: 'Open Pay', sig: rows.map(function(r) { return r.w.id + ':' + r.carried; }).join('|') }];
+};
 function finGo(tab, extra) { return Object.assign({ kind: 'finance', tab: tab }, extra || {}); }
 function _finRows() { return finCtx().rows; }
 

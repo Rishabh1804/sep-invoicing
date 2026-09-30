@@ -127,7 +127,7 @@ every session start — nothing to set up by hand. CI (`build-sync`) is the back
 ### Tests
 
 ```bash
-pnpm exec playwright test          # 957 tests, both layouts
+pnpm exec playwright test          # 967 tests, both layouts
 ```
 
 Some sandboxes ship a Chromium build Playwright does not expect and block downloading
@@ -223,8 +223,11 @@ layouts; builders fixed each area with its spec (P104–P113). What it leaves as
   stays money-out. **The sep-bank export's `parties` carry `dir`** — a data flow soma-internal reads.
 - **The roster names a worker by `staffNameKey`** (letters, digits, or the name itself when not in Latin letters); a renamed worker
   keeps the old name as a spelling, so payroll slips still find them.
-- **Deferred to the owner, not built**: `gstRound`'s float half-paisa (HR-8's formula), dues carried across pay periods, a second
-  electricity bill in one month, and a correction on a new invoice reaching its challan.
+- **What the sweep left to the owner, and their rulings (30 Sep 2026)**, all built (P114): `gstRound` rounds the decimal figure
+  (*"change it"*, HR-8); a pay balance carries across periods until cleared with a reason (*"yes, unless stated otherwise and
+  notification cleared"*, Pay); a second electricity bill in a month is arrears plus a penalty (Bills & notes); *"night hold is
+  night shift"* on the in-time roll too; a correction on a new invoice reaches its challan with a note; Home nets credit notes and
+  says so.
 
 **A `<select>` speaks through `change`, never `click`.** Giving a filter control a
 `data-action` meant the click that *opens* it ran the handler — and if that handler
@@ -287,7 +290,7 @@ filter on; a literal date in a fixture is a time bomb, not a constant.
 | HR-5 | escHtml() on all user-data innerHTML. |
 | HR-6 | CSS design tokens only. No raw px/rem/hex/timing. |
 | HR-7 | Dark mode coverage on every new element — by reading tokens, which switch with `color-scheme`. No `.dark` class exists. |
-| HR-8 | gstRound() for all currency. `Math.round(val * 100) / 100`. Never Math.floor for financials. GST rules require proper rounding. |
+| HR-8 | gstRound() for all currency: to the paisa on the figure as written, half away from zero (read to 15 significant digits, shifted two places in decimal, rounded, shifted back). Never Math.floor for financials. GST rules require proper rounding. It was `Math.round(val * 100) / 100` until 30 Sep 2026, which rounded the binary copy: 1.005 gave 1.00 and 2.675 gave 2.67 (owner: *"change it"*). |
 
 **Known HR-6 exceptions (do not expand):** 44px min touch targets (WCAG), 20px SVG icons, print CSS
 raw colors, and the printed documents' physical measurements (mm/pt) — all three declare their type
@@ -1440,6 +1443,12 @@ piece count at all, and an invoice line did not record which challan line it cam
   `corrections: [{at, invoiceId, invoice, from, to}]`. The challan is the record of the customer's
   paper; overwriting it without trace would lose what an audit asks. History lists each one:
   *"Challan 1115 corrected from SEP/…/00830: CLAMP 5079 4920 4205 — pieces 33 → 330"*.
+- **A correction on a NEW invoice reaches the challan too** (owner, 30 Sep 2026: *"correction on the invoice should be reflected
+  in the challan with a note"*). A challan line brought into the form remembers what it said (`imLineOrig`, `_fromNew`), and on
+  save a field typed over it travels back like an edit's. The quantity is the exception: typing less than the challan is
+  dispatching part of it, so it travels only when the operator said *Challan quantity was wrong*. The challan line shows each
+  correction as a note (*Corrected · from SEP/…/00012: rate 13 → 13.2*, `challanCorrectionText`, History's wording), and the save
+  says which challan was corrected.
 - **KG lines on the invoice form have a Pcs field** — it prices nothing, but it is what the weight
   is checked against, and it was the field both slips were in.
 - ⚠ **Every save confirmation had been invisible.** `switchTab()` clears toasts, and `saveInvoice()`
@@ -1734,7 +1743,9 @@ the device. `renderStats()` still draws every card; `take()` files each into its
 - **Credit notes are netted across all of Stats** (owner, 30 Sep 2026): each note's credit is spread over the invoices it names in
   proportion to their taxable (`statsInvoices`, `cnCreditByInvoice`), and the headline, realisation, clients, six months, the trend,
   the insights and Clients → Performance read those net invoices; tonnage is untouched. A note naming no invoice in the book is
-  counted apart and said on the Overview. Home's month-to-date tiles stay gross.
+  counted apart and said on the Overview. **Home's month to date is net of them too** (owner, 30 Sep 2026: *"yes, it should and
+  it should be mentioned"*): the Revenue tile reads *taxable, net of ₹200.00 in credit notes*, and its comparison with the same
+  days last month is net on both sides. The tile will link to the notes once the hover previews are built.
 - **The trend keeps its own reach** (the last 12 months, 26 weeks or 90 days) whatever the period chip, and shades the chosen
   period on it (`opts.span`), saying so under the chart (owner, 30 Sep 2026).
 - **Contribution by client** (Clients tab), worst first: net realisation (credit notes whose batch ends in
@@ -1856,6 +1867,12 @@ batch rebate.
   and no electricity bill is listed with an **Add** that opens the form on that month (`billsMissingPower()`). The
   same form serves the Stats card (`costBillFormHtml`, `_costBillOpen = {where, month}`).
   To-do rule **`power`**: from the 10th, last month without a bill; amber from the 20th, `sig` the month.
+- **A second electricity bill in a month is arrears and a penalty** (owner, 30 Sep 2026: it *"only happens when a bit or all of
+  a couple months ago was not paid in time, so it might include a penalty"*). A bill records the **arrears** in it (and the month
+  they are for) and the **penalty or extra charge** in it, both parts of its amount. The arrears were that month's cost on its
+  own bill, so a bill's cost is its amount less its arrears (`costBillCost`); the penalty stays in and is named on the bill and
+  in Live cost. A second bill with no arrears entered asks first, never refuses. The owner mentioned paying about ₹5,000 a month
+  since the load went to 50 while the bill still reads 25: that charge can be entered as the penalty or extra charge.
 - **Credit notes, two doors.** *Record an issued note* takes a note that already exists on paper, with its **own
   number** (refused if the series holds it) and **the GST as printed**: recomputing is not the same thing, and
   CN/004's 3,749.29 at 9% + 9% rounds each half to 337.44 = ₹4,424.17 where the customer holds ₹4,424.16. The
@@ -2237,6 +2254,9 @@ or night block has its own **Needed** (`need` on its row), which `blockNorm` rea
 - *"----berral & V A 2----"* read as the barrel alone: the barrel check returned before looking for a VAT line. Barrel with
   a VAT line (no pickling) is both, and the collapse to barrel pickling now applies only to barrel + barrel pickling.
 - *"pickling 2 SIDE"* is one pickling crew serving both sides (owner): `pickling-vat` + `pickling-barrel`, never a third area.
+- **"Night hold is night shift"** (owner, 30 Sep 2026) on an in-time roll as on an out-time one: a night heading with one time
+  keeps the other end, starts its block at its own time, and is never taken for a mislabelled morning (*"night hold 8 pm"* ahead
+  of the 8:30 shift read as 8 AM).
 
 **The reader learns from corrections** (owner: *"The parser should learn from feedback … by reading if the data was changed
 after the paste or save"*). A row the roll makes remembers the heading it came from and what was read (`srcHead`,
@@ -2274,6 +2294,14 @@ Staff → **Pay** (`payroll.js`), for the selected pay week (owner, 25 Sep 2026)
   daily tiers, the calendar month of the week's **Sunday** for the monthly tier (the QA sweep, 30 Sep 2026: it was the Saturday's, so in a month's last pay week Pay showed the next month at 0 and hid this one's) (to today while it
   runs). Earned is `labourForRange().byWorker`, the labour card's own arithmetic, split per worker.
   **The EXTRA pool is in no one's due**: it is one line on the slip, disbursed by the supervisor.
+- **A balance carries from one period to the next** (owner, 30 Sep 2026: *"yes, unless stated otherwise and notification
+  cleared"*; `payCarried`). A due left unpaid is owed next period, an advance not worked off is still to be worked off, and a
+  monthly salary paid on the 14th of the next month pays the month it was for (it used to read as an advance against the new
+  month, and an advance vanished when its period turned). It is counted from the period of the worker's first payment recorded
+  in the app (a monthly hand's, the month before): before that nothing was typed here, and every past wage would read as owed. A
+  month on record as paid is settled. Staff → Pay lists **Brought forward**, each with **Clear**, which asks for a reason and
+  settles every period up to the one before (`S.payCarryClears`, undone, never deleted); the To-do rule **`payCarry`** asks until
+  each balance is paid, worked off or cleared.
 - **Payments and advances** are recorded here (`S.staffPayments: [{id, staffId, date, amount,
   kind: payment|advance, note, at, voidedAt?, voidReason?}]`). A wrong one is **voided with a
   reason, never deleted**. A negative due is an advance not yet worked off. Tapping a worker fills

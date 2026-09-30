@@ -411,6 +411,8 @@ function parseRelayRoll(text, roster, sentOn) {
         ln.read = 'EXTRA ' + hrs + ' h booked to ' + relayAreaName(sec.areas[0]);
       } else {
         var from = st.mode === 'out' ? (st.slot && st.slot.rangeStart != null ? st.slot.rangeStart : RELAY_GENERAL_OUT)
+          // The night shift starts when it starts (8 PM); any other evening slot on an in-time roll is read from 5 PM.
+          : (st.slot && st.slot.night && st.slot.start != null) ? st.slot.start
           : (st.slot && st.slot.start >= RELAY_GENERAL_OUT) ? RELAY_GENERAL_OUT : (st.slot && st.slot.start != null ? st.slot.start : RELAY_MORNING);
         var to = st.mode === 'out' ? (st.slot && st.slot.end) : (st.slot && st.slot.end != null && st.slot.end !== st.slot.start ? st.slot.end : (from === RELAY_MORNING ? RELAY_GENERAL : null));
         // Barrel and its pickling are one unit to the reconciler; the shop's own
@@ -490,15 +492,21 @@ function parseRelayRoll(text, roster, sentOn) {
           st.slot = { start: null, end: kindH.end != null ? kindH.end : (kindH.single != null ? kindH.single : null), label: bare,
             rangeStart: kindH.end != null || kindH.night ? kindH.start : null };
         } else {
+          // The night hold is the night shift, 8 PM to 6 AM (owner, 30 Sep 2026: "night hold is night shift"), on an
+          // in-time roll as on an out-time one: a heading with one time keeps the other end, and is never the morning.
+          if (kindH.night && kindH.end == null && kindH.single != null) {
+            if (kindH.single >= 1440) { kindH.start = RELAY_NIGHT; kindH.end = kindH.single; }
+            else { kindH.start = kindH.single; kindH.end = 1440 + RELAY_MORNING; }
+          }
           var sStart = kindH.start;
           // A slot ahead of the 8:30 shift on an in-time roll is the morning: the
           // relay has headed it "6:00 pm" before, and BM ruled that a mislabel.
-          if (sStart != null && sStart >= 960 && sStart <= 1200 && !st.sawGeneral && out.kind === 'in' && /8\s*:\s*30/.test(lines.slice(i + 2).join(' '))) {
+          if (!kindH.night && sStart != null && sStart >= 960 && sStart <= 1200 && !st.sawGeneral && out.kind === 'in' && /8\s*:\s*30/.test(lines.slice(i + 2).join(' '))) {
             sStart -= 720;
             out.issues.push({ tone: 'amber', n: ln.n, text: '"' + bare + '" comes before the 8:30 shift, so it is read as ' + relayClockLabel(sStart) + '.' });
           }
           if (sStart === RELAY_GENERAL) st.sawGeneral = true;
-          st.slot = { start: sStart, end: kindH.end, label: bare };
+          st.slot = { start: sStart, end: kindH.end, label: bare, night: !!kindH.night };
           kindH.start = sStart;
         }
         // Which slot this is, as the roll wrote it: taken before a learnt time moves it, so a heading's lesson keeps

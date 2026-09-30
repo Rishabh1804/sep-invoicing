@@ -179,6 +179,9 @@ function renderHomeTiles(active) {
   set('mtdCount', String(active.length));
   set('mtdCountSub', escHtml(month) + ' to date');
   set('mtdRevenue', figWrapHtml(formatCurrency(sumTaxable(active))));
+  // Net of credit notes, as Stats is (owner, 30 Sep 2026: "yes, it should and it should be mentioned").
+  var credited = gstRound(active.reduce(function(s, i) { return s + (i._credit || 0); }, 0));
+  set('mtdRevenueSub', credited > 0.005 ? 'taxable, net of ' + escHtml(formatCurrency(credited)) + ' in credit notes' : 'taxable, net of credit notes');
   // Two places, as Stats shows it: one place read 40 kg as '0.0 t'.
   set('mtdKg', w.kg > 0 ? formatNum(w.kg / 1000, 2) + ' t' : '&mdash;');
   set('mtdKgSub', w.kg > 0 ? Math.round(w.kg).toLocaleString('en-IN') + ' kg' : 'nothing weighed yet');
@@ -214,13 +217,14 @@ function homePriorSameDays() {
   var pad = function(n) { return String(n).padStart(2, '0'); };
   var from = py + '-' + pad(pm + 1) + '-01', to = py + '-' + pad(pm + 1) + '-' + pad(Math.min(d, plen));
   return { from: from, to: to, monthStart: y + '-' + pad(m + 1) + '-01',
-    invoices: S.invoices.filter(function(i) { return i.status === 'active' && i.date && i.date >= from && i.date <= to; }) };
+    invoices: statsInvoices().filter(function(i) { return i.date && i.date >= from && i.date <= to; }) };
 }
 
 function renderHome() {
   const now = new Date();
   const ym = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0');
-  const active = S.invoices.filter(i => i.status === 'active' && i.date && i.date.startsWith(ym));
+  // The month's invoices net of their credit notes (statsInvoices), so Home and Stats read one revenue.
+  const active = statsInvoices().filter(i => i.date && i.date.startsWith(ym));
   renderHomeTiles(active);
 
   renderZincCard();

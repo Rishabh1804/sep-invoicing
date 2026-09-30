@@ -248,6 +248,24 @@ var FIN_RULES = [
   ['bankBounce', 'Finance: a returned cheque is not matched to its deposit']
 ];
 FIN_RULES.forEach(function(r) { TODO_RULES.push(r); TODO_CHECK_DEFAULTS[r[0]] = true; });
+/* A worker's balance carried from an earlier pay period (payCarried): it asks until it is paid, worked off, or
+   cleared with a reason on Staff → Pay ("stated otherwise and notification cleared", owner, 30 Sep 2026). */
+TODO_RULES.push(['payCarry', 'Pay: a worker carries a balance from an earlier period']);
+TODO_CHECK_DEFAULTS.payCarry = true;
+TODO_RULE_FNS.payCarry = function() {
+  if (!staffPayments().some(function(p) { return !p.voidedAt; })) return [];
+  var ws = attWeekStartOf(localDateStr());
+  var rows = payDue(ws).rows.filter(function(r) { return r.carried; });
+  if (!rows.length) return [];
+  var owed = rows.filter(function(r) { return r.carried > 0; }), adv = rows.filter(function(r) { return r.carried < 0; });
+  var sum = function(list) { return gstRound(list.reduce(function(t, r) { return t + Math.abs(r.carried); }, 0)); };
+  return [{ key: 'payCarry', rule: 'payCarry', tone: 'amber',
+    title: todoPlural(rows.length, 'worker') + ' carry a balance from an earlier period',
+    sub: rows.slice(0, 3).map(function(r) { return r.w.name + ' ' + (r.carried > 0 ? 'owed ' : 'advanced ') + formatCurrency(Math.abs(r.carried)); }).join(' · '),
+    why: 'Pay · brought forward', facts: [['Owed from before', formatCurrency(sum(owed))], ['Advanced before', formatCurrency(sum(adv))]],
+    clears: 'Clears itself when each balance is paid or worked off, or cleared with a reason on Staff → Pay.',
+    go: { kind: 'payDue' }, goLabel: 'Open Pay', sig: rows.map(function(r) { return r.w.id + ':' + r.carried; }).join('|') }];
+};
 function finGo(tab, extra) { return Object.assign({ kind: 'finance', tab: tab }, extra || {}); }
 function _finRows() { return finCtx().rows; }
 

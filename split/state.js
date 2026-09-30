@@ -69,6 +69,7 @@ function getDefaultState() {
     relayLearn: { heads: {}, slots: {} },
     // Payments and advances made to workers, voided with a reason, never deleted.
     staffPayments: [],
+    payCarryClears: [],
     // Power and other monthly bills, for the live cost (voided, never deleted).
     costBills: [],
     payrollPaid: [],
@@ -505,7 +506,7 @@ function hideStorageBanner(kind) {
 // Containers hold the user's records, so a missing one is filled EMPTY — the
 // app must never invent business data to repair a shape.
 var STATE_CONTAINERS = ['clients', 'items', 'invoices', 'incomingMaterial', 'partWeights',
-  'voidedNumbers', 'creditNotes', 'extraExceptions', 'staff', 'attendance', 'areaTargets', 'shiftNeeds', 'stock', 'todo', 'relayPastes', 'relayLearn', 'staffPayments', 'costBills', 'payrollPaid', 'bank', 'production'];
+  'voidedNumbers', 'creditNotes', 'extraExceptions', 'staff', 'attendance', 'areaTargets', 'shiftNeeds', 'stock', 'todo', 'relayPastes', 'relayLearn', 'staffPayments', 'payCarryClears', 'costBills', 'payrollPaid', 'bank', 'production'];
 // Config objects are the opposite: a missing one is filled from the defaults,
 // and so is a missing KEY inside one. `labourCfg()` reads `extraRate || 0`, so
 // a backup predating a constant would silently price the extra at nothing
@@ -1297,7 +1298,18 @@ function numMedian(nums) {
   return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
 }
 
-function gstRound(val) { return Math.round(val * 100) / 100; }
+/* Round to the paisa, half away from zero, on the decimal the figure is written in (owner, 30 Sep 2026: "change it").
+   Math.round(val * 100) / 100 rounded on the binary copy: 1.005 is held as 1.00499999…, so it gave 1.00 where the paper
+   says 1.01, and 0.1 + 0.2 carried its noise into the paise. The figure is read to 15 significant digits (what a double
+   holds exactly), shifted two places in decimal, rounded, and shifted back. */
+function gstRound(val) {
+  var v = Number(val);
+  if (!isFinite(v) || v === 0) return 0;
+  var a = Math.abs(v), parts = a.toPrecision(15).split('e');
+  var shifted = Number(parts[0] + 'e' + ((Number(parts[1]) || 0) + 2));
+  var r = Number(Math.round(shifted) + 'e-2');
+  return v < 0 ? -r : r;
+}
 
 function formatNum(n, dec) {
   if (n == null || isNaN(n)) return '0';

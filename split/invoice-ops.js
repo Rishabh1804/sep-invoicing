@@ -71,6 +71,9 @@ function backCorrectChallans(inv, formItems) {
     // only this invoice's share: its quantity, pieces and amount never travel.
     var others = (idx[it.id] || []).some(function(r) { return r.invoiceId !== inv.id; });
     var part = others || li._orig.qty !== (it.qty == null ? null : it.qty);
+    // On a new invoice a quantity typed under the challan's is a dispatch of part of it, not a correction: the
+    // quantity travels only when the operator said the challan's was wrong.
+    if (li._fromNew && li.qty !== li._orig.qty && (li.overReason || (li.overBillAck && li.overBillAck.reason)) !== 'challan') part = true;
     // A line billed in another unit than its challan line's travels back only as a correction the
     // operator named ("Challan unit was wrong"), and only on a whole line. Any other unit change is how
     // the customer is billed, not what their paper said: the challan keeps its unit and its quantity.
@@ -96,6 +99,15 @@ function backCorrectChallans(inv, formItems) {
     lines++;
   });
   return { lines: lines, challans: Object.keys(touched).map(function(k) { return touched[k]; }) };
+}
+
+/* A correction as a note: "from SEP/…/00830: pieces 33 → 330". One wording for the challan line and History. */
+var CHALLAN_FIELD_NAMES = { partNumber: 'part', desc: 'description', unit: 'unit', qty: 'quantity', nosQty: 'pieces', rate: 'rate', amount: 'amount' };
+function challanCorrectionText(it, cx) {
+  var from = cx.from || {};
+  var what = Object.keys(from).filter(function(f) { return f !== 'amount' || Object.keys(from).length === 1; })
+    .map(function(f) { return CHALLAN_FIELD_NAMES[f] + ' ' + (from[f] == null ? '—' : from[f]) + ' \u2192 ' + ((cx.to || it)[f] == null ? '—' : (cx.to || it)[f]); });
+  return 'from ' + (cx.invoice || 'an invoice') + ': ' + what.join(', ');
 }
 
 /* ===== INVOICE REGISTER ===== */

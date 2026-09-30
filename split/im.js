@@ -249,7 +249,16 @@ function imLineFormItem(it) {
   var open = imLineOpen(it), part = imLineBilled(it);
   return { partNumber: it.partNumber, desc: it.desc, hsn: it.hsn || '998873', unit: it.unit, qty: open.qty,
     rate: it.rate || 0, amount: open.amount, nosQty: (part ? open.nos : it.nosQty) || null,
-    _override: false, _label: '', _imItemId: it.id, _nosAuto: !!(it.unit === 'KG' && it.nosQty) };
+    _override: false, _label: '', _imItemId: it.id, _nosAuto: !!(it.unit === 'KG' && it.nosQty), _fromNew: true, _orig: imLineOrig(it, open) };
+}
+/* What a challan line said as it was brought into a new invoice: a field typed over it is a correction to carry back
+   (backCorrectChallans), the owner's ruling of 30 Sep 2026 — "correction on the invoice should be reflected in the
+   challan with a note". The quantity is the share brought (what is left), so typing less is dispatching part of it. */
+function imLineOrig(it, open) {
+  var o = {};
+  CHALLAN_SYNC_FIELDS.forEach(function(f) { o[f] = it[f] == null ? null : it[f]; });
+  o.qty = open.qty; o.amount = open.amount; o.nosQty = (imLineBilled(it) ? open.nos : it.nosQty) || null;
+  return o;
 }
 
 function getIMStatus(im) {
@@ -552,7 +561,11 @@ function _imItemRowHtml(it) {
     '<span class="inv-row-main"><span class="inv-row-title inv-row-wrap" data-im-desc>' + escHtml(lineLabel(it)) + '</span>' +
     '<span class="inv-row-meta inv-row-wrap" data-im-detail>' + escHtml(it.qty) + ' ' + escHtml(it.unit) +
     (it.nosQty && it.nosQty > 0 ? ' (' + escHtml(it.nosQty) + ' NOS)' : '') +
-    ' @ ' + formatCurrency(it.rate) + '/' + escHtml(it.unit) + '</span>' + share + (tag ? '<span class="inv-row-meta inv-row-wrap" data-im-invoices>' + tag + '</span>' : '') + '</span>' +
+    ' @ ' + formatCurrency(it.rate) + '/' + escHtml(it.unit) + '</span>' + share +
+    (it.corrections || []).map(function(cx) {
+      return '<span class="inv-row-meta inv-row-wrap" data-im-correction><span class="inv-dot inv-dot-info">Corrected</span> ' +
+        escHtml(challanCorrectionText(it, cx) + ' · ' + formatDate(isoOf(new Date(cx.at)))) + '</span>';
+    }).join('') + (tag ? '<span class="inv-row-meta inv-row-wrap" data-im-invoices>' + tag + '</span>' : '') + '</span>' +
     '<span class="inv-row-end inv-num">' + formatCurrency(it.amount) + '</span></div>';
 }
 

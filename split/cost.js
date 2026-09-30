@@ -189,6 +189,17 @@ function costBills() {
   return S.costBills;
 }
 var COST_BILL_KINDS = { power: 'Electricity', other: 'Consumables, ETP, maintenance' };
+/* A second electricity bill in one month is not a mistake (owner, 30 Sep 2026: it "only happens when a bit or all of a
+   couple months ago was not paid in time, so it might include a penalty"). Such a bill carries the ARREARS of the month
+   that went unpaid, already counted as that month's cost by its own bill, and a PENALTY that is this month's. So a bill
+   records both (`arrears`, `penalty`, parts of `amount`), and the cost of a bill is its amount less the arrears: counting
+   them again would charge the late month twice. The penalty stays in and is named, as is any standing charge the owner
+   enters there (an excess-load charge while the connection still reads its old load). */
+function costBillCost(b) { return gstRound((Number(b.amount) || 0) - (Number(b.arrears) || 0)); }
+function costBillParts(b) {
+  return [b.arrears > 0 ? 'arrears ' + formatCurrency(b.arrears) + (b.arrearsOf ? ' of ' + billsMonthLabel(b.arrearsOf) : '') + ', not counted again' : '',
+    b.penalty > 0 ? 'penalty ' + formatCurrency(b.penalty) : ''].filter(Boolean);
+}
 
 /* The share of a month's bill that falls inside the range, by calendar days. */
 function costMonthShare(month, from, to) {
@@ -364,8 +375,10 @@ function liveCost(from, to, kg) {
       if (!mine.length) { unbilled += rangeShare; unbilledMonths.push(mo); return; }
       mine.forEach(function(b) {
         var share = costMonthShare(b.month, from, to);
-        amt += b.amount * share;
-        detail.push({ label: (b.label || COST_BILL_KINDS[kind]) + ' · ' + b.month, sub: formatCurrency(b.amount) + (share < 0.999 ? ' × ' + formatNum(share * 100, 0) + '% of the month' : '') + (b.units ? ' · ' + b.units + ' units' : '') + (b.note ? ' · ' + b.note : ''), amount: b.amount * share });
+        var cost = costBillCost(b);
+        amt += cost * share;
+        detail.push({ label: (b.label || COST_BILL_KINDS[kind]) + ' · ' + b.month, sub: formatCurrency(cost) + (share < 0.999 ? ' × ' + formatNum(share * 100, 0) + '% of the month' : '') + (b.units ? ' · ' + b.units + ' units' : '') +
+          costBillParts(b).map(function(x) { return ' · ' + x; }).join('') + (b.note ? ' · ' + b.note : ''), amount: cost * share });
       });
     });
     if (unbilled > 0.001) detail.push(fillLine(cfg[kind], unbilled, 'no bill for ' + unbilledMonths.join(', ')));
@@ -425,7 +438,7 @@ function liveCostPaidCheck(from, to) {
     bk[kind].months.forEach(function(mo) {
       var bills = costBills().filter(function(b) { return b.kind === kind && !b.voided && b.month === mo.month; });
       if (!bills.length) { t.skipped.push(mo.month); return; }
-      t.recorded += bills.reduce(function(s, b) { return s + b.amount; }, 0) * mo.share; t.paid += mo.amount; t.months.push(mo.month);
+      t.recorded += bills.reduce(function(s, b) { return s + costBillCost(b); }, 0) * mo.share; t.paid += mo.amount; t.months.push(mo.month);
     });
     finish(kind, COST_BILL_KINDS[kind], t, kind === 'power' ? 'a payment settles the month before unless set otherwise' : 'bills are before GST, a payment includes it', 'no bill entered');
   });
@@ -482,7 +495,7 @@ function costDeriveCompute(keys) {
       rows.push({ month: m, paid: p, kg: w, perKg: p / w });
       paid += p; kg += w;
     });
-    res[key] = { rows: rows, paid: paid, kg: kg, perKg: kg > 0 ? Math.round(paid / kg * 100) / 100 : null };
+    res[key] = { rows: rows, paid: paid, kg: kg, perKg: kg > 0 ? gstRound(paid / kg) : null };
   });
   return res;
 }
@@ -568,7 +581,7 @@ function _costBillHtml() {
   var h = '<div data-cost-bills><div class="inv-row-group"><span>Electricity and other bills</span>' +
     (open ? '' : '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invCostBillOpen" data-where="stats">Add a bill</button>') + '</div>';
   bills.slice(0, 12).forEach(function(b) {
-    var meta = [b.units ? b.units + ' units' : '', b.note || '', b.voided ? 'void: ' + (b.voidReason || '') : ''].filter(Boolean).join(' · ');
+    var meta = [b.units ? b.units + ' units' : ''].concat(costBillParts(b), [b.note || '', b.voided ? 'void: ' + (b.voidReason || '') : '']).filter(Boolean).join(' · ');
     h += '<div class="inv-row' + (meta ? ' inv-row-2' : '') + (b.voided ? ' inv-row-muted' : '') + '"><span class="inv-row-main"><span class="inv-row-title">' + escHtml((b.label || COST_BILL_KINDS[b.kind]) + ' · ' + b.month) + '</span>' +
       (meta ? '<span class="inv-row-meta inv-row-wrap">' + escHtml(meta) + '</span>' : '') + '</span>' +
       '<span class="inv-row-end"><span class="inv-num">' + formatCurrency(b.amount) + '</span>' + (b.voided ? '' : '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invCostBillVoid" data-id="' + escHtml(b.id) + '">Void</button>') + '</span></div>';
@@ -586,6 +599,9 @@ function costBillFormHtml() {
     '<label class="inv-field"><span class="inv-field-label">Month it covers</span><input class="inv-input" id="costBillMonth" type="month" value="' + escHtml(m) + '"></label>' +
     '<label class="inv-field"><span class="inv-field-label">Amount, before GST</span><input class="inv-input inv-input-num" id="costBillAmount" type="number" step="0.01" min="0" inputmode="decimal"></label>' +
     '<label class="inv-field"><span class="inv-field-label">Units (electricity)</span><input class="inv-input inv-input-num" id="costBillUnits" type="number" step="1" min="0" inputmode="numeric"></label>' +
+    '<label class="inv-field"><span class="inv-field-label">Arrears in it, of an earlier month</span><input class="inv-input inv-input-num" id="costBillArrears" type="number" step="0.01" min="0" inputmode="decimal" placeholder="0"></label>' +
+    '<label class="inv-field"><span class="inv-field-label">Month the arrears are for</span><input class="inv-input" id="costBillArrearsOf" type="month"></label>' +
+    '<label class="inv-field"><span class="inv-field-label">Penalty or extra charge in it</span><input class="inv-input inv-input-num" id="costBillPenalty" type="number" step="0.01" min="0" inputmode="decimal" placeholder="0"></label>' +
     '<label class="inv-field inv-kv-wide"><span class="inv-field-label">Note</span><input class="inv-input" id="costBillNote" placeholder="e.g. JBVNL bill, ETP sludge"></label></div>' +
     '<div class="inv-toolbar"><button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invCostBillCancel">Cancel</button>' +
     '<button class="inv-btn inv-btn-primary inv-btn-sm" data-action="invCostBillSave">Save bill</button></div>';
@@ -596,15 +612,28 @@ function costBillRedraw(where) { if (where === 'finance') renderFinance(); else 
    hidden one (Stats comes first). Every lookup is scoped to the page the form was opened on. */
 function costBillRoot(where) { return document.getElementById(where === 'finance' ? 'pageFinance' : 'pageStats') || document; }
 
-function costBillSave() {
+async function costBillSave() {
   var root = costBillRoot((_costBillOpen || {}).where);
   var v = function(id) { return ((root.querySelector('#' + id) || {}).value || '').trim(); };
   var kind = v('costBillKind') === 'other' ? 'other' : 'power', month = v('costBillMonth'), amount = gstRound(parseFloat(v('costBillAmount')) || 0);
   if (!/^\d{4}-\d{2}$/.test(month)) { showToast('Pick the month the bill covers', 'error'); return; }
   if (!(amount > 0)) { showToast('Enter the amount', 'error'); return; }
   var units = parseFloat(v('costBillUnits'));
+  var arrears = gstRound(parseFloat(v('costBillArrears')) || 0), penalty = gstRound(parseFloat(v('costBillPenalty')) || 0), arrearsOf = v('costBillArrearsOf');
+  if (arrears < 0 || penalty < 0 || gstRound(arrears + penalty) > amount) { showToast('Arrears and penalty are parts of the bill: together they cannot be more than its amount', 'error'); return; }
+  if (arrearsOf && !/^\d{4}-\d{2}$/.test(arrearsOf)) arrearsOf = '';
+  if (arrearsOf && arrearsOf >= month) { showToast('Arrears are for a month before the one the bill covers', 'error'); return; }
+  // A second electricity bill for the month is asked about, never refused: it is usually arrears and a penalty.
+  var twin = kind === 'power' && costBills().find(function(b) { return b.kind === 'power' && !b.voided && b.month === month; });
+  if (twin && !(arrears > 0)) {
+    var ok = await uiConfirm({ title: 'A second electricity bill for ' + billsMonthLabel(month) + '?',
+      body: 'There is already one for ' + formatCurrency(twin.amount) + '. A second bill in a month usually carries the arrears of an earlier month that was not paid in time, and a penalty. Enter the arrears so they are not counted twice; with none entered, all of this bill counts as ' + billsMonthLabel(month) + '’s cost.',
+      okLabel: 'Save as it is' });
+    if (!ok) return;
+  }
   costBills().push({ id: 'CB-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), kind: kind, month: month, amount: amount,
-    units: units > 0 ? units : null, note: v('costBillNote'), at: Date.now() });
+    units: units > 0 ? units : null, arrears: arrears > 0 ? arrears : null, arrearsOf: arrears > 0 && arrearsOf ? arrearsOf : null,
+    penalty: penalty > 0 ? penalty : null, note: v('costBillNote'), at: Date.now() });
   var where = (_costBillOpen || {}).where;
   _costBillOpen = false;
   saveState();

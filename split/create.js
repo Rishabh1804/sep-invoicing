@@ -899,10 +899,14 @@ function saveInvoice() {
     // a second time.
     S.invNextNum = Math.max(S.invNextNum + (reissue ? 0 : 1), invHighestIssued(S.invPrefix) + 1);
 
+    // A field typed over what the challan said is a correction, and reaches the challan with a note (owner, 30 Sep 2026).
+    const syncedNew = backCorrectChallans(inv, invoiceForm.items);
     // What each challan line has been billed is derived from the invoices.
     imSyncBilled();
 
-    doneToast = ['Invoice ' + inv.displayNumber + ' saved'];
+    doneToast = syncedNew.lines
+      ? ['Invoice ' + inv.displayNumber + ' saved — challan ' + syncedNew.challans.join(', ') + ' corrected to match (' + syncedNew.lines + ' line' + (syncedNew.lines === 1 ? '' : 's') + ')', 'warning']
+      : ['Invoice ' + inv.displayNumber + ' saved'];
   }
 
   // Save vehicle number to client for autocomplete

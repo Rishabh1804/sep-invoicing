@@ -1138,13 +1138,11 @@ function buildHistoryEvents() {
     // customer's paper, so a change to it is an audit event and says what moved.
     (im.items || []).forEach(function(it) {
       (it.corrections || []).forEach(function(cx) {
-        var names = { partNumber: 'part', desc: 'description', unit: 'unit', qty: 'quantity', nosQty: 'pieces', rate: 'rate', amount: 'amount' };
-        var what = Object.keys(cx.from || {}).filter(function(f) { return f !== 'amount' || Object.keys(cx.from).length === 1; })
-          .map(function(f) { return names[f] + ' ' + (cx.from[f] == null ? '—' : cx.from[f]) + ' \u2192 ' + ((cx.to || it)[f] == null ? '—' : (cx.to || it)[f]); });
+        var t = challanCorrectionText(it, cx), cut = t.indexOf(': ');
         events.push({
           ts: cx.at, type: 'audit', kind: 'challan', sourceId: im.id, jump: 'challan',
-          text: 'Challan' + (im.challanNo ? ' ' + im.challanNo : '') + ' corrected from ' + (cx.invoice || 'an invoice') +
-            ': ' + (it.partNumber || '') + ' \u2014 ' + what.join(', ')
+          text: 'Challan' + (im.challanNo ? ' ' + im.challanNo : '') + ' corrected ' + t.slice(0, cut) +
+            ': ' + (it.partNumber || '') + ' \u2014 ' + t.slice(cut + 2)
         });
       });
     });

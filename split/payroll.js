@@ -46,6 +46,50 @@ function payPaidBetween(staffId, from, to) {
   }, 0));
 }
 
+/* ===== What carries from one period to the next =====
+   A balance carries (owner, 30 Sep 2026: WB2, "yes, unless stated otherwise and notification cleared"). A due left
+   unpaid is still owed next period, an advance not worked off is still to be worked off, and a monthly salary paid
+   on the 14th of the next month pays the month it was for. The due had been per period only: the advance vanished
+   when the period turned, and September's salary paid in October read as an advance against October.
+
+   It is counted from the period of the worker's first payment recorded here (a monthly hand's, the month before,
+   since a salary pays the month before): before that no payment was typed in the app, so nothing is known of what
+   was settled and every past wage would read as owed. A month on record as paid (the slip) is settled whatever the
+   marks read. **Stated otherwise**: a balance is cleared with a reason (`S.payCarryClears`), which settles every
+   period up to the one before the clear and takes the To-do task with it; it is voided, never deleted. */
+function payCarryClears() {
+  if (!Array.isArray(S.payCarryClears)) S.payCarryClears = [];
+  return S.payCarryClears;
+}
+function payPeriodOf(w, iso) { return payIsWeekly(w) ? attWeekStartOf(iso) : payMonthStart(iso); }
+function payPeriodEnd(w, start) { return payIsWeekly(w) ? isoAddDays(start, 6) : payMonthEnd(start); }
+/* labourForRange once per range within one drawing: every worker's carry reads the same weeks and months. */
+function payLabMemo() {
+  var memo = {};
+  return function(from, to) { var k = from + '|' + to; return memo[k] || (memo[k] = labourForRange(from, to)); };
+}
+function payCarried(w, periodFrom, lab) {
+  var id = String(w.id);
+  // Any payment dates the start, one in this period included: a salary paid in October for September must carry
+  // September into October, not read as an advance against October.
+  var pays = staffPayments().filter(function(p) { return !p.voidedAt && String(p.staffId) === id; });
+  if (!pays.length) return { amount: 0, periods: 0 };
+  var first = pays.reduce(function(m, p) { return p.date < m ? p.date : m; }, pays[0].date);
+  var start = payPeriodOf(w, first);
+  if (!payIsWeekly(w)) start = payMonthStart(isoAddDays(start, -1));
+  var clear = payCarryClears().filter(function(c) { return !c.voidedAt && String(c.staffId) === id && c.through < periodFrom; })
+    .sort(function(a, b) { return a.through < b.through ? 1 : a.through > b.through ? -1 : (b.at || 0) - (a.at || 0); })[0] || null;
+  if (clear) { var next = payPeriodOf(w, isoAddDays(clear.through, 1)); if (next > start) start = next; }
+  var amt = 0, periods = 0;
+  for (var p = start, guard = 0; p < periodFrom && guard < 260; guard++) {
+    var end = payPeriodEnd(w, p), e = lab(p, end).byWorker[w.id];
+    periods++;
+    if (!(!payIsWeekly(w) && e && e.asPaid)) amt += (e ? e.total : 0) - payPaidBetween(w.id, p, end);
+    p = isoAddDays(end, 1);
+  }
+  return { amount: gstRound(amt), from: start, periods: periods, clear: clear };
+}
+
 /* One pay week's payout: the weekly tiers' earnings plus the EXTRA pool. */
 function payWeek(weekStart) {
   var sat = isoAddDays(weekStart, 6);
@@ -116,21 +160,24 @@ function payDue(weekStart) {
   var wk = labourForRange(weekStart, sat);
   var mo = labourForRange(mFrom, mTo > today && mFrom <= today ? today : mTo);
   // The active roster, and anyone who has left but earned or was paid in the period: their final week must be payable.
-  var pool = staffActive().slice();
+  var pool = staffActive().slice(), poolLab = payLabMemo();
   (S.staff || []).filter(function(w) { return w.active === false; }).sort(function(a, b) { return String(a.name).localeCompare(String(b.name)); }).forEach(function(w) {
     var weekly = payIsWeekly(w), from = weekly ? weekStart : mFrom, to = weekly ? sat : mTo;
     var e = (weekly ? wk : mo).byWorker[w.id];
-    if ((e && (e.total || e.days || e.hours || e.hourless)) || staffPayments().some(function(p) { return !p.voidedAt && String(p.staffId) === String(w.id) && p.date >= from && p.date <= to; })) pool.push(w);
+    if ((e && (e.total || e.days || e.hours || e.hourless)) || staffPayments().some(function(p) { return !p.voidedAt && String(p.staffId) === String(w.id) && p.date >= from && p.date <= to; })
+      || Math.abs(payCarried(w, from, poolLab).amount) >= 1) pool.push(w);
   });
+  var lab = payLabMemo();
   var rows = pool.map(function(w) {
     var weekly = payIsWeekly(w);
+    var carry = payCarried(w, weekly ? weekStart : mFrom, lab), c = Math.abs(carry.amount) >= 1 ? carry.amount : 0;
     var e = (weekly ? wk : mo).byWorker[w.id] || { total: 0, days: 0, hours: 0, otHours: 0, base: 0, ot: 0, rest: 0 };
     var from = weekly ? weekStart : mFrom, to = weekly ? sat : mTo;
     var paid = payPaidBetween(w.id, from, to);
     // A closed month on record as paid is settled by the slip: what it paid is
     // what was earned, so nothing is due on it however the marks read.
-    if (!weekly && e.asPaid) return { w: w, weekly: weekly, earned: e, paid: e.total, due: 0, from: from, to: to, asPaid: true };
-    return { w: w, weekly: weekly, earned: e, paid: paid, due: gstRound(e.total - paid), from: from, to: to };
+    if (!weekly && e.asPaid) return { w: w, weekly: weekly, earned: e, paid: e.total, due: c, carried: c, carry: carry, from: from, to: to, asPaid: true };
+    return { w: w, weekly: weekly, earned: e, paid: paid, due: gstRound(e.total - paid + c), carried: c, carry: carry, from: from, to: to };
   });
   return { rows: rows, extra: wk.extra, extraHours: wk.extraHours, weekStart: weekStart, sat: sat, mFrom: mFrom, mTo: mTo };
 }
@@ -207,7 +254,8 @@ function _payDueCard(ws) {
       // A negative due is an advance not yet worked off: said in a word beside the figure.
       g += _payRow(escHtml(r.w.name),
         (bits.length ? bits.join(' · ') + ' · ' : 'nothing recorded · ') + 'earned ' + payMoney(e.total) +
-          (r.asPaid ? ' · as paid, from the slip' : r.paid ? ' &minus; paid ' + payMoney(r.paid) : ''),
+          (r.asPaid ? ' · as paid, from the slip' : r.paid ? ' &minus; paid ' + payMoney(r.paid) : '') +
+          (r.carried ? (r.carried > 0 ? ' + ' + payMoney(r.carried) + ' owed from before' : ' &minus; ' + payMoney(-r.carried) + ' advanced before') : ''),
         r.due < 0 ? '<span class="inv-row-stack"><span class="inv-num">' + payMoney(r.due) + '</span><span class="inv-dot inv-dot-warning">Advance</span></span>'
           : '<span class="inv-num">' + payMoney(r.due) + '</span>',
         ' data-action="invPayPick" data-id="' + escHtml(r.w.id) + '" data-due="' + r.due + '"');
@@ -219,10 +267,37 @@ function _payDueCard(ws) {
   };
   h += group('Weekly &middot; paid Sat ' + formatDate(d.sat), d.rows.filter(function(r) { return r.weekly; }));
   h += group('Monthly &middot; ' + escHtml(monthName), d.rows.filter(function(r) { return !r.weekly; }));
-  h += _labNote('Earned is worked out from the days recorded, on the labour card&rsquo;s own rates. A negative due is an advance not yet worked off. Tap a worker to pay what is due.');
+  h += _payCarriedHtml(d);
+  h += _labNote('Earned is worked out from the days recorded, on the labour card&rsquo;s own rates. A negative due is an advance not yet worked off. What was owed or advanced in an earlier period carries into this one until it is paid, worked off or cleared with a reason. Tap a worker to pay what is due.');
   h += _payFormHtml(d);
   h += _payListHtml(d);
   return h + '</div>';
+}
+
+/* The balances brought forward, each clearable with a reason ("stated otherwise"). */
+function _payCarriedHtml(d) {
+  var rows = d.rows.filter(function(r) { return r.carried; }), h = '';
+  if (rows.length) h += '<div class="inv-row-group">Brought forward</div>';
+  rows.forEach(function(r) {
+    var owed = r.carried > 0;
+    h += _payRow(escHtml(r.w.name),
+      (owed ? 'Owed' : 'Advanced') + ' from before ' + escHtml(formatDate(r.from)) + ' · counted since ' + escHtml(formatDate(r.carry.from)) +
+        (r.carry.clear ? ' (cleared up to ' + escHtml(formatDate(r.carry.clear.through)) + ')' : ''),
+      '<span class="inv-row-stack"><span class="inv-num" data-pay-carried="' + escHtml(r.w.id) + '">' + payMoney(r.carried) + '</span><span class="inv-dot inv-dot-warning">' + (owed ? 'Owed' : 'Advance') + '</span></span>' +
+        '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invPayClear" data-id="' + escHtml(r.w.id) + '" data-through="' + escHtml(isoAddDays(r.from, -1)) + '" data-amount="' + r.carried + '">Clear</button>',
+      ' data-carried-row="' + escHtml(r.w.id) + '"');
+  });
+  var clears = payCarryClears().filter(function(c) { return !c.voidedAt && d.rows.some(function(r) { return String(r.w.id) === String(c.staffId); }); });
+  if (clears.length) {
+    h += '<div class="inv-row-group">Balances cleared</div>';
+    clears.slice().sort(function(a, b) { return (b.at || 0) - (a.at || 0); }).slice(0, 10).forEach(function(c) {
+      var w = staffById(c.staffId);
+      h += _payRow(escHtml(w ? w.name : 'Removed worker'), 'Up to ' + escHtml(formatDate(c.through)) + ' · ' + escHtml(c.reason || ''),
+        '<span class="inv-num">' + payMoney(c.amount || 0) + '</span><button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invPayClearVoid" data-id="' + escHtml(c.id) + '">Undo</button>',
+        ' data-pay-clear="' + escHtml(c.id) + '"', 'inv-row-muted');
+    });
+  }
+  return h;
 }
 
 function _payFormHtml(d) {
@@ -494,11 +569,39 @@ async function payVoid(id) {
   renderAttendance();
   showToast('Payment voided');
 }
+async function payClear(id, through, amount) {
+  var w = staffById(id);
+  if (!w || !/^\d{4}-\d{2}-\d{2}$/.test(through || '')) return;
+  var reason = await uiPrompt({ title: 'Clear ' + w.name + '’s balance',
+    body: (amount > 0 ? formatCurrency(amount) + ' owed' : formatCurrency(-amount) + ' advanced') + ' up to ' + formatDate(through) +
+      ' stops carrying forward. It is kept on the record, and can be undone.',
+    label: 'Why is it cleared?', okLabel: 'Clear balance', required: true, requiredText: 'Clearing a balance needs a reason.' });
+  if (reason == null) return;
+  reason = reason.trim();
+  if (!reason) { showToast('Clearing a balance needs a reason', 'error'); return; }
+  payCarryClears().push({ id: 'PCC-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), staffId: w.id, through: through,
+    amount: gstRound(amount), reason: reason, at: Date.now() });
+  saveState();
+  renderAttendance();
+  showToast('Balance cleared for ' + w.name);
+}
+async function payClearVoid(id) {
+  var c = payCarryClears().find(function(x) { return x.id === id; });
+  if (!c || c.voidedAt) return;
+  var ok = await uiConfirm({ title: 'Undo this clear?', body: 'The balance carries forward again.', okLabel: 'Undo clear' });
+  if (!ok || c.voidedAt) return;
+  c.voidedAt = Date.now();
+  saveState();
+  renderAttendance();
+  showToast('Clear undone');
+}
 function payAction(action, btn) {
   switch (action) {
     case 'invPayPick': payPick(btn.dataset.id, parseFloat(btn.dataset.due) || 0); return true;
     case 'invPaySave': paySave(); return true;
     case 'invPayVoid': payVoid(btn.dataset.id); return true;
+    case 'invPayClear': payClear(btn.dataset.id, btn.dataset.through, parseFloat(btn.dataset.amount) || 0); return true;
+    case 'invPayClearVoid': payClearVoid(btn.dataset.id); return true;
     case 'invPayOpenAtt': homeQuick('attendance'); return true;
     case 'invPayrollImport': payrollImport(); return true;
     case 'invPayrollVoid': payrollVoid(btn.dataset.id); return true;

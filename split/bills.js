@@ -80,7 +80,7 @@ function _billsPowerHtml() {
       return;
     }
     var b = r.bill;
-    var meta = [b.units ? formatNum(b.units, 0) + ' units' : '', b.note || '', b.voided ? 'void: ' + (b.voidReason || '') : ''].filter(Boolean).join(' · ');
+    var meta = [b.units ? formatNum(b.units, 0) + ' units' : ''].concat(costBillParts(b), [b.note || '', b.voided ? 'void: ' + (b.voidReason || '') : '']).filter(Boolean).join(' · ');
     h += '<div class="inv-row inv-row-2' + (b.voided ? ' inv-row-muted' : '') + '" data-bill="' + escHtml(b.id) + '"><span class="inv-row-main">' +
       '<span class="inv-row-title">' + escHtml((b.label || COST_BILL_KINDS[b.kind] || b.kind) + ' · ' + billsMonthLabel(b.month)) + '</span>' +
       (meta ? '<span class="inv-row-meta">' + escHtml(meta) + '</span>' : '') + '</span>' +

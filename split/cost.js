@@ -228,20 +228,30 @@ function liveCost(from, to, kg) {
     ['Daily tier', lab.daily + lab.dailyRest], ['Overtime', lab.ot], ['EXTRA pool', lab.extra]].filter(function(d) { return d[1]; })
     .map(function(d) { return { label: d[0], amount: d[1] }; });
   var labCov = lab.total > 0 ? lab.coverage : 0;
+  // The share of the row that is fixed (the monthly crew's days and rest days), for Stats' fixed and variable
+  // (statsCostSplit): read from the instrument the figure comes from, and held over the stretch filled at the model.
+  // Null where nothing recorded says.
+  var labFixed = lab.total > 0 ? { share: lab.fixed / lab.total, from: 'attendance' } : null;
   // The order: attendance where 90% of the days are recorded; else what the bank paid, where the
   // statement covers more of the period than attendance does; else attendance and the model.
   if (labCov < 0.9 && bk && bk.labour.known > 0.001 && bk.labour.known >= labCov) {
     var bl = bk.labour, blMissing = Math.max(0, 1 - bl.known);
+    // Paid: the salary transfers to named hands against the cash drawn for the weekly pool.
+    var blNamed = 0, blCash = 0;
+    bl.months.forEach(function(mo) { blNamed += mo.named * mo.share; blCash += mo.cash * mo.share; });
+    if (blNamed + blCash > 0) labFixed = { share: blNamed / (blNamed + blCash), from: 'bank' };
     var blDetail = bl.months.map(function(mo) {
       return { label: 'Paid for ' + billsMonthLabel(mo.month), bank: true, amount: mo.amount,
         sub: [mo.named ? formatCurrency(mo.named) + ' to named hands, paid the month after' : '', mo.cash ? formatCurrency(mo.cash) + ' cash, by pay week' : '', mo.share < 0.999 ? formatNum(mo.share * 100, 0) + '% of the month' : ''].filter(Boolean).join(' · ') || 'nothing paid' };
     });
     if (blMissing > 0.001) blDetail.push(fillLine(lm, blMissing, Math.round(blMissing * 100) + '% of the period the statement does not cover'));
     push({ key: 'labour', label: 'Labour', coverage: labCov, bankShare: bl.known, amount: bl.amount + (blMissing > 0.001 ? lm * kg * blMissing : 0),
+      fixedShare: labFixed ? labFixed.share : null, fixedFrom: labFixed ? labFixed.from : null,
       note: 'paid, from the bank statement: ' + Math.round(bl.known * 100) + '% of the period · attendance covers ' + Math.round(labCov * 100) + '%', detail: blDetail });
   } else {
     if (labMissing > 0.001) labDetail.push(fillLine(lm, labMissing, Math.round(labMissing * 100) + '% of working days'));
     push({ key: 'labour', label: 'Labour', coverage: labCov, amount: lab.total + (labMissing > 0.001 ? lm * kg * labMissing : 0),
+      fixedShare: labFixed ? labFixed.share : null, fixedFrom: labFixed ? labFixed.from : null,
       note: lab.total > 0 ? Math.round(lab.coverage * 100) + '% of working days recorded' : 'no attendance recorded: ' + formatCurrency(lm) + '/kg from Settings', detail: labDetail });
   }
 
@@ -518,6 +528,9 @@ function renderLiveCostCard(period, tonnage) {
     formatNum(kg / 1000, 1) + ' t plated · ' + Math.round(c.measuredShare * 100) + '% of it measured</span></span><span class="inv-row-end">' + money(c) + '</span></div>';
   var partial = c.rows.filter(function(r) { return r.source === 'partial'; }).map(function(r) { return r.label.toLowerCase(); });
   if (partial.length) h += '<div class="inv-panel-body"><div class="inv-callout inv-callout-danger">This period reads LOW: ' + escHtml(partial.join(' and ')) + (partial.length === 1 ? ' is' : ' are') + ' only part-recorded. Open a line to see what is missing.</div></div>';
+  // The ₹/kg divides by the weighed tonnage alone, and says so (statsCostWeighedNote, stats.js).
+  var weighed = statsCostWeighedNote(tonnage);
+  if (weighed) h += '<div class="inv-panel-body"><div class="inv-callout" data-callout="weighed">' + weighed + '</div></div>';
   // Each component folds open to its parts: labour by tier, chemicals line by line, each bill's share.
   c.rows.forEach(function(r) {
     h += '<details class="inv-row-fold" data-cost="' + r.key + '"><summary class="inv-row inv-row-2"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(r.label) +

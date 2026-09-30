@@ -406,8 +406,8 @@ test.describe('P29: the floor in the activity log', () => {
         (URL as unknown as Record<string, unknown>).createObjectURL = orig;
         return new Promise<string>((r) => setTimeout(() => r(rows.join('')), 200));
       });
-      // The header row is joined raw, not run through cell() — unquoted.
+      // Written by downloadCSV: a cell is quoted only where it needs to be.
       expect(csv).toContain('Dated by');
-      expect(csv).toContain('"floor day"');
+      expect(csv.split('\n').some((l) => l.split(',')[1] === 'floor day')).toBe(true);
     });
 });

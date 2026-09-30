@@ -28,8 +28,7 @@ function insMonthsBack(n) {
   for (var i = n; i >= 1; i--) { var x = new Date(d); x.setMonth(x.getMonth() - i); out.push(x.getFullYear() + '-' + String(x.getMonth() + 1).padStart(2, '0')); }
   return out;
 }
-// The app's own short names ("Sep"): toLocaleString('en-IN') writes "Sept".
-function insMonthLabel(m) { return TREND_MONTH_LABELS[parseInt(String(m).slice(5, 7), 10) - 1] || String(m); }
+// A month's short name is insMonthLabel (stats.js), beside the labels it reads.
 function insClientActive(id) { var c = S.clients.find(function(x) { return String(x.id) === String(id); }); return !c || c.isActive !== false; }
 function insActive() { return (S.invoices || []).filter(function(i) { return i.status === 'active' && i.date; }); }
 
@@ -82,13 +81,12 @@ function predMonthPace() {
   var today = localDateStr(), from = today.slice(0, 7) + '-01', end = payMonthEnd(from);
   var inv = insActive().filter(function(i) { return i.date >= from && i.date <= today; });
   var rev = inv.reduce(function(s, i) { return s + (i.taxableValue || 0); }, 0), kg = weighLines(inv).kg;
-  var done = statsWorkingDays(from, today), total = statsWorkingDays(from, end);
+  var worked = statsWorkingDayList(from, today), done = worked.length, total = statsWorkingDays(from, end);
   if (!done) return null;
   // The spread of revenue per working day so far sets the band.
   var perDay = {};
   inv.forEach(function(i) { perDay[i.date] = (perDay[i.date] || 0) + (i.taxableValue || 0); });
-  var days = [], d = from;
-  for (var g = 0; d <= today && g < 40; g++) { if (new Date(d + 'T00:00:00').getDay() !== 0) days.push(perDay[d] || 0); d = isoAddDays(d, 1); }
+  var days = worked.map(function(d) { return perDay[d] || 0; });
   var mean = rev / done, sd = Math.sqrt(days.reduce(function(s, v) { return s + (v - mean) * (v - mean); }, 0) / Math.max(1, days.length - 1));
   var left = total - done, band = sd * Math.sqrt(left);
   var unbilled = 0;
@@ -270,7 +268,8 @@ TODO_RULE_FNS.insBelowVar = function() {
   var last = insMonthsBack(1)[0], from = last + '-01', to = payMonthEnd(from);
   var inv = insActive().filter(function(i) { return i.date >= from && i.date <= to; });
   var m = statsClientMargins(null, inv, weighLines(inv), { from: from, to: to });
-  if (!m) return [];
+  // With labour not split into fixed and variable (statsCostSplit), there is no variable cost to be below.
+  if (!m || m.varKg == null) return [];
   return m.ranked.filter(function(x) { return x.kg >= m.kg * 0.1 && x.vsVar < 0; }).map(function(x) {
     return { key: 'insBelowVar:' + x.id, rule: 'insBelowVar', tone: 'red', title: x.name + ' is below its variable cost',
       sub: insMonthLabel(last) + ': ₹' + formatNum(x.net, 2) + '/kg against ₹' + formatNum(m.varKg, 2) + ' variable · loses ' + formatCurrency(gstRound(-x.vsVar * x.kg)) + ' even with labour fixed',
@@ -332,12 +331,14 @@ function insightsCardHtml() {
 function paceCardHtml() {
   var p = predMonthPace();
   if (!p) return '';
+  // The projection against last month, whole percent; nothing against a month with none.
+  var delta = function(cur, prev) { return prev > 0 ? ' · ' + (cur >= prev ? '+' : '&minus;') + Math.abs(Math.round((cur / prev - 1) * 100)) + '%' : ''; };
   var h = statsPanel('pace', 'This month at its pace', p.done + ' of ' + p.total + ' working days in', { wide: true, id: 'statsPace' });
   h += statsTiles(
     statsTile('revenue', 'Revenue', escHtml(formatCurrency(p.projRev)), statsTileSub(escHtml(p.prevLabel) + ' ' + escHtml(formatCurrency(p.prevRev)) +
-      (p.prevRev > 0 ? ' · ' + (p.projRev >= p.prevRev ? '+' : '&minus;') + Math.abs(Math.round((p.projRev / p.prevRev - 1) * 100)) + '%' : '')), '', 'paceRev') +
+      delta(p.projRev, p.prevRev)), '', 'paceRev') +
     statsTile('tonnage', 'Tonnage', formatNum(p.projKg / 1000, 1) + '<span class="inv-tile-of"> t</span>', statsTileSub(escHtml(p.prevLabel) + ' ' + formatNum(p.prevKg / 1000, 1) + ' t' +
-      (p.prevKg > 0 ? ' · ' + (p.projKg >= p.prevKg ? '+' : '&minus;') + Math.abs(Math.round((p.projKg / p.prevKg - 1) * 100)) + '%' : ''))));
+      delta(p.projKg, p.prevKg))));
   h += statsRow('So far', formatNum(p.kg / 1000, 1) + ' t billed', statsNum(escHtml(formatCurrency(p.rev)))) +
     statsRow('Likely range', 'from how much the working days so far have varied', statsNum(escHtml(formatCurrency(p.low)) + ' – ' + escHtml(formatCurrency(p.high))), '', 'inv-row-flow') +
     statsRow('Unbilled challans in hand', 'would lift the month if billed in it', statsNum(escHtml(formatCurrency(p.unbilled))));

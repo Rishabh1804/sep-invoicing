@@ -197,6 +197,36 @@ function sumTaxable(invoices) {
   return invoices.reduce(function(s, i) { return s + (i.taxableValue || 0); }, 0);
 }
 
+/* A share as a whole percentage that never reads 100 while anything is left out: a line excluded from 99.6% of the
+   revenue is still excluded, and "100%" beside the sentence naming it contradicted it. */
+function statsPctOf(share) {
+  var p = Math.round((share || 0) * 100);
+  return share < 1 && p >= 100 ? 99 : p;
+}
+
+/* The per-kg cost every "below cost" on Stats is judged against: the period's LIVE cost (cost.js) over the whole
+   book's weighed tonnage for the period, the plant's cost per kilo, so the headline, the tables and a client's
+   drill-down cannot disagree. The typed figure stands only where there is no tonnage to divide by. */
+function statsPeriodCost(period, tonnage) {
+  var r = statsRangeIso(period);
+  var live = tonnage && tonnage.kg > 0 ? liveCost(r.from, r.to, tonnage.kg) : null;
+  var isLive = !!(live && live.perKg > 0);
+  return { perKg: isLive ? live.perKg : (S.defaultCostPerKg || 0), label: isLive ? 'live cost ' : 'cost ' };
+}
+
+/* The live cost per kg divides the whole plant's cost by the tonnage of the WEIGHED lines alone: numerator over
+   everything, denominator over a subset, so where a line has no weight it reads high. The figure stays as it is
+   (the unweighed kilos are not known) and says so where it is shown. '' when every line is weighed. `said`: the text
+   around it has already given the weighed share. */
+function statsCostWeighedNote(tonnage, said) {
+  if (!tonnage || !(tonnage.kg > 0) || !(tonnage.coverage < 0.999)) return '';
+  var up = (1 / tonnage.coverage - 1) * 100;
+  return 'The live cost per kg divides the whole plant&rsquo;s cost by the tonnage of the weighed lines' +
+    (said ? '' : ', which carry ' + statsPctOf(tonnage.coverage) + '% of the revenue') + ', so it reads high' + (said ? ' too' : '') + ': ' +
+    (up >= 0.5 ? 'by about ' + Math.round(up) + '%' : 'slightly') +
+    ' if the unweighed work weighs in step with its revenue, and by more if it is the heavier, piece-billed end.';
+}
+
 /* ===== THE DASHBOARD'S PIECES (design system §6) =====
    Every Stats card is a flush panel (§6.8) named by data-card, its qualifier an inv-note in the title;
    figures are tiles (§6.9) and rows (§6.10); caveats are callouts (§6.18). intel.js, insights.js and
@@ -259,6 +289,9 @@ function statsCallout(html, tone, key) {
 function statsNote(html) { return '<div class="inv-note">' + html + '</div>'; }
 
 var TREND_MONTH_LABELS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+/* A month's short name from a YYYY-MM or YYYY-MM-DD key: the one copy (charts, insights, Finance and the
+   Overviews read it). toLocaleString('en-IN') writes "Sept", which is not the app's. */
+function insMonthLabel(m) { return TREND_MONTH_LABELS[parseInt(String(m).slice(5, 7), 10) - 1] || String(m); }
 
 // ISO 8601 week (Mon..Sun, week 1 contains Jan 4). Returns YYYY-Www.
 function isoWeekKey(yyyymmdd) {
@@ -274,15 +307,11 @@ function isoWeekKey(yyyymmdd) {
 }
 
 function formatTrendLabel(key, gran) {
-  if (gran === 'day') {
-    var p = key.split('-');
-    return parseInt(p[2], 10) + ' ' + TREND_MONTH_LABELS[parseInt(p[1], 10) - 1];
-  }
+  if (gran === 'day') return parseInt(key.slice(8, 10), 10) + ' ' + insMonthLabel(key);
   if (gran === 'week') {
     return 'W' + key.slice(-2) + ' ' + key.slice(2, 4);
   }
-  var pp = key.split('-');
-  return TREND_MONTH_LABELS[parseInt(pp[1], 10) - 1] + ' ' + pp[0].slice(2);
+  return insMonthLabel(key) + ' ' + key.slice(2, 4);
 }
 
 /* Every period key between two dates, in order, including the ones with no
@@ -301,8 +330,7 @@ function periodKeysBetween(minIso, maxIso, gran) {
   // Hard stop: a corrupt date can otherwise spin this for ever.
   var guard = 0;
   while (d <= end && guard++ < 4000) {
-    var iso = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') +
-      '-' + String(d.getDate()).padStart(2, '0');
+    var iso = isoOf(d);
     var k = gran === 'day' ? iso : gran === 'week' ? isoWeekKey(iso) : iso.substring(0, 7);
     if (!seen[k]) { seen[k] = true; keys.push(k); }
     d.setDate(d.getDate() + 1);
@@ -328,7 +356,8 @@ function buildTrendSeries(gran, series) {
     (S.incomingMaterial || []).forEach(function(im) {
       var d = im.challanDate || im.receivedDate;
       if (!d) return;
-      var client = S.clients.find(function(c) { return c.id === im.clientId; }) || null;
+      // Weighed on the day it is bucketed under: a challan with no challan date is dated by when it came in.
+      var client = rowClient(im);
       var kg = 0;
       (im.items || []).forEach(function(it) {
         var w = lineWeightKg(it, client, d);
@@ -341,17 +370,7 @@ function buildTrendSeries(gran, series) {
     S.invoices.filter(function(i) { return i.status === 'active'; }).forEach(function(inv) {
       if (!inv.date) return;
       var k = bucket(inv.date);
-      if (series === 'tonnage') {
-        var client = rowClient(inv);
-        var kg = 0;
-        (inv.items || []).forEach(function(it) {
-          var w = lineWeightKg(it, client, inv.date);
-          if (w.known) kg += w.kg;
-        });
-        by[k] = (by[k] || 0) + kg;
-      } else {
-        by[k] = (by[k] || 0) + (inv.taxableValue || 0);
-      }
+      by[k] = (by[k] || 0) + (series === 'tonnage' ? weighLines([inv]).kg : (inv.taxableValue || 0));
     });
   }
 
@@ -370,14 +389,22 @@ var TREND_SERIES_UNIT = { revenue: 'money', tonnage: 'kg', im: 'kg' };
 
    The ₹/kg ranking admits only rows whose weight is actually known — a rate
    computed from a partial weight is not a rate — and says how many it dropped
-   rather than silently ranking fewer parts. */
+   rather than silently ranking fewer parts.
+
+   A part is its client's part at its gauge. Two clients' parts of one name are
+   two parts (one client's BASE PLATE weighs ten times another's), and a clamp
+   at 35X6 and at 40X6 is two weights and two rates under one part number
+   (CLAUDE.md, Items Master): merged, a row's ₹/kg was an average of neither. */
 function buildTopItems(invoices, by) {
   var byPart = {};
   invoices.forEach(function(inv) {
     var client = rowClient(inv);
     (inv.items || []).forEach(function(it) {
-      var key = it.partNumber || it.desc || 'Unknown';
-      if (!byPart[key]) byPart[key] = { part: key, desc: it.desc || '', qty: 0, amount: 0, kg: 0, kgKnown: true };
+      var part = it.partNumber || it.desc || 'Unknown';
+      var gauge = lineGauge(it.desc) || lineGauge(it.partNumber);
+      var key = inv.clientId + '|' + part + '|' + gauge;
+      if (!byPart[key]) byPart[key] = { part: part, desc: it.desc || '', gauge: gauge, clientId: inv.clientId,
+        clientName: (client && client.name) || inv.clientName || '', qty: 0, amount: 0, kg: 0, kgKnown: true };
       byPart[key].qty += (it.qty || 0);
       byPart[key].amount += (it.amount || 0);
       var w = lineWeightKg(it, client, inv.date);
@@ -420,13 +447,8 @@ function buildClientRollup(invoices) {
     }
     by[key].total += (inv.taxableValue || 0);
     by[key].count++;
-    var client = rowClient(inv);
-    (inv.items || []).forEach(function(it) {
-      var amt = it.amount || 0;
-      var w = lineWeightKg(it, client, inv.date);
-      if (w.known) { by[key].kg += w.kg; by[key].revKnown += amt; }
-      else { by[key].revUnknown += amt; }
-    });
+    var w = weighLines([inv]);
+    by[key].kg += w.kg; by[key].revKnown += w.revKnown; by[key].revUnknown += w.revUnknown;
   });
   return Object.values(by).map(function(r) {
     var lineRev = r.revKnown + r.revUnknown;
@@ -478,12 +500,9 @@ function renderStats() {
   var tonnage = weighLines(filtered);
   var priorTonnage = weighLines(prior);
   // Every "below cost" on this page is judged against the LIVE cost of the
-  // period (cost.js), so the headline and the Overview cannot disagree. The
-  // typed figure stands only where there is no tonnage to divide by.
-  var liveRange = statsRangeIso(_statsPeriod);
-  var live = tonnage.kg > 0 ? liveCost(liveRange.from, liveRange.to, tonnage.kg) : null;
-  var costPerKg = live && live.perKg > 0 ? live.perKg : (S.defaultCostPerKg || 0);
-  var costLabel = live && live.perKg > 0 ? 'live cost ' : 'cost ';
+  // period (statsPeriodCost), so the headline and the Overview cannot disagree.
+  var periodCost = statsPeriodCost(_statsPeriod, tonnage);
+  var costPerKg = periodCost.perKg, costLabel = periodCost.label;
 
   // Revenue on weighed lines over the tonnage of those same lines.
   var realisation = tonnage.kg > 0 ? tonnage.revKnown / tonnage.kg : null;
@@ -518,11 +537,12 @@ function renderStats() {
   if (tonnage.lines > 0 && tonnage.coverage < 0.999) {
     var missing = tonnage.lines - tonnage.known;
     html += statsCallout('Tonnage and realisation cover <strong>' +
-      Math.round(tonnage.coverage * 100) + '% of revenue</strong> &mdash; ' +
+      statsPctOf(tonnage.coverage) + '% of revenue</strong> &mdash; ' +
       missing + ' line' + (missing === 1 ? ' worth ' : 's worth ') + formatCurrency(tonnage.revUnknown) +
       (missing === 1 ? ' is' : ' are') + ' priced in NOS with no weight on file, and excluded from both figures. ' +
       'That exclusion is not neutral: unweighed lines are typically piece-billed work, which is ' +
       'the low-realisation end of the book, so the rate above reads better than the real blend. ' +
+      (costLabel === 'live cost ' ? statsCostWeighedNote(tonnage, true) + ' ' : '') +
       'Items Master &rarr; Derive weights from rates closes it.', '', 'coverage');
   }
   if (contribution != null && contribution < 0) {
@@ -537,8 +557,14 @@ function renderStats() {
      something against a cost, and labour is 42% of that cost — the single line
      the app can now measure rather than assume. Silent until a roster exists;
      an empty card teaching the reader that labour is zero would be worse than
-     no card at all. */
-  html += renderLabourStatsCard(_statsPeriod, tonnage);
+     no card at all.
+     On All the card's range is the attendance record's own span (labour.js), so
+     its ₹/kg divides by the tonnage billed inside that span: the whole book's
+     tonnage under a few weeks of labour read the plant's labour at a fraction
+     of what it is. Numerator and denominator, same population. */
+  var labRange = _statsPeriod === 'all' ? labourRangeForPeriod('all') : null;
+  html += renderLabourStatsCard(_statsPeriod, labRange
+    ? weighLines(filtered.filter(function(i) { return i.date >= labRange.from && i.date <= labRange.to; })) : tonnage);
   // The live cost: every component with its source (cost.js). Chemicals are
   // in it line by line, so the separate chemicals card is not drawn twice.
   html += renderLiveCostCard(_statsPeriod, tonnage);
@@ -789,7 +815,9 @@ function renderStats() {
     } else {
       // On the price ranking the bar is measured against cost, not against the
       // best-priced part: a mark at full cost, and anything short of it in the
-      // danger colour. Which parts are sold below cost is the question.
+      // danger colour. Which parts are sold below cost is the question. The
+      // bars are drawn on the mark's scale (opts.max): on the bars' own, the
+      // best-priced part below cost filled its track and read as reaching it.
       var rateMax = _statsTopBy === 'rate'
         ? Math.max.apply(null, top.rows.map(function(r) { return r.perKg; }).concat([costPerKg]))
         : 0;
@@ -806,14 +834,18 @@ function renderStats() {
         var markPct = (_statsTopBy === 'rate' && costPerKg > 0 && rateMax > 0)
           ? (costPerKg / rateMax) * 100 : null;
         // Every row carries the other two figures, so switching the ranking
-        // is a change of order rather than a change of what can be seen.
-        var sub = formatCurrency(r.amount) +
+        // is a change of order rather than a change of what can be seen, and
+        // names its client: a part is that client's part.
+        var sub = (r.clientName ? r.clientName + ' · ' : '') + formatCurrency(r.amount) +
           (r.kgKnown && r.kg > 0 ? ' · ' + formatNum(r.kg, 0) + ' kg · ' + formatCurrency(r.perKg) + '/kg' : ' · weight unknown');
+        var label = r.part + (r.desc && r.desc !== r.part ? ' — ' + r.desc : '');
+        // The gauge is said where the part's own text does not already say it (partLineDesc folds it into desc).
+        if (r.gauge && rateKey(label).indexOf(rateKey(r.gauge)) < 0) label += ' (' + r.gauge + ')';
         return {
-          label: r.part + (r.desc && r.desc !== r.part ? ' — ' + r.desc : ''),
+          label: label,
           value: value, display: display, sub: sub, tone: tone, markPct: markPct
         };
-      }), { unit: topUnits[_statsTopBy] });
+      }), { unit: topUnits[_statsTopBy], max: rateMax });
       if (_statsTopBy === 'rate' && costPerKg > 0) {
         topBody += statsNote('Mark is full cost, ' + formatCurrency(costPerKg) +
           '/kg. Bars short of it are plated below what they cost to plate.');
@@ -863,7 +895,11 @@ function openClientDrillOverlay(clientId) {
   // Matched subset, same rule as the table this drill-down was opened from.
   var realisation = (clientTonnage.kg > 0 && clientTonnage.coverage >= REALISATION_MIN_COVERAGE)
     ? clientTonnage.revKnown / clientTonnage.kg : null;
-  var costPerKg = S.defaultCostPerKg || 0;
+  // Judged against the cost the table judged it against: the period's live cost, the plant's cost per kilo over the
+  // whole book's tonnage (statsPeriodCost). The typed figure here once called a client clear of cost that the table
+  // beside it listed below cost.
+  var cost = statsPeriodCost(_statsPeriod, weighLines(filtered)), costPerKg = cost.perKg;
+  var realTone = realisation != null && costPerKg > 0 ? figToneAgainst(realisation, costPerKg, 5) : null;
 
   var pendingAmt = 0, pendingItems = 0;
   (S.incomingMaterial || []).forEach(function(im) {
@@ -879,15 +915,11 @@ function openClientDrillOverlay(clientId) {
     if (stateCounts[s] != null) stateCounts[s]++;
   });
 
-  var rateInfo = '';
-  if (client.billingMode === 'perKg') {
-    var r = getLineItemRate(client, localDateStr());
-    rateInfo = 'Per Kg · ' + formatCurrency(r.ratePerKg || r.rate || 0) + '/kg';
-  } else if (client.billingMode === 'perPiece') {
-    rateInfo = 'Per Piece';
-  } else {
-    rateInfo = client.billingMode || 'Standard';
-  }
+  // How the client is billed and its ₹/kg on record today. The modes are weight, piece and nos_to_weight
+  // (CLIENT_MODE_LABEL); every one rests on the ₹/kg ladder, a piece client's card having been built at it.
+  var ladder = getLineItemRate(client, localDateStr()).ratePerKg || 0;
+  var rateInfo = (CLIENT_MODE_LABEL[client.billingMode] || client.billingMode || 'No billing mode') + ' · ' +
+    (ladder > 0 ? formatCurrency(ladder) + '/kg' + (client.billingMode === 'piece' ? ' basis' : '') : 'no rate on record');
 
   var recentInvs = S.invoices
     .filter(function(i) { return i.clientId === clientId && i.status === 'active'; })
@@ -921,8 +953,13 @@ function openClientDrillOverlay(clientId) {
     '<div class="inv-tiles">' +
     statsTile('revenue', 'Revenue', formatCurrency(totalRev)) +
     statsTile('tonnage', 'Tonnage', formatNum(clientTonnage.kg / 1000, 2) + '<span class="inv-tile-of"> t</span>') +
-    statsTile('realisation', '&#8377;/kg', realisation != null ? formatNum(realisation, 2) : '&mdash;', '',
-      realisation != null && costPerKg > 0 && realisation < costPerKg ? 'danger' : '') +
+    // Its tone beside the words that give it (DR-8): the cost it is set against, and a dot when it falls short.
+    statsTile('realisation', '&#8377;/kg', realisation != null ? formatNum(realisation, 2) : '&mdash;',
+      statsTileSub(realisation == null
+        ? (clientTonnage.kg > 0 ? 'weights on ' + statsPctOf(clientTonnage.coverage) + '% of revenue' : 'no weighed tonnage')
+        : costPerKg > 0 ? (realTone === 'danger' || realTone === 'warning' ? uiDot(realTone, realTone === 'danger' ? 'Below cost' : 'Just under cost') + ' ' : '') +
+          escHtml(cost.label) + formatCurrency(costPerKg) + '/kg' : 'set a cost in Settings'),
+      realTone || '') +
     statsTile('share', 'Share', pct + '%') +
     statsTile('invoices', 'Invoices', String(clientInvs.length)) +
     statsTile('unbilled', 'Unbilled', formatCurrency(pendingAmt)) +
@@ -1025,7 +1062,10 @@ function buildHistoryEvents() {
       text: (inv.displayNumber || '') + ' marked as filed in GSTR1' });
     if (inv.status === 'cancelled' && inv.cancelledAt) events.push({ ts: inv.cancelledAt, type: 'audit', kind: 'cancel', sourceId: inv.id, jump: 'invoice',
       text: (inv.displayNumber || '') + ' cancelled' });
-    if (inv.updatedAt && inv.updatedAt !== inv.createdAt) events.push({ ts: inv.updatedAt, type: 'state', kind: 'state', sourceId: inv.id, jump: 'invoice',
+    // Cancelling stamps updatedAt beside cancelledAt (invoice-ops.js), so a change stamped within two seconds of the
+    // cancel IS the cancel, already its own row: listed again it read as an edit nobody made.
+    var cancelEcho = inv.cancelledAt && Math.abs(inv.updatedAt - inv.cancelledAt) <= 2000;
+    if (inv.updatedAt && inv.updatedAt !== inv.createdAt && !cancelEcho) events.push({ ts: inv.updatedAt, type: 'state', kind: 'state', sourceId: inv.id, jump: 'invoice',
       text: (inv.displayNumber || '') + ' edited' });
   });
 
@@ -1290,11 +1330,11 @@ function renderHistory() {
     return;
   }
 
-  var totalValue = events.reduce(function(s, ev) { return s + (ev.amount || 0); }, 0);
+  // No total of the amounts: the log holds invoices with their GST, challans before it (the same work the invoices
+  // bill, counted twice), deleted invoices and floor days, and no one sum of those is a figure. Stats carries the money.
   var html = '<div class="inv-panel inv-panel-flush" data-card="history">' +
     '<div class="inv-panel-head"><span class="inv-panel-title">Activity log <span class="inv-panel-count">' + events.length + '</span></span>' +
-    '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invHistoryExport">Export CSV</button></div>' +
-    (totalValue > 0 ? '<div class="inv-panel-body inv-note" data-history-total><span class="inv-num">' + formatCurrency(totalValue) + '</span> across the events shown</div>' : '');
+    '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invHistoryExport">Export CSV</button></div>';
 
   var shown = events.slice(0, _historyShowCount);
   // Rows grouped by day (§7): the day heads the group, so on the desktop a row's
@@ -1337,7 +1377,7 @@ function renderHistory() {
     html += '</tbody></table>';
   } else {
     days.forEach(function(d) {
-      html += '<div class="inv-row-group"><span>' + escHtml(d) + '</span><span class="inv-num">' + byDay[d].length + '</span></div>';
+      html += '<div class="inv-row-group"><span>' + escHtml(d) + '</span><span class="inv-num">' + dayCount[d] + '</span></div>';
       byDay[d].forEach(function(ev) {
         var action = jumpOf(ev);
         var inner = '<span class="inv-row-lead">' + historyIcon(ev.kind) + '</span>' +
@@ -1361,36 +1401,27 @@ function renderHistory() {
 }
 
 /* Exports exactly what the current filters show, so a query someone reasoned
-   about on screen is the query that leaves the app. */
+   about on screen is the query that leaves the app. Written by the app's one
+   CSV writer (downloadCSV, exports.js), which leads with the byte-order mark a
+   spreadsheet needs to read ₹ and the dashes in the event text as UTF-8. */
 function exportHistoryCSV() {
   var events = filteredHistoryEvents();
   if (events.length === 0) { showToast('Nothing to export', 'warning'); return; }
 
-  function cell(v) {
-    var s = v == null ? '' : String(v);
-    return '"' + s.replace(/"/g, '""') + '"';
-  }
-  var rows = [['Timestamp', 'Dated by', 'Type', 'Event', 'Amount'].join(',')];
+  var rows = [['Timestamp', 'Dated by', 'Type', 'Event', 'Amount']];
   events.forEach(function(ev) {
     rows.push([
       // A floor row's cell is the date alone, for the same reason the rendered
       // row's is: the midday anchor is a sort key, not a recorded time.
-      cell(ev.ts
-        ? (ev.clock === 'floor' ? formatTimestamp(ev.ts).split(',')[0] : formatTimestamp(ev.ts))
-        : ''),
+      ev.ts ? (ev.clock === 'floor' ? formatTimestamp(ev.ts).split(',')[0] : formatTimestamp(ev.ts)) : '',
       // The same distinction the row carries. A CSV that dropped it would let
       // somebody sort two clocks into one column and reason off the result.
-      cell(ev.clock === 'floor' ? 'floor day' : 'recorded'),
-      cell(ev.kind),
-      cell(ev.text),
-      cell(ev.amount ? formatNum(ev.amount, 2) : '')
-    ].join(','));
+      ev.clock === 'floor' ? 'floor day' : 'recorded',
+      ev.kind,
+      ev.text,
+      ev.amount ? formatNum(ev.amount, 2) : ''
+    ]);
   });
-
-  var blob = new Blob([rows.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
-  var a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = 'sep-activity-log-' + localDateStr() + '.csv';
-  a.click();
+  downloadCSV('sep-activity-log-' + localDateStr() + '.csv', rows);
   showToast('Exported ' + events.length + ' events');
 }

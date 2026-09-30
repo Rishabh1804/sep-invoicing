@@ -76,7 +76,8 @@ function _chartEmpty(msg) {
    labels, and a <title> on every datum so a tap or hover gives the exact
    figure the shape only approximates. */
 function _chartFrame(data, unit, W, H, pad) {
-  var maxVal = chartNiceMax(Math.max.apply(null, data.map(function(d) { return d.value; }).concat([0])));
+  var peak = Math.max.apply(null, data.map(function(d) { return d.value; }).concat([0]));
+  var maxVal = chartNiceMax(peak);
   var chartW = W - pad.l - pad.r;
   var chartH = H - pad.t - pad.b;
   var svg = '';
@@ -84,7 +85,8 @@ function _chartFrame(data, unit, W, H, pad) {
     var gy = pad.t + (g / 4) * chartH;
     var gVal = maxVal - (g / 4) * maxVal;
     svg += '<line x1="' + pad.l + '" y1="' + gy + '" x2="' + (W - pad.r) + '" y2="' + gy + '" class="inv-chart-grid"/>';
-    svg += '<text x="' + (pad.l - 4) + '" y="' + (gy + 3) + '" text-anchor="end" class="inv-chart-grid-label">' +
+    // A series of zeros has no scale: its frame is a nominal 0 to 1, and labelling those lines read ₹1 ₹1 ₹1 ₹0.
+    if (peak > 0 || g === 4) svg += '<text x="' + (pad.l - 4) + '" y="' + (gy + 3) + '" text-anchor="end" class="inv-chart-grid-label">' +
       escHtml(chartShort(gVal, unit)) + '</text>';
   }
   return { svg: svg, maxVal: maxVal, chartW: chartW, chartH: chartH };
@@ -227,16 +229,19 @@ function chartPie(slices, opts) {
 }
 
 /* Horizontal ranked bars — the shape that suits "top N by X", where the labels
-   are names rather than dates and reading them matters more than the profile. */
+   are names rather than dates and reading them matters more than the profile.
+   opts.max: the value a full bar stands for, when the rows carry a mark measured
+   on a scale of their own (a cost line past every bar): the bars and the mark
+   must share one scale, or a bar short of cost reads as reaching it. */
 function chartRankedBars(rows, opts) {
   opts = opts || {};
   var unit = opts.unit || 'money';
   if (!rows || rows.length === 0) return _chartEmpty(opts.emptyText || 'No data in this period');
-  var max = Math.max.apply(null, rows.map(function(r) { return r.value; }).concat([0]));
+  var max = opts.max > 0 ? opts.max : Math.max.apply(null, rows.map(function(r) { return r.value; }).concat([0]));
 
   var html = '<div class="inv-chart-ranked">';
   rows.forEach(function(r) {
-    var pct = max > 0 ? Math.max((r.value / max) * 100, 0.5) : 0;
+    var pct = max > 0 ? Math.min(Math.max((r.value / max) * 100, 0.5), 100) : 0;
     var tap = r.action ? ' data-action="' + escHtml(r.action) + '" data-client-id="' + escHtml(r.clientId != null ? r.clientId : '') + '"' : '';
     html += '<div class="inv-chart-ranked-row"' + tap + '>' +
       '<div class="inv-chart-ranked-head">' +
@@ -314,7 +319,10 @@ function _chartSeriesLegend(series, unit, lastOf) {
    labels: ['Apr', …]; series: [{label, values: [n|null], tone?}]; opts: {unit, band: [{lo, hi}|null], ariaLabel, fit}.
    fit: the frame hugs the data (chartFitRange) instead of starting at zero, for a price.
    xs: a number per label (a day count) placing each at its distance in time rather than evenly: bills weeks apart and
-   market days side by side on one axis. Its labels are thinned by room rather than by count. */
+   market days side by side on one axis. Its labels are thinned by room rather than by count.
+   A null on an even axis is a gap — a month the statement does not reach, a week nobody typed — and the line breaks
+   there rather than drawing straight across as if the figure between were known. On an xs axis the labels are the
+   days any series has a figure, so a null is only another series' day, and each series joins its own points. */
 function chartLines(labels, series, opts) {
   opts = opts || {};
   var unit = opts.unit || 'money';
@@ -325,18 +333,20 @@ function chartLines(labels, series, opts) {
   if (!all.length) return _chartEmpty(opts.emptyText || 'No data in this period');
   var W = 480, H = 220, pad = { l: 50, r: 12, t: 14, b: 30 };
   var r = (opts.fit ? chartFitRange : chartNiceRange)(Math.min.apply(null, all), Math.max.apply(null, all));
+  // Nothing but zeros has no scale: the frame is a nominal one, and only its zero line is labelled (as _chartFrame).
+  var zeros = all.every(function(v) { return v === 0; });
   var cw = W - pad.l - pad.r, ch = H - pad.t - pad.b;
   var xs = opts.xs, x0 = xs ? xs[0] : 0, xw = xs ? xs[xs.length - 1] - x0 : 0;
   var x = function(i) {
     if (xs) return pad.l + (xw > 0 ? (xs[i] - x0) / xw : 0.5) * cw;
-    return pad.l + (labels.length === 1 ? cw / 2 : (i / (labels.length - 1)) * cw);
+    return pad.l + (i / (labels.length - 1)) * cw;
   };
   var y = function(v) { return pad.t + ch - ((v - r.lo) / (r.hi - r.lo)) * ch; };
   var svg = '<svg class="inv-chart-svg" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="' + escHtml(opts.ariaLabel || 'Trend') + '">';
   for (var g = 0; g <= 4; g++) {
     var gv = r.hi - (g / 4) * (r.hi - r.lo), gy = y(gv);
     svg += '<line x1="' + pad.l + '" y1="' + gy + '" x2="' + (W - pad.r) + '" y2="' + gy + '" class="inv-chart-grid"/>' +
-      '<text x="' + (pad.l - 4) + '" y="' + (gy + 3) + '" text-anchor="end" class="inv-chart-grid-label">' + escHtml(chartShort(gv, unit)) + '</text>';
+      (zeros && Math.abs(gv) > 1e-9 ? '' : '<text x="' + (pad.l - 4) + '" y="' + (gy + 3) + '" text-anchor="end" class="inv-chart-grid-label">' + escHtml(chartShort(gv, unit)) + '</text>');
   }
   if (r.lo < 0) svg += '<line x1="' + pad.l + '" y1="' + y(0) + '" x2="' + (W - pad.r) + '" y2="' + y(0) + '" class="inv-chart-zero"/>';
   if (opts.band) {
@@ -345,9 +355,15 @@ function chartLines(labels, series, opts) {
     if (up.length > 1) svg += '<polygon points="' + up.concat(down).join(' ') + '" class="inv-chart-band"/>';
   }
   series.forEach(function(s, si) {
-    var tone = s.tone != null ? s.tone : si, pts = [];
-    s.values.forEach(function(v, i) { if (v != null && isFinite(v)) pts.push([x(i), y(v), v, i]); });
-    if (pts.length > 1) svg += '<polyline points="' + pts.map(function(p) { return p[0] + ',' + p[1]; }).join(' ') + '" class="inv-chart-path inv-chart-s' + tone + '"' + (s.dashed ? ' stroke-dasharray="4 3"' : '') + '/>';
+    var tone = s.tone != null ? s.tone : si, pts = [], runs = [[]];
+    s.values.forEach(function(v, i) {
+      if (v != null && isFinite(v)) { var p = [x(i), y(v), v, i]; pts.push(p); runs[runs.length - 1].push(p); }
+      else if (!xs && runs[runs.length - 1].length) runs.push([]);
+    });
+    // One polyline per unbroken run; a point alone between two gaps is its marker only.
+    runs.forEach(function(run) {
+      if (run.length > 1) svg += '<polyline points="' + run.map(function(p) { return p[0] + ',' + p[1]; }).join(' ') + '" class="inv-chart-path inv-chart-s' + tone + '"' + (s.dashed ? ' stroke-dasharray="4 3"' : '') + '/>';
+    });
     pts.forEach(function(p) {
       var read = s.label + ', ' + labels[p[3]] + ': ' + chartFull(p[2], unit);
       svg += '<circle cx="' + p[0] + '" cy="' + p[1] + '" r="3.5" class="inv-chart-pt inv-chart-c' + tone + '" data-action="' + escHtml(opts.pointAction || 'invChartRead') + '" data-read="' + escHtml(read) + '"' +
@@ -396,7 +412,7 @@ function chartStack(labels, series, opts) {
     series.forEach(function(s, si) {
       var v = s.values[i] || 0;
       if (!(v > 0)) return;
-      var h = (v / f.maxVal) * f.chartH, bx = group ? x0 + si * w : x0, by = group ? base - h : base - h;
+      var h = (v / f.maxVal) * f.chartH, bx = group ? x0 + si * w : x0, by = base - h;
       var read = l + ', ' + s.label + ': ' + chartFull(v, unit);
       svg += '<rect x="' + bx + '" y="' + by + '" width="' + Math.max(w - (group ? 1 : 0), 1) + '" height="' + h + '" class="inv-chart-seg inv-chart-c' + (s.tone != null ? s.tone : si) + '"' +
         ' data-action="' + escHtml(opts.action || 'invChartRead') + '" data-read="' + escHtml(read) + '" data-key="' + escHtml(key) + '" data-series="' + si + '"' +

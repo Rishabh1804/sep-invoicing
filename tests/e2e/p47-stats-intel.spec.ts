@@ -72,11 +72,12 @@ test.describe('P47: Stats tabs, the overview and the margin by client', () => {
     await expect(rows.nth(1)).toContainText('+4.44');
     const worst = page.locator('#statsWorst');
     await expect(worst).toContainText('BETA CLAMPS');
-    await expect(worst).toContainText('below its variable cost');
+    // Nothing recorded, so labour cannot be split into fixed and variable: it says so rather than calling it all variable.
+    await expect(worst).toContainText('split not known');
     await expect(worst).toContainText('75% · 54%');
     const m = await g(page, `(function(){ var r = statsClientMargins('mtd', S.invoices, weighLines(S.invoices)); return [r.fullKg, r.varKg, r.ranked[0].money]; })()`) as number[];
     expect(m[0]).toBeCloseTo(8.56, 2);
-    expect(m[1]).toBeCloseTo(8.56, 2);
+    expect(m[1]).toBeNull();
     expect(m[2]).toBeCloseTo(-10980, 0);
   });
 });

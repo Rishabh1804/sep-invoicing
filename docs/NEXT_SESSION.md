@@ -7,6 +7,18 @@ carries **this repo's side** of it: the work queued here, and what this app prod
 
 ---
 
+## The owner's list of 30 Sep 2026, built (PR #118, read this first)
+
+All seven items and the per-hour follow-up, one commit each (CLAUDE.md has each section; P117–P121):
+1. Forms entered several at a sitting stay open (Production and Power by hand, Stock by hand, challan *Save, add another*, bills,
+   recorded credit notes, Pay, Sort). 2. Part-invoiced challans show what is left to bill. 4. Stock by hand lists the day and corrects an
+   entry. 5. Client performance: one part however spelt (`cpPartIdentity`), Materials worked, shared codes, **By the hour** (pickle + plate +
+   15 min, measured from the register and the pickling loads, trend and what to look at). 3. Staff → Day as an area board, Civil, the
+   allocation by area. 6. Stats' Overview as question-led story cards. 7. Home widgets with presets and Edit Home, per device.
+
+**Left for the owner:** check the timing of Samarth's parts once a register photo with their rounds is read (the book to 11 Sep has no
+production record, so nothing is measured yet); the 15-minute constant is theirs to change on the panel.
+
 ## Where session B stopped — 30 Sep 2026 (read this first)
 
 **Merged, both on the owner's go-ahead, 30 Sep 2026:**
@@ -231,6 +243,8 @@ in the PR**, so the compile session knows to re-check.
 | **Config added, 25 Sep 2026 (insights)** | `todoCheck` gains eight insight switches (`insQuiet`, `insRealLow`, `insClientDown`, `insLeak`, `insBelowVar`, `insLabour`, `insAttGap`, `insChemPrice`); `stockCheck` gains `leadDays` and `coverDays`; `costModel` gains `zincPerKg`. No record shape changed. |
 | **Backup shape changed, 25 Sep 2026 (cost)** | Stock entries gain kind `bill` ({qty, price, amount, date = billDate, supplier, billNo, note}: a purchase that does not move the level). `received` entries gain `billDate`, `amount` and `billAddedAt` (when the bill was added after a paste). New top-level `costBills: [{id, kind: power/other, month: YYYY-MM, amount, units, note, label, at, voided?, voidReason?}]` and `costModel: {power, other, zincKgMonth}`. **The compile should treat `bill` entries as the purchase register**: they are the prices soma-internal holds, carried over by a `sep-stock` import file and entered from here on. |
 | **Backup shape changed, 30 Sep 2026 (the owner's rulings)** | `costBills` rows gain optional `arrears`, `arrearsOf` (YYYY-MM) and `penalty`, all parts of `amount`: **a bill's cost is `amount − arrears`**, since the arrears were already the earlier month's cost; the compile must not count them twice. New top-level `payCarryClears: [{id, staffId, through, amount, reason, at, voidedAt?}]` (a pay balance cleared with a reason). The `sep-bank` export's `parties` carry `dir` (`in`/`out`), and a money-in rule is keyed `KEY\|in`. |
+| **Part times and the per-hour constant, 30 Sep 2026** | `client.partTimes: [{id, base, gauge, name, line, pieces?, pickleMin?, plateMin?, at, history?}]` (a figure left out is measured from the production record) and `S.perfCfg.overheadMin` (15). **soma-internal** may read them for a costing by the hour; nothing it sends writes them. The area list gains `civil` (a post, off the floor). |
+| **Stock corrections, 30 Sep 2026** | A stock entry corrected is voided with `voided.reason` ('Corrected to …') and `voided.correctedBy`, and its copy carries `corrects: {id, qty}`. The export is whole as before; **soma-internal** should take the copy and drop the voided one, as for any void. |
 | **Attendance deletes, 30 Sep 2026** | New top-level `attendanceDeletes: [{id, key, iso, reason, how: 'by hand' | 'migration', at, marks, extra, day}]`: a day removed from `attendance` with its reason, kept whole. **soma-internal** should read a day missing from `attendance` against this log before calling it unrecorded; the book's `"null"` day (23 marks) is the first entry. |
 | **Power, 30 Sep 2026** | New top-level `power: {load: {sanctioned, approved, approvedOn, ref, note}, cfg, items}`. Electricity `costBills` rows gain optional `kvaBilled`, `md`, `kwh`, `kvah`, `fixed`, `energy`, `fca`, `duty`, `net` (and `penalty` as the excess-CD penalty). **soma-internal → app**: `analysis/sep-power-history-YYYY-MM-DD.json`, a `sep-production` file of the power-cut log's cuts (ids `PCLOG-NNN`; `downtime.atLeast` for a power-back known only as a bound, `downtime.inferred` for a close the log inferred, `downtime.phase: 'single'` for a single-phase fault; `basis` register where the source cites a register page, relay where only a message) plus `power.bills` (`paid` is what the bank shows and becomes the bill's amount, `net` the net payable, `basis` says which) and `power.load`, imported on Power → Cuts. **App → soma-internal**: the cuts leave in Production's `sep-production` export, and the case is printed from Power → Case. |
 | **Backup shape changed, 25 Sep 2026 (pay)** | New top-level `staffPayments: [{id, staffId, date, amount, kind: payment/advance, note, at, voidedAt?, voidReason?}]`: wages paid out, voided and never deleted. **The attendance week is now the pay week, Sunday to Saturday**, numbered by its Saturday's ISO week (the payout files' own numbering). Any compile step that groups attendance by week should use the same boundary. |

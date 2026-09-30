@@ -18,7 +18,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <!-- Appearance before first paint (§3.2): the device's theme and palette, so nothing flashes in the wrong colours. -->
 <script>(function(){try{var d=document.documentElement,t=localStorage.getItem("sep_inv_theme"),p=localStorage.getItem("sep_inv_palette");if(t==="light"||t==="dark")d.dataset.theme=t;d.dataset.palette=(p==="zinc"||p==="terracotta")?p:"teal";}catch(e){document.documentElement.dataset.palette="teal";}})();</script>
-<meta name="app-build" content="fa391cab">
+<meta name="app-build" content="4fc351e6">
 <style>
 /* ===== DESIGN TOKENS (design system v2.0 — docs/SEP_INVOICING_DESIGN_PRINCIPLES.md §3) ===== */
 /* Theme: colour-scheme decides every light-dark() below. <html data-theme> is set before first paint
@@ -13598,8 +13598,12 @@ function attMark(iso, staffId) {
   return rec.marks[staffId] || null;
 }
 
+/* The one lookup of a worker by id. Ids are numbers on a device and text in a picker's value, a mark's key or some
+   imports, so they are compared as text. */
 function staffById(id) {
-  return (S.staff || []).find(function(w) { return w.id === id; });
+  if (id == null || id === '') return undefined;
+  var k = String(id);
+  return (S.staff || []).find(function(w) { return String(w.id) === k; });
 }
 
 /* Active roster, leads and permanents first so the week grid reads the way the
@@ -13995,6 +13999,7 @@ function setAttBlockNeed(idx, v) {
   if (!rec || !rec.extra[idx]) return;
   var n = String(v).trim() === '' ? NaN : Math.floor(Number(v));
   if (!isNaN(n) && n >= 0) rec.extra[idx].need = n; else delete rec.extra[idx].need;
+  _attHandEdit(rec.extra[idx]);
   saveState();
 }
 
@@ -14240,6 +14245,7 @@ function attSetState(iso, staffId, st) {
   } else {
     var m = rec.marks[staffId] || { ot: 0, hours: 0, area: w.area || 'flex' };
     m.st = st;
+    _attHandEdit(m);
     // Absent pays nothing and worked nothing: hours that nobody was here for
     // are not hours, in either tier.
     if (st === 'A') { m.ot = 0; m.hours = 0; }
@@ -14270,6 +14276,7 @@ function setAttOt(staffId, hours) {
   var m = attMark(_attDate, staffId);
   if (!m) return;                       // OT without a presence mark is not a fact
   m.ot = Math.max(0, Number(hours) || 0);
+  _attHandEdit(m);
   saveState();
 }
 
@@ -14279,6 +14286,7 @@ function setAttHours(staffId, hours) {
   var m = attMark(_attDate, staffId);
   if (!m) return;
   m.hours = Math.max(0, Number(hours) || 0);
+  _attHandEdit(m);
   saveState();
 }
 
@@ -14286,6 +14294,7 @@ function setAttArea(staffId, areaId) {
   var m = attMark(_attDate, staffId);
   if (!m) return;
   m.area = areaId;
+  _attHandEdit(m);
   saveState();
 }
 
@@ -14327,10 +14336,16 @@ function attRemoveExtra(idx) {
 function relayLearnFromRow(x) {
   if (!x) return;
   var L = relayLearnData(), at = Date.now();
-  if (x.srcHead) {
-    var k = relayHeadKey(x.srcHead), now = extraAreas(x), was = x.srcAreas || [];
-    if (now.slice().sort().join() === was.slice().sort().join()) delete L.heads[k];
-    else L.heads[k] = { areas: now, was: was, text: x.srcHead, at: at, day: _attDate };
+  // Kept under the heading AND its slot (relayLearnKey), so a correction to the evening block's "VAT A 1" never moves the
+  // 8:30 shift's. A row saved before the slot was kept on it teaches nothing: its lesson would have no slot to go to.
+  if (x.srcHead && x.srcAt) {
+    var k = relayLearnKey(x.srcHead, x.srcAt), was = x.srcAreas || [], cov = extraIsCoverage(x);
+    // A general-shift row books to one area of every area its heading read: the lesson keeps them all (each hand stays
+    // at his own) and puts the corrected one first, which is the one its EXTRA books to.
+    var now = cov ? [x.area].concat(was.filter(function(a) { return a !== x.area; })) : extraAreas(x);
+    var asRead = cov ? x.area === was[0] : now.slice().sort().join() === was.slice().sort().join();
+    if (asRead) delete L.heads[k];
+    else L.heads[k] = { areas: now, was: was, text: x.srcHead, slot: x.srcAt, at: at, day: _attDate };
   }
   if (x.srcSlot && x.kind === 'block') {
     var ks = relayHeadKey(x.srcSlot);
@@ -14339,10 +14354,15 @@ function relayLearnFromRow(x) {
   }
 }
 
+/* A mark or an EXTRA row the roll wrote and somebody then changed by hand is the owner's from then on, like one entered
+   by hand: the next roll keeps it rather than writing over the correction (relayPlan reads `src`). */
+function _attHandEdit(o) { if (o && o.src === 'relay') delete o.src; }
+
 function setAttExtraArea(idx, areaId) {
   var rec = attDay(_attDate, false);
   if (!rec || !rec.extra[idx]) return;
   rec.extra[idx].area = areaId;
+  _attHandEdit(rec.extra[idx]);
   relayLearnFromRow(rec.extra[idx]);
   saveState();
 }
@@ -14352,6 +14372,7 @@ function setAttExtraKind(idx, kind) {
   if (!rec || !rec.extra[idx]) return;
   var x = rec.extra[idx];
   x.kind = EXTRA_KINDS.some(function(k) { return k.id === kind; }) ? kind : 'coverage';
+  _attHandEdit(x);
   // Flipping back to a general shift must CLEAR the block-only fields. Left
   // behind, `areas[]` still splits the row's hours across areas the UI no
   // longer shows (the select renders `x.area` alone) while `_absorption`'s
@@ -14367,6 +14388,7 @@ function setAttBlockTime(idx, which, value) {
   var rec = attDay(_attDate, false);
   if (!rec || !rec.extra[idx]) return;
   rec.extra[idx][which === 'to' ? 'to' : 'from'] = String(value || '');
+  _attHandEdit(rec.extra[idx]);
   relayLearnFromRow(rec.extra[idx]);
   saveState();
 }
@@ -14388,6 +14410,7 @@ function toggleAttBlockArea(idx, areaId) {
   // cost tallies bucket on, and a row that lost its last area would otherwise
   // keep booking against whichever one it used to name.
   x.area = list.length ? list[0] : 'flex';
+  _attHandEdit(x);
   relayLearnFromRow(x);
   saveState();
 }
@@ -14402,6 +14425,7 @@ function toggleAttBlockCrew(idx, workerId) {
   var at = list.indexOf(id);
   if (at >= 0) list.splice(at, 1); else list.push(id);
   x.crew = list;
+  _attHandEdit(x);
   saveState();
 }
 
@@ -14409,6 +14433,7 @@ function setAttExtraHours(idx, hours) {
   var rec = attDay(_attDate, false);
   if (!rec || !rec.extra[idx]) return;
   rec.extra[idx].hours = Math.max(0, Number(hours) || 0);
+  _attHandEdit(rec.extra[idx]);
   saveState();
 }
 
@@ -22687,7 +22712,18 @@ function relayLearnData() {
   if (!S.relayLearn.slots || typeof S.relayLearn.slots !== 'object') S.relayLearn.slots = {};
   return S.relayLearn;
 }
-function _relayHm(t) { var m = /^(\d{1,2}):(\d{2})$/.exec(String(t || '')); return m ? +m[1] * 60 + +m[2] : null; }
+/* The slot a heading sits in, as the roll wrote it: 'in 08:30' (an in-time slot by its start), 'out 06:00' (an out-time
+   slot by when its crew went home). A heading's lesson is kept under the heading AND its slot (relayLearnKey). */
+function relaySlotTag(mode, slot) {
+  var t = !slot ? null : mode === 'out' ? slot.end : slot.start;
+  return (mode === 'out' ? 'out ' : 'in ') + (t == null ? '?' : relayHhmm(t));
+}
+function relayLearnKey(head, tag) { return relayHeadKey(head) + ' @ ' + tag; }
+function relaySlotLabel(tag) {
+  var m = /^(in|out) (.*)$/.exec(String(tag || '')), t = m ? relayParseHhmm(m[2]) : null;
+  if (!m) return 'any slot';
+  return (m[1] === 'out' ? 'out at ' : 'slot from ') + (t == null ? '?' : relayClockLabel(t));
+}
 function _relayLearntNote(l) { return 'learnt from your correction' + (l && l.day ? ' on ' + formatDate(l.day) : ''); }
 
 function relayKey(s) { return String(s || '').toUpperCase().replace(/[^A-Z]/g, ''); }
@@ -22804,17 +22840,19 @@ function relaySkel(k) {
   return f ? f[0] + f.slice(1).replace(/[AEIOU]/g, '') : '';
 }
 function relayRosterIndex(roster) {
-  var byKey = {}, byFold = {}, bySkel = {}, list = [], firsts = {};
+  var byKey = {}, byFold = {}, bySkel = {}, list = [], firsts = {}, byName = {}, byPlaced = {};
   var put = function(map, k, w) { if (!k) return; if (!(k in map)) map[k] = w; else if (map[k] && map[k] !== w) map[k] = null; };
   (roster || []).forEach(function(w) {
     var v = relayNameVariants(w.name);
-    v.all.concat(w.relayNames || [], w.aliases || []).forEach(function(n) {
-      var k = relayKey(n);
-      if (k && !byKey[k]) byKey[k] = w;
-    });
+    v.all.forEach(function(n) { put(byName, relayKey(n), w); });
+    (w.relayNames || []).concat(w.aliases || []).forEach(function(n) { put(byPlaced, relayKey(n), w); });
     v.firsts.forEach(function(f) { put(firsts, relayKey(f), w); });
     list.push(w);
   });
+  // A key two workers share matches neither: it used to go to whoever the roster listed first. A spelling the owner
+  // placed on one worker is a decision, and it beats another worker's name that reads the same way.
+  Object.keys(byName).forEach(function(k) { byKey[k] = byName[k]; });
+  Object.keys(byPlaced).forEach(function(k) { byKey[k] = byPlaced[k]; });
   // A first name stands for the worker only when nobody else answers to it.
   Object.keys(firsts).forEach(function(k) { if (k.length >= 3 && firsts[k] && !(k in byKey)) byKey[k] = firsts[k]; });
   Object.keys(byKey).forEach(function(k) { put(byFold, relayFold(k), byKey[k]); put(bySkel, relaySkel(k), byKey[k]); });
@@ -22950,8 +22988,14 @@ function parseRelayRoll(text, roster, sentOn) {
   var out = { kind: relayKind(text), date: null, days: {}, lines: [], issues: [] };
   var first = lines[0] || '';
   var dm = first.match(/(\d{1,2})\/(\d{1,2})\/(\d{2,4})/);
-  out.date = dm ? isoFromDmy(dm[1], dm[2], dm[3]) : (sentOn || null);
-  if (!dm) out.issues.push({ tone: 'amber', text: 'The roll carries no date; read as the day it was sent.' });
+  // A date the calendar lacks (31/09) reads as no date, and with no day it was sent either there is no day to put it
+  // on: it is said, and nothing from it is saved (relayPlan leaves out a roll with no date).
+  var dated = dm ? isoFromDmy(dm[1], dm[2], dm[3]) : null;
+  out.date = dated || sentOn || null;
+  if (!out.date) out.issues.push({ tone: 'red', text: (dm ? '"' + dm[0] + '" is not a date, and' : 'The roll carries no date, and') +
+    ' the day it was sent is not known: nothing from it can be saved. Paste it with its WhatsApp line, or put the date on its first line.' });
+  else if (!dm) out.issues.push({ tone: 'amber', text: 'The roll carries no date; read as the day it was sent.' });
+  else if (!dated) out.issues.push({ tone: 'amber', text: '"' + dm[0] + '" is not a date; read as the day it was sent.' });
   var headTimes = relayTimes(first.replace(/\d{1,2}\/\d{1,2}\/\d{2,4}\/?/, ''));
   var st = {
     mode: out.kind,
@@ -22972,6 +23016,7 @@ function parseRelayRoll(text, roster, sentOn) {
     st.sec = { areas: areas, absent: !!(extra && extra.absent), prod: !!(extra && extra.prod), crew: [], crewIds: [], extraLine: null };
     if (!st.sec.prod) st.lastSec = st.sec;
   }
+  function slotAt() { return st.slot && st.slot.tag ? st.slot.tag : relaySlotTag(st.mode, st.slot); }
 
   lines.slice(1).forEach(function(raw, i) {
     var ln = { n: i + 2, raw: raw, role: '', read: '' };
@@ -23025,9 +23070,12 @@ function parseRelayRoll(text, roster, sentOn) {
       sec.extraLine = ln;
       var general = st.slot && st.slot.start === RELAY_GENERAL && st.mode === 'in';
       var row;
+      // Where a row came from travels with it (relayLearnFromRow): the heading, its slot, and every area the heading read
+      // before any lesson, so "put back as read" means as the roll reads with nothing learnt.
+      var collapse = function(a) { return a.length === 2 && a[0] === 'barrel' && a[1] === 'pickling-barrel' ? ['pickling-barrel'] : a.slice(); };
       if (general && sec.areas.length) {
         row = { kind: 'coverage', area: sec.areas[0], hours: hrs };
-        if (sec.srcHead) { row.srcHead = sec.srcHead; row.srcAreas = [sec.areas[0]]; }
+        if (sec.srcHead) { row.srcHead = sec.srcHead; row.srcAt = sec.srcAt; row.srcAreas = (sec.rawAreas || sec.areas).slice(); }
         ln.read = 'EXTRA ' + hrs + ' h booked to ' + relayAreaName(sec.areas[0]);
       } else {
         var from = st.mode === 'out' ? (st.slot && st.slot.rangeStart != null ? st.slot.rangeStart : RELAY_GENERAL_OUT)
@@ -23049,10 +23097,9 @@ function parseRelayRoll(text, roster, sentOn) {
           }
         }
         var crewNames = crewIds.map(function(id) { return day(st.iso).people[id].name; });
-        var bAreas = sec.learnt ? sec.learnt.areas.slice()
-          : sec.areas.length === 2 && sec.areas[0] === 'barrel' && sec.areas[1] === 'pickling-barrel' ? ['pickling-barrel'] : sec.areas.slice();
+        var bAreas = sec.learnt ? sec.learnt.areas.slice() : collapse(sec.areas);
         row = { kind: 'block', areas: bAreas, crew: crewNames, hours: hrs, from: relayHhmm(from), to: to == null ? '' : relayHhmm(to) };
-        if (sec.srcHead) { row.srcHead = sec.srcHead; row.srcAreas = bAreas.slice(); }
+        if (sec.srcHead) { row.srcHead = sec.srcHead; row.srcAt = sec.srcAt; row.srcAreas = collapse(sec.rawAreas || sec.areas); }
         if (st.slot && st.slot.label && relayHeadHasWords(st.slot.label)) { row.srcSlot = st.slot.label; row.srcFrom = row.from; row.srcTo = row.to; }
         ln.read = 'EXTRA ' + hrs + ' h, block ' + relayClockLabel(from) + ' – ' + (to == null ? '?' : relayClockLabel(to)) +
           (row.areas.length ? ', ' + row.areas.map(relayAreaName).join(' + ') : ', no line named') + ', crew ' + (row.crew.length ? row.crew.length : 'not named');
@@ -23062,8 +23109,9 @@ function parseRelayRoll(text, roster, sentOn) {
       ln.role = 'extra';
       day(st.iso).extra.push(row);
       // The tag closes its group: names after it are the next crew.
-      var keep = sec.areas.slice(), was = sec.slotOnly, srcHead = sec.srcHead, lrn = sec.learnt;
+      var keep = sec.areas.slice(), was = sec.slotOnly, srcHead = sec.srcHead, lrn = sec.learnt, srcAt = sec.srcAt, raw = sec.rawAreas;
       newSection(keep, null); st.sec.slotOnly = was; st.sec.headText = ''; st.sec.srcHead = srcHead; st.sec.learnt = lrn;
+      st.sec.srcAt = srcAt; st.sec.rawAreas = raw;
       return;
     }
 
@@ -23097,9 +23145,16 @@ function parseRelayRoll(text, roster, sentOn) {
       if (kindH.slot) {
         // A heading that writes both ends ("night hold-8 pm to 6 am") gives its block both: the start is no longer
         // taken to be 5 PM. A single time is only when the crew under it went home.
-        if (st.mode === 'out') st.slot = { start: null, end: kindH.end != null ? kindH.end : (kindH.single != null ? kindH.single : null), label: bare,
-          rangeStart: kindH.end != null || kindH.night ? kindH.start : null };
-        else {
+        if (st.mode === 'out') {
+          // A night heading that writes one time keeps the night hold's other end (8 PM to 6 AM): "night hold 6 am" still
+          // starts at 8 PM, and "night hold 8 pm" still runs to 6 AM. It started at 5 PM, or ended at 8 PM.
+          if (kindH.night && kindH.end == null && kindH.single != null) {
+            if (kindH.single >= 1440) { kindH.start = RELAY_NIGHT; kindH.end = kindH.single; }
+            else { kindH.start = kindH.single; kindH.end = 1440 + RELAY_MORNING; }
+          }
+          st.slot = { start: null, end: kindH.end != null ? kindH.end : (kindH.single != null ? kindH.single : null), label: bare,
+            rangeStart: kindH.end != null || kindH.night ? kindH.start : null };
+        } else {
           var sStart = kindH.start;
           // A slot ahead of the 8:30 shift on an in-time roll is the morning: the
           // relay has headed it "6:00 pm" before, and BM ruled that a mislabel.
@@ -23111,9 +23166,12 @@ function parseRelayRoll(text, roster, sentOn) {
           st.slot = { start: sStart, end: kindH.end, label: bare };
           kindH.start = sStart;
         }
+        // Which slot this is, as the roll wrote it: taken before a learnt time moves it, so a heading's lesson keeps
+        // finding its slot (slotAt).
+        st.slot.tag = relaySlotTag(st.mode, st.slot);
         var ls = relayHeadHasWords(bare) ? learn.slots[relayHeadKey(bare)] : null;
-        if (ls && _relayHm(ls.from) != null && _relayHm(ls.to) != null) {
-          var lf = _relayHm(ls.from), lt = _relayHm(ls.to);
+        if (ls && relayParseHhmm(ls.from) != null && relayParseHhmm(ls.to) != null) {
+          var lf = relayParseHhmm(ls.from), lt = relayParseHhmm(ls.to);
           if (lt <= lf) lt += 1440;
           if (st.mode === 'out') { st.slot.rangeStart = lf; st.slot.end = lt; } else { st.slot.start = lf; st.slot.end = lt; kindH.start = lf; }
           st.slot.learnt = ls;
@@ -23144,7 +23202,10 @@ function parseRelayRoll(text, roster, sentOn) {
         ln.role = 'head'; ln.read = 'The block above ran on ' + lastRow.areas.map(relayAreaName).join(' + ');
         return;
       }
-      var lh = !kindH.absent ? learn.heads[relayHeadKey(bare)] : null;
+      // A lesson is kept for the heading in its slot: the same "VAT A 1" under the 8:30 shift and under an evening block
+      // are two readings, and a correction to one must not move the other (the 8:30 shift's decides where hands stood).
+      var at = slotAt(), rawAreas = (kindH.areas || []).slice();
+      var lh = !kindH.absent ? learn.heads[relayLearnKey(bare, at)] : null;
       if (lh && Array.isArray(lh.areas)) {
         kindH.areas = lh.areas.slice();
         out.issues.push({ tone: 'info', n: ln.n, text: '"' + bare + '" read as ' + (lh.areas.map(relayAreaName).join(' + ') || 'no line') + ', ' + _relayLearntNote(lh) + '.' });
@@ -23152,6 +23213,8 @@ function parseRelayRoll(text, roster, sentOn) {
       newSection(kindH.areas || [], { absent: kindH.absent });
       st.sec.headText = bare;
       st.sec.srcHead = bare;
+      st.sec.srcAt = at;
+      st.sec.rawAreas = rawAreas;
       st.sec.learnt = lh || null;
       ln.role = 'head';
       ln.read = kindH.absent ? 'Absent' : (kindH.areas.length ? kindH.areas.map(relayAreaName).join(' + ') : 'Section');
@@ -23187,7 +23250,7 @@ function parseRelayRoll(text, roster, sentOn) {
     if (absent) {
       p.st = 'A';
     } else {
-      if (!st.sec || st.sec.prod) { newSection(st.sec && st.sec.prod ? [] : [], null); st.sec.slotOnly = true; }
+      if (!st.sec || st.sec.prod) { newSection([], null); st.sec.slotOnly = true; }
       st.sec.crew.push(w.name);
       st.sec.crewIds.push(w.id);
       var areas = st.sec ? st.sec.areas : [];
@@ -23248,7 +23311,7 @@ function relaySlotOrArea(bare) {
   var absent = /ABSENT/.test(up);
   if (times.length && !absent) {
     var start = times[0].min, end = times.length > 1 ? relayOutMin(times[1]) : null;
-    if (words.every(function(w) { return slotWords.indexOf(w) >= 0; }) || areas.length) return { slot: true, start: start, end: end, single: relayOutMin(times[0]), areas: areas };
+    if (words.every(function(w) { return slotWords.indexOf(w) >= 0; }) || areas.length) return { slot: true, start: start, end: end, single: relayOutMin(times[0]), areas: areas, night: /NIGHT/.test(up) };
   }
   if (/MORNING/.test(up)) return { slot: true, start: RELAY_MORNING, end: RELAY_GENERAL, areas: areas };
   if (/G[AE]N[AE]?RAL/.test(up)) return { slot: true, start: RELAY_GENERAL, end: RELAY_GENERAL_OUT, areas: areas };
@@ -23310,16 +23373,12 @@ function relayRoster(choices) {
   r.learn = relayLearnData();
   return r;
 }
-function relayWorker(id) {
-  if (id == null || id === '') return null;
-  return (S.staff || []).find(function(w) { return String(w.id) === String(id); }) || null;
-}
 /* Remember a spelling on one worker (and on nobody else). An empty id forgets
    it. Returns true when the roster changed. */
 function relayRemember(key, id) {
   key = relayKey(key);
   if (!key) return false;
-  var changed = false, w = relayWorker(id);
+  var changed = false, w = staffById(id);
   (S.staff || []).forEach(function(x) {
     if (x === w || !Array.isArray(x.relayNames)) return;
     var keep = x.relayNames.filter(function(n) { return relayKey(n) !== key; });
@@ -23354,6 +23413,8 @@ function relayPlan(rv) {
     r.issues.forEach(function(is) { is.mi = mi; issues.push(is); });
     r.lines.forEach(function(l) { l.mi = mi; lines.push(l); });
     Object.keys(r.days).forEach(function(iso) {
+      // A roll with no date to put it on (parseRelayRoll says so, red) saves nothing.
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(iso)) return;
       var d = r.days[iso];
       var t = days[iso] || (days[iso] = { iso: iso, people: {}, extra: [], restOut: null, holiday: '', notes: [], kinds: [] });
       if (t.kinds.indexOf(r.kind) < 0) t.kinds.push(r.kind);
@@ -23391,7 +23452,18 @@ function relayPlan(rv) {
       var same = prev && prev.st === next.st && prev.area === next.area && prev.hours === next.hours && prev.ot === next.ot;
       rows.push({ w: w, p: p, prev: prev, next: next, change: !prev ? 'new' : same ? 'same' : 'updated' });
     });
-    // Present hands already on the day that this out-roll left unnamed: out with the shift.
+    // Present hands already on the day that this paste does not name: "everyone else left at X" (restOut) is theirs
+    // too. The in-time roll saved them out at 5 PM on trust; this is when they went. A hand whose out an earlier
+    // out-time roll already gave, or whose mark was entered or corrected by hand, is left as it is.
+    if (t.restOut != null && rec && rec.marks) Object.keys(rec.marks).forEach(function(id) {
+      var prev = rec.marks[id], w = byId[id] || staffById(id);
+      if (t.people[id] || !w || !prev || prev.src !== 'relay' || prev.st !== 'P' || prev.outKnown) return;
+      var q = { st: 'P', areas: prev.area || null, generalArea: null, inExp: prev.inMin, inSlot: null, outExp: null, outSlot: null };
+      var next = relayPersonMark(q, w, t.restOut);
+      next.outKnown = true;
+      var same = prev.area === next.area && prev.hours === next.hours && prev.ot === next.ot;
+      rows.push({ w: w, p: q, prev: prev, next: next, change: same ? 'same' : 'updated' });
+    });
     rows.sort(function(a, b) {
       var o = { P: 0, H: 1, A: 2 };
       return (o[a.next.st] - o[b.next.st]) || String(a.next.area).localeCompare(String(b.next.area)) || String(a.w.name).localeCompare(String(b.w.name));
@@ -23403,19 +23475,40 @@ function relayPlan(rv) {
             hours: x.hours, from: x.from, to: x.to, area: x.areas[0] || 'flex', src: 'relay' }
         : { kind: 'coverage', area: x.area, hours: x.hours, src: 'relay' };
       // Where the row came from travels with it, so a correction on the saved day can teach the next roll.
-      ['srcHead', 'srcAreas', 'srcSlot', 'srcFrom', 'srcTo'].forEach(function(k) { if (x[k] != null) row[k] = Array.isArray(x[k]) ? x[k].slice() : x[k]; });
-      var dup = rec && (rec.extra || []).some(function(e) { return relayExtraSame(e, row); });
-      return { row: row, dup: !!dup };
+      ['srcHead', 'srcAt', 'srcAreas', 'srcSlot', 'srcFrom', 'srcTo'].forEach(function(k) { if (x[k] != null) row[k] = Array.isArray(x[k]) ? x[k].slice() : x[k]; });
+      return { row: row, dup: false, kept: false };
+    });
+    // The day's rows, slot by slot (relayExtraSlot). A roll pasted again after an edit REPLACES what the relay wrote for
+    // each slot it covers, rather than adding its EXTRA beside the old: a row it brings again unchanged is left as it is,
+    // and one it no longer carries is taken off (and said so). A slot holding a row entered or corrected by hand is
+    // the owner's, like a mark entered by hand: kept, and the roll's rows for it are not added.
+    var slots = {}, replaced = [];
+    extras.forEach(function(x) { var k = relayExtraSlot(x.row); (slots[k] || (slots[k] = { nw: [], od: [] })).nw.push(x); });
+    ((rec && rec.extra) || []).forEach(function(e) { var sl = slots[relayExtraSlot(e)]; if (sl) sl.od.push(e); });
+    Object.keys(slots).forEach(function(k) {
+      var sl = slots[k];
+      if (sl.od.some(function(e) { return e.src !== 'relay'; })) { sl.nw.forEach(function(x) { x.kept = true; }); return; }
+      var left = sl.od.slice();
+      sl.nw.forEach(function(x) {
+        var j = left.findIndex(function(e) { return relayExtraSame(e, x.row); });
+        if (j >= 0) { x.dup = true; left.splice(j, 1); }
+      });
+      replaced = replaced.concat(left);
     });
     var provisional = t.kinds.indexOf('out') < 0 && rows.some(function(r) { return r.next.st === 'P' && r.change !== 'kept'; });
-    out.days.push({ iso: iso, rows: rows, extras: extras, holiday: t.holiday, notes: t.notes, kinds: t.kinds, provisional: provisional });
+    out.days.push({ iso: iso, rows: rows, extras: extras, replaced: replaced, holiday: t.holiday, notes: t.notes, kinds: t.kinds, provisional: provisional });
   });
   return out;
+}
+/* The slot an EXTRA row books in: a general-shift row by its area, a block by its times. */
+function relayExtraSlot(x) {
+  return extraIsBlock(x) ? 'block ' + (x.from || '?') + '-' + (x.to || '?') : 'shift ' + (x.area || 'flex');
 }
 function relayExtraSame(a, b) {
   if (a.kind !== b.kind || a.hours !== b.hours) return false;
   if (a.kind === 'coverage') return a.area === b.area;
-  return a.from === b.from && a.to === b.to && (a.crew || []).slice().sort().join() === (b.crew || []).slice().sort().join();
+  return a.from === b.from && a.to === b.to && extraAreas(a).sort().join() === extraAreas(b).sort().join() &&
+    (a.crew || []).slice().sort().join() === (b.crew || []).slice().sort().join();
 }
 
 function relayOpen(text) {
@@ -23455,6 +23548,8 @@ function relayLearntHtml() {
     var l = L.heads[k];
     rows += '<div class="inv-row inv-row-2" data-learnt="head"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(l.text || k) + '</span>' +
       '<span class="inv-row-meta">' + escHtml((l.areas || []).map(relayAreaName).join(' + ') || 'no line') + ' · was ' + escHtml((l.was || []).map(relayAreaName).join(' + ') || 'no line') +
+      // A lesson is read back on its own slot. One kept before that was known is not read: correct the row again.
+      ' · ' + escHtml(l.slot ? relaySlotLabel(l.slot) : 'kept before lessons were per slot, not read; correct the row again') +
       (l.day ? ' · ' + escHtml(formatDate(l.day)) : '') + '</span></span>' +
       '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invRelayForget" data-kind="heads" data-key="' + escHtml(k) + '">Forget</button></div>';
   });
@@ -23487,7 +23582,6 @@ function relayRead() {
   var prod = typeof parseProdPaste === 'function' ? parseProdPaste(text, prodCtx()).filter(function(m) { return m.read.items.length; }) : [];
   var prodLoose = prod.filter(function(m) { return m.kind !== 'roll'; }).length;
   if (!rolls.length && prod.length) { prodOpenPaste(text); return; }
-  if (!(S.staff || []).length) { showToast('Add the roster first: Staff → Roster', 'error'); return; }
   if (!rolls.length && stock.length) {
     // A stock message belongs to Stock's own review.
     _stockPasteDraft = text;
@@ -23497,6 +23591,8 @@ function relayRead() {
     return;
   }
   if (!rolls.length) { showToast('No in-time or out-time roll found in that text', 'error'); return; }
+  // Only a roll needs the roster: a stock message goes to Stock above whether or not anyone is on it yet.
+  if (!(S.staff || []).length) { showToast('Add the roster first: Staff → Roster', 'error'); return; }
   _relay = { text: text, msgs: rolls, choices: {}, stock: stock.length, other: Math.max(0, other.length - prodLoose), prod: prod.length };
   _relayView = 'review';
   _relayShowLines = false;
@@ -23577,16 +23673,24 @@ function relayRenderReview() {
         '<span class="inv-row-end"><span class="inv-row-stack"><span class="inv-num">' + escHtml(absent ? '—' : relayMarkText(r.next)) + '</span>' +
         '<span class="inv-badge inv-badge-' + ch[0] + '">' + ch[1] + '</span></span></span></div>';
     });
-    if (d.extras.length) {
+    var what = function(e) {
+      return e.kind !== 'block' ? relayAreaName(e.area) + ', general shift'
+        : 'Block ' + relayClockLabel(relayParseHhmm(e.from)) + ' – ' + (e.to ? relayClockLabel(relayParseHhmm(e.to)) : '?') +
+          (extraAreas(e).length ? ', ' + extraAreas(e).map(relayAreaName).join(' + ') : '') + ', crew ' + ((e.crew || []).length ? e.crew.map(function(id) { var w = staffById(id); return w ? w.name : '?'; }).join(', ') : 'not named');
+    };
+    if (d.extras.length || d.replaced.length) {
       h += '<div class="inv-row-group">EXTRA hours</div>';
       d.extras.forEach(function(x) {
-        var e = x.row;
-        if (!x.dup) extras++;
-        var what = e.kind === 'coverage' ? relayAreaName(e.area) + ', general shift'
-          : 'Block ' + relayClockLabel(relayParseHhmm(e.from)) + ' – ' + (e.to ? relayClockLabel(relayParseHhmm(e.to)) : '?') +
-            (e.areas.length ? ', ' + e.areas.map(relayAreaName).join(' + ') : '') + ', crew ' + (e.crew.length ? e.crew.map(function(id) { var w = staffById(id); return w ? w.name : '?'; }).join(', ') : 'not named');
-        h += '<div class="inv-row inv-row-auto' + (x.dup ? ' inv-row-muted' : '') + '" data-relay-extra><span class="inv-row-main inv-row-wrap">' + escHtml(what) +
-          (x.dup ? ' · already on the day, not added again' : '') + '</span><span class="inv-row-end inv-num">' + e.hours + ' h</span></div>';
+        var e = x.row, off = x.dup || x.kept;
+        if (!off) extras++;
+        h += '<div class="inv-row inv-row-auto' + (off ? ' inv-row-muted' : '') + '" data-relay-extra' + (x.kept ? ' data-kept' : '') + '><span class="inv-row-main inv-row-wrap">' + escHtml(what(e)) +
+          (x.dup ? ' · already on the day, not added again' : x.kept ? ' · the day\'s row for this slot was entered or corrected by hand: kept, this is not added' : '') +
+          '</span><span class="inv-row-end inv-num">' + e.hours + ' h</span></div>';
+      });
+      // What the roll wrote before for a slot it now covers, and no longer carries: taken off on Save, and said so.
+      d.replaced.forEach(function(e) {
+        h += '<div class="inv-row inv-row-auto inv-row-muted" data-relay-replaced><span class="inv-row-main inv-row-wrap">' + escHtml(what(e)) +
+          ' · on the day from an earlier paste of this roll: replaced</span><span class="inv-row-end inv-num">' + e.hours + ' h</span></div>';
       });
     }
     if (d.notes.length) h += '<div class="inv-panel-body inv-note">Also in the roll (kept as the day\'s note): ' + escHtml(d.notes.slice(0, 8).join(' · ')) + (d.notes.length > 8 ? '…' : '') + '</div>';
@@ -23636,7 +23740,8 @@ function relaySave() {
       rec.marks[r.w.id] = { st: n.st, ot: n.ot, hours: n.hours, area: n.area, inMin: n.inMin, outMin: n.outMin, outKnown: !!n.outKnown, src: 'relay' };
       marks++;
     });
-    d.extras.forEach(function(x) { if (!x.dup) { rec.extra.push(x.row); extras++; } });
+    if (d.replaced.length) rec.extra = rec.extra.filter(function(e) { return d.replaced.indexOf(e) < 0; });
+    d.extras.forEach(function(x) { if (!x.dup && !x.kept) { rec.extra.push(x.row); extras++; } });
     var add = [];
     if (d.holiday) add.push('Holiday: ' + d.holiday);
     if (d.notes.length) add.push(d.notes.join(' · '));

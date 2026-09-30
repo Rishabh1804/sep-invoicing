@@ -206,8 +206,12 @@ function attMark(iso, staffId) {
   return rec.marks[staffId] || null;
 }
 
+/* The one lookup of a worker by id. Ids are numbers on a device and text in a picker's value, a mark's key or some
+   imports, so they are compared as text. */
 function staffById(id) {
-  return (S.staff || []).find(function(w) { return w.id === id; });
+  if (id == null || id === '') return undefined;
+  var k = String(id);
+  return (S.staff || []).find(function(w) { return String(w.id) === k; });
 }
 
 /* Active roster, leads and permanents first so the week grid reads the way the
@@ -603,6 +607,7 @@ function setAttBlockNeed(idx, v) {
   if (!rec || !rec.extra[idx]) return;
   var n = String(v).trim() === '' ? NaN : Math.floor(Number(v));
   if (!isNaN(n) && n >= 0) rec.extra[idx].need = n; else delete rec.extra[idx].need;
+  _attHandEdit(rec.extra[idx]);
   saveState();
 }
 
@@ -848,6 +853,7 @@ function attSetState(iso, staffId, st) {
   } else {
     var m = rec.marks[staffId] || { ot: 0, hours: 0, area: w.area || 'flex' };
     m.st = st;
+    _attHandEdit(m);
     // Absent pays nothing and worked nothing: hours that nobody was here for
     // are not hours, in either tier.
     if (st === 'A') { m.ot = 0; m.hours = 0; }
@@ -878,6 +884,7 @@ function setAttOt(staffId, hours) {
   var m = attMark(_attDate, staffId);
   if (!m) return;                       // OT without a presence mark is not a fact
   m.ot = Math.max(0, Number(hours) || 0);
+  _attHandEdit(m);
   saveState();
 }
 
@@ -887,6 +894,7 @@ function setAttHours(staffId, hours) {
   var m = attMark(_attDate, staffId);
   if (!m) return;
   m.hours = Math.max(0, Number(hours) || 0);
+  _attHandEdit(m);
   saveState();
 }
 
@@ -894,6 +902,7 @@ function setAttArea(staffId, areaId) {
   var m = attMark(_attDate, staffId);
   if (!m) return;
   m.area = areaId;
+  _attHandEdit(m);
   saveState();
 }
 
@@ -935,10 +944,16 @@ function attRemoveExtra(idx) {
 function relayLearnFromRow(x) {
   if (!x) return;
   var L = relayLearnData(), at = Date.now();
-  if (x.srcHead) {
-    var k = relayHeadKey(x.srcHead), now = extraAreas(x), was = x.srcAreas || [];
-    if (now.slice().sort().join() === was.slice().sort().join()) delete L.heads[k];
-    else L.heads[k] = { areas: now, was: was, text: x.srcHead, at: at, day: _attDate };
+  // Kept under the heading AND its slot (relayLearnKey), so a correction to the evening block's "VAT A 1" never moves the
+  // 8:30 shift's. A row saved before the slot was kept on it teaches nothing: its lesson would have no slot to go to.
+  if (x.srcHead && x.srcAt) {
+    var k = relayLearnKey(x.srcHead, x.srcAt), was = x.srcAreas || [], cov = extraIsCoverage(x);
+    // A general-shift row books to one area of every area its heading read: the lesson keeps them all (each hand stays
+    // at his own) and puts the corrected one first, which is the one its EXTRA books to.
+    var now = cov ? [x.area].concat(was.filter(function(a) { return a !== x.area; })) : extraAreas(x);
+    var asRead = cov ? x.area === was[0] : now.slice().sort().join() === was.slice().sort().join();
+    if (asRead) delete L.heads[k];
+    else L.heads[k] = { areas: now, was: was, text: x.srcHead, slot: x.srcAt, at: at, day: _attDate };
   }
   if (x.srcSlot && x.kind === 'block') {
     var ks = relayHeadKey(x.srcSlot);
@@ -947,10 +962,15 @@ function relayLearnFromRow(x) {
   }
 }
 
+/* A mark or an EXTRA row the roll wrote and somebody then changed by hand is the owner's from then on, like one entered
+   by hand: the next roll keeps it rather than writing over the correction (relayPlan reads `src`). */
+function _attHandEdit(o) { if (o && o.src === 'relay') delete o.src; }
+
 function setAttExtraArea(idx, areaId) {
   var rec = attDay(_attDate, false);
   if (!rec || !rec.extra[idx]) return;
   rec.extra[idx].area = areaId;
+  _attHandEdit(rec.extra[idx]);
   relayLearnFromRow(rec.extra[idx]);
   saveState();
 }
@@ -960,6 +980,7 @@ function setAttExtraKind(idx, kind) {
   if (!rec || !rec.extra[idx]) return;
   var x = rec.extra[idx];
   x.kind = EXTRA_KINDS.some(function(k) { return k.id === kind; }) ? kind : 'coverage';
+  _attHandEdit(x);
   // Flipping back to a general shift must CLEAR the block-only fields. Left
   // behind, `areas[]` still splits the row's hours across areas the UI no
   // longer shows (the select renders `x.area` alone) while `_absorption`'s
@@ -975,6 +996,7 @@ function setAttBlockTime(idx, which, value) {
   var rec = attDay(_attDate, false);
   if (!rec || !rec.extra[idx]) return;
   rec.extra[idx][which === 'to' ? 'to' : 'from'] = String(value || '');
+  _attHandEdit(rec.extra[idx]);
   relayLearnFromRow(rec.extra[idx]);
   saveState();
 }
@@ -996,6 +1018,7 @@ function toggleAttBlockArea(idx, areaId) {
   // cost tallies bucket on, and a row that lost its last area would otherwise
   // keep booking against whichever one it used to name.
   x.area = list.length ? list[0] : 'flex';
+  _attHandEdit(x);
   relayLearnFromRow(x);
   saveState();
 }
@@ -1010,6 +1033,7 @@ function toggleAttBlockCrew(idx, workerId) {
   var at = list.indexOf(id);
   if (at >= 0) list.splice(at, 1); else list.push(id);
   x.crew = list;
+  _attHandEdit(x);
   saveState();
 }
 
@@ -1017,6 +1041,7 @@ function setAttExtraHours(idx, hours) {
   var rec = attDay(_attDate, false);
   if (!rec || !rec.extra[idx]) return;
   rec.extra[idx].hours = Math.max(0, Number(hours) || 0);
+  _attHandEdit(rec.extra[idx]);
   saveState();
 }
 

@@ -1714,6 +1714,11 @@ reads a photo. **Owned by `soma-internal`, like stock** (owner): a view and an i
     client does (`prodCarryCheck`). **A round of a size its own client's rules do not name, which is another client's part on
     that line**, is asked (*a round of 50 on VAT A1 is Samarth's connector*), never moved (`prodPartRuleOther`; owner: *"71 was the last
     round for Mehta and then 50 is Samarth"*).
+  - **Two clients in one round** (owner: *"sometimes two clients are done simultaneously"*): *MEHTA+GENERAL / LINER+188CD / 39+50* is a
+    round of each at the same time, split on the + outside brackets (`prodSplitTop`; *(0106+3313)* stays one part), each share in its own
+    client's run: a shared round, and the first round after them, continue the run of their own client and part, and a shared START takes
+    its own client's next figure. A ditto under one side carries that side (*〃 + DORABJI* under MEHTA+GENERAL), a ditto alone the whole
+    row. A figure that does not split into as many shares is amber and the row kept whole.
   - **Who plated it** (owner: *"place workers on the specified production … we'll know who plated what and when, this can be useful
     later when we get replating issues"*): `prodCrew(e)`, read off the day's attendance and never stored: a general-shift run is the
     hands marked on its line, a run from 5 PM or before 8:30 the named crew of the OT block covering it, a pickling load the pickling

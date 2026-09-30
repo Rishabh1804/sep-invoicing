@@ -592,6 +592,17 @@ function prodRegisterDate(s) {
 /* A figure as the clerk writes it: "72", "72+10", "98×8+1", "8x156+68", "50+52+30", "4×108−3". Sums of products, added
    up here. The first product's larger factor is the rack and the smaller the rounds ("98×8": 8 rounds of 98), which is
    what rack sizes are learnt from; a plain sum carries no rack. Anything else is null: unread, never guessed. */
+/* "MEHTA+GENERAL", "(0106+3313)+188CD", "39+50": split on a + outside brackets. */
+function prodSplitTop(s) {
+  var out = [], d = 0, cur = '';
+  String(s == null ? '' : s).split('').forEach(function(ch) {
+    if (ch === '(') d++; else if (ch === ')') d = Math.max(0, d - 1);
+    if (ch === '+' && !d) { out.push(cur.trim()); cur = ''; } else cur += ch;
+  });
+  out.push(cur.trim());
+  return out;
+}
+function prodIsDitto(s) { return /^[\s"'`\u201C\u201D\u2018\u2019\u3003,.]*$/.test(String(s == null ? '' : s)); }
 function prodRegisterQty(text) {
   var t = String(text == null ? '' : text).replace(/[×✕*X]/g, 'x').replace(/[–—−]/g, '-').replace(/\s+/g, '').replace(/,/g, '').replace(/^\+/, '');
   t = t.replace(/(nos|pcs|pc)\.?$/i, '').replace(/^\((\d+)\)$/, '$1');
@@ -683,6 +694,16 @@ function prodFromRegisterRead(json, ctx, photoDate, choices) {
     // A new part under ditto marks in the customer column is the same customer's (the clerk writes LINER under MEHTA's
     // ditto): it was read as no customer written, and asked for one on every change of part.
     else if (!cust && lastCust) { cust = lastCust; carried = true; }
+    // A round shared by two clients is written with + in each column ("MEHTA+GENERAL / LINER+188CD / 39+50"), and a ditto
+    // under one side of it carries that side ("〃 + DORABJI" under MEHTA+GENERAL is MEHTA and DORABJI).
+    var tokenFill = function(now, last) {
+      var t = prodSplitTop(now);
+      if (t.length < 2) return t.length === 1 && prodIsDitto(t[0]) && now ? last : now;
+      var l = prodSplitTop(last);
+      return t.map(function(x, j) { return prodIsDitto(x) ? (l.length === t.length ? l[j] : l.length === 1 ? l[0] : l[j] || '') : x; }).join('+');
+    };
+    if (/\+/.test(cust) || (cust && prodIsDitto(cust))) cust = tokenFill(cust, lastCust);
+    if (/\+/.test(part) || (part && prodIsDitto(part))) part = tokenFill(part, lastPart);
     lastCust = cust || lastCust; lastPart = part || lastPart; if (!ditto || dim) lastDim = dim;
     var row = { i: i, time: String(r.time || '').replace(/\s*-?\s*(start|end)\s*$/i, ''), min: prodRegisterNoon(r.time), cust: cust, part: part, dim: dim,
       mark: mark, start: mark === 'START', end: mark === 'END', rackSize: r.rackSize, rounds: r.rounds, short: r.short,
@@ -724,13 +745,41 @@ function prodFromRegisterRead(json, ctx, photoDate, choices) {
     } else row.counted = true;
     if (row.over) row.issues.push({ tone: 'info', code: 'over', text: 'Written over ' + row.over + '; ' + (row.qty != null ? row.qty : 'what is written now') + ' is used.' });
     if (prodRegisterNoonSlip(r.time)) row.issues.push({ tone: 'amber', code: 'meridiem', text: r.time + ' read as ' + relayClockLabel(row.min) + ': the register runs in the day.' });
+    // Two clients in one round (owner, 30 Sep 2026: "sometimes two clients are done simultaneously"): each client's share
+    // is a round of its own at the same time, in its own run. The figure splits on its + into as many shares as there are
+    // clients or parts; a figure that does not is asked about and the row kept whole.
+    var cT = prodSplitTop(cust), pT = prodSplitTop(part), nShare = Math.max(cT.length, pT.length);
+    if (nShare > 1 && (cT.length === 1 || pT.length === 1 || cT.length === pT.length)) {
+      var fT = written != null ? prodSplitTop(written) : null;
+      if (fT && fT.length !== nShare) {
+        row.issues.push({ tone: 'amber', code: 'shared', text: 'One round for ' + nShare + ' (' + cust + ' · ' + part + '), but "' + written + '" does not split into ' + nShare + ' figures. Enter each share by hand.' });
+        out.rows.push(row);
+        return;
+      }
+      var shares = [];
+      for (var j = 0; j < nShare; j++) {
+        var sub = {};
+        Object.keys(row).forEach(function(k) { sub[k] = row[k]; });
+        sub.cust = cT.length > 1 ? cT[j] : cT[0]; sub.part = pT.length > 1 ? pT[j] : pT[0]; sub.shared = i; sub.issues = j ? [] : row.issues.slice();
+        if (fT) {
+          var sq = prodRegisterQty(fT[j]);
+          sub.written = fT[j]; sub.qty = sq ? sq.qty : null; sub.rackSize = sq && sq.rackSize ? sq.rackSize : null; sub.rounds = sq && sq.rounds ? sq.rounds : null;
+          sub.qtySrc = null;
+        }
+        shares.push(sub);
+      }
+      shares[0].issues.push({ tone: 'info', code: 'shared', text: 'One round for ' + nShare + ': ' + shares.map(function(x) { return x.cust + ' ' + x.part + (x.qty != null ? ' ' + x.qty : ''); }).join(', ') + '. Each is counted in its own run.' });
+      shares.forEach(function(x) { out.rows.push(x); });
+      return;
+    }
     out.rows.push(row);
   });
   if (out.style === 'rounds') {
     // START counts as a batch of the next round's figure.
     out.rows.forEach(function(row, k) {
       if (!row.start || row.qty != null) return;
-      var nx = out.rows.slice(k + 1).find(function(x) { return x.qty != null && !x.start; });
+      // A shared START takes the next figure of its own client and part.
+      var nx = out.rows.slice(k + 1).find(function(x) { return x.qty != null && !x.start && (row.shared == null || (relayKey(x.cust) === relayKey(row.cust) && rateKey(x.part) === rateKey(row.part))); });
       if (nx) { row.qty = nx.qty; row.qtySrc = 'start-rule'; row.issues.push({ tone: 'info', code: 'start', text: 'START counted as a round of ' + nx.qty + ', the next round’s figure (the owner’s rule, 26 Jun).' }); }
     });
   } else {
@@ -778,13 +827,19 @@ function prodFromRegisterRead(json, ctx, photoDate, choices) {
   // Runs: consecutive rows of one customer, part and gauge. Two gauges of one clamp are two parts at two rates, and the
   // gauge used to be taken out of the key, so a 35X6 run following a 40X6 one was added into it under the 40X6. A row
   // with no gauge of its own continues the run above it.
-  var cur = null;
+  // Rounds shared by two clients interleave their runs: a shared round, and the first round after them, continue the run
+  // of their own client and part rather than the row above.
+  var cur = null, open = {}, inShared = false;
   out.rows.forEach(function(row) {
     var pd = row.part + ' ' + row.dim, ck = relayKey(row.cust) + '|' + rateKey(prodPartBase(pd)), g = lineGauge(pd.replace(/[×✕]/g, 'X'));
     var gs = row.gaugeSet || '', rp = row.rulePn || '';
-    if (!cur || cur.ck !== ck || (g && cur.g && g !== cur.g) || (gs && cur.gs && gs !== cur.gs) || (gs && cur.g) || (g && cur.gs) || (rp && cur.rp && rp !== cur.rp)) { cur = { ck: ck, g: g, gs: gs, rp: rp, rows: [] }; out.runs.push(cur); }
-    else { if (g && !cur.g) cur.g = g; if (gs && !cur.gs) cur.gs = gs; if (rp && !cur.rp) cur.rp = rp; }
-    cur.rows.push(row);
+    var run = row.shared != null || inShared ? open[ck] || null : cur;
+    if (!run || run.ck !== ck || (g && run.g && g !== run.g) || (gs && run.gs && gs !== run.gs) || (gs && run.g) || (g && run.gs) || (rp && run.rp && rp !== run.rp)) { run = { ck: ck, g: g, gs: gs, rp: rp, rows: [] }; out.runs.push(run); }
+    else { if (g && !run.g) run.g = g; if (gs && !run.gs) run.gs = gs; if (rp && !run.rp) run.rp = rp; }
+    run.rows.push(row);
+    if (row.shared != null) { open[ck] = run; inShared = true; }
+    else { open = {}; open[ck] = run; inShared = false; }
+    cur = run;
   });
   out.runs = out.runs.map(function(run) {
     var first = run.rows[0], it = prodReadItem(first.cust, ctx.clients), dimText = first.dim || run.g;

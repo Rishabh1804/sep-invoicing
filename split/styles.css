@@ -1732,3 +1732,15 @@ summary.inv-summary::-webkit-details-marker { display: none; }
 body.inv-desktop .inv-board { grid-template-columns: repeat(auto-fill, minmax(var(--board-col), 1fr)); }
 /* Home's widgets sit in the page's one grid; the tiles and the quick actions carry no margin of their own there. */
 .inv-panels > [data-home-w] > .inv-tiles, .inv-panels > [data-home-w] > .inv-btn-grid { margin-bottom: 0; }
+/* A Home widget lays its tiles out by the room it has (half or full width, on any window), never leaving a blank cell
+   beside the last tile: the Money panel's four tiles sat three and one at 1280, and its three two and one at 1024. Where
+   two across is all that fits, an odd last tile takes the row, as on the phone; four go four across only where four fit,
+   else two by two. The widths are written out: a container query's condition cannot read --tile-min (10rem). */
+body.inv-desktop .inv-panels > [data-home-w] { container: home-w / inline-size; }
+@container home-w (max-width: 30.5rem) {
+  body.inv-desktop .inv-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  body.inv-desktop .inv-tiles > .inv-tile:last-child:nth-child(odd) { grid-column: 1 / -1; }
+}
+@container home-w (min-width: 30.5rem) and (max-width: 40.5rem) {
+  body.inv-desktop .inv-tiles:has(> .inv-tile:nth-child(4):last-child) { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}

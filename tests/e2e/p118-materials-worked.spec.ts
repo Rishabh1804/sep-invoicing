@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
-import { emptyState, loadAppWithState, noSeedIM, readStoredState, recentTs, switchTab, type SepState } from './fixtures';
+import { answerAsk, emptyState, loadAppWithState, noSeedIM, readStoredState, recentTs, switchTab, type SepState } from './fixtures';
 
 // P118 (owner, 30 Sep 2026): Clients → Performance shows every material worked, how much and when, in any period, for one
 // client or all of them; a code two clients send is counted apart and said so; one part however it was spelt does not
@@ -52,6 +52,11 @@ async function openPerf(page: Page, clientId: number) {
   await switchTab(page, 'pageClients');
   await page.locator('[data-action="invSwitchSubView"][data-view="performance"]').click();
   await page.locator('#cpClientSelect').selectOption(String(clientId));
+  // Materials worked and By the hour fold to their heads on the phone (P128, UX-5): open them.
+  for (const card of ['worked', 'hours']) {
+    const el = page.locator(`[data-card="${card}"]`);
+    if ((await el.count()) && await el.evaluate(e => e.tagName === 'DETAILS' && !(e as HTMLDetailsElement).open)) await el.locator(':scope > summary').click();
+  }
 }
 
 test('one clamp spelt two ways is one part, steady, and the old spelling is not called stopped', async ({ page }) => {
@@ -109,6 +114,9 @@ test('by the hour: a round is pickle + plate + 15 minutes; Samarth’s are set o
   await expect(page.locator('[data-card="hours"] [data-cp-hour-ref]')).toContainText('An hour costs the plant');
   await page.locator('[data-card="hours"] [data-cp-time="PT-seed2"] summary').click();
   await page.locator('[data-card="hours"] [data-cp-time="PT-seed2"] [data-action="invCpTimeRemove"]').click();
+  // Remove asks first (P128, G5-13).
+  await answerAsk(page, 'ok');
+  await expect(page.locator('[data-card="hours"] [data-cp-time="PT-seed2"]')).toHaveCount(0);
   await page.reload();
   await page.waitForSelector('body.inv-booted');
   expect((await readStoredState(page)).clients.find((x: any) => x.id === 3).partTimes).toHaveLength(2);

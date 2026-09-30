@@ -249,6 +249,7 @@ function statsStory(key, question, body, go, goLabel) {
   return '<div class="inv-panel inv-panel-flush" data-card="story" data-story="' + key + '"><div class="inv-panel-head"><span class="inv-panel-title">' + question + '</span>' +
     (go ? '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="' + go.action + '"' + (go.attrs || '') + '>' + goLabel + '</button>' : '') + '</div>' + body + '</div>';
 }
+/* `text` is HTML (uiDot): the caller escapes a client's name. */
 function statsStorySay(tone, text) { return statsBody('<div class="inv-row-wrap" data-story-say>' + uiDot(tone, text) + '</div>'); }
 
 function statsStoriesHtml(period, filtered, prior, tonnage, periodCost) {
@@ -290,8 +291,8 @@ function statsStoriesHtml(period, filtered, prior, tonnage, periodCost) {
         tone: x.vsFull < 0 ? 'danger' : 'good', action: 'invStatsClientDrill', clientId: x.id };
     }), { unit: 'kg' }));
   }
-  if (worst && worst.vsFull < 0) body += statsStorySay('danger', worst.name + ' fills ' + Math.round(worst.kg / m.kg * 100) + '% of the plant at ' + formatCurrency(worst.net) + '/kg, ' + formatCurrency(-worst.vsFull) + ' under the full cost: ' + formatCurrency(-worst.money) + ' on the period.');
-  if (moves.length && prior.length && Math.abs(moves[0].d) > 0) body += statsStorySay(moves[0].d >= 0 ? 'ok' : 'warning', nameOf(moves[0].id) + ' billed ' + formatCurrency(Math.abs(moves[0].d)) + (moves[0].d >= 0 ? ' more' : ' less') + ' than in ' + (PERIOD_PRIOR_LABELS[period] || 'the period before') + ', the biggest change of any client.');
+  if (worst && worst.vsFull < 0) body += statsStorySay('danger', escHtml(worst.name) + ' fills ' + Math.round(worst.kg / m.kg * 100) + '% of the plant at ' + formatCurrency(worst.net) + '/kg, ' + formatCurrency(-worst.vsFull) + ' under the full cost: ' + formatCurrency(-worst.money) + ' on the period.');
+  if (moves.length && prior.length && Math.abs(moves[0].d) > 0) body += statsStorySay(moves[0].d >= 0 ? 'ok' : 'warning', escHtml(nameOf(moves[0].id)) + ' billed ' + formatCurrency(Math.abs(moves[0].d)) + (moves[0].d >= 0 ? ' more' : ' less') + ' than in ' + (PERIOD_PRIOR_LABELS[period] || 'the period before') + ', the biggest change of any client.');
   if (!body) body = statsStorySay('neutral', 'No weighed billing in the period to rank the clients by.');
   out += statsStory('clients', 'Who is driving it?', body, tab('clients'), 'The clients');
 

@@ -1859,6 +1859,13 @@ client, revenue, realisation, concentration), **Cost** (labour, live cost), **Bi
 states, unbilled, dispatch) and **Trends** (the trend chart, top items). The open tab is remembered on
 the device. `renderStats()` still draws every card; `take()` files each into its tab.
 
+- **The Overview opens on the owner's questions, each a story** (owner, 30 Sep 2026: *"Stats view needs an overhaul, it puts insights front
+  and center and doesn't present itself in a really engaging way"*; they chose question-led story cards, `statsStoriesHtml`, intel.js):
+  *Are we making money?* (realisation and what a kilo leaves, six months against the cost), *Who is driving it?* (the four largest
+  clients by tonnage, the worst-priced large account, the biggest mover against the period before), *Is the plant full?* (capacity and
+  tonnes by month), *What changed?* (the month's pace and the three most urgent insights) and, with a statement, *Is cash coming in?*.
+  Each says what it means in one sentence with its tone (`data-story-say`) and links to its tab (`invStatsGo`). They read the figures the
+  panels under them read; the headline, *In one line*, the pace and six months follow, and **the whole insight list closes the page**. P120.
 - **Every "below cost" on Stats is judged against the period's live cost**, not the typed ₹8.55, so the
   headline and the Overview cannot disagree. The typed figure is used only where there is no tonnage to
   divide by (and still by Items Master's break-even).

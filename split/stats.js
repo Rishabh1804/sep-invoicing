@@ -927,7 +927,10 @@ function renderStats() {
 
   take('trends');
   if (filtered.length || activeInvs.length) {
-    sec.overview = insightsCardHtml() + sec.overview + statsOverviewHtml(_statsPeriod, filtered, tonnage) + paceCardHtml() + statsMonthsHtml();
+    // The questions first, each answered as a story (statsStoriesHtml); the figures behind them follow, and the whole
+    // insight list closes the page (owner, 30 Sep 2026: it had led the page).
+    sec.overview = statsStoriesHtml(_statsPeriod, filtered, prior, tonnage, periodCost) + sec.overview + statsOverviewHtml(_statsPeriod, filtered, tonnage) +
+      paceCardHtml() + statsMonthsHtml() + insightsCardHtml();
     sec.clients = statsMarginHtml(_statsPeriod, filtered, tonnage) + nextChallanCardHtml() + sec.clients;
   }
   html = sec[statsTab()];

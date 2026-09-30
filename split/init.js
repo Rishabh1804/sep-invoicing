@@ -549,6 +549,18 @@ if (!S._cnSeriesStart1) {
   saveJSON(STORAGE_KEY, S);
 })();
 
+/* ===== A FLOOR CODE WRITTEN BARE, MATCHED ONCE =====
+   A load written with its code alone ("DORABJI / 4206-1000") read as no part, and sat on the floor with no challan open
+   (P127: 8 of 8 real Dorabji loads, 16–28 Sep). A bare code is now the part's code, as one in brackets is; the loads already
+   held are matched once, as a register's or an import's are. The flag travels with the state. */
+(function() {
+  if (S._prodBareCodes1) return;
+  var p = prodData();
+  if (prodLearnAliases(p.entries.filter(function(e) { return !e.voidedAt && /^\s*\d{3,5}\s*$/.test(e.part || ''); }))) prodTouch();
+  S._prodBareCodes1 = true;
+  saveJSON(STORAGE_KEY, S);
+})();
+
 /* ===== THE CONNECTION'S LOAD, RECORDED ONCE =====
    Owner, 30 Sep 2026 ("Yes, record it"): the connection is billed at 25 kVA though 50 kVA was approved (decisions,
    18 May 2026), and the over-limit penalty runs on (about ₹5,000 a month). Set only on a book with electricity bills,

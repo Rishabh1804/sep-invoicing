@@ -45,7 +45,8 @@ test('a Mehta clamp takes its gauges from the round, a round no rule names stays
     ['MEHTA', 'CLAMP', '25X6/30X6', 300],   // START counts as a round of the next figure (the owner's rule of 26 Jun)
     ['MEHTA', 'CLAMP', '', 216],
     ['MEHTA', 'LINER', '', 90],
-    ['MEHTA', 'CLAMP', '35X6/35X8/40X6', 216]]);
+    ['MEHTA', 'CLAMP', '35X6/35X8/40X6', 144],
+    ['MEHTA', 'CLAMP', '35X6/35X8/40X6', 72]]);   // the 5:30 PM round is overtime, a run of its own (P127)
 });
 
 test('a code in brackets is the client’s part ending in it, learnt for the name; two parts ending in it are asked', async ({ page }) => {

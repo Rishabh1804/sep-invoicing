@@ -167,8 +167,9 @@ ${d.dmy}, 1:02 pm - Supervisor: Camical use ${d.dmy}
 Nitric 20 L
 ${d.dmy}, 1:03 pm - Owner: ok`);
     expect(msgs.map(m => m.kind)).toEqual(['power', 'power', 'stock', 'other']);
-    expect(msgs[0].items[0]).toMatchObject({ kind: 'downtime', time: '10:55' });
-    // A cut and its "in" arrive as two messages: the cut is left open, and the "in" alone is a note.
+    // A cut and its "in" arrive as two messages: the cut takes its return from the later one (P110), and the "in"
+    // stays a note in its own message, saying which cut it closed.
+    expect(msgs[0].items[0]).toMatchObject({ kind: 'downtime', time: '10:55', to: '11:15' });
     expect(msgs[1].items).toHaveLength(0);
     const one = await read(page, `${d.dmy}, 11:30 am - Pickler: Power cut 10:55am
 Power in 11:15am`);

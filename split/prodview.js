@@ -179,7 +179,7 @@ function prodPlantHtml() {
     h += '<div class="inv-panel inv-panel-flush" id="prodNoChallan"><div class="inv-panel-head"><span class="inv-panel-title">On the floor, no challan open</span><span class="inv-panel-count">' + plant.noChallan.length + '</span></div>';
     plant.noChallan.forEach(function(x) {
       h += '<div class="inv-row inv-row-2"><span class="inv-row-main"><span class="inv-row-title">' + escHtml((x.clientId != null ? prodClientName(x.clientId) : x.client || 'No client') + (x.part ? ' · ' + x.part : '')) + '</span>' +
-        '<span class="inv-row-meta">' + escHtml((x.field === 'L' ? 'plated' : 'pickled') + ' from ' + stockShortDate(x.oldest)) + '</span></span><span class="inv-row-end inv-num">' + escHtml(prodQtyText(x.qty, x.unit)) + '</span></div>';
+        '<span class="inv-row-meta">' + escHtml((x.L && x.P ? 'pickled ' + prodQtyText(x.P, x.unit) + ', plated ' + prodQtyText(x.L, x.unit) : x.field === 'L' ? 'plated' : 'pickled') + ' from ' + stockShortDate(x.oldest)) + '</span></span><span class="inv-row-end inv-num">' + escHtml(prodQtyText(x.qty, x.unit)) + '</span></div>';
     });
     h += '<div class="inv-panel-body inv-note">More was recorded on the floor than any open challan of the part holds: a challan not entered, a part named differently, or plating of material billed already.</div></div>';
   }
@@ -189,10 +189,14 @@ function prodPlantHtml() {
 }
 
 /* ---------- Lines ---------- */
+/* The day Lines shows: the one stepped to, else the line's last recorded day, else today. */
+function prodLinesDay() {
+  var line = _prodLine;
+  var days = prodIndex().live.filter(function(e) { return line === 'pickling' ? e.kind === 'pickled' : e.kind === 'plated' && e.line === line; }).map(function(e) { return e.date; }).sort();
+  return _prodDay || days[days.length - 1] || localDateStr();
+}
 function prodLinesHtml() {
-  var idx = prodIndex(), line = _prodLine;
-  var days = idx.live.filter(function(e) { return line === 'pickling' ? e.kind === 'pickled' : e.kind === 'plated' && e.line === line; }).map(function(e) { return e.date; }).sort();
-  var day = _prodDay || days[days.length - 1] || localDateStr();
+  var idx = prodIndex(), line = _prodLine, day = prodLinesDay();
   var h = '<div class="inv-seg inv-mb-8" role="group" aria-label="Line">' + PROD_LINES.concat(['pickling']).map(function(l) {
     return '<button type="button" class="inv-seg-btn" data-action="invProdLine" data-line="' + l + '" aria-pressed="' + (line === l) + '">' + (l === 'pickling' ? 'Pickling' : PROD_LINE_LABEL[l]) + '</button>';
   }).join('') + '</div>';
@@ -267,7 +271,7 @@ function prodEntriesHtml() {
     if (f.client && String(e.clientId) !== String(f.client)) return false;
     if (f.flag === 'unknown') return e.kind === 'pickled' && !e.voidedAt && prodLoadLine(e).how === 'unknown';
     if (f.flag === 'noclient') return e.clientId == null && e.kind !== 'downtime';
-    if (f.flag === 'nochallan') return e.kind === 'pickled' && !e.voidedAt && e.clientId != null && !prodHasChallan(e);
+    if (f.flag === 'nochallan') return e.clientId != null && prodLoadNoChallan(e, idx);
     return !f.kind || e.kind === f.kind;
   }).sort(function(a, b) { return a.date < b.date ? 1 : a.date > b.date ? -1 : String(b.time || '').localeCompare(String(a.time || '')); });
   h += '<div class="inv-panel inv-panel-flush" id="prodEntries"><div class="inv-panel-head"><span class="inv-panel-title">Entries, 60 days</span><span class="inv-panel-count">' + list.length + '</span></div>';
@@ -279,14 +283,6 @@ function prodEntriesHtml() {
   });
   if (list.length > 300) h += '<div class="inv-panel-body inv-note">The latest 300 of ' + list.length + ' are shown.</div>';
   return h + '</div>';
-}
-function prodHasChallan(e) {
-  var k = prodEntryKey(e), fk = prodFamilyKey(e.clientId, e.partNumber || e.part, e.gauge);
-  return (S.incomingMaterial || []).some(function(m) {
-    return String(m.clientId) === String(e.clientId) && (m.challanDate || '') <= isoAddDays(e.date, 1) && (m.items || []).some(function(it) {
-      return prodChallanKey(m, it) === k || prodFamilyKey(m.clientId, it.partNumber || it.desc, prodGaugeOf(it.partNumber, it.desc)) === fk;
-    });
-  });
 }
 function prodEntryRowHtml(e, idx) {
   var kindWord = { pickled: 'Pickled', plated: 'Plated', arrived: 'Arrived', downtime: 'Power cut' }[e.kind];
@@ -332,9 +328,16 @@ function prodOpenPaste(text) {
   switchTab('pageProduction');
   prodReadPaste(_prodPasteDraft);
 }
-/* A message already saved is refused, unless every entry it made has since been voided (read it again). */
-function prodPasteSeen(hash) {
-  var p = prodData(), paste = p.pastes.find(function(x) { return x.hash === hash; });
+/* A message already saved is refused, unless every entry it made has since been voided (read it again). The key is the
+   day a message reports and its text (prodMsgKey); one saved before the key carried its day is keyed on its text alone,
+   and is matched by its entries' day. */
+function prodPasteSeen(m) {
+  var p = prodData(), paste = p.pastes.find(function(x) {
+    if (x.hash === m.hash) return true;
+    if (x.day || x.hash !== relayHash(x.text || '')) return false;
+    var e = p.entries.find(function(y) { return y.pasteId === x.id; });
+    return prodMsgKey(e ? e.date : x.sentOn, x.text) === m.hash;
+  });
   if (!paste) return null;
   var live = p.entries.some(function(e) { return e.pasteId === paste.id && !e.voidedAt; });
   return live ? paste : null;
@@ -345,7 +348,7 @@ function prodReviewResolve() {
     // Saved before, or the same message earlier in this paste (the supervisor reposts a roll): read once.
     m.twice = !!(m.read.items.length && inPaste[m.hash]);
     if (m.read.items.length) inPaste[m.hash] = true;
-    m.dup = !!prodPasteSeen(m.hash) || m.twice;
+    m.dup = !!prodPasteSeen(m) || m.twice;
     if (m.dup) out.dup++;
     m.read.items.forEach(function(it, ii) {
       var key = mi + ':' + ii, row = { m: m, mi: mi, ii: ii, key: key, it: it, issues: it.issues.slice(), tone: 'clear' };
@@ -402,7 +405,10 @@ function prodReviewRowHtml(r, idx) {
   var h = '<div class="inv-row inv-row-auto inv-row-top" data-prod-row="' + r.key + '" data-tone="' + r.tone + '"><div class="inv-row-main"><div class="inv-quote">' + escHtml(it.raw) + '</div>' +
     '<div class="inv-verdict-text inv-mt-4">' + escHtml(reading) + '</div>';
   r.issues.forEach(function(x) { h += '<div class="inv-callout inv-callout-' + uiTone(x.tone) + ' inv-mt-8">' + escHtml(x.text) + '</div>'; });
-  if (!r.m.dup && it.kind !== 'downtime' && (it.clientId == null || it.issues.some(function(x) { return x.code === 'readas'; }) || r.clientPick !== undefined)) {
+  // A client read by name (exact or learnt) can be changed too: "Change client" opens the same picker.
+  var pickOpen = it.clientId == null || it.issues.some(function(x) { return x.code === 'readas'; }) || r.clientPick !== undefined || _prodReview.choices['open' + r.key];
+  if (!r.m.dup && it.kind !== 'downtime' && !pickOpen) h += '<div class="inv-mt-4"><button class="inv-btn inv-btn-link inv-btn-sm" data-action="invProdRevClient" data-key="' + r.key + '">Change client</button></div>';
+  if (!r.m.dup && it.kind !== 'downtime' && pickOpen) {
     var cur = r.clientPick;
     var sel = cur !== undefined ? String(cur) : (it.clientId != null ? String(it.clientId) : '');
     h += '<div class="inv-fields inv-mt-8"><div class="inv-field"><label class="inv-field-label" for="prodClient' + r.key.replace(':', '_') + '">Client</label>' +
@@ -431,7 +437,7 @@ function prodSaveReview() {
     var it = r.it;
     if (!pasteIds[r.mi]) {
       pasteIds[r.mi] = prodUid('PP');
-      p.pastes.push({ id: pasteIds[r.mi], at: at, by: by, sentBy: r.m.sentBy || '', sentOn: r.m.sentOn || '', kind: r.m.kind, hash: r.m.hash, text: r.m.text });
+      p.pastes.push({ id: pasteIds[r.mi], at: at, by: by, sentBy: r.m.sentBy || '', sentOn: r.m.sentOn || '', day: r.m.read.date, kind: r.m.kind, hash: r.m.hash, text: r.m.text });
     }
     var e = { id: prodUid('PE'), kind: it.kind, date: it.date, time: it.time, to: it.to, slot: it.slot || (it.kind === 'plated' ? 'general' : null),
       line: it.kind === 'plated' ? (r.line || it.line || null) : null, clientId: r.clientId != null ? r.clientId : null, client: it.client, part: it.part, gauge: it.gauge,
@@ -439,10 +445,14 @@ function prodSaveReview() {
       basis: it.basis || (it.kind === 'pickled' ? 'pickling' : it.kind === 'arrived' ? 'floor-in' : 'relay'), src: 'paste', raw: it.raw, n: it.n,
       pasteId: pasteIds[r.mi], msgHash: r.m.hash, sentBy: r.m.sentBy || '', by: by, at: at };
     if (e.kind === 'plated') e.lineSrc = e.line ? (it.line ? 'written' : 'set') : null;
-    // A client picked for a written name is remembered for the next message; a keep-as-written is not.
-    var pick = r.clientPick;
-    if (pick !== undefined && pick !== 'asWritten' && it.client) { var k = relayKey(it.client); if (k && p.learn.clients[k] !== pick) { p.learn.clients[k] = pick; learnt++; } }
-    else if (it.issues.some(function(x) { return x.code === 'readas'; }) && it.client && it.clientId != null) { var k2 = relayKey(it.client); if (k2 && !(k2 in p.learn.clients)) { p.learn.clients[k2] = it.clientId; learnt++; } }
+    // A client picked for a written name is remembered for the next message; a read-as left as read is kept too. Kept
+    // as written learns nothing: it used to store the very guess the owner had just turned down, and a lesson it
+    // turns down is forgotten. A name read by its place alone (the barrel list's first word, how 'unknown') or matched
+    // exactly (the client's own name) is never re-pointed: the pick answers whose the load is, not how a name is spelt.
+    var pick = r.clientPick, k = it.client ? relayKey(it.client) : '', how = it.clientHow || '';
+    if (k && pick !== undefined && pick !== 'asWritten' && how !== 'unknown' && how !== 'exact') { if (p.learn.clients[k] !== pick) { p.learn.clients[k] = pick; learnt++; } }
+    else if (k && pick === 'asWritten' && how === 'learnt') delete p.learn.clients[k];
+    else if (k && pick === undefined && it.issues.some(function(x) { return x.code === 'readas'; }) && it.clientId != null) { if (!(k in p.learn.clients)) { p.learn.clients[k] = it.clientId; learnt++; } }
     p.entries.push(prodSparse(e));
     n++;
   });
@@ -528,7 +538,7 @@ function prodPhotoHtml() {
     // The register's power log: each cut with its return, as written.
     h += '<div class="inv-panel inv-panel-flush" id="prodPhotoPower"><div class="inv-panel-head"><span class="inv-panel-title">Power cuts read</span><span class="inv-panel-count">' + rd.downtime.length + '</span></div>' +
       rd.downtime.map(function(x, i) {
-        var mins = x.to ? prodMin(x.to) - prodMin(x.time) : null;
+        var mins = x.to ? relayParseHhmm(x.to) - relayParseHhmm(x.time) : null;
         return '<div class="inv-row inv-row-2" data-prod-cut="' + i + '"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(stockShortDate(x.date) + ' · ' + x.time + (x.to ? ' – ' + x.to : ', no return written')) + '</span>' +
           '<span class="inv-row-meta">' + escHtml(x.raw.replace(/\n/g, ' / ')) + '</span></span><span class="inv-row-end inv-num">' + (mins != null ? escHtml(mins + ' min') : '&mdash;') + '</span></div>';
       }).join('') + '<div class="inv-panel-body inv-note">A cut the pickling messages also reported is counted once: the two are joined when they overlap or begin within ten minutes.</div></div>';
@@ -600,7 +610,7 @@ function prodSavePhoto() {
 function prodOpenHand(fromId) {
   var src = fromId ? prodIndex().byId[fromId] : null;
   _prodHand = src ? { kind: src.kind, date: src.date, time: src.time || '', to: src.to || '', line: src.line || '', clientId: src.clientId != null ? String(src.clientId) : '', part: src.part || '',
-    qty: src.qty != null ? String(src.qty) : '', unit: src.unit || 'NOS', rework: !!src.rework, slot: src.slot === 'ot' ? 'ot' : 'general', replaces: src.id }
+    qty: src.qty != null ? String(src.qty) : '', unit: src.unit || 'NOS', rework: !!src.rework, slot: src.slot === 'ot' || src.slot === 'day' ? src.slot : 'general', replaces: src.id }
     : { kind: 'plated', date: localDateStr(), time: '', to: '', line: 'vat-a1', clientId: '', part: '', qty: '', unit: 'NOS', rework: false, slot: 'general', replaces: null };
   prodSetView('hand');
 }
@@ -614,8 +624,12 @@ function prodHandHtml() {
   h += '<div class="inv-panel"><div class="inv-fields">' + field('prodHandDate', 'Date', '<input type="date" id="prodHandDate" class="inv-input" data-prod-hand="date" value="' + escHtml(f.date) + '">') +
     field('prodHandTime', f.kind === 'downtime' ? 'Power cut at' : 'Time', '<input type="time" id="prodHandTime" class="inv-input" data-prod-hand="time" value="' + escHtml(f.time) + '">');
   if (f.kind === 'downtime') h += field('prodHandTo', 'Power back at', '<input type="time" id="prodHandTo" class="inv-input" data-prod-hand="to" value="' + escHtml(f.to) + '">');
-  if (f.kind === 'plated') h += field('prodHandLine', 'Line', '<select id="prodHandLine" class="inv-select" data-prod-hand="line">' + PROD_LINES.map(function(l) { return '<option value="' + l + '"' + (f.line === l ? ' selected' : '') + '>' + PROD_LINE_LABEL[l] + '</option>'; }).join('') + '</select>') +
-    field('prodHandSlot', 'Shift', '<select id="prodHandSlot" class="inv-select" data-prod-hand="slot"><option value="general"' + (f.slot !== 'ot' ? ' selected' : '') + '>General shift</option><option value="ot"' + (f.slot === 'ot' ? ' selected' : '') + '>Overtime</option></select>');
+  // What is shown is what is saved: an entry corrected with no line keeps it unknown (the list showed VAT A1 and saved
+  // none), and the barrel list's whole day stays a whole day (it was forced to the general shift).
+  if (f.kind === 'plated') h += field('prodHandLine', 'Line', '<select id="prodHandLine" class="inv-select" data-prod-hand="line"><option value=""' + (!f.line ? ' selected' : '') + '>Line unknown</option>' +
+      PROD_LINES.map(function(l) { return '<option value="' + l + '"' + (f.line === l ? ' selected' : '') + '>' + PROD_LINE_LABEL[l] + '</option>'; }).join('') + '</select>') +
+    field('prodHandSlot', 'Shift', '<select id="prodHandSlot" class="inv-select" data-prod-hand="slot"><option value="general"' + (f.slot !== 'ot' && f.slot !== 'day' ? ' selected' : '') + '>General shift</option><option value="ot"' + (f.slot === 'ot' ? ' selected' : '') + '>Overtime</option>' +
+      (f.slot === 'day' ? '<option value="day" selected>Whole day (barrel list)</option>' : '') + '</select>');
   if (f.kind !== 'downtime') {
     h += field('prodHandClient', 'Client', '<select id="prodHandClient" class="inv-select" data-prod-hand="clientId"><option value="">Pick the client</option>' +
       (S.clients || []).slice().sort(function(a, b) { return a.name.localeCompare(b.name); }).map(function(c) { return '<option value="' + escHtml(String(c.id)) + '"' + (f.clientId === String(c.id) ? ' selected' : '') + '>' + escHtml(c.name) + '</option>'; }).join('') + '</select>') +
@@ -644,7 +658,7 @@ function prodSaveHand() {
     // The picker hands back text; the book's own id is kept, so a floor key and a challan key agree.
     e.clientId = prodHeldId(f.clientId); e.client = prodClientName(e.clientId); e.part = f.part.trim(); e.gauge = prodGaugeOf(e.part, e.part);
     e.qty = isNaN(q) ? null : q; e.unit = f.unit; e.rework = !!f.rework;
-    if (f.kind === 'plated') { e.line = f.line; e.lineSrc = 'set'; e.slot = f.slot === 'ot' ? 'ot' : 'general'; }
+    if (f.kind === 'plated') { e.line = f.line || null; e.lineSrc = f.line ? 'set' : null; e.slot = f.slot === 'ot' || f.slot === 'day' ? f.slot : 'general'; }
   }
   p.entries.push(prodSparse(e));
   prodTouch();
@@ -713,6 +727,7 @@ function prodAction(action, btn) {
     case 'invProdPaste': prodSetView('paste'); return true;
     case 'invProdRead': prodReadPaste(); return true;
     case 'invProdSaveReview': prodSaveReview(); return true;
+    case 'invProdRevClient': _prodReview.choices['open' + btn.dataset.key] = true; renderProduction(); return true;
     case 'invProdRevLine': _prodReview.choices['line' + btn.dataset.key] = btn.dataset.line; renderProduction(); return true;
     case 'invProdPhoto': prodPhotoPick(); return true;
     case 'invProdStruck': _prodPhoto.choices['struck' + btn.dataset.i] = btn.dataset.v; renderProduction(); return true;
@@ -736,13 +751,15 @@ function prodAction(action, btn) {
     case 'invProdImport': prodImport(); return true;
     case 'invProdLine': _prodLine = btn.dataset.line; renderProduction(); return true;
     case 'invProdDay': {
-      var base = _prodDay || localDateStr();
+      // From the day on screen: with none stepped to that is the last recorded day, not today.
+      var base = prodLinesDay();
       _prodDay = isoAddDays(base, +btn.dataset.step);
       renderProduction(); return true;
     }
     case 'invProdDayLast': _prodDay = null; renderProduction(); return true;
     case 'invProdFilter':
-      if (btn.dataset.flag !== undefined) _prodFilter = { kind: '', flag: _prodFilter.flag === btn.dataset.flag ? '' : btn.dataset.flag, client: '' };
+      // A pressed chip on Entries lets its flag go; the Overview's "All N" always opens the loads it counts.
+      if (btn.dataset.flag !== undefined) _prodFilter = { kind: '', flag: _prodTab === 'entries' && _prodFilter.flag === btn.dataset.flag ? '' : btn.dataset.flag, client: '' };
       else _prodFilter = { kind: btn.dataset.kind || '', flag: '', client: '' };
       if (_prodTab !== 'entries') prodSetTab('entries');
       renderProduction(); return true;

@@ -253,6 +253,23 @@ function readStoredWithRev() {
   });
 }
 
+// The revision on disk, without the book.
+function readStoredRev() {
+  if (_storeMode === 'localStorage' || _idbFailed) {
+    return new Promise(function(resolve, reject) { try { resolve(localStorage.getItem(LS_REV_KEY)); } catch (e) { reject(e); } });
+  }
+  return idbOpen().then(function(db) {
+    if (!db) return null;
+    return new Promise(function(resolve, reject) {
+      try {
+        var req = db.transaction(IDB_STORE, 'readonly').objectStore(IDB_STORE).get(IDB_REV_KEY);
+        req.onsuccess = function() { resolve(typeof req.result === 'string' ? req.result : null); };
+        req.onerror = function() { reject(req.error); };
+      } catch (e) { reject(e); }
+    });
+  });
+}
+
 // Writes the book only if the revision on disk is still `expect`; resolves once written, rejects StaleCopy if not.
 function writeGuarded(str, expect, next) {
   if (_storeMode === 'localStorage') {
@@ -546,6 +563,10 @@ function adoptState(next) {
     persistState();
     throw e;
   }
+  // What is worked out from the book is worked out again, as when another window's save is loaded (bookReload): the
+  // two had drifted, and a pull or an import kept the old book's part usage (the QA sweep, 29 Sep 2026).
+  if (typeof prodTouch === 'function') prodTouch();
+  if (typeof _invalidateUsageCache === 'function') _invalidateUsageCache();
   return S;
 }
 
@@ -836,7 +857,8 @@ function bookOnMessage(m) {
 // A window back in view: has another saved meanwhile?
 function bookCheck() {
   if (!S || _storageHealth.readError) return Promise.resolve(false);
-  return readStoredWithRev().then(function(b) { return b.rev && b.rev !== _diskRev ? bookReload('saved') : false; }, function() { return false; });
+  // The revision alone: it read the whole book at every return to view only to compare this.
+  return readStoredRev().then(function(rev) { return rev && rev !== _diskRev ? bookReload('saved') : false; }, function() { return false; });
 }
 function bookReload(why) {
   if (_bookReloading) return _bookReloading;

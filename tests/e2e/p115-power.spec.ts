@@ -33,25 +33,29 @@ test('Power opens from More, with four views, and says where cuts come from when
   await expect(page.locator('[data-power-case]')).toContainText('No power cut is on record yet');
 });
 
-test('a cut costs its output, the wages of the hands standing idle, a restart and the fixed charge, each worked out', async ({ page }) => {
+test('a cut costs its output at contribution, the wages of the hands standing idle and a restart; the fixed charge is shown, not added', async ({ page }) => {
   const d = wday(3), m = d.slice(0, 7);
   await loadAppWithState(page, book({
     production: { entries: [cut('C1', d, '10:00', '10:30')], pastes: [], photos: [], imports: [], learn: { clients: {}, parts: {} } },
     attendance: { [d]: { marks: { 1: { st: 'P', hours: 8, area: 'vat-a1' } }, extra: [], note: '' } },
     costBills: [{ id: 'B1', kind: 'power', month: m, amount: 50000, fixed: 3000, at: 1 }],
   }));
-  const k = await g(page, `(function(){ var a = powerAnalysis(); return { c: a.cuts[0].cost, rate: a.rate }; })()`);
-  // No invoices in the last 90 days: output is priced at the case's ₹2,500 an hour, and the case says so.
+  const k = await g(page, `(function(){ var a = powerAnalysis(); return { c: a.cuts[0].cost, rate: a.rate, margin: a.margin }; })()`);
+  // No invoices in the last 90 days: output is priced at the case's ₹2,500 an hour, its contribution at the fallback 20%.
   expect(k.rate).toMatchObject({ perHour: 2500, measured: false });
+  expect(k.margin).toMatchObject({ share: 0.2, measured: false });
   const days = await g(page, `statsWorkingDays('${m}-01', payMonthEnd('${m}-01'))`);
-  expect(k.c).toMatchObject({ inside: 30, hands: 1, lost: 1250, idle: 30, restart: 600 });
+  // Nothing made up in overtime: the damage is the restart, the output's contribution and the wages that bought nothing.
+  expect(k.c).toMatchObject({ inside: 30, hands: 1, lost: 1250, contrib: 250, idle: 30, restart: 600, recOt: 0, recovered: 0, total: 880 });
   expect(k.c.fixed).toBeCloseTo(3000 / (days * 510) * 30, 2);
   await switchTab(page, 'pagePower');
   await page.locator('[data-action="invPowerTab"][data-tab="cuts"]').click();
   const row = page.locator(`[data-power-cut="${d}|600"]`);
-  await expect(row).toContainText('output ₹1,250.00');
-  await expect(row).toContainText('idle wages ₹30.00 (1 hand)');
+  await expect(row).toContainText('output ₹1,250.00, its contribution ₹250.00');
+  await expect(row).toContainText('idle wages ₹30.00 (1 plater)');
   await expect(row).toContainText('restart ₹600.00');
+  await expect(row).toContainText('paid anyway');
+  await expect(row).toContainText('₹880.00');
 });
 
 test('an overnight cut runs to the next morning; one with no time back is costed at the typical length, never to the end of the day', async ({ page }) => {
@@ -107,13 +111,14 @@ test("a bill's details are set on Load & bills, and the penalty cannot outgrow t
 test('the history file brings the cuts into Production and fills bill details only where a bill has none, once', async ({ page }) => {
   await loadAppWithState(page, book({ costBills: [{ id: 'B1', kind: 'power', month: '2026-05', amount: 64567, fixed: 3574, at: 1 }] }));
   const file = { format: 'sep-production', version: 1, exportedAt: '', build: 'test', entries: [cut('PCLOG-001', wday(5), '12:30', '13:15'), cut('PCLOG-002', wday(5), '15:00')],
-    power: { bills: { '2026-05': { kvaBilled: 25, md: 48.7, penalty: 5220, fixed: 9999 }, '2026-02': { penalty: 100 }, '2026-04': { amount: 54096, penalty: 4320 } } } };
+    power: { bills: { '2026-05': { kvaBilled: 25, md: 48.7, penalty: 5220, fixed: 9999 }, '2026-02': { penalty: 100 }, '2026-04': { amount: 54096, net: 54096, paid: 52846, basis: 'paid', penalty: 4320 } } } };
   const r = await g(page, `powerImportData(${JSON.stringify(file)}, 'hist.json')`);
   expect(r.cuts).toMatchObject({ ok: true, added: 2 });
-  expect(r.details).toBe(4);                   // the fixed charge typed here stays as it was
+  expect(r.details).toBe(5);                   // the fixed charge typed here stays as it was
   expect(r.noBill).toEqual(['2026-02']);       // a month described with no amount is counted, never invented
   expect(r.bills).toBe(1);                     // one the file records with its amount is added
-  expect(await g(page, `S.costBills.find(function(b){ return b.month === '2026-04'; })`)).toMatchObject({ kind: 'power', amount: 54096, penalty: 4320 });
+  // What was paid is the cost; the bill's net payable is kept beside it.
+  expect(await g(page, `S.costBills.find(function(b){ return b.month === '2026-04'; })`)).toMatchObject({ kind: 'power', amount: 52846, net: 54096, penalty: 4320 });
   expect(await g(page, 'S.costBills[0]')).toMatchObject({ kvaBilled: 25, md: 48.7, penalty: 5220, fixed: 3574 });
   expect(await g(page, 'powerAnalysis().cuts.length')).toBe(2);
   const again = await g(page, `powerImportData(${JSON.stringify(file)}, 'hist.json')`);
@@ -156,4 +161,95 @@ test('a long run of recorded days with no cut is read as possibly unreported, no
   await switchTab(page, 'pagePower');
   await page.locator('[data-action="invPowerTab"][data-tab="case"]').click();
   await expect(page.locator('#powerContent [data-power-case]')).toContainText('read as possibly unreported, never as clean');
+});
+
+/** The working day after `iso` (Sundays skipped). */
+function nextWday(iso: string): string {
+  const d = new Date(iso + 'T00:00:00'); d.setDate(d.getDate() + 1);
+  while (d.getDay() === 0) d.setDate(d.getDate() + 1);
+  return isoOf(d);
+}
+
+test('the overtime a cut’s backlog took, above the usual, is its cost, and the output it made up is not lost as well', async ({ page }) => {
+  // Owner, 30 Sep 2026: "also take into assumption OT that we had to do following the power cut due to the backlog".
+  const cutDay = wday(10), after = nextWday(cutDay);
+  const att: any = {};
+  for (let n = 30; n >= 1; n--) {
+    const d = wday(n);
+    att[d] = { marks: { 1: { st: 'P', hours: 8, area: 'vat-a1' }, 2: { st: 'P', hours: 8, ot: 0, area: 'vat-a2' }, 3: { st: 'P', hours: 8, area: 'office' } }, extra: [], note: '' };
+  }
+  att[cutDay].marks[1].hours = 10;          // the hourly hand stays two hours on the cut's day
+  att[after].marks[2].ot = 3;               // and the monthly hand three hours the day after
+  await loadAppWithState(page, book({
+    staff: [{ id: 1, name: 'Alfa', comp: 'hourly', area: 'vat-a1', hourRate: 60, active: true, onFloor: true },
+      { id: 2, name: 'Bravo', comp: 'monthly', area: 'vat-a2', dayRate: 400, active: true, onFloor: true },
+      { id: 3, name: 'Charlie', comp: 'monthly', area: 'office', dayRate: 320, active: true, onFloor: false }],
+    attendance: att,
+    production: { entries: [cut('C1', cutDay, '10:00', '12:00')], pastes: [], photos: [], imports: [], learn: { clients: {}, parts: {} } },
+  }));
+  const r = await g(page, `(function(){ var a = powerAnalysis(); return { c: a.cuts[0].cost, rec: { affected: a.recovery.affected, above: a.recovery.above, cost: a.recovery.cost } }; })()`);
+  // Two hours at the hourly hand's ₹60, three at the monthly hand's ₹400 ÷ 8 × 1.1: ₹285 over a usual of nothing.
+  expect(r.rec).toMatchObject({ affected: 2, above: 2, cost: 285 });
+  // The office is idle too, but the lines are what stopped: platers ₹220 (₹120 + ₹100), everyone ₹300.
+  expect(r.c).toMatchObject({ hands: 2, handsAll: 3, idle: 220, idleAll: 300, recOt: 285, recovered: 1 });
+  // Five hand-hours made up the two dark hours of two hands: the damage is the overtime and the restart, nothing lost.
+  expect(r.c.total).toBe(885);
+  await switchTab(page, 'pagePower');
+  await page.locator('[data-action="invPowerTab"][data-tab="case"]').click();
+  const doc = page.locator('#powerContent [data-power-case]');
+  await expect(doc).toContainText('Overtime to catch up');
+  await expect(doc).toContainText('overtime to catch up the backlog ₹285.00');
+  await expect(doc).toContainText('The damage, not the revenue at stake');
+});
+
+test('a cut idles the hands where they stood at the time: a block’s crew on its line, pickling only at the upper end', async ({ page }) => {
+  const d = wday(3);
+  await loadAppWithState(page, book({
+    // Alfa is a pickling hand on the general shift and stood on VAT A1 in the evening block; Bravo pickles all day.
+    staff: [{ id: 1, name: 'Alfa', comp: 'hourly', area: 'pickling-vat', hourRate: 60, active: true, onFloor: true },
+      { id: 2, name: 'Bravo', comp: 'hourly', area: 'pickling-vat', hourRate: 60, active: true, onFloor: true }],
+    attendance: { [d]: { marks: { 1: { st: 'P', hours: 8, area: 'pickling-vat' }, 2: { st: 'P', hours: 8, area: 'pickling-vat' } }, note: '',
+      extra: [{ kind: 'block', areas: ['vat-a1'], crew: [1], from: '17:00', to: '20:00', hours: 0 }] } },
+    production: { entries: [cut('C1', d, '18:00', '18:30'), cut('C2', d, '11:00', '11:30')], pastes: [], photos: [], imports: [], learn: { clients: {}, parts: {} } },
+  }));
+  const c = await g(page, 'powerAnalysis().cuts.map(function(c){ return c.cost; })');
+  // The evening cut idles the block's plater; the morning cut idles two pickling hands, who are the upper end only.
+  expect(c[1]).toMatchObject({ inside: 30, ot: 30, hands: 1, idle: 30, handsAll: 1 });
+  expect(c[0]).toMatchObject({ inside: 30, hands: 0, idle: 0, handsAll: 2, idleAll: 60 });
+});
+
+test('a power-back the log gives only as a bound reads "after", and a single-phase fault says so', async ({ page }) => {
+  const d = wday(4);
+  const e = { ...cut('C1', d, '17:40', '18:59'), downtime: { cause: 'power', open: false, atLeast: true, phase: 'single' } };
+  await loadAppWithState(page, book({ production: { entries: [e], pastes: [], photos: [], imports: [], learn: { clients: {}, parts: {} } } }));
+  await switchTab(page, 'pagePower');
+  await page.locator('[data-action="invPowerTab"][data-tab="cuts"]').click();
+  const row = page.locator(`[data-power-cut="${d}|1060"]`);
+  await expect(row).toContainText('5:40 PM – after 6:59 PM');
+  await expect(row).toContainText('1 h 19 min at least');
+  await expect(row).toContainText('single-phase');
+});
+
+test('a power-back known only as a bound is costed to the later of the bound and the typical length, never the bound alone', async ({ page }) => {
+  const d = wday(4);
+  const bounded = { ...cut('C1', d, '15:00', '15:20'), downtime: { cause: 'power', open: false, atLeast: true } };
+  await loadAppWithState(page, book({ production: { entries: [bounded, cut('C2', wday(6), '10:00', '11:00'), cut('C3', wday(7), '10:00', '11:00')],
+    pastes: [], photos: [], imports: [], learn: { clients: {}, parts: {} } } }));
+  const a = await g(page, `(function(){ var a = powerAnalysis(); return { typical: a.typical, c: a.cuts.find(function(c){ return c.atLeast; }).cost }; })()`);
+  expect(a.typical).toBe(60);                  // the bound is not a length, so it stays out of the median
+  expect(a.c.inside).toBe(60);                 // 3:00 to 4:00 PM, past the bound at 3:20
+});
+
+test('the quiet-run rate counts only the cuts on recorded days', async ({ page }) => {
+  // Forty cuts on days with no record (the handwritten April log) must not make a short recorded stretch look quiet.
+  const days: string[] = [];
+  for (let n = 45; days.length < 30; n--) { const d = wday(n); if (!days.includes(d)) days.push(d); }
+  const att: any = {}; days.forEach(d => { att[d] = { marks: { 1: { st: 'P', hours: 8, area: 'vat-a1' } }, extra: [], note: '' }; });
+  const old: any[] = [];
+  for (let n = 120; old.length < 40; n--) { const d = wday(n); if (!old.some(x => x.date === d)) old.push(cut('O' + n, d, '12:30', '12:50')); }
+  const entries = [...old, cut('C1', days[0], '12:30', '12:50')];
+  await loadAppWithState(page, book({ attendance: att, production: { entries, pastes: [], photos: [], imports: [], learn: { clients: {}, parts: {} } } }));
+  const q = await g(page, 'powerAnalysis().quiet');
+  // One cut on 30 recorded days: 29 cut-free days expect under one cut, so nothing is called unreported.
+  expect(q).toHaveLength(0);
 });

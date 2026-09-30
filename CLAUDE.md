@@ -128,7 +128,7 @@ every session start — nothing to set up by hand. CI (`build-sync`) is the back
 ### Tests
 
 ```bash
-pnpm exec playwright test          # 983 tests, both layouts
+pnpm exec playwright test          # 988 tests, both layouts
 ```
 
 Some sandboxes ship a Chromium build Playwright does not expect and block downloading
@@ -1646,17 +1646,42 @@ keeps it current, and `soma-internal/reports/power-cut-case-2026-09-30.md` is th
 - **The cuts are Production's** downtime entries (the register's power log, the relayed messages, a cut entered by hand)
   and the history imported from soma-internal's power-cut log. The same cut reported twice is one (`prodDowntimeDay`); a
   power-back earlier on the clock than the cut ran overnight. Enter a cut opens Production's hand form on a power cut.
-- **Each cut is costed in four layers, each saying where it comes from**: output at stake (minutes inside a working
-  window, the 8:30–5:00 shift and any OT block recorded that day, × revenue per scheduled hour over the last 90 days, net of
-  credit notes; the case's ₹2,500 only when there are no invoices), wages paid idle (every hand marked present whose own
-  day covers the cut, at their hour rate), a restart (₹600 a cut in a working window, the case's figure), and the fixed
-  charge carried by no output (the bill's fixed charge per scheduled minute). **A cut with no time back is costed at the
-  median length of those with one**, never to the end of the day (28 Jul's open cut read 640 minutes that way).
+- **What a cut costs is its damage, not its price** (Iuno's audit of the 30 Sep refresh, H-1; owner, 30 Sep 2026: *"also
+  take into assumption OT that we had to do following the power cut due to the backlog of material it creates"*). The work a
+  cut stops is either made up in overtime or never made. Made up, the cut cost that overtime; never made, it cost the
+  output's contribution and the wages that bought nothing. A restart (₹600 in a working window, the 30 May estimate) is paid
+  either way. So damage = restart + catch-up overtime + (1 − share made up) × (contribution + platers' idle wages).
+  - **Catch-up overtime** (`powerRecovery`): a cut in working hours puts its own day and the next working day at risk. Each
+    such day's overtime (`powerDayOt`: monthly and daily hands' OT at their overtime rate, an hourly hand's hours past eight,
+    and the EXTRA on every OT or night block; the general shift's EXTRA covers a missing hand, not carried-over work, and is
+    left out) is set against the median of the clean recorded days within 30 days, since the record's overtime changes over
+    the months. What is above it is shared among the cuts by their dark working minutes, after taking off the idle wages
+    already counted for a cut inside a block. **An upper reading**: a day running late for an urgent order reads the same.
+    The share made up is those hand-hours over the platers the cut stood idle.
+  - **Contribution**, not revenue: realisation less the variable cost (everything but the monthly crew) over the last 90
+    days, read at the live cost and at the typed full cost less the same crew; **the lower share is used** (`powerMargin`).
+    On the real book the live cost read ₹4.65/kg with chemicals recorded at ₹0.16/kg, which would have made a lost hour
+    worth 56% of its price; the typed cost gives 6%. Revenue at stake (minutes in a working window × revenue per scheduled
+    hour) is shown as the upper bound and never added; so is the fixed charge, paid whether the power is on or not.
+  - **Idle wages are a range** (Iuno H-5): platers (VAT A1, VAT A2, barrel) up to everyone present, since pickling runs
+    through a cut. A hand is placed **where they stood at the time**: an OT or night block's named crew on the block's line
+    (a pickling hand in a VAT evening block idles as a plater), the general shift on the mark's area. Before this an
+    evening block's crew read ₹0.
+  - **A cut with no time back is costed at the median length of those with one**, never to the end of the day; a power-back
+    the log gives only as a bound (`downtime.atLeast`, "after 7:16 PM") ends at the later of the bound and the median, and
+    stays out of the median. A close the record inferred (`downtime.inferred`) and a single-phase fault (`downtime.phase:
+    'single'`, counted as dark) are said on the row and in the case.
+  - **The options' gain is the year's damage × the share each covers + TSUISL's tariff saving − running and upkeep**, the
+    running hours being the dark working hours; the inverter's coverage is measured on the dark working minutes it would have
+    carried (Iuno M-3; on every dark minute the overnight cut pulled it to 84%).
 - **A day with no record is a gap, not a day without cuts.** A recorded day is a working day with attendance or a plated
   entry; a cut alone does not record its day (April's handwritten log has no floor record around it and read 1.38 cuts a
   day). A run of recorded days with no cut, long enough that at the record's rate three or more were expected, is read as
-  **possibly unreported** (`powerQuietRuns`): named in the case, left out of the year ahead and out of the best and worst
-  months. On the real book: 27 Aug – 21 Sep and, since the 22 Sep cut, 23 – 29 Sep.
+  **possibly unreported** (`powerQuietRuns`): named in the case, left out of the year ahead, of each month's rate (a month
+  with under five days left reads a dash) and of the best and worst months. The rate counts only the cuts on recorded days
+  (Iuno H-3: April's cuts on days with no record had been divided by recorded days, which made 11–15 May look quiet), and a
+  cut on a Sunday worked ends a run. "Possibly unreported" is a fact about the app's record, not about what was sent: a
+  stretch no export has been read for yet reads the same.
 - **The load is recorded** (owner: *"Yes, record it"*): `S.power.load` {sanctioned, approved, approvedOn, ref, note}, set
   once to 25 / 50 kVA approved 18 May 2026 where empty (`_powerLoad1`). A bill's own details are set on Load & bills
   (`POWER_BILL_FIELDS`: billed at, peak, kWh, kVAh, fixed, energy, excess-CD penalty, fuel adjustment, duty, net), and a
@@ -1671,8 +1696,10 @@ keeps it current, and `soma-internal/reports/power-cut-case-2026-09-30.md` is th
   hours), the recommendation, open items (set in Options' figures) and what is not counted. The options' figures are the
   30 May case's estimates until a quote replaces them.
 - **Import history** takes one file: its cuts as `sep-production` (merged by id into Production) and under `power` the
-  bills' details by month and the load. A detail fills only an empty field; a bill the file records with its amount is
-  added where the app has none for that month; a month described without an amount is counted, never invented.
+  bills' details by month and the load. A detail fills only an empty field; a bill the file records is added where the app
+  has none for that month, **at what was paid** (`paid`, else `amount`), with the bill's net payable kept as a detail and the
+  basis in its note (Iuno H-6: which of the bill's figures is "the" bill is still BM's question); a month described without
+  an amount is counted, never invented.
 
 ### Stock
 More → **Stock**. Chemical stock, **owned by `soma-internal`** (owner, 24 Sep 2026): this tab is a view

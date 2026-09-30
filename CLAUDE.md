@@ -127,7 +127,7 @@ every session start — nothing to set up by hand. CI (`build-sync`) is the back
 ### Tests
 
 ```bash
-pnpm exec playwright test          # 751 tests, both layouts
+pnpm exec playwright test          # 957 tests, both layouts
 ```
 
 Some sandboxes ship a Chromium build Playwright does not expect and block downloading
@@ -205,6 +205,27 @@ uncoloured. The judgements are in one place, state.js (`figToneAgainst`, `figTon
   and *pays in N d*.
 P102.
 
+**The QA sweep of 29–30 Sep 2026** (owner: *"sweep the codebase for dead and redundant code … sweep the app for bugs and
+behavioural issues. Do a QA chain and fix the issues"*). Governors audited seven areas (about 150 findings), a scratch harness
+pressed every action on every page and view (phone 249, desktop 247: no uncaught error) and the real book drew every page on both
+layouts; builders fixed each area with its spec (P104–P113). What it leaves as rules:
+- **One set of helpers** in state.js: `isoOf`, `isoAddDays`, `isoDaysBetween`, `isoFromDmy` (null for 31/09), `numMedian`; one
+  line-pricing function `linePrice(item, client, onDate)` for the invoice and the challan form (a typed rate is kept on both).
+- **The start never bricks**: each boot step is guarded (`bootStep`), a screen is remembered for a reload only once it has drawn,
+  records with no lines array are repaired on load, and a start that changes nothing writes nothing.
+- **A device whose book is in IndexedDB** (`sep_inv_idb_used`) never works on another copy when the database will not open: it is
+  read-only with the banner. A start-up save refused by another window's save is taken quietly.
+- **Escape closes the top layer** the way Back does (`navCloseLayer`), after closing an open suggestion list; a swipe does nothing
+  while a layer is open; opening a screen on a touch screen never focuses a field.
+- **A jump shows what it names**: `regJump` / `imJump` / `imJumpClient` clear the filters and selection they do not set, and a
+  challan opens on its tab and month with its row revealed (`uiRevealEl`).
+- **Bank payee rules have a direction** (money in under `KEY|in`); an old wage, supplier, electricity, GST, tax or charges rule
+  stays money-out. **The sep-bank export's `parties` carry `dir`** — a data flow soma-internal reads.
+- **The roster names a worker by `staffNameKey`** (letters, digits, or the name itself when not in Latin letters); a renamed worker
+  keeps the old name as a spelling, so payroll slips still find them.
+- **Deferred to the owner, not built**: `gstRound`'s float half-paisa (HR-8's formula), dues carried across pay periods, a second
+  electricity bill in one month, and a correction on a new invoice reaching its challan.
+
 **A `<select>` speaks through `change`, never `click`.** Giving a filter control a
 `data-action` meant the click that *opens* it ran the handler — and if that handler
 re-renders the toolbar, the element the native popup hangs off is replaced and the list
@@ -261,7 +282,7 @@ filter on; a literal date in a fixture is a time bomb, not a constant.
 |----|------|
 | HR-1 | No inline styles. CSS classes + design tokens. |
 | HR-2 | No inline onclick. data-action delegation only. |
-| HR-3 | inv- CSS prefix on every class. 462 classes, all of them (distinct class selectors in `split/styles.css`, comments stripped, 29 Sep 2026: the eighteen `inv-as-*` of the attendance and stock sheets added, then `inv-topbar-back` and `inv-topbar-trail`, then `inv-fig-ok/warning/danger`: 462); P76 asserts every class the app draws is one of them or a named hook. |
+| HR-3 | inv- CSS prefix on every class. 464 classes, all of them (distinct class selectors in `split/styles.css`, comments stripped, 29 Sep 2026: the eighteen `inv-as-*` of the attendance and stock sheets added, then `inv-topbar-back` and `inv-topbar-trail`, then `inv-fig-ok/warning/danger`: 462; 30 Sep 2026, the QA sweep: `inv-pi-cancelled`, `inv-cn-cancelled`: 464); P76 asserts every class the app draws is one of them or a named hook. |
 | HR-4 | No emojis. Inline SVGs in HTML template. |
 | HR-5 | escHtml() on all user-data innerHTML. |
 | HR-6 | CSS design tokens only. No raw px/rem/hex/timing. |
@@ -315,6 +336,11 @@ stamp, else the one before it, else the invoice date. **Delivered waits on the r
 invoice's month is due on the 11th of the next, so it is amber 3 days before and red once past; a delivered invoice from
 the 2nd of the month is not late at day 20. Filed is ok, cancelled danger. The row's dot carries the age in its title,
 the detail's timeline says it (*Printed · 3 days*, *Delivered · GSTR-1 due 11 Oct 2026*), and History logs *printed*.
+**A state shows the moment it changes** (owner, 29 Sep 2026: *"the invoice state change to printed should be immediately once the invoice is
+printed and when I mark it dispatched the state should change immediately"*): `invStateShown` redraws the page in place and an open
+sheet on its new step, after Print and after a Mark, wherever the invoice was opened (Home, a client, the To-do). A Mark button
+drawn before a print names a step reached and never skips past it. **Not printed** on a Printed invoice puts back a print that
+never came out (`invNotPrinted`), stamp and all. P104.
 Stats' state tiles keep one tone per state (`INV_STATE_TONE`), since they count many invoices. A number is spent from
 Dispatched on, not from Printed. P94.
 **The register sorts by invoice number too** (owner, 26 Sep 2026): the desktop's Invoice column head, and *By date / By
@@ -1705,6 +1731,12 @@ the device. `renderStats()` still draws every card; `take()` files each into its
   ~2 t per shift × two shifts × working days. Whatever is not measured is named under it.
 - **Six months**: each month at its own live cost, with labour ₹/kg shown only where 90% of the days are
   recorded and the share of cost measured.
+- **Credit notes are netted across all of Stats** (owner, 30 Sep 2026): each note's credit is spread over the invoices it names in
+  proportion to their taxable (`statsInvoices`, `cnCreditByInvoice`), and the headline, realisation, clients, six months, the trend,
+  the insights and Clients → Performance read those net invoices; tonnage is untouched. A note naming no invoice in the book is
+  counted apart and said on the Overview. Home's month-to-date tiles stay gross.
+- **The trend keeps its own reach** (the last 12 months, 26 weeks or 90 days) whatever the period chip, and shades the chosen
+  period on it (`opts.span`), saying so under the chart (owner, 30 Sep 2026).
 - **Contribution by client** (Clients tab), worst first: net realisation (credit notes whose batch ends in
   the period are taken off), against the variable cost (everything but the monthly crew) and the full cost,
   and the ₹ on the period. The worst account with 10%+ of the tonnage is settled both ways: if labour is
@@ -2239,7 +2271,7 @@ the ISO week of the Saturday, which is the week the payout files are named after
 Staff → **Pay** (`payroll.js`), for the selected pay week (owner, 25 Sep 2026).
 
 - **Due by worker = earned − paid**, over the worker's own period: the week for the hourly and
-  daily tiers, the calendar month of the week's Saturday for the monthly tier (to today while it
+  daily tiers, the calendar month of the week's **Sunday** for the monthly tier (the QA sweep, 30 Sep 2026: it was the Saturday's, so in a month's last pay week Pay showed the next month at 0 and hid this one's) (to today while it
   runs). Earned is `labourForRange().byWorker`, the labour card's own arithmetic, split per worker.
   **The EXTRA pool is in no one's due**: it is one line on the slip, disbursed by the supervisor.
 - **Payments and advances** are recorded here (`S.staffPayments: [{id, staffId, date, amount,

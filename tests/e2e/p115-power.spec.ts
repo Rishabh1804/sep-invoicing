@@ -188,17 +188,21 @@ test('the overtime a cut’s backlog took, above the usual, is its cost, and the
     production: { entries: [cut('C1', cutDay, '10:00', '12:00')], pastes: [], photos: [], imports: [], learn: { clients: {}, parts: {} } },
   }));
   const r = await g(page, `(function(){ var a = powerAnalysis(); return { c: a.cuts[0].cost, rec: { affected: a.recovery.affected, above: a.recovery.above, cost: a.recovery.cost } }; })()`);
-  // Two hours at the hourly hand's ₹60, three at the monthly hand's ₹400 ÷ 8 × 1.1: ₹285 over a usual of nothing.
-  expect(r.rec).toMatchObject({ affected: 2, above: 2, cost: 285 });
+  r.c.recHours = Math.round(r.c.recHours * 1000) / 1000;
+  // Two hours at the hourly hand's ₹60 and three at the monthly hand's ₹400 ÷ 8 × 1.1 ran above a usual of nothing: 5
+  // hand-hours, ₹285. But the cut stopped two platers for two hours, 4 hand-hours: the cut is charged no more than that,
+  // ₹228 (re-audit N-1: a cut cannot take more work to make up than it stopped).
+  expect(r.rec).toMatchObject({ affected: 2, above: 2, cost: 228 });
   // The office is idle too, but the lines are what stopped: platers ₹220 (₹120 + ₹100), everyone ₹300.
-  expect(r.c).toMatchObject({ hands: 2, handsAll: 3, idle: 220, idleAll: 300, recOt: 285, recovered: 1 });
-  // Five hand-hours made up the two dark hours of two hands: the damage is the overtime and the restart, nothing lost.
-  expect(r.c.total).toBe(885);
+  expect(r.c).toMatchObject({ hands: 2, handsAll: 3, idle: 220, idleAll: 300, recOt: 228, recHours: 4, recovered: 1 });
+  // All of it made up: the damage is the overtime and the restart, nothing lost.
+  expect(r.c.total).toBe(828);
   await switchTab(page, 'pagePower');
   await page.locator('[data-action="invPowerTab"][data-tab="case"]').click();
   const doc = page.locator('#powerContent [data-power-case]');
   await expect(doc).toContainText('Overtime to catch up');
-  await expect(doc).toContainText('overtime to catch up the backlog ₹285.00');
+  await expect(doc).toContainText('overtime to catch up the backlog ₹228.00');
+  await expect(doc).toContainText('an estimate, not measured');
   await expect(doc).toContainText('The damage, not the revenue at stake');
 });
 
@@ -252,4 +256,21 @@ test('the quiet-run rate counts only the cuts on recorded days', async ({ page }
   const q = await g(page, 'powerAnalysis().quiet');
   // One cut on 30 recorded days: 29 cut-free days expect under one cut, so nothing is called unreported.
   expect(q).toHaveLength(0);
+});
+
+test('a night hold and the block a cut fell in are never its catch-up, and the usual is read in the cut’s own month', async ({ page }) => {
+  const cutDay = wday(10), after = nextWday(cutDay);
+  const att: any = {};
+  for (let n = 40; n >= 1; n--) att[wday(n)] = { marks: { 1: { st: 'P', hours: 8, area: 'vat-a1' } }, extra: [], note: '' };
+  // The cut falls inside an evening block that books 12 h of EXTRA; the next day runs a night hold with 30 h.
+  att[cutDay].extra = [{ kind: 'block', areas: ['vat-a1'], crew: [1], from: '17:00', to: '21:00', hours: 12 }];
+  att[after].extra = [{ kind: 'block', areas: ['vat-a1'], crew: [1], from: '20:00', to: '06:00', hours: 30 }];
+  await loadAppWithState(page, book({
+    attendance: att, labour: { extraRate: 50 },
+    production: { entries: [cut('C1', cutDay, '18:00', '18:30')], pastes: [], photos: [], imports: [], learn: { clients: {}, parts: {} } },
+  }));
+  const r = await g(page, `(function(){ var a = powerAnalysis(); return { c: a.cuts[0].cost, n: powerIsNightBlock({ from: '20:00', to: '06:00' }), e: powerIsNightBlock({ from: '17:00', to: '00:00' }) }; })()`);
+  expect(r.n).toBe(true);                     // a night hold is a shift
+  expect(r.e).toBe(false);                    // 5 PM to midnight is a day running late
+  expect(r.c).toMatchObject({ inside: 30, hands: 1, recOt: 0 });
 });

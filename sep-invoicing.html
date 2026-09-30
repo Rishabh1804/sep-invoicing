@@ -18,7 +18,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <!-- Appearance before first paint (§3.2): the device's theme and palette, so nothing flashes in the wrong colours. -->
 <script>(function(){try{var d=document.documentElement,t=localStorage.getItem("sep_inv_theme"),p=localStorage.getItem("sep_inv_palette");if(t==="light"||t==="dark")d.dataset.theme=t;d.dataset.palette=(p==="zinc"||p==="terracotta")?p:"teal";}catch(e){document.documentElement.dataset.palette="teal";}})();</script>
-<meta name="app-build" content="9447cbf0">
+<meta name="app-build" content="1f55630d">
 <style>
 /* ===== DESIGN TOKENS (design system v2.0 — docs/SEP_INVOICING_DESIGN_PRINCIPLES.md §3) ===== */
 /* Theme: colour-scheme decides every light-dark() below. <html data-theme> is set before first paint
@@ -30767,7 +30767,8 @@ function powerCutCost(cut, ctx) {
       // Where the hand stood at the time: a pickling hand on the general shift can be on a VAT line in the evening block.
       var plat = _powerInside(cut.from, end, sp.iv.filter(function(v) { return v.areas.some(function(x) { return POWER_PLATING_AREAS.indexOf(x) >= 0; }); }));
       handsAll++; idleAll += r;
-      if (o > inGen) idleOt += r * (o - inGen) / o;
+      // The idle wages already counted for minutes past the shift, at what an overtime hour pays (Castor N-9).
+      if (o > inGen && w) idleOt += (w.comp === 'hourly' ? Number(w.hourRate) || 0 : workerOtHourPay(w, labourCfg(), cut.date)) * (o - inGen) / 60;
       if (plat > 0) { hands++; idle += r * plat / o; }
     });
   }
@@ -30775,7 +30776,7 @@ function powerCutCost(cut, ctx) {
   var fpm = powerFixedPerMinute(cut.date.slice(0, 7));
   var fixed = fpm != null ? fpm * inside : 0;
   var restart = inside > 0 ? cfg.restart : 0;
-  return { inside: inside, ot: ot, hands: hands, handsAll: handsAll, recorded: !!rec, lost: gstRound(lost), contrib: gstRound(lost * ctx.margin.share),
+  return { end: end, inside: inside, ot: ot, hands: hands, handsAll: handsAll, recorded: !!rec, lost: gstRound(lost), contrib: gstRound(lost * ctx.margin.share),
     idle: gstRound(idle), idleAll: gstRound(idleAll), idleOt: idleOt, restart: restart, fixed: gstRound(fixed), fixedKnown: fpm != null,
     // Filled by powerRecovery: the overtime the backlog took, and the share of the dark working time it made up.
     recOt: 0, recHours: 0, recovered: 0, total: 0, upper: 0 };
@@ -30794,7 +30795,14 @@ function _powerDamage(k) {
    their overtime rate; an hourly hand's hours past eight at their flat rate, since that tier has no overtime of its own)
    and the EXTRA booked on every OT or night block. The EXTRA booked on the general shift is left out: it covers a hand
    missing from an area, not work carried over. A Sunday is not read (a day worked there is a day, not overtime). */
-function powerDayOt(date) {
+/* A night hold is the night shift (owner, 30 Sep 2026: "night hold is night shift"): a block that starts at 8 PM or later,
+   or runs past midnight into the morning, is a shift of its own, not a day running late, so it is never catch-up. */
+function powerIsNightBlock(x) {
+  var a = relayParseHhmm(x.from), b = relayParseHhmm(x.to);
+  if (a == null || b == null) return false;
+  return a >= 1200 || (b < a && b > 0);
+}
+function powerDayOt(date, skip) {
   var rec = (S.attendance || {})[date];
   if (!rec) return null;
   var cfg = labourCfg(), cost = 0, hours = 0;
@@ -30808,21 +30816,26 @@ function powerDayOt(date) {
   });
   (rec.extra || []).forEach(function(x) {
     var hh = Number(x.hours) || 0;
-    if (x.kind !== 'block' || !(hh > 0)) return;
+    if (x.kind !== 'block' || !(hh > 0) || powerIsNightBlock(x) || (skip && skip.indexOf(x) >= 0)) return;
     hours += hh; cost += hh * (cfg.extraRate || 0);
   });
   return { cost: cost, hours: hours };
 }
 /* The overtime a cut's backlog took (owner, 30 Sep 2026: "also take into assumption OT that we had to do following the
    power cut due to the backlog of material it creates"). A cut in working hours puts its own day and the next working
-   day at risk of running late. Each such day's overtime is set against the usual: the median of the clean recorded
-   days within 30 days of it (no cut that day or the working day before, and not in a run of likely-unreported days),
-   since the record's overtime changes over the months (the monthly crew's OT was recorded only from September). What
-   is above the usual is shared among the cuts that put the day at risk, by their dark working minutes. On a cut's own
-   day the idle wages already counted for its overtime blocks are taken off first, so no hour is counted twice. It is an
-   upper reading: a day can run late for an urgent order too, and nothing here tells the two apart. */
+   day at risk of running late. Each such day's overtime is set against the usual: the median of the clean recorded days
+   (no cut that day or the working day before, and not in a run of likely-unreported days) IN THE SAME MONTH, at least
+   four of them. The record changed what it holds from one month to the next (evening blocks from late July, the night
+   hold from 19 August, the monthly crew's OT from September), and a baseline drawn across such a change measures the
+   change, not a backlog (Castor and Vulcanus, re-audit N-2). Left out of the overtime on both sides: a night hold, which
+   is a shift; and on a cut's own day, the block the cut fell in, whose EXTRA is that block's own staffing, not catch-up
+   (N-1). What is above the usual is shared among the cuts that put the day at risk, by their dark working minutes, after
+   taking off the idle wages already counted for a cut past the shift. **Each cut's share is capped at the hand-hours it
+   stood idle** (its dark working minutes × the platers idle, or everyone present where no plater is recorded): a cut
+   cannot have taken more work to make up than it stopped (N-1: a 13-minute cut had been billed 30 hand-hours). It is
+   still an upper reading: a day running late for an urgent order reads the same. */
 function powerRecovery(cuts, first, today, quiet) {
-  var out = { byDay: {}, affected: 0, above: 0, noBase: 0, cost: 0, hours: 0 };
+  var out = { byDay: {}, affected: 0, above: 0, noBase: 0, cost: 0, hours: 0, capped: 0 };
   if (!first) return out;
   var days = statsWorkingDayList(first, today), risk = {}, quietDay = {};
   quiet.forEach(function(q) { statsWorkingDayList(q.from, q.to).forEach(function(d) { quietDay[d] = true; }); });
@@ -30837,26 +30850,45 @@ function powerRecovery(cuts, first, today, quiet) {
   });
   var clean = days.filter(function(d) { return !risk[d] && !quietDay[d] && (S.attendance || {})[d]; }).map(function(d) { return { d: d, ot: powerDayOt(d) }; });
   Object.keys(risk).sort().forEach(function(d) {
-    var ot = powerDayOt(d);
+    // The blocks a cut on this day fell in.
+    var rec = (S.attendance || {})[d] || {}, skip = [];
+    risk[d].forEach(function(r) {
+      if (!r.own) return;
+      (rec.extra || []).forEach(function(x) {
+        if (x.kind !== 'block') return;
+        var a = relayParseHhmm(x.from), b = relayParseHhmm(x.to);
+        if (a == null || b == null) return;
+        if (b <= a) b += 1440;
+        if (_powerOverlap(r.cut.from, r.cut.cost.end, a, b) > 0 && skip.indexOf(x) < 0) skip.push(x);
+      });
+    });
+    var ot = powerDayOt(d, skip);
     if (!ot) return;
     out.affected++;
-    var lo = isoAddDays(d, -30), hi = isoAddDays(d, 30), near = clean.filter(function(x) { return x.d >= lo && x.d <= hi; });
-    if (near.length < 5) { out.noBase++; out.byDay[d] = { ot: ot, base: null }; return; }
+    var near = clean.filter(function(x) { return x.d.slice(0, 7) === d.slice(0, 7); });
+    if (near.length < 4) { out.noBase++; out.byDay[d] = { ot: ot, base: null }; return; }
     var base = { cost: numMedian(near.map(function(x) { return x.ot.cost; })), hours: numMedian(near.map(function(x) { return x.ot.hours; })) };
     var ownIdle = risk[d].filter(function(r) { return r.own; }).reduce(function(s, r) { return s + r.cut.cost.idleOt; }, 0);
     // Hand-hours above the usual, scaled down with the rupees when the day's own idle OT is taken off.
     var raw = ot.cost - base.cost, cost = Math.max(0, raw - ownIdle), hours = raw > 0 ? Math.max(0, ot.hours - base.hours) * cost / raw : 0;
     out.byDay[d] = { ot: ot, base: base, excess: cost, hours: hours, cuts: risk[d].length };
     if (!(cost > 0)) return;
-    out.above++; out.cost += cost; out.hours += hours;
+    out.above++;
     var tw = risk[d].reduce(function(s, r) { return s + r.w; }, 0);
     risk[d].forEach(function(r) { r.cut.cost.recOt += cost * r.w / tw; r.cut.cost.recHours += hours * r.w / tw; });
   });
   cuts.forEach(function(c) {
-    var k = c.cost;
+    var k = c.cost, idleHands = k.hands > 0 ? k.hands : k.handsAll;
+    var cap = k.inside * idleHands / 60;
+    if (k.recHours > cap + 1e-9) {
+      k.recOt = k.recHours > 0 ? k.recOt * cap / k.recHours : 0;
+      k.recHours = cap;
+      out.capped++;
+    }
     k.recOt = gstRound(k.recOt);
+    out.cost += k.recOt; out.hours += k.recHours;
     // The share of the cut's dark working time the overtime made up: its hand-hours over the hands the cut stood idle.
-    k.recovered = k.inside > 0 && k.hands > 0 ? Math.min(1, k.recHours * 60 / (k.inside * k.hands)) : 0;
+    k.recovered = k.inside > 0 && idleHands > 0 ? Math.min(1, k.recHours * 60 / (k.inside * idleHands)) : 0;
     _powerDamage(k);
   });
   out.cost = gstRound(out.cost);
@@ -30975,7 +31007,7 @@ function powerAnalysis() {
     options = [
       opt('ts', 'TSUISL supply switch', cfg.tsCapexLo, cfg.tsCapexHi, cfg.tsCapture, 0, 0, cfg.tsSaveMonth * 12, 'replaces the JBVNL feeder; the quote is still to come'),
       opt('inv', 'Inverter and battery', cfg.invCapexLo, cfg.invCapexHi, invCapture, cfg.invPerHour * year.workHours * invCapture, cfg.invYearly, 0,
-        'carries ' + formatNum(cfg.invHours, 0) + ' h a cut: ' + Math.round(invCapture * 100) + '% of the dark working minutes on record'),
+        Math.round(invCapture * 100) + '% of the dark working minutes on record fall within ' + formatNum(cfg.invHours, 0) + ' h of a cut; that it can carry the plating load that long is the 30 May estimate'),
       opt('gen', 'Diesel generator', cfg.genCapexLo, cfg.genCapexHi, cfg.genCapture, cfg.genPerHour * year.workHours, cfg.genYearly, 0, 'backs the grid up for any length of cut')
     ];
   }
@@ -31101,7 +31133,7 @@ function powerLoadHtml(a) {
   h += row('Load as billed', '<span class="inv-num">' + (L.sanctioned ? escHtml(formatNum(L.sanctioned, 0) + ' kVA') : '&mdash;') + '</span>', L.billedOn ? '<span class="inv-row-meta">' + escHtml(billsMonthLabel(L.billedOn) + ' bill') + '</span>' : '');
   h += row('Load approved', '<span class="inv-num">' + (L.approved ? escHtml(formatNum(L.approved, 0) + ' kVA') : '&mdash;') + '</span>', L.approvedOn ? '<span class="inv-row-meta">' + escHtml('since ' + formatDate(L.approvedOn)) + '</span>' : '');
   h += row('Peak drawn', '<span class="inv-num">' + (L.peak ? escHtml(formatNum(L.peak, 2) + ' kVA') : '&mdash;') + '</span>', L.peakMonth ? '<span class="inv-row-meta">' + escHtml(billsMonthLabel(L.peakMonth) + ' bill') + '</span>' : '');
-  if (L.pending) h += '<div class="inv-panel-body"><div class="inv-callout inv-callout-danger">' + escHtml(formatNum(L.approved, 0) + ' kVA was approved on ' + formatDate(L.approvedOn) + ' and the bill still charges for ' + formatNum(L.sanctioned, 0) +
+  if (L.pending) h += '<div class="inv-panel-body"><div class="inv-callout inv-callout-danger">' + escHtml(formatNum(L.approved, 0) + ' kVA was recorded as approved on ' + formatDate(L.approvedOn) + ' and the bill still charges for ' + formatNum(L.sanctioned, 0) +
     ' kVA. Over-limit penalty on the bills since: ' + formatCurrency(L.penaltySince) + '. Chase JBVNL' + (L.ref ? ' (ref ' + L.ref + ')' : '') + '.') + '</div></div>';
   if (L.note) h += '<div class="inv-panel-body inv-note">' + escHtml(L.note) + '</div>';
   h += '</div>';
@@ -31150,11 +31182,11 @@ function powerCaseHtml(a) {
   h += _pcP(escHtml(todoPlural(t.cuts, 'cut') + ' on record since ' + formatDate(a.first) + ', ' + powerHours(t.min) + ' dark' + (t.open ? ' and ' + t.open + ' more with no time back recorded' : '') +
     (t.overnight ? ' (' + t.overnight + ' ran overnight)' : '') + ', ' + powerHours(t.inside) + ' of it in working hours. Together they cost ' + formatCurrency(t.cost) + ': overtime to catch up the backlog ' +
     formatCurrency(t.recOt) + ', output never made up (its contribution) ' + formatCurrency(t.leftC) + ', platers’ wages that bought nothing ' + formatCurrency(t.leftI) + ', restarts ' + formatCurrency(t.restart) +
-    '. Counting everyone present, not only the floor, it is ' + formatCurrency(t.upper) + '. At full revenue the output at stake was ' + formatCurrency(t.lost) + ': the most the cuts could have cost, not what they did.'));
+    ' (the 30 May case’s ₹' + formatNum(a.cfg.restart, 0) + ' a cut, an estimate, not measured: without it the record measures ' + formatCurrency(gstRound(t.cost - t.restart)) + '). Counting everyone present, not only the floor, it is ' + formatCurrency(t.upper) + '. At full revenue the output at stake was ' + formatCurrency(t.lost) + ': the most the cuts could have cost, not what they did.'));
   if (y) h += _pcP(escHtml('At the last 90 days’ rate (' + y.cuts + ' cuts on ' + y.recorded + ' recorded days' + (y.quiet ? ', leaving out ' + y.quiet + ' days whose power was likely not reported' : '') + ') a year costs ' + formatCurrency(y.base) +
     (y.upper > y.base ? ' (' + formatCurrency(y.upper) + ' with everyone’s wages)' : '') +
     (y.low != null ? '; the complete months ran from ' + formatCurrency(y.low) + ' a year (' + billsMonthLabel(y.lowMonth) + ') to ' + formatCurrency(y.high) + ' (' + billsMonthLabel(y.highMonth) + ')' : '') + ', for about ' + formatNum(y.workHours, 0) + ' dark working hours.'));
-  if (L.pending) h += _pcP(escHtml('The connection is billed at ' + formatNum(L.sanctioned, 0) + ' kVA though ' + formatNum(L.approved, 0) + ' kVA was approved on ' + formatDate(L.approvedOn) +
+  if (L.pending) h += _pcP(escHtml('The connection is billed at ' + formatNum(L.sanctioned, 0) + ' kVA though ' + formatNum(L.approved, 0) + ' kVA was recorded as approved on ' + formatDate(L.approvedOn) +
     '; the over-limit penalty on the bills since is ' + formatCurrency(L.penaltySince) + (L.peak ? ', with a peak of ' + formatNum(L.peak, 2) + ' kVA' : '') + '.'));
   if (bestOpt) h += _pcP(escHtml('Of the three options, ' + bestOpt.label + ' pays back soonest: ' + _pcMonths(bestOpt.payLo) + ' to ' + _pcMonths(bestOpt.payHi) + '.'));
 
@@ -31185,14 +31217,15 @@ function powerCaseHtml(a) {
   var mg = a.margin, rv = a.recovery;
   h += _pcP(escHtml('A cut in working hours stops the line, and the work it stopped is either made up later, in overtime, or never made. Made up, the cut cost the overtime; never made, it cost the output’s contribution and the wages that bought nothing. A restart is paid either way.'));
   h += _pcTable([['Layer'], ['How it is worked out'], ['On record', 1]], [
-    ['Overtime to catch up', escHtml('the overtime paid on the cut’s day and the next working day, above the usual: the median of the clean recorded days within 30 days of it (' + rv.affected + ' days at risk, ' + rv.above + ' ran above the usual' +
-      (rv.noBase ? ', ' + rv.noBase + ' with too few clean days near them to judge' : '') + '). Shared among the cuts by their dark working minutes; it also sets the share of each cut made up (' + formatNum(t.recHours, 0) + ' hand-hours).'), formatCurrency(t.recOt)],
+    ['Overtime to catch up', escHtml('the overtime paid on the cut’s day and the next working day, above the usual: the median of the clean recorded days in the same month, since the record held different overtime from month to month (' + rv.affected + ' days at risk, ' + rv.above + ' ran above the usual' +
+      (rv.noBase ? ', ' + rv.noBase + ' with fewer than four clean days in their month to judge' : '') + '). A night hold is a shift and never counts, nor, on a cut’s own day, the EXTRA of the block the cut fell in. Shared among the cuts by their dark working minutes and capped at the hand-hours each cut stood idle' +
+      (rv.capped ? ' (' + rv.capped + ' capped)' : '') + ': ' + formatNum(t.recHours, 0) + ' hand-hours. An upper reading: a day running late for an urgent order reads the same.'), formatCurrency(t.recOt)],
     ['Output not made up', escHtml('minutes in a working window × ' + formatCurrency(a.rate.perHour) + ' an hour × ' + Math.round(mg.share * 100) + '% contribution, on the share not made up. ' +
       (mg.measured ? 'The contribution is realisation ' + formatCurrency(mg.real) + '/kg over the last 90 days less the variable cost, everything but the monthly crew (the zinc, chemicals and power lost output would have used are not bought): ' +
         formatCurrency(mg.varKg) + '/kg at the live cost (' + formatCurrency(mg.liveKg) + '/kg in all, ' + Math.round(mg.costShare * 100) + '% measured) gives ' + Math.round(mg.live * 100) + '%; ' +
         formatCurrency(mg.varTyped) + '/kg at the typed full cost of ' + formatCurrency(mg.typed) + '/kg gives ' + Math.round(mg.model * 100) + '%. The lower is used, so a thin record never makes a lost hour dearer.'
         : 'The contribution is the fallback in the options’ figures: no weighed tonnage in the last 90 days.')), formatCurrency(t.leftC)],
-    ['Wages that bought nothing', escHtml('platers present (VAT A1, VAT A2, barrel) whose own day or OT block covers the cut, at their hour rate, on the share not made up; ' + formatCurrency(t.leftIAll) + ' counting everyone present (pickling runs through a cut, so it is the upper end)'), formatCurrency(t.leftI)],
+    ['Wages that bought nothing', escHtml('platers present (VAT A1, VAT A2, barrel) whose own day or OT block covers the cut, at their hour rate, on the share not made up (a monthly plater’s wage is in the fixed cost the contribution leaves out, so this is that cost standing idle, not counted twice); ' + formatCurrency(t.leftIAll) + ' counting everyone present (pickling runs through a cut, so it is the upper end)'), formatCurrency(t.leftI)],
     ['Restarts', escHtml(formatCurrency(a.cfg.restart) + ' a cut in a working window, the 30 May case’s estimate: bath and line back to work'), formatCurrency(t.restart)]
   ], ['Damage', '', formatCurrency(t.cost)]);
   h += _pcTable([['Shown, not added'], ['Why'], ['On record', 1]], [
@@ -31223,7 +31256,7 @@ function powerCaseHtml(a) {
   h += _pcTable([['Month'], ['Billed at', 1], ['Peak', 1], ['Penalty', 1], ['Fixed', 1], ['Bill', 1]], L.bills.map(function(b) {
     return [escHtml(billsMonthLabel(b.month)), b.kvaBilled ? formatNum(b.kvaBilled, 0) + ' kVA' : '—', b.md ? formatNum(b.md, 2) + ' kVA' : '—', b.penalty != null ? formatCurrency(b.penalty) : '—', b.fixed ? formatCurrency(b.fixed) : '—', formatCurrency(b.amount)];
   }));
-  h += _pcP(escHtml(L.approved ? (L.pending ? formatNum(L.approved, 0) + ' kVA approved on ' + formatDate(L.approvedOn) + ', not yet on the bill: ' + formatCurrency(L.penaltySince) + ' of over-limit penalty since.' : formatNum(L.approved, 0) + ' kVA approved' + (L.sanctioned >= L.approved ? ' and billed.' : '.')) : 'No load recorded: Power → Load & bills → Edit load.') +
+  h += _pcP(escHtml(L.approved ? (L.pending ? formatNum(L.approved, 0) + ' kVA recorded as approved on ' + formatDate(L.approvedOn) + ', not yet on the bill: ' + formatCurrency(L.penaltySince) + ' of over-limit penalty since.' : formatNum(L.approved, 0) + ' kVA approved' + (L.sanctioned >= L.approved ? ' and billed.' : '.')) : 'No load recorded: Power → Load & bills → Edit load.') +
     ' Any backup or new connection is sized to this load: the options below assume the 50 kVA the plant draws.');
 
   // 7. The options
@@ -31241,7 +31274,7 @@ function powerCaseHtml(a) {
   var ts = (a.options || []).find(function(o) { return o.key === 'ts'; }), inv = (a.options || []).find(function(o) { return o.key === 'inv'; });
   h += _pcP(escHtml('The 30 May case stands on the record: pursue the TSUISL switch first, since it is the only option that replaces the JBVNL feeder rather than backing it up' +
     (ts && ts.payLo != null ? ' (paying back in ' + _pcMonths(ts.payLo) + ' to ' + _pcMonths(ts.payHi) + ' at today’s rate)' : '') + ', and quote an inverter in parallel as Plan B' +
-    (inv ? ' (it would have carried ' + Math.round(a.invCapture * 100) + '% of the dark minutes on record)' : '') + '. ' +
+    (inv ? ' (' + Math.round(a.invCapture * 100) + '% of the dark working minutes on record fall within its hours)' : '') + '. ' +
     (L.pending ? 'Before either, get the approved ' + formatNum(L.approved, 0) + ' kVA onto the bill: the penalty is money spent every month for nothing, and every option is sized to that load.' : '')));
 
   // 9. Open items
@@ -35009,7 +35042,7 @@ if (!S._cnSeriesStart1) {
   // Only on a book that keeps electricity bills: the load is this connection's, and a book with none (a new device before
   // its import, a test) has no connection to speak for yet. The flag waits until there is one.
   if (!(S.costBills || []).some(function(b) { return b.kind === 'power' && !b.voided; })) return;
-  if (!(p.load.sanctioned || p.load.approved)) p.load = { sanctioned: 25, approved: 50, approvedOn: '2026-05-18', ref: '', note: 'Approved 18 May 2026; still billed at 25 kVA as of the June bill (owner, 30 Sep 2026: about ₹5,000 a month over-limit penalty).', at: Date.now() };
+  if (!(p.load.sanctioned || p.load.approved)) p.load = { sanctioned: 25, approved: 50, approvedOn: '2026-05-18', ref: '', note: 'Recorded as approved on 18 May 2026 (no approval letter or reference on file). Billed at 25 kVA on the May bill; owner, 30 Sep 2026: the bill still shows 25, and about ₹5,000 a month is paid over the limit (their statement, not a bill figure).', at: Date.now() };
   S._powerLoad1 = true;
   saveJSON(STORAGE_KEY, S);
 })();

@@ -1650,14 +1650,23 @@ keeps it current, and `soma-internal/reports/power-cut-case-2026-09-30.md` is th
   take into assumption OT that we had to do following the power cut due to the backlog of material it creates"*). The work a
   cut stops is either made up in overtime or never made. Made up, the cut cost that overtime; never made, it cost the
   output's contribution and the wages that bought nothing. A restart (₹600 in a working window, the 30 May estimate) is paid
-  either way. So damage = restart + catch-up overtime + (1 − share made up) × (contribution + platers' idle wages).
+  either way (**an estimate, not measured**, and said beside the total). So damage = restart + catch-up overtime + (1 − share made up) × (contribution + platers' idle wages).
   - **Catch-up overtime** (`powerRecovery`): a cut in working hours puts its own day and the next working day at risk. Each
     such day's overtime (`powerDayOt`: monthly and daily hands' OT at their overtime rate, an hourly hand's hours past eight,
-    and the EXTRA on every OT or night block; the general shift's EXTRA covers a missing hand, not carried-over work, and is
-    left out) is set against the median of the clean recorded days within 30 days, since the record's overtime changes over
-    the months. What is above it is shared among the cuts by their dark working minutes, after taking off the idle wages
-    already counted for a cut inside a block. **An upper reading**: a day running late for an urgent order reads the same.
-    The share made up is those hand-hours over the platers the cut stood idle.
+    and the EXTRA on OT blocks; the general shift's EXTRA covers a missing hand, not carried-over work, and is left out) is
+    set against the median of the clean recorded days **in the same month**, at least four. What is above it is shared
+    among the cuts by their dark working minutes, after taking off the idle wages already counted for a cut past the shift.
+    **The Governors' re-audit bounded it** (N-1, N-2):
+    - **Each cut's share is capped at the hand-hours it stood idle**: a 13-minute cut had been billed 30.
+    - **A night hold is a shift and never counts** (`powerIsNightBlock`: from 8 PM, or on past midnight into the morning;
+      owner, *"night hold is night shift"*).
+    - **Nor does the EXTRA of the block a cut fell in.**
+    - **The baseline is the cut's own month.** The record held different overtime from month to month: block EXTRA was 21 h
+      in May and 573 in August, and the monthly crew's OT was recorded only from September. A ±30-day baseline measured
+      that change.
+
+    It is still **an upper reading**: a day running late for an urgent order reads the same. The share made up is those
+    hand-hours over the platers the cut stood idle (everyone present where no plater is recorded).
   - **Contribution**, not revenue: realisation less the variable cost (everything but the monthly crew) over the last 90
     days, read at the live cost and at the typed full cost less the same crew; **the lower share is used** (`powerMargin`).
     On the real book the live cost read ₹4.65/kg with chemicals recorded at ₹0.16/kg, which would have made a lost hour

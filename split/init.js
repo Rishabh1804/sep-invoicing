@@ -492,7 +492,7 @@ if (!S._cnSeriesStart1) {
   // Only on a book that keeps electricity bills: the load is this connection's, and a book with none (a new device before
   // its import, a test) has no connection to speak for yet. The flag waits until there is one.
   if (!(S.costBills || []).some(function(b) { return b.kind === 'power' && !b.voided; })) return;
-  if (!(p.load.sanctioned || p.load.approved)) p.load = { sanctioned: 25, approved: 50, approvedOn: '2026-05-18', ref: '', note: 'Approved 18 May 2026; still billed at 25 kVA as of the June bill (owner, 30 Sep 2026: about ₹5,000 a month over-limit penalty).', at: Date.now() };
+  if (!(p.load.sanctioned || p.load.approved)) p.load = { sanctioned: 25, approved: 50, approvedOn: '2026-05-18', ref: '', note: 'Recorded as approved on 18 May 2026 (no approval letter or reference on file). Billed at 25 kVA on the May bill; owner, 30 Sep 2026: the bill still shows 25, and about ₹5,000 a month is paid over the limit (their statement, not a bill figure).', at: Date.now() };
   S._powerLoad1 = true;
   saveJSON(STORAGE_KEY, S);
 })();

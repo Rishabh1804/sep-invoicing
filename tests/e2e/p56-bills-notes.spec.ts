@@ -50,6 +50,10 @@ test('a closed month with no electricity bill is listed, and Add fills in that m
   await page.locator('#costBillUnits').fill('7100');
   await page.locator('[data-action="invCostBillSave"]').click();
   await expect(page.locator(`[data-missing="${m}"]`)).toHaveCount(0);
+  // The form stays for the next bill, on the next month with none, the figures cleared (P117).
+  await expect(page.locator('#costBillMonth')).not.toHaveValue(m);
+  await expect(page.locator('#costBillAmount')).toHaveValue('');
+  await expect(page.locator('[data-action="invCostBillCancel"]')).toHaveText('Close');
   await expect(page.locator('#billsPower [data-bill]')).toContainText('Electricity');
   const bills = (await readStoredState(page)).costBills;
   expect(bills).toHaveLength(1);
@@ -91,8 +95,9 @@ test('a note already issued is recorded with its own number, and that number is 
   expect(s.creditNotes[0]).toMatchObject({ cnNumber: '004', kind: 'rebate', recorded: true, againstInvoice: '000443', grandTotal: 4424.16 });
   expect(s.cnNextNum).toBeGreaterThanOrEqual(5);
 
-  // The same number again is refused.
-  await page.locator('[data-action="invCnFormOpen"][data-mode="record"]').click();
+  // The form stays for the next note, on the same client (P117); the same number again is refused.
+  await expect(page.locator('#cnfNum')).toHaveValue('');
+  await expect(page.locator('#cnfClient')).toHaveValue('1');
   await page.locator('#cnfNum').fill('4');
   await page.locator('#cnfClient').selectOption('1');
   await page.locator('#cnfInv').selectOption('__typed');
@@ -186,7 +191,7 @@ test('a note recorded from an earlier year holds no number in this year\'s serie
   await loadAppWithState(page, s0);
   await openBills(page);
   const record = async (num: string, fy: string, invNo: string) => {
-    await page.locator('[data-action="invCnFormOpen"][data-mode="record"]').click();
+    if (!(await page.locator('#cnfNum').count())) await page.locator('[data-action="invCnFormOpen"][data-mode="record"]').click();
     await page.locator('#cnfNum').fill(num);
     await page.locator('#cnfFy').fill(fy);
     await page.locator('#cnfClient').selectOption('1');

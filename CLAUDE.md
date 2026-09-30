@@ -230,6 +230,22 @@ layouts; builders fixed each area with its spec (P104–P113). What it leaves as
   night shift"* on the in-time roll too; a correction on a new invoice reaches its challan with a note; Home nets credit notes and
   says so.
 
+**Entering several at a sitting stays on the form** (owner, 30 Sep 2026: *"when entering by hand, the page reloads to the base screen
+after every entry, instead of staying there for multiple entry … Check for these page jumping back to the base page on some action bug
+across the app"*). A save on a form that is filled many times in a row keeps the form, carries over what repeats and clears the figures:
+- **Production and Power by hand** (`prodSaveHand`): the kind, day, line, shift, client and unit stay; what was saved is listed under the
+  form (*Saved from this form*) with Correct and Void; **Done** leaves, back to Power when it was opened from Power's *Enter a cut*. A
+  correction is one entry and still goes back.
+- **Stock by hand** (`stockSaveManual`): the form stays on its day and lists **everything the day holds** (`stockDayEntriesHtml`, pasted or
+  by hand, with the level each line was left at); another date is checked by picking it. **An entry is corrected, never edited**
+  (`stockCorrect`): it is voided saying what it became, and a copy with the right quantity names it (`corrects`).
+- **A challan**: *Save, add another* opens the next on the same client, date and vehicle. **An electricity or other bill** stays open on the
+  next month with no bill of its kind. **A credit note recorded from paper** stays on its client and reason (a new note still opens its
+  preview). **Staff → Pay** keeps the last payment's date (within the week) and kind. **Finance → Payments → Not yet sorted → Sort**
+  comes back to that list once the payee is set.
+- **A part-invoiced challan shows what is left to bill** on Awaiting invoice (`imChallanOpenTotal`), the whole beside it; its lines and its
+  detail say both. P117.
+
 **A `<select>` speaks through `change`, never `click`.** Giving a filter control a
 `data-action` meant the click that *opens* it ran the handler — and if that handler
 re-renders the toolbar, the element the native popup hangs off is replaced and the list

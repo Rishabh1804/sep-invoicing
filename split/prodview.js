@@ -607,17 +607,20 @@ function prodSavePhoto() {
 }
 
 /* ---------- By hand ---------- */
-function prodOpenHand(fromId) {
+function prodOpenHand(fromId, from) {
   var src = fromId ? prodIndex().byId[fromId] : null;
   _prodHand = src ? { kind: src.kind, date: src.date, time: src.time || '', to: src.to || '', line: src.line || '', clientId: src.clientId != null ? String(src.clientId) : '', part: src.part || '',
     qty: src.qty != null ? String(src.qty) : '', unit: src.unit || 'NOS', rework: !!src.rework, slot: src.slot === 'ot' || src.slot === 'day' ? src.slot : 'general', replaces: src.id }
     : { kind: 'plated', date: localDateStr(), time: '', to: '', line: 'vat-a1', clientId: '', part: '', qty: '', unit: 'NOS', rework: false, slot: 'general', replaces: null };
+  _prodHand.from = from || null;   // 'power': opened from Power's Enter a cut, and its way back is Power
+  _prodHand.saved = [];            // the entries saved from this form, listed under it
   prodSetView('hand');
 }
 function prodHandHtml() {
   var f = _prodHand;
   var field = function(id, label, input) { return '<div class="inv-field"><label class="inv-field-label" for="' + id + '">' + label + '</label>' + input + '</div>'; };
-  var h = prodBackBar(f.replaces ? 'Correct an entry' : 'Enter by hand');
+  var h = f.from === 'power' ? '<div class="inv-pagehead"><button class="inv-btn inv-btn-ghost inv-btn-sm inv-pagehead-back" data-action="invProdHandDone">' + STOCK_BACK_ICON + 'Power</button>' +
+      '<h2 class="inv-pagehead-title">Enter power cuts</h2></div>' : prodBackBar(f.replaces ? 'Correct an entry' : 'Enter by hand');
   if (f.replaces) h += '<div class="inv-callout inv-callout-info">This entry takes the place of the one corrected, which stays on the record, marked corrected.</div>';
   else h += '<div class="inv-seg inv-mb-8" role="group" aria-label="What is entered">' + [['plated', 'Plated'], ['pickled', 'Pickled'], ['arrived', 'Arrived'], ['downtime', 'Power cut']].map(function(o) {
     return '<button type="button" class="inv-seg-btn" data-action="invProdHandKind" data-kind="' + o[0] + '" aria-pressed="' + (f.kind === o[0]) + '">' + o[1] + '</button>'; }).join('') + '</div>';
@@ -638,9 +641,23 @@ function prodHandHtml() {
       field('prodHandUnit', 'Unit', '<select id="prodHandUnit" class="inv-select" data-prod-hand="unit"><option value="NOS"' + (f.unit === 'NOS' ? ' selected' : '') + '>NOS</option><option value="KG"' + (f.unit === 'KG' ? ' selected' : '') + '>kg</option></select>') +
       '<label class="inv-field-check"><input type="checkbox" class="inv-check" id="prodHandRework" data-prod-hand="rework"' + (f.rework ? ' checked' : '') + '><span>Rework (counted as work, never as billing)</span></label>';
   }
-  h += '</div></div><div class="inv-actionbar"><div class="inv-actionbar-total"><div class="inv-actionbar-label">' + escHtml({ plated: 'Plated', pickled: 'Pickled', arrived: 'Arrived', downtime: 'Power cut' }[f.kind]) + ' on</div>' +
+  h += '</div></div>';
+  // Entries are entered by hand several at a time (owner, 30 Sep 2026: the page went back to the base screen after every
+  // one), so the form stays open after a save and lists what was saved from it, each with its Correct and Void.
+  var idx = prodIndex(), saved = (f.saved || []).map(function(id) { return idx.byId[id]; }).filter(Boolean);
+  if (saved.length) h += '<div class="inv-panel inv-panel-flush inv-mt-8" data-card="prodHandSaved"><div class="inv-panel-head"><span class="inv-panel-title">Saved from this form</span><span class="inv-panel-count">' + saved.length + '</span>' +
+    '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invProdHandDone">Done</button></div>' +
+    saved.slice().reverse().map(function(e) { return prodEntryRowHtml(e, idx); }).join('') + '</div>';
+  h += '<div class="inv-actionbar"><div class="inv-actionbar-total"><div class="inv-actionbar-label">' + escHtml({ plated: 'Plated', pickled: 'Pickled', arrived: 'Arrived', downtime: 'Power cut' }[f.kind]) + ' on</div>' +
     '<div class="inv-actionbar-value">' + escHtml(stockShortDate(f.date)) + '</div></div><button class="inv-btn inv-btn-primary" data-action="invProdSaveHand">Save</button></div>';
   return h;
+}
+/* Leaving the hand form: back to where it was opened from. */
+function prodHandDone() {
+  var from = _prodHand && _prodHand.from;
+  _prodHand = null;
+  if (from === 'power') { _prodView = 'main'; switchTab('pagePower'); return; }
+  prodSetView('main');
 }
 function prodSaveHand() {
   var f = _prodHand;
@@ -663,9 +680,21 @@ function prodSaveHand() {
   p.entries.push(prodSparse(e));
   prodTouch();
   saveState();
-  _prodHand = null;
-  prodSetView('main');
-  showToast(src ? 'Correction saved; the entry it corrects is kept, marked corrected' : 'Saved', 'success');
+  if (src) {   // a correction is one entry: back to where it was opened from
+    var from = f.from; _prodHand = null;
+    if (from === 'power') { _prodView = 'main'; switchTab('pagePower'); }
+    else prodSetView('main');
+    showToast('Correction saved; the entry it corrects is kept, marked corrected', 'success');
+    return;
+  }
+  // The form stays for the next entry: the kind, day, line, shift, client and unit carry over; the figures clear.
+  f.saved.push(e.id);
+  f.time = ''; f.to = ''; f.part = ''; f.qty = ''; f.rework = false;
+  _pageTyped = false;
+  renderProduction();
+  var next = document.getElementById(f.kind === 'downtime' ? 'prodHandTime' : 'prodHandPart');
+  if (next && !('ontouchstart' in window)) try { next.focus(); } catch (x) { /* focus is a convenience */ }
+  showToast((f.kind === 'downtime' ? 'Power cut saved' : 'Saved') + ' · enter the next, or Done', 'success');
 }
 
 /* ---------- Void, set a line ---------- */
@@ -736,6 +765,7 @@ function prodAction(action, btn) {
     case 'invProdCorrect': prodOpenHand(btn.dataset.id); return true;
     case 'invProdHandKind': _prodHand.kind = btn.dataset.kind; renderProduction(); return true;
     case 'invProdSaveHand': prodSaveHand(); return true;
+    case 'invProdHandDone': prodHandDone(); return true;
     case 'invProdVoid': prodVoid(btn.dataset.id); return true;
     case 'invProdUseLine': prodUseLine(btn.dataset.id, btn.dataset.line); return true;
     case 'invProdExport': prodExport(); return true;

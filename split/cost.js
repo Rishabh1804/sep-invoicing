@@ -595,7 +595,7 @@ function costBillFormHtml() {
   var o = _costBillOpen || {}, m = o.month || localDateStr().slice(0, 7);
   return '<div class="inv-fields">' +
     '<label class="inv-field"><span class="inv-field-label">Kind</span><select class="inv-select" id="costBillKind">' +
-    '<option value="power">Electricity</option><option value="other">Consumables, ETP, maintenance</option></select></label>' +
+    '<option value="power">Electricity</option><option value="other"' + (o.kind === 'other' ? ' selected' : '') + '>Consumables, ETP, maintenance</option></select></label>' +
     '<label class="inv-field"><span class="inv-field-label">Month it covers</span><input class="inv-input" id="costBillMonth" type="month" value="' + escHtml(m) + '"></label>' +
     '<label class="inv-field"><span class="inv-field-label">Amount, before GST</span><input class="inv-input inv-input-num" id="costBillAmount" type="number" step="0.01" min="0" inputmode="decimal"></label>' +
     '<label class="inv-field"><span class="inv-field-label">Units (electricity)</span><input class="inv-input inv-input-num" id="costBillUnits" type="number" step="1" min="0" inputmode="numeric"></label>' +
@@ -603,7 +603,8 @@ function costBillFormHtml() {
     '<label class="inv-field"><span class="inv-field-label">Month the arrears are for</span><input class="inv-input" id="costBillArrearsOf" type="month"></label>' +
     '<label class="inv-field"><span class="inv-field-label">Penalty or extra charge in it</span><input class="inv-input inv-input-num" id="costBillPenalty" type="number" step="0.01" min="0" inputmode="decimal" placeholder="0"></label>' +
     '<label class="inv-field inv-kv-wide"><span class="inv-field-label">Note</span><input class="inv-input" id="costBillNote" placeholder="e.g. JBVNL bill, ETP sludge"></label></div>' +
-    '<div class="inv-toolbar"><button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invCostBillCancel">Cancel</button>' +
+    (o.saved ? '<div class="inv-note">' + o.saved + (o.saved === 1 ? ' bill' : ' bills') + ' saved from this form. The next month is filled in.</div>' : '') +
+    '<div class="inv-toolbar"><button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invCostBillCancel">' + (o.saved ? 'Close' : 'Cancel') + '</button>' +
     '<button class="inv-btn inv-btn-primary inv-btn-sm" data-action="invCostBillSave">Save bill</button></div>';
 }
 function costBillRedraw(where) { if (where === 'finance') renderFinance(); else renderStats(); }
@@ -634,10 +635,17 @@ async function costBillSave() {
   costBills().push({ id: 'CB-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), kind: kind, month: month, amount: amount,
     units: units > 0 ? units : null, arrears: arrears > 0 ? arrears : null, arrearsOf: arrears > 0 && arrearsOf ? arrearsOf : null,
     penalty: penalty > 0 ? penalty : null, note: v('costBillNote'), at: Date.now() });
-  var where = (_costBillOpen || {}).where;
-  _costBillOpen = false;
+  // The form stays open for the next bill (bills are back-filled a month at a time): the same kind, the next month with
+  // no bill of that kind, the figures cleared.
+  var was = _costBillOpen || {}, next = month;
+  for (var i = 0; i < 24; i++) {
+    next = isoAddDays(next + '-01', 32).slice(0, 7);
+    var nk = next;
+    if (!costBills().some(function(b) { return b.kind === kind && !b.voided && b.month === nk; })) break;
+  }
+  _costBillOpen = { where: was.where, month: next, kind: kind, saved: (was.saved || 0) + 1 };
   saveState();
-  costBillRedraw(where);
+  costBillRedraw(was.where);
   showToast(COST_BILL_KINDS[kind] + ' bill saved for ' + month);
 }
 async function costBillVoid(id, where) {

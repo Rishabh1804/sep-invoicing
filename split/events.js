@@ -232,7 +232,8 @@ function onDocClick(e) {
     case 'invRegQualityCerts': showQualityCertificates(_regSelectedIds()); break;
     // Phase 4: IM Add Challan
     case 'invShowAddChallan': showAddChallanForm(); break;
-    case 'invSaveChallan': saveChallan(); break;
+    case 'invSaveChallan': if (_challanForm) _challanForm._another = false; saveChallan(); break;
+    case 'invSaveChallanNext': if (_challanForm) _challanForm._another = true; saveChallan(); break;
     case 'invCancelChallan': cancelAddChallan(); break;
     case 'invAddChallanLine': captureChallanFields(); addChallanLine(); break;
     case 'invRemoveChallanLine': captureChallanFields(); removeChallanLine(parseInt(btn.dataset.idx)); break;

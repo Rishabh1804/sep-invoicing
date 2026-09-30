@@ -181,12 +181,16 @@ test.describe('P39: stock', () => {
     await expect(page.locator('.inv-toast')).toContainText('Enter the invoice number');
     await page.locator('#stockManBill').fill('SA/101');
     await page.locator('[data-action="invStockSaveManual"]').click();
+    // The form stays on the day, with what was saved listed under it (P117).
+    await expect(page.locator('#stockDayEntries')).toContainText('Received 60');
+    await page.locator('[data-action="invStockBack"]').first().click();
     await expect(page.locator('#stockLines [data-action="invStockOpen"]').filter({ hasText: 'Q558' })).toContainText('60');
 
     await page.locator('[data-action="invStockManual"]').click();
     await page.locator(`[data-stock-qty="${q558}"]`).fill('55');
     await page.locator('[data-action="invStockSaveManual"]').click();
     await expect(page.locator('.inv-toast')).toContainText('1 count differs from the app');
+    await page.locator('[data-action="invStockBack"]').first().click();
 
     await page.locator('#stockLines [data-action="invStockOpen"]').filter({ hasText: 'Q558' }).click();
     await expect(page.locator('#stockEntries [data-entry]').first()).toContainText('The app expected 60 (-5 unexplained)');

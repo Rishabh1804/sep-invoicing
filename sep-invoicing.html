@@ -18,7 +18,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <!-- Appearance before first paint (§3.2): the device's theme and palette, so nothing flashes in the wrong colours. -->
 <script>(function(){try{var d=document.documentElement,t=localStorage.getItem("sep_inv_theme"),p=localStorage.getItem("sep_inv_palette");if(t==="light"||t==="dark")d.dataset.theme=t;d.dataset.palette=(p==="zinc"||p==="terracotta")?p:"teal";}catch(e){document.documentElement.dataset.palette="teal";}})();</script>
-<meta name="app-build" content="b27a9119">
+<meta name="app-build" content="8e8fdc2f">
 <style>
 /* ===== DESIGN TOKENS (design system v2.0 — docs/SEP_INVOICING_DESIGN_PRINCIPLES.md §3) ===== */
 /* Theme: colour-scheme decides every light-dark() below. <html data-theme> is set before first paint
@@ -11083,9 +11083,7 @@ function getFilteredIM() {
           case 'date': va = a.challanDate || ''; vb = b.challanDate || ''; return va < vb ? -dir : va > vb ? dir : 0;
           case 'items': return dir * (a.items.length - b.items.length);
           case 'amount': {
-            var ta = a.items.reduce(function(s, it) { return s + (it.amount || 0); }, 0);
-            var tb = b.items.reduce(function(s, it) { return s + (it.amount || 0); }, 0);
-            return dir * (ta - tb);
+            return dir * (imShownAmount(a) - imShownAmount(b));
           }
           case 'status': {
             var so = { pending: 0, partial: 1, invoiced: 2 };
@@ -11166,7 +11164,7 @@ function renderIMList() {
           day = im.challanDate;
           var same = list.filter(function(x) { return x.challanDate === day; });
           imRows.push({ head: true, parts: ['<div class="inv-row-group"><span>' + (day ? escHtml(formatDate(day)) : 'No date') + ' · ' + same.length + '</span>' +
-            '<span class="inv-num">' + formatCurrency(same.reduce(function(s, x) { return s + imChallanTotal(x); }, 0)) + '</span></div>'] });
+            '<span class="inv-num">' + formatCurrency(gstRound(same.reduce(function(s, x) { return s + imShownAmount(x); }, 0))) + '</span></div>'] });
         }
         var status = getIMStatus(im), expanded = !!_imExpanded[im.id];
         var pendingItems = im.items.filter(function(it) { return !it.invoiced; });
@@ -11179,7 +11177,7 @@ function renderIMList() {
           '<button class="inv-row-main inv-row-expander" data-action="invToggleIM" data-id="' + id + '" aria-expanded="' + expanded + '">' +
           '<span class="inv-row-title"><span class="inv-id">' + escHtml(imChallanLabel(im)) + '</span> · ' + escHtml(im.clientName) + '</span>' +
           '<span class="inv-row-meta">' + (im.vehicleNo ? escHtml(im.vehicleNo) + ' · ' : '') + im.items.length + ' item' + (im.items.length !== 1 ? 's' : '') + '</span></button>' +
-          '<span class="inv-row-end"><span class="inv-row-stack"><span class="inv-num">' + formatCurrency(imChallanTotal(im)) + '</span>' + imStatusDotHtml(im) + '</span></span></div>');
+          '<span class="inv-row-end"><span class="inv-row-stack">' + imAmountHtml(im) + imStatusDotHtml(im) + '</span></span></div>');
         if (expanded) {
           var kids = '<div class="inv-row-children">' + im.items.map(_imItemRowHtml).join('');
           var acts = _imActionsHtml(im, false);
@@ -11251,7 +11249,7 @@ function _buildIMTableHtml() {
       '<td class="inv-id inv-col-opt3">' + escHtml(formatDate(im.challanDate)) + '</td>' +
       '<td class="inv-id inv-col-opt2">' + escHtml(im.vehicleNo || '') + '</td>' +
       '<td class="inv-num inv-col-opt2">' + im.items.length + '</td>' +
-      '<td class="inv-num">' + formatCurrency(imChallanTotal(im)) + '</td>' +
+      '<td class="inv-num"><span class="inv-row-stack">' + imAmountHtml(im) + '</span></td>' +
       '<td>' + imStatusDotHtml(im) + '</td></tr>';
   });
   return html + '</tbody></table>';
@@ -11315,6 +11313,20 @@ function imStatusDotHtml(im) {
 }
 
 function imChallanTotal(im) { return im.items.reduce(function(s, it) { return s + (Number(it.amount) || 0); }, 0); }
+/* What a challan still has to bill: the open share of every line (owner, 30 Sep 2026: a part-invoiced challan showed the
+   whole challan's amount under Awaiting invoice). */
+function imChallanOpenTotal(im) { return gstRound(im.items.reduce(function(s, it) { return s + imLineOpen(it).amount; }, 0)); }
+/* The amount a challan shows in a list: on Awaiting invoice what is left to bill, and on a part-invoiced challan the
+   whole beside it; on Invoiced, the whole. */
+function imShownAmount(im) { return _imTab === 'invoiced' || imIsBilled(im) ? imChallanTotal(im) : imChallanOpenTotal(im); }
+function imPartInvoiced(im) { return !imIsBilled(im) && im.items.some(imLineBilled); }
+function imAmountHtml(im) {
+  if (_imTab !== 'invoiced' && imPartInvoiced(im)) {
+    return '<span class="inv-num" title="Left to bill, of ' + escHtml(formatCurrency(imChallanTotal(im))) + ' on the challan">' + formatCurrency(imChallanOpenTotal(im)) + '</span>' +
+      '<span class="inv-row-meta" data-im-of>left of ' + formatCurrency(imChallanTotal(im)) + '</span>';
+  }
+  return '<span class="inv-num">' + formatCurrency(imChallanTotal(im)) + '</span>';
+}
 
 function _imSummaryHtml(filtered) {
   if (_imTab === 'invoiced') return '';   // the month's pager says how many and how much
@@ -11354,7 +11366,9 @@ function _imItemRowHtml(it) {
       return '<span class="inv-row-meta inv-row-wrap" data-im-correction><span class="inv-dot inv-dot-info">Corrected</span> ' +
         escHtml(challanCorrectionText(it, cx) + ' · ' + formatDate(isoOf(new Date(cx.at)))) + '</span>';
     }).join('') + (tag ? '<span class="inv-row-meta inv-row-wrap" data-im-invoices>' + tag + '</span>' : '') + '</span>' +
-    '<span class="inv-row-end inv-num">' + formatCurrency(it.amount) + '</span></div>';
+    (imLineBilled(it) && !it.invoiced
+      ? '<span class="inv-row-end"><span class="inv-row-stack"><span class="inv-num" title="Left to bill">' + formatCurrency(imLineOpen(it).amount) + '</span><span class="inv-row-meta">left of ' + formatCurrency(it.amount) + '</span></span></span></div>'
+      : '<span class="inv-row-end inv-num">' + formatCurrency(it.amount) + '</span></div>');
 }
 
 /* Edit and delete while nothing on the challan is billed; once a line is, the edit says why not. */
@@ -11386,7 +11400,8 @@ function challanDetailHtml(im) {
     '</div>';
   h += '<div class="inv-panel inv-panel-flush"><div class="inv-row-group"><span>Lines · ' + im.items.length + '</span></div>' +
     im.items.map(_imItemRowHtml).join('') +
-    '<div class="inv-row inv-row-strong"><span class="inv-row-main">Total</span><span class="inv-row-end inv-num">' + formatCurrency(imChallanTotal(im)) + '</span></div></div>';
+    '<div class="inv-row inv-row-strong"><span class="inv-row-main">Total</span><span class="inv-row-end inv-num">' + formatCurrency(imChallanTotal(im)) + '</span></div>' +
+    (imPartInvoiced(im) ? '<div class="inv-row inv-row-strong" data-im-left><span class="inv-row-main">Left to bill</span><span class="inv-row-end inv-num">' + formatCurrency(imChallanOpenTotal(im)) + '</span></div>' : '') + '</div>';
   var acts = _imActionsHtml(im, true);
   return h + (acts ? '<div class="inv-toolbar">' + acts + '</div>' : '');
 }
@@ -17925,14 +17940,15 @@ function _payCarriedHtml(d) {
   return h;
 }
 
+var _payLast = null;   // the kind and date of the last payment recorded, carried to the next (several go in at a sitting)
 function _payFormHtml(d) {
   var today = localDateStr();
-  var defDate = today >= d.weekStart && today <= d.sat ? today : d.sat;
+  var defDate = _payLast && _payLast.date >= d.weekStart && _payLast.date <= d.sat ? _payLast.date : today >= d.weekStart && today <= d.sat ? today : d.sat;
   var f = function(id, label, control) { return '<div class="inv-field"><label class="inv-field-label" for="' + id + '">' + label + '</label>' + control + '</div>'; };
   return '<div class="inv-row-group">Record a payment</div><div class="inv-panel-body" id="payForm"><div class="inv-fields">' +
     f('payWorker', 'Worker', '<select class="inv-select" id="payWorker"><option value="">Select&hellip;</option>' +
       d.rows.map(function(r) { return '<option value="' + escHtml(r.w.id) + '">' + escHtml(r.w.name) + '</option>'; }).join('') + '</select>') +
-    f('payKind', 'Kind', '<select class="inv-select" id="payKind"><option value="payment">Payment</option><option value="advance">Advance</option></select>') +
+    f('payKind', 'Kind', '<select class="inv-select" id="payKind"><option value="payment">Payment</option><option value="advance"' + (_payLast && _payLast.kind === 'advance' ? ' selected' : '') + '>Advance</option></select>') +
     f('payAmount', 'Amount', '<input class="inv-input inv-input-num" id="payAmount" type="number" step="0.01" min="0" inputmode="decimal">') +
     f('payDate', 'Date', '<input class="inv-input inv-id" id="payDate" type="date" value="' + defDate + '">') +
     '</div>' + f('payNote', 'Note', '<input class="inv-input" id="payNote" placeholder="optional">') +
@@ -18176,6 +18192,7 @@ function paySave() {
   staffPayments().push({ id: 'PAY-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), staffId: w.id, date: date, amount: amount,
     kind: (document.getElementById('payKind') || {}).value === 'advance' ? 'advance' : 'payment',
     note: ((document.getElementById('payNote') || {}).value || '').trim(), at: Date.now() });
+  _payLast = { date: date, kind: staffPayments()[staffPayments().length - 1].kind };
   saveState();
   renderAttendance();
   showToast('Recorded ' + formatCurrency(amount) + ' to ' + w.name);
@@ -19234,10 +19251,34 @@ function renderStockManual() {
     '<input id="stockNewName" class="inv-input inv-toolbar-item" placeholder="Name, e.g. Chromic acid" aria-label="New line name" autocomplete="off">' +
     '<select id="stockNewUnit" class="inv-select inv-select-sm" aria-label="Unit"><option value="kg">kg</option><option value="L">L</option><option value="nos">nos</option></select>' +
     '<button class="inv-btn inv-btn-secondary" data-action="invStockAddLine">Add</button></div></div></div>';
+  h += stockDayEntriesHtml(m.date);
   h += '<div class="inv-actionbar"><div class="inv-actionbar-total"><div class="inv-actionbar-label">' + escHtml(STOCK_KIND_LABEL[m.mode]) + ' on</div>' +
     '<div class="inv-actionbar-value">' + escHtml(stockShortDate(m.date)) + '</div></div>' +
     '<button class="inv-btn inv-btn-primary" data-action="invStockSaveManual">Save</button></div>';
   return h;
+}
+/* What the book holds for one day, every line and kind, pasted or by hand (owner, 30 Sep 2026: after entering the use by
+   hand "there is no way to see what we entered … without an option to edit, see or check anything"). Under the hand form,
+   for the day it is on: each entry with the level it left, Correct and Void. */
+function stockDayEntriesHtml(date) {
+  var st = stockData(), names = {};
+  st.items.forEach(function(i) { names[i.id] = i; });
+  var list = st.entries.filter(function(e) { return e.date === date && e.kind !== 'bill'; })
+    .sort(function(a, b) { return (a.voided ? 1 : 0) - (b.voided ? 1 : 0) || (STOCK_KIND_RANK[a.kind] || 0) - (STOCK_KIND_RANK[b.kind] || 0) || (a.at || 0) - (b.at || 0); });
+  var live = list.filter(function(e) { return !e.voided; }).length;
+  var h = '<div class="inv-panel inv-panel-flush inv-mt-8" id="stockDayEntries" data-card="stockDay"><div class="inv-panel-head"><span class="inv-panel-title">Entered for ' + escHtml(stockShortDate(date)) +
+    ' <span class="inv-panel-count">' + live + '</span></span></div>';
+  if (!list.length) return h + '<div class="inv-empty">Nothing entered for this day yet. Pick another date above to check it.</div></div>';
+  var replayed = {};
+  list.forEach(function(e) {
+    var it = names[e.itemId];
+    if (!replayed[e.itemId]) { replayed[e.itemId] = {}; stockReplay(e.itemId).rows.forEach(function(r) { replayed[e.itemId][r.e.id] = r; }); }
+    var r = replayed[e.itemId][e.id];
+    h += '<div class="inv-row-group"><span>' + escHtml(it ? it.name : 'A line since removed') + '</span>' +
+      (r && r.after != null && !e.voided ? '<span class="inv-num">left ' + escHtml(stockFmtQty(r.after)) + ' ' + escHtml(it ? it.unit || '' : '') + '</span>' : '') + '</div>' +
+      stockEntryRowHtml(e, r, it ? it.unit || '' : '');
+  });
+  return h + '</div>';
 }
 
 function stockSaveManual() {
@@ -19274,8 +19315,13 @@ function stockSaveManual() {
   });
   if (!n) { showToast('Nothing filled in', 'error'); return; }
   saveState();
-  _stockManual = null;
-  stockSetView('list');
+  // The form stays on the day, with what was saved listed under it: several entries go in at a sitting, and each is
+  // checked where it was made (it went to the list of lines before, and nothing showed what had been entered).
+  m.vals = {};
+  _pageTyped = false;
+  renderStock();
+  var dayEl = document.getElementById('stockDayEntries');
+  if (dayEl && dayEl.scrollIntoView) try { dayEl.scrollIntoView({ block: 'nearest' }); } catch (x) { /* a convenience */ }
   showToast(n + (n === 1 ? ' entry' : ' entries') + ' saved' + (gaps ? ' · ' + gaps + ' count' + (gaps === 1 ? ' differs' : 's differ') + ' from the app' : '') +
     (unpriced ? ' · ' + unpriced + ' without a price: add it on the line' : ''), gaps || unpriced ? 'warning' : 'success');
 }
@@ -19381,7 +19427,10 @@ function stockEntryRowHtml(e, r, unit) {
     (e.raw ? '<details class="inv-mt-4"><summary class="inv-btn-link inv-summary">Message text</summary><div class="inv-quote inv-mt-4">' + escHtml(e.raw) + '</div></details>' : '') +
     (e.kind === 'received' && e.price == null && !e.voided ? '<button class="inv-btn inv-btn-secondary inv-btn-sm inv-mt-8" data-action="invStockBillOpen" data-entry="' + escHtml(e.id) + '">Add its bill</button>' : '') +
     '</div>' +
-    (e.voided ? '' : '<div class="inv-row-end"><button class="inv-btn inv-btn-sm inv-btn-danger' + (armed ? ' inv-btn-solid' : '') + '" data-action="invStockVoid" data-id="' + escHtml(e.id) + '"' +
+    (e.corrects ? '<div class="inv-row-meta">Corrects an entry of ' + escHtml(stockFmtQty(e.corrects.qty)) + ' ' + escHtml(unit) + '</div>' : '') +
+    (e.voided && e.voided.reason ? '<div class="inv-row-meta">' + escHtml(e.voided.reason) + '</div>' : '') +
+    (e.voided ? '' : '<div class="inv-row-end"><button class="inv-btn inv-btn-sm inv-btn-ghost" data-action="invStockCorrect" data-id="' + escHtml(e.id) + '">Correct</button>' +
+      '<button class="inv-btn inv-btn-sm inv-btn-danger' + (armed ? ' inv-btn-solid' : '') + '" data-action="invStockVoid" data-id="' + escHtml(e.id) + '"' +
       (armed ? ' aria-pressed="true"' : '') + '>' + (armed ? 'Tap again to void' : 'Void') + '</button></div>') +
     '</div>';
 }
@@ -19398,6 +19447,32 @@ function stockVoid(id) {
   saveState();
   renderStock();
   showToast('Entry voided');
+}
+
+/* A figure entered wrong is corrected, never edited in place: the entry is voided, saying what it was corrected to, and a
+   copy with the right quantity takes its place (`corrects`), so the export still explains every figure it ever held. */
+async function stockCorrect(id) {
+  var e = stockData().entries.find(function(x) { return x.id === id; });
+  if (!e || e.voided) return;
+  var it = stockItem(e.itemId), unit = it ? it.unit || '' : '';
+  var v = await uiPrompt({ title: 'Correct this entry', body: (STOCK_KIND_LABEL[e.kind] || e.kind) + ' ' + stockFmtQty(e.qty) + ' ' + unit + (it ? ' of ' + it.name : '') + ' on ' + stockShortDate(e.date) + '.',
+    label: 'The right quantity' + (unit ? ' (' + unit + ')' : ''), value: String(e.qty), okLabel: 'Correct', required: true, requiredText: 'Enter the quantity.' });
+  if (v == null) return;
+  var q = parseFloat(String(v).replace(/,/g, ''));
+  if (isNaN(q) || q < 0) { showToast('Enter a quantity of 0 or more', 'error'); return; }
+  e = stockData().entries.find(function(x) { return x.id === id; });
+  if (!e || e.voided) return;
+  if (stockRound(q) === stockRound(e.qty)) { showToast('Same quantity: nothing changed'); return; }
+  var by = stockBy(), at = Date.now();
+  var copy = JSON.parse(JSON.stringify(e));
+  copy.id = stockUid('SE'); copy.qty = q; copy.at = at; copy.by = by; copy.source = 'manual';
+  copy.corrects = { id: e.id, qty: e.qty };
+  delete copy.raw; delete copy.pasteId; delete copy.unsettled;
+  e.voided = { at: at, by: by, reason: 'Corrected to ' + stockFmtQty(q) + ' ' + unit, correctedBy: copy.id };
+  stockData().entries.push(copy);
+  saveState();
+  renderStock();
+  showToast('Corrected: ' + stockFmtQty(e.qty) + ' → ' + stockFmtQty(q) + ' ' + unit, 'success');
 }
 
 /* ---------- Export and import ----------
@@ -19555,6 +19630,7 @@ function stockAction(action, btn) {
       break;
     }
     case 'invStockVoid': stockVoid(btn.dataset.id); break;
+    case 'invStockCorrect': stockCorrect(btn.dataset.id); break;
     case 'invStockExport': stockExport(); break;
     case 'invStockBillOpen': stockBillOpen(btn.dataset.entry || ''); break;
     case 'invStockReorder': _stockReorder = { qty: {} }; stockSetView('reorder'); break;
@@ -20208,7 +20284,7 @@ function costBillFormHtml() {
   var o = _costBillOpen || {}, m = o.month || localDateStr().slice(0, 7);
   return '<div class="inv-fields">' +
     '<label class="inv-field"><span class="inv-field-label">Kind</span><select class="inv-select" id="costBillKind">' +
-    '<option value="power">Electricity</option><option value="other">Consumables, ETP, maintenance</option></select></label>' +
+    '<option value="power">Electricity</option><option value="other"' + (o.kind === 'other' ? ' selected' : '') + '>Consumables, ETP, maintenance</option></select></label>' +
     '<label class="inv-field"><span class="inv-field-label">Month it covers</span><input class="inv-input" id="costBillMonth" type="month" value="' + escHtml(m) + '"></label>' +
     '<label class="inv-field"><span class="inv-field-label">Amount, before GST</span><input class="inv-input inv-input-num" id="costBillAmount" type="number" step="0.01" min="0" inputmode="decimal"></label>' +
     '<label class="inv-field"><span class="inv-field-label">Units (electricity)</span><input class="inv-input inv-input-num" id="costBillUnits" type="number" step="1" min="0" inputmode="numeric"></label>' +
@@ -20216,7 +20292,8 @@ function costBillFormHtml() {
     '<label class="inv-field"><span class="inv-field-label">Month the arrears are for</span><input class="inv-input" id="costBillArrearsOf" type="month"></label>' +
     '<label class="inv-field"><span class="inv-field-label">Penalty or extra charge in it</span><input class="inv-input inv-input-num" id="costBillPenalty" type="number" step="0.01" min="0" inputmode="decimal" placeholder="0"></label>' +
     '<label class="inv-field inv-kv-wide"><span class="inv-field-label">Note</span><input class="inv-input" id="costBillNote" placeholder="e.g. JBVNL bill, ETP sludge"></label></div>' +
-    '<div class="inv-toolbar"><button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invCostBillCancel">Cancel</button>' +
+    (o.saved ? '<div class="inv-note">' + o.saved + (o.saved === 1 ? ' bill' : ' bills') + ' saved from this form. The next month is filled in.</div>' : '') +
+    '<div class="inv-toolbar"><button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invCostBillCancel">' + (o.saved ? 'Close' : 'Cancel') + '</button>' +
     '<button class="inv-btn inv-btn-primary inv-btn-sm" data-action="invCostBillSave">Save bill</button></div>';
 }
 function costBillRedraw(where) { if (where === 'finance') renderFinance(); else renderStats(); }
@@ -20247,10 +20324,17 @@ async function costBillSave() {
   costBills().push({ id: 'CB-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), kind: kind, month: month, amount: amount,
     units: units > 0 ? units : null, arrears: arrears > 0 ? arrears : null, arrearsOf: arrears > 0 && arrearsOf ? arrearsOf : null,
     penalty: penalty > 0 ? penalty : null, note: v('costBillNote'), at: Date.now() });
-  var where = (_costBillOpen || {}).where;
-  _costBillOpen = false;
+  // The form stays open for the next bill (bills are back-filled a month at a time): the same kind, the next month with
+  // no bill of that kind, the figures cleared.
+  var was = _costBillOpen || {}, next = month;
+  for (var i = 0; i < 24; i++) {
+    next = isoAddDays(next + '-01', 32).slice(0, 7);
+    var nk = next;
+    if (!costBills().some(function(b) { return b.kind === kind && !b.voided && b.month === nk; })) break;
+  }
+  _costBillOpen = { where: was.where, month: next, kind: kind, saved: (was.saved || 0) + 1 };
   saveState();
-  costBillRedraw(where);
+  costBillRedraw(was.where);
   showToast(COST_BILL_KINDS[kind] + ' bill saved for ' + month);
 }
 async function costBillVoid(id, where) {
@@ -20627,7 +20711,7 @@ function _billsCnFormHtml() {
   // the form under the field being typed in.
   var c = _billsCnFigures();
   h += '<div class="inv-callout inv-mb-8' + (c ? '' : ' inv-hidden') + '" data-cn-figures>' + _billsFiguresHtml(c) + '</div>';
-  return h + '<div class="inv-toolbar"><button class="inv-btn inv-btn-secondary" data-action="invCnFormCancel">Cancel</button>' +
+  return h + '<div class="inv-toolbar"><button class="inv-btn inv-btn-secondary" data-action="invCnFormCancel">' + (f.saved ? 'Close' : 'Cancel') + '</button>' +
     '<button class="inv-btn inv-btn-primary" data-action="invCnFormSave">' + (rec ? 'Record note' : 'Issue note') + '</button></div>';
 }
 
@@ -20781,9 +20865,15 @@ async function billsCnFormSave() {
   getCreditNotes().push(cn);
   recomputeNextCnNumber();
   saveState();
-  _billForm = null;
+  // A note recorded from paper is one of several typed at a sitting: the form stays, on the same client and reason, with the
+  // figures cleared. A new note opens its preview, which is where it goes next.
+  if (rec) {
+    var keep = _billForm;
+    billsCnFormOpen('record');
+    _billForm.clientId = keep.clientId; _billForm.reason = keep.reason; _billForm.fy = keep.fy; _billForm.saved = (keep.saved || 0) + 1;
+  } else _billForm = null;
   renderFinance();
-  showToast(cn.displayNumber + (rec ? ' recorded — ' : ' issued — ') + formatCurrency(cn.grandTotal));
+  showToast(cn.displayNumber + (rec ? ' recorded — ' : ' issued — ') + formatCurrency(cn.grandTotal) + (rec ? ' · the form is ready for the next' : ''));
   if (!rec) showCreditNotePreview(cn.id);
 }
 
@@ -21206,6 +21296,7 @@ var BANK_CAT_TONE = { receipt: 'ok', wages: 'info', power: 'warning', supplier: 
 function bankCatLabel(k) { var c = BANK_CATS.find(function(x) { return x[0] === k; }); return c ? c[1] : k; }
 
 var _bankFilter = { cat: '', q: '' };
+var _bankSortFrom = null;   // the Finance tab a Sort was pressed on, returned to once the payee is set
 var _bankEdit = null;          // the statement row being categorised
 var _bankOpen = null;          // the client whose receipts are open
 var _bankChange = null;        // a placed receipt whose client is being changed
@@ -22174,7 +22265,17 @@ function bankSaveEdit(id) {
   else row.set = set;
   _bankEdit = null;
   saveState();
-  renderFinance();
+  // Sorted from Payments' Not yet sorted: back to that list for the next payee, which is how the list is worked through
+  // (it left the statement filtered to the one payee, and the list was a tab and a scroll away).
+  var from = _bankSortFrom;
+  _bankSortFrom = null;
+  if (from && from !== 'bank') {
+    _bankFilter = { cat: '', q: '' };
+    finSetTab(from);
+    renderFinance();
+    var un = document.getElementById('bankUnsorted');
+    if (un && un.scrollIntoView) try { un.scrollIntoView({ block: 'start' }); } catch (x) { /* a convenience */ }
+  } else renderFinance();
   showToast(all && all.checked ? 'Saved for every row under ' + v.party : 'Saved');
 }
 /* The picker hands back text; ids are numbers on real books. */
@@ -22348,7 +22449,7 @@ function bankAction(action, btn) {
     case 'invBankAddBill': bankAddPowerBill(btn.dataset.id); return true;
     case 'invBankBounce': bankSetBounce(btn.dataset.rev, btn.dataset.dep); return true;
     case 'invBankBounceClear': bankClearBounce(btn.dataset.rev); return true;
-    case 'invBankSort': _bankFilter = { cat: '', q: btn.dataset.q || '' }; _bankEdit = btn.dataset.id; finSetTab('bank'); renderFinance(); return true;
+    case 'invBankSort': _bankSortFrom = _finTab; _bankFilter = { cat: '', q: btn.dataset.q || '' }; _bankEdit = btn.dataset.id; finSetTab('bank'); renderFinance(); return true;
     case 'invBankPlace': bankSetClient(btn.dataset.id, btn.dataset.client); return true;
     case 'invBankChange': _bankChange = btn.dataset.id; renderFinance(); return true;
     case 'invBankOpeningUse': {
@@ -30391,17 +30492,20 @@ function prodSavePhoto() {
 }
 
 /* ---------- By hand ---------- */
-function prodOpenHand(fromId) {
+function prodOpenHand(fromId, from) {
   var src = fromId ? prodIndex().byId[fromId] : null;
   _prodHand = src ? { kind: src.kind, date: src.date, time: src.time || '', to: src.to || '', line: src.line || '', clientId: src.clientId != null ? String(src.clientId) : '', part: src.part || '',
     qty: src.qty != null ? String(src.qty) : '', unit: src.unit || 'NOS', rework: !!src.rework, slot: src.slot === 'ot' || src.slot === 'day' ? src.slot : 'general', replaces: src.id }
     : { kind: 'plated', date: localDateStr(), time: '', to: '', line: 'vat-a1', clientId: '', part: '', qty: '', unit: 'NOS', rework: false, slot: 'general', replaces: null };
+  _prodHand.from = from || null;   // 'power': opened from Power's Enter a cut, and its way back is Power
+  _prodHand.saved = [];            // the entries saved from this form, listed under it
   prodSetView('hand');
 }
 function prodHandHtml() {
   var f = _prodHand;
   var field = function(id, label, input) { return '<div class="inv-field"><label class="inv-field-label" for="' + id + '">' + label + '</label>' + input + '</div>'; };
-  var h = prodBackBar(f.replaces ? 'Correct an entry' : 'Enter by hand');
+  var h = f.from === 'power' ? '<div class="inv-pagehead"><button class="inv-btn inv-btn-ghost inv-btn-sm inv-pagehead-back" data-action="invProdHandDone">' + STOCK_BACK_ICON + 'Power</button>' +
+      '<h2 class="inv-pagehead-title">Enter power cuts</h2></div>' : prodBackBar(f.replaces ? 'Correct an entry' : 'Enter by hand');
   if (f.replaces) h += '<div class="inv-callout inv-callout-info">This entry takes the place of the one corrected, which stays on the record, marked corrected.</div>';
   else h += '<div class="inv-seg inv-mb-8" role="group" aria-label="What is entered">' + [['plated', 'Plated'], ['pickled', 'Pickled'], ['arrived', 'Arrived'], ['downtime', 'Power cut']].map(function(o) {
     return '<button type="button" class="inv-seg-btn" data-action="invProdHandKind" data-kind="' + o[0] + '" aria-pressed="' + (f.kind === o[0]) + '">' + o[1] + '</button>'; }).join('') + '</div>';
@@ -30422,9 +30526,23 @@ function prodHandHtml() {
       field('prodHandUnit', 'Unit', '<select id="prodHandUnit" class="inv-select" data-prod-hand="unit"><option value="NOS"' + (f.unit === 'NOS' ? ' selected' : '') + '>NOS</option><option value="KG"' + (f.unit === 'KG' ? ' selected' : '') + '>kg</option></select>') +
       '<label class="inv-field-check"><input type="checkbox" class="inv-check" id="prodHandRework" data-prod-hand="rework"' + (f.rework ? ' checked' : '') + '><span>Rework (counted as work, never as billing)</span></label>';
   }
-  h += '</div></div><div class="inv-actionbar"><div class="inv-actionbar-total"><div class="inv-actionbar-label">' + escHtml({ plated: 'Plated', pickled: 'Pickled', arrived: 'Arrived', downtime: 'Power cut' }[f.kind]) + ' on</div>' +
+  h += '</div></div>';
+  // Entries are entered by hand several at a time (owner, 30 Sep 2026: the page went back to the base screen after every
+  // one), so the form stays open after a save and lists what was saved from it, each with its Correct and Void.
+  var idx = prodIndex(), saved = (f.saved || []).map(function(id) { return idx.byId[id]; }).filter(Boolean);
+  if (saved.length) h += '<div class="inv-panel inv-panel-flush inv-mt-8" data-card="prodHandSaved"><div class="inv-panel-head"><span class="inv-panel-title">Saved from this form</span><span class="inv-panel-count">' + saved.length + '</span>' +
+    '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invProdHandDone">Done</button></div>' +
+    saved.slice().reverse().map(function(e) { return prodEntryRowHtml(e, idx); }).join('') + '</div>';
+  h += '<div class="inv-actionbar"><div class="inv-actionbar-total"><div class="inv-actionbar-label">' + escHtml({ plated: 'Plated', pickled: 'Pickled', arrived: 'Arrived', downtime: 'Power cut' }[f.kind]) + ' on</div>' +
     '<div class="inv-actionbar-value">' + escHtml(stockShortDate(f.date)) + '</div></div><button class="inv-btn inv-btn-primary" data-action="invProdSaveHand">Save</button></div>';
   return h;
+}
+/* Leaving the hand form: back to where it was opened from. */
+function prodHandDone() {
+  var from = _prodHand && _prodHand.from;
+  _prodHand = null;
+  if (from === 'power') { _prodView = 'main'; switchTab('pagePower'); return; }
+  prodSetView('main');
 }
 function prodSaveHand() {
   var f = _prodHand;
@@ -30447,9 +30565,21 @@ function prodSaveHand() {
   p.entries.push(prodSparse(e));
   prodTouch();
   saveState();
-  _prodHand = null;
-  prodSetView('main');
-  showToast(src ? 'Correction saved; the entry it corrects is kept, marked corrected' : 'Saved', 'success');
+  if (src) {   // a correction is one entry: back to where it was opened from
+    var from = f.from; _prodHand = null;
+    if (from === 'power') { _prodView = 'main'; switchTab('pagePower'); }
+    else prodSetView('main');
+    showToast('Correction saved; the entry it corrects is kept, marked corrected', 'success');
+    return;
+  }
+  // The form stays for the next entry: the kind, day, line, shift, client and unit carry over; the figures clear.
+  f.saved.push(e.id);
+  f.time = ''; f.to = ''; f.part = ''; f.qty = ''; f.rework = false;
+  _pageTyped = false;
+  renderProduction();
+  var next = document.getElementById(f.kind === 'downtime' ? 'prodHandTime' : 'prodHandPart');
+  if (next && !('ontouchstart' in window)) try { next.focus(); } catch (x) { /* focus is a convenience */ }
+  showToast((f.kind === 'downtime' ? 'Power cut saved' : 'Saved') + ' · enter the next, or Done', 'success');
 }
 
 /* ---------- Void, set a line ---------- */
@@ -30520,6 +30650,7 @@ function prodAction(action, btn) {
     case 'invProdCorrect': prodOpenHand(btn.dataset.id); return true;
     case 'invProdHandKind': _prodHand.kind = btn.dataset.kind; renderProduction(); return true;
     case 'invProdSaveHand': prodSaveHand(); return true;
+    case 'invProdHandDone': prodHandDone(); return true;
     case 'invProdVoid': prodVoid(btn.dataset.id); return true;
     case 'invProdUseLine': prodUseLine(btn.dataset.id, btn.dataset.line); return true;
     case 'invProdExport': prodExport(); return true;
@@ -31450,7 +31581,7 @@ function powerCfgSave() {
 /* A cut is entered where every floor record is: Production's hand form, on a power cut. */
 function powerAddCut() {
   switchTab('pageProduction');
-  prodOpenHand(null);
+  prodOpenHand(null, 'power');
   if (_prodHand) { _prodHand.kind = 'downtime'; renderProduction(); }
 }
 /* The history from soma-internal, one file: its cuts as a `sep-production` file (merged by id into Production), and
@@ -32035,6 +32166,8 @@ function renderAddChallanForm() {
   html += '<div class="inv-actionbar"><div class="inv-actionbar-total"><div class="inv-actionbar-label">Challan amount</div>' +
     '<div class="inv-actionbar-value" id="imChallanTotal">' + formatCurrency(total) + '</div></div>' +
     '<button type="button" class="inv-btn inv-btn-secondary" data-k="cancel" data-action="invCancelChallan">Cancel</button>' +
+    // Challans come several to a delivery: this one saves and opens the next on the same client, date and vehicle.
+    (_challanForm._editingId ? '' : '<button type="button" class="inv-btn inv-btn-secondary" data-k="savenext" data-action="invSaveChallanNext">Save, add another</button>') +
     '<button type="button" class="inv-btn inv-btn-primary" data-k="save" data-kbd-ring data-action="invSaveChallan">' + (_challanForm._editingId ? 'Update challan' : 'Save challan') + '</button></div></div>';
 
   area.innerHTML = html;
@@ -32321,12 +32454,19 @@ function saveChallan() {
   saveVehicleToClient(_challanForm.clientId, _challanForm.vehicleNo);
   saveState();
 
+  var next = _challanForm._another ? { clientId: _challanForm.clientId, challanDate: _challanForm.challanDate, vehicleNo: _challanForm.vehicleNo } : null;
   challanFormClosed();
   _imToolbarRendered = false;
   renderIMToolbar();
   _imToolbarRendered = true;
   _renderIMView();
-  showToast('Challan saved (' + entry.items.length + ' item' + (entry.items.length > 1 ? 's' : '') + ')');
+  if (next) {
+    showAddChallanForm();
+    _challanForm.clientId = next.clientId; _challanForm.challanDate = next.challanDate; _challanForm.vehicleNo = next.vehicleNo;
+    _challanFocusNext = { k: 'challanNo', sel: null };
+    renderAddChallanForm();
+  }
+  showToast('Challan saved (' + entry.items.length + ' item' + (entry.items.length > 1 ? 's' : '') + ')' + (next ? ' · the next is on the same client and date' : ''));
 }
 
 function cancelAddChallan() {
@@ -33421,7 +33561,8 @@ function onDocClick(e) {
     case 'invRegQualityCerts': showQualityCertificates(_regSelectedIds()); break;
     // Phase 4: IM Add Challan
     case 'invShowAddChallan': showAddChallanForm(); break;
-    case 'invSaveChallan': saveChallan(); break;
+    case 'invSaveChallan': if (_challanForm) _challanForm._another = false; saveChallan(); break;
+    case 'invSaveChallanNext': if (_challanForm) _challanForm._another = true; saveChallan(); break;
     case 'invCancelChallan': cancelAddChallan(); break;
     case 'invAddChallanLine': captureChallanFields(); addChallanLine(); break;
     case 'invRemoveChallanLine': captureChallanFields(); removeChallanLine(parseInt(btn.dataset.idx)); break;
@@ -34454,7 +34595,7 @@ function navLeaveOk() {
    unsaved work on screen it asks first (owner, 29 Sep 2026: "that's a real bug" — only the browser's Back asked, and a
    tap on another screen dropped a half-typed challan). On Leave the same tap runs again with nothing typed left to lose.
    Caught before events.js sees it (capture), so the screen is never left and then asked about. */
-var NAV_LEAVE_ACTIONS = { invSwitchTab: 1, invSideGo: 1, invStockBack: 1, invProdBack: 1, invAttView: 1, invDashStockView: 1 };
+var NAV_LEAVE_ACTIONS = { invSwitchTab: 1, invSideGo: 1, invStockBack: 1, invProdBack: 1, invProdHandDone: 1, invAttView: 1, invDashStockView: 1 };
 function navIsLeave(el) {
   // A tab inside a dialog moves within the dialog, not off the screen.
   return !!(el && el.dataset && !el.closest('.inv-scrim-dialog') && (NAV_LEAVE_ACTIONS[el.dataset.action] || el.getAttribute('role') === 'tab'));

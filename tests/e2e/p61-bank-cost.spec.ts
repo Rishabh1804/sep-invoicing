@@ -130,7 +130,8 @@ test('a payment marked not a cost on the statement leaves the live cost', async 
   await page.locator('#bankEditCat').selectOption('supplier');
   await page.locator('[data-action="invBankEditSave"]').click();
   expect(await ev(page, `bankCostByMonth().months['2026-07'].supplies.amount`)).toBe(40000);
-  await page.locator('[data-action="invFinTab"][data-tab="payments"]').click();
+  // Back on Payments for the next payee (P117).
+  await expect(page.locator('[data-action="invFinTab"][data-tab="payments"]')).toHaveAttribute('aria-selected', 'true');
   await expect(page.locator('#bankUnsorted')).toHaveCount(0);
 });
 

@@ -295,9 +295,7 @@ function getFilteredIM() {
           case 'date': va = a.challanDate || ''; vb = b.challanDate || ''; return va < vb ? -dir : va > vb ? dir : 0;
           case 'items': return dir * (a.items.length - b.items.length);
           case 'amount': {
-            var ta = a.items.reduce(function(s, it) { return s + (it.amount || 0); }, 0);
-            var tb = b.items.reduce(function(s, it) { return s + (it.amount || 0); }, 0);
-            return dir * (ta - tb);
+            return dir * (imShownAmount(a) - imShownAmount(b));
           }
           case 'status': {
             var so = { pending: 0, partial: 1, invoiced: 2 };
@@ -378,7 +376,7 @@ function renderIMList() {
           day = im.challanDate;
           var same = list.filter(function(x) { return x.challanDate === day; });
           imRows.push({ head: true, parts: ['<div class="inv-row-group"><span>' + (day ? escHtml(formatDate(day)) : 'No date') + ' · ' + same.length + '</span>' +
-            '<span class="inv-num">' + formatCurrency(same.reduce(function(s, x) { return s + imChallanTotal(x); }, 0)) + '</span></div>'] });
+            '<span class="inv-num">' + formatCurrency(gstRound(same.reduce(function(s, x) { return s + imShownAmount(x); }, 0))) + '</span></div>'] });
         }
         var status = getIMStatus(im), expanded = !!_imExpanded[im.id];
         var pendingItems = im.items.filter(function(it) { return !it.invoiced; });
@@ -391,7 +389,7 @@ function renderIMList() {
           '<button class="inv-row-main inv-row-expander" data-action="invToggleIM" data-id="' + id + '" aria-expanded="' + expanded + '">' +
           '<span class="inv-row-title"><span class="inv-id">' + escHtml(imChallanLabel(im)) + '</span> · ' + escHtml(im.clientName) + '</span>' +
           '<span class="inv-row-meta">' + (im.vehicleNo ? escHtml(im.vehicleNo) + ' · ' : '') + im.items.length + ' item' + (im.items.length !== 1 ? 's' : '') + '</span></button>' +
-          '<span class="inv-row-end"><span class="inv-row-stack"><span class="inv-num">' + formatCurrency(imChallanTotal(im)) + '</span>' + imStatusDotHtml(im) + '</span></span></div>');
+          '<span class="inv-row-end"><span class="inv-row-stack">' + imAmountHtml(im) + imStatusDotHtml(im) + '</span></span></div>');
         if (expanded) {
           var kids = '<div class="inv-row-children">' + im.items.map(_imItemRowHtml).join('');
           var acts = _imActionsHtml(im, false);
@@ -463,7 +461,7 @@ function _buildIMTableHtml() {
       '<td class="inv-id inv-col-opt3">' + escHtml(formatDate(im.challanDate)) + '</td>' +
       '<td class="inv-id inv-col-opt2">' + escHtml(im.vehicleNo || '') + '</td>' +
       '<td class="inv-num inv-col-opt2">' + im.items.length + '</td>' +
-      '<td class="inv-num">' + formatCurrency(imChallanTotal(im)) + '</td>' +
+      '<td class="inv-num"><span class="inv-row-stack">' + imAmountHtml(im) + '</span></td>' +
       '<td>' + imStatusDotHtml(im) + '</td></tr>';
   });
   return html + '</tbody></table>';
@@ -527,6 +525,20 @@ function imStatusDotHtml(im) {
 }
 
 function imChallanTotal(im) { return im.items.reduce(function(s, it) { return s + (Number(it.amount) || 0); }, 0); }
+/* What a challan still has to bill: the open share of every line (owner, 30 Sep 2026: a part-invoiced challan showed the
+   whole challan's amount under Awaiting invoice). */
+function imChallanOpenTotal(im) { return gstRound(im.items.reduce(function(s, it) { return s + imLineOpen(it).amount; }, 0)); }
+/* The amount a challan shows in a list: on Awaiting invoice what is left to bill, and on a part-invoiced challan the
+   whole beside it; on Invoiced, the whole. */
+function imShownAmount(im) { return _imTab === 'invoiced' || imIsBilled(im) ? imChallanTotal(im) : imChallanOpenTotal(im); }
+function imPartInvoiced(im) { return !imIsBilled(im) && im.items.some(imLineBilled); }
+function imAmountHtml(im) {
+  if (_imTab !== 'invoiced' && imPartInvoiced(im)) {
+    return '<span class="inv-num" title="Left to bill, of ' + escHtml(formatCurrency(imChallanTotal(im))) + ' on the challan">' + formatCurrency(imChallanOpenTotal(im)) + '</span>' +
+      '<span class="inv-row-meta" data-im-of>left of ' + formatCurrency(imChallanTotal(im)) + '</span>';
+  }
+  return '<span class="inv-num">' + formatCurrency(imChallanTotal(im)) + '</span>';
+}
 
 function _imSummaryHtml(filtered) {
   if (_imTab === 'invoiced') return '';   // the month's pager says how many and how much
@@ -566,7 +578,9 @@ function _imItemRowHtml(it) {
       return '<span class="inv-row-meta inv-row-wrap" data-im-correction><span class="inv-dot inv-dot-info">Corrected</span> ' +
         escHtml(challanCorrectionText(it, cx) + ' · ' + formatDate(isoOf(new Date(cx.at)))) + '</span>';
     }).join('') + (tag ? '<span class="inv-row-meta inv-row-wrap" data-im-invoices>' + tag + '</span>' : '') + '</span>' +
-    '<span class="inv-row-end inv-num">' + formatCurrency(it.amount) + '</span></div>';
+    (imLineBilled(it) && !it.invoiced
+      ? '<span class="inv-row-end"><span class="inv-row-stack"><span class="inv-num" title="Left to bill">' + formatCurrency(imLineOpen(it).amount) + '</span><span class="inv-row-meta">left of ' + formatCurrency(it.amount) + '</span></span></span></div>'
+      : '<span class="inv-row-end inv-num">' + formatCurrency(it.amount) + '</span></div>');
 }
 
 /* Edit and delete while nothing on the challan is billed; once a line is, the edit says why not. */
@@ -598,7 +612,8 @@ function challanDetailHtml(im) {
     '</div>';
   h += '<div class="inv-panel inv-panel-flush"><div class="inv-row-group"><span>Lines · ' + im.items.length + '</span></div>' +
     im.items.map(_imItemRowHtml).join('') +
-    '<div class="inv-row inv-row-strong"><span class="inv-row-main">Total</span><span class="inv-row-end inv-num">' + formatCurrency(imChallanTotal(im)) + '</span></div></div>';
+    '<div class="inv-row inv-row-strong"><span class="inv-row-main">Total</span><span class="inv-row-end inv-num">' + formatCurrency(imChallanTotal(im)) + '</span></div>' +
+    (imPartInvoiced(im) ? '<div class="inv-row inv-row-strong" data-im-left><span class="inv-row-main">Left to bill</span><span class="inv-row-end inv-num">' + formatCurrency(imChallanOpenTotal(im)) + '</span></div>' : '') + '</div>';
   var acts = _imActionsHtml(im, true);
   return h + (acts ? '<div class="inv-toolbar">' + acts + '</div>' : '');
 }

@@ -29,6 +29,7 @@ var BANK_CAT_TONE = { receipt: 'ok', wages: 'info', power: 'warning', supplier: 
 function bankCatLabel(k) { var c = BANK_CATS.find(function(x) { return x[0] === k; }); return c ? c[1] : k; }
 
 var _bankFilter = { cat: '', q: '' };
+var _bankSortFrom = null;   // the Finance tab a Sort was pressed on, returned to once the payee is set
 var _bankEdit = null;          // the statement row being categorised
 var _bankOpen = null;          // the client whose receipts are open
 var _bankChange = null;        // a placed receipt whose client is being changed
@@ -997,7 +998,17 @@ function bankSaveEdit(id) {
   else row.set = set;
   _bankEdit = null;
   saveState();
-  renderFinance();
+  // Sorted from Payments' Not yet sorted: back to that list for the next payee, which is how the list is worked through
+  // (it left the statement filtered to the one payee, and the list was a tab and a scroll away).
+  var from = _bankSortFrom;
+  _bankSortFrom = null;
+  if (from && from !== 'bank') {
+    _bankFilter = { cat: '', q: '' };
+    finSetTab(from);
+    renderFinance();
+    var un = document.getElementById('bankUnsorted');
+    if (un && un.scrollIntoView) try { un.scrollIntoView({ block: 'start' }); } catch (x) { /* a convenience */ }
+  } else renderFinance();
   showToast(all && all.checked ? 'Saved for every row under ' + v.party : 'Saved');
 }
 /* The picker hands back text; ids are numbers on real books. */
@@ -1171,7 +1182,7 @@ function bankAction(action, btn) {
     case 'invBankAddBill': bankAddPowerBill(btn.dataset.id); return true;
     case 'invBankBounce': bankSetBounce(btn.dataset.rev, btn.dataset.dep); return true;
     case 'invBankBounceClear': bankClearBounce(btn.dataset.rev); return true;
-    case 'invBankSort': _bankFilter = { cat: '', q: btn.dataset.q || '' }; _bankEdit = btn.dataset.id; finSetTab('bank'); renderFinance(); return true;
+    case 'invBankSort': _bankSortFrom = _finTab; _bankFilter = { cat: '', q: btn.dataset.q || '' }; _bankEdit = btn.dataset.id; finSetTab('bank'); renderFinance(); return true;
     case 'invBankPlace': bankSetClient(btn.dataset.id, btn.dataset.client); return true;
     case 'invBankChange': _bankChange = btn.dataset.id; renderFinance(); return true;
     case 'invBankOpeningUse': {

@@ -77,7 +77,7 @@ test('Staff overview: a week nobody typed is a gap, OT sits in its area, and pay
   // Three weeks back full, two back nobody, last week full, this week so far: whatever today holds.
   expect(weeks.slice(0, 3)).toEqual([100, null, 100]);
   await expect(page.locator('#dashAttWeeks .inv-chart-pt[data-read*="100.0%"]')).toHaveCount(2);
-  const ot = await ev(page, `areaHoursForRange(attAddDays(attWeekStartOf(localDateStr()), -21), localDateStr()).rows.find(function(r) { return r.id === 'vat-a1'; }).ot`);
+  const ot = await ev(page, `areaHoursForRange(isoAddDays(attWeekStartOf(localDateStr()), -21), localDateStr()).rows.find(function(r) { return r.id === 'vat-a1'; }).ot`);
   expect(ot).toBe(4);   // two recorded weeks inside the four, two hours each
   await expect(page.locator('#dashAreaHours .inv-chart-seg[data-read*="OT"]').first()).toBeVisible();
   const pb = await ev(page, `dashPayrollVsBank().find(function(x) { return x.month === '${ym(-2)}'; })`);

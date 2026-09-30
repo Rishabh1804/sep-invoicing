@@ -227,3 +227,66 @@ test.describe('P107: the monthly payroll as paid', () => {
     expect(await g(page, `S.payrollPaid.filter(function(r){ return !r.voidedAt; })[0].rows[0].paid`)).toBe(8520.97);
   });
 });
+
+test.describe('P107: the roster', () => {
+  test('W3: an import takes only the fields the file carries; W11: a name is keyed as a roll reads it', async ({ page }) => {
+    await load(page, { staff: [
+      { id: 7, name: 'Sarat Mahato', comp: 'monthly', area: 'vat-a1', dayRate: 520, hourRate: 0, monthWage: 0, active: false, onFloor: true },
+      { id: 8, name: 'Uday', comp: 'monthly', area: 'gate', dayRate: 0, monthWage: 9000, active: true, onFloor: false },
+    ] });
+    const res = await g(page, `applyRosterImport({ staff: [{ name: 'SARAT  MAHATO.', area: 'vat-a2' }, { name: 'Uday', area: 'office' }] })`) as any;
+    expect(res).toMatchObject({ added: 0, updated: 2 });
+    const st = await g(page, `S.staff.map(function(w){ return [w.name, w.area, w.dayRate, w.monthWage, w.comp, w.active, w.onFloor]; })`);
+    expect(st).toEqual([
+      ['Sarat Mahato', 'vat-a2', 520, 0, 'monthly', false, true],
+      ['Uday', 'office', 0, 9000, 'monthly', true, false],
+    ]);
+  });
+
+  test('W8: a merge moves payments, the bank\'s wage rules and slip rows; a worker named by a payment is not deleted', async ({ page }) => {
+    await load(page, {
+      staff: [{ id: 1, name: 'Shyam', comp: 'monthly', dayRate: 500, area: 'vat-a1', active: true },
+        { id: 2, name: 'Shyam Bera', comp: 'monthly', dayRate: 500, area: 'vat-a1', active: true },
+        { id: 3, name: 'Tara', comp: 'hourly', hourRate: 50, area: 'barrel', active: true }],
+      staffPayments: [{ id: 'P1', staffId: 1, date: iso(-2), amount: 500, kind: 'advance', at: 1 },
+        { id: 'P2', staffId: 3, date: iso(-2), amount: 100, kind: 'payment', at: 1, voidedAt: 2, voidReason: 'typo' }],
+      bank: { rows: [{ id: 'R', date: iso(-3), narration: 'NEFT-SHYAM', dr: 900, cr: 0, balance: 1, set: { cat: 'wages', staffId: 1 } }],
+        imports: [], parties: { SHYAMB: { cat: 'wages', staffId: 1 } }, opening: {}, gstNotes: {} },
+      payrollPaid: [{ id: 'PP', month: ym(-2), status: 'paid', at: 1, rows: [{ name: 'Shyam', staffId: 1, dayPay: 1, ot: 0 }] }],
+    });
+    const r = await g(page, `mergeWorkers(1, 2).payments`);
+    expect(r).toBe(3);
+    const after = await g(page, `[S.staffPayments[0].staffId, S.bank.rows[0].set.staffId, S.bank.parties.SHYAMB.staffId, S.payrollPaid[0].rows[0].staffId]`);
+    expect(after).toEqual([2, 2, 2, 2]);
+    // Tara is on no day, but a (void) payment names her: the record stays, so does she.
+    await switchTab(page, 'pageStaff');
+    await page.locator('[data-action="invAttView"][data-view="roster"]').click();
+    await page.locator('[data-action="invAttEditWorker"][data-id="3"]').click();
+    await page.locator('[data-action="invAttDeleteWorker"][data-id="3"]').click();
+    await expect(page.locator('.inv-toast')).toContainText('1 payment names Tara');
+    expect(await g(page, `S.staff.length`)).toBe(2);
+  });
+
+  test('W12: the Day view\'s block check reads the block\'s own Needed, and an unnamed crew is not checkable', async ({ page }) => {
+    const hands = [1, 2, 3].map(i => ({ id: i, name: 'Hand ' + 'ABC'[i - 1], comp: 'hourly', hourRate: 50, area: 'vat-a1', active: true, onFloor: true }));
+    await load(page, { staff: hands, areaTargets: { 'vat-a1': 4 }, attendance: { [todayIso()]: { marks: {}, note: '', extra: [
+      { kind: 'block', areas: ['vat-a1'], area: 'vat-a1', from: '17:00', to: '20:00', hours: 0, crew: [1, 2, 3], need: 3 },
+      { kind: 'block', areas: ['vat-a1'], area: 'vat-a1', from: '06:00', to: '09:00', hours: 3, crew: [] }] } } });
+    await switchTab(page, 'pageStaff');
+    await page.locator('[data-action="invAttView"][data-view="day"]').first().click();
+    await expect(page.locator('[data-block="0"] [data-block-check]')).toContainText('3 of 3');
+    await expect(page.locator('[data-block="0"] [data-block-check]')).toHaveAttribute('data-block-check', 'ok');
+    await expect(page.locator('[data-block="1"] [data-block-check]')).toHaveAttribute('data-block-check', 'none');
+    await expect(page.locator('[data-block="1"] [data-block-check]')).toContainText('its crew');
+  });
+
+  test('WB7: moving the Day view\'s date moves the week; WB9: the rate line shows what an OT hour pays', async ({ page }) => {
+    await load(page, { staff: [{ id: 1, name: 'Shyam', comp: 'monthly', dayRate: 576, area: 'vat-a1', active: true }] });
+    await switchTab(page, 'pageStaff');
+    await page.locator('[data-action="invAttView"][data-view="day"]').first().click();
+    for (let k = 0; k < 8; k++) await page.locator('[data-action="invAttStep"][data-step="-1"]').click();
+    expect(await g(page, `_attWeekStart === attWeekStartOf(_attDate)`)).toBe(true);
+    await page.locator('[data-action="invAttView"][data-view="roster"]').click();
+    await expect(page.locator('[data-action="invAttEditWorker"][data-id="1"]')).toContainText('OT ₹68.20/h (capped)');
+  });
+});

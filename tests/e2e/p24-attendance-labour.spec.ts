@@ -522,7 +522,7 @@ test('a spelling claimed by two workers binds to neither, whoever the file lists
   expect(res.conflicts).toBe(1);
   // Bound to neither, so the name resolves only to itself.
   expect(res.bound).toBeNull();
-  expect(res.resolves).toBe('shared');
+  expect(res.resolves).toBe('SHARED');   // names are keyed as a roll reads them (relayKey)
 
   // Order must not change the answer: the same map with the groups swapped.
   const swapped = await page.evaluate(async () => {

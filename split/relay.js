@@ -432,7 +432,10 @@ function parseRelayRoll(text, roster, sentOn) {
         var bAreas = sec.learnt ? sec.learnt.areas.slice() : collapse(sec.areas);
         row = { kind: 'block', areas: bAreas, crew: crewNames, hours: hrs, from: relayHhmm(from), to: to == null ? '' : relayHhmm(to) };
         if (sec.srcHead) { row.srcHead = sec.srcHead; row.srcAt = sec.srcAt; row.srcAreas = collapse(sec.rawAreas || sec.areas); }
-        if (st.slot && st.slot.label && relayHeadHasWords(st.slot.label)) { row.srcSlot = st.slot.label; row.srcFrom = row.from; row.srcTo = row.to; }
+        // The times as read, on every block: a roll pasted again finds its slot by them even after the owner corrected
+        // the block's times (relayExtraSlot). Only a heading with words is also a lesson (srcSlot).
+        row.srcFrom = row.from; row.srcTo = row.to;
+        if (st.slot && st.slot.label && relayHeadHasWords(st.slot.label)) row.srcSlot = st.slot.label;
         ln.read = 'EXTRA ' + hrs + ' h, block ' + relayClockLabel(from) + ' – ' + (to == null ? '?' : relayClockLabel(to)) +
           (row.areas.length ? ', ' + row.areas.map(relayAreaName).join(' + ') : ', no line named') + ', crew ' + (row.crew.length ? row.crew.length : 'not named');
         if (!row.crew.length) out.issues.push({ tone: 'amber', n: ln.n, text: 'EXTRA ' + hrs + ' h has no crew named under it; it is kept, and reads Not checkable on the Areas card.' });
@@ -832,9 +835,13 @@ function relayPlan(rv) {
   });
   return out;
 }
-/* The slot an EXTRA row books in: a general-shift row by its area, a block by its times. */
+/* The slot an EXTRA row books in: a general-shift row by its area, a block by its times as the roll read them. A block
+   corrected by hand kept a new key, so a roll pasted again neither kept nor replaced it and added the block a second
+   time, its hours counted twice (the QA sweep's review, 30 Sep 2026). */
 function relayExtraSlot(x) {
-  return extraIsBlock(x) ? 'block ' + (x.from || '?') + '-' + (x.to || '?') : 'shift ' + (x.area || 'flex');
+  if (!extraIsBlock(x)) return 'shift ' + (x.area || 'flex');
+  var f = x.srcFrom != null ? x.srcFrom : x.from, t = x.srcTo != null ? x.srcTo : x.to;
+  return 'block ' + (f || '?') + '-' + (t || '?');
 }
 function relayExtraSame(a, b) {
   if (a.kind !== b.kind || a.hours !== b.hours) return false;

@@ -1007,8 +1007,13 @@ function refreshWeightMatch(boxId, client, onDate, item) {
    silently, the field still showing what was typed. Marked in the capture phase, before events.js prices the line. */
 document.addEventListener('input', function(e) {
   var el = e.target;
-  if (!el || !el.matches || !el.matches('[data-action="invUpdateLine"][data-field="rate"]')) return;
-  var item = invoiceForm && invoiceForm.items[parseInt(el.dataset.idx, 10)];
+  if (!el || !el.matches) return;
+  // The challan form's rate too: both forms price through linePrice, and only the invoice's was marked, so a rate typed
+  // on a challan line was replaced by the card's (the QA sweep's review, 30 Sep 2026).
+  var onChallan = el.matches('[data-action="invUpdateChallanLine"][data-field="rate"]');
+  if (!onChallan && !el.matches('[data-action="invUpdateLine"][data-field="rate"]')) return;
+  var form = onChallan ? (typeof _challanForm !== 'undefined' ? _challanForm : null) : invoiceForm;
+  var item = form && form.items && form.items[parseInt(el.dataset.idx, 10)];
   if (!item) return;
   item._auto = item._auto || {};
   item._auto.rate = false;

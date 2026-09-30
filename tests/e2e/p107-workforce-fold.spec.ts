@@ -90,6 +90,20 @@ test.describe('P107: attendance rolls', () => {
     expect(cov.map((e: any) => e.hours)).toEqual([12]);
   });
 
+  test('W9 (review): a block whose times were corrected by hand is kept by the next paste, not added again', async ({ page }) => {
+    // The slot was keyed on the block's current times, so a hand-corrected block matched nothing and the roll's block
+    // went in beside it: the evening's EXTRA hours counted twice.
+    await load(page);
+    await pasteAndSave(page, `${dmy()}/ out time\n----8:00 PM---\nVAT A 1\n1) ARUN\nEXTRA 6 HOURS`);
+    await g(page, `(function() { var b = S.attendance['${iso()}'].extra.find(function(e) { return e.kind === 'block'; });
+      b.to = '21:00'; delete b.src; return saveState(); })()`);
+    await paste(page, `${dmy()}/ out time\n----8:00 PM---\nVAT A 1\n1) ARUN\nEXTRA 7 HOURS`);
+    await page.locator('[data-action="invRelaySave"]').click();
+    const blocks = (await readStoredState(page)).attendance[iso()].extra.filter((e: any) => e.kind === 'block');
+    expect(blocks.length).toBe(1);
+    expect(blocks[0].to).toBe('21:00');
+  });
+
   test('WB6: a mark the roll wrote and the owner corrected is kept by the next roll', async ({ page }) => {
     await load(page);
     await pasteAndSave(page, IN());

@@ -94,6 +94,17 @@ function prodPartRuleFor(clientId, rack, line) {
     return String(x.clientId) === String(clientId) && (x.racks || []).indexOf(rack) >= 0 && (!x.line || x.line === line);
   }) || null;
 }
+/* Another client's part at this round on this line, where exactly one rule says so: a round of 50 on A1 under Mehta's
+   clamp, where Mehta's rules name no 50 and Samarth's connector is 50 on A1 (owner, 30 Sep 2026: "71 was the last round
+   for Mehta and then 50 is Samarth"). Asked, never moved. */
+function prodPartRuleOther(clientId, rack, line) {
+  if (!(rack > 0)) return null;
+  var hits = prodData().partRules.filter(function(x) { return String(x.clientId) !== String(clientId) && (x.racks || []).indexOf(rack) >= 0 && (!x.line || x.line === line); });
+  var ids = {}; hits.forEach(function(x) { ids[x.clientId] = true; });
+  if (Object.keys(ids).length !== 1) return null;
+  var c = (S.clients || []).find(function(x) { return String(x.id) === String(hits[0].clientId); });
+  return c ? { name: c.name, partNumber: hits[0].partNumber, partName: hits[0].name || '' } : null;
+}
 function prodPartRuleRead(clientId, rack, line, part) {
   var r = prodPartRuleFor(clientId, rack, line);
   if (!r) return null;
@@ -189,7 +200,7 @@ function prodClientName(id) { var c = (S.clients || []).find(function(x) { retur
 function prodHeldId(v) { var c = (S.clients || []).find(function(x) { return String(x.id) === String(v); }); return c ? c.id : v; }
 function prodCtx() {
   return { clients: prodClientIndex(S.clients || [], prodData().learn.clients), roster: (S.staff || []).filter(function(w) { return w.active !== false; }), today: localDateStr(),
-    partOwners: prodPartOwners(), gaugeRule: prodGaugeRuleFor, gaugeHas: prodGaugeRuleHas, partRule: prodPartRuleRead, carryCheck: prodCarryCheck };
+    partOwners: prodPartOwners(), gaugeRule: prodGaugeRuleFor, gaugeHas: prodGaugeRuleHas, partRule: prodPartRuleRead, partRuleOther: prodPartRuleOther, carryCheck: prodCarryCheck };
 }
 /* Which clients a part has come from, off the challans and invoices of the last year: part key → client ids. A load
    with no client written whose part only one client has ever sent ("LINER", "188 CD") is read as that client, amber. */

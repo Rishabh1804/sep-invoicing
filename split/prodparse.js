@@ -765,6 +765,11 @@ function prodFromRegisterRead(json, ctx, photoDate, choices) {
       var rack = row.rackSize || (!row.batch && row.qty > 0 ? row.qty : null);
       var it = rack ? prodReadItem(row.cust, ctx.clients) : null;
       var pr = it && it.clientId != null ? ctx.partRule(it.clientId, rack, out.line, row.part) : null;
+      // A round whose gauge no rule of its own client reads, of a size another client's part is on this line: asked.
+      if (!pr && row.gaugeSet === 'none' && ctx.partRuleOther) {
+        var o = ctx.partRuleOther(it.clientId, rack, out.line);
+        if (o) row.issues.push({ tone: 'amber', code: 'whose', text: 'A round of ' + rack + ' on ' + (typeof prodLineName === 'function' ? prodLineName(out.line) : out.line) + ' is ' + o.name + '’s ' + (o.partName || o.partNumber) + ' by the owner’s rule, not a size ' + (it.clientName || row.cust) + '’s rules name. Check whose round it is.' });
+      }
       if (!pr) return;
       row.partRack = rack; row.partRule = pr;
       if (pr.partNumber) row.rulePn = pr.partNumber;

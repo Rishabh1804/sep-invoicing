@@ -1711,7 +1711,9 @@ reads a photo. **Owned by `soma-internal`, like stock** (owner): a view and an i
   - **A new part under the customer's ditto is the same customer's**: *LINER* under MEHTA's ditto had read as no customer written.
     **Unless that customer has never sent the kind** (owner: *"Samarth doesn't have clamp"*): a CLAMP carried under SAMARTH's ditto
     goes to the one client whose gauge rule covers a clamp at that round (Mehta at 150), amber, and is only flagged where no single
-    client does (`prodCarryCheck`).
+    client does (`prodCarryCheck`). **A round of a size its own client's rules do not name, which is another client's part on
+    that line**, is asked (*a round of 50 on VAT A1 is Samarth's connector*), never moved (`prodPartRuleOther`; owner: *"71 was the last
+    round for Mehta and then 50 is Samarth"*).
   - **Who plated it** (owner: *"place workers on the specified production … we'll know who plated what and when, this can be useful
     later when we get replating issues"*): `prodCrew(e)`, read off the day's attendance and never stored: a general-shift run is the
     hands marked on its line, a run from 5 PM or before 8:30 the named crew of the OT block covering it, a pickling load the pickling

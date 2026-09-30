@@ -131,6 +131,11 @@ test('a Samarth round names its part by its size and line, a code the rule disag
     { time: '3:50 PM', qtyText: '150', ditto: true }] };
   const cr = JSON.parse(await g(page, `JSON.stringify(prodFromRegisterRead(${JSON.stringify(carried)}, prodCtx(), null, {}).runs.map(e => [e.clientId, e.part, e.qty]))`) as string);
   expect(cr).toEqual([[3, 'TINA', 50], [2, 'CLAMP', 300]]);
+  // A round of 50 under Mehta's clamp: none of Mehta's gauge rules names 50, and 50 on A1 is Samarth's connector. Asked.
+  const whose = { page: 'production', date: dmy, line: 'VAT-A1', rows: [
+    { time: '2:45 PM', customer: 'MEHTA', part: 'CLAMP', qtyText: '71' }, { time: '3:00 PM', qtyText: '50', ditto: true }] };
+  const wi = JSON.parse(await g(page, `JSON.stringify(prodFromRegisterRead(${JSON.stringify(whose)}, prodCtx(), null, {}).rows.map(r => r.issues.filter(i => i.code === 'whose').length))`) as string);
+  expect(wi).toEqual([0, 1]);
   // TINA is two parts at Samarth: learning "TINA" from TINA(3303) and TINA(3302) leaves the name alone ambiguous.
   await g(page, `(function(){ prodLearnAlias(3, 'TINA(3303)', '', '5166 5460 3303', 'code'); prodLearnAlias(3, 'TINA(3302)', '', '5174 5460 3302', 'code'); })()`);
   expect(await g(page, `!!prodData().learn.parts[prodKey(3, 'TINA', '')].ambiguous`)).toBe(true);

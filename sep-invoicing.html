@@ -18,7 +18,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <!-- Appearance before first paint (§3.2): the device's theme and palette, so nothing flashes in the wrong colours. -->
 <script>(function(){try{var d=document.documentElement,t=localStorage.getItem("sep_inv_theme"),p=localStorage.getItem("sep_inv_palette");if(t==="light"||t==="dark")d.dataset.theme=t;d.dataset.palette=(p==="zinc"||p==="terracotta")?p:"teal";}catch(e){document.documentElement.dataset.palette="teal";}})();</script>
-<meta name="app-build" content="62301b9d">
+<meta name="app-build" content="ada7e020">
 <style>
 /* ===== DESIGN TOKENS (design system v2.0 — docs/SEP_INVOICING_DESIGN_PRINCIPLES.md §3) ===== */
 /* Theme: colour-scheme decides every light-dark() below. <html data-theme> is set before first paint
@@ -14068,8 +14068,12 @@ function attMark(iso, staffId) {
   return rec.marks[staffId] || null;
 }
 
+/* The one lookup of a worker by id. Ids are numbers on a device and text in a picker's value, a mark's key or some
+   imports, so they are compared as text. */
 function staffById(id) {
-  return (S.staff || []).find(function(w) { return w.id === id; });
+  if (id == null || id === '') return undefined;
+  var k = String(id);
+  return (S.staff || []).find(function(w) { return String(w.id) === k; });
 }
 
 /* Active roster, leads and permanents first so the week grid reads the way the
@@ -14174,8 +14178,12 @@ function _attPasteBar() {
   return '<div class="inv-toolbar"><button class="inv-btn inv-btn-primary" data-action="invAttView" data-view="paste">Paste message</button></div>';
 }
 
+var _attDateSeen = null;   // the day the week last followed
 function renderAttendance() {
   if (!_attDate) _attDate = localDateStr();
+  // The week follows the Day view's day whenever that day moves, by the stepper, Today, the Overview or a saved roll:
+  // Week, Pay and Areas then open on the week of the day just looked at. A week stepped to on its own view stays.
+  if (_attDate !== _attDateSeen) { _attWeekStart = attWeekStartOf(_attDate); _attDateSeen = _attDate; }
   if (!_attWeekStart) _attWeekStart = attWeekStartOf(_attDate);
   if (_attView !== 'paste') _attPrevView = _attView;
 
@@ -14325,12 +14333,11 @@ function _attDayView() {
    barrel line, the 6 AM VAT slot — with no person attached. They are real paid
    hours at the contract tier, and the payout sheet settles them.
 
-   So they are recorded as what they are: hours booked to an area, unattributed.
-   Spreading them across the men present would produce a per-worker cost that
-   reads precise and is invented, and the one question this tab exists to answer
-   is which labour is fixed and which scales — a question that spreading would
-   silently answer for us. The labour card counts them in the bill and reports
-   them separately as unattributed. */
+   So they are recorded as what they are: hours booked to an area. In the bill they
+   are one pooled line, counted once, and never enter a per-worker wage, so the
+   fixed-versus-variable split does not turn on how they are shared. Who receives
+   them is ruled (28 Aug 2026): the short area's present crew, pro-rata, paid out
+   by the supervisor on the floor — the Areas card works out that split. */
 /* The three things a block row needs and a general-shift row does not.
 
    In and out give the multiplier; the areas give the complement; the crew
@@ -14406,12 +14413,14 @@ function _attBlockFields(x, i, siblings) {
 
   // The prediction, in place, so the operator sees the check as they type it
   // rather than having to leave for the Areas view to find out.
-  var norm = blockNorm({ areas: areas }, [{ areas: areas }].concat(siblings || []));
+  // The block itself, so its own Needed wins over the complement the way it does on the Areas card.
+  var norm = blockNorm(x, [x].concat(siblings || []));
   // The preview must refuse on exactly the conditions `areaStats` refuses on,
-  // or the two surfaces disagree about the same row. A MISSING crew key is not
-  // a crew of zero: zero heads is a real reading (the shop books a fully-short
-  // line that way), but nobody having typed the crew is not.
-  var hasCrew = Array.isArray(x.crew);
+  // or the two surfaces disagree about the same row. A crew nobody named is not
+  // a crew of zero: zero heads is a real reading only where a sibling row of the
+  // same block names its crew (the shop books a fully-short line that way), and
+  // never for a crew the import could not match.
+  var hasCrew = crew.length > 0 || (!x.crewUnknown && (siblings || []).some(function(r) { return Array.isArray(r.crew) && r.crew.length > 0; }));
   if (hrs != null && norm != null && hasCrew) {
     var short = Math.max(0, norm - crew.length);
     var expect = gstRound(short * hrs);
@@ -14437,11 +14446,12 @@ function _attBlockFields(x, i, siblings) {
 /* Needed today: the heads each floor area stood on the general shift against what the shift needed (areaNeedOn). The
    box starts at the area's usual complement and takes the day's own number; blank goes back to the usual. */
 function _attNeedCard(iso, rec) {
+  // Every hand marked that day counts where the mark says, one who has since left included (the Areas card's rule).
   var heads = {};
-  (rec ? staffActive() : []).forEach(function(w) {
-    var m = rec.marks[w.id];
+  Object.keys(rec ? rec.marks : {}).forEach(function(id) {
+    var m = rec.marks[id], w = staffById(id);
     if (!m || (m.st !== 'P' && m.st !== 'H')) return;
-    var a = m.area || w.area || 'flex';
+    var a = m.area || (w && w.area) || 'flex';
     heads[a] = (heads[a] || 0) + 1;
   });
   var html = '<div class="inv-panel inv-panel-flush" id="attNeed"><div class="inv-panel-head"><span class="inv-panel-title">Needed today</span></div>' +
@@ -14465,6 +14475,7 @@ function setAttBlockNeed(idx, v) {
   if (!rec || !rec.extra[idx]) return;
   var n = String(v).trim() === '' ? NaN : Math.floor(Number(v));
   if (!isNaN(n) && n >= 0) rec.extra[idx].need = n; else delete rec.extra[idx].need;
+  _attHandEdit(rec.extra[idx]);
   saveState();
 }
 
@@ -14654,15 +14665,17 @@ function workerOtHourPay(w, cfg, iso) {
   return pay;
 }
 
+/* The OT figure is what one overtime hour pays going forward (workerOtHourPay): the rate × the multiplier, the monthly
+   tier capped. It showed the rate before either, so Shyam's ₹576 a day read ₹72.00/h where an hour pays ₹68.20. */
 function workerRateLabel(w) {
-  var cls = compClass(w.comp);
+  var cls = compClass(w.comp), cfg = labourCfg();
   if (cls.id === 'hourly') return formatCurrency(w.hourRate || 0) + '/h, every hour';
-  var ot = workerOtRate(w);
+  var pay = workerOtHourPay(w, cfg), capped = cls.id === 'monthly' && cfg.otCap > 0 && workerOtRate(w) * cfg.otMult > pay + 0.001;
+  var ot = 'OT ' + formatCurrency(pay) + '/h' + (capped ? ' (capped)' : cls.id === 'monthly' && !(w.hourRate > 0) ? ' (day rate ÷ 8 × ' + formatNum(cfg.otMult, 1) + ')' : '');
   if (cls.id === 'monthly' && w.monthWage > 0) {
-    return formatCurrency(w.monthWage) + '/month · ' + formatCurrency(workerDayRate(w)) + '/day this month · OT ' + formatCurrency(ot) + '/h';
+    return formatCurrency(w.monthWage) + '/month · ' + formatCurrency(workerDayRate(w)) + '/day this month · ' + ot;
   }
-  return formatCurrency(w.dayRate || 0) + '/day · OT ' + formatCurrency(ot) + '/h' +
-    (cls.id === 'monthly' && !(w.hourRate > 0) ? ' (derived)' : '');
+  return formatCurrency(w.dayRate || 0) + '/day · ' + ot;
 }
 
 /* ===== ACTIONS ===== */
@@ -14710,6 +14723,7 @@ function attSetState(iso, staffId, st) {
   } else {
     var m = rec.marks[staffId] || { ot: 0, hours: 0, area: w.area || 'flex' };
     m.st = st;
+    _attHandEdit(m);
     // Absent pays nothing and worked nothing: hours that nobody was here for
     // are not hours, in either tier.
     if (st === 'A') { m.ot = 0; m.hours = 0; }
@@ -14740,6 +14754,7 @@ function setAttOt(staffId, hours) {
   var m = attMark(_attDate, staffId);
   if (!m) return;                       // OT without a presence mark is not a fact
   m.ot = Math.max(0, Number(hours) || 0);
+  _attHandEdit(m);
   saveState();
 }
 
@@ -14749,6 +14764,7 @@ function setAttHours(staffId, hours) {
   var m = attMark(_attDate, staffId);
   if (!m) return;
   m.hours = Math.max(0, Number(hours) || 0);
+  _attHandEdit(m);
   saveState();
 }
 
@@ -14756,6 +14772,7 @@ function setAttArea(staffId, areaId) {
   var m = attMark(_attDate, staffId);
   if (!m) return;
   m.area = areaId;
+  _attHandEdit(m);
   saveState();
 }
 
@@ -14797,10 +14814,16 @@ function attRemoveExtra(idx) {
 function relayLearnFromRow(x) {
   if (!x) return;
   var L = relayLearnData(), at = Date.now();
-  if (x.srcHead) {
-    var k = relayHeadKey(x.srcHead), now = extraAreas(x), was = x.srcAreas || [];
-    if (now.slice().sort().join() === was.slice().sort().join()) delete L.heads[k];
-    else L.heads[k] = { areas: now, was: was, text: x.srcHead, at: at, day: _attDate };
+  // Kept under the heading AND its slot (relayLearnKey), so a correction to the evening block's "VAT A 1" never moves the
+  // 8:30 shift's. A row saved before the slot was kept on it teaches nothing: its lesson would have no slot to go to.
+  if (x.srcHead && x.srcAt) {
+    var k = relayLearnKey(x.srcHead, x.srcAt), was = x.srcAreas || [], cov = extraIsCoverage(x);
+    // A general-shift row books to one area of every area its heading read: the lesson keeps them all (each hand stays
+    // at his own) and puts the corrected one first, which is the one its EXTRA books to.
+    var now = cov ? [x.area].concat(was.filter(function(a) { return a !== x.area; })) : extraAreas(x);
+    var asRead = cov ? x.area === was[0] : now.slice().sort().join() === was.slice().sort().join();
+    if (asRead) delete L.heads[k];
+    else L.heads[k] = { areas: now, was: was, text: x.srcHead, slot: x.srcAt, at: at, day: _attDate };
   }
   if (x.srcSlot && x.kind === 'block') {
     var ks = relayHeadKey(x.srcSlot);
@@ -14809,10 +14832,15 @@ function relayLearnFromRow(x) {
   }
 }
 
+/* A mark or an EXTRA row the roll wrote and somebody then changed by hand is the owner's from then on, like one entered
+   by hand: the next roll keeps it rather than writing over the correction (relayPlan reads `src`). */
+function _attHandEdit(o) { if (o && o.src === 'relay') delete o.src; }
+
 function setAttExtraArea(idx, areaId) {
   var rec = attDay(_attDate, false);
   if (!rec || !rec.extra[idx]) return;
   rec.extra[idx].area = areaId;
+  _attHandEdit(rec.extra[idx]);
   relayLearnFromRow(rec.extra[idx]);
   saveState();
 }
@@ -14822,6 +14850,7 @@ function setAttExtraKind(idx, kind) {
   if (!rec || !rec.extra[idx]) return;
   var x = rec.extra[idx];
   x.kind = EXTRA_KINDS.some(function(k) { return k.id === kind; }) ? kind : 'coverage';
+  _attHandEdit(x);
   // Flipping back to a general shift must CLEAR the block-only fields. Left
   // behind, `areas[]` still splits the row's hours across areas the UI no
   // longer shows (the select renders `x.area` alone) while `_absorption`'s
@@ -14837,6 +14866,7 @@ function setAttBlockTime(idx, which, value) {
   var rec = attDay(_attDate, false);
   if (!rec || !rec.extra[idx]) return;
   rec.extra[idx][which === 'to' ? 'to' : 'from'] = String(value || '');
+  _attHandEdit(rec.extra[idx]);
   relayLearnFromRow(rec.extra[idx]);
   saveState();
 }
@@ -14858,6 +14888,7 @@ function toggleAttBlockArea(idx, areaId) {
   // cost tallies bucket on, and a row that lost its last area would otherwise
   // keep booking against whichever one it used to name.
   x.area = list.length ? list[0] : 'flex';
+  _attHandEdit(x);
   relayLearnFromRow(x);
   saveState();
 }
@@ -14872,6 +14903,7 @@ function toggleAttBlockCrew(idx, workerId) {
   var at = list.indexOf(id);
   if (at >= 0) list.splice(at, 1); else list.push(id);
   x.crew = list;
+  _attHandEdit(x);
   saveState();
 }
 
@@ -14879,6 +14911,7 @@ function setAttExtraHours(idx, hours) {
   var rec = attDay(_attDate, false);
   if (!rec || !rec.extra[idx]) return;
   rec.extra[idx].hours = Math.max(0, Number(hours) || 0);
+  _attHandEdit(rec.extra[idx]);
   saveState();
 }
 
@@ -15009,12 +15042,21 @@ function _attMarkCount(staffId) {
   return n;
 }
 
+/* Payments that name this worker: Pay's payments and advances, and the bank's wage rules and row settings. */
+function _attPayRefs(staffId) {
+  var k = String(staffId), n = 0, bank = S.bank || {};
+  (S.staffPayments || []).forEach(function(p) { if (String(p.staffId) === k) n++; });
+  Object.keys(bank.parties || {}).forEach(function(q) { var r = bank.parties[q]; if (r && r.staffId != null && String(r.staffId) === k) n++; });
+  (bank.rows || []).forEach(function(r) { if (r.set && r.set.staffId != null && String(r.set.staffId) === k) n++; });
+  return n;
+}
+
 function saveWorker(id, mode) {
   var name = document.getElementById('wedName').value.trim();
   if (!name) { showToast('Worker name is required', 'error'); return; }
   var comp = document.getElementById('wedComp').value;
   var dup = (S.staff || []).find(function(x) {
-    return x.id !== id && (x.name || '').trim().toLowerCase() === name.toLowerCase();
+    return x.id !== id && relayKey(x.name) === relayKey(name);
   });
   if (dup) { showToast('Already on the roster: ' + dup.name, 'error'); return; }
 
@@ -15168,7 +15210,9 @@ function importRoster() {
 function buildNameAliases(aliases) {
   var out = { key: {}, spellings: {}, refused: {}, conflicts: 0 };
   if (!aliases || typeof aliases !== 'object' || Array.isArray(aliases)) return out;
-  var norm = function(v) { return String(v == null ? '' : v).trim().toLowerCase(); };
+  // Names are keyed the way a roll reads them (relayKey): case, spaces and punctuation aside. Trim and lower case alone
+  // read "Sarat  Mahato" and "SARAT MAHATO." as two people and added the second.
+  var norm = relayKey;
 
   // Canonicals first, so an alias can never claim a name that is somebody's
   // canonical spelling regardless of the order the file happens to list them.
@@ -15215,7 +15259,7 @@ function buildNameAliases(aliases) {
    Falling back to the name keeps this a strict widening of the old rule: a file
    carrying no aliases resolves exactly as before. */
 function aliasKey(name, al) {
-  var n = String(name == null ? '' : name).trim().toLowerCase();
+  var n = relayKey(name);
   return (al && al.key[n]) || n;
 }
 
@@ -15245,18 +15289,21 @@ function applyRosterImport(data) {
     // the comp migration has already run and cannot repair it. Retired ids are
     // translated; anything else unrecognised takes the fallback.
     var comp = compClass(STAFF_COMP_ALIASES[row.comp] || row.comp).id;
-    var fields = {
-      comp: comp,
-      dayRate: Math.max(0, Number(row.dayRate) || 0),
-      hourRate: Math.max(0, Number(row.hourRate) || 0),
-      monthWage: comp === 'monthly' ? Math.max(0, Number(row.monthWage) || 0) : 0,
-      area: STAFF_AREAS.some(function(a) { return a.id === rowArea; }) ? rowArea : 'flex',
-      onFloor: row.onFloor !== false,
-      active: row.active !== false
-    };
     var key = aliasKey(name, al);
     var group = S.staff.filter(function(x) { return aliasKey(x.name, al) === key; });
     var existing = group[0];
+    // A worker already on the roster takes only the fields the file carries: a file naming a hand's new area must not
+    // zero the rates it did not mention, nor set a hand the owner cleared Active back to active.
+    var has = function(k) { return row[k] !== undefined && row[k] !== null && row[k] !== ''; };
+    var nextComp = existing && !has('comp') ? existing.comp : comp;
+    var fields = {};
+    if (!existing || has('comp')) fields.comp = comp;
+    if (!existing || has('dayRate')) fields.dayRate = Math.max(0, Number(row.dayRate) || 0);
+    if (!existing || has('hourRate')) fields.hourRate = Math.max(0, Number(row.hourRate) || 0);
+    if (!existing || has('monthWage') || nextComp !== 'monthly') fields.monthWage = nextComp === 'monthly' ? Math.max(0, Number(row.monthWage) || 0) : 0;
+    if (!existing || has('area')) fields.area = STAFF_AREAS.some(function(a) { return a.id === rowArea; }) ? rowArea : 'flex';
+    if (!existing || has('onFloor')) fields.onFloor = row.onFloor !== false;
+    if (!existing || has('active')) fields.active = row.active !== false;
     // The roster ALREADY holding two rows for one person is the state this map
     // is meant to have prevented, and an import cannot repair it: collapsing
     // them here would destroy days without showing the operator which ones both
@@ -15392,7 +15439,7 @@ function applyAttendanceImport(data, al) {
   // of the reconciler as well as out of the wage.
   var byName = {};
   (S.staff || []).forEach(function(w) {
-    var n = String(w.name || '').trim().toLowerCase();
+    var n = relayKey(w.name);
     byName[n] = w.id;
     ((al.spellings[aliasKey(n, al)]) || []).forEach(function(sp) {
       if (byName[sp] == null) byName[sp] = w.id;
@@ -15407,7 +15454,7 @@ function applyAttendanceImport(data, al) {
     var rec = { marks: {}, extra: [], note: String(day.note || '') };
 
     (Array.isArray(day.marks) ? day.marks : []).forEach(function(m) {
-      var id = byName[String((m && m.name) || '').trim().toLowerCase()];
+      var id = byName[relayKey(m && m.name)];
       if (id == null) { out.marksDropped++; return; }
       // The state is normalised before it is judged, and an unrecognised one is
       // DROPPED AND COUNTED, never coerced: the old fallback turned a mistyped
@@ -15472,7 +15519,7 @@ function importedExtra(x, byName, counters) {
     var crew = [];
     var unresolved = false;
     (Array.isArray(x.crew) ? x.crew : []).forEach(function(n) {
-      var id = byName[String(n || '').trim().toLowerCase()];
+      var id = byName[relayKey(n)];
       if (id == null) { unresolved = true; return; }
       if (crew.indexOf(id) === -1) crew.push(id);
     });
@@ -15562,6 +15609,16 @@ function mergeWorkers(fromId, intoId) {
     });
   });
 
+  // Money that names the worker follows the merge too: payments and advances, the bank's wage rules and the wage set on
+  // a statement row, and an as-paid slip row's id. Left behind, they named a worker who no longer exists.
+  var same = function(v) { return v != null && String(v) === String(fromId); };
+  var payments = 0;
+  (S.staffPayments || []).forEach(function(p) { if (same(p.staffId)) { p.staffId = intoId; payments++; } });
+  var bank = S.bank || {};
+  Object.keys(bank.parties || {}).forEach(function(k) { var r = bank.parties[k]; if (r && same(r.staffId)) { r.staffId = intoId; payments++; } });
+  (bank.rows || []).forEach(function(r) { if (r.set && same(r.set.staffId)) { r.set.staffId = intoId; payments++; } });
+  (S.payrollPaid || []).forEach(function(rec) { (rec.rows || []).forEach(function(r) { if (same(r.staffId)) r.staffId = intoId; }); });
+
   // The row going away was a spelling of this person; the roll may still use it.
   [from.name].concat(from.relayNames || []).forEach(function(n) {
     var k = relayKey(n);
@@ -15573,7 +15630,7 @@ function mergeWorkers(fromId, intoId) {
   var idx = (S.staff || []).findIndex(function(w) { return w.id === fromId; });
   if (idx !== -1) S.staff.splice(idx, 1);
 
-  return { moved: moved, collided: collided, crews: crews,
+  return { moved: moved, collided: collided, crews: crews, payments: payments,
            collisionDays: collisionDays.sort(), fromName: from.name, intoName: into.name };
 }
 
@@ -15615,7 +15672,8 @@ async function mergeWorkerInto(fromId) {
   renderAttendance();
   showToast('Merged into ' + res.intoName + ' \u2014 ' + res.moved + ' day' +
     (res.moved === 1 ? '' : 's') + ' moved' +
-    (res.crews ? ', ' + res.crews + ' block crew' + (res.crews === 1 ? '' : 's') + ' re-pointed' : ''),
+    (res.crews ? ', ' + res.crews + ' block crew' + (res.crews === 1 ? '' : 's') + ' re-pointed' : '') +
+    (res.payments ? ', ' + res.payments + ' payment' + (res.payments === 1 ? '' : 's') + ' moved with them' : ''),
     res.collided ? 'warning' : 'success');
 
   /* The collided days do not fit in a toast, and they are the half that costs
@@ -15664,6 +15722,13 @@ async function deleteWorker(id) {
   if (marks > 0) {
     showToast('Cannot delete: ' + w.name + ' is on ' + marks + ' recorded day' +
       (marks === 1 ? '' : 's') + '. Clear Active instead.', 'error');
+    return;
+  }
+  // A payment naming them is a record the same way a day is (a void one included: it is kept, not deleted), and so is a
+  // wage the bank statement sets against them. Deleting would leave each reading "Removed worker".
+  var pays = _attPayRefs(id);
+  if (pays > 0) {
+    showToast('Cannot delete: ' + pays + ' payment' + (pays === 1 ? ' names ' : 's name ') + w.name + '. Clear Active instead.', 'error');
     return;
   }
   if (!(await uiConfirm({ title: 'Delete ' + w.name + ' from the roster?', body: 'No day names them, so nothing is lost with the row.', okLabel: 'Delete', danger: true }))) return;
@@ -15785,7 +15850,7 @@ function labourForRange(fromIso, toIso) {
     ot: 0, otHours: 0, extra: 0, extraHours: 0,
     floorCost: 0,
     daysRecorded: 0, workingDays: 0, sundaysRecorded: 0,
-    rosterSize: roster.filter(function(w) { return w.active !== false; }).length, ratelessWorkers: [], byArea: {}, byWorker: {}
+    rosterSize: roster.filter(function(w) { return w.active !== false; }).length, ratelessWorkers: [], hourlessWorkers: [], hourlessMarks: 0, byArea: {}, byWorker: {}
   };
 
   // What each worker earned in the range, on the same arithmetic as the totals:
@@ -15863,6 +15928,13 @@ function labourForRange(fromIso, toIso) {
           bumpArea(areaId, pay, 0, hrs);
           bumpFloor(w, areaId, pay);
           if (!(w.hourRate > 0) && out.ratelessWorkers.indexOf(w.name) < 0) out.ratelessWorkers.push(w.name);
+        } else if (dayVal > 0) {
+          // Present with no hours typed: the pool pays hours, so this day prices nothing. Said on the card and on Pay,
+          // since Hours by area counts the same mark as 8.
+          out.hourlessMarks++;
+          if (out.hourlessWorkers.indexOf(w.name) < 0) out.hourlessWorkers.push(w.name);
+          var hb = bumpWorker(w, 'base', 0, 0, 0, 0);
+          hb.hourless = (hb.hourless || 0) + 1;
         }
         return;
       }
@@ -15881,6 +15953,8 @@ function labourForRange(fromIso, toIso) {
       var offDay = w.comp === 'monthly' && (dow === 0 || holiday);
       var fixedWage = w.comp === 'monthly' && w.monthWage > 0;
       var wage = offDay && fixedWage ? 0 : dayVal * workerDayRate(w, iso);
+      // A day worked with no day rate (and no contracted wage) prices nothing; the card names the hand.
+      if (dayVal > 0 && !(offDay && fixedWage) && !(workerDayRate(w, iso) > 0) && out.ratelessWorkers.indexOf(w.name) < 0) out.ratelessWorkers.push(w.name);
       bumpWorker(w, 'base', wage, dayVal, m.hours || 0, 0);
       if (w.comp === 'monthly') {
         out.monthlyDays += wage;
@@ -15972,9 +16046,7 @@ function labourForRange(fromIso, toIso) {
   if (cfg.restCreditMinDays > 0) {
     Object.keys(weekDaysWorked).forEach(function(key) {
       if (weekDaysWorked[key] < cfg.restCreditMinDays) return;
-      // Ids are numbers on a device and strings in some imports: match as text.
-      var idPart = key.split('|')[0];
-      var w = roster.find(function(x) { return String(x.id) === idPart; });
+      var w = staffById(key.split('|')[0]);
       if (!w) return;
       var pay = (w.dayRate || 0);
       out.dailyRest += pay;
@@ -15984,6 +16056,10 @@ function labourForRange(fromIso, toIso) {
     });
   }
 
+  // Fixed, variable and the total are each rounded ONCE from the unrounded parts, the rule the worker's total follows
+  // below: a contracted wage's 22 days and 6 credited read ₹6,387.10 + ₹1,741.94 = ₹8,129.04 when the parts were
+  // rounded first, where the slip's 28 × 9000 / 31 is ₹8,129.03.
+  var fixedRaw = out.monthlyDays + out.rest, variableRaw = out.pool + out.daily + out.dailyRest + out.ot + out.extra;
   ['monthlyDays', 'rest', 'pool', 'daily', 'dailyRest', 'ot', 'extra', 'floorCost'].forEach(function(k) {
     out[k] = gstRound(out[k]);
   });
@@ -16000,9 +16076,9 @@ function labourForRange(fromIso, toIso) {
   // Fixed is the standing crew — the monthly tier, days and gated rest days
   // together. It moves with their attendance but not with tonnage, which is the
   // distinction the split exists to draw.
-  out.fixed = gstRound(out.monthlyDays + out.rest);
-  out.variable = gstRound(out.pool + out.daily + out.dailyRest + out.ot + out.extra);
-  out.total = gstRound(out.fixed + out.variable);
+  out.fixed = gstRound(fixedRaw);
+  out.variable = gstRound(variableRaw);
+  out.total = gstRound(fixedRaw + variableRaw);
   out.floor = out.floorCost;
   out.offFloor = gstRound(out.total - out.floor);
   out.coverage = out.workingDays > 0 ? Math.min(1, out.daysRecorded / out.workingDays) : 0;
@@ -16199,9 +16275,14 @@ function renderLabourCard(fromIso, toIso, title, tonnage, extraClass) {
     (lab.dailyRest > 0 && lab.rangeDays > 7 ? ' Daily rest credit is gated on days inside this range, so a range cutting a week in half under-credits that week.' : ''));
 
   if (lab.ratelessWorkers.length > 0) {
-    html += _labCallout('Hours are recorded for <strong>' +
-      escHtml(lab.ratelessWorkers.join(', ')) + '</strong> with no rate to price them at, so those hours ' +
+    html += _labCallout('Days or hours are recorded for <strong>' +
+      escHtml(lab.ratelessWorkers.join(', ')) + '</strong> with no rate to price them at, so they ' +
       'are counted in the totals above and paid at zero. Set the rate in Roster to bring them into the bill.', 'warning');
+  }
+  if (lab.hourlessMarks > 0) {
+    html += _labCallout('<strong>' + lab.hourlessMarks + ' day' + (lab.hourlessMarks === 1 ? '' : 's') + '</strong> of the hourly pool ' +
+      '(' + escHtml(lab.hourlessWorkers.join(', ')) + ') ' + (lab.hourlessMarks === 1 ? 'is' : 'are') + ' marked present with no hours, and the pool is paid ' +
+      'for hours, so ' + (lab.hourlessMarks === 1 ? 'it prices' : 'they price') + ' at nothing. Type the hours on the Day view.', 'warning');
   }
 
   // The allocation answer sits last: it is a breakdown of a figure the reader
@@ -16212,8 +16293,9 @@ function renderLabourCard(fromIso, toIso, title, tonnage, extraClass) {
     var share = lab.total > 0 ? (lab.extra / lab.total) * 100 : 0;
     html += _labNote('<strong>' + formatNum(share, 1) + '% of this bill</strong> is extra hours ' +
       'booked to an area rather than to a person. That is what &ldquo;the extra&rdquo; on the daily sheet is: ' +
-      'real paid contract hours with no name against them. They are not spread across the men present, because ' +
-      'a per-worker cost invented that way would answer the fixed-versus-variable question by accident.');
+      'real paid contract hours with no name against them. In the bill they are one pooled line, counted once and never ' +
+      'in anyone&rsquo;s wage; the short area&rsquo;s present crew receive it pro-rata, disbursed by the supervisor ' +
+      '(owner, 28 Aug 2026), and Staff &rarr; Areas shows the split.');
   }
 
   return html + '</div>';
@@ -16585,7 +16667,9 @@ function setAreaTarget(areaId, heads) {
    day, not a gap to be filled by guesswork. */
 function areaStats(fromIso, toIso) {
   var dates = attDatesInRange(fromIso, toIso);
-  var roster = (S.staff || []).filter(function(w) { return w.active !== false; });
+  // Every worker, active or not, the labour card's rule: a hand who has since left still stood where the marks say,
+  // so the heads, the cost worked here and who received the extra count them.
+  var roster = S.staff || [];
   var cfg = labourCfg();
 
   var byId = {};
@@ -16611,9 +16695,13 @@ function areaStats(fromIso, toIso) {
     totalRecorded++;
 
     var headsToday = {};
+    var dow = attParseIso(iso).getDay(), holiday = dow !== 0 && labourIsHoliday(iso, cfg);
     roster.forEach(function(w) {
       var m = marks[w.id];
       if (!m || !m.st || m.st === 'A') return;
+      // Priced as the labour card prices it: a monthly hand's Sunday or paid holiday is a day, never OT as well, and on a
+      // contracted wage the day is inside the wage; the hourly pool carries no OT.
+      var offDay = w.comp === 'monthly' && (dow === 0 || holiday);
       var areaId = m.area || w.area || 'flex';
       var a = byId[areaId];
       if (!a) return;
@@ -16627,9 +16715,9 @@ function areaStats(fromIso, toIso) {
       } else {
         var dayVal = ATT_DAY_VALUE[m.st] || 0;
         a.dayTierDays += dayVal;
-        a.cost += dayVal * workerDayRate(w, iso);
+        if (!(offDay && w.monthWage > 0)) a.cost += dayVal * workerDayRate(w, iso);
       }
-      var oth = m.ot || 0;
+      var oth = offDay || w.comp === 'hourly' ? 0 : (m.ot || 0);
       if (oth > 0) {
         a.otHours += oth;
         a.cost += oth * workerOtHourPay(w, cfg, iso);
@@ -16747,7 +16835,9 @@ function areaStats(fromIso, toIso) {
     // barrel pickling are one block on the sheet and one shortfall in the
     // decode, whatever they are for staffing.
     var unitSeen = {};
-    STAFF_AREAS.forEach(function(x) {
+    // The EXTRA covers a hand short on the plant floor: the office and the gate carry a complement for staffing, and
+    // are never a unit the extra is expected on.
+    STAFF_AREAS.filter(function(x) { return x.floor; }).forEach(function(x) {
       var unit = areaUnitOf(x.id);
       if (unitSeen[unit]) return;
       unitSeen[unit] = true;
@@ -16918,12 +17008,14 @@ function _absorption(dates, roster, cfg) {
     var rec = (S.attendance || {})[iso];
     if (!rec) return;
     var marks = rec.marks || {};
+    // Present hands by UNIT: barrel and barrel pickling are one unit of five, so the extra booked to either is the
+    // unit's crew's. Keyed by area it went to nobody on a day the two sides were staffed apart.
     var present = {};
     roster.forEach(function(w) {
       var m = marks[w.id];
       if (!m || !m.st || m.st === 'A') return;
-      var areaId = m.area || w.area || 'flex';
-      (present[areaId] || (present[areaId] = [])).push(w);
+      var unit = areaUnitOf(m.area || w.area || 'flex');
+      (present[unit] || (present[unit] = [])).push(w);
     });
     (rec.extra || []).forEach(function(x) {
       var h = x.hours || 0;
@@ -16936,7 +17028,7 @@ function _absorption(dates, roster, cfg) {
         var ids = Array.isArray(x.crew) ? x.crew : [];
         crew = roster.filter(function(w) { return ids.indexOf(w.id) >= 0; });
       } else {
-        crew = present[x.area] || [];
+        crew = present[areaUnitOf(x.area || 'flex')] || [];
       }
       if (crew.length === 0) return;      // nobody to PAY it to; the flag covers that
       var each = h / crew.length;
@@ -17017,8 +17109,9 @@ function reopenAreaExplain(key) {
 
 /* ===== VIEW ===== */
 function _attAreasView() {
-  var from = _attWeekStart;
-  var to = isoAddDays(_attWeekStart, _areaSpan * 7 - 1);
+  // The span runs BACK from the week shown: 4 weeks is this one and the three before (it ran forward, into weeks to come).
+  var to = isoAddDays(_attWeekStart, 6);
+  var from = isoAddDays(_attWeekStart, -(_areaSpan - 1) * 7);
   var stats = areaStats(from, to);
 
   var html = _attStepper('invAttWeekStep', _attWeekLabel(_areaSpan === 1 ? 'Week ' + attPayWeekNumber(from) : _areaSpan + ' weeks',
@@ -17456,11 +17549,11 @@ function payWeek(weekStart) {
   var paid = 0;
   staffPayments().forEach(function(p) {
     if (p.voidedAt || p.date < weekStart || p.date > sat) return;
-    if (payIsWeekly(staffById(p.staffId) || (S.staff || []).find(function(w) { return String(w.id) === String(p.staffId); }))) paid += Number(p.amount) || 0;
+    if (payIsWeekly(staffById(p.staffId))) paid += Number(p.amount) || 0;
   });
   return { start: weekStart, sat: sat, lab: lab, workers: gstRound(workers), extra: lab.extra,
     total: gstRound(workers + lab.extra), paid: gstRound(paid),
-    recordedDays: lab.daysRecorded, sundays: lab.sundaysRecorded };
+    recordedDays: lab.daysRecorded, workingDays: lab.workingDays, sundays: lab.sundaysRecorded };
 }
 
 /* The payout the week is heading for, and the usual it is read against. */
@@ -17476,10 +17569,16 @@ function payForecast(weekStart) {
   var open = wk.sat >= today;
   var out = { week: wk, median: median, medianWeeks: past.length, open: open, predicted: wk.total, basis: 'recorded' };
   if (open) {
-    var sunOnly = labourForRange(weekStart, weekStart), sunPay = 0;
-    Object.keys(sunOnly.byWorker).forEach(function(id) { if (sunOnly.byWorker[id].comp !== 'monthly') sunPay += sunOnly.byWorker[id].total; });
-    sunPay += sunOnly.extra;
-    var missing = 6 - wk.recordedDays;
+    // The Sunday and a paid holiday are not working days: what they paid does not repeat, so it is out of the pace, and
+    // the days left to predict are the week's working days (five in a holiday week) less those recorded.
+    var sunPay = 0;
+    attWeekDays(weekStart).forEach(function(d) {
+      if (attParseIso(d).getDay() !== 0 && !labourIsHoliday(d)) return;
+      var one = labourForRange(d, d);
+      Object.keys(one.byWorker).forEach(function(id) { if (one.byWorker[id].comp !== 'monthly') sunPay += one.byWorker[id].total; });
+      sunPay += one.extra;
+    });
+    var missing = Math.max(0, wk.workingDays - wk.recordedDays);
     if (wk.recordedDays > 0) {
       var pace = (wk.total - sunPay) / wk.recordedDays;
       out.predicted = gstRound(wk.total + pace * missing);
@@ -17501,10 +17600,20 @@ function payForecast(weekStart) {
 function payDue(weekStart) {
   var today = localDateStr();
   var sat = isoAddDays(weekStart, 6);
-  var mFrom = payMonthStart(sat), mTo = payMonthEnd(sat);
+  // The monthly tier's month is the one the week's Sunday is in: a week that runs into the next month is the last pay
+  // week of the month it closes. Read off the Saturday, the last week of September showed October's due at nothing and
+  // hid September's, which is the one being settled.
+  var mFrom = payMonthStart(weekStart), mTo = payMonthEnd(weekStart);
   var wk = labourForRange(weekStart, sat);
   var mo = labourForRange(mFrom, mTo > today && mFrom <= today ? today : mTo);
-  var rows = staffActive().map(function(w) {
+  // The active roster, and anyone who has left but earned or was paid in the period: their final week must be payable.
+  var pool = staffActive().slice();
+  (S.staff || []).filter(function(w) { return w.active === false; }).sort(function(a, b) { return String(a.name).localeCompare(String(b.name)); }).forEach(function(w) {
+    var weekly = payIsWeekly(w), from = weekly ? weekStart : mFrom, to = weekly ? sat : mTo;
+    var e = (weekly ? wk : mo).byWorker[w.id];
+    if ((e && (e.total || e.days || e.hours || e.hourless)) || staffPayments().some(function(p) { return !p.voidedAt && String(p.staffId) === String(w.id) && p.date >= from && p.date <= to; })) pool.push(w);
+  });
+  var rows = pool.map(function(w) {
     var weekly = payIsWeekly(w);
     var e = (weekly ? wk : mo).byWorker[w.id] || { total: 0, days: 0, hours: 0, otHours: 0, base: 0, ot: 0, rest: 0 };
     var from = weekly ? weekStart : mFrom, to = weekly ? sat : mTo;
@@ -17549,7 +17658,7 @@ function _payForecastCard(ws) {
   var h = _labPanelHead('payout', 'Weekly payout', payMoney(f.open ? f.predicted : wk.total), '', 'payForecast');
   h += '<div class="inv-tiles inv-tiles-flush">' +
     _labTile('sofar', f.open ? 'So far' : 'The week', payMoney(wk.total),
-      wk.recordedDays + ' of 6 working days recorded' + (wk.sundays ? ' + Sunday' : '')) +
+      wk.recordedDays + ' of ' + wk.workingDays + ' working days recorded' + (wk.sundays ? ' + Sunday' : '') + (wk.workingDays < 6 ? ', a paid holiday out' : '')) +
     _labTile('predicted', f.open ? 'Predicted' : 'Against the median', f.open ? payMoney(f.predicted) : (f.swing == null ? '&mdash;' : paySigned(f.swing)),
       f.open
         ? (f.basis === 'pace' ? f.missing + ' day' + (f.missing === 1 ? '' : 's') + ' at this week&rsquo;s pace, ' + payMoney(f.pace) + '/day'
@@ -17574,7 +17683,9 @@ function _payDueCard(ws) {
   var h = _labPanelHead('due', 'Due by worker', null, '', 'payDue');
   var group = function(title, rows) {
     if (!rows.length) return '';
-    var tot = rows.reduce(function(s, r) { return s + r.due; }, 0);
+    // What is due and what was advanced are two figures: netting one hand's advance against another's due read low.
+    var tot = rows.reduce(function(s, r) { return s + (r.due > 0 ? r.due : 0); }, 0);
+    var adv = rows.reduce(function(s, r) { return s + (r.due < 0 ? -r.due : 0); }, 0);
     var g = '<div class="inv-row-group">' + title + '</div>';
     rows.forEach(function(r) {
       var e = r.earned, bits = [];
@@ -17582,6 +17693,8 @@ function _payDueCard(ws) {
       if (r.w.comp === 'hourly' && e.hours) bits.push(formatNum(e.hours, 1) + ' h');
       if (e.otHours) bits.push('OT ' + formatNum(e.otHours, 1) + ' h');
       if (e.rest) bits.push('rest ' + payMoney(e.rest));
+      if (e.hourless) bits.push(e.hourless + ' day' + (e.hourless === 1 ? '' : 's') + ' present with no hours, priced at nothing');
+      if (r.w.active === false) bits.push('left');
       // A negative due is an advance not yet worked off: said in a word beside the figure.
       g += _payRow(escHtml(r.w.name),
         (bits.length ? bits.join(' · ') + ' · ' : 'nothing recorded · ') + 'earned ' + payMoney(e.total) +
@@ -17590,7 +17703,9 @@ function _payDueCard(ws) {
           : '<span class="inv-num">' + payMoney(r.due) + '</span>',
         ' data-action="invPayPick" data-id="' + escHtml(r.w.id) + '" data-due="' + r.due + '"');
     });
-    g += _payRow('Total due', '', '<span class="inv-num">' + payMoney(gstRound(tot)) + '</span>', '', 'inv-row-strong');
+    g += _payRow('Total due', '', '<span class="inv-num" data-pay-total="due">' + payMoney(gstRound(tot)) + '</span>', '', 'inv-row-strong');
+    if (adv > 0) g += _payRow('Advanced, not yet worked off', 'not taken off the total due',
+      '<span class="inv-row-stack"><span class="inv-num" data-pay-total="advanced">' + payMoney(gstRound(adv)) + '</span><span class="inv-dot inv-dot-warning">Advance</span></span>');
     return g;
   };
   h += group('Weekly &middot; paid Sat ' + formatDate(d.sat), d.rows.filter(function(r) { return r.weekly; }));
@@ -17607,7 +17722,7 @@ function _payFormHtml(d) {
   var f = function(id, label, control) { return '<div class="inv-field"><label class="inv-field-label" for="' + id + '">' + label + '</label>' + control + '</div>'; };
   return '<div class="inv-row-group">Record a payment</div><div class="inv-panel-body" id="payForm"><div class="inv-fields">' +
     f('payWorker', 'Worker', '<select class="inv-select" id="payWorker"><option value="">Select&hellip;</option>' +
-      staffActive().map(function(w) { return '<option value="' + escHtml(w.id) + '">' + escHtml(w.name) + '</option>'; }).join('') + '</select>') +
+      d.rows.map(function(r) { return '<option value="' + escHtml(r.w.id) + '">' + escHtml(r.w.name) + '</option>'; }).join('') + '</select>') +
     f('payKind', 'Kind', '<select class="inv-select" id="payKind"><option value="payment">Payment</option><option value="advance">Advance</option></select>') +
     f('payAmount', 'Amount', '<input class="inv-input inv-input-num" id="payAmount" type="number" step="0.01" min="0" inputmode="decimal">') +
     f('payDate', 'Date', '<input class="inv-input inv-id" id="payDate" type="date" value="' + defDate + '">') +
@@ -17617,14 +17732,14 @@ function _payFormHtml(d) {
 
 function _payListHtml(d) {
   var list = staffPayments().filter(function(p) {
-    var w = (S.staff || []).find(function(x) { return String(x.id) === String(p.staffId); });
+    var w = staffById(p.staffId);
     var weekly = payIsWeekly(w);
     return weekly ? (p.date >= d.weekStart && p.date <= d.sat) : (p.date >= d.mFrom && p.date <= d.mTo);
   }).sort(function(a, b) { return a.date < b.date ? 1 : a.date > b.date ? -1 : (b.at || 0) - (a.at || 0); });
   if (!list.length) return '';
   var h = '<div class="inv-row-group">Payments in these periods</div>';
   list.forEach(function(p) {
-    var w = (S.staff || []).find(function(x) { return String(x.id) === String(p.staffId); });
+    var w = staffById(p.staffId);
     h += _payRow(escHtml(w ? w.name : 'Removed worker'),
       escHtml(formatDate(p.date)) + ' · ' + (p.kind === 'advance' ? 'Advance' : 'Payment') +
         (p.note ? ' · ' + escHtml(p.note) : '') + (p.voidedAt ? ' · void: ' + escHtml(p.voidReason || '') : ''),
@@ -17642,7 +17757,10 @@ function _payHistoryCard(ws) {
   var median = payForecast(ws).median;
   var h = '<div class="inv-panel inv-panel-flush" id="payHistory"><div class="inv-panel-head"><span class="inv-panel-title">Weekly payouts</span>' +
     '<span class="inv-panel-count">median ' + (median == null ? '&mdash;' : payMoney(median)) + '</span></div>';
-  h += '<div class="inv-panel-body">' + chartBars(weeks.map(function(w) { return { label: 'W' + attPayWeekNumber(w.start), value: w.total }; }), { ariaLabel: 'Weekly payout' }) + '</div>';
+  // A week nobody typed is a gap, not a ₹0 week: chartStack draws no bar (and no ₹0 reading) for it.
+  h += '<div class="inv-panel-body">' + chartStack(weeks.map(function(w) { return 'W' + attPayWeekNumber(w.start); }),
+    [{ label: 'Payout', values: weeks.map(function(w) { return w.recordedDays || w.sundays ? w.total : null; }) }],
+    { ariaLabel: 'Weekly payout', emptyText: 'No week recorded in the twelve' }) + '</div>';
   weeks.slice().reverse().forEach(function(w) {
     var swing = median != null && w.recordedDays > 0 ? gstRound(w.total - median) : null;
     h += _payRow('Week ' + attPayWeekNumber(w.start) + ' &middot; Sat ' + escHtml(formatDate(w.sat)),
@@ -17686,22 +17804,46 @@ function payrollPaidFor(month) {
   var gross = (rec.rows || []).reduce(function(s, r) { return s + (Number(r.dayPay) || 0) + (Number(r.ot) || 0); }, 0);
   return { rec: rec, rows: rec.rows || [], gross: gstRound(gross), source: rec.source || '' };
 }
-function payrollWorker(row) {
+/* A slip row's worker, by NAME the way a roll is read (relayRosterIndex / relayMatchName: the roster name and its
+   bracket or dash variants, a spelling kept on the worker, a first name nobody else shares), never by the id a file
+   carries: ids are per device. Only a sure match moves money; a spelling read only by its fold or one letter off is
+   offered on the card as a guess (payrollMatch) and not used. The index is kept while the roster's names stand. */
+var _payrollIdx = null, _payrollIdxSig = '';
+function payrollRosterIndex() {
   var staff = S.staff || [];
-  if (row.staffId != null) {
-    var byId = staff.find(function(w) { return String(w.id) === String(row.staffId); });
-    if (byId) return byId;
-  }
-  var k = relayKey(row.name || '');
-  if (!k) return null;
-  return staff.find(function(w) {
-    return relayKey(w.name) === k || (w.relayNames || []).some(function(n) { return relayKey(n) === k; });
-  }) || null;
+  var sig = staff.map(function(w) { return w.id + ':' + w.name + ':' + (w.relayNames || []).join('|') + ':' + (w.aliases || []).join('|'); }).join(',');
+  if (!_payrollIdx || sig !== _payrollIdxSig) { _payrollIdx = relayRosterIndex(staff); _payrollIdxSig = sig; }
+  return _payrollIdx;
 }
+function payrollMatch(row) {
+  var name = String((row && row.name) || '').trim();
+  if (!relayKey(name)) return null;
+  var idx = payrollRosterIndex(), whole = idx.byKey[relayKey(name)];
+  if (whole) return { w: whole, sure: true };
+  if (relayKey(name) in idx.byKey) return null;    // a name two workers share: neither
+  var words = name.split(/[\s\-–,]+/).filter(Boolean), m = relayMatchName(words, idx, false);
+  // On a roll the words after a name are the rest of the line; on a slip the field is all name, so a first name that
+  // leaves words unexplained ("Ramu Kumar" for the roster's Ramu Singh) is a guess, not a match.
+  return m && m.w ? { w: m.w, sure: !!m.sure && m.used >= words.length } : null;
+}
+function payrollWorker(row) {
+  var m = payrollMatch(row);
+  return m && m.sure ? m.w : null;
+}
+/* A slip's rows by the worker each names, worked out once (the wage check reads it per worker). */
+function payrollRowsByWorker(rows) {
+  var out = {};
+  (rows || []).forEach(function(r) { var w = payrollWorker(r); if (w && !out[w.id]) out[w.id] = r; });
+  return out;
+}
+/* Everything that makes one slip differ from another: each row's name as a roll reads it and every figure on it, the
+   amount actually paid and its note, and the month's status and source. Name, day pay and OT alone let a corrected
+   slip (a changed paid figure, a row's owed note) read as the one already on record and be skipped. */
 function _payrollFingerprint(m) {
-  return JSON.stringify((m.rows || []).map(function(r) {
-    return [String(r.name || '').toUpperCase(), gstRound(Number(r.dayPay) || 0), gstRound(Number(r.ot) || 0)];
-  }).sort());
+  var n = function(v) { return v == null || v === '' ? null : gstRound(Number(v) || 0); };
+  return JSON.stringify([m.status || 'paid', String(m.source || ''), String(m.note || ''), (m.rows || []).map(function(r) {
+    return [relayKey(r.name), n(r.rate), n(r.worked), n(r.restDays), n(r.dayPay), n(r.otHours), n(r.ot), n(r.paid), String(r.note || '')];
+  }).sort()]);
 }
 /* Merge an import file. A month already on record with the same figures is
    skipped; one with different figures supersedes it, and the old record is
@@ -17718,7 +17860,7 @@ function payrollPaidImport(data) {
         dayPay: gstRound(Number(r.dayPay) || 0), otHours: Number(r.otHours) || 0, ot: gstRound(Number(r.ot) || 0),
         paid: r.paid != null ? gstRound(Number(r.paid) || 0) : null, note: String(r.note || '') };
     });
-    var fp = _payrollFingerprint({ rows: rows });
+    var fp = _payrollFingerprint({ rows: rows, status: m.status === 'computed' ? 'computed' : 'paid', source: m.source, note: m.note });
     var live = payrollPaidRecords().filter(function(r) { return !r.voidedAt && r.month === m.month; });
     if (live.some(function(r) { return _payrollFingerprint(r) === fp; })) { out.same++; return; }
     live.forEach(function(r) {
@@ -17784,7 +17926,12 @@ function _payrollPaidCard() {
   recs.forEach(function(r) {
     var gross = r.rows.reduce(function(s, x) { return s + (Number(x.dayPay) || 0) + (Number(x.ot) || 0); }, 0);
     var otH = r.rows.reduce(function(s, x) { return s + (Number(x.otHours) || 0); }, 0);
-    var unmatched = r.rows.filter(function(x) { return !payrollWorker(x); }).map(function(x) { return x.name; });
+    // A name the roster does not hold is said, with the roll reader's guess where it has one: the guess moves no money
+    // until the spelling is kept on the worker.
+    var unmatched = r.rows.filter(function(x) { return !payrollWorker(x); }).map(function(x) {
+      var m = payrollMatch(x);
+      return x.name + (m ? ' (read as ' + m.w.name + '? keep the spelling on the worker to use it)' : '');
+    });
     h += _payRow(escHtml(_monthLabel(r.month)),
       r.rows.length + ' hand' + (r.rows.length === 1 ? '' : 's') +
         (otH ? ' · OT ' + formatNum(otH, 1) + ' h' : '') + (r.status === 'computed' ? ' · computed, not confirmed paid' : ' · as paid') +
@@ -17811,7 +17958,7 @@ function payPick(id, due) {
 }
 function paySave() {
   var id = (document.getElementById('payWorker') || {}).value;
-  var w = (S.staff || []).find(function(x) { return String(x.id) === String(id); });
+  var w = staffById(id);
   var amount = gstRound(parseFloat((document.getElementById('payAmount') || {}).value) || 0);
   var date = (document.getElementById('payDate') || {}).value;
   if (!w) { showToast('Pick a worker', 'error'); return; }
@@ -17864,15 +18011,22 @@ function areaHoursForRange(from, to) {
     Object.keys(rec.marks || {}).forEach(function(id) {
       var m = rec.marks[id];
       if (!m || (m.st !== 'P' && m.st !== 'H')) return;
-      var w = (S.staff || []).find(function(x) { return String(x.id) === String(id); });
+      var w = staffById(id);
       var a = get(m.area || (w && w.area) || 'flex');
-      var hrs = m.hours > 0 ? m.hours : (m.st === 'H' ? 4 : 8);
+      // A mark with no hours counts the day (8, a half day 4) and its OT on top: OT is part of a day's hours.
+      var hrs = m.hours > 0 ? m.hours : (m.st === 'H' ? 4 : 8) + (m.ot || 0);
       if (!(m.hours > 0)) { a.assumed++; assumed++; }
       a.hours += hrs;
       a.ot += m.ot || 0;
       a.workerDays += m.st === 'H' ? 0.5 : 1;
     });
-    (rec.extra || []).forEach(function(x) { if (x.hours > 0) get(x.area || 'flex').extra += x.hours; });
+    // A block over several areas books to each of them evenly, as the Areas card splits it; it all went to the first.
+    (rec.extra || []).forEach(function(x) {
+      if (!(x.hours > 0)) return;
+      var ids = extraAreas(x).filter(function(id) { return STAFF_AREAS.some(function(a) { return a.id === id; }); });
+      if (!ids.length) ids = ['flex'];
+      ids.forEach(function(id) { get(id).extra += x.hours / ids.length; });
+    });
   });
   var rows = STAFF_AREAS.map(function(x) { var r = by[x.id]; if (r) r.label = x.label; return r; }).filter(Boolean);
   rows.forEach(function(r) { r.total = r.hours + r.extra; });
@@ -17891,7 +18045,7 @@ function areaHoursCard(from, to) {
     h += _payRow(escHtml(a.label), bits.join(' · '), '<span class="inv-num">' + formatNum(a.total, 1) + ' h</span>');
   });
   h += _labNote('Every tier together: the hours on each day&rsquo;s mark, where the worker stood that day, plus the EXTRA booked to the area.' +
-    (r.assumed ? ' <strong>' + r.assumed + ' mark' + (r.assumed === 1 ? '' : 's') + '</strong> carried no hours and ' + (r.assumed === 1 ? 'is' : 'are') + ' counted as 8 (a half day as 4).' : ''));
+    (r.assumed ? ' <strong>' + r.assumed + ' mark' + (r.assumed === 1 ? '' : 's') + '</strong> carried no hours and ' + (r.assumed === 1 ? 'is' : 'are') + ' counted as 8 (a half day as 4), with any OT on top.' : ''));
   return h + '</div>';
 }
 
@@ -17916,7 +18070,8 @@ function attDaySummary() {
     if (m.st === 'H') out.half++; else out.p++;
     if (w.onFloor !== false && _areaIsFloor(m.area || w.area)) out.floorHeads++;
   });
-  out.complement = STAFF_AREAS.reduce(function(s, a) { var t = areaNeedOn(iso, a.id); return s + (t != null ? t : 0); }, 0);
+  // The floor's complement against the floor's heads: an office or gate complement is not a head on the floor.
+  out.complement = STAFF_AREAS.reduce(function(s, a) { var t = a.floor ? areaNeedOn(iso, a.id) : null; return s + (t != null ? t : 0); }, 0);
   out.extraH = (rec.extra || []).reduce(function(s, x) { return s + (x.hours || 0); }, 0);
   out.short = !!out.complement && out.floorHeads < out.complement;
   return out;
@@ -23293,7 +23448,18 @@ function relayLearnData() {
   if (!S.relayLearn.slots || typeof S.relayLearn.slots !== 'object') S.relayLearn.slots = {};
   return S.relayLearn;
 }
-function _relayHm(t) { var m = /^(\d{1,2}):(\d{2})$/.exec(String(t || '')); return m ? +m[1] * 60 + +m[2] : null; }
+/* The slot a heading sits in, as the roll wrote it: 'in 08:30' (an in-time slot by its start), 'out 06:00' (an out-time
+   slot by when its crew went home). A heading's lesson is kept under the heading AND its slot (relayLearnKey). */
+function relaySlotTag(mode, slot) {
+  var t = !slot ? null : mode === 'out' ? slot.end : slot.start;
+  return (mode === 'out' ? 'out ' : 'in ') + (t == null ? '?' : relayHhmm(t));
+}
+function relayLearnKey(head, tag) { return relayHeadKey(head) + ' @ ' + tag; }
+function relaySlotLabel(tag) {
+  var m = /^(in|out) (.*)$/.exec(String(tag || '')), t = m ? relayParseHhmm(m[2]) : null;
+  if (!m) return 'any slot';
+  return (m[1] === 'out' ? 'out at ' : 'slot from ') + (t == null ? '?' : relayClockLabel(t));
+}
 function _relayLearntNote(l) { return 'learnt from your correction' + (l && l.day ? ' on ' + formatDate(l.day) : ''); }
 
 function relayKey(s) { return String(s || '').toUpperCase().replace(/[^A-Z]/g, ''); }
@@ -23410,17 +23576,19 @@ function relaySkel(k) {
   return f ? f[0] + f.slice(1).replace(/[AEIOU]/g, '') : '';
 }
 function relayRosterIndex(roster) {
-  var byKey = {}, byFold = {}, bySkel = {}, list = [], firsts = {};
+  var byKey = {}, byFold = {}, bySkel = {}, list = [], firsts = {}, byName = {}, byPlaced = {};
   var put = function(map, k, w) { if (!k) return; if (!(k in map)) map[k] = w; else if (map[k] && map[k] !== w) map[k] = null; };
   (roster || []).forEach(function(w) {
     var v = relayNameVariants(w.name);
-    v.all.concat(w.relayNames || [], w.aliases || []).forEach(function(n) {
-      var k = relayKey(n);
-      if (k && !byKey[k]) byKey[k] = w;
-    });
+    v.all.forEach(function(n) { put(byName, relayKey(n), w); });
+    (w.relayNames || []).concat(w.aliases || []).forEach(function(n) { put(byPlaced, relayKey(n), w); });
     v.firsts.forEach(function(f) { put(firsts, relayKey(f), w); });
     list.push(w);
   });
+  // A key two workers share matches neither: it used to go to whoever the roster listed first. A spelling the owner
+  // placed on one worker is a decision, and it beats another worker's name that reads the same way.
+  Object.keys(byName).forEach(function(k) { byKey[k] = byName[k]; });
+  Object.keys(byPlaced).forEach(function(k) { byKey[k] = byPlaced[k]; });
   // A first name stands for the worker only when nobody else answers to it.
   Object.keys(firsts).forEach(function(k) { if (k.length >= 3 && firsts[k] && !(k in byKey)) byKey[k] = firsts[k]; });
   Object.keys(byKey).forEach(function(k) { put(byFold, relayFold(k), byKey[k]); put(bySkel, relaySkel(k), byKey[k]); });
@@ -23556,8 +23724,14 @@ function parseRelayRoll(text, roster, sentOn) {
   var out = { kind: relayKind(text), date: null, days: {}, lines: [], issues: [] };
   var first = lines[0] || '';
   var dm = first.match(/(\d{1,2})\/(\d{1,2})\/(\d{2,4})/);
-  out.date = dm ? isoFromDmy(dm[1], dm[2], dm[3]) : (sentOn || null);
-  if (!dm) out.issues.push({ tone: 'amber', text: 'The roll carries no date; read as the day it was sent.' });
+  // A date the calendar lacks (31/09) reads as no date, and with no day it was sent either there is no day to put it
+  // on: it is said, and nothing from it is saved (relayPlan leaves out a roll with no date).
+  var dated = dm ? isoFromDmy(dm[1], dm[2], dm[3]) : null;
+  out.date = dated || sentOn || null;
+  if (!out.date) out.issues.push({ tone: 'red', text: (dm ? '"' + dm[0] + '" is not a date, and' : 'The roll carries no date, and') +
+    ' the day it was sent is not known: nothing from it can be saved. Paste it with its WhatsApp line, or put the date on its first line.' });
+  else if (!dm) out.issues.push({ tone: 'amber', text: 'The roll carries no date; read as the day it was sent.' });
+  else if (!dated) out.issues.push({ tone: 'amber', text: '"' + dm[0] + '" is not a date; read as the day it was sent.' });
   var headTimes = relayTimes(first.replace(/\d{1,2}\/\d{1,2}\/\d{2,4}\/?/, ''));
   var st = {
     mode: out.kind,
@@ -23578,6 +23752,7 @@ function parseRelayRoll(text, roster, sentOn) {
     st.sec = { areas: areas, absent: !!(extra && extra.absent), prod: !!(extra && extra.prod), crew: [], crewIds: [], extraLine: null };
     if (!st.sec.prod) st.lastSec = st.sec;
   }
+  function slotAt() { return st.slot && st.slot.tag ? st.slot.tag : relaySlotTag(st.mode, st.slot); }
 
   lines.slice(1).forEach(function(raw, i) {
     var ln = { n: i + 2, raw: raw, role: '', read: '' };
@@ -23631,9 +23806,12 @@ function parseRelayRoll(text, roster, sentOn) {
       sec.extraLine = ln;
       var general = st.slot && st.slot.start === RELAY_GENERAL && st.mode === 'in';
       var row;
+      // Where a row came from travels with it (relayLearnFromRow): the heading, its slot, and every area the heading read
+      // before any lesson, so "put back as read" means as the roll reads with nothing learnt.
+      var collapse = function(a) { return a.length === 2 && a[0] === 'barrel' && a[1] === 'pickling-barrel' ? ['pickling-barrel'] : a.slice(); };
       if (general && sec.areas.length) {
         row = { kind: 'coverage', area: sec.areas[0], hours: hrs };
-        if (sec.srcHead) { row.srcHead = sec.srcHead; row.srcAreas = [sec.areas[0]]; }
+        if (sec.srcHead) { row.srcHead = sec.srcHead; row.srcAt = sec.srcAt; row.srcAreas = (sec.rawAreas || sec.areas).slice(); }
         ln.read = 'EXTRA ' + hrs + ' h booked to ' + relayAreaName(sec.areas[0]);
       } else {
         var from = st.mode === 'out' ? (st.slot && st.slot.rangeStart != null ? st.slot.rangeStart : RELAY_GENERAL_OUT)
@@ -23655,10 +23833,9 @@ function parseRelayRoll(text, roster, sentOn) {
           }
         }
         var crewNames = crewIds.map(function(id) { return day(st.iso).people[id].name; });
-        var bAreas = sec.learnt ? sec.learnt.areas.slice()
-          : sec.areas.length === 2 && sec.areas[0] === 'barrel' && sec.areas[1] === 'pickling-barrel' ? ['pickling-barrel'] : sec.areas.slice();
+        var bAreas = sec.learnt ? sec.learnt.areas.slice() : collapse(sec.areas);
         row = { kind: 'block', areas: bAreas, crew: crewNames, hours: hrs, from: relayHhmm(from), to: to == null ? '' : relayHhmm(to) };
-        if (sec.srcHead) { row.srcHead = sec.srcHead; row.srcAreas = bAreas.slice(); }
+        if (sec.srcHead) { row.srcHead = sec.srcHead; row.srcAt = sec.srcAt; row.srcAreas = collapse(sec.rawAreas || sec.areas); }
         if (st.slot && st.slot.label && relayHeadHasWords(st.slot.label)) { row.srcSlot = st.slot.label; row.srcFrom = row.from; row.srcTo = row.to; }
         ln.read = 'EXTRA ' + hrs + ' h, block ' + relayClockLabel(from) + ' – ' + (to == null ? '?' : relayClockLabel(to)) +
           (row.areas.length ? ', ' + row.areas.map(relayAreaName).join(' + ') : ', no line named') + ', crew ' + (row.crew.length ? row.crew.length : 'not named');
@@ -23668,8 +23845,9 @@ function parseRelayRoll(text, roster, sentOn) {
       ln.role = 'extra';
       day(st.iso).extra.push(row);
       // The tag closes its group: names after it are the next crew.
-      var keep = sec.areas.slice(), was = sec.slotOnly, srcHead = sec.srcHead, lrn = sec.learnt;
+      var keep = sec.areas.slice(), was = sec.slotOnly, srcHead = sec.srcHead, lrn = sec.learnt, srcAt = sec.srcAt, raw = sec.rawAreas;
       newSection(keep, null); st.sec.slotOnly = was; st.sec.headText = ''; st.sec.srcHead = srcHead; st.sec.learnt = lrn;
+      st.sec.srcAt = srcAt; st.sec.rawAreas = raw;
       return;
     }
 
@@ -23703,9 +23881,16 @@ function parseRelayRoll(text, roster, sentOn) {
       if (kindH.slot) {
         // A heading that writes both ends ("night hold-8 pm to 6 am") gives its block both: the start is no longer
         // taken to be 5 PM. A single time is only when the crew under it went home.
-        if (st.mode === 'out') st.slot = { start: null, end: kindH.end != null ? kindH.end : (kindH.single != null ? kindH.single : null), label: bare,
-          rangeStart: kindH.end != null || kindH.night ? kindH.start : null };
-        else {
+        if (st.mode === 'out') {
+          // A night heading that writes one time keeps the night hold's other end (8 PM to 6 AM): "night hold 6 am" still
+          // starts at 8 PM, and "night hold 8 pm" still runs to 6 AM. It started at 5 PM, or ended at 8 PM.
+          if (kindH.night && kindH.end == null && kindH.single != null) {
+            if (kindH.single >= 1440) { kindH.start = RELAY_NIGHT; kindH.end = kindH.single; }
+            else { kindH.start = kindH.single; kindH.end = 1440 + RELAY_MORNING; }
+          }
+          st.slot = { start: null, end: kindH.end != null ? kindH.end : (kindH.single != null ? kindH.single : null), label: bare,
+            rangeStart: kindH.end != null || kindH.night ? kindH.start : null };
+        } else {
           var sStart = kindH.start;
           // A slot ahead of the 8:30 shift on an in-time roll is the morning: the
           // relay has headed it "6:00 pm" before, and BM ruled that a mislabel.
@@ -23717,9 +23902,12 @@ function parseRelayRoll(text, roster, sentOn) {
           st.slot = { start: sStart, end: kindH.end, label: bare };
           kindH.start = sStart;
         }
+        // Which slot this is, as the roll wrote it: taken before a learnt time moves it, so a heading's lesson keeps
+        // finding its slot (slotAt).
+        st.slot.tag = relaySlotTag(st.mode, st.slot);
         var ls = relayHeadHasWords(bare) ? learn.slots[relayHeadKey(bare)] : null;
-        if (ls && _relayHm(ls.from) != null && _relayHm(ls.to) != null) {
-          var lf = _relayHm(ls.from), lt = _relayHm(ls.to);
+        if (ls && relayParseHhmm(ls.from) != null && relayParseHhmm(ls.to) != null) {
+          var lf = relayParseHhmm(ls.from), lt = relayParseHhmm(ls.to);
           if (lt <= lf) lt += 1440;
           if (st.mode === 'out') { st.slot.rangeStart = lf; st.slot.end = lt; } else { st.slot.start = lf; st.slot.end = lt; kindH.start = lf; }
           st.slot.learnt = ls;
@@ -23750,7 +23938,10 @@ function parseRelayRoll(text, roster, sentOn) {
         ln.role = 'head'; ln.read = 'The block above ran on ' + lastRow.areas.map(relayAreaName).join(' + ');
         return;
       }
-      var lh = !kindH.absent ? learn.heads[relayHeadKey(bare)] : null;
+      // A lesson is kept for the heading in its slot: the same "VAT A 1" under the 8:30 shift and under an evening block
+      // are two readings, and a correction to one must not move the other (the 8:30 shift's decides where hands stood).
+      var at = slotAt(), rawAreas = (kindH.areas || []).slice();
+      var lh = !kindH.absent ? learn.heads[relayLearnKey(bare, at)] : null;
       if (lh && Array.isArray(lh.areas)) {
         kindH.areas = lh.areas.slice();
         out.issues.push({ tone: 'info', n: ln.n, text: '"' + bare + '" read as ' + (lh.areas.map(relayAreaName).join(' + ') || 'no line') + ', ' + _relayLearntNote(lh) + '.' });
@@ -23758,6 +23949,8 @@ function parseRelayRoll(text, roster, sentOn) {
       newSection(kindH.areas || [], { absent: kindH.absent });
       st.sec.headText = bare;
       st.sec.srcHead = bare;
+      st.sec.srcAt = at;
+      st.sec.rawAreas = rawAreas;
       st.sec.learnt = lh || null;
       ln.role = 'head';
       ln.read = kindH.absent ? 'Absent' : (kindH.areas.length ? kindH.areas.map(relayAreaName).join(' + ') : 'Section');
@@ -23793,7 +23986,7 @@ function parseRelayRoll(text, roster, sentOn) {
     if (absent) {
       p.st = 'A';
     } else {
-      if (!st.sec || st.sec.prod) { newSection(st.sec && st.sec.prod ? [] : [], null); st.sec.slotOnly = true; }
+      if (!st.sec || st.sec.prod) { newSection([], null); st.sec.slotOnly = true; }
       st.sec.crew.push(w.name);
       st.sec.crewIds.push(w.id);
       var areas = st.sec ? st.sec.areas : [];
@@ -23854,7 +24047,7 @@ function relaySlotOrArea(bare) {
   var absent = /ABSENT/.test(up);
   if (times.length && !absent) {
     var start = times[0].min, end = times.length > 1 ? relayOutMin(times[1]) : null;
-    if (words.every(function(w) { return slotWords.indexOf(w) >= 0; }) || areas.length) return { slot: true, start: start, end: end, single: relayOutMin(times[0]), areas: areas };
+    if (words.every(function(w) { return slotWords.indexOf(w) >= 0; }) || areas.length) return { slot: true, start: start, end: end, single: relayOutMin(times[0]), areas: areas, night: /NIGHT/.test(up) };
   }
   if (/MORNING/.test(up)) return { slot: true, start: RELAY_MORNING, end: RELAY_GENERAL, areas: areas };
   if (/G[AE]N[AE]?RAL/.test(up)) return { slot: true, start: RELAY_GENERAL, end: RELAY_GENERAL_OUT, areas: areas };
@@ -23916,16 +24109,12 @@ function relayRoster(choices) {
   r.learn = relayLearnData();
   return r;
 }
-function relayWorker(id) {
-  if (id == null || id === '') return null;
-  return (S.staff || []).find(function(w) { return String(w.id) === String(id); }) || null;
-}
 /* Remember a spelling on one worker (and on nobody else). An empty id forgets
    it. Returns true when the roster changed. */
 function relayRemember(key, id) {
   key = relayKey(key);
   if (!key) return false;
-  var changed = false, w = relayWorker(id);
+  var changed = false, w = staffById(id);
   (S.staff || []).forEach(function(x) {
     if (x === w || !Array.isArray(x.relayNames)) return;
     var keep = x.relayNames.filter(function(n) { return relayKey(n) !== key; });
@@ -23960,6 +24149,8 @@ function relayPlan(rv) {
     r.issues.forEach(function(is) { is.mi = mi; issues.push(is); });
     r.lines.forEach(function(l) { l.mi = mi; lines.push(l); });
     Object.keys(r.days).forEach(function(iso) {
+      // A roll with no date to put it on (parseRelayRoll says so, red) saves nothing.
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(iso)) return;
       var d = r.days[iso];
       var t = days[iso] || (days[iso] = { iso: iso, people: {}, extra: [], restOut: null, holiday: '', notes: [], kinds: [] });
       if (t.kinds.indexOf(r.kind) < 0) t.kinds.push(r.kind);
@@ -23997,7 +24188,18 @@ function relayPlan(rv) {
       var same = prev && prev.st === next.st && prev.area === next.area && prev.hours === next.hours && prev.ot === next.ot;
       rows.push({ w: w, p: p, prev: prev, next: next, change: !prev ? 'new' : same ? 'same' : 'updated' });
     });
-    // Present hands already on the day that this out-roll left unnamed: out with the shift.
+    // Present hands already on the day that this paste does not name: "everyone else left at X" (restOut) is theirs
+    // too. The in-time roll saved them out at 5 PM on trust; this is when they went. A hand whose out an earlier
+    // out-time roll already gave, or whose mark was entered or corrected by hand, is left as it is.
+    if (t.restOut != null && rec && rec.marks) Object.keys(rec.marks).forEach(function(id) {
+      var prev = rec.marks[id], w = byId[id] || staffById(id);
+      if (t.people[id] || !w || !prev || prev.src !== 'relay' || prev.st !== 'P' || prev.outKnown) return;
+      var q = { st: 'P', areas: prev.area || null, generalArea: null, inExp: prev.inMin, inSlot: null, outExp: null, outSlot: null };
+      var next = relayPersonMark(q, w, t.restOut);
+      next.outKnown = true;
+      var same = prev.area === next.area && prev.hours === next.hours && prev.ot === next.ot;
+      rows.push({ w: w, p: q, prev: prev, next: next, change: same ? 'same' : 'updated' });
+    });
     rows.sort(function(a, b) {
       var o = { P: 0, H: 1, A: 2 };
       return (o[a.next.st] - o[b.next.st]) || String(a.next.area).localeCompare(String(b.next.area)) || String(a.w.name).localeCompare(String(b.w.name));
@@ -24009,19 +24211,40 @@ function relayPlan(rv) {
             hours: x.hours, from: x.from, to: x.to, area: x.areas[0] || 'flex', src: 'relay' }
         : { kind: 'coverage', area: x.area, hours: x.hours, src: 'relay' };
       // Where the row came from travels with it, so a correction on the saved day can teach the next roll.
-      ['srcHead', 'srcAreas', 'srcSlot', 'srcFrom', 'srcTo'].forEach(function(k) { if (x[k] != null) row[k] = Array.isArray(x[k]) ? x[k].slice() : x[k]; });
-      var dup = rec && (rec.extra || []).some(function(e) { return relayExtraSame(e, row); });
-      return { row: row, dup: !!dup };
+      ['srcHead', 'srcAt', 'srcAreas', 'srcSlot', 'srcFrom', 'srcTo'].forEach(function(k) { if (x[k] != null) row[k] = Array.isArray(x[k]) ? x[k].slice() : x[k]; });
+      return { row: row, dup: false, kept: false };
+    });
+    // The day's rows, slot by slot (relayExtraSlot). A roll pasted again after an edit REPLACES what the relay wrote for
+    // each slot it covers, rather than adding its EXTRA beside the old: a row it brings again unchanged is left as it is,
+    // and one it no longer carries is taken off (and said so). A slot holding a row entered or corrected by hand is
+    // the owner's, like a mark entered by hand: kept, and the roll's rows for it are not added.
+    var slots = {}, replaced = [];
+    extras.forEach(function(x) { var k = relayExtraSlot(x.row); (slots[k] || (slots[k] = { nw: [], od: [] })).nw.push(x); });
+    ((rec && rec.extra) || []).forEach(function(e) { var sl = slots[relayExtraSlot(e)]; if (sl) sl.od.push(e); });
+    Object.keys(slots).forEach(function(k) {
+      var sl = slots[k];
+      if (sl.od.some(function(e) { return e.src !== 'relay'; })) { sl.nw.forEach(function(x) { x.kept = true; }); return; }
+      var left = sl.od.slice();
+      sl.nw.forEach(function(x) {
+        var j = left.findIndex(function(e) { return relayExtraSame(e, x.row); });
+        if (j >= 0) { x.dup = true; left.splice(j, 1); }
+      });
+      replaced = replaced.concat(left);
     });
     var provisional = t.kinds.indexOf('out') < 0 && rows.some(function(r) { return r.next.st === 'P' && r.change !== 'kept'; });
-    out.days.push({ iso: iso, rows: rows, extras: extras, holiday: t.holiday, notes: t.notes, kinds: t.kinds, provisional: provisional });
+    out.days.push({ iso: iso, rows: rows, extras: extras, replaced: replaced, holiday: t.holiday, notes: t.notes, kinds: t.kinds, provisional: provisional });
   });
   return out;
+}
+/* The slot an EXTRA row books in: a general-shift row by its area, a block by its times. */
+function relayExtraSlot(x) {
+  return extraIsBlock(x) ? 'block ' + (x.from || '?') + '-' + (x.to || '?') : 'shift ' + (x.area || 'flex');
 }
 function relayExtraSame(a, b) {
   if (a.kind !== b.kind || a.hours !== b.hours) return false;
   if (a.kind === 'coverage') return a.area === b.area;
-  return a.from === b.from && a.to === b.to && (a.crew || []).slice().sort().join() === (b.crew || []).slice().sort().join();
+  return a.from === b.from && a.to === b.to && extraAreas(a).sort().join() === extraAreas(b).sort().join() &&
+    (a.crew || []).slice().sort().join() === (b.crew || []).slice().sort().join();
 }
 
 function relayOpen(text) {
@@ -24061,6 +24284,8 @@ function relayLearntHtml() {
     var l = L.heads[k];
     rows += '<div class="inv-row inv-row-2" data-learnt="head"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(l.text || k) + '</span>' +
       '<span class="inv-row-meta">' + escHtml((l.areas || []).map(relayAreaName).join(' + ') || 'no line') + ' · was ' + escHtml((l.was || []).map(relayAreaName).join(' + ') || 'no line') +
+      // A lesson is read back on its own slot. One kept before that was known is not read: correct the row again.
+      ' · ' + escHtml(l.slot ? relaySlotLabel(l.slot) : 'kept before lessons were per slot, not read; correct the row again') +
       (l.day ? ' · ' + escHtml(formatDate(l.day)) : '') + '</span></span>' +
       '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invRelayForget" data-kind="heads" data-key="' + escHtml(k) + '">Forget</button></div>';
   });
@@ -24093,7 +24318,6 @@ function relayRead() {
   var prod = typeof parseProdPaste === 'function' ? parseProdPaste(text, prodCtx()).filter(function(m) { return m.read.items.length; }) : [];
   var prodLoose = prod.filter(function(m) { return m.kind !== 'roll'; }).length;
   if (!rolls.length && prod.length) { prodOpenPaste(text); return; }
-  if (!(S.staff || []).length) { showToast('Add the roster first: Staff → Roster', 'error'); return; }
   if (!rolls.length && stock.length) {
     // A stock message belongs to Stock's own review.
     _stockPasteDraft = text;
@@ -24103,6 +24327,8 @@ function relayRead() {
     return;
   }
   if (!rolls.length) { showToast('No in-time or out-time roll found in that text', 'error'); return; }
+  // Only a roll needs the roster: a stock message goes to Stock above whether or not anyone is on it yet.
+  if (!(S.staff || []).length) { showToast('Add the roster first: Staff → Roster', 'error'); return; }
   _relay = { text: text, msgs: rolls, choices: {}, stock: stock.length, other: Math.max(0, other.length - prodLoose), prod: prod.length };
   _relayView = 'review';
   _relayShowLines = false;
@@ -24183,16 +24409,24 @@ function relayRenderReview() {
         '<span class="inv-row-end"><span class="inv-row-stack"><span class="inv-num">' + escHtml(absent ? '—' : relayMarkText(r.next)) + '</span>' +
         '<span class="inv-badge inv-badge-' + ch[0] + '">' + ch[1] + '</span></span></span></div>';
     });
-    if (d.extras.length) {
+    var what = function(e) {
+      return e.kind !== 'block' ? relayAreaName(e.area) + ', general shift'
+        : 'Block ' + relayClockLabel(relayParseHhmm(e.from)) + ' – ' + (e.to ? relayClockLabel(relayParseHhmm(e.to)) : '?') +
+          (extraAreas(e).length ? ', ' + extraAreas(e).map(relayAreaName).join(' + ') : '') + ', crew ' + ((e.crew || []).length ? e.crew.map(function(id) { var w = staffById(id); return w ? w.name : '?'; }).join(', ') : 'not named');
+    };
+    if (d.extras.length || d.replaced.length) {
       h += '<div class="inv-row-group">EXTRA hours</div>';
       d.extras.forEach(function(x) {
-        var e = x.row;
-        if (!x.dup) extras++;
-        var what = e.kind === 'coverage' ? relayAreaName(e.area) + ', general shift'
-          : 'Block ' + relayClockLabel(relayParseHhmm(e.from)) + ' – ' + (e.to ? relayClockLabel(relayParseHhmm(e.to)) : '?') +
-            (e.areas.length ? ', ' + e.areas.map(relayAreaName).join(' + ') : '') + ', crew ' + (e.crew.length ? e.crew.map(function(id) { var w = staffById(id); return w ? w.name : '?'; }).join(', ') : 'not named');
-        h += '<div class="inv-row inv-row-auto' + (x.dup ? ' inv-row-muted' : '') + '" data-relay-extra><span class="inv-row-main inv-row-wrap">' + escHtml(what) +
-          (x.dup ? ' · already on the day, not added again' : '') + '</span><span class="inv-row-end inv-num">' + e.hours + ' h</span></div>';
+        var e = x.row, off = x.dup || x.kept;
+        if (!off) extras++;
+        h += '<div class="inv-row inv-row-auto' + (off ? ' inv-row-muted' : '') + '" data-relay-extra' + (x.kept ? ' data-kept' : '') + '><span class="inv-row-main inv-row-wrap">' + escHtml(what(e)) +
+          (x.dup ? ' · already on the day, not added again' : x.kept ? ' · the day\'s row for this slot was entered or corrected by hand: kept, this is not added' : '') +
+          '</span><span class="inv-row-end inv-num">' + e.hours + ' h</span></div>';
+      });
+      // What the roll wrote before for a slot it now covers, and no longer carries: taken off on Save, and said so.
+      d.replaced.forEach(function(e) {
+        h += '<div class="inv-row inv-row-auto inv-row-muted" data-relay-replaced><span class="inv-row-main inv-row-wrap">' + escHtml(what(e)) +
+          ' · on the day from an earlier paste of this roll: replaced</span><span class="inv-row-end inv-num">' + e.hours + ' h</span></div>';
       });
     }
     if (d.notes.length) h += '<div class="inv-panel-body inv-note">Also in the roll (kept as the day\'s note): ' + escHtml(d.notes.slice(0, 8).join(' · ')) + (d.notes.length > 8 ? '…' : '') + '</div>';
@@ -24242,7 +24476,8 @@ function relaySave() {
       rec.marks[r.w.id] = { st: n.st, ot: n.ot, hours: n.hours, area: n.area, inMin: n.inMin, outMin: n.outMin, outKnown: !!n.outKnown, src: 'relay' };
       marks++;
     });
-    d.extras.forEach(function(x) { if (!x.dup) { rec.extra.push(x.row); extras++; } });
+    if (d.replaced.length) rec.extra = rec.extra.filter(function(e) { return d.replaced.indexOf(e) < 0; });
+    d.extras.forEach(function(x) { if (!x.dup && !x.kept) { rec.extra.push(x.row); extras++; } });
     var add = [];
     if (d.holiday) add.push('Holiday: ' + d.holiday);
     if (d.notes.length) add.push(d.notes.join(' · '));
@@ -24326,8 +24561,8 @@ function _asHm(min) {
 
 // A block's "17:00" read the way the rest of the sheet writes a time.
 function _asClock(t) {
-  var m = /^(\d{1,2}):(\d{2})$/.exec(String(t || ''));
-  return m ? _asHm(parseInt(m[1], 10) * 60 + parseInt(m[2], 10)) : String(t || '');
+  var m = relayParseHhmm(t);
+  return m != null ? _asHm(m) : String(t || '');
 }
 
 /* A line or field carrying what was recorded: printed in the ink colour of a filled form (inv-as-fill). */
@@ -24343,8 +24578,7 @@ function _asFillField(label, value, after) {
   return '<div class="inv-as-field"><span>' + label + '</span><span class="inv-as-blank">' + (value ? '<span class="inv-as-fill">' + escHtml(value) + '</span>' : '') + '</span>' +
     (after ? '<span>' + after + '</span>' : '') + '</div>';
 }
-function _asName(id) { var w = staffById(id) || staffById(Number(id)); return w ? w.name : String(id); }
-function _asBlockMin(t) { var m = /^(\d{1,2}):(\d{2})$/.exec(String(t || '')); return m ? +m[1] * 60 + +m[2] : null; }
+function _asName(id) { var w = staffById(id); return w ? w.name : String(id); }
 
 /* Shyam's roll: In time (front) and Out time (back). Numbers run on within a slot, as he writes them. With `rec` (an
    earlier day the app holds; owner, 29 Sep 2026: "if we have previous day's data ... that should be printed when
@@ -24356,7 +24590,7 @@ function attSheetShyamHtml(iso, rec) {
   var byBox = {}, absM = [], absW = [], flex = [];
   var boxOf = { 'vat-a1': 0, 'vat-a2': 1, 'barrel': 2, 'pickling-barrel': 2, 'pickling-vat': 3, 'office': 4, 'gate': 4 };
   Object.keys(marks).forEach(function(id) {
-    var m = marks[id], w = staffById(id) || staffById(Number(id));
+    var m = marks[id], w = staffById(id);
     if (!m || !m.st) return;
     if (m.st === 'A') { (w && w.comp === 'monthly' ? absM : absW).push(_asName(id)); return; }
     var b = boxOf[m.area || (w && w.area) || 'flex'];
@@ -24364,9 +24598,9 @@ function attSheetShyamHtml(iso, rec) {
   });
   var cover = {};
   extra.forEach(function(x) { if ((x.kind || 'coverage') === 'coverage') { var b = boxOf[x.area]; if (b != null) cover[b] = (cover[b] || 0) + (x.hours || 0); } });
-  var blocks = extra.filter(function(x) { return x.kind === 'block'; }).sort(function(a, b) { return (_asBlockMin(a.from) || 0) - (_asBlockMin(b.from) || 0); });
-  var morning = blocks.filter(function(x) { var f = _asBlockMin(x.from); return f != null && f < 510; });
-  var evening = blocks.filter(function(x) { var f = _asBlockMin(x.from); return f == null || f >= 510; });
+  var blocks = extra.filter(function(x) { return x.kind === 'block'; }).sort(function(a, b) { return (relayParseHhmm(a.from) || 0) - (relayParseHhmm(b.from) || 0); });
+  var morning = blocks.filter(function(x) { var f = relayParseHhmm(x.from); return f != null && f < 510; });
+  var evening = blocks.filter(function(x) { var f = relayParseHhmm(x.from); return f == null || f >= 510; });
 
   var n = 1, boxes = '';
   ATT_SHEET_IN_AREAS.forEach(function(a, i) {
@@ -24430,7 +24664,7 @@ function attSheetFillFor(iso) {
 function _asRoster(rec) {
   var list = staffActive().slice();
   if (rec) Object.keys(rec.marks || {}).forEach(function(id) {
-    if (!list.some(function(w) { return String(w.id) === String(id); })) { var w = staffById(id) || staffById(Number(id)); if (w) list.push(w); }
+    if (!list.some(function(w) { return String(w.id) === String(id); })) { var w = staffById(id); if (w) list.push(w); }
   });
   return list;
 }
@@ -27891,12 +28125,13 @@ TODO_RULE_FNS.wageVsSlip = function() {
   return Object.keys(byMonth).map(function(m) {
     var slip = payrollPaidFor(bankPrevMonth(m + '-01'));
     if (!slip) return null;
-    var off = [];
+    // The slip's rows by worker, matched by name like a roll (payrollRowsByWorker), once per month.
+    var off = [], byW = payrollRowsByWorker(slip.rows);
     Object.keys(byMonth[m]).forEach(function(id) {
-      var row = slip.rows.find(function(r) { var pw = payrollWorker(r); return pw && String(pw.id) === id; });
+      var row = byW[id];
       if (!row) return;
       var owed = gstRound(row.paid != null ? Number(row.paid) : (Number(row.dayPay) || 0) + (Number(row.ot) || 0)), d = gstRound(byMonth[m][id] - owed);
-      if (Math.abs(d) >= 1) off.push([((S.staff || []).find(function(w) { return String(w.id) === id; }) || { name: '?' }).name, d]);
+      if (Math.abs(d) >= 1) off.push([(staffById(id) || { name: '?' }).name, d]);
     });
     if (!off.length) return null;
     var pm = bankPrevMonth(m + '-01');
@@ -28227,9 +28462,11 @@ function dashPayrollVsBank(labs) {
       src = 'model';
       var lab = labs && labs[m] || labourForRange(m + '-01', payMonthEnd(m + '-01'));
       Object.keys(lab.byWorker).forEach(function(id) { if (lab.byWorker[id].comp === 'monthly') payroll += lab.byWorker[id].total; });
+      // A month nobody typed is not a month that paid nothing: a gap, not ₹0.
+      if (!lab.daysRecorded && !lab.sundaysRecorded) payroll = null;
     }
     var named = bm && bankMonthKnown(bm, m, 'labour') ? (bm.months[m] ? bm.months[m].labour.named : 0) : null;
-    return { month: m, payroll: gstRound(payroll), src: src, bank: named == null ? null : gstRound(named) };
+    return { month: m, payroll: payroll == null ? null : gstRound(payroll), src: src, bank: named == null ? null : gstRound(named) };
   });
 }
 
@@ -28262,7 +28499,7 @@ function staffOverviewHtml() {
   var pb = dashPayrollVsBank(labs);
   h += _dashPanel('dashPayBank', 'Payroll against the bank', chartStack(pb.map(function(x) { return insMonthLabel(x.month); }), [
     { label: 'Payroll', values: pb.map(function(x) { return x.payroll; }) },
-    { label: 'Paid, bank', values: pb.map(function(x) { return x.bank == null ? 0 : x.bank; }) }
+    { label: 'Paid, bank', values: pb.map(function(x) { return x.bank; }) }
   ], { mode: 'group', ariaLabel: 'Payroll against the bank', emptyText: 'No monthly payroll in six months' }) +
     '<div class="inv-note">Payroll is the slip as paid where one is imported, else the wage model’s monthly tier (' +
     escHtml(pb.filter(function(x) { return x.src === 'model'; }).map(function(x) { return insMonthLabel(x.month); }).join(', ') || 'none') +

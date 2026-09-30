@@ -361,12 +361,13 @@ TODO_RULE_FNS.wageVsSlip = function() {
   return Object.keys(byMonth).map(function(m) {
     var slip = payrollPaidFor(bankPrevMonth(m + '-01'));
     if (!slip) return null;
-    var off = [];
+    // The slip's rows by worker, matched by name like a roll (payrollRowsByWorker), once per month.
+    var off = [], byW = payrollRowsByWorker(slip.rows);
     Object.keys(byMonth[m]).forEach(function(id) {
-      var row = slip.rows.find(function(r) { var pw = payrollWorker(r); return pw && String(pw.id) === id; });
+      var row = byW[id];
       if (!row) return;
       var owed = gstRound(row.paid != null ? Number(row.paid) : (Number(row.dayPay) || 0) + (Number(row.ot) || 0)), d = gstRound(byMonth[m][id] - owed);
-      if (Math.abs(d) >= 1) off.push([((S.staff || []).find(function(w) { return String(w.id) === id; }) || { name: '?' }).name, d]);
+      if (Math.abs(d) >= 1) off.push([(staffById(id) || { name: '?' }).name, d]);
     });
     if (!off.length) return null;
     var pm = bankPrevMonth(m + '-01');

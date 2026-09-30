@@ -124,7 +124,8 @@ test.describe('P98: learning from corrections', () => {
     await g(page, `toggleAttBlockArea(${night}, 'vat-a2')`);           // it was barrel only that night
     await g(page, `setAttBlockTime(${night}, 'from', '21:00')`);
     const L = await g(page, `JSON.stringify(Object.keys(relayLearnData().heads)) + ' ' + JSON.stringify(Object.keys(relayLearnData().slots))`);
-    expect(L).toBe('["BERRAL V A 2"] ["NIGHT HOLD 8 PM TO 6 AM"]');
+    // A heading's lesson is kept for its slot (P107): the night hold's slot, out at 6 AM.
+    expect(L).toBe('["BERRAL V A 2 @ out 06:00"] ["NIGHT HOLD 8 PM TO 6 AM"]');
 
     const r = await parse(page, ROLL());
     expect(r.extra[3]).toMatchObject({ areas: ['barrel'], from: '21:00', to: '06:00' });
@@ -145,6 +146,6 @@ test.describe('P98: learning from corrections', () => {
 
     // Put back as it was read, the lesson goes.
     await g(page, `toggleAttBlockArea(${night}, 'vat-a2')`);
-    expect(await g(page, `!!relayLearnData().heads['BERRAL V A 2']`)).toBe(false);
+    expect(await g(page, `!!relayLearnData().heads['BERRAL V A 2 @ out 06:00']`)).toBe(false);
   });
 });

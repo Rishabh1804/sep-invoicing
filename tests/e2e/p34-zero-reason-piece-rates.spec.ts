@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
-import { emptyState, loadAppWithState, noSeedIM, readStoredState, todayIso, type SepState } from './fixtures';
+import { answerAsk, emptyState, loadAppWithState, noSeedIM, readStoredState, todayIso, type SepState } from './fixtures';
 
 // P34: a line billed at ₹0 carries a reason; piece rates are the client's,
 // dated and keyed on part + gauge; the scanner reads the client's own rates.
@@ -189,6 +189,7 @@ test.describe('P34: piece rates on record', () => {
 
     await expect(page.locator('#ceditPieceRates .inv-row')).toHaveCount(5);
     await page.locator('[data-action="invRemovePieceRate"][data-idx="4"]').click();
+    await answerAsk(page, 'ok');   // a removal asks first (P106, C9)
     st = await readStoredState(page);
     pr = st.clients.find((c: any) => c.id === 2).pieceRates;
     expect(pr).toHaveLength(4);

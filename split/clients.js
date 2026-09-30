@@ -128,13 +128,13 @@ function _cardRowHtml(what, figure, date, removeAttrs) {
     (removeAttrs ? '<button class="inv-btn inv-btn-icon inv-btn-ghost inv-btn-sm"' + removeAttrs + '>&times;</button>' : '') + '</span></div>';
 }
 
-function _showClientOverlay(client, isAdd) {
+function _showClientOverlay(client, isAdd, inPlace) {
   const c = client || _blankClient();
   const opt = (v, cur, l) => '<option value="' + v + '"' + (cur === v ? ' selected' : '') + '>' + l + '</option>';
   let rates = '';
   if (!isAdd) {
     rates = _clientCardHtml('Rate history', (c.rates || []).length,
-      _clientRateRowsHtml(c) ||
+      _clientRateRowsHtml(c, true) ||
         '<div class="inv-empty">No rate on record</div>',
       '<div class="inv-panel-body">' + _clientRateFieldsHtml(false) +
       '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invAddRate" data-client="' + c.id + '">Add rate</button></div>', 'ceditRates');
@@ -169,7 +169,7 @@ function _showClientOverlay(client, isAdd) {
     (isAdd ? _clientCardHtml('Opening rate', null, '', '<div class="inv-panel-body">' + _clientRateFieldsHtml(true) + '</div>')
       : rates + _pieceRatesEditHtml(c) + _pieceWeightsEditHtml(c)) +
     '<div class="inv-dialog-foot"><button class="inv-btn inv-btn-secondary" data-action="invCloseOverlay">Cancel</button>' +
-    '<button class="inv-btn inv-btn-primary" data-action="invSaveClient" data-client="' + c.id + '" data-mode="' + (isAdd ? 'add' : 'edit') + '">' + (isAdd ? 'Add client' : 'Save') + '</button></div></div>', { dismiss: true });
+    '<button class="inv-btn inv-btn-primary" data-action="invSaveClient" data-client="' + c.id + '" data-mode="' + (isAdd ? 'add' : 'edit') + '">' + (isAdd ? 'Add client' : 'Save') + '</button></div></div>', { dismiss: true, replace: !!inPlace });
 }
 
 /* What every new invoice for this client carries (state.js, clientPoFromChallan; create.js fills them). */
@@ -203,14 +203,18 @@ function clientPoExampleRefresh(input) {
   ex.textContent = _clientPoExampleText(c, input.value);
 }
 
-/* The ₹/kg ladder, newest first; the rate in force today says so. */
-function _clientRateRowsHtml(c) {
+/* The ₹/kg ladder, newest first; the rate in force today says so. In the edit sheet each entry can be removed: a mistyped
+   rate had no way off the ladder. */
+function _clientRateRowsHtml(c, editable) {
   var now = _clientRateNow(c);
-  return (c.rates || []).slice().sort(function(a, b) { return b.effectiveFrom.localeCompare(a.effectiveFrom); }).map(function(r) {
+  return (c.rates || []).map(function(r, i) { return Object.assign({ _i: i }, r); })
+    .sort(function(a, b) { return b.effectiveFrom.localeCompare(a.effectiveFrom); }).map(function(r) {
     var cur = now && r.effectiveFrom === now.effectiveFrom && r.ratePerKg === now.ratePerKg;
     return '<div class="inv-row"><span class="inv-row-main inv-id">from ' + escHtml(r.effectiveFrom) + '</span>' +
       '<span class="inv-row-end">' + (cur ? '<span class="inv-dot inv-dot-ok">Current</span>' : '') +
-      '<span class="inv-num">' + formatCurrency(r.ratePerKg) + '/kg</span></span></div>';
+      '<span class="inv-num">' + formatCurrency(r.ratePerKg) + '/kg</span>' +
+      (editable ? '<button class="inv-btn inv-btn-icon inv-btn-ghost inv-btn-sm" data-action="invRemoveRate" data-client="' + c.id + '" data-idx="' + r._i + '" aria-label="Remove rate">&times;</button>' : '') +
+      '</span></div>';
   }).join('');
 }
 
@@ -254,22 +258,61 @@ function _readClientForm(excludeId) {
   };
 }
 
-function saveClientEdit(clientId, mode) {
+/* Save takes what was typed into a card's add fields too: a rate typed and Save pressed, without Add rate, was dropped. A
+   card entry half typed stops the save and says what it lacks. */
+async function saveClientEdit(clientId, mode) {
   if (mode === 'add') { addClient(); return; }
-  const c = S.clients.find(x => x.id === clientId);
+  var c = S.clients.find(x => x.id === clientId);
   if (!c) return;
   const form = _readClientForm(clientId);
   if (!form) return;
+  var rate = _readLadderRate(c, true), pr = _readCardEntry('rate', c, true), pw = _readCardEntry('weight', c, true);
+  var bad = [rate, pr, pw].find(function(x) { return x && x.error; });
+  if (bad) { showToast(bad.error, 'error'); return; }
+  if (rate && !(await _ladderSameDateOk(c, rate.entry))) return;
+  // The book may have been reloaded while a question was open: the client saved is the one held now.
+  c = S.clients.find(x => x.id === clientId);
+  if (!c) return;
   Object.keys(form).forEach(k => { c[k] = form[k]; });
+  if (rate) _ladderPut(c, rate.entry);
+  if (pr) (c.pieceRates || (c.pieceRates = [])).push(pr.entry);
+  if (pw) (c.pieceWeights || (c.pieceWeights = [])).push(pw.entry);
   saveState();
   closeOverlay();
-  const searchEl = document.getElementById('clientSearch');
-  renderClientList(searchEl ? searchEl.value : '');
-  // Phase 8E: Refresh detail panel if active client was edited
-  if (_isDesktop && _clientsActiveId === clientId) {
-    _renderClientDetail(clientId, true);
-  }
+  _clientPaneRefresh(clientId);
   showToast('Client saved');
+}
+
+/* The desktop pane shows the client just changed, and its row in the list the new rate: the pane was redrawn only when it
+   was already open on that client, and a card change made from the edit sheet closed the sheet instead. */
+function _clientPaneRefresh(clientId) {
+  const searchEl = document.getElementById('clientSearch');
+  if (_isDesktop && document.getElementById('clientList')) _renderClientDetail(clientId, false);
+  else renderClientList(searchEl ? searchEl.value : '');
+}
+
+/* The edit sheet drawn again in place after a card changed, everything typed in it kept (a card change used to close it
+   and open it afresh, dropping every unsaved edit), except the fields of the entry just added. */
+function _clientDialogRedraw(clientId, clearIds) {
+  var c = S.clients.find(function(x) { return x.id === clientId; });
+  var name = document.getElementById('ceditName');
+  var scrim = name && name.closest('.inv-scrim-dialog');
+  if (!c || !scrim) { if (c) _showClientOverlay(c, false); _clientPaneRefresh(clientId); return; }
+  var kept = {};
+  scrim.querySelectorAll('input[id], textarea[id], select[id]').forEach(function(el) {
+    if ((clearIds || []).indexOf(el.id) < 0) kept[el.id] = el.type === 'checkbox' ? el.checked : el.value;
+  });
+  keepScroll(function() {
+    _showClientOverlay(c, false, true);
+    Object.keys(kept).forEach(function(id) {
+      var el = document.getElementById(id);
+      if (!el) return;
+      if (el.type === 'checkbox') el.checked = kept[id]; else el.value = kept[id];
+    });
+    var tpl = document.getElementById('ceditPoTpl');
+    if (tpl) clientPoExampleRefresh(tpl);
+  });
+  _clientPaneRefresh(clientId);
 }
 
 function addClient() {
@@ -303,24 +346,70 @@ function addClient() {
   showToast('Client added: ' + c.name);
 }
 
-function addClientRate(clientId) {
-  const c = S.clients.find(x => x.id === clientId);
+/* The rate typed into Rate history's fields: null when nothing is typed, {error} when half of it is. */
+function _readLadderRate(c, optional) {
+  var rv = ((document.getElementById('ceditNewRate') || {}).value || '').trim();
+  var date = (document.getElementById('ceditNewRateDate') || {}).value || '';
+  if (!rv && optional) return null;
+  var rate = parseFloat(rv);
+  if (isNaN(rate) || rate < 0 || !date) return { error: 'Rate history: enter the rate and the date it applies from' };
+  return { entry: { ratePerKg: gstRound(rate), ratePerPiece: null, effectiveFrom: date } };
+}
+/* A rate on a date the ladder already has corrects that one; asked first, since it moves every invoice priced from then. */
+function _ladderSameDateOk(c, e) {
+  var old = (c.rates || []).find(function(r) { return r.effectiveFrom === e.effectiveFrom; });
+  if (!old || old.ratePerKg === e.ratePerKg) return Promise.resolve(true);
+  return uiConfirm({ title: 'Replace the rate from ' + formatDate(e.effectiveFrom) + '?',
+    body: 'On record: ' + formatCurrency(old.ratePerKg) + '/kg from ' + formatDate(e.effectiveFrom) + '. ' + formatCurrency(e.ratePerKg) +
+      '/kg takes its place, and lines dated from then are priced and checked against it.', okLabel: 'Replace rate' });
+}
+/* One entry per date: the later one wins. Two on a date were sorted stably, so the correction lost to the original. */
+function _ladderPut(c, e) {
+  c.rates = (c.rates || []).filter(function(r) { return r.effectiveFrom !== e.effectiveFrom; });
+  c.rates.push(e);
+}
+
+async function addClientRate(clientId) {
+  var c = S.clients.find(x => x.id === clientId);
   if (!c) return;
-  const rate = parseFloat(document.getElementById('ceditNewRate').value);
-  const date = document.getElementById('ceditNewRateDate').value;
-  if (isNaN(rate) || !date) { showToast('Enter rate and date','error'); return; }
-  if (!c.rates) c.rates = [];
-  c.rates.push({ratePerKg: rate, ratePerPiece: null, effectiveFrom: date});
+  var r = _readLadderRate(c, false);
+  if (r.error) { showToast(r.error, 'error'); return; }
+  if (!(await _ladderSameDateOk(c, r.entry))) return;
+  c = S.clients.find(x => x.id === clientId);
+  if (!c) return;
+  _ladderPut(c, r.entry);
   saveState();
   showToast('Rate added');
-  closeOverlay();
-  // Phase 8E: On desktop, refresh detail panel instead of reopening overlay
-  if (_isDesktop && _clientsActiveId === clientId) {
-    _renderClientDetail(clientId, false);
-  } else {
-    openClientEdit(clientId);
-  }
+  _clientDialogRedraw(clientId, ['ceditNewRate']);
 }
+
+/* A ladder entry taken off, asked first (a rate prices every line dated from it). */
+async function removeClientRate(clientId, idx) {
+  var c = S.clients.find(x => x.id === clientId), r = c && c.rates && c.rates[idx];
+  if (!r) return;
+  if (!(await uiConfirm({ title: 'Remove the rate from ' + formatDate(r.effectiveFrom) + '?',
+    body: formatCurrency(r.ratePerKg) + '/kg from ' + formatDate(r.effectiveFrom) + ' comes off the ladder; lines dated from then take the rate before it.',
+    okLabel: 'Remove rate', danger: true }))) return;
+  _cardRemove(clientId, 'rates', r, function(x) { return x.effectiveFrom === r.effectiveFrom && x.ratePerKg === r.ratePerKg; }, 'Rate removed');
+}
+
+/* Takes an entry off a card, found again in the book held now (another window may have saved while the question was
+   open), and draws the sheet again. */
+function _cardRemove(clientId, list, was, same, msg) {
+  var c = S.clients.find(x => x.id === clientId);
+  var i = c && c[list] ? c[list].findIndex(same) : -1;
+  if (i < 0) { showToast('Not removed: it had changed meanwhile', 'warning'); _clientDialogRedraw(clientId); return; }
+  c[list].splice(i, 1);
+  saveState();
+  showToast(msg);
+  _clientDialogRedraw(clientId);
+}
+
+/* The ladder's remove button: an action events.js does not route, so it is answered here. */
+document.addEventListener('click', function(e) {
+  var btn = e.target && e.target.closest ? e.target.closest('[data-action="invRemoveRate"]') : null;
+  if (btn) removeClientRate(parseInt(btn.dataset.client, 10), parseInt(btn.dataset.idx, 10));
+});
 
 function closeOverlay() {
   var count = document.querySelectorAll('.inv-scrim-dialog').length;
@@ -503,7 +592,8 @@ function pieceRatesFromHistory(client) {
       var gauge = lineGauge(li.desc) || lineGauge(li.partNumber);
       var key = rateKey(li.partNumber) + '|' + rateKey(gauge);
       if (!groups[key]) groups[key] = { partNumber: li.partNumber, gauge: gauge, hits: [] };
-      groups[key].hits.push({ date: inv.date || '', rate: gstRound(li.rate), inv: inv.invoiceNumber });
+      // Counted by the invoice's id: its number restarts every financial year, so 00012 of two years read as one invoice.
+      groups[key].hits.push({ date: inv.date || '', rate: gstRound(li.rate), inv: inv.id, invoiceNumber: inv.invoiceNumber });
       lines++;
     });
   });
@@ -523,7 +613,7 @@ function pieceRatesFromHistory(client) {
     if (established.length === 0 && rates.length > 1) {
       // Every rate seen once: nothing is established, and guessing is how a
       // swap becomes the card. Report all of them.
-      grp.hits.forEach(function(h) { outliers.push({ partNumber: grp.partNumber, gauge: grp.gauge, rate: h.rate, invoiceNumber: h.inv, date: h.date, usual: null }); });
+      grp.hits.forEach(function(h) { outliers.push({ partNumber: grp.partNumber, gauge: grp.gauge, rate: h.rate, invoiceNumber: h.invoiceNumber, date: h.date, usual: null }); });
       return;
     }
     grp.hits.sort(function(a, b) { return a.date.localeCompare(b.date); });
@@ -542,7 +632,7 @@ function pieceRatesFromHistory(client) {
     var last = null;
     grp.hits.forEach(function(h) {
       if (!keep(h.rate)) {
-        outliers.push({ partNumber: grp.partNumber, gauge: grp.gauge, rate: h.rate, invoiceNumber: h.inv, date: h.date, usual: usual });
+        outliers.push({ partNumber: grp.partNumber, gauge: grp.gauge, rate: h.rate, invoiceNumber: h.invoiceNumber, date: h.date, usual: usual });
         return;
       }
       if (last === null || h.rate !== last) {
@@ -566,44 +656,56 @@ function fillPieceRatesFromHistory(clientId) {
     skippedExisting: r.skippedExisting, outliers: r.outliers, mixed: r.mixed };
   showToast(r.add.length ? r.add.length + ' piece rates added from billing history' : 'No new piece rates to add',
     (r.outliers.length || r.mixed.length) ? 'warning' : undefined);
-  _reopenClientAfterRateChange(clientId);
+  _clientDialogRedraw(clientId);
 }
 
-function addPieceRate(clientId) {
+/* What a card's add fields hold: {entry}, {error} when it is half typed, or null when nothing is typed and that is allowed
+   (the Save of the whole sheet). One reader for the Add button and for Save. */
+var CARD_FIELDS = {
+  rate: { list: 'pieceRates', part: 'ceditPiecePart', gauge: 'ceditPieceGauge', fig: 'ceditPieceRate', date: 'ceditPieceDate', title: 'Piece rates',
+    figMsg: 'enter a rate per piece', dupMsg: 'already has a rate from ' },
+  weight: { list: 'pieceWeights', part: 'ceditWtPart', gauge: 'ceditWtGauge', fig: 'ceditWtKg', date: 'ceditWtDate', title: 'Piece weights',
+    figMsg: 'enter the weight of one piece in kg', dupMsg: 'already has a weight from ' }
+};
+function _readCardEntry(kind, c, optional) {
+  var f = CARD_FIELDS[kind], v = function(id) { return ((document.getElementById(id) || {}).value || '').trim(); };
+  var part = v(f.part), gauge = v(f.gauge).toUpperCase(), fig = parseFloat(v(f.fig)), date = v(f.date);
+  if (optional && !part && !v(f.fig)) return null;
+  var err = function(m) { return { error: (optional ? f.title + ': ' : '') + m }; };
+  if (!part) return err(optional ? 'enter the part number, or clear the entry' : 'Enter the part number');
+  if (isNaN(fig) || fig <= 0) return err(optional ? f.figMsg : f.figMsg.charAt(0).toUpperCase() + f.figMsg.slice(1));
+  if (!date) return err('Enter the date it applies from');
+  var dup = (c[f.list] || []).some(function(e) { return rateKey(e.partNumber) === rateKey(part) && rateKey(e.gauge) === rateKey(gauge) && e.effectiveFrom === date; });
+  if (dup) return err('That part ' + f.dupMsg + date);
+  var entry = { partNumber: part, gauge: gauge, effectiveFrom: date, source: 'manual', addedAt: Date.now() };
+  if (kind === 'rate') entry.rate = gstRound(fig); else entry.kgPerPiece = Math.round(fig * 10000) / 10000;
+  return { entry: entry };
+}
+function _addCardEntry(kind, clientId) {
   var c = S.clients.find(function(x) { return x.id === clientId; });
   if (!c) return;
-  var part = (document.getElementById('ceditPiecePart').value || '').trim();
-  var gauge = (document.getElementById('ceditPieceGauge').value || '').trim().toUpperCase();
-  var rate = parseFloat(document.getElementById('ceditPieceRate').value);
-  var date = document.getElementById('ceditPieceDate').value;
-  if (!part) { showToast('Enter the part number', 'error'); return; }
-  if (isNaN(rate) || rate <= 0) { showToast('Enter a rate per piece', 'error'); return; }
-  if (!date) { showToast('Enter the date the rate applies from', 'error'); return; }
-  if (!c.pieceRates) c.pieceRates = [];
-  var dup = c.pieceRates.some(function(pr) {
-    return rateKey(pr.partNumber) === rateKey(part) && rateKey(pr.gauge) === rateKey(gauge) && pr.effectiveFrom === date;
-  });
-  if (dup) { showToast('That part already has a rate from ' + date, 'error'); return; }
-  c.pieceRates.push({ partNumber: part, gauge: gauge, rate: gstRound(rate), effectiveFrom: date, source: 'manual', addedAt: Date.now() });
+  var r = _readCardEntry(kind, c, false), f = CARD_FIELDS[kind];
+  if (r.error) { showToast(r.error, 'error'); return; }
+  (c[f.list] || (c[f.list] = [])).push(r.entry);
   saveState();
-  showToast('Piece rate added');
-  _reopenClientAfterRateChange(clientId);
+  showToast(kind === 'rate' ? 'Piece rate added' : 'Piece weight added');
+  _clientDialogRedraw(clientId, [f.part, f.gauge, f.fig]);
+}
+/* A card entry taken off, asked first, and found again by what it was (not its place) in the book held after the question. */
+async function _removeCardEntry(kind, clientId, idx) {
+  var f = CARD_FIELDS[kind], c = S.clients.find(function(x) { return x.id === clientId; }), e = c && c[f.list] && c[f.list][idx];
+  if (!e) return;
+  var what = e.partNumber + (e.gauge ? ' · ' + e.gauge : '') + ', ' + (kind === 'rate' ? formatCurrency(e.rate) + '/pc' : e.kgPerPiece + ' kg/pc') +
+    (e.effectiveFrom ? ' from ' + formatDate(e.effectiveFrom) : '');
+  if (!(await uiConfirm({ title: kind === 'rate' ? 'Remove this piece rate?' : 'Remove this piece weight?', body: what + '. Lines of this part are then checked against what is left on the card.',
+    okLabel: 'Remove', danger: true }))) return;
+  _cardRemove(clientId, f.list, e, function(x) {
+    return x.partNumber === e.partNumber && (x.gauge || '') === (e.gauge || '') && x.effectiveFrom === e.effectiveFrom && x.rate === e.rate && x.kgPerPiece === e.kgPerPiece;
+  }, kind === 'rate' ? 'Piece rate removed' : 'Piece weight removed');
 }
 
-function removePieceRate(clientId, idx) {
-  var c = S.clients.find(function(x) { return x.id === clientId; });
-  if (!c || !c.pieceRates || !c.pieceRates[idx]) return;
-  c.pieceRates.splice(idx, 1);
-  saveState();
-  showToast('Piece rate removed');
-  _reopenClientAfterRateChange(clientId);
-}
-
-function _reopenClientAfterRateChange(clientId) {
-  closeOverlay();
-  if (_isDesktop && _clientsActiveId === clientId) _renderClientDetail(clientId, false);
-  openClientEdit(clientId);
-}
+function addPieceRate(clientId) { _addCardEntry('rate', clientId); }
+function removePieceRate(clientId, idx) { return _removeCardEntry('rate', clientId, idx); }
 
 
 /* ===== PIECE WEIGHT CARD =====
@@ -656,7 +758,7 @@ function pieceWeightsFromHistory(client) {
       if (!groups[key]) groups[key] = { partNumber: li.partNumber, gauge: gauge, hits: [], invs: {}, first: inv.date || '' };
       var gr = groups[key];
       gr.hits.push(li.qty / li.nosQty);
-      gr.invs[inv.invoiceNumber] = true;
+      gr.invs[inv.id] = true;   // by id: the number restarts every financial year
       if (inv.date && inv.date < gr.first) gr.first = inv.date;
       lines++;
     });
@@ -696,35 +798,8 @@ function fillPieceWeightsFromHistory(clientId) {
     skippedExisting: r.skippedExisting, mixed: r.mixed };
   showToast(r.add.length ? r.add.length + ' piece weights added from billing history' : 'No new piece weights to add',
     r.mixed.length ? 'warning' : undefined);
-  _reopenClientAfterRateChange(clientId);
+  _clientDialogRedraw(clientId);
 }
 
-function addPieceWeight(clientId) {
-  var c = S.clients.find(function(x) { return x.id === clientId; });
-  if (!c) return;
-  var part = (document.getElementById('ceditWtPart').value || '').trim();
-  var gauge = (document.getElementById('ceditWtGauge').value || '').trim().toUpperCase();
-  var kg = parseFloat(document.getElementById('ceditWtKg').value);
-  var date = document.getElementById('ceditWtDate').value;
-  if (!part) { showToast('Enter the part number', 'error'); return; }
-  if (isNaN(kg) || kg <= 0) { showToast('Enter the weight of one piece in kg', 'error'); return; }
-  if (!date) { showToast('Enter the date the weight applies from', 'error'); return; }
-  if (!c.pieceWeights) c.pieceWeights = [];
-  var dup = c.pieceWeights.some(function(pw) {
-    return rateKey(pw.partNumber) === rateKey(part) && rateKey(pw.gauge) === rateKey(gauge) && pw.effectiveFrom === date;
-  });
-  if (dup) { showToast('That part already has a weight from ' + date, 'error'); return; }
-  c.pieceWeights.push({ partNumber: part, gauge: gauge, kgPerPiece: Math.round(kg * 10000) / 10000, effectiveFrom: date, source: 'manual', addedAt: Date.now() });
-  saveState();
-  showToast('Piece weight added');
-  _reopenClientAfterRateChange(clientId);
-}
-
-function removePieceWeight(clientId, idx) {
-  var c = S.clients.find(function(x) { return x.id === clientId; });
-  if (!c || !c.pieceWeights || !c.pieceWeights[idx]) return;
-  c.pieceWeights.splice(idx, 1);
-  saveState();
-  showToast('Piece weight removed');
-  _reopenClientAfterRateChange(clientId);
-}
+function addPieceWeight(clientId) { _addCardEntry('weight', clientId); }
+function removePieceWeight(clientId, idx) { return _removeCardEntry('weight', clientId, idx); }

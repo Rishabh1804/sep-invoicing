@@ -336,3 +336,75 @@ test.describe('P106: the Items Master merges one part at one gauge, and its list
     await expect(page.locator('[data-action="invDeriveWeights"]')).toHaveCount(0);
   });
 });
+
+test.describe('P106: a client\'s cards change without losing what was typed', () => {
+  const clientOf = (p: Page) => g(p, 'S.clients.find(function(c){ return c.id === 1; })');
+
+  test('C9: adding a card entry keeps the sheet and every typed field; Save takes a rate typed without Add', async ({ page }) => {
+    await loadAppWithState(page, base());
+    await g(page, 'openClientEdit(1)');
+    await page.locator('#ceditName').fill('KILO WORKS LTD');
+    await page.locator('#ceditPiecePart').fill('ROLLER 7');
+    await page.locator('#ceditPieceRate').fill('1.10');
+    await page.locator('[data-action="invAddPieceRate"]').click();
+    await expect(page.locator('#ceditName')).toHaveValue('KILO WORKS LTD');
+    await expect(page.locator('#ceditPiecePart')).toHaveValue('');
+    await expect(page.locator('#ceditPieceRates')).toContainText('ROLLER 7');
+    await page.locator('#ceditNewRate').fill('15');
+    await page.locator('[data-action="invSaveClient"]').click();
+    await expect(page.locator('.inv-scrim-dialog')).toHaveCount(0);
+    const c = (await readStoredState(page)).clients.find((x: any) => x.id === 1);
+    expect(c.name).toBe('KILO WORKS LTD');
+    expect(c.rates.map((r: any) => r.ratePerKg)).toContain(15);
+    expect(c.pieceRates).toHaveLength(1);
+  });
+
+  test('C9: a half-typed card entry stops the save and says what it lacks', async ({ page }) => {
+    await loadAppWithState(page, base());
+    await g(page, 'openClientEdit(1)');
+    await page.locator('#ceditWtPart').fill('BRKT 9');
+    await page.locator('[data-action="invSaveClient"]').click();
+    await expect(page.locator('.inv-toast')).toContainText('Piece weights: enter the weight of one piece in kg');
+    await expect(page.locator('.inv-scrim-dialog')).toHaveCount(1);
+  });
+
+  test('C9: removing a piece rate asks first', async ({ page }) => {
+    const s = base();
+    s.clients[0].pieceRates = [{ partNumber: 'ROLLER 7', gauge: '', rate: 1.1, effectiveFrom: '2020-04-01' }];
+    await loadAppWithState(page, s);
+    await g(page, 'openClientEdit(1)');
+    await page.locator('#ceditName').fill('KILO WORKS LTD');
+    await page.locator('[data-action="invRemovePieceRate"]').click();
+    expect(await answerAsk(page, 'cancel')).toContain('Remove this piece rate?');
+    expect((await clientOf(page)).pieceRates).toHaveLength(1);
+    await page.locator('[data-action="invRemovePieceRate"]').click();
+    await answerAsk(page, 'ok');
+    expect((await clientOf(page)).pieceRates).toHaveLength(0);
+    await expect(page.locator('#ceditName')).toHaveValue('KILO WORKS LTD');
+  });
+
+  test('C10: a ladder rate is removed on a confirm, and a rate on a date already there replaces it', async ({ page }) => {
+    await loadAppWithState(page, base());
+    await g(page, 'openClientEdit(1)');
+    await page.locator('#ceditNewRate').fill('13.5');
+    await page.locator('#ceditNewRateDate').fill('2020-04-01');
+    await page.locator('[data-action="invAddRate"]').click();
+    expect(await answerAsk(page, 'ok')).toContain('Replace the rate from');
+    expect((await clientOf(page)).rates).toEqual([{ ratePerKg: 13.5, ratePerPiece: null, effectiveFrom: '2020-04-01' }]);
+    expect(await g(page, 'getLineItemRate(S.clients[0], "2026-09-01", "").ratePerKg')).toBe(13.5);
+    await page.locator('[data-action="invRemoveRate"]').click();
+    await answerAsk(page, 'ok');
+    expect((await clientOf(page)).rates).toHaveLength(0);
+  });
+
+  test('C16: Fill from billing history counts two invoices of one number in two years as two', async ({ page }) => {
+    const s = base();
+    const I = (id: string, num: string, date: string, rate: number) => ({ id, invoiceNumber: num, displayNumber: 'SEP/X-' + num, date, status: 'active',
+      clientId: 3, items: [{ partNumber: 'PAD 150X88X3', desc: 'PAD', unit: 'NOS', qty: 100, rate, amount: rate * 100 }] });
+    s.invoices = [I('A', '00012', '2025-06-01', 1.67), I('B', '00012', '2026-06-01', 1.67), I('C', '00020', '2026-07-01', 1.49)];
+    await loadAppWithState(page, s);
+    const r = await g(page, 'pieceRatesFromHistory(S.clients[2])');
+    expect(r.add.map((a: any) => a.rate)).toEqual([1.67]);
+    expect(r.outliers.map((o: any) => o.invoiceNumber)).toEqual(['00020']);
+  });
+});

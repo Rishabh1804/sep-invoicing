@@ -408,3 +408,57 @@ test.describe('P106: a client\'s cards change without losing what was typed', ()
     expect(r.outliers.map((o: any) => o.invoiceNumber)).toEqual(['00020']);
   });
 });
+
+test.describe('P106: Performance reads silence, a month in progress and gauges as they are', () => {
+  const ago = (n: number) => { const d = new Date(); d.setDate(d.getDate() - n); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
+  const I = (id: string, date: string, part: string, desc: string, qty = 100) => ({ id, invoiceNumber: id, displayNumber: 'SEP/TEST-' + id, date, status: 'active',
+    invoiceState: 'filed', clientId: 1, clientName: 'KILO WORKS', items: [{ partNumber: part, desc, unit: 'KG', qty, rate: 14, amount: qty * 14 }],
+    taxableValue: qty * 14, grandTotal: qty * 14, createdAt: recentTs() });
+  async function openPerf(page: Page) {
+    await switchTab(page, 'pageClients');
+    await page.locator('[data-action="invSwitchSubView"][data-view="performance"]').first().click();
+    await page.locator('#cpClientSelect').selectOption('1');
+  }
+
+  test('CB7, CB8: the series runs to this month, which is read against the same days last month and the live cost', async ({ page }) => {
+    const s = base();
+    const now = new Date(), prevStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const prevLen = new Date(now.getFullYear(), now.getMonth(), 0).getDate();
+    const iso = (d: Date) => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+    s.invoices = [I('A', todayIso(), 'P1', 'P1'), I('B', iso(prevStart), 'P1', 'P1')];
+    // Last month's whole ran past today's date: against the whole month this month would read red.
+    if (now.getDate() < prevLen) s.invoices.push(I('C', iso(new Date(now.getFullYear(), now.getMonth() - 1, prevLen)), 'P1', 'P1', 500));
+    s.invoices.push(I('D', ago(200), 'P1', 'P1'));
+    await loadAppWithState(page, s);
+    await openPerf(page);
+    const months = await g(page, 'cpMonthly(1, 12).map(function(m){ return m.month; })');
+    expect(months[months.length - 1]).toBe(todayIso().slice(0, 7));
+    const tile = page.locator('[data-cp-trend] .inv-tile').first();
+    await expect(tile).toContainText('Month to date');
+    await expect(tile).toContainText('level with same days last month');
+    await expect(page.locator('[data-cp-trend] .inv-tile', { hasText: 'Realisation' })).toContainText('live cost');
+    await expect(page.locator('[data-cp-trend] .inv-tile', { hasText: 'Average month' })).toContainText('full month');
+  });
+
+  test('CB7: a client quiet since its last invoice ends on this month, the silence shown', async ({ page }) => {
+    const s = base();
+    s.invoices = [I('A', ago(130), 'P1', 'P1'), I('B', ago(100), 'P1', 'P1')];
+    await loadAppWithState(page, s);
+    const rev = await g(page, 'cpMonthly(1, 12).map(function(m){ return m.revenue; })');
+    expect(rev[rev.length - 1]).toBe(0);
+  });
+
+  test('CB9: one gauge stopping is not hidden by the other gauge carrying on', async ({ page }) => {
+    const s = base();
+    s.invoices = [
+      ...[300, 280, 260, 240, 220, 200].map((d, i) => I('T' + i, ago(d), 'CLAMP 165X83 (NT)', 'CLAMP (35X6)')),
+      ...[90, 70, 50, 30, 10].map((d, i) => I('F' + i, ago(d), 'CLAMP 165X83 (NT)', 'CLAMP (40X6)')),
+    ];
+    await loadAppWithState(page, s);
+    await openPerf(page);
+    const stopped = page.locator('[data-cp-group="stopped"]');
+    await expect(stopped).toContainText('35X6');
+    await expect(stopped).not.toContainText('Possibly renamed');
+    await expect(page.locator('[data-cp-group="steady"]')).toContainText('40X6');
+  });
+});

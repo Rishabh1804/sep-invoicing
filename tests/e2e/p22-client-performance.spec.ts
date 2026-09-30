@@ -224,5 +224,6 @@ test('P22: a quiet month is kept — the silence is the finding', async ({ page 
   expect(months.length).toBeGreaterThanOrEqual(5);
   expect(months.filter((v: number) => v === 0).length).toBeGreaterThanOrEqual(3);
   expect(months[0]).toBeGreaterThan(0);
-  expect(months[months.length - 1]).toBeGreaterThan(0);
+  // The run goes on to this month (P106, CB7), so the invoice of 15 days ago is in the last bucket or the one before.
+  expect(months[months.length - 1] + months[months.length - 2]).toBeGreaterThan(0);
 });

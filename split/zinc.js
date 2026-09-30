@@ -51,10 +51,12 @@ function zincLandedRate() {
   return gstRound(mcx + (getZinc().premiumPerKg || 0));
 }
 
+/* Calendar days since the rate was set: yesterday at 22:00 is a day old this morning. Whole 24-hour spans read
+   it as "today" until 22:00, and the To-do's stale rule a day late. */
 function zincAgeDays() {
   var z = getZinc();
   if (!z.updatedAt) return null;
-  return Math.floor((Date.now() - z.updatedAt) / 86400000);
+  return Math.max(0, isoDaysBetween(isoOf(new Date(z.updatedAt)), localDateStr()));
 }
 
 function renderZincCard() {
@@ -226,7 +228,6 @@ function _zincLmeOn(date) {
 }
 
 function zincUpliftBills() {
-  if (typeof stockData !== 'function') return [];
   var item = stockData().items.find(function(i) { return i.key === 'ZINC'; });
   if (!item) return [];
   return stockPurchases(item.id).filter(function(p) { return p.e.price > 0; }).slice(-ZINC_DERIVE_BILLS).map(function(p) {
@@ -266,7 +267,9 @@ function _zincFetchLme(from, to) {
 
 /* Looks up LME on each bill date with none on record, one request per date (two bills on one day, TT/92 and /93 both
    on 8 Jul, must not spend two of the free tier's requests on the same answer), each a five-day window well inside any
-   range limit, and keeps every answer. Resolves {note}: what could not be looked up, or ''. */
+   range limit, and keeps every answer. Resolves {note, n}: n is the bill dates that now have an LME, and the note says
+   what could not be looked up, or ''. A request that fails keeps what the ones before it brought (they were answered
+   and are not asked again), and a date metals.dev answered with no zinc is not counted as looked up. */
 function _zincFetchMissing(bills, onStart) {
   var missing = bills.filter(function(b, i) {
     return !_zincLmeOn(b.date) && bills.findIndex(function(x) { return x.date === b.date; }) === i;
@@ -276,10 +279,18 @@ function _zincFetchMissing(bills, onStart) {
     return Promise.resolve({ note: missing.length + ' bill' + (missing.length === 1 ? ' has' : 's have') + ' no LME on record, and there is no metals.dev key to look it up.', n: 0 });
   }
   if (onStart) onStart(missing.length);
+  var found = function() { return missing.filter(function(b) { return _zincLmeOn(b.date); }).length; };
+  var of = function(n) { return n + ' of the ' + missing.length + ' bill date' + (missing.length === 1 ? '' : 's'); };
   return missing.reduce(function(chain, b) {
     return chain.then(function() { return _zincFetchLme(isoAddDays(b.date, -ZINC_LME_LOOKBACK), b.date); });
-  }, Promise.resolve()).then(function() { saveState(); return { note: '', n: missing.length }; }, function(err) {
-    return { note: 'metals.dev: ' + (err && err.message ? err.message : 'could not be reached') + '.', n: 0 };
+  }, Promise.resolve()).then(function() {
+    var n = found();
+    saveState();
+    return { note: n < missing.length ? 'metals.dev had no zinc rate for ' + of(missing.length - n) + '.' : '', n: n };
+  }, function(err) {
+    var n = found();
+    if (n) saveState();
+    return { note: 'metals.dev: ' + (err && err.message ? err.message : 'could not be reached') + '.' + (n ? ' LME was found for ' + of(n) + ' before it stopped, and kept.' : ''), n: n };
   });
 }
 
@@ -351,12 +362,12 @@ function zincTrend(from) {
   var landed = function(r) { return gstRound(r * (1 + up / 100) + prem); };
   var days = Object.keys(h).filter(function(d) { return h[d] > 0; }).sort();
   var market = days.filter(function(d) { return !from || d >= from; }).map(function(d) { return { date: d, lme: h[d], landed: landed(h[d]) }; });
-  var item = typeof stockData === 'function' ? stockData().items.find(function(i) { return i.key === 'ZINC'; }) : null;
+  var item = stockData().items.find(function(i) { return i.key === 'ZINC'; });
   var all = item ? stockPurchases(item.id).filter(function(p) { return p.e.price > 0; }) : [];
   var bills = all.filter(function(p) { return !from || p.date >= from; }).map(function(p) {
     var l = _zincLmeOn(p.date), b = { date: p.date, price: p.e.price, qty: p.e.qty || 0, supplier: (p.e.supplier || '').trim(), billNo: p.e.billNo || '', market: null, over: null, timing: null };
     if (l) {
-      b.market = landed(l.rate); b.lmeDate = l.date;
+      b.market = landed(l.rate);
       b.over = gstRound(b.price - b.market);
       var lo = isoAddDays(p.date, -ZINC_TIMING_DAYS), win = days.filter(function(d) { return d >= lo && d <= p.date; }).map(function(d) { return landed(h[d]); });
       if (win.length >= ZINC_TIMING_MIN) {

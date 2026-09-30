@@ -163,7 +163,7 @@ function stockPatternHtml(item) {
     if (p.buys.length > 1) h += row('Range', p.buys.length + ' priced purchases', formatCurrency(p.min) + ' – ' + formatCurrency(p.max));
     p.suppliers.forEach(function(s) {
       // What the bank paid them, beside what the bills say (every line from them, not only this one).
-      var bp = typeof finSupplierPaid === 'function' ? finSupplierPaid(s.name) : null;
+      var bp = finSupplierPaid(s.name);
       h += row(escHtml(s.name), s.count + ' bill' + (s.count === 1 ? '' : 's') + ' · ' + escHtml(stockFmtQty(s.qty)) + ' ' + escHtml(unit) + ' · last ' + formatCurrency(s.last.e.price) +
         (bp ? ' · the bank paid them ' + formatCurrency(bp.paid) + ' in ' + bp.n + ' payment' + (bp.n === 1 ? '' : 's') + ', last ' + escHtml(stockShortDate(bp.last.date)) : ''), formatCurrency(gstRound(s.spent)));
     });
@@ -207,7 +207,7 @@ function costMonthShare(month, from, to) {
 function liveCost(from, to, kg) {
   var cfg = costModelCfg(), days = isoDaysBetween(from, to) + 1, rows = [];
   // What the bank paid, the second instrument (bank.js loads after this file; read at call time).
-  var bk = typeof bankCostForRange === 'function' && bankData().rows.length ? bankCostForRange(from, to) : null;
+  var bk = bankData().rows.length ? bankCostForRange(from, to) : null;
   var per = function(v) { return kg > 0 ? v / kg : null; };
   var fillLine = function(perKg, share, what) {
     return { label: 'Not recorded: ' + what, sub: formatCurrency(perKg) + '/kg model × ' + formatNum(share * 100, 0) + '% of the tonnage', amount: perKg * kg * share, fill: true };
@@ -295,40 +295,47 @@ function liveCost(from, to, kg) {
     detail: chemDetail.concat(boughtLine(bought.chem)).concat(bk && bk.supplies.months.length ? [{ label: 'Paid to suppliers, for reference', ref: true, amount: bk.supplies.amount,
       sub: 'chemicals and zinc together, from the bank · ' + Math.round(bk.supplies.known * 100) + '% of the period on the statement · a payment is not use, so not in the figure' }] : []) });
 
-  var landed = typeof zincLandedRate === 'function' ? zincLandedRate() : null;
+  var landed = zincLandedRate();
   // Modelled zinc kilos are priced at what was last PAID by the end of the
   // period, and only failing that at today's market rate.
   var zincItem = stockData().items.find(function(i) { return i.key === 'ZINC'; });
   var zincPaid = zincItem ? stockPriceAt(zincItem.id, to) : null;
   if (zincPaid && zincPaid.date > to) zincPaid = null;
   var zp = zincPaid ? zincPaid.price : landed;
-  var zDetail = [], zAmount = 0, zMeasured = 0, zSource = null;
-  if (zinc.qty > 0) {
-    var zPrice = zinc.priced ? null : landed;
-    var zAmt = zinc.priced ? zinc.amount : (landed ? zinc.qty * landed : 0);
-    zDetail.push({ label: 'Charged', sub: stockFmtQty(zinc.qty) + ' kg' + (zinc.priced ? ' at the price paid' : zPrice ? ' × the market rate ' + formatCurrency(zPrice) + ' (no bill yet)' : ', no price'), amount: zAmt });
+  var zDetail = [], zAmount = 0, zMeasured = 0, zRate = false;
+  // The share of the period zinc's own record does not speak for. A period with no zinc charged in it is not a
+  // period that used none: it read ₹0 as "nothing recorded" (and said no rate was set when one was), and a charge
+  // with no bill and no market rate read ₹0 as "market rate". Both are unrecorded, and filled at the model.
+  var zNoPrice = zinc.qty > 0 && !zinc.priced && !landed;
+  var zMissing = zinc.qty > 0 && !zNoPrice ? stockMissing : 1, zWhat = zinc.qty > 0 ? stockWhat : coveredDays ? 'no zinc charged in this period' : 'zinc use';
+  if (zinc.qty > 0 && !zNoPrice) {
+    var zAmt = zinc.priced ? zinc.amount : zinc.qty * landed;
+    zDetail.push({ label: 'Charged', sub: stockFmtQty(zinc.qty) + ' kg' + (zinc.priced ? ' at the price paid' : ' × the market rate ' + formatCurrency(landed) + ' (no bill yet)'), amount: zAmt });
     zAmount += zAmt; zMeasured += zinc.priced ? zAmt : 0;
-    if (!zinc.priced) zSource = 'rate';
+    zRate = !zinc.priced;
+  } else if (zNoPrice) {
+    // Kilos with no price of any kind: shown, and the whole period filled at the model below.
+    zDetail.push({ label: 'Charged, no price', sub: stockFmtQty(zinc.qty) + ' kg · no zinc bill and no market rate, so the period is filled at the model', amount: null, ref: true });
+    zWhat = stockFmtQty(zinc.qty) + ' kg charged with no price';
   }
-  if (stockMissing > 0.001 && zp) {
-    var missDays = days * stockMissing, zkg = cfg.zincKgMonth * missDays / 30;
-    zDetail.push({ label: 'Not recorded: ' + (coveredDays ? stockWhat : 'zinc use'), sub: formatNum(zkg, 0) + ' kg (' + cfg.zincKgMonth + ' kg/month) × ' + formatCurrency(zp) + (zincPaid ? ' last paid, ' + stockShortDate(zincPaid.date) : ' market rate'), amount: zkg * zp, fill: true });
+  if (zMissing > 0.001 && zp) {
+    var missDays = days * zMissing, zkg = cfg.zincKgMonth * missDays / 30;
+    zDetail.push({ label: 'Not recorded: ' + zWhat, sub: formatNum(zkg, 0) + ' kg (' + cfg.zincKgMonth + ' kg/month) × ' + formatCurrency(zp) + (zincPaid ? ' last paid, ' + stockShortDate(zincPaid.date) : ' market rate'), amount: zkg * zp, fill: true });
     zAmount += zkg * zp;
-  }
-  if (stockMissing > 0.001 && !zp) {
+  } else if (zMissing > 0.001) {
     // No zinc price of any kind: the cost model's ₹/kg, never nothing.
-    zDetail.push(fillLine(cfg.zincPerKg, stockMissing, coveredDays ? stockWhat : 'zinc use, and no zinc rate set'));
-    zAmount += cfg.zincPerKg * kg * stockMissing;
+    zDetail.push(fillLine(cfg.zincPerKg, zMissing, zWhat + (zinc.qty > 0 ? '' : ', and no zinc rate set')));
+    zAmount += cfg.zincPerKg * kg * zMissing;
   }
-  if (!zDetail.length) zSource = 'none';
-  push({ key: 'zinc', label: 'Zinc', amount: zAmount, measuredOverride: zMeasured, source: zSource && zMeasured === 0 && zSource !== 'none' && zDetail.length === 1 ? 'rate' : (zSource === 'none' ? 'none' : null),
-    note: zSource === 'none' ? 'no zinc use recorded and no zinc rate set' : (zinc.qty > 0 ? stockFmtQty(zinc.qty) + ' kg charged' : 'use not recorded') + (stockMissing > 0.001 && zp && coveredDays ? ' · ' + (days - coveredDays) + ' days at the model' : ''),
+  push({ key: 'zinc', label: 'Zinc', amount: zAmount, measuredOverride: zMeasured, source: zRate && zDetail.length === 1 ? 'rate' : null,
+    note: (zinc.qty > 0 ? stockFmtQty(zinc.qty) + ' kg charged' + (zNoPrice ? ', no price' : '') : coveredDays ? 'no zinc charged in this period' : 'use not recorded') +
+      (zinc.qty > 0 && !zNoPrice ? (zMissing > 0.001 ? ' · ' + (days - coveredDays) + ' days at the model' : '') : ' · filled at the model'),
     detail: zDetail.concat(boughtLine(bought.zinc, stockFmtQty(bought.zinc.qty) + ' kg')) });
 
   // Power and other: each month's bill for its share of the period; a month
   // with no bill at the model rate, for its share of the tonnage.
   var months = [], m = from.slice(0, 7);
-  for (var g = 0; m <= to.slice(0, 7) && g < 240; g++) { months.push(m); var d = new Date(m + '-01T00:00:00'); d.setMonth(d.getMonth() + 1); m = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0'); }
+  for (var g = 0; m <= to.slice(0, 7) && g < 240; g++) { months.push(m); m = bankNextMonth(m); }
   ['power', 'other'].forEach(function(kind) {
     var bills = costBills().filter(function(b) { return b.kind === kind && !b.voided; });
     var amt = 0, detail = [], unbilled = 0, unbilledMonths = [];
@@ -379,7 +386,7 @@ function liveCost(from, to, kg) {
    design, so that row is never flagged. */
 var COST_GAP = 0.10;
 function liveCostPaidCheck(from, to) {
-  if (typeof bankCostForRange !== 'function' || !bankData().rows.length) return [];
+  if (!bankData().rows.length) return [];
   var bk = bankCostForRange(from, to), out = [];
   var span = function(ym) { var s = ym + '-01', e = payMonthEnd(s); return [from > s ? from : s, to < e ? to : e]; };
   var finish = function(key, label, t, why, known) {
@@ -457,7 +464,8 @@ function costDeriveCompute(keys) {
   keys.forEach(function(key) {
     var rows = [], paid = 0, kg = 0;
     months.forEach(function(m) {
-      if (!bankMonthKnown(bm, m, key)) { rows.push({ month: m, skip: key === 'power' ? 'no payment for this month' : 'not on the statement' }); return; }
+      var why = bankMonthUnknown(bm, m, key);
+      if (why) { rows.push({ month: m, skip: why }); return; }
       var e = bm.months[m], p = gstRound(e ? e[key].amount : 0), s = m + '-01';
       var w = weighLines(active.filter(function(i) { return i.date >= s && i.date <= payMonthEnd(s); })).kg;
       if (!(w > 0)) { rows.push({ month: m, skip: 'no tonnage invoiced' }); return; }
@@ -494,11 +502,11 @@ function costUseDerived(field, val) {
   el.dispatchEvent(new Event('input', { bubbles: true }));
 }
 
-var COST_SRC_LABEL = { measured: 'measured', bank: 'paid, bank', partial: 'part-recorded', rate: 'market rate', model: 'model', none: 'nothing recorded' };
+var COST_SRC_LABEL = { measured: 'measured', bank: 'paid, bank', partial: 'part-recorded', rate: 'market rate', model: 'model' };
 var _costBillOpen = false;
 
 /* A component's source, as a badge (§6.13): the tone says how far the figure can be trusted. */
-var COST_SRC_TONE = { measured: 'ok', bank: 'ok', partial: 'warning', rate: 'info', model: 'neutral', none: 'neutral' };
+var COST_SRC_TONE = { measured: 'ok', bank: 'ok', partial: 'warning', rate: 'info', model: 'neutral' };
 function costSrcBadge(src) {
   return '<span class="inv-badge inv-badge-' + (COST_SRC_TONE[src] || 'neutral') + '" data-src="' + src + '">' + COST_SRC_LABEL[src] + '</span>';
 }
@@ -707,7 +715,7 @@ function renderStockReorder() {
   }
   if (L.groups.length) {
     // The cash it needs, against the forecast: an order is a payment in a few weeks.
-    var fc = typeof finForecast === 'function' && finHasBank() ? finForecast(45) : null;
+    var fc = finHasBank() ? finForecast(45) : null;
     if (fc && L.total > 0) {
       var after = gstRound(fc.min.bal - L.total * 1.18);
       h += '<div class="inv-callout inv-callout-info inv-mb-8" id="stockReorderCash">With GST about ' + escHtml(formatCurrency(gstRound(L.total * 1.18))) + '. The cash forecast’s lowest point in 45 days is ' +

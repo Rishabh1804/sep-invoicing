@@ -91,7 +91,7 @@ test('a receipt never pays an invoice raised after it: what it cannot place stay
     parts: r.allocs[0].parts.map(function(p) { return p.label; }), credits: r.credits.map(function(p) { return p.label; }) }; })()`);
   // The receipt pays T/1 (raised by its day) and names nothing else: T/2 and T/3 were not issued yet. What it could
   // not place is on account, and settles them afterwards, so the open list still adds up to what is owed.
-  expect(r).toEqual({ owed: -1300, onAccount: 19000, open: [], parts: ['T/1'], credits: ['T/2', 'T/3'] });
+  expect(r).toEqual({ owed: -1300, onAccount: 1300, open: [], parts: ['T/1'], credits: ['T/2', 'T/3'] });
   // Days to pay reads only what the receipt paid (T/1, the same day), never an invoice raised after it.
   expect(await ev(page, `bankPayHistory(bankReceivables())[1].map(function(x) { return [x.days, x.amount]; })`)).toEqual([[0, 1000]]);
   // The invoice detail says T/3 was settled from money on account, not paid by a receipt dated before it.

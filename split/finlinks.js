@@ -73,17 +73,15 @@ function finInvoicePaymentHtml(inv) {
 }
 
 /* ---------- A supplier ---------- */
-/* Payments on the statement set to Supplier whose payee (or narration) carries the supplier's name. */
+/* Payments on the statement set to Supplier whose payee (or narration) carries the supplier's name, read by the
+   one matcher every supplier figure uses (bankSupplierIs, bank.js). */
 function finSupplierPaid(name) {
   if (!name || !finHasBank()) return null;
   var k = bankKey(name);
-  if (!k || k.length < 4) return null;
+  if (k.length < 4) return null;
   var out = { paid: 0, n: 0, last: null };
   finCtx().cls.forEach(function(v) {
-    if (!(v.row.dr > 0) || v.cat !== 'supplier') return;
-    // The payee where the narration names one, else the narration itself; the supplier's name anywhere in it.
-    var pk = bankKey(v.party || '') || bankKey(v.row.narration || '');
-    if (!pk || !(pk.indexOf(k) >= 0 || (pk.length >= 4 && k.indexOf(pk) === 0))) return;
+    if (!(v.row.dr > 0) || v.cat !== 'supplier' || !bankSupplierIs(bankSupplierWritten(v), k)) return;
     out.paid = gstRound(out.paid + v.row.dr); out.n++; out.last = v.row;
   });
   return out.n ? out : null;
@@ -108,20 +106,26 @@ function renderFinHomeCard() {
       '<div class="inv-tile-label">' + label + '</div><div class="inv-tile-value inv-tile-value-sm inv-nowrap" title="' + escHtml(formatCurrency(value)) + '">' + finRs(value) + '</div><div class="inv-tile-sub">' + sub + '</div></button>';
   };
   h += '<div class="inv-tiles inv-tiles-flush">' +
-    tile('bank', '', 'Balance', last.balance, 'on ' + escHtml(finShortDate(last.date)) + (age > 7 ? ', ' + age + ' days ago' : ''), last.balance < 0 ? 'danger' : age > 7 ? 'warning' : '') +
+    tile('bank', '', 'Balance', last.balance, 'on ' + escHtml(stockShortDate(last.date)) + (age > 7 ? ', ' + age + ' days ago' : ''), last.balance < 0 ? 'danger' : age > 7 ? 'warning' : '') +
     tile('receipts', loose ? 'bankLoose' : '', 'Owed to us', owed, loose ? loose + ' receipt' + (loose === 1 ? '' : 's') + ' not placed'
-      : old90 > 0 ? finRs(old90) + ' over 90 days' : old60 > 0 ? finRs(old60) + ' over 60 days' : 'since ' + escHtml(finShortDate(bankRecvFrom(rows))),
+      : old90 > 0 ? finRs(old90) + ' over 90 days' : old60 > 0 ? finRs(old60) + ' over 60 days' : 'since ' + escHtml(stockShortDate(bankRecvFrom(rows))),
       // Never red while a receipt is unplaced: that money may be in already, and the sub line names the receipts (owed90).
       loose ? 'warning' : old90 > 0 ? 'danger' : old60 > 0 ? 'warning' : '') +
     (book && book.median != null ? '<button class="inv-tile' + (figTonePaysIn(book.median) ? ' inv-tile-' + figTonePaysIn(book.median) : '') + '" data-action="invFinGo" data-tab="receipts" data-home-fin="Pays in"><div class="inv-tile-label">Pays in</div>' +
       '<div class="inv-tile-value inv-tile-value-sm">' + Math.round(book.median) + ' days</div><div class="inv-tile-sub">the book, invoice to receipt' +
       (book.median > 60 ? ' · over two months' : book.median > 30 ? ' · over a month' : '') + '</div></button>' : '') +
-    tile('overview', 'finForecast', 'Runway', fc ? fc.min.bal : last.balance, fc && fc.cross ? 'below zero on ' + escHtml(finShortDate(fc.cross)) : fc ? 'lowest in 45 days, ' + escHtml(finShortDate(fc.min.date)) : '', fc && fc.cross ? 'danger' : '') +
+    tile('overview', 'finForecast', 'Runway', fc ? fc.min.bal : last.balance, fc && fc.cross ? 'below zero on ' + escHtml(stockShortDate(fc.cross)) : fc ? 'lowest in 45 days, ' + escHtml(stockShortDate(fc.min.date)) : '', fc && fc.cross ? 'danger' : '') +
     '</div>';
   el.innerHTML = h + '</div>';
 }
 
 /* ---------- Wages: the bank's legs beside the payroll, on Finance → Payments and on Staff → Pay ---------- */
+/* What the payroll as paid says a hand was owed for its month, or null when the slip does not name them: the slip's
+   paid figure, else its day pay and overtime. One lookup for the wages panel's count and its rows. */
+function finSlipOwed(slip, staffId) {
+  var row = slip ? slip.rows.find(function(r) { var pw = payrollWorker(r); return pw && String(pw.id) === String(staffId); }) : null;
+  return row ? gstRound(row.paid != null ? Number(row.paid) : (Number(row.dayPay) || 0) + (Number(row.ot) || 0)) : null;
+}
 function finWagesHtml(cls, where) {
   var wages = cls.filter(function(v) { return v.cat === 'wages' && v.row.dr > 0; });
   var byMonth = {};
@@ -138,8 +142,7 @@ function finWagesHtml(cls, where) {
   months.forEach(function(m) {
     var e = byMonth[m], slip = payrollPaidFor(bankPrevMonth(m + '-01'));
     if (slip) Object.keys(e.named).forEach(function(id) {
-      var row = slip.rows.find(function(r) { var pw = payrollWorker(r); return pw && String(pw.id) === id; });
-      var owedW = row ? gstRound(row.paid != null ? Number(row.paid) : (Number(row.dayPay) || 0) + (Number(row.ot) || 0)) : null;
+      var owedW = finSlipOwed(slip, id);
       if (owedW != null && Math.abs(e.named[id] - owedW) >= 1) off++;
     });
   });
@@ -157,8 +160,7 @@ function finWagesHtml(cls, where) {
     var h = '<div class="inv-row inv-row-group"><span class="inv-row-main">Paid in ' + escHtml(billsMonthLabel(m)) + '</span><span class="inv-row-end inv-num">' + formatCurrency(e.total) + '</span></div>';
     named.forEach(function(id) {
       var w = (S.staff || []).find(function(x) { return String(x.id) === id; }) || { name: '?' };
-      var row = slip ? slip.rows.find(function(r) { var pw = payrollWorker(r); return pw && String(pw.id) === id; }) : null;
-      var owedW = row ? gstRound(row.paid != null ? Number(row.paid) : (Number(row.dayPay) || 0) + (Number(row.ot) || 0)) : null;
+      var owedW = finSlipOwed(slip, id);
       var diff = owedW == null ? null : gstRound(e.named[id] - owedW);
       h += '<div class="inv-row" data-wage="' + escHtml(m + ':' + id) + '"><span class="inv-row-main">' + escHtml(w.name) +
         (owedW == null ? '' : Math.abs(diff) < 1 ? ' <span class="inv-dot inv-dot-ok">as the slip</span>'

@@ -3,8 +3,9 @@
    does not set is cleared, and a selection made under the old filters is dropped (a selection must not outlive the
    filter that hid it). The month, the dates and the selection used to stay, so History's link to an invoice from
    another month opened on a Register that did not show it, and a bulk action still reached rows off the screen (the QA
-   sweep, 29 Sep 2026). */
+   sweep, 29 Sep 2026). Each shuts every dialog on the way, so one holding typed work asks first (dialogsTypedAsk). */
 function regJump(f) {
+  if (dialogsTypedAsk(function() { regJump(f); })) return;
   f = f || {};
   regFilter.clientId = f.clientId != null ? String(f.clientId) : '';
   regFilter.search = f.search || '';
@@ -25,6 +26,7 @@ function regJump(f) {
 }
 /* A client's challans: the Awaiting tab, only that client, nothing ticked. */
 function imJumpClient(clientId) {
+  if (dialogsTypedAsk(function() { imJumpClient(clientId); })) return;
   _imFilter.clientId = clientId != null ? String(clientId) : '';
   _imFilter.status = '';
   _imSelected = {};
@@ -36,6 +38,7 @@ function imJumpClient(clientId) {
 /* One challan: the tab and month it is under, its client, and the row in sight (open in the pane on the desktop). It
    ignored the tab, so a challan already invoiced was looked for under Awaiting, and not found. */
 function imJump(im) {
+  if (dialogsTypedAsk(function() { imJump(im); })) return;
   _imFilter.clientId = String(im.clientId);
   _imFilter.status = '';
   _imSelected = {};
@@ -85,7 +88,9 @@ function onDocClick(e) {
     case 'invCloseMore': closeMoreSheet(); break;
     case 'invCreateNew': createNew(); break;
     case 'invHomeQuick': homeQuick(btn.dataset.go); break;
-    case 'invOpenSettings': openSettings(); break;
+    // data-sec opens it on one section (the read banner's Import a backup and Pull from GitHub). The banner sits above an
+    // open Settings, which is not opened twice.
+    case 'invOpenSettings': if (!document.getElementById('settingsScrim')) openSettings(btn.dataset.sec); break;
     case 'invCloseOverlay': closeOverlay(); break;
     case 'invCloseConfirm': closeTopOverlay(); break;
     case 'invUiAsk': uiAskAnswer(btn); break;
@@ -154,6 +159,7 @@ function onDocClick(e) {
     case 'invCostUseDerived': costUseDerived(btn.dataset.field, btn.dataset.val); break;
     case 'invZincUseUplift': zincUseUplift(btn.dataset.pct); break;
     case 'invExportData': exportData(); break;
+    case 'invExportStored': exportStoredCopy(); break;
     case 'invImportData': importData(); break;
     case 'invCheckUpdate': checkForUpdateManually(); break;
     case 'invRunDiagnostics': runStorageDiagnostics(); break;

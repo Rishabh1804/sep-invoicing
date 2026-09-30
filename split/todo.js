@@ -593,6 +593,9 @@ function todoSnooze(key, v) {
 /* ---------- Going to the thing ---------- */
 function todoGo(go) {
   if (!go) return;
+  // Every dialog is shut on the way: one holding typed work asks first, as its × does (the client's edit sheet carries
+  // Open in Finance, which dropped a typed GSTIN: the QA audit of 30 Sep 2026).
+  if (dialogsTypedAsk(function() { todoGo(go); })) return;
   closeOverlay();
   switch (go.kind) {
     case 'stock': _stockItemId = go.id; _stockView = 'item'; switchTab('pageStock'); break;
@@ -804,7 +807,9 @@ function todoWidgetTakeQueue() {
   });
 }
 function todoApplyWidgetQueue() {
-  if (!S) return Promise.resolve(0);
+  // On a stand-in (the stored book would not read, or is gone) the ticks wait in the queue for the real book: taken, they
+  // were applied to the stand-in, never saved, and gone from the queue (the QA audit of 30 Sep 2026).
+  if (!S || bookStandIn()) return Promise.resolve(0);
   return todoWidgetTakeQueue().then(function(q) {
     var n = 0;
     q.forEach(function(e) {
@@ -849,7 +854,8 @@ function todoWidgetSchedule() {
    the widget has already ticked. Then write it and ask the worker to redraw. */
 function todoWidgetPublish() {
   clearTimeout(_todoPubTimer);
-  if (!S) return Promise.resolve(false);
+  // A stand-in's list is not the owner's: the widget keeps the last one the real book gave it.
+  if (!S || bookStandIn()) return Promise.resolve(false);
   return todoApplyWidgetQueue().then(function() {
     return todoWidgetPut('payload', todoWidgetPayload());
   }).then(function(ok) {
@@ -870,6 +876,10 @@ function todoOnWorkerMessage(msg) {
 }
 function todoHandleLaunch(action) {
   if (!action) return;
+  // A tap on the widget while a dialog or a form holds typed work asks first, as every other way off the screen does:
+  // a row tapped mid-challan left it without a word (the QA audit of 30 Sep 2026).
+  if (dialogsTypedAsk(function() { todoHandleLaunch(action); })) return;
+  if (navFormDirty()) { navLeaveOk().then(function(ok) { if (ok) todoHandleLaunch(action); }); return; }
   todoApplyWidgetQueue();
   if (action === 'add') _todoShowDone = false;
   switchTab('pageTodo');

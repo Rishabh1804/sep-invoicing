@@ -3,7 +3,7 @@
  * HTML under an .xls name. The app carries no libraries, so this reads the one thing it needs:
  * the cell values of the first sheet. No formatting, no formulas beyond their cached result.
  *
- * Two layers. The compound file is a small FAT filesystem: 512-byte header, a sector allocation
+ * Two layers. The compound file is a small FAT filesystem: a header in the first sector, a sector allocation
  * table (whose own sectors are listed in the header and, past 109 of them, in a DIFAT chain), a
  * directory, and a mini stream for anything under 4 KB. Inside it, the "Workbook" stream is a run
  * of BIFF records: [type u16][length u16][data]. Strings live once in the shared string table
@@ -20,8 +20,11 @@ function _xlsCfbStream(buf, want) {
   for (var i = 0; i < 8; i++) if (u8[i] !== SIG[i]) throw new Error('Not an Excel 97–2003 file (.xls)');
   var ss = 1 << dv.getUint16(0x1E, true), mss = 1 << dv.getUint16(0x20, true);
   var cutoff = dv.getUint32(0x38, true);
-  var nSectors = Math.floor((buf.byteLength - 512) / ss);
-  var sect = function(id) { return 512 + id * ss; };
+  // The header fills the first sector whatever its size: 512 bytes in a version 3 file, 4096 in a version 4 one,
+  // whose sectors are 4096 too. Sector n starts at (n + 1) sectors in; counting from byte 512 read a version 4 file
+  // from the wrong places.
+  var nSectors = Math.floor(buf.byteLength / ss) - 1;
+  var sect = function(id) { return (id + 1) * ss; };
   // The FAT's own sectors: 109 in the header, the rest down the DIFAT chain.
   var fatIds = [];
   for (i = 0; i < 109; i++) { var v = dv.getUint32(0x4C + i * 4, true); if (v < 0xFFFFFFFA) fatIds.push(v); }

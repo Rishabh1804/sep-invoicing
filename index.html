@@ -18,7 +18,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <!-- Appearance before first paint (§3.2): the device's theme and palette, so nothing flashes in the wrong colours. -->
 <script>(function(){try{var d=document.documentElement,t=localStorage.getItem("sep_inv_theme"),p=localStorage.getItem("sep_inv_palette");if(t==="light"||t==="dark")d.dataset.theme=t;d.dataset.palette=(p==="zinc"||p==="terracotta")?p:"teal";}catch(e){document.documentElement.dataset.palette="teal";}})();</script>
-<meta name="app-build" content="3d939f47">
+<meta name="app-build" content="1445f634">
 <style>
 /* ===== DESIGN TOKENS (design system v2.0 — docs/SEP_INVOICING_DESIGN_PRINCIPLES.md §3) ===== */
 /* Theme: colour-scheme decides every light-dark() below. <html data-theme> is set before first paint
@@ -3973,10 +3973,12 @@ function zincLandedRate() {
   return gstRound(mcx + (getZinc().premiumPerKg || 0));
 }
 
+/* Calendar days since the rate was set: yesterday at 22:00 is a day old this morning. Whole 24-hour spans read
+   it as "today" until 22:00, and the To-do's stale rule a day late. */
 function zincAgeDays() {
   var z = getZinc();
   if (!z.updatedAt) return null;
-  return Math.floor((Date.now() - z.updatedAt) / 86400000);
+  return Math.max(0, isoDaysBetween(isoOf(new Date(z.updatedAt)), localDateStr()));
 }
 
 function renderZincCard() {
@@ -4148,7 +4150,6 @@ function _zincLmeOn(date) {
 }
 
 function zincUpliftBills() {
-  if (typeof stockData !== 'function') return [];
   var item = stockData().items.find(function(i) { return i.key === 'ZINC'; });
   if (!item) return [];
   return stockPurchases(item.id).filter(function(p) { return p.e.price > 0; }).slice(-ZINC_DERIVE_BILLS).map(function(p) {
@@ -4188,7 +4189,9 @@ function _zincFetchLme(from, to) {
 
 /* Looks up LME on each bill date with none on record, one request per date (two bills on one day, TT/92 and /93 both
    on 8 Jul, must not spend two of the free tier's requests on the same answer), each a five-day window well inside any
-   range limit, and keeps every answer. Resolves {note}: what could not be looked up, or ''. */
+   range limit, and keeps every answer. Resolves {note, n}: n is the bill dates that now have an LME, and the note says
+   what could not be looked up, or ''. A request that fails keeps what the ones before it brought (they were answered
+   and are not asked again), and a date metals.dev answered with no zinc is not counted as looked up. */
 function _zincFetchMissing(bills, onStart) {
   var missing = bills.filter(function(b, i) {
     return !_zincLmeOn(b.date) && bills.findIndex(function(x) { return x.date === b.date; }) === i;
@@ -4198,10 +4201,18 @@ function _zincFetchMissing(bills, onStart) {
     return Promise.resolve({ note: missing.length + ' bill' + (missing.length === 1 ? ' has' : 's have') + ' no LME on record, and there is no metals.dev key to look it up.', n: 0 });
   }
   if (onStart) onStart(missing.length);
+  var found = function() { return missing.filter(function(b) { return _zincLmeOn(b.date); }).length; };
+  var of = function(n) { return n + ' of the ' + missing.length + ' bill date' + (missing.length === 1 ? '' : 's'); };
   return missing.reduce(function(chain, b) {
     return chain.then(function() { return _zincFetchLme(isoAddDays(b.date, -ZINC_LME_LOOKBACK), b.date); });
-  }, Promise.resolve()).then(function() { saveState(); return { note: '', n: missing.length }; }, function(err) {
-    return { note: 'metals.dev: ' + (err && err.message ? err.message : 'could not be reached') + '.', n: 0 };
+  }, Promise.resolve()).then(function() {
+    var n = found();
+    saveState();
+    return { note: n < missing.length ? 'metals.dev had no zinc rate for ' + of(missing.length - n) + '.' : '', n: n };
+  }, function(err) {
+    var n = found();
+    if (n) saveState();
+    return { note: 'metals.dev: ' + (err && err.message ? err.message : 'could not be reached') + '.' + (n ? ' LME was found for ' + of(n) + ' before it stopped, and kept.' : ''), n: n };
   });
 }
 
@@ -4273,12 +4284,12 @@ function zincTrend(from) {
   var landed = function(r) { return gstRound(r * (1 + up / 100) + prem); };
   var days = Object.keys(h).filter(function(d) { return h[d] > 0; }).sort();
   var market = days.filter(function(d) { return !from || d >= from; }).map(function(d) { return { date: d, lme: h[d], landed: landed(h[d]) }; });
-  var item = typeof stockData === 'function' ? stockData().items.find(function(i) { return i.key === 'ZINC'; }) : null;
+  var item = stockData().items.find(function(i) { return i.key === 'ZINC'; });
   var all = item ? stockPurchases(item.id).filter(function(p) { return p.e.price > 0; }) : [];
   var bills = all.filter(function(p) { return !from || p.date >= from; }).map(function(p) {
     var l = _zincLmeOn(p.date), b = { date: p.date, price: p.e.price, qty: p.e.qty || 0, supplier: (p.e.supplier || '').trim(), billNo: p.e.billNo || '', market: null, over: null, timing: null };
     if (l) {
-      b.market = landed(l.rate); b.lmeDate = l.date;
+      b.market = landed(l.rate);
       b.over = gstRound(b.price - b.market);
       var lo = isoAddDays(p.date, -ZINC_TIMING_DAYS), win = days.filter(function(d) { return d >= lo && d <= p.date; }).map(function(d) { return landed(h[d]); });
       if (win.length >= ZINC_TIMING_MIN) {
@@ -19003,7 +19014,7 @@ function stockPatternHtml(item) {
     if (p.buys.length > 1) h += row('Range', p.buys.length + ' priced purchases', formatCurrency(p.min) + ' – ' + formatCurrency(p.max));
     p.suppliers.forEach(function(s) {
       // What the bank paid them, beside what the bills say (every line from them, not only this one).
-      var bp = typeof finSupplierPaid === 'function' ? finSupplierPaid(s.name) : null;
+      var bp = finSupplierPaid(s.name);
       h += row(escHtml(s.name), s.count + ' bill' + (s.count === 1 ? '' : 's') + ' · ' + escHtml(stockFmtQty(s.qty)) + ' ' + escHtml(unit) + ' · last ' + formatCurrency(s.last.e.price) +
         (bp ? ' · the bank paid them ' + formatCurrency(bp.paid) + ' in ' + bp.n + ' payment' + (bp.n === 1 ? '' : 's') + ', last ' + escHtml(stockShortDate(bp.last.date)) : ''), formatCurrency(gstRound(s.spent)));
     });
@@ -19047,7 +19058,7 @@ function costMonthShare(month, from, to) {
 function liveCost(from, to, kg) {
   var cfg = costModelCfg(), days = isoDaysBetween(from, to) + 1, rows = [];
   // What the bank paid, the second instrument (bank.js loads after this file; read at call time).
-  var bk = typeof bankCostForRange === 'function' && bankData().rows.length ? bankCostForRange(from, to) : null;
+  var bk = bankData().rows.length ? bankCostForRange(from, to) : null;
   var per = function(v) { return kg > 0 ? v / kg : null; };
   var fillLine = function(perKg, share, what) {
     return { label: 'Not recorded: ' + what, sub: formatCurrency(perKg) + '/kg model × ' + formatNum(share * 100, 0) + '% of the tonnage', amount: perKg * kg * share, fill: true };
@@ -19145,40 +19156,47 @@ function liveCost(from, to, kg) {
     detail: chemDetail.concat(boughtLine(bought.chem)).concat(bk && bk.supplies.months.length ? [{ label: 'Paid to suppliers, for reference', ref: true, amount: bk.supplies.amount,
       sub: 'chemicals and zinc together, from the bank · ' + Math.round(bk.supplies.known * 100) + '% of the period on the statement · a payment is not use, so not in the figure' }] : []) });
 
-  var landed = typeof zincLandedRate === 'function' ? zincLandedRate() : null;
+  var landed = zincLandedRate();
   // Modelled zinc kilos are priced at what was last PAID by the end of the
   // period, and only failing that at today's market rate.
   var zincItem = stockData().items.find(function(i) { return i.key === 'ZINC'; });
   var zincPaid = zincItem ? stockPriceAt(zincItem.id, to) : null;
   if (zincPaid && zincPaid.date > to) zincPaid = null;
   var zp = zincPaid ? zincPaid.price : landed;
-  var zDetail = [], zAmount = 0, zMeasured = 0, zSource = null;
-  if (zinc.qty > 0) {
-    var zPrice = zinc.priced ? null : landed;
-    var zAmt = zinc.priced ? zinc.amount : (landed ? zinc.qty * landed : 0);
-    zDetail.push({ label: 'Charged', sub: stockFmtQty(zinc.qty) + ' kg' + (zinc.priced ? ' at the price paid' : zPrice ? ' × the market rate ' + formatCurrency(zPrice) + ' (no bill yet)' : ', no price'), amount: zAmt });
+  var zDetail = [], zAmount = 0, zMeasured = 0, zRate = false;
+  // The share of the period zinc's own record does not speak for. A period with no zinc charged in it is not a
+  // period that used none: it read ₹0 as "nothing recorded" (and said no rate was set when one was), and a charge
+  // with no bill and no market rate read ₹0 as "market rate". Both are unrecorded, and filled at the model.
+  var zNoPrice = zinc.qty > 0 && !zinc.priced && !landed;
+  var zMissing = zinc.qty > 0 && !zNoPrice ? stockMissing : 1, zWhat = zinc.qty > 0 ? stockWhat : coveredDays ? 'no zinc charged in this period' : 'zinc use';
+  if (zinc.qty > 0 && !zNoPrice) {
+    var zAmt = zinc.priced ? zinc.amount : zinc.qty * landed;
+    zDetail.push({ label: 'Charged', sub: stockFmtQty(zinc.qty) + ' kg' + (zinc.priced ? ' at the price paid' : ' × the market rate ' + formatCurrency(landed) + ' (no bill yet)'), amount: zAmt });
     zAmount += zAmt; zMeasured += zinc.priced ? zAmt : 0;
-    if (!zinc.priced) zSource = 'rate';
+    zRate = !zinc.priced;
+  } else if (zNoPrice) {
+    // Kilos with no price of any kind: shown, and the whole period filled at the model below.
+    zDetail.push({ label: 'Charged, no price', sub: stockFmtQty(zinc.qty) + ' kg · no zinc bill and no market rate, so the period is filled at the model', amount: null, ref: true });
+    zWhat = stockFmtQty(zinc.qty) + ' kg charged with no price';
   }
-  if (stockMissing > 0.001 && zp) {
-    var missDays = days * stockMissing, zkg = cfg.zincKgMonth * missDays / 30;
-    zDetail.push({ label: 'Not recorded: ' + (coveredDays ? stockWhat : 'zinc use'), sub: formatNum(zkg, 0) + ' kg (' + cfg.zincKgMonth + ' kg/month) × ' + formatCurrency(zp) + (zincPaid ? ' last paid, ' + stockShortDate(zincPaid.date) : ' market rate'), amount: zkg * zp, fill: true });
+  if (zMissing > 0.001 && zp) {
+    var missDays = days * zMissing, zkg = cfg.zincKgMonth * missDays / 30;
+    zDetail.push({ label: 'Not recorded: ' + zWhat, sub: formatNum(zkg, 0) + ' kg (' + cfg.zincKgMonth + ' kg/month) × ' + formatCurrency(zp) + (zincPaid ? ' last paid, ' + stockShortDate(zincPaid.date) : ' market rate'), amount: zkg * zp, fill: true });
     zAmount += zkg * zp;
-  }
-  if (stockMissing > 0.001 && !zp) {
+  } else if (zMissing > 0.001) {
     // No zinc price of any kind: the cost model's ₹/kg, never nothing.
-    zDetail.push(fillLine(cfg.zincPerKg, stockMissing, coveredDays ? stockWhat : 'zinc use, and no zinc rate set'));
-    zAmount += cfg.zincPerKg * kg * stockMissing;
+    zDetail.push(fillLine(cfg.zincPerKg, zMissing, zWhat + (zinc.qty > 0 ? '' : ', and no zinc rate set')));
+    zAmount += cfg.zincPerKg * kg * zMissing;
   }
-  if (!zDetail.length) zSource = 'none';
-  push({ key: 'zinc', label: 'Zinc', amount: zAmount, measuredOverride: zMeasured, source: zSource && zMeasured === 0 && zSource !== 'none' && zDetail.length === 1 ? 'rate' : (zSource === 'none' ? 'none' : null),
-    note: zSource === 'none' ? 'no zinc use recorded and no zinc rate set' : (zinc.qty > 0 ? stockFmtQty(zinc.qty) + ' kg charged' : 'use not recorded') + (stockMissing > 0.001 && zp && coveredDays ? ' · ' + (days - coveredDays) + ' days at the model' : ''),
+  push({ key: 'zinc', label: 'Zinc', amount: zAmount, measuredOverride: zMeasured, source: zRate && zDetail.length === 1 ? 'rate' : null,
+    note: (zinc.qty > 0 ? stockFmtQty(zinc.qty) + ' kg charged' + (zNoPrice ? ', no price' : '') : coveredDays ? 'no zinc charged in this period' : 'use not recorded') +
+      (zinc.qty > 0 && !zNoPrice ? (zMissing > 0.001 ? ' · ' + (days - coveredDays) + ' days at the model' : '') : ' · filled at the model'),
     detail: zDetail.concat(boughtLine(bought.zinc, stockFmtQty(bought.zinc.qty) + ' kg')) });
 
   // Power and other: each month's bill for its share of the period; a month
   // with no bill at the model rate, for its share of the tonnage.
   var months = [], m = from.slice(0, 7);
-  for (var g = 0; m <= to.slice(0, 7) && g < 240; g++) { months.push(m); var d = new Date(m + '-01T00:00:00'); d.setMonth(d.getMonth() + 1); m = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0'); }
+  for (var g = 0; m <= to.slice(0, 7) && g < 240; g++) { months.push(m); m = bankNextMonth(m); }
   ['power', 'other'].forEach(function(kind) {
     var bills = costBills().filter(function(b) { return b.kind === kind && !b.voided; });
     var amt = 0, detail = [], unbilled = 0, unbilledMonths = [];
@@ -19229,7 +19247,7 @@ function liveCost(from, to, kg) {
    design, so that row is never flagged. */
 var COST_GAP = 0.10;
 function liveCostPaidCheck(from, to) {
-  if (typeof bankCostForRange !== 'function' || !bankData().rows.length) return [];
+  if (!bankData().rows.length) return [];
   var bk = bankCostForRange(from, to), out = [];
   var span = function(ym) { var s = ym + '-01', e = payMonthEnd(s); return [from > s ? from : s, to < e ? to : e]; };
   var finish = function(key, label, t, why, known) {
@@ -19307,7 +19325,8 @@ function costDeriveCompute(keys) {
   keys.forEach(function(key) {
     var rows = [], paid = 0, kg = 0;
     months.forEach(function(m) {
-      if (!bankMonthKnown(bm, m, key)) { rows.push({ month: m, skip: key === 'power' ? 'no payment for this month' : 'not on the statement' }); return; }
+      var why = bankMonthUnknown(bm, m, key);
+      if (why) { rows.push({ month: m, skip: why }); return; }
       var e = bm.months[m], p = gstRound(e ? e[key].amount : 0), s = m + '-01';
       var w = weighLines(active.filter(function(i) { return i.date >= s && i.date <= payMonthEnd(s); })).kg;
       if (!(w > 0)) { rows.push({ month: m, skip: 'no tonnage invoiced' }); return; }
@@ -19344,11 +19363,11 @@ function costUseDerived(field, val) {
   el.dispatchEvent(new Event('input', { bubbles: true }));
 }
 
-var COST_SRC_LABEL = { measured: 'measured', bank: 'paid, bank', partial: 'part-recorded', rate: 'market rate', model: 'model', none: 'nothing recorded' };
+var COST_SRC_LABEL = { measured: 'measured', bank: 'paid, bank', partial: 'part-recorded', rate: 'market rate', model: 'model' };
 var _costBillOpen = false;
 
 /* A component's source, as a badge (§6.13): the tone says how far the figure can be trusted. */
-var COST_SRC_TONE = { measured: 'ok', bank: 'ok', partial: 'warning', rate: 'info', model: 'neutral', none: 'neutral' };
+var COST_SRC_TONE = { measured: 'ok', bank: 'ok', partial: 'warning', rate: 'info', model: 'neutral' };
 function costSrcBadge(src) {
   return '<span class="inv-badge inv-badge-' + (COST_SRC_TONE[src] || 'neutral') + '" data-src="' + src + '">' + COST_SRC_LABEL[src] + '</span>';
 }
@@ -19560,7 +19579,7 @@ function renderStockReorder() {
   }
   if (L.groups.length) {
     // The cash it needs, against the forecast: an order is a payment in a few weeks.
-    var fc = typeof finForecast === 'function' && finHasBank() ? finForecast(45) : null;
+    var fc = finHasBank() ? finForecast(45) : null;
     if (fc && L.total > 0) {
       var after = gstRound(fc.min.bal - L.total * 1.18);
       h += '<div class="inv-callout inv-callout-info inv-mb-8" id="stockReorderCash">With GST about ' + escHtml(formatCurrency(gstRound(L.total * 1.18))) + '. The cash forecast’s lowest point in 45 days is ' +
@@ -19763,10 +19782,13 @@ function _billsNotesHtml() {
   return h + '</div>';
 }
 
-function _billsClientOptions(sel) {
+/* A new note is against an invoice in the book, so it offers the clients that have one. A note being recorded may
+   be against an invoice typed from outside the book, so it offers every client: one with no invoice here could not
+   be picked, and its note could not be recorded at all. */
+function _billsClientOptions(sel, all) {
   var ids = {};
   (S.invoices || []).forEach(function(i) { ids[i.clientId] = true; });
-  return S.clients.filter(function(c) { return ids[c.id]; }).sort(function(a, b) { return a.name < b.name ? -1 : 1; })
+  return S.clients.filter(function(c) { return all || ids[c.id]; }).sort(function(a, b) { return a.name < b.name ? -1 : 1; })
     .map(function(c) { return '<option value="' + c.id + '"' + (String(sel) === String(c.id) ? ' selected' : '') + '>' + escHtml(c.name) + '</option>'; }).join('');
 }
 function _billsClientInvoices(clientId) {
@@ -19791,7 +19813,7 @@ function _billsCnFormHtml() {
     (rec ? field('Number', 'cnfNum', inp('cnfNum', 'number', f.num, ' min="1" step="1" inputmode="numeric"')) +
       field('Financial year', 'cnfFy', inp('cnfFy', 'text', f.fy, ' placeholder="26-27"')) : '') +
     field('Date', 'cnfDate', inp('cnfDate', 'date', f.date)) +
-    field('Client', 'cnfClient', '<select class="inv-select" id="cnfClient"><option value="">Choose a client</option>' + _billsClientOptions(f.clientId) + '</select>') +
+    field('Client', 'cnfClient', '<select class="inv-select" id="cnfClient"><option value="">Choose a client</option>' + _billsClientOptions(f.clientId, rec) + '</select>') +
     field('Against invoice', 'cnfInv', '<select class="inv-select" id="cnfInv"' + (f.clientId ? '' : ' disabled') + '>' +
       '<option value="">' + (f.clientId ? 'Choose an invoice' : 'Choose a client first') + '</option>' +
       invs.map(function(i) {
@@ -20039,7 +20061,7 @@ function billsAction(action, btn) {
  * HTML under an .xls name. The app carries no libraries, so this reads the one thing it needs:
  * the cell values of the first sheet. No formatting, no formulas beyond their cached result.
  *
- * Two layers. The compound file is a small FAT filesystem: 512-byte header, a sector allocation
+ * Two layers. The compound file is a small FAT filesystem: a header in the first sector, a sector allocation
  * table (whose own sectors are listed in the header and, past 109 of them, in a DIFAT chain), a
  * directory, and a mini stream for anything under 4 KB. Inside it, the "Workbook" stream is a run
  * of BIFF records: [type u16][length u16][data]. Strings live once in the shared string table
@@ -20056,8 +20078,11 @@ function _xlsCfbStream(buf, want) {
   for (var i = 0; i < 8; i++) if (u8[i] !== SIG[i]) throw new Error('Not an Excel 97–2003 file (.xls)');
   var ss = 1 << dv.getUint16(0x1E, true), mss = 1 << dv.getUint16(0x20, true);
   var cutoff = dv.getUint32(0x38, true);
-  var nSectors = Math.floor((buf.byteLength - 512) / ss);
-  var sect = function(id) { return 512 + id * ss; };
+  // The header fills the first sector whatever its size: 512 bytes in a version 3 file, 4096 in a version 4 one,
+  // whose sectors are 4096 too. Sector n starts at (n + 1) sectors in; counting from byte 512 read a version 4 file
+  // from the wrong places.
+  var nSectors = Math.floor(buf.byteLength / ss) - 1;
+  var sect = function(id) { return (id + 1) * ss; };
   // The FAT's own sectors: 109 in the header, the rest down the DIFAT chain.
   var fatIds = [];
   for (i = 0; i < 109; i++) { var v = dv.getUint32(0x4C + i * 4, true); if (v < 0xFFFFFFFA) fatIds.push(v); }
@@ -20421,9 +20446,13 @@ function bankBalance(v) {
   var n = parseFloat(m[1]);
   return gstRound(m[2] && m[2].toLowerCase() === 'dr' ? -n : n);
 }
+/* A TRAN DATE cell: the bank writes dd/mm/yyyy as text, but a statement opened and saved again in a
+   spreadsheet carries Excel's day numbers (46204 is 1 Jul 2026), and those read as no date at all, so the
+   whole import came to nothing. Both are read; a day the calendar lacks, or anything else, is not a date. */
 function bankIso(v) {
+  if (typeof v === 'number') return v > 20000 && v < 80000 ? isoAddDays('1899-12-30', Math.floor(v)) : '';
   var m = String(v || '').trim().match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
-  return m ? m[3] + '-' + m[2] + '-' + m[1] : '';
+  return m ? isoFromDmy(m[1], m[2], m[3]) || '' : '';
 }
 
 /* The sheet as the bank lays it out: a header row carrying TRAN DATE, columns found by their
@@ -20452,6 +20481,13 @@ function bankParseSheet(rows) {
     if (bal == null) throw new Error('Row ' + (r + 1) + ': the balance "' + row[col.balance] + '" cannot be read');
     out.push({ date: date, valueDate: bankIso(row[col.valueDate]) || date, narration: String(row[col.narration] || '').trim(),
       chq: String(row[col.chq] == null ? '' : row[col.chq]).trim(), dr: bankAmount(row[col.dr]), cr: bankAmount(row[col.cr]), balance: bal });
+  }
+  // A row with no date is a footer or a note and is passed over; a statement where every row was passed over
+  // said "0 rows added" and nothing else. It says what the first date cell held instead.
+  if (!out.length) {
+    var first = null;
+    for (r = h + 1; r < rows.length && first == null; r++) { var d0 = (rows[r] || [])[col.date]; if (d0 != null && String(d0).trim()) first = String(d0).trim(); }
+    throw new Error(first == null ? 'The statement has no transactions under TRAN DATE' : 'No transaction could be read: the first TRAN DATE reads "' + first + '", which is not a date');
   }
   out.reverse();
   var day = '', n = 0;
@@ -20535,12 +20571,26 @@ function bankSupplierKeys() {
   (stockData().entries || []).forEach(function(e) { if (e.supplier) keys[bankKey(e.supplier)] = e.supplier; });
   return keys;
 }
+/* The one reading of "this payment went to that supplier", wherever a payment is set against the stock bills
+   (the guess, Payments, the To-do's supplierNoBill, a stock line's bank figure). They matched four ways, by
+   prefix in some and by substring in others, so a payment could be a supplier's on one screen and nobody's on
+   the next. `written` is the payee's key, or the narration's where the payee is too short to read: the
+   supplier's name anywhere in it (SHREE BALAJI TRADERS for Balaji Traders), or it cut short at the start of the
+   supplier's name (the bank truncates). Four letters at least on either side, or every name would match. */
+function bankSupplierWritten(v) {
+  var pk = bankKey(v.party || '');
+  return pk.length >= 4 ? pk : bankKey((v.row && v.row.narration) || '');
+}
+function bankSupplierIs(written, supplierKey) {
+  return !!written && !!supplierKey && supplierKey.length >= 4 &&
+    (written.indexOf(supplierKey) >= 0 || (written.length >= 4 && supplierKey.indexOf(written) === 0));
+}
+/* The supplier a payee names, of the stock bills' suppliers (keys: key → name); the longest name that fits wins. */
 function bankMatchSupplier(party, keys) {
   var pk = bankKey(party);
   if (pk.length < 4) return '';
-  var hit = '';
-  Object.keys(keys).forEach(function(k) { if (k.length >= 4 && (pk.indexOf(k) === 0 || k.indexOf(pk) === 0)) hit = keys[k]; });
-  return hit;
+  var hit = Object.keys(keys).filter(function(k) { return bankSupplierIs(pk, k); }).sort(function(a, b) { return b.length - a.length; })[0];
+  return hit ? keys[hit] : '';
 }
 
 /* A salary transfer names the hand as the bank has him ("BHANU PRATAP SHARMA"), which is rarely
@@ -20574,16 +20624,37 @@ function bankGuess(row, ctx) {
   return out;
 }
 
+/* A payee rule speaks for one direction: money out (kept under the payee's key) or money in (under key|in).
+   One rule for both let a payment set to Other turn the same party's receipts into Other, and placing a
+   receipt wrote over the Supplier rule its payments had. */
+var BANK_RULE_IN = '|in';
+function bankRuleKey(key, row) { return row.cr > 0 ? key + BANK_RULE_IN : key; }
+/* Rules written before they carried a direction applied both ways. Each is given the direction it was made
+   from, once: a receipt rule, or one for a payee that has only ever paid in, came from money in and moves to
+   its own key; any other came from a payment. Stamped rather than inferred at each read, so a payee's first
+   payment out later cannot turn an old money-in rule round. */
+function bankRulesDirected(b, ctx) {
+  var legacy = Object.keys(b.parties).filter(function(k) { var r = b.parties[k]; return r && !r.dir && k.slice(-BANK_RULE_IN.length) !== BANK_RULE_IN; });
+  if (!legacy.length) return;
+  var paysOut = {};
+  b.rows.forEach(function(row) { if (row.dr > 0) paysOut[bankKey(bankGuess(row, ctx).party)] = true; });
+  legacy.forEach(function(k) {
+    var r = b.parties[k];
+    if (r.cat !== 'receipt' && paysOut[k]) { r.dir = 'out'; return; }
+    if (!b.parties[k + BANK_RULE_IN]) b.parties[k + BANK_RULE_IN] = Object.assign({}, r, { dir: 'in' });
+    delete b.parties[k];
+  });
+}
+
 /* Worked out, then what the operator set for this payee, then for this row. */
 function bankClassify(rows) {
   var b = bankData(), ctx = { suppliers: bankSupplierKeys(), roster: relayRosterIndex(S.staff || []) };
+  bankRulesDirected(b, ctx);
   var out = (rows || bankRows()).map(function(row) {
     var v = bankGuess(row, ctx), key = bankKey(v.party);
-    // A payee rule needs a payee: a cash draw and a cheque deposit name nobody.
-    var rule = key && !v.cash && !bankIsChequeDeposit(row) ? b.parties[key] : null;
-    // A rule is written from one row. Money OUT to a remitter (a refund) is not a receipt, so a receipt
-    // rule speaks for money in only; the row's own setting can still say otherwise.
-    if (rule && rule.cat === 'receipt' && !(row.cr > 0)) rule = null;
+    // A payee rule needs a payee: a cash draw and a cheque deposit name nobody. It is read for the row's own
+    // direction only; the row's own setting can still say otherwise.
+    var rule = key && !v.cash && !bankIsChequeDeposit(row) ? b.parties[bankRuleKey(key, row)] || null : null;
     [rule, row.set].forEach(function(o) {
       if (!o) return;
       if (o.cat) { v.cat = o.cat; v.auto = false; }
@@ -20630,6 +20701,9 @@ function bankLinkBounces(list) {
     taken[dep.row.id] = true;
     rev.bounceOf = { id: dep.row.id, how: how, date: dep.row.date, amount: dep.row.cr, clientId: dep.clientId, chq: bankInstrument(dep.row) };
     dep.bounced = { id: rev.row.id, date: rev.row.date, how: how };
+    // What the deposit is in its own right, for its edit form: saving it as "Returned" dropped its client and
+    // made it no deposit, so the link could never form again.
+    dep.ownCat = dep.cat;
     dep.cat = 'reversal';
   };
   var revs = list.filter(function(v) { return v.cat === 'reversal' && v.row.dr > 0 && !v.selfPair; });
@@ -20719,11 +20793,13 @@ function bankRecvFrom(rows) {
 }
 /* An opening is what was owed on a particular day. One set against another day (the statement's first,
    before the book was taken into account) no longer describes the start and is not applied. */
+/* `set`: an opening recorded for that day, nothing owed included. A client that owed nothing at the start is an
+   answer, and it stops the figure offered from asking again. */
 function bankOpeningFor(clientId, from) {
   var o = bankData().opening[clientId];
-  if (!o) return { amount: 0, stale: null };
+  if (!o) return { amount: 0, stale: null, set: false };
   var rows = bankRows(), day = o.date || (rows.length ? rows[0].date : ''), amt = gstRound(Number(o.amount) || 0);
-  return day === from ? { amount: amt, stale: null } : { amount: 0, stale: { amount: amt, date: day } };
+  return day === from ? { amount: amt, stale: null, set: true } : { amount: 0, stale: { amount: amt, date: day }, set: false };
 }
 /* What a client most likely owed on the day receivables start, offered and never applied (owner, 28 Sep 2026:
    "most of April payment is actually of March job work"). The shop's fastest payer settles 15-20 days after the
@@ -20814,14 +20890,17 @@ function bankReceivables(cls) {
     });
     // Money on account is carried forward: at the end it settles what is still open, oldest first, so the
     // open list and its ageing add up to what is owed. It is kept apart from the receipts' own parts, which
-    // only ever name an invoice raised by the day the money came in.
-    var credits = [], carry = gstRound(allocs.reduce(function(t, a) { return t + a.unapplied; }, 0));
-    if (carry > 0) fifo(carry, credits);
+    // only ever name an invoice raised by the day the money came in. `carried` is all that came in with nothing
+    // open to pay; `onAccount` is what is left of it once the later invoices are settled. The carried figure
+    // read "on account" long after it had paid them.
+    var credits = [], carried = gstRound(allocs.reduce(function(t, a) { return t + a.unapplied; }, 0));
+    var onAccount = carried > 0 ? gstRound(fifo(carried, credits)) : 0;
     var invoiced = gstRound(invs.reduce(function(s, i) { return s + (i.grandTotal || 0); }, 0));
     var owed = gstRound(opening + invoiced - notesTotal - received);
     var stillOpen = open.filter(function(o) { return o.due > 0.005; });
     var today = localDateStr();
-    out.push({ client: c, opening: opening, openingStale: op.stale, openingSuggest: opening ? null : bankOpeningSuggest(recs, invs, from), onAccount: carry, credits: credits, invoiced: invoiced, notes: gstRound(notesTotal), received: received, owed: owed,
+    out.push({ client: c, opening: opening, openingSet: op.set, openingStale: op.stale, openingSuggest: op.set ? null : bankOpeningSuggest(recs, invs, from),
+      carried: carried, onAccount: onAccount, credits: credits, invoiced: invoiced, notes: gstRound(notesTotal), received: received, owed: owed,
       open: stillOpen, allocs: allocs, oldestDays: stillOpen.length ? Math.max(0, isoDaysBetween(stillOpen[0].date, today)) : null });
   });
   return out.sort(function(a, b) { return b.owed - a.owed; });
@@ -20833,8 +20912,11 @@ function bankPrevMonth(iso) {
   return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
 }
 /* An electricity payment settles the month before it by default (a bill is paid the month after
-   it is read); the operator can say otherwise, and it is kept on the row. */
-function bankBillMonth(row) { return row.billMonth || bankPrevMonth(row.date); }
+   it is read); the operator can say otherwise, and it is kept on the row. A payment that became a bill
+   (Add as bill) is that bill's month: the two are one sum of money, and a month set on the row apart from
+   its bill's counted it twice, the bill in one month and the payment in the other. */
+function bankBillOf(row) { return costBills().find(function(b) { return b.kind === 'power' && !b.voided && b.bankId === row.id; }) || null; }
+function bankBillMonth(row) { var b = bankBillOf(row); return b ? b.month : row.billMonth || bankPrevMonth(row.date); }
 function bankPowerRows(cls) { return (cls || bankClassify()).filter(function(v) { return v.cat === 'power' && v.row.dr > 0; }); }
 function bankAddPowerBill(rowId) {
   var row = bankData().rows.find(function(x) { return x.id === rowId; });
@@ -20896,15 +20978,19 @@ function bankCostByMonth(cls) {
   });
   return { months: out, cover: cover };
 }
-function bankMonthKnown(bm, ym, k) {
+/* Why the statement cannot speak for a month's k, or '' when it can. Three different reasons, said apart: a
+   month the statement does not cover, one whose salaries it does not reach yet, and one it covers whole but whose
+   payees are not all sorted (which the owner fixes in a tap, and which "not on the statement" hid). */
+function bankMonthUnknown(bm, ym, k) {
   var c = bm.cover, e = bm.months[ym];
-  if (k === 'power') return !!(e && e.power.amount > 0);
-  if (!c || c.from > ym + '-01' || c.to < payMonthEnd(ym + '-01')) return false;
+  if (k === 'power') return e && e.power.amount > 0 ? '' : 'no payment for this month';
+  if (!c || c.from > ym + '-01' || c.to < payMonthEnd(ym + '-01')) return 'not on the statement';
   // Other and supplies speak for a month only once every payment in it is sorted: an unsorted one
   // could be either, and counting it as neither reads the month cheap.
-  if ((k === 'other' || k === 'supplies') && e && e.unsorted.amount >= 1) return false;
-  return k !== 'labour' || c.to >= bankNextMonth(ym) + '-20';
+  if ((k === 'other' || k === 'supplies') && e && e.unsorted.amount >= 1) return 'payees not yet sorted (Finance → Payments)';
+  return k === 'labour' && c.to < bankNextMonth(ym) + '-20' ? 'its salaries are not on the statement yet' : '';
 }
+function bankMonthKnown(bm, ym, k) { return !bankMonthUnknown(bm, ym, k); }
 
 /* The same over a date range: each month's figure for the share of its days inside the range, and
    the share of the RANGE the statement can speak for. */
@@ -20917,7 +21003,7 @@ function bankCostByMonthMemo() {
 }
 function bankCostForRange(from, to, byMonth) {
   var bm = byMonth || bankCostByMonthMemo(), days = isoDaysBetween(from, to) + 1;
-  var res = { cover: bm.cover };
+  var res = {};
   ['labour', 'power', 'other', 'supplies'].forEach(function(k) { res[k] = { amount: 0, known: 0, months: [] }; });
   res.unsorted = { amount: 0, payees: {} };
   if (!bm.cover) return res;
@@ -20990,9 +21076,9 @@ function _bankReceiptsHtml(cls) {
   if (sgN) h += '<div class="inv-callout inv-callout-info" data-opening-hint="' + sgN + '">' + todoPlural(sgN, 'client') + ' paid money in the first weeks that most likely settled work from before ' + fromTxt +
     '. Open ' + (sgN === 1 ? 'it' : 'each') + ' to check the figure offered for what ' + (sgN === 1 ? 'it' : 'each') + ' owed on that day.</div>';
   if (!recv.length) h += '<div class="inv-empty">No invoices or receipts since ' + fromTxt + '.</div>';
-  var payHist = typeof bankPayHistory === 'function' ? bankPayHistory(recv) : {};
+  var payHist = bankPayHistory(recv);
   recv.forEach(function(r) {
-    var open = _bankOpen === String(r.client.id), dtp = typeof bankDaysToPay === 'function' ? bankDaysToPay(r.client.id, payHist) : null;
+    var open = _bankOpen === String(r.client.id), dtp = bankDaysToPay(r.client.id, payHist);
     h += '<div class="inv-row inv-row-2" data-recv="' + escHtml(String(r.client.id)) + '"><button class="inv-row-main inv-row-expander" aria-expanded="' + open + '" data-action="invBankClient" data-id="' + escHtml(String(r.client.id)) + '">' +
       '<span class="inv-row-title">' + escHtml(r.client.name) + '</span><span class="inv-row-meta inv-row-wrap">' +
       escHtml(formatCurrency(r.invoiced)) + ' invoiced' + (r.notes ? ' · ' + escHtml(formatCurrency(r.notes)) + ' credited' : '') + ' · ' + escHtml(formatCurrency(r.received)) + ' received' +
@@ -21005,11 +21091,12 @@ function _bankReceiptsHtml(cls) {
     h += '<div class="inv-row-children">';
     if (r.openingStale) h += '<div class="inv-callout inv-callout-warning" data-opening-stale>' + escHtml(formatCurrency(r.openingStale.amount)) + ' was set as owed at ' +
       escHtml(formatDate(r.openingStale.date)) + ', but receivables start at ' + fromTxt + ' now, so it is not counted. Set what was owed on ' + fromTxt + '.</div>';
-    else if (r.onAccount > 0.005) h += '<div class="inv-callout inv-callout-info" data-on-account>' + escHtml(formatCurrency(r.onAccount)) + ' came in with more than was open to pay on the day it arrived. It is on account, and settles the invoices raised after it, oldest first. ' +
+    else if (r.carried > 0.005) h += '<div class="inv-callout inv-callout-info" data-on-account>' + escHtml(formatCurrency(r.carried)) + ' came in with more than was open to pay on the day it arrived, and settles the invoices raised after it, oldest first' +
+      (r.onAccount > 0.005 ? (r.onAccount < r.carried - 0.005 ? ': ' + escHtml(formatCurrency(r.onAccount)) + ' of it is still on account. ' : '. It is all still on account. ') : '. None of it is on account now. ') +
       'It most likely paid work from before ' + fromTxt + ': set what was owed on that day.</div>';
     else if (r.owed < -0.005) h += '<div class="inv-callout inv-callout-info">More came in than was invoiced since ' + fromTxt + '. The early receipts most likely paid invoices from before then: set what was owed on that day.</div>';
     h += '<div class="inv-row"><span class="inv-row-main"><label class="inv-field-label" for="bankOpening">Owed at ' + fromTxt + '</label></span>' +
-      '<span class="inv-row-end"><input class="inv-input inv-input-sm inv-num" type="number" step="0.01" min="0" inputmode="decimal" id="bankOpening" data-client="' + escHtml(String(r.client.id)) + '" value="' + (r.opening || '') + '" placeholder="0.00"></span></div>';
+      '<span class="inv-row-end"><input class="inv-input inv-input-sm inv-num" type="number" step="0.01" min="0" inputmode="decimal" id="bankOpening" data-client="' + escHtml(String(r.client.id)) + '" value="' + (r.openingSet ? r.opening : '') + '" placeholder="not set"></span></div>';
     var sg = r.openingSuggest;
     if (sg) h += '<div class="inv-row inv-row-2" data-opening-suggest="' + escHtml(String(r.client.id)) + '"><span class="inv-row-main"><span class="inv-row-title">Most likely owed on ' + fromTxt + '</span>' +
       '<span class="inv-row-meta inv-row-wrap">' + escHtml(sg.rows.map(function(x) { return formatDate(x.date) + ' ' + formatCurrency(x.amount); }).join(' · ')) +
@@ -21158,11 +21245,13 @@ function _bankPaymentsHtml(cls) {
     '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invGoBills">Open Bills &amp; notes</button></div>';
   if (!power.length) h += '<div class="inv-empty">No payment to JBVNL on the statement.</div>';
   power.forEach(function(v) {
-    var m = bankBillMonth(v.row), bill = costBills().find(function(b) { return b.kind === 'power' && !b.voided && b.month === m; });
+    // The bill made from this payment first; else any bill for its month, typed by hand or made from another payment.
+    var m = bankBillMonth(v.row), bill = bankBillOf(v.row) || costBills().find(function(b) { return b.kind === 'power' && !b.voided && b.month === m; });
     var status = bill ? (Math.abs(bill.amount - v.row.dr) < 1 ? '<span class="inv-dot inv-dot-ok">Bill on record</span>'
       : '<span class="inv-dot inv-dot-warning">Bill on record: ' + escHtml(formatCurrency(bill.amount)) + '</span>')
       : '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invBankAddBill" data-id="' + escHtml(v.row.id) + '">Add as bill</button>';
-    var months = [0, 1, 2, 3].map(function(k) { var d = new Date(v.row.date.slice(0, 7) + '-01T00:00:00'); d.setMonth(d.getMonth() - k); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0'); });
+    var months = [v.row.date.slice(0, 7)];
+    while (months.length < 4) months.push(bankPrevMonth(months[months.length - 1]));
     h += '<div class="inv-row inv-row-2" data-power="' + escHtml(v.row.id) + '"><span class="inv-row-main"><span class="inv-row-title inv-num">' + formatCurrency(v.row.dr) + '</span>' +
       '<span class="inv-row-meta">paid ' + escHtml(formatDate(v.row.date)) + ', for the month</span></span>' +
       '<span class="inv-row-end"><select class="inv-select inv-select-sm" data-bank-month="' + escHtml(v.row.id) + '" aria-label="Bill month">' +
@@ -21176,7 +21265,7 @@ function _bankPaymentsHtml(cls) {
 
   // Suppliers, and everything else by category.
   var sup = {};
-  cls.forEach(function(v) { if (v.cat === 'supplier' && v.row.dr > 0) { var k = v.party || v.row.narration; (sup[k] = sup[k] || { paid: 0, n: 0, name: v.supplier || v.party }); sup[k].paid = gstRound(sup[k].paid + v.row.dr); sup[k].n++; } });
+  cls.forEach(function(v) { if (v.cat === 'supplier' && v.row.dr > 0) { var k = v.party || v.row.narration; (sup[k] = sup[k] || { paid: 0, n: 0, name: v.supplier || v.party, written: bankSupplierWritten(v) }); sup[k].paid = gstRound(sup[k].paid + v.row.dr); sup[k].n++; } });
   var billed = {};
   (stockData().entries || []).forEach(function(e) { if (!e.voided && e.supplier && e.amount) billed[bankKey(e.supplier)] = gstRound((billed[bankKey(e.supplier)] || 0) + Number(e.amount)); });
   var sk = Object.keys(sup).sort(function(a, b) { return sup[b].paid - sup[a].paid; });
@@ -21184,7 +21273,7 @@ function _bankPaymentsHtml(cls) {
     '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invGoStock">Open Stock</button></div>';
   if (!sk.length) h += '<div class="inv-empty">No payment matched to a stock supplier. Set a payee to Supplier on the statement and it is remembered.</div>';
   sk.forEach(function(k) {
-    var s = sup[k], key = Object.keys(billed).find(function(bk) { var pk = bankKey(k); return bk.length >= 4 && (pk.indexOf(bk) === 0 || bk.indexOf(pk) === 0); });
+    var s = sup[k], key = Object.keys(billed).find(function(bk) { return bankSupplierIs(s.written, bk); });
     h += '<div class="inv-row inv-row-2"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(k) + '</span><span class="inv-row-meta">' + s.n + ' payment' + (s.n === 1 ? '' : 's') +
       (key ? ' · stock bills recorded ' + escHtml(formatCurrency(billed[key])) : ' · no stock bills recorded') + '</span></span><span class="inv-row-end inv-num">' + formatCurrency(s.paid) + '</span></div>';
   });
@@ -21252,11 +21341,16 @@ function _bankStatementHtml(cls) {
 function _bankEditHtml(v) {
   // Every cheque deposit reads "Cheque deposited": a rule on that would place all of them on one client.
   var r = v.row, canRule = !!v.key && !v.cash && !bankIsChequeDeposit(r);
-  var h = '<div class="inv-panel-body" data-bank-edit="' + escHtml(r.id) + '"><div class="inv-row-meta">' + escHtml(r.narration) + '</div><div class="inv-fields">' +
+  // A deposit linked to a returned cheque reads as Returned, but that is the link's doing, undone under Returned
+  // cheques: its form edits what the deposit is itself.
+  var cat = v.bounced ? v.ownCat : v.cat;
+  var h = '<div class="inv-panel-body" data-bank-edit="' + escHtml(r.id) + '"><div class="inv-row-meta">' + escHtml(r.narration) + '</div>' +
+    (v.bounced ? '<div class="inv-note" data-bank-edit-bounced>Linked to the cheque returned on ' + escHtml(formatDate(v.bounced.date)) + ', so it counts as returned, not received. Receivables → Returned cheques undoes the link.</div>' : '') +
+    '<div class="inv-fields">' +
     '<div class="inv-field"><label class="inv-field-label" for="bankEditCat">Category</label><select class="inv-select" id="bankEditCat">' +
-    BANK_CATS.map(function(c) { return '<option value="' + c[0] + '"' + (v.cat === c[0] ? ' selected' : '') + '>' + c[1] + '</option>'; }).join('') + '</select></div>';
-  if (v.cat === 'receipt') h += '<div class="inv-field"><label class="inv-field-label" for="bankEditClient">Client</label>' + _bankClientSelect(v, { id: 'bankEditClient' }) + '</div>';
-  if (v.cat === 'wages' && !v.cash) {
+    BANK_CATS.map(function(c) { return '<option value="' + c[0] + '"' + (cat === c[0] ? ' selected' : '') + '>' + c[1] + '</option>'; }).join('') + '</select></div>';
+  if (cat === 'receipt') h += '<div class="inv-field"><label class="inv-field-label" for="bankEditClient">Client</label>' + _bankClientSelect(v, { id: 'bankEditClient' }) + '</div>';
+  if (cat === 'wages' && !v.cash) {
     h += '<div class="inv-field"><label class="inv-field-label" for="bankEditStaff">Paid to</label><select class="inv-select" id="bankEditStaff"><option value="">Nobody on the roster</option>' +
       (S.staff || []).map(function(w) { return '<option value="' + escHtml(String(w.id)) + '"' + (String(v.staffId) === String(w.id) ? ' selected' : '') + '>' + escHtml(w.name) + '</option>'; }).join('') + '</select></div>';
   }
@@ -21279,7 +21373,8 @@ function bankSaveEdit(id) {
   var nc = document.getElementById('bankEditNotCost');
   if (nc) set.notCost = nc.checked;
   var all = document.getElementById('bankEditAll');
-  if (all && all.checked && v.key && !bankIsChequeDeposit(row)) { b.parties[v.key] = set; delete row.set; }
+  // "Every payment to / from" is that direction's rule: money in and money out keep a rule each.
+  if (all && all.checked && v.key && !bankIsChequeDeposit(row)) { b.parties[bankRuleKey(v.key, row)] = Object.assign(set, { dir: row.cr > 0 ? 'in' : 'out' }); delete row.set; }
   else row.set = set;
   _bankEdit = null;
   saveState();
@@ -21293,9 +21388,10 @@ function bankSetClient(rowId, clientId) {
   var b = bankData(), row = b.rows.find(function(x) { return x.id === rowId; });
   if (!row) return;
   var v = bankClassify([row])[0], id = clientId === '' ? null : _bankIdOf(S.clients, clientId);
-  // A named remitter is remembered; a cheque deposit has no name to remember and is kept on the row.
-  // The row's own setting would outrank the rule (bankClassify), so it goes: the placement just made is the answer.
-  if (v.key && !bankIsChequeDeposit(row)) { b.parties[v.key] = { cat: 'receipt', clientId: id }; delete row.set; }
+  // A named remitter is remembered, for money in only: a rule the same party's payments have is left alone.
+  // A cheque deposit has no name to remember and is kept on the row. The row's own setting would outrank the
+  // rule (bankClassify), so it goes: the placement just made is the answer.
+  if (v.key && !bankIsChequeDeposit(row) && row.cr > 0) { b.parties[bankRuleKey(v.key, row)] = { cat: 'receipt', clientId: id, dir: 'in' }; delete row.set; }
   else row.set = { cat: 'receipt', clientId: id };
   saveState();
   renderFinance();
@@ -21409,12 +21505,22 @@ function bankInput(t) {
   if (t.dataset && t.dataset.bankClient) { _bankChange = null; bankSetClient(t.dataset.bankClient, t.value); return true; }
   if (t.dataset && t.dataset.bankMonth) {
     var row = bankData().rows.find(function(x) { return x.id === t.dataset.bankMonth; });
-    if (row) { row.billMonth = t.value; saveState(); renderFinance(); }
+    if (row) {
+      // The bill made from this payment moves with it: they are one payment, in one month.
+      var bill = bankBillOf(row), twin = bill && costBills().find(function(b) { return b !== bill && b.kind === 'power' && !b.voided && b.month === t.value; });
+      row.billMonth = t.value;
+      if (bill) bill.month = t.value;
+      saveState(); renderFinance();
+      // Warn, never block: two bills for one month may be right (a split payment), and both are counted.
+      if (twin) showToast('There is another electricity bill for ' + billsMonthLabel(t.value) + ': both are counted', 'error');
+    }
     return true;
   }
   if (t.id === 'bankOpening') {
-    var amt = gstRound(parseFloat(t.value) || 0), o = bankData().opening;
-    if (amt > 0) o[t.dataset.client] = { amount: amt, date: bankRecvFrom(), at: Date.now() }; else delete o[t.dataset.client];
+    // An empty field clears it; 0 is an answer (nothing was owed that day) and is kept, which stops the figure
+    // offered from asking again. A 0 used to read as nothing typed.
+    var raw = String(t.value).trim(), amt = gstRound(parseFloat(raw) || 0), o = bankData().opening;
+    if (raw !== '' && amt >= 0) o[t.dataset.client] = { amount: amt, date: bankRecvFrom(), at: Date.now() }; else delete o[t.dataset.client];
     saveState();
     renderFinance();
     return true;
@@ -21511,8 +21617,6 @@ function renderFinance() {
 function finRs(v) { var n = Math.round(Number(v) || 0); return (n < 0 ? '-' : '') + '₹' + Math.abs(n).toLocaleString('en-IN'); }
 
 /* ---------- Months ---------- */
-function finYm(iso) { return String(iso || '').slice(0, 7); }
-function finNextMonth(ym) { var d = new Date(ym + '-01T00:00:00'); d.setMonth(d.getMonth() + 1); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0'); }
 /* The last n months, this one included, oldest first. */
 function finMonths(n) { return insMonthsBack(n - 1).concat([localDateStr().slice(0, 7)]); }
 
@@ -21521,8 +21625,7 @@ function finMonths(n) { return insMonthsBack(n - 1).concat([localDateStr().slice
 function finCashByMonth(rows) {
   var out = {};
   rows.forEach(function(r) {
-    var m = finYm(r.date), e = out[m] = out[m] || { month: m, cr: 0, dr: 0, close: null, open: null };
-    if (e.open == null) e.open = gstRound(r.balance + r.dr - r.cr);
+    var m = insMonthKey(r.date), e = out[m] = out[m] || { month: m, cr: 0, dr: 0, close: null };
     e.cr = gstRound(e.cr + r.cr); e.dr = gstRound(e.dr + r.dr); e.close = r.balance;
   });
   return Object.keys(out).sort().map(function(k) { return out[k]; });
@@ -21551,11 +21654,11 @@ function finGstByMonth(months, cls) {
   var due = {}, paid = {}, paidRows = {};
   months.forEach(function(m) { due[m] = 0; paid[m] = 0; paidRows[m] = []; });
   (S.invoices || []).forEach(function(i) {
-    var m = finYm(i.date);
+    var m = i.date ? insMonthKey(i.date) : '';
     if (i.status === 'active' && m in due) due[m] = gstRound(due[m] + (i.cgstAmt || 0) + (i.sgstAmt || 0) + (i.igstAmt || 0));
   });
   getCreditNotes().forEach(function(n) {
-    var m = finYm(n.date);
+    var m = n.date ? insMonthKey(n.date) : '';
     if (n.status !== 'cancelled' && m in due) due[m] = gstRound(due[m] - ((n.cgstAmt || 0) + (n.sgstAmt || 0) + (n.igstAmt || 0)));
   });
   (cls || []).forEach(function(v) {
@@ -21565,7 +21668,7 @@ function finGstByMonth(months, cls) {
   });
   var today = localDateStr(), notes = bankData().gstNotes, cover = bankCover();
   return months.map(function(m) {
-    var next = finNextMonth(m), dueBy = next + '-20', n = notes[m] || null;
+    var next = bankNextMonth(m), dueBy = next + '-20', n = notes[m] || null;
     // A return paid another way (owner, 26 Sep 2026: July went by another route) is recorded by hand
     // and counts as paid, but is never shown as what the bank saw.
     var other = n && Number(n.paidOther) > 0 ? gstRound(Number(n.paidOther)) : 0;
@@ -21577,11 +21680,11 @@ function finGstByMonth(months, cls) {
 }
 /* One reading of a month, shared by the table and the tile. */
 function finGstStatus(r) {
-  if (r.paidBank > 0) return { tone: 'ok', text: 'Paid ' + finShortDate(r.rows[r.rows.length - 1].date) };
+  if (r.paidBank > 0) return { tone: 'ok', text: 'Paid ' + stockShortDate(r.rows[r.rows.length - 1].date) };
   if (r.paidOther > 0) return { tone: 'info', text: 'Outside bank', title: 'Paid another way' + (r.note && r.note.via ? ' via ' + r.note.via : '') };
   if (r.note) return { tone: 'neutral', text: 'Noted', title: r.note.note };
   if (r.due <= 0) return { tone: 'neutral', text: 'Nil' };
-  if (r.open) return { tone: 'info', text: 'Due ' + finShortDate(r.dueBy) };
+  if (r.open) return { tone: 'info', text: 'Due ' + stockShortDate(r.dueBy) };
   // A month the statement does not reach says nothing either way: unknown is not unpaid.
   if (!r.seen) return { tone: 'neutral', text: 'No statement', title: 'The bank statement does not cover the days this was due by' };
   // Only the bank is read: a return paid another way is not on the statement, so this says what is known.
@@ -21590,7 +21693,6 @@ function finGstStatus(r) {
 
 /* "Jun '26": a month column that has to leave room for a status on a phone. */
 function finShortMonth(ym) { return TREND_MONTH_LABELS[parseInt(ym.slice(5, 7), 10) - 1] + " '" + ym.slice(2, 4); }
-function finShortDate(iso) { var d = new Date(iso + 'T00:00:00'); return d.getDate() + ' ' + TREND_MONTH_LABELS[d.getMonth()]; }
 function finGstHtml(n, wide, chartMonths, cls) {
   cls = cls || bankClassify();
   var rows = finGstByMonth(finMonths(n), cls).reverse();
@@ -21665,7 +21767,7 @@ function finOverviewHtml() {
   // and the invoices together, so a month with invoices but no statement row still shows.
   var monthSet = {};
   months.forEach(function(m) { monthSet[m.month] = true; });
-  (S.invoices || []).forEach(function(i) { if (i.status === 'active' && i.date && i.date <= localDateStr()) monthSet[finYm(i.date)] = true; });
+  (S.invoices || []).forEach(function(i) { if (i.status === 'active' && i.date && i.date <= localDateStr()) monthSet[insMonthKey(i.date)] = true; });
   var inRange = chartRangeMonths(_finRange, Object.keys(monthSet));
   var byMonth = {};
   months.forEach(function(m) { byMonth[m.month] = m; });
@@ -21698,28 +21800,36 @@ function finOverviewHtml() {
   var outByMonthCat = {}, cats = {};
   cls.forEach(function(v) {
     if (!(v.row.dr > 0)) return;
-    var m = finYm(v.row.date), k = catKey(v);
+    var m = insMonthKey(v.row.date), k = catKey(v);
     (outByMonthCat[m] = outByMonthCat[m] || {})[k] = gstRound(((outByMonthCat[m] || {})[k] || 0) + v.row.dr);
     if (inRange.indexOf(m) >= 0) cats[k] = gstRound((cats[k] || 0) + v.row.dr);
   });
-  var catOrder = Object.keys(cats).sort(function(a, b) { return cats[b] - cats[a]; }).slice(0, CHART_SERIES_MAX);
+  // Past the eighth, the smallest categories fold into one series that names them, as the pie folds its tail: the
+  // stack used to drop a ninth, and its money with it.
+  var catAll = Object.keys(cats).sort(function(a, b) { return cats[b] - cats[a]; });
+  var catOrder = catAll.length > CHART_SERIES_MAX ? catAll.slice(0, CHART_SERIES_MAX - 1) : catAll, catTail = catAll.slice(catOrder.length);
+  var stackSeries = catOrder.map(function(k) {
+    return { label: catLabel(k), values: cashMonths.map(function(m) { return (outByMonthCat[m] || {})[k] || 0; }) };
+  });
+  if (catTail.length) stackSeries.push({ label: catTail.length + ' others: ' + catTail.map(catLabel).join(', '), tone: 'x',
+    values: cashMonths.map(function(m) { return gstRound(catTail.reduce(function(t, k) { return t + ((outByMonthCat[m] || {})[k] || 0); }, 0)); }) });
   var ym = _finMonth && byMonth[_finMonth] ? _finMonth : (cashMonths.length ? cashMonths[cashMonths.length - 1] : paidMonth.month);
   var byCat = outByMonthCat[ym] || {};
   var sel = _finCat && byCat[_finCat] ? _finCat : null;
-  var invoiced = gstRound((S.invoices || []).reduce(function(s, i) { return s + (i.status === 'active' && finYm(i.date) === ym ? (i.grandTotal || 0) : 0); }, 0));
-  var received = gstRound(cls.reduce(function(s, v) { return s + (v.cat === 'receipt' && finYm(v.row.date) === ym ? v.row.cr : 0); }, 0));
+  var invoiced = gstRound((S.invoices || []).reduce(function(s, i) { return s + (i.status === 'active' && i.date && insMonthKey(i.date) === ym ? (i.grandTotal || 0) : 0); }, 0));
+  var received = gstRound(cls.reduce(function(s, v) { return s + (v.cat === 'receipt' && insMonthKey(v.row.date) === ym ? v.row.cr : 0); }, 0));
   h += '<div class="inv-panel inv-panel-flush inv-panels-wide" id="finWent"><div class="inv-panel-head"><span class="inv-panel-title">Where money went</span>' +
     '<select class="inv-select inv-select-sm" id="finMonthPick" aria-label="Month">' + months.slice().reverse().map(function(m) {
       return '<option value="' + m.month + '"' + (m.month === ym ? ' selected' : '') + '>' + escHtml(billsMonthLabel(m.month)) + '</option>'; }).join('') + '</select></div>' +
-    '<div class="inv-panel-body">' + chartStack(cashMonths.map(lab), catOrder.map(function(k) {
-      return { label: catLabel(k), values: cashMonths.map(function(m) { return (outByMonthCat[m] || {})[k] || 0; }) };
-    }), { action: 'invFinMonth', keys: cashMonths, selected: ym, ariaLabel: 'Outflow by category', readHint: 'Tap a month to read it; the pie below follows' }) + '</div>' +
-    '<div class="inv-panel-body">' + chartPieTap(Object.keys(byCat).map(function(k) { var t = catOrder.indexOf(k); return { key: k, label: catLabel(k), value: byCat[k], tone: t >= 0 ? t : null }; }),
+    '<div class="inv-panel-body">' + chartStack(cashMonths.map(lab), stackSeries,
+      { action: 'invFinMonth', keys: cashMonths, selected: ym, ariaLabel: 'Outflow by category', readHint: 'Tap a month to read it; the pie below follows' }) + '</div>' +
+    // A category keeps its colour in both: one folded into the stack's others takes the others' colour here too.
+    '<div class="inv-panel-body">' + chartPieTap(Object.keys(byCat).map(function(k) { var t = catOrder.indexOf(k); return { key: k, label: catLabel(k), value: byCat[k], tone: t >= 0 ? t : catTail.indexOf(k) >= 0 ? 'x' : null }; }),
       { action: 'invFinCat', selected: sel, ariaLabel: 'Outflow in ' + billsMonthLabel(ym), emptyText: 'Nothing paid out in ' + billsMonthLabel(ym), readHint: 'Tap a slice to list its payments' }) + '</div>';
   Object.keys(byCat).sort(function(a, b) { return byCat[b] - byCat[a]; }).forEach(function(k) {
     h += '<div class="inv-row" data-went-cat="' + escHtml(k) + '"><span class="inv-row-main">' + escHtml(catLabel(k)) + '</span><span class="inv-row-end inv-num">' + formatCurrency(byCat[k]) + '</span></div>';
     if (k !== sel) return;
-    var list = cls.filter(function(v) { return catKey(v) === k && finYm(v.row.date) === ym && v.row.dr > 0; }).reverse();
+    var list = cls.filter(function(v) { return catKey(v) === k && insMonthKey(v.row.date) === ym && v.row.dr > 0; }).reverse();
     h += '<div class="inv-row-children">';
     list.slice(0, 8).forEach(function(v) {
       h += '<div class="inv-row inv-row-2" data-went-row="' + escHtml(v.row.id) + '"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(v.party || v.row.narration) + '</span>' +
@@ -21735,7 +21845,7 @@ function finOverviewHtml() {
   // Where money came from: receipts by client over the range; unplaced receipts are a wedge of their own, named.
   var from = {};
   cls.forEach(function(v) {
-    if (v.cat !== 'receipt' || !(v.row.cr > 0) || inRange.indexOf(finYm(v.row.date)) < 0) return;
+    if (v.cat !== 'receipt' || !(v.row.cr > 0) || inRange.indexOf(insMonthKey(v.row.date)) < 0) return;
     var k = v.clientId == null ? '__loose' : String(v.clientId);
     from[k] = gstRound((from[k] || 0) + v.row.cr);
   });
@@ -21766,8 +21876,8 @@ function finOverviewHtml() {
 
   // Invoiced against received: the gap between the lines is what the book is lending its clients.
   var invBy = {}, recBy = {};
-  (S.invoices || []).forEach(function(i) { if (i.status === 'active' && i.date) invBy[finYm(i.date)] = gstRound((invBy[finYm(i.date)] || 0) + (i.grandTotal || 0)); });
-  cls.forEach(function(v) { if (v.cat === 'receipt' && v.row.cr > 0) recBy[finYm(v.row.date)] = gstRound((recBy[finYm(v.row.date)] || 0) + v.row.cr); });
+  (S.invoices || []).forEach(function(i) { if (i.status === 'active' && i.date) invBy[insMonthKey(i.date)] = gstRound((invBy[insMonthKey(i.date)] || 0) + (i.grandTotal || 0)); });
+  cls.forEach(function(v) { if (v.cat === 'receipt' && v.row.cr > 0) recBy[insMonthKey(v.row.date)] = gstRound((recBy[insMonthKey(v.row.date)] || 0) + v.row.cr); });
   h += '<div class="inv-panel inv-panel-flush inv-panels-wide" id="finInvRec"><div class="inv-panel-head"><span class="inv-panel-title">Invoiced against received</span></div>' +
     '<div class="inv-panel-body">' + chartLines(inRange.map(lab), [
       { label: 'Invoiced', values: inRange.map(function(m) { return invBy[m] || 0; }) },
@@ -21809,6 +21919,17 @@ function financeInput(t) {
   if (t && t.id === 'finMonthPick') { _finMonth = t.value; _finCat = null; renderFinance(); return true; }
   return false;
 }
+
+/* A chart datum that also moves the Overview (a month, a slice) redraws it under the tap, so the figure it carries
+   was never read out, where a plain tap writes it (charts.js). The same datum is found in the redrawn chart and read. */
+function finRedrawReading(btn) {
+  var read = btn.dataset.read, act = btn.dataset.action, host = btn.closest('.inv-panel[id]'), hostId = host ? host.id : '';
+  renderFinance();
+  var root = (hostId && document.getElementById(hostId)) || document.getElementById('financeContent');
+  if (!root || !read) return;
+  var hit = Array.prototype.find.call(root.querySelectorAll('[data-action="' + act + '"][data-read]'), function(el) { return el.dataset.read === read; });
+  if (hit) chartShowRead(hit);
+}
 function financeAction(action, btn) {
   switch (action) {
     case 'invFinTab': finSetTab(btn.dataset.tab); _bankEdit = null; renderFinance(); return true;
@@ -21817,8 +21938,8 @@ function financeAction(action, btn) {
       _finRange = btn.dataset.range;
       try { localStorage.setItem('sep_inv_fin_range', _finRange); } catch (e) { /* a per-device convenience only */ }
       renderFinance(); return true;
-    case 'invFinMonth': _finMonth = btn.dataset.key; _finCat = null; renderFinance(); return true;
-    case 'invFinCat': _finCat = _finCat === btn.dataset.key ? null : btn.dataset.key; renderFinance(); return true;
+    case 'invFinMonth': _finMonth = btn.dataset.key; _finCat = null; finRedrawReading(btn); return true;
+    case 'invFinCat': _finCat = _finCat === btn.dataset.key ? null : btn.dataset.key; finRedrawReading(btn); return true;
     case 'invFinFrom':
       if (btn.dataset.key === '__loose') return financeAction('invFinLoose', btn);
       if (btn.dataset.key === '__others') { chartShowRead(btn); return true; }
@@ -27108,7 +27229,9 @@ function finForecast(days) {
   closed.forEach(function(m) { wages[m] = 0; other[m] = 0; });
   ctx.cls.forEach(function(v) {
     var r = v.row;
-    if (!(r.dr > 0)) return;
+    // A returned cheque, and a posting with its own reversal, is money that came in and went back out: it does not
+    // recur, and counted as "every other payment" it put a month's bounces into every month to come.
+    if (!(r.dr > 0) || v.cat === 'reversal') return;
     var m = r.date.slice(0, 7);
     if (v.cat === 'wages' && !v.cash && v.staffId != null) { if (m in wages) { wages[m] += r.dr; days1.push(+r.date.slice(8, 10)); } }
     else if (v.cat === 'wages') { var ws = attWeekStartOf(r.date); cashWk[ws] = (cashWk[ws] || 0) + r.dr; }
@@ -27168,7 +27291,7 @@ function finForecast(days) {
   }
   var stale = isoDaysBetween(last.date, today);
   if (stale > 3) rests.unshift('Starts from the balance on ' + formatDate(last.date) + ', the statement’s last day: ' + stale + ' days of payments since are not on it.');
-  return { asOf: last.date, start: last.balance, days: out, cross: cross, min: min, rests: rests, bookDays: bookMed };
+  return { asOf: last.date, start: last.balance, days: out, cross: cross, min: min, rests: rests };
 }
 
 function finForecastHtml() {
@@ -27177,7 +27300,7 @@ function finForecastHtml() {
   var pts = fc.days.filter(function(x, i) { return i % 3 === 2 || i === fc.days.length - 1; });
   var h = '<div class="inv-panel inv-panel-flush inv-panels-wide" id="finForecast"><div class="inv-panel-head"><span class="inv-panel-title">Cash forecast, 60 days</span></div>';
   var at = function(n) { return fc.days[Math.min(n, fc.days.length) - 1]; };
-  var tiles = [['Now', fc.start, 'on the statement, ' + finShortDate(fc.asOf)], ['Lowest', fc.min.bal, 'on ' + finShortDate(fc.min.date)],
+  var tiles = [['Now', fc.start, 'on the statement, ' + stockShortDate(fc.asOf)], ['Lowest', fc.min.bal, 'on ' + stockShortDate(fc.min.date)],
     ['In 30 days', at(30).bal, at(30).lo < 0 && at(30).bal >= 0 ? 'could dip below zero' : 'P25–P75 ' + finRs(at(30).lo) + ' to ' + finRs(at(30).hi)],
     ['In 60 days', at(60).bal, 'P25–P75 ' + finRs(at(60).lo) + ' to ' + finRs(at(60).hi)]];
   h += '<div class="inv-tiles inv-tiles-4 inv-tiles-flush">' + tiles.map(function(t) {
@@ -27185,7 +27308,7 @@ function finForecastHtml() {
       '<div class="inv-tile-value inv-tile-value-sm inv-nowrap" title="' + escHtml(formatCurrency(t[1])) + '">' + finRs(t[1]) + '</div><div class="inv-tile-sub">' + escHtml(t[2]) + '</div></div>';
   }).join('') + '</div><div class="inv-panel-body">';
   if (fc.cross) h += '<div class="inv-callout inv-callout-danger">At this pace the account goes below zero on ' + escHtml(formatDate(fc.cross)) + '.</div>';
-  h += chartLines(pts.map(function(x) { return finShortDate(x.date); }), [{ label: 'Balance', values: pts.map(function(x) { return x.bal; }) }],
+  h += chartLines(pts.map(function(x) { return stockShortDate(x.date); }), [{ label: 'Balance', values: pts.map(function(x) { return x.bal; }) }],
     { band: pts.map(function(x) { return { lo: x.lo, hi: x.hi }; }), ariaLabel: 'Cash forecast' });
   h += '<div class="inv-note">What it rests on:</div><ul class="inv-note">' + fc.rests.map(function(r) { return '<li>' + escHtml(r) + '</li>'; }).join('') + '</ul>';
   return h + '</div></div>';
@@ -27293,14 +27416,12 @@ TODO_RULE_FNS.supplierNoBill = function() {
   var billKeys = Object.keys(bills).map(function(x) { return x.split('|')[0]; });
   finCtx().cls.forEach(function(v) {
     if (v.cat !== 'supplier' || !(v.row.dr > 0) || isoDaysBetween(v.row.date, today) > 90) return;
-    var pk = bankKey(v.party || ''), nk = bankKey(v.row.narration || ''), m = v.row.date.slice(0, 7);
-    // The payee where the narration names one, else the supplier's name anywhere in the narration (as
-    // finSupplierPaid reads it). An empty or short payee key is a prefix of every supplier's name, and
-    // matched whichever bill came first.
-    var bk = billKeys.find(function(b) { return b.length >= 4 && (pk.length >= 4 ? pk.indexOf(b) === 0 || b.indexOf(pk) === 0 : nk.indexOf(b) >= 0); });
+    // The payee, or the narration where the payee is too short to read, read as finSupplierPaid reads it (one
+    // matcher, bank.js): prefix here and substring there made a payment covered on one screen and not the other.
+    var wk = bankSupplierWritten(v), m = v.row.date.slice(0, 7);
     // A bill dated that month or the one before covers the payment: a bill is paid after it is raised.
-    if (bk && (bills[bk + '|' + m] || bills[bk + '|' + bankPrevMonth(m + '-01')])) return;
-    var gk = (pk || nk) + '|' + m;
+    if (billKeys.some(function(b) { return bankSupplierIs(wk, b) && (bills[b + '|' + m] || bills[b + '|' + bankPrevMonth(m + '-01')]); })) return;
+    var gk = wk + '|' + m;
     var e = byKey[gk] || (byKey[gk] = { name: v.supplier || v.party || v.row.narration, month: m, paid: 0, n: 0 });
     e.paid = gstRound(e.paid + v.row.dr); e.n++;
   });
@@ -27457,17 +27578,15 @@ function finInvoicePaymentHtml(inv) {
 }
 
 /* ---------- A supplier ---------- */
-/* Payments on the statement set to Supplier whose payee (or narration) carries the supplier's name. */
+/* Payments on the statement set to Supplier whose payee (or narration) carries the supplier's name, read by the
+   one matcher every supplier figure uses (bankSupplierIs, bank.js). */
 function finSupplierPaid(name) {
   if (!name || !finHasBank()) return null;
   var k = bankKey(name);
-  if (!k || k.length < 4) return null;
+  if (k.length < 4) return null;
   var out = { paid: 0, n: 0, last: null };
   finCtx().cls.forEach(function(v) {
-    if (!(v.row.dr > 0) || v.cat !== 'supplier') return;
-    // The payee where the narration names one, else the narration itself; the supplier's name anywhere in it.
-    var pk = bankKey(v.party || '') || bankKey(v.row.narration || '');
-    if (!pk || !(pk.indexOf(k) >= 0 || (pk.length >= 4 && k.indexOf(pk) === 0))) return;
+    if (!(v.row.dr > 0) || v.cat !== 'supplier' || !bankSupplierIs(bankSupplierWritten(v), k)) return;
     out.paid = gstRound(out.paid + v.row.dr); out.n++; out.last = v.row;
   });
   return out.n ? out : null;
@@ -27492,20 +27611,26 @@ function renderFinHomeCard() {
       '<div class="inv-tile-label">' + label + '</div><div class="inv-tile-value inv-tile-value-sm inv-nowrap" title="' + escHtml(formatCurrency(value)) + '">' + finRs(value) + '</div><div class="inv-tile-sub">' + sub + '</div></button>';
   };
   h += '<div class="inv-tiles inv-tiles-flush">' +
-    tile('bank', '', 'Balance', last.balance, 'on ' + escHtml(finShortDate(last.date)) + (age > 7 ? ', ' + age + ' days ago' : ''), last.balance < 0 ? 'danger' : age > 7 ? 'warning' : '') +
+    tile('bank', '', 'Balance', last.balance, 'on ' + escHtml(stockShortDate(last.date)) + (age > 7 ? ', ' + age + ' days ago' : ''), last.balance < 0 ? 'danger' : age > 7 ? 'warning' : '') +
     tile('receipts', loose ? 'bankLoose' : '', 'Owed to us', owed, loose ? loose + ' receipt' + (loose === 1 ? '' : 's') + ' not placed'
-      : old90 > 0 ? finRs(old90) + ' over 90 days' : old60 > 0 ? finRs(old60) + ' over 60 days' : 'since ' + escHtml(finShortDate(bankRecvFrom(rows))),
+      : old90 > 0 ? finRs(old90) + ' over 90 days' : old60 > 0 ? finRs(old60) + ' over 60 days' : 'since ' + escHtml(stockShortDate(bankRecvFrom(rows))),
       // Never red while a receipt is unplaced: that money may be in already, and the sub line names the receipts (owed90).
       loose ? 'warning' : old90 > 0 ? 'danger' : old60 > 0 ? 'warning' : '') +
     (book && book.median != null ? '<button class="inv-tile' + (figTonePaysIn(book.median) ? ' inv-tile-' + figTonePaysIn(book.median) : '') + '" data-action="invFinGo" data-tab="receipts" data-home-fin="Pays in"><div class="inv-tile-label">Pays in</div>' +
       '<div class="inv-tile-value inv-tile-value-sm">' + Math.round(book.median) + ' days</div><div class="inv-tile-sub">the book, invoice to receipt' +
       (book.median > 60 ? ' · over two months' : book.median > 30 ? ' · over a month' : '') + '</div></button>' : '') +
-    tile('overview', 'finForecast', 'Runway', fc ? fc.min.bal : last.balance, fc && fc.cross ? 'below zero on ' + escHtml(finShortDate(fc.cross)) : fc ? 'lowest in 45 days, ' + escHtml(finShortDate(fc.min.date)) : '', fc && fc.cross ? 'danger' : '') +
+    tile('overview', 'finForecast', 'Runway', fc ? fc.min.bal : last.balance, fc && fc.cross ? 'below zero on ' + escHtml(stockShortDate(fc.cross)) : fc ? 'lowest in 45 days, ' + escHtml(stockShortDate(fc.min.date)) : '', fc && fc.cross ? 'danger' : '') +
     '</div>';
   el.innerHTML = h + '</div>';
 }
 
 /* ---------- Wages: the bank's legs beside the payroll, on Finance → Payments and on Staff → Pay ---------- */
+/* What the payroll as paid says a hand was owed for its month, or null when the slip does not name them: the slip's
+   paid figure, else its day pay and overtime. One lookup for the wages panel's count and its rows. */
+function finSlipOwed(slip, staffId) {
+  var row = slip ? slip.rows.find(function(r) { var pw = payrollWorker(r); return pw && String(pw.id) === String(staffId); }) : null;
+  return row ? gstRound(row.paid != null ? Number(row.paid) : (Number(row.dayPay) || 0) + (Number(row.ot) || 0)) : null;
+}
 function finWagesHtml(cls, where) {
   var wages = cls.filter(function(v) { return v.cat === 'wages' && v.row.dr > 0; });
   var byMonth = {};
@@ -27522,8 +27647,7 @@ function finWagesHtml(cls, where) {
   months.forEach(function(m) {
     var e = byMonth[m], slip = payrollPaidFor(bankPrevMonth(m + '-01'));
     if (slip) Object.keys(e.named).forEach(function(id) {
-      var row = slip.rows.find(function(r) { var pw = payrollWorker(r); return pw && String(pw.id) === id; });
-      var owedW = row ? gstRound(row.paid != null ? Number(row.paid) : (Number(row.dayPay) || 0) + (Number(row.ot) || 0)) : null;
+      var owedW = finSlipOwed(slip, id);
       if (owedW != null && Math.abs(e.named[id] - owedW) >= 1) off++;
     });
   });
@@ -27541,8 +27665,7 @@ function finWagesHtml(cls, where) {
     var h = '<div class="inv-row inv-row-group"><span class="inv-row-main">Paid in ' + escHtml(billsMonthLabel(m)) + '</span><span class="inv-row-end inv-num">' + formatCurrency(e.total) + '</span></div>';
     named.forEach(function(id) {
       var w = (S.staff || []).find(function(x) { return String(x.id) === id; }) || { name: '?' };
-      var row = slip ? slip.rows.find(function(r) { var pw = payrollWorker(r); return pw && String(pw.id) === id; }) : null;
-      var owedW = row ? gstRound(row.paid != null ? Number(row.paid) : (Number(row.dayPay) || 0) + (Number(row.ot) || 0)) : null;
+      var owedW = finSlipOwed(slip, id);
       var diff = owedW == null ? null : gstRound(e.named[id] - owedW);
       h += '<div class="inv-row" data-wage="' + escHtml(m + ':' + id) + '"><span class="inv-row-main">' + escHtml(w.name) +
         (owedW == null ? '' : Math.abs(diff) < 1 ? ' <span class="inv-dot inv-dot-ok">as the slip</span>'

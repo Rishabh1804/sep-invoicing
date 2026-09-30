@@ -147,7 +147,9 @@ function finForecast(days) {
   closed.forEach(function(m) { wages[m] = 0; other[m] = 0; });
   ctx.cls.forEach(function(v) {
     var r = v.row;
-    if (!(r.dr > 0)) return;
+    // A returned cheque, and a posting with its own reversal, is money that came in and went back out: it does not
+    // recur, and counted as "every other payment" it put a month's bounces into every month to come.
+    if (!(r.dr > 0) || v.cat === 'reversal') return;
     var m = r.date.slice(0, 7);
     if (v.cat === 'wages' && !v.cash && v.staffId != null) { if (m in wages) { wages[m] += r.dr; days1.push(+r.date.slice(8, 10)); } }
     else if (v.cat === 'wages') { var ws = attWeekStartOf(r.date); cashWk[ws] = (cashWk[ws] || 0) + r.dr; }
@@ -207,7 +209,7 @@ function finForecast(days) {
   }
   var stale = isoDaysBetween(last.date, today);
   if (stale > 3) rests.unshift('Starts from the balance on ' + formatDate(last.date) + ', the statement’s last day: ' + stale + ' days of payments since are not on it.');
-  return { asOf: last.date, start: last.balance, days: out, cross: cross, min: min, rests: rests, bookDays: bookMed };
+  return { asOf: last.date, start: last.balance, days: out, cross: cross, min: min, rests: rests };
 }
 
 function finForecastHtml() {
@@ -216,7 +218,7 @@ function finForecastHtml() {
   var pts = fc.days.filter(function(x, i) { return i % 3 === 2 || i === fc.days.length - 1; });
   var h = '<div class="inv-panel inv-panel-flush inv-panels-wide" id="finForecast"><div class="inv-panel-head"><span class="inv-panel-title">Cash forecast, 60 days</span></div>';
   var at = function(n) { return fc.days[Math.min(n, fc.days.length) - 1]; };
-  var tiles = [['Now', fc.start, 'on the statement, ' + finShortDate(fc.asOf)], ['Lowest', fc.min.bal, 'on ' + finShortDate(fc.min.date)],
+  var tiles = [['Now', fc.start, 'on the statement, ' + stockShortDate(fc.asOf)], ['Lowest', fc.min.bal, 'on ' + stockShortDate(fc.min.date)],
     ['In 30 days', at(30).bal, at(30).lo < 0 && at(30).bal >= 0 ? 'could dip below zero' : 'P25–P75 ' + finRs(at(30).lo) + ' to ' + finRs(at(30).hi)],
     ['In 60 days', at(60).bal, 'P25–P75 ' + finRs(at(60).lo) + ' to ' + finRs(at(60).hi)]];
   h += '<div class="inv-tiles inv-tiles-4 inv-tiles-flush">' + tiles.map(function(t) {
@@ -224,7 +226,7 @@ function finForecastHtml() {
       '<div class="inv-tile-value inv-tile-value-sm inv-nowrap" title="' + escHtml(formatCurrency(t[1])) + '">' + finRs(t[1]) + '</div><div class="inv-tile-sub">' + escHtml(t[2]) + '</div></div>';
   }).join('') + '</div><div class="inv-panel-body">';
   if (fc.cross) h += '<div class="inv-callout inv-callout-danger">At this pace the account goes below zero on ' + escHtml(formatDate(fc.cross)) + '.</div>';
-  h += chartLines(pts.map(function(x) { return finShortDate(x.date); }), [{ label: 'Balance', values: pts.map(function(x) { return x.bal; }) }],
+  h += chartLines(pts.map(function(x) { return stockShortDate(x.date); }), [{ label: 'Balance', values: pts.map(function(x) { return x.bal; }) }],
     { band: pts.map(function(x) { return { lo: x.lo, hi: x.hi }; }), ariaLabel: 'Cash forecast' });
   h += '<div class="inv-note">What it rests on:</div><ul class="inv-note">' + fc.rests.map(function(r) { return '<li>' + escHtml(r) + '</li>'; }).join('') + '</ul>';
   return h + '</div></div>';
@@ -332,14 +334,12 @@ TODO_RULE_FNS.supplierNoBill = function() {
   var billKeys = Object.keys(bills).map(function(x) { return x.split('|')[0]; });
   finCtx().cls.forEach(function(v) {
     if (v.cat !== 'supplier' || !(v.row.dr > 0) || isoDaysBetween(v.row.date, today) > 90) return;
-    var pk = bankKey(v.party || ''), nk = bankKey(v.row.narration || ''), m = v.row.date.slice(0, 7);
-    // The payee where the narration names one, else the supplier's name anywhere in the narration (as
-    // finSupplierPaid reads it). An empty or short payee key is a prefix of every supplier's name, and
-    // matched whichever bill came first.
-    var bk = billKeys.find(function(b) { return b.length >= 4 && (pk.length >= 4 ? pk.indexOf(b) === 0 || b.indexOf(pk) === 0 : nk.indexOf(b) >= 0); });
+    // The payee, or the narration where the payee is too short to read, read as finSupplierPaid reads it (one
+    // matcher, bank.js): prefix here and substring there made a payment covered on one screen and not the other.
+    var wk = bankSupplierWritten(v), m = v.row.date.slice(0, 7);
     // A bill dated that month or the one before covers the payment: a bill is paid after it is raised.
-    if (bk && (bills[bk + '|' + m] || bills[bk + '|' + bankPrevMonth(m + '-01')])) return;
-    var gk = (pk || nk) + '|' + m;
+    if (billKeys.some(function(b) { return bankSupplierIs(wk, b) && (bills[b + '|' + m] || bills[b + '|' + bankPrevMonth(m + '-01')]); })) return;
+    var gk = wk + '|' + m;
     var e = byKey[gk] || (byKey[gk] = { name: v.supplier || v.party || v.row.narration, month: m, paid: 0, n: 0 });
     e.paid = gstRound(e.paid + v.row.dr); e.n++;
   });

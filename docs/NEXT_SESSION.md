@@ -7,6 +7,64 @@ carries **this repo's side** of it: the work queued here, and what this app prod
 
 ---
 
+## Where session B stopped — 30 Sep 2026 (read this first)
+
+**Merged, both on the owner's go-ahead, 30 Sep 2026:**
+- **sep-invoicing #116 → `8036c9b`** (build `b27a9119`):
+  - the QA sweep (P104–P113);
+  - the owner's six rulings (P114);
+  - **Power** (P115, `split/power.js`);
+  - **deleting an attendance day with a logged reason** (P116). A start-up pass moves the book's day saved under
+    `"null"` (23 marks, 5 EXTRA rows) to `S.attendanceDeletes`.
+- **soma-internal #118 → `4f1993e`:**
+  - `reports/power-cut-case-2026-09-30.md`;
+  - `analysis/sep-power-history-2026-09-30.json`;
+  - `decisions/2026-09-30.md`;
+  - tasks T-BD and T-CZ notes, and new T-IE and T-IF;
+  - the routing row `analysis/sep-*.json` → the content Governors.
+- **The history JSON was handed to the owner** to import (Power → Cuts → Import history).
+- **Branch:** `claude/gracious-dijkstra-pzfv6u` was reset onto `origin/main` in both repos after the merge. New work starts
+  from there as a new PR.
+
+**The power case on the real book** (`soma-internal/sep-invoicing-data.json@18c6b2e` with the history imported):
+- **Damage on record: ₹77,528.**
+  - ₹48,000 is restarts at the 30 May estimate of ₹600 a cut, **not measured**.
+  - The measured part is ₹29,528: platers' idle wages ₹14,705, contribution never made ₹7,565 (6%, the lower of the live
+    and typed cost readings) and catch-up overtime ₹7,258.
+- **A year: ₹1.8–2.6 L.**
+- **Payback:** TSUISL 9–29 months, inverter 18–27, generator 41–58.
+- **Audits:** two Governor audits, both AMEND, all folded (Iuno 0·6·7·4; Iuno + Vulcanus + Castor 0·2·4·6).
+  **A third look was not run before merge**; the owner merged on their own call.
+- ⚠ **soma-internal main has moved to a newer backup** (`6eccb22`, 1,025 invoices). The report's figures are the 18c6b2e
+  reading, and a re-read on the new copy will differ slightly.
+
+**Left for the owner:**
+- open the app once after it updates (the null-day migration);
+- import the power history;
+- get the TSUISL and inverter quotes;
+- **what a restart actually costs** (62% of the damage is the estimate);
+- get the approved 50 kVA onto the bill (T-CZ);
+- say whether "about ₹5,000 a month" was read off a bill or repeats the codex's estimate (`decisions/2026-09-30.md` §2).
+
+**Open in the code or the record, not yet done:**
+- **Re-audit residues left as stated, not fixed:**
+  - `power-cut-log.md:451`'s T-BD date (the file was only appended to, M-7);
+  - the year's 36 cuts include one on a worked Sunday (N-8, said in the report).
+- **soma-internal T-IE:** power for 23–29 Sep is not yet ingested.
+- **soma-internal T-IF:** August's app bill is ₹73,156 against the bank's ₹76,156.
+- **The compile session** should read `attendanceDeletes` before calling a missing day unrecorded (data-flow row below).
+- **Home's Revenue tile will link to its credit notes** once the hover previews are built (parked, `UX_OVERHAUL_2.md`).
+- **UX overhaul 2, steps not built:** 3 (open in a new window), 4 (search), 5 (keyboard), 7 (desktop layouts). See
+  `docs/UX_OVERHAUL_2.md`.
+- **The owner said "We have updates remaining" (30 Sep 2026)**: they have more asks queued for this session. Ask what's next.
+
+**Local scratch checks** (git-excluded `tests/e2e/zz-*`, gone when the container is reclaimed):
+- `zz-power.spec.ts` loads `REAL_BOOK` (the soma-internal backup), imports `POWER_HIST` and writes the analysis to `OUT`.
+  Run it with `--project=mobile-chromium`.
+- The real book is read only locally. Counts and generic figures may be quoted, never names or wages.
+
+---
+
 ## The work, in the owner's order
 
 ### 1. Visual rate matcher

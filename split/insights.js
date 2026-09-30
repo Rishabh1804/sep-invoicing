@@ -30,7 +30,8 @@ function insMonthsBack(n) {
 }
 // A month's short name is insMonthLabel (stats.js), beside the labels it reads.
 function insClientActive(id) { var c = S.clients.find(function(x) { return String(x.id) === String(id); }); return !c || c.isActive !== false; }
-function insActive() { return (S.invoices || []).filter(function(i) { return i.status === 'active' && i.date; }); }
+// Net of credit notes, as Stats reads them (statsInvoices): the insights judge the same revenue the cards show.
+function insActive() { return statsInvoices().filter(function(i) { return i.date; }); }
 
 /* Revenue, weighed kg and realisation per month, per client ('' = the book). */
 function insMonthly(months) {

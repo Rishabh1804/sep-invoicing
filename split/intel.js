@@ -121,7 +121,7 @@ function statsSignedCell(v, text) {
 /* ---------- Overview: six months side by side ---------- */
 function statsMonthsHtml() {
   var today = localDateStr(), rows = [];
-  var active = (S.invoices || []).filter(function(i) { return i.status === 'active' && i.date; });
+  var active = statsInvoices().filter(function(i) { return i.date; });
   for (var k = 5; k >= 0; k--) {
     var d = new Date(today + 'T00:00:00'); d.setDate(1); d.setMonth(d.getMonth() - k);
     var from = isoOf(d), to = payMonthEnd(from);
@@ -155,14 +155,12 @@ function statsClientMargins(period, filtered, tonnage, range) {
   if (!(tonnage.kg > 0) || c.perKg == null) return null;
   var split = statsCostSplit(c);
   var varKg = split.known ? split.variable / tonnage.kg : null, fullKg = c.perKg;
+  // The invoices arrive net of their credit notes (statsInvoices); what was taken off is said per client.
   var cns = {};
-  (S.creditNotes || []).forEach(function(n) {
-    if (n.status === 'cancelled' || !n.periodTo || n.periodTo < r.from || n.periodTo > r.to) return;
-    cns[n.clientId] = (cns[n.clientId] || 0) + (n.taxableValue || 0);
-  });
+  filtered.forEach(function(i) { if (i._credit) cns[i.clientId] = (cns[i.clientId] || 0) + i._credit; });
   var rows = buildClientRollup(filtered).map(function(x) {
-    var cn = cns[x.clientId] || 0;
-    var net = x.comparable && x.kg > 0 ? (x.revKnown - cn) / x.kg : null;
+    var cn = gstRound(cns[x.clientId] || 0);
+    var net = x.comparable && x.kg > 0 ? x.revKnown / x.kg : null;
     return { id: x.clientId, name: x.name, kg: x.kg, total: x.total, real: x.realisation, comparable: x.comparable, coverage: x.coverage,
       cn: cn, net: net, vsVar: net != null && varKg != null ? net - varKg : null, vsFull: net != null ? net - fullKg : null,
       money: net != null ? gstRound((net - fullKg) * x.kg) : null };

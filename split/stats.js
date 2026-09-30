@@ -341,6 +341,39 @@ function periodKeysBetween(minIso, maxIso, gran) {
 /* Trend buckets for one series. Revenue and tonnage come off the invoices;
    incoming material comes off the challans, which is a different spine and a
    different date — the challan date, not the invoice date. */
+/* ===== CREDIT NOTES NETTED ACROSS STATS (owner, 30 Sep 2026: "credit note should be netted across all of stats") =====
+   Only contribution by client took notes off, by the date a batch ended, so the headline, realisation, clients, six
+   months and the trend read every rebate as revenue (SSS Mehta's 2% among them). Each note's credit is spread over the
+   invoices it names, in proportion to their taxable (a batch rebate over its batch, a note against one invoice on that
+   one), and Stats reads those net invoices everywhere: each line is scaled by its invoice's share, so tonnage is
+   untouched and realisation falls by the credit. A cancelled note credits nothing; a note naming no invoice in the book
+   (a number typed from outside it) is counted apart and said, never guessed onto one. */
+function cnCreditByInvoice() {
+  var active = {}, byId = {}, unplaced = { n: 0, amount: 0 };
+  (S.invoices || []).forEach(function(i) { if (i.status === 'active') active[i.id] = i; });
+  (S.creditNotes || []).forEach(function(n) {
+    var amt = Number(n.taxableValue) || 0;
+    if (n.status === 'cancelled' || !(amt > 0)) return;
+    var invs = (n.invoiceIds || []).map(function(id) { return active[id]; }).filter(Boolean);
+    if (!invs.length) { var a = typeof cnAgainstLive === 'function' ? cnAgainstLive(n) : null; if (a && active[a.id]) invs = [a]; }
+    if (!invs.length) { unplaced.n++; unplaced.amount += amt; return; }
+    var base = invs.reduce(function(s, i) { return s + (Number(i.taxableValue) || 0); }, 0);
+    invs.forEach(function(i) { byId[i.id] = (byId[i.id] || 0) + (base > 0 ? amt * (Number(i.taxableValue) || 0) / base : amt / invs.length); });
+  });
+  return { byId: byId, unplaced: unplaced };
+}
+/* The active invoices as Stats counts them: net of their credit notes. `_credit` is what was taken off. */
+function statsInvoices() {
+  var cr = cnCreditByInvoice().byId;
+  return (S.invoices || []).filter(function(i) { return i.status === 'active'; }).map(function(inv) {
+    var c = cr[inv.id];
+    if (!c) return inv;
+    var tv = Number(inv.taxableValue) || 0, f = tv > 0 ? Math.max(0, (tv - c) / tv) : 1;
+    return Object.assign({}, inv, { taxableValue: gstRound(tv * f), _credit: gstRound(tv - tv * f),
+      items: (inv.items || []).map(function(it) { return Object.assign({}, it, { amount: gstRound((Number(it.amount) || 0) * f) }); }) });
+  });
+}
+
 function buildTrendSeries(gran, series) {
   var by = {};
   var minDate = null, maxDate = null;
@@ -367,7 +400,7 @@ function buildTrendSeries(gran, series) {
       by[k] = (by[k] || 0) + kg;
     });
   } else {
-    S.invoices.filter(function(i) { return i.status === 'active'; }).forEach(function(inv) {
+    statsInvoices().forEach(function(inv) {
       if (!inv.date) return;
       var k = bucket(inv.date);
       by[k] = (by[k] || 0) + (series === 'tonnage' ? weighLines([inv]).kg : (inv.taxableValue || 0));
@@ -485,7 +518,7 @@ function renderStats() {
     viewTabReveal(toolbar.querySelector('.inv-viewtabs'));
   }
 
-  var activeInvs = S.invoices.filter(function(i) { return i.status === 'active'; });
+  var activeInvs = statsInvoices();
   var filtered = filterByPeriod(activeInvs, _statsPeriod);
   var prior = filterByPeriod(activeInvs, _statsPeriod, 1);
   var html = '';
@@ -548,6 +581,13 @@ function renderStats() {
   if (contribution != null && contribution < 0) {
     html += statsCallout('Realisation is ' + formatCurrency(Math.abs(contribution)) +
       '/kg below full cost. At this tonnage that is ' + formatCurrency(Math.abs(grossMargin)) + ' of loss for the period.', 'danger', 'below-cost');
+  }
+  // Every figure here is net of credit notes (statsInvoices); one naming no invoice in the book cannot be placed.
+  var credited = filtered.reduce(function(s, i) { return s + (i._credit || 0); }, 0), cnOut = cnCreditByInvoice().unplaced;
+  if (credited > 0.005 || cnOut.n) {
+    html += statsCallout('Net of credit notes' + (credited > 0.005 ? ': ' + formatCurrency(gstRound(credited)) + ' taken off this period\'s invoices' : '') + '.' +
+      (cnOut.n ? ' ' + todoPlural(cnOut.n, 'note') + ' (' + formatCurrency(gstRound(cnOut.amount)) + ') name no invoice in the book and are not taken off anywhere.' : ''),
+      cnOut.n ? 'warning' : '', 'credit-notes');
   }
   html += '</div>';
 
@@ -882,7 +922,7 @@ function openClientDrillOverlay(clientId) {
   var client = S.clients.find(function(c) { return c.id === clientId; });
   if (!client) { showToast('Client not found', 'warning'); return; }
 
-  var activeInvs = S.invoices.filter(function(i) { return i.status === 'active'; });
+  var activeInvs = statsInvoices();
   var filtered = filterByPeriod(activeInvs, _statsPeriod);
   var clientInvs = filtered.filter(function(i) { return i.clientId === clientId; });
   var totalRev = sumTaxable(clientInvs);

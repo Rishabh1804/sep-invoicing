@@ -34,6 +34,9 @@ test('a challan line removed before saving stays unbilled', async ({ page }) => 
   await openWithClient(page);
   await page.locator('[data-action="invCreatePickChallan"]').check();
   await page.locator('[data-action="invAddLineItem"]').click();
+  // A line names its part (P108 I2).
+  await page.locator('input[data-action="invEditLinePart"][data-idx="1"]').fill('HAND PART');
+  await page.evaluate(() => (0, eval)('dismissAllAutocomplete()'));
   await page.locator('input[data-field="qty"][data-idx="1"]').fill('10');
   await page.locator('[data-action="invRemoveLineItem"][data-idx="0"]').click();
   await page.locator('#invSaveBtn').click();

@@ -17,10 +17,12 @@ function zeroClientState(): SepState {
 
 async function openCreateWithLine(page: Page, state: SepState): Promise<void> {
   await loadAppWithState(page, state);
-  await page.evaluate(() => { (window as any)._preselectedClientId = '7'; });
-  await page.locator('[data-action="invCreateNew"]').first().click();
+  await g(page, 'createForClient(7)');
   await expect(page.locator('#pageCreate.inv-page-active')).toBeVisible();
   await page.locator('[data-action="invAddLineItem"]').click();
+  // A line names its part (P108 I2).
+  await page.locator('input[data-action="invEditLinePart"][data-idx="0"]').fill('BASE PLATE');
+  await g(page, 'dismissAllAutocomplete()');
 }
 
 test.describe('P34: billed at ₹0 needs a reason', () => {

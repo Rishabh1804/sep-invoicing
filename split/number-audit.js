@@ -42,29 +42,43 @@ function displayForNumber(num) {
   return (S.invPrefix || '') + padInvNum(num);
 }
 
-/* invNextNum may only advance. Live invoices and reserved voids both hold slots. */
+/* The series a number belongs to: its display number less the number itself ('SEP/2026-27/' of
+   'SEP/2026-27/00012'). Taken off by the number's own length, since a prefix may end in digits. */
+function invSeriesOf(rec) {
+  var d = String((rec && rec.displayNumber) || ''), n = String((rec && rec.invoiceNumber) || '');
+  if (n && d.length >= n.length && d.slice(d.length - n.length) === n) return d.slice(0, d.length - n.length);
+  return d.replace(/\d+$/, '');
+}
+
+/* The one serial order (the register, both CSVs, the printed register, a stack of certificates): the series first,
+   so last financial year's run comes before this one's, then the number read as a number. A copy that sorted by the
+   number alone put SEP/2026-27/00001 before SEP/2025-26/00950. */
+function invSerialCompare(a, b) {
+  var pa = invSeriesOf(a), pb = invSeriesOf(b);
+  if (pa !== pb) return pa < pb ? -1 : 1;
+  var na = invNumInt(a.invoiceNumber), nb = invNumInt(b.invoiceNumber);
+  if (na == null || nb == null) return (na == null) - (nb == null);
+  return na - nb;
+}
+
+/* invNextNum may only advance over what is held IN THE SERIES IN USE: live invoices and reserved voids under
+   S.invPrefix. It read every number of every year, so after the prefix moved to a new financial year last year's
+   00950 set this year's Next at 951. */
 function recomputeNextInvoiceNumber() {
-  var maxLive = S.invoices.reduce(function(max, inv) {
-    var n = invNumInt(inv.invoiceNumber);
-    return n != null && n > max ? n : max;
-  }, 0);
-  var maxHeld = getVoidedNumbers().reduce(function(max, v) {
-    var n = invNumInt(v.invoiceNumber);
-    return v.reserved && n != null && n > max ? n : max;
-  }, 0);
-  S.invNextNum = Math.max(maxLive, maxHeld) + 1;
+  S.invNextNum = invHighestIssued(S.invPrefix || '') + 1;
 }
 
 /* The highest number the customer holds under a prefix: a live invoice, or a
    deleted one whose number was spent. A new financial year's prefix has none. */
 function invHighestIssued(prefix) {
+  prefix = prefix || '';
   var hi = 0;
-  var take = function(display, num) {
-    var n = invNumInt(num);
-    if (n != null && String(display || '').indexOf(prefix) === 0 && n > hi) hi = n;
+  var take = function(rec) {
+    var n = invNumInt(rec.invoiceNumber);
+    if (n != null && n > hi && invSeriesOf(rec) === prefix) hi = n;
   };
-  S.invoices.forEach(function(inv) { take(inv.displayNumber, inv.invoiceNumber); });
-  getVoidedNumbers().forEach(function(v) { if (v.reserved) take(v.displayNumber, v.invoiceNumber); });
+  S.invoices.forEach(take);
+  getVoidedNumbers().forEach(function(v) { if (v.reserved) take(v); });
   return hi;
 }
 
@@ -90,48 +104,50 @@ function invReissueCheck(prefix, n) {
  * lost are exactly what this is looking for.
  */
 function analyseInvoiceNumbers() {
-  var byNum = {};
-  var voidByNum = {};
-  var known = [];
-
+  // Each financial year's series on its own: keyed by the number alone, last year's 00002 stood in for this year's
+  // missing one and the gap was never shown.
+  var series = {};
+  var of = function(p) { return series[p] || (series[p] = { byNum: {}, voidByNum: {}, known: [] }); };
   S.invoices.forEach(function(inv) {
     var n = invNumInt(inv.invoiceNumber);
     if (n == null) return;
-    byNum[n] = inv;
-    known.push(n);
+    var s = of(invSeriesOf(inv));
+    s.byNum[n] = inv;
+    s.known.push(n);
   });
   getVoidedNumbers().forEach(function(v) {
     var n = invNumInt(v.invoiceNumber);
     if (n == null) return;
-    voidByNum[n] = v;
-    known.push(n);
+    var s = of(invSeriesOf(v));
+    s.voidByNum[n] = v;
+    s.known.push(n);
   });
 
-  var out = { entries: [], unaccounted: [], counts: { active: 0, cancelled: 0, voided: 0, reissued: 0, unaccounted: 0 }, from: null, to: null };
-  if (known.length === 0) return out;
+  var out = { entries: [], unaccounted: [], counts: { active: 0, cancelled: 0, voided: 0, reissued: 0, unaccounted: 0 }, from: null, to: null, series: [] };
+  var cur = S.invPrefix || '', next = invNumInt(S.invNextNum);
+  Object.keys(series).sort().forEach(function(p) {
+    var s = series[p];
+    var lo = Math.min.apply(null, s.known);
+    var hi = Math.max.apply(null, s.known);
+    // The series in use runs to the number before Next: one handed out and lost is what this looks for.
+    if (p === cur && next != null && next - 1 > hi) hi = next - 1;
+    for (var n = lo; n <= hi; n++) {
+      var inv = s.byNum[n] || null;
+      var voided = s.voidByNum[n] || null;
+      var kind;
+      if (inv && voided) kind = 'reissued';
+      else if (inv) kind = inv.status === 'cancelled' ? 'cancelled' : 'active';
+      else if (voided) kind = 'voided';
+      else kind = 'unaccounted';
 
-  var lo = Math.min.apply(null, known);
-  var hi = Math.max.apply(null, known);
-  var next = invNumInt(S.invNextNum);
-  if (next != null && next - 1 > hi) hi = next - 1;
-
-  for (var n = lo; n <= hi; n++) {
-    var inv = byNum[n] || null;
-    var voided = voidByNum[n] || null;
-    var kind;
-    if (inv && voided) kind = 'reissued';
-    else if (inv) kind = inv.status === 'cancelled' ? 'cancelled' : 'active';
-    else if (voided) kind = 'voided';
-    else kind = 'unaccounted';
-
-    out.counts[kind]++;
-    var entry = { num: n, display: inv ? inv.displayNumber : displayForNumber(n), kind: kind, inv: inv, voided: voided };
-    out.entries.push(entry);
-    if (kind === 'unaccounted') out.unaccounted.push(entry);
-  }
-
-  out.from = lo;
-  out.to = hi;
+      out.counts[kind]++;
+      var entry = { num: n, display: inv ? inv.displayNumber : voided ? voided.displayNumber : p + padInvNum(n), kind: kind, inv: inv, voided: voided };
+      out.entries.push(entry);
+      if (kind === 'unaccounted') out.unaccounted.push(entry);
+    }
+    out.series.push({ prefix: p, from: lo, to: hi });
+    if (p === cur || out.from == null) { out.from = lo; out.to = hi; }
+  });
   return out;
 }
 
@@ -150,6 +166,8 @@ function recordVoidedNumber(inv, reason, reserved) {
     date: inv.date || '',
     clientId: inv.clientId != null ? inv.clientId : null,
     clientName: inv.clientName || '',
+    // The challan it billed, so a challan search finds the void as it found the invoice.
+    challanNo: inv.challanNo || '',
     taxableValue: inv.taxableValue || 0,
     grandTotal: inv.grandTotal || 0,
     lastState: getInvState(inv),
@@ -166,14 +184,17 @@ function recordVoidedNumber(inv, reason, reserved) {
 /* ===== ACCOUNT FOR A HISTORICAL GAP ===== */
 
 var _accountForNum = null;
+var _accountForDisplay = '';
 
-function openAccountForNumber(num) {
+/* `display` is the number as its series writes it: a gap in last year's series is recorded under last year's prefix. */
+function openAccountForNumber(num, display) {
   var n = invNumInt(num);
   if (n == null) return;
   _accountForNum = n;
+  _accountForDisplay = display || displayForNumber(n);
 
   // An act, not a view: a tap on the scrim does nothing.
-  dialogOpen('<div class="inv-dialog">' + dialogHeadHtml('Account for ' + escHtml(displayForNumber(n)), 'invCloseConfirm') +
+  dialogOpen('<div class="inv-dialog">' + dialogHeadHtml('Account for ' + escHtml(_accountForDisplay), 'invCloseConfirm') +
     '<p class="inv-mb-8">This number is missing from the register. Record what happened to it — a cancelled invoice filed at zero, a spoiled number, one deleted before this ledger existed. No invoice is created.</p>' +
     '<div class="inv-field"><label class="inv-field-label" for="invGapReason">What happened to this number</label>' +
     '<input class="inv-input" id="invGapReason" placeholder="e.g. cancelled, filed in GSTR-1 at zero" autocomplete="off"></div>' +
@@ -195,11 +216,11 @@ function saveGapReason() {
 
   var dateEl = document.getElementById('invGapDate');
   var clientEl = document.getElementById('invGapClient');
-  var n = _accountForNum;
+  var n = _accountForNum, disp = _accountForDisplay || displayForNumber(n);
 
   getVoidedNumbers().push({
     invoiceNumber: padInvNum(n),
-    displayNumber: displayForNumber(n),
+    displayNumber: disp,
     date: (dateEl && dateEl.value) || '',
     clientId: null,
     clientName: (clientEl && clientEl.value.trim()) || '',
@@ -223,7 +244,7 @@ function saveGapReason() {
   _regToolbarRendered = true;
   _renderRegView();
   showNumberAudit();
-  showToast(displayForNumber(n) + ' accounted for');
+  showToast(disp + ' accounted for');
 }
 
 /* ===== AUDIT OVERLAY ===== */
@@ -242,7 +263,9 @@ function _numAuditRowHtml(entry) {
   } else if (entry.voided) {
     detail = escHtml(entry.voided.reason) +
       (entry.voided.clientName ? ' &middot; ' + escHtml(entry.voided.clientName) : '') +
-      (entry.voided.date ? ' &middot; ' + escHtml(formatDate(entry.voided.date)) : '');
+      (entry.voided.date ? ' &middot; ' + escHtml(formatDate(entry.voided.date)) : '') +
+      // A number once cancelled says so: it was declared at zero before it was deleted.
+      (entry.voided.wasCancelled ? ' &middot; cancelled before it was deleted' : '');
   } else {
     detail = escHtml(entry.inv.clientName || '') +
       (entry.inv.date ? ' &middot; ' + escHtml(formatDate(entry.inv.date)) : '') +
@@ -254,7 +277,7 @@ function _numAuditRowHtml(entry) {
     '<span class="inv-row-meta">' + detail + '</span></span>' +
     '<span class="inv-row-end"><span class="inv-dot inv-dot-' + NUM_AUDIT_TONE[entry.kind] + '">' + NUM_AUDIT_LABELS[entry.kind] + '</span>' +
     (entry.kind === 'unaccounted'
-      ? '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invAccountForNumber" data-num="' + entry.num + '">Account for</button>'
+      ? '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invAccountForNumber" data-num="' + entry.num + '" data-display="' + escHtml(entry.display) + '">Account for</button>'
       : '') +
     '</span></div>';
 }
@@ -272,8 +295,11 @@ function showNumberAudit() {
   if (a.entries.length === 0) {
     html += '<div class="inv-empty">No invoice numbers issued yet.</div>';
   } else {
-    html += '<p class="inv-note inv-mb-8">Serial <span class="inv-id">' + escHtml(padInvNum(a.from)) + '</span> to <span class="inv-id">' +
-      escHtml(padInvNum(a.to)) + '</span>, every number accounted for or not. Rule 46 wants a consecutive series; a gap is fine, an <em>unexplained</em> gap is not.</p>';
+    // Each financial year's series is its own run.
+    html += '<p class="inv-note inv-mb-8">' + a.series.map(function(r) {
+      return (a.series.length > 1 ? '<span class="inv-id">' + escHtml(r.prefix) + '</span> ' : '') + 'Serial <span class="inv-id">' +
+        escHtml(padInvNum(r.from)) + '</span> to <span class="inv-id">' + escHtml(padInvNum(r.to)) + '</span>';
+    }).join(' &middot; ') + ', every number accounted for or not. Rule 46 wants a consecutive series; a gap is fine, an <em>unexplained</em> gap is not.</p>';
 
     // The tally, each class a dot and a word in its tone.
     var tally = function(kind, n, word) { return '<span class="inv-dot inv-dot-' + NUM_AUDIT_TONE[kind] + '">' + n + ' ' + word + '</span>'; };
@@ -299,42 +325,34 @@ function showNumberAudit() {
 /* ===== EXPORT ROWS ===== */
 
 /*
- * Reserved voids belong in the returns at zero — that is how SEP already files
- * them, and it is the disagreement between the app and the filing that made
- * these numbers look missing in the first place. Never-issued numbers are not
- * included: they were recycled, so a live invoice occupies the slot.
+ * A voided number the returns carry at zero: one whose document was spent (reserved — dispatched or later, or
+ * cancelled first), or one the series has moved past. A created invoice deleted below the last issued number
+ * never comes back (Next never walks back over a held number), so without its row GSTR-1's series showed a hole
+ * the audit called explained. A void above the last issued number returns to the series: the next invoice takes it.
  */
+function invVoidExported(v, hiOf) {
+  if (v.reserved) return true;
+  var n = invNumInt(v.invoiceNumber);
+  return n != null && n < hiOf(invSeriesOf(v));
+}
+
 function getVoidedForExport() {
   // A number reissued to a live invoice is that invoice's now: its deleted
   // copies are history, not rows. Listing them put 00862 in the GSTR-1 file
   // three times (two at zero and the live one), and the portal takes each
   // number once. A number deleted twice and never reissued is listed once.
-  var live = {};
+  var live = {}, hiBy = {};
+  var hiOf = function(p) { return Object.prototype.hasOwnProperty.call(hiBy, p) ? hiBy[p] : (hiBy[p] = invHighestIssued(p)); };
   S.invoices.forEach(function(i) { live[i.displayNumber] = true; });
   var latest = {};
   getVoidedNumbers().forEach(function(v) {
-    if (!v.reserved || live[v.displayNumber]) return;
+    if (live[v.displayNumber] || !invVoidExported(v, hiOf)) return;
     var k = v.displayNumber || v.invoiceNumber;
     if (!latest[k] || (v.voidedAt || 0) > (latest[k].voidedAt || 0)) latest[k] = v;
   });
+  // The register's own filter decides which voids ride along (regFilterMatch, invoice-ops.js): a copy of it here
+  // ignored the State filter.
   return getVoidedNumbers().filter(function(v) {
-    if (latest[v.displayNumber || v.invoiceNumber] !== v) return false;
-    if (regFilter.clientId && v.clientId !== parseInt(regFilter.clientId)) return false;
-    // A DATE RANGE scopes voids exactly as it scopes invoices. This honoured
-    // `month` and not `dateFrom`/`dateTo`, so a range-scoped register carried
-    // voids from outside its own range -- and the range is precisely how a
-    // credit-note batch is expressed ("03/08 to 18/08"). Mirrors
-    // getFilteredInvoices(): range and month are alternatives, never layered.
-    if (regFilter.dateFrom || regFilter.dateTo) {
-      if (!v.date) return false;
-      if (regFilter.dateFrom && v.date < regFilter.dateFrom) return false;
-      if (regFilter.dateTo && v.date > regFilter.dateTo) return false;
-    } else if (regFilter.month && !(v.date || '').startsWith(regFilter.month)) return false;
-    if (regFilter.search) {
-      var q = regFilter.search.toLowerCase();
-      if ((v.displayNumber || '').toLowerCase().indexOf(q) < 0 &&
-          (v.clientName || '').toLowerCase().indexOf(q) < 0) return false;
-    }
-    return true;
-  }).sort(function(a, b) { return (invNumInt(a.invoiceNumber) || 0) - (invNumInt(b.invoiceNumber) || 0); });
+    return latest[v.displayNumber || v.invoiceNumber] === v && regFilterMatch(v, true);
+  }).sort(invSerialCompare);
 }

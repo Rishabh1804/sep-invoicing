@@ -145,11 +145,13 @@ function imRefsBilled(it, refs) {
   refs.forEach(function(r) {
     if (imRefWhole(it, r)) { whole = true; return; }
     qty += r.qty;
-    nos += r.nosQty;
+    // A NOS line's pieces ARE its quantity: a share of it bills that share of the pieces, whatever pieces figure the
+    // invoice line carried (one saved from a part dispatch kept the challan's whole count, 600 under a 200 dispatch).
+    nos += it.unit === 'NOS' && it.nosQty && it.qty > 0 ? it.nosQty * r.qty / it.qty : r.nosQty;
   });
   // A ref that bills the line whole closes it: what is billed is the line, or more if the parts say so.
   if (whole) { qty = Math.max(qty, it.qty || 0); nos = Math.max(nos, it.nosQty || 0); }
-  return { qty: parseFloat(qty.toFixed(3)), nos: nos };
+  return { qty: parseFloat(qty.toFixed(3)), nos: Math.round(nos) };
 }
 
 /* Write the derived billing onto every challan line. Returns how many changed. */

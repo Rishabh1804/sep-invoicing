@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
-import { emptyState, loadAppWithState, readStoredState, switchTab, todayIso, workingDaysBack, recentTs, type SepState } from './fixtures';
+import { emptyState, loadAppWithState, readStoredState, switchTab, todayIso, workingDaysBack, recentTs, answerAsk, type SepState } from './fixtures';
 
 // P81: the P.O. date follows the challan date (owner, 27 Sep 2026: "at the time of making invoice we have to enter the
 // PO date, which is redundant as almost always it's the same as challan date - that field should be prefilled as it's
@@ -82,7 +82,9 @@ test('editing an invoice keeps a P.O. date that differs from its challan date, a
   s.invNextNum = 3;
   await loadAppWithState(page, s);
   for (const [id, keeps] of [['INV-00001', true], ['INV-00002', false]] as const) {
-    await page.evaluate((i) => (window as any).editInvoice(i), id);
+    await page.evaluate((i) => { (window as any).editInvoice(i); }, id);
+    // The first edit's typed challan date is work: opening the second asks before discarding it (P108 IB4).
+    if (id === 'INV-00002') await answerAsk(page, 'ok');
     await page.locator('#invOptional').evaluate((d: HTMLDetailsElement) => { d.open = true; });
     await expect(pd(page)).toHaveValue(keeps ? D7 : D3);
     await cd(page).fill(TODAY);

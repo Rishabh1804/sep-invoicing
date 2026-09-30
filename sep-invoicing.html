@@ -18,7 +18,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <!-- Appearance before first paint (§3.2): the device's theme and palette, so nothing flashes in the wrong colours. -->
 <script>(function(){try{var d=document.documentElement,t=localStorage.getItem("sep_inv_theme"),p=localStorage.getItem("sep_inv_palette");if(t==="light"||t==="dark")d.dataset.theme=t;d.dataset.palette=(p==="zinc"||p==="terracotta")?p:"teal";}catch(e){document.documentElement.dataset.palette="teal";}})();</script>
-<meta name="app-build" content="de77ef90">
+<meta name="app-build" content="ea19cd5c">
 <style>
 /* ===== DESIGN TOKENS (design system v2.0 — docs/SEP_INVOICING_DESIGN_PRINCIPLES.md §3) ===== */
 /* Theme: colour-scheme decides every light-dark() below. <html data-theme> is set before first paint
@@ -26130,6 +26130,17 @@ function prodRegisterDate(s) {
 /* A figure as the clerk writes it: "72", "72+10", "98×8+1", "8x156+68", "50+52+30", "4×108−3". Sums of products, added
    up here. The first product's larger factor is the rack and the smaller the rounds ("98×8": 8 rounds of 98), which is
    what rack sizes are learnt from; a plain sum carries no rack. Anything else is null: unread, never guessed. */
+/* "MEHTA+GENERAL", "(0106+3313)+188CD", "39+50": split on a + outside brackets. */
+function prodSplitTop(s) {
+  var out = [], d = 0, cur = '';
+  String(s == null ? '' : s).split('').forEach(function(ch) {
+    if (ch === '(') d++; else if (ch === ')') d = Math.max(0, d - 1);
+    if (ch === '+' && !d) { out.push(cur.trim()); cur = ''; } else cur += ch;
+  });
+  out.push(cur.trim());
+  return out;
+}
+function prodIsDitto(s) { return /^[\s"'`\u201C\u201D\u2018\u2019\u3003,.]*$/.test(String(s == null ? '' : s)); }
 function prodRegisterQty(text) {
   var t = String(text == null ? '' : text).replace(/[×✕*X]/g, 'x').replace(/[–—−]/g, '-').replace(/\s+/g, '').replace(/,/g, '').replace(/^\+/, '');
   t = t.replace(/(nos|pcs|pc)\.?$/i, '').replace(/^\((\d+)\)$/, '$1');
@@ -26214,10 +26225,23 @@ function prodFromRegisterRead(json, ctx, photoDate, choices) {
     var mark = markOf(r), written = r.qtyText != null && String(r.qtyText).trim() !== '' ? String(r.qtyText).trim() : null;
     // A row with nothing on it but ditto marks (the clerk's next line, begun and not used) is not a row.
     if (!r.time && !mark && written == null && r.qty == null && !r.customer && !r.part && !r.struck) return;
-    var cust = (r.customer || '').trim(), part = (r.part || '').trim(), dim = String(r.dim || '').trim();
+    var cust = (r.customer || '').trim(), part = (r.part || '').trim(), dim = String(r.dim || '').trim(), carried = false;
     // A ditto row carries the size above it too, so it stays in its run now that a run is one gauge.
     var ditto = r.ditto || (!cust && !part);
     if (ditto) { cust = cust || lastCust; part = part || lastPart; dim = dim || lastDim; }
+    // A new part under ditto marks in the customer column is the same customer's (the clerk writes LINER under MEHTA's
+    // ditto): it was read as no customer written, and asked for one on every change of part.
+    else if (!cust && lastCust) { cust = lastCust; carried = true; }
+    // A round shared by two clients is written with + in each column ("MEHTA+GENERAL / LINER+188CD / 39+50"), and a ditto
+    // under one side of it carries that side ("〃 + DORABJI" under MEHTA+GENERAL is MEHTA and DORABJI).
+    var tokenFill = function(now, last) {
+      var t = prodSplitTop(now);
+      if (t.length < 2) return t.length === 1 && prodIsDitto(t[0]) && now ? last : now;
+      var l = prodSplitTop(last);
+      return t.map(function(x, j) { return prodIsDitto(x) ? (l.length === t.length ? l[j] : l.length === 1 ? l[0] : l[j] || '') : x; }).join('+');
+    };
+    if (/\+/.test(cust) || (cust && prodIsDitto(cust))) cust = tokenFill(cust, lastCust);
+    if (/\+/.test(part) || (part && prodIsDitto(part))) part = tokenFill(part, lastPart);
     lastCust = cust || lastCust; lastPart = part || lastPart; if (!ditto || dim) lastDim = dim;
     var row = { i: i, time: String(r.time || '').replace(/\s*-?\s*(start|end)\s*$/i, ''), min: prodRegisterNoon(r.time), cust: cust, part: part, dim: dim,
       mark: mark, start: mark === 'START', end: mark === 'END', rackSize: r.rackSize, rounds: r.rounds, short: r.short,
@@ -26235,6 +26259,19 @@ function prodFromRegisterRead(json, ctx, photoDate, choices) {
       if (row.qty == null) { row.qty = calc; row.qtySrc = 'working'; }
       else if (Math.abs(calc - row.qty) > 0.5) row.issues.push({ tone: 'amber', code: 'rack', text: row.rackSize + ' × ' + row.rounds + (row.short ? ' − ' + row.short : '') + ' = ' + calc + ', but ' + row.qty + ' is written. The written figure is used.' });
     }
+    // A new part carried onto the customer above it, of a kind that customer has never sent (the clerk's labels a row out,
+    // a CLAMP under SAMARTH's ditto): the customer whose rule covers that kind at this round, where exactly one does.
+    if (carried && ctx.carryCheck) {
+      var cit = prodReadItem(cust, ctx.clients), crack = row.rackSize || row.qty;
+      var cc = cit.clientId != null ? ctx.carryCheck(cit.clientId, part, crack) : null;
+      if (cc) {
+        var who = cit.clientName || cust;
+        if (cc.clientId != null) {
+          row.issues.push({ tone: 'amber', code: 'carried', text: 'Written under ' + who + '’s ditto, but ' + who + ' has never sent a ' + cc.family + '; a round of ' + crack + ' is ' + cc.name + '’s by the owner’s rule, so read as ' + cc.name + '. Check the page.' });
+          row.cust = cust = cc.name; lastCust = cc.name;
+        } else row.issues.push({ tone: 'amber', code: 'carried', text: 'Written under ' + who + '’s ditto, but ' + who + ' has never sent a ' + cc.family + '. Check whose it is.' });
+      }
+    }
     row.raw = [row.time, cust, part, row.dim, written != null ? written : row.rackSize && row.rounds ? row.rackSize + '×' + row.rounds + (row.short ? '−' + row.short : '') : '',
       written == null && row.qty != null ? String(row.qty) : '', mark, row.struck ? '(struck)' : '', row.over ? '(over ' + row.over + ')' : ''].filter(Boolean).join(' · ');
     // A START row carries no figure on either shape; a batch row with none is checked against the photo.
@@ -26246,13 +26283,41 @@ function prodFromRegisterRead(json, ctx, photoDate, choices) {
     } else row.counted = true;
     if (row.over) row.issues.push({ tone: 'info', code: 'over', text: 'Written over ' + row.over + '; ' + (row.qty != null ? row.qty : 'what is written now') + ' is used.' });
     if (prodRegisterNoonSlip(r.time)) row.issues.push({ tone: 'amber', code: 'meridiem', text: r.time + ' read as ' + relayClockLabel(row.min) + ': the register runs in the day.' });
+    // Two clients in one round (owner, 30 Sep 2026: "sometimes two clients are done simultaneously"): each client's share
+    // is a round of its own at the same time, in its own run. The figure splits on its + into as many shares as there are
+    // clients or parts; a figure that does not is asked about and the row kept whole.
+    var cT = prodSplitTop(cust), pT = prodSplitTop(part), nShare = Math.max(cT.length, pT.length);
+    if (nShare > 1 && (cT.length === 1 || pT.length === 1 || cT.length === pT.length)) {
+      var fT = written != null ? prodSplitTop(written) : null;
+      if (fT && fT.length !== nShare) {
+        row.issues.push({ tone: 'amber', code: 'shared', text: 'One round for ' + nShare + ' (' + cust + ' · ' + part + '), but "' + written + '" does not split into ' + nShare + ' figures. Enter each share by hand.' });
+        out.rows.push(row);
+        return;
+      }
+      var shares = [];
+      for (var j = 0; j < nShare; j++) {
+        var sub = {};
+        Object.keys(row).forEach(function(k) { sub[k] = row[k]; });
+        sub.cust = cT.length > 1 ? cT[j] : cT[0]; sub.part = pT.length > 1 ? pT[j] : pT[0]; sub.shared = i; sub.issues = j ? [] : row.issues.slice();
+        if (fT) {
+          var sq = prodRegisterQty(fT[j]);
+          sub.written = fT[j]; sub.qty = sq ? sq.qty : null; sub.rackSize = sq && sq.rackSize ? sq.rackSize : null; sub.rounds = sq && sq.rounds ? sq.rounds : null;
+          sub.qtySrc = null;
+        }
+        shares.push(sub);
+      }
+      shares[0].issues.push({ tone: 'info', code: 'shared', text: 'One round for ' + nShare + ': ' + shares.map(function(x) { return x.cust + ' ' + x.part + (x.qty != null ? ' ' + x.qty : ''); }).join(', ') + '. Each is counted in its own run.' });
+      shares.forEach(function(x) { out.rows.push(x); });
+      return;
+    }
     out.rows.push(row);
   });
   if (out.style === 'rounds') {
     // START counts as a batch of the next round's figure.
     out.rows.forEach(function(row, k) {
       if (!row.start || row.qty != null) return;
-      var nx = out.rows.slice(k + 1).find(function(x) { return x.qty != null && !x.start; });
+      // A shared START takes the next figure of its own client and part.
+      var nx = out.rows.slice(k + 1).find(function(x) { return x.qty != null && !x.start && (row.shared == null || (relayKey(x.cust) === relayKey(row.cust) && rateKey(x.part) === rateKey(row.part))); });
       if (nx) { row.qty = nx.qty; row.qtySrc = 'start-rule'; row.issues.push({ tone: 'info', code: 'start', text: 'START counted as a round of ' + nx.qty + ', the next round’s figure (the owner’s rule, 26 Jun).' }); }
     });
   } else {
@@ -26264,15 +26329,55 @@ function prodFromRegisterRead(json, ctx, photoDate, choices) {
         row.issues.push({ tone: 'info', code: 'nostart', text: 'An END with no START of its own: taken as starting where the batch before it ended.' });
     });
   }
+  // A part the register writes with no gauge takes the gauges its rack size means, by the owner's rule (prodGaugeRuleFor):
+  // one gauge is written in as if the clerk had; two or three are kept as the choices, and the run says so.
+  if (ctx.gaugeRule) {
+    out.rows.forEach(function(row) {
+      if (row.start || lineGauge(String(row.part + ' ' + row.dim).replace(/[×✕]/g, 'X'))) return;
+      var rack = row.rackSize || (!row.batch && row.qty > 0 ? row.qty : null);
+      var it = prodReadItem(row.cust, ctx.clients);
+      var gs = it.clientId != null ? ctx.gaugeRule(it.clientId, row.part, rack) : null;
+      // A round of a size no rule names, on a part a rule covers (the 108s, the 98s), is kept apart as gauge unknown: it
+      // must not join a run whose gauge a rule read and take that gauge.
+      if (!gs) { if (rack && it.clientId != null && ctx.gaugeHas && ctx.gaugeHas(it.clientId, row.part)) { row.gaugeSet = 'none'; row.gaugeRack = rack; } return; }
+      if (gs.length === 1) row.dim = gs[0];
+      else row.gaugeSet = gs.join('/');
+      row.gaugeRack = rack;
+    });
+  }
+  // A round whose size, on its line, names one of the client's parts by the owner's rule (prodPartRuleRead): Samarth's
+  // cover plates and connector, all written TINA. A row of no size of its own (a START on a START/END page) continues.
+  if (ctx.partRule) {
+    out.rows.forEach(function(row) {
+      var rack = row.rackSize || (!row.batch && row.qty > 0 ? row.qty : null);
+      var it = rack ? prodReadItem(row.cust, ctx.clients) : null;
+      var pr = it && it.clientId != null ? ctx.partRule(it.clientId, rack, out.line, row.part) : null;
+      // A round whose gauge no rule of its own client reads, of a size another client's part is on this line: asked.
+      if (!pr && row.gaugeSet === 'none' && ctx.partRuleOther) {
+        var o = ctx.partRuleOther(it.clientId, rack, out.line);
+        if (o) row.issues.push({ tone: 'amber', code: 'whose', text: 'A round of ' + rack + ' on ' + (typeof prodLineName === 'function' ? prodLineName(out.line) : out.line) + ' is ' + o.name + '’s ' + (o.partName || o.partNumber) + ' by the owner’s rule, not a size ' + (it.clientName || row.cust) + '’s rules name. Check whose round it is.' });
+      }
+      if (!pr) return;
+      row.partRack = rack; row.partRule = pr;
+      if (pr.partNumber) row.rulePn = pr.partNumber;
+    });
+  }
   // Runs: consecutive rows of one customer, part and gauge. Two gauges of one clamp are two parts at two rates, and the
   // gauge used to be taken out of the key, so a 35X6 run following a 40X6 one was added into it under the 40X6. A row
   // with no gauge of its own continues the run above it.
-  var cur = null;
+  // Rounds shared by two clients interleave their runs: a shared round, and the first round after them, continue the run
+  // of their own client and part rather than the row above.
+  var cur = null, open = {}, inShared = false;
   out.rows.forEach(function(row) {
     var pd = row.part + ' ' + row.dim, ck = relayKey(row.cust) + '|' + rateKey(prodPartBase(pd)), g = lineGauge(pd.replace(/[×✕]/g, 'X'));
-    if (!cur || cur.ck !== ck || (g && cur.g && g !== cur.g)) { cur = { ck: ck, g: g, rows: [] }; out.runs.push(cur); }
-    else if (g && !cur.g) cur.g = g;
-    cur.rows.push(row);
+    var gs = row.gaugeSet || '', rp = row.rulePn || '';
+    var run = row.shared != null || inShared ? open[ck] || null : cur;
+    if (!run || run.ck !== ck || (g && run.g && g !== run.g) || (gs && run.gs && gs !== run.gs) || (gs && run.g) || (g && run.gs) || (rp && run.rp && rp !== run.rp)) { run = { ck: ck, g: g, gs: gs, rp: rp, rows: [] }; out.runs.push(run); }
+    else { if (g && !run.g) run.g = g; if (gs && !run.gs) run.gs = gs; if (rp && !run.rp) run.rp = rp; }
+    run.rows.push(row);
+    if (row.shared != null) { open[ck] = run; inShared = true; }
+    else { open = {}; open[ck] = run; inShared = false; }
+    cur = run;
   });
   out.runs = out.runs.map(function(run) {
     var first = run.rows[0], it = prodReadItem(first.cust, ctx.clients), dimText = first.dim || run.g;
@@ -26292,10 +26397,55 @@ function prodFromRegisterRead(json, ctx, photoDate, choices) {
         if (x.struck) o.struck = !x.counted; if (x.over) o.over = x.over; return o; }),
       raw: run.rows.map(function(x) { return x.raw; }).join('\n'), n: first.i + 1, issues: [], rows: run.rows };
     e.slot = e.time && (relayParseHhmm(e.time) < 510 || relayParseHhmm(e.time) >= 1020) ? 'ot' : 'general';
+    var racked = run.rows.find(function(x) { return x.gaugeRack; });
+    if (run.gs === 'none') { e.gaugeUnknown = racked.gaugeRack; e.issues.push({ tone: 'amber', code: 'gauge', text: 'Gauge unknown: a round of ' + racked.gaugeRack + ' is in none of the owner’s rules for this part. Flagged on the entry until its gauge is picked.' }); }
+    else if (run.gs) { e.gaugeOptions = run.gs.split('/'); e.gaugeSrc = 'rack'; e.issues.push({ tone: 'info', code: 'gauge', text: 'Gauge read from the round of ' + racked.gaugeRack + ': ' + run.gs.replace(/\//g, ' or ') + ' (the owner’s rule). The challans say which.' }); }
+    else if (racked && e.gauge) { e.gaugeSrc = 'rack'; e.issues.push({ tone: 'info', code: 'gauge', text: 'Gauge ' + e.gauge + ' read from the round of ' + racked.gaugeRack + ' (the owner’s rule).' }); }
+    var ruled = run.rows.find(function(x) { return x.partRule; });
+    if (ruled) {
+      var pr = ruled.partRule, where = ' a round of ' + ruled.partRack + ' on ' + (typeof prodLineName === 'function' ? prodLineName(out.line) : out.line);
+      if (pr.partNumber) {
+        e.partNumber = pr.partNumber; e.partSrc = 'rack'; e.partRack = ruled.partRack;
+        e.issues.push(pr.written
+          ? { tone: 'amber', code: 'part', text: 'The page writes ' + pr.written + ';' + where + ' is ' + pr.partNumber + (pr.name ? ' (' + pr.name + ')' : '') + ' by the owner’s rule. Read by the rule: check the page.' }
+          : { tone: 'info', code: 'part', text: 'Read as ' + pr.partNumber + (pr.name ? ' (' + pr.name + ')' : '') + ':' + where + ' is that part (the owner’s rule).' });
+      } else e.issues.push({ tone: 'amber', code: 'part', text: where.trim().replace(/^a/, 'A') + ' is ' + pr.rulePn + ' by the owner’s rule, but the page writes ' + pr.written + ': kept as written.' });
+    }
     if (e.clientId == null) e.issues.push({ tone: 'red', code: 'client', text: first.cust ? '"' + first.cust + '" is not a client in the book. Pick the client, or keep it as written.' : 'No customer written. Pick the client.' });
     else if (it.clientHow === 'read-as') e.issues.push({ tone: 'amber', code: 'readas', text: '"' + first.cust + '" read as ' + it.clientName + '.' });
+    // A code two of the client's parts end in, or a group of codes in one figure ("(0106+3313)"): matched with the client's
+    // recent challans, then with the rounds each part has been plated at (owner, 30 Sep 2026).
+    if (!e.partNumber && e.clientId != null && ctx.resolvePart) {
+      var rack = Math.max.apply(null, [0].concat(run.rows.map(function(x) { return x.rackSize || (!x.batch && x.qty > 0 ? x.qty : 0); })));
+      var rs = ctx.resolvePart(e, rack || null);
+      if (rs && rs.partNumber) { e.partNumber = rs.partNumber; e.partSrc = rs.how; e.issues.push({ tone: 'info', code: 'part', text: 'Read as ' + rs.partNumber + ': ' + rs.why + '.' }); }
+      else if (rs && rs.split) { e.split = rs.split; e.splitBy = rs.by; }
+      else if (rs && rs.why) e.issues.push({ tone: 'amber', code: 'part', text: rs.why });
+    }
     return e;
   });
+  // A figure covering two parts is shared between them by their open challans: an estimate, and said so.
+  out.runs = [].concat.apply([], out.runs.map(function(e) {
+    if (!e.split) return [e];
+    var parts = e.split, sum = parts.reduce(function(a, x) { return a + x.open; }, 0), left = e.qty || 0;
+    var by = e.splitBy || 'the challans';
+    delete e.split; delete e.splitBy;
+    var text = (e.qty || 0) + ' of ' + e.part + ' shared by ' + by + ': ';
+    var shares = parts.map(function(x, j) {
+      var q = j === parts.length - 1 ? left : Math.round((e.qty || 0) * x.open / sum);
+      left -= q;
+      return q;
+    });
+    text += parts.map(function(x, j) { return shares[j] + ' of ' + x.partNumber; }).join(', ') + ' (an estimate).';
+    return parts.map(function(x, j) {
+      var o = {};
+      Object.keys(e).forEach(function(k) { o[k] = e[k]; });
+      o.partNumber = x.partNumber; o.partSrc = 'challan'; o.qty = shares[j]; o.qtySrc = 'split';
+      o.rounds = (e.rounds || []).map(function(r) { var c = {}; Object.keys(r).forEach(function(k) { c[k] = r[k]; }); if (c.qty != null && e.qty) c.qty = Math.round(c.qty * shares[j] / e.qty); return c; });
+      o.issues = e.issues.concat([{ tone: 'info', code: 'part', text: text }]);
+      return o;
+    });
+  }));
   var counted = out.rows.filter(function(x) { return x.counted && x.qty != null; }).reduce(function(s, x) { return s + x.qty; }, 0);
   out.counted = counted;
   if (out.dayTotal != null && Math.abs(out.dayTotal - counted) > 0.5) out.issues.push({ tone: 'amber', code: 'total', text: 'The page’s day total is ' + out.dayTotal + '; the rows counted add to ' + counted + '. A row may be missed or misread.' });
@@ -29561,7 +29711,261 @@ function prodData() {
   if (!p.learn || typeof p.learn !== 'object') p.learn = {};
   if (!p.learn.clients || typeof p.learn.clients !== 'object') p.learn.clients = {};
   if (!p.learn.parts || typeof p.learn.parts !== 'object') p.learn.parts = {};
+  if (!Array.isArray(p.gaugeRules)) p.gaugeRules = [];
+  if (!Array.isArray(p.partRules)) p.partRules = [];
   return p;
+}
+
+/* ---------- The gauge a round's size gives ----------
+   Owner, 30 Sep 2026: "Mehta's clamp gauge is 25x6 or 30x6 if 150 pieces are done on VAT A1 and 100 pieces on VAT A2, and
+   35x6 or 35x8 or 40x6 if 120 pieces and 72 pieces are done in VAT A1." The register writes SSS Mehta's clamps as
+   CLAMP with no gauge; the pieces on a round say which gauges it can be. A rule is a client, the part's first word, the
+   rack sizes and the gauges they mean (`S.production.gaugeRules`, travelling with the book). The lines the owner named
+   are kept on the rule but not required: the pages show 150 on A2 and 120 on A2 as well. A rack in no rule leaves the
+   gauge unread. */
+function prodGaugeRuleFor(clientId, part, rack) {
+  if (clientId == null || !(rack > 0)) return null;
+  var w = (prodPartBase(part).toUpperCase().match(/[A-Z]+/) || [''])[0];
+  var r = prodData().gaugeRules.find(function(x) { return String(x.clientId) === String(clientId) && x.family === w && (x.racks || []).indexOf(rack) >= 0; });
+  return r ? r.gauges.slice() : null;
+}
+
+/* ---------- Who plated it ----------
+   Owner, 30 Sep 2026: "place workers on the specified production … we'll know who plated what and when, this can be useful
+   later when we get replating issues." Read off the day's attendance, never stored: a run in the general shift is the hands
+   marked present on its line that day (where they stood, the mark's area); a run outside it (before 8:30 or from 5 PM) is
+   the named crew of the OT or night block on its line whose times cover it. A pickling load is the pickling hands present.
+   A day with no attendance, or a line nobody stood on, says so rather than naming anyone. */
+function prodCrew(e) {
+  var rec = e && e.date ? (S.attendance || {})[e.date] : null;
+  if (!rec || !rec.marks) return { known: false, why: 'no attendance recorded that day' };
+  var areas = e.kind === 'pickled' ? ['pickling-vat', 'pickling-barrel'] : e.line ? [e.line].concat(e.line === 'barrel' ? ['pickling-barrel'] : []) : null;
+  if (!areas) return { known: false, why: 'line not known' };
+  var t = e.time ? _hhmm(e.time) : null, ot = e.slot === 'ot' || (t != null && (t < 510 || t >= 1020));
+  var ids = [], src = 'marks';
+  if (ot) {
+    (rec.extra || []).forEach(function(x) {
+      if (!Array.isArray(x.crew) || !x.crew.length || !x.from || !x.to) return;
+      var xa = typeof extraAreas === 'function' ? extraAreas(x) : (x.areas || []);
+      if (!xa.some(function(a) { return areas.indexOf(a) >= 0; })) return;
+      var a = _hhmm(x.from), b = _hhmm(x.to); if (b <= a) b += 1440;
+      var tt = t != null && t < a ? t + 1440 : t;
+      if (tt == null || (tt >= a && tt <= b)) x.crew.forEach(function(id) { if (ids.indexOf(String(id)) < 0) ids.push(String(id)); });
+    });
+    src = 'block';
+  } else {
+    Object.keys(rec.marks).forEach(function(id) {
+      var m = rec.marks[id], w = staffById(id);
+      if (!m || (m.st !== 'P' && m.st !== 'H')) return;
+      if (areas.indexOf(m.area || (w && w.area) || 'flex') >= 0) ids.push(String(id));
+    });
+  }
+  if (!ids.length) return { known: false, why: ot ? 'no OT block on the line names its crew' : 'nobody marked on the line that day' };
+  return { known: true, src: src, ids: ids, names: ids.map(function(id) { var w = staffById(id); return w ? w.name : 'a hand since removed'; }) };
+}
+
+function prodGaugeRuleHas(clientId, part) {
+  var w = (prodPartBase(part).toUpperCase().match(/[A-Z]+/) || [''])[0];
+  return prodData().gaugeRules.some(function(x) { return String(x.clientId) === String(clientId) && x.family === w; });
+}
+
+/* ---------- The part a round's size gives ----------
+   Owner, 30 Sep 2026: "56 is 3302 on VAT A2, 156 is 3303 on VAT A2. These two are a pair of set they call cover plate. The
+   other 3302 is Assy bracket connector that's 50 per round in VAT A1." Samarth sends two parts ending 3302 and the register
+   writes its work as TINA, so the code cannot say which; the pieces on a round, on its line, do (`S.production.partRules`:
+   client, rack sizes, line, part number, the name the floor gives it). Unlike a gauge rule the line is required: the owner
+   named each, and no page contradicts them. A code written that ends the rule's part, or one of the client's other ruled
+   parts (the pair is written by either code), is read by the rule and a disagreement said; a code ending a part no rule
+   names is kept as written. */
+function prodPartRuleFor(clientId, rack, line) {
+  if (clientId == null || !(rack > 0)) return null;
+  return prodData().partRules.find(function(x) {
+    return String(x.clientId) === String(clientId) && (x.racks || []).indexOf(rack) >= 0 && (!x.line || x.line === line);
+  }) || null;
+}
+/* Another client's part at this round on this line, where exactly one rule says so: a round of 50 on A1 under Mehta's
+   clamp, where Mehta's rules name no 50 and Samarth's connector is 50 on A1 (owner, 30 Sep 2026: "71 was the last round
+   for Mehta and then 50 is Samarth"). Asked, never moved. */
+function prodPartRuleOther(clientId, rack, line) {
+  if (!(rack > 0)) return null;
+  var hits = prodData().partRules.filter(function(x) { return String(x.clientId) !== String(clientId) && (x.racks || []).indexOf(rack) >= 0 && (!x.line || x.line === line); });
+  var ids = {}; hits.forEach(function(x) { ids[x.clientId] = true; });
+  if (Object.keys(ids).length !== 1) return null;
+  var c = (S.clients || []).find(function(x) { return String(x.id) === String(hits[0].clientId); });
+  return c ? { name: c.name, partNumber: hits[0].partNumber, partName: hits[0].name || '' } : null;
+}
+function prodPartRuleRead(clientId, rack, line, part) {
+  var r = prodPartRuleFor(clientId, rack, line);
+  if (!r) return null;
+  var code = prodAliasCode(part), ends = function(pn) { return rateKey(pn).slice(-code.length) === code; };
+  if (!code || ends(r.partNumber)) return { partNumber: r.partNumber, name: r.name || '' };
+  var ruled = prodData().partRules.some(function(x) { return String(x.clientId) === String(clientId) && ends(x.partNumber); });
+  return ruled ? { partNumber: r.partNumber, name: r.name || '', written: code } : { partNumber: null, rulePn: r.partNumber, name: r.name || '', written: code };
+}
+
+/* A part carried onto the customer above it under a ditto mark, of a kind that customer has never sent (owner, 30 Sep
+   2026: "Samarth doesn't have clamp"). Null when the customer has sent the kind, or the part names no kind; else the
+   kind, and the one client whose gauge rule covers it at this round, where exactly one does. */
+function prodCarryCheck(clientId, part, rack) {
+  var w = (prodPartBase(part).toUpperCase().match(/[A-Z]{3,}/) || [''])[0];
+  if (!w) return null;
+  if (prodClientParts(clientId).some(function(x) { return (String(x.partNumber) + ' ' + x.desc).toUpperCase().indexOf(w) >= 0; })) return null;
+  var owners = {};
+  if (rack > 0) prodData().gaugeRules.forEach(function(r) { if (r.family === w && (r.racks || []).indexOf(rack) >= 0 && String(r.clientId) !== String(clientId)) owners[r.clientId] = true; });
+  var ids = Object.keys(owners), c = ids.length === 1 ? (S.clients || []).find(function(x) { return String(x.id) === ids[0]; }) : null;
+  return c ? { family: w, clientId: c.id, name: c.name } : { family: w, clientId: null };
+}
+
+/* ---------- A code two parts end in, matched with the challans ----------
+   Owner, 30 Sep 2026: a code two of the client's parts end in ("(0106)") is "checked and matched with recent IM, if
+   available in the app. After a few matches it'll become clearer as both would have a different amount of them that can be
+   plated in a round"; a group of codes in one figure ("(0106+3313)") is matched the same way. The client's challan lines
+   ending in the code, with what is open on them and the last challan's date: the one with a challan open, or received in
+   the 45 days before the day, where only one has; else the one plated before at this round on this line. Never learnt for
+   the name, since the name is two parts. */
+function prodCodeParts(clientId, code, date) {
+  var out = {};
+  (S.incomingMaterial || []).forEach(function(m) {
+    if (String(m.clientId) !== String(clientId) || (date && m.challanDate > date)) return;
+    (m.items || []).forEach(function(it) {
+      var pn = String(it.partNumber || '').trim(), k = rateKey(pn);
+      if (!pn || k.slice(-code.length) !== code) return;
+      var o = out[k] || (out[k] = { partNumber: pn, open: 0, last: '', lastNo: '', lastQty: 0 });
+      o.open += imLineOpen(it).qty;
+      if (m.challanDate > o.last) { o.last = m.challanDate; o.lastNo = m.challanNo || ''; o.lastQty = 0; }
+      if (m.challanDate === o.last) o.lastQty += Number(it.nosQty) || Number(it.qty) || 0;
+    });
+  });
+  return Object.keys(out).map(function(k) { return out[k]; });
+}
+function prodPartRacks(clientId, partNumber, line) {
+  var set = {}, k = rateKey(partNumber);
+  prodData().entries.forEach(function(e) {
+    if (e.voidedAt || e.kind !== 'plated' || e.line !== line || String(e.clientId) !== String(clientId) || !e.partNumber || rateKey(e.partNumber) !== k || e.partSrc === 'round') return;
+    (e.rounds || []).forEach(function(r) { var n = r.rack || (!r.batch ? r.qty : null); if (n > 0) set[n] = true; });
+  });
+  return set;
+}
+function prodResolveCode(clientId, code, date, line, rack) {
+  var c = prodCodeParts(clientId, code, date);
+  if (c.length === 1) return { partNumber: c[0].partNumber, how: 'challan', open: c[0].open, lastQty: c[0].lastQty, why: 'the only part of the client’s ending in ' + code };
+  if (!c.length) return null;
+  var since = isoAddDays(date || localDateStr(), -45);
+  var recent = c.filter(function(x) { return x.open > 0 || x.last >= since; });
+  if (recent.length === 1) return { partNumber: recent[0].partNumber, how: 'challan', open: recent[0].open, lastQty: recent[0].lastQty, why: 'the one of ' + c.length + ' parts ending in ' + code + ' with a challan open or in the 45 days before' };
+  var pool = recent.length ? recent : c;
+  var withOpen = pool.filter(function(x) { return x.open > 0; });
+  if (withOpen.length === 1) return { partNumber: withOpen[0].partNumber, how: 'challan', open: withOpen[0].open, lastQty: withOpen[0].lastQty, why: 'the one of ' + c.length + ' parts ending in ' + code + ' with a challan open' };
+  // The part on the latest challan before the day (owner: "checked and matched with recent IM").
+  var latest = pool.reduce(function(a, x) { return x.last > a ? x.last : a; }, '');
+  var onLatest = pool.filter(function(x) { return x.last === latest; });
+  if (onLatest.length === 1) return { partNumber: onLatest[0].partNumber, how: 'challan', open: onLatest[0].open, lastQty: onLatest[0].lastQty, why: 'the one of ' + c.length + ' parts ending in ' + code + ' on the latest challan' + (onLatest[0].lastNo ? ' (' + onLatest[0].lastNo + ', ' + formatDate(latest) + ')' : '') };
+  if (rack > 0 && line) {
+    var hit = pool.filter(function(x) { return prodPartRacks(clientId, x.partNumber, line)[rack]; });
+    if (hit.length === 1) return { partNumber: hit[0].partNumber, how: 'round', open: hit[0].open, why: 'the one of ' + c.length + ' parts ending in ' + code + ' plated before at a round of ' + rack + ' on this line' };
+  }
+  return null;
+}
+function prodCodeGroup(part) {
+  var m = /\(\s*(\d{3,5}(?:\s*\+\s*\d{3,5})+)\s*\)/.exec(String(part || ''));
+  return m ? m[1].split('+').map(function(x) { return x.trim(); }) : null;
+}
+function prodEntryRack(e) {
+  if (e.partRack) return e.partRack;
+  var n = 0;
+  (e.rounds || []).forEach(function(r) { var q = r.rack || (!r.batch ? r.qty : 0); if (q > n) n = q; });
+  return n || e.rackSize || null;
+}
+/* For an entry with no part number yet: {partNumber, how, why}, {split: [{partNumber, open}]} for a group, or {why} to ask. */
+function prodResolveEntryPart(e, rack) {
+  if (e.clientId == null || e.partNumber || !e.part || e.kind === 'downtime') return null;
+  var grp = prodCodeGroup(e.part);
+  if (grp) {
+    var parts = grp.map(function(code) { return prodResolveCode(e.clientId, code, e.date, e.line, null); });
+    if (parts.some(function(x) { return !x; })) return { why: 'A figure for ' + e.part + ': not every code matched one of the client’s parts with a recent challan. Pick the parts by hand.' };
+    // Shared by what is open on the challans, else by the pieces on each part's latest challan.
+    var byOpen = parts.reduce(function(a, x) { return a + x.open; }, 0) > 0;
+    if (!byOpen && !parts.reduce(function(a, x) { return a + x.lastQty; }, 0)) return { why: 'A figure for ' + e.part + ', and no challan of its parts to share it by. Enter each part by hand.' };
+    return { split: parts.map(function(x) { return { partNumber: x.partNumber, open: byOpen ? x.open : x.lastQty }; }), by: byOpen ? 'the open challans' : 'the latest challans' };
+  }
+  var code = prodAliasCode(e.part);
+  if (!code || prodCodeParts(e.clientId, code, e.date).length < 2) return null;
+  return prodResolveCode(e.clientId, code, e.date, e.line, rack != null ? rack : prodEntryRack(e));
+}
+
+/* ---------- A round no rule names: flagged until its gauge is picked ----------
+   Owner, 30 Sep 2026: "The ones that fall outside the range, raise a flag - resolvable." A run whose round size no gauge rule
+   names keeps `gaugeUnknown` (the round) until a gauge is picked on it (Entries → Pick gauge). */
+function prodGaugeFlagged(e) { return e && e.kind === 'plated' && !e.voidedAt && e.gaugeUnknown && !e.gauge; }
+function prodGaugeChoices(e) {
+  var w = (prodPartBase(e.part).toUpperCase().match(/[A-Z]+/) || [''])[0], out = [];
+  var add = function(g) { g = String(g || '').toUpperCase().replace(/[×✕]/g, 'X'); if (g && out.indexOf(g) < 0) out.push(g); };
+  prodData().gaugeRules.forEach(function(r) { if (String(r.clientId) === String(e.clientId) && r.family === w) (r.gauges || []).forEach(add); });
+  (S.incomingMaterial || []).forEach(function(m) {
+    if (String(m.clientId) !== String(e.clientId)) return;
+    (m.items || []).forEach(function(it) { if ((String(it.partNumber || '') + ' ' + (it.desc || '')).toUpperCase().indexOf(w) >= 0) add(prodGaugeOf(it.partNumber, it.desc)); });
+  });
+  return out;
+}
+
+/* ---------- A floor name and the part it is ----------
+   The register writes a part by its floor name, often with its code in brackets ("TINA(0160)", "KUDAL(0106)",
+   "TINA(3303)"). A code that ends exactly one of the client's part numbers on its challans and invoices is that part: the
+   entry takes it (`partNumber`) and the floor name is learnt for the client (`learn.parts`), so the name alone finds it
+   next time. Two parts ending in the code are left for the owner to pick (Entries → Which part?). */
+function prodClientParts(clientId) {
+  var out = {};
+  var master = {};
+  (S.items || []).forEach(function(i) { if (i.partNumber && i.desc) master[rateKey(i.partNumber)] = i.desc; });
+  var add = function(it) { var pn = String(it.partNumber || it.desc || '').trim(); if (!pn) return; var k = rateKey(pn); out[k] = out[k] || { partNumber: pn, desc: it.desc || master[k] || '', n: 0 }; out[k].n++; };
+  (S.incomingMaterial || []).forEach(function(m) { if (String(m.clientId) === String(clientId)) (m.items || []).forEach(add); });
+  (S.invoices || []).forEach(function(v) { if (v.status === 'active' && String(v.clientId) === String(clientId)) (v.items || []).forEach(add); });
+  return Object.keys(out).map(function(k) { return out[k]; }).sort(function(a, b) { return b.n - a.n; });
+}
+function prodAliasCode(part) { var m = /\(\s*(\d{3,5})\s*\)|[-\s](\d{4})\s*$/.exec(String(part || '')); return m ? (m[1] || m[2]) : null; }
+function prodAliasName(part) { return String(part || '').replace(/[-\s]*\(\s*\d{3,5}\s*\)/, '').replace(/[-\s]+\d{4}\s*$/, '').trim(); }
+function prodAliasCandidates(clientId, part) {
+  var parts = prodClientParts(clientId), code = prodAliasCode(part), name = prodAliasName(part).toUpperCase();
+  var byCode = code ? parts.filter(function(x) { return rateKey(x.partNumber).slice(-code.length) === code; }) : [];
+  var byWord = name ? parts.filter(function(x) { return byCode.indexOf(x) < 0 && (String(x.partNumber) + ' ' + x.desc).toUpperCase().indexOf(name) >= 0; }) : [];
+  // Two parts ending in the code ("Assy Bracket 3302" against a cover plate and a connector): the one whose description
+  // carries every word of the name, when only one does.
+  var words = name.split(/[^A-Z]+/).filter(function(w) { return w.length >= 3; });
+  var byCodeWords = byCode.length > 1 && words.length ? byCode.filter(function(x) {
+    var d = (String(x.partNumber) + ' ' + x.desc).toUpperCase();
+    return words.every(function(w) { return d.indexOf(w) >= 0; });
+  }) : [];
+  return { code: code, byCode: byCode, byCodeWords: byCodeWords, byWord: byWord, all: parts };
+}
+function prodLearnAlias(clientId, part, gauge, partNumber, how) {
+  var p = prodData(), rec = { partNumber: partNumber, gauge: gauge || '', how: how || 'set', at: Date.now() };
+  p.learn.parts[prodKey(clientId, part, gauge)] = rec;
+  // The name alone ("TINA" of "TINA(3303)") is learnt too, unless it was learnt as another part: one floor name for two
+  // parts is ambiguous, and the name alone then finds neither. The owner's own pick wins.
+  var nm = prodAliasName(part);
+  if (nm && nm !== part) {
+    var k2 = prodKey(clientId, nm, gauge), was = p.learn.parts[k2];
+    if (how !== 'set' && was && (was.ambiguous || (was.partNumber && rateKey(was.partNumber) !== rateKey(partNumber))))
+      p.learn.parts[k2] = { ambiguous: true, parts: (was.parts || [was.partNumber]).concat(was.parts && was.parts.indexOf(partNumber) >= 0 ? [] : [partNumber]), at: Date.now() };
+    else p.learn.parts[k2] = rec;
+  }
+  prodTouch();
+}
+/* On entries just saved or imported: a bracketed code that names one part is learnt and taken. Returns how many. */
+function prodLearnAliases(entries) {
+  var n = 0, p = prodData();
+  (entries || []).forEach(function(e) {
+    if (e.clientId == null || !e.part || e.partNumber || e.kind === 'downtime') return;
+    var known = p.learn.parts[prodKey(e.clientId, e.part, e.gauge)];
+    if (known && known.partNumber) return;
+    var c = prodAliasCandidates(e.clientId, e.part);
+    var one = c.byCode.length === 1 ? c.byCode[0] : c.byCodeWords.length === 1 ? c.byCodeWords[0] : null;
+    if (one) { prodLearnAlias(e.clientId, e.part, e.gauge, one.partNumber, c.byCode.length === 1 ? 'code' : 'code+name'); e.partNumber = one.partNumber; n++; return; }
+    // Two parts end in the code: the recent challans, then the rounds, say which for this entry alone.
+    var rs = prodResolveEntryPart(e);
+    if (rs && rs.partNumber) { e.partNumber = rs.partNumber; e.partSrc = rs.how; n++; }
+  });
+  return n;
 }
 function prodUid(p) { return stockUid(p); }
 /* Stored sparsely: an empty field is left out, so a year of entries stays small on a book written whole on every save. */
@@ -29580,7 +29984,7 @@ function prodClientName(id) { var c = (S.clients || []).find(function(x) { retur
 function prodHeldId(v) { var c = (S.clients || []).find(function(x) { return String(x.id) === String(v); }); return c ? c.id : v; }
 function prodCtx() {
   return { clients: prodClientIndex(S.clients || [], prodData().learn.clients), roster: (S.staff || []).filter(function(w) { return w.active !== false; }), today: localDateStr(),
-    partOwners: prodPartOwners() };
+    partOwners: prodPartOwners(), gaugeRule: prodGaugeRuleFor, gaugeHas: prodGaugeRuleHas, partRule: prodPartRuleRead, partRuleOther: prodPartRuleOther, carryCheck: prodCarryCheck, resolvePart: prodResolveEntryPart };
 }
 /* Which clients a part has come from, off the challans and invoices of the last year: part key → client ids. A load
    with no client written whose part only one client has ever sent ("LINER", "188 CD") is read as that client, amber. */
@@ -29614,9 +30018,11 @@ function prodFamilyKey(clientId, part, gauge) {
 }
 function prodEntryKey(e) {
   if (e.clientId == null) return null;
+  // The entry's own part number (a round's rule, a code) is about this entry; a learnt name is about every entry under it.
+  if (e.partNumber) return prodKey(e.clientId, e.partNumber, e.gauge);
   var map = prodData().learn.parts[prodKey(e.clientId, e.part, e.gauge)];
   if (map && map.partNumber) return prodKey(e.clientId, map.partNumber, map.gauge != null ? map.gauge : e.gauge);
-  return prodKey(e.clientId, e.partNumber || e.part, e.gauge);
+  return prodKey(e.clientId, e.part, e.gauge);
 }
 /* A part named only by its kind and gauge ("CLAMP(40X6)", "BOX CLAMP"): no figure in it once the gauge is out. Such
    a load is matched, and its usual line read, at the family level. */
@@ -30002,7 +30408,9 @@ function prodInPlant(opts) {
       // Only a record naming just the kind and gauge is set against the family; a named part with no challan of its
       // own is on the floor with no challan, never someone else's.
       var fk = prodFamilyKey(e.clientId, e.partNumber || e.part, e.gauge);
-      pool = lines.filter(function(r) { return r.fam === fk; });
+      // A gauge read only as one of a few (the rack's rule) is set against the family's challans at any of them.
+      var fks = !e.gauge && e.gaugeOptions ? e.gaugeOptions.map(function(g) { return prodFamilyKey(e.clientId, e.partNumber || e.part, g); }) : [fk];
+      pool = lines.filter(function(r) { return fks.indexOf(r.fam) >= 0; });
       if (pool.length) famUsed++;
     }
     var left = e.qty, u = e.unit;
@@ -30108,7 +30516,7 @@ function prodLabourByLine(from, to) {
 /* The two To-do rules. Both read only what was captured here (never the imported history, which would raise a
    flood on the first day), leave rework out (replating is not billed twice), and carry the tone in their sig so a
    snoozed amber task comes back when it turns red. */
-var PROD_RULES = [['prodPlatedUnbilled', 'Production: plated and not invoiced'], ['prodPickledNoChallan', 'Production: pickled with no open challan']];
+var PROD_RULES = [['prodPlatedUnbilled', 'Production: plated and not invoiced'], ['prodPickledNoChallan', 'Production: pickled with no open challan'], ['prodGaugeUnknown', 'Production: a round no gauge rule names']];
 PROD_RULES.forEach(function(r) { TODO_RULES.push(r); TODO_CHECK_DEFAULTS[r[0]] = true; });
 TODO_CHECK_DEFAULTS.prodPlatedDays = 3;
 function prodGo(tab, extra) { return Object.assign({ kind: 'production', tab: tab }, extra || {}); }
@@ -30174,6 +30582,21 @@ function prodLoadNoChallan(e, idx, today) {
     });
   });
 }
+TODO_RULE_FNS.prodGaugeUnknown = function() {
+  var by = {};
+  prodData().entries.forEach(function(e) {
+    if (!prodGaugeFlagged(e)) return;
+    var k = e.clientId == null ? '-' : String(e.clientId), c = by[k] || (by[k] = { n: 0, rounds: {}, oldest: e.date });
+    c.n++; c.rounds[e.gaugeUnknown] = true; if (e.date < c.oldest) c.oldest = e.date;
+  });
+  return Object.keys(by).map(function(k) {
+    var c = by[k], sizes = Object.keys(c.rounds).map(Number).sort(function(a, b) { return a - b; }).join(', ');
+    return { key: 'prodGaugeUnknown:' + k, rule: 'prodGaugeUnknown', tone: 'amber', title: (k === '-' ? 'No client' : prodClientName(k) || 'Client ' + k) + ': ' + todoPlural(c.n, 'run') + ' with the gauge unknown',
+      sub: 'Rounds of ' + sizes + ', none in the gauge rules', why: 'Production · a round of a size no gauge rule names',
+      facts: [['Runs', String(c.n)], ['Rounds', sizes], ['Oldest', formatDate(c.oldest)]], clears: 'Pick the gauge on each run (Production → Entries → Gauge unknown → Pick gauge), or void it.',
+      go: prodGo('entries', { flag: 'gauge' }), goLabel: 'Open the runs', sig: 'amber|' + k + '|' + c.n };
+  });
+};
 TODO_RULE_FNS.prodPickledNoChallan = function() {
   var today = localDateStr(), idx = prodIndex();
   var own = idx.live.filter(function(e) { return prodLoadNoChallan(e, idx, today); });
@@ -30235,6 +30658,7 @@ function prodMergeImport(obj, fileName) {
     if (e.clientId == null && e.kind !== 'downtime' && (e.client || e.part)) unknown++;
     if (!e.src) e.src = 'import';
     e.importId = e.importId || imp.id;
+    prodLearnAliases([e]);
     p.entries.push(prodSparse(e));
     have[e.id] = true;
     added++;
@@ -30511,7 +30935,7 @@ function prodRunRowHtml(e, muted) {
 function prodEntriesHtml() {
   var idx = prodIndex(), f = _prodFilter, from = isoAddDays(localDateStr(), -60);
   var chips = [['', 'All'], ['pickled', 'Pickled'], ['plated', 'Plated'], ['arrived', 'Arrived'], ['downtime', 'Power cuts']];
-  var flags = [['unknown', 'Line unknown'], ['noclient', 'No client'], ['nochallan', 'No challan']];
+  var flags = [['unknown', 'Line unknown'], ['noclient', 'No client'], ['nochallan', 'No challan'], ['gauge', 'Gauge unknown']];
   var h = '<div class="inv-toolbar" role="group" aria-label="Show">' + chips.map(function(c) {
     return '<button class="inv-chip" data-action="invProdFilter" data-kind="' + c[0] + '" aria-pressed="' + (f.kind === c[0] && !f.flag) + '">' + c[1] + '</button>';
   }).join('') + flags.map(function(c) {
@@ -30523,6 +30947,7 @@ function prodEntriesHtml() {
     if (f.flag === 'unknown') return e.kind === 'pickled' && !e.voidedAt && prodLoadLine(e).how === 'unknown';
     if (f.flag === 'noclient') return e.clientId == null && e.kind !== 'downtime';
     if (f.flag === 'nochallan') return e.clientId != null && prodLoadNoChallan(e, idx);
+    if (f.flag === 'gauge') return prodGaugeFlagged(e);
     return !f.kind || e.kind === f.kind;
   }).sort(function(a, b) { return a.date < b.date ? 1 : a.date > b.date ? -1 : String(b.time || '').localeCompare(String(a.time || '')); });
   h += '<div class="inv-panel inv-panel-flush" id="prodEntries"><div class="inv-panel-head"><span class="inv-panel-title">Entries, 60 days</span><span class="inv-panel-count">' + list.length + '</span></div>';
@@ -30541,15 +30966,101 @@ function prodEntryRowHtml(e, idx) {
   var meta = [kindWord, e.time ? e.time + (e.to ? '–' + e.to : '') : '', e.kind === 'plated' ? prodLineName(e.line) : line ? (line.line ? prodLineName(line.line) + (line.how === 'plating' ? ' (from plating)' : '') : line.how === 'split' ? 'split' : 'line unknown') : '',
     prodSrcWord(e), e.rework ? 'rework' : '', idx.replaced[e.id] ? 'corrected' : '', e.kind === 'plated' && !idx.countedSet[e.id] && !e.voidedAt && !idx.replaced[e.id] ? 'also reported' : ''].filter(Boolean).join(' · ');
   var title = e.kind === 'downtime' ? (e.downtime && e.downtime.open ? 'Power cut, no time back' : 'Power cut') : prodEntryTitle(e);
+  // What the floor name was matched to, the gauges a round's size allows, and a name no challan part answers to.
+  var alias = e.kind !== 'downtime' && e.clientId != null ? prodAliasShown(e) : null;
+  if (alias && alias.pn) meta += ' · = ' + alias.pn + (alias.how === 'rack' && e.partRack ? ' by the round of ' + e.partRack : '');
+  if (e.gaugeOptions && !e.gauge) meta += ' · ' + e.gaugeOptions.join(' or ') + ' by the round';
+  if (prodGaugeFlagged(e)) meta += ' · gauge unknown: a round of ' + e.gaugeUnknown;
+  else if (e.gaugeUnknown && e.gaugeSrc === 'set') meta += ' · gauge set (a round of ' + e.gaugeUnknown + ')';
+  if (e.qtySrc === 'split') meta += ' · shared by the challans (estimate)';
+  var crew = (e.kind === 'plated' || e.kind === 'pickled') && !e.voidedAt ? prodCrew(e) : null;
   var h = '<div class="inv-row inv-row-2 inv-row-flow' + (e.voidedAt ? ' inv-row-muted' : '') + '" data-prod-entry="' + escHtml(e.id) + '"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(title) + '</span>' +
-    '<span class="inv-row-meta">' + escHtml(meta + (e.voidedAt ? ' · void: ' + (e.voidReason || '') : '')) + '</span></span><span class="inv-row-end">' +
+    '<span class="inv-row-meta">' + escHtml(meta + (e.voidedAt ? ' · void: ' + (e.voidReason || '') : '')) + '</span>' +
+    (crew ? '<span class="inv-row-meta inv-row-wrap" data-prod-crew>' + escHtml(crew.known ? (crew.src === 'block' ? 'OT crew: ' : 'Crew: ') + crew.names.join(', ') : 'Crew not known: ' + crew.why) + '</span>' : '') +
+    '</span><span class="inv-row-end">' +
     (e.kind !== 'downtime' ? '<span class="inv-num">' + escHtml(prodQtyText(e.qty, e.unit)) + '</span>' : '');
   if (!e.voidedAt) {
     if (line && line.how === 'unknown' && line.hint) h += '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invProdUseLine" data-id="' + escHtml(e.id) + '" data-line="' + line.hint.line + '">Use ' + escHtml(prodLineName(line.hint.line)) + '</button>';
+    if (alias && !alias.pn && !alias.generic) h += '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invProdAlias" data-id="' + escHtml(e.id) + '">Which part?</button>';
+    if (prodGaugeFlagged(e)) h += '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invProdGauge" data-id="' + escHtml(e.id) + '">Pick gauge</button>';
     if (e.kind !== 'downtime' && !idx.replaced[e.id]) h += '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invProdCorrect" data-id="' + escHtml(e.id) + '">Correct</button>';
     h += '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invProdVoid" data-id="' + escHtml(e.id) + '">Void</button>';
   }
   return h + '</span></div>';
+}
+
+/* The part a floor entry is, as matched: learnt from its name, its own part number, or a challan part of the same key.
+   `generic` is a name of a kind only ("CLAMP"): matched at the family level, never asked about. */
+var _prodKeysMemo = null;
+function prodChallanKeySet() {
+  var sig = _prodVer + '|' + (S.incomingMaterial || []).length + '|' + (S.invoices || []).length;
+  if (_prodKeysMemo && _prodKeysMemo.sig === sig) return _prodKeysMemo.set;
+  var set = {};
+  (S.incomingMaterial || []).forEach(function(m) { (m.items || []).forEach(function(it) { set[prodChallanKey(m, it)] = it.partNumber || it.desc; }); });
+  _prodKeysMemo = { sig: sig, set: set };
+  return set;
+}
+function prodAliasShown(e) {
+  if (e.partNumber) return { pn: e.partNumber, how: e.partSrc };
+  var learnt = prodData().learn.parts[prodKey(e.clientId, e.part, e.gauge)];
+  if (learnt && learnt.partNumber) return { pn: learnt.partNumber, how: learnt.how };
+  var k = prodEntryKey(e), set = prodChallanKeySet();
+  if (set[k]) return { pn: null, matched: true, generic: true };
+  return { pn: null, generic: prodIsGeneric(e.part) };
+}
+/* Which part a floor name is: the client's parts, those ending in the code written first, then those carrying the name. */
+function prodAliasOpen(id) {
+  var e = prodIndex().byId[id];
+  if (!e || e.clientId == null) return;
+  var c = prodAliasCandidates(e.clientId, e.part), seen = {};
+  var opt = function(x, tag) { if (seen[x.partNumber]) return ''; seen[x.partNumber] = 1; return '<option value="' + escHtml(x.partNumber) + '">' + escHtml(x.partNumber + (x.desc && x.desc !== x.partNumber ? ' · ' + x.desc : '') + ' · ' + x.n + '×' + (tag ? ' · ' + tag : '')) + '</option>'; };
+  var h = '<div class="inv-dialog" role="dialog" aria-modal="true" aria-labelledby="prodAliasT" data-prod-alias="' + escHtml(id) + '">' +
+    dialogHeadHtml('<span id="prodAliasT">Which part is &ldquo;' + escHtml(e.part) + '&rdquo;?</span>') +
+    '<div class="inv-dialog-body"><div class="inv-note inv-mb-8">' + escHtml(prodClientName(e.clientId)) + '. Every entry under this name, from now on too, is read as the part picked.</div>' +
+    '<label class="inv-field"><span class="inv-field-label">Part</span><select class="inv-select" id="prodAliasPick"><option value="">Pick the part</option>' +
+    (c.byCode.length ? '<optgroup label="Ending in ' + escHtml(c.code) + '">' + c.byCode.map(function(x) { return opt(x, ''); }).join('') + '</optgroup>' : '') +
+    (c.byWord.length ? '<optgroup label="Named like it">' + c.byWord.map(function(x) { return opt(x, ''); }).join('') + '</optgroup>' : '') +
+    '<optgroup label="All of the client’s parts">' + c.all.map(function(x) { return opt(x, ''); }).join('') + '</optgroup></select></label></div>' +
+    '<div class="inv-dialog-foot"><button class="inv-btn inv-btn-secondary" data-action="invCloseOverlay">Cancel</button><button class="inv-btn inv-btn-primary" data-action="invProdAliasSave" data-id="' + escHtml(id) + '">Save</button></div></div>';
+  dialogOpen(h);
+}
+function prodAliasSave(id) {
+  var e = prodIndex().byId[id], sel = document.getElementById('prodAliasPick');
+  if (!e || !sel) return;
+  if (!sel.value) { showToast('Pick the part', 'error'); return; }
+  prodLearnAlias(e.clientId, e.part, e.gauge, sel.value, 'set');
+  saveState();
+  closeOverlay();
+  renderProduction();
+  showToast('“' + e.part + '” is read as ' + sel.value + ' from now on');
+}
+
+/* A run whose round no gauge rule names: its gauge picked from the client's rules and challans for that kind of part. */
+function prodGaugeOpen(id) {
+  var e = prodIndex().byId[id];
+  if (!e) return;
+  var ch = prodGaugeChoices(e);
+  var h = '<div class="inv-dialog" role="dialog" aria-modal="true" aria-labelledby="prodGaugeT" data-prod-gauge="' + escHtml(id) + '">' +
+    dialogHeadHtml('<span id="prodGaugeT">Gauge of ' + escHtml(e.part) + '</span>') +
+    '<div class="inv-dialog-body"><div class="inv-note inv-mb-8">' + escHtml(prodEntryTitle(e) + ' · ' + formatDate(e.date) + (e.time ? ' ' + e.time : '') + ' · a round of ' + e.gaugeUnknown + ', which no gauge rule names.') + '</div>' +
+    '<label class="inv-field"><span class="inv-field-label">Gauge</span><select class="inv-select" id="prodGaugePick"><option value="">Pick the gauge</option>' +
+    ch.map(function(g) { return '<option value="' + escHtml(g) + '">' + escHtml(g) + '</option>'; }).join('') + '</select></label>' +
+    '<label class="inv-field"><span class="inv-field-label">Or type it</span><input class="inv-input" id="prodGaugeTyped" placeholder="40X6"></label></div>' +
+    '<div class="inv-dialog-foot"><button class="inv-btn inv-btn-secondary" data-action="invCloseOverlay">Cancel</button><button class="inv-btn inv-btn-primary" data-action="invProdGaugeSave" data-id="' + escHtml(id) + '">Save</button></div></div>';
+  dialogOpen(h);
+}
+function prodGaugeSave(id) {
+  var e = prodIndex().byId[id], sel = document.getElementById('prodGaugePick'), typed = document.getElementById('prodGaugeTyped');
+  if (!e) return;
+  var raw = String((typed && typed.value.trim()) || (sel && sel.value) || '').toUpperCase().replace(/[×✕*\s]/g, 'X').replace(/X+/g, 'X');
+  var g = lineGauge(raw);
+  if (!g) { showToast('Pick a gauge, or type one like 40X6', 'error'); return; }
+  e.gauge = g; e.gaugeSrc = 'set'; e.setAt = Date.now(); e.setBy = stockBy();
+  prodTouch();
+  saveState();
+  closeOverlay();
+  renderProduction();
+  showToast('Gauge ' + g + ' set on the run');
 }
 
 /* ---------- Paste and review ---------- */
@@ -30844,6 +31355,7 @@ function prodSavePhoto() {
       clientId: cc !== undefined ? (cc === 'asWritten' ? null : cc) : e.clientId, photoId: id, by: by, at: at });
     delete rec.rows; delete rec.issues; delete rec.clientName;
     if (cc !== undefined && cc !== 'asWritten' && e.client) p.learn.clients[relayKey(e.client)] = cc;
+    prodLearnAliases([rec]);
     p.entries.push(prodSparse(rec));
     n++;
   });
@@ -30927,6 +31439,8 @@ function prodSaveHand() {
     e.clientId = prodHeldId(f.clientId); e.client = prodClientName(e.clientId); e.part = f.part.trim(); e.gauge = prodGaugeOf(e.part, e.part);
     e.qty = isNaN(q) ? null : q; e.unit = f.unit; e.rework = !!f.rework;
     if (f.kind === 'plated') { e.line = f.line || null; e.lineSrc = f.line ? 'set' : null; e.slot = f.slot === 'ot' || f.slot === 'day' ? f.slot : 'general'; }
+    // A name with a code ("Assy Bracket 3302") is matched to the client's part as a register's is.
+    if (e.clientId != null) prodLearnAliases([e]);
   }
   p.entries.push(prodSparse(e));
   prodTouch();
@@ -31017,6 +31531,10 @@ function prodAction(action, btn) {
     case 'invProdHandKind': _prodHand.kind = btn.dataset.kind; renderProduction(); return true;
     case 'invProdSaveHand': prodSaveHand(); return true;
     case 'invProdHandDone': prodHandDone(); return true;
+    case 'invProdAlias': prodAliasOpen(btn.dataset.id); return true;
+    case 'invProdGauge': prodGaugeOpen(btn.dataset.id); return true;
+    case 'invProdGaugeSave': prodGaugeSave(btn.dataset.id); return true;
+    case 'invProdAliasSave': prodAliasSave(btn.dataset.id); return true;
     case 'invProdVoid': prodVoid(btn.dataset.id); return true;
     case 'invProdUseLine': prodUseLine(btn.dataset.id, btn.dataset.line); return true;
     case 'invProdExport': prodExport(); return true;
@@ -32530,6 +33048,21 @@ function cpMaterials(clientId, from, to) {
       r.events.push({ date: d, kind: 'invoice', id: inv.id, ref: inv.invoiceNumber || inv.displayNumber || '', qty: q, unit: unit, amount: Number(it.amount) || 0 });
     });
   });
+  // What the floor plated of it, each with its line and crew (owner, 30 Sep 2026: "we'll know who plated what and when …
+  // useful when we get replating issues"). Shown among the part's events; the figures above stay what was sent and billed.
+  if (typeof prodIndex === 'function') {
+    var pidx = prodIndex();
+    pidx.counted.forEach(function(e) {
+      var d = e.date;
+      if (e.voidedAt || !d || d < from || d > to || e.clientId == null || (clientId != null && String(e.clientId) !== String(clientId))) return;
+      var shown = prodAliasShown ? prodAliasShown(e) : null;
+      var r = row(e.clientId, { partNumber: shown && shown.pn ? shown.pn : (e.partNumber || e.part), desc: e.part });
+      if (!r) return;
+      var crew = prodCrew(e);
+      r.plated = (r.plated || 0) + 1;
+      r.events.push({ date: d, kind: 'plated', id: e.id, ref: prodLineName(e.line), qty: e.qty || 0, unit: e.unit || 'NOS', crew: crew, rework: !!e.rework, time: e.time || '' });
+    });
+  }
   // A line naming no gauge joins its part's only gauge (for that client); with two it stays apart, said as such.
   var gauges = {};
   Object.keys(rows).forEach(function(k) { var r = rows[k]; if (r.gauge) (gauges[r.clientId + '|' + r.base] = gauges[r.clientId + '|' + r.base] || []).push(r); });
@@ -32538,6 +33071,7 @@ function cpMaterials(clientId, from, to) {
     if (r.gauge || !only || only.length !== 1) return;
     var t = only[0];
     ['nos', 'kg', 'kgUnknown', 'billedNos', 'billedKg', 'revenue'].forEach(function(f) { t[f] += r[f]; });
+    t.plated = (t.plated || 0) + (r.plated || 0);
     Object.keys(r.challans).forEach(function(x) { t.challans[x] = true; });
     Object.keys(r.invoices).forEach(function(x) { t.invoices[x] = true; });
     Object.keys(r.texts).forEach(function(x) { t.texts[x] = true; });
@@ -32593,9 +33127,14 @@ function cpWorkedListHtml(clientId) {
   if (!list.length) return h + '<div class="inv-empty">' + (all.length ? 'No part matches that search in ' + escHtml(rg.label) + '.' : 'Nothing was sent or billed in ' + escHtml(rg.label) + '.') + '</div>';
   var rows = list.map(function(r) {
     var others = Object.keys(owners[r.base] || {}).filter(function(c) { return String(c) !== String(r.clientId); }).map(function(c) { return names[c] || 'another client'; });
-    var meta = [todoPlural(r.nChallans, 'challan'), r.nInvoices ? todoPlural(r.nInvoices, 'invoice') : 'not invoiced',
+    var meta = [todoPlural(r.nChallans, 'challan'), r.nInvoices ? todoPlural(r.nInvoices, 'invoice') : 'not invoiced', r.plated ? todoPlural(r.plated, 'plating') : '',
       r.first ? (r.first === r.last ? formatDate(r.first) : formatDate(r.first) + ' – ' + formatDate(r.last)) : ''].filter(Boolean).join(' · ');
     var ev = r.events.map(function(e) {
+      if (e.kind === 'plated') {
+        return '<div class="inv-row inv-row-2" data-cp-plated><span class="inv-row-main"><span class="inv-row-title">' + escHtml(formatDate(e.date)) + ' · Plated on ' + escHtml(e.ref) + (e.time ? ' from ' + escHtml(e.time) : '') + (e.rework ? ' · rework' : '') + '</span>' +
+          '<span class="inv-row-meta inv-row-wrap">' + escHtml(e.crew.known ? (e.crew.src === 'block' ? 'OT crew: ' : 'Crew: ') + e.crew.names.join(', ') : 'Crew not known: ' + e.crew.why) + '</span></span>' +
+          '<span class="inv-row-end inv-num">' + escHtml(cpNum(e.qty) + ' ' + (e.unit === 'KG' ? 'kg' : 'NOS')) + '</span></div>';
+      }
       var what = e.kind === 'challan' ? 'Challan ' + (e.ref || '—') : 'Invoice ' + (e.ref || '');
       var q = cpNum(e.qty, e.unit === 'KG' && e.qty % 1 ? 2 : 0) + ' ' + (e.unit === 'KG' ? 'kg' : 'NOS') + (e.nos ? ' (' + cpNum(e.nos) + ' NOS)' : '');
       var act = e.kind === 'invoice' ? ' data-action="invViewInvoiceDetail" data-id="' + escHtml(e.id) + '"' : ' data-action="invHistoryJumpChallan" data-id="' + escHtml(e.id) + '"';
@@ -36119,6 +36658,24 @@ if (!S._cnSeriesStart1) {
   saveJSON(STORAGE_KEY, S);
 })();
 
+/* ===== SSS MEHTA'S CLAMP GAUGE BY THE ROUND, RECORDED ONCE =====
+   Owner, 30 Sep 2026: "Mehta's clamp gauge is 25x6 or 30x6 if 150 pieces are done on VAT A1 and 100 pieces on VAT A2, and
+   35x6 or 35x8 or 40x6 if 120 pieces and 72 pieces are done in VAT A1." Set on the client whose name reads Mehta, where it
+   has no rule, and once: the flag travels with the state, so a rule the owner changed stays so. */
+(function() {
+  if (S._prodGaugeRules1) return;
+  var c = (S.clients || []).find(function(x) { return /MEHTA/i.test(String(x.name || '')); });
+  if (!c) return;
+  var p = prodData();
+  if (!p.gaugeRules.some(function(r) { return String(r.clientId) === String(c.id); })) {
+    var at = Date.now(), note = 'owner, 30 Sep 2026';
+    p.gaugeRules.push({ id: 'GR-seed1', clientId: c.id, family: 'CLAMP', racks: [150, 100], gauges: ['25X6', '30X6'], lines: { 150: 'vat-a1', 100: 'vat-a2' }, note: note, at: at });
+    p.gaugeRules.push({ id: 'GR-seed2', clientId: c.id, family: 'CLAMP', racks: [120, 72], gauges: ['35X6', '35X8', '40X6'], lines: { 120: 'vat-a1', 72: 'vat-a1' }, note: note, at: at });
+  }
+  S._prodGaugeRules1 = true;
+  saveJSON(STORAGE_KEY, S);
+})();
+
 /* ===== SAMARTH'S PARTS BY THE ROUND, RECORDED ONCE =====
    Owner, 30 Sep 2026: "3302 at 9/pc takes about 30 mins/piece and we can only do 24 pcs at a time in VAT A2; 3303 at 3/pc
    takes about 30 minutes and we can do 80 pcs at a time in VAT A2." Set on the client whose name reads Samarth, only where
@@ -36135,6 +36692,37 @@ if (!S._cnSeriesStart1) {
     });
   }
   S._partTimes1 = true;
+  saveJSON(STORAGE_KEY, S);
+})();
+
+/* ===== SAMARTH'S PARTS BY THE ROUND ON THE REGISTER, RECORDED ONCE =====
+   Owner, 30 Sep 2026: "56 is 3302 on VAT A2, 156 is 3303 on VAT A2. These two are a pair of set they call cover plate. The
+   other 3302 is Assy bracket connector that's 50 per round in VAT A1, that's recorded as 7.05 per piece and 500 g/pc."
+   The register's rounds (56, 156) replace the 24 and 80 set earlier where those still stand, the earlier figures kept in
+   the time's history; the connector's round is added. The rules that read a round as its part are set where the client
+   has none, and floor names already entered are matched again (an "Assy Bracket 3302" typed by hand finds the connector
+   by its description). Once: the flag travels with the state. */
+(function() {
+  if (S._prodPartRules1) return;
+  var c = (S.clients || []).find(function(x) { return /SAMARTH/i.test(String(x.name || '')); });
+  if (!c) return;
+  var p = prodData(), at = Date.now(), note = 'owner, 30 Sep 2026';
+  var parts = [['5174 5460 3302', 56, 'vat-a2', 'cover plate'], ['5166 5460 3303', 156, 'vat-a2', 'cover plate'], ['5167 5461 3302', 50, 'vat-a1', 'assy bracket connector']];
+  if (!p.partRules.some(function(r) { return String(r.clientId) === String(c.id); }))
+    parts.forEach(function(x, i) { p.partRules.push({ id: 'PR-seed' + (i + 1), clientId: c.id, racks: [x[1]], line: x[2], partNumber: x[0], name: x[3], note: note, at: at }); });
+  if (!Array.isArray(c.partTimes)) c.partTimes = [];
+  parts.forEach(function(x, i) {
+    var idn = cpPartIdentity(x[0], ''), t = c.partTimes.find(function(y) { return y.base === idn.base && (y.gauge || '') === idn.gauge; });
+    if (!t) { c.partTimes.push({ id: 'PT-seed' + (i + 1) + 'r', base: idn.base, gauge: idn.gauge, name: x[0], line: x[2], pieces: x[1], at: at, note: note }); return; }
+    var was = { 'PT-seed1': 24, 'PT-seed2': 80 }[t.id];
+    if (was != null && t.pieces === was) {
+      t.history = (t.history || []).concat([{ at: t.at || null, pieces: t.pieces, pickleMin: t.pickleMin, plateMin: t.plateMin }]);
+      t.pieces = x[1]; t.at = at; t.note = note + ': the register’s round';
+    }
+  });
+  prodLearnAliases(p.entries.filter(function(e) { return !e.voidedAt; }));
+  prodTouch();
+  S._prodPartRules1 = true;
   saveJSON(STORAGE_KEY, S);
 })();
 

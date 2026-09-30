@@ -58,7 +58,7 @@ test.describe('P89: the production record', () => {
     const fix = s.production.entries[1];
     expect(fix).toMatchObject({ replaces: e.id, qty: 402, basis: 'hand' });
     await openEntries(page);
-    await expect(page.locator(`[data-prod-entry="${e.id}"] .inv-row-meta`)).toContainText('corrected');
+    await expect(page.locator(`[data-prod-entry="${e.id}"] .inv-row-meta`).first()).toContainText('corrected');
 
     // Void asks why, in the app's own dialog; cancel changes nothing, a reason voids it and it stays listed.
     await page.locator(`[data-prod-entry="${fix.id}"] [data-action="invProdVoid"]`).click();
@@ -70,7 +70,7 @@ test.describe('P89: the production record', () => {
     expect(s.production.entries).toHaveLength(2);
     expect(s.production.entries[1]).toMatchObject({ voidReason: 'typed on the wrong day' });
     await expect(page.locator(`[data-prod-entry="${fix.id}"]`)).toHaveClass(/inv-row-muted/);
-    await expect(page.locator(`[data-prod-entry="${fix.id}"] .inv-row-meta`)).toContainText('void: typed on the wrong day');
+    await expect(page.locator(`[data-prod-entry="${fix.id}"] .inv-row-meta`).first()).toContainText('void: typed on the wrong day');
   });
 
   test('export is whole; import merges by id and never overwrites', async ({ page }, info) => {

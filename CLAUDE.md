@@ -1686,6 +1686,55 @@ reads a photo. **Owned by `soma-internal`, like stock** (owner): a view and an i
   credit** is named as that (make a key in a project with no billing, which is free, or add credit), never as a busy
   minute. Nothing here has been run against the live API from the build sandbox: the retries are pinned on mocked
   refusals in the shape Google sent (P85).
+- **The register's own shorthand, from the owner's pages of 23–29 Sep 2026** (P122):
+  - **A clamp's gauge from its round** (owner: *"Mehta's clamp gauge is 25x6 or 30x6 if 150 pieces are done on VAT A1 and 100 pieces on
+    VAT A2 and 35x6 or 35x8 or 40x6 if 120 pieces and 72 pieces are done in VAT A1"*). The register writes Mehta's clamps as CLAMP; a
+    rule (`S.production.gaugeRules`: client, the part's first word, rack sizes, gauges; Mehta's two set once, `_prodGaugeRules1`) reads a
+    round of 150 or 100 as 25X6 or 30X6 and of 120 or 72 as 35X6, 35X8 or 40X6 (`prodGaugeRuleFor`). The lines named are kept on the
+    rule, not required: the pages show 150 and 120 on A2 as well. One gauge is written in; two or three are kept as the entry's
+    `gaugeOptions`, set against the family's challans at any of them. A round of a size no rule names (108, 98, 82) is its own run,
+    *gauge unknown*, so it never takes a neighbouring run's gauge.
+  - **A floor name is matched to the client's part** (`prodLearnAliases`): a code in brackets (*TINA(0160)*, *TINA(3303)*) that ends
+    exactly one of the client's part numbers is that part, and the name alone is learnt for the client (`learn.parts`, now written), on
+    a register save and on an import. A code ending two parts (*KUDAL(0106)*) is asked: Entries → **Which part?** lists the parts
+    ending in it, then those named like it, then all of the client's (`prodAliasOpen`).
+  - **A Samarth round names its part** (owner: *"56 is 3302 on VAT A2, 156 is 3303 on VAT A2. These two are a pair of set they call cover
+    plate. The other 3302 is Assy bracket connector that's 50 per round in VAT A1"*). Two of Samarth's parts end in 3302 and the register
+    writes all three as TINA, so a rule (`S.production.partRules`: client, rack sizes, line, part number, floor name; set once,
+    `_prodPartRules1`) reads the round on its line as the part (`prodPartRuleRead`). The line is required here, unlike a gauge rule. A code
+    written that ends the rule's part, or one of the pair, is read by the rule and a disagreement is amber (*TINA(3303)* at 56 a round);
+    a code ending a part no rule names stays as written. The same pass set Samarth's per-hour rounds to the register's (56, 156; the 24 and 80
+    kept in each time's history) and added the connector's 50 on A1. A code ending two parts is settled by the name's words in the part's
+    description where one alone carries them (*Assy Bracket 3302* → the connector), on a register, an import or a hand entry. A floor name
+    learnt as two parts (TINA from 3303 and 3302) is kept as **ambiguous** and finds neither; an entry's own part number wins over a
+    learnt name.
+  - **A new part under the customer's ditto is the same customer's**: *LINER* under MEHTA's ditto had read as no customer written.
+    **Unless that customer has never sent the kind** (owner: *"Samarth doesn't have clamp"*): a CLAMP carried under SAMARTH's ditto
+    goes to the one client whose gauge rule covers a clamp at that round (Mehta at 150), amber, and is only flagged where no single
+    client does (`prodCarryCheck`). **A round of a size its own client's rules do not name, which is another client's part on
+    that line**, is asked (*a round of 50 on VAT A1 is Samarth's connector*), never moved (`prodPartRuleOther`; owner: *"71 was the last
+    round for Mehta and then 50 is Samarth"*).
+  - **Two clients in one round** (owner: *"sometimes two clients are done simultaneously"*): *MEHTA+GENERAL / LINER+188CD / 39+50* is a
+    round of each at the same time, split on the + outside brackets (`prodSplitTop`; *(0106+3313)* stays one part), each share in its own
+    client's run: a shared round, and the first round after them, continue the run of their own client and part, and a shared START takes
+    its own client's next figure. A ditto under one side carries that side (*〃 + DORABJI* under MEHTA+GENERAL), a ditto alone the whole
+    row. A figure that does not split into as many shares is amber and the row kept whole.
+  - **A round outside the gauge rules is a flag, resolvable** (owner: *"The ones that fall outside the range, raise a flag -
+    resolvable"*): the run keeps `gaugeUnknown` (its round) until a gauge is picked on it (Entries → *Gauge unknown* → **Pick gauge**, from
+    the client's rules and challans for that kind, or typed; `gaugeSrc: 'set'`), and To-do rule **`prodGaugeUnknown`** asks per client,
+    imported runs included.
+  - **A code two parts end in is matched with the recent challans** (owner: *"Checked and matched with recent IM … After a few matches
+    it'll become clearer as both would have a different amount of them that can be plated in a round"*; `prodResolveCode`): the one with a
+    challan in the 45 days before, else the one with a challan open, else the one on the latest challan, else the one plated before at this
+    round on this line (`prodPartRacks`, which never reads a match it made itself). Set on the entry (`partSrc: 'challan' | 'round'`),
+    never learnt for the name. On the 30 Sep page, *(0106)* is 5206 4920 0106, on Dorabji's latest challan. **A figure for a group of codes**
+    (*(0106+3313)*, 25) is two entries, each code matched the same way and the figure shared by what is open on their challans, else by the
+    pieces on each part's latest challan (`qtySrc: 'split'`, said as an estimate).
+  - **Who plated it** (owner: *"place workers on the specified production … we'll know who plated what and when, this can be useful
+    later when we get replating issues"*): `prodCrew(e)`, read off the day's attendance and never stored: a general-shift run is the
+    hands marked on its line, a run from 5 PM or before 8:30 the named crew of the OT block covering it, a pickling load the pickling
+    hands; a day with no attendance says so. Entries show it under each run, and Clients → Performance → Materials worked lists each
+    plating of a part with its line, time and crew beside its challans and invoices.
 - **The workers' names box on a register photo goes to Google with the page** (Settings → Connections → Photo reading
   says so); only what is read is kept.
 

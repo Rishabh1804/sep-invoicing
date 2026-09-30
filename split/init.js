@@ -481,6 +481,24 @@ if (!S._cnSeriesStart1) {
   saveJSON(STORAGE_KEY, S);
 })();
 
+/* ===== SSS MEHTA'S CLAMP GAUGE BY THE ROUND, RECORDED ONCE =====
+   Owner, 30 Sep 2026: "Mehta's clamp gauge is 25x6 or 30x6 if 150 pieces are done on VAT A1 and 100 pieces on VAT A2, and
+   35x6 or 35x8 or 40x6 if 120 pieces and 72 pieces are done in VAT A1." Set on the client whose name reads Mehta, where it
+   has no rule, and once: the flag travels with the state, so a rule the owner changed stays so. */
+(function() {
+  if (S._prodGaugeRules1) return;
+  var c = (S.clients || []).find(function(x) { return /MEHTA/i.test(String(x.name || '')); });
+  if (!c) return;
+  var p = prodData();
+  if (!p.gaugeRules.some(function(r) { return String(r.clientId) === String(c.id); })) {
+    var at = Date.now(), note = 'owner, 30 Sep 2026';
+    p.gaugeRules.push({ id: 'GR-seed1', clientId: c.id, family: 'CLAMP', racks: [150, 100], gauges: ['25X6', '30X6'], lines: { 150: 'vat-a1', 100: 'vat-a2' }, note: note, at: at });
+    p.gaugeRules.push({ id: 'GR-seed2', clientId: c.id, family: 'CLAMP', racks: [120, 72], gauges: ['35X6', '35X8', '40X6'], lines: { 120: 'vat-a1', 72: 'vat-a1' }, note: note, at: at });
+  }
+  S._prodGaugeRules1 = true;
+  saveJSON(STORAGE_KEY, S);
+})();
+
 /* ===== SAMARTH'S PARTS BY THE ROUND, RECORDED ONCE =====
    Owner, 30 Sep 2026: "3302 at 9/pc takes about 30 mins/piece and we can only do 24 pcs at a time in VAT A2; 3303 at 3/pc
    takes about 30 minutes and we can do 80 pcs at a time in VAT A2." Set on the client whose name reads Samarth, only where
@@ -497,6 +515,37 @@ if (!S._cnSeriesStart1) {
     });
   }
   S._partTimes1 = true;
+  saveJSON(STORAGE_KEY, S);
+})();
+
+/* ===== SAMARTH'S PARTS BY THE ROUND ON THE REGISTER, RECORDED ONCE =====
+   Owner, 30 Sep 2026: "56 is 3302 on VAT A2, 156 is 3303 on VAT A2. These two are a pair of set they call cover plate. The
+   other 3302 is Assy bracket connector that's 50 per round in VAT A1, that's recorded as 7.05 per piece and 500 g/pc."
+   The register's rounds (56, 156) replace the 24 and 80 set earlier where those still stand, the earlier figures kept in
+   the time's history; the connector's round is added. The rules that read a round as its part are set where the client
+   has none, and floor names already entered are matched again (an "Assy Bracket 3302" typed by hand finds the connector
+   by its description). Once: the flag travels with the state. */
+(function() {
+  if (S._prodPartRules1) return;
+  var c = (S.clients || []).find(function(x) { return /SAMARTH/i.test(String(x.name || '')); });
+  if (!c) return;
+  var p = prodData(), at = Date.now(), note = 'owner, 30 Sep 2026';
+  var parts = [['5174 5460 3302', 56, 'vat-a2', 'cover plate'], ['5166 5460 3303', 156, 'vat-a2', 'cover plate'], ['5167 5461 3302', 50, 'vat-a1', 'assy bracket connector']];
+  if (!p.partRules.some(function(r) { return String(r.clientId) === String(c.id); }))
+    parts.forEach(function(x, i) { p.partRules.push({ id: 'PR-seed' + (i + 1), clientId: c.id, racks: [x[1]], line: x[2], partNumber: x[0], name: x[3], note: note, at: at }); });
+  if (!Array.isArray(c.partTimes)) c.partTimes = [];
+  parts.forEach(function(x, i) {
+    var idn = cpPartIdentity(x[0], ''), t = c.partTimes.find(function(y) { return y.base === idn.base && (y.gauge || '') === idn.gauge; });
+    if (!t) { c.partTimes.push({ id: 'PT-seed' + (i + 1) + 'r', base: idn.base, gauge: idn.gauge, name: x[0], line: x[2], pieces: x[1], at: at, note: note }); return; }
+    var was = { 'PT-seed1': 24, 'PT-seed2': 80 }[t.id];
+    if (was != null && t.pieces === was) {
+      t.history = (t.history || []).concat([{ at: t.at || null, pieces: t.pieces, pickleMin: t.pickleMin, plateMin: t.plateMin }]);
+      t.pieces = x[1]; t.at = at; t.note = note + ': the register’s round';
+    }
+  });
+  prodLearnAliases(p.entries.filter(function(e) { return !e.voidedAt; }));
+  prodTouch();
+  S._prodPartRules1 = true;
   saveJSON(STORAGE_KEY, S);
 })();
 

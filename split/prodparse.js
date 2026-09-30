@@ -592,6 +592,17 @@ function prodRegisterDate(s) {
 /* A figure as the clerk writes it: "72", "72+10", "98×8+1", "8x156+68", "50+52+30", "4×108−3". Sums of products, added
    up here. The first product's larger factor is the rack and the smaller the rounds ("98×8": 8 rounds of 98), which is
    what rack sizes are learnt from; a plain sum carries no rack. Anything else is null: unread, never guessed. */
+/* "MEHTA+GENERAL", "(0106+3313)+188CD", "39+50": split on a + outside brackets. */
+function prodSplitTop(s) {
+  var out = [], d = 0, cur = '';
+  String(s == null ? '' : s).split('').forEach(function(ch) {
+    if (ch === '(') d++; else if (ch === ')') d = Math.max(0, d - 1);
+    if (ch === '+' && !d) { out.push(cur.trim()); cur = ''; } else cur += ch;
+  });
+  out.push(cur.trim());
+  return out;
+}
+function prodIsDitto(s) { return /^[\s"'`\u201C\u201D\u2018\u2019\u3003,.]*$/.test(String(s == null ? '' : s)); }
 function prodRegisterQty(text) {
   var t = String(text == null ? '' : text).replace(/[×✕*X]/g, 'x').replace(/[–—−]/g, '-').replace(/\s+/g, '').replace(/,/g, '').replace(/^\+/, '');
   t = t.replace(/(nos|pcs|pc)\.?$/i, '').replace(/^\((\d+)\)$/, '$1');
@@ -676,10 +687,23 @@ function prodFromRegisterRead(json, ctx, photoDate, choices) {
     var mark = markOf(r), written = r.qtyText != null && String(r.qtyText).trim() !== '' ? String(r.qtyText).trim() : null;
     // A row with nothing on it but ditto marks (the clerk's next line, begun and not used) is not a row.
     if (!r.time && !mark && written == null && r.qty == null && !r.customer && !r.part && !r.struck) return;
-    var cust = (r.customer || '').trim(), part = (r.part || '').trim(), dim = String(r.dim || '').trim();
+    var cust = (r.customer || '').trim(), part = (r.part || '').trim(), dim = String(r.dim || '').trim(), carried = false;
     // A ditto row carries the size above it too, so it stays in its run now that a run is one gauge.
     var ditto = r.ditto || (!cust && !part);
     if (ditto) { cust = cust || lastCust; part = part || lastPart; dim = dim || lastDim; }
+    // A new part under ditto marks in the customer column is the same customer's (the clerk writes LINER under MEHTA's
+    // ditto): it was read as no customer written, and asked for one on every change of part.
+    else if (!cust && lastCust) { cust = lastCust; carried = true; }
+    // A round shared by two clients is written with + in each column ("MEHTA+GENERAL / LINER+188CD / 39+50"), and a ditto
+    // under one side of it carries that side ("〃 + DORABJI" under MEHTA+GENERAL is MEHTA and DORABJI).
+    var tokenFill = function(now, last) {
+      var t = prodSplitTop(now);
+      if (t.length < 2) return t.length === 1 && prodIsDitto(t[0]) && now ? last : now;
+      var l = prodSplitTop(last);
+      return t.map(function(x, j) { return prodIsDitto(x) ? (l.length === t.length ? l[j] : l.length === 1 ? l[0] : l[j] || '') : x; }).join('+');
+    };
+    if (/\+/.test(cust) || (cust && prodIsDitto(cust))) cust = tokenFill(cust, lastCust);
+    if (/\+/.test(part) || (part && prodIsDitto(part))) part = tokenFill(part, lastPart);
     lastCust = cust || lastCust; lastPart = part || lastPart; if (!ditto || dim) lastDim = dim;
     var row = { i: i, time: String(r.time || '').replace(/\s*-?\s*(start|end)\s*$/i, ''), min: prodRegisterNoon(r.time), cust: cust, part: part, dim: dim,
       mark: mark, start: mark === 'START', end: mark === 'END', rackSize: r.rackSize, rounds: r.rounds, short: r.short,
@@ -697,6 +721,19 @@ function prodFromRegisterRead(json, ctx, photoDate, choices) {
       if (row.qty == null) { row.qty = calc; row.qtySrc = 'working'; }
       else if (Math.abs(calc - row.qty) > 0.5) row.issues.push({ tone: 'amber', code: 'rack', text: row.rackSize + ' × ' + row.rounds + (row.short ? ' − ' + row.short : '') + ' = ' + calc + ', but ' + row.qty + ' is written. The written figure is used.' });
     }
+    // A new part carried onto the customer above it, of a kind that customer has never sent (the clerk's labels a row out,
+    // a CLAMP under SAMARTH's ditto): the customer whose rule covers that kind at this round, where exactly one does.
+    if (carried && ctx.carryCheck) {
+      var cit = prodReadItem(cust, ctx.clients), crack = row.rackSize || row.qty;
+      var cc = cit.clientId != null ? ctx.carryCheck(cit.clientId, part, crack) : null;
+      if (cc) {
+        var who = cit.clientName || cust;
+        if (cc.clientId != null) {
+          row.issues.push({ tone: 'amber', code: 'carried', text: 'Written under ' + who + '’s ditto, but ' + who + ' has never sent a ' + cc.family + '; a round of ' + crack + ' is ' + cc.name + '’s by the owner’s rule, so read as ' + cc.name + '. Check the page.' });
+          row.cust = cust = cc.name; lastCust = cc.name;
+        } else row.issues.push({ tone: 'amber', code: 'carried', text: 'Written under ' + who + '’s ditto, but ' + who + ' has never sent a ' + cc.family + '. Check whose it is.' });
+      }
+    }
     row.raw = [row.time, cust, part, row.dim, written != null ? written : row.rackSize && row.rounds ? row.rackSize + '×' + row.rounds + (row.short ? '−' + row.short : '') : '',
       written == null && row.qty != null ? String(row.qty) : '', mark, row.struck ? '(struck)' : '', row.over ? '(over ' + row.over + ')' : ''].filter(Boolean).join(' · ');
     // A START row carries no figure on either shape; a batch row with none is checked against the photo.
@@ -708,13 +745,41 @@ function prodFromRegisterRead(json, ctx, photoDate, choices) {
     } else row.counted = true;
     if (row.over) row.issues.push({ tone: 'info', code: 'over', text: 'Written over ' + row.over + '; ' + (row.qty != null ? row.qty : 'what is written now') + ' is used.' });
     if (prodRegisterNoonSlip(r.time)) row.issues.push({ tone: 'amber', code: 'meridiem', text: r.time + ' read as ' + relayClockLabel(row.min) + ': the register runs in the day.' });
+    // Two clients in one round (owner, 30 Sep 2026: "sometimes two clients are done simultaneously"): each client's share
+    // is a round of its own at the same time, in its own run. The figure splits on its + into as many shares as there are
+    // clients or parts; a figure that does not is asked about and the row kept whole.
+    var cT = prodSplitTop(cust), pT = prodSplitTop(part), nShare = Math.max(cT.length, pT.length);
+    if (nShare > 1 && (cT.length === 1 || pT.length === 1 || cT.length === pT.length)) {
+      var fT = written != null ? prodSplitTop(written) : null;
+      if (fT && fT.length !== nShare) {
+        row.issues.push({ tone: 'amber', code: 'shared', text: 'One round for ' + nShare + ' (' + cust + ' · ' + part + '), but "' + written + '" does not split into ' + nShare + ' figures. Enter each share by hand.' });
+        out.rows.push(row);
+        return;
+      }
+      var shares = [];
+      for (var j = 0; j < nShare; j++) {
+        var sub = {};
+        Object.keys(row).forEach(function(k) { sub[k] = row[k]; });
+        sub.cust = cT.length > 1 ? cT[j] : cT[0]; sub.part = pT.length > 1 ? pT[j] : pT[0]; sub.shared = i; sub.issues = j ? [] : row.issues.slice();
+        if (fT) {
+          var sq = prodRegisterQty(fT[j]);
+          sub.written = fT[j]; sub.qty = sq ? sq.qty : null; sub.rackSize = sq && sq.rackSize ? sq.rackSize : null; sub.rounds = sq && sq.rounds ? sq.rounds : null;
+          sub.qtySrc = null;
+        }
+        shares.push(sub);
+      }
+      shares[0].issues.push({ tone: 'info', code: 'shared', text: 'One round for ' + nShare + ': ' + shares.map(function(x) { return x.cust + ' ' + x.part + (x.qty != null ? ' ' + x.qty : ''); }).join(', ') + '. Each is counted in its own run.' });
+      shares.forEach(function(x) { out.rows.push(x); });
+      return;
+    }
     out.rows.push(row);
   });
   if (out.style === 'rounds') {
     // START counts as a batch of the next round's figure.
     out.rows.forEach(function(row, k) {
       if (!row.start || row.qty != null) return;
-      var nx = out.rows.slice(k + 1).find(function(x) { return x.qty != null && !x.start; });
+      // A shared START takes the next figure of its own client and part.
+      var nx = out.rows.slice(k + 1).find(function(x) { return x.qty != null && !x.start && (row.shared == null || (relayKey(x.cust) === relayKey(row.cust) && rateKey(x.part) === rateKey(row.part))); });
       if (nx) { row.qty = nx.qty; row.qtySrc = 'start-rule'; row.issues.push({ tone: 'info', code: 'start', text: 'START counted as a round of ' + nx.qty + ', the next round’s figure (the owner’s rule, 26 Jun).' }); }
     });
   } else {
@@ -726,15 +791,55 @@ function prodFromRegisterRead(json, ctx, photoDate, choices) {
         row.issues.push({ tone: 'info', code: 'nostart', text: 'An END with no START of its own: taken as starting where the batch before it ended.' });
     });
   }
+  // A part the register writes with no gauge takes the gauges its rack size means, by the owner's rule (prodGaugeRuleFor):
+  // one gauge is written in as if the clerk had; two or three are kept as the choices, and the run says so.
+  if (ctx.gaugeRule) {
+    out.rows.forEach(function(row) {
+      if (row.start || lineGauge(String(row.part + ' ' + row.dim).replace(/[×✕]/g, 'X'))) return;
+      var rack = row.rackSize || (!row.batch && row.qty > 0 ? row.qty : null);
+      var it = prodReadItem(row.cust, ctx.clients);
+      var gs = it.clientId != null ? ctx.gaugeRule(it.clientId, row.part, rack) : null;
+      // A round of a size no rule names, on a part a rule covers (the 108s, the 98s), is kept apart as gauge unknown: it
+      // must not join a run whose gauge a rule read and take that gauge.
+      if (!gs) { if (rack && it.clientId != null && ctx.gaugeHas && ctx.gaugeHas(it.clientId, row.part)) { row.gaugeSet = 'none'; row.gaugeRack = rack; } return; }
+      if (gs.length === 1) row.dim = gs[0];
+      else row.gaugeSet = gs.join('/');
+      row.gaugeRack = rack;
+    });
+  }
+  // A round whose size, on its line, names one of the client's parts by the owner's rule (prodPartRuleRead): Samarth's
+  // cover plates and connector, all written TINA. A row of no size of its own (a START on a START/END page) continues.
+  if (ctx.partRule) {
+    out.rows.forEach(function(row) {
+      var rack = row.rackSize || (!row.batch && row.qty > 0 ? row.qty : null);
+      var it = rack ? prodReadItem(row.cust, ctx.clients) : null;
+      var pr = it && it.clientId != null ? ctx.partRule(it.clientId, rack, out.line, row.part) : null;
+      // A round whose gauge no rule of its own client reads, of a size another client's part is on this line: asked.
+      if (!pr && row.gaugeSet === 'none' && ctx.partRuleOther) {
+        var o = ctx.partRuleOther(it.clientId, rack, out.line);
+        if (o) row.issues.push({ tone: 'amber', code: 'whose', text: 'A round of ' + rack + ' on ' + (typeof prodLineName === 'function' ? prodLineName(out.line) : out.line) + ' is ' + o.name + '’s ' + (o.partName || o.partNumber) + ' by the owner’s rule, not a size ' + (it.clientName || row.cust) + '’s rules name. Check whose round it is.' });
+      }
+      if (!pr) return;
+      row.partRack = rack; row.partRule = pr;
+      if (pr.partNumber) row.rulePn = pr.partNumber;
+    });
+  }
   // Runs: consecutive rows of one customer, part and gauge. Two gauges of one clamp are two parts at two rates, and the
   // gauge used to be taken out of the key, so a 35X6 run following a 40X6 one was added into it under the 40X6. A row
   // with no gauge of its own continues the run above it.
-  var cur = null;
+  // Rounds shared by two clients interleave their runs: a shared round, and the first round after them, continue the run
+  // of their own client and part rather than the row above.
+  var cur = null, open = {}, inShared = false;
   out.rows.forEach(function(row) {
     var pd = row.part + ' ' + row.dim, ck = relayKey(row.cust) + '|' + rateKey(prodPartBase(pd)), g = lineGauge(pd.replace(/[×✕]/g, 'X'));
-    if (!cur || cur.ck !== ck || (g && cur.g && g !== cur.g)) { cur = { ck: ck, g: g, rows: [] }; out.runs.push(cur); }
-    else if (g && !cur.g) cur.g = g;
-    cur.rows.push(row);
+    var gs = row.gaugeSet || '', rp = row.rulePn || '';
+    var run = row.shared != null || inShared ? open[ck] || null : cur;
+    if (!run || run.ck !== ck || (g && run.g && g !== run.g) || (gs && run.gs && gs !== run.gs) || (gs && run.g) || (g && run.gs) || (rp && run.rp && rp !== run.rp)) { run = { ck: ck, g: g, gs: gs, rp: rp, rows: [] }; out.runs.push(run); }
+    else { if (g && !run.g) run.g = g; if (gs && !run.gs) run.gs = gs; if (rp && !run.rp) run.rp = rp; }
+    run.rows.push(row);
+    if (row.shared != null) { open[ck] = run; inShared = true; }
+    else { open = {}; open[ck] = run; inShared = false; }
+    cur = run;
   });
   out.runs = out.runs.map(function(run) {
     var first = run.rows[0], it = prodReadItem(first.cust, ctx.clients), dimText = first.dim || run.g;
@@ -754,10 +859,55 @@ function prodFromRegisterRead(json, ctx, photoDate, choices) {
         if (x.struck) o.struck = !x.counted; if (x.over) o.over = x.over; return o; }),
       raw: run.rows.map(function(x) { return x.raw; }).join('\n'), n: first.i + 1, issues: [], rows: run.rows };
     e.slot = e.time && (relayParseHhmm(e.time) < 510 || relayParseHhmm(e.time) >= 1020) ? 'ot' : 'general';
+    var racked = run.rows.find(function(x) { return x.gaugeRack; });
+    if (run.gs === 'none') { e.gaugeUnknown = racked.gaugeRack; e.issues.push({ tone: 'amber', code: 'gauge', text: 'Gauge unknown: a round of ' + racked.gaugeRack + ' is in none of the owner’s rules for this part. Flagged on the entry until its gauge is picked.' }); }
+    else if (run.gs) { e.gaugeOptions = run.gs.split('/'); e.gaugeSrc = 'rack'; e.issues.push({ tone: 'info', code: 'gauge', text: 'Gauge read from the round of ' + racked.gaugeRack + ': ' + run.gs.replace(/\//g, ' or ') + ' (the owner’s rule). The challans say which.' }); }
+    else if (racked && e.gauge) { e.gaugeSrc = 'rack'; e.issues.push({ tone: 'info', code: 'gauge', text: 'Gauge ' + e.gauge + ' read from the round of ' + racked.gaugeRack + ' (the owner’s rule).' }); }
+    var ruled = run.rows.find(function(x) { return x.partRule; });
+    if (ruled) {
+      var pr = ruled.partRule, where = ' a round of ' + ruled.partRack + ' on ' + (typeof prodLineName === 'function' ? prodLineName(out.line) : out.line);
+      if (pr.partNumber) {
+        e.partNumber = pr.partNumber; e.partSrc = 'rack'; e.partRack = ruled.partRack;
+        e.issues.push(pr.written
+          ? { tone: 'amber', code: 'part', text: 'The page writes ' + pr.written + ';' + where + ' is ' + pr.partNumber + (pr.name ? ' (' + pr.name + ')' : '') + ' by the owner’s rule. Read by the rule: check the page.' }
+          : { tone: 'info', code: 'part', text: 'Read as ' + pr.partNumber + (pr.name ? ' (' + pr.name + ')' : '') + ':' + where + ' is that part (the owner’s rule).' });
+      } else e.issues.push({ tone: 'amber', code: 'part', text: where.trim().replace(/^a/, 'A') + ' is ' + pr.rulePn + ' by the owner’s rule, but the page writes ' + pr.written + ': kept as written.' });
+    }
     if (e.clientId == null) e.issues.push({ tone: 'red', code: 'client', text: first.cust ? '"' + first.cust + '" is not a client in the book. Pick the client, or keep it as written.' : 'No customer written. Pick the client.' });
     else if (it.clientHow === 'read-as') e.issues.push({ tone: 'amber', code: 'readas', text: '"' + first.cust + '" read as ' + it.clientName + '.' });
+    // A code two of the client's parts end in, or a group of codes in one figure ("(0106+3313)"): matched with the client's
+    // recent challans, then with the rounds each part has been plated at (owner, 30 Sep 2026).
+    if (!e.partNumber && e.clientId != null && ctx.resolvePart) {
+      var rack = Math.max.apply(null, [0].concat(run.rows.map(function(x) { return x.rackSize || (!x.batch && x.qty > 0 ? x.qty : 0); })));
+      var rs = ctx.resolvePart(e, rack || null);
+      if (rs && rs.partNumber) { e.partNumber = rs.partNumber; e.partSrc = rs.how; e.issues.push({ tone: 'info', code: 'part', text: 'Read as ' + rs.partNumber + ': ' + rs.why + '.' }); }
+      else if (rs && rs.split) { e.split = rs.split; e.splitBy = rs.by; }
+      else if (rs && rs.why) e.issues.push({ tone: 'amber', code: 'part', text: rs.why });
+    }
     return e;
   });
+  // A figure covering two parts is shared between them by their open challans: an estimate, and said so.
+  out.runs = [].concat.apply([], out.runs.map(function(e) {
+    if (!e.split) return [e];
+    var parts = e.split, sum = parts.reduce(function(a, x) { return a + x.open; }, 0), left = e.qty || 0;
+    var by = e.splitBy || 'the challans';
+    delete e.split; delete e.splitBy;
+    var text = (e.qty || 0) + ' of ' + e.part + ' shared by ' + by + ': ';
+    var shares = parts.map(function(x, j) {
+      var q = j === parts.length - 1 ? left : Math.round((e.qty || 0) * x.open / sum);
+      left -= q;
+      return q;
+    });
+    text += parts.map(function(x, j) { return shares[j] + ' of ' + x.partNumber; }).join(', ') + ' (an estimate).';
+    return parts.map(function(x, j) {
+      var o = {};
+      Object.keys(e).forEach(function(k) { o[k] = e[k]; });
+      o.partNumber = x.partNumber; o.partSrc = 'challan'; o.qty = shares[j]; o.qtySrc = 'split';
+      o.rounds = (e.rounds || []).map(function(r) { var c = {}; Object.keys(r).forEach(function(k) { c[k] = r[k]; }); if (c.qty != null && e.qty) c.qty = Math.round(c.qty * shares[j] / e.qty); return c; });
+      o.issues = e.issues.concat([{ tone: 'info', code: 'part', text: text }]);
+      return o;
+    });
+  }));
   var counted = out.rows.filter(function(x) { return x.counted && x.qty != null; }).reduce(function(s, x) { return s + x.qty; }, 0);
   out.counted = counted;
   if (out.dayTotal != null && Math.abs(out.dayTotal - counted) > 0.5) out.issues.push({ tone: 'amber', code: 'total', text: 'The page’s day total is ' + out.dayTotal + '; the rows counted add to ' + counted + '. A row may be missed or misread.' });

@@ -260,7 +260,7 @@ function prodRunRowHtml(e, muted) {
 function prodEntriesHtml() {
   var idx = prodIndex(), f = _prodFilter, from = isoAddDays(localDateStr(), -60);
   var chips = [['', 'All'], ['pickled', 'Pickled'], ['plated', 'Plated'], ['arrived', 'Arrived'], ['downtime', 'Power cuts']];
-  var flags = [['unknown', 'Line unknown'], ['noclient', 'No client'], ['nochallan', 'No challan']];
+  var flags = [['unknown', 'Line unknown'], ['noclient', 'No client'], ['nochallan', 'No challan'], ['gauge', 'Gauge unknown']];
   var h = '<div class="inv-toolbar" role="group" aria-label="Show">' + chips.map(function(c) {
     return '<button class="inv-chip" data-action="invProdFilter" data-kind="' + c[0] + '" aria-pressed="' + (f.kind === c[0] && !f.flag) + '">' + c[1] + '</button>';
   }).join('') + flags.map(function(c) {
@@ -272,6 +272,7 @@ function prodEntriesHtml() {
     if (f.flag === 'unknown') return e.kind === 'pickled' && !e.voidedAt && prodLoadLine(e).how === 'unknown';
     if (f.flag === 'noclient') return e.clientId == null && e.kind !== 'downtime';
     if (f.flag === 'nochallan') return e.clientId != null && prodLoadNoChallan(e, idx);
+    if (f.flag === 'gauge') return prodGaugeFlagged(e);
     return !f.kind || e.kind === f.kind;
   }).sort(function(a, b) { return a.date < b.date ? 1 : a.date > b.date ? -1 : String(b.time || '').localeCompare(String(a.time || '')); });
   h += '<div class="inv-panel inv-panel-flush" id="prodEntries"><div class="inv-panel-head"><span class="inv-panel-title">Entries, 60 days</span><span class="inv-panel-count">' + list.length + '</span></div>';
@@ -290,15 +291,101 @@ function prodEntryRowHtml(e, idx) {
   var meta = [kindWord, e.time ? e.time + (e.to ? '–' + e.to : '') : '', e.kind === 'plated' ? prodLineName(e.line) : line ? (line.line ? prodLineName(line.line) + (line.how === 'plating' ? ' (from plating)' : '') : line.how === 'split' ? 'split' : 'line unknown') : '',
     prodSrcWord(e), e.rework ? 'rework' : '', idx.replaced[e.id] ? 'corrected' : '', e.kind === 'plated' && !idx.countedSet[e.id] && !e.voidedAt && !idx.replaced[e.id] ? 'also reported' : ''].filter(Boolean).join(' · ');
   var title = e.kind === 'downtime' ? (e.downtime && e.downtime.open ? 'Power cut, no time back' : 'Power cut') : prodEntryTitle(e);
+  // What the floor name was matched to, the gauges a round's size allows, and a name no challan part answers to.
+  var alias = e.kind !== 'downtime' && e.clientId != null ? prodAliasShown(e) : null;
+  if (alias && alias.pn) meta += ' · = ' + alias.pn + (alias.how === 'rack' && e.partRack ? ' by the round of ' + e.partRack : '');
+  if (e.gaugeOptions && !e.gauge) meta += ' · ' + e.gaugeOptions.join(' or ') + ' by the round';
+  if (prodGaugeFlagged(e)) meta += ' · gauge unknown: a round of ' + e.gaugeUnknown;
+  else if (e.gaugeUnknown && e.gaugeSrc === 'set') meta += ' · gauge set (a round of ' + e.gaugeUnknown + ')';
+  if (e.qtySrc === 'split') meta += ' · shared by the challans (estimate)';
+  var crew = (e.kind === 'plated' || e.kind === 'pickled') && !e.voidedAt ? prodCrew(e) : null;
   var h = '<div class="inv-row inv-row-2 inv-row-flow' + (e.voidedAt ? ' inv-row-muted' : '') + '" data-prod-entry="' + escHtml(e.id) + '"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(title) + '</span>' +
-    '<span class="inv-row-meta">' + escHtml(meta + (e.voidedAt ? ' · void: ' + (e.voidReason || '') : '')) + '</span></span><span class="inv-row-end">' +
+    '<span class="inv-row-meta">' + escHtml(meta + (e.voidedAt ? ' · void: ' + (e.voidReason || '') : '')) + '</span>' +
+    (crew ? '<span class="inv-row-meta inv-row-wrap" data-prod-crew>' + escHtml(crew.known ? (crew.src === 'block' ? 'OT crew: ' : 'Crew: ') + crew.names.join(', ') : 'Crew not known: ' + crew.why) + '</span>' : '') +
+    '</span><span class="inv-row-end">' +
     (e.kind !== 'downtime' ? '<span class="inv-num">' + escHtml(prodQtyText(e.qty, e.unit)) + '</span>' : '');
   if (!e.voidedAt) {
     if (line && line.how === 'unknown' && line.hint) h += '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invProdUseLine" data-id="' + escHtml(e.id) + '" data-line="' + line.hint.line + '">Use ' + escHtml(prodLineName(line.hint.line)) + '</button>';
+    if (alias && !alias.pn && !alias.generic) h += '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invProdAlias" data-id="' + escHtml(e.id) + '">Which part?</button>';
+    if (prodGaugeFlagged(e)) h += '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invProdGauge" data-id="' + escHtml(e.id) + '">Pick gauge</button>';
     if (e.kind !== 'downtime' && !idx.replaced[e.id]) h += '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invProdCorrect" data-id="' + escHtml(e.id) + '">Correct</button>';
     h += '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invProdVoid" data-id="' + escHtml(e.id) + '">Void</button>';
   }
   return h + '</span></div>';
+}
+
+/* The part a floor entry is, as matched: learnt from its name, its own part number, or a challan part of the same key.
+   `generic` is a name of a kind only ("CLAMP"): matched at the family level, never asked about. */
+var _prodKeysMemo = null;
+function prodChallanKeySet() {
+  var sig = _prodVer + '|' + (S.incomingMaterial || []).length + '|' + (S.invoices || []).length;
+  if (_prodKeysMemo && _prodKeysMemo.sig === sig) return _prodKeysMemo.set;
+  var set = {};
+  (S.incomingMaterial || []).forEach(function(m) { (m.items || []).forEach(function(it) { set[prodChallanKey(m, it)] = it.partNumber || it.desc; }); });
+  _prodKeysMemo = { sig: sig, set: set };
+  return set;
+}
+function prodAliasShown(e) {
+  if (e.partNumber) return { pn: e.partNumber, how: e.partSrc };
+  var learnt = prodData().learn.parts[prodKey(e.clientId, e.part, e.gauge)];
+  if (learnt && learnt.partNumber) return { pn: learnt.partNumber, how: learnt.how };
+  var k = prodEntryKey(e), set = prodChallanKeySet();
+  if (set[k]) return { pn: null, matched: true, generic: true };
+  return { pn: null, generic: prodIsGeneric(e.part) };
+}
+/* Which part a floor name is: the client's parts, those ending in the code written first, then those carrying the name. */
+function prodAliasOpen(id) {
+  var e = prodIndex().byId[id];
+  if (!e || e.clientId == null) return;
+  var c = prodAliasCandidates(e.clientId, e.part), seen = {};
+  var opt = function(x, tag) { if (seen[x.partNumber]) return ''; seen[x.partNumber] = 1; return '<option value="' + escHtml(x.partNumber) + '">' + escHtml(x.partNumber + (x.desc && x.desc !== x.partNumber ? ' · ' + x.desc : '') + ' · ' + x.n + '×' + (tag ? ' · ' + tag : '')) + '</option>'; };
+  var h = '<div class="inv-dialog" role="dialog" aria-modal="true" aria-labelledby="prodAliasT" data-prod-alias="' + escHtml(id) + '">' +
+    dialogHeadHtml('<span id="prodAliasT">Which part is &ldquo;' + escHtml(e.part) + '&rdquo;?</span>') +
+    '<div class="inv-dialog-body"><div class="inv-note inv-mb-8">' + escHtml(prodClientName(e.clientId)) + '. Every entry under this name, from now on too, is read as the part picked.</div>' +
+    '<label class="inv-field"><span class="inv-field-label">Part</span><select class="inv-select" id="prodAliasPick"><option value="">Pick the part</option>' +
+    (c.byCode.length ? '<optgroup label="Ending in ' + escHtml(c.code) + '">' + c.byCode.map(function(x) { return opt(x, ''); }).join('') + '</optgroup>' : '') +
+    (c.byWord.length ? '<optgroup label="Named like it">' + c.byWord.map(function(x) { return opt(x, ''); }).join('') + '</optgroup>' : '') +
+    '<optgroup label="All of the client’s parts">' + c.all.map(function(x) { return opt(x, ''); }).join('') + '</optgroup></select></label></div>' +
+    '<div class="inv-dialog-foot"><button class="inv-btn inv-btn-secondary" data-action="invCloseOverlay">Cancel</button><button class="inv-btn inv-btn-primary" data-action="invProdAliasSave" data-id="' + escHtml(id) + '">Save</button></div></div>';
+  dialogOpen(h);
+}
+function prodAliasSave(id) {
+  var e = prodIndex().byId[id], sel = document.getElementById('prodAliasPick');
+  if (!e || !sel) return;
+  if (!sel.value) { showToast('Pick the part', 'error'); return; }
+  prodLearnAlias(e.clientId, e.part, e.gauge, sel.value, 'set');
+  saveState();
+  closeOverlay();
+  renderProduction();
+  showToast('“' + e.part + '” is read as ' + sel.value + ' from now on');
+}
+
+/* A run whose round no gauge rule names: its gauge picked from the client's rules and challans for that kind of part. */
+function prodGaugeOpen(id) {
+  var e = prodIndex().byId[id];
+  if (!e) return;
+  var ch = prodGaugeChoices(e);
+  var h = '<div class="inv-dialog" role="dialog" aria-modal="true" aria-labelledby="prodGaugeT" data-prod-gauge="' + escHtml(id) + '">' +
+    dialogHeadHtml('<span id="prodGaugeT">Gauge of ' + escHtml(e.part) + '</span>') +
+    '<div class="inv-dialog-body"><div class="inv-note inv-mb-8">' + escHtml(prodEntryTitle(e) + ' · ' + formatDate(e.date) + (e.time ? ' ' + e.time : '') + ' · a round of ' + e.gaugeUnknown + ', which no gauge rule names.') + '</div>' +
+    '<label class="inv-field"><span class="inv-field-label">Gauge</span><select class="inv-select" id="prodGaugePick"><option value="">Pick the gauge</option>' +
+    ch.map(function(g) { return '<option value="' + escHtml(g) + '">' + escHtml(g) + '</option>'; }).join('') + '</select></label>' +
+    '<label class="inv-field"><span class="inv-field-label">Or type it</span><input class="inv-input" id="prodGaugeTyped" placeholder="40X6"></label></div>' +
+    '<div class="inv-dialog-foot"><button class="inv-btn inv-btn-secondary" data-action="invCloseOverlay">Cancel</button><button class="inv-btn inv-btn-primary" data-action="invProdGaugeSave" data-id="' + escHtml(id) + '">Save</button></div></div>';
+  dialogOpen(h);
+}
+function prodGaugeSave(id) {
+  var e = prodIndex().byId[id], sel = document.getElementById('prodGaugePick'), typed = document.getElementById('prodGaugeTyped');
+  if (!e) return;
+  var raw = String((typed && typed.value.trim()) || (sel && sel.value) || '').toUpperCase().replace(/[×✕*\s]/g, 'X').replace(/X+/g, 'X');
+  var g = lineGauge(raw);
+  if (!g) { showToast('Pick a gauge, or type one like 40X6', 'error'); return; }
+  e.gauge = g; e.gaugeSrc = 'set'; e.setAt = Date.now(); e.setBy = stockBy();
+  prodTouch();
+  saveState();
+  closeOverlay();
+  renderProduction();
+  showToast('Gauge ' + g + ' set on the run');
 }
 
 /* ---------- Paste and review ---------- */
@@ -593,6 +680,7 @@ function prodSavePhoto() {
       clientId: cc !== undefined ? (cc === 'asWritten' ? null : cc) : e.clientId, photoId: id, by: by, at: at });
     delete rec.rows; delete rec.issues; delete rec.clientName;
     if (cc !== undefined && cc !== 'asWritten' && e.client) p.learn.clients[relayKey(e.client)] = cc;
+    prodLearnAliases([rec]);
     p.entries.push(prodSparse(rec));
     n++;
   });
@@ -676,6 +764,8 @@ function prodSaveHand() {
     e.clientId = prodHeldId(f.clientId); e.client = prodClientName(e.clientId); e.part = f.part.trim(); e.gauge = prodGaugeOf(e.part, e.part);
     e.qty = isNaN(q) ? null : q; e.unit = f.unit; e.rework = !!f.rework;
     if (f.kind === 'plated') { e.line = f.line || null; e.lineSrc = f.line ? 'set' : null; e.slot = f.slot === 'ot' || f.slot === 'day' ? f.slot : 'general'; }
+    // A name with a code ("Assy Bracket 3302") is matched to the client's part as a register's is.
+    if (e.clientId != null) prodLearnAliases([e]);
   }
   p.entries.push(prodSparse(e));
   prodTouch();
@@ -766,6 +856,10 @@ function prodAction(action, btn) {
     case 'invProdHandKind': _prodHand.kind = btn.dataset.kind; renderProduction(); return true;
     case 'invProdSaveHand': prodSaveHand(); return true;
     case 'invProdHandDone': prodHandDone(); return true;
+    case 'invProdAlias': prodAliasOpen(btn.dataset.id); return true;
+    case 'invProdGauge': prodGaugeOpen(btn.dataset.id); return true;
+    case 'invProdGaugeSave': prodGaugeSave(btn.dataset.id); return true;
+    case 'invProdAliasSave': prodAliasSave(btn.dataset.id); return true;
     case 'invProdVoid': prodVoid(btn.dataset.id); return true;
     case 'invProdUseLine': prodUseLine(btn.dataset.id, btn.dataset.line); return true;
     case 'invProdExport': prodExport(); return true;

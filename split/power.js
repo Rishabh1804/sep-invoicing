@@ -379,7 +379,7 @@ function powerCutsHtml(a) {
       var when = powerClock(c.from) + ' – ' + (c.to != null ? powerClock(c.to) + (c.overnight ? ' next day' : '') : 'not back');
       var tone = c.open ? 'warning' : k.inside ? 'danger' : 'neutral';
       return '<div class="inv-row inv-row-2" data-power-cut="' + escHtml(c.date + '|' + c.from) + '"><span class="inv-row-main"><span class="inv-row-title">' +
-        escHtml(formatDate(c.date) + ' · ' + when) + '</span><span class="inv-row-meta">' +
+        escHtml(formatDate(c.date) + ' · ' + when) + '</span><span class="inv-row-meta inv-row-wrap">' +
         escHtml([powerDur(c.min), k.inside ? powerDur(k.inside) + ' in working hours' + (k.ot ? ', ' + powerDur(k.ot) + ' of it overtime' : '') : 'outside working hours', lay.join(' · '), c.reports > 1 ? c.reports + ' reports' : ''].filter(Boolean).join(' · ')) +
         '</span></span><span class="inv-row-end"><span class="inv-num">' + formatCurrency(k.total) + '</span><span class="inv-dot inv-dot-' + tone + '">' + (c.open ? 'No time back' : k.inside ? 'Working hours' : 'Off hours') + '</span></span></div>';
     });

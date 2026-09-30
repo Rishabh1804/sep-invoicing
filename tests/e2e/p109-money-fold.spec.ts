@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
 import fs from 'fs';
 import path from 'path';
-import { emptyState, loadAppWithState, noSeedIM, openSettingsAt, openStatsTab, readStoredState, recentTs, switchTab, todayIso, type SepState } from './fixtures';
+import { answerAsk, emptyState, loadAppWithState, noSeedIM, openSettingsAt, openStatsTab, readStoredState, recentTs, switchTab, todayIso, type SepState } from './fixtures';
 
 // P109: the QA sweep over Finance, the bank statement, receivables, payments, the live cost, zinc and bills. Each test
 // pins one finding so it cannot come back. Every date is built from today; names and figures are made up, and the only
@@ -492,6 +492,8 @@ test('BB5: Record an issued note offers a client with no invoice in the book, an
   await page.locator('#cnfInvNo').fill('000321');
   await page.locator('#cnfTaxable').fill('100');
   await page.locator('[data-action="invCnFormSave"]').click();
+  // A 25-26 note dated today is outside its series' year: the save asks first (P123, seriesFyAsk).
+  expect(await answerAsk(page, 'ok')).toContain('25-26');
   const notes = (await readStoredState(page)).creditNotes;
   expect(notes).toHaveLength(1);
   expect(notes[0]).toMatchObject({ clientId: 5, clientName: 'OMEGA WORKS', displayNumber: 'CN/012/25-26', againstInvoice: '000321', recorded: true });

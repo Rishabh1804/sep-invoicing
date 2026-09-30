@@ -242,6 +242,14 @@ function billsCnFormInput(t) {
   return true;
 }
 
+/* A recorded note's financial year however it was typed (2026-27, 2026-2027, 26-27, 26/27) in the series' own form,
+   '26-27' (cnFyShort): compared and stored that way, '2026-27' was a year of its own beside '26-27', so CN/012/2026-27
+   was missed by the duplicate check and the series, and the next new note took CN/012/26-27. Anything else is as typed. */
+function billsCnFy(s) {
+  var t = String(s == null ? '' : s).trim(), m = t.match(/^(\d{2}|\d{4})\s*[-\/]\s*(\d{2}|\d{4})$/);
+  return m ? m[1].slice(-2) + '-' + m[2].slice(-2) : t;
+}
+
 async function billsCnFormSave() {
   var f = _billForm;
   if (!f) return;
@@ -271,9 +279,9 @@ async function billsCnFormSave() {
   if (rec) {
     num = parseInt(f.num, 10);
     if (!(num > 0)) { showToast('Enter the number printed on the note', 'error'); return; }
-    var fy = String(f.fy || '').trim(), cur = cnFyShort();
+    var fy = billsCnFy(f.fy), cur = cnFyShort();
     display = 'CN/' + cnPadNum(num) + (fy ? '/' + fy : '');
-    if (getCreditNotes().some(function(x) { return parseInt(x.cnNumber, 10) === num && (cnNoteFy(x) || cur) === (fy || cur); })) {
+    if (getCreditNotes().some(function(x) { return parseInt(x.cnNumber, 10) === num && (billsCnFy(cnNoteFy(x)) || cur) === (fy || cur); })) {
       showToast(display + ' is already in the series', 'error'); return;
     }
   } else {
@@ -338,7 +346,7 @@ async function billsCnFormSave() {
   if (rec) {
     var keep = _billForm;
     billsCnFormOpen('record');
-    _billForm.clientId = keep.clientId; _billForm.reason = keep.reason; _billForm.fy = keep.fy; _billForm.saved = (keep.saved || 0) + 1;
+    _billForm.clientId = keep.clientId; _billForm.reason = keep.reason; _billForm.fy = billsCnFy(keep.fy); _billForm.saved = (keep.saved || 0) + 1;
   } else _billForm = null;
   renderFinance();
   showToast(cn.displayNumber + (rec ? ' recorded — ' : ' issued — ') + formatCurrency(cn.grandTotal) + (rec ? ' · the form is ready for the next' : ''));

@@ -183,8 +183,10 @@ var SETTINGS_SECS = {
     },
     why: 'Days left is the level over the daily use on record. Set 24 Sep 2026 at 3 and 7 days.',
     save: function() {
+      var r = _sPos('setStkRed'), a = _sPos('setStkAmber'), c = stockCfg();
+      // Amber is the earlier warning: under the red line, a line went red under the OK tile.
+      if ((r || c.redDays) > (a || c.amberDays)) { showToast('Red at ' + (r || c.redDays) + ' days is above amber at ' + (a || c.amberDays) + ': amber must be the same or more', 'error'); return false; }
       if (!S.stockCheck) S.stockCheck = {};
-      var r = _sPos('setStkRed'), a = _sPos('setStkAmber');
       if (r) S.stockCheck.redDays = r;
       if (a) S.stockCheck.amberDays = a;
     }

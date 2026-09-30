@@ -354,7 +354,7 @@ async function stockEditSave(itemId) {
   var unit = unitEl ? unitEl.value : it.unit;
   if (!name) { showToast('A stock line needs a name', 'error'); return; }
   var key = stockKey(name);
-  var clash = stockData().items.find(function(o) { return o.id !== it.id && (o.key === key || (o.aliases || []).indexOf(key) >= 0); });
+  var clash = stockData().items.find(function(o) { return o.id !== it.id && (o.key === key || stockAliases(o).indexOf(key) >= 0); });
   if (clash) { showToast('"' + name + '" is already read as ' + clash.name + '. Pick another name.', 'error'); return; }
   var used = stockData().entries.some(function(e) { return e.itemId === it.id && !e.voided; });
   if (unit !== (it.unit || '') && used && !(await uiConfirm({ title: 'Change the unit from ' + (it.unit || 'not set') + ' to ' + (unit || 'not set') + '?',
@@ -362,7 +362,7 @@ async function stockEditSave(itemId) {
       okLabel: 'Change unit' }))) return;
   if (name !== it.name) {
     var old = stockKey(it.name);
-    it.aliases = (it.aliases || []).slice();
+    it.aliases = stockAliases(it);
     [old, it.key].forEach(function(k) { if (k && k !== key && it.aliases.indexOf(k) < 0) it.aliases.push(k); });
     if (key !== it.key && it.aliases.indexOf(key) < 0) it.aliases.push(key);
     it.name = name;
@@ -387,7 +387,7 @@ function stockEditHtml(item) {
     '<label class="inv-field"><span class="inv-field-label">Unit</span><select class="inv-select" id="stockEditUnit">' +
     '<option value=""' + (!item.unit ? ' selected' : '') + '>not set</option>' +
     units.map(function(u) { return '<option' + (item.unit === u ? ' selected' : '') + '>' + escHtml(u) + '</option>'; }).join('') + '</select></label></div>' +
-    ((item.aliases || []).length ? '<div class="inv-note inv-mb-8">Messages are also read as: ' + item.aliases.map(escHtml).join(', ') + '</div>' : '') +
+    (stockAliases(item).length ? '<div class="inv-note inv-mb-8">Messages are also read as: ' + stockAliases(item).map(escHtml).join(', ') + '</div>' : '') +
     '<button class="inv-btn inv-btn-secondary" data-action="invStockEditSave" data-id="' + escHtml(item.id) + '">Save name and unit</button></div></div>';
 }
 

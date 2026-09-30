@@ -106,7 +106,9 @@ test.describe('P46: prices, purchases and the live cost', () => {
     s.stock.entries.push(
       { id: 'b1', itemId: 'Q', kind: 'bill', qty: 50, price: 300, amount: 15000, date: iso(-50), billDate: iso(-50), supplier: 'Alpha', billNo: 'A1', at: 4, seq: 0 },
       { id: 'z1', itemId: 'Z', kind: 'charged', qty: 10, date: t, at: 5, seq: 2 },
-      { id: 'm1', itemId: 'M', kind: 'used', qty: 2, days: 1, date: t, at: 6, seq: 2 });
+      { id: 'm1', itemId: 'M', kind: 'used', qty: 2, days: 1, date: t, at: 6, seq: 2 },
+      // A use forty days back: the stock record starts with the first use (P125), so the month below is recorded.
+      { id: 'm0', itemId: 'M', kind: 'used', qty: 1, days: 1, date: iso(-40), at: 0, seq: 2 });
     s.zinc = { ratePerKg: 400, premiumPerKg: 20, upliftPct: 10.5, basis: 'manual', updatedAt: Date.now(), source: '' };
     s.costBills = [{ id: 'CB1', kind: 'power', month, amount: 60000, units: 7000, note: 'test', at: 1 }];
     s.staff = [{ id: 1, name: 'Arun', comp: 'hourly', area: 'barrel', hourRate: 50, active: true, onFloor: true }];

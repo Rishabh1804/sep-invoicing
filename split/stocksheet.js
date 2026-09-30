@@ -17,8 +17,8 @@ var _stockSheetDate = '';
 // Active lines in the supervisor's numbering: his last message's first, then the rest after them.
 function stockSheetLines() {
   var items = stockData().items.filter(function(i) { return i.active !== false; });
-  var numbered = items.filter(function(i) { return i.lastPos != null; }).sort(function(a, b) { return a.lastPos - b.lastPos; });
-  var rest = items.filter(function(i) { return i.lastPos == null; });
+  var numbered = items.filter(function(i) { return Number.isInteger(i.lastPos); }).sort(function(a, b) { return a.lastPos - b.lastPos; });
+  var rest = items.filter(function(i) { return !Number.isInteger(i.lastPos); });
   var next = numbered.reduce(function(m, i) { return Math.max(m, i.lastPos); }, 0);
   return numbered.map(function(i) { return { item: i, n: i.lastPos }; })
     .concat(rest.map(function(i) { return { item: i, n: ++next }; }));
@@ -53,10 +53,10 @@ function stockSheetSupHtml(iso, filled) {
         cells[3] = _ssQty(stockReplay(l.item.id, isoAddDays(iso, 1)).level);
       }
     }
-    return '<tr><td class="inv-as-tick">' + l.n + ')</td><td>' + escHtml(l.item.name) + '</td><td>' + escHtml(l.item.unit || '') + '</td>' +
+    return '<tr><td class="inv-as-tick">' + escHtml(String(l.n)) + ')</td><td>' + escHtml(l.item.name) + '</td><td>' + escHtml(l.item.unit || '') + '</td>' +
       cells.map(function(c) { return '<td>' + f(c) + '</td>'; }).join('') + '<td></td></tr>';
   }).join('');
-  for (var k = 1; k <= 3; k++) rows += '<tr><td class="inv-as-tick">' + (next + k) + ')</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>';
+  for (var k = 1; k <= 3; k++) rows += '<tr><td class="inv-as-tick">' + escHtml(String(next + k)) + ')</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>';
   // The window the message covered: the paste that recorded the day, else the day itself.
   var paste = filled ? (stockData().pastes || []).find(function(p) { return p.from && p.to && p.from <= iso && iso <= p.to; }) : null;
   return '<div class="inv-as-page" data-sheet="stock-sup"' + (filled ? ' data-filled' : '') + '>' + _asHead('Chemical use · chemical stock', iso, 'Supervisor') +
@@ -86,7 +86,7 @@ function stockSheetDeepakHtml(iso, filled) {
       if (e.kind === 'received' && e.price != null) add('price', formatNum(e.price, 2));
     });
     var after = filled ? stockReplay(l.item.id, next).level : null;
-    return '<tr><td class="inv-as-tick">' + l.n + '</td><td>' + escHtml(l.item.name) + '</td><td>' + escHtml(l.item.unit || '') + '</td>' +
+    return '<tr><td class="inv-as-tick">' + escHtml(String(l.n)) + '</td><td>' + escHtml(l.item.name) + '</td><td>' + escHtml(l.item.unit || '') + '</td>' +
       '<td>' + escHtml(_ssQty(start)) + '</td><td>' + escHtml(cell.count) + '</td><td>' + escHtml(cell.received) + '</td><td>' + escHtml(cell.price) + '</td>' +
       '<td>' + escHtml(cell.used) + '</td><td>' + escHtml(cell.charged) + '</td>' + (filled ? '<td>' + escHtml(_ssQty(after)) + '</td>' : '') + '</tr>';
   }).join('');

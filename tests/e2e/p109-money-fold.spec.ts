@@ -214,8 +214,8 @@ function zincState(entries: any[], zinc: any) {
   return state({
     zinc,
     stock: { items: [{ id: 'Q', name: 'Q558', key: 'Q558', unit: 'kg', basis: 'draw', aliases: [] }, { id: 'Z', name: 'Zinc', key: 'ZINC', unit: 'kg', basis: 'charge', aliases: [] }],
-      // A count forty days back: the stock record covers every day of the period below.
-      entries: [{ id: 'c1', itemId: 'Q', kind: 'count', qty: 40, date: day(-40), at: 1, seq: 1 }].concat(entries), pastes: [] },
+      // A use forty days back: the stock record (which starts with the first use, P125) covers every day of the period below.
+      entries: [{ id: 'c1', itemId: 'Q', kind: 'used', qty: 4, days: 1, from: day(-40), date: day(-40), at: 1, seq: 2 }].concat(entries), pastes: [] },
   });
 }
 const zincRow = (page: Page) => ev(page, `(function() { var r = liveCost('${day(-3)}', '${todayIso()}', 1000).rows.find(function(x) { return x.key === 'zinc'; });

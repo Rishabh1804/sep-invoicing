@@ -83,6 +83,7 @@ test.describe('P98: the heads a shift needs', () => {
     expect(await unit(page, 'barrel-block')).toEqual({ norm: 5, short: 2 });
     await switchTab(page, 'pageStaff');
     await page.locator('[data-action="invAttView"][data-view="day"]').first().click();
+    await page.locator('[data-fold="attNeed"] > summary').click();   // folded under the board (P119)
     const row = page.locator('[data-need-area="vat-a1"]');
     await expect(row).toContainText('Short 2');
     await row.locator('[data-att-need]').fill('2');

@@ -58,7 +58,7 @@ function payWeek(weekStart) {
   var paid = 0;
   staffPayments().forEach(function(p) {
     if (p.voidedAt || p.date < weekStart || p.date > sat) return;
-    if (payIsWeekly(staffById(p.staffId) || (S.staff || []).find(function(w) { return String(w.id) === String(p.staffId); }))) paid += Number(p.amount) || 0;
+    if (payIsWeekly(staffById(p.staffId))) paid += Number(p.amount) || 0;
   });
   return { start: weekStart, sat: sat, lab: lab, workers: gstRound(workers), extra: lab.extra,
     total: gstRound(workers + lab.extra), paid: gstRound(paid),
@@ -219,14 +219,14 @@ function _payFormHtml(d) {
 
 function _payListHtml(d) {
   var list = staffPayments().filter(function(p) {
-    var w = (S.staff || []).find(function(x) { return String(x.id) === String(p.staffId); });
+    var w = staffById(p.staffId);
     var weekly = payIsWeekly(w);
     return weekly ? (p.date >= d.weekStart && p.date <= d.sat) : (p.date >= d.mFrom && p.date <= d.mTo);
   }).sort(function(a, b) { return a.date < b.date ? 1 : a.date > b.date ? -1 : (b.at || 0) - (a.at || 0); });
   if (!list.length) return '';
   var h = '<div class="inv-row-group">Payments in these periods</div>';
   list.forEach(function(p) {
-    var w = (S.staff || []).find(function(x) { return String(x.id) === String(p.staffId); });
+    var w = staffById(p.staffId);
     h += _payRow(escHtml(w ? w.name : 'Removed worker'),
       escHtml(formatDate(p.date)) + ' · ' + (p.kind === 'advance' ? 'Advance' : 'Payment') +
         (p.note ? ' · ' + escHtml(p.note) : '') + (p.voidedAt ? ' · void: ' + escHtml(p.voidReason || '') : ''),
@@ -288,22 +288,46 @@ function payrollPaidFor(month) {
   var gross = (rec.rows || []).reduce(function(s, r) { return s + (Number(r.dayPay) || 0) + (Number(r.ot) || 0); }, 0);
   return { rec: rec, rows: rec.rows || [], gross: gstRound(gross), source: rec.source || '' };
 }
-function payrollWorker(row) {
+/* A slip row's worker, by NAME the way a roll is read (relayRosterIndex / relayMatchName: the roster name and its
+   bracket or dash variants, a spelling kept on the worker, a first name nobody else shares), never by the id a file
+   carries: ids are per device. Only a sure match moves money; a spelling read only by its fold or one letter off is
+   offered on the card as a guess (payrollMatch) and not used. The index is kept while the roster's names stand. */
+var _payrollIdx = null, _payrollIdxSig = '';
+function payrollRosterIndex() {
   var staff = S.staff || [];
-  if (row.staffId != null) {
-    var byId = staff.find(function(w) { return String(w.id) === String(row.staffId); });
-    if (byId) return byId;
-  }
-  var k = relayKey(row.name || '');
-  if (!k) return null;
-  return staff.find(function(w) {
-    return relayKey(w.name) === k || (w.relayNames || []).some(function(n) { return relayKey(n) === k; });
-  }) || null;
+  var sig = staff.map(function(w) { return w.id + ':' + w.name + ':' + (w.relayNames || []).join('|') + ':' + (w.aliases || []).join('|'); }).join(',');
+  if (!_payrollIdx || sig !== _payrollIdxSig) { _payrollIdx = relayRosterIndex(staff); _payrollIdxSig = sig; }
+  return _payrollIdx;
 }
+function payrollMatch(row) {
+  var name = String((row && row.name) || '').trim();
+  if (!relayKey(name)) return null;
+  var idx = payrollRosterIndex(), whole = idx.byKey[relayKey(name)];
+  if (whole) return { w: whole, sure: true };
+  if (relayKey(name) in idx.byKey) return null;    // a name two workers share: neither
+  var words = name.split(/[\s\-–,]+/).filter(Boolean), m = relayMatchName(words, idx, false);
+  // On a roll the words after a name are the rest of the line; on a slip the field is all name, so a first name that
+  // leaves words unexplained ("Ramu Kumar" for the roster's Ramu Singh) is a guess, not a match.
+  return m && m.w ? { w: m.w, sure: !!m.sure && m.used >= words.length } : null;
+}
+function payrollWorker(row) {
+  var m = payrollMatch(row);
+  return m && m.sure ? m.w : null;
+}
+/* A slip's rows by the worker each names, worked out once (the wage check reads it per worker). */
+function payrollRowsByWorker(rows) {
+  var out = {};
+  (rows || []).forEach(function(r) { var w = payrollWorker(r); if (w && !out[w.id]) out[w.id] = r; });
+  return out;
+}
+/* Everything that makes one slip differ from another: each row's name as a roll reads it and every figure on it, the
+   amount actually paid and its note, and the month's status and source. Name, day pay and OT alone let a corrected
+   slip (a changed paid figure, a row's owed note) read as the one already on record and be skipped. */
 function _payrollFingerprint(m) {
-  return JSON.stringify((m.rows || []).map(function(r) {
-    return [String(r.name || '').toUpperCase(), gstRound(Number(r.dayPay) || 0), gstRound(Number(r.ot) || 0)];
-  }).sort());
+  var n = function(v) { return v == null || v === '' ? null : gstRound(Number(v) || 0); };
+  return JSON.stringify([m.status || 'paid', String(m.source || ''), String(m.note || ''), (m.rows || []).map(function(r) {
+    return [relayKey(r.name), n(r.rate), n(r.worked), n(r.restDays), n(r.dayPay), n(r.otHours), n(r.ot), n(r.paid), String(r.note || '')];
+  }).sort()]);
 }
 /* Merge an import file. A month already on record with the same figures is
    skipped; one with different figures supersedes it, and the old record is
@@ -320,7 +344,7 @@ function payrollPaidImport(data) {
         dayPay: gstRound(Number(r.dayPay) || 0), otHours: Number(r.otHours) || 0, ot: gstRound(Number(r.ot) || 0),
         paid: r.paid != null ? gstRound(Number(r.paid) || 0) : null, note: String(r.note || '') };
     });
-    var fp = _payrollFingerprint({ rows: rows });
+    var fp = _payrollFingerprint({ rows: rows, status: m.status === 'computed' ? 'computed' : 'paid', source: m.source, note: m.note });
     var live = payrollPaidRecords().filter(function(r) { return !r.voidedAt && r.month === m.month; });
     if (live.some(function(r) { return _payrollFingerprint(r) === fp; })) { out.same++; return; }
     live.forEach(function(r) {
@@ -386,7 +410,12 @@ function _payrollPaidCard() {
   recs.forEach(function(r) {
     var gross = r.rows.reduce(function(s, x) { return s + (Number(x.dayPay) || 0) + (Number(x.ot) || 0); }, 0);
     var otH = r.rows.reduce(function(s, x) { return s + (Number(x.otHours) || 0); }, 0);
-    var unmatched = r.rows.filter(function(x) { return !payrollWorker(x); }).map(function(x) { return x.name; });
+    // A name the roster does not hold is said, with the roll reader's guess where it has one: the guess moves no money
+    // until the spelling is kept on the worker.
+    var unmatched = r.rows.filter(function(x) { return !payrollWorker(x); }).map(function(x) {
+      var m = payrollMatch(x);
+      return x.name + (m ? ' (read as ' + m.w.name + '? keep the spelling on the worker to use it)' : '');
+    });
     h += _payRow(escHtml(_monthLabel(r.month)),
       r.rows.length + ' hand' + (r.rows.length === 1 ? '' : 's') +
         (otH ? ' · OT ' + formatNum(otH, 1) + ' h' : '') + (r.status === 'computed' ? ' · computed, not confirmed paid' : ' · as paid') +
@@ -413,7 +442,7 @@ function payPick(id, due) {
 }
 function paySave() {
   var id = (document.getElementById('payWorker') || {}).value;
-  var w = (S.staff || []).find(function(x) { return String(x.id) === String(id); });
+  var w = staffById(id);
   var amount = gstRound(parseFloat((document.getElementById('payAmount') || {}).value) || 0);
   var date = (document.getElementById('payDate') || {}).value;
   if (!w) { showToast('Pick a worker', 'error'); return; }
@@ -466,7 +495,7 @@ function areaHoursForRange(from, to) {
     Object.keys(rec.marks || {}).forEach(function(id) {
       var m = rec.marks[id];
       if (!m || (m.st !== 'P' && m.st !== 'H')) return;
-      var w = (S.staff || []).find(function(x) { return String(x.id) === String(id); });
+      var w = staffById(id);
       var a = get(m.area || (w && w.area) || 'flex');
       var hrs = m.hours > 0 ? m.hours : (m.st === 'H' ? 4 : 8);
       if (!(m.hours > 0)) { a.assumed++; assumed++; }

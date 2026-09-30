@@ -176,3 +176,54 @@ test.describe('P107: attendance rolls', () => {
     expect(await g(page, `Object.keys(relayLearnData().heads)`)).toEqual(['VAT A 1 @ out 20:00']);
   });
 });
+
+function ym(k: number): string {
+  const d = new Date(todayIso().slice(0, 7) + '-01T00:00:00');
+  d.setMonth(d.getMonth() + k);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+}
+
+test.describe('P107: the monthly payroll as paid', () => {
+  const PAYSTAFF = [
+    { id: 1, name: 'Ramu Singh', comp: 'monthly', area: 'vat-a1', dayRate: 500, active: true, onFloor: true },
+    { id: 5, name: 'Sarat Mahato', comp: 'monthly', area: 'vat-a2', dayRate: 450, active: true, onFloor: true },
+  ];
+
+  test('W2: a slip row is matched by name like a roll (a unique first name), never by the id the file carries', async ({ page }) => {
+    const m = ym(-2);
+    const bankRows = [
+      { id: 'R1', date: ym(-3) + '-01', valueDate: ym(-3) + '-01', narration: 'SMS CHARGES', chq: '', dr: 1, cr: 0, balance: 90000, dayIdx: 0 },
+      { id: 'R2', date: ym(-1) + '-14', valueDate: ym(-1) + '-14', narration: 'NEFT-SARAT M', chq: '', dr: 9500, cr: 0, balance: 80000, dayIdx: 0, set: { cat: 'wages', staffId: 5 } },
+      { id: 'R3', date: iso(-1), valueDate: iso(-1), narration: 'SMS CHARGES', chq: '', dr: 1, cr: 0, balance: 79999, dayIdx: 0 }];
+    await load(page, {
+      staff: PAYSTAFF,
+      // The file's staffId names Ramu; the row is Sarat's. And "Ramu Kumar" is not Ramu Singh, whatever the first name.
+      payrollPaid: [{ id: 'PP1', month: m, status: 'paid', at: 1, rows: [
+        { name: 'Sarat', staffId: 1, dayPay: 9000, ot: 0, worked: 20 },
+        { name: 'Ramu Kumar', dayPay: 7000, ot: 0, worked: 14 }] }],
+      bank: { rows: bankRows, imports: [{ id: 'BI', at: 1, file: 't.xls', account: '', from: bankRows[0].date, to: bankRows[2].date, rows: 3, added: 3, closing: 79999 }], parties: {}, opening: {}, gstNotes: {} },
+    });
+    const who = await g(page, `S.payrollPaid[0].rows.map(function(r){ var w = payrollWorker(r); return w ? w.name : null; })`);
+    expect(who).toEqual(['Sarat Mahato', null]);
+    const lab = await g(page, `(function(){ var l = labourForRange('${m}-01', payMonthEnd('${m}-01')); return [l.byWorker[5].total, l.byWorker[5].asPaid, l.byWorker[1] ? !!l.byWorker[1].asPaid : false]; })()`);
+    expect(lab).toEqual([9000, true, false]);
+    // The wage check reads the slip the same way: Sarat was paid 9,500 against a slip of 9,000.
+    const t = await g(page, `TODO_RULE_FNS.wageVsSlip().map(function(x){ return x.sub; })`);
+    expect(t).toEqual(['Sarat Mahato over ₹500.00']);
+    await switchTab(page, 'pageStaff');
+    await page.locator('[data-action="invAttView"][data-view="pay"]').click();
+    await expect(page.locator('#payrollPaid')).toContainText('not on the roster: Ramu Kumar (read as Ramu Singh?');
+  });
+
+  test('W17: a re-import that changes only what was actually paid supersedes the record', async ({ page }) => {
+    await load(page, { staff: PAYSTAFF });
+    const file: any = { kind: 'sep-payroll-paid', months: [{ month: ym(-2), status: 'paid', source: 'slip', rows: [
+      { name: 'Sarat Mahato', worked: 20, dayPay: 9000, ot: 0, paid: 9000 }] }] };
+    expect(await g(page, `payrollPaidImport(${JSON.stringify(file)}).added`)).toBe(1);
+    expect(await g(page, `payrollPaidImport(${JSON.stringify(file)}).same`)).toBe(1);
+    file.months[0].rows[0].paid = 8520.97;
+    file.months[0].rows[0].note = '₹479.03 still owed';
+    expect(await g(page, `payrollPaidImport(${JSON.stringify(file)}).superseded`)).toBe(1);
+    expect(await g(page, `S.payrollPaid.filter(function(r){ return !r.voidedAt; })[0].rows[0].paid`)).toBe(8520.97);
+  });
+});

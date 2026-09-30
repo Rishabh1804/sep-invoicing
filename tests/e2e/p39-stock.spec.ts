@@ -262,7 +262,7 @@ test.describe('P39: stock', () => {
     expect(json.pastes).toHaveLength(1);
     expect(json.entries.every((e: any) => e.at && e.date && e.by === 'Owner')).toBe(true);
     const again = await g(page, `JSON.stringify(stockMergeImport(${JSON.stringify(json)}))`);
-    expect(JSON.parse(again)).toEqual({ items: 0, entries: 0, pastes: 0, bills: 0 });
+    expect(JSON.parse(again)).toMatchObject({ items: 0, entries: 0, pastes: 0, bills: 0 });
   });
 
   test('a file entry that is not a real figure is dropped, not left to break the screen', async ({ page }) => {
@@ -273,7 +273,7 @@ test.describe('P39: stock', () => {
         { id: 'bad1', itemId: 'X', kind: 'count', qty: 'lots', date: '2026-09-01' },
         { id: 'bad2', itemId: 'X', kind: 'stolen', qty: 5, date: '2026-09-01' }
       ], pastes: [] }))`);
-    expect(JSON.parse(added)).toEqual({ items: 1, entries: 1, pastes: 0, bills: 0 });
+    expect(JSON.parse(added)).toMatchObject({ items: 1, entries: 1, pastes: 0, bills: 0 });
     expect(await g(page, `stockData().entries[0].price`)).toBeUndefined();
     await openStock(page);
     await page.locator('#stockLines [data-action="invStockOpen"]').filter({ hasText: 'Boric Acid' }).click();

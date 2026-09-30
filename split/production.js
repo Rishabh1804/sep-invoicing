@@ -99,16 +99,32 @@ function prodKg(e) {
    Items Master where the part number is held by one gauge. Null when unknown, never a guess. */
 function prodKgPerPiece(clientId, date, part, desc) {
   if (clientId == null || !part) return null;
+  // Keyed as prodKey is: the part without its gauge text, and the gauge on its own. The floor writes the gauge into
+  // the part ("CLAMP133×83(35×6)") and the card, the part weights and the Items Master hold the part without it, so
+  // the whole text found no weight anywhere.
+  var pk = prodPartKey(part), g = prodGaugeOf(part, desc);
+  if (!pk) return null;
   var client = (S.clients || []).find(function(c) { return String(c.id) === String(clientId); });
-  var pw = client ? getPieceWeight(client, date, part, desc) : null;
+  var card = ((client && client.pieceWeights) || []).find(function(r) { return prodPartKey(r.partNumber) === pk; });
+  var pw = card ? getPieceWeight(client, date, card.partNumber, g ? '(' + g + ')' : '') : null;
   if (pw && pw.kg) return { kg: pw.kg, src: 'client card' };
-  var pk = String(part).toUpperCase();
-  if (S.partWeights && S.partWeights[pk]) return { kg: S.partWeights[pk], src: 'part weights' };
-  var rows = (S.items || []).filter(function(i) { return rateKey(i.partNumber) === rateKey(part); });
-  var gauges = {};
-  rows.forEach(function(i) { gauges[rateKey(i.gauge || '')] = true; });
-  if (rows.length && Object.keys(gauges).length === 1 && rows[0].stdWeightKg) return { kg: rows[0].stdWeightKg, src: 'items' };
-  return null;
+  var gOf = function(s) { return lineGauge(String(s || '').replace(/[×✕]/g, 'X')); };
+  var pwt = prodByGauge(Object.keys(S.partWeights || {}).filter(function(k) { return S.partWeights[k] > 0 && prodPartKey(k) === pk; })
+    .map(function(k) { return { g: gOf(k), kg: S.partWeights[k] }; }), g);
+  if (pwt) return { kg: pwt.kg, src: 'part weights' };
+  var it = prodByGauge((S.items || []).filter(function(i) { return prodPartKey(i.partNumber) === pk; })
+    .map(function(i) { return { g: rateKey(i.gauge || '') || gOf(i.partNumber), kg: i.stdWeightKg }; }), g);
+  return it && it.kg ? { kg: it.kg, src: 'items' } : null;
+}
+/* One weight among a part's rows by the card's gauge rule (cardLookup): the rows at the line's gauge, else those with
+   none written; a line with no gauge takes a part held by one gauge. Two gauges left is unknown, never averaged. */
+function prodByGauge(list, g) {
+  var pool = g ? list.filter(function(x) { return x.g === g; }) : [];
+  if (!pool.length) pool = list.filter(function(x) { return !x.g; });
+  if (!pool.length && !g) pool = list;
+  var gs = {};
+  pool.forEach(function(x) { gs[x.g] = true; });
+  return pool.length && Object.keys(gs).length === 1 ? pool[0] : null;
 }
 
 /* ---------- The index (derived on read, never stored) ---------- */
@@ -261,8 +277,8 @@ function prodMatchAll(idx) {
       pool.forEach(function(p) {
         if (used[p.id]) return;
         if (load.qty != null && load.unit === p.unit && sum >= load.qty) return;
-        var sameDay = p.date === load.date && (!p.time || !load.time || prodMin(p.time) >= prodMin(load.time) - 30);
-        var nextDay = p.date === nextWd && (!p.time || prodMin(p.time) < 720);
+        var sameDay = p.date === load.date && (!p.time || !load.time || relayParseHhmm(p.time) >= relayParseHhmm(load.time) - 30);
+        var nextDay = p.date === nextWd && (!p.time || relayParseHhmm(p.time) < 720);
         if (!sameDay && !nextDay) return;
         if (load.qty == null && next && cmp(p, next) >= 0 && (next.date === p.date)) return;
         got.push(p); used[p.id] = true;
@@ -297,8 +313,11 @@ function prodLoadLine(e) {
    within ten minutes of it (the earliest cut, the latest return); two cuts in one source are two cuts, however close
    (25 Sep's log: 11:16–11:21 and 11:26–12:00). So a cut is never counted twice, and never merged away. */
 function prodDowntimeDay(date) {
-  var list = prodIndex().live.filter(function(e) { return e.kind === 'downtime' && e.date === date && prodMin(e.time) != null; })
-    .map(function(e) { return { from: prodMin(e.time), to: prodMin(e.to), ids: [e.id], srcs: [e.photoId || e.pasteId || e.importId || e.id] }; })
+  // The source is the log or message a cut was read from. An imported entry keeps its own photo or message where the
+  // file carries one; else the file and what reported it (the register, the pickling hand) stand in, since one file
+  // holds every report of a cut and keying on the file alone counted one cut twice.
+  var list = prodIndex().live.filter(function(e) { return e.kind === 'downtime' && e.date === date && relayParseHhmm(e.time) != null; })
+    .map(function(e) { return { from: relayParseHhmm(e.time), to: relayParseHhmm(e.to), ids: [e.id], srcs: [e.photoId || e.pasteId || (e.importId ? e.importId + '|' + (e.basis || '') : e.id)] }; })
     .sort(function(a, b) { return a.from - b.from; });
   var out = [];
   list.forEach(function(x) {
@@ -366,7 +385,8 @@ function prodDayLine(date, line) {
     var w = prodKg(e);
     if (e.unit === 'NOS') { r.nos += e.qty; r.pieces += e.qty; if (w.kg != null) { r.weighedPieces += e.qty; r.kg += w.kg; } }
     else if (e.unit === 'KG') r.kg += e.qty;
-    (e.rounds || []).forEach(function(x) { if (!x.struck) r.rounds++; });
+    // A batch written as racks × rounds ("98×8+1", an END row) is its rounds, not one.
+    (e.rounds || []).forEach(function(x) { if (!x.struck) r.rounds += x.n > 0 ? x.n : 1; });
     if (!e.rounds && e.racks) r.rounds += e.racks;
   });
   r.weighedShare = r.pieces ? r.weighedPieces / r.pieces : 1;
@@ -396,7 +416,7 @@ function prodInPlant(opts) {
       var rec = { m: m, it: it, key: k, fam: fam, date: m.challanDate || '', open: o, amount: o.amount,
         R: { NOS: hasNos ? (nosLine ? (it.qty || 0) : (it.nosQty || 0)) : null, KG: kgLine ? (it.qty || 0) : null },
         openQ: { NOS: hasNos ? (nosLine ? o.qty : o.nos) : null, KG: kgLine ? o.qty : null },
-        P: { NOS: 0, KG: 0 }, L: { NOS: 0, KG: 0 } };
+        P: { NOS: 0, KG: 0 }, L: { NOS: 0, KG: 0 }, A: { P: [], L: [] } };
       // Received by the kilo with no count, and the part's kg per piece known: the pieces are worked out, because the
       // floor counts pieces. Said as worked out, with the weight and where it came from.
       // A kilo line that also counts its pieces carries its own kg per piece; that wins over any card.
@@ -443,8 +463,17 @@ function prodInPlant(opts) {
       if (room <= 0) return;
       var take = Math.min(room, left * f);
       r[field][lu] += take; left -= take / f;
+      // Which entry filled the line, in order: what is still open on it is its latest plating (the rule ages that).
+      r.A[field].push({ e: e, q: take });
     });
-    if (left > 0.0005) { var nk = (e.clientId == null ? '?' : e.clientId) + '|' + (e.part || ''); var nc = noChallan[nk] || (noChallan[nk] = { clientId: e.clientId, client: e.client, part: e.part, qty: 0, unit: u, field: field, oldest: e.date }); nc.qty += left; if (e.date < nc.oldest) nc.oldest = e.date; }
+    // Left over, on the floor with no challan: one row per part, its pickling and its plating kept apart. The same
+    // material pickled and then plated is one lot, so the row holds the larger stage, never the two added.
+    if (left > 0.0005) {
+      var nk = (e.clientId == null ? '?' : e.clientId) + '|' + (e.part || '') + '|' + u;
+      var nc = noChallan[nk] || (noChallan[nk] = { clientId: e.clientId, client: e.client, part: e.part, qty: 0, unit: u, field: field, oldest: e.date, L: 0, P: 0 });
+      nc[field] += left; nc.qty = Math.max(nc.L, nc.P); nc.field = nc.L > 0 ? 'L' : 'P';
+      if (e.date < nc.oldest) nc.oldest = e.date;
+    }
   };
   var sortE = function(a, b) { return a.date < b.date ? -1 : a.date > b.date ? 1 : String(a.time || '').localeCompare(String(b.time || '')); };
   idx.counted.slice().sort(sortE).forEach(function(e) { if (!e.rework && (opts.clientId == null || String(e.clientId) === String(opts.clientId))) alloc(e, 'L'); });
@@ -500,7 +529,7 @@ function prodStatsRowHtml(from, to) {
    month paid on a slip puts monthly OT on the hand's home area, so neither is a line's figure here. */
 var PROD_LINE_AREAS = { 'vat-a1': ['vat-a1'], 'vat-a2': ['vat-a2'], barrel: ['barrel', 'pickling-barrel'] };
 function prodLabourByLine(from, to) {
-  var res = {}, skipped = 0, skippedCost = 0, days = 0;
+  var res = {}, skipped = 0, days = 0;
   PROD_LINES.forEach(function(l) { res[l] = { cost: 0, kg: 0, days: 0 }; });
   for (var d = from, g = 0; d <= to && g < 120; d = isoAddDays(d, 1), g++) {
     if (!S.attendance || !S.attendance[d]) continue;
@@ -513,12 +542,11 @@ function prodLabourByLine(from, to) {
       PROD_LINE_AREAS[l].forEach(function(a) { cost += (areas[a] || {}).cost || 0; });
       if ((l === 'vat-a1' || l === 'vat-a2') && areas['pickling-vat'] && vatKg > 0 && dayKg[l]) cost += areas['pickling-vat'].cost * dayKg[l] / vatKg;
       if (dayKg[l]) { res[l].cost += cost; res[l].kg += dayKg[l]; res[l].days++; used = true; }
-      else { skippedCost += cost; }
     });
     if (used) days++; else skipped++;
   }
   PROD_LINES.forEach(function(l) { res[l].perKg = res[l].kg > 0 && res[l].days >= 5 ? res[l].cost / res[l].kg : null; res[l].cost = gstRound(res[l].cost); });
-  return { lines: res, days: days, skipped: skipped, skippedCost: gstRound(skippedCost) };
+  return { lines: res, days: days, skipped: skipped };
 }
 
 /* The two To-do rules. Both read only what was captured here (never the imported history, which would raise a
@@ -528,25 +556,34 @@ var PROD_RULES = [['prodPlatedUnbilled', 'Production: plated and not invoiced'],
 PROD_RULES.forEach(function(r) { TODO_RULES.push(r); TODO_CHECK_DEFAULTS[r[0]] = true; });
 TODO_CHECK_DEFAULTS.prodPlatedDays = 3;
 function prodGo(tab, extra) { return Object.assign({ kind: 'production', tab: tab }, extra || {}); }
-function prodWorkingDaysBetween(a, b) { var n = 0; for (var d = isoAddDays(a, 1), g = 0; d <= b && g < 400; d = isoAddDays(d, 1), g++) if (new Date(d + 'T00:00:00').getDay() !== 0) n++; return n; }
+/* Working days after a, up to and including b: the one counter, statsWorkingDays (Sundays out). */
+function prodWorkingDaysBetween(a, b) { return statsWorkingDays(isoAddDays(a, 1), b); }
 
 TODO_RULE_FNS.prodPlatedUnbilled = function() {
   var cfg = todoCfg(), N = cfg.prodPlatedDays || 3, today = localDateStr(), since = isoAddDays(today, -45);
   var idx = prodIndex(), byClient = {};
-  var own = idx.counted.filter(function(e) { return e.src !== 'import' && !e.rework && e.date >= since && e.qty != null && e.clientId != null; });
-  if (!own.length) return [];
+  var own = function(e) { return e.src !== 'import' && !e.rework && e.date >= since && e.qty != null && e.clientId != null; };
+  if (!idx.counted.some(own)) return [];
   var plant = prodInPlant({ since: since });
   plant.rows.forEach(function(x) {
     if (x.platedNotInvoiced <= 0) return;
     var cid = x.r.m.clientId;
-    // The oldest capture-sourced plating of this part decides the age.
-    var k = x.r.key, mine = own.filter(function(e) { return prodEntryKey(e) === k; });
-    if (!mine.length) return;
-    var oldest = mine.map(function(e) { return e.date; }).sort()[0];
+    // What is still open on a line is its latest plating: invoicing takes the oldest first. The age is that plating's,
+    // and only what was captured here counts, never the imported history. It was aged from the part's oldest plating
+    // in 45 days (billed or not) and counted the whole line, the history's share included.
+    var inv = x.I, open = [];
+    x.r.A.L.forEach(function(a) {
+      var billed = Math.min(a.q, Math.max(0, inv)), left = a.q - billed;
+      inv -= a.q;
+      if (left > 0.0005 && own(a.e)) open.push({ e: a.e, q: left });
+    });
+    if (!open.length) return;
+    var qty = open.reduce(function(s, o) { return s + o.q; }, 0);
+    var oldest = open.map(function(o) { return o.e.date; }).sort()[0];
     var age = prodWorkingDaysBetween(oldest, today);
     if (age < N) return;
     var c = byClient[cid] || (byClient[cid] = { nos: 0, kg: 0, parts: {}, oldest: oldest, age: age });
-    if (x.unit === 'NOS') c.nos += x.platedNotInvoiced; else c.kg += x.platedNotInvoiced;
+    if (x.unit === 'NOS') c.nos += qty; else c.kg += qty;
     c.parts[x.r.it.partNumber || x.r.it.desc] = true;
     if (oldest < c.oldest) { c.oldest = oldest; c.age = age; }
   });
@@ -560,28 +597,34 @@ TODO_RULE_FNS.prodPlatedUnbilled = function() {
       sig: tone + '|' + cid + '|' + c.oldest + '|' + n };
   });
 };
+/* A pickled load the rule "pickled with no open challan" counts, and the one test Entries → No challan lists by, so
+   "Open the loads" shows the loads the task counted: captured here (never the imported history), not rework, not
+   void or corrected, in the last 30 days and a working day old, and no challan line of its part open on the day (or
+   billed on or after it). A named part must be on the challan by name; only a load naming just the kind and gauge
+   matches by family. The list used to take any challan of the part or its family, open or not, and the rule counted
+   loads since corrected. */
+function prodLoadNoChallan(e, idx, today) {
+  today = today || localDateStr();
+  if (e.kind !== 'pickled' || e.voidedAt || e.src === 'import' || e.rework || (idx || prodIndex()).replaced[e.id]) return false;
+  if (e.date < isoAddDays(today, -30) || prodWorkingDaysBetween(e.date, today) < 1) return false;
+  if (e.clientId == null) return true;
+  var k = prodEntryKey(e), fk = prodFamilyKey(e.clientId, e.partNumber || e.part, e.gauge);
+  return !(S.incomingMaterial || []).some(function(m) {
+    if (String(m.clientId) !== String(e.clientId) || (m.challanDate || '') > isoAddDays(e.date, 1)) return false;
+    return (m.items || []).some(function(it) {
+      var match = !e.part ? true : prodIsGeneric(e.partNumber || e.part) ? prodFamilyKey(m.clientId, it.partNumber || it.desc, prodGaugeOf(it.partNumber, it.desc)) === fk : prodChallanKey(m, it) === k;
+      if (!match) return false;
+      return imLineOpen(it).qty > 0 || (it.invoiceIds || []).some(function(id) { var inv = (S.invoices || []).find(function(x) { return x.id === id; }); return inv && inv.date >= e.date; });
+    });
+  });
+}
 TODO_RULE_FNS.prodPickledNoChallan = function() {
-  var today = localDateStr(), since = isoAddDays(today, -30), idx = prodIndex();
-  var own = idx.live.filter(function(e) { return e.kind === 'pickled' && e.src !== 'import' && !e.rework && e.date >= since && prodWorkingDaysBetween(e.date, today) >= 1; });
+  var today = localDateStr(), idx = prodIndex();
+  var own = idx.live.filter(function(e) { return prodLoadNoChallan(e, idx, today); });
   if (!own.length) return [];
   var byClient = {}, outside = [];
   own.forEach(function(e) {
     if (e.clientId == null) { outside.push(e); return; }
-    var k = prodEntryKey(e), fk = prodFamilyKey(e.clientId, e.partNumber || e.part, e.gauge), found = false;
-    (S.incomingMaterial || []).some(function(m) {
-      if (String(m.clientId) !== String(e.clientId) || (m.challanDate || '') > isoAddDays(e.date, 1)) return false;
-      return (m.items || []).some(function(it) {
-        var ck = prodChallanKey(m, it);
-        // A named part must be on the challan by name; only a load naming just the kind and gauge matches by family.
-        var match = !e.part ? true : prodIsGeneric(e.partNumber || e.part) ? prodFamilyKey(m.clientId, it.partNumber || it.desc, prodGaugeOf(it.partNumber, it.desc)) === fk : ck === k;
-        if (!match) return false;
-        var open = imLineOpen(it).qty > 0;
-        var billedAfter = (it.invoiceIds || []).some(function(id) { var inv = S.invoices.find(function(x) { return x.id === id; }); return inv && inv.date >= e.date; });
-        if (open || billedAfter) { found = true; return true; }
-        return false;
-      });
-    });
-    if (found) return;
     var c = byClient[e.clientId] || (byClient[e.clientId] = { n: 0, oldest: e.date });
     c.n++; if (e.date < c.oldest) c.oldest = e.date;
   });
@@ -589,7 +632,7 @@ TODO_RULE_FNS.prodPickledNoChallan = function() {
     var c = byClient[cid], age = prodWorkingDaysBetween(c.oldest, today), tone = age >= 3 ? 'red' : 'amber';
     return { key: 'prodPickledNoChallan:' + cid, rule: 'prodPickledNoChallan', tone: tone, title: (prodClientName(cid) || 'Client ' + cid) + ': ' + todoPlural(c.n, 'load') + ' pickled with no open challan',
       sub: 'Oldest ' + formatDate(c.oldest), why: 'Production · pickled, and no challan of that part open on the day',
-      facts: [['Loads', String(c.n)], ['Oldest', formatDate(c.oldest)]], clears: 'Enter the challan (Challans → Add challan), map the part to the challan’s part, or void the load.',
+      facts: [['Loads', String(c.n)], ['Oldest', formatDate(c.oldest)]], clears: 'Enter the challan (Challans → Add challan), correct the load to the challan’s part (Production → Entries → Correct), or void the load.',
       go: prodGo('entries', { client: cid, flag: 'nochallan' }), goLabel: 'Open the loads', sig: tone + '|' + cid + '|' + c.oldest + '|' + c.n };
   });
   if (outside.length) {
@@ -607,12 +650,7 @@ function prodExport() {
   var meta = document.querySelector('meta[name="app-build"]');
   var obj = { format: 'sep-production', version: 1, exportedAt: new Date().toISOString(), build: meta ? meta.getAttribute('content') : '',
     entries: p.entries, pastes: p.pastes, photos: p.photos, imports: p.imports, learn: p.learn };
-  var blob = new Blob([JSON.stringify(obj, null, 1)], { type: 'application/json' });
-  var a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = 'sep-production-' + localDateStr() + '.json';
-  document.body.appendChild(a); a.click(); a.remove();
-  setTimeout(function() { URL.revokeObjectURL(a.href); }, 1000);
+  downloadJson('sep-production-' + localDateStr() + '.json', obj, 1);
 }
 /* Merge by id, never overwrite. A client is kept by id only when the book holds that id under the same name;
    otherwise it is found by name, and a name the book does not hold is counted, never invented. */
@@ -624,13 +662,18 @@ function prodMergeImport(obj, fileName) {
   var imp = { id: prodUid('PI'), at: Date.now(), by: stockBy(), file: fileName || '', exportedAt: src.exportedAt || '', build: src.build || '' };
   src.entries.forEach(function(e0) {
     if (!e0 || typeof e0 !== 'object' || !e0.id || have[e0.id]) { skipped++; return; }
-    if (PROD_KINDS.indexOf(e0.kind) < 0 || !/^\d{4}-\d{2}-\d{2}$/.test(e0.date || '') || (e0.qty != null && !isFinite(e0.qty)) ||
+    // A quantity is a number, never text: isFinite('300') is true, and a string qty added into a sum concatenates.
+    var num = function(v) { return v == null || (typeof v === 'number' && isFinite(v)); };
+    if (PROD_KINDS.indexOf(e0.kind) < 0 || !/^\d{4}-\d{2}-\d{2}$/.test(e0.date || '') || !num(e0.qty) || !num(e0.qty2) ||
       (e0.unit != null && ['NOS', 'KG', 'BAG'].indexOf(e0.unit) < 0) || (e0.line != null && PROD_LINES.indexOf(e0.line) < 0)) { bad++; return; }
     var e = {};
     Object.keys(e0).forEach(function(k) { e[k] = e0[k]; });
     if (e.clientId != null) {
       var held = (S.clients || []).find(function(c) { return String(c.id) === String(e.clientId); });
-      if (!held || (e.client && relayKey(held.name) !== relayKey(e.client) && !prodMatchClient(e.client, ctx.clients))) e.clientId = null;
+      // Kept only where the name written is the held client's own (or reads as it): a name that reads as another
+      // client used to keep the wrong id, since any match passed.
+      var named = e.client ? prodMatchClient(e.client, ctx.clients) : null;
+      if (!held || (e.client && relayKey(held.name) !== relayKey(e.client) && !(named && String(named.id) === String(held.id)))) e.clientId = null;
     }
     if (e.clientId == null && e.client) { var hit = prodMatchClient(e.client, ctx.clients); if (hit) e.clientId = hit.id; }
     if (e.clientId == null && e.kind !== 'downtime' && (e.client || e.part)) unknown++;

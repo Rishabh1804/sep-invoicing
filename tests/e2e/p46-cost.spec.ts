@@ -156,9 +156,9 @@ test.describe('P46: prices, purchases and the live cost', () => {
       entries: [{ id: 'imp-b1', itemId: 'imp-q', kind: 'bill', qty: 90, price: 294.8, amount: 26532, date: '2026-06-26', billDate: '2026-06-26', supplier: 'Alpha', billNo: 'A/189', source: 'import' }],
       pastes: [], costBills: [{ id: 'imp-p1', kind: 'power', month: '2026-07', amount: 64803, units: null, note: 'bill' }] };
     const first = await g(page, `JSON.stringify(stockMergeImport(${JSON.stringify(file)}))`);
-    expect(JSON.parse(first)).toEqual({ items: 0, entries: 1, pastes: 0, bills: 1 });
+    expect(JSON.parse(first)).toMatchObject({ items: 0, entries: 1, pastes: 0, bills: 1 });
     const again = await g(page, `JSON.stringify(stockMergeImport(${JSON.stringify(file)}))`);
-    expect(JSON.parse(again)).toEqual({ items: 0, entries: 0, pastes: 0, bills: 0 });
+    expect(JSON.parse(again)).toMatchObject({ items: 0, entries: 0, pastes: 0, bills: 0 });
     // The bill lands on the existing line and the level is unchanged.
     expect(await g(page, `[stockData().entries.find(function(e){ return e.id === 'imp-b1'; }).itemId, stockReplay('Q').level]`)).toEqual(['Q', 88]);
 

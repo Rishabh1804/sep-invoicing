@@ -41,7 +41,10 @@ function stockSheetSupHtml(iso, filled) {
     if (filled) {
       var mine = day.filter(function(e) { return e.itemId === l.item.id; });
       if (mine.length) {
-        cells[0] = _ssQty(stockReplay(l.item.id, iso).level);
+        // A message's opening is a count on its first day: the opening printed is that count where the day starts with
+        // one, else the level the day began at. The level before the day left a one-day message not footing.
+        var dayRows = stockReplay(l.item.id, isoAddDays(iso, 1)).rows.filter(function(r) { return r.e.date === iso; });
+        cells[0] = _ssQty(dayRows.length > 1 && dayRows[0].e.kind === 'count' ? dayRows[0].after : stockReplay(l.item.id, iso).level);
         cells[1] = mine.filter(function(e) { return e.kind === 'received'; }).map(function(e) { return stockShortDate(e.date) + ' · ' + _ssQty(e.qty); }).join(', ');
         cells[2] = mine.filter(function(e) { return e.kind === 'used' || e.kind === 'charged'; }).map(function(e) {
           var d = e.days > 1 ? e.days : 0;

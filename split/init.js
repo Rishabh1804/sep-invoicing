@@ -518,6 +518,37 @@ if (!S._cnSeriesStart1) {
   saveJSON(STORAGE_KEY, S);
 })();
 
+/* ===== SAMARTH'S PARTS BY THE ROUND ON THE REGISTER, RECORDED ONCE =====
+   Owner, 30 Sep 2026: "56 is 3302 on VAT A2, 156 is 3303 on VAT A2. These two are a pair of set they call cover plate. The
+   other 3302 is Assy bracket connector that's 50 per round in VAT A1, that's recorded as 7.05 per piece and 500 g/pc."
+   The register's rounds (56, 156) replace the 24 and 80 set earlier where those still stand, the earlier figures kept in
+   the time's history; the connector's round is added. The rules that read a round as its part are set where the client
+   has none, and floor names already entered are matched again (an "Assy Bracket 3302" typed by hand finds the connector
+   by its description). Once: the flag travels with the state. */
+(function() {
+  if (S._prodPartRules1) return;
+  var c = (S.clients || []).find(function(x) { return /SAMARTH/i.test(String(x.name || '')); });
+  if (!c) return;
+  var p = prodData(), at = Date.now(), note = 'owner, 30 Sep 2026';
+  var parts = [['5174 5460 3302', 56, 'vat-a2', 'cover plate'], ['5166 5460 3303', 156, 'vat-a2', 'cover plate'], ['5167 5461 3302', 50, 'vat-a1', 'assy bracket connector']];
+  if (!p.partRules.some(function(r) { return String(r.clientId) === String(c.id); }))
+    parts.forEach(function(x, i) { p.partRules.push({ id: 'PR-seed' + (i + 1), clientId: c.id, racks: [x[1]], line: x[2], partNumber: x[0], name: x[3], note: note, at: at }); });
+  if (!Array.isArray(c.partTimes)) c.partTimes = [];
+  parts.forEach(function(x, i) {
+    var idn = cpPartIdentity(x[0], ''), t = c.partTimes.find(function(y) { return y.base === idn.base && (y.gauge || '') === idn.gauge; });
+    if (!t) { c.partTimes.push({ id: 'PT-seed' + (i + 1) + 'r', base: idn.base, gauge: idn.gauge, name: x[0], line: x[2], pieces: x[1], at: at, note: note }); return; }
+    var was = { 'PT-seed1': 24, 'PT-seed2': 80 }[t.id];
+    if (was != null && t.pieces === was) {
+      t.history = (t.history || []).concat([{ at: t.at || null, pieces: t.pieces, pickleMin: t.pickleMin, plateMin: t.plateMin }]);
+      t.pieces = x[1]; t.at = at; t.note = note + ': the register’s round';
+    }
+  });
+  prodLearnAliases(p.entries.filter(function(e) { return !e.voidedAt; }));
+  prodTouch();
+  S._prodPartRules1 = true;
+  saveJSON(STORAGE_KEY, S);
+})();
+
 /* ===== THE CONNECTION'S LOAD, RECORDED ONCE =====
    Owner, 30 Sep 2026 ("Yes, record it"): the connection is billed at 25 kVA though 50 kVA was approved (decisions,
    18 May 2026), and the over-limit penalty runs on (about ₹5,000 a month). Set only on a book with electricity bills,

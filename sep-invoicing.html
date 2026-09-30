@@ -18,7 +18,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <!-- Appearance before first paint (§3.2): the device's theme and palette, so nothing flashes in the wrong colours. -->
 <script>(function(){try{var d=document.documentElement,t=localStorage.getItem("sep_inv_theme"),p=localStorage.getItem("sep_inv_palette");if(t==="light"||t==="dark")d.dataset.theme=t;d.dataset.palette=(p==="zinc"||p==="terracotta")?p:"teal";}catch(e){document.documentElement.dataset.palette="teal";}})();</script>
-<meta name="app-build" content="e9b2287f">
+<meta name="app-build" content="0f6a50db">
 <style>
 /* ===== DESIGN TOKENS (design system v2.0 — docs/SEP_INVOICING_DESIGN_PRINCIPLES.md §3) ===== */
 /* Theme: colour-scheme decides every light-dark() below. <html data-theme> is set before first paint
@@ -26214,13 +26214,13 @@ function prodFromRegisterRead(json, ctx, photoDate, choices) {
     var mark = markOf(r), written = r.qtyText != null && String(r.qtyText).trim() !== '' ? String(r.qtyText).trim() : null;
     // A row with nothing on it but ditto marks (the clerk's next line, begun and not used) is not a row.
     if (!r.time && !mark && written == null && r.qty == null && !r.customer && !r.part && !r.struck) return;
-    var cust = (r.customer || '').trim(), part = (r.part || '').trim(), dim = String(r.dim || '').trim();
+    var cust = (r.customer || '').trim(), part = (r.part || '').trim(), dim = String(r.dim || '').trim(), carried = false;
     // A ditto row carries the size above it too, so it stays in its run now that a run is one gauge.
     var ditto = r.ditto || (!cust && !part);
     if (ditto) { cust = cust || lastCust; part = part || lastPart; dim = dim || lastDim; }
     // A new part under ditto marks in the customer column is the same customer's (the clerk writes LINER under MEHTA's
     // ditto): it was read as no customer written, and asked for one on every change of part.
-    else if (!cust && lastCust) cust = lastCust;
+    else if (!cust && lastCust) { cust = lastCust; carried = true; }
     lastCust = cust || lastCust; lastPart = part || lastPart; if (!ditto || dim) lastDim = dim;
     var row = { i: i, time: String(r.time || '').replace(/\s*-?\s*(start|end)\s*$/i, ''), min: prodRegisterNoon(r.time), cust: cust, part: part, dim: dim,
       mark: mark, start: mark === 'START', end: mark === 'END', rackSize: r.rackSize, rounds: r.rounds, short: r.short,
@@ -26237,6 +26237,19 @@ function prodFromRegisterRead(json, ctx, photoDate, choices) {
       var calc = row.rackSize * row.rounds - (row.short || 0);
       if (row.qty == null) { row.qty = calc; row.qtySrc = 'working'; }
       else if (Math.abs(calc - row.qty) > 0.5) row.issues.push({ tone: 'amber', code: 'rack', text: row.rackSize + ' × ' + row.rounds + (row.short ? ' − ' + row.short : '') + ' = ' + calc + ', but ' + row.qty + ' is written. The written figure is used.' });
+    }
+    // A new part carried onto the customer above it, of a kind that customer has never sent (the clerk's labels a row out,
+    // a CLAMP under SAMARTH's ditto): the customer whose rule covers that kind at this round, where exactly one does.
+    if (carried && ctx.carryCheck) {
+      var cit = prodReadItem(cust, ctx.clients), crack = row.rackSize || row.qty;
+      var cc = cit.clientId != null ? ctx.carryCheck(cit.clientId, part, crack) : null;
+      if (cc) {
+        var who = cit.clientName || cust;
+        if (cc.clientId != null) {
+          row.issues.push({ tone: 'amber', code: 'carried', text: 'Written under ' + who + '’s ditto, but ' + who + ' has never sent a ' + cc.family + '; a round of ' + crack + ' is ' + cc.name + '’s by the owner’s rule, so read as ' + cc.name + '. Check the page.' });
+          row.cust = cust = cc.name; lastCust = cc.name;
+        } else row.issues.push({ tone: 'amber', code: 'carried', text: 'Written under ' + who + '’s ditto, but ' + who + ' has never sent a ' + cc.family + '. Check whose it is.' });
+      }
     }
     row.raw = [row.time, cust, part, row.dim, written != null ? written : row.rackSize && row.rounds ? row.rackSize + '×' + row.rounds + (row.short ? '−' + row.short : '') : '',
       written == null && row.qty != null ? String(row.qty) : '', mark, row.struck ? '(struck)' : '', row.over ? '(over ' + row.over + ')' : ''].filter(Boolean).join(' · ');
@@ -26283,15 +26296,27 @@ function prodFromRegisterRead(json, ctx, photoDate, choices) {
       row.gaugeRack = rack;
     });
   }
+  // A round whose size, on its line, names one of the client's parts by the owner's rule (prodPartRuleRead): Samarth's
+  // cover plates and connector, all written TINA. A row of no size of its own (a START on a START/END page) continues.
+  if (ctx.partRule) {
+    out.rows.forEach(function(row) {
+      var rack = row.rackSize || (!row.batch && row.qty > 0 ? row.qty : null);
+      var it = rack ? prodReadItem(row.cust, ctx.clients) : null;
+      var pr = it && it.clientId != null ? ctx.partRule(it.clientId, rack, out.line, row.part) : null;
+      if (!pr) return;
+      row.partRack = rack; row.partRule = pr;
+      if (pr.partNumber) row.rulePn = pr.partNumber;
+    });
+  }
   // Runs: consecutive rows of one customer, part and gauge. Two gauges of one clamp are two parts at two rates, and the
   // gauge used to be taken out of the key, so a 35X6 run following a 40X6 one was added into it under the 40X6. A row
   // with no gauge of its own continues the run above it.
   var cur = null;
   out.rows.forEach(function(row) {
     var pd = row.part + ' ' + row.dim, ck = relayKey(row.cust) + '|' + rateKey(prodPartBase(pd)), g = lineGauge(pd.replace(/[×✕]/g, 'X'));
-    var gs = row.gaugeSet || '';
-    if (!cur || cur.ck !== ck || (g && cur.g && g !== cur.g) || (gs && cur.gs && gs !== cur.gs) || (gs && cur.g) || (g && cur.gs)) { cur = { ck: ck, g: g, gs: gs, rows: [] }; out.runs.push(cur); }
-    else { if (g && !cur.g) cur.g = g; if (gs && !cur.gs) cur.gs = gs; }
+    var gs = row.gaugeSet || '', rp = row.rulePn || '';
+    if (!cur || cur.ck !== ck || (g && cur.g && g !== cur.g) || (gs && cur.gs && gs !== cur.gs) || (gs && cur.g) || (g && cur.gs) || (rp && cur.rp && rp !== cur.rp)) { cur = { ck: ck, g: g, gs: gs, rp: rp, rows: [] }; out.runs.push(cur); }
+    else { if (g && !cur.g) cur.g = g; if (gs && !cur.gs) cur.gs = gs; if (rp && !cur.rp) cur.rp = rp; }
     cur.rows.push(row);
   });
   out.runs = out.runs.map(function(run) {
@@ -26316,6 +26341,16 @@ function prodFromRegisterRead(json, ctx, photoDate, choices) {
     if (run.gs === 'none') { e.issues.push({ tone: 'amber', code: 'gauge', text: 'Gauge unknown: a round of ' + racked.gaugeRack + ' is in none of the owner’s rules for this part.' }); }
     else if (run.gs) { e.gaugeOptions = run.gs.split('/'); e.gaugeSrc = 'rack'; e.issues.push({ tone: 'info', code: 'gauge', text: 'Gauge read from the round of ' + racked.gaugeRack + ': ' + run.gs.replace(/\//g, ' or ') + ' (the owner’s rule). The challans say which.' }); }
     else if (racked && e.gauge) { e.gaugeSrc = 'rack'; e.issues.push({ tone: 'info', code: 'gauge', text: 'Gauge ' + e.gauge + ' read from the round of ' + racked.gaugeRack + ' (the owner’s rule).' }); }
+    var ruled = run.rows.find(function(x) { return x.partRule; });
+    if (ruled) {
+      var pr = ruled.partRule, where = ' a round of ' + ruled.partRack + ' on ' + (typeof prodLineName === 'function' ? prodLineName(out.line) : out.line);
+      if (pr.partNumber) {
+        e.partNumber = pr.partNumber; e.partSrc = 'rack'; e.partRack = ruled.partRack;
+        e.issues.push(pr.written
+          ? { tone: 'amber', code: 'part', text: 'The page writes ' + pr.written + ';' + where + ' is ' + pr.partNumber + (pr.name ? ' (' + pr.name + ')' : '') + ' by the owner’s rule. Read by the rule: check the page.' }
+          : { tone: 'info', code: 'part', text: 'Read as ' + pr.partNumber + (pr.name ? ' (' + pr.name + ')' : '') + ':' + where + ' is that part (the owner’s rule).' });
+      } else e.issues.push({ tone: 'amber', code: 'part', text: where.trim().replace(/^a/, 'A') + ' is ' + pr.rulePn + ' by the owner’s rule, but the page writes ' + pr.written + ': kept as written.' });
+    }
     if (e.clientId == null) e.issues.push({ tone: 'red', code: 'client', text: first.cust ? '"' + first.cust + '" is not a client in the book. Pick the client, or keep it as written.' : 'No customer written. Pick the client.' });
     else if (it.clientHow === 'read-as') e.issues.push({ tone: 'amber', code: 'readas', text: '"' + first.cust + '" read as ' + it.clientName + '.' });
     return e;
@@ -29586,6 +29621,7 @@ function prodData() {
   if (!p.learn.clients || typeof p.learn.clients !== 'object') p.learn.clients = {};
   if (!p.learn.parts || typeof p.learn.parts !== 'object') p.learn.parts = {};
   if (!Array.isArray(p.gaugeRules)) p.gaugeRules = [];
+  if (!Array.isArray(p.partRules)) p.partRules = [];
   return p;
 }
 
@@ -29642,6 +29678,42 @@ function prodGaugeRuleHas(clientId, part) {
   return prodData().gaugeRules.some(function(x) { return String(x.clientId) === String(clientId) && x.family === w; });
 }
 
+/* ---------- The part a round's size gives ----------
+   Owner, 30 Sep 2026: "56 is 3302 on VAT A2, 156 is 3303 on VAT A2. These two are a pair of set they call cover plate. The
+   other 3302 is Assy bracket connector that's 50 per round in VAT A1." Samarth sends two parts ending 3302 and the register
+   writes its work as TINA, so the code cannot say which; the pieces on a round, on its line, do (`S.production.partRules`:
+   client, rack sizes, line, part number, the name the floor gives it). Unlike a gauge rule the line is required: the owner
+   named each, and no page contradicts them. A code written that ends the rule's part, or one of the client's other ruled
+   parts (the pair is written by either code), is read by the rule and a disagreement said; a code ending a part no rule
+   names is kept as written. */
+function prodPartRuleFor(clientId, rack, line) {
+  if (clientId == null || !(rack > 0)) return null;
+  return prodData().partRules.find(function(x) {
+    return String(x.clientId) === String(clientId) && (x.racks || []).indexOf(rack) >= 0 && (!x.line || x.line === line);
+  }) || null;
+}
+function prodPartRuleRead(clientId, rack, line, part) {
+  var r = prodPartRuleFor(clientId, rack, line);
+  if (!r) return null;
+  var code = prodAliasCode(part), ends = function(pn) { return rateKey(pn).slice(-code.length) === code; };
+  if (!code || ends(r.partNumber)) return { partNumber: r.partNumber, name: r.name || '' };
+  var ruled = prodData().partRules.some(function(x) { return String(x.clientId) === String(clientId) && ends(x.partNumber); });
+  return ruled ? { partNumber: r.partNumber, name: r.name || '', written: code } : { partNumber: null, rulePn: r.partNumber, name: r.name || '', written: code };
+}
+
+/* A part carried onto the customer above it under a ditto mark, of a kind that customer has never sent (owner, 30 Sep
+   2026: "Samarth doesn't have clamp"). Null when the customer has sent the kind, or the part names no kind; else the
+   kind, and the one client whose gauge rule covers it at this round, where exactly one does. */
+function prodCarryCheck(clientId, part, rack) {
+  var w = (prodPartBase(part).toUpperCase().match(/[A-Z]{3,}/) || [''])[0];
+  if (!w) return null;
+  if (prodClientParts(clientId).some(function(x) { return (String(x.partNumber) + ' ' + x.desc).toUpperCase().indexOf(w) >= 0; })) return null;
+  var owners = {};
+  if (rack > 0) prodData().gaugeRules.forEach(function(r) { if (r.family === w && (r.racks || []).indexOf(rack) >= 0 && String(r.clientId) !== String(clientId)) owners[r.clientId] = true; });
+  var ids = Object.keys(owners), c = ids.length === 1 ? (S.clients || []).find(function(x) { return String(x.id) === ids[0]; }) : null;
+  return c ? { family: w, clientId: c.id, name: c.name } : { family: w, clientId: null };
+}
+
 /* ---------- A floor name and the part it is ----------
    The register writes a part by its floor name, often with its code in brackets ("TINA(0160)", "KUDAL(0106)",
    "TINA(3303)"). A code that ends exactly one of the client's part numbers on its challans and invoices is that part: the
@@ -29649,7 +29721,9 @@ function prodGaugeRuleHas(clientId, part) {
    next time. Two parts ending in the code are left for the owner to pick (Entries → Which part?). */
 function prodClientParts(clientId) {
   var out = {};
-  var add = function(it) { var pn = String(it.partNumber || it.desc || '').trim(); if (!pn) return; var k = rateKey(pn); out[k] = out[k] || { partNumber: pn, desc: it.desc || '', n: 0 }; out[k].n++; };
+  var master = {};
+  (S.items || []).forEach(function(i) { if (i.partNumber && i.desc) master[rateKey(i.partNumber)] = i.desc; });
+  var add = function(it) { var pn = String(it.partNumber || it.desc || '').trim(); if (!pn) return; var k = rateKey(pn); out[k] = out[k] || { partNumber: pn, desc: it.desc || master[k] || '', n: 0 }; out[k].n++; };
   (S.incomingMaterial || []).forEach(function(m) { if (String(m.clientId) === String(clientId)) (m.items || []).forEach(add); });
   (S.invoices || []).forEach(function(v) { if (v.status === 'active' && String(v.clientId) === String(clientId)) (v.items || []).forEach(add); });
   return Object.keys(out).map(function(k) { return out[k]; }).sort(function(a, b) { return b.n - a.n; });
@@ -29660,13 +29734,27 @@ function prodAliasCandidates(clientId, part) {
   var parts = prodClientParts(clientId), code = prodAliasCode(part), name = prodAliasName(part).toUpperCase();
   var byCode = code ? parts.filter(function(x) { return rateKey(x.partNumber).slice(-code.length) === code; }) : [];
   var byWord = name ? parts.filter(function(x) { return byCode.indexOf(x) < 0 && (String(x.partNumber) + ' ' + x.desc).toUpperCase().indexOf(name) >= 0; }) : [];
-  return { code: code, byCode: byCode, byWord: byWord, all: parts };
+  // Two parts ending in the code ("Assy Bracket 3302" against a cover plate and a connector): the one whose description
+  // carries every word of the name, when only one does.
+  var words = name.split(/[^A-Z]+/).filter(function(w) { return w.length >= 3; });
+  var byCodeWords = byCode.length > 1 && words.length ? byCode.filter(function(x) {
+    var d = (String(x.partNumber) + ' ' + x.desc).toUpperCase();
+    return words.every(function(w) { return d.indexOf(w) >= 0; });
+  }) : [];
+  return { code: code, byCode: byCode, byCodeWords: byCodeWords, byWord: byWord, all: parts };
 }
 function prodLearnAlias(clientId, part, gauge, partNumber, how) {
   var p = prodData(), rec = { partNumber: partNumber, gauge: gauge || '', how: how || 'set', at: Date.now() };
   p.learn.parts[prodKey(clientId, part, gauge)] = rec;
+  // The name alone ("TINA" of "TINA(3303)") is learnt too, unless it was learnt as another part: one floor name for two
+  // parts is ambiguous, and the name alone then finds neither. The owner's own pick wins.
   var nm = prodAliasName(part);
-  if (nm && nm !== part) p.learn.parts[prodKey(clientId, nm, gauge)] = rec;
+  if (nm && nm !== part) {
+    var k2 = prodKey(clientId, nm, gauge), was = p.learn.parts[k2];
+    if (how !== 'set' && was && (was.ambiguous || (was.partNumber && rateKey(was.partNumber) !== rateKey(partNumber))))
+      p.learn.parts[k2] = { ambiguous: true, parts: (was.parts || [was.partNumber]).concat(was.parts && was.parts.indexOf(partNumber) >= 0 ? [] : [partNumber]), at: Date.now() };
+    else p.learn.parts[k2] = rec;
+  }
   prodTouch();
 }
 /* On entries just saved or imported: a bracketed code that names one part is learnt and taken. Returns how many. */
@@ -29677,7 +29765,8 @@ function prodLearnAliases(entries) {
     var known = p.learn.parts[prodKey(e.clientId, e.part, e.gauge)];
     if (known && known.partNumber) return;
     var c = prodAliasCandidates(e.clientId, e.part);
-    if (c.byCode.length === 1) { prodLearnAlias(e.clientId, e.part, e.gauge, c.byCode[0].partNumber, 'code'); e.partNumber = c.byCode[0].partNumber; n++; }
+    var one = c.byCode.length === 1 ? c.byCode[0] : c.byCodeWords.length === 1 ? c.byCodeWords[0] : null;
+    if (one) { prodLearnAlias(e.clientId, e.part, e.gauge, one.partNumber, c.byCode.length === 1 ? 'code' : 'code+name'); e.partNumber = one.partNumber; n++; }
   });
   return n;
 }
@@ -29698,7 +29787,7 @@ function prodClientName(id) { var c = (S.clients || []).find(function(x) { retur
 function prodHeldId(v) { var c = (S.clients || []).find(function(x) { return String(x.id) === String(v); }); return c ? c.id : v; }
 function prodCtx() {
   return { clients: prodClientIndex(S.clients || [], prodData().learn.clients), roster: (S.staff || []).filter(function(w) { return w.active !== false; }), today: localDateStr(),
-    partOwners: prodPartOwners(), gaugeRule: prodGaugeRuleFor, gaugeHas: prodGaugeRuleHas };
+    partOwners: prodPartOwners(), gaugeRule: prodGaugeRuleFor, gaugeHas: prodGaugeRuleHas, partRule: prodPartRuleRead, carryCheck: prodCarryCheck };
 }
 /* Which clients a part has come from, off the challans and invoices of the last year: part key → client ids. A load
    with no client written whose part only one client has ever sent ("LINER", "188 CD") is read as that client, amber. */
@@ -29732,9 +29821,11 @@ function prodFamilyKey(clientId, part, gauge) {
 }
 function prodEntryKey(e) {
   if (e.clientId == null) return null;
+  // The entry's own part number (a round's rule, a code) is about this entry; a learnt name is about every entry under it.
+  if (e.partNumber) return prodKey(e.clientId, e.partNumber, e.gauge);
   var map = prodData().learn.parts[prodKey(e.clientId, e.part, e.gauge)];
   if (map && map.partNumber) return prodKey(e.clientId, map.partNumber, map.gauge != null ? map.gauge : e.gauge);
-  return prodKey(e.clientId, e.partNumber || e.part, e.gauge);
+  return prodKey(e.clientId, e.part, e.gauge);
 }
 /* A part named only by its kind and gauge ("CLAMP(40X6)", "BOX CLAMP"): no figure in it once the gauge is out. Such
    a load is matched, and its usual line read, at the family level. */
@@ -30664,7 +30755,7 @@ function prodEntryRowHtml(e, idx) {
   var title = e.kind === 'downtime' ? (e.downtime && e.downtime.open ? 'Power cut, no time back' : 'Power cut') : prodEntryTitle(e);
   // What the floor name was matched to, the gauges a round's size allows, and a name no challan part answers to.
   var alias = e.kind !== 'downtime' && e.clientId != null ? prodAliasShown(e) : null;
-  if (alias && alias.pn) meta += ' · = ' + alias.pn;
+  if (alias && alias.pn) meta += ' · = ' + alias.pn + (alias.how === 'rack' && e.partRack ? ' by the round of ' + e.partRack : '');
   if (e.gaugeOptions && !e.gauge) meta += ' · ' + e.gaugeOptions.join(' or ') + ' by the round';
   var crew = (e.kind === 'plated' || e.kind === 'pickled') && !e.voidedAt ? prodCrew(e) : null;
   var h = '<div class="inv-row inv-row-2 inv-row-flow' + (e.voidedAt ? ' inv-row-muted' : '') + '" data-prod-entry="' + escHtml(e.id) + '"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(title) + '</span>' +
@@ -30693,9 +30784,9 @@ function prodChallanKeySet() {
   return set;
 }
 function prodAliasShown(e) {
+  if (e.partNumber) return { pn: e.partNumber, how: e.partSrc };
   var learnt = prodData().learn.parts[prodKey(e.clientId, e.part, e.gauge)];
   if (learnt && learnt.partNumber) return { pn: learnt.partNumber, how: learnt.how };
-  if (e.partNumber) return { pn: e.partNumber };
   var k = prodEntryKey(e), set = prodChallanKeySet();
   if (set[k]) return { pn: null, matched: true, generic: true };
   return { pn: null, generic: prodIsGeneric(e.part) };
@@ -31103,6 +31194,8 @@ function prodSaveHand() {
     e.clientId = prodHeldId(f.clientId); e.client = prodClientName(e.clientId); e.part = f.part.trim(); e.gauge = prodGaugeOf(e.part, e.part);
     e.qty = isNaN(q) ? null : q; e.unit = f.unit; e.rework = !!f.rework;
     if (f.kind === 'plated') { e.line = f.line || null; e.lineSrc = f.line ? 'set' : null; e.slot = f.slot === 'ot' || f.slot === 'day' ? f.slot : 'general'; }
+    // A name with a code ("Assy Bracket 3302") is matched to the client's part as a register's is.
+    if (e.clientId != null) prodLearnAliases([e]);
   }
   p.entries.push(prodSparse(e));
   prodTouch();
@@ -36352,6 +36445,37 @@ if (!S._cnSeriesStart1) {
     });
   }
   S._partTimes1 = true;
+  saveJSON(STORAGE_KEY, S);
+})();
+
+/* ===== SAMARTH'S PARTS BY THE ROUND ON THE REGISTER, RECORDED ONCE =====
+   Owner, 30 Sep 2026: "56 is 3302 on VAT A2, 156 is 3303 on VAT A2. These two are a pair of set they call cover plate. The
+   other 3302 is Assy bracket connector that's 50 per round in VAT A1, that's recorded as 7.05 per piece and 500 g/pc."
+   The register's rounds (56, 156) replace the 24 and 80 set earlier where those still stand, the earlier figures kept in
+   the time's history; the connector's round is added. The rules that read a round as its part are set where the client
+   has none, and floor names already entered are matched again (an "Assy Bracket 3302" typed by hand finds the connector
+   by its description). Once: the flag travels with the state. */
+(function() {
+  if (S._prodPartRules1) return;
+  var c = (S.clients || []).find(function(x) { return /SAMARTH/i.test(String(x.name || '')); });
+  if (!c) return;
+  var p = prodData(), at = Date.now(), note = 'owner, 30 Sep 2026';
+  var parts = [['5174 5460 3302', 56, 'vat-a2', 'cover plate'], ['5166 5460 3303', 156, 'vat-a2', 'cover plate'], ['5167 5461 3302', 50, 'vat-a1', 'assy bracket connector']];
+  if (!p.partRules.some(function(r) { return String(r.clientId) === String(c.id); }))
+    parts.forEach(function(x, i) { p.partRules.push({ id: 'PR-seed' + (i + 1), clientId: c.id, racks: [x[1]], line: x[2], partNumber: x[0], name: x[3], note: note, at: at }); });
+  if (!Array.isArray(c.partTimes)) c.partTimes = [];
+  parts.forEach(function(x, i) {
+    var idn = cpPartIdentity(x[0], ''), t = c.partTimes.find(function(y) { return y.base === idn.base && (y.gauge || '') === idn.gauge; });
+    if (!t) { c.partTimes.push({ id: 'PT-seed' + (i + 1) + 'r', base: idn.base, gauge: idn.gauge, name: x[0], line: x[2], pieces: x[1], at: at, note: note }); return; }
+    var was = { 'PT-seed1': 24, 'PT-seed2': 80 }[t.id];
+    if (was != null && t.pieces === was) {
+      t.history = (t.history || []).concat([{ at: t.at || null, pieces: t.pieces, pickleMin: t.pickleMin, plateMin: t.plateMin }]);
+      t.pieces = x[1]; t.at = at; t.note = note + ': the register’s round';
+    }
+  });
+  prodLearnAliases(p.entries.filter(function(e) { return !e.voidedAt; }));
+  prodTouch();
+  S._prodPartRules1 = true;
   saveJSON(STORAGE_KEY, S);
 })();
 

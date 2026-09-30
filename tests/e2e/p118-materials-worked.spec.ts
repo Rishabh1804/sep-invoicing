@@ -91,26 +91,27 @@ test('materials worked: a period, a search, every challan by date, and a code an
   await expect(page.locator('[data-card="worked"] [data-cp-worked="2|66X42|30X6"]')).toContainText('300 NOS');
 });
 
-test('by the hour: a round is pickle + plate + 15 minutes; Samarth’s are set once, and removed stays removed', async ({ page }) => {
+test('by the hour: a round is pickle + plate + 15 minutes; Samarth’s are set once, at the register’s rounds, and removed stays removed', async ({ page }) => {
   await loadAppWithState(page, book());
   const c = (await readStoredState(page)).clients.find((x: any) => x.id === 3);
-  expect(c.partTimes.map((t: any) => [t.name, t.line, t.pieces, t.plateMin])).toEqual([['5174 5460 3302', 'vat-a2', 24, 30], ['5166 5460 3303', 'vat-a2', 80, 30]]);
+  // Set at 24 and 80 first, then at the register's rounds (56, 156; owner, 30 Sep 2026), the connector's 50 added.
+  expect(c.partTimes.map((t: any) => [t.name, t.line, t.pieces, t.plateMin])).toEqual([['5174 5460 3302', 'vat-a2', 56, 30], ['5166 5460 3303', 'vat-a2', 156, 30], ['5167 5461 3302', 'vat-a1', 50, undefined]]);
   await openPerf(page, 3);
   const card = page.locator('[data-card="hours"]');
-  // No pickling on record: 30 + 15 = 45 min a round. 24 × ₹9 over 0.75 h is ₹288 an hour; 80 × ₹3 is ₹320.
-  await expect(card.locator('[data-cp-time="PT-seed1"] summary')).toContainText('₹288.00');
-  await expect(card.locator('[data-cp-time="PT-seed2"] summary')).toContainText('₹320.00');
+  // No pickling on record: 30 + 15 = 45 min a round. 56 × ₹9 over 0.75 h is ₹672 an hour; 156 × ₹3 is ₹624.
+  await expect(card.locator('[data-cp-time="PT-seed1"] summary')).toContainText('₹672.00');
+  await expect(card.locator('[data-cp-time="PT-seed2"] summary')).toContainText('₹624.00');
   await expect(card.locator('[data-cp-time="PT-seed1"] summary')).toContainText('+ plate 30 min (set) + 15 min logistics');
   // The constant is the owner's to change: 5 minutes makes a round 35.
   await card.locator('#cpOverhead').fill('5');
   await card.locator('#cpOverhead').dispatchEvent('change');
-  await expect(page.locator('[data-card="hours"] [data-cp-time="PT-seed1"] summary')).toContainText('₹370.29');
+  await expect(page.locator('[data-card="hours"] [data-cp-time="PT-seed1"] summary')).toContainText('₹864.00');
   await expect(page.locator('[data-card="hours"] [data-cp-hour-ref]')).toContainText('An hour costs the plant');
   await page.locator('[data-card="hours"] [data-cp-time="PT-seed2"] summary').click();
   await page.locator('[data-card="hours"] [data-cp-time="PT-seed2"] [data-action="invCpTimeRemove"]').click();
   await page.reload();
   await page.waitForSelector('body.inv-booted');
-  expect((await readStoredState(page)).clients.find((x: any) => x.id === 3).partTimes).toHaveLength(1);
+  expect((await readStoredState(page)).clients.find((x: any) => x.id === 3).partTimes).toHaveLength(2);
 });
 
 test('the times are learnt from the production record, the trend is read, and a set figure the record no longer bears out is said', async ({ page }) => {

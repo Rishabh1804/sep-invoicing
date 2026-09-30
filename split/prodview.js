@@ -292,7 +292,7 @@ function prodEntryRowHtml(e, idx) {
   var title = e.kind === 'downtime' ? (e.downtime && e.downtime.open ? 'Power cut, no time back' : 'Power cut') : prodEntryTitle(e);
   // What the floor name was matched to, the gauges a round's size allows, and a name no challan part answers to.
   var alias = e.kind !== 'downtime' && e.clientId != null ? prodAliasShown(e) : null;
-  if (alias && alias.pn) meta += ' · = ' + alias.pn;
+  if (alias && alias.pn) meta += ' · = ' + alias.pn + (alias.how === 'rack' && e.partRack ? ' by the round of ' + e.partRack : '');
   if (e.gaugeOptions && !e.gauge) meta += ' · ' + e.gaugeOptions.join(' or ') + ' by the round';
   var crew = (e.kind === 'plated' || e.kind === 'pickled') && !e.voidedAt ? prodCrew(e) : null;
   var h = '<div class="inv-row inv-row-2 inv-row-flow' + (e.voidedAt ? ' inv-row-muted' : '') + '" data-prod-entry="' + escHtml(e.id) + '"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(title) + '</span>' +
@@ -321,9 +321,9 @@ function prodChallanKeySet() {
   return set;
 }
 function prodAliasShown(e) {
+  if (e.partNumber) return { pn: e.partNumber, how: e.partSrc };
   var learnt = prodData().learn.parts[prodKey(e.clientId, e.part, e.gauge)];
   if (learnt && learnt.partNumber) return { pn: learnt.partNumber, how: learnt.how };
-  if (e.partNumber) return { pn: e.partNumber };
   var k = prodEntryKey(e), set = prodChallanKeySet();
   if (set[k]) return { pn: null, matched: true, generic: true };
   return { pn: null, generic: prodIsGeneric(e.part) };
@@ -731,6 +731,8 @@ function prodSaveHand() {
     e.clientId = prodHeldId(f.clientId); e.client = prodClientName(e.clientId); e.part = f.part.trim(); e.gauge = prodGaugeOf(e.part, e.part);
     e.qty = isNaN(q) ? null : q; e.unit = f.unit; e.rework = !!f.rework;
     if (f.kind === 'plated') { e.line = f.line || null; e.lineSrc = f.line ? 'set' : null; e.slot = f.slot === 'ot' || f.slot === 'day' ? f.slot : 'general'; }
+    // A name with a code ("Assy Bracket 3302") is matched to the client's part as a register's is.
+    if (e.clientId != null) prodLearnAliases([e]);
   }
   p.entries.push(prodSparse(e));
   prodTouch();

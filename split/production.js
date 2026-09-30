@@ -23,6 +23,7 @@ function prodData() {
   if (!p.learn.clients || typeof p.learn.clients !== 'object') p.learn.clients = {};
   if (!p.learn.parts || typeof p.learn.parts !== 'object') p.learn.parts = {};
   if (!Array.isArray(p.gaugeRules)) p.gaugeRules = [];
+  if (!Array.isArray(p.partRules)) p.partRules = [];
   return p;
 }
 
@@ -79,6 +80,42 @@ function prodGaugeRuleHas(clientId, part) {
   return prodData().gaugeRules.some(function(x) { return String(x.clientId) === String(clientId) && x.family === w; });
 }
 
+/* ---------- The part a round's size gives ----------
+   Owner, 30 Sep 2026: "56 is 3302 on VAT A2, 156 is 3303 on VAT A2. These two are a pair of set they call cover plate. The
+   other 3302 is Assy bracket connector that's 50 per round in VAT A1." Samarth sends two parts ending 3302 and the register
+   writes its work as TINA, so the code cannot say which; the pieces on a round, on its line, do (`S.production.partRules`:
+   client, rack sizes, line, part number, the name the floor gives it). Unlike a gauge rule the line is required: the owner
+   named each, and no page contradicts them. A code written that ends the rule's part, or one of the client's other ruled
+   parts (the pair is written by either code), is read by the rule and a disagreement said; a code ending a part no rule
+   names is kept as written. */
+function prodPartRuleFor(clientId, rack, line) {
+  if (clientId == null || !(rack > 0)) return null;
+  return prodData().partRules.find(function(x) {
+    return String(x.clientId) === String(clientId) && (x.racks || []).indexOf(rack) >= 0 && (!x.line || x.line === line);
+  }) || null;
+}
+function prodPartRuleRead(clientId, rack, line, part) {
+  var r = prodPartRuleFor(clientId, rack, line);
+  if (!r) return null;
+  var code = prodAliasCode(part), ends = function(pn) { return rateKey(pn).slice(-code.length) === code; };
+  if (!code || ends(r.partNumber)) return { partNumber: r.partNumber, name: r.name || '' };
+  var ruled = prodData().partRules.some(function(x) { return String(x.clientId) === String(clientId) && ends(x.partNumber); });
+  return ruled ? { partNumber: r.partNumber, name: r.name || '', written: code } : { partNumber: null, rulePn: r.partNumber, name: r.name || '', written: code };
+}
+
+/* A part carried onto the customer above it under a ditto mark, of a kind that customer has never sent (owner, 30 Sep
+   2026: "Samarth doesn't have clamp"). Null when the customer has sent the kind, or the part names no kind; else the
+   kind, and the one client whose gauge rule covers it at this round, where exactly one does. */
+function prodCarryCheck(clientId, part, rack) {
+  var w = (prodPartBase(part).toUpperCase().match(/[A-Z]{3,}/) || [''])[0];
+  if (!w) return null;
+  if (prodClientParts(clientId).some(function(x) { return (String(x.partNumber) + ' ' + x.desc).toUpperCase().indexOf(w) >= 0; })) return null;
+  var owners = {};
+  if (rack > 0) prodData().gaugeRules.forEach(function(r) { if (r.family === w && (r.racks || []).indexOf(rack) >= 0 && String(r.clientId) !== String(clientId)) owners[r.clientId] = true; });
+  var ids = Object.keys(owners), c = ids.length === 1 ? (S.clients || []).find(function(x) { return String(x.id) === ids[0]; }) : null;
+  return c ? { family: w, clientId: c.id, name: c.name } : { family: w, clientId: null };
+}
+
 /* ---------- A floor name and the part it is ----------
    The register writes a part by its floor name, often with its code in brackets ("TINA(0160)", "KUDAL(0106)",
    "TINA(3303)"). A code that ends exactly one of the client's part numbers on its challans and invoices is that part: the
@@ -86,7 +123,9 @@ function prodGaugeRuleHas(clientId, part) {
    next time. Two parts ending in the code are left for the owner to pick (Entries → Which part?). */
 function prodClientParts(clientId) {
   var out = {};
-  var add = function(it) { var pn = String(it.partNumber || it.desc || '').trim(); if (!pn) return; var k = rateKey(pn); out[k] = out[k] || { partNumber: pn, desc: it.desc || '', n: 0 }; out[k].n++; };
+  var master = {};
+  (S.items || []).forEach(function(i) { if (i.partNumber && i.desc) master[rateKey(i.partNumber)] = i.desc; });
+  var add = function(it) { var pn = String(it.partNumber || it.desc || '').trim(); if (!pn) return; var k = rateKey(pn); out[k] = out[k] || { partNumber: pn, desc: it.desc || master[k] || '', n: 0 }; out[k].n++; };
   (S.incomingMaterial || []).forEach(function(m) { if (String(m.clientId) === String(clientId)) (m.items || []).forEach(add); });
   (S.invoices || []).forEach(function(v) { if (v.status === 'active' && String(v.clientId) === String(clientId)) (v.items || []).forEach(add); });
   return Object.keys(out).map(function(k) { return out[k]; }).sort(function(a, b) { return b.n - a.n; });
@@ -97,13 +136,27 @@ function prodAliasCandidates(clientId, part) {
   var parts = prodClientParts(clientId), code = prodAliasCode(part), name = prodAliasName(part).toUpperCase();
   var byCode = code ? parts.filter(function(x) { return rateKey(x.partNumber).slice(-code.length) === code; }) : [];
   var byWord = name ? parts.filter(function(x) { return byCode.indexOf(x) < 0 && (String(x.partNumber) + ' ' + x.desc).toUpperCase().indexOf(name) >= 0; }) : [];
-  return { code: code, byCode: byCode, byWord: byWord, all: parts };
+  // Two parts ending in the code ("Assy Bracket 3302" against a cover plate and a connector): the one whose description
+  // carries every word of the name, when only one does.
+  var words = name.split(/[^A-Z]+/).filter(function(w) { return w.length >= 3; });
+  var byCodeWords = byCode.length > 1 && words.length ? byCode.filter(function(x) {
+    var d = (String(x.partNumber) + ' ' + x.desc).toUpperCase();
+    return words.every(function(w) { return d.indexOf(w) >= 0; });
+  }) : [];
+  return { code: code, byCode: byCode, byCodeWords: byCodeWords, byWord: byWord, all: parts };
 }
 function prodLearnAlias(clientId, part, gauge, partNumber, how) {
   var p = prodData(), rec = { partNumber: partNumber, gauge: gauge || '', how: how || 'set', at: Date.now() };
   p.learn.parts[prodKey(clientId, part, gauge)] = rec;
+  // The name alone ("TINA" of "TINA(3303)") is learnt too, unless it was learnt as another part: one floor name for two
+  // parts is ambiguous, and the name alone then finds neither. The owner's own pick wins.
   var nm = prodAliasName(part);
-  if (nm && nm !== part) p.learn.parts[prodKey(clientId, nm, gauge)] = rec;
+  if (nm && nm !== part) {
+    var k2 = prodKey(clientId, nm, gauge), was = p.learn.parts[k2];
+    if (how !== 'set' && was && (was.ambiguous || (was.partNumber && rateKey(was.partNumber) !== rateKey(partNumber))))
+      p.learn.parts[k2] = { ambiguous: true, parts: (was.parts || [was.partNumber]).concat(was.parts && was.parts.indexOf(partNumber) >= 0 ? [] : [partNumber]), at: Date.now() };
+    else p.learn.parts[k2] = rec;
+  }
   prodTouch();
 }
 /* On entries just saved or imported: a bracketed code that names one part is learnt and taken. Returns how many. */
@@ -114,7 +167,8 @@ function prodLearnAliases(entries) {
     var known = p.learn.parts[prodKey(e.clientId, e.part, e.gauge)];
     if (known && known.partNumber) return;
     var c = prodAliasCandidates(e.clientId, e.part);
-    if (c.byCode.length === 1) { prodLearnAlias(e.clientId, e.part, e.gauge, c.byCode[0].partNumber, 'code'); e.partNumber = c.byCode[0].partNumber; n++; }
+    var one = c.byCode.length === 1 ? c.byCode[0] : c.byCodeWords.length === 1 ? c.byCodeWords[0] : null;
+    if (one) { prodLearnAlias(e.clientId, e.part, e.gauge, one.partNumber, c.byCode.length === 1 ? 'code' : 'code+name'); e.partNumber = one.partNumber; n++; }
   });
   return n;
 }
@@ -135,7 +189,7 @@ function prodClientName(id) { var c = (S.clients || []).find(function(x) { retur
 function prodHeldId(v) { var c = (S.clients || []).find(function(x) { return String(x.id) === String(v); }); return c ? c.id : v; }
 function prodCtx() {
   return { clients: prodClientIndex(S.clients || [], prodData().learn.clients), roster: (S.staff || []).filter(function(w) { return w.active !== false; }), today: localDateStr(),
-    partOwners: prodPartOwners(), gaugeRule: prodGaugeRuleFor, gaugeHas: prodGaugeRuleHas };
+    partOwners: prodPartOwners(), gaugeRule: prodGaugeRuleFor, gaugeHas: prodGaugeRuleHas, partRule: prodPartRuleRead, carryCheck: prodCarryCheck };
 }
 /* Which clients a part has come from, off the challans and invoices of the last year: part key → client ids. A load
    with no client written whose part only one client has ever sent ("LINER", "188 CD") is read as that client, amber. */
@@ -169,9 +223,11 @@ function prodFamilyKey(clientId, part, gauge) {
 }
 function prodEntryKey(e) {
   if (e.clientId == null) return null;
+  // The entry's own part number (a round's rule, a code) is about this entry; a learnt name is about every entry under it.
+  if (e.partNumber) return prodKey(e.clientId, e.partNumber, e.gauge);
   var map = prodData().learn.parts[prodKey(e.clientId, e.part, e.gauge)];
   if (map && map.partNumber) return prodKey(e.clientId, map.partNumber, map.gauge != null ? map.gauge : e.gauge);
-  return prodKey(e.clientId, e.partNumber || e.part, e.gauge);
+  return prodKey(e.clientId, e.part, e.gauge);
 }
 /* A part named only by its kind and gauge ("CLAMP(40X6)", "BOX CLAMP"): no figure in it once the gauge is out. Such
    a load is matched, and its usual line read, at the family level. */

@@ -89,3 +89,49 @@ test('every run names its crew from the day’s attendance, the OT block’s aft
   const plated = page.locator('[data-card="worked"] [data-cp-plated]');
   await expect(plated.first()).toContainText('Crew: Alfa, Bravo');
 });
+
+// Owner, 30 Sep 2026: at Samarth a round of 56 on VAT A2 is the 3302 cover plate, 156 on A2 the 3303 cover plate, and 50 on
+// VAT A1 the other 3302, the assy bracket connector. The register writes all three as TINA. Made-up client name.
+function samarthBook(): SepState {
+  const s: any = book();
+  s.clients.push({ id: 3, name: 'SAMARTH TEST CO.', billingMode: 'piece', gstType: 'intra', isActive: true, rates: [{ ratePerKg: 14.5, effectiveFrom: '2020-04-01' }], itemRates: [],
+    partTimes: [{ id: 'PT-seed1', base: '517454603302', gauge: '', name: '5174 5460 3302', line: 'vat-a2', pieces: 24, plateMin: 30, at: 1, note: 'owner' },
+      { id: 'PT-seed2', base: '516654603303', gauge: '', name: '5166 5460 3303', line: 'vat-a2', pieces: 80, plateMin: 30, at: 1, note: 'owner' }] });
+  s._partTimes1 = true;
+  const line = (id: string, pn: string, qty: number) => ({ id, partNumber: pn, desc: null, hsn: '998873', unit: 'NOS', qty, rate: 1, amount: qty, nosQty: null });
+  s.incomingMaterial.push({ id: 'IM-3', challanNo: '31', challanDate: T, clientId: 3, clientName: 'SAMARTH TEST CO.', vehicleNo: '', receivedDate: T, createdAt: recentTs(),
+    items: [line('IM-3-0', '5174 5460 3302', 300), line('IM-3-1', '5166 5460 3303', 600), line('IM-3-2', '5167 5461 3302', 200)] });
+  s.items = [{ id: 91, partNumber: '5174 5460 3302', desc: 'BRACKET', unit: 'NOS', rate: 9 }, { id: 92, partNumber: '5167 5461 3302', desc: 'BRACKET ASSY.CONNECTOR MTG', unit: 'NOS', rate: 7.05, stdWeightKg: 0.5 }];
+  s.production = { entries: [{ id: 'H1', kind: 'plated', date: T, line: 'vat-a1', clientId: 3, client: 'SAMARTH TEST CO.', part: 'Assy Bracket 3302', qty: 50, unit: 'NOS', slot: 'general', basis: 'hand', src: 'hand', time: '09:10' }],
+    pastes: [], photos: [], imports: [], learn: { clients: {}, parts: {} } };
+  return s as SepState;
+}
+
+test('a Samarth round names its part by its size and line, a code the rule disagrees with is said, and set times take the register’s round', async ({ page }) => {
+  await loadAppWithState(page, samarthBook());
+  const A2 = { page: 'production', date: dmy, line: 'VAT-A2', rows: [
+    { time: '10:20 AM', mark: 'START', customer: 'SAMARTH', part: 'TINA(3303)' }, { time: '11:30 AM', mark: 'END', qtyText: '3×56' },
+    { time: '3:30 PM', mark: 'START', customer: 'SAMARTH', part: 'TINA' }, { time: '4:45 PM', mark: 'END', qtyText: '3×156' }] };
+  const read = JSON.parse(await g(page, `JSON.stringify(prodFromRegisterRead(${JSON.stringify(A2)}, prodCtx(), null, {}).runs.map(e => [e.part, e.partNumber, e.qty, e.issues.filter(i => i.code === 'part').map(i => i.tone).join()]))`) as string);
+  expect(read).toEqual([['TINA(3303)', '5174 5460 3302', 168, 'amber'], ['TINA', '5166 5460 3303', 468, 'info']]);
+  const A1s = { page: 'production', date: dmy, line: 'VAT-A1', rows: [
+    { time: '9:10 AM', mark: 'START', customer: 'SAMARTH', part: 'TINA' }, { time: '9:40 AM', qtyText: '50', ditto: true }, { time: '10:10 AM', qtyText: '50', ditto: true }] };
+  const a1 = JSON.parse(await g(page, `JSON.stringify(prodFromRegisterRead(${JSON.stringify(A1s)}, prodCtx(), null, {}).runs.map(e => [e.partNumber, e.qty]))`) as string);
+  expect(a1).toEqual([['5167 5461 3302', 150]]);
+  // The hand entry already in the book finds the connector by its description; the set times take the register's rounds,
+  // the earlier figures kept; the connector's round is added.
+  const st = await readStoredState(page);
+  expect(st.production.entries.find((e: any) => e.id === 'H1').partNumber).toBe('5167 5461 3302');
+  const pt = st.clients.find((c: any) => c.id === 3).partTimes;
+  expect(pt.map((t: any) => [t.name, t.pieces, t.line])).toEqual([['5174 5460 3302', 56, 'vat-a2'], ['5166 5460 3303', 156, 'vat-a2'], ['5167 5461 3302', 50, 'vat-a1']]);
+  expect(pt[0].history[0].pieces).toBe(24);
+  // A CLAMP carried under Samarth's ditto: Samarth has never sent a clamp, and a round of 150 is Mehta's by the gauge rule.
+  const carried = { page: 'production', date: dmy, line: 'VAT-A1', rows: [
+    { time: '3:20 PM', customer: 'SAMARTH', part: 'TINA', qtyText: '50' }, { time: '3:35 PM', customer: null, part: 'CLAMP', qtyText: '150' },
+    { time: '3:50 PM', qtyText: '150', ditto: true }] };
+  const cr = JSON.parse(await g(page, `JSON.stringify(prodFromRegisterRead(${JSON.stringify(carried)}, prodCtx(), null, {}).runs.map(e => [e.clientId, e.part, e.qty]))`) as string);
+  expect(cr).toEqual([[3, 'TINA', 50], [2, 'CLAMP', 300]]);
+  // TINA is two parts at Samarth: learning "TINA" from TINA(3303) and TINA(3302) leaves the name alone ambiguous.
+  await g(page, `(function(){ prodLearnAlias(3, 'TINA(3303)', '', '5166 5460 3303', 'code'); prodLearnAlias(3, 'TINA(3302)', '', '5174 5460 3302', 'code'); })()`);
+  expect(await g(page, `!!prodData().learn.parts[prodKey(3, 'TINA', '')].ambiguous`)).toBe(true);
+});

@@ -676,13 +676,13 @@ function prodFromRegisterRead(json, ctx, photoDate, choices) {
     var mark = markOf(r), written = r.qtyText != null && String(r.qtyText).trim() !== '' ? String(r.qtyText).trim() : null;
     // A row with nothing on it but ditto marks (the clerk's next line, begun and not used) is not a row.
     if (!r.time && !mark && written == null && r.qty == null && !r.customer && !r.part && !r.struck) return;
-    var cust = (r.customer || '').trim(), part = (r.part || '').trim(), dim = String(r.dim || '').trim();
+    var cust = (r.customer || '').trim(), part = (r.part || '').trim(), dim = String(r.dim || '').trim(), carried = false;
     // A ditto row carries the size above it too, so it stays in its run now that a run is one gauge.
     var ditto = r.ditto || (!cust && !part);
     if (ditto) { cust = cust || lastCust; part = part || lastPart; dim = dim || lastDim; }
     // A new part under ditto marks in the customer column is the same customer's (the clerk writes LINER under MEHTA's
     // ditto): it was read as no customer written, and asked for one on every change of part.
-    else if (!cust && lastCust) cust = lastCust;
+    else if (!cust && lastCust) { cust = lastCust; carried = true; }
     lastCust = cust || lastCust; lastPart = part || lastPart; if (!ditto || dim) lastDim = dim;
     var row = { i: i, time: String(r.time || '').replace(/\s*-?\s*(start|end)\s*$/i, ''), min: prodRegisterNoon(r.time), cust: cust, part: part, dim: dim,
       mark: mark, start: mark === 'START', end: mark === 'END', rackSize: r.rackSize, rounds: r.rounds, short: r.short,
@@ -699,6 +699,19 @@ function prodFromRegisterRead(json, ctx, photoDate, choices) {
       var calc = row.rackSize * row.rounds - (row.short || 0);
       if (row.qty == null) { row.qty = calc; row.qtySrc = 'working'; }
       else if (Math.abs(calc - row.qty) > 0.5) row.issues.push({ tone: 'amber', code: 'rack', text: row.rackSize + ' × ' + row.rounds + (row.short ? ' − ' + row.short : '') + ' = ' + calc + ', but ' + row.qty + ' is written. The written figure is used.' });
+    }
+    // A new part carried onto the customer above it, of a kind that customer has never sent (the clerk's labels a row out,
+    // a CLAMP under SAMARTH's ditto): the customer whose rule covers that kind at this round, where exactly one does.
+    if (carried && ctx.carryCheck) {
+      var cit = prodReadItem(cust, ctx.clients), crack = row.rackSize || row.qty;
+      var cc = cit.clientId != null ? ctx.carryCheck(cit.clientId, part, crack) : null;
+      if (cc) {
+        var who = cit.clientName || cust;
+        if (cc.clientId != null) {
+          row.issues.push({ tone: 'amber', code: 'carried', text: 'Written under ' + who + '’s ditto, but ' + who + ' has never sent a ' + cc.family + '; a round of ' + crack + ' is ' + cc.name + '’s by the owner’s rule, so read as ' + cc.name + '. Check the page.' });
+          row.cust = cust = cc.name; lastCust = cc.name;
+        } else row.issues.push({ tone: 'amber', code: 'carried', text: 'Written under ' + who + '’s ditto, but ' + who + ' has never sent a ' + cc.family + '. Check whose it is.' });
+      }
     }
     row.raw = [row.time, cust, part, row.dim, written != null ? written : row.rackSize && row.rounds ? row.rackSize + '×' + row.rounds + (row.short ? '−' + row.short : '') : '',
       written == null && row.qty != null ? String(row.qty) : '', mark, row.struck ? '(struck)' : '', row.over ? '(over ' + row.over + ')' : ''].filter(Boolean).join(' · ');
@@ -745,15 +758,27 @@ function prodFromRegisterRead(json, ctx, photoDate, choices) {
       row.gaugeRack = rack;
     });
   }
+  // A round whose size, on its line, names one of the client's parts by the owner's rule (prodPartRuleRead): Samarth's
+  // cover plates and connector, all written TINA. A row of no size of its own (a START on a START/END page) continues.
+  if (ctx.partRule) {
+    out.rows.forEach(function(row) {
+      var rack = row.rackSize || (!row.batch && row.qty > 0 ? row.qty : null);
+      var it = rack ? prodReadItem(row.cust, ctx.clients) : null;
+      var pr = it && it.clientId != null ? ctx.partRule(it.clientId, rack, out.line, row.part) : null;
+      if (!pr) return;
+      row.partRack = rack; row.partRule = pr;
+      if (pr.partNumber) row.rulePn = pr.partNumber;
+    });
+  }
   // Runs: consecutive rows of one customer, part and gauge. Two gauges of one clamp are two parts at two rates, and the
   // gauge used to be taken out of the key, so a 35X6 run following a 40X6 one was added into it under the 40X6. A row
   // with no gauge of its own continues the run above it.
   var cur = null;
   out.rows.forEach(function(row) {
     var pd = row.part + ' ' + row.dim, ck = relayKey(row.cust) + '|' + rateKey(prodPartBase(pd)), g = lineGauge(pd.replace(/[×✕]/g, 'X'));
-    var gs = row.gaugeSet || '';
-    if (!cur || cur.ck !== ck || (g && cur.g && g !== cur.g) || (gs && cur.gs && gs !== cur.gs) || (gs && cur.g) || (g && cur.gs)) { cur = { ck: ck, g: g, gs: gs, rows: [] }; out.runs.push(cur); }
-    else { if (g && !cur.g) cur.g = g; if (gs && !cur.gs) cur.gs = gs; }
+    var gs = row.gaugeSet || '', rp = row.rulePn || '';
+    if (!cur || cur.ck !== ck || (g && cur.g && g !== cur.g) || (gs && cur.gs && gs !== cur.gs) || (gs && cur.g) || (g && cur.gs) || (rp && cur.rp && rp !== cur.rp)) { cur = { ck: ck, g: g, gs: gs, rp: rp, rows: [] }; out.runs.push(cur); }
+    else { if (g && !cur.g) cur.g = g; if (gs && !cur.gs) cur.gs = gs; if (rp && !cur.rp) cur.rp = rp; }
     cur.rows.push(row);
   });
   out.runs = out.runs.map(function(run) {
@@ -778,6 +803,16 @@ function prodFromRegisterRead(json, ctx, photoDate, choices) {
     if (run.gs === 'none') { e.issues.push({ tone: 'amber', code: 'gauge', text: 'Gauge unknown: a round of ' + racked.gaugeRack + ' is in none of the owner’s rules for this part.' }); }
     else if (run.gs) { e.gaugeOptions = run.gs.split('/'); e.gaugeSrc = 'rack'; e.issues.push({ tone: 'info', code: 'gauge', text: 'Gauge read from the round of ' + racked.gaugeRack + ': ' + run.gs.replace(/\//g, ' or ') + ' (the owner’s rule). The challans say which.' }); }
     else if (racked && e.gauge) { e.gaugeSrc = 'rack'; e.issues.push({ tone: 'info', code: 'gauge', text: 'Gauge ' + e.gauge + ' read from the round of ' + racked.gaugeRack + ' (the owner’s rule).' }); }
+    var ruled = run.rows.find(function(x) { return x.partRule; });
+    if (ruled) {
+      var pr = ruled.partRule, where = ' a round of ' + ruled.partRack + ' on ' + (typeof prodLineName === 'function' ? prodLineName(out.line) : out.line);
+      if (pr.partNumber) {
+        e.partNumber = pr.partNumber; e.partSrc = 'rack'; e.partRack = ruled.partRack;
+        e.issues.push(pr.written
+          ? { tone: 'amber', code: 'part', text: 'The page writes ' + pr.written + ';' + where + ' is ' + pr.partNumber + (pr.name ? ' (' + pr.name + ')' : '') + ' by the owner’s rule. Read by the rule: check the page.' }
+          : { tone: 'info', code: 'part', text: 'Read as ' + pr.partNumber + (pr.name ? ' (' + pr.name + ')' : '') + ':' + where + ' is that part (the owner’s rule).' });
+      } else e.issues.push({ tone: 'amber', code: 'part', text: where.trim().replace(/^a/, 'A') + ' is ' + pr.rulePn + ' by the owner’s rule, but the page writes ' + pr.written + ': kept as written.' });
+    }
     if (e.clientId == null) e.issues.push({ tone: 'red', code: 'client', text: first.cust ? '"' + first.cust + '" is not a client in the book. Pick the client, or keep it as written.' : 'No customer written. Pick the client.' });
     else if (it.clientHow === 'read-as') e.issues.push({ tone: 'amber', code: 'readas', text: '"' + first.cust + '" read as ' + it.clientName + '.' });
     return e;

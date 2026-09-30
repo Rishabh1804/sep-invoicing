@@ -277,6 +277,12 @@ function onDocClick(e) {
     case 'invStatsTopBy': _statsTopBy = btn.dataset.by; renderStats(); break;
     // Client performance sub-view
     case 'invPerfSeries': _cpSeries = btn.dataset.series; renderClientsPage(); break;
+    case 'invCpPeriod': _cpPeriod = btn.dataset.p; renderClientsPage(); break;
+    case 'invCpScope': _cpScope = btn.dataset.s; renderClientsPage(); break;
+    case 'invCpTimeAdd': _cpTimeForm = true; renderClientsPage(); break;
+    case 'invCpTimeCancel': _cpTimeForm = false; renderClientsPage(); break;
+    case 'invCpTimeSave': cpTimeSave(); break;
+    case 'invCpTimeRemove': cpTimeRemove(btn.dataset.id); break;
     // Phase 7: Client drill-down overlay
     case 'invStatsClientDrill': openClientDrillOverlay(btn.dataset.clientId); break;
     // Phase 7: Flippable card
@@ -597,6 +603,12 @@ function onDocChange(e) {
   // Client performance: which account is under the lens
   if (e.target.id === 'cpClientSelect') {
     setPerfClientId(e.target.value);
+    _cpTimeForm = false;
+    renderClientsPage();
+    return;
+  }
+  if (e.target.id === 'cpFrom' || e.target.id === 'cpTo') {
+    if (e.target.id === 'cpFrom') _cpFrom = e.target.value; else _cpTo = e.target.value;
     renderClientsPage();
     return;
   }
@@ -656,6 +668,7 @@ document.addEventListener('input', function(e) {
     renderClientList(e.target.value);
   }
   if (e.target.id === 'ceditPoTpl') { clientPoExampleRefresh(e.target); return; }
+  if (e.target.id === 'cpMatSearch') { _cpQuery = e.target.value; cpWorkedRedraw(); return; }
   // Attendance hours. Written on every keystroke so nothing is lost, but never
   // re-rendered here: replacing the field mid-entry is what ended the keyboard
   // path in challan entry, and a number input is the same trap.

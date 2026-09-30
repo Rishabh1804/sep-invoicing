@@ -434,10 +434,13 @@ function buildTopItems(invoices, by) {
     var client = rowClient(inv);
     (inv.items || []).forEach(function(it) {
       var part = it.partNumber || it.desc || 'Unknown';
-      var gauge = lineGauge(it.desc) || lineGauge(it.partNumber);
-      var key = inv.clientId + '|' + part + '|' + gauge;
-      if (!byPart[key]) byPart[key] = { part: part, desc: it.desc || '', gauge: gauge, clientId: inv.clientId,
+      // One part however it was spelt (CLAMP 149X83(40X6) and 149X83 with the gauge in the description), and always one
+      // client's: a code two clients send is two rows, each saying so (cpPartIdentity, client-perf.js).
+      var idn = cpPartIdentity(it.partNumber, it.desc), gauge = idn.gauge;
+      var key = inv.clientId + '|' + (idn.base || part) + '|' + gauge;
+      if (!byPart[key]) byPart[key] = { part: part, base: idn.base, desc: it.desc || '', gauge: gauge, clientId: inv.clientId,
         clientName: (client && client.name) || inv.clientName || '', qty: 0, amount: 0, kg: 0, kgKnown: true };
+      else if (String(part).length > String(byPart[key].part).length) { byPart[key].part = part; byPart[key].desc = it.desc || ''; }
       byPart[key].qty += (it.qty || 0);
       byPart[key].amount += (it.amount || 0);
       var w = lineWeightKg(it, client, inv.date);
@@ -860,7 +863,7 @@ function renderStats() {
 
   take('billing');
   /* ===== Card 10: Top items — by value, tonnage, or price ===== */
-  var top = buildTopItems(filtered, _statsTopBy);
+  var top = buildTopItems(filtered, _statsTopBy), topOwners = top.total > 0 ? cpCodeOwners() : {};
   if (top.total > 0) {
     var topTitles = { value: 'Top items by value', tonnage: 'Top items by tonnage', rate: 'Worst priced items' };
     var topUnits = { value: 'money', tonnage: 'kg', rate: 'money' };
@@ -892,8 +895,10 @@ function renderStats() {
         // Every row carries the other two figures, so switching the ranking
         // is a change of order rather than a change of what can be seen, and
         // names its client: a part is that client's part.
+        var shared = Object.keys(topOwners[r.base] || {}).filter(function(c) { return String(c) !== String(r.clientId); });
         var sub = (r.clientName ? r.clientName + ' · ' : '') + formatCurrency(r.amount) +
-          (r.kgKnown && r.kg > 0 ? ' · ' + formatNum(r.kg, 0) + ' kg · ' + formatCurrency(r.perKg) + '/kg' : ' · weight unknown');
+          (r.kgKnown && r.kg > 0 ? ' · ' + formatNum(r.kg, 0) + ' kg · ' + formatCurrency(r.perKg) + '/kg' : ' · weight unknown') +
+          (shared.length ? ' · code also sent by ' + shared.map(function(c) { var cc = (S.clients || []).find(function(x) { return String(x.id) === String(c); }); return cc ? cc.name : 'another client'; }).join(', ') + ', counted apart' : '');
         var label = r.part + (r.desc && r.desc !== r.part ? ' — ' + r.desc : '');
         // The gauge is said where the part's own text does not already say it (partLineDesc folds it into desc).
         if (r.gauge && rateKey(label).indexOf(rateKey(r.gauge)) < 0) label += ' (' + r.gauge + ')';

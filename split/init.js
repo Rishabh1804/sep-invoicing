@@ -481,6 +481,25 @@ if (!S._cnSeriesStart1) {
   saveJSON(STORAGE_KEY, S);
 })();
 
+/* ===== SAMARTH'S PARTS BY THE ROUND, RECORDED ONCE =====
+   Owner, 30 Sep 2026: "3302 at 9/pc takes about 30 mins/piece and we can only do 24 pcs at a time in VAT A2; 3303 at 3/pc
+   takes about 30 minutes and we can do 80 pcs at a time in VAT A2." Set on the client whose name reads Samarth, only where
+   it has no part times, and once: the flag travels with the state, so a time the owner changed or removed stays so. */
+(function() {
+  if (S._partTimes1) return;
+  var c = (S.clients || []).find(function(x) { return /SAMARTH/i.test(String(x.name || '')); });
+  if (!c) return;
+  if (!Array.isArray(c.partTimes) || !c.partTimes.length) {
+    var at = Date.now();
+    c.partTimes = [['5174 5460 3302', 24], ['5166 5460 3303', 80]].map(function(p, i) {
+      var idn = cpPartIdentity(p[0], '');
+      return { id: 'PT-seed' + (i + 1), base: idn.base, gauge: idn.gauge, name: p[0], line: 'vat-a2', pieces: p[1], minutes: 30, at: at, note: 'owner, 30 Sep 2026' };
+    });
+  }
+  S._partTimes1 = true;
+  saveJSON(STORAGE_KEY, S);
+})();
+
 /* ===== THE CONNECTION'S LOAD, RECORDED ONCE =====
    Owner, 30 Sep 2026 ("Yes, record it"): the connection is billed at 25 kVA though 50 kVA was approved (decisions,
    18 May 2026), and the over-limit penalty runs on (about ₹5,000 a month). Set only on a book with electricity bills,

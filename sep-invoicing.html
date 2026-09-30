@@ -18,7 +18,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <!-- Appearance before first paint (§3.2): the device's theme and palette, so nothing flashes in the wrong colours. -->
 <script>(function(){try{var d=document.documentElement,t=localStorage.getItem("sep_inv_theme"),p=localStorage.getItem("sep_inv_palette");if(t==="light"||t==="dark")d.dataset.theme=t;d.dataset.palette=(p==="zinc"||p==="terracotta")?p:"teal";}catch(e){document.documentElement.dataset.palette="teal";}})();</script>
-<meta name="app-build" content="1f55630d">
+<meta name="app-build" content="b27a9119">
 <style>
 /* ===== DESIGN TOKENS (design system v2.0 — docs/SEP_INVOICING_DESIGN_PRINCIPLES.md §3) ===== */
 /* Theme: colour-scheme decides every light-dark() below. <html data-theme> is set before first paint
@@ -1960,6 +1960,8 @@ function getDefaultState() {
     // here too, and is struck — tagged in the raw relay, under-booked, and
     // under-booking is never an error.)
     extraExceptions: [],
+    // A deleted attendance day, kept whole with its required reason (attDeleteDay): History lists it.
+    attendanceDeletes: [],
     // Workforce. The roster ships empty: names and wages are payroll data and
     // this repo is public, so the owner enters them once on the device. Areas
     // and comp classes are structure, not data, and live in staff.js.
@@ -2438,7 +2440,7 @@ function hideStorageBanner(kind) {
 // Containers hold the user's records, so a missing one is filled EMPTY — the
 // app must never invent business data to repair a shape.
 var STATE_CONTAINERS = ['clients', 'items', 'invoices', 'incomingMaterial', 'partWeights',
-  'voidedNumbers', 'creditNotes', 'extraExceptions', 'staff', 'attendance', 'areaTargets', 'shiftNeeds', 'stock', 'todo', 'relayPastes', 'relayLearn', 'staffPayments', 'payCarryClears', 'costBills', 'payrollPaid', 'bank', 'production'];
+  'voidedNumbers', 'creditNotes', 'extraExceptions', 'attendanceDeletes', 'staff', 'attendance', 'areaTargets', 'shiftNeeds', 'stock', 'todo', 'relayPastes', 'relayLearn', 'staffPayments', 'payCarryClears', 'costBills', 'payrollPaid', 'bank', 'production'];
 // Config objects are the opposite: a missing one is filled from the defaults,
 // and so is a missing KEY inside one. `labourCfg()` reads `extraRate || 0`, so
 // a backup predating a constant would silently price the extra at nothing
@@ -14125,6 +14127,39 @@ function attDatesInRange(fromIso, toIso) {
 }
 
 /* ===== STORE ===== */
+/* A day's data is deleted only with a reason, and never without trace (owner, 30 Sep 2026: "there is no way to delete a
+   day's data after providing a reason that can be logged"). The whole day goes to S.attendanceDeletes as it was, with the
+   reason and when, so History can say what was removed and why, and an audit can tell a day nobody typed from one
+   somebody deleted. The day's heads-needed figures (S.shiftNeeds) are not attendance and stay. */
+function attDeleteRecord(key, reason, how) {
+  var rec = (S.attendance || {})[key];
+  if (!rec) return null;
+  var marks = Object.keys(rec.marks || {}).length, extra = (rec.extra || []).length;
+  var entry = { id: 'AD-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), key: key,
+    iso: /^\d{4}-\d{2}-\d{2}$/.test(key) ? key : null, reason: reason, how: how || 'by hand', at: Date.now(),
+    marks: marks, extra: extra, day: JSON.parse(JSON.stringify(rec)) };
+  if (!Array.isArray(S.attendanceDeletes)) S.attendanceDeletes = [];
+  S.attendanceDeletes.push(entry);
+  delete S.attendance[key];
+  return entry;
+}
+async function attDeleteDay(iso) {
+  var rec = (S.attendance || {})[iso];
+  if (!rec) return;
+  var marks = Object.keys(rec.marks || {}).length, extra = (rec.extra || []).length;
+  var reason = await uiPrompt({ title: 'Delete ' + formatDate(iso), danger: true, okLabel: 'Delete day',
+    body: 'All of this day\u2019s attendance goes: ' + marks + ' mark' + (marks === 1 ? '' : 's') + ' and ' + extra + ' EXTRA row' + (extra === 1 ? '' : 's') +
+      '. It is kept in the log with the reason, and History lists it.',
+    label: 'Why is this day being deleted?', required: true, requiredText: 'A deleted day needs a reason.' });
+  if (reason == null) return;
+  if (!reason.trim()) { showToast('A deleted day needs a reason', 'error'); return; }
+  if (!(S.attendance || {})[iso]) return;
+  attDeleteRecord(iso, reason.trim(), 'by hand');
+  saveState();
+  renderAttendance();
+  showToast(formatDate(iso) + ' deleted; the reason is in History');
+}
+
 function attDay(iso, create) {
   if (!S.attendance) S.attendance = {};
   var rec = S.attendance[iso];
@@ -14335,7 +14370,8 @@ function _attDayView() {
     '<span class="inv-stepper-sub">' + attDayName(iso) + '</span>',
     'invAttToday', 'Today', 'Previous day', 'Next day') +
     // Paste message stays the one primary; the paper forms for the day sit beside it (attsheet.js).
-    _attPasteBar().replace('</div>', '<button class="inv-btn inv-btn-secondary" data-action="invAttSheetOpen">Print sheets</button></div>');
+    _attPasteBar().replace('</div>', '<button class="inv-btn inv-btn-secondary" data-action="invAttSheetOpen">Print sheets</button>' +
+      (rec ? '<button class="inv-btn inv-btn-danger" data-action="invAttDayDelete">Delete this day</button>' : '') + '</div>');
 
   var tile = function(id, label, value, sub, tone) {
     return '<div class="inv-tile' + (tone ? ' inv-tile-' + tone : '') + '"><div class="inv-tile-label">' + label + '</div>' +
@@ -27228,6 +27264,16 @@ function pushFloorEvents(events) {
      audit must be able to tell an exception somebody looked at from one nobody
      was shown. This one has a real record-time, so it is on the recorded clock
      and says so. */
+  // A deleted attendance day: on the recorded clock, the day it was about and why it went.
+  (S.attendanceDeletes || []).forEach(function(x) {
+    events.push({
+      ts: x.at, type: 'audit', kind: 'attDelete', sourceId: null, jump: null, clock: 'recorded',
+      text: 'Attendance day deleted \u2014 ' + (x.iso ? formatDate(x.iso) : 'saved under no date ("' + x.key + '")') +
+        ' (' + x.marks + ' mark' + (x.marks === 1 ? '' : 's') + ', ' + x.extra + ' EXTRA row' + (x.extra === 1 ? '' : 's') + ')' +
+        (x.how === 'migration' ? ', by the app on the owner\u2019s instruction' : '') + ' \u2014 ' + (x.reason || 'no reason recorded')
+    });
+  });
+
   (S.extraExceptions || []).forEach(function(x) {
     events.push({
       ts: x.at || floorTs(x.iso), type: 'audit', kind: 'except', sourceId: null, jump: null,
@@ -33365,6 +33411,7 @@ function onDocClick(e) {
     case 'invPreviewInvoice': closeOverlay(); showPrintPreview(btn.dataset.id); break;
     case 'invClosePrint': closePrintPreview(); break;
     case 'invAttSheetOpen': attSheetOpen(); break;
+    case 'invAttDayDelete': attDeleteDay(_attDate); break;
     case 'invAttSheetPreview': attSheetPreview(); break;
     case 'invStockSheetOpen': stockSheetOpen(); break;
     case 'invStockSheetPreview': stockSheetPreview(); break;
@@ -35044,6 +35091,19 @@ if (!S._cnSeriesStart1) {
   if (!(S.costBills || []).some(function(b) { return b.kind === 'power' && !b.voided; })) return;
   if (!(p.load.sanctioned || p.load.approved)) p.load = { sanctioned: 25, approved: 50, approvedOn: '2026-05-18', ref: '', note: 'Recorded as approved on 18 May 2026 (no approval letter or reference on file). Billed at 25 kVA on the May bill; owner, 30 Sep 2026: the bill still shows 25, and about ₹5,000 a month is paid over the limit (their statement, not a bill figure).', at: Date.now() };
   S._powerLoad1 = true;
+  saveJSON(STORAGE_KEY, S);
+})();
+
+/* An attendance day saved under no date: the book held one keyed "null" (22 h of OT, 69 h of blocks), which no screen can
+   open and so no one could delete. The owner (30 Sep 2026): "delete the attendance day saved under null, the day it was
+   for was added correctly". Every key that is not a date is moved to the deletion log with that reason, never dropped
+   silently; History lists it. Structural, so it runs on a pulled or imported book too, and twice is a no-op. */
+(function() {
+  var bad = Object.keys(S.attendance || {}).filter(function(k) { return !/^\d{4}-\d{2}-\d{2}$/.test(k); });
+  if (!bad.length) return;
+  bad.forEach(function(k) {
+    attDeleteRecord(k, 'Saved under no date ("' + k + '"); the day it was for was entered correctly (owner, 30 Sep 2026: delete it)', 'migration');
+  });
   saveJSON(STORAGE_KEY, S);
 })();
 

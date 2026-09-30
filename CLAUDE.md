@@ -128,7 +128,7 @@ every session start — nothing to set up by hand. CI (`build-sync`) is the back
 ### Tests
 
 ```bash
-pnpm exec playwright test          # 989 tests, both layouts
+pnpm exec playwright test          # 991 tests, both layouts
 ```
 
 Some sandboxes ship a Chromium build Playwright does not expect and block downloading
@@ -2689,6 +2689,14 @@ cannot be gated away at any length, only stated, so a range under two months car
 caveat next to the figure. And a ₹/kg computed over partial tonnage coverage reads **high**
 here — the opposite direction from realisation, because tonnage is the denominator — which the
 card says rather than leaving the reader to work out.
+
+**A day's attendance is deleted only with a reason, and the deletion is logged** (owner, 30 Sep 2026: *"there is no way to
+delete a day's data after providing a reason that can be logged"*). Staff → Day → **Delete this day** asks why (required),
+moves the whole day to `S.attendanceDeletes` as it was (`attDeleteRecord`: key, reason, when, the marks and EXTRA counts,
+the day itself), and History lists it. A day saved under no date could not be opened, so a start-up pass moves every
+key that is not a date to the same log (the book held one keyed `"null"`, 23 marks; owner: *"delete the attendance day
+saved under null, the day it was for was added correctly"*). The day's heads-needed figures are not attendance and stay.
+P116.
 
 **Deletion is refused while attendance names the worker.** Removing the row would not remove
 the marks, it would orphan them: every past week's labour would quietly drop that wage and no

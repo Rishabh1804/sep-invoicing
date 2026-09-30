@@ -1284,6 +1284,16 @@ function pushFloorEvents(events) {
      audit must be able to tell an exception somebody looked at from one nobody
      was shown. This one has a real record-time, so it is on the recorded clock
      and says so. */
+  // A deleted attendance day: on the recorded clock, the day it was about and why it went.
+  (S.attendanceDeletes || []).forEach(function(x) {
+    events.push({
+      ts: x.at, type: 'audit', kind: 'attDelete', sourceId: null, jump: null, clock: 'recorded',
+      text: 'Attendance day deleted \u2014 ' + (x.iso ? formatDate(x.iso) : 'saved under no date ("' + x.key + '")') +
+        ' (' + x.marks + ' mark' + (x.marks === 1 ? '' : 's') + ', ' + x.extra + ' EXTRA row' + (x.extra === 1 ? '' : 's') + ')' +
+        (x.how === 'migration' ? ', by the app on the owner\u2019s instruction' : '') + ' \u2014 ' + (x.reason || 'no reason recorded')
+    });
+  });
+
   (S.extraExceptions || []).forEach(function(x) {
     events.push({
       ts: x.at || floorTs(x.iso), type: 'audit', kind: 'except', sourceId: null, jump: null,

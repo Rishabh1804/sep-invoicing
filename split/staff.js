@@ -188,6 +188,39 @@ function attDatesInRange(fromIso, toIso) {
 }
 
 /* ===== STORE ===== */
+/* A day's data is deleted only with a reason, and never without trace (owner, 30 Sep 2026: "there is no way to delete a
+   day's data after providing a reason that can be logged"). The whole day goes to S.attendanceDeletes as it was, with the
+   reason and when, so History can say what was removed and why, and an audit can tell a day nobody typed from one
+   somebody deleted. The day's heads-needed figures (S.shiftNeeds) are not attendance and stay. */
+function attDeleteRecord(key, reason, how) {
+  var rec = (S.attendance || {})[key];
+  if (!rec) return null;
+  var marks = Object.keys(rec.marks || {}).length, extra = (rec.extra || []).length;
+  var entry = { id: 'AD-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), key: key,
+    iso: /^\d{4}-\d{2}-\d{2}$/.test(key) ? key : null, reason: reason, how: how || 'by hand', at: Date.now(),
+    marks: marks, extra: extra, day: JSON.parse(JSON.stringify(rec)) };
+  if (!Array.isArray(S.attendanceDeletes)) S.attendanceDeletes = [];
+  S.attendanceDeletes.push(entry);
+  delete S.attendance[key];
+  return entry;
+}
+async function attDeleteDay(iso) {
+  var rec = (S.attendance || {})[iso];
+  if (!rec) return;
+  var marks = Object.keys(rec.marks || {}).length, extra = (rec.extra || []).length;
+  var reason = await uiPrompt({ title: 'Delete ' + formatDate(iso), danger: true, okLabel: 'Delete day',
+    body: 'All of this day\u2019s attendance goes: ' + marks + ' mark' + (marks === 1 ? '' : 's') + ' and ' + extra + ' EXTRA row' + (extra === 1 ? '' : 's') +
+      '. It is kept in the log with the reason, and History lists it.',
+    label: 'Why is this day being deleted?', required: true, requiredText: 'A deleted day needs a reason.' });
+  if (reason == null) return;
+  if (!reason.trim()) { showToast('A deleted day needs a reason', 'error'); return; }
+  if (!(S.attendance || {})[iso]) return;
+  attDeleteRecord(iso, reason.trim(), 'by hand');
+  saveState();
+  renderAttendance();
+  showToast(formatDate(iso) + ' deleted; the reason is in History');
+}
+
 function attDay(iso, create) {
   if (!S.attendance) S.attendance = {};
   var rec = S.attendance[iso];
@@ -398,7 +431,8 @@ function _attDayView() {
     '<span class="inv-stepper-sub">' + attDayName(iso) + '</span>',
     'invAttToday', 'Today', 'Previous day', 'Next day') +
     // Paste message stays the one primary; the paper forms for the day sit beside it (attsheet.js).
-    _attPasteBar().replace('</div>', '<button class="inv-btn inv-btn-secondary" data-action="invAttSheetOpen">Print sheets</button></div>');
+    _attPasteBar().replace('</div>', '<button class="inv-btn inv-btn-secondary" data-action="invAttSheetOpen">Print sheets</button>' +
+      (rec ? '<button class="inv-btn inv-btn-danger" data-action="invAttDayDelete">Delete this day</button>' : '') + '</div>');
 
   var tile = function(id, label, value, sub, tone) {
     return '<div class="inv-tile' + (tone ? ' inv-tile-' + tone : '') + '"><div class="inv-tile-label">' + label + '</div>' +

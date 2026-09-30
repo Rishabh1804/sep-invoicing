@@ -29,6 +29,8 @@ function getDefaultState() {
     // here too, and is struck — tagged in the raw relay, under-booked, and
     // under-booking is never an error.)
     extraExceptions: [],
+    // A deleted attendance day, kept whole with its required reason (attDeleteDay): History lists it.
+    attendanceDeletes: [],
     // Workforce. The roster ships empty: names and wages are payroll data and
     // this repo is public, so the owner enters them once on the device. Areas
     // and comp classes are structure, not data, and live in staff.js.
@@ -507,7 +509,7 @@ function hideStorageBanner(kind) {
 // Containers hold the user's records, so a missing one is filled EMPTY — the
 // app must never invent business data to repair a shape.
 var STATE_CONTAINERS = ['clients', 'items', 'invoices', 'incomingMaterial', 'partWeights',
-  'voidedNumbers', 'creditNotes', 'extraExceptions', 'staff', 'attendance', 'areaTargets', 'shiftNeeds', 'stock', 'todo', 'relayPastes', 'relayLearn', 'staffPayments', 'payCarryClears', 'costBills', 'payrollPaid', 'bank', 'production'];
+  'voidedNumbers', 'creditNotes', 'extraExceptions', 'attendanceDeletes', 'staff', 'attendance', 'areaTargets', 'shiftNeeds', 'stock', 'todo', 'relayPastes', 'relayLearn', 'staffPayments', 'payCarryClears', 'costBills', 'payrollPaid', 'bank', 'production'];
 // Config objects are the opposite: a missing one is filled from the defaults,
 // and so is a missing KEY inside one. `labourCfg()` reads `extraRate || 0`, so
 // a backup predating a constant would silently price the extra at nothing

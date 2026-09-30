@@ -497,6 +497,19 @@ if (!S._cnSeriesStart1) {
   saveJSON(STORAGE_KEY, S);
 })();
 
+/* An attendance day saved under no date: the book held one keyed "null" (22 h of OT, 69 h of blocks), which no screen can
+   open and so no one could delete. The owner (30 Sep 2026): "delete the attendance day saved under null, the day it was
+   for was added correctly". Every key that is not a date is moved to the deletion log with that reason, never dropped
+   silently; History lists it. Structural, so it runs on a pulled or imported book too, and twice is a no-op. */
+(function() {
+  var bad = Object.keys(S.attendance || {}).filter(function(k) { return !/^\d{4}-\d{2}-\d{2}$/.test(k); });
+  if (!bad.length) return;
+  bad.forEach(function(k) {
+    attDeleteRecord(k, 'Saved under no date ("' + k + '"); the day it was for was entered correctly (owner, 30 Sep 2026: delete it)', 'migration');
+  });
+  saveJSON(STORAGE_KEY, S);
+})();
+
 /* ===== ₹0 LINES CARRY A REASON, RETROSPECTIVELY TOO =====
 
    The owner ruled (24 Sep 2026) that the lines billed at ₹0 are replating —

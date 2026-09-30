@@ -222,6 +222,7 @@ function onDocClick(e) {
     case 'invPreviewInvoice': closeOverlay(); showPrintPreview(btn.dataset.id); break;
     case 'invClosePrint': closePrintPreview(); break;
     case 'invAttSheetOpen': attSheetOpen(); break;
+    case 'invAttDayDelete': attDeleteDay(_attDate); break;
     case 'invAttSheetPreview': attSheetPreview(); break;
     case 'invStockSheetOpen': stockSheetOpen(); break;
     case 'invStockSheetPreview': stockSheetPreview(); break;

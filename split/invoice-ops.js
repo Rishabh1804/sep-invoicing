@@ -878,14 +878,18 @@ function invoiceFormFrom(inv, extra) {
 }
 
 async function editInvoice(invId) {
-  const inv = S.invoices.find(i => i.id === invId);
+  let inv = S.invoices.find(i => i.id === invId);
   if (!inv) return;
-  // An invoice being typed is not thrown away unasked (createDiscardOk, create.js).
-  if (!(await createDiscardOk())) return;
+  // Refused before the question, so nobody discards a typed invoice to be told this one cannot be edited (the review).
   if (inv.status === 'cancelled') {
     showToast('Cancelled invoices cannot be edited', 'warning');
     return;
   }
+  // An invoice being typed is not thrown away unasked (createDiscardOk, create.js).
+  if (!(await createDiscardOk())) return;
+  // Found again after the question: another window's save can replace the book while it is open.
+  inv = S.invoices.find(i => i.id === invId);
+  if (!inv || inv.status === 'cancelled') { showToast(inv ? 'Cancelled invoices cannot be edited' : 'That invoice is no longer in the book', 'warning'); return; }
 
   // Check cross-month warning
   const now = new Date();

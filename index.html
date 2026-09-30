@@ -18,7 +18,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <!-- Appearance before first paint (§3.2): the device's theme and palette, so nothing flashes in the wrong colours. -->
 <script>(function(){try{var d=document.documentElement,t=localStorage.getItem("sep_inv_theme"),p=localStorage.getItem("sep_inv_palette");if(t==="light"||t==="dark")d.dataset.theme=t;d.dataset.palette=(p==="zinc"||p==="terracotta")?p:"teal";}catch(e){document.documentElement.dataset.palette="teal";}})();</script>
-<meta name="app-build" content="5acc9d28">
+<meta name="app-build" content="ac695a73">
 <style>
 /* ===== DESIGN TOKENS (design system v2.0 — docs/SEP_INVOICING_DESIGN_PRINCIPLES.md §3) ===== */
 /* Theme: colour-scheme decides every light-dark() below. <html data-theme> is set before first paint
@@ -9889,14 +9889,18 @@ function invoiceFormFrom(inv, extra) {
 }
 
 async function editInvoice(invId) {
-  const inv = S.invoices.find(i => i.id === invId);
+  let inv = S.invoices.find(i => i.id === invId);
   if (!inv) return;
-  // An invoice being typed is not thrown away unasked (createDiscardOk, create.js).
-  if (!(await createDiscardOk())) return;
+  // Refused before the question, so nobody discards a typed invoice to be told this one cannot be edited (the review).
   if (inv.status === 'cancelled') {
     showToast('Cancelled invoices cannot be edited', 'warning');
     return;
   }
+  // An invoice being typed is not thrown away unasked (createDiscardOk, create.js).
+  if (!(await createDiscardOk())) return;
+  // Found again after the question: another window's save can replace the book while it is open.
+  inv = S.invoices.find(i => i.id === invId);
+  if (!inv || inv.status === 'cancelled') { showToast(inv ? 'Cancelled invoices cannot be edited' : 'That invoice is no longer in the book', 'warning'); return; }
 
   // Check cross-month warning
   const now = new Date();
@@ -28912,13 +28916,30 @@ function prodKgPerPiece(clientId, date, part, desc) {
   var card = ((client && client.pieceWeights) || []).find(function(r) { return prodPartKey(r.partNumber) === pk; });
   var pw = card ? getPieceWeight(client, date, card.partNumber, g ? '(' + g + ')' : '') : null;
   if (pw && pw.kg) return { kg: pw.kg, src: 'client card' };
-  var gOf = function(s) { return lineGauge(String(s || '').replace(/[×✕]/g, 'X')); };
-  var pwt = prodByGauge(Object.keys(S.partWeights || {}).filter(function(k) { return S.partWeights[k] > 0 && prodPartKey(k) === pk; })
-    .map(function(k) { return { g: gOf(k), kg: S.partWeights[k] }; }), g);
+  var idx = prodKgIndex(), rows = idx[pk] || { pw: [], it: [] };
+  var pwt = prodByGauge(rows.pw, g);
   if (pwt) return { kg: pwt.kg, src: 'part weights' };
-  var it = prodByGauge((S.items || []).filter(function(i) { return prodPartKey(i.partNumber) === pk; })
-    .map(function(i) { return { g: rateKey(i.gauge || '') || gOf(i.partNumber), kg: i.stdWeightKg }; }), g);
+  var it = prodByGauge(rows.it, g);
   return it && it.kg ? { kg: it.kg, src: 'items' } : null;
+}
+/* The part weights and Items Master rows by part key, built once per pass: prodKgPerPiece runs for every entry and every
+   open challan line, and keyed every weight and item afresh each time (the review, 30 Sep 2026). Kept only until the
+   pass ends (the next tick), so a weight edited afterwards is never read stale. */
+var _prodKgIdx = null;
+function prodKgIndex() {
+  if (_prodKgIdx) return _prodKgIdx;
+  var gOf = function(s) { return lineGauge(String(s || '').replace(/[×✕]/g, 'X')); };
+  var idx = {}, at = function(k) { return idx[k] || (idx[k] = { pw: [], it: [] }); };
+  Object.keys(S.partWeights || {}).forEach(function(k) {
+    if (S.partWeights[k] > 0) { var pk = prodPartKey(k); if (pk) at(pk).pw.push({ g: gOf(k), kg: S.partWeights[k] }); }
+  });
+  (S.items || []).forEach(function(i) {
+    var pk = prodPartKey(i.partNumber);
+    if (pk) at(pk).it.push({ g: rateKey(i.gauge || '') || gOf(i.partNumber), kg: i.stdWeightKg });
+  });
+  _prodKgIdx = idx;
+  setTimeout(function() { _prodKgIdx = null; }, 0);
+  return idx;
 }
 /* One weight among a part's rows by the card's gauge rule (cardLookup): the rows at the line's gauge, else those with
    none written; a line with no gauge takes a part held by one gauge. Two gauges left is unknown, never averaged. */
@@ -30461,7 +30482,8 @@ function cpMonthly(clientId, months) {
   var by = {};
   var minDate = null, maxDate = null;
   var client = S.clients.find(function(c) { return c.id === clientId; }) || null;
-  S.invoices.filter(function(i) { return i.status === 'active' && i.clientId === clientId && i.date; })
+  // Net of credit notes, as Stats reads them (statsInvoices): the same client read ₹5.40 here and ₹5.29 on Stats.
+  statsInvoices().filter(function(i) { return i.clientId === clientId && i.date; })
     .forEach(function(inv) {
       if (!minDate || inv.date < minDate) minDate = inv.date;
       if (!maxDate || inv.date > maxDate) maxDate = inv.date;
@@ -30504,8 +30526,9 @@ function cpMonthCost(ym) {
 /* This client over the same days of last month as this month has run: the fair benchmark part-way through a month. */
 function cpPriorSameDays(clientId) {
   var p = homePriorSameDays(), client = S.clients.find(function(c) { return c.id === clientId; }) || null;
-  var out = { revenue: 0, kg: 0, revKnown: 0 };
-  p.invoices.filter(function(i) { return i.clientId === clientId; }).forEach(function(inv) {
+  var out = { revenue: 0, kg: 0, revKnown: 0 }, net = {};
+  statsInvoices().forEach(function(i) { net[i.id] = i; });
+  p.invoices.filter(function(i) { return i.clientId === clientId; }).map(function(i) { return net[i.id] || i; }).forEach(function(inv) {
     out.revenue += (inv.taxableValue || 0);
     (inv.items || []).forEach(function(it) {
       var w = lineWeightKg(it, client, inv.date);
@@ -32719,8 +32742,11 @@ document.addEventListener('input', function(e) {
     var cidx = parseInt(e.target.dataset.idx);
     var citem = _challanForm.items[cidx];
     if (citem) {
-      citem.desc = e.target.value;
+      // The field is the part number (the description shows under the line): what is typed takes the description too
+      // only where it was empty or said the same, or one keystroke erased a description holding the gauge (the review).
+      var wasPart = citem.partNumber;
       citem.partNumber = e.target.value;
+      if (!citem.desc || citem.desc === wasPart) citem.desc = e.target.value;
       // Show part autocomplete
       showChallanPartAutocomplete(cidx, e.target.value);
       // Auto-fill rate from client rate card

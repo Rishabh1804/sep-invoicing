@@ -108,13 +108,30 @@ function prodKgPerPiece(clientId, date, part, desc) {
   var card = ((client && client.pieceWeights) || []).find(function(r) { return prodPartKey(r.partNumber) === pk; });
   var pw = card ? getPieceWeight(client, date, card.partNumber, g ? '(' + g + ')' : '') : null;
   if (pw && pw.kg) return { kg: pw.kg, src: 'client card' };
-  var gOf = function(s) { return lineGauge(String(s || '').replace(/[×✕]/g, 'X')); };
-  var pwt = prodByGauge(Object.keys(S.partWeights || {}).filter(function(k) { return S.partWeights[k] > 0 && prodPartKey(k) === pk; })
-    .map(function(k) { return { g: gOf(k), kg: S.partWeights[k] }; }), g);
+  var idx = prodKgIndex(), rows = idx[pk] || { pw: [], it: [] };
+  var pwt = prodByGauge(rows.pw, g);
   if (pwt) return { kg: pwt.kg, src: 'part weights' };
-  var it = prodByGauge((S.items || []).filter(function(i) { return prodPartKey(i.partNumber) === pk; })
-    .map(function(i) { return { g: rateKey(i.gauge || '') || gOf(i.partNumber), kg: i.stdWeightKg }; }), g);
+  var it = prodByGauge(rows.it, g);
   return it && it.kg ? { kg: it.kg, src: 'items' } : null;
+}
+/* The part weights and Items Master rows by part key, built once per pass: prodKgPerPiece runs for every entry and every
+   open challan line, and keyed every weight and item afresh each time (the review, 30 Sep 2026). Kept only until the
+   pass ends (the next tick), so a weight edited afterwards is never read stale. */
+var _prodKgIdx = null;
+function prodKgIndex() {
+  if (_prodKgIdx) return _prodKgIdx;
+  var gOf = function(s) { return lineGauge(String(s || '').replace(/[×✕]/g, 'X')); };
+  var idx = {}, at = function(k) { return idx[k] || (idx[k] = { pw: [], it: [] }); };
+  Object.keys(S.partWeights || {}).forEach(function(k) {
+    if (S.partWeights[k] > 0) { var pk = prodPartKey(k); if (pk) at(pk).pw.push({ g: gOf(k), kg: S.partWeights[k] }); }
+  });
+  (S.items || []).forEach(function(i) {
+    var pk = prodPartKey(i.partNumber);
+    if (pk) at(pk).it.push({ g: rateKey(i.gauge || '') || gOf(i.partNumber), kg: i.stdWeightKg });
+  });
+  _prodKgIdx = idx;
+  setTimeout(function() { _prodKgIdx = null; }, 0);
+  return idx;
 }
 /* One weight among a part's rows by the card's gauge rule (cardLookup): the rows at the line's gauge, else those with
    none written; a line with no gauge takes a part held by one gauge. Two gauges left is unknown, never averaged. */

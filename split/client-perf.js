@@ -158,7 +158,8 @@ function cpMonthly(clientId, months) {
   var by = {};
   var minDate = null, maxDate = null;
   var client = S.clients.find(function(c) { return c.id === clientId; }) || null;
-  S.invoices.filter(function(i) { return i.status === 'active' && i.clientId === clientId && i.date; })
+  // Net of credit notes, as Stats reads them (statsInvoices): the same client read ₹5.40 here and ₹5.29 on Stats.
+  statsInvoices().filter(function(i) { return i.clientId === clientId && i.date; })
     .forEach(function(inv) {
       if (!minDate || inv.date < minDate) minDate = inv.date;
       if (!maxDate || inv.date > maxDate) maxDate = inv.date;
@@ -201,8 +202,9 @@ function cpMonthCost(ym) {
 /* This client over the same days of last month as this month has run: the fair benchmark part-way through a month. */
 function cpPriorSameDays(clientId) {
   var p = homePriorSameDays(), client = S.clients.find(function(c) { return c.id === clientId; }) || null;
-  var out = { revenue: 0, kg: 0, revKnown: 0 };
-  p.invoices.filter(function(i) { return i.clientId === clientId; }).forEach(function(inv) {
+  var out = { revenue: 0, kg: 0, revKnown: 0 }, net = {};
+  statsInvoices().forEach(function(i) { net[i.id] = i; });
+  p.invoices.filter(function(i) { return i.clientId === clientId; }).map(function(i) { return net[i.id] || i; }).forEach(function(inv) {
     out.revenue += (inv.taxableValue || 0);
     (inv.items || []).forEach(function(it) {
       var w = lineWeightKg(it, client, inv.date);

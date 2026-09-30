@@ -62,3 +62,40 @@ test("two workers told apart only by a digit, or named in Devanagari, are two wo
   }
   expect(await g(page, 'S.staff.map(function(w) { return w.name; })')).toEqual(['Ramu 1', 'राम', 'Ramu 2', 'श्याम']);
 });
+
+test("Clients → Performance reads a client's revenue net of its credit notes, as Stats does", async ({ page }) => {
+  const s: any = book();
+  const d = new Date(); const today = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  s.invoices = [{ id: 'INV-1', invoiceNumber: '00001', displayNumber: 'SEP/TEST-00001', date: today, status: 'active', invoiceState: 'created',
+    clientId: 1, clientName: 'TEST CLIENT KG', gstType: 'intra', taxableValue: 1000, grandTotal: 1180, createdAt: Date.now(),
+    items: [{ partNumber: 'P', desc: 'P', unit: 'KG', qty: 100, rate: 10, amount: 1000 }] }];
+  s.invNextNum = 2;
+  s.creditNotes = [{ id: 'CN-1', displayNumber: 'CN/001', status: 'active', clientId: 1, taxableValue: 40, invoiceIds: ['INV-1'], date: today, createdAt: Date.now() }];
+  await loadAppWithState(page, s);
+  const m: any = await g(page, `cpMonthly(1, 1)`);
+  const last = Array.isArray(m) ? m[m.length - 1] : (m.rows || m.months || [])[0];
+  expect(JSON.stringify(last)).toContain('960');
+});
+
+test("typing in a challan line's Part field keeps a description that says something else (the gauge)", async ({ page }) => {
+  await loadAppWithState(page, book());
+  await switchTab(page, 'pageIM');
+  await page.locator('[data-action="invShowAddChallan"]').first().click();
+  await g(page, `_challanForm.clientId = 1; _challanForm.items = [{ partNumber: 'CLAMP 165X83', desc: '40X6', hsn: '998873', unit: 'NOS',
+    qty: 10, rate: 1, amount: 10, nosQty: null, _auto: {} }]; renderAddChallanForm();`);
+  await page.locator('#imAddForm input[data-action="invEditChallanPart"][data-idx="0"]').fill('CLAMP 165X84');
+  expect(await g(page, '[_challanForm.items[0].partNumber, _challanForm.items[0].desc]')).toEqual(['CLAMP 165X84', '40X6']);
+});
+
+test('Edit on a cancelled invoice says so at once, without asking to discard the invoice being typed', async ({ page }) => {
+  const s: any = book();
+  s.invoices = [{ id: 'INV-1', invoiceNumber: '00001', displayNumber: 'SEP/TEST-00001', date: '2026-09-01', status: 'cancelled',
+    clientId: 1, clientName: 'TEST CLIENT KG', items: [], taxableValue: 0, createdAt: Date.now() }];
+  s.invNextNum = 2;
+  await loadAppWithState(page, s);
+  await switchTab(page, 'pageCreate');
+  await g(page, `invoiceForm.remarks = 'half typed';`);
+  await g(page, 'editInvoice("INV-1")');
+  await expect(page.locator('[data-ui-ask]')).toHaveCount(0);
+  await expect(page.locator('.inv-toast')).toContainText('Cancelled invoices cannot be edited');
+});

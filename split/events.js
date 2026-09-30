@@ -767,8 +767,11 @@ document.addEventListener('input', function(e) {
     var cidx = parseInt(e.target.dataset.idx);
     var citem = _challanForm.items[cidx];
     if (citem) {
-      citem.desc = e.target.value;
+      // The field is the part number (the description shows under the line): what is typed takes the description too
+      // only where it was empty or said the same, or one keystroke erased a description holding the gauge (the review).
+      var wasPart = citem.partNumber;
       citem.partNumber = e.target.value;
+      if (!citem.desc || citem.desc === wasPart) citem.desc = e.target.value;
       // Show part autocomplete
       showChallanPartAutocomplete(cidx, e.target.value);
       // Auto-fill rate from client rate card

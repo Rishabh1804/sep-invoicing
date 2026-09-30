@@ -483,11 +483,15 @@ if (!S._cnSeriesStart1) {
 
 /* ===== THE CONNECTION'S LOAD, RECORDED ONCE =====
    Owner, 30 Sep 2026 ("Yes, record it"): the connection is billed at 25 kVA though 50 kVA was approved (decisions,
-   18 May 2026), and the over-limit penalty runs on (about ₹5,000 a month). Set only where no load is recorded, and once:
+   18 May 2026), and the over-limit penalty runs on (about ₹5,000 a month). Set only on a book with electricity bills,
+   only where no load is recorded, and once:
    the flag travels with the state, so a load the owner corrected or cleared stays as they left it. */
 (function() {
   if (S._powerLoad1) return;
   var p = powerData();
+  // Only on a book that keeps electricity bills: the load is this connection's, and a book with none (a new device before
+  // its import, a test) has no connection to speak for yet. The flag waits until there is one.
+  if (!(S.costBills || []).some(function(b) { return b.kind === 'power' && !b.voided; })) return;
   if (!(p.load.sanctioned || p.load.approved)) p.load = { sanctioned: 25, approved: 50, approvedOn: '2026-05-18', ref: '', note: 'Approved 18 May 2026; still billed at 25 kVA as of the June bill (owner, 30 Sep 2026: about ₹5,000 a month over-limit penalty).', at: Date.now() };
   S._powerLoad1 = true;
   saveJSON(STORAGE_KEY, S);

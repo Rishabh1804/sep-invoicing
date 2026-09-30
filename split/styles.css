@@ -1730,3 +1730,5 @@ summary.inv-summary::-webkit-details-marker { display: none; }
 .inv-board { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--gap); align-items: start; margin-bottom: var(--gap); }
 .inv-board .inv-panel { margin-bottom: 0; }
 body.inv-desktop .inv-board { grid-template-columns: repeat(auto-fill, minmax(var(--board-col), 1fr)); }
+/* Home's widgets sit in the page's one grid; the tiles and the quick actions carry no margin of their own there. */
+.inv-panels > [data-home-w] > .inv-tiles, .inv-panels > [data-home-w] > .inv-btn-grid { margin-bottom: 0; }

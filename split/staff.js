@@ -460,8 +460,9 @@ function _attDayView() {
   var byArea = {}, absentees = [];
   roster.forEach(function(w) {
     var m = rec ? rec.marks[w.id] : null;
-    if (m && m.st === 'A') { absentees.push(w); return; }
-    var a = m && m.area ? m.area : (w.area || 'flex');
+    if (m && m.st === 'A') absentees.push(w);
+    // An absent hand stays on their own area's card, so marking A never moves the line from under the tap.
+    var a = m && m.st !== 'A' && m.area ? m.area : (w.area || 'flex');
     (byArea[a] = byArea[a] || []).push(w);
   });
   html += '<div class="inv-board" id="attMarks">';
@@ -483,8 +484,8 @@ function _attDayView() {
   });
   html += '</div>';
   if (absentees.length) {
-    html += '<div class="inv-panel inv-panel-flush" id="attAbsentList"><div class="inv-panel-head"><span class="inv-panel-title">Absent <span class="inv-panel-count">' + absentees.length + '</span></span></div>' +
-      absentees.map(function(w) { return _attBoardRow(w, rec.marks[w.id]); }).join('') + '</div>';
+    html += '<div class="inv-panel inv-panel-flush" id="attAbsentList"><div class="inv-row inv-row-auto"><span class="inv-row-main"><span class="inv-row-meta">Absent · ' + absentees.length + '</span>' +
+      '<span class="inv-row-wrap">' + escHtml(absentees.map(function(w) { return w.name; }).join(' · ')) + '</span></span></div></div>';
   }
 
   html += _attNeedCard(iso, rec);
@@ -938,6 +939,8 @@ function attSetState(iso, staffId, st) {
     delete rec.marks[staffId];
   } else {
     var m = rec.marks[staffId] || { ot: 0, hours: 0, area: w.area || 'flex' };
+    // An absence carries no place (a roll writes it Flex): back from absent, a hand stands at their own area.
+    if (m.st === 'A' && st !== 'A' && (!m.area || m.area === 'flex')) m.area = w.area || 'flex';
     m.st = st;
     _attHandEdit(m);
     // Absent pays nothing and worked nothing: hours that nobody was here for

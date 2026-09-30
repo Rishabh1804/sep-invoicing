@@ -235,6 +235,7 @@ function renderHome() {
   renderAttHomeCard();
   updateStockBadge();
   ghRenderCard();
+  homeApplyLayout();
 
   var unbilledEl = document.getElementById('homeUnbilledCard');
   if (unbilledEl) {
@@ -291,3 +292,159 @@ function renderHome() {
   }).join('');
 }
 
+
+/* ===== HOME, AS THE OWNER ARRANGES IT =====
+   Owner, 30 Sep 2026: "Home screen needs an overhaul with an option to select what widget to show on the home screen and
+   where: a dynamic home screen which user can adjust." They chose presets and an edit mode, kept per device (the phone
+   and the PC each keep their own Home, like the theme; a backup or a pull never rearranges another device).
+
+   Every card on Home is a widget (`data-home-w`). A layout is {preset, order, hidden, wide}: the order the widgets stand
+   in, which are hidden, and which take the page's width on the desktop (half otherwise; the phone is one column). A preset
+   is a starting layout; Edit Home shows each widget with a switch, up and down, and half or full. */
+var HOME_LAYOUT_KEY = 'sep_inv_home';
+var HOME_WIDGETS = [
+  ['mtd', 'Month to date'], ['quick', 'Quick actions'], ['money', 'Money'], ['todo', 'To-do'], ['attendance', 'Attendance'],
+  ['unbilled', 'Unbilled material'], ['production', 'Production'], ['power', 'Power cuts'], ['stock', 'Stock running low'],
+  ['sync', 'GitHub sync'], ['zinc', 'Zinc rate'], ['recent', 'Recent invoices']
+];
+var HOME_PRESETS = {
+  owner: { label: 'Owner', order: ['mtd', 'quick', 'money', 'todo', 'attendance', 'unbilled', 'sync', 'zinc', 'recent', 'production', 'power', 'stock'],
+    hidden: ['production', 'power', 'stock'], wide: ['mtd', 'quick', 'recent'] },
+  floor: { label: 'Floor', order: ['quick', 'attendance', 'production', 'stock', 'power', 'todo', 'unbilled', 'mtd', 'money', 'recent', 'sync', 'zinc'],
+    hidden: ['mtd', 'money', 'recent', 'sync', 'zinc'], wide: ['quick'] },
+  money: { label: 'Money', order: ['mtd', 'money', 'unbilled', 'recent', 'todo', 'zinc', 'quick', 'attendance', 'production', 'power', 'stock', 'sync'],
+    hidden: ['quick', 'attendance', 'production', 'power', 'stock', 'sync'], wide: ['mtd', 'recent'] }
+};
+var _homeEdit = false;
+function homePresetLayout(k) {
+  var p = HOME_PRESETS[k] || HOME_PRESETS.owner, hid = {}, wide = {};
+  p.hidden.forEach(function(x) { hid[x] = true; });
+  p.wide.forEach(function(x) { wide[x] = true; });
+  return { preset: HOME_PRESETS[k] ? k : 'owner', order: p.order.slice(), hidden: hid, wide: wide };
+}
+function homeLayout() {
+  var l = null;
+  try { l = JSON.parse(localStorage.getItem(HOME_LAYOUT_KEY) || 'null'); } catch (e) { l = null; }
+  if (!l || !Array.isArray(l.order)) return homePresetLayout('owner');
+  // A widget added since the layout was saved joins at the end, hidden, so a new build never rearranges a Home.
+  HOME_WIDGETS.forEach(function(w) { if (l.order.indexOf(w[0]) < 0) { l.order.push(w[0]); (l.hidden = l.hidden || {})[w[0]] = true; } });
+  l.order = l.order.filter(function(k) { return HOME_WIDGETS.some(function(w) { return w[0] === k; }); });
+  l.hidden = l.hidden || {}; l.wide = l.wide || {};
+  return l;
+}
+function homeLayoutSave(l) {
+  try { localStorage.setItem(HOME_LAYOUT_KEY, JSON.stringify(l)); } catch (e) { /* a per-device convenience only */ }
+}
+/* The layout onto the page: each widget moved to its place, hidden or shown, full or half. */
+function homeApplyLayout() {
+  var host = document.getElementById('homeWidgets');
+  if (!host) return;
+  var l = homeLayout();
+  renderHomeExtraCards();
+  l.order.forEach(function(k) {
+    var el = host.querySelector('[data-home-w="' + k + '"]');
+    if (!el) return;
+    host.appendChild(el);
+    el.classList.toggle('inv-hidden', !!l.hidden[k]);
+    el.classList.toggle('inv-panels-wide', !!l.wide[k]);
+  });
+  var area = document.getElementById('homeEditArea'), bar = document.getElementById('homeEditBar');
+  if (area) area.innerHTML = _homeEdit ? homeEditHtml(l) : '';
+  if (bar) bar.classList.toggle('inv-hidden', _homeEdit);
+}
+function homeEditHtml(l) {
+  var name = {}; HOME_WIDGETS.forEach(function(w) { name[w[0]] = w[1]; });
+  var h = '<div class="inv-panel inv-panel-flush" id="homeEdit" data-nodirty><div class="inv-panel-head"><span class="inv-panel-title">Edit Home</span>' +
+    '<button class="inv-btn inv-btn-primary inv-btn-sm" data-action="invHomeEditDone">Done</button></div>' +
+    '<div class="inv-panel-body"><div class="inv-field-label">Start from</div><div class="inv-seg" role="group" aria-label="Preset">' +
+    Object.keys(HOME_PRESETS).map(function(k) { return '<button class="inv-seg-btn" data-action="invHomePreset" data-preset="' + k + '" aria-pressed="' + (l.preset === k) + '">' + HOME_PRESETS[k].label + '</button>'; }).join('') +
+    '</div><div class="inv-note inv-mt-8">' + (l.preset === 'custom' ? 'Your own arrangement. ' : '') + 'Kept on this device only. Half or full is the width on a wide screen; a phone shows one column.</div></div>';
+  l.order.forEach(function(k, i) {
+    var on = !l.hidden[k];
+    h += '<div class="inv-row' + (on ? '' : ' inv-row-muted') + '" data-home-edit="' + k + '"><label class="inv-row-lead inv-row-tick"><input type="checkbox" class="inv-check" data-home-show="' + k + '"' + (on ? ' checked' : '') + ' aria-label="Show ' + escHtml(name[k]) + '"></label>' +
+      '<span class="inv-row-main"><span class="inv-row-title">' + escHtml(name[k]) + '</span></span><span class="inv-row-end">' +
+      '<span class="inv-seg" role="group" aria-label="Width of ' + escHtml(name[k]) + '">' +
+      '<button class="inv-seg-btn" data-action="invHomeWide" data-w="' + k + '" data-v="0" aria-pressed="' + !l.wide[k] + '">Half</button>' +
+      '<button class="inv-seg-btn" data-action="invHomeWide" data-w="' + k + '" data-v="1" aria-pressed="' + !!l.wide[k] + '">Full</button></span>' +
+      '<button class="inv-btn inv-btn-icon inv-btn-ghost" data-action="invHomeMove" data-w="' + k + '" data-d="-1" aria-label="Move ' + escHtml(name[k]) + ' up"' + (i === 0 ? ' disabled' : '') + '>&uarr;</button>' +
+      '<button class="inv-btn inv-btn-icon inv-btn-ghost" data-action="invHomeMove" data-w="' + k + '" data-d="1" aria-label="Move ' + escHtml(name[k]) + ' down"' + (i === l.order.length - 1 ? ' disabled' : '') + '>&darr;</button></span></div>';
+  });
+  return h + '</div>';
+}
+function homeEditChange(fn) {
+  var l = homeLayout();
+  fn(l);
+  l.preset = 'custom';
+  homeLayoutSave(l);
+  homeApplyLayout();
+}
+function homeAction(action, btn) {
+  switch (action) {
+    case 'invHomeEdit': _homeEdit = true; homeApplyLayout(); viewTop(); return true;
+    case 'invHomeEditDone': _homeEdit = false; homeApplyLayout(); return true;
+    case 'invHomePreset': homeLayoutSave(homePresetLayout(btn.dataset.preset)); homeApplyLayout(); return true;
+    case 'invHomeWide': homeEditChange(function(l) { l.wide[btn.dataset.w] = btn.dataset.v === '1'; }); return true;
+    case 'invHomeMove': homeEditChange(function(l) {
+      var i = l.order.indexOf(btn.dataset.w), j = i + parseInt(btn.dataset.d, 10);
+      if (i < 0 || j < 0 || j >= l.order.length) return;
+      l.order.splice(j, 0, l.order.splice(i, 1)[0]);
+    }); return true;
+  }
+  return false;
+}
+function homeShowToggle(el) {
+  homeEditChange(function(l) { if (el.checked) delete l.hidden[el.dataset.homeShow]; else l.hidden[el.dataset.homeShow] = true; });
+}
+
+/* The three widgets Home had no card for. Each is drawn only while shown, and says nothing rather than a zero. */
+function renderHomeExtraCards() {
+  var l = homeLayout(), set = function(id, html) { var e = document.getElementById(id); if (e) e.innerHTML = html; };
+  var head = function(title, go, label) { return '<div class="inv-panel inv-panel-flush"><div class="inv-panel-head"><span class="inv-panel-title">' + title + '</span>' +
+    '<button class="inv-btn-link" data-action="invSwitchTab" data-tab="' + go + '">' + label + '</button></div>'; };
+  // Production: the last day with plating on record, by line.
+  if (!l.hidden.production) {
+    var h = '';
+    try {
+      var last = null;
+      prodIndex().counted.forEach(function(e) { if (!last || e.date > last) last = e.date; });
+      h = head('Production', 'pageProduction', 'Open');
+      if (!last) h += '<div class="inv-empty">No plating on record yet.</div>';
+      else {
+        h += '<div class="inv-row-group"><span>' + escHtml(attDayName(last) + ' ' + formatDate(last)) + '</span></div>';
+        PROD_LINES.forEach(function(ln) {
+          var r = prodDayLine(last, ln);
+          if (!r.entries.length) return;
+          h += '<div class="inv-row"><span class="inv-row-main">' + escHtml(prodLineName(ln)) + '</span><span class="inv-row-end inv-num">' +
+            (r.kg > 0 ? cpNum(r.kg) + ' kg' : '') + (r.nos > 0 ? (r.kg > 0 ? ' · ' : '') + cpNum(r.nos) + ' NOS' : '') + '</span></div>';
+        });
+      }
+      h += '</div>';
+    } catch (e) { h = ''; }
+    set('homeProdCard', h);
+  } else set('homeProdCard', '');
+  // Power: this month's cuts and the last one.
+  if (!l.hidden.power) {
+    var ph = '';
+    try {
+      var today = localDateStr(), cuts = powerCuts(today.slice(0, 8) + '01', today), all = powerCuts(null, today);
+      var mins = cuts.reduce(function(s, c) { return s + (c.min || 0); }, 0), lastCut = all[all.length - 1];
+      ph = head('Power cuts', 'pagePower', 'Open') + '<div class="inv-tiles inv-tiles-flush"><div class="inv-tile' + (cuts.length ? ' inv-tile-warning' : '') + '"><div class="inv-tile-label">This month</div><div class="inv-tile-value">' + cuts.length + '</div>' +
+        '<div class="inv-tile-sub">' + (mins ? powerDur(mins) + ' dark' : 'none recorded') + '</div></div>' +
+        '<div class="inv-tile"><div class="inv-tile-label">Last cut</div><div class="inv-tile-value">' + (lastCut ? escHtml(formatDate(lastCut.date)) : '&mdash;') + '</div>' +
+        '<div class="inv-tile-sub">' + (lastCut ? escHtml(powerClock(lastCut.from) + (lastCut.open ? ', no time back' : ' – ' + powerClock(lastCut.to))) : '') + '</div></div></div></div>';
+    } catch (e) { ph = ''; }
+    set('homePowerCard', ph);
+  } else set('homePowerCard', '');
+  // Stock: the lines red or amber, soonest out first.
+  if (!l.hidden.stock) {
+    var sh = '';
+    try {
+      var rows = stockData().items.filter(function(i) { return i.active !== false; }).map(function(i) { return { i: i, s: stockStatus(i) }; })
+        .filter(function(x) { return x.s.tone === 'red' || x.s.tone === 'amber'; }).sort(function(a, b) { return (a.s.daysLeft == null ? -1 : a.s.daysLeft) - (b.s.daysLeft == null ? -1 : b.s.daysLeft); });
+      sh = head('Stock running low', 'pageStock', 'Open') + (rows.length ? rows.slice(0, 5).map(function(x) {
+        return '<div class="inv-row"><span class="inv-row-main">' + escHtml(x.i.name) + '</span><span class="inv-row-end">' + uiDot(x.s.tone === 'red' ? 'danger' : 'warning', escHtml(stockStatusWord(x.s, true))) + '</span></div>';
+      }).join('') + (rows.length > 5 ? '<div class="inv-row"><span class="inv-row-main inv-row-meta">and ' + (rows.length - 5) + ' more</span></div>' : '') : '<div class="inv-empty">No line is running low.</div>') + '</div>';
+    } catch (e) { sh = ''; }
+    set('homeStockCard', sh);
+  } else set('homeStockCard', '');
+}

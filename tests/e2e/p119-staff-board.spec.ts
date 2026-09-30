@@ -31,9 +31,12 @@ test('Day is a card per area with each hand on one line, and the absent in a str
   for (const a of ['vat-a1', 'vat-a2', 'office', 'gate', 'civil', 'flex']) await expect(page.locator(`[data-att-area-card="${a}"]`)).toBeVisible();
   await expect(page.locator('[data-att-area-card="civil"]')).toContainText('Echo');
   await expect(page.locator('#attAbsentList')).toContainText('Golf');
-  // One tap still marks: Golf present again lands in their home area.
-  await page.locator('#attAbsentList [data-action="invAttSet"][data-id="7"][data-st="P"]').click();
-  await expect(page.locator('[data-att-area-card="flex"]')).toContainText('Golf');
+  // An absent hand stays on their home area's card, so a tap never moves the line; marked present, they count there.
+  const golf = page.locator('[data-att-area-card="barrel"] [data-att-row="7"]');
+  await expect(golf).toContainText('Absent');
+  await golf.locator('[data-action="invAttSet"][data-st="P"]').click();
+  await expect(page.locator('[data-att-area-card="barrel"] .inv-panel-title')).toContainText('1');
+  await expect(page.locator('#attAbsentList')).toHaveCount(0);
 });
 
 test('a name opens the hand’s day: the area and the overtime change in place', async ({ page }) => {

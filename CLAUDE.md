@@ -2240,6 +2240,18 @@ device's book (`S.stockCheck.leadDays/coverDays`). A rate from under three days 
 *check*. Typed quantities win and 0 leaves a line out. Lines with no use yet are listed apart. **Copy as
 message** gives a WhatsApp-ready order by supplier. Nothing is ordered from the app.
 
+### Home, arranged by the owner
+Owner, 30 Sep 2026: *"Home screen needs an overhaul with an option to select what widget to show on the home screen and where — dynamic home
+screen which user can adjust"*; they chose **presets and an edit mode, kept per device** (`tabs.js`, `HOME_WIDGETS`, `sep_inv_home`).
+- Every card on Home is a widget (`data-home-w` in `#homeWidgets`): month to date, quick actions, money, to-do, attendance, unbilled,
+  **production** (the last day plated, by line), **power cuts** (this month's and the last), **stock running low** (red and amber lines,
+  soonest out first), GitHub sync, zinc, recent invoices. The three new ones are drawn only while shown (`renderHomeExtraCards`).
+- **Presets**: *Owner* is the Home there was (the three new widgets hidden), *Floor* leads with quick actions, attendance, production,
+  stock and power, *Money* with the month, money, unbilled and recent invoices.
+- **Edit Home** (at the foot of Home): each widget with a switch, up and down, and **Half / Full** (its width on a wide screen; a phone is
+  one column). Any change makes the layout *your own* (`preset: 'custom'`). A widget added by a later build joins at the end, hidden, so a
+  new build never rearranges a Home. Kept in localStorage, never in the book: a backup or a pull does not rearrange another device. P121.
+
 ### Home quick actions
 Six buttons under Month to Date, each opening its screen **already on the job**: New invoice, New
 challan (the form open), Stock entry (the by-hand form), Attendance (today's day), Paste message (the

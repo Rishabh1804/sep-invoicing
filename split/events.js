@@ -439,6 +439,7 @@ function onDocClick(e) {
       if (dashAction(action, btn)) break;
       if (navAction(action, btn)) break;
       if (prodAction(action, btn)) break;
+      if (homeAction(action, btn)) break;
       if (powerAction(action, btn)) break;
       if (action.indexOf('invStock') === 0) stockAction(action, btn);
       else if (action.indexOf('invTodo') === 0) todoAction(action, btn);
@@ -614,6 +615,7 @@ function onDocChange(e) {
     return;
   }
   if (e.target.id === 'cpOverhead') { cpSetOverhead(e.target.value); return; }
+  if (e.target.dataset && e.target.dataset.homeShow) { homeShowToggle(e.target); return; }
   if (e.target.id === 'cpFrom' || e.target.id === 'cpTo') {
     if (e.target.id === 'cpFrom') _cpFrom = e.target.value; else _cpTo = e.target.value;
     renderClientsPage();

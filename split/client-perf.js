@@ -603,13 +603,20 @@ function cpWorkedRedraw() {
 /* ===== BY THE HOUR =====
  * Owner, 30 Sep 2026: "Samarth part is done in pieces: 3302 at ₹9/pc takes about 30 mins, and we can only do 24 pcs at a
  * time in VAT A2; 3303 at ₹3/pc takes about 30 minutes and we can do 80 pcs at a time. This is how we can calculate its
- * impact on our cost. So there can be a different realisation and cost that is calculated on a per hour basis."
+ * impact on our cost." And then: "have an option to update the time taken to pickle and plate + a constant 15 mins
+ * (logistics + other steps) for every material. Fill these out with the production data we already have and make sure
+ * the app learns from the data being entered, so we can evaluate if the time taken is increasing or decreasing, and what
+ * steps we can take to optimise setups."
  *
- * A part plated by the round, not by the kilo, is judged by what a line-hour of it earns: pieces a round × rate ÷ the
- * round's hours, against what a line-hour costs the plant and what the plant earns in one on average. Both are the
- * plant's last 90 days spread over its line-hours: working days × 3 lines × the hours a line runs a day (16: two shifts,
- * Settings-free and said). A part's times are the client's (`client.partTimes`), set on this panel. */
+ * A round of a part takes pickling + plating + the constant for logistics and the other steps (Settings-free, on this
+ * panel, `S.perfCfg.overheadMin`, 15). Each is the owner's figure where set on the client (`client.partTimes`), else what
+ * the production record measures (`cpMeasure`): the register's round-by-round times on the line (the gap from one round
+ * to the next, 5 to 180 minutes) or a START–END batch's span over its rounds; the pickling hand's loads (the gap to the
+ * next load that day, 5 to 120 minutes, per piece). What a round earns (pieces × the rate) over its whole time is set
+ * against what an hour costs the plant and earns it on average: the last 90 days at the live cost, over working days × 3
+ * lines × 16 hours (`cpLineHourRef`). The measured times are kept by week, so a round getting slower or faster shows. */
 var CP_LINE_HOURS_DAY = 16;
+function cpOverheadMin() { var v = S.perfCfg && S.perfCfg.overheadMin; return typeof v === 'number' && v >= 0 ? v : 15; }
 function cpLineHourRef() {
   var to = localDateStr(), from = isoAddDays(to, -90), days = statsWorkingDays(from, to);
   var inv = statsInvoices().filter(function(i) { return i.date && i.date >= from && i.date <= to; });
@@ -622,7 +629,77 @@ function cpLineHourRef() {
   return { from: from, to: to, days: days, hours: hours, kg: w.kg, perKg: perKg, live: live, cost: perKg * w.kg / hours, revenue: rev / hours, kgPerHour: w.kg / hours };
 }
 function cpPartTimes(client) { return client && Array.isArray(client.partTimes) ? client.partTimes : []; }
-/* The rate a timed part is billed at: its latest invoice line, else the client's piece card. */
+/* A set time's plating minutes: `plateMin`, or `minutes` as the first times were saved. */
+function cpPlateSet(t) { return t.plateMin != null ? t.plateMin : t.minutes != null ? t.minutes : null; }
+
+/* What the production record says about one part of one client: every plating round with its minutes and pieces, every
+   pickling load with its minutes a piece, by date. Only live entries that were not corrected. */
+function cpMeasure(clientId, base, gauge) {
+  var idx = prodIndex(), plate = [], pickle = [], byDay = {};
+  var mine = function(e) {
+    if (e.clientId == null || String(e.clientId) !== String(clientId)) return false;
+    var idn = cpPartIdentity(e.partNumber || e.part, e.part);
+    return idn.base === base && (!gauge || !idn.gauge || idn.gauge === gauge);
+  };
+  // A time as the register or a message wrote it: 9:20, 09.20, 2:05 PM.
+  var mm = function(t) {
+    var m = /^\s*(\d{1,2})[:.](\d{2})\s*([AP])?\.?M?\.?\s*$/i.exec(String(t || ''));
+    if (!m) return null;
+    var h = +m[1] % 12 + (m[3] && m[3].toUpperCase() === 'P' ? 12 : 0);
+    if (!m[3]) h = +m[1];
+    return h * 60 + +m[2];
+  };
+  // Round to round across noon written on a 12-hour clock (12:45 then 1:05) is twenty minutes, not minus eleven hours.
+  var gapOf = function(a, b) { var d = b - a; return d < 0 && d > -720 ? d + 720 : d; };
+  idx.live.forEach(function(e) {
+    if (idx.replaced[e.id]) return;
+    if (e.kind === 'pickled' && e.time) (byDay[e.date] = byDay[e.date] || []).push(e);
+    if (e.kind !== 'plated' || !mine(e) || e.rework) return;
+    var rs = (e.rounds || []).filter(function(r) { return !r.struck && !r.start && r.time; });
+    var batch = rs.filter(function(r) { return r.batch && r.n > 0; });
+    if (batch.length && e.time && e.to) {
+      // A START–END batch: its span over its rounds.
+      var span = gapOf(mm(e.time), mm(e.to)), n = batch.reduce(function(a, r) { return a + r.n; }, 0), rack = batch[0].rack || (batch[0].qty && n ? batch[0].qty / n : null);
+      if (span > 0 && n > 0 && span / n >= 5 && span / n <= 180) plate.push({ date: e.date, line: e.line, min: span / n, pcs: rack });
+      return;
+    }
+    rs = rs.filter(function(r) { return !r.batch; }).map(function(r) { return { m: mm(r.time), q: r.qty }; }).filter(function(r) { return r.m != null; });
+    for (var i = 0; i + 1 < rs.length; i++) {
+      var d = gapOf(rs[i].m, rs[i + 1].m);
+      if (d >= 5 && d <= 180) plate.push({ date: e.date, line: e.line, min: d, pcs: rs[i].q > 0 ? rs[i].q : null });
+    }
+  });
+  // Pickling: the gap from a load to the pickling hand's next load that day, over the load's pieces.
+  Object.keys(byDay).forEach(function(d) {
+    var list = byDay[d].map(function(e) { return { e: e, m: mm(e.time) }; }).filter(function(x) { return x.m != null; }).sort(function(a, b) { return a.m - b.m; });
+    for (var i = 0; i + 1 < list.length; i++) {
+      var x = list[i], gap = list[i + 1].m - x.m;
+      if (!mine(x.e) || !(x.e.qty > 0) || x.e.unit === 'KG' || gap < 5 || gap > 120) continue;
+      pickle.push({ date: d, perPc: gap / x.e.qty, pcs: x.e.qty, min: gap });
+    }
+  });
+  return { plate: plate, pickle: pickle };
+}
+/* The measure read: the median round and pieces over the last 90 days (all of it when the 90 days hold under three),
+   pickling as minutes a piece × the round's pieces, and the trend: the median of the last 30 days against the 60 before. */
+function cpMeasured(ms) {
+  var today = localDateStr(), since = isoAddDays(today, -90), mid = isoAddDays(today, -30);
+  var recent = function(list) { var r = list.filter(function(o) { return o.date >= since; }); return r.length >= 3 ? r : list; };
+  var pl = recent(ms.plate), pk = recent(ms.pickle);
+  var pcsList = pl.map(function(o) { return o.pcs; }).filter(function(v) { return v > 0; });
+  var out = { plateMin: pl.length ? numMedian(pl.map(function(o) { return o.min; })) : null, pcs: pcsList.length ? numMedian(pcsList) : null,
+    pcsMax: pcsList.length ? Math.max.apply(null, pcsList) : null, nPlate: ms.plate.length, nPickle: ms.pickle.length,
+    pickPerPc: pk.length ? numMedian(pk.map(function(o) { return o.perPc; })) : null, first: null, last: null };
+  ms.plate.concat(ms.pickle).forEach(function(o) { if (!out.first || o.date < out.first) out.first = o.date; if (!out.last || o.date > out.last) out.last = o.date; });
+  var a = ms.plate.filter(function(o) { return o.date >= mid; }), b = ms.plate.filter(function(o) { return o.date < mid && o.date >= since; });
+  if (a.length >= 3 && b.length >= 3) { out.trendNow = numMedian(a.map(function(o) { return o.min; })); out.trendBefore = numMedian(b.map(function(o) { return o.min; })); }
+  // By week, for the chart: the median round of each pay week with a round in it.
+  var wk = {};
+  ms.plate.forEach(function(o) { var k = attWeekStartOf(o.date); (wk[k] = wk[k] || []).push(o.min); });
+  out.weeks = Object.keys(wk).sort().slice(-12).map(function(k) { return { week: k, min: numMedian(wk[k]) }; });
+  return out;
+}
+/* The rate a part is billed at: its latest invoice line (and its unit), else the client's piece card. */
 function cpTimedRate(client, t) {
   var best = null;
   (S.invoices || []).forEach(function(inv) {
@@ -630,78 +707,179 @@ function cpTimedRate(client, t) {
     (inv.items || []).forEach(function(it) {
       var idn = cpPartIdentity(it.partNumber, it.desc);
       if (idn.base !== t.base || (t.gauge && idn.gauge && idn.gauge !== t.gauge)) return;
-      if (!best || inv.date > best.date) best = { rate: Number(it.rate) || 0, date: inv.date, src: 'invoice ' + (inv.invoiceNumber || inv.displayNumber) };
+      if (!best || inv.date > best.date) best = { rate: Number(it.rate) || 0, unit: it.unit || 'KG', date: inv.date, src: 'invoice ' + (inv.invoiceNumber || inv.displayNumber), part: it.partNumber, desc: it.desc };
     });
   });
   if (best && best.rate > 0) return best;
   var pr = getPieceRate(client, localDateStr(), t.name, t.name);
-  return pr && pr.rate > 0 ? { rate: pr.rate, date: null, src: 'piece card' } : null;
+  return pr && pr.rate > 0 ? { rate: pr.rate, unit: 'NOS', date: null, src: 'piece card' } : null;
+}
+/* One part's round, as used: each figure the owner's where set, else measured, and where it came from. */
+function cpRound(client, t) {
+  var m = cpMeasured(cpMeasure(client.id, t.base, t.gauge));
+  var pick = function(set, meas) { return set != null && set !== '' ? { v: +set, src: 'set' } : meas != null ? { v: meas, src: 'measured' } : { v: null, src: null }; };
+  var pcs = pick(t.pieces, m.pcs != null ? Math.round(m.pcs) : null);
+  var plate = pick(cpPlateSet(t), m.plateMin != null ? Math.round(m.plateMin) : null);
+  var pickle = pick(t.pickleMin, m.pickPerPc != null && pcs.v ? Math.round(m.pickPerPc * pcs.v) : null);
+  var over = cpOverheadMin();
+  var total = plate.v != null ? plate.v + (pickle.v || 0) + over : null;
+  var r = cpTimedRate(client, t);
+  // A kilo rate is turned into a round's worth with the part's kilograms a piece.
+  var perRound = null;
+  if (r && pcs.v) {
+    if (r.unit === 'NOS') perRound = pcs.v * r.rate;
+    else { var kpp = prodKgPerPiece(client.id, localDateStr(), r.part || t.name, r.desc || t.name); if (kpp && kpp.kg > 0) perRound = pcs.v * kpp.kg * r.rate; }
+  }
+  return { m: m, pcs: pcs, plate: plate, pickle: pickle, over: over, total: total, rate: r, perRound: perRound, perHour: perRound != null && total ? perRound / (total / 60) : null };
+}
+/* What to look at, read off the numbers: a slower round, racks run short of their fullest, the fixed steps' share of a
+   round, pickling slower than plating, and a set figure the record no longer bears out. */
+function cpRoundHints(rd, t) {
+  var h = [], m = rd.m;
+  if (m.trendNow != null && m.trendBefore > 0) {
+    var ch = (m.trendNow - m.trendBefore) / m.trendBefore;
+    if (ch >= 0.1) h.push({ tone: 'warning', text: 'Plating a round takes ' + Math.round(m.trendNow) + ' min in the last 30 days against ' + Math.round(m.trendBefore) + ' before (+' + Math.round(ch * 100) + '%). Look at the jig loading, the bath (current, temperature, concentration) and waits between rounds.' });
+    else if (ch <= -0.1) h.push({ tone: 'ok', text: 'Plating a round is faster: ' + Math.round(m.trendNow) + ' min in the last 30 days against ' + Math.round(m.trendBefore) + ' before (' + Math.round(ch * 100) + '%). Worth keeping whatever changed.' });
+  }
+  if (m.pcs && m.pcsMax && m.pcs < m.pcsMax * 0.9 && rd.total) {
+    var gain = (m.pcsMax / m.pcs - 1);
+    h.push({ tone: 'info', text: 'Rounds carry ' + Math.round(m.pcs) + ' pieces at the median against ' + m.pcsMax + ' at their fullest: full racks would earn about ' + Math.round(gain * 100) + '% more an hour on the same time.' });
+  }
+  if (rd.total && rd.over / rd.total >= 0.25) h.push({ tone: 'info', text: 'Logistics and the other steps are ' + Math.round(rd.over / rd.total * 100) + '% of every round (' + rd.over + ' of ' + Math.round(rd.total) + ' min): running this part in longer lots, with the next load staged before the round ends, spreads it thinner.' });
+  if (rd.pickle.v && rd.plate.v && rd.pickle.v > rd.plate.v) h.push({ tone: 'warning', text: 'Pickling a round (' + rd.pickle.v + ' min) takes longer than plating it (' + rd.plate.v + ' min): the line waits on pickling. Pickle the next load while this one plates.' });
+  if (t && cpPlateSet(t) != null && m.plateMin != null && m.nPlate >= 5 && Math.abs(m.plateMin - cpPlateSet(t)) / cpPlateSet(t) > 0.15)
+    h.push({ tone: 'warning', text: 'The record now measures ' + Math.round(m.plateMin) + ' min a round against the ' + cpPlateSet(t) + ' set.', use: true });
+  return h;
+}
+function cpSrcWord(x) { return x.src === 'set' ? 'set' : x.src === 'measured' ? 'measured' : 'not known'; }
+function cpRoundRowHtml(client, t, ref, rg, auto) {
+  var rd = cpRound(client, t), tone = rd.perHour != null && ref ? figToneAgainst(rd.perHour, ref.cost, 5) : null;
+  var fig = function(x, unit) { return x.v != null ? x.v + (unit || '') + ' (' + cpSrcWord(x) + ')' : '? (' + cpSrcWord(x) + ')'; };
+  var breakdown = 'Pickle ' + fig(rd.pickle, ' min') + ' + plate ' + fig(rd.plate, ' min') + ' + ' + rd.over + ' min logistics and other steps' + (rd.total ? ' = ' + Math.round(rd.total) + ' min a round' : '');
+  var mat = cpMaterials(client.id, rg.from, rg.to).filter(function(x) { return x.base === t.base && (!t.gauge || !x.gauge || x.gauge === t.gauge); });
+  var pcs = mat.reduce(function(a, x) { return a + x.billedNos; }, 0), rev = mat.reduce(function(a, x) { return a + x.revenue; }, 0);
+  var hrs = rd.pcs.v > 0 && rd.total ? pcs / rd.pcs.v * rd.total / 60 : 0;
+  var hints = cpRoundHints(rd, auto ? null : t);
+  var id = auto ? 'auto-' + t.base + '|' + t.gauge : t.id;
+  var h = '<details class="inv-row-fold" data-cp-time="' + escHtml(id) + '"><summary class="inv-row inv-row-2"><span class="inv-row-main">' +
+    '<span class="inv-row-title"><span class="inv-id">' + escHtml(t.name) + '</span>' + (t.line ? ' · ' + escHtml(prodLineName(t.line)) : '') + (auto ? ' · <span class="inv-note">from the record</span>' : '') + '</span>' +
+    '<span class="inv-row-meta inv-row-wrap">' + escHtml(fig(rd.pcs, ' pcs') + ' a round · ' + breakdown) + '</span>' +
+    (hints.length ? '<span class="inv-row-meta inv-row-wrap"><span class="inv-dot inv-dot-' + hints[0].tone + '">' + todoPlural(hints.length, 'thing', 'things') + ' to look at</span></span>' : '') +
+    '</span><span class="inv-row-end"><span class="inv-row-stack">' + (rd.perHour != null ? figHtml(formatCurrency(rd.perHour), tone) + '<span class="inv-row-meta">an hour</span>' : '<span class="inv-row-meta">—</span>') + '</span></span></summary>' +
+    '<div class="inv-panel-body">';
+  h += '<div class="inv-row-meta inv-row-wrap">' + escHtml((rd.rate ? formatCurrency(rd.rate.rate) + '/' + (rd.rate.unit === 'NOS' ? 'pc' : 'kg') + ' (' + rd.rate.src + ')' : 'No rate on record') +
+    (rd.perRound != null ? ' · ' + formatCurrency(rd.perRound) + ' a round' : '') +
+    (ref && rd.perHour != null ? ' · an hour of the plant costs ' + formatCurrency(ref.cost) + ' and earns ' + formatCurrency(ref.revenue) : '')) + '</div>';
+  h += '<div class="inv-row-meta inv-row-wrap" data-cp-measured>' + escHtml('The record: ' + (rd.m.nPlate ? rd.m.nPlate + ' plating round' + (rd.m.nPlate === 1 ? '' : 's') + ' timed' : 'no plating round timed') +
+    ', ' + (rd.m.nPickle ? rd.m.nPickle + ' pickling load' + (rd.m.nPickle === 1 ? '' : 's') : 'no pickling load') + ' timed' + (rd.m.first ? ', ' + formatDate(rd.m.first) + ' – ' + formatDate(rd.m.last) : '') +
+    '. The times fill in as the register photos and pickling messages come in.') + '</div>';
+  if (pcs > 0) h += '<div class="inv-row-meta inv-row-wrap">' + escHtml('In ' + rg.label + ': ' + cpNum(pcs) + ' pcs billed, about ' + formatNum(hrs, 1) + ' hours of rounds for ' + formatCurrency(rev) + (ref ? ', which cost the plant about ' + formatCurrency(hrs * ref.cost) : '')) + '</div>';
+  if (rd.m.weeks.length >= 2) h += chartLines(rd.m.weeks.map(function(w) { return formatDate(w.week).slice(0, 6); }), [{ label: 'Minutes a round', values: rd.m.weeks.map(function(w) { return Math.round(w.min); }) }], { unit: 'min', ariaLabel: 'Plating minutes a round by week' });
+  hints.forEach(function(x) {
+    h += '<div class="inv-callout inv-callout-' + (x.tone === 'ok' ? 'ok' : x.tone === 'warning' ? 'warning' : 'info') + ' inv-mt-8">' + escHtml(x.text) +
+      (x.use && !auto ? ' <button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invCpTimeUseMeasured" data-id="' + escHtml(t.id) + '">Use ' + Math.round(rd.m.plateMin) + ' min</button>' : '') + '</div>';
+  });
+  h += '<div class="inv-toolbar inv-mt-8">' + (auto
+    ? '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invCpTimeAdd" data-key="' + escHtml(t.base + '|' + t.gauge) + '">Set its times</button>'
+    : '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invCpTimeEdit" data-id="' + escHtml(t.id) + '">Edit</button><button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invCpTimeRemove" data-id="' + escHtml(t.id) + '">Remove</button>') + '</div>';
+  return h + '</div></details>';
 }
 function cpHoursHtml(clientId) {
   var client = (S.clients || []).find(function(c) { return c.id === clientId; });
   if (!client) return '';
   var times = cpPartTimes(client), piece = client.billingMode === 'piece' || client.billingMode === 'nos_to_weight';
-  if (!times.length && !piece && !_cpTimeForm) return '';
+  // Parts the production record has timed rounds for, not yet set: learnt from the record, listed after the set ones.
+  var setKeys = {}; times.forEach(function(t) { setKeys[t.base + '|' + (t.gauge || '')] = 1; });
+  var auto = cpMaterials(clientId, '0000-01-01', '9999-12-31').filter(function(p) { return !setKeys[p.base + '|' + p.gauge]; })
+    .map(function(p) { return { base: p.base, gauge: p.gauge, name: p.name, n: cpMeasure(clientId, p.base, p.gauge).plate.length }; })
+    .filter(function(p) { return p.n >= 2; }).sort(function(a, b) { return b.n - a.n; }).slice(0, 8);
+  if (!times.length && !piece && !auto.length && !_cpTimeForm) return '';
   var ref = cpLineHourRef(), rg = cpPeriodRange();
   var h = '<div class="inv-panel inv-panel-flush" data-card="hours"><div class="inv-panel-head"><span class="inv-panel-title">By the hour</span>' +
-    '<span class="inv-note">parts plated by the round</span></div>';
-  if (ref) h += '<div class="inv-panel-body inv-note" data-cp-hour-ref>A line-hour costs the plant <strong class="inv-num">' + formatCurrency(ref.cost) + '</strong> and earns it <strong class="inv-num">' + formatCurrency(ref.revenue) + '</strong> on average: the last 90 days at ' +
-    (ref.live ? 'the live cost' : 'the typed cost') + ' ' + formatCurrency(ref.perKg) + '/kg, ' + cpNum(ref.kg) + ' kg over ' + ref.days + ' working days × ' + PROD_LINES.length + ' lines × ' + CP_LINE_HOURS_DAY + ' hours (' + formatNum(ref.kgPerHour, 0) + ' kg a line-hour).</div>';
-  else h += '<div class="inv-panel-body inv-note">No weighed billing in the last 90 days, so a line-hour has no cost to be set against yet.</div>';
-  times.forEach(function(t) {
-    var r = cpTimedRate(client, t);
-    var perHour = r ? t.pieces * r.rate / (t.minutes / 60) : null;
-    // The period's own use: pieces billed of the part, as rounds and line-hours.
-    var m = cpMaterials(clientId, rg.from, rg.to).filter(function(x) { return x.base === t.base && (!t.gauge || !x.gauge || x.gauge === t.gauge); });
-    var pcs = m.reduce(function(a, x) { return a + x.billedNos; }, 0), rev = m.reduce(function(a, x) { return a + x.revenue; }, 0);
-    var lineHrs = t.pieces > 0 ? pcs / t.pieces * t.minutes / 60 : 0;
-    var tone = perHour != null && ref ? figToneAgainst(perHour, ref.cost, 5) : null;
-    h += '<div class="inv-row inv-row-auto" data-cp-time="' + escHtml(t.id) + '"><span class="inv-row-main"><span class="inv-row-title"><span class="inv-id">' + escHtml(t.name) + '</span> · ' + escHtml(prodLineName(t.line)) + '</span>' +
-      '<span class="inv-row-meta inv-row-wrap">' + escHtml(t.pieces + ' pcs a round, ' + t.minutes + ' min' + (r ? ' · ' + formatCurrency(r.rate) + '/pc (' + r.src + ')' : ' · no rate on record')) + '</span>' +
-      (pcs > 0 ? '<span class="inv-row-meta inv-row-wrap">' + escHtml('In ' + rg.label + ': ' + cpNum(pcs) + ' pcs billed, ' + formatNum(lineHrs, 1) + ' line-hours of ' + prodLineName(t.line) + ' for ' + formatCurrency(rev) +
-        (ref ? ', which cost about ' + formatCurrency(lineHrs * ref.cost) : '')) + '</span>' : '') +
-      (tone && tone !== 'ok' && ref ? '<span class="inv-row-meta inv-row-wrap"><span class="inv-dot inv-dot-' + tone + '">' + (tone === 'danger' ? 'Below' : 'Just under') + ' what a line-hour costs</span></span>' : '') +
-      '</span><span class="inv-row-end"><span class="inv-row-stack">' + (perHour != null ? figHtml(formatCurrency(perHour), tone) + '<span class="inv-row-meta">a line-hour</span>' : '<span class="inv-row-meta">—</span>') + '</span>' +
-      '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invCpTimeRemove" data-id="' + escHtml(t.id) + '">Remove</button></span></div>';
-  });
+    '<span class="inv-note">pickle + plate + ' + cpOverheadMin() + ' min a round</span></div>';
+  h += '<div class="inv-panel-body inv-note" data-cp-hour-ref>' + (ref ? 'An hour costs the plant <strong class="inv-num">' + formatCurrency(ref.cost) + '</strong> and earns it <strong class="inv-num">' + formatCurrency(ref.revenue) + '</strong> on average: the last 90 days at ' +
+    (ref.live ? 'the live cost' : 'the typed cost') + ' ' + formatCurrency(ref.perKg) + '/kg, ' + cpNum(ref.kg) + ' kg over ' + ref.days + ' working days × ' + PROD_LINES.length + ' lines × ' + CP_LINE_HOURS_DAY + ' hours.'
+    : 'No weighed billing in the last 90 days, so an hour has no cost to be set against yet.') +
+    ' <label data-nodirty>Logistics and other steps, every round <input type="number" min="0" step="1" class="inv-input inv-input-sm inv-input-num" id="cpOverhead" value="' + cpOverheadMin() + '" aria-label="Minutes of logistics and other steps a round"> min</label></div>';
+  times.forEach(function(t) { h += cpRoundRowHtml(client, t, ref, rg, false); });
+  auto.forEach(function(t) { h += cpRoundRowHtml(client, t, ref, rg, true); });
   if (_cpTimeForm) {
+    var f = typeof _cpTimeForm === 'object' ? _cpTimeForm : {};
     var parts = cpMaterials(clientId, '0000-01-01', '9999-12-31').sort(function(a, b) { return String(a.name).localeCompare(String(b.name)); });
-    h += '<div class="inv-panel-body" id="cpTimeForm"><div class="inv-fields">' +
-      '<label class="inv-field"><span class="inv-field-label">Part</span><select class="inv-select" id="cpTimePart"><option value="">Pick the part</option>' +
-      parts.map(function(p) { return '<option value="' + escHtml(p.base + '|' + p.gauge) + '">' + escHtml(p.name) + '</option>'; }).join('') + '</select></label>' +
-      '<label class="inv-field"><span class="inv-field-label">Line</span><select class="inv-select" id="cpTimeLine">' + PROD_LINES.map(function(l) { return '<option value="' + l + '"' + (l === 'vat-a2' ? ' selected' : '') + '>' + escHtml(prodLineName(l)) + '</option>'; }).join('') + '</select></label>' +
-      '<label class="inv-field"><span class="inv-field-label">Pieces a round</span><input type="number" min="1" step="1" inputmode="numeric" class="inv-input inv-input-num" id="cpTimePieces"></label>' +
-      '<label class="inv-field"><span class="inv-field-label">Minutes a round</span><input type="number" min="1" step="1" inputmode="numeric" class="inv-input inv-input-num" id="cpTimeMinutes" value="30"></label></div>' +
+    var ms = f.key ? cpMeasured(cpMeasure(clientId, f.key.split('|')[0], f.key.split('|')[1] || '')) : null;
+    var ph = function(v) { return v != null ? ' placeholder="' + Math.round(v) + ' measured"' : ''; };
+    h += '<div class="inv-panel-body" id="cpTimeForm" data-nodirty><div class="inv-fields">' +
+      '<label class="inv-field"><span class="inv-field-label">Part</span><select class="inv-select" id="cpTimePart"' + (f.id ? ' disabled' : '') + '><option value="">Pick the part</option>' +
+      parts.map(function(p) { var k = p.base + '|' + p.gauge; return '<option value="' + escHtml(k) + '"' + (f.key === k ? ' selected' : '') + '>' + escHtml(p.name) + '</option>'; }).join('') + '</select></label>' +
+      '<label class="inv-field"><span class="inv-field-label">Line</span><select class="inv-select" id="cpTimeLine">' + PROD_LINES.map(function(l) { return '<option value="' + l + '"' + ((f.line || 'vat-a2') === l ? ' selected' : '') + '>' + escHtml(prodLineName(l)) + '</option>'; }).join('') + '</select></label>' +
+      '<label class="inv-field"><span class="inv-field-label">Pieces a round</span><input type="number" min="1" step="1" inputmode="numeric" class="inv-input inv-input-num" id="cpTimePieces" value="' + (f.pieces != null ? f.pieces : '') + '"' + ph(ms && ms.pcs) + '></label>' +
+      '<label class="inv-field"><span class="inv-field-label">Pickling, minutes a round</span><input type="number" min="0" step="1" inputmode="numeric" class="inv-input inv-input-num" id="cpTimePickle" value="' + (f.pickleMin != null ? f.pickleMin : '') + '"' + ph(ms && ms.pickPerPc && ms.pcs ? ms.pickPerPc * ms.pcs : null) + '></label>' +
+      '<label class="inv-field"><span class="inv-field-label">Plating, minutes a round</span><input type="number" min="1" step="1" inputmode="numeric" class="inv-input inv-input-num" id="cpTimePlate" value="' + (f.plateMin != null ? f.plateMin : '') + '"' + ph(ms && ms.plateMin) + '></label></div>' +
+      '<div class="inv-note">Leave a figure blank to use what the production record measures.</div>' +
       '<div class="inv-toolbar"><button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invCpTimeCancel">Cancel</button><button class="inv-btn inv-btn-primary inv-btn-sm" data-action="invCpTimeSave">Save</button></div></div>';
   } else {
-    h += '<div class="inv-panel-body">' + (times.length ? '' : '<div class="inv-note inv-mb-8">No part of this client has its time a round set. A part plated by the round (so many pieces, so many minutes) is judged here by what a line-hour of it earns.</div>') +
-      '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invCpTimeAdd">Add a part’s time</button></div>';
+    h += '<div class="inv-panel-body">' + (times.length || auto.length ? '' : '<div class="inv-note inv-mb-8">No part of this client has its round timed yet, set or in the production record. A part plated by the round is judged here by what an hour of it earns.</div>') +
+      '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invCpTimeAdd">Set a part’s times</button></div>';
   }
   return h + '</div>';
 }
 var _cpTimeForm = false;
+function cpTimeFormOpen(key, id) {
+  var client = (S.clients || []).find(function(c) { return c.id === getPerfClientId(); });
+  var t = id && client ? cpPartTimes(client).find(function(x) { return x.id === id; }) : null;
+  _cpTimeForm = t ? { id: t.id, key: t.base + '|' + (t.gauge || ''), line: t.line, pieces: t.pieces, pickleMin: t.pickleMin, plateMin: cpPlateSet(t) } : { key: key || '' };
+  renderClientsPage();
+}
 function cpTimeSave() {
   var client = (S.clients || []).find(function(c) { return c.id === getPerfClientId(); });
   var v = function(id) { var el = document.getElementById(id); return el ? el.value : ''; };
   if (!client) return;
-  var key = v('cpTimePart'), pieces = parseInt(v('cpTimePieces'), 10), minutes = parseFloat(v('cpTimeMinutes'));
+  var f = typeof _cpTimeForm === 'object' ? _cpTimeForm : {};
+  var key = f.id ? f.key : v('cpTimePart');
+  var num = function(id, min) { var x = v(id); if (String(x).trim() === '') return null; var n = parseFloat(x); return isNaN(n) || n < min ? NaN : n; };
+  var pieces = num('cpTimePieces', 1), pickleMin = num('cpTimePickle', 0), plateMin = num('cpTimePlate', 1);
   if (!key) { showToast('Pick the part', 'error'); return; }
-  if (!(pieces > 0)) { showToast('Enter the pieces a round', 'error'); return; }
-  if (!(minutes > 0)) { showToast('Enter the minutes a round', 'error'); return; }
-  var sel = document.getElementById('cpTimePart'), name = sel && sel.selectedOptions[0] ? sel.selectedOptions[0].textContent : key;
+  if ([pieces, pickleMin, plateMin].some(function(x) { return x !== null && isNaN(x); })) { showToast('Enter whole minutes and pieces, or leave them blank', 'error'); return; }
+  var sel = document.getElementById('cpTimePart'), name = sel && sel.selectedOptions[0] && sel.value ? sel.selectedOptions[0].textContent : key;
   var kk = key.split('|');
   if (!Array.isArray(client.partTimes)) client.partTimes = [];
-  client.partTimes = client.partTimes.filter(function(t) { return !(t.base === kk[0] && (t.gauge || '') === (kk[1] || '')); });
-  client.partTimes.push({ id: 'PT-' + Date.now().toString(36), base: kk[0], gauge: kk[1] || '', name: name, line: v('cpTimeLine') || 'vat-a2', pieces: pieces, minutes: minutes, at: Date.now() });
+  var old = client.partTimes.find(function(t) { return t.base === kk[0] && (t.gauge || '') === (kk[1] || ''); });
+  client.partTimes = client.partTimes.filter(function(t) { return t !== old; });
+  var rec = { id: old ? old.id : 'PT-' + Date.now().toString(36), base: kk[0], gauge: kk[1] || '', name: old ? old.name : name, line: v('cpTimeLine') || 'vat-a2', at: Date.now() };
+  if (pieces != null) rec.pieces = pieces;
+  if (pickleMin != null) rec.pickleMin = pickleMin;
+  if (plateMin != null) rec.plateMin = plateMin;
+  // What the figures were before, so a change of time is on record.
+  if (old) rec.history = (old.history || []).concat([{ at: old.at || null, pieces: old.pieces, pickleMin: old.pickleMin, plateMin: cpPlateSet(old) }]);
+  client.partTimes.push(rec);
   _cpTimeForm = false;
   saveState();
   renderClientsPage();
-  showToast('Time a round saved for ' + name);
+  showToast('Times saved for ' + rec.name);
+}
+function cpTimeUseMeasured(id) {
+  var client = (S.clients || []).find(function(c) { return c.id === getPerfClientId(); });
+  var t = client ? cpPartTimes(client).find(function(x) { return x.id === id; }) : null;
+  if (!t) return;
+  var m = cpMeasured(cpMeasure(client.id, t.base, t.gauge));
+  if (m.plateMin == null) return;
+  t.history = (t.history || []).concat([{ at: t.at || null, pieces: t.pieces, pickleMin: t.pickleMin, plateMin: cpPlateSet(t) }]);
+  t.plateMin = Math.round(m.plateMin); delete t.minutes; t.at = Date.now();
+  saveState();
+  renderClientsPage();
+  showToast('Plating set to ' + t.plateMin + ' min a round, as measured');
 }
 function cpTimeRemove(id) {
   var client = (S.clients || []).find(function(c) { return c.id === getPerfClientId(); });
   if (!client || !Array.isArray(client.partTimes)) return;
   client.partTimes = client.partTimes.filter(function(t) { return t.id !== id; });
+  saveState();
+  renderClientsPage();
+}
+function cpSetOverhead(v) {
+  var n = parseFloat(v);
+  if (isNaN(n) || n < 0) return;
+  S.perfCfg = Object.assign({}, S.perfCfg || {}, { overheadMin: n });
   saveState();
   renderClientsPage();
 }

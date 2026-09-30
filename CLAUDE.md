@@ -1227,12 +1227,25 @@ billed, first and last; it opens to every challan and invoice by date, each a li
 shared · BETA AUTO also sends it: counted apart*), here and on Stats' top items (`cpCodeOwners`). P118.
 
 **By the hour** (owner: *"Samarth part is done in pieces, 3302 - 9/pc takes about 30 mins … 24 pcs at a time in VAT A2. 3303 - 3/pc …
-80 pcs at a time … there can be a different realisation and cost that is calculated on per hour basis"*). A part plated by the round
-carries its time on the client (`client.partTimes`: line, pieces and minutes a round; set once for Samarth's two, `_partTimes1`), and
-Performance → *By the hour* reads what a line-hour of it earns (pieces × rate ÷ hours; the rate from its latest invoice, else the piece
-card) against what a line-hour **costs** the plant and **earns** it on average: the last 90 days at the live cost, spread over working
-days × 3 lines × 16 hours (`cpLineHourRef`, the assumption said on the card). The period's pieces billed are turned into line-hours used.
-On the real book: a line-hour costs about ₹489 and earns ₹466; 3302 earns ₹432 and 3303 ₹480.
+80 pcs at a time … there can be a different realisation and cost that is calculated on per hour basis"*, then *"have an option to update
+the time taken to pickle and plate + a constant 15 mins (logistics + other steps) for every material … fill these out with the production
+data … make sure the app learns from the data that is being entered, so we can evaluate if the time taken is increasing or decreasing, and
+what steps we can take to optimise setups"*). Performance → *By the hour*:
+- **A round is pickling + plating + the constant** for logistics and the other steps (`S.perfCfg.overheadMin`, 15, set on the panel). Each
+  figure is the owner's where set on the client (`client.partTimes`: pieces, `pickleMin`, `plateMin`, the line; Samarth's two set once,
+  plating 30, `_partTimes1`), else **what the production record measures** (`cpMeasure`, `cpMeasured`): the register's round-to-round
+  gaps on the line (5–180 min; across noon on a 12-hour clock), a START–END batch's span over its rounds, the pieces a round from the
+  rounds' own figures, and pickling as the gap from a load to the pickling hand's next load that day (5–120 min) a piece × the round's
+  pieces. Every figure says *set*, *measured* or *not known*.
+- **What an hour earns** is a round's pieces × the rate (a kilo rate through the part's kg a piece) over the round's whole time, against
+  what an hour **costs** the plant and **earns** it on average (the last 90 days at the live cost, over working days × 3 lines × 16 h,
+  `cpLineHourRef`, the assumption said on the card). The period's pieces billed become the hours of rounds they took.
+- **It learns as entries come in**: the measure is read afresh from the record every time; parts the record has timed and nobody has
+  set are listed too (*from the record*). A part opens to its record, a chart of the median round by pay week, and **what to look at**
+  (`cpRoundHints`): a round 10%+ slower (or faster) in the last 30 days than the 60 before, racks run short of their fullest, the fixed
+  steps a quarter or more of a round, pickling slower than plating, and a set plating time the record no longer bears out (15%+ off on
+  5+ rounds), with **Use** to take the measure. A changed time keeps what it was (`history`).
+On the real book to 11 Sep (before Production existed, so no round is timed yet): an hour costs the plant about ₹489 and earns ₹466.
 
 ### What the charts show
 The trend was one line drawn with `preserveAspectRatio="none"` — a 400×160 drawing smeared across

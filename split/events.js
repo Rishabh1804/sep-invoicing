@@ -281,7 +281,9 @@ function onDocClick(e) {
     case 'invPerfSeries': _cpSeries = btn.dataset.series; renderClientsPage(); break;
     case 'invCpPeriod': _cpPeriod = btn.dataset.p; renderClientsPage(); break;
     case 'invCpScope': _cpScope = btn.dataset.s; renderClientsPage(); break;
-    case 'invCpTimeAdd': _cpTimeForm = true; renderClientsPage(); break;
+    case 'invCpTimeAdd': cpTimeFormOpen(btn.dataset.key || ''); break;
+    case 'invCpTimeEdit': cpTimeFormOpen('', btn.dataset.id); break;
+    case 'invCpTimeUseMeasured': cpTimeUseMeasured(btn.dataset.id); break;
     case 'invCpTimeCancel': _cpTimeForm = false; renderClientsPage(); break;
     case 'invCpTimeSave': cpTimeSave(); break;
     case 'invCpTimeRemove': cpTimeRemove(btn.dataset.id); break;
@@ -609,6 +611,7 @@ function onDocChange(e) {
     renderClientsPage();
     return;
   }
+  if (e.target.id === 'cpOverhead') { cpSetOverhead(e.target.value); return; }
   if (e.target.id === 'cpFrom' || e.target.id === 'cpTo') {
     if (e.target.id === 'cpFrom') _cpFrom = e.target.value; else _cpTo = e.target.value;
     renderClientsPage();

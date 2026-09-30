@@ -493,7 +493,7 @@ if (!S._cnSeriesStart1) {
     var at = Date.now();
     c.partTimes = [['5174 5460 3302', 24], ['5166 5460 3303', 80]].map(function(p, i) {
       var idn = cpPartIdentity(p[0], '');
-      return { id: 'PT-seed' + (i + 1), base: idn.base, gauge: idn.gauge, name: p[0], line: 'vat-a2', pieces: p[1], minutes: 30, at: at, note: 'owner, 30 Sep 2026' };
+      return { id: 'PT-seed' + (i + 1), base: idn.base, gauge: idn.gauge, name: p[0], line: 'vat-a2', pieces: p[1], plateMin: 30, at: at, note: 'owner, 30 Sep 2026' };
     });
   }
   S._partTimes1 = true;

@@ -91,23 +91,55 @@ test('materials worked: a period, a search, every challan by date, and a code an
   await expect(page.locator('[data-card="worked"] [data-cp-worked="2|66X42|30X6"]')).toContainText('300 NOS');
 });
 
-test('by the hour: Samarth’s parts are set once, and each is judged against what a line-hour costs', async ({ page }) => {
+test('by the hour: a round is pickle + plate + 15 minutes; Samarth’s are set once, and removed stays removed', async ({ page }) => {
   await loadAppWithState(page, book());
   const c = (await readStoredState(page)).clients.find((x: any) => x.id === 3);
-  expect(c.partTimes.map((t: any) => [t.name, t.line, t.pieces, t.minutes])).toEqual([['5174 5460 3302', 'vat-a2', 24, 30], ['5166 5460 3303', 'vat-a2', 80, 30]]);
+  expect(c.partTimes.map((t: any) => [t.name, t.line, t.pieces, t.plateMin])).toEqual([['5174 5460 3302', 'vat-a2', 24, 30], ['5166 5460 3303', 'vat-a2', 80, 30]]);
   await openPerf(page, 3);
   const card = page.locator('[data-card="hours"]');
-  // 24 × ₹9 in half an hour is ₹432 a line-hour; 80 × ₹3 is ₹480.
-  await expect(card.locator('[data-cp-time="PT-seed1"]')).toContainText('₹432.00');
-  await expect(card.locator('[data-cp-time="PT-seed2"]')).toContainText('₹480.00');
-  await card.locator('[data-action="invCpPeriod"]').count();
-  await expect(card.locator('[data-cp-time="PT-seed1"]')).toContainText('240 pcs billed, 5.0 line-hours of VAT A2');
-  await expect(card.locator('[data-cp-hour-ref]')).toContainText('A line-hour costs the plant');
-  // Removed stays removed: the seed does not come back on a reload.
-  await card.locator('[data-cp-time="PT-seed2"] [data-action="invCpTimeRemove"]').click();
+  // No pickling on record: 30 + 15 = 45 min a round. 24 × ₹9 over 0.75 h is ₹288 an hour; 80 × ₹3 is ₹320.
+  await expect(card.locator('[data-cp-time="PT-seed1"] summary')).toContainText('₹288.00');
+  await expect(card.locator('[data-cp-time="PT-seed2"] summary')).toContainText('₹320.00');
+  await expect(card.locator('[data-cp-time="PT-seed1"] summary')).toContainText('+ plate 30 min (set) + 15 min logistics');
+  // The constant is the owner's to change: 5 minutes makes a round 35.
+  await card.locator('#cpOverhead').fill('5');
+  await card.locator('#cpOverhead').dispatchEvent('change');
+  await expect(page.locator('[data-card="hours"] [data-cp-time="PT-seed1"] summary')).toContainText('₹370.29');
+  await expect(page.locator('[data-card="hours"] [data-cp-hour-ref]')).toContainText('An hour costs the plant');
+  await page.locator('[data-card="hours"] [data-cp-time="PT-seed2"] summary').click();
+  await page.locator('[data-card="hours"] [data-cp-time="PT-seed2"] [data-action="invCpTimeRemove"]').click();
   await page.reload();
   await page.waitForSelector('body.inv-booted');
   expect((await readStoredState(page)).clients.find((x: any) => x.id === 3).partTimes).toHaveLength(1);
+});
+
+test('the times are learnt from the production record, the trend is read, and a set figure the record no longer bears out is said', async ({ page }) => {
+  const s: any = book();
+  const d = (n: number) => daysAgo(n);
+  const plated = (id: string, date: string, times: string[], qty: number) => ({ id, kind: 'plated', date, line: 'vat-a2', lineSrc: 'written', clientId: 3, part: '5174 5460 3302', qty: qty * times.length, unit: 'NOS',
+    basis: 'register', src: 'photo', time: times[0], to: times[times.length - 1], rounds: times.map(t => ({ time: t, qty })), at: 1 });
+  const pickled = (id: string, date: string, time: string, part: string, qty: number) => ({ id, kind: 'pickled', date, clientId: 3, part, qty, unit: 'NOS', time, basis: 'pickling', src: 'paste', at: 1 });
+  s.production = { entries: [
+    // 60 to 40 days ago: 30-minute rounds of 24.
+    plated('A1', d(60), ['9:00', '9:30', '10:00', '10:30'], 24), plated('A2', d(45), ['9:00', '9:30', '10:00'], 24),
+    // The last 30 days: 40-minute rounds, and a round of 20.
+    plated('B1', d(20), ['9:00', '9:40', '10:20', '11:00'], 24), plated('B2', d(10), ['12:40', '1:20 PM', '2:00 PM'], 20),
+    // Pickling: 48 pieces, the next load 24 minutes later: half a minute a piece.
+    pickled('K1', d(10), '8:00', '5174 5460 3302', 48), pickled('K2', d(10), '8:24', 'OTHER 1', 10),
+  ], pastes: [], photos: [], imports: [], learn: { clients: {}, parts: {} } };
+  await loadAppWithState(page, s);
+  const m = JSON.parse(await g(page, `JSON.stringify(cpMeasured(cpMeasure(3, '517454603302', '')))`) as string);
+  expect(m).toMatchObject({ nPlate: 10, nPickle: 1, pcsMax: 24, trendBefore: 30, trendNow: 40 });
+  await openPerf(page, 3);
+  const row = page.locator('[data-card="hours"] [data-cp-time="PT-seed1"]');
+  await row.locator('summary').click();
+  await expect(row).toContainText('10 plating rounds timed');
+  await expect(row).toContainText('+33%');
+  // Set at 30, measured at 40 now: said, with a button to take the measure.
+  await row.locator('[data-action="invCpTimeUseMeasured"]').click();
+  const t = (await readStoredState(page)).clients.find((x: any) => x.id === 3).partTimes[0];
+  expect(t.plateMin).toBe(Math.round(m.plateMin));
+  expect(t.history[0]).toMatchObject({ plateMin: 30 });
 });
 
 test('Stats’ top items read one clamp however it was spelt, and say when another client sends the same code', async ({ page }) => {

@@ -454,6 +454,7 @@ function onDocClick(e) {
       if (advAction(action, btn)) break;
       if (addAction(action, btn)) break;
       if (flrAction(action, btn)) break;
+      if (tdyAction(action, btn)) break;
       if (srchAction(action, btn)) break;
       if (typeof devAction === 'function' && devAction(action, btn)) break;
       if (action.indexOf('invGuard') === 0) { if (typeof guardAction === 'function') guardAction(action, btn); break; }

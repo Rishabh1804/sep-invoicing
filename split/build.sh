@@ -74,6 +74,7 @@ JS_SOURCES=(
     "$DIR/production.js" \
     "$DIR/prodview.js" \
     "$DIR/floor.js" \
+    "$DIR/today.js" \
     "$DIR/power.js" \
     "$DIR/report.js" \
     "$DIR/client-perf.js" \

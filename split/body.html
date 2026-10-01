@@ -27,6 +27,10 @@
 
 <!-- PAGES -->
 <div id="pageHome" class="inv-page inv-page-active">
+  <!-- Today (today.js): Needs you, then Pulse; one of the two shown (pageHome's own view, ?tab=pageHome&v=pulse). -->
+  <div id="homeNeeds" data-today="needs"></div>
+  <div id="homePulse" data-today="pulse" class="inv-hidden">
+  <div id="homeQuestions"></div>
   <div id="homeEditArea"></div>
   <div class="inv-panels" id="homeWidgets">
     <div data-home-w="mtd" class="inv-panels-wide">
@@ -62,6 +66,7 @@
     </div>
   </div>
   <div class="inv-toolbar" id="homeEditBar"><button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invHomeEdit">Edit Home</button></div>
+  </div>
 </div>
 
 <div id="pageCreate" class="inv-page">

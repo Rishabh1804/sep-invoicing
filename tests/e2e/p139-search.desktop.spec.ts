@@ -104,6 +104,8 @@ test.describe('P139: keys and new windows on the desktop', () => {
     // N: a new invoice. C: a new challan, its form open.
     await page.keyboard.press('n');
     await expect(page.locator('#pageCreate')).toHaveClass(/inv-page-active/);
+    // Create puts the cursor in its client search a moment after it opens; a key pressed before that lands there.
+    await expect(page.locator('#invClientSearch')).toBeFocused();
     await page.locator('#topbarTitle').click();
     await page.keyboard.press('c');
     await expect(page.locator('#pageIM')).toHaveClass(/inv-page-active/);

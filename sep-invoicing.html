@@ -18,7 +18,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <!-- Appearance before first paint (§3.2): the device's theme and palette, so nothing flashes in the wrong colours. -->
 <script>(function(){try{var d=document.documentElement,t=localStorage.getItem("sep_inv_theme"),p=localStorage.getItem("sep_inv_palette");if(t==="light"||t==="dark")d.dataset.theme=t;d.dataset.palette=(p==="zinc"||p==="terracotta")?p:"teal";}catch(e){document.documentElement.dataset.palette="teal";}})();</script>
-<meta name="app-build" content="d85b6df3">
+<meta name="app-build" content="19319007">
 <style>
 /* ===== DESIGN TOKENS (design system v2.0 — docs/SEP_INVOICING_DESIGN_PRINCIPLES.md §3) ===== */
 /* Theme: colour-scheme decides every light-dark() below. <html data-theme> is set before first paint
@@ -44325,6 +44325,7 @@ function navLoc() {
       v = _stockView === 'review' ? 'paste' : _stockView;
       if (_stockView === 'item' && _stockItemId) id = _stockItemId;
       break;
+    case 'pageHome': v = tdyView(); break;
     case 'pageTodo': v = _todoShowDone ? 'done' : 'open'; break;
     case 'pageReports': v = rptNavV(); break;
     case 'pageFloor': d = flrNavD(); break;
@@ -44370,6 +44371,7 @@ function navLabel(loc) {
     case 'pageFinance': sub.push(_navFind(FIN_TABS, parts[0])); break;
     case 'pageStats': sub.push(_navFind(STATS_TABS, parts[0])); break;
     case 'pageProduction': sub.push(_navFind(PROD_TABS, parts[0])); sub.push({ paste: 'Paste message', hand: 'Enter by hand', photo: 'Register photo' }[parts[1]] || ''); break;
+    case 'pageHome': sub.push(parts[0] === 'pulse' ? 'Pulse' : 'Needs you'); break;
     case 'pagePower': sub.push(_navFind(POWER_TABS, parts[0])); break;
     case 'pageStaff': sub.push(parts[0] === 'paste' ? 'Paste message' : _navFind(ATT_VIEWS, parts[0])); break;
     case 'pageStock':
@@ -44438,6 +44440,7 @@ function navApply(loc) {
         if (sv === 'reorder' && !_stockReorder) _stockReorder = { qty: {} };
         _stockView = sv;
         break;
+      case 'pageHome': tdySetView(parts[0]); break;
       case 'pageTodo': _todoShowDone = parts[0] === 'done'; break;
       case 'pageReports': rptNavApply(loc && loc.v); break;
       case 'pageFloor': flrSetDay(loc && loc.d); break;

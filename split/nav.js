@@ -62,6 +62,7 @@ function navLoc() {
       v = _stockView === 'review' ? 'paste' : _stockView;
       if (_stockView === 'item' && _stockItemId) id = _stockItemId;
       break;
+    case 'pageHome': v = tdyView(); break;
     case 'pageTodo': v = _todoShowDone ? 'done' : 'open'; break;
     case 'pageReports': v = rptNavV(); break;
     case 'pageFloor': d = flrNavD(); break;
@@ -107,6 +108,7 @@ function navLabel(loc) {
     case 'pageFinance': sub.push(_navFind(FIN_TABS, parts[0])); break;
     case 'pageStats': sub.push(_navFind(STATS_TABS, parts[0])); break;
     case 'pageProduction': sub.push(_navFind(PROD_TABS, parts[0])); sub.push({ paste: 'Paste message', hand: 'Enter by hand', photo: 'Register photo' }[parts[1]] || ''); break;
+    case 'pageHome': sub.push(parts[0] === 'pulse' ? 'Pulse' : 'Needs you'); break;
     case 'pagePower': sub.push(_navFind(POWER_TABS, parts[0])); break;
     case 'pageStaff': sub.push(parts[0] === 'paste' ? 'Paste message' : _navFind(ATT_VIEWS, parts[0])); break;
     case 'pageStock':
@@ -175,6 +177,7 @@ function navApply(loc) {
         if (sv === 'reorder' && !_stockReorder) _stockReorder = { qty: {} };
         _stockView = sv;
         break;
+      case 'pageHome': tdySetView(parts[0]); break;
       case 'pageTodo': _todoShowDone = parts[0] === 'done'; break;
       case 'pageReports': rptNavApply(loc && loc.v); break;
       case 'pageFloor': flrSetDay(loc && loc.d); break;

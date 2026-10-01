@@ -52,6 +52,19 @@ for (const [w, h] of [[1280, 800], [1024, 768]] as const) {
   });
 }
 
+test('on a short screen the pipeline scrolls in its own column, and keeps its place when a stage is tapped', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 460 });
+  await loadAppWithState(page, pipeState());
+  await switchTab(page, 'pagePipeline');
+  const rail = page.locator('#pagePipeline .inv-pipe-rail');
+  expect(await rail.evaluate(el => el.scrollHeight > el.clientHeight + 1)).toBe(true);
+  const top = await rail.evaluate(el => { el.scrollTop = el.scrollHeight; return el.scrollTop; });
+  expect(top).toBeGreaterThan(0);
+  await page.locator('#pagePipeline button[data-pipe-stage="owed"]').click();
+  await expect(page.locator('#pipeList [data-pipe-list="owed"]')).toBeVisible();
+  expect(await rail.evaluate(el => el.scrollTop)).toBe(top);
+});
+
 test('the stage’s actions land where the desktop keeps them: the Register’s table ticked, a challan in IM’s pane', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 800 });
   await loadAppWithState(page, pipeState());

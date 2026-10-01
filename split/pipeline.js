@@ -103,9 +103,12 @@ function renderPipeline() {
   var stages = pipeStages(), cur = stages.find(function(s) { return s.key === _pipeStage && s.open; });
   // A stage chosen that has emptied since (all of it marked on) gives way to the default.
   if (!cur) { _pipeStage = pipeDefaultStage(stages); cur = stages.find(function(s) { return s.key === _pipeStage; }) || null; }
+  // The pipeline's own column keeps its place on a short desktop screen: the stage just tapped stays under the pointer.
+  var rail = el.querySelector('.inv-pipe-rail'), railTop = rail ? rail.scrollTop : 0;
   el.innerHTML = '<div class="inv-toolbar"><button class="inv-btn inv-btn-primary" data-action="invCreateNew">Create invoice</button></div>' +
     '<div class="inv-pane-host inv-pipe-host" id="pipeHost"><div class="inv-pipe-rail">' + pipeRailHtml(stages) + '</div>' +
     '<div class="inv-pane-list" id="pipeList">' + pipeListHtml(cur) + '</div></div>';
+  if (railTop) el.querySelector('.inv-pipe-rail').scrollTop = railTop;
 }
 
 /* ---------- The pipeline ---------- */

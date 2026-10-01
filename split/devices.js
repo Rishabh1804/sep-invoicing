@@ -574,12 +574,14 @@ function devPushPrep(envelope, opts) {
       if (!r) return;
       if (had) r.lastPushAt = prev; else delete r.lastPushAt;
     },
-    // Quietly, without arming auto-push: a push that saved and so armed the next push would push for ever.
+    // Quietly, without arming auto-push: a push that saved and so armed the next push would push for ever. And only over
+    // the book this window holds: where another window has saved since, its book is loaded here instead (the version
+    // guard) and this push's time goes with the next one, rather than a refused write saying a change was lost.
     done: function() {
       var r = devRow(row.id);
       if (!r) return;
       r.lastPushAt = at;
-      persistState();
+      readStoredRev().then(function(rev) { if ((rev || null) === (_diskRev || null)) persistState(); }, function() {});
     }
   };
 }

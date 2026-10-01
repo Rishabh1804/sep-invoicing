@@ -387,6 +387,8 @@ export const DIALOGS: Array<[string, string]> = [
   ['stats-drill', `openClientDrillOverlay(1)`],
   ['todo-new', `todoOpenEdit(null)`],
   ['todo-edit', `todoOpenEdit('T1')`],
+  // An app task with What you can do (P133): the first the sweep book raises that carries moves.
+  ['todo-app-moves', `todoOpenApp((todoAppAll().find(function(t) { return advTaskMoves(t).length; }) || {}).key)`],
   ['ask-confirm', `uiConfirm({ title: 'Delete this challan?', body: 'Challan 301 from SAMARTH, 2 lines. This cannot be undone.', okLabel: 'Delete challan', danger: true })`],
   ['ask-prompt', `uiPrompt({ title: 'Void this payment', body: 'It is kept on the record, not deleted.', label: 'Why is this payment void?', required: true })`],
   ['ask-alert', `uiAlert({ title: 'Copy the order', body: 'Select the text below and copy it.' })`],

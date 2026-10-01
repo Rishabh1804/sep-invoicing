@@ -49,12 +49,14 @@ async function createNew() {
 /* A new invoice for one client (the Stats drill-down): the client is chosen on a fresh form, whether or not a form
    already existed. It used to be left in a global that only a form not yet drawn would read, so with Create open
    it did nothing, and later leaked into the next New invoice. */
-async function createForClient(clientId) {
+async function createForClient(clientId, imIds) {
   if (!(await createDiscardOk())) return;
   closeOverlay();
   initCreateForm();
   const c = S.clients.find(x => x.id === parseInt(clientId));
-  if (c) { selectClient(c.id); createMarkBase(); }
+  // imIds: its challans ticked, as the picker ticks them (a move on the Pulse or the To-do, advice.js). The form is a draft
+  // like any other: nothing is saved until Create invoice.
+  if (c) { selectClient(c.id); (imIds || []).forEach(id => createPickChallan(id)); createMarkBase(); }
   switchTab('pageCreate');
 }
 

@@ -1899,3 +1899,8 @@ body.inv-desktop .inv-panels > [data-home-w] { container: home-w / inline-size; 
 @media print {
   .inv-qt-doc { border: none; width: auto; min-height: 0; margin: 0; }
 }
+
+/* A move's call (advice.js) is a real tel: or mailto: link drawn as a button: a button carries no underline. */
+a.inv-btn { text-decoration: none; }
+/* A move's sentence keeps room to read: in a half-width card its buttons take the line under it rather than squeezing it. */
+.inv-row-flow[data-adv-move] > .inv-row-main { flex-basis: calc(var(--col-sm-w) * 2); }

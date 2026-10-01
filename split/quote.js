@@ -274,6 +274,7 @@ function qtDetailBodyHtml(q) {
     (q.status === 'void' ? kv('Void', escHtml(q.voidReason || ''), true) : '') +
     (q.acceptedAt ? kv('Accepted', escHtml(formatDate(isoOf(new Date(q.acceptedAt))))) : '') +
     (q.declinedAt ? kv('Declined', escHtml(formatDate(isoOf(new Date(q.declinedAt))))) : '') +
+    (q.draftNote ? kv('Note', escHtml(q.draftNote), true) : '') +
     '</div>';
   h += '<div class="inv-panel inv-panel-flush"><div class="inv-panel-head"><span class="inv-panel-title">Items <span class="inv-panel-count">' + (q.lines || []).length + '</span></span></div>' +
     (q.lines || []).map(function(l) {
@@ -363,10 +364,16 @@ function qtBlank() {
     transport: 'excluded', minConsignmentKg: null, lotPcs: null, validDays: 30, paymentDays: 15, terms: [], status: 'draft' };
 }
 function qtCopy(q) { return JSON.parse(JSON.stringify(q)); }
-function qtOpenForm(id) {
+/* The recipient as the client master holds it: what picking a client fills. */
+function qtToFromClient(c, attn) {
+  return { name: c.name || '', address: [c.add1, c.add2, c.add3].filter(function(x) { return String(x || '').trim(); }).join('\n'),
+    gstin: c.gstin || '', state: c.state ? (c.stateCode ? '(' + c.stateCode + ') ' : '') + c.state : '', attn: attn || '' };
+}
+/* `draft`: a new quotation already filled in (qtOpenDraft), opened instead of a blank one. */
+function qtOpenForm(id, draft) {
   var src = id ? qtFind(id) : null;
   if (src && src.status !== 'draft') { showToast('An issued quotation is never edited: revise it', 'warning'); return; }
-  var q = src ? qtCopy(src) : qtBlank();
+  var q = src ? qtCopy(src) : draft || qtBlank();
   // The terms follow the options until somebody edits one (a draft saved with edited terms keeps them).
   var auto = !src || JSON.stringify(src.terms || []) === JSON.stringify(qtTermsFor(src));
   if (!src || !(q.terms || []).length) { q.terms = qtTermsFor(q); auto = true; }
@@ -375,6 +382,20 @@ function qtOpenForm(id) {
   setItemsSubView('quotes');
   if (navPageOf() !== 'pageClients') switchTab('pageClients'); else renderClientsPage();
   viewTop();
+}
+/* A new draft filled in from a move (advice.js: a client asked for the full cost, its largest parts as lines; a new
+   quotation at a rate that clears the cost): the recipient from the client master, the lines, and a note of where it came
+   from, kept on the record and never printed. The same form as New quotation, the same rules: it holds no number, and
+   nothing is stored until Save draft. */
+function qtOpenDraft(prefill) {
+  prefill = prefill || {};
+  var q = qtBlank();
+  var c = prefill.clientId != null ? (S.clients || []).find(function(x) { return String(x.id) === String(prefill.clientId); }) : null;
+  if (c) { q.clientId = c.id; q.to = qtToFromClient(c, ''); }
+  var lines = (prefill.lines || []).filter(Boolean).map(function(l) { return Object.assign(qtBlankLine(), l); });
+  if (lines.length) q.lines = lines;
+  if (prefill.note) q.draftNote = String(prefill.note);
+  qtOpenForm(null, q);
 }
 function qtCloseForm() {
   _qtForm = null;
@@ -440,6 +461,8 @@ function qtFormHtml() {
   if (q.revOf) h += '<div class="inv-callout inv-callout-info">A revision of ' + escHtml(qtNumberText(Object.assign({}, q, { rev: 0, displayNumber: qtDisplay(q.fy, q.num, 0) }))) +
     ' (' + escHtml(q.revReason || '') + '). Issuing it supersedes the one it revises; until then that one stands.</div>';
   else h += '<div class="inv-callout inv-callout-neutral">A draft holds no number. It takes the next number of its financial year when it is issued.</div>';
+  // Where a drafted quotation came from (a move on the Pulse): kept with it, never printed.
+  if (q.draftNote) h += '<div class="inv-callout inv-callout-info" data-qt-draft-note>' + escHtml(q.draftNote) + '</div>';
   h += '<div class="inv-panel"><div class="inv-fields">' +
     _qtF('qtDate', 'Date', '<input type="date" class="inv-input" id="qtDate" data-qt-f="date" value="' + escHtml(q.date) + '">') +
     _qtF('qtClient', 'Recipient', '<select class="inv-select" id="qtClient" data-qt-f="clientId"><option value="">Not in the book: type it below</option>' +
@@ -525,8 +548,7 @@ function qtOnChange(el) {
   if (el.dataset.qtF === 'clientId') {
     var q = _qtForm.q, c = (S.clients || []).find(function(x) { return String(x.id) === el.value; });
     q.clientId = c ? c.id : null;
-    if (c) q.to = { name: c.name || '', address: [c.add1, c.add2, c.add3].filter(function(x) { return String(x || '').trim(); }).join('\n'),
-      gstin: c.gstin || '', state: c.state ? (c.stateCode ? '(' + c.stateCode + ') ' : '') + c.state : '', attn: q.to.attn || '' };
+    if (c) q.to = qtToFromClient(c, q.to.attn);
     qtRedrawForm();
     return true;
   }
@@ -644,6 +666,7 @@ async function qtRevise(id) {
     supersededBy: null, voidReason: '', createdAt: now, at: now, date: localDateStr() });
   r.displayNumber = qtDisplay(r.fy, r.num, r.rev);
   r.lines.forEach(function(l) { delete l.postedAt; delete l.postedTo; });
+  delete r.draftNote; // where the first draft came from (a move, advice.js) is the original's, not the revision's
   getQuotations().push(r);
   saveState();
   qtOpenForm(r.id);

@@ -309,7 +309,7 @@ TODO_RULE_FNS.bankLoose = function() {
   var today = localDateStr(), loose = bankLooseReceipts(finCtx().cls, bankRecvFrom(finCtx().rows)).filter(function(v) { return isoDaysBetween(v.row.date, today) >= 7; });
   if (!loose.length) return [];
   var sum = gstRound(loose.reduce(function(s, v) { return s + v.row.cr; }, 0));
-  return [{ key: 'bankLoose', rule: 'bankLoose', tone: loose.length >= 10 || sum >= 100000 ? 'red' : 'amber',
+  return [{ key: 'bankLoose', rule: 'bankLoose', tone: loose.length >= 10 || sum >= 100000 ? 'red' : 'amber', amount: sum, n: loose.length,
     title: 'Place ' + todoPlural(loose.length, 'receipt') + ' on a client', sub: formatCurrency(sum) + ' came in with no client, so what is owed reads high',
     why: 'Receivables · a week or more unplaced', facts: [['Receipts', String(loose.length)], ['Amount', formatCurrency(sum)], ['Oldest', formatDate(loose[0].row.date)]],
     clears: 'Clears itself when every receipt a week old is placed.', go: finGo('receipts', { anchor: 'bankLoose' }), goLabel: 'Place them', sig: loose.length + '|' + sum }];
@@ -323,6 +323,7 @@ TODO_RULE_FNS.owed90 = function() {
     if (!old.length) return null;
     var sum = gstRound(old.reduce(function(s, o) { return s + o.due; }, 0));
     return { key: 'owed90:' + r.client.id, rule: 'owed90', tone: !loose && book > 0 && sum >= book * 0.1 ? 'red' : 'amber',
+      clientId: r.client.id, amount: sum, n: old.length, oldest: old[0].date, owed: r.owed,
       title: r.client.name + ' owes ' + formatCurrency(sum) + ' over 90 days', sub: todoPlural(old.length, 'invoice') + ', oldest ' + formatDate(old[0].date) +
         (loose ? ' · ' + todoPlural(loose, 'receipt') + ' not placed yet may have paid some' : ''),
       why: 'Receivables · over 90 days', facts: [['Over 90 days', formatCurrency(sum)], ['Invoices', String(old.length)], ['Owed in all', formatCurrency(r.owed)]],
@@ -334,7 +335,8 @@ TODO_RULE_FNS.payingSlower = function() {
   return (S.clients || []).map(function(c) {
     var d = bankDaysToPay(c.id, hist);
     if (!d || d.n < 5 || d.median == null || d.last3 == null || d.last3 < d.median * 1.25 || d.last3 - d.median < 5) return null;
-    return { key: 'payingSlower:' + c.id, rule: 'payingSlower', tone: 'amber', title: c.name + ' is paying slower',
+    return { key: 'payingSlower:' + c.id, rule: 'payingSlower', tone: 'amber', clientId: c.id, days: Math.round(d.last3), usual: Math.round(d.median),
+      title: c.name + ' is paying slower',
       sub: 'Last three receipts ' + Math.round(d.last3) + ' days after the invoice, against a usual ' + Math.round(d.median),
       why: 'Receivables · days to pay', facts: [['Usual', Math.round(d.median) + ' days'], ['Last three', Math.round(d.last3) + ' days'], ['Receipts', String(d.n)], ['Matched exactly', Math.round(d.exactShare * 100) + '%']],
       clears: 'Clears itself when its last three receipts are back within its usual.', go: finGo('receipts', { client: c.id }), goLabel: 'Open the client', sig: d.list[d.list.length - 1].date };
@@ -472,14 +474,16 @@ TODO_RULE_FNS.runway = function() {
   if (!fc || !(fc.cross || fc.overdrawn)) return [];
   var go = finGo('overview', { anchor: 'finForecast' });
   // Overdrawn on the statement's last day is a fact, said as one: not "below zero tomorrow".
-  if (fc.overdrawn) return [{ key: 'runway', rule: 'runway', tone: 'red', title: 'The account is overdrawn: ' + formatCurrency(fc.start) + ' on ' + formatDate(fc.asOf),
+  if (fc.overdrawn) return [{ key: 'runway', rule: 'runway', tone: 'red', low: fc.min.bal, lowDate: fc.min.date, cross: fc.cross, onlyOut: !!fc.noInflow,
+    title: 'The account is overdrawn: ' + formatCurrency(fc.start) + ' on ' + formatDate(fc.asOf),
     sub: 'The balance on the statement’s last day' + (fc.cross ? '; at the forecast’s pace it comes back into credit and goes below zero again on ' + formatDate(fc.cross)
       : '; the forecast’s lowest point is ' + formatCurrency(fc.min.bal) + ' on ' + formatDate(fc.min.date)) + (fc.noInflow ? ' (outflows only)' : ''),
     why: 'Finance · the statement', facts: [['Balance on ' + formatDate(fc.asOf), formatCurrency(fc.start)], ['Lowest', formatCurrency(fc.min.bal)]],
     clears: 'Clears itself when a statement shows the account in credit and the forecast stays above zero for 45 days.', go: go, goLabel: 'Open the forecast', sig: 'overdrawn|' + fc.asOf }];
   // Counting outflows only (nothing yet says when clients pay) it is a warning, never red: owed90's rule, for the same reason.
   var only = !!fc.noInflow;
-  return [{ key: 'runway', rule: 'runway', tone: only ? 'amber' : 'red', title: (only ? 'Outflows only: cash goes below zero on ' : 'Cash goes below zero on ') + formatDate(fc.cross),
+  return [{ key: 'runway', rule: 'runway', tone: only ? 'amber' : 'red', low: fc.min.bal, lowDate: fc.min.date, cross: fc.cross, onlyOut: only,
+    title: (only ? 'Outflows only: cash goes below zero on ' : 'Cash goes below zero on ') + formatDate(fc.cross),
     sub: only ? 'The forecast counts money out and nothing in: ' + fc.noInflow.why : 'At the forecast’s pace; the lowest point is ' + formatCurrency(fc.min.bal) + ' on ' + formatDate(fc.min.date),
     why: 'Finance · cash forecast' + (only ? ', outflows only' : ''), facts: [['Balance on ' + formatDate(fc.asOf), formatCurrency(fc.start)], ['Below zero', formatDate(fc.cross)], ['Lowest', formatCurrency(fc.min.bal)]],
     clears: 'Clears itself when the forecast stays above zero for 45 days.' + (only ? ' Placing receipts on their clients lets it count money in.' : ''),

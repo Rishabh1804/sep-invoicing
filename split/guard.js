@@ -369,7 +369,7 @@ function grdLockHtml() {
         '<div class="inv-field"><label class="inv-field-label" for="grdNew2">New PIN again</label>' + grdPinInput('grdNew2', null) +
         '<div class="inv-field-error" data-grd-err role="alert"></div></div>' +
         '<button type="button" class="inv-btn inv-btn-primary inv-btn-block" data-action="invGuardRecover" data-grd-go>Reset the PIN</button>'
-      : '<div class="inv-callout inv-callout-warning inv-mb-8">No recovery code is on record in this book. Import a backup that holds one, or ask whoever set the guard up.</div>') +
+      : '<div class="inv-callout inv-callout-warning inv-mb-8">No recovery code is on record in this book, so a forgotten owner PIN cannot be reset here. If the owner is still signed in in another window of the app on this device, set a new PIN there: Settings &rarr; Access &rarr; Users &amp; access &rarr; Reset PIN.</div>') +
       '<button type="button" class="inv-btn inv-btn-link inv-btn-sm inv-mt-8" data-action="invGuardForgot" data-v="0">Back to the PIN</button></div>';
   }
   return h + '<div class="inv-field inv-mt-16"><label class="inv-field-label" for="grdPin">PIN for ' + escHtml(u.name) + '</label>' + grdPinInput('grdPin', u) +
@@ -482,6 +482,9 @@ function grdAfterUser() {
   grdApplyDoors();
   if (!u) return;
   _grdDrawnFor = u.id;
+  // Somebody else signed in: a dialog the last person left open (a delete half-confirmed, a reason half-typed) is not
+  // handed on. Every one is shut, and a question it was asking is answered cancel; the same person coming back keeps it.
+  if (prev && prev !== u.id && document.querySelector('.inv-scrim-dialog') && typeof closeOverlay === 'function') closeOverlay();
   var page = (document.querySelector('.inv-page-active') || {}).id;
   if (!page) return;
   if (!grdSees(page)) { switchTab(page); return; }

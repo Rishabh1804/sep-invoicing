@@ -28,14 +28,22 @@ test.describe('P140: the guard (desktop)', () => {
     expect(runs.out.every(r => r.ok)).toBe(true);
     expect(runs.iter).toBeGreaterThanOrEqual(150000);
     expect(ms[0]).toBeLessThan(400);
-    // And the whole unlock, from the tap to the lock gone.
+    // And the whole unlock, from the tap to the lock gone, timed in the page (the test's own polling would add its steps).
     const lock = page.locator('#guardRoot');
     await lock.locator('[data-id="U-own"]').click();
     await lock.locator('#grdPin').fill(PINS.owner);
-    const t0 = Date.now();
+    await page.evaluate(() => {
+      const w = window as any;
+      w.__grdT0 = 0; w.__grdT1 = 0;
+      document.addEventListener('click', e => { if ((e.target as Element).closest('[data-action="invGuardUnlock"]')) w.__grdT0 = performance.now(); }, true);
+      new MutationObserver(() => { if (w.__grdT0 && !w.__grdT1 && !document.getElementById('guardRoot')) w.__grdT1 = performance.now(); })
+        .observe(document.body, { childList: true });
+    });
     await lock.locator('[data-action="invGuardUnlock"]').click();
     await expect(lock).toHaveCount(0);
-    console.log(`P140 unlock, tap to open: ${Date.now() - t0} ms`);
+    const open = await page.evaluate(() => Math.round((window as any).__grdT1 - (window as any).__grdT0));
+    console.log(`P140 unlock, tap to open: ${open} ms`);
+    expect(open).toBeGreaterThan(0);
   });
 
   test('who is signed in is in the top bar, and the sidebar shows only the doors the role opens', async ({ page }) => {

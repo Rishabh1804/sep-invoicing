@@ -254,6 +254,36 @@ test.describe('P140: the guard (phone)', () => {
     expect(await answerAsk(page, 'ok')).toContain('Your ID can’t fill piece rates from billing. Ask the owner.');
   });
 
+  test('the act asks again once the window has run out, and a dialog left open is never handed to the next person', async ({ page }) => {
+    await loadAppWithState(page, guardBook());
+    await withUsers(page);
+    await unlock(page, 'U-off', PINS.office);
+    const ask = page.locator('[data-grd-ask]');
+    // Opened within the window, confirmed after it: the PIN is asked at the act.
+    await g(page, "cancelInvoice('INV-1')");
+    await expect(page.locator('[data-action="invConfirmCancel"]')).toBeVisible();
+    await windowGone(page);
+    await page.locator('[data-action="invConfirmCancel"]').click();
+    await expect(ask.locator('.inv-dialog-title')).toHaveText('Cancel an invoice');
+    await ask.locator('#grdAskPin').fill(PINS.office);
+    await ask.locator('[data-action="invGuardAskOk"]').click();
+    await expect.poll(async () => (await readStoredState(page)).invoices.find((i: any) => i.id === 'INV-1').status).toBe('cancelled');
+    await expect(page.locator('.inv-scrim-dialog')).toHaveCount(0);
+    // A delete half-done, then the window locks: the same person back finds it as left, reason and all.
+    await g(page, "deleteInvoice('INV-2')");
+    await page.locator('#invDeleteReason').fill('Typed twice');
+    await g(page, "grdLock('away')");
+    await expect(page.locator('#guardRoot')).toBeVisible();
+    await unlock(page, 'U-off', PINS.office);
+    await expect(page.locator('#invDeleteReason')).toHaveValue('Typed twice');
+    // Somebody else unlocks: the dialog is shut, not handed on, and nothing was deleted.
+    await g(page, "grdLock('away')");
+    await unlock(page, 'U-sup', PINS.super);
+    await expect(page.locator('.inv-scrim-dialog')).toHaveCount(0);
+    await expect(page.locator('[data-action="invConfirmDelete"]')).toHaveCount(0);
+    expect((await readStoredState(page)).invoices.map((i: any) => i.id)).toContain('INV-2');
+  });
+
   test('Turn on the guard shows a recovery code once, and the code resets a forgotten owner PIN', async ({ page }) => {
     await loadAppWithState(page, guardBook());
     await openSettingsAt(page, 'users');

@@ -1200,8 +1200,9 @@ function stockEntryRowHtml(e, r, unit) {
    and an entry that vanished would leave soma-internal holding a figure the
    app no longer explains. */
 function stockVoid(id) {
-  // P1 (guard.js): asked at the first tap, so a role that may not void is told before arming.
-  if (_stockVoidArm !== id && !grdGate('voids', 'void a stock entry', function() { stockVoid(id); })) return;
+  // P1 (guard.js): asked at the first tap, so a role that may not void is told before arming; and at the second, which
+  // passes within the window (another user unlocked between the taps is asked, or told).
+  if (!grdGate('voids', 'void a stock entry', function() { stockVoid(id); })) return;
   if (_stockVoidArm !== id) { _stockVoidArm = id; renderStock(); return; }
   var e = stockData().entries.find(function(x) { return x.id === id; });
   _stockVoidArm = null;

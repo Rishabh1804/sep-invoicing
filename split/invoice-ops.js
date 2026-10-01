@@ -1022,6 +1022,8 @@ function cancelInvoice(invId) {
 function confirmCancelInvoice(invId) {
   const inv = S.invoices.find(i => i.id === invId);
   if (!inv) return;
+  // P1 (guard.js), again at the act: the window may have run out, or another user unlocked, while the dialog stood open.
+  if (!grdGate('billing', 'cancel an invoice', function() { confirmCancelInvoice(invId); })) return;
   inv.status = 'cancelled';
   inv.cancelledAt = Date.now();
   inv.updatedAt = Date.now();
@@ -1128,6 +1130,8 @@ async function confirmDeleteInvoice(invId, reissue) {
     if (reasonEl) reasonEl.focus();
     return;
   }
+  // P1 (guard.js), again at the act: the window may have run out, or another user unlocked, while the dialog stood open.
+  if (!grdOk('billing') && !(await guardAsk('billing', reissue ? 'delete and reissue an invoice' : 'delete an invoice'))) return;
   // A reissue opens the create form: an invoice being typed there is asked about BEFORE anything is deleted.
   if (reissue && !(await createDiscardOk())) return;
   if (!S.invoices.includes(inv)) return;

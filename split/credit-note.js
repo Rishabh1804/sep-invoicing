@@ -707,6 +707,8 @@ function cnSetAgainstInvoice(id) {
 function cnPickAgainst(id, idx) {
   var cn = getCreditNotes().find(function(c) { return c.id === id; });
   if (!cn || cn.status === 'cancelled') return;
+  // P1 (guard.js), again at the act: the window may have run out, or another user unlocked, while the list stood open.
+  if (!grdGate('billing', 'change a credit note’s reference', function() { cnPickAgainst(id, idx); })) return;
   if (idx < 0) {
     delete cn.againstInvoice; delete cn.againstInvoiceId; delete cn.againstInvoiceDate;
     saveState();

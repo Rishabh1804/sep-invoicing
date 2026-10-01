@@ -2,7 +2,7 @@
 const PAGE_TITLES = {
   pageHome: 'Home', pageCreate: 'Create invoice', pageIM: 'Challans', pageRegister: 'Register',
   pageClients: 'Clients', pageFinance: 'Finance', pageTodo: 'To-do', pageProduction: 'Production', pagePower: 'Power', pageStock: 'Stock', pageStaff: 'Staff',
-  pageFloor: 'Day',
+  pageFloor: 'Day', pagePipeline: 'Pipeline',
   pageStats: 'Stats', pageReports: 'Reports', pageHistory: 'History'
 };
 
@@ -128,6 +128,8 @@ function tabRender(tabId, isDirty) {
       }
       renderIMList();
     }
+  } else if (tabId === 'pagePipeline') {
+    renderPipeline();
   } else if (tabId === 'pageCreate') {
     if (!document.getElementById('createFormArea').innerHTML) initCreateForm();
   } else if (tabId === 'pageProduction') {

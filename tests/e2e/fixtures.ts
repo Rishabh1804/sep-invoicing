@@ -176,13 +176,11 @@ export async function switchTab(page: Page, tabId: string): Promise<void> {
   // A page with two sidebar entries (Clients/Items, Staff/Pay) routes its plain entry through
   // invSideGo; that entry, never the one carrying data-sub, is the page's own door.
   const target = page.locator(`:is([data-action="invSwitchTab"], [data-action="invSideGo"]:not([data-sub]))[data-tab="${tabId}"]:visible`);
-  // Floor → Day has no door until the workspaces give it one: it is opened as that door will open it, the step taken as a
-  // tap's would be. (Only it: on the phone the More sheet's doors are not drawn until More is opened.)
-  if (tabId === 'pageFloor' && !(await page.locator('[data-tab="pageFloor"]').count())) await page.evaluate(() => { (window as any).switchTab('pageFloor'); (window as any).navSoon(); });
-  else {
-    if ((await target.count()) === 0) await page.locator('.inv-navbar-more').click();
-    await target.first().click();
-  }
+  if ((await target.count()) === 0 && (await page.locator('.inv-navbar-more:visible').count())) await page.locator('.inv-navbar-more').click();
+  // A page no bar, sidebar or sheet opens yet (pagePipeline, pageFloor, until the workspace shell puts them in Office and
+  // Floor) is opened in the page, the step taken as a tap's would be; a More sheet the look opened is shut first.
+  if ((await target.count()) === 0) await page.evaluate(id => { (window as any).closeMoreSheet?.(); (window as any).switchTab(id); (window as any).navSoon?.(); }, tabId);
+  else await target.first().click();
   await page.locator(`#${tabId}.inv-page-active`).waitFor();
 }
 

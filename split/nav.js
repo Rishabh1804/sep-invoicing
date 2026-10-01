@@ -42,6 +42,7 @@ function navLoc() {
       }
       break;
     case 'pageRegister': if (_isDesktop && _regActiveInvId) id = _regActiveInvId; break;
+    case 'pagePipeline': v = _pipeStage || ''; break;
     case 'pageClients':
       v = getItemsSubView();
       if (_isDesktop && v === 'clients' && _clientsActiveId != null) id = String(_clientsActiveId);
@@ -93,6 +94,7 @@ function navLabel(loc) {
       var inv = loc.id && S.invoices.find(function(i) { return i.id === loc.id; });
       if (inv) rec = 'Invoice ' + String(inv.displayNumber || '').split('/').pop();
       break;
+    case 'pagePipeline': sub.push(pipeStageLabel(parts[0])); break;
     case 'pageClients':
       sub.push({ clients: 'Clients', items: 'Items', performance: 'Performance', quotes: 'Quotations' }[parts[0]] || '');
       if (parts[1] === 'form') sub.push('Quotation form');
@@ -134,6 +136,8 @@ function navApply(loc) {
           imSetTab(parts[0] === 'invoiced' ? 'invoiced' : 'awaiting', parts[0] === 'invoiced' ? (parts[1] || null) : undefined);
         }
         break;
+      // A stage that is no longer there (or none) opens the default as the page is drawn.
+      case 'pagePipeline': _pipeStage = pipeStageKey(parts[0]); break;
       case 'pageClients':
         setItemsSubView(/^(clients|items|performance|quotes)$/.test(parts[0]) ? parts[0] : 'clients');
         // The quotation form is a sub-view: forward into it opens a new one; anywhere else leaves it.

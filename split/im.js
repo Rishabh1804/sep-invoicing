@@ -387,9 +387,7 @@ function renderIMList() {
           (status !== 'invoiced' ? '<label class="inv-row-lead inv-row-tick"><input type="checkbox" class="inv-check" data-action="invCheckIMChallan" data-id="' + id + '"' +
             (allChecked ? ' checked' : '') + ' aria-label="Select all of ' + escHtml(imChallanLabel(im)) + '"></label>' : '') +
           '<button class="inv-row-main inv-row-expander" data-action="invToggleIM" data-id="' + id + '" aria-expanded="' + expanded + '">' +
-          '<span class="inv-row-title"><span class="inv-id">' + escHtml(imChallanLabel(im)) + '</span> · ' + escHtml(im.clientName) + '</span>' +
-          '<span class="inv-row-meta">' + (im.vehicleNo ? escHtml(im.vehicleNo) + ' · ' : '') + im.items.length + ' item' + (im.items.length !== 1 ? 's' : '') + '</span></button>' +
-          '<span class="inv-row-end"><span class="inv-row-stack">' + imAmountHtml(im) + imStatusDotHtml(im) + '</span></span></div>');
+          imRowMainHtml(im) + '</button>' + imRowEndHtml(im) + '</div>');
         if (expanded) {
           var kids = '<div class="inv-row-children">' + im.items.map(_imItemRowHtml).join('');
           var acts = _imActionsHtml(im, false);
@@ -532,12 +530,22 @@ function imChallanOpenTotal(im) { return gstRound(im.items.reduce(function(s, it
    whole beside it; on Invoiced, the whole. */
 function imShownAmount(im) { return _imTab === 'invoiced' || imIsBilled(im) ? imChallanTotal(im) : imChallanOpenTotal(im); }
 function imPartInvoiced(im) { return !imIsBilled(im) && im.items.some(imLineBilled); }
-function imAmountHtml(im) {
-  if (_imTab !== 'invoiced' && imPartInvoiced(im)) {
+/* `awaiting`: the amount as Awaiting invoice shows it (what is left to bill), whichever tab IM itself is on. */
+function imAmountHtml(im, awaiting) {
+  if ((awaiting != null ? awaiting : _imTab !== 'invoiced') && imPartInvoiced(im)) {
     return '<span class="inv-num" title="Left to bill, of ' + escHtml(formatCurrency(imChallanTotal(im))) + ' on the challan">' + formatCurrency(imChallanOpenTotal(im)) + '</span>' +
       '<span class="inv-row-meta" data-im-of>left of ' + formatCurrency(imChallanTotal(im)) + '</span>';
   }
   return '<span class="inv-num">' + formatCurrency(imChallanTotal(im)) + '</span>';
+}
+/* A challan's row as IM's list draws it: its number and client over its vehicle and lines, and its end, the amount over
+   its status. Office → Pipeline's Awaiting list draws the same (pipeline.js), with the Awaiting amount. */
+function imRowMainHtml(im) {
+  return '<span class="inv-row-title"><span class="inv-id">' + escHtml(imChallanLabel(im)) + '</span> · ' + escHtml(im.clientName) + '</span>' +
+    '<span class="inv-row-meta">' + (im.vehicleNo ? escHtml(im.vehicleNo) + ' · ' : '') + im.items.length + ' item' + (im.items.length !== 1 ? 's' : '') + '</span>';
+}
+function imRowEndHtml(im, awaiting) {
+  return '<span class="inv-row-end"><span class="inv-row-stack">' + imAmountHtml(im, awaiting) + imStatusDotHtml(im) + '</span></span>';
 }
 
 function _imSummaryHtml(filtered) {

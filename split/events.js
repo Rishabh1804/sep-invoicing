@@ -443,6 +443,7 @@ function onDocClick(e) {
       if (bankAction(action, btn)) break;
       if (financeAction(action, btn)) break;
       if (finLinkAction(action, btn)) break;
+      if (pipeAction(action, btn)) break;
       if (dashAction(action, btn)) break;
       if (navAction(action, btn)) break;
       if (prodAction(action, btn)) break;

@@ -290,7 +290,7 @@ export async function shot(page: Page, name: string) {
 }
 
 export const PAGES = ['pageHome', 'pageCreate', 'pageIM', 'pageRegister', 'pageClients', 'pageTodo', 'pageFinance', 'pageProduction', 'pagePower', 'pageStock', 'pageStaff', 'pageStats', 'pageReports', 'pageHistory',
-  'pageFloor'];
+  'pageFloor', 'pagePipeline'];
 
 /* Every page, then every view tab on it (re-read after each click, since a tab can redraw the row). */
 export async function walkPages(page: Page, tag: string, stops: Stop[]) {

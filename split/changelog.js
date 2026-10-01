@@ -17,9 +17,10 @@
    whole (a roll, a stock message, a production message or photo), whose arrival is one line, never their text. A secret
    (a PIN's hash, the recovery code's) is said to have changed and never shown.
 
-   How it stays cheap: each store is held as one string (a native JSON.stringify, the cost of the save's own), and only a
-   store whose string moved is compared record by record, and only a record whose string moved field by field. Nothing
-   relies on how a module changes a record: an edit in place, a push and a replacement all move the string.
+   How it stays cheap: each record is held as its string (a native JSON.stringify) from one save to the next, and only a
+   record whose string moved is compared field by field. Nothing relies on how a module changes a record: an edit in
+   place, a push and a replacement all move the string. A save reads the book once, record by record, which costs less
+   than the save's own stringify of it (P141 measures both).
 
    The rules: the log never changes a record and never stops a save (an error is caught and counted; Settings → storage
    diagnostics says so); a save that changed nothing adds nothing; a book replaced whole is the new starting point, never
@@ -131,7 +132,7 @@ var CHG_NOVALUE = { companyLogo: 1 };
 var CHG_ARR_NOUN = { items: 'line', lines: 'line', rates: 'rate', pieceRates: 'piece rate', pieceWeights: 'piece weight', itemRates: 'item rate',
   extra: 'EXTRA row', crew: 'hand', relayNames: 'spelling', aliases: 'spelling', corrections: 'correction', holidays: 'holiday' };
 
-var _chg = null;            // { of: the S it was taken from, units: { path: { sp, whole, recs } } }
+var _chg = null;            // { of: the S it was taken from, units: { path: { sp, recs: Map(key → the record's string) } } }
 var _chgPrevCounts = null;  // the book before it was replaced whole, for the line that says so
 var _chgHealth = { saves: 0, logged: 0, errors: 0, lastError: '', lastErrorAt: 0, lastMs: 0, maxMs: 0, baselineMs: 0 };
 
@@ -211,59 +212,52 @@ function chgKey(sp, r, i) {
   if (sp.key) return sp.key(r, i);
   return r && typeof r === 'object' && r.id != null ? String(r.id) : '#' + i;
 }
-// The store as one string: the cheap test of whether anything in it moved.
-function chgWhole(sp, cont) {
-  if (cont === undefined) return undefined;
-  if (sp.kind === 'raw') return Array.isArray(cont) ? cont.map(function(r, i) { return chgKey(sp, r, i); }).join('\n') : '';
-  return JSON.stringify(cont);
+/* A record as compared: its string, held per record between saves (a message kept whole is compared by its presence
+   alone). Record by record, never the store whole: a store's one string is a large allocation at every save, and the
+   collections it set off cost more than the comparing (measured on a 4 MB book: 2.4 ms for the invoices one by one,
+   8.7 ms as one string). */
+function chgStr(sp, r) {
+  if (sp.kind === 'raw') return '';
+  var s = JSON.stringify(sp.proj ? sp.proj(r) : r);
+  return s === undefined ? 'null' : s;
 }
-// Its records: { raw: Map(key → string), obj: Map(key → record) }.
-function chgRecs(sp, cont) {
-  var raw = new Map(), obj = new Map();
-  if (cont == null) return { raw: raw, obj: obj };
-  if (sp.kind === 'cfg') { raw.set('', JSON.stringify(cont)); obj.set('', cont); return { raw: raw, obj: obj }; }
+/* Every record of a store, in order: fn(key, record). Two records under one id (a hand-edited backup) are each their own.
+   Returns whether a key is in the store now. */
+var CHG_NONE = function() { return false; };
+function chgEach(sp, cont, fn) {
+  if (cont == null) return CHG_NONE;
+  if (sp.kind === 'cfg') { fn('', cont); return function(k) { return k === ''; }; }
   if (sp.kind === 'map' || sp.kind === 'scalars') {
-    if (typeof cont === 'object' && !Array.isArray(cont)) Object.keys(cont).forEach(function(k) {
-      var s = JSON.stringify(cont[k]);
-      raw.set(k, s === undefined ? 'null' : s); obj.set(k, cont[k]);
-    });
-    return { raw: raw, obj: obj };
+    if (typeof cont !== 'object' || Array.isArray(cont)) return CHG_NONE;
+    Object.keys(cont).forEach(function(k) { fn(k, cont[k]); });
+    return function(k) { return Object.prototype.hasOwnProperty.call(cont, k); };
   }
-  if (!Array.isArray(cont)) return { raw: raw, obj: obj };
-  var seen = {};
-  cont.forEach(function(r, i) {
-    var k = chgKey(sp, r, i);
-    // Two records under one id (a hand-edited backup): each its own.
-    if (seen[k]) { seen[k]++; k = k + '#' + seen[k]; } else seen[k] = 1;
-    raw.set(k, sp.kind === 'raw' ? '' : JSON.stringify(sp.proj ? sp.proj(r) : r));
-    obj.set(k, r);
-  });
-  return { raw: raw, obj: obj };
-}
-// The records of a store as it was, from its string.
-function chgRecsFromWhole(sp, whole) {
-  if (whole === undefined) return new Map();
-  if (sp.kind === 'raw') {
-    var m = new Map();
-    if (whole) whole.split('\n').forEach(function(k) { m.set(k, ''); });
-    return m;
+  if (!Array.isArray(cont)) return CHG_NONE;
+  var seen = new Set();
+  for (var i = 0; i < cont.length; i++) {
+    var k = chgKey(sp, cont[i], i);
+    if (seen.has(k)) { var n = 2; while (seen.has(k + '#' + n)) n++; k = k + '#' + n; }
+    seen.add(k);
+    fn(k, cont[i]);
   }
-  return chgRecs(sp, JSON.parse(whole)).raw;
+  return function(k) { return seen.has(k); };
 }
 
 /* ---------- the starting point ---------- */
 function chgBaseline() {
   var t0 = chgNow(), prev = _chg;
   try {
-    if (prev && prev.of && prev.of !== S) {
-      var o = prev.of;
-      _chgPrevCounts = { invoices: (o.invoices || []).length, incomingMaterial: (o.incomingMaterial || []).length, clients: (o.clients || []).length, staff: (o.staff || []).length };
-    }
+    // What the book held before it was replaced (an import, a pull: chgAdopted says so).
+    var o = prev && prev.of && prev.of !== S ? prev.of : null;
+    _chgPrevCounts = o ? { invoices: (o.invoices || []).length, incomingMaterial: (o.incomingMaterial || []).length, clients: (o.clients || []).length, staff: (o.staff || []).length } : null;
     _chg = { of: S, units: {} };
     if (!S) return;
     chgUnits().forEach(function(sp) {
-      var w = chgWhole(sp, chgCont(sp));
-      if (w !== undefined) _chg.units[sp.path] = { sp: sp, whole: w, recs: null };
+      var cont = chgCont(sp);
+      if (cont === undefined) return;
+      var recs = new Map();
+      chgEach(sp, cont, function(k, r) { recs.set(k, chgStr(sp, r)); });
+      _chg.units[sp.path] = { sp: sp, recs: recs };
     });
   } catch (e) {
     chgNoteError(e);
@@ -277,11 +271,10 @@ function chgBaseline() {
    by whom, from what, so History tells a replaced book from one edited. */
 function chgAdopted() {
   try {
-    var before = _chgPrevCounts;
     chgBaseline();
-    if (!S) return;
-    before = _chgPrevCounts || before;
+    var before = _chgPrevCounts;
     _chgPrevCounts = null;
+    if (!S) return;
     var how = (typeof _ghBusy !== 'undefined' && _ghBusy) ? 'a pull from GitHub' : 'an import';
     var fields = [];
     if (before) ['invoices', 'incomingMaterial', 'clients', 'staff'].forEach(function(k) {
@@ -330,45 +323,48 @@ function chgCollect() {
 }
 
 function chgUnitDiff(sp, cont, ctx, out) {
-  var c = _chg.units[sp.path], whole = chgWhole(sp, cont);
-  if (c ? c.whole === whole : whole === undefined) return;
-  var before = c ? (c.recs || chgRecsFromWhole(sp, c.whole)) : new Map();
-  var now = chgRecs(sp, cont);
-  if (whole === undefined) delete _chg.units[sp.path];
-  else _chg.units[sp.path] = { sp: sp, whole: whole, recs: now.raw };
+  var c = _chg.units[sp.path];
+  if (cont === undefined && !c) return;
+  if (!c) c = _chg.units[sp.path] = { sp: sp, recs: new Map() };
+  var cache = c.recs, coll = sp.coll || sp.path, adds = [], changed = [], removed = [], matched = 0;
+  var has = chgEach(sp, cont, function(k, r) {
+    var s = chgStr(sp, r), prev = cache.get(k);
+    if (prev === undefined) { adds.push([k, r]); cache.set(k, s); return; }
+    matched++;
+    if (prev !== s) { changed.push([k, r, prev]); cache.set(k, s); }
+  });
+  if (matched + adds.length < cache.size) {
+    cache.forEach(function(s, k) { if (!has(k)) removed.push([k, s]); });
+    removed.forEach(function(x) { cache.delete(x[0]); });
+  }
+  if (cont === undefined) delete _chg.units[sp.path];
 
-  var coll = sp.coll || sp.path, adds = [], removes = [];
   if (sp.kind === 'cfg') {
-    var o = before.get(''), n = now.raw.get('');
-    if (o === n) return;
+    // One record: changed, set where there was none, or gone. What the app fills in unasked (dflt) is no change.
+    var before = changed.length ? changed[0][2] : adds.length ? null : removed.length ? removed[0][1] : undefined;
+    if (before === undefined) return;
     var dfl = sp.dflt ? sp.dflt() || {} : {};
-    var a = Object.assign({}, dfl, o == null ? {} : JSON.parse(o)), b = Object.assign({}, dfl, now.obj.get('') || {});
-    var d = chgFieldsOf(a, b, sp);
-    if (d.out.length || d.more) out.push(chgMake(ctx, 'change', coll, null, chgCfgLabel(sp, d.out), d, null));
+    var d0 = chgFieldsOf(Object.assign({}, dfl, before == null ? {} : JSON.parse(before)), Object.assign({}, dfl, cont || {}), sp);
+    if (d0.out.length || d0.more) out.push(chgMake(ctx, 'change', coll, null, chgCfgLabel(sp, d0.out), d0, null));
     return;
   }
-  now.raw.forEach(function(r, k) {
-    if (!before.has(k)) { adds.push(k); return; }
-    var o = before.get(k);
-    if (o === r || sp.kind === 'raw') return;
-    var rec = now.obj.get(k), was = JSON.parse(o), is = sp.proj ? sp.proj(rec) : rec;
-    var d = chgFieldsOf(was, is, sp);
-    if (!d.out.length && !d.more) return;
+  changed.forEach(function(x) {
+    var k = x[0], rec = x[1], d = chgFieldsOf(JSON.parse(x[2]), sp.proj ? sp.proj(rec) : rec, sp);
+    if (!d.out.length && !d.more) return;   // only what is not compared moved (a challan line's billed share)
     out.push(chgMake(ctx, 'change', coll, chgRid(sp, k, rec), chgLabel(sp, rec, k), d, chgCid(sp, rec, k)));
   });
-  before.forEach(function(o, k) { if (!now.raw.has(k)) removes.push(k); });
-  [['add', adds], ['remove', removes]].forEach(function(pair) {
-    var op = pair[0], keys = pair[1];
-    if (!keys.length) return;
-    var recOf = function(k) { if (op === 'add') return now.obj.get(k); var o = before.get(k); try { return o ? JSON.parse(o) : null; } catch (e) { return null; } };
-    if (keys.length > CHG_AGG || sp.kind === 'rows') {
-      var e = chgMake(ctx, op, coll, null, keys.length + ' ' + chgNounOf(coll, keys.length), null, null);
-      e.n = keys.length;
-      e.rids = keys.slice(0, CHG_AGG_RIDS).map(function(k) { return chgRid(sp, k, recOf(k)); });
+  var parse = function(s) { try { return s ? JSON.parse(s) : null; } catch (e) { return null; } };
+  [['add', adds], ['remove', removed.map(function(x) { return [x[0], parse(x[1])]; })]].forEach(function(pair) {
+    var op = pair[0], recs = pair[1];
+    if (!recs.length) return;
+    if (recs.length > CHG_AGG || sp.kind === 'rows') {
+      var e = chgMake(ctx, op, coll, null, recs.length + ' ' + chgNounOf(coll, recs.length), null, null);
+      e.n = recs.length;
+      e.rids = recs.slice(0, CHG_AGG_RIDS).map(function(x) { return chgRid(sp, x[0], x[1]); });
       out.push(e);
       return;
     }
-    keys.forEach(function(k) { var rec = recOf(k); out.push(chgMake(ctx, op, coll, chgRid(sp, k, rec), chgLabel(sp, rec, k), null, chgCid(sp, rec, k))); });
+    recs.forEach(function(x) { out.push(chgMake(ctx, op, coll, chgRid(sp, x[0], x[1]), chgLabel(sp, x[1], x[0]), null, chgCid(sp, x[1], x[0]))); });
   });
 }
 
@@ -402,6 +398,8 @@ function chgLabel(sp, rec, k) {
 }
 function chgCfgLabel(sp, fields) {
   var sec = sp.sec || sp.path;
+  // A setting no row of CHG_TRACK names (another step's) is named by its place in the book.
+  if (sp.generic) return String(sp.path).replace(/\.\*$/, '');
   if (sec && typeof sec === 'object') {
     var first = fields.length ? String(fields[0].f).split(/[.[]/)[0] : '';
     sec = sec[first] || sec[''] || sp.path;
@@ -622,7 +620,9 @@ function chgText(e, all, ctx) {
   var act = chgAct(e), noun = e.n || e.coll === 'book' ? '' : chgNounOf(e.coll, 1);
   var cfg = !e.n && e.coll !== 'book' && e.rid == null || e.coll === 'settings';
   var head = chgUserName(e.by) + ' ' + act + ' ' + (cfg || !noun ? '' : noun + ' ') + (e.label || '');
-  var fs = e.fields || [], shown = all ? fs : fs.slice(0, 2);
+  // A void or a cancel says so in its verb: the stamp that made it one is not said again.
+  var fs = (e.fields || []).filter(function(x) { return !((act === 'voided' && /^voided(At)?$/.test(x.f)) || (act === 'cancelled' && x.f === 'cancelledAt')); });
+  var shown = all ? fs : fs.slice(0, 2);
   var rest = fs.length - shown.length + (e.more || 0);
   return head + shown.map(function(x) { return ' · ' + chgFieldText(e, x, ctx); }).join('') + (rest > 0 ? ' · +' + rest + ' more' : '');
 }

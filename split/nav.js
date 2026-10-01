@@ -28,10 +28,11 @@ function navPageOf() {
   return p ? p.id : 'pageHome';
 }
 
-/* Where the app is: {tab, v, id}. v is the view tab or sub-view (a part after '/' is its month or sub-view),
-   id the record open in the desktop's pane (a phone opens a record in a dialog, which is a layer). */
+/* Where the app is: {tab, v, id, d}. v is the view tab or sub-view (a part after '/' is its month or sub-view),
+   id the record open in the desktop's pane (a phone opens a record in a dialog, which is a layer), d the day a page shows
+   where a day is a place (Floor → Day; today has none). */
 function navLoc() {
-  var tab = navPageOf(), v = '', id = '';
+  var tab = navPageOf(), v = '', id = '', d = '';
   switch (tab) {
     case 'pageIM':
       if (_challanForm) v = 'form';
@@ -61,20 +62,21 @@ function navLoc() {
       break;
     case 'pageTodo': v = _todoShowDone ? 'done' : 'open'; break;
     case 'pageReports': v = rptNavV(); break;
+    case 'pageFloor': d = flrNavD(); break;
   }
-  return { tab: tab, v: v || '', id: id || '' };
+  return { tab: tab, v: v || '', id: id || '', d: d || '' };
 }
-function navKey(loc) { return loc ? loc.tab + '|' + (loc.v || '') + '|' + (loc.id || '') : ''; }
+function navKey(loc) { return loc ? loc.tab + '|' + (loc.v || '') + '|' + (loc.id || '') + (loc.d ? '|' + loc.d : '') : ''; }
 function navUrl(loc) {
   return window.location.pathname + '?tab=' + encodeURIComponent(loc.tab) +
-    (loc.v ? '&v=' + encodeURIComponent(loc.v) : '') + (loc.id ? '&id=' + encodeURIComponent(loc.id) : '');
+    (loc.v ? '&v=' + encodeURIComponent(loc.v) : '') + (loc.id ? '&id=' + encodeURIComponent(loc.id) : '') + (loc.d ? '&d=' + encodeURIComponent(loc.d) : '');
 }
 function navLocFromUrl(search) {
   var p;
   try { p = new URLSearchParams(search); } catch (e) { return null; }
   var tab = p.get('tab');
   if (!tab || !isPageId(tab)) return null;
-  return { tab: tab, v: p.get('v') || '', id: p.get('id') || '' };
+  return { tab: tab, v: p.get('v') || '', id: p.get('id') || '', d: p.get('d') || '' };
 }
 
 /* What a place is called: the page, then the view and the record ("Challans", "Invoiced, Aug 2026 · Ch. 301"). */
@@ -111,6 +113,7 @@ function navLabel(loc) {
       break;
     case 'pageTodo': sub.push(parts[0] === 'done' ? 'Done' : 'Open'); break;
     case 'pageReports': sub.push(rptNavLabel(loc.v)); break;
+    case 'pageFloor': sub.push(flrNavLabel(loc.d)); break;
   }
   if (rec) sub.push(rec);
   return { page: PAGE_TITLES[loc.tab] || 'SEP Invoicing', sub: sub.filter(Boolean).join(' · ') };
@@ -154,6 +157,7 @@ function navApply(loc) {
         break;
       case 'pageTodo': _todoShowDone = parts[0] === 'done'; break;
       case 'pageReports': rptNavApply(loc && loc.v); break;
+      case 'pageFloor': flrSetDay(loc && loc.d); break;
     }
     if (!same) switchTab(tab);
     else {
@@ -372,7 +376,7 @@ function navBoot(launch) {
   else { _navIdx = 0; _navTrail = []; }
   _navBooted = true;
   // A reload keeps its address even where another window has since moved the saved tab.
-  if (launch && (launch.v || launch.id || launch.tab !== navPageOf())) navApply(launch);
+  if (launch && (launch.v || launch.id || launch.d || launch.tab !== navPageOf())) navApply(launch);
   var loc = navLoc();
   history.replaceState(navState(loc), '', navUrl(loc));
   _navCur = history.state;

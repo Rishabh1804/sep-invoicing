@@ -698,13 +698,13 @@ function areaHoursCard(from, to) {
 
 /* ===== Home: the day's attendance ===== */
 /* One day's attendance, read once: Home's card and Staff → Overview draw the same figures. The day is today,
-   or the last day that has marks when nothing is typed today, and it says which. */
-function attDaySummary() {
+   or the last day that has marks when nothing is typed today, and it says which. A day named (Floor → Day) is that day. */
+function attDaySummary(day) {
   var roster = staffActive();
   var today = localDateStr();
-  var iso = today, rec = (S.attendance || {})[today];
+  var iso = day || today, rec = (S.attendance || {})[iso];
   var marked = function(r) { return r && Object.keys(r.marks || {}).length > 0; };
-  if (!marked(rec)) {
+  if (!day && !marked(rec)) {
     var last = Object.keys(S.attendance || {}).filter(function(k) { return k < today && marked(S.attendance[k]); }).sort().pop();
     if (last) { iso = last; rec = S.attendance[last]; }
   }

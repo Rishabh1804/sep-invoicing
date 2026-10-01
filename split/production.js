@@ -682,6 +682,28 @@ function prodDayLine(date, line) {
   r.weighedShare = r.pieces ? r.weighedPieces / r.pieces : 1;
   return r;
 }
+/* A day's plating over the three lines, as Production's tile reads it (Overview; Floor → Day): the tonnes are the figure
+   only where 90% of the pieces are weighed, else the pieces are (with any kilo lines' kg). `lines` holds each line with
+   a record that day. */
+function prodDayPlated(date) {
+  var o = { kg: 0, nos: 0, weighed: 0, kgLines: 0, lines: {} };
+  PROD_LINES.forEach(function(l) {
+    var r = prodDayLine(date, l);
+    o.kg += r.kg; o.nos += r.nos; o.weighed += r.weighedPieces;
+    r.entries.forEach(function(e) { if (e.unit === 'KG') o.kgLines += e.qty; });
+    if (r.entries.length) o.lines[l] = true;
+  });
+  o.share = o.nos ? o.weighed / o.nos : 1;
+  o.whole = o.share >= 0.9;
+  o.text = o.whole ? formatNum(o.kg / 1000, 2) + ' t' : Math.round(o.nos).toLocaleString('en-IN') + ' NOS' + (o.kgLines ? ' + ' + formatNum(o.kgLines, 0) + ' kg' : '');
+  return o;
+}
+/* A day's pickling loads, earliest first: what Production → Lines lists on Pickling, and Floor → Day's Pickling card. */
+function prodDayLoads(date) {
+  var idx = prodIndex();
+  return idx.live.filter(function(e) { return e.kind === 'pickled' && e.date === date && !idx.replaced[e.id]; })
+    .sort(function(a, b) { return String(a.time || '').localeCompare(String(b.time || '')); });
+}
 
 /* ---------- Material in plant ---------- */
 /* Two readings of what is in the plant, and the gap between them.

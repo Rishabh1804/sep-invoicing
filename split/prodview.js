@@ -77,16 +77,10 @@ function prodSrcWord(e) { return { paste: 'message', photo: 'register photo', ha
 function prodOverviewHtml() {
   var today = localDateStr(), from = isoAddDays(today, -27), idx = prodIndex();
   var lastDay = idx.counted.map(function(e) { return e.date; }).sort().pop() || null;
-  var lastKg = 0, lastNos = 0, lastWeighed = 0, lastKgLines = 0, lastLines = {};
-  if (lastDay) PROD_LINES.forEach(function(l) {
-    var r = prodDayLine(lastDay, l);
-    lastKg += r.kg; lastNos += r.nos; lastWeighed += r.weighedPieces;
-    r.entries.forEach(function(e) { if (e.unit === 'KG') lastKgLines += e.qty; });
-    if (r.entries.length) lastLines[l] = true;
-  });
   // Tonnage is a whole figure only where the pieces are weighed: under 90% the pieces are the figure and the tonnes are
   // said as what they are (on the real book, 0.03 t stood beside 3,600 NOS with nothing saying 2% were weighed).
-  var lastShare = lastNos ? lastWeighed / lastNos : 1, lastWhole = lastShare >= 0.9;
+  var lp = prodDayPlated(lastDay);
+  var lastKg = lp.kg, lastNos = lp.nos, lastLines = lp.lines, lastShare = lp.share, lastWhole = lp.whole;
   var lastWhere = lastDay ? stockShortDate(lastDay) + ' · ' + Object.keys(lastLines).map(prodLineName).join(', ') : '';
   var wk = attWeekStartOf(today), wkSum = prodPlatedSummary(wk, today);   // the pay week, Sunday to Saturday
   var plant = prodInPlant({});
@@ -95,8 +89,7 @@ function prodOverviewHtml() {
     return '<div class="inv-tile' + (tone ? ' inv-tile-' + tone : '') + '" data-prod-tile="' + key + '"><div class="inv-tile-label">' + label + '</div><div class="inv-tile-value">' + figWrapHtml(value) + '</div><div class="inv-tile-sub">' + sub + '</div></div>';
   };
   var h = '<div class="inv-tiles">' +
-    tile('Plated, last recorded day', !lastDay ? '&mdash;' : lastWhole ? escHtml(formatNum(lastKg / 1000, 2) + ' t')
-      : escHtml(Math.round(lastNos).toLocaleString('en-IN') + ' NOS' + (lastKgLines ? ' + ' + formatNum(lastKgLines, 0) + ' kg' : '')),
+    tile('Plated, last recorded day', !lastDay ? '&mdash;' : escHtml(lp.text),
       !lastDay ? 'nothing recorded' : escHtml(lastWhere + ' · ' + (lastWhole ? Math.round(lastNos).toLocaleString('en-IN') + ' NOS'
         : formatNum(lastKg / 1000, 2) + ' t known, ' + Math.round(lastShare * 100) + '% of the pieces weighed')), '', 'last') +
     tile('This week against capacity', wkSum ? Math.round(wkSum.perDay / wkSum.capacity * 100) + '%' : '&mdash;', wkSum ? escHtml('on ' + wkSum.days + ' complete day' + (wkSum.days === 1 ? '' : 's') + ' · of ~2 t a shift, two shifts') : 'no complete day this week', '', 'week') +
@@ -220,7 +213,7 @@ function prodLinesHtml() {
     '<button class="inv-btn inv-btn-icon inv-btn-ghost" data-action="invProdDay" data-step="1" aria-label="Day after">' + STAFF_NEXT_ICON + '</button>' +
     '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invProdDayLast">Last recorded</button></div>';
   if (line === 'pickling') {
-    var loads = idx.live.filter(function(e) { return e.kind === 'pickled' && e.date === day && !idx.replaced[e.id]; }).sort(function(a, b) { return String(a.time || '').localeCompare(String(b.time || '')); });
+    var loads = prodDayLoads(day);
     h += '<div class="inv-panel inv-panel-flush" id="prodLoads"><div class="inv-panel-head"><span class="inv-panel-title">Pickled</span><span class="inv-panel-count">' + loads.length + '</span></div>' +
       (loads.length ? loads.map(prodLoadRowHtml).join('') : '<div class="inv-empty">No pickling recorded this day.</div>') + '</div>';
     return h;

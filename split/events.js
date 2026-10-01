@@ -497,6 +497,7 @@ function updateTotalsDisplay() {
 // Every change re-renders inside keepScroll (state.js): a pick in a drop-down never moves the page (P79).
 document.addEventListener('change', function(e) { keepScroll(function() { onDocChange(e); }); });
 function onDocChange(e) {
+  if (errOnChange(e.target)) return;
   if (rptOnChange(e.target)) return;
   if (stockOnChange(e.target)) return;
   if (billsCnFormInput(e.target)) return;

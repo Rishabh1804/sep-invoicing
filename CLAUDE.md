@@ -34,7 +34,7 @@ Workforce management and invoicing PWA for **Soma Electro Products**, a zinc ele
 
 ## Architecture
 
-Split-file PWA. 59 modules, ~32,400 lines total.
+Split-file PWA. 60 modules, ~32,600 lines total.
 
 ```
 split/
@@ -44,6 +44,7 @@ split/
 ├── body.html          ← HTML body, tabs, print view (137 lines)
 ├── data.js            ← ITEMS_MASTER + SEED_CLIENTS (27 lines)
 ├── state.js           ← IndexedDB store, verified coalesced saves, escHtml, gstRound, the dialog and pane shells (1,064 lines)
+├── errors.js          ← Error reports to Sentry: what went wrong and where, never the book's data; live site only (~150 lines)
 ├── appearance.js      ← Theme / palette / density per device, theme-color, icon (~90 lines)
 ├── zinc.js            ← Zinc market rate: store, display, metals.dev refresh, uplift from bills (~350 lines)
 ├── tabs.js            ← switchTab (9-step protocol) + renderHome (188 lines)
@@ -100,7 +101,7 @@ split/
 └── init.js            ← Migrations + app bootstrap (567 lines)
 ```
 
-**Concat order defined in build.sh.** Dependencies: data → state → appearance → zinc → tabs → clients → items → create → settings → github-sync → invoice-ops → number-audit → exports → im → autocomplete → print → quality-cert → credit-note → quote → charts → staff → labour → areas → payroll → stock → cost → bills → xls → xlsx → bank → finance → todo → relay → attsheet → stocksheet → prodparse → stats → intel → insights → finintel → finlinks → dash → production → prodview → power → report → client-perf → im-form → im-dupe → vision → scanner → events → swipe → nav → seed → init.
+**Concat order defined in build.sh.** Dependencies: data → state → errors → appearance → zinc → tabs → clients → items → create → settings → github-sync → invoice-ops → number-audit → exports → im → autocomplete → print → quality-cert → credit-note → quote → charts → staff → labour → areas → payroll → stock → cost → bills → xls → xlsx → bank → finance → todo → relay → attsheet → stocksheet → prodparse → stats → intel → insights → finintel → finlinks → dash → production → prodview → power → report → client-perf → im-form → im-dupe → vision → scanner → events → swipe → nav → seed → init.
 
 **Every module shares one global scope.** A top-level `var` or `function` in a later module silently replaces one of
 the same name in an earlier one; nothing warns. `bills.js` shipped a `STOCK_UNITS` array over `stock.js`'s unit map
@@ -1623,6 +1624,23 @@ mandatory essay gets "ok". The history is stamped `replating` **and** `zeroReaso
 register can tell a reason the ruling supplied from one an operator chose. The migration is bounded
 to invoices dated on or before the ruling — a ₹0 line written later by a device on an older build
 reads *No reason recorded* rather than the migration inventing one forever.
+
+### Error reports
+**An error nobody caught, a screen that could not be drawn and a start-up step that failed are sent to the developer**
+(`errors.js`; owner, 1 Oct 2026: *"Yes, add Sentry error reporting"*, after agreeing what may go). They still reach the
+owner's screen as before (`uiNotice`); the report is the developer's copy, so a crash on the phone is seen before anybody
+has to describe it. P143.
+- **What goes**: the kind of error, its message with anything that could be the book's data masked (`errScrub`: amounts,
+  numbers, dates, quoted text, e-mails, GSTINs, names written in capitals), the stack as function names and line numbers in
+  the built page, the build stamp as the release, the screen, the layout, whether installed and online, the browser.
+- **What never goes**: a record, a figure, the address's query, a user, breadcrumbs. **There is no Sentry SDK**: its
+  breadcrumbs carry request URLs, and the Gemini and metals.dev keys travel in theirs. One POST of an envelope to Sentry's
+  endpoint (`text/plain`, so no preflight; the service worker never touches a POST).
+- **From the live site only** (`ERR_HOSTS`), never from a test browser (`navigator.webdriver`) or a local copy; nothing at
+  all until `ERR_DSN` names the project. Each kind of error once a session, at most ten; held on the device while offline
+  (`sep_inv_err_queue`, twenty at most) and sent when it is back online.
+- **Off per device**: Settings → Data & device → Backup, storage & build (`sep_inv_err_off`, never on the book).
+- **In Sentry**, the project should have *Prevent storing of IP addresses* on (Security & Privacy).
 
 ### Production
 More → **Production** (sidebar Floor → Production; owner, 28 Sep 2026: *"This will give us a clearer picture of what's

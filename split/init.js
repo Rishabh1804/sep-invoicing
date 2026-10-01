@@ -826,6 +826,7 @@ function bootStep(what, fn) {
   try { fn(); return true; }
   catch (e) {
     console.error(e);
+    if (typeof errReport === 'function') errReport(e, 'boot: ' + what);
     uiNotice('Starting up, ' + what + ' failed: ' + ((e && e.message) || e) + '. The rest of the app works; export a backup from Settings if this keeps happening.', 'danger');
     return false;
   }

@@ -1,6 +1,6 @@
 import type { Page } from '@playwright/test';
 import { pbkdf2Sync, randomBytes } from 'node:crypto';
-import { emptyState, loadAppWithState, noSeedIM, type SepState } from './fixtures';
+import { emptyState, loadAppWithState, noSeedIM, openPulse, type SepState } from './fixtures';
 
 /*
  * P142's fixtures: devices (the guard, step G2). GitHub is stubbed at the route layer, as in P15, by a fake that keeps
@@ -72,6 +72,8 @@ export async function signIn(page: Page, userId: string) {
 export async function open(page: Page, state: SepState) {
   await loadAppWithState(page, state);
   await guardAfterBoot(page);
+  // The sync card is one of Pulse's widgets (Today, DIRECTION_B).
+  await openPulse(page);
 }
 
 /** GitHub's Contents API for one file: GET answers the last PUT (404 before any), PUT keeps what it was sent. */

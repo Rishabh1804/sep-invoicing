@@ -153,7 +153,8 @@ test.describe('P142: devices, with the guard on', () => {
     expect(await g(page, "S.company.name = 'CHANGED CO'; saveState()")).toBe(true);
     expect(await g(page, '_ghPushTimer')).toBeNull();
 
-    // Import still takes a backup in, to view the data.
+    // Import still takes a backup in, to view the data (the owner's PIN given a moment ago: an import is P1, G1).
+    await g(page, 'var s = grdSessRead(); s.askAt = Date.now(); grdSessWrite(s)');
     await openSettingsAt(page, 'data');
     const chooser = page.waitForEvent('filechooser');
     await page.locator('[data-action="invImportData"]').click();
@@ -172,21 +173,20 @@ test.describe('P142: devices, with the guard on', () => {
     page.on('console', m => logs.push(m.text()));
     await seedDevice(page, { token: TOKEN, session: 'u-sup', devId: 'dev-floor' });
     await open(page, book({ users: [OWNER, SUPER] }));
-    await openSettingsAt(page, 'devices');
-    const sec = page.locator('details[data-sec="devices"]');
-    await expect(sec.locator('[data-dev-status="unregistered"]')).toHaveText(UNREG);
-    await expect(sec).toContainText('A token kept on a device can be used by anyone who can open this app on it; make one fine-grained token per device');
-    // Not the owner: no list, and Register is refused with a word.
-    await expect(sec.locator('[data-card="devices"]')).toHaveCount(0);
-    await page.locator('#devNameIn').fill('Floor tablet');
-    await page.locator('#devUserIn').selectOption('u-sup');
-    await sec.locator('[data-action="invDevRegister"]').click();
-    expect(await answerAsk(page, 'ok')).toContain("can't register this device");
+    // Not the owner: the gate keeps Settings shut to a supervisor (G1), so nothing can be registered from this ID.
+    await expect(page.locator('.inv-topbar [data-action="invOpenSettings"]')).toHaveAttribute('data-grd-off', '');
     expect(await g(page, 'S.devices.length')).toBe(0);
     expect(gh.puts).toHaveLength(0);
 
     // The owner, present, signs in on the device and registers it.
     await signIn(page, 'u-own');
+    await g(page, 'grdApplyDoors()');
+    await openSettingsAt(page, 'devices');
+    const sec = page.locator('details[data-sec="devices"]');
+    await expect(sec.locator('[data-dev-status="unregistered"]')).toHaveText(UNREG);
+    await expect(sec).toContainText('A token kept on a device can be used by anyone who can open this app on it; make one fine-grained token per device');
+    await page.locator('#devNameIn').fill('Floor tablet');
+    await page.locator('#devUserIn').selectOption('u-sup');
     await sec.locator('[data-action="invDevRegister"]').click();
     await expect(page.locator('.inv-toast')).toContainText('This device is registered, and a copy went to GitHub');
     expect(await g(page, 'window.__guardAsked')).toContain('users: Register this device');
@@ -332,7 +332,8 @@ test.describe('P142: devices, with the guard on', () => {
     const ctx = await browser.newContext({ ...devices['Pixel 5'], baseURL, serviceWorkers: 'block' });
     const tab = await ctx.newPage();
     await gh.on(tab);
-    await seedDevice(tab, { token: TABLET_TOKEN, session: 'u-sup', devId: 'dev-floor', cfg: { deviceName: 'Floor tablet' } });
+    // The owner at the tablet: a pull replaces the book, which only the owner may do (G1).
+    await seedDevice(tab, { token: TABLET_TOKEN, session: 'u-own', devId: 'dev-floor', cfg: { deviceName: 'Floor tablet' } });
     await open(tab, book({ users: [OWNER, SUPER], devices: rows }));
     expect(await g(tab, 'getGhToken()')).toBe(TABLET_TOKEN);
     await expect.poll(() => keyHeld(tab)).toBe(true);

@@ -836,6 +836,8 @@ function bootApp() {
   bootStep('the demo challans', seedIncomingMaterial);
   bootStep('the first-run records', runBootstrapSeeds);
   bootStep('bringing the book up to date', migrateState);
+  // A device the book says was removed forgets its GitHub token; a token that would not read is said (devices.js).
+  bootStep('this device', function() { if (typeof devBoot === 'function') devBoot(); });
 
   // Initial layout detection (no debounce)
   bootStep('the layout', updateLayoutMode);
@@ -981,7 +983,9 @@ if ('serviceWorker' in navigator) {
 }
 checkForUpdate(false);
 
-loadState().then(function(loaded) {
-  bootState(loaded);
+// The GitHub token is read into memory beside the book (devices.js: locked to the device), so getGhToken() answers
+// before anything asks. That read never rejects and never holds the start past its own time limit.
+Promise.all([loadState(), typeof devBootWait === 'function' ? devBootWait() : null]).then(function(r) {
+  bootState(r[0]);
   bootApp();
 });

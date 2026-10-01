@@ -84,6 +84,8 @@ function getDefaultState() {
     // Which rules may raise a task, and their day thresholds.
     todoCheck: { stock: true, paste: true, cn: true, challan: true, dispatch: true, audit: true,
       backup: true, zinc: false, pasteDays: 2, challanDays: 5, dispatchDays: 2, backupDays: 7 },
+    // The devices registered to push to and pull from GitHub while the guard is on (devices.js), removed with a reason.
+    devices: [],
     // Full cost per kg, rebuilt from owner-supplied inputs against Apr–Jul 2026
     // actuals. The old 5.46 predated that rebuild and flattered every margin
     // figure by roughly a rupee a kilo. Only ever the default for a fresh
@@ -597,7 +599,8 @@ function hideStorageBanner(kind) {
 // Containers hold the user's records, so a missing one is filled EMPTY — the
 // app must never invent business data to repair a shape.
 var STATE_CONTAINERS = ['clients', 'items', 'invoices', 'incomingMaterial', 'partWeights',
-  'voidedNumbers', 'creditNotes', 'extraExceptions', 'attendanceDeletes', 'staff', 'attendance', 'areaTargets', 'shiftNeeds', 'stock', 'todo', 'relayPastes', 'relayLearn', 'staffPayments', 'payCarryClears', 'costBills', 'payrollPaid', 'bank', 'production', 'quotations'];
+  'voidedNumbers', 'creditNotes', 'extraExceptions', 'attendanceDeletes', 'staff', 'attendance', 'areaTargets', 'shiftNeeds', 'stock', 'todo', 'relayPastes', 'relayLearn', 'staffPayments', 'payCarryClears', 'costBills', 'payrollPaid', 'bank', 'production', 'quotations',
+  'devices'];
 // Config objects are the opposite: a missing one is filled from the defaults,
 // and so is a missing KEY inside one. `labourCfg()` reads `extraRate || 0`, so
 // a backup predating a constant would silently price the extra at nothing
@@ -988,6 +991,8 @@ function bookReload(why) {
     if (bookStandIn() && !_idbFailed) { _unreadable = null; _storageHealth.readError = ''; _storageHealth.readKind = ''; hideStorageBanner('read'); }
     if (typeof prodTouch === 'function') prodTouch();
     if (typeof _invalidateUsageCache === 'function') _invalidateUsageCache();
+    // The book another window saved may say this device was removed: it forgets its GitHub token (devices.js).
+    if (typeof devAfterLoad === 'function') devAfterLoad('reload');
     bookRedraw(why);
     return true;
   }).then(null, function(e) {

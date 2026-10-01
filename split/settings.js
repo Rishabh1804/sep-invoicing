@@ -408,10 +408,13 @@ var SETTINGS_SECS = {
     summary: function() {
       var cfg = getGhConfig(), last = ghLastSyncAt();
       if (!cfg.owner || !cfg.repo) return 'not set up';
-      return '<span class="inv-id">' + escHtml(cfg.owner + '/' + cfg.repo) + '</span>' + escHtml(last ? ' · synced ' + ghRelTime(last) : ' · not synced yet');
+      // The guard keeps this device from syncing (devices.js): said in place of when it last synced.
+      var held = typeof devSyncBlockedShort === 'function' ? devSyncBlockedShort() : '';
+      return '<span class="inv-id">' + escHtml(cfg.owner + '/' + cfg.repo) + '</span>' + escHtml(held ? ' · ' + held : last ? ' · synced ' + ghRelTime(last) : ' · not synced yet');
     },
     body: function() { return renderGhSyncFields(); },
-    save: function() { saveGhSyncSettings(); ghRenderCard(); }
+    // The token is stored locked to the device before the section reads as saved.
+    save: async function() { await saveGhSyncSettings(); ghRenderCard(); }
   },
   appearance: {
     title: 'Appearance',
@@ -852,6 +855,8 @@ async function importDataText(text) {
     // Every screen is drawn from the new book, as after a pull: only Home was redrawn, and the Register's and
     // Challans' toolbars (client lists, selections) stayed the old book's (the QA sweep, 29 Sep 2026).
     bookReplacedShow();
+    // The book imported may say this device was removed: it forgets its GitHub token and says why (devices.js).
+    if (typeof devAfterLoad === 'function') devAfterLoad('import');
     saveState().then(function(saved) {
       if (saved) showToast('Data imported');
       else showToast('NOT saved: ' + saveFailText() + '. The data is in memory only and will be lost on reload.', 'error');

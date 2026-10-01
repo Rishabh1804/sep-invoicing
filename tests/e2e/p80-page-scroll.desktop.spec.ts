@@ -28,6 +28,11 @@ const STOPS: Stop[] = [
     row: '#clientsMaster [data-action="invSelectItemRow"]',
   },
   {
+    name: 'Clients › Quotations',
+    go: async p => { await switchTab(p, 'pageClients'); await p.locator('#pageClients .inv-viewtab[data-view="quotes"]').click(); },
+    row: '#qtMaster [data-action="invQtOpen"]',
+  },
+  {
     name: 'Stock › Lines',
     go: async p => { await switchTab(p, 'pageStock'); await p.locator('#pageStock .inv-viewtab[data-view="list"]').click(); },
     row: '#stockMasterDetail [data-action="invStockOpen"]',

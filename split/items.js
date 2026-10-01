@@ -43,6 +43,12 @@ function renderClientsPage() {
 
   // Performance is one client's analysis, not a list with a detail pane, so it
   // renders full width in both layouts.
+  // Quotations (quote.js): its own list and pane, or its form as a sub-view.
+  if (subView === 'quotes') {
+    _clientsActiveId = null; _itemsActiveId = null;
+    qtRenderView(container, _buildSubViewToggle('quotes'));
+    return;
+  }
   if (subView === 'performance') {
     container.innerHTML = _buildSubViewToggle('performance') + '<div id="clientPerfArea"></div>';
     renderClientPerformance(document.getElementById('clientPerfArea'));
@@ -122,7 +128,7 @@ function _buildSubViewToggle(active) {
     return '<button class="inv-viewtab" role="tab" aria-selected="' + (active === k) + '" data-action="invSwitchSubView" data-view="' + k + '">' + l + '</button>';
   };
   return '<div class="inv-viewtabs" role="tablist" aria-label="Clients">' +
-    tab('clients', 'Clients') + tab('items', 'Items') + tab('performance', 'Performance') + '</div>';
+    tab('clients', 'Clients') + tab('items', 'Items') + tab('performance', 'Performance') + tab('quotes', 'Quotations') + '</div>';
 }
 
 /* ===== CLIENTS/ITEMS DESKTOP: LIST AND PANE =====

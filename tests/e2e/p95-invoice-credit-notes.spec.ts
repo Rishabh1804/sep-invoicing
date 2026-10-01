@@ -43,6 +43,7 @@ test.describe('P95: an invoice shows its credit notes', () => {
   test('a register row carries a CN mark; hovering names the note, its role, why and how much', async ({ page }) => {
     await loadAppWithState(page, state());
     await switchTab(page, 'pageRegister');
+    await g(page, "regFilter.month = ''; renderRegister()");   // the invoices are 16–19 days old: last month on the 1st
     await expect(mark(page, 'INV-2')).toHaveAttribute('title', /CN\/007\/26-27 · against this invoice · Batch rebate 2% on 2 invoices/);
     await expect(mark(page, 'INV-1')).toHaveAttribute('title', /CN\/007\/26-27 · in its batch/);
     await expect(mark(page, 'INV-3')).toHaveAttribute('title', /Rate correction: billed at 14\.50/);
@@ -53,6 +54,7 @@ test.describe('P95: an invoice shows its credit notes', () => {
   test('the invoice detail lists its notes and each opens; a note opens its invoice', async ({ page }) => {
     await loadAppWithState(page, state());
     await switchTab(page, 'pageRegister');
+    await g(page, "regFilter.month = ''; renderRegister()");   // the invoices are 16–19 days old: last month on the 1st
     await page.locator('#regList [data-action="invViewInvoiceDetail"][data-id="INV-2"]').first().click();
     const row = page.locator('.inv-scrim-dialog [data-cn-link="CN-007"]');
     await expect(row).toContainText('against this invoice');

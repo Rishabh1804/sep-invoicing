@@ -40,6 +40,7 @@ JS_SOURCES=(
     "$DIR/print.js" \
     "$DIR/quality-cert.js" \
     "$DIR/credit-note.js" \
+    "$DIR/quote.js" \
     "$DIR/charts.js" \
     "$DIR/staff.js" \
     "$DIR/labour.js" \
@@ -66,6 +67,7 @@ JS_SOURCES=(
     "$DIR/production.js" \
     "$DIR/prodview.js" \
     "$DIR/power.js" \
+    "$DIR/report.js" \
     "$DIR/client-perf.js" \
     "$DIR/im-form.js" \
     "$DIR/im-dupe.js" \

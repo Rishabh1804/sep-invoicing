@@ -237,15 +237,17 @@ test.describe('P39: stock', () => {
     await chem.locator('summary').click();
     await expect(chem.locator('.inv-row-children')).toContainText('Q558');
     await expect(chem.locator('.inv-row-children')).toContainText('5 kg used, no price');
-    // The days before the stock record began are filled at the model, and say so.
-    await expect(chem.locator('.inv-row-children')).toContainText('Not recorded');
+    // The days before the stock record began are filled at the model, and say so. On the 1st the month to date is
+    // today alone, which the record covers, so there is nothing to fill.
+    if (t.slice(8) !== '01') await expect(chem.locator('.inv-row-children')).toContainText('Not recorded');
+    else await expect(chem.locator('.inv-row-children')).not.toContainText('Not recorded');
   });
 
-  test('More holds To-do, Finance, Production, Power, Stock, Staff, Stats and History, and lights up while one is open', async ({ page }) => {
+  test('More holds To-do, Finance, Production, Power, Stock, Staff, Stats, Reports and History, and lights up while one is open', async ({ page }) => {
     await loadAppWithState(page, state());
     await expect(page.locator('.inv-navbar .inv-navbar-item')).toHaveCount(6);
     await page.locator('.inv-navbar-more').click();
-    await expect(page.locator('#moreSheet .inv-row')).toHaveText([/To-do/, /Finance/, /Production/, /Power/, /Stock/, /Staff/, /Stats/, /History/]);
+    await expect(page.locator('#moreSheet .inv-row')).toHaveText([/To-do/, /Finance/, /Production/, /Power/, /Stock/, /Staff/, /Stats/, /Reports/, /History/]);
     await page.locator('#moreSheet .inv-row[data-tab="pageStaff"]').click();
     await expect(page.locator('#moreSheet')).toHaveCount(0);
     await expect(page.locator('#pageStaff')).toHaveClass(/inv-page-active/);

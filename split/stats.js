@@ -529,7 +529,9 @@ function renderStats() {
   // The view tabs, then the period: a setting of every card on the page (§6.5).
   if (toolbar) {
     toolbar.innerHTML = statsTabsHtml() + '<div class="inv-toolbar">' +
-      statsSeg('invStatsPeriod', 'period', { mtd: 'MTD', qtd: 'QTD', ytd: 'YTD', all: 'All' }, _statsPeriod, 'Period', false) + '</div>';
+      statsSeg('invStatsPeriod', 'period', { mtd: 'MTD', qtd: 'QTD', ytd: 'YTD', all: 'All' }, _statsPeriod, 'Period', false) +
+      // The same period as a printable report (report.js).
+      (statsTab() === 'overview' ? '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invRptFromStats" id="statsMakeReport">Make a report</button>' : '') + '</div>';
     // The open tab is scrolled into view sideways only, as Staff's: never cut off at a phone's edge.
     viewTabReveal(toolbar.querySelector('.inv-viewtabs'));
   }
@@ -1099,6 +1101,10 @@ var HISTORY_ICONS = {
 };
 // A deleted attendance day is a deletion, as a deleted invoice is.
 HISTORY_ICONS.attDelete = HISTORY_ICONS.void;
+// Quotations (quote.js): issued, accepted or declined, a revision or a supersession, and a void.
+HISTORY_ICONS.quote = HISTORY_ICONS.invoice;
+HISTORY_ICONS.quoteRev = HISTORY_ICONS.except;
+HISTORY_ICONS.quoteVoid = HISTORY_ICONS.void;
 
 function historyIcon(kind) {
   var path = HISTORY_ICONS[kind] || HISTORY_ICONS.state;
@@ -1113,7 +1119,8 @@ function historyIcon(kind) {
 var HISTORY_KIND_WORDS = {
   invoice: ['Invoice', 'neutral'], challan: ['Challan', 'neutral'], state: ['Status', 'ok'],
   cancel: ['Cancelled', 'danger'], void: ['Deleted', 'danger'], dupe: ['Duplicate', 'warning'],
-  shift: ['Attendance', 'neutral'], extra: ['Extra hours', 'neutral'], except: ['Exception', 'warning'], attDelete: ['Deleted', 'danger']
+  shift: ['Attendance', 'neutral'], extra: ['Extra hours', 'neutral'], except: ['Exception', 'warning'], attDelete: ['Deleted', 'danger'],
+  quote: ['Quotation', 'ok'], quoteRev: ['Revised', 'warning'], quoteVoid: ['Void', 'danger']
 };
 function historyKindHtml(ev) {
   // A challan corrected from an invoice is a challan event on the audit filter.
@@ -1196,6 +1203,7 @@ function buildHistoryEvents() {
     });
   });
 
+  qtHistoryEvents(events, _historyClientFilter);
   pushFloorEvents(events);
 
   return events;

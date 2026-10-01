@@ -20,6 +20,9 @@ function getDefaultState() {
     // Starts at 6: CN/001–005 of 2026-27 were issued by hand before the app
     // existed. See the _cnSeriesStart1 migration in init.js.
     cnNextNum: 6,
+    // Quotations (quote.js): a draft holds no number; issue takes the next of its financial year's series.
+    quotations: [],
+    qtnCfg: { signatory: '', signTitle: '', footNote: '', outside: {} },
     // Reconciliation exceptions. A disagreement the extra-check raised and a
     // human then examined becomes a RECORD carrying a required reason — the
     // same treatment `voidedNumbers` gives a number gap and `dupeAck` gives an
@@ -589,12 +592,12 @@ function hideStorageBanner(kind) {
 // Containers hold the user's records, so a missing one is filled EMPTY — the
 // app must never invent business data to repair a shape.
 var STATE_CONTAINERS = ['clients', 'items', 'invoices', 'incomingMaterial', 'partWeights',
-  'voidedNumbers', 'creditNotes', 'extraExceptions', 'attendanceDeletes', 'staff', 'attendance', 'areaTargets', 'shiftNeeds', 'stock', 'todo', 'relayPastes', 'relayLearn', 'staffPayments', 'payCarryClears', 'costBills', 'payrollPaid', 'bank', 'production'];
+  'voidedNumbers', 'creditNotes', 'extraExceptions', 'attendanceDeletes', 'staff', 'attendance', 'areaTargets', 'shiftNeeds', 'stock', 'todo', 'relayPastes', 'relayLearn', 'staffPayments', 'payCarryClears', 'costBills', 'payrollPaid', 'bank', 'production', 'quotations'];
 // Config objects are the opposite: a missing one is filled from the defaults,
 // and so is a missing KEY inside one. `labourCfg()` reads `extraRate || 0`, so
 // a backup predating a constant would silently price the extra at nothing
 // rather than at ₹47.50 — a wrong number, not a visible gap.
-var STATE_CONFIGS = ['labour', 'rateCheck', 'stockCheck', 'todoCheck', 'invStateCheck'];
+var STATE_CONFIGS = ['labour', 'rateCheck', 'stockCheck', 'todoCheck', 'invStateCheck', 'qtnCfg'];
 
 function ensureStateShape(s) {
   if (!s) return s;
@@ -1762,7 +1765,8 @@ function getRateOnRecord(client, onDate, item) {
   if (!client || !item) return null;
   var date = onDate || localDateStr();
   var info = getLineItemRate(client, date, item.partNumber);
-  if (info._override) return { rate: info.rate, unit: 'piece', source: 'override' };
+  // An override is per piece unless it says kg (a per-kg rate posted from an accepted quotation, quote.js).
+  if (info._override) return { rate: info.rate, unit: info.unit === 'kg' ? 'kg' : 'piece', source: 'override' };
   if (item.unit === 'NOS') {
     var pr = getPieceRate(client, date, item.partNumber, item.desc);
     if (pr && pr.ambiguous) return { rate: null, unit: 'piece', source: 'gauge-ambiguous' };

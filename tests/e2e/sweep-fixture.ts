@@ -133,6 +133,14 @@ export function sweepState(): SepState {
   pe.push({ id: 'PD1', kind: 'downtime', date: dayOff(-2), time: '10:55', to: '11:15', downtime: { cause: 'power' }, basis: 'pickling', src: 'paste', at: 1 });
   pe.push({ id: 'PX1', kind: 'pickled', date: dayOff(-1), time: '10:40', client: 'SIYA ENTERPRISES', part: 'Buckle hook', qty: 200, unit: 'NOS', basis: 'pickling', src: 'paste', at: 1 });
   s.production = { entries: pe, pastes: [], photos: [], imports: [], learn: { clients: {}, parts: {} } };
+  // Quotations (P131): a draft, a live one and a superseded one, so Clients → Quotations has every group to draw.
+  const qt = (id: string, over: any) => ({ id, num: null, fy: null, displayNumber: null, rev: 0, revOf: null, revReason: '', date: dayOff(-3), clientId: 1,
+    to: { name: CLIENTS[0].name, address: 'Plot 1\nAdityapur', gstin: '20ABCDE1234F1Z5', state: '(20) JHARKHAND', attn: 'The Director' }, intro: 'Further to our discussions.',
+    lines: [{ item: 'MOUNT BRACKET', partNumber: 'MB-1', desc: 'Zinc electroplating', basis: 'piece', rate: 12.5, refWeightKg: 0.795, note: '' }],
+    gstPct: 18, sac: '998873', transport: 'excluded', minConsignmentKg: null, lotPcs: null, validDays: 30, paymentDays: 15, terms: ['Job work.', 'Valid 30 days.'],
+    status: 'draft', createdAt: recentTs(), at: recentTs(), ...over });
+  s.quotations = [qt('Q1', {}), qt('Q2', { num: 2, fy: '2026-27', displayNumber: 'SEP/QTN/2026-27/002', status: 'issued', issuedAt: recentTs(), clientId: 2, to: { name: CLIENTS[1].name, address: '', gstin: '', state: '', attn: '' } }),
+    qt('Q3', { num: 1, fy: '2026-27', displayNumber: 'SEP/QTN/2026-27/001', status: 'superseded', issuedAt: recentTs(), supersededBy: 'Q2', supersededAt: recentTs() })];
   s.todo = { tasks: [
     { id: 'T1', text: 'Call Beta about the June payment', due: dayOff(-1), note: '', link: null, createdAt: recentTs(), doneAt: null },
     { id: 'T2', text: 'Order nitric acid', due: '', note: '', link: null, createdAt: recentTs(), doneAt: null },
@@ -281,7 +289,7 @@ export async function shot(page: Page, name: string) {
   await page.screenshot({ path: `${dir}/${name}.png`, fullPage: !(await page.locator('.inv-scrim-dialog').count()) });
 }
 
-export const PAGES = ['pageHome', 'pageCreate', 'pageIM', 'pageRegister', 'pageClients', 'pageTodo', 'pageFinance', 'pageProduction', 'pagePower', 'pageStock', 'pageStaff', 'pageStats', 'pageHistory'];
+export const PAGES = ['pageHome', 'pageCreate', 'pageIM', 'pageRegister', 'pageClients', 'pageTodo', 'pageFinance', 'pageProduction', 'pagePower', 'pageStock', 'pageStaff', 'pageStats', 'pageReports', 'pageHistory'];
 
 /* Every page, then every view tab on it (re-read after each click, since a tab can redraw the row). */
 export async function walkPages(page: Page, tag: string, stops: Stop[]) {
@@ -302,6 +310,7 @@ export async function walkPages(page: Page, tag: string, stops: Stop[]) {
     }
   }
   await walkProduction(page, tag, stops);
+  await walkQuoteForm(page, tag, stops);
   await walkZinc(page, tag, stops);
 }
 
@@ -345,6 +354,15 @@ export async function walkProduction(page: Page, tag: string, stops: Stop[]) {
   }
 }
 
+/* Clients → Quotations' form, which no view tab reaches. */
+export async function walkQuoteForm(page: Page, tag: string, stops: Stop[]) {
+  await page.evaluate(() => (0, eval)(`qtOpenForm('Q1')`));
+  await expect(page.locator('#clientsPageContent .inv-pagehead')).toBeVisible();
+  stops.push(await sweep(page, 'pageClients › quotation form'));
+  await shot(page, `${tag}-pageClients-quote-form`);
+  await page.evaluate(() => (0, eval)(`_qtForm = null; _pageTyped = false; setItemsSubView('clients'); renderClientsPage()`));
+}
+
 /* Every dialog, opened the way its button does. */
 export const DIALOGS: Array<[string, string]> = [
   ['settings', `openSettings()`],
@@ -372,6 +390,8 @@ export const DIALOGS: Array<[string, string]> = [
   ['ask-confirm', `uiConfirm({ title: 'Delete this challan?', body: 'Challan 301 from SAMARTH, 2 lines. This cannot be undone.', okLabel: 'Delete challan', danger: true })`],
   ['ask-prompt', `uiPrompt({ title: 'Void this payment', body: 'It is kept on the record, not deleted.', label: 'Why is this payment void?', required: true })`],
   ['ask-alert', `uiAlert({ title: 'Copy the order', body: 'Select the text below and copy it.' })`],
+  ['quote-detail', `qtOpen('Q2')`],
+  ['quote-draft', `qtOpen('Q1')`],
   ['more-sheet', `openMoreSheet()`],
 ];
 

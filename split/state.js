@@ -34,6 +34,8 @@ function getDefaultState() {
     extraExceptions: [],
     // A deleted attendance day, kept whole with its required reason (attDeleteDay): History lists it.
     attendanceDeletes: [],
+    // Every save, record by record, with who made it and on which device (changelog.js): History → Changes.
+    changeLog: [],
     // Workforce. The roster ships empty: names and wages are payroll data and
     // this repo is public, so the owner enters them once on the device. Areas
     // and comp classes are structure, not data, and live in staff.js.
@@ -654,6 +656,8 @@ function adoptState(next) {
   // two had drifted, and a pull or an import kept the old book's part usage (the QA sweep, 29 Sep 2026).
   if (typeof prodTouch === 'function') prodTouch();
   if (typeof _invalidateUsageCache === 'function') _invalidateUsageCache();
+  // A book adopted whole is one line in the change log and where it starts comparing from (changelog.js).
+  if (typeof chgAdopted === 'function') chgAdopted();
   return S;
 }
 
@@ -979,6 +983,8 @@ function bookReload(why) {
     S = next;
     ensureStateShape(S);
     _diskRev = b.rev;
+    // The other window logged its own saves: this book is where the change log starts comparing from (changelog.js).
+    if (typeof chgBaseline === 'function') chgBaseline();
     // Another window put a readable book on disk (it imported or pulled out of the same stand-in): this one holds it now.
     if (bookStandIn() && !_idbFailed) { _unreadable = null; _storageHealth.readError = ''; _storageHealth.readKind = ''; hideStorageBanner('read'); }
     if (typeof prodTouch === 'function') prodTouch();
@@ -1207,6 +1213,8 @@ if (!regFilter.state) regFilter.state = regFilter.state || '';
 
 // Returns a Promise<boolean>: true once the write is verified on disk.
 function saveState() {
+  // What this save changed, record by record, into the log it carries (changelog.js). It never stops the save.
+  try { if (typeof chgOnSave === 'function') chgOnSave(); } catch (e) { /* counted inside; the save goes on */ }
   var landed = persistState();
   _tabDirty.home = true;
   _tabDirty.register = true;

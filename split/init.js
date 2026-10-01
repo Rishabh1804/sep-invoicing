@@ -835,6 +835,9 @@ function bootApp() {
   bootStep('the demo challans', seedIncomingMaterial);
   bootStep('the first-run records', runBootstrapSeeds);
   bootStep('bringing the book up to date', migrateState);
+  // The book as it opened, migrations done: what the change log compares the next save with (changelog.js). Taken before
+  // the first screen is drawn, so a To-do ticked on the Windows widget while the app was shut is logged when applied below.
+  if (typeof chgBaseline === 'function') chgBaseline();
 
   // Initial layout detection (no debounce)
   bootStep('the layout', updateLayoutMode);

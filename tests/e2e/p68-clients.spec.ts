@@ -18,7 +18,7 @@ test.describe('P68: Clients, Items and Performance', () => {
   test('each list view has one Add, in its toolbar, and no floating button', async ({ page }) => {
     await loadAppWithState(page, clientsState());
     await openView(page, 'clients');
-    await expect(page.locator('.inv-viewtabs[role="tablist"] .inv-viewtab[role="tab"]')).toHaveCount(4);
+    await expect(page.locator('#pageClients .inv-viewtabs[role="tablist"] .inv-viewtab[role="tab"]')).toHaveCount(4);
     await expect(page.locator('#pageClients [data-action="invAddClient"]')).toHaveCount(1);
     await expect(page.locator('#pageClients .inv-btn-primary')).toHaveCount(1);
     await expect(page.locator('#clientsItemsFab, #pageClients .inv-fab')).toHaveCount(0);

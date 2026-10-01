@@ -208,6 +208,16 @@ export async function switchTab(page: Page, tabId: string): Promise<void> {
   await active.waitFor();
 }
 
+/** Today → Pulse (DIRECTION_B, B3): Home's cards (the month to date, money, attendance, sync, zinc, recent invoices, quick
+ *  actions) are Pulse's widgets now, drawn only while it shows. Opens Today first when another page is on screen, then
+ *  presses its Pulse tab the way the operator does. */
+export async function openPulse(page: Page): Promise<void> {
+  if (!(await page.locator('#pageHome.inv-page-active').count())) await switchTab(page, 'pageHome');
+  const tab = page.locator('#wsTabs [data-v="pulse"]');
+  if ((await tab.getAttribute('aria-selected')) !== 'true') await tab.click();
+  await page.locator('#homePulse:not(.inv-hidden)').waitFor();
+}
+
 /** Open Settings the way the operator does and bring one section into view:
  *  its group chosen (desktop shows one group at a time) and the section unfolded.
  *  A section's Save keeps Settings open, so an open Settings is reused. */

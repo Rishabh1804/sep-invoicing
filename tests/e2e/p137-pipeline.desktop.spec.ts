@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import { loadAppWithState, switchTab } from './fixtures';
+import { loadAppWithState, switchTab, openPulse } from './fixtures';
 import { pipeState, pipeStateCalm, pipeStateLong, sweepStages } from './p137-pipeline.fixture';
 import { bigSweepState, problems, sweepState, type Stop } from './sweep-fixture';
 
@@ -68,6 +68,7 @@ test('on a short screen the pipeline scrolls in its own column, and keeps its pl
 test('the stage’s actions land where the desktop keeps them: the Register’s table ticked, a challan in IM’s pane', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 800 });
   await loadAppWithState(page, pipeState());
+  await openPulse(page);
   await switchTab(page, 'pagePipeline');
   await page.locator('#pipeList [data-pipe-list="created"] [data-action="invPipeBulk"]').click();
   await expect(page.locator('#pageRegister')).toHaveClass(/inv-page-active/);
@@ -85,7 +86,7 @@ test('the stage’s actions land where the desktop keeps them: the Register’s 
   // The desktop's top bar names the stage beside the page.
   await switchTab(page, 'pagePipeline');
   await page.locator('#pagePipeline button[data-pipe-stage="printed"]').click();
-  await expect(page.locator('#topbarCtx')).toHaveText('Printed');
+  await expect(page.locator('#topbarCtx')).toHaveText('Pipeline · Printed');
 });
 
 for (const scheme of ['light', 'dark'] as const) {

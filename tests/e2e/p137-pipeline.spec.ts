@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import { loadAppWithState, openSettingsAt, switchTab, todayIso, waitForBoot } from './fixtures';
+import { loadAppWithState, openSettingsAt, switchTab, todayIso, waitForBoot, openPulse } from './fixtures';
 import { CHALLAN_DAYS, STATE_CHECK, lastMonth10, pipeState, pipeStateCalm, sweepStages } from './p137-pipeline.fixture';
 import { bigSweepState, problems, sweepState, type Stop } from './sweep-fixture';
 
@@ -76,6 +76,7 @@ test.describe('P137: Office → Pipeline', () => {
 
   test('each stage’s dot and words follow the days set in Settings, read as they change', async ({ page }) => {
     await loadAppWithState(page, pipeState());
+    await openPulse(page);
     await openPipeline(page);
     // Challans: amber at the To-do's unbilled days (set to 4 here), red at twice them. Two are 5 and 6 days old.
     expect(await readStage(page, 'awaiting')).toMatchObject({ tone: 'warning', word: `2 over ${CHALLAN_DAYS} days` });
@@ -90,7 +91,7 @@ test.describe('P137: Office → Pipeline', () => {
     // Owed: the debt over 90 days, in the words Home's Money tile uses for it.
     const owed = await readStage(page, 'owed');
     expect(owed).toMatchObject({ tone: 'danger', word: '₹6,608 over 90 days' });
-    await switchTab(page, 'pageHome');
+    await openPulse(page);
     await expect(page.locator('[data-home-fin="Owed to us"] .inv-tile-sub')).toHaveText(owed.word);
 
     // Settings move them: Created red at 6 days (the 5-day-old one is amber now), challans amber at 6 days.

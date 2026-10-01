@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { loadAppWithState, switchTab } from './fixtures';
+import { loadAppWithState, switchTab, openPulse } from './fixtures';
 import { sweep, problems, type Stop } from './sweep-fixture';
 import { floorBook, openFloor, card, tile, dayOff, g, T, Y, D2 } from './p138-floor-day.fixture';
 
@@ -85,6 +85,7 @@ test('the cards say what Staff → Day, Production → Lines and Entries say for
 
 test('the tiles: on site, plated and power as Staff, Production and Power count them', async ({ page }) => {
   await loadAppWithState(page, floorBook());
+  await openPulse(page);
   await openFloor(page);
   await expect(tile(page, 'onsite').locator('.inv-tile-value')).toHaveText('16/17');
   await expect(tile(page, 'onsite').locator('.inv-tile-sub')).toHaveText('1 absent');
@@ -97,7 +98,7 @@ test('the tiles: on site, plated and power as Staff, Production and Power count 
   const onSite = await tile(page, 'onsite').locator('.inv-tile-value').innerText();
   const plated = await tile(page, 'plated').locator('.inv-tile-value').innerText();
   // Home's attendance card (Staff's own figure) and Production's Overview tile say the same.
-  await switchTab(page, 'pageHome');
+  await openPulse(page);
   await expect(page.locator('#homeAttOnSite')).toHaveText(onSite);
   await switchTab(page, 'pageProduction');
   await page.locator('[data-action="invProdTab"][data-tab="overview"]').click();

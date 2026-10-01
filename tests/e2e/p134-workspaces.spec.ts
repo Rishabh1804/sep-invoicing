@@ -218,16 +218,11 @@ test.describe('P134: workspaces on the phone', () => {
     await expect(page.locator('#pageCreate')).toHaveClass(/inv-page-active/);
   });
 
-  test('Add calls addOpen when it exists and does nothing when it does not; search the same', async ({ page }) => {
+  // Add and search are built in now (add.js, search.js); the bar's two doors call them.
+  test('Add calls addOpen; search calls searchOpen', async ({ page }) => {
     const errors: string[] = [];
     page.on('pageerror', e => errors.push(e.message));
     await loadAppWithState(page, state());
-    await g(page, `window.addOpen = undefined; window.searchOpen = undefined`);
-    await page.locator('.inv-navbar-add').click();
-    await page.locator('.inv-topbar [data-action="invSearchOpen"]:visible').click();
-    await page.waitForTimeout(150);
-    await expect(page.locator('.inv-scrim')).toHaveCount(0);
-    await expect(page.locator('#pageHome')).toHaveClass(/inv-page-active/);
     await g(page, `window.__calls = []; window.addOpen = function() { __calls.push('add'); }; window.searchOpen = function() { __calls.push('search'); }`);
     await page.locator('.inv-navbar-add').click();
     await page.locator('.inv-topbar [data-action="invSearchOpen"]:visible').click();

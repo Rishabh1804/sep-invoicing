@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import type { Page, Locator } from '@playwright/test';
-import { answerAsk, emptyState, loadAppWithState, noSeedIM, openStatsTab, readStoredState, recentTs, switchTab, todayIso, type SepState } from './fixtures';
+import { answerAsk, emptyState, loadAppWithState, noSeedIM, openStatsTab, readStoredState, recentTs, switchTab, todayIso, type SepState, openPulse } from './fixtures';
 import { sweepState } from './sweep-fixture';
 
 // P128: the intelligence screens' QA findings (30 Sep 2026) — Clients → Performance, the Stats stories and figures,
@@ -327,12 +327,14 @@ test.describe('P128: History and Home', () => {
   test('G5-12: Home’s realisation line joins only what it has: no dangling separator with nothing to compare', async ({ page }) => {
     seq = 0;
     await loadAppWithState(page, book([client(1, 'OMICRON HOME CO', 'weight', 13)], [inv(1, todayIso(), [{ part: 'P1', unit: 'KG', qty: 100, rate: 13 }])]));
+    await openPulse(page);
     const t = (await page.locator('#mtdPerKgDelta').innerText()).trim();
     expect(t).toMatch(/cost ₹[\d,.]+$/);
   });
 
   test('G5-16: Edit Home keeps one primary on the page', async ({ page }) => {
     await loadAppWithState(page, emptyState());
+    await openPulse(page);
     await page.locator('[data-action="invHomeEdit"]').click();
     await expect(page.locator('#homeEdit')).toBeVisible();
     await expect(page.locator('#pageHome .inv-btn-primary:visible')).toHaveCount(1);
@@ -360,6 +362,7 @@ test.describe('P128: History and Home', () => {
         order: ['mtd', 'quick', 'money', 'todo', 'attendance', 'unbilled', 'sync', 'zinc', 'recent', 'production', 'power', 'stock'],
         hidden: { production: true, power: true, stock: true }, wide: { quick: true, recent: true } })));
       await loadAppWithState(page, sweepState());
+      await openPulse(page);
       for (const w of [1280, 1024]) {
         await page.setViewportSize({ width: w, height: 800 });
         await expect(page.locator('body')).toHaveClass(/inv-desktop/);

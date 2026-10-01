@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
-import { emptyState, loadAppWithState, noSeedIM, switchTab, todayIso, type SepState } from './fixtures';
+import { emptyState, loadAppWithState, noSeedIM, switchTab, todayIso, type SepState, openPulse } from './fixtures';
 
 // P71 (phone): Stock on the v2.0 components (design principles §7, §9 step 3). View tabs, Paste
 // message the one primary, tiles that filter, lines as rows grouped by status with a dot and a word;
@@ -119,6 +119,7 @@ test.describe('P71: Stock', () => {
 
   test('Enter by hand: the mode is a segmented control; Home\'s Stock entry opens it (Paste message is covered by P41)', async ({ page }) => {
     await loadAppWithState(page, state());
+    await openPulse(page);
     await page.locator('[data-action="invHomeQuick"][data-go="stock"]').click();
     await expect(page.locator('.inv-seg-btn[data-mode="count"]')).toHaveAttribute('aria-pressed', 'true');
     await page.locator('[data-action="invStockMode"][data-mode="received"]').click();

@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
-import { emptyState, loadAppWithState, noSeedIM, readStoredState, switchTab, todayIso, type SepState } from './fixtures';
+import { emptyState, loadAppWithState, noSeedIM, readStoredState, switchTab, todayIso, type SepState, openPulse } from './fixtures';
 
 // P121 (owner, 30 Sep 2026): Home is widgets the owner arranges, from a preset (Owner, Floor, Money) and in an edit mode:
 // shown or hidden, up and down, half or full; kept on this device, never in the book. Made-up names.
@@ -15,7 +15,7 @@ function book(): SepState {
 
 test('the Owner preset is the Home there was; Floor and Money are one tap; the choice stays on this device', async ({ page }) => {
   await loadAppWithState(page, book());
-  await switchTab(page, 'pageHome');
+  await openPulse(page);
   expect((await order(page)).slice(0, 2)).toEqual(['mtd', 'quick']);
   await expect(page.locator('#homeWidgets [data-home-w="stock"]')).toHaveClass(/inv-hidden/);
   await page.locator('[data-action="invHomeEdit"]').click();
@@ -27,12 +27,12 @@ test('the Owner preset is the Home there was; Floor and Money are one tap; the c
   await page.waitForSelector('body.inv-booted');
   expect((await order(page))[0]).toBe('quick');
   // Never in the book.
-  expect(JSON.stringify(await readStoredState(page))).not.toContain('"floor"');
+  expect(JSON.stringify(await readStoredState(page))).not.toMatch(/"preset"|"homeLayout"/);
 });
 
 test('in the edit mode a widget is hidden, moved and set full width, and the layout reads as your own', async ({ page }) => {
   await loadAppWithState(page, book());
-  await switchTab(page, 'pageHome');
+  await openPulse(page);
   await page.locator('[data-action="invHomeEdit"]').click();
   await page.locator('[data-home-show="quick"]').uncheck();
   await expect(page.locator('#homeWidgets [data-home-w="quick"]')).toHaveClass(/inv-hidden/);

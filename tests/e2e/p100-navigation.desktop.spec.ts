@@ -16,7 +16,7 @@ test('the trail names the earlier steps; a step opens where it was; a record reo
   await expect(page.locator('#topbarCtx')).toHaveText('Challans · Awaiting invoice · Ch. 102');
   await switchTab(page, 'pageStats');
   const trail = page.locator('#navTrail [data-action="invNavGo"]');
-  await expect(trail).toHaveText(['Today', 'Awaiting invoice', 'Office › Challans · Awaiting invoice · Ch. 102']);
+  await expect(trail).toHaveText(['Today › Needs you', 'Awaiting invoice', 'Office › Challans · Awaiting invoice · Ch. 102']);
   await expect(page.locator('#topbarTitle')).toHaveText('Insights');
   await expect(page.locator('#navBack')).toBeVisible();
   await trail.nth(1).click();

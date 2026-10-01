@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
-import { emptyState, loadAppWithState, noSeedIM, readStoredState, switchTab, todayIso, type SepState } from './fixtures';
+import { emptyState, loadAppWithState, noSeedIM, readStoredState, switchTab, todayIso, type SepState, openPulse } from './fixtures';
 
 // P90: one paste box (Home → Paste message, Staff → Paste message) for every message the floor sends. A roll is
 // attendance, a chemical message is Stock's, and the pickling hand's loads and the barrel list are Production's.
@@ -40,6 +40,7 @@ async function paste(page: Page, text: string) {
 test.describe('P90: where a pasted message goes', () => {
   test('the pickling hand\'s messages open Production\'s check, with no roster needed', async ({ page }) => {
     await load(page, []);
+    await openPulse(page);
     await page.locator('[data-action="invHomeQuick"][data-go="paste"]').click();
     await page.locator('#relayPasteText').fill(`${dmy(-1)}, 9:40 am - Pickler: DURGA AUTO\n0140--300 nos\nPickling Time 9:00AM`);
     await page.locator('[data-action="invRelayRead"]').click();

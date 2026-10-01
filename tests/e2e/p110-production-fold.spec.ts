@@ -312,7 +312,7 @@ test.describe('P110: Production', () => {
     await page.locator('[data-action="invProdTab"][data-tab="lines"]').click();
     await page.locator('[data-action="invProdDay"][data-step="-1"]').click();
     const want = new Date(iso(-11) + 'T00:00:00').toLocaleDateString('en-IN', { weekday: 'long' });
-    await expect(page.locator('.inv-stepper-sub')).toHaveText(want);
+    await expect(page.locator('#pageProduction .inv-stepper-sub')).toHaveText(want);
     // The Entries flag already on "Line unknown" from an earlier visit; the Overview's All N still opens it.
     await page.locator('[data-action="invProdTab"][data-tab="entries"]').click();
     await page.locator('#productionContent [data-action="invProdFilter"][data-flag="unknown"]').click();

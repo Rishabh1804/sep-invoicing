@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
-import { emptyState, loadAppWithState, noSeedIM, switchTab, todayIso, type SepState } from './fixtures';
+import { emptyState, loadAppWithState, noSeedIM, switchTab, todayIso, type SepState, openPulse } from './fixtures';
 
 // P65: Staff and Stock open on an Overview (docs/FINANCE_INTELLIGENCE_SPEC.md, 7a and 7b). Every date is built from
 // today; names and figures are made up.
@@ -56,6 +56,7 @@ function stockState(): SepState {
 
 test('Staff opens on Overview; the quick action still opens the Day', async ({ page }) => {
   await loadAppWithState(page, staffState());
+  await openPulse(page);
   await switchTab(page, 'pageStaff');
   await expect(page.locator('.inv-viewtab[data-action="invAttView"][aria-selected="true"]')).toHaveAttribute('data-view', 'overview');
   await expect(page.locator('#dashStaffToday')).toBeVisible();
@@ -65,7 +66,7 @@ test('Staff opens on Overview; the quick action still opens the Day', async ({ p
   await page.locator('[data-action="invDashOpenDay"]').click();
   await expect(page.locator('.inv-viewtab[data-action="invAttView"][aria-selected="true"]')).toHaveAttribute('data-view', 'day');
   expect(await ev(page, `_attDate`)).toBe(shown);
-  await switchTab(page, 'pageHome');
+  await openPulse(page);
   await page.locator('[data-action="invHomeQuick"][data-go="attendance"]').click();
   await expect(page.locator('.inv-viewtab[data-action="invAttView"][aria-selected="true"]')).toHaveAttribute('data-view', 'day');
 });

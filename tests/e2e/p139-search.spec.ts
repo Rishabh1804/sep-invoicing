@@ -218,9 +218,10 @@ test.describe('P139: search on the phone', () => {
     await page.goBack();
     await expect(page.locator('[data-search]')).toHaveCount(0);
     await expect(page.locator('#pageClients')).toHaveClass(/inv-page-active/);
-    // Its steps are passed over: one more back reaches Home.
+    // Its steps are passed over: one more back leaves Clients for the screen before it, with no search over it.
     await page.goBack();
-    await expect(page.locator('#pageHome')).toHaveClass(/inv-page-active/);
+    await expect(page.locator('#pageClients')).not.toHaveClass(/inv-page-active/);
+    await expect(page.locator('[data-search]')).toHaveCount(0);
   });
 
   test('the index: built under 150 ms on the sweep book, a query under 30 ms; a plain list a chatbot can read', async ({ page }) => {

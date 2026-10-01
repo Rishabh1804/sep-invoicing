@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { emptyState, loadAppWithState, switchTab } from './fixtures';
+import { emptyState, loadAppWithState, switchTab, openPulse } from './fixtures';
 
 // P3 assertion: Home "Recent Invoices" empty-state upgraded from a bare muted-text
 // ("No invoices yet") to a more useful empty-state block with an icon + CTA that
@@ -14,6 +14,7 @@ test.describe('P3: Home "Recent Invoices" empty-state', () => {
 
   test('empty state renders icon + copy + CTA when no invoices exist', async ({ page }) => {
     await loadAppWithState(page, emptyState());
+    await openPulse(page);
     // App already lands on Home; renderHome() is called on init. Confirm explicit return.
     await expect(page.locator('#pageHome.inv-page-active')).toBeVisible();
 
@@ -35,6 +36,7 @@ test.describe('P3: Home "Recent Invoices" empty-state', () => {
 
   test('CTA click routes to the Create tab (wiring intact)', async ({ page }) => {
     await loadAppWithState(page, emptyState());
+    await openPulse(page);
 
     const cta = page.locator('#recentInvoices button[data-action="invCreateNew"]');
     await expect(cta).toBeVisible();
@@ -67,6 +69,7 @@ test.describe('P3: Home "Recent Invoices" empty-state', () => {
     }];
 
     await loadAppWithState(page, state);
+    await openPulse(page);
     await expect(page.locator('#pageHome.inv-page-active')).toBeVisible();
 
     const recent = page.locator('#recentInvoices');

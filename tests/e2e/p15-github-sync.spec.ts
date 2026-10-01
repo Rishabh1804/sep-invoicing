@@ -1,5 +1,5 @@
 import { test, expect, Page } from '@playwright/test';
-import { emptyState, loadAppWithState, SepState, openSettingsAt, answerAsk } from './fixtures';
+import { emptyState, loadAppWithState, SepState, openSettingsAt, answerAsk, openPulse } from './fixtures';
 import { readFile } from 'node:fs/promises';
 
 /*
@@ -73,6 +73,7 @@ test.describe('GitHub sync — push', () => {
     await seedSync(page);
     await stubEmptyRemote(page, (b) => { put = b; });
     await loadAppWithState(page, emptyState());
+    await openPulse(page);
 
     await page.locator('[data-action="invGhPush"]').first().click();
     await expect(page.locator('.inv-toast')).toContainText('Pushed to GitHub');
@@ -99,6 +100,7 @@ test.describe('GitHub sync — push', () => {
     await seedSync(page);
     await stubEmptyRemote(page, (b) => { put = b; });
     await loadAppWithState(page, state);
+    await openPulse(page);
 
     await page.locator('[data-action="invGhPush"]').first().click();
     await expect(page.locator('.inv-toast')).toContainText('Pushed to GitHub');
@@ -126,6 +128,7 @@ test.describe('GitHub sync — push', () => {
       await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ content: { sha: 'newsha' } }) });
     });
     await loadAppWithState(page, emptyState());
+    await openPulse(page);
 
     // Each step waits for the app's own dialog (answerAsk) and answers it.
 
@@ -148,6 +151,7 @@ test.describe('GitHub sync — push', () => {
       await route.fulfill({ status: 401, contentType: 'application/json', body: JSON.stringify({ message: 'Bad credentials' }) });
     });
     await loadAppWithState(page, emptyState());
+    await openPulse(page);
 
     await page.locator('[data-action="invGhPush"]').first().click();
     await expect(page.locator('.inv-toast')).toContainText('rejected the token');
@@ -219,6 +223,7 @@ test.describe('GitHub sync — pull', () => {
       await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ sha: 'bigsha', size: 4292782, encoding: 'none', content: '' }) });
     });
     await loadAppWithState(page, emptyState());
+    await openPulse(page);
     await page.locator('[data-action="invGhPush"]').first().click();
     await expect(page.locator('.inv-toast')).toContainText('Pushed to GitHub');
     expect(puts).toBe(1);
@@ -320,6 +325,7 @@ test.describe('GitHub sync — configuration', () => {
 
   test('the home card only appears once sync is configured', async ({ page }) => {
     await loadAppWithState(page, emptyState());
+    await openPulse(page);
     await expect(page.locator('#homeSyncCard [data-card="sync"]')).toHaveCount(0);
 
     await openSettingsAt(page, 'sync');

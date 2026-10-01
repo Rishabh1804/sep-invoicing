@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
-import { emptyState, loadAppWithState, noSeedIM, recentTs, switchTab, todayIso, type SepState } from './fixtures';
+import { emptyState, loadAppWithState, noSeedIM, recentTs, switchTab, todayIso, type SepState, openPulse } from './fixtures';
 
 // P64: finance linked into every screen (docs/FINANCE_INTELLIGENCE_SPEC.md, Phase 6). Each screen carries the
 // figure that belongs to it and a link that lands on the right place in Finance. Dates are built from today;
@@ -48,6 +48,7 @@ const onFinanceTab = async (page: Page, tab: string) => {
 
 test('Home: the Money strip reads the balance, what is owed and the runway, and each opens Finance', async ({ page }) => {
   await loadAppWithState(page, state());
+  await openPulse(page);
   const strip = page.locator('#homeFin');
   await expect(strip.locator('[data-home-fin="Balance"]')).toContainText('₹2,50,000');
   await expect(strip.locator('[data-home-fin="Owed to us"]')).toContainText('₹5,900');
@@ -58,6 +59,7 @@ test('Home: the Money strip reads the balance, what is owed and the runway, and 
 
 test('Home with no statement offers the import, which opens the file picker on Finance → Bank', async ({ page }) => {
   await loadAppWithState(page, state(false));
+  await openPulse(page);
   await expect(page.locator('#homeFin')).toContainText('No bank statement yet');
   const [chooser] = await Promise.all([page.waitForEvent('filechooser'), page.locator('[data-action="invHomeImportBank"]').click()]);
   expect(chooser).toBeTruthy();

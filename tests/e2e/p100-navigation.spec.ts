@@ -14,9 +14,12 @@ const where = (p: Page) => { const u = url(p); return [u.searchParams.get('tab')
 test.describe('P100: navigation on the phone', () => {
   test('each screen and view tab is a step: back and forward walk them, the address follows', async ({ page }) => {
     await loadAppWithState(page, imState());
-    expect(where(page)).toEqual(['pageHome', '']);
+    expect(where(page)).toEqual(['pageHome', 'needs']);
     await expect(page.locator('#navBack')).toBeHidden();
-    await switchTab(page, 'pageIM');
+    // Office is a step of its own (its first view), then Challans in its tab row.
+    await switchTab(page, 'pagePipeline');
+    const office = where(page);
+    await page.locator('#wsTabs [data-tab="pageIM"]').click();
     await expect.poll(() => where(page)).toEqual(['pageIM', 'awaiting']);
     await page.locator('[data-action="invIMTab"][data-tab="invoiced"]').click();
     await expect.poll(() => where(page)[1]).toMatch(/^invoiced\/\d{4}-\d{2}$/);
@@ -25,18 +28,18 @@ test.describe('P100: navigation on the phone', () => {
     await page.goBack();
     await expect(page.locator('[data-action="invIMTab"][data-tab="awaiting"]')).toHaveAttribute('aria-selected', 'true');
     await page.goBack();
-    await expect(page.locator('#pageHome')).toHaveClass(/inv-page-active/);
+    await expect.poll(() => where(page)).toEqual(office);
     await page.goForward();
     await expect(page.locator('#pageIM')).toHaveClass(/inv-page-active/);
     expect(where(page)).toEqual(['pageIM', 'awaiting']);
     // The top bar's arrow is the same step.
     await page.locator('#navBack').click();
-    await expect(page.locator('#pageHome')).toHaveClass(/inv-page-active/);
+    await expect.poll(() => where(page)).toEqual(office);
     // A filter is not a place.
-    await switchTab(page, 'pageIM');
+    await page.locator('#wsTabs [data-tab="pageIM"]').click();
     await page.locator('#imStatusFilter').selectOption('pending');
     await page.goBack();
-    await expect(page.locator('#pageHome')).toHaveClass(/inv-page-active/);
+    await expect.poll(() => where(page)).toEqual(office);
   });
 
   test('an address opens its screen and view, and a reload stays there', async ({ page }) => {

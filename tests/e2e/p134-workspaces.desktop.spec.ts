@@ -91,7 +91,7 @@ test.describe('P134: workspaces on the desktop', () => {
     await expect(page.locator('#topbarCtx')).toHaveText('Create invoice');
   });
 
-  test("search's entries (the bar's field, the sidebar's Search) and Add call their step when it exists, nothing when not", async ({ page }) => {
+  test("search's entries (the bar's field, the sidebar's Search) and Add call their step", async ({ page }) => {
     const errors: string[] = [];
     page.on('pageerror', e => errors.push(e.message));
     await page.setViewportSize({ width: 1280, height: 800 });
@@ -100,11 +100,6 @@ test.describe('P134: workspaces on the desktop', () => {
     await expect(field).toBeVisible();
     await expect(field.locator('.inv-kbd')).toHaveText('Ctrl K');
     await expect(page.locator('.inv-topbar .inv-topbar-btn[data-action="invSearchOpen"]')).toBeHidden();
-    await g(page, `window.addOpen = undefined; window.searchOpen = undefined`);
-    await field.click();
-    await side(page).locator('[data-action="invSearchOpen"]').click();
-    await side(page).locator('[data-action="invAddOpen"]').click();
-    await expect(page.locator('.inv-scrim')).toHaveCount(0);
     await g(page, `window.__calls = []; window.addOpen = function() { __calls.push('add'); }; window.searchOpen = function() { __calls.push('search'); }`);
     await field.click();
     await side(page).locator('[data-action="invSearchOpen"]').click();

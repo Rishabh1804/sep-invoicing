@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
 import { readFileSync } from 'fs';
-import { emptyState, loadAppWithState, noSeedIM, readStoredState, switchTab, todayIso, workingDaysBack, type SepState } from './fixtures';
+import { emptyState, loadAppWithState, noSeedIM, readStoredState, switchTab, todayIso, workingDaysBack, type SepState, openPulse } from './fixtures';
 
 // P40: the To-do tab, its Home card, and the payload the Windows widget draws.
 // Two kinds of task, always labelled: MINE (typed, ticked, never deleted) and
@@ -83,6 +83,7 @@ test.describe('P40: To-do', () => {
     // own jumps nowhere, so no other workspace counts it.
     await expect(page.locator('.inv-navbar [data-ws-count="today"]')).toHaveText('1');
     for (const ws of ['office', 'floor', 'money']) await expect(page.locator(`.inv-navbar [data-ws-count="${ws}"]`)).toBeHidden();
+    await openPulse(page);
     const home = page.locator('#homeTodoCard');
     await expect(home.locator('[data-todo]').first()).toContainText('Check the nitric count');
     await expect(home.locator('[data-todo]').first()).toContainText('Yesterday');
@@ -135,7 +136,7 @@ test.describe('P40: To-do', () => {
     await expect(row).toContainText('Batch spans 10 days');
 
     await row.click();
-    await page.locator('[data-action="invTodoGoApp"]').click();
+    await page.locator('.inv-dialog [data-action="invTodoGoApp"]').click();
     await expect(page.locator('#pageRegister.inv-page-active')).toBeVisible();
     const sel = await g(page, `Object.keys(_regSelected).sort().join(',')`);
     expect(sel).toBe('I2,I3,I4');

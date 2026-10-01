@@ -11,7 +11,7 @@
    envelope endpoint, from the live site only (never a test or a local copy), at most ten a session, each kind once,
    held while offline (twenty at most) and sent when the device is back online. Off per device in Settings → Data &
    device → Backup, storage & build. Nothing is sent until ERR_DSN names the project. */
-var ERR_DSN = '';
+var ERR_DSN = 'https://d617739ea88ba91290fa103fc43334ac@o4511273636855808.ingest.de.sentry.io/4512179552845904';
 var ERR_HOSTS = ['rishabh1804.github.io'];
 var ERR_OFF_KEY = 'sep_inv_err_off';
 var ERR_QUEUE_KEY = 'sep_inv_err_queue';

@@ -18,7 +18,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <!-- Appearance before first paint (§3.2): the device's theme and palette, so nothing flashes in the wrong colours. -->
 <script>(function(){try{var d=document.documentElement,t=localStorage.getItem("sep_inv_theme"),p=localStorage.getItem("sep_inv_palette");if(t==="light"||t==="dark")d.dataset.theme=t;d.dataset.palette=(p==="zinc"||p==="terracotta")?p:"teal";}catch(e){document.documentElement.dataset.palette="teal";}})();</script>
-<meta name="app-build" content="63d2ff18">
+<meta name="app-build" content="013e7eae">
 <style>
 /* ===== DESIGN TOKENS (design system v2.0 — docs/SEP_INVOICING_DESIGN_PRINCIPLES.md §3) ===== */
 /* Theme: colour-scheme decides every light-dark() below. <html data-theme> is set before first paint
@@ -4200,7 +4200,7 @@ function weightMatch(client, onDate, item) {
    envelope endpoint, from the live site only (never a test or a local copy), at most ten a session, each kind once,
    held while offline (twenty at most) and sent when the device is back online. Off per device in Settings → Data &
    device → Backup, storage & build. Nothing is sent until ERR_DSN names the project. */
-var ERR_DSN = '';
+var ERR_DSN = 'https://d617739ea88ba91290fa103fc43334ac@o4511273636855808.ingest.de.sentry.io/4512179552845904';
 var ERR_HOSTS = ['rishabh1804.github.io'];
 var ERR_OFF_KEY = 'sep_inv_err_off';
 var ERR_QUEUE_KEY = 'sep_inv_err_queue';

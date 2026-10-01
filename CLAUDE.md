@@ -1637,11 +1637,14 @@ has to describe it. P143.
 - **What never goes**: a record, a figure, the address's query, a user, breadcrumbs. **There is no Sentry SDK**: its
   breadcrumbs carry request URLs, and the Gemini and metals.dev keys travel in theirs. One POST of an envelope to Sentry's
   endpoint (`text/plain`, so no preflight; the service worker never touches a POST).
-- **From the live site only** (`ERR_HOSTS`), never from a test browser (`navigator.webdriver`) or a local copy; nothing at
-  all until `ERR_DSN` names the project. Each kind of error once a session, at most ten; held on the device while offline
-  (`sep_inv_err_queue`, twenty at most) and sent when it is back online.
+- **From the live site only** (`ERR_HOSTS`), never from a test browser (`navigator.webdriver`) or a local copy. `ERR_DSN`
+  names the project (the owner's, EU region, given 1 Oct 2026; a DSN is a public key, made to sit in the page). Each kind of
+  error once a session, at most ten; held on the device while offline (`sep_inv_err_queue`, twenty at most) and sent when it
+  is back online. Checked at setup: Sentry took a test event (environment `setup-check`) and answers the site's origin with
+  `access-control-allow-origin: *` on a `text/plain` POST, so a browser needs no preflight.
 - **Off per device**: Settings → Data & device → Backup, storage & build (`sep_inv_err_off`, never on the book).
-- **In Sentry**, the project should have *Prevent storing of IP addresses* on (Security & Privacy).
+- **In Sentry**, the project should have *Prevent storing of IP addresses* on, and *Allowed domains* set to
+  `rishabh1804.github.io` so nobody else can post into it with the public key (both under Security & Privacy).
 
 ### Production
 More → **Production** (sidebar Floor → Production; owner, 28 Sep 2026: *"This will give us a clearer picture of what's

@@ -251,10 +251,10 @@ async function ghPush(opts) {
   var silent = opts && opts.silent;
   var cfg = getGhConfig();
   // The guard on and this device not registered (or removed): nothing goes up, and the reason is said (devices.js).
-  var blocked = typeof devSyncBlocked === 'function' ? devSyncBlocked() : '';
-  if (blocked) {
-    ghSetStatus(blocked);
-    if (!silent) showToast(blocked, 'error');
+  var held = typeof devSyncBlocked === 'function' ? devSyncBlocked() : '';
+  if (held) {
+    ghSetStatus(held);
+    if (!silent) showToast(held, 'error');
     return false;
   }
   if (!ghIsConfigured()) {
@@ -343,8 +343,8 @@ async function ghPush(opts) {
 async function ghPull() {
   var cfg = getGhConfig();
   // The guard on and this device not registered (or removed): it views the data by importing a backup (devices.js).
-  var blocked = typeof devSyncBlocked === 'function' ? devSyncBlocked() : '';
-  if (blocked) { ghSetStatus(blocked); showToast(blocked, 'error'); return false; }
+  var held = typeof devSyncBlocked === 'function' ? devSyncBlocked() : '';
+  if (held) { ghSetStatus(held); showToast(held, 'error'); return false; }
   if (!ghIsConfigured()) { showToast('Set the GitHub repo and token in Settings first', 'error'); return false; }
   // Where nothing can be written (a stored copy that cannot be set aside), a pull would only replace the stand-in in memory.
   var blocked = bookStandInBlocker();

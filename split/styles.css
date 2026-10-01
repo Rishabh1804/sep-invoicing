@@ -81,6 +81,7 @@
   --max-w: 32.5rem; --set-card-w: 55rem; --set-nav-w: 12.5rem;
   --dialog-w: 40rem; --dialog-max-h: 90vh; --dialog-max-h-desk: 85vh; --toast-max: 30rem; --busy-w: 17.5rem;
   --tile-min: 10rem; --field-min: 12rem; --search-min: 16rem; --textarea-h: 5rem; --dot: 0.4375rem; --spinner: 2.25rem;
+  --palette-h: 32rem;   /* the search palette's one height on the desktop (search.js) */
 
   /* Density (§3.5): comfortable here, compact below. */
   /* A small control is still a 44px touch target while the density is comfortable (§3.5); only compact shrinks it. */
@@ -1899,3 +1900,16 @@ body.inv-desktop .inv-panels > [data-home-w] { container: home-w / inline-size; 
 @media print {
   .inv-qt-doc { border: none; width: auto; min-height: 0; margin: 0; }
 }
+
+/* ===== SEARCH (search.js; Direction B, step 6) =====
+   The palette is a dialog whose field stays put while its results scroll under it: a full-height sheet on the phone,
+   and on the desktop one height whatever it lists, so the field never moves while typing. A result is a §6.10 row (a
+   button with role=option), its cursor aria-selected as in a suggestion list (§6.16). */
+.inv-dialog-palette { display: flex; flex-direction: column; overflow: hidden; }
+.inv-dialog-palette > .inv-dialog-head, .inv-dialog-palette > .inv-search, .inv-dialog-palette > .inv-keys { flex: 0 0 auto; }
+.inv-dialog-palette > [role="listbox"] { flex: 0 1 auto; min-height: 0; overflow-y: auto; margin: var(--sp-12) 0 0; }
+.inv-dialog-palette > .inv-keys { margin: auto 0 0; padding-top: var(--sp-12); align-items: center; }
+body:not(.inv-desktop) .inv-dialog-palette { height: 100%; max-height: none; border-radius: 0; }
+body.inv-desktop .inv-dialog-palette { height: min(var(--dialog-max-h-desk), var(--palette-h)); }
+/* The top bar's New window button (the place on screen, in another window) is the desktop's: a phone has one window. */
+body:not(.inv-desktop) [data-action="invNewWindow"] { display: none; }

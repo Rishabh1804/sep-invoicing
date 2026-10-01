@@ -392,6 +392,9 @@ export const DIALOGS: Array<[string, string]> = [
   ['ask-alert', `uiAlert({ title: 'Copy the order', body: 'Select the text below and copy it.' })`],
   ['quote-detail', `qtOpen('Q2')`],
   ['quote-draft', `qtOpen('Q1')`],
+  ['search', `searchOpen()`],
+  ['search-results', `searchOpen('alpha')`],
+  ['keys', `srchKeysOpen()`],
   ['more-sheet', `openMoreSheet()`],
 ];
 

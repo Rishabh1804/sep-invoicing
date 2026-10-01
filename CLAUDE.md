@@ -146,9 +146,9 @@ pnpm exec playwright test          # 1,275 tests, both layouts
 
 Some sandboxes ship a Chromium build Playwright does not expect and block downloading
 the matching one. The session hook detects that and sets `PW_CHROMIUM_PATH`, which
-`playwright.config.ts` reads; unset everywhere else. The suite finishes in under a minute
-on a CI runner and takes ~13 minutes in a constrained sandbox — don't read a slow local
-run as a hang.
+`playwright.config.ts` reads; unset everywhere else. The suite takes about 13 minutes on
+a CI runner's two workers (the job allows 30, since the apt step behind Chromium's install has
+taken 5 on its own) and about as long in a constrained sandbox — don't read a slow run as a hang.
 
 **No browser pop-ups: every message has an in-app path** (owner, 27 Sep 2026: *"make sure in case of browser
 pop-up failure there is another way that the message or error gets relayed - in all places in our app"*). Never

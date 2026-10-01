@@ -34,7 +34,7 @@ Workforce management and invoicing PWA for **Soma Electro Products**, a zinc ele
 
 ## Architecture
 
-Split-file PWA. 57 modules, ~30,900 lines total.
+Split-file PWA. 59 modules, ~32,400 lines total.
 
 ```
 split/
@@ -60,6 +60,7 @@ split/
 ├── print.js           ← formatInvoiceData + print preview (224 lines)
 ├── quality-cert.js    ← Test Certificate (ZN Plating): approved format + per-line certs (380 lines)
 ├── credit-note.js     ← Credit notes: batch discount, own series, CDNR export (557 lines)
+├── quote.js           ← Quotations: Clients → Quotations, a number at issue, revisions, the printed quotation (~790 lines)
 ├── charts.js          ← Reusable SVG charts: line, bar, pie, ranked bars (243 lines)
 ├── staff.js           ← Roster + attendance + roster import: day, week, extra hours (1,013 lines)
 ├── labour.js          ← Labour: three pay tiers, fixed/variable, by area, ₹/kg (449 lines)
@@ -86,6 +87,7 @@ split/
 ├── production.js      ← Production store; derived index (which figure counts, usual line, matches, racks); in plant; rules; export (~580 lines)
 ├── prodview.js        ← Production page: Overview, In plant, Lines, Entries; paste, photo and hand sub-views (~750 lines)
 ├── power.js           ← Power: cuts and what each costs, the connection's load and bills, the printable case for backup (~560 lines)
+├── report.js          ← Reports: daily, weekly, monthly, quarterly, yearly; one document drawn live and printed (~650 lines)
 ├── client-perf.js     ← Client performance: month on month + material cadence (314 lines)
 ├── im-form.js         ← IM add/edit/delete challan form (450 lines)
 ├── im-dupe.js         ← IM duplicate guard: fingerprint + pre-save warn + scan (305 lines)
@@ -98,7 +100,7 @@ split/
 └── init.js            ← Migrations + app bootstrap (567 lines)
 ```
 
-**Concat order defined in build.sh.** Dependencies: data → state → appearance → zinc → tabs → clients → items → create → settings → github-sync → invoice-ops → number-audit → exports → im → autocomplete → print → quality-cert → credit-note → charts → staff → labour → areas → payroll → stock → cost → bills → xls → xlsx → bank → finance → todo → relay → attsheet → stocksheet → prodparse → stats → intel → insights → finintel → finlinks → dash → production → prodview → power → client-perf → im-form → im-dupe → vision → scanner → events → swipe → nav → seed → init.
+**Concat order defined in build.sh.** Dependencies: data → state → appearance → zinc → tabs → clients → items → create → settings → github-sync → invoice-ops → number-audit → exports → im → autocomplete → print → quality-cert → credit-note → quote → charts → staff → labour → areas → payroll → stock → cost → bills → xls → xlsx → bank → finance → todo → relay → attsheet → stocksheet → prodparse → stats → intel → insights → finintel → finlinks → dash → production → prodview → power → report → client-perf → im-form → im-dupe → vision → scanner → events → swipe → nav → seed → init.
 
 **Every module shares one global scope.** A top-level `var` or `function` in a later module silently replaces one of
 the same name in an earlier one; nothing warns. `bills.js` shipped a `STOCK_UNITS` array over `stock.js`'s unit map
@@ -338,7 +340,7 @@ filter on; a literal date in a fixture is a time bomb, not a constant.
 |----|------|
 | HR-1 | No inline styles. CSS classes + design tokens. |
 | HR-2 | No inline onclick. data-action delegation only. |
-| HR-3 | inv- CSS prefix on every class. 467 classes, all of them (distinct class selectors in `split/styles.css`, comments stripped, 29 Sep 2026: the eighteen `inv-as-*` of the attendance and stock sheets added, then `inv-topbar-back` and `inv-topbar-trail`, then `inv-fig-ok/warning/danger`: 462; 30 Sep 2026, the QA sweep: `inv-pi-cancelled`, `inv-cn-cancelled`: 464; the power case's `inv-pc-sec`, `inv-pc-p`: 466; Staff → Day's `inv-board`: 467; the second QA chain added `inv-row-end-stack` and deleted `inv-row-fields`: 467); P76 asserts every class the app draws is one of them or a named hook. |
+| HR-3 | inv- CSS prefix on every class. 516 classes, all of them (distinct class selectors in `split/styles.css`, comments stripped, 29 Sep 2026: the eighteen `inv-as-*` of the attendance and stock sheets added, then `inv-topbar-back` and `inv-topbar-trail`, then `inv-fig-ok/warning/danger`: 462; 30 Sep 2026, the QA sweep: `inv-pi-cancelled`, `inv-cn-cancelled`: 464; the power case's `inv-pc-sec`, `inv-pc-p`: 466; Staff → Day's `inv-board`: 467; the second QA chain added `inv-row-end-stack` and deleted `inv-row-fields`: 467; 1 Oct 2026, the printed quotation's 23 `inv-qt-*` and the report's 26 `inv-rpt-*`: 516); P76 asserts every class the app draws is one of them or a named hook. |
 | HR-4 | No emojis. Inline SVGs in HTML template. |
 | HR-5 | escHtml() on all user-data innerHTML. |
 | HR-6 | CSS design tokens only. No raw px/rem/hex/timing. |
@@ -1773,6 +1775,59 @@ reads a photo. **Owned by `soma-internal`, like stock** (owner): a view and an i
     plating of a part with its line, time and crew beside its challans and invoices.
 - **The workers' names box on a register photo goes to Google with the page** (Settings → Connections → Photo reading
   says so); only what is read is kept.
+
+### Quotations
+Clients → **Quotations** (`quote.js`; owner, 1 Oct 2026: *"a quotation generator as well … I think we have the template for that
+in our Soma internal repo"*). Built to the rules of soma-internal's quotation register (`operations/quotations/README.md`) and in the
+layout of its issued quotations; both are read-only references, and nothing of them is in this repo. P131.
+- **A draft holds no number.** Its face says DRAFT and its number reads *Draft*: the register's duplicate `001` came from drafts that
+  printed one. **Issue** takes `SEP/QTN/<FY>/NNN` (the token from `S.invPrefix`, the year from the quotation's own date, `qtFyOf`), the
+  highest taken in that year + 1, voids and superseded counted: a number is never reused.
+- **An issued quotation is never edited.** *Revise* (a reason, required) copies it as a draft under the same number with Rev N
+  (`…/005 Rev 1`); issuing the revision marks the old one `superseded` (`supersededBy`). A price after negotiation is a revision too.
+  *Void* (issued, never sent; a reason, required) keeps the number spent. *Accepted* / *Declined* record the answer. Only a draft is deleted.
+- **Two live prices for one item let a counterparty anchor at the lower** (the register's rule): issuing while another live quotation
+  names the same client or registered name and the same item asks whether to supersede it (`qtRivals`).
+- **On acceptance the rate is offered to the client's record, never written unasked** (`qtPostPlan`, `qtPostRates`; the confirm says
+  exactly what will be written): a weight-billed or nos_to_weight client gets an `itemRates` row (unit piece or kg), **never a billingMode
+  change** (the register's "itemRates, never billingMode"); a piece client a dated `pieceRates` entry; a kg rate for a piece client, or a
+  line with no part number, is named *set by hand*. The line is stamped `postedAt` / `postedTo`. `getRateOnRecord` now reads an
+  itemRates row's `unit: 'kg'` as per kg (every override was read as per piece).
+- **Terms are generated from the form's options** (`qtTermsFor`): billing basis, transport (excluded, included with the minimum
+  consignment, or loading at our works), GST and SAC, defects, the material's condition, liability, payment, rate specific to the items,
+  the reference weight (only on a piece line with one), the lot size (only when set), validity. They follow the options until a term is
+  edited; *Reset to the standard terms* regenerates.
+- **The printed quotation** (`qtDocHtml`, `qtPrint` through the one print view) reads S.company; signatory, title and foot note are
+  Settings → Business → Quotations (`S.qtnCfg`), which also shows the next number per year. Its own pt tokens (`.inv-qt-doc`), `@page`
+  margin 0, the terms' tail and the signature one unbreakable box: **one A4 page** for three lines and eleven terms (soma-internal's
+  003 first rendered with its signature alone on page 2). A typed recipient carries the reminder that the registered name is checked
+  against the recipient's own paper.
+- A client's detail lists its quotations; History logs issued, revised, superseded, voided, accepted and declined.
+- **Left open:** a per-kg quotation for "all components" (no part number) is not posted to the ₹/kg ladder; it says to set it by hand.
+
+### Reports
+Review → **Reports** (sidebar, after Stats) and More → Reports (`report.js`; owner, 1 Oct 2026: *"a daily weekly and a monthly
+quarterly yearly report generator"*). Shaped on soma-internal's hand-compiled daily, weekly and monthly reports (`reports/`); a
+quarterly and a yearly follow the monthly's shape. P132.
+- **Kinds and periods**: Daily · Weekly · Monthly · Quarterly · Yearly; a day, the pay week Sun–Sat numbered by its Saturday's ISO week,
+  a month, a quarter of the financial year (Q1 Apr–Jun), a financial year. ‹ › steppers (never past the current period), a picker, Now,
+  and **Print** the one primary. A period not yet ended reads *to date* and stops at today. Kept per device (`sep_inv_report`); the
+  address is `?tab=pageReports&v=<kind>/<first day>`. Stats → Overview → *Make a report* opens it on the same period.
+- **One document, drawn from the data every time** — the Power case's contract: `rptHtml(kind, from, to)` is the page and the print
+  (`rptPrint`), and a save in another window redraws both.
+- **Sections by kind**: headline tiles with a change line against the period before of the same length (same days while one runs);
+  by line (daily), by day (weekly), by pay week (monthly), by month (quarterly, yearly); clients, with contribution worst first from a
+  month; production by line; staff (areas against the day's number, the week's payout, labour fixed and variable); cost and margin
+  (from a month); money (from a week); stock; power; the day's invoices and challans (daily); open red and amber To-do items (current
+  period only — a past report never invents them); sources.
+- **No second arithmetic**: every figure is read from the function its screen uses (`statsInvoices`, net of credit notes and said;
+  `weighLines`, `liveCost`, `statsClientMargins`, `labourForRange` with ₹/kg withheld under 90% of days, `payForecast`, `areaStats`,
+  `prodPlatedSummary` on complete days, `powerAnalysis`, `stockStatus`, `finAgeing`, `finGstByMonth`, `finForecast`, `todoRanked`).
+  **Empty is said, never a zero**: a dash with its reason, or one line for a period with nothing recorded.
+- **Paper**: its own pt tokens (`.inv-rpt-doc`), paper colours in dark mode too; in print the frame table's repeating head and foot rows
+  are the top and bottom gutters (the invoice's frame), `@page` margin 0; rows never split, a section head never ends a page. The frame
+  is `table-layout: fixed` (a scroller inside it had widened the phone's page by 116px).
+- Owed by age and the forecast's low appear only on the current period's report: they are read as of today.
 
 ### Power
 More → **Power** (sidebar Floor → Power; `power.js`; owner, 30 Sep 2026: *"Make a power cut tab, we have built a business

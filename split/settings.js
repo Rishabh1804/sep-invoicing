@@ -146,13 +146,17 @@ var SETTINGS_SECS = {
           _sfg('Title', 'setQtTitle', '<input class="inv-input" id="setQtTitle" value="' + escHtml(c.signTitle) + '" placeholder="Director" autocomplete="off">')) +
         _sfg('Foot note', 'setQtFoot', '<textarea class="inv-textarea" id="setQtFoot" rows="2" placeholder="Factory licence, bank">' + escHtml(c.footNote) + '</textarea>',
           'Printed at the foot of every quotation, beside the signature.') +
+        _sfg('Last number issued outside the app, ' + escHtml(cur), 'setQtOutside', _sNum('setQtOutside', c.outside[cur] || '', 1, 0),
+          'The quotations already issued on paper this year. The app issues from the number after it, so none is used twice.') +
         '<div class="inv-field"><span class="inv-field-label">Next number, by financial year</span>' + Object.keys(fys).sort().reverse().map(function(fy) {
           return '<div class="inv-field-hint"><span class="inv-id" data-qt-next="' + escHtml(fy) + '">' + escHtml(qtDisplay(fy, qtNextNum(fy), 0)) + '</span></div>';
         }).join('') + '</div>';
     },
     why: 'A quotation takes its number only when it is issued, the next of the financial year its date falls in; a draft holds none, and a number is never used twice (voids and superseded ones included). The company on its face is read from Company, above.',
     save: function() {
-      S.qtnCfg = { signatory: _sVal('setQtSign').trim(), signTitle: _sVal('setQtTitle').trim(), footNote: _sVal('setQtFoot').trim() };
+      var outside = Object.assign({}, qtCfg().outside), n = parseInt(_sVal('setQtOutside'), 10), cur = qtFyOf(localDateStr());
+      if (n > 0) outside[cur] = n; else delete outside[cur];
+      S.qtnCfg = { signatory: _sVal('setQtSign').trim(), signTitle: _sVal('setQtTitle').trim(), footNote: _sVal('setQtFoot').trim(), outside: outside };
     }
   },
   rateCheck: {

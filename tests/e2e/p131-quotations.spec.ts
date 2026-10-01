@@ -234,8 +234,11 @@ test.describe('P131: quotations', () => {
     await page.locator('#setQtSign').fill('A. Kumar');
     await page.locator('#setQtTitle').fill('Partner');
     await page.locator('#setQtFoot').fill('Factory licence TEST/1');
+    // Five already issued on paper this year: the app's first is 006, never 001 again.
+    await page.locator('#setQtOutside').fill('5');
     await page.locator('[data-action="invSaveSettingsSec"][data-sec="quotes"]').click();
-    expect(await g(page, 'JSON.stringify(S.qtnCfg)')).toBe(JSON.stringify({ signatory: 'A. Kumar', signTitle: 'Partner', footNote: 'Factory licence TEST/1' }));
+    expect(await g(page, 'JSON.stringify(S.qtnCfg)')).toBe(JSON.stringify({ signatory: 'A. Kumar', signTitle: 'Partner', footNote: 'Factory licence TEST/1', outside: { [FY]: 5 } }));
+    expect(await g(page, `qtDisplay('${FY}', qtNextNum('${FY}'), 0)`)).toBe(`SEP/QTN/${FY}/006`);
     await g(page, `closeSettings(); S.quotations.push(${JSON.stringify(draft('A'))}); qtPrint('A')`);
     await expect(page.locator('.inv-print-view-active .inv-qt-line')).toHaveText('A. Kumar — Partner');
     await expect(page.locator('.inv-print-view-active .inv-qt-foot')).toHaveText('Factory licence TEST/1');

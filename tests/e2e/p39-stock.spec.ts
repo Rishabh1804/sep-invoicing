@@ -237,8 +237,10 @@ test.describe('P39: stock', () => {
     await chem.locator('summary').click();
     await expect(chem.locator('.inv-row-children')).toContainText('Q558');
     await expect(chem.locator('.inv-row-children')).toContainText('5 kg used, no price');
-    // The days before the stock record began are filled at the model, and say so.
-    await expect(chem.locator('.inv-row-children')).toContainText('Not recorded');
+    // The days before the stock record began are filled at the model, and say so. On the 1st the month to date is
+    // today alone, which the record covers, so there is nothing to fill.
+    if (t.slice(8) !== '01') await expect(chem.locator('.inv-row-children')).toContainText('Not recorded');
+    else await expect(chem.locator('.inv-row-children')).not.toContainText('Not recorded');
   });
 
   test('More holds To-do, Finance, Production, Power, Stock, Staff, Stats, Reports and History, and lights up while one is open', async ({ page }) => {

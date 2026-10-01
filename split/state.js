@@ -22,7 +22,7 @@ function getDefaultState() {
     cnNextNum: 6,
     // Quotations (quote.js): a draft holds no number; issue takes the next of its financial year's series.
     quotations: [],
-    qtnCfg: { signatory: '', signTitle: '', footNote: '' },
+    qtnCfg: { signatory: '', signTitle: '', footNote: '', outside: {} },
     // Reconciliation exceptions. A disagreement the extra-check raised and a
     // human then examined becomes a RECORD carrying a required reason — the
     // same treatment `voidedNumbers` gives a number gap and `dupeAck` gives an

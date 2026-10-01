@@ -48,7 +48,9 @@ test('Power → Cuts: a cut is one line that opens to its damage, the newest mon
   const attendance: any = {};
   for (const c of entries) attendance[c.date] = { marks: { 1: { st: 'P', area: 'vat-a1', hours: 8, ot: 0 } }, extra: [], note: '' };
   await loadAppWithState(page, book({ production: { entries, pastes: [], photos: [], imports: [], learn: { clients: {}, parts: {} } }, attendance,
-    costBills: [{ id: 'B1', kind: 'power', month: d.slice(0, 7), amount: 50000, fixed: 3000, at: 1 }] }));
+    costBills: [{ id: 'B1', kind: 'power', month: d.slice(0, 7), amount: 50000, fixed: 3000, at: 1 },
+      // a bill for this month too: the first row is this month's, and on the 1st three working days back is last month
+      ...(d.slice(0, 7) === nowMonth ? [] : [{ id: 'B2', kind: 'power', month: nowMonth, amount: 50000, fixed: 3000, at: 1 }])] }));
   await switchTab(page, 'pagePower');
   await page.locator('[data-action="invPowerTab"][data-tab="cuts"]').click();
   const cur = page.locator(`[data-power-month="${nowMonth}"]`), prev = page.locator(`[data-power-month="${oldMonth}"]`);

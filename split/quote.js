@@ -40,7 +40,7 @@ function getQuotations() {
 }
 function qtCfg() {
   var c = S.qtnCfg || (S.qtnCfg = {});
-  return { signatory: c.signatory || '', signTitle: c.signTitle || '', footNote: c.footNote || '' };
+  return { signatory: c.signatory || '', signTitle: c.signTitle || '', footNote: c.footNote || '', outside: c.outside && typeof c.outside === 'object' ? c.outside : {} };
 }
 function qtFind(id) { return getQuotations().find(function(q) { return q.id === id; }) || null; }
 function qtUid() { return 'QT-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 7); }
@@ -67,9 +67,11 @@ function qtDisplay(fy, num, rev) {
 }
 /* "Draft" until issued: a draft holds no number. A revision carries its number from the start. */
 function qtNumberText(q) { return q && q.num ? (q.displayNumber || qtDisplay(q.fy, q.num, q.rev)) : 'Draft'; }
-/* The highest number taken in a year's series, by anything: issued, revised, superseded, void. */
+/* The highest number taken in a year's series, by anything: issued, revised, superseded, void — and by the quotations
+   issued by hand before the app issued any (`qtnCfg.outside[fy]`, set in Settings): 2026-27 had five on paper, and the
+   app's first would otherwise have been 001 again. */
 function qtSeriesHighest(fy) {
-  var hi = 0;
+  var hi = Math.max(0, parseInt(qtCfg().outside[fy], 10) || 0);
   getQuotations().forEach(function(q) { if (q.fy === fy && q.num > hi) hi = q.num; });
   return hi;
 }

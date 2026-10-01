@@ -192,7 +192,8 @@ test('P22: the view is scoped to one client and switches between them', async ({
 });
 
 test('P22: month on month can be read as revenue, tonnage or realisation', async ({ page }) => {
-  const invoices = [70, 40, 10].map((d) => invoice('P', d));
+  // The last one is dated today, so the month the tile reads always holds one (on the 1st, 10 days back was last month).
+  const invoices = [70, 40, 0].map((d) => invoice('P', d));
   await loadAppWithState(page, perfState(invoices));
   await openPerf(page);
 

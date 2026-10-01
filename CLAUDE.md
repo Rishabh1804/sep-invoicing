@@ -2576,7 +2576,8 @@ on screen, three documents through the one print view, each page one A4 sheet (P
   on WhatsApp at · Handed to Deepak at*. **Blank lines only** (owner): he writes names as he does on WhatsApp.
 - **Deepak's sheet** is the Day entry on paper: the active roster in the Day view's order (`staffActive`), tier, P / H / A,
   area, in, out, hours, OT, three rows for anyone not on it, the EXTRA table (area, from, to, crew, hours), and *Filled by
-  Shyam · Checked by Deepak · Entered in the app by / on*.
+  Shyam · Checked by Deepak · Entered in the app by / on* Every column has a fixed width (`data-as-entry`): In and Out 16 mm each, room for
+  a time by hand (owner, 1 Oct 2026: *"In time Out time hardly has any space"*; the four shift areas had squeezed them to 7 and 10 mm).
 - **The filled copy** is Deepak's form carrying what the app holds for the day (a worker marked that day who has since left
   the roster included), to staple behind the two. It cannot be picked for a day with nothing entered.
 Shyam writes, Deepak transcribes into the app's shape, the owner enters it and files all three: the paper checks the entry.

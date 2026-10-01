@@ -2,6 +2,7 @@
 const PAGE_TITLES = {
   pageHome: 'Home', pageCreate: 'Create invoice', pageIM: 'Challans', pageRegister: 'Register',
   pageClients: 'Clients', pageFinance: 'Finance', pageTodo: 'To-do', pageProduction: 'Production', pagePower: 'Power', pageStock: 'Stock', pageStaff: 'Staff',
+  pageFloor: 'Day',
   pageStats: 'Stats', pageReports: 'Reports', pageHistory: 'History'
 };
 
@@ -132,6 +133,8 @@ function tabRender(tabId, isDirty) {
     renderProduction();
   } else if (tabId === 'pagePower') {
     renderPower();
+  } else if (tabId === 'pageFloor') {
+    renderFloor();
   } else if (tabId === 'pageStock') {
     renderStock();
   } else if (tabId === 'pageTodo') {

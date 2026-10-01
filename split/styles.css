@@ -1899,3 +1899,46 @@ body.inv-desktop .inv-panels > [data-home-w] { container: home-w / inline-size; 
 @media print {
   .inv-qt-doc { border: none; width: auto; min-height: 0; margin: 0; }
 }
+
+/* ===== THE GUARD (guard.js): the lock, who is signed in, the recovery code =====
+   The lock is a layer over every other (--z-lock, above the print view and the toasts), opaque so no figure shows through;
+   while it is down the shell under it is hidden and inert (body.inv-locked), so nothing there takes a tap or a key. It is
+   never a page: nothing under it is drawn again or lost. */
+:root { --z-lock: 600; }
+body.inv-locked > :not(#guardRoot) { visibility: hidden; }
+.inv-guard {
+  position: fixed; inset: 0; z-index: var(--z-lock); display: flex; padding: var(--sp-16);
+  overflow-y: auto; overscroll-behavior: contain; background: var(--bg); color: var(--text-1);
+}
+.inv-guard-card {
+  width: 100%; max-width: var(--max-w); margin: auto; padding: var(--sp-20);
+  background: var(--surface); border: var(--hair) solid var(--border); border-radius: var(--r-xl);
+}
+.inv-guard-brand { display: flex; align-items: center; gap: var(--sp-8); margin-bottom: var(--sp-16); font-size: var(--fs-14); font-weight: 600; color: var(--text-2); }
+.inv-guard-brand .inv-side-mark { width: var(--sp-32); height: var(--sp-32); }
+.inv-guard-title { font-size: var(--fs-19); font-weight: 600; line-height: 1.3; margin-bottom: var(--sp-12); }
+/* Rows on their container's own padding (the lock's users, Settings' users, the user's menu), ruled off above. */
+.inv-guard-rows { border-top: var(--hair) solid var(--border); margin-bottom: var(--sp-12); }
+.inv-guard-rows > .inv-row { padding-left: 0; padding-right: 0; }
+/* The user chosen on the lock is a selection (§5.5): the soft accent, its name in the accent's text. */
+.inv-guard-rows > [role="radio"] { padding-left: var(--sp-8); padding-right: var(--sp-8); border-radius: var(--r-md); }
+.inv-guard-rows > [role="radio"][aria-checked="true"] { background: var(--accent-soft); }
+.inv-guard-rows > [role="radio"][aria-checked="true"] .inv-row-title { color: var(--accent-soft-text); font-weight: 600; }
+/* Who is signed in: their initials in a round mark, the whole button a touch target, on both layouts. */
+.inv-guard-user {
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0; width: var(--touch); height: var(--touch);
+  border: none; background: none; border-radius: var(--r-full); cursor: pointer;
+}
+.inv-guard-user[hidden] { display: none; }
+.inv-guard-user::before {
+  content: attr(data-initials); display: flex; align-items: center; justify-content: center; width: var(--sp-32); height: var(--sp-32);
+  border-radius: var(--r-full); background: var(--accent-soft); color: var(--accent-soft-text); font-size: var(--fs-12); font-weight: 600;
+}
+.inv-guard-user:hover::before { background: var(--surface-3); color: var(--text-1); }
+/* The recovery code, shown once: large, mono, and taken whole by one tap. */
+.inv-guard-code {
+  padding: var(--sp-12); border-radius: var(--r-lg); background: var(--surface-2); text-align: center;
+  font-family: var(--ff-mono); font-size: var(--fs-22); font-weight: 600; user-select: all; overflow-wrap: anywhere;
+}
+/* A door this ID may not open (grdApplyDoors): gone from the bars, the sidebar, the More sheet and Home. */
+[data-grd-off] { display: none !important; }

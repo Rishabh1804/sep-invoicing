@@ -835,6 +835,8 @@ function bootApp() {
   bootStep('the demo challans', seedIncomingMaterial);
   bootStep('the first-run records', runBootstrapSeeds);
   bootStep('bringing the book up to date', migrateState);
+  // The guard (guard.js): a window with no session, or away past the lock's minutes, opens on the lock.
+  bootStep('the lock', function() { if (typeof grdBoot === 'function') grdBoot(); });
 
   // Initial layout detection (no debounce)
   bootStep('the layout', updateLayoutMode);

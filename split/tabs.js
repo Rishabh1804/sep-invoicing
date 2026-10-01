@@ -14,6 +14,9 @@ function isPageId(id) {
 
 function switchTab(tabId) {
   if (!isPageId(tabId)) tabId = 'pageHome';
+  // The guard (guard.js): a page this ID may not open is refused with a word, and Home opens instead.
+  var refused = typeof grdSees === 'function' && !grdSees(tabId) ? tabId : null;
+  if (refused) tabId = 'pageHome';
   // Step 1: Dismiss toasts and close overlays
   document.querySelectorAll('.inv-toast').forEach(t => t.remove());
   closeOverlay();
@@ -95,6 +98,7 @@ function switchTab(tabId) {
   // opened whose first control was a search (the QA sweep, 29 Sep 2026).
   if (targetPage) focusFirstInteractive(targetPage, { noText: touchScreen() });
   navArrived();
+  if (refused) showToast('Your ID doesn’t open ' + (PAGE_TITLES[refused] || 'that screen'), 'warning');
 }
 
 /* Draws one page from S (switchTab's step 6). Also what another window's save redraws, in place (tabRedrawActive). */

@@ -2,13 +2,13 @@ import { test, expect } from '@playwright/test';
 import { loadAppWithState, switchTab } from './fixtures';
 import { sweepState } from './sweep-fixture';
 
-// P132, desktop: Reports sits in the sidebar's Review group after Stats, and the report is shown as a sheet.
+// P132, desktop: Reports sits in the sidebar under Insights, after Stats, and the report is shown as a sheet.
 
 test('Reports is in the sidebar after Stats, and the report is an A4-wide sheet', async ({ page }) => {
   await loadAppWithState(page, sweepState());
   const review = page.locator('#invSidebar .inv-side-item .inv-side-label');
   const labels = await review.allInnerTexts();
-  expect(labels.slice(labels.indexOf('To-do'), labels.indexOf('History') + 1)).toEqual(['To-do', 'Stats', 'Reports', 'History']);
+  expect(labels.slice(labels.indexOf('Insights'), labels.indexOf('History') + 1)).toEqual(['Insights', 'Stats', 'Reports', 'History']);
   await switchTab(page, 'pageReports');
   const docEl = page.locator('#rptSheet [data-rpt-doc]');
   await expect(docEl.locator('.inv-rpt-title')).toContainText('Monthly report');

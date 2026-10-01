@@ -479,6 +479,8 @@ function grdSignIn(u) {
 function grdAfterUser() {
   var u = grdUser(), prev = _grdDrawnFor;
   grdUserBtnDraw();
+  // The shell's doors are the role's views (workspace.js); then any door left over is marked.
+  if (typeof wsRedraw === 'function') wsRedraw();
   grdApplyDoors();
   if (!u) return;
   _grdDrawnFor = u.id;
@@ -583,15 +585,26 @@ function grdMenuOpen() {
 }
 
 /* ---------- What a role opens: its doors ---------- */
-/* The bars, the sidebar, the More sheet and Home's quick actions show only the pages this role opens; the integrator calls
-   this from the new shell too. A door hidden here is refused anyway (switchTab), so a door missed is a word, not a hole. */
+/* The bar, the sidebar, the workspace tabs, Add's forms and Home's quick actions show only the pages this role opens (G3:
+   the shell draws a workspace's views from what the role sees, workspace.js wsViewsPresent, and a workspace with none
+   loses its door). A door hidden here is refused anyway (switchTab), so a door missed is a word, not a hole. */
 var GRD_QUICK_PAGE = { challan: 'pageIM', stock: 'pageStock', attendance: 'pageStaff', paste: 'pageStaff', task: 'pageTodo' };
+// Add → By hand: the screen each form is on (add.js ADD_HAND); a payment is Staff → Pay, so it needs the wages too.
+var GRD_ADD_PAGE = { challan: 'pageIM', invoice: 'pageCreate', quote: 'pageClients', stock: 'pageStock', production: 'pageProduction',
+  power: 'pagePower', attendance: 'pageStaff', payment: 'pageStaff', bill: 'pageFinance', task: 'pageTodo' };
 function grdApplyDoors() {
   document.querySelectorAll('[data-grd-off]').forEach(function(el) { el.removeAttribute('data-grd-off'); });
   if (!grdOn() || !grdUser()) return;
   var off = function(el) { el.setAttribute('data-grd-off', ''); };
-  document.querySelectorAll('.inv-navbar [data-tab], #invSidebar [data-tab], #moreSheet [data-tab]').forEach(function(el) {
+  document.querySelectorAll('.inv-navbar [data-tab], #invSidebar [data-tab], #wsTabs [data-tab]').forEach(function(el) {
     if (!grdSees(el.dataset.tab) || (el.dataset.sub === 'pay' && !grdSeesWages())) off(el);
+  });
+  document.querySelectorAll('.inv-navbar [data-ws], #invSidebar [data-ws]').forEach(function(el) {
+    if (typeof wsViewsPresent === 'function' && !wsViewsPresent(el.dataset.ws).length) off(el);
+  });
+  document.querySelectorAll('[data-add-sheet] [data-action="invAddHand"][data-go]').forEach(function(el) {
+    var to = GRD_ADD_PAGE[el.dataset.go];
+    if ((to && !grdSees(to)) || (el.dataset.go === 'payment' && !grdSeesWages())) off(el);
   });
   document.querySelectorAll('#pageHome [data-action="invHomeQuick"][data-go], #pageHome [data-action="invCreateNew"]').forEach(function(el) {
     var to = el.dataset.action === 'invCreateNew' ? 'pageCreate' : GRD_QUICK_PAGE[el.dataset.go];

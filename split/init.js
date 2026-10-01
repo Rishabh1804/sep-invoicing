@@ -679,110 +679,7 @@ function _applyModeSwitch(newDesktop, newTablet) {
   switchTab(regFilter.activeTab || 'pageHome');
 }
 
-/* Desktop sidebar (design system §4.2): labelled, grouped, always expanded. Items and Pay open their
-   parent tab on that sub-view, so an entry carries data-sub as well as data-tab. */
-var SIDE_ICONS = {
-  home: '<path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/>',
-  create: '<path d="M14 3H6a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8zM14 3v5h5M12 11v6M9 14h6"/>',
-  im: '<path d="M12 2.5 20.5 7.3v9.4L12 21.5l-8.5-4.8V7.3z"/>',
-  register: '<path d="M14 3H6a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8zM14 3v5h5M9 13h6M9 17h6"/>',
-  clients: '<path d="M16 20v-1.5a3.5 3.5 0 0 0-3.5-3.5h-5A3.5 3.5 0 0 0 4 18.5V20M10 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7M20 20v-1.5a3.5 3.5 0 0 0-2.5-3.35M15.5 4.2a3.5 3.5 0 0 1 0 6.6"/>',
-  items: '<path d="M4 7h16M4 12h16M4 17h10"/>',
-  production: '<path d="M3 20h18M5 20V10l4 3V10l4 3V6l6 4v10M8 16h1M12 16h1M16 16h1"/>',
-  stock: '<path d="M9 3h6M10 3v6L4.5 19a1.3 1.3 0 0 0 1.1 2h12.8a1.3 1.3 0 0 0 1.1-2L14 9V3M7.5 14h9"/>',
-  staff: '<path d="M15 20v-1.5a3.5 3.5 0 0 0-3.5-3.5h-5A3.5 3.5 0 0 0 3 18.5V20M9 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7M16 11l2 2 4-4"/>',
-  pay: '<path d="M3 7h18v10H3zM12 14.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5"/>',
-  finance: '<path d="M4 21h16M5 10h14M12 3 4 7h16zM7 10v8M12 10v8M17 10v8"/>',
-  todo: '<path d="M9 11l3 3 8-8M20 12v7a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h11"/>',
-  stats: '<path d="M4 20V11M10 20V5M16 20v-6M3 20h18"/>',
-  power: '<path d="M13 2 4 14h7l-1 8 9-12h-7z"/>',
-  history: '<path d="M12 7v5l3 2M3.5 12a8.5 8.5 0 1 0 2.5-6M3 4v4h4"/>',
-  reports: '<path d="M14 3H6a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8zM14 3v5h5M9 17v-3M12 17v-6M15 17v-2"/>',
-  settings: '<path d="M4 6h9M17 6h3M4 12h3M11 12h9M4 18h11M19 18h1M15 4v4M9 10v4M17 16v4"/>'
-};
-var SIDE_NAV = [
-  ['Daily', [['pageHome', 'Home', 'home'], ['pageCreate', 'Create invoice', 'create'], ['pageIM', 'Challans', 'im'], ['pageRegister', 'Register', 'register']]],
-  ['Book', [['pageClients', 'Clients', 'clients'], ['pageClients', 'Items', 'items', 'items']]],
-  ['Money', [['pageFinance', 'Finance', 'finance']]],
-  ['Floor', [['pageProduction', 'Production', 'production'], ['pagePower', 'Power', 'power'], ['pageStock', 'Stock', 'stock'], ['pageStaff', 'Staff', 'staff'], ['pageStaff', 'Pay', 'pay', 'pay']]],
-  ['Review', [['pageTodo', 'To-do', 'todo'], ['pageStats', 'Stats', 'stats'], ['pageReports', 'Reports', 'reports'], ['pageHistory', 'History', 'history']]]
-];
-function _sideSvg(k) { return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + SIDE_ICONS[k] + '</svg>'; }
-
-function renderSidebar() {
-  var existing = document.getElementById('invSidebar');
-  if (existing) existing.remove();
-  if (!_isDesktop) return;
-  var html = '<div class="inv-side-brand"><svg class="inv-side-mark" viewBox="0 0 512 512" aria-hidden="true"><rect width="512" height="512" rx="96"/>' +
-    '<polygon points="256,106 385.9,181 385.9,331 256,406 126.1,331 126.1,181"/><polygon points="256,160 339.1,208 339.1,304 256,352 172.9,304 172.9,208"/><circle cx="256" cy="256" r="38"/></svg>' +
-    '<span>Soma Electro</span></div>';
-  SIDE_NAV.forEach(function(g) {
-    html += '<div class="inv-side-group">' + g[0] + '</div>';
-    g[1].forEach(function(it) {
-      html += '<button class="inv-side-item" data-action="' + (SIDE_SUB_DEFAULT[it[0]] ? 'invSideGo' : 'invSwitchTab') + '" data-tab="' + it[0] + '"' +
-        (it[3] ? ' data-sub="' + it[3] + '"' : '') + '>' + _sideSvg(it[2]) +
-        '<span class="inv-side-label">' + it[1] + '</span><span class="inv-side-count" data-count="' + it[0] + (it[3] ? '-' + it[3] : '') + '"></span></button>';
-    });
-  });
-  html += '<div class="inv-side-spacer"></div><button class="inv-side-item" data-action="invOpenSettings">' + _sideSvg('settings') + '<span class="inv-side-label">Settings</span></button>';
-  var sidebar = document.createElement('nav');
-  sidebar.className = 'inv-side';
-  sidebar.id = 'invSidebar';
-  sidebar.setAttribute('aria-label', 'Main');
-  sidebar.innerHTML = html;
-  document.body.insertBefore(sidebar, document.body.firstChild);
-  markSideActive(regFilter.activeTab || 'pageHome');
-  updateSideCounts();
-}
-
-function _currentSub(tabId) {
-  if (tabId === 'pageClients') return getItemsSubView();
-  if (tabId === 'pageStaff') return _attView;
-  return '';
-}
-
-/* An entry with data-sub is on only on that sub-view; its parent entry is on for every other one. */
-function markSideActive(tabId) {
-  var items = document.querySelectorAll('.inv-side-item[data-tab]');
-  if (!items.length) return;
-  var sub = _currentSub(tabId);
-  var subHit = Array.prototype.some.call(items, function(b) { return b.dataset.tab === tabId && b.dataset.sub === sub; });
-  items.forEach(function(b) {
-    var on = b.dataset.tab === tabId && (b.dataset.sub ? b.dataset.sub === sub : !subHit);
-    b.classList.toggle('inv-side-item-on', on);
-    if (on) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
-  });
-}
-
-/* Counts are toned only when they count a problem (§4.2). */
-function updateSideCounts() {
-  function put(key, n, tone) {
-    var el = document.querySelector('.inv-side-count[data-count="' + key + '"]');
-    if (!el) return;
-    el.textContent = n ? String(n) : '';
-    el.className = 'inv-side-count' + (n && tone ? ' inv-side-count-' + tone : '');
-  }
-  if (!S) return;
-  put('pageTodo', typeof todoRedCount === 'function' ? todoRedCount() : 0, 'danger');
-  put('pageStock', typeof stockOutCount === 'function' ? stockOutCount() : 0, 'danger');
-}
-
-/* Two pages carry two sidebar entries each: Clients and Items, Staff and Pay. The plain entry used to
-   be a bare switchTab, so from Pay, Staff switched to the page already open, on the view already
-   showing, and nothing moved (owner, 26 Sep 2026). A plain entry now leaves any view that belongs to
-   its sibling for the page's own default, and keeps every other view (Staff from Week stays on Week). */
-var SIDE_SUB_DEFAULT = { pageClients: 'clients', pageStaff: 'overview' };
-function sideGo(tabId, sub) {
-  if (!sub) {
-    var cur = _currentSub(tabId);
-    var claimed = SIDE_NAV.some(function(g) { return g[1].some(function(it) { return it[0] === tabId && it[3] === cur; }); });
-    sub = claimed ? SIDE_SUB_DEFAULT[tabId] : cur;
-  }
-  if (tabId === 'pageClients') setItemsSubView(sub);
-  if (tabId === 'pageStaff') _attView = sub;
-  switchTab(tabId);
-  markSideActive(tabId);
-}
+/* The desktop sidebar (renderSidebar, markSideActive) and the phone bar are the workspaces' shell: workspace.js. */
 
 // Debounced ResizeObserver
 new ResizeObserver(function() {
@@ -846,7 +743,7 @@ function bootApp() {
 
   // Initial layout detection (no debounce)
   bootStep('the layout', updateLayoutMode);
-  bootStep('the More count', updateStockBadge);
+  bootStep('the counts on the bar', updateStockBadge);
 
   /* Phase 6b: Restore active tab on refresh */
   // If updateLayoutMode triggered _applyModeSwitch, it already called switchTab.

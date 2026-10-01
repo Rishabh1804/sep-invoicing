@@ -29,12 +29,13 @@ async function load(page: Page, extra: Partial<SepState> = {}) {
 }
 
 test.describe('P42 desktop: to-do, quick actions, attendance paste', () => {
-  test('To-do is in the sidebar and works without the More sheet', async ({ page }) => {
+  test("the To-do is Today's: its late task counts on Today's head, and it works on the desktop", async ({ page }) => {
     await load(page, { todo: { tasks: [{ id: 'TD-a', text: 'Late one', due: iso(-1), note: '', link: null, createdAt: 1, doneAt: null }], snoozes: {} } } as any);
-    await expect(page.locator('.inv-side-item[data-tab="pageTodo"]:not([data-sub])')).toBeVisible();
-    await expect(page.locator('.inv-navbar-more')).toBeHidden();
+    await expect(page.locator('.inv-side-item[data-ws="today"] .inv-side-count')).toHaveText('1');
+    await expect(page.locator('.inv-navbar')).toBeHidden();
     await switchTab(page, 'pageTodo');
-    await expect(page.locator('.inv-side-item[data-tab="pageTodo"]:not([data-sub])')).toHaveClass(/inv-side-item-on/);
+    // A page Today holds without an entry of its own marks Today's head.
+    await expect(page.locator('.inv-side-item[data-ws="today"]')).toHaveClass(/inv-side-item-on/);
     await expect(page.locator('#todoContent [data-todo][data-tone="red"]')).toContainText('Late one');
     await page.locator('#todoNew').fill('Desk task');
     await page.locator('#todoNew').press('Enter');

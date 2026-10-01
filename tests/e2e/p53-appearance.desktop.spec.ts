@@ -1,23 +1,25 @@
 import { test, expect } from '@playwright/test';
 import { emptyState, loadAppWithState, noSeedIM, openSettingsAt, type SepState } from './fixtures';
 
-// P53 desktop: the labelled sidebar (§4.2) and density following the layout (§3.5).
+// P53 desktop: the labelled sidebar (§4.2; DIRECTION_B: grouped by workspace) and density following the layout (§3.5).
 
 test.describe('P53 desktop: sidebar and density', () => {
-  test('the sidebar is grouped, and Items and Pay open their parent on that sub-view', async ({ page }) => {
+  test('the sidebar is grouped by workspace, and Items and Pay are views inside their page, whose entry stays on', async ({ page }) => {
     await loadAppWithState(page, { ...emptyState(), incomingMaterial: noSeedIM() } as SepState);
-    await expect(page.locator('.inv-side-group')).toHaveText(['Daily', 'Book', 'Money', 'Floor', 'Review']);
+    await expect(page.locator('#invSidebar .inv-side-item[data-ws] .inv-side-label')).toHaveText(['Today', 'Office', 'Floor', 'Money', 'Insights']);
     expect(await page.evaluate(() => getComputedStyle(document.body).marginLeft)).toBe('216px');
-    await page.locator('.inv-side-item[data-sub="items"]').click();
-    await expect(page.locator('#topbarTitle')).toHaveText('Clients');
-    await expect(page.locator('.inv-side-item[data-sub="items"]')).toHaveClass(/inv-side-item-on/);
-    await expect(page.locator('.inv-side-item[data-tab="pageClients"]:not([data-sub])')).not.toHaveClass(/inv-side-item-on/);
+    await expect(page.locator('#invSidebar [data-sub]')).toHaveCount(0);
+    await page.locator('.inv-side-item[data-tab="pageClients"]').click();
+    await page.locator('[data-action="invSwitchSubView"][data-view="items"]').first().click();
+    await expect(page.locator('#topbarTitle')).toHaveText('Office');
     await expect(page.locator('[data-action="invSwitchSubView"][data-view="items"]').first()).toHaveAttribute('aria-selected', 'true');
-    await page.locator('.inv-side-item[data-sub="pay"]').click();
-    await expect(page.locator('.inv-side-item[data-sub="pay"]')).toHaveAttribute('aria-current', 'page');
-    // Back to a sub-view with no entry of its own: the parent carries the mark.
+    await expect(page.locator('.inv-side-item[data-tab="pageClients"]')).toHaveClass(/inv-side-item-on/);
+    await page.locator('.inv-side-item[data-tab="pageStaff"]').click();
+    await page.locator('[data-action="invAttView"][data-view="pay"]').click();
+    await expect(page.locator('.inv-side-item[data-tab="pageStaff"]')).toHaveAttribute('aria-current', 'page');
+    // Any view of the page carries its entry's mark.
     await page.locator('[data-action="invAttView"][data-view="week"]').click();
-    await expect(page.locator('.inv-side-item[data-tab="pageStaff"]:not([data-sub])')).toHaveClass(/inv-side-item-on/);
+    await expect(page.locator('.inv-side-item[data-tab="pageStaff"]')).toHaveClass(/inv-side-item-on/);
   });
 
   test('density is compact on the desktop until the device says otherwise', async ({ page }) => {

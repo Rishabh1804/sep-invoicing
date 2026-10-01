@@ -18,12 +18,14 @@ async function openReports(page: Page, kind?: string) {
 }
 const doc = (page: Page) => page.locator('#rptSheet [data-rpt-doc]');
 
-test('Reports is in the More sheet, after Stats; each kind draws with its title and the open period reads "to date"', async ({ page }) => {
+test('Reports is in Insights, after Stats; each kind draws with its title and the open period reads "to date"', async ({ page }) => {
   await loadAppWithState(page, sweepState());
-  await page.locator('.inv-navbar-more').click();
-  await expect(page.locator('#moreSheet .inv-row')).toHaveText([/To-do/, /Finance/, /Production/, /Power/, /Stock/, /Staff/, /Stats/, /Reports/, /History/]);
-  await page.locator('#moreSheet [data-tab="pageReports"]').click();
-  await expect(page.locator('#topbarTitle')).toHaveText('Reports');
+  await switchTab(page, 'pageStats');
+  await expect(page.locator('#wsTabs .inv-viewtab')).toHaveText(['Stats', 'Reports', 'History']);
+  await page.locator('#wsTabs [data-tab="pageReports"]').click();
+  await expect(page.locator('#pageReports')).toHaveClass(/inv-page-active/);
+  await expect(page.locator('#topbarTitle')).toHaveText('Insights');
+  await expect(page.locator('#wsTabs [data-tab="pageReports"]')).toHaveAttribute('aria-selected', 'true');
   const t = todayIso(), d = new Date(t + 'T00:00:00');
   const fy = d.getMonth() >= 3 ? d.getFullYear() : d.getFullYear() - 1, fyl = `FY ${fy}-${String(fy + 1).slice(2)}`;
   const q = Math.floor(((d.getMonth() + 1 - 4 + 12) % 12) / 3) + 1;

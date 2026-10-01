@@ -18,7 +18,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <!-- Appearance before first paint (§3.2): the device's theme and palette, so nothing flashes in the wrong colours. -->
 <script>(function(){try{var d=document.documentElement,t=localStorage.getItem("sep_inv_theme"),p=localStorage.getItem("sep_inv_palette");if(t==="light"||t==="dark")d.dataset.theme=t;d.dataset.palette=(p==="zinc"||p==="terracotta")?p:"teal";}catch(e){document.documentElement.dataset.palette="teal";}})();</script>
-<meta name="app-build" content="19319007">
+<meta name="app-build" content="4aa8cde8">
 <style>
 /* ===== DESIGN TOKENS (design system v2.0 — docs/SEP_INVOICING_DESIGN_PRINCIPLES.md §3) ===== */
 /* Theme: colour-scheme decides every light-dark() below. <html data-theme> is set before first paint
@@ -11801,7 +11801,10 @@ function saveGhSyncSettings() {
   if (auto) cfg.autoPush = !!auto.checked;
   setGhConfig(cfg);
   _ghAutoBackoff = false;
-  return token ? setGhToken(token.value.trim()) : Promise.resolve(true);
+  // Only a token changed here is written. The field is drawn from the token in memory, which is empty while the token
+  // locked to the device has not been read yet (a slow start, a key that would not open): saving the device name or
+  // auto-push then must not write that empty field over the stored token.
+  return token && token.value.trim() !== token.defaultValue.trim() ? setGhToken(token.value.trim()) : Promise.resolve(true);
 }
 /* ===== DEVICES (the guard, step G2) =====
    The owner, 1 Oct 2026: "Once the device is registered to be able to push, that setup requires the presence of the
@@ -30711,11 +30714,39 @@ function addJsonWhat(obj) {
   if (Array.isArray(obj.staff)) return 'roster';
   return '';
 }
-function addFileRoute(file, buf) {
+/* What each file's import asks of the guard (guard.js), as its own screen's Import does: the permission and its words, and
+   the page it lands on (a role that may not open the page is refused there too). A statement is Finance's, imported there
+   with no re-ask; the rest are P1 imports, and the payroll as paid is a payment. */
+var ADD_FILE_GUARD = {
+  xls: { page: 'pageFinance' },
+  stock: { grp: 'imports', what: 'import stock records', page: 'pageStock' },
+  production: { grp: 'imports', what: 'import production history', page: 'pageProduction' },
+  power: { grp: 'imports', what: 'import power history', page: 'pagePower' },
+  payroll: { grp: 'payments', what: 'import the payroll as paid', page: 'pageStaff' },
+  roster: { grp: 'imports', what: 'import a roster', page: 'pageStaff' },
+  backup: { grp: 'imports', what: 'import a backup' }
+};
+/* The guard's word on a file before anything is read into the book: true to go on. With the guard off, always. */
+async function addFileGuardOk(key) {
+  var gd = ADD_FILE_GUARD[key];
+  if (!gd || typeof grdOn !== 'function' || !grdOn()) return true;
+  if (gd.page && typeof grdSees === 'function' && !grdSees(gd.page)) {
+    await uiAlert({ title: 'Not for this ID', body: 'Your ID does not open ' + (typeof wsPageName === 'function' ? wsPageName(gd.page) : 'that screen') + ', so this file cannot be imported here. Ask the owner.' });
+    return false;
+  }
+  if (!gd.grp) return true;
+  return grdOk(gd.grp) || await guardAsk(gd.grp, gd.what);
+}
+async function addFileRoute(file, buf) {
   var name = file.name || '', k = addFileKind(buf);
   if (k.kind === 'image') { addPhotoFiles([file]); return; }
-  if (k.kind === 'xls') { addGo(function() { finSetTab('bank'); switchTab('pageFinance'); bankImportBuf(buf, name); }); return; }
+  if (k.kind === 'xls') {
+    if (!(await addFileGuardOk('xls'))) return;
+    addGo(function() { finSetTab('bank'); switchTab('pageFinance'); bankImportBuf(buf, name); });
+    return;
+  }
   var what = k.kind === 'json' ? addJsonWhat(k.obj) : '';
+  if (what && !(await addFileGuardOk(what))) return;
   var go = {
     stock: function() { _stockView = 'list'; switchTab('pageStock'); stockImportText(k.text); },
     production: function() { prodSetTab('entries'); _prodView = 'main'; switchTab('pageProduction'); prodImportText(k.text, name); },
@@ -44850,8 +44881,29 @@ function srchScreenEntry(x) {
 
 var _srchCache = null;    // {s, w, list, keys, byKey, ms, parts}
 
-/* The list, as a chatbot would read it. */
-function srchIndex() { return srchData().list; }
+/* What the signed-in role may see (the guard, guard.js): an entry is shown only where its own screen opens to the role,
+   and the bank's rows only to a role that sees money. The index is built once per book for every role; the filter is
+   applied to every answer, so a role never reads a figure its screens hide (with the guard off, everything). */
+var SRCH_KIND_PAGE = { invoice: 'pageRegister', cn: 'pageRegister', challan: 'pageIM', client: 'pageClients', part: 'pageClients',
+  quote: 'pageClients', worker: 'pageStaff', stock: 'pageStock', bank: 'pageFinance' };
+function srchSees(e) {
+  if (!e || typeof grdOn !== 'function' || !grdOn()) return true;
+  if (e.kind === 'screen') {
+    var go = e.go || {};
+    if (go.kind === 'place' && go.loc) return grdSees(go.loc.tab);
+    if (go.kind === 'settings') return grdCan('settings');
+    return true;
+  }
+  var page = SRCH_KIND_PAGE[e.kind];
+  if (page && !grdSees(page)) return false;
+  if (e.kind === 'bank' && typeof grdSeesMoney === 'function' && !grdSeesMoney()) return false;
+  return true;
+}
+/* The list, as a chatbot would read it: only what the role may see. */
+function srchIndex() {
+  var list = srchData().list;
+  return typeof grdOn === 'function' && grdOn() ? list.filter(srchSees) : list;   // with the guard off, the list kept for the book
+}
 /* Whether the index on hand is the book's as it stands. */
 function srchFresh() { return !!(_srchCache && _srchCache.s === S && _srchCache.w === _bookWrites); }
 
@@ -45133,7 +45185,7 @@ function srchQuery(q) {
         if (!s) { score = 0; break; }
         score += s;
       }
-      if (!score) continue;
+      if (!score || !srchSees(d.list[i])) continue;
       if (k.ti === whole) score += 6;    // the whole query is the title
       var kind = d.list[i].kind;
       (by[kind] = by[kind] || []).push({ i: i, s: score, r: k.r });
@@ -45236,10 +45288,10 @@ function srchRender() {
     var rec = srchRecent().map(function(r) {
       if (d0) { var i = d0.byKey[r.kind + '|' + r.id]; return i == null ? null : d0.list[i]; }
       return r.title && r.go ? { kind: r.kind, id: String(r.id), title: r.title, sub: r.sub || '', text: '', go: r.go } : null;
-    }).filter(Boolean);
+    }).filter(function(e) { return e && srchSees(e); });
     if (rec.length) html += srchGroupHtml('recent', 'Recent', null, rec.map(row).join(''));
     var screens = srchScreens(), go = [];
-    SRCH_SPACES.forEach(function(sp) { sp[2].forEach(function(id) { var x = screens.find(function(y) { return y[0] === id; }); if (x) go.push(srchScreenEntry(x)); }); });
+    SRCH_SPACES.forEach(function(sp) { sp[2].forEach(function(id) { var x = screens.find(function(y) { return y[0] === id; }); if (x && srchSees(srchScreenEntry(x))) go.push(srchScreenEntry(x)); }); });
     html += srchGroupHtml('goto', 'Go to', null, go.map(row).join(''));
     say = (rec.length ? rec.length + ' recent, then ' : '') + 'places to go';
   } else {

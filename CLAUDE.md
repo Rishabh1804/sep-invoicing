@@ -141,7 +141,7 @@ every session start — nothing to set up by hand. CI (`build-sync`) is the back
 ### Tests
 
 ```bash
-pnpm exec playwright test          # 1,272 tests, both layouts
+pnpm exec playwright test          # 1,275 tests, both layouts
 ```
 
 Some sandboxes ship a Chromium build Playwright does not expect and block downloading
@@ -2110,6 +2110,10 @@ The rest of `docs/DIRECTION_B.md` (owner, 1 Oct 2026), steps B2 to B6. P134–P1
   Devices, the owner's ID and PIN checked), and a copy goes to GitHub with `_device` beside the book. An unregistered device
   can only import. The token is kept encrypted under a key that cannot leave the device. A device the owner removes stops
   syncing and forgets its token at its next load. With the guard off, sync is unchanged.
+- **Every door to a P1 change asks, wherever it is** (the review of 1 Oct 2026, P146): Add → File asks what its screen's own
+  Import asks (an import, the payroll as a payment) and refuses a file for a screen the role does not open; search lists
+  only what the role's screens show (`srchSees`: an invoice, a credit note, a client, a challan, a bank row, a screen);
+  Settings → GitHub sync writes the token only when the field was changed, so a token not read yet is never overwritten.
 - **Data flows**: `S.users`, `S.guardCfg`, `S.devices` and `S.changeLog` travel with the book (backups, GitHub, the
   compile). A PIN, a token or a key never does.
 

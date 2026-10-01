@@ -293,11 +293,39 @@ function addJsonWhat(obj) {
   if (Array.isArray(obj.staff)) return 'roster';
   return '';
 }
-function addFileRoute(file, buf) {
+/* What each file's import asks of the guard (guard.js), as its own screen's Import does: the permission and its words, and
+   the page it lands on (a role that may not open the page is refused there too). A statement is Finance's, imported there
+   with no re-ask; the rest are P1 imports, and the payroll as paid is a payment. */
+var ADD_FILE_GUARD = {
+  xls: { page: 'pageFinance' },
+  stock: { grp: 'imports', what: 'import stock records', page: 'pageStock' },
+  production: { grp: 'imports', what: 'import production history', page: 'pageProduction' },
+  power: { grp: 'imports', what: 'import power history', page: 'pagePower' },
+  payroll: { grp: 'payments', what: 'import the payroll as paid', page: 'pageStaff' },
+  roster: { grp: 'imports', what: 'import a roster', page: 'pageStaff' },
+  backup: { grp: 'imports', what: 'import a backup' }
+};
+/* The guard's word on a file before anything is read into the book: true to go on. With the guard off, always. */
+async function addFileGuardOk(key) {
+  var gd = ADD_FILE_GUARD[key];
+  if (!gd || typeof grdOn !== 'function' || !grdOn()) return true;
+  if (gd.page && typeof grdSees === 'function' && !grdSees(gd.page)) {
+    await uiAlert({ title: 'Not for this ID', body: 'Your ID does not open ' + (typeof wsPageName === 'function' ? wsPageName(gd.page) : 'that screen') + ', so this file cannot be imported here. Ask the owner.' });
+    return false;
+  }
+  if (!gd.grp) return true;
+  return grdOk(gd.grp) || await guardAsk(gd.grp, gd.what);
+}
+async function addFileRoute(file, buf) {
   var name = file.name || '', k = addFileKind(buf);
   if (k.kind === 'image') { addPhotoFiles([file]); return; }
-  if (k.kind === 'xls') { addGo(function() { finSetTab('bank'); switchTab('pageFinance'); bankImportBuf(buf, name); }); return; }
+  if (k.kind === 'xls') {
+    if (!(await addFileGuardOk('xls'))) return;
+    addGo(function() { finSetTab('bank'); switchTab('pageFinance'); bankImportBuf(buf, name); });
+    return;
+  }
   var what = k.kind === 'json' ? addJsonWhat(k.obj) : '';
+  if (what && !(await addFileGuardOk(what))) return;
   var go = {
     stock: function() { _stockView = 'list'; switchTab('pageStock'); stockImportText(k.text); },
     production: function() { prodSetTab('entries'); _prodView = 'main'; switchTab('pageProduction'); prodImportText(k.text, name); },

@@ -169,8 +169,29 @@ function srchScreenEntry(x) {
 
 var _srchCache = null;    // {s, w, list, keys, byKey, ms, parts}
 
-/* The list, as a chatbot would read it. */
-function srchIndex() { return srchData().list; }
+/* What the signed-in role may see (the guard, guard.js): an entry is shown only where its own screen opens to the role,
+   and the bank's rows only to a role that sees money. The index is built once per book for every role; the filter is
+   applied to every answer, so a role never reads a figure its screens hide (with the guard off, everything). */
+var SRCH_KIND_PAGE = { invoice: 'pageRegister', cn: 'pageRegister', challan: 'pageIM', client: 'pageClients', part: 'pageClients',
+  quote: 'pageClients', worker: 'pageStaff', stock: 'pageStock', bank: 'pageFinance' };
+function srchSees(e) {
+  if (!e || typeof grdOn !== 'function' || !grdOn()) return true;
+  if (e.kind === 'screen') {
+    var go = e.go || {};
+    if (go.kind === 'place' && go.loc) return grdSees(go.loc.tab);
+    if (go.kind === 'settings') return grdCan('settings');
+    return true;
+  }
+  var page = SRCH_KIND_PAGE[e.kind];
+  if (page && !grdSees(page)) return false;
+  if (e.kind === 'bank' && typeof grdSeesMoney === 'function' && !grdSeesMoney()) return false;
+  return true;
+}
+/* The list, as a chatbot would read it: only what the role may see. */
+function srchIndex() {
+  var list = srchData().list;
+  return typeof grdOn === 'function' && grdOn() ? list.filter(srchSees) : list;   // with the guard off, the list kept for the book
+}
 /* Whether the index on hand is the book's as it stands. */
 function srchFresh() { return !!(_srchCache && _srchCache.s === S && _srchCache.w === _bookWrites); }
 
@@ -452,7 +473,7 @@ function srchQuery(q) {
         if (!s) { score = 0; break; }
         score += s;
       }
-      if (!score) continue;
+      if (!score || !srchSees(d.list[i])) continue;
       if (k.ti === whole) score += 6;    // the whole query is the title
       var kind = d.list[i].kind;
       (by[kind] = by[kind] || []).push({ i: i, s: score, r: k.r });
@@ -555,10 +576,10 @@ function srchRender() {
     var rec = srchRecent().map(function(r) {
       if (d0) { var i = d0.byKey[r.kind + '|' + r.id]; return i == null ? null : d0.list[i]; }
       return r.title && r.go ? { kind: r.kind, id: String(r.id), title: r.title, sub: r.sub || '', text: '', go: r.go } : null;
-    }).filter(Boolean);
+    }).filter(function(e) { return e && srchSees(e); });
     if (rec.length) html += srchGroupHtml('recent', 'Recent', null, rec.map(row).join(''));
     var screens = srchScreens(), go = [];
-    SRCH_SPACES.forEach(function(sp) { sp[2].forEach(function(id) { var x = screens.find(function(y) { return y[0] === id; }); if (x) go.push(srchScreenEntry(x)); }); });
+    SRCH_SPACES.forEach(function(sp) { sp[2].forEach(function(id) { var x = screens.find(function(y) { return y[0] === id; }); if (x && srchSees(srchScreenEntry(x))) go.push(srchScreenEntry(x)); }); });
     html += srchGroupHtml('goto', 'Go to', null, go.map(row).join(''));
     say = (rec.length ? rec.length + ' recent, then ' : '') + 'places to go';
   } else {

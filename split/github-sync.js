@@ -618,5 +618,8 @@ function saveGhSyncSettings() {
   if (auto) cfg.autoPush = !!auto.checked;
   setGhConfig(cfg);
   _ghAutoBackoff = false;
-  return token ? setGhToken(token.value.trim()) : Promise.resolve(true);
+  // Only a token changed here is written. The field is drawn from the token in memory, which is empty while the token
+  // locked to the device has not been read yet (a slow start, a key that would not open): saving the device name or
+  // auto-push then must not write that empty field over the stored token.
+  return token && token.value.trim() !== token.defaultValue.trim() ? setGhToken(token.value.trim()) : Promise.resolve(true);
 }

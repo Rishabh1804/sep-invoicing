@@ -1066,6 +1066,101 @@ body.inv-desktop :is(#regSelBar, #imSelBar) { bottom: 0; }
 }
 .inv-pc-p { margin: var(--sp-4) 0; line-height: 1.45; }
 
+/* ===== REPORTS (report.js) =====
+   A daily to yearly report is a document drawn from the data each time it is shown or printed, the power case's
+   contract. Its own point scale and paper colours, declared once here (the HR-6 exception for printed documents) and
+   read as var() below: it must not resize because the interface did. On the Reports page it is laid out fluid, so a
+   phone reads it at its own width; in the print view it is the A4 sheet, zoomed to fit (printFit); on paper its side
+   gutters are padding and its top and bottom gutters the repeating head and foot rows of its frame, as the invoice's,
+   so a continuation page never starts against the paper edge and no @page margin is needed. */
+.inv-rpt-doc {
+  --ff-base: 'Inter', sans-serif;
+  --ff-mono: 'IBM Plex Mono', ui-monospace, 'Cascadia Mono', 'Roboto Mono', monospace;
+  --rpt-ink: #000;
+  --rpt-paper: #fff;
+  --rpt-rule: #000;
+  --rpt-band: #ececec;
+  --rpt-muted: #555;
+  --rpt-ok: #1d6b3a;
+  --rpt-warning: #8a5a00;
+  --rpt-danger: #b02a1f;
+  --rpt-fs: 9pt;
+  --rpt-fs-sm: 8pt;
+  --rpt-fs-xs: 7pt;
+  --rpt-fs-h: 10.5pt;
+  --rpt-fs-co: 10pt;
+  --rpt-fs-tile: 12pt;
+  --rpt-fs-title: 14pt;
+  --rpt-pad: 1mm 1.5mm;
+  --rpt-rule-w: 0.5pt;
+  --rpt-sheet-w: 210mm;
+  --rpt-gutter-side: 12mm;
+  --rpt-gutter-top: 10mm;
+  --rpt-gutter-bottom: 8mm;
+  --rpt-tile-min: 38mm;
+
+  background: var(--rpt-paper); color: var(--rpt-ink);
+  font-family: var(--ff-base); font-size: var(--rpt-fs); line-height: 1.35;
+  width: 100%; max-width: var(--rpt-sheet-w); margin: 0 auto var(--sp-16) auto;
+  padding: var(--sp-12); border: var(--hair) solid var(--border);
+}
+.inv-rpt-sheet { min-width: 0; }
+body.inv-desktop .inv-rpt-doc { padding: var(--rpt-gutter-top) var(--rpt-gutter-side); }
+.inv-print-body .inv-rpt-doc { width: var(--rpt-sheet-w); max-width: none; padding: var(--rpt-gutter-top) var(--rpt-gutter-side); }
+/* Five kinds share a phone's width by their words, so "Quarterly" is never the one cut. */
+#reportsContent .inv-seg-btn { flex: 1 1 auto; padding: 0 var(--sp-6); }
+.inv-rpt-frame { width: 100%; border-collapse: collapse; table-layout: fixed; }   /* fixed: a scroller in the cell never widens the sheet */
+.inv-rpt-frame > thead, .inv-rpt-frame > tfoot { display: none; }
+.inv-rpt-frame-head { font-size: var(--rpt-fs-xs); color: var(--rpt-muted); text-align: right; padding-bottom: var(--sp-4); }
+.inv-rpt-frame-foot { height: 0; }
+.inv-rpt-frame-body { vertical-align: top; }
+.inv-rpt-head { border-bottom: var(--rpt-rule-w) solid var(--rpt-rule); padding-bottom: var(--sp-8); margin-bottom: var(--sp-4); }
+.inv-rpt-co { font-weight: 700; font-size: var(--rpt-fs-co); }
+.inv-rpt-title { font-size: var(--rpt-fs-title); font-weight: 700; line-height: 1.25; margin: var(--sp-4) 0; }
+.inv-rpt-meta { font-size: var(--rpt-fs-sm); color: var(--rpt-muted); }
+.inv-rpt-id { font-family: var(--ff-mono); }
+.inv-rpt-sec { margin-top: var(--sp-12); }
+.inv-rpt-h {
+  font-size: var(--rpt-fs-h); font-weight: 700; margin: 0 0 var(--sp-4);
+  border-bottom: var(--rpt-rule-w) solid var(--rpt-rule); break-after: avoid; page-break-after: avoid;
+}
+.inv-rpt-h4 { font-size: var(--rpt-fs); font-weight: 700; margin: var(--sp-8) 0 var(--sp-4); break-after: avoid; page-break-after: avoid; }
+.inv-rpt-cov { font-size: var(--rpt-fs-sm); color: var(--rpt-muted); margin-bottom: var(--sp-6); break-after: avoid; page-break-after: avoid; }
+.inv-rpt-p { margin: var(--sp-4) 0; line-height: 1.45; }
+.inv-rpt-none { margin: var(--sp-4) 0; color: var(--rpt-muted); font-style: italic; }
+.inv-rpt-list { margin: var(--sp-4) 0 var(--sp-4) var(--sp-16); }
+.inv-rpt-list li { margin: var(--sp-2) 0; break-inside: avoid; page-break-inside: avoid; }
+.inv-rpt-tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(var(--rpt-tile-min), 1fr)); gap: var(--sp-6); }
+.inv-rpt-tile { min-width: 0; padding: var(--sp-6); border: var(--rpt-rule-w) solid var(--rpt-rule); break-inside: avoid; page-break-inside: avoid; }
+.inv-rpt-tile-l { font-size: var(--rpt-fs-xs); font-weight: 600; color: var(--rpt-muted); }
+.inv-rpt-tile-v { font-size: var(--rpt-fs-tile); font-weight: 700; line-height: 1.25; overflow-wrap: anywhere; }
+.inv-rpt-tile-s { font-size: var(--rpt-fs-xs); color: var(--rpt-muted); margin-top: var(--sp-2); }
+.inv-rpt-scroll { overflow-x: auto; margin-bottom: var(--sp-6); }
+/* A period's label reads on one line; the table scrolls on a phone rather than stacking it. */
+.inv-rpt-table[data-rpt-table="breakdown"] td:first-child { white-space: nowrap; }
+.inv-rpt-table { width: 100%; border-collapse: collapse; }
+.inv-rpt-table th, .inv-rpt-table td {
+  border: var(--rpt-rule-w) solid var(--rpt-rule); padding: var(--rpt-pad);
+  text-align: left; vertical-align: top; overflow-wrap: break-word;
+}
+.inv-rpt-table th { background: var(--rpt-band); font-size: var(--rpt-fs-sm); font-weight: 700; }
+.inv-rpt-table thead { display: table-header-group; }
+.inv-rpt-table tr { break-inside: avoid; page-break-inside: avoid; }
+.inv-rpt-table tfoot td { font-weight: 700; background: var(--rpt-band); }
+.inv-rpt-table .inv-rpt-num { text-align: right; white-space: nowrap; }
+/* A judged figure in the paper's own colours: the interface's tones switch with the theme, the sheet does not. */
+.inv-rpt-doc .inv-fig-ok { color: var(--rpt-ok); }
+.inv-rpt-doc .inv-fig-warning { color: var(--rpt-warning); }
+.inv-rpt-doc .inv-fig-danger { color: var(--rpt-danger); }
+@media print {
+  .inv-print-body .inv-rpt-doc { border: none; margin: 0; width: auto; max-width: none; padding: 0 var(--rpt-gutter-side); }
+  .inv-rpt-frame > thead { display: table-header-group; }
+  .inv-rpt-frame > tfoot { display: table-footer-group; }
+  .inv-rpt-frame-head { padding-top: var(--rpt-gutter-top); }
+  .inv-rpt-frame-foot { height: var(--rpt-gutter-bottom); }
+  .inv-rpt-scroll { overflow: visible; }
+}
+
 /* ===== MORE (phone bar) ===== */
 .inv-navbar-count {
   position: absolute; top: var(--sp-4); left: calc(50% + var(--sp-6));

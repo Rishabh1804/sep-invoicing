@@ -663,6 +663,12 @@ function onDocChange(e) {
     _historyShowCount = UI_MORE_ROWS;
     renderHistory();
   }
+  // Who made it (the change log, changelog.js)
+  if (e.target.id === 'historyWho') {
+    _historyWho = e.target.value;
+    _historyShowCount = UI_MORE_ROWS;
+    renderHistory();
+  }
   // Phase 4: IM challan line unit change
   const challanLineEl = e.target.closest('[data-change="invUpdateChallanLine"]');
   if (challanLineEl && challanLineEl.dataset.field === 'unit' && _challanForm) {

@@ -1088,6 +1088,7 @@ var _historyShowCount = UI_MORE_ROWS;   // the latest thirty, then thirty more a
 var _historyType = 'all';
 var _historySearch = '';
 var _historySearchTimer = null;
+var _historyWho = '';   // a user id, '_none' for changes made with no ID, '' for everyone (changelog.js)
 
 var HISTORY_TYPES = [
   { key: 'all', label: 'All' },
@@ -1095,7 +1096,9 @@ var HISTORY_TYPES = [
   { key: 'challan', label: 'Challans' },
   { key: 'state', label: 'Status' },
   { key: 'floor', label: 'Floor' },
-  { key: 'audit', label: 'Audit' }
+  { key: 'audit', label: 'Audit' },
+  // The change log (changelog.js): every save, record by record, with who made it.
+  { key: 'change', label: 'Changes' }
 ];
 
 // Inline SVG per event type (HR-4: no emoji).
@@ -1116,6 +1119,8 @@ HISTORY_ICONS.attDelete = HISTORY_ICONS.void;
 HISTORY_ICONS.quote = HISTORY_ICONS.invoice;
 HISTORY_ICONS.quoteRev = HISTORY_ICONS.except;
 HISTORY_ICONS.quoteVoid = HISTORY_ICONS.void;
+// A change from the change log: a pencil.
+HISTORY_ICONS.chg = '<path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 013 3L7 19l-4 1 1-4z"/>';
 
 function historyIcon(kind) {
   var path = HISTORY_ICONS[kind] || HISTORY_ICONS.state;
@@ -1134,8 +1139,9 @@ var HISTORY_KIND_WORDS = {
   quote: ['Quotation', 'ok'], quoteRev: ['Revised', 'warning'], quoteVoid: ['Void', 'danger']
 };
 function historyKindHtml(ev) {
-  // A challan corrected from an invoice is a challan event on the audit filter.
+  // A challan corrected from an invoice is a challan event on the audit filter. A change says what it did (changelog.js).
   var k = ev.kind === 'challan' && ev.type === 'audit' ? ['Corrected', 'warning']
+    : ev.kind === 'chg' && typeof CHG_ACT_WORDS !== 'undefined' ? (CHG_ACT_WORDS[ev.act] || CHG_ACT_WORDS.changed)
     : (HISTORY_KIND_WORDS[ev.kind] || ['Event', 'neutral']);
   return '<span class="inv-dot inv-dot-' + k[1] + '">' + k[0] + '</span>';
 }
@@ -1207,6 +1213,7 @@ function buildHistoryEvents() {
       : 'Invoice ' + label + ' deleted';
     events.push({
       ts: v.voidedAt, type: 'audit', kind: 'void', sourceId: null, jump: null,
+      cc: 'voidedNumbers', cr: typeof chgRidOf === 'function' ? chgRidOf('voidedNumbers', v) : null,
       text: what + (v.clientName ? ' (' + v.clientName + ')' : '') +
         ' — ' + (v.reason || 'no reason recorded') +
         (v.reserved ? ' [number stays spent]' : ' [number returned to series]'),
@@ -1216,6 +1223,15 @@ function buildHistoryEvents() {
 
   qtHistoryEvents(events, _historyClientFilter);
   pushFloorEvents(events);
+
+  // The change log (changelog.js): its rows, and on the events above who made each one. An event that opens a record
+  // names it for the match: the store and the record.
+  events.forEach(function(ev) {
+    if (ev.cc || !ev.sourceId || !ev.jump) return;
+    ev.cc = ev.jump === 'invoice' ? 'invoices' : 'incomingMaterial';
+    ev.cr = ev.sourceId;
+  });
+  if (typeof chgHistoryEvents === 'function') chgHistoryEvents(events, _historyClientFilter);
 
   return events;
 }
@@ -1330,7 +1346,7 @@ function pushFloorEvents(events) {
   (S.attendanceDeletes || []).forEach(function(x) {
     var what = ' (' + x.marks + ' mark' + (x.marks === 1 ? '' : 's') + ', ' + x.extra + ' EXTRA row' + (x.extra === 1 ? '' : 's') + ')';
     events.push({
-      ts: x.at, type: 'audit', kind: 'attDelete', sourceId: null, jump: null, clock: 'recorded',
+      ts: x.at, type: 'audit', kind: 'attDelete', sourceId: null, jump: null, clock: 'recorded', cc: 'attendanceDeletes', cr: x.id,
       // A day read again from its rolls (relay.js) is logged the same way, and is not a day deleted.
       text: x.how === 'reread'
         ? 'Attendance day read again from its rolls \u2014 ' + formatDate(x.iso) + ' as it was' + what + ' kept in the log'
@@ -1344,7 +1360,7 @@ function pushFloorEvents(events) {
     var about = (x.label || x.key || '') + ' on ' + formatDate(x.iso);
     events.push({
       ts: x.at || floorTs(x.iso), type: 'audit', kind: 'except', sourceId: null, jump: null,
-      clock: x.at ? 'recorded' : 'floor',
+      clock: x.at ? 'recorded' : 'floor', cc: 'extraExceptions', cr: typeof chgRidOf === 'function' ? chgRidOf('extraExceptions', x) : null,
       text: 'Extra-hours exception explained \u2014 ' + about +
         (x.expected == null ? '' : ' (expected ' + formatNum(x.expected, 1) + ' h, booked ' +
           formatNum(x.booked || 0, 1) + ' h)') +
@@ -1352,6 +1368,7 @@ function pushFloorEvents(events) {
     });
     if (x.reopenedAt) events.push({
       ts: x.reopenedAt, type: 'audit', kind: 'except', sourceId: null, jump: null, clock: 'recorded',
+      cc: 'extraExceptions', cr: typeof chgRidOf === 'function' ? chgRidOf('extraExceptions', x) : null,
       text: 'Extra-hours exception reopened \u2014 ' + about + ' \u2014 the explanation "' + (x.reason || '') + '" no longer stands'
     });
   });
@@ -1364,6 +1381,13 @@ function filteredHistoryEvents() {
 
   if (_historyType !== 'all') {
     events = events.filter(function(ev) { return ev.type === _historyType; });
+  } else {
+    // An act already on its event's row ("by Asha") is listed once; Changes lists every entry of the log.
+    events = events.filter(function(ev) { return !ev.folded; });
+  }
+  // Who made it: every row that carries a user (the log's, and an event the log names).
+  if (_historyWho && typeof chgWhoMatch === 'function') {
+    events = events.filter(function(ev) { return chgWhoMatch(ev, _historyWho); });
   }
   if (_historySearch) {
     var needle = _historySearch.toLowerCase();
@@ -1396,7 +1420,14 @@ function historyWhen(ev, part) {
   if (!ev.ts) return '';
   var full = formatTimestamp(ev.ts), day = full.split(',')[0], time = (full.split(',')[1] || '').trim();
   if (ev.clock === 'floor') return (part === 'time' ? '' : day + ' · ') + 'floor day';
-  return (part === 'time' ? time : full) + (ev.clock === 'recorded' ? ' · recorded' : '');
+  return (part === 'time' ? time : full) + (ev.clock === 'recorded' ? ' · recorded' : '') + historyWhoText(ev);
+}
+/* Who made it (changelog.js): on a change, the device it was made on (its row already names the person); on an event
+   the log names, the person. */
+function historyWhoText(ev) {
+  if (typeof chgUserName !== 'function') return '';
+  if (ev.type === 'change') { var d = chgDeviceLabel(ev.dev); return d ? ' · on ' + d : ''; }
+  return Object.prototype.hasOwnProperty.call(ev, 'by') ? ' · by ' + chgUserName(ev.by) : '';
 }
 
 function renderHistory() {
@@ -1419,11 +1450,18 @@ function renderHistory() {
       return '<button class="inv-chip" data-action="invHistoryType" data-type="' + t.key + '" aria-pressed="' + (_historyType === t.key) + '">' + t.label + '</button>';
     }).join('');
 
+    // Who made it (changelog.js): shown once anybody has an ID or the log names one.
+    var whoOpts = typeof chgWhoOptions === 'function' ? chgWhoOptions() : [];
+    if (_historyWho && !whoOpts.some(function(o) { return o[0] === _historyWho; })) _historyWho = '';
+    var whoSel = whoOpts.length ? '<select class="inv-select inv-toolbar-item" id="historyWho" aria-label="Filter by who made it">' +
+      '<option value="">Everyone</option>' + whoOpts.map(function(o) {
+        return '<option value="' + escHtml(o[0]) + '"' + (_historyWho === o[0] ? ' selected' : '') + '>' + escHtml(o[1]) + '</option>';
+      }).join('') + '</select>' : '';
     toolbar.innerHTML = '<div class="inv-toolbar">' +
       '<label class="inv-search">' + ICON_SEARCH +
       '<input type="search" id="historySearch" value="' + escHtml(_historySearch) + '" placeholder="Search invoice or challan number" autocomplete="off" aria-label="Search the log"></label>' +
       '<select class="inv-select inv-toolbar-item" id="historyClientFilter" aria-label="Filter by client">' +
-      '<option value="">All clients</option>' + clientOpts + '</select>' +
+      '<option value="">All clients</option>' + clientOpts + '</select>' + whoSel +
       '</div>' +
       '<div class="inv-toolbar">' +
       '<label class="inv-field inv-toolbar-item"><span class="inv-field-label">From</span>' +
@@ -1435,12 +1473,16 @@ function renderHistory() {
   }
 
   var events = filteredHistoryEvents();
+  // Under Changes, how many older entries the log let go of (changelog.js).
+  var dropped = _historyType === 'change' && typeof chgDroppedText === 'function' ? chgDroppedText() : '';
 
   if (events.length === 0) {
-    var filtered = _historyType !== 'all' || _historySearch || _historyClientFilter || _historyDateFrom || _historyDateTo;
+    var filtered = _historyType !== 'all' || _historySearch || _historyClientFilter || _historyDateFrom || _historyDateTo || _historyWho;
     area.innerHTML = '<div class="inv-panel"><div class="inv-empty">' +
-      (filtered ? 'No activity matches these filters' : 'No activity yet: invoices, challans and attendance appear here as they are recorded') +
-      '</div></div>';
+      (_historyType === 'change' && !_historySearch && !_historyClientFilter && !_historyDateFrom && !_historyDateTo && !_historyWho
+        ? 'No changes logged yet: every save from now on is listed here, with who made it'
+        : filtered ? 'No activity matches these filters' : 'No activity yet: invoices, challans and attendance appear here as they are recorded') +
+      '</div>' + (dropped ? '<div class="inv-panel-body inv-note" data-chg-dropped>' + escHtml(dropped) + '</div>' : '') + '</div>';
     return;
   }
 
@@ -1448,7 +1490,8 @@ function renderHistory() {
   // bill, counted twice), deleted invoices and floor days, and no one sum of those is a figure. Stats carries the money.
   var html = '<div class="inv-panel inv-panel-flush" data-card="history">' +
     '<div class="inv-panel-head"><span class="inv-panel-title">Activity log <span class="inv-panel-count">' + events.length + '</span></span>' +
-    '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invHistoryExport">Export CSV</button></div>';
+    '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invHistoryExport">Export CSV</button></div>' +
+    (dropped ? '<div class="inv-panel-body inv-note" data-chg-dropped>' + escHtml(dropped) + '</div>' : '');
 
   var shown = events.slice(0, _historyShowCount);
   // Rows grouped by day (§7): the day heads the group, so on the desktop a row's
@@ -1470,6 +1513,8 @@ function renderHistory() {
     return ev.jump === 'challan' ? 'invHistoryJumpChallan' : ev.jump === 'invoice' ? 'invHistoryJumpInvoice' : '';
   }
   function amountHtml(ev) { return ev.amount ? '<span class="inv-num">' + formatCurrency(ev.amount) + '</span>' : ''; }
+  // A change names its first fields on the row; every field is in its title (and in the CSV).
+  function fullAttr(ev) { return ev.full && ev.full !== ev.text ? ' title="' + escHtml(ev.full) + '"' : ''; }
 
   if (_isDesktop) {
     html += '<table class="inv-table inv-table-history"><thead><tr><th>Time</th><th>Event</th><th>Kind</th><th class="inv-num">Amount</th></tr></thead><tbody>';
@@ -1481,7 +1526,7 @@ function renderHistory() {
         html += '<tr' + attrs + '>' +
           '<td class="inv-id">' + escHtml(historyWhen(ev, 'time')) + '</td>' +
           // The event is a real button on a row that opens, so it opens from the keyboard.
-          '<td>' + (action
+          '<td' + fullAttr(ev) + '>' + (action
             ? '<button class="inv-btn-link" data-action="' + action + '" data-id="' + escHtml(ev.sourceId) + '">' + escHtml(ev.text) + '</button>'
             : escHtml(ev.text)) + '</td>' +
           '<td>' + historyKindHtml(ev) + '</td>' +
@@ -1495,7 +1540,7 @@ function renderHistory() {
       byDay[d].forEach(function(ev) {
         var action = jumpOf(ev);
         var inner = '<span class="inv-row-lead">' + historyIcon(ev.kind) + '</span>' +
-          '<span class="inv-row-main"><span class="inv-row-title inv-row-wrap">' + escHtml(ev.text) + '</span>' +
+          '<span class="inv-row-main"><span class="inv-row-title inv-row-wrap"' + fullAttr(ev) + '>' + escHtml(ev.text) + '</span>' +
           '<span class="inv-row-meta inv-id">' + escHtml(historyWhen(ev, 'all')) + '</span></span>' +
           '<span class="inv-row-end"><span class="inv-row-stack">' + amountHtml(ev) + historyKindHtml(ev) + '</span></span>';
         html += action
@@ -1522,8 +1567,11 @@ function exportHistoryCSV() {
   var events = filteredHistoryEvents();
   if (events.length === 0) { showToast('Nothing to export', 'warning'); return; }
 
-  var rows = [['Timestamp', 'Dated by', 'Type', 'Event', 'Amount']];
+  // Who made it and on which device (changelog.js): blank where nothing says.
+  var hasWho = typeof chgUserName === 'function';
+  var rows = [['Timestamp', 'Dated by', 'Type', 'Event', 'Amount', 'By', 'Device']];
   events.forEach(function(ev) {
+    var named = hasWho && Object.prototype.hasOwnProperty.call(ev, 'by');
     rows.push([
       // A floor row's cell is the date alone, for the same reason the rendered
       // row's is: the midday anchor is a sort key, not a recorded time.
@@ -1531,9 +1579,11 @@ function exportHistoryCSV() {
       // The same distinction the row carries. A CSV that dropped it would let
       // somebody sort two clocks into one column and reason off the result.
       ev.clock === 'floor' ? 'floor day' : 'recorded',
-      ev.kind,
-      ev.text,
-      ev.amount ? formatNum(ev.amount, 2) : ''
+      ev.kind === 'chg' ? 'change: ' + ev.act : ev.kind,
+      ev.full || ev.text,
+      ev.amount ? formatNum(ev.amount, 2) : '',
+      named ? chgUserName(ev.by) : '',
+      hasWho ? chgDeviceLabel(ev.type === 'change' ? ev.dev : ev.byDev) : ''
     ]);
   });
   downloadCSV('sep-activity-log-' + localDateStr() + '.csv', rows);

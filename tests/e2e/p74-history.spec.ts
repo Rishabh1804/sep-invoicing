@@ -41,7 +41,7 @@ test.describe('P74: History', () => {
     await expect(bar.locator('.inv-field #historyDateFrom')).toHaveCount(1);
     await expect(bar.locator('.inv-field #historyDateTo')).toHaveCount(1);
     const chips = bar.locator('.inv-chip[data-action="invHistoryType"]');
-    await expect(chips).toHaveText(['All', 'Invoices', 'Challans', 'Status', 'Floor', 'Audit']);
+    await expect(chips).toHaveText(['All', 'Invoices', 'Challans', 'Status', 'Floor', 'Audit', 'Changes']);
     await expect(chips.nth(0)).toHaveAttribute('aria-pressed', 'true');
     await expect(page.locator(V1)).toHaveCount(0);
 

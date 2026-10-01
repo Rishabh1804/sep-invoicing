@@ -231,7 +231,7 @@ test('S13: the History CSV is written by downloadCSV, byte-order mark first', as
   expect(out.calls[0]).toMatch(/^sep-activity-log-\d{4}-\d{2}-\d{2}\.csv$/);
   expect(out.bytes).toEqual([0xef, 0xbb, 0xbf]);
   const lines = String(out.text).replace(/^﻿/, '').split('\n');
-  expect(lines[0]).toBe('Timestamp,Dated by,Type,Event,Amount');
+  expect(lines[0]).toBe('Timestamp,Dated by,Type,Event,Amount,By,Device');
   // The floor row keeps its clock in the second column; a recorded row's timestamp is quoted for its comma.
   expect(lines.some(l => l.split(',')[1] === 'floor day')).toBe(true);
   expect(lines.some(l => /^"[^"]+, \d{2}:\d{2}",recorded,invoice,/.test(l))).toBe(true);

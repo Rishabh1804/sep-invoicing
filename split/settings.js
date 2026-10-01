@@ -731,6 +731,7 @@ function buildDiagnosticsReport() {
       if (diskParseError) lines.push('  stored copy does not parse: ' + diskParseError);
     }
     lines.push('Last save: ' + renderLastSave().replace(/<[^>]+>/g, ''));
+    if (typeof chgHealthText === 'function') lines.push('Change log: ' + chgHealthText());
     if (_storageHealth.readError) lines.push('Read error at load: ' + _storageHealth.readError);
     lines.push('Legacy localStorage copy: ' + (legacyChars < 0 ? 'removed' : 'still present, ' + fmtChars(legacyChars) + ' (removed after the next verified save)'));
     lines.push('localStorage on ' + location.origin + ': ' + fmtChars(originTotal) + ' across ' + keys.length + ' key' + (keys.length === 1 ? '' : 's') +

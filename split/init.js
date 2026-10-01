@@ -838,6 +838,9 @@ function bootApp() {
   bootStep('bringing the book up to date', migrateState);
   // A device the book says was removed forgets its GitHub token; a token that would not read is said (devices.js).
   bootStep('this device', function() { if (typeof devBoot === 'function') devBoot(); });
+  // The book as it opened, migrations done: what the change log compares the next save with (changelog.js). Taken before
+  // the first screen is drawn, so a To-do ticked on the Windows widget while the app was shut is logged when applied below.
+  bootStep('the change log', function() { if (typeof chgBaseline === 'function') chgBaseline(); });
 
   // Initial layout detection (no debounce)
   bootStep('the layout', updateLayoutMode);

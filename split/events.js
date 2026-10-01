@@ -189,6 +189,7 @@ function onDocClick(e) {
     case 'invAttThisWeek': attThisWeek(); break;
     case 'invAttSet': setAttState(parseInt(btn.dataset.id, 10), btn.dataset.st); break;
     case 'invAttCycle': cycleAttState(parseInt(btn.dataset.id, 10), btn.dataset.date); break;
+    case 'invAttDayAs': attDayAsSet(btn.dataset.v); renderAttendance(); break;
     case 'invAttAllPresent': attAllPresent(); break;
     case 'invAttEdit': attEditOpen(btn.dataset.id); break;
     case 'invAttEditClose': _attEditId = null; closeOverlay(); break;
@@ -585,6 +586,11 @@ function onDocChange(e) {
   }
   if (e.target.hasAttribute && e.target.hasAttribute('data-att-block-to')) {
     setAttBlockTime(parseInt(e.target.dataset.idx, 10), 'to', e.target.value);
+    renderAttendance();
+    return;
+  }
+  if (e.target.hasAttribute && (e.target.hasAttribute('data-att-in') || e.target.hasAttribute('data-att-out'))) {
+    setAttTime(parseInt(e.target.dataset.id, 10), e.target.hasAttribute('data-att-in') ? 'in' : 'out', e.target.value);
     renderAttendance();
     return;
   }

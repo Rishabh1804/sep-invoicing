@@ -89,7 +89,7 @@ var TODO_RULE_FNS = {
     if (day < 10) return [];
     var prev = billsPrevMonths(1)[0];
     if (billsMissingPower(1).indexOf(prev) < 0) return [];
-    return [{ key: 'power:' + prev, rule: 'power', tone: day >= 20 ? 'amber' : 'info',
+    return [{ key: 'power:' + prev, rule: 'power', tone: day >= 20 ? 'amber' : 'info', month: prev,
       title: 'Add the electricity bill for ' + billsMonthLabel(prev), sub: 'Live cost is using the Settings figure for it',
       why: 'Bills · none recorded for ' + billsMonthLabel(prev),
       facts: [['Month', billsMonthLabel(prev)], ['Until then', 'the model ₹/kg']],
@@ -106,7 +106,7 @@ var TODO_RULE_FNS = {
       var rate = st.rate && st.rate.rate ? stockFmtRate(st.rate.rate) + ' ' + unit + ' a day' : '';
       var sub = st.group === 'out' ? 'Out' + (rate ? ' · was using ' + rate : '')
         : stockFmtQty(st.level) + ' ' + unit + ' left · about ' + todoPlural(Math.max(0, Math.round(st.daysLeft * 10) / 10), 'day');
-      out.push({ key: 'stock:' + it.id, rule: 'stock', tone: st.tone, title: 'Order ' + it.name, sub: sub,
+      out.push({ key: 'stock:' + it.id, rule: 'stock', tone: st.tone, itemId: it.id, title: 'Order ' + it.name, sub: sub,
         why: 'Stock' + (rate && st.group !== 'out' ? ' · uses ' + rate : ''),
         facts: [['Level', stockFmtQty(st.level) + ' ' + unit], ['Daily use', rate || '—'],
           ['Days left', st.daysLeft == null ? '—' : String(Math.round(st.daysLeft * 10) / 10)]],
@@ -216,7 +216,7 @@ var TODO_RULE_FNS = {
       var list = byClient[cid].sort(function(a, b) { return String(a.challanDate).localeCompare(String(b.challanDate)); });
       var oldest = list[0], age = isoDaysBetween(oldest.challanDate, today);
       var nums = list.map(function(im) { return im.challanNo ? String(im.challanNo) : 'no number'; });
-      return { key: 'challan:' + cid, rule: 'challan', tone: 'info',
+      return { key: 'challan:' + cid, rule: 'challan', tone: 'info', clientId: cid, imIds: list.map(function(im) { return im.id; }),
         title: 'Bill ' + (oldest.clientName || 'challans') + ': ' + (list.length === 1 ? 'challan ' + nums[0] : todoPlural(list.length, 'challan')),
         sub: (list.length === 1 ? 'Received ' : 'Oldest received ') + todoPlural(age, 'day') + ' ago, not invoiced',
         why: 'Incoming material · rule: ' + cfg.challanDays + ' days',
@@ -235,7 +235,7 @@ var TODO_RULE_FNS = {
     }).sort(function(a, b) { return String(a.date).localeCompare(String(b.date)); });
     if (!list.length) return [];
     var nums = list.map(function(i) { return String(i.displayNumber || '').split('/').pop(); });
-    return [{ key: 'dispatch', rule: 'dispatch', tone: 'info',
+    return [{ key: 'dispatch', rule: 'dispatch', tone: 'info', ids: list.map(function(i) { return i.id; }),
       title: list.length === 1 ? 'Mark invoice ' + nums[0] + ' dispatched' : 'Mark ' + list.length + ' invoices dispatched',
       sub: 'Not yet dispatched: ' + nums.slice(0, 4).join(', ') + (nums.length > 4 ? '…' : ''),
       why: 'Register · rule: ' + cfg.dispatchDays + ' days, last 30 days only',
@@ -413,7 +413,9 @@ function todoMineRowHtml(t) {
   if (t.doneAt) meta.push('<span class="inv-row-meta">Done ' + escHtml(formatTimestamp(t.doneAt)) + (t.doneBy === 'widget' ? ' from the widget' : '') + '</span>');
   var end = '';
   if (t.due && !t.doneAt) end += '<span class="inv-dot inv-dot-' + (tone ? uiTone(tone) : 'neutral') + '">' + escHtml(todoDueLabel(t.due)) + '</span>';
-  if (t.link) end += '<button class="inv-btn-link inv-col-grow-sm" data-action="invTodoGo" data-id="' + escHtml(t.id) + '" title="' + escHtml(todoLinkLabel(t.link)) + '">' + escHtml(todoLinkLabel(t.link)) + '</button>';
+  // A task added from a move (advice.js) keeps the move's button: `go`, a place, where an older task has a `link`.
+  if (t.go) end += '<button class="inv-btn-link inv-col-grow-sm" data-action="invTodoGo" data-id="' + escHtml(t.id) + '" title="' + escHtml(t.goLabel || 'Open') + '">' + escHtml(t.goLabel || 'Open') + '</button>';
+  else if (t.link) end += '<button class="inv-btn-link inv-col-grow-sm" data-action="invTodoGo" data-id="' + escHtml(t.id) + '" title="' + escHtml(todoLinkLabel(t.link)) + '">' + escHtml(todoLinkLabel(t.link)) + '</button>';
   return '<div class="inv-row inv-row-2 inv-row-auto' + (t.doneAt ? ' inv-row-done' : '') + '" data-todo="mine" data-tone="' + tone + '"' + (t.doneAt ? ' data-done="1"' : '') + '>' +
     '<label class="inv-row-lead inv-row-tick"><input type="checkbox" class="inv-check" data-action="invTodoToggle" data-id="' + escHtml(t.id) + '"' +
     (t.doneAt ? ' checked' : '') + ' aria-label="' + (t.doneAt ? 'Reopen' : 'Mark done') + ': ' + escHtml(t.text) + '"></label>' +
@@ -475,6 +477,8 @@ function todoOpenApp(key) {
       return '<div class="inv-row inv-row-auto"><span class="inv-row-main inv-row-meta inv-row-wrap">' + escHtml(f[0]) + '</span>' +
         '<span class="inv-row-end inv-num inv-row-wrap">' + escHtml(f[1]) + '</span></div>';
     }).join('') + '</div>' +
+    // What can be done about it, each move with its button (advice.js); a rule with none keeps its one button below.
+    (typeof advTaskMovesHtml === 'function' ? advTaskMovesHtml(t) : '') +
     '<div class="inv-callout inv-callout-info" data-todo-clears>' + escHtml(t.clears) + '</div>' +
     (s && todoIsSnoozed(t) ? '<p class="inv-note inv-mt-8">Snoozed ' + (s.until ? 'until ' + escHtml(stockShortDate(s.until)) : 'until the figures change') + '.</p>' : '') +
     '<div class="inv-field inv-mt-16"><span class="inv-field-label">Snooze</span><div class="inv-toolbar">' +
@@ -607,7 +611,8 @@ function todoGo(go) {
       break;
     case 'cnList': switchTab('pageRegister'); renderCreditNoteList(); break;
     case 'cnBatch': regJump({ clientId: go.clientId, dateFrom: go.from, dateTo: go.to, select: go.ids }); break;
-    case 'regState': regJump({ state: go.state }); break;
+    // ids: those invoices ticked, so the bulk bar's Mark reaches exactly them (a move, advice.js).
+    case 'regState': regJump({ state: go.state, select: go.ids }); break;
     // Awaiting shows a challan invoiced in part too; the status 'pending' it set hid exactly those (the QA sweep).
     case 'im': imJumpClient(go.clientId); break;
     case 'audit': switchTab('pageRegister'); showNumberAudit(); break;
@@ -627,7 +632,11 @@ function todoGo(go) {
       var fa = go.anchor && document.getElementById(go.anchor);
       if (fa && fa.scrollIntoView) fa.scrollIntoView({ block: 'start' });
       break;
-    case 'stats': try { localStorage.setItem(STATS_TAB_KEY, go.tab); } catch (e) { /* per-device */ } switchTab('pageStats'); break;
+    case 'stats':
+      try { localStorage.setItem(STATS_TAB_KEY, go.tab); } catch (e) { /* per-device */ }
+      switchTab('pageStats');
+      if (go.anchor) uiRevealEl(document.getElementById(go.anchor));
+      break;
     case 'staffRoster': _attView = 'roster'; switchTab('pageStaff'); break;
     case 'payWages': {
       _attView = 'pay'; switchTab('pageStaff');
@@ -648,10 +657,15 @@ function todoGo(go) {
       if (tim) imJump(tim); else showToast('That challan is no longer in the book', 'warning');
       break;
     }
+    // The jumps a move needs (advice.js, advGoTo): a quotation drafted, the quotations, a client's performance, the
+    // reorder list, the power case, Areas, the week's pay, a line of the live cost, a production line, an invoice with
+    // a client's challans ticked, the register on a client's month.
+    default: if (typeof advGoTo === 'function') advGoTo(go);
   }
 }
 function todoGoLink(id) {
   var t = todoData().tasks.find(function(x) { return x.id === id; });
+  if (t && t.go) { todoGo(t.go); return; }
   if (!t || !t.link) return;
   var l = t.link;
   var exists = l.kind === 'client' ? S.clients.some(function(c) { return String(c.id) === String(l.id); })

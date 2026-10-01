@@ -521,6 +521,19 @@ function renderRevenueBars(ranked, totalRev) {
   }), { unit: 'money' }));
 }
 
+/* What the period's cards are read from, worked out once: the active invoices net of their credit notes, the period's
+   and the stretch before it, the period's weighed tonnage, and the cost every "below cost" on Stats is judged against
+   (the period's LIVE cost, statsPeriodCost, so the headline and the Overview cannot disagree). renderStats reads it, and
+   so do the questions with their moves (advice.js: advQuestions, advPulseHtml), so a question asked away from Stats reads
+   the same figures as the card on it. */
+function statsPulseArgs(period) {
+  var activeInvs = statsInvoices();
+  var filtered = filterByPeriod(activeInvs, period);
+  var tonnage = weighLines(filtered);
+  return { period: period, activeInvs: activeInvs, filtered: filtered, prior: filterByPeriod(activeInvs, period, 1),
+    tonnage: tonnage, periodCost: statsPeriodCost(period, tonnage) };
+}
+
 function renderStats() {
   var toolbar = document.getElementById('statsToolbar');
   var area = document.getElementById('statsContent');
@@ -536,9 +549,8 @@ function renderStats() {
     viewTabReveal(toolbar.querySelector('.inv-viewtabs'));
   }
 
-  var activeInvs = statsInvoices();
-  var filtered = filterByPeriod(activeInvs, _statsPeriod);
-  var prior = filterByPeriod(activeInvs, _statsPeriod, 1);
+  var pa = statsPulseArgs(_statsPeriod);
+  var activeInvs = pa.activeInvs, filtered = pa.filtered, prior = pa.prior;
   var html = '';
   // Each card lands in one of the grouped tabs (intel.js): what has been drawn
   // since the last take() moves to that tab, and only the open tab is shown.
@@ -548,11 +560,9 @@ function renderStats() {
   var totalRev = sumTaxable(filtered);
   var totalGrand = filtered.reduce(function(s, i) { return s + (i.grandTotal || 0); }, 0);
   var priorRev = sumTaxable(prior);
-  var tonnage = weighLines(filtered);
+  var tonnage = pa.tonnage;
   var priorTonnage = weighLines(prior);
-  // Every "below cost" on this page is judged against the LIVE cost of the
-  // period (statsPeriodCost), so the headline and the Overview cannot disagree.
-  var periodCost = statsPeriodCost(_statsPeriod, tonnage);
+  var periodCost = pa.periodCost;
   var costPerKg = periodCost.perKg, costLabel = periodCost.label;
 
   // Revenue on weighed lines over the tonnage of those same lines.
@@ -944,7 +954,8 @@ function renderStats() {
   if (filtered.length || activeInvs.length) {
     // The questions first, each answered as a story (statsStoriesHtml); the figures behind them follow, and the whole
     // insight list closes the page (owner, 30 Sep 2026: it had led the page).
-    sec.overview = statsStoriesHtml(_statsPeriod, filtered, prior, tonnage, periodCost) + sec.overview + statsOverviewHtml(_statsPeriod, filtered, tonnage) +
+    // The questions work out their moves (advice.js), so they are drawn only while Overview is the tab shown.
+    sec.overview = (statsTab() === 'overview' ? statsStoriesHtml(_statsPeriod, filtered, prior, tonnage, periodCost) : '') + sec.overview + statsOverviewHtml(_statsPeriod, filtered, tonnage) +
       paceCardHtml() + statsMonthsHtml() + insightsCardHtml();
     sec.clients = statsMarginHtml(_statsPeriod, filtered, tonnage) + nextChallanCardHtml() + sec.clients;
   }

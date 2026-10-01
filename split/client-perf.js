@@ -822,15 +822,23 @@ function cpRoundRowHtml(client, t, ref, rg, auto) {
     : '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invCpTimeEdit" data-id="' + escHtml(t.id) + '">Edit</button><button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invCpTimeRemove" data-id="' + escHtml(t.id) + '">Remove</button>') + '</div>';
   return h + '</div></details>';
 }
-function cpHoursHtml(clientId) {
+/* The parts By the hour lists for a client: the times set on it, then up to eight parts the production record has timed
+   rounds for and nobody has set (learnt from the record, listed after the set ones). The panel draws them, and the Pulse's
+   moves read the same list (advice.js). Null for a client not in the book. */
+function cpHourParts(clientId) {
   var client = (S.clients || []).find(function(c) { return c.id === clientId; });
-  if (!client) return '';
+  if (!client) return null;
   var times = cpPartTimes(client), piece = client.billingMode === 'piece' || client.billingMode === 'nos_to_weight';
-  // Parts the production record has timed rounds for, not yet set: learnt from the record, listed after the set ones.
   var setKeys = {}; times.forEach(function(t) { setKeys[t.base + '|' + (t.gauge || '')] = 1; });
   var auto = cpMaterials(clientId, '0000-01-01', '9999-12-31').filter(function(p) { return !setKeys[p.base + '|' + p.gauge]; })
     .map(function(p) { return { base: p.base, gauge: p.gauge, name: p.name, n: cpMeasure(clientId, p.base, p.gauge).plate.length }; })
     .filter(function(p) { return p.n >= 2; }).sort(function(a, b) { return b.n - a.n; }).slice(0, 8);
+  return { client: client, times: times, auto: auto, piece: piece };
+}
+function cpHoursHtml(clientId) {
+  var hp = cpHourParts(clientId);
+  if (!hp) return '';
+  var client = hp.client, times = hp.times, piece = hp.piece, auto = hp.auto;
   if (!times.length && !piece && !auto.length && !_cpTimeForm) return '';
   var ref = cpLineHourRef(), rg = cpPeriodRange();
   var h = '<div class="inv-panel-body inv-note" data-cp-hour-ref>' + (ref ? 'An hour costs the plant <strong class="inv-num">' + formatCurrency(ref.cost) + '</strong> and earns it <strong class="inv-num">' + formatCurrency(ref.revenue) + '</strong> on average: the last 90 days at ' +

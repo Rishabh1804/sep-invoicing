@@ -39,8 +39,9 @@ test('Overview leads with the questions, each answered in a sentence, before the
   await loadAppWithState(page, s);
   await openStatsTab(page, 'overview');
   const stories = page.locator('#statsContent [data-story]');
-  await expect(stories.first()).toHaveAttribute('data-story', 'money');
-  for (const k of ['money', 'clients', 'plant', 'changed']) await expect(page.locator(`[data-story="${k}"]`)).toBeVisible();
+  // Is the plant running smoothly? leads (Direction B, P133), then the questions this spec was written for.
+  await expect(stories.first()).toHaveAttribute('data-story', 'smooth');
+  for (const k of ['smooth', 'money', 'clients', 'plant', 'changed']) await expect(page.locator(`[data-story="${k}"]`)).toBeVisible();
   await expect(page.locator('[data-story="money"] [data-story-say]')).toContainText(/every kilo/);
   await expect(page.locator('[data-story="clients"] [data-story-say]').first()).toContainText('ALPHA WORKS fills');
   await expect(page.locator('[data-story="plant"] [data-story-say]')).toContainText(/two shifts/);

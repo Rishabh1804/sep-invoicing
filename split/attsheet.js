@@ -168,7 +168,8 @@ function attSheetDeepakHtml(iso, filled) {
   var title = filled ? 'Attendance as entered in the app' : 'Attendance entry';
   return '<div class="inv-as-page" data-sheet="' + (filled ? 'filled' : 'deepak') + '">' + _asHead(title, iso, filled ? '' : 'Deepak') +
     (filled && !rec ? '<div class="inv-as-note">Nothing is entered in the app for this day yet.</div>' : '') +
-    '<table class="inv-as-table"><thead><tr><th class="inv-as-tick">#</th><th>Worker</th><th class="inv-as-tick">Tier</th>' +
+    '<table class="inv-as-table" data-as-entry><colgroup>' + ['num', 'name', 'tick', 'tick', 'tick', 'tick', 'area', 'area', 'area', 'area', 'time', 'time', 'fig', 'fig'].map(function(k) { return '<col data-as-col="' + k + '">'; }).join('') + '</colgroup>' +
+    '<thead><tr><th class="inv-as-tick">#</th><th>Worker</th><th class="inv-as-tick">Tier</th>' +
     '<th class="inv-as-tick">P</th><th class="inv-as-tick">H</th><th class="inv-as-tick">A</th><th>General</th><th>Morning OT</th><th>Evening OT</th><th>Night</th><th>In</th><th>Out</th><th>Hours</th><th>OT</th></tr></thead>' +
     '<tbody>' + rows + '</tbody></table>' +
     '<div class="inv-as-slot">EXTRA</div>' +

@@ -48,6 +48,11 @@ test.describe('P96: attendance sheets', () => {
     await page.emulateMedia({ media: 'print' });
     const mm = await pages.evaluateAll(ps => ps.map(p => p.getBoundingClientRect().height / (96 / 25.4)));
     for (const h of mm) expect(h).toBeLessThanOrEqual(297);
+    // Deepak's sheet is written by hand: In and Out have room for a time, and each area column a word (owner, 1 Oct 2026:
+    // "In time Out time hardly has any space"; they were 7 and 10 mm once the shift areas were added).
+    const w = await page.locator('[data-sheet="deepak"] table[data-as-entry] th').evaluateAll(ths =>
+      Object.fromEntries(ths.map(t => [t.textContent, t.getBoundingClientRect().width / (96 / 25.4)])));
+    for (const k of ['In', 'Out', 'General', 'Morning OT', 'Evening OT', 'Night']) expect(w[k]).toBeGreaterThanOrEqual(15);
   });
 
   test("Shyam's In time follows his roll: 6 AM blocks, then the 8:30 AM areas in his order, numbered on, EXTRA and the absent", async ({ page }) => {

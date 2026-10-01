@@ -132,7 +132,7 @@ every session start — nothing to set up by hand. CI (`build-sync`) is the back
 ### Tests
 
 ```bash
-pnpm exec playwright test          # 1,152 tests, both layouts
+pnpm exec playwright test          # 1,155 tests, both layouts
 ```
 
 Some sandboxes ship a Chromium build Playwright does not expect and block downloading
@@ -2974,6 +2974,16 @@ day** in a dialog (`attEditOpen`: state, area, hours or OT, saved as they change
 with the payout and dues, its history and the slips as paid folded; Areas folds its hours and the absorption. **Civil** is an area
 (a post, off the floor, like the office and the gate; a roll heading *civil* reads to it). **The attendance panel** (Staff → Overview,
 Home) says where everyone on site stood, by area, the floor against its number. P119.
+
+**In and out are typed by hand too** (owner, 1 Oct 2026: *"Attendance has no option to enter time in and time out by hand, so we
+have to rely on whatsapp message only, there is no way to simply enter the data that is presented to us by Deepak in his sheet"*).
+The hand's dialog takes an **In** and an **Out**, and Staff → Day → **Sheet** (beside **Board**, kept per device,
+`sep_inv_att_day_as`) is Deepak's sheet: the day's roster in its order, one row a hand with P / H / A, the area, the in and the out,
+and the hours and OT worked out as each is typed. One rule for a roll and a hand (`relayHoursOf`): the span to the whole hour, OT the
+hours over 8, none for an hourly hand or the gate. A side left blank is the shift's (8:30 AM to 5:00 PM, the gate 7 to 7, a half day
+four hours from its in); an out not after the in ran past midnight; absent clears the times. A typed time makes the mark the hand's
+(no `src: 'relay'`), so a roll never rewrites it; an OT typed in the dialog wins until a time changes. EXTRA rows were already
+entered by hand below the board. P144.
 
 **A day's attendance is deleted only with a reason, and the deletion is logged** (owner, 30 Sep 2026: *"there is no way to
 delete a day's data after providing a reason that can be logged"*). Staff → Day → **Delete this day** asks why (required),

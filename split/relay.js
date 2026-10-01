@@ -737,10 +737,16 @@ function relayPersonMark(p, w, restOut) {
   // for them (5 PM, the gate's 7 PM, "everyone else left at") is the others' time: before the hand came in, it is no
   // out-time of theirs at all, never the same hour the next day (21 hours off an 8 PM heading, the QA of 30 Sep 2026).
   if (outMin <= inMin) { if (said) outMin += 1440; else outMin = null; }
-  var hours = outMin == null ? 0 : Math.max(0, Math.floor((outMin - inMin) / 60));
+  var h = relayHoursOf(inMin, outMin, w, area);
+  return { st: 'P', ot: h.ot, hours: h.hours, area: area, inMin: inMin, outMin: outMin };
+}
+/* Hours and OT from an in and an out, the one rule for a roll and for times typed on Staff → Day: the clock span floored
+   to the whole hour (8:30 → 5:00 is 8); a monthly or daily hand's OT is the hours over 8; an hourly hand carries none, and
+   the gate's twelve hours are its standing shift, not overtime. An out of null is not known: no hours. */
+function relayHoursOf(inMin, outMin, w, area) {
+  var hours = outMin == null || inMin == null ? 0 : Math.max(0, Math.floor((outMin - inMin) / 60));
   var hourly = w && w.comp === 'hourly';
-  // The gate's twelve hours are its standing shift, not overtime.
-  return { st: 'P', ot: hourly || gate ? 0 : Math.max(0, hours - 8), hours: hours, area: area, inMin: inMin, outMin: outMin };
+  return { hours: hours, ot: hourly || area === 'gate' ? 0 : Math.max(0, hours - 8) };
 }
 
 /* ===== Screens: Staff → Paste message ===== */

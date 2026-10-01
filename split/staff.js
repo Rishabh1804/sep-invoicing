@@ -309,7 +309,7 @@ function attAreaOptions(sel) {
 // it is never enough for a list.
 var ATT_FOCUS_ATTRS = ['data-action', 'data-id', 'data-st', 'data-date', 'data-idx',
   'data-area', 'data-worker'];
-var ATT_FOCUS_FLAGS = ['data-att-area', 'data-att-ot', 'data-att-hours',
+var ATT_FOCUS_FLAGS = ['data-att-area', 'data-att-ot', 'data-att-hours', 'data-att-in', 'data-att-out',
   'data-att-extra-area', 'data-att-extra-hours', 'data-att-extra-kind',
   'data-att-block-from', 'data-att-block-to', 'data-att-need', 'data-att-block-need'];
 
@@ -479,8 +479,19 @@ function _attDayView() {
 
   // The day as a board (owner, 30 Sep 2026: "Attendance sheet for Day scrolls way too far"): a card per area, a line per
   // hand with P / H / A one tap away; the area, hours and OT open on the name. Absent hands are one strip under the board.
-  html += '<div class="inv-toolbar inv-toolbar-flush"><button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invAttAllPresent">All present</button>' +
-    '<span class="inv-note">Tap a name for the area, hours and OT.</span></div>';
+  var sheet = attDayAsSheet();
+  html += '<div class="inv-toolbar inv-toolbar-flush"><span class="inv-seg" role="group" aria-label="Show the day as">' +
+    '<button class="inv-seg-btn" data-action="invAttDayAs" data-v="board" aria-pressed="' + !sheet + '">Board</button>' +
+    '<button class="inv-seg-btn" data-action="invAttDayAs" data-v="sheet" aria-pressed="' + sheet + '">Sheet</button></span>' +
+    '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invAttAllPresent">All present</button>' +
+    '<span class="inv-note">' + (sheet ? 'Deepak’s sheet: P / H / A, area, in and out for each hand; hours and OT are worked out.' : 'Tap a name for the area, the in and out, hours and OT.') + '</span></div>';
+  if (sheet) {
+    html += attSheetEntryHtml(iso, rec, roster);
+    html += _attNeedCard(iso, rec);
+    html += _attExtraCard(iso, rec);
+    html += uiFoldCard('attDayCost', renderLabourCard(iso, iso, 'Day cost'), false);
+    return html;
+  }
   var byArea = {}, absentees = [];
   roster.forEach(function(w) {
     var m = rec ? rec.marks[w.id] : null;
@@ -523,6 +534,7 @@ function _attBoardRow(w, m) {
   var st = m ? m.st : '', hourly = compIsHourly(w);
   var states = hourly ? ['P', 'A'] : ATT_STATES;
   var hrs = m && st !== 'A' ? (hourly ? (m.hours ? m.hours + ' h' : 'no hours') : (m.ot ? 'OT ' + m.ot + ' h' : '')) : '';
+  if (m && st !== 'A' && attTimesText(m)) hrs = attTimesText(m) + (hrs ? ' · ' + hrs : '');
   return '<div class="inv-row" data-att-row="' + w.id + '">' +
     '<button class="inv-row-main" data-action="invAttEdit" data-id="' + w.id + '"><span class="inv-row-title">' + escHtml(w.name) + '</span>' +
     '<span class="inv-row-meta">' + escHtml(compClass(w.comp).label) + (w.active === false ? ' · left' : '') +
@@ -532,6 +544,32 @@ function _attBoardRow(w, m) {
       return '<button class="inv-seg-btn inv-seg-btn-' + ATT_STATE_TONE[x] + '" data-action="invAttSet" data-id="' + w.id +
         '" data-st="' + x + '" aria-pressed="' + (st === x) + '" title="' + ATT_STATE_LABELS[x] + '">' + x + '</button>';
     }).join('') + '</span></span></div>';
+}
+
+/* The day as Deepak's sheet (attsheet.js prints it): the roster in the sheet's order, one row a hand, P / H / A, the area,
+   the in and the out, and the hours and OT worked out from them. Every change is saved as it is made, as on the board. */
+var ATT_DAY_AS_KEY = 'sep_inv_att_day_as';
+function attDayAsSheet() { try { return localStorage.getItem(ATT_DAY_AS_KEY) === 'sheet'; } catch (e) { return false; } }
+function attDayAsSet(v) { try { localStorage.setItem(ATT_DAY_AS_KEY, v === 'sheet' ? 'sheet' : 'board'); } catch (e) { /* per device */ } }
+function attSheetEntryHtml(iso, rec, roster) {
+  var h = '<div class="inv-panel inv-panel-flush" id="attSheetEntry"><div class="inv-scroll-x"><table class="inv-table"><thead><tr>' +
+    '<th>Hand</th><th>Attendance</th><th>Area</th><th>In</th><th>Out</th><th class="inv-num">Hours</th><th class="inv-num">OT</th></tr></thead><tbody>';
+  roster.forEach(function(w) {
+    var m = rec ? rec.marks[w.id] : null, st = m ? m.st : '', hourly = compIsHourly(w), live = st && st !== 'A';
+    var states = hourly ? ['P', 'A'] : ATT_STATES;
+    h += '<tr data-att-sheet-row="' + w.id + '"><td><button class="inv-btn-link" data-action="invAttEdit" data-id="' + w.id + '">' + escHtml(w.name) + '</button>' +
+      '<div class="inv-row-meta">' + escHtml(compClass(w.comp).label) + (w.active === false ? ' · left' : '') + '</div></td>' +
+      '<td><span class="inv-seg" role="group" aria-label="Attendance for ' + escHtml(w.name) + '">' + states.map(function(x) {
+        return '<button class="inv-seg-btn inv-seg-btn-' + ATT_STATE_TONE[x] + '" data-action="invAttSet" data-id="' + w.id + '" data-st="' + x + '" aria-pressed="' + (st === x) + '" title="' + ATT_STATE_LABELS[x] + '">' + x + '</button>';
+      }).join('') + '</span></td>' +
+      '<td><select class="inv-select" data-att-area data-id="' + w.id + '" aria-label="Area for ' + escHtml(w.name) + '"' + (live ? '' : ' disabled') + '>' + attAreaOptions(m && m.area ? m.area : (w.area || 'flex')) + '</select></td>' +
+      '<td><input type="time" class="inv-input inv-id" data-att-in data-id="' + w.id + '" value="' + escHtml(attTimeVal(m && m.inMin)) + '" aria-label="In for ' + escHtml(w.name) + '"' + (live ? '' : ' disabled') + '></td>' +
+      '<td><input type="time" class="inv-input inv-id" data-att-out data-id="' + w.id + '" value="' + escHtml(attTimeVal(m && m.outMin)) + '" aria-label="Out for ' + escHtml(w.name) + '"' + (live ? '' : ' disabled') + '></td>' +
+      '<td class="inv-num" data-att-sheet-hours>' + (live && (m.hours || attTimesText(m)) ? m.hours : '—') + '</td>' +
+      '<td class="inv-num" data-att-sheet-ot>' + (live && !hourly ? (m.ot || 0) : '—') + '</td></tr>';
+  });
+  return h + '</tbody></table></div>' +
+    '<div class="inv-note inv-panel-body">Left blank, an in or out is the shift’s: 8:30 AM to 5:00 PM (the gate 7 to 7, a half day four hours). Hours are the span to the whole hour; OT is the hours over 8, never for an hourly hand or the gate. EXTRA rows are entered below.</div></div>';
 }
 
 /* A hand's day in a dialog: P / H / A, where they stood, and the hours (an hourly hand) or the overtime. Each change is
@@ -551,17 +589,22 @@ function attEditHtml() {
     }).join('') + '</span></div>' +
     '<label class="inv-field"><span class="inv-field-label">Area</span><select class="inv-select" data-att-area data-id="' + w.id + '"' + (live ? '' : ' disabled') + '>' +
     attAreaOptions(m && m.area ? m.area : (w.area || 'flex')) + '</select></label>' +
+    '<label class="inv-field"><span class="inv-field-label">In</span><input type="time" class="inv-input inv-id" data-att-in data-id="' + w.id + '" value="' + escHtml(attTimeVal(m && m.inMin)) + '"' + (live ? '' : ' disabled') + '></label>' +
+    '<label class="inv-field"><span class="inv-field-label">Out</span><input type="time" class="inv-input inv-id" data-att-out data-id="' + w.id + '" value="' + escHtml(attTimeVal(m && m.outMin)) + '"' + (live ? '' : ' disabled') + '></label>' +
     (hourly
       ? '<label class="inv-field"><span class="inv-field-label">Hours worked</span><input type="number" class="inv-input inv-input-num" data-att-hours data-id="' + w.id + '" step="0.5" min="0" value="' + (m && m.hours ? m.hours : '') + '"' + (live ? '' : ' disabled') + '></label>'
       : '<label class="inv-field"><span class="inv-field-label">Overtime, hours</span><input type="number" class="inv-input inv-input-num" data-att-ot data-id="' + w.id + '" step="0.5" min="0" value="' + (m && m.ot ? m.ot : '') + '"' + (live ? '' : ' disabled') + '></label>') +
-    '</div>' + (live ? '' : '<div class="inv-note">' + (st === 'A' ? 'Absent: no area or hours.' : 'Mark the day first.') + '</div>') + '</div>' +
+    '</div>' + (live ? '<div class="inv-note" data-att-times-note>' + (attTimesText(m)
+      ? escHtml(attTimesText(m) + ': ' + m.hours + ' h' + (hourly ? '' : ', OT ' + (m.ot || 0) + ' h') + ', worked out from the times. A figure typed below the times wins until a time is changed.')
+      : 'Type the in and out from the sheet, and the hours and OT are worked out as a roll works them out. Left blank, the shift (8:30 AM to 5:00 PM) is assumed.') + '</div>'
+      : '<div class="inv-note">' + (st === 'A' ? 'Absent: no area or hours.' : 'Mark the day first.') + '</div>') + '</div>' +
     '<div class="inv-dialog-foot"><button class="inv-btn inv-btn-primary" data-action="invAttEditClose">Done</button></div></div>';
 }
 function attEditOpen(id) { _attEditId = id; dialogOpen(attEditHtml()); }
 /* The dialog follows the day: after a change it is drawn again in place (the board behind it is redrawn too). */
 function attEditRefresh() {
   if (!_attEditId || !document.querySelector('[data-att-edit]')) return;
-  var focus = document.activeElement, k = focus && focus.dataset ? (focus.hasAttribute('data-att-hours') ? '[data-att-hours]' : focus.hasAttribute('data-att-ot') ? '[data-att-ot]' : null) : null;
+  var focus = document.activeElement, k = focus && focus.dataset ? (focus.hasAttribute('data-att-hours') ? '[data-att-hours]' : focus.hasAttribute('data-att-ot') ? '[data-att-ot]' : focus.hasAttribute('data-att-in') ? '[data-att-in]' : focus.hasAttribute('data-att-out') ? '[data-att-out]' : null) : null;
   dialogOpen(attEditHtml(), { replace: true });
   if (k) { var el = document.querySelector('[data-att-edit] ' + k); if (el) try { el.focus(); } catch (x) { /* a convenience */ } }
 }
@@ -973,7 +1016,7 @@ function attSetState(iso, staffId, st) {
     _attHandEdit(m);
     // Absent pays nothing and worked nothing: hours that nobody was here for
     // are not hours, in either tier.
-    if (st === 'A') { m.ot = 0; m.hours = 0; }
+    if (st === 'A') { m.ot = 0; m.hours = 0; delete m.inMin; delete m.outMin; }
     rec.marks[staffId] = m;
   }
   _attPrune(iso);
@@ -1015,10 +1058,51 @@ function setAttHours(staffId, hours) {
   saveState();
 }
 
+/* In and out typed by hand (owner, 1 Oct 2026: "Attendance has no option to enter time in and time out by hand, so we
+   have to rely on whatsapp message only, there is no way to simply enter the data that is presented to us by Deepak in
+   his sheet"). A time typed sets the hours and the OT by the rolls' own rule (relayHoursOf); the side not typed is the
+   shift's (8:30 AM to 5:00 PM, the gate's 7 to 7, a half day four hours from its in), and an out not after the in ran
+   past midnight. Both cleared, the hours and OT go back to none. The mark is then the hand's, never rewritten by a roll. */
+function attTimeMin(v) {
+  var m = /^(\d{1,2}):(\d{2})$/.exec(String(v || '').trim());
+  return m && +m[1] < 24 && +m[2] < 60 ? +m[1] * 60 + +m[2] : null;
+}
+function attTimesApply(m, w) {
+  var gate = (m.area || (w && w.area)) === 'gate';
+  if (m.inMin == null && m.outMin == null) { delete m.inMin; delete m.outMin; m.hours = 0; m.ot = 0; return; }
+  var a = m.inMin != null ? m.inMin : gate ? RELAY_GATE[0] : RELAY_GENERAL;
+  var b = m.outMin != null ? m.outMin % 1440 : gate ? RELAY_GATE[1] : m.st === 'H' ? a + 240 : RELAY_GENERAL_OUT;
+  if (b <= a) b += 1440;
+  if (m.outMin != null) m.outMin = b;
+  var h = relayHoursOf(a, b, w, gate ? 'gate' : m.area);
+  m.hours = h.hours;
+  m.ot = h.ot;
+}
+function setAttTime(staffId, which, v) {
+  var m = attMark(_attDate, staffId), w = staffById(staffId);
+  if (!m || m.st === 'A') return;
+  var min = attTimeMin(v);
+  if (which === 'in') { if (min == null) delete m.inMin; else m.inMin = min; }
+  else { if (min == null) delete m.outMin; else m.outMin = min; }
+  attTimesApply(m, w);
+  m.outKnown = m.outMin != null;
+  _attHandEdit(m);
+  saveState();
+}
+/* "HH:MM" for a time field (a stored out past midnight shows its clock time). */
+function attTimeVal(min) { return min == null ? '' : relayHhmm(min); }
+/* The times and what they came to, said on the board and the sheet. */
+function attTimesText(m) {
+  if (!m || (m.inMin == null && m.outMin == null)) return '';
+  return (m.inMin != null ? relayClockLabel(m.inMin) : 'shift start') + ' – ' + (m.outMin != null ? relayClockLabel(m.outMin) : 'shift end');
+}
+
 function setAttArea(staffId, areaId) {
   var m = attMark(_attDate, staffId);
   if (!m) return;
   m.area = areaId;
+  // Times typed: the gate's hours are its shift and carry no OT, so moving to or from it is worked out again.
+  if (m.inMin != null || m.outMin != null) attTimesApply(m, staffById(staffId));
   _attHandEdit(m);
   saveState();
 }

@@ -47,6 +47,9 @@ B's workspaces are where that lands: a role is a set of workspaces and views, an
 
 ## The steps
 
+**Built** (1 Oct 2026): G1 (the gate, the change log), G2 (devices) and G3 (role views on the workspace shell). G4, the merge, waits
+until more than one person enters data on their own device.
+
 1. **G1 · The gate** (P140): users and roles, the lock screen, sessions and the background lock, the recovery code, the
    P1 re-ask, Settings → Users & access, and what each role may open (the pages it may not are refused with a word).
 2. **G1 · The change log** (P141): every save diffed record by record, tagged with the user and the device, in History.

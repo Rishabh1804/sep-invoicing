@@ -305,6 +305,13 @@ one file is also a valid **maskable** icon. Masters are SVG, one per palette
 
 ## 4. Information architecture
 
+**Direction B (owner, 1 Oct 2026; `docs/DIRECTION_B.md`) replaces the bottom bar and the sidebar below.** Workspaces are a layer
+over the pages: **Today** (Needs you · Pulse), **Office** (Pipeline · Challans · Invoices · Clients), **Add** (one sheet, not a
+page), **Floor** (Day · People · Production · Stock · Power), **Money** (Finance) and, on the desktop sidebar and from search,
+**Insights** (Stats · Reports · History). A workspace draws its views as a tab row (`#wsTabs`, the §6.4 underline tabs) above
+the page's own view tabs. What follows in 4.1 and 4.2 still holds for the back trail, the top bar, sub-tabs, the action
+bar and the content, and is amended where marked.
+
 ### 4.1 Phone and tablet
 
 - **Back** (nav.js, UX overhaul 2 step 1): an arrow at the top bar's start (`inv-topbar-back`) once there is a step
@@ -319,22 +326,25 @@ one file is also a valid **maskable** icon. Masters are SVG, one per palette
   detour from every other tab). On the desktop Settings is the sidebar's last entry instead.
 - **Sub-tabs** sit directly under the top bar, inside the same surface (§6.4, underline tabs), and scroll
   horizontally when they do not fit — never cut off, never wrap.
-- **Bottom bar** (`--nav-h`): Home · Create · IM · Register · Clients · More, icon + `--t-micro` label; the
-  active item is `--accent` with a 2px accent rule on its top edge. More carries the red count of every red
-  row (stock and overdue tasks), as now.
+- **Bottom bar** (`--nav-h`): **Today · Office · Add · Floor · Money** (Direction B; there is no More), icon + `--t-micro`
+  label; the active workspace is `--accent` with a 2px accent rule on its top edge; Add is the shell's primary. Each
+  workspace carries the red count of the red rows that jump into it.
 - **No floating action button.** The primary action is in the top bar. (v1.0 had both on Clients and Items.)
 - **Sticky action bar** (§6.15) at the bottom of forms, above the bottom bar, carrying the total and Save.
 
 ### 4.2 Desktop
 
-- **Sidebar** (`--side-w`, `--bg`, right hairline), labelled, grouped, always expanded:
+- **Sidebar** (`--side-w`, `--bg`, right hairline), labelled, grouped, always expanded (Direction B):
   - brand mark + "Soma Electro"
-  - **Daily** — Home · Create invoice · Challans *(count: pending)* · Register *(count: this period)*
-  - **Book** — Clients · Items
-  - **Floor** — Production · Stock *(amber/red count)* · Staff · Pay
-  - **Review** — To-do *(red count)* · Stats · History
+  - **Add** (the shell's one primary, key `A`) · **Search** (`Ctrl K`)
+  - **Today** — Needs you · Pulse
+  - **Office** — Pipeline · Challans · Invoices · Clients
+  - **Floor** — Day · People · Production · Stock · Power
+  - **Money**
+  - **Insights** — Stats · Reports · History
   - Settings, pinned to the bottom.
-  Items and Pay open their parent tab on that sub-view. Counts are `--t-micro` mono; a count is toned only
+  Items and Pay are view tabs inside Clients and People, not sidebar entries. A role's doors it may not open are hidden
+  (the guard, `docs/GUARD.md`). Counts are `--t-micro` mono; a count is toned only
   when it is a problem count.
 - **Top bar** (`--bar-h-desk`): the back arrow · the trail (`inv-topbar-trail`: up to three earlier steps, each a
   link back to it, `Home › Challans · Awaiting invoice ›`) · title (`--t-title-desk`) · `/` · context (the view and the

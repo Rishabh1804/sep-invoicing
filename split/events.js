@@ -448,6 +448,7 @@ function onDocClick(e) {
       if (powerAction(action, btn)) break;
       if (qtAction(action, btn)) break;
       if (rptAction(action, btn)) break;
+      if (advAction(action, btn)) break;
       if (action.indexOf('invStock') === 0) stockAction(action, btn);
       else if (action.indexOf('invTodo') === 0) todoAction(action, btn);
       else if (action.indexOf('invRelay') === 0) relayAction(action, btn);
@@ -497,6 +498,7 @@ function updateTotalsDisplay() {
 // Every change re-renders inside keepScroll (state.js): a pick in a drop-down never moves the page (P79).
 document.addEventListener('change', function(e) { keepScroll(function() { onDocChange(e); }); });
 function onDocChange(e) {
+  if (errOnChange(e.target)) return;
   if (rptOnChange(e.target)) return;
   if (stockOnChange(e.target)) return;
   if (billsCnFormInput(e.target)) return;

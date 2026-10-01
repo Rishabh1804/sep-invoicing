@@ -34,7 +34,7 @@ Workforce management and invoicing PWA for **Soma Electro Products**, a zinc ele
 
 ## Architecture
 
-Split-file PWA. 59 modules, ~32,400 lines total.
+Split-file PWA. 61 modules, ~33,400 lines total.
 
 ```
 split/
@@ -44,6 +44,7 @@ split/
 ├── body.html          ← HTML body, tabs, print view (137 lines)
 ├── data.js            ← ITEMS_MASTER + SEED_CLIENTS (27 lines)
 ├── state.js           ← IndexedDB store, verified coalesced saves, escHtml, gstRound, the dialog and pane shells (1,064 lines)
+├── errors.js          ← Error reports to Sentry: what went wrong and where, never the book's data; live site only (~150 lines)
 ├── appearance.js      ← Theme / palette / density per device, theme-color, icon (~90 lines)
 ├── zinc.js            ← Zinc market rate: store, display, metals.dev refresh, uplift from bills (~350 lines)
 ├── tabs.js            ← switchTab (9-step protocol) + renderHome (188 lines)
@@ -83,6 +84,7 @@ split/
 ├── insights.js        ← Insights (as To-do rules), predictions, invoice PO/vehicle prefill (~330 lines)
 ├── finintel.js        ← Finance intelligence: eleven bank To-do rules, days to pay, the cash forecast (~400 lines)
 ├── finlinks.js        ← Finance linked into Home, Stats, Clients, Register, Pay, Stock (~200 lines)
+├── advice.js          ← What to do: the moves under every question and app task, Add to my list, the jumps a move needs (~790 lines)
 ├── dash.js            ← Staff and Stock Overviews: attendance, labour ₹/kg, OT by area, payroll vs bank; days left, supplier spend, use, prices (~230 lines)
 ├── production.js      ← Production store; derived index (which figure counts, usual line, matches, racks); in plant; rules; export (~580 lines)
 ├── prodview.js        ← Production page: Overview, In plant, Lines, Entries; paste, photo and hand sub-views (~750 lines)
@@ -100,7 +102,7 @@ split/
 └── init.js            ← Migrations + app bootstrap (567 lines)
 ```
 
-**Concat order defined in build.sh.** Dependencies: data → state → appearance → zinc → tabs → clients → items → create → settings → github-sync → invoice-ops → number-audit → exports → im → autocomplete → print → quality-cert → credit-note → quote → charts → staff → labour → areas → payroll → stock → cost → bills → xls → xlsx → bank → finance → todo → relay → attsheet → stocksheet → prodparse → stats → intel → insights → finintel → finlinks → dash → production → prodview → power → report → client-perf → im-form → im-dupe → vision → scanner → events → swipe → nav → seed → init.
+**Concat order defined in build.sh.** Dependencies: data → state → errors → appearance → zinc → tabs → clients → items → create → settings → github-sync → invoice-ops → number-audit → exports → im → autocomplete → print → quality-cert → credit-note → quote → charts → staff → labour → areas → payroll → stock → cost → bills → xls → xlsx → bank → finance → todo → relay → attsheet → stocksheet → prodparse → stats → intel → insights → finintel → finlinks → advice → dash → production → prodview → power → report → client-perf → im-form → im-dupe → vision → scanner → events → swipe → nav → seed → init.
 
 **Every module shares one global scope.** A top-level `var` or `function` in a later module silently replaces one of
 the same name in an earlier one; nothing warns. `bills.js` shipped a `STOCK_UNITS` array over `stock.js`'s unit map
@@ -130,7 +132,7 @@ every session start — nothing to set up by hand. CI (`build-sync`) is the back
 ### Tests
 
 ```bash
-pnpm exec playwright test          # 1,140 tests, both layouts
+pnpm exec playwright test          # 1,152 tests, both layouts
 ```
 
 Some sandboxes ship a Chromium build Playwright does not expect and block downloading
@@ -1624,6 +1626,26 @@ register can tell a reason the ruling supplied from one an operator chose. The m
 to invoices dated on or before the ruling — a ₹0 line written later by a device on an older build
 reads *No reason recorded* rather than the migration inventing one forever.
 
+### Error reports
+**An error nobody caught, a screen that could not be drawn and a start-up step that failed are sent to the developer**
+(`errors.js`; owner, 1 Oct 2026: *"Yes, add Sentry error reporting"*, after agreeing what may go). They still reach the
+owner's screen as before (`uiNotice`); the report is the developer's copy, so a crash on the phone is seen before anybody
+has to describe it. P143.
+- **What goes**: the kind of error, its message with anything that could be the book's data masked (`errScrub`: amounts,
+  numbers, dates, quoted text, e-mails, GSTINs, names written in capitals), the stack as function names and line numbers in
+  the built page, the build stamp as the release, the screen, the layout, whether installed and online, the browser.
+- **What never goes**: a record, a figure, the address's query, a user, breadcrumbs. **There is no Sentry SDK**: its
+  breadcrumbs carry request URLs, and the Gemini and metals.dev keys travel in theirs. One POST of an envelope to Sentry's
+  endpoint (`text/plain`, so no preflight; the service worker never touches a POST).
+- **From the live site only** (`ERR_HOSTS`), never from a test browser (`navigator.webdriver`) or a local copy. `ERR_DSN`
+  names the project (the owner's, EU region, given 1 Oct 2026; a DSN is a public key, made to sit in the page). Each kind of
+  error once a session, at most ten; held on the device while offline (`sep_inv_err_queue`, twenty at most) and sent when it
+  is back online. Checked at setup: Sentry took a test event (environment `setup-check`) and answers the site's origin with
+  `access-control-allow-origin: *` on a `text/plain` POST, so a browser needs no preflight.
+- **Off per device**: Settings → Data & device → Backup, storage & build (`sep_inv_err_off`, never on the book).
+- **In Sentry**, the project should have *Prevent storing of IP addresses* on, and *Allowed domains* set to
+  `rishabh1804.github.io` so nobody else can post into it with the public key (both under Security & Privacy).
+
 ### Production
 More → **Production** (sidebar Floor → Production; owner, 28 Sep 2026: *"This will give us a clearer picture of what's
 actually happening in the plant daily"*). What each line (VAT A1, VAT A2, barrel) plated each day, pickling as a stage
@@ -1991,6 +2013,48 @@ the stock (price, usage, cadence, etc.)"*). `cost.js`.
 Staff, Stats, History). More lights up while one of those is open and carries a red count of **every red row**
 — stock out or under its red line, and your own tasks overdue. The test fixture's `switchTab` opens
 More when the target is behind it.
+
+### What to do: every answer ends in its moves
+Direction B, step 1 (`advice.js`, P133; owner, 1 Oct 2026: *"In the pulse, we have a question that asks who's driving it and
+there is an answer with a reason, with no possible solutions and steps to be taken to ensure smooth running of our plant. Lots
+of things in the app that can answer itself but that linkage is missing."*). The plan is `docs/DIRECTION_B.md`.
+- **A move** is a sentence (*Ask SSS MEHTA for ₹8.55/kg*), a signed worth with what it rests on (a month at the last three
+  months' tonnage, said), and one button to the place where it is made, filled in as far as the book allows. **Every figure
+  comes from the function its own screen uses** (helpers were extracted, never copied: `statsPulseArgs`, `statsStoryCards`,
+  `prodGeneralLines` / `prodStaffedLines`, `cpHourParts`, `qtToFromClient`); a worth that cannot be worked out is left out of
+  the sentence, never guessed. **Nothing is applied**: a move opens a place or a draft, and nothing is written until the owner
+  saves there.
+- **The six questions** on Stats → Overview (and, with Direction B, Today → Pulse: `advPulseHtml(period)`), each ending in
+  *What you can do* — three moves shown, ranked by worth then tone, the rest behind *Show N more moves*; where none can be
+  worked out, one line says what would make one appear:
+  1. **Is the plant running smoothly?** (new) A stock line out or red, with the reorder list's cost; this month's cuts, with
+     the power case's option and its payback; an area short on 3 of the last 6 working days, with its EXTRA; a staffed line
+     with no record after 11 AM; the payout due within two days of Saturday; no backup for a week.
+  2. **Are we making money?** Reprice the large accounts under the cost; bill what is waiting; the cost line furthest above
+     its model; the spare capacity.
+  3. **Who is driving it?** For the account filling the plant under the cost: reprice per kg and per piece (a quotation
+     draft, below); what its rebate costs against how fast it pays; the parts earning under an hour of the plant's cost (By
+     the hour); the labour question settled both ways. For the biggest mover down: its stopped parts, and a call.
+  4. **Is the plant full?** Who could fill the spare tonnes; quotations out and unanswered; a new quotation at a rate that
+     clears the cost; the lines with the most idle days.
+  5. **Is cash coming in?** The largest debts over 90 days (a call, their receivables), receipts with no client, a client
+     paying slower, the forecast's lowest point.
+  6. **What changed?** The insights, each with its own moves.
+- **Every app task carries its moves** too: the task's dialog lists *What you can do* above *What clears it* (`advTaskMoves`,
+  keyed by rule; each rule now puts its data on the task: client, item, month, amount). The task's own button stays primary.
+- **A call** is a real `tel:` link to the client's first diallable mobile or phone (`mailto:` when there is none), drawn as a
+  button (`a.inv-btn`). **Reprice** opens a new, unsaved quotation draft (`qtOpenDraft`): the client's three largest parts by
+  tonnage over 90 days, a piece line at target ₹/kg × the client's own kg per piece where it is known, else per kg; the draft
+  keeps `draftNote` (never printed, dropped on a revision).
+- **Add to my list** makes a task of the owner's own, due today, carrying the move's button (`go`, `goLabel`, `advKey`); the
+  move reads *On your list* wherever it is drawn until the task is ticked. A decision taken on the Pulse is tracked on the
+  To-do.
+- **The jumps a move needs** (`advGoTo`, behind `todoGo`'s default): `quoteDraft`, `quotes`, `perf` (a client's Performance on
+  a panel), `reorder`, `powerCase`, `areas`, `payWeek`, `liveCost` (a component open), `prodLines`, `createFor` (Create with the
+  client's challans ticked), `register` (a client and a month); `regState` ticks the ids it is given, `stats` scrolls to its
+  anchor.
+- **Left open**: the rebate move opens the whole credit-note list (no client filter there yet); a quotation draft's prefill is
+  not restored by browser Back/Forward.
 
 ### Stats in tabs, and the overview
 Stats is five tabs over one period chip row (owner, 25 Sep 2026: *"break up the stats page into multiple

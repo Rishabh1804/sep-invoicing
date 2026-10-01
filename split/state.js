@@ -1167,11 +1167,13 @@ if (typeof window !== 'undefined' && window.addEventListener) {
     var msg = (e && e.message) || '';
     if (!msg || /ResizeObserver|Script error/.test(msg)) return;
     uiNotice('Something went wrong: ' + msg + '. What was being done may not have finished — check it, and export a backup if in doubt.', 'danger');
+    if (typeof errReport === 'function') errReport(e.error || { name: 'Error', message: msg }, 'uncaught');
   });
   window.addEventListener('unhandledrejection', function(e) {
     var r = e && e.reason, msg = r && r.message ? r.message : String(r || '');
     if (!msg) return;
     uiNotice('Something went wrong: ' + msg + '. What was being done may not have finished — check it.', 'danger');
+    if (typeof errReport === 'function') errReport(r instanceof Error ? r : { name: 'UnhandledRejection', message: msg }, 'promise');
   });
 }
 

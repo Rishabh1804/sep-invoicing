@@ -203,7 +203,7 @@ TODO_RULE_FNS.insQuiet = function() {
     months.forEach(function(m) { var r = mm(c.id, m); rev += r.rev; kg += r.kg; if (r.real != null) known += r.real * r.kg; });
     if (rev < 20000) return null;
     var share = bookRev > 0 ? rev / bookRev : 0;
-    return { key: 'insQuiet:' + c.id, rule: 'insQuiet', tone: share >= 0.1 ? 'red' : 'amber',
+    return { key: 'insQuiet:' + c.id, rule: 'insQuiet', tone: share >= 0.1 ? 'red' : 'amber', clientId: c.id, rev3: gstRound(rev),
       title: c.name + ': no challan for ' + c.since + ' days',
       sub: 'Usually every ' + formatNum(c.median, 0) + ' day' + (c.median === 1 ? '' : 's') + '; overdue after ' + Math.round(c.quietAfter) + (kg > 0 ? ' · ₹' + formatNum(known / kg, 2) + '/kg' : ''),
       why: 'Client · gone quiet', go: { kind: 'client', id: c.id }, goLabel: 'Open the client',
@@ -225,7 +225,7 @@ TODO_RULE_FNS.insRealLow = function() {
     var a = mm(String(c.id), cur).rev / (now.rev || 1), b = mm(String(c.id), prev).rev / (mm('', prev).rev || 1);
     if (!moved || Math.abs(a - b) > Math.abs(moved.d)) moved = { name: c.name, d: a - b, a: a, b: b };
   });
-  return [{ key: 'insRealLow:' + cur, rule: 'insRealLow', tone: 'amber',
+  return [{ key: 'insRealLow:' + cur, rule: 'insRealLow', tone: 'amber', month: cur,
     title: insMonthLabel(cur) + ' is realising ₹' + formatNum(now.real, 2) + '/kg, the lowest in ' + (reals.length + 1) + ' months',
     sub: 'Median of the ' + reals.length + ' before: ₹' + formatNum(med, 2) + (moved && Math.abs(moved.d) >= 0.05 ? ' · ' + moved.name + ' is ' + Math.round(moved.a * 100) + '% of revenue against ' + Math.round(moved.b * 100) + '%' : ''),
     why: 'Money · this month', go: insGo('overview'), goLabel: 'Open Stats',
@@ -239,7 +239,7 @@ TODO_RULE_FNS.insClientDown = function() {
   (S.clients || []).forEach(function(c) {
     var r = months.map(function(m) { return mm(String(c.id), m).rev; });
     if (!(r[0] >= 30000 && r[1] < r[0] && r[2] < r[1] && r[2] <= r[0] * 0.75)) return;
-    out.push({ key: 'insClientDown:' + c.id, rule: 'insClientDown', tone: 'amber', title: c.name + ': billing down three months running',
+    out.push({ key: 'insClientDown:' + c.id, rule: 'insClientDown', tone: 'amber', clientId: c.id, fall: gstRound(r[0] - r[2]), title: c.name + ': billing down three months running',
       sub: months.map(function(m, i) { return insMonthLabel(m) + ' ' + formatCurrency(gstRound(r[i])); }).join(' → '),
       why: 'Client · trend', go: { kind: 'client', id: c.id }, goLabel: 'Open the client',
       facts: months.map(function(m, i) { return [insMonthLabel(m), formatCurrency(gstRound(r[i]))]; }).concat([['Fall', Math.round((1 - r[2] / r[0]) * 100) + '%']]),
@@ -258,7 +258,7 @@ TODO_RULE_FNS.insLeak = function() {
     var med = numMedian(before);
     if (cur.real >= med * 0.95) return;
     var gap = gstRound((med - cur.real) * cur.kg);
-    out.push({ key: 'insLeak:' + c.id, rule: 'insLeak', tone: 'amber', title: c.name + ' realised ₹' + formatNum(cur.real, 2) + '/kg against its usual ₹' + formatNum(med, 2),
+    out.push({ key: 'insLeak:' + c.id, rule: 'insLeak', tone: 'amber', clientId: c.id, month: last, gap: gap, title: c.name + ' realised ₹' + formatNum(cur.real, 2) + '/kg against its usual ₹' + formatNum(med, 2),
       sub: insMonthLabel(last) + ' · ≈ ' + formatCurrency(gap) + ' of work at its own usual rate (₹0 lines, a changed rate, or the mix)',
       why: 'Money · leakage', go: { kind: 'client', id: c.id }, goLabel: 'Open the client',
       facts: [[insMonthLabel(last), '₹' + formatNum(cur.real, 2) + '/kg'], ['Usual', '₹' + formatNum(med, 2) + '/kg'], ['At stake', formatCurrency(gap)]],
@@ -274,7 +274,8 @@ TODO_RULE_FNS.insBelowVar = function() {
   // With labour not split into fixed and variable (statsCostSplit), there is no variable cost to be below.
   if (!m || m.varKg == null) return [];
   return m.ranked.filter(function(x) { return x.kg >= m.kg * 0.1 && x.vsVar < 0; }).map(function(x) {
-    return { key: 'insBelowVar:' + x.id, rule: 'insBelowVar', tone: 'red', title: x.name + ' is below its variable cost',
+    return { key: 'insBelowVar:' + x.id, rule: 'insBelowVar', tone: 'red', clientId: x.id, month: last, net: x.net, varKg: m.varKg, fullKg: m.fullKg, kg: x.kg,
+      title: x.name + ' is below its variable cost',
       sub: insMonthLabel(last) + ': ₹' + formatNum(x.net, 2) + '/kg against ₹' + formatNum(m.varKg, 2) + ' variable · loses ' + formatCurrency(gstRound(-x.vsVar * x.kg)) + ' even with labour fixed',
       why: 'Money · margin', go: insGo('clients'), goLabel: 'Open contribution by client',
       facts: [['Realised', '₹' + formatNum(x.net, 2) + '/kg'], ['Variable cost', '₹' + formatNum(m.varKg, 2) + '/kg'], ['Full cost', '₹' + formatNum(m.fullKg, 2) + '/kg'], ['Share of tonnage', Math.round(x.kg / m.kg * 100) + '%'], ['Cost measured', Math.round(m.c.measuredShare * 100) + '%']],
@@ -289,7 +290,7 @@ TODO_RULE_FNS.insLabour = function() {
   if (lab.coverage < 0.9 || !(kg > 0) || !(lab.total > 0)) return [];
   var perKg = lab.total / kg, diff = perKg - model;
   if (Math.abs(diff) / model < 0.2) return [];
-  return [{ key: 'insLabour:' + last, rule: 'insLabour', tone: 'amber',
+  return [{ key: 'insLabour:' + last, rule: 'insLabour', tone: 'amber', month: last, perKg: perKg, model: model, kg: kg,
     title: 'Labour reads ₹' + formatNum(perKg, 2) + '/kg against the ₹' + formatNum(model, 2) + ' model',
     sub: insMonthLabel(last) + (diff < 0 ? ': if the roster is short of hands or rates, every margin is overstated by up to ' + formatCurrency(gstRound(-diff * kg)) : ': the model understates labour by ' + formatCurrency(gstRound(diff * kg))),
     why: 'Data gap · affects every margin', go: { kind: 'staffRoster' }, goLabel: 'Check the roster',
@@ -311,11 +312,12 @@ TODO_RULE_FNS.insChemPrice = function() {
   stockData().entries.forEach(function(e) {
     if (e.voided || (e.kind !== 'used' && e.kind !== 'charged') || e.date < cut) return;
     var it = stockItem(e.itemId);
-    if (it && !stockPriceAt(it.id, e.date)) names[it.name] = true;
+    if (it && !stockPriceAt(it.id, e.date)) names[it.name] = it.id;
   });
   var list = Object.keys(names).sort();
   if (!list.length) return [];
-  return [{ key: 'insChemPrice', rule: 'insChemPrice', tone: 'info', title: list.length + ' stock line' + (list.length === 1 ? '' : 's') + ' used with no price',
+  return [{ key: 'insChemPrice', rule: 'insChemPrice', tone: 'info', itemIds: list.map(function(n) { return names[n]; }),
+    title: list.length + ' stock line' + (list.length === 1 ? '' : 's') + ' used with no price',
     sub: list.join(', '), why: 'Data gap · live cost', go: { kind: 'stockList' }, goLabel: 'Open Stock',
     facts: [['Lines', list.join(', ')]], clears: 'Clears itself when each has a bill.', sig: list.join('|') }];
 };

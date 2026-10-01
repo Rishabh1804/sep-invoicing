@@ -633,22 +633,32 @@ function prodCoverage(from, to) {
   });
   return res;
 }
+/* The lines with a general-shift record counted, by day: {date: {line: true}}. */
+function prodGeneralLines() {
+  var gen = {};
+  prodIndex().counted.forEach(function(e) { if (e.slot !== 'ot' && e.line) (gen[e.date] = gen[e.date] || {})[e.line] = true; });
+  return gen;
+}
+/* The plating lines a day's marks put heads on: {line: true}. */
+function prodStaffedLines(day) {
+  var staffed = {};
+  if (!day || !day.marks) return staffed;
+  Object.keys(day.marks).forEach(function(id) {
+    var mk = day.marks[id];
+    if (!mk || (mk.st && mk.st !== 'P' && mk.st !== 'H')) return;
+    var a = mk.area || '';
+    if (a === 'vat-a1' || a === 'vat-a2' || a === 'barrel') staffed[a] = true;
+  });
+  return staffed;
+}
 /* A complete day: attendance recorded, and every line that had heads that day has a general-shift record. */
 function prodCompleteDays(from, to) {
   var att = S.attendance || {}, out = [];
-  var gen = {};
-  prodIndex().counted.forEach(function(e) { if (e.slot !== 'ot' && e.line) (gen[e.date] = gen[e.date] || {})[e.line] = true; });
+  var gen = prodGeneralLines();
   for (var d = from, g = 0; d <= to && g < 400; d = isoAddDays(d, 1), g++) {
     var day = att[d];
     if (!day || !day.marks) continue;
-    var staffed = {};
-    Object.keys(day.marks).forEach(function(id) {
-      var mk = day.marks[id];
-      if (!mk || (mk.st && mk.st !== 'P' && mk.st !== 'H')) return;
-      var a = mk.area || '';
-      if (a === 'vat-a1' || a === 'vat-a2' || a === 'barrel') staffed[a] = true;
-    });
-    var lines = Object.keys(staffed);
+    var lines = Object.keys(prodStaffedLines(day));
     if (!lines.length) continue;
     if (lines.every(function(l) { return gen[d] && gen[d][l]; })) out.push(d);
   }
@@ -872,7 +882,7 @@ TODO_RULE_FNS.prodPlatedUnbilled = function() {
   return Object.keys(byClient).map(function(cid) {
     var c = byClient[cid], n = Object.keys(c.parts).length, tone = c.age >= 2 * N ? 'red' : 'amber', name = prodClientName(cid) || 'Client ' + cid;
     var what = (c.nos ? Math.round(c.nos).toLocaleString('en-IN') + ' NOS' : '') + (c.nos && c.kg ? ' + ' : '') + (c.kg ? formatNum(c.kg, 1) + ' kg' : '');
-    return { key: 'prodPlatedUnbilled:' + cid, rule: 'prodPlatedUnbilled', tone: tone, title: name + ': ' + what + ' plated, not invoiced',
+    return { key: 'prodPlatedUnbilled:' + cid, rule: 'prodPlatedUnbilled', tone: tone, clientId: cid, title: name + ': ' + what + ' plated, not invoiced',
       sub: todoPlural(n, 'part') + ' · oldest plated ' + formatDate(c.oldest) + ' (' + todoPlural(c.age, 'working day') + ')',
       why: 'Production · rule: ' + N + ' working days', facts: [['Plated, not invoiced', what], ['Parts', String(n)], ['Oldest', formatDate(c.oldest)]],
       clears: 'Invoice these parts, or void a plated entry that was wrong.', go: prodGo('plant', { client: cid }), goLabel: 'Open in plant',

@@ -24,6 +24,7 @@ OUT="$ROOT/sep-invoicing.html"
 JS_SOURCES=(
   "$DIR/data.js"
     "$DIR/state.js" \
+    "$DIR/errors.js" \
     "$DIR/appearance.js" \
     "$DIR/zinc.js" \
     "$DIR/tabs.js" \
@@ -63,6 +64,7 @@ JS_SOURCES=(
     "$DIR/insights.js" \
     "$DIR/finintel.js" \
     "$DIR/finlinks.js" \
+    "$DIR/advice.js" \
     "$DIR/dash.js" \
     "$DIR/production.js" \
     "$DIR/prodview.js" \

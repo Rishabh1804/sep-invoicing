@@ -435,9 +435,9 @@ var SETTINGS_SECS = {
         '<div><div class="inv-kv-k">Build</div><div class="inv-id inv-build-id">' + escHtml(APP_BUILD) + '</div></div></div>' +
         '<div class="inv-toolbar inv-toolbar-flush inv-mt-8"><button type="button" class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invCheckUpdate">Check for a newer version</button>' +
         '<button type="button" class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invRunDiagnostics">Run storage diagnostics</button></div>' +
-        '<div id="storageDiagOut"></div>';
+        '<div id="storageDiagOut"></div>' + errSettingsHtml();
     },
-    why: 'Import replaces the whole book with the file. Exporting also counts as a backup for the To-do reminder.'
+    why: 'Import replaces the whole book with the file. Exporting also counts as a backup for the To-do reminder. Error reports go to the developer from the live site only, and carry no record, name or figure.'
   }
 };
 

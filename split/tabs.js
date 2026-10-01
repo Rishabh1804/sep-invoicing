@@ -67,6 +67,7 @@ function switchTab(tabId) {
     saveRegFilter();
   } catch (err) {
     console.error(err);
+    if (typeof errReport === 'function') errReport(err, 'render: ' + tabId);
     uiNotice('The ' + (PAGE_TITLES[tabId] || 'screen') + ' screen could not be drawn: ' + ((err && err.message) || err) +
       '. The rest of the app works; export a backup from Settings if this keeps happening.', 'danger');
   }

@@ -132,7 +132,7 @@ every session start — nothing to set up by hand. CI (`build-sync`) is the back
 ### Tests
 
 ```bash
-pnpm exec playwright test          # 1,152 tests, both layouts
+pnpm exec playwright test          # 1,158 tests, both layouts
 ```
 
 Some sandboxes ship a Chromium build Playwright does not expect and block downloading
@@ -2576,7 +2576,8 @@ on screen, three documents through the one print view, each page one A4 sheet (P
   on WhatsApp at · Handed to Deepak at*. **Blank lines only** (owner): he writes names as he does on WhatsApp.
 - **Deepak's sheet** is the Day entry on paper: the active roster in the Day view's order (`staffActive`), tier, P / H / A,
   area, in, out, hours, OT, three rows for anyone not on it, the EXTRA table (area, from, to, crew, hours), and *Filled by
-  Shyam · Checked by Deepak · Entered in the app by / on*.
+  Shyam · Checked by Deepak · Entered in the app by / on* Every column has a fixed width (`data-as-entry`): In and Out 16 mm each, room for
+  a time by hand (owner, 1 Oct 2026: *"In time Out time hardly has any space"*; the four shift areas had squeezed them to 7 and 10 mm).
 - **The filled copy** is Deepak's form carrying what the app holds for the day (a worker marked that day who has since left
   the roster included), to staple behind the two. It cannot be picked for a day with nothing entered.
 Shyam writes, Deepak transcribes into the app's shape, the owner enters it and files all three: the paper checks the entry.
@@ -2974,6 +2975,26 @@ day** in a dialog (`attEditOpen`: state, area, hours or OT, saved as they change
 with the payout and dues, its history and the slips as paid folded; Areas folds its hours and the absorption. **Civil** is an area
 (a post, off the floor, like the office and the gate; a roll heading *civil* reads to it). **The attendance panel** (Staff → Overview,
 Home) says where everyone on site stood, by area, the floor against its number. P119.
+
+**In and out are typed by hand too** (owner, 1 Oct 2026: *"Attendance has no option to enter time in and time out by hand, so we
+have to rely on whatsapp message only, there is no way to simply enter the data that is presented to us by Deepak in his sheet"*).
+The hand's dialog takes an **In** and an **Out**, and Staff → Day → **Sheet** (beside **Board**, kept per device,
+`sep_inv_att_day_as`) is Deepak's sheet: the day's roster in its order, one row a hand with P / H / A, the area, the in and the out,
+and the hours and OT worked out as each is typed. One rule for a roll and a hand (`relayHoursOf`): the span to the whole hour, OT the
+hours over 8, none for an hourly hand or the gate. A side left blank is the shift's (8:30 AM to 5:00 PM, the gate 7 to 7, a half day
+four hours from its in); an out not after the in ran past midnight; absent clears the times. A typed time makes the mark the hand's
+(no `src: 'relay'`), so a roll never rewrites it; an OT typed in the dialog wins until a time changes. EXTRA rows were already
+entered by hand below the board. P144.
+
+**A hand's OT shifts carry their own area** (owner, 1 Oct 2026: *"there is also no way to record which area the OT workers actually
+worked on, we get to select one option for the entire day. Every worker can have states, like morning OT, General, Evening OT, Late
+night OT … right now we just select the General shift areas and OT areas are neglected, both in the app and in Deepak's sheet"*). The
+mark's area is the **General** shift's; **Morning OT**, **Evening OT** and **Night** each take an area, on the hand's dialog and as
+columns on Day → Sheet and on Deepak's printed sheet (`ATT_SLOTS`). A slot is the crew of that slot's OT block, the one record Areas,
+Power and Production's crews already read (`setAttSlotArea`): a hand put on Evening OT · VAT A2 joins the evening block covering VAT A2,
+made at the slot's usual times with no EXTRA booked when there is none (`slotMade`), and such a block goes when its last hand leaves it.
+A block's slot is read off its start (`attBlockSlot`: before 8:30 AM the morning, from 5 PM the evening, from 8 PM or past midnight the
+night). **Overtime is booked where it was worked** (`attOtArea`, labour.js): the hand's OT block's area, else the general shift's. P145.
 
 **A day's attendance is deleted only with a reason, and the deletion is logged** (owner, 30 Sep 2026: *"there is no way to
 delete a day's data after providing a reason that can be logged"*). Staff → Day → **Delete this day** asks why (required),

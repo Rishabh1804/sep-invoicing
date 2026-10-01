@@ -151,10 +151,11 @@ function attSheetDeepakHtml(iso, filled) {
       '<td class="inv-as-tick">' + (compIsHourly(w) ? 'H' : w.comp === 'monthly' ? 'M' : 'D') + '</td>' +
       tick('P') + tick('H') + tick('A') +
       '<td>' + (m && m.st !== 'A' ? escHtml(areaLabel(m.area || w.area || 'flex')) : '') + '</td>' +
+      ATT_SLOTS.map(function(z) { var a = rec && m && m.st !== 'A' ? attHandSlotArea(rec, w.id, z[0]) : ''; return '<td>' + (a ? escHtml(areaLabel(a)) : '') + '</td>'; }).join('') +
       '<td>' + (m ? escHtml(_asHm(m.inMin)) : '') + '</td><td>' + (m ? escHtml(_asHm(m.outMin)) : '') + '</td>' +
       '<td>' + (m && m.hours ? escHtml(formatNum(m.hours, 1)) : '') + '</td><td>' + (m && m.ot ? escHtml(formatNum(m.ot, 1)) : '') + '</td></tr>';
   }).join('');
-  if (!filled) for (var k = 0; k < 3; k++) rows += '<tr><td class="inv-as-tick">' + (roster.length + k + 1) + '</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>';
+  if (!filled) for (var k = 0; k < 3; k++) rows += '<tr><td class="inv-as-tick">' + (roster.length + k + 1) + '</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>';
 
   var extras = rec ? (rec.extra || []) : [];
   var exRows = extras.map(function(x) {
@@ -167,12 +168,13 @@ function attSheetDeepakHtml(iso, filled) {
   var title = filled ? 'Attendance as entered in the app' : 'Attendance entry';
   return '<div class="inv-as-page" data-sheet="' + (filled ? 'filled' : 'deepak') + '">' + _asHead(title, iso, filled ? '' : 'Deepak') +
     (filled && !rec ? '<div class="inv-as-note">Nothing is entered in the app for this day yet.</div>' : '') +
-    '<table class="inv-as-table"><thead><tr><th class="inv-as-tick">#</th><th>Worker</th><th class="inv-as-tick">Tier</th>' +
-    '<th class="inv-as-tick">P</th><th class="inv-as-tick">H</th><th class="inv-as-tick">A</th><th>Area</th><th>In</th><th>Out</th><th>Hours</th><th>OT</th></tr></thead>' +
+    '<table class="inv-as-table" data-as-entry><colgroup>' + ['num', 'name', 'tick', 'tick', 'tick', 'tick', 'area', 'area', 'area', 'area', 'time', 'time', 'fig', 'fig'].map(function(k) { return '<col data-as-col="' + k + '">'; }).join('') + '</colgroup>' +
+    '<thead><tr><th class="inv-as-tick">#</th><th>Worker</th><th class="inv-as-tick">Tier</th>' +
+    '<th class="inv-as-tick">P</th><th class="inv-as-tick">H</th><th class="inv-as-tick">A</th><th>General</th><th>Morning OT</th><th>Evening OT</th><th>Night</th><th>In</th><th>Out</th><th>Hours</th><th>OT</th></tr></thead>' +
     '<tbody>' + rows + '</tbody></table>' +
     '<div class="inv-as-slot">EXTRA</div>' +
     '<table class="inv-as-table"><thead><tr><th>Area</th><th>From</th><th>To</th><th>Crew</th><th>Hours</th></tr></thead><tbody>' + exRows + '</tbody></table>' +
-    '<div class="inv-as-note">Tier: M monthly, H hourly, D daily. P present, H half day, A absent. Hours for an hourly hand; OT for the rest.</div>' +
+    '<div class="inv-as-note">Tier: M monthly, H hourly, D daily. P present, H half day, A absent. General is the area of the 8:30 to 5 shift; under Morning OT, Evening OT and Night write the area the hand stood in on that shift, or leave it blank. Hours for an hourly hand; OT for the rest.</div>' +
     (filled
       ? '<div class="inv-as-note">Printed from the app ' + escHtml(formatTimestamp(Date.now())) + '. Staple behind Shyam\'s and Deepak\'s sheets for the day.</div>'
       : '<div class="inv-as-sign"><div>Filled by Shyam</div><div>Checked by Deepak</div><div>Entered in the app by / on</div></div>') +

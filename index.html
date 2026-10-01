@@ -18,7 +18,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <!-- Appearance before first paint (§3.2): the device's theme and palette, so nothing flashes in the wrong colours. -->
 <script>(function(){try{var d=document.documentElement,t=localStorage.getItem("sep_inv_theme"),p=localStorage.getItem("sep_inv_palette");if(t==="light"||t==="dark")d.dataset.theme=t;d.dataset.palette=(p==="zinc"||p==="terracotta")?p:"teal";}catch(e){document.documentElement.dataset.palette="teal";}})();</script>
-<meta name="app-build" content="013e7eae">
+<meta name="app-build" content="4e696520">
 <style>
 /* ===== DESIGN TOKENS (design system v2.0 — docs/SEP_INVOICING_DESIGN_PRINCIPLES.md §3) ===== */
 /* Theme: colour-scheme decides every light-dark() below. <html data-theme> is set before first paint
@@ -260,6 +260,7 @@ body:not(.inv-booted) { pointer-events: none; }
 .inv-as-page {
   --as-fs: 9pt; --as-fs-sm: 7.5pt; --as-fs-h: 14pt; --as-fs-slot: 10.5pt;
   --as-line: 6.5mm; --as-line-tall: 8.5mm; --as-gap: 3mm; --as-pad: 10mm 12mm; --as-rule: 0.5pt; --as-num-w: 6mm;
+  --as-col-name: 36mm; --as-col-area: 16mm; --as-col-time: 16mm; --as-col-fig: 10mm;
   --as-sheet-w: 210mm; --as-sheet-h: 297mm; --as-sign-gap: 10mm; --as-ink: #1a3a8f;
   background: #fff; color: #000; font-family: var(--ff-base); font-size: var(--as-fs); line-height: 1.2;
   width: var(--as-sheet-w); min-height: var(--as-sheet-h); padding: var(--as-pad); margin: 0 auto var(--sp-16);
@@ -287,6 +288,15 @@ body:not(.inv-booted) { pointer-events: none; }
 /* Rows written in by hand across several fields (the stock message) get more room. */
 .inv-as-tall td { height: var(--as-line-tall); }
 .inv-as-table .inv-as-tick { width: var(--as-num-w); text-align: center; font-weight: 700; }
+/* Deepak's entry sheet is written by hand: every column has a fixed width, so In and Out get room for a time
+   (they had 7 and 10 mm once the four shift areas were added) and an area column takes a word. 182 mm of 186. */
+.inv-as-table[data-as-entry] { table-layout: fixed; }
+.inv-as-table[data-as-entry] th { white-space: normal; line-height: 1.1; }
+[data-as-col="num"], [data-as-col="tick"] { width: var(--as-num-w); }
+[data-as-col="name"] { width: var(--as-col-name); }
+[data-as-col="area"] { width: var(--as-col-area); }
+[data-as-col="time"] { width: var(--as-col-time); }
+[data-as-col="fig"] { width: var(--as-col-fig); }
 .inv-as-sign { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--as-gap); margin-top: var(--as-sign-gap); font-size: var(--as-fs-sm); }
 .inv-as-sign > div { border-top: var(--as-rule) solid #000; padding-top: 1mm; }
 .inv-as-note { font-size: var(--as-fs-sm); color: #444; margin-top: 2mm; }
@@ -15998,7 +16008,7 @@ function attAreaOptions(sel) {
 // it is never enough for a list.
 var ATT_FOCUS_ATTRS = ['data-action', 'data-id', 'data-st', 'data-date', 'data-idx',
   'data-area', 'data-worker'];
-var ATT_FOCUS_FLAGS = ['data-att-area', 'data-att-ot', 'data-att-hours',
+var ATT_FOCUS_FLAGS = ['data-att-slot', 'data-att-area', 'data-att-ot', 'data-att-hours', 'data-att-in', 'data-att-out',
   'data-att-extra-area', 'data-att-extra-hours', 'data-att-extra-kind',
   'data-att-block-from', 'data-att-block-to', 'data-att-need', 'data-att-block-need'];
 
@@ -16168,8 +16178,19 @@ function _attDayView() {
 
   // The day as a board (owner, 30 Sep 2026: "Attendance sheet for Day scrolls way too far"): a card per area, a line per
   // hand with P / H / A one tap away; the area, hours and OT open on the name. Absent hands are one strip under the board.
-  html += '<div class="inv-toolbar inv-toolbar-flush"><button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invAttAllPresent">All present</button>' +
-    '<span class="inv-note">Tap a name for the area, hours and OT.</span></div>';
+  var sheet = attDayAsSheet();
+  html += '<div class="inv-toolbar inv-toolbar-flush"><span class="inv-seg" role="group" aria-label="Show the day as">' +
+    '<button class="inv-seg-btn" data-action="invAttDayAs" data-v="board" aria-pressed="' + !sheet + '">Board</button>' +
+    '<button class="inv-seg-btn" data-action="invAttDayAs" data-v="sheet" aria-pressed="' + sheet + '">Sheet</button></span>' +
+    '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invAttAllPresent">All present</button>' +
+    '<span class="inv-note">' + (sheet ? 'Deepak’s sheet: P / H / A, area, in and out for each hand; hours and OT are worked out.' : 'Tap a name for the area, the in and out, hours and OT.') + '</span></div>';
+  if (sheet) {
+    html += attSheetEntryHtml(iso, rec, roster);
+    html += _attNeedCard(iso, rec);
+    html += _attExtraCard(iso, rec);
+    html += uiFoldCard('attDayCost', renderLabourCard(iso, iso, 'Day cost'), false);
+    return html;
+  }
   var byArea = {}, absentees = [];
   roster.forEach(function(w) {
     var m = rec ? rec.marks[w.id] : null;
@@ -16212,6 +16233,10 @@ function _attBoardRow(w, m) {
   var st = m ? m.st : '', hourly = compIsHourly(w);
   var states = hourly ? ['P', 'A'] : ATT_STATES;
   var hrs = m && st !== 'A' ? (hourly ? (m.hours ? m.hours + ' h' : 'no hours') : (m.ot ? 'OT ' + m.ot + ' h' : '')) : '';
+  if (m && st !== 'A' && attTimesText(m)) hrs = attTimesText(m) + (hrs ? ' · ' + hrs : '');
+  var recD = attDay(_attDate, false);
+  var slots = m && st !== 'A' ? ATT_SLOTS.map(function(z) { var a = attHandSlotArea(recD, w.id, z[0]); return a ? z[1] + ' ' + areaLabel(a) : ''; }).filter(Boolean) : [];
+  if (slots.length) hrs = (hrs ? hrs + ' · ' : '') + slots.join(' · ');
   return '<div class="inv-row" data-att-row="' + w.id + '">' +
     '<button class="inv-row-main" data-action="invAttEdit" data-id="' + w.id + '"><span class="inv-row-title">' + escHtml(w.name) + '</span>' +
     '<span class="inv-row-meta">' + escHtml(compClass(w.comp).label) + (w.active === false ? ' · left' : '') +
@@ -16221,6 +16246,34 @@ function _attBoardRow(w, m) {
       return '<button class="inv-seg-btn inv-seg-btn-' + ATT_STATE_TONE[x] + '" data-action="invAttSet" data-id="' + w.id +
         '" data-st="' + x + '" aria-pressed="' + (st === x) + '" title="' + ATT_STATE_LABELS[x] + '">' + x + '</button>';
     }).join('') + '</span></span></div>';
+}
+
+/* The day as Deepak's sheet (attsheet.js prints it): the roster in the sheet's order, one row a hand, P / H / A, the area,
+   the in and the out, and the hours and OT worked out from them. Every change is saved as it is made, as on the board. */
+var ATT_DAY_AS_KEY = 'sep_inv_att_day_as';
+function attDayAsSheet() { try { return localStorage.getItem(ATT_DAY_AS_KEY) === 'sheet'; } catch (e) { return false; } }
+function attDayAsSet(v) { try { localStorage.setItem(ATT_DAY_AS_KEY, v === 'sheet' ? 'sheet' : 'board'); } catch (e) { /* per device */ } }
+function attSheetEntryHtml(iso, rec, roster) {
+  var h = '<div class="inv-panel inv-panel-flush" id="attSheetEntry"><div class="inv-scroll-x"><table class="inv-table"><thead><tr>' +
+    '<th>Hand</th><th>Attendance</th><th>General</th>' + ATT_SLOTS.map(function(z) { return '<th>' + z[1] + '</th>'; }).join('') +
+    '<th>In</th><th>Out</th><th class="inv-num">Hours</th><th class="inv-num">OT</th></tr></thead><tbody>';
+  roster.forEach(function(w) {
+    var m = rec ? rec.marks[w.id] : null, st = m ? m.st : '', hourly = compIsHourly(w), live = st && st !== 'A';
+    var states = hourly ? ['P', 'A'] : ATT_STATES;
+    h += '<tr data-att-sheet-row="' + w.id + '"><td><button class="inv-btn-link" data-action="invAttEdit" data-id="' + w.id + '">' + escHtml(w.name) + '</button>' +
+      '<div class="inv-row-meta">' + escHtml(compClass(w.comp).label) + (w.active === false ? ' · left' : '') + '</div></td>' +
+      '<td><span class="inv-seg" role="group" aria-label="Attendance for ' + escHtml(w.name) + '">' + states.map(function(x) {
+        return '<button class="inv-seg-btn inv-seg-btn-' + ATT_STATE_TONE[x] + '" data-action="invAttSet" data-id="' + w.id + '" data-st="' + x + '" aria-pressed="' + (st === x) + '" title="' + ATT_STATE_LABELS[x] + '">' + x + '</button>';
+      }).join('') + '</span></td>' +
+      '<td><select class="inv-select" data-att-area data-id="' + w.id + '" aria-label="Area for ' + escHtml(w.name) + '"' + (live ? '' : ' disabled') + '>' + attAreaOptions(m && m.area ? m.area : (w.area || 'flex')) + '</select></td>' +
+      ATT_SLOTS.map(function(z) { return '<td>' + attSlotSelectHtml(rec, w, z[0], live, z[1]) + '</td>'; }).join('') +
+      '<td><input type="time" class="inv-input inv-id" data-att-in data-id="' + w.id + '" value="' + escHtml(attTimeVal(m && m.inMin)) + '" aria-label="In for ' + escHtml(w.name) + '"' + (live ? '' : ' disabled') + '></td>' +
+      '<td><input type="time" class="inv-input inv-id" data-att-out data-id="' + w.id + '" value="' + escHtml(attTimeVal(m && m.outMin)) + '" aria-label="Out for ' + escHtml(w.name) + '"' + (live ? '' : ' disabled') + '></td>' +
+      '<td class="inv-num" data-att-sheet-hours>' + (live && (m.hours || attTimesText(m)) ? m.hours : '—') + '</td>' +
+      '<td class="inv-num" data-att-sheet-ot>' + (live && !hourly ? (m.ot || 0) : '—') + '</td></tr>';
+  });
+  return h + '</tbody></table></div>' +
+    '<div class="inv-note inv-panel-body">General is the area of the 8:30 AM to 5:00 PM shift; Morning OT, Evening OT and Night are where the hand stood on each, which puts them on that slot’s OT crew (the EXTRA rows below). Left blank, an in or out is the shift’s: 8:30 AM to 5:00 PM (the gate 7 to 7, a half day four hours). Hours are the span to the whole hour; OT is the hours over 8, never for an hourly hand or the gate. EXTRA rows are entered below.</div></div>';
 }
 
 /* A hand's day in a dialog: P / H / A, where they stood, and the hours (an hourly hand) or the overtime. Each change is
@@ -16238,19 +16291,25 @@ function attEditHtml() {
     states.map(function(x) {
       return '<button class="inv-seg-btn inv-seg-btn-' + ATT_STATE_TONE[x] + '" data-action="invAttSet" data-id="' + w.id + '" data-st="' + x + '" aria-pressed="' + (st === x) + '">' + ATT_STATE_LABELS[x] + '</button>';
     }).join('') + '</span></div>' +
-    '<label class="inv-field"><span class="inv-field-label">Area</span><select class="inv-select" data-att-area data-id="' + w.id + '"' + (live ? '' : ' disabled') + '>' +
+    '<label class="inv-field"><span class="inv-field-label">General shift area</span><select class="inv-select" data-att-area data-id="' + w.id + '"' + (live ? '' : ' disabled') + '>' +
     attAreaOptions(m && m.area ? m.area : (w.area || 'flex')) + '</select></label>' +
+    '<label class="inv-field"><span class="inv-field-label">In</span><input type="time" class="inv-input inv-id" data-att-in data-id="' + w.id + '" value="' + escHtml(attTimeVal(m && m.inMin)) + '"' + (live ? '' : ' disabled') + '></label>' +
+    '<label class="inv-field"><span class="inv-field-label">Out</span><input type="time" class="inv-input inv-id" data-att-out data-id="' + w.id + '" value="' + escHtml(attTimeVal(m && m.outMin)) + '"' + (live ? '' : ' disabled') + '></label>' +
+    ATT_SLOTS.map(function(z) { return '<label class="inv-field"><span class="inv-field-label">' + z[1] + ' area</span>' + attSlotSelectHtml(rec, w, z[0], live, z[1]) + '</label>'; }).join('') +
     (hourly
       ? '<label class="inv-field"><span class="inv-field-label">Hours worked</span><input type="number" class="inv-input inv-input-num" data-att-hours data-id="' + w.id + '" step="0.5" min="0" value="' + (m && m.hours ? m.hours : '') + '"' + (live ? '' : ' disabled') + '></label>'
       : '<label class="inv-field"><span class="inv-field-label">Overtime, hours</span><input type="number" class="inv-input inv-input-num" data-att-ot data-id="' + w.id + '" step="0.5" min="0" value="' + (m && m.ot ? m.ot : '') + '"' + (live ? '' : ' disabled') + '></label>') +
-    '</div>' + (live ? '' : '<div class="inv-note">' + (st === 'A' ? 'Absent: no area or hours.' : 'Mark the day first.') + '</div>') + '</div>' +
+    '</div>' + (live ? '<div class="inv-note" data-att-times-note>' + (attTimesText(m)
+      ? escHtml(attTimesText(m) + ': ' + m.hours + ' h' + (hourly ? '' : ', OT ' + (m.ot || 0) + ' h') + ', worked out from the times. A figure typed below the times wins until a time is changed.')
+      : 'Type the in and out from the sheet, and the hours and OT are worked out as a roll works them out. Left blank, the shift (8:30 AM to 5:00 PM) is assumed.') + '</div>'
+      : '<div class="inv-note">' + (st === 'A' ? 'Absent: no area or hours.' : 'Mark the day first.') + '</div>') + '</div>' +
     '<div class="inv-dialog-foot"><button class="inv-btn inv-btn-primary" data-action="invAttEditClose">Done</button></div></div>';
 }
 function attEditOpen(id) { _attEditId = id; dialogOpen(attEditHtml()); }
 /* The dialog follows the day: after a change it is drawn again in place (the board behind it is redrawn too). */
 function attEditRefresh() {
   if (!_attEditId || !document.querySelector('[data-att-edit]')) return;
-  var focus = document.activeElement, k = focus && focus.dataset ? (focus.hasAttribute('data-att-hours') ? '[data-att-hours]' : focus.hasAttribute('data-att-ot') ? '[data-att-ot]' : null) : null;
+  var focus = document.activeElement, k = focus && focus.dataset ? (focus.hasAttribute('data-att-hours') ? '[data-att-hours]' : focus.hasAttribute('data-att-ot') ? '[data-att-ot]' : focus.hasAttribute('data-att-in') ? '[data-att-in]' : focus.hasAttribute('data-att-out') ? '[data-att-out]' : null) : null;
   dialogOpen(attEditHtml(), { replace: true });
   if (k) { var el = document.querySelector('[data-att-edit] ' + k); if (el) try { el.focus(); } catch (x) { /* a convenience */ } }
 }
@@ -16662,7 +16721,7 @@ function attSetState(iso, staffId, st) {
     _attHandEdit(m);
     // Absent pays nothing and worked nothing: hours that nobody was here for
     // are not hours, in either tier.
-    if (st === 'A') { m.ot = 0; m.hours = 0; }
+    if (st === 'A') { m.ot = 0; m.hours = 0; delete m.inMin; delete m.outMin; }
     rec.marks[staffId] = m;
   }
   _attPrune(iso);
@@ -16704,10 +16763,114 @@ function setAttHours(staffId, hours) {
   saveState();
 }
 
+/* The shifts a hand works in a day (owner, 1 Oct 2026: "there is also no way to record which area the OT workers actually
+   worked on, we get to select one option for the entire day. Every worker can have states, like morning OT, General, Evening
+   OT, Late night OT, etc."). The General shift is the mark's own area. Each OT slot is the crew of that slot's block on the
+   day (the EXTRA rows' kind 'block': areas, crew, from, to), the one record Areas, Power and Production's crews already read:
+   putting a hand on Evening OT · VAT A2 adds them to the evening block covering VAT A2, made at the slot's usual times
+   (hours 0, no EXTRA booked) when there is none. A slot is read off a block's start: before 8:30 AM the morning, from 5 PM
+   the evening, from 8 PM (or past midnight) the night. */
+var ATT_SLOTS = [['morning', 'Morning OT', '06:00', '08:30'], ['evening', 'Evening OT', '17:00', '20:00'], ['night', 'Night', '20:00', '06:00']];
+function attBlockSlot(x) {
+  if (!x || x.kind !== 'block') return null;
+  var a = relayParseHhmm(x.from);
+  if (a == null) return null;
+  if (a >= 1200 || a < 240) return 'night';
+  if (a < 510) return 'morning';
+  if (a >= 1020) return 'evening';
+  return null;
+}
+function _attBlockAreas(x) { return Array.isArray(x.areas) && x.areas.length ? x.areas : (x.area ? [x.area] : []); }
+/* The block a hand stands on in a slot, or null. */
+function _attCrewAt(x, staffId) {
+  var k = String(staffId);
+  return Array.isArray(x.crew) ? x.crew.findIndex(function(c) { return String(c) === k; }) : -1;
+}
+function attHandSlot(rec, staffId, slot) {
+  return (rec && rec.extra || []).find(function(x) { return attBlockSlot(x) === slot && _attCrewAt(x, staffId) >= 0; }) || null;
+}
+/* The area a hand stood in on a slot: the block's first area. */
+function attHandSlotArea(rec, staffId, slot) { var x = attHandSlot(rec, staffId, slot); return x ? (_attBlockAreas(x)[0] || '') : ''; }
+function setAttSlotArea(staffId, slot, areaId) {
+  var w = staffById(staffId), def = ATT_SLOTS.find(function(z) { return z[0] === slot; });
+  if (!def || !w) return;
+  var id = w.id;   // the crew holds the roster's own id, number or text
+  var rec = attDay(_attDate, true);
+  // Off every block of this slot first; a block this app made for a slot and nobody stands on any more goes.
+  rec.extra = rec.extra.filter(function(x) {
+    if (attBlockSlot(x) !== slot || !Array.isArray(x.crew)) return true;
+    var i = _attCrewAt(x, id);
+    if (i >= 0) { x.crew.splice(i, 1); _attHandEdit(x); }
+    return !(x.slotMade && !x.crew.length && !(x.hours > 0));
+  });
+  if (areaId) {
+    var x = rec.extra.find(function(r) { return attBlockSlot(r) === slot && _attBlockAreas(r).indexOf(areaId) >= 0; });
+    if (!x) { x = { kind: 'block', areas: [areaId], crew: [], hours: 0, from: def[2], to: def[3], slotMade: true }; rec.extra.push(x); }
+    if (!Array.isArray(x.crew)) x.crew = [];
+    x.crew.push(id);
+    _attHandEdit(x);
+  }
+  _attPrune(_attDate);
+  saveState();
+}
+/* Where a hand's overtime was worked on a day: the area of their OT block (the latest slot they stood on), else the general
+   shift's area. Labour books the OT cost there (labourForRange). */
+function attOtArea(rec, w, m) {
+  for (var i = ATT_SLOTS.length - 1; i >= 0; i--) { var a = attHandSlotArea(rec, w.id, ATT_SLOTS[i][0]); if (a) return a; }
+  return (m && m.area) || w.area || 'flex';
+}
+function attSlotSelectHtml(rec, w, slot, live, label) {
+  var cur = attHandSlotArea(rec, w.id, slot);
+  return '<select class="inv-select" data-att-slot="' + slot + '" data-id="' + w.id + '" aria-label="' + escHtml(label + ' area for ' + w.name) + '"' + (live ? '' : ' disabled') + '>' +
+    '<option value=""' + (cur ? '' : ' selected') + '>—</option>' +
+    STAFF_AREAS.filter(function(a) { return a.floor; }).map(function(a) { return '<option value="' + a.id + '"' + (a.id === cur ? ' selected' : '') + '>' + escHtml(a.label) + '</option>'; }).join('') + '</select>';
+}
+
+/* In and out typed by hand (owner, 1 Oct 2026: "Attendance has no option to enter time in and time out by hand, so we
+   have to rely on whatsapp message only, there is no way to simply enter the data that is presented to us by Deepak in
+   his sheet"). A time typed sets the hours and the OT by the rolls' own rule (relayHoursOf); the side not typed is the
+   shift's (8:30 AM to 5:00 PM, the gate's 7 to 7, a half day four hours from its in), and an out not after the in ran
+   past midnight. Both cleared, the hours and OT go back to none. The mark is then the hand's, never rewritten by a roll. */
+function attTimeMin(v) {
+  var m = /^(\d{1,2}):(\d{2})$/.exec(String(v || '').trim());
+  return m && +m[1] < 24 && +m[2] < 60 ? +m[1] * 60 + +m[2] : null;
+}
+function attTimesApply(m, w) {
+  var gate = (m.area || (w && w.area)) === 'gate';
+  if (m.inMin == null && m.outMin == null) { delete m.inMin; delete m.outMin; m.hours = 0; m.ot = 0; return; }
+  var a = m.inMin != null ? m.inMin : gate ? RELAY_GATE[0] : RELAY_GENERAL;
+  var b = m.outMin != null ? m.outMin % 1440 : gate ? RELAY_GATE[1] : m.st === 'H' ? a + 240 : RELAY_GENERAL_OUT;
+  if (b <= a) b += 1440;
+  if (m.outMin != null) m.outMin = b;
+  var h = relayHoursOf(a, b, w, gate ? 'gate' : m.area);
+  m.hours = h.hours;
+  m.ot = h.ot;
+}
+function setAttTime(staffId, which, v) {
+  var m = attMark(_attDate, staffId), w = staffById(staffId);
+  if (!m || m.st === 'A') return;
+  var min = attTimeMin(v);
+  if (which === 'in') { if (min == null) delete m.inMin; else m.inMin = min; }
+  else { if (min == null) delete m.outMin; else m.outMin = min; }
+  attTimesApply(m, w);
+  m.outKnown = m.outMin != null;
+  _attHandEdit(m);
+  saveState();
+}
+/* "HH:MM" for a time field (a stored out past midnight shows its clock time). */
+function attTimeVal(min) { return min == null ? '' : relayHhmm(min); }
+/* The times and what they came to, said on the board and the sheet. */
+function attTimesText(m) {
+  if (!m || (m.inMin == null && m.outMin == null)) return '';
+  return (m.inMin != null ? relayClockLabel(m.inMin) : 'shift start') + ' – ' + (m.outMin != null ? relayClockLabel(m.outMin) : 'shift end');
+}
+
 function setAttArea(staffId, areaId) {
   var m = attMark(_attDate, staffId);
   if (!m) return;
   m.area = areaId;
+  // Times typed: the gate's hours are its shift and carry no OT, so moving to or from it is worked out again.
+  if (m.inMin != null || m.outMin != null) attTimesApply(m, staffById(staffId));
   _attHandEdit(m);
   saveState();
 }
@@ -17950,8 +18113,10 @@ function labourForRange(fromIso, toIso) {
         out.otHours += oth;
         out.ot += otPay;
         bumpWorker(w, 'ot', otPay, 0, 0, oth);
-        bumpArea(areaId, otPay, 0, oth);
-        bumpFloor(w, areaId, otPay);
+        // Overtime is booked where it was worked: the hand's OT block, else the general shift's area (staff.js).
+        var otArea = attOtArea(rec, w, m);
+        bumpArea(otArea, otPay, 0, oth);
+        bumpFloor(w, otArea, otPay);
         if (!(rate > 0) && out.ratelessWorkers.indexOf(w.name) < 0) out.ratelessWorkers.push(w.name);
       }
     });
@@ -26668,10 +26833,16 @@ function relayPersonMark(p, w, restOut) {
   // for them (5 PM, the gate's 7 PM, "everyone else left at") is the others' time: before the hand came in, it is no
   // out-time of theirs at all, never the same hour the next day (21 hours off an 8 PM heading, the QA of 30 Sep 2026).
   if (outMin <= inMin) { if (said) outMin += 1440; else outMin = null; }
-  var hours = outMin == null ? 0 : Math.max(0, Math.floor((outMin - inMin) / 60));
+  var h = relayHoursOf(inMin, outMin, w, area);
+  return { st: 'P', ot: h.ot, hours: h.hours, area: area, inMin: inMin, outMin: outMin };
+}
+/* Hours and OT from an in and an out, the one rule for a roll and for times typed on Staff → Day: the clock span floored
+   to the whole hour (8:30 → 5:00 is 8); a monthly or daily hand's OT is the hours over 8; an hourly hand carries none, and
+   the gate's twelve hours are its standing shift, not overtime. An out of null is not known: no hours. */
+function relayHoursOf(inMin, outMin, w, area) {
+  var hours = outMin == null || inMin == null ? 0 : Math.max(0, Math.floor((outMin - inMin) / 60));
   var hourly = w && w.comp === 'hourly';
-  // The gate's twelve hours are its standing shift, not overtime.
-  return { st: 'P', ot: hourly || gate ? 0 : Math.max(0, hours - 8), hours: hours, area: area, inMin: inMin, outMin: outMin };
+  return { hours: hours, ot: hourly || area === 'gate' ? 0 : Math.max(0, hours - 8) };
 }
 
 /* ===== Screens: Staff → Paste message ===== */
@@ -27393,10 +27564,11 @@ function attSheetDeepakHtml(iso, filled) {
       '<td class="inv-as-tick">' + (compIsHourly(w) ? 'H' : w.comp === 'monthly' ? 'M' : 'D') + '</td>' +
       tick('P') + tick('H') + tick('A') +
       '<td>' + (m && m.st !== 'A' ? escHtml(areaLabel(m.area || w.area || 'flex')) : '') + '</td>' +
+      ATT_SLOTS.map(function(z) { var a = rec && m && m.st !== 'A' ? attHandSlotArea(rec, w.id, z[0]) : ''; return '<td>' + (a ? escHtml(areaLabel(a)) : '') + '</td>'; }).join('') +
       '<td>' + (m ? escHtml(_asHm(m.inMin)) : '') + '</td><td>' + (m ? escHtml(_asHm(m.outMin)) : '') + '</td>' +
       '<td>' + (m && m.hours ? escHtml(formatNum(m.hours, 1)) : '') + '</td><td>' + (m && m.ot ? escHtml(formatNum(m.ot, 1)) : '') + '</td></tr>';
   }).join('');
-  if (!filled) for (var k = 0; k < 3; k++) rows += '<tr><td class="inv-as-tick">' + (roster.length + k + 1) + '</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>';
+  if (!filled) for (var k = 0; k < 3; k++) rows += '<tr><td class="inv-as-tick">' + (roster.length + k + 1) + '</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>';
 
   var extras = rec ? (rec.extra || []) : [];
   var exRows = extras.map(function(x) {
@@ -27409,12 +27581,13 @@ function attSheetDeepakHtml(iso, filled) {
   var title = filled ? 'Attendance as entered in the app' : 'Attendance entry';
   return '<div class="inv-as-page" data-sheet="' + (filled ? 'filled' : 'deepak') + '">' + _asHead(title, iso, filled ? '' : 'Deepak') +
     (filled && !rec ? '<div class="inv-as-note">Nothing is entered in the app for this day yet.</div>' : '') +
-    '<table class="inv-as-table"><thead><tr><th class="inv-as-tick">#</th><th>Worker</th><th class="inv-as-tick">Tier</th>' +
-    '<th class="inv-as-tick">P</th><th class="inv-as-tick">H</th><th class="inv-as-tick">A</th><th>Area</th><th>In</th><th>Out</th><th>Hours</th><th>OT</th></tr></thead>' +
+    '<table class="inv-as-table" data-as-entry><colgroup>' + ['num', 'name', 'tick', 'tick', 'tick', 'tick', 'area', 'area', 'area', 'area', 'time', 'time', 'fig', 'fig'].map(function(k) { return '<col data-as-col="' + k + '">'; }).join('') + '</colgroup>' +
+    '<thead><tr><th class="inv-as-tick">#</th><th>Worker</th><th class="inv-as-tick">Tier</th>' +
+    '<th class="inv-as-tick">P</th><th class="inv-as-tick">H</th><th class="inv-as-tick">A</th><th>General</th><th>Morning OT</th><th>Evening OT</th><th>Night</th><th>In</th><th>Out</th><th>Hours</th><th>OT</th></tr></thead>' +
     '<tbody>' + rows + '</tbody></table>' +
     '<div class="inv-as-slot">EXTRA</div>' +
     '<table class="inv-as-table"><thead><tr><th>Area</th><th>From</th><th>To</th><th>Crew</th><th>Hours</th></tr></thead><tbody>' + exRows + '</tbody></table>' +
-    '<div class="inv-as-note">Tier: M monthly, H hourly, D daily. P present, H half day, A absent. Hours for an hourly hand; OT for the rest.</div>' +
+    '<div class="inv-as-note">Tier: M monthly, H hourly, D daily. P present, H half day, A absent. General is the area of the 8:30 to 5 shift; under Morning OT, Evening OT and Night write the area the hand stood in on that shift, or leave it blank. Hours for an hourly hand; OT for the rest.</div>' +
     (filled
       ? '<div class="inv-as-note">Printed from the app ' + escHtml(formatTimestamp(Date.now())) + '. Staple behind Shyam\'s and Deepak\'s sheets for the day.</div>'
       : '<div class="inv-as-sign"><div>Filled by Shyam</div><div>Checked by Deepak</div><div>Entered in the app by / on</div></div>') +
@@ -38826,6 +38999,7 @@ function onDocClick(e) {
     case 'invAttThisWeek': attThisWeek(); break;
     case 'invAttSet': setAttState(parseInt(btn.dataset.id, 10), btn.dataset.st); break;
     case 'invAttCycle': cycleAttState(parseInt(btn.dataset.id, 10), btn.dataset.date); break;
+    case 'invAttDayAs': attDayAsSet(btn.dataset.v); renderAttendance(); break;
     case 'invAttAllPresent': attAllPresent(); break;
     case 'invAttEdit': attEditOpen(btn.dataset.id); break;
     case 'invAttEditClose': _attEditId = null; closeOverlay(); break;
@@ -39222,6 +39396,16 @@ function onDocChange(e) {
   }
   if (e.target.hasAttribute && e.target.hasAttribute('data-att-block-to')) {
     setAttBlockTime(parseInt(e.target.dataset.idx, 10), 'to', e.target.value);
+    renderAttendance();
+    return;
+  }
+  if (e.target.hasAttribute && e.target.hasAttribute('data-att-slot')) {
+    setAttSlotArea(parseInt(e.target.dataset.id, 10), e.target.dataset.attSlot, e.target.value);
+    renderAttendance();
+    return;
+  }
+  if (e.target.hasAttribute && (e.target.hasAttribute('data-att-in') || e.target.hasAttribute('data-att-out'))) {
+    setAttTime(parseInt(e.target.dataset.id, 10), e.target.hasAttribute('data-att-in') ? 'in' : 'out', e.target.value);
     renderAttendance();
     return;
   }

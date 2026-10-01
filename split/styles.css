@@ -239,6 +239,7 @@ body:not(.inv-booted) { pointer-events: none; }
 .inv-as-page {
   --as-fs: 9pt; --as-fs-sm: 7.5pt; --as-fs-h: 14pt; --as-fs-slot: 10.5pt;
   --as-line: 6.5mm; --as-line-tall: 8.5mm; --as-gap: 3mm; --as-pad: 10mm 12mm; --as-rule: 0.5pt; --as-num-w: 6mm;
+  --as-col-name: 36mm; --as-col-area: 16mm; --as-col-time: 16mm; --as-col-fig: 10mm;
   --as-sheet-w: 210mm; --as-sheet-h: 297mm; --as-sign-gap: 10mm; --as-ink: #1a3a8f;
   background: #fff; color: #000; font-family: var(--ff-base); font-size: var(--as-fs); line-height: 1.2;
   width: var(--as-sheet-w); min-height: var(--as-sheet-h); padding: var(--as-pad); margin: 0 auto var(--sp-16);
@@ -266,6 +267,15 @@ body:not(.inv-booted) { pointer-events: none; }
 /* Rows written in by hand across several fields (the stock message) get more room. */
 .inv-as-tall td { height: var(--as-line-tall); }
 .inv-as-table .inv-as-tick { width: var(--as-num-w); text-align: center; font-weight: 700; }
+/* Deepak's entry sheet is written by hand: every column has a fixed width, so In and Out get room for a time
+   (they had 7 and 10 mm once the four shift areas were added) and an area column takes a word. 182 mm of 186. */
+.inv-as-table[data-as-entry] { table-layout: fixed; }
+.inv-as-table[data-as-entry] th { white-space: normal; line-height: 1.1; }
+[data-as-col="num"], [data-as-col="tick"] { width: var(--as-num-w); }
+[data-as-col="name"] { width: var(--as-col-name); }
+[data-as-col="area"] { width: var(--as-col-area); }
+[data-as-col="time"] { width: var(--as-col-time); }
+[data-as-col="fig"] { width: var(--as-col-fig); }
 .inv-as-sign { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--as-gap); margin-top: var(--as-sign-gap); font-size: var(--as-fs-sm); }
 .inv-as-sign > div { border-top: var(--as-rule) solid #000; padding-top: 1mm; }
 .inv-as-note { font-size: var(--as-fs-sm); color: #444; margin-top: 2mm; }

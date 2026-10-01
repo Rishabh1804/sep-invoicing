@@ -551,6 +551,7 @@ function prodReviewRowHtml(r, idx) {
 function prodSaveReview() {
   var rv = _prodReview;
   if (!rv) return;
+  if (!grdGate('floor', 'save production', prodSaveReview)) return;   // the guard (guard.js): a floor entry, never re-asked
   var res = prodReviewResolve();
   if (res.red) { showToast('Answer the rows marked Needs you first', 'error'); return; }
   var p = prodData(), at = Date.now(), byEl = document.getElementById('prodBy'), by = byEl ? byEl.value.trim() : stockBy(), n = 0, pasteIds = {};
@@ -725,6 +726,7 @@ function prodPhotoHtml() {
 function prodSavePhoto() {
   var ph = _prodPhoto;
   if (!ph) return;
+  if (!grdGate('floor', 'save production', prodSavePhoto)) return;   // the guard (guard.js): a floor entry, never re-asked
   var rd = prodPhotoRead(), p = prodData(), at = Date.now(), by = stockBy();
   var line = ph.choices.line !== undefined ? ph.choices.line : rd.line, date = ph.choices.date || rd.date;
   var id = prodUid('PF'), n = 0;
@@ -819,6 +821,7 @@ function prodHandDone() {
 async function prodSaveHand() {
   var f = _prodHand;
   if (!f) return;
+  if (!grdOk('floor') && !(await guardAsk('floor', 'save production'))) return;   // the guard (guard.js): a floor entry
   if (!f.date) { showToast('Pick a date', 'error'); return; }
   var q = parseFloat(f.qty);
   if (f.kind !== 'downtime' && !f.clientId) { showToast('Pick the client', 'error'); return; }
@@ -880,6 +883,7 @@ async function prodSaveHand() {
 async function prodVoid(id) {
   var e = prodIndex().byId[id];
   if (!e || e.voidedAt) return;
+  if (!grdOk('voids') && !(await guardAsk('voids', 'void a production entry'))) return;   // P1 (guard.js)
   var why = await uiPrompt({ title: 'Void this entry?', body: 'It is kept on the record, not deleted.', label: 'Why is it void?', okLabel: 'Void', required: true, requiredText: 'A void needs a reason.' });
   if (why == null) return;
   e = prodIndex().byId[id];
@@ -900,6 +904,7 @@ function prodUseLine(id, line) {
 
 /* ---------- Import ---------- */
 function prodImport() {
+  if (!grdGate('imports', 'import production history', prodImport)) return;   // P1 (guard.js)
   var inp = document.getElementById('prodFileInput');
   if (!inp) return;
   inp.onchange = function(ev) {

@@ -273,6 +273,8 @@ async function saveCreditNote() {
   captureCnForm();
   if (!(_cnForm.pct > 0)) { showToast('Discount must be more than zero', 'error'); return; }
   if (!_cnForm.date) { showToast('A credit note needs a date', 'error'); return; }
+  if (!grdOk('billing') && !(await guardAsk('billing', 'issue a credit note'))) return;   // P1 (guard.js)
+  if (!_cnForm) return;
   // Dated outside the financial year its number's series names: asked, never refused (seriesFyAsk, number-audit.js).
   var fyAsk = seriesFyAsk('This credit note', cnDisplayNumber(recomputeNextCnNumber()), cnFyShort(), _cnForm.date);
   if (fyAsk && !(await uiConfirm(fyAsk))) return;
@@ -364,6 +366,7 @@ async function saveCreditNote() {
 async function cancelCreditNote(cnId) {
   var cn = getCreditNotes().find(function(x) { return x.id === cnId; });
   if (!cn || cn.status === 'cancelled') return;
+  if (!grdOk('billing') && !(await guardAsk('billing', 'cancel a credit note'))) return;   // P1 (guard.js)
   // Every other destructive act asks; this was one tap.
   if (!(await uiConfirm({ title: 'Cancel ' + cn.displayNumber + '?',
     body: 'The note stays in the series, cancelled, and exports at zero. The customer holds a copy: tell them it is withdrawn. This cannot be undone.',
@@ -652,6 +655,8 @@ function cnSetAgainstInvoice(id) {
   // from consuming headroom. The migration skips them for this reason too, so
   // the two agree rather than one writing what the other forbids correcting.
   if (cn.status === 'cancelled') { showToast('That credit note is cancelled', 'error'); return; }
+  // P1 (guard.js): the reference printed on the note.
+  if (!grdGate('billing', 'change a credit note’s reference', function() { cnSetAgainstInvoice(id); })) return;
 
   // A PICK-LIST, not a text box. The valid set is the batch — enumerable, small,
   // and already in hand — and the numbers are 17 characters with slashes that an

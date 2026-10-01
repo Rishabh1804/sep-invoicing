@@ -261,6 +261,8 @@ function _readClientForm(excludeId) {
 /* Save takes what was typed into a card's add fields too: a rate typed and Save pressed, without Add rate, was dropped. A
    card entry half typed stops the save and says what it lacks. */
 async function saveClientEdit(clientId, mode) {
+  // P1 (guard.js): the client master, its rate ladder and its cards.
+  if (!grdOk('rates') && !(await guardAsk('rates', mode === 'add' ? 'add a client' : 'save a client'))) return;
   if (mode === 'add') { addClient(); return; }
   var c = S.clients.find(x => x.id === clientId);
   if (!c) return;
@@ -374,6 +376,7 @@ async function addClientRate(clientId) {
   if (!c) return;
   var r = _readLadderRate(c, false);
   if (r.error) { showToast(r.error, 'error'); return; }
+  if (!grdOk('rates') && !(await guardAsk('rates', 'add a rate'))) return;   // P1 (guard.js)
   if (!(await _ladderSameDateOk(c, r.entry))) return;
   c = S.clients.find(x => x.id === clientId);
   if (!c) return;
@@ -387,6 +390,7 @@ async function addClientRate(clientId) {
 async function removeClientRate(clientId, idx) {
   var c = S.clients.find(x => x.id === clientId), r = c && c.rates && c.rates[idx];
   if (!r) return;
+  if (!grdOk('rates') && !(await guardAsk('rates', 'remove a rate'))) return;   // P1 (guard.js)
   if (!(await uiConfirm({ title: 'Remove the rate from ' + formatDate(r.effectiveFrom) + '?',
     body: formatCurrency(r.ratePerKg) + '/kg from ' + formatDate(r.effectiveFrom) + ' comes off the ladder; lines dated from then take the rate before it.',
     okLabel: 'Remove rate', danger: true }))) return;
@@ -648,6 +652,7 @@ function pieceRatesFromHistory(client) {
 function fillPieceRatesFromHistory(clientId) {
   var c = S.clients.find(function(x) { return x.id === clientId; });
   if (!c) return;
+  if (!grdGate('rates', 'fill piece rates from billing', function() { fillPieceRatesFromHistory(clientId); })) return;   // P1 (guard.js)
   var r = pieceRatesFromHistory(c);
   if (!c.pieceRates) c.pieceRates = [];
   var now = Date.now();
@@ -687,6 +692,7 @@ function _addCardEntry(kind, clientId) {
   if (!c) return;
   var r = _readCardEntry(kind, c, false), f = CARD_FIELDS[kind];
   if (r.error) { showToast(r.error, 'error'); return; }
+  if (!grdGate('rates', kind === 'rate' ? 'add a piece rate' : 'add a piece weight', function() { _addCardEntry(kind, clientId); })) return;   // P1 (guard.js)
   (c[f.list] || (c[f.list] = [])).push(r.entry);
   saveState();
   showToast(kind === 'rate' ? 'Piece rate added' : 'Piece weight added');
@@ -696,6 +702,7 @@ function _addCardEntry(kind, clientId) {
 async function _removeCardEntry(kind, clientId, idx) {
   var f = CARD_FIELDS[kind], c = S.clients.find(function(x) { return x.id === clientId; }), e = c && c[f.list] && c[f.list][idx];
   if (!e) return;
+  if (!grdOk('rates') && !(await guardAsk('rates', kind === 'rate' ? 'remove a piece rate' : 'remove a piece weight'))) return;   // P1 (guard.js)
   var what = e.partNumber + (e.gauge ? ' · ' + e.gauge : '') + ', ' + (kind === 'rate' ? formatCurrency(e.rate) + '/pc' : e.kgPerPiece + ' kg/pc') +
     (e.effectiveFrom ? ' from ' + formatDate(e.effectiveFrom) : '');
   if (!(await uiConfirm({ title: kind === 'rate' ? 'Remove this piece rate?' : 'Remove this piece weight?', body: what + '. Lines of this part are then checked against what is left on the card.',
@@ -790,6 +797,7 @@ function pieceWeightsFromHistory(client) {
 function fillPieceWeightsFromHistory(clientId) {
   var c = S.clients.find(function(x) { return x.id === clientId; });
   if (!c) return;
+  if (!grdGate('rates', 'fill piece weights from billing', function() { fillPieceWeightsFromHistory(clientId); })) return;   // P1 (guard.js)
   var r = pieceWeightsFromHistory(c);
   if (!c.pieceWeights) c.pieceWeights = [];
   var now = Date.now();

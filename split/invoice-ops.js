@@ -1005,6 +1005,8 @@ async function editInvoice(invId) {
 function cancelInvoice(invId) {
   const inv = S.invoices.find(i => i.id === invId);
   if (!inv || inv.status === 'cancelled') return;
+  // P1 (guard.js): asked before the dialog, so a refusal comes before anything is chosen.
+  if (!grdGate('billing', 'cancel an invoice', function() { cancelInvoice(invId); })) return;
 
   // A filed invoice is in a return already: cancelling it here changes the book, not the return.
   const filed = getInvState(inv) === 'filed';
@@ -1063,6 +1065,8 @@ function regShowInvoice(invId) {
 function deleteInvoice(invId) {
   const inv = S.invoices.find(i => i.id === invId);
   if (!inv) return;
+  // P1 (guard.js): delete, and delete-and-reissue from the same dialog.
+  if (!grdGate('billing', 'delete an invoice', function() { deleteInvoice(invId); })) return;
 
   // Past GSTR-1's due day for its month (the 11th of the next, invFileDue — the date the Delivered state is judged by)
   // the invoice may be in a filed return.

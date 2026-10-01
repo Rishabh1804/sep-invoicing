@@ -888,6 +888,7 @@ function powerAddCut() {
    under `power` the electricity bills' details by month and the load. A detail fills a bill of that month only where the
    bill has none: a figure typed here is never overwritten. A month with no bill in the app is counted, never invented. */
 function powerImport() {
+  if (!grdGate('imports', 'import power history', powerImport)) return;   // P1 (guard.js)
   var inp = document.getElementById('powerFileInput');
   if (!inp) {
     inp = document.createElement('input');

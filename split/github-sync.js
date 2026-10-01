@@ -316,6 +316,7 @@ async function ghPush(opts) {
 
 /* ===== PULL ===== */
 async function ghPull() {
+  if (!grdOk('imports') && !(await guardAsk('imports', 'pull from GitHub'))) return false;   // P1 (guard.js): a pull replaces the book
   var cfg = getGhConfig();
   if (!ghIsConfigured()) { showToast('Set the GitHub repo and token in Settings first', 'error'); return false; }
   // Where nothing can be written (a stored copy that cannot be set aside), a pull would only replace the stand-in in memory.

@@ -498,6 +498,7 @@ async function deleteChallan(imId) {
     showToast('Cannot delete: ' + invoicedCount + ' item' + (invoicedCount > 1 ? 's' : '') + ' already invoiced', 'warning');
     return;
   }
+  if (!grdOk('voids') && !(await guardAsk('voids', 'delete a challan'))) return;   // P1 (guard.js)
   // Tier 1 confirm
   if (!(await uiConfirm({ title: 'Delete this challan?', body: 'Challan ' + (im.challanNo || '(no number)') + ' from ' + (im.clientName || 'this client') +
     ', ' + im.items.length + ' line' + (im.items.length === 1 ? '' : 's') + '. This cannot be undone.', okLabel: 'Delete challan', danger: true }))) return;

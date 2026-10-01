@@ -683,6 +683,7 @@ async function costBillSave() {
 async function costBillVoid(id, where) {
   var b = costBills().find(function(x) { return x.id === id; });
   if (!b || b.voided) return;
+  if (!grdOk('voids') && !(await guardAsk('voids', 'void a bill'))) return;   // P1 (guard.js)
   var reason = await uiPrompt({ title: 'Void this bill', body: 'It is kept on the record, not deleted.', label: 'Why is this bill void?',
     okLabel: 'Void bill', required: true, requiredText: 'A void needs a reason.' });
   if (reason == null) return;

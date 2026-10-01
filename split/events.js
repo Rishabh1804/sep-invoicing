@@ -82,10 +82,8 @@ function onDocClick(e) {
   const action = btn.dataset.action;
 
   switch(action) {
-    case 'invSwitchTab': switchTab(btn.dataset.tab); break;
-    case 'invSideGo': sideGo(btn.dataset.tab, btn.dataset.sub); break;
-    case 'invOpenMore': openMoreSheet(); break;
-    case 'invCloseMore': closeMoreSheet(); break;
+    // A workspace tab naming one of a page's own views (Today's) carries data-v (workspace.js).
+    case 'invSwitchTab': wsSwitchTab(btn.dataset.tab, btn.dataset.v); break;
     case 'invCreateNew': createNew(); break;
     case 'invHomeQuick': homeQuick(btn.dataset.go); break;
     // data-sec opens it on one section (the read banner's Import a backup and Pull from GitHub). The banner sits above an
@@ -443,6 +441,7 @@ function onDocClick(e) {
       if (finLinkAction(action, btn)) break;
       if (dashAction(action, btn)) break;
       if (navAction(action, btn)) break;
+      if (wsAction(action, btn)) break;
       if (prodAction(action, btn)) break;
       if (homeAction(action, btn)) break;
       if (powerAction(action, btn)) break;
@@ -981,8 +980,8 @@ document.addEventListener('keydown', function(e) {
     if (imSearchRes) imSearchRes.classList.add('inv-hidden');
     if (listOpen) return;
     // Otherwise it closes the top layer the way Back does (the QA sweep, 29 Sep 2026: every dialog but a question
-    // ignored Escape): a dialog holding typed work asks first, Settings asks its own way, then the print preview and
-    // the More sheet. A question answers cancel (its scrim's own handler, or its observer when shut this way).
+    // ignored Escape): a dialog holding typed work asks first, Settings asks its own way, then the print preview. A
+    // question answers cancel (its scrim's own handler, or its observer when shut this way).
     if (navLayerOpen()) { e.preventDefault(); navCloseLayer(); }
     return;
   }

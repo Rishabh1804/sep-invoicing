@@ -140,7 +140,7 @@ input, select, textarea, button { font-family: inherit; font-size: var(--fs-14);
 .inv-topbar-btn:hover { background: var(--surface-2); color: var(--text-1); }
 body.inv-desktop .inv-topbar { height: var(--bar-h-desk); padding: 0 var(--sp-16); }
 body.inv-desktop .inv-topbar-title { font-size: var(--fs-14); }
-body.inv-desktop .inv-topbar-ctx::before { content: '/'; color: var(--text-3); margin-right: var(--sp-8); }
+body.inv-desktop .inv-topbar-ctx::before { content: '›'; color: var(--text-3); margin-right: var(--sp-8); }
 body.inv-desktop .inv-topbar-btn { display: none; }
 /* A row held back by uiMoreHtml (state.js) until "Show n more": hidden whatever display its class sets. */
 [data-more-of][hidden] { display: none !important; }
@@ -747,7 +747,7 @@ table.inv-qc-grid.inv-qc-no-top { border-top: 0; }
      64px right — asymmetric margins, and 240px when the sidebar was expanded.
      One more element selector settles it without reaching for !important. */
   html body.inv-desktop { margin-left: 0; }
-  .inv-topbar, .inv-navbar, .inv-toast, .inv-update-bar, .inv-storage-bar, .inv-notice-bar, .inv-page,
+  .inv-topbar, .inv-navbar, .inv-ws-tabs, .inv-toast, .inv-update-bar, .inv-storage-bar, .inv-notice-bar, .inv-page,
   .inv-scrim, .inv-print-toolbar, #imSelBar, .inv-side { display: none !important; }
   .inv-print-view { position: static; display: block !important; overflow: visible; }
   .inv-print-body { padding: 0; }
@@ -943,7 +943,6 @@ body.inv-desktop .inv-side {
 .inv-side-mark rect, .inv-side-mark circle { fill: var(--accent); }
 .inv-side-mark polygon { fill: none; stroke: var(--on-accent); stroke-width: 22; stroke-linejoin: round; }
 .inv-side-mark polygon + polygon { fill: var(--on-accent); stroke: none; }
-.inv-side-group { padding: var(--sp-12) var(--sp-8) var(--sp-4); font-size: var(--fs-11); font-weight: 500; color: var(--text-3); }
 .inv-side-item {
   display: flex; align-items: center; gap: var(--sp-8); width: 100%;
   min-height: var(--ctl-h); padding: 0 var(--sp-8);
@@ -1161,7 +1160,7 @@ body.inv-desktop .inv-rpt-doc { padding: var(--rpt-gutter-top) var(--rpt-gutter-
   .inv-rpt-scroll { overflow: visible; }
 }
 
-/* ===== MORE (phone bar) ===== */
+/* ===== THE BAR'S RED COUNTS (a workspace's red rows) ===== */
 .inv-navbar-count {
   position: absolute; top: var(--sp-4); left: calc(50% + var(--sp-6));
   min-width: var(--sp-16); height: var(--sp-16); padding: 0 var(--sp-4);
@@ -1453,7 +1452,7 @@ body:not(.inv-desktop) .inv-row-flow > .inv-row-actions { flex-basis: 100%; just
 .inv-row-end > .inv-seg .inv-seg-btn { flex: 0 0 auto; min-width: var(--touch); padding: 0 var(--sp-8); text-overflow: clip; }
 .inv-row-end > .inv-field { margin-bottom: 0; }
 .inv-row-lead svg { width: 20px; height: 20px; color: var(--text-2); }
-/* The page a navigation row opens is the one on screen (the More sheet). */
+/* The page a navigation row opens is the one on screen (a list of places). */
 .inv-row[aria-current="page"] :is(.inv-row-title, .inv-row-lead svg) { color: var(--accent); }
 
 /* §6.11 Table */
@@ -1700,13 +1699,13 @@ body.inv-desktop .inv-keys { display: flex; flex-wrap: wrap; gap: var(--sp-4) va
 .inv-panel-flush > .inv-panel-body:last-child { border-bottom: none; }
 .inv-panel-head .inv-panel-count { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-/* §6.16 Overlays. A scrim holds either the More sheet or a dialog (inv-scrim-dialog, which sits above the sheet). */
+/* §6.16 Overlays. A scrim holds a dialog (inv-scrim-dialog). */
 .inv-scrim {
   position: fixed; inset: 0; z-index: var(--z-scrim); display: flex; align-items: flex-end; justify-content: center;
   background: var(--scrim);
 }
 .inv-scrim-dialog { z-index: var(--z-dialog); }
-.inv-dialog, .inv-sheet { background: var(--surface); border: var(--hair) solid var(--border); box-shadow: var(--shadow-dialog); }
+.inv-dialog { background: var(--surface); border: var(--hair) solid var(--border); box-shadow: var(--shadow-dialog); }
 /* A dialog is a sheet from the bottom on the phone and centred on the desktop. Its body scrolls; the foot stays put. */
 .inv-dialog {
   width: 100%; max-width: var(--max-w); max-height: var(--dialog-max-h); overflow-y: auto;
@@ -1729,15 +1728,9 @@ body.inv-desktop .inv-dialog { width: min(90vw, var(--dialog-w)); max-width: non
   margin: var(--sp-16) calc(var(--sp-20) * -1) calc(var(--sp-20) * -1); padding: var(--sp-12) var(--sp-20) var(--sp-20);
   background: var(--surface); border-top: var(--hair) solid var(--border);
 }
-/* The phone sheet from the bottom (the More sheet): full width, its rows running edge to edge, clear of the bar. */
-.inv-sheet {
-  width: 100%; max-width: var(--max-w); border-bottom: none; border-radius: var(--r-xl) var(--r-xl) 0 0;
-  padding: var(--sp-8) 0 calc(var(--nav-h) + var(--sp-12));
-}
-.inv-sheet-grab { width: var(--sp-32); height: var(--sp-4); border-radius: var(--r-full); background: var(--border); margin: 0 auto var(--sp-8); }
 @media (prefers-reduced-motion: no-preference) {
   .inv-scrim { animation: inv-fade-in var(--dur-2) var(--ease); }
-  .inv-dialog, .inv-sheet { animation: inv-slide-up var(--dur-2) var(--ease); }
+  .inv-dialog { animation: inv-slide-up var(--dur-2) var(--ease); }
   body.inv-desktop .inv-dialog { animation-name: inv-scale-in; }
   .inv-toast { animation: inv-fade-in var(--dur-1) var(--ease); }
 }
@@ -1899,3 +1892,39 @@ body.inv-desktop .inv-panels > [data-home-w] { container: home-w / inline-size; 
 @media print {
   .inv-qt-doc { border: none; width: auto; min-height: 0; margin: 0; }
 }
+
+/* ===== WORKSPACES (docs/DIRECTION_B.md, B2; workspace.js) =====
+   The phone bar is four workspaces and Add; a workspace of two or more views draws them as a tab row (§6.4), the
+   stronger of two: under the top bar on the phone, in the same surface and staying with it, and in the top bar on the
+   desktop (§4.2). A page's own view tabs are the second row. */
+.inv-ws-tabs { margin: 0; background: var(--surface); }
+body > .inv-ws-tabs { position: sticky; top: var(--bar-h); z-index: var(--z-bar); padding: 0 var(--sp-4); }
+body:has(> .inv-ws-tabs:not(.inv-hidden)) > .inv-topbar { border-bottom-color: transparent; }
+html:has(> body > .inv-ws-tabs:not(.inv-hidden)) { scroll-padding-top: calc(var(--bar-h) + var(--touch)); }
+body:has(> .inv-ws-tabs:not(.inv-hidden)) :is(.inv-toast, .inv-update-bar, .inv-storage-bar, .inv-notice-bar) { top: calc(var(--bar-h) + var(--touch) + var(--sp-8)); }
+/* Under it, a page that opens on its own tabs: that row sits flush under the first, a step smaller (the secondary row). */
+body:has(> .inv-ws-tabs:not(.inv-hidden)) .inv-page:has(> .inv-viewtabs:first-child, > :first-child > .inv-viewtabs:first-child) { padding-top: 0; }
+body:has(> .inv-ws-tabs:not(.inv-hidden)) :is(.inv-page > .inv-viewtabs:first-child, .inv-page > :first-child > .inv-viewtabs:first-child) { margin-bottom: var(--sp-8); }
+body:has(> .inv-ws-tabs:not(.inv-hidden)) :is(.inv-page > .inv-viewtabs:first-child, .inv-page > :first-child > .inv-viewtabs:first-child) > .inv-viewtab { font-size: var(--fs-13); }
+/* In the desktop bar the tabs keep their room; the earlier steps give theirs first, then the place's context (each
+   ellipsises with its full text in a title). */
+body.inv-desktop .inv-topbar > .inv-ws-tabs { align-self: stretch; flex: 0 0 auto; max-width: 60%; margin-left: var(--sp-8); background: none; box-shadow: none; }
+body.inv-desktop .inv-topbar-trail { flex-shrink: 4; }
+/* Add: the shell's one primary, the bar's centre, an accent disc over its word. The disc stands where an icon does, so
+   its word lines up with the others'. */
+.inv-navbar-add { color: var(--text-2); }
+.inv-navbar-add-mark {
+  display: flex; align-items: center; justify-content: center;
+  width: calc(var(--sp-24) + var(--sp-4)); height: calc(var(--sp-24) + var(--sp-4));
+  margin-top: calc(var(--sp-20) - var(--sp-24) - var(--sp-4));
+  border-radius: var(--r-full); background: var(--accent); color: var(--on-accent);
+}
+.inv-navbar-add:active .inv-navbar-add-mark { background: color-mix(in srgb, var(--accent) 78%, var(--text-1)); }
+/* Search on the desktop: a button drawn as the search field, with its key. The phone has the top bar's icon. */
+.inv-ws-search { display: none; }
+body.inv-desktop .inv-ws-search { display: flex; flex: 0 1 var(--search-min); min-width: max-content; white-space: nowrap; cursor: pointer; font-size: var(--fs-13); }
+body.inv-desktop .inv-ws-search:hover { background: var(--surface-2); }
+.inv-ws-search > span { flex: 1; text-align: left; }
+/* The sidebar: Add reads like the entries under it; a workspace's views under its head, labels in line with the head's. */
+.inv-side > .inv-btn-primary { justify-content: flex-start; text-align: left; }
+.inv-side-item-sub { min-height: var(--ctl-h-sm); padding-left: calc(var(--sp-16) * 2); }

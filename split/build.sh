@@ -74,6 +74,7 @@ JS_SOURCES=(
     "$DIR/vision.js" \
     "$DIR/scanner.js" \
     "$DIR/events.js" \
+    "$DIR/workspace.js" \
     "$DIR/swipe.js" \
     "$DIR/nav.js" \
   "$DIR/seed.js"

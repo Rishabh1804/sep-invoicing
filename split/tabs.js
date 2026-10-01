@@ -18,7 +18,6 @@ function switchTab(tabId) {
   document.querySelectorAll('.inv-toast').forEach(t => t.remove());
   closeOverlay();
   closePrintPreview();
-  closeMoreSheet();
 
   // Step 1b: Drain focus stack without focusing (DP v0.2 Section 8)
   drainFocusStack();
@@ -34,7 +33,6 @@ function switchTab(tabId) {
 
   // Step 3: Deactivate all tabs and pages
   document.querySelectorAll('.inv-page').forEach(p => p.classList.remove('inv-page-active'));
-  document.querySelectorAll('.inv-navbar-item').forEach(t => t.classList.remove('inv-navbar-item-on'));
 
   // Step 4: Read and clear _navReturnTab
   const returnTab = _navReturnTab;
@@ -43,15 +41,6 @@ function switchTab(tabId) {
   // Step 5: Activate target page and tab
   const page = document.getElementById(tabId);
   if (page) page.classList.add('inv-page-active');
-  document.querySelectorAll('.inv-navbar-item').forEach(t => {
-    if (t.dataset.tab === tabId) t.classList.add('inv-navbar-item-on');
-  });
-  // To-do, Finance, Stock, Staff, Stats and History live behind More on the phone bar.
-  document.querySelectorAll('.inv-navbar-more').forEach(t => t.classList.toggle('inv-navbar-item-on', MORE_TABS.indexOf(tabId) >= 0));
-  // The top bar names the screen (§4); the desktop sidebar marks it.
-  const title = document.getElementById('topbarTitle');
-  if (title) title.textContent = PAGE_TITLES[tabId] || 'SEP Invoicing';
-  markSideActive(tabId);
 
   // Step 6: Check dirty flag and re-render if needed
   const tabKey = tabId === 'pageHome' ? 'home' : tabId === 'pageRegister' ? 'register' : null;
@@ -70,6 +59,9 @@ function switchTab(tabId) {
     uiNotice('The ' + (PAGE_TITLES[tabId] || 'screen') + ' screen could not be drawn: ' + ((err && err.message) || err) +
       '. The rest of the app works; export a backup from Settings if this keeps happening.', 'danger');
   }
+  // Step 6c: the shell (workspace.js), once the page is drawn: the bar's workspace, its tab row, the top bar's names and
+  // the sidebar's mark.
+  wsShellDraw(tabId);
 
   // Step 7: Scroll restoration
   if (returnTab) {

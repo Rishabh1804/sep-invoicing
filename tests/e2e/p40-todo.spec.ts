@@ -77,9 +77,12 @@ test.describe('P40: To-do', () => {
     await expect(page.locator('#todoContent [data-todo="mine"]').filter({ hasText: 'Ask about CN/001' })).not.toHaveAttribute('data-done', /.*/);
   });
 
-  test('a task due yesterday is late: red, counted on More, and on Home', async ({ page }) => {
+  test('a task due yesterday is late: red, counted on Today, and on Home', async ({ page }) => {
     await load(page, base({ todo: { tasks: [task('TD-a', 'Later thing'), task('TD-b', 'Check the nitric count', iso(-1))], snoozes: {} } } as any));
-    await expect(page.locator('#moreBadge')).toHaveText('1');
+    // Today carries every red row, a late task of your own included (More's count before DIRECTION_B); a task of your
+    // own jumps nowhere, so no other workspace counts it.
+    await expect(page.locator('.inv-navbar [data-ws-count="today"]')).toHaveText('1');
+    for (const ws of ['office', 'floor', 'money']) await expect(page.locator(`.inv-navbar [data-ws-count="${ws}"]`)).toBeHidden();
     const home = page.locator('#homeTodoCard');
     await expect(home.locator('[data-todo]').first()).toContainText('Check the nitric count');
     await expect(home.locator('[data-todo]').first()).toContainText('Yesterday');

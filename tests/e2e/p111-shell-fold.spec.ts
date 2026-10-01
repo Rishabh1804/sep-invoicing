@@ -33,7 +33,7 @@ test.describe('P111: Escape closes the top layer, the way Back does', () => {
     await expect(dialogs(page)).toHaveCount(0);
   });
 
-  test('a question answers cancel, and the More sheet closes', async ({ page }) => {
+  test('a question answers cancel, and the print preview closes', async ({ page }) => {
     await loadAppWithState(page, emptyState());
     const ans = g(page, 'uiConfirm({ title: "Go on?" })');
     await expect(page.locator('[data-ui-ask]')).toBeVisible();
@@ -41,10 +41,11 @@ test.describe('P111: Escape closes the top layer, the way Back does', () => {
     await g(page, 'document.activeElement && document.activeElement.blur()');
     await page.keyboard.press('Escape');
     expect(await ans).toBe(false);
-    await page.locator('.inv-navbar-more').click();
-    await expect(page.locator('#moreSheet')).toBeVisible();
+    // The layer that is not a dialog (the More sheet was the other, and went with More, DIRECTION_B): the print preview.
+    await g(page, 'powerPrint()');
+    await expect(page.locator('#invPrintView')).toHaveClass(/inv-print-view-active/);
     await page.keyboard.press('Escape');
-    await expect(page.locator('#moreSheet')).toHaveCount(0);
+    await expect(page.locator('#invPrintView')).not.toHaveClass(/inv-print-view-active/);
   });
 
   test('an open suggestion list closes first, and the form under it stays', async ({ page }) => {

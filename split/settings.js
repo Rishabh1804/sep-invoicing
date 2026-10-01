@@ -18,6 +18,8 @@ var SETTINGS_GROUPS = [
   { key: 'costing', label: 'Costing', secs: ['fullCost', 'fallbacks', 'zinc'] },
   { key: 'labour', label: 'Labour', secs: ['overtime', 'rest', 'extra', 'labModel'] },
   { key: 'connections', label: 'Connections', secs: ['metalsKey', 'geminiKey', 'sync'] },
+  // The guard (guard.js): users and roles; builder D's Devices joins this group.
+  { key: 'access', label: 'Access', secs: ['users'] },
   { key: 'data', label: 'Data & device', secs: ['appearance', 'data'] }
 ];
 
@@ -441,7 +443,9 @@ var SETTINGS_SECS = {
         '<div id="storageDiagOut"></div>' + errSettingsHtml();
     },
     why: 'Import replaces the whole book with the file. Exporting also counts as a backup for the To-do reminder. Error reports go to the developer from the live site only, and carry no record, name or figure.'
-  }
+  },
+  // Users & access (guard.js): turning the guard on, the users, the minutes and the roles.
+  users: GRD_SETTINGS_SEC
 };
 
 /* A section is a panel that folds (§6.15 inv-panel-fold): its head is the row that says what it is set
@@ -453,7 +457,7 @@ function _settingsSecHtml(key, open) {
     '<span class="inv-row-meta" data-sum="' + key + '">' + s.summary() + '</span></span></summary>' +
     '<div class="inv-panel-body">' + s.body() +
     (s.why ? '<details class="inv-mt-8"><summary class="inv-btn-link inv-summary">How this is used</summary><p class="inv-note inv-mt-4">' + s.why + '</p></details>' : '') +
-    (s.save ? '<div class="inv-toolbar inv-toolbar-flush inv-toolbar-tight inv-mt-8"><button type="button" class="inv-btn inv-btn-primary inv-btn-sm" data-action="invSaveSettingsSec" data-sec="' + key + '" disabled>Save</button></div>' : '') +
+    (s.save && (!s.saveIf || s.saveIf()) ? '<div class="inv-toolbar inv-toolbar-flush inv-toolbar-tight inv-mt-8"><button type="button" class="inv-btn inv-btn-primary inv-btn-sm" data-action="invSaveSettingsSec" data-sec="' + key + '" disabled>Save</button></div>' : '') +
     '</div></details>';
 }
 
@@ -470,6 +474,8 @@ function _settingsMark(el, on) {
 
 /* Opens Settings; with a section key, on that section, open and in view. */
 function openSettings(target) {
+  // The guard (guard.js): a role that may not change Settings does not open them (keys and the token are in them).
+  if (typeof grdCan === 'function' && !grdCan('settings')) { guardAsk('settings', 'open Settings'); return; }
   var ui = _setUi();
   var tgtGroup = target && _settingsGroupOf(target);
   if (tgtGroup) {
@@ -561,6 +567,9 @@ function _settingsDirty() {
 async function saveSettingsSection(key) {
   var s = SETTINGS_SECS[key];
   if (!s || !s.save) return;
+  // P1 (guard.js): every section's Save asks the PIN outside the re-ask window; Users & access is the owner's.
+  var grp = s.guard || 'settings', what = 'save ' + (/^[A-Z][a-z]+\b/.test(s.title) ? s.title.charAt(0).toLowerCase() + s.title.slice(1) : s.title);
+  if (typeof grdOk === 'function' && !grdOk(grp) && !(await guardAsk(grp, what))) return;
   if ((await s.save()) === false) return;
   saveState();
   var d = document.querySelector('#settingsScrim details[data-sec="' + key + '"]');
@@ -811,6 +820,8 @@ function bookReplacedShow() {
 }
 
 function importData() {
+  // P1 (guard.js): an import replaces the book.
+  if (typeof grdGate === 'function' && !grdGate('imports', 'import a backup', importData)) return;
   const inp = document.getElementById('importFileInput');
   inp.onchange = (e) => {
     const f = e.target.files[0];

@@ -936,6 +936,7 @@ function stockReviewRowHtml(r, rv, res, st) {
 function stockSavePaste() {
   var rv = _stockReview;
   if (!rv) return;
+  if (!grdGate('floor', 'save stock entries', stockSavePaste)) return;   // the guard (guard.js): a floor entry, never re-asked
   var res = resolveStockParse(rv.parsed, rv.choices);
   if (res.dup) { showToast('Already saved — nothing saved twice', 'error'); return; }
   var by = stockBy();
@@ -1041,6 +1042,7 @@ function stockDayEntriesHtml(date) {
 function stockSaveManual() {
   var m = _stockManual;
   if (!m) return;
+  if (!grdGate('floor', 'save a stock entry', stockSaveManual)) return;   // the guard (guard.js): a floor entry, never re-asked
   if (!m.date) { showToast('Pick a date', 'error'); return; }
   if (m.mode === 'received') {
     // A delivery is recorded with its bill: the company, the invoice and its
@@ -1198,6 +1200,9 @@ function stockEntryRowHtml(e, r, unit) {
    and an entry that vanished would leave soma-internal holding a figure the
    app no longer explains. */
 function stockVoid(id) {
+  // P1 (guard.js): asked at the first tap, so a role that may not void is told before arming; and at the second, which
+  // passes within the window (another user unlocked between the taps is asked, or told).
+  if (!grdGate('voids', 'void a stock entry', function() { stockVoid(id); })) return;
   if (_stockVoidArm !== id) { _stockVoidArm = id; renderStock(); return; }
   var e = stockData().entries.find(function(x) { return x.id === id; });
   _stockVoidArm = null;
@@ -1213,6 +1218,7 @@ function stockVoid(id) {
 async function stockCorrect(id) {
   var e = stockData().entries.find(function(x) { return x.id === id; });
   if (!e || e.voided) return;
+  if (!grdOk('floor') && !(await guardAsk('floor', 'correct a stock entry'))) return;   // the guard (guard.js): a floor entry
   var it = stockItem(e.itemId), unit = it ? it.unit || '' : '';
   var v = await uiPrompt({ title: 'Correct this entry', body: (STOCK_KIND_LABEL[e.kind] || e.kind) + ' ' + stockFmtQty(e.qty) + ' ' + unit + (it ? ' of ' + it.name : '') + ' on ' + stockShortDate(e.date) + '.',
     label: 'The right quantity' + (unit ? ' (' + unit + ')' : ''), value: String(e.qty), okLabel: 'Correct', required: true, requiredText: 'Enter the quantity.' });
@@ -1314,6 +1320,7 @@ function stockMergeImport(src) {
 }
 
 function stockImport() {
+  if (!grdGate('imports', 'import stock records', stockImport)) return;   // P1 (guard.js)
   var inp = document.getElementById('stockFileInput');
   if (!inp) return;
   inp.onchange = function(ev) {

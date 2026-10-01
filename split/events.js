@@ -456,6 +456,7 @@ function onDocClick(e) {
       if (flrAction(action, btn)) break;
       if (srchAction(action, btn)) break;
       if (typeof devAction === 'function' && devAction(action, btn)) break;
+      if (action.indexOf('invGuard') === 0) { if (typeof guardAction === 'function') guardAction(action, btn); break; }
       if (action.indexOf('invStock') === 0) stockAction(action, btn);
       else if (action.indexOf('invTodo') === 0) todoAction(action, btn);
       else if (action.indexOf('invRelay') === 0) relayAction(action, btn);

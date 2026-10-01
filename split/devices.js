@@ -655,6 +655,7 @@ function devSettingsBody() {
 
 var DEV_SETTINGS_SEC = {
   title: 'Devices',
+  guard: 'users',   // the owner's section (guard.js): registering and removing devices ask the owner's ID
   summary: function() {
     if (!devGuardOn()) return 'the guard is off: every device syncs';
     var live = devRows().filter(function(r) { return r && !r.removedAt; }).length, me = devRow();

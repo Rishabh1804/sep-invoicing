@@ -814,6 +814,8 @@ function createFyAsk() {
 async function saveInvoice() {
   const errors = validateInvoice();
   if (errors.length > 0) { showToast(errors[0], 'error'); return; }
+  // P1 (guard.js): issuing or editing an invoice.
+  if (!grdOk('billing') && !(await guardAsk('billing', invoiceForm.editingId ? 'save an edited invoice' : 'save an invoice'))) return;
 
   // Asked, never refused: an old document entered late may be meant (seriesFyAsk, number-audit.js).
   const fyAsk = createFyAsk();

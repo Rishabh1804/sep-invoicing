@@ -1016,6 +1016,8 @@ async function editInvoice(invId) {
 function cancelInvoice(invId) {
   const inv = S.invoices.find(i => i.id === invId);
   if (!inv || inv.status === 'cancelled') return;
+  // P1 (guard.js): asked before the dialog, so a refusal comes before anything is chosen.
+  if (!grdGate('billing', 'cancel an invoice', function() { cancelInvoice(invId); })) return;
 
   // A filed invoice is in a return already: cancelling it here changes the book, not the return.
   const filed = getInvState(inv) === 'filed';
@@ -1031,6 +1033,8 @@ function cancelInvoice(invId) {
 function confirmCancelInvoice(invId) {
   const inv = S.invoices.find(i => i.id === invId);
   if (!inv) return;
+  // P1 (guard.js), again at the act: the window may have run out, or another user unlocked, while the dialog stood open.
+  if (!grdGate('billing', 'cancel an invoice', function() { confirmCancelInvoice(invId); })) return;
   inv.status = 'cancelled';
   inv.cancelledAt = Date.now();
   inv.updatedAt = Date.now();
@@ -1074,6 +1078,8 @@ function regShowInvoice(invId) {
 function deleteInvoice(invId) {
   const inv = S.invoices.find(i => i.id === invId);
   if (!inv) return;
+  // P1 (guard.js): delete, and delete-and-reissue from the same dialog.
+  if (!grdGate('billing', 'delete an invoice', function() { deleteInvoice(invId); })) return;
 
   // Past GSTR-1's due day for its month (the 11th of the next, invFileDue — the date the Delivered state is judged by)
   // the invoice may be in a filed return.
@@ -1135,6 +1141,8 @@ async function confirmDeleteInvoice(invId, reissue) {
     if (reasonEl) reasonEl.focus();
     return;
   }
+  // P1 (guard.js), again at the act: the window may have run out, or another user unlocked, while the dialog stood open.
+  if (!grdOk('billing') && !(await guardAsk('billing', reissue ? 'delete and reissue an invoice' : 'delete an invoice'))) return;
   // A reissue opens the create form: an invoice being typed there is asked about BEFORE anything is deleted.
   if (reissue && !(await createDiscardOk())) return;
   if (!S.invoices.includes(inv)) return;

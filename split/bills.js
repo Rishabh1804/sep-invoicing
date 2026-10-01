@@ -263,6 +263,9 @@ async function billsCnFormSave() {
   var inv = f.invId && f.invId !== '__typed' ? S.invoices.find(function(i) { return i.id === f.invId; }) : null;
   var typedNo = rec && f.invId === '__typed' ? String(f.invNo || '').trim() : '';
   if (!inv && !typedNo) { showToast('Choose the invoice the note is against', 'error'); return; }
+  // P1 (guard.js): a note recorded from paper or issued here.
+  if (!grdOk('billing') && !(await guardAsk('billing', rec ? 'record a credit note' : 'issue a credit note'))) return;
+  if (_billForm !== f) return;
   // Warn, never block: a credit larger than what is left on the invoice is the operator's call.
   if (inv) {
     var room = cnInvoiceHeadroom(inv, null);

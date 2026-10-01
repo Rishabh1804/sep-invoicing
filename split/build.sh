@@ -27,6 +27,7 @@ JS_SOURCES=(
     "$DIR/errors.js" \
     "$DIR/changelog.js" \
     "$DIR/appearance.js" \
+    "$DIR/guard.js" \
     "$DIR/zinc.js" \
     "$DIR/tabs.js" \
     "$DIR/clients.js" \

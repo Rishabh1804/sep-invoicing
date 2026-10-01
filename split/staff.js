@@ -208,6 +208,7 @@ function attDeleteRecord(key, reason, how) {
 async function attDeleteDay(iso) {
   var rec = (S.attendance || {})[iso];
   if (!rec) return;
+  if (!grdOk('voids') && !(await guardAsk('voids', 'delete an attendance day'))) return;   // P1 (guard.js)
   var marks = Object.keys(rec.marks || {}).length, extra = (rec.extra || []).length;
   // The rolls the day was saved from (relayPastes) go into the log with it: left on record, the same roll pasted again
   // was refused as already saved though nothing it saved was left (the QA of 30 Sep 2026).
@@ -347,7 +348,9 @@ var STAFF_BACK_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor
 var STAFF_NEXT_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>';
 
 function _attTabsHtml() {
-  return '<div class="inv-viewtabs" role="tablist" aria-label="Staff">' + ATT_VIEWS.map(function(v) {
+  // An ID that does not see wages has no Pay (guard.js).
+  var seen = ATT_VIEWS.filter(function(v) { return v[0] !== 'pay' || typeof grdSeesWages !== 'function' || grdSeesWages(); });
+  return '<div class="inv-viewtabs" role="tablist" aria-label="Staff">' + seen.map(function(v) {
     return '<button class="inv-viewtab" role="tab" aria-selected="' + (_attView === v[0]) + '" data-action="invAttView" data-view="' + v[0] + '">' + v[1] + '</button>';
   }).join('') + '</div>';
 }
@@ -373,6 +376,8 @@ function _attPasteBar() {
 var _attDateSeen = null;   // the day the week last followed
 function renderAttendance() {
   if (!_attDate) _attDate = localDateStr();
+  // Pay is refused to an ID that does not see wages (guard.js), by a tab, the sidebar or an address.
+  if (_attView === 'pay' && typeof grdSeesWages === 'function' && !grdSeesWages()) { _attView = 'overview'; showToast('Your ID doesn’t open Pay', 'warning'); }
   // The week follows the Day view's day whenever that day moves, by the stepper, Today, the Overview or a saved roll:
   // Week, Pay and Areas then open on the week of the day just looked at. A week stepped to on its own view stays.
   if (_attDate !== _attDateSeen) { _attWeekStart = attWeekStartOf(_attDate); _attDateSeen = _attDate; }
@@ -1337,6 +1342,12 @@ function saveWorker(id, mode) {
   // all, and refusing one for want of it would be a rule about the wrong number.
   var rateMissing = comp === 'hourly' ? fields.hourRate <= 0 : (fields.dayRate <= 0 && !(fields.monthWage > 0));
 
+  // P1 (guard.js): a wage rate or a monthly wage set or changed is a payments change; any other edit is the floor's roster.
+  var was = mode === 'add' ? null : staffById(id), num = function(v) { return Number(v) || 0; };
+  var wageSet = was ? (was.comp !== fields.comp || num(was.dayRate) !== fields.dayRate || num(was.hourRate) !== fields.hourRate || num(was.monthWage) !== fields.monthWage)
+    : (fields.dayRate > 0 || fields.hourRate > 0 || fields.monthWage > 0);
+  if (!grdGate(wageSet ? 'payments' : 'floor', wageSet ? 'set a worker’s wage' : 'save a worker', function() { saveWorker(id, mode); })) return;
+
   if (mode === 'add') {
     if (!S.staff) S.staff = [];
     var nextId = S.staff.reduce(function(m, x) { return Math.max(m, x.id || 0); }, 0) + 1;
@@ -1380,6 +1391,7 @@ function saveWorker(id, mode) {
    Payroll is deliberately not seeded into this repo, which is public and whose
    built page is served to anyone. This is the path that keeps it off both. */
 function importRoster() {
+  if (!grdGate('imports', 'import a roster', importRoster)) return;   // P1 (guard.js)
   var inp = document.getElementById('rosterFileInput');
   if (!inp) return;
   inp.onchange = function(e) {
@@ -1939,6 +1951,7 @@ async function mergeWorkerInto(fromId) {
   var intoId = parseInt(sel.value, 10);
   var from = staffById(fromId), into = staffById(intoId);
   if (!from || !into) return;
+  if (!grdOk('payments') && !(await guardAsk('payments', 'merge two workers'))) return;   // P1 (guard.js): their pay records join
   if (!(await uiConfirm({ title: 'Merge "' + from.name + '" into "' + into.name + '"?',
       body: '"' + from.name + '" is removed. Every day and every block crew that named ' +
       'them will name "' + into.name + '" instead. This cannot be undone.', okLabel: 'Merge', danger: true }))) return;
@@ -2010,6 +2023,7 @@ async function deleteWorker(id) {
     showToast('Cannot delete: ' + pays + ' payment' + (pays === 1 ? ' names ' : 's name ') + w.name + '. Clear Active instead.', 'error');
     return;
   }
+  if (!grdOk('payments') && !(await guardAsk('payments', 'delete a worker'))) return;   // P1 (guard.js): wage rates go with them
   if (!(await uiConfirm({ title: 'Delete ' + w.name + ' from the roster?', body: 'No day names them, so nothing is lost with the row.', okLabel: 'Delete', danger: true }))) return;
   S.staff = S.staff.filter(function(x) { return x.id !== id; });
   saveState();

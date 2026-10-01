@@ -491,6 +491,7 @@ function payrollPaidImport(data) {
   return out;
 }
 function payrollImport() {
+  if (!grdGate('payments', 'import the payroll as paid', payrollImport)) return;   // P1 (guard.js)
   var inp = document.getElementById('payrollFileInput');
   if (!inp) return;
   inp.onchange = function(ev) {
@@ -518,6 +519,7 @@ function payrollImportText(text) {
 async function payrollVoid(id) {
   var r = payrollPaidRecords().find(function(x) { return x.id === id; });
   if (!r || r.voidedAt) return;
+  if (!grdOk('voids') && !(await guardAsk('voids', 'void a month’s payroll record'))) return;   // P1 (guard.js)
   var reason = await uiPrompt({ title: 'Void this month’s record', body: 'It is kept, not deleted — the month goes back to the attendance model.',
     label: 'Why is this month’s record void?', okLabel: 'Void record', required: true, requiredText: 'A void needs a reason.' });
   if (reason == null || r.voidedAt) return;
@@ -582,6 +584,7 @@ function paySave() {
   if (!w) { showToast('Pick a worker', 'error'); return; }
   if (!(amount > 0)) { showToast('Enter an amount', 'error'); return; }
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date || '')) { showToast('Enter a date', 'error'); return; }
+  if (!grdGate('payments', 'record a payment', paySave)) return;   // P1 (guard.js): a payment or an advance
   staffPayments().push({ id: 'PAY-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), staffId: w.id, date: date, amount: amount,
     kind: (document.getElementById('payKind') || {}).value === 'advance' ? 'advance' : 'payment',
     note: ((document.getElementById('payNote') || {}).value || '').trim(), at: Date.now() });
@@ -593,6 +596,7 @@ function paySave() {
 async function payVoid(id) {
   var p = staffPayments().find(function(x) { return x.id === id; });
   if (!p || p.voidedAt) return;
+  if (!grdOk('voids') && !(await guardAsk('voids', 'void a payment'))) return;   // P1 (guard.js)
   var reason = await uiPrompt({ title: 'Void this payment', body: 'It is kept on the record, not deleted.', label: 'Why is this payment void?',
     okLabel: 'Void payment', required: true, requiredText: 'A void needs a reason.' });
   if (reason == null || p.voidedAt) return;
@@ -607,6 +611,7 @@ async function payVoid(id) {
 async function payClear(id, through, amount) {
   var w = staffById(id);
   if (!w || !/^\d{4}-\d{2}-\d{2}$/.test(through || '')) return;
+  if (!grdOk('payments') && !(await guardAsk('payments', 'clear a carried balance'))) return;   // P1 (guard.js)
   var reason = await uiPrompt({ title: 'Clear ' + w.name + '’s balance',
     body: (amount > 0 ? formatCurrency(amount) + ' owed' : formatCurrency(-amount) + ' advanced') + ' up to ' + formatDate(through) +
       ' stops carrying forward. It is kept on the record, and can be undone.',
@@ -623,6 +628,7 @@ async function payClear(id, through, amount) {
 async function payClearVoid(id) {
   var c = payCarryClears().find(function(x) { return x.id === id; });
   if (!c || c.voidedAt) return;
+  if (!grdOk('payments') && !(await guardAsk('payments', 'undo a cleared balance'))) return;   // P1 (guard.js)
   var ok = await uiConfirm({ title: 'Undo this clear?', body: 'The balance carries forward again.', okLabel: 'Undo clear' });
   if (!ok || c.voidedAt) return;
   c.voidedAt = Date.now();

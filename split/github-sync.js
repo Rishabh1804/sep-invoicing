@@ -341,6 +341,7 @@ async function ghPush(opts) {
 
 /* ===== PULL ===== */
 async function ghPull() {
+  if (!grdOk('imports') && !(await guardAsk('imports', 'pull from GitHub'))) return false;   // P1 (guard.js): a pull replaces the book
   var cfg = getGhConfig();
   // The guard on and this device not registered (or removed): it views the data by importing a backup (devices.js).
   var held = typeof devSyncBlocked === 'function' ? devSyncBlocked() : '';

@@ -71,6 +71,9 @@ function getDefaultState() {
     // The owner's to-do list: typed tasks (ticked, never deleted) and the
     // snoozes granted to app-raised ones, each against the figures it saw.
     todo: { tasks: [], snoozes: {} },
+    // The guard (guard.js): who may use the app, each PIN kept only as a salted hash, and what each role opens and may change.
+    users: [],
+    guardCfg: typeof grdCfgDefaults === 'function' ? grdCfgDefaults() : { lockMinutes: 15, askMinutes: 5, roles: {}, recovery: null },
     // Every attendance roll pasted in, whole, with a fingerprint so the same
     // roll twice is refused (it would count every hour twice).
     relayPastes: [],
@@ -666,6 +669,8 @@ function adoptState(next) {
   if (typeof _invalidateUsageCache === 'function') _invalidateUsageCache();
   // A book adopted whole is one line in the change log and where it starts comparing from (changelog.js).
   if (typeof chgAdopted === 'function') chgAdopted();
+  // The book's users may differ: a session whose user it does not hold is locked (guard.js).
+  if (typeof grdRecheck === 'function') grdRecheck();
   return S;
 }
 
@@ -1000,6 +1005,8 @@ function bookReload(why) {
     // The book another window saved may say this device was removed: it forgets its GitHub token (devices.js).
     if (typeof devAfterLoad === 'function') devAfterLoad('reload');
     bookRedraw(why);
+    // Users or roles changed elsewhere: a deactivated user is locked, a role that lost the page on screen sent Home.
+    if (typeof grdRecheck === 'function') grdRecheck();
     return true;
   }).then(null, function(e) {
     uiNotice('This window could not load the book another window saved (' + describeStorageError(e) + '). Close this window and reopen the app before editing here.', 'warning');

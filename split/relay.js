@@ -1180,6 +1180,7 @@ function relayParseHhmm(s) {
 function relaySave() {
   var rv = _relay;
   if (!rv) return;
+  if (!grdGate('floor', 'save attendance', relaySave)) return;   // the guard (guard.js): a floor entry, never re-asked
   var plan = relayPlan(rv);
   if (!plan.days.length) { showToast('Nothing to save', 'error'); return; }
   // Placements were remembered as they were made. A spelling READ AS somebody

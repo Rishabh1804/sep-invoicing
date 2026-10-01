@@ -726,6 +726,7 @@ async function bankRemoveImport(id) {
   if (!imp || imp.removedAt) return;
   var n = b.rows.filter(function(r) { return r.importId === id; }).length;
   if (!n) { showToast('No row this import added is still held', 'error'); return; }
+  if (!grdOk('voids') && !(await guardAsk('voids', 'remove a statement import'))) return;   // P1 (guard.js)
   if (!(await uiConfirm({ title: 'Remove this import?', danger: true, okLabel: 'Remove ' + todoPlural(n, 'row'),
       body: (imp.file || 'This statement') + (imp.from ? ', ' + formatDate(imp.from) + ' – ' + formatDate(imp.to) : '') + ', added ' + todoPlural(n, 'row') + ' still held. They come out of the record, ' +
         'with whatever was set on them (a client placed, a category, a returned cheque linked). Rows it read that an earlier import had already brought in stay. The import stays listed, saying when and why.' }))) return;

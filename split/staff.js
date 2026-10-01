@@ -1386,45 +1386,47 @@ function importRoster() {
     var f = e.target.files[0];
     if (!f) return;
     var reader = new FileReader();
-    reader.onload = function(ev) {
-      var data;
-      try { data = JSON.parse(ev.target.result); }
-      catch (err) { showToast('Not valid JSON: ' + err.message, 'error'); return; }
-      var res = applyRosterImport(data);
-      if (res.error) { showToast(res.error, 'error'); return; }
-      saveState();
-      renderAttendance();
-      // Every count the merge dropped something on is stated. A silent import
-      // that skipped half a file reads exactly like one that worked.
-      showToast(res.added + ' added, ' + res.updated + ' updated' +
-        (res.skipped ? ', ' + res.skipped + ' skipped' : '') +
-        (res.aliased ? ' · ' + res.aliased + ' matched an existing worker under another spelling' : '') +
-        (res.collapsed ? ' · ' + res.collapsed + ' row' + (res.collapsed === 1 ? '' : 's') +
-          ' in the file were the same worker' : '') +
-        (res.dupesOnRoster ? ' · ' + res.dupesOnRoster + ' worker' +
-          (res.dupesOnRoster === 1 ? ' is' : 's are') + ' already on the roster twice under ' +
-          'different spellings — merge from the worker\u2019s Edit screen' : '') +
-        (res.aliasConflicts ? ' · ' + res.aliasConflicts + ' alias' +
-          (res.aliasConflicts === 1 ? '' : 'es') + ' refused for naming two workers' : '') +
-        (res.spellings ? ' · ' + res.spellings + ' other spelling' + (res.spellings === 1 ? '' : 's') + ' kept for reading rolls' : '') +
-        (res.targets ? ' · ' + res.targets + ' complement' + (res.targets === 1 ? '' : 's') + ' set' : '') +
-        (res.days ? ' · ' + res.days + ' day' + (res.days === 1 ? '' : 's') + ' of attendance' : '') +
-        (res.daysKept ? ' (' + res.daysKept + ' already recorded, kept)' : '') +
-        (res.marksDropped ? ' · ' + res.marksDropped + ' mark' +
-          (res.marksDropped === 1 ? '' : 's') + ' for names not on the roster' : '') +
-        (res.extrasDropped ? ' · ' + res.extrasDropped + ' booked-hours entr' +
-          (res.extrasDropped === 1 ? 'y' : 'ies') + ' not recognised' : '') +
-        (res.crewsUnresolved ? ' · ' + res.crewsUnresolved + ' block crew' +
-          (res.crewsUnresolved === 1 ? '' : 's') + ' with unknown names, kept as not checkable' : '') +
-        (res.daysDropped ? ' · ' + res.daysDropped + ' day' +
-          (res.daysDropped === 1 ? '' : 's') + ' with unreadable dates' : ''),
-        (res.marksDropped || res.extrasDropped || res.crewsUnresolved || res.daysDropped ||
-         res.aliasConflicts || res.dupesOnRoster) ? 'warning' : 'success');
-    };
+    reader.onload = function(ev) { importRosterText(ev.target.result); };
     reader.readAsText(f);
     inp.value = '';
   };
   inp.click();
+}
+/* A roster file's text, from Staff → Roster → Import or from Add → File (add.js). */
+function importRosterText(text) {
+  var data;
+  try { data = JSON.parse(text); }
+  catch (err) { showToast('Not valid JSON: ' + err.message, 'error'); return; }
+  var res = applyRosterImport(data);
+  if (res.error) { showToast(res.error, 'error'); return; }
+  saveState();
+  renderAttendance();
+  // Every count the merge dropped something on is stated. A silent import
+  // that skipped half a file reads exactly like one that worked.
+  showToast(res.added + ' added, ' + res.updated + ' updated' +
+    (res.skipped ? ', ' + res.skipped + ' skipped' : '') +
+    (res.aliased ? ' · ' + res.aliased + ' matched an existing worker under another spelling' : '') +
+    (res.collapsed ? ' · ' + res.collapsed + ' row' + (res.collapsed === 1 ? '' : 's') +
+      ' in the file were the same worker' : '') +
+    (res.dupesOnRoster ? ' · ' + res.dupesOnRoster + ' worker' +
+      (res.dupesOnRoster === 1 ? ' is' : 's are') + ' already on the roster twice under ' +
+      'different spellings — merge from the worker\u2019s Edit screen' : '') +
+    (res.aliasConflicts ? ' · ' + res.aliasConflicts + ' alias' +
+      (res.aliasConflicts === 1 ? '' : 'es') + ' refused for naming two workers' : '') +
+    (res.spellings ? ' · ' + res.spellings + ' other spelling' + (res.spellings === 1 ? '' : 's') + ' kept for reading rolls' : '') +
+    (res.targets ? ' · ' + res.targets + ' complement' + (res.targets === 1 ? '' : 's') + ' set' : '') +
+    (res.days ? ' · ' + res.days + ' day' + (res.days === 1 ? '' : 's') + ' of attendance' : '') +
+    (res.daysKept ? ' (' + res.daysKept + ' already recorded, kept)' : '') +
+    (res.marksDropped ? ' · ' + res.marksDropped + ' mark' +
+      (res.marksDropped === 1 ? '' : 's') + ' for names not on the roster' : '') +
+    (res.extrasDropped ? ' · ' + res.extrasDropped + ' booked-hours entr' +
+      (res.extrasDropped === 1 ? 'y' : 'ies') + ' not recognised' : '') +
+    (res.crewsUnresolved ? ' · ' + res.crewsUnresolved + ' block crew' +
+      (res.crewsUnresolved === 1 ? '' : 's') + ' with unknown names, kept as not checkable' : '') +
+    (res.daysDropped ? ' · ' + res.daysDropped + ' day' +
+      (res.daysDropped === 1 ? '' : 's') + ' with unreadable dates' : ''),
+    (res.marksDropped || res.extrasDropped || res.crewsUnresolved || res.daysDropped ||
+     res.aliasConflicts || res.dupesOnRoster) ? 'warning' : 'success');
 }
 
 /* ===== ONE PERSON, MANY SPELLINGS =====

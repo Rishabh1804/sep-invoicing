@@ -907,18 +907,20 @@ function prodImport() {
     inp.value = '';
     if (!file) return;
     var rd = new FileReader();
-    rd.onload = function(e2) {
-      var obj = null;
-      try { obj = JSON.parse(e2.target.result); } catch (err) { obj = null; }
-      var res = obj ? prodMergeImport(obj, file.name) : { ok: false };
-      if (!res.ok) { uiNotice('Not a production file: ' + (file.name || ''), 'error'); return; }
-      saveState();
-      renderProduction();
-      showToast(res.added ? todoPlural(res.added, 'entry', 'entries') + ' added' + (res.skipped ? ' · ' + res.skipped + ' already held' : '') + (res.unknown ? ' · ' + res.unknown + ' name a client this book does not hold' : '') + (res.bad ? ' · ' + res.bad + ' refused' : '') : 'Nothing new in that file', res.added ? 'success' : 'warning');
-    };
+    rd.onload = function(e2) { prodImportText(e2.target.result, file.name); };
     rd.readAsText(file);
   };
   inp.click();
+}
+/* A sep-production file's text, from Production's Import or from Add → File (add.js). */
+function prodImportText(text, name) {
+  var obj = null;
+  try { obj = JSON.parse(text); } catch (err) { obj = null; }
+  var res = obj ? prodMergeImport(obj, name) : { ok: false };
+  if (!res.ok) { uiNotice('Not a production file: ' + (name || ''), 'error'); return; }
+  saveState();
+  renderProduction();
+  showToast(res.added ? todoPlural(res.added, 'entry', 'entries') + ' added' + (res.skipped ? ' · ' + res.skipped + ' already held' : '') + (res.unknown ? ' · ' + res.unknown + ' name a client this book does not hold' : '') + (res.bad ? ' · ' + res.bad + ' refused' : '') : 'Nothing new in that file', res.added ? 'success' : 'warning');
 }
 
 /* ---------- Events ---------- */

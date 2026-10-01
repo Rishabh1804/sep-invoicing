@@ -1747,3 +1747,60 @@ body.inv-desktop .inv-panels > [data-home-w] { container: home-w / inline-size; 
 @container home-w (min-width: 30.5rem) and (max-width: 40.5rem) {
   body.inv-desktop .inv-tiles:has(> .inv-tile:nth-child(4):last-child) { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
+
+/* ===== QUOTATION (quote.js) =====
+   A document handed to a counterparty, on its own point scale like the credit note and the certificate (HR-6's print
+   exception: the type, rules and gutters declared once here in pt and mm and read as var() below), ink pinned on paper.
+   One A4 sheet whose padding is its gutter on paper too (the @page margin stays 0); the terms' tail and the signature
+   are one box that never breaks, since the register records a render whose signature orphaned onto page 2. */
+.inv-qt-doc {
+  --ff-base: 'Inter', sans-serif;
+  --ff-mono: 'IBM Plex Mono', ui-monospace, 'Cascadia Mono', 'Roboto Mono', monospace;
+  --qt-ink: #1a1a1a; --qt-paper: #fff; --qt-accent: #1f3a5f; --qt-muted: #444; --qt-cell-rule: #c9d2de; --qt-head-ink: #fff;
+  --qt-fs: 9.5pt; --qt-fs-sm: 8.5pt; --qt-fs-terms: 8.2pt; --qt-fs-co: 17pt; --qt-fs-title: 14pt; --qt-fs-mark: 11pt;
+  --qt-sheet-w: 210mm; --qt-sheet-h: 297mm; --qt-pad: 12mm 13mm 10mm; --qt-rule: 0.5pt; --qt-band: 2.5pt;
+  --qt-cell: 1.4mm 2mm; --qt-gap: 3mm; --qt-gap-sm: 1.5mm; --qt-sig-w: 58mm; --qt-sig-gap: 8mm; --qt-indent: 5mm; --qt-track: 1.5pt;
+  background: var(--qt-paper); color: var(--qt-ink); font-family: var(--ff-base); font-size: var(--qt-fs); line-height: 1.3;
+  width: var(--qt-sheet-w); min-height: var(--qt-sheet-h); padding: var(--qt-pad); margin: 0 auto var(--sp-16);
+  border: var(--hair) solid var(--border);
+}
+.inv-qt-mark {
+  border: var(--qt-band) solid var(--qt-ink); text-align: center; font-weight: 700; font-size: var(--qt-fs-mark);
+  letter-spacing: var(--qt-track); padding: var(--qt-gap-sm); margin-bottom: var(--qt-gap);
+}
+.inv-qt-head {
+  display: flex; justify-content: space-between; align-items: flex-end; gap: var(--qt-gap);
+  border-bottom: var(--qt-band) solid var(--qt-accent); padding-bottom: var(--qt-gap-sm);
+}
+.inv-qt-co { font-size: var(--qt-fs-co); font-weight: 700; color: var(--qt-accent); }
+.inv-qt-co-sub { font-size: var(--qt-fs-sm); color: var(--qt-muted); margin-top: var(--qt-gap-sm); }
+.inv-qt-type { text-align: right; font-size: var(--qt-fs-sm); color: var(--qt-muted); flex-shrink: 0; }
+.inv-qt-type-t { font-size: var(--qt-fs-title); font-weight: 700; color: var(--qt-accent); letter-spacing: var(--qt-track); }
+.inv-qt-meta { display: flex; justify-content: space-between; gap: var(--qt-gap); margin: var(--qt-gap) 0 var(--qt-gap-sm); }
+.inv-qt-to { margin: var(--qt-gap-sm) 0 var(--qt-gap); }
+.inv-qt-lbl { font-size: var(--qt-fs-sm); text-transform: uppercase; letter-spacing: var(--qt-track); color: var(--qt-muted); }
+.inv-qt-to-body { margin-top: var(--qt-gap-sm); line-height: 1.5; overflow-wrap: anywhere; }
+.inv-qt-p { margin: 0 0 var(--qt-gap-sm); }
+.inv-qt-table { width: 100%; border-collapse: collapse; margin: var(--qt-gap-sm) 0; table-layout: fixed; }
+.inv-qt-table th {
+  background: var(--qt-accent); color: var(--qt-head-ink); font-size: var(--qt-fs-sm); text-align: left; padding: var(--qt-cell);
+}
+.inv-qt-table th:nth-child(1) { width: 7%; }
+.inv-qt-table th:nth-child(2) { width: 47%; }
+.inv-qt-table th:nth-child(3) { width: 24%; }
+.inv-qt-table th:nth-child(4) { width: 22%; }
+.inv-qt-table td { border: var(--qt-rule) solid var(--qt-cell-rule); padding: var(--qt-cell); vertical-align: top; overflow-wrap: anywhere; }
+.inv-qt-table tr { break-inside: avoid; page-break-inside: avoid; }
+.inv-qt-n { text-align: right; }
+.inv-qt-sub { font-size: var(--qt-fs-sm); color: var(--qt-muted); }
+.inv-qt-gst { font-size: var(--qt-fs-sm); }
+.inv-qt-tail { break-inside: avoid; page-break-inside: avoid; }
+.inv-qt-h3 { font-weight: 700; color: var(--qt-accent); letter-spacing: var(--qt-track); margin: var(--qt-gap) 0 var(--qt-gap-sm); }
+.inv-qt-terms { margin: 0 0 0 var(--qt-indent); padding: 0; font-size: var(--qt-fs-terms); }
+.inv-qt-sig { display: flex; justify-content: space-between; align-items: flex-end; gap: var(--qt-gap); margin-top: var(--qt-gap); }
+.inv-qt-for { font-weight: 700; }
+.inv-qt-line { margin-top: var(--qt-sig-gap); border-top: var(--qt-rule) solid var(--qt-ink); min-width: var(--qt-sig-w); padding-top: var(--qt-gap-sm); font-size: var(--qt-fs-sm); }
+.inv-qt-foot { font-size: var(--qt-fs-sm); color: var(--qt-muted); }
+@media print {
+  .inv-qt-doc { border: none; width: auto; min-height: 0; margin: 0; }
+}

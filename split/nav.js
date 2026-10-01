@@ -44,6 +44,7 @@ function navLoc() {
     case 'pageClients':
       v = getItemsSubView();
       if (_isDesktop && v === 'clients' && _clientsActiveId != null) id = String(_clientsActiveId);
+      if (v === 'quotes') { if (_qtForm) v = 'quotes/form'; else if (_isDesktop && _qtActiveId) id = _qtActiveId; }
       break;
     case 'pageFinance': v = _finTab; break;
     case 'pageStats': v = statsTab(); break;
@@ -90,9 +91,12 @@ function navLabel(loc) {
       if (inv) rec = 'Invoice ' + String(inv.displayNumber || '').split('/').pop();
       break;
     case 'pageClients':
-      sub.push({ clients: 'Clients', items: 'Items', performance: 'Performance' }[parts[0]] || '');
-      var c = loc.id && S.clients.find(function(x) { return String(x.id) === loc.id; });
+      sub.push({ clients: 'Clients', items: 'Items', performance: 'Performance', quotes: 'Quotations' }[parts[0]] || '');
+      if (parts[1] === 'form') sub.push('Quotation form');
+      var c = loc.id && parts[0] !== 'quotes' && S.clients.find(function(x) { return String(x.id) === loc.id; });
       if (c) rec = c.name;
+      var qt = loc.id && parts[0] === 'quotes' && qtFind(loc.id);
+      if (qt) rec = qtNumberText(qt);
       break;
     case 'pageFinance': sub.push(_navFind(FIN_TABS, parts[0])); break;
     case 'pageStats': sub.push(_navFind(STATS_TABS, parts[0])); break;
@@ -125,7 +129,12 @@ function navApply(loc) {
           imSetTab(parts[0] === 'invoiced' ? 'invoiced' : 'awaiting', parts[0] === 'invoiced' ? (parts[1] || null) : undefined);
         }
         break;
-      case 'pageClients': setItemsSubView(/^(clients|items|performance)$/.test(parts[0]) ? parts[0] : 'clients'); break;
+      case 'pageClients':
+        setItemsSubView(/^(clients|items|performance|quotes)$/.test(parts[0]) ? parts[0] : 'clients');
+        // The quotation form is a sub-view: forward into it opens a new one; anywhere else leaves it.
+        if (parts[0] === 'quotes' && parts[1] === 'form') { if (!_qtForm) { _qtForm = { q: qtBlank(), termsAuto: true }; _qtForm.q.terms = qtTermsFor(_qtForm.q); } }
+        else _qtForm = null;
+        break;
       case 'pageFinance': finSetTab(parts[0]); _bankEdit = null; break;
       case 'pageStats': try { localStorage.setItem(STATS_TAB_KEY, parts[0] || 'overview'); } catch (e) { /* per device only */ } break;
       case 'pageProduction': prodSetTab(parts[0]); _prodView = parts[1] === 'paste' || parts[1] === 'hand' || parts[1] === 'photo' ? parts[1] : 'main'; break;
@@ -156,6 +165,7 @@ function navApply(loc) {
         if (im) imShowChallanTab(im);
         _renderIMDetail(im ? id : null);
       }
+      if (tab === 'pageClients' && getItemsSubView() === 'quotes' && !_qtForm) qtShowPane(id && qtFind(id) ? id : null);
       if (tab === 'pageClients' && getItemsSubView() === 'clients') {
         var cid = id !== '' && S.clients.some(function(c) { return String(c.id) === id; }) ? S.clients.find(function(c) { return String(c.id) === id; }).id : null;
         if (cid != null) _renderClientDetail(cid, false); else if (_clientsActiveId != null) closeClientsPane();
@@ -225,7 +235,7 @@ function navLeaveOk() {
    unsaved work on screen it asks first (owner, 29 Sep 2026: "that's a real bug" — only the browser's Back asked, and a
    tap on another screen dropped a half-typed challan). On Leave the same tap runs again with nothing typed left to lose.
    Caught before events.js sees it (capture), so the screen is never left and then asked about. */
-var NAV_LEAVE_ACTIONS = { invSwitchTab: 1, invSideGo: 1, invStockBack: 1, invProdBack: 1, invProdHandDone: 1, invAttView: 1, invDashStockView: 1 };
+var NAV_LEAVE_ACTIONS = { invSwitchTab: 1, invSideGo: 1, invStockBack: 1, invProdBack: 1, invProdHandDone: 1, invAttView: 1, invDashStockView: 1, invQtBack: 1 };
 function navIsLeave(el) {
   // A tab inside a dialog moves within the dialog, not off the screen.
   return !!(el && el.dataset && !el.closest('.inv-scrim-dialog') && (NAV_LEAVE_ACTIONS[el.dataset.action] || el.getAttribute('role') === 'tab'));

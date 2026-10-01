@@ -141,7 +141,7 @@ function _showClientOverlay(client, isAdd, inPlace) {
   }
   dialogOpen('<div class="inv-dialog">' +
     dialogHeadHtml((isAdd ? 'Add client' : 'Edit client')) +
-    (isAdd ? '' : finClientMoneyHtml(c.id)) +
+    (isAdd ? '' : finClientMoneyHtml(c.id) + qtClientPanelHtml(c.id)) +
     _cfield('ceditName', 'Name', _cinput('ceditName', c.name)) +
     '<div class="inv-fields">' +
     _cfield('ceditGstin', 'GSTIN', _cinput('ceditGstin', c.gstin, 'inv-id', ' maxlength="15"')) +
@@ -459,6 +459,7 @@ function _renderClientDetail(clientId, skipMasterRefresh) {
       '</div>';
 
     html += finClientMoneyHtml(c.id);
+    html += qtClientPanelHtml(c.id);
 
     var group = function(title, n) { return '<div class="inv-row-group"><span>' + title + ' · ' + n + '</span></div>'; };
     var cards = '';

@@ -446,6 +446,7 @@ function onDocClick(e) {
       if (prodAction(action, btn)) break;
       if (homeAction(action, btn)) break;
       if (powerAction(action, btn)) break;
+      if (qtAction(action, btn)) break;
       if (action.indexOf('invStock') === 0) stockAction(action, btn);
       else if (action.indexOf('invTodo') === 0) todoAction(action, btn);
       else if (action.indexOf('invRelay') === 0) relayAction(action, btn);
@@ -503,6 +504,7 @@ function onDocChange(e) {
   if (todoOnChange(e.target)) return;
   if (relayOnChange(e.target)) return;
   if (prodOnChange(e.target)) return;
+  if (qtOnChange(e.target)) return;
   // A line's fields answer to their data-action; its unit <select> to data-change, since a select carrying an
   // action would run it on the click that opens it.
   const el = e.target.closest('[data-action="invUpdateLine"], [data-change="invUpdateLine"]');
@@ -678,6 +680,7 @@ document.addEventListener('input', function(e) {
   if (e.target.id === 'bankSearch' && bankInput(e.target)) return;
   if (relayOnInput(e.target)) return;
   if (prodOnInput(e.target)) return;
+  if (qtOnInput(e.target) || qtSearchInput(e.target)) return;
   if (e.target.id === 'clientSearch') {
     renderClientList(e.target.value);
   }

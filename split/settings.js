@@ -13,7 +13,7 @@
 var SETTINGS_UI_KEY = 'sep_inv_settings_ui';
 
 var SETTINGS_GROUPS = [
-  { key: 'business', label: 'Business', secs: ['company', 'bank', 'invoice', 'cn'] },
+  { key: 'business', label: 'Business', secs: ['company', 'bank', 'invoice', 'cn', 'quotes'] },
   { key: 'checks', label: 'Checks & alerts', secs: ['rateCheck', 'invStates', 'stockAlerts', 'todo'] },
   { key: 'costing', label: 'Costing', secs: ['fullCost', 'fallbacks', 'zinc'] },
   { key: 'labour', label: 'Labour', secs: ['overtime', 'rest', 'extra', 'labModel'] },
@@ -130,6 +130,29 @@ var SETTINGS_SECS = {
       if (isNaN(cnNext) || cnNext < 1) { showToast('Enter the next credit note number', 'error'); return false; }
       if (cnNext <= issued) { showToast('Next credit note must be above ' + cnPadNum(issued) + ' — that one is issued', 'error'); return false; }
       S.cnNextNum = cnNext;
+    }
+  },
+  quotes: {
+    title: 'Quotations',
+    summary: function() {
+      var c = qtCfg(), fy = qtFyOf(localDateStr());
+      return escHtml(c.signatory || 'No signatory set') + ' &middot; next <span class="inv-id">' + escHtml(qtDisplay(fy, qtNextNum(fy), 0)) + '</span>';
+    },
+    body: function() {
+      var c = qtCfg(), cur = qtFyOf(localDateStr()), fys = {};
+      fys[cur] = true;
+      getQuotations().forEach(function(q) { if (q.fy) fys[q.fy] = true; });
+      return _sRow(_sfg('Signed by', 'setQtSign', '<input class="inv-input" id="setQtSign" value="' + escHtml(c.signatory) + '" autocomplete="off">'),
+          _sfg('Title', 'setQtTitle', '<input class="inv-input" id="setQtTitle" value="' + escHtml(c.signTitle) + '" placeholder="Director" autocomplete="off">')) +
+        _sfg('Foot note', 'setQtFoot', '<textarea class="inv-textarea" id="setQtFoot" rows="2" placeholder="Factory licence, bank">' + escHtml(c.footNote) + '</textarea>',
+          'Printed at the foot of every quotation, beside the signature.') +
+        '<div class="inv-field"><span class="inv-field-label">Next number, by financial year</span>' + Object.keys(fys).sort().reverse().map(function(fy) {
+          return '<div class="inv-field-hint"><span class="inv-id" data-qt-next="' + escHtml(fy) + '">' + escHtml(qtDisplay(fy, qtNextNum(fy), 0)) + '</span></div>';
+        }).join('') + '</div>';
+    },
+    why: 'A quotation takes its number only when it is issued, the next of the financial year its date falls in; a draft holds none, and a number is never used twice (voids and superseded ones included). The company on its face is read from Company, above.',
+    save: function() {
+      S.qtnCfg = { signatory: _sVal('setQtSign').trim(), signTitle: _sVal('setQtTitle').trim(), footNote: _sVal('setQtFoot').trim() };
     }
   },
   rateCheck: {

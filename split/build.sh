@@ -40,6 +40,7 @@ JS_SOURCES=(
     "$DIR/print.js" \
     "$DIR/quality-cert.js" \
     "$DIR/credit-note.js" \
+    "$DIR/quote.js" \
     "$DIR/charts.js" \
     "$DIR/staff.js" \
     "$DIR/labour.js" \

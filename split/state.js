@@ -451,8 +451,13 @@ function saveFailText() {
 var _persistChain = Promise.resolve(true);
 var _persistQueued = null;
 var _persistQueuedBoot = false;
+// Every save asked for in this window, counted when it is asked: what is worked out from the book and kept (the search
+// index, search.js) is worked out again once this moves. A book loaded whole (another window's, an import, a pull) is
+// a new S, which says so by itself.
+var _bookWrites = 0;
 
 function persistState() {
+  _bookWrites++;
   // A copy that exists but would not read is never written over: seeding a
   // default book on top of it would turn an unreadable copy into a lost one.
   // The boot banner says so; every save this session reports false.

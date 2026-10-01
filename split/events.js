@@ -91,6 +91,8 @@ function onDocClick(e) {
     // data-sec opens it on one section (the read banner's Import a backup and Pull from GitHub). The banner sits above an
     // open Settings, which is not opened twice.
     case 'invOpenSettings': if (!document.getElementById('settingsScrim')) openSettings(btn.dataset.sec); break;
+    // Search (search.js): the top bar's icon, the sidebar's Search · Ctrl K.
+    case 'invSearchOpen': searchOpen(); break;
     case 'invCloseOverlay': closeOverlay(); break;
     case 'invCloseConfirm': closeTopOverlay(); break;
     case 'invUiAsk': uiAskAnswer(btn); break;
@@ -451,6 +453,7 @@ function onDocClick(e) {
       if (advAction(action, btn)) break;
       if (addAction(action, btn)) break;
       if (flrAction(action, btn)) break;
+      if (srchAction(action, btn)) break;
       if (action.indexOf('invStock') === 0) stockAction(action, btn);
       else if (action.indexOf('invTodo') === 0) todoAction(action, btn);
       else if (action.indexOf('invRelay') === 0) relayAction(action, btn);

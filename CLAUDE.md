@@ -132,7 +132,7 @@ every session start — nothing to set up by hand. CI (`build-sync`) is the back
 ### Tests
 
 ```bash
-pnpm exec playwright test          # 1,155 tests, both layouts
+pnpm exec playwright test          # 1,158 tests, both layouts
 ```
 
 Some sandboxes ship a Chromium build Playwright does not expect and block downloading
@@ -2984,6 +2984,16 @@ hours over 8, none for an hourly hand or the gate. A side left blank is the shif
 four hours from its in); an out not after the in ran past midnight; absent clears the times. A typed time makes the mark the hand's
 (no `src: 'relay'`), so a roll never rewrites it; an OT typed in the dialog wins until a time changes. EXTRA rows were already
 entered by hand below the board. P144.
+
+**A hand's OT shifts carry their own area** (owner, 1 Oct 2026: *"there is also no way to record which area the OT workers actually
+worked on, we get to select one option for the entire day. Every worker can have states, like morning OT, General, Evening OT, Late
+night OT … right now we just select the General shift areas and OT areas are neglected, both in the app and in Deepak's sheet"*). The
+mark's area is the **General** shift's; **Morning OT**, **Evening OT** and **Night** each take an area, on the hand's dialog and as
+columns on Day → Sheet and on Deepak's printed sheet (`ATT_SLOTS`). A slot is the crew of that slot's OT block, the one record Areas,
+Power and Production's crews already read (`setAttSlotArea`): a hand put on Evening OT · VAT A2 joins the evening block covering VAT A2,
+made at the slot's usual times with no EXTRA booked when there is none (`slotMade`), and such a block goes when its last hand leaves it.
+A block's slot is read off its start (`attBlockSlot`: before 8:30 AM the morning, from 5 PM the evening, from 8 PM or past midnight the
+night). **Overtime is booked where it was worked** (`attOtArea`, labour.js): the hand's OT block's area, else the general shift's. P145.
 
 **A day's attendance is deleted only with a reason, and the deletion is logged** (owner, 30 Sep 2026: *"there is no way to
 delete a day's data after providing a reason that can be logged"*). Staff → Day → **Delete this day** asks why (required),

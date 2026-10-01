@@ -589,6 +589,11 @@ function onDocChange(e) {
     renderAttendance();
     return;
   }
+  if (e.target.hasAttribute && e.target.hasAttribute('data-att-slot')) {
+    setAttSlotArea(parseInt(e.target.dataset.id, 10), e.target.dataset.attSlot, e.target.value);
+    renderAttendance();
+    return;
+  }
   if (e.target.hasAttribute && (e.target.hasAttribute('data-att-in') || e.target.hasAttribute('data-att-out'))) {
     setAttTime(parseInt(e.target.dataset.id, 10), e.target.hasAttribute('data-att-in') ? 'in' : 'out', e.target.value);
     renderAttendance();

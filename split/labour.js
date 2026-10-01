@@ -244,8 +244,10 @@ function labourForRange(fromIso, toIso) {
         out.otHours += oth;
         out.ot += otPay;
         bumpWorker(w, 'ot', otPay, 0, 0, oth);
-        bumpArea(areaId, otPay, 0, oth);
-        bumpFloor(w, areaId, otPay);
+        // Overtime is booked where it was worked: the hand's OT block, else the general shift's area (staff.js).
+        var otArea = attOtArea(rec, w, m);
+        bumpArea(otArea, otPay, 0, oth);
+        bumpFloor(w, otArea, otPay);
         if (!(rate > 0) && out.ratelessWorkers.indexOf(w.name) < 0) out.ratelessWorkers.push(w.name);
       }
     });

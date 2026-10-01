@@ -309,7 +309,7 @@ function attAreaOptions(sel) {
 // it is never enough for a list.
 var ATT_FOCUS_ATTRS = ['data-action', 'data-id', 'data-st', 'data-date', 'data-idx',
   'data-area', 'data-worker'];
-var ATT_FOCUS_FLAGS = ['data-att-area', 'data-att-ot', 'data-att-hours', 'data-att-in', 'data-att-out',
+var ATT_FOCUS_FLAGS = ['data-att-slot', 'data-att-area', 'data-att-ot', 'data-att-hours', 'data-att-in', 'data-att-out',
   'data-att-extra-area', 'data-att-extra-hours', 'data-att-extra-kind',
   'data-att-block-from', 'data-att-block-to', 'data-att-need', 'data-att-block-need'];
 
@@ -535,6 +535,9 @@ function _attBoardRow(w, m) {
   var states = hourly ? ['P', 'A'] : ATT_STATES;
   var hrs = m && st !== 'A' ? (hourly ? (m.hours ? m.hours + ' h' : 'no hours') : (m.ot ? 'OT ' + m.ot + ' h' : '')) : '';
   if (m && st !== 'A' && attTimesText(m)) hrs = attTimesText(m) + (hrs ? ' · ' + hrs : '');
+  var recD = attDay(_attDate, false);
+  var slots = m && st !== 'A' ? ATT_SLOTS.map(function(z) { var a = attHandSlotArea(recD, w.id, z[0]); return a ? z[1] + ' ' + areaLabel(a) : ''; }).filter(Boolean) : [];
+  if (slots.length) hrs = (hrs ? hrs + ' · ' : '') + slots.join(' · ');
   return '<div class="inv-row" data-att-row="' + w.id + '">' +
     '<button class="inv-row-main" data-action="invAttEdit" data-id="' + w.id + '"><span class="inv-row-title">' + escHtml(w.name) + '</span>' +
     '<span class="inv-row-meta">' + escHtml(compClass(w.comp).label) + (w.active === false ? ' · left' : '') +
@@ -553,7 +556,8 @@ function attDayAsSheet() { try { return localStorage.getItem(ATT_DAY_AS_KEY) ===
 function attDayAsSet(v) { try { localStorage.setItem(ATT_DAY_AS_KEY, v === 'sheet' ? 'sheet' : 'board'); } catch (e) { /* per device */ } }
 function attSheetEntryHtml(iso, rec, roster) {
   var h = '<div class="inv-panel inv-panel-flush" id="attSheetEntry"><div class="inv-scroll-x"><table class="inv-table"><thead><tr>' +
-    '<th>Hand</th><th>Attendance</th><th>Area</th><th>In</th><th>Out</th><th class="inv-num">Hours</th><th class="inv-num">OT</th></tr></thead><tbody>';
+    '<th>Hand</th><th>Attendance</th><th>General</th>' + ATT_SLOTS.map(function(z) { return '<th>' + z[1] + '</th>'; }).join('') +
+    '<th>In</th><th>Out</th><th class="inv-num">Hours</th><th class="inv-num">OT</th></tr></thead><tbody>';
   roster.forEach(function(w) {
     var m = rec ? rec.marks[w.id] : null, st = m ? m.st : '', hourly = compIsHourly(w), live = st && st !== 'A';
     var states = hourly ? ['P', 'A'] : ATT_STATES;
@@ -563,13 +567,14 @@ function attSheetEntryHtml(iso, rec, roster) {
         return '<button class="inv-seg-btn inv-seg-btn-' + ATT_STATE_TONE[x] + '" data-action="invAttSet" data-id="' + w.id + '" data-st="' + x + '" aria-pressed="' + (st === x) + '" title="' + ATT_STATE_LABELS[x] + '">' + x + '</button>';
       }).join('') + '</span></td>' +
       '<td><select class="inv-select" data-att-area data-id="' + w.id + '" aria-label="Area for ' + escHtml(w.name) + '"' + (live ? '' : ' disabled') + '>' + attAreaOptions(m && m.area ? m.area : (w.area || 'flex')) + '</select></td>' +
+      ATT_SLOTS.map(function(z) { return '<td>' + attSlotSelectHtml(rec, w, z[0], live, z[1]) + '</td>'; }).join('') +
       '<td><input type="time" class="inv-input inv-id" data-att-in data-id="' + w.id + '" value="' + escHtml(attTimeVal(m && m.inMin)) + '" aria-label="In for ' + escHtml(w.name) + '"' + (live ? '' : ' disabled') + '></td>' +
       '<td><input type="time" class="inv-input inv-id" data-att-out data-id="' + w.id + '" value="' + escHtml(attTimeVal(m && m.outMin)) + '" aria-label="Out for ' + escHtml(w.name) + '"' + (live ? '' : ' disabled') + '></td>' +
       '<td class="inv-num" data-att-sheet-hours>' + (live && (m.hours || attTimesText(m)) ? m.hours : '—') + '</td>' +
       '<td class="inv-num" data-att-sheet-ot>' + (live && !hourly ? (m.ot || 0) : '—') + '</td></tr>';
   });
   return h + '</tbody></table></div>' +
-    '<div class="inv-note inv-panel-body">Left blank, an in or out is the shift’s: 8:30 AM to 5:00 PM (the gate 7 to 7, a half day four hours). Hours are the span to the whole hour; OT is the hours over 8, never for an hourly hand or the gate. EXTRA rows are entered below.</div></div>';
+    '<div class="inv-note inv-panel-body">General is the area of the 8:30 AM to 5:00 PM shift; Morning OT, Evening OT and Night are where the hand stood on each, which puts them on that slot’s OT crew (the EXTRA rows below). Left blank, an in or out is the shift’s: 8:30 AM to 5:00 PM (the gate 7 to 7, a half day four hours). Hours are the span to the whole hour; OT is the hours over 8, never for an hourly hand or the gate. EXTRA rows are entered below.</div></div>';
 }
 
 /* A hand's day in a dialog: P / H / A, where they stood, and the hours (an hourly hand) or the overtime. Each change is
@@ -587,10 +592,11 @@ function attEditHtml() {
     states.map(function(x) {
       return '<button class="inv-seg-btn inv-seg-btn-' + ATT_STATE_TONE[x] + '" data-action="invAttSet" data-id="' + w.id + '" data-st="' + x + '" aria-pressed="' + (st === x) + '">' + ATT_STATE_LABELS[x] + '</button>';
     }).join('') + '</span></div>' +
-    '<label class="inv-field"><span class="inv-field-label">Area</span><select class="inv-select" data-att-area data-id="' + w.id + '"' + (live ? '' : ' disabled') + '>' +
+    '<label class="inv-field"><span class="inv-field-label">General shift area</span><select class="inv-select" data-att-area data-id="' + w.id + '"' + (live ? '' : ' disabled') + '>' +
     attAreaOptions(m && m.area ? m.area : (w.area || 'flex')) + '</select></label>' +
     '<label class="inv-field"><span class="inv-field-label">In</span><input type="time" class="inv-input inv-id" data-att-in data-id="' + w.id + '" value="' + escHtml(attTimeVal(m && m.inMin)) + '"' + (live ? '' : ' disabled') + '></label>' +
     '<label class="inv-field"><span class="inv-field-label">Out</span><input type="time" class="inv-input inv-id" data-att-out data-id="' + w.id + '" value="' + escHtml(attTimeVal(m && m.outMin)) + '"' + (live ? '' : ' disabled') + '></label>' +
+    ATT_SLOTS.map(function(z) { return '<label class="inv-field"><span class="inv-field-label">' + z[1] + ' area</span>' + attSlotSelectHtml(rec, w, z[0], live, z[1]) + '</label>'; }).join('') +
     (hourly
       ? '<label class="inv-field"><span class="inv-field-label">Hours worked</span><input type="number" class="inv-input inv-input-num" data-att-hours data-id="' + w.id + '" step="0.5" min="0" value="' + (m && m.hours ? m.hours : '') + '"' + (live ? '' : ' disabled') + '></label>'
       : '<label class="inv-field"><span class="inv-field-label">Overtime, hours</span><input type="number" class="inv-input inv-input-num" data-att-ot data-id="' + w.id + '" step="0.5" min="0" value="' + (m && m.ot ? m.ot : '') + '"' + (live ? '' : ' disabled') + '></label>') +
@@ -1056,6 +1062,69 @@ function setAttHours(staffId, hours) {
   m.hours = Math.max(0, Number(hours) || 0);
   _attHandEdit(m);
   saveState();
+}
+
+/* The shifts a hand works in a day (owner, 1 Oct 2026: "there is also no way to record which area the OT workers actually
+   worked on, we get to select one option for the entire day. Every worker can have states, like morning OT, General, Evening
+   OT, Late night OT, etc."). The General shift is the mark's own area. Each OT slot is the crew of that slot's block on the
+   day (the EXTRA rows' kind 'block': areas, crew, from, to), the one record Areas, Power and Production's crews already read:
+   putting a hand on Evening OT · VAT A2 adds them to the evening block covering VAT A2, made at the slot's usual times
+   (hours 0, no EXTRA booked) when there is none. A slot is read off a block's start: before 8:30 AM the morning, from 5 PM
+   the evening, from 8 PM (or past midnight) the night. */
+var ATT_SLOTS = [['morning', 'Morning OT', '06:00', '08:30'], ['evening', 'Evening OT', '17:00', '20:00'], ['night', 'Night', '20:00', '06:00']];
+function attBlockSlot(x) {
+  if (!x || x.kind !== 'block') return null;
+  var a = relayParseHhmm(x.from);
+  if (a == null) return null;
+  if (a >= 1200 || a < 240) return 'night';
+  if (a < 510) return 'morning';
+  if (a >= 1020) return 'evening';
+  return null;
+}
+function _attBlockAreas(x) { return Array.isArray(x.areas) && x.areas.length ? x.areas : (x.area ? [x.area] : []); }
+/* The block a hand stands on in a slot, or null. */
+function _attCrewAt(x, staffId) {
+  var k = String(staffId);
+  return Array.isArray(x.crew) ? x.crew.findIndex(function(c) { return String(c) === k; }) : -1;
+}
+function attHandSlot(rec, staffId, slot) {
+  return (rec && rec.extra || []).find(function(x) { return attBlockSlot(x) === slot && _attCrewAt(x, staffId) >= 0; }) || null;
+}
+/* The area a hand stood in on a slot: the block's first area. */
+function attHandSlotArea(rec, staffId, slot) { var x = attHandSlot(rec, staffId, slot); return x ? (_attBlockAreas(x)[0] || '') : ''; }
+function setAttSlotArea(staffId, slot, areaId) {
+  var w = staffById(staffId), def = ATT_SLOTS.find(function(z) { return z[0] === slot; });
+  if (!def || !w) return;
+  var id = w.id;   // the crew holds the roster's own id, number or text
+  var rec = attDay(_attDate, true);
+  // Off every block of this slot first; a block this app made for a slot and nobody stands on any more goes.
+  rec.extra = rec.extra.filter(function(x) {
+    if (attBlockSlot(x) !== slot || !Array.isArray(x.crew)) return true;
+    var i = _attCrewAt(x, id);
+    if (i >= 0) { x.crew.splice(i, 1); _attHandEdit(x); }
+    return !(x.slotMade && !x.crew.length && !(x.hours > 0));
+  });
+  if (areaId) {
+    var x = rec.extra.find(function(r) { return attBlockSlot(r) === slot && _attBlockAreas(r).indexOf(areaId) >= 0; });
+    if (!x) { x = { kind: 'block', areas: [areaId], crew: [], hours: 0, from: def[2], to: def[3], slotMade: true }; rec.extra.push(x); }
+    if (!Array.isArray(x.crew)) x.crew = [];
+    x.crew.push(id);
+    _attHandEdit(x);
+  }
+  _attPrune(_attDate);
+  saveState();
+}
+/* Where a hand's overtime was worked on a day: the area of their OT block (the latest slot they stood on), else the general
+   shift's area. Labour books the OT cost there (labourForRange). */
+function attOtArea(rec, w, m) {
+  for (var i = ATT_SLOTS.length - 1; i >= 0; i--) { var a = attHandSlotArea(rec, w.id, ATT_SLOTS[i][0]); if (a) return a; }
+  return (m && m.area) || w.area || 'flex';
+}
+function attSlotSelectHtml(rec, w, slot, live, label) {
+  var cur = attHandSlotArea(rec, w.id, slot);
+  return '<select class="inv-select" data-att-slot="' + slot + '" data-id="' + w.id + '" aria-label="' + escHtml(label + ' area for ' + w.name) + '"' + (live ? '' : ' disabled') + '>' +
+    '<option value=""' + (cur ? '' : ' selected') + '>—</option>' +
+    STAFF_AREAS.filter(function(a) { return a.floor; }).map(function(a) { return '<option value="' + a.id + '"' + (a.id === cur ? ' selected' : '') + '>' + escHtml(a.label) + '</option>'; }).join('') + '</select>';
 }
 
 /* In and out typed by hand (owner, 1 Oct 2026: "Attendance has no option to enter time in and time out by hand, so we

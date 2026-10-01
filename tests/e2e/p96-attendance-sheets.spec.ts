@@ -79,7 +79,7 @@ test.describe('P96: attendance sheets', () => {
 
     const filled = page.locator('[data-sheet="filled"]');
     const arun = filled.locator('tbody').first().locator('tr', { hasText: 'Arun' });
-    await expect(arun.locator('td')).toHaveText(['1', 'Arun', 'M', 'P', '', '', 'VAT A1', '8:30 AM', '7:00 PM', '', '2.0']);
+    await expect(arun.locator('td')).toHaveText(['1', 'Arun', 'M', 'P', '', '', 'VAT A1', '', '', '', '8:30 AM', '7:00 PM', '', '2.0']);
     await expect(filled.locator('tbody').first().locator('tr', { hasText: 'Esha' }).locator('td').nth(5)).toHaveText('A');
     const ex = filled.locator('tbody').nth(1);
     await expect(ex.locator('tr').nth(1).locator('td')).toHaveText(['Barrel', '5:00 PM', '8:00 PM', 'Bala', '3.0']);

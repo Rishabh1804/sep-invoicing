@@ -53,14 +53,16 @@ test.describe('P140: the guard (desktop)', () => {
     await expect(page.locator('.inv-topbar #guardUserBtn')).toBeVisible();
     await expect(page.locator('#guardUserBtn')).toHaveAttribute('data-initials', 'BM');
     const side = page.locator('#invSidebar');
-    for (const t of ['pageHome', 'pageTodo', 'pageProduction', 'pagePower', 'pageStock']) await expect(side.locator(`[data-tab="${t}"]`)).toBeVisible();
+    for (const t of ['pageHome', 'pageFloor', 'pageProduction', 'pagePower', 'pageStock']) await expect(side.locator(`[data-tab="${t}"]`).first()).toBeVisible();
     await expect(side.locator('[data-tab="pageStaff"]:not([data-sub])')).toBeVisible();
     for (const t of ['pageCreate', 'pageIM', 'pageRegister', 'pageClients', 'pageFinance', 'pageStats', 'pageReports', 'pageHistory']) {
       await expect(side.locator(`[data-tab="${t}"]`)).toHaveCount(await side.locator(`[data-tab="${t}"][data-grd-off]`).count());
       await expect(side.locator(`[data-tab="${t}"]`).first()).toBeHidden();
     }
     // No wages: Pay's entry goes, and Staff opens without it. No Settings either.
-    await expect(side.locator('[data-tab="pageStaff"][data-sub="pay"]')).toBeHidden();
+    // (Pay is a view inside People on Direction B's sidebar: its tab is the one that goes.)
+    await side.locator('[data-tab="pageStaff"]').first().click();
+    await expect(page.locator('#pageStaff [data-action="invAttView"][data-view="pay"]')).toHaveCount(0);
     await expect(side.locator('[data-action="invOpenSettings"]')).toBeHidden();
     // The owner, after Switch user, has every door back.
     await page.locator('#guardUserBtn').click();
@@ -68,7 +70,8 @@ test.describe('P140: the guard (desktop)', () => {
     await unlock(page, 'U-own', PINS.owner);
     await expect(page.locator('#guardUserBtn')).toHaveAttribute('data-initials', 'AR');
     for (const t of ['pageIM', 'pageRegister', 'pageFinance', 'pageStats', 'pageHistory']) await expect(side.locator(`[data-tab="${t}"]`).first()).toBeVisible();
-    await expect(side.locator('[data-tab="pageStaff"][data-sub="pay"]')).toBeVisible();
+    await side.locator('[data-tab="pageStaff"]').first().click();
+    await expect(page.locator('#pageStaff [data-action="invAttView"][data-view="pay"]').first()).toBeVisible();
     await expect(page.locator('[data-grd-off]')).toHaveCount(0);
   });
 

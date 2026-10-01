@@ -45,7 +45,7 @@ test.describe('P140: the guard (phone)', () => {
     for (const sel of ['.inv-topbar', '#pageHome', '.inv-navbar', '#mtdRevenue']) await expect(page.locator(sel)).toBeHidden();
     expect(await page.evaluate(() => Array.from(document.body.children).filter(el => el.id !== 'guardRoot' && el.tagName !== 'SCRIPT')
       .every(el => (el as HTMLElement).inert))).toBe(true);
-    const door = await page.locator('.inv-navbar [data-tab="pageIM"]').boundingBox();
+    const door = await page.locator('.inv-navbar [data-ws="office"]').boundingBox();
     await page.mouse.click(door!.x + door!.width / 2, door!.y + door!.height / 2);
     await expect(page.locator('#pageHome')).toHaveClass(/inv-page-active/);
     await page.keyboard.press('Escape');

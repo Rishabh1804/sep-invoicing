@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { loadAppWithState } from './fixtures';
+import { loadAppWithState, openPulse } from './fixtures';
 import { sweepState, bigSweepState, walkPages, walkDialogs, problems, sweep, type Stop } from './sweep-fixture';
 
 // P76: design system step 4, the clean-up. Every screen, every view tab on it and every dialog, on the phone, in
@@ -44,6 +44,7 @@ test('a crore in a tile breaks after a comma group, and a cut meta line keeps it
   // The open items (27 Sep 2026): Home's revenue tile broke "₹10,46,48,655." / "51". A figure breaks only after a comma
   // (figWrapHtml), its last group and paise kept whole; the sweep's brokenFigures reads every tile the same way.
   await loadAppWithState(page, bigSweepState());
+  await openPulse(page);
   const lines = await page.evaluate(() => {
     const el = document.getElementById('mtdRevenue')!;
     const out: string[] = [];

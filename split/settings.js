@@ -814,47 +814,50 @@ function importData() {
     inp.value = '';
     if (!f) return;
     const reader = new FileReader();
-    reader.onload = async (ev) => {
-      let data;
-      try {
-        data = JSON.parse(ev.target.result);
-        if (!data.company || !data.clients) throw new Error('Invalid format');
-      } catch(err) {
-        showToast('Invalid file: ' + err.message, 'error');
-        return;
-      }
-      // Where nothing can be written (a stored copy that cannot be set aside), nothing is replaced, and the reason is the
-      // app's own: it read "the browser refused to store it" of a refusal the browser never made.
-      var blocked = bookStandInBlocker();
-      if (blocked) { showToast('Not imported: ' + blocked, 'error'); return; }
-      if (!(await uiConfirm({ title: 'Replace all data?', body: 'Import will replace ALL current data. ' +
-          (bookStandIn() ? bookStandInReplaceText() + ' ' : '') + 'Continue?', okLabel: 'Import and replace', danger: true }))) return;
-      try {
-        // This path carried NO repairs at all, which was the sharper half of
-        // the same bug: a backup written before `staff` existed left it
-        // undefined and the Staff tab threw the moment it was opened.
-        // All-or-nothing: a migration that throws restores what was here.
-        adoptState(data);
-        // Out of a stand-in: an unreadable copy is set aside by the save below, never written over.
-        bookReleaseStandIn();
-        // An imported book is not the copy this device last exchanged with GitHub: the next push asks.
-        if (typeof ghForgetSha === 'function') ghForgetSha();
-        // The success toast used to fire regardless, on top of — and therefore
-        // instead of — the storage failure toast. A copy that only reached
-        // memory is not imported, and the operator has to hear that.
-        // Every screen is drawn from the new book, as after a pull: only Home was redrawn, and the Register's and
-        // Challans' toolbars (client lists, selections) stayed the old book's (the QA sweep, 29 Sep 2026).
-        bookReplacedShow();
-        saveState().then(function(saved) {
-          if (saved) showToast('Data imported');
-          else showToast('NOT saved: ' + saveFailText() + '. The data is in memory only and will be lost on reload.', 'error');
-        });
-      } catch(err) {
-        showToast('Invalid file: ' + err.message, 'error');
-      }
-    };
+    reader.onload = (ev) => importDataText(ev.target.result);
     reader.readAsText(f);
   };
   inp.click();
+}
+
+/* A backup's text, from Settings → Import or from Add → File (add.js): checked, asked about, and only then the book replaced. */
+async function importDataText(text) {
+  let data;
+  try {
+    data = JSON.parse(text);
+    if (!data.company || !data.clients) throw new Error('Invalid format');
+  } catch(err) {
+    showToast('Invalid file: ' + err.message, 'error');
+    return;
+  }
+  // Where nothing can be written (a stored copy that cannot be set aside), nothing is replaced, and the reason is the
+  // app's own: it read "the browser refused to store it" of a refusal the browser never made.
+  var blocked = bookStandInBlocker();
+  if (blocked) { showToast('Not imported: ' + blocked, 'error'); return; }
+  if (!(await uiConfirm({ title: 'Replace all data?', body: 'Import will replace ALL current data. ' +
+      (bookStandIn() ? bookStandInReplaceText() + ' ' : '') + 'Continue?', okLabel: 'Import and replace', danger: true }))) return;
+  try {
+    // This path carried NO repairs at all, which was the sharper half of
+    // the same bug: a backup written before `staff` existed left it
+    // undefined and the Staff tab threw the moment it was opened.
+    // All-or-nothing: a migration that throws restores what was here.
+    adoptState(data);
+    // Out of a stand-in: an unreadable copy is set aside by the save below, never written over.
+    bookReleaseStandIn();
+    // An imported book is not the copy this device last exchanged with GitHub: the next push asks.
+    if (typeof ghForgetSha === 'function') ghForgetSha();
+    // The success toast used to fire regardless, on top of — and therefore
+    // instead of — the storage failure toast. A copy that only reached
+    // memory is not imported, and the operator has to hear that.
+    // Every screen is drawn from the new book, as after a pull: only Home was redrawn, and the Register's and
+    // Challans' toolbars (client lists, selections) stayed the old book's (the QA sweep, 29 Sep 2026).
+    bookReplacedShow();
+    saveState().then(function(saved) {
+      if (saved) showToast('Data imported');
+      else showToast('NOT saved: ' + saveFailText() + '. The data is in memory only and will be lost on reload.', 'error');
+    });
+  } catch(err) {
+    showToast('Invalid file: ' + err.message, 'error');
+  }
 }
 

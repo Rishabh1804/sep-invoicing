@@ -497,21 +497,23 @@ function payrollImport() {
     var f = ev.target.files[0];
     if (!f) return;
     var reader = new FileReader();
-    reader.onload = function(e2) {
-      var res;
-      try { res = payrollPaidImport(JSON.parse(e2.target.result)); } catch (err) { res = { error: 'Not a payroll-as-paid file' }; }
-      if (res.error) { showToast(res.error, 'error'); return; }
-      saveState();
-      renderAttendance();
-      var bits = [];
-      if (res.added) bits.push(res.added + ' month' + (res.added === 1 ? '' : 's') + ' recorded');
-      if (res.superseded) bits.push(res.superseded + ' earlier record' + (res.superseded === 1 ? '' : 's') + ' voided');
-      if (res.same) bits.push(res.same + ' already on record');
-      showToast(bits.length ? bits.join(' · ') : 'Nothing in that file');
-    };
+    reader.onload = function(e2) { payrollImportText(e2.target.result); };
     reader.readAsText(f);
   };
   inp.click();
+}
+/* A sep-payroll-paid file's text, from Pay's Import or from Add → File (add.js). */
+function payrollImportText(text) {
+  var res;
+  try { res = payrollPaidImport(JSON.parse(text)); } catch (err) { res = { error: 'Not a payroll-as-paid file' }; }
+  if (res.error) { showToast(res.error, 'error'); return; }
+  saveState();
+  renderAttendance();
+  var bits = [];
+  if (res.added) bits.push(res.added + ' month' + (res.added === 1 ? '' : 's') + ' recorded');
+  if (res.superseded) bits.push(res.superseded + ' earlier record' + (res.superseded === 1 ? '' : 's') + ' voided');
+  if (res.same) bits.push(res.same + ' already on record');
+  showToast(bits.length ? bits.join(' · ') : 'Nothing in that file');
 }
 async function payrollVoid(id) {
   var r = payrollPaidRecords().find(function(x) { return x.id === id; });

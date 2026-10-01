@@ -1215,6 +1215,10 @@ body.inv-desktop .inv-rpt-doc { padding: var(--rpt-gutter-top) var(--rpt-gutter-
 .inv-btn-grid > .inv-btn-secondary svg { color: var(--accent); }
 body.inv-desktop .inv-btn-grid { grid-template-columns: repeat(6, minmax(0, 1fr)); }
 body.inv-desktop .inv-btn-grid > .inv-btn { flex-direction: row; min-height: var(--ctl-h); }
+/* In a dialog (Add's By hand) the desktop keeps icon over label, five across: six in a row left no room for a label. */
+body.inv-desktop .inv-dialog .inv-btn-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+body.inv-desktop .inv-dialog .inv-btn-grid > .inv-btn { flex-direction: column; min-height: calc(var(--ctl-h) * 1.75); }
+.inv-panel > .inv-btn-grid:last-child { margin-bottom: 0; }
 
 /* §6.4 View tabs — underline. The one control for switching views. */
 .inv-viewtabs {

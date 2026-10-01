@@ -1109,26 +1109,28 @@ function bankImportFile() {
     var f = ev.target.files[0];
     if (!f) return;
     var reader = new FileReader();
-    reader.onload = async function(e2) {
-      var res, parsed, b;
-      try {
-        parsed = bankParseSheet(xlsRead(e2.target.result).rows);
-        b = bankData();
-      } catch (err) { showToast(err.message || 'That file could not be read', 'error'); return; }
-      if (b.account && parsed.account && parsed.account !== b.account &&
-        !(await uiConfirm({ title: 'A different account', danger: true, okLabel: 'Import into the same record',
-          body: 'This statement is for account ' + parsed.account + '; the rows held are for ' + b.account + '. Imported, its rows sit in one record with them, and the balances will not follow from one another. ' +
-            'It can be taken out again under Imports.' }))) return;
-      try {
-        res = bankImport(parsed, f.name);
-      } catch (err) { showToast(err.message || 'That file could not be read', 'error'); return; }
-      saveState();
-      renderFinance();
-      showToast(res.added + ' row' + (res.added === 1 ? '' : 's') + ' added' + (res.same ? ' · ' + res.same + ' already held' : ''));
-    };
+    reader.onload = function(e2) { bankImportBuf(e2.target.result, f.name); };
     reader.readAsArrayBuffer(f);
   };
   inp.click();
+}
+/* A statement's bytes, from Finance's Import or from Add → File (add.js). */
+async function bankImportBuf(buf, name) {
+  var res, parsed, b;
+  try {
+    parsed = bankParseSheet(xlsRead(buf).rows);
+    b = bankData();
+  } catch (err) { showToast(err.message || 'That file could not be read', 'error'); return; }
+  if (b.account && parsed.account && parsed.account !== b.account &&
+    !(await uiConfirm({ title: 'A different account', danger: true, okLabel: 'Import into the same record',
+      body: 'This statement is for account ' + parsed.account + '; the rows held are for ' + b.account + '. Imported, its rows sit in one record with them, and the balances will not follow from one another. ' +
+        'It can be taken out again under Imports.' }))) return;
+  try {
+    res = bankImport(parsed, name);
+  } catch (err) { showToast(err.message || 'That file could not be read', 'error'); return; }
+  saveState();
+  renderFinance();
+  showToast(res.added + ' row' + (res.added === 1 ? '' : 's') + ' added' + (res.same ? ' · ' + res.same + ' already held' : ''));
 }
 
 /* The statement as a clean workbook (owner, 26 Sep 2026: "BANK Statement export should be a clean

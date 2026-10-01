@@ -387,6 +387,10 @@ export const DIALOGS: Array<[string, string]> = [
   ['stats-drill', `openClientDrillOverlay(1)`],
   ['todo-new', `todoOpenEdit(null)`],
   ['todo-edit', `todoOpenEdit('T1')`],
+  ['add', `addOpen()`],
+  // Add with what the clipboard held named under its row (drawn as addClipCheck draws it once the browser hands the text over).
+  ['add-clipboard', `addOpen(); (function(t) { var o = document.getElementById('addClipOut'); o.innerHTML = addClipHtml(addDescribe(t), t); o.classList.remove('inv-hidden'); })(${
+    JSON.stringify(`${todayIso().split('-').reverse().join('/')}/ camical use\n1) NITRIC 10-2=8 L\n2) ZINC 40-5=35 KG`)})`],
   ['ask-confirm', `uiConfirm({ title: 'Delete this challan?', body: 'Challan 301 from SAMARTH, 2 lines. This cannot be undone.', okLabel: 'Delete challan', danger: true })`],
   ['ask-prompt', `uiPrompt({ title: 'Void this payment', body: 'It is kept on the record, not deleted.', label: 'Why is this payment void?', required: true })`],
   ['ask-alert', `uiAlert({ title: 'Copy the order', body: 'Select the text below and copy it.' })`],

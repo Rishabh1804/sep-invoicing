@@ -60,6 +60,7 @@ function navLoc() {
       if (_stockView === 'item' && _stockItemId) id = _stockItemId;
       break;
     case 'pageTodo': v = _todoShowDone ? 'done' : 'open'; break;
+    case 'pageReports': v = rptNavV(); break;
   }
   return { tab: tab, v: v || '', id: id || '' };
 }
@@ -109,6 +110,7 @@ function navLabel(loc) {
       if (it) rec = it.name;
       break;
     case 'pageTodo': sub.push(parts[0] === 'done' ? 'Done' : 'Open'); break;
+    case 'pageReports': sub.push(rptNavLabel(loc.v)); break;
   }
   if (rec) sub.push(rec);
   return { page: PAGE_TITLES[loc.tab] || 'SEP Invoicing', sub: sub.filter(Boolean).join(' · ') };
@@ -151,6 +153,7 @@ function navApply(loc) {
         _stockView = sv;
         break;
       case 'pageTodo': _todoShowDone = parts[0] === 'done'; break;
+      case 'pageReports': rptNavApply(loc && loc.v); break;
     }
     if (!same) switchTab(tab);
     else {

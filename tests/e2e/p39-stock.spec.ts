@@ -241,11 +241,11 @@ test.describe('P39: stock', () => {
     await expect(chem.locator('.inv-row-children')).toContainText('Not recorded');
   });
 
-  test('More holds To-do, Finance, Production, Power, Stock, Staff, Stats and History, and lights up while one is open', async ({ page }) => {
+  test('More holds To-do, Finance, Production, Power, Stock, Staff, Stats, Reports and History, and lights up while one is open', async ({ page }) => {
     await loadAppWithState(page, state());
     await expect(page.locator('.inv-navbar .inv-navbar-item')).toHaveCount(6);
     await page.locator('.inv-navbar-more').click();
-    await expect(page.locator('#moreSheet .inv-row')).toHaveText([/To-do/, /Finance/, /Production/, /Power/, /Stock/, /Staff/, /Stats/, /History/]);
+    await expect(page.locator('#moreSheet .inv-row')).toHaveText([/To-do/, /Finance/, /Production/, /Power/, /Stock/, /Staff/, /Stats/, /Reports/, /History/]);
     await page.locator('#moreSheet .inv-row[data-tab="pageStaff"]').click();
     await expect(page.locator('#moreSheet')).toHaveCount(0);
     await expect(page.locator('#pageStaff')).toHaveClass(/inv-page-active/);

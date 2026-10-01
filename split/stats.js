@@ -529,7 +529,9 @@ function renderStats() {
   // The view tabs, then the period: a setting of every card on the page (§6.5).
   if (toolbar) {
     toolbar.innerHTML = statsTabsHtml() + '<div class="inv-toolbar">' +
-      statsSeg('invStatsPeriod', 'period', { mtd: 'MTD', qtd: 'QTD', ytd: 'YTD', all: 'All' }, _statsPeriod, 'Period', false) + '</div>';
+      statsSeg('invStatsPeriod', 'period', { mtd: 'MTD', qtd: 'QTD', ytd: 'YTD', all: 'All' }, _statsPeriod, 'Period', false) +
+      // The same period as a printable report (report.js).
+      (statsTab() === 'overview' ? '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invRptFromStats" id="statsMakeReport">Make a report</button>' : '') + '</div>';
     // The open tab is scrolled into view sideways only, as Staff's: never cut off at a phone's edge.
     viewTabReveal(toolbar.querySelector('.inv-viewtabs'));
   }

@@ -697,6 +697,7 @@ var SIDE_ICONS = {
   stats: '<path d="M4 20V11M10 20V5M16 20v-6M3 20h18"/>',
   power: '<path d="M13 2 4 14h7l-1 8 9-12h-7z"/>',
   history: '<path d="M12 7v5l3 2M3.5 12a8.5 8.5 0 1 0 2.5-6M3 4v4h4"/>',
+  reports: '<path d="M14 3H6a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8zM14 3v5h5M9 17v-3M12 17v-6M15 17v-2"/>',
   settings: '<path d="M4 6h9M17 6h3M4 12h3M11 12h9M4 18h11M19 18h1M15 4v4M9 10v4M17 16v4"/>'
 };
 var SIDE_NAV = [
@@ -704,7 +705,7 @@ var SIDE_NAV = [
   ['Book', [['pageClients', 'Clients', 'clients'], ['pageClients', 'Items', 'items', 'items']]],
   ['Money', [['pageFinance', 'Finance', 'finance']]],
   ['Floor', [['pageProduction', 'Production', 'production'], ['pagePower', 'Power', 'power'], ['pageStock', 'Stock', 'stock'], ['pageStaff', 'Staff', 'staff'], ['pageStaff', 'Pay', 'pay', 'pay']]],
-  ['Review', [['pageTodo', 'To-do', 'todo'], ['pageStats', 'Stats', 'stats'], ['pageHistory', 'History', 'history']]]
+  ['Review', [['pageTodo', 'To-do', 'todo'], ['pageStats', 'Stats', 'stats'], ['pageReports', 'Reports', 'reports'], ['pageHistory', 'History', 'history']]]
 ];
 function _sideSvg(k) { return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + SIDE_ICONS[k] + '</svg>'; }
 

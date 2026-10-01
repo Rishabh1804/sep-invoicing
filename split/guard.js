@@ -20,11 +20,11 @@ var GRD_SESSION_KEY = 'sep_inv_session';     // this window's sign-in (sessionSt
 var GRD_LAST_KEY = 'sep_inv_guard_last';     // the user last signed in on this device (localStorage): the id only
 var GRD_FAIL_KEY = 'sep_inv_guard_fail';     // wrong PINs on this device (localStorage): {n, until}
 var GRD_ALG = 'PBKDF2-SHA256';
-/* 310,000 iterations (OWASP's 2021 figure for PBKDF2-SHA256). Measured on the desktop project (P140): one unlock's hash
-   takes 55–110 ms on the build sandbox's Chromium at its quickest, and its median stays under 400 ms even with the machine
-   shared by nine test runs; a phone is three to five times slower, about half a second. A stored secret carries its own
-   count, so raising this later leaves every PIN already set working. */
-var GRD_ITER = 310000;
+/* 210,000 iterations. Measured on the desktop project (P140, the sweep book): the hash an unlock runs takes about 70 ms at
+   its quickest on the build sandbox's Chromium, and 250 ms median with the machine shared by nine test runs; 310,000 came
+   to 351 ms at best under the same load, too near the 400 ms allowed. A phone is three to five times slower, a quarter to a
+   third of a second. A stored secret carries its own count, so raising this later leaves every PIN already set working. */
+var GRD_ITER = 210000;
 var GRD_MIN_LEN = 4;
 var GRD_FREE_TRIES = 5;                       // wrong PINs before the first lockout
 var GRD_FAIL_FIRST_MS = 30000, GRD_FAIL_MAX_MS = 15 * 60000;

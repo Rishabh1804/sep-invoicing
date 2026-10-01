@@ -419,30 +419,41 @@ function renderRegisterList() {
     // The latest thirty invoices; the rest one tap away (UX overhaul 2, step 6). The summary above counts them all.
     var regRows = [];
     groups.forEach(function(k) {
-      var list = byDate[k], live = list.filter(function(i) { return i.status === 'active'; });
-      regRows.push({ head: true, parts: ['<div class="inv-row-group"><span>' + (byNum ? (k ? escHtml(k.replace(/\/$/, '')) : 'No number') : (k ? escHtml(formatDate(k)) : 'No date')) + ' · ' + list.length + '</span>' +
-        '<span class="inv-num">' + formatCurrency(gstRound(sumTaxable(live))) + '</span></div>'] });
-      list.forEach(function(inv) {
-        var cancelled = inv.status === 'cancelled';
-        var tickable = _regSelectMode && !cancelled;
-        var cls = 'inv-row inv-row-2' + (cancelled ? ' inv-row-muted' : '') + (_regSelected[inv.id] ? ' inv-row-selected' : '');
-        var open = ' data-action="invViewInvoiceDetail" data-id="' + escHtml(inv.id) + '"';
-        var main = '<span class="inv-row-title inv-id" data-invnum>' + escHtml(inv.displayNumber) + '</span>' +
-          '<span class="inv-row-meta">' + escHtml(inv.clientName) + '</span>';
-        var end = '<span class="inv-row-end"><span class="inv-row-stack"><span class="inv-num">' + formatCurrency(inv.grandTotal) + '</span>' +
-          getStateDotHtml(inv) + cnInvoiceMarkHtml(inv) + '</span></span>';
-        // With no tick box the whole row opens the invoice, figures included; with
-        // one, the box is its own full-height touch target beside the row.
-        regRows.push(tickable
-          ? '<div class="' + cls + '"><label class="inv-row-lead inv-row-tick">' + _regCheckHtml(inv) + '</label>' +
-            '<button class="inv-row-main"' + open + '>' + main + '</button>' + end + '</div>'
-          : '<button class="' + cls + '"' + open + (cancelled ? ' data-cancelled' : '') + '><span class="inv-row-main">' + main + '</span>' + end + '</button>');
-      });
+      var list = byDate[k];
+      regRows.push({ head: true, parts: [regGroupHeadHtml(byNum ? (k ? escHtml(k.replace(/\/$/, '')) : 'No number') : (k ? escHtml(formatDate(k)) : 'No date'), list)] });
+      list.forEach(function(inv) { regRows.push(regRowHtml(inv, { tick: _regSelectMode, selected: !!_regSelected[inv.id] })); });
     });
     html += uiMoreHtml('reg-list', regRows, { noun: 'invoices' }) + '</div>';
   }
 
   area.innerHTML = html + _regExportHtml();
+}
+
+/* A group's head in the register's list (a day, or a series when sorted by number): what it is, how many, and the
+   taxable of the live ones. `labelHtml` is html: the caller escapes it. */
+function regGroupHeadHtml(labelHtml, list) {
+  var live = list.filter(function(i) { return i.status === 'active'; });
+  return '<div class="inv-row-group"><span>' + labelHtml + ' · ' + list.length + '</span>' +
+    '<span class="inv-num">' + formatCurrency(gstRound(sumTaxable(live))) + '</span></div>';
+}
+/* One invoice as a row, as the register's list draws it: the number, the client, the total, its state as a dot and a
+   word, and its credit notes. Office → Pipeline's stage lists draw the same row (pipeline.js). opts.tick: the register's
+   Select, a tick box beside the row; opts.selected: the row is in the register's selection. */
+function regRowHtml(inv, opts) {
+  opts = opts || {};
+  var cancelled = inv.status === 'cancelled';
+  var cls = 'inv-row inv-row-2' + (cancelled ? ' inv-row-muted' : '') + (opts.selected ? ' inv-row-selected' : '');
+  var open = ' data-action="invViewInvoiceDetail" data-id="' + escHtml(inv.id) + '"';
+  var main = '<span class="inv-row-title inv-id" data-invnum>' + escHtml(inv.displayNumber) + '</span>' +
+    '<span class="inv-row-meta">' + escHtml(inv.clientName) + '</span>';
+  var end = '<span class="inv-row-end"><span class="inv-row-stack"><span class="inv-num">' + formatCurrency(inv.grandTotal) + '</span>' +
+    getStateDotHtml(inv) + cnInvoiceMarkHtml(inv) + '</span></span>';
+  // With no tick box the whole row opens the invoice, figures included; with
+  // one, the box is its own full-height touch target beside the row.
+  return opts.tick && !cancelled
+    ? '<div class="' + cls + '"><label class="inv-row-lead inv-row-tick">' + _regCheckHtml(inv) + '</label>' +
+      '<button class="inv-row-main"' + open + '>' + main + '</button>' + end + '</div>'
+    : '<button class="' + cls + '"' + open + (cancelled ? ' data-cancelled' : '') + '><span class="inv-row-main">' + main + '</span>' + end + '</button>';
 }
 
 /* ===== REGISTER DESKTOP TABLE ===== */

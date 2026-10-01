@@ -34,6 +34,7 @@ JS_SOURCES=(
     "$DIR/github-sync.js" \
     "$DIR/invoice-ops.js" \
     "$DIR/number-audit.js" \
+    "$DIR/pipeline.js" \
     "$DIR/exports.js" \
     "$DIR/im.js" \
     "$DIR/autocomplete.js" \

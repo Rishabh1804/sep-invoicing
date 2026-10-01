@@ -2,7 +2,8 @@
 const PAGE_TITLES = {
   pageHome: 'Home', pageCreate: 'Create invoice', pageIM: 'Challans', pageRegister: 'Register',
   pageClients: 'Clients', pageFinance: 'Finance', pageTodo: 'To-do', pageProduction: 'Production', pagePower: 'Power', pageStock: 'Stock', pageStaff: 'Staff',
-  pageStats: 'Stats', pageReports: 'Reports', pageHistory: 'History'
+  pageStats: 'Stats', pageReports: 'Reports', pageHistory: 'History',
+  pagePipeline: 'Pipeline'
 };
 
 /* A page is one of PAGE_TITLES' keys. An address or a remembered tab naming anything else (another element, a page another
@@ -126,6 +127,8 @@ function tabRender(tabId, isDirty) {
       }
       renderIMList();
     }
+  } else if (tabId === 'pagePipeline') {
+    renderPipeline();
   } else if (tabId === 'pageCreate') {
     if (!document.getElementById('createFormArea').innerHTML) initCreateForm();
   } else if (tabId === 'pageProduction') {

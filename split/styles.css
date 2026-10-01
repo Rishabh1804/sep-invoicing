@@ -1596,6 +1596,21 @@ body.inv-desktop .inv-pane-host.inv-pane-open > .inv-pane { display: flex; }
 /* Panels stacked in the pane keep their height and scroll with it, never squeezed to fit (the pane is a flex column). */
 .inv-pane > .inv-panel { flex-shrink: 0; margin-bottom: 0; }
 body.inv-desktop .inv-pane .inv-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+/* Office → Pipeline: each stage a row whose lead is a node on one line, running up to the stage before and down to the
+   one after, its dot (12px) in the stage's tone. The stage open is pressed: the accent's soft fill and its rule at the
+   row's start. On the desktop the pipeline is a column the pane's width and the open stage's list fills the rest beside
+   it, each scrolling inside itself: the page does not (the list-and-pane rule above). */
+.inv-pipe-node { position: relative; align-self: stretch; width: var(--sp-16); justify-content: center; }
+.inv-pipe-node > .inv-dot { position: relative; z-index: 1; }
+.inv-pipe-node > .inv-dot::before { width: var(--sp-12); height: var(--sp-12); }
+.inv-pipe-stage + .inv-pipe-stage > .inv-pipe-node::before,
+.inv-pipe-stage:has(+ .inv-pipe-stage) > .inv-pipe-node::after { content: ''; position: absolute; left: 50%; border-left: var(--hair) solid var(--border); }
+.inv-pipe-stage + .inv-pipe-stage > .inv-pipe-node::before { top: calc(-1 * var(--sp-6)); bottom: 50%; }
+.inv-pipe-stage:has(+ .inv-pipe-stage) > .inv-pipe-node::after { top: 50%; bottom: calc(-1 * (var(--sp-6) + var(--hair))); }
+button.inv-pipe-stage[aria-pressed="true"] { background: var(--accent-soft); box-shadow: inset var(--rule) 0 0 var(--accent); }
+button.inv-pipe-stage[aria-pressed="true"]:focus-visible { box-shadow: inset var(--rule) 0 0 var(--accent), var(--focus-ring); }
+body.inv-desktop .inv-pipe-host { gap: var(--gap); }
+body.inv-desktop .inv-pipe-rail { flex: 0 0 var(--pane-w); min-width: 0; overflow-y: auto; }
 .inv-visually-hidden { position: absolute; width: var(--hair); height: var(--hair); padding: 0; margin: calc(var(--hair) * -1); overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
 
 /* §6.15 Fields and the sticky action bar. */

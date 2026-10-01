@@ -176,8 +176,11 @@ export async function switchTab(page: Page, tabId: string): Promise<void> {
   // A page with two sidebar entries (Clients/Items, Staff/Pay) routes its plain entry through
   // invSideGo; that entry, never the one carrying data-sub, is the page's own door.
   const target = page.locator(`:is([data-action="invSwitchTab"], [data-action="invSideGo"]:not([data-sub]))[data-tab="${tabId}"]:visible`);
-  if ((await target.count()) === 0) await page.locator('.inv-navbar-more').click();
-  await target.first().click();
+  if ((await target.count()) === 0 && (await page.locator('.inv-navbar-more:visible').count())) await page.locator('.inv-navbar-more').click();
+  // A page no bar, sidebar or sheet opens yet is opened in the page (pagePipeline, until the workspace shell puts it in
+  // Office); a More sheet the look opened is shut first.
+  if ((await target.count()) === 0) await page.evaluate(id => { (window as any).closeMoreSheet?.(); (window as any).switchTab(id); }, tabId);
+  else await target.first().click();
   await page.locator(`#${tabId}.inv-page-active`).waitFor();
 }
 

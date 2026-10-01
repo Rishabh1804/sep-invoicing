@@ -10,7 +10,7 @@ test.describe('P75 desktop: Settings', () => {
     await page.evaluate(() => localStorage.removeItem('sep_inv_settings_ui'));
     await openSettingsAt(page, 'extra');
     const items = page.locator('.inv-dialog-nav button.inv-side-item');
-    await expect(items).toHaveCount(6);
+    await expect(items).toHaveCount(7);   // 1 Oct 2026: Access (Devices; Users with the gate)
     const labour = items.filter({ hasText: 'Labour' });
     await expect(labour).toHaveAttribute('aria-current', 'true');
     await expect(labour).toHaveClass(/inv-side-item-on/);

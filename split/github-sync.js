@@ -23,13 +23,23 @@ const GH_SCHEMA = 1;
    credential. The rest of the config is kept off S too: a file SHA and a
    device id describe *this* device's relationship to the remote, and restoring
    someone else's backup must not hand this device their sync position. */
-function getGhToken() { try { return localStorage.getItem(GH_TOKEN_KEY) || ''; } catch (e) { return ''; } }
-function setGhToken(t) { try { localStorage.setItem(GH_TOKEN_KEY, t); } catch (e) {} }
+/* The token is locked to the device now (devices.js): read once at the start into memory, stored encrypted under a
+   key this browser cannot hand out. setGhToken resolves once it is stored. */
+function getGhToken() {
+  if (typeof devTokenGet === 'function') return devTokenGet();
+  try { return localStorage.getItem(GH_TOKEN_KEY) || ''; } catch (e) { return ''; }
+}
+function setGhToken(t) {
+  if (typeof devTokenSet === 'function') return devTokenSet(t);
+  try { localStorage.setItem(GH_TOKEN_KEY, t); } catch (e) {}
+  return Promise.resolve(true);
+}
 
 function getGhConfig() {
   var c = loadJSON(GH_SYNC_KEY, null) || {};
   if (!c.deviceId) {
-    c.deviceId = 'dev-' + Math.random().toString(36).slice(2, 8);
+    // One id for the device: its sync config and its row on the device list (devices.js) name the same device.
+    c.deviceId = typeof devId === 'function' ? devId() : 'dev-' + Math.random().toString(36).slice(2, 8);
     saveJSON(GH_SYNC_KEY, c);
   }
   return {
@@ -240,6 +250,13 @@ function ghForgetSha() {
 async function ghPush(opts) {
   var silent = opts && opts.silent;
   var cfg = getGhConfig();
+  // The guard on and this device not registered (or removed): nothing goes up, and the reason is said (devices.js).
+  var blocked = typeof devSyncBlocked === 'function' ? devSyncBlocked() : '';
+  if (blocked) {
+    ghSetStatus(blocked);
+    if (!silent) showToast(blocked, 'error');
+    return false;
+  }
   if (!ghIsConfigured()) {
     if (!silent) showToast('Set the GitHub repo and token in Settings first', 'error');
     return false;
@@ -282,13 +299,19 @@ async function ghPush(opts) {
     }
 
     var envelope = ghBuildEnvelope(cfg);
+    // A registered device's copy carries `_device` beside the book and a message naming the device and the user
+    // (devices.js); with the guard off there is none, and the copy and the message are as they always were.
+    var dp = typeof devPushPrep === 'function' ? devPushPrep(envelope, opts) : null;
     var pushedRev = _diskRev;
-    var body = {
-      message: 'SEP Invoicing backup — ' + envelope.counts.invoices + ' invoices, ' +
-        envelope.counts.challans + ' challans (' + envelope.device + ')',
-      content: ghEncode(JSON.stringify(envelope, null, 2)),
-      branch: cfg.branch
-    };
+    var body;
+    try {
+      body = {
+        message: dp ? dp.message : 'SEP Invoicing backup — ' + envelope.counts.invoices + ' invoices, ' +
+          envelope.counts.challans + ' challans (' + envelope.device + ')',
+        content: ghEncode(JSON.stringify(envelope, null, 2)),
+        branch: cfg.branch
+      };
+    } finally { if (dp) dp.restore(); }
     if (remote && remote.sha) body.sha = remote.sha;
 
     var result = await ghRequest(ghContentsUrl(cfg), { method: 'PUT', body: body });
@@ -300,6 +323,8 @@ async function ghPush(opts) {
     if (ours) ghRecord(cfg, { sha: result && result.content ? result.content.sha : null, lastPushAt: pushedAt });
     else if (!standIn) ghRecord(cfg, { lastPushAt: pushedAt });
     if (pushedRev && ours) bookPost({ type: 'pushed', rev: pushedRev });
+    // The device's row keeps the push it carried (devices.js), saved quietly so it arms no push of its own.
+    if (dp) dp.done();
     ghSetBusy(false);
     ghSetStatus(standIn ? 'Pushed the stand-in ' + formatTimestamp(pushedAt) + '.'
       : 'Pushed ' + formatTimestamp(pushedAt) + '.' + (ours ? '' : ' This device\'s last save did not land, so the next push asks first.'));
@@ -317,6 +342,9 @@ async function ghPush(opts) {
 /* ===== PULL ===== */
 async function ghPull() {
   var cfg = getGhConfig();
+  // The guard on and this device not registered (or removed): it views the data by importing a backup (devices.js).
+  var blocked = typeof devSyncBlocked === 'function' ? devSyncBlocked() : '';
+  if (blocked) { ghSetStatus(blocked); showToast(blocked, 'error'); return false; }
   if (!ghIsConfigured()) { showToast('Set the GitHub repo and token in Settings first', 'error'); return false; }
   // Where nothing can be written (a stored copy that cannot be set aside), a pull would only replace the stand-in in memory.
   var blocked = bookStandInBlocker();
@@ -382,6 +410,9 @@ async function ghPull() {
     bookReplacedShow();
     if (landed) showToast('Pulled from GitHub');
     else showToast('NOT saved: ' + saveFailText() + '. The pulled book is in this window only and will be lost on reload.', 'error');
+    // The book pulled may say this device was removed: it forgets its token and says why (devices.js). The pulled
+    // copy's `_device` was beside the book, never in it: adoptState took env.state alone.
+    if (typeof devAfterLoad === 'function') devAfterLoad('pull');
     return landed;
   } catch (err) {
     ghSetBusy(false);
@@ -400,8 +431,12 @@ var _ghAutoBackoff = false;
 const GH_AUTOPUSH_DELAY = 45000;
 
 function ghNotifyChange() {
+  // The save that turns the guard on offers to register a device that already syncs (devices.js).
+  if (typeof devOnSave === 'function') devOnSave();
   // A stand-in is not the book: saves of it are refused, and it is never pushed unasked (ghPush).
   if (bookStandIn()) return;
+  // The guard on and this device not registered: auto-push never arms, and one armed before is dropped.
+  if (typeof devSyncBlocked === 'function' && devSyncBlocked()) { ghCancelPending(); return; }
   var cfg = getGhConfig();
   if (!cfg.autoPush || !ghIsConfigured() || _ghAutoBackoff) return;
   if (typeof navigator !== 'undefined' && navigator.onLine === false) return;
@@ -443,9 +478,11 @@ function ghSetBusy(busy, label) {
   if (busy) _ghAutoBackoff = false;
   var el = document.getElementById('ghSyncStatus');
   if (el && busy) el.textContent = (label || 'Working') + '…';
+  // A device the guard keeps from syncing keeps its buttons off (devices.js).
+  var blocked = typeof devSyncBlocked === 'function' && !!devSyncBlocked();
   ['ghPushBtn', 'ghPullBtn'].forEach(function(id) {
     var b = document.getElementById(id);
-    if (b) b.disabled = busy;
+    if (b) b.disabled = busy || blocked;
   });
 }
 
@@ -466,6 +503,22 @@ function ghRelTime(ts) {
 function ghRenderCard() {
   var host = document.getElementById('homeSyncCard');
   if (!host) return;
+  // The guard keeps this device from syncing (devices.js): the card says so, and offers to register it unless it was
+  // removed. A removed device's token is gone, and the card stays to say why.
+  var blockedShort = typeof devSyncBlockedShort === 'function' ? devSyncBlockedShort() : '';
+  if (blockedShort) {
+    var bc = getGhConfig();
+    if (!bc.owner || !bc.repo) { host.innerHTML = ''; return; }
+    var removed = typeof devRemovedRow === 'function' && !!devRemovedRow();
+    // Removed: the whole sentence, who and when and why. Not registered: the few words, with the way to fix it beside.
+    var why = removed ? devSyncBlocked() : blockedShort.charAt(0).toUpperCase() + blockedShort.slice(1);
+    host.innerHTML = '<div class="inv-panel inv-panel-flush" data-card="sync"><div class="inv-row inv-row-2">' +
+      '<span class="inv-row-main"><span class="inv-row-title">GitHub backup</span>' +
+        '<span class="inv-row-meta">' + uiDot(removed ? 'danger' : 'warning', escHtml(why)) + '</span></span>' +
+      (removed ? '' : '<span class="inv-row-end"><button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invDevGo" data-sec="devices">Register</button></span>') +
+      '</div></div>';
+    return;
+  }
   if (!ghIsConfigured()) { host.innerHTML = ''; return; }
 
   var cfg = getGhConfig();
@@ -495,15 +548,27 @@ function renderGhSyncFields() {
       '<input class="inv-input' + cls + '" id="' + id + '" value="' + escHtml(value) + '" placeholder="' + placeholder + '" autocomplete="off">' +
       (hint ? '<div class="inv-field-hint">' + hint + '</div>' : '') + '</div>';
   }
-  return '<div class="inv-fields">' + field('setGhOwner', 'Owner', cfg.owner, 'rishabh1804', ' inv-id') +
+  // The guard keeps this device from syncing (devices.js): said first, with the way to register it, and Push and Pull
+  // are off with the reason. With the guard on, the device is named in Access → Devices, where it is registered.
+  var blocked = typeof devSyncBlocked === 'function' ? devSyncBlocked() : '';
+  var removed = !!blocked && typeof devRemovedRow === 'function' && !!devRemovedRow();
+  var guarded = typeof devGuardOn === 'function' && devGuardOn();
+  var off = blocked ? ' disabled title="' + escHtml(blocked) + '"' : '';
+  return (blocked ? '<div class="inv-callout inv-callout-' + (removed ? 'danger' : 'warning') + ' inv-mb-8" data-sync-blocked>' + escHtml(blocked) +
+      (removed ? '' : '<div class="inv-toolbar inv-toolbar-flush"><button type="button" class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invDevGo" data-sec="devices">Register this device</button></div>') +
+      '</div>' : '') +
+    '<div class="inv-fields">' + field('setGhOwner', 'Owner', cfg.owner, 'rishabh1804', ' inv-id') +
       field('setGhRepo', 'Repo', cfg.repo, 'sep-invoicing-data', ' inv-id') + '</div>' +
     '<div class="inv-fields">' + field('setGhBranch', 'Branch', cfg.branch, 'main', ' inv-id') +
       field('setGhPath', 'File path', cfg.path, 'sep-invoicing-data.json', ' inv-id') + '</div>' +
-    field('setGhDevice', 'This device', cfg.deviceName, 'Office desktop', '', 'Named in the commit message, so the history says which device wrote each backup.') +
+    (guarded ? '<div class="inv-field"><span class="inv-field-label">This device</span><div>' + escHtml(devName()) + '</div>' +
+        '<div class="inv-field-hint">Named in Access &rarr; Devices, and in the commit message of each backup it sends.</div></div>'
+      : field('setGhDevice', 'This device', cfg.deviceName, 'Office desktop', '', 'Named in the commit message, so the history says which device wrote each backup.')) +
 
     '<div class="inv-field"><label class="inv-field-label" for="setGhToken">Personal access token</label>' +
     _sKey('setGhToken', getGhToken(), 'github_pat_...', 'invToggleGhToken', 'token') +
-    '<div class="inv-field-hint">A fine-grained token with <strong>Contents: Read and write</strong> on one private repo is enough — nothing wider. It stays on this device and is never written into a JSON export. Anyone with access to this device can read it, so use a private repo and revoke the token if the device is lost.</div></div>' +
+    '<div class="inv-field-hint">Make one fine-grained token per device, for this repository only, with <strong>Contents: Read and write</strong>, so a lost phone is cut off on GitHub by deleting its token: a token kept on a device can be used by anyone who can open this app on it. It is stored locked to this device and is never written into the book or an export.</div>' +
+    (typeof devTokenStateHtml === 'function' ? '<div class="inv-field-hint" data-token-state>' + devTokenStateHtml() + '</div>' : '') + '</div>' +
 
     '<div class="inv-field"><label class="inv-field-check" for="setGhAuto">' +
     '<input type="checkbox" id="setGhAuto" class="inv-check"' + (cfg.autoPush ? ' checked' : '') + '>' +
@@ -511,8 +576,8 @@ function renderGhSyncFields() {
     '<div class="inv-field-hint">Pushes about a minute after the last edit. Paused automatically if GitHub holds a copy this device has not seen.</div></div>' +
 
     '<div class="inv-toolbar inv-toolbar-flush">' +
-      '<button class="inv-btn inv-btn-secondary" id="ghPushBtn" data-action="invGhPush">Push to GitHub</button>' +
-      '<button class="inv-btn inv-btn-secondary" id="ghPullBtn" data-action="invGhPull">Pull from GitHub</button>' +
+      '<button class="inv-btn inv-btn-secondary" id="ghPushBtn" data-action="invGhPush"' + off + '>Push to GitHub</button>' +
+      '<button class="inv-btn inv-btn-secondary" id="ghPullBtn" data-action="invGhPull"' + off + '>Pull from GitHub</button>' +
     '</div>' +
     '<div class="inv-callout inv-callout-neutral inv-mt-8" id="ghSyncStatus">' +
       escHtml(_ghStatusText || (last ? 'Last synced ' + ghRelTime(last) + '.' : 'Not synced yet.')) +
@@ -520,7 +585,8 @@ function renderGhSyncFields() {
 }
 
 /* Called when the GitHub sync section is saved — the config has to land before a push is
-   attempted, or the first push after setup goes to the previous repo. */
+   attempted, or the first push after setup goes to the previous repo. Resolves once the token is stored (locked to the
+   device, devices.js). */
 function saveGhSyncSettings() {
   var cfg = getGhConfig();
   var owner = document.getElementById('setGhOwner');
@@ -530,7 +596,7 @@ function saveGhSyncSettings() {
   var device = document.getElementById('setGhDevice');
   var token = document.getElementById('setGhToken');
   var auto = document.getElementById('setGhAuto');
-  if (!owner) return;
+  if (!owner) return Promise.resolve(true);
 
   var nextOwner = owner.value.trim();
   var nextRepo = repo ? repo.value.trim() : cfg.repo;
@@ -550,6 +616,6 @@ function saveGhSyncSettings() {
   if (device) cfg.deviceName = device.value.trim();
   if (auto) cfg.autoPush = !!auto.checked;
   setGhConfig(cfg);
-  if (token) setGhToken(token.value.trim());
   _ghAutoBackoff = false;
+  return token ? setGhToken(token.value.trim()) : Promise.resolve(true);
 }
